@@ -1,142 +1,143 @@
-# Dev Flow Spec Kit 文档基线
+# Dev Flow
 
-这是一套用于开发 Dev Flow Monorepo 的仓库级 Spec Kit 文档。
-
-目标产品由一个宿主无关的 Go 流程内核和两个独立发布产品组成：
+Dev Flow 是一个 Monorepo，用于共同维护共享 Go Core 和两个宿主产品边界：
 
 ```text
-Dev Flow Core
+dev-flow
 ├── dev-flow-codex
 └── dev-flow-deepseek
 ```
 
-## 文档范围
+当前仓库只完成 Feature 001 的工程骨架。根 Go 二进制仅提供有界的 `help` 和 `version`
+占位输出；`packages/codex` 与 `packages/deepseek` 只是私有包元数据和说明文档，尚不能安装、
+运行或集成宿主。两个产品以后可以独立发布，但共享 Core 只保留一份根 Go Module 源码。
 
-本包包含：
+项目使用 [Apache License 2.0](LICENSE)，当前产品版本以根 [VERSION](VERSION) 为唯一来源。
 
-- 项目 Constitution；
-- 产品定义、架构边界、发布原则和发展路线；
-- `001-bootstrap-monorepo` 的完整 Spec Kit 文档；
-- `002-govern-and-resume-single-repository-task` 的完整 Spec Kit 文档；
-- `003` 至 `006` 的完整功能规格；
-- 后续功能的计划准入规则；
-- 可直接交给 Codex 执行的 Spec Kit 工作流说明。
+## 工具链要求
 
-`003` 至 `006` 暂不包含 `plan.md`、`tasks.md` 等实施产物。这是有意的：
-它们必须在前置功能真实完成、公共合同稳定后，再由当时的技术现实生成，避免提前设计
-尚未被验证的实现。
+- Go `>= 1.26`；
+- Node.js `>= 24`，且所用版本仍处于官方支持周期；
+- pnpm `>= 11 < 12`；
+- 官方最新稳定版 Spec Kit。
 
-## 工具链兼容策略
+兼容性按版本范围检查，不要求某个 Go、Node.js、pnpm 或 Spec Kit 补丁版本。完整策略见
+[工具链兼容策略](docs/TOOLCHAIN-BASELINES.md)。
 
-仓库只声明最低版本或兼容主版本范围，不把某个补丁版本写成验收条件：
+## 准备仓库
 
-- Spec Kit：初始化和更新时使用官方最新稳定版；
-- Go：`>= 1.26`；
-- Node.js：`>= 24`，并且仍处于官方支持周期；
-- pnpm：`>= 11 < 12`。
-
-`go.sum`、`pnpm-lock.yaml` 和发布清单可以记录实际解析版本，用于复现与审计；仓库验证不得因为兼容的补丁或次版本升级而失效。主版本升级仍应作为独立变更审查。
-
-## 初始化仓库
+在仓库根目录确认 Spec Kit 可用：
 
 ```bash
-mkdir dev-flow
-cd dev-flow
-git init
-
+# 仅在尚未安装 Spec Kit 时执行
 uv tool install specify-cli
+
 specify self check
-# 若 check 报告存在更新：
+# 仅当 self check 报告存在更新时执行
 specify self upgrade
-
-specify init --here \
-  --integration codex \
-  --script sh
 ```
 
-Windows 开发机使用：
-
-```powershell
-specify init --here --integration codex --script ps
-```
-
-Codex integration 会生成 `.agents/skills/speckit-*/SKILL.md`。这些文件由 Spec Kit
-管理，不包含在本基线中，也不得手工修改。
-
-完成初始化后，把本包内容合并到仓库根目录。若 `.specify/memory/constitution.md`
-已经由初始化生成，以本包版本覆盖它；不要覆盖 `.specify/scripts/`、
-`.specify/templates/` 或 `.agents/skills/`。
-
-## 激活功能目录
-
-Spec Kit 通过其管理的 `.specify/feature.json` 或
-`SPECIFY_FEATURE_DIRECTORY` 选择当前功能，不是仅靠 Git 分支名。对于本包已经写好的
-规格，优先在启动 Codex 前设置环境变量，不要猜测或手写 `feature.json` 的内部格式：
+只有在 `.specify/scripts/`、`.specify/templates/` 或
+`.agents/skills/speckit-*/SKILL.md` 等 Spec Kit 生成资产缺失时，才运行初始化：
 
 ```bash
-export SPECIFY_FEATURE_DIRECTORY="specs/001-bootstrap-monorepo"
+specify init --here --integration codex --script sh
 ```
 
-切换到 `002` 时必须显式更新该值。以后通过 `$speckit-specify` 创建的新功能，由 Spec
-Kit 自行更新 `.specify/feature.json`。
+已有这些资产时不得重复初始化，也不得手工修改 `.agents/skills/speckit-*`。初始化必须保留
+现有的 `AGENTS.md`、`README.md`、`docs/`、`specs/` 和 Constitution。
 
-## 标准开发顺序
+为本仓库选择已经准备好的 Feature 001：
 
-本项目对每个生产功能使用完整路径：
-
-```text
-constitution
-→ specify
-→ clarify
-→ plan
-→ checklist
-→ tasks
-→ analyze
-→ implement
-→ converge
+```bash
+export SPECIFY_FEATURE_DIRECTORY="$PWD/specs/001-bootstrap-monorepo"
 ```
 
-本包已经提供 Constitution、规格、计划和任务时，不要重新运行 `specify` 覆盖现有文档。
-先执行人工审查，然后运行：
+活动 Feature 由该环境变量或 Spec Kit 管理的选择状态确定，不能只根据 Git 分支推断。
+Feature 001 的规格、计划和任务已经存在，不应重新运行 `speckit-specify`、`speckit-plan`
+或 `speckit-tasks` 覆盖它们；实施工作按 [tasks.md](specs/001-bootstrap-monorepo/tasks.md)
+的 Phase 顺序分阶段完成。
 
-```text
-$speckit-clarify
-$speckit-checklist
-$speckit-analyze
+安装根 Workspace：
+
+```bash
+pnpm install --frozen-lockfile --ignore-scripts
 ```
 
-只有三者没有未解决的阻塞项后，才进入分阶段实施。
+## 使用占位程序
 
-## 分阶段实施规则
-
-禁止一次执行整个 `tasks.md`。每次只实施一个可独立验证的阶段：
-
-```text
-$speckit-implement
-只实施 tasks.md 的 Phase 1；完成后停止，报告变更和验证结果。
+```bash
+go run ./cmd/dev-flow --help
+go run ./cmd/dev-flow version
 ```
 
-下一轮再实施 Phase 2 或一个用户故事。每个阶段结束后：
+这些命令只展示 Feature 001 的帮助和根版本；它们不会启动任务、MCP、Codex 或 DeepSeek。
 
-1. 执行该阶段明确列出的定向检查；
-2. 不自动扩大测试范围；
-3. 更新任务复选框；
-4. 停止并报告；
-5. 必要时运行 `$speckit-converge`，只追加真实遗漏任务。
+## 有界验证
+
+本地和 PR CI 共用同一个只读验证入口：
+
+```bash
+pnpm run validate
+```
+
+根 `package.json` 将该命令直接交给 `scripts/validate-repository.sh`。这个入口负责工具链范围、
+当前工作区的 `git diff --check` 空白检查、Go 格式、`go list ./...`、`go vet ./...`、
+`go test ./...`、冻结的 pnpm Workspace 安装与清单，以及两个私有产品包的 dry-pack 检查。
+Workspace 安装使用 `--ignore-scripts`，dry-pack 通过 pnpm 的 `ignore-scripts` 配置禁用脚本，
+因此验证不会执行依赖包或产品包的生命周期脚本。Go 合同测试负责仓库布局、包清单和
+Markdown 相对链接。
+
+这里的 `git diff --check` 只检查当前工作区相对索引的未暂存差异，不代表覆盖整个 PR 的提交
+范围、已暂存差异或未跟踪文件。
+
+验证不会发布包或 Release，不会运行真实 Codex/DeepSeek，不会修改用户配置，也不覆盖性能、
+压力、fuzz、全平台矩阵或真实宿主 journey。`.github/workflows/ci.yml` 只为 pull request
+提供只读权限并调用同一入口；它不拥有发布权限或发布凭据。
+
+## 目录所有权
+
+| 路径 | 当前所有权 |
+| --- | --- |
+| `cmd/dev-flow/` | Feature 001 唯一可执行入口，仅含 help/version 占位程序 |
+| `internal/` | 共享 Go Core；当前仅包含骨架所需的版本读取代码 |
+| `packages/codex/` | `dev-flow-codex` 私有产品骨架，不含运行时或宿主集成 |
+| `packages/deepseek/` | `dev-flow-deepseek` 私有产品骨架，不含 Proxy、运行时或宿主集成 |
+| `protocol/fixtures/` | 预留共享公开合同 fixture；当前没有产品协议 Schema |
+| `tests/contract/` | 仓库布局、包清单和 Markdown 链接合同测试 |
+| `scripts/` | 仓库开发与有界验证，不含安装或发布逻辑 |
+| `release/` | 发布边界说明文档；当前不执行发布 |
+| `.specify/`、`.agents/`、`specs/` | 单一根 Spec Kit 项目、生成的 Codex integration 与统一 Feature 序列 |
+| `.github/workflows/` | 只读 PR 验证 |
+| `docs/` | 仓库级产品、架构、工具链与工作流文档 |
+
+详细边界和依赖方向见 [架构文档](docs/ARCHITECTURE.md) 与
+[仓库布局合同](specs/001-bootstrap-monorepo/contracts/repository-layout.md)。
+
+## 当前明确未实现
+
+Feature 001 不包含 Feature 002，也没有实现任务状态机、SQLite、MCP、Codex 产品行为、
+DeepSeek 产品行为、安装、升级、卸载或发布。两个产品包保持 `private: true`，没有 `bin`、
+任何非空 `scripts`、production dependencies、实际宿主功能或 TypeScript Proxy。
+
+本 Feature 也没有建立真实 Codex/DeepSeek journey 或 macOS、Linux、Windows 的宿主与平台
+兼容性证据。仓库验证通过只证明本 Feature 的工程合同在实际执行环境中通过，不能解释为
+宿主集成或跨平台产品验证。
 
 ## 文档索引
 
-- [项目 Constitution](.specify/memory/constitution.md)：不可绕过的项目原则
-- [产品定义](docs/PRODUCT.md)：产品职责与首版边界
-- [架构边界](docs/ARCHITECTURE.md)：Monorepo 与依赖方向
-- [发展路线](docs/ROADMAP.md)：从项目骨架到 1.0 的演进门禁
-- [Spec Kit 工作流](docs/SPEC-KIT-WORKFLOW.md)：规格与分阶段实施规范
-- [双产品发布策略](docs/RELEASE-STRATEGY.md)：独立安装和同步发布原则
-- [功能依赖关系](docs/FEATURE-DEPENDENCIES.md)：规格依赖和并行条件
-- [工具链兼容策略](docs/TOOLCHAIN-BASELINES.md)：最低版本、兼容范围和重验规则
-- [001：Monorepo 工程基础](specs/001-bootstrap-monorepo/spec.md)
-- [002：单仓库流程治理与任务恢复](specs/002-govern-and-resume-single-repository-task/spec.md)
-- [003：Codex 显式 Dev Flow](specs/003-codex-explicit-dev-flow/spec.md)
-- [004：DeepSeek 显式 Dev Flow](specs/004-deepseek-explicit-dev-flow/spec.md)
-- [005：不确定动作与仓库漂移恢复](specs/005-recover-uncertain-actions-and-drift/spec.md)
-- [006：两个可安装产品的发布](specs/006-publish-two-installable-products/spec.md)
+- [贡献与代理规则](AGENTS.md)
+- [项目 Constitution](.specify/memory/constitution.md)
+- [产品定义](docs/PRODUCT.md)
+- [架构与依赖边界](docs/ARCHITECTURE.md)
+- [工具链兼容策略](docs/TOOLCHAIN-BASELINES.md)
+- [Spec Kit 工作流](docs/SPEC-KIT-WORKFLOW.md)
+- [Feature 依赖关系](docs/FEATURE-DEPENDENCIES.md)
+- [路线图](docs/ROADMAP.md)
+- [发布策略](docs/RELEASE-STRATEGY.md)
+- [Feature 001 规格](specs/001-bootstrap-monorepo/spec.md)
+- [Feature 001 实施计划](specs/001-bootstrap-monorepo/plan.md)
+- [Feature 001 任务](specs/001-bootstrap-monorepo/tasks.md)
+- [Feature 001 Quickstart](specs/001-bootstrap-monorepo/quickstart.md)
+- [Feature 001 仓库布局合同](specs/001-bootstrap-monorepo/contracts/repository-layout.md)
+- [Feature 001 需求检查表](specs/001-bootstrap-monorepo/checklists/requirements.md)

@@ -1,0 +1,13 @@
+{
+  "name": "dev-flow",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "validate": "./scripts/validate-repository.sh",
+    "validate:contracts": "go test ./tests/contract"
+  },
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=11 <12"
+  }
+}

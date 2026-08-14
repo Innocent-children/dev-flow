@@ -131,6 +131,10 @@ dev-flow/
 workspaces but contain no core source. Root-level ownership areas keep dependency direction visible
 without creating nested projects or an internal platform framework.
 
+The Feature 001 placeholder reads the current root `VERSION` from the repository checkout so
+`go run ./cmd/dev-flow version` remains dynamic without a duplicated Go version literal. Embedding a
+version into distributable binaries is release work and remains deferred to feature `006`.
+
 ## Complexity Tracking
 
 No Constitution violation requires justification.

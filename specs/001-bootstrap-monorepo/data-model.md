@@ -27,7 +27,8 @@ Validation:
 | path | path | `packages/<id>` |
 | private | boolean | Must be `true` |
 | publishable | boolean | Must be `false` in this feature |
-| files | set | README and package manifest only |
+| source files | set | README and package manifest only |
+| dry-pack files | set | README, package manifest, and pnpm's automatically included root `LICENSE` |
 | lifecycle scripts | set | Must be empty |
 | executable entries | set | Must be empty |
 | runtime dependencies | set | Must be empty |
@@ -36,6 +37,9 @@ Validation:
 
 | Area | Owner |
 |---|---|
+| `.github` | pull-request validation only |
+| `.specify` | root Spec Kit project and Constitution |
+| `.agents` | Spec Kit-generated Codex integration assets |
 | `cmd/dev-flow` | executable entry point |
 | `internal` | shared Go core |
 | `packages/codex` | Codex product edge |

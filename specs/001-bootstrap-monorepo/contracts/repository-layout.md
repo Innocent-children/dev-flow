@@ -23,6 +23,9 @@ Their exact generated file list is not part of the product contract.
 
 ## Ownership Rules
 
+- `.github` contains pull-request validation only and has no publication authority.
+- `.specify` and `.agents` contain the single root Spec Kit project and its generated Codex
+  integration assets.
 - `cmd/dev-flow` contains the only executable entry point in this feature.
 - `internal` contains shared Go code and must not import host packages.
 - `packages/codex` and `packages/deepseek` contain only their own package metadata and bootstrap
@@ -31,6 +34,8 @@ Their exact generated file list is not part of the product contract.
 - `tests/contract` owns repository and package boundary tests.
 - `release` contains documentation only; it performs no release action in this feature.
 - `scripts` contains repository-development validation only.
+- `docs` contains repository-wide product and architecture documentation.
+- `specs` contains the single numbered Spec Kit feature sequence.
 
 ## Invalid Layout Conditions
 
@@ -40,7 +45,7 @@ Repository validation must reject:
 - any nested `go.mod`;
 - an executable source root other than `cmd/dev-flow`;
 - host package source that imports or embeds shared core implementation during this feature;
-- a host package `postinstall`, `preinstall`, `install`, or `prepare` lifecycle script;
+- any non-empty host-package `scripts` field, regardless of script name;
 - a host package `bin` entry;
 - a host package production/runtime dependency;
 - a publishable root package;
@@ -49,13 +54,18 @@ Repository validation must reject:
 
 Each violation must identify the affected path or manifest field.
 
+Forbidden-layout contract fixtures must describe or materialize invalid paths only inside an
+isolated temporary repository during the test. The valid project tree must not check in an actual
+nested `.specify/` directory or nested `go.mod` merely to test their rejection.
+
 ## Go Contract
 
 - one `go.mod` at repository root;
 - module path selected by repository owner;
 - no nested `go.mod`;
 - `cmd/dev-flow` is the only executable;
-- `internal/version` reads the root version through an explicit build-time mechanism;
+- `internal/version` reads the root `VERSION` directly from the repository checkout for the
+  Feature 001 placeholder; release-time embedding or linker injection is deferred to feature `006`;
 - no MCP or SQLite dependency.
 
 ## pnpm Contract
@@ -76,14 +86,26 @@ Root `package.json`:
 - scripts limited to repository-development validation;
 - no production dependency.
 
+Workspace installation uses `pnpm install --frozen-lockfile --ignore-scripts` so dependency
+lifecycle scripts cannot run during bounded validation.
+
 Each host-product package:
 
 - `private: true`;
-- no lifecycle install/build script;
+- allowed metadata includes `name`, `version`, `description`, `license`, `private`, and, when
+  genuinely needed by a later change, `devDependencies`;
+- no non-empty `scripts` field of any kind;
 - no `bin` entry;
-- no runtime dependency;
+- no `dependencies`, `optionalDependencies`, `peerDependencies`, or `publishConfig` field;
 - package name identifies the product boundary;
-- README states that the package is not yet installable.
+- README states that the package is not yet installable;
+- dry-pack contains only `package.json`, `README.md`, and the root `LICENSE` automatically included
+  by pnpm; no copied license file is added to the package source directory;
+- dry-pack uses `pnpm --config.ignore-scripts=true --dir <package> pack --dry-run --json` so
+  `prepack`, `prepare`, `postpack`, and any other package script cannot execute.
+
+The bounded validation entry point MUST NOT execute product-package or dependency-package lifecycle
+scripts during installation or package packing.
 
 ## CI Contract
 

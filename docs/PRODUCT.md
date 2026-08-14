@@ -1,5 +1,10 @@
 # Dev Flow 产品定义
 
+> **文档状态**：本文保留 Feature 002–006 的后续产品目标，不表示这些能力已由 Feature
+> 001 交付。Feature 001 仅建立 Monorepo、私有产品包和 help/version 工程骨架；下文的
+> 状态机、SQLite、MCP、Codex/DeepSeek 产品行为、可分发 Runtime、安装、升级、卸载和
+> 发布均未实现。后续实现必须以届时的活动 Feature 规格为准。
+
 ## 一句话定义
 
 Dev Flow 是面向 AI 编程宿主的本地开发流程控制器：它通过明确的任务合同、统一状态机、

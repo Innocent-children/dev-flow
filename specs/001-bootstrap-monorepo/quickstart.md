@@ -13,20 +13,34 @@ Codex CLI
 
 ## Prepare the repository
 
-Install or update Spec Kit to the latest stable release, then initialize before copying this document package:
+Run from the root of the current Monorepo checkout. Do not create another repository or copy this
+feature package into a different project:
 
 ```bash
-uv tool install specify-cli
+cd "$(git rev-parse --show-toplevel)"
+```
+
+Install Spec Kit only when it is not already available, then check the installed stable release:
+
+```bash
+command -v specify >/dev/null 2>&1 || uv tool install specify-cli
 specify self check
 # 若 check 报告存在更新：
 specify self upgrade
+```
+
+Keep the existing root initialization when `.specify/scripts/`, `.specify/templates/`, and at least
+one `.agents/skills/speckit-*/SKILL.md` are present. Only when one of those generated asset groups is
+missing, initialize the current checkout while preserving the existing repository documents:
+
+```bash
 specify init --here --integration codex --script sh
 ```
 
 Select the pre-authored feature before launching Codex:
 
 ```bash
-export SPECIFY_FEATURE_DIRECTORY="specs/001-bootstrap-monorepo"
+export SPECIFY_FEATURE_DIRECTORY="$PWD/specs/001-bootstrap-monorepo"
 ```
 
 Do not handcraft `.specify/feature.json`; Spec Kit owns that state when a feature is created through
@@ -57,27 +71,52 @@ Then implement Foundational and each user story separately.
 
 ## Validate locally
 
-Expected bounded commands after implementation:
+The local and pull-request bounded validation entry point is:
 
 ```bash
-go test ./...
-pnpm install --frozen-lockfile
+pnpm install --frozen-lockfile --ignore-scripts
 pnpm run validate
 ```
 
-The validation command must not install a host plugin, create a release, launch Codex/DeepSeek, or
-publish a package.
+The validation command disables dependency installation scripts and product-package pack scripts.
+It must not install a host plugin, create a release, launch Codex/DeepSeek, or publish a package.
 
 ## Verify negative repository contracts
 
-Run the targeted contract cases that use isolated fixtures, for example:
+Run the targeted contract cases that use isolated fixtures:
 
 ```bash
-go test ./tests/contract -run 'TestRepositoryLayoutRejects|TestPackageManifestRejects'
+go test ./tests/contract -run '^TestRepositoryLayoutRejects/(nested_\.specify|nested_go\.mod)$'
+go test ./tests/contract -run '^TestProductManifestFixtures/(postinstall_script|prepack_script|postpack_script|custom_script|runtime_dependency)$'
+go test ./tests/contract -run '^TestRepositoryRelativeMarkdownLinks$'
 ```
 
-The fixtures should cover a nested Go module and a forbidden product lifecycle script without
-modifying the real repository tree.
+These tests pass only when the isolated nested `.specify`, nested `go.mod`, product lifecycle
+script, and product runtime dependency fixtures are rejected. They do not modify the real
+repository tree.
+
+## Final Feature 001 verification
+
+At the final Feature 001 checkpoint, run each required check once from the repository root:
+
+```bash
+git diff --check
+go list ./...
+go vet ./...
+go test ./...
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm run validate
+go run ./cmd/dev-flow --help
+go run ./cmd/dev-flow version
+```
+
+The standalone `git diff --check` command above checks only unstaged working-tree changes relative
+to the index. It does not claim to validate the full pull-request commit range, staged changes, or
+untracked files. `pnpm run validate` also disables scripts during its workspace install and both
+product-package dry-packs.
+
+The two `go run` commands must show only the Feature 001 help/version placeholder and must state
+that task and MCP functionality is not implemented.
 
 ## Completion review
 

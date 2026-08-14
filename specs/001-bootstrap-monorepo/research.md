@@ -53,6 +53,9 @@ workspace management without making Node a Core runtime dependency.
 - Version duplicated across documentation.
 - Deriving version only from Git tags before a release process exists.
 
+For the Feature 001 source-tree placeholder, `internal/version` reads this file directly from the
+checkout. Release-time binary embedding or linker injection remains deferred to feature `006`.
+
 ## Decision 5: Provide a minimal placeholder binary
 
 **Decision**: Provide a Go command that supports only `version` and help, clearly reporting that
