@@ -61,7 +61,7 @@ Feature 001 的规格、计划和任务已经存在，不应重新运行 `specki
 安装根 Workspace：
 
 ```bash
-pnpm install --frozen-lockfile
+pnpm install --frozen-lockfile --ignore-scripts
 ```
 
 ## 使用占位程序
@@ -82,8 +82,14 @@ pnpm run validate
 ```
 
 根 `package.json` 将该命令直接交给 `scripts/validate-repository.sh`。这个入口负责工具链范围、
-Git 空白、Go 格式、`go vet ./...`、`go test ./...`、冻结的 pnpm Workspace 安装与清单，以及
-两个私有产品包的 dry-pack 检查。Go 合同测试负责仓库布局、包清单和 Markdown 相对链接。
+当前工作区的 `git diff --check` 空白检查、Go 格式、`go list ./...`、`go vet ./...`、
+`go test ./...`、冻结的 pnpm Workspace 安装与清单，以及两个私有产品包的 dry-pack 检查。
+Workspace 安装使用 `--ignore-scripts`，dry-pack 通过 pnpm 的 `ignore-scripts` 配置禁用脚本，
+因此验证不会执行依赖包或产品包的生命周期脚本。Go 合同测试负责仓库布局、包清单和
+Markdown 相对链接。
+
+这里的 `git diff --check` 只检查当前工作区相对索引的未暂存差异，不代表覆盖整个 PR 的提交
+范围、已暂存差异或未跟踪文件。
 
 验证不会发布包或 Release，不会运行真实 Codex/DeepSeek，不会修改用户配置，也不覆盖性能、
 压力、fuzz、全平台矩阵或真实宿主 journey。`.github/workflows/ci.yml` 只为 pull request
@@ -112,7 +118,7 @@ Git 空白、Go 格式、`go vet ./...`、`go test ./...`、冻结的 pnpm Works
 
 Feature 001 不包含 Feature 002，也没有实现任务状态机、SQLite、MCP、Codex 产品行为、
 DeepSeek 产品行为、安装、升级、卸载或发布。两个产品包保持 `private: true`，没有 `bin`、
-安装生命周期脚本、production dependencies、实际宿主功能或 TypeScript Proxy。
+任何非空 `scripts`、production dependencies、实际宿主功能或 TypeScript Proxy。
 
 本 Feature 也没有建立真实 Codex/DeepSeek journey 或 macOS、Linux、Windows 的宿主与平台
 兼容性证据。仓库验证通过只证明本 Feature 的工程合同在实际执行环境中通过，不能解释为

@@ -182,6 +182,34 @@ boundaries are executable/packable but not installable.
 - [x] T045 Record unsupported product behavior and platform status in `README.md` and mirror it
   honestly in the final completion report.
 
+---
+
+## Phase 7: Audit Hardening
+
+**Purpose**: Close the Feature 001 bounded-validation gaps found during audit without adding product
+behavior.
+
+- [x] T046 Amend `specs/001-bootstrap-monorepo/spec.md`,
+  `specs/001-bootstrap-monorepo/contracts/repository-layout.md`, and
+  `specs/001-bootstrap-monorepo/checklists/requirements.md` so product packages have no non-empty
+  scripts and bounded install/dry-pack commands disable lifecycle scripts.
+- [x] T047 Reject the entire non-empty product `scripts` field while preserving root validation
+  scripts in `tests/contract/package_manifest_test.go`.
+- [x] T048 Add `prepack`, `postpack`, and custom-script negative fixtures under
+  `tests/contract/testdata/package-manifest/` and assert manifest-path plus `scripts` diagnostics.
+- [x] T049 Configure pnpm `ignore-scripts` for product dry-packs in
+  `scripts/validate-repository.sh` without changing the allowed packed-file set.
+- [x] T050 Add `--ignore-scripts` to workspace installation in `scripts/validate-repository.sh`,
+  `README.md`, and `specs/001-bootstrap-monorepo/quickstart.md`.
+- [x] T051 Add `go list ./...` and accurately name the working-tree whitespace check in
+  `scripts/validate-repository.sh`.
+- [x] T052 Update `.github/workflows/ci.yml` to the execution-time latest stable major tags for the
+  four official setup Actions while preserving the bounded pull-request-only workflow.
+- [x] T053 Run the targeted contract checks and the complete `pnpm run validate` Feature 001
+  validation from the repository root.
+- [ ] T054 Commit and push `codex/001-bootstrap-monorepo`, create or reuse its Draft PR, and record a
+  passing real `pull_request` CI result without merging.
+
 ## Dependencies & Execution Order
 
 - Phase 1 has no implementation dependency.

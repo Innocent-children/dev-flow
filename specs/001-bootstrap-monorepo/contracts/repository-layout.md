@@ -45,7 +45,7 @@ Repository validation must reject:
 - any nested `go.mod`;
 - an executable source root other than `cmd/dev-flow`;
 - host package source that imports or embeds shared core implementation during this feature;
-- a host package `postinstall`, `preinstall`, `install`, or `prepare` lifecycle script;
+- any non-empty host-package `scripts` field, regardless of script name;
 - a host package `bin` entry;
 - a host package production/runtime dependency;
 - a publishable root package;
@@ -86,16 +86,26 @@ Root `package.json`:
 - scripts limited to repository-development validation;
 - no production dependency.
 
+Workspace installation uses `pnpm install --frozen-lockfile --ignore-scripts` so dependency
+lifecycle scripts cannot run during bounded validation.
+
 Each host-product package:
 
 - `private: true`;
-- no lifecycle install/build script;
+- allowed metadata includes `name`, `version`, `description`, `license`, `private`, and, when
+  genuinely needed by a later change, `devDependencies`;
+- no non-empty `scripts` field of any kind;
 - no `bin` entry;
-- no runtime dependency;
+- no `dependencies`, `optionalDependencies`, `peerDependencies`, or `publishConfig` field;
 - package name identifies the product boundary;
 - README states that the package is not yet installable;
 - dry-pack contains only `package.json`, `README.md`, and the root `LICENSE` automatically included
-  by pnpm; no copied license file is added to the package source directory.
+  by pnpm; no copied license file is added to the package source directory;
+- dry-pack uses `pnpm --config.ignore-scripts=true --dir <package> pack --dry-run --json` so
+  `prepack`, `prepare`, `postpack`, and any other package script cannot execute.
+
+The bounded validation entry point MUST NOT execute product-package or dependency-package lifecycle
+scripts during installation or package packing.
 
 ## CI Contract
 

@@ -74,12 +74,12 @@ Then implement Foundational and each user story separately.
 The local and pull-request bounded validation entry point is:
 
 ```bash
-pnpm install --frozen-lockfile
+pnpm install --frozen-lockfile --ignore-scripts
 pnpm run validate
 ```
 
-The validation command must not install a host plugin, create a release, launch Codex/DeepSeek, or
-publish a package.
+The validation command disables dependency installation scripts and product-package pack scripts.
+It must not install a host plugin, create a release, launch Codex/DeepSeek, or publish a package.
 
 ## Verify negative repository contracts
 
@@ -87,7 +87,7 @@ Run the targeted contract cases that use isolated fixtures:
 
 ```bash
 go test ./tests/contract -run '^TestRepositoryLayoutRejects/(nested_\.specify|nested_go\.mod)$'
-go test ./tests/contract -run '^TestProductManifestFixtures/(lifecycle_script|runtime_dependency)$'
+go test ./tests/contract -run '^TestProductManifestFixtures/(postinstall_script|prepack_script|postpack_script|custom_script|runtime_dependency)$'
 go test ./tests/contract -run '^TestRepositoryRelativeMarkdownLinks$'
 ```
 
@@ -101,13 +101,19 @@ At the final Feature 001 checkpoint, run each required check once from the repos
 
 ```bash
 git diff --check
+go list ./...
 go vet ./...
 go test ./...
-pnpm install --frozen-lockfile
+pnpm install --frozen-lockfile --ignore-scripts
 pnpm run validate
 go run ./cmd/dev-flow --help
 go run ./cmd/dev-flow version
 ```
+
+The standalone `git diff --check` command above checks only unstaged working-tree changes relative
+to the index. It does not claim to validate the full pull-request commit range, staged changes, or
+untracked files. `pnpm run validate` also disables scripts during its workspace install and both
+product-package dry-packs.
 
 The two `go run` commands must show only the Feature 001 help/version placeholder and must state
 that task and MCP functionality is not implemented.

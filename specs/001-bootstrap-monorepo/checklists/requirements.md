@@ -31,14 +31,16 @@ criterion has been reviewed and satisfied; it does not mean implementation is co
   installation are all explicitly excluded.
 - [x] CHK011 The placeholder binary cannot be mistaken for a working product.
 - [x] CHK012 CI is limited to bootstrap validation.
-- [x] CHK013 No lifecycle script, user configuration mutation, or release side effect is allowed.
+- [x] CHK013 The requirements prohibit every non-empty product-package `scripts` field rather than
+  naming only selected npm lifecycle scripts.
 - [x] CHK014 Platform support claims are deferred.
 
 ## Testability
 
 - [x] CHK015 Every user story has an independent test.
 - [x] CHK016 Success criteria name observable commands or repository facts.
-- [x] CHK017 Package packing can be validated without publishing.
+- [x] CHK017 Workspace installation and package dry-pack requirements explicitly disable script
+  execution while preserving package-content validation and avoiding publication.
 - [x] CHK018 Repository-layout validation has concrete negative fixtures.
 - [x] CHK019 Documentation validation is bounded and does not imply real-host evidence.
 
@@ -49,6 +51,8 @@ criterion has been reviewed and satisfied; it does not mean implementation is co
 - [x] CHK022 The spec, plan, tasks, and repository-layout contract agree on paths.
 - [x] CHK023 Version requirements derive from the current root `VERSION`; no test or package contract permanently pins one literal product version.
 - [x] CHK024 The feature can finish without decisions reserved for feature `002` or `006`.
+- [x] CHK025 Bounded validation is explicitly prohibited from executing product-package or
+  dependency-package lifecycle scripts.
 
 ## Notes
 

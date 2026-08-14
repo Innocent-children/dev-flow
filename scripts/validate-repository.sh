@@ -53,7 +53,7 @@ check_go_formatting() {
 validate_package_pack() {
   package_dir=$1
   expected_package_name=$2
-  pack_output=$(pnpm --dir "$package_dir" pack --dry-run --json)
+  pack_output=$(pnpm --config.ignore-scripts=true --dir "$package_dir" pack --dry-run --json)
 
   PACK_OUTPUT="$pack_output" EXPECTED_PACKAGE_NAME="$expected_package_name" node <<'NODE'
 const report = JSON.parse(process.env.PACK_OUTPUT);
@@ -73,11 +73,12 @@ NODE
 }
 
 run_step "Toolchain versions" check_toolchains
-run_step "Git whitespace" git diff --check
+run_step "Working tree whitespace" git diff --check
 run_step "Go formatting" check_go_formatting
+run_step "Go package inventory" go list ./...
 run_step "Go vet" go vet ./...
 run_step "Go tests and repository contracts" go test ./...
-run_step "Frozen pnpm workspace install" pnpm install --frozen-lockfile
+run_step "Frozen pnpm workspace install" pnpm install --frozen-lockfile --ignore-scripts
 run_step "pnpm workspace inventory" pnpm --recursive list --depth -1
 run_step "Codex package dry-pack" validate_package_pack packages/codex dev-flow-codex
 run_step "DeepSeek package dry-pack" validate_package_pack packages/deepseek dev-flow-deepseek

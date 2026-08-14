@@ -23,14 +23,6 @@ var runtimeDependencyFields = []string{
 	"peerDependencies",
 }
 
-var productLifecycleFields = []string{
-	"build",
-	"install",
-	"preinstall",
-	"postinstall",
-	"prepare",
-}
-
 var rootDevelopmentScripts = map[string]string{
 	"validate":           "./scripts/validate-repository.sh",
 	"validate:contracts": "go test ./tests/contract",
@@ -153,7 +145,6 @@ func TestPackageManifestAcceptsBootstrapManifests(t *testing.T) {
 				"name": "dev-flow-codex",
 				"version": "1.2.3",
 				"private": true,
-				"scripts": {"validate": "node --check package.json"},
 				"devDependencies": {"example-development-tool": "1.0.0"}
 			}`,
 		},
@@ -224,13 +215,25 @@ func TestPackageManifestRejectsForbiddenFields(t *testing.T) {
 			name:          "product build script",
 			kind:          productManifest,
 			manifest:      `{"private": true, "scripts": {"build": "node build.js"}}`,
-			violatedField: "scripts.build",
+			violatedField: "scripts",
 		},
 		{
 			name:          "product lifecycle script",
 			kind:          productManifest,
 			manifest:      `{"private": true, "scripts": {"postinstall": "node setup.js"}}`,
-			violatedField: "scripts.postinstall",
+			violatedField: "scripts",
+		},
+		{
+			name:          "product custom script",
+			kind:          productManifest,
+			manifest:      `{"private": true, "scripts": {"custom": "node custom.js"}}`,
+			violatedField: "scripts",
+		},
+		{
+			name:          "product publication configuration",
+			kind:          productManifest,
+			manifest:      `{"private": true, "publishConfig": {"access": "public"}}`,
+			violatedField: "publishConfig",
 		},
 		{
 			name:          "product optional runtime dependency",
@@ -280,7 +283,10 @@ func TestProductManifestFixtures(t *testing.T) {
 		violatedField string
 	}{
 		{name: "valid product", fixture: "valid-product.json"},
-		{name: "lifecycle script", fixture: "postinstall.json", violatedField: "scripts.postinstall"},
+		{name: "postinstall script", fixture: "postinstall.json", violatedField: "scripts"},
+		{name: "prepack script", fixture: "prepack.json", violatedField: "scripts"},
+		{name: "postpack script", fixture: "postpack.json", violatedField: "scripts"},
+		{name: "custom script", fixture: "custom-script.json", violatedField: "scripts"},
 		{name: "runtime dependency", fixture: "runtime-dependency.json", violatedField: "dependencies"},
 		{name: "executable entry", fixture: "bin.json", violatedField: "bin"},
 	}
@@ -364,17 +370,16 @@ func validatePackageManifest(path string, kind manifestKind) []error {
 		if _, present := manifest["bin"]; present {
 			violations = append(violations, manifestViolation(path, "bin", "product executable entries are forbidden"))
 		}
+		if _, present := manifest["publishConfig"]; present {
+			violations = append(violations, manifestViolation(path, "publishConfig", "product publication configuration is forbidden"))
+		}
 
 		var scripts map[string]json.RawMessage
 		if rawScripts, present := manifest["scripts"]; present {
-			if err := json.Unmarshal(rawScripts, &scripts); err != nil {
+			if err := json.Unmarshal(rawScripts, &scripts); err != nil || scripts == nil {
 				violations = append(violations, manifestViolation(path, "scripts", "must be a JSON object"))
-			} else {
-				for _, field := range productLifecycleFields {
-					if _, present := scripts[field]; present {
-						violations = append(violations, manifestViolation(path, "scripts."+field, "product lifecycle scripts are forbidden"))
-					}
-				}
+			} else if len(scripts) != 0 {
+				violations = append(violations, manifestViolation(path, "scripts", "product scripts are forbidden"))
 			}
 		}
 	default:
