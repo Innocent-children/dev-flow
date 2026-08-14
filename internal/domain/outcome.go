@@ -17,8 +17,8 @@ func (c OutcomeCriterion) Validate() error {
 type Outcome struct {
 	Status                       TerminalStatus     `json:"status"`
 	Acceptance                   []OutcomeCriterion `json:"acceptance"`
-	AutomatedChecks              []EvidenceSummary  `json:"automated_checks"`
-	ManualChecks                 []EvidenceSummary  `json:"manual_checks"`
+	AutomatedEvidenceIDs         []ID               `json:"automated_evidence_ids"`
+	ManualEvidenceIDs            []ID               `json:"manual_evidence_ids"`
 	UnverifiedItems              []string           `json:"unverified_items"`
 	Risks                        []string           `json:"risks"`
 	FinalRepositoryBindingDigest Digest             `json:"final_repository_binding_digest"`
@@ -28,7 +28,7 @@ type Outcome struct {
 
 func (o Outcome) Validate() error {
 	if !o.Status.IsValid() || len(o.Acceptance) == 0 || len(o.Acceptance) > MaxAcceptanceCriteriaItems ||
-		len(o.AutomatedChecks)+len(o.ManualChecks) > MaxRetainedEvidenceItems ||
+		len(o.AutomatedEvidenceIDs)+len(o.ManualEvidenceIDs) > MaxRetainedEvidenceItems ||
 		validateNormalizedTextList(o.UnverifiedItems, MaxBoundedStringListItems, MaxReasonBytes, false) != nil ||
 		validateNormalizedTextList(o.Risks, MaxBoundedStringListItems, MaxReasonBytes, false) != nil ||
 		validateDigest(o.FinalRepositoryBindingDigest) != nil ||
@@ -45,33 +45,60 @@ func (o Outcome) Validate() error {
 		}
 		criteria[criterion.Criterion] = struct{}{}
 	}
-	evidenceIDs := make(map[ID]struct{}, len(o.AutomatedChecks)+len(o.ManualChecks))
-	for _, evidence := range o.AutomatedChecks {
-		if evidence.Validate() != nil || evidence.Source != EvidenceSourceAutomated {
+	evidenceIDs := make(map[ID]struct{}, len(o.AutomatedEvidenceIDs)+len(o.ManualEvidenceIDs))
+	for _, evidenceID := range o.AutomatedEvidenceIDs {
+		if validateID(evidenceID) != nil {
 			return ErrInvalidArgument
 		}
-		if _, duplicate := evidenceIDs[evidence.EvidenceID]; duplicate {
+		if _, duplicate := evidenceIDs[evidenceID]; duplicate {
 			return ErrInvalidArgument
 		}
-		evidenceIDs[evidence.EvidenceID] = struct{}{}
+		evidenceIDs[evidenceID] = struct{}{}
 	}
-	for _, evidence := range o.ManualChecks {
-		if evidence.Validate() != nil || evidence.Source != EvidenceSourceUser {
+	for _, evidenceID := range o.ManualEvidenceIDs {
+		if validateID(evidenceID) != nil {
 			return ErrInvalidArgument
 		}
-		if _, duplicate := evidenceIDs[evidence.EvidenceID]; duplicate {
+		if _, duplicate := evidenceIDs[evidenceID]; duplicate {
 			return ErrInvalidArgument
 		}
-		evidenceIDs[evidence.EvidenceID] = struct{}{}
+		evidenceIDs[evidenceID] = struct{}{}
+	}
+	if validateOutcomeNarrativeAggregate(o) != nil {
+		return ErrInvalidArgument
 	}
 	return nil
 }
 
 func (o Outcome) Clone() Outcome {
 	o.Acceptance = append([]OutcomeCriterion(nil), o.Acceptance...)
-	o.AutomatedChecks = append([]EvidenceSummary(nil), o.AutomatedChecks...)
-	o.ManualChecks = append([]EvidenceSummary(nil), o.ManualChecks...)
+	o.AutomatedEvidenceIDs = append([]ID(nil), o.AutomatedEvidenceIDs...)
+	o.ManualEvidenceIDs = append([]ID(nil), o.ManualEvidenceIDs...)
 	o.UnverifiedItems = append([]string(nil), o.UnverifiedItems...)
 	o.Risks = append([]string(nil), o.Risks...)
 	return o
+}
+
+type outcomeNarrativeProjection struct {
+	Acceptance      []OutcomeCriterion `json:"acceptance"`
+	UnverifiedItems []string           `json:"unverified_items"`
+	Risks           []string           `json:"risks"`
+	Summary         string             `json:"summary"`
+}
+
+func validateOutcomeNarrativeAggregate(o Outcome) error {
+	size, err := outcomeNarrativeAggregateSize(o)
+	if err != nil || size > MaxOutcomeNarrativeAggregateBytes {
+		return ErrInvalidArgument
+	}
+	return nil
+}
+
+func outcomeNarrativeAggregateSize(o Outcome) (int, error) {
+	return compactJSONSize(outcomeNarrativeProjection{
+		Acceptance:      o.Acceptance,
+		UnverifiedItems: o.UnverifiedItems,
+		Risks:           o.Risks,
+		Summary:         o.Summary,
+	})
 }

@@ -125,45 +125,48 @@ service, recovery implementation, MCP surface, host package, or any User Story 1
   `checklists/requirements.md`, and `tasks.md` with the content-sensitive fingerprint, closed size
   budgets, single evidence authority, committed-fact relation, HANDOFF/unknown-phase behavior, and
   structured SQLite claim-error requirements.
-- [ ] T082 Implement a content-sensitive, normalized, bounded worktree fingerprint in
+- [x] T082 Implement a content-sensitive, normalized, bounded worktree fingerprint in
   `internal/repository/git_observer.go`, `internal/repository/fingerprint.go`,
   `internal/repository/paths.go`, `internal/repository/errors.go`, and
   `internal/domain/limits.go`; parse porcelain-v2 `-z`, hash only status-identified modified and
   untracked ordinary paths through read-only `git hash-object --no-filters`, enforce
-  `MaxFingerprintPaths`, and fail closed on dirty submodules without source retention.
-- [ ] T083 Add tracked and untracked repeated-content changes, restored and deleted paths,
+  `MaxFingerprintPaths`, apply the same Core timeout/output ceiling to every Git subprocess, and
+  fail closed with `ErrDirtySubmodule` (also `ErrGitObservation`) without source retention.
+- [x] T083 Add tracked and untracked repeated-content changes, restored and deleted paths,
   input-order normalization, dirty-submodule rejection, no-`hash-object -w`, path ceiling, and
   no-raw-content cases to `internal/repository/git_observer_test.go`.
-- [ ] T084 Close Contract, Outcome narrative, Task snapshot, and Result Envelope encoded-byte
+- [x] T084 Close Contract, Outcome narrative, Task snapshot, and Result Envelope encoded-byte
   budgets in `internal/domain/limits.go`, `internal/domain/contract.go`,
   `internal/domain/task.go`, `internal/domain/outcome.go`, `internal/domain/validation.go`,
   `internal/store/codec.go`, `internal/domain/validation_test.go`, and
   `internal/store/sqlite_test.go`; measure compact JSON with HTML escaping disabled and prove the
   maximum Domain-valid projection fits both persistence and envelope limits before SQL begins.
-- [ ] T085 Replace Outcome evidence copies with canonical `AutomatedEvidenceIDs` and
+- [x] T085 Replace Outcome evidence copies with canonical `AutomatedEvidenceIDs` and
   `ManualEvidenceIDs` references to the sole `Task.Evidence` authority in
   `internal/domain/outcome.go`, `internal/domain/task.go`, `internal/domain/evidence.go`,
   `internal/store/codec.go`, `internal/domain/validation_test.go`, and
   `internal/store/sqlite_test.go`; validate source, uniqueness, existence, cloning, codec round-trip,
   and verification budget once over retained evidence.
-- [ ] T086 Add closed `OperationKind` values and bind LastOperation, TaskEvent, expected/task/event
+- [x] T086 Add closed `OperationKind` values and bind LastOperation, TaskEvent, expected/task/event
   revisions, optional action ID, payload digest, commit time, and claim operation as one committed
   fact in `internal/domain/types.go`, `internal/domain/task.go`, `internal/store/store.go`,
   `internal/store/sqlite.go`, `internal/store/codec.go`, and `internal/store/sqlite_test.go`, with all
   mismatches rejected before a transaction can partially write.
-- [ ] T087 Add `read_repository` to HANDOFF `PREPARE_HANDOFF` allowed effects and distinguish
+- [x] T087 Add `read_repository` to HANDOFF `PREPARE_HANDOFF` allowed effects and distinguish
   terminal, unknown, and missing-valid-phase blueprint errors in `internal/workflow/engine.go` and
   `internal/workflow/transitions_test.go`.
-- [ ] T088 Classify repository claim insert failures in `internal/store/sqlite.go`,
-  `internal/store/errors.go` only if needed, and `internal/store/sqlite_test.go` using structured
-  modernc SQLite error codes: only the repository identity and claimed task ID unique constraints
-  yield `ACTIVE_TASK_CONFLICT`; every other database failure yields bounded
-  `STORAGE_UNAVAILABLE` and rolls back Task/Event/Claim writes.
-- [ ] T089 Run only the Foundational targeted validation: format modified Go files,
+- [x] T088 Classify repository claim insert failures in `internal/store/sqlite.go`,
+  `internal/store/errors.go` only if needed, and `internal/store/sqlite_test.go`: use fixed
+  conflict-target/`RETURNING` SQL plus a fixed no-row repository-key confirmation for repository
+  identity, and `errors.As` plus the modernc extended uniqueness code and a fixed claim-key query for
+  task ID. Only those two exact constraints yield `ACTIVE_TASK_CONFLICT`; ignored inserts and every
+  other database failure yield bounded `STORAGE_UNAVAILABLE` and roll back Task/Event/Claim writes
+  without parsing driver text.
+- [x] T089 Run only the Foundational targeted validation: format modified Go files,
   `git diff --check`, Domain/Workflow tests, CGo-disabled Store/Repository tests, vet those four
   packages, and repository-layout/relative-Markdown-link contract tests, plus an existing JSON
   Schema syntax test if present.
-- [ ] T090 Commit and normally push the Foundational audit hardening to the existing Draft PR #2,
+- [x] T090 Commit and normally push the Foundational audit hardening to the existing Draft PR #2,
   then record the pushed HEAD's real GitHub Actions success without merging, marking Ready, or
   changing host packages.
 

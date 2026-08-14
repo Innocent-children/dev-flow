@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -178,8 +179,11 @@ func TestPhaseActionMappingAndBlueprints(t *testing.T) {
 			},
 		},
 		domain.PhaseHandoff: {
-			kind:    domain.ActionPrepareHandoff,
-			effects: []domain.AllowedEffect{domain.EffectPrepareDeliverySummary},
+			kind: domain.ActionPrepareHandoff,
+			effects: []domain.AllowedEffect{
+				domain.EffectReadRepository,
+				domain.EffectPrepareDeliverySummary,
+			},
 			requirements: []domain.EvidenceRequirementKind{
 				domain.RequirementRepositoryObservation,
 				domain.RequirementDeliverySummary,
@@ -217,9 +221,12 @@ func TestPhaseActionMappingAndBlueprints(t *testing.T) {
 		if _, ok := ActionForPhase(phase); ok {
 			t.Fatalf("terminal phase %s has an action", phase)
 		}
-		if _, err := BlueprintForPhase(phase); err == nil {
-			t.Fatalf("terminal phase %s has a blueprint", phase)
+		if _, err := BlueprintForPhase(phase); domainErrorCode(err) != domain.ErrorTaskTerminal {
+			t.Fatalf("terminal phase %s error = %v, want %s", phase, err, domain.ErrorTaskTerminal)
 		}
+	}
+	if _, err := BlueprintForPhase(domain.Phase("UNKNOWN")); domainErrorCode(err) != domain.ErrorInvalidArgument {
+		t.Fatalf("unknown phase error = %v, want %s", err, domain.ErrorInvalidArgument)
 	}
 }
 
@@ -273,4 +280,12 @@ func requirementKinds(requirements []domain.EvidenceRequirement) []domain.Eviden
 		kinds[i] = requirement.Kind
 	}
 	return kinds
+}
+
+func domainErrorCode(err error) domain.ErrorCode {
+	var domainError *domain.Error
+	if errors.As(err, &domainError) {
+		return domainError.Code
+	}
+	return ""
 }

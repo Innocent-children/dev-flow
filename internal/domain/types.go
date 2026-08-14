@@ -79,6 +79,18 @@ func (k ActionKind) IsValid() bool {
 	}
 }
 
+type OperationKind string
+
+const (
+	OperationOpenTask    OperationKind = "open_task"
+	OperationApplyAction OperationKind = "apply_action"
+	OperationCancelTask  OperationKind = "cancel_task"
+)
+
+func (k OperationKind) IsValid() bool {
+	return k == OperationOpenTask || k == OperationApplyAction || k == OperationCancelTask
+}
+
 type ActionResult string
 
 const (

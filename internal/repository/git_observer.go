@@ -24,6 +24,7 @@ const (
 	gitShowBranch
 	gitShowHead
 	gitShowStatus
+	gitHashObject
 )
 
 // GitObserver observes one Git worktree using only fixed, allowlisted,
@@ -55,7 +56,7 @@ func (o *GitObserver) Observe(ctx context.Context, repositoryPath string) (domai
 		return domain.RepositoryBinding{}, ErrGitObservation
 	}
 
-	rootResult, err := o.runner.run(ctx, gitShowWorktreeRoot, repositoryPath)
+	rootResult, err := o.runner.run(ctx, gitShowWorktreeRoot, repositoryPath, "")
 	if err != nil {
 		return domain.RepositoryBinding{}, err
 	}
@@ -67,7 +68,7 @@ func (o *GitObserver) Observe(ctx context.Context, repositoryPath string) (domai
 		return domain.RepositoryBinding{}, err
 	}
 
-	commonResult, err := o.runner.run(ctx, gitShowCommonDirectory, canonicalRoot)
+	commonResult, err := o.runner.run(ctx, gitShowCommonDirectory, canonicalRoot, "")
 	if err != nil {
 		return domain.RepositoryBinding{}, err
 	}
@@ -79,7 +80,7 @@ func (o *GitObserver) Observe(ctx context.Context, repositoryPath string) (domai
 		return domain.RepositoryBinding{}, err
 	}
 
-	branchResult, err := o.runner.run(ctx, gitShowBranch, canonicalRoot)
+	branchResult, err := o.runner.run(ctx, gitShowBranch, canonicalRoot, "")
 	if err != nil {
 		return domain.RepositoryBinding{}, err
 	}
@@ -88,7 +89,7 @@ func (o *GitObserver) Observe(ctx context.Context, repositoryPath string) (domai
 		return domain.RepositoryBinding{}, err
 	}
 
-	headResult, err := o.runner.run(ctx, gitShowHead, canonicalRoot)
+	headResult, err := o.runner.run(ctx, gitShowHead, canonicalRoot, "")
 	if err != nil {
 		return domain.RepositoryBinding{}, err
 	}
@@ -100,12 +101,45 @@ func (o *GitObserver) Observe(ctx context.Context, repositoryPath string) (domai
 		return domain.RepositoryBinding{}, fmt.Errorf("%w: detached unborn state", ErrGitObservation)
 	}
 
-	statusResult, err := o.runner.run(ctx, gitShowStatus, canonicalRoot)
+	statusResult, err := o.runner.run(ctx, gitShowStatus, canonicalRoot, "")
 	if err != nil {
 		return domain.RepositoryBinding{}, err
 	}
 	if statusResult.exitCode != 0 {
 		return domain.RepositoryBinding{}, fmt.Errorf("%w: worktree status", ErrGitObservation)
+	}
+	statusRecords, err := parsePorcelainV2(statusResult.stdout)
+	if err != nil {
+		return domain.RepositoryBinding{}, err
+	}
+	pathStates, err := prepareFingerprintPaths(canonicalRoot, statusRecords)
+	if err != nil {
+		return domain.RepositoryBinding{}, err
+	}
+	fingerprintRecords, err := o.contentFingerprintRecords(ctx, canonicalRoot, statusRecords, pathStates)
+	if err != nil {
+		return domain.RepositoryBinding{}, err
+	}
+
+	secondStatusResult, err := o.runner.run(ctx, gitShowStatus, canonicalRoot, "")
+	if err != nil {
+		return domain.RepositoryBinding{}, err
+	}
+	if secondStatusResult.exitCode != 0 {
+		return domain.RepositoryBinding{}, fmt.Errorf("%w: second worktree status", ErrGitObservation)
+	}
+	secondStatusRecords, err := parsePorcelainV2(secondStatusResult.stdout)
+	if err != nil {
+		return domain.RepositoryBinding{}, err
+	}
+	if err := ensureNoDirtySubmodules(secondStatusRecords); err != nil {
+		return domain.RepositoryBinding{}, err
+	}
+	if err := ensureStatusUnchanged(statusRecords, secondStatusRecords); err != nil {
+		return domain.RepositoryBinding{}, err
+	}
+	if err := verifyFingerprintPaths(canonicalRoot, pathStates); err != nil {
+		return domain.RepositoryBinding{}, err
 	}
 
 	commonDirectoryDigest := digestGitCommonDirectory(canonicalCommonDirectory)
@@ -117,7 +151,7 @@ func (o *GitObserver) Observe(ctx context.Context, repositoryPath string) (domai
 		Detached:            detached,
 		Head:                head,
 		Unborn:              unborn,
-		WorktreeFingerprint: fingerprintWorktree(statusResult.stdout),
+		WorktreeFingerprint: fingerprintWorktree(fingerprintRecords),
 		ObservedAt:          time.Now().UTC(),
 	}
 	binding.BindingDigest = digestRepositoryBinding(binding)
@@ -125,6 +159,72 @@ func (o *GitObserver) Observe(ctx context.Context, repositoryPath string) (domai
 		return domain.RepositoryBinding{}, fmt.Errorf("%w: invalid repository binding: %v", ErrGitObservation, err)
 	}
 	return binding, nil
+}
+
+func (o *GitObserver) contentFingerprintRecords(
+	ctx context.Context,
+	canonicalRoot string,
+	statusRecords []porcelainRecord,
+	pathStates map[string]fingerprintPathState,
+) ([]worktreeFingerprintRecord, error) {
+	normalized := normalizedPorcelainRecords(statusRecords)
+	contentByPath := make(map[string]string, len(pathStates))
+	fingerprintRecords := make([]worktreeFingerprintRecord, 0, len(normalized))
+	for _, record := range normalized {
+		contentIdentity := missingContentIdentity
+		switch {
+		case record.contentMissing():
+		case record.gitlink():
+			objectID, ok := record.cleanGitlinkObjectID()
+			if !ok {
+				return nil, ErrInconsistentWorktree
+			}
+			contentIdentity = gitlinkContentPrefix + objectID
+		default:
+			var exists bool
+			contentIdentity, exists = contentByPath[record.path]
+			if !exists {
+				state, found := pathStates[record.path]
+				if !found {
+					return nil, ErrInconsistentWorktree
+				}
+				objectID, err := o.hashObject(ctx, canonicalRoot, record.path, state)
+				if err != nil {
+					return nil, err
+				}
+				contentIdentity = gitObjectContentPrefix + objectID
+				contentByPath[record.path] = contentIdentity
+			}
+		}
+		fingerprintRecords = append(fingerprintRecords, worktreeFingerprintRecord{
+			status:          record,
+			contentIdentity: contentIdentity,
+		})
+	}
+	return fingerprintRecords, nil
+}
+
+func (o *GitObserver) hashObject(
+	ctx context.Context,
+	canonicalRoot string,
+	statusPath string,
+	state fingerprintPathState,
+) (string, error) {
+	result, err := o.runner.run(ctx, gitHashObject, canonicalRoot, statusPath)
+	if err != nil {
+		return "", err
+	}
+	if result.exitCode != 0 {
+		return "", ErrInconsistentWorktree
+	}
+	objectID, err := parseSingleLine(result.stdout)
+	if err != nil || !validGitObjectID(objectID) {
+		return "", ErrInconsistentWorktree
+	}
+	if err := verifyFingerprintPath(canonicalRoot, state); err != nil {
+		return "", err
+	}
+	return objectID, nil
 }
 
 func observedBranch(result gitCommandResult) (*string, bool, error) {
@@ -167,8 +267,13 @@ type gitCommandResult struct {
 	exitCode int
 }
 
-func (r gitCommandRunner) run(ctx context.Context, command gitReadCommand, repositoryPath string) (gitCommandResult, error) {
-	args, ok := command.arguments(repositoryPath)
+func (r gitCommandRunner) run(
+	ctx context.Context,
+	command gitReadCommand,
+	repositoryPath string,
+	statusPath string,
+) (gitCommandResult, error) {
+	args, ok := command.arguments(repositoryPath, statusPath)
 	if !ok {
 		return gitCommandResult{}, ErrGitObservation
 	}
@@ -213,7 +318,7 @@ func (r gitCommandRunner) run(ctx context.Context, command gitReadCommand, repos
 	return gitCommandResult{}, fmt.Errorf("%w: start Git", ErrGitObservation)
 }
 
-func (command gitReadCommand) arguments(repositoryPath string) ([]string, bool) {
+func (command gitReadCommand) arguments(repositoryPath, statusPath string) ([]string, bool) {
 	// Explicitly disable optional index writes and configured file-system
 	// monitors. The remaining suffixes are a closed read-only allowlist.
 	args := []string{
@@ -225,15 +330,37 @@ func (command gitReadCommand) arguments(repositoryPath string) ([]string, bool) 
 
 	switch command {
 	case gitShowWorktreeRoot:
+		if statusPath != "" {
+			return nil, false
+		}
 		return append(args, "rev-parse", "--path-format=absolute", "--show-toplevel"), true
 	case gitShowCommonDirectory:
+		if statusPath != "" {
+			return nil, false
+		}
 		return append(args, "rev-parse", "--path-format=absolute", "--git-common-dir"), true
 	case gitShowBranch:
+		if statusPath != "" {
+			return nil, false
+		}
 		return append(args, "symbolic-ref", "--quiet", "--short", "HEAD"), true
 	case gitShowHead:
+		if statusPath != "" {
+			return nil, false
+		}
 		return append(args, "rev-parse", "--verify", "--quiet", "HEAD"), true
 	case gitShowStatus:
-		return append(args, "status", "--porcelain=v2", "--untracked-files=all", "--no-renames", "-z"), true
+		if statusPath != "" {
+			return nil, false
+		}
+		return append(args,
+			"status", "--porcelain=v2", "--untracked-files=all", "--ignore-submodules=none", "--no-renames", "-z",
+		), true
+	case gitHashObject:
+		if statusPath == "" {
+			return nil, false
+		}
+		return append(args, "hash-object", "--no-filters", "--", statusPath), true
 	default:
 		return nil, false
 	}

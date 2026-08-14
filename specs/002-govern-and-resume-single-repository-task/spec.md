@@ -272,8 +272,9 @@ not a way to reject a Domain-valid Task.
   `git hash-object --no-filters -- <path>`, invoked with direct arguments through the bounded
   command context and never through a shell. The Core MUST NOT use `-w`, read Git diffs, retain raw
   status bytes or file bytes, or persist, return, log, or include source content in errors.
-  Path-count, command-time, and command-output limits apply to the whole observation; a disappearing
-  or inconsistent path safely fails without unbounded retry.
+  `MaxFingerprintPaths` bounds the complete observation's affected-path set; every fixed Git
+  subprocess in that observation uses the same per-command timeout and combined stdout/stderr limit
+  from Core Limits 0.1. A disappearing or inconsistent path safely fails without unbounded retry.
 - **FR-010**: One canonical repository root MUST have at most one active task.
 - **FR-011**: Repository claim creation and task creation MUST occur in one transaction.
 - **FR-012**: A terminal task MUST release its active repository claim in the same transaction as
@@ -414,16 +415,20 @@ not a way to reject a Domain-valid Task.
 
 - **FR-068**: A normalized Contract MUST satisfy both its per-field limits and the encoded Contract
   aggregate limit before it can be constructed.
-- **FR-069**: A dirty submodule MUST fail closed with one stable Repository Observation error. The
+- **FR-069**: A dirty submodule MUST fail closed with the stable repository-layer
+  `ErrDirtySubmodule` sentinel, which MUST also match the general `ErrGitObservation` category. The
   Core MUST NOT recurse into it, treat its ambiguous dirty flag as a complete content fingerprint,
   or modify it.
 - **FR-070**: `DONE` and `CANCELLED` MUST return `TASK_TERMINAL`; an invalid or unknown phase MUST
   return `INVALID_ARGUMENT`. A valid nonterminal phase missing from the closed mapping is an internal
   invariant failure and MUST NOT be presented as terminal.
 - **FR-071**: `ACTIVE_TASK_CONFLICT` MUST be returned only for the repository-identity primary-key
-  or claimed-task-ID unique constraint. Foreign-key, check, trigger, locked, I/O, schema, and other
-  SQLite execution failures MUST return bounded `STORAGE_UNAVAILABLE`; classification MUST use the
-  driver's structured error code rather than SQL error text.
+  or claimed-task-ID unique constraint. The Store MUST identify those exact keys with fixed
+  conflict-target/`RETURNING` SQL plus a fixed repository-key existence confirmation when no row is
+  returned, or a fixed task-key existence query after `errors.As` confirms a structured SQLite
+  uniqueness code; neither `sql.ErrNoRows` nor the driver code alone is a constraint identity.
+  Foreign-key, check, trigger, ignored insert, locked, I/O, schema, and other SQLite execution
+  failures MUST return bounded `STORAGE_UNAVAILABLE`. SQL error text MUST NOT be parsed or exposed.
 - **FR-072**: `open_task` requires expected revision 0, claim acquire, and no action ID;
   `apply_action` requires a positive expected revision and an action ID, retaining the claim unless
   it reaches `DONE`; `cancel_task` requires a positive expected revision, no action ID, claim

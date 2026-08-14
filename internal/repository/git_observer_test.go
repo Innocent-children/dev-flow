@@ -1,8 +1,11 @@
 package repository
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -90,6 +93,242 @@ func TestGitObserverFingerprintsTrackedAndUntrackedChanges(t *testing.T) {
 		t.Fatal("tracked and untracked observations unexpectedly have the same fingerprint")
 	}
 	assertStableRepositoryIdentity(t, clean, dirtyUntracked)
+}
+
+func TestGitObserverFingerprintChangesWhenDirtyTrackedContentChangesAgain(t *testing.T) {
+	repositoryPath := newCommittedRepository(t, "tracked-content-sensitive")
+	trackedPath := filepath.Join(repositoryPath, "tracked.txt")
+	observer := NewGitObserver()
+
+	writeTestFile(t, trackedPath, "first dirty value with stable status\n")
+	first := observeRepository(t, observer, repositoryPath)
+	writeTestFile(t, trackedPath, "second dirty value with stable status\n")
+	second := observeRepository(t, observer, repositoryPath)
+
+	if first.WorktreeFingerprint == second.WorktreeFingerprint {
+		t.Fatal("a second tracked content change with the same path/status did not change the fingerprint")
+	}
+	assertStableRepositoryIdentity(t, first, second)
+}
+
+func TestGitObserverFingerprintChangesWhenUntrackedContentChangesAgain(t *testing.T) {
+	repositoryPath := newCommittedRepository(t, "untracked-content-sensitive")
+	untrackedPath := filepath.Join(repositoryPath, "untracked.txt")
+	observer := NewGitObserver()
+
+	writeTestFile(t, untrackedPath, "first untracked value with stable status\n")
+	first := observeRepository(t, observer, repositoryPath)
+	writeTestFile(t, untrackedPath, "second untracked value with stable status\n")
+	second := observeRepository(t, observer, repositoryPath)
+
+	if first.WorktreeFingerprint == second.WorktreeFingerprint {
+		t.Fatal("a second untracked content change with the same path/status did not change the fingerprint")
+	}
+	assertStableRepositoryIdentity(t, first, second)
+}
+
+func TestGitObserverFingerprintsDeletedAndRestoredPaths(t *testing.T) {
+	repositoryPath := newCommittedRepository(t, "deleted-and-restored")
+	trackedPath := filepath.Join(repositoryPath, "tracked.txt")
+	observer := NewGitObserver()
+	clean := observeRepository(t, observer, repositoryPath)
+
+	if err := os.Remove(trackedPath); err != nil {
+		t.Fatalf("delete tracked path: %v", err)
+	}
+	deleted := observeRepository(t, observer, repositoryPath)
+	deletedAgain := observeRepository(t, observer, repositoryPath)
+	if deleted.WorktreeFingerprint == clean.WorktreeFingerprint {
+		t.Fatal("deleted tracked path did not change the fingerprint")
+	}
+	if deleted.WorktreeFingerprint != deletedAgain.WorktreeFingerprint {
+		t.Fatal("unchanged deleted path did not produce a stable missing sentinel")
+	}
+
+	writeTestFile(t, trackedPath, "initial content\n")
+	restored := observeRepository(t, observer, repositoryPath)
+	if restored.WorktreeFingerprint != clean.WorktreeFingerprint {
+		t.Fatalf("restored path fingerprint = %q, want clean %q", restored.WorktreeFingerprint, clean.WorktreeFingerprint)
+	}
+}
+
+func TestWorktreeFingerprintNormalizesPorcelainRecordOrder(t *testing.T) {
+	leftStatus := []byte("? zeta.txt\x00? alpha.txt\x00")
+	rightStatus := []byte("? alpha.txt\x00? zeta.txt\x00")
+	leftRecords, err := parsePorcelainV2(leftStatus)
+	if err != nil {
+		t.Fatalf("parse left status: %v", err)
+	}
+	rightRecords, err := parsePorcelainV2(rightStatus)
+	if err != nil {
+		t.Fatalf("parse right status: %v", err)
+	}
+
+	content := map[string]string{
+		"alpha.txt": strings.Repeat("a", 40),
+		"zeta.txt":  strings.Repeat("b", 40),
+	}
+	left := make([]worktreeFingerprintRecord, 0, len(leftRecords))
+	for _, record := range leftRecords {
+		left = append(left, worktreeFingerprintRecord{status: record, contentIdentity: content[record.path]})
+	}
+	right := make([]worktreeFingerprintRecord, 0, len(rightRecords))
+	for _, record := range rightRecords {
+		right = append(right, worktreeFingerprintRecord{status: record, contentIdentity: content[record.path]})
+	}
+
+	if leftDigest, rightDigest := fingerprintWorktree(left), fingerprintWorktree(right); leftDigest != rightDigest {
+		t.Fatalf("equivalent reordered status produced %q and %q", leftDigest, rightDigest)
+	}
+	if err := ensureStatusUnchanged(leftRecords, rightRecords); err != nil {
+		t.Fatalf("equivalent reordered status was treated as inconsistent: %v", err)
+	}
+}
+
+func TestGitObserverHandlesCleanGitlinksAndRejectsDirtySubmodule(t *testing.T) {
+	submoduleSource := newCommittedRepository(t, "submodule-source")
+	repositoryPath := newCommittedRepository(t, "submodule-parent")
+	observer := NewGitObserver()
+	cleanBeforeAdd := observeRepository(t, observer, repositoryPath)
+	runTestGit(t, repositoryPath,
+		"-c", "protocol.file.allow=always",
+		"submodule", "add", submoduleSource, "modules/child",
+	)
+	stagedAdd := observeRepository(t, observer, repositoryPath)
+	if stagedAdd.WorktreeFingerprint == cleanBeforeAdd.WorktreeFingerprint {
+		t.Fatal("clean staged gitlink add did not change the fingerprint")
+	}
+
+	runTestGit(t, repositoryPath, "add", ".gitmodules", "modules/child")
+	runTestGit(t, repositoryPath, "commit", "-m", "add submodule")
+	writeTestFile(t, filepath.Join(repositoryPath, "modules", "child", "tracked.txt"), "dirty submodule content\n")
+	assertDirtySubmoduleObservation(t, repositoryPath, "dirty submodule worktree")
+
+	runTestGit(t, filepath.Join(repositoryPath, "modules", "child"), "checkout", "--", "tracked.txt")
+	cleanWithSubmodule := observeRepository(t, observer, repositoryPath)
+	runTestGit(t, repositoryPath, "rm", "-f", "modules/child")
+	stagedDelete := observeRepository(t, observer, repositoryPath)
+	stagedDeleteAgain := observeRepository(t, observer, repositoryPath)
+	if stagedDelete.WorktreeFingerprint == cleanWithSubmodule.WorktreeFingerprint {
+		t.Fatal("staged gitlink delete did not change the fingerprint")
+	}
+	if stagedDelete.WorktreeFingerprint != stagedDeleteAgain.WorktreeFingerprint {
+		t.Fatal("unchanged staged gitlink delete did not use a stable missing sentinel")
+	}
+}
+
+func assertDirtySubmoduleObservation(t *testing.T, repositoryPath, state string) {
+	t.Helper()
+	_, err := NewGitObserver().Observe(context.Background(), repositoryPath)
+	if !errors.Is(err, ErrDirtySubmodule) {
+		t.Fatalf("%s error = %v, want ErrDirtySubmodule", state, err)
+	}
+	if !errors.Is(err, ErrGitObservation) {
+		t.Fatalf("%s error = %v, want it also to match ErrGitObservation", state, err)
+	}
+}
+
+func TestPorcelainPathLimitIsEnforcedBeforeContentHashing(t *testing.T) {
+	var status bytes.Buffer
+	for index := 0; index <= domain.MaxFingerprintPaths; index++ {
+		_, _ = fmt.Fprintf(&status, "? path-%04d.txt%c", index, byte(0))
+	}
+
+	if _, err := parsePorcelainV2(status.Bytes()); !errors.Is(err, ErrFingerprintPathLimit) {
+		t.Fatalf("path-limit error = %v, want ErrFingerprintPathLimit", err)
+	}
+}
+
+func TestGitObserverBindingDoesNotExposeRawStatusOrContent(t *testing.T) {
+	repositoryPath := newCommittedRepository(t, "no-raw-content")
+	const rawContent = "private source bytes that must never leave the observer 7b58d79d"
+	const rawPath = "private source 名称.txt"
+	writeTestFile(t, filepath.Join(repositoryPath, rawPath), rawContent)
+
+	binding := observeRepository(t, NewGitObserver(), repositoryPath)
+	encoded, err := json.Marshal(binding)
+	if err != nil {
+		t.Fatalf("encode binding: %v", err)
+	}
+	if bytes.Contains(encoded, []byte(rawContent)) || bytes.Contains(encoded, []byte(rawPath)) ||
+		bytes.Contains(encoded, []byte("? "+rawPath)) {
+		t.Fatalf("binding exposed raw status, path, or content: %s", encoded)
+	}
+}
+
+func TestFingerprintPathValidationFailsClosed(t *testing.T) {
+	repositoryPath := newCommittedRepository(t, "path-validation")
+	canonicalRoot, err := filepath.EvalSymlinks(repositoryPath)
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
+	}
+
+	t.Run("missing after status", func(t *testing.T) {
+		records, err := parsePorcelainV2([]byte("? disappeared.txt\x00"))
+		if err != nil {
+			t.Fatalf("parse status: %v", err)
+		}
+		if _, err := prepareFingerprintPaths(canonicalRoot, records); !errors.Is(err, ErrInconsistentWorktree) {
+			t.Fatalf("missing path error = %v, want ErrInconsistentWorktree", err)
+		}
+	})
+
+	t.Run("non-ordinary path", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("symlink creation is not reliably available without elevated privileges")
+		}
+		if err := os.Symlink("tracked.txt", filepath.Join(repositoryPath, "linked.txt")); err != nil {
+			t.Fatalf("create symlink: %v", err)
+		}
+		records, err := parsePorcelainV2([]byte("? linked.txt\x00"))
+		if err != nil {
+			t.Fatalf("parse status: %v", err)
+		}
+		if _, err := prepareFingerprintPaths(canonicalRoot, records); !errors.Is(err, ErrInconsistentWorktree) {
+			t.Fatalf("non-ordinary path error = %v, want ErrInconsistentWorktree", err)
+		}
+	})
+
+	t.Run("outside repository", func(t *testing.T) {
+		records, err := parsePorcelainV2([]byte("? ../outside.txt\x00"))
+		if err != nil {
+			t.Fatalf("parse status: %v", err)
+		}
+		if _, err := prepareFingerprintPaths(canonicalRoot, records); !errors.Is(err, ErrInconsistentWorktree) {
+			t.Fatalf("outside path error = %v, want ErrInconsistentWorktree", err)
+		}
+	})
+
+	t.Run("changed after initial validation", func(t *testing.T) {
+		path := filepath.Join(repositoryPath, "late-change.txt")
+		writeTestFile(t, path, "before\n")
+		records, err := parsePorcelainV2([]byte("? late-change.txt\x00"))
+		if err != nil {
+			t.Fatalf("parse status: %v", err)
+		}
+		states, err := prepareFingerprintPaths(canonicalRoot, records)
+		if err != nil {
+			t.Fatalf("prepare fingerprint path: %v", err)
+		}
+		writeTestFile(t, path, "different size after validation\n")
+		if err := verifyFingerprintPaths(canonicalRoot, states); !errors.Is(err, ErrInconsistentWorktree) {
+			t.Fatalf("late path change error = %v, want ErrInconsistentWorktree", err)
+		}
+	})
+}
+
+func TestSecondStatusMismatchFailsWithoutRetry(t *testing.T) {
+	first, err := parsePorcelainV2([]byte("? path.txt\x00"))
+	if err != nil {
+		t.Fatalf("parse first status: %v", err)
+	}
+	second, err := parsePorcelainV2([]byte("? other.txt\x00"))
+	if err != nil {
+		t.Fatalf("parse second status: %v", err)
+	}
+	if err := ensureStatusUnchanged(first, second); !errors.Is(err, ErrInconsistentWorktree) {
+		t.Fatalf("status mismatch error = %v, want ErrInconsistentWorktree", err)
+	}
 }
 
 func TestGitObserverDetachedHead(t *testing.T) {
@@ -239,19 +478,60 @@ func TestGitObserverUsesCoreLimitsAndReadOnlyAllowlist(t *testing.T) {
 		gitShowBranch:          "symbolic-ref",
 		gitShowHead:            "rev-parse",
 		gitShowStatus:          "status",
+		gitHashObject:          "hash-object",
 	}
 	for command, want := range wantSubcommand {
-		args, ok := command.arguments("/fixed/repository")
+		path := ""
+		if command == gitHashObject {
+			path = "path beginning - safely.txt"
+		}
+		args, ok := command.arguments("/fixed/repository", path)
 		if !ok {
 			t.Fatalf("allowlisted command %d was rejected", command)
 		}
 		if len(args) < 8 || args[7] != want {
 			t.Fatalf("command %d arguments = %q, want subcommand %q", command, args, want)
 		}
+		for _, argument := range args {
+			if argument == "-w" || argument == "diff" {
+				t.Fatalf("read-only command %d contains forbidden argument %q: %q", command, argument, args)
+			}
+		}
+		if command == gitHashObject {
+			wantSuffix := []string{"hash-object", "--no-filters", "--", path}
+			if got := args[len(args)-len(wantSuffix):]; !equalStrings(got, wantSuffix) {
+				t.Fatalf("hash-object suffix = %q, want %q", got, wantSuffix)
+			}
+		}
 	}
-	if _, ok := gitReadCommand(255).arguments("/fixed/repository"); ok {
+	statusArgs, _ := gitShowStatus.arguments("/fixed/repository", "")
+	if !containsString(statusArgs, "--ignore-submodules=none") {
+		t.Fatalf("status arguments do not force dirty-submodule observation: %q", statusArgs)
+	}
+	if _, ok := gitReadCommand(255).arguments("/fixed/repository", ""); ok {
 		t.Fatal("unknown Git command was accepted by the allowlist")
 	}
+}
+
+func equalStrings(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
+}
+
+func containsString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 func assertStableRepositoryIdentity(t *testing.T, before, after domain.RepositoryBinding) {

@@ -42,10 +42,10 @@ type TaskEvent struct {
 	EventID       domain.ID
 	TaskID        domain.ID
 	Revision      uint64
-	EventType     string
+	Kind          domain.OperationKind
 	PhaseBefore   domain.Phase
 	PhaseAfter    domain.Phase
-	ActionID      domain.ID
+	ActionID      *domain.ID
 	RequestID     domain.ID
 	PayloadDigest domain.Digest
 	CreatedAt     time.Time

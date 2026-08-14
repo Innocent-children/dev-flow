@@ -94,8 +94,8 @@ satisfied, not that code exists.
 ## Foundational Audit Hardening
 
 - [x] CHK051 Worktree fingerprint requirements are content-sensitive for repeated tracked and
-  untracked changes, normalize record order, and bound path count, command time, and output without
-  retaining status or source bytes.
+  untracked changes, normalize record order, bound the complete path set, and apply the fixed
+  per-command timeout/output limits without retaining status or source bytes.
 - [x] CHK052 Dirty submodules have one explicit fail-closed observation policy with no recursion,
   ambiguous fingerprint acceptance, or mutation.
 - [x] CHK053 Contract, Outcome narrative, Task snapshot, and result-envelope encoded-byte budgets
@@ -104,8 +104,9 @@ satisfied, not that code exists.
   and cannot duplicate evidence or bypass verification budget rules.
 - [x] CHK055 Closed OperationKind semantics and exact LastOperation/TaskEvent relationships make
   both records testable projections of one committed fact before any transaction writes.
-- [x] CHK056 Repository-claim conflicts are limited to the two named SQLite unique constraints;
-  non-unique constraint, trigger, lock, I/O, schema, and other failures are distinctly specified as
-  `STORAGE_UNAVAILABLE` without driver-text parsing.
+- [x] CHK056 Repository-claim conflicts are limited to the two named SQLite unique constraints and
+  identified through fixed conflict-target/key queries plus structured error codes rather than a
+  no-row/code-only guess; non-unique constraint, ignored insert, trigger, lock, I/O, schema, and
+  other failures are distinctly specified as `STORAGE_UNAVAILABLE` without driver-text parsing.
 - [x] CHK057 HANDOFF authorizes its required repository read, while terminal, unknown, and missing
   nonterminal phase mappings have distinct stable error semantics.

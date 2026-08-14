@@ -231,6 +231,34 @@ func TestTaskCodecRoundTripsAndRejectsUnknownOrTrailingJSON(t *testing.T) {
 		t.Fatalf("decoded task differs from encoded task\n got: %#v\nwant: %#v", decoded, task)
 	}
 
+	terminal := cancelledTask(
+		t,
+		validTask(t, "task-codec-outcome", digest("8"), t.TempDir(), now),
+		now.Add(time.Minute),
+	)
+	terminal.Evidence = []domain.EvidenceSummary{
+		evidenceSummary("automated-evidence", domain.EvidenceSourceAutomated, now),
+		evidenceSummary("manual-evidence", domain.EvidenceSourceUser, now),
+	}
+	terminal.Outcome.AutomatedEvidenceIDs = []domain.ID{"automated-evidence"}
+	terminal.Outcome.ManualEvidenceIDs = []domain.ID{"manual-evidence"}
+	if err := workflow.ValidateTask(terminal); err != nil {
+		t.Fatalf("validate task with retained outcome evidence references: %v", err)
+	}
+	terminalEncoded, err := encodeTask(terminal)
+	if err != nil {
+		t.Fatalf("encode task with retained outcome evidence references: %v", err)
+	}
+	terminalDecoded, err := decodeTask(terminalEncoded)
+	if err != nil {
+		t.Fatalf("decode task with retained outcome evidence references: %v", err)
+	}
+	if !reflect.DeepEqual(terminalDecoded.Outcome.AutomatedEvidenceIDs, terminal.Outcome.AutomatedEvidenceIDs) ||
+		!reflect.DeepEqual(terminalDecoded.Outcome.ManualEvidenceIDs, terminal.Outcome.ManualEvidenceIDs) {
+		t.Fatalf("outcome evidence references changed after round trip: got %#v, want %#v",
+			terminalDecoded.Outcome, terminal.Outcome)
+	}
+
 	withWhitespace := append(append([]byte(nil), encoded...), '\n', '\t', ' ')
 	if _, err := decodeTask(withWhitespace); err != nil {
 		t.Fatalf("decode task with trailing whitespace: %v", err)
@@ -300,34 +328,105 @@ func TestTaskCodecRoundTripsAndRejectsUnknownOrTrailingJSON(t *testing.T) {
 	}
 }
 
-func TestTaskCodecRejectsValidAggregateOverSnapshotLimit(t *testing.T) {
+func TestMaximumValidTaskFitsSnapshotAndEnvelopeBudgets(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 8, 14, 2, 3, 4, 5, time.UTC)
-	task := cancelledTask(t, validTask(t, "task-large", digest("2"), t.TempDir(), now), now.Add(time.Minute))
+	if domain.MaxTaskAggregateBytes > domain.MaxPersistedTaskSnapshotBytes {
+		t.Fatalf("Task aggregate limit %d exceeds snapshot limit %d",
+			domain.MaxTaskAggregateBytes, domain.MaxPersistedTaskSnapshotBytes)
+	}
+	if domain.MaxTaskAggregateBytes+domain.MaxResultEnvelopeOverheadBytes >= domain.MaxResultEnvelopeBytes {
+		t.Fatalf("Task aggregate plus envelope overhead = %d, envelope limit = %d",
+			domain.MaxTaskAggregateBytes+domain.MaxResultEnvelopeOverheadBytes,
+			domain.MaxResultEnvelopeBytes)
+	}
+	budget := domain.VerificationBudget{
+		Level:                domain.VerificationMinimal,
+		MaxAutomaticCommands: domain.MaxAutomaticVerificationCommands,
+	}
+	maximumContract, err := domain.NewContract(
+		"goal <>&",
+		nil,
+		nil,
+		escapedUniqueStrings(domain.MaxAcceptanceCriteriaItems-1, domain.MaxAcceptanceCriterionBytes),
+		budget,
+	)
+	if err != nil {
+		t.Fatalf("construct near-limit escaped Contract: %v", err)
+	}
+	encodedContract, err := encodeCompactJSON(persistedContract{
+		Goal:               maximumContract.Goal(),
+		Scope:              maximumContract.Scope(),
+		OutOfScope:         maximumContract.OutOfScope(),
+		AcceptanceCriteria: maximumContract.AcceptanceCriteria(),
+		VerificationBudget: maximumContract.VerificationBudget(),
+	})
+	if err != nil || len(encodedContract) > domain.MaxContractAggregateBytes {
+		t.Fatalf("near-limit Contract encoded size = %d, error = %v", len(encodedContract), err)
+	}
 
-	task.Evidence = make([]domain.EvidenceSummary, domain.MaxRetainedEvidenceItems)
-	for i := range task.Evidence {
-		task.Evidence[i] = evidenceSummary(
-			domain.ID(fmt.Sprintf("retained-%03d", i)),
-			domain.EvidenceSourceStatic,
-			now,
-		)
+	maximumOutcome := cancelledTask(
+		t,
+		validTask(t, "task-outcome-budget", digest("9"), t.TempDir(), now),
+		now.Add(time.Minute),
+	).Outcome.Clone()
+	maximumOutcome.Risks = escapedUniqueStrings(15, domain.MaxReasonBytes)
+	if err := maximumOutcome.Validate(); err != nil {
+		t.Fatalf("near-limit escaped Outcome rejected: %v", err)
 	}
-	task.Outcome.AutomatedChecks = make([]domain.EvidenceSummary, domain.MaxRetainedEvidenceItems)
-	for i := range task.Outcome.AutomatedChecks {
-		task.Outcome.AutomatedChecks[i] = evidenceSummary(
-			domain.ID(fmt.Sprintf("automated-%03d", i)),
-			domain.EvidenceSourceAutomated,
-			now,
-		)
+	encodedOutcome, err := encodeCompactJSON(maximumOutcome)
+	if err != nil || len(encodedOutcome) > domain.MaxOutcomeNarrativeAggregateBytes {
+		t.Fatalf("near-limit Outcome encoded size = %d, error = %v", len(encodedOutcome), err)
 	}
-	task.Outcome.UnverifiedItems = maximalUniqueNarratives("unverified", "u")
-	task.Outcome.Risks = maximalUniqueNarratives("risk", "r")
-	if err := workflow.ValidateTask(task); err != nil {
-		t.Fatalf("large aggregate must remain domain-valid: %v", err)
+
+	low, high := 1, domain.MaxEvidenceSummaryBytes
+	var maximumTask domain.Task
+	maximumSummaryBytes := 0
+	for low <= high {
+		mid := low + (high-low)/2
+		candidate := taskWithEscapedEvidence(t, mid, now)
+		if workflow.ValidateTask(candidate) == nil {
+			maximumTask = candidate
+			maximumSummaryBytes = mid
+			low = mid + 1
+		} else {
+			high = mid - 1
+		}
 	}
-	if _, err := encodeTask(task); !errors.Is(err, ErrInvalidArgument) {
-		t.Fatalf("oversized valid task encode error = %v, want %v", err, ErrInvalidArgument)
+	if maximumSummaryBytes == 0 {
+		t.Fatal("no valid Task aggregate boundary found")
+	}
+	snapshot, err := encodeTask(maximumTask)
+	if err != nil {
+		t.Fatalf("encode maximum Domain-valid Task: %v", err)
+	}
+	if len(snapshot) > domain.MaxPersistedTaskSnapshotBytes {
+		t.Fatalf("maximum Task snapshot size = %d, limit = %d",
+			len(snapshot), domain.MaxPersistedTaskSnapshotBytes)
+	}
+	if len(snapshot)+domain.MaxResultEnvelopeOverheadBytes >= domain.MaxResultEnvelopeBytes {
+		t.Fatalf("maximum Task projection plus envelope overhead = %d, limit = %d",
+			len(snapshot)+domain.MaxResultEnvelopeOverheadBytes, domain.MaxResultEnvelopeBytes)
+	}
+
+	if maximumSummaryBytes < domain.MaxEvidenceSummaryBytes {
+		overLimit := taskWithEscapedEvidence(t, maximumSummaryBytes+1, now)
+		if !errors.Is(workflow.ValidateTask(overLimit), domain.ErrInvalidArgument) {
+			t.Fatal("Task above encoded aggregate limit was accepted by Domain")
+		}
+
+		ctx := context.Background()
+		store, err := Open(ctx, filepath.Join(t.TempDir(), "aggregate-boundary.db"))
+		if err != nil {
+			t.Fatalf("open aggregate boundary store: %v", err)
+		}
+		defer store.Close()
+		if err := store.CommitTask(ctx, TaskMutation{Task: overLimit, Claim: ClaimAcquire}); !errors.Is(err, ErrInvalidArgument) {
+			t.Fatalf("over-limit Task commit error = %v, want %v", err, ErrInvalidArgument)
+		}
+		assertRowCount(t, ctx, store.db, `SELECT COUNT(*) FROM tasks`, "", 0)
+		assertRowCount(t, ctx, store.db, `SELECT COUNT(*) FROM task_events`, "", 0)
+		assertRowCount(t, ctx, store.db, `SELECT COUNT(*) FROM repository_claims`, "", 0)
 	}
 }
 
@@ -345,9 +444,10 @@ func TestCommitTaskUsesExactCASAndRollsBackFailedMutation(t *testing.T) {
 	task := validTask(t, "task-cas", digest("3"), root, now)
 	create := TaskMutation{
 		Task:  task,
-		Event: taskEvent("event-create", task, domain.PhaseIntake, now),
+		Event: taskEvent("event-create", &task, domain.PhaseIntake, now),
 		Claim: ClaimAcquire,
 	}
+	create.Task = task
 	if err := store.CommitTask(ctx, create); err != nil {
 		t.Fatalf("create task: %v", err)
 	}
@@ -356,9 +456,10 @@ func TestCommitTaskUsesExactCASAndRollsBackFailedMutation(t *testing.T) {
 	update := TaskMutation{
 		ExpectedRevision: 1,
 		Task:             updated,
-		Event:            taskEvent("event-update", updated, domain.PhaseIntake, now.Add(time.Minute)),
+		Event:            taskEvent("event-update", &updated, domain.PhaseIntake, now.Add(time.Minute)),
 		Claim:            ClaimRetain,
 	}
+	update.Task = updated
 	if err := store.CommitTask(ctx, update); err != nil {
 		t.Fatalf("update task with exact revision: %v", err)
 	}
@@ -379,15 +480,22 @@ func TestCommitTaskUsesExactCASAndRollsBackFailedMutation(t *testing.T) {
 		t.Fatalf("active task ID = %q, want %q", active.TaskID, task.TaskID)
 	}
 
-	stale := update
-	stale.Event = taskEvent("event-stale", updated, domain.PhaseIntake, now.Add(2*time.Minute))
+	staleTask := update.Task.Clone()
+	staleTask.UpdatedAt = now.Add(2 * time.Minute)
+	stale := TaskMutation{
+		ExpectedRevision: 1,
+		Task:             staleTask,
+		Event:            taskEvent("event-stale", &staleTask, domain.PhaseIntake, now.Add(2*time.Minute)),
+		Claim:            ClaimRetain,
+	}
+	stale.Task = staleTask
 	if err := store.CommitTask(ctx, stale); !errors.Is(err, ErrRevisionConflict) {
 		t.Fatalf("stale mutation error = %v, want %v", err, ErrRevisionConflict)
 	}
 	assertPersistedRevisionParity(t, ctx, store.db, task.TaskID, 2, 2)
 
 	next := advancedTask(t, updated, domain.PhasePlan, domain.ActionImplementChange, now.Add(3*time.Minute))
-	mismatchedEvent := taskEvent("event-mismatch", next, domain.PhaseAssess, now.Add(3*time.Minute))
+	mismatchedEvent := taskEvent("event-mismatch", &next, domain.PhaseAssess, now.Add(3*time.Minute))
 	mismatchedEvent.Revision--
 	if err := store.CommitTask(ctx, TaskMutation{
 		ExpectedRevision: 2,
@@ -410,10 +518,11 @@ func TestCommitTaskUsesExactCASAndRollsBackFailedMutation(t *testing.T) {
 		t.Fatalf("construct changed contract: %v", err)
 	}
 	next.Contract = changedContract
+	contractEvent := taskEvent("event-contract", &next, domain.PhaseAssess, now.Add(3*time.Minute))
 	if err := store.CommitTask(ctx, TaskMutation{
 		ExpectedRevision: 2,
 		Task:             next,
-		Event:            taskEvent("event-contract", next, domain.PhaseAssess, now.Add(3*time.Minute)),
+		Event:            contractEvent,
 		Claim:            ClaimRetain,
 	}); !errors.Is(err, ErrInvalidArgument) {
 		t.Fatalf("immutable contract mutation error = %v, want %v", err, ErrInvalidArgument)
@@ -421,7 +530,7 @@ func TestCommitTaskUsesExactCASAndRollsBackFailedMutation(t *testing.T) {
 	assertPersistedRevisionParity(t, ctx, store.db, task.TaskID, 2, 2)
 
 	next.Contract = updated.Contract
-	duplicateEvent := taskEvent("event-update", next, domain.PhaseAssess, now.Add(3*time.Minute))
+	duplicateEvent := taskEvent("event-update", &next, domain.PhaseAssess, now.Add(3*time.Minute))
 	if err := store.CommitTask(ctx, TaskMutation{
 		ExpectedRevision: 2,
 		Task:             next,
@@ -431,6 +540,168 @@ func TestCommitTaskUsesExactCASAndRollsBackFailedMutation(t *testing.T) {
 		t.Fatalf("duplicate event error = %v, want %v", err, ErrStorageUnavailable)
 	}
 	assertPersistedRevisionParity(t, ctx, store.db, task.TaskID, 2, 2)
+}
+
+func TestTaskMutationRequiresMatchingCommittedFact(t *testing.T) {
+	now := time.Date(2026, 8, 14, 3, 30, 0, 0, time.UTC)
+
+	tests := []struct {
+		name   string
+		build  func(*testing.T) TaskMutation
+		mutate func(*TaskMutation)
+	}{
+		{
+			name:  "operation kind mismatch",
+			build: newOpenMutation(now, "kind-mismatch", "9"),
+			mutate: func(mutation *TaskMutation) {
+				mutation.Event.Kind = domain.OperationCancelTask
+			},
+		},
+		{
+			name: "action ID mismatch",
+			build: func(t *testing.T) TaskMutation {
+				initial := validTask(t, "task-action-mismatch", digest("a"), t.TempDir(), now)
+				task := advancedTask(t, initial, domain.PhaseAssess, domain.ActionPlanChange, now.Add(time.Minute))
+				event := taskEvent("event-action-mismatch", &task, domain.PhaseIntake, now.Add(time.Minute))
+				return TaskMutation{ExpectedRevision: 1, Task: task, Event: event, Claim: ClaimRetain}
+			},
+			mutate: func(mutation *TaskMutation) {
+				different := domain.ID("different-action")
+				mutation.Event.ActionID = &different
+			},
+		},
+		{
+			name:  "payload digest mismatch",
+			build: newOpenMutation(now, "payload-mismatch", "b"),
+			mutate: func(mutation *TaskMutation) {
+				mutation.Event.PayloadDigest = digest("e")
+			},
+		},
+		{
+			name:  "operation and request ID mismatch",
+			build: newOpenMutation(now, "request-mismatch", "c"),
+			mutate: func(mutation *TaskMutation) {
+				mutation.Event.RequestID = "different-request"
+			},
+		},
+		{
+			name:  "from revision mismatch",
+			build: newOpenMutation(now, "from-revision-mismatch", "0"),
+			mutate: func(mutation *TaskMutation) {
+				mutation.Task.LastOperation.FromRevision = 1
+			},
+		},
+		{
+			name:  "revision mismatch",
+			build: newOpenMutation(now, "revision-mismatch", "d"),
+			mutate: func(mutation *TaskMutation) {
+				mutation.Event.Revision++
+			},
+		},
+		{
+			name:  "committed time mismatch",
+			build: newOpenMutation(now, "time-mismatch", "e"),
+			mutate: func(mutation *TaskMutation) {
+				mutation.Event.CreatedAt = mutation.Event.CreatedAt.Add(time.Second)
+			},
+		},
+		{
+			name:  "open task with retained claim",
+			build: newOpenMutation(now, "open-retain", "a"),
+			mutate: func(mutation *TaskMutation) {
+				mutation.Claim = ClaimRetain
+			},
+		},
+		{
+			name:  "open task with action ID",
+			build: newOpenMutation(now, "open-action", "f"),
+			mutate: func(mutation *TaskMutation) {
+				actionID := domain.ID("forbidden-open-action")
+				mutation.Task.LastOperation.ActionID = cloneID(&actionID)
+				mutation.Event.ActionID = cloneID(&actionID)
+			},
+		},
+		{
+			name: "apply action without action ID",
+			build: func(t *testing.T) TaskMutation {
+				initial := validTask(t, "task-apply-without-action", digest("1"), t.TempDir(), now)
+				task := advancedTask(t, initial, domain.PhaseAssess, domain.ActionPlanChange, now.Add(time.Minute))
+				event := taskEvent("event-apply-without-action", &task, domain.PhaseIntake, now.Add(time.Minute))
+				return TaskMutation{ExpectedRevision: 1, Task: task, Event: event, Claim: ClaimRetain}
+			},
+			mutate: func(mutation *TaskMutation) {
+				mutation.Task.LastOperation.ActionID = nil
+				mutation.Event.ActionID = nil
+			},
+		},
+		{
+			name: "apply action releases claim before DONE",
+			build: func(t *testing.T) TaskMutation {
+				initial := validTask(t, "task-apply-release", digest("b"), t.TempDir(), now)
+				task := advancedTask(t, initial, domain.PhaseAssess, domain.ActionPlanChange, now.Add(time.Minute))
+				event := taskEvent("event-apply-release", &task, domain.PhaseIntake, now.Add(time.Minute))
+				return TaskMutation{ExpectedRevision: 1, Task: task, Event: event, Claim: ClaimRelease}
+			},
+			mutate: func(*TaskMutation) {},
+		},
+		{
+			name: "apply action retains claim when entering DONE",
+			build: func(t *testing.T) TaskMutation {
+				initial := validTask(t, "task-done-retain", digest("c"), t.TempDir(), now)
+				task := doneTask(t, initial, now.Add(time.Minute))
+				event := taskEvent("event-done-retain", &task, domain.PhaseHandoff, now.Add(time.Minute))
+				return TaskMutation{ExpectedRevision: 1, Task: task, Event: event, Claim: ClaimRetain}
+			},
+			mutate: func(*TaskMutation) {},
+		},
+		{
+			name: "cancel task with retained claim",
+			build: func(t *testing.T) TaskMutation {
+				initial := validTask(t, "task-cancel-retain", digest("2"), t.TempDir(), now)
+				task := cancelledTask(t, initial, now.Add(time.Minute))
+				event := taskEvent("event-cancel-retain", &task, domain.PhaseIntake, now.Add(time.Minute))
+				return TaskMutation{ExpectedRevision: 1, Task: task, Event: event, Claim: ClaimRetain}
+			},
+			mutate: func(*TaskMutation) {},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			store, err := Open(ctx, filepath.Join(t.TempDir(), "committed-fact.db"))
+			if err != nil {
+				t.Fatalf("open store: %v", err)
+			}
+			defer store.Close()
+
+			mutation := test.build(t)
+			test.mutate(&mutation)
+			if err := store.CommitTask(ctx, mutation); !errors.Is(err, ErrInvalidArgument) {
+				t.Fatalf("mismatched committed fact error = %v, want %v", err, ErrInvalidArgument)
+			}
+			assertRowCount(t, ctx, store.db, `SELECT COUNT(*) FROM tasks`, "", 0)
+			assertRowCount(t, ctx, store.db, `SELECT COUNT(*) FROM task_events`, "", 0)
+			assertRowCount(t, ctx, store.db, `SELECT COUNT(*) FROM repository_claims`, "", 0)
+		})
+	}
+
+	t.Run("matching committed fact commits atomically", func(t *testing.T) {
+		ctx := context.Background()
+		store, err := Open(ctx, filepath.Join(t.TempDir(), "matching-fact.db"))
+		if err != nil {
+			t.Fatalf("open store: %v", err)
+		}
+		defer store.Close()
+
+		mutation := newOpenMutation(now, "matching-fact", "3")(t)
+		if err := store.CommitTask(ctx, mutation); err != nil {
+			t.Fatalf("commit matching fact: %v", err)
+		}
+		assertRowCount(t, ctx, store.db, `SELECT COUNT(*) FROM tasks`, "", 1)
+		assertRowCount(t, ctx, store.db, `SELECT COUNT(*) FROM task_events`, "", 1)
+		assertRowCount(t, ctx, store.db, `SELECT COUNT(*) FROM repository_claims`, "", 1)
+	})
 }
 
 func TestRepositoryClaimAcquireAndReleaseAreAtomic(t *testing.T) {
@@ -446,9 +717,10 @@ func TestRepositoryClaimAcquireAndReleaseAreAtomic(t *testing.T) {
 	now := time.Date(2026, 8, 14, 4, 5, 6, 7, time.UTC)
 	repositoryIdentity := digest("4")
 	first := validTask(t, "task-first", repositoryIdentity, root, now)
+	firstEvent := taskEvent("event-first", &first, domain.PhaseIntake, now)
 	if err := store.CommitTask(ctx, TaskMutation{
 		Task:  first,
-		Event: taskEvent("event-first", first, domain.PhaseIntake, now),
+		Event: firstEvent,
 		Claim: ClaimAcquire,
 	}); err != nil {
 		t.Fatalf("create first claimed task: %v", err)
@@ -477,9 +749,10 @@ func TestRepositoryClaimAcquireAndReleaseAreAtomic(t *testing.T) {
 	}
 
 	second := validTask(t, "task-second", repositoryIdentity, root, now.Add(time.Second))
+	secondEvent := taskEvent("event-second", &second, domain.PhaseIntake, now.Add(time.Second))
 	if err := store.CommitTask(ctx, TaskMutation{
 		Task:  second,
-		Event: taskEvent("event-second", second, domain.PhaseIntake, now.Add(time.Second)),
+		Event: secondEvent,
 		Claim: ClaimAcquire,
 	}); !errors.Is(err, ErrActiveTaskConflict) {
 		t.Fatalf("duplicate claim error = %v, want %v", err, ErrActiveTaskConflict)
@@ -491,10 +764,11 @@ func TestRepositoryClaimAcquireAndReleaseAreAtomic(t *testing.T) {
 	assertRowCount(t, ctx, store.db, `SELECT COUNT(*) FROM repository_claims`, "", 1)
 
 	cancelled := cancelledTask(t, first, now.Add(2*time.Minute))
+	failedCancelEvent := taskEvent("event-first", &cancelled, domain.PhaseIntake, now.Add(2*time.Minute))
 	if err := store.CommitTask(ctx, TaskMutation{
 		ExpectedRevision: 1,
 		Task:             cancelled,
-		Event:            taskEvent("event-first", cancelled, domain.PhaseIntake, now.Add(2*time.Minute)),
+		Event:            failedCancelEvent,
 		Claim:            ClaimRelease,
 	}); !errors.Is(err, ErrStorageUnavailable) {
 		t.Fatalf("failed release transaction error = %v, want %v", err, ErrStorageUnavailable)
@@ -504,10 +778,11 @@ func TestRepositoryClaimAcquireAndReleaseAreAtomic(t *testing.T) {
 		t.Fatalf("claim changed after rolled-back release: task=%q error=%v", active.TaskID, err)
 	}
 
+	cancelEvent := taskEvent("event-cancel", &cancelled, domain.PhaseIntake, now.Add(2*time.Minute))
 	if err := store.CommitTask(ctx, TaskMutation{
 		ExpectedRevision: 1,
 		Task:             cancelled,
-		Event:            taskEvent("event-cancel", cancelled, domain.PhaseIntake, now.Add(2*time.Minute)),
+		Event:            cancelEvent,
 		Claim:            ClaimRelease,
 	}); err != nil {
 		t.Fatalf("cancel and release task: %v", err)
@@ -524,6 +799,103 @@ func TestRepositoryClaimAcquireAndReleaseAreAtomic(t *testing.T) {
 	}
 	assertPersistedRevisionParity(t, ctx, store.db, first.TaskID, 2, 2)
 	assertRowCount(t, ctx, store.db, `SELECT COUNT(*) FROM repository_claims`, "", 0)
+}
+
+func TestRepositoryClaimClassifiesOnlyKnownUniqueConflicts(t *testing.T) {
+	now := time.Date(2026, 8, 14, 4, 30, 0, 0, time.UTC)
+
+	t.Run("duplicate claimed task ID is an active task conflict", func(t *testing.T) {
+		ctx := context.Background()
+		store, err := Open(ctx, filepath.Join(t.TempDir(), "duplicate-task-claim.db"))
+		if err != nil {
+			t.Fatalf("open store: %v", err)
+		}
+		defer store.Close()
+
+		firstMutation := newOpenMutation(now, "duplicate-task-claim", "4")(t)
+		if err := store.CommitTask(ctx, firstMutation); err != nil {
+			t.Fatalf("commit first claim: %v", err)
+		}
+
+		conflictingTask := firstMutation.Task.Clone()
+		conflictingTask.Repository.RepositoryIdentity = digest("5")
+		tx, err := store.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+		if err != nil {
+			t.Fatalf("begin claim transaction: %v", err)
+		}
+		defer tx.Rollback()
+		err = applyClaim(ctx, tx, TaskMutation{
+			Task:  conflictingTask,
+			Event: firstMutation.Event,
+			Claim: ClaimAcquire,
+		})
+		if !errors.Is(err, ErrActiveTaskConflict) {
+			t.Fatalf("duplicate task claim error = %v, want %v", err, ErrActiveTaskConflict)
+		}
+		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+			t.Fatalf("roll back duplicate task claim: %v", err)
+		}
+		assertRowCount(t, ctx, store.db, `SELECT COUNT(*) FROM repository_claims`, "", 1)
+	})
+
+	t.Run("trigger constraint failure is storage unavailable and rolls back", func(t *testing.T) {
+		ctx := context.Background()
+		store, err := Open(ctx, filepath.Join(t.TempDir(), "trigger-claim.db"))
+		if err != nil {
+			t.Fatalf("open store: %v", err)
+		}
+		defer store.Close()
+
+		if _, err := store.db.ExecContext(ctx, `
+			CREATE TRIGGER reject_claim_before_insert
+			BEFORE INSERT ON repository_claims
+			BEGIN
+				SELECT RAISE(ABORT, 'forced non-unique claim failure');
+			END
+		`); err != nil {
+			t.Fatalf("create claim rejection trigger: %v", err)
+		}
+
+		mutation := newOpenMutation(now, "trigger-failure", "6")(t)
+		err = store.CommitTask(ctx, mutation)
+		if !errors.Is(err, ErrStorageUnavailable) {
+			t.Fatalf("trigger claim error = %v, want %v", err, ErrStorageUnavailable)
+		}
+		if strings.Contains(err.Error(), "forced") || strings.Contains(err.Error(), "TRIGGER") {
+			t.Fatalf("storage error exposed SQLite details: %q", err)
+		}
+		assertRowCount(t, ctx, store.db, `SELECT COUNT(*) FROM tasks`, "", 0)
+		assertRowCount(t, ctx, store.db, `SELECT COUNT(*) FROM task_events`, "", 0)
+		assertRowCount(t, ctx, store.db, `SELECT COUNT(*) FROM repository_claims`, "", 0)
+	})
+
+	t.Run("trigger ignored insert is storage unavailable and rolls back", func(t *testing.T) {
+		ctx := context.Background()
+		store, err := Open(ctx, filepath.Join(t.TempDir(), "ignored-trigger-claim.db"))
+		if err != nil {
+			t.Fatalf("open store: %v", err)
+		}
+		defer store.Close()
+
+		if _, err := store.db.ExecContext(ctx, `
+			CREATE TRIGGER ignore_claim_before_insert
+			BEFORE INSERT ON repository_claims
+			BEGIN
+				SELECT RAISE(IGNORE);
+			END
+		`); err != nil {
+			t.Fatalf("create ignored claim trigger: %v", err)
+		}
+
+		mutation := newOpenMutation(now, "ignored-trigger", "8")(t)
+		err = store.CommitTask(ctx, mutation)
+		if !errors.Is(err, ErrStorageUnavailable) {
+			t.Fatalf("ignored trigger claim error = %v, want %v", err, ErrStorageUnavailable)
+		}
+		assertRowCount(t, ctx, store.db, `SELECT COUNT(*) FROM tasks`, "", 0)
+		assertRowCount(t, ctx, store.db, `SELECT COUNT(*) FROM task_events`, "", 0)
+		assertRowCount(t, ctx, store.db, `SELECT COUNT(*) FROM repository_claims`, "", 0)
+	})
 }
 
 func TestStoreErrorsDoNotExposeDatabasePath(t *testing.T) {
@@ -549,6 +921,29 @@ func openRawDatabase(t *testing.T, path string) *sql.DB {
 		t.Fatalf("ping raw database: %v", err)
 	}
 	return db
+}
+
+func newOpenMutation(
+	at time.Time,
+	suffix string,
+	repositoryDigestCharacter string,
+) func(*testing.T) TaskMutation {
+	return func(t *testing.T) TaskMutation {
+		t.Helper()
+		task := validTask(
+			t,
+			"task-"+suffix,
+			digest(repositoryDigestCharacter),
+			t.TempDir(),
+			at,
+		)
+		event := taskEvent("event-"+suffix, &task, domain.PhaseIntake, at)
+		return TaskMutation{
+			Task:  task,
+			Event: event,
+			Claim: ClaimAcquire,
+		}
+	}
 }
 
 func validTask(
@@ -622,6 +1017,7 @@ func advancedTask(
 ) domain.Task {
 	t.Helper()
 	next := task.Clone()
+	next.LastOperation = nil
 	next.Revision++
 	next.Phase = phase
 	next.UpdatedAt = at
@@ -649,6 +1045,7 @@ func advancedTask(
 func cancelledTask(t *testing.T, task domain.Task, at time.Time) domain.Task {
 	t.Helper()
 	next := task.Clone()
+	next.LastOperation = nil
 	next.Revision++
 	next.Phase = domain.PhaseCancelled
 	next.CurrentAction = nil
@@ -670,23 +1067,79 @@ func cancelledTask(t *testing.T, task domain.Task, at time.Time) domain.Task {
 	return next
 }
 
+func doneTask(t *testing.T, task domain.Task, at time.Time) domain.Task {
+	t.Helper()
+	next := task.Clone()
+	next.LastOperation = nil
+	next.Revision++
+	next.Phase = domain.PhaseDone
+	next.CurrentAction = nil
+	next.UpdatedAt = at
+	next.CompletedAt = &at
+	next.Outcome = &domain.Outcome{
+		Status: domain.TerminalCompleted,
+		Acceptance: []domain.OutcomeCriterion{{
+			Criterion: task.Contract.AcceptanceCriteria()[0],
+			Status:    domain.CriterionSatisfied,
+		}},
+		FinalRepositoryBindingDigest: task.Repository.BindingDigest,
+		Summary:                      "Task completed with matching acceptance evidence.",
+		CompletedAt:                  at,
+	}
+	if err := workflow.ValidateTask(next); err != nil {
+		t.Fatalf("construct done task: %v", err)
+	}
+	return next
+}
+
 func taskEvent(
 	eventID string,
-	task domain.Task,
+	task *domain.Task,
 	phaseBefore domain.Phase,
 	at time.Time,
 ) TaskEvent {
+	kind := domain.OperationApplyAction
+	var actionID *domain.ID
+	switch {
+	case task.Revision == 1:
+		kind = domain.OperationOpenTask
+	case task.Phase == domain.PhaseCancelled:
+		kind = domain.OperationCancelTask
+	default:
+		value := domain.ID("applied-action-" + eventID)
+		actionID = &value
+	}
+	requestID := domain.ID("request-" + eventID)
+	payloadDigest := digest("d")
+	task.LastOperation = &domain.LastOperation{
+		OperationID:   requestID,
+		Kind:          kind,
+		ActionID:      cloneID(actionID),
+		FromRevision:  task.Revision - 1,
+		ToRevision:    task.Revision,
+		PayloadDigest: payloadDigest,
+		CommittedAt:   at,
+	}
 	return TaskEvent{
 		EventID:       domain.ID(eventID),
 		TaskID:        task.TaskID,
 		Revision:      task.Revision,
-		EventType:     "task_mutated",
+		Kind:          kind,
 		PhaseBefore:   phaseBefore,
 		PhaseAfter:    task.Phase,
-		RequestID:     domain.ID("request-" + eventID),
-		PayloadDigest: digest("d"),
+		ActionID:      cloneID(actionID),
+		RequestID:     requestID,
+		PayloadDigest: payloadDigest,
 		CreatedAt:     at,
 	}
+}
+
+func cloneID(value *domain.ID) *domain.ID {
+	if value == nil {
+		return nil
+	}
+	copy := *value
+	return &copy
 }
 
 func digest(character string) domain.Digest {
@@ -705,13 +1158,29 @@ func evidenceSummary(id domain.ID, source domain.EvidenceSource, at time.Time) d
 	}
 }
 
-func maximalUniqueNarratives(prefix, fill string) []string {
-	values := make([]string, domain.MaxBoundedStringListItems)
+func escapedUniqueStrings(count, itemBytes int) []string {
+	values := make([]string, count)
 	for i := range values {
-		leader := fmt.Sprintf("%s-%02d-", prefix, i)
-		values[i] = leader + strings.Repeat(fill, domain.MaxReasonBytes-len(leader))
+		suffix := fmt.Sprintf("-%d", i)
+		values[i] = strings.Repeat("\\", itemBytes-len(suffix)) + suffix
 	}
 	return values
+}
+
+func taskWithEscapedEvidence(t *testing.T, summaryBytes int, now time.Time) domain.Task {
+	t.Helper()
+	task := validTask(t, "task-escaped-evidence", digest("7"), t.TempDir(), now)
+	task.Evidence = make([]domain.EvidenceSummary, domain.MaxRetainedEvidenceItems)
+	for i := range task.Evidence {
+		evidence := evidenceSummary(
+			domain.ID(fmt.Sprintf("evidence-%03d", i)),
+			domain.EvidenceSourceStatic,
+			now,
+		)
+		evidence.Summary = strings.Repeat("\\", summaryBytes)
+		task.Evidence[i] = evidence
+	}
+	return task
 }
 
 func assertPersistedRevisionParity(

@@ -78,6 +78,21 @@ func TestClosedCanonicalVocabulary(t *testing.T) {
 		}
 	})
 
+	t.Run("operation kinds", func(t *testing.T) {
+		for _, value := range []OperationKind{
+			OperationOpenTask, OperationApplyAction, OperationCancelTask,
+		} {
+			if !value.IsValid() {
+				t.Fatalf("canonical operation kind %q is invalid", value)
+			}
+		}
+		for _, value := range []OperationKind{"", "OPEN_TASK", " apply_action ", "resume_task"} {
+			if value.IsValid() {
+				t.Fatalf("non-canonical operation kind %q is valid", value)
+			}
+		}
+	})
+
 	t.Run("evidence recovery verification and terminal values", func(t *testing.T) {
 		for _, value := range []EvidenceSource{
 			EvidenceSourceAutomated, EvidenceSourceUser, EvidenceSourceStatic, EvidenceSourceHostObserved,
@@ -145,6 +160,30 @@ func TestIdentifiersAndDigestsAreCanonicalAndBounded(t *testing.T) {
 		if value.IsValid() {
 			t.Fatalf("invalid digest %q was accepted", value)
 		}
+	}
+}
+
+func TestCompactJSONSizeCountsRequiredEscapingButNotHTMLEscaping(t *testing.T) {
+	type projection struct {
+		Text string `json:"text"`
+	}
+	empty, err := compactJSONSize(projection{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	html, err := compactJSONSize(projection{Text: "<>&"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	required, err := compactJSONSize(projection{Text: "\\\""})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if html-empty != 3 {
+		t.Fatalf("HTML-sensitive bytes expanded by %d, want 3 literal bytes", html-empty)
+	}
+	if required-empty != 4 {
+		t.Fatalf("backslash and quote encoded as %d bytes, want 4 escaped bytes", required-empty)
 	}
 }
 
@@ -265,6 +304,23 @@ func TestContractCoreLimitBoundariesAndDuplicates(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("encoded aggregate counts JSON escaping", func(t *testing.T) {
+		nearLimit := escapedUniqueStrings(MaxAcceptanceCriteriaItems-1, MaxAcceptanceCriterionBytes)
+		contract, err := NewContract("goal", nil, nil, nearLimit, validBudget)
+		if err != nil {
+			t.Fatalf("near-limit escaped contract rejected: %v", err)
+		}
+		size, err := contractAggregateSize(contract)
+		if err != nil || size > MaxContractAggregateBytes {
+			t.Fatalf("near-limit contract size = %d, err = %v", size, err)
+		}
+
+		overLimit := escapedUniqueStrings(MaxAcceptanceCriteriaItems, MaxAcceptanceCriterionBytes)
+		if _, err := NewContract("goal", nil, nil, overLimit, validBudget); !errors.Is(err, ErrInvalidArgument) {
+			t.Fatalf("escaped contract above aggregate limit error = %v, want INVALID_ARGUMENT", err)
+		}
+	})
 }
 
 func TestVerificationBudgetBoundariesAndAliases(t *testing.T) {
@@ -438,8 +494,8 @@ func TestEvidenceSummaryInvariantsAndLimits(t *testing.T) {
 
 func TestOutcomeInvariantsAndCopies(t *testing.T) {
 	outcome := validOutcome(TerminalCompleted, []string{"criterion"})
-	outcome.AutomatedChecks = []EvidenceSummary{validEvidence("auto", EvidenceSourceAutomated, 1)}
-	outcome.ManualChecks = []EvidenceSummary{validEvidence("manual", EvidenceSourceUser, 0)}
+	outcome.AutomatedEvidenceIDs = []ID{"auto"}
+	outcome.ManualEvidenceIDs = []ID{"manual"}
 	if err := outcome.Validate(); err != nil {
 		t.Fatalf("valid outcome rejected: %v", err)
 	}
@@ -452,12 +508,13 @@ func TestOutcomeInvariantsAndCopies(t *testing.T) {
 		{name: "empty acceptance", mutate: func(o *Outcome) { o.Acceptance = nil }},
 		{name: "duplicate criterion", mutate: func(o *Outcome) { o.Acceptance = append(o.Acceptance, o.Acceptance[0]) }},
 		{name: "criterion alias", mutate: func(o *Outcome) { o.Acceptance[0].Criterion = " criterion " }},
-		{name: "automated list has user evidence", mutate: func(o *Outcome) {
-			o.AutomatedChecks[0].Source = EvidenceSourceUser
-			o.AutomatedChecks[0].CommandCount = 0
+		{name: "noncanonical automated evidence ID", mutate: func(o *Outcome) { o.AutomatedEvidenceIDs[0] = " auto " }},
+		{name: "duplicate automated evidence ID", mutate: func(o *Outcome) {
+			o.AutomatedEvidenceIDs = append(o.AutomatedEvidenceIDs, o.AutomatedEvidenceIDs[0])
 		}},
-		{name: "manual list has automated evidence", mutate: func(o *Outcome) { o.ManualChecks[0].Source = EvidenceSourceAutomated }},
-		{name: "duplicate evidence ID", mutate: func(o *Outcome) { o.ManualChecks[0].EvidenceID = o.AutomatedChecks[0].EvidenceID }},
+		{name: "duplicate evidence ID across lists", mutate: func(o *Outcome) {
+			o.ManualEvidenceIDs[0] = o.AutomatedEvidenceIDs[0]
+		}},
 		{name: "duplicate risk after normalization", mutate: func(o *Outcome) { o.Risks = []string{"risk", " risk "} }},
 		{name: "too many unverified items", mutate: func(o *Outcome) { o.UnverifiedItems = uniqueStrings("item", MaxBoundedStringListItems+1) }},
 		{name: "oversized summary", mutate: func(o *Outcome) { o.Summary = strings.Repeat("s", MaxOutcomeSummaryBytes+1) }},
@@ -474,12 +531,30 @@ func TestOutcomeInvariantsAndCopies(t *testing.T) {
 		})
 	}
 
+	t.Run("narrative aggregate counts JSON escaping", func(t *testing.T) {
+		candidate := outcome.Clone()
+		candidate.Risks = escapedUniqueStrings(15, MaxReasonBytes)
+		if err := candidate.Validate(); err != nil {
+			t.Fatalf("near-limit escaped outcome narrative rejected: %v", err)
+		}
+		size, err := outcomeNarrativeAggregateSize(candidate)
+		if err != nil || size > MaxOutcomeNarrativeAggregateBytes {
+			t.Fatalf("near-limit outcome narrative size = %d, err = %v", size, err)
+		}
+		candidate.Risks = escapedUniqueStrings(16, MaxReasonBytes)
+		if !errors.Is(candidate.Validate(), ErrInvalidArgument) {
+			t.Fatal("outcome narrative above aggregate limit was accepted")
+		}
+	})
+
 	clone := outcome.Clone()
 	clone.Acceptance[0].Criterion = "mutated"
-	clone.AutomatedChecks[0].Summary = "mutated"
+	clone.AutomatedEvidenceIDs[0] = "mutated-auto"
+	clone.ManualEvidenceIDs[0] = "mutated-manual"
 	clone.UnverifiedItems[0] = "mutated"
 	clone.Risks[0] = "mutated"
-	if outcome.Acceptance[0].Criterion != "criterion" || outcome.AutomatedChecks[0].Summary != "summary" ||
+	if outcome.Acceptance[0].Criterion != "criterion" || outcome.AutomatedEvidenceIDs[0] != "auto" ||
+		outcome.ManualEvidenceIDs[0] != "manual" ||
 		outcome.UnverifiedItems[0] != "none" || outcome.Risks[0] != "risk" {
 		t.Fatal("outcome clone retained slice aliases")
 	}
@@ -667,13 +742,93 @@ func TestTaskAggregateRelationshipsAndVerificationBudget(t *testing.T) {
 		}
 	})
 
+	t.Run("outcome references retained evidence with exact sources", func(t *testing.T) {
+		candidate := terminalTask(t, TerminalCompleted)
+		candidate.Outcome.AutomatedEvidenceIDs = []ID{"missing"}
+		if !errors.Is(candidate.Validate(), ErrInvalidArgument) {
+			t.Fatal("outcome reference to missing evidence was accepted")
+		}
+
+		permissiveContract, err := NewContract(
+			"goal", nil, nil, []string{"criterion"},
+			VerificationBudget{
+				Level:                VerificationTargeted,
+				MaxAutomaticCommands: 2,
+				AllowFullSuite:       true,
+				AllowManualHandoff:   true,
+			},
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		candidate = terminalTask(t, TerminalCompleted)
+		candidate.Contract = permissiveContract
+		candidate.Evidence = []EvidenceSummary{validEvidence("user", EvidenceSourceUser, 0)}
+		candidate.Outcome.AutomatedEvidenceIDs = []ID{"user"}
+		if !errors.Is(candidate.Validate(), ErrInvalidArgument) {
+			t.Fatal("automated outcome list referenced user evidence")
+		}
+
+		candidate = terminalTask(t, TerminalCompleted)
+		candidate.Contract = permissiveContract
+		candidate.Evidence = []EvidenceSummary{validEvidence("auto", EvidenceSourceAutomated, 1)}
+		candidate.Outcome.ManualEvidenceIDs = []ID{"auto"}
+		if !errors.Is(candidate.Validate(), ErrInvalidArgument) {
+			t.Fatal("manual outcome list referenced automated evidence")
+		}
+
+		candidate = terminalTask(t, TerminalCompleted)
+		candidate.Contract = permissiveContract
+		candidate.Evidence = []EvidenceSummary{
+			validEvidence("auto", EvidenceSourceAutomated, 1),
+			validEvidence("user", EvidenceSourceUser, 0),
+		}
+		candidate.Outcome.AutomatedEvidenceIDs = []ID{"auto"}
+		candidate.Outcome.ManualEvidenceIDs = []ID{"user"}
+		if err := candidate.Validate(); err != nil {
+			t.Fatalf("valid retained evidence references rejected: %v", err)
+		}
+	})
+
+	t.Run("outcome references cannot bypass verification budget", func(t *testing.T) {
+		candidate := terminalTask(t, TerminalCompleted)
+		fullSuite := validEvidence("full", EvidenceSourceAutomated, 1)
+		fullSuite.FullSuite = true
+		candidate.Evidence = []EvidenceSummary{fullSuite}
+		candidate.Outcome.AutomatedEvidenceIDs = []ID{"full"}
+		if !errors.Is(candidate.Validate(), ErrInvalidArgument) {
+			t.Fatal("referenced full-suite evidence was accepted when prohibited")
+		}
+
+		candidate = terminalTask(t, TerminalCompleted)
+		candidate.Evidence = []EvidenceSummary{validEvidence("user", EvidenceSourceUser, 0)}
+		candidate.Outcome.ManualEvidenceIDs = []ID{"user"}
+		if !errors.Is(candidate.Validate(), ErrInvalidArgument) {
+			t.Fatal("referenced user evidence was accepted when manual handoff was prohibited")
+		}
+
+		candidate = terminalTask(t, TerminalCompleted)
+		candidate.Evidence = []EvidenceSummary{
+			validEvidence("auto-1", EvidenceSourceAutomated, 1),
+			validEvidence("auto-2", EvidenceSourceAutomated, 1),
+			validEvidence("auto-3", EvidenceSourceAutomated, 1),
+		}
+		candidate.Outcome.AutomatedEvidenceIDs = []ID{"auto-1", "auto-2", "auto-3"}
+		if !errors.Is(candidate.Validate(), ErrInvalidArgument) {
+			t.Fatal("referenced automatic evidence over the command budget was accepted")
+		}
+	})
+
 	t.Run("last operation must be the current committed revision", func(t *testing.T) {
 		candidate := task.Clone()
 		candidate.Revision = 2
 		candidate.CurrentAction.Revision = 2
+		actionID := ID("action-previous")
 		candidate.LastOperation = &LastOperation{
 			OperationID:   "operation-1",
-			ActionID:      "action-previous",
+			Kind:          OperationApplyAction,
+			ActionID:      &actionID,
 			FromRevision:  1,
 			ToRevision:    2,
 			PayloadDigest: testDigest("c"),
@@ -707,6 +862,110 @@ func TestTaskAggregateRelationshipsAndVerificationBudget(t *testing.T) {
 	})
 }
 
+func TestLastOperationKindAndOptionalActionSemantics(t *testing.T) {
+	applyActionID := ID("action-1")
+	base := LastOperation{
+		OperationID:   "operation-1",
+		Kind:          OperationApplyAction,
+		ActionID:      &applyActionID,
+		FromRevision:  1,
+		ToRevision:    2,
+		PayloadDigest: testDigest("a"),
+		CommittedAt:   testTime,
+	}
+	if err := base.Validate(); err != nil {
+		t.Fatalf("valid apply operation rejected: %v", err)
+	}
+
+	open := base
+	open.Kind = OperationOpenTask
+	open.ActionID = nil
+	open.FromRevision = 0
+	open.ToRevision = 1
+	if err := open.Validate(); err != nil {
+		t.Fatalf("valid open operation rejected: %v", err)
+	}
+
+	cancel := base
+	cancel.Kind = OperationCancelTask
+	cancel.ActionID = nil
+	if err := cancel.Validate(); err != nil {
+		t.Fatalf("valid cancel operation rejected: %v", err)
+	}
+
+	tests := []struct {
+		name   string
+		mutate func(*LastOperation)
+	}{
+		{name: "open with action ID", mutate: func(o *LastOperation) {
+			o.Kind = OperationOpenTask
+			o.FromRevision = 0
+			o.ToRevision = 1
+		}},
+		{name: "open from positive revision", mutate: func(o *LastOperation) {
+			o.Kind = OperationOpenTask
+			o.ActionID = nil
+		}},
+		{name: "apply without action ID", mutate: func(o *LastOperation) { o.ActionID = nil }},
+		{name: "apply from zero revision", mutate: func(o *LastOperation) {
+			o.FromRevision = 0
+			o.ToRevision = 1
+		}},
+		{name: "cancel with action ID", mutate: func(o *LastOperation) { o.Kind = OperationCancelTask }},
+		{name: "unknown kind", mutate: func(o *LastOperation) { o.Kind = "resume_task" }},
+		{name: "empty optional action ID", mutate: func(o *LastOperation) {
+			empty := ID("")
+			o.ActionID = &empty
+		}},
+		{name: "nonconsecutive revision", mutate: func(o *LastOperation) { o.ToRevision++ }},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			candidate := base
+			actionID := *base.ActionID
+			candidate.ActionID = &actionID
+			tc.mutate(&candidate)
+			if !errors.Is(candidate.Validate(), ErrInvalidArgument) {
+				t.Fatalf("invalid operation was accepted: %#v", candidate)
+			}
+		})
+	}
+}
+
+func TestTaskAggregateLimitUsesEscapedJSONBytes(t *testing.T) {
+	low, high := 1, MaxEvidenceSummaryBytes
+	var maximum Task
+	maximumLength := 0
+	for low <= high {
+		mid := low + (high-low)/2
+		candidate := taskWithEscapedEvidence(t, mid)
+		if candidate.Validate() == nil {
+			maximum = candidate
+			maximumLength = mid
+			low = mid + 1
+		} else {
+			high = mid - 1
+		}
+	}
+	if maximumLength == 0 {
+		t.Fatal("no valid Task aggregate boundary found")
+	}
+	size, err := taskAggregateSize(maximum)
+	if err != nil || size > MaxTaskAggregateBytes {
+		t.Fatalf("maximum valid Task size = %d, err = %v", size, err)
+	}
+	if size+MaxResultEnvelopeOverheadBytes >= MaxResultEnvelopeBytes {
+		t.Fatalf("maximum valid Task plus envelope overhead = %d, limit = %d",
+			size+MaxResultEnvelopeOverheadBytes, MaxResultEnvelopeBytes)
+	}
+	if maximumLength < MaxEvidenceSummaryBytes {
+		overLimit := taskWithEscapedEvidence(t, maximumLength+1)
+		if !errors.Is(overLimit.Validate(), ErrInvalidArgument) {
+			t.Fatal("Task above encoded aggregate limit was accepted")
+		}
+	}
+}
+
 func TestTaskCloneHasNoMutableAliases(t *testing.T) {
 	task := validTask(t)
 	resume := PhasePlan
@@ -724,15 +983,29 @@ func TestTaskCloneHasNoMutableAliases(t *testing.T) {
 		CreatedAt:             testTime,
 	}
 	task.Evidence = []EvidenceSummary{validEvidence("evidence", EvidenceSourceStatic, 0)}
+	operationActionID := ID("action-previous")
+	task.Revision = 2
+	task.CurrentAction.Revision = 2
+	task.LastOperation = &LastOperation{
+		OperationID:   "operation-1",
+		Kind:          OperationApplyAction,
+		ActionID:      &operationActionID,
+		FromRevision:  1,
+		ToRevision:    2,
+		PayloadDigest: testDigest("f"),
+		CommittedAt:   task.UpdatedAt,
+	}
 
 	clone := task.Clone()
 	*clone.Repository.Branch = "changed"
 	clone.CurrentAction.AllowedEffects[0] = EffectEditRepositoryFiles
 	clone.Blocker.Message = "changed"
 	clone.Evidence[0].Summary = "changed"
+	*clone.LastOperation.ActionID = "changed-action"
 	*clone.ResumePhase = PhaseAssess
 	if *task.Repository.Branch != "main" || task.CurrentAction.AllowedEffects[0] != EffectReadRepository ||
 		task.Blocker.Message != "blocked" || task.Evidence[0].Summary != "summary" ||
+		*task.LastOperation.ActionID != "action-previous" ||
 		*task.ResumePhase != PhasePlan {
 		t.Fatal("task clone retained mutable aliases")
 	}
@@ -905,4 +1178,25 @@ func uniqueStrings(prefix string, count int) []string {
 		values[i] = fmt.Sprintf("%s-%d", prefix, i)
 	}
 	return values
+}
+
+func escapedUniqueStrings(count, itemBytes int) []string {
+	values := make([]string, count)
+	for i := range values {
+		suffix := fmt.Sprintf("-%d", i)
+		values[i] = strings.Repeat("\\", itemBytes-len(suffix)) + suffix
+	}
+	return values
+}
+
+func taskWithEscapedEvidence(t *testing.T, summaryBytes int) Task {
+	t.Helper()
+	task := validTask(t)
+	task.Evidence = make([]EvidenceSummary, MaxRetainedEvidenceItems)
+	for i := range task.Evidence {
+		evidence := validEvidence(ID(fmt.Sprintf("evidence-%d", i)), EvidenceSourceStatic, 0)
+		evidence.Summary = strings.Repeat("\\", summaryBytes)
+		task.Evidence[i] = evidence
+	}
+	return task
 }

@@ -58,13 +58,17 @@ func NewContract(
 	if err != nil || budget.Validate() != nil {
 		return Contract{}, ErrInvalidArgument
 	}
-	return Contract{
+	contract := Contract{
 		goal:               normalizedGoal,
 		scope:              normalizedScope,
 		outOfScope:         normalizedOut,
 		acceptanceCriteria: normalizedAcceptance,
 		verificationBudget: budget,
-	}, nil
+	}
+	if contract.Validate() != nil {
+		return Contract{}, ErrInvalidArgument
+	}
+	return contract, nil
 }
 
 func (c Contract) Validate() error {
@@ -81,10 +85,40 @@ func (c Contract) Validate() error {
 			MaxAcceptanceCriteriaItems,
 			MaxAcceptanceCriterionBytes,
 			true,
-		) != nil || c.verificationBudget.Validate() != nil {
+		) != nil || c.verificationBudget.Validate() != nil || validateContractAggregate(c) != nil {
 		return ErrInvalidArgument
 	}
 	return nil
+}
+
+type contractAggregateProjection struct {
+	Goal               string             `json:"goal"`
+	Scope              []string           `json:"scope"`
+	OutOfScope         []string           `json:"out_of_scope"`
+	AcceptanceCriteria []string           `json:"acceptance_criteria"`
+	VerificationBudget VerificationBudget `json:"verification_budget"`
+}
+
+func contractProjection(c Contract) contractAggregateProjection {
+	return contractAggregateProjection{
+		Goal:               c.goal,
+		Scope:              c.scope,
+		OutOfScope:         c.outOfScope,
+		AcceptanceCriteria: c.acceptanceCriteria,
+		VerificationBudget: c.verificationBudget,
+	}
+}
+
+func validateContractAggregate(c Contract) error {
+	size, err := contractAggregateSize(c)
+	if err != nil || size > MaxContractAggregateBytes {
+		return ErrInvalidArgument
+	}
+	return nil
+}
+
+func contractAggregateSize(c Contract) (int, error) {
+	return compactJSONSize(contractProjection(c))
 }
 
 func (c Contract) Goal() string { return c.goal }

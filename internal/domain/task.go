@@ -3,18 +3,35 @@ package domain
 import "time"
 
 type LastOperation struct {
-	OperationID   ID        `json:"operation_id"`
-	ActionID      ID        `json:"action_id"`
-	FromRevision  uint64    `json:"from_revision"`
-	ToRevision    uint64    `json:"to_revision"`
-	PayloadDigest Digest    `json:"payload_digest"`
-	CommittedAt   time.Time `json:"committed_at"`
+	OperationID   ID            `json:"operation_id"`
+	Kind          OperationKind `json:"kind"`
+	ActionID      *ID           `json:"action_id"`
+	FromRevision  uint64        `json:"from_revision"`
+	ToRevision    uint64        `json:"to_revision"`
+	PayloadDigest Digest        `json:"payload_digest"`
+	CommittedAt   time.Time     `json:"committed_at"`
 }
 
 func (o LastOperation) Validate() error {
-	if validateID(o.OperationID) != nil || validateID(o.ActionID) != nil || o.FromRevision == 0 ||
-		o.ToRevision != o.FromRevision+1 || validateDigest(o.PayloadDigest) != nil ||
+	if validateID(o.OperationID) != nil || !o.Kind.IsValid() ||
+		o.ToRevision == 0 || o.ToRevision != o.FromRevision+1 || validateDigest(o.PayloadDigest) != nil ||
 		validateUTC(o.CommittedAt) != nil {
+		return ErrInvalidArgument
+	}
+	switch o.Kind {
+	case OperationOpenTask:
+		if o.FromRevision != 0 || o.ActionID != nil {
+			return ErrInvalidArgument
+		}
+	case OperationApplyAction:
+		if o.FromRevision == 0 || o.ActionID == nil || validateID(*o.ActionID) != nil {
+			return ErrInvalidArgument
+		}
+	case OperationCancelTask:
+		if o.FromRevision == 0 || o.ActionID != nil {
+			return ErrInvalidArgument
+		}
+	default:
 		return ErrInvalidArgument
 	}
 	return nil
@@ -48,16 +65,16 @@ func (t Task) Validate() error {
 		return ErrInvalidArgument
 	}
 
-	evidenceIDs := make(map[ID]struct{}, len(t.Evidence))
+	evidenceByID := make(map[ID]EvidenceSummary, len(t.Evidence))
 	automaticCommands := 0
 	for _, evidence := range t.Evidence {
 		if evidence.Validate() != nil {
 			return ErrInvalidArgument
 		}
-		if _, duplicate := evidenceIDs[evidence.EvidenceID]; duplicate {
+		if _, duplicate := evidenceByID[evidence.EvidenceID]; duplicate {
 			return ErrInvalidArgument
 		}
-		evidenceIDs[evidence.EvidenceID] = struct{}{}
+		evidenceByID[evidence.EvidenceID] = evidence
 		if evidence.Source == EvidenceSourceAutomated {
 			automaticCommands += evidence.CommandCount
 			if evidence.FullSuite && !t.Contract.VerificationBudget().AllowFullSuite {
@@ -97,6 +114,9 @@ func (t Task) Validate() error {
 		if !outcomeCoversContract(*t.Outcome, t.Contract.AcceptanceCriteria()) {
 			return ErrInvalidArgument
 		}
+		if validateOutcomeEvidenceReferences(*t.Outcome, evidenceByID) != nil {
+			return ErrInvalidArgument
+		}
 	case t.Phase == PhaseBlocked:
 		if t.CurrentAction == nil || t.Blocker == nil || t.ResumePhase == nil ||
 			t.Outcome != nil || t.CompletedAt != nil || *t.ResumePhase != t.Blocker.ResumePhase {
@@ -117,6 +137,28 @@ func (t Task) Validate() error {
 			t.CurrentAction.Revision != t.Revision ||
 			t.CurrentAction.PayloadContract != t.Phase ||
 			t.CurrentAction.RepositoryBindingDigest != t.Repository.BindingDigest {
+			return ErrInvalidArgument
+		}
+	}
+	if validateTaskAggregate(t) != nil {
+		return ErrInvalidArgument
+	}
+	return nil
+}
+
+func validateOutcomeEvidenceReferences(
+	outcome Outcome,
+	evidenceByID map[ID]EvidenceSummary,
+) error {
+	for _, evidenceID := range outcome.AutomatedEvidenceIDs {
+		evidence, exists := evidenceByID[evidenceID]
+		if !exists || evidence.Source != EvidenceSourceAutomated {
+			return ErrInvalidArgument
+		}
+	}
+	for _, evidenceID := range outcome.ManualEvidenceIDs {
+		evidence, exists := evidenceByID[evidenceID]
+		if !exists || evidence.Source != EvidenceSourceUser {
 			return ErrInvalidArgument
 		}
 	}
@@ -147,6 +189,7 @@ func (t Task) Clone() Task {
 	}
 	if t.LastOperation != nil {
 		operation := *t.LastOperation
+		operation.ActionID = cloneIDPointer(operation.ActionID)
 		t.LastOperation = &operation
 	}
 	t.Evidence = append([]EvidenceSummary(nil), t.Evidence...)
@@ -157,4 +200,50 @@ func (t Task) Clone() Task {
 	t.ResumePhase = clonePhasePointer(t.ResumePhase)
 	t.CompletedAt = cloneTimePointer(t.CompletedAt)
 	return t
+}
+
+type taskAggregateProjection struct {
+	TaskID        ID                          `json:"task_id"`
+	OriginHost    Host                        `json:"origin_host"`
+	Contract      contractAggregateProjection `json:"contract"`
+	Repository    RepositoryBinding           `json:"repository"`
+	Phase         Phase                       `json:"phase"`
+	ResumePhase   *Phase                      `json:"resume_phase"`
+	CurrentAction *Action                     `json:"current_action"`
+	Blocker       *Blocker                    `json:"blocker"`
+	LastOperation *LastOperation              `json:"last_operation"`
+	Evidence      []EvidenceSummary           `json:"evidence"`
+	Outcome       *Outcome                    `json:"outcome"`
+	Revision      uint64                      `json:"revision"`
+	CreatedAt     time.Time                   `json:"created_at"`
+	UpdatedAt     time.Time                   `json:"updated_at"`
+	CompletedAt   *time.Time                  `json:"completed_at"`
+}
+
+func validateTaskAggregate(t Task) error {
+	size, err := taskAggregateSize(t)
+	if err != nil || size > MaxTaskAggregateBytes {
+		return ErrInvalidArgument
+	}
+	return nil
+}
+
+func taskAggregateSize(t Task) (int, error) {
+	return compactJSONSize(taskAggregateProjection{
+		TaskID:        t.TaskID,
+		OriginHost:    t.OriginHost,
+		Contract:      contractProjection(t.Contract),
+		Repository:    t.Repository,
+		Phase:         t.Phase,
+		ResumePhase:   t.ResumePhase,
+		CurrentAction: t.CurrentAction,
+		Blocker:       t.Blocker,
+		LastOperation: t.LastOperation,
+		Evidence:      t.Evidence,
+		Outcome:       t.Outcome,
+		Revision:      t.Revision,
+		CreatedAt:     t.CreatedAt,
+		UpdatedAt:     t.UpdatedAt,
+		CompletedAt:   t.CompletedAt,
+	})
 }

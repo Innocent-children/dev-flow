@@ -83,8 +83,9 @@ ordinary paths reported by status are hashed, with the fixed read-only command
 
 **Rationale**: Hashing raw status alone misses a second byte change at the same dirty path. Git's
 read-only object calculation detects that change without returning, persisting, or logging source
-bytes. The fixed 1,024-path limit, per-command timeout, and combined output limit keep observation
-bounded; disappearing or inconsistent paths fail safely without retry loops.
+bytes. The fixed 1,024-path limit bounds the observation's path set, while every fixed Git subprocess
+uses the same per-command timeout and combined stdout/stderr limit. Disappearing or inconsistent
+paths fail safely without retry loops.
 
 **Alternatives rejected**:
 
@@ -94,9 +95,9 @@ bounded; disappearing or inconsistent paths fail safely without retry loops.
 - HEAD only: misses worktree drift;
 - allowing the Core to repair drift: violates the repository boundary.
 
-Dirty submodules fail closed with a stable Repository Observation error. The Core does not recurse,
-does not accept a single ambiguous dirty bit as a complete fingerprint, and never modifies the
-submodule.
+Dirty submodules fail closed with `ErrDirtySubmodule`, a stable repository-layer sentinel that also
+matches `ErrGitObservation`. The Core does not recurse, does not accept a single ambiguous dirty bit
+as a complete fingerprint, and never modifies the submodule.
 
 ## Decision 7: Dirty repositories are allowed but bound
 
@@ -124,9 +125,13 @@ not needed to prove the initial journey.
 repository identity.
 
 **Rationale**: Both host products will share one database; this prevents conflicting authorities.
-The Store maps only structured SQLite uniqueness violations for the repository-identity primary key
-or claimed task ID to `ACTIVE_TASK_CONFLICT`. Foreign-key, check, trigger, locked, I/O, schema, and
-other execution errors remain `STORAGE_UNAVAILABLE`; error text is neither parsed nor exposed.
+The Store maps only the repository-identity primary key or claimed task ID uniqueness conflict to
+`ACTIVE_TASK_CONFLICT`. Fixed conflict-target/`RETURNING` SQL identifies the repository key; for a
+no-row result, a fixed repository-key query must confirm that key exists. For a candidate task-ID
+conflict, `errors.As` and the modernc extended uniqueness code gate a fixed claim-key existence
+query. Neither no-row nor a driver code alone is treated as the constraint identity. Foreign-key,
+check, trigger, ignored insert, locked, I/O, schema, and other execution errors remain
+`STORAGE_UNAVAILABLE`; error text is neither parsed nor exposed.
 
 **Alternatives rejected**:
 

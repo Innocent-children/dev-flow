@@ -15,9 +15,15 @@ type ActionBlueprint struct {
 }
 
 func BlueprintForPhase(phase domain.Phase) (ActionBlueprint, error) {
+	if !phase.IsValid() {
+		return ActionBlueprint{}, domain.NewError(domain.ErrorInvalidArgument, "unknown workflow phase")
+	}
+	if phase.Terminal() {
+		return ActionBlueprint{}, domain.NewError(domain.ErrorTaskTerminal, "terminal phase has no next action")
+	}
 	kind, ok := ActionForPhase(phase)
 	if !ok {
-		return ActionBlueprint{}, domain.NewError(domain.ErrorTaskTerminal, "terminal phase has no next action")
+		return ActionBlueprint{}, domain.NewError(domain.ErrorInternal, "workflow phase has no action blueprint")
 	}
 	blueprint := ActionBlueprint{Kind: kind, PayloadContract: phase}
 	required := func(kinds ...domain.EvidenceRequirementKind) []domain.EvidenceRequirement {
@@ -80,7 +86,10 @@ func BlueprintForPhase(phase domain.Phase) (ActionBlueprint, error) {
 		)
 		blueprint.Guidance = "Prepare the final acceptance mapping and handoff decision."
 	case domain.PhaseHandoff:
-		blueprint.AllowedEffects = []domain.AllowedEffect{domain.EffectPrepareDeliverySummary}
+		blueprint.AllowedEffects = []domain.AllowedEffect{
+			domain.EffectReadRepository,
+			domain.EffectPrepareDeliverySummary,
+		}
 		blueprint.RequiredEvidence = required(
 			domain.RequirementRepositoryObservation,
 			domain.RequirementDeliverySummary,
@@ -97,7 +106,7 @@ func BlueprintForPhase(phase domain.Phase) (ActionBlueprint, error) {
 		)
 		blueprint.Guidance = "Satisfy the stored blocker condition and return only to its resume phase."
 	default:
-		return ActionBlueprint{}, domain.NewError(domain.ErrorInvalidArgument, "unknown workflow phase")
+		return ActionBlueprint{}, domain.NewError(domain.ErrorInternal, "workflow phase has no action blueprint")
 	}
 	return cloneBlueprint(blueprint), nil
 }

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"math"
 	"net/url"
 	"path/filepath"
@@ -15,7 +16,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
-	_ "modernc.org/sqlite"
+	sqlite "modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 // SQLite is the Schema 1 implementation of Store.
@@ -305,8 +307,8 @@ func compareAndSwapTask(
 
 func insertEvent(ctx context.Context, tx *sql.Tx, event TaskEvent) error {
 	var actionID any
-	if event.ActionID != "" {
-		actionID = string(event.ActionID)
+	if event.ActionID != nil {
+		actionID = string(*event.ActionID)
 	}
 	_, err := tx.ExecContext(
 		ctx,
@@ -317,7 +319,7 @@ func insertEvent(ctx context.Context, tx *sql.Tx, event TaskEvent) error {
 		string(event.EventID),
 		string(event.TaskID),
 		int64(event.Revision),
-		event.EventType,
+		string(event.Kind),
 		string(event.PhaseBefore),
 		string(event.PhaseAfter),
 		actionID,
@@ -335,23 +337,37 @@ func applyClaim(ctx context.Context, tx *sql.Tx, mutation TaskMutation) error {
 	task := mutation.Task
 	switch mutation.Claim {
 	case ClaimAcquire:
-		_, err := tx.ExecContext(
+		var insertedRepositoryIdentity string
+		err := tx.QueryRowContext(
 			ctx,
 			`INSERT INTO repository_claims (
 			     repository_identity, task_id, origin_host, claimed_at
-			 ) VALUES (?, ?, ?, ?)`,
+			 ) VALUES (?, ?, ?, ?)
+			 ON CONFLICT(repository_identity) DO NOTHING
+			 RETURNING repository_identity`,
 			string(task.Repository.RepositoryIdentity),
 			string(task.TaskID),
 			string(task.OriginHost),
 			formatTime(mutation.Event.CreatedAt),
-		)
-		if err != nil {
-			if ctx.Err() != nil {
+		).Scan(&insertedRepositoryIdentity)
+		switch {
+		case err == nil:
+			if insertedRepositoryIdentity != string(task.Repository.RepositoryIdentity) {
 				return ErrStorageUnavailable
 			}
+			return nil
+		case ctx.Err() != nil:
+			return ErrStorageUnavailable
+		case errors.Is(err, sql.ErrNoRows):
+			if claimedRepositoryConflict(ctx, tx, task.Repository.RepositoryIdentity) {
+				return ErrActiveTaskConflict
+			}
+			return ErrStorageUnavailable
+		case claimedTaskConflict(ctx, tx, task.TaskID, err):
 			return ErrActiveTaskConflict
+		default:
+			return ErrStorageUnavailable
 		}
-		return nil
 	case ClaimRetain:
 		var repositoryIdentity, originHost string
 		err := tx.QueryRowContext(
@@ -404,20 +420,37 @@ func validateMutation(mutation TaskMutation) error {
 		!validTaskEvent(mutation.Event) {
 		return ErrInvalidArgument
 	}
-	terminal := task.Phase.Terminal()
-	switch {
-	case mutation.ExpectedRevision == 0:
-		if mutation.Claim != ClaimAcquire || terminal || mutation.Event.PhaseBefore != task.Phase {
+	operation := task.LastOperation
+	if operation == nil || operation.Validate() != nil ||
+		operation.OperationID != mutation.Event.RequestID ||
+		operation.Kind != mutation.Event.Kind ||
+		!sameOptionalID(operation.ActionID, mutation.Event.ActionID) ||
+		operation.FromRevision != mutation.ExpectedRevision ||
+		operation.ToRevision != task.Revision ||
+		operation.ToRevision != mutation.Event.Revision ||
+		operation.PayloadDigest != mutation.Event.PayloadDigest ||
+		!operation.CommittedAt.Equal(mutation.Event.CreatedAt) {
+		return ErrInvalidArgument
+	}
+	switch operation.Kind {
+	case domain.OperationOpenTask:
+		if mutation.ExpectedRevision != 0 || mutation.Claim != ClaimAcquire || task.Phase.Terminal() ||
+			mutation.Event.PhaseBefore != task.Phase {
 			return ErrInvalidArgument
 		}
-	case terminal:
-		if mutation.Claim != ClaimRelease {
+	case domain.OperationApplyAction:
+		if mutation.ExpectedRevision == 0 || task.Phase == domain.PhaseCancelled ||
+			(task.Phase == domain.PhaseDone && mutation.Claim != ClaimRelease) ||
+			(task.Phase != domain.PhaseDone && mutation.Claim != ClaimRetain) {
+			return ErrInvalidArgument
+		}
+	case domain.OperationCancelTask:
+		if mutation.ExpectedRevision == 0 || task.Phase != domain.PhaseCancelled ||
+			mutation.Claim != ClaimRelease {
 			return ErrInvalidArgument
 		}
 	default:
-		if mutation.Claim != ClaimRetain {
-			return ErrInvalidArgument
-		}
+		return ErrInvalidArgument
 	}
 	return nil
 }
@@ -425,14 +458,59 @@ func validateMutation(mutation TaskMutation) error {
 func validTaskEvent(event TaskEvent) bool {
 	return validIdentifier(string(event.EventID)) &&
 		validIdentifier(string(event.TaskID)) &&
-		validIdentifier(event.EventType) &&
-		(event.ActionID == "" || validIdentifier(string(event.ActionID))) &&
+		event.Kind.IsValid() &&
+		(event.ActionID == nil || validIdentifier(string(*event.ActionID))) &&
 		validIdentifier(string(event.RequestID)) &&
 		validSHA256(string(event.PayloadDigest)) &&
 		event.PhaseBefore.IsValid() &&
 		event.PhaseAfter.IsValid() &&
 		!event.CreatedAt.IsZero() &&
 		isUTC(event.CreatedAt)
+}
+
+func sameOptionalID(left, right *domain.ID) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return *left == *right
+}
+
+func claimedTaskConflict(ctx context.Context, tx *sql.Tx, taskID domain.ID, cause error) bool {
+	var sqliteError *sqlite.Error
+	if !errors.As(cause, &sqliteError) {
+		return false
+	}
+	switch sqliteError.Code() {
+	case sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY, sqlite3.SQLITE_CONSTRAINT_UNIQUE:
+	default:
+		return false
+	}
+
+	var existingTaskID string
+	err := tx.QueryRowContext(
+		ctx,
+		`SELECT task_id
+		   FROM repository_claims
+		  WHERE task_id = ?`,
+		string(taskID),
+	).Scan(&existingTaskID)
+	return err == nil && existingTaskID == string(taskID)
+}
+
+func claimedRepositoryConflict(
+	ctx context.Context,
+	tx *sql.Tx,
+	repositoryIdentity domain.Digest,
+) bool {
+	var existingRepositoryIdentity string
+	err := tx.QueryRowContext(
+		ctx,
+		`SELECT repository_identity
+		   FROM repository_claims
+		  WHERE repository_identity = ?`,
+		string(repositoryIdentity),
+	).Scan(&existingRepositoryIdentity)
+	return err == nil && existingRepositoryIdentity == string(repositoryIdentity)
 }
 
 func validIdentifier(value string) bool {

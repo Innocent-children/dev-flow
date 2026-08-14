@@ -303,9 +303,13 @@ expected revision, requires an action ID, and uses `ClaimRetain` or `ClaimReleas
 | claimed_at | timestamp | UTC |
 
 Claim is deleted in the same transaction that reaches `DONE` or `CANCELLED`.
-Only a structured uniqueness violation of `repository_identity` or `task_id` maps to
-`ACTIVE_TASK_CONFLICT`. Foreign-key, check, trigger, locked, I/O, schema, and other SQLite failures
-map to `STORAGE_UNAVAILABLE` without parsing or exposing driver text.
+Only a confirmed uniqueness conflict on `repository_identity` or `task_id` maps to
+`ACTIVE_TASK_CONFLICT`. Repository-identity conflicts are identified by fixed
+conflict-target/`RETURNING` SQL, followed by a fixed repository-key existence query whenever no row
+is returned. A task-ID candidate must first match the modernc structured uniqueness code via
+`errors.As`, then a fixed claim-key existence query confirms that exact key; neither no-row nor the
+code alone names the constraint. Foreign-key, check, trigger, ignored insert, locked, I/O, schema,
+and other SQLite failures map to `STORAGE_UNAVAILABLE` without parsing or exposing driver text.
 
 ## Relational Schema
 
