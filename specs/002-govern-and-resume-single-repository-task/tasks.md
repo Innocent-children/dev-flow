@@ -26,20 +26,20 @@ one user story at a time and stop at every checkpoint.
 
 **Purpose**: Add only the permitted Core dependency and feature-owned directory skeleton.
 
-- [ ] T001 Update root `go.mod` with only the latest stable compatible v1 release of
+- [x] T001 Update root `go.mod` with only the latest stable compatible v1 release of
   `modernc.org/sqlite`; let `go.mod`/`go.sum` record the resolved version without adding
   equality-based compatibility checks. Add `github.com/modelcontextprotocol/go-sdk` only in Phase 7
   when MCP is actually implemented; do not pin it with a blank import, `tools.go`, or placeholder.
-- [ ] T002 Generate and commit `go.sum` without adding indirect dependencies manually.
-- [ ] T003 Create source ownership packages under `internal/domain/`, `internal/workflow/`,
+- [x] T002 Generate and commit `go.sum` without adding indirect dependencies manually.
+- [x] T003 Create source ownership packages under `internal/domain/`, `internal/workflow/`,
   `internal/recovery/`, `internal/repository/`, `internal/store/`, `internal/application/`, and
   `internal/mcp/` with package documentation only.
-- [ ] T004 Create `protocol/fixtures/` and `tests/journeys/` ownership README files that state the
+- [x] T004 Create `protocol/fixtures/` and `tests/journeys/` ownership README files that state the
   shared-contract and process-restart boundaries.
-- [ ] T005 Select `specs/002-govern-and-resume-single-repository-task` through
+- [x] T005 Select `specs/002-govern-and-resume-single-repository-task` through
   `SPECIFY_FEATURE_DIRECTORY` for the implementation session; do not handcraft Spec Kit-managed
   feature state.
-- [ ] T006 Confirm `packages/codex/` and `packages/deepseek/` remain untouched and private during
+- [x] T006 Confirm `packages/codex/` and `packages/deepseek/` remain untouched and private during
   this feature.
 
 **Checkpoint**: Dependencies and package ownership exist; no workflow behavior has been added.
