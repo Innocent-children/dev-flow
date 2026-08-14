@@ -30,4 +30,4 @@ jobs:
           version: 11
 
       - name: Run bounded repository validation
-        run: pnpm run validate
+        run: ./scripts/validate-repository.sh

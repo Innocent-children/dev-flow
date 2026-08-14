@@ -31,6 +31,11 @@ var productLifecycleFields = []string{
 	"prepare",
 }
 
+var rootDevelopmentScripts = map[string]string{
+	"validate":           "./scripts/validate-repository.sh",
+	"validate:contracts": "go test ./tests/contract",
+}
+
 func TestProjectPackageManifests(t *testing.T) {
 	t.Parallel()
 
@@ -57,6 +62,67 @@ func TestProjectPackageManifests(t *testing.T) {
 			}
 
 			assertNoManifestViolations(t, test.path, test.kind)
+		})
+	}
+}
+
+func TestProjectManifestBootstrapMetadata(t *testing.T) {
+	t.Parallel()
+
+	root := manifestRepositoryRoot(t)
+	versionBytes, err := os.ReadFile(filepath.Join(root, "VERSION"))
+	if err != nil {
+		t.Fatalf("read root VERSION: %v", err)
+	}
+	wantVersion := strings.TrimSpace(string(versionBytes))
+
+	tests := []struct {
+		path             string
+		wantName         string
+		wantRootMetadata bool
+	}{
+		{path: filepath.Join(root, "package.json"), wantName: "dev-flow", wantRootMetadata: true},
+		{path: filepath.Join(root, "packages", "codex", "package.json"), wantName: "dev-flow-codex"},
+		{path: filepath.Join(root, "packages", "deepseek", "package.json"), wantName: "dev-flow-deepseek"},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(filepath.ToSlash(test.path), func(t *testing.T) {
+			t.Parallel()
+
+			manifest := readManifestObject(t, test.path)
+			assertManifestString(t, test.path, manifest, "name", test.wantName)
+			assertManifestString(t, test.path, manifest, "version", wantVersion)
+
+			if !test.wantRootMetadata {
+				return
+			}
+			if _, present := manifest["packageManager"]; present {
+				t.Errorf("manifest %s field %q: exact packageManager patch is forbidden", test.path, "packageManager")
+			}
+			if _, present := manifest["bin"]; present {
+				t.Errorf("manifest %s field %q: root executable entry is forbidden", test.path, "bin")
+			}
+
+			var engines map[string]string
+			if err := json.Unmarshal(manifest["engines"], &engines); err != nil {
+				t.Fatalf("manifest %s field %q: must be an object: %v", test.path, "engines", err)
+			}
+			if engines["node"] != ">=24" {
+				t.Errorf("manifest %s field %q = %q, want %q", test.path, "engines.node", engines["node"], ">=24")
+			}
+			if engines["pnpm"] != ">=11 <12" {
+				t.Errorf("manifest %s field %q = %q, want %q", test.path, "engines.pnpm", engines["pnpm"], ">=11 <12")
+			}
+
+			var scripts map[string]string
+			if err := json.Unmarshal(manifest["scripts"], &scripts); err != nil {
+				t.Fatalf("manifest %s field %q: must be an object: %v", test.path, "scripts", err)
+			}
+			if scripts["validate"] != "./scripts/validate-repository.sh" {
+				t.Errorf("manifest %s field %q = %q, want shared validation entry", test.path, "scripts.validate", scripts["validate"])
+			}
 		})
 	}
 }
@@ -129,6 +195,18 @@ func TestPackageManifestRejectsForbiddenFields(t *testing.T) {
 			kind:          rootManifest,
 			manifest:      `{"private": true, "publishConfig": {"access": "public"}}`,
 			violatedField: "publishConfig",
+		},
+		{
+			name:          "root lifecycle script",
+			kind:          rootManifest,
+			manifest:      `{"private": true, "scripts": {"postinstall": "node setup.js"}}`,
+			violatedField: "scripts.postinstall",
+		},
+		{
+			name:          "root publication script",
+			kind:          rootManifest,
+			manifest:      `{"private": true, "scripts": {"publish": "pnpm publish"}}`,
+			violatedField: "scripts.publish",
 		},
 		{
 			name:          "non-private product",
@@ -265,6 +343,23 @@ func validatePackageManifest(path string, kind manifestKind) []error {
 		if _, present := manifest["publishConfig"]; present {
 			violations = append(violations, manifestViolation(path, "publishConfig", "publication configuration is forbidden"))
 		}
+		if rawScripts, present := manifest["scripts"]; present {
+			var scripts map[string]string
+			if err := json.Unmarshal(rawScripts, &scripts); err != nil {
+				violations = append(violations, manifestViolation(path, "scripts", "must be a string-valued JSON object"))
+			} else {
+				for name, command := range scripts {
+					expectedCommand, allowed := rootDevelopmentScripts[name]
+					if !allowed {
+						violations = append(violations, manifestViolation(path, "scripts."+name, "only repository-development validation scripts are allowed"))
+						continue
+					}
+					if command != expectedCommand {
+						violations = append(violations, manifestViolation(path, "scripts."+name, "must invoke %q", expectedCommand))
+					}
+				}
+			}
+		}
 	case productManifest:
 		if _, present := manifest["bin"]; present {
 			violations = append(violations, manifestViolation(path, "bin", "product executable entries are forbidden"))
@@ -287,6 +382,32 @@ func validatePackageManifest(path string, kind manifestKind) []error {
 	}
 
 	return violations
+}
+
+func readManifestObject(t *testing.T, path string) map[string]json.RawMessage {
+	t.Helper()
+
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read manifest %s: %v", path, err)
+	}
+	var manifest map[string]json.RawMessage
+	if err := json.Unmarshal(contents, &manifest); err != nil {
+		t.Fatalf("parse manifest %s: %v", path, err)
+	}
+	return manifest
+}
+
+func assertManifestString(t *testing.T, path string, manifest map[string]json.RawMessage, field, want string) {
+	t.Helper()
+
+	var got string
+	if err := json.Unmarshal(manifest[field], &got); err != nil {
+		t.Fatalf("manifest %s field %q: must be a string: %v", path, field, err)
+	}
+	if got != want {
+		t.Errorf("manifest %s field %q = %q, want %q", path, field, got, want)
+	}
 }
 
 func manifestViolation(path, field, format string, args ...any) error {

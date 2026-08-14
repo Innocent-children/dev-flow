@@ -76,6 +76,67 @@ func TestRepositoryLayoutAcceptsValidFixture(t *testing.T) {
 	}
 }
 
+func TestPullRequestCIContract(t *testing.T) {
+	t.Parallel()
+
+	root := repositoryRoot(t)
+	ciPath := filepath.Join(root, ".github", "workflows", "ci.yml")
+	contents, err := os.ReadFile(ciPath)
+	if err != nil {
+		t.Fatalf("read CI contract path %s: %v", ciPath, err)
+	}
+	workflow := string(contents)
+
+	requiredFragments := []string{
+		"pull_request:",
+		"permissions:",
+		"contents: read",
+		"go-version: stable",
+		"node-version: lts/*",
+		"version: 11",
+		"run: ./scripts/validate-repository.sh",
+	}
+	for _, fragment := range requiredFragments {
+		if !strings.Contains(workflow, fragment) {
+			t.Errorf("%s violates pull-request CI contract: missing %q", relativePath(root, ciPath), fragment)
+		}
+	}
+	if count := strings.Count(workflow, "run:"); count != 1 {
+		t.Errorf("%s violates bounded CI contract: found %d run commands, want exactly the shared validation entry", relativePath(root, ciPath), count)
+	}
+
+	forbiddenFragments := []string{
+		"push:",
+		"pull_request_target",
+		"workflow_dispatch",
+		"strategy:",
+		"matrix:",
+		"secrets.",
+		"contents: write",
+		"packages: write",
+		"id-token: write",
+		"npm publish",
+		"pnpm publish",
+		"gh release",
+		"git tag",
+		"npm_token",
+		"node_auth_token",
+		"codex",
+		"deepseek",
+		"npm config set",
+		"pnpm config set",
+		"git config",
+		"$home",
+		"~/.config",
+	}
+	lowerWorkflow := strings.ToLower(workflow)
+	for _, fragment := range forbiddenFragments {
+		if strings.Contains(lowerWorkflow, fragment) {
+			t.Errorf("%s violates no-publication/no-host-side-effect CI contract: contains %q", relativePath(root, ciPath), fragment)
+		}
+	}
+}
+
 func TestRepositoryLayoutRejects(t *testing.T) {
 	t.Run("missing required root path", func(t *testing.T) {
 		root := newValidRepository(t)

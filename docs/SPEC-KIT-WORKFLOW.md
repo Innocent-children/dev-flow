@@ -5,15 +5,20 @@
 项目使用 Spec Kit 官方最新稳定版，不在项目文档中固定补丁版本：
 
 ```bash
-uv tool install specify-cli
+command -v specify >/dev/null 2>&1 || uv tool install specify-cli
 specify self check
 # 若 check 报告存在更新：
 specify self upgrade
+```
 
+若 `.specify/scripts/`、`.specify/templates/` 和 `.agents/skills/speckit-*/SKILL.md` 已存在，
+保留当前根项目，不重复初始化。只有其中任一类生成资产缺失时，才在仓库根目录执行：
+
+```bash
 specify init --here --integration codex --script sh
 ```
 
-Windows 使用 `--script ps`。
+Windows 初始化时使用 `--script ps`。
 
 初始化后记录实际使用版本作为开发证据，但不把版本相等比较写入验收或 CI。升级只有在实际命令、生成目录或工作流行为变化时，才需要更新 `docs/TOOLCHAIN-BASELINES.md` 与当前功能的 `research.md`。
 
@@ -36,7 +41,7 @@ Spec Kit 可通过 `.specify/feature.json` 或环境变量选择活动功能。�
 
 ```bash
 export SPECIFY_INIT_DIR="$PWD"
-export SPECIFY_FEATURE_DIRECTORY="specs/001-bootstrap-monorepo"
+export SPECIFY_FEATURE_DIRECTORY="$PWD/specs/001-bootstrap-monorepo"
 ```
 
 Git 分支和 Spec Kit feature selection 是两件事。每个 worktree/进程都要选择正确的

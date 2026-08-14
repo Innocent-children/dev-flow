@@ -145,24 +145,24 @@ boundaries are executable/packable but not installable.
 
 ### Tests for User Story 3
 
-- [ ] T033 [P] [US3] Add a contract test in `tests/contract/repository_layout_test.go` ensuring
+- [x] T033 [P] [US3] Add a contract test in `tests/contract/repository_layout_test.go` ensuring
   `.github/workflows/ci.yml` invokes `scripts/validate-repository.sh` rather than duplicating a
   broader matrix.
-- [ ] T034 [P] [US3] Add a contract test in `tests/contract/repository_layout_test.go` ensuring
+- [x] T034 [P] [US3] Add a contract test in `tests/contract/repository_layout_test.go` ensuring
   pull-request jobs in `.github/workflows/ci.yml` contain no publication command or release-secret
   reference, real Codex/DeepSeek launch, or user-configuration mutation.
-- [ ] T035 [P] [US3] Add contract cases in `tests/contract/package_manifest_test.go` ensuring root
+- [x] T035 [P] [US3] Add contract cases in `tests/contract/package_manifest_test.go` ensuring root
   `package.json`, `packages/codex/package.json`, and `packages/deepseek/package.json` retain the
   bootstrap boundaries and each manifest version matches the current root `VERSION`.
 
 ### Implementation for User Story 3
 
-- [ ] T036 [US3] Finalize `scripts/validate-repository.sh` command ordering and fail-fast output.
-- [ ] T037 [US3] Make the `validate` script in root `package.json` invoke the exact bounded local
+- [x] T036 [US3] Finalize `scripts/validate-repository.sh` command ordering and fail-fast output.
+- [x] T037 [US3] Make the `validate` script in root `package.json` invoke the exact bounded local
   validation at `scripts/validate-repository.sh`.
-- [ ] T038 [US3] Make `.github/workflows/ci.yml` invoke the same validation entry point.
-- [ ] T039 [US3] Document check ownership and explicit exclusions in `README.md`.
-- [ ] T040 [US3] Run `scripts/validate-repository.sh` once from the valid repository checkout.
+- [x] T038 [US3] Make `.github/workflows/ci.yml` invoke the same validation entry point.
+- [x] T039 [US3] Document check ownership and explicit exclusions in `README.md`.
+- [x] T040 [US3] Run `scripts/validate-repository.sh` once from the valid repository checkout.
 
 **Checkpoint**: All three user stories are independently verifiable.
 
@@ -170,16 +170,16 @@ boundaries are executable/packable but not installable.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T041 [P] Check all Markdown relative links in `README.md`, `docs/`, and
+- [x] T041 [P] Check all Markdown relative links in `README.md`, `docs/`, and
   `specs/001-bootstrap-monorepo/`.
-- [ ] T042 Verify `README.md`, `AGENTS.md`, `docs/*.md`, and
+- [x] T042 Verify `README.md`, `AGENTS.md`, `docs/*.md`, and
   `specs/001-bootstrap-monorepo/*.md` are complete, with no unresolved template variables,
   unintended placeholder text, or unsupported claims.
-- [ ] T043 Review the final tree against
+- [x] T043 Review the final tree against
   `specs/001-bootstrap-monorepo/contracts/repository-layout.md`.
-- [ ] T044 Run `$speckit-converge` against `specs/001-bootstrap-monorepo/tasks.md` and append only
+- [x] T044 Run `$speckit-converge` against `specs/001-bootstrap-monorepo/tasks.md` and append only
   concrete acceptance gaps there.
-- [ ] T045 Record unsupported product behavior and platform status in `README.md` and mirror it
+- [x] T045 Record unsupported product behavior and platform status in `README.md` and mirror it
   honestly in the final completion report.
 
 ## Dependencies & Execution Order
