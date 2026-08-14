@@ -54,8 +54,8 @@ host package without installing or publishing anything.
 2. **Given** the pnpm workspace, **When** workspaces are listed, **Then** `packages/codex` and
    `packages/deepseek` are distinct private packages.
 3. **Given** either package dry-run, **When** its contents are inspected, **Then** it contains only
-   the bootstrap files declared by its manifest and contains no executable entry, lifecycle script,
-   or runtime dependency.
+   `package.json`, `README.md`, and pnpm's automatically included root Apache `LICENSE`, and contains
+   no executable entry, lifecycle script, or runtime dependency.
 
 ---
 

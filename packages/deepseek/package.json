@@ -1,0 +1,7 @@
+{
+  "name": "dev-flow-deepseek",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Feature 001 engineering skeleton for the future DeepSeek product boundary.",
+  "license": "Apache-2.0"
+}

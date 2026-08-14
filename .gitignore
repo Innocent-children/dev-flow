@@ -1,0 +1,32 @@
+# Operating system and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Local environment and logs
+.env
+.env.*
+!.env.example
+*.log
+*.tmp
+
+# Go build and test artifacts
+*.exe
+*.test
+*.out
+/bin/
+/dev-flow
+/vendor/
+
+# Node and package artifacts
+node_modules/
+dist/
+build/
+coverage/
+*.tgz
+
+# Local Spec Kit state is managed by .specify/.gitignore.

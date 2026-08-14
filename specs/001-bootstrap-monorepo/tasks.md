@@ -23,16 +23,16 @@ specification are included.
 
 **Purpose**: Establish repository metadata and toolchain roots without product behavior.
 
-- [ ] T001 Create root `LICENSE` with Apache-2.0 text.
-- [ ] T002 Create root `VERSION` with one valid initial pre-1.0 SemVer, and ensure validation reads the current file rather than asserting a permanent literal.
-- [ ] T003 Create root `go.mod` with the approved module path and `go 1.26` language floor; do not add an exact patch-level `toolchain` directive.
-- [ ] T004 Create private root `package.json` with `engines.node: >=24` and `engines.pnpm: >=11 <12`; do not require one exact pnpm patch through `packageManager`.
-- [ ] T005 Create `pnpm-workspace.yaml` including only `packages/*`.
-- [ ] T006 Create root `.gitignore` for Go, Node, editor, build, package, and local Spec Kit runtime
+- [x] T001 Create root `LICENSE` with Apache-2.0 text.
+- [x] T002 Create root `VERSION` with one valid initial pre-1.0 SemVer, and ensure validation reads the current file rather than asserting a permanent literal.
+- [x] T003 Create root `go.mod` with the approved module path and `go 1.26` language floor; do not add an exact patch-level `toolchain` directive.
+- [x] T004 Create private root `package.json` with `engines.node: >=24` and `engines.pnpm: >=11 <12`; do not require one exact pnpm patch through `packageManager`.
+- [x] T005 Create `pnpm-workspace.yaml` including only `packages/*`.
+- [x] T006 Create root `.gitignore` for Go, Node, editor, build, package, and local Spec Kit runtime
   artifacts without ignoring specifications or lockfiles.
-- [ ] T007 Verify `.specify/memory/constitution.md` and generated
+- [x] T007 Verify `.specify/memory/constitution.md` and generated
   `.agents/skills/speckit-*` are present; do not edit generated Skills.
-- [ ] T008 Select `specs/001-bootstrap-monorepo` through `SPECIFY_FEATURE_DIRECTORY` for the
+- [x] T008 Select `specs/001-bootstrap-monorepo` through `SPECIFY_FEATURE_DIRECTORY` for the
   implementation session; do not handcraft Spec Kit-managed feature state.
 
 **Checkpoint**: Toolchain and Spec Kit roots exist; no product source package exists yet.
@@ -43,20 +43,22 @@ specification are included.
 
 **Purpose**: Establish ownership areas and repository-contract validation shared by all stories.
 
-- [ ] T009 Create ownership directories and explanatory README files under `internal/`,
+- [x] T009 Create ownership directories and explanatory README files under `internal/`,
   `protocol/fixtures/`, `tests/contract/`, `release/`, and `scripts/`.
-- [ ] T010 Create `scripts/validate-repository.sh` that orchestrates Go, pnpm, package,
+- [x] T010 Create `scripts/validate-repository.sh` that orchestrates Go, pnpm, package,
   repository-contract, and documentation checks without installation or publication.
-- [ ] T011 [P] Create `tests/contract/repository_layout_test.go` for required paths, ownership rules,
-  nested `.specify/`, nested `go.mod`, and executable-root constraints.
-- [ ] T012 [P] Create `tests/contract/package_manifest_test.go` for private-package, lifecycle-script,
-  `bin`, runtime-dependency, and root-publishability constraints.
-- [ ] T013 [P] Create `tests/contract/markdown_links_test.go` for repository-relative links in root,
+- [x] T011 [P] Create `tests/contract/repository_layout_test.go` for required paths, ownership rules,
+  nested `.specify/`, nested `go.mod`, extra host source, and executable-root constraints.
+- [x] T012 [P] Create `tests/contract/package_manifest_test.go` for private-package, lifecycle-script,
+  `bin`, runtime-dependency, and root-publishability constraints, with every violation naming its
+  manifest path and field.
+- [x] T013 [P] Create `tests/contract/markdown_links_test.go` for repository-relative links in root,
   `docs/`, and active specification documents.
-- [ ] T014 Create root validation scripts in `package.json` that call repository-owned commands and
+- [x] T014 Create root validation scripts in `package.json` that call repository-owned commands and
   do not add a task-runner framework.
-- [ ] T015 Create `.github/workflows/ci.yml` for pull requests using the current stable Go compatible with the `go 1.26` floor, current Node LTS `>=24`, and current pnpm 11.x.
-- [ ] T016 Ensure CI has read-only repository permission and no release or npm credentials.
+- [x] T015 Create `.github/workflows/ci.yml` for pull requests using the current stable Go compatible with the `go 1.26` floor, current Node LTS `>=24`, and current pnpm 11.x.
+- [x] T016 Ensure `.github/workflows/ci.yml` has read-only repository permission and no release or
+  npm credentials.
 
 **Checkpoint**: Repository contracts can fail before user-story implementation begins.
 
@@ -72,22 +74,27 @@ isolated invalid fixtures.
 
 ### Tests for User Story 1
 
-- [ ] T017 [P] [US1] Add positive required-path and ownership cases to
+- [x] T017 [P] [US1] Add positive required-path and ownership cases to
   `tests/contract/repository_layout_test.go`.
-- [ ] T018 [P] [US1] Add isolated nested `.specify/`, nested `go.mod`, and extra executable-root
-  fixtures under `tests/contract/testdata/repository-layout/`.
-- [ ] T019 [US1] Verify each invalid fixture reports the exact path and violated contract.
+- [x] T018 [P] [US1] Add fixture descriptors under
+  `tests/contract/testdata/repository-layout/` for isolated temporary repositories containing a
+  nested `.specify/`, nested `go.mod`, extra executable root, or unexpected host source; do not
+  check forbidden paths into the valid repository tree.
+- [x] T019 [US1] Verify in `tests/contract/repository_layout_test.go` that each invalid fixture under
+  `tests/contract/testdata/repository-layout/` reports the exact path and violated contract.
 
 ### Implementation for User Story 1
 
-- [ ] T020 [US1] Finalize root `README.md` with product definition, setup, feature selection,
+- [x] T020 [US1] Finalize root `README.md` with product definition, setup, feature selection,
   validation commands, and document index.
-- [ ] T021 [P] [US1] Finalize root `AGENTS.md` with authority, requirement-scope, Git, test-budget,
+- [x] T021 [P] [US1] Finalize root `AGENTS.md` with authority, requirement-scope, Git, test-budget,
   and Spec Kit rules.
-- [ ] T022 [P] [US1] Finalize directory ownership and dependency direction in
+- [x] T022 [P] [US1] Finalize directory ownership and dependency direction in
   `docs/ARCHITECTURE.md`.
-- [ ] T023 [US1] Run repository-layout and Markdown-link checks and resolve every project-tree
-  violation.
+- [x] T023 [US1] Run the synthetic positive and isolated negative cases in
+  `tests/contract/repository_layout_test.go` together with
+  `tests/contract/markdown_links_test.go`; full-checkout required paths remain the Phase 5 checkpoint
+  after `cmd/dev-flow` and both product packages exist.
 
 **Checkpoint**: User Story 1 is independently complete; repository governance and ownership are
 self-contained.
@@ -102,25 +109,28 @@ self-contained.
 
 ### Tests for User Story 2
 
-- [ ] T024 [P] [US2] Create `internal/version/version_test.go` for strict SemVer parsing and dynamic use of the current root `VERSION`, with no hard-coded product-version literal.
-- [ ] T025 [P] [US2] Create `cmd/dev-flow/main_test.go` verifying help/version output and
+- [x] T024 [P] [US2] Create `internal/version/version_test.go` for strict SemVer parsing and dynamic use of the current root `VERSION`, with no hard-coded product-version literal.
+- [x] T025 [P] [US2] Create `cmd/dev-flow/main_test.go` verifying help/version output and
   nonfunctional messaging.
-- [ ] T026 [P] [US2] Add positive and negative product-manifest fixtures to
-  `tests/contract/package_manifest_test.go`.
+- [x] T026 [P] [US2] Add positive and negative product-manifest fixtures to
+  `tests/contract/package_manifest_test.go`, including lifecycle, `bin`, and runtime dependency
+  cases that assert the manifest path and violated field.
 
 ### Implementation for User Story 2
 
-- [ ] T027 [P] [US2] Implement `internal/version/version.go` with one build-time version source and
-  no release framework.
-- [ ] T028 [US2] Implement `cmd/dev-flow/main.go` with only help and `version`; task and MCP
+- [x] T027 [P] [US2] Implement `internal/version/version.go` to read the current root `VERSION`
+  directly from the repository checkout, with no duplicated Go version literal or release framework.
+- [x] T028 [US2] Implement `cmd/dev-flow/main.go` with only help and `version`; task and MCP
   invocations must report that the capability is not implemented.
-- [ ] T029 [P] [US2] Create private `packages/codex/package.json` and
+- [x] T029 [P] [US2] Create private `packages/codex/package.json` and
   `packages/codex/README.md`.
-- [ ] T030 [P] [US2] Create private `packages/deepseek/package.json` and
+- [x] T030 [P] [US2] Create private `packages/deepseek/package.json` and
   `packages/deepseek/README.md`.
-- [ ] T031 [US2] Generate and commit `pnpm-lock.yaml` using any supported pnpm 11.x release; record the actual version in validation output without making it a compatibility equality check.
-- [ ] T032 [US2] Verify package dry-run output contains only the manifest-declared bootstrap files
-  and no executable or lifecycle entry.
+- [x] T031 [US2] Generate and commit `pnpm-lock.yaml` using any supported pnpm 11.x release; record the actual version in validation output without making it a compatibility equality check.
+- [x] T032 [US2] Verify through `scripts/validate-repository.sh` that dry-run output for
+  `packages/codex/package.json` and `packages/deepseek/package.json` contains only `package.json`,
+  `README.md`, and pnpm's automatically included root `LICENSE`, with no executable or lifecycle
+  entry.
 
 **Checkpoint**: User Story 2 is independently complete; one core boundary and two product
 boundaries are executable/packable but not installable.
@@ -135,20 +145,24 @@ boundaries are executable/packable but not installable.
 
 ### Tests for User Story 3
 
-- [ ] T033 [P] [US3] Add a contract test ensuring CI invokes the repository validation entry rather
-  than duplicating a broader matrix.
-- [ ] T034 [P] [US3] Add a contract test ensuring pull-request jobs contain no publication command or
-  release-secret reference.
-- [ ] T035 [P] [US3] Add a contract test ensuring root and product package manifests retain the
-  bootstrap boundaries.
+- [ ] T033 [P] [US3] Add a contract test in `tests/contract/repository_layout_test.go` ensuring
+  `.github/workflows/ci.yml` invokes `scripts/validate-repository.sh` rather than duplicating a
+  broader matrix.
+- [ ] T034 [P] [US3] Add a contract test in `tests/contract/repository_layout_test.go` ensuring
+  pull-request jobs in `.github/workflows/ci.yml` contain no publication command or release-secret
+  reference, real Codex/DeepSeek launch, or user-configuration mutation.
+- [ ] T035 [P] [US3] Add contract cases in `tests/contract/package_manifest_test.go` ensuring root
+  `package.json`, `packages/codex/package.json`, and `packages/deepseek/package.json` retain the
+  bootstrap boundaries and each manifest version matches the current root `VERSION`.
 
 ### Implementation for User Story 3
 
 - [ ] T036 [US3] Finalize `scripts/validate-repository.sh` command ordering and fail-fast output.
-- [ ] T037 [US3] Make root `pnpm run validate` invoke the exact bounded local validation.
+- [ ] T037 [US3] Make the `validate` script in root `package.json` invoke the exact bounded local
+  validation at `scripts/validate-repository.sh`.
 - [ ] T038 [US3] Make `.github/workflows/ci.yml` invoke the same validation entry point.
 - [ ] T039 [US3] Document check ownership and explicit exclusions in `README.md`.
-- [ ] T040 [US3] Run the complete bootstrap validation once from a valid checkout.
+- [ ] T040 [US3] Run `scripts/validate-repository.sh` once from the valid repository checkout.
 
 **Checkpoint**: All three user stories are independently verifiable.
 
@@ -158,12 +172,15 @@ boundaries are executable/packable but not installable.
 
 - [ ] T041 [P] Check all Markdown relative links in `README.md`, `docs/`, and
   `specs/001-bootstrap-monorepo/`.
-- [ ] T042 Verify all repository documents are complete, with no unresolved template
-  variables, placeholder text, or unsupported claims.
-- [ ] T043 Review the final tree against `contracts/repository-layout.md`.
-- [ ] T044 Run `$speckit-converge` and append only concrete acceptance gaps.
-- [ ] T045 Record unsupported product behavior and platform status honestly in the completion
-  report.
+- [ ] T042 Verify `README.md`, `AGENTS.md`, `docs/*.md`, and
+  `specs/001-bootstrap-monorepo/*.md` are complete, with no unresolved template variables,
+  unintended placeholder text, or unsupported claims.
+- [ ] T043 Review the final tree against
+  `specs/001-bootstrap-monorepo/contracts/repository-layout.md`.
+- [ ] T044 Run `$speckit-converge` against `specs/001-bootstrap-monorepo/tasks.md` and append only
+  concrete acceptance gaps there.
+- [ ] T045 Record unsupported product behavior and platform status in `README.md` and mirror it
+  honestly in the final completion report.
 
 ## Dependencies & Execution Order
 

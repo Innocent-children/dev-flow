@@ -1,0 +1,329 @@
+package contract_test
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"testing"
+)
+
+type manifestKind string
+
+const (
+	rootManifest    manifestKind = "root"
+	productManifest manifestKind = "product"
+)
+
+var runtimeDependencyFields = []string{
+	"dependencies",
+	"optionalDependencies",
+	"peerDependencies",
+}
+
+var productLifecycleFields = []string{
+	"build",
+	"install",
+	"preinstall",
+	"postinstall",
+	"prepare",
+}
+
+func TestProjectPackageManifests(t *testing.T) {
+	t.Parallel()
+
+	repositoryRoot := manifestRepositoryRoot(t)
+	tests := []struct {
+		path string
+		kind manifestKind
+	}{
+		{path: filepath.Join(repositoryRoot, "package.json"), kind: rootManifest},
+		{path: filepath.Join(repositoryRoot, "packages", "codex", "package.json"), kind: productManifest},
+		{path: filepath.Join(repositoryRoot, "packages", "deepseek", "package.json"), kind: productManifest},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(filepath.ToSlash(test.path), func(t *testing.T) {
+			if _, err := os.Stat(test.path); err != nil {
+				if os.IsNotExist(err) {
+					// Required-path validation owns missing manifest failures. This test
+					// owns the contents of manifests once their phase creates them.
+					return
+				}
+				t.Fatalf("inspect manifest %s: %v", test.path, err)
+			}
+
+			assertNoManifestViolations(t, test.path, test.kind)
+		})
+	}
+}
+
+func TestPackageManifestAcceptsBootstrapManifests(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		kind     manifestKind
+		manifest string
+	}{
+		{
+			name: "root",
+			kind: rootManifest,
+			manifest: `{
+				"name": "dev-flow",
+				"version": "1.2.3",
+				"private": true,
+				"scripts": {"validate": "./scripts/validate-repository.sh"},
+				"devDependencies": {"example-development-tool": "1.0.0"}
+			}`,
+		},
+		{
+			name: "product",
+			kind: productManifest,
+			manifest: `{
+				"name": "dev-flow-codex",
+				"version": "1.2.3",
+				"private": true,
+				"scripts": {"validate": "node --check package.json"},
+				"devDependencies": {"example-development-tool": "1.0.0"}
+			}`,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			path := writeManifestFixture(t, test.manifest)
+			assertNoManifestViolations(t, path, test.kind)
+		})
+	}
+}
+
+func TestPackageManifestRejectsForbiddenFields(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		kind          manifestKind
+		manifest      string
+		violatedField string
+	}{
+		{
+			name:          "publishable root",
+			kind:          rootManifest,
+			manifest:      `{"private": false}`,
+			violatedField: "private",
+		},
+		{
+			name:          "root runtime dependency",
+			kind:          rootManifest,
+			manifest:      `{"private": true, "dependencies": {"example": "1.0.0"}}`,
+			violatedField: "dependencies",
+		},
+		{
+			name:          "root publication configuration",
+			kind:          rootManifest,
+			manifest:      `{"private": true, "publishConfig": {"access": "public"}}`,
+			violatedField: "publishConfig",
+		},
+		{
+			name:          "non-private product",
+			kind:          productManifest,
+			manifest:      `{"private": false}`,
+			violatedField: "private",
+		},
+		{
+			name:          "product executable",
+			kind:          productManifest,
+			manifest:      `{"private": true, "bin": {"dev-flow-codex": "index.js"}}`,
+			violatedField: "bin",
+		},
+		{
+			name:          "product build script",
+			kind:          productManifest,
+			manifest:      `{"private": true, "scripts": {"build": "node build.js"}}`,
+			violatedField: "scripts.build",
+		},
+		{
+			name:          "product lifecycle script",
+			kind:          productManifest,
+			manifest:      `{"private": true, "scripts": {"postinstall": "node setup.js"}}`,
+			violatedField: "scripts.postinstall",
+		},
+		{
+			name:          "product optional runtime dependency",
+			kind:          productManifest,
+			manifest:      `{"private": true, "optionalDependencies": {"example": "1.0.0"}}`,
+			violatedField: "optionalDependencies",
+		},
+		{
+			name:          "product peer runtime dependency",
+			kind:          productManifest,
+			manifest:      `{"private": true, "peerDependencies": {"example": "1.0.0"}}`,
+			violatedField: "peerDependencies",
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			path := writeManifestFixture(t, test.manifest)
+			violations := validatePackageManifest(path, test.kind)
+			if len(violations) == 0 {
+				t.Fatalf("expected %s violation for %s", test.violatedField, path)
+			}
+
+			for _, violation := range violations {
+				message := violation.Error()
+				if !strings.Contains(message, path) {
+					t.Errorf("violation does not name manifest path %q: %s", path, message)
+				}
+			}
+
+			if !violationsContainField(violations, test.violatedField) {
+				t.Fatalf("violations for %s do not name field %q: %v", path, test.violatedField, violations)
+			}
+		})
+	}
+}
+
+func TestProductManifestFixtures(t *testing.T) {
+	t.Parallel()
+
+	root := manifestRepositoryRoot(t)
+	tests := []struct {
+		name          string
+		fixture       string
+		violatedField string
+	}{
+		{name: "valid product", fixture: "valid-product.json"},
+		{name: "lifecycle script", fixture: "postinstall.json", violatedField: "scripts.postinstall"},
+		{name: "runtime dependency", fixture: "runtime-dependency.json", violatedField: "dependencies"},
+		{name: "executable entry", fixture: "bin.json", violatedField: "bin"},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			path := filepath.Join(root, "tests", "contract", "testdata", "package-manifest", test.fixture)
+			violations := validatePackageManifest(path, productManifest)
+			if test.violatedField == "" {
+				if len(violations) != 0 {
+					t.Fatalf("valid product manifest fixture has violations: %v", violations)
+				}
+				return
+			}
+
+			if !violationsContainField(violations, test.violatedField) {
+				t.Fatalf("fixture %s does not report field %q: %v", path, test.violatedField, violations)
+			}
+			for _, violation := range violations {
+				if !strings.Contains(violation.Error(), path) {
+					t.Errorf("fixture violation does not name manifest path %q: %s", path, violation)
+				}
+			}
+		})
+	}
+}
+
+func validatePackageManifest(path string, kind manifestKind) []error {
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return []error{manifestViolation(path, "$", "cannot read manifest: %v", err)}
+	}
+
+	var manifest map[string]json.RawMessage
+	if err := json.Unmarshal(contents, &manifest); err != nil {
+		return []error{manifestViolation(path, "$", "invalid JSON: %v", err)}
+	}
+
+	var violations []error
+	privateValue, present := manifest["private"]
+	if !present {
+		violations = append(violations, manifestViolation(path, "private", "must be true"))
+	} else {
+		var private bool
+		if err := json.Unmarshal(privateValue, &private); err != nil || !private {
+			violations = append(violations, manifestViolation(path, "private", "must be the boolean true"))
+		}
+	}
+
+	for _, field := range runtimeDependencyFields {
+		if _, present := manifest[field]; present {
+			violations = append(violations, manifestViolation(path, field, "runtime dependency fields are forbidden"))
+		}
+	}
+
+	switch kind {
+	case rootManifest:
+		if _, present := manifest["publishConfig"]; present {
+			violations = append(violations, manifestViolation(path, "publishConfig", "publication configuration is forbidden"))
+		}
+	case productManifest:
+		if _, present := manifest["bin"]; present {
+			violations = append(violations, manifestViolation(path, "bin", "product executable entries are forbidden"))
+		}
+
+		var scripts map[string]json.RawMessage
+		if rawScripts, present := manifest["scripts"]; present {
+			if err := json.Unmarshal(rawScripts, &scripts); err != nil {
+				violations = append(violations, manifestViolation(path, "scripts", "must be a JSON object"))
+			} else {
+				for _, field := range productLifecycleFields {
+					if _, present := scripts[field]; present {
+						violations = append(violations, manifestViolation(path, "scripts."+field, "product lifecycle scripts are forbidden"))
+					}
+				}
+			}
+		}
+	default:
+		violations = append(violations, manifestViolation(path, "$", "unknown manifest kind %q", kind))
+	}
+
+	return violations
+}
+
+func manifestViolation(path, field, format string, args ...any) error {
+	return fmt.Errorf("manifest %s field %q: %s", path, field, fmt.Sprintf(format, args...))
+}
+
+func assertNoManifestViolations(t *testing.T, path string, kind manifestKind) {
+	t.Helper()
+	if violations := validatePackageManifest(path, kind); len(violations) != 0 {
+		t.Fatalf("unexpected package manifest violations: %v", violations)
+	}
+}
+
+func violationsContainField(violations []error, field string) bool {
+	quotedField := fmt.Sprintf("field %q", field)
+	for _, violation := range violations {
+		if strings.Contains(violation.Error(), quotedField) {
+			return true
+		}
+	}
+	return false
+}
+
+func writeManifestFixture(t *testing.T, manifest string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "package.json")
+	if err := os.WriteFile(path, []byte(manifest), 0o600); err != nil {
+		t.Fatalf("write manifest fixture %s: %v", path, err)
+	}
+	return path
+}
+
+func manifestRepositoryRoot(t *testing.T) string {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("locate package manifest contract test source")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", ".."))
+}
