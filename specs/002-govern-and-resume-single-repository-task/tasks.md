@@ -184,27 +184,27 @@ repeatedly, and prove that task creation and repository claim are atomic.
 
 ### Tests for User Story 1
 
-- [ ] T026 [P] [US1] Add create/resume/conflict use-case tests to
+- [x] T026 [P] [US1] Add create/resume/conflict use-case tests to
   `internal/application/open_task_test.go`.
-- [ ] T027 [P] [US1] Add unique-claim race and rollback cases to
+- [x] T027 [P] [US1] Add unique-claim race and rollback cases to
   `internal/store/repository_claim_test.go`.
-- [ ] T028 [P] [US1] Add stable repeated-read cases to
+- [x] T028 [P] [US1] Add stable repeated-read cases to
   `internal/application/next_action_test.go`, proving reads do not change revision, event, phase,
   action, blocker, or persisted repository binding.
 
 ### Implementation for User Story 1
 
-- [ ] T029 [US1] Implement Core service construction and dependency validation in
+- [x] T029 [US1] Implement Core service construction and dependency validation in
   `internal/application/service.go`.
-- [ ] T030 [US1] Implement new-task normalization, repository observation, atomic task/claim/event
+- [x] T030 [US1] Implement new-task normalization, repository observation, atomic task/claim/event
   creation, and same-host resume in `internal/application/open_task.go`.
-- [ ] T031 [US1] Implement authoritative task projection with host ownership checks in
+- [x] T031 [US1] Implement authoritative task projection with host ownership checks in
   `internal/application/get_task.go`; fresh observation/recovery guidance is read-only.
-- [ ] T032 [US1] Implement stable current-action or terminal projection in
+- [x] T032 [US1] Implement stable current-action or terminal projection in
   `internal/application/next_action.go` without persisting any read-time reconciliation.
-- [ ] T033 [US1] Add representative shared fixtures for server info, open-task success, active-task
+- [x] T033 [US1] Add representative shared fixtures for server info, open-task success, active-task
   conflict, host-ownership conflict, task read, and next action under `protocol/fixtures/`.
-- [ ] T034 [US1] Run the US1 application/store tests and manually inspect that no fixture contains a
+- [x] T034 [US1] Run the US1 application/store tests and manually inspect that no fixture contains a
   database path, source content, diff, environment value, or raw command output.
 
 **Checkpoint**: User Story 1 is independently usable through the application service, without MCP.
