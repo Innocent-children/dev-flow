@@ -36,6 +36,14 @@ PREPARE_HANDOFF
 RESOLVE_BLOCKER
 ```
 
+### OperationKind
+
+```text
+open_task
+apply_action
+cancel_task
+```
+
 ### ActionResult
 
 `ActionResult` is the closed result vocabulary defined authoritatively in
@@ -76,7 +84,9 @@ cancelled
 ```
 
 All counts, byte sizes, and durations below refer to the single Core Limits 0.1 table in
-`spec.md`. Domain values are typed; arbitrary JSON objects are not Domain entities.
+`spec.md`. Aggregate sizes are the actual compact `encoding/json` UTF-8 bytes after normalization,
+with HTML escaping disabled, required JSON escaping retained, and no encoder newline. Domain values
+are typed; arbitrary JSON objects are not Domain entities.
 
 ## Contract
 
@@ -87,6 +97,9 @@ All counts, byte sizes, and durations below refer to the single Core Limits 0.1 
 | out_of_scope | string[] | within Core Limits 0.1, no normalized duplicates |
 | acceptance_criteria | string[] | non-empty, within Core Limits 0.1, independently checkable, no normalized duplicates |
 | verification_budget | VerificationBudget | required |
+
+The complete normalized Contract must encode within the 262,144-byte Contract aggregate limit at
+construction time. Per-field limits remain independently enforced.
 
 ### VerificationBudget
 
@@ -108,13 +121,22 @@ All counts, byte sizes, and durations below refer to the single Core Limits 0.1 
 | detached | boolean | consistent with branch |
 | head | full object ID or null | null for unborn repository |
 | unborn | boolean | consistent with head |
-| worktree_fingerprint | SHA-256 | hash of bounded porcelain observation |
+| worktree_fingerprint | SHA-256 | hash of normalized, content-sensitive bounded status records |
 | observed_at | timestamp | UTC |
 | binding_digest | SHA-256 | digest of the normalized binding |
 
 The public result may return canonical root only when required by the host tool contract. Logs never
 include it. `observed_at` records freshness but is excluded from both `worktree_fingerprint` and
 `binding_digest`, so repeated identical observations produce the same digests.
+
+The observer parses porcelain-v2 `-z` status, normalizes record order, and limits one observation to
+1,024 affected paths. Each fingerprint record contains status kind, path, available mode/index
+object identity, and either the current digest or a deleted/missing sentinel. Only status-identified
+modified and untracked ordinary paths may be hashed, through
+`git hash-object --no-filters -- <path>` with direct process arguments, without shell invocation or
+`-w`. Raw status and file bytes are never retained, returned, logged, or persisted, and Git diff is
+never read. A dirty submodule fails closed with a stable Repository Observation error; it is neither
+recursively scanned nor modified.
 
 An apply carries the original action's binding digest and the Core observes again before commit.
 Only `IMPLEMENT_CHANGE` may ordinarily accept a different worktree fingerprint; it persists the fresh
@@ -144,6 +166,10 @@ authoritative for binding review but does not prove which external process made 
 | updated_at | timestamp | mutation time |
 | completed_at | timestamp or null | terminal only |
 
+Final Task validation applies the 786,432-byte encoded aggregate limit before any Store transaction.
+The persisted snapshot has a separate 1,048,576-byte defensive ceiling. Therefore a Task that
+passes Domain invariants cannot be rejected merely because its encoded snapshot is too large.
+
 ## Action
 
 | Field | Type | Rules |
@@ -165,6 +191,11 @@ its own boundary rather than storing `map[string]any` in Domain. `payload_contra
 action's source `Phase`, which keeps `REVIEW` and `HANDOFF` distinct even though both issue
 `PREPARE_HANDOFF`.
 
+The `HANDOFF` phase's `PREPARE_HANDOFF` action allows both `read_repository` and
+`prepare_delivery_summary`; its required repository observation would otherwise be unauthorized.
+`DONE` and `CANCELLED` produce `TASK_TERMINAL`. Unknown phases produce `INVALID_ARGUMENT`; a valid
+nonterminal phase without a blueprint is an internal invariant failure.
+
 ## EvidenceSummary
 
 | Field | Type | Rules |
@@ -184,7 +215,8 @@ action's source `Phase`, which keeps `REVIEW` and `HANDOFF` distinct even though
 | Field | Type | Rules |
 |---|---|---|
 | operation_id | request/action identity | stable |
-| action_id | ID | mutation action |
+| kind | OperationKind | closed committed mutation kind |
+| action_id | ID or null | present only for `apply_action`; explicit optional value, never empty ID |
 | from_revision | uint64 | expected revision |
 | to_revision | uint64 | committed revision |
 | payload_digest | SHA-256 | exact normalized payload |
@@ -212,13 +244,19 @@ combined with the committed task/event revision, prove a lost response without a
 |---|---|---|
 | status | enum | `completed` or `cancelled` |
 | acceptance | OutcomeCriterion[] | one per contract criterion |
-| automated_checks | EvidenceSummary[] | retained within Core Limits 0.1 |
-| manual_checks | EvidenceSummary[] | retained within Core Limits 0.1 |
+| automated_evidence_ids | ID[] | unique references to automated entries in `Task.Evidence` |
+| manual_evidence_ids | ID[] | unique references to user entries in `Task.Evidence` |
 | unverified_items | string[] | explicit |
 | risks | string[] | explicit |
 | final_repository_binding_digest | SHA-256 | required |
 | summary | string | within Core Limits 0.1 |
 | completed_at | timestamp | UTC |
+
+`Task.Evidence` is the only EvidenceSummary authority. Outcome does not copy or create evidence.
+Both ID lists contain canonical IDs, contain no duplicate internally or across lists, and every ID
+must resolve to the stated source. Verification command count, full-suite permission, and manual
+handoff permission are evaluated once from `Task.Evidence`. Acceptance, unverified items, risks,
+and summary together must remain within the 131,072-byte encoded Outcome narrative aggregate limit.
 
 ## TaskEvent
 
@@ -227,7 +265,7 @@ combined with the committed task/event revision, prove a lost response without a
 | event_id | ID | unique |
 | task_id | ID | foreign key |
 | revision | uint64 | unique per task |
-| event_type | string enum | mutation type |
+| kind | OperationKind | closed committed mutation kind |
 | phase_before | Phase | required |
 | phase_after | Phase | required |
 | action_id | ID or null | mutation identity |
@@ -236,6 +274,24 @@ combined with the committed task/event revision, prove a lost response without a
 | created_at | timestamp | UTC |
 
 Events do not contain goal text, source content, raw output, or repository path.
+
+For every mutation, LastOperation and TaskEvent are checked before SQL as one committed fact:
+
+```text
+LastOperation.OperationID == TaskEvent.RequestID
+LastOperation.Kind == TaskEvent.Kind
+LastOperation.ActionID == TaskEvent.ActionID
+LastOperation.FromRevision == ExpectedRevision
+LastOperation.ToRevision == Task.Revision
+LastOperation.ToRevision == TaskEvent.Revision
+LastOperation.PayloadDigest == TaskEvent.PayloadDigest
+LastOperation.CommittedAt == TaskEvent.CreatedAt
+```
+
+`open_task` uses expected revision 0, `ClaimAcquire`, and no action ID. `apply_action` uses a positive
+expected revision, requires an action ID, and uses `ClaimRetain` or `ClaimRelease` only when entering
+`DONE`. `cancel_task` uses a positive expected revision, no action ID, `ClaimRelease`, and a
+`CANCELLED` Task.
 
 ## RepositoryClaim
 
@@ -247,6 +303,9 @@ Events do not contain goal text, source content, raw output, or repository path.
 | claimed_at | timestamp | UTC |
 
 Claim is deleted in the same transaction that reaches `DONE` or `CANCELLED`.
+Only a structured uniqueness violation of `repository_identity` or `task_id` maps to
+`ACTIVE_TASK_CONFLICT`. Foreign-key, check, trigger, locked, I/O, schema, and other SQLite failures
+map to `STORAGE_UNAVAILABLE` without parsing or exposing driver text.
 
 ## Relational Schema
 
@@ -282,7 +341,9 @@ The Store persists typed aggregates as JSON only where relational querying is un
 codec rejects unknown fields and trailing JSON, enforces the persisted snapshot byte limit, then
 constructs typed Domain values and invokes the single Task invariant entry point. Domain does not
 parse generic JSON. The future MCP adapter applies its own closed-input decoding before Domain
-dispatch.
+dispatch. The same compact, HTML-unescaped encoding rule measures aggregate limits. A maximum valid
+Task projection plus at most 131,072 bytes of result-envelope overhead is strictly below the
+1,048,576-byte result limit.
 
 ## State Invariants
 
@@ -294,10 +355,15 @@ dispatch.
 6. Task revision equals latest event revision after a mutation.
 7. Contract never changes.
 8. Only one active claim exists for a repository identity.
-9. Evidence count and bytes remain within fixed limits.
+9. Evidence count and bytes remain within fixed limits; `Task.Evidence` is the sole authority and
+   Outcome references resolve to the correct source without duplicates.
 10. Outcome acceptance list covers every acceptance criterion exactly once.
 11. A read may compare a fresh observation but never persists it or changes phase, revision, event,
     blocker, or action.
 12. `IMPLEMENT_CHANGE` may update only the worktree portion of a binding; other ordinary apply paths
     require exact issuance-binding equality, while `RESOLVE_BLOCKER` is limited to its stored
     binding condition and `resume_phase`.
+13. Contract, Outcome narrative, and full Task aggregates remain within their encoded limits; every
+    Domain-valid Task fits the Store snapshot and result-envelope budgets.
+14. LastOperation and TaskEvent contain the same operation/request ID, kind, optional action ID,
+    revisions, payload digest, and commit time, and their claim operation matches the kind.

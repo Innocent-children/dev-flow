@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "dev-flow-result-envelope.schema.json",
   "title": "Dev Flow Result Envelope",
+  "$comment": "Core Limits 0.1 enforces 1,048,576 actual UTF-8 JSON bytes for the complete compact envelope after encoding/json with HTML escaping disabled. A Domain-valid Task projection is at most 786,432 bytes and envelope overhead is at most 131,072 bytes, so their sum is strictly below the result limit. JSON Schema character lengths do not replace the encoded-byte check.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -34,7 +35,8 @@
       ]
     },
     "result": {
-      "type": "object"
+      "type": "object",
+      "$comment": "Typed result projections must use the same compact encoding and encoded-byte accounting; arbitrary map[string]any values are not Domain results."
     },
     "error": {
       "type": "object",

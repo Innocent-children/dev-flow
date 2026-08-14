@@ -50,7 +50,9 @@ consistency problem without a custom file protocol.
 ## Decision 4: Snapshot authority plus compact events
 
 **Decision**: Treat the task row as authority and write one event in the same transaction for every
-committed mutation.
+committed mutation. Use the closed operation kinds `open_task`, `apply_action`, and `cancel_task`.
+The task's LastOperation and the transaction's TaskEvent are validated before SQL as exact
+projections of the same request, optional action, revisions, payload digest, and commit time.
 
 **Rationale**: Ordinary reads stay simple while recovery can inspect recent operation identity and
 history.
@@ -71,17 +73,30 @@ make recovery harder to audit.
 
 ## Decision 6: Read-only Git fingerprint
 
-**Decision**: Observe canonical root, branch/detached state, HEAD/unborn state, and hash of bounded
-porcelain-v2 status bytes including untracked files.
+**Decision**: Observe canonical root, branch/detached state, HEAD/unborn state, and a normalized,
+content-sensitive worktree fingerprint. Parse bounded porcelain-v2 `-z` records including untracked
+paths, sort their normalized representation, and include status, path, available mode/index object
+identity, plus a current content digest or deleted/missing sentinel. Only modified and untracked
+ordinary paths reported by status are hashed, with the fixed read-only command
+`git hash-object --no-filters -- <path>` passed as direct process arguments; shell invocation and
+`-w` are forbidden.
 
-**Rationale**: This detects relevant drift without storing source content or implementing snapshots.
+**Rationale**: Hashing raw status alone misses a second byte change at the same dirty path. Git's
+read-only object calculation detects that change without returning, persisting, or logging source
+bytes. The fixed 1,024-path limit, per-command timeout, and combined output limit keep observation
+bounded; disappearing or inconsistent paths fail safely without retry loops.
 
 **Alternatives rejected**:
 
 - full Git diff: captures source and increases result/data size;
-- content hashing every file: expensive and duplicates Git;
+- content hashing every repository file: expensive and duplicates Git; only status-identified paths
+  are eligible;
 - HEAD only: misses worktree drift;
 - allowing the Core to repair drift: violates the repository boundary.
+
+Dirty submodules fail closed with a stable Repository Observation error. The Core does not recurse,
+does not accept a single ambiguous dirty bit as a complete fingerprint, and never modifies the
+submodule.
 
 ## Decision 7: Dirty repositories are allowed but bound
 
@@ -109,6 +124,9 @@ not needed to prove the initial journey.
 repository identity.
 
 **Rationale**: Both host products will share one database; this prevents conflicting authorities.
+The Store maps only structured SQLite uniqueness violations for the repository-identity primary key
+or claimed task ID to `ACTIVE_TASK_CONFLICT`. Foreign-key, check, trigger, locked, I/O, schema, and
+other execution errors remain `STORAGE_UNAVAILABLE`; error text is neither parsed nor exposed.
 
 **Alternatives rejected**:
 
@@ -151,7 +169,9 @@ action, mutation, and explicit termination. Discovery is folded into `open_task`
 **Decision**: Every tool returns the same top-level envelope with `ok`, `request_id`, `tool`,
 `result` or `error`, and optional `recovery`.
 
-**Rationale**: Two host adapters can validate one schema and preserve stable domain failures.
+**Rationale**: Two host adapters can validate one schema and preserve stable domain failures. The
+maximum valid 786,432-byte Task projection plus at most 131,072 bytes of envelope overhead remains
+strictly below the 1,048,576-byte result limit.
 
 ## Decision 13: Core does not run tests
 
@@ -166,10 +186,18 @@ into a generic shell authority.
 Do not add configuration files, environment overrides, policy objects, or a limits framework.
 
 **Rationale**: The values are conservative for a local personal development tool: KiB-scale text
-contracts, tens of list/evidence items, a 128 KiB mutation payload, a 256 KiB public result, a 1 MiB
-persisted snapshot and Git-output ceiling, a 10-second Git deadline, and a 5-second SQLite busy
-window. They bound memory, persistence, subprocess, and lock contention without inventing a tuning
-surface before real usage demonstrates variation.
+fields, a 256 KiB Contract aggregate, a 128 KiB Outcome narrative aggregate, a 768 KiB Task
+aggregate, a 1 MiB public result and persisted-snapshot ceiling, a 1,024-path fingerprint ceiling,
+a 1 MiB Git-output ceiling, a 10-second Git deadline, and a 5-second SQLite busy window. They bound
+memory, persistence, subprocess, and lock contention without inventing a tuning surface before real
+usage demonstrates variation.
+
+Aggregate limits count the actual compact JSON bytes produced after normalization by
+`encoding/json` with HTML escaping disabled and no encoder newline. Required JSON escaping still
+counts. Contract construction and final Task invariants enforce their aggregate limits before a
+Store transaction; the Store's larger snapshot limit remains a defensive check. This makes every
+Domain-valid Task persistable and leaves bounded room for its result envelope rather than relying on
+the codec to reject an otherwise valid object.
 
 ## Decision 15: Binding permits only implementation worktree change
 
@@ -202,3 +230,27 @@ fields at the adapter boundary.
 
 **Rationale**: Closure is enforced where untrusted serialized data enters without coupling Domain
 logic to JSON Schema or duplicating parsing rules.
+
+## Decision 18: Task Evidence is the sole retained evidence authority
+
+**Decision**: Retain each EvidenceSummary exactly once in `Task.Evidence`. Outcome stores only
+canonical `automated_evidence_ids` and `manual_evidence_ids`; IDs are unique within and across the
+lists and must resolve to automated and user evidence respectively.
+
+**Rationale**: Copying EvidenceSummary into Outcome creates a second authority and lets terminal
+construction bypass command-count, full-suite, or manual-handoff policy. Task validation evaluates
+the verification budget once over retained evidence, then validates Outcome references against that
+same collection.
+
+There is no formal user data at this checkpoint. The representation change uses the existing typed
+snapshot boundary and does not add migration compatibility code or increment the schema version.
+
+## Decision 19: Fail closed on unknown workflow phases
+
+**Decision**: `DONE` and `CANCELLED` return `TASK_TERMINAL`; an invalid or unknown Phase returns
+`INVALID_ARGUMENT`. A valid nonterminal phase omitted from the closed blueprint mapping is an
+internal invariant failure, not a terminal result. `HANDOFF/PREPARE_HANDOFF` allows
+`read_repository` as well as `prepare_delivery_summary` because repository observation is required.
+
+**Rationale**: Terminal status, invalid caller input, and an implementation defect are materially
+different conditions and must not share one stable error code or contradictory effect contract.

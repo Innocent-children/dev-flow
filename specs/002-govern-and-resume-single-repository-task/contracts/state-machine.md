@@ -50,6 +50,22 @@ semantic order.
 `PREPARE_HANDOFF` may be used in REVIEW to assemble the review decision and in HANDOFF to commit
 the terminal Delivery Summary. The payload schema is phase-specific and closed.
 
+`DONE` and `CANCELLED` return `TASK_TERMINAL`. A Phase outside the closed enumeration returns
+`INVALID_ARGUMENT`. If a valid nonterminal Phase ever lacks a blueprint, that is an internal
+invariant failure and must not be reported as terminal.
+
+## Handoff Allowed Effects
+
+Allowed effects are phase-specific even when two phases share an ActionKind. In particular:
+
+| Phase / Action | Allowed Effects |
+|---|---|
+| REVIEW / PREPARE_HANDOFF | `read_repository`, `prepare_delivery_summary` |
+| HANDOFF / PREPARE_HANDOFF | `read_repository`, `prepare_delivery_summary` |
+
+Both handoff actions require a current repository observation, so both explicitly authorize
+`read_repository`. This does not authorize Git mutation, Git diff reads, or source-content return.
+
 The canonical result vocabulary is exactly `succeeded`, `ready`, `failed`, `pass`,
 `rework_implementation`, `replan`, and `complete`. These identifiers do not have aliases.
 
@@ -171,6 +187,9 @@ Required result:
 - Failed mutation does not increment revision.
 - Reads never increment revision.
 - Event revision equals committed task revision.
+- Every mutation uses one closed OperationKind: `open_task`, `apply_action`, or `cancel_task`.
+- The Task's LastOperation and appended TaskEvent are exact projections of the same request, optional
+  action, expected/committed revision, payload digest, and committed timestamp.
 
 ## Read Semantics
 
@@ -197,3 +216,10 @@ and `repository_binding_digest`. The Core observes the repository again before c
 The Core validates observation shape and identity; the host cannot substitute another repository.
 It binds and reviews current observed reality but does not claim to identify which external process
 performed a modification.
+
+The worktree fingerprint parses bounded porcelain-v2 `-z` records, normalizes their order, and
+includes the status/path/Git identity fields plus a current content digest or deleted/missing
+sentinel. Only modified and untracked ordinary paths reported by status may be hashed with
+`git hash-object --no-filters -- <path>`; `-w`, diff reads, and raw status/source retention are
+forbidden. More than 1,024 affected paths, a disappearing or inconsistent path, timeout, or output
+overflow fails observation. Dirty submodules fail closed without recursion or mutation.

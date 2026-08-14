@@ -90,3 +90,22 @@ satisfied, not that code exists.
   one non-duplicated `pnpm run validate` execution.
 - [x] CHK050 Observation time is excluded from stable repository digests and blocker resolution is
   limited to its stored binding condition and `resume_phase`.
+
+## Foundational Audit Hardening
+
+- [x] CHK051 Worktree fingerprint requirements are content-sensitive for repeated tracked and
+  untracked changes, normalize record order, and bound path count, command time, and output without
+  retaining status or source bytes.
+- [x] CHK052 Dirty submodules have one explicit fail-closed observation policy with no recursion,
+  ambiguous fingerprint acceptance, or mutation.
+- [x] CHK053 Contract, Outcome narrative, Task snapshot, and result-envelope encoded-byte budgets
+  close under actual JSON escaping, so every maximum Domain-valid Task is persistable and returnable.
+- [x] CHK054 `Task.Evidence` is the sole EvidenceSummary authority; Outcome uses source-checked IDs
+  and cannot duplicate evidence or bypass verification budget rules.
+- [x] CHK055 Closed OperationKind semantics and exact LastOperation/TaskEvent relationships make
+  both records testable projections of one committed fact before any transaction writes.
+- [x] CHK056 Repository-claim conflicts are limited to the two named SQLite unique constraints;
+  non-unique constraint, trigger, lock, I/O, schema, and other failures are distinctly specified as
+  `STORAGE_UNAVAILABLE` without driver-text parsing.
+- [x] CHK057 HANDOFF authorizes its required repository read, while terminal, unknown, and missing
+  nonterminal phase mappings have distinct stable error semantics.

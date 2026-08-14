@@ -115,6 +115,63 @@ independently testable; no MCP server or task use case is implemented.
 
 ---
 
+## Phase 2A: Foundational Audit Hardening
+
+**Purpose**: Close the independent Foundational audit findings without starting an application
+service, recovery implementation, MCP surface, host package, or any User Story 1–4 behavior.
+
+- [x] T081 Amend `spec.md`, `research.md`, `data-model.md`,
+  `contracts/state-machine.md`, `contracts/result-envelope.schema.json`,
+  `checklists/requirements.md`, and `tasks.md` with the content-sensitive fingerprint, closed size
+  budgets, single evidence authority, committed-fact relation, HANDOFF/unknown-phase behavior, and
+  structured SQLite claim-error requirements.
+- [ ] T082 Implement a content-sensitive, normalized, bounded worktree fingerprint in
+  `internal/repository/git_observer.go`, `internal/repository/fingerprint.go`,
+  `internal/repository/paths.go`, `internal/repository/errors.go`, and
+  `internal/domain/limits.go`; parse porcelain-v2 `-z`, hash only status-identified modified and
+  untracked ordinary paths through read-only `git hash-object --no-filters`, enforce
+  `MaxFingerprintPaths`, and fail closed on dirty submodules without source retention.
+- [ ] T083 Add tracked and untracked repeated-content changes, restored and deleted paths,
+  input-order normalization, dirty-submodule rejection, no-`hash-object -w`, path ceiling, and
+  no-raw-content cases to `internal/repository/git_observer_test.go`.
+- [ ] T084 Close Contract, Outcome narrative, Task snapshot, and Result Envelope encoded-byte
+  budgets in `internal/domain/limits.go`, `internal/domain/contract.go`,
+  `internal/domain/task.go`, `internal/domain/outcome.go`, `internal/domain/validation.go`,
+  `internal/store/codec.go`, `internal/domain/validation_test.go`, and
+  `internal/store/sqlite_test.go`; measure compact JSON with HTML escaping disabled and prove the
+  maximum Domain-valid projection fits both persistence and envelope limits before SQL begins.
+- [ ] T085 Replace Outcome evidence copies with canonical `AutomatedEvidenceIDs` and
+  `ManualEvidenceIDs` references to the sole `Task.Evidence` authority in
+  `internal/domain/outcome.go`, `internal/domain/task.go`, `internal/domain/evidence.go`,
+  `internal/store/codec.go`, `internal/domain/validation_test.go`, and
+  `internal/store/sqlite_test.go`; validate source, uniqueness, existence, cloning, codec round-trip,
+  and verification budget once over retained evidence.
+- [ ] T086 Add closed `OperationKind` values and bind LastOperation, TaskEvent, expected/task/event
+  revisions, optional action ID, payload digest, commit time, and claim operation as one committed
+  fact in `internal/domain/types.go`, `internal/domain/task.go`, `internal/store/store.go`,
+  `internal/store/sqlite.go`, `internal/store/codec.go`, and `internal/store/sqlite_test.go`, with all
+  mismatches rejected before a transaction can partially write.
+- [ ] T087 Add `read_repository` to HANDOFF `PREPARE_HANDOFF` allowed effects and distinguish
+  terminal, unknown, and missing-valid-phase blueprint errors in `internal/workflow/engine.go` and
+  `internal/workflow/transitions_test.go`.
+- [ ] T088 Classify repository claim insert failures in `internal/store/sqlite.go`,
+  `internal/store/errors.go` only if needed, and `internal/store/sqlite_test.go` using structured
+  modernc SQLite error codes: only the repository identity and claimed task ID unique constraints
+  yield `ACTIVE_TASK_CONFLICT`; every other database failure yields bounded
+  `STORAGE_UNAVAILABLE` and rolls back Task/Event/Claim writes.
+- [ ] T089 Run only the Foundational targeted validation: format modified Go files,
+  `git diff --check`, Domain/Workflow tests, CGo-disabled Store/Repository tests, vet those four
+  packages, and repository-layout/relative-Markdown-link contract tests, plus an existing JSON
+  Schema syntax test if present.
+- [ ] T090 Commit and normally push the Foundational audit hardening to the existing Draft PR #2,
+  then record the pushed HEAD's real GitHub Actions success without merging, marking Ready, or
+  changing host packages.
+
+**Checkpoint**: T081–T090 are an explicit gate for T026. Foundational is re-auditable, while
+T026–T080 remain unstarted and no user story or product adapter exists.
+
+---
+
 ## Phase 3: User Story 1 - Open a governed task and receive the next action (Priority: P1) 🎯 MVP
 
 **Goal**: Create or resume one host-owned task and return a stable `ASSESS_TASK` action.
@@ -326,6 +383,8 @@ verify rejection, read-after-write proof, five recovery classes, and safe blocki
 
 - Phase 1 has no implementation dependency beyond feature `001` completion.
 - Phase 2 blocks every user story.
+- Phase 2A T081–T090 depends on Phase 2 and is a mandatory gate before T026 or any later user-story
+  task may begin.
 - User Story 1 is the first usable vertical slice.
 - User Story 2 depends on User Story 1 task creation and next-action behavior.
 - User Story 3 depends on persisted behavior from User Stories 1 and 2.
@@ -350,8 +409,9 @@ branches independently.
 
 ## Implementation Strategy
 
-1. Complete Setup and Foundational, then stop for Constitution and dependency review.
-2. Deliver User Story 1, run only its tests, and stop for task/claim review.
+1. Complete Setup, Foundational, and the Phase 2A audit gate, then stop for Constitution and
+   dependency review.
+2. Deliver User Story 1 only after T081–T090 pass, run only its tests, and stop for task/claim review.
 3. Deliver User Story 2, run only workflow/application tests, and stop for state-machine review.
 4. Deliver User Story 3, run one restart journey, and stop for persistence review.
 5. Deliver User Story 4, run bounded recovery cases, and stop for recovery review.

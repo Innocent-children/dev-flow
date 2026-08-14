@@ -139,6 +139,8 @@ recovery classification.
 - The repository is on a detached HEAD.
 - The worktree is dirty before the task starts.
 - The worktree changes only in untracked files.
+- A tracked or untracked path changes content again while its Git status and path stay unchanged.
+- A submodule is dirty even though its recorded gitlink has not changed.
 - Two Core processes open the same database.
 - Two hosts race to open the same repository.
 - An action result is submitted twice.
@@ -177,7 +179,7 @@ recovery classification.
 - multiple repositories;
 - branch/worktree creation or switching;
 - Git mutation;
-- source code reading or diff storage;
+- returning, persisting, or logging source content, or reading/storing Git diffs;
 - OpenSpec/Spec Kit runtime use;
 - arbitrary workflow configuration;
 - cross-host handoff;
@@ -205,16 +207,21 @@ count or duration.
 | Scope | 64 items; 1,024 bytes per item |
 | Out-of-scope | 64 items; 1,024 bytes per item |
 | Acceptance criteria | 64 items; 2,048 bytes per item |
+| Contract aggregate | 262,144 JSON-encoded bytes |
 | Evidence submitted by one action | 32 items |
 | Evidence name | 256 bytes |
 | Evidence summary | 2,048 bytes per item |
 | Evidence retained by one task | 256 items |
 | Generic bounded string lists | 64 items |
 | Blocker message, reason, guidance, outcome summary, or resolution text | 4,096 bytes per field |
+| Outcome narrative aggregate | 131,072 JSON-encoded bytes |
 | Identifier | 128 bytes |
 | Action payload | 131,072 bytes total |
-| Result envelope | 262,144 bytes total |
+| Task aggregate | 786,432 JSON-encoded bytes |
+| Result envelope bounded overhead | 131,072 JSON-encoded bytes |
+| Result envelope | 1,048,576 bytes total |
 | Persisted task snapshot | 1,048,576 bytes total |
+| Worktree fingerprint paths | 1,024 paths per observation |
 | Git command stdout and stderr | 1,048,576 bytes combined per command |
 | Git command timeout | 10 seconds per command |
 | SQLite busy timeout | 5 seconds |
@@ -226,6 +233,14 @@ an empty normalized required value or a normalized duplicate is rejected rather 
 Identifiers, enum values, digests, action results, and JSON field names accept only their canonical
 forms and are never trimmed or aliased. Repository paths are canonicalized only by the Repository
 Observer rules in FR-007.
+
+Every aggregate byte limit is measured on compact `encoding/json` output after normalization, with
+HTML escaping disabled and the encoder's trailing newline excluded. JSON syntax and required string
+escaping still count. Contract and Outcome aggregate checks run when those values are constructed;
+the complete Task aggregate check is part of the final Task invariant. The 786,432-byte maximum
+valid Task projection plus the 131,072-byte maximum result-envelope overhead is strictly below the
+1,048,576-byte result limit. The Store's 1,048,576-byte snapshot check remains a defensive boundary,
+not a way to reject a Domain-valid Task.
 
 ### Functional Requirements
 
@@ -245,11 +260,20 @@ Observer rules in FR-007.
 
 - **FR-007**: The Core MUST canonicalize the repository to one existing Git worktree root.
 - **FR-008**: The Core MUST record current branch or detached status, HEAD or unborn status, and a
-  SHA-256 worktree fingerprint derived from bounded read-only Git observations. A valid unborn
+  content-sensitive SHA-256 worktree fingerprint derived from bounded read-only Git observations.
+  It MUST parse porcelain-v2 `-z` records, reject observations above the fingerprint path limit,
+  normalize record order, and include each affected path's status kind, path, available mode/index
+  object identity, and current content digest or an explicit deleted/missing sentinel. A valid unborn
   repository is supported with `head = null`, `unborn = true`, and the branch recorded when Git
   reports one. `observed_at` is freshness metadata and is excluded from worktree and final binding
   digests.
-- **FR-009**: The Core MUST NOT read or persist source file contents or Git diffs.
+- **FR-009**: Only paths identified as modified or untracked by the bounded Git status observation
+  MAY be content-hashed, using a fixed read-only command equivalent to
+  `git hash-object --no-filters -- <path>`, invoked with direct arguments through the bounded
+  command context and never through a shell. The Core MUST NOT use `-w`, read Git diffs, retain raw
+  status bytes or file bytes, or persist, return, log, or include source content in errors.
+  Path-count, command-time, and command-output limits apply to the whole observation; a disappearing
+  or inconsistent path safely fails without unbounded retry.
 - **FR-010**: One canonical repository root MUST have at most one active task.
 - **FR-011**: Repository claim creation and task creation MUST occur in one transaction.
 - **FR-012**: A terminal task MUST release its active repository claim in the same transaction as
@@ -287,18 +311,24 @@ Observer rules in FR-007.
 
 #### Evidence and Verification Budget
 
-- **FR-025**: Action contracts MUST specify required evidence fields and allowed effects.
+- **FR-025**: Action contracts MUST specify required evidence fields and allowed effects. The
+  `HANDOFF` phase's `PREPARE_HANDOFF` action MUST allow both `read_repository` and
+  `prepare_delivery_summary`, because its required result includes a repository observation.
 - **FR-026**: Evidence MUST distinguish automated, user-performed, static, and host-observed
   sources.
-- **FR-027**: The Core MUST validate the number of declared automatic verification commands against
-  the task budget.
+- **FR-027**: `Task.Evidence` MUST be the sole retained evidence authority. Verification command
+  count and permissions MUST be evaluated once over that collection, never over copied outcome
+  evidence.
 - **FR-028**: A full-suite result MUST be rejected when `allow_full_suite` is false.
 - **FR-029**: A manual verification result MUST be rejected when manual handoff is not allowed.
 - **FR-030**: Evidence values MUST have fixed per-field and total byte limits.
 - **FR-031**: The Core MUST store evidence summaries and stable digests, not arbitrary command output
   or source content.
-- **FR-032**: The final outcome MUST list completed acceptance criteria, automated checks, manual
-  checks, unverified items, retained risks, and repository fingerprint.
+- **FR-032**: The final outcome MUST list completed acceptance criteria, automated evidence IDs,
+  manual evidence IDs, unverified items, retained risks, and repository fingerprint. Evidence IDs
+  MUST be canonical, unique within and across both lists, exist in `Task.Evidence`, and reference
+  `automated` and `user` sources respectively. The Outcome MUST NOT copy or create EvidenceSummary
+  values and its narrative MUST stay within its encoded aggregate limit.
 
 #### Persistence and Concurrency
 
@@ -320,7 +350,11 @@ Observer rules in FR-007.
 #### Recovery
 
 - **FR-043**: The Core MUST persist a bounded last-operation record sufficient to reconcile an
-  uncertain response.
+  uncertain response. Mutation kinds are closed to `open_task`, `apply_action`, and `cancel_task`;
+  LastOperation and TaskEvent MUST be two projections of one committed fact:
+  `operation_id == request_id`, kinds and optional action IDs are equal,
+  `from_revision == expected_revision`, `to_revision == task.revision == event.revision`, payload
+  digests are equal, and `committed_at == event.created_at`.
 - **FR-044**: Recovery classification MUST use these observable definitions:
   `not_started` means neither the exact action nor its required external effects are recorded;
   `completed_and_recorded` means the exact action identity and payload digest are committed in the
@@ -350,7 +384,9 @@ Observer rules in FR-007.
   `contracts/mcp-tools.md`.
 - **FR-052**: The server MUST use local STDIO only and MUST not open a listening socket.
 - **FR-053**: Tool input schemas MUST reject additional properties.
-- **FR-054**: Every tool result MUST conform to one closed result envelope.
+- **FR-054**: Every tool result MUST conform to one closed result envelope. Any maximum valid Task
+  projection, encoded with the same escaping rules, plus bounded envelope overhead MUST remain
+  strictly below the result-envelope limit.
 - **FR-055**: Domain failures MUST return stable error codes and bounded recovery guidance.
 - **FR-056**: Unexpected failures MUST not expose stack traces, environment values, task contents,
   repository paths, or database paths.
@@ -373,6 +409,28 @@ Observer rules in FR-007.
 - **FR-066**: Cancellation MUST create a terminal outcome, release the repository claim, and retain
   task history.
 - **FR-067**: Cancellation MUST NOT delete the database, evidence, or repository content.
+
+#### Foundational Audit Hardening
+
+- **FR-068**: A normalized Contract MUST satisfy both its per-field limits and the encoded Contract
+  aggregate limit before it can be constructed.
+- **FR-069**: A dirty submodule MUST fail closed with one stable Repository Observation error. The
+  Core MUST NOT recurse into it, treat its ambiguous dirty flag as a complete content fingerprint,
+  or modify it.
+- **FR-070**: `DONE` and `CANCELLED` MUST return `TASK_TERMINAL`; an invalid or unknown phase MUST
+  return `INVALID_ARGUMENT`. A valid nonterminal phase missing from the closed mapping is an internal
+  invariant failure and MUST NOT be presented as terminal.
+- **FR-071**: `ACTIVE_TASK_CONFLICT` MUST be returned only for the repository-identity primary-key
+  or claimed-task-ID unique constraint. Foreign-key, check, trigger, locked, I/O, schema, and other
+  SQLite execution failures MUST return bounded `STORAGE_UNAVAILABLE`; classification MUST use the
+  driver's structured error code rather than SQL error text.
+- **FR-072**: `open_task` requires expected revision 0, claim acquire, and no action ID;
+  `apply_action` requires a positive expected revision and an action ID, retaining the claim unless
+  it reaches `DONE`; `cancel_task` requires a positive expected revision, no action ID, claim
+  release, and `CANCELLED`. Optional action IDs MUST not use an empty string sentinel.
+- **FR-073**: Final Task validation MUST enforce the encoded Task aggregate limit before a Store
+  transaction begins. Every Domain-valid Task MUST fit the persisted snapshot boundary; the Store
+  MUST retain its snapshot limit as a defensive check rather than accept an unencodable aggregate.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -413,6 +471,13 @@ Observer rules in FR-007.
 - **SC-011**: Typical local reads complete without writing an event or incrementing revision.
 - **SC-012**: The implementation contains one authoritative task model, one result envelope, and
   one transition table, with no duplicate definitions in infrastructure packages.
+- **SC-013**: Changing the bytes of an already-dirty tracked or untracked path changes the worktree
+  fingerprint even when its path and Git status do not; equivalent status records in another order
+  produce the same fingerprint, and dirty submodules fail closed.
+- **SC-014**: Every Domain-valid maximum Contract and Task can be encoded and persisted, and the
+  maximum valid Task projection plus bounded envelope overhead fits the result envelope.
+- **SC-015**: Outcome evidence cannot exceed verification policy by copying evidence, and every
+  committed Task mutation has exactly matching LastOperation and TaskEvent projections.
 
 ## Assumptions
 
