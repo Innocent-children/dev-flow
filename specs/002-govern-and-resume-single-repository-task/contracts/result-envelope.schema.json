@@ -49,7 +49,6 @@
           "enum": [
             "INVALID_ARGUMENT",
             "NOT_GIT_REPOSITORY",
-            "REPOSITORY_UNBORN_UNSUPPORTED",
             "TASK_NOT_FOUND",
             "ACTIVE_TASK_CONFLICT",
             "HOST_OWNERSHIP_CONFLICT",
@@ -66,8 +65,9 @@
         },
         "message": {
           "type": "string",
+          "$comment": "Core Limits 0.1 also enforces this field as UTF-8 bytes at the adapter boundary.",
           "minLength": 1,
-          "maxLength": 512
+          "maxLength": 4096
         },
         "details": {
           "type": "object"
@@ -100,7 +100,8 @@
         },
         "message": {
           "type": "string",
-          "maxLength": 512
+          "$comment": "Core Limits 0.1 also enforces this field as UTF-8 bytes at the adapter boundary.",
+          "maxLength": 4096
         }
       }
     }

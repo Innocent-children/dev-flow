@@ -4,11 +4,16 @@
 
 - Transport: local STDIO only.
 - Tool inputs are JSON objects with `additionalProperties: false`.
-- String, array, and aggregate byte limits are enforced before domain dispatch.
+- String, array, and aggregate byte limits from Core Limits 0.1 are enforced before domain dispatch;
+  the result envelope is rejected before write if its encoded size exceeds that table.
 - Every result uses `result-envelope.schema.json`.
+- The envelope's `schema_version` identifies the Dev Flow result contract. MCP wire-version
+  negotiation belongs to the official SDK and is not persisted as task or product workflow state.
 - Tool annotations are descriptive only and do not grant operating-system authority.
 - No tool accepts a shell command, arbitrary environment, database path, or output file path.
 - `host` accepts only `codex` or `deepseek`.
+- The MCP input decoder rejects unknown fields. Domain receives typed values and does not parse
+  arbitrary JSON.
 
 ## 1. `dev_flow_server_info`
 
@@ -73,6 +78,9 @@ Creates a new task or resumes the unique compatible active task owned by the req
 - same host + different contract: `ACTIVE_TASK_CONFLICT`;
 - different host: `HOST_OWNERSHIP_CONFLICT`.
 
+A valid Git repository with no commits is accepted with `head: null`, `unborn: true`, and the branch
+reported by Git when present.
+
 ### Success Result
 
 Returns:
@@ -108,6 +116,9 @@ Returns the authoritative task projection:
 - outcome if terminal;
 - no private database path or raw event payload.
 
+This operation may freshly observe and report recovery/drift guidance, but never writes an event,
+increments revision, changes phase, creates a blocker, or persists the observation.
+
 ## 4. `dev_flow_get_next_action`
 
 ### Input
@@ -135,12 +146,15 @@ For active task:
     "allowed_effects": ["edit_repository_files"],
     "required_evidence": [],
     "payload_schema": {},
-    "guidance": "Implement only the approved plan and report changed paths."
+    "guidance": "Implement only the current plan and report changed paths."
   }
 }
 ```
 
 For terminal task, returns the outcome and no action.
+
+Repeated calls are read-only and return the persisted current action identity. Fresh observation may
+add recovery guidance but cannot mutate task state or repository binding.
 
 ## 5. `dev_flow_apply_action`
 
@@ -150,7 +164,7 @@ For terminal task, returns the outcome and no action.
 {
   "host": "codex",
   "task_id": "task-id",
-  "expected_revision": 3,
+  "revision": 3,
   "action_id": "action-id",
   "action_kind": "IMPLEMENT_CHANGE",
   "repository_binding_digest": "sha256",
@@ -161,6 +175,13 @@ For terminal task, returns the outcome and no action.
 `payload` must match the phase-specific closed schema returned by
 `dev_flow_get_next_action`.
 
+The five identity fields are the originally issued `task_id`, revision, action ID, action kind, and
+repository-binding digest. The Core re-observes before commit. Ordinary non-implementation actions
+require an exact binding match. `IMPLEMENT_CHANGE` may update only the worktree fingerprint while
+repository/common-directory identity, branch/detached, and HEAD/unborn remain exact; its accepted
+fresh observation becomes the next revision's binding. `RESOLVE_BLOCKER` may accept a new binding
+only under the blocker's stored condition and may return only to its stored `resume_phase`.
+
 ### Success Result
 
 Returns the committed task projection and next action or terminal outcome.
@@ -169,7 +190,7 @@ Returns the committed task projection and next action or terminal outcome.
 
 - stale revision → `REVISION_CONFLICT`;
 - stale/wrong action → `ACTION_STALE`;
-- changed repository → `REPOSITORY_DRIFT`;
+- unauthorized repository drift → `REPOSITORY_DRIFT`;
 - unknown payload field → `INVALID_ARGUMENT`;
 - budget violation → `VERIFICATION_BUDGET_EXCEEDED`;
 - terminal task → `TASK_TERMINAL`.
@@ -184,7 +205,7 @@ No failed result may partially write task/event/claim data.
 {
   "host": "codex",
   "task_id": "task-id",
-  "expected_revision": 4,
+  "revision": 4,
   "reason": "User explicitly cancelled the task"
 }
 ```
@@ -200,7 +221,6 @@ Cancellation never deletes task data or repository content.
 ```text
 INVALID_ARGUMENT
 NOT_GIT_REPOSITORY
-REPOSITORY_UNBORN_UNSUPPORTED
 TASK_NOT_FOUND
 ACTIVE_TASK_CONFLICT
 HOST_OWNERSHIP_CONFLICT

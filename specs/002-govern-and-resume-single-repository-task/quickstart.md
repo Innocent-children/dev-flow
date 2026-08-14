@@ -37,8 +37,18 @@ Example:
 
 ```text
 $speckit-implement
-Implement only Phase 1 and Phase 2. Do not create MCP tools or SQLite yet. Run only the listed
-domain/workflow checks and stop.
+Implement only Phase 1 and Phase 2, including SQLite Store and the read-only Git Observer, but do
+not implement Application, Recovery behavior, MCP, or Host products. Run only the listed targeted
+checks and stop.
+```
+
+For the Phase 1–2 checkpoint, run only:
+
+```bash
+go test ./internal/domain ./internal/workflow
+CGO_ENABLED=0 go test ./internal/store ./internal/repository
+go vet ./internal/domain ./internal/workflow ./internal/store ./internal/repository
+go test ./tests/contract -run 'TestRepositoryLayout|TestRepositoryRelativeMarkdownLinks'
 ```
 
 ## Core commands after implementation
@@ -51,7 +61,8 @@ go test ./internal/mcp ./tests/contract
 go test ./tests/journeys -run TestCoreRestartJourney
 ```
 
-Run `go test ./...` only at the final feature checkpoint.
+Do not run `go test ./...` or `pnpm run validate` locally at the Phase 1–2 checkpoint. The checkpoint
+Draft PR runs the repository's complete `validate` job once in GitHub Actions.
 
 ## Manual server smoke
 
@@ -93,7 +104,8 @@ Verify without broad test expansion:
 - stale action;
 - unknown payload field;
 - changed HEAD;
-- changed worktree fingerprint;
+- worktree fingerprint change outside `IMPLEMENT_CHANGE`, or any non-worktree binding change during
+  `IMPLEMENT_CHANGE`;
 - second host ownership conflict;
 - duplicate repository claim;
 - full-suite evidence when prohibited;
@@ -111,8 +123,10 @@ $speckit-converge
 Then run one final:
 
 ```bash
-go test ./...
 pnpm run validate
 ```
+
+`pnpm run validate` already includes Go list/vet/test, repository contracts, and package dry-pack;
+do not precede it with a duplicate full `go test ./...` run.
 
 Do not run real Codex or DeepSeek journeys in this feature.

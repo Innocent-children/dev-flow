@@ -10,18 +10,22 @@ ASSESS
 PLAN
   └─ IMPLEMENT_CHANGE/succeeded ─→ IMPLEMENT
 IMPLEMENT
-  └─ VERIFY_CHANGE/ready ─→ VERIFY
-VERIFY
-  ├─ REVIEW_CHANGE/passed-or-accepted ─→ REVIEW
+  ├─ VERIFY_CHANGE/ready ─→ VERIFY
   └─ VERIFY_CHANGE/failed ─→ IMPLEMENT
-REVIEW
-  ├─ PREPARE_HANDOFF/approved ─→ HANDOFF
-  ├─ REVIEW_CHANGE/rework-implementation ─→ IMPLEMENT
+VERIFY
+  ├─ REVIEW_CHANGE/pass ─→ REVIEW
+  ├─ REVIEW_CHANGE/rework_implementation ─→ IMPLEMENT
   └─ REVIEW_CHANGE/replan ─→ PLAN
+REVIEW
+  ├─ PREPARE_HANDOFF/ready ─→ HANDOFF
+  ├─ PREPARE_HANDOFF/rework_implementation ─→ IMPLEMENT
+  └─ PREPARE_HANDOFF/replan ─→ PLAN
 HANDOFF
   ├─ PREPARE_HANDOFF/complete ─→ DONE
-  ├─ PREPARE_HANDOFF/rework-implementation ─→ IMPLEMENT
+  ├─ PREPARE_HANDOFF/rework_implementation ─→ IMPLEMENT
   └─ PREPARE_HANDOFF/replan ─→ PLAN
+BLOCKED
+  └─ RESOLVE_BLOCKER/succeeded ─→ stored resume_phase
 ```
 
 The action name shown on an edge is the action submitted while the task is in the source phase.
@@ -46,17 +50,21 @@ semantic order.
 `PREPARE_HANDOFF` may be used in REVIEW to assemble the review decision and in HANDOFF to commit
 the terminal Delivery Summary. The payload schema is phase-specific and closed.
 
+The canonical result vocabulary is exactly `succeeded`, `ready`, `failed`, `pass`,
+`rework_implementation`, `replan`, and `complete`. These identifiers do not have aliases.
+
 ## Exceptional Transitions
 
-Any nonterminal normal phase may enter `BLOCKED` only when:
+An explicit apply-action transaction may enter `BLOCKED` only when it accepts:
 
-- repository drift prevents safe apply;
-- uncertain action evidence is partial or conflicting;
-- repository claim/storage reality is inconsistent;
-- an accepted domain precondition cannot be satisfied.
+- uncertain action evidence classified as `partially_completed` or `conflicting`.
+
+Ordinary fresh-observation drift returns `REPOSITORY_DRIFT` with no task change; reads may report a
+classification or guidance but cannot enter `BLOCKED`.
 
 A blocker records `resume_phase`. `RESOLVE_BLOCKER` may return only to that phase after a fresh
-observation proves the unblock condition.
+observation proves the concrete unblock condition. A new repository binding is accepted only when
+that condition explicitly permits it.
 
 Any nonterminal phase may enter `CANCELLED` through `dev_flow_cancel_task`.
 
@@ -68,7 +76,7 @@ Any nonterminal phase may enter `CANCELLED` through `dev_flow_cancel_task`.
 - VERIFY directly to DONE;
 - BLOCKED to a phase other than `resume_phase`;
 - adapter-selected transitions;
-- transition without exact revision, action ID, and repository binding;
+- transition without exact task ID, revision, action ID, action kind, and repository-binding digest;
 - transition that changes the immutable contract.
 
 ## Phase Obligations
@@ -164,10 +172,28 @@ Required result:
 - Reads never increment revision.
 - Event revision equals committed task revision.
 
+## Read Semantics
+
+`get_task` and `get_next_action` are pure with respect to persistent task state. They may obtain a
+fresh repository observation and return recovery classification, drift/conflict guidance, or proof
+of a committed mutation. They never write an event, increment revision, change phase/action,
+persist the observation, or create a blocker. `BLOCKED` can be produced only by an explicit
+apply-action transaction.
+
 ## Repository Binding Semantics
 
-Each action contains the current `binding_digest`. Apply must observe the repository again and
-require equality before using the action result. When a successful action intentionally changes the
-worktree, the submitted post-action observation becomes the task's next binding.
+Every apply carries the current action's original `task_id`, `revision`, `action_id`, `action_kind`,
+and `repository_binding_digest`. The Core observes the repository again before committing.
+
+- `ASSESS_TASK`, `PLAN_CHANGE`, `VERIFY_CHANGE`, `REVIEW_CHANGE`, and `PREPARE_HANDOFF` may not
+  actively change the binding; their fresh binding must exactly equal the issuance binding.
+- `IMPLEMENT_CHANGE` may change only the worktree fingerprint. Canonical repository identity, Git
+  common-directory identity, branch/detached state, and HEAD/unborn state must remain exact. A
+  successful apply stores the fresh observation as the next revision's binding.
+- Branch, HEAD, repository identity, common-directory identity, an unauthorized phase's worktree
+  change, or a non-worktree implementation change returns `REPOSITORY_DRIFT` without mutation.
+- `RESOLVE_BLOCKER` accepts a new binding only according to the stored blocker's concrete condition.
 
 The Core validates observation shape and identity; the host cannot substitute another repository.
+It binds and reviews current observed reality but does not claim to identify which external process
+performed a modification.

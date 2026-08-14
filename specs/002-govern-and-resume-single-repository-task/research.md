@@ -1,10 +1,17 @@
 # Research: Govern and Resume a Single-Repository Task
 
-## Decision 1: Official Go MCP SDK stable v1 line
+## Decision 1: Defer the official Go MCP SDK until MCP implementation
 
-**Decision**: Use the official `modelcontextprotocol/go-sdk` STDIO transport, requiring at least v1.7.0 and resolving the latest stable compatible v1 release when implementation begins.
+**Decision**: Add no MCP dependency during Phase 1–2. When Phase 7 implements the MCP adapter, use
+the official `modelcontextprotocol/go-sdk` STDIO transport, require at least v1.7.0, and resolve the
+then-latest stable compatible v1 release.
 
-**Rationale**: The official v1 line provides typed server tooling, local STDIO transport, protocol negotiation, and conformance coverage. `go.mod`/`go.sum` record the actual selected release, while product compatibility does not depend on one SDK patch number. Dev Flow uses only the bounded Tools-over-STDIO subset required by this feature and does not adopt HTTP, OAuth, sampling, or other SDK capabilities.
+**Rationale**: The official v1 line provides typed server tooling, local STDIO transport, protocol
+negotiation, and conformance coverage, but Phase 1–2 has no MCP consumer. Deferring resolution avoids
+dummy imports and keeps the foundational checkpoint at one direct production dependency.
+`go.mod`/`go.sum` will record the actual selected release when used; product compatibility will not
+depend on one SDK patch number. Dev Flow uses only the bounded Tools-over-STDIO subset required by
+this feature and does not adopt HTTP, OAuth, sampling, or other SDK capabilities.
 
 **Alternatives rejected**:
 
@@ -56,8 +63,8 @@ history.
 
 ## Decision 5: Explicit transition code, no state-machine framework
 
-**Decision**: Represent phases and action outcomes with typed constants and an explicit transition
-function/table.
+**Decision**: Represent phases and action outcomes with typed constants, one explicit transition
+table, and a pure function that evaluates that table.
 
 **Rationale**: The state set is small and closed. Framework configuration would hide behavior and
 make recovery harder to audit.
@@ -152,3 +159,46 @@ action, mutation, and explicit termination. Discovery is folded into `open_task`
 
 **Rationale**: The Core governs budgets and evidence; executing arbitrary commands would turn it
 into a generic shell authority.
+
+## Decision 14: Fixed Core Limits 0.1
+
+**Decision**: Use the single numeric table in `spec.md` as Core Limits 0.1 and one Go constant source.
+Do not add configuration files, environment overrides, policy objects, or a limits framework.
+
+**Rationale**: The values are conservative for a local personal development tool: KiB-scale text
+contracts, tens of list/evidence items, a 128 KiB mutation payload, a 256 KiB public result, a 1 MiB
+persisted snapshot and Git-output ceiling, a 10-second Git deadline, and a 5-second SQLite busy
+window. They bound memory, persistence, subprocess, and lock contention without inventing a tuning
+surface before real usage demonstrates variation.
+
+## Decision 15: Binding permits only implementation worktree change
+
+**Decision**: Every apply re-observes the repository. Ordinary non-implementation actions require
+exact issuance binding equality. `IMPLEMENT_CHANGE` may update only the worktree fingerprint and
+persists that fresh observation as the next binding; repository/common-directory identity,
+branch/detached, and HEAD/unborn remain exact. `RESOLVE_BLOCKER` may accept a new binding only under
+the blocker's concrete condition and may return only to its stored `resume_phase`. Observation time
+is freshness metadata and is excluded from both digests.
+
+**Rationale**: This permits the one action intended to edit files while detecting repository
+replacement and Git-history/context changes. The Core validates the current observation but cannot
+attribute a file modification to a particular external process, so it makes no process-level
+authorship claim.
+
+## Decision 16: Reads classify but never reconcile by mutation
+
+**Decision**: `get_task` and `get_next_action` may observe and classify current reality, but never
+persist a binding, event, phase, revision, or blocker. A `BLOCKED` snapshot can be committed only by
+an explicit apply-action transaction.
+
+**Rationale**: Read-after-write remains safe and repeatable, while all state changes retain exact
+revision/action identity and an auditable transaction.
+
+## Decision 17: Strict JSON belongs at technical boundaries
+
+**Decision**: Domain types validate typed values and never accept `map[string]any`. Store codecs use
+strict JSON decoding and re-run Domain invariants; future MCP inputs independently reject unknown
+fields at the adapter boundary.
+
+**Rationale**: Closure is enforced where untrusted serialized data enters without coupling Domain
+logic to JSON Schema or duplicating parsing rules.

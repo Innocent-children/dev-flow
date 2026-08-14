@@ -20,11 +20,14 @@ read-before-retry recovery without executing development commands or mutating Gi
 
 **Primary Dependencies**:
 
-- `github.com/modelcontextprotocol/go-sdk` latest stable compatible v1 release, minimum v1.7.0;
-- `modernc.org/sqlite` latest stable compatible v1 release;
+- Phase 1–2: `modernc.org/sqlite` latest stable compatible v1 release;
+- Phase 7, when MCP is actually implemented: `github.com/modelcontextprotocol/go-sdk` latest stable
+  compatible v1 release, minimum v1.7.0;
 - Go standard library.
 
 The actual resolved versions are recorded in `go.mod` and `go.sum`; no runtime or test performs exact dependency-version equality checks.
+The MCP SDK is not pinned early through a blank import, `tools.go`, or placeholder code. The complete
+Feature 002 remains limited to these two direct production dependencies.
 
 No CLI framework, state-machine framework, ORM, dependency injection framework, event bus, logging
 framework, or JSON-schema framework is added.
@@ -41,10 +44,10 @@ tests. No Windows release claim.
 
 **Performance Goals**:
 
-- task read and next-action computation complete in under 250 ms in a typical local repository,
-  excluding pathological Git filesystem delays;
-- database open and schema verification complete in under 500 ms in the test environment;
-- result payload remains bounded by contract limits.
+- result payloads, Git command output, persisted aggregates, and time-bound external operations stay
+  within Core Limits 0.1;
+- this feature defines no hard latency acceptance gate; timing may be observed diagnostically but
+  does not authorize benchmarks or timing-sensitive tests.
 
 **Constraints**:
 
@@ -61,6 +64,11 @@ tests. No Windows release claim.
 
 **Scale/Scope**: Personal local use; tens to low hundreds of retained tasks; one active task per
 repository; no daemon or concurrent background worker.
+
+**Phase 1–2 Checkpoint**: Implement the package skeleton, closed Domain and Workflow, minimal Store
+and RepositoryObserver ports, SQLite Schema 1/CAS foundations, and the read-only Git observer. Do
+not implement Application use cases, recovery behavior, MCP, host products, installation, or
+publication at this checkpoint.
 
 ## Constitution Check
 

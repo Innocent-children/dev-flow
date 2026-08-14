@@ -9,6 +9,24 @@
 **Input**: Build the host-independent Dev Flow Core that governs one existing Git repository through
 one workflow and safely resumes the task after interruption.
 
+## Clarifications
+
+### Session 2026-08-14
+
+- Q: Which phase/action/result vocabulary is authoritative? → A: The closed mapping and result
+  values in `contracts/state-machine.md`, including `PREPARE_HANDOFF` in both `REVIEW` and
+  `HANDOFF`, are authoritative.
+- Q: How may repository binding change during apply and read operations? → A: Only
+  `IMPLEMENT_CHANGE` may accept a changed worktree fingerprint; reads never persist observations,
+  and every other action requires the issuance binding to remain exact.
+- Q: Are unborn repositories supported and what makes bounded input measurable? → A: Unborn Git
+  repositories are supported, and every Core bound is defined by the single Core Limits 0.1 table.
+- Q: Where are JSON closure and dependency timing enforced? → A: Store codecs and future MCP
+  inputs reject unknown fields; the MCP SDK is added only with the Phase 7 MCP implementation.
+- Q: What is the Phase 1–2 and final validation boundary? → A: Phase 2 includes SQLite and the
+  read-only Git observer; local work uses targeted checks, while final validation runs
+  `pnpm run validate` once.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Open a governed task and receive the next action (Priority: P1)
@@ -33,7 +51,8 @@ allowed effects, required evidence, and verification budget.
 3. **Given** a canonical repository already claimed by an active task, **When** another new task is
    requested, **Then** the Core returns a stable conflict and does not merge the requests.
 4. **Given** a new task, **When** its next action is read repeatedly without mutation, **Then** the
-   action identity and binding remain stable.
+   persisted action identity and issuance binding remain stable even if a fresh observation adds
+   read-only recovery guidance.
 
 ---
 
@@ -52,12 +71,12 @@ rejected.
 
 1. **Given** the current action and matching revision, **When** the host submits all required
    evidence, **Then** the Core atomically advances exactly one legal transition.
-2. **Given** a payload with an unknown field, missing required evidence, stale action ID, changed
-   repository binding, or stale revision, **When** it is submitted, **Then** the task remains
-   unchanged.
-3. **Given** verification or review identifies an accepted failure, **When** the corresponding
-   action result is submitted, **Then** the Core returns to the permitted rework phase and records
-   the reason.
+2. **Given** a payload with an unknown field, missing required evidence, stale action ID,
+   unauthorized repository drift under FR-020, or stale revision, **When** it is submitted, **Then**
+   the task remains unchanged.
+3. **Given** `VERIFY_CHANGE`, `REVIEW_CHANGE`, or `PREPARE_HANDOFF` returns its defined `failed`,
+   `rework_implementation`, or `replan` result, **When** the exact action is submitted, **Then** the
+   Core returns to the state-machine contract's permitted phase and records a non-empty reason.
 4. **Given** a task at `DONE` or `CANCELLED`, **When** any mutation other than an idempotent read is
    attempted, **Then** it is rejected as terminal.
 
@@ -101,15 +120,17 @@ recovery classification.
 
 **Acceptance Scenarios**:
 
-1. **Given** an issued action bound to repository fingerprint A, **When** the repository changes to
-   fingerprint B before apply, **Then** apply is rejected without changing task state.
+1. **Given** an issued action bound to repository fingerprint A, **When** the repository changes in
+   a way not permitted for that action by FR-020, **Then** apply is rejected without changing task
+   state; an `IMPLEMENT_CHANGE`-only worktree change is instead accepted as the next binding.
 2. **Given** a mutation commits but the caller loses the response, **When** the caller reads the
    task and next action, **Then** it can prove whether the action is already recorded.
 3. **Given** an externally completed action with sufficient exact evidence but no recorded
    transition, **When** recovery is requested, **Then** the Core classifies it as
    `completed_but_unrecorded` rather than replaying it.
-4. **Given** partial or conflicting evidence, **When** recovery is requested, **Then** the task is
-   blocked with a concrete unblock condition.
+4. **Given** partial or conflicting evidence, **When** an exact explicit recovery apply is
+   submitted, **Then** one apply-action transaction blocks the task with a concrete unblock
+   condition; a read reporting the same classification does not mutate it.
 
 ## Edge Cases
 
@@ -171,14 +192,49 @@ recovery classification.
 
 ## Requirements *(mandatory)*
 
+### Core Limits 0.1
+
+This is the single authoritative numeric limit table for Core Contract 0.1. Limits are fixed Go
+constants, are not user-configurable, and count UTF-8 bytes unless a row explicitly states an item
+count or duration.
+
+| Limit | Value |
+|---|---:|
+| Repository path | 4,096 bytes |
+| Goal | 8,192 bytes |
+| Scope | 64 items; 1,024 bytes per item |
+| Out-of-scope | 64 items; 1,024 bytes per item |
+| Acceptance criteria | 64 items; 2,048 bytes per item |
+| Evidence submitted by one action | 32 items |
+| Evidence name | 256 bytes |
+| Evidence summary | 2,048 bytes per item |
+| Evidence retained by one task | 256 items |
+| Generic bounded string lists | 64 items |
+| Blocker message, reason, guidance, outcome summary, or resolution text | 4,096 bytes per field |
+| Identifier | 128 bytes |
+| Action payload | 131,072 bytes total |
+| Result envelope | 262,144 bytes total |
+| Persisted task snapshot | 1,048,576 bytes total |
+| Git command stdout and stderr | 1,048,576 bytes combined per command |
+| Git command timeout | 10 seconds per command |
+| SQLite busy timeout | 5 seconds |
+| Automatic verification commands | 20 per task |
+
+Text contract fields, evidence names and summaries, reasons, guidance, and outcome text are
+normalized only with Unicode-preserving leading/trailing whitespace trimming. Lists preserve order;
+an empty normalized required value or a normalized duplicate is rejected rather than corrected.
+Identifiers, enum values, digests, action results, and JSON field names accept only their canonical
+forms and are never trimmed or aliased. Repository paths are canonicalized only by the Repository
+Observer rules in FR-007.
+
 ### Functional Requirements
 
 #### Task Contract
 
 - **FR-001**: The Core MUST accept a task goal, scope, out-of-scope statements, acceptance criteria,
   verification budget, host identity, and repository path.
-- **FR-002**: Goal and acceptance criteria MUST be non-empty and bounded.
-- **FR-003**: Scope and out-of-scope collections MUST be closed arrays of bounded strings.
+- **FR-002**: Goal and acceptance criteria MUST be non-empty and remain within Core Limits 0.1.
+- **FR-003**: Scope and out-of-scope collections MUST be closed arrays within Core Limits 0.1.
 - **FR-004**: The verification budget MUST include level, maximum automatic command count,
   full-suite permission, and manual-handoff permission.
 - **FR-005**: The Core MUST persist the normalized contract exactly and return it on every task read.
@@ -189,7 +245,10 @@ recovery classification.
 
 - **FR-007**: The Core MUST canonicalize the repository to one existing Git worktree root.
 - **FR-008**: The Core MUST record current branch or detached status, HEAD or unborn status, and a
-  SHA-256 worktree fingerprint derived from bounded read-only Git observations.
+  SHA-256 worktree fingerprint derived from bounded read-only Git observations. A valid unborn
+  repository is supported with `head = null`, `unborn = true`, and the branch recorded when Git
+  reports one. `observed_at` is freshness metadata and is excluded from worktree and final binding
+  digests.
 - **FR-009**: The Core MUST NOT read or persist source file contents or Git diffs.
 - **FR-010**: One canonical repository root MUST have at most one active task.
 - **FR-011**: Repository claim creation and task creation MUST occur in one transaction.
@@ -208,13 +267,22 @@ recovery classification.
   `contracts/state-machine.md`.
 - **FR-019**: Rework transitions MUST be limited to the explicit paths defined in the state-machine
   contract and MUST record a non-empty reason.
-- **FR-020**: Every mutation MUST require exact task ID, revision, action ID, action kind, and
-  repository binding.
-- **FR-021**: The Core MUST reject unknown action kinds, unknown payload fields, and missing
-  evidence.
+- **FR-020**: Every action apply MUST carry the current action's exact task ID, revision, action ID,
+  action kind, and issuance repository-binding digest. Before commit, the Core MUST freshly observe
+  the repository. `ASSESS_TASK`, `PLAN_CHANGE`, `VERIFY_CHANGE`, `REVIEW_CHANGE`, and
+  `PREPARE_HANDOFF` require an exact fresh binding match. `IMPLEMENT_CHANGE` may change only the
+  worktree fingerprint; repository identity, Git common-directory identity, branch/detached state,
+  and HEAD/unborn state MUST remain exact. An accepted implementation observation becomes the next
+  revision's binding.
+- **FR-021**: The Store codec boundary and future MCP input boundary MUST reject unknown JSON fields;
+  the typed Domain model MUST reject unknown action kinds and missing evidence without parsing
+  arbitrary JSON or accepting undocumented aliases.
 - **FR-022**: Each successful action apply MUST advance or terminate the task in one database
   transaction and increment revision exactly once.
-- **FR-023**: Repeated reads MUST NOT increment revision or write events.
+- **FR-023**: `get_task` and `get_next_action` are read-only. Repeated reads MUST NOT increment
+  revision, write events, change phase, create a blocker, or persist a repository binding. A read
+  MAY freshly observe the repository and return a recovery classification, drift/conflict guidance,
+  or proof that a mutation committed.
 - **FR-024**: Terminal tasks MUST not produce a nonterminal next action.
 
 #### Evidence and Verification Budget
@@ -253,14 +321,27 @@ recovery classification.
 
 - **FR-043**: The Core MUST persist a bounded last-operation record sufficient to reconcile an
   uncertain response.
-- **FR-044**: Recovery classification MUST use the five values defined by the Constitution.
+- **FR-044**: Recovery classification MUST use these observable definitions:
+  `not_started` means neither the exact action nor its required external effects are recorded;
+  `completed_and_recorded` means the exact action identity and payload digest are committed in the
+  task/event revision; `completed_but_unrecorded` means current observation and exact evidence prove
+  all required external effects but no corresponding task/event revision committed;
+  `partially_completed` means only a proper subset of required effects/evidence is present; and
+  `conflicting` means observed identity, effects, ownership, or evidence contradicts the issued
+  action.
 - **FR-045**: A caller MUST be able to determine from `get_task` and `get_next_action` whether a
   submitted action already committed.
 - **FR-046**: The Core MUST NOT automatically replay an uncertain mutation.
-- **FR-047**: Repository drift between action issuance and apply MUST return `REPOSITORY_DRIFT`.
-- **FR-048**: Partial or conflicting recovery evidence MUST move or retain the task in `BLOCKED`
-  with a concrete blocker.
-- **FR-049**: A blocker resolution MUST use a fresh repository observation and exact blocker ID.
+- **FR-047**: Branch, HEAD, canonical repository identity, Git common-directory identity, an
+  unauthorized phase's worktree change, or any non-worktree change during `IMPLEMENT_CHANGE` MUST
+  return `REPOSITORY_DRIFT` without changing task state. The Core binds and reviews the fresh
+  observation but does not claim process-level attribution for external edits.
+- **FR-048**: Partial or conflicting recovery evidence MAY move or retain the task in `BLOCKED`
+  only through an explicit apply-action transaction, with a concrete blocker. Ordinary reads MUST
+  never create or persist `BLOCKED`.
+- **FR-049**: A blocker resolution MUST use a fresh repository observation, the exact blocker ID,
+  and the blocker's concrete acceptance condition; success may return only to the stored
+  `resume_phase` and may accept a new binding only as that condition specifies.
 - **FR-050**: Recovery reads MUST not mutate the repository.
 
 #### MCP and Results
@@ -322,7 +403,9 @@ recovery classification.
 - **SC-005**: A committed mutation remains visible after immediate process termination and database
   reopen.
 - **SC-006**: A lost response can be reconciled without replaying the mutation.
-- **SC-007**: HEAD, branch, or worktree drift prevents action apply before state changes.
+- **SC-007**: HEAD, branch, repository-identity, or unauthorized worktree drift prevents action
+  apply before state changes, while an implementation-only worktree change can become the next
+  binding without permitting any other binding component to change.
 - **SC-008**: The Core exposes exactly six tools over STDIO and no network listener.
 - **SC-009**: No Core command mutates Git or executes user-provided shell commands.
 - **SC-010**: Contract tests validate the same public schemas that future Codex and DeepSeek
@@ -338,7 +421,8 @@ recovery classification.
 - The first release evidence target is macOS arm64, but Core tests may run on Linux CI.
 - The host passes an absolute or resolvable repository path.
 - Git is installed for target development tasks.
-- A dirty worktree is allowed if its exact fingerprint remains stable; Dev Flow does not clean it.
+- A dirty worktree is allowed and initially bound. It must remain exact except for the worktree-only
+  change accepted from `IMPLEMENT_CHANGE`; Dev Flow does not clean it.
 - Automated verification commands are executed by the host, not the Core.
 - Task contract revision is intentionally deferred.
 - Cross-host handoff is intentionally deferred.

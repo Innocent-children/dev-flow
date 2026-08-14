@@ -24,9 +24,12 @@ one user story at a time and stop at every checkpoint.
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-**Purpose**: Add only the approved Core dependencies and feature-owned directory skeleton.
+**Purpose**: Add only the permitted Core dependency and feature-owned directory skeleton.
 
-- [ ] T001 Update root `go.mod` with the latest stable compatible v1 releases of `github.com/modelcontextprotocol/go-sdk` (minimum v1.7.0) and `modernc.org/sqlite`; let `go.mod`/`go.sum` record the resolved versions without adding equality-based compatibility checks.
+- [ ] T001 Update root `go.mod` with only the latest stable compatible v1 release of
+  `modernc.org/sqlite`; let `go.mod`/`go.sum` record the resolved version without adding
+  equality-based compatibility checks. Add `github.com/modelcontextprotocol/go-sdk` only in Phase 7
+  when MCP is actually implemented; do not pin it with a blank import, `tools.go`, or placeholder.
 - [ ] T002 Generate and commit `go.sum` without adding indirect dependencies manually.
 - [ ] T003 Create source ownership packages under `internal/domain/`, `internal/workflow/`,
   `internal/recovery/`, `internal/repository/`, `internal/store/`, `internal/application/`, and
@@ -51,46 +54,61 @@ read-only repository observation needed by every user story.
 ### Foundational Tests
 
 - [ ] T007 [P] Add domain validation and invariant cases to
-  `internal/domain/validation_test.go` for bounded strings, contracts, phases, actions, evidence,
-  outcomes, and verification budgets.
+  `internal/domain/validation_test.go` for Core Limits 0.1, bounded strings, contracts, phases,
+  actions, evidence, outcomes, and verification budgets; tests must use the exported limit constants
+  instead of copying numbers.
 - [ ] T008 [P] Add transition-table cases to `internal/workflow/transitions_test.go` covering every
-  allowed normal/rework edge and representative forbidden edges.
-- [ ] T009 [P] Add migration and transaction rollback cases to `internal/store/sqlite_test.go` using
-  temporary databases only.
+  legal normal, rework, and `RESOLVE_BLOCKER` edge plus representative forbidden edges.
+- [ ] T009 [P] Add migration, stable-digest/idempotence, unsupported-schema, strict-codec
+  unknown/trailing JSON, bounded snapshot, SQLite busy-timeout, exact CAS, and transaction rollback
+  cases to `internal/store/sqlite_test.go` using temporary databases only.
 - [ ] T010 [P] Add read-only Git observation cases to `internal/repository/git_observer_test.go`
-  covering clean, dirty, detached, unborn, symlinked, spaced, and Unicode repository paths.
+  covering clean, dirty tracked/untracked, detached, unborn branch/null-HEAD, symlinked, spaced, and
+  Unicode repository paths plus bounded-output and timeout failures.
 
 ### Foundational Implementation
 
-- [ ] T011 [P] Implement closed identifiers, hosts, phases, action kinds, evidence sources,
-  verification levels, and terminal statuses in `internal/domain/types.go`.
+- [ ] T011 [P] Implement closed identifiers, hosts, phases, action kinds, action results, evidence
+  sources, verification levels, and terminal statuses in `internal/domain/types.go`, and put every
+  Core Limits 0.1 Go constant in the single source `internal/domain/limits.go`.
 - [ ] T012 [P] Implement immutable task contract and verification budget models in
   `internal/domain/contract.go`.
-- [ ] T013 [P] Implement repository binding and fingerprint models in
-  `internal/domain/repository.go`.
+- [ ] T013 [P] Implement repository identity, Git common-directory identity, branch/detached,
+  HEAD/unborn, worktree fingerprint, final binding, and observation-time models in
+  `internal/domain/repository.go`; observation time is excluded from both digests.
 - [ ] T014 [P] Implement action, evidence summary, blocker, outcome, last-operation, and task models
   in `internal/domain/action.go`, `internal/domain/evidence.go`, `internal/domain/blocker.go`,
   `internal/domain/outcome.go`, and `internal/domain/task.go`.
-- [ ] T015 Implement domain validation and bounded normalization in
-  `internal/domain/validation.go` while rejecting unknown fields and undocumented aliases.
+- [ ] T015 Implement typed Domain invariant validation and the explicitly documented trimming,
+  canonicalization, and duplicate rejection in `internal/domain/validation.go`; reject undocumented
+  enum/result aliases without making Domain parse arbitrary JSON.
 - [ ] T016 Implement stable domain error codes and typed errors in `internal/domain/errors.go`.
-- [ ] T017 Implement the one transition table and phase-to-action mapping from
-  `contracts/state-machine.md` in `internal/workflow/transitions.go`.
+- [ ] T017 Implement the one transition table and derived phase-to-action mapping with the exact
+  canonical action results from `contracts/state-machine.md` in
+  `internal/workflow/transitions.go`.
 - [ ] T018 Implement pure next-action construction and transition evaluation in
   `internal/workflow/engine.go`; do not import SQLite, MCP, `os/exec`, or host packages.
 - [ ] T019 Define the minimal `Store` transaction port in `internal/store/store.go` and the minimal
   `RepositoryObserver` port in `internal/repository/observer.go`.
-- [ ] T020 Implement schema migration 1 for `tasks`, `task_events`, `repository_claims`, and
-  `schema_migrations` in `internal/store/migrations.go`.
-- [ ] T021 Implement domain JSON encoding/decoding and invariant verification in
-  `internal/store/codec.go`.
-- [ ] T022 Implement SQLite open, migration verification, read transactions, compare-and-swap
-  mutations, event append, and repository-claim updates in `internal/store/sqlite.go`.
-- [ ] T023 Implement canonical repository-root resolution and bounded read-only Git command
-  execution in `internal/repository/paths.go` and `internal/repository/git_observer.go`.
+- [ ] T020 Implement transactional, idempotent schema migration 1 with a stable digest for `tasks`,
+  `task_events`, `repository_claims`, and `schema_migrations` in
+  `internal/store/migrations.go`; reject unsupported future schema without downgrade or rebuild.
+- [ ] T021 Implement bounded Domain JSON encoding and strict decoding in `internal/store/codec.go`;
+  reject unknown fields and trailing JSON at this Store boundary, then re-run the single Task
+  invariant entry point.
+- [ ] T022 Implement SQLite open with foreign keys and the Core Limits 0.1 busy timeout, migration
+  verification, read transactions, exact-revision compare-and-swap mutations, event append, and
+  repository-claim updates in `internal/store/sqlite.go`; failed transactions must leave task,
+  event, and claim data unchanged.
+- [ ] T023 Implement canonical repository-root resolution and allowlisted read-only Git command
+  execution in `internal/repository/paths.go` and `internal/repository/git_observer.go` using
+  `exec.CommandContext` plus the Core Limits 0.1 timeout and combined stdout/stderr bound.
 - [ ] T024 Implement SHA-256 repository binding calculation from branch/detached state, HEAD/unborn
   state, and bounded status observations in `internal/repository/fingerprint.go`.
-- [ ] T025 Run only T007–T010 and fix foundational contract failures before starting a user story.
+- [ ] T025 Run only the Phase 2 targeted checks: `go test ./internal/domain ./internal/workflow`,
+  `CGO_ENABLED=0 go test ./internal/store ./internal/repository`, targeted `go vet` on those four
+  packages, and the repository layout/Markdown contract tests; fix failures before starting a user
+  story.
 
 **Checkpoint**: Pure workflow logic, SQLite authority, and read-only repository observation are
 independently testable; no MCP server or task use case is implemented.
@@ -111,7 +129,8 @@ repeatedly, and prove that task creation and repository claim are atomic.
 - [ ] T027 [P] [US1] Add unique-claim race and rollback cases to
   `internal/store/repository_claim_test.go`.
 - [ ] T028 [P] [US1] Add stable repeated-read cases to
-  `internal/application/next_action_test.go`.
+  `internal/application/next_action_test.go`, proving reads do not change revision, event, phase,
+  action, blocker, or persisted repository binding.
 
 ### Implementation for User Story 1
 
@@ -120,9 +139,9 @@ repeatedly, and prove that task creation and repository claim are atomic.
 - [ ] T030 [US1] Implement new-task normalization, repository observation, atomic task/claim/event
   creation, and same-host resume in `internal/application/open_task.go`.
 - [ ] T031 [US1] Implement authoritative task projection with host ownership checks in
-  `internal/application/get_task.go`.
+  `internal/application/get_task.go`; fresh observation/recovery guidance is read-only.
 - [ ] T032 [US1] Implement stable current-action or terminal projection in
-  `internal/application/next_action.go`.
+  `internal/application/next_action.go` without persisting any read-time reconciliation.
 - [ ] T033 [US1] Add representative shared fixtures for server info, open-task success, active-task
   conflict, host-ownership conflict, task read, and next action under `protocol/fixtures/`.
 - [ ] T034 [US1] Run the US1 application/store tests and manually inspect that no fixture contains a
@@ -146,7 +165,8 @@ duplicate, stale, malformed, drifted, and over-budget submissions.
   `internal/workflow/payloads_test.go`.
 - [ ] T036 [P] [US2] Add legal forward, implementation rework, replanning, and terminal cases to
   `internal/application/apply_action_test.go`.
-- [ ] T037 [P] [US2] Add revision/action/binding mismatch and duplicate-submission cases to
+- [ ] T037 [P] [US2] Add exact task ID/revision/action ID/action kind/issuance-binding mismatch,
+  action-specific repository-drift, and duplicate-submission cases to
   `internal/application/apply_action_test.go`.
 - [ ] T038 [P] [US2] Add verification command-count, full-suite, evidence-source, and manual-handoff
   budget cases to `internal/workflow/verification_budget_test.go`.
@@ -159,9 +179,9 @@ duplicate, stale, malformed, drifted, and over-budget submissions.
   `internal/workflow/payloads.go`.
 - [ ] T041 [US2] Implement verification-budget evaluation and evidence normalization in
   `internal/workflow/verification_budget.go`.
-- [ ] T042 [US2] Implement exact revision/action/binding checks, fresh repository observation,
-  transition evaluation, evidence summaries, event append, and next-action creation in
-  `internal/application/apply_action.go`.
+- [ ] T042 [US2] Implement exact task ID/revision/action ID/action kind/issuance-binding checks,
+  fresh repository observation, action-specific binding rules, transition evaluation, evidence
+  summaries, event append, and next-action creation in `internal/application/apply_action.go`.
 - [ ] T043 [US2] Implement `DONE` outcome creation and same-transaction repository-claim release in
   `internal/application/apply_action.go`.
 - [ ] T044 [US2] Implement explicit cancellation, retained task data, terminal event, and
@@ -219,8 +239,9 @@ verify rejection, read-after-write proof, five recovery classes, and safe blocki
 
 - [ ] T054 [P] [US4] Add pure five-class recovery cases to
   `internal/recovery/classify_test.go`.
-- [ ] T055 [P] [US4] Add HEAD, branch/detached, tracked, and untracked drift cases to
-  `internal/recovery/reconcile_test.go`.
+- [ ] T055 [P] [US4] Add canonical-repository/common-directory, HEAD/unborn, branch/detached,
+  tracked, untracked, implementation-only worktree acceptance, and unauthorized-phase drift cases
+  to `internal/recovery/reconcile_test.go`.
 - [ ] T056 [P] [US4] Add commit-before-response-loss and duplicate-apply read-back cases to
   `internal/application/uncertain_mutation_test.go`.
 - [ ] T057 [P] [US4] Add two-process claim/revision race cases to
@@ -232,11 +253,14 @@ verify rejection, read-after-write proof, five recovery classes, and safe blocki
   `internal/recovery/classify.go`.
 - [ ] T059 [US4] Implement task/action/event/repository reconciliation and concrete unblock
   conditions in `internal/recovery/reconcile.go`.
-- [ ] T060 [US4] Integrate reconciliation into task reads, next-action reads, and apply preconditions
-  in `internal/application/get_task.go`, `internal/application/next_action.go`, and
-  `internal/application/apply_action.go`.
+- [ ] T060 [US4] Integrate read-only reconciliation reporting into task/next-action reads and
+  mutation reconciliation into apply preconditions in `internal/application/get_task.go`,
+  `internal/application/next_action.go`, and `internal/application/apply_action.go`; reads may
+  observe/classify but must never persist state or create `BLOCKED`.
 - [ ] T061 [US4] Implement `BLOCKED` creation and `RESOLVE_BLOCKER` handling through the existing
-  apply-action path without adding an MCP tool in `internal/application/apply_action.go`.
+  apply-action path without adding an MCP tool in `internal/application/apply_action.go`; reads
+  cannot create blockers, and resolution accepts a new binding only under the stored condition and
+  returns only to the stored `resume_phase`.
 - [ ] T062 [US4] Extend shared fixtures with all five recovery classes and blocked/resolved results
   under `protocol/fixtures/`.
 - [ ] T063 [US4] Run only recovery, uncertain-mutation, and bounded concurrency cases.
@@ -254,19 +278,22 @@ verify rejection, read-after-write proof, five recovery classes, and safe blocki
 - [ ] T064 [P] Add result-envelope JSON Schema validation cases to
   `tests/contract/result_envelope_test.go` using
   `contracts/result-envelope.schema.json` as a specification fixture, not a runtime dependency.
-- [ ] T065 [P] Add tool-name, closed-input, annotation, bounded-result, and stable-error contract
-  cases to `tests/contract/mcp_contract_test.go`.
+- [ ] T065 [P] Add tool-name, strict unknown-input-field, annotation, Core Limits 0.1 encoded-result
+  byte ceiling, and stable-error contract cases to `tests/contract/mcp_contract_test.go`.
 - [ ] T066 [P] Add fixture parity checks to `tests/contract/fixture_contract_test.go` so future
   Codex and DeepSeek packages consume one shared surface.
 
 ### Implementation
 
-- [ ] T067 Implement the common success/error envelope and bounded redacted details in
-  `internal/mcp/results.go`.
+- [ ] T067 Implement the common success/error envelope, encoded total-byte enforcement, and bounded
+  redacted details in `internal/mcp/results.go`.
 - [ ] T068 Implement closed tool schemas and exact six-tool catalog in
-  `internal/mcp/schemas.go` and `internal/mcp/tools.go`.
-- [ ] T069 Implement MCP request dispatch to the application service in `internal/mcp/server.go`;
-  the adapter must not select transitions or persist state directly.
+  `internal/mcp/schemas.go` and `internal/mcp/tools.go`; reject unknown fields at the MCP boundary
+  without a runtime JSON-Schema framework.
+- [ ] T069 Resolve and import the then-latest stable compatible v1
+  `github.com/modelcontextprotocol/go-sdk`, run `go mod tidy`, and implement MCP request dispatch to
+  the application service in `internal/mcp/server.go`; the adapter must not select transitions or
+  persist state directly.
 - [ ] T070 Implement stderr-only structured diagnostics with request IDs and no task payloads in
   `internal/mcp/logging.go`.
 - [ ] T071 Implement `dev-flow mcp --stdio`, `dev-flow version`, and bounded help in
@@ -288,8 +315,8 @@ verify rejection, read-after-write proof, five recovery classes, and safe blocki
   fixture references.
 - [ ] T077 Confirm `packages/codex/` and `packages/deepseek/` contain no duplicate protocol or state
   logic and still make no functional claim.
-- [ ] T078 Run `gofmt`, `go vet ./...`, `go test ./...`, repository contract validation, and
-  package dry-pack once.
+- [ ] T078 Run one final `pnpm run validate`, which already includes Go list/vet/test, repository
+  contract validation, and package dry-pack; do not run a duplicate full `go test ./...` first.
 - [ ] T079 Run `$speckit-converge` and append only concrete acceptance gaps; do not add host,
   release, platform-matrix, data-import, or future-workflow tasks.
 - [ ] T080 Record `Core Contract 0.1` source commit, fixture digest, verified platform, skipped
