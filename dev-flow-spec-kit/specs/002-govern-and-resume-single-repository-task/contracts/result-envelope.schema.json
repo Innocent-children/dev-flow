@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dev-flow-result-envelope.schema.json",
+  "title": "Dev Flow Result Envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "ok",
+    "request_id",
+    "tool"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "tool": {
+      "type": "string",
+      "enum": [
+        "dev_flow_server_info",
+        "dev_flow_open_task",
+        "dev_flow_get_task",
+        "dev_flow_get_next_action",
+        "dev_flow_apply_action",
+        "dev_flow_cancel_task"
+      ]
+    },
+    "result": {
+      "type": "object"
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "INVALID_ARGUMENT",
+            "NOT_GIT_REPOSITORY",
+            "REPOSITORY_UNBORN_UNSUPPORTED",
+            "TASK_NOT_FOUND",
+            "ACTIVE_TASK_CONFLICT",
+            "HOST_OWNERSHIP_CONFLICT",
+            "REVISION_CONFLICT",
+            "ACTION_STALE",
+            "REPOSITORY_DRIFT",
+            "VERIFICATION_BUDGET_EXCEEDED",
+            "TASK_BLOCKED",
+            "TASK_TERMINAL",
+            "SCHEMA_UNSUPPORTED",
+            "STORAGE_UNAVAILABLE",
+            "INTERNAL_ERROR"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "details": {
+          "type": "object"
+        }
+      }
+    },
+    "recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retry_safe",
+        "action"
+      ],
+      "properties": {
+        "retry_safe": {
+          "type": "boolean"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "none",
+            "read_task",
+            "read_next_action",
+            "resolve_repository_drift",
+            "use_origin_host",
+            "cancel_or_finish_active_task",
+            "repair_storage",
+            "report_internal_error"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 512
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "ok": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "result"
+        ],
+        "not": {
+          "required": [
+            "error"
+          ]
+        }
+      },
+      "else": {
+        "required": [
+          "error",
+          "recovery"
+        ],
+        "not": {
+          "required": [
+            "result"
+          ]
+        }
+      }
+    }
+  ]
+}
