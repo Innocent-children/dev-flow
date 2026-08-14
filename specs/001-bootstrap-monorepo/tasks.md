@@ -207,7 +207,7 @@ behavior.
   four official setup Actions while preserving the bounded pull-request-only workflow.
 - [x] T053 Run the targeted contract checks and the complete `pnpm run validate` Feature 001
   validation from the repository root.
-- [ ] T054 Commit and push `codex/001-bootstrap-monorepo`, create or reuse its Draft PR, and record a
+- [x] T054 Commit and push `codex/001-bootstrap-monorepo`, create or reuse its Draft PR, and record a
   passing real `pull_request` CI result without merging.
 
 ## Dependencies & Execution Order
