@@ -155,13 +155,15 @@ authoritative for binding review but does not prove which external process made 
 | repository_binding_digest | SHA-256 | exact observed repository |
 | allowed_effects | string[] | closed values defined per action |
 | required_evidence | EvidenceRequirement[] | closed contract |
-| payload_contract | typed discriminator | closed phase payload identifier; no arbitrary JSON map |
+| payload_contract | Phase | closed source-phase discriminator; no arbitrary JSON map |
 | guidance | string | concise host-neutral direction within Core Limits 0.1 |
 | issued_at | timestamp | not used to expire an otherwise current action |
 
 Phase 2 implements only the phase-independent action metadata and pure blueprint construction. The
 complete closed phase payload types belong to T040; the future MCP adapter derives JSON schemas at
-its own boundary rather than storing `map[string]any` in Domain.
+its own boundary rather than storing `map[string]any` in Domain. `payload_contract` reuses the
+action's source `Phase`, which keeps `REVIEW` and `HANDOFF` distinct even though both issue
+`PREPARE_HANDOFF`.
 
 ## EvidenceSummary
 

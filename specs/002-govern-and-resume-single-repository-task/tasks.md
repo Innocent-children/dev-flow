@@ -53,59 +53,59 @@ read-only repository observation needed by every user story.
 
 ### Foundational Tests
 
-- [ ] T007 [P] Add domain validation and invariant cases to
+- [x] T007 [P] Add domain validation and invariant cases to
   `internal/domain/validation_test.go` for Core Limits 0.1, bounded strings, contracts, phases,
   actions, evidence, outcomes, and verification budgets; tests must use the exported limit constants
   instead of copying numbers.
-- [ ] T008 [P] Add transition-table cases to `internal/workflow/transitions_test.go` covering every
+- [x] T008 [P] Add transition-table cases to `internal/workflow/transitions_test.go` covering every
   legal normal, rework, and `RESOLVE_BLOCKER` edge plus representative forbidden edges.
-- [ ] T009 [P] Add migration, stable-digest/idempotence, unsupported-schema, strict-codec
+- [x] T009 [P] Add migration, stable-digest/idempotence, unsupported-schema, strict-codec
   unknown/trailing JSON, bounded snapshot, SQLite busy-timeout, exact CAS, and transaction rollback
   cases to `internal/store/sqlite_test.go` using temporary databases only.
-- [ ] T010 [P] Add read-only Git observation cases to `internal/repository/git_observer_test.go`
+- [x] T010 [P] Add read-only Git observation cases to `internal/repository/git_observer_test.go`
   covering clean, dirty tracked/untracked, detached, unborn branch/null-HEAD, symlinked, spaced, and
   Unicode repository paths plus bounded-output and timeout failures.
 
 ### Foundational Implementation
 
-- [ ] T011 [P] Implement closed identifiers, hosts, phases, action kinds, action results, evidence
+- [x] T011 [P] Implement closed identifiers, hosts, phases, action kinds, action results, evidence
   sources, verification levels, and terminal statuses in `internal/domain/types.go`, and put every
   Core Limits 0.1 Go constant in the single source `internal/domain/limits.go`.
-- [ ] T012 [P] Implement immutable task contract and verification budget models in
+- [x] T012 [P] Implement immutable task contract and verification budget models in
   `internal/domain/contract.go`.
-- [ ] T013 [P] Implement repository identity, Git common-directory identity, branch/detached,
+- [x] T013 [P] Implement repository identity, Git common-directory identity, branch/detached,
   HEAD/unborn, worktree fingerprint, final binding, and observation-time models in
   `internal/domain/repository.go`; observation time is excluded from both digests.
-- [ ] T014 [P] Implement action, evidence summary, blocker, outcome, last-operation, and task models
+- [x] T014 [P] Implement action, evidence summary, blocker, outcome, last-operation, and task models
   in `internal/domain/action.go`, `internal/domain/evidence.go`, `internal/domain/blocker.go`,
   `internal/domain/outcome.go`, and `internal/domain/task.go`.
-- [ ] T015 Implement typed Domain invariant validation and the explicitly documented trimming,
+- [x] T015 Implement typed Domain invariant validation and the explicitly documented trimming,
   canonicalization, and duplicate rejection in `internal/domain/validation.go`; reject undocumented
   enum/result aliases without making Domain parse arbitrary JSON.
-- [ ] T016 Implement stable domain error codes and typed errors in `internal/domain/errors.go`.
-- [ ] T017 Implement the one transition table and derived phase-to-action mapping with the exact
+- [x] T016 Implement stable domain error codes and typed errors in `internal/domain/errors.go`.
+- [x] T017 Implement the one transition table and derived phase-to-action mapping with the exact
   canonical action results from `contracts/state-machine.md` in
   `internal/workflow/transitions.go`.
-- [ ] T018 Implement pure next-action construction and transition evaluation in
+- [x] T018 Implement pure next-action construction and transition evaluation in
   `internal/workflow/engine.go`; do not import SQLite, MCP, `os/exec`, or host packages.
-- [ ] T019 Define the minimal `Store` transaction port in `internal/store/store.go` and the minimal
+- [x] T019 Define the minimal `Store` transaction port in `internal/store/store.go` and the minimal
   `RepositoryObserver` port in `internal/repository/observer.go`.
-- [ ] T020 Implement transactional, idempotent schema migration 1 with a stable digest for `tasks`,
+- [x] T020 Implement transactional, idempotent schema migration 1 with a stable digest for `tasks`,
   `task_events`, `repository_claims`, and `schema_migrations` in
   `internal/store/migrations.go`; reject unsupported future schema without downgrade or rebuild.
-- [ ] T021 Implement bounded Domain JSON encoding and strict decoding in `internal/store/codec.go`;
+- [x] T021 Implement bounded Domain JSON encoding and strict decoding in `internal/store/codec.go`;
   reject unknown fields and trailing JSON at this Store boundary, then re-run the single Task
   invariant entry point.
-- [ ] T022 Implement SQLite open with foreign keys and the Core Limits 0.1 busy timeout, migration
+- [x] T022 Implement SQLite open with foreign keys and the Core Limits 0.1 busy timeout, migration
   verification, read transactions, exact-revision compare-and-swap mutations, event append, and
   repository-claim updates in `internal/store/sqlite.go`; failed transactions must leave task,
   event, and claim data unchanged.
-- [ ] T023 Implement canonical repository-root resolution and allowlisted read-only Git command
+- [x] T023 Implement canonical repository-root resolution and allowlisted read-only Git command
   execution in `internal/repository/paths.go` and `internal/repository/git_observer.go` using
   `exec.CommandContext` plus the Core Limits 0.1 timeout and combined stdout/stderr bound.
-- [ ] T024 Implement SHA-256 repository binding calculation from branch/detached state, HEAD/unborn
+- [x] T024 Implement SHA-256 repository binding calculation from branch/detached state, HEAD/unborn
   state, and bounded status observations in `internal/repository/fingerprint.go`.
-- [ ] T025 Run only the Phase 2 targeted checks: `go test ./internal/domain ./internal/workflow`,
+- [x] T025 Run only the Phase 2 targeted checks: `go test ./internal/domain ./internal/workflow`,
   `CGO_ENABLED=0 go test ./internal/store ./internal/repository`, targeted `go vet` on those four
   packages, and the repository layout/Markdown contract tests; fix failures before starting a user
   story.
