@@ -70,7 +70,7 @@ packages:
 Root `package.json`:
 
 - `private: true`;
-- exact `packageManager: pnpm@11.17.0`;
+- exact `packageManager: pnpm@11.21.0`;
 - scripts limited to repository-development validation;
 - no production dependency.
 

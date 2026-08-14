@@ -26,7 +26,7 @@ specification are included.
 - [ ] T001 Create root `LICENSE` with Apache-2.0 text.
 - [ ] T002 Create root `VERSION` containing exactly `0.1.0`.
 - [ ] T003 Create root `go.mod` with the approved module path and Go 1.26.6 baseline.
-- [ ] T004 Create private root `package.json` with `packageManager` pinned to `pnpm@11.17.0`.
+- [ ] T004 Create private root `package.json` with `packageManager` pinned to `pnpm@11.21.0`.
 - [ ] T005 Create `pnpm-workspace.yaml` including only `packages/*`.
 - [ ] T006 Create root `.gitignore` for Go, Node, editor, build, package, and local Spec Kit runtime
   artifacts without ignoring specifications or lockfiles.
@@ -56,7 +56,7 @@ specification are included.
 - [ ] T014 Create root validation scripts in `package.json` that call repository-owned commands and
   do not add a task-runner framework.
 - [ ] T015 Create `.github/workflows/ci.yml` for pull requests using Go 1.26.6, Node 24 LTS, and
-  pnpm 11.17.0.
+  pnpm 11.21.0.
 - [ ] T016 Ensure CI has read-only repository permission and no release or npm credentials.
 
 **Checkpoint**: Repository contracts can fail before user-story implementation begins.
@@ -120,7 +120,7 @@ self-contained.
   `packages/codex/README.md`.
 - [ ] T030 [P] [US2] Create private `packages/deepseek/package.json` and
   `packages/deepseek/README.md`.
-- [ ] T031 [US2] Generate and commit `pnpm-lock.yaml` using pnpm 11.17.0.
+- [ ] T031 [US2] Generate and commit `pnpm-lock.yaml` using pnpm 11.21.0.
 - [ ] T032 [US2] Verify package dry-run output contains only the manifest-declared bootstrap files
   and no executable or lifecycle entry.
 

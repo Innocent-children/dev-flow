@@ -170,7 +170,7 @@ pnpm workspace integrity, package manifests/dry-packs, repository layout, and Ma
 
 - The repository name is `dev-flow`.
 - Initial development occurs on macOS arm64, while baseline CI may use Linux.
-- Go 1.26.6, Node.js 24 LTS, and pnpm 11.17.0 are available to contributors.
+- Go 1.26.6, Node.js 24 LTS, and pnpm 11.21.0 are available to contributors.
 - Spec Kit is initialized before this document package is copied into the repository.
 - Product npm scope and public package ownership are intentionally deferred to feature `006`.
 - Host package names remain private workspace identities until publication planning.

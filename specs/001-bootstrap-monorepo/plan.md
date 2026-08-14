@@ -17,7 +17,7 @@ and publishing.
 **Language/Version**: Go 1.26.6 for the placeholder binary and contract tests; Node.js 24 LTS for
 workspace/package commands and a small Markdown-link check.
 
-**Primary Dependencies**: Go standard library only; pnpm 11.17.0; no production JavaScript
+**Primary Dependencies**: Go standard library only; pnpm 11.21.0; no production JavaScript
 dependencies.
 
 **Storage**: N/A. This feature creates no runtime database or user data.

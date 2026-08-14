@@ -35,7 +35,7 @@ Node.js 只用于 Monorepo 包工具与 DeepSeek 宿主集成，不是共享流�
 
 ## pnpm
 
-- Baseline: `11.17.0`
+- Baseline: `11.21.0`
 - Registry: <https://www.npmjs.com/package/pnpm>
 
 根 `packageManager` 字段和 `pnpm-lock.yaml` 固定包管理行为。

@@ -6,7 +6,7 @@
 Git
 Go 1.26.6
 Node.js 24 LTS
-pnpm 11.17.0
+pnpm 11.21.0
 Spec Kit v0.16.3
 Codex CLI
 ```
