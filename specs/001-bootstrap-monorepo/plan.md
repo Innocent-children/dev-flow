@@ -14,11 +14,9 @@ and publishing.
 
 ## Technical Context
 
-**Language/Version**: Go 1.26.6 for the placeholder binary and contract tests; Node.js 24 LTS for
-workspace/package commands and a small Markdown-link check.
+**Language/Version**: Go `>=1.26` with `go 1.26` as the language floor; a currently supported Node.js `>=24`; pnpm `>=11 <12`.
 
-**Primary Dependencies**: Go standard library only; pnpm 11.21.0; no production JavaScript
-dependencies.
+**Primary Dependencies**: Go standard library only; no production JavaScript dependencies. The actual supported pnpm 11.x version is selected at execution time and recorded by the lockfile, not asserted as one permanent patch version.
 
 **Storage**: N/A. This feature creates no runtime database or user data.
 

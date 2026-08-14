@@ -2,19 +2,20 @@
 
 ## 版本和初始化
 
-本基线验证于 2026-08-14，使用 Spec Kit `v0.16.3`：
+项目使用 Spec Kit 官方最新稳定版，不在项目文档中固定补丁版本：
 
 ```bash
-uv tool install specify-cli \
-  --from git+https://github.com/github/spec-kit.git@v0.16.3
+uv tool install specify-cli
+specify self check
+# 若 check 报告存在更新：
+specify self upgrade
 
 specify init --here --integration codex --script sh
 ```
 
 Windows 使用 `--script ps`。
 
-工具升级必须独立审查，并在 `docs/TOOLCHAIN-BASELINES.md` 与当前功能的
-`research.md` 中记录。
+初始化后记录实际使用版本作为开发证据，但不把版本相等比较写入验收或 CI。升级只有在实际命令、生成目录或工作流行为变化时，才需要更新 `docs/TOOLCHAIN-BASELINES.md` 与当前功能的 `research.md`。
 
 ## 一个根项目
 

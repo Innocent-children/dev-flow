@@ -4,18 +4,22 @@
 
 ```text
 Git
-Go 1.26.6
-Node.js 24 LTS
-pnpm 11.21.0
-Spec Kit v0.16.3
+Go >= 1.26
+Node.js >= 24 on a supported release line
+pnpm >= 11 and < 12
+Latest stable Spec Kit
 Codex CLI
 ```
 
 ## Prepare the repository
 
-Initialize Spec Kit before copying this document package:
+Install or update Spec Kit to the latest stable release, then initialize before copying this document package:
 
 ```bash
+uv tool install specify-cli
+specify self check
+# 若 check 报告存在更新：
+specify self upgrade
 specify init --here --integration codex --script sh
 ```
 

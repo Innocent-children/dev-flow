@@ -70,7 +70,9 @@ packages:
 Root `package.json`:
 
 - `private: true`;
-- exact `packageManager: pnpm@11.21.0`;
+- `engines.node` accepts supported Node.js `>=24`;
+- `engines.pnpm` accepts `>=11 <12`;
+- no contract requires an exact pnpm patch version;
 - scripts limited to repository-development validation;
 - no production dependency.
 

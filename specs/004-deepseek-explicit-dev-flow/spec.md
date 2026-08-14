@@ -142,8 +142,7 @@ profile no longer exposes the Skill/tools, and verify task data remains present.
   identity remain deferred to feature `006`.
 - **FR-002**: The package MUST contain or select a compatible shared Go Core runtime and MUST NOT
   require a separately installed Dev Flow Core runtime.
-- **FR-003**: The package MUST use the then-current supported Harness bundle/profile mechanism and
-  MUST pin the exact Harness compatibility baseline in its plan and final evidence.
+- **FR-003**: The package MUST use the then-current supported Harness bundle/profile mechanism. Its plan MUST define a minimum supported Harness version and compatible range, and the final journey MUST exercise the latest stable compatible Harness available at execution time; exact patch-version equality is not a compatibility rule.
 - **FR-004**: The bundle MUST register one Skill provider and one local STDIO MCP integration.
 - **FR-005**: Package installation MUST NOT run an install-time source build or mutate repositories,
   shared task data, or unrelated profiles.
@@ -223,8 +222,7 @@ profile no longer exposes the Skill/tools, and verify task data remains present.
   completion decisions.
 - **SC-006**: The real journey stays within the task's automatic verification budget.
 - **SC-007**: Package removal preserves task data and does not affect an installed Codex product.
-- **SC-008**: The package and real-host report claim support only for the exact verified Harness
-  baseline and platform.
+- **SC-008**: The package and real-host report claim only the documented Harness compatibility range and platforms with real evidence; the report records the actual tested version without restricting support to that single patch.
 
 ## Assumptions
 

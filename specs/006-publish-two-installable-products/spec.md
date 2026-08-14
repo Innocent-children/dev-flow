@@ -174,8 +174,7 @@ product, and verify retained data and other product function.
 
 #### Build and Verification
 
-- **FR-013**: Release build MUST start from an exact clean checkout with pinned approved Go, Node,
-  pnpm, and Spec Kit/source-generation inputs.
+- **FR-013**: Release build MUST start from a clean checkout and use toolchains that satisfy the repository minimum versions or compatible ranges. The release manifest MUST record the actual Go, Node, pnpm, Spec Kit, SDK, and dependency versions used; publication MUST NOT require those versions to equal permanent literals in the specification.
 - **FR-014**: All supported Go binaries and package archives MUST be built twice from independent
   clean directories and compared according to a documented deterministic-asset contract.
 - **FR-015**: Every npm tarball MUST be inspected for a closed file allowlist, executable modes,
@@ -224,7 +223,7 @@ product, and verify retained data and other product function.
   terminal outcome, and removal/data-preservation checks.
 - **FR-032**: The first public support matrix MUST include only OS/architecture/host combinations
   completed with final artifacts; cross-compilation or simulated tests are insufficient.
-- **FR-033**: Unverified platforms and host versions MUST be labeled `UNVERIFIED`, not inferred.
+- **FR-033**: Unverified platforms and host compatibility ranges MUST be labeled `UNVERIFIED`, not inferred. A later compatible patch/minor host release does not become unsupported solely because its version differs from the recorded journey version.
 
 ### Key Entities
 
@@ -234,7 +233,7 @@ product, and verify retained data and other product function.
 - **Release Manifest**: Closed list of components, versions, checksums, source identity, and support
   evidence.
 - **Publication Record**: Durable operator evidence for partial/final remote state.
-- **Support Matrix Entry**: Exact host, OS, architecture, package digest, and journey result.
+- **Support Matrix Entry**: Host minimum/range, actual tested host version, OS, architecture, package digest, and journey result.
 
 ## Success Criteria *(mandatory)*
 

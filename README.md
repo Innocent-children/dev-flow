@@ -26,16 +26,16 @@ Dev Flow Core
 它们必须在前置功能真实完成、公共合同稳定后，再由当时的技术现实生成，避免提前设计
 尚未被验证的实现。
 
-## 推荐工具版本
+## 工具链兼容策略
 
-本基线按以下开发工具建立：
+仓库只声明最低版本或兼容主版本范围，不把某个补丁版本写成验收条件：
 
-- Spec Kit `v0.16.3`
-- Go `1.26.6`
-- Node.js `24.x LTS`
-- pnpm `11.21.0`
+- Spec Kit：初始化和更新时使用官方最新稳定版；
+- Go：`>= 1.26`；
+- Node.js：`>= 24`，并且仍处于官方支持周期；
+- pnpm：`>= 11 < 12`。
 
-版本不是产品协议。升级工具链必须单独审查，不得顺便改变产品范围。
+`go.sum`、`pnpm-lock.yaml` 和发布清单可以记录实际解析版本，用于复现与审计；仓库验证不得因为兼容的补丁或次版本升级而失效。主版本升级仍应作为独立变更审查。
 
 ## 初始化仓库
 
@@ -44,8 +44,10 @@ mkdir dev-flow
 cd dev-flow
 git init
 
-uv tool install specify-cli \
-  --from git+https://github.com/github/spec-kit.git@v0.16.3
+uv tool install specify-cli
+specify self check
+# 若 check 报告存在更新：
+specify self upgrade
 
 specify init --here \
   --integration codex \
@@ -131,7 +133,7 @@ $speckit-implement
 - [Spec Kit 工作流](docs/SPEC-KIT-WORKFLOW.md)：规格与分阶段实施规范
 - [双产品发布策略](docs/RELEASE-STRATEGY.md)：独立安装和同步发布原则
 - [功能依赖关系](docs/FEATURE-DEPENDENCIES.md)：规格依赖和并行条件
-- [工具链基线](docs/TOOLCHAIN-BASELINES.md)：当前版本和重验规则
+- [工具链兼容策略](docs/TOOLCHAIN-BASELINES.md)：最低版本、兼容范围和重验规则
 - [001：Monorepo 工程基础](specs/001-bootstrap-monorepo/spec.md)
 - [002：单仓库流程治理与任务恢复](specs/002-govern-and-resume-single-repository-task/spec.md)
 - [003：Codex 显式 Dev Flow](specs/003-codex-explicit-dev-flow/spec.md)

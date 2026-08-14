@@ -47,7 +47,7 @@ criterion has been reviewed and satisfied; it does not mean implementation is co
 - [ ] CHK020 No unresolved clarification markers remain.
 - [ ] CHK021 The feature respects all Constitution complexity limits.
 - [ ] CHK022 The spec, plan, tasks, and repository-layout contract agree on paths.
-- [ ] CHK023 The initial version is consistently `0.1.0`.
+- [ ] CHK023 Version requirements derive from the current root `VERSION`; no test or package contract permanently pins one literal product version.
 - [ ] CHK024 The feature can finish without decisions reserved for feature `002` or `006`.
 
 ## Notes

@@ -17,11 +17,13 @@ dev-flow-deepseek
 公共合同稳定前采用同步版本：
 
 ```text
-Git tag                 v0.1.0
-Go Core                 0.1.0
-dev-flow-codex          0.1.0
-dev-flow-deepseek       0.1.0
+Git tag                 v${VERSION}
+Go Core                 ${VERSION}
+dev-flow-codex          ${VERSION}
+dev-flow-deepseek       ${VERSION}
 ```
+
+`${VERSION}` 始终读取根 `VERSION` 的当前合法 SemVer；文档、测试和安装器不得永久断言某个首发字面值。
 
 同步版本减少需要验证的组合，不要求两个产品采用相同安装方式。
 
@@ -54,7 +56,7 @@ dev-flow-codex setup
 建议体验：
 
 ```bash
-dsh plugin add dev-flow-deepseek@0.1.0
+dsh plugin add dev-flow-deepseek@latest
 ```
 
 DSH bundle 指向包内 Runtime，或在宿主需要时指向包内 Projection Proxy。删除插件不得
@@ -62,7 +64,7 @@ DSH bundle 指向包内 Runtime，或在宿主需要时指向包内 Projection P
 
 ## 平台支持
 
-`v0.1.0` 只声明完成最终安装、任务创建、宿主重启、任务恢复、完成与删除 journey 的
+首个公开 `0.x` Release 只声明完成最终安装、任务创建、宿主重启、任务恢复、完成与删除 journey 的
 平台。初始目标为 macOS arm64。Linux 和 Windows 通过各自规格和真实证据后加入支持表。
 
 ## 构建资产

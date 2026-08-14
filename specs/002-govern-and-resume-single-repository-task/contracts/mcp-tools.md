@@ -23,7 +23,7 @@
 ```json
 {
   "product": "dev-flow",
-  "version": "0.1.0",
+  "version": "${VERSION}",
   "schema_version": 1,
   "transport": "stdio",
   "health": "ready",

@@ -8,7 +8,7 @@ The following build-time entities are represented by files and repository contra
 
 | Field | Type | Rule |
 |---|---|---|
-| value | SemVer string | Exactly `0.1.0` for this feature |
+| value | SemVer string | Current valid `MAJOR.MINOR.PATCH` value; bootstrap starts in the `0.x` line |
 | source | Path | Root `VERSION` only |
 
 Validation:
@@ -16,7 +16,8 @@ Validation:
 - must be `MAJOR.MINOR.PATCH`;
 - no leading `v`;
 - package metadata must not contradict it;
-- documentation examples may mention it only where explicitly needed.
+- tests and package metadata must read or compare against the current file rather than a hard-coded literal;
+- documentation examples may use placeholders and must not become compatibility checks.
 
 ## WorkspacePackage
 

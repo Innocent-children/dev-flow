@@ -1,13 +1,10 @@
 # Research: Govern and Resume a Single-Repository Task
 
-## Decision 1: Official Go MCP SDK v1.7.0
+## Decision 1: Official Go MCP SDK stable v1 line
 
-**Decision**: Use the official `modelcontextprotocol/go-sdk` and its STDIO transport.
+**Decision**: Use the official `modelcontextprotocol/go-sdk` STDIO transport, requiring at least v1.7.0 and resolving the latest stable compatible v1 release when implementation begins.
 
-**Rationale**: `v1.7.0` is the stable official SDK release at the document baseline and provides
-typed server tooling, local STDIO transport, protocol negotiation, and conformance coverage. Dev
-Flow uses only the bounded Tools-over-STDIO subset required by this feature and does not adopt HTTP,
-OAuth, sampling, or other SDK capabilities.
+**Rationale**: The official v1 line provides typed server tooling, local STDIO transport, protocol negotiation, and conformance coverage. `go.mod`/`go.sum` record the actual selected release, while product compatibility does not depend on one SDK patch number. Dev Flow uses only the bounded Tools-over-STDIO subset required by this feature and does not adopt HTTP, OAuth, sampling, or other SDK capabilities.
 
 **Alternatives rejected**:
 
@@ -31,12 +28,11 @@ consistency problem without a custom file protocol.
 - BoltDB/KV: possible, but queries and uniqueness are clearer in SQLite;
 - external database: not appropriate for a local personal tool.
 
-## Decision 3: `modernc.org/sqlite` v1.54.0
+## Decision 3: `modernc.org/sqlite` stable v1 line
 
-**Decision**: Use the tagged CGo-free SQLite driver through `database/sql`.
+**Decision**: Use the latest stable CGo-free v1 driver compatible with the Go minimum through `database/sql`.
 
-**Rationale**: It preserves cross-compilation and single-binary distribution. The exact module and
-transitive lock are recorded in `go.mod`/`go.sum`.
+**Rationale**: It preserves cross-compilation and single-binary distribution. `go.mod`/`go.sum` record the actual module and transitive versions for reproducibility; specifications do not reject compatible patch or minor updates.
 
 **Alternatives rejected**:
 

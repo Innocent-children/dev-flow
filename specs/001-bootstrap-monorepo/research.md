@@ -41,13 +41,11 @@ workspace management without making Node a Core runtime dependency.
 - Turborepo or Nx: unnecessary orchestration for two packages.
 - Publishing package placeholders: misleading before host products exist.
 
-## Decision 4: Keep one version source
+## Decision 4: Keep one dynamic version source
 
-**Decision**: Store `0.1.0` in root `VERSION`. Bootstrap package manifests remain private and are
-checked for consistency without generating release assets.
+**Decision**: Store the current valid SemVer in root `VERSION`. Bootstrap may choose an initial pre-1.0 value, while package metadata and tests always derive or compare against the current file rather than a literal version embedded in specifications.
 
-**Rationale**: One product version keeps the Core and two product boundaries aligned during the
-`0.x` line.
+**Rationale**: One product version keeps the Core and two product boundaries aligned during the `0.x` line without making later version changes invalidate the bootstrap feature.
 
 **Alternatives rejected**:
 

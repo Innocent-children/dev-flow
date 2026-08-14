@@ -8,7 +8,7 @@ Do not generate implementation artifacts until:
 2. The then-current DeepSeek Harness bundle/profile, Skill provider, MCP client, result handling,
    package add/remove, and cache behavior are revalidated.
 3. Direct Core MCP consumption has been tested before authorizing any projection proxy.
-4. One exact Harness baseline, profile, and platform are selected for real-host evidence.
+4. A minimum Harness version, compatible range, profile, and real-evidence platform are selected; the latest stable compatible Harness is used for the journey.
 
 Then activate this feature and run:
 

@@ -334,7 +334,7 @@ recovery classification.
 ## Assumptions
 
 - Feature `001` has established the repository and toolchain.
-- The product version remains `0.1.0` during this feature.
+- The feature reads the current root `VERSION`; changing that valid SemVer does not alter the Core contract or invalidate this feature.
 - The first release evidence target is macOS arm64, but Core tests may run on Linux CI.
 - The host passes an absolute or resolvable repository path.
 - Git is installed for target development tasks.

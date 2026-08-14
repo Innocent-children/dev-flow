@@ -152,8 +152,7 @@ the repository is unchanged.
 - **FR-006**: Setup MUST NOT copy Core source code or task data into the target repository.
 - **FR-007**: Removal MUST be explicit, bounded to recorded product-owned files/registration, and
   preserve task data and repository content.
-- **FR-008**: The implementation plan MUST revalidate the then-current official Codex plugin/Skill
-  packaging contract; this specification does not freeze unstable manifest field names.
+- **FR-008**: The implementation plan MUST revalidate the then-current official Codex plugin/Skill packaging contract, define a minimum supported Codex version and compatible range, and exercise the latest stable Codex available during implementation. This specification does not freeze unstable manifest field names or require exact patch-version equality.
 
 #### Skill and Authority
 
@@ -223,13 +222,11 @@ the repository is unchanged.
 - **SC-006**: Codex-specific source contains zero task-state writes and zero transition decisions.
 - **SC-007**: Removal leaves task data present and leaves the test repository fingerprint unchanged
   except for the intentional task implementation.
-- **SC-008**: The package test and real-host report make no support claim beyond the exact verified
-  Codex surface and platform.
+- **SC-008**: The package test and real-host report claim only the documented Codex compatibility range and platforms with real evidence; the report records the actual tested version without limiting support to that single patch.
 
 ## Assumptions
 
 - Feature `002` has frozen Core Contract 0.1 and shared fixtures.
 - Initial real-host evidence is expected on macOS arm64.
-- The Codex plugin mechanism may evolve; the implementation plan must revalidate the official
-  current behavior and avoid freezing unstable manifest fields in this specification.
+- The Codex plugin mechanism may evolve; the implementation plan must revalidate official current behavior, define a minimum compatible host version, and avoid freezing unstable manifest fields or exact patch versions in this specification.
 - Public publication and multi-platform package selection belong to feature `006`.

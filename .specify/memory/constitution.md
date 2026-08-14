@@ -148,7 +148,10 @@ projects.
   repository root.
 - The two distributable products are `dev-flow-codex` and `dev-flow-deepseek`.
 - Spec Kit is a repository development tool only; it MUST NOT become a runtime dependency or a
-  user-facing Dev Flow feature.
+  user-facing Dev Flow feature. Repository setup and updates use the latest stable Spec Kit release.
+- Development tools and third-party libraries MUST be governed by minimum versions or compatible
+  major-version ranges. Exact resolved versions belong in lockfiles and release evidence, not in
+  compatibility rejection rules.
 - The repository contains one root `.specify/` project and one Constitution.
 - Before the first stable release, the project MUST NOT implement data import/export,
   multi-repository tasks, cross-host automatic takeover, Web UI, remote MCP, authentication,

@@ -24,9 +24,9 @@ specification are included.
 **Purpose**: Establish repository metadata and toolchain roots without product behavior.
 
 - [ ] T001 Create root `LICENSE` with Apache-2.0 text.
-- [ ] T002 Create root `VERSION` containing exactly `0.1.0`.
-- [ ] T003 Create root `go.mod` with the approved module path and Go 1.26.6 baseline.
-- [ ] T004 Create private root `package.json` with `packageManager` pinned to `pnpm@11.21.0`.
+- [ ] T002 Create root `VERSION` with one valid initial pre-1.0 SemVer, and ensure validation reads the current file rather than asserting a permanent literal.
+- [ ] T003 Create root `go.mod` with the approved module path and `go 1.26` language floor; do not add an exact patch-level `toolchain` directive.
+- [ ] T004 Create private root `package.json` with `engines.node: >=24` and `engines.pnpm: >=11 <12`; do not require one exact pnpm patch through `packageManager`.
 - [ ] T005 Create `pnpm-workspace.yaml` including only `packages/*`.
 - [ ] T006 Create root `.gitignore` for Go, Node, editor, build, package, and local Spec Kit runtime
   artifacts without ignoring specifications or lockfiles.
@@ -55,8 +55,7 @@ specification are included.
   `docs/`, and active specification documents.
 - [ ] T014 Create root validation scripts in `package.json` that call repository-owned commands and
   do not add a task-runner framework.
-- [ ] T015 Create `.github/workflows/ci.yml` for pull requests using Go 1.26.6, Node 24 LTS, and
-  pnpm 11.21.0.
+- [ ] T015 Create `.github/workflows/ci.yml` for pull requests using the current stable Go compatible with the `go 1.26` floor, current Node LTS `>=24`, and current pnpm 11.x.
 - [ ] T016 Ensure CI has read-only repository permission and no release or npm credentials.
 
 **Checkpoint**: Repository contracts can fail before user-story implementation begins.
@@ -103,8 +102,7 @@ self-contained.
 
 ### Tests for User Story 2
 
-- [ ] T024 [P] [US2] Create `internal/version/version_test.go` for exact SemVer parsing and the
-  initial version value.
+- [ ] T024 [P] [US2] Create `internal/version/version_test.go` for strict SemVer parsing and dynamic use of the current root `VERSION`, with no hard-coded product-version literal.
 - [ ] T025 [P] [US2] Create `cmd/dev-flow/main_test.go` verifying help/version output and
   nonfunctional messaging.
 - [ ] T026 [P] [US2] Add positive and negative product-manifest fixtures to
@@ -120,7 +118,7 @@ self-contained.
   `packages/codex/README.md`.
 - [ ] T030 [P] [US2] Create private `packages/deepseek/package.json` and
   `packages/deepseek/README.md`.
-- [ ] T031 [US2] Generate and commit `pnpm-lock.yaml` using pnpm 11.21.0.
+- [ ] T031 [US2] Generate and commit `pnpm-lock.yaml` using any supported pnpm 11.x release; record the actual version in validation output without making it a compatibility equality check.
 - [ ] T032 [US2] Verify package dry-run output contains only the manifest-declared bootstrap files
   and no executable or lifecycle entry.
 

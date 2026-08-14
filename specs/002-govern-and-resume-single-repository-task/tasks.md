@@ -26,8 +26,7 @@ one user story at a time and stop at every checkpoint.
 
 **Purpose**: Add only the approved Core dependencies and feature-owned directory skeleton.
 
-- [ ] T001 Update root `go.mod` with exact direct requirements for
-  `github.com/modelcontextprotocol/go-sdk` v1.7.0 and `modernc.org/sqlite` v1.54.0.
+- [ ] T001 Update root `go.mod` with the latest stable compatible v1 releases of `github.com/modelcontextprotocol/go-sdk` (minimum v1.7.0) and `modernc.org/sqlite`; let `go.mod`/`go.sum` record the resolved versions without adding equality-based compatibility checks.
 - [ ] T002 Generate and commit `go.sum` without adding indirect dependencies manually.
 - [ ] T003 Create source ownership packages under `internal/domain/`, `internal/workflow/`,
   `internal/recovery/`, `internal/repository/`, `internal/store/`, `internal/application/`, and

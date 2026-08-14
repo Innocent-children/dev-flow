@@ -16,13 +16,15 @@ read-before-retry recovery without executing development commands or mutating Gi
 
 ## Technical Context
 
-**Language/Version**: Go 1.26.x; CI baseline starts with Go 1.26.6.
+**Language/Version**: Go `>=1.26` with `go 1.26` as the language floor; CI uses the current stable Go toolchain.
 
 **Primary Dependencies**:
 
-- `github.com/modelcontextprotocol/go-sdk` v1.7.0;
-- `modernc.org/sqlite` v1.54.0;
+- `github.com/modelcontextprotocol/go-sdk` latest stable compatible v1 release, minimum v1.7.0;
+- `modernc.org/sqlite` latest stable compatible v1 release;
 - Go standard library.
+
+The actual resolved versions are recorded in `go.mod` and `go.sum`; no runtime or test performs exact dependency-version equality checks.
 
 No CLI framework, state-machine framework, ORM, dependency injection framework, event bus, logging
 framework, or JSON-schema framework is added.

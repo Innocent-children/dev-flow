@@ -9,7 +9,7 @@ Do not generate or approve `plan.md`, `research.md`, `data-model.md`, `contracts
 2. Core Contract 0.1 and fixture digests are recorded.
 3. The then-current official Codex plugin, Skill, MCP registration, local import, and removal
    behavior has been revalidated.
-4. One exact Codex surface and one exact platform have been selected for real-host evidence.
+4. A minimum Codex version, compatible range, and real-evidence platform have been selected; the latest stable compatible Codex is used for the journey.
 
 When unblocked, activate this feature directory and run:
 
