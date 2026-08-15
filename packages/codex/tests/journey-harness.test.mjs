@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmod, copyFile, mkdtemp, mkdir, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
+import { chmod, copyFile, mkdtemp, mkdir, readFile, realpath, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { delimiter, dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
@@ -66,10 +66,15 @@ test("native pass commit recovers a crash after evidence publish without another
   const evidenceAfterCrash = await readFile(fixture.evidencePath, "utf8");
   assert.equal(evidenceAfterCrash, fixture.prepared.evidenceBytes);
   assert.equal(await readFile(fixture.ledgerPath, "utf8"), fixture.reservation.reservedLedgerBytes);
+  const evidencePathIdentity = await writer.prepareCanonicalEvidenceParent({
+    repositoryRoot: fixture.root,
+    evidencePath: fixture.evidencePath,
+  });
 
   const recovery = await writer.recoverPassingAttempt({
     ledgerPath: fixture.ledgerPath,
     evidencePath: fixture.evidencePath,
+    evidencePathIdentity,
     recoveryDirectory: fixture.recoveryDirectory,
   });
   assert.equal(recovery.status, "recovered-ledger-finalize");
@@ -92,9 +97,14 @@ test("native pass commit treats exit after ledger finalize as validation-only re
   );
   const evidenceBefore = await readFile(fixture.evidencePath, "utf8");
   const ledgerBefore = await readFile(fixture.ledgerPath, "utf8");
+  const evidencePathIdentity = await writer.prepareCanonicalEvidenceParent({
+    repositoryRoot: fixture.root,
+    evidencePath: fixture.evidencePath,
+  });
   const recovery = await writer.recoverPassingAttempt({
     ledgerPath: fixture.ledgerPath,
     evidencePath: fixture.evidencePath,
+    evidencePathIdentity,
     recoveryDirectory: fixture.recoveryDirectory,
   });
   assert.equal(recovery.status, "already-finalized");
@@ -1213,6 +1223,310 @@ test("native recorded driver spawns four ordered sessions and derives only compl
   assert.equal(await optionalContents(nativeEvidencePath), evidenceBefore);
 });
 
+test("native orchestration prepares the missing exact canonical evidence parent before host work", async (t) => {
+  const writer = await import(pathToFileURL(writerPath));
+  const root = await temporaryRoot(t, "dev-flow-codex-canonical-parent-success-");
+  const ledgerPath = join(root, "attempt-ledger.json");
+  const evidencePath = canonicalEvidencePathForRoot(root);
+  const recoveryRoot = join(root, "recovery");
+  await writer.initializeAttemptLedger(ledgerPath);
+  const preflight = orchestrationPreflight(await writer.deriveLedgerId(ledgerPath));
+  const streams = recordedSessionStreams();
+  const times = [
+    "2026-08-16T09:00:00.000Z",
+    "2026-08-16T09:01:00.000Z",
+    "2026-08-16T09:02:00.000Z",
+  ];
+  await assert.rejects(stat(dirname(evidencePath)), { code: "ENOENT" });
+
+  const result = await writer.executeNativeJourney({
+    validationReportPath: "/external/validation-report.json",
+    artifactReportPath: "/external/artifact-report.json",
+    codexExecutable: "/external/codex-0.147.0",
+    ledgerPath,
+  }, {
+    evidencePath,
+    evidenceRepositoryRoot: root,
+    recoveryRoot,
+    platform: "darwin",
+    arch: "arm64",
+    now: () => times.shift(),
+    async preflight() { return structuredClone(preflight); },
+    async assertFrozenSource() {},
+    async prepareHost() {
+      assert.equal((await stat(dirname(evidencePath))).isDirectory(), true);
+      assert.deepEqual(JSON.parse(await readFile(ledgerPath, "utf8")).attempts, []);
+      return { targetPath: "/tmp/dev-flow-native-target" };
+    },
+    async spawnSession({ role }) { return streams[role]; },
+    async finishHost() {
+      return { journey: passingNativeJourney(), observedFacts: { classification: "native" } };
+    },
+    validateCandidate() { return { valid: true, structuralErrors: [], semanticErrors: [] }; },
+    async cleanupHost() {},
+  });
+
+  assert.equal(result.status, "committed");
+  assert.equal(JSON.parse(await readFile(evidencePath, "utf8")).status, "pass");
+});
+
+test("canonical evidence parent rejects escapes, symlinks, and non-directories", async (t) => {
+  const writer = await import(pathToFileURL(writerPath));
+
+  await t.test("escape", async (t) => {
+    const root = await temporaryRoot(t, "dev-flow-codex-canonical-parent-escape-");
+    await assert.rejects(
+      writer.prepareCanonicalEvidenceParent({
+        repositoryRoot: root,
+        evidencePath: join(root, "outside.json"),
+      }),
+      /exact canonical.*path|containment|outside/i,
+    );
+  });
+
+  await t.test("symlink", async (t) => {
+    const root = await temporaryRoot(t, "dev-flow-codex-canonical-parent-symlink-");
+    const outside = await temporaryRoot(t, "dev-flow-codex-canonical-parent-outside-");
+    await mkdir(join(root, "tests"));
+    await symlink(outside, join(root, "tests", "journeys"));
+    await assert.rejects(
+      writer.prepareCanonicalEvidenceParent({
+        repositoryRoot: root,
+        evidencePath: canonicalEvidencePathForRoot(root),
+      }),
+      /symlink|symbolic link/i,
+    );
+  });
+
+  await t.test("non-directory", async (t) => {
+    const root = await temporaryRoot(t, "dev-flow-codex-canonical-parent-file-");
+    await mkdir(join(root, "tests"));
+    await writeFile(join(root, "tests", "journeys"), "not a directory\n");
+    await assert.rejects(
+      writer.prepareCanonicalEvidenceParent({
+        repositoryRoot: root,
+        evidencePath: canonicalEvidencePathForRoot(root),
+      }),
+      /not a directory|must be a directory/i,
+    );
+  });
+});
+
+test("canonical evidence parent failures precede ledger reservation and all host work", async (t) => {
+  const writer = await import(pathToFileURL(writerPath));
+  for (const kind of ["symlink", "permission"]) {
+    await t.test(kind, async (t) => {
+      const root = await temporaryRoot(t, `dev-flow-codex-canonical-parent-prehost-${kind}-`);
+      const ledgerPath = join(root, "attempt-ledger.json");
+      const evidencePath = canonicalEvidencePathForRoot(root);
+      const recoveryRoot = join(root, "recovery");
+      const testsPath = join(root, "tests");
+      await writer.initializeAttemptLedger(ledgerPath);
+      const preflight = orchestrationPreflight(await writer.deriveLedgerId(ledgerPath));
+      await mkdir(testsPath);
+      if (kind === "symlink") {
+        const outside = await temporaryRoot(t, "dev-flow-codex-canonical-parent-prehost-outside-");
+        await symlink(outside, join(testsPath, "journeys"));
+      } else {
+        await chmod(testsPath, 0o500);
+      }
+      let prepareHostCalls = 0;
+      let spawnCalls = 0;
+      const times = [
+        "2026-08-16T09:10:00.000Z",
+        "2026-08-16T09:11:00.000Z",
+        "2026-08-16T09:12:00.000Z",
+      ];
+      try {
+        await assert.rejects(
+          writer.executeNativeJourney({
+            validationReportPath: "/external/validation-report.json",
+            artifactReportPath: "/external/artifact-report.json",
+            codexExecutable: "/external/codex-0.147.0",
+            ledgerPath,
+          }, {
+            evidencePath,
+            evidenceRepositoryRoot: root,
+            recoveryRoot,
+            platform: "darwin",
+            arch: "arm64",
+            now: () => times.shift(),
+            async preflight() { return structuredClone(preflight); },
+            async assertFrozenSource() {},
+            async prepareHost() {
+              prepareHostCalls += 1;
+              return { targetPath: "/tmp/dev-flow-native-target" };
+            },
+            async spawnSession() {
+              spawnCalls += 1;
+              throw new Error("host work must not start");
+            },
+            async cleanupHost() {},
+          }),
+          kind === "symlink" ? /symlink|symbolic link/i : /permission|EACCES|operation not permitted/i,
+        );
+      } finally {
+        if (kind === "permission") await chmod(testsPath, 0o700);
+      }
+      assert.equal(prepareHostCalls, 0);
+      assert.equal(spawnCalls, 0);
+      assert.deepEqual(JSON.parse(await readFile(ledgerPath, "utf8")).attempts, []);
+      assert.equal(await optionalContents(`${ledgerPath}.lock`), null);
+    });
+  }
+});
+
+test("canonical evidence path rejects symlinked leaf and recovery aliases before admission", async (t) => {
+  const writer = await import(pathToFileURL(writerPath));
+  for (const kind of ["dangling-leaf", "passing-leaf", "passing-parent"]) {
+    await t.test(kind, async (t) => {
+      const root = await temporaryRoot(t, `dev-flow-codex-canonical-pre-admission-${kind}-`);
+      const outside = await temporaryRoot(t, `dev-flow-codex-canonical-pre-admission-outside-${kind}-`);
+      const ledgerPath = join(root, "attempt-ledger.json");
+      const evidencePath = canonicalEvidencePathForRoot(root);
+      const recoveryRoot = join(root, "recovery");
+      const ledger = await writer.initializeAttemptLedger(ledgerPath);
+      const preflight = orchestrationPreflight(ledger.ledgerId);
+      await mkdir(dirname(evidencePath), { recursive: true });
+      const passText = `${JSON.stringify({
+        status: "pass",
+        native_attempt: { ledger_id: ledger.ledgerId },
+      })}\n`;
+      if (kind === "dangling-leaf") {
+        await symlink(join(outside, "missing.json"), evidencePath);
+      } else if (kind === "passing-leaf") {
+        const outsideEvidence = join(outside, "passing.json");
+        await writeFile(outsideEvidence, passText);
+        await symlink(outsideEvidence, evidencePath);
+      } else {
+        await rm(dirname(evidencePath), { recursive: true });
+        await writeFile(join(outside, "codex-macos-arm64.json"), passText);
+        await symlink(outside, dirname(evidencePath));
+      }
+      let prepareHostCalls = 0;
+      let spawnCalls = 0;
+
+      await assert.rejects(
+        writer.executeNativeJourney({
+          validationReportPath: "/external/validation-report.json",
+          artifactReportPath: "/external/artifact-report.json",
+          codexExecutable: "/external/codex-0.147.0",
+          ledgerPath,
+        }, {
+          evidencePath,
+          evidenceRepositoryRoot: root,
+          recoveryRoot,
+          platform: "darwin",
+          arch: "arm64",
+          async preflight() { return structuredClone(preflight); },
+          async assertFrozenSource() {},
+          async prepareHost() {
+            prepareHostCalls += 1;
+            return { targetPath: "/tmp/dev-flow-native-target" };
+          },
+          async spawnSession() {
+            spawnCalls += 1;
+            throw new Error("symlinked canonical evidence must reject before session spawn");
+          },
+          async cleanupHost() {},
+        }),
+        /canonical.*(?:symbolic link|symlink)|symbolic link/i,
+      );
+      assert.equal(prepareHostCalls, 0);
+      assert.equal(spawnCalls, 0);
+      assert.deepEqual(JSON.parse(await readFile(ledgerPath, "utf8")).attempts, []);
+      assert.equal(await optionalContents(`${ledgerPath}.lock`), null);
+    });
+  }
+});
+
+test("canonical evidence publication rejects parent and leaf swaps inside the pass lock", async (t) => {
+  const writer = await import(pathToFileURL(writerPath));
+  for (const kind of ["parent", "leaf"]) {
+    await t.test(kind, async (t) => {
+      const root = await temporaryRoot(t, `dev-flow-codex-canonical-publish-swap-${kind}-`);
+      const outside = await temporaryRoot(t, `dev-flow-codex-canonical-publish-outside-${kind}-`);
+      const ledgerPath = join(root, "attempt-ledger.json");
+      const evidencePath = canonicalEvidencePathForRoot(root);
+      const recoveryDirectory = join(root, "recovery");
+      const evidenceIdentity = await writer.prepareCanonicalEvidenceParent({
+        repositoryRoot: root,
+        evidencePath,
+      });
+      await writer.initializeAttemptLedger(ledgerPath);
+      const reservation = await writer.reserveNativeAttempt({
+        ledgerPath,
+        evidencePath,
+        identity: nativeIdentity(kind === "parent" ? "8" : "9"),
+        reservedAt: "2026-08-16T09:20:00.000Z",
+      });
+      const prepared = writer.preparePassingAttempt({
+        reservation,
+        observedFacts: { classification: "native" },
+        completedAt: "2026-08-16T09:21:00.000Z",
+        evidence: {
+          schema_version: 3,
+          status: "pass",
+          recorded_at: "2026-08-16T09:22:00.000Z",
+          classification: "recorded-test-candidate",
+        },
+      });
+      const outsideEvidence = join(outside, "codex-macos-arm64.json");
+      const leafTarget = join(outside, "leaf-target.json");
+      if (kind === "leaf") await writeFile(leafTarget, "unchanged\n");
+
+      await assert.rejects(
+        writer.commitPassingAttempt({
+          ledgerPath,
+          evidencePath,
+          evidencePathIdentity: evidenceIdentity,
+          recoveryDirectory,
+          reservation,
+          prepared,
+          async validateCandidates() {
+            return { valid: true, structuralErrors: [], semanticErrors: [] };
+          },
+          async beforePublish() {
+            if (kind === "parent") {
+              await rename(dirname(evidencePath), join(root, "original-evidence-parent"));
+              await symlink(outside, dirname(evidencePath));
+            } else {
+              await symlink(leafTarget, evidencePath);
+            }
+          },
+        }),
+        /canonical.*(?:identity|symbolic link|symlink)|evidence.*(?:identity|symbolic link|symlink)/i,
+      );
+      assert.equal(await optionalContents(outsideEvidence), null);
+      if (kind === "leaf") assert.equal(await readFile(leafTarget, "utf8"), "unchanged\n");
+      assert.equal(JSON.parse(await readFile(ledgerPath, "utf8")).attempts[0].status, "reserved");
+    });
+  }
+});
+
+test("canonical evidence parent durably syncs each newly created directory entry in order", async (t) => {
+  const writer = await import(pathToFileURL(writerPath));
+  const root = await temporaryRoot(t, "dev-flow-codex-canonical-parent-fsync-");
+  const evidencePath = canonicalEvidencePathForRoot(root);
+  const syncedParents = [];
+
+  await writer.prepareCanonicalEvidenceParent({
+    repositoryRoot: root,
+    evidencePath,
+  }, {
+    async fsyncParent(path) {
+      syncedParents.push(path);
+    },
+  });
+
+  assert.deepEqual(syncedParents, [
+    root,
+    join(root, "tests"),
+    join(root, "tests", "journeys"),
+  ]);
+  assert.equal((await stat(dirname(evidencePath))).isDirectory(), true);
+});
+
 test("default native helpers execute the native proof command from target cwd and complete lifecycle subprocesses", async (t) => {
   const writer = await import(pathToFileURL(writerPath));
   const fixture = await nativeSubprocessFixture(t, writer, "default-chain");
@@ -1421,9 +1735,8 @@ test("native orchestration reserves immediately before four sessions and validat
   const writer = await import(pathToFileURL(writerPath));
   const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-native-orchestration-")));
   const ledgerPath = join(root, "attempt-ledger.json");
-  const evidencePath = join(root, "canonical", "codex-macos-arm64.json");
+  const evidencePath = canonicalEvidencePathForRoot(root);
   const recoveryRoot = join(root, "recovery");
-  await mkdir(dirname(evidencePath), { recursive: true });
   await writer.initializeAttemptLedger(ledgerPath);
   const preflight = orchestrationPreflight(await writer.deriveLedgerId(ledgerPath));
   const streams = recordedSessionStreams();
@@ -1441,6 +1754,7 @@ test("native orchestration reserves immediately before four sessions and validat
     ledgerPath,
   }, {
     evidencePath,
+    evidenceRepositoryRoot: root,
     recoveryRoot,
     platform: "darwin",
     arch: "arm64",
@@ -1512,9 +1826,8 @@ test("native orchestration records a failed host externally and never publishes 
   const writer = await import(pathToFileURL(writerPath));
   const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-native-orchestration-failure-")));
   const ledgerPath = join(root, "attempt-ledger.json");
-  const evidencePath = join(root, "canonical", "codex-macos-arm64.json");
+  const evidencePath = canonicalEvidencePathForRoot(root);
   const recoveryRoot = join(root, "recovery");
-  await mkdir(dirname(evidencePath), { recursive: true });
   await writer.initializeAttemptLedger(ledgerPath);
   const preflight = orchestrationPreflight(await writer.deriveLedgerId(ledgerPath));
   const times = [
@@ -1531,6 +1844,7 @@ test("native orchestration records a failed host externally and never publishes 
       ledgerPath,
     }, {
       evidencePath,
+      evidenceRepositoryRoot: root,
       recoveryRoot,
       platform: "darwin",
       arch: "arm64",
@@ -1917,9 +2231,8 @@ async function assertCommandEventFailureDiagnostic(t, writer, {
 }) {
   const root = await temporaryRoot(t, `dev-flow-codex-${label}-`);
   const ledgerPath = join(root, "attempt-ledger.json");
-  const evidencePath = join(root, "canonical", "codex-macos-arm64.json");
+  const evidencePath = canonicalEvidencePathForRoot(root);
   const recoveryRoot = join(root, "recovery");
-  await mkdir(dirname(evidencePath), { recursive: true });
   await writer.initializeAttemptLedger(ledgerPath);
   const preflight = orchestrationPreflight(await writer.deriveLedgerId(ledgerPath));
   const times = [
@@ -1936,6 +2249,7 @@ async function assertCommandEventFailureDiagnostic(t, writer, {
       ledgerPath,
     }, {
       evidencePath,
+      evidenceRepositoryRoot: root,
       recoveryRoot,
       platform: "darwin",
       arch: "arm64",
@@ -2014,7 +2328,7 @@ async function nativeSubprocessFixture(t, writer, label, { extraRegistration } =
   const artifactPath = join(root, "dev-flow-codex-0.1.0.tgz");
   const codexExecutable = join(fakeBin, "codex-0.147.0");
   const ledgerPath = join(root, "attempt-ledger.json");
-  const evidencePath = join(root, "candidate-evidence.json");
+  const evidencePath = canonicalEvidencePathForRoot(root);
   const recoveryRoot = join(root, "recovery");
   const isolatedAuthHome = join(root, "source-codex-home");
   await Promise.all([
@@ -2067,6 +2381,7 @@ async function nativeSubprocessFixture(t, writer, label, { extraRegistration } =
   let tick = 0;
   const dependencies = {
     evidencePath,
+    evidenceRepositoryRoot: root,
     recoveryRoot,
     platform: "darwin",
     arch: "arm64",
@@ -2204,9 +2519,12 @@ async function readJSONL(path) {
 async function nativeCommitFixture(writer) {
   const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-pass-commit-")));
   const ledgerPath = join(root, "attempt-ledger.json");
-  const evidencePath = join(root, "canonical", "codex-macos-arm64.json");
+  const evidencePath = canonicalEvidencePathForRoot(root);
   const recoveryDirectory = join(root, "recovery");
-  await mkdir(dirname(evidencePath), { recursive: true });
+  const evidencePathIdentity = await writer.prepareCanonicalEvidenceParent({
+    repositoryRoot: root,
+    evidencePath,
+  });
   await writer.initializeAttemptLedger(ledgerPath);
   const identity = nativeIdentity("b");
   const reservation = await writer.reserveNativeAttempt({
@@ -2230,6 +2548,7 @@ async function nativeCommitFixture(writer) {
   const commit = {
     ledgerPath,
     evidencePath,
+    evidencePathIdentity,
     recoveryDirectory,
     reservation,
     prepared,
@@ -2244,7 +2563,7 @@ async function nativeCommitFixture(writer) {
       assert.equal(validated, true, "candidate validation must precede evidence publication");
     },
   };
-  return { root, ledgerPath, evidencePath, recoveryDirectory, reservation, prepared, commit };
+  return { root, ledgerPath, evidencePath, evidencePathIdentity, recoveryDirectory, reservation, prepared, commit };
 }
 
 function nativeIdentity(seed) {
@@ -2254,6 +2573,10 @@ function nativeIdentity(seed) {
     artifact_report_sha256: "2".repeat(64),
     artifact_sha256: "3".repeat(64),
   };
+}
+
+function canonicalEvidencePathForRoot(root) {
+  return join(root, "tests", "journeys", "evidence", "codex-macos-arm64.json");
 }
 
 function orchestrationPreflight(ledgerId) {

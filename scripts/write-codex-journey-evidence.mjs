@@ -746,6 +746,221 @@ export async function runRecordedNativeSessions({ spawnSession } = {}) {
   return { sessions: parsed, summary: summarizeRecordedSessions(parsed) };
 }
 
+export async function prepareCanonicalEvidenceParent(options = {}, dependencies = {}) {
+  if (!isPlainObject(options)) {
+    throw new Error("canonical evidence parent options must be an object");
+  }
+  if (!isPlainObject(dependencies)) {
+    throw new Error("canonical evidence parent dependencies must be an object");
+  }
+  const allowedKeys = ["evidencePath", "repositoryRoot"];
+  if (!Object.keys(options).every((key) => allowedKeys.includes(key))) {
+    throw new Error("canonical evidence parent options contain an unexpected field");
+  }
+  if (!Object.keys(dependencies).every((key) => key === "fsyncParent")) {
+    throw new Error("canonical evidence parent dependencies contain an unexpected field");
+  }
+  const fsyncParent = dependencies.fsyncParent ?? fsyncDirectory;
+  if (typeof fsyncParent !== "function") {
+    throw new Error("canonical evidence parent fsync dependency must be a function");
+  }
+  const sourceRoot = options.repositoryRoot ?? repositoryRoot;
+  const evidencePath = options.evidencePath ?? canonicalNativeEvidencePath;
+  if (!isAbsolutePath(sourceRoot) || resolve(sourceRoot) !== sourceRoot) {
+    throw new Error("canonical evidence repository root must be an exact absolute path");
+  }
+  if (!isAbsolutePath(evidencePath) || resolve(evidencePath) !== evidencePath) {
+    throw new Error("canonical evidence path must be an exact absolute path");
+  }
+  const expectedEvidencePath = join(
+    sourceRoot,
+    "tests",
+    "journeys",
+    "evidence",
+    "codex-macos-arm64.json",
+  );
+  if (evidencePath !== expectedEvidencePath) {
+    throw new Error("native evidence path is outside the exact canonical repository path");
+  }
+
+  const rootInfo = await lstat(sourceRoot);
+  if (rootInfo.isSymbolicLink()) {
+    throw new Error("canonical evidence repository root must not be a symbolic link");
+  }
+  if (!rootInfo.isDirectory()) {
+    throw new Error("canonical evidence repository root must be a directory");
+  }
+  if (await realpath(sourceRoot) !== sourceRoot) {
+    throw new Error("canonical evidence repository root resolves through a symbolic link");
+  }
+
+  let current = sourceRoot;
+  for (const segment of ["tests", "journeys", "evidence"]) {
+    current = join(current, segment);
+    let info;
+    try {
+      info = await lstat(current);
+    } catch (error) {
+      if (error?.code !== "ENOENT") {
+        throw new Error(
+          `canonical evidence parent preparation failed at ${current}: ${error?.code ?? "unknown"}: ${error?.message ?? error}`,
+          { cause: error },
+        );
+      }
+      try {
+        await mkdir(current, { mode: 0o700 });
+      } catch (mkdirError) {
+        if (mkdirError?.code !== "EEXIST") {
+          throw new Error(
+            `canonical evidence parent creation failed at ${current}: ${mkdirError?.code ?? "unknown"}: ${mkdirError?.message ?? mkdirError}`,
+            { cause: mkdirError },
+          );
+        }
+      }
+      await fsyncParent(dirname(current));
+      info = await lstat(current);
+    }
+    if (info.isSymbolicLink()) {
+      throw new Error(`canonical evidence parent must not be a symbolic link: ${current}`);
+    }
+    if (!info.isDirectory()) {
+      throw new Error(`canonical evidence parent must be a directory: ${current}`);
+    }
+    if (await realpath(current) !== current) {
+      throw new Error(`canonical evidence parent resolves through a symbolic link: ${current}`);
+    }
+  }
+
+  return captureCanonicalEvidencePathIdentity({
+    repositoryRoot: sourceRoot,
+    evidencePath,
+  });
+}
+
+async function captureCanonicalEvidencePathIdentity({ repositoryRoot: sourceRoot, evidencePath }) {
+  const parentPath = dirname(evidencePath);
+  let parentInfo;
+  try {
+    parentInfo = await lstat(parentPath);
+  } catch (error) {
+    throw new Error(
+      `canonical evidence parent identity is unavailable: ${error?.code ?? "unknown"}: ${error?.message ?? error}`,
+      { cause: error },
+    );
+  }
+  if (parentInfo.isSymbolicLink()) {
+    throw new Error("canonical evidence parent must not be a symbolic link");
+  }
+  if (!parentInfo.isDirectory()) {
+    throw new Error("canonical evidence parent must be a directory");
+  }
+  const parentRealpath = await realpath(parentPath);
+  if (parentRealpath !== parentPath) {
+    throw new Error("canonical evidence parent resolves through a symbolic link");
+  }
+
+  let leafInfo = null;
+  try {
+    leafInfo = await lstat(evidencePath);
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      throw new Error(
+        `canonical evidence leaf identity is unavailable: ${error?.code ?? "unknown"}: ${error?.message ?? error}`,
+        { cause: error },
+      );
+    }
+  }
+  if (leafInfo?.isSymbolicLink()) {
+    throw new Error("canonical evidence leaf must not be a symbolic link");
+  }
+  if (leafInfo !== null && !leafInfo.isFile()) {
+    throw new Error("canonical evidence leaf must be absent or a regular file");
+  }
+  if (leafInfo !== null && await realpath(evidencePath) !== evidencePath) {
+    throw new Error("canonical evidence leaf resolves through a symbolic link");
+  }
+
+  return Object.freeze({
+    repositoryRoot: sourceRoot,
+    evidencePath,
+    parentPath,
+    parentRealpath,
+    parentDevice: parentInfo.dev,
+    parentInode: parentInfo.ino,
+    leaf: leafInfo === null
+      ? Object.freeze({ state: "absent" })
+      : Object.freeze({
+        state: "regular",
+        device: leafInfo.dev,
+        inode: leafInfo.ino,
+        size: leafInfo.size,
+        mtimeMs: leafInfo.mtimeMs,
+        ctimeMs: leafInfo.ctimeMs,
+      }),
+  });
+}
+
+async function revalidateCanonicalEvidencePathIdentity(identity, leafExpectation = "same") {
+  if (
+    !isPlainObject(identity)
+    || !isAbsolutePath(identity.repositoryRoot)
+    || !isAbsolutePath(identity.evidencePath)
+    || !isAbsolutePath(identity.parentPath)
+    || !["absent", "regular"].includes(identity.leaf?.state)
+  ) {
+    throw new Error("canonical evidence path identity token is invalid");
+  }
+  const expectedEvidencePath = join(
+    identity.repositoryRoot,
+    "tests",
+    "journeys",
+    "evidence",
+    "codex-macos-arm64.json",
+  );
+  if (
+    resolve(identity.repositoryRoot) !== identity.repositoryRoot
+    || identity.evidencePath !== expectedEvidencePath
+    || identity.parentPath !== dirname(expectedEvidencePath)
+    || identity.parentRealpath !== identity.parentPath
+  ) {
+    throw new Error("canonical evidence path identity does not bind the exact repository path");
+  }
+  if (!new Set(["same", "absent", "regular", "safe-current"]).has(leafExpectation)) {
+    throw new Error("canonical evidence leaf expectation is invalid");
+  }
+  const observed = await captureCanonicalEvidencePathIdentity({
+    repositoryRoot: identity.repositoryRoot,
+    evidencePath: identity.evidencePath,
+  });
+  if (
+    observed.parentPath !== identity.parentPath
+    || observed.parentRealpath !== identity.parentRealpath
+    || observed.parentDevice !== identity.parentDevice
+    || observed.parentInode !== identity.parentInode
+  ) {
+    throw new Error("canonical evidence parent identity changed");
+  }
+  if (leafExpectation === "absent" && observed.leaf.state !== "absent") {
+    throw new Error("canonical evidence leaf identity changed from absent");
+  }
+  if (leafExpectation === "regular" && observed.leaf.state !== "regular") {
+    throw new Error("canonical evidence leaf is not a regular file");
+  }
+  if (leafExpectation === "same" && !deepEqualJSON(observed.leaf, identity.leaf)) {
+    throw new Error("canonical evidence leaf identity changed");
+  }
+  return observed;
+}
+
+async function withCanonicalEvidencePathRead(identity, operation) {
+  await revalidateCanonicalEvidencePathIdentity(identity);
+  try {
+    return await operation();
+  } finally {
+    await revalidateCanonicalEvidencePathIdentity(identity);
+  }
+}
+
 export async function executeNativeJourney(inputs = {}, dependencies = {}) {
   const expectedInputKeys = [
     "artifactReportPath",
@@ -757,6 +972,7 @@ export async function executeNativeJourney(inputs = {}, dependencies = {}) {
     throw new Error("native journey requires exactly four final input paths");
   }
   const evidencePath = dependencies.evidencePath ?? canonicalNativeEvidencePath;
+  const evidenceRepositoryRoot = dependencies.evidenceRepositoryRoot ?? repositoryRoot;
   const recoveryRoot = dependencies.recoveryRoot ?? `${inputs.ledgerPath}.recovery`;
   if (!isAbsolutePath(evidencePath) || !isAbsolutePath(recoveryRoot)) {
     throw new Error("native evidence and recovery roots must be absolute");
@@ -766,6 +982,7 @@ export async function executeNativeJourney(inputs = {}, dependencies = {}) {
 
   const preflight = dependencies.preflight ?? preflightNativeInputs;
   const assertFrozenSource = dependencies.assertFrozenSource ?? assertFrozenRepositoryIdentity;
+  const prepareEvidenceParent = dependencies.prepareEvidenceParent ?? prepareCanonicalEvidenceParent;
   const prepareHost = dependencies.prepareHost ?? prepareNativeHost;
   const finishHost = dependencies.finishHost ?? finishNativeHost;
   const cleanupHost = dependencies.cleanupHost ?? cleanupNativeHost;
@@ -779,20 +996,31 @@ export async function executeNativeJourney(inputs = {}, dependencies = {}) {
     throw new Error("native Codex journey requires darwin-arm64");
   }
   await assertFrozenSource(firstPreflight.identity.source_commit);
-  const firstAdmission = await inspectNativeAdmission({
-    ledgerPath: inputs.ledgerPath,
+  const evidencePathIdentity = await prepareEvidenceParent({
+    repositoryRoot: evidenceRepositoryRoot,
     evidencePath,
-    identity: firstPreflight.identity,
   });
-  if (!firstAdmission.allowed) {
-    return recoverOrRejectNativeAdmission({
-      decision: firstAdmission,
-      preflight: firstPreflight,
+  const firstAdmission = await withCanonicalEvidencePathRead(
+    evidencePathIdentity,
+    () => inspectNativeAdmission({
       ledgerPath: inputs.ledgerPath,
       evidencePath,
-      recoveryRoot,
-      validatePublished,
-    });
+      identity: firstPreflight.identity,
+    }),
+  );
+  if (!firstAdmission.allowed) {
+    return withCanonicalEvidencePathRead(
+      evidencePathIdentity,
+      () => recoverOrRejectNativeAdmission({
+        decision: firstAdmission,
+        preflight: firstPreflight,
+        ledgerPath: inputs.ledgerPath,
+        evidencePath,
+        evidencePathIdentity,
+        recoveryRoot,
+        validatePublished,
+      }),
+    );
   }
 
   let hostContext;
@@ -807,6 +1035,7 @@ export async function executeNativeJourney(inputs = {}, dependencies = {}) {
     reservation = await reserveNativeAttempt({
       ledgerPath: inputs.ledgerPath,
       evidencePath,
+      evidencePathIdentity,
       identity: finalPreflight.identity,
       reservedAt: now(),
     });
@@ -844,6 +1073,7 @@ export async function executeNativeJourney(inputs = {}, dependencies = {}) {
     await commitPassingAttempt({
       ledgerPath: inputs.ledgerPath,
       evidencePath,
+      evidencePathIdentity,
       recoveryDirectory,
       reservation,
       prepared,
@@ -885,11 +1115,24 @@ export async function executeNativeJourney(inputs = {}, dependencies = {}) {
   } catch (error) {
     if (!reservation) throw error;
     const recoveryDirectory = join(recoveryRoot, reservation.chainId);
-    if (await readOptional(evidencePath) !== null) {
+    let currentEvidenceIdentity;
+    try {
+      currentEvidenceIdentity = await revalidateCanonicalEvidencePathIdentity(
+        evidencePathIdentity,
+        "safe-current",
+      );
+    } catch (identityError) {
+      throw new Error(
+        `canonical evidence path identity changed after reservation; native attempt remains reserved: ${identityError.message}`,
+        { cause: error },
+      );
+    }
+    if (currentEvidenceIdentity.leaf.state === "regular") {
       try {
         const recovery = await recoverPassingAttempt({
           ledgerPath: inputs.ledgerPath,
           evidencePath,
+          evidencePathIdentity: currentEvidenceIdentity,
           recoveryDirectory,
         });
         const published = validatePublished({
@@ -917,6 +1160,7 @@ export async function executeNativeJourney(inputs = {}, dependencies = {}) {
     const failure = await finalizeFailedAttempt({
       ledgerPath: inputs.ledgerPath,
       evidencePath,
+      evidencePathIdentity: currentEvidenceIdentity,
       recoveryDirectory,
       reservation,
       status: "failed",
@@ -942,6 +1186,7 @@ async function recoverOrRejectNativeAdmission({
   preflight,
   ledgerPath,
   evidencePath,
+  evidencePathIdentity,
   recoveryRoot,
   validatePublished,
 }) {
@@ -950,7 +1195,12 @@ async function recoverOrRejectNativeAdmission({
   }
   const chainId = deriveChainId(preflight.identity);
   const recoveryDirectory = join(recoveryRoot, chainId);
-  const recovery = await recoverPassingAttempt({ ledgerPath, evidencePath, recoveryDirectory });
+  const recovery = await recoverPassingAttempt({
+    ledgerPath,
+    evidencePath,
+    evidencePathIdentity,
+    recoveryDirectory,
+  });
   const [expectedEvidenceText, expectedAttemptLedgerText, evidenceText, attemptLedgerText] = await Promise.all([
     readFile(join(recoveryDirectory, recoveryFiles.evidence), "utf8"),
     readFile(join(recoveryDirectory, recoveryFiles.finalLedger), "utf8"),
@@ -2097,6 +2347,7 @@ export async function inspectNativeAdmission({ ledgerPath, evidencePath, identit
 export async function reserveNativeAttempt({
   ledgerPath,
   evidencePath,
+  evidencePathIdentity,
   identity,
   reservedAt,
   beforeLockedRead,
@@ -2105,6 +2356,9 @@ export async function reserveNativeAttempt({
   requireTimestamp(reservedAt, "reservedAt");
   if (beforeLockedRead !== undefined && typeof beforeLockedRead !== "function") {
     throw new TypeError("beforeLockedRead must be a function when supplied");
+  }
+  if (evidencePathIdentity !== undefined && evidencePathIdentity.evidencePath !== evidencePath) {
+    throw new Error("canonical evidence path identity does not match the reservation path");
   }
   const ledgerIdentity = await resolveLedgerIdentity(ledgerPath);
   const expectedLedgerBytes = await readFile(ledgerIdentity.path, "utf8");
@@ -2116,7 +2370,10 @@ export async function reserveNativeAttempt({
     expectedLedgerBytes,
     beforeLockedRead,
   }, async ({ ledger, replaceLedger }) => {
-    const decision = await inspectNativeAdmission({ ledgerPath, evidencePath, identity });
+    const inspectAdmission = () => inspectNativeAdmission({ ledgerPath, evidencePath, identity });
+    const decision = evidencePathIdentity === undefined
+      ? await inspectAdmission()
+      : await withCanonicalEvidencePathRead(evidencePathIdentity, inspectAdmission);
     if (!decision.allowed) {
       throw new Error(
         decision.reason === "unresolved-reservation"
@@ -2138,6 +2395,9 @@ export async function reserveNativeAttempt({
       status: "reserved",
     });
     const reservedLedgerBytes = jsonBytes(ledger);
+    if (evidencePathIdentity !== undefined) {
+      await revalidateCanonicalEvidencePathIdentity(evidencePathIdentity, "absent");
+    }
     await replaceLedger(reservedLedgerBytes);
     return {
       ledgerPath: ledgerIdentity.path,
@@ -2209,6 +2469,7 @@ export function preparePassingAttempt({
 export async function commitPassingAttempt({
   ledgerPath,
   evidencePath,
+  evidencePathIdentity,
   recoveryDirectory,
   reservation,
   prepared,
@@ -2224,6 +2485,10 @@ export async function commitPassingAttempt({
   if (!isAbsolutePath(evidencePath) || !isAbsolutePath(recoveryDirectory)) {
     throw new Error("evidence and recovery paths must be absolute");
   }
+  if (evidencePathIdentity?.evidencePath !== evidencePath) {
+    throw new Error("canonical evidence path identity is required for pass commit");
+  }
+  await revalidateCanonicalEvidencePathIdentity(evidencePathIdentity, "absent");
   const ledgerIdentity = await resolveLedgerIdentity(ledgerPath);
   if (ledgerIdentity.path !== reservation.ledgerPath || ledgerIdentity.ledgerId !== reservation.ledgerId) {
     throw new Error("reservation ledger identity does not match the supplied durable ledger path");
@@ -2253,56 +2518,89 @@ export async function commitPassingAttempt({
     const details = [...(validationResult?.structuralErrors ?? []), ...(validationResult?.semanticErrors ?? [])];
     throw new Error(`candidate validation failed${details.length ? `: ${details.join("; ")}` : ": validator did not return valid=true"}`);
   }
+  let publishedEvidenceIdentity;
   await withLedgerMutationLock({
     ledgerIdentity,
     operation: "finalize-pass",
     expectedLedgerBytes: reservation.reservedLedgerBytes,
   }, async ({ replaceLedger }) => {
     if (beforePublish) await beforePublish();
+    await revalidateCanonicalEvidencePathIdentity(evidencePathIdentity, "absent");
     await atomicCreateNoReplaceDurable(evidencePath, prepared.evidenceBytes, 0o644);
-    if (onStage) await onStage("evidence-published");
+    publishedEvidenceIdentity = await revalidateCanonicalEvidencePathIdentity(
+      evidencePathIdentity,
+      "regular",
+    );
+    if (onStage) {
+      try {
+        await onStage("evidence-published");
+      } finally {
+        await revalidateCanonicalEvidencePathIdentity(publishedEvidenceIdentity);
+      }
+    }
     await replaceLedger(prepared.finalLedgerBytes);
-    if (onStage) await onStage("ledger-finalized");
+    if (onStage) {
+      try {
+        await onStage("ledger-finalized");
+      } finally {
+        await revalidateCanonicalEvidencePathIdentity(publishedEvidenceIdentity);
+      }
+    }
   });
+  await revalidateCanonicalEvidencePathIdentity(publishedEvidenceIdentity);
   await assertAuthoritativeBytes({ ledgerPath: ledgerIdentity.path, evidencePath, prepared });
   return { status: "committed" };
 }
 
-export async function recoverPassingAttempt({ ledgerPath, evidencePath, recoveryDirectory } = {}) {
+export async function recoverPassingAttempt({
+  ledgerPath,
+  evidencePath,
+  evidencePathIdentity,
+  recoveryDirectory,
+} = {}) {
   if (!isAbsolutePath(evidencePath) || !isAbsolutePath(recoveryDirectory)) {
     throw new Error("evidence and recovery paths must be absolute");
   }
-  const ledgerIdentity = await resolveLedgerIdentity(ledgerPath);
-  const [observedFactsBytes, reservedLedgerBytes, finalLedgerBytes, evidenceBytes] = await Promise.all([
-    readFile(join(recoveryDirectory, recoveryFiles.observedFacts), "utf8"),
-    readFile(join(recoveryDirectory, recoveryFiles.reservedLedger), "utf8"),
-    readFile(join(recoveryDirectory, recoveryFiles.finalLedger), "utf8"),
-    readFile(join(recoveryDirectory, recoveryFiles.evidence), "utf8"),
-  ]);
-  parseLedger(reservedLedgerBytes, ledgerIdentity.ledgerId);
-  parseLedger(finalLedgerBytes, ledgerIdentity.ledgerId);
-  const prepared = { observedFactsBytes, reservedLedgerBytes, finalLedgerBytes, evidenceBytes };
-  const publishedEvidence = await readFile(evidencePath, "utf8");
-  if (publishedEvidence !== evidenceBytes) {
-    throw new Error("published passing evidence does not equal the durable candidate bytes");
+  if (
+    evidencePathIdentity?.evidencePath !== evidencePath
+    || evidencePathIdentity?.leaf?.state !== "regular"
+  ) {
+    throw new Error("canonical regular evidence path identity is required for pass recovery");
   }
+  return withCanonicalEvidencePathRead(evidencePathIdentity, async () => {
+    const ledgerIdentity = await resolveLedgerIdentity(ledgerPath);
+    const [observedFactsBytes, reservedLedgerBytes, finalLedgerBytes, evidenceBytes] = await Promise.all([
+      readFile(join(recoveryDirectory, recoveryFiles.observedFacts), "utf8"),
+      readFile(join(recoveryDirectory, recoveryFiles.reservedLedger), "utf8"),
+      readFile(join(recoveryDirectory, recoveryFiles.finalLedger), "utf8"),
+      readFile(join(recoveryDirectory, recoveryFiles.evidence), "utf8"),
+    ]);
+    parseLedger(reservedLedgerBytes, ledgerIdentity.ledgerId);
+    parseLedger(finalLedgerBytes, ledgerIdentity.ledgerId);
+    const prepared = { observedFactsBytes, reservedLedgerBytes, finalLedgerBytes, evidenceBytes };
+    const publishedEvidence = await readFile(evidencePath, "utf8");
+    if (publishedEvidence !== evidenceBytes) {
+      throw new Error("published passing evidence does not equal the durable candidate bytes");
+    }
 
-  const currentLedger = await readFile(ledgerIdentity.path, "utf8");
-  parseLedger(currentLedger, ledgerIdentity.ledgerId);
-  if (currentLedger === finalLedgerBytes) {
+    const currentLedger = await readFile(ledgerIdentity.path, "utf8");
+    parseLedger(currentLedger, ledgerIdentity.ledgerId);
+    if (currentLedger === finalLedgerBytes) {
+      await assertAuthoritativeBytes({ ledgerPath: ledgerIdentity.path, evidencePath, prepared });
+      return { status: "already-finalized" };
+    }
+    if (currentLedger !== reservedLedgerBytes) {
+      throw new Error("ledger is neither the durable reserved nor final candidate");
+    }
+    await revalidateCanonicalEvidencePathIdentity(evidencePathIdentity);
+    await withLedgerMutationLock({
+      ledgerIdentity,
+      operation: "finalize-pass",
+      expectedLedgerBytes: reservedLedgerBytes,
+    }, async ({ replaceLedger }) => replaceLedger(finalLedgerBytes));
     await assertAuthoritativeBytes({ ledgerPath: ledgerIdentity.path, evidencePath, prepared });
-    return { status: "already-finalized" };
-  }
-  if (currentLedger !== reservedLedgerBytes) {
-    throw new Error("ledger is neither the durable reserved nor final candidate");
-  }
-  await withLedgerMutationLock({
-    ledgerIdentity,
-    operation: "finalize-pass",
-    expectedLedgerBytes: reservedLedgerBytes,
-  }, async ({ replaceLedger }) => replaceLedger(finalLedgerBytes));
-  await assertAuthoritativeBytes({ ledgerPath: ledgerIdentity.path, evidencePath, prepared });
-  return { status: "recovered-ledger-finalize" };
+    return { status: "recovered-ledger-finalize" };
+  });
 }
 
 export async function writeFailureDiagnostic({
@@ -2341,6 +2639,7 @@ export async function writeFailureDiagnostic({
 export async function finalizeFailedAttempt({
   ledgerPath,
   evidencePath,
+  evidencePathIdentity,
   recoveryDirectory,
   reservation,
   status,
@@ -2354,7 +2653,16 @@ export async function finalizeFailedAttempt({
   if (!isPlainObject(observedFacts) || !isPlainObject(diagnosticBase)) {
     throw new Error("failure finalization requires observed facts and a diagnostic base");
   }
-  if (await readOptional(evidencePath) !== null) {
+  if (evidencePathIdentity !== undefined && evidencePathIdentity.evidencePath !== evidencePath) {
+    throw new Error("canonical evidence path identity does not match failure finalization");
+  }
+  const existingEvidence = evidencePathIdentity === undefined
+    ? await readOptional(evidencePath)
+    : await withCanonicalEvidencePathRead(
+      evidencePathIdentity,
+      () => readOptional(evidencePath),
+    );
+  if (existingEvidence !== null) {
     throw new Error("passing evidence exists; failure finalization cannot replace the pass lock");
   }
   const ledgerIdentity = await resolveLedgerIdentity(ledgerPath);
@@ -2399,6 +2707,9 @@ export async function finalizeFailedAttempt({
     ]);
     const diagnosticPath = join(recoveryDirectory, `${status}.json`);
     await writeFailureDiagnostic({ outputPath: diagnosticPath, canonicalEvidencePath: evidencePath, recoveryDirectory, diagnostic });
+    if (evidencePathIdentity !== undefined) {
+      await revalidateCanonicalEvidencePathIdentity(evidencePathIdentity, "absent");
+    }
     await replaceLedger(finalLedgerBytes);
     return { status, diagnosticPath, finalLedgerBytes };
   });
