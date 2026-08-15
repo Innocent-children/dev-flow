@@ -1,123 +1,682 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import {
-  validateEvidence,
-  validateEvidenceSemantics,
-  validateEvidenceStructure,
-} from "../../../scripts/validate-codex-journey-evidence.mjs";
+import * as validator from "../../../scripts/validate-codex-journey-evidence.mjs";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = join(packageRoot, "..", "..");
-const schema = JSON.parse(
-  await readFile(
-    join(repositoryRoot, "specs", "003-codex-explicit-dev-flow", "contracts", "journey-evidence.schema.json"),
-    "utf8",
+const contractsRoot = join(repositoryRoot, "specs", "003-codex-explicit-dev-flow", "contracts");
+const rootVersion = (await readFile(join(repositoryRoot, "VERSION"), "utf8")).trim();
+const canonicalEvidencePath = join(
+  repositoryRoot,
+  "tests",
+  "journeys",
+  "evidence",
+  "codex-macos-arm64.json",
+);
+const attemptLedgerPath = "/tmp/dev-flow-codex-native-attempts.json";
+const schemas = Object.fromEntries(
+  await Promise.all(
+    ["validation-report", "artifact-report", "native-attempt-ledger", "journey-evidence"].map(
+      async (name) => [
+        name,
+        JSON.parse(await readFile(join(contractsRoot, `${name}.schema.json`), "utf8")),
+      ],
+    ),
   ),
 );
-const rootVersion = (await readFile(join(repositoryRoot, "VERSION"), "utf8")).trim();
+const diagnosticSchema = JSON.parse(
+  await readFile(join(contractsRoot, "native-attempt-diagnostic.schema.json"), "utf8"),
+);
 
-test("passing native evidence satisfies the structural schema and semantic contract", () => {
-  const evidence = passingEvidence();
-  assert.deepEqual(validateEvidenceStructure(evidence, schema), []);
-  assert.deepEqual(validateEvidenceSemantics(evidence, { rootVersion }), []);
-  assert.deepEqual(validateEvidence(evidence, { schema, rootVersion }), {
+const expectedTargetedCommands = [
+  "go test ./internal/version ./tests/contract",
+  "node --test packages/codex/tests/*.test.mjs",
+];
+
+test("passing schema-v3 candidate satisfies all closed structures and semantics", () => {
+  const candidate = passingCandidate();
+
+  for (const [name, document] of Object.entries(candidate.documents)) {
+    if (!schemas[name]) continue;
+    assert.deepEqual(
+      validator.validateDocumentStructure(document, schemas[name]),
+      [],
+      name,
+    );
+  }
+
+  assert.deepEqual(validator.validateEvidenceStructure(candidate.documents["journey-evidence"], schemas["journey-evidence"]), []);
+  assert.deepEqual(validator.validateEvidenceSemantics(candidate.documents["journey-evidence"], {
+    rootVersion,
+    validationReport: candidate.documents["validation-report"],
+    validationReportText: candidate.validationReportText,
+    artifactReport: candidate.documents["artifact-report"],
+    artifactReportText: candidate.artifactReportText,
+    attemptLedger: candidate.documents["native-attempt-ledger"],
+    attemptLedgerText: candidate.attemptLedgerText,
+    attemptLedgerPath,
+    observedFacts: candidate.documents["observed-facts"],
+    observedFactsText: candidate.observedFactsText,
+    artifactSha256: candidate.artifactSha256,
+    artifactPath: candidate.documents["artifact-report"].artifact_path,
+  }), []);
+
+  assert.deepEqual(candidateResult(candidate), {
     valid: true,
     structuralErrors: [],
     semanticErrors: [],
   });
 });
 
-test("structural validation rejects identity drift and unknown fields", () => {
-  const notFinal = passingEvidence();
-  notFinal.classification.final_artifact = false;
-  assert.match(validateEvidenceStructure(notFinal, schema).join("\n"), /final_artifact.*true/i);
+test("every retained report is closed against missing and extra top-level fields", () => {
+  const candidate = passingCandidate();
+  const requiredByName = {
+    "validation-report": "source_commit",
+    "artifact-report": "artifact_path",
+    "native-attempt-ledger": "ledger_id",
+    "journey-evidence": "native_attempt",
+  };
 
-  const invalidArtifact = passingEvidence();
-  invalidArtifact.identity.artifact_sha256 = "not-a-digest";
-  assert.match(validateEvidenceStructure(invalidArtifact, schema).join("\n"), /artifact_sha256.*pattern/i);
+  for (const [name, field] of Object.entries(requiredByName)) {
+    const missing = structuredClone(candidate.documents[name]);
+    delete missing[field];
+    assert.match(
+      validator.validateDocumentStructure(missing, schemas[name]).join("\n"),
+      new RegExp(`${field}.*required`, "i"),
+      `${name} missing ${field}`,
+    );
 
-  const openObject = passingEvidence();
-  openObject.identity.unreviewed = true;
-  assert.match(validateEvidenceStructure(openObject, schema).join("\n"), /unreviewed.*not allowed/i);
+    const extra = structuredClone(candidate.documents[name]);
+    extra.unreviewed = true;
+    assert.match(
+      validator.validateDocumentStructure(extra, schemas[name]).join("\n"),
+      /unreviewed.*not allowed/i,
+      `${name} extra field`,
+    );
+  }
 });
 
-test("failed and blocked records remain honest partial observations", () => {
-  for (const status of ["failed", "blocked"]) {
-    const evidence = partialEvidence(status);
-    assert.deepEqual(validateEvidenceStructure(evidence, schema), [], status);
-    assert.deepEqual(validateEvidenceSemantics(evidence, { rootVersion }), [], status);
+test("failed and blocked attempts use the independent closed diagnostic schema", () => {
+  const diagnostic = attemptDiagnostic("failed");
+  assert.deepEqual(validator.validateDocumentStructure(diagnostic, diagnosticSchema), []);
+  assert.deepEqual(
+    validator.validateDocumentStructure({ ...diagnostic, status: "blocked" }, diagnosticSchema),
+    [],
+  );
+
+  for (const [expected, mutate] of [
+    ["schema_version", (document) => { document.schema_version = 3; }],
+    ["report_type", (document) => { document.report_type = "journey-evidence"; }],
+    ["failure.*required", (document) => { delete document.failure; }],
+    ["journey.*not allowed", (document) => { document.journey = {}; }],
+    ["evidence_type", (document) => { document.classification.evidence_type = "native-host"; }],
+  ]) {
+    const mutated = structuredClone(diagnostic);
+    mutate(mutated);
+    assert.match(
+      validator.validateDocumentStructure(mutated, diagnosticSchema).join("\n"),
+      new RegExp(expected, "i"),
+      expected,
+    );
+  }
+});
+
+test("schema walker enforces not for reserved ledger entries", () => {
+  const candidate = passingCandidate();
+  const ledger = structuredClone(candidate.documents["native-attempt-ledger"]);
+  ledger.attempts[0].status = "reserved";
+  delete ledger.attempts[0].completed_at;
+  delete ledger.attempts[0].observed_facts_sha256;
+  assert.deepEqual(validator.validateDocumentStructure(ledger, schemas["native-attempt-ledger"]), []);
+
+  ledger.attempts[0].completed_at = "2026-08-16T02:00:00.000Z";
+  assert.match(
+    validator.validateDocumentStructure(ledger, schemas["native-attempt-ledger"]).join("\n"),
+    /must not satisfy|forbidden/i,
+  );
+});
+
+test("ledger semantics close numbering, identity, finalization, pass, and reservation placement", () => {
+  const validHistories = [
+    [],
+    [ledgerAttempt(1, "reserved")],
+    [ledgerAttempt(1, "failed"), ledgerAttempt(2, "reserved")],
+    [ledgerAttempt(1, "failed"), ledgerAttempt(2, "blocked")],
+    [ledgerAttempt(1, "failed"), ledgerAttempt(2, "pass")],
+  ];
+  for (const attempts of validHistories) {
+    assert.deepEqual(
+      validator.validateAttemptLedgerSemantics({ schema_version: 1, ledger_id: "a".repeat(64), attempts }),
+      [],
+    );
   }
 
-  const fabricatedSuccess = partialEvidence("failed");
-  fabricatedSuccess.failures = [];
-  fabricatedSuccess.skips = [];
-  assert.match(validateEvidenceStructure(fabricatedSuccess, schema).join("\n"), /anyOf/i);
+  const cases = [
+    ["sequential attempt numbers", [ledgerAttempt(2, "failed")]],
+    ["unique chain IDs", [ledgerAttempt(1, "failed"), { ...ledgerAttempt(2, "blocked"), chain_id: "1".repeat(64) }]],
+    ["unique source commits", [ledgerAttempt(1, "failed"), { ...ledgerAttempt(2, "blocked"), source_commit: "1".repeat(40) }]],
+    ["at most one passing", [ledgerAttempt(1, "pass"), ledgerAttempt(2, "pass")]],
+    ["passing attempt must be final", [ledgerAttempt(1, "pass"), ledgerAttempt(2, "failed")]],
+    ["at most one reserved", [ledgerAttempt(1, "reserved"), ledgerAttempt(2, "reserved")]],
+    ["reserved attempt must be final", [ledgerAttempt(1, "reserved"), ledgerAttempt(2, "failed")]],
+    ["reserved attempt must not be finalized", [{ ...ledgerAttempt(1, "reserved"), completed_at: "2026-08-16T02:00:00.000Z" }]],
+    ["reserved attempt must not have observed facts", [{ ...ledgerAttempt(1, "reserved"), observed_facts_sha256: "f".repeat(64) }]],
+    ["finalized attempt requires completed_at", [without(ledgerAttempt(1, "failed"), "completed_at")]],
+    ["finalized attempt requires observed facts", [without(ledgerAttempt(1, "failed"), "observed_facts_sha256")]],
+  ];
+  for (const [expected, attempts] of cases) {
+    assert.match(
+      validator.validateAttemptLedgerSemantics({ schema_version: 1, ledger_id: "a".repeat(64), attempts }).join("\n"),
+      new RegExp(expected, "i"),
+      expected,
+    );
+  }
 });
 
-test("semantic validation enforces version, compatibility, and frozen-source identity", () => {
+test("candidate validation rejects exact-byte report, artifact, ledger, and facts substitution", () => {
   const cases = [
-    ["package/Core", (value) => { value.versions.core = "0.1.1"; }],
-    ["repository VERSION", (value) => { value.versions.package = "0.2.0"; value.versions.core = "0.2.0"; }],
-    ["Codex compatibility", (value) => { value.versions.codex = "0.148.0"; }],
-    ["targeted validation source commit", (value) => { value.validation.targeted_checks.source_commit = "d".repeat(40); }],
-    ["root validation source commit", (value) => { value.validation.root_validation.source_commit = "d".repeat(40); }],
+    ["validation report exact-byte digest", (candidate) => {
+      candidate.validationReportText = `${candidate.validationReportText.trimEnd()}  \n`;
+    }],
+    ["validation report exact-byte digest", (candidate) => {
+      const report = JSON.parse(candidate.validationReportText);
+      report.completed_at = "2026-08-16T01:20:00.001Z";
+      candidate.validationReportText = encode(report);
+    }],
+    ["artifact report exact-byte digest", (candidate) => {
+      candidate.artifactReportText = `${candidate.artifactReportText.trimEnd()}  \n`;
+    }],
+    ["artifact SHA-256", (candidate) => {
+      candidate.artifactSha256 = "f".repeat(64);
+    }],
+    ["attempt ledger exact-byte digest", (candidate) => {
+      candidate.attemptLedgerText = `${candidate.attemptLedgerText.trimEnd()}  \n`;
+    }],
+    ["observed facts exact-byte digest", (candidate) => {
+      candidate.observedFactsText = `${candidate.observedFactsText.trimEnd()}  \n`;
+    }],
   ];
 
   for (const [expected, mutate] of cases) {
-    const evidence = passingEvidence();
-    mutate(evidence);
-    assert.match(validateEvidenceSemantics(evidence, { rootVersion }).join("\n"), new RegExp(expected, "i"));
+    const candidate = passingCandidate();
+    mutate(candidate);
+    assert.match(allErrors(candidateResult(candidate)), new RegExp(expected, "i"), expected);
   }
 });
 
-test("semantic validation enforces strict task lineage and the call budget", () => {
+test("candidate validation enforces writer-owned compatibility query and report time ordering", () => {
   const cases = [
-    ["strictly increasing", (value) => { value.journey.task_lineage.revisions = [1, 4, 4]; }],
-    ["committed-action revision", (value) => { value.journey.task_lineage.committed_actions[1].revision = 7; }],
-    ["unique action IDs", (value) => { value.journey.task_lineage.committed_actions[1].action_id = "action-1"; }],
-    ["same task ID", (value) => { value.journey.task_lineage.task_id_after_restart = "task-other"; }],
-    ["at least two", (value) => { value.journey.task_lineage.committed_actions = value.journey.task_lineage.committed_actions.slice(0, 1); }],
-    ["call budget", (value) => { value.journey.invocation.core_call_count = 11; }],
-    ["DONE", (value) => { value.journey.task_lineage.terminal_outcome = "BLOCKED"; }],
+    ["compatibility query.*targeted", (candidate) => {
+      candidate.documents["validation-report"].codex_revalidation.queried_at = "2026-08-16T01:07:00.000Z";
+    }],
+    ["targeted.*report completion", (candidate) => {
+      candidate.documents["validation-report"].targeted_checks[1].completed_at = "2026-08-16T01:21:00.000Z";
+    }],
+    ["root validation.*report completion", (candidate) => {
+      candidate.documents["validation-report"].root_validation.completed_at = "2026-08-16T01:21:00.000Z";
+    }],
+    ["targeted command completion order", (candidate) => {
+      candidate.documents["validation-report"].targeted_checks[0].completed_at = "2026-08-16T01:10:00.000Z";
+    }],
+    ["root validation.*after.*targeted", (candidate) => {
+      candidate.documents["validation-report"].root_validation.completed_at = "2026-08-16T01:08:00.000Z";
+    }],
+    ["validation completion.*artifact build", (candidate) => {
+      candidate.documents["artifact-report"].built_at = "2026-08-16T01:19:59.999Z";
+      candidate.documents["journey-evidence"].identity.artifact_built_at = "2026-08-16T01:19:59.999Z";
+    }],
+    ["artifact build.*evidence recording", (candidate) => {
+      candidate.documents["artifact-report"].built_at = candidate.documents["journey-evidence"].recorded_at;
+      candidate.documents["journey-evidence"].identity.artifact_built_at = candidate.documents["journey-evidence"].recorded_at;
+    }],
+    ["resolved Codex version", (candidate) => {
+      candidate.documents["validation-report"].codex_revalidation.resolved_version = "0.147.1";
+    }],
+    ["compatibility range", (candidate) => {
+      candidate.documents["validation-report"].codex_revalidation.compatible_range = ">=0.146.0 <0.147.0";
+    }],
   ];
 
   for (const [expected, mutate] of cases) {
-    const evidence = passingEvidence();
-    mutate(evidence);
-    assert.match(validateEvidenceSemantics(evidence, { rootVersion }).join("\n"), new RegExp(expected, "i"));
+    const candidate = passingCandidate();
+    mutate(candidate);
+    refreshRawInputs(candidate);
+    assert.match(allErrors(candidateResult(candidate)), new RegExp(expected, "i"), expected);
   }
 });
 
-test("semantic validation enforces retained data, repository safety, lifecycle, and passing observations", () => {
+test("candidate validation requires the exact ordered targeted set and exact root command", () => {
   const cases = [
-    ["task-data file lists", (value) => { value.journey.task_data.files_after_removal.push("lost.db"); }],
-    ["task-data manifest", (value) => { value.journey.task_data.manifest_after_removal_sha256 = "9".repeat(64); }],
-    ["repository digest", (value) => { value.journey.repository.digest_after_removal = "8".repeat(64); }],
-    ["unexpected changed paths", (value) => { value.journey.repository.unexpected_changed_paths.push("secret.txt"); }],
-    ["lifecycle", (value) => { value.journey.lifecycle.remove_readback_passed = false; }],
-    ["targeted checks", (value) => { value.validation.targeted_checks.result = "failed"; }],
-    ["root validation", (value) => { value.validation.root_validation.result = "blocked"; }],
-    ["failures", (value) => { value.failures.push(observation("journey", "failed", "observed")); }],
-    ["skips", (value) => { value.skips.push(observation("remove", "skipped", "not run")); }],
+    ["exact ordered targeted commands", (checks) => checks.splice(1, 1)],
+    ["exact ordered targeted commands", (checks) => checks.push({ ...checks[1], command: "node --test extra.test.mjs" })],
+    ["exact ordered targeted commands", (checks) => checks.push(structuredClone(checks[1]))],
+    ["exact ordered targeted commands", (checks) => checks.reverse()],
   ];
 
   for (const [expected, mutate] of cases) {
-    const evidence = passingEvidence();
-    mutate(evidence);
-    assert.match(validateEvidenceSemantics(evidence, { rootVersion }).join("\n"), new RegExp(expected, "i"));
+    const candidate = passingCandidate();
+    mutate(candidate.documents["validation-report"].targeted_checks);
+    candidate.documents["journey-evidence"].validation.targeted_checks = structuredClone(
+      candidate.documents["validation-report"].targeted_checks,
+    );
+    refreshRawInputs(candidate);
+    assert.match(allErrors(candidateResult(candidate)), new RegExp(expected, "i"), expected);
+  }
+
+  const wrongRoot = passingCandidate();
+  wrongRoot.documents["validation-report"].root_validation.command = "pnpm validate";
+  wrongRoot.documents["journey-evidence"].validation.root_validation.command = "pnpm validate";
+  refreshRawInputs(wrongRoot);
+  assert.match(allErrors(candidateResult(wrongRoot)), /root validation command|must equal "pnpm run validate"/i);
+});
+
+test("candidate validation requires an exact evidence projection of validation observations", () => {
+  const cases = [
+    ["validation completed_at projection", (candidate) => {
+      candidate.documents["journey-evidence"].validation.completed_at = "2026-08-16T01:20:00.001Z";
+    }],
+    ["targeted-check projection", (candidate) => {
+      candidate.documents["journey-evidence"].validation.targeted_checks[0].completed_at = "2026-08-16T01:04:00.001Z";
+    }],
+    ["root-validation projection", (candidate) => {
+      candidate.documents["journey-evidence"].validation.root_validation.completed_at = "2026-08-16T01:14:00.001Z";
+    }],
+  ];
+
+  for (const [expected, mutate] of cases) {
+    const candidate = passingCandidate();
+    mutate(candidate);
+    candidate.evidenceText = encode(candidate.documents["journey-evidence"]);
+    assert.match(allErrors(candidateResult(candidate)), new RegExp(expected, "i"), expected);
   }
 });
 
-function passingEvidence() {
+test("candidate validation binds source, versions, artifact identity, and report identities", () => {
+  const cases = [
+    ["package/Core", (candidate) => { candidate.documents["journey-evidence"].versions.core = "0.1.1"; }],
+    ["repository VERSION", (candidate) => {
+      candidate.documents["journey-evidence"].versions.package = "0.2.0";
+      candidate.documents["journey-evidence"].versions.core = "0.2.0";
+    }],
+    ["source commit", (candidate) => { candidate.documents["artifact-report"].source_commit = "d".repeat(40); }],
+    ["artifact built_at identity", (candidate) => {
+      candidate.documents["journey-evidence"].identity.artifact_built_at = "2026-08-16T01:25:00.001Z";
+    }],
+    ["artifact path identity", (candidate) => { candidate.artifactPath = "/tmp/substituted.tgz"; }],
+  ];
+
+  for (const [expected, mutate] of cases) {
+    const candidate = passingCandidate();
+    mutate(candidate);
+    refreshRawInputs(candidate);
+    assert.match(allErrors(candidateResult(candidate)), new RegExp(expected, "i"), expected);
+  }
+});
+
+test("candidate validation enforces durable ledger identity, digest, count, uniqueness, and pass entry", () => {
+  const cases = [
+    ["ledger path identity", (candidate) => {
+      candidate.attemptLedgerPath = "/tmp/switched-dev-flow-codex-native-attempts.json";
+    }],
+    ["attempt count", (candidate) => {
+      candidate.documents["journey-evidence"].native_attempt.total_attempts = 2;
+    }],
+    ["sequential attempt numbers", (candidate) => {
+      candidate.documents["native-attempt-ledger"].attempts[0].attempt_number = 2;
+    }],
+    ["unique chain IDs", (candidate) => {
+      const duplicate = structuredClone(candidate.documents["native-attempt-ledger"].attempts[0]);
+      duplicate.attempt_number = 2;
+      duplicate.source_commit = "d".repeat(40);
+      candidate.documents["native-attempt-ledger"].attempts.push(duplicate);
+      candidate.documents["journey-evidence"].native_attempt.total_attempts = 2;
+    }],
+    ["unique source commits", (candidate) => {
+      const duplicate = structuredClone(candidate.documents["native-attempt-ledger"].attempts[0]);
+      duplicate.attempt_number = 2;
+      duplicate.chain_id = "9".repeat(64);
+      candidate.documents["native-attempt-ledger"].attempts.push(duplicate);
+      candidate.documents["journey-evidence"].native_attempt.total_attempts = 2;
+    }],
+    ["exactly one passing attempt", (candidate) => {
+      candidate.documents["native-attempt-ledger"].attempts[0].status = "failed";
+    }],
+    ["chain ID derivation", (candidate) => {
+      candidate.documents["native-attempt-ledger"].attempts[0].chain_id = "9".repeat(64);
+      candidate.documents["journey-evidence"].native_attempt.chain_id = "9".repeat(64);
+    }],
+    ["commit protocol", (candidate) => {
+      candidate.documents["journey-evidence"].native_attempt.commit_protocol = "external-failure-record-v1";
+    }],
+    ["observed facts", (candidate) => {
+      candidate.documents["native-attempt-ledger"].attempts[0].observed_facts_sha256 = "9".repeat(64);
+    }],
+  ];
+
+  for (const [expected, mutate] of cases) {
+    const candidate = passingCandidate();
+    mutate(candidate);
+    refreshRawInputs(candidate);
+    assert.match(allErrors(candidateResult(candidate)), new RegExp(expected, "i"), expected);
+  }
+});
+
+test("candidate validation enforces passing lineage, call budget, lifecycle, and retained state", () => {
+  const cases = [
+    ["four.*thread IDs", (evidence) => { evidence.journey.task_lineage.thread_ids[3] = evidence.journey.task_lineage.thread_ids[2]; }],
+    ["raw task revisions.*regress", (evidence) => { evidence.journey.task_lineage.raw_revisions = [1, 4, 3, 8]; }],
+    ["adjacent-deduplicated", (evidence) => { evidence.journey.task_lineage.revisions = [1, 3, 8]; }],
+    ["strictly increasing", (evidence) => { evidence.journey.task_lineage.revisions = [1, 4, 4]; }],
+    ["committed-action revision", (evidence) => { evidence.journey.task_lineage.committed_actions[1].revision = 7; }],
+    ["unique action IDs", (evidence) => { evidence.journey.task_lineage.committed_actions[1].action_id = "action-1"; }],
+    ["same task ID", (evidence) => { evidence.journey.task_lineage.task_id_after_restart = "task-other"; }],
+    ["at least two", (evidence) => { evidence.journey.task_lineage.committed_actions = evidence.journey.task_lineage.committed_actions.slice(0, 1); }],
+    ["call budget", (evidence) => { evidence.journey.invocation.core_call_count = 11; }],
+    ["DONE", (evidence) => { evidence.journey.task_lineage.terminal_outcome = "BLOCKED"; }],
+    ["terminal phase", (evidence) => { evidence.journey.task_lineage.terminal_phase = "BLOCKED"; }],
+    ["restart recovery reads", (evidence) => { evidence.journey.invocation.restart_recovery_reads.reverse(); }],
+    ["verification command count", (evidence) => { evidence.journey.invocation.submitted_automated_command_count = 2; }],
+    ["verification command count", (evidence) => { evidence.journey.invocation.retained_automated_command_count = 2; }],
+    ["verification budget", (evidence) => { evidence.journey.invocation.verification_budget.max_automatic_commands = 0; }],
+    ["full-suite", (evidence) => {
+      evidence.journey.invocation.verification_commands[0].full_suite = true;
+      evidence.journey.invocation.submitted_full_suite = true;
+      evidence.journey.invocation.retained_full_suite = true;
+    }],
+    ["unique item IDs", (evidence) => {
+      evidence.journey.invocation.verification_commands.push(structuredClone(
+        evidence.journey.invocation.verification_commands[0],
+      ));
+      evidence.journey.invocation.submitted_automated_command_count = 2;
+      evidence.journey.invocation.retained_automated_command_count = 2;
+    }],
+    ["task-data file lists", (evidence) => { evidence.journey.task_data.files_after_removal.push("lost.db"); }],
+    ["task-data manifest", (evidence) => { evidence.journey.task_data.manifest_after_removal_sha256 = "9".repeat(64); }],
+    ["repository digest", (evidence) => { evidence.journey.repository.digest_after_removal = "8".repeat(64); }],
+    ["unexpected changed paths", (evidence) => { evidence.journey.repository.unexpected_changed_paths.push("secret.txt"); }],
+    ["lifecycle", (evidence) => { evidence.journey.lifecycle.remove_readback_passed = false; }],
+    ["setup registry", (evidence) => { evidence.journey.lifecycle.setup_registry.marketplaces_total = 2; }],
+    ["reinstall registry", (evidence) => { evidence.journey.lifecycle.reinstall_registry.available_total = 1; }],
+    ["retained-data descriptor", (evidence) => { evidence.journey.task_data.retained_data_location.workspace_relative_path = "/tmp/secret"; }],
+  ];
+
+  for (const [expected, mutate] of cases) {
+    const candidate = passingCandidate();
+    mutate(candidate.documents["journey-evidence"]);
+    candidate.evidenceText = encode(candidate.documents["journey-evidence"]);
+    assert.match(allErrors(candidateResult(candidate)), new RegExp(expected, "i"), expected);
+  }
+});
+
+test("candidate validation binds Core-derived journey, verification, recovery, and terminal facts", () => {
+  const cases = [
+    ["durable observed journey", (candidate) => {
+      candidate.documents["observed-facts"].journey.invocation.core_call_count -= 1;
+    }],
+    ["verification budget projection", (candidate) => {
+      candidate.documents["observed-facts"].verification.budget.max_automatic_commands += 1;
+    }],
+    ["command execution projection", (candidate) => {
+      candidate.documents["observed-facts"].verification.command_executions[0].command = "node --test substituted.test.mjs";
+    }],
+    ["submitted automated checks", (candidate) => {
+      candidate.documents["observed-facts"].verification.submitted_automated_checks[0].name = "node --test substituted.test.mjs";
+    }],
+    ["retained automated checks", (candidate) => {
+      candidate.documents["observed-facts"].verification.retained_automated_checks[0].command_count = 2;
+    }],
+    ["restart recovery.*before.*apply", (candidate) => {
+      candidate.documents["observed-facts"].sessions.resume.calls = [
+        { tool: "dev_flow_apply_action" },
+        { tool: "dev_flow_get_task" },
+        { tool: "dev_flow_get_next_action" },
+      ];
+    }],
+    ["terminal task phase", (candidate) => {
+      candidate.documents["observed-facts"].terminal_task.phase = "VERIFY";
+    }],
+    ["terminal task outcome", (candidate) => {
+      candidate.documents["observed-facts"].terminal_task.outcome.status = "blocked";
+    }],
+    ["raw task revision projection", (candidate) => {
+      candidate.documents["observed-facts"].sessions.resume.calls[0].revision = 3;
+    }],
+    ["four.*thread IDs", (candidate) => {
+      candidate.documents["observed-facts"].sessions.invalid.thread_id = "thread-ordinary";
+    }],
+    ["retained-data descriptor", (candidate) => {
+      candidate.documents["observed-facts"].task_data.retained_data_location.canonical_path_sha256 = "f".repeat(64);
+    }],
+  ];
+
+  for (const [expected, mutate] of cases) {
+    const candidate = passingCandidate();
+    mutate(candidate);
+    refreshObservedFacts(candidate);
+    assert.match(allErrors(candidateResult(candidate)), new RegExp(expected, "i"), expected);
+  }
+});
+
+test("journey evidence is pass-only and failed attempts cannot masquerade as schema-v3 evidence", () => {
+  const external = failedCandidate();
+  assert.match(allErrors(candidateResult(external)), /status.*pass|commit_protocol|failures/i);
+  assert.deepEqual(
+    validator.validateDocumentStructure(attemptDiagnostic("failed"), diagnosticSchema),
+    [],
+  );
+});
+
+test("bound evidence-file validation loads every schema, artifact/root identity, facts, and full pass semantics", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "dev-flow-bound-evidence-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+
+  const cases = [
+    ["valid", null, null],
+    ["journey-evidence.*not allowed", (candidate) => { candidate.documents["journey-evidence"].unexpected = true; }, null],
+    ["validation-report.*not allowed", (candidate) => { candidate.documents["validation-report"].unexpected = true; }, null],
+    ["artifact-report.*not allowed", (candidate) => { candidate.documents["artifact-report"].unexpected = true; }, null],
+    ["native-attempt-ledger.*not allowed", (candidate) => { candidate.documents["native-attempt-ledger"].unexpected = true; }, null],
+    ["terminal_phase|terminal phase", (candidate) => {
+      candidate.documents["journey-evidence"].journey.task_lineage.terminal_phase = "BLOCKED";
+      candidate.documents["observed-facts"].journey.task_lineage.terminal_phase = "BLOCKED";
+    }, null],
+    ["terminal_outcome|terminal outcome", (candidate) => {
+      candidate.documents["journey-evidence"].journey.task_lineage.terminal_outcome = "BLOCKED";
+      candidate.documents["observed-facts"].journey.task_lineage.terminal_outcome = "BLOCKED";
+    }, null],
+    ["repository VERSION", null, "9.9.9\n"],
+    ["actual artifact SHA-256", null, null, Buffer.from("substituted artifact")],
+  ];
+
+  for (const [expected, mutate, versionOverride, artifactOverride] of cases) {
+    const caseRoot = join(root, expected.replaceAll(/[^A-Za-z0-9]+/g, "-"));
+    await mkdir(caseRoot, { recursive: true });
+    const bound = await writeBoundCandidate(caseRoot, { mutate, versionOverride, artifactOverride });
+    const result = await validator.validateEvidenceFile(bound.evidencePath, {
+      validationReportPath: bound.validationReportPath,
+      artifactReportPath: bound.artifactReportPath,
+      attemptLedgerPath: bound.attemptLedgerPath,
+      canonicalEvidencePath: bound.evidencePath,
+      versionPath: bound.versionPath,
+    });
+    if (expected === "valid") {
+      assert.deepEqual(result, { valid: true, structuralErrors: [], semanticErrors: [] });
+    } else {
+      assert.match(allErrors(result), new RegExp(expected, "i"), expected);
+    }
+  }
+});
+
+test("internal post-publication recovery checks exact bytes and identities without mutation", () => {
+  const candidate = passingCandidate();
+  const base = {
+    evidenceText: candidate.evidenceText,
+    expectedEvidenceText: candidate.evidenceText,
+    attemptLedgerText: candidate.attemptLedgerText,
+    expectedAttemptLedgerText: candidate.attemptLedgerText,
+    attemptLedgerPath,
+    expectedLedgerId: candidate.documents["native-attempt-ledger"].ledger_id,
+  };
+  assert.deepEqual(validator.validatePublishedEvidence(base), { valid: true, errors: [] });
+
+  assert.match(
+    validator.validatePublishedEvidence({ ...base, evidenceText: `${base.evidenceText} ` }).errors.join("\n"),
+    /published evidence bytes/i,
+  );
+  assert.match(
+    validator.validatePublishedEvidence({ ...base, attemptLedgerText: `${base.attemptLedgerText} ` }).errors.join("\n"),
+    /published ledger bytes/i,
+  );
+  assert.match(
+    validator.validatePublishedEvidence({ ...base, attemptLedgerPath: "/tmp/switched-ledger.json" }).errors.join("\n"),
+    /ledger path identity/i,
+  );
+});
+
+function candidateResult(candidate) {
+  return validator.validateEvidenceCandidate({
+    evidenceText: candidate.evidenceText,
+    validationReportText: candidate.validationReportText,
+    artifactReportText: candidate.artifactReportText,
+    attemptLedgerText: candidate.attemptLedgerText,
+    observedFactsText: candidate.observedFactsText,
+    artifactSha256: candidate.artifactSha256,
+    artifactPath: candidate.artifactPath,
+    attemptLedgerPath: candidate.attemptLedgerPath,
+    evidencePath: candidate.evidencePath,
+    canonicalEvidencePath,
+    rootVersion,
+    schemas,
+  });
+}
+
+function passingCandidate() {
   const sourceCommit = "c".repeat(40);
-  return {
-    schema_version: 2,
+  const artifactPath = "/tmp/dev-flow codex final/dev-flow-codex-0.1.0.tgz";
+  const artifactSha256 = "a".repeat(64);
+  const journey = passingJourney();
+  const observedFacts = {
+    schema_version: 1,
+    source_commit: sourceCommit,
+    terminal_outcome: "DONE",
+    task_id: "task-1",
+    journey: structuredClone(journey),
+    verification: verificationFacts(journey.invocation),
+    sessions: {
+      ordinary: { thread_id: journey.task_lineage.thread_ids[0], calls: [] },
+      invalid: { thread_id: journey.task_lineage.thread_ids[1], calls: [] },
+      substantive: {
+        thread_id: journey.task_lineage.thread_ids[2],
+        calls: [
+          { tool: "dev_flow_open_task", revision: 1 },
+          { tool: "dev_flow_get_next_action", revision: 1 },
+          { tool: "dev_flow_apply_action", revision: 4 },
+        ],
+      },
+      resume: {
+        thread_id: journey.task_lineage.thread_ids[3],
+        calls: [
+          { tool: "dev_flow_get_task", revision: 4 },
+          { tool: "dev_flow_get_next_action", revision: 4 },
+          { tool: "dev_flow_apply_action", revision: 8 },
+        ],
+      },
+    },
+    terminal_task: {
+      phase: "DONE",
+      outcome: { status: "completed" },
+    },
+    task_data: structuredClone(journey.task_data),
+  };
+  const observedFactsText = encode(observedFacts);
+  const observedFactsSha256 = sha256(observedFactsText);
+  const ledgerId = ledgerIdentity(attemptLedgerPath);
+
+  const validationReport = {
+    schema_version: 1,
+    report_type: "dev-flow-codex-validation",
+    source_commit: sourceCommit,
+    source_dirty: false,
+    attempt_ledger_id: ledgerId,
+    codex_revalidation: {
+      package: "@openai/codex",
+      dist_tag: "latest",
+      resolved_version: "0.147.0",
+      compatible_range: ">=0.147.0 <0.148.0",
+      queried_at: "2026-08-16T01:00:00.000Z",
+    },
+    completed_at: "2026-08-16T01:20:00.000Z",
+    targeted_checks: expectedTargetedCommands.map((command, index) => ({
+      command,
+      result: "pass",
+      source_commit: sourceCommit,
+      completed_at: `2026-08-16T01:0${index === 0 ? 5 : 9}:00.000Z`,
+    })),
+    root_validation: {
+      command: "pnpm run validate",
+      result: "pass",
+      source_commit: sourceCommit,
+      completed_at: "2026-08-16T01:15:00.000Z",
+    },
+  };
+  const validationReportText = encode(validationReport);
+
+  const artifactReport = {
+    schema_version: 1,
+    report_type: "dev-flow-codex-final-artifact",
+    artifact_path: artifactPath,
+    artifact_sha256: artifactSha256,
+    package_version: rootVersion,
+    core_version: rootVersion,
+    codex_compatibility: ">=0.147.0 <0.148.0",
+    source_commit: sourceCommit,
+    source_dirty: false,
+    final_artifact: true,
+    platform: "darwin-arm64",
+    package_allowlist_verified: true,
+    runtime_executable_verified: true,
+    built_at: "2026-08-16T01:25:00.000Z",
+  };
+  const artifactReportText = encode(artifactReport);
+  const validationReportSha256 = sha256(validationReportText);
+  const artifactReportSha256 = sha256(artifactReportText);
+  const chainId = chainIdentity({
+    source_commit: sourceCommit,
+    validation_report_sha256: validationReportSha256,
+    artifact_report_sha256: artifactReportSha256,
+    artifact_sha256: artifactSha256,
+  });
+
+  const attemptLedger = {
+    schema_version: 1,
+    ledger_id: ledgerId,
+    attempts: [
+      {
+        attempt_number: 1,
+        chain_id: chainId,
+        source_commit: sourceCommit,
+        validation_report_sha256: validationReportSha256,
+        artifact_report_sha256: artifactReportSha256,
+        artifact_sha256: artifactSha256,
+        reserved_at: "2026-08-16T01:30:00.000Z",
+        completed_at: "2026-08-16T02:00:00.000Z",
+        status: "pass",
+        observed_facts_sha256: observedFactsSha256,
+      },
+    ],
+  };
+  const attemptLedgerText = encode(attemptLedger);
+
+  const evidence = {
+    schema_version: 3,
     status: "pass",
-    recorded_at: "2026-08-15T12:30:00.000Z",
+    recorded_at: "2026-08-16T02:05:00.000Z",
     classification: {
       evidence_type: "native-host",
       host_surface: "codex-cli",
@@ -126,98 +685,389 @@ function passingEvidence() {
       final_artifact: true,
     },
     versions: {
-      codex: "0.147.5",
+      codex: "0.147.0",
       codex_compatibility: ">=0.147.0 <0.148.0",
-      package: "0.1.0",
-      core: "0.1.0",
+      package: rootVersion,
+      core: rootVersion,
       core_contract: "0.1",
     },
     identity: {
       source_commit: sourceCommit,
-      artifact_sha256: "a".repeat(64),
+      artifact_sha256: artifactSha256,
+      artifact_report_sha256: artifactReportSha256,
+      artifact_built_at: artifactReport.built_at,
       shared_fixtures_sha256: "b".repeat(64),
     },
     validation: {
-      targeted_checks: {
-        command: "node --test targeted",
-        result: "pass",
-        source_commit: sourceCommit,
-        completed_at: "2026-08-15T10:00:00.000Z",
-      },
-      root_validation: {
-        command: "pnpm run validate",
-        result: "pass",
-        source_commit: sourceCommit,
-        completed_at: "2026-08-15T10:15:00.000Z",
-      },
+      report_sha256: validationReportSha256,
+      completed_at: validationReport.completed_at,
+      targeted_checks: structuredClone(validationReport.targeted_checks),
+      root_validation: structuredClone(validationReport.root_validation),
     },
-    journey: {
-      task_lineage: {
-        task_id_before_restart: "task-1",
-        task_id_after_restart: "task-1",
-        revisions: [1, 4, 8],
-        committed_actions: [
-          {
-            action_id: "action-1",
-            revision: 4,
-            arguments_sha256: "1".repeat(64),
-            result_sha256: "2".repeat(64),
-          },
-          {
-            action_id: "action-2",
-            revision: 8,
-            arguments_sha256: "3".repeat(64),
-            result_sha256: "4".repeat(64),
-          },
-        ],
-        terminal_outcome: "DONE",
-      },
-      invocation: {
-        explicit_selector: "$dev-flow",
-        core_call_count: 10,
-        scenario_call_budget: 10,
-        implicit_invocation_core_calls: 0,
-        read_before_retry_observations: 1,
-      },
-      lifecycle: {
-        setup_readback_passed: true,
-        restart_resume_passed: true,
-        remove_readback_passed: true,
-        task_data_retained: true,
-        task_reopened_after_removal: true,
-        compatible_reinstall_passed: true,
-      },
-      repository: {
-        target_path: "/tmp/dev-flow journey/repository",
-        digest_before: "5".repeat(64),
-        digest_after_completion: "6".repeat(64),
-        digest_after_removal: "6".repeat(64),
-        intended_changed_paths: ["README.md"],
-        unexpected_changed_paths: [],
-      },
-      task_data: {
-        manifest_before_removal_sha256: "7".repeat(64),
-        manifest_after_removal_sha256: "7".repeat(64),
-        files_before_removal: ["dev-flow.db"],
-        files_after_removal: ["dev-flow.db"],
-      },
+    native_attempt: {
+      chain_id: chainId,
+      ledger_id: ledgerId,
+      attempt_number: 1,
+      total_attempts: 1,
+      ledger_sha256: sha256(attemptLedgerText),
+      commit_protocol: "evidence-create-before-ledger-finalize-v1",
+      observed_facts_sha256: observedFactsSha256,
     },
+    journey,
     failures: [],
+    skips: [],
+  };
+
+  return {
+    documents: {
+      "validation-report": validationReport,
+      "artifact-report": artifactReport,
+      "native-attempt-ledger": attemptLedger,
+      "journey-evidence": evidence,
+      "observed-facts": observedFacts,
+    },
+    validationReportText,
+    artifactReportText,
+    attemptLedgerText,
+    evidenceText: encode(evidence),
+    observedFactsText,
+    artifactSha256,
+    artifactPath,
+    attemptLedgerPath,
+    evidencePath: canonicalEvidencePath,
+  };
+}
+
+function failedCandidate() {
+  const candidate = passingCandidate();
+  const evidence = candidate.documents["journey-evidence"];
+  const ledger = candidate.documents["native-attempt-ledger"];
+  evidence.status = "failed";
+  evidence.failures = [observation("journey", "host failed", "Codex exited 1")];
+  evidence.native_attempt.commit_protocol = "external-failure-record-v1";
+  ledger.attempts[0].status = "failed";
+  candidate.attemptLedgerText = encode(ledger);
+  evidence.native_attempt.ledger_sha256 = sha256(candidate.attemptLedgerText);
+  candidate.evidenceText = encode(evidence);
+  candidate.evidencePath = "/tmp/dev-flow-codex-chain/recovery/failure.json";
+  return candidate;
+}
+
+function refreshRawInputs(candidate) {
+  const validationReport = candidate.documents["validation-report"];
+  const artifactReport = candidate.documents["artifact-report"];
+  const ledger = candidate.documents["native-attempt-ledger"];
+  const evidence = candidate.documents["journey-evidence"];
+
+  candidate.validationReportText = encode(validationReport);
+  candidate.artifactReportText = encode(artifactReport);
+  evidence.validation.report_sha256 = sha256(candidate.validationReportText);
+  evidence.identity.artifact_report_sha256 = sha256(candidate.artifactReportText);
+  if (ledger.attempts[0]) {
+    ledger.attempts[0].validation_report_sha256 = evidence.validation.report_sha256;
+    ledger.attempts[0].artifact_report_sha256 = evidence.identity.artifact_report_sha256;
+  }
+  candidate.attemptLedgerText = encode(ledger);
+  evidence.native_attempt.ledger_sha256 = sha256(candidate.attemptLedgerText);
+  candidate.evidenceText = encode(evidence);
+}
+
+function refreshObservedFacts(candidate) {
+  candidate.observedFactsText = encode(candidate.documents["observed-facts"]);
+  const digest = sha256(candidate.observedFactsText);
+  const evidence = candidate.documents["journey-evidence"];
+  const ledger = candidate.documents["native-attempt-ledger"];
+  evidence.native_attempt.observed_facts_sha256 = digest;
+  const entry = ledger.attempts[evidence.native_attempt.attempt_number - 1];
+  if (entry) entry.observed_facts_sha256 = digest;
+  candidate.attemptLedgerText = encode(ledger);
+  evidence.native_attempt.ledger_sha256 = sha256(candidate.attemptLedgerText);
+  candidate.evidenceText = encode(evidence);
+}
+
+async function writeBoundCandidate(root, {
+  mutate,
+  versionOverride,
+  artifactOverride,
+} = {}) {
+  const candidate = passingCandidate();
+  const artifactPath = join(root, "dev-flow-codex.tgz");
+  const attemptLedgerPath = join(root, "native-attempts.json");
+  const evidencePath = join(root, "evidence.json");
+  const validationReportPath = join(root, "validation-report.json");
+  const artifactReportPath = join(root, "artifact-report.json");
+  const versionPath = join(root, "VERSION");
+  const artifactBytes = Buffer.from("bound final artifact");
+
+  candidate.artifactPath = artifactPath;
+  candidate.attemptLedgerPath = attemptLedgerPath;
+  candidate.evidencePath = evidencePath;
+  candidate.artifactSha256 = sha256(artifactBytes);
+  candidate.documents["artifact-report"].artifact_path = artifactPath;
+  candidate.documents["artifact-report"].artifact_sha256 = candidate.artifactSha256;
+  candidate.documents["journey-evidence"].identity.artifact_sha256 = candidate.artifactSha256;
+
+  const ledgerId = validator.deriveAttemptLedgerId(attemptLedgerPath);
+  candidate.documents["validation-report"].attempt_ledger_id = ledgerId;
+  candidate.documents["native-attempt-ledger"].ledger_id = ledgerId;
+  candidate.documents["journey-evidence"].native_attempt.ledger_id = ledgerId;
+  if (mutate) mutate(candidate);
+  refreshBoundCandidate(candidate);
+
+  const chainId = candidate.documents["journey-evidence"].native_attempt.chain_id;
+  const observedFactsPath = join(`${attemptLedgerPath}.recovery`, chainId, "observed-facts.json");
+  await mkdir(dirname(observedFactsPath), { recursive: true });
+  await Promise.all([
+    writeFile(evidencePath, candidate.evidenceText),
+    writeFile(validationReportPath, candidate.validationReportText),
+    writeFile(artifactReportPath, candidate.artifactReportText),
+    writeFile(attemptLedgerPath, candidate.attemptLedgerText),
+    writeFile(observedFactsPath, candidate.observedFactsText),
+    writeFile(artifactPath, artifactOverride ?? artifactBytes),
+    writeFile(versionPath, versionOverride ?? `${rootVersion}\n`),
+  ]);
+  return {
+    evidencePath,
+    validationReportPath,
+    artifactReportPath,
+    attemptLedgerPath,
+    versionPath,
+  };
+}
+
+function refreshBoundCandidate(candidate) {
+  const evidence = candidate.documents["journey-evidence"];
+  const validationReport = candidate.documents["validation-report"];
+  const artifactReport = candidate.documents["artifact-report"];
+  const ledger = candidate.documents["native-attempt-ledger"];
+  const facts = candidate.documents["observed-facts"];
+
+  candidate.validationReportText = encode(validationReport);
+  candidate.artifactReportText = encode(artifactReport);
+  candidate.observedFactsText = encode(facts);
+  const validationDigest = sha256(candidate.validationReportText);
+  const artifactReportDigest = sha256(candidate.artifactReportText);
+  const observedFactsDigest = sha256(candidate.observedFactsText);
+  evidence.validation.report_sha256 = validationDigest;
+  evidence.identity.artifact_report_sha256 = artifactReportDigest;
+  const chainId = chainIdentity({
+    source_commit: evidence.identity.source_commit,
+    validation_report_sha256: validationDigest,
+    artifact_report_sha256: artifactReportDigest,
+    artifact_sha256: evidence.identity.artifact_sha256,
+  });
+  evidence.native_attempt.chain_id = chainId;
+  evidence.native_attempt.observed_facts_sha256 = observedFactsDigest;
+  const entry = ledger.attempts[evidence.native_attempt.attempt_number - 1];
+  if (entry) {
+    entry.chain_id = chainId;
+    entry.source_commit = evidence.identity.source_commit;
+    entry.validation_report_sha256 = validationDigest;
+    entry.artifact_report_sha256 = artifactReportDigest;
+    entry.artifact_sha256 = evidence.identity.artifact_sha256;
+    entry.observed_facts_sha256 = observedFactsDigest;
+  }
+  candidate.attemptLedgerText = encode(ledger);
+  evidence.native_attempt.total_attempts = ledger.attempts.length;
+  evidence.native_attempt.ledger_sha256 = sha256(candidate.attemptLedgerText);
+  candidate.evidenceText = encode(evidence);
+}
+
+function passingJourney() {
+  return {
+    task_lineage: {
+      thread_ids: ["thread-ordinary", "thread-invalid", "thread-substantive", "thread-resume"],
+      task_id_before_restart: "task-1",
+      task_id_after_restart: "task-1",
+      raw_revisions: [1, 1, 4, 4, 4, 8],
+      revisions: [1, 4, 8],
+      committed_actions: [
+        {
+          action_id: "action-1",
+          revision: 4,
+          arguments_sha256: "1".repeat(64),
+          result_sha256: "2".repeat(64),
+        },
+        {
+          action_id: "action-2",
+          revision: 8,
+          arguments_sha256: "3".repeat(64),
+          result_sha256: "4".repeat(64),
+        },
+      ],
+      terminal_phase: "DONE",
+      terminal_outcome: "DONE",
+    },
+    invocation: {
+      explicit_selector: "$dev-flow",
+      core_call_count: 10,
+      scenario_call_budget: 10,
+      implicit_invocation_core_calls: 0,
+      read_before_retry_observations: 2,
+      restart_recovery_reads: ["dev_flow_get_task", "dev_flow_get_next_action"],
+      verification_budget: {
+        level: "targeted",
+        max_automatic_commands: 2,
+        allow_full_suite: false,
+        allow_manual_handoff: false,
+      },
+      verification_commands: [
+        {
+          item_id: "command-1",
+          command: "node --test native-proof.test.mjs",
+          exit_code: 0,
+          status: "completed",
+          output_sha256: "9".repeat(64),
+          full_suite: false,
+        },
+      ],
+      submitted_automated_command_count: 1,
+      retained_automated_command_count: 1,
+      submitted_full_suite: false,
+      retained_full_suite: false,
+    },
+    lifecycle: {
+      setup_readback_passed: true,
+      setup_registry: registryReadback(),
+      restart_resume_passed: true,
+      remove_readback_passed: true,
+      task_data_retained: true,
+      task_reopened_after_removal: true,
+      compatible_reinstall_passed: true,
+      reinstall_registry: registryReadback(),
+    },
+    repository: {
+      target_path: "/tmp/dev-flow journey/repository",
+      digest_before: "5".repeat(64),
+      digest_after_completion: "6".repeat(64),
+      digest_after_removal: "6".repeat(64),
+      intended_changed_paths: ["README.md"],
+      unexpected_changed_paths: [],
+    },
+    task_data: {
+      manifest_before_removal_sha256: "7".repeat(64),
+      manifest_after_removal_sha256: "7".repeat(64),
+      files_before_removal: ["dev-flow.db"],
+      files_after_removal: ["dev-flow.db"],
+      retained_data_location: {
+        kind: "isolated-explicit-data-directory",
+        workspace_relative_path: "data",
+        canonical_path_sha256: "8".repeat(64),
+      },
+    },
+  };
+}
+
+function verificationFacts(invocation) {
+  return {
+    budget: structuredClone(invocation.verification_budget),
+    command_executions: structuredClone(invocation.verification_commands),
+    submitted_automated_checks: invocation.verification_commands.map((command) => ({
+      name: command.command,
+      command_count: 1,
+      full_suite: command.full_suite,
+    })),
+    retained_automated_checks: invocation.verification_commands.map((command) => ({
+      name: command.command,
+      command_count: 1,
+      full_suite: command.full_suite,
+    })),
+  };
+}
+
+function registryReadback() {
+  return {
+    marketplaces_total: 1,
+    installed_total: 1,
+    available_total: 0,
+    marketplace_name: "dev-flow-local",
+    plugin_id: "dev-flow-codex@dev-flow-local",
+    plugin_version: rootVersion,
+  };
+}
+
+function ledgerAttempt(attemptNumber, status) {
+  const entry = {
+    attempt_number: attemptNumber,
+    chain_id: String(attemptNumber).repeat(64),
+    source_commit: String(attemptNumber).repeat(40),
+    validation_report_sha256: "3".repeat(64),
+    artifact_report_sha256: "4".repeat(64),
+    artifact_sha256: "5".repeat(64),
+    reserved_at: "2026-08-16T01:30:00.000Z",
+    status,
+  };
+  if (status !== "reserved") {
+    entry.completed_at = "2026-08-16T02:00:00.000Z";
+    entry.observed_facts_sha256 = "6".repeat(64);
+  }
+  return entry;
+}
+
+function without(value, field) {
+  const copy = structuredClone(value);
+  delete copy[field];
+  return copy;
+}
+
+function attemptDiagnostic(status) {
+  const candidate = passingCandidate();
+  const evidence = candidate.documents["journey-evidence"];
+  return {
+    schema_version: 1,
+    report_type: "dev-flow-codex-native-attempt-diagnostic",
+    status,
+    recorded_at: evidence.recorded_at,
+    classification: {
+      evidence_type: "native-attempt-diagnostic",
+      host_surface: "codex-cli",
+      os: "darwin",
+      arch: "arm64",
+      final_artifact: true,
+    },
+    versions: structuredClone(evidence.versions),
+    identity: {
+      source_commit: evidence.identity.source_commit,
+      artifact_sha256: evidence.identity.artifact_sha256,
+      artifact_report_sha256: evidence.identity.artifact_report_sha256,
+      artifact_built_at: evidence.identity.artifact_built_at,
+    },
+    validation: structuredClone(evidence.validation),
+    native_attempt: {
+      ...structuredClone(evidence.native_attempt),
+      commit_protocol: "external-failure-record-v1",
+    },
+    failure: observation("native-journey", "native attempt failed", "Codex exited 1"),
     skips: [],
   };
 }
 
-function partialEvidence(status) {
-  const evidence = passingEvidence();
-  evidence.status = status;
-  delete evidence.journey;
-  evidence.validation.targeted_checks.result = status;
-  evidence.validation.root_validation.result = "blocked";
-  evidence.failures = status === "failed" ? [observation("setup", "host failed", "exit 1")] : [];
-  evidence.skips = status === "blocked" ? [observation("setup", "unsupported", "not started")] : [];
-  return evidence;
+function chainIdentity(fields) {
+  const ordered = {
+    artifact_report_sha256: fields.artifact_report_sha256,
+    artifact_sha256: fields.artifact_sha256,
+    source_commit: fields.source_commit,
+    validation_report_sha256: fields.validation_report_sha256,
+  };
+  return sha256(JSON.stringify(ordered));
+}
+
+function ledgerIdentity(path) {
+  return sha256(`dev-flow-codex-native-ledger-v1\n${path}\n`);
+}
+
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function encode(value) {
+  return `${JSON.stringify(value, null, 2)}\n`;
 }
 
 function observation(phase, reason, observed) {
   return { phase, reason, observed };
+}
+
+function allErrors(result) {
+  return [...result.structuralErrors, ...result.semanticErrors].join("\n");
 }

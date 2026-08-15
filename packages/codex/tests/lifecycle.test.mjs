@@ -33,6 +33,7 @@ test("receipt parser enforces the checked-in closed schema", async (t) => {
   const root = await makeRoot(t);
   const schema = JSON.parse(await readFile(receiptSchemaPath, "utf8"));
   assert.equal(schema.additionalProperties, false);
+  assert.equal(schema.properties.schema_version.const, 3);
   for (const field of ["product", "host", "registration", "paths", "resource_digests"]) {
     assert.equal(schema.properties[field].additionalProperties, false, `${field} must remain closed`);
   }
@@ -67,14 +68,21 @@ test("resource digests are lowercase SHA-256 values bound into the receipt", asy
   const resources = {
     pluginManifest: join(root, "plugin.json"),
     skill: join(root, "SKILL.md"),
+    skillMetadata: join(root, "openai.yaml"),
     mcpConfiguration: join(root, ".mcp.json"),
   };
   await writeFile(resources.pluginManifest, "plugin\n");
   await writeFile(resources.skill, "skill\n");
+  await writeFile(resources.skillMetadata, "policy\n");
   await writeFile(resources.mcpConfiguration, "mcp\n");
 
   const digests = await digestResources(resources);
-  assert.deepEqual(Object.keys(digests).sort(), ["mcp_configuration", "plugin_manifest", "skill"]);
+  assert.deepEqual(Object.keys(digests).sort(), [
+    "mcp_configuration",
+    "plugin_manifest",
+    "skill",
+    "skill_metadata",
+  ]);
   for (const digest of Object.values(digests)) assert.match(digest, /^[0-9a-f]{64}$/);
 
   const receipt = validReceipt(root);
@@ -167,7 +175,7 @@ test("Codex JSON invocation is argv-closed, traced, and fails on malformed outpu
       codexExecutable: fakeCodexPath,
       environment,
     }),
-    [],
+    { marketplaces: [] },
   );
   const traces = (await readFile(tracePath, "utf8")).trim().split("\n").map(JSON.parse);
   assert.deepEqual(traces[0].argv, ["plugin", "marketplace", "list", "--json"]);
@@ -192,6 +200,25 @@ test("setup preflights compatibility, resources, runtime, and PATH before regist
   await writeFile(join(missingSkill.paths.pluginRoot, "skills", "dev-flow", "SKILL.md"), "");
   await assert.rejects(setupRegistration(missingSkill.options), /Skill.*non-empty/);
   await assert.rejects(stat(missingSkill.statePath), { code: "ENOENT" });
+
+  const wrongSkillPolicy = await makeSetupFixture(t, "wrong-skill-policy");
+  await writeFile(
+    join(wrongSkillPolicy.paths.pluginRoot, "skills", "dev-flow", "agents", "openai.yaml"),
+    "policy:\n  allow_implicit_invocation: true\n",
+  );
+  await assert.rejects(setupRegistration(wrongSkillPolicy.options), /explicit-only Skill policy/);
+  await assert.rejects(stat(wrongSkillPolicy.statePath), { code: "ENOENT" });
+
+  const wrongMcp = await makeSetupFixture(t, "wrong-mcp-shape");
+  await writeFile(
+    join(wrongMcp.paths.pluginRoot, ".mcp.json"),
+    `${JSON.stringify({ mcpServers: { "dev-flow": { command: "dev-flow-codex", args: ["mcp"] } } })}\n`,
+  );
+  await assert.rejects(
+    setupRegistration(wrongMcp.options),
+    /MCP configuration missing field \$schema/,
+  );
+  await assert.rejects(stat(wrongMcp.statePath), { code: "ENOENT" });
 
   const missingPath = await makeSetupFixture(t, "missing-path");
   missingPath.options.environment = { ...missingPath.environment, PATH: join(missingPath.root, "empty-bin") };
@@ -235,7 +262,10 @@ test("setup registers through exact JSON commands, verifies readback, and writes
   assert.equal(state.marketplaces.length, 1);
   assert.equal(state.plugins.length, 1);
   assert.equal(state.marketplaces[0].root, fixture.paths.marketplaceRoot);
-  assert.equal(state.plugins[0].selector, "dev-flow-codex@dev-flow-local");
+  assert.equal(state.marketplaces[0].marketplaceSource.source, fixture.paths.marketplaceRoot);
+  assert.equal(state.plugins[0].pluginId, "dev-flow-codex@dev-flow-local");
+  assert.equal(state.plugins[0].marketplaceName, "dev-flow-local");
+  assert.equal(state.plugins[0].source.path, fixture.paths.pluginRoot);
 
   const traces = await readTrace(fixture.tracePath);
   assert.deepEqual(
@@ -276,7 +306,7 @@ test("matching repeated setup is a no-op while receipt or readback conflicts fai
   await writeFile(
     orphan.statePath,
     `${JSON.stringify({
-      marketplaces: [{ name: "dev-flow-local", source: "/unexpected", root: "/unexpected" }],
+      marketplaces: [marketplaceStateEntry("dev-flow-local", "/unexpected")],
       plugins: [],
     })}\n`,
   );
@@ -284,7 +314,7 @@ test("matching repeated setup is a no-op while receipt or readback conflicts fai
   assert.equal(
     await readFile(orphan.statePath, "utf8"),
     `${JSON.stringify({
-      marketplaces: [{ name: "dev-flow-local", source: "/unexpected", root: "/unexpected" }],
+      marketplaces: [marketplaceStateEntry("dev-flow-local", "/unexpected")],
       plugins: [],
     })}\n`,
   );
@@ -306,6 +336,49 @@ test("setup rolls back only a marketplace created by the failing attempt", async
   assert.equal(calls.includes("plugin marketplace remove dev-flow-local --json"), true);
 });
 
+test("setup does not roll back a marketplace concurrently added by another owner", async (t) => {
+  const fixture = await makeSetupFixture(t, "concurrent-marketplace-add");
+  const concurrentCodex = join(fixture.root, "concurrent-codex.mjs");
+  await writeFile(concurrentCodex, `#!/usr/bin/env node
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { spawn } from "node:child_process";
+
+const argv = process.argv.slice(2);
+if (argv[0] === "plugin" && argv[1] === "marketplace" && argv[2] === "add") {
+  const root = resolve(argv[3]);
+  const catalog = JSON.parse(await readFile(resolve(root, ".agents/plugins/marketplace.json"), "utf8"));
+  const statePath = process.env.FAKE_CODEX_STATE;
+  await mkdir(dirname(statePath), { recursive: true });
+  await writeFile(statePath, JSON.stringify({
+    marketplaces: [{
+      name: catalog.name,
+      root,
+      marketplaceSource: { sourceType: "local", source: root },
+    }],
+    plugins: [],
+  }));
+}
+const child = spawn(${JSON.stringify(fakeCodexPath)}, argv, { env: process.env, stdio: "inherit" });
+child.once("error", (error) => { throw error; });
+child.once("exit", (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
+`, { mode: 0o700 });
+  await chmod(concurrentCodex, 0o700);
+  fixture.options.codexExecutable = concurrentCodex;
+
+  await assert.rejects(
+    setupRegistration(fixture.options),
+    /alreadyAdded|ownership|requested local marketplace/i,
+  );
+  const state = JSON.parse(await readFile(fixture.statePath, "utf8"));
+  assert.equal(state.marketplaces.length, 1);
+  assert.equal(state.marketplaces[0].root, fixture.paths.marketplaceRoot);
+  assert.deepEqual(state.plugins, []);
+  await assert.rejects(stat(fixture.paths.receiptPath), { code: "ENOENT" });
+  const calls = (await readTrace(fixture.tracePath)).map((entry) => entry.argv.join(" "));
+  assert.equal(calls.includes("plugin marketplace remove dev-flow-local --json"), false);
+});
+
 test("removal deletes only matching registration and the exact receipt", async (t) => {
   const fixture = await makeSetupFixture(t, "remove-matching");
   await setupRegistration(fixture.options);
@@ -322,17 +395,14 @@ test("removal deletes only matching registration and the exact receipt", async (
   await writeFile(adjacentReceiptFile, "preserve adjacent receipt data\n");
 
   const state = JSON.parse(await readFile(fixture.statePath, "utf8"));
-  state.marketplaces.push({ name: "user-marketplace", source: "/user", root: "/user" });
-  state.plugins.push({
+  state.marketplaces.push(marketplaceStateEntry("user-marketplace", "/user"));
+  state.plugins.push(pluginStateEntry({
     name: "user-plugin",
-    marketplace_name: "user-marketplace",
-    selector: "user-plugin@user-marketplace",
-    root: "/user/plugin",
-    source: { source: "local", path: "./plugin" },
+    marketplaceName: "user-marketplace",
+    pluginRoot: "/user/plugin",
+    marketplaceRoot: "/user",
     version: "9.9.9",
-    installed: true,
-    enabled: true,
-  });
+  }));
   await writeFile(fixture.statePath, `${JSON.stringify(state, null, 2)}\n`);
 
   const preservedBefore = await Promise.all([
@@ -357,7 +427,7 @@ test("removal deletes only matching registration and the exact receipt", async (
 
   const after = JSON.parse(await readFile(fixture.statePath, "utf8"));
   assert.deepEqual(after.marketplaces.map((entry) => entry.name), ["user-marketplace"]);
-  assert.deepEqual(after.plugins.map((entry) => entry.selector), ["user-plugin@user-marketplace"]);
+  assert.deepEqual(after.plugins.map((entry) => entry.pluginId), ["user-plugin@user-marketplace"]);
 
   const repeated = await removeRegistration(fixture.options);
   assert.deepEqual(repeated, { status: "already-absent", changed: false });
@@ -375,11 +445,7 @@ test("removal treats complete absence as a no-op and conflicts without a receipt
   const orphan = await makeSetupFixture(t, "remove-orphan");
   await mkdir(dirname(orphan.statePath), { recursive: true });
   const orphanState = {
-    marketplaces: [{
-      name: "dev-flow-local",
-      source: orphan.paths.marketplaceRoot,
-      root: orphan.paths.marketplaceRoot,
-    }],
+    marketplaces: [marketplaceStateEntry("dev-flow-local", orphan.paths.marketplaceRoot)],
     plugins: [],
   };
   await writeFile(orphan.statePath, `${JSON.stringify(orphanState)}\n`);
@@ -420,7 +486,7 @@ test("removal fails closed on receipt identity or marketplace-root conflict", as
   const rootConflict = await makeSetupFixture(t, "remove-root-conflict");
   await setupRegistration(rootConflict.options);
   const state = JSON.parse(await readFile(rootConflict.statePath, "utf8"));
-  state.marketplaces[0].source = join(rootConflict.root, "other-marketplace");
+  state.marketplaces[0].marketplaceSource.source = join(rootConflict.root, "other-marketplace");
   state.marketplaces[0].root = join(rootConflict.root, "other-marketplace");
   await writeFile(rootConflict.statePath, `${JSON.stringify(state, null, 2)}\n`);
   const conflictedBefore = await readFile(rootConflict.statePath, "utf8");
@@ -484,7 +550,7 @@ async function makeSetupFixture(t, name) {
   const tracePath = join(root, "fake", "trace.jsonl");
   await mkdir(join(packageRoot, ".agents", "plugins"), { recursive: true });
   await mkdir(join(pluginRoot, ".codex-plugin"), { recursive: true });
-  await mkdir(join(pluginRoot, "skills", "dev-flow"), { recursive: true });
+  await mkdir(join(pluginRoot, "skills", "dev-flow", "agents"), { recursive: true });
   await mkdir(join(packageRoot, "bin"), { recursive: true });
   await mkdir(dirname(runtimePath), { recursive: true });
   await mkdir(hostBin, { recursive: true });
@@ -514,9 +580,18 @@ async function makeSetupFixture(t, name) {
   );
   await writeFile(
     join(pluginRoot, ".mcp.json"),
-    `${JSON.stringify({ mcpServers: { "dev-flow": { command: "dev-flow-codex", args: ["mcp"] } } })}\n`,
+    `${JSON.stringify({
+      $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+      mcpServers: {
+        "dev-flow": { type: "stdio", command: "dev-flow-codex", args: ["mcp"] },
+      },
+    })}\n`,
   );
   await writeFile(join(pluginRoot, "skills", "dev-flow", "SKILL.md"), "$dev-flow fixture\n");
+  await writeFile(
+    join(pluginRoot, "skills", "dev-flow", "agents", "openai.yaml"),
+    "policy:\n  allow_implicit_invocation: false\n",
+  );
   await writeFile(runtimePath, "#!/bin/sh\nprintf 'dev-flow 0.1.0\\n'\n", { mode: 0o700 });
   const packageLauncher = join(packageRoot, "bin", "dev-flow-codex.mjs");
   await writeFile(packageLauncher, "#!/bin/sh\nexit 0\n", { mode: 0o700 });
@@ -579,7 +654,7 @@ async function directoryFingerprint(root) {
 
 function validReceipt(root, { receiptPath = join(root, "registrations", "codex.json") } = {}) {
   return {
-    schema_version: 2,
+    schema_version: 3,
     product: {
       name: "dev-flow-codex",
       version: "0.1.0",
@@ -603,8 +678,32 @@ function validReceipt(root, { receiptPath = join(root, "registrations", "codex.j
     resource_digests: {
       plugin_manifest: "a".repeat(64),
       skill: "b".repeat(64),
+      skill_metadata: "d".repeat(64),
       mcp_configuration: "c".repeat(64),
     },
     installed_at: "2026-08-15T00:00:00.000Z",
+  };
+}
+
+function marketplaceStateEntry(name, root, source = root) {
+  return {
+    name,
+    root,
+    marketplaceSource: { sourceType: "local", source },
+  };
+}
+
+function pluginStateEntry({ name, marketplaceName, pluginRoot, marketplaceRoot, version }) {
+  return {
+    pluginId: `${name}@${marketplaceName}`,
+    name,
+    marketplaceName,
+    version,
+    installed: true,
+    enabled: true,
+    source: { source: "local", path: pluginRoot },
+    marketplaceSource: { sourceType: "local", source: marketplaceRoot },
+    installPolicy: "AVAILABLE",
+    authPolicy: "ON_INSTALL",
   };
 }

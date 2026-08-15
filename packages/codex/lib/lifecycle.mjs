@@ -25,6 +25,9 @@ export const MARKETPLACE_NAME = "dev-flow-local";
 export const PLUGIN_NAME = "dev-flow-codex";
 export const PLUGIN_SELECTOR = `${PLUGIN_NAME}@${MARKETPLACE_NAME}`;
 
+const MCP_SCHEMA_URI = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json";
+const EXPLICIT_SKILL_POLICY = "policy:\n  allow_implicit_invocation: false";
+
 const semverPattern = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
 const digestPattern = /^[0-9a-f]{64}$/;
 
@@ -135,15 +138,17 @@ export async function setupRegistration({
   assertRegistrationAbsent(initialState, paths);
   let marketplaceCreated = false;
   try {
-    await runCodexJSON(
+    const marketplaceAddResult = await runCodexJSON(
       ["plugin", "marketplace", "add", paths.marketplaceRoot, "--json"],
       commandOptions,
     );
+    assertMarketplaceAddResult(marketplaceAddResult, paths);
     marketplaceCreated = true;
-    await runCodexJSON(
+    const pluginAddResult = await runCodexJSON(
       ["plugin", "add", PLUGIN_SELECTOR, "--json"],
       commandOptions,
     );
+    assertPluginAddResult(pluginAddResult, paths, preflight.packageVersion);
     const finalState = await readRegistrationState(commandOptions);
     assertMatchingRegistrationState(finalState, paths, preflight.packageVersion);
     await writeReceiptAtomic(paths.receiptPath, expectedReceipt, {
@@ -193,19 +198,24 @@ export async function removeRegistration({
   let owned = reconcileRemovalState(state, receipt);
 
   if (owned.plugin) {
-    await runCodexJSON(
+    const pluginRemoveResult = await runCodexJSON(
       ["plugin", "remove", receipt.registration.plugin_selector, "--json"],
       commandOptions,
     );
+    assertPluginRemoveResult(pluginRemoveResult, receipt.registration);
     state = await readRegistrationState(commandOptions);
     owned = reconcileRemovalState(state, receipt);
     if (owned.plugin) throw new Error("Codex plugin remains after removal readback");
   }
 
   if (owned.marketplace) {
-    await runCodexJSON(
+    const marketplaceRemoveResult = await runCodexJSON(
       ["plugin", "marketplace", "remove", receipt.registration.marketplace_name, "--json"],
       commandOptions,
+    );
+    assertMarketplaceRemoveResult(
+      marketplaceRemoveResult,
+      receipt.registration.marketplace_name,
     );
     state = await readRegistrationState(commandOptions);
     owned = reconcileRemovalState(state, receipt);
@@ -331,12 +341,20 @@ async function assertPackageResources(paths, packageVersion) {
     join(paths.pluginRoot, ".mcp.json"),
     "MCP configuration",
   );
+  assertExactKeys(mcpConfiguration, ["$schema", "mcpServers"], "MCP configuration");
+  if (mcpConfiguration.$schema !== MCP_SCHEMA_URI) {
+    throw new Error(`MCP configuration schema must equal ${MCP_SCHEMA_URI}`);
+  }
   assertObject(mcpConfiguration.mcpServers, "MCP servers");
   assertExactKeys(mcpConfiguration.mcpServers, ["dev-flow"], "MCP servers");
   const server = mcpConfiguration.mcpServers["dev-flow"];
   assertObject(server, "Dev Flow MCP server");
-  assertExactKeys(server, ["command", "args"], "Dev Flow MCP server");
-  if (server.command !== "dev-flow-codex" || stableJSON(server.args) !== stableJSON(["mcp"])) {
+  assertExactKeys(server, ["type", "command", "args"], "Dev Flow MCP server");
+  if (
+    server.type !== "stdio" ||
+    server.command !== "dev-flow-codex" ||
+    stableJSON(server.args) !== stableJSON(["mcp"])
+  ) {
     throw new Error("Dev Flow MCP server must invoke exactly dev-flow-codex mcp");
   }
 
@@ -348,22 +366,52 @@ async function assertPackageResources(paths, packageVersion) {
     throw new Error("Dev Flow Skill is unavailable", { cause: error });
   }
   if (skill.trim() === "") throw new Error("Dev Flow Skill must be non-empty");
+  if (/^allow_implicit_invocation\s*:/m.test(skill.match(/^---\n([\s\S]*?)\n---\n/)?.[1] ?? "")) {
+    throw new Error("Dev Flow Skill frontmatter must not carry Codex invocation policy");
+  }
+
+  let skillMetadata;
+  try {
+    skillMetadata = await readFile(
+      join(paths.pluginRoot, "skills", "dev-flow", "agents", "openai.yaml"),
+      "utf8",
+    );
+  } catch (error) {
+    throw new Error("Dev Flow explicit-only Skill policy is unavailable", { cause: error });
+  }
+  if (skillMetadata.trim() !== EXPLICIT_SKILL_POLICY) {
+    throw new Error("Dev Flow explicit-only Skill policy must disable implicit invocation");
+  }
 }
 
 async function readRegistrationState(commandOptions) {
-  const marketplaces = await runCodexJSON(
+  const marketplaceResponse = await runCodexJSON(
     ["plugin", "marketplace", "list", "--json"],
     commandOptions,
   );
-  const plugins = await runCodexJSON(["plugin", "list", "--json"], commandOptions);
-  if (!Array.isArray(marketplaces)) throw new Error("Codex marketplace readback must be an array");
-  if (!Array.isArray(plugins)) throw new Error("Codex plugin readback must be an array");
-  return { marketplaces, plugins };
+  const pluginResponse = await runCodexJSON(["plugin", "list", "--json"], commandOptions);
+  assertObject(marketplaceResponse, "Codex marketplace readback");
+  assertExactKeys(marketplaceResponse, ["marketplaces"], "Codex marketplace readback");
+  if (!Array.isArray(marketplaceResponse.marketplaces)) {
+    throw new Error("Codex marketplace readback marketplaces must be an array");
+  }
+  assertObject(pluginResponse, "Codex plugin readback");
+  assertExactKeys(pluginResponse, ["installed", "available"], "Codex plugin readback");
+  if (!Array.isArray(pluginResponse.installed) || !Array.isArray(pluginResponse.available)) {
+    throw new Error("Codex plugin readback installed and available must be arrays");
+  }
+  if (pluginResponse.available.length !== 0) {
+    throw new Error("Codex plugin readback available must be empty without --available");
+  }
+  return { marketplaces: marketplaceResponse.marketplaces, plugins: pluginResponse.installed };
 }
 
 function assertRegistrationAbsent(state, paths) {
   const marketplaceCollision = state.marketplaces.find(
-    (entry) => entry?.name === MARKETPLACE_NAME || entry?.root === paths.marketplaceRoot,
+    (entry) =>
+      entry?.name === MARKETPLACE_NAME ||
+      entry?.root === paths.marketplaceRoot ||
+      entry?.marketplaceSource?.source === paths.marketplaceRoot,
   );
   if (marketplaceCollision) {
     throw new Error("marketplace ownership conflict without a matching registration receipt");
@@ -371,8 +419,8 @@ function assertRegistrationAbsent(state, paths) {
   const pluginCollision = state.plugins.find(
     (entry) =>
       entry?.name === PLUGIN_NAME ||
-      entry?.selector === PLUGIN_SELECTOR ||
-      entry?.root === paths.pluginRoot,
+      entry?.pluginId === PLUGIN_SELECTOR ||
+      entry?.source?.path === paths.pluginRoot,
   );
   if (pluginCollision) {
     throw new Error("plugin ownership conflict without a matching registration receipt");
@@ -401,56 +449,46 @@ function reconcileRemovalState(state, receipt) {
   const matchingMarketplaces = state.marketplaces.filter(
     (entry) =>
       entry?.name === receipt.registration.marketplace_name ||
-      entry?.root === receipt.registration.marketplace_root,
+      entry?.root === receipt.registration.marketplace_root ||
+      entry?.marketplaceSource?.source === receipt.registration.marketplace_root,
   );
   if (matchingMarketplaces.length > 1) {
     throw new Error("Codex marketplace ownership conflict during removal");
   }
   const marketplace = matchingMarketplaces[0] ?? null;
   if (marketplace) {
-    assertObject(marketplace, "marketplace removal readback");
-    assertExactKeys(marketplace, ["name", "source", "root"], "marketplace removal readback");
-    if (
-      marketplace.name !== receipt.registration.marketplace_name ||
-      marketplace.root !== receipt.registration.marketplace_root ||
-      resolve(marketplace.source) !== receipt.registration.marketplace_root
-    ) {
-      throw new Error("Codex marketplace readback conflicts with the recorded removal root");
-    }
+    assertMarketplaceReadback(
+      marketplace,
+      receipt.registration.marketplace_name,
+      receipt.registration.marketplace_root,
+      "marketplace removal readback",
+    );
   }
 
   const matchingPlugins = state.plugins.filter(
     (entry) =>
       entry?.name === receipt.registration.plugin_name ||
-      entry?.selector === receipt.registration.plugin_selector ||
-      entry?.root === receipt.registration.plugin_root,
+      entry?.pluginId === receipt.registration.plugin_selector ||
+      entry?.source?.path === receipt.registration.plugin_root,
   );
   if (matchingPlugins.length > 1) {
     throw new Error("Codex plugin ownership conflict during removal");
   }
   const plugin = matchingPlugins[0] ?? null;
   if (plugin) {
-    assertObject(plugin, "plugin removal readback");
-    assertExactKeys(
+    assertPluginReadback(
       plugin,
-      ["name", "marketplace_name", "selector", "root", "source", "version", "installed", "enabled"],
+      {
+        pluginId: receipt.registration.plugin_selector,
+        name: receipt.registration.plugin_name,
+        marketplaceName: receipt.registration.marketplace_name,
+        pluginRoot: receipt.registration.plugin_root,
+        marketplaceRoot: receipt.registration.marketplace_root,
+        version: receipt.product.version,
+        requireEnabled: false,
+      },
       "plugin removal readback",
     );
-    assertObject(plugin.source, "plugin removal source");
-    assertExactKeys(plugin.source, ["source", "path"], "plugin removal source");
-    if (
-      plugin.name !== receipt.registration.plugin_name ||
-      plugin.marketplace_name !== receipt.registration.marketplace_name ||
-      plugin.selector !== receipt.registration.plugin_selector ||
-      plugin.root !== receipt.registration.plugin_root ||
-      plugin.version !== receipt.product.version ||
-      plugin.installed !== true ||
-      typeof plugin.enabled !== "boolean" ||
-      plugin.source.source !== "local" ||
-      plugin.source.path !== "./plugin"
-    ) {
-      throw new Error("Codex plugin readback conflicts with the recorded removal identity");
-    }
   }
 
   return { marketplace, plugin };
@@ -458,67 +496,185 @@ function reconcileRemovalState(state, receipt) {
 
 function assertMatchingRegistrationState(state, paths, packageVersion) {
   const matchingMarketplaces = state.marketplaces.filter(
-    (entry) => entry?.name === MARKETPLACE_NAME || entry?.root === paths.marketplaceRoot,
+    (entry) =>
+      entry?.name === MARKETPLACE_NAME ||
+      entry?.root === paths.marketplaceRoot ||
+      entry?.marketplaceSource?.source === paths.marketplaceRoot,
   );
   if (matchingMarketplaces.length !== 1) {
     throw new Error("Codex readback must contain exactly one Dev Flow marketplace identity");
   }
   const marketplace = matchingMarketplaces[0];
-  assertObject(marketplace, "marketplace readback");
-  assertExactKeys(marketplace, ["name", "source", "root"], "marketplace readback");
-  if (marketplace.root !== paths.marketplaceRoot || resolve(marketplace.source) !== paths.marketplaceRoot) {
-    throw new Error("Codex marketplace readback conflicts with the package root");
-  }
+  assertMarketplaceReadback(
+    marketplace,
+    MARKETPLACE_NAME,
+    paths.marketplaceRoot,
+    "marketplace readback",
+  );
 
   const matchingPlugins = state.plugins.filter(
-    (entry) => entry?.name === PLUGIN_NAME || entry?.selector === PLUGIN_SELECTOR || entry?.root === paths.pluginRoot,
+    (entry) =>
+      entry?.name === PLUGIN_NAME ||
+      entry?.pluginId === PLUGIN_SELECTOR ||
+      entry?.source?.path === paths.pluginRoot,
   );
   if (matchingPlugins.length !== 1) {
     throw new Error("Codex readback must contain exactly one Dev Flow plugin identity");
   }
   const plugin = matchingPlugins[0];
-  assertObject(plugin, "plugin readback");
-  assertExactKeys(
+  assertPluginReadback(
     plugin,
-    ["name", "marketplace_name", "selector", "root", "source", "version", "installed", "enabled"],
+    {
+      pluginId: PLUGIN_SELECTOR,
+      name: PLUGIN_NAME,
+      marketplaceName: MARKETPLACE_NAME,
+      pluginRoot: paths.pluginRoot,
+      marketplaceRoot: paths.marketplaceRoot,
+      version: packageVersion,
+      requireEnabled: true,
+    },
     "plugin readback",
   );
-  if (
-    plugin.name !== PLUGIN_NAME ||
-    plugin.marketplace_name !== MARKETPLACE_NAME ||
-    plugin.root !== paths.pluginRoot ||
-    plugin.version !== packageVersion ||
-    plugin.installed !== true ||
-    plugin.enabled !== true ||
-    plugin.source?.source !== "local" ||
-    plugin.source?.path !== "./plugin"
-  ) {
-    throw new Error("Codex plugin readback conflicts with the expected installed plugin");
-  }
 }
 
 async function rollbackCreatedMarketplace(paths, commandOptions) {
   try {
     const state = await readRegistrationState(commandOptions);
-    if (state.plugins.some((entry) => entry?.name === PLUGIN_NAME || entry?.selector === PLUGIN_SELECTOR)) {
+    if (state.plugins.some((entry) => entry?.name === PLUGIN_NAME || entry?.pluginId === PLUGIN_SELECTOR)) {
       return { preserved: true };
     }
     const marketplace = state.marketplaces.find((entry) => entry?.name === MARKETPLACE_NAME);
     if (!marketplace || marketplace.root !== paths.marketplaceRoot) return { preserved: true };
-    await runCodexJSON(
+    assertMarketplaceReadback(marketplace, MARKETPLACE_NAME, paths.marketplaceRoot, "rollback marketplace readback");
+    const removeResult = await runCodexJSON(
       ["plugin", "marketplace", "remove", MARKETPLACE_NAME, "--json"],
       commandOptions,
     );
-    const after = await runCodexJSON(
-      ["plugin", "marketplace", "list", "--json"],
-      commandOptions,
-    );
-    if (!Array.isArray(after) || after.some((entry) => entry?.name === MARKETPLACE_NAME)) {
+    assertMarketplaceRemoveResult(removeResult, MARKETPLACE_NAME);
+    const after = await readRegistrationState(commandOptions);
+    if (after.marketplaces.some((entry) => entry?.name === MARKETPLACE_NAME)) {
       throw new Error("marketplace remains after rollback readback");
     }
     return { removed: true };
   } catch (error) {
     return { error };
+  }
+}
+
+function assertMarketplaceReadback(marketplace, expectedName, expectedRoot, label) {
+  assertObject(marketplace, label);
+  assertExactKeys(marketplace, ["name", "root", "marketplaceSource"], label);
+  assertObject(marketplace.marketplaceSource, `${label} source`);
+  assertExactKeys(marketplace.marketplaceSource, ["sourceType", "source"], `${label} source`);
+  if (
+    marketplace.name !== expectedName ||
+    marketplace.root !== expectedRoot ||
+    marketplace.marketplaceSource.sourceType !== "local" ||
+    marketplace.marketplaceSource.source !== expectedRoot
+  ) {
+    throw new Error(`${label} conflicts with the expected local marketplace identity`);
+  }
+}
+
+function assertPluginReadback(plugin, expected, label) {
+  assertObject(plugin, label);
+  assertExactKeys(
+    plugin,
+    [
+      "pluginId",
+      "name",
+      "marketplaceName",
+      "version",
+      "installed",
+      "enabled",
+      "source",
+      "marketplaceSource",
+      "installPolicy",
+      "authPolicy",
+    ],
+    label,
+  );
+  assertObject(plugin.source, `${label} plugin source`);
+  assertExactKeys(plugin.source, ["source", "path"], `${label} plugin source`);
+  assertObject(plugin.marketplaceSource, `${label} marketplace source`);
+  assertExactKeys(
+    plugin.marketplaceSource,
+    ["sourceType", "source"],
+    `${label} marketplace source`,
+  );
+  if (
+    plugin.pluginId !== expected.pluginId ||
+    plugin.name !== expected.name ||
+    plugin.marketplaceName !== expected.marketplaceName ||
+    plugin.version !== expected.version ||
+    plugin.installed !== true ||
+    typeof plugin.enabled !== "boolean" ||
+    (expected.requireEnabled && plugin.enabled !== true) ||
+    plugin.source.source !== "local" ||
+    plugin.source.path !== expected.pluginRoot ||
+    plugin.marketplaceSource.sourceType !== "local" ||
+    plugin.marketplaceSource.source !== expected.marketplaceRoot ||
+    plugin.installPolicy !== "AVAILABLE" ||
+    plugin.authPolicy !== "ON_INSTALL"
+  ) {
+    throw new Error(`${label} conflicts with the expected installed plugin identity`);
+  }
+}
+
+function assertMarketplaceAddResult(result, paths) {
+  assertObject(result, "marketplace add result");
+  assertExactKeys(result, ["marketplaceName", "installedRoot", "alreadyAdded"], "marketplace add result");
+  if (
+    result.marketplaceName !== MARKETPLACE_NAME ||
+    result.installedRoot !== paths.marketplaceRoot ||
+    typeof result.alreadyAdded !== "boolean"
+  ) {
+    throw new Error("marketplace add result conflicts with the requested local marketplace");
+  }
+  if (result.alreadyAdded) {
+    throw new Error(
+      "marketplace add reported alreadyAdded after absent readback; concurrent marketplace ownership is not rollback-owned",
+    );
+  }
+}
+
+function assertPluginAddResult(result, paths, packageVersion) {
+  assertObject(result, "plugin add result");
+  assertExactKeys(
+    result,
+    ["pluginId", "name", "marketplaceName", "version", "installedPath", "authPolicy"],
+    "plugin add result",
+  );
+  assertCanonicalAbsolutePath(result.installedPath, "plugin add result installedPath");
+  if (
+    result.pluginId !== PLUGIN_SELECTOR ||
+    result.name !== PLUGIN_NAME ||
+    result.marketplaceName !== MARKETPLACE_NAME ||
+    result.version !== packageVersion ||
+    result.authPolicy !== "ON_INSTALL" ||
+    result.installedPath === paths.pluginRoot
+  ) {
+    throw new Error("plugin add result conflicts with the requested plugin identity");
+  }
+}
+
+function assertPluginRemoveResult(result, registration) {
+  assertObject(result, "plugin remove result");
+  assertExactKeys(result, ["pluginId", "name", "marketplaceName"], "plugin remove result");
+  if (
+    result.pluginId !== registration.plugin_selector ||
+    result.name !== registration.plugin_name ||
+    result.marketplaceName !== registration.marketplace_name
+  ) {
+    throw new Error("plugin remove result conflicts with the recorded plugin identity");
+  }
+}
+
+function assertMarketplaceRemoveResult(result, marketplaceName) {
+  assertObject(result, "marketplace remove result");
+  assertExactKeys(result, ["marketplaceName", "installedRoot"], "marketplace remove result");
+  if (result.marketplaceName !== marketplaceName || result.installedRoot !== null) {
+    throw new Error("marketplace remove result conflicts with the recorded local marketplace");
   }
 }
 
@@ -531,7 +687,7 @@ function createReceipt({
   installedAt,
 }) {
   return validateReceipt({
-    schema_version: 2,
+    schema_version: 3,
     product: {
       name: PLUGIN_NAME,
       version: packageVersion,
@@ -566,6 +722,7 @@ function resourcePaths(paths) {
   return {
     pluginManifest: join(paths.pluginRoot, ".codex-plugin", "plugin.json"),
     skill: join(paths.pluginRoot, "skills", "dev-flow", "SKILL.md"),
+    skillMetadata: join(paths.pluginRoot, "skills", "dev-flow", "agents", "openai.yaml"),
     mcpConfiguration: join(paths.pluginRoot, ".mcp.json"),
   };
 }
@@ -628,7 +785,7 @@ export function validateReceipt(receipt, { compatibilityRange = CODEX_COMPATIBIL
     ["schema_version", "product", "host", "registration", "paths", "resource_digests", "installed_at"],
     "registration receipt",
   );
-  if (receipt.schema_version !== 2) throw new Error("registration receipt schema_version must equal 2");
+  if (receipt.schema_version !== 3) throw new Error("registration receipt schema_version must equal 3");
 
   assertObject(receipt.product, "product");
   assertExactKeys(receipt.product, ["name", "version", "core_version", "codex_compatibility"], "product");
@@ -672,10 +829,10 @@ export function validateReceipt(receipt, { compatibilityRange = CODEX_COMPATIBIL
   assertObject(receipt.resource_digests, "resource_digests");
   assertExactKeys(
     receipt.resource_digests,
-    ["plugin_manifest", "skill", "mcp_configuration"],
+    ["plugin_manifest", "skill", "skill_metadata", "mcp_configuration"],
     "resource_digests",
   );
-  for (const field of ["plugin_manifest", "skill", "mcp_configuration"]) {
+  for (const field of ["plugin_manifest", "skill", "skill_metadata", "mcp_configuration"]) {
     if (!digestPattern.test(receipt.resource_digests[field])) {
       throw new Error(`resource_digests.${field} must be a lowercase SHA-256 digest`);
     }
@@ -751,10 +908,11 @@ export async function writeReceiptAtomic(receiptPath, receipt, { ownedRoot, comp
   }
 }
 
-export async function digestResources({ pluginManifest, skill, mcpConfiguration }) {
+export async function digestResources({ pluginManifest, skill, skillMetadata, mcpConfiguration }) {
   const entries = {
     plugin_manifest: pluginManifest,
     skill,
+    skill_metadata: skillMetadata,
     mcp_configuration: mcpConfiguration,
   };
   const result = {};

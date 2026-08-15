@@ -14,13 +14,16 @@ packages/codex/
 ├── plugin/.codex-plugin/plugin.json
 ├── plugin/.mcp.json
 ├── plugin/skills/dev-flow/SKILL.md
+├── plugin/skills/dev-flow/agents/openai.yaml
 └── runtime/darwin-arm64/dev-flow       # temporary build staging only
 ```
 
-The planning compatibility baseline is Codex CLI `>=0.147.0 <0.148.0`. The exact latest stable
-compatible build and every plugin, Skill, MCP, marketplace, setup/readback, and removal command are
-revalidated immediately before final validation. The final evidence records the selected range and
-exact tested build; the planning baseline is not a permanent compatibility promise.
+The implementation-time compatibility review selected Codex CLI `>=0.147.0 <0.148.0` and exact
+latest stable `0.147.0` for the unique passing native journey. Immediately before the final
+deterministic/frozen chain, T055 must requery the official `@openai/codex` `latest` npm dist-tag and
+record the exact UTC query time in the closed validation report. The final evidence records the
+tested version and range; they remain bounded implementation evidence rather than an indefinite
+compatibility promise.
 
 Development requires Node.js `>=24`, pnpm `>=11 <12`, and the repository-pinned Go toolchain. The
 package has no production npm dependency and no install, publication, download, or release hook.
@@ -54,9 +57,11 @@ codex plugin list --json
 
 Setup supports only macOS arm64 in this feature. It verifies the installed Codex version against
 the selected bounded range, the package/plugin/Core version identity, the package-local executable,
-the one Skill and MCP resource, and `dev-flow-codex` discovery on `PATH` before its first registry
-write. It registers `dev-flow-local` and `dev-flow-codex@dev-flow-local` through Codex JSON commands,
-requires exact readback, and only then writes the ownership receipt at
+the one Skill, its explicit-only `agents/openai.yaml` policy, the typed MCP resource, and
+`dev-flow-codex` discovery on `PATH` before its first registry write. It registers
+`dev-flow-local` and `dev-flow-codex@dev-flow-local` through Codex JSON commands, validates the
+official camelCase mutation results, and requires exact `{marketplaces: [...]}` plus
+`{installed: [...], available: [...]}` readback before writing the ownership receipt at
 `~/Library/Application Support/dev-flow/registrations/codex.json`. Matching repeated setup is a
 no-op; malformed, incomplete, or conflicting state fails closed. Restart or open a fresh Codex
 session after setup so the host refreshes plugin, Skill, and MCP discovery.
@@ -68,9 +73,10 @@ the installed package; it never falls back to a Core binary in the current repos
 
 ## Explicit invocation boundary
 
-The only workflow selector is a standalone `$dev-flow` in the current user turn. An ordinary prompt
-does not activate Dev Flow. `$dev-flow` with no substantive requirement, a conversational request,
-a non-Git directory, or work spanning more than one repository stops before any Dev Flow tool call.
+The official Skill metadata sets `policy.allow_implicit_invocation: false`, and the only workflow
+selector is a standalone `$dev-flow` in the current user turn. An ordinary prompt does not activate
+Dev Flow. `$dev-flow` with no substantive requirement, a conversational request, a non-Git
+directory, or work spanning more than one repository stops before any Dev Flow tool call.
 For an admitted request, the Skill resolves one canonical current worktree and calls
 `dev_flow_server_info({})` first; an incomplete or incompatible six-tool catalog stops the request.
 
@@ -125,10 +131,10 @@ Setup, version reporting, and removal are package/user-state operations and beha
 any working directory. They do not add configuration, databases, instructions, or generated files
 to the target repository and never mutate Git.
 
-The `>=0.147.0 <0.148.0` line is the implementation planning range, not an indefinite promise. The
-latest official stable Codex CLI and the exact plugin, Skill, MCP, marketplace, and JSON readback
-contracts are revalidated together immediately before final validation. If that review selects a
-different bounded range, every compatibility-bearing contract, test, and guide is updated before a
+The `>=0.147.0 <0.148.0` line and exact `0.147.0` host were selected on 2026-08-15, not promised
+indefinitely. The selected MCP file uses Agent Plugins v1 `$schema`, camelCase `mcpServers`, and one
+`type: stdio` entry, a shape accepted by both 0.147 plugin parsers. A future changed official
+contract requires every compatibility-bearing contract, test, and guide to be updated before a
 final artifact is built.
 
 User-story checkpoints are deterministic only. Run targeted checks such as:
@@ -148,11 +154,38 @@ The fake-host journey is the only checkpoint command before final validation:
 ./scripts/run-codex-real-journey.sh --fake-host --through remove
 ```
 
-Those runs must not start Codex or write native evidence. Feature 003 permits exactly one real Codex
-CLI journey, on macOS arm64, after compatibility revalidation, all targeted checks, root validation,
-a read-only audit, source freeze, and creation of one final artifact. A source change invalidates
-that artifact. Public npm publication, GitHub releases, tags, Windows/Linux claims, IDE support, and
-additional Codex surfaces remain out of scope.
+Those runs must not start Codex or write native evidence. After compatibility revalidation, all
+targeted checks, root validation, a read-only audit, source freeze, and one final artifact/report,
+only T058 may start Codex. Each immutable source/validation/artifact chain may launch once; failed,
+blocked, or interrupted attempts remain counted and require a source fix plus a wholly new T055–T057
+chain. Exactly one passing attempt supports the macOS arm64 Codex CLI claim, and its publication
+immediately prohibits any later host launch. Public npm publication, GitHub releases, tags,
+Windows/Linux claims, IDE support, and additional Codex surfaces remain out of scope.
+
+Before the first T055 chain, initialize one durable ledger outside the repository and keep that exact
+path and generated ledger ID for every failed, recovery, or replacement chain. The writer refuses to
+replace it with empty history. The native runner accepts only the closed T055 validation report,
+closed T057 artifact report, absolute exact Codex executable, and that same external attempt ledger:
+
+```bash
+./scripts/run-codex-real-journey.sh \
+  --validation-report "$CODEX_VALIDATION_REPORT" \
+  --artifact-report "$CODEX_ARTIFACT_REPORT" \
+  --codex-executable "$CODEX_EXECUTABLE" \
+  --attempt-ledger "$CODEX_ATTEMPT_LEDGER"
+```
+
+It permanently reserves the chain before spawn. After host success it fsyncs durable observed facts
+and exact final evidence/ledger candidates, performs complete structural and semantic validation of
+those exact candidates plus unchanged reports/artifact/ledger, publishes only a passing native
+evidence candidate create-no-replace, then atomically finalizes the ledger from the precomputed
+bytes. The canonical repository evidence path is pass-only; failed/blocked diagnostics stay under
+the external recovery directory. Valid passing evidence is an immediate no-host admission lock even
+if a crash left the ledger reserved. That recovery may only validate the published evidence and
+idempotently install the exact candidate ledger; a pre-evidence crash cannot be promoted to pass or
+relaunch the consumed chain. Post-publication validation only rechecks byte/identity integrity and
+never repairs evidence; failure there is terminal blocked recovery, not authority for another host
+launch.
 
 The setup checkpoint builds and installs a temporary non-final artifact into isolated paths, puts
 the test-only Codex double first on `PATH`, performs supported JSON registration/readback, compares

@@ -6,9 +6,11 @@ repository_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 output_directory=""
 final_artifact=false
 expected_source_commit=""
+report_path=""
+codex_compatibility='>=0.147.0 <0.148.0'
 
 usage() {
-  printf '%s\n' 'usage: build-codex-local.sh --output ABSOLUTE_DIRECTORY [--final --source-commit GIT_SHA]' >&2
+  printf '%s\n' 'usage: build-codex-local.sh --output ABSOLUTE_DIRECTORY [--final --source-commit GIT_SHA --report ABSOLUTE_FILE]' >&2
 }
 
 fail() {
@@ -32,6 +34,11 @@ while [ "$#" -gt 0 ]; do
       expected_source_commit=$2
       shift 2
       ;;
+    --report)
+      [ "$#" -ge 2 ] || { usage; exit 2; }
+      report_path=$2
+      shift 2
+      ;;
     *)
       usage
       exit 2
@@ -46,6 +53,24 @@ case "$output_directory" in
 esac
 [ -d "$output_directory" ] || fail "output directory must already exist"
 output_directory=$(CDPATH= cd -- "$output_directory" && pwd)
+
+if [ "$final_artifact" = true ]; then
+  [ -n "$expected_source_commit" ] || fail "final artifact requires --source-commit"
+  [ -n "$report_path" ] || fail "final artifact requires --report"
+  case "$report_path" in
+    /*) ;;
+    *) fail "artifact report path must be absolute" ;;
+  esac
+  report_directory=$(dirname -- "$report_path")
+  [ -d "$report_directory" ] || fail "artifact report parent directory must already exist"
+  report_directory=$(CDPATH= cd -- "$report_directory" && pwd)
+  report_path="$report_directory/$(basename -- "$report_path")"
+  if [ -e "$report_path" ] || [ -L "$report_path" ]; then
+    fail "artifact report already exists"
+  fi
+elif [ -n "$report_path" ]; then
+  fail "--report is valid only with --final"
+fi
 
 existing_artifact=""
 for candidate in "$output_directory"/*.tgz; do
@@ -68,7 +93,6 @@ if [ -n "$(git -C "$repository_root" status --porcelain)" ]; then
 fi
 if [ "$final_artifact" = true ]; then
   [ "$source_dirty" = false ] || fail "final artifact requires a clean frozen source tree"
-  [ -n "$expected_source_commit" ] || fail "final artifact requires --source-commit"
   [ "$expected_source_commit" = "$source_commit" ] || fail "requested source commit does not equal HEAD"
 elif [ -n "$expected_source_commit" ]; then
   fail "--source-commit is valid only with --final"
@@ -77,17 +101,21 @@ fi
 version=$(sed -n '1p' "$repository_root/VERSION")
 [ -n "$version" ] || fail "repository VERSION is empty"
 
-node - "$repository_root" "$version" <<'NODE'
+node - "$repository_root" "$version" "$codex_compatibility" <<'NODE'
 const fs = require("node:fs");
 const path = require("node:path");
-const [root, version] = process.argv.slice(2);
+const [root, version, codexCompatibility] = process.argv.slice(2);
 const packageManifest = JSON.parse(fs.readFileSync(path.join(root, "packages/codex/package.json"), "utf8"));
 const pluginManifest = JSON.parse(fs.readFileSync(path.join(root, "packages/codex/plugin/.codex-plugin/plugin.json"), "utf8"));
+const lifecycleSource = fs.readFileSync(path.join(root, "packages/codex/lib/lifecycle.mjs"), "utf8");
 if (packageManifest.name !== "dev-flow-codex" || packageManifest.private !== true) {
   throw new Error("Codex package identity must be private dev-flow-codex");
 }
 if (packageManifest.version !== version || pluginManifest.version !== version) {
   throw new Error("repository, package, and plugin versions must match");
+}
+if (!lifecycleSource.includes(`CODEX_COMPATIBILITY_RANGE = "${codexCompatibility}"`)) {
+  throw new Error("Codex compatibility metadata does not match the selected range");
 }
 NODE
 
@@ -104,7 +132,8 @@ lib/lifecycle.mjs
 lib/paths.mjs
 plugin/.codex-plugin/plugin.json
 plugin/.mcp.json
-plugin/skills/dev-flow/SKILL.md'
+plugin/skills/dev-flow/SKILL.md
+plugin/skills/dev-flow/agents/openai.yaml'
 
 printf '%s\n' "$production_files" | while IFS= read -r relative_path; do
   [ -n "$relative_path" ] || continue
@@ -156,6 +185,7 @@ const expected = [
   "plugin/.codex-plugin/plugin.json",
   "plugin/.mcp.json",
   "plugin/skills/dev-flow/SKILL.md",
+  "plugin/skills/dev-flow/agents/openai.yaml",
   "runtime/darwin-arm64/dev-flow",
 ].sort();
 if (report.name !== "dev-flow-codex" || JSON.stringify(actual) !== JSON.stringify(expected)) {
@@ -193,8 +223,13 @@ PACKAGE_VERSION=$version \
 SOURCE_COMMIT=$source_commit \
 SOURCE_DIRTY=$source_dirty \
 FINAL_ARTIFACT=$final_artifact \
+CODEX_COMPATIBILITY=$codex_compatibility \
+REPORT_PATH=$report_path \
 node <<'NODE'
-process.stdout.write(`${JSON.stringify({
+const fs = require("node:fs");
+const path = require("node:path");
+
+const baseReport = {
   artifact_path: process.env.ARTIFACT_PATH,
   artifact_sha256: process.env.ARTIFACT_SHA256,
   package_version: process.env.PACKAGE_VERSION,
@@ -203,5 +238,63 @@ process.stdout.write(`${JSON.stringify({
   source_dirty: process.env.SOURCE_DIRTY === "true",
   final_artifact: process.env.FINAL_ARTIFACT === "true",
   platform: "darwin-arm64",
-})}\n`);
+};
+
+if (!baseReport.final_artifact) {
+  process.stdout.write(`${JSON.stringify(baseReport)}\n`);
+  process.exit(0);
+}
+
+const report = {
+  schema_version: 1,
+  report_type: "dev-flow-codex-final-artifact",
+  artifact_path: baseReport.artifact_path,
+  artifact_sha256: baseReport.artifact_sha256,
+  package_version: baseReport.package_version,
+  core_version: baseReport.core_version,
+  codex_compatibility: process.env.CODEX_COMPATIBILITY,
+  source_commit: baseReport.source_commit,
+  source_dirty: baseReport.source_dirty,
+  final_artifact: true,
+  platform: baseReport.platform,
+  package_allowlist_verified: true,
+  runtime_executable_verified: true,
+  built_at: new Date().toISOString(),
+};
+const bytes = `${JSON.stringify(report)}\n`;
+const reportPath = process.env.REPORT_PATH;
+const directory = path.dirname(reportPath);
+const temporaryPath = path.join(
+  directory,
+  `.${path.basename(reportPath)}.tmp-${process.pid}-${Date.now()}`,
+);
+let temporaryCreated = false;
+try {
+  const descriptor = fs.openSync(temporaryPath, "wx", 0o600);
+  temporaryCreated = true;
+  try {
+    fs.writeFileSync(descriptor, bytes, "utf8");
+    fs.fsyncSync(descriptor);
+  } finally {
+    fs.closeSync(descriptor);
+  }
+  fs.linkSync(temporaryPath, reportPath);
+  fs.unlinkSync(temporaryPath);
+  temporaryCreated = false;
+  const directoryDescriptor = fs.openSync(directory, "r");
+  try {
+    fs.fsyncSync(directoryDescriptor);
+  } finally {
+    fs.closeSync(directoryDescriptor);
+  }
+} catch (error) {
+  if (temporaryCreated) {
+    try { fs.unlinkSync(temporaryPath); } catch {}
+  }
+  if (error?.code === "EEXIST") {
+    throw new Error("artifact report already exists");
+  }
+  throw error;
+}
+process.stdout.write(bytes);
 NODE

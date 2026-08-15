@@ -90,7 +90,13 @@ the repository is unchanged.
 
 - Codex was restarted before the plugin/Skill registry refreshed.
 - The package is installed but its platform runtime is missing or not executable.
+- The final runner receives a missing, non-final, digest-mismatched, or wrong-source artifact before
+  any Codex process starts.
 - The MCP server writes an unexpected line to stdout before protocol initialization.
+- Direct Core reopen emits a non-JSON line, an unknown response ID, a duplicate response, or
+  unbounded stdout/stderr instead of the exact bounded JSON-RPC exchange.
+- Two setup processes race and one observes an already-added marketplace that it does not own.
+- A copied, malformed, live-owner, or dead-owner attempt-ledger lock is encountered after a crash.
 - Another host owns the repository claim.
 - Several Codex sessions or task records exist, but only one active Dev Flow task may match the repository.
 - The current working directory is a subdirectory of the worktree.
@@ -114,7 +120,8 @@ the repository is unchanged.
 - exact six-tool contract;
 - task create/resume/apply/read-after-write loop;
 - one fake-runtime contract test;
-- one real Codex restart/resume journey on the declared platform.
+- one passing real Codex restart/resume journey on the declared platform, with failed native
+  attempts tracked separately and never promoted into support evidence.
 
 ### Out of Scope
 
@@ -148,8 +155,9 @@ the repository is unchanged.
   another lifecycle hook to modify Codex configuration, a repository, or task data.
 - **FR-004**: Codex registration MUST require one explicit setup/import action initiated by the
   user through the currently supported Codex plugin mechanism.
-- **FR-005**: Setup MUST verify product version, runtime executability, Skill presence, MCP
-  configuration, and read-back of the resulting registration before reporting success.
+- **FR-005**: Setup MUST verify product version, runtime executability, Skill presence and
+  explicit-invocation policy, MCP configuration, and read-back of the resulting registration
+  before reporting success.
 - **FR-006**: Setup MUST NOT copy Core source code or task data into the target repository.
 - **FR-007**: Removal MUST be explicit, bounded to recorded product-owned files/registration, and
   preserve task data and repository content.
@@ -182,22 +190,61 @@ the repository is unchanged.
 - **FR-021**: After every successful mutation, the Skill MUST continue from the returned next
   action or perform one fresh read before further work.
 - **FR-022**: After a missing, cancelled, malformed, truncated, or uncertain mutation result, the
-  Skill MUST read task and next-action state before deciding whether retry is safe.
+  Skill MUST read task and next-action state, in that order, before deciding whether another
+  mutation is safe. The native restart boundary MUST prove that the new session performs those two
+  reads before any later `apply_action`.
 - **FR-023**: The Skill MUST submit evidence sources and verification command counts accurately and
-  MUST NOT relabel manual or simulated checks as automated evidence.
+  MUST NOT relabel manual or simulated checks as automated evidence. Native support evidence MUST
+  derive the verification budget and authoritative terminal task phase from complete Core results,
+  record every official completed `command_execution` event as command/exit/status/output-digest
+  facts, and reconcile those facts with the exact automated evidence submitted to and retained by
+  Core. A completed host process or free-form agent statement MUST NOT substitute for Core `DONE`.
 - **FR-024**: The Skill MUST stop when the Core returns `BLOCKED`, `DONE`, or `CANCELLED` and report
   the authoritative unblock condition or outcome.
 
 #### Verification
 
-- **FR-025**: Package contract tests MUST verify manifest/Skill/MCP composition, no hidden install
-  mutation, and no embedded workflow implementation.
+- **FR-025**: Package contract tests MUST verify manifest/Skill/explicit-policy/MCP composition, no
+  hidden install mutation, and no embedded workflow implementation.
 - **FR-026**: A fake Core test MUST prove tool mapping, closed argument forwarding, complete result
   handling, and read-before-retry behavior without claiming real Codex evidence.
-- **FR-027**: One real Codex journey MUST use the final packed artifact, perform a real repository
-  change, restart the host, resume, respect verification budget, and remove the product.
-- **FR-028**: The real journey MUST record exact Codex build/surface, OS/architecture, package
-  digest, Core version, skips, failures, and retained data location.
+- **FR-027**: The one passing real Codex journey MUST use the final packed artifact, perform a real
+  repository change, restart the host, resume, respect verification budget, and remove the product. A
+  checked-in runner for that journey MUST be implemented and contract-tested without starting
+  Codex before source freeze; only T058 may execute its native-host mode. Each frozen-source,
+  validation-report, and final-artifact chain MUST permit at most one native launch. A failed or
+  blocked attempt MUST invalidate that chain's artifact/evidence and MUST NOT be rerun for debugging;
+  another attempt requires a source fix and a wholly new T055–T057 chain. Its four Codex executions
+  MUST have four distinct nonempty thread IDs; raw task observations MUST be monotonic before only
+  adjacent equal revisions are collapsed. Setup and reinstall readback MUST observe exactly one
+  owned marketplace, exactly one installed owned plugin, and zero available entries. Direct Core
+  reopen MUST reject protocol contamination, unknown/duplicate response IDs, and bounded-output
+  violations.
+- **FR-028**: The real journey runner MUST atomically create the single native evidence record from
+  observed host events and lifecycle/data/repository measurements. The record MUST include exact
+  Codex build/surface, OS/architecture, frozen source and package digest, Core version, the closed
+  validation/artifact report digests, artifact build time, actual native-attempt count, skips,
+  failures, and retained data location; it MUST NOT depend on manual JSON creation or repair. Only
+  the unique passing attempt may establish support. A native attempt MUST reserve and permanently
+  consume its chain in the one durable ledger before host spawn. That same ledger path/identity MUST
+  be reused across every attempt and recovery. For a passing attempt, the runner MUST durably prepare the
+  observed facts, exact final evidence bytes, and exact final ledger bytes/digest; atomically publish
+  the evidence with create-no-replace semantics only after the exact candidates pass full structural
+  and semantic validation, then atomically finalize the ledger as `pass`.
+  Valid passing evidence MUST immediately block every host launch even if the ledger is still
+  reserved. Recovery after evidence publication may only validate that evidence and idempotently
+  install the precomputed exact final ledger bytes; recovery before evidence publication MUST NOT
+  relaunch the host or promote the attempt to passing. The canonical repository evidence path MUST
+  contain only the unique passing record. Failed/blocked diagnostics MUST remain in the external
+  recovery directory as independently closed diagnostic records with the ledger as attempt
+  authority and MUST NOT occupy or masquerade as that canonical path. Before admission and again
+  while holding the reservation lock, the runner MUST validate sequential attempt numbers, unique
+  chain/source identities, terminal-field/status consistency, at most one final passing entry, and
+  a single unresolved final reservation. Every ledger replacement MUST re-read and compare the
+  expected bytes while holding a closed owner lock; only a syntactically valid lock whose recorded
+  process is definitely dead may be recovered as stale. Native evidence MUST identify the retained
+  data directory only through a closed non-secret descriptor containing its isolation kind,
+  workspace-relative name, and canonical-path digest; it MUST NOT serialize the absolute data path.
 
 ### Key Entities
 
@@ -217,13 +264,16 @@ the repository is unchanged.
 - **SC-002**: An ordinary request without `$dev-flow` creates zero Dev Flow tasks.
 - **SC-003**: Explicit invocation creates or resumes exactly one Codex-owned task for the current
   repository.
-- **SC-004**: The real journey crosses at least two committed workflow actions, restarts Codex,
+- **SC-004**: The passing real journey crosses at least two committed workflow actions, restarts Codex,
   resumes the same task ID/revision lineage, and reaches `DONE`.
-- **SC-005**: The real journey performs no automatic verification command beyond its task budget.
+- **SC-005**: The passing real journey performs no automatic verification command beyond its task budget.
 - **SC-006**: Codex-specific source contains zero task-state writes and zero transition decisions.
 - **SC-007**: Removal leaves task data present and leaves the test repository fingerprint unchanged
   except for the intentional task implementation.
-- **SC-008**: The package test and real-host report claim only the documented Codex compatibility range and platforms with real evidence; the report records the actual tested version without limiting support to that single patch.
+- **SC-008**: The package test and real-host report claim only the documented Codex compatibility
+  range and platforms with real evidence; the report records the actual tested version and total
+  native-attempt count without limiting support to that single patch or treating failed attempts as
+  support.
 
 ## Assumptions
 

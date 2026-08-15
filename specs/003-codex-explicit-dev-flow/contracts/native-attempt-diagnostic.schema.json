@@ -1,0 +1,235 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-flow.local/contracts/003/native-attempt-diagnostic.schema.json",
+  "title": "Dev Flow Codex Native Attempt Diagnostic",
+  "description": "Closed external failed/blocked attempt record. It is never canonical support evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "report_type",
+    "status",
+    "recorded_at",
+    "classification",
+    "versions",
+    "identity",
+    "validation",
+    "native_attempt",
+    "failure",
+    "skips"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "report_type": {
+      "const": "dev-flow-codex-native-attempt-diagnostic"
+    },
+    "status": {
+      "enum": ["failed", "blocked"]
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_type", "host_surface", "os", "arch", "final_artifact"],
+      "properties": {
+        "evidence_type": {
+          "const": "native-attempt-diagnostic"
+        },
+        "host_surface": {
+          "const": "codex-cli"
+        },
+        "os": {
+          "const": "darwin"
+        },
+        "arch": {
+          "const": "arm64"
+        },
+        "final_artifact": {
+          "const": true
+        }
+      }
+    },
+    "versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["codex", "codex_compatibility", "package", "core", "core_contract"],
+      "properties": {
+        "codex": {
+          "$ref": "#/$defs/semver"
+        },
+        "codex_compatibility": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "package": {
+          "$ref": "#/$defs/semver"
+        },
+        "core": {
+          "$ref": "#/$defs/semver"
+        },
+        "core_contract": {
+          "const": "0.1"
+        }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_commit",
+        "artifact_sha256",
+        "artifact_report_sha256",
+        "artifact_built_at"
+      ],
+      "properties": {
+        "source_commit": {
+          "$ref": "#/$defs/gitCommit"
+        },
+        "artifact_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "artifact_report_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "artifact_built_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["report_sha256", "completed_at", "targeted_checks", "root_validation"],
+      "properties": {
+        "report_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "targeted_checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/commandObservation"
+          }
+        },
+        "root_validation": {
+          "$ref": "#/$defs/commandObservation"
+        }
+      }
+    },
+    "native_attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chain_id",
+        "ledger_id",
+        "attempt_number",
+        "total_attempts",
+        "ledger_sha256",
+        "commit_protocol",
+        "observed_facts_sha256"
+      ],
+      "properties": {
+        "chain_id": {
+          "$ref": "#/$defs/sha256"
+        },
+        "ledger_id": {
+          "$ref": "#/$defs/sha256"
+        },
+        "attempt_number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "total_attempts": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ledger_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "commit_protocol": {
+          "const": "external-failure-record-v1"
+        },
+        "observed_facts_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "failure": {
+      "$ref": "#/$defs/observation"
+    },
+    "skips": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/observation"
+      }
+    }
+  },
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "gitCommit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "commandObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "result", "source_commit", "completed_at"],
+      "properties": {
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "result": {
+          "const": "pass"
+        },
+        "source_commit": {
+          "$ref": "#/$defs/gitCommit"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "details": {
+          "type": "string"
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "reason", "observed"],
+      "properties": {
+        "phase": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observed": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

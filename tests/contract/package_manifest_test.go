@@ -40,6 +40,7 @@ var codexPackageFiles = []string{
 	"plugin/.codex-plugin/plugin.json",
 	"plugin/.mcp.json",
 	"plugin/skills/dev-flow/SKILL.md",
+	"plugin/skills/dev-flow/agents/openai.yaml",
 	"runtime/darwin-arm64/dev-flow",
 }
 
@@ -51,7 +52,7 @@ var codexDevelopmentScripts = map[string]string{
 	"test:journey-harness": "node --test tests/journey-harness.test.mjs",
 	"test:lifecycle":       "node --test tests/lifecycle.test.mjs",
 	"test:package":         "node --test tests/package-contract.test.mjs",
-	"validate:evidence":    "node ../../scripts/validate-codex-journey-evidence.mjs ../../tests/journeys/evidence/codex-macos-arm64.json",
+	"validate:evidence":    "node ../../scripts/validate-codex-journey-evidence.mjs ../../tests/journeys/evidence/codex-macos-arm64.json --validation-report \"$CODEX_VALIDATION_REPORT\" --artifact-report \"$CODEX_ARTIFACT_REPORT\" --attempt-ledger \"$CODEX_ATTEMPT_LEDGER\"",
 }
 
 func TestProjectPackageManifests(t *testing.T) {
@@ -191,6 +192,7 @@ func TestPackageManifestAcceptsBootstrapManifests(t *testing.T) {
 					"plugin/.codex-plugin/plugin.json",
 					"plugin/.mcp.json",
 					"plugin/skills/dev-flow/SKILL.md",
+					"plugin/skills/dev-flow/agents/openai.yaml",
 					"runtime/darwin-arm64/dev-flow"
 				],
 				"scripts": {
@@ -200,7 +202,7 @@ func TestPackageManifestAcceptsBootstrapManifests(t *testing.T) {
 					"test:journey-harness": "node --test tests/journey-harness.test.mjs",
 					"pack:dry": "pnpm pack --dry-run --json",
 					"build:local": "../../scripts/build-codex-local.sh",
-					"validate:evidence": "node ../../scripts/validate-codex-journey-evidence.mjs ../../tests/journeys/evidence/codex-macos-arm64.json",
+					"validate:evidence": "node ../../scripts/validate-codex-journey-evidence.mjs ../../tests/journeys/evidence/codex-macos-arm64.json --validation-report \"$CODEX_VALIDATION_REPORT\" --artifact-report \"$CODEX_ARTIFACT_REPORT\" --attempt-ledger \"$CODEX_ATTEMPT_LEDGER\"",
 					"journey:fake": "../../scripts/run-codex-real-journey.sh --fake-host --through remove"
 				}
 			}`,

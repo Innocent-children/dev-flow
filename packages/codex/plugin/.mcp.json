@@ -1,6 +1,8 @@
 {
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
   "mcpServers": {
     "dev-flow": {
+      "type": "stdio",
       "command": "dev-flow-codex",
       "args": [
         "mcp"

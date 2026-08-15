@@ -5,8 +5,10 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+const repositoryRoot = join(packageRoot, "..", "..");
 const pluginRoot = join(packageRoot, "plugin");
 const skillPath = join(pluginRoot, "skills", "dev-flow", "SKILL.md");
+const skillMetadataPath = join(pluginRoot, "skills", "dev-flow", "agents", "openai.yaml");
 
 const exactTools = [
   "dev_flow_server_info",
@@ -27,7 +29,10 @@ test("plugin exposes exactly one explicitly selected dev-flow Skill", async () =
   assert.match(frontmatter.description, /explicit/i);
   assert.match(frontmatter.description, /\$dev-flow/);
   assert.match(frontmatter.description, /never.*implicit/i);
-  assert.equal(frontmatter.allow_implicit_invocation, "false");
+  assert.equal("allow_implicit_invocation" in frontmatter, false);
+
+  const metadata = await readFile(skillMetadataPath, "utf8");
+  assert.equal(metadata, "policy:\n  allow_implicit_invocation: false\n");
 });
 
 test("Skill admits only an exact current-turn selector with substantive or resume intent", async () => {
@@ -172,11 +177,33 @@ test("Skill and production adapter contain no workflow authority or test fixture
   }
 
   const mcp = JSON.parse(await readFile(join(pluginRoot, ".mcp.json"), "utf8"));
+  assert.equal(mcp.$schema, "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json");
   assert.deepEqual(Object.keys(mcp.mcpServers), ["dev-flow"]);
-  assert.deepEqual(mcp.mcpServers["dev-flow"], { command: "dev-flow-codex", args: ["mcp"] });
+  assert.deepEqual(mcp.mcpServers["dev-flow"], {
+    type: "stdio",
+    command: "dev-flow-codex",
+    args: ["mcp"],
+  });
 
   for (const relativePath of ["bin/dev-flow-codex.mjs", "lib/lifecycle.mjs", "lib/paths.mjs"]) {
     const source = await readFile(join(packageRoot, relativePath), "utf8");
+    for (const forbidden of [
+      /(?:tests\/fixtures|fake-(?:codex|core)|protocol\/fixtures)/i,
+      /\btransitionTable\b/,
+      /\btaskStates?\b/,
+      /\bactionPayloadCatalog\b/,
+      /\bpersistTask\b/,
+      /\bsqlite\b/i,
+    ]) {
+      assert.doesNotMatch(source, forbidden, `${relativePath} embeds authority or a test import`);
+    }
+  }
+
+  for (const relativePath of [
+    "scripts/write-codex-journey-evidence.mjs",
+    "scripts/validate-codex-journey-evidence.mjs",
+  ]) {
+    const source = await readFile(join(repositoryRoot, relativePath), "utf8");
     for (const forbidden of [
       /(?:tests\/fixtures|fake-(?:codex|core)|protocol\/fixtures)/i,
       /\btransitionTable\b/,

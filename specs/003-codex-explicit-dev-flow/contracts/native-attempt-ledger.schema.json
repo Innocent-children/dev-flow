@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-flow.local/contracts/003/native-attempt-ledger.schema.json",
+  "title": "Dev Flow Codex Native Attempt Ledger",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "ledger_id", "attempts"],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "ledger_id": {
+      "$ref": "#/$defs/sha256"
+    },
+    "attempts": {
+      "type": "array",
+      "description": "Schema validates entries; the semantic validator additionally enforces exact 1..N numbering, unique chain/source identities, and terminal pass/reservation placement.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "attempt_number",
+          "chain_id",
+          "source_commit",
+          "validation_report_sha256",
+          "artifact_report_sha256",
+          "artifact_sha256",
+          "reserved_at",
+          "status"
+        ],
+        "properties": {
+          "attempt_number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "chain_id": {
+            "$ref": "#/$defs/sha256"
+          },
+          "source_commit": {
+            "$ref": "#/$defs/gitCommit"
+          },
+          "validation_report_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "artifact_report_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "artifact_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "reserved_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "enum": ["reserved", "pass", "failed", "blocked"]
+          },
+          "observed_facts_sha256": {
+            "$ref": "#/$defs/sha256"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "reserved"
+                }
+              },
+              "required": ["status"]
+            },
+            "then": {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": ["completed_at"]
+                  },
+                  {
+                    "required": ["observed_facts_sha256"]
+                  }
+                ]
+              }
+            },
+            "else": {
+              "required": ["completed_at", "observed_facts_sha256"]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "gitCommit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

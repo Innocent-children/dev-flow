@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, readdir, readFile, stat } from "node:fs/promises";
+import { chmod, copyFile, mkdir, mkdtemp, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,6 +19,9 @@ const marketplacePath = join(packageRoot, ".agents", "plugins", "marketplace.jso
 const mcpPath = join(pluginRoot, ".mcp.json");
 const execFile = promisify(execFileCallback);
 
+const evidenceValidationCommand =
+  'node ../../scripts/validate-codex-journey-evidence.mjs ../../tests/journeys/evidence/codex-macos-arm64.json --validation-report "$CODEX_VALIDATION_REPORT" --artifact-report "$CODEX_ARTIFACT_REPORT" --attempt-ledger "$CODEX_ATTEMPT_LEDGER"';
+
 const expectedPackageFiles = [
   ".agents/plugins/marketplace.json",
   "bin/dev-flow-codex.mjs",
@@ -27,6 +30,7 @@ const expectedPackageFiles = [
   "plugin/.codex-plugin/plugin.json",
   "plugin/.mcp.json",
   "plugin/skills/dev-flow/SKILL.md",
+  "plugin/skills/dev-flow/agents/openai.yaml",
   "runtime/darwin-arm64/dev-flow",
 ];
 
@@ -40,9 +44,11 @@ const reviewedSourceAllowlist = new Set([
   "plugin/.codex-plugin/plugin.json",
   "plugin/.mcp.json",
   "plugin/skills/dev-flow/SKILL.md",
+  "plugin/skills/dev-flow/agents/openai.yaml",
   "tests/fake-core-contract.test.mjs",
   "tests/fixtures/fake-codex.mjs",
   "tests/fixtures/fake-core.mjs",
+  "tests/fixtures/fake-native-tool.mjs",
   "tests/journey-evidence.test.mjs",
   "tests/journey-harness.test.mjs",
   "tests/launcher.test.mjs",
@@ -109,8 +115,10 @@ test("source package declares one private Codex plugin, Skill, and bundled STDIO
   });
 
   assert.deepEqual(mcp, {
+    $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
     mcpServers: {
       "dev-flow": {
+        type: "stdio",
         command: "dev-flow-codex",
         args: ["mcp"],
       },
@@ -120,6 +128,10 @@ test("source package declares one private Codex plugin, Skill, and bundled STDIO
 
   const skillFiles = (await walkFiles(join(pluginRoot, "skills"))).filter((path) => path.endsWith("/SKILL.md"));
   assert.deepEqual(skillFiles, ["dev-flow/SKILL.md"]);
+  assert.equal(
+    await readFile(join(pluginRoot, "skills", "dev-flow", "agents", "openai.yaml"), "utf8"),
+    "policy:\n  allow_implicit_invocation: false\n",
+  );
 });
 
 test("package metadata closes the source and staged artifact allowlists", async () => {
@@ -139,6 +151,7 @@ test("package metadata closes the source and staged artifact allowlists", async 
     "plugin/.codex-plugin/plugin.json",
     "plugin/.mcp.json",
     "plugin/skills/dev-flow/SKILL.md",
+    "plugin/skills/dev-flow/agents/openai.yaml",
     "runtime/darwin-arm64/dev-flow",
   ]);
   assert.equal(stagedTarballFiles.filter((path) => path.startsWith("runtime/")).length, 1);
@@ -167,6 +180,7 @@ test("package metadata closes the source and staged artifact allowlists", async 
     "plugin/.codex-plugin/plugin.json",
     "plugin/.mcp.json",
     "plugin/skills/dev-flow/SKILL.md",
+    "plugin/skills/dev-flow/agents/openai.yaml",
     "tests/package-contract.test.mjs",
     "tests/skill-contract.test.mjs",
   ]) {
@@ -175,6 +189,11 @@ test("package metadata closes the source and staged artifact allowlists", async 
   assert.equal(sourceFiles.some((path) => path.startsWith("runtime/")), false, "runtime is staging-only");
   assert.equal(sourceFiles.some((path) => /\.(?:tgz|db|sqlite)$/i.test(path)), false);
   assert.equal(sourceFiles.some((path) => /(?:^|\/)codex\.json$/i.test(path)), false, "receipt is user-state only");
+});
+
+test("package commands require every retained native evidence input", async () => {
+  const packageManifest = await readJSON(join(packageRoot, "package.json"));
+  assert.equal(packageManifest.scripts?.["validate:evidence"], evidenceValidationCommand);
 });
 
 test("packaged production resources contain no copied Core fixtures, test fakes, or workflow engine", async () => {
@@ -269,6 +288,7 @@ test("local builder stages the real detached Core in one exact private tarball",
     "plugin/.codex-plugin/plugin.json",
     "plugin/.mcp.json",
     "plugin/skills/dev-flow/SKILL.md",
+    "plugin/skills/dev-flow/agents/openai.yaml",
     "runtime/darwin-arm64/dev-flow",
   ]);
 
@@ -284,6 +304,180 @@ test("local builder stages the real detached Core in one exact private tarball",
     assert.equal(versionLine, "dev-flow 0.1.0\n");
   }
 });
+
+test("final builder exclusively writes one closed artifact report bound to the tarball", async () => {
+  const fixture = await createCleanBuilderFixture();
+  const outputDirectory = join(fixture.root, "artifact-output");
+  const secondOutputDirectory = join(fixture.root, "second-artifact-output");
+  const reportDirectory = join(fixture.root, "retained-chain");
+  const reportPath = join(reportDirectory, "artifact-report.json");
+  await Promise.all([
+    mkdir(outputDirectory),
+    mkdir(secondOutputDirectory),
+    mkdir(reportDirectory),
+  ]);
+
+  const invocation = [
+    "--output",
+    outputDirectory,
+    "--final",
+    "--source-commit",
+    fixture.sourceCommit,
+    "--report",
+    reportPath,
+  ];
+  const { stdout } = await execFile(fixture.builderPath, invocation, {
+    cwd: fixture.repositoryRoot,
+    encoding: "utf8",
+    env: { ...process.env, PATH: `${fixture.stubDirectory}:${process.env.PATH}` },
+    maxBuffer: 4 * 1024 * 1024,
+  });
+
+  const reportBytes = await readFile(reportPath, "utf8");
+  assert.equal(stdout, reportBytes, "stdout and the retained report must be the same closed bytes");
+  const report = JSON.parse(reportBytes);
+  assert.deepEqual(Object.keys(report).sort(), [
+    "artifact_path",
+    "artifact_sha256",
+    "built_at",
+    "codex_compatibility",
+    "core_version",
+    "final_artifact",
+    "package_allowlist_verified",
+    "package_version",
+    "platform",
+    "report_type",
+    "runtime_executable_verified",
+    "schema_version",
+    "source_commit",
+    "source_dirty",
+  ]);
+  assert.equal(report.schema_version, 1);
+  assert.equal(report.report_type, "dev-flow-codex-final-artifact");
+  assert.equal(report.artifact_path, join(outputDirectory, "dev-flow-codex-0.1.0.tgz"));
+  assert.equal(report.package_version, "0.1.0");
+  assert.equal(report.core_version, "0.1.0");
+  assert.equal(report.codex_compatibility, ">=0.147.0 <0.148.0");
+  assert.equal(report.source_commit, fixture.sourceCommit);
+  assert.equal(report.source_dirty, false);
+  assert.equal(report.final_artifact, true);
+  assert.equal(report.platform, "darwin-arm64");
+  assert.equal(report.package_allowlist_verified, true);
+  assert.equal(report.runtime_executable_verified, true);
+  assert.match(report.artifact_sha256, /^[0-9a-f]{64}$/);
+  assert.equal(await sha256(readFile(report.artifact_path)), report.artifact_sha256);
+  assert.equal(Number.isNaN(Date.parse(report.built_at)), false);
+
+  await assert.rejects(
+    execFile(fixture.builderPath, [
+      "--output",
+      secondOutputDirectory,
+      "--final",
+      "--source-commit",
+      fixture.sourceCommit,
+      "--report",
+      reportPath,
+    ], {
+      cwd: fixture.repositoryRoot,
+      encoding: "utf8",
+      env: { ...process.env, PATH: `${fixture.stubDirectory}:${process.env.PATH}` },
+      maxBuffer: 4 * 1024 * 1024,
+    }),
+    /artifact report already exists/,
+  );
+  assert.equal(await readFile(reportPath, "utf8"), reportBytes, "a later build cannot replace report bytes");
+  assert.deepEqual(await readdir(secondOutputDirectory), [], "report collision fails before artifact creation");
+});
+
+async function createCleanBuilderFixture() {
+  const root = await mkdtemp(join(tmpdir(), "dev-flow-codex-final-builder-"));
+  const fixtureRepositoryRoot = join(root, "repository");
+  const packageFixtureRoot = join(fixtureRepositoryRoot, "packages", "codex");
+  const builderPath = join(fixtureRepositoryRoot, "scripts", "build-codex-local.sh");
+  const stubDirectory = join(root, "stub-bin");
+  await Promise.all([
+    mkdir(join(packageFixtureRoot, ".agents", "plugins"), { recursive: true }),
+    mkdir(join(packageFixtureRoot, "bin"), { recursive: true }),
+    mkdir(join(packageFixtureRoot, "lib"), { recursive: true }),
+    mkdir(join(packageFixtureRoot, "plugin", ".codex-plugin"), { recursive: true }),
+    mkdir(join(packageFixtureRoot, "plugin", "skills", "dev-flow", "agents"), { recursive: true }),
+    mkdir(join(fixtureRepositoryRoot, "scripts"), { recursive: true }),
+    mkdir(stubDirectory),
+  ]);
+
+  const packageFiles = [
+    ".agents/plugins/marketplace.json",
+    "README.md",
+    "bin/dev-flow-codex.mjs",
+    "lib/lifecycle.mjs",
+    "lib/paths.mjs",
+    "plugin/.mcp.json",
+    "plugin/skills/dev-flow/SKILL.md",
+    "plugin/skills/dev-flow/agents/openai.yaml",
+  ];
+  await Promise.all(packageFiles.map(async (path) => {
+    const absolutePath = join(packageFixtureRoot, path);
+    await mkdir(dirname(absolutePath), { recursive: true });
+    const contents = path === "lib/lifecycle.mjs"
+      ? 'export const CODEX_COMPATIBILITY_RANGE = ">=0.147.0 <0.148.0";\n'
+      : path.endsWith(".json") ? "{}\n" : `${path}\n`;
+    await writeFile(absolutePath, contents);
+  }));
+  await Promise.all([
+    writeFile(join(fixtureRepositoryRoot, "VERSION"), "0.1.0\n"),
+    writeFile(join(fixtureRepositoryRoot, "LICENSE"), "fixture license\n"),
+    writeFile(join(packageFixtureRoot, "package.json"), `${JSON.stringify({
+      name: "dev-flow-codex",
+      version: "0.1.0",
+      private: true,
+      files: expectedPackageFiles,
+    }, null, 2)}\n`),
+    writeFile(join(packageFixtureRoot, "plugin", ".codex-plugin", "plugin.json"), `${JSON.stringify({
+      name: "dev-flow-codex",
+      version: "0.1.0",
+    })}\n`),
+    copyFile(join(repositoryRoot, "scripts", "build-codex-local.sh"), builderPath),
+  ]);
+  await chmod(builderPath, 0o755);
+
+  const goStubPath = join(stubDirectory, "go");
+  await writeFile(goStubPath, `#!/bin/sh
+set -eu
+if [ "$1" = "version" ]; then
+  exit 0
+fi
+output=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "-o" ]; then
+    output=$2
+    shift 2
+    continue
+  fi
+  shift
+done
+[ -n "$output" ]
+printf '%s\\n' '#!/bin/sh' "printf 'dev-flow 0.1.0\\\\n'" >"$output"
+chmod 0755 "$output"
+`);
+  await chmod(goStubPath, 0o755);
+
+  await execFile("git", ["init", "--quiet"], { cwd: fixtureRepositoryRoot });
+  await execFile("git", ["config", "user.name", "Dev Flow Test"], { cwd: fixtureRepositoryRoot });
+  await execFile("git", ["config", "user.email", "dev-flow-test@example.invalid"], { cwd: fixtureRepositoryRoot });
+  await execFile("git", ["add", "."], { cwd: fixtureRepositoryRoot });
+  await execFile("git", ["commit", "--quiet", "-m", "fixture"], { cwd: fixtureRepositoryRoot });
+  const { stdout } = await execFile("git", ["rev-parse", "HEAD"], {
+    cwd: fixtureRepositoryRoot,
+    encoding: "utf8",
+  });
+  return {
+    root,
+    repositoryRoot: fixtureRepositoryRoot,
+    builderPath,
+    stubDirectory,
+    sourceCommit: stdout.trim(),
+  };
+}
 
 async function readJSON(path) {
   return JSON.parse(await readFile(path, "utf8"));

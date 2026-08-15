@@ -1,7 +1,6 @@
 ---
 name: dev-flow
 description: "Explicit-only Dev Flow entry point for Codex. Use only when the current user turn contains $dev-flow; never select this Skill implicitly."
-allow_implicit_invocation: false
 ---
 
 # Dev Flow

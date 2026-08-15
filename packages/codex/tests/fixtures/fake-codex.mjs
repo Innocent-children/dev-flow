@@ -86,18 +86,39 @@ async function recordTrace(arguments_) {
 async function handleMarketplace(state, command) {
   const [operation, operand] = command;
   if (operation === "list") {
-    return { mutated: false, output: state.marketplaces, text: renderNames(state.marketplaces) };
+    return {
+      mutated: false,
+      output: { marketplaces: state.marketplaces },
+      text: renderNames(state.marketplaces),
+    };
   }
   if (operation === "add") {
     if (!operand) fail("marketplace add requires a source");
     const root = resolve(operand);
     const catalog = JSON.parse(await readFile(resolve(root, ".agents/plugins/marketplace.json"), "utf8"));
-    const entry = { name: catalog.name, source: operand, root };
+    const entry = {
+      name: catalog.name,
+      root,
+      marketplaceSource: { sourceType: "local", source: root },
+    };
     if (!entry.name) fail("marketplace catalog must contain a name");
     const existing = state.marketplaces.find((item) => item.name === entry.name);
-    if (existing && existing.root !== entry.root) fail(`marketplace conflict: ${entry.name}`, 74);
+    if (
+      existing &&
+      (existing.root !== entry.root || existing.marketplaceSource?.source !== entry.root)
+    ) {
+      fail(`marketplace conflict: ${entry.name}`, 74);
+    }
     if (!existing) state.marketplaces.push(entry);
-    return { mutated: !existing, output: entry, text: `Added marketplace ${entry.name}` };
+    return {
+      mutated: !existing,
+      output: {
+        marketplaceName: entry.name,
+        installedRoot: entry.root,
+        alreadyAdded: Boolean(existing),
+      },
+      text: `Added marketplace ${entry.name}`,
+    };
   }
   if (operation === "remove") {
     if (!operand) fail("marketplace remove requires a name");
@@ -105,7 +126,7 @@ async function handleMarketplace(state, command) {
     state.marketplaces = state.marketplaces.filter((item) => item.name !== operand);
     return {
       mutated: state.marketplaces.length !== before,
-      output: { name: operand, removed: state.marketplaces.length !== before },
+      output: { marketplaceName: operand, installedRoot: null },
       text: `Removed marketplace ${operand}`,
     };
   }
@@ -118,9 +139,13 @@ async function handlePlugin(state, command) {
     const marketplaceIndex = command.indexOf("--marketplace");
     const marketplace = marketplaceIndex >= 0 ? command[marketplaceIndex + 1] : undefined;
     const plugins = marketplace
-      ? state.plugins.filter((item) => item.marketplace_name === marketplace)
+      ? state.plugins.filter((item) => item.marketplaceName === marketplace)
       : state.plugins;
-    return { mutated: false, output: plugins, text: renderNames(plugins) };
+    return {
+      mutated: false,
+      output: { installed: plugins, available: [] },
+      text: renderNames(plugins),
+    };
   }
   if (operation === "add") {
     const selector = requireSelector(operand);
@@ -136,30 +161,55 @@ async function handlePlugin(state, command) {
       await readFile(resolve(pluginRoot, ".codex-plugin/plugin.json"), "utf8"),
     );
     const entry = {
+      pluginId: operand,
       name: selector.name,
-      marketplace_name: selector.marketplace,
-      selector: operand,
-      root: pluginRoot,
-      source: catalogPlugin.source,
+      marketplaceName: selector.marketplace,
       version: manifest.version,
       installed: true,
       enabled: true,
+      source: { source: "local", path: pluginRoot },
+      marketplaceSource: structuredClone(marketplace.marketplaceSource),
+      installPolicy: catalogPlugin.policy?.installation ?? "AVAILABLE",
+      authPolicy: catalogPlugin.policy?.authentication ?? "ON_INSTALL",
     };
-    const existing = state.plugins.find((item) => item.selector === operand);
+    const existing = state.plugins.find((item) => item.pluginId === operand);
     if (existing && JSON.stringify(existing) !== JSON.stringify(entry)) {
       fail(`plugin conflict: ${operand}`, 74);
     }
     if (!existing) state.plugins.push(entry);
-    return { mutated: !existing, output: entry, text: `Installed plugin ${operand}` };
+    return {
+      mutated: !existing,
+      output: {
+        pluginId: entry.pluginId,
+        name: entry.name,
+        marketplaceName: entry.marketplaceName,
+        version: entry.version,
+        installedPath: resolve(
+          dirname(statePath),
+          "codex-home",
+          "plugins",
+          "cache",
+          entry.marketplaceName,
+          entry.name,
+          entry.version,
+        ),
+        authPolicy: entry.authPolicy,
+      },
+      text: `Installed plugin ${operand}`,
+    };
   }
   if (operation === "remove") {
     const selector = requireSelector(operand);
     const normalized = `${selector.name}@${selector.marketplace}`;
     const before = state.plugins.length;
-    state.plugins = state.plugins.filter((item) => item.selector !== normalized);
+    state.plugins = state.plugins.filter((item) => item.pluginId !== normalized);
     return {
       mutated: state.plugins.length !== before,
-      output: { selector: normalized, removed: state.plugins.length !== before },
+      output: {
+        pluginId: normalized,
+        name: selector.name,
+        marketplaceName: selector.marketplace,
+      },
       text: `Removed plugin ${normalized}`,
     };
   }
@@ -175,7 +225,7 @@ function requireSelector(value) {
 }
 
 function renderNames(entries) {
-  return entries.map((entry) => entry.selector ?? entry.name).join("\n");
+  return entries.map((entry) => entry.pluginId ?? entry.name).join("\n");
 }
 
 function fail(message, code = 64) {

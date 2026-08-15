@@ -8,7 +8,12 @@
 
 All planning unknowns are resolved. No product-level ambiguity required a user question. The volatile Codex host details are deliberately confined to this plan and its verification work rather than frozen into the product specification.
 
-The supported evidence surface for this feature is Codex CLI 0.147.x on macOS arm64. The current machine has Codex CLI 0.146.0, which is useful for inspecting command shape but is below the selected minimum and therefore cannot supply final native-host evidence. Implementation must install or otherwise exercise an exact supported 0.147.x build and record it in the journey evidence.
+The supported evidence surface for this feature is Codex CLI `>=0.147.0 <0.148.0` on macOS arm64.
+The official npm dist-tag and changelog both identify `0.147.0` as the exact latest stable release
+on 2026-08-15, so the passing native journey must use `0.147.0` and record that exact version. Only
+T058 may start the host, each immutable source/validation/artifact chain may launch at most once,
+and every failed or blocked attempt remains counted without supporting a compatibility claim. No
+real Codex host was started during this research/revalidation.
 
 ## Decision 1: Bind to the delivered Core Contract 0.1
 
@@ -44,9 +49,12 @@ The aggregate algorithm sorts repository-relative paths bytewise, renders each m
 
 ## Decision 2: Validate one current Codex CLI minor line
 
-**Decision**: Set the implementation compatibility range to `>=0.147.0 <0.148.0`, and require the real-host evidence to name the exact 0.147.x version used. Claim only Codex CLI on macOS arm64.
+**Decision**: Set the implementation compatibility range to `>=0.147.0 <0.148.0`, select exact
+stable `0.147.0` for native evidence, and claim only Codex CLI on macOS arm64.
 
-**Rationale**: The official Codex changelog lists 0.147.0 as the latest stable CLI release available during research and describes the current portable Agent Plugin discovery behavior. The official plugin documentation currently distinguishes supported plugin hosts from unsupported surfaces; the feature does not need to expand beyond one verifiable CLI surface. A same-minor upper bound keeps an unstable host contract from being silently accepted without rerunning the journey.
+**Rationale**: The official Codex changelog and the official npm `@openai/codex` dist-tag both list
+`0.147.0` as the latest stable CLI release available during revalidation. A same-minor upper bound
+keeps a volatile plugin/CLI contract from being silently accepted without rerunning the journey.
 
 **Alternatives considered**:
 
@@ -58,12 +66,17 @@ The aggregate algorithm sorts repository-relative paths bytewise, renders each m
 
 - [Codex changelog](https://developers.openai.com/codex/changelog) — release history and current stable CLI line (accessed 2026-08-15).
 - [Codex plugins](https://developers.openai.com/codex/plugins) — current supported plugin surfaces and user workflow (accessed 2026-08-15).
+- [Codex CLI 0.147.0 source](https://github.com/openai/codex/tree/rust-v0.147.0) — exact stable
+  parser and CLI artifact source (accessed 2026-08-15).
 
 ## Decision 3: Package one plugin inside one private local npm artifact
 
 **Decision**: Keep `packages/codex` private and produce a local `.tgz` in temporary staging. The artifact contains one plugin under `plugin/`, a local marketplace catalog that points only to that plugin, one executable entry, and one prebuilt `darwin-arm64` Core binary. It is installed with npm lifecycle scripts disabled and is never published by Feature 003.
 
-The plugin has the required `.codex-plugin/plugin.json`, one `skills/dev-flow/SKILL.md`, and one `.mcp.json`. Setup registers the package's marketplace root and installs the plugin through Codex CLI commands instead of editing Codex configuration directly.
+The plugin has the required `.codex-plugin/plugin.json`, one `skills/dev-flow/SKILL.md`, one
+`skills/dev-flow/agents/openai.yaml`, and one `.mcp.json`. Setup registers the package's marketplace
+root and installs the plugin through Codex CLI commands instead of editing Codex configuration
+directly.
 
 **Rationale**: Current official plugin guidance defines a manifest-rooted plugin with optional Skill and MCP resources, and current marketplace guidance permits a local source whose entries use paths inside the marketplace root. A locally packed artifact proves the install boundary without entering Feature 006's publication scope.
 
@@ -81,11 +94,18 @@ The plugin has the required `.codex-plugin/plugin.json`, one `skills/dev-flow/SK
 
 ## Decision 4: Make `$dev-flow` an explicitly guarded Skill
 
-**Decision**: The Skill is named `dev-flow`, documents `$dev-flow` as its only workflow trigger, and begins by checking that the user explicitly selected that invocation. If the invocation is absent, the Skill stops before `dev_flow_server_info` or any other Core call. Its description also says not to select it implicitly.
+**Decision**: The Skill is named `dev-flow`. Its official
+`skills/dev-flow/agents/openai.yaml` sets `policy.allow_implicit_invocation: false`, its description
+documents `$dev-flow` as the only workflow trigger, and its instructions still begin by checking
+that the current turn explicitly selected that invocation. If the invocation is absent, the Skill
+stops before `dev_flow_server_info` or any other Core call.
 
 When explicitly invoked, the Skill follows only this closed interaction shape: compatibility read, task open/resume, next-action read, closed argument forwarding, result application, and full Core result presentation. On an ambiguous transport outcome it reads Core task/action state before considering a retry.
 
-**Rationale**: Official Skill documentation supports explicit selection through `$`/the skills selector but also documents implicit selection based on the description. A runtime guard is therefore necessary in addition to metadata wording. The Skill remains instruction-only and does not own state.
+**Rationale**: Exact 0.147 source defaults implicit invocation to true unless the product-specific
+`agents/openai.yaml` policy disables it. `allow_implicit_invocation` in `SKILL.md` frontmatter is not
+consumed. The instruction-level guard remains a second observable admission check and does not own
+state.
 
 **Alternatives considered**:
 
@@ -99,7 +119,12 @@ When explicitly invoked, the Skill follows only this closed interaction shape: c
 
 ## Decision 5: Use one inherited-stdio launcher, not an MCP proxy
 
-**Decision**: The plugin's `.mcp.json` invokes `dev-flow-codex mcp`. That subcommand resolves the package-local Core binary, validates macOS arm64, preserves an explicit `DEV_FLOW_DATA_DIR`, otherwise supplies `~/Library/Application Support/dev-flow/data`, and launches Core with inherited stdin, stdout, and stderr. It never parses MCP messages or task results.
+**Decision**: The plugin's `.mcp.json` uses the shape accepted by both exact 0.147 plugin parsers:
+Agent Plugins v1 `$schema`, camelCase `mcpServers`, and one `type: stdio` entry invoking
+`dev-flow-codex mcp`. That subcommand resolves the package-local Core binary, validates macOS
+arm64, preserves an explicit `DEV_FLOW_DATA_DIR`, otherwise supplies
+`~/Library/Application Support/dev-flow/data`, and launches Core with inherited stdin, stdout, and
+stderr. It never parses MCP messages or task results.
 
 Setup verifies that `dev-flow-codex` is discoverable on the PATH inherited by the Codex CLI before registration. This avoids relying on undocumented plugin-root interpolation in MCP command fields.
 
@@ -111,9 +136,11 @@ Setup verifies that `dev-flow-codex` is discoverable on the PATH inherited by th
 - Depending on an undocumented plugin-root environment variable was rejected because current official pages do not guarantee it.
 - Asking the target repository to contain an MCP config was rejected because setup may not modify that repository.
 
-**Official source**:
+**Official sources**:
 
 - [Connect Codex to MCP servers](https://developers.openai.com/codex/extend/mcp) — local STDIO server configuration and environment support (accessed 2026-08-15).
+- [Exact 0.147 Agent Plugin MCP parser](https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/codex-mcp/src/agent_plugin_config.rs) — schema, camelCase wrapper, and typed stdio entry (accessed 2026-08-15).
+- [Exact 0.147 legacy plugin MCP parser](https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/codex-mcp/src/plugin_config.rs) — compatibility of the selected intersection shape (accessed 2026-08-15).
 
 ## Decision 6: Add only the Core version seam required by a detached binary
 
@@ -129,7 +156,13 @@ Setup verifies that `dev-flow-codex` is discoverable on the PATH inherited by th
 
 ## Decision 7: Make setup and removal receipt-owned and read-before-write
 
-**Decision**: Explicit setup and removal use current Codex CLI plugin/marketplace commands with JSON output where available. Setup validates inputs before mutation, reads current Codex state, registers, reads back the exact plugin identity, and atomically writes a schema-validated receipt at `~/Library/Application Support/dev-flow/registrations/codex.json`. Repeated setup is a no-op only when the receipt and Codex readback agree.
+**Decision**: Explicit setup and removal use the exact 0.147 Codex CLI plugin/marketplace JSON
+commands. Marketplace list returns `{marketplaces: [...]}`; plugin list returns
+`{installed: [...], available: [...]}`; add/remove results and entries use camelCase fields. Setup
+validates these closed response objects, reads back the exact local source/root, plugin ID, source,
+version, policies, installed/enabled state, and atomically writes a schema-validated receipt at
+`~/Library/Application Support/dev-flow/registrations/codex.json`. Repeated setup is a no-op only
+when the receipt and official readback agree.
 
 Removal reads both sources first, removes only the receipt's plugin and marketplace identifiers, verifies absence, and deletes only the owned receipt. It never deletes the default or overridden Core data directory. The user removes the npm artifact only after deregistration.
 
@@ -145,6 +178,8 @@ Removal reads both sources first, removes only the receipt's plugin and marketpl
 
 - [Codex plugins](https://developers.openai.com/codex/plugins) — supported plugin installation and removal operations (accessed 2026-08-15).
 - [Connect ChatGPT to your plugin](https://developers.openai.com/plugins/deploy/connect-chatgpt) — install/reload expectations for plugin resources (accessed 2026-08-15).
+- [Exact 0.147 plugin JSON commands](https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/cli/src/plugin_cmd.rs) — camelCase add/list/remove output contracts (accessed 2026-08-15).
+- [Exact 0.147 marketplace JSON commands](https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/cli/src/marketplace_cmd.rs) — top-level marketplace list and mutation output contracts (accessed 2026-08-15).
 
 ## Decision 8: Separate simulated contract evidence from native host evidence
 
@@ -153,9 +188,21 @@ Removal reads both sources first, removes only the receipt's plugin and marketpl
 1. repository/package shape and manifest contracts;
 2. fake Codex CLI lifecycle tests;
 3. fake Core tests driven by shared fixtures for exact calls, closed arguments, complete results, explicit-trigger rejection, and read-before-retry;
-4. one final-tarball Codex CLI 0.147.x/macOS arm64 journey in a disposable Git repository.
+4. one passing final-tarball Codex CLI 0.147.0/macOS arm64 journey in a disposable Git repository,
+   with at most one native launch per immutable chain.
 
-The native journey records exact host/package/Core versions, OS/architecture, artifact and fixture digests, repository fingerprints, task/revision lineage, at least two committed Core actions, host restart/resume, terminal outcome, bounded invocation evidence, removal outcome, and retained-data digest. Simulated tests are labelled simulated and may not support native-host claims.
+The native evidence binds the exact retained validation/artifact report digests, artifact build time,
+chain ID, external ledger digest, actual attempt count, host/package/Core versions, OS/architecture,
+artifact and fixture digests, repository fingerprints, task/revision lineage, at least two committed
+Core actions, host restart/resume, terminal outcome, bounded invocation evidence, removal outcome,
+and retained-data digest. The semantic validator rereads the unchanged reports and ledger and proves
+`validation.completed_at <= artifact.built_at < evidence.recorded_at`. Failed or blocked chains are
+never relaunched and never support a claim; a later attempt requires a source fix and a new
+T055–T057 chain. Passing commit reserves before spawn, durably prepares observed facts and exact
+candidate bytes, publishes evidence create-no-replace before finalizing the ledger, and treats valid
+passing evidence as the immediate no-host lock. Post-publication recovery may only install the exact
+precomputed ledger; pre-publication interruption cannot be promoted to pass or relaunched. Simulated
+tests are labelled simulated and may not support native-host claims.
 
 **Rationale**: Static checks catch product drift cheaply; deterministic fakes cover error/retry contracts; only the real supported host can establish native plugin discovery and session-resume behavior. The evidence schema makes omissions visible to reviewers.
 
@@ -189,6 +236,8 @@ All OpenAI product claims above were checked against official sources only:
 - [Build skills for Codex](https://developers.openai.com/codex/build-skills) — accessed 2026-08-15.
 - [Connect Codex to MCP servers](https://developers.openai.com/codex/extend/mcp) — accessed 2026-08-15.
 - [Connect ChatGPT to your plugin](https://developers.openai.com/plugins/deploy/connect-chatgpt) — accessed 2026-08-15.
+- [Codex CLI 0.147.0 source](https://github.com/openai/codex/tree/rust-v0.147.0) — accessed
+  2026-08-15.
 
 ## Phase 0 gate
 

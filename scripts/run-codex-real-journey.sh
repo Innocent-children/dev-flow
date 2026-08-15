@@ -5,9 +5,13 @@ set -eu
 repository_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 fake_host=false
 through_stage=""
+validation_report=""
+artifact_report=""
+codex_executable=""
+attempt_ledger=""
 
 usage() {
-  printf '%s\n' 'usage: run-codex-real-journey.sh --fake-host --through setup|done|remove' >&2
+  printf '%s\n' 'usage: run-codex-real-journey.sh --fake-host --through setup|done|remove | --validation-report ABS --artifact-report ABS --codex-executable ABS --attempt-ledger ABS' >&2
 }
 
 fail() {
@@ -91,6 +95,26 @@ while [ "$#" -gt 0 ]; do
       through_stage=$2
       shift 2
       ;;
+    --validation-report)
+      [ "$#" -ge 2 ] || { usage; exit 2; }
+      validation_report=$2
+      shift 2
+      ;;
+    --artifact-report)
+      [ "$#" -ge 2 ] || { usage; exit 2; }
+      artifact_report=$2
+      shift 2
+      ;;
+    --codex-executable)
+      [ "$#" -ge 2 ] || { usage; exit 2; }
+      codex_executable=$2
+      shift 2
+      ;;
+    --attempt-ledger)
+      [ "$#" -ge 2 ] || { usage; exit 2; }
+      attempt_ledger=$2
+      shift 2
+      ;;
     *)
       usage
       exit 2
@@ -98,7 +122,19 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-[ "$fake_host" = true ] || fail "real Codex is disabled before the frozen-artifact native journey"
+if [ "$fake_host" != true ]; then
+  if [ -n "$through_stage" ]; then
+    fail "real Codex is disabled before the frozen-artifact native journey"
+  fi
+  [ -n "$validation_report" ] && [ -n "$artifact_report" ] \
+    && [ -n "$codex_executable" ] && [ -n "$attempt_ledger" ] || { usage; exit 2; }
+  exec node "$repository_root/scripts/write-codex-journey-evidence.mjs" native-journey \
+    --validation-report "$validation_report" \
+    --artifact-report "$artifact_report" \
+    --codex-executable "$codex_executable" \
+    --attempt-ledger "$attempt_ledger"
+fi
+[ -z "$validation_report$artifact_report$codex_executable$attempt_ledger" ] || { usage; exit 2; }
 case "$through_stage" in
   setup|done|remove) ;;
   *) fail "this deterministic slice supports only --through setup, done, or remove" ;;
@@ -683,13 +719,32 @@ const reopenResponse = responses(process.env.DIRECT_REOPEN_OUTPUT).find((candida
 const reopened = reopenResponse?.result?.structuredContent;
 const before = JSON.parse(process.env.TASK_DATA_BEFORE_REMOVAL);
 const after = JSON.parse(process.env.TASK_DATA_AFTER_REMOVAL);
+const removedMarketplaceEntries = removedMarketplaces.marketplaces;
+const removedPluginEntries = removedPlugins.installed;
+const reinstallMarketplaceEntries = reinstallMarketplaces.marketplaces;
+const reinstallPluginEntries = reinstallPlugins.installed;
 if (remove.status !== "removed" || repeated.status !== "already-absent") {
   throw new Error("remove/repeated-remove status is not exact");
 }
-if (removedMarketplaces.length !== 0 || removedPlugins.length !== 0) {
+if (
+  !Array.isArray(removedMarketplaceEntries) ||
+  !Array.isArray(removedPluginEntries) ||
+  !Array.isArray(removedPlugins.available) ||
+  removedMarketplaceEntries.length !== 0 ||
+  removedPluginEntries.length !== 0 ||
+  removedPlugins.available.length !== 0
+) {
   throw new Error("registration remains after fake removal");
 }
-if (reinstall.status !== "installed" || reinstallMarketplaces.length !== 1 || reinstallPlugins.length !== 1) {
+if (
+  reinstall.status !== "installed" ||
+  !Array.isArray(reinstallMarketplaceEntries) ||
+  !Array.isArray(reinstallPluginEntries) ||
+  !Array.isArray(reinstallPlugins.available) ||
+  reinstallMarketplaceEntries.length !== 1 ||
+  reinstallPluginEntries.length !== 1 ||
+  reinstallPlugins.available.length !== 0
+) {
   throw new Error("compatible fake reinstall readback is not exact");
 }
 if (!reopened?.ok || reopened.result.task.phase !== "DONE" || reopened.result.task.revision !== 8) {
@@ -700,14 +755,14 @@ process.stdout.write(JSON.stringify({
     process_stopped_before_remove: true,
     remove_status: remove.status,
     repeat_status: repeated.status,
-    plugin_absent: removedPlugins.length === 0,
-    marketplace_absent: removedMarketplaces.length === 0,
+    plugin_absent: removedPluginEntries.length === 0,
+    marketplace_absent: removedMarketplaceEntries.length === 0,
     receipt_absent: true,
     adjacent_preserved: true,
     npm_uninstalled_separately: true,
     compatible_reinstall_status: reinstall.status,
-    reinstall_plugin_count: reinstallPlugins.length,
-    reinstall_marketplace_count: reinstallMarketplaces.length,
+    reinstall_plugin_count: reinstallPluginEntries.length,
+    reinstall_marketplace_count: reinstallMarketplaceEntries.length,
   },
   task_data_removal: {
     manifest_before_removal_sha256: before.sha256,
@@ -750,8 +805,10 @@ node <<'NODE'
 const fs = require("node:fs");
 const build = JSON.parse(process.env.BUILD_REPORT);
 const setup = JSON.parse(process.env.SETUP_RESULT);
-const marketplaces = JSON.parse(process.env.MARKETPLACE_READBACK);
-const plugins = JSON.parse(process.env.PLUGIN_READBACK);
+const marketplaceReadback = JSON.parse(process.env.MARKETPLACE_READBACK);
+const pluginReadback = JSON.parse(process.env.PLUGIN_READBACK);
+const marketplaces = marketplaceReadback.marketplaces;
+const plugins = pluginReadback.installed;
 const core = JSON.parse(process.env.CORE_REPORT);
 const removal = JSON.parse(process.env.REMOVAL_REPORT);
 const trace = fs.readFileSync(process.env.FAKE_TRACE, "utf8")
@@ -762,10 +819,20 @@ const trace = fs.readFileSync(process.env.FAKE_TRACE, "utf8")
 if (setup.operation !== "setup" || setup.status !== "installed" || setup.changed !== true) {
   throw new Error("fake setup result is not a verified installation");
 }
-if (marketplaces.length !== 1 || marketplaces[0].name !== "dev-flow-local") {
+if (
+  !Array.isArray(marketplaces) ||
+  marketplaces.length !== 1 ||
+  marketplaces[0].name !== "dev-flow-local"
+) {
   throw new Error("fake marketplace readback is not exact");
 }
-if (plugins.length !== 1 || plugins[0].selector !== "dev-flow-codex@dev-flow-local") {
+if (
+  !Array.isArray(plugins) ||
+  !Array.isArray(pluginReadback.available) ||
+  pluginReadback.available.length !== 0 ||
+  plugins.length !== 1 ||
+  plugins[0].pluginId !== "dev-flow-codex@dev-flow-local"
+) {
   throw new Error("fake plugin readback is not exact");
 }
 const checkpoint = {

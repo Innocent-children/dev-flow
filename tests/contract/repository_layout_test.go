@@ -21,7 +21,17 @@ const (
 	executableRootContract  = "only cmd/dev-flow may be an executable source root"
 	hostPackageContract     = "host packages contain only package.json and README.md"
 	codexFakeImportContract = "Codex production sources cannot import test fakes"
+	rootScriptContract      = "root scripts use the reviewed exact allowlist"
 )
+
+var rootScriptFiles = []string{
+	"README.md",
+	"build-codex-local.sh",
+	"run-codex-real-journey.sh",
+	"validate-codex-journey-evidence.mjs",
+	"validate-repository.sh",
+	"write-codex-journey-evidence.mjs",
+}
 
 var codexSourceFiles = []string{
 	".agents/plugins/marketplace.json",
@@ -33,9 +43,11 @@ var codexSourceFiles = []string{
 	"plugin/.codex-plugin/plugin.json",
 	"plugin/.mcp.json",
 	"plugin/skills/dev-flow/SKILL.md",
+	"plugin/skills/dev-flow/agents/openai.yaml",
 	"tests/fake-core-contract.test.mjs",
 	"tests/fixtures/fake-codex.mjs",
 	"tests/fixtures/fake-core.mjs",
+	"tests/fixtures/fake-native-tool.mjs",
 	"tests/journey-evidence.test.mjs",
 	"tests/journey-harness.test.mjs",
 	"tests/launcher.test.mjs",
@@ -140,6 +152,25 @@ func TestCodexRepositoryLayoutRejectsUnreviewedFilesAndFakeImports(t *testing.T)
 			assertLayoutViolation(t, validateRepositoryLayout(root), test.path, test.expectedContract)
 		})
 	}
+}
+
+func TestRootScriptLayoutUsesReviewedExactAllowlist(t *testing.T) {
+	root := repositoryRoot(t)
+	if violations := validateRootScriptLayout(root); len(violations) != 0 {
+		t.Fatalf("repository root script layout violations: %v", violations)
+	}
+
+	fixtureRoot := newValidRepository(t)
+	for _, path := range rootScriptFiles {
+		writeFixtureFile(t, fixtureRoot, "scripts/"+path, "fixture\n")
+	}
+	writeFixtureFile(t, fixtureRoot, "scripts/unreviewed-release.sh", "#!/bin/sh\n")
+	assertLayoutViolation(
+		t,
+		validateRootScriptLayout(fixtureRoot),
+		"scripts/unreviewed-release.sh",
+		rootScriptContract,
+	)
 }
 
 func TestPullRequestCIContract(t *testing.T) {
@@ -360,7 +391,57 @@ func validateRepositoryLayout(root string) []layoutViolation {
 
 	violations = append(violations, validateHostPackageLayout(root, "packages/codex", codexSourceFiles, true)...)
 	violations = append(violations, validateHostPackageLayout(root, "packages/deepseek", deepseekSkeletonFiles, false)...)
+	violations = append(violations, validateRootScriptLayout(root)...)
 
+	return violations
+}
+
+func validateRootScriptLayout(root string) []layoutViolation {
+	scriptRoot := filepath.Join(root, "scripts")
+	entries, err := os.ReadDir(scriptRoot)
+	if err != nil {
+		return []layoutViolation{{
+			path:     "scripts",
+			contract: rootScriptContract,
+			detail:   fmt.Sprintf("cannot inspect root scripts: %v", err),
+		}}
+	}
+
+	allowed := make(map[string]struct{}, len(rootScriptFiles))
+	for _, name := range rootScriptFiles {
+		allowed[name] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(rootScriptFiles))
+	var violations []layoutViolation
+	for _, entry := range entries {
+		path := "scripts/" + entry.Name()
+		if entry.IsDir() {
+			violations = append(violations, layoutViolation{
+				path:     path,
+				contract: rootScriptContract,
+				detail:   "nested root script directories are not reviewed",
+			})
+			continue
+		}
+		if _, ok := allowed[entry.Name()]; !ok {
+			violations = append(violations, layoutViolation{
+				path:     path,
+				contract: rootScriptContract,
+				detail:   "unexpected root script or generated artifact",
+			})
+			continue
+		}
+		seen[entry.Name()] = struct{}{}
+	}
+	for _, required := range rootScriptFiles {
+		if _, ok := seen[required]; !ok {
+			violations = append(violations, layoutViolation{
+				path:     "scripts/" + required,
+				contract: rootScriptContract,
+				detail:   "required reviewed root script is missing",
+			})
+		}
+	}
 	return violations
 }
 
@@ -482,6 +563,9 @@ func newValidRepository(t *testing.T) string {
 	}
 	writeFixtureFile(t, root, "go.mod", "module example.invalid/dev-flow\n\ngo 1.26\n")
 	writeFixtureFile(t, root, "cmd/dev-flow/main.go", "package main\n\nfunc main() {}\n")
+	for _, path := range rootScriptFiles {
+		writeFixtureFile(t, root, "scripts/"+path, "fixture\n")
+	}
 	for _, packagePath := range []string{"packages/codex", "packages/deepseek"} {
 		writeFixtureFile(t, root, packagePath+"/package.json", "{\"private\":true}\n")
 		writeFixtureFile(t, root, packagePath+"/README.md", "# Bootstrap package\n")

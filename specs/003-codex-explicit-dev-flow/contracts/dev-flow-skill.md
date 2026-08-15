@@ -8,7 +8,10 @@ This contract names the interaction sequence needed by Codex but intentionally d
 
 ## Invocation contract
 
-The Skill starts the workflow only when the current user turn explicitly selects it with the exact `$dev-flow` token.
+Codex CLI 0.147 reads `policy.allow_implicit_invocation: false` from the Skill's
+`agents/openai.yaml`, so the Skill is not injected implicitly by default. This policy is not placed
+in `SKILL.md` frontmatter. The Skill then starts the workflow only when the current user turn
+explicitly selects it with the exact `$dev-flow` token.
 
 Accepted explicit intents are:
 

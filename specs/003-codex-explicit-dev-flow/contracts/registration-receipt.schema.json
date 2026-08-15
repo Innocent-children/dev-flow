@@ -15,7 +15,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": 2
+      "const": 3
     },
     "product": {
       "type": "object",
@@ -112,12 +112,15 @@
     "resource_digests": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["plugin_manifest", "skill", "mcp_configuration"],
+      "required": ["plugin_manifest", "skill", "skill_metadata", "mcp_configuration"],
       "properties": {
         "plugin_manifest": {
           "$ref": "#/$defs/sha256"
         },
         "skill": {
+          "$ref": "#/$defs/sha256"
+        },
+        "skill_metadata": {
           "$ref": "#/$defs/sha256"
         },
         "mcp_configuration": {

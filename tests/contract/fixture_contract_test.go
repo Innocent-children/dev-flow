@@ -221,6 +221,36 @@ func TestFixtureREADMEReferencesExistingSharedFixtures(t *testing.T) {
 	}
 }
 
+func TestRepositoryProductionRootsRejectCopiedSharedFixtures(t *testing.T) {
+	root := markdownRepositoryRoot(t)
+	fixturePaths, err := filepath.Glob(filepath.Join(root, "protocol", "fixtures", "*.json"))
+	if err != nil || len(fixturePaths) == 0 {
+		t.Fatalf("enumerate shared fixtures: %v", err)
+	}
+	if violations := sharedFixtureCopyViolations(root, fixturePaths); len(violations) != 0 {
+		t.Fatalf("repository production roots copy shared fixtures: %v", violations)
+	}
+
+	fixtureRoot := t.TempDir()
+	for _, relative := range []string{"packages/codex", "packages/deepseek", "scripts"} {
+		if err := os.MkdirAll(filepath.Join(fixtureRoot, filepath.FromSlash(relative)), 0o755); err != nil {
+			t.Fatalf("create fixture production root %s: %v", relative, err)
+		}
+	}
+	copiedPath := filepath.Join(fixtureRoot, "scripts", "recorded-core-result.json")
+	contents, err := os.ReadFile(fixturePaths[0])
+	if err != nil {
+		t.Fatalf("read shared fixture: %v", err)
+	}
+	if err := os.WriteFile(copiedPath, contents, 0o600); err != nil {
+		t.Fatalf("write copied fixture: %v", err)
+	}
+	violations := sharedFixtureCopyViolations(fixtureRoot, fixturePaths)
+	if len(violations) != 1 || !strings.Contains(violations[0].Error(), copiedPath) {
+		t.Fatalf("copied root-script fixture violations = %v, want exact path %s", violations, copiedPath)
+	}
+}
+
 func assertFixtureSuccessParity(t *testing.T, tool string, raw json.RawMessage) {
 	t.Helper()
 	var result map[string]json.RawMessage
@@ -337,23 +367,39 @@ func assertFixtureHasNoPrivateMaterial(t *testing.T, contents []byte) {
 
 func assertHostPackagesDoNotCopyFixtures(t *testing.T, root string, fixturePaths []string) {
 	t.Helper()
+	for _, err := range sharedFixtureCopyViolations(root, fixturePaths) {
+		t.Error(err)
+	}
+}
+
+func sharedFixtureCopyViolations(root string, fixturePaths []string) []error {
 	names := make(map[string]struct{}, len(fixturePaths))
 	exactDigests := make(map[string]struct{}, len(fixturePaths))
 	canonicalDigests := make(map[string]struct{}, len(fixturePaths))
+	var violations []error
 	for _, path := range fixturePaths {
 		names[filepath.Base(path)] = struct{}{}
 		contents, err := os.ReadFile(path)
 		if err != nil {
-			t.Fatalf("read shared fixture %s for copy detection: %v", path, err)
+			violations = append(violations, fmt.Errorf("read shared fixture %s for copy detection: %w", path, err))
+			continue
 		}
 		exactDigests[sha256Hex(contents)] = struct{}{}
 		if digest, ok := canonicalJSONSHA256(contents); ok {
 			canonicalDigests[digest] = struct{}{}
 		}
 	}
-	for _, host := range []string{"codex", "deepseek"} {
-		hostRoot := filepath.Join(root, "packages", host)
-		err := filepath.WalkDir(hostRoot, func(path string, entry fs.DirEntry, walkErr error) error {
+	productionRoots := []struct {
+		label             string
+		path              string
+		allowTestFixtures bool
+	}{
+		{label: "codex", path: filepath.Join(root, "packages", "codex"), allowTestFixtures: true},
+		{label: "deepseek", path: filepath.Join(root, "packages", "deepseek"), allowTestFixtures: true},
+		{label: "root scripts", path: filepath.Join(root, "scripts")},
+	}
+	for _, productionRoot := range productionRoots {
+		err := filepath.WalkDir(productionRoot.path, func(path string, entry fs.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				return walkErr
 			}
@@ -364,37 +410,38 @@ func assertHostPackagesDoNotCopyFixtures(t *testing.T, root string, fixturePaths
 				return nil
 			}
 			if entry.IsDir() && entry.Name() == "fixtures" {
-				relative, err := filepath.Rel(hostRoot, path)
+				relative, err := filepath.Rel(productionRoot.path, path)
 				if err != nil {
 					return err
 				}
-				if filepath.ToSlash(relative) != "tests/fixtures" {
-					return fmt.Errorf("host package %s owns fixtures outside tests/fixtures: %s", host, filepath.ToSlash(relative))
+				if !productionRoot.allowTestFixtures || filepath.ToSlash(relative) != "tests/fixtures" {
+					return fmt.Errorf("production root %s owns fixtures outside the reviewed test path: %s", productionRoot.label, filepath.ToSlash(relative))
 				}
 			}
 			if !entry.IsDir() {
 				if _, copied := names[entry.Name()]; copied {
-					return fmt.Errorf("host package %s copies shared fixture %s", host, entry.Name())
+					return fmt.Errorf("production root %s copies shared fixture at %s", productionRoot.label, path)
 				}
 				contents, err := os.ReadFile(path)
 				if err != nil {
 					return err
 				}
 				if _, copied := exactDigests[sha256Hex(contents)]; copied {
-					return fmt.Errorf("host package %s copies shared fixture content at %s", host, path)
+					return fmt.Errorf("production root %s copies shared fixture content at %s", productionRoot.label, path)
 				}
 				if digest, ok := canonicalJSONSHA256(contents); ok {
 					if _, copied := canonicalDigests[digest]; copied {
-						return fmt.Errorf("host package %s copies canonical shared fixture content at %s", host, path)
+						return fmt.Errorf("production root %s copies canonical shared fixture content at %s", productionRoot.label, path)
 					}
 				}
 			}
 			return nil
 		})
 		if err != nil {
-			t.Error(err)
+			violations = append(violations, err)
 		}
 	}
+	return violations
 }
 
 func sha256Hex(contents []byte) string {

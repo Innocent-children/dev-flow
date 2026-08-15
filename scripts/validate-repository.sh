@@ -66,9 +66,11 @@ const expectedFiles = [
   "plugin/.codex-plugin/plugin.json",
   "plugin/.mcp.json",
   "plugin/skills/dev-flow/SKILL.md",
+  "plugin/skills/dev-flow/agents/openai.yaml",
   "tests/fake-core-contract.test.mjs",
   "tests/fixtures/fake-codex.mjs",
   "tests/fixtures/fake-core.mjs",
+  "tests/fixtures/fake-native-tool.mjs",
   "tests/journey-evidence.test.mjs",
   "tests/journey-harness.test.mjs",
   "tests/launcher.test.mjs",
@@ -94,6 +96,30 @@ function listFiles(directory, prefix = "") {
 const actualFiles = listFiles(packageRoot).sort();
 if (JSON.stringify(actualFiles) !== JSON.stringify(expectedFiles)) {
   throw new Error(`Codex source files ${JSON.stringify(actualFiles)}; expected ${JSON.stringify(expectedFiles)}`);
+}
+NODE
+}
+
+validate_root_script_tree() {
+  node <<'NODE'
+const fs = require("node:fs");
+
+const expectedFiles = [
+  "README.md",
+  "build-codex-local.sh",
+  "run-codex-real-journey.sh",
+  "validate-codex-journey-evidence.mjs",
+  "validate-repository.sh",
+  "write-codex-journey-evidence.mjs",
+].sort();
+const entries = fs.readdirSync("scripts", { withFileTypes: true });
+const directories = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+if (directories.length !== 0) {
+  throw new Error(`unexpected root script directories: ${JSON.stringify(directories)}`);
+}
+const actualFiles = entries.map((entry) => entry.name).sort();
+if (JSON.stringify(actualFiles) !== JSON.stringify(expectedFiles)) {
+  throw new Error(`root script files ${JSON.stringify(actualFiles)}; expected ${JSON.stringify(expectedFiles)}`);
 }
 NODE
 }
@@ -126,6 +152,7 @@ const codexFinalStagingFiles = [
   "plugin/.codex-plugin/plugin.json",
   "plugin/.mcp.json",
   "plugin/skills/dev-flow/SKILL.md",
+  "plugin/skills/dev-flow/agents/openai.yaml",
   "runtime/darwin-arm64/dev-flow",
 ].sort();
 const expectedByProfile = {
@@ -146,6 +173,7 @@ run_step "Toolchain versions" check_toolchains
 run_step "Working tree whitespace" git diff --check
 run_step "Go formatting" check_go_formatting
 run_step "Codex source allowlist" validate_codex_source_tree
+run_step "Root script allowlist" validate_root_script_tree
 run_step "Go package inventory" go list ./...
 run_step "Go vet" go vet ./...
 run_step "Go tests and repository contracts" go test ./...

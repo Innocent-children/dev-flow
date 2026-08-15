@@ -12,9 +12,11 @@ description: "Dependency-ordered implementation tasks for the local Codex produc
 **Tests**: Add each named targeted assertion before its corresponding behavior and demonstrate the
 new assertion fails for the missing behavior.
 
-**Native-evidence budget**: Feature 003 permits exactly one real Codex host journey. T030, T043, and
-T051 are deterministic/fake checkpoints and MUST NOT start Codex. Only T058 may execute the real
-host.
+**Native-evidence budget**: Feature 003 permits exactly one passing real Codex host journey. T030,
+T043, and T051 are deterministic/fake checkpoints and MUST NOT start Codex. Only T058 may launch the
+real host. Each frozen-source/validation/final-artifact chain permits at most one launch; a
+failed/blocked attempt consumes and invalidates that chain, and another attempt requires a source
+fix plus a new T055–T057 chain. Same-chain and debug reruns are prohibited.
 
 ## Format
 
@@ -38,7 +40,8 @@ host.
   (FR-001, FR-008).
 - [X] T003 [P] Replace skeleton guidance with source layout, dynamic implementation-time Codex
   compatibility selection, macOS arm64 evidence boundary, deterministic checkpoint commands, the
-  one-native-journey rule, and non-publication rules in `packages/codex/README.md`
+  one-passing-journey/one-launch-per-chain rule, and non-publication rules in
+  `packages/codex/README.md`
   (FR-001, FR-008, FR-027).
 - [X] T004 [P] Create a test-only Codex plugin/marketplace CLI double with JSON readback, failure
   injection, call tracing, isolated state, and no real user writes in
@@ -173,8 +176,8 @@ host restart boundary, and reach Core `DONE` under fake/deterministic evidence.
 - [X] T033 [P] [US2] Extend authority scans to reject task persistence, state/action catalogs,
   transition/error/completion logic, generic shell MCP, copied fixtures, and production fake imports
   in `packages/codex/tests/skill-contract.test.mjs` (FR-015–FR-018, SC-006).
-- [X] T034 [P] [US2] Add structural-schema and semantic-validator unit cases for pass, failed,
-  blocked, version equality, range membership, source/artifact identity, strict revisions,
+- [X] T034 [P] [US2] Add structural-schema and semantic-validator unit cases for canonical pass,
+  external failed/blocked diagnostics, version equality, range membership, source/artifact identity, revisions,
   task-ID equality, action count, call budget, `DONE`, data/repository digest equality, lifecycle
   booleans, root validation, failures, and skips in
   `packages/codex/tests/journey-evidence.test.mjs` and
@@ -257,50 +260,167 @@ compatible reinstall under deterministic evidence.
 
 ---
 
-## Phase 6: Compatibility, Final Artifact, and the Sole Native Journey
+## Phase 6: Compatibility, Final Artifact, and the Passing Native Journey
 
 **Purpose**: Revalidate the volatile host contract, finish all deterministic checks, freeze source,
-build one artifact, execute one real journey, and validate evidence without post-validation writes.
+build one artifact per immutable chain, execute at most one native launch per chain until exactly
+one attempt passes, and validate evidence without post-validation writes.
 
-- [ ] T052 Revalidate the exact latest stable compatible Codex CLI and official plugin, Skill, MCP,
+- [X] T052 Revalidate the exact latest stable compatible Codex CLI and official plugin, Skill, MCP,
   marketplace, setup/readback, and removal contracts. Select the supported range and exact test
-  version, then update together—when needed—`research.md`, `plan.md`,
-  `contracts/codex-plugin.md`, both JSON Schemas, `data-model.md`, `quickstart.md`, `tasks.md`,
-  package/Skill/lifecycle tests, and compatibility assertions. This task is serialized and runs
-  before final hardening (FR-008, SC-008).
-- [ ] T053 Reconcile implemented commands, fields, paths, range, setup/readback, action loop,
-  removal, data retention, evidence fields, and one-native-journey procedure across
+  version; for the 2026-08-15 review these are `>=0.147.0 <0.148.0` and exact `0.147.0`. Update
+  together—when needed—the named Feature documents under
+  `specs/003-codex-explicit-dev-flow/{README.md,spec.md,plan.md,tasks.md,research.md,data-model.md,quickstart.md}`;
+  `specs/003-codex-explicit-dev-flow/contracts/{codex-plugin.md,dev-flow-skill.md,registration-receipt.schema.json,validation-report.schema.json,artifact-report.schema.json,native-attempt-diagnostic.schema.json,native-attempt-ledger.schema.json,journey-evidence.schema.json}`;
+  `packages/codex/{README.md,package.json,lib/lifecycle.mjs,plugin/.mcp.json}`;
+  `packages/codex/plugin/skills/dev-flow/{SKILL.md,agents/openai.yaml}`;
+  `packages/codex/tests/{fixtures/fake-codex.mjs,lifecycle.test.mjs,package-contract.test.mjs,skill-contract.test.mjs}`;
+  `scripts/{build-codex-local.sh,run-codex-real-journey.sh,validate-repository.sh}`; and
+  `tests/contract/{package_manifest_test.go,repository_layout_test.go}`. The selected contract uses
+  `agents/openai.yaml` for explicit-only policy, the MCP shape accepted by both 0.147 parsers, and
+  official top-level-object/camelCase lifecycle JSON. This task is serialized and runs before
+  final hardening (FR-008, SC-008).
+- [X] T053 Reconcile the delivered package commands and the specified T054 final-runner contract,
+  fields, paths, range, setup/readback, action loop, removal, data retention, evidence fields, and
+  one-passing-journey/one-launch-per-chain procedure across
   `quickstart.md`, `packages/codex/README.md`, contracts, and data model without adding
   publication or unsupported-platform claims (FR-008, FR-027, FR-028).
-- [ ] T054 Harden final source/tarball authority scans, root Codex allowlist, structural evidence
-  schema, and semantic evidence validator for zero adapter workflow authority, zero copied fixtures,
-  honest partial failed/blocked records, and all passing semantic invariants
-  (FR-014–FR-016, FR-025, FR-028, SC-006, SC-008).
+- [X] T054 Add failing deterministic native-runner/writer contracts for exact final-mode arguments
+  (`--artifact-report`, `--validation-report`, `--codex-executable`, and `--attempt-ledger`), frozen
+  source/artifact/validation identity, pre-host rejection, official Codex `exec --json` event
+  parsing, complete MCP results, distinct session IDs, bounded calls, exclusive atomic evidence
+  creation, and no native relabelling. The RED cases MUST cover missing and extra fields in every
+  closed report, report/artifact/ledger digest mismatch, same-path and different-path report
+  substitution, `validation.completed_at > artifact.built_at`,
+  a command completion after `validation.completed_at`,
+  `artifact.built_at >= evidence.recorded_at`, duplicate-chain launch, same-source retry with fresh
+  report bytes, a pre-existing passing attempt, attempt-number/count drift, crash after the
+  create-no-replace evidence publish but before ledger finalize, exit after ledger finalize, valid
+  passing-evidence admission lock, pre-evidence crash/no-rerun behavior, switched/empty ledger
+  identity, concurrent reservation, canonical-path failure-record rejection, and
+  omitted/added/duplicated/reordered targeted commands. The reopened RED set MUST additionally
+  cover, before the mapped production edit: (1) concurrent setup returning `alreadyAdded=true`
+  without rollback ownership; (2) the bound `validate:evidence` command rejecting each schema
+  violation and incomplete pass semantics; (3) complete Core-derived verification budget,
+  official completed `command_execution` facts, submitted/retained automated-evidence parity,
+  ordered restart `get_task`/`get_next_action` reads before a later mutation, and authoritative
+  task `phase=DONE`; (4) ledger semantic rejection before admission and again inside the
+  reservation lock; (5) a non-secret retained-data descriptor with no absolute-path leakage;
+  (6) four unique thread IDs plus raw revision non-regression before adjacent deduplication;
+  (7) failed/blocked output conforming to the independent closed diagnostic schema and never
+  claiming journey-evidence v3; (8) locked CAS finalization, mutation-window rejection, and safe
+  live/dead/malformed stale-lock handling; (9) the production default helper chain through
+  deterministic fake npm/Codex/Core child processes using official 0.147 JSONL shapes; (10) extra
+  marketplace/installed/available entries rejected during setup and reinstall readback; and (11)
+  direct Core reopen rejecting non-JSON stdout, unknown/duplicate IDs, and bounded-output breaches.
+  T054 may modify only these exact paths:
+  `packages/codex/README.md`;
+  `packages/codex/package.json`;
+  `packages/codex/lib/lifecycle.mjs`;
+  `packages/codex/tests/fixtures/fake-native-tool.mjs`;
+  `packages/codex/tests/package-contract.test.mjs`;
+  `packages/codex/tests/skill-contract.test.mjs`;
+  `packages/codex/tests/journey-harness.test.mjs`;
+  `packages/codex/tests/journey-evidence.test.mjs`;
+  `packages/codex/tests/lifecycle.test.mjs`;
+  `scripts/run-codex-real-journey.sh`;
+  `scripts/write-codex-journey-evidence.mjs`;
+  `scripts/build-codex-local.sh`;
+  `scripts/validate-codex-journey-evidence.mjs`;
+  `scripts/validate-repository.sh`;
+  `specs/003-codex-explicit-dev-flow/contracts/validation-report.schema.json`;
+  `specs/003-codex-explicit-dev-flow/contracts/artifact-report.schema.json`;
+  `specs/003-codex-explicit-dev-flow/contracts/native-attempt-diagnostic.schema.json`;
+  `specs/003-codex-explicit-dev-flow/contracts/native-attempt-ledger.schema.json`;
+  `specs/003-codex-explicit-dev-flow/contracts/journey-evidence.schema.json`;
+  `tests/contract/package_manifest_test.go`;
+  `tests/contract/repository_layout_test.go`; and
+  `tests/contract/fixture_contract_test.go`.
+  Create each mapped failure before changing its production path: concurrent setup/readback
+  ownership in `lifecycle.test.mjs` before `lifecycle.mjs`; native arguments, permanent
+  reservation, launch/event/session behavior, pass-lock admission, and all four crash/recovery
+  boundaries plus default fake-subprocess helper coverage in `journey-harness.test.mjs` before the
+  runner/fake tool; closed report/diagnostic, Core budget/command/terminal/revision/retention
+  projections, durable-facts/exact-byte
+  preparation, create-no-replace evidence-first commit, idempotent exact-ledger finalize, and
+  lock-owned CAS/stale recovery behavior in `journey-evidence.test.mjs` before the writer or five schemas;
+  report/ledger identity, substitution, digest, time, and semantic behavior in
+  `journey-evidence.test.mjs` before the semantic validator, including the package-bound full
+  validator; final-report output and tarball
+  identity in `package-contract.test.mjs` before the builder; package command wiring in
+  `package-contract.test.mjs` and `package_manifest_test.go` before `package.json`; zero adapter
+  workflow authority in `skill-contract.test.mjs` before any adapter-facing script; and source,
+  tarball, copied-fixture, and root allowlists in the three named Go contract tests before the root
+  validator. Harden only those mapped gates. T054 MUST use deterministic recorded/fake process data
+  and MUST NOT replace the default process boundary with wholly injected helpers;
+  T058 remains the only native-host execution
+  (FR-014–FR-016, FR-025, FR-027–FR-028, SC-006, SC-008).
 - [ ] T055 Run the complete targeted Go/Node/package/fake/retention set and then run root
-  `pnpm run validate`. Fix only Feature 003 defects, rerun affected deterministic checks, and retain
-  the exact command/result plus current source commit for later evidence. Do not build the final
-  artifact or start Codex in this task (FR-023, FR-025, FR-026).
+  `pnpm run validate`. Immediately before this final deterministic chain, query the official
+  `@openai/codex` `latest` npm dist-tag again, require it still resolve to `0.147.0` within the
+  selected range, and record the writer-observed exact UTC query time; if it changed, return to T052
+  and rerun checklist/analyze before continuing. The writer itself performs this query. Fix only
+  Feature 003 defects; any source modification discards every prior observation/report and requires
+  the entire exact ordered targeted set plus root gate again from the new clean commit. Retain
+  every exact command/pass result, completion time, and current source commit in one temporary,
+  closed, machine-generated validation report produced by
+  `scripts/write-codex-journey-evidence.mjs` for later evidence. Initialize the one durable external
+  attempt-ledger path/ID before the first chain, bind it into the report, and reuse that same path/ID
+  across every failed/recovery/new chain. Derive the ID from the domain-separated canonical absolute
+  ledger path and reject symlinked/switched/empty paths. The exact ordered targeted observations are
+  `go test ./internal/version ./tests/contract` and
+  `node --test packages/codex/tests/*.test.mjs`, followed separately by exact
+  `pnpm run validate`. Retain the report's exact bytes; do not build
+  the final artifact or start Codex in this task
+  (FR-023, FR-025, FR-026, FR-028).
 - [ ] T056 Perform a read-only pre-final audit of the entire allowed Feature 003 scope:
-  `internal/version/`, `packages/codex/`, all three Codex scripts including
-  `scripts/validate-repository.sh`, affected `tests/contract/`,
+  `internal/version/`, `packages/codex/`, `scripts/build-codex-local.sh`,
+  `scripts/run-codex-real-journey.sh`, `scripts/write-codex-journey-evidence.mjs`,
+  `scripts/validate-codex-journey-evidence.mjs`, `scripts/validate-repository.sh`, affected `tests/contract/`,
   `tests/journeys/evidence/`, and all `specs/003-codex-explicit-dev-flow/**`. Confirm no Core
   Contract change, Git mutation, publication, future-host abstraction, unsupported claim, or
   unreviewed file. Freeze the source commit after this task (FR-006–FR-008, FR-016–FR-018).
 - [ ] T057 From the frozen source commit, build exactly one final private artifact with
   `scripts/build-codex-local.sh`; verify package/plugin/Core version equality, selected Codex range,
-  complete allowlist, executable mode, source identity, and artifact SHA-256. Any defect discards
-  the artifact and returns to T055 (FR-001–FR-003, FR-027, FR-028).
-- [ ] T058 Execute the only real Codex host run for Feature 003 using the exact T057 artifact and
-  exact selected stable Codex CLI on macOS arm64. Run setup, explicit-only checks, substantive task,
-  two Core commits, restart/resume, budgeted `DONE`, removal, data reopen, npm uninstall,
-  compatible reinstall, and repository/adjacent comparisons. Write
-  `tests/journeys/evidence/codex-macos-arm64.json` once with observed facts, T055 root-validation
-  result, frozen source identity, and T057 artifact digest (FR-027, FR-028, SC-001–SC-005,
-  SC-007–SC-008).
+  complete allowlist, executable mode, source identity, and artifact SHA-256, and retain its
+  unmodified closed machine-generated final-artifact report, including `built_at`, outside the
+  repository. Any defect discards the artifact/report and returns to T055
+  (FR-001–FR-003, FR-027, FR-028).
+- [ ] T058 Execute this immutable chain's sole authorized real Codex host launch using the exact
+  T057 artifact and exact selected stable Codex CLI on macOS arm64. Invoke the checked-in native
+  runner once with the unmodified T055 validation report, T057 artifact report, exact Codex
+  executable, and external attempt ledger. Run
+  setup, explicit-only checks, substantive task, two Core commits, restart/resume, budgeted `DONE`,
+  removal, data reopen, npm uninstall, compatible reinstall, and repository/adjacent comparisons.
+  Immediately before host spawn the writer atomically reserves the chain/attempt in the ledger; the
+  same chain can never launch again. After host success the writer durably persists the immutable
+  observed facts and exact evidence/final-ledger candidates, runs the complete structural/semantic
+  validators against those candidates plus unchanged reports/artifact/ledger, publishes only after
+  that gate passes to `tests/journeys/evidence/codex-macos-arm64.json` with a create-no-replace atomic operation, and only
+  then atomically finalizes the ledger from the exact candidate bytes. The evidence records both
+  report digests, artifact `built_at`, actual total attempt count, durable-facts/final-ledger
+  digests, commit protocol, T055 root-validation result, frozen source identity, and T057 artifact
+  digest. A failed/blocked or pre-evidence interrupted attempt does not establish support; retain
+  its reserved/final ledger entry and external failure diagnostic, leave the canonical repository
+  evidence path absent, discard that chain's artifact, fix source, and complete an entirely new
+  T055–T057 chain with the same ledger before re-entering T058
+  (FR-027, FR-028, SC-001–SC-005, SC-007–SC-008).
 - [ ] T059 Validate the evidence first against
   `contracts/journey-evidence.schema.json` and then with
-  `scripts/validate-codex-journey-evidence.mjs`. Do not modify the evidence. A failure discards the
-  native record/artifact and returns to T055 rather than patching JSON manually
+  `scripts/validate-codex-journey-evidence.mjs`, supplying the unchanged T055 validation report,
+  T057 artifact report, and attempt ledger. Verify report/ledger digests and identity plus
+  `validation.completed_at <= artifact.built_at < evidence.recorded_at`. These are post-publication
+  byte/identity checks because complete structural/semantic candidate validation already passed
+  before publication. If valid passing evidence
+  exists with a matching reserved ledger after an evidence-publish crash, verify it against the
+  durable facts and exact candidates, idempotently install only the precomputed final ledger bytes,
+  and validate both files without starting Codex. If the ledger is already `pass`, validate both
+  files only. If evidence was never published, never promote the reserved attempt to pass or
+  relaunch it; finalize failed/blocked from durable facts or leave it blocked from further launch.
+  Do not modify published evidence. A candidate failure before evidence publication consumes that
+  attempt as failed/blocked and may return, after a source fix, to a new T055–T057 chain using the
+  same ledger. Any post-publication integrity failure is a terminal blocked recovery condition:
+  never discard or patch the passing record, switch ledgers, or launch another chain
   (FR-028, SC-004–SC-005, SC-007–SC-008).
 - [ ] T060 Perform a final read-only diff/scope audit over the complete T056 scope and confirm no
   file changed after the frozen source/artifact boundary except the single evidence record. Run no
@@ -318,9 +438,15 @@ build one artifact, execute one real journey, and validate evidence without post
   proceed in parallel only where marked.
 - T030, T043, and T051 are fake/deterministic checkpoints.
 - T052–T060 are strictly serialized.
-- T058 is the only task authorized to start a real Codex host.
+- T058 is the only task authorized to start a real Codex host; one launch maximum per immutable
+  source/validation/artifact chain and exactly one passing attempt overall.
 - If source changes after T057, discard the artifact and restart at T055.
-- If evidence validation fails at T059, do not edit evidence; restart at T055/T057/T058 as needed.
+- If a native attempt or pre-publication candidate validation fails, do not edit its external
+  diagnostic or rerun that chain; retain its attempt-ledger entry, fix source, and restart with new
+  T055/T056/T057 identities using the same ledger before T058.
+- If post-publication T059 byte/identity validation fails, enter terminal blocked recovery: do not
+  edit/delete canonical evidence, switch ledgers, rebuild, or launch another chain. Only idempotent
+  installation of the already prepared exact final ledger bytes remains permitted.
 
 ## Shared Ownership
 
@@ -357,4 +483,5 @@ build one artifact, execute one real journey, and validate evidence without post
 Stop and amend the feature before implementation continues if work requires a seventh MCP tool, a
 Core public schema/state/transition/recovery change, a Node MCP/result proxy, adapter task
 persistence, target-repository setup, direct Codex config/cache editing, public publication,
-another platform/host claim, or more than the one authorized real Codex journey.
+another platform/host claim, a second launch for the same immutable chain, any native launch outside
+T058, or any launch after the unique passing attempt.
