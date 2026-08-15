@@ -2,11 +2,11 @@
 
 **Feature Branch**: `004-deepseek-explicit-dev-flow`  
 **Created**: 2026-08-14  
-**Status**: Planned — provisional engineering implementation may begin only after Feature 003 is
-implemented and merged to `main`, its delivered capabilities are recorded, and the provisional or
-stable direct-result gate passes. Feature completion and stable support remain blocked until an
-official stable Harness artifact passes the full direct-result gate and the final journey uses that
-same stable version/build.  
+**Status**: Planned — bounded Host-local deterministic preparation is authorized before Feature 003
+is merged, within the exact file and behavior boundary in FR-003. Shared integration stops at the
+003 merge barrier until Feature 003 is merged to `main` and its delivered capabilities are recorded.
+Feature completion and stable support remain blocked until an official stable Harness artifact
+passes the full direct-result gate and the final journey uses that same stable version/build.
 **Input**: Package the shared Dev Flow Core as a thin DeepSeek Harness product that starts or resumes
 one single-repository task only when the user explicitly invokes `/dev-flow`.
 
@@ -85,6 +85,8 @@ comparison logic. Native proof is part of the final stable journey.
 - Harness restarts while a mutation response is in flight.
 - Profile removal succeeds but stale Skill/tool metadata remains after the supported restart.
 - A real Codex co-installation cannot be established for final comparison.
+- Parallel preparation reaches a shared file, merged version seam, native Harness execution, final
+  artifact, final evidence, support claim, or completion claim before the 003 merge barrier opens.
 
 ## Scope Boundaries
 
@@ -104,6 +106,7 @@ comparison logic. Native proof is part of the final stable journey.
 - mandatory full direct-result gate on the exact stable artifact;
 - one final stable restart/resume/removal journey on macOS arm64;
 - mandatory real Codex non-interference in passing final evidence.
+- pre-003-merge Host-local deterministic preparation restricted to the exact FR-003 boundary.
 
 ### Out of Scope
 
@@ -122,6 +125,10 @@ comparison logic. Native proof is part of the final stable journey.
 - cache deletion;
 - Windows/Linux support claims without native evidence;
 - per-story real Harness journeys.
+- pre-003-merge edits to shared Core/version/protocol/MCP surfaces, shared contract tests, root
+  validation, or the lockfile;
+- pre-003-merge native Harness gates, final artifacts/journeys/evidence, stable-support claims,
+  completion claims, proxies, Core contract changes, or DeepSeek-specific version seams.
 
 ## Requirements
 
@@ -131,11 +138,26 @@ comparison logic. Native proof is part of the final stable journey.
   `006` work.
 - **FR-002**: The package MUST contain/select a compatible shared Core runtime and MUST NOT require
   a separately installed Dev Flow Core.
-- **FR-003**: Feature 004 implementation MUST start from a recorded merge commit on `main`
-  containing completed Feature 003. The recorded capability MUST include the shared detached-build
-  version seam, Codex-aware shared package/layout contracts, and Codex-aware root validator.
-  Feature 004 MUST consume these delivered capabilities rather than depend on Feature 003 task
-  numbers, duplicate the seam, or weaken/revert Codex validation.
+- **FR-003**: Before Feature 003 is merged, Feature 004 MAY perform only the explicitly authorized
+  Host-local deterministic preparation slice. Writes MUST remain within
+  `specs/004-deepseek-explicit-dev-flow/**`, `packages/deepseek/**`,
+  `scripts/build-deepseek-package.sh`, `scripts/run-deepseek-real-journey.sh`, and
+  `scripts/validate-deepseek-journey-evidence.mjs`. The slice MAY cover first-party Harness contract
+  research, package-local fake Core/bundle/Skill/launcher/runtime tests and source,
+  `cordis.patch.yml`, fake-profile journey infrastructure, RC/stable evidence models, and code that
+  does not depend on a shared version seam. It MUST NOT edit `internal/version/**`,
+  `tests/contract/package_manifest_test.go`, `tests/contract/repository_layout_test.go`,
+  `tests/contract/fixture_contract_test.go`, `scripts/validate-repository.sh`, `pnpm-lock.yaml`,
+  `protocol/**`, `cmd/**`, `internal/mcp/**`, or Feature 002 contracts. It MUST NOT build a final
+  artifact, run a native Harness gate/final journey, write final stable evidence, establish stable
+  support/completion, add a proxy, change a Core public contract, or add a DeepSeek-specific version
+  seam. After all safe work, it MUST stop at the explicit `003 merge barrier`. Only after completed
+  Feature 003 is merged to `main`, latest `main` is merged into the Feature 004 branch without
+  rewriting history, and the exact delivered baseline is recorded MAY Feature 004 modify shared
+  integration surfaces or perform native/final work. The recorded baseline MUST include the shared
+  detached-build version seam, Codex-aware shared package/layout contracts, and Codex-aware root
+  validator; Feature 004 MUST consume these delivered capabilities rather than depend on Feature
+  003 task numbers, duplicate the seam, or weaken/revert Codex validation.
 - **FR-004**: The package MUST use the implementation-time official Harness bundle/profile
   mechanism and register one Skill provider plus one local STDIO MCP integration.
 - **FR-005**: Installation MUST NOT run source builds/downloads, mutate repositories/shared task
@@ -238,7 +260,8 @@ comparison logic. Native proof is part of the final stable journey.
 ## Assumptions
 
 - Feature 002/Core Contract 0.1 is merged.
-- Feature 003 is fully implemented and merged before Feature 004 implementation starts.
+- Feature 003 is fully implemented and merged before Feature 004 crosses the 003 merge barrier;
+  only the bounded FR-003 Host-local deterministic preparation slice may run earlier.
 - The planning-time Harness artifact is pre-release and may be used only for labelled provisional
   engineering evidence.
 - Direct Core MCP is preferred; no proxy is currently authorized.

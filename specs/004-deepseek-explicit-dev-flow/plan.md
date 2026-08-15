@@ -11,10 +11,13 @@ Deliver one private `dev-flow-deepseek` Harness bundle containing exactly one ex
 `dev-flow` Skill, one native local STDIO MCP integration, one package-relative macOS arm64 Go Core
 runtime, and a small transport-transparent JavaScript launcher.
 
-Feature 004 starts only from an exact `main` merge commit containing completed Feature 003. It
-consumes the delivered detached-binary version seam, Codex-aware shared contract tests, and root
-validator without referring to Feature 003 task numbers, duplicating shared files, or weakening
-Codex behavior.
+Feature 004 may begin with one bounded pre-merge Host-local deterministic preparation slice. That
+slice is confined to Feature 004 docs, `packages/deepseek/**`, and the three DeepSeek-owned scripts;
+it cannot consume or modify unmerged shared capabilities, run native/final evidence, or establish
+support/completion. It stops at the explicit 003 merge barrier. After Feature 003 is merged, Feature
+004 merges latest `main`, records the exact baseline, and consumes the delivered detached-binary
+version seam, Codex-aware shared contract tests, and root validator without referring to Feature
+003 task numbers, duplicating shared files, or weakening Codex behavior.
 
 Direct native MCP consumption is the only authorized result path. A provisional release-candidate
 spike may provide engineering evidence when no stable Harness exists, but final support requires the
@@ -63,9 +66,39 @@ Skill, and native MCP composition
 
 No constitutional exception is requested.
 
+## Gate -1 — Bounded Parallel Preparation
+
+Before Feature 003 is merged, the only writable paths are:
+
+```text
+specs/004-deepseek-explicit-dev-flow/**
+packages/deepseek/**
+scripts/build-deepseek-package.sh
+scripts/run-deepseek-real-journey.sh
+scripts/validate-deepseek-journey-evidence.mjs
+```
+
+Allowed work is limited to first-party Harness contract research/records, package-local fake Core
+and bundle/Skill/launcher/runtime tests and source, `cordis.patch.yml`, fake-profile journey
+infrastructure, RC/stable result-evidence models, and Host-local code that does not depend on the
+shared version seam. All execution in this slice is static, fake, simulated, or deterministic; no
+real Harness process is started.
+
+The slice cannot edit `internal/version/**`, any of the three shared contract tests,
+`scripts/validate-repository.sh`, `pnpm-lock.yaml`, `protocol/**`, `cmd/**`, `internal/mcp/**`, or
+Feature 002 contracts. It cannot build a final artifact, run provisional/stable native Gate B or the
+final journey, write final stable evidence, claim stable support/completion, add a projection proxy,
+change a Core contract, or invent a DeepSeek-specific Core version seam.
+
+After the safe tasks and their targeted tests converge, work stops at the **003 merge barrier** with
+a clean worktree. The barrier opens only after completed Feature 003 is merged to `main`, latest
+`main` is merged into the Feature 004 branch with history preserved, the exact baseline is recorded,
+and `$speckit-analyze` finds no new CRITICAL/HIGH cross-feature issue.
+
 ## Gate 0 — Merged Feature 003 Baseline
 
-Feature 004 implementation may not begin from a sibling or unmerged Feature 003 branch.
+Shared integration and native/final implementation may not begin from a sibling or unmerged Feature
+003 branch. Gate -1 preparation does not satisfy or bypass this gate.
 
 Record in `evidence/direct-consumption.md`:
 
@@ -224,6 +257,9 @@ tests/contract/repository_layout_test.go
 `internal/version/` is consumed from the merged Feature 003 baseline and is not edited by Feature
 004.
 
+During Gate -1, only the `packages/deepseek/` tree and the three explicitly listed DeepSeek scripts
+from this planned structure may be created or changed; shared paths remain post-barrier work.
+
 ## Product Design
 
 ### Bundle and runtime
@@ -279,7 +315,8 @@ User-story checkpoints use:
 
 The journey harness may expose `--through explicit-invocation`, `--through done`, and
 `--through remove`, but story tasks invoke only fake/simulated modes. They assert no real `dsh`
-process and no native evidence.
+process and no native evidence. These fake modes and their evidence model may be completed before
+the 003 merge barrier; any native mode remains disabled until after it.
 
 ## Native Evidence Budget
 
@@ -362,6 +399,10 @@ capability dependency, and final Codex comparison are concrete lifecycle/evidenc
 generic host framework or proxy is introduced.
 
 ## Delivery Boundary
+
+The pre-merge slice is complete only when all safe tasks have targeted passing evidence, convergence
+finds no safe-slice gap, commits are pushed, the worktree is clean, and execution is stopped at the
+003 merge barrier. This is not Feature completion and establishes no Harness support.
 
 Feature 004 is complete only after:
 

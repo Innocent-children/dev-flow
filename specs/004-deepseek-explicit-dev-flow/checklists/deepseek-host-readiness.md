@@ -1,18 +1,24 @@
 # DeepSeek Host Requirements Quality Checklist
 
 **Feature**: [spec.md](../spec.md)  
-**Reviewed**: 2026-08-15 after remediation  
+**Reviewed**: 2026-08-15 after parallel-boundary remediation
 **Meaning**: `[x]` records requirements-quality approval only; it does not claim implementation,
 stable Harness availability, packaged artifacts, or native evidence.
 
 ## Merged dependency and ownership
 
-- [x] Feature 004 starts only from an exact `main` merge commit containing completed Feature 003.
+- [x] Feature 004 may start only the enumerated Host-local deterministic preparation before the
+  Feature 003 merge; all shared/native/final work remains post-barrier.
+- [x] The pre-merge writable path allowlist and forbidden shared paths/behaviors are exact and
+  consistent across README, spec, plan, tasks, and quickstart.
+- [x] The 003 merge barrier requires clean bounded commits, completed Feature 003 on `main`, a
+  history-preserving merge of latest `main`, baseline recording, and follow-up analysis.
 - [x] The dependency is expressed as delivered capabilities and identities rather than mutable
   Feature 003 task numbers.
 - [x] Feature 004 consumes the shared detached-build version seam and preserves Codex-aware shared
   contracts/root validation without duplication or weakening.
-- [x] Shared-file ownership and rebase order are explicit before any Feature 004 implementation.
+- [x] Shared-file ownership, the history-preserving merge order, and the no-rebase rule are explicit
+  before Feature 004 crosses the 003 merge barrier.
 
 ## Product, runtime, and authority
 

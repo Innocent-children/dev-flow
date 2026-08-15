@@ -4,13 +4,47 @@ description: "Dependency-ordered implementation tasks for the DeepSeek Harness p
 
 # Tasks: DeepSeek Explicit Dev Flow
 
-**Prerequisites**: Feature 003 is implemented and merged to `main`; its exact merge commit and
-delivered shared capabilities are recorded; both Feature 004 review checklists are approved.
+**Prerequisites**: The bounded parallel-preparation slice requires the explicit FR-003 authorization,
+both Feature 004 review checklists revalidated against that boundary, and analyze with no
+CRITICAL/HIGH finding. Crossing the 003 merge barrier requires completed Feature 003 merged to
+`main`, latest `main` merged into this branch without rewriting history, its exact merge commit and
+delivered shared capabilities recorded, and a clean follow-up analysis.
 
 **Evidence budget**: User-story checkpoints are deterministic/fake/integration only. One optional
 release-candidate direct-result spike is allowed when no stable Harness exists. One complete gate on
 the exact final stable Harness and one final stable journey are required. No per-story real Harness
 journey is allowed.
+
+## Pre-merge parallel execution boundary
+
+Before Feature 003 is merged, writes are limited to:
+
+```text
+specs/004-deepseek-explicit-dev-flow/**
+packages/deepseek/**
+scripts/build-deepseek-package.sh
+scripts/run-deepseek-real-journey.sh
+scripts/validate-deepseek-journey-evidence.mjs
+```
+
+The safe task set is T002–T006, T008–T012, T014–T017, T020–T022, T025–T027, T030–T047,
+T049, and T050, subject to these stricter rules: T002 records research only; T017 implements and
+tests orchestration without starting a real Harness; T030–T047 and T049 use only package-local,
+fake-Core, fake-profile, simulated, or static evidence. Any sub-step that needs a post-barrier file,
+native Harness, merged version seam, final artifact/evidence, stable support, or completion claim is
+deferred with its parent task left unchecked.
+
+Pre-merge work MUST NOT touch `internal/version/**`,
+`tests/contract/package_manifest_test.go`, `tests/contract/repository_layout_test.go`,
+`tests/contract/fixture_contract_test.go`, `scripts/validate-repository.sh`, `pnpm-lock.yaml`,
+`protocol/**`, `cmd/**`, `internal/mcp/**`, or Feature 002 contracts. It MUST NOT execute T001,
+T007, T013, T018–T019, T023–T024, T028–T029, T048, or T051–T059; build a final artifact; run
+native Gate B/final journey; write final stable evidence; claim support/completion; add a proxy;
+change Core public contracts; or add a DeepSeek-specific version seam.
+
+After the safe tasks and targeted tests, run convergence for this slice, commit/push only bounded
+changes, leave a clean worktree, and stop at the explicit **003 merge barrier**. Do not mark blocked
+post-barrier tasks complete.
 
 ## Phase 1 — Merged baseline and failing contracts
 
@@ -205,7 +239,10 @@ journey is allowed.
 
 ## Execution Rules
 
-- T001 blocks all Feature 004 implementation.
+- Gate -1 safe tasks listed in the pre-merge boundary may run before T001. T001 blocks every other
+  Feature 004 task and every shared/native/final action.
+- After Feature 003 merges, merge latest `main` with a merge commit, complete T001, rerun analyze,
+  and only then continue post-barrier tasks using the merged shared baseline.
 - T018 is optional only for a provisional RC; when it runs on the exact final stable artifact, T052
   may revalidate/reuse it instead of duplicating the native gate.
 - T032, T043, and T049 must use `--fake-host` and never start `dsh`.

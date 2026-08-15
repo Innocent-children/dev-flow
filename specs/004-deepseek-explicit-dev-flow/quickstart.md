@@ -4,11 +4,36 @@ This runbook is an implementation/verification procedure, not proof that Feature
 Keep profiles, packages, data, evidence, and test repositories outside the target repository. Do not
 publish, tag, release, or use a normal user profile.
 
+## 0. Run only bounded preparation before Feature 003 merges
+
+Set `SPECIFY_FEATURE_DIRECTORY=specs/004-deepseek-explicit-dev-flow`; do not edit
+`.specify/feature.json`. Before Feature 003 is merged, writes may touch only:
+
+```text
+specs/004-deepseek-explicit-dev-flow/**
+packages/deepseek/**
+scripts/build-deepseek-package.sh
+scripts/run-deepseek-real-journey.sh
+scripts/validate-deepseek-journey-evidence.mjs
+```
+
+Use only official Harness research plus package-local static/fake/deterministic work: fake Core,
+bundle/Skill/launcher/runtime tests and source, bundle configuration, fake-profile journey modes,
+and RC/stable evidence models. Do not modify shared version/Core/protocol/MCP/contracts/root
+validation or `pnpm-lock.yaml`; do not start a real Harness, build a final artifact, write final
+stable evidence, claim support/completion, add a proxy, change Core contracts, or create a
+DeepSeek-specific version seam.
+
+After targeted safe-slice tests and convergence, commit/push the bounded changes, require a clean
+worktree, and stop at the explicit **003 merge barrier**.
+
 ## 1. Verify the merged Feature 003 baseline
 
-Feature 004 starts only after Feature 003 is implemented and merged to `main`. Record the exact
-merge commit and verify the delivered `internal/version` seam/tests, Codex-aware shared manifest/
-layout contracts, root validator, root `VERSION`, Core source, and fixture aggregate.
+After Feature 003 is implemented and merged to `main`, merge latest `main` into the Feature 004
+branch with a merge commit and without rebasing. Record the exact merge commit and verify the
+delivered `internal/version` seam/tests, Codex-aware shared manifest/layout contracts, root
+validator, root `VERSION`, Core source, and fixture aggregate. Rerun analysis before crossing the
+barrier.
 
 Do not continue from a sibling branch, depend on Feature 003 task numbers, edit/duplicate the shared
 version seam, or weaken Codex validation.
@@ -22,9 +47,10 @@ Inspect official registry/repository evidence and record:
 - bounded compatible range;
 - bundle/profile, Skill, native MCP result, add/remove/restart, and stale-metadata contracts.
 
-Planning found only a release candidate. When no stable artifact exists, one provisional direct-
-result spike may run and every observation is labelled `pre-release-native`. It never establishes
-support.
+Planning found only a release candidate. Research and RC/stable evidence modeling may occur before
+the barrier, but native execution may not. After the barrier, when no stable artifact exists, one
+provisional direct-result spike may run and every observation is labelled `pre-release-native`. It
+never establishes support.
 
 ## 3. Run deterministic foundation checks
 

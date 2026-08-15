@@ -1,14 +1,19 @@
 # Requirements Quality Checklist: DeepSeek Explicit Dev Flow
 
 **Feature**: [spec.md](../spec.md)  
-**Reviewed**: 2026-08-15 after audit remediation  
+**Reviewed**: 2026-08-15 after parallel-boundary remediation
 **Scope**: Requirements quality only; implementation, stable Harness availability, package
 artifacts, and native evidence do not yet exist.
 
 ## Dependency and product boundary
 
-- [x] Feature 004 starts only after completed Feature 003 is merged to `main` and records the exact
-  merge/capability identities.
+- [x] Pre-merge work is limited to the exact Host-local deterministic file/behavior allowlist and
+  explicitly excludes all shared version/Core/protocol/MCP/contract/root-validator/lockfile work.
+- [x] Native Harness execution, final artifact/evidence, stable support/completion, proxy, and Core
+  contract/version-seam work remain prohibited before the 003 merge barrier.
+- [x] The specification defines a clean-worktree 003 merge barrier and requires latest `main` to be
+  merged without history rewriting before shared integration continues.
+- [x] Post-barrier work records the exact completed Feature 003 merge/capability identities.
 - [x] Shared version, Codex contract, and root-validation capabilities are consumed rather than
   duplicated or weakened.
 - [x] One private package, one explicit Skill, one native STDIO integration, one launcher, and one
@@ -59,5 +64,5 @@ artifacts, and native evidence do not yet exist.
 
 ## Review result
 
-- [x] Requirements are complete, consistent, measurable, and ready for staged implementation after
-  the explicit Feature 003 merge and host gates are satisfied.
+- [x] Requirements are complete, consistent, measurable, and ready for bounded parallel preparation;
+  shared/native/final implementation remains gated by the explicit Feature 003 merge and host gates.
