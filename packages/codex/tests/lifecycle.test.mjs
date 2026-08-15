@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { chmod, lstat, mkdir, readFile, readdir, realpath, stat, symlink, writeFile } from "node:fs/promises";
+import { chmod, lstat, mkdir, readFile, readdir, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +11,7 @@ import {
   digestResources,
   readReceipt,
   receiptOwnershipMatches,
+  removeRegistration,
   runCodexJSON,
   setupRegistration,
   validateReceipt,
@@ -305,10 +306,168 @@ test("setup rolls back only a marketplace created by the failing attempt", async
   assert.equal(calls.includes("plugin marketplace remove dev-flow-local --json"), true);
 });
 
+test("removal deletes only matching registration and the exact receipt", async (t) => {
+  const fixture = await makeSetupFixture(t, "remove-matching");
+  await setupRegistration(fixture.options);
+
+  const repository = join(fixture.root, "target repository");
+  const codexCache = join(fixture.root, "codex-owned-cache");
+  const adjacentReceiptFile = join(dirname(fixture.paths.receiptPath), "user-note.txt");
+  await mkdir(repository, { recursive: true });
+  await mkdir(fixture.paths.dataDirectory, { recursive: true });
+  await mkdir(codexCache, { recursive: true });
+  await writeFile(join(repository, "README.md"), "preserve repository\n");
+  await writeFile(join(fixture.paths.dataDirectory, "dev-flow.db"), "preserve task data\n");
+  await writeFile(join(codexCache, "cache.db"), "preserve Codex cache\n");
+  await writeFile(adjacentReceiptFile, "preserve adjacent receipt data\n");
+
+  const state = JSON.parse(await readFile(fixture.statePath, "utf8"));
+  state.marketplaces.push({ name: "user-marketplace", source: "/user", root: "/user" });
+  state.plugins.push({
+    name: "user-plugin",
+    marketplace_name: "user-marketplace",
+    selector: "user-plugin@user-marketplace",
+    root: "/user/plugin",
+    source: { source: "local", path: "./plugin" },
+    version: "9.9.9",
+    installed: true,
+    enabled: true,
+  });
+  await writeFile(fixture.statePath, `${JSON.stringify(state, null, 2)}\n`);
+
+  const preservedBefore = await Promise.all([
+    directoryFingerprint(fixture.paths.packageRoot),
+    directoryFingerprint(fixture.paths.dataDirectory),
+    directoryFingerprint(repository),
+    directoryFingerprint(codexCache),
+  ]);
+  const removed = await removeRegistration(fixture.options);
+  assert.deepEqual(removed, { status: "removed", changed: true });
+  await assert.rejects(stat(fixture.paths.receiptPath), { code: "ENOENT" });
+  assert.equal(await readFile(adjacentReceiptFile, "utf8"), "preserve adjacent receipt data\n");
+  assert.deepEqual(
+    await Promise.all([
+      directoryFingerprint(fixture.paths.packageRoot),
+      directoryFingerprint(fixture.paths.dataDirectory),
+      directoryFingerprint(repository),
+      directoryFingerprint(codexCache),
+    ]),
+    preservedBefore,
+  );
+
+  const after = JSON.parse(await readFile(fixture.statePath, "utf8"));
+  assert.deepEqual(after.marketplaces.map((entry) => entry.name), ["user-marketplace"]);
+  assert.deepEqual(after.plugins.map((entry) => entry.selector), ["user-plugin@user-marketplace"]);
+
+  const repeated = await removeRegistration(fixture.options);
+  assert.deepEqual(repeated, { status: "already-absent", changed: false });
+  assert.equal(await readFile(adjacentReceiptFile, "utf8"), "preserve adjacent receipt data\n");
+});
+
+test("removal treats complete absence as a no-op and conflicts without a receipt", async (t) => {
+  const absent = await makeSetupFixture(t, "remove-absent");
+  assert.deepEqual(await removeRegistration(absent.options), {
+    status: "already-absent",
+    changed: false,
+  });
+  await assert.rejects(stat(absent.paths.receiptPath), { code: "ENOENT" });
+
+  const orphan = await makeSetupFixture(t, "remove-orphan");
+  await mkdir(dirname(orphan.statePath), { recursive: true });
+  const orphanState = {
+    marketplaces: [{
+      name: "dev-flow-local",
+      source: orphan.paths.marketplaceRoot,
+      root: orphan.paths.marketplaceRoot,
+    }],
+    plugins: [],
+  };
+  await writeFile(orphan.statePath, `${JSON.stringify(orphanState)}\n`);
+  await assert.rejects(removeRegistration(orphan.options), /without a matching registration receipt/i);
+  assert.deepEqual(JSON.parse(await readFile(orphan.statePath, "utf8")), orphanState);
+});
+
+test("interrupted removal resumes from receipt and current readback", async (t) => {
+  const fixture = await makeSetupFixture(t, "remove-interrupted");
+  await setupRegistration(fixture.options);
+  const failing = {
+    ...fixture.options,
+    environment: { ...fixture.environment, FAKE_CODEX_FAIL: "marketplace:remove" },
+  };
+
+  await assert.rejects(removeRegistration(failing), /Codex command failed/);
+  assert.notEqual(await readReceipt(fixture.paths.receiptPath), null);
+  const interrupted = JSON.parse(await readFile(fixture.statePath, "utf8"));
+  assert.equal(interrupted.plugins.length, 0);
+  assert.equal(interrupted.marketplaces.length, 1);
+
+  assert.deepEqual(await removeRegistration(fixture.options), { status: "removed", changed: true });
+  await assert.rejects(stat(fixture.paths.receiptPath), { code: "ENOENT" });
+  const finalState = JSON.parse(await readFile(fixture.statePath, "utf8"));
+  assert.deepEqual(finalState, { marketplaces: [], plugins: [] });
+});
+
+test("removal fails closed on receipt identity or marketplace-root conflict", async (t) => {
+  const receiptConflict = await makeSetupFixture(t, "remove-receipt-conflict");
+  await setupRegistration(receiptConflict.options);
+  const alteredReceipt = await readReceipt(receiptConflict.paths.receiptPath);
+  alteredReceipt.paths.data_dir = join(receiptConflict.root, "different-data");
+  await writeFile(receiptConflict.paths.receiptPath, `${JSON.stringify(alteredReceipt)}\n`);
+  const stateBefore = await readFile(receiptConflict.statePath, "utf8");
+  await assert.rejects(removeRegistration(receiptConflict.options), /receipt.*conflict/i);
+  assert.equal(await readFile(receiptConflict.statePath, "utf8"), stateBefore);
+
+  const rootConflict = await makeSetupFixture(t, "remove-root-conflict");
+  await setupRegistration(rootConflict.options);
+  const state = JSON.parse(await readFile(rootConflict.statePath, "utf8"));
+  state.marketplaces[0].source = join(rootConflict.root, "other-marketplace");
+  state.marketplaces[0].root = join(rootConflict.root, "other-marketplace");
+  await writeFile(rootConflict.statePath, `${JSON.stringify(state, null, 2)}\n`);
+  const conflictedBefore = await readFile(rootConflict.statePath, "utf8");
+  await assert.rejects(removeRegistration(rootConflict.options), /marketplace.*conflict/i);
+  assert.equal(await readFile(rootConflict.statePath, "utf8"), conflictedBefore);
+  assert.notEqual(await readReceipt(rootConflict.paths.receiptPath), null);
+});
+
+test("removal rejects a receipt symbolic link before mutating Codex state", async (t) => {
+  const fixture = await makeSetupFixture(t, "remove-receipt-symlink");
+  await setupRegistration(fixture.options);
+  const externalReceipt = join(fixture.root, "user-owned-receipt.json");
+  await writeFile(externalReceipt, await readFile(fixture.paths.receiptPath));
+  await rm(fixture.paths.receiptPath);
+  await symlink(externalReceipt, fixture.paths.receiptPath);
+  const stateBefore = await readFile(fixture.statePath, "utf8");
+
+  await assert.rejects(removeRegistration(fixture.options), /receipt target is a symbolic link/i);
+  assert.equal(await readFile(fixture.statePath, "utf8"), stateBefore);
+  assert.equal(await readFile(externalReceipt, "utf8"), await readFile(fixture.paths.receiptPath, "utf8"));
+  assert.equal((await lstat(fixture.paths.receiptPath)).isSymbolicLink(), true);
+});
+
+test("removal rejects a symbolic-link receipt parent before mutating Codex state", async (t) => {
+  const fixture = await makeSetupFixture(t, "remove-receipt-parent-symlink");
+  await setupRegistration(fixture.options);
+  const receiptContents = await readFile(fixture.paths.receiptPath);
+  const externalDirectory = join(fixture.root, "user-owned-registrations");
+  const registrationsDirectory = dirname(fixture.paths.receiptPath);
+  await mkdir(externalDirectory);
+  await writeFile(join(externalDirectory, "codex.json"), receiptContents);
+  await rm(registrationsDirectory, { recursive: true });
+  await symlink(externalDirectory, registrationsDirectory);
+  const stateBefore = await readFile(fixture.statePath, "utf8");
+
+  await assert.rejects(removeRegistration(fixture.options), /receipt path contains a symbolic link/i);
+  assert.equal(await readFile(fixture.statePath, "utf8"), stateBefore);
+  assert.equal(await readFile(join(externalDirectory, "codex.json"), "utf8"), receiptContents.toString());
+  assert.equal((await lstat(registrationsDirectory)).isSymbolicLink(), true);
+});
+
 async function makeRoot(t) {
   const { mkdtemp } = await import("node:fs/promises");
   const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-lifecycle-")));
-  t.after(async () => {});
+  t.after(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
   return root;
 }
 

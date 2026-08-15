@@ -41,6 +41,23 @@ test("operator guide documents governed create, resume, recovery, and terminal b
   }
 });
 
+test("operator guide documents bounded removal, retention, and compatible reinstall", async () => {
+  const readme = await readFile(join(packageRoot, "README.md"), "utf8");
+  for (const expectation of [
+    /## Explicit removal and retained task data/,
+    /deregister[\s\S]*before[\s\S]*npm uninstall/i,
+    /receipt-first|read.*receipt.*first/i,
+    /interrupted[\s\S]*resume/i,
+    /conflict[\s\S]*fail.*closed/i,
+    /adjacent[\s\S]*preserv/i,
+    /task data[\s\S]*reopen/i,
+    /repeated removal[\s\S]*(?:no-op|idempotent)/i,
+    /compatible reinstall/i,
+  ]) {
+    assert.match(readme, expectation);
+  }
+});
+
 test("fake through-done journey preserves build identity and reaches one recovered Core lineage", {
   skip: supportedMachine ? false : "darwin-arm64 deterministic package execution only",
 }, async () => {
@@ -93,6 +110,48 @@ test("fake through-done journey preserves build identity and reaches one recover
     "dev_flow_get_task",
     "dev_flow_get_next_action",
   ]);
+  assert.equal(await optionalContents(nativeEvidencePath), evidenceBefore);
+});
+
+test("fake through-remove journey preserves task data and separates uninstall from compatible reinstall", {
+  skip: supportedMachine ? false : "darwin-arm64 deterministic package execution only",
+}, async () => {
+  const evidenceBefore = await optionalContents(nativeEvidencePath);
+  const { stdout, stderr } = await execHarness(["--fake-host", "--through", "remove"]);
+  assert.equal(stderr, "");
+  const checkpoint = JSON.parse(stdout);
+
+  assert.equal(checkpoint.classification, "simulated");
+  assert.equal(checkpoint.through_stage, "remove");
+  assert.equal(checkpoint.real_codex_started, false);
+  assert.equal(checkpoint.native_evidence_written, false);
+  assert.equal(checkpoint.task_lineage.terminal_outcome, "DONE");
+  assert.equal(checkpoint.removal.process_stopped_before_remove, true);
+  assert.equal(checkpoint.removal.remove_status, "removed");
+  assert.equal(checkpoint.removal.repeat_status, "already-absent");
+  assert.equal(checkpoint.removal.plugin_absent, true);
+  assert.equal(checkpoint.removal.marketplace_absent, true);
+  assert.equal(checkpoint.removal.receipt_absent, true);
+  assert.equal(checkpoint.removal.adjacent_preserved, true);
+  assert.equal(checkpoint.removal.npm_uninstalled_separately, true);
+  assert.equal(checkpoint.removal.compatible_reinstall_status, "installed");
+  assert.equal(checkpoint.removal.reinstall_plugin_count, 1);
+  assert.equal(checkpoint.removal.reinstall_marketplace_count, 1);
+
+  assert.deepEqual(
+    checkpoint.task_data_removal.files_before_removal,
+    checkpoint.task_data_removal.files_after_removal,
+  );
+  assert.equal(
+    checkpoint.task_data_removal.manifest_before_removal_sha256,
+    checkpoint.task_data_removal.manifest_after_removal_sha256,
+  );
+  assert.equal(checkpoint.task_data_removal.direct_reopen_task_id, checkpoint.task_lineage.task_id_after_restart);
+  assert.equal(checkpoint.task_data_removal.direct_reopen_revision, 8);
+  assert.equal(checkpoint.repository.after_completion_sha256, checkpoint.repository.after_removal_sha256);
+  assert.equal(checkpoint.repository.unchanged, true);
+  assert.equal(checkpoint.session_markers.includes("process-stop-before-remove"), true);
+  assert.equal(checkpoint.session_markers.includes("direct-reopen-after-remove"), true);
   assert.equal(await optionalContents(nativeEvidencePath), evidenceBefore);
 });
 

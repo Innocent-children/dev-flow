@@ -217,6 +217,59 @@ test("setup emits success only after verified lifecycle completion and fails on 
   assert.equal(failedError.text, "dev-flow-codex: readback mismatch\n");
 });
 
+test("remove reports deregistration before a separate npm-uninstall handoff", async (t) => {
+  const paths = await makePaths(t);
+  paths.receiptPath = join(paths.packageRoot, "registrations", "codex.json");
+  const stdout = captureStream();
+  const stderr = captureStream();
+  const result = await runCLI(["remove", "--json"], {
+    stdout,
+    stderr,
+    resolvePaths: async () => paths,
+    readPackageVersion: async () => "0.1.0",
+    removeRegistration: async ({ paths: actual, packageVersion }) => {
+      assert.equal(stdout.text, "", "remove must not report success before absence readback");
+      assert.equal(actual, paths);
+      assert.equal(packageVersion, "0.1.0");
+      return { status: "removed", changed: true };
+    },
+  });
+  assert.deepEqual(result, { code: 0, signal: null });
+  assert.deepEqual(JSON.parse(stdout.text), {
+    operation: "remove",
+    status: "removed",
+    changed: true,
+    receipt_path: paths.receiptPath,
+    next_step: "Run npm uninstall dev-flow-codex separately after deregistration.",
+  });
+  assert.equal(stderr.text, "");
+
+  const humanOutput = captureStream();
+  assert.deepEqual(await runCLI(["remove"], {
+    stdout: humanOutput,
+    stderr: captureStream(),
+    resolvePaths: async () => paths,
+    readPackageVersion: async () => "0.1.0",
+    removeRegistration: async () => ({ status: "already-absent", changed: false }),
+  }), { code: 0, signal: null });
+  assert.match(humanOutput.text, /remove: already-absent/);
+  assert.match(humanOutput.text, /npm uninstall dev-flow-codex.*separately/i);
+
+  const failedOutput = captureStream();
+  const failedError = captureStream();
+  assert.deepEqual(await runCLI(["remove"], {
+    stdout: failedOutput,
+    stderr: failedError,
+    resolvePaths: async () => paths,
+    readPackageVersion: async () => "0.1.0",
+    removeRegistration: async () => {
+      throw new Error("removal readback conflict");
+    },
+  }), { code: 1, signal: null });
+  assert.equal(failedOutput.text, "");
+  assert.equal(failedError.text, "dev-flow-codex: removal readback conflict\n");
+});
+
 test("unknown launcher commands fail without dispatch", async () => {
   let resolved = false;
   const stderr = captureStream();

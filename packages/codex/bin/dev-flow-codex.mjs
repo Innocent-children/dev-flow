@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 
 import {
   inspectCoreVersion,
+  removeRegistration,
   setupRegistration,
 } from "../lib/lifecycle.mjs";
 import {
@@ -15,6 +16,7 @@ import {
 } from "../lib/paths.mjs";
 
 const FORWARDED_SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"];
+const NPM_UNINSTALL_HANDOFF = "Run npm uninstall dev-flow-codex separately after deregistration.";
 
 export async function runCLI(arguments_, dependencies = {}) {
   const stdout = dependencies.stdout ?? process.stdout;
@@ -68,10 +70,7 @@ export async function runCLI(arguments_, dependencies = {}) {
       return { code: 0, signal: null };
     }
 
-    const remove = dependencies.removeRegistration;
-    if (typeof remove !== "function") {
-      throw new Error("remove is unavailable until the explicit removal implementation is installed");
-    }
+    const remove = dependencies.removeRegistration ?? removeRegistration;
     const result = await remove({
       paths,
       packageVersion,
@@ -162,15 +161,18 @@ async function assertExecutableRuntime(runtimePath) {
 
 function writeLifecycleSuccess(stdout, operation, result, receiptPath, json) {
   if (json) {
-    stdout.write(`${JSON.stringify({
+    const output = {
       operation,
       status: result.status,
       changed: result.changed,
       receipt_path: receiptPath,
-    })}\n`);
+    };
+    if (operation === "remove") output.next_step = NPM_UNINSTALL_HANDOFF;
+    stdout.write(`${JSON.stringify(output)}\n`);
     return;
   }
   stdout.write(`dev-flow-codex ${operation}: ${result.status}\n`);
+  if (operation === "remove") stdout.write(`${NPM_UNINSTALL_HANDOFF}\n`);
 }
 
 function isProductionCommand(arguments_) {

@@ -99,6 +99,28 @@ Static, simulated, user-performed, and native evidence keep distinct labels. A C
 ownership/contract conflict, `CANCELLED`, or Core-owned `DONE` outcome stops repository work and is
 reported without reinterpretation.
 
+## Explicit removal and retained task data
+
+Deregister before running npm uninstall:
+
+```bash
+dev-flow-codex remove --json
+npm uninstall --ignore-scripts dev-flow-codex
+```
+
+Removal is receipt-first. It reads and validates the exact ownership receipt, reads current Codex
+marketplace/plugin state, and fails closed on an identity, root, or readback conflict before any
+mutation. It removes the matching plugin, verifies absence, removes the matching marketplace,
+verifies absence again, and deletes only the exact receipt. An interrupted removal keeps the
+receipt, so the next explicit call can resume from fresh readback. Repeated removal after complete
+absence is an idempotent no-op.
+
+The command does not delete the npm package, Core task data, repository, Codex config/cache, receipt
+parents, or unknown adjacent resources. Stop Core before comparing task-data manifests; after
+deregistration, directly reopen the recorded task with Core to prove retention. Perform npm
+uninstall separately only after successful absence readback. A later artifact within the selected
+compatible range may be installed and explicitly set up again against the retained data.
+
 Setup, version reporting, and removal are package/user-state operations and behave the same from
 any working directory. They do not add configuration, databases, instructions, or generated files
 to the target repository and never mutate Git.
@@ -139,4 +161,7 @@ the repository fingerprint, and emits a `classification=simulated` JSON record w
 `--fake-host` is rejected during the user-story phases. The `done` checkpoint additionally drives
 two confirmed fake-Core action commits across a deliberate process restart, loses the second
 mutation response after persistence, reads the same task back before any retry, and captures Core
-`DONE` within the recorded call and verification budgets. It remains simulated evidence only.
+`DONE` within the recorded call and verification budgets. The `remove` checkpoint then proves
+receipt-first deregistration, repeated absence, adjacent/repository/task-data preservation, direct
+task reopen, separate npm uninstall, and compatible reinstall. Every checkpoint remains simulated
+evidence only.

@@ -221,11 +221,11 @@ compatible reinstall under deterministic evidence.
 
 ### Tests
 
-- [ ] T044 [P] [US3] Extend lifecycle tests for matching removal, absence/no-op, interrupted resume,
+- [X] T044 [P] [US3] Extend lifecycle tests for matching removal, absence/no-op, interrupted resume,
   receipt/readback conflict, marketplace-root mismatch, adjacent files, exact receipt cleanup, and
   prohibition of package/data/repository/cache deletion in
   `packages/codex/tests/lifecycle.test.mjs` (FR-007).
-- [ ] T045 [P] [US3] Add packaged-Core retention integration that creates/pauses a task in a
+- [X] T045 [P] [US3] Add packaged-Core retention integration that creates/pauses a task in a
   temporary data root, stops Core, simulates deregistration/uninstall, compares canonical data
   manifests and repository fingerprints, directly reopens the task, and exercises compatible
   reinstall without starting Codex in `packages/codex/tests/removal-retention.test.mjs`
@@ -233,22 +233,22 @@ compatible reinstall under deterministic evidence.
 
 ### Implementation
 
-- [ ] T046 [US3] Implement receipt-first/current-state reconciliation, exact plugin removal and
+- [X] T046 [US3] Implement receipt-first/current-state reconciliation, exact plugin removal and
   readback, matching marketplace removal/readback, receipt-only cleanup, adjacent preservation,
   idempotent absence, and fail-closed conflict behavior in
   `packages/codex/lib/lifecycle.mjs` (FR-007).
-- [ ] T047 [US3] Wire `remove [--json]` with explicit npm-uninstall handoff, stderr diagnostics,
+- [X] T047 [US3] Wire `remove [--json]` with explicit npm-uninstall handoff, stderr diagnostics,
   stable nonzero failure, and no recursive cleanup in
   `packages/codex/bin/dev-flow-codex.mjs` (FR-007).
-- [ ] T048 [US3] Extend fake-host journey stages with process-stop markers, complete data manifests,
+- [X] T048 [US3] Extend fake-host journey stages with process-stop markers, complete data manifests,
   plugin/marketplace/receipt absence, adjacent-file and repository comparisons, direct Core reopen,
   separate npm uninstall, repeated removal, and compatible reinstall (FR-007, FR-027, FR-028).
-- [ ] T049 [US3] Document deregistration before npm uninstall, interrupted/conflicting recovery,
+- [X] T049 [US3] Document deregistration before npm uninstall, interrupted/conflicting recovery,
   adjacent preservation, task-data reopen, idempotent repeat, and compatible reinstall in
   `packages/codex/README.md` (FR-007).
-- [ ] T050 [US3] Run lifecycle, packaged-Core retention, package, launcher, and fake-host removal
+- [X] T050 [US3] Run lifecycle, packaged-Core retention, package, launcher, and fake-host removal
   checks, resolving only US3 failures (FR-007, FR-025).
-- [ ] T051 [US3] Execute
+- [X] T051 [US3] Execute
   `scripts/run-codex-real-journey.sh --fake-host --through remove`; prove retained data/repository
   safety and compatible reinstall, assert no real Codex process starts, and create no native
   evidence (SC-007).

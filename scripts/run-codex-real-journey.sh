@@ -7,7 +7,7 @@ fake_host=false
 through_stage=""
 
 usage() {
-  printf '%s\n' 'usage: run-codex-real-journey.sh --fake-host --through setup|done' >&2
+  printf '%s\n' 'usage: run-codex-real-journey.sh --fake-host --through setup|done|remove' >&2
 }
 
 fail() {
@@ -50,6 +50,36 @@ process.stdout.write(hash.digest("hex"));
 NODE
 }
 
+directory_manifest() {
+  node - "$1" <<'NODE'
+const crypto = require("node:crypto");
+const fs = require("node:fs");
+const path = require("node:path");
+const root = process.argv[2];
+const files = [];
+function visit(directory) {
+  const entries = fs.readdirSync(directory, { withFileTypes: true })
+    .sort((left, right) => Buffer.from(left.name).compare(Buffer.from(right.name)));
+  for (const entry of entries) {
+    const absolute = path.join(directory, entry.name);
+    if (entry.isDirectory()) visit(absolute);
+    else {
+      files.push({
+        path: path.relative(root, absolute).split(path.sep).join("/"),
+        sha256: crypto.createHash("sha256").update(fs.readFileSync(absolute)).digest("hex"),
+      });
+    }
+  }
+}
+visit(root);
+const manifest = files.map((entry) => `${entry.sha256}  ${entry.path}\n`).join("");
+process.stdout.write(JSON.stringify({
+  files,
+  sha256: crypto.createHash("sha256").update(manifest).digest("hex"),
+}));
+NODE
+}
+
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --fake-host)
@@ -70,8 +100,8 @@ done
 
 [ "$fake_host" = true ] || fail "real Codex is disabled before the frozen-artifact native journey"
 case "$through_stage" in
-  setup|done) ;;
-  *) fail "this deterministic slice supports only --through setup or done" ;;
+  setup|done|remove) ;;
+  *) fail "this deterministic slice supports only --through setup, done, or remove" ;;
 esac
 [ "$(uname -s)" = Darwin ] && [ "$(uname -m)" = arm64 ] || fail "fake setup integration requires darwin-arm64"
 if [ "$through_stage" = setup ]; then
@@ -158,7 +188,7 @@ receipt_path="$fake_home/Library/Application Support/dev-flow/registrations/code
 [ -f "$receipt_path" ] || fail "setup did not write the isolated registration receipt"
 
 core_report='null'
-if [ "$through_stage" = done ]; then
+if [ "$through_stage" != setup ]; then
   fake_core="$repository_root/packages/codex/tests/fixtures/fake-core.mjs"
   fake_core_state="$journey_root/fake-core/state.json"
   fake_core_trace="$journey_root/fake-core/trace.jsonl"
@@ -497,6 +527,204 @@ fi
 repository_after_completion=$(directory_fingerprint "$target_repository")
 [ "$repository_before" = "$repository_after_completion" ] || fail "fake Core journey changed the target repository"
 
+removal_report='null'
+repository_after_removal=$repository_after_completion
+if [ "$through_stage" = remove ]; then
+  adjacent_file="$(dirname -- "$receipt_path")/user-owned-adjacent.txt"
+  printf '%s\n' 'preserve adjacent registration data' >"$adjacent_file"
+  task_data_before_removal=$(directory_manifest "$journey_root/fake-core")
+
+  remove_result=$(
+    cd "$target_repository"
+    HOME="$fake_home" \
+    PATH="$isolated_path" \
+    FAKE_CODEX_STATE="$fake_state" \
+    FAKE_CODEX_TRACE="$fake_trace" \
+    FAKE_CODEX_VERSION=0.147.0 \
+    "$launcher" remove --json
+  )
+  [ ! -f "$receipt_path" ] || fail "remove left the registration receipt present"
+  [ "$(cat "$adjacent_file")" = 'preserve adjacent registration data' ] || fail "remove changed adjacent data"
+
+  removed_marketplaces=$(
+    cd "$target_repository"
+    HOME="$fake_home" \
+    FAKE_CODEX_STATE="$fake_state" \
+    FAKE_CODEX_TRACE="$fake_trace" \
+    FAKE_CODEX_VERSION=0.147.0 \
+    "$fake_bin/codex" plugin marketplace list --json
+  )
+  removed_plugins=$(
+    cd "$target_repository"
+    HOME="$fake_home" \
+    FAKE_CODEX_STATE="$fake_state" \
+    FAKE_CODEX_TRACE="$fake_trace" \
+    FAKE_CODEX_VERSION=0.147.0 \
+    "$fake_bin/codex" plugin list --json
+  )
+
+  repeat_remove_result=$(
+    cd "$target_repository"
+    HOME="$fake_home" \
+    PATH="$isolated_path" \
+    FAKE_CODEX_STATE="$fake_state" \
+    FAKE_CODEX_TRACE="$fake_trace" \
+    FAKE_CODEX_VERSION=0.147.0 \
+    "$launcher" remove --json
+  )
+  task_data_after_removal=$(directory_manifest "$journey_root/fake-core")
+  [ "$task_data_before_removal" = "$task_data_after_removal" ] || fail "remove changed fake Core task data"
+
+  direct_reopen_output=$(
+    node <<'NODE' | env \
+      FAKE_CORE_STATE="$fake_core_state" \
+      FAKE_CORE_TRACE="$fake_core_trace" \
+      FAKE_CORE_CASE=success \
+      FAKE_CORE_SESSION=session-removal-reopen \
+      "$fake_core"
+const requests = [
+  {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "initialize",
+    params: {
+      protocolVersion: "2025-06-18",
+      capabilities: {},
+      clientInfo: { name: "dev-flow-fake-journey", version: "0.1.0" },
+    },
+  },
+  { jsonrpc: "2.0", method: "notifications/initialized", params: {} },
+  {
+    jsonrpc: "2.0",
+    id: 2,
+    method: "tools/call",
+    params: { name: "dev_flow_server_info", arguments: {} },
+  },
+  {
+    jsonrpc: "2.0",
+    id: 3,
+    method: "tools/call",
+    params: {
+      name: "dev_flow_get_task",
+      arguments: { host: "codex", task_id: "task-00000001" },
+    },
+  },
+];
+process.stdout.write(`${requests.map(JSON.stringify).join("\n")}\n`);
+NODE
+  )
+
+  npm uninstall \
+    --ignore-scripts \
+    --no-audit \
+    --no-fund \
+    --prefix "$install_prefix" \
+    dev-flow-codex >/dev/null
+  [ ! -e "$installed_package" ] || fail "separate npm uninstall left the package installed"
+
+  npm install \
+    --ignore-scripts \
+    --no-audit \
+    --no-fund \
+    --prefix "$install_prefix" \
+    "$artifact_path" >/dev/null
+  launcher="$install_prefix/node_modules/.bin/dev-flow-codex"
+  installed_package="$install_prefix/node_modules/dev-flow-codex"
+  [ -x "$launcher" ] || fail "compatible reinstall did not restore the launcher"
+  reinstall_result=$(
+    cd "$target_repository"
+    HOME="$fake_home" \
+    PATH="$isolated_path" \
+    FAKE_CODEX_STATE="$fake_state" \
+    FAKE_CODEX_TRACE="$fake_trace" \
+    FAKE_CODEX_VERSION=0.147.0 \
+    "$launcher" setup --json
+  )
+  reinstall_marketplaces=$(
+    cd "$target_repository"
+    HOME="$fake_home" \
+    FAKE_CODEX_STATE="$fake_state" \
+    FAKE_CODEX_TRACE="$fake_trace" \
+    FAKE_CODEX_VERSION=0.147.0 \
+    "$fake_bin/codex" plugin marketplace list --json
+  )
+  reinstall_plugins=$(
+    cd "$target_repository"
+    HOME="$fake_home" \
+    FAKE_CODEX_STATE="$fake_state" \
+    FAKE_CODEX_TRACE="$fake_trace" \
+    FAKE_CODEX_VERSION=0.147.0 \
+    "$fake_bin/codex" plugin list --json
+  )
+
+  removal_report=$(
+    REMOVE_RESULT="$remove_result" \
+    REPEAT_REMOVE_RESULT="$repeat_remove_result" \
+    REMOVED_MARKETPLACES="$removed_marketplaces" \
+    REMOVED_PLUGINS="$removed_plugins" \
+    REINSTALL_RESULT="$reinstall_result" \
+    REINSTALL_MARKETPLACES="$reinstall_marketplaces" \
+    REINSTALL_PLUGINS="$reinstall_plugins" \
+    DIRECT_REOPEN_OUTPUT="$direct_reopen_output" \
+    TASK_DATA_BEFORE_REMOVAL="$task_data_before_removal" \
+    TASK_DATA_AFTER_REMOVAL="$task_data_after_removal" \
+    node <<'NODE'
+function responses(source) {
+  return source.trim().split("\n").filter(Boolean).map(JSON.parse);
+}
+const remove = JSON.parse(process.env.REMOVE_RESULT);
+const repeated = JSON.parse(process.env.REPEAT_REMOVE_RESULT);
+const removedMarketplaces = JSON.parse(process.env.REMOVED_MARKETPLACES);
+const removedPlugins = JSON.parse(process.env.REMOVED_PLUGINS);
+const reinstall = JSON.parse(process.env.REINSTALL_RESULT);
+const reinstallMarketplaces = JSON.parse(process.env.REINSTALL_MARKETPLACES);
+const reinstallPlugins = JSON.parse(process.env.REINSTALL_PLUGINS);
+const reopenResponse = responses(process.env.DIRECT_REOPEN_OUTPUT).find((candidate) => candidate.id === 3);
+const reopened = reopenResponse?.result?.structuredContent;
+const before = JSON.parse(process.env.TASK_DATA_BEFORE_REMOVAL);
+const after = JSON.parse(process.env.TASK_DATA_AFTER_REMOVAL);
+if (remove.status !== "removed" || repeated.status !== "already-absent") {
+  throw new Error("remove/repeated-remove status is not exact");
+}
+if (removedMarketplaces.length !== 0 || removedPlugins.length !== 0) {
+  throw new Error("registration remains after fake removal");
+}
+if (reinstall.status !== "installed" || reinstallMarketplaces.length !== 1 || reinstallPlugins.length !== 1) {
+  throw new Error("compatible fake reinstall readback is not exact");
+}
+if (!reopened?.ok || reopened.result.task.phase !== "DONE" || reopened.result.task.revision !== 8) {
+  throw new Error("direct fake Core reopen did not retain DONE task data");
+}
+process.stdout.write(JSON.stringify({
+  removal: {
+    process_stopped_before_remove: true,
+    remove_status: remove.status,
+    repeat_status: repeated.status,
+    plugin_absent: removedPlugins.length === 0,
+    marketplace_absent: removedMarketplaces.length === 0,
+    receipt_absent: true,
+    adjacent_preserved: true,
+    npm_uninstalled_separately: true,
+    compatible_reinstall_status: reinstall.status,
+    reinstall_plugin_count: reinstallPlugins.length,
+    reinstall_marketplace_count: reinstallMarketplaces.length,
+  },
+  task_data_removal: {
+    manifest_before_removal_sha256: before.sha256,
+    manifest_after_removal_sha256: after.sha256,
+    files_before_removal: before.files,
+    files_after_removal: after.files,
+    direct_reopen_task_id: reopened.result.task.task_id,
+    direct_reopen_revision: reopened.result.task.revision,
+  },
+}));
+NODE
+  )
+
+  repository_after_removal=$(directory_fingerprint "$target_repository")
+  [ "$repository_after_completion" = "$repository_after_removal" ] || fail "removal changed the target repository"
+fi
+
 evidence_after=absent
 if [ -f "$native_evidence" ]; then
   evidence_after=$(sha256_file "$native_evidence")
@@ -514,8 +742,10 @@ RECEIPT_PATH=$receipt_path \
 ARTIFACT_DIGEST=$artifact_digest \
 SOURCE_COMMIT=$source_commit \
 CORE_REPORT=$core_report \
+REMOVAL_REPORT=$removal_report \
 THROUGH_STAGE=$through_stage \
 REPOSITORY_AFTER_COMPLETION=$repository_after_completion \
+REPOSITORY_AFTER_REMOVAL=$repository_after_removal \
 node <<'NODE'
 const fs = require("node:fs");
 const build = JSON.parse(process.env.BUILD_REPORT);
@@ -523,6 +753,7 @@ const setup = JSON.parse(process.env.SETUP_RESULT);
 const marketplaces = JSON.parse(process.env.MARKETPLACE_READBACK);
 const plugins = JSON.parse(process.env.PLUGIN_READBACK);
 const core = JSON.parse(process.env.CORE_REPORT);
+const removal = JSON.parse(process.env.REMOVAL_REPORT);
 const trace = fs.readFileSync(process.env.FAKE_TRACE, "utf8")
   .trim()
   .split("\n")
@@ -550,7 +781,8 @@ const checkpoint = {
     before_sha256: process.env.REPOSITORY_BEFORE,
     after_setup_sha256: process.env.REPOSITORY_AFTER,
     after_completion_sha256: process.env.REPOSITORY_AFTER_COMPLETION,
-    unchanged: process.env.REPOSITORY_BEFORE === process.env.REPOSITORY_AFTER_COMPLETION,
+    after_removal_sha256: process.env.REPOSITORY_AFTER_REMOVAL,
+    unchanged: process.env.REPOSITORY_BEFORE === process.env.REPOSITORY_AFTER_REMOVAL,
   },
   registration: {
     setup_status: setup.status,
@@ -566,7 +798,7 @@ const checkpoint = {
   ],
   fake_codex_calls: trace.map((entry) => ({ argv: entry.argv, cwd: entry.cwd })),
 };
-if (process.env.THROUGH_STAGE === "done") {
+if (["done", "remove"].includes(process.env.THROUGH_STAGE)) {
   if (!core || core.task_lineage.terminal_outcome !== "DONE") {
     throw new Error("fake Core report did not reach DONE");
   }
@@ -589,6 +821,14 @@ if (process.env.THROUGH_STAGE === "done") {
     recovery: core.recovery,
     task_data: core.task_data,
   });
+}
+if (process.env.THROUGH_STAGE === "remove") {
+  if (!removal || removal.removal.compatible_reinstall_status !== "installed") {
+    throw new Error("fake removal report did not complete compatible reinstall");
+  }
+  checkpoint.session_markers.push("process-stop-before-remove", "direct-reopen-after-remove");
+  checkpoint.removal = removal.removal;
+  checkpoint.task_data_removal = removal.task_data_removal;
 }
 process.stdout.write(`${JSON.stringify(checkpoint)}\n`);
 NODE

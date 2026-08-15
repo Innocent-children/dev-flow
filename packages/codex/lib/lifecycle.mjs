@@ -168,6 +168,64 @@ export async function setupRegistration({
   }
 }
 
+export async function removeRegistration({
+  paths,
+  packageVersion,
+  codexExecutable = "codex",
+  environment = process.env,
+} = {}) {
+  const commandOptions = {
+    codexExecutable,
+    environment,
+    currentDirectory: paths.packageRoot,
+  };
+  await assertNoSymbolicLinkComponents(paths.productSupportRoot, dirname(paths.receiptPath));
+  await rejectSymbolicLink(paths.receiptPath);
+  const receipt = await readReceipt(paths.receiptPath);
+  let state = await readRegistrationState(commandOptions);
+
+  if (!receipt) {
+    assertRegistrationAbsent(state, paths);
+    return { status: "already-absent", changed: false };
+  }
+
+  assertRemovalReceipt(receipt, paths, packageVersion);
+  let owned = reconcileRemovalState(state, receipt);
+
+  if (owned.plugin) {
+    await runCodexJSON(
+      ["plugin", "remove", receipt.registration.plugin_selector, "--json"],
+      commandOptions,
+    );
+    state = await readRegistrationState(commandOptions);
+    owned = reconcileRemovalState(state, receipt);
+    if (owned.plugin) throw new Error("Codex plugin remains after removal readback");
+  }
+
+  if (owned.marketplace) {
+    await runCodexJSON(
+      ["plugin", "marketplace", "remove", receipt.registration.marketplace_name, "--json"],
+      commandOptions,
+    );
+    state = await readRegistrationState(commandOptions);
+    owned = reconcileRemovalState(state, receipt);
+    if (owned.marketplace) throw new Error("Codex marketplace remains after removal readback");
+    if (owned.plugin) throw new Error("Codex plugin reappeared during marketplace removal");
+  }
+
+  try {
+    await unlink(paths.receiptPath);
+  } catch (error) {
+    throw new Error(`delete exact registration receipt ${paths.receiptPath}: ${error.message}`, {
+      cause: error,
+    });
+  }
+  if (await readReceipt(paths.receiptPath)) {
+    throw new Error("registration receipt remains after exact cleanup");
+  }
+  return { status: "removed", changed: true };
+}
+
 async function preflightSetup({ paths, packageVersion, codexExecutable, environment }) {
   assertObject(paths, "product paths");
   if (paths.runtimeKey !== "darwin-arm64") {
@@ -311,11 +369,91 @@ function assertRegistrationAbsent(state, paths) {
     throw new Error("marketplace ownership conflict without a matching registration receipt");
   }
   const pluginCollision = state.plugins.find(
-    (entry) => entry?.name === PLUGIN_NAME || entry?.selector === PLUGIN_SELECTOR,
+    (entry) =>
+      entry?.name === PLUGIN_NAME ||
+      entry?.selector === PLUGIN_SELECTOR ||
+      entry?.root === paths.pluginRoot,
   );
   if (pluginCollision) {
     throw new Error("plugin ownership conflict without a matching registration receipt");
   }
+}
+
+function assertRemovalReceipt(receipt, paths, packageVersion) {
+  const matches =
+    receipt.product.version === packageVersion &&
+    receipt.product.core_version === packageVersion &&
+    receipt.registration.marketplace_name === MARKETPLACE_NAME &&
+    receipt.registration.marketplace_root === paths.marketplaceRoot &&
+    receipt.registration.plugin_name === PLUGIN_NAME &&
+    receipt.registration.plugin_selector === PLUGIN_SELECTOR &&
+    receipt.registration.plugin_root === paths.pluginRoot &&
+    receipt.paths.package_root === paths.packageRoot &&
+    receipt.paths.runtime_path === paths.runtimePath &&
+    receipt.paths.data_dir === paths.dataDirectory &&
+    receipt.paths.receipt_path === paths.receiptPath;
+  if (!matches) {
+    throw new Error("registration receipt ownership conflict; removal made no changes");
+  }
+}
+
+function reconcileRemovalState(state, receipt) {
+  const matchingMarketplaces = state.marketplaces.filter(
+    (entry) =>
+      entry?.name === receipt.registration.marketplace_name ||
+      entry?.root === receipt.registration.marketplace_root,
+  );
+  if (matchingMarketplaces.length > 1) {
+    throw new Error("Codex marketplace ownership conflict during removal");
+  }
+  const marketplace = matchingMarketplaces[0] ?? null;
+  if (marketplace) {
+    assertObject(marketplace, "marketplace removal readback");
+    assertExactKeys(marketplace, ["name", "source", "root"], "marketplace removal readback");
+    if (
+      marketplace.name !== receipt.registration.marketplace_name ||
+      marketplace.root !== receipt.registration.marketplace_root ||
+      resolve(marketplace.source) !== receipt.registration.marketplace_root
+    ) {
+      throw new Error("Codex marketplace readback conflicts with the recorded removal root");
+    }
+  }
+
+  const matchingPlugins = state.plugins.filter(
+    (entry) =>
+      entry?.name === receipt.registration.plugin_name ||
+      entry?.selector === receipt.registration.plugin_selector ||
+      entry?.root === receipt.registration.plugin_root,
+  );
+  if (matchingPlugins.length > 1) {
+    throw new Error("Codex plugin ownership conflict during removal");
+  }
+  const plugin = matchingPlugins[0] ?? null;
+  if (plugin) {
+    assertObject(plugin, "plugin removal readback");
+    assertExactKeys(
+      plugin,
+      ["name", "marketplace_name", "selector", "root", "source", "version", "installed", "enabled"],
+      "plugin removal readback",
+    );
+    assertObject(plugin.source, "plugin removal source");
+    assertExactKeys(plugin.source, ["source", "path"], "plugin removal source");
+    if (
+      plugin.name !== receipt.registration.plugin_name ||
+      plugin.marketplace_name !== receipt.registration.marketplace_name ||
+      plugin.selector !== receipt.registration.plugin_selector ||
+      plugin.root !== receipt.registration.plugin_root ||
+      plugin.version !== receipt.product.version ||
+      plugin.installed !== true ||
+      typeof plugin.enabled !== "boolean" ||
+      plugin.source.source !== "local" ||
+      plugin.source.path !== "./plugin"
+    ) {
+      throw new Error("Codex plugin readback conflicts with the recorded removal identity");
+    }
+  }
+
+  return { marketplace, plugin };
 }
 
 function assertMatchingRegistrationState(state, paths, packageVersion) {
