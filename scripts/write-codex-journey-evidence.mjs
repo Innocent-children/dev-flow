@@ -315,7 +315,7 @@ export async function createValidationReport({
 
 export function deriveChainId(identity) {
   validateIdentity(identity);
-  return sha256(jsonBytes({
+  return sha256(JSON.stringify({
     artifact_report_sha256: identity.artifact_report_sha256,
     artifact_sha256: identity.artifact_sha256,
     source_commit: identity.source_commit,
@@ -554,6 +554,7 @@ export function summarizeRecordedSessions({ ordinary, invalid, substantive, resu
     commandExecutions: structuredClone(commandExecutions),
     submittedAutomatedChecks,
     retainedAutomatedChecks,
+    terminalTask: structuredClone(terminalTask),
   };
 }
 
@@ -1235,17 +1236,11 @@ async function finishNativeHost({ context, sessionResult, preflight }) {
   const readBeforeRetryObservations = sessions.resume.devFlowCalls.filter(
     (call) => ["dev_flow_get_task", "dev_flow_get_next_action"].includes(call.tool),
   ).length;
-  const verificationCommands = summary.commandExecutions.map((execution) => ({
-    item_id: execution.itemId,
-    command: execution.command,
-    exit_code: execution.exitCode,
-    status: execution.status,
-    output_sha256: execution.outputSha256,
-  }));
-  const submittedAutomatedCommandCount = summary.submittedAutomatedChecks
-    .reduce((total, check) => total + check.commandCount, 0);
-  const retainedAutomatedCommandCount = summary.retainedAutomatedChecks
-    .reduce((total, check) => total + check.commandCount, 0);
+  const verification = nativeVerificationProjection(summary);
+  const submittedAutomatedCommandCount = verification.submitted_automated_checks
+    .reduce((total, check) => total + check.command_count, 0);
+  const retainedAutomatedCommandCount = verification.retained_automated_checks
+    .reduce((total, check) => total + check.command_count, 0);
   const journey = {
     task_lineage: {
       thread_ids: summary.threadIds,
@@ -1264,12 +1259,12 @@ async function finishNativeHost({ context, sessionResult, preflight }) {
       implicit_invocation_core_calls: summary.ordinaryCoreCalls,
       read_before_retry_observations: readBeforeRetryObservations,
       restart_recovery_reads: summary.restartRecoveryReads,
-      verification_budget: summary.budget,
-      verification_commands: verificationCommands,
+      verification_budget: verification.budget,
+      verification_commands: verification.command_executions,
       submitted_automated_command_count: submittedAutomatedCommandCount,
       retained_automated_command_count: retainedAutomatedCommandCount,
-      submitted_full_suite: summary.submittedAutomatedChecks.some((check) => check.fullSuite),
-      retained_full_suite: summary.retainedAutomatedChecks.some((check) => check.fullSuite),
+      submitted_full_suite: verification.submitted_automated_checks.some((check) => check.full_suite),
+      retained_full_suite: verification.retained_automated_checks.some((check) => check.full_suite),
     },
     lifecycle: {
       setup_readback_passed: true,
@@ -1318,12 +1313,8 @@ async function finishNativeHost({ context, sessionResult, preflight }) {
       resume: sessionFact(sessions.resume),
       summary,
     },
-    verification: {
-      budget: structuredClone(summary.budget),
-      command_executions: structuredClone(summary.commandExecutions),
-      submitted_automated_checks: structuredClone(summary.submittedAutomatedChecks),
-      retained_automated_checks: structuredClone(summary.retainedAutomatedChecks),
-    },
+    verification: structuredClone(verification),
+    terminal_task: structuredClone(summary.terminalTask),
     removal: {
       first: remove,
       repeated: repeatedRemove,
@@ -1833,14 +1824,38 @@ function sessionFact(session) {
     thread_id: session.threadId,
     ignored_preview_count: session.ignoredPreviewCount,
     ignored_prose_count: session.ignoredProseCount,
-    calls: session.devFlowCalls.map((call) => ({
-      tool: call.tool,
-      arguments_sha256: sha256(jsonBytes(call.arguments)),
-      result_sha256: sha256(jsonBytes(call.result)),
-      task_id: call.result?.result?.task?.task_id ?? null,
-      revision: call.result?.result?.task?.revision ?? null,
-      outcome: call.result?.result?.task?.outcome?.status ?? null,
+    calls: session.devFlowCalls.map((call) => {
+      const task = taskProjectionFromCall(call);
+      return {
+        tool: call.tool,
+        arguments_sha256: sha256(jsonBytes(call.arguments)),
+        result_sha256: sha256(jsonBytes(call.result)),
+        task_id: task?.task_id ?? null,
+        revision: task?.revision ?? null,
+        outcome: task?.outcome?.status ?? null,
+      };
+    }),
+  };
+}
+
+function nativeVerificationProjection(summary) {
+  const automatedCheck = (check) => ({
+    name: check.name,
+    command_count: check.commandCount,
+    full_suite: check.fullSuite,
+  });
+  return {
+    budget: structuredClone(summary.budget),
+    command_executions: summary.commandExecutions.map((execution) => ({
+      item_id: execution.itemId,
+      command: execution.command,
+      exit_code: execution.exitCode,
+      status: execution.status,
+      output_sha256: execution.outputSha256,
+      full_suite: execution.fullSuite,
     })),
+    submitted_automated_checks: summary.submittedAutomatedChecks.map(automatedCheck),
+    retained_automated_checks: summary.retainedAutomatedChecks.map(automatedCheck),
   };
 }
 

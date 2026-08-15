@@ -11,8 +11,10 @@ import test from "node:test";
 const execFile = promisify(execFileCallback);
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = join(packageRoot, "..", "..");
+const contractsRoot = join(repositoryRoot, "specs", "003-codex-explicit-dev-flow", "contracts");
 const harnessPath = join(repositoryRoot, "scripts", "run-codex-real-journey.sh");
 const writerPath = join(repositoryRoot, "scripts", "write-codex-journey-evidence.mjs");
+const validatorPath = join(repositoryRoot, "scripts", "validate-codex-journey-evidence.mjs");
 const fakeNativeToolPath = join(packageRoot, "tests", "fixtures", "fake-native-tool.mjs");
 const nativeEvidencePath = join(repositoryRoot, "tests", "journeys", "evidence", "codex-macos-arm64.json");
 const supportedMachine = process.platform === "darwin" && process.arch === "arm64";
@@ -28,6 +30,15 @@ const nativeVerificationBudget = Object.freeze({
   allow_full_suite: false,
   allow_manual_handoff: true,
 });
+const rootVersion = (await readFile(join(repositoryRoot, "VERSION"), "utf8")).trim();
+const journeySchemas = Object.fromEntries(await Promise.all(
+  ["validation-report", "artifact-report", "native-attempt-ledger", "journey-evidence"].map(
+    async (name) => [
+      name,
+      JSON.parse(await readFile(join(contractsRoot, `${name}.schema.json`), "utf8")),
+    ],
+  ),
+));
 const nativeAutomatedCheck = Object.freeze({
   name: nativeVerificationCommand,
   commandCount: 1,
@@ -561,6 +572,7 @@ test("recorded native sessions prove zero implicit calls and one resumed Core li
     commandExecutions: [nativeCommandExecution()],
     submittedAutomatedChecks: [nativeAutomatedCheck],
     retainedAutomatedChecks: [nativeAutomatedCheck],
+    terminalTask: nativeTerminalTask(),
   });
 });
 
@@ -668,6 +680,15 @@ test("native ledger identity rejects switched paths and concurrent reservations"
   assert.equal(attempts.filter(({ status }) => status === "rejected").length, 1);
   assert.match(attempts.find(({ status }) => status === "rejected").reason.message, /locked|reservation/i);
   assert.equal(JSON.parse(await readFile(ledgerPath, "utf8")).attempts.length, 1);
+});
+
+test("native chain ID uses the validator's compact canonical identity bytes", async () => {
+  const [writer, validator] = await Promise.all([
+    import(pathToFileURL(writerPath)),
+    import(pathToFileURL(validatorPath)),
+  ]);
+  const identity = nativeIdentity("5");
+  assert.equal(writer.deriveChainId(identity), validator.deriveNativeChainId(identity));
 });
 
 test("reopened admission rejects semantically invalid ledger history before host work", async (t) => {
@@ -967,14 +988,11 @@ test("default native helpers execute the native proof command from target cwd an
   const writer = await import(pathToFileURL(writerPath));
   const fixture = await nativeSubprocessFixture(t, writer, "default-chain");
   const canonicalBefore = await optionalContents(nativeEvidencePath);
-  let observedFacts;
-  const result = await writer.executeNativeJourney(fixture.inputs, {
-    ...fixture.dependencies,
-    validateCandidate(candidate) {
-      observedFacts = JSON.parse(candidate.observedFactsText);
-      return { valid: true, structuralErrors: [], semanticErrors: [] };
-    },
-  });
+  const result = await writer.executeNativeJourney(fixture.inputs, fixture.dependencies);
+  const observedFacts = JSON.parse(await readFile(
+    join(fixture.recoveryRoot, result.chainId, "observed-facts.json"),
+    "utf8",
+  ));
 
   assert.equal(result.status, "committed");
   assert.equal(await optionalContents(nativeEvidencePath), canonicalBefore);
@@ -986,10 +1004,15 @@ test("default native helpers execute the native proof command from target cwd an
   ]);
   assert.deepEqual(observedFacts.verification, {
     budget: nativeVerificationBudget,
-    command_executions: [nativeCommandExecution()],
-    submitted_automated_checks: [nativeAutomatedCheck],
-    retained_automated_checks: [nativeAutomatedCheck],
+    command_executions: [nativeCommandFact()],
+    submitted_automated_checks: [nativeAutomatedCheckFact()],
+    retained_automated_checks: [nativeAutomatedCheckFact()],
   });
+  assert.deepEqual(observedFacts.terminal_task, nativeTerminalTask());
+  assert.equal(
+    observedFacts.sessions.resume.calls.find(({ tool }) => tool === "dev_flow_get_next_action").revision,
+    4,
+  );
   const nativeWorkspace = dirname(observedFacts.journey.repository.target_path);
   assert.deepEqual(observedFacts.journey.task_data.retained_data_location, {
     kind: "isolated-explicit-data-directory",
@@ -1649,9 +1672,12 @@ async function nativeSubprocessFixture(t, writer, label, { extraRegistration } =
     writeNativeWrapper(codexExecutable, "codex"),
   ]);
   const initialized = await writer.initializeAttemptLedger(ledgerPath);
-  const preflight = orchestrationPreflight(initialized.ledgerId);
-  preflight.artifact.artifact_path = artifactPath;
-  preflight.artifactBytes = "deterministic fake artifact bytes\n";
+  const artifactBytes = "deterministic fake artifact bytes\n";
+  const preflight = validatingOrchestrationPreflight(
+    initialized.ledgerId,
+    artifactPath,
+    artifactBytes,
+  );
   preflight.canonicalCodexExecutable = await realpath(codexExecutable);
 
   const environmentNames = [
@@ -1696,13 +1722,11 @@ async function nativeSubprocessFixture(t, writer, label, { extraRegistration } =
       tick += 1;
       return value;
     },
-    validateCandidate() {
-      return { valid: true, structuralErrors: [], semanticErrors: [] };
-    },
   };
   return {
     root,
     tracePath,
+    recoveryRoot,
     canonicalBefore: await optionalContents(nativeEvidencePath),
     inputs: {
       validationReportPath: join(root, "validation-report.json"),
@@ -1711,6 +1735,70 @@ async function nativeSubprocessFixture(t, writer, label, { extraRegistration } =
       ledgerPath,
     },
     dependencies,
+  };
+}
+
+function validatingOrchestrationPreflight(ledgerId, artifactPath, artifactBytes) {
+  const sourceCommit = "7".repeat(40);
+  const observation = (command, completedAt) => ({
+    command,
+    result: "pass",
+    source_commit: sourceCommit,
+    completed_at: completedAt,
+  });
+  const validation = {
+    schema_version: 1,
+    report_type: "dev-flow-codex-validation",
+    source_commit: sourceCommit,
+    source_dirty: false,
+    attempt_ledger_id: ledgerId,
+    codex_revalidation: {
+      package: "@openai/codex",
+      dist_tag: "latest",
+      resolved_version: "0.147.0",
+      compatible_range: ">=0.147.0 <0.148.0",
+      queried_at: "2026-08-16T04:00:00.000Z",
+    },
+    completed_at: "2026-08-16T05:00:00.000Z",
+    targeted_checks: [
+      observation("go test ./internal/version ./tests/contract", "2026-08-16T04:10:00.000Z"),
+      observation("node --test packages/codex/tests/*.test.mjs", "2026-08-16T04:20:00.000Z"),
+    ],
+    root_validation: observation("pnpm run validate", "2026-08-16T04:30:00.000Z"),
+  };
+  const validationText = `${JSON.stringify(validation)}\n`;
+  const artifact = {
+    schema_version: 1,
+    report_type: "dev-flow-codex-final-artifact",
+    artifact_path: artifactPath,
+    artifact_sha256: sha256Text(artifactBytes),
+    package_version: rootVersion,
+    core_version: rootVersion,
+    codex_compatibility: ">=0.147.0 <0.148.0",
+    source_commit: sourceCommit,
+    source_dirty: false,
+    final_artifact: true,
+    platform: "darwin-arm64",
+    package_allowlist_verified: true,
+    runtime_executable_verified: true,
+    built_at: "2026-08-16T05:30:00.000Z",
+  };
+  const artifactText = `${JSON.stringify(artifact)}\n`;
+  return {
+    validation,
+    validationText,
+    artifact,
+    artifactText,
+    artifactBytes,
+    ledgerId,
+    schemas: journeySchemas,
+    rootVersion,
+    identity: {
+      source_commit: sourceCommit,
+      validation_report_sha256: sha256Text(validationText),
+      artifact_report_sha256: sha256Text(artifactText),
+      artifact_sha256: artifact.artifact_sha256,
+    },
   };
 }
 
@@ -1929,13 +2017,15 @@ function coreEnvelope({
   };
   if (budget) task.contract = { verification_budget: structuredClone(budget) };
   if (evidence) task.evidence = structuredClone(evidence);
-  return {
+  const envelope = {
     schema_version: 1,
     ok: true,
     request_id: `request-${revision}`,
     tool,
     result: { task },
   };
+  if (tool === "dev_flow_get_next_action") envelope.result = task;
+  return envelope;
 }
 
 function codexMCPItem(tool, envelope, arguments_ = defaultMCPArguments(tool, envelope)) {
@@ -2004,4 +2094,33 @@ function nativeCommandExecution() {
     outputSha256: sha256Text(nativeVerificationOutput),
     fullSuite: false,
   };
+}
+
+function nativeCommandFact() {
+  const execution = nativeCommandExecution();
+  return {
+    item_id: execution.itemId,
+    command: execution.command,
+    exit_code: execution.exitCode,
+    status: execution.status,
+    output_sha256: execution.outputSha256,
+    full_suite: execution.fullSuite,
+  };
+}
+
+function nativeAutomatedCheckFact() {
+  return {
+    name: nativeAutomatedCheck.name,
+    command_count: nativeAutomatedCheck.commandCount,
+    full_suite: nativeAutomatedCheck.fullSuite,
+  };
+}
+
+function nativeTerminalTask() {
+  return coreEnvelope({
+    revision: 8,
+    actionId: "action-handoff",
+    terminal: true,
+    tool: "dev_flow_apply_action",
+  }).result.task;
 }
