@@ -1,128 +1,111 @@
 # Dev Flow
 
-Dev Flow 是一个 Monorepo，用于共同维护共享 Go Core 和两个宿主产品边界：
+Dev Flow 是一个本地开发流程控制 Monorepo。当前已实现 Feature 002 的共享 Go Core：它在一个
+Git 仓库上维护一个 governed task，通过 SQLite 持久化，并使用官方 Go MCP SDK 在本地 STDIO
+上公开 Core Contract 0.1。
 
 ```text
-dev-flow
-├── dev-flow-codex
-└── dev-flow-deepseek
+Host identity
+    ↓ local STDIO MCP
+dev-flow Core
+    ↓
+Application → Workflow / Recovery → read-only Git + SQLite
 ```
 
-当前仓库只完成 Feature 001 的工程骨架。根 Go 二进制仅提供有界的 `help` 和 `version`
-占位输出；`packages/codex` 与 `packages/deepseek` 只是私有包元数据和说明文档，尚不能安装、
-运行或集成宿主。两个产品以后可以独立发布，但共享 Core 只保留一份根 Go Module 源码。
+`packages/codex` 与 `packages/deepseek` 仍是私有非功能性边界；当前没有宿主 Skill、安装器、
+可分发 runtime 或发布行为。项目使用 [Apache License 2.0](LICENSE)，产品版本以根
+[VERSION](VERSION) 为唯一 repository-visible source。
 
-项目使用 [Apache License 2.0](LICENSE)，当前产品版本以根 [VERSION](VERSION) 为唯一来源。
-
-## 工具链要求
+## 工具链
 
 - Go `>= 1.26`；
-- Node.js `>= 24`，且所用版本仍处于官方支持周期；
+- Node.js `>= 24`，且版本仍在官方支持周期；
 - pnpm `>= 11 < 12`；
 - 官方最新稳定版 Spec Kit。
 
-兼容性按版本范围检查，不要求某个 Go、Node.js、pnpm 或 Spec Kit 补丁版本。完整策略见
-[工具链兼容策略](docs/TOOLCHAIN-BASELINES.md)。
-
-## 准备仓库
-
-在仓库根目录确认 Spec Kit 可用：
-
-```bash
-# 仅在尚未安装 Spec Kit 时执行
-uv tool install specify-cli
-
-specify self check
-# 仅当 self check 报告存在更新时执行
-specify self upgrade
-```
-
-只有在 `.specify/scripts/`、`.specify/templates/` 或
-`.agents/skills/speckit-*/SKILL.md` 等 Spec Kit 生成资产缺失时，才运行初始化：
-
-```bash
-specify init --here --integration codex --script sh
-```
-
-已有这些资产时不得重复初始化，也不得手工修改 `.agents/skills/speckit-*`。初始化必须保留
-现有的 `AGENTS.md`、`README.md`、`docs/`、`specs/` 和 Constitution。
-
-为本仓库选择已经准备好的 Feature 001：
-
-```bash
-export SPECIFY_FEATURE_DIRECTORY="$PWD/specs/001-bootstrap-monorepo"
-```
-
-活动 Feature 由该环境变量或 Spec Kit 管理的选择状态确定，不能只根据 Git 分支推断。
-Feature 001 的规格、计划和任务已经存在，不应重新运行 `speckit-specify`、`speckit-plan`
-或 `speckit-tasks` 覆盖它们；实施工作按 [tasks.md](specs/001-bootstrap-monorepo/tasks.md)
-的 Phase 顺序分阶段完成。
-
-安装根 Workspace：
+完整范围见 [工具链兼容策略](docs/TOOLCHAIN-BASELINES.md)。安装根 workspace 时不执行脚本：
 
 ```bash
 pnpm install --frozen-lockfile --ignore-scripts
 ```
 
-## 使用占位程序
+## CLI
 
 ```bash
 go run ./cmd/dev-flow --help
 go run ./cmd/dev-flow version
+DEV_FLOW_DATA_DIR="$(mktemp -d)" go run ./cmd/dev-flow mcp --stdio
 ```
 
-这些命令只展示 Feature 001 的帮助和根版本；它们不会启动任务、MCP、Codex 或 DeepSeek。
+CLI 只接受 help、version 与精确的 `mcp --stdio`。MCP 使用现有 data directory 中的固定内部
+SQLite 文件；没有 database-path flag、HTTP/SSE、listener、daemon 或远程 transport。
 
-## 有界验证
+公开工具恰好是：
 
-本地和 PR CI 共用同一个只读验证入口：
+```text
+dev_flow_server_info
+dev_flow_open_task
+dev_flow_get_task
+dev_flow_get_next_action
+dev_flow_apply_action
+dev_flow_cancel_task
+```
+
+使用 MCP inspector 或合同测试 harness 调用服务。不要把手工 JSON-RPC 可解析当作产品证据。
+任务、输入、结果与 recovery contract 见
+[Feature 002 MCP Tools](specs/002-govern-and-resume-single-repository-task/contracts/mcp-tools.md)。
+
+## 验证
+
+本地与 Pull Request CI 共用一个入口：
 
 ```bash
 pnpm run validate
 ```
 
-根 `package.json` 将该命令直接交给 `scripts/validate-repository.sh`。这个入口负责工具链范围、
-当前工作区的 `git diff --check` 空白检查、Go 格式、`go list ./...`、`go vet ./...`、
-`go test ./...`、冻结的 pnpm Workspace 安装与清单，以及两个私有产品包的 dry-pack 检查。
-Workspace 安装使用 `--ignore-scripts`，dry-pack 通过 pnpm 的 `ignore-scripts` 配置禁用脚本，
-因此验证不会执行依赖包或产品包的生命周期脚本。Go 合同测试负责仓库布局、包清单和
-Markdown 相对链接。
+该入口执行 toolchain、`git diff --check`、Go format/list/vet/test、repository contracts、冻结
+pnpm install、workspace inventory，以及两个私有 host skeleton 的 dry-pack。验证不会发布包或
+Release，不会运行真实 Codex/DeepSeek，不会修改用户配置，也不证明 Windows release、真实
+宿主 transport 或安装行为。
 
-这里的 `git diff --check` 只检查当前工作区相对索引的未暂存差异，不代表覆盖整个 PR 的提交
-范围、已暂存差异或未跟踪文件。
-
-验证不会发布包或 Release，不会运行真实 Codex/DeepSeek，不会修改用户配置，也不覆盖性能、
-压力、fuzz、全平台矩阵或真实宿主 journey。`.github/workflows/ci.yml` 只为 pull request
-提供只读权限并调用同一入口；它不拥有发布权限或发布凭据。
-
-## 目录所有权
+## 目录边界
 
 | 路径 | 当前所有权 |
 | --- | --- |
-| `cmd/dev-flow/` | Feature 001 唯一可执行入口，仅含 help/version 占位程序 |
-| `internal/` | 共享 Go Core；当前仅包含骨架所需的版本读取代码 |
-| `packages/codex/` | `dev-flow-codex` 私有产品骨架，不含运行时或宿主集成 |
-| `packages/deepseek/` | `dev-flow-deepseek` 私有产品骨架，不含 Proxy、运行时或宿主集成 |
-| `protocol/fixtures/` | 预留共享公开合同 fixture；当前没有产品协议 Schema |
-| `tests/contract/` | 仓库布局、包清单和 Markdown 链接合同测试 |
-| `scripts/` | 仓库开发与有界验证，不含安装或发布逻辑 |
-| `release/` | 发布边界说明文档；当前不执行发布 |
-| `.specify/`、`.agents/`、`specs/` | 单一根 Spec Kit 项目、生成的 Codex integration 与统一 Feature 序列 |
-| `.github/workflows/` | 只读 PR 验证 |
-| `docs/` | 仓库级产品、架构、工具链与工作流文档 |
+| `cmd/dev-flow/` | 唯一 CLI 与本地 STDIO server lifecycle |
+| `internal/domain/` | Task、Contract、Action、Outcome、稳定错误与 Core Limits |
+| `internal/workflow/` | 唯一状态转换与 closed action payload authority |
+| `internal/recovery/` | 唯一五类恢复与 repository reconciliation authority |
+| `internal/repository/` | read-only Git observation 与 binding digest authority |
+| `internal/store/` | SQLite snapshot、migration、CAS 与 repository claim |
+| `internal/application/` | Core use-case orchestration |
+| `internal/mcp/` | 六工具 thin adapter、strict JSON 与 typed result envelope |
+| `protocol/fixtures/` | Codex/DeepSeek 将共用的 Core Contract 0.1 fixtures |
+| `tests/contract/` | repository、Schema、MCP 与 fixture contract tests |
+| `tests/journeys/` | Core restart/resume journey |
+| `packages/codex/` | 非功能性私有 Codex skeleton |
+| `packages/deepseek/` | 非功能性私有 DeepSeek skeleton |
+| `release/` | 未实施的后续发布边界文档 |
 
-详细边界和依赖方向见 [架构文档](docs/ARCHITECTURE.md) 与
-[仓库布局合同](specs/001-bootstrap-monorepo/contracts/repository-layout.md)。
+详细依赖与权威边界见 [架构文档](docs/ARCHITECTURE.md)，当前能力与非目标见
+[产品定义](docs/PRODUCT.md)。
 
-## 当前明确未实现
+## 当前范围外
 
-Feature 001 不包含 Feature 002，也没有实现任务状态机、SQLite、MCP、Codex 产品行为、
-DeepSeek 产品行为、安装、升级、卸载或发布。两个产品包保持 `private: true`，没有 `bin`、
-任何非空 `scripts`、production dependencies、实际宿主功能或 TypeScript Proxy。
+未实现 Codex/DeepSeek product integration、真实 host journey、installation、publication、
+Web UI、remote MCP、HTTP/SSE、authentication、telemetry、multi-repository、cross-host takeover、
+Git mutation、generic shell、automatic repository repair 或 real-host recovery hardening。
 
-本 Feature 也没有建立真实 Codex/DeepSeek journey 或 macOS、Linux、Windows 的宿主与平台
-兼容性证据。仓库验证通过只证明本 Feature 的工程合同在实际执行环境中通过，不能解释为
-宿主集成或跨平台产品验证。
+## Spec Kit
+
+活动 Feature 由 `.specify/feature.json` 或 `SPECIFY_FEATURE_DIRECTORY` 选择，不能只从 Git branch
+推断。Feature 002 已有规格包，不应重新生成：
+
+```bash
+export SPECIFY_FEATURE_DIRECTORY="$PWD/specs/002-govern-and-resume-single-repository-task"
+```
+
+不要重复初始化已有 `.specify/` 或修改 `.agents/skills/speckit-*` 生成资产。
 
 ## 文档索引
 
@@ -136,8 +119,11 @@ DeepSeek 产品行为、安装、升级、卸载或发布。两个产品包保�
 - [路线图](docs/ROADMAP.md)
 - [发布策略](docs/RELEASE-STRATEGY.md)
 - [Feature 001 规格](specs/001-bootstrap-monorepo/spec.md)
-- [Feature 001 实施计划](specs/001-bootstrap-monorepo/plan.md)
-- [Feature 001 任务](specs/001-bootstrap-monorepo/tasks.md)
-- [Feature 001 Quickstart](specs/001-bootstrap-monorepo/quickstart.md)
 - [Feature 001 仓库布局合同](specs/001-bootstrap-monorepo/contracts/repository-layout.md)
-- [Feature 001 需求检查表](specs/001-bootstrap-monorepo/checklists/requirements.md)
+- [Feature 002 规格](specs/002-govern-and-resume-single-repository-task/spec.md)
+- [Feature 002 实施计划](specs/002-govern-and-resume-single-repository-task/plan.md)
+- [Feature 002 任务](specs/002-govern-and-resume-single-repository-task/tasks.md)
+- [Feature 002 Quickstart](specs/002-govern-and-resume-single-repository-task/quickstart.md)
+- [Feature 002 MCP 合同](specs/002-govern-and-resume-single-repository-task/contracts/mcp-tools.md)
+- [Feature 002 状态机合同](specs/002-govern-and-resume-single-repository-task/contracts/state-machine.md)
+- [Feature 002 需求检查表](specs/002-govern-and-resume-single-repository-task/checklists/requirements.md)

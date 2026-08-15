@@ -2,6 +2,239 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "dev-flow-result-envelope.schema.json",
   "title": "Dev Flow Result Envelope",
+  "$comment": "Core Limits 0.1 enforces 1,048,576 actual UTF-8 JSON bytes for the complete compact envelope after encoding/json with HTML escaping disabled. A Domain-valid Task projection is at most 786,432 bytes and envelope overhead is at most 131,072 bytes, so their sum is strictly below the result limit. JSON Schema character lengths do not replace the encoded-byte check.",
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "blockerCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "expected_binding_digest"
+      ],
+      "properties": {
+        "kind": {
+          "const": "restore_issuance_binding"
+        },
+        "expected_binding_digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "operationReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_id",
+        "source_phase",
+        "expected_revision",
+        "action_id",
+        "action_kind"
+      ],
+      "properties": {
+        "operation_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "source_phase": {
+          "enum": [
+            "INTAKE",
+            "ASSESS",
+            "PLAN",
+            "IMPLEMENT",
+            "VERIFY",
+            "REVIEW",
+            "HANDOFF",
+            "BLOCKED"
+          ]
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "action_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "action_kind": {
+          "enum": [
+            "ASSESS_TASK",
+            "PLAN_CHANGE",
+            "IMPLEMENT_CHANGE",
+            "VERIFY_CHANGE",
+            "REVIEW_CHANGE",
+            "PREPARE_HANDOFF",
+            "RESOLVE_BLOCKER"
+          ]
+        }
+      }
+    },
+    "committedOperationProof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_id",
+        "kind",
+        "action_id",
+        "from_revision",
+        "to_revision",
+        "payload_digest",
+        "committed_at"
+      ],
+      "properties": {
+        "operation_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "kind": {
+          "const": "apply_action"
+        },
+        "action_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "from_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "to_revision": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "payload_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "committed_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "recoveryAssessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "$comment": "Transient success-only five-class assessment. It is distinct from the top-level error-only recovery guidance object and never contains paths, source, diff, raw status, environment values, commands, or raw command output.",
+      "required": [
+        "classification",
+        "operation",
+        "task_revision",
+        "current_action_id",
+        "issuance_binding_digest",
+        "authoritative_binding_digest",
+        "observed_binding_digest",
+        "repository_relation",
+        "last_operation_relation",
+        "operation_evidence",
+        "operation_payload_digest",
+        "committed_proof",
+        "action_retry_safe",
+        "next_advice",
+        "unblock_condition",
+        "observed_at"
+      ],
+      "properties": {
+        "classification": {
+          "enum": [
+            "not_started",
+            "completed_and_recorded",
+            "completed_but_unrecorded",
+            "partially_completed",
+            "conflicting"
+          ]
+        },
+        "operation": {
+          "$ref": "#/$defs/operationReference"
+        },
+        "task_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "current_action_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/identifier"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "issuance_binding_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "authoritative_binding_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "observed_binding_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "repository_relation": {
+          "enum": [
+            "exact",
+            "worktree_only_changed",
+            "forbidden_change"
+          ]
+        },
+        "last_operation_relation": {
+          "enum": [
+            "exact",
+            "unrelated",
+            "contradictory"
+          ]
+        },
+        "operation_evidence": {
+          "enum": [
+            "none",
+            "complete",
+            "contradictory"
+          ]
+        },
+        "operation_payload_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "committed_proof": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/committedOperationProof"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "action_retry_safe": {
+          "type": "boolean"
+        },
+        "next_advice": {
+          "enum": [
+            "retry_current_action",
+            "submit_recovery_apply",
+            "read_next_action",
+            "resolve_blocker",
+            "stop_for_repository_drift"
+          ]
+        },
+        "unblock_condition": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/blockerCondition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  },
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -34,7 +267,20 @@
       ]
     },
     "result": {
-      "type": "object"
+      "type": "object",
+      "$comment": "Typed result projections must use the same compact encoding and encoded-byte accounting; arbitrary map[string]any values are not Domain results. GetTask and GetNextAction read-success projections use this exact recovery_assessment definition when that member is present; ApplyAction does not.",
+      "properties": {
+        "recovery_assessment": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/recoveryAssessment"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
     },
     "error": {
       "type": "object",
@@ -49,7 +295,6 @@
           "enum": [
             "INVALID_ARGUMENT",
             "NOT_GIT_REPOSITORY",
-            "REPOSITORY_UNBORN_UNSUPPORTED",
             "TASK_NOT_FOUND",
             "ACTIVE_TASK_CONFLICT",
             "HOST_OWNERSHIP_CONFLICT",
@@ -66,8 +311,9 @@
         },
         "message": {
           "type": "string",
+          "$comment": "Core Limits 0.1 also enforces this field as UTF-8 bytes at the adapter boundary.",
           "minLength": 1,
-          "maxLength": 512
+          "maxLength": 4096
         },
         "details": {
           "type": "object"
@@ -76,10 +322,12 @@
     },
     "recovery": {
       "type": "object",
+      "$comment": "Error-only retry guidance. This is not RecoveryAssessment and never carries a five-class classification.",
       "additionalProperties": false,
       "required": [
         "retry_safe",
-        "action"
+        "action",
+        "message"
       ],
       "properties": {
         "retry_safe": {
@@ -100,7 +348,9 @@
         },
         "message": {
           "type": "string",
-          "maxLength": 512
+          "$comment": "Core Limits 0.1 also enforces this field as UTF-8 bytes at the adapter boundary.",
+          "minLength": 1,
+          "maxLength": 4096
         }
       }
     }
@@ -119,8 +369,17 @@
           "result"
         ],
         "not": {
-          "required": [
-            "error"
+          "anyOf": [
+            {
+              "required": [
+                "error"
+              ]
+            },
+            {
+              "required": [
+                "recovery"
+              ]
+            }
           ]
         }
       },
@@ -133,6 +392,54 @@
           "required": [
             "result"
           ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "tool": {
+            "enum": [
+              "dev_flow_get_task",
+              "dev_flow_get_next_action"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "required": [
+              "recovery_assessment"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "result"
+        ],
+        "properties": {
+          "result": {
+            "required": [
+              "recovery_assessment"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "tool": {
+            "enum": [
+              "dev_flow_get_task",
+              "dev_flow_get_next_action"
+            ]
+          }
         }
       }
     }

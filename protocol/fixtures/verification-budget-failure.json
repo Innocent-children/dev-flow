@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "ok": false,
+  "request_id": "request-verification-budget-0001",
+  "tool": "dev_flow_apply_action",
+  "error": {
+    "code": "VERIFICATION_BUDGET_EXCEEDED",
+    "message": "The submitted evidence exceeds the task verification budget."
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "read_next_action",
+    "message": "Read the current action and submit evidence within its retained budget."
+  }
+}

@@ -12,63 +12,125 @@ satisfied, not that code exists.
 
 ## Product Boundary
 
-- [ ] CHK001 The Core is clearly separated from Codex and DeepSeek package work.
-- [ ] CHK002 The task model, transition table, and result envelope each have one authoritative definition.
-- [ ] CHK003 Git mutation, shell execution, test execution, networking, and host setup are excluded.
-- [ ] CHK004 Single-repository and single-active-task limits are explicit.
-- [ ] CHK005 Contract revision and cross-host handoff are explicitly deferred.
+- [x] CHK001 The Core is clearly separated from Codex and DeepSeek package work.
+- [x] CHK002 The task model, transition table, and result envelope each have one authoritative definition.
+- [x] CHK003 Git mutation, shell execution, test execution, networking, and host setup are excluded.
+- [x] CHK004 Single-repository and single-active-task limits are explicit.
+- [x] CHK005 Contract revision and cross-host handoff are explicitly deferred.
 
 ## Workflow
 
-- [ ] CHK006 The normal and exceptional state sets are closed.
-- [ ] CHK007 Every forward transition has a defined action.
-- [ ] CHK008 Every rework transition is explicit and requires a reason.
-- [ ] CHK009 There is no second task-type or fast-path state machine.
-- [ ] CHK010 Terminal behavior and claim release are unambiguous.
-- [ ] CHK011 Blocker creation and resolution are testable.
+- [x] CHK006 The normal and exceptional state sets are closed.
+- [x] CHK007 Every forward transition has a defined action.
+- [x] CHK008 Every rework transition is explicit and requires a reason.
+- [x] CHK009 There is no second task-type or fast-path state machine.
+- [x] CHK010 Terminal behavior and claim release are unambiguous.
+- [x] CHK011 The sole explicit-recovery BLOCKED entry, Core-owned fields, zero-write failures,
+  exact-binding condition without read-time auto-resolution, closed ResolveBlockerPayload, and
+  one-revision resolution effects are objectively specified.
 
 ## Contract and Evidence
 
-- [ ] CHK012 Task contract fields and bounds are specified.
-- [ ] CHK013 Verification budget behavior is specified for automatic, full-suite, and manual checks.
-- [ ] CHK014 Evidence source classes cannot be confused.
-- [ ] CHK015 Evidence storage excludes arbitrary command output and source content.
-- [ ] CHK016 Final outcome content is measurable.
-- [ ] CHK017 Public payloads reject unknown fields.
+- [x] CHK012 Task contract fields and bounds are specified.
+- [x] CHK013 Verification budget behavior is specified for automatic, full-suite, and manual checks.
+- [x] CHK014 Evidence source classes cannot be confused.
+- [x] CHK015 Evidence storage excludes arbitrary command output and source content.
+- [x] CHK016 Final outcome content is measurable.
+- [x] CHK017 Normal, recovery-apply, OperationProbe, and ResolveBlocker payloads have closed field,
+  nil/typed-nil, wrong-phase/type, unknown-member, duplicate-member, canonicalization, and encoded-byte
+  rejection rules.
 
 ## Persistence and Concurrency
 
-- [ ] CHK018 Current snapshot authority versus event audit role is clear.
-- [ ] CHK019 Repository claim and task mutation transaction boundaries are explicit.
-- [ ] CHK020 Revision and action conflicts have no partial-write ambiguity.
-- [ ] CHK021 Unsupported future schema behavior is safe.
-- [ ] CHK022 Multi-process races have deterministic acceptance criteria.
-- [ ] CHK023 SQLite dependency is CGo-free and bounded.
+- [x] CHK018 Current snapshot authority versus event audit role is clear.
+- [x] CHK019 Repository claim and task mutation transaction boundaries are explicit.
+- [x] CHK020 Revision and action conflicts have no partial-write ambiguity.
+- [x] CHK021 Unsupported future schema behavior is safe.
+- [x] CHK022 Claim and revision-CAS races separately require two independent SQLite handles, a
+  bounded synchronization gate, one committed winner, stable loser codes, and zero loser writes.
+- [x] CHK023 SQLite dependency is CGo-free and bounded.
 
 ## Recovery
 
-- [ ] CHK024 All five recovery classifications have observable definitions.
-- [ ] CHK025 Lost response handling requires read-before-retry.
-- [ ] CHK026 Repository drift is checked at action apply.
-- [ ] CHK027 Partial and conflicting cases lead to a concrete blocker.
-- [ ] CHK028 Recovery cannot mutate Git.
-- [ ] CHK029 The last-operation record is sufficient without becoming event sourcing.
+- [x] CHK024 One authoritative ordered table maps exact, unrelated, and partially matching
+  contradictory LastOperation relations plus persisted revision/action, OperationProbe
+  payload/evidence, allowed effects, and fresh structured binding facts to all five classes and
+  read/recovery-apply write, retry, blocker, and error effects.
+- [x] CHK025 Lost response handling identifies the original request/action/source phase/revision,
+  issuance binding, and original payload; the caller retains the request ID before dispatch, Core
+  derives the digest, and retry is permitted only for the exact current not-started row after a
+  fresh read.
+- [x] CHK026 Normal ApplyAction drift is a zero-write `REPOSITORY_DRIFT`, while read-only conflict
+  assessment and explicit recovery blocking are distinct paths using the same binding authority.
+- [x] CHK027 Partial/conflicting blocking is limited to explicit recovery apply on an exact current
+  normal source and produces a Core-derived blocker with retained issuance binding and one closed
+  machine condition.
+- [x] CHK028 Reads, recovery apply, blocker creation, and resolution all preserve the read-only Git
+  boundary and prohibit repair/adoption mutation.
+- [x] CHK029 Latest LastOperation is the sole runtime commit proof; TaskEvent remains a
+  same-transaction audit fact with no Store list/replay API or snapshot reconstruction role.
 
 ## MCP
 
-- [ ] CHK030 Exactly six tools are named and justified.
-- [ ] CHK031 Tool schemas and one result envelope are the sole public contract.
-- [ ] CHK032 STDIO-only behavior is explicit.
-- [ ] CHK033 Stable domain errors are separated from internal errors.
-- [ ] CHK034 Logs and diagnostics exclude sensitive content.
-- [ ] CHK035 MCP wire protocol version is not duplicated as a product state version.
+- [x] CHK030 Exactly six tools are named and justified.
+- [x] CHK031 Tool schemas and one result envelope are the sole public contract, with success-only
+  `recovery_assessment` kept distinct from top-level error-only `recovery` retry guidance.
+- [x] CHK032 STDIO-only behavior is explicit.
+- [x] CHK033 Stable domain errors are separated from internal errors.
+- [x] CHK034 Logs and diagnostics exclude sensitive content.
+- [x] CHK035 MCP wire protocol version is not duplicated as a product state version.
 
 ## Testability and Simplicity
 
-- [ ] CHK036 Each user story has an independent journey.
-- [ ] CHK037 Every success criterion is observable and bounded.
-- [ ] CHK038 Tests do not require real Codex or DeepSeek hosts.
-- [ ] CHK039 No Web UI, daemon, generic execution engine, or policy framework is implied.
-- [ ] CHK040 Direct dependencies remain within the Constitution budget.
-- [ ] CHK041 No unresolved clarification marker remains.
-- [ ] CHK042 Spec, data model, MCP contracts, state machine, plan, and tasks use the same names.
+- [x] CHK036 Each user story has an independent journey.
+- [x] CHK037 Every success criterion is observable and bounded.
+- [x] CHK038 Tests do not require real Codex or DeepSeek hosts.
+- [x] CHK039 No Web UI, daemon, generic execution engine, or policy framework is implied.
+- [x] CHK040 Direct dependencies remain within the Constitution budget.
+- [x] CHK041 No unresolved User Story 4 clarification marker, placeholder, caller-selected
+  classification, or constitution decision remains.
+- [x] CHK042 Spec, research, data model, MCP/schema contracts, state machine, plan, checklist, and
+  tasks consistently use OperationProbe, RecoveryApplyInput/`recovery_apply`, RecoveryAssessment,
+  LastOperationRelation, BlockerCondition/`restore_issuance_binding`, and ResolveBlockerPayload.
+
+## Foundational Clarification Quality
+
+- [x] CHK043 GetTaskResult and NextActionResult define no-probe/no-observation behavior,
+  probe-triggered fresh assessment for normal/blocked/terminal tasks, observer failure, repeated-read
+  stability, blocked condition projection, and zero persistence.
+- [x] CHK044 Repository-binding rules distinguish implementation worktree changes from identity,
+  branch, HEAD, and unauthorized-phase drift without claiming process-level attribution.
+- [x] CHK045 Unborn repositories have one supported branch/HEAD representation and no unsupported
+  error alias.
+- [x] CHK046 Core Limits 0.1 provides one authoritative numeric table and requires one Go constant
+  source without a configuration framework.
+- [x] CHK047 The MCP SDK dependency is deferred to its actual Phase 7 implementation task.
+- [x] CHK048 Unknown-field rejection is assigned to Store codec and MCP input boundaries rather
+  than generic Domain JSON parsing.
+- [x] CHK049 Phase 2 includes SQLite and Git observation, while final full validation is defined as
+  one non-duplicated `pnpm run validate` execution.
+- [x] CHK050 Observation time is excluded from stable digests; one Repository verifier checks
+  persisted and fresh digest self-consistency with source-specific error mapping; one Recovery
+  authority compares bindings; blocker resolution restores every issuance field, adopts no new
+  worktree binding, and returns only to `resume_phase`.
+
+## Foundational Audit Hardening
+
+- [x] CHK051 Worktree fingerprint requirements are content-sensitive for repeated tracked and
+  untracked changes, normalize record order, bound the complete path set, and apply the fixed
+  per-command timeout/output limits without retaining status or source bytes.
+- [x] CHK052 Dirty submodules have one explicit fail-closed observation policy with no recursion,
+  ambiguous fingerprint acceptance, or mutation.
+- [x] CHK053 Contract, Outcome narrative, Task snapshot, and result-envelope encoded-byte budgets
+  close under actual JSON escaping, so every maximum Domain-valid Task is persistable and returnable.
+- [x] CHK054 `Task.Evidence` is the sole EvidenceSummary authority; Outcome uses source-checked IDs
+  and cannot duplicate evidence or bypass verification budget rules.
+- [x] CHK055 Closed OperationKind semantics and exact LastOperation/TaskEvent relationships make
+  both records testable projections of one committed fact before writes, while runtime recovery
+  intentionally proves only the latest LastOperation and never queries events.
+- [x] CHK056 Repository-claim conflicts are limited to the two named SQLite unique constraints and
+  identified through fixed conflict-target/key queries plus structured error codes rather than a
+  no-row/code-only guess; non-unique constraint, ignored insert, trigger, lock, I/O, schema, and
+  other failures are distinctly specified as `STORAGE_UNAVAILABLE` without driver-text parsing.
+- [x] CHK057 HANDOFF authorizes its required repository read, while terminal, unknown, and missing
+  nonterminal phase mappings have distinct stable error semantics.

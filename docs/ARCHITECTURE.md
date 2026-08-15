@@ -1,283 +1,139 @@
-# Dev Flow 架构与边界
+# Dev Flow Core 架构与边界
 
-## Feature 001 当前边界
+## 当前实现
 
-Feature 001 只建立 Monorepo 工程骨架、所有权边界和有界验证。它没有实现任务状态机、
-Workflow 或 Recovery 运行时、SQLite、MCP、Git Observer、Codex/DeepSeek Host Skills、
-DeepSeek Proxy、用户数据目录、宿主安装或发布行为。
-
-### 当前目录所有权
-
-| 路径 | Feature 001 所有权 |
-| --- | --- |
-| `.github/` | 只读的 Pull Request 验证；没有发布权限、发布凭据或宿主启动行为。 |
-| `.specify/` | 唯一根级 Spec Kit 项目，包括 Constitution、脚本和模板；不得在子目录创建第二个 `.specify/`。 |
-| `.agents/` | Spec Kit 生成的 Codex 工作流集成资产；这里没有 Dev Flow Codex 产品 Skill。 |
-| `cmd/dev-flow/` | 唯一 Go 可执行入口，仅提供有界的 help/version 占位行为。 |
-| `internal/` | 共享 Go Core 的保留区域；当前仅包含供命令读取根 `VERSION` 的 `internal/version`。 |
-| `packages/codex/` | 私有 `dev-flow-codex` 产品骨架，当前只有 manifest 和 README。 |
-| `packages/deepseek/` | 私有 `dev-flow-deepseek` 产品骨架，当前只有 manifest 和 README。 |
-| `protocol/fixtures/` | 共享公开合同 fixture 的保留区域；当前没有产品 Schema。 |
-| `tests/contract/` | 仓库布局、包 manifest 和 Markdown 相对链接的合同测试。 |
-| `release/` | 后续构建和发布工作的文档占位；当前不执行任何发布动作。 |
-| `scripts/` | 仅包含仓库开发期的有界验证入口。 |
-| `docs/` | 仓库级产品、架构和工具链文档。 |
-| `specs/` | 单一编号 Feature 序列；Feature 001 是本次实现范围。 |
-
-### 当前依赖方向
-
-Feature 001 唯一的产品代码依赖是：
+Feature 002 实现一个单仓库、单活动任务的本地 Go Core。唯一可执行入口通过官方 Go MCP
+SDK 在 STDIO 上公开六个工具；任务状态存入 SQLite，Git 仅被只读观察。Codex 与 DeepSeek
+产品包仍是没有运行时、Skill 或宿主接入的私有骨架。
 
 ```text
-cmd/dev-flow → internal/version → 根 VERSION 文件
+CLI: dev-flow mcp --stdio
+              │
+              ▼
+      MCP thin adapter
+              │
+              ▼
+     Application Service
+          ┌───┴────┐
+          ▼        ▼
+      Workflow   Recovery
+          │        │
+          └───┬────┘
+              ▼
+            Domain
+          ┌───┴────┐
+          ▼        ▼
+   Repository     Store
+   read-only Git  SQLite
 ```
 
-`tests/contract` 和 `scripts` 只验证仓库合同，不属于产品运行时。`packages/codex` 与
-`packages/deepseek` 互不依赖，也不依赖或包含 Go Core、运行时代码或宿主集成代码；两者
-当前均只有各自的 `package.json` 和 README。
+依赖只能沿图中方向前进。CLI 和 MCP 不选择流程转换、不判断完成、不分类恢复，也不直接读写
+Store；Application 协调用例并把权威判断委托给下层所有者。
 
-## Feature 002 及后续的目标架构（未实现）
-
-本节及本文余下内容描述后续 Feature 的目标运行时结构，不表示这些组件已经由 Feature
-001 交付。后续实现仍须以届时的活动 Feature 规格和任务为准。
-
-### 目标结构
+## 源码所有权
 
 ```text
-dev-flow/
-├── cmd/dev-flow/                  # 单一 Go 二进制入口
-├── internal/
-│   ├── domain/                    # 任务、合同、阶段、动作、错误
-│   ├── workflow/                  # 转换与阶段义务
-│   ├── recovery/                  # 持久状态与外部现实核对
-│   ├── repository/                # Git 只读观察
-│   ├── store/                     # SQLite 与迁移
-│   ├── application/               # 用例协调与事务边界
-│   └── mcp/                       # STDIO MCP Adapter
-├── packages/
-│   ├── codex/                     # Codex 产品
-│   └── deepseek/                  # DeepSeek 产品
-├── protocol/                      # 共享 fixture、Schema 与错误说明
-├── tests/                         # Core、合同与宿主 journey
-├── release/                       # 构建、打包与发布工具
-├── .specify/                      # 根级 Spec Kit 项目
-└── specs/                         # 统一 feature 序列
+cmd/dev-flow/            唯一 CLI；help、version、mcp --stdio 与 SQLite 生命周期
+internal/domain/         Task、Contract、Action、Outcome、稳定错误与 Core Limits 0.1
+internal/workflow/       唯一转换表、下一动作蓝图、闭合 action payload
+internal/recovery/       唯一 repository relation、五类恢复与 blocker reconciliation
+internal/repository/     只读 Git 观察、repository/binding digest 构造与校验
+internal/store/          SQLite migration、snapshot、revision CAS 与 repository claim
+internal/application/    open/read/next/apply/cancel 用例及事务协调
+internal/mcp/            六工具 catalog、严格 JSON 边界、结果信封与 stderr diagnostics
+internal/version/        根 VERSION 读取
+protocol/fixtures/       Core Contract 0.1 的共享公开示例
+tests/contract/          Schema、MCP、fixture 与仓库合同测试
+tests/journeys/          独立进程关闭/重开 Core journey
+packages/codex/          非功能性私有宿主骨架
+packages/deepseek/       非功能性私有宿主骨架
 ```
 
-### 运行时关系
+仓库只有一个根 Go module 和一个可执行源码根。生产 direct dependencies 只有
+`modernc.org/sqlite` 与 `github.com/modelcontextprotocol/go-sdk`。
 
-```text
-Codex Skill ───────────────────┐
-                               ▼
-                         Go STDIO MCP
-                               ▼
-                       Application Service
-                        ┌──────┴──────┐
-                        ▼             ▼
-                 Workflow Core   Recovery Core
-                        │             │
-                        └──────┬──────┘
-                               ▼
-                         Domain Model
-                        ┌──────┴──────┐
-                        ▼             ▼
-                    SQLite Store  Git Observer
-                               ▲
-                               │
-DeepSeek Skill → optional TS Proxy
-```
-
-### 依赖方向
-
-允许的依赖方向：
-
-```text
-host adapters → MCP adapter → application → domain/workflow/recovery
-application → store/repository ports
-store/repository implementations → standard library and approved dependencies
-```
-
-禁止的依赖：
-
-- `domain` 依赖 MCP、CLI、SQLite、Git 或宿主包；
-- `workflow` 直接执行 Git、SQL 或进程；
-- `store` 决定流程转换；
-- `repository` 修改 Git；
-- `mcp` 直接拼装状态转换；
-- `packages/codex` 与 `packages/deepseek` 互相依赖；
-- Adapter 绕过 Application Service 写数据库。
-
-### Domain
-
-Domain 定义稳定业务概念：
-
-- `Task`；
-- `TaskContract`；
-- `RepositoryBinding`；
-- `Phase`；
-- `Action`；
-- `VerificationBudget`；
-- `EvidenceSummary`；
-- `LastOperation`；
-- `RecoveryClassification`；
-- `Outcome`；
-- 领域错误码。
-
-Domain 对外部技术无感知，所有结构都必须可序列化、可验证、字段有界。
+## 权威边界
 
 ### Workflow
 
-Workflow 负责：
-
-- 当前阶段允许什么动作；
-- 动作结果满足什么义务；
-- 合法和非法转换；
-- 返工路径；
-- `DONE`、`BLOCKED`、`CANCELLED` 规则；
-- 下一动作的确定性计算。
-
-首版使用显式 Go 代码和表驱动测试，不引入状态机框架或配置 DSL。
+`internal/workflow` 的显式转换表是阶段、动作、结果和下一阶段的唯一权威。它还验证每个阶段
+唯一的闭合 payload。MCP Adapter 只把严格 JSON 转为这些 concrete payload；不会复制转换表
+或从结果文本推断 `DONE`。
 
 ### Recovery
 
-Recovery 接收：
+`internal/recovery` 是持久任务与新仓库观察之间结构化比较的唯一权威。它输出
+`not_started`、`completed_and_recorded`、`completed_but_unrecorded`、
+`partially_completed` 或 `conflicting`，并生成唯一的
+`restore_issuance_binding` blocker condition。Application 不保存第二套 binding 规则。
 
-- 持久任务；
-- `last_operation`；
-- 当前仓库观察；
-- 可验证的宿主结果摘要。
+带 `operation_probe` 的任务读取返回瞬时 `RecoveryAssessment`。该值不写入 Task、SQLite 或
+TaskEvent；不带 probe 的读取不观察仓库。成功读取中的 `recovery_assessment` 与失败信封顶层
+的 retry guidance `recovery` 是两个不同模型。
 
-输出五类分类之一以及安全恢复指令。Recovery 自身不写数据库；Application Service 在
-事务中应用其决定。
+### Repository
 
-### Repository Observer
-
-首版只执行只读 Git 命令，获取：
-
-```text
-canonical_root
-git_common_dir
-branch
-head
-status_fingerprint
-observed_at
-```
-
-Observer 不解释流程，只返回事实或有界错误。
+`internal/repository` 构造并校验 repository identity、worktree fingerprint 与 binding digest。
+它只通过固定参数执行有界的只读 Git 命令，不执行 checkout、reset、clean、stash、commit、
+push、merge、rebase、tag 或其他 Git mutation。源码、diff、raw status 与 raw Git output 不会
+进入 Task、MCP 结果或诊断。
 
 ### Store
 
-在该目标运行时中，SQLite 是任务状态权威。首版表：
+SQLite `tasks` snapshot 是当前状态权威。每次 mutation 在一个事务中执行 revision CAS、写入
+新 snapshot、追加一个 TaskEvent 并更新 repository claim。TaskEvent 是审计事实；运行时没有
+event-list/replay API，恢复只使用 Task、CurrentAction、最新 LastOperation、OperationProbe 和
+新 RepositoryBinding。
+
+## MCP Adapter
+
+Adapter 使用官方 Go MCP SDK 的 raw Tool handler，因此协议握手与 STDIO lifecycle 由 SDK
+负责，而 Dev Flow 仍能在 typed dispatch 前检查原始 arguments。公开工具恰好是：
 
 ```text
-schema_migrations
-tasks
-task_events
-repository_claims
+dev_flow_server_info
+dev_flow_open_task
+dev_flow_get_task
+dev_flow_get_next_action
+dev_flow_apply_action
+dev_flow_cancel_task
 ```
 
-一次 mutation 在一个事务中完成：
+输入对象在所有嵌套层拒绝 unknown member、duplicate member、alias、错误 JSON type 与 trailing
+JSON；不使用运行时 JSON Schema framework。`PREPARE_HANDOFF` 的两个闭合 Go payload 共用
+action kind，Adapter 在必要时通过一次无 probe、无写入的 Application task read 取得权威 source
+phase，然后仍由 `ApplyAction` 的 revision/action/binding 校验决定结果。
+
+每个调用返回同一 typed envelope：固定 `schema_version=1`、当前 `request_id`、`tool`，以及
+互斥的 `result` 或 `error + recovery`。最终 compact JSON 使用 `SetEscapeHTML(false)` 编码，
+并按真实 UTF-8 bytes 强制 1 MiB 上限；超限结果替换为固定、非递归、已脱敏的
+`INTERNAL_ERROR`。stdout 只承载 MCP wire；诊断仅写 stderr，且只含时间、级别、request ID、
+tool、稳定错误码和固定 event name。
+
+所有 annotation 都显式且保守：三个纯读取工具标记 read-only/idempotent，mutation 工具不标记
+read-only/idempotent，取消标记 destructive，全部标记 closed-world。Annotation 只描述工具，
+不授予文件、进程、Git 或网络权限。
+
+## CLI 与数据
+
+CLI 只接受：
 
 ```text
-检查 expected revision
-→ 检查 repository claim
-→ 写入新任务快照
-→ 追加事件
-→ 更新 claim
-→ commit
+dev-flow
+dev-flow help
+dev-flow -h
+dev-flow --help
+dev-flow version
+dev-flow mcp --stdio
 ```
 
-不采用完整 Event Sourcing；`tasks` 是目标运行时中的当前状态权威，`task_events` 用于
-审计和恢复诊断。
+`mcp --stdio` 要求 `DEV_FLOW_DATA_DIR` 指向现有可用目录，并在其中使用一个固定内部 SQLite
+文件。CLI 不接受数据库路径或网络模式。client disconnect/stdin EOF 后 SDK session 结束，CLI
+关闭 SQLite 并退出；没有 daemon、listener、HTTP、SSE、auth、background worker 或配置框架。
 
-### Application Service
+## 未实现边界
 
-Application Service 是唯一用例协调层，负责：
-
-- 开启/恢复任务；
-- 加载任务和仓库观察；
-- 调用 Workflow 或 Recovery；
-- 执行事务性 mutation；
-- 返回领域结果。
-
-CLI 与 MCP 都调用同一 Application Service。
-
-### MCP Adapter
-
-MCP Adapter：
-
-- 注册固定工具；
-- 使用闭合输入 Schema；
-- 限制字段大小和列表数量；
-- 将领域结果映射到统一结果信封；
-- 只通过 stderr 输出不含任务数据的诊断；
-- 支持本地 STDIO。
-
-MCP Adapter 不拥有任务选择和状态转换规则。
-
-### Codex Adapter
-
-Codex 产品包含：
-
-- npm 分发入口；
-- Codex plugin manifest；
-- `.mcp.json`；
-- 一个 `dev-flow` Skill；
-- 包内平台 Runtime；
-- 显式 setup/remove；
-- 宿主合同和真实 journey。
-
-Codex 直接调用 Go MCP，不增加 Node Proxy。
-
-### DeepSeek Adapter
-
-DeepSeek 产品包含：
-
-- DSH bundle/patch；
-- 一个 `dev-flow` Skill；
-- 包内平台 Runtime；
-- 必要时的轻量 TypeScript Projection Proxy；
-- 宿主合同和真实 journey。
-
-Proxy 只允许转发工具、限制白名单、投影结果并处理关闭/取消。
-
-### 数据目录
-
-两个产品默认使用统一的用户级 Dev Flow 数据根，以避免同一仓库被两个不相知的任务同时
-控制。推荐平台路径：
-
-```text
-macOS:   ~/Library/Application Support/dev-flow/
-Linux:   ${XDG_DATA_HOME:-~/.local/share}/dev-flow/
-Windows: %LOCALAPPDATA%\dev-flow\
-```
-
-首版任务记录 `origin_host`。另一宿主发现活动任务时返回冲突，不自动接管。
-
-### 安全边界
-
-Dev Flow 不是操作系统沙箱。安全边界来自：
-
-- 小而闭合的 MCP 工具面；
-- 无通用 Shell MCP；
-- Core 只读观察 Git；
-- expected revision；
-- repository claim；
-- 不确定 mutation 的 read-after-write；
-- 字段、结果和诊断大小限制；
-- 明确的宿主与用户授权边界。
-
-### 暂不抽象
-
-首版不设计：
-
-- 通用 `HostAdapter` 框架；
-- workflow plugin registry；
-- 多数据库后端；
-- 远程 Store；
-- 事件总线；
-- 多租户；
-- 通用策略语言；
-- UI read model 平台。
-
-只有实际出现第二个实现或重复需求后，才从现有代码中提取抽象。
+当前架构不包含 Codex/DeepSeek 产品接入、真实宿主 journey、安装、发布、Web UI、remote MCP、
+HTTP/SSE、authentication、telemetry、多仓库任务、跨宿主接管、自动 repository repair、通用
+Shell、工作流 DSL、TaskEvent replay 或 Git mutation。任何后续能力都必须由新的活动 Feature
+授权，不能从本架构文档推导为已交付行为。

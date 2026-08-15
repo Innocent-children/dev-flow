@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "ok": true,
+  "request_id": "request-next-action-0001",
+  "tool": "dev_flow_get_next_action",
+  "result": {
+    "task_id": "task-00000001",
+    "phase": "INTAKE",
+    "revision": 1,
+    "action": {
+      "action_id": "action-00000001",
+      "kind": "ASSESS_TASK",
+      "task_id": "task-00000001",
+      "revision": 1,
+      "repository_binding_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+      "allowed_effects": [
+        "read_repository"
+      ],
+      "required_evidence": [
+        {
+          "kind": "repository_observation",
+          "required": true
+        },
+        {
+          "kind": "assessment_summary",
+          "required": true
+        }
+      ],
+      "payload_contract": "INTAKE",
+      "guidance": "Assess the task contract and repository without modifying source files.",
+      "issued_at": "2026-01-02T03:04:05Z"
+    },
+    "blocker": null,
+    "outcome": null,
+    "recovery_assessment": null
+  }
+}

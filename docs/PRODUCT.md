@@ -1,177 +1,117 @@
 # Dev Flow 产品定义
 
-> **文档状态**：本文保留 Feature 002–006 的后续产品目标，不表示这些能力已由 Feature
-> 001 交付。Feature 001 仅建立 Monorepo、私有产品包和 help/version 工程骨架；下文的
-> 状态机、SQLite、MCP、Codex/DeepSeek 产品行为、可分发 Runtime、安装、升级、卸载和
-> 发布均未实现。后续实现必须以届时的活动 Feature 规格为准。
+## 当前交付
 
-## 一句话定义
+Feature 002 交付的是 **Core Contract 0.1**：一个通过本地 STDIO MCP 使用的单仓库任务控制
+Core。它已经具备共享状态机、SQLite 持久化、只读 Git 观察、重启续作与保守恢复，但尚未
+交付 Codex 或 DeepSeek 产品集成、安装和发布。
 
-Dev Flow 是面向 AI 编程宿主的本地开发流程控制器：它通过明确的任务合同、统一状态机、
-验证预算和恢复语义规范开发过程，并在会话或进程中断后安全继续任务。
+`server_info.supported_hosts = [codex, deepseek]` 只表示 Core 接受这两个 `origin_host` identity，
+不表示两个宿主包已可安装、运行或通过真实宿主 journey。
 
-## 用户
+## 用户价值
 
-首要用户是使用 Codex 或 DeepSeek Harness 完成真实代码任务的个人开发者。用户希望：
-
-- AI 在开始实现前明确目标、范围和验收标准；
-- AI 按可解释的阶段推进，而不是随意扩展工作；
-- 测试和审查规模与任务风险匹配；
-- 会话关闭、宿主重启或调用响应丢失后能够继续；
-- 冲突或仓库漂移时安全停止，而不是猜测或重放副作用。
-
-## 产品职责
-
-Dev Flow 负责：
-
-1. 创建和恢复任务；
-2. 持久化任务合同与当前阶段；
-3. 选择唯一权威的下一动作；
-4. 记录阶段结果、用户决定和验证证据；
-5. 控制一个仓库的活动任务归属；
-6. 识别仓库漂移和不确定完成；
-7. 生成最终交付结果。
-
-Dev Flow 不负责直接编写代码。Codex 或 DeepSeek 使用自身文件、Shell、搜索和 Git 工具
-完成当前动作。
-
-## 产品组成
-
-```text
-                         Dev Flow Core
-                  Go workflow + recovery + store
-                              │
-                       local STDIO MCP
-                    ┌─────────┴─────────┐
-                    │                   │
-             dev-flow-codex      dev-flow-deepseek
-               $dev-flow             /dev-flow
-```
-
-两个产品共享：
-
-- 任务模型；
-- 状态机；
-- MCP 工具与错误码；
-- SQLite 存储；
-- 仓库观察规则；
-- 恢复分类；
-- 终态结果。
-
-两个产品分别拥有：
-
-- 安装与宿主注册；
-- Skill 文案；
-- 显式调用语法；
-- 宿主结果投影；
-- 宿主级真实验收。
-
-## 首版任务合同
-
-每个任务至少包含：
+Core 把一次开发工作固定为不可静默修改的任务合同：
 
 ```text
 goal
-repository_root
 scope
 out_of_scope
 acceptance_criteria
 verification_budget
 origin_host
+repository binding
 ```
 
-合同在首版中不可静默修改。需求发生实质变化时，当前任务停止，由用户决定取消或创建新
-任务。
+它为任务保存唯一权威下一动作，让调用者在进程关闭后找回相同 task/revision/action，并在写入
+前核对新的仓库现实。遇到 stale identity、仓库漂移或无法证明的 mutation 时，Core 返回稳定
+错误或进入可机器验证的 `BLOCKED`，不会猜测完成、重放宿主副作用或自动修复 Git。
 
-## 首版流程
+## 已实现能力
+
+- 一个现有本地 Git repository；
+- 每个 repository identity 最多一个活动 governed task；
+- `codex` 或 `deepseek` origin-host ownership，禁止自动跨宿主接管；
+- `INTAKE → ASSESS → PLAN → IMPLEMENT → VERIFY → REVIEW → HANDOFF → DONE`；
+- `BLOCKED` 与 `CANCELLED`；
+- 阶段级闭合 payload、revision CAS、action identity 与 repository binding；
+- verification budget 与单一 retained Task evidence authority；
+- SQLite snapshot、audit event 与 repository claim 的同事务 mutation；
+- 关闭全部 Core/database objects 后重开同一数据库并恢复相同 action；
+- 不确定 ApplyAction 的 read-after-write proof 与五类瞬时 RecoveryAssessment；
+- ordinary repository drift 的零写入拒绝；
+- partial/conflicting recovery 的显式 BLOCKED entry；
+- 仅在精确恢复 issuance binding 后执行 `RESOLVE_BLOCKER`；
+- 显式 cancellation、终态 Outcome 与 claim release；
+- 本地 STDIO MCP 和统一 typed result envelope。
+
+## MCP 使用面
 
 ```text
-INTAKE
-→ ASSESS
-→ PLAN
-→ IMPLEMENT
-→ VERIFY
-→ REVIEW
-→ HANDOFF
-→ DONE
+dev_flow_server_info
+dev_flow_open_task
+dev_flow_get_task
+dev_flow_get_next_action
+dev_flow_apply_action
+dev_flow_cancel_task
 ```
 
-异常状态：
+工具输入不接受任意命令、环境、数据库路径或输出路径。调用者通过 `dev_flow_get_next_action`
+取得 Core 已持久化的动作与 payload contract，使用自身已有的文件、Shell 和开发工具完成动作，
+再提交有界结果。Core 本身不运行测试或用户命令。
+
+服务通过以下唯一模式启动：
+
+```bash
+DEV_FLOW_DATA_DIR="<existing-directory>" dev-flow mcp --stdio
+```
+
+CLI 还提供 bounded help 与 `dev-flow version`。没有 HTTP、SSE 或监听端口。
+
+详细 wire contract 见 [MCP Tools 0.1](../specs/002-govern-and-resume-single-repository-task/contracts/mcp-tools.md)，
+转换与恢复规则见 [State Machine](../specs/002-govern-and-resume-single-repository-task/contracts/state-machine.md)，
+共享示例见 [Protocol Fixtures](../protocol/fixtures/README.md)。
+
+## 恢复与证据边界
+
+不带 probe 的任务读取只返回持久状态，不观察 Git。带 `operation_probe` 的读取对所有阶段进行
+一次新观察，返回以下五类之一，并且不写 Task、revision、event、binding 或 blocker：
 
 ```text
-BLOCKED
-CANCELLED
+not_started
+completed_and_recorded
+completed_but_unrecorded
+partially_completed
+conflicting
 ```
 
-所有任务使用同一条流程。小任务通过简短计划和较低验证预算保持轻量；高风险任务通过更
-严格的阶段义务增加控制，不增加第二套状态机。
+只有显式 `recovery_apply` 可以记录未落账完成或创建 blocker。恢复分类来自 Core 的 typed facts，
+不是模型文本。成功读取中的 `recovery_assessment` 与错误信封中的 retry guidance `recovery`
+保持分离。
 
-## 首版功能
+Retained evidence 只保存有界 summary、source、status、digest、command count 与 full-suite 标记；
+不保存源码、diff、raw Git status、环境值或 raw command output。Outcome 只引用 Task.Evidence 中的
+canonical IDs，不复制 evidence authority。
 
-- 显式 `$dev-flow` 与 `/dev-flow`；
-- 单个现有 Git 仓库；
-- 一个仓库最多一个活动任务；
-- 本地 STDIO MCP；
-- SQLite 持久化；
-- 进程与宿主重启恢复；
-- revision 乐观锁；
-- Git 分支、`HEAD` 和工作树指纹观察；
-- 阶段级下一动作；
-- 验证预算；
-- 任务取消；
-- 最终交付报告。
+## 已验证边界
 
-## 首版非目标
+当前仓库测试覆盖 Domain/Workflow invariants、SQLite migration/CAS/claim、只读 Git fingerprint、
+Application 全流程、五类 recovery、blocker exact resolution、共享 MCP contract/fixtures、官方
+SDK 六工具握手、CLI EOF shutdown，以及独立进程关闭/重开后完成任务的 Core journey。
 
-- 多仓库任务；
-- 自动创建或切换分支/worktree；
-- commit、push、PR、Tag、Release；
-- 隐式触发；
-- Web UI；
-- HTTP/SSE/远程 MCP；
-- 多 Agent 或并行执行器；
-- 通用 Shell MCP；
-- 自定义工作流 DSL；
-- 运行时集成 Spec Kit；
-- 自动跨宿主接管；
-- 遥测、账号体系或远程服务；
-- 未经真实验收的平台支持声明。
+这些证据是 Core-local evidence。它们不是 Codex/DeepSeek 真实宿主证据，也不是安装、发布或
+所有平台的产品兼容性声明。
 
-## 成功定义
+## 明确不支持
 
-首版成功不是功能数量，而是以下闭环在两个产品上都成立：
+- Codex product integration 或真实 Codex journey；
+- DeepSeek product integration、Proxy 或真实 DeepSeek journey；
+- installation、upgrade、remove、publication、Tag 或 Release；
+- Web UI、remote MCP、HTTP/SSE、authentication、account 或 telemetry；
+- multi-repository task、并行执行器或 cross-host takeover；
+- Git mutation、自动 repository repair、新 binding adoption 或通用 Shell MCP；
+- workflow plugin/DSL、通用 recovery policy 或 TaskEvent runtime replay；
+- Windows release claim 或未经真实验证的平台产品声明；
+- real-host transport-loss/crash/truncation hardening。
 
-```text
-显式启动任务
-→ 查看当前动作
-→ 完成并记录阶段
-→ 关闭宿主或进程
-→ 重新打开
-→ 找回同一任务
-→ 核对仓库现实
-→ 继续执行
-→ 在验证预算内完成
-→ 获得可信交付结果
-```
-
-## 产品判断原则
-
-### 为什么使用 Go Core
-
-核心是本地状态控制器，需要强类型、单二进制分发、跨平台构建、STDIO、事务存储和清晰
-并发语义。Go 可以减少运行时安装负担，并保持实现直接。
-
-### 为什么使用 SQLite
-
-任务需要事务、唯一仓库 claim、revision 检查、重启恢复和可查询状态。SQLite 提供一
-个明确的数据权威，不需要同时维护多组状态文件、索引和锁协议。
-
-### 为什么允许 DeepSeek Proxy
-
-若 DeepSeek Harness 需要稳定的文本结果投影，可使用极薄的 TypeScript Proxy。Proxy
-只处理宿主兼容，不拥有工作流规则。
-
-### 为什么只有一个 Core
-
-两个宿主面对的是同一个产品问题。共享 Core 可以保证状态、恢复和完成语义一致，避免
-宿主适配层逐渐形成不同产品。
+后续 Feature 的目标不能视为本版本已交付能力。

@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "ok": true,
+  "request_id": "request-cancel-task-0001",
+  "tool": "dev_flow_cancel_task",
+  "result": {
+    "task": {
+      "task_id": "task-00000002",
+      "origin_host": "codex",
+      "contract": {
+        "goal": "Stop one governed workflow",
+        "scope": [
+          "explicit cancellation"
+        ],
+        "out_of_scope": [],
+        "acceptance_criteria": [
+          "The requested change is complete.",
+          "The retained verification evidence is accepted."
+        ],
+        "verification_budget": {
+          "level": "targeted",
+          "max_automatic_commands": 2,
+          "allow_full_suite": false,
+          "allow_manual_handoff": true
+        }
+      },
+      "repository": {
+        "canonical_root": "/workspace/example-cancelled",
+        "git_common_dir_digest": "1010101010101010101010101010101010101010101010101010101010101010",
+        "repository_identity": "1212121212121212121212121212121212121212121212121212121212121212",
+        "branch": "main",
+        "detached": false,
+        "head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "unborn": false,
+        "worktree_fingerprint": "3434343434343434343434343434343434343434343434343434343434343434",
+        "observed_at": "2026-01-02T04:05:05Z",
+        "binding_digest": "5656565656565656565656565656565656565656565656565656565656565656"
+      },
+      "phase": "CANCELLED",
+      "resume_phase": null,
+      "current_action": null,
+      "blocker": null,
+      "last_operation": {
+        "operation_id": "request-cancel-task-0001",
+        "kind": "cancel_task",
+        "action_id": null,
+        "from_revision": 4,
+        "to_revision": 5,
+        "payload_digest": "7878787878787878787878787878787878787878787878787878787878787878",
+        "committed_at": "2026-01-02T04:06:05Z"
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-automated-0002",
+          "source": "automated",
+          "name": "targeted-unit",
+          "status": "passed",
+          "summary": "One retained targeted check passed before cancellation.",
+          "digest": "9090909090909090909090909090909090909090909090909090909090909090",
+          "command_count": 1,
+          "full_suite": false,
+          "recorded_at": "2026-01-02T04:05:05Z"
+        },
+        {
+          "evidence_id": "evidence-user-0002",
+          "source": "user",
+          "name": "user-observation",
+          "status": "passed",
+          "summary": "One user observation was retained before cancellation.",
+          "digest": "abababababababababababababababababababababababababababababababab",
+          "command_count": 0,
+          "full_suite": false,
+          "recorded_at": "2026-01-02T04:05:05Z"
+        }
+      ],
+      "outcome": {
+        "status": "cancelled",
+        "acceptance": [
+          {
+            "criterion": "The requested change is complete.",
+            "status": "unverified"
+          },
+          {
+            "criterion": "The retained verification evidence is accepted.",
+            "status": "unverified"
+          }
+        ],
+        "automated_evidence_ids": [
+          "evidence-automated-0002"
+        ],
+        "manual_evidence_ids": [
+          "evidence-user-0002"
+        ],
+        "unverified_items": [
+          "The requested change is complete.",
+          "The retained verification evidence is accepted."
+        ],
+        "risks": [
+          "The user cancelled this task."
+        ],
+        "final_repository_binding_digest": "5656565656565656565656565656565656565656565656565656565656565656",
+        "summary": "The user cancelled this task.",
+        "completed_at": "2026-01-02T04:06:05Z"
+      },
+      "revision": 5,
+      "created_at": "2026-01-02T04:02:05Z",
+      "updated_at": "2026-01-02T04:06:05Z",
+      "completed_at": "2026-01-02T04:06:05Z"
+    },
+    "repository_claim_released": true
+  }
+}
