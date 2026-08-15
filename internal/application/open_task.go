@@ -1,11 +1,7 @@
 package application
 
 import (
-	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
@@ -214,13 +210,5 @@ func digestOpenTaskPayload(
 			VerificationBudget: contract.VerificationBudget(),
 		},
 	}
-	var buffer bytes.Buffer
-	encoder := json.NewEncoder(&buffer)
-	encoder.SetEscapeHTML(false)
-	if err := encoder.Encode(payload); err != nil {
-		return "", err
-	}
-	encoded := bytes.TrimSuffix(buffer.Bytes(), []byte{'\n'})
-	digest := sha256.Sum256(encoded)
-	return domain.Digest(hex.EncodeToString(digest[:])), nil
+	return digestCanonical(payload)
 }

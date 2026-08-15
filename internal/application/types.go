@@ -1,6 +1,9 @@
 package application
 
-import "github.com/Innocent-children/dev-flow/internal/domain"
+import (
+	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/dev-flow/internal/workflow"
+)
 
 // OpenTaskRequest either creates a governed task from NewTask or resumes the
 // active task for the observed repository when NewTask is nil.
@@ -36,4 +39,35 @@ type NextActionResult struct {
 	Revision uint64
 	Action   *domain.Action
 	Outcome  *domain.Outcome
+}
+
+// ApplyActionRequest binds one closed payload to the exact persisted action
+// identity and issuance repository binding.
+type ApplyActionRequest struct {
+	RequestID               domain.ID
+	Host                    domain.Host
+	TaskID                  domain.ID
+	ExpectedRevision        uint64
+	ActionID                domain.ID
+	ActionKind              domain.ActionKind
+	RepositoryBindingDigest domain.Digest
+	Payload                 workflow.ActionPayload
+}
+
+type ApplyActionResult struct {
+	Task domain.Task
+}
+
+// CancelTaskRequest explicitly terminates one host-owned task without using
+// or regenerating its current action identity.
+type CancelTaskRequest struct {
+	RequestID        domain.ID
+	Host             domain.Host
+	TaskID           domain.ID
+	ExpectedRevision uint64
+	Reason           string
+}
+
+type CancelTaskResult struct {
+	Task domain.Task
 }

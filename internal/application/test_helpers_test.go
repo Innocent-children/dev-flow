@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/dev-flow/internal/repository"
 	"github.com/Innocent-children/dev-flow/internal/store"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
@@ -97,7 +98,7 @@ func deterministicIDGenerator(ids ...domain.ID) idGenerator {
 func newTestService(
 	t *testing.T,
 	taskStore store.Store,
-	observer *fixedRepositoryObserver,
+	observer repository.RepositoryObserver,
 	now time.Time,
 	ids ...domain.ID,
 ) *Service {
