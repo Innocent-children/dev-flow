@@ -247,7 +247,7 @@ passes Domain invariants cannot be rejected merely because its encoded snapshot 
 
 Phase 2 implements the phase-independent action metadata and pure blueprint construction. User
 Story 2 implements the complete closed phase payload types in `internal/workflow/payloads.go`, as
-specified by `contracts/state-machine.md`; the future MCP adapter derives JSON schemas at its own
+specified by `contracts/state-machine.md`; the MCP adapter defines JSON schemas at its own
 boundary rather than storing `map[string]any` in Domain. `payload_contract` reuses the action's
 source `Phase`, which keeps `REVIEW` and `HANDOFF` distinct even though both issue
 `PREPARE_HANDOFF`.
@@ -539,7 +539,7 @@ and other SQLite failures map to `STORAGE_UNAVAILABLE` without parsing or exposi
 The Store persists typed aggregates as JSON only where relational querying is unnecessary. Its
 codec rejects unknown fields and trailing JSON, enforces the persisted snapshot byte limit, then
 constructs typed Domain values and invokes the single Task invariant entry point. Domain does not
-parse generic JSON. The future MCP adapter applies its own closed-input decoding before Domain
+parse generic JSON. The MCP adapter applies its own closed-input decoding before Domain
 dispatch. The same compact, HTML-unescaped encoding rule measures aggregate limits. A maximum valid
 Task projection plus at most 131,072 bytes of result-envelope overhead is strictly below the
 1,048,576-byte result limit.

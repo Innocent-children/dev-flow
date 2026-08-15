@@ -78,6 +78,9 @@ Start STDIO server:
 DEV_FLOW_DATA_DIR="$(mktemp -d)" ./tmp/dev-flow mcp --stdio
 ```
 
+The directory must already exist and be usable. Core owns the fixed internal `dev-flow.db` filename;
+there is no database-path flag or MCP input.
+
 Use an MCP inspector or the contract test harness. Do not type arbitrary JSON-RPC manually and
 treat parsing success as product evidence.
 

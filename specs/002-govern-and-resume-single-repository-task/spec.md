@@ -21,7 +21,7 @@ one workflow and safely resumes the task after interruption.
   and every other action requires the issuance binding to remain exact.
 - Q: Are unborn repositories supported and what makes bounded input measurable? → A: Unborn Git
   repositories are supported, and every Core bound is defined by the single Core Limits 0.1 table.
-- Q: Where are JSON closure and dependency timing enforced? → A: Store codecs and future MCP
+- Q: Where are JSON closure and dependency timing enforced? → A: Store codecs and the MCP
   inputs reject unknown fields; the MCP SDK is added only with the Phase 7 MCP implementation.
 - Q: What is the Phase 1–2 and final validation boundary? → A: Phase 2 includes SQLite and the
   read-only Git observer; local work uses targeted checks, while final validation runs
@@ -340,7 +340,7 @@ not a way to reject a Domain-valid Task.
   is not a second acceptance rule. A syntactically valid SHA-256 string alone is insufficient. The
   raw common-directory path remains private and its digest is independently recalculated only by a
   fresh observation.
-- **FR-021**: The Store codec boundary and future MCP input boundary MUST reject unknown JSON fields;
+- **FR-021**: The Store codec boundary and MCP input boundary MUST reject unknown JSON fields;
   the typed Domain model MUST reject unknown action kinds and missing evidence without parsing
   arbitrary JSON or accepting undocumented aliases.
 - **FR-022**: Each ApplyAction that commits a task mutation MUST advance, block, resolve, or

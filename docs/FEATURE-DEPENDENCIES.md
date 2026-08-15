@@ -37,7 +37,7 @@
 | Spec | 当前产物 | 进入下一阶段的门禁 |
 |---|---|---|
 | `001` | spec/plan/research/model/contracts/tasks | Constitution 审查完成 |
-| `002` | spec/plan/research/model/contracts/tasks | `001` 完成 |
+| `002` | Core implementation + spec/plan/research/model/contracts/tasks | Core Contract `0.1` 验证并冻结 |
 | `003` | spec | `002` 完成并冻结 Core Contract `0.1` |
 | `004` | spec | `002` 完成并冻结 Core Contract `0.1` |
 | `005` | spec | 两个宿主真实重启/恢复 journey 完成 |

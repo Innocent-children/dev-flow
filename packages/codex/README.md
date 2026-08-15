@@ -1,6 +1,6 @@
 # dev-flow-codex
 
-`dev-flow-codex` is a private Feature 001 engineering skeleton. It reserves the Codex product
+`dev-flow-codex` remains a private engineering skeleton through Feature 002. It reserves the Codex product
 boundary in the Monorepo; it is not an installable or runnable product and provides no Codex host
 behavior.
 
@@ -12,4 +12,5 @@ This bootstrap package contains only its manifest and this documentation. In par
 - no runtime or production dependency; and
 - no `bin` executable entry.
 
-Host functionality and distribution remain outside Feature 001.
+Feature 002 implements only the shared Core Contract 0.1. Codex host functionality, real-host
+validation, installation, and distribution remain unimplemented.

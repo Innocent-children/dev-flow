@@ -22,6 +22,10 @@ func TestRepositoryRelativeMarkdownLinks(t *testing.T) {
 	for _, scope := range []string{
 		filepath.Join(root, "docs"),
 		filepath.Join(root, "specs", "001-bootstrap-monorepo"),
+		filepath.Join(root, "specs", "002-govern-and-resume-single-repository-task"),
+		filepath.Join(root, "protocol", "fixtures"),
+		filepath.Join(root, "packages", "codex"),
+		filepath.Join(root, "packages", "deepseek"),
 	} {
 		err := filepath.WalkDir(scope, func(path string, entry os.DirEntry, walkErr error) error {
 			if walkErr != nil {

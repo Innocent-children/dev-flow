@@ -20,6 +20,23 @@
   The result envelope's top-level error-only `recovery` member is retry guidance. They are distinct
   names/models and never substitute for one another.
 
+### Tool annotations
+
+Annotations are explicit conservative descriptions, not authorization:
+
+| Tool | read-only | idempotent | destructive | open-world |
+| --- | --- | --- | --- | --- |
+| `dev_flow_server_info` | true | true | false | false |
+| `dev_flow_open_task` | false | false | false | false |
+| `dev_flow_get_task` | true | true | false | false |
+| `dev_flow_get_next_action` | true | true | false | false |
+| `dev_flow_apply_action` | false | false | false | false |
+| `dev_flow_cancel_task` | false | false | true | false |
+
+The hints never grant shell, filesystem, Git, database, or network authority. Core state mutation is
+not described as read-only, cancellation is conservatively destructive to active task state, and no
+tool claims an open-world/network capability.
+
 ## Shared `operation_probe` input
 
 `dev_flow_get_task` and `dev_flow_get_next_action` accept this optional closed member:
@@ -254,6 +271,12 @@ repository/common-directory identity, branch/detached, and HEAD/unborn remain ex
 fresh observation becomes the next revision's binding. `RESOLVE_BLOCKER` succeeds only through
 Feature 002's exact `restore_issuance_binding` condition and may return only to its stored
 `resume_phase`; it does not adopt changed worktree or identity state.
+
+`PREPARE_HANDOFF` is shared by REVIEW and HANDOFF. When its structurally identical rework/replan
+wire payload does not identify which sealed Go payload type is required, the adapter performs one
+ordinary no-probe Application task read to obtain the authoritative current source phase. That read
+does not observe Git or write state; the following ApplyAction still applies the exact revision,
+action, binding, workflow, recovery, and terminal checks.
 
 ### Success Result
 

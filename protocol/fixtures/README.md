@@ -15,8 +15,8 @@ Feature 002 User Story 1 provides these shared examples:
 
 The three successful task fixtures describe the same task, revision, repository binding, and action
 identity. Error fixtures intentionally return only a stable error and recovery instruction; they do
-not expose a task contract or repository path. `${VERSION}` is the product-version placeholder used
-by the future adapter, and paths below `/workspace/` are fictional public examples.
+not expose a task contract or repository path. `${VERSION}` is replaced by the implemented adapter's
+repository-visible version, and paths below `/workspace/` are fictional public examples.
 
 Feature 002 User Story 2 adds these shared mutation examples:
 
@@ -57,4 +57,5 @@ and raw command/output data.
 Fixtures contain bounded public projections only: never database paths, source contents, Git diffs
 or raw Git status, environment values, raw command output, or host-private state. The Application
 does not read these files. They are contract evidence rather than runtime workflow authority, do
-not replace the Domain model, and do not imply that the MCP SDK or server is implemented.
+not replace the Domain model, and are checked against the implemented six-tool MCP adapter by the
+shared contract suite.

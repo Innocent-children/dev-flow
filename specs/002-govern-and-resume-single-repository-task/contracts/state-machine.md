@@ -199,7 +199,7 @@ never a valid normal action result. Workflow normalizes valid UTF-8 text only by
 and trailing whitespace, preserves list order, rejects post-trim duplicates, and encodes the
 normalized concrete payload as compact JSON with HTML escaping disabled. The complete normalized
 payload must not exceed `MaxActionPayloadBytes`. Payloads do not accept arbitrary JSON or
-`map[string]any`; the future MCP decoder rejects unknown and duplicate object-member names at every
+`map[string]any`; the MCP decoder rejects unknown and duplicate object-member names at every
 nesting level before typed dispatch.
 
 ### `INTAKE / ASSESS_TASK`
@@ -583,7 +583,7 @@ and `repository_binding_digest`. The Core observes the repository again before c
 - `RESOLVE_BLOCKER` accepts only a fresh observation structurally identical to the retained issuance
   binding under `restore_issuance_binding`; it may refresh `observed_at` but adopts no changed state.
 
-`internal/recovery` is the sole future authority for structured binding relation and acceptance in
+`internal/recovery` is the sole authority for structured binding relation and acceptance in
 normal apply, explicit recovery apply, reads, and blocker resolution. Application delegates to it
 and removes its private comparison helpers. The Repository package remains the sole digest-algorithm
 owner and exposes one pure verifier invoked by Application before it passes persisted or fresh facts

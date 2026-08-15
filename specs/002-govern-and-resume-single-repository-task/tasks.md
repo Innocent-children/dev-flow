@@ -388,31 +388,31 @@ verify rejection, read-after-write proof, five recovery classes, and safe blocki
 
 ### Contract Tests
 
-- [ ] T064 [P] Add result-envelope JSON Schema validation cases to
+- [x] T064 [P] Add result-envelope JSON Schema validation cases to
   `tests/contract/result_envelope_test.go` using
   `contracts/result-envelope.schema.json` as a specification fixture, not a runtime dependency.
-- [ ] T065 [P] Add tool-name, strict unknown-input-field, annotation, Core Limits 0.1 encoded-result
+- [x] T065 [P] Add tool-name, strict unknown-input-field, annotation, Core Limits 0.1 encoded-result
   byte ceiling, and stable-error contract cases to `tests/contract/mcp_contract_test.go`.
-- [ ] T066 [P] Add fixture parity checks to `tests/contract/fixture_contract_test.go` so future
+- [x] T066 [P] Add fixture parity checks to `tests/contract/fixture_contract_test.go` so future
   Codex and DeepSeek packages consume one shared surface.
 
 ### Implementation
 
-- [ ] T067 Implement the common success/error envelope, encoded total-byte enforcement, and bounded
+- [x] T067 Implement the common success/error envelope, encoded total-byte enforcement, and bounded
   redacted details in `internal/mcp/results.go`.
-- [ ] T068 Implement closed tool schemas and exact six-tool catalog in
+- [x] T068 Implement closed tool schemas and exact six-tool catalog in
   `internal/mcp/schemas.go` and `internal/mcp/tools.go`; reject unknown fields at the MCP boundary
   without a runtime JSON-Schema framework.
-- [ ] T069 Resolve and import the then-latest stable compatible v1
+- [x] T069 Resolve and import the then-latest stable compatible v1
   `github.com/modelcontextprotocol/go-sdk`, run `go mod tidy`, and implement MCP request dispatch to
   the application service in `internal/mcp/server.go`; the adapter must not select transitions or
   persist state directly.
-- [ ] T070 Implement stderr-only structured diagnostics with request IDs and no task payloads in
+- [x] T070 Implement stderr-only structured diagnostics with request IDs and no task payloads in
   `internal/mcp/logging.go`.
-- [ ] T071 Implement `dev-flow mcp --stdio`, `dev-flow version`, and bounded help in
+- [x] T071 Implement `dev-flow mcp --stdio`, `dev-flow version`, and bounded help in
   `cmd/dev-flow/main.go`; remove the bootstrap “not implemented” response only for these surfaces.
-- [ ] T072 Add command startup/STDIO shutdown cases to `cmd/dev-flow/main_test.go`.
-- [ ] T073 Run the MCP contract tests and one Core restart journey; do not run host package tests.
+- [x] T072 Add command startup/STDIO shutdown cases to `cmd/dev-flow/main_test.go`.
+- [x] T073 Run the MCP contract tests and one Core restart journey; do not run host package tests.
 
 **Checkpoint**: The shared Core Contract 0.1 is executable and consumable by both future products.
 
@@ -420,19 +420,19 @@ verify rejection, read-after-write proof, five recovery classes, and safe blocki
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T074 [P] Update `docs/ARCHITECTURE.md` with the implemented dependency direction and the
+- [x] T074 [P] Update `docs/ARCHITECTURE.md` with the implemented dependency direction and the
   final source tree without documenting unimplemented host behavior.
-- [ ] T075 [P] Update `docs/PRODUCT.md` with the proven Core journey, supported evidence boundary,
+- [x] T075 [P] Update `docs/PRODUCT.md` with the proven Core journey, supported evidence boundary,
   and explicit absence of installation/host support.
-- [ ] T076 [P] Check all links in `specs/002-govern-and-resume-single-repository-task/` and shared
+- [x] T076 [P] Check all links in `specs/002-govern-and-resume-single-repository-task/` and shared
   fixture references.
-- [ ] T077 Confirm `packages/codex/` and `packages/deepseek/` contain no duplicate protocol or state
+- [x] T077 Confirm `packages/codex/` and `packages/deepseek/` contain no duplicate protocol or state
   logic and still make no functional claim.
-- [ ] T078 Run one final `pnpm run validate`, which already includes Go list/vet/test, repository
+- [x] T078 Run one final `pnpm run validate`, which already includes Go list/vet/test, repository
   contract validation, and package dry-pack; do not run a duplicate full `go test ./...` first.
-- [ ] T079 Run `$speckit-converge` and append only concrete acceptance gaps; do not add host,
+- [x] T079 Run `$speckit-converge` and append only concrete acceptance gaps; do not add host,
   release, platform-matrix, data-import, or future-workflow tasks.
-- [ ] T080 Record `Core Contract 0.1` source commit, fixture digest, verified platform, skipped
+- [x] T080 Record `Core Contract 0.1` source commit, fixture digest, verified platform, skipped
   evidence, and unsupported claims in the completion report.
 
 ## Dependencies & Execution Order

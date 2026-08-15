@@ -1,17 +1,18 @@
 # Research: Govern and Resume a Single-Repository Task
 
-## Decision 1: Defer the official Go MCP SDK until MCP implementation
+## Decision 1: Official Go MCP SDK v1.7.0
 
-**Decision**: Add no MCP dependency during Phase 1–2. When Phase 7 implements the MCP adapter, use
-the official `modelcontextprotocol/go-sdk` STDIO transport, require at least v1.7.0, and resolve the
-then-latest stable compatible v1 release.
+**Decision**: Phase 1–2 added no placeholder dependency. Phase 7 resolved the official
+`github.com/modelcontextprotocol/go-sdk` release list and selected stable v1.7.0, the then-latest
+stable compatible v1 release and the specification's minimum. `go.mod` records that exact release;
+it is neither a pseudo-version, a branch commit, nor a fork.
 
 **Rationale**: The official v1 line provides typed server tooling, local STDIO transport, protocol
 negotiation, and conformance coverage, but Phase 1–2 has no MCP consumer. Deferring resolution avoids
 dummy imports and keeps the foundational checkpoint at one direct production dependency.
-`go.mod`/`go.sum` will record the actual selected release when used; product compatibility will not
-depend on one SDK patch number. Dev Flow uses only the bounded Tools-over-STDIO subset required by
-this feature and does not adopt HTTP, OAuth, sampling, or other SDK capabilities.
+`go.mod`/`go.sum` record the selected release and its SDK-owned transitive dependencies. Dev Flow
+uses only raw Tool handlers and the bounded Tools-over-STDIO subset required by this feature; it does
+not adopt HTTP, OAuth, sampling, resources, prompts, roots, or other SDK capabilities.
 
 **Alternatives rejected**:
 
@@ -238,8 +239,8 @@ revision/action identity and an auditable transaction.
 ## Decision 17: Strict JSON belongs at technical boundaries
 
 **Decision**: Domain types validate typed values and never accept `map[string]any`. Store codecs use
-strict JSON decoding and re-run Domain invariants; future MCP inputs independently reject unknown
-fields at the adapter boundary.
+strict JSON decoding and re-run Domain invariants; MCP inputs independently reject unknown and
+duplicate fields at the adapter boundary.
 
 **Rationale**: Closure is enforced where untrusted serialized data enters without coupling Domain
 logic to JSON Schema or duplicating parsing rules.
@@ -417,3 +418,48 @@ and install/upgrade recovery.
 
 **Rationale**: Baseline recovery must be implementable from current facts; hardening should respond
 to observed host failures rather than speculative matrices.
+
+## Decision 27: Raw SDK tools preserve the strict wire boundary
+
+**Decision**: Register all six tools with the official SDK's raw `Server.AddTool` surface. The SDK
+owns MCP negotiation, sessions, Tool listing, calls, and STDIO shutdown. Dev Flow receives each
+`arguments` value as `json.RawMessage`, performs a token preflight that rejects duplicate object
+members at every nesting level, then uses `DisallowUnknownFields` and explicit phase/action switches
+to construct the one concrete Application input and `workflow.ActionPayload`.
+
+**Rationale**: The SDK's typed AddTool path unmarshals before the handler and therefore cannot expose
+duplicate member names for the Feature 002 proof. Raw handlers preserve that proof without
+reimplementing JSON-RPC or adding a JSON Schema runtime. The committed JSON Schemas remain public
+specification fixtures and tool metadata, not workflow or validation authority.
+
+`PREPARE_HANDOFF` is the one action kind shared by REVIEW and HANDOFF, and both phases allow
+`rework_implementation`/`replan`. For those structurally identical wire results the adapter performs
+one no-probe `Application.GetTask` read to obtain the authoritative current source phase before
+constructing the sealed Go payload. That read neither observes Git nor writes state; the following
+`ApplyAction` still owns revision, action, binding, workflow, recovery, and terminal validation, so a
+concurrent change fails through the existing CAS/identity contract.
+
+**Alternatives rejected**:
+
+- typed SDK argument decoding: loses the duplicate-member evidence before Dev Flow validation;
+- adding `source_phase` to normal ApplyAction: changes the approved public contract;
+- choosing REVIEW or HANDOFF from ambiguous result text: rejects one valid rework path;
+- moving JSON decoding into Domain/Workflow: couples business authority to a transport format;
+- custom JSON-RPC: duplicates the official SDK lifecycle.
+
+## Decision 28: Conservative annotations and fixed local data location
+
+**Decision**: `server_info`, `get_task`, and `get_next_action` are explicitly read-only,
+idempotent, non-destructive, and closed-world. `open_task` and `apply_action` are explicitly not
+read-only, not idempotent, non-destructive, and closed-world. `cancel_task` is not read-only or
+idempotent, is destructive to active task state, and is closed-world. These are descriptive hints
+only. They grant no filesystem, process, Git, database, or network authority.
+
+`dev-flow mcp --stdio` requires `DEV_FLOW_DATA_DIR` to identify an existing usable directory and
+uses the fixed internal filename `dev-flow.db`. Neither tools nor CLI flags accept a database path.
+The path is absent from results and diagnostics; stdin/client disconnect ends the SDK session and
+the CLI closes SQLite.
+
+**Rationale**: Explicit conservative hints avoid claiming retry or OS powers that the protocol does
+not enforce. One environment-selected directory plus one internal filename meets restart persistence
+without introducing a configuration framework or exposing storage internals.
