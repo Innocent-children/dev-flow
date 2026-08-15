@@ -71,16 +71,21 @@ The canonical result vocabulary is exactly `succeeded`, `ready`, `failed`, `pass
 
 ## Exceptional Transitions
 
-An explicit apply-action transaction may enter `BLOCKED` only when it accepts:
+An explicit ApplyAction whose optional `recovery_apply` member is present may enter `BLOCKED` only
+when the Core classifies a still-current normal source action as `partially_completed` or
+`conflicting`. Presence of that member is the only recovery-mutation discriminator; it is not a new
+tool, OperationKind, phase, workflow, or caller-selected classification.
 
-- uncertain action evidence classified as `partially_completed` or `conflicting`.
+Ordinary ApplyAction drift returns `REPOSITORY_DRIFT` with no task, revision, event, evidence,
+blocker, binding, or claim change. Reads may report a classification or guidance but cannot enter
+`BLOCKED`.
 
-Ordinary fresh-observation drift returns `REPOSITORY_DRIFT` with no task change; reads may report a
-classification or guidance but cannot enter `BLOCKED`.
-
-A blocker records `resume_phase`. `RESOLVE_BLOCKER` may return only to that phase after a fresh
-observation proves the concrete unblock condition. A new repository binding is accepted only when
-that condition explicitly permits it.
+A blocker records the original normal phase as `resume_phase`, retains the issuance
+RepositoryBinding as Task.Repository, and records the fresh block-time binding digest only as an
+observed fact (it may equal issuance for a non-binding conflict). Feature 002 supports exactly one
+condition, `restore_issuance_binding`; it does not
+adopt a new worktree binding. `RESOLVE_BLOCKER` may return only to the stored phase after a fresh
+structured observation proves that condition.
 
 Any nonterminal phase may enter `CANCELLED` through `dev_flow_cancel_task`.
 
@@ -94,6 +99,10 @@ Any nonterminal phase may enter `CANCELLED` through `dev_flow_cancel_task`.
 - adapter-selected transitions;
 - transition without exact task ID, revision, action ID, action kind, and repository-binding digest;
 - transition that changes the immutable contract.
+- ordinary drift creating `BLOCKED`;
+- caller-supplied recovery classification, blocker, resume/next phase, or authoritative binding;
+- parsing `RequiredResolution` text as a condition;
+- runtime TaskEvent lookup or replay to decide recovery.
 
 ## Phase Obligations
 
@@ -183,12 +192,15 @@ Required result:
 
 Application accepts `workflow.ActionPayload`, a sealed Go interface implemented only by the
 phase-specific concrete types below. Callers may construct those concrete values, but cannot add a
-payload type. A nil or typed-nil payload, the wrong payload type for the source phase, a result
-alias, or an invalid field returns `INVALID_ARGUMENT`. Workflow normalizes valid UTF-8 text only by
-trimming leading and trailing whitespace, preserves list order, rejects post-trim duplicates, and
-encodes the normalized concrete payload as compact JSON with HTML escaping disabled. The complete
-normalized payload must not exceed `MaxActionPayloadBytes`. Payloads do not accept arbitrary JSON
-or `map[string]any`; strict unknown-field rejection remains the future MCP decoder's boundary.
+payload type. Normal ApplyAction and blocker resolution reject a nil or typed-nil payload, the wrong
+payload type for the source phase, a result alias, or an invalid field as `INVALID_ARGUMENT`. Only
+an explicit recovery apply may use JSON `null` as the probe's canonical no-evidence payload; it is
+never a valid normal action result. Workflow normalizes valid UTF-8 text only by trimming leading
+and trailing whitespace, preserves list order, rejects post-trim duplicates, and encodes the
+normalized concrete payload as compact JSON with HTML escaping disabled. The complete normalized
+payload must not exceed `MaxActionPayloadBytes`. Payloads do not accept arbitrary JSON or
+`map[string]any`; the future MCP decoder rejects unknown and duplicate object-member names at every
+nesting level before typed dispatch.
 
 ### `INTAKE / ASSESS_TASK`
 
@@ -348,8 +360,51 @@ type CompleteHandoffPayload struct {
 `complete` requires valid delivery data and no reason; rework and replanning require a reason and no
 delivery data. `complete` constructs the final Outcome from this submission.
 
-`BLOCKED / RESOLVE_BLOCKER` has no accepted payload in User Story 2. Application returns
-`TASK_BLOCKED`; blocker creation and resolution remain T061.
+### `BLOCKED / RESOLVE_BLOCKER`
+
+```go
+type BlockerResolutionEvidence struct {
+    Condition             domain.BlockerCondition `json:"condition"`
+    ObservedBindingDigest domain.Digest           `json:"observed_binding_digest"`
+}
+
+type ResolveBlockerPayload struct {
+    Result             domain.ActionResult        `json:"result"`
+    BlockerID          domain.ID                  `json:"blocker_id"`
+    Summary            string                     `json:"summary"`
+    ResolutionEvidence BlockerResolutionEvidence  `json:"resolution_evidence"`
+}
+```
+
+`Result` is exactly `succeeded`. `BlockerID` and `ResolutionEvidence.Condition` must exactly equal
+the current Blocker ID and stored condition; identifiers, enum values, and digests are canonical
+and are never trimmed or aliased. `Summary` is required, trimmed only at its ends, valid UTF-8, and
+bounded by `MaxEvidenceSummaryBytes`. `ObservedBindingDigest` is the caller's last observation, not
+an authoritative replacement binding. Core freshly observes the retained canonical root and
+requires the caller digest, fresh digest, condition's expected digest, and Task.Repository digest to
+agree after structured digest verification. The entire canonical payload remains within
+`MaxActionPayloadBytes` and is included in the normal apply-operation payload digest.
+
+The caller provides only result, blocker ID, summary, the exact echoed condition, and its observed
+binding digest. Core alone loads the blocker, source `resume_phase`, retained issuance binding,
+fresh observation, and next action identity. A stale revision returns `REVISION_CONFLICT`; a stale
+action, blocker ID, or condition returns `ACTION_STALE`; a stale observation or unsatisfied
+condition returns `REPOSITORY_DRIFT`; malformed, unknown, duplicate, nil/typed-nil, wrong-phase, or
+wrong-payload input returns `INVALID_ARGUMENT`. Every failure is zero-write.
+
+Success uses the existing ApplyAction and `OperationApplyAction`, increments revision exactly once,
+appends one matching TaskEvent, retains the repository claim, clears Blocker and ResumePhase,
+returns only to the stored normal phase, and issues a brand-new normal Action ID. It replaces
+Task.Repository only with the freshly observed structurally identical issuance binding (therefore
+only `observed_at` may differ), invalidates the old `RESOLVE_BLOCKER` action, preserves all prior
+evidence, and appends exactly one Core-generated EvidenceSummary named `blocker_resolution` with
+source `host_observed`, status `observed`, the normalized payload summary, zero commands, and digest
+derived from the canonical payload. Core never parses `RequiredResolution` and never mutates Git.
+
+For an operation/evidence-only conflict, the block-time repository may already satisfy
+`restore_issuance_binding`. That never auto-resolves the task: the closed `RESOLVE_BLOCKER` action,
+exact IDs/condition, and a new fresh observation are still required before Core issues a replacement
+normal action.
 
 ### Verification budget evaluation
 
@@ -359,10 +414,131 @@ user-evidence permission, and manual-handoff-item permission. Malformed evidence
 `INVALID_ARGUMENT`; a policy overrun returns `VERIFICATION_BUDGET_EXCEEDED`. It adds no inferred
 semantics for verification levels.
 
+## Operation Probe and Explicit Recovery Apply
+
+Reads accept this optional transient input:
+
+```go
+type OperationProbe struct {
+    OperationID              domain.ID              `json:"operation_id"`
+    SourcePhase              domain.Phase           `json:"source_phase"`
+    ExpectedRevision         uint64                 `json:"expected_revision"`
+    ActionID                 domain.ID              `json:"action_id"`
+    ActionKind               domain.ActionKind      `json:"action_kind"`
+    RepositoryBindingDigest  domain.Digest          `json:"repository_binding_digest"`
+    Payload                  workflow.ActionPayload `json:"payload"` // nullable in a probe
+}
+```
+
+Host and task ID come from the enclosing read request. `OperationID` is the exact request ID of the
+uncertain ApplyAction, chosen and retained by its caller before dispatch rather than learned only
+from the response; it is not the read request ID. The probe does not accept an operation kind (it is
+closed to `apply_action`), caller digest, classification, blocker, resume/next phase, replacement
+binding, canonical path, raw status, source, diff, command, output, or environment data.
+
+The existing ApplyAction request gains only this optional discriminator:
+
+```go
+type RecoveryApplyInput struct {
+    OperationID domain.ID    `json:"operation_id"`
+    SourcePhase domain.Phase `json:"source_phase"`
+}
+```
+
+JSON member `recovery_apply` is absent for normal semantics. When present, all enclosing
+ApplyAction identity fields plus payload and both recovery fields form the same `OperationProbe`.
+`recovery_apply.operation_id` is the original uncertain ApplyAction request ID; the enclosing
+recovery call's request ID remains response correlation and is not the probed operation. The caller
+may reuse the same ID value; no equality/inequality rule selects recovery mode, which is determined
+only by presence of `recovery_apply`. The caller never submits the assessment. A non-null payload is
+validated and canonicalized by the one phase-specific payload validator; null canonicalizes as the
+literal JSON `null`. Core calculates the operation payload digest over host, task ID, expected
+revision, action ID/kind, issuance binding
+digest, source phase, and those canonical payload bytes. `recovery_apply` itself is excluded so an
+exact previously committed normal request has the same digest. This digest is never accepted from
+the caller. If reconciliation commits a normal transition or blocker, LastOperation.OperationID
+and TaskEvent.RequestID use the probed `operation_id`, preserving idempotent proof across a lost
+recovery response; the recovery call's correlation ID is not persisted as workflow truth.
+
+### Derived facts
+
+Classification runs only after the task/host is loaded, Domain/Workflow invariants pass, persisted
+and fresh binding digests are self-consistent, the probe identity/source-phase mapping is valid, a
+non-null payload is valid, and a fresh observation succeeds. Failure of any prerequisite returns
+the existing bounded error and no assessment or write. Specifically, a persisted binding that
+fails the Repository verifier returns `STORAGE_UNAVAILABLE`; a fresh observer result that fails the
+same verifier returns `INTERNAL_ERROR`. No syntactically valid digest string bypasses this check.
+
+- **exact committed proof**: payload digest is Core-derived and LastOperation has
+  `kind=apply_action`, the exact probe operation/action IDs, `from_revision=expected_revision`,
+  `to_revision=expected_revision+1=Task.Revision`, the exact payload digest, and a valid committed
+  time. No TaskEvent read participates.
+- **LastOperation relation**: `exact` is the full proof above. `unrelated` means neither operation ID
+  nor non-null action ID matches the probe. If either identity matches but any remaining
+  kind/action/from/to/current-revision/Core-derived-digest/commit-time requirement differs, the
+  relation is `contradictory`; partial matches cannot fall through as an unattempted operation.
+- **source current**: `Task.Revision`, `Task.Phase`, CurrentAction ID/kind/revision/issuance digest,
+  and Task.Repository binding digest exactly match the probe source. A mismatch is superseded,
+  even if an older TaskEvent might exist.
+- **repository relation**: `exact` means every digest-bearing structured field equals the
+  authoritative Task.Repository; `worktree_only_changed` means canonical root, common-directory
+  digest, repository identity, branch/detached, and HEAD/unborn are exact while worktree and final
+  binding digests both change; every other valid difference is `forbidden_change`. `observed_at`
+  never participates.
+- **operation evidence**: null payload is `none`. A valid non-null payload is `complete` only when
+  all closed result/evidence fields are present and its observable repository effect agrees:
+  non-`IMPLEMENT_CHANGE` requires `exact`; `IMPLEMENT_CHANGE` with changed paths requires
+  `worktree_only_changed`; `IMPLEMENT_CHANGE` with `no_file_changes=true` requires `exact`; and
+  `RESOLVE_BLOCKER` requires the exact stored condition and binding. A valid payload that claims the
+  opposite repository effect is `contradictory`. Feature 002 performs no path-by-path authorship
+  inference or generic expected-evidence adoption.
+
+### Canonical recovery decision table
+
+Rows are evaluated top to bottom; the first matching row is final. This is the sole five-class
+decision table. Reads always have the listed zero-write effect. “Recovery apply” means the existing
+ApplyAction with `recovery_apply` present.
+
+| Priority | Persisted revision/action and LastOperation | Probe payload / allowed effect | Fresh repository fact | Classification | Read result | Recovery-apply result |
+|---:|---|---|---|---|---|---|
+| 1 | Exact committed proof, regardless of whether a next or terminal action now exists | Core-derived digest exactly matches | Report relation to the now-authoritative Task.Repository | `completed_and_recorded` | Return committed proof; `action_retry_safe=false` | Return the ordinary current Task result only; no revision, event, evidence, claim, or binding write |
+| 2 | Latest LastOperation relation is `contradictory`, regardless of source currency | Any valid probe payload | Any valid observation | `conflicting` | Return the contradictory relation; never call a partial match proof | If source is current and normal, commit the one Core-derived blocker; if source is already `BLOCKED`, return its existing blocker; otherwise return `REVISION_CONFLICT` or `ACTION_STALE`; no other write |
+| 3 | Latest LastOperation is `unrelated` and source is not current | Any | Any valid observation | `conflicting` | Return assessment; never claim an older event committed | Return `REVISION_CONFLICT` when revision differs, otherwise `ACTION_STALE`; zero write and no blocker |
+| 4 | LastOperation is `unrelated`; source is current | `operation_evidence=contradictory`, or null (`none`) while the action disallows the observed relation | Any non-worktree `forbidden_change`; `worktree_only_changed` for a non-`IMPLEMENT_CHANGE` action (including resolve); or claimed file-change/no-change opposite to observation | `conflicting` | Return assessment; normal source advice is `submit_recovery_apply` | From a normal source, commit the one Core-derived blocker; if already `BLOCKED`, return the existing blocker without another write |
+| 5 | LastOperation is `unrelated`; current normal `IMPLEMENT_CHANGE` source | Null (`none`): repository effect exists but required result/evidence is absent | `worktree_only_changed` | `partially_completed` | Return assessment with proposed restore condition | Commit the one Core-derived blocker |
+| 6 | LastOperation is `unrelated`; source is current | Complete payload and all closed required evidence; allowed effect agrees | Required exact/worktree-only/resolve-condition relation | `completed_but_unrecorded` | Return assessment with `action_retry_safe=false` and advice `submit_recovery_apply` | Record through the normal transition/evidence/budget path in one revision/event; never re-execute host effects |
+| 7 | LastOperation is `unrelated`; source is current | Null (`none`) | `exact` | `not_started` | Return `action_retry_safe=true` and advice `retry_current_action` | Return the ordinary unchanged Task result only; zero write |
+
+For rows 2, 4, and 5, blocker creation is legal only while the source is a normal nonterminal phase. Core
+generates the blocker/action IDs, cause classification, message, human resolution, stored condition,
+and resume phase; it retains the issuance binding and adds no incomplete evidence. A task already in
+`BLOCKED` keeps its existing blocker without a second revision. For row 6, the ordinary transition
+table, verification budget, evidence construction, terminal claim release, and CAS rules remain the
+only mutation path.
+
+`action_retry_safe` belongs to `RecoveryAssessment` and is true only in row 7. It means the caller
+may re-execute and resubmit that exact still-current action after this fresh assessment; it is not
+the error envelope's `recovery.retry_safe`. Advice is closed to `retry_current_action`,
+`submit_recovery_apply`, `read_next_action`, `resolve_blocker`, or
+`stop_for_repository_drift` and is derived as follows: row 7 uses `retry_current_action`; row 6 uses
+`submit_recovery_apply`; rows 2, 4, and 5 use `submit_recovery_apply` for a current normal source and
+`resolve_blocker` for a current blocked Task; row 3 uses `resolve_blocker` if the current Task is
+blocked, otherwise `stop_for_repository_drift` when the fresh binding is not accepted for the
+current nonterminal action and `read_next_action`; row 1 uses `resolve_blocker` when the committed
+Task is blocked, `read_next_action` for a terminal Task, and otherwise the same current-action
+binding check. All rows except row 7 set `action_retry_safe=false`.
+
+`unblock_condition` is non-null only when the current Task is already blocked (the exact stored
+condition) or rows 2, 4, or 5 can legally block a current normal source (the exact Core-proposed
+condition). It is null for a superseded/non-blockable conflict. If state changes after assessment,
+the ordinary CAS fails with `REVISION_CONFLICT` and the complete recovery-apply transaction writes
+nothing.
+
 ## Revision Semantics
 
 - New task revision is 1.
-- Each successful mutation increments revision by exactly 1.
+- Each committed mutation increments revision by exactly 1; recovery read-back and `not_started`
+  no-write results do not.
 - The new current action is bound to the new revision.
 - Failed mutation does not increment revision.
 - Reads never increment revision.
@@ -370,14 +546,27 @@ semantics for verification levels.
 - Every mutation uses one closed OperationKind: `open_task`, `apply_action`, or `cancel_task`.
 - The Task's LastOperation and appended TaskEvent are exact projections of the same request, optional
   action, expected/committed revision, payload digest, and committed timestamp.
+- Entering `BLOCKED`, recording `completed_but_unrecorded`, and resolving a blocker all use
+  `apply_action`; no fourth OperationKind exists.
 
 ## Read Semantics
 
-`get_task` and `get_next_action` are pure with respect to persistent task state. They may obtain a
-fresh repository observation and return recovery classification, drift/conflict guidance, or proof
-of a committed mutation. They never write an event, increment revision, change phase/action,
-persist the observation, or create a blocker. `BLOCKED` can be produced only by an explicit
-apply-action transaction.
+`get_task` returns `GetTaskResult{Task, RecoveryAssessment}` rather than a bare Task.
+`get_next_action` returns `NextActionResult{TaskID, Phase, Revision, Action, Blocker, Outcome,
+RecoveryAssessment}`. `RecoveryAssessment` is nullable. With no OperationProbe, both reads preserve
+the current no-observation behavior and return a null assessment; the pure persisted-binding
+integrity check is not a repository observation. With a probe, both freshly observe
+the canonical root and return the same typed assessment; this includes `BLOCKED`, `DONE`, and
+`CANCELLED` so the latest lost terminal or blocking apply can be proved. `BLOCKED` results also carry
+the persisted Blocker and its machine condition even without a probe.
+
+Reads are pure with respect to persistent task and repository state. They never write an event,
+increment revision, change phase/action, replace LastOperation, persist an observation, or create a
+blocker. Observer failure returns the existing bounded mapped error and a zero result; Core never
+fabricates an “unavailable” classification. For the same Task, probe, and structured repository
+state, every assessment field is stable except the fresh `observed_at`; because time is excluded
+from digests, repeated observations retain all identities, digests, classification, proof, retry
+safety, advice, and condition.
 
 ## Repository Binding Semantics
 
@@ -391,11 +580,26 @@ and `repository_binding_digest`. The Core observes the repository again before c
   successful apply stores the fresh observation as the next revision's binding.
 - Branch, HEAD, repository identity, common-directory identity, an unauthorized phase's worktree
   change, or a non-worktree implementation change returns `REPOSITORY_DRIFT` without mutation.
-- `RESOLVE_BLOCKER` accepts a new binding only according to the stored blocker's concrete condition.
+- `RESOLVE_BLOCKER` accepts only a fresh observation structurally identical to the retained issuance
+  binding under `restore_issuance_binding`; it may refresh `observed_at` but adopts no changed state.
+
+`internal/recovery` is the sole future authority for structured binding relation and acceptance in
+normal apply, explicit recovery apply, reads, and blocker resolution. Application delegates to it
+and removes its private comparison helpers. The Repository package remains the sole digest-algorithm
+owner and exposes one pure verifier invoked by Application before it passes persisted or fresh facts
+to Recovery. It recomputes `repository_identity` from canonical root plus
+`git_common_dir_digest`, then recomputes `binding_digest` from all structured fields except
+`observed_at`. A well-formed SHA-256 string alone is not valid evidence. The private raw
+common-directory path is never persisted, so its digest is independently grounded only by the fresh
+observer and compared structurally; no second digest algorithm is added to Application or Recovery.
+Verifier invocation is integrity validation and does not let Application decide binding acceptance.
 
 The Core validates observation shape and identity; the host cannot substitute another repository.
 It binds and reviews current observed reality but does not claim to identify which external process
-performed a modification.
+performed a modification. `IMPLEMENT_CHANGE` is the sole ordinary action allowed to adopt a
+worktree-only binding. Feature 002's `restore_issuance_binding` condition adopts no new binding
+state: on resolution, only freshness metadata may change. Repository identity, common-directory
+identity, branch/detached, and HEAD/unborn are never rebound.
 
 The worktree fingerprint parses bounded porcelain-v2 `-z` records, normalizes their order, and
 includes the status/path/Git identity fields plus a current content digest or deleted/missing

@@ -54,12 +54,15 @@ committed mutation. Use the closed operation kinds `open_task`, `apply_action`, 
 The task's LastOperation and the transaction's TaskEvent are validated before SQL as exact
 projections of the same request, optional action, revisions, payload digest, and commit time.
 
-**Rationale**: Ordinary reads stay simple while recovery can inspect recent operation identity and
-history.
+**Rationale**: Ordinary reads stay simple while the latest LastOperation proves one exact committed
+mutation. TaskEvent remains a same-transaction audit fact used by invariants and tests; runtime
+recovery does not list, query, or replay events and conservatively rejects an older unprovable
+operation.
 
 **Alternatives rejected**:
 
 - reconstructing state from events;
+- adding a Store event-list/replay API for recovery;
 - dual-writing files and database;
 - storing no events at all, which makes uncertain-response diagnosis harder.
 
@@ -167,7 +170,8 @@ action, mutation, and explicit termination. Discovery is folded into `open_task`
 - separate list/find/start tools: expands surface before a task browser exists;
 - generic transition tool: exposes internal state machine;
 - revise-contract tool: deferred;
-- recovery mutation tool: recovery is represented by task/next-action contracts.
+- recovery mutation tool: optional `recovery_apply` on the existing ApplyAction and the closed
+  `RESOLVE_BLOCKER` payload provide the required mutations without a seventh tool.
 
 ## Decision 12: One result envelope
 
@@ -209,9 +213,10 @@ the codec to reject an otherwise valid object.
 **Decision**: Every apply re-observes the repository. Ordinary non-implementation actions require
 exact issuance binding equality. `IMPLEMENT_CHANGE` may update only the worktree fingerprint and
 persists that fresh observation as the next binding; repository/common-directory identity,
-branch/detached, and HEAD/unborn remain exact. `RESOLVE_BLOCKER` may accept a new binding only under
-the blocker's concrete condition and may return only to its stored `resume_phase`. Observation time
-is freshness metadata and is excluded from both digests.
+branch/detached, and HEAD/unborn remain exact. Feature 002's sole blocker condition is
+`restore_issuance_binding`: `RESOLVE_BLOCKER` requires every structured field/digest to equal the
+retained issuance binding, may refresh only observation time, and may return only to its stored
+`resume_phase`. Observation time is excluded from both digests.
 
 **Rationale**: This permits the one action intended to edit files while detecting repository
 replacement and Git-history/context changes. The Core validates the current observation but cannot
@@ -220,9 +225,12 @@ authorship claim.
 
 ## Decision 16: Reads classify but never reconcile by mutation
 
-**Decision**: `get_task` and `get_next_action` may observe and classify current reality, but never
-persist a binding, event, phase, revision, or blocker. A `BLOCKED` snapshot can be committed only by
-an explicit apply-action transaction.
+**Decision**: `get_task` and `get_next_action` preserve their current no-observation behavior when no
+OperationProbe is supplied. With a probe they observe and return the transient typed
+RecoveryAssessment for every phase, including terminal and `BLOCKED`, but never persist a binding,
+assessment, event, phase, revision, LastOperation, or blocker. Observer failure returns an error,
+not an invented unavailable assessment. A new `BLOCKED` snapshot can be committed only by an
+explicit recovery apply-action transaction.
 
 **Rationale**: Read-after-write remains safe and repeatable, while all state changes retain exact
 revision/action identity and an auditable transaction.
@@ -259,3 +267,153 @@ internal invariant failure, not a terminal result. `HANDOFF/PREPARE_HANDOFF` all
 
 **Rationale**: Terminal status, invalid caller input, and an implementation defect are materially
 different conditions and must not share one stable error code or contradictory effect contract.
+
+## Decision 20: Core-derived OperationProbe digest and optional recovery apply
+
+**Decision**: Reads accept the closed OperationProbe defined in `data-model.md`. The caller echoes
+the original request/action/source revision/source phase/issuance digest and nullable original
+payload; Core never accepts a caller payload digest or classification. The existing ApplyAction
+gains only optional `recovery_apply: {operation_id, source_phase}`. Its presence makes the
+enclosing action fields a probe; `operation_id` is the original uncertain ApplyAction request ID,
+while the recovery call's request ID remains response correlation. Null is allowed only in this
+mode. Core canonicalizes the payload and calculates the same normal apply-operation digest; the
+recovery discriminator is excluded so exact committed normal work can be proved. A reconciliation
+commit persists the probed operation ID in LastOperation and TaskEvent, preserving exact proof if
+the recovery response is also lost. The normal ApplyAction request ID is required before dispatch
+and retained by the caller, so response loss cannot hide the future probe identity.
+
+**Rationale**: The existing ApplyAction carries every identity field except the original operation
+ID and source phase. One optional two-field discriminator closes the ambiguous
+`PREPARE_HANDOFF` phase and post-commit read-back without nesting or duplicating normal input.
+
+**Alternatives rejected**:
+
+- caller-supplied payload digest: cannot prove it describes the submitted payload;
+- storing an attempted-operation journal: creates a second persistent authority;
+- a separate recovery method/tool or OperationKind: exceeds the bounded surface and duplicates the
+  workflow;
+- free-form mode strings, maps, or inferred model intent: not closed or deterministic.
+
+## Decision 21: One transient RecoveryAssessment
+
+**Decision**: Application returns `GetTaskResult` instead of a bare Task. Only GetTaskResult and
+NextActionResult use the exact `RecoveryAssessment` model in `data-model.md`; it includes the
+Core-derived operation digest, probed/current identities,
+authoritative/issuance/observed digests, repository relation, exact/unrelated/contradictory latest
+LastOperation relation, evidence state, optional exact committed proof, action retry safety, closed
+advice, optional condition, and fresh observation time. It contains no path or
+raw/source/command/environment content and is never persisted.
+
+**Rationale**: One typed projection makes repeated-read behavior and privacy testable without
+polluting Task or creating an “assessment snapshot.” A null assessment preserves ordinary reads.
+ApplyAction independently classifies explicit recovery input but returns only its ordinary Task
+result shape.
+
+**Alternatives rejected**:
+
+- embedding assessment in Task or TaskEvent: turns transient external reality into persisted truth;
+- an unavailable assessment object: conceals observer failure as a classification;
+- generic details maps or prose-only guidance: cannot drive deterministic host behavior;
+- reusing result-envelope `recovery`: that object remains error-only retry guidance.
+
+## Decision 22: Ordered five-class table and baseline evidence boundary
+
+**Decision**: The sole ordered decision table is in `contracts/state-machine.md`. Exact latest
+LastOperation proof wins first. If the latest LastOperation shares the probe operation ID or action
+ID but any other kind/action/revision/Core-derived-digest/commit requirement differs, its relation
+is contradictory and the class is conflicting; it is not treated as missing proof. Otherwise a
+superseded source is conflicting; an action-forbidden binding relation or payload/observation
+contradiction is conflicting, including worktree-only change for a non-implementation action;
+worktree-only `IMPLEMENT_CHANGE` with null payload is partial; a valid complete payload
+consistent with the action's closed repository effect is completed-but-unrecorded; and null payload
+plus exact current binding is not-started. Invalid input or observation is an error before
+classification.
+
+**Rationale**: These facts exist now and can be proven without event replay or model judgment. For
+non-implementation actions, the validated closed payload is the complete result evidence. For
+implementation, changed-paths versus no-file-change must agree with the fresh binding relation.
+
+**Alternatives rejected**:
+
+- similarity, path authorship, or model inference: not objectively provable from the bounded
+  observer;
+- partially accepting an invalid payload: makes payload closure meaningless;
+- general expected-evidence contracts or adoption policy: deferred to Feature 005 after real-host
+  evidence;
+- checking TaskEvent at runtime: LastOperation is deliberately the latest public proof.
+
+## Decision 23: One blocker condition and closed resolution payload
+
+**Decision**: Only explicit recovery apply from an exact current normal source may create a blocker,
+and only for partial/conflicting. Core retains the issuance Task.Repository and generates a
+`TASK_BLOCKED` Blocker whose cause is the class, whose observed digest is non-authoritative, and
+whose sole machine condition is `restore_issuance_binding(expected_binding_digest)`. Human
+`RequiredResolution` is never parsed. `ResolveBlockerPayload` contains only result, exact blocker ID,
+bounded summary, and nested resolution evidence echoing the exact condition and observed digest.
+Success uses ApplyAction/OperationApplyAction, ClaimRetain, one revision/event, one Core-generated
+`blocker_resolution` host-observed evidence record, and a new normal action at the stored phase.
+For an operation/evidence-only conflict the binding condition may already be true; this never
+auto-resolves the blocker, because the exact closed resolution action and a new observation remain
+mandatory.
+
+**Rationale**: Exact restoration is the smallest condition the Core can prove with its current
+observer. It preserves the issuance binding as authority while retaining enough facts to explain
+and resolve the stop.
+
+**Alternatives rejected**:
+
+- accepting a new worktree binding while blocked: requires an adoption policy and is Feature 005;
+- arbitrary field matching, callbacks, policy language, or DSL: violates proven simplicity;
+- caller-provided blocker/class/resume phase/binding: creates another workflow authority;
+- separate ResolveBlocker Application/MCP method: unnecessary seventh surface;
+- parsing human resolution text: not machine-safe.
+
+## Decision 24: Recovery owns comparison; Repository owns digest algorithms
+
+**Decision**: `internal/recovery` is the sole structural binding/reconciliation authority used by
+normal apply, recovery apply, reads, and resolution. The Repository package exposes the one pure
+digest self-consistency verifier beside its existing digest constructors. It recomputes repository
+identity from canonical root plus common-directory digest and final binding digest from structured
+fields excluding observation time. Application invokes it on loaded persisted bindings and fresh
+observer results, maps their source-specific errors, removes its comparison helpers, and passes only
+verified facts to Recovery. A persisted failure maps to `STORAGE_UNAVAILABLE`; a fresh observer
+failure maps to `INTERNAL_ERROR`. Both precede classification and mutation; verifier invocation is
+integrity validation, not an acceptance decision.
+
+**Rationale**: Decision rules and digest construction have different responsibilities. Keeping one
+of each prevents the current Application comparison and future Recovery comparison from drifting,
+without copying the private common-directory or binding digest algorithms.
+
+**Alternatives rejected**:
+
+- trusting well-formed SHA-256 strings: permits internally inconsistent persisted bindings;
+- recomputing digests independently in Application or Recovery: duplicates algorithms;
+- persisting the raw Git common-directory path: expands sensitive state without need;
+- moving repository decisions into adapters: violates Core authority.
+
+## Decision 25: Deterministic two-handle concurrency boundary
+
+**Decision**: T057 uses two independently opened SQLite handles against one database under
+`t.TempDir()`, with separate claim and revision-CAS cases. Both contenders reach a bounded channel
+gate before release; there is no sleep, stress loop, race/fuzz/benchmark, production CLI change, or
+process framework. Each case has exactly one committed winner. Claim loser is
+`ACTIVE_TASK_CONFLICT`; stale-revision loser is `REVISION_CONFLICT`; loser contributes no task/event,
+revision, evidence, or claim change.
+
+**Rationale**: Independent handles exercise SQLite's cross-connection boundary and the existing
+busy timeout while remaining deterministic and smaller than a subprocess protocol.
+
+**Alternative rejected**: real subprocess helpers are valid but add orchestration with no extra
+acceptance value at this baseline; a single shared handle does not exercise the intended boundary.
+
+## Decision 26: Feature 002 baseline versus Feature 005 hardening
+
+**Decision**: Feature 002 stops at deterministic Core-local OperationProbe assessment, explicit
+record/block behavior, exact-binding resolution, shared future fixtures, and bounded two-handle
+concurrency. Feature 005 remains gated by real Feature 003/004 host evidence and owns transport loss
+and truncation matrices, crash-point/failure injection, generic expected-evidence adoption,
+host-specific rules and parity journeys, automatic repair, complex new-binding adoption, takeover,
+and install/upgrade recovery.
+
+**Rationale**: Baseline recovery must be implementable from current facts; hardening should respond
+to observed host failures rather than speculative matrices.

@@ -68,6 +68,53 @@ partially_completed
 conflicting
 ```
 
+### BlockerConditionKind
+
+```text
+restore_issuance_binding
+```
+
+Feature 002 has no condition that adopts a changed worktree or any identity/branch/HEAD binding.
+
+### RepositoryRelation *(transient recovery result)*
+
+```text
+exact
+worktree_only_changed
+forbidden_change
+```
+
+### OperationEvidenceState *(transient recovery result)*
+
+```text
+none
+complete
+contradictory
+```
+
+### LastOperationRelation *(transient recovery result)*
+
+```text
+exact
+unrelated
+contradictory
+```
+
+`exact` requires the whole latest committed tuple. `unrelated` means neither the operation ID nor
+the non-null action ID matches the probe. If either identity matches but any kind, action,
+from/to/current revision, Core-derived payload digest, or commit-time requirement differs, the
+relation is `contradictory`; a partial identity match is never treated as absence of proof.
+
+### RecoveryAdvice *(transient recovery result)*
+
+```text
+retry_current_action
+submit_recovery_apply
+read_next_action
+resolve_blocker
+stop_for_repository_drift
+```
+
 ### VerificationLevel
 
 ```text
@@ -129,6 +176,18 @@ The public result may return canonical root only when required by the host tool 
 include it. `observed_at` records freshness but is excluded from both `worktree_fingerprint` and
 `binding_digest`, so repeated identical observations produce the same digests.
 
+Domain validation checks shape; the Repository package's single pure digest verifier checks
+self-consistency before any recovery comparison or apply. It recomputes `repository_identity` from
+`canonical_root` plus `git_common_dir_digest`, then recomputes `binding_digest` from canonical root,
+common-directory digest, repository identity, branch/detached, HEAD/unborn, and worktree
+fingerprint. It ignores `observed_at`. The private raw Git common-directory path is not persisted, so
+only a fresh RepositoryObserver calculation can independently ground its digest. Application and
+Recovery do not copy these algorithms. Application invokes the verifier on every loaded persisted
+binding before returning or deciding, and on every fresh observation before passing facts to
+Recovery. A persisted binding that fails maps to `STORAGE_UNAVAILABLE`; a freshly observed binding
+that fails maps to `INTERNAL_ERROR`. Both fail before classification or mutation and return no
+assessment. Calling the verifier is integrity validation, not binding acceptance.
+
 The observer parses porcelain-v2 `-z` status, normalizes record order, and limits one observation to
 1,024 affected paths. Each fingerprint record contains status kind, path, available mode/index
 object identity, and either the current digest or a deleted/missing sentinel. Only status-identified
@@ -139,12 +198,13 @@ never read. A dirty submodule fails closed with a stable Repository Observation 
 recursively scanned nor modified.
 
 An apply carries the original action's binding digest and the Core observes again before commit.
-Only `IMPLEMENT_CHANGE` may ordinarily accept a different worktree fingerprint; it persists the fresh
-observation for the next revision only when repository identity, Git common-directory identity,
-branch/detached state, and HEAD/unborn state remain exact. Other action kinds require the entire
-fresh binding to match, except that `RESOLVE_BLOCKER` may accept a new binding only under the stored
-blocker's concrete condition and may return only to its stored `resume_phase`. The observation is
-authoritative for binding review but does not prove which external process made a file change.
+Only `IMPLEMENT_CHANGE` may ordinarily accept a different worktree fingerprint; it persists the
+fresh observation for the next revision only when repository identity, Git common-directory
+identity, branch/detached state, and HEAD/unborn state remain exact. Other normal action kinds
+require the entire fresh binding to match. `RESOLVE_BLOCKER` supports only exact restoration of the
+retained issuance binding; it may refresh `observed_at` but does not adopt a changed binding. The
+observation is authoritative for binding review but does not prove which external process made a
+file change. `internal/recovery` owns the one structured comparison; Application delegates to it.
 
 ## Task
 
@@ -227,17 +287,151 @@ Only committed operations are persisted. The caller's original action identity a
 combined with the committed task/event revision, prove a lost response without adding a second
 `attempted` authority.
 
+LastOperation proves only the latest committed mutation. Runtime recovery does not query TaskEvent
+to search for an older match; if the probe is neither the latest exact LastOperation nor the exact
+current source action, the result is conservatively `conflicting`.
+
+## Transient Recovery Inputs and Results
+
+These types are Application/recovery projections only. None is a Task field, SQLite snapshot,
+TaskEvent payload, LastOperation replacement, revisioned entity, or second state authority.
+
+### OperationProbe
+
+| Field | Type | Rules |
+|---|---|---|
+| operation_id | ID | exact original uncertain ApplyAction request ID |
+| source_phase | Phase | exact original source phase; normal nonterminal or `BLOCKED` |
+| expected_revision | uint64 | exact original positive source revision |
+| action_id | ID | exact originally issued action |
+| action_kind | ActionKind | exact kind mapped from `source_phase` |
+| repository_binding_digest | SHA-256 | exact issuance binding digest |
+| payload | closed ActionPayload or null | original submitted payload; null means no retained result/evidence |
+
+Host and task ID are supplied once by the enclosing read/apply request. The caller never supplies a
+payload digest. The original operation ID is the caller-chosen ApplyAction request ID retained
+before dispatch, not an ID discoverable only from the potentially lost response. Core validates and
+canonicalizes a non-null payload through the source phase's
+closed validator, canonicalizes null as JSON `null`, and computes the same apply-operation digest
+over host, task ID, expected revision, action identity/kind, issuance digest, source phase, and
+canonical payload. Unknown or duplicate JSON fields, wrong phase/action/payload, invalid IDs,
+aliases, and typed nil for a non-null payload are `INVALID_ARGUMENT` before classification.
+
+### RecoveryApplyInput
+
+| Field | Type | Rules |
+|---|---|---|
+| operation_id | ID | exact original uncertain ApplyAction request ID |
+| source_phase | Phase | exact original source phase |
+
+This closed optional value is serialized as `recovery_apply` on the existing ApplyAction request.
+When absent, payload remains required and normal semantics are unchanged. When present,
+`operation_id` plus the enclosing host/task/action/revision/issuance-binding/payload fields and
+`source_phase` form an OperationProbe. The recovery call's own request ID remains response
+correlation and may equal `operation_id`; presence of `recovery_apply`, never ID comparison, selects
+recovery semantics. Any reconciliation commit uses the probed operation ID for LastOperation/TaskEvent so a
+lost recovery response remains provable. The input contains no classification, policy, blocker,
+phase destination, or binding candidate.
+
+### CommittedOperationProof
+
+| Field | Type | Rules |
+|---|---|---|
+| operation_id | ID | exact probed original request ID |
+| kind | OperationKind | exactly `apply_action` |
+| action_id | ID | exact probe action ID |
+| from_revision | uint64 | exact probe expected revision |
+| to_revision | uint64 | `from_revision + 1` and current Task revision |
+| payload_digest | SHA-256 | Core-derived exact operation payload digest |
+| committed_at | timestamp | exact LastOperation commit time |
+
+This is a read-only copy of exact LastOperation proof, not a persisted duplicate. It is present only
+for `completed_and_recorded`.
+
+### RecoveryAssessment
+
+| Field | Type | Rules |
+|---|---|---|
+| classification | RecoveryClassification | canonical table result |
+| operation | OperationReference | request ID, source phase/revision, action ID/kind; never payload bytes |
+| task_revision | uint64 | revision of the returned authoritative Task |
+| current_action_id | ID or null | current persisted action, null for terminal |
+| issuance_binding_digest | SHA-256 | exact probe value |
+| authoritative_binding_digest | SHA-256 | returned Task.Repository digest |
+| observed_binding_digest | SHA-256 | fresh observer result |
+| repository_relation | RepositoryRelation | fresh versus authoritative structured binding |
+| last_operation_relation | LastOperationRelation | exact, unrelated, or contradictory latest committed relation |
+| operation_evidence | OperationEvidenceState | `none`, `complete`, or `contradictory`; structurally incomplete non-null input is invalid |
+| operation_payload_digest | SHA-256 | Core-derived digest; never caller-supplied |
+| committed_proof | CommittedOperationProof or null | non-null only for `completed_and_recorded` |
+| action_retry_safe | boolean | true only for canonical `not_started` row |
+| next_advice | RecoveryAdvice | closed next step |
+| unblock_condition | BlockerCondition or null | stored for a current blocked Task, proposed only when the current normal source can legally block, otherwise null |
+| observed_at | timestamp | fresh UTC observation time; sole field allowed to vary for identical facts |
+
+Every listed member is required; the three nullable members (`current_action_id`,
+`committed_proof`, and `unblock_condition`) are encoded as explicit JSON null when absent. IDs keep
+the 128-byte normalized UTF-8 identifier limit, digests are fixed 64-character lowercase SHA-256,
+timestamps are UTC, and every other value is a closed enum/integer/boolean or bounded nested value.
+The compact assessment is part of the 131,072-byte result-envelope overhead budget and introduces
+no separately unbounded string or collection.
+
+`OperationReference` contains exactly `operation_id`, `source_phase`, `expected_revision`,
+`action_id`, and `action_kind`. All assessment content fits inside result-envelope bounded overhead;
+it contains no canonical/source/database path, Git common-directory path, source, diff, raw status,
+file bytes, environment value, raw command or command output, arbitrary details, or free-form
+message. The canonical classification priority and write/error effects are defined once in
+`contracts/state-machine.md`.
+
+### Application read results
+
+| Result | Fields | Observation rule |
+|---|---|---|
+| GetTaskResult | `task`, nullable `recovery_assessment` | no probe: no observation/null; probe: fresh observation/assessment |
+| NextActionResult | `task_id`, `phase`, `revision`, `action`, `blocker`, `outcome`, nullable `recovery_assessment` | same rule; blocked returns blocker and resolve action; terminal returns outcome |
+
+A probe forces observation for normal, `BLOCKED`, `DONE`, and `CANCELLED` tasks. Observer failure
+returns the existing mapped error and a zero result; there is no fabricated unavailable assessment.
+Repeated reads of identical task/probe/repository facts return identical assessment fields except
+for `observed_at`. No read commits anything.
+
 ## Blocker
 
 | Field | Type | Rules |
 |---|---|---|
 | blocker_id | ID | stable until resolved |
-| code | stable string | e.g. repository drift/recovery conflict |
+| code | ErrorCode | exactly `TASK_BLOCKED` |
+| cause | RecoveryClassification | exactly `partially_completed` or `conflicting`; Core-derived |
 | message | string | non-sensitive and within Core Limits 0.1 |
 | resume_phase | nonterminal Phase | phase to restore after resolution |
-| observed_binding_digest | SHA-256 | current conflicting reality |
-| required_resolution | string | concrete condition within Core Limits 0.1 |
+| observed_binding_digest | SHA-256 | block-time fresh observation; may equal issuance for an operation/evidence-only conflict |
+| condition | BlockerCondition | closed machine-verifiable acceptance condition |
+| required_resolution | string | human explanation within Core Limits 0.1; never parsed |
 | created_at | timestamp | UTC |
+
+Core generates every field. Task.Repository retains the issuance RepositoryBinding; the observed
+digest is an audit fact and never becomes authoritative merely because it is recorded. Blocker does
+not retain source, diff, raw status, command output, or the transient RecoveryAssessment.
+
+### BlockerCondition
+
+| Field | Type | Rules |
+|---|---|---|
+| kind | BlockerConditionKind | exactly `restore_issuance_binding` |
+| expected_binding_digest | SHA-256 | exact retained Task.Repository/issuance digest |
+
+Resolution freshly verifies digest self-consistency and structured equality to Task.Repository.
+Canonical root/repository identity, common-directory identity, branch/detached, HEAD/unborn, and
+worktree fingerprint must all be restored. Feature 002 has no “accept new worktree” condition,
+generic field matcher, callback, expression, policy language, or recovery DSL. The condition may
+already be true when the blocker cause is operation/evidence-only; Core still requires the explicit
+closed resolution action and never clears such a blocker on read.
+
+The workflow-owned `ResolveBlockerPayload` is defined authoritatively in
+`contracts/state-machine.md`; it contains exactly result, blocker ID, bounded summary, and a nested
+resolution evidence value containing the exact echoed BlockerCondition and caller-observed binding
+digest. It contains no resume phase, classification, next phase, replacement binding, or caller
+evidence identity/source. Core generates the single persisted `blocker_resolution` evidence record.
 
 ## Outcome
 
@@ -353,7 +547,8 @@ Task projection plus at most 131,072 bytes of result-envelope overhead is strict
 ## State Invariants
 
 1. Terminal task has no current action, blocker, or repository claim.
-2. `BLOCKED` task has blocker and resume phase.
+2. `BLOCKED` task has a Core-derived blocker, matching resume phase, fresh `RESOLVE_BLOCKER` action,
+   and the retained issuance RepositoryBinding.
 3. Nonterminal nonblocked task has one current action.
 4. Action revision equals task revision.
 5. Action binding digest equals task repository binding digest.
@@ -363,12 +558,19 @@ Task projection plus at most 131,072 bytes of result-envelope overhead is strict
 9. Evidence count and bytes remain within fixed limits; `Task.Evidence` is the sole authority and
    Outcome references resolve to the correct source without duplicates.
 10. Outcome acceptance list covers every acceptance criterion exactly once.
-11. A read may compare a fresh observation but never persists it or changes phase, revision, event,
-    blocker, or action.
+11. Only a read with an OperationProbe observes; it never persists the observation/assessment or
+    changes phase, revision, event, blocker, LastOperation, or action.
 12. `IMPLEMENT_CHANGE` may update only the worktree portion of a binding; other ordinary apply paths
-    require exact issuance-binding equality, while `RESOLVE_BLOCKER` is limited to its stored
-    binding condition and `resume_phase`.
+    require exact issuance-binding equality, while `RESOLVE_BLOCKER` requires exact restoration of
+    its retained issuance binding and stored `resume_phase`.
 13. Contract, Outcome narrative, and full Task aggregates remain within their encoded limits; every
     Domain-valid Task fits the Store snapshot and result-envelope budgets.
 14. LastOperation and TaskEvent contain the same operation/request ID, kind, optional action ID,
     revisions, payload digest, and commit time, and their claim operation matches the kind.
+15. Runtime recovery uses no TaskEvent repository or replay; exact latest LastOperation proof has
+    priority, and an older unprovable operation is conservatively conflicting.
+16. Ordinary drift cannot create Blocker. A new Blocker is committed only by explicit recovery
+    apply from a still-current normal source classified partial/conflicting; resolution uses the
+    existing ApplyAction and one revision/event.
+17. Repository relation decisions come only from `internal/recovery`, after the Repository package's
+    one digest self-consistency verifier succeeds.

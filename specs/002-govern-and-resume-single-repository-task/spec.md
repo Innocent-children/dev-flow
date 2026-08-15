@@ -27,6 +27,31 @@ one workflow and safely resumes the task after interruption.
   read-only Git observer; local work uses targeted checks, while final validation runs
   `pnpm run validate` once.
 
+### Session 2026-08-15
+
+- Q: How is one uncertain apply identified without trusting a caller-supplied digest or
+  classification? → A: A closed `OperationProbe` carries the original logical operation/action/source
+  revision/source phase/issuance binding plus the original nullable payload; Core canonicalizes the
+  payload and computes the operation digest itself.
+- Q: Where is recovery assessment reported, and how is it distinguished from error retry guidance?
+  → A: Only `GetTaskResult` and `NextActionResult` carry the transient typed
+  `RecoveryAssessment`; ApplyAction returns its ordinary Task result, while the result-envelope
+  `recovery` member remains error-only retry guidance and never carries a five-class assessment.
+- Q: Which call may block an uncertain task, and what can later unblock it? → A: Only an explicit
+  `recovery_apply` on the existing `ApplyAction` may create `BLOCKED`, and only for a current-source
+  `partially_completed` or `conflicting` assessment; Feature 002 supports only the closed
+  `restore_issuance_binding` condition and resolves it with the closed `ResolveBlockerPayload`.
+- Q: Which component owns binding decisions and committed-operation proof? → A:
+  `internal/recovery` is the sole structural comparison/reconciliation authority; Application
+  invokes the Repository package's one digest self-consistency verifier before passing facts to it.
+  Runtime proof uses latest LastOperation only, while TaskEvent remains same-transaction audit
+  evidence verified by tests.
+- Q: Where does Feature 002 baseline recovery stop? → A: It stops at deterministic Core-local
+  probes, typed assessments, explicit recovery recording/blocking, exact-binding restoration, and
+  bounded concurrency; real transport/crash matrices, expected-evidence adoption frameworks,
+  host-specific/parity journeys, complex rebinding, takeover, and install/upgrade recovery remain
+  Feature 005 work gated by Features 003 and 004 evidence.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Open a governed task and receive the next action (Priority: P1)
@@ -123,11 +148,13 @@ recovery classification.
 1. **Given** an issued action bound to repository fingerprint A, **When** the repository changes in
    a way not permitted for that action by FR-020, **Then** apply is rejected without changing task
    state; an `IMPLEMENT_CHANGE`-only worktree change is instead accepted as the next binding.
-2. **Given** a mutation commits but the caller loses the response, **When** the caller reads the
-   task and next action, **Then** it can prove whether the action is already recorded.
+2. **Given** a mutation commits but the caller loses the response, **When** the caller supplies the
+   exact OperationProbe to either typed read, **Then** it can prove whether the action is already
+   recorded; an ordinary read without a probe makes no such claim.
 3. **Given** an externally completed action with sufficient exact evidence but no recorded
-   transition, **When** recovery is requested, **Then** the Core classifies it as
-   `completed_but_unrecorded` rather than replaying it.
+   transition, **When** a recovery read is requested, **Then** the Core classifies it as
+   `completed_but_unrecorded` rather than replaying it, and only a following explicit recovery apply
+   may record the already-complete payload.
 4. **Given** partial or conflicting evidence, **When** an exact explicit recovery apply is
    submitted, **Then** one apply-action transaction blocks the task with a concrete unblock
    condition; a read reporting the same classification does not mutate it.
@@ -190,6 +217,12 @@ recovery classification.
 - telemetry;
 - automatic test execution;
 - generic shell MCP;
+- real Codex/DeepSeek transport loss, truncation, cancellation, or process-exit evidence;
+- crash-point or transport-truncation matrices and failure-injection frameworks;
+- generic expected-evidence adoption or host-specific recovery rules;
+- recovery adapter-parity or real-host journeys;
+- automatic repository repair or complex adoption of a new worktree binding;
+- cross-host recovery takeover and installation/upgrade recovery;
 - release publishing.
 
 ## Requirements *(mandatory)*
@@ -298,16 +331,27 @@ not a way to reject a Domain-valid Task.
   `PREPARE_HANDOFF` require an exact fresh binding match. `IMPLEMENT_CHANGE` may change only the
   worktree fingerprint; repository identity, Git common-directory identity, branch/detached state,
   and HEAD/unborn state MUST remain exact. An accepted implementation observation becomes the next
-  revision's binding.
+  revision's binding. Normal and recovery ApplyAction MUST use one comparison authority in
+  `internal/recovery`; Application MUST NOT retain a second rule set. Before comparison, the one
+  Repository digest verifier MUST recompute `repository_identity` from canonical root plus
+  `git_common_dir_digest` and recompute `binding_digest` from all structured fields except
+  `observed_at`. Application MUST invoke that verifier for every loaded persisted binding before a
+  public result or decision, and for every fresh observer result before comparison. This validation
+  is not a second acceptance rule. A syntactically valid SHA-256 string alone is insufficient. The
+  raw common-directory path remains private and its digest is independently recalculated only by a
+  fresh observation.
 - **FR-021**: The Store codec boundary and future MCP input boundary MUST reject unknown JSON fields;
   the typed Domain model MUST reject unknown action kinds and missing evidence without parsing
   arbitrary JSON or accepting undocumented aliases.
-- **FR-022**: Each successful action apply MUST advance or terminate the task in one database
-  transaction and increment revision exactly once.
+- **FR-022**: Each ApplyAction that commits a task mutation MUST advance, block, resolve, or
+  terminate the task in one database transaction and increment revision exactly once. A recovery
+  read-back for `completed_and_recorded` or no-write `not_started` assessment is not a committed
+  mutation and MUST NOT increment revision.
 - **FR-023**: `get_task` and `get_next_action` are read-only. Repeated reads MUST NOT increment
   revision, write events, change phase, create a blocker, or persist a repository binding. A read
-  MAY freshly observe the repository and return a recovery classification, drift/conflict guidance,
-  or proof that a mutation committed.
+  with an OperationProbe MUST freshly observe the repository and may return a recovery
+  classification, drift/conflict guidance, or proof that a mutation committed; a read without a
+  probe does not observe and returns a null assessment.
 - **FR-024**: Terminal tasks MUST not produce a nonterminal next action.
 
 #### Evidence and Verification Budget
@@ -350,34 +394,95 @@ not a way to reject a Domain-valid Task.
 
 #### Recovery
 
-- **FR-043**: The Core MUST persist a bounded last-operation record sufficient to reconcile an
-  uncertain response. Mutation kinds are closed to `open_task`, `apply_action`, and `cancel_task`;
-  LastOperation and TaskEvent MUST be two projections of one committed fact:
+- **FR-043**: The Core MUST persist a bounded LastOperation record sufficient to prove only the
+  latest committed mutation. Mutation kinds are closed to `open_task`, `apply_action`, and
+  `cancel_task`; LastOperation and TaskEvent MUST be two projections of one committed fact:
   `operation_id == request_id`, kinds and optional action IDs are equal,
   `from_revision == expected_revision`, `to_revision == task.revision == event.revision`, payload
-  digests are equal, and `committed_at == event.created_at`.
-- **FR-044**: Recovery classification MUST use these observable definitions:
-  `not_started` means neither the exact action nor its required external effects are recorded;
-  `completed_and_recorded` means the exact action identity and payload digest are committed in the
-  task/event revision; `completed_but_unrecorded` means current observation and exact evidence prove
-  all required external effects but no corresponding task/event revision committed;
-  `partially_completed` means only a proper subset of required effects/evidence is present; and
-  `conflicting` means observed identity, effects, ownership, or evidence contradicts the issued
-  action.
-- **FR-045**: A caller MUST be able to determine from `get_task` and `get_next_action` whether a
-  submitted action already committed.
-- **FR-046**: The Core MUST NOT automatically replay an uncertain mutation.
-- **FR-047**: Branch, HEAD, canonical repository identity, Git common-directory identity, an
-  unauthorized phase's worktree change, or any non-worktree change during `IMPLEMENT_CHANGE` MUST
-  return `REPOSITORY_DRIFT` without changing task state. The Core binds and reviews the fresh
-  observation but does not claim process-level attribution for external edits.
-- **FR-048**: Partial or conflicting recovery evidence MAY move or retain the task in `BLOCKED`
-  only through an explicit apply-action transaction, with a concrete blocker. Ordinary reads MUST
-  never create or persist `BLOCKED`.
-- **FR-049**: A blocker resolution MUST use a fresh repository observation, the exact blocker ID,
-  and the blocker's concrete acceptance condition; success may return only to the stored
-  `resume_phase` and may accept a new binding only as that condition specifies.
-- **FR-050**: Recovery reads MUST not mutate the repository.
+  digests are equal, and `committed_at == event.created_at`. Runtime recovery MUST use Task,
+  CurrentAction, LastOperation, a caller-supplied `OperationProbe`, and a fresh RepositoryBinding;
+  it MUST NOT read or replay TaskEvent. `OperationProbe` is closed to the original apply-action
+  `operation_id` (the original ApplyAction request ID), `source_phase`, `expected_revision`, `action_id`, `action_kind`,
+  `repository_binding_digest`, and nullable original `payload`; host and task ID come from the
+  enclosing read/apply request. The caller MUST choose and retain the original normal
+  `ApplyAction.request_id` before dispatch, so the probe identity does not depend on receiving the
+  lost response. It accepts no payload digest, classification, blocker, resume/next
+  phase, or replacement binding. Core MUST validate a non-null payload against the exact source
+  phase/action and compute the operation payload digest itself with the normal apply
+  canonicalization; JSON `null` is the canonical no-evidence payload for assessment and explicit
+  recovery-apply classification only.
+- **FR-044**: Recovery classification MUST follow the ordered decision table in
+  `contracts/state-machine.md` and use exactly `not_started`, `completed_and_recorded`,
+  `completed_but_unrecorded`, `partially_completed`, or `conflicting`. Exact LastOperation proof has
+  first priority. A latest LastOperation that shares the probe operation ID or action ID but differs
+  in any remaining kind/action/revision/Core-derived-digest/commit tuple field is a contradictory
+  committed relation and therefore `conflicting`. Otherwise, a superseded source revision/action
+  is `conflicting`; an action-forbidden binding relation (including worktree-only change outside
+  `IMPLEMENT_CHANGE`) or payload/observation contradiction is `conflicting`; an
+  `IMPLEMENT_CHANGE` worktree-only effect with no payload is `partially_completed`; a complete
+  valid payload whose repository facts match its closed effect contract is
+  `completed_but_unrecorded`; and a still-current exact action with null payload and exact binding
+  is `not_started`. Invalid probe/payload syntax, observer failure, or digest self-inconsistency is
+  an error before classification, never a caller-selected class. A self-inconsistent persisted
+  binding is corrupt stored state and returns `STORAGE_UNAVAILABLE`; a self-inconsistent fresh
+  observer result is a Core defect and returns `INTERNAL_ERROR`; neither returns an assessment or
+  writes state.
+- **FR-045**: `get_task` MUST return a typed `GetTaskResult`, and `get_next_action` MUST return a
+  typed `NextActionResult`. Both accept an optional `OperationProbe` and expose a nullable
+  `recovery_assessment`. With no probe they return the persisted projection without repository
+  observation and the assessment is null. With a probe they freshly observe the stored canonical
+  root and return the one transient `RecoveryAssessment` defined in `data-model.md`; it MUST never
+  enter Task, SQLite, TaskEvent, or LastOperation, increment revision, create a blocker, or become a
+  second authority. A `BLOCKED` read also returns the persisted Blocker/condition, and a terminal
+  task with a probe is still observed so a lost terminal apply can be proved.
+- **FR-046**: The existing ApplyAction request MUST have one optional, closed
+  `recovery_apply: {operation_id, source_phase}` discriminator. When absent, all current normal-apply
+  semantics remain unchanged and payload is required. When present, `operation_id` MUST be the
+  original uncertain ApplyAction request ID; it combines with the enclosing host/task/action/
+  revision/issuance-binding/payload fields to form the `OperationProbe`, while the recovery call's
+  own request ID remains only its response correlation. Payload may be null. The discriminator is
+  not a seventh tool, OperationKind, state, workflow, or caller-supplied
+  decision. Core MUST assess before stale/CAS handling: `completed_and_recorded` returns committed
+  read-back without a write; `not_started` returns the unchanged Task without a write (retry safety
+  remains a read-assessment fact); `completed_but_unrecorded` records the already-complete closed payload
+  through the normal transition code; and current-source `partially_completed` or `conflicting`
+  commits `BLOCKED`. A superseded source that lacks exact LastOperation proof returns the existing
+  revision/action conflict with zero writes. Blind replay is prohibited.
+- **FR-047**: A normal ApplyAction with no `recovery_apply` MUST return `REPOSITORY_DRIFT` with no
+  revision, event, task, evidence, blocker, binding, or claim change when branch, HEAD,
+  repository/common-directory identity, an unauthorized phase's worktree, or any other forbidden
+  binding component changes. `IMPLEMENT_CHANGE` alone may accept a worktree-only change. A read may
+  report `conflicting`, but only explicit recovery apply may turn that uncertainty into a durable
+  blocker. The Core makes no process-level attribution for external edits.
+- **FR-048**: `BLOCKED` creation has one legal entry: an explicit recovery ApplyAction whose source
+  task still has the exact probed revision/action and whose Core-derived class is
+  `partially_completed` or `conflicting`. In that one `OperationApplyAction`/`ClaimRetain`
+  transaction Core generates the blocker ID and new `RESOLVE_BLOCKER` action ID, stores the source
+  phase as `resume_phase`, retains the authoritative issuance RepositoryBinding, records only the
+  fresh observed binding digest as a non-authoritative fact, increments revision exactly once, and
+  writes one matching LastOperation/TaskEvent. It does not add incomplete incoming evidence.
+  Callers cannot submit the blocker, class, resume/next phase, or authoritative binding. Any
+  construction or commit failure leaves task/event/claim/evidence unchanged.
+- **FR-049**: Feature 002 MUST support exactly one machine-verifiable blocker condition,
+  `restore_issuance_binding`, parameterized by the retained issuance binding digest. It requires a
+  fresh structured binding to equal the retained Task.Repository in every digest-bearing field;
+  canonical root/repository identity, Git common-directory identity, branch/detached, HEAD/unborn,
+  and worktree state cannot be rebound. `ObservedBindingDigest` records block-time reality only.
+  `RequiredResolution` remains bounded human text and MUST NOT be parsed. The closed
+  `ResolveBlockerPayload` in `contracts/state-machine.md` MUST echo the exact blocker and condition,
+  bind a caller-observed digest, and provide one bounded summary. Core freshly observes and compares
+  it; success uses existing ApplyAction/`OperationApplyAction`, increments once, appends one event
+  and one `blocker_resolution` host-observed evidence summary, retains the claim and all historical
+  evidence, clears blocker/resume state, returns only to the stored phase with a fresh normal action
+  ID, and adopts only the structurally identical fresh observation. No separate Application method
+  or MCP tool is permitted. For an operation/evidence-only conflict the restore condition may
+  already be true at block time, but Core MUST still require the explicit resolution action and
+  MUST NOT auto-clear the blocker on read.
+- **FR-050**: Recovery reads and applies MUST remain read-only with respect to Git. A read with a
+  probe observes every phase, including `BLOCKED`, `DONE`, and `CANCELLED`; observer failure returns
+  an existing bounded error and no fabricated unavailable assessment. For unchanged task/probe and
+  structurally unchanged repository, all assessment fields except fresh `observed_at` are stable.
+  Reads never persist that timestamp or any observed binding.
 
 #### MCP and Results
 
@@ -387,7 +492,10 @@ not a way to reject a Domain-valid Task.
 - **FR-053**: Tool input schemas MUST reject additional properties.
 - **FR-054**: Every tool result MUST conform to one closed result envelope. Any maximum valid Task
   projection, encoded with the same escaping rules, plus bounded envelope overhead MUST remain
-  strictly below the result-envelope limit.
+  strictly below the result-envelope limit. Five-class `recovery_assessment` is a member of typed
+  read-success results only; ApplyAction uses its ordinary result shape, and the top-level
+  error-only `recovery` object remains retry guidance with
+  `retry_safe`, `action`, and `message`. The two names and models MUST NOT be interchanged.
 - **FR-055**: Domain failures MUST return stable error codes and bounded recovery guidance.
 - **FR-056**: Unexpected failures MUST not expose stack traces, environment values, task contents,
   repository paths, or database paths.
@@ -448,8 +556,13 @@ not a way to reject a Domain-valid Task.
 - **EvidenceSummary**: Bounded description, source class, outcome, and digest for an action result.
 - **LastOperation**: Identity and commit status used to reconcile uncertain responses.
 - **TaskEvent**: Compact append-only audit record for a committed task revision.
+- **OperationProbe**: Transient caller echo of one exact uncertain apply; Core derives its digest and
+  never persists the probe itself.
+- **RecoveryAssessment**: Transient typed five-class read result with operation proof,
+  binding/evidence facts, retry safety, next advice, and optional unblock condition.
 - **RepositoryClaim**: Active uniqueness claim binding one canonical repository to one task.
-- **Blocker**: Stable reason, observed conflict, resume phase, and unblock condition.
+- **Blocker**: Stable Core-derived reason, observed conflict, resume phase, and one closed
+  `restore_issuance_binding` condition.
 - **Outcome**: Terminal Delivery Summary for `DONE` or `CANCELLED`.
 
 ## Success Criteria *(mandatory)*
@@ -465,7 +578,8 @@ not a way to reject a Domain-valid Task.
 - **SC-004**: In a race to claim one repository, exactly one task becomes active.
 - **SC-005**: A committed mutation remains visible after immediate process termination and database
   reopen.
-- **SC-006**: A lost response can be reconciled without replaying the mutation.
+- **SC-006**: A lost response can be reconciled through an exact OperationProbe and the canonical
+  ordered five-class decision table without replaying the mutation or reading TaskEvent at runtime.
 - **SC-007**: HEAD, branch, repository-identity, or unauthorized worktree drift prevents action
   apply before state changes, while an implementation-only worktree change can become the next
   binding without permitting any other binding component to change.
@@ -483,6 +597,9 @@ not a way to reject a Domain-valid Task.
   maximum valid Task projection plus bounded envelope overhead fits the result envelope.
 - **SC-015**: Outcome evidence cannot exceed verification policy by copying evidence, and every
   committed Task mutation has exactly matching LastOperation and TaskEvent projections.
+- **SC-016**: Normal drift produces a zero-write `REPOSITORY_DRIFT`; only an explicit recovery apply
+  can create `BLOCKED`, and exact issuance-binding restoration resolves it through the existing
+  ApplyAction with one revision/event and no Git mutation.
 
 ## Assumptions
 
