@@ -112,6 +112,20 @@ type CompleteHandoffPayload struct {
 
 func (CompleteHandoffPayload) actionPayload() {}
 
+type BlockerResolutionEvidence struct {
+	Condition             domain.BlockerCondition `json:"condition"`
+	ObservedBindingDigest domain.Digest           `json:"observed_binding_digest"`
+}
+
+type ResolveBlockerPayload struct {
+	Result             domain.ActionResult       `json:"result"`
+	BlockerID          domain.ID                 `json:"blocker_id"`
+	Summary            string                    `json:"summary"`
+	ResolutionEvidence BlockerResolutionEvidence `json:"resolution_evidence"`
+}
+
+func (ResolveBlockerPayload) actionPayload() {}
+
 // NormalizedEvidenceInput is a validated, caller-identity-free evidence
 // summary ready for budget evaluation and Core-owned persistence.
 type NormalizedEvidenceInput struct {
@@ -123,6 +137,22 @@ type NormalizedEvidenceInput struct {
 	FullSuite    bool                  `json:"full_suite"`
 }
 
+// RepositoryEffectExpectation is the closed repository fact claimed by a
+// validated payload. Recovery consumes this derived value instead of parsing
+// payload JSON or repeating phase-specific payload rules.
+type RepositoryEffectExpectation string
+
+const (
+	RepositoryEffectExactBinding            RepositoryEffectExpectation = "exact_binding"
+	RepositoryEffectWorktreeOnlyChange      RepositoryEffectExpectation = "worktree_only_change"
+	RepositoryEffectExactBlockerRestoration RepositoryEffectExpectation = "exact_blocker_restoration"
+)
+
+func (e RepositoryEffectExpectation) IsValid() bool {
+	return e == RepositoryEffectExactBinding || e == RepositoryEffectWorktreeOnlyChange ||
+		e == RepositoryEffectExactBlockerRestoration
+}
+
 // ValidatedPayload is the normalized result of the closed payload contract.
 // CanonicalBytes are compact JSON with HTML escaping disabled and no newline.
 type ValidatedPayload struct {
@@ -132,7 +162,15 @@ type ValidatedPayload struct {
 	Checks             []NormalizedEvidenceInput
 	ManualHandoffItems []string
 	Delivery           *DeliveryData
+	BlockerResolution  *ValidatedBlockerResolution
+	RepositoryEffect   RepositoryEffectExpectation
 	CanonicalBytes     []byte
+}
+
+type ValidatedBlockerResolution struct {
+	BlockerID             domain.ID
+	Condition             domain.BlockerCondition
+	ObservedBindingDigest domain.Digest
 }
 
 // ValidatePayload matches the exact source phase and action to its one closed
@@ -142,7 +180,7 @@ func ValidatePayload(
 	action domain.ActionKind,
 	payload ActionPayload,
 ) (ValidatedPayload, error) {
-	if !phase.NormalNonTerminal() || !action.IsValid() || payload == nil {
+	if (!phase.NormalNonTerminal() && phase != domain.PhaseBlocked) || !action.IsValid() || payload == nil {
 		return ValidatedPayload{}, domain.ErrInvalidArgument
 	}
 	expectedAction, ok := ActionForPhase(phase)
@@ -193,9 +231,45 @@ func ValidatePayload(
 			return ValidatedPayload{}, domain.ErrInvalidArgument
 		}
 		return validateCompleteHandoffPayload(value)
+	case domain.PhaseBlocked:
+		value, ok := resolveBlockerPayloadValue(payload)
+		if !ok {
+			return ValidatedPayload{}, domain.ErrInvalidArgument
+		}
+		return validateResolveBlockerPayload(value)
 	default:
 		return ValidatedPayload{}, domain.ErrInvalidArgument
 	}
+}
+
+func validateResolveBlockerPayload(payload ResolveBlockerPayload) (ValidatedPayload, error) {
+	if payload.Result != domain.ActionResultSucceeded || !payload.BlockerID.IsValid() ||
+		payload.ResolutionEvidence.Condition.Validate() != nil ||
+		!payload.ResolutionEvidence.ObservedBindingDigest.IsValid() {
+		return ValidatedPayload{}, domain.ErrInvalidArgument
+	}
+	summary, err := normalizePayloadSummary(payload.Summary)
+	if err != nil {
+		return ValidatedPayload{}, err
+	}
+	normalized := ResolveBlockerPayload{
+		Result:    payload.Result,
+		BlockerID: payload.BlockerID,
+		Summary:   summary,
+		ResolutionEvidence: BlockerResolutionEvidence{
+			Condition:             payload.ResolutionEvidence.Condition,
+			ObservedBindingDigest: payload.ResolutionEvidence.ObservedBindingDigest,
+		},
+	}
+	return finishValidatedPayload(normalized, ValidatedPayload{
+		Result:  payload.Result,
+		Summary: summary,
+		BlockerResolution: &ValidatedBlockerResolution{
+			BlockerID:             payload.BlockerID,
+			Condition:             payload.ResolutionEvidence.Condition,
+			ObservedBindingDigest: payload.ResolutionEvidence.ObservedBindingDigest,
+		},
+	})
 }
 
 func validateAssessPayload(payload AssessTaskPayload) (ValidatedPayload, error) {
@@ -638,11 +712,37 @@ func finishValidatedPayload(canonicalValue any, validated ValidatedPayload) (Val
 	if err != nil || len(encoded) > domain.MaxActionPayloadBytes {
 		return ValidatedPayload{}, domain.ErrInvalidArgument
 	}
+	effect, ok := repositoryEffectForPayload(canonicalValue)
+	if !ok {
+		return ValidatedPayload{}, domain.ErrInvalidArgument
+	}
+	validated.RepositoryEffect = effect
 	validated.CanonicalBytes = append([]byte(nil), encoded...)
 	validated.Checks = append([]NormalizedEvidenceInput(nil), validated.Checks...)
 	validated.ManualHandoffItems = append([]string(nil), validated.ManualHandoffItems...)
 	validated.Delivery = cloneDeliveryPointer(validated.Delivery)
+	if validated.BlockerResolution != nil {
+		resolution := *validated.BlockerResolution
+		validated.BlockerResolution = &resolution
+	}
 	return validated, nil
+}
+
+func repositoryEffectForPayload(canonicalValue any) (RepositoryEffectExpectation, bool) {
+	switch payload := canonicalValue.(type) {
+	case AssessTaskPayload, PlanChangePayload, VerifyChangePayload, ReviewChangePayload,
+		ReviewHandoffPayload, CompleteHandoffPayload:
+		return RepositoryEffectExactBinding, true
+	case ImplementChangePayload:
+		if payload.NoFileChanges {
+			return RepositoryEffectExactBinding, true
+		}
+		return RepositoryEffectWorktreeOnlyChange, true
+	case ResolveBlockerPayload:
+		return RepositoryEffectExactBlockerRestoration, true
+	default:
+		return "", false
+	}
 }
 
 func compactPayloadJSON(value any) ([]byte, error) {
@@ -893,4 +993,16 @@ func completeHandoffPayloadValue(payload ActionPayload) (CompleteHandoffPayload,
 		}
 	}
 	return CompleteHandoffPayload{}, false
+}
+
+func resolveBlockerPayloadValue(payload ActionPayload) (ResolveBlockerPayload, bool) {
+	switch value := payload.(type) {
+	case ResolveBlockerPayload:
+		return value, true
+	case *ResolveBlockerPayload:
+		if value != nil {
+			return *value, true
+		}
+	}
+	return ResolveBlockerPayload{}, false
 }

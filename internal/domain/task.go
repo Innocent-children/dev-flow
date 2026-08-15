@@ -119,7 +119,10 @@ func (t Task) Validate() error {
 		}
 	case t.Phase == PhaseBlocked:
 		if t.CurrentAction == nil || t.Blocker == nil || t.ResumePhase == nil ||
-			t.Outcome != nil || t.CompletedAt != nil || *t.ResumePhase != t.Blocker.ResumePhase {
+			t.Outcome != nil || t.CompletedAt != nil || *t.ResumePhase != t.Blocker.ResumePhase ||
+			!t.ResumePhase.NormalNonTerminal() || t.CurrentAction.Kind != ActionResolveBlocker ||
+			t.Blocker.Condition.Kind != BlockerConditionRestoreIssuanceBinding ||
+			t.Blocker.Condition.ExpectedBindingDigest != t.Repository.BindingDigest {
 			return ErrInvalidArgument
 		}
 		if t.Blocker.Validate() != nil {

@@ -5,12 +5,15 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"hash"
 	"sort"
 	"strings"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
 )
+
+var ErrInvalidBindingDigests = errors.New("repository binding digests are inconsistent")
 
 const (
 	commonDirectoryDigestDomain = "dev-flow/git-common-dir/v1"
@@ -310,6 +313,23 @@ func digestRepositoryBinding(binding domain.RepositoryBinding) domain.Digest {
 		boolByte(binding.Unborn),
 		[]byte(binding.WorktreeFingerprint),
 	)
+}
+
+// VerifyBindingDigests is the sole pure self-consistency verifier for public
+// RepositoryBinding values. It reuses the private construction algorithms,
+// performs no I/O, and deliberately excludes ObservedAt.
+func VerifyBindingDigests(binding domain.RepositoryBinding) error {
+	if binding.Validate() != nil {
+		return ErrInvalidBindingDigests
+	}
+	expectedIdentity := digestRepositoryIdentity(binding.CanonicalRoot, binding.GitCommonDirDigest)
+	if binding.RepositoryIdentity != expectedIdentity {
+		return ErrInvalidBindingDigests
+	}
+	if binding.BindingDigest != digestRepositoryBinding(binding) {
+		return ErrInvalidBindingDigests
+	}
+	return nil
 }
 
 func optionalString(value *string) (byte, string) {

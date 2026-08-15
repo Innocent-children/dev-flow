@@ -15,14 +15,21 @@ func TestValidatePayloadAcceptsOnlyTheClosedPayloadForEachPhase(t *testing.T) {
 		action  domain.ActionKind
 		payload ActionPayload
 		result  domain.ActionResult
+		effect  RepositoryEffectExpectation
 	}{
-		{name: "assessment", phase: domain.PhaseIntake, action: domain.ActionAssessTask, payload: validAssessPayload(), result: domain.ActionResultSucceeded},
-		{name: "plan", phase: domain.PhaseAssess, action: domain.ActionPlanChange, payload: validPlanPayload(), result: domain.ActionResultSucceeded},
-		{name: "implementation", phase: domain.PhasePlan, action: domain.ActionImplementChange, payload: validImplementPayload(), result: domain.ActionResultSucceeded},
-		{name: "verification", phase: domain.PhaseImplement, action: domain.ActionVerifyChange, payload: validVerifyPayload(), result: domain.ActionResultReady},
-		{name: "review", phase: domain.PhaseVerify, action: domain.ActionReviewChange, payload: validReviewPayload(), result: domain.ActionResultPass},
-		{name: "review handoff", phase: domain.PhaseReview, action: domain.ActionPrepareHandoff, payload: validReviewHandoffPayload(), result: domain.ActionResultReady},
-		{name: "complete handoff", phase: domain.PhaseHandoff, action: domain.ActionPrepareHandoff, payload: validCompleteHandoffPayload(), result: domain.ActionResultComplete},
+		{name: "assessment", phase: domain.PhaseIntake, action: domain.ActionAssessTask, payload: validAssessPayload(), result: domain.ActionResultSucceeded, effect: RepositoryEffectExactBinding},
+		{name: "plan", phase: domain.PhaseAssess, action: domain.ActionPlanChange, payload: validPlanPayload(), result: domain.ActionResultSucceeded, effect: RepositoryEffectExactBinding},
+		{name: "implementation", phase: domain.PhasePlan, action: domain.ActionImplementChange, payload: validImplementPayload(), result: domain.ActionResultSucceeded, effect: RepositoryEffectWorktreeOnlyChange},
+		{name: "verification", phase: domain.PhaseImplement, action: domain.ActionVerifyChange, payload: validVerifyPayload(), result: domain.ActionResultReady, effect: RepositoryEffectExactBinding},
+		{name: "review", phase: domain.PhaseVerify, action: domain.ActionReviewChange, payload: validReviewPayload(), result: domain.ActionResultPass, effect: RepositoryEffectExactBinding},
+		{name: "review handoff", phase: domain.PhaseReview, action: domain.ActionPrepareHandoff, payload: validReviewHandoffPayload(), result: domain.ActionResultReady, effect: RepositoryEffectExactBinding},
+		{name: "complete handoff", phase: domain.PhaseHandoff, action: domain.ActionPrepareHandoff, payload: validCompleteHandoffPayload(), result: domain.ActionResultComplete, effect: RepositoryEffectExactBinding},
+		{name: "resolve blocker", phase: domain.PhaseBlocked, action: domain.ActionResolveBlocker, payload: ResolveBlockerPayload{
+			Result: domain.ActionResultSucceeded, BlockerID: "blocker-1", Summary: "binding restored",
+			ResolutionEvidence: BlockerResolutionEvidence{Condition: domain.BlockerCondition{
+				Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: domain.Digest(strings.Repeat("a", 64)),
+			}, ObservedBindingDigest: domain.Digest(strings.Repeat("a", 64))},
+		}, result: domain.ActionResultSucceeded, effect: RepositoryEffectExactBlockerRestoration},
 	}
 
 	for _, tt := range tests {
@@ -31,7 +38,8 @@ func TestValidatePayloadAcceptsOnlyTheClosedPayloadForEachPhase(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ValidatePayload() error = %v", err)
 			}
-			if validated.Result != tt.result || validated.Summary == "" || len(validated.CanonicalBytes) == 0 {
+			if validated.Result != tt.result || validated.Summary == "" || len(validated.CanonicalBytes) == 0 ||
+				validated.RepositoryEffect != tt.effect {
 				t.Fatalf("ValidatePayload() = %#v", validated)
 			}
 			if validated.CanonicalBytes[len(validated.CanonicalBytes)-1] == '\n' {

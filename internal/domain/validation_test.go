@@ -574,12 +574,17 @@ func TestTaskNormalBlockedAndTerminalShapes(t *testing.T) {
 	blocked.CurrentAction.PayloadContract = PhaseBlocked
 	blocked.Blocker = &Blocker{
 		BlockerID:             "blocker-1",
-		Code:                  ErrorRepositoryDrift,
+		Code:                  ErrorTaskBlocked,
+		Cause:                 RecoveryConflicting,
 		Message:               "repository state needs review",
 		ResumePhase:           resume,
 		ObservedBindingDigest: blocked.Repository.BindingDigest,
-		RequiredResolution:    "restore the expected repository identity",
-		CreatedAt:             testTime,
+		Condition: BlockerCondition{
+			Kind:                  BlockerConditionRestoreIssuanceBinding,
+			ExpectedBindingDigest: blocked.Repository.BindingDigest,
+		},
+		RequiredResolution: "restore the expected repository identity",
+		CreatedAt:          testTime,
 	}
 	if err := blocked.Validate(); err != nil {
 		t.Fatalf("valid blocked task rejected: %v", err)
@@ -975,12 +980,17 @@ func TestTaskCloneHasNoMutableAliases(t *testing.T) {
 	task.CurrentAction.PayloadContract = PhaseBlocked
 	task.Blocker = &Blocker{
 		BlockerID:             "blocker-1",
-		Code:                  ErrorRepositoryDrift,
+		Code:                  ErrorTaskBlocked,
+		Cause:                 RecoveryConflicting,
 		Message:               "blocked",
 		ResumePhase:           resume,
 		ObservedBindingDigest: task.Repository.BindingDigest,
-		RequiredResolution:    "resolve it",
-		CreatedAt:             testTime,
+		Condition: BlockerCondition{
+			Kind:                  BlockerConditionRestoreIssuanceBinding,
+			ExpectedBindingDigest: task.Repository.BindingDigest,
+		},
+		RequiredResolution: "resolve it",
+		CreatedAt:          testTime,
 	}
 	task.Evidence = []EvidenceSummary{validEvidence("evidence", EvidenceSourceStatic, 0)}
 	operationActionID := ID("action-previous")
