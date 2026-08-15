@@ -21,6 +21,10 @@ const supportedMachine = process.platform === "darwin" && process.arch === "arm6
 const legacyNativeVerificationCommand = "node --test packages/codex/tests/lifecycle.test.mjs";
 const previousNativeVerificationCommand = "git diff --check -- native-proof.txt";
 const nativeVerificationCommand = "git hash-object native-proof.txt";
+const nativeVerificationRenderedCommand = "/bin/zsh -lc 'git hash-object native-proof.txt'";
+const ordinaryAmbientCommand = "/bin/zsh -lc pwd";
+const invalidGitProbeCommand = "/bin/zsh -lc 'git rev-parse --show-toplevel'";
+const substantiveRepositoryCommand = "/bin/zsh -lc 'git status --short'";
 const nativeProofContent = "Dev Flow Codex native journey passed.\n";
 const nativeProofGitBlobSha1 = "5de13fdad681cf91a2877203917cf78afb4aa679";
 const nativeVerificationOutput = `${nativeProofGitBlobSha1}\n`;
@@ -231,7 +235,7 @@ test("reopened JSONL contract retains only completed official command_execution 
       item: {
         id: "command-complete",
         type: "command_execution",
-        command: nativeVerificationCommand,
+        command: nativeVerificationRenderedCommand,
         aggregated_output: output,
         exit_code: 0,
         status: "completed",
@@ -239,23 +243,31 @@ test("reopened JSONL contract retains only completed official command_execution 
     }),
   ].join("\n"));
 
-  assert.deepEqual(parsed.commandExecutions, [{
+  assert.deepEqual(parsed.commandExecutions, [sessionCommandFact({
+    role: "resume",
+    eventIndex: 1,
     itemId: "command-complete",
-    command: nativeVerificationCommand,
-    exitCode: 0,
-    status: "completed",
-    outputSha256: sha256Text(output),
-    fullSuite: false,
-  }]);
+    command: nativeVerificationRenderedCommand,
+    output,
+    classification: "verification",
+  })]);
   assert.equal(JSON.stringify(parsed).includes(output.trim()), false, "raw command output must be discarded");
+  assert.equal(JSON.stringify(parsed).includes(nativeVerificationRenderedCommand), false, "raw rendered command must be discarded");
 });
 
-test("native proof command classification accepts only the exact targeted command", async () => {
+test("native proof command classification accepts only the exact official rendered command", async () => {
   const writer = await import(pathToFileURL(writerPath));
   let allowedError = null;
   try {
     const allowed = writer.parseCodexExecJSONL(sessionJSONL("thread-command-allowed", [], [nativeCommandObservation()]));
-    assert.deepEqual(allowed.commandExecutions, [nativeCommandExecution()]);
+    assert.deepEqual(allowed.commandExecutions, [sessionCommandFact({
+      role: "resume",
+      eventIndex: 0,
+      itemId: "command-targeted",
+      command: nativeVerificationRenderedCommand,
+      output: nativeVerificationOutput,
+      classification: "verification",
+    })]);
   } catch (error) {
     allowedError = error.message;
   }
@@ -268,7 +280,7 @@ test("native proof command classification accepts only the exact targeted comman
     /output digest.*Git blob hash.*exact native-proof\.txt bytes/i,
   );
 
-  const disallowedCommands = [
+  const disallowedProofRenderings = [
     previousNativeVerificationCommand,
     `sh -c '${previousNativeVerificationCommand}'`,
     `"${previousNativeVerificationCommand}"`,
@@ -279,15 +291,6 @@ test("native proof command classification accepts only the exact targeted comman
     `"${legacyNativeVerificationCommand}"`,
     `true && ${legacyNativeVerificationCommand}`,
     `${legacyNativeVerificationCommand}; true`,
-    "go test ./...",
-    "sh -c 'go test ./...'",
-    "'go test ./...'",
-    "true && go test ./...",
-    "go test ./...; true",
-    "go test ./... | tee native-proof.log",
-    "pnpm test",
-    "pnpm run test",
-    "echo unknown-native-proof",
     `sh -c '${nativeVerificationCommand}'`,
     `"${nativeVerificationCommand}"`,
     `true && ${nativeVerificationCommand}`,
@@ -296,8 +299,10 @@ test("native proof command classification accepts only the exact targeted comman
     `env NODE_OPTIONS='' ${nativeVerificationCommand}`,
     ` ${nativeVerificationCommand}`,
     nativeVerificationCommand.replace(" hash-object ", "  hash-object "),
+    `git hash-object "native-proof.txt"`,
+    `git hash-object -- native-proof.txt`,
   ];
-  const accepted = disallowedCommands.filter((command, index) => {
+  const accepted = disallowedProofRenderings.filter((command, index) => {
     try {
       writer.parseCodexExecJSONL(sessionJSONL(`thread-command-rejected-${index}`, [], [{
         ...nativeCommandObservation(),
@@ -306,14 +311,133 @@ test("native proof command classification accepts only the exact targeted comman
       }]));
       return true;
     } catch (error) {
-      assert.match(error.message, /exact allowed native proof command/i);
+      assert.match(error.message, /proof rendering.*unbound|unbound.*proof rendering|known test.*full-suite/i);
       return false;
     }
   });
   assert.deepEqual({ allowedError, accepted }, {
     allowedError: null,
     accepted: [],
-  }, "only the exact target-scoped command may be accepted");
+  }, "only the exact official rendered proof may be accepted");
+});
+
+test("session-aware native command facts retain ambient and invalid probes without charging verification", async () => {
+  const writer = await import(pathToFileURL(writerPath));
+  const ordinaryOutput = "/isolated/target\n";
+  const invalidOutput = "fatal: not a git repository\n";
+  const repositoryOutput = "?? native-proof.txt\n";
+  const sessions = parsedRecordedSessions(writer, {
+    ordinaryCommands: [commandObservation({
+      itemId: "command-ordinary-ambient",
+      command: ordinaryAmbientCommand,
+      output: ordinaryOutput,
+    })],
+    invalidCommands: [commandObservation({
+      itemId: "command-invalid-git-probe",
+      command: invalidGitProbeCommand,
+      output: invalidOutput,
+      exitCode: 128,
+      status: "failed",
+    })],
+    substantiveCommands: [commandObservation({
+      itemId: "command-substantive-repository",
+      command: substantiveRepositoryCommand,
+      output: repositoryOutput,
+    })],
+    resumeCommands: [nativeCommandObservation()],
+  });
+  const summary = writer.summarizeRecordedSessions(sessions);
+
+  assert.deepEqual(summary.sessionCommandFacts, [
+    sessionCommandFact({
+      role: "ordinary",
+      eventIndex: 0,
+      itemId: "command-ordinary-ambient",
+      command: ordinaryAmbientCommand,
+      output: ordinaryOutput,
+    }),
+    sessionCommandFact({
+      role: "invalid",
+      eventIndex: 0,
+      itemId: "command-invalid-git-probe",
+      command: invalidGitProbeCommand,
+      output: invalidOutput,
+      exitCode: 128,
+      status: "failed",
+    }),
+    sessionCommandFact({
+      role: "substantive",
+      eventIndex: 1,
+      itemId: "command-substantive-repository",
+      command: substantiveRepositoryCommand,
+      output: repositoryOutput,
+    }),
+    sessionCommandFact({
+      role: "resume",
+      eventIndex: 3,
+      itemId: "command-targeted",
+      command: nativeVerificationRenderedCommand,
+      output: nativeVerificationOutput,
+      classification: "verification",
+    }),
+  ]);
+  assert.deepEqual(summary.commandExecutions, [nativeCommandExecution({ eventIndex: 3 })]);
+  const safeFacts = JSON.stringify(summary.sessionCommandFacts);
+  for (const raw of [ordinaryAmbientCommand, ordinaryOutput.trim(), invalidGitProbeCommand, invalidOutput.trim(), substantiveRepositoryCommand, repositoryOutput.trim()]) {
+    assert.equal(safeFacts.includes(raw), false, `safe command facts must not retain raw value: ${raw}`);
+  }
+});
+
+test("session-aware proof binding rejects ordinary, unbound, and duplicate rendered proof events", async () => {
+  const writer = await import(pathToFileURL(writerPath));
+  assert.throws(
+    () => parsedRecordedSessions(writer, {
+      ordinaryCommands: [nativeCommandObservation({ itemId: "command-ordinary-proof" })],
+      resumeCommands: [],
+    }),
+    /ordinary.*proof.*unbound|proof.*ordinary.*unbound/i,
+  );
+  assert.throws(
+    () => writer.summarizeRecordedSessions(parsedRecordedSessions(writer, {
+      resumeCommands: [
+        nativeCommandObservation({ itemId: "command-proof-first" }),
+        nativeCommandObservation({ itemId: "command-proof-duplicate" }),
+      ],
+    })),
+    /duplicate.*proof|proof.*exactly once/i,
+  );
+  assert.throws(
+    () => writer.summarizeRecordedSessions(parsedRecordedSessions(writer, {
+      resume: [
+        taskObservation("dev_flow_get_task", 4, false),
+        taskObservation("dev_flow_get_next_action", 4, false),
+        actionObservation(8, "action-handoff", true, { evidence: [] }),
+      ],
+    })),
+    /unbound.*proof|proof.*submitted.*retained/i,
+  );
+});
+
+test("session-aware command classification rejects every known test and root full-suite marker", async () => {
+  const writer = await import(pathToFileURL(writerPath));
+  const commands = [
+    "/bin/zsh -lc 'go test ./...'",
+    "/bin/zsh -lc 'pnpm test'",
+    "/bin/zsh -lc 'pnpm run test'",
+    "/bin/zsh -lc 'pnpm run validate'",
+    "/bin/zsh -lc 'node --test packages/codex/tests/*.test.mjs'",
+  ];
+  for (const [index, command] of commands.entries()) {
+    assert.throws(
+      () => writer.parseCodexExecJSONL(sessionJSONL(`thread-denied-${index}`, [], [commandObservation({
+        itemId: `command-denied-${index}`,
+        command,
+        output: "unexpected test output\n",
+      })]), { sessionRole: "substantive" }),
+      /known test.*full-suite|full-suite.*marker/i,
+      command,
+    );
+  }
 });
 
 test("object format control honors an isolated sha256 default without an explicit init override", async (t) => {
@@ -525,7 +649,7 @@ test("reopened session summary derives Core budget, command facts, evidence pari
     ],
     resumeCommands: [{
       itemId: "command-targeted",
-      command: nativeVerificationCommand,
+      command: nativeVerificationRenderedCommand,
       output: nativeVerificationOutput,
       exitCode: 0,
       status: "completed",
@@ -535,14 +659,7 @@ test("reopened session summary derives Core budget, command facts, evidence pari
   assert.equal(summary.terminalPhase, "DONE");
   assert.deepEqual(summary.restartRecoveryReads, ["dev_flow_get_task", "dev_flow_get_next_action"]);
   assert.deepEqual(summary.budget, budget);
-  assert.deepEqual(summary.commandExecutions, [{
-    itemId: "command-targeted",
-    command: nativeVerificationCommand,
-    exitCode: 0,
-    status: "completed",
-    outputSha256: sha256Text(nativeVerificationOutput),
-    fullSuite: false,
-  }]);
+  assert.deepEqual(summary.commandExecutions, [nativeCommandExecution({ eventIndex: 3 })]);
   assert.deepEqual(summary.submittedAutomatedChecks, [check]);
   assert.deepEqual(summary.retainedAutomatedChecks, [check]);
 });
@@ -569,6 +686,14 @@ test("recorded native sessions prove zero implicit calls and one resumed Core li
     coreCallCount: 4,
     restartRecoveryReads: ["dev_flow_get_task", "dev_flow_get_next_action"],
     budget: nativeVerificationBudget,
+    sessionCommandFacts: [sessionCommandFact({
+      role: "resume",
+      eventIndex: 3,
+      itemId: "command-targeted",
+      command: nativeVerificationRenderedCommand,
+      output: nativeVerificationOutput,
+      classification: "verification",
+    })],
     commandExecutions: [nativeCommandExecution()],
     submittedAutomatedChecks: [nativeAutomatedCheck],
     retainedAutomatedChecks: [nativeAutomatedCheck],
@@ -845,7 +970,7 @@ test("failed and blocked diagnostics can never occupy the canonical passing evid
   const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-failure-diagnostic-")));
   const canonicalEvidencePath = join(root, "codex-macos-arm64.json");
   const recoveryDirectory = join(root, "recovery");
-  const diagnostic = nativeDiagnostic();
+  const diagnostic = nativeDiagnosticV2();
   await assert.rejects(
     writer.writeFailureDiagnostic({
       outputPath: canonicalEvidencePath,
@@ -867,7 +992,7 @@ test("failed and blocked diagnostics can never occupy the canonical passing evid
   assert.equal(await optionalContents(canonicalEvidencePath), null);
 });
 
-test("reopened failed diagnostics use the independent closed v1 schema", async (t) => {
+test("reopened failed diagnostics reject journey-v3 failure records outside the closed v2 schema", async (t) => {
   const writer = await import(pathToFileURL(writerPath));
   const root = await temporaryRoot(t, "dev-flow-codex-diagnostic-schema-");
   const canonicalEvidencePath = join(root, "canonical.json");
@@ -886,7 +1011,7 @@ test("reopened failed diagnostics use the independent closed v1 schema", async (
       recoveryDirectory,
       diagnostic: legacyJourneyEvidence,
     }),
-    /diagnostic.*schema|schema.*diagnostic/i,
+    /diagnostic.*schema|schema.*diagnostic|honest.*external record/i,
   );
 });
 
@@ -900,10 +1025,114 @@ test("reopened failed diagnostic rejects every extra top-level field", async (t)
       outputPath: join(recoveryDirectory, "extra.json"),
       canonicalEvidencePath,
       recoveryDirectory,
-      diagnostic: { ...nativeDiagnostic(), journey: { unsupported: true } },
+      diagnostic: { ...nativeDiagnosticV2(), journey: { unsupported: true } },
     }),
     /unexpected.*journey|closed.*journey|diagnostic.*schema/i,
   );
+});
+
+test("command-event diagnostics use v2 safe context and reject every raw leak", async (t) => {
+  const writer = await import(pathToFileURL(writerPath));
+  const root = await temporaryRoot(t, "dev-flow-codex-diagnostic-v2-");
+  const canonicalEvidencePath = join(root, "canonical.json");
+  const recoveryDirectory = join(root, "recovery");
+  const diagnostic = nativeDiagnosticV2();
+  const outputPath = join(recoveryDirectory, "failed.json");
+
+  await writer.writeFailureDiagnostic({
+    outputPath,
+    canonicalEvidencePath,
+    recoveryDirectory,
+    diagnostic,
+  });
+  assert.deepEqual(JSON.parse(await readFile(outputPath, "utf8")), diagnostic);
+  const diagnosticText = await readFile(outputPath, "utf8");
+  for (const raw of [nativeVerificationRenderedCommand, nativeVerificationOutput.trim(), "/private/target/native-proof.txt"]) {
+    assert.equal(diagnosticText.includes(raw), false, `diagnostic must not retain raw value: ${raw}`);
+  }
+
+  const cases = [
+    ["required.*failure_context|failure_context.*required", (candidate) => { delete candidate.failure_context; }],
+    ["raw_command.*not allowed|failure.*exactly one", (candidate) => { candidate.failure.raw_command = nativeVerificationRenderedCommand; }],
+    ["raw_output.*not allowed|failure.*exactly one", (candidate) => { candidate.failure.raw_output = nativeVerificationOutput; }],
+    ["target_path.*not allowed|failure.*exactly one", (candidate) => { candidate.failure.target_path = "/private/target"; }],
+    ["must not satisfy.*forbidden|failure_context", (candidate) => { candidate.failure_kind = "non_command"; }],
+  ];
+  for (const [expected, mutate] of cases) {
+    const candidate = nativeDiagnosticV2();
+    mutate(candidate);
+    await assert.rejects(
+      writer.writeFailureDiagnostic({
+        outputPath: join(recoveryDirectory, `${sha256Text(expected)}.json`),
+        canonicalEvidencePath,
+        recoveryDirectory,
+        diagnostic: candidate,
+      }),
+      new RegExp(expected, "i"),
+    );
+  }
+});
+
+test("duplicate completed command item IDs retain v2 command-event context", async (t) => {
+  const writer = await import(pathToFileURL(writerPath));
+  const duplicateItemId = "command-duplicate";
+  const duplicateCommand = "/bin/zsh -lc 'git status --short'";
+  const duplicateOutput = " M native-proof.txt\n";
+  const streams = recordedSessionStreams();
+  streams.ordinary = sessionJSONL("thread-ordinary", [], [
+    commandObservation({
+      itemId: duplicateItemId,
+      command: ordinaryAmbientCommand,
+      output: "/tmp/dev-flow-native-target\n",
+    }),
+    commandObservation({
+      itemId: duplicateItemId,
+      command: duplicateCommand,
+      output: duplicateOutput,
+    }),
+  ]);
+
+  await assertCommandEventFailureDiagnostic(t, writer, {
+    label: "duplicate-command-item-id",
+    streams,
+    expectedContext: {
+      session_role: "ordinary",
+      event_type: "command_execution",
+      command_sha256: sha256Text(duplicateCommand),
+      output_sha256: sha256Text(duplicateOutput),
+      status: "completed",
+      exit_code: 0,
+    },
+    forbiddenRawValues: [duplicateCommand, duplicateOutput.trim(), "/tmp/dev-flow-native-target"],
+  });
+});
+
+test("Core zero-command budget rejection retains v2 command-event context", async (t) => {
+  const writer = await import(pathToFileURL(writerPath));
+  const zeroCommandBudget = { ...nativeVerificationBudget, max_automatic_commands: 0 };
+  const streams = recordedSessionStreams();
+  streams.substantive = sessionJSONL("thread-substantive", [
+    actionObservation(4, "action-implement", false, { budget: zeroCommandBudget }),
+  ]);
+  streams.resume = sessionJSONL("thread-resume", [
+    taskObservation("dev_flow_get_task", 4, false, { budget: zeroCommandBudget }),
+    taskObservation("dev_flow_get_next_action", 4, false, { budget: zeroCommandBudget }),
+    actionObservation(8, "action-handoff", true, { budget: zeroCommandBudget }),
+  ], [nativeCommandObservation()]);
+
+  await assertCommandEventFailureDiagnostic(t, writer, {
+    label: "zero-command-budget",
+    streams,
+    expectedContext: {
+      session_role: "resume",
+      event_type: "command_execution",
+      command_sha256: sha256Text(nativeVerificationRenderedCommand),
+      output_sha256: sha256Text(nativeVerificationOutput),
+      status: "completed",
+      exit_code: 0,
+    },
+    forbiddenRawValues: [nativeVerificationRenderedCommand, nativeVerificationOutput.trim(), "/tmp/dev-flow-native-target"],
+  });
 });
 
 test("validation-report writer owns compatibility query and exact ordered deterministic commands", async () => {
@@ -1002,12 +1231,10 @@ test("default native helpers execute the native proof command from target cwd an
     "thread-substantive",
     "thread-resume",
   ]);
-  assert.deepEqual(observedFacts.verification, {
-    budget: nativeVerificationBudget,
-    command_executions: [nativeCommandFact()],
-    submitted_automated_checks: [nativeAutomatedCheckFact()],
-    retained_automated_checks: [nativeAutomatedCheckFact()],
-  });
+  assert.deepEqual(observedFacts.verification.budget, nativeVerificationBudget);
+  assert.deepEqual(observedFacts.verification.command_executions, [nativeCommandFact({ eventIndex: 2 })]);
+  assert.deepEqual(observedFacts.verification.submitted_automated_checks, [nativeAutomatedCheckFact()]);
+  assert.deepEqual(observedFacts.verification.retained_automated_checks, [nativeAutomatedCheckFact()]);
   assert.deepEqual(observedFacts.terminal_task, nativeTerminalTask());
   assert.equal(
     observedFacts.sessions.resume.calls.find(({ tool }) => tool === "dev_flow_get_next_action").revision,
@@ -1036,7 +1263,9 @@ test("default native helpers execute the native proof command from target cwd an
     },
   });
   const commandTrace = trace.find((entry) => entry.role === "native-proof-command");
-  assert.equal(commandTrace.command, nativeVerificationCommand);
+  assert.equal(commandTrace.logicalCommand, nativeVerificationCommand);
+  assert.equal(commandTrace.renderedCommand, nativeVerificationRenderedCommand);
+  assert.equal(commandTrace.event.item.command, nativeVerificationRenderedCommand);
   assert.equal(commandTrace.cwd, observedFacts.journey.repository.target_path);
   assert.deepEqual(commandTrace.argv, ["hash-object", "native-proof.txt"]);
   assert.equal(commandTrace.event.item.exit_code, commandTrace.processResult.exitCode);
@@ -1056,11 +1285,42 @@ test("default native helpers execute the native proof command from target cwd an
     aggregatedOutput: nativeVerificationOutput,
   });
   assert.match(commandTrace.processResult.stdout, /^[0-9a-f]{40}\n$/u);
+  const commandTraces = trace.filter((entry) => entry.event?.item?.type === "command_execution");
   assert.equal(
-    trace.filter((entry) => entry.event?.item?.type === "command_execution").length,
-    1,
-    "the object-format read must not become a second official Codex verification command",
+    commandTraces.length,
+    4,
+    `all four role-scoped command facts must cross the official event boundary: ${JSON.stringify(commandTraces.map(({ role }) => role))}`,
   );
+  const ordinaryCommandTrace = commandTraces.find(({ role }) => role === "native-ordinary-ambient-command");
+  assert.equal(ordinaryCommandTrace.executable, "/bin/zsh");
+  assert.deepEqual(ordinaryCommandTrace.argv, ["-lc", "pwd"]);
+  assert.equal(ordinaryCommandTrace.renderedCommand, "/bin/zsh -lc pwd");
+  assert.equal(ordinaryCommandTrace.event.item.command, ordinaryCommandTrace.renderedCommand);
+  assert.equal(ordinaryCommandTrace.event.item.exit_code, ordinaryCommandTrace.processResult.exitCode);
+  assert.equal(ordinaryCommandTrace.event.item.aggregated_output, ordinaryCommandTrace.processResult.aggregatedOutput);
+  const traceRoles = {
+    "native-ordinary-ambient-command": ["ordinary", 0, "nonverification"],
+    "native-invalid-git-probe": ["invalid", 0, "nonverification"],
+    "native-substantive-repository-command": ["substantive", 0, "nonverification"],
+    "native-proof-command": ["resume", 2, "verification"],
+  };
+  assert.deepEqual(observedFacts.verification.session_command_facts, commandTraces.map((entry) => {
+    const [role, eventIndex, classification] = traceRoles[entry.role];
+    return {
+      session_role: role,
+      event_index: eventIndex,
+      event_type: "command_execution",
+      item_id_sha256: sha256Text(entry.event.item.id),
+      command_sha256: sha256Text(entry.event.item.command),
+      output_sha256: sha256Text(entry.event.item.aggregated_output),
+      status: entry.event.item.status,
+      exit_code: entry.event.item.exit_code,
+      classification,
+    };
+  }));
+  assert.equal(commandTraces.find(({ role }) => role === "native-ordinary-ambient-command").processResult.exitCode, 0);
+  assert.notEqual(commandTraces.find(({ role }) => role === "native-invalid-git-probe").processResult.exitCode, 0);
+  assert.equal(commandTraces.find(({ role }) => role === "native-substantive-repository-command").processResult.exitCode, 0);
   assert.equal(trace.filter((entry) => entry.role === "npm" && entry.argv[0] === "install").length, 2);
   assert.equal(trace.filter((entry) => entry.role === "npm" && entry.argv[0] === "uninstall").length, 2);
   assert.deepEqual(
@@ -1130,10 +1390,22 @@ test("failed native attempt finalizes only external diagnostic and durable ledge
     reservation,
     status: "failed",
     completedAt: "2026-08-16T05:01:00.000Z",
-    observedFacts: { phase: "host", observed: "Codex exited 1" },
+    observedFacts: {
+      schema_version: 2,
+      failure_kind: "non_command",
+      failure: {
+        phase_code: "native-journey",
+        reason_code: "host-process-failed",
+        detail_sha256: sha256Text("Codex exited 1"),
+      },
+    },
     diagnosticBase: nativeDiagnosticBase({
       recordedAt: "2026-08-16T05:01:01.000Z",
-      failure: { phase: "host", reason: "exit", observed: "Codex exited 1" },
+      failure: {
+        phase_code: "native-journey",
+        reason_code: "host-process-failed",
+        detail_sha256: sha256Text("Codex exited 1"),
+      },
     }),
   });
   const ledger = JSON.parse(await readFile(ledgerPath, "utf8"));
@@ -1142,7 +1414,7 @@ test("failed native attempt finalizes only external diagnostic and durable ledge
   assert.equal(result.diagnosticPath.startsWith(`${recoveryDirectory}/`), true);
   const diagnostic = JSON.parse(await readFile(result.diagnosticPath, "utf8"));
   assert.equal(diagnostic.status, "failed");
-  assert.equal(diagnostic.native_attempt.commit_protocol, "external-failure-record-v1");
+  assert.equal(diagnostic.native_attempt.commit_protocol, "external-failure-record-v2");
 });
 
 test("native orchestration reserves immediately before four sessions and validates before publish", async () => {
@@ -1276,7 +1548,7 @@ test("native orchestration records a failed host externally and never publishes 
   assert.equal(ledger.attempts[0].status, "failed");
   const diagnostic = JSON.parse(await readFile(join(recoveryRoot, ledger.attempts[0].chain_id, "failed.json"), "utf8"));
   assert.equal(diagnostic.status, "failed");
-  assert.equal(diagnostic.native_attempt.commit_protocol, "external-failure-record-v1");
+  assert.equal(diagnostic.native_attempt.commit_protocol, "external-failure-record-v2");
 });
 
 test("fake journey rejects real-host and out-of-slice stage attempts before host launch", async () => {
@@ -1578,20 +1850,50 @@ function nativeDiagnostic() {
   };
 }
 
+function nativeDiagnosticV2() {
+  const diagnostic = nativeDiagnostic();
+  diagnostic.schema_version = 2;
+  diagnostic.failure_kind = "command_event";
+  diagnostic.native_attempt.commit_protocol = "external-failure-record-v2";
+  diagnostic.failure = {
+    phase_code: "codex-session",
+    reason_code: "command-event-rejected",
+    detail_sha256: sha256Text("bounded failure detail"),
+  };
+  diagnostic.failure_context = {
+    session_role: "ordinary",
+    event_type: "command_execution",
+    command_sha256: sha256Text(nativeVerificationRenderedCommand),
+    output_sha256: sha256Text(nativeVerificationOutput),
+    status: "completed",
+    exit_code: 0,
+  };
+  return diagnostic;
+}
+
 function nativeDiagnosticBase({
   recordedAt = "2026-08-16T03:00:00.000Z",
-  failure = { phase: "host", reason: "exit", observed: "exit 1" },
+  failure = {
+    phase_code: "native-journey",
+    reason_code: "unexpected-failure",
+    detail_sha256: sha256Text("exit 1"),
+  },
 } = {}) {
-  const diagnostic = nativeDiagnostic();
+  const diagnostic = nativeDiagnosticV2();
   diagnostic.recorded_at = recordedAt;
+  diagnostic.failure_kind = "non_command";
   diagnostic.failure = failure;
+  delete diagnostic.failure_context;
   delete diagnostic.status;
   delete diagnostic.native_attempt;
   return diagnostic;
 }
 
 function parsedRecordedSessions(writer, {
+  ordinaryCommands = [],
+  invalidCommands = [],
   substantive = [actionObservation(4, "action-implement", false)],
+  substantiveCommands = [],
   resume = [
     taskObservation("dev_flow_get_task", 4, false),
     taskObservation("dev_flow_get_next_action", 4, false),
@@ -1600,17 +1902,70 @@ function parsedRecordedSessions(writer, {
   resumeCommands = [nativeCommandObservation()],
 } = {}) {
   return {
-    ordinary: writer.parseCodexExecJSONL(JSON.stringify({
-      type: "thread.started",
-      thread_id: "thread-ordinary",
-    })),
-    invalid: writer.parseCodexExecJSONL(JSON.stringify({
-      type: "thread.started",
-      thread_id: "thread-invalid",
-    })),
-    substantive: writer.parseCodexExecJSONL(sessionJSONL("thread-substantive", substantive)),
-    resume: writer.parseCodexExecJSONL(sessionJSONL("thread-resume", resume, resumeCommands)),
+    ordinary: writer.parseCodexExecJSONL(sessionJSONL("thread-ordinary", [], ordinaryCommands), { sessionRole: "ordinary" }),
+    invalid: writer.parseCodexExecJSONL(sessionJSONL("thread-invalid", [], invalidCommands), { sessionRole: "invalid" }),
+    substantive: writer.parseCodexExecJSONL(sessionJSONL("thread-substantive", substantive, substantiveCommands), { sessionRole: "substantive" }),
+    resume: writer.parseCodexExecJSONL(sessionJSONL("thread-resume", resume, resumeCommands), { sessionRole: "resume" }),
   };
+}
+
+async function assertCommandEventFailureDiagnostic(t, writer, {
+  label,
+  streams,
+  expectedContext,
+  forbiddenRawValues,
+}) {
+  const root = await temporaryRoot(t, `dev-flow-codex-${label}-`);
+  const ledgerPath = join(root, "attempt-ledger.json");
+  const evidencePath = join(root, "canonical", "codex-macos-arm64.json");
+  const recoveryRoot = join(root, "recovery");
+  await mkdir(dirname(evidencePath), { recursive: true });
+  await writer.initializeAttemptLedger(ledgerPath);
+  const preflight = orchestrationPreflight(await writer.deriveLedgerId(ledgerPath));
+  const times = [
+    "2026-08-16T08:00:00.000Z",
+    "2026-08-16T08:01:00.000Z",
+    "2026-08-16T08:02:00.000Z",
+  ];
+
+  await assert.rejects(
+    writer.executeNativeJourney({
+      validationReportPath: "/external/validation-report.json",
+      artifactReportPath: "/external/artifact-report.json",
+      codexExecutable: "/external/codex-0.147.0",
+      ledgerPath,
+    }, {
+      evidencePath,
+      recoveryRoot,
+      platform: "darwin",
+      arch: "arm64",
+      now: () => times.shift(),
+      async preflight() { return structuredClone(preflight); },
+      async assertFrozenSource() {},
+      async prepareHost() { return { targetPath: "/tmp/dev-flow-native-target" }; },
+      async spawnSession({ role }) { return streams[role]; },
+      async cleanupHost() {},
+    }),
+    /external diagnostic/i,
+  );
+
+  assert.equal(await optionalContents(evidencePath), null);
+  const ledger = JSON.parse(await readFile(ledgerPath, "utf8"));
+  assert.equal(ledger.attempts[0].status, "failed");
+  const recoveryDirectory = join(recoveryRoot, ledger.attempts[0].chain_id);
+  const diagnosticText = await readFile(join(recoveryDirectory, "failed.json"), "utf8");
+  const observedFactsText = await readFile(join(recoveryDirectory, "failure-observed-facts.json"), "utf8");
+  const diagnostic = JSON.parse(diagnosticText);
+  assert.equal(diagnostic.schema_version, 2);
+  assert.equal(diagnostic.failure_kind, "command_event");
+  assert.deepEqual(
+    Object.keys(diagnostic.failure_context).sort(),
+    ["command_sha256", "event_type", "exit_code", "output_sha256", "session_role", "status"],
+  );
+  assert.deepEqual(diagnostic.failure_context, expectedContext);
+  for (const raw of forbiddenRawValues) {
+    assert.equal(`${diagnosticText}${observedFactsText}`.includes(raw), false, `failure record must not retain raw value: ${raw}`);
+  }
 }
 
 function sessionJSONL(threadId, observations, commands = []) {
@@ -2075,20 +2430,37 @@ function nativeRetainedEvidence() {
   };
 }
 
-function nativeCommandObservation() {
+function commandObservation({
+  itemId,
+  command,
+  output,
+  exitCode = 0,
+  status = "completed",
+}) {
   return {
-    itemId: "command-targeted",
-    command: nativeVerificationCommand,
-    output: nativeVerificationOutput,
-    exitCode: 0,
-    status: "completed",
+    itemId,
+    command,
+    output,
+    exitCode,
+    status,
   };
 }
 
-function nativeCommandExecution() {
+function nativeCommandObservation({ itemId = "command-targeted" } = {}) {
+  return commandObservation({
+    itemId,
+    command: nativeVerificationRenderedCommand,
+    output: nativeVerificationOutput,
+  });
+}
+
+function nativeCommandExecution({ eventIndex = 3, itemId = "command-targeted" } = {}) {
   return {
-    itemId: "command-targeted",
-    command: nativeVerificationCommand,
+    sessionRole: "resume",
+    eventIndex,
+    itemIdSha256: sha256Text(itemId),
+    logicalProofName: nativeVerificationCommand,
+    renderedCommandSha256: sha256Text(nativeVerificationRenderedCommand),
     exitCode: 0,
     status: "completed",
     outputSha256: sha256Text(nativeVerificationOutput),
@@ -2096,11 +2468,37 @@ function nativeCommandExecution() {
   };
 }
 
-function nativeCommandFact() {
-  const execution = nativeCommandExecution();
+function sessionCommandFact({
+  role,
+  eventIndex,
+  itemId,
+  command,
+  output,
+  exitCode = 0,
+  status = "completed",
+  classification = "nonverification",
+}) {
   return {
-    item_id: execution.itemId,
-    command: execution.command,
+    sessionRole: role,
+    eventIndex,
+    eventType: "command_execution",
+    itemIdSha256: sha256Text(itemId),
+    commandSha256: sha256Text(command),
+    outputSha256: sha256Text(output),
+    status,
+    exitCode,
+    classification,
+  };
+}
+
+function nativeCommandFact(options) {
+  const execution = nativeCommandExecution(options);
+  return {
+    session_role: execution.sessionRole,
+    event_index: execution.eventIndex,
+    item_id_sha256: execution.itemIdSha256,
+    logical_proof_name: execution.logicalProofName,
+    rendered_command_sha256: execution.renderedCommandSha256,
     exit_code: execution.exitCode,
     status: execution.status,
     output_sha256: execution.outputSha256,

@@ -25,6 +25,19 @@ export const EXPECTED_TARGETED_COMMANDS = Object.freeze([
 export const EXPECTED_ROOT_VALIDATION_COMMAND = "pnpm run validate";
 export const PASS_COMMIT_PROTOCOL = "evidence-create-before-ledger-finalize-v1";
 export const FAILURE_COMMIT_PROTOCOL = "external-failure-record-v1";
+export const NATIVE_LOGICAL_PROOF_NAME = "git hash-object native-proof.txt";
+export const NATIVE_RENDERED_PROOF_COMMAND = "/bin/zsh -lc 'git hash-object native-proof.txt'";
+
+const nativeRenderedProofCommandSha256 = sha256(NATIVE_RENDERED_PROOF_COMMAND);
+const deniedRenderedCommandDigests = new Set([
+  "/bin/zsh -lc 'go test ./...'",
+  "/bin/zsh -lc 'go test ./internal/version ./tests/contract'",
+  "/bin/zsh -lc 'pnpm test'",
+  "/bin/zsh -lc 'pnpm run test'",
+  "/bin/zsh -lc 'pnpm run validate'",
+  "/bin/zsh -lc 'node --test'",
+  "/bin/zsh -lc 'node --test packages/codex/tests/*.test.mjs'",
+].map(sha256));
 
 const defaultSchemaPaths = Object.freeze({
   "validation-report": join(contractsRoot, "validation-report.schema.json"),
@@ -759,28 +772,99 @@ function validateLedger(evidence, context, errors) {
 
 function validateVerificationSemantics(invocation, errors) {
   const budget = invocation.verification_budget;
+  const sessionCommandFacts = asArray(invocation.session_command_facts);
   const commands = asArray(invocation.verification_commands);
   if (!isObject(budget)) {
     errors.push("complete Core verification budget is required");
     return;
   }
 
-  const itemIDs = commands.map((command) => command?.item_id);
+  if (sessionCommandFacts.length === 0) {
+    errors.push("session command facts must retain every completed official command_execution event");
+  }
+  const factIdentities = sessionCommandFacts.map((fact) => `${fact?.session_role}\u0000${fact?.event_index}`);
+  if (new Set(factIdentities).size !== factIdentities.length) {
+    errors.push("session command facts must have unique role-scoped event indexes");
+  }
+  const lastEventIndexByRole = new Map();
+  for (const fact of sessionCommandFacts) {
+    const role = fact?.session_role;
+    const eventIndex = fact?.event_index;
+    if (lastEventIndexByRole.has(role) && eventIndex <= lastEventIndexByRole.get(role)) {
+      errors.push(`session command facts for ${role ?? "unknown"} must remain ordered by event index`);
+    }
+    if (typeof role === "string" && Number.isInteger(eventIndex)) {
+      lastEventIndexByRole.set(role, eventIndex);
+    }
+    if (["ordinary", "invalid"].includes(role) && fact?.classification !== "nonverification") {
+      errors.push(`${role} session command facts must remain nonverification`);
+    }
+    if (deniedRenderedCommandDigests.has(fact?.command_sha256)) {
+      errors.push("known test/full-suite rendered command is forbidden, including pnpm run validate");
+    }
+  }
+
+  const verificationFacts = sessionCommandFacts.filter((fact) => fact?.classification === "verification");
+  if (verificationFacts.length !== 1) {
+    errors.push("exactly one session command fact may be classified as the Core-bound verification proof");
+  }
+  for (const fact of verificationFacts) {
+    if (
+      !["substantive", "resume"].includes(fact?.session_role)
+      || fact?.command_sha256 !== nativeRenderedProofCommandSha256
+      || fact?.status !== "completed"
+      || fact?.exit_code !== 0
+    ) {
+      errors.push("verification fact must be one successful active-session exact Codex 0.147 macOS proof rendering");
+    }
+  }
+
+  const renderedProofFacts = sessionCommandFacts.filter(
+    (fact) => fact?.command_sha256 === nativeRenderedProofCommandSha256,
+  );
+  if (renderedProofFacts.length !== 1) {
+    errors.push("duplicate proof rendering is forbidden; the exact native proof must occur once");
+  } else if (renderedProofFacts[0]?.classification !== "verification") {
+    errors.push("the exact native proof rendering is unbound unless classified as verification");
+  }
+
+  if (commands.length !== 1) {
+    errors.push("verification proof subset must contain exactly one Core-bound command");
+  }
+  const itemIDs = commands.map((command) => command?.item_id_sha256);
   if (new Set(itemIDs).size !== itemIDs.length) {
     errors.push("verification command executions must have unique item IDs");
   }
   for (const command of commands) {
     if (
       !isObject(command)
-      || typeof command.command !== "string"
-      || command.command.length === 0
+      || !["substantive", "resume"].includes(command.session_role)
+      || !Number.isInteger(command.event_index)
+      || typeof command.item_id_sha256 !== "string"
+      || command.logical_proof_name !== NATIVE_LOGICAL_PROOF_NAME
+      || command.rendered_command_sha256 !== nativeRenderedProofCommandSha256
       || command.exit_code !== 0
       || command.status !== "completed"
       || typeof command.output_sha256 !== "string"
-      || typeof command.full_suite !== "boolean"
+      || command.full_suite !== false
     ) {
-      errors.push("every verification command execution must be completed successfully with a command and output digest");
+      errors.push("every verification proof must separate the logical proof name from the exact rendered hash and complete successfully");
     }
+    const matchingFacts = verificationFacts.filter((fact) => (
+      fact?.session_role === command?.session_role
+      && fact?.event_index === command?.event_index
+      && fact?.item_id_sha256 === command?.item_id_sha256
+      && fact?.command_sha256 === command?.rendered_command_sha256
+      && fact?.output_sha256 === command?.output_sha256
+      && fact?.status === command?.status
+      && fact?.exit_code === command?.exit_code
+    ));
+    if (matchingFacts.length !== 1) {
+      errors.push("verification proof subset must be bound one-to-one by role, event, item, and command/output digests");
+    }
+  }
+  if (commands.length !== verificationFacts.length) {
+    errors.push("verification proof subset must equal all and only Core-bound verification facts");
   }
   if (
     !Number.isInteger(invocation.submitted_automated_command_count)
@@ -882,15 +966,34 @@ function validateObservedFacts(evidence, observedFacts, errors) {
     errors.push("restart recovery must record dev_flow_get_task then dev_flow_get_next_action before a later apply_action");
   }
 
+  for (const role of ["ordinary", "invalid"]) {
+    if (asArray(observedFacts.sessions?.[role]?.calls).length !== 0) {
+      errors.push(`${role} session must make zero Dev Flow calls and create zero Dev Flow tasks`);
+    }
+  }
+
   const verification = observedFacts.verification;
   if (!isObject(verification)) {
     errors.push("durable facts must contain complete Core verification observations");
   } else {
+    const expectedVerificationFields = [
+      "budget",
+      "command_executions",
+      "retained_automated_checks",
+      "session_command_facts",
+      "submitted_automated_checks",
+    ];
+    if (!equalStringArrays(Object.keys(verification).sort(), expectedVerificationFields)) {
+      errors.push("durable verification facts must be a closed safe projection without raw command, output, or path fields");
+    }
     if (!deepEqual(verification.budget, invocation.verification_budget)) {
       errors.push("verification budget projection must equal the complete Core-derived budget");
     }
+    if (!deepEqual(verification.session_command_facts, invocation.session_command_facts)) {
+      errors.push("session command facts must exactly equal the durable role-scoped safe projection");
+    }
     if (!deepEqual(verification.command_executions, invocation.verification_commands)) {
-      errors.push("command execution projection must equal official completed command_execution facts");
+      errors.push("command execution projection must equal the Core-bound verification proof subset");
     }
     validateAutomatedChecks(
       verification.submitted_automated_checks,
@@ -928,7 +1031,7 @@ function validateAutomatedChecks(checks, commands, label, errors) {
     if (
       !isObject(check)
       || !equalStringArrays(Object.keys(check).sort(), ["command_count", "full_suite", "name"])
-      || check.name !== command?.command
+      || check.name !== command?.logical_proof_name
       || check.command_count !== 1
       || check.full_suite !== command?.full_suite
     ) {

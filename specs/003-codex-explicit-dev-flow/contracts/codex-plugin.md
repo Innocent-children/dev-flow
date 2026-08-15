@@ -255,7 +255,18 @@ non-regression plus strict adjacent-deduplicated lineage,
 task-ID equality, four unique thread IDs, raw revision monotonicity, ordered restart recovery reads,
 complete Core-derived verification budget and official command facts reconciled to Core evidence,
 Core `DONE`, exact setup/reinstall registry cardinality, a non-secret retained-data descriptor,
-data/repository digest equality, lifecycle booleans, and prior root validation. It also requires the
+data/repository digest equality, lifecycle booleans, and prior root validation. Every official
+completed command event is retained only as a role/event/item/command/output digest plus status,
+exit code, and verification classification. Ordinary/invalid host commands and
+substantive/resume repository work are non-verification facts. Only the one substantive/resume
+event whose logical proof name `git hash-object native-proof.txt` maps to the exact Codex 0.147
+macOS rendering `/bin/zsh -lc 'git hash-object native-proof.txt'` may be classified as verification,
+and it must bind one-to-one to submitted and retained Core evidence. The runner compares that exact
+rendering directly without generic shell parsing; duplicate/unbound proof events fail closed. A
+literal pre-hash deny check rejects any rendered command containing one of the closed known
+test/full-suite markers `go test`, `pnpm test`, `pnpm run test`, `pnpm run validate`, or
+`node --test`, without parsing or normalizing shell syntax. Raw command/output/path material is discarded after hashing. It also
+requires the
 compatibility query to precede every validation observation. Direct Core reopen rejects non-JSON,
 unknown/duplicate response IDs, and bounded-output violations. The bound public validator runs all
 four closed schemas and complete pass semantics; recovery additionally validates the precomputed
@@ -263,8 +274,13 @@ exact bytes/identities. The canonical repository path and journey-evidence schem
 unique passing record. Failed/blocked diagnostics conform to the independent closed
 `native-attempt-diagnostic.schema.json`, may contain only observations actually reached, remain
 outside the repository, and are invalidated with their chain while their ledger entries are
-retained. Any post-publication integrity failure is terminal blocked recovery and cannot authorize
-another host launch.
+retained. Conditional schema version 1 preserves immutable prior records. New version-2 diagnostics
+use `external-failure-record-v2` and, when a completed command caused the failure, add only the safe
+typed context `{session_role,event_type,command_sha256,output_sha256,status,exit_code}`. Version 2
+requires `failure_kind=command_event` plus that context or `failure_kind=non_command` with the
+context prohibited; its failure/skips contain only closed phase/reason codes and detail digests.
+Raw command/output text, environment, and paths are forbidden. Any post-publication integrity
+failure is terminal blocked recovery and cannot authorize another host launch.
 
 Deterministic T054 coverage runs the production default install/setup/readback/four-session/
 remove/direct-reopen/reinstall/cleanup helpers against fake npm, Codex 0.147 JSONL, and Core child
@@ -272,4 +288,6 @@ processes. It does not replace the whole orchestration with injected callbacks, 
 host, build the final artifact, or write canonical evidence. Concurrent setup treats
 `alreadyAdded=true` as unowned state and never rolls it back. Setup and reinstall accept only a
 top-level object containing exactly one owned marketplace, one installed owned plugin, and zero
-available plugins.
+available plugins. Its fake host emits an ordinary successful ambient command, an invalid-session
+nonzero Git discovery, and active-session repository work plus one exact rendered proof so the
+production parser and full candidate validator exercise session-aware accounting.

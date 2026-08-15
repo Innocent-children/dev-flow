@@ -233,7 +233,8 @@ error reinterpretation, recovery classifier, or completion predicate.
    but no real Codex host.
 6. **Native-runner contract**: argument/preflight gates, frozen artifact and validation identity,
    exact Codex `exec --json`/`command_execution` parsing, MCP call/result extraction, session
-   separation, direct-Core fail-closed framing, and exclusive atomic evidence creation are
+   separation, role-scoped safe command facts, Core-bound proof classification, direct-Core
+   fail-closed framing, and exclusive atomic evidence creation are
    exercised through the production default helpers with deterministic fake npm/Codex/Core child
    processes; this layer cannot emit `native-host` evidence, build the final artifact, or start
    Codex.
@@ -280,19 +281,33 @@ separate no-host admission path and cannot fall through to native mode.
 The runner installs the private artifact into isolated package/data/home paths, performs supported
 setup/readback, and uses official `codex exec --json` sessions. JSONL `thread.started` and complete
 `item.completed` MCP and `command_execution` events are the host observation boundary; truncated
-previews and free-form agent prose are never promoted into Core evidence. Command output contents
-are discarded after hashing. Separate processes cover ordinary and invalid invocation checks, the
-substantive task, and an explicit new-session resume; all four thread IDs are nonempty and pairwise
-distinct. After the substantive process is deliberately closed, the resume process must call
+previews and free-form agent prose are never promoted into Core evidence. Every completed command
+event is first captured with its session role, per-session event index, item/command/output SHA-256,
+status, and exit code; raw command/output/path material is discarded after classification and
+hashing. Separate processes cover ordinary and invalid invocation checks, the substantive task,
+and an explicit new-session resume; all four thread IDs are nonempty and pairwise distinct.
+Ordinary and invalid-session commands are non-verification facts and those sessions are rejected
+only for a Dev Flow call/task, not for a read-only host command. Substantive/resume inspection and
+implementation commands are also non-verification facts. The only verification event is the exact
+Codex 0.147 macOS rendering `/bin/zsh -lc 'git hash-object native-proof.txt'`, mapped to logical proof
+name `git hash-object native-proof.txt`; this byte-exact rendering is recognized directly and is not
+derived with a generic shell parser. It must appear exactly once, in a substantive or resume
+session, and map one-to-one to the submitted and retained Core automated check. Any second or
+unbound occurrence fails closed. Independently, any rendered command containing one of the closed
+known test/full-suite UTF-8 markers `go test`, `pnpm test`, `pnpm run test`, `pnpm run validate`, or
+`node --test` fails closed. `pnpm run validate` is explicit because it is the repository-wide root
+gate. Marker comparison is a literal deny check, not shell parsing or permission to normalize the
+accepted proof rendering.
+
+After the substantive process is deliberately closed, the resume process must call
 `dev_flow_get_task` and then `dev_flow_get_next_action` before any later mutation. The runner derives
-the verification budget and terminal phase from complete Core task/action results, reconciles every
-completed command with the automated evidence submitted to and retained by Core, requires Core
-`phase=DONE`, and checks raw revision observations for non-regression before adjacent duplicates are
-collapsed. Setup and reinstall readback require exactly one owned marketplace, one installed plugin,
-and zero available entries. The runner then performs removal/readback, bounded fail-closed direct
-Core task reopen, separate npm uninstall, compatible reinstall, and repository/task-data/adjacent
-comparisons. Direct reopen rejects any non-JSON line, unknown or duplicate response ID, or output
-limit breach.
+the verification budget and terminal phase from complete Core task/action results, counts only the
+Core-bound verification subset against that budget, requires Core `phase=DONE`, and checks raw
+revision observations for non-regression before adjacent duplicates are collapsed. Setup and
+reinstall readback require exactly one owned marketplace, one installed plugin, and zero available
+entries. The runner then performs removal/readback, bounded fail-closed direct Core task reopen,
+separate npm uninstall, compatible reinstall, and repository/task-data/adjacent comparisons. Direct
+reopen rejects any non-JSON line, unknown or duplicate response ID, or output limit breach.
 
 The evidence writer consumes only those bounded observations and validates the closed schema-facing
 shape. After a successful host run it create-exclusively persists immutable observed facts outside
@@ -345,10 +360,16 @@ T057 artifact/report for a ledger with no unresolved reservation or pass. Suppor
 the one passing evidence/ledger pair, and no launch is allowed after evidence publication.
 The canonical repository evidence path and `journey-evidence.schema.json` are pass-only.
 Failed/blocked diagnostics use the independent closed
-`native-attempt-diagnostic.schema.json` contract with schema version 1 and
-`external-failure-record-v1` under the external recovery directory; the writer validates each
-diagnostic before its atomic write. They never claim journey-evidence schema version 3 or occupy the
-canonical path; the durable ledger remains the attempt authority. A post-publication integrity
+`native-attempt-diagnostic.schema.json` contract under the external recovery directory; the writer
+validates each diagnostic before its atomic write. The conditional schema preserves immutable
+schema-version-1/`external-failure-record-v1` history. New failures use schema version 2 and
+`external-failure-record-v2`; whenever the failure is attributable to a completed command event,
+`failure_kind=command_event` requires exactly
+`{session_role,event_type,command_sha256,output_sha256,status,exit_code}`. A non-command failure uses
+`failure_kind=non_command` and prohibits that context. Version-2 `failure` and `skips` contain only a
+closed phase code, closed reason code, and SHA-256 of the bounded detail; they never include raw
+command/output text or repository paths, claim journey-evidence schema version 3, or occupy the
+canonical path. The durable ledger remains the attempt authority. A post-publication integrity
 failure is a terminal blocked recovery condition, not permission to delete evidence or start a new
 chain.
 
@@ -356,8 +377,9 @@ chain.
 
 `journey-evidence.schema.json` validates the canonical passing record only.
 `native-attempt-diagnostic.schema.json` separately validates honest `failed` and `blocked` records
-containing only observations available before the failure; those records never fabricate task
-lineage or completed lifecycle fields.
+containing only observations available before the failure. Its conditional versions accept the
+immutable v1 history and the new v2 safe command context without allowing raw command/output/path
+material; those records never fabricate task lineage or completed lifecycle fields.
 
 JSON Schema cannot compare values or prove ordering. Therefore
 `scripts/validate-codex-journey-evidence.mjs` performs required semantic checks for a passing record:
@@ -384,10 +406,12 @@ JSON Schema cannot compare values or prove ordering. Therefore
 - task IDs before and after restart are equal;
 - at least two action commits are present;
 - `core_call_count <= scenario_call_budget`;
-- the complete Core-derived verification budget equals the evidence projection, every completed
-  official command execution is represented by command/exit/status/output digest, those commands
-  equal the automated evidence submitted to and retained by Core, the count stays within budget,
-  and a full-suite observation is rejected when `allow_full_suite=false`;
+- the complete Core-derived verification budget equals the evidence projection; every completed
+  official command execution is represented by a role/event/item/command/output digest, status,
+  exit code, and classification; all ordinary/invalid facts and non-proof active-session facts are
+  non-verification; and the single exact rendered proof maps one-to-one to both submitted and
+  retained automated evidence, stays within budget, and is rejected when duplicated, unbound, or
+  inconsistent with `allow_full_suite=false`;
 - after the restart boundary, `dev_flow_get_task` then `dev_flow_get_next_action` precede any later
   `apply_action`;
 - terminal task phase and outcome are both `DONE`/completed;

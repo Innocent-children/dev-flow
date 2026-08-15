@@ -80,8 +80,18 @@ const nativeProofGitBlobSha1 = createHash("sha1")
   .update(`blob ${Buffer.byteLength(nativeProofContent)}\0${nativeProofContent}`)
   .digest("hex");
 const nativeProofCommand = `git hash-object ${nativeProofPath}`;
+const nativeProofRenderedCommand = `/bin/zsh -lc '${nativeProofCommand}'`;
+const retiredNativeProofCommand = `git diff --check -- ${nativeProofPath}`;
 const nativeProofCommandOutput = `${nativeProofGitBlobSha1}\n`;
 const nativeProofCommandOutputSha256 = createHash("sha256").update(nativeProofCommandOutput).digest("hex");
+const nativeSessionRoles = Object.freeze(["ordinary", "invalid", "substantive", "resume"]);
+const knownTestCommandMarkers = Object.freeze([
+  "go test",
+  "pnpm test",
+  "pnpm run test",
+  "pnpm run validate",
+  "node --test",
+]);
 const nativePrompts = Object.freeze({
   ordinary: "Reply with one short sentence describing this repository. Do not use any named skill or MCP tool.",
   invalid: "$dev-flow Explain briefly that this request cannot run outside a Git worktree; do not create or resume a task.",
@@ -90,13 +100,14 @@ const nativePrompts = Object.freeze({
     "In this one current Git repository, create native-proof.txt with exactly the line: Dev Flow Codex native journey passed.",
     "Change no other repository path. Open the task with a targeted verification budget of exactly one automatic command, no full suite, and manual handoff allowed.",
     `Use repository editing tools for the change. The only permitted verification command is exactly: ${nativeProofCommand}`,
-    "Run no command until that one targeted verification command is required by the Core workflow.",
+    "Repository inspection and implementation commands are non-verification facts; do not run a test or full-suite command.",
   ].join("\n"),
   resume: [
     "$dev-flow",
     "Resume the existing compatible Codex-owned task in this repository. Treat the stopped process as an uncertain boundary: before any apply_action, call dev_flow_get_task and then dev_flow_get_next_action.",
     `Continue until the Core returns DONE. Run exactly this one targeted verification command: ${nativeProofCommand}`,
     "Record that exact command string as the automated evidence name with command_count=1 and full_suite=false, and run no full suite.",
+    "Repository inspection and implementation commands remain non-verification facts.",
     "Do not create another task, broaden scope, or change any path other than native-proof.txt.",
   ].join("\n"),
 });
@@ -323,8 +334,11 @@ export function deriveChainId(identity) {
   }));
 }
 
-export function parseCodexExecJSONL(text) {
+export function parseCodexExecJSONL(text, { sessionRole = "resume" } = {}) {
   if (typeof text !== "string") throw new TypeError("Codex exec JSONL must be text");
+  if (!nativeSessionRoles.includes(sessionRole)) {
+    throw new TypeError("Codex exec JSONL requires one known native session role");
+  }
   const lines = text.split(/\r?\n/u).filter((line) => line.trim() !== "");
   const events = lines.map((line, index) => {
     try {
@@ -348,7 +362,7 @@ export function parseCodexExecJSONL(text) {
   const commandItemIDs = new Set();
   let ignoredPreviewCount = 0;
   let ignoredProseCount = 0;
-  for (const event of events.slice(1)) {
+  for (const [eventIndex, event] of events.slice(1).entries()) {
     if (event?.type === "item.started") {
       ignoredPreviewCount += 1;
       continue;
@@ -362,29 +376,62 @@ export function parseCodexExecJSONL(text) {
         || typeof item.command !== "string"
         || item.command.length === 0
         || typeof item.aggregated_output !== "string"
-        || !Number.isInteger(item.exit_code)
+        || !(Number.isInteger(item.exit_code) || item.exit_code === null)
         || typeof item.status !== "string"
-        || item.status.length === 0
+        || !["completed", "failed", "declined"].includes(item.status)
       ) {
         throw new Error("completed command_execution requires closed command, status, exit, and output facts");
       }
-      if (commandItemIDs.has(item.id)) throw new Error("completed command_execution item IDs must be unique");
+      const commandFact = {
+        sessionRole,
+        eventIndex,
+        eventType: "command_execution",
+        itemIdSha256: sha256(item.id),
+        commandSha256: sha256(item.command),
+        outputSha256: sha256(item.aggregated_output),
+        status: item.status,
+        exitCode: item.exit_code,
+        classification: "nonverification",
+      };
+      if (commandItemIDs.has(item.id)) {
+        throw commandEventError("completed command_execution item IDs must be unique", commandFact);
+      }
       commandItemIDs.add(item.id);
-      const fullSuite = isFullSuiteCommand(item.command);
-      const outputSha256 = sha256(item.aggregated_output);
-      if (outputSha256 !== nativeProofCommandOutputSha256) {
-        throw new Error(
-          "native proof command output digest must equal the SHA-1 Git blob hash output for the required exact native-proof.txt bytes",
+      const deniedMarker = knownTestCommandMarkers.find((marker) => item.command.includes(marker));
+      if (deniedMarker) {
+        throw commandEventError(
+          `completed command_execution contains known test/full-suite marker ${deniedMarker}`,
+          commandFact,
         );
       }
-      commandExecutions.push({
-        itemId: item.id,
-        command: item.command,
-        exitCode: item.exit_code,
-        status: item.status,
-        outputSha256,
-        fullSuite,
-      });
+      if (item.command === nativeProofRenderedCommand) {
+        if (!["substantive", "resume"].includes(sessionRole)) {
+          throw commandEventError(
+            `${sessionRole} session proof command is unbound to Core verification evidence`,
+            commandFact,
+          );
+        }
+        if (
+          item.exit_code !== 0
+          || item.status !== "completed"
+          || commandFact.outputSha256 !== nativeProofCommandOutputSha256
+        ) {
+          throw commandEventError(
+          "native proof command output digest must equal the SHA-1 Git blob hash output for the required exact native-proof.txt bytes",
+            commandFact,
+          );
+        }
+        commandFact.classification = "verification";
+      } else if (
+        (item.command.includes("hash-object") && item.command.includes(nativeProofPath))
+        || item.command.includes(retiredNativeProofCommand)
+      ) {
+        throw commandEventError(
+          "native proof rendering is unbound because it does not equal the exact Codex 0.147 macOS rendering",
+          commandFact,
+        );
+      }
+      commandExecutions.push(commandFact);
       continue;
     }
     if (item?.type === "agent_message") {
@@ -449,8 +496,10 @@ export function summarizeRecordedSessions({ ordinary, invalid, substantive, resu
   if (ordinary.devFlowCalls.length !== 0 || invalid.devFlowCalls.length !== 0) {
     throw new Error("ordinary and invalid explicit-invocation sessions must make zero Dev Flow calls");
   }
-  if (ordinary.commandExecutions.length !== 0 || invalid.commandExecutions.length !== 0) {
-    throw new Error("ordinary and invalid sessions must make zero automatic command executions");
+  if ([...ordinary.commandExecutions, ...invalid.commandExecutions].some(
+    ({ classification }) => classification !== "nonverification",
+  )) {
+    throw new Error("ordinary and invalid session commands must remain nonverification facts");
   }
   const threadIds = [ordinary.threadId, invalid.threadId, substantive.threadId, resume.threadId];
   if (new Set(threadIds).size !== 4) {
@@ -519,13 +568,24 @@ export function summarizeRecordedSessions({ ordinary, invalid, substantive, resu
   const budget = structuredClone(budgets[0]);
   requireVerificationBudget(budget);
 
-  const commandExecutions = [...substantive.commandExecutions, ...resume.commandExecutions];
-  if (
-    commandExecutions.length === 0
-    || commandExecutions.some(({ exitCode, status }) => exitCode !== 0 || status !== "completed")
-  ) {
-    throw new Error("passing native evidence requires successful completed command_execution facts");
+  const sessionCommandFacts = [ordinary, invalid, substantive, resume]
+    .flatMap(({ commandExecutions }) => commandExecutions);
+  const proofFacts = sessionCommandFacts.filter(({ classification }) => classification === "verification");
+  if (proofFacts.length !== 1) {
+    const fact = proofFacts[1] ?? proofFacts[0];
+    throw commandEventError("native verification proof must occur exactly once; duplicate or missing proof is rejected", fact);
   }
+  const commandExecutions = proofFacts.map((fact) => ({
+    sessionRole: fact.sessionRole,
+    eventIndex: fact.eventIndex,
+    itemIdSha256: fact.itemIdSha256,
+    logicalProofName: nativeProofCommand,
+    renderedCommandSha256: fact.commandSha256,
+    exitCode: fact.exitCode,
+    status: fact.status,
+    outputSha256: fact.outputSha256,
+    fullSuite: false,
+  }));
   const submittedAutomatedChecks = observed.flatMap((call) =>
     normalizeAutomatedChecks(call.arguments?.payload?.checks, "submitted"));
   const terminalTask = taskObservations.at(-1).task;
@@ -551,6 +611,7 @@ export function summarizeRecordedSessions({ ordinary, invalid, substantive, resu
     coreCallCount: observed.length,
     restartRecoveryReads: ["dev_flow_get_task", "dev_flow_get_next_action"],
     budget,
+    sessionCommandFacts: structuredClone(sessionCommandFacts),
     commandExecutions: structuredClone(commandExecutions),
     submittedAutomatedChecks,
     retainedAutomatedChecks,
@@ -618,40 +679,56 @@ function assertVerificationParity({ commandExecutions, submittedAutomatedChecks,
     commandExecutions.length !== submittedAutomatedChecks.length
     || commandExecutions.length !== retainedAutomatedChecks.length
   ) {
-    throw new Error("actual command executions and submitted/retained automated Core evidence counts must match");
+    throw commandEventError(
+      "native proof is unbound: actual verification and submitted/retained automated Core evidence counts must match",
+      commandExecutions[0],
+    );
   }
   for (let index = 0; index < commandExecutions.length; index += 1) {
     const execution = commandExecutions[index];
     const submitted = submittedAutomatedChecks[index];
     const retained = retainedAutomatedChecks[index];
     if (
-      execution.command !== submitted.name
-      || execution.command !== retained.name
+      execution.logicalProofName !== submitted.name
+      || execution.logicalProofName !== retained.name
       || execution.fullSuite !== submitted.fullSuite
       || execution.fullSuite !== retained.fullSuite
       || submitted.commandCount !== 1
       || retained.commandCount !== 1
     ) {
-      throw new Error("actual command identity/full-suite facts must equal submitted and retained automated Core evidence");
+      throw commandEventError(
+        "native proof is unbound: logical proof identity/full-suite facts must equal submitted and retained automated Core evidence",
+        execution,
+      );
     }
   }
   if (commandExecutions.length > budget.max_automatic_commands) {
-    throw new Error("actual automatic command executions exceeded the Core verification budget");
+    throw commandEventError(
+      "actual automatic command executions exceeded the Core verification budget",
+      commandExecutions[budget.max_automatic_commands] ?? commandExecutions.at(-1),
+    );
   }
   if (!budget.allow_full_suite && commandExecutions.some(({ fullSuite }) => fullSuite)) {
-    throw new Error("actual command executions include a full suite forbidden by the Core verification budget");
+    throw commandEventError(
+      "actual command executions include a full suite forbidden by the Core verification budget",
+      commandExecutions.find(({ fullSuite }) => fullSuite),
+    );
   }
 }
 
-const allowedNativeProofCommands = new Set([
-  nativeProofCommand,
-]);
-
-function isFullSuiteCommand(command) {
-  if (!allowedNativeProofCommands.has(command)) {
-    throw new Error("completed command_execution command must equal an exact allowed native proof command");
+function commandEventError(message, fact) {
+  const error = new Error(message);
+  if (isPlainObject(fact)) {
+    error.failureContext = {
+      session_role: fact.sessionRole,
+      event_type: "command_execution",
+      command_sha256: fact.commandSha256 ?? fact.renderedCommandSha256,
+      output_sha256: fact.outputSha256,
+      status: fact.status,
+      exit_code: fact.exitCode,
+    };
   }
-  return false;
+  return error;
 }
 
 export async function runRecordedNativeSessions({ spawnSession } = {}) {
@@ -664,7 +741,7 @@ export async function runRecordedNativeSessions({ spawnSession } = {}) {
     ["resume", false],
   ]) {
     const stream = await spawnSession({ role, stopAfterFirstApply });
-    parsed[role] = parseCodexExecJSONL(stream);
+    parsed[role] = parseCodexExecJSONL(stream, { sessionRole: role });
   }
   return { sessions: parsed, summary: summarizeRecordedSessions(parsed) };
 }
@@ -836,6 +913,7 @@ export async function executeNativeJourney(inputs = {}, dependencies = {}) {
     }
     const completedAt = now();
     const recordedAt = now();
+    const safeFailure = failureProjection(error);
     const failure = await finalizeFailedAttempt({
       ledgerPath: inputs.ledgerPath,
       evidencePath,
@@ -843,17 +921,12 @@ export async function executeNativeJourney(inputs = {}, dependencies = {}) {
       reservation,
       status: "failed",
       completedAt,
-      observedFacts: {
-        phase: "native-journey",
-        observed: error.message,
-      },
-      diagnosticBase: {
-        ...failureDiagnosticBase({
-          preflight: firstPreflight,
-          recordedAt,
-          failure: { phase: "native-journey", reason: "native attempt failed", observed: error.message },
-        }),
-      },
+      observedFacts: { schema_version: 2, ...structuredClone(safeFailure) },
+      diagnosticBase: failureDiagnosticBase({
+        preflight: firstPreflight,
+        recordedAt,
+        ...safeFailure,
+      }),
     });
     throw new Error(
       `${error.message}; native attempt was consumed and retained in external diagnostic ${failure.diagnosticPath}`,
@@ -948,10 +1021,10 @@ function passingEvidenceBase({ preflight, journey, recordedAt }) {
   };
 }
 
-function failureDiagnosticBase({ preflight, recordedAt, failure }) {
+function failureDiagnosticBase({ preflight, recordedAt, failure_kind, failure, failure_context }) {
   requireTimestamp(recordedAt, "recordedAt");
   return {
-    schema_version: 1,
+    schema_version: 2,
     report_type: "dev-flow-codex-native-attempt-diagnostic",
     recorded_at: recordedAt,
     classification: {
@@ -980,8 +1053,30 @@ function failureDiagnosticBase({ preflight, recordedAt, failure }) {
       targeted_checks: structuredClone(preflight.validation.targeted_checks),
       root_validation: structuredClone(preflight.validation.root_validation),
     },
+    failure_kind,
     failure: structuredClone(failure),
+    ...(failure_context ? { failure_context: structuredClone(failure_context) } : {}),
     skips: [],
+  };
+}
+
+function failureProjection(error) {
+  const failureContext = error?.failureContext;
+  const hasCommandContext = isPlainObject(failureContext)
+    && nativeSessionRoles.includes(failureContext.session_role)
+    && failureContext.event_type === "command_execution"
+    && hex(failureContext.command_sha256, 64)
+    && hex(failureContext.output_sha256, 64)
+    && ["completed", "failed", "declined"].includes(failureContext.status)
+    && (Number.isInteger(failureContext.exit_code) || failureContext.exit_code === null);
+  return {
+    failure_kind: hasCommandContext ? "command_event" : "non_command",
+    failure: {
+      phase_code: hasCommandContext ? "codex-session" : "native-journey",
+      reason_code: hasCommandContext ? "command-event-rejected" : "unexpected-failure",
+      detail_sha256: sha256(String(error?.message ?? "native attempt failed")),
+    },
+    ...(hasCommandContext ? { failure_context: structuredClone(failureContext) } : {}),
   };
 }
 
@@ -1260,6 +1355,7 @@ async function finishNativeHost({ context, sessionResult, preflight }) {
       read_before_retry_observations: readBeforeRetryObservations,
       restart_recovery_reads: summary.restartRecoveryReads,
       verification_budget: verification.budget,
+      session_command_facts: verification.session_command_facts,
       verification_commands: verification.command_executions,
       submitted_automated_command_count: submittedAutomatedCommandCount,
       retained_automated_command_count: retainedAutomatedCommandCount,
@@ -1846,9 +1942,23 @@ function nativeVerificationProjection(summary) {
   });
   return {
     budget: structuredClone(summary.budget),
+    session_command_facts: summary.sessionCommandFacts.map((fact) => ({
+      session_role: fact.sessionRole,
+      event_index: fact.eventIndex,
+      event_type: fact.eventType,
+      item_id_sha256: fact.itemIdSha256,
+      command_sha256: fact.commandSha256,
+      output_sha256: fact.outputSha256,
+      status: fact.status,
+      exit_code: fact.exitCode,
+      classification: fact.classification,
+    })),
     command_executions: summary.commandExecutions.map((execution) => ({
-      item_id: execution.itemId,
-      command: execution.command,
+      session_role: execution.sessionRole,
+      event_index: execution.eventIndex,
+      item_id_sha256: execution.itemIdSha256,
+      logical_proof_name: execution.logicalProofName,
+      rendered_command_sha256: execution.renderedCommandSha256,
       exit_code: execution.exitCode,
       status: execution.status,
       output_sha256: execution.outputSha256,
@@ -2213,7 +2323,8 @@ export async function writeFailureDiagnostic({
   if (
     !isPlainObject(diagnostic)
     || !["failed", "blocked"].includes(diagnostic.status)
-    || diagnostic.native_attempt?.commit_protocol !== "external-failure-record-v1"
+    || diagnostic.schema_version !== 2
+    || diagnostic.native_attempt?.commit_protocol !== "external-failure-record-v2"
   ) {
     throw new Error("failure diagnostic must be an honest failed/blocked external record");
   }
@@ -2277,7 +2388,7 @@ export async function finalizeFailedAttempt({
         attempt_number: reservation.attemptNumber,
         total_attempts: ledger.attempts.length,
         ledger_sha256: sha256(finalLedgerBytes),
-        commit_protocol: "external-failure-record-v1",
+        commit_protocol: "external-failure-record-v2",
         observed_facts_sha256: observedFactsSha256,
       },
     };

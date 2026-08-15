@@ -265,18 +265,84 @@
         }
       }
     },
+    "sessionCommandFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_role",
+        "event_index",
+        "event_type",
+        "item_id_sha256",
+        "command_sha256",
+        "output_sha256",
+        "status",
+        "exit_code",
+        "classification"
+      ],
+      "properties": {
+        "session_role": {
+          "enum": ["ordinary", "invalid", "substantive", "resume"]
+        },
+        "event_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "event_type": {
+          "const": "command_execution"
+        },
+        "item_id_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "command_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "output_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "status": {
+          "enum": ["completed", "failed", "declined"]
+        },
+        "exit_code": {
+          "oneOf": [
+            { "type": "integer" },
+            { "type": "null" }
+          ]
+        },
+        "classification": {
+          "enum": ["nonverification", "verification"]
+        }
+      }
+    },
     "commandExecution": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["item_id", "command", "exit_code", "status", "output_sha256", "full_suite"],
+      "required": [
+        "session_role",
+        "event_index",
+        "item_id_sha256",
+        "logical_proof_name",
+        "rendered_command_sha256",
+        "exit_code",
+        "status",
+        "output_sha256",
+        "full_suite"
+      ],
       "properties": {
-        "item_id": {
-          "type": "string",
-          "minLength": 1
+        "session_role": {
+          "enum": ["substantive", "resume"]
         },
-        "command": {
-          "type": "string",
-          "minLength": 1
+        "event_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "item_id_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "logical_proof_name": {
+          "const": "git hash-object native-proof.txt"
+        },
+        "rendered_command_sha256": {
+          "$ref": "#/$defs/sha256"
         },
         "exit_code": {
           "const": 0
@@ -288,7 +354,7 @@
           "$ref": "#/$defs/sha256"
         },
         "full_suite": {
-          "type": "boolean"
+          "const": false
         }
       }
     },
@@ -442,6 +508,7 @@
             "read_before_retry_observations",
             "restart_recovery_reads",
             "verification_budget",
+            "session_command_facts",
             "verification_commands",
             "submitted_automated_command_count",
             "retained_automated_command_count",
@@ -480,28 +547,33 @@
             "verification_budget": {
               "$ref": "#/$defs/verificationBudget"
             },
+            "session_command_facts": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 64,
+              "items": {
+                "$ref": "#/$defs/sessionCommandFact"
+              }
+            },
             "verification_commands": {
               "type": "array",
               "minItems": 1,
+              "maxItems": 1,
               "items": {
                 "$ref": "#/$defs/commandExecution"
               }
             },
             "submitted_automated_command_count": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 20
+              "const": 1
             },
             "retained_automated_command_count": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 20
+              "const": 1
             },
             "submitted_full_suite": {
-              "type": "boolean"
+              "const": false
             },
             "retained_full_suite": {
-              "type": "boolean"
+              "const": false
             }
           }
         },

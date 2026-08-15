@@ -11,6 +11,7 @@ const tracePath = requiredPath("FAKE_NATIVE_TRACE");
 const toolPath = requiredPath("FAKE_NATIVE_TOOL_PATH");
 const packageVersion = process.env.FAKE_NATIVE_PACKAGE_VERSION ?? "0.1.0";
 const nativeVerificationCommand = "git hash-object native-proof.txt";
+const nativeVerificationRenderedCommand = "/bin/zsh -lc 'git hash-object native-proof.txt'";
 
 await trace({ role, argv, cwd: process.cwd() });
 
@@ -177,11 +178,37 @@ async function runCodexExec(prompt) {
   else fail("fake Codex received an unknown native prompt");
 
   process.stdout.write(`${JSON.stringify({ type: "thread.started", thread_id: `thread-${roleName}` })}\n`);
-  if (roleName === "ordinary" || roleName === "invalid") return;
+  if (roleName === "ordinary") {
+    await emitProcessCommand({
+      traceRole: "native-ordinary-ambient-command",
+      itemId: "command-ordinary-ambient",
+      renderedCommand: "/bin/zsh -lc pwd",
+      executable: "/bin/zsh",
+      arguments_: ["-lc", "pwd"],
+    });
+    return;
+  }
+  if (roleName === "invalid") {
+    await emitProcessCommand({
+      traceRole: "native-invalid-git-probe",
+      itemId: "command-invalid-git-probe",
+      renderedCommand: "/bin/zsh -lc 'git rev-parse --show-toplevel'",
+      executable: "git",
+      arguments_: ["rev-parse", "--show-toplevel"],
+    });
+    return;
+  }
   if (roleName === "substantive") {
     await writeFile(join(process.cwd(), "native-proof.txt"), "Dev Flow Codex native journey passed.\n", { mode: 0o600 });
     await mkdir(requiredPath("DEV_FLOW_DATA_DIR"), { recursive: true, mode: 0o700 });
     await writeFile(join(requiredPath("DEV_FLOW_DATA_DIR"), "dev-flow.db"), "fake retained Core data\n", { mode: 0o600 });
+    await emitProcessCommand({
+      traceRole: "native-substantive-repository-command",
+      itemId: "command-substantive-repository",
+      renderedCommand: "/bin/zsh -lc 'git status --short'",
+      executable: "git",
+      arguments_: ["status", "--short"],
+    });
     emitMCP("dev_flow_apply_action", coreEnvelope(4, "action-implement", false));
     return;
   }
@@ -197,31 +224,48 @@ async function runCodexExec(prompt) {
     cwd: process.cwd(),
     processResult: objectFormatResult,
   });
-  const processResult = await captureProcessResult("git", ["hash-object", "native-proof.txt"], {
-    cwd: process.cwd(),
+  await emitProcessCommand({
+    traceRole: "native-proof-command",
+    itemId: "command-targeted",
+    renderedCommand: nativeVerificationRenderedCommand,
+    executable: "git",
+    arguments_: ["hash-object", "native-proof.txt"],
+    logicalCommand: nativeVerificationCommand,
   });
+  emitMCP("dev_flow_apply_action", coreEnvelope(8, "action-handoff", true));
+}
+
+async function emitProcessCommand({
+  traceRole,
+  itemId,
+  renderedCommand,
+  executable,
+  arguments_,
+  logicalCommand,
+}) {
+  const processResult = await captureProcessResult(executable, arguments_, { cwd: process.cwd() });
   const event = {
     type: "item.completed",
     item: {
-      id: "command-targeted",
+      id: itemId,
       type: "command_execution",
-      command: nativeVerificationCommand,
+      command: renderedCommand,
       aggregated_output: processResult.aggregatedOutput,
       exit_code: processResult.exitCode,
       status: processResult.exitCode === 0 ? "completed" : "failed",
     },
   };
   await trace({
-    role: "native-proof-command",
-    command: nativeVerificationCommand,
-    executable: "git",
-    argv: ["hash-object", "native-proof.txt"],
+    role: traceRole,
+    ...(logicalCommand ? { logicalCommand } : {}),
+    renderedCommand,
+    executable,
+    argv: arguments_,
     cwd: process.cwd(),
     processResult,
     event,
   });
   process.stdout.write(`${JSON.stringify(event)}\n`);
-  emitMCP("dev_flow_apply_action", coreEnvelope(8, "action-handoff", true));
 }
 
 async function captureProcessResult(executable, arguments_, { cwd }) {

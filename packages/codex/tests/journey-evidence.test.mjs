@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -38,6 +38,28 @@ const expectedTargetedCommands = [
   "go test ./internal/version ./tests/contract",
   "node --test packages/codex/tests/*.test.mjs",
 ];
+const logicalProofName = "git hash-object native-proof.txt";
+const renderedProofCommand = "/bin/zsh -lc 'git hash-object native-proof.txt'";
+const renderedRootGateCommand = "/bin/zsh -lc 'pnpm run validate'";
+const renderedDeniedCommands = [
+  "/bin/zsh -lc 'go test ./...'",
+  "/bin/zsh -lc 'go test ./internal/version ./tests/contract'",
+  "/bin/zsh -lc 'pnpm test'",
+  "/bin/zsh -lc 'pnpm run test'",
+  renderedRootGateCommand,
+  "/bin/zsh -lc 'node --test'",
+  "/bin/zsh -lc 'node --test packages/codex/tests/*.test.mjs'",
+];
+const immutableAttemptOneDiagnosticPath = join(
+  homedir(),
+  ".codex",
+  "dev-flow-feature-003-native",
+  "attempt-ledger.json.recovery",
+  "3b273663d554d6d1d61f22735bf8d98faba42c2a7c44e63a13f0412aa1fb0536",
+  "failed.json",
+);
+const immutableAttemptOneDiagnosticSha256 =
+  "acb8f447ebea55d4a3181e98f7e74810e85174bc32f3c506cda603c308d43663";
 
 test("passing schema-v3 candidate satisfies all closed structures and semantics", () => {
   const candidate = passingCandidate();
@@ -123,6 +145,117 @@ test("failed and blocked attempts use the independent closed diagnostic schema",
       validator.validateDocumentStructure(mutated, diagnosticSchema).join("\n"),
       new RegExp(expected, "i"),
       expected,
+    );
+  }
+});
+
+test("diagnostic schema preserves immutable v1 history and closes v2 command/non-command failures", async (t) => {
+  let immutableText;
+  try {
+    immutableText = await readFile(immutableAttemptOneDiagnosticPath, "utf8");
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      t.skip("immutable native-attempt-1 diagnostic is not retained on this machine");
+      return;
+    }
+    throw error;
+  }
+  assert.equal(sha256(immutableText), immutableAttemptOneDiagnosticSha256);
+  assert.deepEqual(
+    validator.validateDocumentStructure(JSON.parse(immutableText), diagnosticSchema),
+    [],
+  );
+  assert.equal(
+    sha256(await readFile(immutableAttemptOneDiagnosticPath, "utf8")),
+    immutableAttemptOneDiagnosticSha256,
+  );
+
+  const commandEvent = attemptDiagnosticV2("failed", "command_event");
+  const nonCommand = attemptDiagnosticV2("blocked", "non_command");
+  assert.deepEqual(validator.validateDocumentStructure(commandEvent, diagnosticSchema), []);
+  assert.deepEqual(validator.validateDocumentStructure(nonCommand, diagnosticSchema), []);
+
+  for (const [label, mutate] of [
+    ["v1 with v2 protocol", (document) => {
+      document.native_attempt.commit_protocol = "external-failure-record-v2";
+    }],
+    ["v1 with v2 discriminator", (document) => {
+      document.failure_kind = "non_command";
+    }],
+  ]) {
+    const invalidV1 = attemptDiagnostic("failed");
+    mutate(invalidV1);
+    assert.notDeepEqual(
+      validator.validateDocumentStructure(invalidV1, diagnosticSchema),
+      [],
+      label,
+    );
+  }
+
+  const v2WithV1Protocol = structuredClone(nonCommand);
+  v2WithV1Protocol.native_attempt.commit_protocol = "external-failure-record-v1";
+  assert.notDeepEqual(
+    validator.validateDocumentStructure(v2WithV1Protocol, diagnosticSchema),
+    [],
+  );
+  const v2WithV1Observation = structuredClone(nonCommand);
+  v2WithV1Observation.failure = observation("native-journey", "blocked", "raw detail");
+  assert.notDeepEqual(
+    validator.validateDocumentStructure(v2WithV1Observation, diagnosticSchema),
+    [],
+  );
+
+  for (const field of [
+    "session_role",
+    "event_type",
+    "command_sha256",
+    "output_sha256",
+    "status",
+    "exit_code",
+  ]) {
+    const missing = structuredClone(commandEvent);
+    delete missing.failure_context[field];
+    assert.match(
+      validator.validateDocumentStructure(missing, diagnosticSchema).join("\n"),
+      new RegExp(`${field}.*required`, "i"),
+      `missing command context ${field}`,
+    );
+  }
+
+  const missingContext = structuredClone(commandEvent);
+  delete missingContext.failure_context;
+  assert.match(
+    validator.validateDocumentStructure(missingContext, diagnosticSchema).join("\n"),
+    /failure_context.*required/i,
+  );
+
+  const forbiddenContext = structuredClone(nonCommand);
+  forbiddenContext.failure_context = structuredClone(commandEvent.failure_context);
+  assert.match(
+    validator.validateDocumentStructure(forbiddenContext, diagnosticSchema).join("\n"),
+    /failure_context.*forbidden|must not satisfy/i,
+  );
+
+  for (const [label, mutate] of [
+    ["raw command", (document) => { document.failure_context.command = renderedProofCommand; }],
+    ["raw output", (document) => { document.failure_context.output = "secret output"; }],
+    ["repository path", (document) => { document.failure_context.repository_path = "/tmp/private/repo"; }],
+    ["raw failure detail", (document) => { document.failure.observed = "raw host failure"; }],
+    ["raw skip path", (document) => {
+      document.skips.push({
+        phase_code: "cleanup",
+        reason_code: "blocked",
+        detail_sha256: "e".repeat(64),
+        path: "/tmp/private/repo",
+      });
+    }],
+  ]) {
+    const leaked = structuredClone(commandEvent);
+    mutate(leaked);
+    assert.notDeepEqual(
+      validator.validateDocumentStructure(leaked, diagnosticSchema),
+      [],
+      label,
     );
   }
 });
@@ -453,6 +586,86 @@ test("candidate validation binds Core-derived journey, verification, recovery, a
     ["retained-data descriptor", (candidate) => {
       candidate.documents["observed-facts"].task_data.retained_data_location.canonical_path_sha256 = "f".repeat(64);
     }],
+  ];
+
+  for (const [expected, mutate] of cases) {
+    const candidate = passingCandidate();
+    mutate(candidate);
+    refreshObservedFacts(candidate);
+    assert.match(allErrors(candidateResult(candidate)), new RegExp(expected, "i"), expected);
+  }
+});
+
+test("candidate validation enforces session-aware safe command facts and one bound proof", () => {
+  const baseline = passingCandidate();
+  const invocation = baseline.documents["journey-evidence"].journey.invocation;
+  assert.deepEqual(
+    invocation.session_command_facts.map((fact) => fact.session_role),
+    ["ordinary", "invalid", "substantive", "resume"],
+  );
+  assert.deepEqual(
+    invocation.session_command_facts.map((fact) => fact.classification),
+    ["nonverification", "nonverification", "nonverification", "verification"],
+  );
+  assert.equal(invocation.verification_commands.length, 1);
+  assert.equal(invocation.verification_commands[0].logical_proof_name, logicalProofName);
+  assert.equal(invocation.verification_commands[0].rendered_command_sha256, sha256(renderedProofCommand));
+  assert.equal(baseline.evidenceText.includes(renderedProofCommand), false);
+  assert.equal(baseline.evidenceText.includes(renderedRootGateCommand), false);
+  const rawLeak = structuredClone(baseline.documents["journey-evidence"]);
+  rawLeak.journey.invocation.session_command_facts[0].command = "/bin/zsh -lc 'git status --short'";
+  assert.match(
+    validator.validateEvidenceStructure(rawLeak, schemas["journey-evidence"]).join("\n"),
+    /command.*not allowed/i,
+  );
+
+  const cases = [
+    ["session command facts.*exact", (candidate) => {
+      candidate.documents["observed-facts"].verification.session_command_facts[0].command_sha256 = "f".repeat(64);
+    }],
+    ["ordinary.*nonverification", (candidate) => {
+      updateInvocationFact(candidate, 0, { classification: "verification" });
+    }],
+    ["invalid.*nonverification", (candidate) => {
+      updateInvocationFact(candidate, 1, { classification: "verification" });
+    }],
+    ["ordinary.*zero Dev Flow calls", (candidate) => {
+      candidate.documents["observed-facts"].sessions.ordinary.calls.push({
+        tool: "dev_flow_server_info",
+        revision: null,
+      });
+    }],
+    ["invalid.*zero Dev Flow calls", (candidate) => {
+      candidate.documents["observed-facts"].sessions.invalid.calls.push({
+        tool: "dev_flow_server_info",
+        revision: null,
+      });
+    }],
+    ["bound.*role.*event.*item.*digest|proof subset.*bound", (candidate) => {
+      const proof = candidate.documents["journey-evidence"].journey.invocation.verification_commands[0];
+      proof.event_index = 7;
+      synchronizeJourneyVerification(candidate);
+    }],
+    ["duplicate proof", (candidate) => {
+      const facts = candidate.documents["journey-evidence"].journey.invocation.session_command_facts;
+      facts.push(commandFact({
+        sessionRole: "substantive",
+        eventIndex: 1,
+        itemID: "duplicate-proof-command",
+        renderedCommand: renderedProofCommand,
+        output: "0123456789abcdef0123456789abcdef01234567\n",
+        status: "completed",
+        exitCode: 0,
+        classification: "verification",
+      }));
+      synchronizeJourneyVerification(candidate);
+    }],
+    ...renderedDeniedCommands.map((renderedCommand) => [
+      "known test/full-suite.*pnpm run validate|known test/full-suite.*forbidden",
+      (candidate) => {
+        updateInvocationFact(candidate, 2, { command_sha256: sha256(renderedCommand) });
+      },
+    ]),
   ];
 
   for (const [expected, mutate] of cases) {
@@ -874,6 +1087,47 @@ function refreshBoundCandidate(candidate) {
 }
 
 function passingJourney() {
+  const ordinaryFact = commandFact({
+    sessionRole: "ordinary",
+    eventIndex: 0,
+    itemID: "ordinary-ambient-command",
+    renderedCommand: "/bin/zsh -lc 'git status --short'",
+    output: "",
+    status: "completed",
+    exitCode: 0,
+    classification: "nonverification",
+  });
+  const invalidFact = commandFact({
+    sessionRole: "invalid",
+    eventIndex: 0,
+    itemID: "invalid-git-probe",
+    renderedCommand: "/bin/zsh -lc 'git rev-parse --show-toplevel'",
+    output: "fatal: not a git repository",
+    status: "failed",
+    exitCode: 128,
+    classification: "nonverification",
+  });
+  const substantiveFact = commandFact({
+    sessionRole: "substantive",
+    eventIndex: 0,
+    itemID: "substantive-repository-command",
+    renderedCommand: "/bin/zsh -lc 'printf native-proof > native-proof.txt'",
+    output: "",
+    status: "completed",
+    exitCode: 0,
+    classification: "nonverification",
+  });
+  const proofFact = commandFact({
+    sessionRole: "resume",
+    eventIndex: 0,
+    itemID: "resume-proof-command",
+    renderedCommand: renderedProofCommand,
+    output: "0123456789abcdef0123456789abcdef01234567\n",
+    status: "completed",
+    exitCode: 0,
+    classification: "verification",
+  });
+  const sessionCommandFacts = [ordinaryFact, invalidFact, substantiveFact, proofFact];
   return {
     task_lineage: {
       thread_ids: ["thread-ordinary", "thread-invalid", "thread-substantive", "thread-resume"],
@@ -911,16 +1165,8 @@ function passingJourney() {
         allow_full_suite: false,
         allow_manual_handoff: false,
       },
-      verification_commands: [
-        {
-          item_id: "command-1",
-          command: "node --test native-proof.test.mjs",
-          exit_code: 0,
-          status: "completed",
-          output_sha256: "9".repeat(64),
-          full_suite: false,
-        },
-      ],
+      session_command_facts: sessionCommandFacts,
+      verification_commands: [proofCommand(proofFact)],
       submitted_automated_command_count: 1,
       retained_automated_command_count: 1,
       submitted_full_suite: false,
@@ -961,17 +1207,75 @@ function passingJourney() {
 function verificationFacts(invocation) {
   return {
     budget: structuredClone(invocation.verification_budget),
+    session_command_facts: structuredClone(invocation.session_command_facts),
     command_executions: structuredClone(invocation.verification_commands),
     submitted_automated_checks: invocation.verification_commands.map((command) => ({
-      name: command.command,
+      name: command.logical_proof_name,
       command_count: 1,
       full_suite: command.full_suite,
     })),
     retained_automated_checks: invocation.verification_commands.map((command) => ({
-      name: command.command,
+      name: command.logical_proof_name,
       command_count: 1,
       full_suite: command.full_suite,
     })),
+  };
+}
+
+function updateInvocationFact(candidate, index, patch) {
+  Object.assign(
+    candidate.documents["journey-evidence"].journey.invocation.session_command_facts[index],
+    patch,
+  );
+  synchronizeJourneyVerification(candidate);
+}
+
+function synchronizeJourneyVerification(candidate) {
+  const journey = candidate.documents["journey-evidence"].journey;
+  const observedFacts = candidate.documents["observed-facts"];
+  observedFacts.journey = structuredClone(journey);
+  observedFacts.verification.session_command_facts = structuredClone(
+    journey.invocation.session_command_facts,
+  );
+  observedFacts.verification.command_executions = structuredClone(
+    journey.invocation.verification_commands,
+  );
+}
+
+function commandFact({
+  sessionRole,
+  eventIndex,
+  itemID,
+  renderedCommand,
+  output,
+  status,
+  exitCode,
+  classification,
+}) {
+  return {
+    session_role: sessionRole,
+    event_index: eventIndex,
+    event_type: "command_execution",
+    item_id_sha256: sha256(itemID),
+    command_sha256: sha256(renderedCommand),
+    output_sha256: sha256(output),
+    status,
+    exit_code: exitCode,
+    classification,
+  };
+}
+
+function proofCommand(fact) {
+  return {
+    session_role: fact.session_role,
+    event_index: fact.event_index,
+    item_id_sha256: fact.item_id_sha256,
+    logical_proof_name: logicalProofName,
+    rendered_command_sha256: fact.command_sha256,
+    exit_code: fact.exit_code,
+    status: fact.status,
+    output_sha256: fact.output_sha256,
+    full_suite: false,
   };
 }
 
@@ -1040,6 +1344,36 @@ function attemptDiagnostic(status) {
     failure: observation("native-journey", "native attempt failed", "Codex exited 1"),
     skips: [],
   };
+}
+
+function attemptDiagnosticV2(status, failureKind) {
+  const diagnostic = attemptDiagnostic(status);
+  diagnostic.schema_version = 2;
+  diagnostic.native_attempt.commit_protocol = "external-failure-record-v2";
+  diagnostic.failure_kind = failureKind;
+  diagnostic.failure = {
+    phase_code: failureKind === "command_event" ? "codex-session" : "native-journey",
+    reason_code: failureKind === "command_event" ? "command-event-rejected" : "blocked",
+    detail_sha256: "d".repeat(64),
+  };
+  diagnostic.skips = [
+    {
+      phase_code: "cleanup",
+      reason_code: "blocked",
+      detail_sha256: "e".repeat(64),
+    },
+  ];
+  if (failureKind === "command_event") {
+    diagnostic.failure_context = {
+      session_role: "ordinary",
+      event_type: "command_execution",
+      command_sha256: sha256("/bin/zsh -lc 'git status --short'"),
+      output_sha256: sha256(""),
+      status: "completed",
+      exit_code: 0,
+    };
+  }
+  return diagnostic;
 }
 
 function chainIdentity(fields) {

@@ -20,7 +20,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": 1
+      "enum": [1, 2]
     },
     "report_type": {
       "const": "dev-flow-codex-native-attempt-diagnostic"
@@ -158,7 +158,7 @@
           "$ref": "#/$defs/sha256"
         },
         "commit_protocol": {
-          "const": "external-failure-record-v1"
+          "enum": ["external-failure-record-v1", "external-failure-record-v2"]
         },
         "observed_facts_sha256": {
           "$ref": "#/$defs/sha256"
@@ -166,12 +166,24 @@
       }
     },
     "failure": {
-      "$ref": "#/$defs/observation"
+      "oneOf": [
+        { "$ref": "#/$defs/observationV1" },
+        { "$ref": "#/$defs/observationV2" }
+      ]
+    },
+    "failure_kind": {
+      "enum": ["command_event", "non_command"]
+    },
+    "failure_context": {
+      "$ref": "#/$defs/failureContext"
     },
     "skips": {
       "type": "array",
       "items": {
-        "$ref": "#/$defs/observation"
+        "oneOf": [
+          { "$ref": "#/$defs/observationV1" },
+          { "$ref": "#/$defs/observationV2" }
+        ]
       }
     }
   },
@@ -212,7 +224,7 @@
         }
       }
     },
-    "observation": {
+    "observationV1": {
       "type": "object",
       "additionalProperties": false,
       "required": ["phase", "reason", "observed"],
@@ -230,6 +242,146 @@
           "minLength": 1
         }
       }
+    },
+    "observationV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase_code", "reason_code", "detail_sha256"],
+      "properties": {
+        "phase_code": {
+          "enum": [
+            "preflight",
+            "setup",
+            "codex-session",
+            "finish",
+            "candidate-validation",
+            "publication",
+            "recovery",
+            "cleanup",
+            "native-journey"
+          ]
+        },
+        "reason_code": {
+          "enum": [
+            "command-event-rejected",
+            "host-command-failed",
+            "host-process-failed",
+            "lifecycle-failed",
+            "protocol-invalid",
+            "candidate-invalid",
+            "integrity-failed",
+            "blocked",
+            "unexpected-failure"
+          ]
+        },
+        "detail_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "failureContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_role",
+        "event_type",
+        "command_sha256",
+        "output_sha256",
+        "status",
+        "exit_code"
+      ],
+      "properties": {
+        "session_role": {
+          "enum": ["ordinary", "invalid", "substantive", "resume"]
+        },
+        "event_type": {
+          "const": "command_execution"
+        },
+        "command_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "output_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "status": {
+          "enum": ["completed", "failed", "declined"]
+        },
+        "exit_code": {
+          "oneOf": [
+            { "type": "integer" },
+            { "type": "null" }
+          ]
+        }
+      }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "schema_version": { "const": 1 }
+        },
+        "required": ["schema_version"]
+      },
+      "then": {
+        "properties": {
+          "failure": { "$ref": "#/$defs/observationV1" },
+          "skips": {
+            "items": { "$ref": "#/$defs/observationV1" }
+          },
+          "native_attempt": {
+            "properties": {
+              "commit_protocol": { "const": "external-failure-record-v1" }
+            }
+          }
+        },
+        "not": {
+          "anyOf": [
+            { "required": ["failure_context"] },
+            { "required": ["failure_kind"] }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": { "const": 2 }
+        },
+        "required": ["schema_version"]
+      },
+      "then": {
+        "required": ["failure_kind"],
+        "properties": {
+          "failure": { "$ref": "#/$defs/observationV2" },
+          "skips": {
+            "items": { "$ref": "#/$defs/observationV2" }
+          },
+          "native_attempt": {
+            "properties": {
+              "commit_protocol": { "const": "external-failure-record-v2" }
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "failure_kind": { "const": "command_event" }
+              },
+              "required": ["failure_kind"]
+            },
+            "then": {
+              "required": ["failure_context"]
+            },
+            "else": {
+              "not": {
+                "required": ["failure_context"]
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
 }

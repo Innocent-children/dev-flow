@@ -281,17 +281,21 @@ passing journey runs through all required checkpoints:
 2. run explicit setup and exact marketplace/plugin readback;
 3. repeat matching setup as an idempotent no-op;
 4. start a fresh Codex session;
-5. send an ordinary request and prove zero calls to the six Dev Flow tools and zero tasks;
-6. exercise empty/conversational and non-Git explicit invocations;
+5. send an ordinary request, record any completed host command as a safe non-verification fact,
+   and prove zero calls to the six Dev Flow tools and zero tasks;
+6. exercise empty/conversational and non-Git explicit invocations, allowing a failed read-only Git
+   discovery command as a non-verification fact while still proving zero Dev Flow calls/tasks;
 7. invoke `$dev-flow` with one substantive single-repository change;
 8. commit at least two Core workflow actions;
 9. close Codex before terminal outcome;
 10. start a new Codex session in the same repository;
 11. explicitly resume and prove the same task ID with advancing revisions;
 12. in the new session call `dev_flow_get_task` then `dev_flow_get_next_action` before any later
-    mutation, derive the Core verification budget, record each complete official
-    `command_execution` as command/exit/status/output digest, reconcile it with submitted and
-    retained automated evidence, and stay within the budget/full-suite policy;
+    mutation, derive the Core verification budget, and record each complete official
+    `command_execution` from all four sessions as role/event/item/command/output digests plus status
+    and exit code. Classify ordinary/invalid commands and substantive/resume repository work as
+    non-verification. Count only the single proof bound one-to-one to submitted and retained Core
+    evidence, and stay within the budget/full-suite policy;
 13. reach authoritative Core `DONE`;
 14. stop Codex/Core;
 15. record repository and complete task-data manifests;
@@ -304,6 +308,15 @@ passing journey runs through all required checkpoints:
 
 The four `codex exec --json` processes must yield four distinct nonempty thread IDs. Validate the
 raw task observations for revision non-regression before collapsing adjacent duplicate revisions.
+The logical proof name is `git hash-object native-proof.txt`; the only accepted Codex 0.147 macOS
+rendering is the byte-exact `/bin/zsh -lc 'git hash-object native-proof.txt'`. Compare that closed
+rendering directly, without a generic shell parser, then persist only its SHA-256. An occurrence in
+ordinary/invalid or a second/Core-unbound occurrence fails the attempt. A literal pre-hash deny
+check also rejects any rendered command containing the closed marker `go test`, `pnpm test`,
+`pnpm run test`, `pnpm run validate`, or `node --test`; it does not parse or normalize shell syntax. Other
+substantive/resume repository commands remain safe-hashed
+non-verification facts and do not consume the Core verification budget. Raw command/output/path
+material is discarded after hashing.
 Both setup and reinstall readback must contain exactly one owned marketplace, exactly one installed
 owned plugin, and zero available plugins; extra registry entries fail the attempt. Direct Core reopen
 is a bounded JSON-RPC channel: any non-JSON line, unknown or duplicate response ID, or stdout/stderr
@@ -325,10 +338,14 @@ When the journey cannot finish, write an honest `failed` or `blocked` diagnostic
 recovery directory, finalize and retain the external ledger entry,
 leave the canonical repository evidence path absent, and treat that chain's artifact as invalid. Do
 not fabricate task lineage, completed lifecycle data, patch the diagnostic, or relaunch the same
-chain. Another launch requires a source correction and a wholly new step 7–9 chain using the same
-durable ledger. Only the unique passing attempt supports the product claim, and no launch is
-permitted after it. Regenerating reports for an already-attempted source commit does not create a
-new launch allowance.
+chain. Immutable version-1 diagnostics remain valid. New diagnostics use version 2 and a required
+`failure_kind`. A completed-command failure uses `command_event` and requires the closed safe object
+`{session_role,event_type,command_sha256,output_sha256,status,exit_code}`; a `non_command` failure
+prohibits that object. Version-2 failure/skip observations use only closed phase/reason codes and a
+detail SHA-256. Never store the raw command, output, environment, or repository path. Another launch requires a source correction and a
+wholly new step 7–9 chain using the same durable ledger. Only the unique passing attempt supports
+the product claim, and no launch is permitted after it. Regenerating reports for an
+already-attempted source commit does not create a new launch allowance.
 
 Every admission and reservation validates the complete ledger history: sequential attempt numbers,
 unique source/chain identities, status/completion consistency, at most one final pass, and at most

@@ -29,10 +29,12 @@ with a substantive requirement, and verify that exactly the shared six-tool surf
 1. **Given** a supported Codex environment and a packed product artifact, **When** the user performs
    the documented setup, **Then** one Dev Flow Skill and one local STDIO MCP server are registered.
 2. **Given** an ordinary coding request without `$dev-flow`, **When** Codex receives the request,
-   **Then** this feature does not require or claim implicit Dev Flow activation.
+   **Then** it makes zero calls to the six Dev Flow tools and creates zero Dev Flow tasks, regardless
+   of any ordinary host-side repository inspection.
 3. **Given** an explicit `$dev-flow` invocation in a non-Git directory or without a substantive
-   requirement, **When** the Skill begins, **Then** it stops before creating a task and explains the
-   missing precondition.
+   requirement, **When** the Skill begins, **Then** it makes zero calls to the six Dev Flow tools,
+   creates zero Dev Flow tasks, and explains the missing precondition; a read-only host Git probe
+   may fail without becoming verification evidence.
 4. **Given** setup completes, **When** the target repository is inspected, **Then** no plugin,
    configuration, task database, or generated instruction file has been added to it.
 
@@ -196,9 +198,22 @@ the repository is unchanged.
 - **FR-023**: The Skill MUST submit evidence sources and verification command counts accurately and
   MUST NOT relabel manual or simulated checks as automated evidence. Native support evidence MUST
   derive the verification budget and authoritative terminal task phase from complete Core results,
-  record every official completed `command_execution` event as command/exit/status/output-digest
-  facts, and reconcile those facts with the exact automated evidence submitted to and retained by
-  Core. A completed host process or free-form agent statement MUST NOT substitute for Core `DONE`.
+  record every official `item.completed` `command_execution` event from each of the ordinary,
+  invalid, substantive, and resume sessions as a role-scoped event/item/command/output digest plus
+  status and exit code, and reconcile only the verification subset with the exact automated
+  evidence submitted to and retained by Core. Ordinary and invalid-session host commands MUST be
+  non-verification facts and those sessions remain gated by zero Dev Flow calls and zero created
+  tasks. In substantive and resume sessions, repository inspection or implementation commands MUST
+  also remain non-verification facts; only a proof event whose logical proof name is bound one to
+  one to both submitted and retained Core evidence may consume the Core verification budget. The
+  logical proof name MUST be distinct from the official Codex 0.147 macOS rendered command; the
+  runner MUST accept only logical proof `git hash-object native-proof.txt` rendered byte-exactly as
+  `/bin/zsh -lc 'git hash-object native-proof.txt'`, without generic shell parsing. It MUST fail
+  closed on an unbound or duplicate proof event and on any rendered command containing the closed
+  known test/full-suite marker `go test`, `pnpm test`, `pnpm run test`, `pnpm run validate`, or
+  `node --test`. Raw command text, output, and paths MUST be discarded after the safe digests are
+  derived. A completed host process or free-form agent statement MUST NOT substitute for Core
+  `DONE`.
 - **FR-024**: The Skill MUST stop when the Core returns `BLOCKED`, `DONE`, or `CANCELLED` and report
   the authoritative unblock condition or outcome.
 
@@ -219,7 +234,14 @@ the repository is unchanged.
   adjacent equal revisions are collapsed. Setup and reinstall readback MUST observe exactly one
   owned marketplace, exactly one installed owned plugin, and zero available entries. Direct Core
   reopen MUST reject protocol contamination, unknown/duplicate response IDs, and bounded-output
-  violations.
+  violations. A failed/blocked diagnostic written after a command event MUST retain only a typed
+  safe context consisting of session role, event type, command/output digests, status, and exit
+  code. The diagnostic contract MUST accept the immutable version-1 history from earlier consumed
+  attempts while requiring every new diagnostic to use the version-2 conditional shape. Version 2
+  MUST distinguish `command_event` from `non_command`: command-event failures require the exact safe
+  context, non-command failures prohibit it, and all version-2 failure/skip detail MUST be a closed
+  phase/reason code plus digest. Neither version may add raw command/output text or repository paths;
+  the accepted immutable version-1 record remains unchanged.
 - **FR-028**: The real journey runner MUST atomically create the single native evidence record from
   observed host events and lifecycle/data/repository measurements. The record MUST include exact
   Codex build/surface, OS/architecture, frozen source and package digest, Core version, the closed
@@ -261,7 +283,9 @@ the repository is unchanged.
 
 - **SC-001**: A supported user can install the packed product and complete setup without editing a
   repository or global MCP configuration manually.
-- **SC-002**: An ordinary request without `$dev-flow` creates zero Dev Flow tasks.
+- **SC-002**: An ordinary request without `$dev-flow`, and an invalid explicit invocation, each make
+  zero calls to the six Dev Flow tools and create zero Dev Flow tasks; host-side repository commands
+  are measured separately as non-verification facts.
 - **SC-003**: Explicit invocation creates or resumes exactly one Codex-owned task for the current
   repository.
 - **SC-004**: The passing real journey crosses at least two committed workflow actions, restarts Codex,

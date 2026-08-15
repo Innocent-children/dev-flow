@@ -247,13 +247,19 @@ failure is a terminal blocked recovery condition and cannot authorize another na
 The repository path `tests/journeys/evidence/codex-macos-arm64.json` and its schema are pass-only. A
 failed or blocked diagnostic uses the independent closed
 [contracts/native-attempt-diagnostic.schema.json](./contracts/native-attempt-diagnostic.schema.json),
-`schema_version=1`, `report_type=dev-flow-codex-native-attempt-diagnostic`, and
-`commit_protocol=external-failure-record-v1`. It records status, time, classification, versions,
-chain/ledger/report/artifact identity, validation projection, the consumed attempt, observed
-failure, and honest skips only; the writer schema-validates it before an atomic write under the
-external chain recovery directory. It never claims journey-evidence schema version 3 or creates the
-canonical evidence path. The durable ledger, not that diagnostic, is the cross-chain attempt
-authority.
+`report_type=dev-flow-codex-native-attempt-diagnostic`. The schema conditionally accepts immutable
+`schema_version=1` / `commit_protocol=external-failure-record-v1` history and new
+`schema_version=2` / `commit_protocol=external-failure-record-v2` records. Both record status, time,
+classification, versions, chain/ledger/report/artifact identity, validation projection, the
+consumed attempt, observed failure, and honest skips only. When a v2 failure is attributable to a
+completed command event, `failure_kind=command_event` requires `failure_context` as the closed safe projection
+`{session_role,event_type,command_sha256,output_sha256,status,exit_code}`. It contains no raw
+command, output, environment, or path. `failure_kind=non_command` prohibits that context. Version-2
+failure and skip observations are closed `{phase_code,reason_code,detail_sha256}` values, so their
+only unbounded diagnostic detail is represented by a digest. The writer schema-validates the diagnostic before an atomic
+write under the external chain recovery directory. It never claims journey-evidence schema version
+3 or creates the canonical evidence path. The durable ledger, not that diagnostic, is the
+cross-chain attempt authority.
 
 ## 6. Codex Native Journey Evidence
 
@@ -278,7 +284,7 @@ contract above.
 | Group | Required contents |
 |---|---|
 | `task_lineage` | Four distinct thread IDs, task ID before/after restart, raw non-regressing revisions, adjacent-deduplicated strictly increasing lineage, at least two Core-confirmed actions, terminal Core phase/outcome. |
-| `invocation` | `$dev-flow`, Core call count/scenario budget, zero implicit calls, ordered restart recovery reads, complete Core verification budget, every official completed command execution as command/exit/status/output SHA-256, and reconciled submitted/retained automated evidence counts. |
+| `invocation` | `$dev-flow`, Core call count/scenario budget, zero implicit calls, ordered restart recovery reads, complete Core verification budget, every official completed command execution as a role-scoped safe fact, the Core-bound verification subset, and reconciled submitted/retained automated evidence counts. |
 | `lifecycle` | Setup/readback, restart/resume, removal/readback, data retention, task reopen, compatible reinstall, and exact setup/reinstall registry cardinalities. |
 | `repository` | Target path, before/after/removal digests, intended and unexpected paths. |
 | `task_data` | Canonical file lists and manifest digests before/after removal plus a non-secret retained-data descriptor `{kind:"isolated-explicit-data-directory", workspace_relative_path:"data", canonical_path_sha256}`; no absolute data path. |
@@ -303,19 +309,29 @@ JSON Schema validates shape only. The planned
 10. action count is at least two;
 11. Core call count does not exceed the scenario budget, and restart recovery observes
     `dev_flow_get_task` then `dev_flow_get_next_action` before any later mutation;
-12. the verification budget is copied from complete Core results; every completed official
-    `command_execution` has exit code 0/status completed and only an output digest; command count
-    and full-suite classification equal the automated evidence submitted to and retained by Core,
-    remain within `max_automatic_commands`, and respect `allow_full_suite`;
-13. authoritative terminal task phase is `DONE` and the Core outcome is completed;
-14. task-data file lists and manifest digests are equal before/after removal, and the non-secret
+12. `session_command_facts` is the exact bounded projection of every official `item.completed`
+    `command_execution` across the four sessions, ordered within each role and containing only role,
+    event index/type, item/command/output digests, status, exit code, and classification; the raw
+    command/output/path values never enter durable evidence;
+13. ordinary and invalid facts are all `nonverification` and those sessions have zero Dev Flow
+    calls/tasks; substantive/resume repository inspection and implementation facts may also be
+    `nonverification`; the only `verification` fact is a successful exact controlled Codex 0.147
+    macOS rendering of logical proof `git hash-object native-proof.txt`;
+14. each `verification_commands` entry matches exactly one `verification` session fact by role,
+    event index and digests, uses the logical proof name rather than raw rendered text, and matches
+    one submitted and one retained Core automated check; duplicates and unbound proof renderings
+    fail closed, as does any rendered command containing a closed literal marker `go test`,
+    `pnpm test`, `pnpm run test`, `pnpm run validate`, or `node --test`; only this subset counts
+    against the complete Core-derived budget and `allow_full_suite`;
+15. authoritative terminal task phase is `DONE` and the Core outcome is completed;
+16. task-data file lists and manifest digests are equal before/after removal, and the non-secret
     retained-data descriptor matches durable observed facts without exposing an absolute path;
-15. repository digest after completion equals digest after removal;
-16. unexpected changed paths are empty;
-17. every required lifecycle boolean is true, and setup/reinstall readback each has exactly one
+17. repository digest after completion equals digest after removal;
+18. unexpected changed paths are empty;
+19. every required lifecycle boolean is true, and setup/reinstall readback each has exactly one
     owned marketplace, one installed owned plugin, and zero available plugins;
-18. targeted checks and root validation passed before artifact creation;
-19. passing failures/skips arrays are empty.
+20. targeted checks and root validation passed before artifact creation;
+21. passing failures/skips arrays are empty.
 
 Candidate validation is read-only. A failure before publication consumes the reserved attempt,
 retains its external diagnostic/ledger history, and permits a fresh deterministic/final-artifact/

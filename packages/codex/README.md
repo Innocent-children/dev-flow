@@ -99,8 +99,13 @@ before retry: retain the exact original operation, call `dev_flow_get_task` and
 `dev_flow_get_next_action`, and follow only Core's recovery assessment. Never reconstruct a missing
 operation probe or repeat a mutation because its response was lost.
 
-Verification commands count exactly against the Core task's verification budget. Do not run a
-forbidden full suite; when automatic capacity is exhausted, report an honest manual handoff.
+Every completed host command event is retained only as role-scoped status, exit code, and safe
+command/output hashes. Ambient commands in the ordinary or invalid sessions and repository
+inspection or implementation commands in active sessions are non-verification facts. Only the one
+Core-submitted and retained logical proof, rendered by Codex 0.147 on macOS as the closed supported
+command, counts against the verification budget. An unbound or duplicate proof and any known test
+or full-suite command fail closed. Do not run a forbidden full suite; when automatic capacity is
+exhausted, report an honest manual handoff.
 Static, simulated, user-performed, and native evidence keep distinct labels. A Core blocker,
 ownership/contract conflict, `CANCELLED`, or Core-owned `DONE` outcome stops repository work and is
 reported without reinterpretation.
@@ -180,7 +185,10 @@ and exact final evidence/ledger candidates, performs complete structural and sem
 those exact candidates plus unchanged reports/artifact/ledger, publishes only a passing native
 evidence candidate create-no-replace, then atomically finalizes the ledger from the precomputed
 bytes. The canonical repository evidence path is pass-only; failed/blocked diagnostics stay under
-the external recovery directory. Valid passing evidence is an immediate no-host admission lock even
+the external recovery directory. New command-event failures use the closed version-2 diagnostic
+with only session role, event type, safe command/output hashes, status, and exit code; no raw command,
+output, or path is retained, while immutable version-1 attempt history remains byte-unchanged. Valid
+passing evidence is an immediate no-host admission lock even
 if a crash left the ledger reserved. That recovery may only validate the published evidence and
 idempotently install the exact candidate ledger; a pre-evidence crash cannot be promoted to pass or
 relaunch the consumed chain. Post-publication validation only rechecks byte/identity integrity and

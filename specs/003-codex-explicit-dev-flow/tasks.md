@@ -313,6 +313,22 @@ one attempt passes, and validate evidence without post-validation writes.
   deterministic fake npm/Codex/Core child processes using official 0.147 JSONL shapes; (10) extra
   marketplace/installed/available entries rejected during setup and reinstall readback; and (11)
   direct Core reopen rejecting non-JSON stdout, unknown/duplicate IDs, and bounded-output breaches.
+  After native attempt 1 exposed role-blind command classification, reopen T054 again and establish
+  RED before production edits for: (12) an ordinary-session successful ambient command retained as
+  non-verification while Dev Flow calls/tasks remain zero; (13) an invalid-session nonzero read-only
+  Git probe retained as non-verification while Dev Flow calls/tasks remain zero; (14) a
+  substantive/resume non-verification repository command plus exactly one Core-bound proof;
+  (15) the exact Codex 0.147 macOS rendered proof separated from its logical proof name; (16)
+  unbound or duplicate proof rejection; (17) exact known test/full-suite command/rendering,
+  including the repository-wide `pnpm run validate` root gate,
+  rejection; (18) the production default fake subprocess chain passing the real candidate validator
+  with all role-scoped command facts; and (19) schema-version-2 failed/blocked diagnostics carrying
+  a required command/non-command discriminator, typed safe command context only when required, and
+  closed phase/reason/detail-digest observations while the immutable consumed-attempt version-1
+  diagnostic remains valid and byte-unchanged. RED MUST reject a command-event v2 diagnostic with
+  missing context and any raw command/output/path field. The fake Codex MUST no longer return empty ordinary/invalid sessions.
+  Classification MUST be session-aware: all official completed command events are safe-hashed and
+  retained; only the Core-bound proof subset counts against the verification budget.
   T054 may modify only these exact paths:
   `packages/codex/README.md`;
   `packages/codex/package.json`;
@@ -354,7 +370,7 @@ one attempt passes, and validate evidence without post-validation writes.
   validator. Harden only those mapped gates. T054 MUST use deterministic recorded/fake process data
   and MUST NOT replace the default process boundary with wholly injected helpers;
   T058 remains the only native-host execution
-  (FR-014–FR-016, FR-025, FR-027–FR-028, SC-006, SC-008).
+  (FR-014–FR-016, FR-023, FR-025, FR-027–FR-028, SC-002, SC-005, SC-006, SC-008).
 - [ ] T055 Run the complete targeted Go/Node/package/fake/retention set and then run root
   `pnpm run validate`. Immediately before this final deterministic chain, query the official
   `@openai/codex` `latest` npm dist-tag again, require it still resolve to `0.147.0` within the
@@ -470,10 +486,10 @@ one attempt passes, and validate evidence without post-validation writes.
 | Success criterion | Primary evidence tasks |
 |---|---|
 | SC-001 | T017, T024–T030, T058 |
-| SC-002 | T018, T022, T027, T030–T032, T058 |
+| SC-002 | T018, T022, T027, T030–T032, T054, T058 |
 | SC-003 | T031–T040, T043, T058 |
 | SC-004 | T031–T040, T043, T058–T059 |
-| SC-005 | T032, T035, T039–T043, T055, T058–T059 |
+| SC-005 | T032, T035, T039–T043, T054–T055, T058–T059 |
 | SC-006 | T015, T033, T054, T056, T060 |
 | SC-007 | T044–T051, T058–T059 |
 | SC-008 | T003, T052–T060 |
