@@ -179,6 +179,186 @@ Required result:
 
 `complete` creates DONE and releases the repository claim.
 
+## Closed Action Payloads
+
+Application accepts `workflow.ActionPayload`, a sealed Go interface implemented only by the
+phase-specific concrete types below. Callers may construct those concrete values, but cannot add a
+payload type. A nil or typed-nil payload, the wrong payload type for the source phase, a result
+alias, or an invalid field returns `INVALID_ARGUMENT`. Workflow normalizes valid UTF-8 text only by
+trimming leading and trailing whitespace, preserves list order, rejects post-trim duplicates, and
+encodes the normalized concrete payload as compact JSON with HTML escaping disabled. The complete
+normalized payload must not exceed `MaxActionPayloadBytes`. Payloads do not accept arbitrary JSON
+or `map[string]any`; strict unknown-field rejection remains the future MCP decoder's boundary.
+
+### `INTAKE / ASSESS_TASK`
+
+```go
+type AssessTaskPayload struct {
+    Result                         domain.ActionResult `json:"result"`
+    Summary                        string              `json:"summary"`
+    Constraints                    []string            `json:"constraints"`
+    Risks                          []string            `json:"risks"`
+    IntendedChangedSurface         []string            `json:"intended_changed_surface"`
+    VerificationBudgetAcknowledged bool                `json:"verification_budget_acknowledged"`
+}
+```
+
+`Result` is exactly `succeeded`; `Summary` is required; and
+`VerificationBudgetAcknowledged` is true. The three lists may be empty. This payload has no reason
+and authorizes no repository modification.
+
+### `ASSESS / PLAN_CHANGE`
+
+```go
+type PlanChangePayload struct {
+    Result               domain.ActionResult `json:"result"`
+    Summary              string              `json:"summary"`
+    Steps                []string            `json:"steps"`
+    ExpectedChangedPaths []string            `json:"expected_changed_paths"`
+    NonGoals             []string            `json:"non_goals"`
+    VerificationSteps    []string            `json:"verification_steps"`
+    UnresolvedQuestions  []string            `json:"unresolved_questions"`
+}
+```
+
+`Result` is exactly `succeeded`; `Summary` is required; and `Steps` and `VerificationSteps` each
+contain at least one item. `UnresolvedQuestions` is empty. The remaining lists may be empty. This
+payload has no reason and authorizes no repository modification.
+
+### `PLAN / IMPLEMENT_CHANGE`
+
+```go
+type ImplementChangePayload struct {
+    Result         domain.ActionResult `json:"result"`
+    Summary        string              `json:"summary"`
+    ChangedPaths   []string            `json:"changed_paths"`
+    NoFileChanges  bool                `json:"no_file_changes"`
+    Deviations     []string            `json:"deviations"`
+    ScopeConfirmed bool                `json:"scope_confirmed"`
+}
+```
+
+`Result` is exactly `succeeded`; `Summary` is required; and `ScopeConfirmed` is true. Exactly one
+of these representations is accepted: a non-empty `ChangedPaths` with `NoFileChanges=false`, or an
+empty `ChangedPaths` with `NoFileChanges=true`. Changed paths are repository-relative, not absolute,
+and contain no parent-escape component. Existence and file contents are not inspected. `Deviations`
+may be empty.
+
+### Verification evidence input
+
+```go
+type EvidenceInput struct {
+    Source       domain.EvidenceSource `json:"source"`
+    Name         string                `json:"name"`
+    Status       domain.EvidenceStatus `json:"status"`
+    Summary      string                `json:"summary"`
+    CommandCount int                   `json:"command_count"`
+    FullSuite    bool                  `json:"full_suite"`
+}
+```
+
+The caller cannot provide an evidence ID, digest, recording time, task/action identity, raw command,
+raw output, source content, or output path. Source and status use the closed Domain enums; name and
+summary are required and bounded; and names are unique within the action after normalization.
+Non-automated evidence has zero commands and `FullSuite=false`; automated command counts remain
+within Core Limits 0.1. The Core later generates evidence IDs, normalized digests, and one mutation
+recording time while preserving input order.
+
+### `IMPLEMENT / VERIFY_CHANGE`
+
+```go
+type VerifyChangePayload struct {
+    Result             domain.ActionResult `json:"result"`
+    Summary            string              `json:"summary"`
+    Checks             []EvidenceInput     `json:"checks"`
+    FailedItems        []string            `json:"failed_items"`
+    UnverifiedItems    []string            `json:"unverified_items"`
+    ManualHandoffItems []string            `json:"manual_handoff_items"`
+    Reason             string              `json:"reason"`
+}
+```
+
+`Result` is exactly `ready` or `failed`, and `Summary` is required. `ready` has no failed items or
+reason. `failed` has a required reason and at least one failed item or one check with `failed`
+status. Checks may be empty, but every accepted verification adds the host-observed
+`verification_summary`. That summary, an optional `transition_reason`, and checks together do not
+exceed `MaxEvidencePerAction`. Manual-handoff items require the task budget's permission.
+
+### `VERIFY / REVIEW_CHANGE`
+
+```go
+type ReviewChangePayload struct {
+    Result        domain.ActionResult `json:"result"`
+    Summary       string              `json:"summary"`
+    Findings      []string            `json:"findings"`
+    ResidualRisks []string            `json:"residual_risks"`
+    Reason        string              `json:"reason"`
+}
+```
+
+`Result` is exactly `pass`, `rework_implementation`, or `replan`, and `Summary` is required. `pass`
+has no reason; rework and replanning require one. Findings and residual risks may be empty.
+
+### Delivery data
+
+```go
+type DeliveryData struct {
+    Acceptance           []domain.OutcomeCriterion `json:"acceptance"`
+    AutomatedEvidenceIDs []domain.ID               `json:"automated_evidence_ids"`
+    ManualEvidenceIDs    []domain.ID               `json:"manual_evidence_ids"`
+    UnverifiedItems      []string                  `json:"unverified_items"`
+    Risks                []string                  `json:"risks"`
+}
+```
+
+Acceptance has the same count, order, and exact criterion text as the immutable task contract.
+Evidence IDs are canonical and unique within and across both lists. Automated IDs resolve to
+`automated` entries in `Task.Evidence`; manual IDs resolve to `user` entries, and are empty when
+manual handoff is disallowed. Delivery data contains no copied evidence summaries and uses
+`UnverifiedItems` for retained user actions.
+
+### `REVIEW / PREPARE_HANDOFF`
+
+```go
+type ReviewHandoffPayload struct {
+    Result   domain.ActionResult `json:"result"`
+    Summary  string              `json:"summary"`
+    Delivery *DeliveryData       `json:"delivery"`
+    Reason   string              `json:"reason"`
+}
+```
+
+`Result` is exactly `ready`, `rework_implementation`, or `replan`, and `Summary` is required.
+`ready` requires valid delivery data and no reason. Rework and replanning require a reason and no
+delivery data. A ready review records only the bounded handoff-preparation evidence, payload digest,
+event, and next action; it does not persist a separate delivery draft.
+
+### `HANDOFF / PREPARE_HANDOFF`
+
+```go
+type CompleteHandoffPayload struct {
+    Result   domain.ActionResult `json:"result"`
+    Summary  string              `json:"summary"`
+    Delivery *DeliveryData       `json:"delivery"`
+    Reason   string              `json:"reason"`
+}
+```
+
+`Result` is exactly `complete`, `rework_implementation`, or `replan`, and `Summary` is required.
+`complete` requires valid delivery data and no reason; rework and replanning require a reason and no
+delivery data. `complete` constructs the final Outcome from this submission.
+
+`BLOCKED / RESOLVE_BLOCKER` has no accepted payload in User Story 2. Application returns
+`TASK_BLOCKED`; blocker creation and resolution remain T061.
+
+### Verification budget evaluation
+
+Workflow evaluates existing `Task.Evidence` and all incoming summary/reason/check evidence exactly
+once. It enforces retained evidence count, total automated command count, full-suite permission,
+user-evidence permission, and manual-handoff-item permission. Malformed evidence returns
+`INVALID_ARGUMENT`; a policy overrun returns `VERIFICATION_BUDGET_EXCEEDED`. It adds no inferred
+semantics for verification levels.
+
 ## Revision Semantics
 
 - New task revision is 1.
