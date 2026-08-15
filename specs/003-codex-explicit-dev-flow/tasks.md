@@ -163,49 +163,49 @@ host restart boundary, and reach Core `DONE` under fake/deterministic evidence.
 
 ### Tests
 
-- [ ] T031 [P] [US2] Create a test-only STDIO Core serving the exact six shared schemas/results and
+- [X] T031 [P] [US2] Create a test-only STDIO Core serving the exact six shared schemas/results and
   injecting success, domain error, conflict, blocker, loss, truncation, budget, cancellation, and
   terminal cases in `packages/codex/tests/fixtures/fake-core.mjs` (FR-013–FR-026).
-- [ ] T032 [US2] Add transcript-driver tests for exact tool mapping, new/resume/conflict, closed
+- [X] T032 [US2] Add transcript-driver tests for exact tool mapping, new/resume/conflict, closed
   identity/payload forwarding, complete results, success continuation, lost/truncated read-before-
   retry, budget accounting, blocker, and terminal reporting in
   `packages/codex/tests/fake-core-contract.test.mjs` (FR-010, FR-013–FR-026).
-- [ ] T033 [P] [US2] Extend authority scans to reject task persistence, state/action catalogs,
+- [X] T033 [P] [US2] Extend authority scans to reject task persistence, state/action catalogs,
   transition/error/completion logic, generic shell MCP, copied fixtures, and production fake imports
   in `packages/codex/tests/skill-contract.test.mjs` (FR-015–FR-018, SC-006).
-- [ ] T034 [P] [US2] Add structural-schema and semantic-validator unit cases for pass, failed,
+- [X] T034 [P] [US2] Add structural-schema and semantic-validator unit cases for pass, failed,
   blocked, version equality, range membership, source/artifact identity, strict revisions,
   task-ID equality, action count, call budget, `DONE`, data/repository digest equality, lifecycle
   booleans, root validation, failures, and skips in
   `packages/codex/tests/journey-evidence.test.mjs` and
   `scripts/validate-codex-journey-evidence.mjs` (FR-027, FR-028).
-- [ ] T035 [P] [US2] Add fake-host journey-harness contracts for bounded stages, source/artifact
+- [X] T035 [P] [US2] Add fake-host journey-harness contracts for bounded stages, source/artifact
   digest propagation, repository/data fingerprints, session restart markers, task lineage, and no
   simulated/native relabelling in `packages/codex/tests/journey-harness.test.mjs`
   (FR-023, FR-027, FR-028).
 
 ### Implementation
 
-- [ ] T036 [US2] Add Core-authoritative `host=codex` create, omitted-contract resume,
+- [X] T036 [US2] Add Core-authoritative `host=codex` create, omitted-contract resume,
   exact-compatible resume, and conflict-stop guidance to the Skill (FR-019, FR-020, SC-003).
-- [ ] T037 [US2] Add the fresh-action loop, inseparable action/revision identity, allowed-effects
+- [X] T037 [US2] Add the fresh-action loop, inseparable action/revision identity, allowed-effects
   gate, closed payload construction, retained request ID, one mutation, and complete success
   continuation to the Skill (FR-015–FR-018, FR-021).
-- [ ] T038 [US2] Add missing/cancelled/malformed/truncated/uncertain mutation handling with task and
+- [X] T038 [US2] Add missing/cancelled/malformed/truncated/uncertain mutation handling with task and
   next-action reads, exact optional operation probe, Core retry advice, and no fabricated recovery
   to the Skill (FR-021, FR-022).
-- [ ] T039 [US2] Add verification-command accounting, evidence labels, manual handoff,
+- [X] T039 [US2] Add verification-command accounting, evidence labels, manual handoff,
   repository-instruction preservation, blocker/conflict/cancel/`DONE` stops, and complete-result
   presentation to the Skill (FR-017, FR-018, FR-023, FR-024).
-- [ ] T040 [US2] Extend the fake-host journey harness with two confirmed Core action commits,
+- [X] T040 [US2] Extend the fake-host journey harness with two confirmed Core action commits,
   deliberate session close/restart markers, same task/revision checks, call-budget accounting,
   uncertain-response readback, and Core `DONE` capture (FR-019–FR-024, FR-027).
-- [ ] T041 [US2] Document create/resume, fresh authority, read-before-retry, budget/evidence labels,
+- [X] T041 [US2] Document create/resume, fresh authority, read-before-retry, budget/evidence labels,
   restart boundary, blocker/conflict, and Core terminal outcomes in `packages/codex/README.md`
   (FR-015–FR-024).
-- [ ] T042 [US2] Run fake-Core, Skill authority, evidence-validator, and journey-harness tests,
+- [X] T042 [US2] Run fake-Core, Skill authority, evidence-validator, and journey-harness tests,
   resolving only US2 failures (FR-025, FR-026).
-- [ ] T043 [US2] Execute
+- [X] T043 [US2] Execute
   `scripts/run-codex-real-journey.sh --fake-host --through done`; prove same fake task lineage,
   budgeted terminal behavior, and zero native evidence, and assert no Codex process is started
   (SC-003–SC-005).

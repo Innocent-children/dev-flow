@@ -74,6 +74,31 @@ a non-Git directory, or work spanning more than one repository stops before any 
 For an admitted request, the Skill resolves one canonical current worktree and calls
 `dev_flow_server_info({})` first; an incomplete or incompatible six-tool catalog stops the request.
 
+## Core-governed create and resume
+
+After the handshake, a new invocation opens one `host=codex` task using only the bounded user
+request, repository instructions, acceptance criteria, exclusions, and verification authority. An
+explicit resume omits `new_task`; Core must return the compatible active task. A restart/resume must
+preserve the same task ID and continue its advancing revision lineage. An ownership or contract
+conflict stops the invocation without choosing, merging, or replacing task records.
+
+Every iteration consumes one complete fresh Core action. Its task/revision/action identity,
+repository binding, allowed effects, required evidence, payload schema, blocker, and outcome stay
+together. Codex performs only the allowed effect, constructs the returned closed payload, retains a
+request ID, and submits exactly one mutation. A complete success continues only from the returned
+next action or a fresh Core read; Codex does not infer transitions or completion.
+
+If a mutation result is missing, cancelled, malformed, truncated, or otherwise uncertain, read
+before retry: retain the exact original operation, call `dev_flow_get_task` and
+`dev_flow_get_next_action`, and follow only Core's recovery assessment. Never reconstruct a missing
+operation probe or repeat a mutation because its response was lost.
+
+Verification commands count exactly against the Core task's verification budget. Do not run a
+forbidden full suite; when automatic capacity is exhausted, report an honest manual handoff.
+Static, simulated, user-performed, and native evidence keep distinct labels. A Core blocker,
+ownership/contract conflict, `CANCELLED`, or Core-owned `DONE` outcome stops repository work and is
+reported without reinterpretation.
+
 Setup, version reporting, and removal are package/user-state operations and behave the same from
 any working directory. They do not add configuration, databases, instructions, or generated files
 to the target repository and never mutate Git.
@@ -111,4 +136,7 @@ The setup checkpoint builds and installs a temporary non-final artifact into iso
 the test-only Codex double first on `PATH`, performs supported JSON registration/readback, compares
 the repository fingerprint, and emits a `classification=simulated` JSON record with
 `real_codex_started=false` and `native_evidence_written=false`. Calling the harness without
-`--fake-host` is rejected during the user-story phases.
+`--fake-host` is rejected during the user-story phases. The `done` checkpoint additionally drives
+two confirmed fake-Core action commits across a deliberate process restart, loses the second
+mutation response after persistence, reads the same task back before any retry, and captures Core
+`DONE` within the recorded call and verification budgets. It remains simulated evidence only.

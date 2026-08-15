@@ -85,6 +85,111 @@ test("Skill calls server-info first and admits only the exact six-tool Core cont
   assert.doesNotMatch(skill, /generic shell MCP|seventh tool/i);
 });
 
+test("Skill follows fresh Core authority for create, resume, one mutation, and continuation", async () => {
+  const skill = await readFile(skillPath, "utf8");
+  for (const heading of ["## Task discovery", "## Governed action loop", "## Closed forwarding contract"]) {
+    assert.equal(skill.includes(heading), true, `missing ${heading}`);
+  }
+  const discovery = section(skill, "Task discovery");
+  assert.match(discovery, /host=codex|host=`codex`|`host=codex`/i);
+  assert.match(discovery, /resume[\s\S]*omit[\s\S]*`new_task`/i);
+  assert.match(discovery, /new[\s\S]*contract[\s\S]*user/i);
+  assert.match(discovery, /ownership|contract conflict/i);
+  assert.match(discovery, /stop/i);
+
+  const loop = section(skill, "Governed action loop");
+  for (const identity of [
+    "task ID",
+    "revision",
+    "action ID",
+    "action kind",
+    "repository-binding digest",
+    "allowed effects",
+    "required evidence",
+    "payload schema",
+  ]) {
+    assert.match(loop, new RegExp(escapeRegExp(identity), "i"));
+  }
+  assert.match(loop, /fresh|live Core/i);
+  assert.match(loop, /one mutation|exactly one mutation/i);
+  assert.match(loop, /request ID/i);
+  assert.match(loop, /complete successful[\s\S]*(?:returned|fresh)[\s\S]*(?:next action|Core read)/i);
+
+  const forwarding = section(skill, "Closed forwarding contract");
+  assert.match(forwarding, /closed payload/i);
+  assert.match(forwarding, /unknown fields|aliases/i);
+  assert.match(forwarding, /recovery_apply[\s\S]*Core/i);
+});
+
+test("Skill reads before retry and preserves budgets, evidence labels, and terminal stops", async () => {
+  const skill = await readFile(skillPath, "utf8");
+  const recovery = section(skill, "Recovery-before-retry contract");
+  for (const uncertainty of ["missing", "cancelled", "malformed", "truncated", "uncertain"]) {
+    assert.match(recovery, new RegExp(uncertainty, "i"));
+  }
+  assert.match(recovery, /does not immediately repeat[\s\S]*dev_flow_apply_action/i);
+  assert.match(recovery, /dev_flow_get_task[\s\S]*dev_flow_get_next_action/i);
+  assert.match(recovery, /operation probe[\s\S]*(?:retained|original)/i);
+  assert.match(recovery, /retry[\s\S]*(?:fresh|Core)[\s\S]*safe/i);
+  assert.match(recovery, /fabricated/i);
+
+  const evidence = section(skill, "Evidence and verification budget");
+  assert.match(evidence, /counted exactly|count.*verification commands/i);
+  assert.match(evidence, /full suite/i);
+  assert.match(evidence, /manual handoff/i);
+  assert.match(evidence, /static[\s\S]*(?:simulated Core|fake-Core)[\s\S]*user[\s\S]*native/i);
+  assert.match(evidence, /repository instructions/i);
+
+  const terminal = section(skill, "Blocked and terminal behavior");
+  for (const outcome of ["BLOCKED", "DONE", "CANCELLED", "conflict"]) {
+    assert.match(terminal, new RegExp(outcome, "i"));
+  }
+  assert.match(terminal, /Core(?:'s|-owned| returns)|authoritative/i);
+  assert.match(terminal, /stop/i);
+});
+
+test("Skill and production adapter contain no workflow authority or test fixture dependency", async () => {
+  const skill = await readFile(skillPath, "utf8");
+  for (const forbiddenHeading of [
+    "## State machine",
+    "## Action catalog",
+    "## Transition table",
+    "## Error taxonomy",
+    "## Completion predicate",
+  ]) {
+    assert.equal(skill.includes(forbiddenHeading), false, forbiddenHeading);
+  }
+  for (const forbidden of [
+    /\btransitionTable\b/,
+    /\btaskStates?\b/,
+    /\bactionPayloadCatalog\b/,
+    /\bnextState\b/,
+    /\bpersistTask\b/,
+    /\bisComplete\b/,
+    /(?:tests\/fixtures|fake-(?:codex|core)|protocol\/fixtures)/i,
+  ]) {
+    assert.doesNotMatch(skill, forbidden);
+  }
+
+  const mcp = JSON.parse(await readFile(join(pluginRoot, ".mcp.json"), "utf8"));
+  assert.deepEqual(Object.keys(mcp.mcpServers), ["dev-flow"]);
+  assert.deepEqual(mcp.mcpServers["dev-flow"], { command: "dev-flow-codex", args: ["mcp"] });
+
+  for (const relativePath of ["bin/dev-flow-codex.mjs", "lib/lifecycle.mjs", "lib/paths.mjs"]) {
+    const source = await readFile(join(packageRoot, relativePath), "utf8");
+    for (const forbidden of [
+      /(?:tests\/fixtures|fake-(?:codex|core)|protocol\/fixtures)/i,
+      /\btransitionTable\b/,
+      /\btaskStates?\b/,
+      /\bactionPayloadCatalog\b/,
+      /\bpersistTask\b/,
+      /\bsqlite\b/i,
+    ]) {
+      assert.doesNotMatch(source, forbidden, `${relativePath} embeds authority or a test import`);
+    }
+  }
+});
+
 function parseFrontmatter(markdown) {
   const match = markdown.match(/^---\n([\s\S]*?)\n---\n/);
   assert.ok(match, "Skill must start with YAML frontmatter");
@@ -105,6 +210,18 @@ function parseFrontmatter(markdown) {
 function firstToolReference(markdown) {
   const match = markdown.match(/\b(dev_flow_[a-z_]+)\b/);
   return match?.[1];
+}
+
+function section(markdown, heading) {
+  const marker = `## ${heading}`;
+  const start = markdown.indexOf(marker);
+  assert.ok(start >= 0, `missing ${marker}`);
+  const next = markdown.indexOf("\n## ", start + marker.length);
+  return markdown.slice(start, next < 0 ? undefined : next);
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 async function walkFiles(root) {
