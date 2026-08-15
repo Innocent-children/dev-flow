@@ -266,22 +266,22 @@ process or service instance, reopen the same database, and resume the same revis
 
 ### Tests for User Story 3
 
-- [ ] T047 [P] [US3] Add close/reopen snapshot and latest-event consistency cases to
+- [x] T047 [P] [US3] Add close/reopen snapshot and latest-event consistency cases to
   `internal/store/restart_test.go`.
-- [ ] T048 [P] [US3] Add unsupported-newer-schema and malformed-row safe-stop cases to
+- [x] T048 [P] [US3] Add unsupported-newer-schema and malformed-row safe-stop cases to
   `internal/store/schema_compatibility_test.go`.
-- [ ] T049 [US3] Add one subprocess restart journey to `tests/journeys/core_restart_test.go` that
+- [x] T049 [US3] Add one subprocess restart journey to `tests/journeys/core_restart_test.go` that
   opens, advances, exits, restarts, resumes, and completes a temporary-repository task.
 
 ### Implementation for User Story 3
 
-- [ ] T050 [US3] Add an internal test-only CLI journey surface in `cmd/dev-flow/main.go` or a
+- [x] T050 [US3] Add an internal test-only CLI journey surface in `cmd/dev-flow/main.go` or a
   dedicated Go test helper without exposing a second public task API.
-- [ ] T051 [US3] Ensure SQLite startup verifies migration digests and rejects unsupported newer
+- [x] T051 [US3] Ensure SQLite startup verifies migration digests and rejects unsupported newer
   schemas without mutation in `internal/store/migrations.go` and `internal/store/sqlite.go`.
-- [ ] T052 [US3] Ensure same-host `open_task` resume returns the persisted action identity rather
+- [x] T052 [US3] Ensure same-host `open_task` resume returns the persisted action identity rather
   than generating a new action in `internal/application/open_task.go`.
-- [ ] T053 [US3] Run the single restart journey and the two targeted storage tests; retain no test
+- [x] T053 [US3] Run the single restart journey and the two targeted storage tests; retain no test
   database or repository after completion.
 
 **Checkpoint**: Restart resumability is proven independently of Codex and DeepSeek.
