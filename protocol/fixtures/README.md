@@ -33,6 +33,22 @@ Feature 002 User Story 2 adds these shared mutation examples:
 - `cancelled-outcome.json`: complete unverified acceptance classification, retained evidence-ID
   references, and released claim indication.
 
+Feature 002 User Story 4 adds the transient uncertain-action and blocker examples:
+
+- `recovery-not-started.json`: exact current source with no retained payload and safe retry advice;
+- `recovery-completed-and-recorded.json`: latest exact `LastOperation` proof and committed read-back;
+- `recovery-completed-but-unrecorded.json`: complete payload/effect evidence awaiting recovery apply;
+- `recovery-partially-completed.json`: worktree-only implementation evidence with a restore condition;
+- `recovery-conflicting.json`: forbidden repository evidence classified as a current-source conflict;
+- `recovery-apply-read-back.json`: ordinary `ApplyActionResult` read-back without an embedded assessment;
+- `recovery-blocked.json`: retained issuance binding, Core-owned blocker, condition, and resolve action;
+- `recovery-resolved.json`: explicit exact restoration, one resolution evidence item, and a fresh normal action.
+
+`task.json` and `next-action.json` show their no-probe shape with a null `recovery_assessment`;
+`next-action.json` also carries explicit nullable `action`, `blocker`, and `outcome` projections. The
+five classification fixtures keep recovery assessment under the successful result, never in the
+top-level error recovery instruction used by failure fixtures such as `repository-drift.json`.
+
 The success fixtures keep revision, current-action revision, and binding digest aligned. Outcome
 evidence remains canonical ID references to `Task.Evidence`; it never embeds a second copy. Mutation
 error fixtures intentionally omit Task, Contract, repository path, status, source content, diff,

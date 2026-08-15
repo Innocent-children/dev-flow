@@ -30,6 +30,8 @@
       "guidance": "Assess the task contract and repository without modifying source files.",
       "issued_at": "2026-01-02T03:04:05Z"
     },
-    "outcome": null
+    "blocker": null,
+    "outcome": null,
+    "recovery_assessment": null
   }
 }
