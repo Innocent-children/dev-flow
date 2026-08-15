@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "dev-flow": {
+      "command": "dev-flow-codex",
+      "args": [
+        "mcp"
+      ]
+    }
+  }
+}

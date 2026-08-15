@@ -97,56 +97,56 @@ the fake lifecycle contract, reject implicit/invalid invocation, and leave repos
 
 ### Tests
 
-- [ ] T015 [P] [US1] Add failing source/staged-tarball contracts for one plugin, one Skill, one
+- [X] T015 [P] [US1] Add failing source/staged-tarball contracts for one plugin, one Skill, one
   MCP server, package/plugin/Core version parity, packaged runtime, exact content allowlist, no
   lifecycle mutation, no copied Core source/fixtures/fakes, and no workflow authority in
   `packages/codex/tests/package-contract.test.mjs` (FR-001–FR-003, FR-009, FR-014, FR-025).
-- [ ] T016 [P] [US1] Add failing launcher tests for package-local executable selection,
+- [X] T016 [P] [US1] Add failing launcher tests for package-local executable selection,
   default/override data roots, inherited protocol stdio, zero launcher stdout contamination,
   platform/executable failure, and exit/signal forwarding in
   `packages/codex/tests/launcher.test.mjs` (FR-002, FR-005).
-- [ ] T017 [P] [US1] Extend fake-Codex lifecycle tests for compatibility/resource/PATH preflight,
+- [X] T017 [P] [US1] Extend fake-Codex lifecycle tests for compatibility/resource/PATH preflight,
   zero-write failure, marketplace/plugin JSON commands, exact readback, matching repeat, ownership
   conflict, bounded rollback, and working-directory fingerprints in
   `packages/codex/tests/lifecycle.test.mjs` (FR-004–FR-006, SC-001).
-- [ ] T018 [P] [US1] Add failing Skill contracts for one `dev-flow` resource, exact current-turn
+- [X] T018 [P] [US1] Add failing Skill contracts for one `dev-flow` resource, exact current-turn
   `$dev-flow` guard, zero implicit Dev Flow calls, substantive/resume intent, Git/single-repository
   preconditions, server-info-first behavior, and exact six-tool admission in
   `packages/codex/tests/skill-contract.test.mjs` (FR-009–FR-014, SC-002).
 
 ### Implementation
 
-- [ ] T019 [P] [US1] Define one in-package local marketplace containing only the reviewed plugin in
+- [X] T019 [P] [US1] Define one in-package local marketplace containing only the reviewed plugin in
   `packages/codex/.agents/plugins/marketplace.json` (FR-004, FR-009).
-- [ ] T020 [P] [US1] Define the implementation-time official plugin identity, version, Skill, and
+- [X] T020 [P] [US1] Define the implementation-time official plugin identity, version, Skill, and
   MCP resources in `packages/codex/plugin/.codex-plugin/plugin.json` (FR-004, FR-008, FR-009).
-- [ ] T021 [P] [US1] Configure one local STDIO server invoking exactly `dev-flow-codex mcp` in
+- [X] T021 [P] [US1] Configure one local STDIO server invoking exactly `dev-flow-codex mcp` in
   `packages/codex/plugin/.mcp.json` (FR-002, FR-014, FR-017).
-- [ ] T022 [P] [US1] Implement exact explicit-selector, substantive/resume, one-worktree,
+- [X] T022 [P] [US1] Implement exact explicit-selector, substantive/resume, one-worktree,
   server-info compatibility, and fail-closed admission guidance in
   `packages/codex/plugin/skills/dev-flow/SKILL.md` (FR-010–FR-014, FR-018).
-- [ ] T023 [US1] Implement `mcp` and `--version` dispatch, package-local Core resolution,
+- [X] T023 [US1] Implement `mcp` and `--version` dispatch, package-local Core resolution,
   platform/executable checks, default/override data handling, and inherited stdio/exit/signal
   behavior in `packages/codex/bin/dev-flow-codex.mjs` (FR-002, FR-005).
-- [ ] T024 [US1] Implement setup preflight, read-before-write reconciliation, supported
+- [X] T024 [US1] Implement setup preflight, read-before-write reconciliation, supported
   marketplace/plugin calls, bounded rollback, exact readback, and receipt creation in
   `packages/codex/lib/lifecycle.mjs` (FR-004–FR-006).
-- [ ] T025 [US1] Wire `setup [--json]` with stderr diagnostics, stable nonzero failure, and no
+- [X] T025 [US1] Wire `setup [--json]` with stderr diagnostics, stable nonzero failure, and no
   success-before-readback behavior in `packages/codex/bin/dev-flow-codex.mjs`
   (FR-004, FR-005).
-- [ ] T026 [US1] Build reproducible temporary `darwin-arm64` staging, inject repository `VERSION`,
+- [X] T026 [US1] Build reproducible temporary `darwin-arm64` staging, inject repository `VERSION`,
   verify identity/allowlist invariants, and emit one non-final private `.tgz` for deterministic
   package tests in `scripts/build-codex-local.sh` (FR-001–FR-003, FR-008).
-- [ ] T027 [US1] Implement journey-harness setup stages with artifact install in isolated paths,
+- [X] T027 [US1] Implement journey-harness setup stages with artifact install in isolated paths,
   fake-Codex readback, repository fingerprints, fresh-session markers, and implicit/invalid call
   tracing in `scripts/run-codex-real-journey.sh`; add a mandatory `--fake-host` mode that never
   starts Codex (FR-004–FR-006, FR-010–FR-014).
-- [ ] T028 [US1] Document install, explicit setup/readback, session refresh, compatibility
+- [X] T028 [US1] Document install, explicit setup/readback, session refresh, compatibility
   selection, invalid invocation, repository boundary, and deterministic checkpoint procedure in
   `packages/codex/README.md` (FR-004–FR-008, FR-010–FR-012).
-- [ ] T029 [US1] Run US1 package, launcher, lifecycle, Skill, shared contract, and Codex dry-pack
+- [X] T029 [US1] Run US1 package, launcher, lifecycle, Skill, shared contract, and Codex dry-pack
   checks, resolving only US1 failures (FR-025).
-- [ ] T030 [US1] Execute the US1 checkpoint only with fake Codex and deterministic package
+- [X] T030 [US1] Execute the US1 checkpoint only with fake Codex and deterministic package
   contracts through `scripts/run-codex-real-journey.sh --fake-host --through setup`; assert the
   script rejects a real-host attempt at this phase and creates no native evidence
   (SC-001, SC-002, SC-008).

@@ -1,16 +1,19 @@
 import { execFile as execFileCallback } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
+import { constants as fsConstants } from "node:fs";
 import {
+  access,
   chmod,
   lstat,
   mkdir,
   readFile,
   realpath,
   rename,
+  stat,
   unlink,
   writeFile,
 } from "node:fs/promises";
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 
 import { containedPath } from "./paths.mjs";
@@ -18,6 +21,9 @@ import { containedPath } from "./paths.mjs";
 const execFile = promisify(execFileCallback);
 
 export const CODEX_COMPATIBILITY_RANGE = ">=0.147.0 <0.148.0";
+export const MARKETPLACE_NAME = "dev-flow-local";
+export const PLUGIN_NAME = "dev-flow-codex";
+export const PLUGIN_SELECTOR = `${PLUGIN_NAME}@${MARKETPLACE_NAME}`;
 
 const semverPattern = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
 const digestPattern = /^[0-9a-f]{64}$/;
@@ -56,6 +62,415 @@ export async function runCodexJSON(
     throw new Error(`Codex command did not return valid JSON (${arguments_.join(" ")})`, {
       cause: error,
     });
+  }
+}
+
+export async function inspectCoreVersion(
+  runtimePath,
+  {
+    environment = process.env,
+    currentDirectory = dirname(runtimePath),
+  } = {},
+) {
+  await assertExecutableFile(runtimePath, "packaged Core");
+  let stdout;
+  try {
+    ({ stdout } = await execFile(runtimePath, ["version"], {
+      cwd: currentDirectory,
+      env: environment,
+      encoding: "utf8",
+      maxBuffer: 64 * 1024,
+      windowsHide: true,
+    }));
+  } catch (error) {
+    throw new Error("packaged Core version preflight failed", { cause: error });
+  }
+  const match = /^dev-flow (\S+)\n?$/.exec(stdout);
+  if (!match) throw new Error("packaged Core returned an invalid version line");
+  parseSemver(match[1], "packaged Core version");
+  return match[1];
+}
+
+export async function setupRegistration({
+  paths,
+  packageVersion,
+  codexExecutable = "codex",
+  environment = process.env,
+  now = () => new Date(),
+} = {}) {
+  const preflight = await preflightSetup({
+    paths,
+    packageVersion,
+    codexExecutable,
+    environment,
+  });
+  const commandOptions = {
+    codexExecutable,
+    environment,
+    currentDirectory: paths.packageRoot,
+  };
+  const existingReceipt = await readReceipt(paths.receiptPath);
+  const initialState = await readRegistrationState(commandOptions);
+  const expectedReceipt = createReceipt({
+    paths,
+    packageVersion: preflight.packageVersion,
+    coreVersion: preflight.coreVersion,
+    codexVersion: preflight.codexVersion,
+    resourceDigests: preflight.resourceDigests,
+    installedAt: now().toISOString(),
+  });
+
+  if (existingReceipt) {
+    if (!receiptOwnershipMatches(existingReceipt, expectedReceipt)) {
+      throw new Error("registration receipt ownership conflict; setup made no changes");
+    }
+    assertMatchingRegistrationState(initialState, paths, preflight.packageVersion);
+    return {
+      status: "already-installed",
+      changed: false,
+      receipt: existingReceipt,
+    };
+  }
+
+  assertRegistrationAbsent(initialState, paths);
+  let marketplaceCreated = false;
+  try {
+    await runCodexJSON(
+      ["plugin", "marketplace", "add", paths.marketplaceRoot, "--json"],
+      commandOptions,
+    );
+    marketplaceCreated = true;
+    await runCodexJSON(
+      ["plugin", "add", PLUGIN_SELECTOR, "--json"],
+      commandOptions,
+    );
+    const finalState = await readRegistrationState(commandOptions);
+    assertMatchingRegistrationState(finalState, paths, preflight.packageVersion);
+    await writeReceiptAtomic(paths.receiptPath, expectedReceipt, {
+      ownedRoot: paths.productSupportRoot,
+    });
+    return {
+      status: "installed",
+      changed: true,
+      receipt: expectedReceipt,
+    };
+  } catch (error) {
+    if (marketplaceCreated) {
+      const rollback = await rollbackCreatedMarketplace(paths, commandOptions);
+      if (rollback.error) {
+        throw new Error(
+          `setup failed and bounded marketplace rollback could not complete: ${rollback.error.message}`,
+          { cause: error },
+        );
+      }
+    }
+    throw error;
+  }
+}
+
+async function preflightSetup({ paths, packageVersion, codexExecutable, environment }) {
+  assertObject(paths, "product paths");
+  if (paths.runtimeKey !== "darwin-arm64") {
+    throw new Error(`unsupported platform ${paths.runtimeKey ?? "unknown"}; Feature 003 supports darwin-arm64`);
+  }
+  parseSemver(packageVersion, "package version");
+  await assertPackageResources(paths, packageVersion);
+  const launcherPath = await assertExecutableOnPath("dev-flow-codex", environment?.PATH ?? "");
+  const expectedLauncherPath = join(paths.packageRoot, "bin", "dev-flow-codex.mjs");
+  let canonicalLauncher;
+  let canonicalExpectedLauncher;
+  try {
+    [canonicalLauncher, canonicalExpectedLauncher] = await Promise.all([
+      realpath(launcherPath),
+      realpath(expectedLauncherPath),
+    ]);
+  } catch (error) {
+    throw new Error("resolve the package-owned dev-flow-codex launcher on PATH", { cause: error });
+  }
+  if (canonicalLauncher !== canonicalExpectedLauncher) {
+    throw new Error("dev-flow-codex on PATH does not resolve to this installed package");
+  }
+  const coreVersion = await inspectCoreVersion(paths.runtimePath, {
+    environment,
+    currentDirectory: paths.packageRoot,
+  });
+  if (coreVersion !== packageVersion) {
+    throw new Error(`packaged Core version ${coreVersion} does not match package version ${packageVersion}`);
+  }
+  const codexVersion = await inspectCodexVersion(codexExecutable, {
+    environment,
+    currentDirectory: paths.packageRoot,
+  });
+  if (!versionSatisfiesRange(codexVersion)) {
+    throw new Error(`Codex version ${codexVersion} does not satisfy ${CODEX_COMPATIBILITY_RANGE}`);
+  }
+  return {
+    packageVersion,
+    coreVersion,
+    codexVersion,
+    resourceDigests: await digestResources(resourcePaths(paths)),
+  };
+}
+
+async function inspectCodexVersion(codexExecutable, { environment, currentDirectory }) {
+  let stdout;
+  try {
+    ({ stdout } = await execFile(codexExecutable, ["--version"], {
+      cwd: currentDirectory,
+      env: environment,
+      encoding: "utf8",
+      maxBuffer: 64 * 1024,
+      windowsHide: true,
+    }));
+  } catch (error) {
+    throw new Error("Codex version preflight failed", { cause: error });
+  }
+  const match = /^codex(?:-cli)? (\S+)\n?$/.exec(stdout);
+  if (!match) throw new Error("Codex returned an invalid version line");
+  parseSemver(match[1], "Codex version");
+  return match[1];
+}
+
+async function assertPackageResources(paths, packageVersion) {
+  const packageManifest = await readJSON(join(paths.packageRoot, "package.json"), "package manifest");
+  if (packageManifest.name !== PLUGIN_NAME || packageManifest.private !== true) {
+    throw new Error("package manifest has the wrong private product identity");
+  }
+  if (packageManifest.version !== packageVersion) {
+    throw new Error("package manifest version does not match the requested package version");
+  }
+
+  const marketplace = await readJSON(
+    join(paths.marketplaceRoot, ".agents", "plugins", "marketplace.json"),
+    "marketplace catalog",
+  );
+  if (marketplace.name !== MARKETPLACE_NAME || !Array.isArray(marketplace.plugins) || marketplace.plugins.length !== 1) {
+    throw new Error("marketplace catalog must contain exactly the Dev Flow marketplace entry");
+  }
+  const marketplacePlugin = marketplace.plugins[0];
+  if (
+    marketplacePlugin?.name !== PLUGIN_NAME ||
+    marketplacePlugin?.source?.source !== "local" ||
+    marketplacePlugin?.source?.path !== "./plugin"
+  ) {
+    throw new Error("marketplace catalog has an invalid local plugin source");
+  }
+
+  const pluginManifest = await readJSON(
+    join(paths.pluginRoot, ".codex-plugin", "plugin.json"),
+    "plugin manifest",
+  );
+  if (
+    pluginManifest.name !== PLUGIN_NAME ||
+    pluginManifest.version !== packageVersion ||
+    pluginManifest.skills !== "./skills/" ||
+    pluginManifest.mcpServers !== "./.mcp.json"
+  ) {
+    throw new Error("plugin manifest identity or resource paths do not match the package");
+  }
+
+  const mcpConfiguration = await readJSON(
+    join(paths.pluginRoot, ".mcp.json"),
+    "MCP configuration",
+  );
+  assertObject(mcpConfiguration.mcpServers, "MCP servers");
+  assertExactKeys(mcpConfiguration.mcpServers, ["dev-flow"], "MCP servers");
+  const server = mcpConfiguration.mcpServers["dev-flow"];
+  assertObject(server, "Dev Flow MCP server");
+  assertExactKeys(server, ["command", "args"], "Dev Flow MCP server");
+  if (server.command !== "dev-flow-codex" || stableJSON(server.args) !== stableJSON(["mcp"])) {
+    throw new Error("Dev Flow MCP server must invoke exactly dev-flow-codex mcp");
+  }
+
+  const skillPath = join(paths.pluginRoot, "skills", "dev-flow", "SKILL.md");
+  let skill;
+  try {
+    skill = await readFile(skillPath, "utf8");
+  } catch (error) {
+    throw new Error("Dev Flow Skill is unavailable", { cause: error });
+  }
+  if (skill.trim() === "") throw new Error("Dev Flow Skill must be non-empty");
+}
+
+async function readRegistrationState(commandOptions) {
+  const marketplaces = await runCodexJSON(
+    ["plugin", "marketplace", "list", "--json"],
+    commandOptions,
+  );
+  const plugins = await runCodexJSON(["plugin", "list", "--json"], commandOptions);
+  if (!Array.isArray(marketplaces)) throw new Error("Codex marketplace readback must be an array");
+  if (!Array.isArray(plugins)) throw new Error("Codex plugin readback must be an array");
+  return { marketplaces, plugins };
+}
+
+function assertRegistrationAbsent(state, paths) {
+  const marketplaceCollision = state.marketplaces.find(
+    (entry) => entry?.name === MARKETPLACE_NAME || entry?.root === paths.marketplaceRoot,
+  );
+  if (marketplaceCollision) {
+    throw new Error("marketplace ownership conflict without a matching registration receipt");
+  }
+  const pluginCollision = state.plugins.find(
+    (entry) => entry?.name === PLUGIN_NAME || entry?.selector === PLUGIN_SELECTOR,
+  );
+  if (pluginCollision) {
+    throw new Error("plugin ownership conflict without a matching registration receipt");
+  }
+}
+
+function assertMatchingRegistrationState(state, paths, packageVersion) {
+  const matchingMarketplaces = state.marketplaces.filter(
+    (entry) => entry?.name === MARKETPLACE_NAME || entry?.root === paths.marketplaceRoot,
+  );
+  if (matchingMarketplaces.length !== 1) {
+    throw new Error("Codex readback must contain exactly one Dev Flow marketplace identity");
+  }
+  const marketplace = matchingMarketplaces[0];
+  assertObject(marketplace, "marketplace readback");
+  assertExactKeys(marketplace, ["name", "source", "root"], "marketplace readback");
+  if (marketplace.root !== paths.marketplaceRoot || resolve(marketplace.source) !== paths.marketplaceRoot) {
+    throw new Error("Codex marketplace readback conflicts with the package root");
+  }
+
+  const matchingPlugins = state.plugins.filter(
+    (entry) => entry?.name === PLUGIN_NAME || entry?.selector === PLUGIN_SELECTOR || entry?.root === paths.pluginRoot,
+  );
+  if (matchingPlugins.length !== 1) {
+    throw new Error("Codex readback must contain exactly one Dev Flow plugin identity");
+  }
+  const plugin = matchingPlugins[0];
+  assertObject(plugin, "plugin readback");
+  assertExactKeys(
+    plugin,
+    ["name", "marketplace_name", "selector", "root", "source", "version", "installed", "enabled"],
+    "plugin readback",
+  );
+  if (
+    plugin.name !== PLUGIN_NAME ||
+    plugin.marketplace_name !== MARKETPLACE_NAME ||
+    plugin.root !== paths.pluginRoot ||
+    plugin.version !== packageVersion ||
+    plugin.installed !== true ||
+    plugin.enabled !== true ||
+    plugin.source?.source !== "local" ||
+    plugin.source?.path !== "./plugin"
+  ) {
+    throw new Error("Codex plugin readback conflicts with the expected installed plugin");
+  }
+}
+
+async function rollbackCreatedMarketplace(paths, commandOptions) {
+  try {
+    const state = await readRegistrationState(commandOptions);
+    if (state.plugins.some((entry) => entry?.name === PLUGIN_NAME || entry?.selector === PLUGIN_SELECTOR)) {
+      return { preserved: true };
+    }
+    const marketplace = state.marketplaces.find((entry) => entry?.name === MARKETPLACE_NAME);
+    if (!marketplace || marketplace.root !== paths.marketplaceRoot) return { preserved: true };
+    await runCodexJSON(
+      ["plugin", "marketplace", "remove", MARKETPLACE_NAME, "--json"],
+      commandOptions,
+    );
+    const after = await runCodexJSON(
+      ["plugin", "marketplace", "list", "--json"],
+      commandOptions,
+    );
+    if (!Array.isArray(after) || after.some((entry) => entry?.name === MARKETPLACE_NAME)) {
+      throw new Error("marketplace remains after rollback readback");
+    }
+    return { removed: true };
+  } catch (error) {
+    return { error };
+  }
+}
+
+function createReceipt({
+  paths,
+  packageVersion,
+  coreVersion,
+  codexVersion,
+  resourceDigests,
+  installedAt,
+}) {
+  return validateReceipt({
+    schema_version: 2,
+    product: {
+      name: PLUGIN_NAME,
+      version: packageVersion,
+      core_version: coreVersion,
+      codex_compatibility: CODEX_COMPATIBILITY_RANGE,
+    },
+    host: {
+      surface: "codex-cli",
+      version: codexVersion,
+      os: "darwin",
+      arch: "arm64",
+    },
+    registration: {
+      marketplace_name: MARKETPLACE_NAME,
+      marketplace_root: paths.marketplaceRoot,
+      plugin_name: PLUGIN_NAME,
+      plugin_selector: PLUGIN_SELECTOR,
+      plugin_root: paths.pluginRoot,
+    },
+    paths: {
+      package_root: paths.packageRoot,
+      runtime_path: paths.runtimePath,
+      data_dir: paths.dataDirectory,
+      receipt_path: paths.receiptPath,
+    },
+    resource_digests: resourceDigests,
+    installed_at: installedAt,
+  });
+}
+
+function resourcePaths(paths) {
+  return {
+    pluginManifest: join(paths.pluginRoot, ".codex-plugin", "plugin.json"),
+    skill: join(paths.pluginRoot, "skills", "dev-flow", "SKILL.md"),
+    mcpConfiguration: join(paths.pluginRoot, ".mcp.json"),
+  };
+}
+
+async function assertExecutableFile(path, label) {
+  let info;
+  try {
+    info = await stat(path);
+    await access(path, fsConstants.X_OK);
+  } catch (error) {
+    throw new Error(`${label} must exist and be executable`, { cause: error });
+  }
+  if (!info.isFile() || (info.mode & 0o111) === 0) {
+    throw new Error(`${label} must exist and be executable`);
+  }
+}
+
+async function assertExecutableOnPath(name, pathValue) {
+  for (const directory of pathValue.split(delimiter).filter(Boolean)) {
+    const candidate = join(directory, name);
+    try {
+      await assertExecutableFile(candidate, name);
+      return candidate;
+    } catch {
+      // Continue through the closed PATH list.
+    }
+  }
+  throw new Error(`${name} must be executable and discoverable on PATH`);
+}
+
+async function readJSON(path, label) {
+  let contents;
+  try {
+    contents = await readFile(path, "utf8");
+  } catch (error) {
+    throw new Error(`${label} is unavailable at ${path}`, { cause: error });
+  }
+  try {
+    const parsed = JSON.parse(contents);
+    assertObject(parsed, label);
+    return parsed;
+  } catch (error) {
+    throw new Error(`${label} is not valid JSON`, { cause: error });
   }
 }
 
