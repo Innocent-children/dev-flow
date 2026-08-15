@@ -2,6 +2,7 @@ package version
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -67,9 +68,8 @@ func TestValidateSemVerRejectsInvalidValues(t *testing.T) {
 	}
 }
 
-func TestCurrentReadsRootVersion(t *testing.T) {
-	t.Parallel()
-
+func rootVersion(t *testing.T) string {
+	t.Helper()
 	_, testFile, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("runtime.Caller did not return the test source path")
@@ -79,7 +79,14 @@ func TestCurrentReadsRootVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read current root VERSION %q: %v", versionPath, err)
 	}
-	want := strings.TrimSpace(string(contents))
+	return strings.TrimSpace(string(contents))
+}
+
+func TestCurrentReadsRootVersion(t *testing.T) {
+	previous := buildVersion
+	buildVersion = ""
+	t.Cleanup(func() { buildVersion = previous })
+	want := rootVersion(t)
 
 	got, err := Current()
 	if err != nil {
@@ -91,6 +98,76 @@ func TestCurrentReadsRootVersion(t *testing.T) {
 	if err := validateSemVer(got); err != nil {
 		t.Fatalf("Current() returned invalid SemVer %q: %v", got, err)
 	}
+}
+
+func TestCurrentPrefersInjectedBuildVersion(t *testing.T) {
+	previous := buildVersion
+	buildVersion = "9.8.7-rc.1+detached"
+	t.Cleanup(func() { buildVersion = previous })
+
+	got, err := Current()
+	if err != nil {
+		t.Fatalf("Current() returned error for injected version: %v", err)
+	}
+	if got != buildVersion {
+		t.Fatalf("Current() = %q, want injected version %q", got, buildVersion)
+	}
+}
+
+func TestCurrentRejectsInvalidInjectedBuildVersion(t *testing.T) {
+	previous := buildVersion
+	buildVersion = "v9.8.7"
+	t.Cleanup(func() { buildVersion = previous })
+
+	if _, err := Current(); err == nil {
+		t.Fatal("Current() unexpectedly accepted invalid injected version")
+	} else if !strings.Contains(err.Error(), "injected build version") || !strings.Contains(err.Error(), "not numeric") {
+		t.Fatalf("Current() error = %q, want injected-version validation reason", err)
+	}
+}
+
+func TestDetachedBinaryReportsInjectedVersionAfterMove(t *testing.T) {
+	if testing.Short() {
+		t.Skip("building the detached command is an integration check")
+	}
+
+	buildDirectory := t.TempDir()
+	binaryPath := filepath.Join(buildDirectory, "staging", "dev-flow")
+	if err := os.MkdirAll(filepath.Dir(binaryPath), 0o700); err != nil {
+		t.Fatalf("create build directory: %v", err)
+	}
+	moduleRoot := filepath.Clean(filepath.Join(mustTestFileDirectory(t), "..", ".."))
+	ldflag := "-X github.com/Innocent-children/dev-flow/internal/version.buildVersion=9.8.7"
+	command := exec.Command("go", "build", "-trimpath", "-ldflags", ldflag, "-o", binaryPath, "./cmd/dev-flow")
+	command.Dir = moduleRoot
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("build injected binary: %v\n%s", err, output)
+	}
+
+	movedDirectory := filepath.Join(t.TempDir(), "moved binary")
+	if err := os.MkdirAll(movedDirectory, 0o700); err != nil {
+		t.Fatalf("create moved directory: %v", err)
+	}
+	movedPath := filepath.Join(movedDirectory, "dev-flow")
+	if err := os.Rename(binaryPath, movedPath); err != nil {
+		t.Fatalf("move detached binary: %v", err)
+	}
+	output, err := exec.Command(movedPath, "version").CombinedOutput()
+	if err != nil {
+		t.Fatalf("run moved detached binary: %v\n%s", err, output)
+	}
+	if got, want := string(output), "dev-flow 9.8.7\n"; got != want {
+		t.Fatalf("moved binary version output = %q, want unchanged public output %q", got, want)
+	}
+}
+
+func mustTestFileDirectory(t *testing.T) string {
+	t.Helper()
+	_, testFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller did not return the test source path")
+	}
+	return filepath.Dir(testFile)
 }
 
 func TestReadReportsPathAndValidationReason(t *testing.T) {

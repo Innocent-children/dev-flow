@@ -15,12 +15,41 @@ import (
 )
 
 const (
-	requiredPathContract   = "required root path"
-	singleSpecifyContract  = "single root .specify"
-	singleGoModuleContract = "single root go.mod"
-	executableRootContract = "only cmd/dev-flow may be an executable source root"
-	hostPackageContract    = "host packages contain only package.json and README.md"
+	requiredPathContract    = "required root path"
+	singleSpecifyContract   = "single root .specify"
+	singleGoModuleContract  = "single root go.mod"
+	executableRootContract  = "only cmd/dev-flow may be an executable source root"
+	hostPackageContract     = "host packages contain only package.json and README.md"
+	codexFakeImportContract = "Codex production sources cannot import test fakes"
 )
+
+var codexSourceFiles = []string{
+	".agents/plugins/marketplace.json",
+	"README.md",
+	"bin/dev-flow-codex.mjs",
+	"lib/lifecycle.mjs",
+	"lib/paths.mjs",
+	"package.json",
+	"plugin/.codex-plugin/plugin.json",
+	"plugin/.mcp.json",
+	"plugin/skills/dev-flow/SKILL.md",
+	"tests/fake-core-contract.test.mjs",
+	"tests/fixtures/fake-codex.mjs",
+	"tests/fixtures/fake-core.mjs",
+	"tests/journey-evidence.test.mjs",
+	"tests/journey-harness.test.mjs",
+	"tests/launcher.test.mjs",
+	"tests/lifecycle.test.mjs",
+	"tests/package-contract.test.mjs",
+	"tests/paths.test.mjs",
+	"tests/removal-retention.test.mjs",
+	"tests/skill-contract.test.mjs",
+}
+
+var deepseekSkeletonFiles = []string{
+	"README.md",
+	"package.json",
+}
 
 var requiredRootPaths = []string{
 	".github/workflows",
@@ -71,8 +100,45 @@ func TestRepositoryLayout(t *testing.T) {
 func TestRepositoryLayoutAcceptsValidFixture(t *testing.T) {
 	t.Parallel()
 
-	if violations := validateRepositoryLayout(newValidRepository(t)); len(violations) != 0 {
+	root := newValidRepository(t)
+	writeFixtureFile(t, root, "packages/codex/tests/fixtures/fake-codex.mjs", "export const fakeCodex = true;\n")
+	writeFixtureFile(t, root, "packages/codex/tests/fixtures/fake-core.mjs", "export const fakeCore = true;\n")
+	if violations := validateRepositoryLayout(root); len(violations) != 0 {
 		t.Fatalf("valid repository fixture has layout violations: %v", violations)
+	}
+}
+
+func TestCodexRepositoryLayoutRejectsUnreviewedFilesAndFakeImports(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name             string
+		path             string
+		contents         string
+		expectedContract string
+	}{
+		{name: "committed runtime", path: "packages/codex/runtime/darwin-arm64/dev-flow", contents: "binary", expectedContract: hostPackageContract},
+		{name: "committed binary", path: "packages/codex/bin/dev-flow", contents: "binary", expectedContract: hostPackageContract},
+		{name: "committed tarball", path: "packages/codex/dev-flow-codex.tgz", contents: "archive", expectedContract: hostPackageContract},
+		{name: "committed task data", path: "packages/codex/data/tasks.db", contents: "database", expectedContract: hostPackageContract},
+		{name: "committed registration receipt", path: "packages/codex/registrations/codex.json", contents: "{}\n", expectedContract: hostPackageContract},
+		{name: "fixture outside exact test path", path: "packages/codex/fixtures/fake-core.mjs", contents: "export {};\n", expectedContract: hostPackageContract},
+		{
+			name:             "production fake import",
+			path:             "packages/codex/bin/dev-flow-codex.mjs",
+			contents:         "import '../tests/fixtures/fake-core.mjs';\n",
+			expectedContract: codexFakeImportContract,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			root := newValidRepository(t)
+			writeFixtureFile(t, root, test.path, test.contents)
+			assertLayoutViolation(t, validateRepositoryLayout(root), test.path, test.expectedContract)
+		})
 	}
 }
 
@@ -292,25 +358,104 @@ func validateRepositoryLayout(root string) []layoutViolation {
 		})
 	}
 
-	for _, packagePath := range []string{"packages/codex", "packages/deepseek"} {
-		entries, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(packagePath)))
-		if err != nil {
-			continue // The required-path violation already reports this directory.
+	violations = append(violations, validateHostPackageLayout(root, "packages/codex", codexSourceFiles, true)...)
+	violations = append(violations, validateHostPackageLayout(root, "packages/deepseek", deepseekSkeletonFiles, false)...)
+
+	return violations
+}
+
+func validateHostPackageLayout(root, packagePath string, allowedFiles []string, scanProductionFakes bool) []layoutViolation {
+	packageRoot := filepath.Join(root, filepath.FromSlash(packagePath))
+	if _, err := os.Stat(packageRoot); err != nil {
+		return nil // Required-path validation owns a missing or unreadable package root.
+	}
+
+	allowed := make(map[string]struct{}, len(allowedFiles))
+	for _, path := range allowedFiles {
+		allowed[path] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(allowedFiles))
+	var violations []layoutViolation
+
+	err := filepath.WalkDir(packageRoot, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
 		}
-		for _, entry := range entries {
-			if !entry.IsDir() && slices.Contains([]string{"package.json", "README.md"}, entry.Name()) {
-				continue
+		if entry.Name() == "node_modules" {
+			if entry.IsDir() {
+				return filepath.SkipDir
 			}
-			unexpectedPath := packagePath + "/" + entry.Name()
+			return nil
+		}
+		if entry.IsDir() {
+			return nil
+		}
+
+		relative, relErr := filepath.Rel(packageRoot, path)
+		if relErr != nil {
+			return relErr
+		}
+		relative = filepath.ToSlash(relative)
+		fullRelative := packagePath + "/" + relative
+		if _, ok := allowed[relative]; !ok {
 			violations = append(violations, layoutViolation{
-				path:     unexpectedPath,
+				path:     fullRelative,
 				contract: hostPackageContract,
-				detail:   "unexpected host package source or artifact",
+				detail:   "unexpected host package source, test file, runtime, data, receipt, or artifact",
+			})
+			return nil
+		}
+		seen[relative] = struct{}{}
+
+		if !scanProductionFakes || !codexProductionSource(relative) {
+			return nil
+		}
+		contents, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		if codexSourceReferencesFake(contents) {
+			violations = append(violations, layoutViolation{
+				path:     fullRelative,
+				contract: codexFakeImportContract,
+				detail:   "production launcher/lifecycle code references a test fixture",
+			})
+		}
+		return nil
+	})
+	if err != nil {
+		violations = append(violations, layoutViolation{
+			path:     packagePath,
+			contract: "host package tree is inspectable",
+			detail:   err.Error(),
+		})
+	}
+
+	for _, required := range []string{"README.md", "package.json"} {
+		if _, ok := seen[required]; !ok {
+			violations = append(violations, layoutViolation{
+				path:     packagePath + "/" + required,
+				contract: hostPackageContract,
+				detail:   "required host package metadata is missing",
 			})
 		}
 	}
 
 	return violations
+}
+
+func codexProductionSource(path string) bool {
+	return strings.HasPrefix(path, "bin/") || strings.HasPrefix(path, "lib/")
+}
+
+func codexSourceReferencesFake(contents []byte) bool {
+	lower := strings.ToLower(string(contents))
+	for _, marker := range []string{"tests/fixtures", "fake-codex", "fake-core"} {
+		if strings.Contains(lower, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 func assertLayoutViolation(t *testing.T, violations []layoutViolation, expectedPath, expectedContract string) {

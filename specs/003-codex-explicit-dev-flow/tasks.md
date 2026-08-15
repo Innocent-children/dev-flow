@@ -53,35 +53,35 @@ contract gates, and the Codex-aware root validator.
 
 **Critical**: Complete this phase before story implementation.
 
-- [ ] T005 [P] Add failing source-fallback, injected-version, empty/invalid injection, moved-binary,
+- [X] T005 [P] Add failing source-fallback, injected-version, empty/invalid injection, moved-binary,
   and unchanged public-output tests in `internal/version/version_test.go` (FR-002, FR-005).
-- [ ] T006 Implement one link-time `buildVersion` preference with the existing source-tree
+- [X] T006 Implement one link-time `buildVersion` preference with the existing source-tree
   `VERSION` fallback in `internal/version/version.go`, changing no Core Contract 0.1 public behavior
   (FR-002, FR-005).
-- [ ] T007 [P] Extend `tests/contract/package_manifest_test.go` for the reviewed Codex manifest:
+- [X] T007 [P] Extend `tests/contract/package_manifest_test.go` for the reviewed Codex manifest:
   private identity, version parity, one bin, explicit files allowlist, allowed non-lifecycle test
   scripts, forbidden publication/install hooks, and zero production npm dependencies
   (FR-001–FR-003, FR-025).
-- [ ] T008 [P] Extend `tests/contract/repository_layout_test.go` to allow only the reviewed Codex
+- [X] T008 [P] Extend `tests/contract/repository_layout_test.go` to allow only the reviewed Codex
   source/test tree, retain the DeepSeek skeleton boundary, and forbid committed binaries, tarballs,
   task data, receipts, fake-runtime imports, and copied fixtures outside exact test paths
   (FR-001, FR-002, FR-025).
-- [ ] T009 [P] Extend `scripts/validate-repository.sh` from skeleton dry-pack validation to an exact
+- [X] T009 [P] Extend `scripts/validate-repository.sh` from skeleton dry-pack validation to an exact
   Codex source/dry-pack allowlist while preserving all root Go/pnpm gates and the DeepSeek skeleton
   rule; run no native host, publication, or user-state mutation (FR-001–FR-003, FR-025).
-- [ ] T010 [P] Add exact six-tool, no-host-fixture-copy, fixture-count, fixture-level parity, and
+- [X] T010 [P] Add exact six-tool, no-host-fixture-copy, fixture-count, fixture-level parity, and
   canonical aggregate-digest assertions in `tests/contract/fixture_contract_test.go`
   (FR-014, FR-025).
-- [ ] T011 [P] Add failing package-relative runtime, explicit/default data path, Unicode/spaces,
+- [X] T011 [P] Add failing package-relative runtime, explicit/default data path, Unicode/spaces,
   symlink containment, unsupported platform, and no-current-repository fallback tests in
   `packages/codex/tests/paths.test.mjs` (FR-002, FR-006, FR-007, FR-012).
-- [ ] T012 Implement canonical runtime/data/receipt path resolution and exact default-directory
+- [X] T012 Implement canonical runtime/data/receipt path resolution and exact default-directory
   ownership in `packages/codex/lib/paths.mjs` (FR-002, FR-006, FR-007, FR-012).
-- [ ] T013 [P] Add failing closed receipt-schema, dynamic compatibility range, resource digest,
+- [X] T013 [P] Add failing closed receipt-schema, dynamic compatibility range, resource digest,
   atomic-write, symlink-escape, malformed/missing receipt, and adjacent-file cases in
   `packages/codex/tests/lifecycle.test.mjs` using
   `contracts/registration-receipt.schema.json` (FR-005, FR-007, FR-008).
-- [ ] T014 Implement direct Codex JSON-command invocation, closed receipt parsing, atomic receipt
+- [X] T014 Implement direct Codex JSON-command invocation, closed receipt parsing, atomic receipt
   writes, and exact ownership comparison in `packages/codex/lib/lifecycle.mjs`, then run targeted
   checks for T005–T013 only (FR-005, FR-007, FR-025).
 

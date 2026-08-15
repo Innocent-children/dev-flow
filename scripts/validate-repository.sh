@@ -50,12 +50,61 @@ check_go_formatting() {
   fi
 }
 
+validate_codex_source_tree() {
+  node <<'NODE'
+const fs = require("node:fs");
+const path = require("node:path");
+
+const packageRoot = "packages/codex";
+const expectedFiles = [
+  ".agents/plugins/marketplace.json",
+  "README.md",
+  "bin/dev-flow-codex.mjs",
+  "lib/lifecycle.mjs",
+  "lib/paths.mjs",
+  "package.json",
+  "plugin/.codex-plugin/plugin.json",
+  "plugin/.mcp.json",
+  "plugin/skills/dev-flow/SKILL.md",
+  "tests/fake-core-contract.test.mjs",
+  "tests/fixtures/fake-codex.mjs",
+  "tests/fixtures/fake-core.mjs",
+  "tests/journey-evidence.test.mjs",
+  "tests/journey-harness.test.mjs",
+  "tests/launcher.test.mjs",
+  "tests/lifecycle.test.mjs",
+  "tests/package-contract.test.mjs",
+  "tests/paths.test.mjs",
+  "tests/removal-retention.test.mjs",
+  "tests/skill-contract.test.mjs",
+].sort();
+
+function listFiles(directory, prefix = "") {
+  const files = [];
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    if (entry.name === "node_modules") continue;
+    const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+    const absolute = path.join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...listFiles(absolute, relative));
+    else files.push(relative);
+  }
+  return files;
+}
+
+const actualFiles = listFiles(packageRoot).sort();
+if (JSON.stringify(actualFiles) !== JSON.stringify(expectedFiles)) {
+  throw new Error(`Codex source files ${JSON.stringify(actualFiles)}; expected ${JSON.stringify(expectedFiles)}`);
+}
+NODE
+}
+
 validate_package_pack() {
   package_dir=$1
   expected_package_name=$2
+  package_profile=$3
   pack_output=$(pnpm --config.ignore-scripts=true --dir "$package_dir" pack --dry-run --json)
 
-  PACK_OUTPUT="$pack_output" EXPECTED_PACKAGE_NAME="$expected_package_name" node <<'NODE'
+  PACK_OUTPUT="$pack_output" EXPECTED_PACKAGE_NAME="$expected_package_name" PACKAGE_PROFILE="$package_profile" node <<'NODE'
 const report = JSON.parse(process.env.PACK_OUTPUT);
 const packed = Array.isArray(report) ? report[0] : report;
 if (!packed || packed.name !== process.env.EXPECTED_PACKAGE_NAME) {
@@ -65,7 +114,28 @@ if (!packed || packed.name !== process.env.EXPECTED_PACKAGE_NAME) {
 const files = (packed.files ?? [])
   .map((file) => typeof file === "string" ? file : file.path ?? file.name)
   .sort();
-const expectedFiles = ["LICENSE", "README.md", "package.json"];
+const deepseekSkeletonFiles = ["LICENSE", "README.md", "package.json"];
+const codexFinalStagingFiles = [
+  ".agents/plugins/marketplace.json",
+  "LICENSE",
+  "README.md",
+  "bin/dev-flow-codex.mjs",
+  "lib/lifecycle.mjs",
+  "lib/paths.mjs",
+  "package.json",
+  "plugin/.codex-plugin/plugin.json",
+  "plugin/.mcp.json",
+  "plugin/skills/dev-flow/SKILL.md",
+  "runtime/darwin-arm64/dev-flow",
+].sort();
+const expectedByProfile = {
+  "codex-source": codexFinalStagingFiles.filter((file) => file !== "runtime/darwin-arm64/dev-flow"),
+  "deepseek-skeleton": deepseekSkeletonFiles,
+};
+const expectedFiles = expectedByProfile[process.env.PACKAGE_PROFILE];
+if (!expectedFiles) {
+  throw new Error(`unknown package validation profile ${process.env.PACKAGE_PROFILE}`);
+}
 if (JSON.stringify(files) !== JSON.stringify(expectedFiles)) {
   throw new Error(`${packed.name} dry-pack files ${JSON.stringify(files)}; expected ${JSON.stringify(expectedFiles)}`);
 }
@@ -75,12 +145,13 @@ NODE
 run_step "Toolchain versions" check_toolchains
 run_step "Working tree whitespace" git diff --check
 run_step "Go formatting" check_go_formatting
+run_step "Codex source allowlist" validate_codex_source_tree
 run_step "Go package inventory" go list ./...
 run_step "Go vet" go vet ./...
 run_step "Go tests and repository contracts" go test ./...
 run_step "Frozen pnpm workspace install" pnpm install --frozen-lockfile --ignore-scripts
 run_step "pnpm workspace inventory" pnpm --recursive list --depth -1
-run_step "Codex package dry-pack" validate_package_pack packages/codex dev-flow-codex
-run_step "DeepSeek package dry-pack" validate_package_pack packages/deepseek dev-flow-deepseek
+run_step "Codex package dry-pack" validate_package_pack packages/codex dev-flow-codex codex-source
+run_step "DeepSeek package dry-pack" validate_package_pack packages/deepseek dev-flow-deepseek deepseek-skeleton
 
 printf '\nRepository validation passed.\n'

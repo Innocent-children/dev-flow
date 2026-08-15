@@ -10,8 +10,23 @@ import (
 	"strings"
 )
 
-// Current returns the SemVer value stored in the repository root VERSION file.
+// buildVersion is populated for detached release binaries with:
+//
+//	-ldflags "-X github.com/Innocent-children/dev-flow/internal/version.buildVersion=<version>"
+//
+// An empty value preserves source-checkout behavior for development and tests.
+var buildVersion string
+
+// Current returns the injected detached-build version when present, otherwise
+// the SemVer value stored in the repository root VERSION file.
 func Current() (string, error) {
+	if buildVersion != "" {
+		if err := validateSemVer(buildVersion); err != nil {
+			return "", fmt.Errorf("validate injected build version %q: %w", buildVersion, err)
+		}
+		return buildVersion, nil
+	}
+
 	_, sourceFile, _, ok := runtime.Caller(0)
 	if !ok {
 		return "", errors.New("locate VERSION: runtime caller source path is unavailable")
