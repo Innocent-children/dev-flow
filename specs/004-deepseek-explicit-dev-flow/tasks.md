@@ -51,19 +51,19 @@ post-barrier tasks complete.
 - [ ] T001 Record the Feature 003 merge commit, `internal/version` identity, Codex-aware shared
   contracts, root validator, root `VERSION`, Core source identity, and fixture aggregate in
   `specs/004-deepseek-explicit-dev-flow/evidence/direct-consumption.md` (FR-003).
-- [ ] T002 Revalidate official Harness registry/repository evidence, stable/pre-release artifacts,
+- [x] T002 Revalidate official Harness registry/repository evidence, stable/pre-release artifacts,
   package integrity/source, bundle/profile, Skill, MCP-result, add/remove/restart, and compatible
   range in `specs/004-deepseek-explicit-dev-flow/evidence/direct-consumption.md` (FR-004, FR-007–FR-010).
-- [ ] T003 [P] Add failing package/tarball tests for one bundle, one Skill provider, one native STDIO
+- [x] T003 [P] Add failing package/tarball tests for one bundle, one Skill provider, one native STDIO
   MCP integration, six raw tools, approved dependencies, exact allowlist, no hooks/network/proxy,
   and preserved Codex rules in `packages/deepseek/tests/bundle.test.mjs` (FR-001–FR-006).
-- [ ] T004 [P] Add failing runtime/launcher tests for package-relative Core, data roots, permissions,
+- [x] T004 [P] Add failing runtime/launcher tests for package-relative Core, data roots, permissions,
   closed environment, shell-free raw STDIO, redaction, EOF/signals/cancellation, child reaping, no
   listener, and no network in `packages/deepseek/tests/launch-core.test.mjs` (FR-002, FR-011–FR-013).
 - [ ] T005 [P] Add failing Skill tests for one explicit user-only `/dev-flow` Skill, zero implicit
   calls, invalid-scope rejection, server-info first, complete authority, and read-before-retry in
   `packages/deepseek/tests/skill.test.mjs` (FR-014–FR-020, FR-025–FR-026).
-- [ ] T006 [P] Add failing fake-Core/direct-result tests for six-tool discovery, success/domain
+- [x] T006 [P] Add failing fake-Core/direct-result tests for six-tool discovery, success/domain
   error, inline/near-spill/spilled/pruned/near-limit results, markers, retrieval method, byte/digest
   equality, cancellation, lost mutation, budget, `DONE`, and no-proxy-on-failure in
   `packages/deepseek/tests/fake-core.test.mjs` and
@@ -74,23 +74,23 @@ post-barrier tasks complete.
 - [ ] T007 Verify the merged Feature 003 version seam/tests without editing `internal/version/` and
   record their identities in `specs/004-deepseek-explicit-dev-flow/evidence/direct-consumption.md`
   (FR-002–FR-003).
-- [ ] T008 [P] Implement the test-only six-tool STDIO Core and deterministic result/failure vectors
+- [x] T008 [P] Implement the test-only six-tool STDIO Core and deterministic result/failure vectors
   in `packages/deepseek/tests/fixtures/fake-core.mjs` (FR-017–FR-026).
-- [ ] T009 [P] Implement package/platform/runtime/data-root resolution in
+- [x] T009 [P] Implement package/platform/runtime/data-root resolution in
   `packages/deepseek/src/runtime.mjs` (FR-002, FR-005–FR-006, FR-011).
-- [ ] T010 Implement the closed, shell-free, raw-STDIO Core launcher in
+- [x] T010 Implement the closed, shell-free, raw-STDIO Core launcher in
   `packages/deepseek/src/launch-core.mjs` (FR-011–FR-013).
-- [ ] T011 [P] Implement the minimal official Skill provider entry in
+- [x] T011 [P] Implement the minimal official Skill provider entry in
   `packages/deepseek/src/index.mjs` with no task/result/retry state (FR-004, FR-014–FR-015, FR-020).
-- [ ] T012 [P] Replace the package skeleton with private metadata, explicit files/exports, reviewed
+- [x] T012 [P] Replace the package skeleton with private metadata, explicit files/exports, reviewed
   dependencies, and zero install/build/download/publication hooks in
   `packages/deepseek/package.json` (FR-001–FR-005).
 - [ ] T013 Resolve only reviewed Harness dependencies without lifecycle scripts in `pnpm-lock.yaml`
   and record their integrity graph in `specs/004-deepseek-explicit-dev-flow/evidence/direct-consumption.md`
   (FR-004–FR-005, FR-008).
-- [ ] T014 Configure one Skill provider and one official native STDIO MCP client with bounded startup
+- [x] T014 Configure one Skill provider and one official native STDIO MCP client with bounded startup
   and reconnect disabled in `packages/deepseek/cordis.patch.yml` (FR-004, FR-013, FR-017, FR-021).
-- [ ] T015 [P] Add minimal explicit-only Skill metadata/body in
+- [x] T015 [P] Add minimal explicit-only Skill metadata/body in
   `packages/deepseek/skills/dev-flow/SKILL.md` without an action/state/recovery catalog
   (FR-014–FR-015, FR-020–FR-024).
 - [ ] T016 Run the foundation package, launcher, fake-Core, direct-result, and merged-baseline tests;
@@ -98,13 +98,15 @@ post-barrier tasks complete.
 - [ ] T017 Implement isolated direct-consumption orchestration, exact artifact selection, restart,
   byte/marker capture, and provisional/stable classification in
   `scripts/run-deepseek-real-journey.sh` (FR-004–FR-010, FR-021–FR-024).
-- [ ] T018 When no stable Harness exists, optionally run one RC spike and label all six observations
-  `pre-release-native`; when stable exists, run the full stable gate instead. Record results in
-  `specs/004-deepseek-explicit-dev-flow/evidence/direct-consumption.md`; stop with no proxy on any
-  failure (FR-007–FR-009, FR-021–FR-024).
-- [ ] T019 Validate the T018 evidence and audit `packages/deepseek/` for zero proxy/task/recovery
-  implementation before marking Foundation ready in
-  `specs/004-deepseek-explicit-dev-flow/evidence/direct-consumption.md` (FR-020–FR-026).
+- [ ] T018 Select the exact implementation-time Harness artifact (stable when one exists, otherwise
+  at most one optional RC), first prove from first-party source plus a native Host contract that all
+  six MCP tools are hidden/unauthorized outside explicit `/dev-flow`, and only then run the six-case
+  direct-result gate. Label RC observations `pre-release-native`; stop with no proxy when Host scope
+  or direct-result completeness fails (FR-007–FR-009, FR-015–FR-016, FR-021–FR-024, SC-002).
+- [ ] T019 Validate the T018 artifact identity, Host-scope and direct-result evidence, and audit
+  `packages/deepseek/` for zero proxy/task/recovery implementation before allowing Host-dependent
+  US1 tasks; record the result in
+  `specs/004-deepseek-explicit-dev-flow/evidence/direct-consumption.md` (FR-015–FR-026).
 
 ## Phase 3 — User Story 1: install and explicit invocation
 
@@ -129,7 +131,7 @@ post-barrier tasks complete.
 - [ ] T026 [US1] Finalize one provider and one native MCP composition in
   `packages/deepseek/src/index.mjs` and `packages/deepseek/cordis.patch.yml` using only T002 evidence
   (FR-004, FR-013–FR-017, FR-021).
-- [ ] T027 [US1] Complete runtime selection, data-root handling, closed environment, transport
+- [x] T027 [US1] Complete runtime selection, data-root handling, closed environment, transport
   lifecycle, and bounded failures in `packages/deepseek/src/runtime.mjs` and
   `packages/deepseek/src/launch-core.mjs` (FR-002, FR-011–FR-013).
 - [ ] T028 [US1] Build a non-final deterministic-test tarball with the merged version seam and moved
@@ -148,64 +150,66 @@ post-barrier tasks complete.
 
 ## Phase 4 — User Story 2: govern and resume
 
-- [ ] T033 [P] [US2] Extend fake-Core tests for create/resume/conflicts, fresh identity, closed
+- [x] T033 [P] [US2] Extend fake-Core tests for create/resume/conflicts, fresh identity, closed
   payloads, errors, operation probe, blockers, budget, cancellation, and `DONE` in
   `packages/deepseek/tests/fake-core.test.mjs` (FR-017–FR-020, FR-025–FR-026).
 - [ ] T034 [P] [US2] Reject incomplete action/error/recovery/outcome authority and accept only the
   Gate-B-proven complete retrieval path in `packages/deepseek/tests/direct-consumption.test.mjs`
   (FR-021–FR-025).
-- [ ] T035 [P] [US2] Extend Skill authority scans to reject adapter state/catalogs, blind replay,
+- [x] T035 [P] [US2] Extend Skill authority scans to reject adapter state/catalogs, blind replay,
   fabricated probes, over-budget verification, shell use, and evidence promotion in
   `packages/deepseek/tests/skill.test.mjs` (FR-018–FR-020, FR-025–FR-027).
-- [ ] T036 [US2] Extend `packages/deepseek/tests/fixtures/fake-core.mjs` with two action commits,
+- [x] T036 [US2] Extend `packages/deepseek/tests/fixtures/fake-core.mjs` with two action commits,
   uncertain apply/readback, budget evidence, blockers, cancellation, and terminal outcome
   (FR-019, FR-025–FR-026).
-- [ ] T037 [US2] Add `host=deepseek` create/resume and Core-owned conflicts to
+- [x] T037 [US2] Add `host=deepseek` create/resume and Core-owned conflicts to
   `packages/deepseek/skills/dev-flow/SKILL.md` (FR-017–FR-020).
-- [ ] T038 [US2] Add the complete fresh-authority action loop, exact identity/payload, one mutation,
+- [x] T038 [US2] Add the complete fresh-authority action loop, exact identity/payload, one mutation,
   and success continuation to `packages/deepseek/skills/dev-flow/SKILL.md`
   (FR-018–FR-020, FR-023, FR-026).
 - [ ] T039 [US2] Encode only the exact Gate-B-proven result retrieval and completeness checks in
   `packages/deepseek/skills/dev-flow/SKILL.md` (FR-021–FR-023).
-- [ ] T040 [US2] Add uncertain-mutation handling with retained original values and Core-defined
+- [x] T040 [US2] Add uncertain-mutation handling with retained original values and Core-defined
   readback/operation probe in `packages/deepseek/skills/dev-flow/SKILL.md` (FR-018–FR-020, FR-025).
-- [ ] T041 [US2] Add budget accounting, evidence labels, blocker/conflict/cancel stops, and completion
+- [x] T041 [US2] Add budget accounting, evidence labels, blocker/conflict/cancel stops, and completion
   only from complete Core `DONE` in `packages/deepseek/skills/dev-flow/SKILL.md`
   (FR-018–FR-020, FR-026).
-- [ ] T042 [US2] Add fake-host two-action, restart/resume, budget, readback, and `DONE` stages to
+- [x] T042 [US2] Add fake-host two-action, restart/resume, budget, readback, and `DONE` stages to
   `scripts/run-deepseek-real-journey.sh` (FR-019, FR-025–FR-027).
-- [ ] T043 [US2] Run US2 tests and
+- [x] T043 [US2] Run US2 tests and
   `scripts/run-deepseek-real-journey.sh --fake-host --through done`; assert no real Harness/native
   evidence (FR-026–FR-027, SC-004, SC-006).
 
 ## Phase 5 — User Story 3: remove and preserve Codex
 
-- [ ] T044 [P] [US3] Extend package tests for product-identity removal, no cleanup hooks, task-data
+- [x] T044 [P] [US3] Extend package tests for product-identity removal, no cleanup hooks, task-data
   separation, and no Codex-owned resources in `packages/deepseek/tests/bundle.test.mjs` (FR-005–FR-006).
-- [ ] T045 [P] [US3] Add retained-data, no-recursive-cleanup, reinstall/resume, and Codex-comparison
+- [x] T045 [P] [US3] Add retained-data, no-recursive-cleanup, reinstall/resume, and Codex-comparison
   fixture tests in `packages/deepseek/tests/launch-core.test.mjs` and
   `packages/deepseek/tests/journey-harness.test.mjs` (FR-006, FR-011–FR-013).
-- [ ] T046 [US3] Add fake-host remove/restart/absence, data/repository manifests, reinstall, repeated
+- [x] T046 [US3] Add fake-host remove/restart/absence, data/repository manifests, reinstall, repeated
   removal, stale-metadata stop, and Codex-comparison capture to
   `scripts/run-deepseek-real-journey.sh` (FR-006, FR-027–FR-028).
-- [ ] T047 [US3] Document supported removal/restart/readback, no cache purge, retained data,
+- [x] T047 [US3] Document supported removal/restart/readback, no cache purge, retained data,
   reinstall, and mandatory final Codex comparison in `packages/deepseek/README.md`
   (FR-006, FR-028).
 - [ ] T048 [US3] Run bundle, launcher, retained-data, shared-contract, and fake-host removal tests;
   resolve only US3 failures (FR-005–FR-006, FR-026–FR-027).
-- [ ] T049 [US3] Run
+- [x] T049 [US3] Run
   `scripts/run-deepseek-real-journey.sh --fake-host --through remove`; assert no real Harness/native
   evidence (FR-006, FR-027, SC-007).
-- [ ] T050 [US3] Implement/test a read-only final evidence validator that requires real Codex
+- [x] T050 [US3] Implement/test a read-only final evidence validator that requires real Codex
   non-interference for `status=pass` and permits honest blocked/failed records in
   `scripts/validate-deepseek-journey-evidence.mjs` and
   `packages/deepseek/tests/journey-harness.test.mjs` (FR-028, SC-007).
 
 ## Phase 6 — Stable gate, final artifact, and final journey
 
-- [ ] T051 Revalidate/select the latest stable compatible Harness and update all affected research,
-  plan, contracts, quickstart, package docs, tests, and evidence expectations; stop when no stable
-  exists (FR-008, SC-008).
+- [ ] T051 Revalidate/select the latest stable compatible Harness, prove a first-party Host-enforced
+  explicit-invocation visibility/authorization boundary for all six MCP tools, and update all
+  affected research, plan, contracts, quickstart, package docs, tests, and evidence expectations;
+  stop when no stable exists or the exact selected artifact still exposes the tools globally
+  (FR-008, FR-015–FR-016, SC-002, SC-008).
 - [ ] T052 Ensure complete six-case Gate B evidence for the exact T051 stable artifact. Execute the
   full gate when T018 used an RC/different artifact; revalidate and reuse T018 only when it used the
   same exact stable artifact and T051 confirms it remains current. Stop with no proxy/final artifact
@@ -243,9 +247,20 @@ post-barrier tasks complete.
   Feature 004 task and every shared/native/final action.
 - After Feature 003 merges, merge latest `main` with a merge commit, complete T001, rerun analyze,
   and only then continue post-barrier tasks using the merged shared baseline.
-- T018 is optional only for a provisional RC; when it runs on the exact final stable artifact, T052
-  may revalidate/reuse it instead of duplicating the native gate.
+- T005 does not block T007–T019: its source-level assertions exist, but its Host-native zero-call and
+  invalid-scope assertions complete only after T018/T019 prove an enforceable exact-artifact scope.
+- T018 is the acyclic implementation-time Host-scope/direct-result gate. It is optional only when no
+  stable artifact exists and the RC scope check fails or cannot run; in that case Host-dependent
+  tasks remain pending. When T018 runs on the exact final stable artifact, T052 may revalidate/reuse
+  its direct-result evidence instead of duplicating the native gate.
 - T032, T043, and T049 must use `--fake-host` and never start `dsh`.
+- T005/T022/T025/T026/T031/T032 remain pending while exact RC6 exposes MCP tools globally; fake or
+  static evidence cannot complete their Host-scoping sub-steps. They depend on a passing T019, not
+  on the final-stage T051. T051 independently revalidates the selected latest stable artifact and
+  may not infer stable behavior from RC6 or reuse a stale scope result after source/config changes.
+- T021 remains pending until T020/T028 provide the merged package/Core identity needed to exercise
+  an incompatible-Core case; missing/non-executable/early-exit coverage does not substitute, and the
+  thin launcher does not invent a DeepSeek-specific compatibility parser.
 - T051–T059 are serialized; T057 is the sole final stable journey.
 - A source change after T056 invalidates the artifact and returns to T054.
 - Evidence validation failure is never repaired by editing evidence.

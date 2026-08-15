@@ -108,14 +108,17 @@ The launch spec is transient and owns no workflow state.
 | `gate_kind` | `provisional` or `stable`. |
 | `harness_selection` | Exact artifact for this observation. |
 | `case` | `inline_success`, `domain_error`, `near_spill`, `spilled`, `pruned`, or `near_core_limit`. |
+| `classification` | `simulated`, `pre-release-native`, or `stable-native`; stable Gate B accepts only `stable-native`. |
+| `core_ok` | False only for `domain_error`; true for the other five cases. |
 | `core_bytes` / `expected_sha256` | Canonical Core result identity. |
-| `host_representation` / `marker_detected` | Observed display/storage form and incomplete marker. |
+| `host_representation` / `marker_detected` | Observed display/storage form. `spilled` and `pruned` require their matching non-inline marker; other cases require complete inline representation. |
 | `retrieval_method` | Exact official complete-content mechanism. |
 | `recovered_bytes` / `recovered_sha256` | Retrieved canonical identity. |
 | `complete_parse` / `complete` | True only when bytes/digest match and all authority fields parse. |
 
-All six stable observations must be complete for the exact final stable Harness. A same-artifact
-stable gate may be revalidated/reused; RC or different-artifact evidence cannot substitute.
+All six stable observations must be complete, carry distinct canonical result identities, and use
+the exact official retrieval method for the exact final stable Harness. A same-artifact stable gate
+may be revalidated/reused; RC or different-artifact evidence cannot substitute.
 
 ## 8. DeterministicStoryCheckpoint
 
@@ -147,6 +150,11 @@ Final evidence records the merged Feature 003 baseline, exact stable Harness/ran
 Gate B identity, frozen source/final artifact identities, OS/profile, one Skill/six tools,
 `proxy_presence`, task/action/revision lineage, budget, Core `DONE`, removal/data/reinstall/repository
 facts, Codex non-interference, deterministic/root validation, failures, and skips.
+
+An honest stopped record is a closed minimal object containing only `schema_version`, `status`
+(`blocked` or `failed`), `classification=unverified`, `support_claim=false`, and non-empty
+`blocking_reasons`. It cannot carry native evidence, Harness/support surfaces, proxy claims, or
+completion fields.
 
 A read-only semantic validator checks:
 

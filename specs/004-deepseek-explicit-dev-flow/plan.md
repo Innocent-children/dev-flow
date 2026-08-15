@@ -24,6 +24,13 @@ spike may provide engineering evidence when no stable Harness exists, but final 
 complete direct-result gate to pass again on the exact official stable Harness version/build used by
 the final journey.
 
+Exact inspection of `@deepseek-ai/dsh-mcp-client@0.1.0-rc.6` found that it registers discovered MCP
+tools directly on the global Harness tool registry and exposes no reviewed invocation-scoping
+configuration. This is an RC6 capability gap, not a conclusion about a future stable artifact.
+Skill metadata/prose cannot close it. Explicit-only Host integration remains pending until the
+selected artifact provides a verified Host-enforced visibility/authorization mechanism; no proxy
+or Core change is authorized as a workaround.
+
 User-story implementation is verified with deterministic package, fake-Core, fake-profile,
 retained-data, and journey-harness checks. No story phase starts a real Harness host. Native
 execution is limited to:
@@ -56,7 +63,7 @@ Skill, and native MCP composition
 | I. Self-Contained Product Scope | PASS | One bounded DeepSeek package and install-to-remove journey. |
 | II. Single Workflow Authority | PASS | Core alone owns task, action, claim, recovery, budget, and outcome. |
 | III. One State Machine, Bounded Surface | PASS | Exactly six raw Core tools; no alternate catalog. |
-| IV. Thin Host Adapters | PASS | Bundle, Skill, closed launcher, and package evidence only. |
+| IV. Thin Host Adapters | PASS | Bundle, Skill, closed launcher, and package evidence only; the RC6 Host-scoping gap stops rather than adding an adapter gate. |
 | V. Recovery Before Retry | PASS | Incomplete/uncertain mutation output triggers complete retrieval or Core readback. |
 | VI. Read-Only Repository Boundary | PASS | Package/profile/data/evidence remain outside the target repository; Core does not mutate Git. |
 | VII. Evidence-Bounded Testing | PASS | Deterministic story checkpoints, bounded direct-result gates, one final journey. |
@@ -127,10 +134,18 @@ At implementation start and immediately before final support evidence:
 2. identify stable and pre-release artifacts;
 3. record exact package version/build/integrity/source evidence;
 4. select a bounded compatible range;
-5. revalidate bundle/profile, Skill, MCP result, add/remove/restart, and stale-metadata behavior.
+5. revalidate bundle/profile, Skill, MCP result, add/remove/restart, and stale-metadata behavior;
+6. prove the Host itself keeps the six MCP tools unavailable outside the explicit `/dev-flow`
+   invocation context.
 
 When no stable artifact exists, one provisional engineering spike may use the latest reviewed
 release candidate. It is labelled `pre-release-native` and cannot establish support.
+
+RC6 currently fails the sixth selection condition because its MCP client registers all discovered
+tools globally and has no reviewed Skill-invocation scope option. Do not infer that a future stable
+artifact behaves the same; revalidate its exact implementation. If the selected artifact still
+lacks enforcement, stop for a Feature 004 amendment without building an adapter proxy or changing
+Core.
 
 Before final evidence, select the latest official stable compatible artifact. If no stable artifact
 exists, final stable Gate B, final artifact support claim, and final journey remain blocked. Accepting

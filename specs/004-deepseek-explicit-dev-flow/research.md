@@ -35,6 +35,12 @@ Planning-time evidence exposed `@deepseek-ai/dsh@0.1.0-rc.6` and described Harne
 preview. A reviewed release candidate may be used for one bounded direct-result spike only when no
 stable artifact exists. Its classification is `pre-release-native`; it establishes no support.
 
+The 2026-08-15 revalidation found that both official registry tags, `latest` and `next`, still point
+to `0.1.0-rc.6` and that every published version is a release candidate. The artifact manifest has
+no `gitHead`, and the official repository has no tag connecting RC6 to a commit. Exact artifact
+inspection and current official source inspection are therefore recorded separately in
+`evidence/direct-consumption.md`; their relationship is an explicit gap, not an inferred identity.
+
 Before final evidence:
 
 1. select the latest official stable compatible Harness;
@@ -68,6 +74,15 @@ is authorized. Stale metadata after the supported restart stops for amendment.
 Expose one `dev-flow` Skill with the official equivalent of user-invocable true, model-invocable
 false, and explicit `/dev-flow` selection. Ordinary, empty/conversational, non-Git, and
 multi-repository inputs create no task.
+
+The exact `@deepseek-ai/dsh-mcp-client@0.1.0-rc.6` artifact does not enforce that boundary for its
+tools: initial synchronization registers every discovered public name directly through
+`ctx.tools.register(...)`, before a turn, and its closed configuration has no Skill-invocation
+visibility or authorization option. The user-only Skill policy governs Skill content injection; it
+does not scope those global tool registrations. Therefore RC6 static/fake evidence cannot satisfy
+FR-015/FR-016 or SC-002. This is recorded as an RC6 capability gap only; the exact selected stable
+artifact must be revalidated independently. No prompt-only claim, simulated counter, proxy, or Core
+contract change may fill the gap.
 
 ## Decision 5 — Prefer direct native MCP and prove complete results
 

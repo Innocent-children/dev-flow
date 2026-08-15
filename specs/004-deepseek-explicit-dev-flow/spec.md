@@ -73,6 +73,8 @@ comparison logic. Native proof is part of the final stable journey.
 
 - Feature 003 is not merged or its delivered capability identity cannot be verified.
 - Harness changes bundle/profile, Skill, MCP result, add/remove, restart, or stale-metadata behavior.
+- A reviewed pre-release Harness registers MCP tools globally and exposes them to an ordinary prompt
+  before the explicit Skill is selected.
 - No official stable Harness exists.
 - A release-candidate direct-result spike passes but the selected stable artifact behaves
   differently.
@@ -171,7 +173,9 @@ comparison logic. Native proof is part of the final stable journey.
   stable Harness exists. Its facts MUST be labelled pre-release and MUST NOT establish support.
 - **FR-008**: Before final evidence, the latest official stable compatible Harness MUST be selected,
   its exact version/build/integrity and bounded compatible range recorded, and volatile host
-  contracts revalidated.
+  contracts revalidated. Revalidation MUST include a Host-enforced mechanism that keeps all six
+  MCP tools unavailable to ordinary/invalid prompts and makes them callable only in the explicit
+  `/dev-flow` invocation context; Skill prose alone is not enforcement.
 - **FR-009**: The complete direct-result gate MUST be run in full on that exact stable artifact. A
   release-candidate result or evidence from a different stable artifact MUST NOT substitute.
 - **FR-010**: The final native journey MUST use the same exact stable Harness version/build that
@@ -191,9 +195,12 @@ comparison logic. Native proof is part of the final stable journey.
 
 - **FR-014**: The package MUST expose exactly one user-facing Skill named `dev-flow`.
 - **FR-015**: The Skill MUST be user-invocable, not model-invocable, and activate only through the
-  explicit `/dev-flow` token.
+  explicit `/dev-flow` token. The selected Harness MUST enforce the same boundary for the six MCP
+  tools; globally model-visible/callable tools fail this requirement even when the Skill metadata
+  is explicit-only.
 - **FR-016**: Empty/conversational, ordinary, non-Git, and multi-repository requests MUST stop before
-  task creation.
+  every Core call and task creation. A prompt-only instruction, simulated zero-call counter, or
+  static Skill scan is insufficient evidence for the Host boundary.
 - **FR-017**: `dev_flow_server_info` MUST precede discovery/mutation and require compatible Core
   Contract 0.1 plus exactly the six raw tools.
 - **FR-018**: The Skill MUST use complete fresh Core action, binding, schema, allowed effects,

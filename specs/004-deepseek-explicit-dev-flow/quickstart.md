@@ -46,11 +46,18 @@ Inspect official registry/repository evidence and record:
 - exact package version/build/integrity/source relationship;
 - bounded compatible range;
 - bundle/profile, Skill, native MCP result, add/remove/restart, and stale-metadata contracts.
+- a first-party Host mechanism that makes the six MCP tools unavailable outside the explicit
+  `/dev-flow` invocation context.
 
 Planning found only a release candidate. Research and RC/stable evidence modeling may occur before
 the barrier, but native execution may not. After the barrier, when no stable artifact exists, one
 provisional direct-result spike may run and every observation is labelled `pre-release-native`. It
 never establishes support.
+
+Exact RC6 inspection found global MCP tool registration with no reviewed Skill-invocation scope.
+Treat that as an RC6-only capability gap: deterministic Skill/fake checks may continue, but the US1
+explicit-only checkpoint and final Host path remain pending. Do not replace Host enforcement with
+prompt text, a simulated counter, a proxy, or a Core change.
 
 ## 3. Run deterministic foundation checks
 
@@ -65,8 +72,9 @@ node --test packages/deepseek/tests/skill.test.mjs
 go test ./tests/contract
 ```
 
-These checks prove package shape, closed launch, fake results/recovery, explicit admission, shared
-contract preservation, and evidence validation. They do not prove real Harness behavior.
+These checks prove package shape, closed launch, fake results/recovery, Skill admission logic,
+shared contract preservation, and evidence validation. They do not prove real Harness tool scoping
+or ordinary-prompt zero-call behavior.
 
 ## 4. Execute Gate B
 
@@ -97,6 +105,9 @@ Verify one Skill/six tools, ordinary zero-task behavior, explicit/invalid invoca
 failure, package/runtime identity, and repository cleanliness. Assert no real `dsh` process and no
 native evidence.
 
+This fake checkpoint stays pending while the exact selected Harness lacks verified tool scoping;
+hard-coded/simulated zero-call observations cannot complete it.
+
 ## 6. Check User Story 2 without a real Harness journey
 
 ```text
@@ -120,12 +131,13 @@ and do not claim Codex non-interference.
 ## 8. Select the final stable Harness and ensure stable Gate B
 
 Immediately before finalization, select the latest official stable compatible Harness and revalidate
-all volatile contracts. Ensure the complete six-case gate exists for that exact artifact. Reuse
+all volatile contracts, including Host-enforced explicit invocation scope for all six MCP tools.
+Ensure the complete six-case gate exists for that exact artifact. Reuse
 prior evidence only when it is from the same stable artifact and the contract/integrity remain
 unchanged.
 
-If no stable artifact exists, if any stable case fails, or if complete content cannot be recovered,
-stop. Do not build the final artifact or add a proxy.
+If no stable artifact exists, explicit tool scope cannot be proven, any stable case fails, or
+complete content cannot be recovered, stop. Do not build the final artifact or add a proxy.
 
 ## 9. Run all deterministic checks and root validation
 

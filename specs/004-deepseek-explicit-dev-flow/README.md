@@ -33,6 +33,11 @@ Harness evidence is deliberately split:
 - exactly one final stable Harness journey is run after stable Gate B, deterministic/root validation,
   a read-only scope audit, source freeze, and creation of one final product artifact.
 
+Exact RC6 inspection also found that its MCP client registers discovered tools globally without a
+reviewed Skill-invocation scope. This RC6-only capability gap leaves ordinary-prompt zero-call and
+explicit-only Host admission pending; it must be revalidated on the exact selected artifact and may
+not be masked by Skill prose, simulated counters, a proxy, or a Core change.
+
 Passing final evidence must use a real co-installed Codex product and prove DeepSeek removal does not
 change its registration, packaged runtime identity, package selection, or shared Core data. Codex
 absence is a blocker, not a passing skip.

@@ -9,6 +9,11 @@ Before any Core call, require a substantive new requirement or explicit resume i
 Git worktree, and one-repository scope. Ordinary, empty/conversational, non-Git, and multi-repository
 inputs create no task.
 
+The Host, not Skill prose, enforces this boundary for the MCP tools. Outside an explicit
+`/dev-flow` invocation, the six public tools are neither model-visible nor callable. A Harness
+artifact that registers them globally without invocation-scoped visibility/authorization is
+incompatible and stops integration.
+
 ## 2. Tool surface and handshake
 
 One local STDIO integration corresponds one-to-one with:
@@ -22,6 +27,10 @@ One local STDIO integration corresponds one-to-one with:
 
 Harness-native names may be derived from the server name, but raw schemas/semantics remain unchanged.
 No alias, seventh tool, generic forwarder, shell tool, or adapter tool is allowed.
+
+The selected exact Harness artifact must prove invocation-scoped registration or an equivalent
+first-party Host authorization boundary. User-only Skill metadata by itself does not authorize a
+globally registered MCP catalog.
 
 `dev_flow_server_info` precedes discovery/mutation and requires compatible Core Contract 0.1,
 expected host/transport, and exactly the six raw tools.
@@ -52,6 +61,10 @@ algorithm, error reinterpretation, recovery classifier, or completion predicate.
 Required cases are inline success, complete domain error, near-spill, spilled, pruned/compacted, and
 near the Core envelope limit. Each records exact Harness identity, host representation, marker,
 official retrieval method, expected/recovered bytes and SHA-256, and complete parse.
+
+Case identity is fail-closed: `domain_error` carries `ok=false`; the other cases carry `ok=true`;
+spilled and pruned observations carry their matching non-inline marker; and stable observations use
+distinct canonical result identities plus the exact official retrieval mechanism.
 
 Final support requires all six cases from the exact stable Harness used by the final journey. A
 same-artifact stable gate may be revalidated/reused; RC or different-artifact evidence is
