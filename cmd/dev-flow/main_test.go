@@ -2,10 +2,18 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/Innocent-children/dev-flow/internal/application"
+	coremcp "github.com/Innocent-children/dev-flow/internal/mcp"
+	"github.com/Innocent-children/dev-flow/internal/store"
 	"github.com/Innocent-children/dev-flow/internal/version"
+	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestRunHelp(t *testing.T) {
@@ -20,23 +28,22 @@ func TestRunHelp(t *testing.T) {
 		{name: "short flag", args: []string{"-h"}},
 		{name: "long flag", args: []string{"--help"}},
 	}
-
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
 			var stdout bytes.Buffer
 			var stderr bytes.Buffer
-
-			if exitCode := run(tt.args, &stdout, &stderr); exitCode != 0 {
-				t.Fatalf("run(%q) exit code = %d, want 0; stderr = %q", tt.args, exitCode, stderr.String())
+			if exitCode := run(tt.args, bytes.NewReader(nil), &stdout, &stderr, emptyEnvironment, unexpectedServe(t)); exitCode != 0 {
+				t.Fatalf("run(%q) exit code = %d; stderr = %q", tt.args, exitCode, stderr.String())
 			}
 			if stderr.Len() != 0 {
-				t.Fatalf("run(%q) stderr = %q, want empty", tt.args, stderr.String())
+				t.Fatalf("run(%q) stderr = %q", tt.args, stderr.String())
 			}
-
-			assertContainsAll(t, stdout.String(), "Usage:", "Feature 001", "task", "MCP", "not implemented")
+			assertContainsAll(t, stdout.String(), "Core Contract 0.1", "local STDIO MCP", "dev-flow mcp --stdio", dataDirectoryEnvironment)
+			for _, stale := range []string{"Feature 001", "placeholder", "MCP functionality", "installed", "published"} {
+				if strings.Contains(stdout.String(), stale) {
+					t.Errorf("help contains stale or unsupported claim %q", stale)
+				}
+			}
 		})
 	}
 }
@@ -48,56 +55,167 @@ func TestRunVersionUsesCurrentRepositoryVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read current repository version: %v", err)
 	}
-
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-
-	if exitCode := run([]string{"version"}, &stdout, &stderr); exitCode != 0 {
-		t.Fatalf("run(version) exit code = %d, want 0; stderr = %q", exitCode, stderr.String())
+	if exitCode := run([]string{"version"}, bytes.NewReader(nil), &stdout, &stderr, emptyEnvironment, unexpectedServe(t)); exitCode != 0 {
+		t.Fatalf("run(version) exit code = %d; stderr = %q", exitCode, stderr.String())
 	}
-	if stderr.Len() != 0 {
-		t.Fatalf("run(version) stderr = %q, want empty", stderr.String())
+	if stderr.Len() != 0 || stdout.String() != "dev-flow "+wantVersion+"\n" {
+		t.Fatalf("version stdout/stderr = %q/%q", stdout.String(), stderr.String())
 	}
-
-	assertContainsAll(t, stdout.String(), wantVersion, "Feature 001", "task", "MCP", "not implemented")
 }
 
-func TestRunRejectsUnimplementedCommands(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-		args []string
-	}{
-		{name: "unknown", args: []string{"unknown"}},
-		{name: "task", args: []string{"task"}},
-		{name: "mcp", args: []string{"mcp"}},
-		{name: "version arguments", args: []string{"version", "extra"}},
+func TestRunMCPStdioStartsAndStopsCleanlyOnEOF(t *testing.T) {
+	dataDirectory := t.TempDir()
+	stdin := bytes.NewReader(nil)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	serveCalls := 0
+	serve := func(ctx context.Context, service *application.Service, currentVersion string, diagnostics *coremcp.Diagnostics) error {
+		serveCalls++
+		if service == nil || currentVersion == "" || diagnostics == nil {
+			t.Fatal("MCP serve dependencies are incomplete")
+		}
+		server, err := coremcp.NewServer(service, currentVersion, &coremcp.ServerOptions{Diagnostics: diagnostics})
+		if err != nil {
+			t.Fatalf("construct MCP server: %v", err)
+		}
+		transport := &sdkmcp.IOTransport{
+			Reader: io.NopCloser(stdin),
+			Writer: nopWriteCloser{Writer: &stdout},
+		}
+		return server.Run(ctx, transport)
+	}
+	getenv := func(name string) string {
+		if name == dataDirectoryEnvironment {
+			return dataDirectory
+		}
+		return ""
 	}
 
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+	if exitCode := run([]string{"mcp", "--stdio"}, stdin, &stdout, &stderr, getenv, serve); exitCode != 0 {
+		t.Fatalf("run(mcp --stdio) exit code = %d; stdout = %q stderr = %q", exitCode, stdout.String(), stderr.String())
+	}
+	if serveCalls != 1 || stdout.Len() != 0 || stderr.Len() != 0 {
+		t.Fatalf("MCP EOF lifecycle calls/stdout/stderr = %d/%q/%q", serveCalls, stdout.String(), stderr.String())
+	}
+	databasePath := filepath.Join(dataDirectory, databaseFileName)
+	if _, err := os.Stat(databasePath); err != nil {
+		t.Fatalf("fixed database file was not created: %v", err)
+	}
+	reopened, err := store.Open(context.Background(), databasePath)
+	if err != nil {
+		t.Fatalf("closed CLI database could not be reopened: %v", err)
+	}
+	if err := reopened.Close(); err != nil {
+		t.Fatalf("close reopened database: %v", err)
+	}
+}
 
+func TestRunMCPRejectsMissingOrInvalidDataDirectory(t *testing.T) {
+	t.Parallel()
+
+	filePath := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(filePath, []byte("file"), 0o600); err != nil {
+		t.Fatalf("create non-directory fixture: %v", err)
+	}
+	tests := []struct {
+		name  string
+		value string
+	}{
+		{name: "missing"},
+		{name: "nonexistent", value: filepath.Join(t.TempDir(), "missing")},
+		{name: "file", value: filePath},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			var stdout bytes.Buffer
 			var stderr bytes.Buffer
-
-			if exitCode := run(tt.args, &stdout, &stderr); exitCode == 0 {
-				t.Fatalf("run(%q) exit code = 0, want non-zero", tt.args)
+			getenv := func(name string) string {
+				if name == dataDirectoryEnvironment {
+					return tt.value
+				}
+				return ""
 			}
-			if stdout.Len() != 0 {
-				t.Fatalf("run(%q) stdout = %q, want empty", tt.args, stdout.String())
+			if exitCode := run([]string{"mcp", "--stdio"}, bytes.NewReader(nil), &stdout, &stderr, getenv, unexpectedServe(t)); exitCode == 0 {
+				t.Fatal("invalid data directory returned success")
 			}
-
-			assertContainsAll(t, stderr.String(), strings.Join(tt.args, " "), "Feature 001", "not implemented", "help", "version")
+			if stdout.Len() != 0 || !strings.Contains(stderr.String(), dataDirectoryEnvironment) ||
+				(tt.value != "" && strings.Contains(stderr.String(), tt.value)) {
+				t.Fatalf("invalid data directory stdout/stderr = %q/%q", stdout.String(), stderr.String())
+			}
 		})
+	}
+}
+
+func TestRunMCPRedactsDatabaseStartupFailure(t *testing.T) {
+	t.Parallel()
+
+	dataDirectory := t.TempDir()
+	privateDatabasePath := filepath.Join(dataDirectory, databaseFileName)
+	if err := os.Mkdir(privateDatabasePath, 0o700); err != nil {
+		t.Fatalf("create invalid database path: %v", err)
+	}
+	getenv := func(name string) string {
+		if name == dataDirectoryEnvironment {
+			return dataDirectory
+		}
+		return ""
+	}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if exitCode := run([]string{"mcp", "--stdio"}, bytes.NewReader(nil), &stdout, &stderr, getenv, unexpectedServe(t)); exitCode == 0 {
+		t.Fatal("database startup failure returned success")
+	}
+	if stdout.Len() != 0 || !strings.Contains(stderr.String(), "storage startup failed") ||
+		strings.Contains(stderr.String(), dataDirectory) || strings.Contains(stderr.String(), databaseFileName) {
+		t.Fatalf("database failure stdout/stderr = %q/%q", stdout.String(), stderr.String())
+	}
+}
+
+func TestRunRejectsEveryOtherCommandAndNetworkMode(t *testing.T) {
+	t.Parallel()
+
+	tests := [][]string{
+		{"unknown"},
+		{"server"},
+		{"task"},
+		{"mcp"},
+		{"mcp", "--http"},
+		{"mcp", "--stdio", "extra"},
+		{"version", "extra"},
+		{"help", "extra"},
+	}
+	for _, args := range tests {
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		if exitCode := run(args, bytes.NewReader(nil), &stdout, &stderr, emptyEnvironment, unexpectedServe(t)); exitCode == 0 {
+			t.Fatalf("run(%q) returned success", args)
+		}
+		if stdout.Len() != 0 || stderr.String() != "dev-flow: invalid arguments; use \"dev-flow help\"\n" {
+			t.Fatalf("run(%q) stdout/stderr = %q/%q", args, stdout.String(), stderr.String())
+		}
+	}
+}
+
+type nopWriteCloser struct {
+	io.Writer
+}
+
+func (nopWriteCloser) Close() error { return nil }
+
+func emptyEnvironment(string) string { return "" }
+
+func unexpectedServe(t *testing.T) mcpServeFunc {
+	t.Helper()
+	return func(context.Context, *application.Service, string, *coremcp.Diagnostics) error {
+		t.Fatal("unexpected MCP server invocation")
+		return nil
 	}
 }
 
 func assertContainsAll(t *testing.T, output string, fragments ...string) {
 	t.Helper()
-
 	for _, fragment := range fragments {
 		if !strings.Contains(output, fragment) {
 			t.Errorf("output %q does not contain %q", output, fragment)
