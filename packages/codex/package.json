@@ -2,6 +2,33 @@
   "name": "dev-flow-codex",
   "version": "0.1.0",
   "private": true,
-  "description": "Feature 001 engineering skeleton for the future Codex product boundary.",
-  "license": "Apache-2.0"
+  "description": "Explicit-only Dev Flow integration for Codex CLI.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "dev-flow-codex": "bin/dev-flow-codex.mjs"
+  },
+  "files": [
+    ".agents/plugins/marketplace.json",
+    "bin/dev-flow-codex.mjs",
+    "lib/lifecycle.mjs",
+    "lib/paths.mjs",
+    "plugin/.codex-plugin/plugin.json",
+    "plugin/.mcp.json",
+    "plugin/skills/dev-flow/SKILL.md",
+    "runtime/darwin-arm64/dev-flow"
+  ],
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "test:package": "node --test tests/package-contract.test.mjs",
+    "test:lifecycle": "node --test tests/lifecycle.test.mjs",
+    "test:journey-harness": "node --test tests/journey-harness.test.mjs",
+    "pack:dry": "pnpm pack --dry-run --json",
+    "build:local": "../../scripts/build-codex-local.sh",
+    "validate:evidence": "node ../../scripts/validate-codex-journey-evidence.mjs ../../tests/journeys/evidence/codex-macos-arm64.json",
+    "journey:fake": "../../scripts/run-codex-real-journey.sh --fake-host --through remove"
+  }
 }

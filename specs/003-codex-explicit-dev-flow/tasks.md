@@ -30,17 +30,17 @@ host.
 
 **Purpose**: Establish the private Codex package boundary and deterministic test fixtures.
 
-- [ ] T001 Define private `dev-flow-codex` metadata, Node engine, one executable, explicit `files`
+- [X] T001 Define private `dev-flow-codex` metadata, Node engine, one executable, explicit `files`
   allowlist, and zero install/publication lifecycle hooks in `packages/codex/package.json`
   (FR-001, FR-003).
-- [ ] T002 Add only targeted test, dry-pack, local-build, evidence-validation, and journey-harness
+- [X] T002 Add only targeted test, dry-pack, local-build, evidence-validation, and journey-harness
   scripts in `packages/codex/package.json`; add no publication command or runtime dependency
   (FR-001, FR-008).
-- [ ] T003 [P] Replace skeleton guidance with source layout, dynamic implementation-time Codex
+- [X] T003 [P] Replace skeleton guidance with source layout, dynamic implementation-time Codex
   compatibility selection, macOS arm64 evidence boundary, deterministic checkpoint commands, the
   one-native-journey rule, and non-publication rules in `packages/codex/README.md`
   (FR-001, FR-008, FR-027).
-- [ ] T004 [P] Create a test-only Codex plugin/marketplace CLI double with JSON readback, failure
+- [X] T004 [P] Create a test-only Codex plugin/marketplace CLI double with JSON readback, failure
   injection, call tracing, isolated state, and no real user writes in
   `packages/codex/tests/fixtures/fake-codex.mjs` (FR-004, FR-005).
 
