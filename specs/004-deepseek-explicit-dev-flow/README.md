@@ -1,25 +1,34 @@
 # 004 DeepSeek Explicit Dev Flow
 
-This directory intentionally contains only `spec.md`.
+This directory contains the reviewed planning package for the thin, explicit-only DeepSeek Harness
+product.
 
-Do not generate implementation artifacts until:
+Feature 004 is deliberately serialized after Feature 003:
 
-1. `002` is complete and Core Contract 0.1 is frozen.
-2. The then-current DeepSeek Harness bundle/profile, Skill provider, MCP client, result handling,
-   package add/remove, and cache behavior are revalidated.
-3. Direct Core MCP consumption has been tested before authorizing any projection proxy.
-4. A minimum Harness version, compatible range, profile, and real-evidence platform are selected; the latest stable compatible Harness is used for the journey.
+1. Feature 003 must be fully implemented and merged to `main`.
+2. Feature 004 records the exact merge commit and verifies the delivered detached-build version
+   seam, Codex-aware shared contracts, and Codex-aware root validator.
+3. Feature 004 consumes those merged capabilities; it does not depend on mutable Feature 003 task
+   numbers, duplicate shared code, or weaken Codex validation.
 
-Then activate this feature and run:
+Harness evidence is deliberately split:
 
-```text
-$speckit-clarify
-$speckit-plan
-$speckit-checklist
-$speckit-tasks
-$speckit-analyze
-```
+- a release-candidate direct-result spike is provisional engineering evidence only;
+- the full direct-result gate is established on the exact official stable Harness version/build
+  used by the final journey; RC or different-artifact evidence never substitutes;
+- user-story checkpoints use deterministic package, fake Core, fake profile, retained-data, and
+  journey-harness evidence only;
+- exactly one final stable Harness journey is run after stable Gate B, deterministic/root validation,
+  a read-only scope audit, source freeze, and creation of one final product artifact.
 
-The plan may use observed current host behavior as evidence. It must keep the Skill and optional
-proxy thin and must not add host-independent workflow, persistence, or recovery logic outside the
-shared Core.
+Passing final evidence must use a real co-installed Codex product and prove DeepSeek removal does not
+change its registration, packaged runtime identity, package selection, or shared Core data. Codex
+absence is a blocker, not a passing skip.
+
+The adapter remains limited to one explicit Skill, one direct local STDIO MCP integration, a
+package-relative Core launcher, and package/profile lifecycle glue. No result proxy is authorized.
+A failed direct-result gate requires an explicit specification, plan, contract, test, and
+Constitution amendment before proxy work can begin.
+
+Implementation proceeds only after both reviewer-owned checklists remain satisfied against the
+revised artifacts.

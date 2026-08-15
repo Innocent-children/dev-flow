@@ -4,7 +4,8 @@
 
 **Created**: 2026-08-14
 
-**Status**: Planned — blocked by `002` and Core Contract 0.1
+**Status**: Planned — ready for implementation review; Core Contract 0.1 and shared fixtures are
+available from completed feature `002`
 
 **Input**: Package the shared Dev Flow Core as a thin Codex product that starts or resumes one
 single-repository task only when the user explicitly invokes `$dev-flow`.
@@ -226,7 +227,7 @@ the repository is unchanged.
 
 ## Assumptions
 
-- Feature `002` has frozen Core Contract 0.1 and shared fixtures.
+- Feature `002` has delivered Core Contract 0.1 and the shared fixtures on `main`.
 - Initial real-host evidence is expected on macOS arm64.
 - The Codex plugin mechanism may evolve; the implementation plan must revalidate official current behavior, define a minimum compatible host version, and avoid freezing unstable manifest fields or exact patch versions in this specification.
 - Public publication and multi-platform package selection belong to feature `006`.

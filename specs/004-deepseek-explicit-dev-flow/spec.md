@@ -1,233 +1,245 @@
 # Feature Specification: DeepSeek Explicit Dev Flow
 
-**Feature Branch**: `004-deepseek-explicit-dev-flow`
+**Feature Branch**: `004-deepseek-explicit-dev-flow`  
+**Created**: 2026-08-14  
+**Status**: Planned — provisional engineering implementation may begin only after Feature 003 is
+implemented and merged to `main`, its delivered capabilities are recorded, and the provisional or
+stable direct-result gate passes. Feature completion and stable support remain blocked until an
+official stable Harness artifact passes the full direct-result gate and the final journey uses that
+same stable version/build.  
+**Input**: Package the shared Dev Flow Core as a thin DeepSeek Harness product that starts or resumes
+one single-repository task only when the user explicitly invokes `/dev-flow`.
 
-**Created**: 2026-08-14
+## User Scenarios & Testing
 
-**Status**: Planned — blocked by `002` and Core Contract 0.1
+### User Story 1 — Install and explicitly invoke Dev Flow (Priority: P1)
 
-**Input**: Package the shared Dev Flow Core as a thin DeepSeek Harness product that starts or
-resumes one single-repository task only when the user explicitly invokes `/dev-flow`.
+As a DeepSeek Harness user, I can install one self-contained `dev-flow-deepseek` bundle into an
+isolated profile, restart the host, and invoke `/dev-flow` in an existing Git repository without a
+separate Dev Flow runtime or target-repository setup.
 
-## User Scenarios & Testing *(mandatory)*
+**Independent deterministic test**: Build and inspect the package with package tests, fake Core,
+fake profile/lifecycle fixtures, and journey-harness contracts. No per-story real Harness run is
+required.
 
-### User Story 1 - Install and explicitly invoke Dev Flow in DeepSeek Harness (Priority: P1)
+**Acceptance scenarios**:
 
-As a DeepSeek Harness user, I can install a `dev-flow-deepseek` bundle into an isolated profile and
-invoke `/dev-flow` in an existing Git repository without separately installing another Dev Flow
-runtime.
+1. A supported installed bundle contributes exactly one `dev-flow` Skill and one local STDIO MCP
+   integration corresponding one-to-one with the six Core tools.
+2. Ordinary coding without `/dev-flow` creates zero Dev Flow tasks.
+3. Missing, incompatible, or non-executable packaged Core produces a bounded non-secret diagnostic;
+   where the selected Harness supports nonfatal startup, unrelated Harness use remains available.
+4. Package/profile/data/evidence files remain outside the target repository.
 
-**Why this priority**: Installation must yield one self-contained, bounded host product with no
-separate Dev Flow backend prerequisite.
+### User Story 2 — Govern and resume a task (Priority: P2)
 
-**Independent Test**: Install the final local package artifact into a clean isolated Harness
-profile, restart the host, invoke `/dev-flow` in a temporary repository, and verify that the shared
-six tools and one Skill are available.
+As a developer, I can explicitly invoke `/dev-flow`, follow only complete fresh Core authority,
+restart Harness, resume the same task, respect its verification budget, and reach the Core-owned
+terminal outcome.
 
-**Acceptance Scenarios**:
+**Independent deterministic test**: Use fake Core and journey-harness contracts to prove create,
+resume, conflicts, complete-result handling, read-before-retry, budget accounting, restart lineage,
+and terminal outcome. Native behavior is established only by the final stable journey.
 
-1. **Given** a supported Harness profile and packed product artifact, **When** the package is added,
-   **Then** one Dev Flow Skill and one local STDIO MCP integration are registered.
-2. **Given** the package is installed, **When** ordinary coding work occurs without `/dev-flow`,
-   **Then** no Dev Flow task is implicitly created.
-3. **Given** the package starts, **When** its Go runtime is absent, incompatible, or not executable,
-   **Then** the integration reports a bounded startup diagnostic while the rest of Harness remains
-   usable where the host supports nonfatal startup failure.
-4. **Given** installation succeeds, **When** the repository is inspected, **Then** no package,
-   database, Skill, or Harness profile file has been copied into it.
+**Acceptance scenarios**:
 
----
+1. A new substantive invocation opens `host=deepseek` and follows the fresh Core action.
+2. A compatible active DeepSeek task resumes after restart; another host or incompatible contract
+   stops with the Core conflict.
+3. Every authority field comes from a complete canonical Core result.
+4. Preview, spill, prune, truncation, malformed, lost, cancelled, or uncertain mutation output is
+   not used as authority; the caller retrieves complete content or performs Core-authorized readback
+   before retry.
+5. Completion is reported only from the complete Core outcome.
 
-### User Story 2 - Govern and resume a real DeepSeek task (Priority: P2)
+### User Story 3 — Remove without deleting task data (Priority: P3)
 
-As a developer, I can use `/dev-flow` to perform the Core's current action, restart DeepSeek
-Harness, and resume the same task until the Core reaches its authoritative terminal outcome.
+As a user, I can remove `dev-flow-deepseek` from its isolated profile, restart Harness, and preserve
+shared task data, the target repository, and the already delivered Codex product.
 
-**Why this priority**: Host integration is complete only when the shared workflow and recovery
-semantics survive a real Harness restart.
+**Independent deterministic test**: Use package/lifecycle fixtures and retained-data integration to
+prove product-identity removal, data preservation, reinstall/resume, and bounded Codex-state
+comparison logic. Native proof is part of the final stable journey.
 
-**Independent Test**: Use the packed product in a real Harness profile to complete a bounded source
-change, stop after at least two committed actions, restart Harness, resume the task, respect its
-verification budget, and reach `DONE`.
+**Acceptance scenarios**:
 
-**Acceptance Scenarios**:
-
-1. **Given** no compatible active task, **When** `/dev-flow` is invoked with a substantive
-   requirement, **Then** the Skill opens one `host=deepseek` task and follows only the fresh Core
-   action.
-2. **Given** a compatible active DeepSeek-owned task, **When** the host restarts and `/dev-flow` is
-   invoked again, **Then** the same task is resumed.
-3. **Given** Harness cannot reliably expose a complete structured Core result directly, **When** a
-   projection proxy is used, **Then** it preserves every authority field, stable error code, and
-   complete result while adding no workflow decision.
-4. **Given** a mutation response is lost, previewed, spilled, pruned, truncated, or uncertain,
-   **When** the Skill continues, **Then** it obtains the complete result or rereads task/next-action
-   authority before retry.
-5. **Given** a terminal outcome, **When** the Skill reports completion, **Then** it reports the Core
-   outcome rather than a Harness-specific completion rule.
-
----
-
-### User Story 3 - Remove the DeepSeek product without deleting task data (Priority: P3)
-
-As a user, I can remove the package from its Harness profile without deleting shared task data or
-changing any repository.
-
-**Why this priority**: Profile dependencies and user task data are separate authorities.
-
-**Independent Test**: Pause or complete one task, remove the package by product identity, verify the
-profile no longer exposes the Skill/tools, and verify task data remains present.
-
-**Acceptance Scenarios**:
-
-1. **Given** an installed package, **When** Harness removes it, **Then** only the profile dependency
-   and product-owned bundle layer are removed.
-2. **Given** retained task data, **When** a compatible package is reinstalled, **Then** the same
-   DeepSeek-owned active task can be resumed.
-3. **Given** the Codex product is also installed, **When** DeepSeek is removed, **Then** Codex files,
-   runtime selection, and task data are unaffected.
+1. Removal deletes only the profile dependency and product-owned bundle layer.
+2. A compatible reinstall can discover/resume retained DeepSeek-owned task data.
+3. Passing final evidence uses a real co-installed Codex product and proves its package selection,
+   registration resources, runtime identity, and shared data are unchanged before/after DeepSeek
+   removal. Codex absence is a blocker, not a passing skip.
 
 ## Edge Cases
 
-- Harness changes its bundle/patch API before implementation begins.
-- Direct MCP results are sufficient and no projection proxy is needed.
-- The projection proxy starts but its Core child exits before MCP initialization.
-- Harness displays only a preview while full canonical text is stored elsewhere.
-- Package resolution occurs from a composed profile path rather than project root.
-- Another host owns the repository claim.
-- The profile has a custom home directory.
-- The repository path contains spaces, Unicode, or symlinks.
+- Feature 003 is not merged or its delivered capability identity cannot be verified.
+- Harness changes bundle/profile, Skill, MCP result, add/remove, restart, or stale-metadata behavior.
+- No official stable Harness exists.
+- A release-candidate direct-result spike passes but the selected stable artifact behaves
+  differently.
+- Direct MCP results are complete and no proxy is needed.
+- Direct complete results cannot be recovered.
+- Core exits before MCP initialization.
+- The host displays only a preview while complete content is available elsewhere.
+- Profile resolution uses a custom home/composed profile path.
+- Repository paths contain spaces, Unicode, or symlinks.
 - Harness restarts while a mutation response is in flight.
-- Package removal succeeds but host cache still displays stale Skill metadata.
+- Profile removal succeeds but stale Skill/tool metadata remains after the supported restart.
+- A real Codex co-installation cannot be established for final comparison.
 
 ## Scope Boundaries
 
 ### In Scope
 
-- one DeepSeek Harness product package;
+- one private `dev-flow-deepseek` product package;
 - one explicit `/dev-flow` Skill;
-- one Harness bundle/profile integration;
-- shared Go Core runtime included or selected by the product package;
+- one official Harness bundle/profile integration;
+- one packaged/shared Go Core runtime;
 - local STDIO only;
-- an optional minimal TypeScript projection proxy only when proven necessary;
 - exact six-tool allowlist;
-- task create/resume/apply/read-after-write loop;
+- one transport-transparent lifecycle launcher;
+- task create/resume/apply/read-before-retry loop;
 - profile-scoped install/remove;
-- one fake Core/package contract suite;
-- one real Harness restart/resume/removal journey on the declared platform.
+- deterministic package/fake/retained-data/journey-harness tests;
+- optional provisional direct-result spike when no stable artifact exists;
+- mandatory full direct-result gate on the exact stable artifact;
+- one final stable restart/resume/removal journey on macOS arm64;
+- mandatory real Codex non-interference in passing final evidence.
 
 ### Out of Scope
 
-- a separately installed Dev Flow backend or executable;
-- alternate Core backends or task data import/export;
-- implicit activation;
-- custom Harness UI, panel, settings screen, command family, or agent preset;
-- proxy-side state, transition, recovery, or completion logic;
+- unmerged Feature 003 dependencies;
+- separately installed Core backend;
+- alternate Core backends or task import/export;
+- implicit Skill activation;
+- custom UI, panel, settings screen, command family, or agent preset;
+- projection proxy without a reviewed amendment;
+- proxy-side task/recovery/completion logic;
 - generic shell MCP;
-- multiple repositories;
-- cross-host takeover;
-- Git management;
-- network transport, OAuth, telemetry, or remote service;
-- public npm/GitHub publication;
-- automatic update;
-- Windows or Linux support claims without real evidence.
+- multiple repositories or cross-host takeover;
+- Git mutation;
+- HTTP/remote MCP, authentication, telemetry, or network service;
+- public npm/GitHub publication or automatic update;
+- cache deletion;
+- Windows/Linux support claims without native evidence;
+- per-story real Harness journeys.
 
-## Requirements *(mandatory)*
+## Requirements
 
-### Functional Requirements
+### Package and Merged Dependency Baseline
 
-#### Package and Harness Integration
+- **FR-001**: Product identity MUST be `dev-flow-deepseek`; publication identity remains Feature
+  `006` work.
+- **FR-002**: The package MUST contain/select a compatible shared Core runtime and MUST NOT require
+  a separately installed Dev Flow Core.
+- **FR-003**: Feature 004 implementation MUST start from a recorded merge commit on `main`
+  containing completed Feature 003. The recorded capability MUST include the shared detached-build
+  version seam, Codex-aware shared package/layout contracts, and Codex-aware root validator.
+  Feature 004 MUST consume these delivered capabilities rather than depend on Feature 003 task
+  numbers, duplicate the seam, or weaken/revert Codex validation.
+- **FR-004**: The package MUST use the implementation-time official Harness bundle/profile
+  mechanism and register one Skill provider plus one local STDIO MCP integration.
+- **FR-005**: Installation MUST NOT run source builds/downloads, mutate repositories/shared task
+  data/unrelated profiles, or publish.
+- **FR-006**: Removal MUST be by product identity through the supported profile mechanism and MUST
+  preserve shared task data, repositories, unrelated profiles, and Codex state.
 
-- **FR-001**: The product identity MUST be `dev-flow-deepseek`; public scope and publication
-  identity remain deferred to feature `006`.
-- **FR-002**: The package MUST contain or select a compatible shared Go Core runtime and MUST NOT
-  require a separately installed Dev Flow Core runtime.
-- **FR-003**: The package MUST use the then-current supported Harness bundle/profile mechanism. Its plan MUST define a minimum supported Harness version and compatible range, and the final journey MUST exercise the latest stable compatible Harness available at execution time; exact patch-version equality is not a compatibility rule.
-- **FR-004**: The bundle MUST register one Skill provider and one local STDIO MCP integration.
-- **FR-005**: Package installation MUST NOT run an install-time source build or mutate repositories,
-  shared task data, or unrelated profiles.
-- **FR-006**: Package removal MUST be achievable by product identity through the supported Harness
-  profile mechanism and MUST preserve task data.
-- **FR-007**: The package MUST use a dedicated, closed child environment and MUST not forward the
-  entire host environment to the Core or proxy child.
-- **FR-008**: Startup failure MUST be bounded and non-secret; where Harness supports it, the Dev
-  Flow integration failure MUST not make unrelated Harness use impossible.
+### Host Compatibility and Stable Evidence
 
-#### Skill and Authority
+- **FR-007**: A provisional engineering spike MAY use an official release candidate only when no
+  stable Harness exists. Its facts MUST be labelled pre-release and MUST NOT establish support.
+- **FR-008**: Before final evidence, the latest official stable compatible Harness MUST be selected,
+  its exact version/build/integrity and bounded compatible range recorded, and volatile host
+  contracts revalidated.
+- **FR-009**: The complete direct-result gate MUST be run in full on that exact stable artifact. A
+  release-candidate result or evidence from a different stable artifact MUST NOT substitute.
+- **FR-010**: The final native journey MUST use the same exact stable Harness version/build that
+  passed the stable direct-result gate.
 
-- **FR-009**: The package MUST expose exactly one user-facing Skill named `dev-flow`.
-- **FR-010**: The Skill MUST activate only through explicit `/dev-flow` invocation.
-- **FR-011**: The Skill MUST reject empty/conversational invocation and non-Git execution before
+### Runtime, Environment, and Failure
+
+- **FR-011**: The package MUST use a newly constructed closed Core-child environment and MUST NOT
+  forward the complete Harness environment.
+- **FR-012**: The launcher MUST spawn the package-relative Core without a shell, forward raw STDIO,
+  propagate EOF/signals/cancellation, reap the child deterministically, open no listener, and make no
+  network request.
+- **FR-013**: Startup failures MUST be bounded and non-secret; no infinite reconnect/respawn loop is
+  allowed.
+
+### Skill and Authority
+
+- **FR-014**: The package MUST expose exactly one user-facing Skill named `dev-flow`.
+- **FR-015**: The Skill MUST be user-invocable, not model-invocable, and activate only through the
+  explicit `/dev-flow` token.
+- **FR-016**: Empty/conversational, ordinary, non-Git, and multi-repository requests MUST stop before
   task creation.
-- **FR-012**: The Skill MUST resolve exactly one current Git worktree and reject multi-repository
-  requirements.
-- **FR-013**: The Skill MUST verify the compatible Core Contract through
-  `dev_flow_server_info` before discovery or mutation.
-- **FR-014**: The host-facing surface MUST expose exactly the six Core Contract tools and no generic
-  forwarding surface.
-- **FR-015**: The Skill MUST use fresh Core action, binding, payload schema, allowed effects,
-  evidence requirements, recovery, and outcome as authority.
-- **FR-016**: The Skill and proxy MUST NOT encode a state machine, action catalog, transition rule,
-  repository claim rule, error reinterpretation, or terminal rule.
-- **FR-017**: New tasks MUST use `host=deepseek`; same-host compatible tasks resume and another
-  host's task conflicts.
+- **FR-017**: `dev_flow_server_info` MUST precede discovery/mutation and require compatible Core
+  Contract 0.1 plus exactly the six raw tools.
+- **FR-018**: The Skill MUST use complete fresh Core action, binding, schema, allowed effects,
+  evidence requirements, recovery, blocker, and outcome as authority.
+- **FR-019**: New tasks MUST use `host=deepseek`; compatible same-host tasks resume and all conflicts
+  remain Core decisions.
+- **FR-020**: Skill, provider, launcher, and any later approved proxy MUST NOT encode task state,
+  phase/action catalogs, transitions, claims, error reinterpretation, recovery classification, or
+  terminal rules.
 
-#### Optional Projection Proxy
+### Direct Results and Conditional Proxy
 
-- **FR-018**: A projection proxy MAY exist only after the plan proves direct Harness consumption
-  cannot preserve complete authoritative results.
-- **FR-019**: When used, the proxy MUST forward live tool schemas, enforce the six-tool allowlist,
-  preserve structured success/domain-error semantics, and render complete deterministic text where
-  the host requires it.
-- **FR-020**: The proxy MUST use no shell, open no listening socket, persist no state, and initiate
-  no network request.
-- **FR-021**: The proxy MUST propagate cancellation and close its child and outward MCP transports
-  deterministically.
-- **FR-022**: Invalid or incomplete upstream results MUST become a stable adapter error without
-  fabricating task authority.
+- **FR-021**: Direct native MCP consumption is the only authorized result path in the current plan.
+- **FR-022**: The direct-result gate MUST cover complete inline success, complete domain error,
+  near-spill, spilled, pruned/compacted, and near-Core-limit results.
+- **FR-023**: Preview/spill/prune/truncation/malformed markers MUST be detected before authority use;
+  each case passes only when official retrieval yields identical expected/recovered bytes and
+  SHA-256 plus a complete parse.
+- **FR-024**: A projection proxy MAY be specified only after an observed gate failure and a reviewed
+  specification/plan/contract/test/Constitution amendment. Failure does not automatically authorize
+  implementation.
 
-#### Resume and Verification
+### Recovery, Verification, and Final Journey
 
-- **FR-023**: The Skill MUST retrieve a complete result when Harness presents a preview, spill,
-  prune, or truncation marker before using authority fields.
-- **FR-024**: An uncertain mutation MUST trigger task/next-action read-back before retry.
-- **FR-025**: Verification evidence MUST respect the Core budget and accurately distinguish
-  automated, manual, simulated, and unverified checks.
-- **FR-026**: A fake Core suite MUST verify package composition, tool allowlist, complete result
-  handling, cancellation, startup failure, and read-before-retry behavior.
-- **FR-027**: One real Harness journey MUST use the final packed artifact, perform a real source
-  change, restart/resume, reach `DONE`, and remove the package.
-- **FR-028**: The real journey MUST record exact Harness package/build, profile, OS/architecture,
-  package digest, Core version, proxy presence, skips, and retained task data.
+- **FR-025**: Uncertain mutation results MUST retain original request/action values and trigger the
+  exact Core-defined readback/operation probe before retry.
+- **FR-026**: Verification MUST respect the Core budget and label automated, manual, simulated,
+  pre-release native, stable native, skipped, and unverified evidence accurately.
+- **FR-027**: Story checkpoints MUST use deterministic/fake/integration evidence only. No per-story
+  real Harness journey is permitted.
+- **FR-028**: After stable Gate B, complete deterministic checks, root validation, read-only scope
+  audit, and source freeze, exactly one final artifact MUST be built and used for one real stable
+  journey covering install/restart, explicit task, two Core commits, restart/resume, budgeted
+  `DONE`, removal/restart, retained data, compatible reinstall, repository comparison, and mandatory
+  Codex non-interference.
 
-### Key Entities
+## Key Entities
 
-- **DeepSeek Product Package**: Installable Harness bundle containing host resources and compatible
-  Core runtime.
-- **Harness Profile Integration**: Product-owned bundle layer that registers Skill and MCP.
-- **Projection Proxy**: Optional non-authoritative compatibility process.
-- **DeepSeek Journey Evidence**: Exact real-host evidence for one final package artifact.
+- **Feature 003 Delivered Baseline**: Exact merged commit and capabilities consumed by Feature 004.
+- **DeepSeek Product Package**: Private Harness bundle containing host resources and packaged Core.
+- **Harness Artifact Selection**: Exact provisional or stable official Harness artifact.
+- **Harness Profile Installation**: Observed product dependency and bundle layer in an isolated
+  profile.
+- **Direct Result Observation**: Complete-result evidence for one case on one exact Harness artifact.
+- **DeepSeek Journey Evidence**: Final stable artifact/host evidence including Codex
+  non-interference.
 
-## Success Criteria *(mandatory)*
+## Success Criteria
 
-### Measurable Outcomes
-
-- **SC-001**: A supported user can add the packed product to an isolated Harness profile without an
-  external Dev Flow prerequisite.
-- **SC-002**: An ordinary request without `/dev-flow` creates zero tasks.
-- **SC-003**: The host-facing MCP catalog contains exactly the six shared Core tools.
-- **SC-004**: The real journey crosses at least two committed actions, restarts Harness, resumes the
-  same task lineage, and reaches `DONE`.
-- **SC-005**: When a proxy is required, its source contains zero task writes and zero transition or
-  completion decisions.
-- **SC-006**: The real journey stays within the task's automatic verification budget.
-- **SC-007**: Package removal preserves task data and does not affect an installed Codex product.
-- **SC-008**: The package and real-host report claim only the documented Harness compatibility range and platforms with real evidence; the report records the actual tested version without restricting support to that single patch.
+- **SC-001**: The package adds one Skill and one six-tool native MCP integration without external
+  Core installation or target-repository files.
+- **SC-002**: An ordinary prompt without `/dev-flow` creates zero tasks.
+- **SC-003**: The host-facing catalog corresponds one-to-one with the six raw Core tools.
+- **SC-004**: The final stable journey crosses at least two Core action commits, restarts Harness,
+  resumes the same task lineage, and reaches `DONE`.
+- **SC-005**: Adapter source contains zero task writes and zero transition/recovery/completion
+  decisions; proxy presence is `none` unless a later approved amendment changes the feature.
+- **SC-006**: The final stable journey stays within the automatic verification budget.
+- **SC-007**: Final passing evidence proves removal preserves task data/repository and leaves a real
+  co-installed Codex product unchanged; absence of Codex makes the final record blocked, not pass.
+- **SC-008**: Support claims are limited to the recorded compatible stable Harness range and macOS
+  arm64 evidence; exact version/build and every failure/skip are recorded.
 
 ## Assumptions
 
-- Feature `002` has frozen Core Contract 0.1 and shared fixtures.
-- Initial real-host evidence is expected on macOS arm64.
-- Harness integration contracts are pre-release or evolving and must be revalidated during plan.
-- Direct Core MCP consumption is preferred; a proxy is justified only by observed host behavior.
-- Public publication and multi-platform runtime packages belong to feature `006`.
+- Feature 002/Core Contract 0.1 is merged.
+- Feature 003 is fully implemented and merged before Feature 004 implementation starts.
+- The planning-time Harness artifact is pre-release and may be used only for labelled provisional
+  engineering evidence.
+- Direct Core MCP is preferred; no proxy is currently authorized.
+- Public release and platform expansion belong to Feature 006.
