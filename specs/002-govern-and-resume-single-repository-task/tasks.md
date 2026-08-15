@@ -297,7 +297,7 @@ verify rejection, read-after-write proof, five recovery classes, and safe blocki
 
 ### Tests for User Story 4
 
-- [ ] T054 [P] [US4] Add `TestClassifyRecoveryDecisionTable` and
+- [x] T054 [P] [US4] Add `TestClassifyRecoveryDecisionTable` and
   `TestClassifyRecoveryRejectsInvalidFacts` to `internal/recovery/classify_test.go`. Cover the
   canonical priority in `contracts/state-machine.md`: exact latest LastOperation proof first;
   partially matching LastOperation contradiction; superseded source conflict;
@@ -306,7 +306,7 @@ verify rejection, read-after-write proof, five recovery classes, and safe blocki
   classification, LastOperation relation, operation-evidence state, `action_retry_safe`, advice,
   committed proof, proposed condition, and that invalid probe/payload/binding facts return an error
   rather than a class.
-- [ ] T055 [P] [US4] Add `TestReconcileRepositoryBindingMatrix` to
+- [x] T055 [P] [US4] Add `TestReconcileRepositoryBindingMatrix` to
   `internal/recovery/reconcile_test.go` and `TestVerifyBindingDigests` to
   `internal/repository/binding_test.go`. Cover canonical-root/repository identity,
   common-directory digest, branch/detached, HEAD/unborn, binding-digest self-consistency,
@@ -314,7 +314,7 @@ verify rejection, read-after-write proof, five recovery classes, and safe blocki
   `IMPLEMENT_CHANGE`-only acceptance, forbidden ordinary drift, and exact
   `restore_issuance_binding`; do not duplicate the Repository digest algorithm in tests or
   Recovery.
-- [ ] T056 [P] [US4] Add `TestRecoveryReadsAreTransient`,
+- [x] T056 [P] [US4] Add `TestRecoveryReadsAreTransient`,
   `TestRecoveryReadProvesCommitBeforeLostResponse`, `TestRecoveryApplyDecisionEffects`, and
   `TestResolveBlockerClosedContract` to `internal/application/uncertain_mutation_test.go`. Cover
   no-probe/no-observation reads, probe observation on normal/blocked/terminal tasks, observer error,
@@ -325,7 +325,7 @@ verify rejection, read-after-write proof, five recovery classes, and safe blocki
   already-satisfied operation-conflict condition without auto-resolution,
   nil/typed-nil/wrong/duplicate/unknown payload cases, and Task/Event/LastOperation/claim/evidence
   counts after every path.
-- [ ] T057 [P] [US4] Add separate `TestTwoHandleRepositoryClaimRace` and
+- [x] T057 [P] [US4] Add separate `TestTwoHandleRepositoryClaimRace` and
   `TestTwoHandleRevisionCASRace` cases to `internal/store/concurrency_test.go`. Use two independently
   opened SQLite handles over one `t.TempDir()` database and repository, make both contenders reach a
   bounded channel start gate, and use a context deadline rather than sleep. Each case has exactly one
@@ -335,18 +335,18 @@ verify rejection, read-after-write proof, five recovery classes, and safe blocki
 
 ### Implementation for User Story 4
 
-- [ ] T058 [US4] Implement the closed transient `OperationReference`, `RepositoryRelation`,
+- [x] T058 [US4] Implement the closed transient `OperationReference`, `RepositoryRelation`,
   `LastOperationRelation`, `OperationEvidenceState`, `RecoveryAdvice`, `CommittedOperationProof`, and RecoveryAssessment
   types plus the ordered pure classifier in `internal/recovery/types.go` and
   `internal/recovery/classify.go`. Accept only Core-derived facts, keep the canonical decision table
   out of Application, and persist none of these values.
-- [ ] T059 [US4] Implement the single structured binding/operation reconciliation authority and
+- [x] T059 [US4] Implement the single structured binding/operation reconciliation authority and
   exact `restore_issuance_binding` condition derivation in `internal/recovery/reconcile.go`; add one
   pure digest self-consistency verifier beside the existing constructors in
   `internal/repository/fingerprint.go`. Runtime inputs are Task, CurrentAction, latest LastOperation,
   OperationProbe, and fresh RepositoryBinding only. Do not add a Store event-list/replay method,
   read TaskEvent at runtime, copy digest algorithms, or retain Application binding rules.
-- [ ] T060 [US4] Add closed OperationProbe/RecoveryApplyInput/GetTaskResult fields in
+- [x] T060 [US4] Add closed OperationProbe/RecoveryApplyInput/GetTaskResult fields in
   `internal/application/types.go`; retain the caller-supplied normal ApplyAction request ID as the
   recoverable operation identity; integrate optional-probe read assessment into
   `internal/application/get_task.go` and `internal/application/next_action.go`; invoke the one
@@ -356,7 +356,7 @@ verify rejection, read-after-write proof, five recovery classes, and safe blocki
   observe every phase and never persist. Explicit recovery read-back/not-started is zero-write;
   completed-but-unrecorded reuses the normal transition/evidence path. Remove the Application-local
   binding comparison helpers.
-- [ ] T061 [US4] Add `BlockerCondition`, Core-derived blocker cause/condition invariants, and closed
+- [x] T061 [US4] Add `BlockerCondition`, Core-derived blocker cause/condition invariants, and closed
   `ResolveBlockerPayload`/validation in `internal/domain/blocker.go`, `internal/domain/task.go`,
   `internal/workflow/payloads.go`, and their focused tests; implement the sole BLOCKED entry and
   resolution in `internal/application/apply_action.go`. Both mutations use existing
@@ -365,14 +365,14 @@ verify rejection, read-after-write proof, five recovery classes, and safe blocki
   fresh restoration, adds one Core-generated `blocker_resolution` host-observed evidence summary,
   preserves history, clears blocker/resume state, and generates a fresh normal action. Add no method,
   tool, state, dependency, Git mutation, new-binding adoption, or recovery DSL.
-- [ ] T062 [US4] Extend shared fixtures under `protocol/fixtures/` with read-success examples for all
+- [x] T062 [US4] Extend shared fixtures under `protocol/fixtures/` with read-success examples for all
   five `recovery_assessment` classes plus ordinary ApplyAction committed read-back, blocked, and
   resolved projections; update the
   fixture README and future contract cases so success `result.recovery_assessment` is never confused
   with top-level error-only `recovery`. Include no canonical/source/database path beyond existing
   fictional public repository projections, diff/raw status/source, environment value, command, or
   raw output.
-- [ ] T063 [US4] Run only the named recovery classifier/reconciler tests, the four targeted
+- [x] T063 [US4] Run only the named recovery classifier/reconciler tests, the four targeted
   uncertain-mutation Application tests, Repository binding-digest verifier test, and the two
   two-handle Store concurrency tests with `CGO_ENABLED=0` where Store/Repository packages require it;
   run `git diff --check`. Do not run `go test ./...`, `pnpm run validate`, race, stress, fuzz,
