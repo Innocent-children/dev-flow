@@ -1,4 +1,4 @@
-# Contract: `$dev-flow` Codex Skill 0.1
+# Contract: `$dev-flow-codex:dev-flow` Codex Skill 0.1
 
 ## Authority
 
@@ -10,13 +10,15 @@ This contract names the interaction sequence needed by Codex but intentionally d
 
 Codex CLI 0.147 reads `policy.allow_implicit_invocation: false` from the Skill's
 `agents/openai.yaml`, so the Skill is not injected implicitly by default. This policy is not placed
-in `SKILL.md` frontmatter. The Skill then starts the workflow only when the current user turn
-explicitly selects it with the exact `$dev-flow` token.
+in `SKILL.md` frontmatter. Codex CLI 0.147 namespaces an installed plugin Skill as
+`<plugin-name>:<skill-base-name>`; for plugin `dev-flow-codex` and Skill base name `dev-flow`, the
+only exact explicit selector is `$dev-flow-codex:dev-flow`. Bare `$dev-flow` does not select this
+installed plugin Skill.
 
 Accepted explicit intents are:
 
-- `$dev-flow` plus one substantive, bounded requirement for the current Git worktree; or
-- `$dev-flow` plus an explicit request to resume the compatible active Codex task for the current Git worktree.
+- `$dev-flow-codex:dev-flow` plus one substantive, bounded requirement for the current Git worktree; or
+- `$dev-flow-codex:dev-flow` plus an explicit request to resume the compatible active Codex task for the current Git worktree.
 
 Before any Core call, the Skill verifies:
 
@@ -26,7 +28,7 @@ Before any Core call, the Skill verifies:
 4. the requested work is bounded to that one repository;
 5. repository instructions and current user authority permit the requested kind of work.
 
-If any check fails, the Skill explains the missing precondition and stops. It makes no call to any of the six Dev Flow tools, creates no adapter state, edits no repository instruction, and attempts no implicit fallback. An ordinary request without `$dev-flow` creates zero Dev Flow tasks and is outside this Skill's execution path; host-level MCP initialization or tool discovery is not a Skill tool call.
+If any check fails, the Skill explains the missing precondition and stops. It makes no call to any of the six Dev Flow tools, creates no adapter state, edits no repository instruction, and attempts no implicit fallback. An ordinary request without `$dev-flow-codex:dev-flow`, bare `$dev-flow`, or another namespace/base selector creates zero Dev Flow tasks and is outside this Skill's execution path; host-level MCP initialization or tool discovery is not a Skill tool call.
 
 Paths with spaces, Unicode, symlinks, or a subdirectory working directory are canonicalized by read-only repository discovery and passed as one argv/value; they are never shell-concatenated. A request spanning another repository is rejected before task creation.
 
@@ -135,9 +137,10 @@ If Codex exposes only a truncated preview and not the complete structured result
 
 | Scenario | Required observable behavior |
 |---|---|
-| Ordinary coding prompt, no `$dev-flow` | zero calls to the six Dev Flow tools and zero Dev Flow task creation |
-| `$dev-flow` with empty/conversational text | local precondition error; no task creation |
-| `$dev-flow` outside Git | repository precondition error; no task creation |
+| Ordinary coding prompt, no `$dev-flow-codex:dev-flow` | zero calls to the six Dev Flow tools and zero Dev Flow task creation |
+| Bare `$dev-flow` or wrong plugin/Skill namespace | no installed Skill selection; zero Dev Flow calls/tasks |
+| `$dev-flow-codex:dev-flow` with empty/conversational text | local precondition error; no task creation |
+| `$dev-flow-codex:dev-flow` outside Git | repository precondition error; no task creation |
 | New bounded request | handshake, one `host=codex` open, then only the returned action |
 | Restart and explicit resume | handshake, open without a new contract, same Core task/revision lineage |
 | Different contract or host claim | Core conflict reported; no merge/takeover |

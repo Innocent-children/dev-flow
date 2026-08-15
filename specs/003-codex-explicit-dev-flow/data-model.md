@@ -50,6 +50,9 @@ unique passing chain establishes support.
 | `plugin_name` | string | Exactly `dev-flow-codex`. |
 | `plugin_version` | semver | Equals product/Core version. |
 | `manifest_path` | path | `plugin/.codex-plugin/plugin.json`. |
+| `skill_name` | string | Resource/frontmatter base name exactly `dev-flow`. |
+| `skill_full_name` | string | Exactly `dev-flow-codex:dev-flow`, derived as `plugin_name + ":" + skill_name`. |
+| `explicit_selector` | string | Exactly `$dev-flow-codex:dev-flow`, derived as `"$" + skill_full_name`; bare `$dev-flow` is not an alias. |
 | `skill_path` | path | `plugin/skills/dev-flow/SKILL.md`. |
 | `skill_metadata_path` | path | `plugin/skills/dev-flow/agents/openai.yaml`; disables implicit invocation. |
 | `mcp_path` | path | `plugin/.mcp.json`. |
@@ -248,18 +251,55 @@ The repository path `tests/journeys/evidence/codex-macos-arm64.json` and its sch
 failed or blocked diagnostic uses the independent closed
 [contracts/native-attempt-diagnostic.schema.json](./contracts/native-attempt-diagnostic.schema.json),
 `report_type=dev-flow-codex-native-attempt-diagnostic`. The schema conditionally accepts immutable
-`schema_version=1` / `commit_protocol=external-failure-record-v1` history and new
-`schema_version=2` / `commit_protocol=external-failure-record-v2` records. Both record status, time,
-classification, versions, chain/ledger/report/artifact identity, validation projection, the
-consumed attempt, observed failure, and honest skips only. When a v2 failure is attributable to a
-completed command event, `failure_kind=command_event` requires `failure_context` as the closed safe projection
-`{session_role,event_type,command_sha256,output_sha256,status,exit_code}`. It contains no raw
-command, output, environment, or path. `failure_kind=non_command` prohibits that context. Version-2
-failure and skip observations are closed `{phase_code,reason_code,detail_sha256}` values, so their
-only unbounded diagnostic detail is represented by a digest. The writer schema-validates the diagnostic before an atomic
-write under the external chain recovery directory. It never claims journey-evidence schema version
-3 or creates the canonical evidence path. The durable ledger, not that diagnostic, is the
-cross-chain attempt authority.
+attempt-1 `schema_version=1` / `commit_protocol=external-failure-record-v1` history and attempt-2
+`schema_version=2` / `commit_protocol=external-failure-record-v2` history byte-unchanged. Every new
+record uses `schema_version=3` / `commit_protocol=external-failure-record-v3`. Structural validation
+requires v1 attempt/total count 1, v2 attempt/total count 2, and v3 counts of at least 3. Semantic
+validation binds the version, identity, and facts digest to the exact durable-ledger entry and rejects
+v1/v2 for any later attempt. The digest-bound immutable v1 text is a legacy-only exception and cannot
+be used as a new-record template. All versions record
+status, time, classification, versions, chain/ledger/report/artifact identity, validation projection,
+the consumed attempt, observed failure, and honest skips only. When a v2/v3 failure is attributable
+to a completed command event, `failure_kind=command_event` requires `failure_context` as the closed
+safe projection `{session_role,event_type,command_sha256,output_sha256,status,exit_code}`. It contains
+no raw command, output, environment, or path. `failure_kind=non_command` prohibits that context.
+Version-2/3 failure and skip observations are closed `{phase_code,reason_code,detail_sha256}` values,
+so their only unbounded diagnostic detail is represented by a digest.
+
+Version 3 additionally requires `session_observations` as an ordered four-element array. The role at
+each index is fixed to `ordinary`, `invalid`, `substantive`, then `resume`; unstarted roles remain
+explicit rather than disappearing. Each closed role projection contains:
+
+| Field | Meaning |
+|---|---|
+| `session_role` | One fixed role from the ordered four-role sequence. |
+| `failure_stage` | One of `not_started`, `spawn_failed`, `capture_failed`, `process_exited`, `parse_failed`, `completed`, or `stop_marker_missing`. |
+| `exit_code` / `signal` | Observed process termination; each is nullable when not available. |
+| `thread_present` | Whether at least one structurally valid `thread.started` event with a nonempty thread ID was observed; no thread ID is retained. |
+| `stdout_bytes` / `stderr_bytes` | Captured byte counts, each bounded to 64 MiB. |
+| `stdout_sha256` / `stderr_sha256` | SHA-256 of the exact bounded streams; no stream text is retained. |
+| `event_counts` | Closed counts for total, invalid JSON, thread-started, item-started, item-completed, turn-completed, error, and other events. |
+| `item_counts` | Closed completed-item counts for total, agent message, command execution, MCP tool call, and other. |
+| `mcp_status_counts` | Closed MCP counts for total, Dev Flow, completed, failed, and other statuses. |
+
+Semantic validation requires a `not_started` observation to have null exit/signal, false thread
+presence, zero byte/count fields, and the SHA-256 of empty stdout/stderr. Every role that reached
+process close has at least an exit code or signal. `event_counts.thread_started` counts only valid
+nonempty-ID thread events; malformed thread events enter `other` and require `parse_failed`, while
+multiple valid thread events remain counted and also require `parse_failed`. `thread_present` is true
+exactly when `event_counts.thread_started > 0`; named event buckets plus invalid/other equal total; named item
+buckets equal item total and do not exceed completed-item events; MCP status buckets equal MCP total,
+`dev_flow <= total`, and MCP total does not exceed completed MCP items. The four role observations
+must match the failure-observed-facts projection exactly.
+
+The external `failure-observed-facts.json` is the closed subset
+`{schema_version,failure_kind,failure,failure_context?,session_observations}`. Its four observations
+must equal the diagnostic projection exactly, and its exact bytes are bound by the ledger
+`observed_facts_sha256`. The writer schema-validates the diagnostic and checks that equality before
+atomic writes under the external chain recovery directory and before deleting the isolated host
+workspace. Neither file claims the canonical passing journey-evidence contract or creates the
+canonical evidence leaf. The durable ledger, not the diagnostic, is the cross-chain attempt
+authority.
 
 ## 6. Codex Native Journey Evidence
 
@@ -284,7 +324,7 @@ contract above.
 | Group | Required contents |
 |---|---|
 | `task_lineage` | Four distinct thread IDs, task ID before/after restart, raw non-regressing revisions, adjacent-deduplicated strictly increasing lineage, at least two Core-confirmed actions, terminal Core phase/outcome. |
-| `invocation` | `$dev-flow`, Core call count/scenario budget, zero implicit calls, ordered restart recovery reads, complete Core verification budget, every official completed command execution as a role-scoped safe fact, the Core-bound verification subset, and reconciled submitted/retained automated evidence counts. |
+| `invocation` | Exact installed-plugin selector `$dev-flow-codex:dev-flow`, Core call count/scenario budget, zero implicit calls, ordered restart recovery reads, complete Core verification budget, every official completed command execution as a role-scoped safe fact, the Core-bound verification subset, and reconciled submitted/retained automated evidence counts. |
 | `lifecycle` | Setup/readback, restart/resume, removal/readback, data retention, task reopen, compatible reinstall, and exact setup/reinstall registry cardinalities. |
 | `repository` | Target path, before/after/removal digests, intended and unexpected paths. |
 | `task_data` | Canonical file lists and manifest digests before/after removal plus a non-secret retained-data descriptor `{kind:"isolated-explicit-data-directory", workspace_relative_path:"data", canonical_path_sha256}`; no absolute data path. |

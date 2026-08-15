@@ -50,16 +50,30 @@ const renderedDeniedCommands = [
   "/bin/zsh -lc 'node --test'",
   "/bin/zsh -lc 'node --test packages/codex/tests/*.test.mjs'",
 ];
-const immutableAttemptOneDiagnosticPath = join(
+const immutableNativeRoot = join(
   homedir(),
   ".codex",
   "dev-flow-feature-003-native",
   "attempt-ledger.json.recovery",
-  "3b273663d554d6d1d61f22735bf8d98faba42c2a7c44e63a13f0412aa1fb0536",
-  "failed.json",
 );
-const immutableAttemptOneDiagnosticSha256 =
-  "acb8f447ebea55d4a3181e98f7e74810e85174bc32f3c506cda603c308d43663";
+const immutableFailureAttempts = [
+  {
+    attemptNumber: 1,
+    schemaVersion: 1,
+    chainID: "3b273663d554d6d1d61f22735bf8d98faba42c2a7c44e63a13f0412aa1fb0536",
+    diagnosticSha256: "acb8f447ebea55d4a3181e98f7e74810e85174bc32f3c506cda603c308d43663",
+    observedFactsSha256: "b90a41d5f8f632561a28d4e0f0c482b4eb848634137553827248985c3fec0715",
+    ledgerCandidateSha256: "1eca5a007d7f80c0f64b34214123332559b614907d3655b0f0e1aa4d7c3ceb00",
+  },
+  {
+    attemptNumber: 2,
+    schemaVersion: 2,
+    chainID: "2d74b98b7a8be02d22d4290ee2a673b746ab99208b1665aeb7203615265b49b1",
+    diagnosticSha256: "716db0273bea67a96ff2eb288936564b9766c7555c44884fbbcbf8f209cccd81",
+    observedFactsSha256: "e53357a2f80eaa55ef7f66d5e59713f8b1d480edcaa9c548f726fe6aab1cea98",
+    ledgerCandidateSha256: "a6309693587fc3ae2b4ffeb641cd2d1fc0a25f065536a8da25447eb86d61ad19",
+  },
+];
 
 test("passing schema-v3 candidate satisfies all closed structures and semantics", () => {
   const candidate = passingCandidate();
@@ -133,7 +147,7 @@ test("failed and blocked attempts use the independent closed diagnostic schema",
   );
 
   for (const [expected, mutate] of [
-    ["schema_version", (document) => { document.schema_version = 3; }],
+    ["schema_version", (document) => { document.schema_version = 4; }],
     ["report_type", (document) => { document.report_type = "journey-evidence"; }],
     ["failure.*required", (document) => { delete document.failure; }],
     ["journey.*not allowed", (document) => { document.journey = {}; }],
@@ -149,26 +163,60 @@ test("failed and blocked attempts use the independent closed diagnostic schema",
   }
 });
 
-test("diagnostic schema preserves immutable v1 history and closes v2 command/non-command failures", async (t) => {
-  let immutableText;
-  try {
-    immutableText = await readFile(immutableAttemptOneDiagnosticPath, "utf8");
-  } catch (error) {
-    if (error?.code === "ENOENT") {
-      t.skip("immutable native-attempt-1 diagnostic is not retained on this machine");
-      return;
+test("diagnostic schema preserves exact immutable attempt-1 v1 and attempt-2 v2 history", async (t) => {
+  for (const immutable of immutableFailureAttempts) {
+    const recoveryDirectory = join(immutableNativeRoot, immutable.chainID);
+    const diagnosticPath = join(recoveryDirectory, "failed.json");
+    const observedFactsPath = join(recoveryDirectory, "failure-observed-facts.json");
+    const ledgerCandidatePath = join(recoveryDirectory, "failure-ledger-candidate.json");
+    let diagnosticText;
+    let observedFactsText;
+    let ledgerCandidateText;
+    try {
+      [diagnosticText, observedFactsText, ledgerCandidateText] = await Promise.all([
+        readFile(diagnosticPath, "utf8"),
+        readFile(observedFactsPath, "utf8"),
+        readFile(ledgerCandidatePath, "utf8"),
+      ]);
+    } catch (error) {
+      if (error?.code === "ENOENT") {
+        t.skip("immutable native failure history is not retained on this machine");
+        return;
+      }
+      throw error;
     }
-    throw error;
+
+    const diagnostic = JSON.parse(diagnosticText);
+    const ledgerCandidate = JSON.parse(ledgerCandidateText);
+    const matchingEntry = ledgerCandidate.attempts[immutable.attemptNumber - 1];
+    assert.equal(sha256(diagnosticText), immutable.diagnosticSha256);
+    assert.equal(sha256(observedFactsText), immutable.observedFactsSha256);
+    assert.equal(sha256(ledgerCandidateText), immutable.ledgerCandidateSha256);
+    assert.equal(diagnostic.schema_version, immutable.schemaVersion);
+    assert.equal(diagnostic.native_attempt.attempt_number, immutable.attemptNumber);
+    assert.deepEqual(validator.validateDocumentStructure(diagnostic, diagnosticSchema), []);
+    assert.deepEqual(
+      validator.validateDocumentStructure(ledgerCandidate, schemas["native-attempt-ledger"]),
+      [],
+    );
+    assert.equal(diagnostic.native_attempt.observed_facts_sha256, immutable.observedFactsSha256);
+    assert.equal(matchingEntry.observed_facts_sha256, immutable.observedFactsSha256);
+    assert.equal(matchingEntry.chain_id, immutable.chainID);
+    assert.equal(matchingEntry.status, diagnostic.status);
+
+    assert.deepEqual(
+      await Promise.all([
+        readFile(diagnosticPath, "utf8").then(sha256),
+        readFile(observedFactsPath, "utf8").then(sha256),
+        readFile(ledgerCandidatePath, "utf8").then(sha256),
+      ]),
+      [
+        immutable.diagnosticSha256,
+        immutable.observedFactsSha256,
+        immutable.ledgerCandidateSha256,
+      ],
+    );
   }
-  assert.equal(sha256(immutableText), immutableAttemptOneDiagnosticSha256);
-  assert.deepEqual(
-    validator.validateDocumentStructure(JSON.parse(immutableText), diagnosticSchema),
-    [],
-  );
-  assert.equal(
-    sha256(await readFile(immutableAttemptOneDiagnosticPath, "utf8")),
-    immutableAttemptOneDiagnosticSha256,
-  );
 
   const commandEvent = attemptDiagnosticV2("failed", "command_event");
   const nonCommand = attemptDiagnosticV2("blocked", "non_command");
@@ -258,6 +306,195 @@ test("diagnostic schema preserves immutable v1 history and closes v2 command/non
       label,
     );
   }
+});
+
+test("v3 failure candidate binds the exact facts projection and final durable-ledger entry", () => {
+  const baseline = failureCandidateV3();
+  assert.deepEqual(validator.validateDocumentStructure(baseline.diagnostic, diagnosticSchema), []);
+  assert.deepEqual(
+    validator.validateDocumentStructure(baseline.ledger, schemas["native-attempt-ledger"]),
+    [],
+  );
+  assert.deepEqual(validateFailureCandidate(baseline), []);
+
+  const cases = [
+    ["exact.*four session observations|four session observations.*exact", (candidate) => {
+      candidate.observedFacts.session_observations[0].failure_stage = "process_exited";
+    }],
+    ["source_commit.*matching final ledger", (candidate) => {
+      candidate.diagnostic.identity.source_commit = "f".repeat(40);
+    }],
+    ["total_attempts.*ledger", (candidate) => {
+      candidate.diagnostic.native_attempt.total_attempts = 4;
+    }],
+    ["status.*matching final ledger", (candidate) => {
+      candidate.ledger.attempts[2].status = "blocked";
+    }],
+    ["observed facts digest", (candidate) => {
+      candidate.diagnostic.native_attempt.observed_facts_sha256 = "f".repeat(64);
+    }],
+    ["ledger candidate digest", (candidate) => {
+      candidate.diagnostic.native_attempt.ledger_sha256 = "f".repeat(64);
+    }],
+    ["failure attempt ledger.*unreviewed.*not allowed", (candidate) => {
+      candidate.ledger.unreviewed = true;
+    }],
+    ["ledger path identity", (candidate) => {
+      candidate.attemptLedgerPath = "/tmp/switched-native-attempt-ledger.json";
+    }],
+  ];
+  for (const [expected, mutate] of cases) {
+    const candidate = structuredClone(baseline);
+    mutate(candidate);
+    assert.match(validateFailureCandidate(candidate).join("\n"), new RegExp(expected, "i"), expected);
+  }
+});
+
+test("synthetic attempt 3 cannot downgrade to v1 or v2 even with exact ledger and facts binding", () => {
+  for (const schemaVersion of [1, 2]) {
+    const candidate = failureCandidateV3();
+    candidate.diagnostic.schema_version = schemaVersion;
+    candidate.diagnostic.native_attempt.commit_protocol = `external-failure-record-v${schemaVersion}`;
+    delete candidate.diagnostic.session_observations;
+    if (schemaVersion === 1) {
+      candidate.diagnostic.failure = observation(
+        "native-journey",
+        "native attempt failed",
+        "immutable legacy-shaped detail",
+      );
+      delete candidate.diagnostic.failure_kind;
+      delete candidate.diagnostic.failure_context;
+    }
+    rebindFailureCandidate(candidate);
+
+    assert.match(
+      validator.validateDocumentStructure(candidate.diagnostic, diagnosticSchema).join("\n"),
+      new RegExp(`attempt_number.*equal ${schemaVersion}|total_attempts.*equal ${schemaVersion}`, "i"),
+    );
+    assert.match(
+      validateFailureCandidate(candidate).join("\n"),
+      /later failure diagnostic.*schema version 3|v1\/v2 downgrade/i,
+    );
+  }
+});
+
+test("v3 session observations enforce unstarted, close, count, thread, malformed, and duplicate semantics", () => {
+  const baseline = failureCandidateV3();
+  assert.deepEqual(validateFailureCandidate(baseline), []);
+
+  const cases = [
+    ["not_started.*zero", (candidate) => {
+      candidate.diagnostic.session_observations[3].stdout_bytes = 1;
+    }],
+    ["process close.*exit code or signal", (candidate) => {
+      candidate.diagnostic.session_observations[2].exit_code = null;
+    }],
+    ["event count.*sum", (candidate) => {
+      candidate.diagnostic.session_observations[0].event_counts.total += 1;
+    }],
+    ["item count.*sum", (candidate) => {
+      candidate.diagnostic.session_observations[2].item_counts.total += 1;
+    }],
+    ["MCP status count.*sum", (candidate) => {
+      candidate.diagnostic.session_observations[2].mcp_status_counts.completed = 1;
+    }],
+    ["thread presence", (candidate) => {
+      candidate.diagnostic.session_observations[1].thread_present = false;
+    }],
+    ["malformed.*parse_failed|completed.*one valid thread", (candidate) => {
+      candidate.diagnostic.session_observations[0].failure_stage = "completed";
+    }],
+    ["multiple valid thread.*parse_failed", (candidate) => {
+      candidate.diagnostic.session_observations[1].failure_stage = "completed";
+    }],
+  ];
+  for (const [expected, mutate] of cases) {
+    const candidate = structuredClone(baseline);
+    mutate(candidate);
+    rebindFailureCandidate(candidate);
+    assert.match(validateFailureCandidate(candidate).join("\n"), new RegExp(expected, "i"), expected);
+  }
+});
+
+test("v3 command context is attributable, not inferred from an earlier unrelated command", () => {
+  const unrelatedCommand = failureCandidateV3({ failureKind: "non_command" });
+  assert.equal(
+    unrelatedCommand.diagnostic.session_observations[2].item_counts.command_execution,
+    1,
+  );
+  assert.equal(Object.hasOwn(unrelatedCommand.diagnostic, "failure_context"), false);
+  assert.deepEqual(validateFailureCandidate(unrelatedCommand), []);
+
+  const attributableCommand = failureCandidateV3({ failureKind: "command_event" });
+  assert.deepEqual(validator.validateDocumentStructure(attributableCommand.diagnostic, diagnosticSchema), []);
+  assert.deepEqual(validateFailureCandidate(attributableCommand), []);
+
+  const missingContext = structuredClone(attributableCommand);
+  delete missingContext.diagnostic.failure_context;
+  rebindFailureCandidate(missingContext);
+  assert.match(
+    validator.validateDocumentStructure(missingContext.diagnostic, diagnosticSchema).join("\n"),
+    /failure_context.*required/i,
+  );
+  assert.match(validateFailureCandidate(missingContext).join("\n"), /command_event.*failure_context/i);
+
+  const unrelatedContext = structuredClone(unrelatedCommand);
+  unrelatedContext.diagnostic.failure_context = structuredClone(
+    attributableCommand.diagnostic.failure_context,
+  );
+  rebindFailureCandidate(unrelatedContext);
+  assert.match(
+    validator.validateDocumentStructure(unrelatedContext.diagnostic, diagnosticSchema).join("\n"),
+    /failure_context.*forbidden|must not satisfy/i,
+  );
+  assert.match(validateFailureCandidate(unrelatedContext).join("\n"), /non_command.*prohibits.*failure_context/i);
+
+  const unboundContext = structuredClone(attributableCommand);
+  unboundContext.diagnostic.failure_context.session_role = "ordinary";
+  rebindFailureCandidate(unboundContext);
+  assert.match(
+    validateFailureCandidate(unboundContext).join("\n"),
+    /failure_context.*completed command event.*same session role/i,
+  );
+});
+
+test("v3 diagnostic and facts reject raw payloads, paths, thread IDs, and extra fields", () => {
+  const structuralLeaks = [
+    ["raw failure", (document) => { document.failure.raw = "host stderr"; }],
+    ["raw command", (document) => { document.failure_context.command = renderedProofCommand; }],
+    ["repository path", (document) => { document.repository_path = "/tmp/private/repository"; }],
+    ["thread ID", (document) => { document.session_observations[0].thread_id = "thread-secret"; }],
+    ["raw stdout", (document) => { document.session_observations[0].stdout = "secret"; }],
+    ["skip path", (document) => {
+      document.skips.push({
+        phase_code: "cleanup",
+        reason_code: "blocked",
+        detail_sha256: "e".repeat(64),
+        path: "/tmp/private/repository",
+      });
+    }],
+  ];
+  for (const [label, mutate] of structuralLeaks) {
+    const candidate = failureCandidateV3({ failureKind: "command_event" });
+    mutate(candidate.diagnostic);
+    assert.notDeepEqual(
+      validator.validateDocumentStructure(candidate.diagnostic, diagnosticSchema),
+      [],
+      label,
+    );
+    assert.match(
+      validateFailureCandidate(candidate).join("\n"),
+      /failure diagnostic:.*not allowed/i,
+      `${label} must fail the combined pre-write gate`,
+    );
+  }
+
+  const factsLeak = failureCandidateV3();
+  factsLeak.observedFacts.raw_jsonl = "{\"type\":\"thread.started\"}";
+  assert.match(
+    validateFailureCandidate(factsLeak).join("\n"),
+    /failure observed facts.*closed exact diagnostic projection/i,
+  );
 });
 
 test("schema walker enforces not for reserved ledger entries", () => {
@@ -1153,7 +1390,7 @@ function passingJourney() {
       terminal_outcome: "DONE",
     },
     invocation: {
-      explicit_selector: "$dev-flow",
+      explicit_selector: "$dev-flow-codex:dev-flow",
       core_call_count: 10,
       scenario_call_budget: 10,
       implicit_invocation_core_calls: 0,
@@ -1350,6 +1587,8 @@ function attemptDiagnosticV2(status, failureKind) {
   const diagnostic = attemptDiagnostic(status);
   diagnostic.schema_version = 2;
   diagnostic.native_attempt.commit_protocol = "external-failure-record-v2";
+  diagnostic.native_attempt.attempt_number = 2;
+  diagnostic.native_attempt.total_attempts = 2;
   diagnostic.failure_kind = failureKind;
   diagnostic.failure = {
     phase_code: failureKind === "command_event" ? "codex-session" : "native-journey",
@@ -1376,6 +1615,223 @@ function attemptDiagnosticV2(status, failureKind) {
   return diagnostic;
 }
 
+function validateFailureCandidate(candidate) {
+  return validator.validateFailureAttemptCandidate({
+    diagnostic: candidate.diagnostic,
+    observedFacts: candidate.observedFacts,
+    ledger: candidate.ledger,
+    attemptLedgerPath: candidate.attemptLedgerPath,
+  });
+}
+
+function failureCandidateV3({ failureKind = "non_command" } = {}) {
+  const failureLedgerPath = "/tmp/dev-flow-codex-v3-native-attempts.json";
+  const ledgerID = ledgerIdentity(failureLedgerPath);
+  const sessionObservations = [
+    sessionObservation("ordinary", {
+      failureStage: "parse_failed",
+      exitCode: 1,
+      eventCounts: { other: 1 },
+    }),
+    sessionObservation("invalid", {
+      failureStage: "parse_failed",
+      signal: "SIGTERM",
+      threadPresent: true,
+      eventCounts: { thread_started: 2 },
+    }),
+    sessionObservation("substantive", {
+      failureStage: "completed",
+      exitCode: 0,
+      threadPresent: true,
+      eventCounts: {
+        thread_started: 1,
+        item_started: 1,
+        item_completed: 1,
+        turn_completed: 1,
+      },
+      itemCounts: { command_execution: 1 },
+    }),
+    sessionObservation("resume"),
+  ];
+  const failure = {
+    phase_code: failureKind === "command_event" ? "codex-session" : "native-journey",
+    reason_code: failureKind === "command_event" ? "command-event-rejected" : "unexpected-failure",
+    detail_sha256: "d".repeat(64),
+  };
+  const failureContext = failureKind === "command_event"
+    ? {
+      session_role: "substantive",
+      event_type: "command_execution",
+      command_sha256: sha256("/bin/zsh -lc 'git status --short'"),
+      output_sha256: sha256(""),
+      status: "completed",
+      exit_code: 0,
+    }
+    : undefined;
+  const matchingEntry = ledgerAttempt(3, "failed");
+  matchingEntry.chain_id = chainIdentity({
+    source_commit: matchingEntry.source_commit,
+    validation_report_sha256: matchingEntry.validation_report_sha256,
+    artifact_report_sha256: matchingEntry.artifact_report_sha256,
+    artifact_sha256: matchingEntry.artifact_sha256,
+  });
+  const ledger = {
+    schema_version: 1,
+    ledger_id: ledgerID,
+    attempts: [ledgerAttempt(1, "failed"), ledgerAttempt(2, "blocked"), matchingEntry],
+  };
+  const diagnostic = {
+    schema_version: 3,
+    report_type: "dev-flow-codex-native-attempt-diagnostic",
+    status: "failed",
+    recorded_at: matchingEntry.completed_at,
+    classification: {
+      evidence_type: "native-attempt-diagnostic",
+      host_surface: "codex-cli",
+      os: "darwin",
+      arch: "arm64",
+      final_artifact: true,
+    },
+    versions: {
+      codex: "0.147.0",
+      codex_compatibility: ">=0.147.0 <0.148.0",
+      package: rootVersion,
+      core: rootVersion,
+      core_contract: "0.1",
+    },
+    identity: {
+      source_commit: matchingEntry.source_commit,
+      artifact_sha256: matchingEntry.artifact_sha256,
+      artifact_report_sha256: matchingEntry.artifact_report_sha256,
+      artifact_built_at: "2026-08-16T01:25:00.000Z",
+    },
+    validation: {
+      report_sha256: matchingEntry.validation_report_sha256,
+      completed_at: "2026-08-16T01:20:00.000Z",
+      targeted_checks: expectedTargetedCommands.map((command, index) => ({
+        command,
+        result: "pass",
+        source_commit: matchingEntry.source_commit,
+        completed_at: `2026-08-16T01:0${index === 0 ? 5 : 9}:00.000Z`,
+      })),
+      root_validation: {
+        command: "pnpm run validate",
+        result: "pass",
+        source_commit: matchingEntry.source_commit,
+        completed_at: "2026-08-16T01:15:00.000Z",
+      },
+    },
+    native_attempt: {
+      chain_id: matchingEntry.chain_id,
+      ledger_id: ledgerID,
+      attempt_number: 3,
+      total_attempts: 3,
+      ledger_sha256: "0".repeat(64),
+      commit_protocol: "external-failure-record-v3",
+      observed_facts_sha256: "0".repeat(64),
+    },
+    failure_kind: failureKind,
+    failure,
+    ...(failureContext ? { failure_context: failureContext } : {}),
+    session_observations: sessionObservations,
+    skips: [],
+  };
+  const candidate = {
+    diagnostic,
+    observedFacts: failureFactsProjection(diagnostic),
+    ledger,
+    attemptLedgerPath: failureLedgerPath,
+  };
+  rebindFailureCandidate(candidate);
+  return candidate;
+}
+
+function failureFactsProjection(diagnostic) {
+  return {
+    schema_version: diagnostic.schema_version,
+    ...(Object.hasOwn(diagnostic, "failure_kind")
+      ? { failure_kind: structuredClone(diagnostic.failure_kind) }
+      : {}),
+    failure: structuredClone(diagnostic.failure),
+    ...(Object.hasOwn(diagnostic, "failure_context")
+      ? { failure_context: structuredClone(diagnostic.failure_context) }
+      : {}),
+    ...(Object.hasOwn(diagnostic, "session_observations")
+      ? { session_observations: structuredClone(diagnostic.session_observations) }
+      : {}),
+  };
+}
+
+function rebindFailureCandidate(candidate) {
+  candidate.observedFacts = failureFactsProjection(candidate.diagnostic);
+  const observedFactsSha256 = sha256(canonicalEncode(candidate.observedFacts));
+  const nativeAttempt = candidate.diagnostic.native_attempt;
+  const matchingEntry = candidate.ledger.attempts[nativeAttempt.attempt_number - 1];
+  if (matchingEntry) matchingEntry.observed_facts_sha256 = observedFactsSha256;
+  nativeAttempt.observed_facts_sha256 = observedFactsSha256;
+  nativeAttempt.ledger_sha256 = sha256(canonicalEncode(candidate.ledger));
+}
+
+function sessionObservation(sessionRole, {
+  failureStage = "not_started",
+  exitCode = null,
+  signal = null,
+  threadPresent = false,
+  stdout = "",
+  stderr = "",
+  eventCounts = {},
+  itemCounts = {},
+  mcpStatusCounts = {},
+} = {}) {
+  const events = {
+    invalid_json: 0,
+    thread_started: 0,
+    item_started: 0,
+    item_completed: 0,
+    turn_completed: 0,
+    error: 0,
+    other: 0,
+    ...eventCounts,
+  };
+  const items = {
+    agent_message: 0,
+    command_execution: 0,
+    mcp_tool_call: 0,
+    other: 0,
+    ...itemCounts,
+  };
+  const mcpStatuses = {
+    dev_flow: 0,
+    completed: 0,
+    failed: 0,
+    other: 0,
+    ...mcpStatusCounts,
+  };
+  return {
+    session_role: sessionRole,
+    failure_stage: failureStage,
+    exit_code: exitCode,
+    signal,
+    thread_present: threadPresent,
+    stdout_bytes: Buffer.byteLength(stdout),
+    stderr_bytes: Buffer.byteLength(stderr),
+    stdout_sha256: sha256(stdout),
+    stderr_sha256: sha256(stderr),
+    event_counts: {
+      total: Object.values(events).reduce((total, count) => total + count, 0),
+      ...events,
+    },
+    item_counts: {
+      total: Object.values(items).reduce((total, count) => total + count, 0),
+      ...items,
+    },
+    mcp_status_counts: {
+      total: mcpStatuses.completed + mcpStatuses.failed + mcpStatuses.other,
+      ...mcpStatuses,
+    },
+  };
+}
+
 function chainIdentity(fields) {
   const ordered = {
     artifact_report_sha256: fields.artifact_report_sha256,
@@ -1396,6 +1852,20 @@ function sha256(value) {
 
 function encode(value) {
   return `${JSON.stringify(value, null, 2)}\n`;
+}
+
+function canonicalEncode(value) {
+  return `${JSON.stringify(sortCanonicalValue(value))}\n`;
+}
+
+function sortCanonicalValue(value) {
+  if (Array.isArray(value)) return value.map(sortCanonicalValue);
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort((left, right) => Buffer.from(left).compare(Buffer.from(right)))
+      .map((key) => [key, sortCanonicalValue(value[key])]),
+  );
 }
 
 function observation(phase, reason, observed) {

@@ -22,6 +22,8 @@ const legacyNativeVerificationCommand = "node --test packages/codex/tests/lifecy
 const previousNativeVerificationCommand = "git diff --check -- native-proof.txt";
 const nativeVerificationCommand = "git hash-object native-proof.txt";
 const nativeVerificationRenderedCommand = "/bin/zsh -lc 'git hash-object native-proof.txt'";
+const nativeSkillSelector = "$dev-flow-codex:dev-flow";
+const nativeSessionRoles = ["ordinary", "invalid", "substantive", "resume"];
 const ordinaryAmbientCommand = "/bin/zsh -lc pwd";
 const invalidGitProbeCommand = "/bin/zsh -lc 'git rev-parse --show-toplevel'";
 const substantiveRepositoryCommand = "/bin/zsh -lc 'git status --short'";
@@ -776,7 +778,7 @@ test("native CLI delegates the exact four inputs and session plans preserve argv
   const invalid = writer.nativeSessionInvocation("invalid", context, "/ignored/codex");
   assert.equal(invalid.cwd, context.invalidPath);
   assert.equal(invalid.arguments.includes("--skip-git-repo-check"), true);
-  assert.match(invalid.arguments.at(-1), /^\$dev-flow\b/);
+  assert.match(invalid.arguments.at(-1), /^\$dev-flow-codex:dev-flow\b/);
   const substantive = writer.nativeSessionInvocation("substantive", context, "/ignored/codex");
   const resume = writer.nativeSessionInvocation("resume", context, "/ignored/codex");
   assert.match(substantive.arguments.at(-1), /native-proof\.txt/);
@@ -980,7 +982,7 @@ test("failed and blocked diagnostics can never occupy the canonical passing evid
   const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-failure-diagnostic-")));
   const canonicalEvidencePath = join(root, "codex-macos-arm64.json");
   const recoveryDirectory = join(root, "recovery");
-  const diagnostic = nativeDiagnosticV2();
+  const diagnostic = nativeDiagnosticV3();
   await assert.rejects(
     writer.writeFailureDiagnostic({
       outputPath: canonicalEvidencePath,
@@ -1002,7 +1004,7 @@ test("failed and blocked diagnostics can never occupy the canonical passing evid
   assert.equal(await optionalContents(canonicalEvidencePath), null);
 });
 
-test("reopened failed diagnostics reject journey-v3 failure records outside the closed v2 schema", async (t) => {
+test("reopened failed diagnostics reject journey-shaped failure records outside the closed diagnostic schema", async (t) => {
   const writer = await import(pathToFileURL(writerPath));
   const root = await temporaryRoot(t, "dev-flow-codex-diagnostic-schema-");
   const canonicalEvidencePath = join(root, "canonical.json");
@@ -1035,18 +1037,18 @@ test("reopened failed diagnostic rejects every extra top-level field", async (t)
       outputPath: join(recoveryDirectory, "extra.json"),
       canonicalEvidencePath,
       recoveryDirectory,
-      diagnostic: { ...nativeDiagnosticV2(), journey: { unsupported: true } },
+      diagnostic: { ...nativeDiagnosticV3(), journey: { unsupported: true } },
     }),
     /unexpected.*journey|closed.*journey|diagnostic.*schema/i,
   );
 });
 
-test("command-event diagnostics use v2 safe context and reject every raw leak", async (t) => {
+test("command-event diagnostics use v3 safe context and reject every raw leak", async (t) => {
   const writer = await import(pathToFileURL(writerPath));
-  const root = await temporaryRoot(t, "dev-flow-codex-diagnostic-v2-");
+  const root = await temporaryRoot(t, "dev-flow-codex-diagnostic-v3-");
   const canonicalEvidencePath = join(root, "canonical.json");
   const recoveryDirectory = join(root, "recovery");
-  const diagnostic = nativeDiagnosticV2();
+  const diagnostic = nativeDiagnosticV3();
   const outputPath = join(recoveryDirectory, "failed.json");
 
   await writer.writeFailureDiagnostic({
@@ -1069,7 +1071,7 @@ test("command-event diagnostics use v2 safe context and reject every raw leak", 
     ["must not satisfy.*forbidden|failure_context", (candidate) => { candidate.failure_kind = "non_command"; }],
   ];
   for (const [expected, mutate] of cases) {
-    const candidate = nativeDiagnosticV2();
+    const candidate = nativeDiagnosticV3();
     mutate(candidate);
     await assert.rejects(
       writer.writeFailureDiagnostic({
@@ -1083,7 +1085,7 @@ test("command-event diagnostics use v2 safe context and reject every raw leak", 
   }
 });
 
-test("duplicate completed command item IDs retain v2 command-event context", async (t) => {
+test("duplicate completed command item IDs retain v3 command-event context", async (t) => {
   const writer = await import(pathToFileURL(writerPath));
   const duplicateItemId = "command-duplicate";
   const duplicateCommand = "/bin/zsh -lc 'git status --short'";
@@ -1117,7 +1119,7 @@ test("duplicate completed command item IDs retain v2 command-event context", asy
   });
 });
 
-test("Core zero-command budget rejection retains v2 command-event context", async (t) => {
+test("Core zero-command budget rejection retains v3 command-event context", async (t) => {
   const writer = await import(pathToFileURL(writerPath));
   const zeroCommandBudget = { ...nativeVerificationBudget, max_automatic_commands: 0 };
   const streams = recordedSessionStreams();
@@ -1221,6 +1223,203 @@ test("native recorded driver spawns four ordered sessions and derives only compl
   assert.equal(result.summary.taskId, "task-00000001");
   assert.equal(result.summary.terminalOutcome, "DONE");
   assert.equal(await optionalContents(nativeEvidencePath), evidenceBefore);
+});
+
+test("native prompts and the default fake resolve only the exact installed Skill full name", async (t) => {
+  const writer = await import(pathToFileURL(writerPath));
+  const cases = [
+    ["exact", `${nativeSkillSelector}\nIn this one current Git repository, create native-proof.txt with exactly the required line.`, 1, true],
+    ["bare", "$dev-flow\nIn this one current Git repository, create native-proof.txt with exactly the required line.", 0, false],
+    ["wrong-namespace", "$other:dev-flow\nIn this one current Git repository, create native-proof.txt with exactly the required line.", 0, false],
+    ["wrong-base", "$dev-flow-codex:other\nIn this one current Git repository, create native-proof.txt with exactly the required line.", 0, false],
+    ["missing", "In this one current Git repository, create native-proof.txt with exactly the required line.", 0, false],
+  ];
+  for (const [label, prompt, expectedCalls, selected] of cases) {
+    await t.test(label, async (t) => {
+      const result = await runFakeCodexPrompt(t, prompt, label);
+      const parsed = writer.parseCodexExecJSONL(result.stdout, { sessionRole: "substantive" });
+      assert.equal(parsed.devFlowCalls.length, expectedCalls);
+      assert.equal(await optionalContents(join(result.targetPath, "native-proof.txt")) !== null, selected);
+      const resolution = (await readJSONL(result.tracePath)).find(({ role }) => role === "native-skill-resolution");
+      assert.deepEqual(resolution, {
+        role: "native-skill-resolution",
+        pluginName: "dev-flow-codex",
+        skillName: "dev-flow",
+        fullName: "dev-flow-codex:dev-flow",
+        explicitSelector: nativeSkillSelector,
+        selected,
+      });
+    });
+  }
+
+  const context = {
+    targetPath: "/tmp/dev-flow-native-target",
+    invalidPath: "/tmp/dev-flow-native-invalid",
+    environment: {},
+  };
+  const ordinaryPrompt = writer.nativeSessionInvocation("ordinary", context, "/external/codex").arguments.at(-1);
+  assert.equal(ordinaryPrompt.includes("$dev-flow"), false);
+  for (const role of ["invalid", "substantive", "resume"]) {
+    assert.equal(
+      writer.nativeSessionInvocation(role, context, "/external/codex").arguments.at(-1).startsWith(nativeSkillSelector),
+      true,
+      `${role} must use the exact installed Skill selector`,
+    );
+  }
+});
+
+test("native session failures retain four ordered bounded safe observations", async (t) => {
+  const writer = await import(pathToFileURL(writerPath));
+  const success = (role) => ({
+    stdout: recordedSessionStreams()[role],
+    stderr: "",
+    exitCode: 0,
+    signal: null,
+  });
+  const captureError = (message, failureStage, capture) => Object.assign(new Error(message), {
+    failureStage,
+    sessionCapture: capture,
+  });
+  const malformedMCP = [
+    JSON.stringify({ type: "thread.started", thread_id: "thread-substantive" }),
+    JSON.stringify({ type: "item.completed", item: { type: "mcp_tool_call", server: "dev-flow", status: "completed" } }),
+  ].join("\n");
+  const cases = [
+    ["spawn", "ordinary", () => { throw captureError("spawn", "spawn_failed", { stdout: "", stderr: "", exitCode: null, signal: null }); }, "spawn_failed", false],
+    ["capture", "ordinary", () => { throw captureError("limit", "capture_failed", { stdout: "partial", stderr: "bounded", exitCode: null, signal: "SIGTERM" }); }, "capture_failed", false],
+    ["nonzero", "invalid", () => { throw captureError("exit", "process_exited", { stdout: JSON.stringify({ type: "thread.started", thread_id: "thread-invalid" }), stderr: "safe digest only", exitCode: 7, signal: null }); }, "process_exited", true],
+    ["signal", "invalid", () => { throw captureError("signal", "process_exited", { stdout: JSON.stringify({ type: "thread.started", thread_id: "thread-invalid" }), stderr: "", exitCode: null, signal: "SIGTERM" }); }, "process_exited", true],
+    ["invalid-json", "substantive", () => ({ stdout: "not-json\n", stderr: "", exitCode: 0, signal: null }), "parse_failed", false],
+    ["empty-thread", "substantive", () => ({ stdout: JSON.stringify({ type: "thread.started", thread_id: "" }), stderr: "", exitCode: 0, signal: null }), "parse_failed", false],
+    ["missing-thread", "substantive", () => ({ stdout: JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: "bounded" } }), stderr: "", exitCode: 0, signal: null }), "parse_failed", false],
+    ["malformed-mcp", "substantive", () => ({ stdout: malformedMCP, stderr: "", exitCode: 0, signal: null }), "parse_failed", true],
+    ["duplicate-thread", "substantive", () => ({ stdout: [JSON.stringify({ type: "thread.started", thread_id: "thread-a" }), JSON.stringify({ type: "thread.started", thread_id: "thread-b" })].join("\n"), stderr: "", exitCode: 0, signal: null }), "parse_failed", true],
+    ["missing-stop", "substantive", () => { throw captureError("stop", "stop_marker_missing", { stdout: JSON.stringify({ type: "thread.started", thread_id: "thread-substantive" }), stderr: "", exitCode: 0, signal: null }); }, "stop_marker_missing", true],
+  ];
+
+  for (const [label, failedRole, failure, expectedStage, threadPresent] of cases) {
+    await t.test(label, async () => {
+      let observedError;
+      await assert.rejects(
+        writer.runRecordedNativeSessions({
+          async spawnSession({ role }) {
+            if (role === failedRole) return failure();
+            return success(role);
+          },
+        }),
+        (error) => {
+          observedError = error;
+          return true;
+        },
+      );
+      const observations = observedError.sessionObservations;
+      assert.deepEqual(observations.map(({ session_role }) => session_role), ["ordinary", "invalid", "substantive", "resume"]);
+      const failed = observations.find(({ session_role }) => session_role === failedRole);
+      assert.equal(failed.failure_stage, expectedStage);
+      assert.equal(failed.thread_present, threadPresent);
+      if (label === "empty-thread") {
+        assert.equal(failed.event_counts.thread_started, 0);
+        assert.equal(failed.event_counts.other, 1);
+      }
+      assert.deepEqual(
+        Object.keys(failed).sort(),
+        ["event_counts", "exit_code", "failure_stage", "item_counts", "mcp_status_counts", "session_role", "signal", "stderr_bytes", "stderr_sha256", "stdout_bytes", "stdout_sha256", "thread_present"].sort(),
+      );
+      for (const role of nativeSessionRolesAfter(failedRole)) {
+        assert.deepEqual(observations.find(({ session_role }) => session_role === role), emptySessionObservation(role));
+      }
+      assert.equal(JSON.stringify(observations).includes("safe digest only"), false);
+      assert.equal(JSON.stringify(observations).includes("thread-invalid"), false);
+    });
+  }
+});
+
+test("native capture retains exact raw stream facts and uses a strict cross-chunk UTF-8 view", async (t) => {
+  const writer = await import(pathToFileURL(writerPath));
+  const root = await temporaryRoot(t, "dev-flow-codex-native-raw-capture-");
+  const capture = (source) => writer.captureCodexJSONL(process.execPath, ["-e", source], {
+    cwd: root,
+    env: process.env,
+    stopAfterFirstApply: false,
+  });
+
+  await t.test("invalid-byte", async () => {
+    const raw = Buffer.from([0x7b, 0xff, 0x7d, 0x0a]);
+    await assert.rejects(
+      () => capture(`process.stdout.write(Buffer.from(${JSON.stringify(raw.toString("base64"))}, "base64"));`),
+      (error) => {
+        assert.equal(error.failureStage, "parse_failed");
+        assert.equal(error.sessionCapture.stdoutBytes, raw.length);
+        assert.equal(error.sessionCapture.stdoutSha256, sha256Text(raw));
+        assert.equal(error.sessionCapture.stdoutInvalidUtf8, true);
+        return true;
+      },
+    );
+  });
+
+  await t.test("exact-64-mib-boundary", async () => {
+    const chunk = Buffer.alloc(1024 * 1024, 0x61);
+    const hash = createHash("sha256");
+    for (let index = 0; index < 64; index += 1) hash.update(chunk);
+    const result = await capture([
+      "const chunk = Buffer.alloc(1024 * 1024, 0x61);",
+      "for (let index = 0; index < 64; index += 1) process.stderr.write(chunk);",
+    ].join("\n"));
+    assert.equal(result.stderrBytes, 64 * 1024 * 1024);
+    assert.equal(result.stderrSha256, hash.digest("hex"));
+  });
+
+  const cappedStreamDigest = () => {
+    const chunk = Buffer.alloc(1024 * 1024, 0x61);
+    const hash = createHash("sha256");
+    for (let index = 0; index < 64; index += 1) hash.update(chunk);
+    return hash.digest("hex");
+  };
+
+  await t.test("stdout-over-64-mib-boundary", async () => {
+    await assert.rejects(
+      () => capture("process.stdout.write(Buffer.alloc(64 * 1024 * 1024 - 1, 0x61), () => "
+        + "setTimeout(() => process.stdout.end(Buffer.from([0x61, 0x62])), 50));"),
+      (error) => {
+        assert.equal(error.failureStage, "capture_failed");
+        assert.match(error.message, /bounded stdout limit/i);
+        assert.equal(error.sessionCapture.stdoutBytes, 64 * 1024 * 1024);
+        assert.equal(error.sessionCapture.stdoutSha256, cappedStreamDigest());
+        return true;
+      },
+    );
+  });
+
+  await t.test("stderr-over-64-mib-boundary", async () => {
+    await assert.rejects(
+      () => capture("process.stderr.write(Buffer.alloc(64 * 1024 * 1024 - 1, 0x61), () => "
+        + "setTimeout(() => process.stderr.end(Buffer.from([0x61, 0x62])), 50));"),
+      (error) => {
+        assert.equal(error.failureStage, "capture_failed");
+        assert.match(error.message, /bounded stderr limit/i);
+        assert.equal(error.sessionCapture.stderrBytes, 64 * 1024 * 1024);
+        assert.equal(error.sessionCapture.stderrSha256, cappedStreamDigest());
+        return true;
+      },
+    );
+  });
+
+  await t.test("split-multibyte", async () => {
+    const expected = `${JSON.stringify({ type: "thread.started", thread_id: "thread-😀" })}\n`;
+    const raw = Buffer.from(expected);
+    const emoji = Buffer.from("😀");
+    const emojiOffset = raw.indexOf(emoji);
+    const first = raw.subarray(0, emojiOffset + 2);
+    const second = raw.subarray(emojiOffset + 2);
+    const result = await capture([
+      `process.stdout.write(Buffer.from(${JSON.stringify(first.toString("base64"))}, "base64"));`,
+      `setTimeout(() => process.stdout.end(Buffer.from(${JSON.stringify(second.toString("base64"))}, "base64")), 20);`,
+    ].join("\n"));
+    assert.equal(result.stdout, expected);
+    assert.equal(result.stdoutBytes, raw.length);
+    assert.equal(result.stdoutSha256, sha256Text(raw));
+    assert.equal(result.stdoutInvalidUtf8, false);
+  });
 });
 
 test("native orchestration prepares the missing exact canonical evidence parent before host work", async (t) => {
@@ -1641,13 +1840,147 @@ test("default native helpers execute the native proof command from target cwd an
     trace.filter((entry) => entry.role === "codex" && entry.argv[0] === "exec").map((entry) => entry.argv.at(-1).split("\n")[0]),
     [
       "Reply with one short sentence describing this repository. Do not use any named skill or MCP tool.",
-      "$dev-flow Explain briefly that this request cannot run outside a Git worktree; do not create or resume a task.",
-      "$dev-flow",
-      "$dev-flow",
+      "$dev-flow-codex:dev-flow Explain briefly that this request cannot run outside a Git worktree; do not create or resume a task.",
+      "$dev-flow-codex:dev-flow",
+      "$dev-flow-codex:dev-flow",
     ],
   );
   assert.equal(trace.some((entry) => entry.role === "core" && entry.argv.join(" ") === "mcp --stdio"), true);
   await assert.rejects(stat(nativeWorkspace), { code: "ENOENT" });
+});
+
+test("default native exit-zero no-apply failure durably records v3 safe session observations", async (t) => {
+  const writer = await import(pathToFileURL(writerPath));
+  const fixture = await nativeSubprocessFixture(t, writer, "v3-no-apply", {
+    failedHistory: 2,
+    sessionMode: "substantive-no-apply",
+  });
+  await assert.rejects(
+    writer.executeNativeJourney(fixture.inputs, fixture.dependencies),
+    /substantive.*first Core action|native attempt.*consumed.*external diagnostic/i,
+  );
+
+  const ledger = JSON.parse(await readFile(fixture.inputs.ledgerPath, "utf8"));
+  assert.equal(ledger.attempts.length, 3);
+  assert.equal(ledger.attempts[2].attempt_number, 3);
+  assert.equal(ledger.attempts[2].status, "failed");
+  const recoveryDirectory = join(fixture.recoveryRoot, ledger.attempts[2].chain_id);
+  const diagnosticText = await readFile(join(recoveryDirectory, "failed.json"), "utf8");
+  const observedFactsText = await readFile(join(recoveryDirectory, "failure-observed-facts.json"), "utf8");
+  const diagnostic = JSON.parse(diagnosticText);
+  const observedFacts = JSON.parse(observedFactsText);
+
+  assert.equal(diagnostic.schema_version, 3);
+  assert.equal(diagnostic.native_attempt.commit_protocol, "external-failure-record-v3");
+  assert.equal(diagnostic.native_attempt.attempt_number, 3);
+  assert.equal(diagnostic.native_attempt.total_attempts, 3);
+  assert.equal(diagnostic.failure_kind, "non_command");
+  assert.deepEqual(observedFacts, {
+    schema_version: 3,
+    failure_kind: diagnostic.failure_kind,
+    failure: diagnostic.failure,
+    session_observations: diagnostic.session_observations,
+  });
+  assert.deepEqual(diagnostic.session_observations.map(({ session_role, failure_stage }) => [session_role, failure_stage]), [
+    ["ordinary", "completed"],
+    ["invalid", "completed"],
+    ["substantive", "stop_marker_missing"],
+    ["resume", "not_started"],
+  ]);
+  assert.equal(diagnostic.session_observations[0].thread_present, true);
+  assert.equal(diagnostic.session_observations[1].thread_present, true);
+  assert.equal(diagnostic.session_observations[2].thread_present, true);
+  assert.deepEqual(diagnostic.session_observations[3], emptySessionObservation("resume"));
+  assert.equal(sha256Text(observedFactsText), ledger.attempts[2].observed_facts_sha256);
+  for (const forbidden of [
+    nativeSkillSelector,
+    "$dev-flow",
+    nativeVerificationRenderedCommand,
+    nativeProofContent.trim(),
+    "thread-substantive",
+    fixture.root,
+    "substantive Codex session ended before the first Core action commit",
+  ]) {
+    assert.equal(`${diagnosticText}${observedFactsText}`.includes(forbidden), false, `failure record leaked ${forbidden}`);
+  }
+  assert.equal(await optionalContents(fixture.dependencies.evidencePath), null);
+});
+
+test("pre-reservation host preparation failure consumes no attempt and starts no session", async (t) => {
+  const writer = await import(pathToFileURL(writerPath));
+  const root = await temporaryRoot(t, "dev-flow-codex-pre-reservation-host-failure-");
+  const ledgerPath = join(root, "attempt-ledger.json");
+  const evidencePath = canonicalEvidencePathForRoot(root);
+  const recoveryRoot = join(root, "recovery");
+  await writer.initializeAttemptLedger(ledgerPath);
+  const preflight = orchestrationPreflight(await writer.deriveLedgerId(ledgerPath));
+  let spawnCount = 0;
+
+  await assert.rejects(
+    writer.executeNativeJourney({
+      validationReportPath: "/external/validation-report.json",
+      artifactReportPath: "/external/artifact-report.json",
+      codexExecutable: "/external/codex-0.147.0",
+      ledgerPath,
+    }, {
+      evidencePath,
+      evidenceRepositoryRoot: root,
+      recoveryRoot,
+      platform: "darwin",
+      arch: "arm64",
+      async preflight() { return structuredClone(preflight); },
+      async assertFrozenSource() {},
+      async prepareHost() { throw new Error("setup readback failed before reservation"); },
+      async spawnSession() { spawnCount += 1; },
+    }),
+    /setup readback failed before reservation/,
+  );
+  assert.deepEqual(JSON.parse(await readFile(ledgerPath, "utf8")).attempts, []);
+  assert.equal(spawnCount, 0);
+  assert.equal(await optionalContents(recoveryRoot), null);
+  assert.equal(await optionalContents(evidencePath), null);
+});
+
+test("final preflight failure consumes no attempt and starts no session", async (t) => {
+  const writer = await import(pathToFileURL(writerPath));
+  const root = await temporaryRoot(t, "dev-flow-codex-final-preflight-failure-");
+  const ledgerPath = join(root, "attempt-ledger.json");
+  const evidencePath = canonicalEvidencePathForRoot(root);
+  const recoveryRoot = join(root, "recovery");
+  await writer.initializeAttemptLedger(ledgerPath);
+  const preflight = orchestrationPreflight(await writer.deriveLedgerId(ledgerPath));
+  let preflightCount = 0;
+  let spawnCount = 0;
+
+  await assert.rejects(
+    writer.executeNativeJourney({
+      validationReportPath: "/external/validation-report.json",
+      artifactReportPath: "/external/artifact-report.json",
+      codexExecutable: "/external/codex-0.147.0",
+      ledgerPath,
+    }, {
+      evidencePath,
+      evidenceRepositoryRoot: root,
+      recoveryRoot,
+      platform: "darwin",
+      arch: "arm64",
+      async preflight() {
+        preflightCount += 1;
+        if (preflightCount === 2) throw new Error("final immutable preflight failed before reservation");
+        return structuredClone(preflight);
+      },
+      async assertFrozenSource() {},
+      async prepareHost() { return { targetPath: "/tmp/dev-flow-native-target" }; },
+      async spawnSession() { spawnCount += 1; },
+      async cleanupHost() {},
+    }),
+    /final immutable preflight failed before reservation/,
+  );
+  assert.equal(preflightCount, 2);
+  assert.equal(spawnCount, 0);
+  assert.deepEqual(JSON.parse(await readFile(ledgerPath, "utf8")).attempts, []);
+  assert.equal(await optionalContents(recoveryRoot), null);
+  assert.equal(await optionalContents(evidencePath), null);
 });
 
 test("default native setup and reinstall readback reject every extra registry cardinality", async (t) => {
@@ -1657,6 +1990,7 @@ test("default native setup and reinstall readback reject every extra registry ca
       await t.test(`${stage}-${kind}`, async (t) => {
         const fixture = await nativeSubprocessFixture(t, writer, `${stage}-${kind}`, {
           extraRegistration: `${stage}-${kind}`,
+          failedHistory: stage === "reinstall" ? 2 : 0,
         });
         await assert.rejects(
           writer.executeNativeJourney(fixture.inputs, fixture.dependencies),
@@ -1690,7 +2024,8 @@ test("failed native attempt finalizes only external diagnostic and durable ledge
   const ledgerPath = join(root, "attempt-ledger.json");
   const evidencePath = join(root, "canonical-evidence.json");
   const recoveryDirectory = join(root, "recovery");
-  await writer.initializeAttemptLedger(ledgerPath);
+  const initialized = await writer.initializeAttemptLedger(ledgerPath);
+  await seedFailedLedgerHistory(ledgerPath, initialized.ledgerId, 2);
   const reservation = await writer.reserveNativeAttempt({
     ledgerPath,
     evidencePath,
@@ -1705,13 +2040,14 @@ test("failed native attempt finalizes only external diagnostic and durable ledge
     status: "failed",
     completedAt: "2026-08-16T05:01:00.000Z",
     observedFacts: {
-      schema_version: 2,
+      schema_version: 3,
       failure_kind: "non_command",
       failure: {
         phase_code: "native-journey",
         reason_code: "host-process-failed",
         detail_sha256: sha256Text("Codex exited 1"),
       },
+      session_observations: nativeSessionRoles.map(emptySessionObservation),
     },
     diagnosticBase: nativeDiagnosticBase({
       recordedAt: "2026-08-16T05:01:01.000Z",
@@ -1723,12 +2059,12 @@ test("failed native attempt finalizes only external diagnostic and durable ledge
     }),
   });
   const ledger = JSON.parse(await readFile(ledgerPath, "utf8"));
-  assert.equal(ledger.attempts[0].status, "failed");
+  assert.equal(ledger.attempts[2].status, "failed");
   assert.equal(await optionalContents(evidencePath), null);
   assert.equal(result.diagnosticPath.startsWith(`${recoveryDirectory}/`), true);
   const diagnostic = JSON.parse(await readFile(result.diagnosticPath, "utf8"));
   assert.equal(diagnostic.status, "failed");
-  assert.equal(diagnostic.native_attempt.commit_protocol, "external-failure-record-v2");
+  assert.equal(diagnostic.native_attempt.commit_protocol, "external-failure-record-v3");
 });
 
 test("native orchestration reserves immediately before four sessions and validates before publish", async () => {
@@ -1828,7 +2164,8 @@ test("native orchestration records a failed host externally and never publishes 
   const ledgerPath = join(root, "attempt-ledger.json");
   const evidencePath = canonicalEvidencePathForRoot(root);
   const recoveryRoot = join(root, "recovery");
-  await writer.initializeAttemptLedger(ledgerPath);
+  const initialized = await writer.initializeAttemptLedger(ledgerPath);
+  await seedFailedLedgerHistory(ledgerPath, initialized.ledgerId, 2);
   const preflight = orchestrationPreflight(await writer.deriveLedgerId(ledgerPath));
   const times = [
     "2026-08-16T07:00:00.000Z",
@@ -1859,10 +2196,10 @@ test("native orchestration records a failed host externally and never publishes 
   );
   assert.equal(await optionalContents(evidencePath), null);
   const ledger = JSON.parse(await readFile(ledgerPath, "utf8"));
-  assert.equal(ledger.attempts[0].status, "failed");
-  const diagnostic = JSON.parse(await readFile(join(recoveryRoot, ledger.attempts[0].chain_id, "failed.json"), "utf8"));
+  assert.equal(ledger.attempts[2].status, "failed");
+  const diagnostic = JSON.parse(await readFile(join(recoveryRoot, ledger.attempts[2].chain_id, "failed.json"), "utf8"));
   assert.equal(diagnostic.status, "failed");
-  assert.equal(diagnostic.native_attempt.commit_protocol, "external-failure-record-v2");
+  assert.equal(diagnostic.native_attempt.commit_protocol, "external-failure-record-v3");
 });
 
 test("fake journey rejects real-host and out-of-slice stage attempts before host launch", async () => {
@@ -1888,9 +2225,14 @@ test("operator guide documents governed create, resume, recovery, and terminal b
     /restart.*same task ID/is,
     /blocker.*conflict/is,
     /Core.*`DONE`/i,
+    /attempt(?:s)? numbered 3 or later|attempt\s*>=\s*3/i,
+    /version-3\s+diagnostic|schema version 3/i,
+    /attempt-1[^\n]*version-1[^\n]*attempt-2[^\n]*version-2[^\n]*byte-unchanged/i,
+    /four[^\n]*role[^\n]*session observations/i,
   ]) {
     assert.match(readme, expectation);
   }
+  assert.doesNotMatch(readme, /New command-event failures use the closed version-2 diagnostic/i);
 });
 
 test("operator guide documents bounded removal, retention, and compatible reinstall", async () => {
@@ -2185,16 +2527,34 @@ function nativeDiagnosticV2() {
   return diagnostic;
 }
 
+function nativeDiagnosticV3() {
+  const diagnostic = nativeDiagnosticV2();
+  diagnostic.schema_version = 3;
+  diagnostic.native_attempt.attempt_number = 3;
+  diagnostic.native_attempt.total_attempts = 3;
+  diagnostic.native_attempt.commit_protocol = "external-failure-record-v3";
+  diagnostic.session_observations = nativeSessionRoles.map(emptySessionObservation);
+  return diagnostic;
+}
+
 function nativeDiagnosticBase({
   recordedAt = "2026-08-16T03:00:00.000Z",
+  identity = nativeIdentity("9"),
   failure = {
     phase_code: "native-journey",
     reason_code: "unexpected-failure",
     detail_sha256: sha256Text("exit 1"),
   },
 } = {}) {
-  const diagnostic = nativeDiagnosticV2();
+  const diagnostic = nativeDiagnosticV3();
   diagnostic.recorded_at = recordedAt;
+  diagnostic.identity.source_commit = identity.source_commit;
+  diagnostic.identity.artifact_sha256 = identity.artifact_sha256;
+  diagnostic.identity.artifact_report_sha256 = identity.artifact_report_sha256;
+  diagnostic.validation.report_sha256 = identity.validation_report_sha256;
+  for (const observation of [...diagnostic.validation.targeted_checks, diagnostic.validation.root_validation]) {
+    observation.source_commit = identity.source_commit;
+  }
   diagnostic.failure_kind = "non_command";
   diagnostic.failure = failure;
   delete diagnostic.failure_context;
@@ -2223,6 +2583,89 @@ function parsedRecordedSessions(writer, {
   };
 }
 
+async function runFakeCodexPrompt(t, prompt, label) {
+  const root = await temporaryRoot(t, `dev-flow-codex-skill-resolution-${label}-`);
+  const targetPath = join(root, "target");
+  const dataPath = join(root, "data");
+  const packagePath = join(root, "installed", "dev-flow-codex");
+  const statePath = join(root, "state.json");
+  const tracePath = join(root, "trace.jsonl");
+  await Promise.all([
+    mkdir(targetPath, { recursive: true, mode: 0o700 }),
+    mkdir(dataPath, { recursive: true, mode: 0o700 }),
+    mkdir(join(packagePath, "plugin", ".codex-plugin"), { recursive: true, mode: 0o700 }),
+    mkdir(join(packagePath, "plugin", "skills", "dev-flow"), { recursive: true, mode: 0o700 }),
+  ]);
+  await execFile("git", ["init", "--object-format=sha1", "--initial-branch=main"], { cwd: targetPath });
+  await Promise.all([
+    copyFile(join(packageRoot, "plugin", ".codex-plugin", "plugin.json"), join(packagePath, "plugin", ".codex-plugin", "plugin.json")),
+    copyFile(join(packageRoot, "plugin", "skills", "dev-flow", "SKILL.md"), join(packagePath, "plugin", "skills", "dev-flow", "SKILL.md")),
+    writeFile(statePath, `${JSON.stringify({ packageRoot: packagePath, registrationActive: true })}\n`, { mode: 0o600 }),
+  ]);
+  const { stdout } = await execFile(process.execPath, [
+    fakeNativeToolPath,
+    "codex",
+    "exec",
+    "--json",
+    "--dangerously-bypass-approvals-and-sandbox",
+    prompt,
+  ], {
+    cwd: targetPath,
+    env: {
+      ...process.env,
+      DEV_FLOW_DATA_DIR: dataPath,
+      FAKE_NATIVE_STATE: statePath,
+      FAKE_NATIVE_TRACE: tracePath,
+      FAKE_NATIVE_TOOL_PATH: fakeNativeToolPath,
+      FAKE_NATIVE_PACKAGE_VERSION: "0.1.0",
+    },
+  });
+  return { stdout, targetPath, tracePath };
+}
+
+function nativeSessionRolesAfter(role) {
+  const roles = ["ordinary", "invalid", "substantive", "resume"];
+  return roles.slice(roles.indexOf(role) + 1);
+}
+
+function emptySessionObservation(role) {
+  return {
+    session_role: role,
+    failure_stage: "not_started",
+    exit_code: null,
+    signal: null,
+    thread_present: false,
+    stdout_bytes: 0,
+    stderr_bytes: 0,
+    stdout_sha256: sha256Text(""),
+    stderr_sha256: sha256Text(""),
+    event_counts: {
+      total: 0,
+      invalid_json: 0,
+      thread_started: 0,
+      item_started: 0,
+      item_completed: 0,
+      turn_completed: 0,
+      error: 0,
+      other: 0,
+    },
+    item_counts: {
+      total: 0,
+      agent_message: 0,
+      command_execution: 0,
+      mcp_tool_call: 0,
+      other: 0,
+    },
+    mcp_status_counts: {
+      total: 0,
+      dev_flow: 0,
+      completed: 0,
+      failed: 0,
+      other: 0,
+    },
+  };
+}
+
 async function assertCommandEventFailureDiagnostic(t, writer, {
   label,
   streams,
@@ -2233,7 +2676,8 @@ async function assertCommandEventFailureDiagnostic(t, writer, {
   const ledgerPath = join(root, "attempt-ledger.json");
   const evidencePath = canonicalEvidencePathForRoot(root);
   const recoveryRoot = join(root, "recovery");
-  await writer.initializeAttemptLedger(ledgerPath);
+  const initialized = await writer.initializeAttemptLedger(ledgerPath);
+  await seedFailedLedgerHistory(ledgerPath, initialized.ledgerId, 2);
   const preflight = orchestrationPreflight(await writer.deriveLedgerId(ledgerPath));
   const times = [
     "2026-08-16T08:00:00.000Z",
@@ -2265,12 +2709,12 @@ async function assertCommandEventFailureDiagnostic(t, writer, {
 
   assert.equal(await optionalContents(evidencePath), null);
   const ledger = JSON.parse(await readFile(ledgerPath, "utf8"));
-  assert.equal(ledger.attempts[0].status, "failed");
-  const recoveryDirectory = join(recoveryRoot, ledger.attempts[0].chain_id);
+  assert.equal(ledger.attempts[2].status, "failed");
+  const recoveryDirectory = join(recoveryRoot, ledger.attempts[2].chain_id);
   const diagnosticText = await readFile(join(recoveryDirectory, "failed.json"), "utf8");
   const observedFactsText = await readFile(join(recoveryDirectory, "failure-observed-facts.json"), "utf8");
   const diagnostic = JSON.parse(diagnosticText);
-  assert.equal(diagnostic.schema_version, 2);
+  assert.equal(diagnostic.schema_version, 3);
   assert.equal(diagnostic.failure_kind, "command_event");
   assert.deepEqual(
     Object.keys(diagnostic.failure_context).sort(),
@@ -2320,7 +2764,11 @@ function taskObservation(tool, revision, terminal, {
   };
 }
 
-async function nativeSubprocessFixture(t, writer, label, { extraRegistration } = {}) {
+async function nativeSubprocessFixture(t, writer, label, {
+  extraRegistration,
+  failedHistory = 0,
+  sessionMode,
+} = {}) {
   const root = await temporaryRoot(t, `dev-flow-codex-native-subprocess-${label}-`);
   const fakeBin = join(root, "fake-bin");
   const statePath = join(root, "fake-state.json");
@@ -2341,6 +2789,9 @@ async function nativeSubprocessFixture(t, writer, label, { extraRegistration } =
     writeNativeWrapper(codexExecutable, "codex"),
   ]);
   const initialized = await writer.initializeAttemptLedger(ledgerPath);
+  if (failedHistory > 0) {
+    await seedFailedLedgerHistory(ledgerPath, initialized.ledgerId, failedHistory);
+  }
   const artifactBytes = "deterministic fake artifact bytes\n";
   const preflight = validatingOrchestrationPreflight(
     initialized.ledgerId,
@@ -2358,6 +2809,7 @@ async function nativeSubprocessFixture(t, writer, label, { extraRegistration } =
     "FAKE_NATIVE_PACKAGE_VERSION",
     "FAKE_NATIVE_EXTRA_REGISTRATION",
     "FAKE_NATIVE_CORE_MODE",
+    "FAKE_NATIVE_SESSION_MODE",
   ];
   const previousEnvironment = Object.fromEntries(
     environmentNames.map((name) => [name, process.env[name]]),
@@ -2370,6 +2822,8 @@ async function nativeSubprocessFixture(t, writer, label, { extraRegistration } =
   process.env.FAKE_NATIVE_PACKAGE_VERSION = "0.1.0";
   if (extraRegistration) process.env.FAKE_NATIVE_EXTRA_REGISTRATION = extraRegistration;
   else delete process.env.FAKE_NATIVE_EXTRA_REGISTRATION;
+  if (sessionMode) process.env.FAKE_NATIVE_SESSION_MODE = sessionMode;
+  else delete process.env.FAKE_NATIVE_SESSION_MODE;
   delete process.env.FAKE_NATIVE_CORE_MODE;
   t.after(() => {
     for (const [name, value] of Object.entries(previousEnvironment)) {
@@ -2406,6 +2860,26 @@ async function nativeSubprocessFixture(t, writer, label, { extraRegistration } =
     },
     dependencies,
   };
+}
+
+async function seedFailedLedgerHistory(ledgerPath, ledgerId, count) {
+  const attempts = Array.from({ length: count }, (_, index) => {
+    const attempt = index + 1;
+    const digit = String(attempt);
+    return {
+      attempt_number: attempt,
+      chain_id: digit.repeat(64),
+      source_commit: digit.repeat(40),
+      validation_report_sha256: (attempt + 2).toString(16).repeat(64),
+      artifact_report_sha256: (attempt + 4).toString(16).repeat(64),
+      artifact_sha256: (attempt + 6).toString(16).repeat(64),
+      reserved_at: `2026-08-16T0${attempt}:00:00.000Z`,
+      completed_at: `2026-08-16T0${attempt}:01:00.000Z`,
+      status: "failed",
+      observed_facts_sha256: (attempt + 8).toString(16).repeat(64),
+    };
+  });
+  await writeFile(ledgerPath, `${JSON.stringify({ schema_version: 1, ledger_id: ledgerId, attempts })}\n`, { mode: 0o600 });
 }
 
 function validatingOrchestrationPreflight(ledgerId, artifactPath, artifactBytes) {
@@ -2643,7 +3117,7 @@ function passingNativeJourney() {
       terminal_outcome: "DONE",
     },
     invocation: {
-      explicit_selector: "$dev-flow",
+      explicit_selector: nativeSkillSelector,
       core_call_count: 2,
       scenario_call_budget: 64,
       implicit_invocation_core_calls: 0,

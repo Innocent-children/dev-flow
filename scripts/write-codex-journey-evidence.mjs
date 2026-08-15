@@ -25,7 +25,7 @@ import {
 import { tmpdir } from "node:os";
 import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { createInterface } from "node:readline";
-import { promisify } from "node:util";
+import { promisify, TextDecoder } from "node:util";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -34,6 +34,7 @@ import {
   validateAttemptLedgerSemantics,
   validateDocumentStructure,
   validateEvidenceCandidate,
+  validateFailureAttemptCandidate,
   validatePublishedEvidence,
 } from "./validate-codex-journey-evidence.mjs";
 
@@ -85,6 +86,8 @@ const retiredNativeProofCommand = `git diff --check -- ${nativeProofPath}`;
 const nativeProofCommandOutput = `${nativeProofGitBlobSha1}\n`;
 const nativeProofCommandOutputSha256 = createHash("sha256").update(nativeProofCommandOutput).digest("hex");
 const nativeSessionRoles = Object.freeze(["ordinary", "invalid", "substantive", "resume"]);
+const nativeSkillSelector = "$dev-flow-codex:dev-flow";
+const nativeSessionStreamLimitBytes = 64 * 1024 * 1024;
 const knownTestCommandMarkers = Object.freeze([
   "go test",
   "pnpm test",
@@ -94,16 +97,16 @@ const knownTestCommandMarkers = Object.freeze([
 ]);
 const nativePrompts = Object.freeze({
   ordinary: "Reply with one short sentence describing this repository. Do not use any named skill or MCP tool.",
-  invalid: "$dev-flow Explain briefly that this request cannot run outside a Git worktree; do not create or resume a task.",
+  invalid: `${nativeSkillSelector} Explain briefly that this request cannot run outside a Git worktree; do not create or resume a task.`,
   substantive: [
-    "$dev-flow",
+    nativeSkillSelector,
     "In this one current Git repository, create native-proof.txt with exactly the line: Dev Flow Codex native journey passed.",
     "Change no other repository path. Open the task with a targeted verification budget of exactly one automatic command, no full suite, and manual handoff allowed.",
     `Use repository editing tools for the change. The only permitted verification command is exactly: ${nativeProofCommand}`,
     "Repository inspection and implementation commands are non-verification facts; do not run a test or full-suite command.",
   ].join("\n"),
   resume: [
-    "$dev-flow",
+    nativeSkillSelector,
     "Resume the existing compatible Codex-owned task in this repository. Treat the stopped process as an uncertain boundary: before any apply_action, call dev_flow_get_task and then dev_flow_get_next_action.",
     `Continue until the Core returns DONE. Run exactly this one targeted verification command: ${nativeProofCommand}`,
     "Record that exact command string as the automated evidence name with command_count=1 and full_suite=false, and run no full suite.",
@@ -731,8 +734,12 @@ function commandEventError(message, fact) {
   return error;
 }
 
-export async function runRecordedNativeSessions({ spawnSession } = {}) {
+export async function runRecordedNativeSessions({ spawnSession, sessionObservations } = {}) {
   if (typeof spawnSession !== "function") throw new Error("native session driver requires a spawnSession function");
+  const observations = sessionObservations ?? createInitialSessionObservations();
+  if (!isSessionObservationSet(observations)) {
+    throw new Error("native session driver requires four initialized safe observations");
+  }
   const parsed = {};
   for (const [role, stopAfterFirstApply] of [
     ["ordinary", false],
@@ -740,10 +747,245 @@ export async function runRecordedNativeSessions({ spawnSession } = {}) {
     ["substantive", true],
     ["resume", false],
   ]) {
-    const stream = await spawnSession({ role, stopAfterFirstApply });
-    parsed[role] = parseCodexExecJSONL(stream, { sessionRole: role });
+    let capture;
+    try {
+      capture = normalizeSessionCapture(await spawnSession({ role, stopAfterFirstApply }));
+    } catch (error) {
+      const failedCapture = normalizeSessionCapture(error?.sessionCapture ?? {
+        stdout: "",
+        stderr: "",
+        exitCode: null,
+        signal: null,
+      });
+      replaceSessionObservation(
+        observations,
+        sessionObservationFromCapture(role, failedCapture, normalizeFailureStage(error?.failureStage, "spawn_failed")),
+      );
+      throw attachSessionObservations(error, observations);
+    }
+    try {
+      parsed[role] = parseCodexExecJSONL(capture.stdout, { sessionRole: role });
+      replaceSessionObservation(observations, sessionObservationFromCapture(role, capture, "completed"));
+    } catch (error) {
+      replaceSessionObservation(observations, sessionObservationFromCapture(role, capture, "parse_failed"));
+      throw attachSessionObservations(error, observations);
+    }
   }
-  return { sessions: parsed, summary: summarizeRecordedSessions(parsed) };
+  return {
+    sessions: parsed,
+    summary: summarizeRecordedSessions(parsed),
+    sessionObservations: structuredClone(observations),
+  };
+}
+
+function createInitialSessionObservations() {
+  return nativeSessionRoles.map((role) => emptySessionObservation(role));
+}
+
+function emptySessionObservation(role) {
+  const emptyDigest = sha256("");
+  return {
+    session_role: role,
+    failure_stage: "not_started",
+    exit_code: null,
+    signal: null,
+    thread_present: false,
+    stdout_bytes: 0,
+    stderr_bytes: 0,
+    stdout_sha256: emptyDigest,
+    stderr_sha256: emptyDigest,
+    event_counts: emptyEventCounts(),
+    item_counts: emptyItemCounts(),
+    mcp_status_counts: emptyMCPStatusCounts(),
+  };
+}
+
+function emptyEventCounts() {
+  return {
+    total: 0,
+    invalid_json: 0,
+    thread_started: 0,
+    item_started: 0,
+    item_completed: 0,
+    turn_completed: 0,
+    error: 0,
+    other: 0,
+  };
+}
+
+function emptyItemCounts() {
+  return { total: 0, agent_message: 0, command_execution: 0, mcp_tool_call: 0, other: 0 };
+}
+
+function emptyMCPStatusCounts() {
+  return { total: 0, dev_flow: 0, completed: 0, failed: 0, other: 0 };
+}
+
+function isSessionObservationSet(observations) {
+  return Array.isArray(observations)
+    && observations.length === nativeSessionRoles.length
+    && observations.every((observation, index) =>
+      isPlainObject(observation) && observation.session_role === nativeSessionRoles[index]);
+}
+
+function replaceSessionObservation(observations, next) {
+  const index = nativeSessionRoles.indexOf(next.session_role);
+  if (index < 0) throw new Error("safe session observation has an unknown role");
+  observations[index] = next;
+}
+
+function normalizeSessionCapture(capture) {
+  if (typeof capture === "string") {
+    return sessionCaptureFromText(capture, "", 0, null);
+  }
+  if (
+    !isPlainObject(capture)
+    || typeof capture.stdout !== "string"
+    || typeof capture.stderr !== "string"
+    || !(Number.isInteger(capture.exitCode) || capture.exitCode === null)
+    || !(typeof capture.signal === "string" || capture.signal === null)
+  ) {
+    throw new Error("native session capture must contain bounded stdout/stderr and exit/signal facts");
+  }
+  const hasExactStreamFacts = [
+    "stdoutBytes",
+    "stderrBytes",
+    "stdoutSha256",
+    "stderrSha256",
+    "stdoutInvalidUtf8",
+  ].every((field) => Object.hasOwn(capture, field));
+  if (!hasExactStreamFacts) {
+    return sessionCaptureFromText(capture.stdout, capture.stderr, capture.exitCode, capture.signal);
+  }
+  if (
+    !Number.isInteger(capture.stdoutBytes)
+    || capture.stdoutBytes < 0
+    || capture.stdoutBytes > nativeSessionStreamLimitBytes
+    || !Number.isInteger(capture.stderrBytes)
+    || capture.stderrBytes < 0
+    || capture.stderrBytes > nativeSessionStreamLimitBytes
+    || !hex(capture.stdoutSha256, 64)
+    || !hex(capture.stderrSha256, 64)
+    || typeof capture.stdoutInvalidUtf8 !== "boolean"
+  ) {
+    throw new Error("native session capture raw stream facts must be exact and bounded");
+  }
+  return {
+    stdout: capture.stdout,
+    stderr: capture.stderr,
+    exitCode: capture.exitCode,
+    signal: capture.signal,
+    stdoutBytes: capture.stdoutBytes,
+    stderrBytes: capture.stderrBytes,
+    stdoutSha256: capture.stdoutSha256,
+    stderrSha256: capture.stderrSha256,
+    stdoutInvalidUtf8: capture.stdoutInvalidUtf8,
+  };
+}
+
+function sessionCaptureFromText(stdout, stderr, exitCode, signal) {
+  const stdoutBytes = Buffer.byteLength(stdout);
+  const stderrBytes = Buffer.byteLength(stderr);
+  if (stdoutBytes > nativeSessionStreamLimitBytes || stderrBytes > nativeSessionStreamLimitBytes) {
+    throw new Error("native session capture exceeds the bounded stream limit");
+  }
+  return {
+    stdout,
+    stderr,
+    exitCode,
+    signal,
+    stdoutBytes,
+    stderrBytes,
+    stdoutSha256: sha256(stdout),
+    stderrSha256: sha256(stderr),
+    stdoutInvalidUtf8: false,
+  };
+}
+
+function normalizeFailureStage(stage, fallback) {
+  const allowed = new Set([
+    "spawn_failed",
+    "capture_failed",
+    "process_exited",
+    "parse_failed",
+    "completed",
+    "stop_marker_missing",
+  ]);
+  return allowed.has(stage) ? stage : fallback;
+}
+
+function attachSessionObservations(error, observations) {
+  const failure = error instanceof Error ? error : new Error(String(error ?? "native session failed"));
+  failure.sessionObservations = structuredClone(observations);
+  return failure;
+}
+
+function sessionObservationFromCapture(role, capture, failureStage) {
+  const eventCounts = emptyEventCounts();
+  const itemCounts = emptyItemCounts();
+  const mcpStatusCounts = emptyMCPStatusCounts();
+  const lines = capture.stdout.split(/\r?\n/u).filter((line) => line.trim() !== "");
+  for (const line of lines) {
+    eventCounts.total += 1;
+    let event;
+    try {
+      event = JSON.parse(line);
+    } catch {
+      eventCounts.invalid_json += 1;
+      continue;
+    }
+    if (event?.type === "thread.started" && typeof event.thread_id === "string" && event.thread_id.length > 0) {
+      eventCounts.thread_started += 1;
+      continue;
+    }
+    if (event?.type === "item.started") {
+      eventCounts.item_started += 1;
+      continue;
+    }
+    if (event?.type === "item.completed") {
+      eventCounts.item_completed += 1;
+      itemCounts.total += 1;
+      const itemType = event.item?.type;
+      if (itemType === "agent_message") itemCounts.agent_message += 1;
+      else if (itemType === "command_execution") itemCounts.command_execution += 1;
+      else if (itemType === "mcp_tool_call") {
+        itemCounts.mcp_tool_call += 1;
+        mcpStatusCounts.total += 1;
+        if (event.item?.server === "dev-flow") mcpStatusCounts.dev_flow += 1;
+        if (event.item?.status === "completed") mcpStatusCounts.completed += 1;
+        else if (event.item?.status === "failed") mcpStatusCounts.failed += 1;
+        else mcpStatusCounts.other += 1;
+      } else itemCounts.other += 1;
+      continue;
+    }
+    if (event?.type === "turn.completed") {
+      eventCounts.turn_completed += 1;
+      continue;
+    }
+    if (event?.type === "error") {
+      eventCounts.error += 1;
+      continue;
+    }
+    eventCounts.other += 1;
+  }
+  if (capture.stdoutInvalidUtf8) {
+    eventCounts.total += 1;
+    eventCounts.invalid_json += 1;
+  }
+  return {
+    session_role: role,
+    failure_stage: failureStage,
+    exit_code: capture.exitCode,
+    signal: capture.signal,
+    thread_present: eventCounts.thread_started > 0,
+    stdout_bytes: capture.stdoutBytes,
+    stderr_bytes: capture.stderrBytes,
+    stdout_sha256: capture.stdoutSha256,
+    stderr_sha256: capture.stderrSha256,
+    event_counts: eventCounts,
+    item_counts: itemCounts,
+    mcp_status_counts: mcpStatusCounts,
+  };
 }
 
 export async function prepareCanonicalEvidenceParent(options = {}, dependencies = {}) {
@@ -1026,12 +1268,14 @@ export async function executeNativeJourney(inputs = {}, dependencies = {}) {
   let hostContext;
   let reservation;
   let prepared;
+  let sessionObservations;
   try {
     hostContext = await prepareHost({ ...inputs, preflight: firstPreflight });
     const finalPreflight = await preflight(inputs);
     await assertFrozenSource(finalPreflight.identity.source_commit);
     assertSameNativePreflight(firstPreflight, finalPreflight);
 
+    sessionObservations = createInitialSessionObservations();
     reservation = await reserveNativeAttempt({
       ledgerPath: inputs.ledgerPath,
       evidencePath,
@@ -1041,6 +1285,7 @@ export async function executeNativeJourney(inputs = {}, dependencies = {}) {
     });
     const recoveryDirectory = join(recoveryRoot, reservation.chainId);
     const sessionResult = await runRecordedNativeSessions({
+      sessionObservations,
       spawnSession: (session) => spawnSession({
         ...session,
         context: hostContext,
@@ -1156,7 +1401,7 @@ export async function executeNativeJourney(inputs = {}, dependencies = {}) {
     }
     const completedAt = now();
     const recordedAt = now();
-    const safeFailure = failureProjection(error);
+    const safeFailure = failureProjection(error, sessionObservations);
     const failure = await finalizeFailedAttempt({
       ledgerPath: inputs.ledgerPath,
       evidencePath,
@@ -1165,7 +1410,7 @@ export async function executeNativeJourney(inputs = {}, dependencies = {}) {
       reservation,
       status: "failed",
       completedAt,
-      observedFacts: { schema_version: 2, ...structuredClone(safeFailure) },
+      observedFacts: { schema_version: 3, ...structuredClone(safeFailure) },
       diagnosticBase: failureDiagnosticBase({
         preflight: firstPreflight,
         recordedAt,
@@ -1271,10 +1516,17 @@ function passingEvidenceBase({ preflight, journey, recordedAt }) {
   };
 }
 
-function failureDiagnosticBase({ preflight, recordedAt, failure_kind, failure, failure_context }) {
+function failureDiagnosticBase({
+  preflight,
+  recordedAt,
+  failure_kind,
+  failure,
+  failure_context,
+  session_observations,
+}) {
   requireTimestamp(recordedAt, "recordedAt");
   return {
-    schema_version: 2,
+    schema_version: 3,
     report_type: "dev-flow-codex-native-attempt-diagnostic",
     recorded_at: recordedAt,
     classification: {
@@ -1306,11 +1558,12 @@ function failureDiagnosticBase({ preflight, recordedAt, failure_kind, failure, f
     failure_kind,
     failure: structuredClone(failure),
     ...(failure_context ? { failure_context: structuredClone(failure_context) } : {}),
+    session_observations: structuredClone(session_observations),
     skips: [],
   };
 }
 
-function failureProjection(error) {
+function failureProjection(error, currentSessionObservations) {
   const failureContext = error?.failureContext;
   const hasCommandContext = isPlainObject(failureContext)
     && nativeSessionRoles.includes(failureContext.session_role)
@@ -1327,6 +1580,11 @@ function failureProjection(error) {
       detail_sha256: sha256(String(error?.message ?? "native attempt failed")),
     },
     ...(hasCommandContext ? { failure_context: structuredClone(failureContext) } : {}),
+    session_observations: structuredClone(
+      isSessionObservationSet(error?.sessionObservations)
+        ? error.sessionObservations
+        : currentSessionObservations,
+    ),
   };
 }
 
@@ -1598,7 +1856,7 @@ async function finishNativeHost({ context, sessionResult, preflight }) {
       terminal_outcome: summary.terminalOutcome,
     },
     invocation: {
-      explicit_selector: "$dev-flow",
+      explicit_selector: nativeSkillSelector,
       core_call_count: summary.coreCallCount,
       scenario_call_budget: nativeCoreCallBudget,
       implicit_invocation_core_calls: summary.ordinaryCoreCalls,
@@ -2219,7 +2477,7 @@ function nativeVerificationProjection(summary) {
   };
 }
 
-async function captureCodexJSONL(executable, arguments_, { cwd, env, stopAfterFirstApply }) {
+export async function captureCodexJSONL(executable, arguments_, { cwd, env, stopAfterFirstApply }) {
   return new Promise((resolveCapture, rejectCapture) => {
     const child = spawn(executable, arguments_, {
       cwd,
@@ -2228,32 +2486,36 @@ async function captureCodexJSONL(executable, arguments_, { cwd, env, stopAfterFi
       shell: false,
       windowsHide: true,
     });
+    const stdoutDecoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+    const stdoutHash = createHash("sha256");
+    const stderrHash = createHash("sha256");
     let stdout = "";
-    let stderr = "";
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
+    let stdoutInvalidUtf8 = false;
     let lineBuffer = "";
     let stopObserved = false;
     let settled = false;
+    let exitCode = null;
+    let exitSignal = null;
     const timeout = setTimeout(() => {
       child.kill("SIGTERM");
-      settle(new Error("native Codex exec session exceeded the bounded timeout"));
+      settle(new Error("native Codex exec session exceeded the bounded timeout"), "capture_failed");
     }, 20 * 60 * 1000);
-    const settle = (error) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      if (error) rejectCapture(error);
-      else resolveCapture(stdout);
-    };
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk;
-      if (Buffer.byteLength(stdout) > 64 * 1024 * 1024) {
-        child.kill("SIGTERM");
-        settle(new Error("native Codex exec JSONL exceeded the bounded output limit"));
-        return;
-      }
-      lineBuffer += chunk;
+    const capture = () => ({
+      stdout,
+      stderr: "",
+      exitCode,
+      signal: exitSignal,
+      stdoutBytes,
+      stderrBytes,
+      stdoutSha256: stdoutHash.copy().digest("hex"),
+      stderrSha256: stderrHash.copy().digest("hex"),
+      stdoutInvalidUtf8,
+    });
+    const consumeStdoutView = (decoded) => {
+      stdout += decoded;
+      lineBuffer += decoded;
       const lines = lineBuffer.split(/\r?\n/u);
       lineBuffer = lines.pop() ?? "";
       if (!stopAfterFirstApply || stopObserved) return;
@@ -2264,15 +2526,70 @@ async function captureCodexJSONL(executable, arguments_, { cwd, env, stopAfterFi
           break;
         }
       }
+    };
+    const settle = (error, failureStage) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (error) {
+        error.failureStage = failureStage;
+        error.sessionCapture = capture();
+        rejectCapture(error);
+      } else resolveCapture(capture());
+    };
+    child.stdout.on("data", (chunk) => {
+      const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      const remaining = nativeSessionStreamLimitBytes - stdoutBytes;
+      const retained = bytes.subarray(0, Math.min(bytes.length, remaining));
+      stdoutBytes += retained.length;
+      stdoutHash.update(retained);
+      try {
+        consumeStdoutView(stdoutDecoder.decode(retained, { stream: true }));
+      } catch {
+        stdoutInvalidUtf8 = true;
+        child.kill("SIGTERM");
+        settle(new Error("native Codex exec JSONL is not strict UTF-8"), "parse_failed");
+        return;
+      }
+      if (retained.length !== bytes.length) {
+        child.kill("SIGTERM");
+        settle(new Error("native Codex exec JSONL exceeded the bounded stdout limit"), "capture_failed");
+      }
     });
-    child.stderr.on("data", (chunk) => { stderr += chunk; });
-    child.once("error", (error) => settle(new Error(`native Codex exec failed to start: ${error.message}`)));
+    child.stderr.on("data", (chunk) => {
+      const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      const remaining = nativeSessionStreamLimitBytes - stderrBytes;
+      const retained = bytes.subarray(0, Math.min(bytes.length, remaining));
+      stderrBytes += retained.length;
+      stderrHash.update(retained);
+      if (retained.length !== bytes.length) {
+        child.kill("SIGTERM");
+        settle(new Error("native Codex exec JSONL exceeded the bounded stderr limit"), "capture_failed");
+      }
+    });
+    child.once("error", (error) => settle(new Error(`native Codex exec failed to start: ${error.message}`), "spawn_failed"));
     child.once("close", (code, signal) => {
       if (settled) return;
+      exitCode = code;
+      exitSignal = signal;
+      try {
+        consumeStdoutView(stdoutDecoder.decode());
+      } catch {
+        stdoutInvalidUtf8 = true;
+        settle(new Error("native Codex exec JSONL is not strict UTF-8"), "parse_failed");
+        return;
+      }
+      if (stopAfterFirstApply && !stopObserved && lineBuffer !== "" && isCompletedDevFlowApply(lineBuffer)) {
+        stopObserved = true;
+      }
       if (stopAfterFirstApply && !stopObserved) {
-        settle(new Error(`substantive Codex session ended before the first Core action commit (${code ?? signal})`));
+        settle(new Error(`substantive Codex session ended before the first Core action commit (${code ?? signal})`), "stop_marker_missing");
       } else if (!stopAfterFirstApply && (code !== 0 || signal !== null)) {
-        settle(new Error(`native Codex exec exited ${code ?? signal}: ${stderr.trim().slice(0, 4000)}`));
+        const stderrSha256 = stderrHash.copy().digest("hex");
+        settle(
+          new Error(`native Codex exec exited ${code ?? signal}; stderr_sha256=${stderrSha256}`),
+          "process_exited",
+        );
       } else {
         settle();
       }
@@ -2621,8 +2938,8 @@ export async function writeFailureDiagnostic({
   if (
     !isPlainObject(diagnostic)
     || !["failed", "blocked"].includes(diagnostic.status)
-    || diagnostic.schema_version !== 2
-    || diagnostic.native_attempt?.commit_protocol !== "external-failure-record-v2"
+    || diagnostic.schema_version !== 3
+    || diagnostic.native_attempt?.commit_protocol !== "external-failure-record-v3"
   ) {
     throw new Error("failure diagnostic must be an honest failed/blocked external record");
   }
@@ -2696,10 +3013,19 @@ export async function finalizeFailedAttempt({
         attempt_number: reservation.attemptNumber,
         total_attempts: ledger.attempts.length,
         ledger_sha256: sha256(finalLedgerBytes),
-        commit_protocol: "external-failure-record-v2",
+        commit_protocol: "external-failure-record-v3",
         observed_facts_sha256: observedFactsSha256,
       },
     };
+    const failureErrors = validateFailureAttemptCandidate({
+      diagnostic,
+      observedFacts,
+      ledger,
+      attemptLedgerPath: ledgerPath,
+    });
+    if (failureErrors.length !== 0) {
+      throw new Error(`native failure candidate semantic validation failed: ${failureErrors.join("; ")}`);
+    }
     await mkdir(recoveryDirectory, { recursive: true, mode: 0o700 });
     await Promise.all([
       writeExclusiveDurable(join(recoveryDirectory, "failure-observed-facts.json"), observedFactsBytes, 0o600),

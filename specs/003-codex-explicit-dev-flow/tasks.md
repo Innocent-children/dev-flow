@@ -112,8 +112,8 @@ the fake lifecycle contract, reject implicit/invalid invocation, and leave repos
   zero-write failure, marketplace/plugin JSON commands, exact readback, matching repeat, ownership
   conflict, bounded rollback, and working-directory fingerprints in
   `packages/codex/tests/lifecycle.test.mjs` (FR-004–FR-006, SC-001).
-- [X] T018 [P] [US1] Add failing Skill contracts for one `dev-flow` resource, exact current-turn
-  `$dev-flow` guard, zero implicit Dev Flow calls, substantive/resume intent, Git/single-repository
+- [X] T018 [P] [US1] Add failing Skill contracts for one `dev-flow` resource, an exact current-turn
+  explicit-selector guard, zero implicit Dev Flow calls, substantive/resume intent, Git/single-repository
   preconditions, server-info-first behavior, and exact six-tool admission in
   `packages/codex/tests/skill-contract.test.mjs` (FR-009–FR-014, SC-002).
 
@@ -308,7 +308,8 @@ one attempt passes, and validate evidence without post-validation writes.
   reservation lock; (5) a non-secret retained-data descriptor with no absolute-path leakage;
   (6) four unique thread IDs plus raw revision non-regression before adjacent deduplication;
   (7) failed/blocked output conforming to the independent closed diagnostic schema and never
-  claiming journey-evidence v3; (8) locked CAS finalization, mutation-window rejection, and safe
+  claiming the pass-only journey-evidence contract; (8) locked CAS finalization, mutation-window
+  rejection, and safe
   live/dead/malformed stale-lock handling; (9) the production default helper chain through
   deterministic fake npm/Codex/Core child processes using official 0.147 JSONL shapes; (10) extra
   marketplace/installed/available entries rejected during setup and reinstall readback; and (11)
@@ -329,10 +330,36 @@ one attempt passes, and validate evidence without post-validation writes.
   missing context and any raw command/output/path field. The fake Codex MUST no longer return empty ordinary/invalid sessions.
   Classification MUST be session-aware: all official completed command events are safe-hashed and
   retained; only the Core-bound proof subset counts against the verification budget.
+  After native attempt 2 exposed the installed Skill-name mismatch and loss of failure-session
+  observations, reopen T054 again. Before production edits, add RED for: (20) substantive and resume
+  prompts plus plugin user-facing description/default prompt selecting exact
+  `$dev-flow-codex:dev-flow`; (21) the default fake deriving full name
+  `dev-flow-codex:dev-flow` from plugin `dev-flow-codex` plus Skill base `dev-flow`, with bare
+  `$dev-flow`, wrong namespace, wrong base, and missing selector producing zero synthetic Dev Flow
+  MCP calls/tasks even when role text otherwise matches; (22) four ordered safe session records
+  initialized before spawn and advanced for completed, spawn/capture/process/parse, and missing-stop
+  stages; (23) the real default orchestration's exit-0/no-apply failure persisting version-3
+  diagnostic and failure-observed-facts before cleanup; (24) each role's nullable exit/signal, thread
+  presence, independently 64-MiB-bounded stdout/stderr byte counts and digests, and exact closed
+  event/item/MCP status counts; (25) exact diagnostic/facts observation equality, ledger facts-digest
+  binding, count-sum/thread/unstarted semantics, and rejection of raw JSONL, stderr, prompt, command,
+  output, environment, secret, thread ID, or path fields; and (26) read-only validation that the
+  consumed attempt-1 v1 and attempt-2 v2 diagnostic/facts bytes and hashes remain unchanged while all
+  new records require v3/`external-failure-record-v3`; (27) install/setup/readback or final-preflight
+  failure occurring before reservation leaves the ledger unchanged, emits no consumed-attempt
+  diagnostic, and starts no session, while the four observations are initialized immediately before
+  a successful reservation; (28) structural and semantic rejection of synthetic attempt 3+ v1/v2
+  downgrade despite otherwise valid legacy shapes, with exact ledger-entry/facts-digest binding;
+  (29) malformed empty-ID and duplicate valid `thread.started` events produce unambiguous counts and
+  `parse_failed`; and (30) command context is required only when the failure is attributable to the
+  completed command event, not merely because an earlier unrelated command occurred. Use the default fake subprocess and actual
+  `executeNativeJourney` failure path; a parser-only unit fixture is insufficient.
   T054 may modify only these exact paths:
   `packages/codex/README.md`;
   `packages/codex/package.json`;
   `packages/codex/lib/lifecycle.mjs`;
+  `packages/codex/plugin/.codex-plugin/plugin.json`;
+  `packages/codex/plugin/skills/dev-flow/SKILL.md`;
   `packages/codex/tests/fixtures/fake-native-tool.mjs`;
   `packages/codex/tests/package-contract.test.mjs`;
   `packages/codex/tests/skill-contract.test.mjs`;
@@ -406,7 +433,8 @@ one attempt passes, and validate evidence without post-validation writes.
   T057 artifact and exact selected stable Codex CLI on macOS arm64. Invoke the checked-in native
   runner once with the unmodified T055 validation report, T057 artifact report, exact Codex
   executable, and external attempt ledger. Run
-  setup, explicit-only checks, substantive task, two Core commits, restart/resume, budgeted `DONE`,
+  setup, explicit-only checks, substantive task selected exactly as `$dev-flow-codex:dev-flow`, two
+  Core commits, restart/resume selected by that same exact full Skill identity, budgeted `DONE`,
   removal, data reopen, npm uninstall, compatible reinstall, and repository/adjacent comparisons.
   Immediately before host spawn the writer atomically reserves the chain/attempt in the ledger; the
   same chain can never launch again. After host success the writer durably persists the immutable
@@ -419,7 +447,11 @@ one attempt passes, and validate evidence without post-validation writes.
   digest. A failed/blocked or pre-evidence interrupted attempt does not establish support; retain
   its reserved/final ledger entry and external failure diagnostic, leave the canonical repository
   evidence path absent, discard that chain's artifact, fix source, and complete an entirely new
-  T055–T057 chain with the same ledger before re-entering T058
+  T055–T057 chain with the same ledger before re-entering T058. Every failure after reservation MUST,
+  before isolated-host cleanup, persist a version-3 diagnostic and ledger-bound
+  failure-observed-facts file with the exact same four ordered safe session projections; attempts
+  1/v1 and 2/v2 remain byte-unchanged. No failed record may retain raw JSONL, stderr, prompts,
+  commands, outputs, environment values, secrets, thread IDs, or paths
   (FR-027, FR-028, SC-001–SC-005, SC-007–SC-008).
 - [ ] T059 Validate the evidence first against
   `contracts/journey-evidence.schema.json` and then with

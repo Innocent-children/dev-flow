@@ -20,7 +20,7 @@
   ],
   "properties": {
     "schema_version": {
-      "enum": [1, 2]
+      "enum": [1, 2, 3]
     },
     "report_type": {
       "const": "dev-flow-codex-native-attempt-diagnostic"
@@ -158,7 +158,11 @@
           "$ref": "#/$defs/sha256"
         },
         "commit_protocol": {
-          "enum": ["external-failure-record-v1", "external-failure-record-v2"]
+          "enum": [
+            "external-failure-record-v1",
+            "external-failure-record-v2",
+            "external-failure-record-v3"
+          ]
         },
         "observed_facts_sha256": {
           "$ref": "#/$defs/sha256"
@@ -176,6 +180,38 @@
     },
     "failure_context": {
       "$ref": "#/$defs/failureContext"
+    },
+    "session_observations": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "prefixItems": [
+        {
+          "allOf": [
+            { "$ref": "#/$defs/sessionObservation" },
+            { "properties": { "session_role": { "const": "ordinary" } } }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/sessionObservation" },
+            { "properties": { "session_role": { "const": "invalid" } } }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/sessionObservation" },
+            { "properties": { "session_role": { "const": "substantive" } } }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/sessionObservation" },
+            { "properties": { "session_role": { "const": "resume" } } }
+          ]
+        }
+      ],
+      "items": false
     },
     "skips": {
       "type": "array",
@@ -313,6 +349,132 @@
           ]
         }
       }
+    },
+    "sessionObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_role",
+        "failure_stage",
+        "exit_code",
+        "signal",
+        "thread_present",
+        "stdout_bytes",
+        "stderr_bytes",
+        "stdout_sha256",
+        "stderr_sha256",
+        "event_counts",
+        "item_counts",
+        "mcp_status_counts"
+      ],
+      "properties": {
+        "session_role": {
+          "enum": ["ordinary", "invalid", "substantive", "resume"]
+        },
+        "failure_stage": {
+          "enum": [
+            "not_started",
+            "spawn_failed",
+            "capture_failed",
+            "process_exited",
+            "parse_failed",
+            "completed",
+            "stop_marker_missing"
+          ]
+        },
+        "exit_code": {
+          "oneOf": [
+            { "type": "integer" },
+            { "type": "null" }
+          ]
+        },
+        "signal": {
+          "oneOf": [
+            { "type": "string", "minLength": 1, "maxLength": 64 },
+            { "type": "null" }
+          ]
+        },
+        "thread_present": {
+          "type": "boolean"
+        },
+        "stdout_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 67108864
+        },
+        "stderr_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 67108864
+        },
+        "stdout_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "stderr_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "event_counts": {
+          "$ref": "#/$defs/eventCounts"
+        },
+        "item_counts": {
+          "$ref": "#/$defs/itemCounts"
+        },
+        "mcp_status_counts": {
+          "$ref": "#/$defs/mcpStatusCounts"
+        }
+      }
+    },
+    "eventCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total",
+        "invalid_json",
+        "thread_started",
+        "item_started",
+        "item_completed",
+        "turn_completed",
+        "error",
+        "other"
+      ],
+      "properties": {
+        "total": { "$ref": "#/$defs/nonNegativeCount" },
+        "invalid_json": { "$ref": "#/$defs/nonNegativeCount" },
+        "thread_started": { "$ref": "#/$defs/nonNegativeCount" },
+        "item_started": { "$ref": "#/$defs/nonNegativeCount" },
+        "item_completed": { "$ref": "#/$defs/nonNegativeCount" },
+        "turn_completed": { "$ref": "#/$defs/nonNegativeCount" },
+        "error": { "$ref": "#/$defs/nonNegativeCount" },
+        "other": { "$ref": "#/$defs/nonNegativeCount" }
+      }
+    },
+    "itemCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "agent_message", "command_execution", "mcp_tool_call", "other"],
+      "properties": {
+        "total": { "$ref": "#/$defs/nonNegativeCount" },
+        "agent_message": { "$ref": "#/$defs/nonNegativeCount" },
+        "command_execution": { "$ref": "#/$defs/nonNegativeCount" },
+        "mcp_tool_call": { "$ref": "#/$defs/nonNegativeCount" },
+        "other": { "$ref": "#/$defs/nonNegativeCount" }
+      }
+    },
+    "mcpStatusCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "dev_flow", "completed", "failed", "other"],
+      "properties": {
+        "total": { "$ref": "#/$defs/nonNegativeCount" },
+        "dev_flow": { "$ref": "#/$defs/nonNegativeCount" },
+        "completed": { "$ref": "#/$defs/nonNegativeCount" },
+        "failed": { "$ref": "#/$defs/nonNegativeCount" },
+        "other": { "$ref": "#/$defs/nonNegativeCount" }
+      }
+    },
+    "nonNegativeCount": {
+      "type": "integer",
+      "minimum": 0
     }
   },
   "allOf": [
@@ -331,6 +493,8 @@
           },
           "native_attempt": {
             "properties": {
+              "attempt_number": { "const": 1 },
+              "total_attempts": { "const": 1 },
               "commit_protocol": { "const": "external-failure-record-v1" }
             }
           }
@@ -338,7 +502,8 @@
         "not": {
           "anyOf": [
             { "required": ["failure_context"] },
-            { "required": ["failure_kind"] }
+            { "required": ["failure_kind"] },
+            { "required": ["session_observations"] }
           ]
         }
       }
@@ -359,7 +524,54 @@
           },
           "native_attempt": {
             "properties": {
+              "attempt_number": { "const": 2 },
+              "total_attempts": { "const": 2 },
               "commit_protocol": { "const": "external-failure-record-v2" }
+            }
+          }
+        },
+        "not": {
+          "required": ["session_observations"]
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "failure_kind": { "const": "command_event" }
+              },
+              "required": ["failure_kind"]
+            },
+            "then": {
+              "required": ["failure_context"]
+            },
+            "else": {
+              "not": {
+                "required": ["failure_context"]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": { "const": 3 }
+        },
+        "required": ["schema_version"]
+      },
+      "then": {
+        "required": ["failure_kind", "session_observations"],
+        "properties": {
+          "failure": { "$ref": "#/$defs/observationV2" },
+          "skips": {
+            "items": { "$ref": "#/$defs/observationV2" }
+          },
+          "native_attempt": {
+            "properties": {
+              "attempt_number": { "type": "integer", "minimum": 3 },
+              "total_attempts": { "type": "integer", "minimum": 3 },
+              "commit_protocol": { "const": "external-failure-record-v3" }
             }
           }
         },

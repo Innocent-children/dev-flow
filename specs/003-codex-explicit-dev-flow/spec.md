@@ -8,30 +8,32 @@
 available from completed feature `002`
 
 **Input**: Package the shared Dev Flow Core as a thin Codex product that starts or resumes one
-single-repository task only when the user explicitly invokes `$dev-flow`.
+single-repository task only when the user explicitly invokes `$dev-flow-codex:dev-flow`.
 
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Install and explicitly invoke Dev Flow in Codex (Priority: P1)
 
 As a Codex user, I can install a local `dev-flow-codex` package, complete an explicit setup step,
-and invoke `$dev-flow` in an existing Git repository without editing that repository.
+and invoke `$dev-flow-codex:dev-flow` in an existing Git repository without editing that repository.
 
 **Why this priority**: The product has no value in Codex until installation and explicit activation
 work as one bounded journey.
 
 **Independent Test**: Install the final local package artifact in a clean Codex test environment,
-run its documented setup, start a new Codex task in a temporary Git repository, invoke `$dev-flow`
+run its documented setup, start a new Codex task in a temporary Git repository, invoke
+`$dev-flow-codex:dev-flow`
 with a substantive requirement, and verify that exactly the shared six-tool surface is available.
 
 **Acceptance Scenarios**:
 
 1. **Given** a supported Codex environment and a packed product artifact, **When** the user performs
    the documented setup, **Then** one Dev Flow Skill and one local STDIO MCP server are registered.
-2. **Given** an ordinary coding request without `$dev-flow`, **When** Codex receives the request,
+2. **Given** an ordinary coding request without `$dev-flow-codex:dev-flow`, **When** Codex receives
+   the request,
    **Then** it makes zero calls to the six Dev Flow tools and creates zero Dev Flow tasks, regardless
    of any ordinary host-side repository inspection.
-3. **Given** an explicit `$dev-flow` invocation in a non-Git directory or without a substantive
+3. **Given** an explicit `$dev-flow-codex:dev-flow` invocation in a non-Git directory or without a substantive
    requirement, **When** the Skill begins, **Then** it makes zero calls to the six Dev Flow tools,
    creates zero Dev Flow tasks, and explains the missing precondition; a read-only host Git probe
    may fail without becoming verification evidence.
@@ -54,9 +56,9 @@ respect its verification budget, and reach `DONE`.
 
 **Acceptance Scenarios**:
 
-1. **Given** no compatible active task, **When** `$dev-flow` is invoked with a new requirement,
+1. **Given** no compatible active task, **When** `$dev-flow-codex:dev-flow` is invoked with a new requirement,
    **Then** the Skill opens one `host=codex` task and follows only the returned current action.
-2. **Given** a compatible active Codex-owned task, **When** `$dev-flow` is invoked after restart,
+2. **Given** a compatible active Codex-owned task, **When** `$dev-flow-codex:dev-flow` is invoked after restart,
    **Then** the Skill resumes it rather than creating or merging another task.
 3. **Given** a mutation response is missing or uncertain, **When** the Skill continues, **Then** it
    reads the authoritative task and fresh next action before considering a retry.
@@ -114,7 +116,7 @@ the repository is unchanged.
 
 - one Codex product package;
 - one Codex Skill named `dev-flow`;
-- explicit `$dev-flow` only;
+- explicit `$dev-flow-codex:dev-flow` only;
 - one local STDIO registration pointing directly to the packaged Go Core;
 - package-local or package-selected platform runtime;
 - explicit setup and removal;
@@ -168,7 +170,11 @@ the repository is unchanged.
 #### Skill and Authority
 
 - **FR-009**: The package MUST expose exactly one user-facing Skill named `dev-flow`.
-- **FR-010**: The Skill MUST activate only through explicit `$dev-flow` invocation in this feature.
+- **FR-010**: The package's sole Skill resource remains named `dev-flow`, but Codex CLI 0.147 MUST
+  activate it only through the exact installed-plugin selector `$dev-flow-codex:dev-flow`, derived
+  from plugin name `dev-flow-codex` plus Skill base name `dev-flow`. Bare `$dev-flow`, a wrong
+  namespace/base name, a missing selector, and implicit injection MUST make zero Dev Flow calls and
+  create zero Dev Flow tasks.
 - **FR-011**: The Skill MUST reject an empty or conversational invocation before opening a task.
 - **FR-012**: The Skill MUST resolve one current Git worktree and MUST reject a requirement that
   needs another repository.
@@ -234,14 +240,30 @@ the repository is unchanged.
   adjacent equal revisions are collapsed. Setup and reinstall readback MUST observe exactly one
   owned marketplace, exactly one installed owned plugin, and zero available entries. Direct Core
   reopen MUST reject protocol contamination, unknown/duplicate response IDs, and bounded-output
-  violations. A failed/blocked diagnostic written after a command event MUST retain only a typed
-  safe context consisting of session role, event type, command/output digests, status, and exit
-  code. The diagnostic contract MUST accept the immutable version-1 history from earlier consumed
-  attempts while requiring every new diagnostic to use the version-2 conditional shape. Version 2
-  MUST distinguish `command_event` from `non_command`: command-event failures require the exact safe
-  context, non-command failures prohibit it, and all version-2 failure/skip detail MUST be a closed
-  phase/reason code plus digest. Neither version may add raw command/output text or repository paths;
-  the accepted immutable version-1 record remains unchanged.
+  violations. The Skill selector used by the substantive and resume executions MUST be exactly
+  `$dev-flow-codex:dev-flow`; deterministic host doubles MUST resolve that full installed-plugin
+  identity and MUST NOT synthesize Dev Flow calls from bare `$dev-flow`, a wrong namespace/base
+  selector, or mere prompt role matching. Install, setup/readback, and the final immutable-input
+  preflight MUST finish before reservation; their failure MUST create no attempt, diagnostic, or
+  session. Immediately before reservation, failure capture MUST initialize four ordered role records
+  (`ordinary`, `invalid`, `substantive`, `resume`) so every consumed attempt can persist their latest
+  safe projection before isolated-host cleanup. Each role record MUST
+  contain only a closed failure stage, integer-or-null exit code, string-or-null signal, thread
+  presence, bounded stdout/stderr byte counts and SHA-256 values, closed event/item/MCP status counts,
+  and no raw JSONL, prompt, command, output, environment, secret, thread ID, or path. Stdout and
+  stderr capture MUST each be capped at 64 MiB. A failed/blocked diagnostic whose failure is
+  attributable to a completed command event MUST additionally retain only the typed safe context
+  consisting of session role, event type, command/output digests, status, and exit code. The
+  diagnostic contract MUST accept the immutable attempt-1 version-1 and attempt-2 version-2 records
+  byte-unchanged. Structural and semantic validation MUST bind v1 to the actual immutable attempt 1,
+  v2 to the actual immutable attempt 2, and v3 to every attempt numbered 3 or later; a later attempt
+  MUST NOT downgrade to v1/v2. Every diagnostic created after this amendment MUST use schema version
+  3 and `external-failure-record-v3`, include the exact four safe session observations, and
+  distinguish `command_event` from `non_command`: command-event failures require the exact command
+  context while non-command failures prohibit it. Version-3 failure/skip detail MUST remain a closed
+  phase/reason code plus digest. The exact digest-bound legacy v1 record is the sole historical
+  exception to the typed observation shape; no new record and no v2/v3 record may add raw
+  command/output text or repository paths.
 - **FR-028**: The real journey runner MUST atomically create the single native evidence record from
   observed host events and lifecycle/data/repository measurements. The record MUST include exact
   Codex build/surface, OS/architecture, frozen source and package digest, Core version, the closed
@@ -272,7 +294,8 @@ the repository is unchanged.
 
 - **Codex Product Package**: Installable unit containing the Codex-specific Skill/registration and a
   compatible Core runtime.
-- **Codex Skill**: Thin workflow guidance that routes explicit `$dev-flow` use to Core tools.
+- **Codex Skill**: Thin workflow guidance named `dev-flow` that routes exact explicit
+  `$dev-flow-codex:dev-flow` use to Core tools.
 - **Codex Registration Receipt**: Bounded evidence identifying product-owned registration/files for
   setup read-back and safe removal.
 - **Codex Journey Evidence**: Exact real-host evidence for one final package artifact.
@@ -283,7 +306,7 @@ the repository is unchanged.
 
 - **SC-001**: A supported user can install the packed product and complete setup without editing a
   repository or global MCP configuration manually.
-- **SC-002**: An ordinary request without `$dev-flow`, and an invalid explicit invocation, each make
+- **SC-002**: An ordinary request without `$dev-flow-codex:dev-flow`, and an invalid explicit invocation, each make
   zero calls to the six Dev Flow tools and create zero Dev Flow tasks; host-side repository commands
   are measured separately as non-verification facts.
 - **SC-003**: Explicit invocation creates or resumes exactly one Codex-owned task for the current

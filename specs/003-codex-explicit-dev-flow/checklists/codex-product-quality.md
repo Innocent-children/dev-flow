@@ -27,7 +27,7 @@
 
 ## Explicit workflow and recovery
 
-- [x] Exact current-turn `$dev-flow`, substantive/resume intent, one worktree, and one-repository
+- [x] Exact current-turn `$dev-flow-codex:dev-flow`, substantive/resume intent, one worktree, and one-repository
   scope are observable preconditions.
 - [x] `dev_flow_server_info` precedes discovery/mutation and checks the exact six-tool contract.
 - [x] Fresh action identity/schema/effects/evidence/recovery/outcome remain live Core results.
@@ -38,8 +38,9 @@
 ## Evidence budget and integrity
 
 - [x] US1/US2/US3 checkpoints are deterministic/fake/integration only.
-- [x] Exactly one real Codex journey is authorized after all deterministic checks, root validation,
-  scope audit, source freeze, and one final artifact.
+- [x] Exactly one passing real Codex journey is authorized after all deterministic checks, root
+  validation, scope audit, source freeze, and one final artifact; each immutable chain permits at
+  most one launch and consumed failed attempts remain external/non-supporting.
 - [x] Root validator ownership is assigned to Feature 003 and preserves the DeepSeek skeleton.
 - [x] JSON Schema supports honest pass/failed/blocked structures without fabricated unavailable data.
 - [x] A separate read-only semantic validator checks compatibility, version/source/artifact identity,

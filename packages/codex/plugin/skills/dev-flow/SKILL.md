@@ -1,6 +1,6 @@
 ---
 name: dev-flow
-description: "Explicit-only Dev Flow entry point for Codex. Use only when the current user turn contains $dev-flow; never select this Skill implicitly."
+description: "Explicit-only Dev Flow entry point for Codex. Use only when the current user turn contains $dev-flow-codex:dev-flow; never select this Skill implicitly."
 ---
 
 # Dev Flow
@@ -12,7 +12,13 @@ workflow transitions, recovery decisions, verification budgets, or completion.
 
 Perform every check below locally and in order before any Core or Dev Flow tool call.
 
-1. Require the exact standalone `$dev-flow` selector in the current user turn. Do not infer the
+The Skill resource/base name is `dev-flow`; the installed Skill full name is `dev-flow-codex:dev-flow`.
+The only exact explicit selector is `$dev-flow-codex:dev-flow`.
+Bare `$dev-flow` is not an alias and does not select this installed Skill. A wrong plugin namespace,
+a wrong Skill base name, or a missing selector also does not select it.
+All negative paths make zero Dev Flow tool calls and create zero Dev Flow tasks; there is no implicit fallback.
+
+1. Require the exact standalone `$dev-flow-codex:dev-flow` selector in the current user turn. Do not infer the
    selector from earlier turns, repository contents, or a request that merely discusses Dev Flow.
    If it is absent, stop before any Core call and make zero Dev Flow tool calls. Never activate this
    Skill implicitly.

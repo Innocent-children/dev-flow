@@ -283,9 +283,12 @@ passing journey runs through all required checkpoints:
 4. start a fresh Codex session;
 5. send an ordinary request, record any completed host command as a safe non-verification fact,
    and prove zero calls to the six Dev Flow tools and zero tasks;
-6. exercise empty/conversational and non-Git explicit invocations, allowing a failed read-only Git
-   discovery command as a non-verification fact while still proving zero Dev Flow calls/tasks;
-7. invoke `$dev-flow` with one substantive single-repository change;
+6. prove that bare `$dev-flow`, a wrong plugin/Skill namespace, and a missing selector do not select
+   the installed Skill; then exercise empty/conversational and non-Git invocations with exact
+   `$dev-flow-codex:dev-flow`, allowing a failed read-only Git discovery command as a
+   non-verification fact while still proving zero Dev Flow calls/tasks;
+7. invoke the installed plugin Skill with exact selector `$dev-flow-codex:dev-flow` and one
+   substantive single-repository change; bare `$dev-flow` is not that Skill's Codex 0.147 identity;
 8. commit at least two Core workflow actions;
 9. close Codex before terminal outcome;
 10. start a new Codex session in the same repository;
@@ -338,11 +341,25 @@ When the journey cannot finish, write an honest `failed` or `blocked` diagnostic
 recovery directory, finalize and retain the external ledger entry,
 leave the canonical repository evidence path absent, and treat that chain's artifact as invalid. Do
 not fabricate task lineage, completed lifecycle data, patch the diagnostic, or relaunch the same
-chain. Immutable version-1 diagnostics remain valid. New diagnostics use version 2 and a required
-`failure_kind`. A completed-command failure uses `command_event` and requires the closed safe object
+chain. The consumed attempt-1 v1 and attempt-2 v2 diagnostic/facts bytes remain immutable and valid.
+Every later diagnostic uses version 3, `external-failure-record-v3`, and a required `failure_kind`.
+A completed-command failure uses `command_event` and requires the closed safe object
 `{session_role,event_type,command_sha256,output_sha256,status,exit_code}`; a `non_command` failure
-prohibits that object. Version-2 failure/skip observations use only closed phase/reason codes and a
-detail SHA-256. Never store the raw command, output, environment, or repository path. Another launch requires a source correction and a
+prohibits that object. Version-3 failure/skip observations use only closed phase/reason codes and a
+detail SHA-256.
+
+Complete install/setup/readback and final immutable-input preflight before reserving an attempt;
+failure there writes no ledger entry/diagnostic and starts no session. Immediately before reservation,
+initialize ordered observations for `ordinary`, `invalid`, `substantive`, and `resume`. Persist all
+four to both the failure-observed-facts file and diagnostic
+before cleanup, including the closed stage, nullable exit/signal, thread presence, stdout/stderr byte
+counts and SHA-256, and closed event/completed-item/MCP-status counts. Each stream is limited to
+64 MiB. Unstarted roles remain zero-count `not_started` observations. The two files must carry the
+same four observations, while the ledger binds the exact failure-observed-facts bytes. Never store
+raw JSONL, stderr, prompt, command, output, environment, secret, thread ID, or repository path.
+Accept diagnostic v1 only for the exact immutable attempt 1 and v2 only for exact immutable attempt
+2; every later attempt is v3 and any v1/v2 downgrade is invalid.
+Another launch requires a source correction and a
 wholly new step 7–9 chain using the same durable ledger. Only the unique passing attempt supports
 the product claim, and no launch is permitted after it. Regenerating reports for an
 already-attempted source commit does not create a new launch allowance.

@@ -25,6 +25,7 @@ export const EXPECTED_TARGETED_COMMANDS = Object.freeze([
 export const EXPECTED_ROOT_VALIDATION_COMMAND = "pnpm run validate";
 export const PASS_COMMIT_PROTOCOL = "evidence-create-before-ledger-finalize-v1";
 export const FAILURE_COMMIT_PROTOCOL = "external-failure-record-v1";
+export const FAILURE_COMMIT_PROTOCOL_V3 = "external-failure-record-v3";
 export const NATIVE_LOGICAL_PROOF_NAME = "git hash-object native-proof.txt";
 export const NATIVE_RENDERED_PROOF_COMMAND = "/bin/zsh -lc 'git hash-object native-proof.txt'";
 
@@ -38,6 +39,14 @@ const deniedRenderedCommandDigests = new Set([
   "/bin/zsh -lc 'node --test'",
   "/bin/zsh -lc 'node --test packages/codex/tests/*.test.mjs'",
 ].map(sha256));
+const failureSessionRoles = Object.freeze(["ordinary", "invalid", "substantive", "resume"]);
+const processClosedFailureStages = new Set([
+  "process_exited",
+  "parse_failed",
+  "completed",
+  "stop_marker_missing",
+]);
+const emptyStreamSha256 = sha256("");
 
 const defaultSchemaPaths = Object.freeze({
   "validation-report": join(contractsRoot, "validation-report.schema.json"),
@@ -45,6 +54,10 @@ const defaultSchemaPaths = Object.freeze({
   "native-attempt-ledger": join(contractsRoot, "native-attempt-ledger.schema.json"),
   "journey-evidence": join(contractsRoot, "journey-evidence.schema.json"),
 });
+const [defaultFailureDiagnosticSchema, defaultFailureLedgerSchema] = await Promise.all([
+  readFile(join(contractsRoot, "native-attempt-diagnostic.schema.json"), "utf8").then(JSON.parse),
+  readFile(defaultSchemaPaths["native-attempt-ledger"], "utf8").then(JSON.parse),
+]);
 
 export function validateDocumentStructure(document, schema) {
   if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
@@ -677,6 +690,271 @@ export function validateAttemptLedgerSemantics(ledger) {
     errors.push("reserved attempt must be final and unresolved before admission can continue");
   }
   return errors;
+}
+
+export function validateFailureAttemptCandidate({
+  diagnostic,
+  observedFacts,
+  ledger,
+  attemptLedgerPath,
+} = {}) {
+  const errors = [];
+  if (!isObject(diagnostic)) errors.push("failure diagnostic must be an object");
+  if (!isObject(observedFacts)) errors.push("failure observed facts must be an object");
+  if (!isObject(ledger)) errors.push("failure attempt ledger must be an object");
+  if (!isObject(diagnostic) || !isObject(observedFacts) || !isObject(ledger)) return errors;
+
+  errors.push(
+    ...validateDocumentStructure(diagnostic, defaultFailureDiagnosticSchema)
+      .map((message) => `failure diagnostic: ${message}`),
+    ...validateDocumentStructure(ledger, defaultFailureLedgerSchema)
+      .map((message) => `failure attempt ledger: ${message}`),
+  );
+
+  const nativeAttempt = isObject(diagnostic.native_attempt) ? diagnostic.native_attempt : {};
+  if (diagnostic.schema_version !== 3) {
+    errors.push("later failure diagnostic must use schema version 3; v1/v2 downgrade is forbidden");
+  }
+  if (!Number.isInteger(nativeAttempt.attempt_number) || nativeAttempt.attempt_number < 3) {
+    errors.push("version-3 failure diagnostic attempt number must be at least 3");
+  }
+  if (!Number.isInteger(nativeAttempt.total_attempts) || nativeAttempt.total_attempts < 3) {
+    errors.push("version-3 failure diagnostic total attempts must be at least 3");
+  }
+  if (nativeAttempt.commit_protocol !== FAILURE_COMMIT_PROTOCOL_V3) {
+    errors.push(`later failure diagnostic commit protocol must be ${FAILURE_COMMIT_PROTOCOL_V3}`);
+  }
+
+  const expectedFacts = {
+    schema_version: diagnostic.schema_version,
+    failure_kind: diagnostic.failure_kind,
+    failure: diagnostic.failure,
+    ...(Object.hasOwn(diagnostic, "failure_context")
+      ? { failure_context: diagnostic.failure_context }
+      : {}),
+    session_observations: diagnostic.session_observations,
+  };
+  if (!deepEqual(observedFacts, expectedFacts)) {
+    errors.push("failure observed facts must be the closed exact diagnostic projection with identical four session observations");
+  }
+
+  let observedFactsDigest;
+  try {
+    observedFactsDigest = sha256(canonicalDocumentText(observedFacts));
+  } catch (error) {
+    errors.push(`failure observed facts cannot be canonically encoded: ${error.message}`);
+  }
+  if (observedFactsDigest && nativeAttempt.observed_facts_sha256 !== observedFactsDigest) {
+    errors.push("observed facts digest must equal the exact canonical failure-observed-facts bytes");
+  }
+
+  validateFailureSessionObservations(diagnostic.session_observations, errors);
+  if (diagnostic.failure_kind === "command_event") {
+    if (!isObject(diagnostic.failure_context)) {
+      errors.push("command_event failure requires failure_context");
+    } else {
+      const observation = asArray(diagnostic.session_observations).find(
+        (candidate) => candidate?.session_role === diagnostic.failure_context.session_role,
+      );
+      if (!observation || observation.item_counts?.command_execution < 1) {
+        errors.push("failure_context must bind a completed command event in the same session role");
+      }
+    }
+  } else if (diagnostic.failure_kind === "non_command") {
+    if (Object.hasOwn(diagnostic, "failure_context")) {
+      errors.push("non_command failure prohibits failure_context even when an earlier unrelated command occurred");
+    }
+  } else {
+    errors.push("failure diagnostic must distinguish command_event from non_command");
+  }
+
+  if (ledger.schema_version !== 1) errors.push("failure attempt ledger schema version must be 1");
+  errors.push(...validateAttemptLedgerSemantics(ledger));
+  const attempts = asArray(ledger.attempts);
+
+  let derivedLedgerID;
+  try {
+    derivedLedgerID = deriveAttemptLedgerId(attemptLedgerPath);
+  } catch (error) {
+    errors.push(`ledger path identity is invalid: ${error.message}`);
+  }
+  if (
+    derivedLedgerID
+    && (ledger.ledger_id !== derivedLedgerID || nativeAttempt.ledger_id !== derivedLedgerID)
+  ) {
+    errors.push("ledger path identity must equal the failure diagnostic and durable ledger IDs");
+  }
+
+  if (nativeAttempt.total_attempts !== attempts.length) {
+    errors.push("failure diagnostic total_attempts must equal the durable ledger attempt count");
+  }
+  const matchingIndex = Number.isInteger(nativeAttempt.attempt_number)
+    ? nativeAttempt.attempt_number - 1
+    : -1;
+  const matchingAttempt = attempts[matchingIndex];
+  if (!matchingAttempt) {
+    errors.push("failure diagnostic attempt number must identify an existing durable ledger entry");
+  } else {
+    if (matchingIndex !== attempts.length - 1) {
+      errors.push("failure diagnostic must identify the final durable ledger entry");
+    }
+    if (matchingAttempt.attempt_number !== nativeAttempt.attempt_number) {
+      errors.push("failure diagnostic attempt number must equal the matching final ledger entry");
+    }
+    if (matchingAttempt.status !== diagnostic.status) {
+      errors.push("failure diagnostic status must equal the matching final ledger entry status");
+    }
+    if (matchingAttempt.chain_id !== nativeAttempt.chain_id) {
+      errors.push("failure diagnostic chain_id must equal the matching final ledger entry");
+    }
+    for (const [field, diagnosticValue] of [
+      ["source_commit", diagnostic.identity?.source_commit],
+      ["validation_report_sha256", diagnostic.validation?.report_sha256],
+      ["artifact_report_sha256", diagnostic.identity?.artifact_report_sha256],
+      ["artifact_sha256", diagnostic.identity?.artifact_sha256],
+    ]) {
+      if (matchingAttempt[field] !== diagnosticValue) {
+        errors.push(`failure diagnostic ${field} must equal the matching final ledger entry`);
+      }
+    }
+    if (
+      matchingAttempt.observed_facts_sha256 !== nativeAttempt.observed_facts_sha256
+      || (observedFactsDigest && matchingAttempt.observed_facts_sha256 !== observedFactsDigest)
+    ) {
+      errors.push("observed facts digest must match the failure diagnostic, final ledger entry, and exact facts bytes");
+    }
+
+    const expectedChainID = deriveNativeChainId({
+      source_commit: diagnostic.identity?.source_commit,
+      validation_report_sha256: diagnostic.validation?.report_sha256,
+      artifact_report_sha256: diagnostic.identity?.artifact_report_sha256,
+      artifact_sha256: diagnostic.identity?.artifact_sha256,
+    });
+    if (nativeAttempt.chain_id !== expectedChainID || matchingAttempt.chain_id !== expectedChainID) {
+      errors.push("failure chain ID must derive from the exact source, report, and artifact identity");
+    }
+  }
+
+  let ledgerDigest;
+  try {
+    ledgerDigest = sha256(canonicalDocumentText(ledger));
+  } catch (error) {
+    errors.push(`failure ledger candidate cannot be canonically encoded: ${error.message}`);
+  }
+  if (ledgerDigest && nativeAttempt.ledger_sha256 !== ledgerDigest) {
+    errors.push("failure diagnostic ledger candidate digest must equal the exact canonical final ledger bytes");
+  }
+
+  return errors;
+}
+
+function validateFailureSessionObservations(observations, errors) {
+  if (!Array.isArray(observations) || observations.length !== failureSessionRoles.length) {
+    errors.push("failure diagnostic must contain exactly four ordered session observations");
+    return;
+  }
+
+  for (const [index, role] of failureSessionRoles.entries()) {
+    const observation = observations[index];
+    if (!isObject(observation)) {
+      errors.push(`${role} session observation must be an object`);
+      continue;
+    }
+    if (observation.session_role !== role) {
+      errors.push(`failure session observation ${index} must have role ${role}`);
+    }
+
+    const eventCounts = observation.event_counts;
+    const itemCounts = observation.item_counts;
+    const mcpStatusCounts = observation.mcp_status_counts;
+    if (!isObject(eventCounts) || !isObject(itemCounts) || !isObject(mcpStatusCounts)) {
+      errors.push(`${role} session observation must contain closed event, item, and MCP status counts`);
+      continue;
+    }
+
+    const eventSum = sumIntegerFields(eventCounts, [
+      "invalid_json",
+      "thread_started",
+      "item_started",
+      "item_completed",
+      "turn_completed",
+      "error",
+      "other",
+    ]);
+    if (eventSum === undefined || eventCounts.total !== eventSum) {
+      errors.push(`${role} event count total must equal the named event count sum`);
+    }
+    const itemSum = sumIntegerFields(itemCounts, [
+      "agent_message",
+      "command_execution",
+      "mcp_tool_call",
+      "other",
+    ]);
+    if (itemSum === undefined || itemCounts.total !== itemSum) {
+      errors.push(`${role} item count total must equal the named item count sum`);
+    }
+    const mcpStatusSum = sumIntegerFields(mcpStatusCounts, ["completed", "failed", "other"]);
+    if (mcpStatusSum === undefined || mcpStatusCounts.total !== mcpStatusSum) {
+      errors.push(`${role} MCP status count total must equal the completed, failed, and other sum`);
+    }
+    if (Number.isInteger(itemCounts.total) && Number.isInteger(eventCounts.item_completed)
+      && itemCounts.total > eventCounts.item_completed) {
+      errors.push(`${role} completed item count must not exceed item_completed events`);
+    }
+    if (Number.isInteger(mcpStatusCounts.dev_flow) && Number.isInteger(mcpStatusCounts.total)
+      && mcpStatusCounts.dev_flow > mcpStatusCounts.total) {
+      errors.push(`${role} Dev Flow MCP count must not exceed total MCP status count`);
+    }
+    if (Number.isInteger(mcpStatusCounts.total) && Number.isInteger(itemCounts.mcp_tool_call)
+      && mcpStatusCounts.total > itemCounts.mcp_tool_call) {
+      errors.push(`${role} MCP status count must not exceed completed MCP tool-call items`);
+    }
+
+    const threadStarted = eventCounts.thread_started;
+    if (Number.isInteger(threadStarted) && observation.thread_present !== (threadStarted > 0)) {
+      errors.push(`${role} thread presence must exactly match the valid thread_started count`);
+    }
+    if (Number.isInteger(threadStarted) && threadStarted > 1 && observation.failure_stage !== "parse_failed") {
+      errors.push(`${role} multiple valid thread_started events require parse_failed`);
+    }
+    if (observation.failure_stage === "completed" && threadStarted !== 1) {
+      errors.push(`${role} completed observation must contain exactly one valid thread_started event`);
+    }
+    if (eventCounts.invalid_json > 0 && observation.failure_stage !== "parse_failed") {
+      errors.push(`${role} invalid JSON events require parse_failed`);
+    }
+
+    if (
+      processClosedFailureStages.has(observation.failure_stage)
+      && observation.exit_code === null
+      && observation.signal === null
+    ) {
+      errors.push(`${role} observation that reached process close must include an exit code or signal`);
+    }
+    if (observation.failure_stage === "not_started") {
+      const zeroCounts = [eventCounts, itemCounts, mcpStatusCounts].every((counts) => (
+        Object.values(counts).every((count) => count === 0)
+      ));
+      if (
+        observation.exit_code !== null
+        || observation.signal !== null
+        || observation.thread_present !== false
+        || observation.stdout_bytes !== 0
+        || observation.stderr_bytes !== 0
+        || observation.stdout_sha256 !== emptyStreamSha256
+        || observation.stderr_sha256 !== emptyStreamSha256
+        || !zeroCounts
+      ) {
+        errors.push(`${role} not_started observation must have null termination, false thread presence, zero bytes/counts, and empty-stream digests`);
+      }
+    }
+  }
+}
+
+function sumIntegerFields(value, fields) {
+  const counts = fields.map((field) => value[field]);
+  if (counts.some((count) => !Number.isInteger(count) || count < 0)) return undefined;
+  return counts.reduce((total, count) => total + count, 0);
 }
 
 function validateLedger(evidence, context, errors) {
@@ -1330,6 +1608,20 @@ function isObject(value) {
 
 function deepEqual(left, right) {
   return stableValue(left) === stableValue(right);
+}
+
+function canonicalDocumentText(value) {
+  return `${JSON.stringify(sortCanonicalValue(value))}\n`;
+}
+
+function sortCanonicalValue(value) {
+  if (Array.isArray(value)) return value.map(sortCanonicalValue);
+  if (!isObject(value)) return value;
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort((left, right) => Buffer.from(left).compare(Buffer.from(right)))
+      .map((key) => [key, sortCanonicalValue(value[key])]),
+  );
 }
 
 function stableValue(value) {

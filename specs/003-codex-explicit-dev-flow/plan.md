@@ -8,7 +8,7 @@
 ## Summary
 
 Deliver one private, locally packed `dev-flow-codex` artifact containing exactly one Codex plugin,
-one explicitly selected `$dev-flow` Skill, one local STDIO MCP registration, one packaged macOS
+one explicitly selected `$dev-flow-codex:dev-flow` Skill, one local STDIO MCP registration, one packaged macOS
 arm64 Go Core executable, and small Node.js standard-library lifecycle/launch glue.
 
 The Go Core remains the sole authority for task state, transitions, repository claims, recovery,
@@ -207,7 +207,9 @@ task data, the npm package, adjacent user files, Codex cache/config internals, a
 ### Skill authority
 
 The sole Skill is excluded from implicit injection by its official `agents/openai.yaml` policy and
-also begins with an exact current-turn `$dev-flow` guard. It rejects empty,
+also begins with an exact current-turn `$dev-flow-codex:dev-flow` guard. Codex 0.147 exposes the
+Skill base name `dev-flow` under its installed plugin namespace `dev-flow-codex`; bare `$dev-flow`
+does not select this plugin Skill. The Skill rejects empty,
 conversational, non-Git, and multi-repository requests before opening a task. It calls
 `dev_flow_server_info` first and accepts only Core Contract 0.1 with the exact six tools.
 
@@ -232,9 +234,10 @@ error reinterpretation, recovery classifier, or completion predicate.
 5. **Packaged-Core retention integration**: real packaged Core against a temporary data directory,
    but no real Codex host.
 6. **Native-runner contract**: argument/preflight gates, frozen artifact and validation identity,
-   exact Codex `exec --json`/`command_execution` parsing, MCP call/result extraction, session
-   separation, role-scoped safe command facts, Core-bound proof classification, direct-Core
-   fail-closed framing, and exclusive atomic evidence creation are
+   exact Codex `exec --json`/`command_execution` parsing, official full-name plugin Skill resolution,
+   MCP call/result extraction, session separation, role-scoped safe command facts, bounded durable
+   failure-session projections, Core-bound proof classification, direct-Core fail-closed framing,
+   and exclusive atomic evidence creation are
    exercised through the production default helpers with deterministic fake npm/Codex/Core child
    processes; this layer cannot emit `native-host` evidence, build the final artifact, or start
    Codex.
@@ -251,7 +254,7 @@ That exact artifact may be launched once and the single passing journey covers:
 2. explicit setup and readback;
 3. ordinary prompt proving zero Dev Flow tool calls/tasks;
 4. invalid explicit invocations;
-5. a substantive `$dev-flow` task;
+5. a substantive `$dev-flow-codex:dev-flow` task;
 6. at least two Core-confirmed workflow action commits;
 7. Codex close/restart;
 8. same-task resume and continuing revision lineage;
@@ -279,7 +282,15 @@ entry, or a pre-existing evidence file before launching Codex. Evidence/ledger r
 separate no-host admission path and cannot fall through to native mode.
 
 The runner installs the private artifact into isolated package/data/home paths, performs supported
-setup/readback, and uses official `codex exec --json` sessions. JSONL `thread.started` and complete
+setup/readback, repeats the immutable-input preflight, and only then reserves an attempt. Failure in
+those pre-reservation steps writes no ledger entry or diagnostic and starts no session. Immediately
+before reservation it initializes all four safe session observations, so every error after a
+successful reservation carries that projection. It then uses official `codex exec --json` sessions.
+Its substantive and resume prompts
+select the installed Skill only as `$dev-flow-codex:dev-flow`; the deterministic Codex double derives
+that selector from plugin `dev-flow-codex` plus Skill base name `dev-flow`, rejects bare/wrong/missing
+selectors as unselected, and never manufactures MCP activity from a role regex. JSONL
+`thread.started` and complete
 `item.completed` MCP and `command_execution` events are the host observation boundary; truncated
 previews and free-form agent prose are never promoted into Core evidence. Every completed command
 event is first captured with its session role, per-session event index, item/command/output SHA-256,
@@ -308,6 +319,22 @@ reinstall readback require exactly one owned marketplace, one installed plugin, 
 entries. The runner then performs removal/readback, bounded fail-closed direct Core task reopen,
 separate npm uninstall, compatible reinstall, and repository/task-data/adjacent comparisons. Direct
 reopen rejects any non-JSON line, unknown or duplicate response ID, or output limit breach.
+
+Immediately before reservation, and therefore before the first session spawn, the runner initializes
+four ordered safe failure observations for
+`ordinary`, `invalid`, `substantive`, and `resume`. As each subprocess starts, streams, exits, parses,
+or fails its stop marker, the record advances through the closed stage set `not_started`,
+`spawn_failed`, `capture_failed`, `process_exited`, `parse_failed`, `completed`, or
+`stop_marker_missing`. Each role record contains only exit code/signal, thread presence, separately
+bounded stdout/stderr byte counts and SHA-256 digests, and exact closed counters for event kinds,
+completed item kinds, and MCP statuses. The `thread_started` counter includes only structurally valid
+events with a nonempty thread ID; malformed thread events count as `other` and force `parse_failed`,
+while multiple valid thread-start events remain counted and also fail parsing. Stdout and stderr are
+each capped at 64 MiB. The current four
+records are attached to every error after reservation and create-exclusively persisted in both the
+failure-observed-facts projection and its matching diagnostic before the isolated workspace is
+deleted. Raw JSONL, stderr, prompts, commands, outputs, environment values, secrets, thread IDs, and
+paths never enter either file.
 
 The evidence writer consumes only those bounded observations and validates the closed schema-facing
 shape. After a successful host run it create-exclusively persists immutable observed facts outside
@@ -361,15 +388,22 @@ the one passing evidence/ledger pair, and no launch is allowed after evidence pu
 The canonical repository evidence path and `journey-evidence.schema.json` are pass-only.
 Failed/blocked diagnostics use the independent closed
 `native-attempt-diagnostic.schema.json` contract under the external recovery directory; the writer
-validates each diagnostic before its atomic write. The conditional schema preserves immutable
-schema-version-1/`external-failure-record-v1` history. New failures use schema version 2 and
-`external-failure-record-v2`; whenever the failure is attributable to a completed command event,
-`failure_kind=command_event` requires exactly
+validates each diagnostic before its atomic write. The conditional schema preserves the immutable
+attempt-1 schema-version-1/`external-failure-record-v1` and attempt-2
+schema-version-2/`external-failure-record-v2` files without replacing or enriching them. Every new
+failure uses schema version 3 and `external-failure-record-v3`, requires the four ordered safe session
+observations above, and requires semantic equality between those observations and the closed
+failure-observed-facts projection hashed by the ledger. Whenever the failure is attributable to a
+completed command event, `failure_kind=command_event` requires exactly
 `{session_role,event_type,command_sha256,output_sha256,status,exit_code}`. A non-command failure uses
-`failure_kind=non_command` and prohibits that context. Version-2 `failure` and `skips` contain only a
+`failure_kind=non_command` and prohibits that context. Version-3 `failure` and `skips` contain only a
 closed phase code, closed reason code, and SHA-256 of the bounded detail; they never include raw
 command/output text or repository paths, claim journey-evidence schema version 3, or occupy the
-canonical path. The durable ledger remains the attempt authority. A post-publication integrity
+canonical path. Structural conditionals bind v1 to attempt/total count 1, v2 to attempt/total count
+2, and v3 to counts of at least 3; semantic validation additionally binds the diagnostic identity,
+observed-facts digest, and version to the exact corresponding durable-ledger entry and rejects any
+later v1/v2 downgrade. The exact immutable v1 bytes are a legacy-only exception, never a template
+for a new textual observation. The durable ledger remains the attempt authority. A post-publication integrity
 failure is a terminal blocked recovery condition, not permission to delete evidence or start a new
 chain.
 
@@ -378,8 +412,9 @@ chain.
 `journey-evidence.schema.json` validates the canonical passing record only.
 `native-attempt-diagnostic.schema.json` separately validates honest `failed` and `blocked` records
 containing only observations available before the failure. Its conditional versions accept the
-immutable v1 history and the new v2 safe command context without allowing raw command/output/path
-material; those records never fabricate task lineage or completed lifecycle fields.
+immutable attempt-1 v1 and attempt-2 v2 history plus new v3 records with four safe session
+observations, without allowing raw JSONL/command/output/environment/secret/thread/path material;
+those records never fabricate task lineage or completed lifecycle fields.
 
 JSON Schema cannot compare values or prove ordering. Therefore
 `scripts/validate-codex-journey-evidence.mjs` performs required semantic checks for a passing record:

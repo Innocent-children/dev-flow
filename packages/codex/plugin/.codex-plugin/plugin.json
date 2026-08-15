@@ -11,7 +11,7 @@
   "interface": {
     "displayName": "Dev Flow for Codex",
     "shortDescription": "Explicit Dev Flow workflow for Codex",
-    "longDescription": "Start or resume one Core-governed repository task only through an explicit $dev-flow invocation.",
+    "longDescription": "Start or resume one Core-governed repository task only through an explicit $dev-flow-codex:dev-flow invocation.",
     "developerName": "Dev Flow",
     "category": "Productivity",
     "capabilities": [
@@ -19,7 +19,7 @@
       "Write"
     ],
     "defaultPrompt": [
-      "$dev-flow implement the requested change in this repository."
+      "$dev-flow-codex:dev-flow implement the requested change in this repository."
     ]
   }
 }

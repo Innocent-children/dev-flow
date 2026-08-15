@@ -7,8 +7,12 @@ import test from "node:test";
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = join(packageRoot, "..", "..");
 const pluginRoot = join(packageRoot, "plugin");
+const readmePath = join(packageRoot, "README.md");
 const skillPath = join(pluginRoot, "skills", "dev-flow", "SKILL.md");
 const skillMetadataPath = join(pluginRoot, "skills", "dev-flow", "agents", "openai.yaml");
+const skillBaseName = "dev-flow";
+const installedSkillName = "dev-flow-codex:dev-flow";
+const explicitSelector = `$${installedSkillName}`;
 
 const exactTools = [
   "dev_flow_server_info",
@@ -23,16 +27,31 @@ test("plugin exposes exactly one explicitly selected dev-flow Skill", async () =
   const skillFiles = (await walkFiles(join(pluginRoot, "skills"))).filter((path) => path.endsWith("SKILL.md"));
   assert.deepEqual(skillFiles, ["dev-flow/SKILL.md"]);
 
+  const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
   const skill = await readFile(skillPath, "utf8");
   const frontmatter = parseFrontmatter(skill);
-  assert.equal(frontmatter.name, "dev-flow");
+  assert.equal(frontmatter.name, skillBaseName);
+  assert.equal(`${manifest.name}:${frontmatter.name}`, installedSkillName);
   assert.match(frontmatter.description, /explicit/i);
-  assert.match(frontmatter.description, /\$dev-flow/);
+  assert.match(frontmatter.description, new RegExp(escapeRegExp(explicitSelector)));
   assert.match(frontmatter.description, /never.*implicit/i);
   assert.equal("allow_implicit_invocation" in frontmatter, false);
 
   const metadata = await readFile(skillMetadataPath, "utf8");
   assert.equal(metadata, "policy:\n  allow_implicit_invocation: false\n");
+});
+
+test("plugin user-facing metadata emits only the installed full Skill selector", async () => {
+  const plugin = JSON.parse(await readFile(join(pluginRoot, ".codex-plugin", "plugin.json"), "utf8"));
+  assert.match(plugin.interface.longDescription, new RegExp(escapeRegExp(explicitSelector)));
+  assert.deepEqual(plugin.interface.defaultPrompt, [
+    `${explicitSelector} implement the requested change in this repository.`,
+  ]);
+  assert.equal(
+    JSON.stringify(plugin.interface).match(/\$dev-flow(?!-codex)/gu),
+    null,
+    "plugin metadata must not generate the unresolvable bare selector",
+  );
 });
 
 test("Skill admits only an exact current-turn selector with substantive or resume intent", async () => {
@@ -44,7 +63,13 @@ test("Skill admits only an exact current-turn selector with substantive or resum
 
   const admission = skill.slice(admissionIndex, handshakeIndex);
   assert.match(admission, /current user turn/i);
-  assert.match(admission, /exact[^\n]*`\$dev-flow`/i);
+  assert.match(admission, /Skill resource\/base name[^\n]*`dev-flow`/i);
+  assert.match(admission, /installed Skill full name[^\n]*`dev-flow-codex:dev-flow`/i);
+  assert.match(admission, /only exact explicit selector[^\n]*`\$dev-flow-codex:dev-flow`/i);
+  assert.match(admission, /bare[^\n]*`\$dev-flow`[^\n]*(?:not an alias|does not select)/i);
+  assert.match(admission, /wrong[^\n]*plugin namespace/i);
+  assert.match(admission, /wrong[^\n]*Skill base name/i);
+  assert.match(admission, /missing selector/i);
   assert.match(admission, /substantive[^\n]*(?:requirement|request)/i);
   assert.match(admission, /explicit[^\n]*resume/i);
   assert.match(admission, /empty|conversational/i);
@@ -58,6 +83,21 @@ test("Skill admits only an exact current-turn selector with substantive or resum
   assert.match(admission, /another repository|multiple repositories|more than one repository/i);
   assert.match(admission, /repository instructions/i);
   assert.match(admission, /user authority/i);
+});
+
+test("README distinguishes the Skill base name from the only installed selector", async () => {
+  const readme = await readFile(readmePath, "utf8");
+  const invocation = section(readme, "Explicit invocation boundary");
+
+  assert.match(invocation, /Skill resource\/base name[^\n]*`dev-flow`/i);
+  assert.match(invocation, /installed Skill full name[^\n]*`dev-flow-codex:dev-flow`/i);
+  assert.match(invocation, /only exact explicit selector[^\n]*`\$dev-flow-codex:dev-flow`/i);
+  assert.match(invocation, /bare[^\n]*`\$dev-flow`[^\n]*(?:not an alias|does not select)/i);
+  assert.match(invocation, /wrong[^\n]*plugin namespace/i);
+  assert.match(invocation, /wrong[^\n]*Skill base name/i);
+  assert.match(invocation, /missing selector/i);
+  assert.match(invocation, /zero[^\n]*Dev Flow tool calls[^\n]*zero[^\n]*Dev Flow tasks/i);
+  assert.match(invocation, /allow_implicit_invocation[^\n]*false/i);
 });
 
 test("Skill calls server-info first and admits only the exact six-tool Core contract", async () => {

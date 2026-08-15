@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
-import { appendFile, chmod, mkdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
+import { appendFile, chmod, copyFile, mkdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { createInterface } from "node:readline";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 
@@ -9,6 +9,7 @@ const [role, ...argv] = process.argv.slice(2);
 const statePath = requiredPath("FAKE_NATIVE_STATE");
 const tracePath = requiredPath("FAKE_NATIVE_TRACE");
 const toolPath = requiredPath("FAKE_NATIVE_TOOL_PATH");
+const sourcePackageRoot = dirname(dirname(dirname(toolPath)));
 const packageVersion = process.env.FAKE_NATIVE_PACKAGE_VERSION ?? "0.1.0";
 const nativeVerificationCommand = "git hash-object native-proof.txt";
 const nativeVerificationRenderedCommand = "/bin/zsh -lc 'git hash-object native-proof.txt'";
@@ -46,7 +47,19 @@ async function runNpm(arguments_) {
     state.packageRoot = packageRoot;
     await writeState(state);
     await mkdir(join(packageRoot, "runtime", "darwin-arm64"), { recursive: true, mode: 0o700 });
+    await mkdir(join(packageRoot, "plugin", ".codex-plugin"), { recursive: true, mode: 0o700 });
+    await mkdir(join(packageRoot, "plugin", "skills", "dev-flow"), { recursive: true, mode: 0o700 });
     await mkdir(binRoot, { recursive: true, mode: 0o700 });
+    await Promise.all([
+      copyFile(
+        join(sourcePackageRoot, "plugin", ".codex-plugin", "plugin.json"),
+        join(packageRoot, "plugin", ".codex-plugin", "plugin.json"),
+      ),
+      copyFile(
+        join(sourcePackageRoot, "plugin", "skills", "dev-flow", "SKILL.md"),
+        join(packageRoot, "plugin", "skills", "dev-flow", "SKILL.md"),
+      ),
+    ]);
     await writeWrapper(launcher, "launcher", { FAKE_NATIVE_PACKAGE_ROOT: packageRoot });
     await writeWrapper(join(packageRoot, "runtime", "darwin-arm64", "dev-flow"), "core");
     process.exit(0);
@@ -174,8 +187,12 @@ async function runCodexExec(prompt) {
   if (/^Reply with one short sentence/u.test(prompt)) roleName = "ordinary";
   else if (/cannot run outside a Git worktree/u.test(prompt)) roleName = "invalid";
   else if (/create native-proof\.txt/u.test(prompt)) roleName = "substantive";
-  else if (/^\$dev-flow\nResume the existing compatible/u.test(prompt)) roleName = "resume";
+  else if (/Resume the existing compatible/u.test(prompt)) roleName = "resume";
   else fail("fake Codex received an unknown native prompt");
+
+  const identity = await installedSkillIdentity();
+  const selected = prompt.split(/\s+/u).includes(identity.explicitSelector);
+  await trace({ role: "native-skill-resolution", ...identity, selected });
 
   process.stdout.write(`${JSON.stringify({ type: "thread.started", thread_id: `thread-${roleName}` })}\n`);
   if (roleName === "ordinary") {
@@ -198,6 +215,7 @@ async function runCodexExec(prompt) {
     });
     return;
   }
+  if (!selected) return;
   if (roleName === "substantive") {
     await writeFile(join(process.cwd(), "native-proof.txt"), "Dev Flow Codex native journey passed.\n", { mode: 0o600 });
     await mkdir(requiredPath("DEV_FLOW_DATA_DIR"), { recursive: true, mode: 0o700 });
@@ -209,6 +227,7 @@ async function runCodexExec(prompt) {
       executable: "git",
       arguments_: ["status", "--short"],
     });
+    if (process.env.FAKE_NATIVE_SESSION_MODE === "substantive-no-apply") return;
     emitMCP("dev_flow_apply_action", coreEnvelope(4, "action-implement", false));
     return;
   }
@@ -233,6 +252,29 @@ async function runCodexExec(prompt) {
     logicalCommand: nativeVerificationCommand,
   });
   emitMCP("dev_flow_apply_action", coreEnvelope(8, "action-handoff", true));
+}
+
+async function installedSkillIdentity() {
+  const state = await readState();
+  const packageRoot = state.packageRoot;
+  if (!packageRoot || !isAbsolute(packageRoot)) fail("fake Codex requires one installed package root");
+  const manifest = JSON.parse(await readFile(join(packageRoot, "plugin", ".codex-plugin", "plugin.json"), "utf8"));
+  if (typeof manifest.name !== "string" || manifest.name.length === 0) {
+    fail("fake installed plugin manifest requires one name");
+  }
+  const skill = await readFile(join(packageRoot, "plugin", "skills", "dev-flow", "SKILL.md"), "utf8");
+  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/u.exec(skill)?.[1] ?? "";
+  const names = [...frontmatter.matchAll(/^name:\s*([^\s]+)\s*$/gmu)].map((match) => match[1]);
+  if (names.length !== 1) fail("fake installed Skill requires one frontmatter name");
+  const pluginName = manifest.name;
+  const skillName = names[0];
+  const fullName = `${pluginName}:${skillName}`;
+  return {
+    pluginName,
+    skillName,
+    fullName,
+    explicitSelector: `$${fullName}`,
+  };
 }
 
 async function emitProcessCommand({

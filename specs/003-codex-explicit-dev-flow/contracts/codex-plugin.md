@@ -19,7 +19,10 @@ by Core Contract 0.1.
 | Native evidence | macOS arm64 only |
 | Publication | Prohibited in Feature 003 |
 | Plugin count | Exactly one |
-| User-facing Skill count | Exactly one, named `dev-flow` |
+| User-facing Skill count | Exactly one |
+| Skill resource/base name | `dev-flow` |
+| Installed Skill full name | `dev-flow-codex:dev-flow` = plugin name + `:` + Skill base name |
+| Explicit Skill selector | Exact `$dev-flow-codex:dev-flow`; bare `$dev-flow` is not an alias |
 | MCP server count | Exactly one, local STDIO |
 | Core MCP tool count | Exactly six |
 | Passing real-host journey count | Exactly one; only T058 may launch, each immutable chain may launch at most once, and every attempt is counted |
@@ -50,8 +53,11 @@ receipt and journey evidence store the range as data rather than hard-coding a p
 line in JSON Schema. Range membership is enforced by implementation/semantic tests.
 
 The 2026-08-15 revalidation selected exact stable `0.147.0`, retained
-`>=0.147.0 <0.148.0`, and fixed three behavior-bearing boundaries: official Skill policy metadata,
-the MCP shape accepted by both 0.147 parsers, and official top-level-object/camelCase CLI JSON.
+`>=0.147.0 <0.148.0`, and fixed four behavior-bearing boundaries: official Skill policy metadata,
+installed-plugin Skill identity as `<plugin-name>:<skill-base-name>`, the MCP shape accepted by both
+0.147 parsers, and official top-level-object/camelCase CLI JSON. For this package, the one resource
+base name remains `dev-flow` while its only installed explicit selector is
+`$dev-flow-codex:dev-flow`.
 
 ## Packed Artifact Layout
 
@@ -96,6 +102,8 @@ exact allowlist and rejects unexpected paths.
 - The local marketplace contains exactly one in-root plugin entry.
 - The plugin contains exactly one Skill, its official Codex metadata, and one MCP resource using the
   selected 0.147 contract.
+- The installed Skill resolves only as `dev-flow-codex:dev-flow`; bare `dev-flow`, a wrong
+  namespace/base name, or no selector never enters the Skill and makes no Dev Flow call.
 - `agents/openai.yaml` contains exactly `policy.allow_implicit_invocation: false`; `SKILL.md`
   frontmatter contains only supported Skill identity/description fields and does not carry that
   policy.
@@ -274,13 +282,25 @@ exact bytes/identities. The canonical repository path and journey-evidence schem
 unique passing record. Failed/blocked diagnostics conform to the independent closed
 `native-attempt-diagnostic.schema.json`, may contain only observations actually reached, remain
 outside the repository, and are invalidated with their chain while their ledger entries are
-retained. Conditional schema version 1 preserves immutable prior records. New version-2 diagnostics
-use `external-failure-record-v2` and, when a completed command caused the failure, add only the safe
-typed context `{session_role,event_type,command_sha256,output_sha256,status,exit_code}`. Version 2
+retained. Conditional schema versions 1 and 2 preserve the immutable consumed attempt-1 v1 and
+attempt-2 v2 records without byte changes. Every later diagnostic uses
+`external-failure-record-v3` and, when a completed command caused the failure, adds only the safe
+typed context `{session_role,event_type,command_sha256,output_sha256,status,exit_code}`. Version 3
 requires `failure_kind=command_event` plus that context or `failure_kind=non_command` with the
-context prohibited; its failure/skips contain only closed phase/reason codes and detail digests.
-Raw command/output text, environment, and paths are forbidden. Any post-publication integrity
-failure is terminal blocked recovery and cannot authorize another host launch.
+context prohibited; its failure/skips contain only closed phase/reason codes and detail digests. It
+also requires exactly four ordered safe session observations, one per
+ordinary/invalid/substantive/resume role, with closed stage, nullable exit/signal, thread presence,
+bounded stdout/stderr bytes and digests, and closed event/item/MCP status counts. Those observations
+are persisted before cleanup in both the diagnostic and the ledger-bound failure-observed-facts file
+and must be equal. Raw JSONL, stderr, prompts, commands, outputs, environment values, secrets, thread
+IDs, and paths are forbidden. Any post-publication integrity failure is terminal blocked recovery
+and cannot authorize another host launch.
+
+Structural validation binds v1 to attempt/total count 1, v2 to attempt/total count 2, and v3 to
+counts of at least 3. Semantic validation also requires the exact corresponding ledger entry,
+identity, and observed-facts digest, so no later attempt can downgrade to a legacy shape. The exact
+immutable v1 record is the sole legacy textual-observation exception and is accepted only through
+its historical identity/digest; it is not a template for a new record.
 
 Deterministic T054 coverage runs the production default install/setup/readback/four-session/
 remove/direct-reopen/reinstall/cleanup helpers against fake npm, Codex 0.147 JSONL, and Core child
@@ -290,4 +310,9 @@ host, build the final artifact, or write canonical evidence. Concurrent setup tr
 top-level object containing exactly one owned marketplace, one installed owned plugin, and zero
 available plugins. Its fake host emits an ordinary successful ambient command, an invalid-session
 nonzero Git discovery, and active-session repository work plus one exact rendered proof so the
-production parser and full candidate validator exercise session-aware accounting.
+production parser and full candidate validator exercise session-aware accounting. The fake resolves
+the exact official installed Skill identity from plugin name plus Skill base name; bare `$dev-flow`,
+wrong namespace/base selectors, and missing selectors yield no synthetic MCP calls, while only
+`$dev-flow-codex:dev-flow` may drive the substantive/resume streams. Failed orchestration tests use
+that default subprocess boundary and require durable version-3 safe session observations before
+cleanup.

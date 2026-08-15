@@ -517,7 +517,7 @@
           ],
           "properties": {
             "explicit_selector": {
-              "const": "$dev-flow"
+              "const": "$dev-flow-codex:dev-flow"
             },
             "core_call_count": {
               "type": "integer",

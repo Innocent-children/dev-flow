@@ -92,13 +92,15 @@ directly.
 - [Package your plugin](https://developers.openai.com/plugins/build/plugins) — plugin layout, manifest, Skill, and MCP resources (accessed 2026-08-15).
 - [Codex plugins](https://developers.openai.com/codex/plugins) — local marketplace, installation, update, and removal workflow (accessed 2026-08-15).
 
-## Decision 4: Make `$dev-flow` an explicitly guarded Skill
+## Decision 4: Make `$dev-flow-codex:dev-flow` an explicitly guarded installed Skill
 
-**Decision**: The Skill is named `dev-flow`. Its official
+**Decision**: The Skill resource/base name is `dev-flow`; Codex CLI 0.147 exposes it under plugin
+name `dev-flow-codex` as installed full name `dev-flow-codex:dev-flow`. Its official
 `skills/dev-flow/agents/openai.yaml` sets `policy.allow_implicit_invocation: false`, its description
-documents `$dev-flow` as the only workflow trigger, and its instructions still begin by checking
-that the current turn explicitly selected that invocation. If the invocation is absent, the Skill
-stops before `dev_flow_server_info` or any other Core call.
+documents exact `$dev-flow-codex:dev-flow` as the only workflow trigger, and its instructions still
+begin by checking that the current turn explicitly selected that invocation. Bare `$dev-flow`, a
+wrong namespace/base selector, and a missing selector do not select this installed Skill. If the
+exact invocation is absent, the Skill stops before `dev_flow_server_info` or any other Core call.
 
 When explicitly invoked, the Skill follows only this closed interaction shape: compatibility read, task open/resume, next-action read, closed argument forwarding, result application, and full Core result presentation. On an ambiguous transport outcome it reads Core task/action state before considering a retry.
 
@@ -116,6 +118,8 @@ state.
 **Official source**:
 
 - [Build skills for Codex](https://developers.openai.com/codex/build-skills) — Skill structure, progressive disclosure, and explicit/implicit invocation behavior (accessed 2026-08-15).
+- [Exact 0.147 installed-Skill namespace construction](https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core-skills/src/loader/namespace.rs#L10-L15) — plugin and Skill names form the installed full name (accessed 2026-08-16).
+- [Exact 0.147 explicit Skill selection](https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/skills/src/selection.rs#L164-L196) — current-turn selection matches the full installed Skill name (accessed 2026-08-16).
 
 ## Decision 5: Use one inherited-stdio launcher, not an MCP proxy
 

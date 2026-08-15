@@ -73,10 +73,14 @@ the installed package; it never falls back to a Core binary in the current repos
 
 ## Explicit invocation boundary
 
-The official Skill metadata sets `policy.allow_implicit_invocation: false`, and the only workflow
-selector is a standalone `$dev-flow` in the current user turn. An ordinary prompt does not activate
-Dev Flow. `$dev-flow` with no substantive requirement, a conversational request, a non-Git
-directory, or work spanning more than one repository stops before any Dev Flow tool call.
+The official Skill metadata sets `policy.allow_implicit_invocation: false`. The Skill resource/base name is `dev-flow`;
+the installed Skill full name is `dev-flow-codex:dev-flow`. The only exact explicit selector is `$dev-flow-codex:dev-flow`.
+Bare `$dev-flow` is not an alias and does not select this installed Skill. A wrong plugin namespace,
+a wrong Skill base name, or a missing selector also does not select it.
+All negative paths make zero Dev Flow tool calls and create zero Dev Flow tasks; there is no implicit fallback.
+An ordinary prompt therefore does not activate Dev Flow. `$dev-flow-codex:dev-flow` with no substantive
+requirement, a conversational request, a non-Git directory, or work spanning more than one repository
+stops before any Dev Flow tool call.
 For an admitted request, the Skill resolves one canonical current worktree and calls
 `dev_flow_server_info({})` first; an incomplete or incompatible six-tool catalog stops the request.
 
@@ -185,9 +189,11 @@ and exact final evidence/ledger candidates, performs complete structural and sem
 those exact candidates plus unchanged reports/artifact/ledger, publishes only a passing native
 evidence candidate create-no-replace, then atomically finalizes the ledger from the precomputed
 bytes. The canonical repository evidence path is pass-only; failed/blocked diagnostics stay under
-the external recovery directory. New command-event failures use the closed version-2 diagnostic
-with only session role, event type, safe command/output hashes, status, and exit code; no raw command,
-output, or path is retained, while immutable version-1 attempt history remains byte-unchanged. Valid
+the external recovery directory. Every new attempt numbered 3 or later uses the closed version-3
+diagnostic with four ordered role-scoped session observations. A command-event failure additionally
+retains only session role, event type, safe command/output hashes, status, and exit code; no raw JSONL,
+stderr, prompt, command, output, environment, secret, thread ID, or path is retained. The immutable
+attempt-1 version-1 and attempt-2 version-2 records remain byte-unchanged. Valid
 passing evidence is an immediate no-host admission lock even
 if a crash left the ledger reserved. That recovery may only validate the published evidence and
 idempotently install the exact candidate ledger; a pre-evidence crash cannot be promoted to pass or

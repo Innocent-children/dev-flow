@@ -24,7 +24,7 @@
 
 ## Skill, recovery, and evidence
 
-- [x] Exact current-turn `$dev-flow`, substantive/resume intent, one worktree, and one-repository
+- [x] Exact current-turn `$dev-flow-codex:dev-flow`, substantive/resume intent, one worktree, and one-repository
   scope are observable admission rules.
 - [x] Fresh Core action/schema/effects/evidence/recovery/outcome remain authoritative.
 - [x] Lost, malformed, truncated, cancelled, or uncertain mutation results require read-before-retry.
@@ -34,7 +34,8 @@
 ## Test and artifact ordering
 
 - [x] Deterministic user-story checkpoints are separated from native evidence.
-- [x] Exactly one real Codex journey is required and sufficient.
+- [x] Exactly one passing real Codex journey is required and sufficient; consumed failed attempts
+  remain external and non-supporting, and each immutable chain permits at most one launch.
 - [x] Feature 003 owns the Codex-aware root validation update.
 - [x] Structural and semantic evidence validation responsibilities are separated.
 - [x] Deterministic/root checks and source freeze precede one final artifact; evidence is written once
