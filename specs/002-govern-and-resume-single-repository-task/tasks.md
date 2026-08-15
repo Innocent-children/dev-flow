@@ -221,35 +221,35 @@ duplicate, stale, malformed, drifted, and over-budget submissions.
 
 ### Tests for User Story 2
 
-- [ ] T035 [P] [US2] Add phase-specific closed-payload cases to
+- [x] T035 [P] [US2] Add phase-specific closed-payload cases to
   `internal/workflow/payloads_test.go`.
-- [ ] T036 [P] [US2] Add legal forward, implementation rework, replanning, and terminal cases to
+- [x] T036 [P] [US2] Add legal forward, implementation rework, replanning, and terminal cases to
   `internal/application/apply_action_test.go`.
-- [ ] T037 [P] [US2] Add exact task ID/revision/action ID/action kind/issuance-binding mismatch,
+- [x] T037 [P] [US2] Add exact task ID/revision/action ID/action kind/issuance-binding mismatch,
   action-specific repository-drift, and duplicate-submission cases to
   `internal/application/apply_action_test.go`.
-- [ ] T038 [P] [US2] Add verification command-count, full-suite, evidence-source, and manual-handoff
+- [x] T038 [P] [US2] Add verification command-count, full-suite, evidence-source, and manual-handoff
   budget cases to `internal/workflow/verification_budget_test.go`.
-- [ ] T039 [P] [US2] Add cancellation/claim-release transaction cases to
+- [x] T039 [P] [US2] Add cancellation/claim-release transaction cases to
   `internal/application/cancel_task_test.go`.
 
 ### Implementation for User Story 2
 
-- [ ] T040 [US2] Implement closed payload types and phase-specific validation in
+- [x] T040 [US2] Implement closed payload types and phase-specific validation in
   `internal/workflow/payloads.go`.
-- [ ] T041 [US2] Implement verification-budget evaluation and evidence normalization in
+- [x] T041 [US2] Implement verification-budget evaluation and evidence normalization in
   `internal/workflow/verification_budget.go`.
-- [ ] T042 [US2] Implement exact task ID/revision/action ID/action kind/issuance-binding checks,
+- [x] T042 [US2] Implement exact task ID/revision/action ID/action kind/issuance-binding checks,
   fresh repository observation, action-specific binding rules, transition evaluation, evidence
   summaries, event append, and next-action creation in `internal/application/apply_action.go`.
-- [ ] T043 [US2] Implement `DONE` outcome creation and same-transaction repository-claim release in
+- [x] T043 [US2] Implement `DONE` outcome creation and same-transaction repository-claim release in
   `internal/application/apply_action.go`.
-- [ ] T044 [US2] Implement explicit cancellation, retained task data, terminal event, and
+- [x] T044 [US2] Implement explicit cancellation, retained task data, terminal event, and
   same-transaction claim release in `internal/application/cancel_task.go`.
-- [ ] T045 [US2] Extend shared fixtures with apply success, rework, verification-budget failure,
+- [x] T045 [US2] Extend shared fixtures with apply success, rework, verification-budget failure,
   revision conflict, stale action, repository drift, completed outcome, and cancelled outcome under
   `protocol/fixtures/`.
-- [ ] T046 [US2] Run only workflow and application tests for US2; do not add a full repository or
+- [x] T046 [US2] Run only workflow and application tests for US2; do not add a full repository or
   real-host journey.
 
 **Checkpoint**: User Stories 1 and 2 form a complete in-process governed task journey.

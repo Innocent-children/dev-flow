@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "ok": true,
+  "request_id": "request-apply-implement-0001",
+  "tool": "dev_flow_apply_action",
+  "result": {
+    "task": {
+      "task_id": "task-00000001",
+      "origin_host": "codex",
+      "contract": {
+        "goal": "Complete one governed workflow",
+        "scope": [
+          "in-process workflow"
+        ],
+        "out_of_scope": [
+          "process restart"
+        ],
+        "acceptance_criteria": [
+          "The task reaches DONE and releases its repository claim."
+        ],
+        "verification_budget": {
+          "level": "targeted",
+          "max_automatic_commands": 2,
+          "allow_full_suite": false,
+          "allow_manual_handoff": true
+        }
+      },
+      "repository": {
+        "canonical_root": "/workspace/example",
+        "git_common_dir_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+        "repository_identity": "2222222222222222222222222222222222222222222222222222222222222222",
+        "branch": "main",
+        "detached": false,
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "unborn": false,
+        "worktree_fingerprint": "6666666666666666666666666666666666666666666666666666666666666666",
+        "observed_at": "2026-01-02T03:07:05Z",
+        "binding_digest": "7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "phase": "IMPLEMENT",
+      "resume_phase": null,
+      "current_action": {
+        "action_id": "action-verify-0004",
+        "kind": "VERIFY_CHANGE",
+        "task_id": "task-00000001",
+        "revision": 4,
+        "repository_binding_digest": "7777777777777777777777777777777777777777777777777777777777777777",
+        "allowed_effects": [
+          "read_repository",
+          "run_verification_commands"
+        ],
+        "required_evidence": [
+          {
+            "kind": "repository_observation",
+            "required": true
+          },
+          {
+            "kind": "verification_summary",
+            "required": true
+          }
+        ],
+        "payload_contract": "IMPLEMENT",
+        "guidance": "Verify the implementation within the task verification budget.",
+        "issued_at": "2026-01-02T03:07:05Z"
+      },
+      "blocker": null,
+      "last_operation": {
+        "operation_id": "request-apply-implement-0001",
+        "kind": "apply_action",
+        "action_id": "action-implement-0003",
+        "from_revision": 3,
+        "to_revision": 4,
+        "payload_digest": "9999999999999999999999999999999999999999999999999999999999999999",
+        "committed_at": "2026-01-02T03:07:05Z"
+      },
+      "evidence": [
+        {
+          "evidence_id": "evidence-assessment-0001",
+          "source": "host_observed",
+          "name": "assessment_summary",
+          "status": "observed",
+          "summary": "Assessed the task contract and repository.",
+          "digest": "4444444444444444444444444444444444444444444444444444444444444444",
+          "command_count": 0,
+          "full_suite": false,
+          "recorded_at": "2026-01-02T03:05:05Z"
+        },
+        {
+          "evidence_id": "evidence-plan-0001",
+          "source": "host_observed",
+          "name": "implementation_plan",
+          "status": "observed",
+          "summary": "Prepared the bounded implementation plan.",
+          "digest": "5555555555555555555555555555555555555555555555555555555555555555",
+          "command_count": 0,
+          "full_suite": false,
+          "recorded_at": "2026-01-02T03:06:05Z"
+        },
+        {
+          "evidence_id": "evidence-implementation-0001",
+          "source": "host_observed",
+          "name": "implementation_summary",
+          "status": "observed",
+          "summary": "Implemented the bounded workflow change.",
+          "digest": "8888888888888888888888888888888888888888888888888888888888888888",
+          "command_count": 0,
+          "full_suite": false,
+          "recorded_at": "2026-01-02T03:07:05Z"
+        }
+      ],
+      "outcome": null,
+      "revision": 4,
+      "created_at": "2026-01-02T03:04:05Z",
+      "updated_at": "2026-01-02T03:07:05Z",
+      "completed_at": null
+    },
+    "repository_claim_released": false
+  }
+}
