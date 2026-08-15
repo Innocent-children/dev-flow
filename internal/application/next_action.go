@@ -6,27 +6,23 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/domain"
 )
 
-// GetNextAction projects the persisted action or terminal outcome without
-// deriving a new workflow identity or changing task state.
-func (s *Service) GetNextAction(
-	ctx context.Context,
-	host domain.Host,
-	taskID domain.ID,
-) (NextActionResult, error) {
-	if !s.valid() {
+// GetNextAction projects the persisted action, blocker, or terminal outcome.
+// It never generates workflow identity and recovery assessment remains read-only.
+func (s *Service) GetNextAction(ctx context.Context, request GetNextActionRequest) (NextActionResult, error) {
+	if !s.valid() || validateReadRequest(ctx, request.Host, request.TaskID) != nil {
 		return NextActionResult{}, domain.ErrInvalidArgument
 	}
-	if err := validateReadRequest(ctx, host, taskID); err != nil {
+	task, err := s.loadOwnedTask(ctx, request.Host, request.TaskID)
+	if err != nil {
 		return NextActionResult{}, err
 	}
-	task, err := s.loadOwnedTask(ctx, host, taskID)
+	assessment, err := s.assessOperationProbe(ctx, request.Host, task, request.OperationProbe)
 	if err != nil {
 		return NextActionResult{}, err
 	}
 	result := NextActionResult{
-		TaskID:   task.TaskID,
-		Phase:    task.Phase,
-		Revision: task.Revision,
+		TaskID: task.TaskID, Phase: task.Phase, Revision: task.Revision,
+		RecoveryAssessment: assessment,
 	}
 	if task.Phase.Terminal() {
 		if task.Outcome == nil {
@@ -41,5 +37,12 @@ func (s *Service) GetNextAction(
 	}
 	action := task.CurrentAction.Clone()
 	result.Action = &action
+	if task.Phase == domain.PhaseBlocked {
+		if task.Blocker == nil {
+			return NextActionResult{}, domain.ErrInternal
+		}
+		blocker := *task.Blocker
+		result.Blocker = &blocker
+	}
 	return result, nil
 }

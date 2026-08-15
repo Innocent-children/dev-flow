@@ -182,7 +182,7 @@ func runFirstRestartHelper(t *testing.T, paths restartHelperPaths) {
 	}
 
 	factsBeforeRead := readRestartDatabaseFacts(t, paths.database, task.TaskID)
-	next, err := service.GetNextAction(ctx, domain.HostCodex, task.TaskID)
+	next, err := service.GetNextAction(ctx, application.GetNextActionRequest{Host: domain.HostCodex, TaskID: task.TaskID})
 	if err != nil || next.Action == nil || next.Action.ActionID != task.CurrentAction.ActionID ||
 		next.Revision != task.Revision || next.Phase != task.Phase {
 		t.Fatalf("first helper next-action read changed identity: %v", err)
@@ -250,7 +250,7 @@ func runSecondRestartHelper(t *testing.T, paths restartHelperPaths) {
 		t.Fatal("same-host resume changed persisted state")
 	}
 
-	next, err := service.GetNextAction(ctx, domain.HostCodex, want.TaskID)
+	next, err := service.GetNextAction(ctx, application.GetNextActionRequest{Host: domain.HostCodex, TaskID: want.TaskID})
 	if err != nil || next.Action == nil || next.TaskID != want.TaskID ||
 		next.Phase != want.Phase || next.Revision != want.Revision ||
 		next.Action.ActionID != want.ActionID || next.Action.Kind != want.ActionKind ||
@@ -326,12 +326,12 @@ func runSecondRestartHelper(t *testing.T, paths restartHelperPaths) {
 		t.Fatal("resumed task did not reach a valid DONE snapshot")
 	}
 
-	terminal, err := service.GetTask(ctx, domain.HostCodex, task.TaskID)
-	if err != nil || terminal.Phase != domain.PhaseDone || terminal.Revision != task.Revision ||
-		terminal.Outcome == nil {
+	terminal, err := service.GetTask(ctx, application.GetTaskRequest{Host: domain.HostCodex, TaskID: task.TaskID})
+	if err != nil || terminal.Task.Phase != domain.PhaseDone || terminal.Task.Revision != task.Revision ||
+		terminal.Task.Outcome == nil {
 		t.Fatalf("terminal task was not readable after completion: %v", err)
 	}
-	terminalNext, err := service.GetNextAction(ctx, domain.HostCodex, task.TaskID)
+	terminalNext, err := service.GetNextAction(ctx, application.GetNextActionRequest{Host: domain.HostCodex, TaskID: task.TaskID})
 	if err != nil || terminalNext.Action != nil || terminalNext.Outcome == nil ||
 		terminalNext.Phase != domain.PhaseDone || terminalNext.Revision != task.Revision {
 		t.Fatalf("terminal task produced an invalid next-action projection: %v", err)

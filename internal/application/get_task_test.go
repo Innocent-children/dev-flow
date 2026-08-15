@@ -26,30 +26,31 @@ func TestGetTaskReturnsAuthoritativeCloneWithoutWritesOrObservation(t *testing.T
 	observer := &fixedRepositoryObserver{binding: testBinding()}
 	service := newTestService(t, taskStore, observer, testTime())
 
-	first, err := service.GetTask(context.Background(), domain.HostCodex, persisted.TaskID)
+	request := GetTaskRequest{Host: domain.HostCodex, TaskID: persisted.TaskID}
+	first, err := service.GetTask(context.Background(), request)
 	if err != nil {
 		t.Fatalf("GetTask() error = %v", err)
 	}
-	if !reflect.DeepEqual(first, persisted) {
+	if !reflect.DeepEqual(first.Task, persisted) || first.RecoveryAssessment != nil {
 		t.Fatalf("GetTask() = %#v, want persisted %#v", first, persisted)
 	}
-	first.Repository.Branch = nil
-	first.CurrentAction.AllowedEffects[0] = domain.EffectEditRepositoryFiles
-	first.CurrentAction.RequiredEvidence[0].Required = false
-	first.Evidence = append(first.Evidence, domain.EvidenceSummary{EvidenceID: "mutated"})
-	first.LastOperation.OperationID = "mutated"
+	first.Task.Repository.Branch = nil
+	first.Task.CurrentAction.AllowedEffects[0] = domain.EffectEditRepositoryFiles
+	first.Task.CurrentAction.RequiredEvidence[0].Required = false
+	first.Task.Evidence = append(first.Task.Evidence, domain.EvidenceSummary{EvidenceID: "mutated"})
+	first.Task.LastOperation.OperationID = "mutated"
 
-	second, err := service.GetTask(context.Background(), domain.HostCodex, persisted.TaskID)
+	second, err := service.GetTask(context.Background(), request)
 	if err != nil {
 		t.Fatalf("second GetTask() error = %v", err)
 	}
-	if !reflect.DeepEqual(second, persisted) {
+	if !reflect.DeepEqual(second.Task, persisted) || second.RecoveryAssessment != nil {
 		t.Fatalf("second GetTask() observed returned-object mutations: %#v", second)
 	}
-	if second.Revision != persisted.Revision || second.Phase != persisted.Phase ||
-		second.Repository.BindingDigest != persisted.Repository.BindingDigest ||
-		second.CurrentAction.ActionID != persisted.CurrentAction.ActionID ||
-		!reflect.DeepEqual(second.Blocker, persisted.Blocker) {
+	if second.Task.Revision != persisted.Revision || second.Task.Phase != persisted.Phase ||
+		second.Task.Repository.BindingDigest != persisted.Repository.BindingDigest ||
+		second.Task.CurrentAction.ActionID != persisted.CurrentAction.ActionID ||
+		!reflect.DeepEqual(second.Task.Blocker, persisted.Blocker) {
 		t.Fatalf("read changed authoritative fields: %#v", second)
 	}
 	if taskStore.loadTaskCalls != 2 || taskStore.commitTaskCalls != 0 || observer.calls != 0 {
@@ -72,9 +73,9 @@ func TestGetTaskRejectsDifferentHostAndMissingTask(t *testing.T) {
 			taskStore := &recordingStore{loadTaskFn: tt.load}
 			observer := &fixedRepositoryObserver{binding: testBinding()}
 			service := newTestService(t, taskStore, observer, testTime())
-			task, err := service.GetTask(context.Background(), domain.HostCodex, "task-persisted")
+			task, err := service.GetTask(context.Background(), GetTaskRequest{Host: domain.HostCodex, TaskID: "task-persisted"})
 			requireError(t, err, tt.target)
-			if !reflect.DeepEqual(task, domain.Task{}) {
+			if !reflect.DeepEqual(task, GetTaskResult{}) {
 				t.Fatalf("GetTask() leaked task = %#v", task)
 			}
 			if taskStore.commitTaskCalls != 0 || observer.calls != 0 {
@@ -100,7 +101,7 @@ func TestGetTaskValidatesRequestBeforeStoreAccess(t *testing.T) {
 			taskStore := &recordingStore{}
 			observer := &fixedRepositoryObserver{binding: testBinding()}
 			service := newTestService(t, taskStore, observer, testTime())
-			_, err := service.GetTask(tt.ctx, tt.host, tt.taskID)
+			_, err := service.GetTask(tt.ctx, GetTaskRequest{Host: tt.host, TaskID: tt.taskID})
 			requireError(t, err, domain.ErrInvalidArgument)
 			if taskStore.loadTaskCalls != 0 || observer.calls != 0 {
 				t.Fatalf("invalid read accessed dependencies: %#v / %d", taskStore, observer.calls)

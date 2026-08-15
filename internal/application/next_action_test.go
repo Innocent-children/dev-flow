@@ -21,7 +21,8 @@ func TestGetNextActionReturnsStablePersistedCloneWithoutSideEffects(t *testing.T
 	observer := &fixedRepositoryObserver{binding: testBinding()}
 	service := newTestService(t, taskStore, observer, testTime())
 
-	first, err := service.GetNextAction(context.Background(), domain.HostCodex, persisted.TaskID)
+	request := GetNextActionRequest{Host: domain.HostCodex, TaskID: persisted.TaskID}
+	first, err := service.GetNextAction(context.Background(), request)
 	if err != nil {
 		t.Fatalf("GetNextAction() error = %v", err)
 	}
@@ -36,7 +37,7 @@ func TestGetNextActionReturnsStablePersistedCloneWithoutSideEffects(t *testing.T
 	first.Action.AllowedEffects[0] = domain.EffectEditRepositoryFiles
 	first.Action.RequiredEvidence[0].Required = false
 
-	second, err := service.GetNextAction(context.Background(), domain.HostCodex, persisted.TaskID)
+	second, err := service.GetNextAction(context.Background(), request)
 	if err != nil {
 		t.Fatalf("second GetNextAction() error = %v", err)
 	}
@@ -69,7 +70,7 @@ func TestGetNextActionRejectsDifferentHostAndMissingTask(t *testing.T) {
 			taskStore := &recordingStore{loadTaskFn: tt.load}
 			observer := &fixedRepositoryObserver{binding: testBinding()}
 			service := newTestService(t, taskStore, observer, testTime())
-			result, err := service.GetNextAction(context.Background(), domain.HostCodex, "task-persisted")
+			result, err := service.GetNextAction(context.Background(), GetNextActionRequest{Host: domain.HostCodex, TaskID: "task-persisted"})
 			requireError(t, err, tt.target)
 			if !reflect.DeepEqual(result, NextActionResult{}) {
 				t.Fatalf("GetNextAction() leaked result = %#v", result)
@@ -91,7 +92,8 @@ func TestGetNextActionReturnsPersistedTerminalOutcome(t *testing.T) {
 			observer := &fixedRepositoryObserver{binding: testBinding()}
 			service := newTestService(t, taskStore, observer, testTime())
 
-			first, err := service.GetNextAction(context.Background(), domain.HostCodex, persisted.TaskID)
+			request := GetNextActionRequest{Host: domain.HostCodex, TaskID: persisted.TaskID}
+			first, err := service.GetNextAction(context.Background(), request)
 			if err != nil {
 				t.Fatalf("GetNextAction() error = %v", err)
 			}
@@ -103,7 +105,7 @@ func TestGetNextActionReturnsPersistedTerminalOutcome(t *testing.T) {
 			first.Outcome.Risks[0] = "mutated"
 			first.Outcome.Acceptance[0].Criterion = "mutated"
 
-			second, err := service.GetNextAction(context.Background(), domain.HostCodex, persisted.TaskID)
+			second, err := service.GetNextAction(context.Background(), request)
 			if err != nil {
 				t.Fatalf("second GetNextAction() error = %v", err)
 			}
@@ -122,7 +124,7 @@ func TestGetNextActionValidatesRequestBeforeStoreAccess(t *testing.T) {
 	taskStore := &recordingStore{}
 	observer := &fixedRepositoryObserver{binding: testBinding()}
 	service := newTestService(t, taskStore, observer, testTime())
-	_, err := service.GetNextAction(context.Background(), "unknown", "task")
+	_, err := service.GetNextAction(context.Background(), GetNextActionRequest{Host: "unknown", TaskID: "task"})
 	requireError(t, err, domain.ErrInvalidArgument)
 	if taskStore.loadTaskCalls != 0 || observer.calls != 0 {
 		t.Fatalf("invalid next-action request accessed dependencies: %#v / %d", taskStore, observer.calls)

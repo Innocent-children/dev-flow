@@ -11,6 +11,7 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/repository"
 	"github.com/Innocent-children/dev-flow/internal/store"
+	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
 type idGenerator func(prefix string) (domain.ID, error)
@@ -158,8 +159,31 @@ func (s *Service) loadOwnedTask(
 	if err != nil {
 		return domain.Task{}, mapStoreError(ctx, err)
 	}
+	if task.TaskID != taskID {
+		return domain.Task{}, domain.ErrInternal
+	}
 	if task.OriginHost != host {
 		return domain.Task{}, domain.ErrHostOwnershipConflict
 	}
+	if err := validatePersistedTask(task); err != nil {
+		return domain.Task{}, err
+	}
 	return task, nil
+}
+
+func validatePersistedTask(task domain.Task) error {
+	if repository.VerifyBindingDigests(task.Repository) != nil {
+		return domain.ErrStorageUnavailable
+	}
+	if workflow.ValidateTask(task) != nil {
+		return domain.ErrInternal
+	}
+	return nil
+}
+
+func validateFreshBinding(binding domain.RepositoryBinding) error {
+	if repository.VerifyBindingDigests(binding) != nil {
+		return domain.ErrInternal
+	}
+	return nil
 }

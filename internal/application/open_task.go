@@ -38,8 +38,8 @@ func (s *Service) OpenTask(
 	if err != nil {
 		return OpenTaskResult{}, mapRepositoryError(ctx, err)
 	}
-	if binding.Validate() != nil {
-		return OpenTaskResult{}, domain.ErrInternal
+	if err := validateFreshBinding(binding); err != nil {
+		return OpenTaskResult{}, err
 	}
 
 	active, err := s.taskStore.LoadActiveTask(ctx, binding.RepositoryIdentity)
@@ -89,8 +89,8 @@ func reconcileActiveTask(
 	if task.OriginHost != host {
 		return OpenTaskResult{}, domain.ErrHostOwnershipConflict
 	}
-	if workflow.ValidateTask(task) != nil {
-		return OpenTaskResult{}, domain.ErrInternal
+	if err := validatePersistedTask(task); err != nil {
+		return OpenTaskResult{}, err
 	}
 	if contract != nil && !task.Contract.Equal(*contract) {
 		return OpenTaskResult{}, domain.ErrActiveTaskConflict

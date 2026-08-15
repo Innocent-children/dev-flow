@@ -584,7 +584,7 @@ func TestApplyActionRejectsTerminalBlockedAndCorruptCurrentAction(t *testing.T) 
 	t.Run("blocked", func(t *testing.T) {
 		task := applicationBlockedTask(t)
 		request := applyRequestForTask(task, "request", workflow.AssessTaskPayload{Result: domain.ActionResultSucceeded, Summary: "assessment", VerificationBudgetAcknowledged: true})
-		requireApplyLoadFailure(t, task, request, domain.ErrTaskBlocked)
+		requireApplyLoadFailure(t, task, request, domain.ErrInvalidArgument)
 	})
 
 	t.Run("corrupt action blueprint", func(t *testing.T) {
@@ -684,12 +684,17 @@ func applicationBlockedTask(t *testing.T) domain.Task {
 	resume := domain.PhaseIntake
 	blocker := domain.Blocker{
 		BlockerID:             "blocker-current",
-		Code:                  domain.ErrorRepositoryDrift,
+		Code:                  domain.ErrorTaskBlocked,
+		Cause:                 domain.RecoveryConflicting,
 		Message:               "repository reality is conflicting",
 		ResumePhase:           resume,
 		ObservedBindingDigest: task.Repository.BindingDigest,
-		RequiredResolution:    "restore the issued binding",
-		CreatedAt:             task.UpdatedAt,
+		Condition: domain.BlockerCondition{
+			Kind:                  domain.BlockerConditionRestoreIssuanceBinding,
+			ExpectedBindingDigest: task.Repository.BindingDigest,
+		},
+		RequiredResolution: "restore the issued binding",
+		CreatedAt:          task.UpdatedAt,
 	}
 	action, err := workflow.BuildNextAction(domain.PhaseBlocked, task.TaskID, task.Revision, task.Repository.BindingDigest, "action-blocked", task.UpdatedAt)
 	if err != nil {
@@ -827,7 +832,7 @@ func sameOptionalApplicationString(left, right *string) bool {
 func changeApplicationWorktree(binding domain.RepositoryBinding) domain.RepositoryBinding {
 	binding = binding.Clone()
 	binding.WorktreeFingerprint = domain.Digest(strings.Repeat("1", 64))
-	binding.BindingDigest = domain.Digest(strings.Repeat("2", 64))
+	binding.BindingDigest = "bb7d0b8cb08ef8258c34a7231164f557750cf653a2d1d82d7c2042c74e20e1f7"
 	binding.ObservedAt = binding.ObservedAt.Add(time.Minute)
 	return binding
 }
@@ -836,25 +841,31 @@ func changeApplicationBranch(binding domain.RepositoryBinding) domain.Repository
 	binding = changeApplicationWorktree(binding)
 	branch := "feature"
 	binding.Branch = &branch
+	binding.BindingDigest = "8a66a6ea9ad1515c5acbc020a646afb8a5cf1ae26c9f9f61185a9d574bfc9f61"
 	return binding
 }
 
 func changeApplicationHead(binding domain.RepositoryBinding) domain.RepositoryBinding {
 	binding = changeApplicationWorktree(binding)
-	head := strings.Repeat("1", 40)
+	head := strings.Repeat("2", 40)
 	binding.Head = &head
+	binding.BindingDigest = "9c7401e667a547c8f72ddc14417efc1aab6d92736090e12967a97b032d3e195d"
 	return binding
 }
 
 func changeApplicationIdentity(binding domain.RepositoryBinding) domain.RepositoryBinding {
 	binding = changeApplicationWorktree(binding)
-	binding.RepositoryIdentity = domain.Digest(strings.Repeat("3", 64))
+	binding.CanonicalRoot = "/public/other"
+	binding.RepositoryIdentity = "99a740761b2b95c52f7e24744172dc1c42bf5c58275869a7086c7c99910c6fd3"
+	binding.BindingDigest = "a3343cedebdc18ba93db49a41a015d071d4ec353d6950b1a09d38fb8a414b815"
 	return binding
 }
 
 func changeApplicationCommonDirectory(binding domain.RepositoryBinding) domain.RepositoryBinding {
 	binding = changeApplicationWorktree(binding)
-	binding.GitCommonDirDigest = domain.Digest(strings.Repeat("4", 64))
+	binding.GitCommonDirDigest = "19946b33409c7491dd9b386791cfb17687bf77e2e7ad86f57f334c84b0065927"
+	binding.RepositoryIdentity = "4bdfcaf8b1c0d32c56d17a5825fd0af3f966161134b129e1fe30d4e8a55e3870"
+	binding.BindingDigest = "cb6d4f3b7311145fb69d77b455f2ed3130205f5ec2f4ce1ab8a831002496e8e9"
 	return binding
 }
 

@@ -28,15 +28,9 @@ func (s *Service) CancelTask(
 	if err != nil {
 		return CancelTaskResult{}, err
 	}
-	task, err := s.taskStore.LoadTask(ctx, request.TaskID)
+	task, err := s.loadOwnedTask(ctx, request.Host, request.TaskID)
 	if err != nil {
-		return CancelTaskResult{}, mapStoreError(ctx, err)
-	}
-	if task.TaskID != request.TaskID {
-		return CancelTaskResult{}, domain.ErrInternal
-	}
-	if task.OriginHost != request.Host {
-		return CancelTaskResult{}, domain.ErrHostOwnershipConflict
+		return CancelTaskResult{}, err
 	}
 	if task.Phase.Terminal() {
 		return CancelTaskResult{}, domain.ErrTaskTerminal
@@ -44,10 +38,6 @@ func (s *Service) CancelTask(
 	if task.Revision != request.ExpectedRevision {
 		return CancelTaskResult{}, domain.ErrRevisionConflict
 	}
-	if workflow.ValidateTask(task) != nil {
-		return CancelTaskResult{}, domain.ErrInternal
-	}
-
 	now := s.now().UTC()
 	eventID, err := s.generateID("event")
 	if err != nil {

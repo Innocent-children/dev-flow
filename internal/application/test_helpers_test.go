@@ -68,18 +68,26 @@ func cloneMutation(mutation store.TaskMutation) store.TaskMutation {
 }
 
 type fixedRepositoryObserver struct {
-	binding domain.RepositoryBinding
-	err     error
-	calls   int
-	paths   []string
+	binding  domain.RepositoryBinding
+	bindings []domain.RepositoryBinding
+	err      error
+	calls    int
+	paths    []string
 }
 
 func (o *fixedRepositoryObserver) Observe(
 	_ context.Context,
 	repositoryPath string,
 ) (domain.RepositoryBinding, error) {
+	index := o.calls
 	o.calls++
 	o.paths = append(o.paths, repositoryPath)
+	if len(o.bindings) != 0 {
+		if index >= len(o.bindings) {
+			index = len(o.bindings) - 1
+		}
+		return o.bindings[index].Clone(), o.err
+	}
 	return o.binding.Clone(), o.err
 }
 
@@ -116,16 +124,16 @@ func testTime() time.Time {
 
 func testBinding() domain.RepositoryBinding {
 	branch := "main"
-	head := strings.Repeat("e", 40)
+	head := strings.Repeat("1", 40)
 	return domain.RepositoryBinding{
-		CanonicalRoot:       "/workspace/example",
-		GitCommonDirDigest:  domain.Digest(strings.Repeat("a", 64)),
-		RepositoryIdentity:  domain.Digest(strings.Repeat("b", 64)),
+		CanonicalRoot:       "/public/example",
+		GitCommonDirDigest:  "94c90dafc360255a97485bf77a399739be6f9712c83817995098f00c44f4fe5d",
+		RepositoryIdentity:  "3bea1f388299d4566b44e29684207c5eb8b8f8614d108be4ea36e5ccf765ebfb",
 		Branch:              &branch,
 		Head:                &head,
-		WorktreeFingerprint: domain.Digest(strings.Repeat("c", 64)),
+		WorktreeFingerprint: domain.Digest(strings.Repeat("a", 64)),
 		ObservedAt:          testTime(),
-		BindingDigest:       domain.Digest(strings.Repeat("d", 64)),
+		BindingDigest:       "321e0264d418181acdf8f414ffa807a845489bb7d7aa693365301649c1c21719",
 	}
 }
 

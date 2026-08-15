@@ -290,9 +290,7 @@ func TestOpenTaskRequiresContractWhenNoActiveTaskExists(t *testing.T) {
 func TestOpenTaskResumesSameHostWithoutRegeneratingPersistedAction(t *testing.T) {
 	contract := testContract(t)
 	persisted := persistedTask(t, domain.HostCodex, contract)
-	fresh := testBinding()
-	fresh.WorktreeFingerprint = domain.Digest(strings.Repeat("1", 64))
-	fresh.BindingDigest = domain.Digest(strings.Repeat("2", 64))
+	fresh := changeApplicationWorktree(testBinding())
 
 	tests := []struct {
 		name  string

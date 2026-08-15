@@ -2,6 +2,7 @@ package application
 
 import (
 	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/dev-flow/internal/recovery"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
@@ -31,14 +32,43 @@ type OpenTaskResult struct {
 	Task    domain.Task
 }
 
+type OperationProbe struct {
+	OperationID             domain.ID
+	SourcePhase             domain.Phase
+	ExpectedRevision        uint64
+	ActionID                domain.ID
+	ActionKind              domain.ActionKind
+	RepositoryBindingDigest domain.Digest
+	Payload                 workflow.ActionPayload
+}
+
+type GetTaskRequest struct {
+	Host           domain.Host
+	TaskID         domain.ID
+	OperationProbe *OperationProbe
+}
+
+type GetNextActionRequest struct {
+	Host           domain.Host
+	TaskID         domain.ID
+	OperationProbe *OperationProbe
+}
+
+type GetTaskResult struct {
+	Task               domain.Task
+	RecoveryAssessment *recovery.RecoveryAssessment
+}
+
 // NextActionResult is the persisted next-action projection for one task.
 // Terminal tasks carry Outcome instead of Action.
 type NextActionResult struct {
-	TaskID   domain.ID
-	Phase    domain.Phase
-	Revision uint64
-	Action   *domain.Action
-	Outcome  *domain.Outcome
+	TaskID             domain.ID
+	Phase              domain.Phase
+	Revision           uint64
+	Action             *domain.Action
+	Blocker            *domain.Blocker
+	Outcome            *domain.Outcome
+	RecoveryAssessment *recovery.RecoveryAssessment
 }
 
 // ApplyActionRequest binds one closed payload to the exact persisted action
@@ -52,6 +82,12 @@ type ApplyActionRequest struct {
 	ActionKind              domain.ActionKind
 	RepositoryBindingDigest domain.Digest
 	Payload                 workflow.ActionPayload
+	RecoveryApply           *RecoveryApplyInput
+}
+
+type RecoveryApplyInput struct {
+	OperationID domain.ID
+	SourcePhase domain.Phase
 }
 
 type ApplyActionResult struct {
