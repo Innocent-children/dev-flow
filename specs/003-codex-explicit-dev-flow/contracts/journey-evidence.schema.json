@@ -1,0 +1,384 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-flow.local/contracts/003/journey-evidence.schema.json",
+  "title": "Dev Flow Codex Native Journey Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "recorded_at",
+    "classification",
+    "versions",
+    "digests",
+    "task_lineage",
+    "invocation",
+    "lifecycle",
+    "repository",
+    "failures",
+    "skips"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "status": {
+      "enum": ["pass", "failed", "blocked"]
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_type", "host_surface", "os", "arch", "final_artifact"],
+      "properties": {
+        "evidence_type": {
+          "const": "native-host"
+        },
+        "host_surface": {
+          "const": "codex-cli"
+        },
+        "os": {
+          "const": "darwin"
+        },
+        "arch": {
+          "const": "arm64"
+        },
+        "final_artifact": {
+          "const": true
+        }
+      }
+    },
+    "versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["codex", "package", "core", "core_contract"],
+      "properties": {
+        "codex": {
+          "type": "string",
+          "pattern": "^0\\.147\\.[0-9]+$"
+        },
+        "package": {
+          "$ref": "#/$defs/semver"
+        },
+        "core": {
+          "$ref": "#/$defs/semver"
+        },
+        "core_contract": {
+          "const": "0.1"
+        }
+      }
+    },
+    "digests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_sha256",
+        "shared_fixtures_sha256",
+        "repository_before_sha256",
+        "repository_after_sha256",
+        "repository_after_removal_sha256",
+        "task_data_before_removal_sha256",
+        "task_data_after_removal_sha256"
+      ],
+      "properties": {
+        "artifact_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "shared_fixtures_sha256": {
+          "const": "8c27bcf6be0e4e5a4bf294c67cbda8cdf281b1b2b2c53fff16206db2828dede7"
+        },
+        "repository_before_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "repository_after_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "repository_after_removal_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "task_data_before_removal_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "task_data_after_removal_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "task_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_id",
+        "revisions",
+        "committed_actions",
+        "same_task_after_restart",
+        "terminal_outcome"
+      ],
+      "properties": {
+        "task_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revisions": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "committed_actions": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["action_id", "revision", "arguments_sha256", "result_sha256"],
+            "properties": {
+              "action_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "arguments_sha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "result_sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          }
+        },
+        "same_task_after_restart": {
+          "type": "boolean"
+        },
+        "terminal_outcome": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "invocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "explicit_selector",
+        "core_call_count",
+        "scenario_call_budget",
+        "implicit_invocation_core_calls",
+        "read_before_retry_observations"
+      ],
+      "properties": {
+        "explicit_selector": {
+          "const": "$dev-flow"
+        },
+        "core_call_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "scenario_call_budget": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "implicit_invocation_core_calls": {
+          "description": "Count of calls to the six Dev Flow MCP tools; transport initialization and tool-list discovery are not tool calls.",
+          "const": 0
+        },
+        "read_before_retry_observations": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "setup_readback_passed",
+        "restart_resume_passed",
+        "remove_readback_passed",
+        "task_data_retained",
+        "task_reopened_after_removal"
+      ],
+      "properties": {
+        "setup_readback_passed": {
+          "type": "boolean"
+        },
+        "restart_resume_passed": {
+          "type": "boolean"
+        },
+        "remove_readback_passed": {
+          "type": "boolean"
+        },
+        "task_data_retained": {
+          "type": "boolean"
+        },
+        "task_reopened_after_removal": {
+          "type": "boolean"
+        }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_path", "intended_changed_paths", "unexpected_changed_paths"],
+      "properties": {
+        "target_path": {
+          "$ref": "#/$defs/absolutePath"
+        },
+        "intended_changed_paths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "unexpected_changed_paths": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/observation"
+      }
+    },
+    "skips": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/observation"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "pass"
+          }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "failures": {
+            "maxItems": 0
+          },
+          "skips": {
+            "maxItems": 0
+          },
+          "task_lineage": {
+            "properties": {
+              "same_task_after_restart": {
+                "const": true
+              }
+            }
+          },
+          "lifecycle": {
+            "properties": {
+              "setup_readback_passed": {
+                "const": true
+              },
+              "restart_resume_passed": {
+                "const": true
+              },
+              "remove_readback_passed": {
+                "const": true
+              },
+              "task_data_retained": {
+                "const": true
+              },
+              "task_reopened_after_removal": {
+                "const": true
+              }
+            }
+          },
+          "repository": {
+            "properties": {
+              "unexpected_changed_paths": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": ["failed", "blocked"]
+          }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "anyOf": [
+          {
+            "properties": {
+              "failures": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "properties": {
+              "skips": {
+                "minItems": 1
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "absolutePath": {
+      "type": "string",
+      "pattern": "^/",
+      "minLength": 2
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "reason", "observed"],
+      "properties": {
+        "phase": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observed": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

@@ -4,7 +4,8 @@
 
 **Created**: 2026-08-14
 
-**Status**: Planned — blocked by `002` and Core Contract 0.1
+**Status**: Planned — implementation is gated by official stable Harness availability and direct
+Core result-completeness evidence; feature `002` is merged and Core Contract 0.1 is implemented
 
 **Input**: Package the shared Dev Flow Core as a thin DeepSeek Harness product that starts or
 resumes one single-repository task only when the user explicitly invokes `/dev-flow`.
@@ -226,7 +227,7 @@ profile no longer exposes the Skill/tools, and verify task data remains present.
 
 ## Assumptions
 
-- Feature `002` has frozen Core Contract 0.1 and shared fixtures.
+- Feature `002` is merged; Core Contract 0.1 and its shared fixtures are implemented on `main`.
 - Initial real-host evidence is expected on macOS arm64.
 - Harness integration contracts are pre-release or evolving and must be revalidated during plan.
 - Direct Core MCP consumption is preferred; a proxy is justified only by observed host behavior.
