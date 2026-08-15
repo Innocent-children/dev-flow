@@ -1,108 +1,80 @@
 # Data Model: DeepSeek Explicit Dev Flow
 
-This feature adds no host-owned workflow state. The Go Core's Task, Action, RepositoryBinding,
-RecoveryAssessment, Evidence, and Outcome remain the only workflow entities and are consumed as
-opaque Contract 0.1 results. The records below describe package composition, one transient launch,
-profile membership, and verification evidence only.
+Feature 004 adds no host-owned workflow state. Core Contract 0.1 remains the sole authority for
+Task, Action, RepositoryBinding, RecoveryAssessment, Evidence, verification budgets, and Outcome.
+The records below describe merged dependencies, package/profile composition, transient launch, gate
+observations, deterministic checkpoints, and final evidence only.
 
-## 1. DeepSeekProductPackage
+## 1. Feature003DeliveredBaseline
 
-One locally packed Harness bundle.
+| Field | Rules |
+|---|---|
+| `merge_commit` | Exact `main` commit containing completed Feature 003. |
+| `version_seam_source_sha256` / `version_seam_test_sha256` | Merged `internal/version` identities. |
+| `codex_manifest_contract_sha256` / `codex_layout_contract_sha256` | Merged shared Codex contract identities. |
+| `root_validator_sha256` | Merged Codex-aware validator identity. |
+| `root_version` | Repository product version. |
+| `fixture_aggregate_sha256` | Shared Core fixture identity. |
+| `verification` | Command/result/source commit for this exact baseline. |
 
-| Field | Type | Rules |
-|---|---|---|
-| `identity` | string | Exactly `dev-flow-deepseek`. |
-| `product_version` | semver | Equals repository `VERSION` and packaged Core product version during `0.x`. |
-| `artifact_path` | path | Local packed tarball outside the target repository; never a public registry requirement. |
-| `artifact_sha256` | digest | SHA-256 of the exact artifact used for evidence. |
-| `harness_range` | semver range | Implementation-time evidenced compatible range; never exact-patch-only. |
-| `harness_actual` | version/build identity | Exact artifact used by a spike or final journey. |
-| `platform` | platform tuple | Exactly macOS arm64 for this feature's runtime/evidence. |
-| `bundle_patch` | package-relative path | Exactly one package-owned Harness patch. |
-| `skill_count` | integer | Exactly `1`. |
-| `mcp_integration_count` | integer | Exactly `1`. |
-| `proxy_presence` | enum | `none` for this plan. Any other value requires a reviewed amendment. |
-| `core_source_identity` | Git object ID | Source identity used to build the runtime. |
-| `core_binary_path` | package-relative path | Resolved inside the staged package, never through an unrelated executable on `PATH`. |
-| `core_binary_sha256` | digest | SHA-256 of the staged runtime. |
-| `fixture_aggregate_sha256` | digest | Aggregate identity for `protocol/fixtures/*.json`, computed by the canonical manifest algorithm below. |
+The dependency is a delivered capability, not Feature 003 task numbers. Feature 004 must not
+replace, duplicate, or weaken it.
 
-### Validation
+## 2. HarnessArtifactSelection
 
-- The packed file list contains the bundle patch, provider entry, one Skill resource, launcher, and
-  one executable macOS arm64 Core runtime.
-- It contains no source build hook, publication hook/configuration, database, target-repository
-  file, or second Skill/MCP integration.
-- The package may declare only the official Harness dependencies required by the revalidated bundle
-  contract; exact resolutions are recorded by the repository lockfile/evidence.
-- `proxy_presence=none` is mandatory unless Gate B first fails and a new reviewed plan authorizes a
-  proxy.
+| Field | Rules |
+|---|---|
+| `channel` | `pre-release` or `stable`. |
+| `package_version_build` | Exact official artifact identity. |
+| `integrity` | Official registry digest/integrity. |
+| `source_evidence` | Reproducible first-party source relationship or explicit gap. |
+| `compatible_range` | Bounded range, never exact-patch-only policy. |
+| `selected_at` | Observation timestamp. |
+| `contract_digest` | Bundle/profile/Skill/MCP/add-remove-restart contract evidence identity. |
 
-The canonical fixture manifest sorts repository-relative JSON paths bytewise and renders exactly
-`<file-sha256><two spaces><repository-relative-path>\n` for each file. SHA-256 of all manifest bytes
-is the aggregate. The planning baseline contains 22 JSON files and has value
-`8c27bcf6be0e4e5a4bf294c67cbda8cdf281b1b2b2c53fff16206db2828dede7`.
+A pre-release selection can support provisional Gate B only. Final support uses one exact stable
+selection, and the final journey host must equal that stable Gate B selection.
 
-## 2. HarnessProfileInstallation
+## 3. DeepSeekProductPackage
 
-An observed profile dependency and resolved bundle layer; it is not adapter persistence.
+| Field | Rules |
+|---|---|
+| `identity` | Exactly `dev-flow-deepseek`. |
+| `product_version` / `core_version` | Equal repository `VERSION`. |
+| `source_commit` | Frozen source used for the artifact. |
+| `artifact_sha256` / `core_binary_sha256` | Exact product/Core identities. |
+| `harness_range` / `harness_actual` | Stable range and exact stable artifact. |
+| `platform` | macOS arm64. |
+| `skill_count` / `mcp_integration_count` | Exactly `1` / `1`. |
+| `raw_tool_names` | Exactly six Core Contract 0.1 tools. |
+| `proxy_presence` | `none` unless a later reviewed amendment changes the feature. |
+| `fixture_aggregate_sha256` | Shared fixture identity. |
+| `final_artifact` | True only after stable Gate B, deterministic/root validation, audit, and source freeze. |
 
-| Field | Type | Rules |
-|---|---|---|
-| `profile_name` | string | Dedicated isolated test/journey profile. |
-| `profile_root` | absolute path | Outside the target Git repository. |
-| `package_spec` | local package reference | Points to the exact packed artifact under test. |
-| `package_identity` | string | `dev-flow-deepseek`. |
-| `resolved_package_version` | semver | Matches `DeepSeekProductPackage.product_version`. |
-| `bundle_membership` | observed boolean | True only after official profile add/reconciliation. |
-| `skill_names` | set | Exactly `{dev-flow}` while installed, empty after restart following removal. |
-| `raw_core_tools` | set | Exactly the six Contract 0.1 raw names while installed. |
-| `data_root` | absolute path | Existing explicit override or the macOS default; never owned by profile removal. |
-| `lifecycle_observation` | enum | `installed`, `removed`; an evidence observation, not a runtime state machine. |
+The package contains one patch, provider, Skill, launcher, and Core runtime. It excludes databases,
+profiles, repository files, Core source, copied fixtures, fakes, evidence, proxy code, second Skill/
+MCP integration, and second platform runtime.
 
-### Lifecycle observations
+## 4. HarnessProfileInstallation
 
-```text
-packed artifact
-  -> official profile add
-  -> host restart and installed observation
-  -> explicit journey/spike
-  -> official profile remove
-  -> host restart and removed observation
-```
+| Field | Rules |
+|---|---|
+| `profile_name` / `profile_root` | Isolated and outside target repository. |
+| `package_spec` / `resolved_version` | Exact local product artifact/version. |
+| `bundle_membership` | Observed after official add/restart. |
+| `skill_names` | `{dev-flow}` while installed; empty after remove/restart. |
+| `raw_core_tools` | Exact six while installed; empty after removal. |
+| `data_root` | Explicit existing root or documented default; never removal-owned. |
+| `lifecycle_observation` | `installed` or `removed`; evidence only. |
 
-No product code persists this lifecycle. The test/journey report records observations made through
-the official profile mechanism.
+Product code does not persist this lifecycle state.
 
-## 3. SkillDescriptor
+## 5. SkillDescriptor and MCPIntegrationDescriptor
 
-The package's only user-facing Skill resource.
+The Skill descriptor is exactly `dev-flow`, user-invocable, not model-invocable, and selected by
+`/dev-flow`. It stores no task ID, phase, claim, recovery, or outcome.
 
-| Field | Type | Rules |
-|---|---|---|
-| `name` | string | Exactly `dev-flow`. |
-| `model_invocable` | boolean | Exactly `false`. |
-| `user_invocable` | boolean | Exactly `true`. |
-| `instructions_path` | package-relative path | `skills/dev-flow/SKILL.md`. |
-| `activation_token` | string | `/dev-flow`, using the implementation-time official explicit invocation contract. |
-
-The descriptor stores no active flag, task ID, repository claim, transition, or terminal decision.
-
-## 4. MCPIntegrationDescriptor
-
-One native local STDIO integration mounted by the bundle.
-
-| Field | Type | Rules |
-|---|---|---|
-| `server_name` | string | Stable bundle-local server identifier; the raw Core names below remain unchanged. |
-| `transport` | enum | Exactly `stdio`. |
-| `command` | package-relative entry | The lifecycle launcher, not a generic shell. |
-| `raw_tool_names` | ordered set | Exactly the six Contract 0.1 tool names. |
-| `host_tool_names` | observed set | Official Harness-native names derived from `server_name` and raw names; recorded by the direct spike. |
-| `result_mode` | enum | `direct_complete`; no adapter projection in this plan. |
-| `network_enabled` | boolean | Exactly `false`. |
-
-The six raw names are:
+The MCP descriptor is one local STDIO integration with exactly:
 
 1. `dev_flow_server_info`
 2. `dev_flow_open_task`
@@ -111,103 +83,90 @@ The six raw names are:
 5. `dev_flow_apply_action`
 6. `dev_flow_cancel_task`
 
-## 5. CoreLaunchSpec
+The result mode is direct-complete, network is disabled, and host-native names are observed rather
+than used to fork raw schemas.
 
-A transient child-process launch description constructed for each MCP process.
+## 6. CoreLaunchSpec
 
-| Field | Type | Rules |
-|---|---|---|
-| `runtime_path` | absolute path | Derived only from the package location and selected supported platform. |
-| `arguments` | list | Fixed Core STDIO mode arguments required by the existing executable; no user shell text. |
-| `working_directory` | absolute path | Current single Git worktree selected by the host invocation. |
-| `stdio` | tuple | stdin/stdout forwarded byte-for-byte; stderr used only for bounded diagnostics. |
-| `shell` | boolean | Exactly `false`. |
-| `environment` | map | Only allowed keys below, with values copied without logging. |
-| `listener_count` | integer | Exactly `0`. |
-| `outbound_request_count` | integer | Exactly `0`. |
+| Field | Rules |
+|---|---|
+| `runtime_path` | Package-relative absolute path. |
+| `arguments` | Fixed Core STDIO mode; no user shell text. |
+| `working_directory` | Current single Git worktree. |
+| `stdio` | stdin/stdout forwarded byte-for-byte; bounded diagnostic stderr. |
+| `shell` | False. |
+| `environment` | Only approved keys. |
+| `listener_count` / `outbound_request_count` | `0` / `0`. |
 
-Allowed child environment keys, only when present:
+Approved environment keys are `DEV_FLOW_DATA_DIR`, `HOME`, `PATH`, `LANG`, `LC_ALL`, and `TMPDIR`.
+The launch spec is transient and owns no workflow state.
 
-- `DEV_FLOW_DATA_DIR`
-- `HOME`
-- `PATH`
-- `LANG`
-- `LC_ALL`
-- `TMPDIR`
+## 7. DirectResultObservation
 
-The launcher preserves explicit `DEV_FLOW_DATA_DIR` and requires it to name an existing usable
-directory. When absent on macOS it derives `~/Library/Application Support/dev-flow/data` and creates
-that default with user-only permissions on first Core launch, never during profile installation and
-never inside the target repository. The Core remains responsible for validating the resulting data
-root and exclusively owns the database/task state within it.
+| Field | Rules |
+|---|---|
+| `gate_kind` | `provisional` or `stable`. |
+| `harness_selection` | Exact artifact for this observation. |
+| `case` | `inline_success`, `domain_error`, `near_spill`, `spilled`, `pruned`, or `near_core_limit`. |
+| `core_bytes` / `expected_sha256` | Canonical Core result identity. |
+| `host_representation` / `marker_detected` | Observed display/storage form and incomplete marker. |
+| `retrieval_method` | Exact official complete-content mechanism. |
+| `recovered_bytes` / `recovered_sha256` | Retrieved canonical identity. |
+| `complete_parse` / `complete` | True only when bytes/digest match and all authority fields parse. |
 
-The staged binary's version is injected through the single Feature 003 T005/T006 shared
-`internal/version.buildVersion` seam. Feature 004 contains no second version field or fallback; it
-verifies that the binary reports repository `VERSION` without a source checkout and that ordinary
-source runs retain the existing file fallback.
+All six stable observations must be complete for the exact final stable Harness. A same-artifact
+stable gate may be revalidated/reused; RC or different-artifact evidence cannot substitute.
 
-## 6. DirectResultObservation
+## 8. DeterministicStoryCheckpoint
 
-A test-only observation proving whether the official Harness caller can obtain a full Core result.
+| Field | Rules |
+|---|---|
+| `through_stage` | `explicit-invocation`, `done`, or `remove`. |
+| `classification` | Static/simulated/integration; never stable-native support. |
+| `real_harness_started` / `native_evidence_written` | Both false. |
+| `observations` | Package, calls, lineage, budgets, lifecycle, data/repository/Codex comparison logic. |
 
-| Field | Type | Rules |
-|---|---|---|
-| `case` | enum | `inline_success`, `domain_error`, `near_spill`, `spilled`, `pruned`, `near_core_limit`. |
-| `core_bytes` | integer | UTF-8 byte count of the canonical Core JSON. |
-| `mcp_is_error` | boolean | Preserves the upstream MCP semantic. |
-| `host_representation` | enum | Observed `inline`, `spill_reference`, `pruned_preview`, or other exact host form. |
-| `marker_detected` | boolean | Whether incomplete/indirect display is recognized before authority use. |
-| `retrieval_method` | string | Exact official mechanism used to recover canonical content; never an invented command. |
-| `recovered_sha256` | digest | Digest of bytes recovered by the programmatic caller. |
-| `expected_sha256` | digest | Digest produced by the fake/real Core source. |
-| `complete` | boolean | True only when digests match and every expected authority field parses. |
+T032, T043, and T049 can produce only this record type.
 
-All six required cases must be complete before Gate B passes. This record is evidence only and is
-never consulted by the runtime workflow.
+## 9. CodexNonInterferenceObservation
 
-## 7. DeepSeekJourneyEvidence
+| Field | Rules |
+|---|---|
+| `codex_product_version` | Exact co-installed Codex product. |
+| `registration_before_sha256` / `registration_after_sha256` | Equal. |
+| `runtime_before_sha256` / `runtime_after_sha256` | Equal. |
+| `package_selection_before_sha256` / `package_selection_after_sha256` | Equal. |
+| `shared_data_before_sha256` / `shared_data_after_sha256` | Equal. |
+| `complete` | True only for a real before/after comparison. |
 
-The immutable report of the final packed-artifact journey.
+This record is mandatory for `status=pass`. Missing Codex produces blocked/failed evidence.
 
-| Field | Type | Rules |
-|---|---|---|
-| `executed_at` | timestamp | Time of actual journey. |
-| `harness_version_build` | string | Exact latest stable compatible artifact exercised. |
-| `profile_name_root` | string/path | Isolated profile identity and location. |
-| `os_arch` | tuple | Actual platform, expected macOS arm64. |
-| `package_sha256` | digest | Matches `DeepSeekProductPackage.artifact_sha256`. |
-| `core_version_source_digest` | record | Core product version, source identity, and binary SHA-256. |
-| `fixture_aggregate_sha256` | digest | Shared contract baseline used for the build. |
-| `proxy_presence` | enum | Expected `none`. |
-| `repository_path` | path | Temporary journey repository; may contain spaces/Unicode/symlink case. |
-| `task_id` | Core ID | Same task lineage before and after restart. |
-| `committed_action_count` | integer | At least `2`. |
-| `terminal_outcome` | Core outcome | Exactly the observed authoritative `DONE` outcome. |
-| `verification_budget_result` | record | Commands/full-suite/manual evidence classified exactly as Core records it. |
-| `removal_observation` | record | Profile dependency, Skill, and tools absent after remove/restart. |
-| `retained_data_observation` | record | Shared task data remains present and resumable after reinstall when exercised. |
-| `codex_non_interference` | record | Observed when Codex is installed; otherwise an explicit skip, never simulated evidence. |
-| `skips` | list | Every unexecuted check and reason. |
+## 10. DeepSeekJourneyEvidence
 
-## Relationships and Authority Boundary
+Final evidence records the merged Feature 003 baseline, exact stable Harness/range/integrity, stable
+Gate B identity, frozen source/final artifact identities, OS/profile, one Skill/six tools,
+`proxy_presence`, task/action/revision lineage, budget, Core `DONE`, removal/data/reinstall/repository
+facts, Codex non-interference, deterministic/root validation, failures, and skips.
+
+A read-only semantic validator checks:
+
+1. merged baseline matches `main`;
+2. all stable Gate B observations and final host use the same exact stable artifact;
+3. all six stable observations are complete;
+4. source/validation/final artifact identities align;
+5. revisions strictly increase, task ID is stable, at least two actions commit, and calls stay in budget;
+6. terminal outcome is `DONE`;
+7. data and repository manifests remain equal across removal;
+8. compatible reinstall succeeds;
+9. Codex non-interference is real and equal;
+10. proxy is absent, required validation passed, and support claims are bounded.
+
+## Relationships
 
 ```text
-DeepSeekProductPackage
-  ├── owns exactly one SkillDescriptor
-  ├── owns exactly one MCPIntegrationDescriptor
-  ├── contains one supported Core runtime
-  └── is referenced by one isolated HarnessProfileInstallation
-
-HarnessProfileInstallation
-  └── starts transient CoreLaunchSpec
-
-MCPIntegrationDescriptor
-  └── carries opaque Core Contract 0.1 results
-
-DirectResultObservation + DeepSeekJourneyEvidence
-  └── prove behavior; they do not control behavior
+Feature003DeliveredBaseline -> DeepSeekProductPackage
+HarnessArtifactSelection -> DirectResultObservation
+DeepSeekProductPackage -> HarnessProfileInstallation -> CoreLaunchSpec
+Deterministic inputs -> DeterministicStoryCheckpoint (never support evidence)
+Stable Gate B + frozen product + real Harness + real Codex -> DeepSeekJourneyEvidence
 ```
-
-Forbidden adapter entities include `AdapterTask`, `AdapterPhase`, `AdapterTransition`,
-`AdapterClaim`, `AdapterRecoveryDecision`, and `AdapterOutcome`. If implementation needs any such
-model, stop: the proposed design violates the Core authority boundary.

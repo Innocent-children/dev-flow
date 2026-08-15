@@ -1,190 +1,193 @@
 # Quickstart: Build and Verify DeepSeek Explicit Dev Flow
 
-This is an implementation/verification runbook, not proof that the feature already works. Commands
-are run only after the matching task is implemented. Keep all profile, package, data, and journey
-artifacts outside the target test repository.
+This runbook is an implementation/verification procedure, not proof that Feature 004 already works.
+Keep profiles, packages, data, evidence, and test repositories outside the target repository. Do not
+publish, tag, release, or use a normal user profile.
 
-## 1. Preconditions
+## 1. Verify the merged Feature 003 baseline
 
-- macOS arm64 host;
-- Go 1.26;
-- Node.js `>=24` and pnpm `>=11 <12`;
-- repository source at the identity being evaluated;
-- official npm registry access for Harness contract/version revalidation; and
-- a separate temporary root for an isolated Harness profile, Core data, packed artifact, and test
-  repository.
+Feature 004 starts only after Feature 003 is implemented and merged to `main`. Record the exact
+merge commit and verify the delivered `internal/version` seam/tests, Codex-aware shared manifest/
+layout contracts, root validator, root `VERSION`, Core source, and fixture aggregate.
 
-Do not publish a package or release. Do not install into a user's ordinary profile.
+Do not continue from a sibling branch, depend on Feature 003 task numbers, edit/duplicate the shared
+version seam, or weaken Codex validation.
 
-For isolated checks, set an explicit `DEV_FLOW_DATA_DIR` and create it before starting Harness. The
-product creates only its documented default data directory on first launch when no override is
-supplied; profile installation/removal never owns that directory.
+## 2. Revalidate official Harness evidence
 
-## 2. Revalidate Gate A Before Implementation
+Inspect official registry/repository evidence and record:
 
-Inspect the official registry and official DeepSeek repository, recording direct URLs, access time,
-dist-tags, selected version/build, integrity/digest, and the exact bundle/profile, Skill, MCP, result,
-and add/remove contract used.
+- stable and pre-release artifacts;
+- exact package version/build/integrity/source relationship;
+- bounded compatible range;
+- bundle/profile, Skill, native MCP result, add/remove/restart, and stale-metadata contracts.
 
-Planning found only `@deepseek-ai/dsh@0.1.0-rc.6`. It may be used for the bounded engineering spike,
-but MUST NOT be labeled stable. If a stable artifact is now available, select the latest stable
-version compatible with the current design and use a compatible range rather than exact-patch-only
-rejection. If no stable artifact exists, final journey work stops; FR-003 requires an explicit spec
-decision before accepting a release candidate instead.
+Planning found only a release candidate. When no stable artifact exists, one provisional direct-
+result spike may run and every observation is labelled `pre-release-native`. It never establishes
+support.
 
-If the official patch/import/configuration contract differs from
-[contracts/deepseek-bundle.md](./contracts/deepseek-bundle.md), amend planning artifacts before
-writing adapter code. Never guess plugin names, manifest fields, cache commands, or result APIs.
+## 3. Run deterministic foundation checks
 
-## 3. Verify the Shared Packaged-Version Foundation
-
-Feature 003 T005 owns the shared injected/source-fallback tests in
-`internal/version/version_test.go`; Feature 003 T006 owns the one link-time `buildVersion` seam in
-`internal/version/version.go`. Before Feature 004's final Core build, wait for T006 and verify that
-T005's targeted tests pass, ordinary source-tree execution still reads root
-`VERSION`, and a binary built with link-time injection reports that value after being moved outside
-the source checkout. Do not add a DeepSeek-specific copy or concurrently edit the shared files.
-
-Host-specific bundle, Skill, launcher, and fake-Core work may proceed before this gate; final
-package construction waits for it.
-
-## 4. Record Core Baseline
-
-Before building, record:
-
-- repository Git object ID;
-- repository `VERSION`;
-- aggregate SHA-256 for `protocol/fixtures/*.json`, computed by sorting repository-relative paths
-  bytewise, rendering every line as
-  `<file-sha256><two spaces><repository-relative-path>\n`, and hashing the complete manifest bytes;
-- `go.mod` Core/toolchain dependencies; and
-- targeted Core Contract 0.1 test results.
-
-Planning observed source
-`8d6c929339f49a102d4e3bb34c11f566a950e9fb` and fixture aggregate
-`8c27bcf6be0e4e5a4bf294c67cbda8cdf281b1b2b2c53fff16206db2828dede7`; implementation records the
-then-current values rather than assuming they remain unchanged.
-
-## 5. Run Targeted Deterministic Checks
-
-After the package tests exist, run only the bounded checks required by the active task, for example:
+After the corresponding tasks exist, run bounded checks such as:
 
 ```text
 node --test packages/deepseek/tests/bundle.test.mjs
-node --test packages/deepseek/tests/direct-consumption.test.mjs
-node --test packages/deepseek/tests/skill.test.mjs
 node --test packages/deepseek/tests/launch-core.test.mjs
 node --test packages/deepseek/tests/fake-core.test.mjs
+node --test packages/deepseek/tests/direct-consumption.test.mjs
+node --test packages/deepseek/tests/skill.test.mjs
 go test ./tests/contract
 ```
 
-These checks may prove manifest composition, exact allowlists, launcher environment/lifecycle,
-fake-result completeness, and recovery call ordering. They do not prove real Harness behavior.
+These checks prove package shape, closed launch, fake results/recovery, explicit admission, shared
+contract preservation, and evidence validation. They do not prove real Harness behavior.
 
-## 6. Build the Local Artifact
+## 4. Execute Gate B
 
-Run the repository build script after reviewing its destination and after the shared version seam
-gate passes. It must stage outside the target repository, build a CGo-free `darwin/arm64` Core with
-repository `VERSION` injected at link time, prove the moved binary reports that version without a
-source checkout, and pack a local tarball without publication:
+The direct-result gate uses an isolated profile and test-only fake Core and covers:
+
+1. inline success;
+2. complete domain error / `isError`;
+3. near-spill;
+4. spilled;
+5. pruned/compacted;
+6. near the Core envelope limit.
+
+For each case record exact Harness identity, expected/recovered byte counts and SHA-256, host
+representation, marker detection, official retrieval method, and complete parse.
+
+When stable is unavailable, an RC spike may provisionally unblock deterministic host-specific work.
+Before final support, complete evidence must exist for the exact selected stable artifact. A same-
+artifact stable gate can be revalidated/reused; RC or different-artifact evidence must be rerun.
+Any failure stops for reviewed amendment and does not authorize a proxy.
+
+## 5. Check User Story 1 without a real Harness journey
+
+```text
+./scripts/run-deepseek-real-journey.sh --fake-host --through explicit-invocation
+```
+
+Verify one Skill/six tools, ordinary zero-task behavior, explicit/invalid invocation, bounded startup
+failure, package/runtime identity, and repository cleanliness. Assert no real `dsh` process and no
+native evidence.
+
+## 6. Check User Story 2 without a real Harness journey
+
+```text
+./scripts/run-deepseek-real-journey.sh --fake-host --through done
+```
+
+Verify create/resume/conflicts, complete fresh authority, two fake Core action commits, restart
+lineage, read-before-retry, budget accounting, blockers/cancellation, and Core `DONE`. Start no real
+Harness.
+
+## 7. Check User Story 3 without a real Harness journey
+
+```text
+./scripts/run-deepseek-real-journey.sh --fake-host --through remove
+```
+
+Verify product-identity removal, restart/absence readback, retained data/repository, compatible
+reinstall, repeated removal, stale-metadata stop, and Codex-comparison logic. Start no real Harness
+and do not claim Codex non-interference.
+
+## 8. Select the final stable Harness and ensure stable Gate B
+
+Immediately before finalization, select the latest official stable compatible Harness and revalidate
+all volatile contracts. Ensure the complete six-case gate exists for that exact artifact. Reuse
+prior evidence only when it is from the same stable artifact and the contract/integrity remain
+unchanged.
+
+If no stable artifact exists, if any stable case fails, or if complete content cannot be recovered,
+stop. Do not build the final artifact or add a proxy.
+
+## 9. Run all deterministic checks and root validation
+
+Run the complete Feature 004 test set, affected shared Go contracts, dry-pack/build checks, then:
+
+```text
+pnpm run validate
+```
+
+The merged root validator must preserve every Codex rule while adding bounded DeepSeek checks. It
+must not start Harness, mutate profiles, download/publish, or write native evidence.
+
+Fix failures now and rerun affected checks. Record exact commands/results and source commit. Do not
+build the final artifact yet.
+
+## 10. Audit and freeze source
+
+Read-only audit:
+
+```text
+packages/deepseek/
+scripts/build-deepseek-package.sh
+scripts/run-deepseek-real-journey.sh
+scripts/validate-deepseek-journey-evidence.mjs
+scripts/validate-repository.sh
+pnpm-lock.yaml
+tests/contract/
+specs/004-deepseek-explicit-dev-flow/
+```
+
+Confirm no Feature 003/Core regression, proxy, Git/repository mutation, shell/listener/network,
+publication, future framework, unsupported platform claim, or secret/generated artifact. Freeze the
+source commit. A later source change returns to deterministic validation.
+
+## 11. Build exactly one final product artifact
 
 ```text
 ./scripts/build-deepseek-package.sh <absolute-output-directory>
 ```
 
-Record the packed file list, package SHA-256, Core executable SHA-256, Core source identity, fixture
-aggregate, and absence of install/build/download/publication hooks. Do not commit the binary or
-tarball.
+Verify package/Core/root version equality, stable range metadata, exact allowlist, executable mode,
+frozen source, Core/fixture/package digests, and moved Core CLI/server-info identity. A defect
+discards the artifact and returns to step 9.
 
-## 7. Pass Gate B: Direct-Consumption Spike
+## 12. Establish a real co-installed Codex baseline
 
-Use `@deepseek-ai/dsh@0.1.0-rc.6` or a later officially selected compatible artifact in an isolated
-profile. `scripts/run-deepseek-real-journey.sh --through direct-consumption` may orchestrate this
-bounded spike after its task is implemented; review every resolved path before running it. Install
-the exact local tarball through the official profile command and restart Harness:
+Install/read back the delivered Feature 003 Codex product in the isolated test environment and
+record package selection, registration resources, runtime digest, and shared data digest. If this
+cannot be established, final evidence is blocked; do not record a passing Codex skip.
 
-```text
-dsh plugin --profile <isolated-profile> add <absolute-local-tarball>
-```
+## 13. Run the sole final stable journey
 
-Record results in `evidence/direct-consumption.md`. The spike must show:
-
-- exactly one `dev-flow` Skill and one-to-one exposure of all six raw Core tools;
-- ordinary prompts do not activate the Skill;
-- complete canonical JSON for inline success and `isError` domain error;
-- complete canonical JSON immediately below and above the observed spill boundary;
-- complete canonical JSON through observed compaction/prune behavior;
-- a complete envelope near Core's 1,048,576-byte cap; and
-- expected/recovered byte counts and SHA-256 digests plus the exact official retrieval mechanism.
-
-The evidence must distinguish host display preview from programmatic complete content. If any case
-cannot recover the complete result, stop. Do not create a projection proxy or continue to the user
-stories until a reviewed amendment authorizes a concrete response to the observed limitation.
-
-## 8. Independent Story Checks
-
-### User Story 1 — Install and invoke
-
-With Gate B passed, install the final local artifact into a clean profile, restart, and verify one
-Skill plus the exact six tools. An ordinary prompt creates zero tasks. Explicit `/dev-flow` with a
-substantive requirement opens `host=deepseek`; empty/conversational and non-Git invocations do not.
-Inspect the target repository to prove no package, database, Skill, profile, or generated artifact
-was copied there. Exercise missing/non-executable runtime behavior separately and label it simulated
-unless the real host actually performed it.
-
-### User Story 2 — Govern and resume
-
-In a temporary Git repository, invoke `/dev-flow` for one bounded real source change. Follow only
-fresh Core actions and their live payload schemas. Commit at least two Core actions through
-`dev_flow_apply_action`, stop Harness, restart it, invoke `/dev-flow` again without a different task
-contract, and prove the same Core task ID/repository lineage resumes. Finish within the Core's
-verification budget and report completion only from the complete Core `DONE` outcome.
-
-When a mutation response is intentionally made uncertain in a bounded safe check, retain its
-request ID, perform the Contract 0.1 task/next-action probe, and follow the complete Core recovery
-assessment before retry. If this cannot be safely reproduced in the real host, keep the fake-Core
-evidence labeled as such and record the real-host skip.
-
-### User Story 3 — Remove and retain data
-
-Remove by identity and restart Harness:
+Use the exact stable Harness that passed stable Gate B and the exact final product artifact:
 
 ```text
-dsh plugin --profile <isolated-profile> remove dev-flow-deepseek
+./scripts/run-deepseek-real-journey.sh \
+  --artifact <absolute-final-tarball> \
+  --stable-harness <exact-version-build> \
+  --source-commit <frozen-commit>
 ```
 
-Verify the isolated profile no longer exposes the package layer, Skill, or tools. Verify the shared
-data root and task remain. Reinstall the same compatible artifact when needed to demonstrate the
-retained same-host task can resume. If Codex is installed, verify its files/runtime selection and
-the shared data root are unchanged; otherwise record an explicit skip rather than simulated proof.
+The journey performs add/restart, ordinary zero-task prompt, explicit invalid inputs, one substantive
+`/dev-flow` task, at least two Core commits, Harness restart/resume, budgeted `DONE`, product remove/
+restart, retained data/task reopen, compatible reinstall, repository comparison, and real Codex
+before/after comparison.
 
-## 9. Final Real-Host Evidence
+Write only observed facts to
+`specs/004-deepseek-explicit-dev-flow/evidence/real-journey.md`. If any required step, especially
+Codex comparison, is unavailable, status is blocked/failed.
 
-The final journey is allowed only with the latest official stable compatible Harness available at
-execution time. Write `evidence/real-journey.md` with:
+## 14. Validate evidence read-only
 
-- timestamp and direct official version sources;
-- exact Harness package version/build/integrity and compatible range;
-- isolated profile name/root;
-- actual OS and architecture;
-- repository source, fixture aggregate, Core version/binary digest, package digest, and packed file
-  list;
-- proxy presence (`none` for this plan);
-- six-tool and one-Skill observation;
-- ordinary-prompt zero-task observation;
-- task ID before/after restart and at least two committed actions;
-- verification-budget accounting and evidence classifications;
-- complete Core terminal outcome;
-- removal/restart observation and retained task data;
-- Codex non-interference or an explicit skip; and
-- every failure, deviation, unsupported claim, and unexecuted check.
+Run the planned validator:
 
-Never promote fake, static, different-host, user-reported, or pre-release evidence into the final
-stable real-host claim.
+```text
+node scripts/validate-deepseek-journey-evidence.mjs \
+  specs/004-deepseek-explicit-dev-flow/evidence/real-journey.md
+```
 
-## 10. Final Repository Check
+It verifies merged baseline, exact stable Gate B/final host identity, source/artifact identity, six
+complete gate cases, task/revision/action lineage, budget, `DONE`, removal/data/repository equality,
+reinstall, real Codex equality, proxy absence, prior validation, and bounded support claims.
 
-Run the shared repository validation once at the feature checkpoint, inspect the changed scope, and
-confirm that no binary, tarball, profile, database, temporary repository, credential, or target
-repository artifact is tracked. Do not publish, tag, push, or create a release as part of this
-quickstart.
+Do not edit evidence to make validation pass. Return to deterministic checks/build/journey as
+required.
+
+## 15. Final read-only audit
+
+Confirm no source changed after freeze and only the final evidence record was added after artifact
+creation. Do not rebuild, rerun a host, edit evidence, publish, tag, release, or perform further
+repository mutations.

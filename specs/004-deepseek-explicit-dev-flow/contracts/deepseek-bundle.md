@@ -1,167 +1,119 @@
 # Contract: DeepSeek Harness Bundle and Lifecycle
 
-## 1. Product and Compatibility
+## 1. Product and dependency baseline
 
-- Package identity is exactly `dev-flow-deepseek`.
-- The package remains private and locally packable; this feature performs no npm/GitHub release.
-- Repository `VERSION`, package version, and embedded Core version remain aligned during `0.x`.
-- Planning-time engineering evidence is `@deepseek-ai/dsh` `0.1.0-rc.6` with provisional range
-  `>=0.1.0-rc.6 <0.2.0-0`.
-- That pre-release range is not a stable support claim. Before the final journey, the implementer
-  MUST select and record the latest official stable compatible Harness available then. If none
-  exists, the final journey stops under Gate A.
-- Supported platform evidence is macOS arm64 only.
+- Product identity is exactly `dev-flow-deepseek`.
+- The package is private/local; Feature 004 publishes nothing.
+- Feature 004 starts from an exact `main` merge commit containing completed Feature 003.
+- It consumes the merged detached-build version seam, Codex-aware shared contracts, and root
+  validator without duplicate implementation or weakened Codex checks.
+- Repository `VERSION`, package version, and packaged Core version remain aligned during `0.x`.
+- Native support is macOS arm64 only.
 
-## 2. Packed Product Contents
+## 2. Harness compatibility
 
-The final local tarball contains:
+A release candidate may support provisional engineering evidence only when no stable artifact
+exists. Final support requires:
 
-- one manifest with a supported `dsh.bundle.patch` reference;
-- one bundle patch;
-- one thin provider/registration entry;
-- exactly one `dev-flow` Skill resource;
+1. latest official stable compatible Harness selection;
+2. exact version/build/integrity/source evidence and bounded range;
+3. revalidated bundle/profile, Skill, MCP result, add/remove/restart contracts;
+4. complete six-case Gate B evidence from that exact stable artifact;
+5. the same exact stable artifact in the final journey.
+
+A same-artifact stable gate may be revalidated/reused. RC or different-artifact evidence cannot
+substitute. No stable artifact or failed stable Gate B blocks final support.
+
+## 3. Packed contents
+
+The final tarball contains exactly:
+
+- one manifest and one supported bundle patch;
+- one thin provider entry;
+- one `dev-flow` Skill;
 - one package-relative Core lifecycle launcher;
-- one macOS arm64 Core executable built from the recorded repository identity; and
-- only the first-party Harness runtime dependencies required by the revalidated stable contract.
+- one macOS arm64 Core executable;
+- only reviewed official Harness dependencies.
 
-The final tarball contains no database, target-repository file, Core source copy, projection proxy,
-generic shell wrapper, second Skill, second MCP integration, generated test repository, evidence
-secret, or publication credential.
+It contains no database, profile, repository file, Core source, copied fixture, test fake, evidence,
+proxy, generic shell wrapper, second Skill/MCP integration, second runtime, credential, or release
+configuration.
 
-The manifest MUST NOT define `preinstall`, `install`, `postinstall`, `prepare`, `prepack`, publish,
-release, or download behavior. Installation never builds source, contacts a Dev Flow service, or
-selects an unrelated Core executable from `PATH`.
+No `preinstall`, `install`, `postinstall`, `prepare`, `prepack`, download, publish, or release hook is
+allowed. Installation never builds source or selects an unrelated executable from `PATH`.
 
-## 3. Bundle Patch
+## 4. Bundle patch
 
-The bundle uses the implementation-time official profile bundle contract. Its patch contributes
-exactly:
+Use only exact field names, injection names, provider APIs, and settings verified against the
+selected official artifact. The patch contributes:
 
-1. one Skill provider whose sole user-facing Skill is `dev-flow`; and
-2. one official native MCP client configured for one local STDIO server backed by the lifecycle
-   launcher.
+1. one Skill provider whose sole user-facing Skill is `dev-flow`;
+2. one official native local STDIO MCP client backed by the launcher.
 
-The client uses the official nonfatal startup setting (`failOnStartupError: false`) and disables
-automatic reconnect (`reconnect.enabled: false`) so an unavailable Core does not reject unrelated
-Harness use or create an adapter-controlled respawn loop. Recovery is an explicit host restart or
-bundle reload, not an infinite background retry.
+Where officially supported, startup failure is nonfatal and automatic reconnect is disabled. The
+patch mounts no HTTP, UI, agent preset, command family, shell MCP, remote transport, telemetry,
+repository watcher, or second workflow service.
 
-The exact plugin names, injection names, and patch keys MUST be copied from and tested against the
-official stable Harness artifact selected at implementation time. Planning-time source examples are
-evidence, not permission to invent a missing field. Any incompatible change stops implementation
-until `research.md` and this contract are amended.
+## 5. Profile add/remove
 
-The patch MUST NOT mount an HTTP server, browser/UI, agent preset, generic shell MCP, remote
-transport, second workflow service, telemetry client, or repository watcher.
+Use the implementation-time official product/profile add/remove commands in an isolated profile.
+Stop/restart Harness after both operations and inspect resolved state.
 
-## 4. Profile Add and Remove
+Installed observation requires one `dev-flow` Skill and one six-tool integration. Removed observation
+requires package dependency, product patch, Skill, and tools to be absent.
 
-Installation into an isolated profile uses the official command form:
+No undocumented cache purge is assumed. Stale metadata after supported restart stops for amendment.
+Removal preserves:
 
-```text
-dsh plugin --profile <profile> add <local-package-spec>
-```
+- explicit/default Core data and tasks;
+- target repository;
+- unrelated profiles/dependencies;
+- real co-installed Codex package selection, registration, runtime, and shared data.
 
-Removal uses product identity:
+Codex comparison is mandatory for final `pass`; inability to establish it produces blocked/failed
+evidence.
 
-```text
-dsh plugin --profile <profile> remove dev-flow-deepseek
-```
+## 6. Runtime identity
 
-After both operations, Harness is stopped and restarted before the resolved profile is inspected.
-Installed observation requires exactly one `dev-flow` Skill plus one six-tool MCP integration.
-Removed observation requires the package dependency, product-owned patch layer, Skill, and tools to
-be absent.
+Use the merged Feature 003 version capability; do not edit/duplicate `internal/version`. Build one
+CGo-free `darwin-arm64` Core with repository `VERSION` injected, stage it package-relative, and
+verify CLI plus `dev_flow_server_info` outside the checkout.
 
-No undocumented cache-purge command is assumed. If the restarted host still exposes stale metadata,
-record the exact official behavior and stop for a contract amendment rather than deleting arbitrary
-cache directories.
+Record merged Feature 003 commit/capabilities, Feature 004 source commit, product/Core versions,
+Core source/binary digest, product digest, fixture aggregate, and exact stable Harness identity.
+A Core contract mismatch stops; the adapter never patches around it.
 
-Removal MUST preserve:
+## 7. Child environment and transport
 
-- `DEV_FLOW_DATA_DIR` or the default shared data root;
-- Core task rows and repository claims/outcomes already in that root;
-- the target Git repository;
-- other Harness profiles and unrelated dependencies; and
-- Codex package/runtime selection when present.
+The launcher:
 
-## 5. Core Runtime Selection and Identity
+- spawns package-relative Core without a shell;
+- forwards raw stdin/stdout without parsing/projecting/truncating/retrying;
+- emits bounded non-secret diagnostics on stderr;
+- propagates EOF/signals/cancellation and reaps deterministically;
+- opens no listener and makes no network request;
+- reads/writes no task state.
 
-Feature 003 T005/T006 are the sole implementation owners of the shared link-time `buildVersion`
-tests/seam in `internal/version/version_test.go` and `internal/version/version.go`. It retains the source-tree
-`VERSION` fallback and changes no public Core contract. Feature 004 MUST verify that prerequisite,
-MUST NOT duplicate it, and may not perform the final package build until its tests pass.
+Only present values from `DEV_FLOW_DATA_DIR`, `HOME`, `PATH`, `LANG`, `LC_ALL`, and `TMPDIR` are
+forwarded. An explicit data root must already be usable; otherwise only the documented macOS default
+is created with restrictive permissions. Profile lifecycle never owns that root.
 
-The repository build then stages one `CGO_ENABLED=0`, `GOOS=darwin`, `GOARCH=arm64` Core executable
-with repository `VERSION` injected at link time. The lifecycle launcher resolves only that
-package-relative path. Feature 004's final build waits for Feature 003 T006. The staged binary MUST
-report that version through both `dev-flow version`
-and `dev_flow_server_info` when run without the repository source tree. Before packing and in the
-final journey, validation records:
+## 8. Direct-result contract
 
-- repository source identity;
-- repository `VERSION`;
-- Core-reported version and schema version;
-- executable SHA-256;
-- package SHA-256; and
-- aggregate shared-fixture SHA-256.
+A result is complete only when expected/recovered bytes and SHA-256 match and the complete envelope
+parses. Preview, spill, prune, truncation, malformed, or inaccessible markers are detected before
+authority use. Only the exact official retrieval method proven by Gate B is permitted.
 
-The fixture aggregate sorts repository-relative JSON paths bytewise, renders every line as
-`<file-sha256><two spaces><repository-relative-path>\n`, and hashes the complete manifest bytes.
+Required cases are inline success, domain error, near-spill, spilled, pruned/compacted, and near-Core
+limit. A failed gate stops for reviewed amendment and does not authorize a proxy.
 
-`dev_flow_server_info` MUST report a compatible Contract 0.1, local STDIO transport, supported
-`deepseek` host, and exactly the six raw tool names before task discovery or mutation. A mismatch is
-fatal to Dev Flow startup/invocation and MUST NOT be patched around by the adapter.
+## 9. Repository and evidence boundary
 
-## 6. Child Environment and Transport
+Invocation accepts one current existing Git worktree. Package/profile/build/data/evidence roots stay
+outside it. Core inspects Git read-only; package/launcher/Core never create, switch, reset, clean,
+stash, commit, push, tag, publish, or delete Git state.
 
-The lifecycle launcher:
-
-- spawns the package-relative Core without a shell;
-- forwards stdin/stdout bytes without parsing, projecting, truncating, or retrying MCP messages;
-- emits only bounded, non-secret startup diagnostics on stderr;
-- forwards EOF and termination signals and waits for the child to exit;
-- kills/reaps the child when the outward transport is cancelled or closed;
-- opens no listening socket and initiates no network request; and
-- never reads or writes task state itself.
-
-The Core child receives a newly constructed environment containing only present values from:
-
-```text
-DEV_FLOW_DATA_DIR
-HOME
-PATH
-LANG
-LC_ALL
-TMPDIR
-```
-
-No other host variable is forwarded. Diagnostics MUST NOT print environment values, credentials,
-full user input, task payloads, source content, database paths, or raw Core output.
-
-An explicit `DEV_FLOW_DATA_DIR` is preserved and must already name a usable directory. Otherwise
-the launcher derives `~/Library/Application Support/dev-flow/data` on macOS and creates that default
-with user-only permissions on first Core launch. Profile add/remove never creates or deletes the
-shared directory, and the launcher never writes Core task state itself.
-
-## 7. Repository Boundary
-
-- Invocation accepts one current existing Git worktree only.
-- Package resolution, profile writes, staged binaries, tarballs, temporary data, and evidence files
-  remain outside the target repository.
-- Core may inspect Git read-only under its existing contract.
-- Neither bundle nor launcher creates, switches, resets, cleans, stashes, commits, pushes, tags,
-  publishes, or deletes Git state.
-- Development edits authorized by a fresh Core action are performed by the host's normal tools, not
-  by the MCP server.
-
-## 8. Failure Contract
-
-Missing, incompatible, non-executable, or prematurely exiting Core runtime produces a bounded
-Dev Flow startup diagnostic. It does not expose secrets, fabricate an MCP result, retry forever, or
-turn into a host-specific terminal outcome. Where the selected official Harness supports nonfatal
-plugin/MCP startup failure, unrelated Harness operation remains usable; the real journey records
-the observed host behavior rather than claiming more.
-
-If the direct-result gate fails, startup still does not insert a proxy. Implementation stops for a
-reviewed amendment.
+Story checkpoints are deterministic/fake/integration and start no real Harness. Native execution is
+bounded to an optional provisional gate, one complete stable gate, and one final stable journey.
+The final artifact is built after stable Gate B, deterministic/root validation, audit, and source
+freeze. Evidence validation is read-only.

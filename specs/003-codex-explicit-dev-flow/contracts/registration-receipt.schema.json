@@ -15,7 +15,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": 1
+      "const": 2
     },
     "product": {
       "type": "object",
@@ -37,7 +37,9 @@
           "$ref": "#/$defs/semver"
         },
         "codex_compatibility": {
-          "const": ">=0.147.0 <0.148.0"
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
         }
       }
     },
@@ -50,8 +52,7 @@
           "const": "codex-cli"
         },
         "version": {
-          "type": "string",
-          "pattern": "^0\\.147\\.[0-9]+$"
+          "$ref": "#/$defs/semver"
         },
         "os": {
           "const": "darwin"

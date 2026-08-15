@@ -1,26 +1,34 @@
 # 004 DeepSeek Explicit Dev Flow
 
-Feature 002 is merged and Core Contract 0.1 is implemented. This directory now holds the planning
-package for a thin, explicit-only DeepSeek Harness product:
+This directory contains the reviewed planning package for the thin, explicit-only DeepSeek Harness
+product.
 
-- `spec.md` — product requirements and acceptance criteria;
-- `research.md` — first-party Harness/package evidence and unresolved host gates;
-- `plan.md` — architecture, Constitution checks, source layout, and stop gates;
-- `data-model.md` — package/configuration/evidence records with no adapter workflow state;
-- `contracts/` — bundle/lifecycle and explicit Skill/direct MCP contracts;
-- `quickstart.md` — bounded implementation and real-host verification runbook;
-- `checklists/` — specification and reviewer quality gates; and
-- `tasks.md` — dependency-ordered implementation work after `$speckit-tasks` completes.
+Feature 004 is deliberately serialized after Feature 003:
 
-Two evidence gates remain intentionally open for implementation:
+1. Feature 003 must be fully implemented and merged to `main`.
+2. Feature 004 records the exact merge commit and verifies the delivered detached-build version
+   seam, Codex-aware shared contracts, and Codex-aware root validator.
+3. Feature 004 consumes those merged capabilities; it does not depend on mutable Feature 003 task
+   numbers, duplicate shared code, or weaken Codex validation.
 
-1. On 2026-08-15 the official registry offered only `@deepseek-ai/dsh@0.1.0-rc.6`; the final journey
-   must wait for and use the latest official stable compatible Harness unless FR-003 is explicitly
-   amended.
-2. Direct Core MCP consumption must recover complete canonical results across native Harness
-   inline, spill, and prune behavior before any user-story implementation proceeds. This plan does
-   not authorize a projection proxy.
+Harness evidence is deliberately split:
 
-The adapter remains limited to Harness registration, one explicit Skill, direct local STDIO MCP,
-and package-relative Core lifecycle glue. It must not add host-independent workflow, persistence,
-claim, recovery, or completion logic outside the shared Core.
+- a release-candidate direct-result spike is provisional engineering evidence only;
+- the full direct-result gate is established on the exact official stable Harness version/build
+  used by the final journey; RC or different-artifact evidence never substitutes;
+- user-story checkpoints use deterministic package, fake Core, fake profile, retained-data, and
+  journey-harness evidence only;
+- exactly one final stable Harness journey is run after stable Gate B, deterministic/root validation,
+  a read-only scope audit, source freeze, and creation of one final product artifact.
+
+Passing final evidence must use a real co-installed Codex product and prove DeepSeek removal does not
+change its registration, packaged runtime identity, package selection, or shared Core data. Codex
+absence is a blocker, not a passing skip.
+
+The adapter remains limited to one explicit Skill, one direct local STDIO MCP integration, a
+package-relative Core launcher, and package/profile lifecycle glue. No result proxy is authorized.
+A failed direct-result gate requires an explicit specification, plan, contract, test, and
+Constitution amendment before proxy work can begin.
+
+Implementation proceeds only after both reviewer-owned checklists remain satisfied against the
+revised artifacts.

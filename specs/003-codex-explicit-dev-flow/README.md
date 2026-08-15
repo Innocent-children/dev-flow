@@ -1,28 +1,25 @@
 # 003 Codex Explicit Dev Flow
 
-This feature is planned and ready for implementation review; this status does not imply approval.
-Its original planning gates are satisfied:
+Feature 002 and Core Contract 0.1 are complete. This directory contains the reviewed planning
+package for the thin, explicit-only Codex product.
 
-1. `002-govern-and-resume-single-repository-task` is complete.
-2. Core Contract 0.1 and fixture digests are recorded.
-3. The then-current official Codex plugin, Skill, MCP registration, local import, and removal
-   behavior has been revalidated.
-4. A minimum Codex version, compatible range, and real-evidence platform have been selected; the
-   latest stable compatible Codex is required for the implementation journey.
+The remediation review establishes these implementation gates:
 
-The directory now contains the specification plus planning, research, data model, external
-contracts, quickstart, requirements-quality checklists, and dependency-ordered implementation tasks.
-The workflow used to prepare them was:
+1. Codex compatibility is revalidated immediately before final validation; the planning-time
+   `0.147.x` line is historical evidence, not a permanently frozen schema rule.
+2. User-story checkpoints use static, fake-Codex, fake-Core, packaged-Core, and journey-harness
+   evidence only.
+3. Feature 003 performs exactly one real Codex host journey, after targeted checks, root validation,
+   a read-only scope audit, source freeze, and creation of one final artifact.
+4. JSON Schema validates evidence structure; a separate read-only semantic validator proves version,
+   source/artifact, revision, task-lineage, budget, terminal-outcome, retained-data, repository, and
+   prior-validation relationships.
+5. Feature 003 owns the first Codex-aware expansion of the root repository validator. Feature 004
+   consumes that merged capability rather than repairing it later.
 
-```text
-$speckit-clarify
-$speckit-plan
-$speckit-checklist
-$speckit-tasks
-$speckit-analyze
-```
+The package remains one private local artifact containing one plugin, one `dev-flow` Skill, one
+local STDIO MCP server, and one packaged Core runtime. It does not publish, mutate Git, edit target
+repositories during setup/removal, or duplicate Core workflow authority.
 
-Implementation must not modify Core Contract 0.1 merely to simplify the Codex adapter. Any genuine
-shared contract gap requires a separate Core feature before implementation continues. Feature 003
-will claim native evidence only after the final local artifact's exact Codex CLI 0.147.x macOS arm64
-journey is recorded; it does not publish the package.
+Implementation proceeds only after the reviewer-owned checklists in this directory remain satisfied
+against the final revised artifacts.

@@ -1,149 +1,94 @@
 # Contract: Explicit Skill and Direct Core MCP
 
-## 1. User-Facing Skill
+## 1. User-facing Skill
 
-The package exposes exactly one Skill:
+The package exposes exactly one `dev-flow` Skill through the selected official Harness contract.
+It is user-invocable, not model-invocable, and selected only by explicit `/dev-flow`.
 
-| Property | Required value |
-|---|---|
-| Name | `dev-flow` |
-| Invocation token | `/dev-flow` under the selected official Harness explicit-invocation contract |
-| `userInvocable` | `true` |
-| `modelInvocable` | `false` |
+Before any Core call, require a substantive new requirement or explicit resume intent, one current
+Git worktree, and one-repository scope. Ordinary, empty/conversational, non-Git, and multi-repository
+inputs create no task.
 
-The package does not expose a command family, implicit trigger, agent preset, second Skill, or
-host-specific completion rule.
+## 2. Tool surface and handshake
 
-### Invocation admission
+One local STDIO integration corresponds one-to-one with:
 
-Before any task mutation, Skill instructions require the host to establish all of the following:
+1. `dev_flow_server_info`
+2. `dev_flow_open_task`
+3. `dev_flow_get_task`
+4. `dev_flow_get_next_action`
+5. `dev_flow_apply_action`
+6. `dev_flow_cancel_task`
 
-1. the claimed user message explicitly invoked `/dev-flow`;
-2. the remainder is a substantive development requirement, not empty or merely conversational;
-3. the current directory belongs to exactly one existing Git worktree;
-4. the request targets that one repository and does not require a second repository; and
-5. `dev_flow_server_info` reports compatible Core Contract 0.1 and exactly the tool allowlist below.
+Harness-native names may be derived from the server name, but raw schemas/semantics remain unchanged.
+No alias, seventh tool, generic forwarder, shell tool, or adapter tool is allowed.
 
-Failure of items 1–4 returns a concise user-facing rejection and opens no task. Failure of item 5
-reports a bounded incompatibility/startup error and performs no discovery or mutation.
+`dev_flow_server_info` precedes discovery/mutation and requires compatible Core Contract 0.1,
+expected host/transport, and exactly the six raw tools.
 
-An ordinary prompt without `/dev-flow` does not inject the Skill and creates zero Core tasks.
+## 3. Open/resume
 
-## 2. Host-Facing Tool Surface
+After admission and handshake, use `host=deepseek` and the canonical repository.
 
-The bundle exposes one native STDIO MCP server and exactly these six raw Core tools:
+- Explicit resume omits `new_task`.
+- A new request supplies only a bounded contract derived from user request/repository instructions.
+- Same-host compatible resume and all conflicts remain Core decisions.
+- The Skill does not choose task rows, alter ownership, or normalize another contract.
 
-| Raw Core name | Use |
-|---|---|
-| `dev_flow_server_info` | Contract/health/tool-catalog check before other calls. |
-| `dev_flow_open_task` | Create or resume the one compatible Core-owned task. |
-| `dev_flow_get_task` | Read authoritative task and optional recovery assessment. |
-| `dev_flow_get_next_action` | Read fresh action/blocker/outcome and optional recovery assessment. |
-| `dev_flow_apply_action` | Submit one exact current action or explicit Core-defined recovery apply. |
-| `dev_flow_cancel_task` | Explicit user-authorized cancellation only. |
+## 4. Complete-authority loop
 
-Harness may display official native names derived as `mcp__<serverName>__<rawName>`. The bundle MUST
-not rename raw Core schemas, expose an unfiltered forwarding tool, or add an adapter tool. The
-direct-consumption evidence records the actual native catalog for the selected Harness artifact and
-proves one-to-one correspondence with these six names.
+For each nonterminal action, use only the complete live Core result for task ID, phase, revision,
+action identity, binding, allowed effects, evidence requirements, payload schema, guidance, blocker,
+recovery assessment, and outcome.
 
-All input schemas, result envelopes, error codes, tool annotations, action payload schemas,
-revision/action identities, allowed effects, evidence requirements, recovery assessments, and
-outcomes are the live Core Contract 0.1. This document does not redefine them.
+Perform only authorized work with normal host tools, stay within the verification budget, construct
+only the returned payload, and dispatch one mutation with retained request/action identity.
 
-## 3. Open or Resume
+Skill/provider/launcher contain no task persistence, state/action catalog, transition map, claim
+algorithm, error reinterpretation, recovery classifier, or completion predicate.
 
-After admission and server-info validation, the Skill uses `host=deepseek` and the single resolved
-repository path.
+## 5. Complete-result gate
 
-- To resume, call `dev_flow_open_task` without `new_task`.
-- If no active task exists and the invocation contains a substantive requirement, call
-  `dev_flow_open_task` with a bounded contract derived from that requirement.
-- A same-host exact normalized contract may resume the existing task.
-- A same-host different contract returns Core `ACTIVE_TASK_CONFLICT`.
-- A task owned by another host returns Core `HOST_OWNERSHIP_CONFLICT`.
+Required cases are inline success, complete domain error, near-spill, spilled, pruned/compacted, and
+near the Core envelope limit. Each records exact Harness identity, host representation, marker,
+official retrieval method, expected/recovered bytes and SHA-256, and complete parse.
 
-The Skill never changes ownership, creates a second repository claim, edits the normalized contract,
-or invents compatibility behavior.
+Final support requires all six cases from the exact stable Harness used by the final journey. A
+same-artifact stable gate may be revalidated/reused; RC or different-artifact evidence is
+insufficient.
 
-## 4. Fresh-Authority Loop
+Any stable failure stops. No proxy file/task is authorized until a reviewed amendment defines the
+observed limitation, minimum projection contract, tests, and Constitution impact.
 
-For each nonterminal step, the Skill:
+## 6. Uncertain mutation
 
-1. obtains the complete result of `dev_flow_get_next_action` (or the complete action returned by
-   open/apply);
-2. treats the returned task ID, phase, revision, action ID/kind, repository binding, allowed
-   effects, evidence requirements, payload schema, guidance, blocker, recovery assessment, and
-   outcome as the only authority;
-3. performs only the authorized development work using normal host tools;
-4. stays within the Core verification budget and classifies evidence as automated, manual,
-   simulated, or unverified without promotion;
-5. constructs only the payload schema returned for that exact action; and
-6. calls `dev_flow_apply_action` once with the exact issued identities, then consumes the complete
-   committed result before continuing.
+Retain `dev_flow_apply_action.request_id` and original action/payload values before dispatch.
+Missing, cancelled, previewed, unrecoverable spilled, pruned, truncated, malformed, or uncertain
+output is never blindly replayed.
 
-The Skill does not contain a phase-to-action table, action catalog, transition map, repository claim
-algorithm, recovery classifier, stable-error reinterpretation, or completion predicate. Guidance
-may tell the agent to follow live Core fields; it MUST NOT duplicate their possible values as an
-adapter state machine.
+Perform the exact Core-defined task/next-action operation probe, retrieve a complete read result, and
+follow live recovery assessment. Never fabricate classification, binding, next phase, retry safety,
+or completion.
 
-Completion is reported only when the complete Core result contains its authoritative terminal
-outcome. A Harness turn ending, model assertion, missing action preview, or package removal is not
-completion.
+## 7. Verification and outcomes
 
-## 5. Complete Results
+Automatic commands count against the Core budget. Automated, manual, simulated, pre-release-native,
+stable-native, skipped, and unverified evidence remain distinct.
 
-Core Contract 0.1 emits the same complete compact JSON in MCP text and structured content. The
-official Harness may subsequently inline, spill, preview, or prune tool results. Before reading any
-authority field, the Skill/caller MUST establish that canonical content is complete.
+Completion is reported only from complete Core `DONE`. Blocked, conflict, cancellation, and
+transport closure are not adapter completion rules. Transport cancellation closes/reaps the child;
+it does not call `dev_flow_cancel_task` without explicit user-authorized task cancellation.
 
-- Inline canonical JSON may be used only after successful complete-envelope parsing.
-- A spill reference, preview, prune/truncation marker, malformed envelope, missing required field,
-  digest mismatch, or inaccessible structured result is incomplete.
-- For an official recoverable spill/prune representation, use the exact supported retrieval
-  mechanism proven by Gate B, then validate the full envelope.
-- Never infer omitted fields from a preview or combine fragments into fabricated authority.
-- Stable Core domain errors retain their complete `ok=false`, `error.code`, message, details, and
-  recovery semantics; Harness display wording is not a replacement error taxonomy.
+## 8. Verification matrix
 
-Gate B passes only when all `DirectResultObservation` cases in `data-model.md` recover byte-identical
-canonical content through the official direct client. Until then, no user-story implementation may
-claim FR-023, and no projection proxy is allowed.
-
-## 6. Uncertain Mutation
-
-The caller chooses and retains `dev_flow_apply_action.request_id` before dispatch. If the response
-is missing, cancelled, spilled without recoverable full content, pruned, truncated, malformed, or
-otherwise uncertain:
-
-1. do not replay the mutation;
-2. call `dev_flow_get_task` or `dev_flow_get_next_action` with the original Core-defined
-   `operation_probe`, including the original request/action identities and retained payload exactly
-   as Contract 0.1 permits;
-3. retrieve and validate the complete read result;
-4. follow the returned Core `recovery_assessment.next_advice`, retry-safety flag, blocker/condition,
-   current action, or outcome; and
-5. perform an explicit recovery apply only in the exact shape authorized by the live Core result.
-
-The Skill never supplies a recovery classification, replacement binding, next phase, completion
-decision, or blind retry. It never parses free-form recovery text into a condition.
-
-## 7. Cancellation and Shutdown
-
-`dev_flow_cancel_task` is called only for explicit user-authorized task cancellation. Host/MCP
-transport cancellation instead closes the outward transport and lifecycle launcher, which
-propagates cancellation and deterministically reaps the Core child; it does not convert transport
-cancellation into task cancellation.
-
-## 8. Contract Verification Matrix
-
-| Contract behavior | Deterministic evidence | Real-host evidence |
+| Behavior | Deterministic evidence | Native evidence |
 |---|---|---|
-| Explicit-only activation and empty/conversational rejection | Skill resource inspection/test | Ordinary prompt plus explicit `/dev-flow` invocation |
-| Exactly one Skill and six tools | Bundle/package test | Installed profile catalog after restart |
-| Core Contract 0.1 identity | Shared fixtures and server-info contract test | First real invocation's complete server-info result |
-| Complete success/domain-error/spill/prune results | Fake Core digests plus direct-host spike | Gate B evidence using exact Harness artifact |
-| Read-before-retry | Skill/fake-Core transcript test | Lost/uncertain response case when safely reproducible; otherwise explicitly scoped fake evidence |
-| Startup/cancellation | Launcher/fake-Core process tests | Observed startup/removal behavior, without promoting simulation |
-| Restart/resume/DONE | Not claimable by fake host | Required final journey |
-| Removal/data retention/Codex isolation | Package/layout checks | Required final journey, with explicit skip if Codex is absent |
+| Explicit-only admission | Skill/package tests | Final stable journey |
+| One Skill/six tools | Bundle/fake MCP tests | Stable Gate B and final journey |
+| Complete threshold results | Fake Core/digest tests | Full gate on exact stable Harness |
+| Read-before-retry | Transcript tests | Final journey when safely reproducible |
+| Restart/resume/`DONE` | Fake journey harness | Final stable journey |
+| Removal/data retention | Fake profile/retained-data tests | Final stable journey |
+| Codex non-interference | Comparison logic/tests | Mandatory real co-install comparison |
+
+A passing final record cannot skip Codex non-interference.

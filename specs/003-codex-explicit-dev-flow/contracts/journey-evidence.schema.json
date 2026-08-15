@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://dev-flow.local/contracts/003/journey-evidence.schema.json",
   "title": "Dev Flow Codex Native Journey Evidence",
+  "description": "Structural validation only. Passing semantic relationships are enforced by scripts/validate-codex-journey-evidence.mjs.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -10,17 +11,14 @@
     "recorded_at",
     "classification",
     "versions",
-    "digests",
-    "task_lineage",
-    "invocation",
-    "lifecycle",
-    "repository",
+    "identity",
+    "validation",
     "failures",
     "skips"
   ],
   "properties": {
     "schema_version": {
-      "const": 1
+      "const": 2
     },
     "status": {
       "enum": ["pass", "failed", "blocked"]
@@ -54,11 +52,15 @@
     "versions": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["codex", "package", "core", "core_contract"],
+      "required": ["codex", "codex_compatibility", "package", "core", "core_contract"],
       "properties": {
         "codex": {
+          "$ref": "#/$defs/semver"
+        },
+        "codex_compatibility": {
           "type": "string",
-          "pattern": "^0\\.147\\.[0-9]+$"
+          "minLength": 1,
+          "maxLength": 120
         },
         "package": {
           "$ref": "#/$defs/semver"
@@ -71,185 +73,52 @@
         }
       }
     },
-    "digests": {
+    "identity": {
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "source_commit",
         "artifact_sha256",
-        "shared_fixtures_sha256",
-        "repository_before_sha256",
-        "repository_after_sha256",
-        "repository_after_removal_sha256",
-        "task_data_before_removal_sha256",
-        "task_data_after_removal_sha256"
+        "shared_fixtures_sha256"
       ],
       "properties": {
+        "source_commit": {
+          "$ref": "#/$defs/gitCommit"
+        },
         "artifact_sha256": {
           "$ref": "#/$defs/sha256"
         },
         "shared_fixtures_sha256": {
-          "const": "8c27bcf6be0e4e5a4bf294c67cbda8cdf281b1b2b2c53fff16206db2828dede7"
-        },
-        "repository_before_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "repository_after_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "repository_after_removal_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "task_data_before_removal_sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "task_data_after_removal_sha256": {
           "$ref": "#/$defs/sha256"
         }
       }
     },
-    "task_lineage": {
+    "validation": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "task_id",
-        "revisions",
-        "committed_actions",
-        "same_task_after_restart",
-        "terminal_outcome"
-      ],
+      "required": ["targeted_checks", "root_validation"],
       "properties": {
-        "task_id": {
-          "type": "string",
-          "minLength": 1
+        "targeted_checks": {
+          "$ref": "#/$defs/commandObservation"
         },
-        "revisions": {
-          "type": "array",
-          "minItems": 2,
-          "items": {
-            "type": "integer",
-            "minimum": 0
-          }
-        },
-        "committed_actions": {
-          "type": "array",
-          "minItems": 2,
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["action_id", "revision", "arguments_sha256", "result_sha256"],
-            "properties": {
-              "action_id": {
-                "type": "string",
-                "minLength": 1
-              },
-              "revision": {
-                "type": "integer",
-                "minimum": 0
-              },
-              "arguments_sha256": {
-                "$ref": "#/$defs/sha256"
-              },
-              "result_sha256": {
-                "$ref": "#/$defs/sha256"
+        "root_validation": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/commandObservation"
+            },
+            {
+              "properties": {
+                "command": {
+                  "const": "pnpm run validate"
+                }
               }
             }
-          }
-        },
-        "same_task_after_restart": {
-          "type": "boolean"
-        },
-        "terminal_outcome": {
-          "type": "string",
-          "minLength": 1
+          ]
         }
       }
     },
-    "invocation": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "explicit_selector",
-        "core_call_count",
-        "scenario_call_budget",
-        "implicit_invocation_core_calls",
-        "read_before_retry_observations"
-      ],
-      "properties": {
-        "explicit_selector": {
-          "const": "$dev-flow"
-        },
-        "core_call_count": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "scenario_call_budget": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "implicit_invocation_core_calls": {
-          "description": "Count of calls to the six Dev Flow MCP tools; transport initialization and tool-list discovery are not tool calls.",
-          "const": 0
-        },
-        "read_before_retry_observations": {
-          "type": "integer",
-          "minimum": 0
-        }
-      }
-    },
-    "lifecycle": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "setup_readback_passed",
-        "restart_resume_passed",
-        "remove_readback_passed",
-        "task_data_retained",
-        "task_reopened_after_removal"
-      ],
-      "properties": {
-        "setup_readback_passed": {
-          "type": "boolean"
-        },
-        "restart_resume_passed": {
-          "type": "boolean"
-        },
-        "remove_readback_passed": {
-          "type": "boolean"
-        },
-        "task_data_retained": {
-          "type": "boolean"
-        },
-        "task_reopened_after_removal": {
-          "type": "boolean"
-        }
-      }
-    },
-    "repository": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["target_path", "intended_changed_paths", "unexpected_changed_paths"],
-      "properties": {
-        "target_path": {
-          "$ref": "#/$defs/absolutePath"
-        },
-        "intended_changed_paths": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "unexpected_changed_paths": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      }
+    "journey": {
+      "$ref": "#/$defs/journey"
     },
     "failures": {
       "type": "array",
@@ -275,6 +144,7 @@
         "required": ["status"]
       },
       "then": {
+        "required": ["journey"],
         "properties": {
           "failures": {
             "maxItems": 0
@@ -282,52 +152,84 @@
           "skips": {
             "maxItems": 0
           },
-          "task_lineage": {
+          "validation": {
             "properties": {
-              "same_task_after_restart": {
-                "const": true
+              "targeted_checks": {
+                "properties": {
+                  "result": {
+                    "const": "pass"
+                  }
+                }
+              },
+              "root_validation": {
+                "properties": {
+                  "result": {
+                    "const": "pass"
+                  }
+                }
               }
             }
           },
-          "lifecycle": {
+          "journey": {
+            "required": [
+              "task_lineage",
+              "invocation",
+              "lifecycle",
+              "repository",
+              "task_data"
+            ],
             "properties": {
-              "setup_readback_passed": {
-                "const": true
+              "task_lineage": {
+                "required": [
+                  "task_id_before_restart",
+                  "task_id_after_restart",
+                  "revisions",
+                  "committed_actions",
+                  "terminal_outcome"
+                ]
               },
-              "restart_resume_passed": {
-                "const": true
+              "invocation": {
+                "required": [
+                  "explicit_selector",
+                  "core_call_count",
+                  "scenario_call_budget",
+                  "implicit_invocation_core_calls",
+                  "read_before_retry_observations"
+                ]
               },
-              "remove_readback_passed": {
-                "const": true
+              "lifecycle": {
+                "required": [
+                  "setup_readback_passed",
+                  "restart_resume_passed",
+                  "remove_readback_passed",
+                  "task_data_retained",
+                  "task_reopened_after_removal",
+                  "compatible_reinstall_passed"
+                ]
               },
-              "task_data_retained": {
-                "const": true
+              "repository": {
+                "required": [
+                  "target_path",
+                  "digest_before",
+                  "digest_after_completion",
+                  "digest_after_removal",
+                  "intended_changed_paths",
+                  "unexpected_changed_paths"
+                ]
               },
-              "task_reopened_after_removal": {
-                "const": true
-              }
-            }
-          },
-          "repository": {
-            "properties": {
-              "unexpected_changed_paths": {
-                "maxItems": 0
+              "task_data": {
+                "required": [
+                  "manifest_before_removal_sha256",
+                  "manifest_after_removal_sha256",
+                  "files_before_removal",
+                  "files_after_removal"
+                ]
               }
             }
           }
         }
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "status": {
-            "enum": ["failed", "blocked"]
-          }
-        },
-        "required": ["status"]
       },
-      "then": {
+      "else": {
         "anyOf": [
           {
             "properties": {
@@ -356,10 +258,216 @@
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
     },
+    "gitCommit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
     "absolutePath": {
       "type": "string",
       "pattern": "^/",
       "minLength": 2
+    },
+    "commandObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command",
+        "result",
+        "source_commit",
+        "completed_at"
+      ],
+      "properties": {
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "result": {
+          "enum": ["pass", "failed", "blocked"]
+        },
+        "source_commit": {
+          "$ref": "#/$defs/gitCommit"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "details": {
+          "type": "string"
+        }
+      }
+    },
+    "journey": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "task_lineage": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "task_id_before_restart": {
+              "type": "string",
+              "minLength": 1
+            },
+            "task_id_after_restart": {
+              "type": "string",
+              "minLength": 1
+            },
+            "revisions": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "committed_actions": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action_id",
+                  "revision",
+                  "arguments_sha256",
+                  "result_sha256"
+                ],
+                "properties": {
+                  "action_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "arguments_sha256": {
+                    "$ref": "#/$defs/sha256"
+                  },
+                  "result_sha256": {
+                    "$ref": "#/$defs/sha256"
+                  }
+                }
+              }
+            },
+            "terminal_outcome": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "invocation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "explicit_selector": {
+              "const": "$dev-flow"
+            },
+            "core_call_count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "scenario_call_budget": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "implicit_invocation_core_calls": {
+              "const": 0
+            },
+            "read_before_retry_observations": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "lifecycle": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "setup_readback_passed": {
+              "type": "boolean"
+            },
+            "restart_resume_passed": {
+              "type": "boolean"
+            },
+            "remove_readback_passed": {
+              "type": "boolean"
+            },
+            "task_data_retained": {
+              "type": "boolean"
+            },
+            "task_reopened_after_removal": {
+              "type": "boolean"
+            },
+            "compatible_reinstall_passed": {
+              "type": "boolean"
+            }
+          }
+        },
+        "repository": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "target_path": {
+              "$ref": "#/$defs/absolutePath"
+            },
+            "digest_before": {
+              "$ref": "#/$defs/sha256"
+            },
+            "digest_after_completion": {
+              "$ref": "#/$defs/sha256"
+            },
+            "digest_after_removal": {
+              "$ref": "#/$defs/sha256"
+            },
+            "intended_changed_paths": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "unexpected_changed_paths": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "task_data": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "manifest_before_removal_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "manifest_after_removal_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "files_before_removal": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "files_after_removal": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
     },
     "observation": {
       "type": "object",

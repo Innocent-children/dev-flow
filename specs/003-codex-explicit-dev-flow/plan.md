@@ -1,51 +1,90 @@
 # Implementation Plan: Codex Explicit Dev Flow
 
-**Branch**: `003-codex-explicit-dev-flow` | **Date**: 2026-08-15 | **Spec**: [spec.md](./spec.md)
+**Branch**: `003-codex-explicit-dev-flow`  
+**Date**: 2026-08-15  
+**Spec**: [spec.md](./spec.md)  
 **Input**: Feature specification from `specs/003-codex-explicit-dev-flow/spec.md`
 
 ## Summary
 
-Deliver the first complete local Codex product projection as one private, locally packed npm artifact for Codex CLI 0.147.x on macOS arm64. The artifact contains one Codex plugin, one explicitly invoked `$dev-flow` Skill, one STDIO MCP registration, a prebuilt Go Core executable, and small Node.js standard-library lifecycle/launch glue. The Skill delegates all task state, transition, recovery, and completion decisions to Core Contract 0.1 through exactly the six existing Core MCP tools.
+Deliver one private, locally packed `dev-flow-codex` artifact containing exactly one Codex plugin,
+one explicitly selected `$dev-flow` Skill, one local STDIO MCP registration, one packaged macOS
+arm64 Go Core executable, and small Node.js standard-library lifecycle/launch glue.
 
-The package is installed with lifecycle scripts disabled and registered only by an explicit setup command. Setup uses the supported Codex plugin and marketplace commands, records a product-owned receipt outside the target repository, and validates its result through Codex readback. Removal uses that receipt to unregister only Codex-owned resources while preserving Core task data. Contract tests consume the shared Feature 002 fixtures without copying them, and one bounded real-host journey records final-artifact evidence on the supported macOS arm64 Codex CLI surface. This feature neither publishes the package nor claims Windows, Linux, IDE, or desktop-app evidence.
+The Go Core remains the sole authority for task state, transitions, repository claims, recovery,
+verification budgets, and terminal outcomes. The Codex layer owns only package composition,
+explicit registration/removal, process launch, invocation guidance, and evidence presentation.
+
+Feature 003 uses deterministic package, fake-Codex, fake-Core, and harness-contract checks during
+story implementation. It performs **exactly one real Codex host journey**, after all deterministic
+checks and root validation pass and after one final artifact is built from a frozen source tree.
+Intermediate user-story checkpoints never start a real Codex host and never create native support
+evidence.
 
 ## Technical Context
 
-**Language/Version**: Go 1.26 for the existing Core executable; Node.js 24.x for package-local standard-library glue and tests
-**Primary Dependencies**: Existing Go Core dependencies `github.com/modelcontextprotocol/go-sdk` and `modernc.org/sqlite`; Node.js standard library only for new product glue; Codex CLI `>=0.147.0 <0.148.0` as the validated external host
-**Storage**: Existing Core SQLite database under explicit `DEV_FLOW_DATA_DIR`; default `~/Library/Application Support/dev-flow/data`; Codex registration receipt at `~/Library/Application Support/dev-flow/registrations/codex.json`
-**Testing**: `go test` for the minimal embedded-version seam and shared contract checks; `node --test` for package, lifecycle, launcher, and fake-Core contracts; a bounded real Codex CLI journey using the final packed artifact
-**Target Platform**: macOS arm64 with Codex CLI 0.147.x; other operating systems and Codex host surfaces are out of evidence scope
-**Project Type**: Go Core plus a host-specific npm product package
-**Performance Goals**: No new throughput or latency target; the projection must add no workflow polling loop or persistent runtime beyond the single inherited-stdio Core child process
-**Constraints**: Exactly six Core MCP tools; Core Contract 0.1 unchanged; one Skill and one plugin; explicit `$dev-flow` invocation only; no target-repository configuration or Git mutation by setup/removal; no install lifecycle hooks; no product publication; no copied protocol fixtures; no Node workflow/projection proxy
-**Scale/Scope**: One Codex product package, one local marketplace entry, one installed plugin, one MCP server, one active target repository per explicit invocation, and one bounded final-artifact real-host journey
+**Core language/toolchain**: Go 1.26 or the repository-pinned compatible toolchain  
+**Host glue**: Node.js `>=24`, ECMAScript modules, Node standard library only  
+**Package manager**: pnpm `>=11 <12`; npm-compatible local `.tgz` installation  
+**Core dependencies**: existing `github.com/modelcontextprotocol/go-sdk` and `modernc.org/sqlite`  
+**Storage**: Core-owned SQLite under explicit `DEV_FLOW_DATA_DIR`, otherwise
+`~/Library/Application Support/dev-flow/data` on macOS  
+**Registration receipt**:
+`~/Library/Application Support/dev-flow/registrations/codex.json`  
+**Transport**: local STDIO only  
+**Target evidence platform**: macOS arm64, Codex CLI only  
+**Host compatibility**: selected and recorded during implementation-time revalidation; the
+planning baseline was Codex CLI `0.147.x`, but this plan does not permanently freeze that minor line  
+**Publication**: prohibited in Feature 003
 
 ## Constitution Check
 
-### Pre-design gate
-
-| Principle | Gate | Result |
+| Principle | Result | Design evidence |
 |---|---|---|
-| I. Self-Contained Product Scope | Every planned change traces to FR-001..FR-028 or a stated verification constraint; no product code is authorized until `tasks.md` is approved. | PASS |
-| II. Single Workflow Authority | The Skill forwards Core-requested schemas and displays Core results; no JavaScript or Skill resource stores task state or selects transitions. | PASS |
-| III. One State Machine, Bounded Surface | The projection exposes only the six Feature 002 MCP tools and references, rather than restating, Core Contract 0.1. | PASS |
-| IV. Thin Host Adapters | Product code is limited to plugin resources, explicit lifecycle registration/removal, executable launch, and result presentation. | PASS |
-| V. Recovery Before Retry | Retry handling begins with Core reads; setup/removal use readback and an ownership receipt; unknown completion is never inferred locally. | PASS |
-| VI. Read-Only Repository Boundary | Setup and removal write only Codex/user product locations; Core remains read-only for Git; the real journey fingerprints the target repository. | PASS |
-| VII. Evidence-Bounded Testing | Static, fake-Core, package-contract, and one real macOS arm64 host journey provide bounded evidence; no cross-platform claims are made. | PASS |
-| VIII. Proven Simplicity | No production npm dependency, host abstraction, plugin framework, or protocol proxy is introduced; one direct launcher is used. | PASS |
-| IX. Vertical-Slice Specifications | The work delivers the complete Codex install-to-remove journey as one host slice, with each user story independently verifiable. | PASS |
-| X. Two-Host Contract Parity | Shared fixtures and Feature 002 contracts are consumed in place; the only Core edit is an internal build-version seam with no public contract change. | PASS |
+| I. Self-Contained Product Scope | PASS | One bounded Codex package and one install-to-remove capability. |
+| II. Single Workflow Authority | PASS | Core alone owns task, action, recovery, claim, and outcome semantics. |
+| III. One State Machine, Bounded Surface | PASS | Exactly the six Core Contract 0.1 tools; no aliases or secondary catalog. |
+| IV. Thin Host Adapters | PASS | Node code is limited to lifecycle, paths, launch, and evidence glue. |
+| V. Recovery Before Retry | PASS | Uncertain mutations require authoritative task/next-action reads. |
+| VI. Read-Only Repository Boundary | PASS | Setup/removal write only product-owned user locations; Core does not mutate Git. |
+| VII. Evidence-Bounded Testing | PASS | Deterministic checks per story and one final real-host journey only. |
+| VIII. Proven Simplicity | PASS | No runtime dependency, proxy, generic framework, listener, or polling loop. |
+| IX. Vertical-Slice Specifications | PASS | US1, US2, and US3 remain independently testable without repeated native journeys. |
+| X. Two-Host Contract Parity | PASS | Shared Core fixtures are consumed in place and public Core contracts stay unchanged. |
 
-No constitutional exception is required.
+No constitutional exception is requested.
+
+## Host Compatibility Revalidation
+
+Codex plugin, Skill, MCP, marketplace, setup, removal, and JSON readback contracts are volatile
+external inputs. Before final validation, one serialized compatibility task must:
+
+1. inspect the then-current official Codex documentation and exact stable CLI artifact;
+2. select a minimum supported version and a bounded compatible range;
+3. record the exact version used for native evidence;
+4. update every compatibility-bearing artifact together when the selected range differs from the
+   planning baseline:
+   - `research.md`;
+   - this `plan.md`;
+   - `contracts/codex-plugin.md`;
+   - `contracts/registration-receipt.schema.json`;
+   - `contracts/journey-evidence.schema.json`;
+   - `data-model.md`;
+   - `quickstart.md`;
+   - `tasks.md`;
+   - package and journey tests that enforce the range;
+5. rerun analyze/checklist review if the official contract changes product behavior rather than
+   only field names, commands, or the compatible range.
+
+This revalidation is not parallel with final test hardening, root validation, or artifact creation.
 
 ## Project Structure
 
-### Documentation (this feature)
+### Documentation
 
 ```text
 specs/003-codex-explicit-dev-flow/
+├── README.md
 ├── spec.md
 ├── plan.md
 ├── research.md
@@ -62,32 +101,26 @@ specs/003-codex-explicit-dev-flow/
 └── tasks.md
 ```
 
-### Source code (repository root)
+### Planned source and verification changes
 
 ```text
 internal/version/
-├── version.go                         # package-build version injection with source-tree fallback
+├── version.go
 └── version_test.go
 
 packages/codex/
-├── package.json                       # private local product; explicit bin; no install hooks
+├── package.json
 ├── README.md
-├── .agents/
-│   └── plugins/
-│       └── marketplace.json           # one local in-package marketplace entry
-├── bin/
-│   └── dev-flow-codex.mjs             # setup, remove, version, and inherited-stdio Core launch
-├── lib/
-│   ├── lifecycle.mjs                  # Codex CLI registration/readback and receipt ownership
-│   └── paths.mjs                      # package-relative runtime and user-data path resolution
-├── plugin/
-│   ├── .codex-plugin/
-│   │   └── plugin.json
-│   ├── .mcp.json
-│   └── skills/
-│       └── dev-flow/
-│           └── SKILL.md
+├── .agents/plugins/marketplace.json
+├── bin/dev-flow-codex.mjs
+├── lib/lifecycle.mjs
+├── lib/paths.mjs
+├── plugin/.codex-plugin/plugin.json
+├── plugin/.mcp.json
+├── plugin/skills/dev-flow/SKILL.md
 └── tests/
+    ├── fixtures/fake-codex.mjs
+    ├── fixtures/fake-core.mjs
     ├── fake-core-contract.test.mjs
     ├── journey-evidence.test.mjs
     ├── journey-harness.test.mjs
@@ -96,86 +129,181 @@ packages/codex/
     ├── package-contract.test.mjs
     ├── paths.test.mjs
     ├── removal-retention.test.mjs
-    ├── skill-contract.test.mjs
-    └── fixtures/
-        ├── fake-codex.mjs
-        └── fake-core.mjs
+    └── skill-contract.test.mjs
 
 scripts/
-├── build-codex-local.sh               # reproducible temp staging and local npm pack
-└── run-codex-real-journey.sh           # bounded supported-host evidence orchestrator
+├── build-codex-local.sh
+├── run-codex-real-journey.sh
+├── validate-codex-journey-evidence.mjs
+└── validate-repository.sh
 
 tests/
 ├── contract/
-│   ├── package_manifest_test.go        # Codex package boundary and lifecycle-hook policy
-│   ├── fixture_contract_test.go        # shared fixture consumption/parity
-│   └── repository_layout_test.go       # one real Codex product; DeepSeek remains skeleton
-└── journeys/
-    └── evidence/
-        └── codex-macos-arm64.json      # exact final-artifact real-host record
+│   ├── fixture_contract_test.go
+│   ├── package_manifest_test.go
+│   └── repository_layout_test.go
+└── journeys/evidence/codex-macos-arm64.json
 ```
 
-**Structure Decision**: Keep the Codex product under the already reserved `packages/codex/` boundary. The package-local Node modules are direct lifecycle and path helpers, not a reusable adapter framework. Build orchestration stays under the repository's existing `scripts/` boundary, while cross-product contract checks and final journey evidence stay under `tests/`. The prebuilt executable is created only in temporary pack staging and is not committed as a repository binary.
+The prebuilt executable and `.tgz` exist only in temporary staging. They are never committed.
 
-## Phase 0: Research
+## Product Design
 
-Research resolves the current Codex plugin/Skill/MCP/local-marketplace contracts, host version range, lifecycle ownership, package composition, Core fixture baseline, and real-host evidence boundary. Decisions and rejected alternatives are recorded in [research.md](./research.md), with official OpenAI links accessed on 2026-08-15.
+### Package and runtime
 
-The immutable planning baseline is:
+The artifact contains one executable entry, `dev-flow-codex`. Production commands are limited to:
 
-- Core Contract: `0.1`, delivered by Feature 002 on `main`.
-- Core MCP catalog: six tools named in Feature 002; the Codex projection may not add aliases.
-- Shared fixture set: 22 JSON files under `protocol/fixtures/`.
-- Shared fixture aggregate SHA-256: `8c27bcf6be0e4e5a4bf294c67cbda8cdf281b1b2b2c53fff16206db2828dede7`.
-- Feature 002 contract-document aggregate SHA-256: `8d4fdcfe87257b206ba3ffec07db25c4957f32af4d0e32fd8085fed2d25b6942`.
-- Aggregate algorithm: sort repository-relative paths bytewise, render one manifest line per file as `<file-sha256><two spaces><repository-relative-path>\n`, then SHA-256 the complete manifest bytes.
+- `setup [--json]`;
+- `remove [--json]`;
+- `mcp`;
+- `--version`.
 
-These digests make the planning input auditable; they are not a new runtime compatibility gate and do not replace the fixture-level tests.
+`mcp` resolves only the package-local Core executable, validates the supported platform and data
+root, and inherits stdin/stdout/stderr. It does not parse or project MCP messages.
 
-## Phase 1: Design and Contracts
+The shared `internal/version` seam permits a detached binary to report repository `VERSION` through
+link-time injection while preserving source-tree fallback behavior. It changes no public Core
+contract.
 
-### Product boundary
+### Explicit setup and removal
 
-The local artifact stages one macOS arm64 Core executable beside the Codex plugin and exposes one `dev-flow-codex` executable. Its `mcp` subcommand resolves the package-local Core binary, requires an explicitly supplied `DEV_FLOW_DATA_DIR` to be an existing absolute canonical directory or creates only the exact documented macOS default with restrictive permissions, and inherits stdio from Core. It does not decode JSON-RPC, project results, inspect task state, or retry workflow operations.
+npm installation runs with lifecycle scripts disabled and does not register anything. Explicit
+setup reads current Codex marketplace/plugin state, validates package resources and compatibility,
+performs supported Codex mutations, reads state back, and writes an ownership receipt only after
+success.
 
-The plugin contains one Skill and one MCP server configuration. The Skill begins with an exact explicit-invocation guard, calls `dev_flow_server_info`, opens or resumes a Core task, requests Core's next action, forwards only the closed requested arguments, applies the result, and presents Core-owned terminal outcomes. Ambiguous transport results trigger a fresh Core read before any retry. No transition catalog or completion heuristic appears in the Skill.
+Removal reads the receipt and Codex state before mutation, removes only matching product-owned
+plugin/marketplace registration, verifies absence, deletes only the exact receipt, and preserves
+task data, the npm package, adjacent user files, Codex cache/config internals, and repositories.
 
-### Registration lifecycle
+### Skill authority
 
-The npm artifact has no `preinstall`, `install`, `postinstall`, `prepare`, or equivalent state-changing lifecycle hook. After installation with scripts disabled, the user explicitly runs `dev-flow-codex setup`. Setup validates platform, architecture, Codex version, package/Core version alignment, executable resources, plugin shape, and Skill/MCP presence; it then uses supported `codex plugin marketplace add` and `codex plugin add --json` commands and verifies the installed identity, source, version, and enabled state through `codex plugin list --json`/marketplace readback. The runtime six-tool catalog is verified by package contracts and the Skill's `dev_flow_server_info` handshake.
+The sole Skill begins with an exact current-turn `$dev-flow` guard. It rejects empty,
+conversational, non-Git, and multi-repository requests before opening a task. It calls
+`dev_flow_server_info` first and accepts only Core Contract 0.1 with the exact six tools.
 
-Setup stores a schema-validated receipt in a product-owned user-data path. Repeated setup reads both the receipt and Codex state before reconciling an absent or complete registration. Conflicting ownership or partial unknown state fails with explicit recovery instructions rather than overwriting adjacent state.
+For each action it follows live Core identity, schema, allowed effects, evidence requirements,
+recovery assessment, blocker, and outcome. It does not contain a state machine, action catalog,
+error reinterpretation, recovery classifier, or completion predicate.
 
-`dev-flow-codex remove` reads the receipt and Codex state first, removes only the recorded plugin and marketplace registration through supported Codex commands, deletes only receipt-owned registration material, and leaves the shared Core data directory intact. Removing the npm artifact is a separate explicit user action after deregistration.
+## Verification Design
 
-### Evidence layers
+### Deterministic evidence layers
 
-1. Static/package contracts validate the allowlisted artifact, one Skill, one MCP server, no lifecycle hooks, runtime version parity, and absence of duplicated fixtures or forbidden adapter authority.
-2. A test-only fake Codex executable validates setup/remove argv, JSON readback, idempotency, conflicts, and owned cleanup.
-3. A test-only fake Core records six-tool requests and returns shared Feature 002 fixtures to verify exact tool mapping, closed argument forwarding, full result presentation, explicit invocation rejection, and read-before-retry. Test drivers are never packaged as runtime adapter code.
-4. A final packed-artifact journey runs on Codex CLI 0.147.x/macOS arm64 in a disposable repository, records exact versions and digests, performs at least two committed Core actions, restarts the host, resumes the same task/revision lineage, reaches a Core-owned terminal outcome, removes the product, proves task data survives, and proves no unintended repository mutation.
+1. **Static/package contracts**: artifact allowlist, one plugin/Skill/MCP server, no lifecycle
+   mutation, version parity, no embedded workflow authority, and no copied Core fixtures.
+2. **Fake Codex lifecycle**: exact setup/remove argv, JSON readback, idempotency, conflicts,
+   rollback, ownership, and adjacent-file preservation.
+3. **Fake Core contract**: exact six-tool mapping, closed argument forwarding, full results,
+   verification budgets, terminal outcomes, and read-before-retry ordering.
+4. **Journey harness contract**: stage ordering, artifact digest propagation, source identity,
+   session boundary, repository/data fingerprints, and evidence classification without starting
+   Codex.
+5. **Packaged-Core retention integration**: real packaged Core against a temporary data directory,
+   but no real Codex host.
 
-### Post-design Constitution Check
+US1, US2, and US3 checkpoints use only these deterministic layers.
 
-| Principle | Design evidence | Result |
-|---|---|---|
-| I. Self-Contained Product Scope | `tasks.md` will map every FR and buildable SC to exact paths and tests. | PASS |
-| II. Single Workflow Authority | The production launcher is stdio-only and the Skill consults Core for every workflow decision. | PASS |
-| III. One State Machine, Bounded Surface | `codex-plugin.md` binds to the six-tool catalog without redefining schemas or states. | PASS |
-| IV. Thin Host Adapters | The only production JavaScript responsibilities are registration ownership, path validation, and Core process launch. | PASS |
-| V. Recovery Before Retry | Receipt reconciliation and ambiguous-result handling are explicitly read-before-retry. | PASS |
-| VI. Read-Only Repository Boundary | All setup/removal writes are outside the target repository; journey fingerprints enforce the boundary. | PASS |
-| VII. Evidence-Bounded Testing | Evidence is layered and the sole native claim is the exact recorded macOS arm64 CLI journey. | PASS |
-| VIII. Proven Simplicity | Node standard library and existing Core dependencies suffice; no generic host abstraction is added. | PASS |
-| IX. Vertical-Slice Specifications | US1, US2, and US3 each end in an independently runnable Codex acceptance slice. | PASS |
-| X. Two-Host Contract Parity | Fixture parity remains rooted in `protocol/fixtures/`; the version seam changes no Core protocol or workflow behavior. | PASS |
+### Exactly one native journey
 
-No post-design violation or exception is present.
+After compatibility revalidation, all targeted tests, root validation, and a read-only pre-final
+diff audit pass, the source tree is frozen and one final artifact is built. That exact artifact is
+then used for one real Codex journey covering:
+
+1. install with scripts disabled;
+2. explicit setup and readback;
+3. ordinary prompt proving zero Dev Flow tool calls/tasks;
+4. invalid explicit invocations;
+5. a substantive `$dev-flow` task;
+6. at least two Core-confirmed workflow action commits;
+7. Codex close/restart;
+8. same-task resume and continuing revision lineage;
+9. verification-budget compliance;
+10. Core-owned `DONE`;
+11. explicit deregistration;
+12. retained task-data digest and direct task reopen;
+13. npm uninstall and compatible reinstall;
+14. repository and adjacent-file comparison.
+
+No earlier task may start a real Codex host or write native support evidence.
+
+## Journey Evidence Contract
+
+`journey-evidence.schema.json` validates structure and supports honest `pass`, `failed`, and
+`blocked` records. A failed or blocked record may contain only the observations available before the
+failure; it is not forced to fabricate task lineage or completed lifecycle fields.
+
+JSON Schema cannot compare values or prove ordering. Therefore
+`scripts/validate-codex-journey-evidence.mjs` performs required semantic checks for a passing record:
+
+- package version equals Core version and repository `VERSION`;
+- the exact Codex version satisfies the recorded compatible range;
+- evidence source commit equals the frozen source commit used to build the artifact;
+- revisions are strictly increasing;
+- committed-action revisions belong to the recorded lineage;
+- task IDs before and after restart are equal;
+- at least two action commits are present;
+- `core_call_count <= scenario_call_budget`;
+- terminal outcome is `DONE`;
+- task-data manifests/digests before and after removal are equal;
+- repository digest after completion equals repository digest after removal;
+- unexpected changed paths are empty;
+- setup, restart/resume, removal, retention, and task-reopen flags are true;
+- the recorded targeted checks and root `pnpm run validate` passed before artifact creation.
+
+Schema validation and semantic validation are both required. Neither validator modifies evidence.
+
+## Root Validation Ownership
+
+Feature 003 owns the first expansion of `scripts/validate-repository.sh` from skeleton dry-pack
+rules to the delivered Codex package boundary. The script must:
+
+- preserve root toolchain, formatting, vet, Go test, and frozen workspace checks;
+- validate the exact Codex source/dry-pack allowlist expected by this feature;
+- retain the DeepSeek skeleton rule until Feature 004 is merged;
+- run no real host, network publication, package installation into user state, or release action.
+
+Feature 004 may later extend this validator only from the merged Feature 003 baseline.
+
+## Final Artifact and Evidence Order
+
+The final chain is strictly serialized:
+
+1. compatibility revalidation;
+2. documentation/contract reconciliation;
+3. all targeted Go/Node/package/fake checks;
+4. root `pnpm run validate`;
+5. fix any failures and rerun affected deterministic checks;
+6. read-only pre-final scope/diff audit;
+7. freeze the source commit;
+8. build exactly one final artifact;
+9. verify artifact allowlist, versions, executable, source identity, and digest;
+10. run exactly one real Codex journey and write the evidence record once;
+11. run structural and semantic evidence validation;
+12. run a final read-only diff audit.
+
+After step 8, no source or evidence-producing code may be changed without discarding the artifact and
+restarting from step 3. After step 10, evidence may not be edited except to replace the entire record
+by rerunning the same final journey from a newly frozen source/artifact.
 
 ## Complexity Tracking
 
-No constitutional violation requires justification. The internal Core build-version variable is a packaging seam required for a self-contained binary: local source-tree builds retain the existing `VERSION` fallback, while packed builds inject the same repository version. It does not alter a public command, MCP schema, tool name, workflow state, transition, or recovery rule.
+No constitutional exception is required. The build-version seam, registration receipt, semantic
+evidence validator, and product-specific root allowlist each solve a concrete packaging,
+ownership, or evidence-integrity requirement. None creates workflow authority or a generic host
+framework.
 
 ## Delivery Boundary
 
-Feature 003 ends when the private local tarball passes package and fake-runtime contracts plus the bounded real Codex CLI journey. Public npm publication, release automation, signatures, Windows/Linux runtime bundles, additional Codex surfaces, DeepSeek behavior, and any change to Core Contract 0.1 remain outside this feature.
+Feature 003 is complete only when:
+
+- reviewer-owned requirement checklists are approved;
+- deterministic package/fake/integration checks pass;
+- root validation passes;
+- one frozen-source artifact is built;
+- exactly one real Codex journey passes;
+- its evidence passes both structural and semantic validation; and
+- the final diff remains within the approved Feature 003 scope.
+
+Public publication, release automation, signatures, automatic updates, Windows/Linux packages,
+other Codex surfaces, DeepSeek implementation, and Core Contract changes remain out of scope.

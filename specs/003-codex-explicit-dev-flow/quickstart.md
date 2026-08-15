@@ -1,10 +1,27 @@
 # Quickstart: Build and Validate the Local Codex Product
 
-This is the acceptance procedure Feature 003 must make runnable. It exercises the private final artifact only; it does not publish a package or claim support beyond Codex CLI 0.147.x on macOS arm64.
+This runbook defines the Feature 003 acceptance procedure. It distinguishes deterministic
+user-story checkpoints from the **single allowed real Codex journey**. It never publishes a package
+or claims support beyond the exact compatibility range and macOS arm64 surface recorded during
+implementation.
 
-## 1. Verify prerequisites
+## 1. Review and revalidate prerequisites
 
-From the repository root:
+Before implementation:
+
+1. confirm Feature 002/Core Contract 0.1 and shared fixtures are present;
+2. complete reviewer-owned requirement checklists;
+3. record the repository commit being evaluated;
+4. revalidate the then-current official stable Codex CLI, plugin, Skill, MCP, marketplace,
+   setup/readback, and removal contracts;
+5. select a minimum version, bounded compatible range, and exact stable version for native evidence.
+
+The planning baseline was Codex CLI `0.147.x`, but the implementation does not silently preserve
+that range if the official stable contract has moved. A changed range must be updated consistently
+in the plan, contracts, both JSON Schemas, data model, quickstart, tasks, and tests before final
+validation.
+
+Expected platform/toolchain boundary:
 
 ```bash
 uname -s
@@ -15,181 +32,245 @@ node --version
 pnpm --version
 ```
 
-Expected planning baseline:
+Feature 003 native evidence is macOS arm64 and Codex CLI only.
 
-- `Darwin`
-- `arm64`
-- Codex CLI `>=0.147.0 <0.148.0`
-- Go 1.26 or the repository-pinned compatible toolchain
-- Node.js 24.x
-- pnpm `>=11 <12`
+## 2. Run deterministic foundation checks
 
-The Codex CLI 0.146.0 currently present on the planning machine is below the supported range. Do not record it as final journey evidence. Use the latest stable 0.147.x available at implementation time and record the exact version.
+Run only the checks required by the active task, for example:
 
-## 2. Run targeted pre-pack checks
+```bash
+go test ./internal/version ./tests/contract
+node --test packages/codex/tests/paths.test.mjs
+node --test packages/codex/tests/lifecycle.test.mjs
+```
 
-Run only the feature-local and affected contract checks:
+Foundation checks prove:
+
+- detached Core version injection and source-tree fallback;
+- exact six-tool/shared-fixture parity;
+- safe runtime/data/receipt paths;
+- receipt validation and ownership;
+- Codex-aware root dry-pack rules;
+- preservation of the DeepSeek skeleton boundary.
+
+They do not prove native Codex behavior.
+
+## 3. Implement and check User Story 1 without starting Codex
+
+After US1 package, launcher, plugin, Skill, and setup behavior exist:
+
+```bash
+node --test packages/codex/tests/package-contract.test.mjs
+node --test packages/codex/tests/launcher.test.mjs
+node --test packages/codex/tests/lifecycle.test.mjs
+node --test packages/codex/tests/skill-contract.test.mjs
+./scripts/run-codex-real-journey.sh --fake-host --through setup
+```
+
+The checkpoint must use the fake Codex CLI and isolated temporary roots. It proves package shape,
+supported setup/readback ordering, explicit-only admission, invalid-input rejection, and repository
+fingerprints. It must assert that no real `codex` process starts and that no native evidence file is
+written.
+
+A non-final `.tgz` may be built for tarball-contract testing. It is not the final artifact and does
+not authorize a real host run.
+
+## 4. Implement and check User Story 2 without starting Codex
+
+```bash
+node --test packages/codex/tests/fake-core-contract.test.mjs
+node --test packages/codex/tests/skill-contract.test.mjs
+node --test packages/codex/tests/journey-evidence.test.mjs
+node --test packages/codex/tests/journey-harness.test.mjs
+./scripts/run-codex-real-journey.sh --fake-host --through done
+```
+
+The fake Core/harness must prove:
+
+- exact six-tool mapping and complete results;
+- new task, exact resume, same-host conflict, and other-host conflict;
+- fresh action/revision identity and closed payload forwarding;
+- successful mutation continuation;
+- lost/truncated mutation read-before-retry ordering;
+- verification-command budget accounting and evidence labels;
+- restart boundary with the same fake task lineage;
+- Core-owned blocker/cancel/`DONE`;
+- no native-evidence promotion.
+
+No real Codex session is allowed in this step.
+
+## 5. Implement and check User Story 3 without starting Codex
+
+```bash
+node --test packages/codex/tests/lifecycle.test.mjs
+node --test packages/codex/tests/removal-retention.test.mjs
+./scripts/run-codex-real-journey.sh --fake-host --through remove
+```
+
+This checkpoint proves:
+
+- receipt-first removal reconciliation;
+- plugin/marketplace absence readback through the fake host;
+- adjacent-file preservation;
+- no direct Codex config/cache deletion;
+- task-data and repository manifest preservation;
+- direct Core task reopen;
+- separate npm uninstall and compatible reinstall;
+- repeated removal as a no-op;
+- zero real Codex processes and zero native evidence.
+
+## 6. Reconcile the final host contract
+
+Immediately before final hardening, repeat the official compatibility review. Update all affected
+documents/contracts/tests together if the selected range or command/resource contract changed.
+
+Do not continue when an official change alters product behavior, ownership, or result semantics
+without updating the feature and rerunning checklist/analyze review.
+
+## 7. Run all deterministic checks and root validation
+
+Run the complete targeted Feature 003 set, then the root gate:
 
 ```bash
 go test ./internal/version ./tests/contract
 node --test packages/codex/tests/*.test.mjs
+pnpm run validate
 ```
 
-These checks must prove:
+The root validator must use the delivered Codex source/dry-pack allowlist and retain the DeepSeek
+skeleton rule. It must not start Codex, install into real user state, publish, or perform a native
+journey.
 
-- the Core build-version seam preserves source builds and supplies detached binary identity;
-- the package contains one plugin, one Skill, one MCP server, and no install mutation hook;
-- the plugin exposes the exact six Core Contract 0.1 tools;
-- shared fixtures are consumed from `protocol/fixtures/`, not copied;
-- lifecycle reconciliation/removal is bounded under a fake Codex CLI;
-- fake-Core scenarios cover explicit invocation, closed forwarding, complete result handling, and read-before-retry without being labelled native evidence.
+Fix failures now. After fixes, rerun the affected targeted checks and root gate. Record:
 
-## 3. Build the final local artifact
+- exact commands;
+- pass/fail result;
+- completion time;
+- current source commit.
 
-Use the repository build entry point, which stages into a temporary directory and leaves no runtime binary in the source tree:
+These facts are later copied into native evidence. Do not build the final artifact until this phase
+passes.
+
+## 8. Perform the pre-final read-only audit and freeze source
+
+Audit the complete allowed Feature 003 scope:
+
+```text
+internal/version/
+packages/codex/
+scripts/build-codex-local.sh
+scripts/run-codex-real-journey.sh
+scripts/validate-codex-journey-evidence.mjs
+scripts/validate-repository.sh
+tests/contract/
+tests/journeys/evidence/
+specs/003-codex-explicit-dev-flow/
+```
+
+Confirm:
+
+- no Core Contract/state/transition/recovery change;
+- no Git mutation or generic shell MCP;
+- no publication/release action;
+- no copied shared fixtures;
+- no unexpected binary/data/receipt artifact;
+- no unsupported platform/surface claim;
+- no second host framework.
+
+Record and freeze the source commit. Any later source change returns the workflow to step 7.
+
+## 9. Build exactly one final artifact
 
 ```bash
-CODEX_ARTIFACT_DIR="$(mktemp -d -t dev-flow-codex-artifact.XXXXXX)"
+CODEX_ARTIFACT_DIR="$(mktemp -d -t dev-flow-codex-final.XXXXXX)"
 ./scripts/build-codex-local.sh --output "$CODEX_ARTIFACT_DIR"
 ```
 
-The command must print one absolute `.tgz` path and its SHA-256 digest. Inspect the tarball before installation:
+The build must emit one absolute `.tgz` path and digest and verify:
+
+- package/plugin/Core/root version equality;
+- compatibility metadata matches the selected range;
+- the packaged Core reports its version outside the checkout;
+- exact tarball allowlist;
+- executable mode;
+- frozen source identity;
+- no Core source, fixtures, fakes, evidence, repository metadata, or second platform runtime.
+
+A defect discards this artifact and returns to step 7. Do not patch the final tarball.
+
+## 10. Execute the only real Codex journey
+
+Use the exact final artifact and exact selected stable Codex CLI:
 
 ```bash
-CODEX_ARTIFACT_PATH="$CODEX_ARTIFACT_DIR/dev-flow-codex-0.1.0.tgz"
-tar -tzf "$CODEX_ARTIFACT_PATH"
-shasum -a 256 "$CODEX_ARTIFACT_PATH"
+./scripts/run-codex-real-journey.sh \
+  --artifact "$CODEX_ARTIFACT_PATH" \
+  --source-commit "$FROZEN_SOURCE_COMMIT"
 ```
 
-The listing must match the allowlist in [contracts/codex-plugin.md](./contracts/codex-plugin.md). In particular, it must contain `runtime/darwin-arm64/dev-flow` and must not contain Core source, test fakes, shared fixture copies, or repository metadata.
+This is the only Feature 003 task permitted to start Codex. The journey must run continuously through
+all required checkpoints:
 
-## 4. Install with lifecycle scripts disabled
+1. install the tarball into an isolated prefix with scripts disabled;
+2. run explicit setup and exact marketplace/plugin readback;
+3. repeat matching setup as an idempotent no-op;
+4. start a fresh Codex session;
+5. send an ordinary request and prove zero calls to the six Dev Flow tools and zero tasks;
+6. exercise empty/conversational and non-Git explicit invocations;
+7. invoke `$dev-flow` with one substantive single-repository change;
+8. commit at least two Core workflow actions;
+9. close Codex before terminal outcome;
+10. start a new Codex session in the same repository;
+11. explicitly resume and prove the same task ID with advancing revisions;
+12. stay within the automatic verification-command budget;
+13. reach authoritative Core `DONE`;
+14. stop Codex/Core;
+15. record repository and complete task-data manifests;
+16. run explicit deregistration and absence readback;
+17. prove receipt removal and adjacent-file preservation;
+18. prove task-data manifest equality and direct task reopen;
+19. uninstall the npm package separately;
+20. repeat removal as a no-op and perform a compatible reinstall check;
+21. prove repository digest is unchanged by removal.
 
-Install the tarball into an isolated prefix and expose only that prefix's executable directory to the current shell:
+The script writes `tests/journeys/evidence/codex-macos-arm64.json` once. It includes the root
+validation result from step 7, frozen source commit, and final artifact digest. Do not manually edit
+the record.
+
+When the journey cannot finish, write an honest `failed` or `blocked` record with only observed
+fields. Do not fabricate task lineage or completed lifecycle data.
+
+## 11. Validate evidence without modifying it
+
+Run structural and semantic validation:
 
 ```bash
-CODEX_INSTALL_PREFIX="$(mktemp -d -t dev-flow-codex-install.XXXXXX)"
-npm install --ignore-scripts --prefix "$CODEX_INSTALL_PREFIX" "$CODEX_ARTIFACT_PATH"
-export PATH="$CODEX_INSTALL_PREFIX/node_modules/.bin:$PATH"
-dev-flow-codex --version
+node ./scripts/validate-codex-journey-evidence.mjs \
+  tests/journeys/evidence/codex-macos-arm64.json
 ```
 
-Installation alone must not change Codex registration, a target repository, or Core task data.
+The validator first applies
+`contracts/journey-evidence.schema.json`, then checks:
 
-## 5. Run explicit setup and readback
+- package/Core/root version equality;
+- Codex range membership;
+- source/validation/artifact identity;
+- strictly increasing revisions;
+- equal pre/post-restart task IDs;
+- at least two committed actions;
+- Core call count within budget;
+- terminal outcome `DONE`;
+- equal task-data manifests;
+- repository-after equals repository-after-removal;
+- empty unexpected paths;
+- all lifecycle flags true;
+- deterministic/root validation passed before final build.
 
-```bash
-dev-flow-codex setup --json
-codex plugin marketplace list --json
-codex plugin list --marketplace dev-flow-local --available --json
-```
+Validation is read-only. A failure returns to deterministic checks/final build/native journey as
+appropriate; do not patch evidence.
 
-Confirm that:
+## 12. Final read-only audit
 
-- the setup result names the exact Codex, package, and Core versions;
-- marketplace `dev-flow-local` resolves to the installed artifact root;
-- plugin `dev-flow-codex@dev-flow-local` is installed;
-- package preflight found exactly one `dev-flow` Skill and one STDIO MCP server, while Codex JSON readback reports the expected installed/enabled plugin identity, source, and version;
-- the receipt exists at `~/Library/Application Support/dev-flow/registrations/codex.json`;
-- the target repository has not been touched.
-
-Run setup a second time. It must report an already matching registration and make no additional registration change.
-
-Start a new Codex session after plugin installation so the host refreshes plugin resources.
-
-## 6. Prove explicit-only activation
-
-Use the disposable repository prepared by the real-journey script or create an equivalent small committed fixture. In a fresh Codex session, send one ordinary coding request that does not contain `$dev-flow`.
-
-The evidence harness must verify that the prompt caused no call to the six Dev Flow tools and created no Dev Flow task; host MCP initialization/tool-list discovery is not counted as a tool call. Then try these explicit invalid invocations:
-
-```text
-$dev-flow hello
-```
-
-from a non-Git directory, and:
-
-```text
-$dev-flow
-```
-
-without a substantive requirement or explicit resume intent. Each must stop before task creation with the missing precondition.
-
-## 7. Run the governed restart/resume journey
-
-The bounded orchestrator prepares a disposable Git repository, fingerprints it and the task-data location, installs the exact tarball, and prints or dispatches the fixed substantive scenario:
-
-```bash
-./scripts/run-codex-real-journey.sh --artifact "$CODEX_ARTIFACT_PATH"
-```
-
-The native Codex portion must perform this observable sequence:
-
-1. Open a new Codex CLI session in the disposable repository.
-2. Explicitly invoke `$dev-flow` with the script's substantive one-repository change.
-3. Allow Core to confirm at least two workflow-action commits; these are Core state commits, not Git commits performed by the adapter.
-4. Stop the Codex session before the Core-owned terminal outcome.
-5. Open a new Codex CLI session in the same repository.
-6. Invoke `$dev-flow resume the compatible active task for this repository`.
-7. Confirm that Core returns the same opaque task ID with a continuing revision lineage.
-8. Complete only the current Core actions, honor the task's automatic verification-command budget, and reach Core's `DONE` outcome.
-
-The script must preserve complete structured results for the evidence record. A missing/truncated mutation result triggers task and next-action reads before any retry. It must not treat a static check, fake Core, or user assertion as native automated evidence.
-
-## 8. Remove registration and prove retained data
-
-After the completed Codex session and packaged Core process have exited, the journey harness records
-the task ID plus a canonical digest of the complete data-directory file set. It sorts data-relative
-paths bytewise, writes `<file-sha256><two spaces><data-relative-path>\n` for each file, and hashes the
-complete manifest. Then run:
-
-```bash
-dev-flow-codex remove --json
-codex plugin marketplace list --json
-codex plugin list --json
-npm uninstall --ignore-scripts --prefix "$CODEX_INSTALL_PREFIX" dev-flow-codex
-```
-
-Required results:
-
-- plugin and marketplace readback show the recorded registration is absent;
-- the receipt is absent;
-- unknown adjacent files are unchanged;
-- the Core data-directory file set and canonical digest remain present and unchanged before the subsequent direct read;
-- a direct Core test read can retrieve the recorded task after deregistration;
-- the disposable repository has no lifecycle-generated file and only the intended substantive source change;
-- repeated removal is a no-op rather than a recursive cleanup.
-
-Removal of the npm package is intentionally separate from `dev-flow-codex remove`. Never delete the shared data directory as part of this procedure.
-
-## 9. Review the evidence record
-
-The completed journey writes:
-
-```text
-tests/journeys/evidence/codex-macos-arm64.json
-```
-
-Validate it against [contracts/journey-evidence.schema.json](./contracts/journey-evidence.schema.json) and review these facts:
-
-- `status` is `pass`, with empty `failures` and `skips`;
-- exact Codex/package/Core versions and artifact/fixture digests are present;
-- native surface is Codex CLI on macOS arm64;
-- at least two Core-confirmed actions and strictly advancing revisions are recorded;
-- pre/post-restart task identity is the same;
-- observed Core calls do not exceed the recorded scenario budget;
-- implicit invocation made zero Core calls;
-- setup, resume, terminal outcome, removal, data retention, and task reopen checkpoints passed;
-- `unexpected_changed_paths` is empty.
-
-If the exact supported host cannot be run, record a structured blocked/failed observation with the real reason. Do not convert it into a passing native record or broaden the support claim.
-
-## Troubleshooting boundaries
-
-- **Codex version rejected**: use an exact 0.147.x CLI; do not bypass the range check for final evidence.
-- **Plugin visible but unavailable**: start a new Codex session and capture the exact role/policy observation if it remains unavailable.
-- **Runtime missing/not executable**: rebuild the final tarball; do not fall back to a separately installed Core.
-- **Unexpected stdout before MCP initialization**: fail the launcher/package test; stdout belongs exclusively to Core protocol traffic.
-- **Registration conflicts**: preserve both the receipt and observed Codex state and follow the bounded diagnostic; do not overwrite config/cache manually.
-- **Uncertain mutation**: read Core task and next-action state before considering retry.
-- **Unsupported OS/architecture or host surface**: stop and record the boundary; Feature 003 supplies no support claim there.
+Confirm that no file changed after source freeze except the single evidence record and that the
+final diff remains within the complete allowed Feature 003 scope. Do not rebuild, rerun the host,
+publish, tag, release, or mutate evidence after this audit.

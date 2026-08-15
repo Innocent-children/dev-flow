@@ -2,26 +2,48 @@
 
 ## Purpose
 
-This contract defines the locally packed Codex product boundary and its explicit setup/removal interface. It does not redefine Core MCP inputs, results, workflow states, transitions, repository claims, recovery classifications, or terminal outcomes. Those remain owned by Core Contract 0.1 in `specs/002-govern-and-resume-single-repository-task/contracts/`.
+This contract defines the locally packed Codex product boundary and its explicit setup/removal
+interface. It does not redefine Core MCP inputs, results, workflow states, transitions, repository
+claims, recovery classifications, verification budgets, or terminal outcomes. Those remain owned
+by Core Contract 0.1.
 
-## Supported surface
+## Supported Surface
 
 | Property | Contract |
 |---|---|
 | Product | `dev-flow-codex` |
-| Artifact | one private local npm `.tgz` |
+| Artifact | One private local npm `.tgz` |
 | Host | Codex CLI |
-| Codex compatibility | `>=0.147.0 <0.148.0` |
+| Compatibility | A minimum version and bounded range selected from the then-current official stable Codex contract during implementation |
+| Planning baseline | Codex CLI `0.147.x`; research history only, not a permanent runtime/schema constant |
 | Native evidence | macOS arm64 only |
-| Publication | prohibited in Feature 003 |
-| Plugin count | exactly one |
-| User-facing Skill count | exactly one, named `dev-flow` |
-| MCP server count | exactly one, local STDIO |
-| Core MCP tool count | exactly six |
+| Publication | Prohibited in Feature 003 |
+| Plugin count | Exactly one |
+| User-facing Skill count | Exactly one, named `dev-flow` |
+| MCP server count | Exactly one, local STDIO |
+| Core MCP tool count | Exactly six |
+| Real-host journey count | Exactly one, after deterministic/root validation and final artifact creation |
 
-The exact Codex patch version, artifact digest, and Core version are recorded by the final journey rather than inferred from this table.
+The exact compatible range, Codex version, artifact digest, frozen source commit, and Core version
+are recorded by final evidence.
 
-## Packed artifact layout
+## Compatibility Revalidation
+
+Before final deterministic validation, implementation must revalidate official Codex plugin, Skill,
+MCP, marketplace, setup/readback, and removal behavior. When the selected compatible range differs
+from planning, update together:
+
+- this contract;
+- `research.md` and `plan.md`;
+- both Feature 003 JSON Schemas;
+- `data-model.md`, `quickstart.md`, and `tasks.md`;
+- package, lifecycle, Skill, and evidence-validator tests.
+
+Setup verifies that the installed Codex version satisfies the selected range. The registration
+receipt and journey evidence store the range as data rather than hard-coding a planning-time minor
+line in JSON Schema. Range membership is enforced by implementation/semantic tests.
+
+## Packed Artifact Layout
 
 ```text
 package/
@@ -47,121 +69,132 @@ package/
         └── dev-flow
 ```
 
-No Core source, repository `.git` data, shared fixture copy, test fake, evidence file, or second platform runtime is present in the tarball. Package construction uses an explicit allowlist and rejects unexpected paths.
+No Core source, repository metadata, shared fixture copy, test fake, evidence record, database,
+receipt, second platform runtime, or second host product is present. Package construction uses an
+exact allowlist and rejects unexpected paths.
 
-## Manifest and marketplace invariants
+## Manifest and Marketplace Invariants
 
-- `package.json.name` is `dev-flow-codex`, `private` is `true`, and its version equals root `VERSION` and the embedded Core version.
-- `package.json` exposes one executable named `dev-flow-codex` and defines no state-changing npm lifecycle hook, including `preinstall`, `install`, `postinstall`, or `prepare`.
-- `.agents/plugins/marketplace.json` names one local marketplace, `dev-flow-local`, and contains exactly one entry whose source is the in-root `./plugin` path.
-- `plugin/.codex-plugin/plugin.json` names `dev-flow-codex`, uses the product version, and points only to the bundled Skill and MCP resources required by the current official Codex format.
-- `plugin/.mcp.json` configures one STDIO server whose argv is exactly `dev-flow-codex mcp`. It adds no shell, network, Git, or filesystem MCP server.
-- `plugin/skills/dev-flow/SKILL.md` is the only user-facing Skill and conforms to [dev-flow-skill.md](./dev-flow-skill.md).
-- Fields whose names or optional status vary with Codex releases are revalidated against the exact 0.147.x build during implementation; they are not invented as compatibility aliases.
+- `package.json.name` is `dev-flow-codex`, `private` is `true`, and version equals repository
+  `VERSION`, plugin version, and embedded Core version.
+- One executable named `dev-flow-codex` is exposed.
+- No `preinstall`, `install`, `postinstall`, `prepare`, publication, release, or download hook is
+  present.
+- Production npm dependencies are empty; new Node glue uses the standard library.
+- The local marketplace contains exactly one in-root plugin entry.
+- The plugin contains exactly one Skill and one MCP resource using the implementation-time official
+  format.
+- The MCP resource invokes exactly `dev-flow-codex mcp`.
+- No shell, network, Git, filesystem, proxy, or generic forwarding MCP server is added.
+- Volatile official field names are revalidated rather than supported through invented aliases.
 
-## Product executable
+## Product Executable
 
-The executable accepts only these production subcommands:
+Production commands are limited to:
 
 | Command | Purpose | Stdout contract |
 |---|---|---|
-| `dev-flow-codex setup [--json]` | Validate and explicitly register this artifact | Human result or one JSON result object |
-| `dev-flow-codex remove [--json]` | Explicitly remove the recorded registration | Human result or one JSON result object |
-| `dev-flow-codex mcp` | Start the packaged Core as the plugin's STDIO server | Reserved entirely for Core MCP protocol output |
-| `dev-flow-codex --version` | Report package and embedded Core identity | One stable version line |
+| `dev-flow-codex setup [--json]` | Validate and explicitly register this artifact | Human result or one JSON object |
+| `dev-flow-codex remove [--json]` | Explicitly remove the recorded registration | Human result or one JSON object |
+| `dev-flow-codex mcp` | Start packaged Core over STDIO | Reserved entirely for Core MCP output |
+| `dev-flow-codex --version` | Report package/Core identity | One stable version line |
 
-Unknown flags/subcommands fail without modifying Codex state, product data, or the current repository. Diagnostics go to stderr. A nonzero exit indicates failure; setup/removal never report success before readback.
+Unknown commands fail without modifying Codex state, task data, or the current repository.
+Diagnostics go to stderr.
 
-`mcp` resolves `runtime/darwin-arm64/dev-flow` relative to the installed package and checks that it is executable. A nonempty explicit `DEV_FLOW_DATA_DIR` must be absolute, is canonicalized, and must already be a directory; the launcher does not create an arbitrary override. Without an override, it creates only the exact `~/Library/Application Support/dev-flow/data` default with restrictive permissions when absent. It then launches `dev-flow mcp --stdio` with inherited stdin/stdout/stderr. The Node process does not open the SQLite database or parse, buffer, rewrite, retry, or log protocol messages to stdout.
+`mcp` resolves `runtime/darwin-arm64/dev-flow` relative to the installed package. A nonempty
+explicit `DEV_FLOW_DATA_DIR` must be absolute, canonical, and already usable. Without an override,
+the launcher creates only `~/Library/Application Support/dev-flow/data` with restrictive
+permissions when absent. It launches Core in STDIO mode with inherited protocol streams and does not
+parse, buffer, project, log, or retry MCP payloads.
 
-## Explicit setup contract
+## Explicit Setup
 
 ### Preconditions
 
-Setup validates all preconditions before the first external mutation:
+All preconditions are validated before the first mutation:
 
-1. OS is `darwin` and architecture is `arm64`.
-2. `codex --version` is within `>=0.147.0 <0.148.0`.
-3. The package, plugin, root build identity, and `dev-flow version` result agree.
-4. The package-local Core exists and is executable.
-5. The marketplace has one in-root plugin; the plugin has one Skill and one MCP server.
-6. `dev-flow-codex` is discoverable in the PATH inherited by the selected Codex CLI.
-7. The receipt path and its parents are not symlinks escaping the product user-data root.
+1. platform is `darwin-arm64`;
+2. exact Codex CLI version satisfies the selected compatible range;
+3. package/plugin/Core/repository version identity matches;
+4. packaged Core exists, is executable, and reports the expected version outside the source tree;
+5. one marketplace, one plugin, one Skill, and one MCP server are present;
+6. `dev-flow-codex` is discoverable by the Codex process;
+7. receipt parents do not escape the product user-data root through symlinks.
 
-Failure reports the exact failed precondition and performs no registration.
+Failure performs no registration.
 
-### Reconciliation sequence
+### Reconciliation
 
-1. Read and schema-validate the receipt if present.
-2. Read Codex marketplace and plugin state through the supported CLI JSON interfaces.
-3. If receipt and readback identify the same installed artifact, return an idempotent success without writing.
-4. If either source identifies conflicting ownership, fail closed and report both observed identities.
-5. Add the artifact's marketplace root through `codex plugin marketplace add` only if absent.
-6. Install `dev-flow-codex@dev-flow-local` through the supported plugin command with JSON output.
-7. Read both marketplace and plugin state again and require the expected marketplace root plus plugin identity, source, version, installed flag, and enabled flag; Skill/MCP resource presence remains a separately validated package precondition because current plugin JSON readback does not enumerate those resources.
-8. Atomically write [registration-receipt.schema.json](./registration-receipt.schema.json) at `~/Library/Application Support/dev-flow/registrations/codex.json` only after successful readback.
+1. Read and schema-validate the receipt when present.
+2. Read marketplace/plugin state through supported Codex JSON commands.
+3. Return idempotent success only when receipt and readback match.
+4. Fail closed on conflicting ownership or malformed/incomplete readback.
+5. Add the marketplace only when absent.
+6. Install the product plugin through the supported command.
+7. Read marketplace/plugin state again and require expected root, identity, source, version,
+   installed state, and enabled state.
+8. Atomically write the receipt only after successful readback.
 
-If setup creates the marketplace but plugin installation/readback fails, it may remove only that marketplace registration after confirming it was absent before this attempt. It preserves all pre-existing or ambiguous state and prints bounded recovery instructions.
+Rollback removes only a marketplace created by this attempt and only after confirming it did not
+pre-exist. Adjacent/ambiguous state is preserved.
 
-### Success result
-
-Human and JSON modes report at least:
-
-- product and Core version;
-- exact Codex CLI version/surface and platform;
-- plugin selector and marketplace identity;
-- canonical Core data directory;
-- canonical receipt path;
-- whether setup installed or found an already matching registration.
-
-No success result contains task database contents or repository source.
-
-## Explicit removal contract
-
-Removal proceeds in ownership order:
+## Explicit Removal
 
 1. Read and schema-validate the exact receipt.
-2. Read current Codex plugin/marketplace state.
-3. Fail closed if current state conflicts with the receipt; do not delete or overwrite adjacent resources.
-4. Remove the recorded `dev-flow-codex@dev-flow-local` plugin through the supported Codex command if present.
-5. Verify plugin absence through readback.
-6. Remove only the recorded `dev-flow-local` marketplace registration if it still resolves to the receipt's marketplace root.
-7. Verify marketplace absence through readback.
-8. Delete only the exact receipt and, optionally, its now-empty product-owned `registrations` directory.
+2. Read current marketplace/plugin state.
+3. Fail closed on conflict.
+4. Remove the matching plugin through the supported command.
+5. Verify plugin absence.
+6. Remove the matching marketplace only when it still resolves to the receipt root.
+7. Verify marketplace absence.
+8. Delete only the exact receipt and optionally its now-empty product-owned directory.
 
-If the receipt directory contains unknown adjacent entries, removal leaves them in place and reports
-their canonical paths as preserved without reading or reporting their contents.
+Unknown adjacent entries are preserved and reported by path without reading their contents.
 
-The command never deletes:
+Removal never deletes:
 
-- the npm package (the user uninstalls it separately after deregistration);
-- `DEV_FLOW_DATA_DIR` or `~/Library/Application Support/dev-flow/data`;
-- a target repository or any file below it;
-- the Codex configuration file or plugin cache directly;
-- unknown or user-owned adjacent files.
+- the npm package;
+- Core data;
+- a repository;
+- Codex config/cache directly;
+- unknown adjacent resources.
 
-Repeated removal with no receipt and no matching registration is a no-op success. Interrupted removal resumes by reading both receipt and Codex state before the next mutation.
+Repeated absence is a no-op success. Interrupted removal rereads both receipt and Codex state before
+the next mutation.
 
-## Core connection contract
+## Core Connection
 
-After launch, the actual Go Core owns the MCP connection. Its catalog must be exactly:
+The actual Go Core owns the MCP connection and exposes exactly:
 
-- `dev_flow_server_info`
-- `dev_flow_open_task`
-- `dev_flow_get_task`
-- `dev_flow_get_next_action`
-- `dev_flow_apply_action`
-- `dev_flow_cancel_task`
+1. `dev_flow_server_info`
+2. `dev_flow_open_task`
+3. `dev_flow_get_task`
+4. `dev_flow_get_next_action`
+5. `dev_flow_apply_action`
+6. `dev_flow_cancel_task`
 
-The Codex product may check or expose this catalog but may not implement, alias, proxy, or augment it. All tool schemas and results are validated against the shared Feature 002 fixtures in place.
+The Codex package may verify this catalog but may not implement, alias, proxy, or augment it.
+Schemas and results are validated against shared Feature 002 fixtures in place.
 
-## Repository and Git boundary
+## Repository Boundary
 
-Setup and removal behave identically regardless of the current working directory. They do not create a repository instruction, plugin file, MCP configuration, receipt, database, log, or temporary file in the current/target repository. Neither lifecycle command runs a Git mutation. The Skill may use ordinary Codex repository tools only after Core returns an action whose allowed effects and user authority permit that work.
+Setup/removal behave identically from any working directory and create no file in the current/target
+repository. Neither lifecycle command mutates Git. The Skill may use ordinary Codex repository tools
+only after Core returns a live action whose allowed effects and current user authority permit the
+work.
 
-## Error and evidence rules
+## Evidence Rules
 
-- A malformed Codex JSON response, truncated readback, incompatible version, missing executable, resource mismatch, or ownership conflict is a failure, never a partial success.
-- Commands and output used to verify setup/removal are recorded without secrets in the journey evidence.
-- A fake Codex executable establishes only simulated lifecycle behavior.
-- Native support requires the final artifact to pass [journey-evidence.schema.json](./journey-evidence.schema.json) on the declared host.
+User-story implementation uses static/package, fake-Codex, fake-Core, packaged-Core retention, and
+fake journey-harness evidence only. Those layers never claim native behavior.
+
+After compatibility revalidation, targeted checks, root validation, and a read-only source audit
+pass, one frozen-source artifact is built and used for exactly one real Codex journey covering
+setup, explicit activation, task execution, restart/resume, `DONE`, removal, retained data, and
+compatible reinstall.
+
+`journey-evidence.schema.json` validates structure. The planned semantic validator separately
+checks range membership, version/source/artifact identity, strict revisions, task-ID equality, call
+budget, `DONE`, data/repository digest equality, lifecycle booleans, and prior root validation.
+Failed/blocked evidence records may contain only observations actually reached.
