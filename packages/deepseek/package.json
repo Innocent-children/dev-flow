@@ -2,6 +2,27 @@
   "name": "dev-flow-deepseek",
   "version": "0.1.0",
   "private": true,
-  "description": "Feature 001 engineering skeleton for the future DeepSeek product boundary.",
-  "license": "Apache-2.0"
+  "description": "Private DeepSeek Harness bundle for explicit dev-flow invocation.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./src/index.mjs",
+  "exports": "./src/index.mjs",
+  "engines": {
+    "node": ">=24"
+  },
+  "files": [
+    "README.md",
+    "cordis.patch.yml",
+    "src/*.mjs",
+    "skills/dev-flow/SKILL.md",
+    "runtime/darwin-arm64/dev-flow"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-mcp-client": "^0.1.0-rc.6"
+  }
 }

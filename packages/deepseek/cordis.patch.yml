@@ -1,0 +1,18 @@
+- insert:
+    - id: dev-flow-skill
+      name: ./src/index.mjs
+
+    - id: dev-flow-core
+      name: '@deepseek-ai/dsh-mcp-client'
+      inject: [devFlowRuntime]
+      config:
+        serverName: dev_flow
+        transport: stdio
+        command: !!js ctx.devFlowRuntime.command
+        args: !!js ctx.devFlowRuntime.args
+        env: {}
+        cwd: !!js process.cwd()
+        toolCallTimeoutMs: 60000
+        failOnStartupError: false
+        reconnect:
+          enabled: false
