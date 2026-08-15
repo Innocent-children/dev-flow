@@ -12,6 +12,8 @@ import (
 
 const resultSchemaVersion = 1
 
+const fixedInternalErrorFallbackJSON = `{"schema_version":1,"ok":false,"request_id":"request-invalid","tool":"dev_flow_server_info","error":{"code":"INTERNAL_ERROR","message":"The Core could not return a result."},"recovery":{"retry_safe":false,"action":"report_internal_error","message":"Report the bounded failure and stop this operation."}}`
+
 // EncodedResult is the complete compact JSON value returned by one tool call.
 // JSON is already size-checked and safe to place in both MCP structured and
 // text content.
@@ -210,9 +212,13 @@ func fixedInternalError(requestID, tool, reason string) EncodedResult {
 		Recovery:      guidance,
 	})
 	if err != nil || !WithinResultEnvelopeLimit(encoded) {
-		encoded = []byte(`{"schema_version":1,"ok":false,"request_id":"request-invalid","tool":"dev_flow_server_info","error":{"code":"INTERNAL_ERROR","message":"The Core could not return a result."},"recovery":{"retry_safe":false,"action":"report_internal_error","message":"Report the bounded failure and stop this operation."}}`)
+		return fixedInternalErrorFallback()
 	}
 	return EncodedResult{JSON: encoded, IsError: true}
+}
+
+func fixedInternalErrorFallback() EncodedResult {
+	return EncodedResult{JSON: []byte(fixedInternalErrorFallbackJSON), IsError: true}
 }
 
 func safeEnvelopeIdentity(requestID, tool string) (string, string) {

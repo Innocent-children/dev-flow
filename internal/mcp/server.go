@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -166,6 +167,7 @@ func (server *Server) dispatch(ctx context.Context, tool string, requestID domai
 			RecoveryAssessment: result.RecoveryAssessment,
 		})
 	case ToolApplyAction:
+		requestID = applyCorrelationRequestID(raw, requestID)
 		wire, err := decodeApplyActionWire(raw)
 		if err != nil {
 			return EncodeError(string(requestID), tool, err)
@@ -213,6 +215,49 @@ func (server *Server) dispatch(ctx context.Context, tool string, requestID domai
 	default:
 		return EncodeError(string(requestID), ToolServerInfo, domain.ErrInvalidArgument)
 	}
+}
+
+// applyCorrelationRequestID extracts only response correlation from one
+// completed top-level object. decodeApplyActionWire remains the input authority.
+func applyCorrelationRequestID(raw json.RawMessage, fallback domain.ID) domain.ID {
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	token, err := decoder.Token()
+	if err != nil || token != json.Delim('{') {
+		return fallback
+	}
+
+	var requestID domain.ID
+	found := false
+	for decoder.More() {
+		nameToken, err := decoder.Token()
+		if err != nil {
+			return fallback
+		}
+		name, ok := nameToken.(string)
+		if !ok {
+			return fallback
+		}
+		if name != "request_id" {
+			var ignored json.RawMessage
+			if err := decoder.Decode(&ignored); err != nil {
+				return fallback
+			}
+			continue
+		}
+		if found {
+			return fallback
+		}
+		found = true
+		if err := decoder.Decode(&requestID); err != nil || !requestID.IsValid() {
+			return fallback
+		}
+	}
+
+	closing, err := decoder.Token()
+	if err != nil || closing != json.Delim('}') || !found {
+		return fallback
+	}
+	return requestID
 }
 
 func sdkTool(definition ToolDefinition) *sdkmcp.Tool {
