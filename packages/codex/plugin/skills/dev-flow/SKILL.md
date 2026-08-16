@@ -124,6 +124,39 @@ At the top-level, forward `request_id`, `host`, `task_id`, `revision`, `action_i
 and `repository_binding_digest`. The `payload` object contains only phase schema fields; never nest
 the enclosing request inside `payload`.
 
+Bind a source-neutral `fresh_action` from `result.task.current_action` when Core returns a task, or
+from `result.action` when `dev_flow_get_next_action` returns the action directly. Map that same
+fresh action into the tool input exactly:
+
+- caller-generated opaque identity -> top-level `request_id`;
+- exact value `codex` -> top-level `host`;
+- `fresh_action.task_id` -> top-level `task_id`;
+- `fresh_action.revision` -> top-level `revision`;
+- `fresh_action.action_id` -> top-level `action_id`;
+- `fresh_action.kind` -> top-level `action_kind`;
+- `fresh_action.repository_binding_digest` -> top-level `repository_binding_digest`;
+- the payload object built from the selected schema branch -> top-level `payload`.
+
+Use this type-preserving structure for the `dev_flow_apply_action` arguments:
+
+```text
+apply_arguments = {
+  "request_id": caller_request_id,
+  "host": "codex",
+  "task_id": fresh_action.task_id,
+  "revision": fresh_action.revision,
+  "action_id": fresh_action.action_id,
+  "action_kind": fresh_action.kind,
+  "repository_binding_digest": fresh_action.repository_binding_digest,
+  "payload": payload_for_selected_schema_branch
+}
+```
+
+`revision` remains an integer, not a string. `payload` remains an object, not a string, containing
+exactly the selected branch's required members.
+
+Do not wrap that request inside an outer `payload` object.
+
 Use `recovery_apply` only when a fresh Core recovery assessment explicitly requires the exact
 Core-defined form. Resolve context ambiguity through an ordinary Core read, never by guessing.
 

@@ -114,6 +114,8 @@ isolated development-smoke runs. Feature 003 remains NO-GO until T078 passes.
   nonterminal, then let one fresh resume session continue that same task to `DONE`. Reuse the
   existing bounded process stop; do not run a real Host during this repair checkpoint. (FR-028,
   SC-004)
+- [X] **T085** Repair the first real-acceptance apply forwarding and preserve the complete Core
+  rejection as the primary diagnostic when caller request binding fails. (FR-015, FR-019, FR-026)
 - [ ] **T078** Run the final real Codex acceptance journey after T074–T077 close and
   after T080–T084 close, immediately before merge approval. Ordinary must remain zero-call; the
   non-mutating bare-selector probe must retain real call facts while proving unchanged

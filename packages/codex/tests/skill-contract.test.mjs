@@ -200,6 +200,13 @@ test("Skill uses payload_contract as the apply schema discriminator", async () =
   assert.match(forwarding, /`required_evidence`[\s\S]*(?:not|never)[\s\S]*payload (?:field|key|member)/i);
   assert.match(forwarding, /top-level[\s\S]*`request_id`[\s\S]*`repository_binding_digest`/i);
   assert.match(forwarding, /`payload`[\s\S]*only[\s\S]*phase[\s\S]*(?:never|do not)[\s\S]*(?:enclosing|whole|full) request/i);
+  assert.match(forwarding, /`fresh_action`[\s\S]*`result\.task\.current_action`[\s\S]*`result\.action`/i);
+  assert.match(forwarding, /`fresh_action\.kind`[\s\S]*top-level `action_kind`/i);
+  assert.match(forwarding, /`fresh_action\.revision`[\s\S]*top-level `revision`/i);
+  assert.match(forwarding, /caller-generated[\s\S]*top-level `request_id`/i);
+  assert.match(forwarding, /`revision`[\s\S]*integer[\s\S]*not (?:a )?string/i);
+  assert.match(forwarding, /`payload`[\s\S]*object[\s\S]*not (?:a )?string/i);
+  assert.match(forwarding, /do not wrap[\s\S]*request[\s\S]*outer `payload`/i);
   assert.match(forwarding, /cannot (?:identify|read|resolve)[\s\S]*stop before[\s\S]*`dev_flow_apply_action`/i);
 });
 

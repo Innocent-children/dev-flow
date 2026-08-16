@@ -141,6 +141,7 @@ export async function runCodexSession({
     const error = new Error(sessionFailureMessage(role, classified));
     error.classification = classified.classification;
     error.call = classified.call ?? null;
+    error.requestBinding = classified.call?.requestBinding ?? null;
     error.transcriptIntegrity = classified.transcriptIntegrity;
     error.acceptance = classified.acceptance;
     error.role = role;
@@ -231,7 +232,11 @@ export function classifyCodexSessionResult({ exitCode, stdout, stderr }) {
 function sessionFailureMessage(role, classified) {
   switch (classified.classification) {
     case "core-domain-error":
-      return `${role} Codex session returned Core domain error ${classified.call.structuredContent.error.code}`;
+      return `${role} Codex session returned Core domain error ${classified.call.structuredContent.error.code}${
+        ["missing", "mismatched"].includes(classified.call.requestBinding)
+          ? `; caller request binding is ${classified.call.requestBinding}`
+          : ""
+      }`;
     case "transport-error":
       return `${role} Codex session returned an MCP transport failure`;
     case "session-error":

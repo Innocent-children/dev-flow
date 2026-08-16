@@ -245,13 +245,14 @@ function resultCall(item, shape) {
   if (!isDeepStrictEqual(textResult, structured)) {
     throw new Error("Dev Flow text and structured results differ");
   }
-  validateCoreEnvelope(structured, item, shape);
+  const requestBinding = validateCoreEnvelope(structured, item, shape);
   return {
     itemId: item.id,
     tool: item.tool,
     requestId: structured.request_id,
     status: item.status,
     shape,
+    requestBinding,
     resultPresent: true,
     structuredContent: structuredClone(structured),
     error: item.error === null ? null : structuredClone(item.error),
@@ -276,19 +277,19 @@ function validateCoreEnvelope(envelope, item, shape) {
   if (!toolNames.has(envelope.tool) || envelope.tool !== item.tool) {
     throw new Error("Core result envelope tool does not match the MCP item");
   }
-  if (Object.hasOwn(item.arguments ?? {}, "request_id")) {
-    if (!validIdentifier(item.arguments.request_id) || item.arguments.request_id !== envelope.request_id) {
-      throw new Error("Core result envelope request_id does not match the MCP item");
-    }
-  } else if (item.tool === "dev_flow_apply_action") {
+  const requestBinding = callerRequestBinding(envelope, item);
+  if (requestBinding === "missing" && success) {
     throw new Error("dev_flow_apply_action MCP item requires its caller request_id");
+  }
+  if (requestBinding === "mismatched" && (success || item.tool !== "dev_flow_apply_action")) {
+    throw new Error("Core result envelope request_id does not match the MCP item");
   }
 
   if (success) {
     if (!isPlainObject(envelope.result)) {
       throw new Error("Core success envelope result must be an object");
     }
-    return;
+    return requestBinding;
   }
 
   assertExactKeys(envelope.error, ["code", "message", "details"], "Core error", { optional: ["details"] });
@@ -311,6 +312,18 @@ function validateCoreEnvelope(envelope, item, shape) {
   ) {
     throw new Error("Core recovery guidance is invalid");
   }
+  return requestBinding;
+}
+
+function callerRequestBinding(envelope, item) {
+  const argumentsObject = isPlainObject(item.arguments) ? item.arguments : null;
+  if (argumentsObject === null || !Object.hasOwn(argumentsObject, "request_id")) {
+    return item.tool === "dev_flow_apply_action" ? "missing" : null;
+  }
+  return validIdentifier(argumentsObject.request_id)
+    && argumentsObject.request_id === envelope.request_id
+    ? "matched"
+    : "mismatched";
 }
 
 function assertExactKeys(value, allowed, label, { optional = [] } = {}) {

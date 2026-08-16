@@ -63,12 +63,80 @@ test("Codex 0.147 failed MCP item with a complete Core result remains a domain e
   assert.equal(call.tool, "dev_flow_apply_action");
   assert.equal(call.resultPresent, true);
   assert.equal(call.structuredContent.ok, false);
+  assert.equal(call.requestBinding, "matched");
   assert.equal(call.structuredContent.error.code, "REVISION_CONFLICT");
   assert.deepEqual(call.structuredContent.recovery, {
     retry_safe: false,
     action: "read_task",
     message: "Read the authoritative task before another mutation.",
   });
+});
+
+test("real acceptance Core rejection preserves a missing caller request binding diagnostic", async () => {
+  const envelope = {
+    schema_version: 1,
+    ok: false,
+    request_id: "request-redacted-core",
+    tool: "dev_flow_apply_action",
+    error: { code: "INVALID_ARGUMENT", message: "The request does not match the closed Core contract." },
+    recovery: { retry_safe: false, action: "none", message: "Correct the request before submitting it again." },
+  };
+  const stdout = encodeJSONL([
+    { type: "thread.started", thread_id: "thread-redacted-acceptance" },
+    {
+      type: "item.completed",
+      item: {
+        id: "item-redacted-acceptance-apply",
+        type: "mcp_tool_call",
+        server: "dev-flow",
+        tool: "dev_flow_apply_action",
+        arguments: {
+          action_kind: "ASSESS_TASK",
+          payload: {
+            request_id: "request-redacted-caller",
+            host: "codex",
+            task_id: "task-redacted-acceptance",
+            revision: 1,
+            action_id: "action-redacted-assess",
+            action_kind: "ASSESS_TASK",
+            repository_binding_digest: "a".repeat(64),
+            payload: {
+              result: "succeeded",
+              summary: "Assessed the bounded task.",
+              constraints: [],
+              risks: [],
+              intended_changed_surface: ["acceptance-proof.txt"],
+              verification_budget_acknowledged: true,
+            },
+          },
+        },
+        result: {
+          content: [{ type: "text", text: JSON.stringify(envelope) }],
+          structured_content: envelope,
+        },
+        error: null,
+        status: "failed",
+      },
+    },
+  ]);
+
+  const parsed = parseCodexJSONL(stdout);
+  assert.equal(parsed.calls[0].shape, "core_domain_error");
+  assert.equal(parsed.calls[0].structuredContent.error.code, "INVALID_ARGUMENT");
+  assert.equal(parsed.calls[0].requestBinding, "missing");
+
+  const classified = sessionRuntime.classifyCodexSessionResult({ exitCode: 0, stdout, stderr: "" });
+  assert.equal(classified.classification, "core-domain-error");
+  assert.equal(classified.call.requestBinding, "missing");
+  assert.equal(classified.acceptance, "failed");
+
+  const error = await captureSessionFailure({ exitCode: 0, stdout, stderr: "" });
+  assert.equal(error.classification, "core-domain-error");
+  assert.equal(error.requestBinding, "missing");
+  assert.equal(
+    error.message,
+    "test Codex session returned Core domain error INVALID_ARGUMENT; caller request binding is missing",
+  );
 });
 
 test("Codex 0.147 failed MCP item without a complete result is a transport error", async () => {
@@ -354,14 +422,33 @@ test("HIGH-3 failed event binding: authority remains attached to one session ite
   const crossItemResult = structuredClone(domainError);
   crossItemResult[1].item.id = "item-redacted-a";
   crossItemResult[1].item.arguments.request_id = "request-redacted-a";
+  const crossItemParsed = parseCodexJSONL(encodeJSONL(crossItemResult));
+  assert.equal(crossItemParsed.calls[0].requestBinding, "mismatched");
+  const crossItemFailure = await captureSessionFailure({
+    exitCode: 0,
+    stdout: encodeJSONL(crossItemResult),
+    stderr: "",
+  });
+  assert.equal(crossItemFailure.classification, "core-domain-error");
+  assert.equal(crossItemFailure.requestBinding, "mismatched");
+  assert.equal(crossItemFailure.acceptance, "failed");
   const toolMismatch = mutateEnvelope(domainError, (envelope) => {
     envelope.tool = "dev_flow_get_task";
+  });
+  const nonApplyRequestMismatch = mutateEnvelope(domainError, (envelope, item) => {
+    envelope.tool = "dev_flow_get_task";
+    item.tool = "dev_flow_get_task";
+    item.arguments = {
+      request_id: "request-redacted-other",
+      host: "codex",
+      task_id: "task-redacted-core-error",
+    };
   });
   const duplicateItem = structuredClone(domainError);
   duplicateItem.push(structuredClone(duplicateItem[1]));
   const cases = [
-    ["failed item A cannot use result and recovery from request B", crossItemResult],
     ["item and envelope tool must match", toolMismatch],
+    ["non-apply caller request_id must match the Core envelope", nonApplyRequestMismatch],
     ["item IDs are unique within one session", duplicateItem],
   ];
   for (const [name, events] of cases) {
