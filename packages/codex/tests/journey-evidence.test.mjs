@@ -96,6 +96,21 @@ test("Codex host fixtures contain no prompt, source, user path, environment, tok
   }
 });
 
+test("Codex 0.147 parser retains one bounded command fact for smoke verification", () => {
+  const command = "/bin/zsh -lc 'git hash-object native-proof.txt'";
+  const output = "5de13fdad681cf91a2877203917cf78afb4aa679\n";
+  const parsed = parseCodexJSONL([
+    { type: "thread.started", thread_id: "thread-redacted-command" },
+    { type: "item.completed", item: { id: "item-redacted-command", type: "command_execution", command, aggregated_output: output, exit_code: 0, status: "completed" } },
+  ].map(JSON.stringify).join("\n"));
+  assert.deepEqual(parsed.commands, [{
+    itemId: "item-redacted-command",
+    command, output,
+    exitCode: 0,
+    status: "completed",
+  }]);
+});
+
 test("HIGH-1 diagnostic precedence: the highest-authority session failure wins", async () => {
   assert.equal(typeof sessionRuntime.classifyCodexSessionResult, "function");
   const domainEvents = parseJSONL(await readFile(fixtures.coreDomainError.path, "utf8"));

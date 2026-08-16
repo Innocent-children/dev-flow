@@ -169,20 +169,21 @@ environment, token, or secret.
 
 ## Repeatable development smoke
 
-After deterministic checks are green, a developer may run the real smoke entry point with an
-explicit Codex executable and temporary worktree:
+After deterministic checks are green, run the full isolated chain twice with fresh empty result
+directories and labels `A` then `B`:
 
 ```bash
 ./scripts/run-codex-real-journey.sh \
-  --smoke \
+  --development-smoke \
+  --run-label A \
   --codex-executable "$CODEX_EXECUTABLE" \
-  --workspace "$CODEX_SMOKE_WORKTREE"
+  --result-directory "$CODEX_SMOKE_RESULT_DIRECTORY"
 ```
 
-Development smoke is intentionally repeatable. It keeps only its returned in-memory session summary,
-may be rerun after a failure, and creates no formal support statement. It checks ordinary-prompt
-isolation and the exact `$dev-flow-codex:dev-flow` selector; deterministic package, lifecycle,
-Core-loop, parser, and removal-retention tests remain the normal development gates.
+Each invocation builds and installs a non-final package in one new temporary root, performs setup,
+four fresh Codex 0.147 sessions, removal, and a direct packaged-Core retention read, then deletes the
+temporary root. The external `smoke-result.json` is a development result, not final acceptance or a
+formal support statement; failures add only a bounded, hashed diagnostic.
 
 ## Final pre-merge acceptance
 

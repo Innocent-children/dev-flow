@@ -1,14 +1,31 @@
 #!/usr/bin/env node
 
-import { execFile as execFileCallback } from "node:child_process";
-import { readFile } from "node:fs/promises";
-import { isAbsolute } from "node:path";
-import { pathToFileURL } from "node:url";
+import { execFile as execFileCallback, spawn } from "node:child_process";
+import { createHash, randomUUID } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import {
+  chmod,
+  copyFile,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  realpath,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
+import { dirname, isAbsolute, join, relative } from "node:path";
+import { createInterface } from "node:readline";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { isDeepStrictEqual, promisify } from "node:util";
 
 import { DEV_FLOW_TOOLS, parseCodexJSONL } from "./validate-codex-journey-evidence.mjs";
 
 const execFile = promisify(execFileCallback);
+const REPOSITORY_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 
 export const EXPLICIT_SELECTOR = "$dev-flow-codex:dev-flow";
 export const ordinaryPrompt =
@@ -21,6 +38,23 @@ export const acceptancePrompt =
   `${EXPLICIT_SELECTOR} Complete the bounded acceptance task in this repository and stop only at the Core outcome.`;
 export const resumePrompt =
   `${EXPLICIT_SELECTOR} Resume the existing compatible Dev Flow task and continue to the Core outcome.`;
+export const developmentInvalidPrompt =
+  `${EXPLICIT_SELECTOR} Reject this bounded request because the current directory is not a Git repository. Make no Dev Flow tool call and create no task.`;
+export const developmentSubstantivePrompt = `${EXPLICIT_SELECTOR} Work only in the current repository. Open one host=codex task to create native-proof.txt with the exact UTF-8 bytes "Dev Flow Codex development smoke passed.\\n". The verification budget is one targeted command, full suites are forbidden, and verification is reserved for the restart session. After the file exists and one complete dev_flow_apply_action commits, stop while the Core task is nonterminal.`;
+export const developmentResumePrompt = `${EXPLICIT_SELECTOR} Resume the existing compatible host=codex task. After dev_flow_open_task, call dev_flow_get_task and then dev_flow_get_next_action before any new dev_flow_apply_action. Preserve the same task, run only "git hash-object native-proof.txt" as the single targeted verification command, and continue until Core reports phase DONE with outcome completed.`;
+
+const PROOF_CONTENT = "Dev Flow Codex development smoke passed.\n";
+const PROOF_COMMAND = "git hash-object native-proof.txt";
+const PROOF_RENDERED_COMMAND = "/bin/zsh -lc 'git hash-object native-proof.txt'";
+const PROOF_GIT_HASH = "5de13fdad681cf91a2877203917cf78afb4aa679";
+const SMOKE_ROLES = Object.freeze(["ordinary", "invalid", "substantive", "resume"]);
+const SMOKE_RESULT_FIELDS = Object.freeze([
+  "status", "run_id", "codex_version", "package_version", "core_version",
+  "ordinary_core_calls", "invalid_open_task_calls", "task_id_before_restart",
+  "task_id_after_restart", "committed_action_count", "terminal_outcome",
+  "setup_readback_passed", "remove_readback_passed", "task_data_retained",
+  "unexpected_repository_paths", "failure_kind",
+]);
 
 const ACCEPTANCE_REPORT_FIELDS = Object.freeze([
   "status",
@@ -42,11 +76,20 @@ const ACCEPTANCE_REPORT_FIELDS = Object.freeze([
   "unexpected_repository_paths",
 ]);
 
-export function buildCodexExecArgs(prompt) {
+export function buildCodexExecArgs(prompt, {
+  ephemeral = false,
+  skipGitRepoCheck = false,
+  workspace = null,
+} = {}) {
   if (typeof prompt !== "string" || prompt.trim() === "") {
     throw new TypeError("Codex prompt must be nonempty");
   }
-  return ["exec", "--json", prompt];
+  const args = ["exec", "--json"];
+  if (ephemeral) args.push("--ephemeral", "--ignore-user-config", "--ignore-rules", "--color", "never", "--sandbox", "workspace-write");
+  if (skipGitRepoCheck) args.push("--skip-git-repo-check");
+  if (workspace !== null) args.push("--cd", workspace);
+  args.push(prompt);
+  return args;
 }
 
 export async function runCodexSession({
@@ -56,10 +99,21 @@ export async function runCodexSession({
   prompt,
   runProcess = defaultRunProcess,
   includeCallFacts = false,
+  environment,
+  ephemeral = false,
+  skipGitRepoCheck = false,
+  stopAfterApplyPath = null,
 }) {
   requireAbsolute(codexExecutable, "Codex executable");
   requireAbsolute(workspace, "workspace");
-  const result = await runProcess(codexExecutable, buildCodexExecArgs(prompt), { cwd: workspace });
+  const processOptions = { cwd: workspace };
+  if (environment !== undefined) processOptions.env = environment;
+  if (stopAfterApplyPath !== null) processOptions.stopAfterApplyPath = stopAfterApplyPath;
+  const result = await runProcess(codexExecutable, buildCodexExecArgs(prompt, {
+    ephemeral,
+    skipGitRepoCheck,
+    workspace: ephemeral ? workspace : null,
+  }), processOptions);
   const classified = classifyCodexSessionResult(result);
   if (classified.classification !== "success") {
     const error = new Error(sessionFailureMessage(role, classified));
@@ -67,6 +121,11 @@ export async function runCodexSession({
     error.call = classified.call ?? null;
     error.transcriptIntegrity = classified.transcriptIntegrity;
     error.acceptance = classified.acceptance;
+    error.role = role;
+    error.exitCode = result.exitCode;
+    error.eventCount = classified.parsed?.eventCount ?? 0;
+    error.stdout = result.stdout;
+    error.stderr = result.stderr;
     throw error;
   }
   return includeCallFacts
@@ -172,6 +231,189 @@ export async function runDevelopmentSmoke(options) {
     persistent_attempt_state: false,
     status: "pass",
   };
+}
+
+export function createDevelopmentSmokeLayout(root) {
+  requireAbsolute(root, "development smoke root");
+  const under = (name) => join(root, name);
+  return {
+    root,
+    home: under("home"),
+    codexHome: under("codex-home"),
+    installPrefix: under("install"),
+    dataDirectory: under("data"),
+    repository: under("repository"),
+    invalidWorkspace: under("not-a-repository"),
+    artifactDirectory: under("artifacts"),
+    diagnosticDirectory: under("diagnostics"),
+    temporaryDirectory: under("tmp"),
+    npmCache: under("npm-cache"),
+  };
+}
+
+export function assertDevelopmentAdmissionIsolation(ordinary, invalid) {
+  if (ordinary?.dev_flow_call_count !== 0) throw new Error("ordinary session must make zero Dev Flow calls");
+  if (invalid?.dev_flow_call_count !== 0 || invalid.tools?.includes("dev_flow_open_task")) {
+    throw new Error("invalid session must make zero Dev Flow calls and open zero tasks");
+  }
+}
+
+export function buildDevelopmentSmokeResult(values) {
+  const result = {
+    status: values.status,
+    run_id: values.runId,
+    codex_version: "0.147.0",
+    package_version: "0.1.0",
+    core_version: "0.1.0",
+    ordinary_core_calls: values.ordinaryCoreCalls,
+    invalid_open_task_calls: values.invalidOpenTaskCalls,
+    task_id_before_restart: values.taskIdBeforeRestart,
+    task_id_after_restart: values.taskIdAfterRestart,
+    committed_action_count: values.committedActionCount,
+    terminal_outcome: values.terminalOutcome,
+    setup_readback_passed: values.setupReadbackPassed,
+    remove_readback_passed: values.removeReadbackPassed,
+    task_data_retained: values.taskDataRetained,
+    unexpected_repository_paths: values.unexpectedRepositoryPaths,
+    failure_kind: values.failureKind,
+  };
+  if (!isDeepStrictEqual(Object.keys(result), SMOKE_RESULT_FIELDS)) throw new Error("development smoke result shape drifted");
+  return result;
+}
+
+export function sanitizeSmokeFailure(value) {
+  const digest = (text) => createHash("sha256").update(typeof text === "string" ? text : "").digest("hex");
+  return {
+    session_role: SMOKE_ROLES.includes(value.role) ? value.role : null,
+    event_count: Number.isInteger(value.eventCount) ? value.eventCount : 0,
+    mcp_tool: DEV_FLOW_TOOLS.includes(value.mcpTool) ? value.mcpTool : null,
+    status: ["completed", "failed"].includes(value.status) ? value.status : null,
+    classification: typeof value.classification === "string" ? value.classification : "smoke-error",
+    exit_code: Number.isInteger(value.exitCode) ? value.exitCode : null,
+    stdout_sha256: digest(value.stdout),
+    stderr_sha256: digest(value.stderr),
+  };
+}
+
+export async function runIsolatedDevelopmentSmoke(options) {
+  const runId = randomUUID();
+  const state = {
+    status: "failed", runId, ordinaryCoreCalls: 0, invalidOpenTaskCalls: 0,
+    taskIdBeforeRestart: null, taskIdAfterRestart: null, committedActionCount: 0,
+    terminalOutcome: null, setupReadbackPassed: false, removeReadbackPassed: false,
+    taskDataRetained: false, unexpectedRepositoryPaths: [], failureKind: null,
+  };
+  let root = null;
+  let currentRole = null;
+  try {
+    await assertEmptyResultDirectory(options.resultDirectory);
+    assertSupportedCodexHost();
+    root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-development-smoke-")));
+    const layout = createDevelopmentSmokeLayout(root);
+    await Promise.all(Object.entries(layout)
+      .filter(([name]) => name !== "root")
+      .map(([, path]) => mkdir(path, { recursive: true, mode: 0o700 })));
+    const environment = await isolatedEnvironment(layout, options.codexExecutable);
+    await assertCodexExecutable(options.codexExecutable, environment);
+
+    const build = await execJSON(join(REPOSITORY_ROOT, "scripts", "build-codex-local.sh"),
+      ["--output", layout.artifactDirectory], { cwd: REPOSITORY_ROOT });
+    assertTemporaryBuild(build, layout.artifactDirectory);
+    await execFile("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--prefix", layout.installPrefix, build.artifact_path], {
+      cwd: root, encoding: "utf8", maxBuffer: 20 * 1024 * 1024,
+    });
+    const packageRoot = await realpath(join(layout.installPrefix, "node_modules", "dev-flow-codex"));
+    const packageCLI = join(layout.installPrefix, "node_modules", ".bin", "dev-flow-codex");
+    const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
+    const receiptPath = join(layout.home, "Library", "Application Support", "dev-flow", "registrations", "codex.json");
+
+    await initializeSmokeRepository(layout.repository, environment);
+    const setup = await execJSON(packageCLI, ["setup", "--json"], { cwd: layout.repository, env: environment });
+    if (setup.operation !== "setup" || !["installed", "already-installed"].includes(setup.status)) {
+      throw new Error("development smoke setup/readback failed");
+    }
+    state.setupReadbackPassed = true;
+    const adjacentPath = join(dirname(receiptPath), "user-owned-adjacent.txt");
+    await writeFile(adjacentPath, "preserve development smoke data\n", { mode: 0o600 });
+
+    currentRole = "ordinary";
+    const ordinary = await runCodexSession({
+      codexExecutable: options.codexExecutable, workspace: layout.repository, role: currentRole,
+      prompt: ordinaryPrompt, includeCallFacts: true, environment, ephemeral: true,
+    });
+    currentRole = "invalid";
+    const invalid = await runCodexSession({
+      codexExecutable: options.codexExecutable, workspace: layout.invalidWorkspace, role: currentRole,
+      prompt: developmentInvalidPrompt, includeCallFacts: true, environment, ephemeral: true,
+      skipGitRepoCheck: true,
+    });
+    assertDevelopmentAdmissionIsolation(ordinary, invalid);
+    state.ordinaryCoreCalls = ordinary.dev_flow_call_count;
+    state.invalidOpenTaskCalls = invalid.tools.filter((tool) => tool === "dev_flow_open_task").length;
+
+    currentRole = "substantive";
+    const proofPath = join(layout.repository, "native-proof.txt");
+    const substantive = await runCodexSession({
+      codexExecutable: options.codexExecutable, workspace: layout.repository, role: currentRole,
+      prompt: developmentSubstantivePrompt, includeCallFacts: true, environment, ephemeral: true,
+      stopAfterApplyPath: proofPath,
+    });
+    currentRole = "resume";
+    const resume = await runCodexSession({
+      codexExecutable: options.codexExecutable, workspace: layout.repository, role: currentRole,
+      prompt: developmentResumePrompt, includeCallFacts: true, environment, ephemeral: true,
+    });
+    validateDevelopmentSessions([ordinary, invalid, substantive, resume], state);
+    if ((await readFile(proofPath, "utf8")) !== PROOF_CONTENT) throw new Error("development smoke proof bytes differ");
+    state.unexpectedRepositoryPaths = await unexpectedRepositoryPaths(layout.repository, environment);
+    if (state.unexpectedRepositoryPaths.length !== 0) throw new Error("development smoke repository contains unexpected paths");
+    const statusBeforeRemove = await gitStatus(layout.repository, environment);
+
+    const removed = await execJSON(packageCLI, ["remove", "--json"], { cwd: layout.repository, env: environment });
+    if (removed.operation !== "remove" || removed.status !== "removed" || removed.changed !== true) {
+      throw new Error("development smoke removal readback failed");
+    }
+    if (await pathExists(receiptPath)) throw new Error("development smoke receipt remains after removal");
+    if ((await readFile(adjacentPath, "utf8")) !== "preserve development smoke data\n") throw new Error("removal changed adjacent user data");
+    if (await gitStatus(layout.repository, environment) !== statusBeforeRemove) throw new Error("removal changed the target repository");
+    state.removeReadbackPassed = true;
+
+    const retained = await readRetainedTask(runtimePath, layout.dataDirectory, layout.repository, state.taskIdBeforeRestart, environment);
+    if (retained.task_id !== state.taskIdBeforeRestart || retained.phase !== "DONE" || retained.outcome?.status !== "completed") {
+      throw new Error("packaged Core did not retain the terminal task");
+    }
+    const database = await stat(join(layout.dataDirectory, "dev-flow.db"));
+    if (!database.isFile()) throw new Error("packaged Core task data file is absent");
+    state.taskDataRetained = true;
+    const repeated = await execJSON(packageCLI, ["remove", "--json"], { cwd: layout.repository, env: environment });
+    if (repeated.status !== "already-absent" || repeated.changed !== false) throw new Error("repeated removal is not a safe no-op");
+
+    state.status = "pass";
+    currentRole = null;
+    const result = buildDevelopmentSmokeResult(state);
+    await writeSmokeOutput(options.resultDirectory, "smoke-result.json", result);
+    return result;
+  } catch (error) {
+    state.failureKind = error.classification ?? "smoke-error";
+    const result = buildDevelopmentSmokeResult(state);
+    const diagnostic = sanitizeSmokeFailure({
+      role: error.role ?? currentRole,
+      eventCount: error.eventCount,
+      mcpTool: error.call?.tool,
+      status: error.call?.status,
+      classification: state.failureKind,
+      exitCode: error.exitCode,
+      stdout: error.stdout,
+      stderr: error.stderr,
+    });
+    await writeSmokeOutput(options.resultDirectory, "smoke-result.json", result);
+    await writeSmokeOutput(options.resultDirectory, "smoke-diagnostic.json", diagnostic);
+    const safe = new Error("development smoke failed; inspect the sanitized external result");
+    safe.classification = state.failureKind;
+    throw safe;
+  } finally {
+    if (root !== null) await rm(root, { recursive: true, force: true });
+  }
 }
 
 export async function runAcceptanceJourney(options) {
@@ -318,11 +560,13 @@ export function summarizeCodexSession(role, parsed) {
   }
   return {
     role,
+    thread_id: parsed.threadId,
     thread_started: true,
     dev_flow_call_count: parsed.calls.length,
     tools: parsed.calls.map((call) => call.tool),
     terminal_shapes: parsed.calls.map((call) => call.shape),
     core_done: parsed.calls.some((call) => containsDone(call.structuredContent)),
+    commands: parsed.commands.map((command) => structuredClone(command)),
     mcp_calls: parsed.mcpCalls.map((call) => ({
       item_id: call.itemId,
       server: call.server,
@@ -503,22 +747,266 @@ function containsDone(value) {
   return Object.values(value).some(containsDone);
 }
 
-async function defaultRunProcess(executable, args, { cwd }) {
-  try {
-    const { stdout, stderr } = await execFile(executable, args, {
-      cwd,
-      encoding: "utf8",
-      maxBuffer: 8 * 1024 * 1024,
-      windowsHide: true,
-    });
-    return { exitCode: 0, stdout, stderr };
-  } catch (error) {
-    return {
-      exitCode: Number.isInteger(error?.code) ? error.code : 1,
-      stdout: typeof error?.stdout === "string" ? error.stdout : "",
-      stderr: typeof error?.stderr === "string" ? error.stderr : String(error?.message ?? error),
-    };
+function validateDevelopmentSessions(sessions, state) {
+  aggregateSessionFacts(sessions);
+  const threadIDs = sessions.map((session) => session.thread_id);
+  if (new Set(threadIDs).size !== 4 || threadIDs.some((id) => typeof id !== "string" || id.length === 0)) {
+    throw new Error("development smoke requires four distinct Codex sessions");
   }
+  for (const session of sessions.slice(2)) assertHandshake(session);
+  const substantive = sessions[2];
+  const resume = sessions[3];
+  const substantiveApplies = successfulCalls(substantive, "dev_flow_apply_action");
+  const resumeApplies = successfulCalls(resume, "dev_flow_apply_action");
+  const taskBefore = lastTask(substantiveApplies);
+  const resumeOpen = successfulCalls(resume, "dev_flow_open_task")[0];
+  const taskAfter = taskFromCall(resumeOpen);
+  const finalTask = lastTask(resumeApplies);
+  if (!taskBefore || taskBefore.phase === "DONE" || taskBefore.outcome !== null) throw new Error("substantive session did not stop on a nonterminal Core task");
+  if (!taskAfter || taskAfter.task_id !== taskBefore.task_id) throw new Error("restart did not resume the same Core task");
+  if (!finalTask || finalTask.task_id !== taskBefore.task_id || finalTask.phase !== "DONE" || finalTask.outcome?.status !== "completed") {
+    throw new Error("resume session did not reach authoritative Core DONE");
+  }
+  const tools = resume.dev_flow_calls.map((call) => call.tool);
+  const readTask = tools.indexOf("dev_flow_get_task");
+  const readAction = tools.indexOf("dev_flow_get_next_action");
+  const firstApply = tools.indexOf("dev_flow_apply_action");
+  if (!(readTask > tools.indexOf("dev_flow_open_task") && readAction > readTask && firstApply > readAction)) {
+    throw new Error("resume must read task and next action before a new apply");
+  }
+  const commands = [...substantive.commands, ...resume.commands];
+  const proof = commands.filter((command) => command.command === PROOF_RENDERED_COMMAND || command.command === PROOF_COMMAND);
+  if (proof.length !== 1 || proof[0].status !== "completed" || proof[0].exitCode !== 0 || proof[0].output !== `${PROOF_GIT_HASH}\n`) {
+    throw new Error("development smoke requires one successful targeted proof command");
+  }
+  if (commands.some((command) => /(?:go test \.\/\.\.\.|pnpm (?:run )?(?:test|validate)|node --test .*\*)/u.test(command.command))) {
+    throw new Error("development smoke may not run a full suite");
+  }
+  state.taskIdBeforeRestart = taskBefore.task_id;
+  state.taskIdAfterRestart = taskAfter.task_id;
+  state.committedActionCount = substantiveApplies.length + resumeApplies.length;
+  state.terminalOutcome = "DONE";
+  if (state.committedActionCount < 2 || finalTask.revision <= taskBefore.revision) {
+    throw new Error("development smoke requires two committed actions and growing revision");
+  }
+}
+
+function assertHandshake(session) {
+  const call = session.dev_flow_calls[0];
+  const info = call?.core_result?.result;
+  if (
+    call?.tool !== "dev_flow_server_info"
+    || call.classification !== "success"
+    || info?.product !== "dev-flow"
+    || info.version !== "0.1.0"
+    || info.schema_version !== 1
+    || info.transport !== "stdio"
+    || info.health !== "ready"
+    || !info.supported_hosts?.includes("codex")
+    || !isDeepStrictEqual(info.tools, DEV_FLOW_TOOLS)
+  ) throw new Error("development smoke Core handshake is incomplete or incompatible");
+}
+
+function successfulCalls(session, tool) {
+  return session.dev_flow_calls.filter((call) => call.tool === tool && call.classification === "success");
+}
+
+function taskFromCall(call) {
+  return call?.core_result?.result?.task ?? null;
+}
+
+function lastTask(calls) {
+  return calls.map(taskFromCall).filter(Boolean).at(-1) ?? null;
+}
+
+async function assertEmptyResultDirectory(path) {
+  requireAbsolute(path, "development smoke result directory");
+  const info = await lstat(path);
+  if (!info.isDirectory() || info.isSymbolicLink() || (await readdir(path)).length !== 0) {
+    throw new Error("development smoke result directory must be an empty real directory");
+  }
+}
+
+function assertSupportedCodexHost() {
+  if (process.platform !== "darwin" || process.arch !== "arm64") throw new Error("development smoke requires macOS arm64");
+}
+
+async function isolatedEnvironment(layout, codexExecutable) {
+  const marker = `${join("node_modules", "")}`;
+  const canonicalExecutable = await realpath(codexExecutable);
+  const markerIndex = canonicalExecutable.lastIndexOf(`/${marker}`);
+  if (markerIndex < 0) throw new Error("Codex executable must come from the isolated 0.147 installation");
+  const codexBin = join(canonicalExecutable.slice(0, markerIndex), "node_modules", ".bin");
+  const authSource = join(homedir(), ".codex", "auth.json");
+  const authInfo = await lstat(authSource);
+  if (!authInfo.isFile() || authInfo.isSymbolicLink() || (authInfo.mode & 0o077) !== 0) throw new Error("isolated Codex auth source is unavailable");
+  await copyFile(authSource, join(layout.codexHome, "auth.json"));
+  await chmod(join(layout.codexHome, "auth.json"), 0o600);
+  const environment = { ...process.env };
+  for (const name of Object.keys(environment)) if (/(?:TOKEN|SECRET|PASSWORD|PASSWD|API_KEY|ACCESS_KEY|PRIVATE_KEY|AUTH)/iu.test(name)) delete environment[name];
+  for (const name of ["CODEX_SESSION_ID", "CODEX_THREAD_ID", "CODEX_INTERNAL_ORIGINATOR_OVERRIDE", "CODEX_SHELL"]) delete environment[name];
+  Object.assign(environment, {
+    HOME: layout.home,
+    CODEX_HOME: layout.codexHome,
+    TMPDIR: layout.temporaryDirectory,
+    DEV_FLOW_DATA_DIR: layout.dataDirectory,
+    npm_config_prefix: layout.installPrefix,
+    npm_config_cache: layout.npmCache,
+    XDG_CACHE_HOME: join(layout.root, "xdg-cache"),
+    GIT_CONFIG_GLOBAL: "/dev/null",
+    GIT_CONFIG_NOSYSTEM: "1",
+    NO_COLOR: "1",
+    PATH: `${join(layout.installPrefix, "node_modules", ".bin")}:${codexBin}:${process.env.PATH ?? "/usr/bin:/bin"}`,
+  });
+  await mkdir(environment.XDG_CACHE_HOME, { recursive: true, mode: 0o700 });
+  return environment;
+}
+
+async function assertCodexExecutable(executable, environment) {
+  const version = await execFile(executable, ["--version"], { env: environment, encoding: "utf8" });
+  if (version.stdout.trim() !== "codex-cli 0.147.0") throw new Error("development smoke requires Codex CLI 0.147.0");
+  const inspected = await execFile("file", [executable], { encoding: "utf8" });
+  if (!/Mach-O 64-bit executable arm64/u.test(inspected.stdout)) throw new Error("development smoke Codex executable must be macOS arm64");
+}
+
+async function execJSON(executable, args, options) {
+  const { stdout } = await execFile(executable, args, { ...options, encoding: "utf8", maxBuffer: 20 * 1024 * 1024 });
+  return JSON.parse(stdout);
+}
+
+function assertTemporaryBuild(build, artifactDirectory) {
+  if (
+    build?.final_artifact !== false
+    || build.package_version !== "0.1.0"
+    || build.core_version !== "0.1.0"
+    || build.platform !== "darwin-arm64"
+    || typeof build.artifact_path !== "string"
+    || relative(artifactDirectory, build.artifact_path).startsWith("..")
+  ) throw new Error("development smoke build is not a bounded temporary artifact");
+}
+
+async function initializeSmokeRepository(path, environment) {
+  await execFile("git", ["init", "--initial-branch=main", "--object-format=sha1"], { cwd: path, env: environment });
+  await writeFile(join(path, "README.md"), "Dev Flow Codex development smoke repository.\n");
+  await execFile("git", ["add", "README.md"], { cwd: path, env: environment });
+  await execFile("git", ["-c", "user.name=Dev Flow Smoke", "-c", "user.email=smoke@example.invalid", "commit", "-m", "smoke baseline"], { cwd: path, env: environment });
+  if (await gitStatus(path, environment) !== "") throw new Error("development smoke repository baseline is dirty");
+}
+
+async function gitStatus(path, environment) {
+  return (await execFile("git", ["status", "--porcelain=v1"], { cwd: path, env: environment, encoding: "utf8" })).stdout;
+}
+
+async function unexpectedRepositoryPaths(path, environment) {
+  return (await gitStatus(path, environment)).split("\n").filter(Boolean)
+    .map((line) => line.slice(3)).filter((name) => name !== "native-proof.txt");
+}
+
+async function pathExists(path) {
+  try { await lstat(path); return true; } catch (error) { if (error?.code === "ENOENT") return false; throw error; }
+}
+
+async function writeSmokeOutput(directory, name, value) {
+  await writeFile(join(directory, name), `${JSON.stringify(value)}\n`, { mode: 0o600 });
+}
+
+async function readRetainedTask(runtimePath, dataDirectory, repository, taskID, environment) {
+  const child = spawn(runtimePath, ["mcp", "--stdio"], {
+    cwd: repository, env: { ...environment, DEV_FLOW_DATA_DIR: dataDirectory }, stdio: ["pipe", "pipe", "pipe"], shell: false,
+  });
+  const pending = new Map();
+  let nextID = 1;
+  const lines = createInterface({ input: child.stdout, crlfDelay: Infinity });
+  lines.on("line", (line) => {
+    const response = JSON.parse(line);
+    const waiter = pending.get(response.id);
+    if (waiter) { clearTimeout(waiter.timer); pending.delete(response.id); waiter.resolve(response); }
+  });
+  const request = (method, params) => new Promise((resolve, reject) => {
+    const id = nextID++;
+    const timer = setTimeout(() => { pending.delete(id); reject(new Error(`packaged Core request timed out: ${method}`)); }, 10_000);
+    pending.set(id, { resolve, reject, timer });
+    child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
+  });
+  const initialized = await request("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "dev-flow-development-smoke", version: "0.1.0" } });
+  if (initialized.result?.serverInfo?.name !== "dev-flow") throw new Error("packaged Core initialize failed");
+  child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized", params: {} })}\n`);
+  const response = await request("tools/call", { name: "dev_flow_get_task", arguments: { host: "codex", task_id: taskID } });
+  const result = response.result?.structuredContent;
+  if (!result || JSON.parse(response.result.content?.[0]?.text ?? "null")?.result?.task?.task_id !== taskID) throw new Error("packaged Core retained-task result is incomplete");
+  child.stdin.end();
+  const stopped = await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => { child.kill("SIGTERM"); reject(new Error("packaged Core did not stop after EOF")); }, 10_000);
+    child.once("exit", (code, signal) => { clearTimeout(timer); code === 0 && signal === null ? resolve() : reject(new Error("packaged Core exited unexpectedly")); });
+  });
+  void stopped;
+  return result.result.task;
+}
+
+export async function defaultRunProcess(executable, args, { cwd, env, stopAfterApplyPath = null }) {
+  return streamingCodexProcess(executable, args, { cwd, env, stopAfterApplyPath });
+}
+
+async function streamingCodexProcess(executable, args, { cwd, env, stopAfterApplyPath }) {
+  return new Promise((resolve) => {
+    const child = spawn(executable, args, { cwd, env, stdio: ["ignore", "pipe", "pipe"], shell: false });
+    const stdout = [];
+    const stderr = [];
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
+    let lineBuffer = "";
+    let intentionalStop = false;
+    let overflow = false;
+    const append = (target, chunk, stream) => {
+      const length = stream === "stdout" ? stdoutBytes : stderrBytes;
+      if (length + chunk.length > 8 * 1024 * 1024) { overflow = true; child.kill("SIGTERM"); return; }
+      target.push(chunk);
+      if (stream === "stdout") stdoutBytes += chunk.length; else stderrBytes += chunk.length;
+    };
+    child.stdout.on("data", (chunk) => {
+      append(stdout, chunk, "stdout");
+      lineBuffer += chunk.toString("utf8");
+      const lines = lineBuffer.split("\n");
+      lineBuffer = lines.pop();
+      for (const line of lines) {
+        if (!intentionalStop && successfulApplyEvent(line) && exactProofExists(stopAfterApplyPath)) {
+          intentionalStop = true;
+          child.kill("SIGTERM");
+        }
+      }
+    });
+    child.stderr.on("data", (chunk) => append(stderr, chunk, "stderr"));
+    const timer = setTimeout(() => child.kill("SIGTERM"), 300_000);
+    child.once("error", (error) => {
+      clearTimeout(timer);
+      resolve({ exitCode: 1, stdout: Buffer.concat(stdout).toString("utf8"), stderr: String(error.message) });
+    });
+    child.once("exit", (code, signal) => {
+      clearTimeout(timer);
+      resolve({
+        exitCode: intentionalStop && !overflow ? 0 : (Number.isInteger(code) ? code : 1),
+        stdout: Buffer.concat(stdout).toString("utf8"),
+        stderr: Buffer.concat(stderr).toString("utf8"),
+        signal,
+      });
+    });
+  });
+}
+
+function successfulApplyEvent(line) {
+  try {
+    const event = JSON.parse(line);
+    const item = event?.type === "item.completed" ? event.item : null;
+    return item?.type === "mcp_tool_call"
+      && item.server === "dev-flow"
+      && item.tool === "dev_flow_apply_action"
+      && item.status === "completed"
+      && item.result?.structured_content?.ok === true;
+  } catch { return false; }
+}
+
+function exactProofExists(path) {
+  try { return existsSync(path) && readFileSync(path).equals(Buffer.from(PROOF_CONTENT)); } catch { return false; }
 }
 
 function requireAbsolute(value, label) {
@@ -527,7 +1015,7 @@ function requireAbsolute(value, label) {
   }
 }
 
-function parseCLI(argv) {
+export function parseCLI(argv) {
   const mode = argv.shift();
   if (mode === "acceptance-report") {
     if (argv.length !== 2 || argv[0] !== "--report") {
@@ -535,6 +1023,25 @@ function parseCLI(argv) {
     }
     requireAbsolute(argv[1], "acceptance report");
     return { mode, reportPath: argv[1] };
+  }
+  if (mode === "development-smoke") {
+    const values = {};
+    while (argv.length > 0) {
+      const flag = argv.shift();
+      if (!['--run-label', '--codex-executable', '--result-directory'].includes(flag) || flag in values || argv.length === 0) {
+        throw new Error("development smoke requires each exact flag once");
+      }
+      values[flag] = argv.shift();
+    }
+    if (!['A', 'B', 'C', 'D'].includes(values['--run-label'])) throw new Error("development smoke run label must be A, B, C, or D");
+    requireAbsolute(values['--codex-executable'], "Codex executable");
+    requireAbsolute(values['--result-directory'], "development smoke result directory");
+    return {
+      mode,
+      runLabel: values['--run-label'],
+      codexExecutable: values['--codex-executable'],
+      resultDirectory: values['--result-directory'],
+    };
   }
   if (!["smoke", "acceptance"].includes(mode)) {
     throw new Error("mode must be smoke, acceptance, or acceptance-report");
@@ -566,7 +1073,9 @@ async function main(argv) {
   }
   const summary = options.mode === "smoke"
     ? await runDevelopmentSmoke(options)
-    : await runAcceptanceJourney(options);
+    : options.mode === "development-smoke"
+      ? await runIsolatedDevelopmentSmoke(options)
+      : await runAcceptanceJourney(options);
   process.stdout.write(`${JSON.stringify(summary)}\n`);
 }
 

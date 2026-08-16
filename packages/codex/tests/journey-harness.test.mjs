@@ -14,6 +14,7 @@ import {
   smokePrompt,
   validateAcceptanceReport,
 } from "../../../scripts/write-codex-journey-evidence.mjs";
+import * as smokeRuntime from "../../../scripts/write-codex-journey-evidence.mjs";
 
 const execFile = promisify(execFileCallback);
 const repositoryRoot = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
@@ -165,6 +166,129 @@ test("real smoke wiring uses exact selector and ephemeral in-memory sessions", a
     persistent_attempt_state: false,
     status: "pass",
   });
+});
+
+test("development smoke allocates every run surface under one fresh root", () => {
+  assert.equal(typeof smokeRuntime.createDevelopmentSmokeLayout, "function");
+  const first = smokeRuntime.createDevelopmentSmokeLayout("/tmp/dev-flow-smoke-a");
+  const second = smokeRuntime.createDevelopmentSmokeLayout("/tmp/dev-flow-smoke-b");
+  const isolatedFields = ["home", "codexHome", "installPrefix", "dataDirectory", "repository", "invalidWorkspace", "artifactDirectory", "diagnosticDirectory"];
+
+  assert.equal(first.root, "/tmp/dev-flow-smoke-a");
+  assert.equal(second.root, "/tmp/dev-flow-smoke-b");
+  for (const field of isolatedFields) {
+    assert.notEqual(first[field], second[field], field);
+    assert.equal(first[field].startsWith(`${first.root}/`), true, field);
+    assert.equal(second[field].startsWith(`${second.root}/`), true, field);
+  }
+});
+
+test("development smoke admits only four bounded run labels and exact selectors", () => {
+  assert.equal(typeof smokeRuntime.parseCLI, "function");
+  const argumentsFor = (runLabel) => [
+    "development-smoke", "--run-label", runLabel,
+    "--codex-executable", "/opt/codex-0.147/codex",
+    "--result-directory", `/tmp/result-${runLabel}`,
+  ];
+  for (const runLabel of ["A", "B", "C", "D"]) {
+    assert.equal(smokeRuntime.parseCLI(argumentsFor(runLabel)).runLabel, runLabel);
+  }
+  assert.throws(() => smokeRuntime.parseCLI(argumentsFor("E")), /run label/u);
+  for (const prompt of [smokeRuntime.developmentInvalidPrompt, smokeRuntime.developmentSubstantivePrompt, smokeRuntime.developmentResumePrompt]) {
+    assert.equal(prompt.startsWith(`${EXPLICIT_SELECTOR} `), true);
+  }
+  assert.equal(smokeRuntime.ordinaryPrompt.includes(EXPLICIT_SELECTOR), false);
+});
+
+test("development smoke enforces ordinary and invalid zero-call admission", () => {
+  assert.equal(typeof smokeRuntime.assertDevelopmentAdmissionIsolation, "function");
+  const ordinary = { dev_flow_call_count: 0, tools: [] };
+  const invalid = { dev_flow_call_count: 0, tools: [] };
+  assert.doesNotThrow(() => smokeRuntime.assertDevelopmentAdmissionIsolation(ordinary, invalid));
+  assert.throws(
+    () => smokeRuntime.assertDevelopmentAdmissionIsolation(
+      { dev_flow_call_count: 1, tools: ["dev_flow_server_info"] },
+      invalid,
+    ),
+    /ordinary/u,
+  );
+  assert.throws(
+    () => smokeRuntime.assertDevelopmentAdmissionIsolation(
+      ordinary,
+      { dev_flow_call_count: 1, tools: ["dev_flow_open_task"] },
+    ),
+    /invalid/u,
+  );
+});
+
+test("development smoke result and failure diagnostic stay ephemeral and sanitized", () => {
+  assert.equal(typeof smokeRuntime.buildDevelopmentSmokeResult, "function");
+  assert.equal(typeof smokeRuntime.sanitizeSmokeFailure, "function");
+  const result = smokeRuntime.buildDevelopmentSmokeResult({
+    status: "pass",
+    runId: "run-redacted",
+    ordinaryCoreCalls: 0,
+    invalidOpenTaskCalls: 0,
+    taskIdBeforeRestart: "task-redacted",
+    taskIdAfterRestart: "task-redacted",
+    committedActionCount: 2,
+    terminalOutcome: "DONE",
+    setupReadbackPassed: true,
+    removeReadbackPassed: true,
+    taskDataRetained: true,
+    unexpectedRepositoryPaths: [],
+    failureKind: null,
+  });
+  assert.deepEqual(Object.keys(result), [
+    "status",
+    "run_id",
+    "codex_version",
+    "package_version",
+    "core_version",
+    "ordinary_core_calls",
+    "invalid_open_task_calls",
+    "task_id_before_restart",
+    "task_id_after_restart",
+    "committed_action_count",
+    "terminal_outcome",
+    "setup_readback_passed",
+    "remove_readback_passed",
+    "task_data_retained",
+    "unexpected_repository_paths",
+    "failure_kind",
+  ]);
+  assert.equal("acceptance" in result, false);
+  assert.equal("artifact" in result, false);
+  assert.equal("attempt" in result, false);
+  assert.equal("evidence" in result, false);
+
+  const diagnostic = smokeRuntime.sanitizeSmokeFailure({
+    role: "substantive",
+    eventCount: 7,
+    mcpTool: "dev_flow_apply_action",
+    status: "failed",
+    classification: "transport-error",
+    exitCode: 1,
+    stdout: "raw model response with token-secret",
+    stderr: "prompt failed at /Users/private/repository with ENV=value",
+  });
+  assert.deepEqual(Object.keys(diagnostic), [
+    "session_role",
+    "event_count",
+    "mcp_tool",
+    "status",
+    "classification",
+    "exit_code",
+    "stdout_sha256",
+    "stderr_sha256",
+  ]);
+  assert.doesNotMatch(JSON.stringify(diagnostic), /raw model|token-secret|\/Users\/private|ENV=value/u);
+});
+
+test("development smoke closes stdin before waiting for Codex JSONL", async () => {
+  const childProgram = "let ended=false;process.stdin.resume();process.stdin.once('end',()=>{ended=true;process.stdout.write('closed')});setTimeout(()=>process.exit(ended?0:7),100)";
+  const result = await smokeRuntime.defaultRunProcess(process.execPath, ["-e", childProgram], { cwd: repositoryRoot });
+  assert.deepEqual({ exitCode: result.exitCode, stdout: result.stdout }, { exitCode: 0, stdout: "closed" });
 });
 
 test("simplified acceptance validates one complete closed FR-028 report", () => {

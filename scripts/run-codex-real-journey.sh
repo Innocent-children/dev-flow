@@ -10,6 +10,7 @@ usage() {
   printf '%s\n' \
     'usage: run-codex-real-journey.sh --fixture success|core-domain-error|transport-error' \
     '   or: run-codex-real-journey.sh --smoke --codex-executable ABS --workspace ABS' \
+    '   or: run-codex-real-journey.sh --development-smoke --run-label A|B|C|D --codex-executable ABS --result-directory ABS' \
     '   or: run-codex-real-journey.sh --acceptance --codex-executable ABS --workspace ABS' >&2
 }
 
@@ -36,6 +37,11 @@ if [ "$#" -eq 5 ] && { [ "$1" = "--smoke" ] || [ "$1" = "--acceptance" ]; }; the
   mode=${1#--}
   shift
   exec node "$script_dir/write-codex-journey-evidence.mjs" "$mode" "$@"
+fi
+
+if [ "$#" -eq 7 ] && [ "$1" = "--development-smoke" ]; then
+  shift
+  exec node "$script_dir/write-codex-journey-evidence.mjs" development-smoke "$@"
 fi
 
 usage

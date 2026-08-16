@@ -43,6 +43,7 @@ export function parseCodexJSONL(text) {
 
   const calls = [];
   const mcpCalls = [];
+  const commands = [];
   const itemIDs = new Set();
   let threadId = null;
   let eventCount = 0;
@@ -68,6 +69,27 @@ export function parseCodexJSONL(text) {
     }
     if (event?.type !== "item.completed") continue;
     const item = event.item;
+    if (item?.type === "command_execution") {
+      if (
+        typeof item.id !== "string"
+        || item.id.length === 0
+        || typeof item.command !== "string"
+        || item.command.length === 0
+        || typeof item.aggregated_output !== "string"
+        || !(Number.isInteger(item.exit_code) || (item.status === "failed" && item.exit_code === null))
+        || !["completed", "failed"].includes(item.status)
+      ) {
+        throw new Error("command terminal item has an invalid identity, command, result, or status");
+      }
+      commands.push({
+        itemId: item.id,
+        command: item.command,
+        output: item.aggregated_output,
+        exitCode: item.exit_code,
+        status: item.status,
+      });
+      continue;
+    }
     if (item?.type !== "mcp_tool_call") continue;
     if (
       typeof item.id !== "string"
@@ -110,6 +132,7 @@ export function parseCodexJSONL(text) {
     eventCount,
     calls,
     mcpCalls,
+    commands,
     transcriptIntegrity,
   };
 }
