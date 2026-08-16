@@ -1,351 +1,101 @@
-# Contract: Codex Product Plugin 0.1
+# Codex Package and Plugin Contract
 
-## Purpose
+## Identity
 
-This contract defines the locally packed Codex product boundary and its explicit setup/removal
-interface. It does not redefine Core MCP inputs, results, workflow states, transitions, repository
-claims, recovery classifications, verification budgets, or terminal outcomes. Those remain owned
-by Core Contract 0.1.
-
-## Supported Surface
-
-| Property | Contract |
+| Field | Value |
 |---|---|
-| Product | `dev-flow-codex` |
-| Artifact | One private local npm `.tgz` |
-| Host | Codex CLI |
-| Compatibility | Codex CLI `>=0.147.0 <0.148.0`, selected from the official stable contract on 2026-08-15 |
-| Exact native version | Codex CLI `0.147.0` |
-| Native evidence | macOS arm64 only |
-| Publication | Prohibited in Feature 003 |
-| Plugin count | Exactly one |
-| User-facing Skill count | Exactly one |
-| Skill resource/base name | `dev-flow` |
-| Installed Skill full name | `dev-flow-codex:dev-flow` = plugin name + `:` + Skill base name |
-| Explicit Skill selector | Exact `$dev-flow-codex:dev-flow`; bare `$dev-flow` is not an alias |
-| MCP server count | Exactly one, local STDIO |
-| Core MCP tool count | Exactly six |
-| Passing real-host journey count | Exactly one; only T058 may launch, each immutable chain may launch at most once, and every attempt is counted |
+| Package | `dev-flow-codex` |
+| Plugin namespace | `dev-flow-codex` |
+| Skill base name | `dev-flow` |
+| Explicit selector | `$dev-flow-codex:dev-flow` |
+| MCP server | `dev-flow` |
+| Core contract | `0.1` |
+| Codex baseline | CLI 0.147 on macOS arm64 |
 
-The exact compatible range, Codex version, artifact digest, frozen source commit, and Core version
-are recorded by final evidence. The version/range remain implementation evidence rather than a
-permanent product-specification constant.
+The package remains private and has no production dependency or install-time mutation hook.
 
-## Compatibility Revalidation
+## Packed Surface
 
-Before final deterministic validation, implementation must revalidate official Codex plugin, Skill,
-MCP, marketplace, setup/readback, and removal behavior. When the selected compatible range differs
-from planning, update together:
+The package allowlist contains only:
 
-- this contract;
-- `research.md` and `plan.md`;
-- `registration-receipt.schema.json`;
-- `validation-report.schema.json`;
-- `artifact-report.schema.json`;
-- `native-attempt-diagnostic.schema.json`;
-- `native-attempt-ledger.schema.json`;
-- `journey-evidence.schema.json`;
-- `data-model.md`, `quickstart.md`, and `tasks.md`;
-- package, lifecycle, Skill, and evidence-validator tests.
+- local marketplace metadata;
+- launcher and lifecycle/path helpers;
+- plugin manifest and MCP configuration;
+- the single Skill and Codex invocation policy;
+- one selected platform Core runtime;
+- package metadata, README, and LICENSE.
 
-Setup verifies that the installed Codex version satisfies the selected range. The registration
-receipt and journey evidence store the range as data rather than hard-coding a planning-time minor
-line in JSON Schema. Range membership is enforced by implementation/semantic tests.
+It excludes tests, fixtures, task data, receipts, Core source, workflow state, and evidence records.
 
-The 2026-08-15 revalidation selected exact stable `0.147.0`, retained
-`>=0.147.0 <0.148.0`, and fixed four behavior-bearing boundaries: official Skill policy metadata,
-installed-plugin Skill identity as `<plugin-name>:<skill-base-name>`, the MCP shape accepted by both
-0.147 parsers, and official top-level-object/camelCase CLI JSON. For this package, the one resource
-base name remains `dev-flow` while its only installed explicit selector is
-`$dev-flow-codex:dev-flow`.
+## Setup and Readback
 
-## Packed Artifact Layout
+Setup is an explicit user action. It verifies:
+
+1. package/Core version compatibility;
+2. runtime presence and executability;
+3. exact plugin and Skill resources;
+4. implicit invocation disabled;
+5. direct STDIO MCP configuration;
+6. one owned marketplace/plugin readback.
+
+Only then may it write the closed registration receipt. Setup never writes the target repository.
+
+## Removal
+
+Removal uses the receipt to delete only product-owned registration and package state. It preserves:
+
+- Core task data;
+- target-repository content;
+- unknown adjacent files;
+- foreign marketplace/plugin entries.
+
+Repeated removal is idempotent, and a compatible reinstall may rediscover retained tasks.
+
+## Tool Surface
+
+The direct MCP server exposes exactly:
 
 ```text
-package/
-├── package.json
-├── README.md
-├── .agents/
-│   └── plugins/
-│       └── marketplace.json
-├── bin/
-│   └── dev-flow-codex.mjs
-├── lib/
-│   ├── lifecycle.mjs
-│   └── paths.mjs
-├── plugin/
-│   ├── .codex-plugin/
-│   │   └── plugin.json
-│   ├── .mcp.json
-│   └── skills/
-│       └── dev-flow/
-│           ├── SKILL.md
-│           └── agents/
-│               └── openai.yaml
-└── runtime/
-    └── darwin-arm64/
-        └── dev-flow
+dev_flow_server_info
+dev_flow_open_task
+dev_flow_get_task
+dev_flow_get_next_action
+dev_flow_apply_action
+dev_flow_cancel_task
 ```
 
-No Core source, repository metadata, shared fixture copy, test fake, evidence record, database,
-receipt, second platform runtime, or second host product is present. Package construction uses an
-exact allowlist and rejects unexpected paths.
+No proxy, generic shell MCP tool, extra alias, transition engine, or adapter-owned task store is
+permitted.
 
-## Manifest and Marketplace Invariants
+## Verification Contract
 
-- `package.json.name` is `dev-flow-codex`, `private` is `true`, and version equals repository
-  `VERSION`, plugin version, and embedded Core version.
-- One executable named `dev-flow-codex` is exposed.
-- No `preinstall`, `install`, `postinstall`, `prepare`, publication, release, or download hook is
-  present.
-- Production npm dependencies are empty; new Node glue uses the standard library.
-- The local marketplace contains exactly one in-root plugin entry.
-- The plugin contains exactly one Skill, its official Codex metadata, and one MCP resource using the
-  selected 0.147 contract.
-- The installed Skill resolves only as `dev-flow-codex:dev-flow`; bare `dev-flow`, a wrong
-  namespace/base name, or no selector never enters the Skill and makes no Dev Flow call.
-- `agents/openai.yaml` contains exactly `policy.allow_implicit_invocation: false`; `SKILL.md`
-  frontmatter contains only supported Skill identity/description fields and does not carry that
-  policy.
-- `.mcp.json` contains Agent Plugins v1 `$schema`, camelCase `mcpServers`, and one typed stdio
-  server invoking exactly `dev-flow-codex mcp`. This is accepted by both 0.147 plugin parsers.
-- No shell, network, Git, filesystem, proxy, or generic forwarding MCP server is added.
-- Volatile official field names are revalidated rather than supported through invented aliases.
+Feature 003 verification has six layers:
 
-## Product Executable
+1. package build/allowlist;
+2. lifecycle setup/readback/removal;
+3. Skill selector and six-tool composition;
+4. deterministic Core loop;
+5. three Codex 0.147 JSONL terminal shapes;
+6. repeatable native smoke plus one final pre-merge acceptance journey.
 
-Production commands are limited to:
+Development smoke output is ephemeral. It is not release evidence and creates no permanent attempt
+or report state.
 
-| Command | Purpose | Stdout contract |
-|---|---|---|
-| `dev-flow-codex setup [--json]` | Validate and explicitly register this artifact | Human result or one JSON object |
-| `dev-flow-codex remove [--json]` | Explicitly remove the recorded registration | Human result or one JSON object |
-| `dev-flow-codex mcp` | Start packaged Core over STDIO | Reserved entirely for Core MCP output |
-| `dev-flow-codex --version` | Report package/Core identity | One stable version line |
+## Deferred Release Contract
 
-Unknown commands fail without modifying Codex state, task data, or the current repository.
-Diagnostics go to stderr.
+Feature 003 does not define validation/artifact reports, immutable attempts, pass-lock, digest
+chains, diagnostic-version compatibility, cross-file crash transactions, fsync/inode/TOCTOU
+protocols, large-stream digest matrices, or canonical support evidence. The former schemas for those
+concerns are removed from this feature and may be redesigned by a dedicated release/supply-chain
+feature.
 
-`mcp` resolves `runtime/darwin-arm64/dev-flow` relative to the installed package. A nonempty
-explicit `DEV_FLOW_DATA_DIR` must be absolute, canonical, and already usable. Without an override,
-the launcher creates only `~/Library/Application Support/dev-flow/data` with restrictive
-permissions when absent. It launches Core in STDIO mode with inherited protocol streams and does not
-parse, buffer, project, log, or retry MCP payloads.
+## Pending HIGH Cases
 
-## Explicit Setup
+The package remains NO-GO while these follow-up regressions are pending:
 
-### Preconditions
+- diagnostic precedence;
+- Core envelope closure;
+- failed-event/recovery binding;
+- aggregate/session MCP fact parity.
 
-All preconditions are validated before the first mutation:
-
-1. platform is `darwin-arm64`;
-2. exact Codex CLI version satisfies the selected compatible range;
-3. package/plugin/Core/repository version identity matches;
-4. packaged Core exists, is executable, and reports the expected version outside the source tree;
-5. one marketplace, one plugin, one Skill, its explicit-only Codex policy, and one MCP server are
-   present;
-6. `dev-flow-codex` is discoverable by the Codex process;
-7. receipt parents do not escape the product user-data root through symlinks.
-
-Failure performs no registration.
-
-### Reconciliation
-
-1. Read and schema-validate the receipt when present.
-2. Read marketplace/plugin state through supported Codex JSON commands. Require the exact
-   top-level shapes `{marketplaces: [...]}` and `{installed: [...], available: [...]}`; the latter
-   has an empty `available` array when `--available` was not requested.
-3. Return idempotent success only when receipt and readback match.
-4. Fail closed on conflicting ownership or malformed/incomplete readback.
-5. Add the marketplace only when absent and validate the camelCase add result
-   (`marketplaceName`, `installedRoot`, `alreadyAdded`).
-6. Install the product plugin through the supported command and validate the camelCase add result
-   (`pluginId`, `name`, `marketplaceName`, `version`, `installedPath`, `authPolicy`). The returned
-   cache path is observed but remains Codex-owned and is never deleted directly.
-7. Read marketplace/plugin state again and require the owned marketplace's `marketplaceSource`,
-   root, and name plus the installed plugin's `pluginId`, source, marketplace source, version,
-   install/auth policies, installed state, and enabled state.
-8. Atomically write the receipt only after successful readback. Resource digests cover the plugin
-   manifest, Skill, Skill metadata policy, and MCP configuration.
-
-Rollback removes only a marketplace created by this attempt and only after confirming it did not
-pre-exist. Adjacent/ambiguous state is preserved.
-
-## Explicit Removal
-
-1. Read and schema-validate the exact receipt.
-2. Read current marketplace/plugin state.
-3. Fail closed on conflict.
-4. Remove the matching plugin through the supported command and validate its camelCase result.
-5. Verify plugin absence.
-6. Remove the matching marketplace only when it still resolves to the receipt root, then validate
-   its camelCase result (`marketplaceName`, nullable `installedRoot`).
-7. Verify marketplace absence.
-8. Delete only the exact receipt and optionally its now-empty product-owned directory.
-
-Unknown adjacent entries are preserved and reported by path without reading their contents.
-
-Removal never deletes:
-
-- the npm package;
-- Core data;
-- a repository;
-- Codex config/cache directly;
-- unknown adjacent resources.
-
-Repeated absence is a no-op success. Interrupted removal rereads both receipt and Codex state before
-the next mutation.
-
-## Core Connection
-
-The actual Go Core owns the MCP connection and exposes exactly:
-
-1. `dev_flow_server_info`
-2. `dev_flow_open_task`
-3. `dev_flow_get_task`
-4. `dev_flow_get_next_action`
-5. `dev_flow_apply_action`
-6. `dev_flow_cancel_task`
-
-The Codex package may verify this catalog but may not implement, alias, proxy, or augment it.
-Schemas and results are validated against shared Feature 002 fixtures in place.
-
-## Repository Boundary
-
-Setup/removal behave identically from any working directory and create no file in the current/target
-repository. Neither lifecycle command mutates Git. The Skill may use ordinary Codex repository tools
-only after Core returns a live action whose allowed effects and current user authority permit the
-work.
-
-## Evidence Rules
-
-User-story implementation uses static/package, fake-Codex, fake-Core, packaged-Core retention, and
-fake journey-harness evidence only. Those layers never claim native behavior.
-
-After compatibility revalidation, targeted checks, root validation, and a read-only source audit
-pass, one artifact/report is built for an immutable frozen-source/validation/artifact chain. Only
-T058 may start Codex and that chain may launch at most once. Exactly one passing attempt must cover
-setup, explicit activation, task execution, restart/resume, `DONE`, removal, retained data, and
-compatible reinstall. A failed or blocked attempt consumes its chain, remains counted in the
-external attempt ledger, cannot establish support, and requires a source correction plus a wholly
-new T055–T057 chain before another T058 launch. A source commit already present in the ledger cannot
-be retried merely by regenerating report bytes. A passing entry prohibits every later launch.
-
-Pass publication uses the single `evidence-create-before-ledger-finalize-v1` protocol. The runner
-uses one stable external ledger path/ID across every chain, reserves the chain under an exclusive
-reservation lock before spawn, durably prepares observed facts and exact evidence/final-ledger bytes
-after host success, completely validates those exact candidates against unchanged reports/artifact
-and observed facts, atomically publishes only passing evidence create-no-replace, and only then
-atomically finalizes the ledger. Valid passing evidence is an immediate no-host admission lock. A
-crash after evidence publication permits only validation and idempotent installation of the
-precomputed ledger bytes; a crash before publication consumes the attempt and can never be recovered
-as pass or rerun. Switching to another/empty ledger or racing a concurrent reservation is rejected.
-The ledger ID is SHA-256 over a domain separator plus its canonical absolute path; every operation
-recomputes it, so copied bytes at a different path cannot preserve the ledger identity.
-
-Admission and reservation both reject a ledger unless attempts are sequential from 1, chain/source
-identities are unique, finalized fields match status, no entry follows a pass, and no entry follows
-an unresolved final reservation. Every mutation owns a closed lock binding ledger ID, owner token,
-PID, creation time, operation, and expected ledger digest; it rechecks that digest under the same
-lock immediately before atomic replacement. A stale lock is removed only when its closed identity
-is valid and its PID is definitely dead. Live, permission-ambiguous, malformed, or wrong-ledger
-locks fail closed.
-
-`validation-report.schema.json` and `artifact-report.schema.json` close the two retained machine
-reports. Their exact byte digests, the artifact `built_at`, current chain identity, ledger digest,
-and actual attempt count are recorded in `journey-evidence.schema.json`. The planned semantic
-candidate validator rereads the unchanged reports and ledger, rejects replacement or digest drift,
-requires the exact ordered targeted commands and exact root command once each, exact validation
-projection, one source/artifact chain and
-`validation.completed_at <= artifact.built_at < evidence.recorded_at`, and separately checks range
-membership, durable-facts/final-ledger digest and commit-protocol identity, raw revision
-non-regression plus strict adjacent-deduplicated lineage,
-task-ID equality, four unique thread IDs, raw revision monotonicity, ordered restart recovery reads,
-complete Core-derived verification budget and official command facts reconciled to Core evidence,
-Core `DONE`, exact setup/reinstall registry cardinality, a non-secret retained-data descriptor,
-data/repository digest equality, lifecycle booleans, and prior root validation. Every official
-completed command event is retained only as a role/event/item/command/output digest plus status,
-exit code, and verification classification. Ordinary/invalid host commands and
-substantive/resume repository work are non-verification facts. Only the one substantive/resume
-event whose logical proof name `git hash-object native-proof.txt` maps to the exact Codex 0.147
-macOS rendering `/bin/zsh -lc 'git hash-object native-proof.txt'` may be classified as verification,
-and it must bind one-to-one to submitted and retained Core evidence. The runner compares that exact
-rendering directly without generic shell parsing; duplicate/unbound proof events fail closed. A
-literal pre-hash deny check rejects any rendered command containing one of the closed known
-test/full-suite markers `go test`, `pnpm test`, `pnpm run test`, `pnpm run validate`, or
-`node --test`, without parsing or normalizing shell syntax. Raw command/output/path material is discarded after hashing. It also
-requires the
-compatibility query to precede every validation observation. Direct Core reopen rejects non-JSON,
-unknown/duplicate response IDs, and bounded-output violations. The bound public validator runs all
-four closed schemas and complete pass semantics; recovery additionally validates the precomputed
-exact bytes/identities. The canonical repository path and journey-evidence schema contain only the
-unique passing record. Failed/blocked diagnostics conform to the independent closed
-`native-attempt-diagnostic.schema.json`, may contain only observations actually reached, remain
-outside the repository, and are invalidated with their chain while their ledger entries are
-retained. Conditional schema versions 1, 2, and 3 preserve the immutable consumed attempt-1 v1,
-attempt-2 v2, and attempt-3 v3 records without byte changes. Every diagnostic after attempt 3 uses
-`external-failure-record-v4` and, when a completed command caused the failure, adds only the safe
-typed context `{session_role,event_type,command_sha256,output_sha256,status,exit_code}`. Versions 3
-and 4 require exactly four ordered safe session observations, one per
-ordinary/invalid/substantive/resume role, with closed stage, nullable exit/signal, thread presence,
-bounded stdout/stderr bytes and digests, and closed event/item/MCP status counts. Those observations
-are persisted before cleanup in both the diagnostic and the ledger-bound failure-observed-facts file
-and must be equal. Raw JSONL, stderr, prompts, commands, outputs, environment values, secrets, thread
-IDs, and paths are forbidden. Any post-publication integrity failure is terminal blocked recovery
-and cannot authorize another host launch.
-
-Version 4 preserves the four observations and adds `failure_kind=mcp_event` with exactly
-`{session_role,event_type,event_index,tool,status,result_kind,result_sha256,error_sha256}`. The tool
-is one of the six exact Core Contract names. A complete canonical result digest with null error is
-`tool_error_result`; a canonical typed-error digest with null result is `transport_error`. Raw
-arguments, results, errors, JSONL, thread IDs, paths, environments, and secrets are prohibited.
-`command_event`, `mcp_event`, and `non_command` require respectively only command context, only MCP
-context, or neither.
-
-For a v4 `mcp_event`, semantic validation additionally binds the context to the observation for its
-role: stage `mcp_failed`, an in-range post-thread event index, and aggregate counts containing a
-failed Dev Flow completed MCP item. Its failure is exactly phase `codex-session` and reason
-`mcp-event-failed`. Writer attribution is event-local, so an earlier recovered MCP failure cannot be
-reused as context for a later unrelated failure.
-
-Codex 0.147 `item.completed` with `status=failed`, a complete result/text-structured parity, and
-`error=null` carrying a structured Core `ok=false` envelope is parsed as a complete Core/tool error result; its structured envelope drives the
-existing Core stop/recovery behavior. `status=failed`, `result=null`, and a typed error is a transport
-failure without Core authority and stops fail-closed. A malformed successful event remains a
-protocol error, as is a failed item whose complete envelope claims `ok=true`. The runner never ignores a failed event or retries an uncertain mutation without
-the authoritative read-before-retry sequence.
-
-A passing candidate contains a required (possibly empty) ordered
-`journey.invocation.recoverable_mcp_failure_facts` array equal to the ledger-bound observed-facts
-projection. Each entry safely identifies the failed apply item, canonical request task ID/expected
-revision, and complete result digest, projects the
-Core error code plus `retry_safe=false` and `read_task|read_next_action` authority, and binds exact safe references to the later
-`dev_flow_get_task`, `dev_flow_get_next_action`, and next `dev_flow_apply_action` calls, including
-their task IDs and revisions. The semantic validator
-requires that order against the role-scoped closed `mcp_call_facts` (role/index/tool,
-argument/result digests, status/result kind, nullable task projection and bounded Core
-error/recovery fields), requires the failed request and all three calls to use the canonical journey
-task ID, requires its expected revision in raw lineage, equal read revisions, plus a greater apply revision present in raw lineage
-and committed actions, and rejects transport failures,
-unbound/duplicate facts or references, raw messages, and any intervening mutation.
-
-Structural validation binds v1/v2/v3 to exact attempt/total counts 1/2/3, and v4 to counts of at
-least 4. Semantic validation also requires the exact corresponding ledger entry,
-identity, and observed-facts digest, so no later attempt can downgrade to v1/v2/v3. The exact
-immutable v1 record is the sole legacy textual-observation exception and is accepted only through
-its historical identity/digest; it is not a template for a new record.
-
-Deterministic T054 coverage runs the production default install/setup/readback/four-session/
-remove/direct-reopen/reinstall/cleanup helpers against fake npm, Codex 0.147 JSONL, and Core child
-processes. It does not replace the whole orchestration with injected callbacks, start a real Codex
-host, build the final artifact, or write canonical evidence. Concurrent setup treats
-`alreadyAdded=true` as unowned state and never rolls it back. Setup and reinstall accept only a
-top-level object containing exactly one owned marketplace, one installed owned plugin, and zero
-available plugins. Its fake host emits an ordinary successful ambient command, an invalid-session
-nonzero Git discovery, and active-session repository work plus one exact rendered proof so the
-production parser and full candidate validator exercise session-aware accounting. The fake resolves
-the exact official installed Skill identity from plugin name plus Skill base name; bare `$dev-flow`,
-wrong namespace/base selectors, and missing selectors yield no synthetic MCP calls, while only
-`$dev-flow-codex:dev-flow` may drive the substantive/resume streams. Failed orchestration tests use
-that default subprocess boundary and require durable version-4 safe session observations before
-cleanup while retaining byte-exact read-only coverage for historical versions 1 through 3.
+This contract records the blockers without specifying their fixes.

@@ -35,19 +35,16 @@
 - [x] Verification budgets and evidence classifications are explicit and measurable.
 - [x] Completion occurs only from Core `DONE`.
 
-## Evidence budget and integrity
+## Verification budget and integrity
 
-- [x] US1/US2/US3 checkpoints are deterministic/fake/integration only.
-- [x] Exactly one passing real Codex journey is authorized after all deterministic checks, root
-  validation, scope audit, source freeze, and one final artifact; each immutable chain permits at
-  most one launch and consumed failed attempts remain external/non-supporting.
+- [x] US1/US2/US3 deterministic layers remain distinct from real-host acceptance.
+- [x] Development smoke is safely repeatable and writes no ledger, report, artifact, or canonical
+  evidence.
 - [x] Root validator ownership is assigned to Feature 003 and preserves the DeepSeek skeleton.
-- [x] JSON Schema supports honest pass/failed/blocked structures without fabricated unavailable data.
-- [x] A separate read-only semantic validator checks compatibility, version/source/artifact identity,
-  strict revisions, task equality, action count, call budget, `DONE`, data/repository equality,
-  lifecycle flags, and prior root validation.
-- [x] Final build/evidence order prevents tests or evidence writes from invalidating the final
-  artifact.
+- [x] Three sanitized Codex 0.147 fixtures preserve official terminal status/result/error shapes.
+- [x] Core-loop tests own task lineage and verification-budget behavior; parser tests do not
+  duplicate the workflow engine.
+- [x] One final real-host acceptance journey is a merge gate, not release-grade provenance.
 - [x] Final audit scope includes all Feature 003 docs, contracts, schemas, scripts, package code,
   shared contract tests, and evidence.
 
