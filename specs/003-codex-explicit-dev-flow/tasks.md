@@ -3,8 +3,8 @@
 **Input**: [spec.md](./spec.md), [plan.md](./plan.md), [data-model.md](./data-model.md),
 [research.md](./research.md), and contracts in `contracts/`.
 
-**Current checkpoint**: merge preparation after simplification, four-HIGH closure, and two passing
-isolated development-smoke runs. Feature 003 remains NO-GO until T078 passes.
+**Current checkpoint**: final acceptance passed against reviewed source
+`d2b700fb6ee938c401e2a74a0ff028f4a4db08f4`; Feature 003 is GO / ready for merge.
 
 ## Completed Product Baseline
 
@@ -116,10 +116,11 @@ isolated development-smoke runs. Feature 003 remains NO-GO until T078 passes.
   SC-004)
 - [X] **T085** Repair the first real-acceptance apply forwarding and preserve the complete Core
   rejection as the primary diagnostic when caller request binding fails. (FR-015, FR-019, FR-026)
-- [ ] **T078** Run the final real Codex acceptance journey after T074–T077 close and
-  after T080–T084 close, immediately before merge approval. Ordinary must remain zero-call; the
+- [X] **T078** Run the final real Codex acceptance journey after T074–T077 close and
+  after T080–T085 close, immediately before merge approval. Ordinary must remain zero-call; the
   non-mutating bare-selector probe must retain real call facts while proving unchanged
   task/event/claim and target-repository state before substantive/restart/resume/DONE/removal/reopen.
+  Passed once against reviewed source `d2b700fb6ee938c401e2a74a0ff028f4a4db08f4`.
 - [ ] **T079 [EXTERNAL / DEFERRED]** Design release-grade provenance, immutable attempt state,
   digest chaining, crash transactions, and publication evidence in a dedicated release/supply-chain
   feature.
@@ -129,8 +130,8 @@ isolated development-smoke runs. Feature 003 remains NO-GO until T078 passes.
 - [X] Two fresh isolated Codex 0.147 development-smoke runs passed on 2026-08-16 with distinct task
   identities, seven committed actions, Core `DONE`, successful removal, and retained-task reopen.
 - [X] Run the final targeted/root validation and final analyze/review against the current diff.
-- [ ] Commit and push `codex/feature-003-repeatable-development-smoke` with a clean worktree.
-- [ ] Complete T078 exactly once against that reviewed commit.
+- [X] Commit and push `codex/feature-003-repeatable-development-smoke` with a clean worktree.
+- [X] Complete T078 exactly once against that reviewed commit.
 
 ## Dependencies
 
@@ -141,7 +142,7 @@ isolated development-smoke runs. Feature 003 remains NO-GO until T078 passes.
 - T072 runs once after T071.
 - T073 follows T072.
 - T074–T077 and the repeatable development smoke are complete.
-- T080–T084 and final validation on a clean reviewed commit precede T078.
+- T080–T085 and final validation on a clean reviewed commit precede T078.
 - T079 belongs to a separate release/supply-chain feature and is not a Feature 003 merge gate.
 
 ## Requirements Coverage

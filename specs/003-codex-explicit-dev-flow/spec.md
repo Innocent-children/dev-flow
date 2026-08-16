@@ -4,8 +4,9 @@
 
 **Created**: 2026-08-14
 
-**Status**: Merge preparation — four native regressions closed and repeatable development smoke
-passed twice; **NO-GO** until the final acceptance journey passes
+**Status**: **GO / ready for merge** — four native regressions closed, repeatable development smoke
+passed twice, and final real-host acceptance passed against reviewed source
+`d2b700fb6ee938c401e2a74a0ff028f4a4db08f4`
 **Input**: Package the shared Dev Flow Core as a thin Codex product that starts or resumes one
 single-repository task only when the user explicitly invokes `$dev-flow-codex:dev-flow`.
 
@@ -210,4 +211,5 @@ reopen. These repeatable development observations satisfy FR-027 but do not sati
 - The current implementation baseline is Codex CLI 0.147 on macOS arm64.
 - The three sanitized JSONL fixtures are derived from that host contract and contain no prompt,
   source, user path, environment, token, or secret.
-- Feature 003 remains NO-GO until the final real-host acceptance journey passes.
+- Final real-host acceptance passed against reviewed source
+  `d2b700fb6ee938c401e2a74a0ff028f4a4db08f4`; Feature 003 is ready for merge.

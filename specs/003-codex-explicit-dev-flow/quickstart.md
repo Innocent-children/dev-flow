@@ -1,7 +1,8 @@
 # Quickstart: Codex Explicit Dev Flow
 
-Feature 003 is currently **NO-GO**. These commands validate the simplified development suite; they
-do not create release evidence.
+Feature 003 is **GO / ready for merge** after final real-host acceptance passed against reviewed
+source `d2b700fb6ee938c401e2a74a0ff028f4a4db08f4`. These commands validate the simplified development
+suite; they do not create release evidence.
 
 ## 1. Package and Lifecycle
 
@@ -108,7 +109,8 @@ The operator must verify ordinary zero-call isolation; a non-mutating bare-selec
 non-activation, all host-exposed calls retained, and no task/event/claim/repository change; exact
 explicit selection;
 six-tool handshake; create/apply/restart/resume/DONE; domain/transport distinction; removal; and
-retained task data. This acceptance journey has not passed.
+retained task data. This acceptance journey passed once against reviewed source
+`d2b700fb6ee938c401e2a74a0ff028f4a4db08f4`.
 
 ## 8. Merge Status
 
@@ -117,6 +119,6 @@ retained task data. This acceptance journey has not passed.
 - HIGH-3 failed event/recovery binding: closed.
 - HIGH-4 aggregate/session MCP fact parity: closed.
 - Repeatable real development smoke: two passing isolated runs.
-- Final real Codex acceptance: pending and still the NO-GO merge gate.
+- Final real Codex acceptance: passed once; Feature 003 is GO / ready for merge.
 
 Release-grade provenance remains deferred to a separate feature.

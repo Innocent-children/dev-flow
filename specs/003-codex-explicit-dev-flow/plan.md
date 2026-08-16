@@ -2,7 +2,7 @@
 
 **Branch**: `003-codex-explicit-dev-flow`  
 **Spec**: [spec.md](./spec.md)  
-**Checkpoint**: Merge preparation; Feature 003 remains **NO-GO** until final acceptance
+**Checkpoint**: Final acceptance passed; Feature 003 is **GO / ready for merge**
 
 ## Summary
 
@@ -10,7 +10,8 @@ The test-suite simplification and four native result-handling regressions are co
 Codex package, Core-authoritative workflow, package/lifecycle/Skill/Core-loop/parser layers, and
 repeatable development smoke remain. Two fresh isolated Codex 0.147 development-smoke runs passed.
 Release/supply-chain provenance, immutable attempts, and crash-transaction machinery remain
-deferred. The only unmet Feature 003 acceptance requirement is the final real-host journey.
+deferred. The final real-host journey passed against reviewed source
+`d2b700fb6ee938c401e2a74a0ff028f4a4db08f4`.
 
 Subsequent explicitly approved smoke repairs added only bounded Core payload examples, stricter
 Skill forwarding guidance, the repeatable development-smoke runner, and their focused tests. They
@@ -28,7 +29,7 @@ did not add adapter-owned workflow authority, a public contract, or release mach
 | Runtime dependencies | none |
 | Test runtime | Node.js >=24 and Go toolchain |
 | Persistent smoke state | none |
-| Merge status | NO-GO until the final acceptance journey passes |
+| Merge status | GO / ready for merge |
 
 ## Constitution Check
 
@@ -128,6 +129,7 @@ bare-selector probe with Skill non-activation and unchanged task/event/claim/rep
 all observed calls remain retained,
 exact Skill invocation, handshake, create/apply/restart/resume/DONE, error-shape distinction,
 removal, and retained task data. Its result is an acceptance observation, not release provenance.
+The final run passed against reviewed source `d2b700fb6ee938c401e2a74a0ff028f4a4db08f4`.
 
 ## Test Audit
 
@@ -172,5 +174,5 @@ Then run exactly one final `speckit-analyze` pass and at most one independent re
 
 The simplification and four-HIGH closure commits are already present in the Feature 003 history.
 The current merge-preparation work remains on `codex/feature-003-repeatable-development-smoke`.
-After the final validation/analyze/review gate, commit and push that branch, then run T078 exactly
-once against the reviewed commit. Do not merge `main` unless T078 passes.
+The branch was validated, reviewed, committed, and pushed before T078 ran exactly once against
+`d2b700fb6ee938c401e2a74a0ff028f4a4db08f4`. T078 passed; `main` remains unmerged.
