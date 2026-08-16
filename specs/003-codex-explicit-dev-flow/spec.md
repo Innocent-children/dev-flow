@@ -152,12 +152,12 @@ cross-host takeover, Git mutation, and a Web UI also remain out of scope.
   task data after removal. A failed run keeps Feature 003 at NO-GO but does not permanently consume
   a chain.
 
-## Pending Regression Cases — Not Fixed by This Checkpoint
+## Closed Native Regression Cases
 
-These four cases remain explicit blockers. Each has exactly one future minimum regression scenario;
-the current simplification MUST NOT convert it into a passing assertion or claim readiness.
+These four native result-handling cases are closed by implementation and one minimum regression
+test each. Feature readiness still requires the separate final real Codex acceptance journey.
 
-| ID | Pending scenario |
+| ID | Closed scenario |
 |---|---|
 | **HIGH-1 diagnostic precedence** | An unrecovered failed MCP item must retain MCP-specific diagnostic priority even when later journey-summary checks also fail. |
 | **HIGH-2 Core envelope closure** | A complete-looking Core result with missing, extra, or mismatched envelope identity must be rejected as non-authoritative. |
@@ -184,5 +184,4 @@ the current simplification MUST NOT convert it into a passing assertion or claim
 - The current implementation baseline is Codex CLI 0.147 on macOS arm64.
 - The three sanitized JSONL fixtures are derived from that host contract and contain no prompt,
   source, user path, environment, token, or secret.
-- Feature 003 remains NO-GO until the four pending HIGH cases are closed and a final real-host
-  acceptance journey passes.
+- Feature 003 remains NO-GO until the final real-host acceptance journey passes.
