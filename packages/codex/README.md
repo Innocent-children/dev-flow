@@ -75,10 +75,12 @@ The official Skill metadata sets `policy.allow_implicit_invocation: false`. The 
 the installed Skill full name is `dev-flow-codex:dev-flow`. The only exact explicit selector is `$dev-flow-codex:dev-flow`.
 Bare `$dev-flow` is not an alias and does not select this installed Skill. A wrong plugin namespace,
 a wrong Skill base name, or a missing selector also does not select it.
-All negative paths make zero Dev Flow tool calls and create zero Dev Flow tasks; there is no implicit fallback.
-An ordinary prompt therefore does not activate Dev Flow. `$dev-flow-codex:dev-flow` with no substantive
-requirement, a conversational request, a non-Git directory, or work spanning more than one repository
-stops before any Dev Flow tool call.
+Codex 0.147 registers plugin MCP tools independently from Skill injection, so this package does not
+claim selector-bound MCP visibility or authorization. An ordinary prompt must make zero Dev Flow
+calls. Other non-exact selectors must not complete a task-bearing operation or change task, event,
+claim, or target-repository state; host-exposed read-only and Core-rejected calls remain observable.
+`$dev-flow-codex:dev-flow` with no substantive requirement, a conversational request, a non-Git
+directory, or work spanning more than one repository stops before Skill-owned task discovery.
 For an admitted request, the Skill resolves one canonical current worktree and calls
 `dev_flow_server_info({})` first; an incomplete or incompatible six-tool catalog stops the request.
 
@@ -201,7 +203,8 @@ The real-host entry point records ephemeral session observations:
 
 The observation itself does not claim acceptance. A single simplified JSON report must then record
 the reviewed source and artifact identities, Codex/package/Core versions, setup readback, zero Core
-calls for the ordinary prompt, the exact selector, the same task ID across restart, at least two
+calls for the ordinary prompt, unchanged Core/repository state around the bare-selector observation,
+the exact selector, the same task ID across restart, at least two
 committed actions, Core `DONE`, successful removal readback, retained and reopened task data, and an
 empty unexpected-repository-path list. Package and Core versions must match. Validate that closed
 object without creating any additional report files:

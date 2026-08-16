@@ -17,7 +17,10 @@ $dev-flow-codex:dev-flow
 ```
 
 The base name remains `dev-flow`, but bare `$dev-flow`, a wrong namespace/base, a missing selector,
-and implicit invocation are not accepted. They make zero Dev Flow calls and create zero tasks.
+and implicit invocation do not activate the installed Skill. Codex 0.147 may still expose the
+plugin's MCP tools independently. Negative sessions must not complete a task-bearing operation or
+change task, event, claim, or target-repository state; every observed read-only or Core-rejected call
+remains part of acceptance evidence.
 
 Before the first tool call, the Skill requires:
 
@@ -26,7 +29,8 @@ Before the first tool call, the Skill requires:
 - work confined to that repository;
 - repository instructions and user authority that permit the requested work.
 
-Failure stops before task discovery.
+Failure stops before Skill-owned task discovery. This guidance is not a selector-bound MCP
+authorization mechanism.
 
 ## Handshake
 

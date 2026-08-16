@@ -110,6 +110,8 @@ Immediately before merge approval, an operator observes:
 
 - package/setup/readback;
 - ordinary zero-call isolation;
+- bare-selector Skill non-activation, complete MCP call facts, and matching task/event/claim and
+  repository snapshots before and after the session;
 - exact explicit selector and six-tool handshake;
 - create/apply/restart/resume/DONE;
 - Core-domain vs transport error distinction;
@@ -135,6 +137,7 @@ Codex Product Package
 
 Codex Host
   ├── ordinary request -> zero Dev Flow calls
+  ├── non-exact selector -> no Skill activation -> unchanged Core/repository state
   ├── exact selector -> six-tool handshake -> Core task loop
   └── JSONL terminal event -> one of three sanitized parser shapes
 

@@ -18,16 +18,21 @@ As a Codex user, I can install a local `dev-flow-codex` package, complete explic
 setup.
 
 **Independent test**: Build the package, run setup/readback against isolated host state, verify that
-an ordinary prompt makes zero Dev Flow calls, then explicitly select the installed Skill and observe
-the six-tool handshake.
+an ordinary prompt makes zero Dev Flow calls, verify that a bare selector leaves Core and repository
+state unchanged even if Codex exposes or rejects MCP calls, then explicitly select the installed
+Skill and observe the six-tool handshake.
 
 **Acceptance scenarios**:
 
 1. Setup registers exactly one owned plugin/Skill and one STDIO MCP server, and readback confirms it.
-2. An ordinary prompt without the full selector makes zero Dev Flow calls and creates zero tasks.
-3. Bare `$dev-flow`, a wrong namespace/base, an empty requirement, or a non-Git directory is rejected
-   before task creation.
-4. Setup does not add plugin, task-data, configuration, or instruction files to the target repository.
+2. An ordinary prompt without a selector makes zero Dev Flow calls and creates zero tasks.
+3. Bare `$dev-flow`, a wrong namespace/base, a missing selector, and implicit matching do not
+   activate the Skill or change task, event, claim, or target-repository state. Host-exposed
+   read-only calls and Core-rejected task calls remain visible in acceptance observations.
+4. Exact `$dev-flow-codex:dev-flow` selection with an empty or conversational request, out-of-scope
+   work, or a current directory that is not a Git worktree activates the Skill but stops at its
+   admission gate without creating a task or changing Core or target-repository state.
+5. Setup does not add plugin, task-data, configuration, or instruction files to the target repository.
 
 ### User Story 2 — Govern and resume a Codex task (P2)
 
@@ -106,8 +111,15 @@ cross-host takeover, Git mutation, and a Web UI also remain out of scope.
 ### Skill and Authority
 
 - **FR-009**: The package MUST expose exactly one user-facing Skill with base name `dev-flow`.
-- **FR-010**: Codex 0.147 MUST select that Skill only with `$dev-flow-codex:dev-flow`; bare, wrong,
-  missing, or implicit selection MUST create zero Dev Flow calls and tasks.
+- **FR-010**: Codex 0.147 MUST load the Dev Flow Skill only when the current user turn contains the
+  exact selector `$dev-flow-codex:dev-flow`. Bare `$dev-flow`, a wrong namespace/base, a missing
+  selector, and implicit matching are not supported Dev Flow Skill activation.
+- **FR-010a**: For ordinary and non-exact-selector sessions, no task-bearing Dev Flow operation other
+  than `dev_flow_server_info` may succeed. Such sessions MUST leave task, event, repository-claim,
+  and target-repository state unchanged. Host-exposed read-only or Core-rejected MCP calls MAY be
+  observed and MUST be reported accurately.
+- **FR-010b**: Feature 003 MUST NOT claim per-Skill MCP visibility, selector-bound MCP authorization,
+  or capability isolation on Codex 0.147.
 - **FR-011**: Empty or conversational invocation MUST stop before opening a task.
 - **FR-012**: The Skill MUST resolve one current Git worktree and reject work requiring another
   repository.
@@ -148,10 +160,11 @@ cross-host takeover, Git mutation, and a Web UI also remain out of scope.
   canonical evidence path, and report only ephemeral session observations. It MUST never be treated
   as final acceptance evidence.
 - **FR-028**: Immediately before merge approval, one real Codex acceptance journey MUST use the
-  reviewed package and supported host to prove ordinary-prompt isolation, exact explicit selection,
-  six-tool handshake, create/apply/restart/resume/DONE, domain/transport distinction, and retained
-  task data after removal. A failed run keeps Feature 003 at NO-GO but does not permanently consume
-  a chain.
+  reviewed package and supported host to prove ordinary-prompt zero-call isolation; bare-selector
+  Skill non-activation plus unchanged task/event/claim/repository state while retaining all observed
+  calls; exact explicit selection; six-tool handshake; create/apply/restart/resume/DONE;
+  domain/transport distinction; and retained task data after removal. A failed run keeps Feature 003
+  at NO-GO but does not permanently consume a chain.
 
 ## Closed Native Regression Cases
 
@@ -163,20 +176,22 @@ test each. Feature readiness still requires the separate final real Codex accept
 | **HIGH-1 diagnostic precedence** | An unrecovered failed MCP item must retain MCP-specific diagnostic priority even when later journey-summary checks also fail. |
 | **HIGH-2 Core envelope closure** | A complete-looking Core result with missing, extra, or mismatched envelope identity must be rejected as non-authoritative. |
 | **HIGH-3 failed event/recovery binding** | Every recoverable failed event must bind exactly to its later task read, next-action read, and mutation on the same task/revision lineage. |
-| **HIGH-4 aggregate/session MCP fact parity** | Aggregate MCP facts must be the exact ordered projection of the four session-level call facts, including zero-call ordinary/invalid sessions. |
+| **HIGH-4 aggregate/session MCP fact parity** | Aggregate MCP facts must be the exact ordered projection of the four session-level call facts, including zero-call ordinary and observed bare-selector calls. |
 
 ## Development Smoke Status
 
 On 2026-08-16, two fresh isolated Codex 0.147 development-smoke runs passed with distinct task IDs.
-Each run proved ordinary/invalid zero-call admission, exact explicit selection, the six-tool
+Each run proved ordinary zero-call admission, exact-selector non-Git rejection, exact explicit selection, the six-tool
 handshake, create/apply/restart/resume/DONE, successful removal readback, and direct retained-task
 reopen. These repeatable development observations satisfy FR-027 but do not satisfy FR-028.
 
 ## Success Criteria
 
 - **SC-001**: Setup/readback succeeds in isolated state without target-repository edits.
-- **SC-002**: Ordinary, bare, wrong, missing, and invalid invocations create zero Dev Flow calls and
-  tasks.
+- **SC-002**: Ordinary, bare, wrong, missing, and implicit invocations do not activate the Dev Flow
+  Skill, produce no successful task-bearing Dev Flow operation other than server information, leave
+  task/event/claim state unchanged, and leave the target repository unchanged. Any host-exposed
+  read-only or Core-rejected calls remain visible in acceptance evidence.
 - **SC-003**: Explicit invocation creates or resumes exactly one Codex-owned task for the repository.
 - **SC-004**: The final acceptance journey crosses committed actions, restarts, resumes the same task
   lineage, and reaches Core `DONE`.

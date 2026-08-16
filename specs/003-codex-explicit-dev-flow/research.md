@@ -24,7 +24,8 @@ skill base: dev-flow
 explicit selector: $dev-flow-codex:dev-flow
 ```
 
-Bare `$dev-flow`, a wrong namespace/base, and missing/implicit selection are not equivalent.
+Bare `$dev-flow`, a wrong namespace/base, and missing/implicit selection do not load the installed
+Skill.
 
 ## Decision 3 — Package one private artifact
 
@@ -79,6 +80,16 @@ The simplification preserved one follow-up test for each native HIGH:
 
 T074–T077 subsequently closed those cases with one minimum regression each. Their tests remain
 required; the separate final acceptance journey is now the only unmet Feature 003 acceptance gate.
+
+## Decision 10 — Accept Codex 0.147 MCP visibility and verify effects
+
+`policy.allow_implicit_invocation: false` controls Skill injection only. Codex 0.147 registers a
+plugin's MCP server independently, so its tools remain visible without exact Skill activation.
+Feature 003 therefore verifies negative sessions by outcome and state isolation: ordinary remains
+zero-call, while bare/wrong/missing selectors must not activate the Skill, complete a task-bearing
+operation, change task/event/claim state, or change the target repository. Host-exposed read-only
+and Core-rejected calls remain visible in acceptance observations. This is presentation hardening,
+not selector-bound authorization, and Feature 003 does not wait for an unavailable Host capability.
 
 ## Official Source Basis
 

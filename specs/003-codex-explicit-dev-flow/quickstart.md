@@ -24,8 +24,8 @@ node --test \
   packages/codex/tests/fake-core-contract.test.mjs
 ```
 
-This layer covers ordinary/invalid zero-call behavior, exact
-`$dev-flow-codex:dev-flow` selection, the six-tool handshake, and deterministic
+This layer covers ordinary zero-call behavior, non-exact-selector state isolation, exact
+`$dev-flow-codex:dev-flow` Skill activation, the six-tool handshake, and deterministic
 create/apply/restart/resume/DONE.
 
 ## 3. Codex 0.147 Parser Fixtures
@@ -104,9 +104,10 @@ before merge approval, run once:
   --workspace /absolute/path/to/isolated/git-worktree
 ```
 
-The operator must verify ordinary zero-call isolation, exact explicit selection, six-tool handshake,
-create/apply/restart/resume/DONE, domain/transport distinction, removal, and retained task data.
-This acceptance journey has not run.
+The operator must verify ordinary zero-call isolation; bare-selector Skill non-activation with all
+host-exposed calls retained and no task/event/claim/repository change; exact explicit selection;
+six-tool handshake; create/apply/restart/resume/DONE; domain/transport distinction; removal; and
+retained task data. This acceptance journey has not passed.
 
 ## 8. Merge Status
 

@@ -67,6 +67,12 @@ dev_flow_cancel_task
 No proxy, generic shell MCP tool, extra alias, transition engine, or adapter-owned task store is
 permitted.
 
+On Codex 0.147 the MCP server is registered independently of Skill injection. Codex-specific server
+instructions and the `dev_flow_open_task` description remind the model that task discovery follows
+only exact `$dev-flow-codex:dev-flow` selection and a successful `dev_flow_server_info` handshake.
+They are presentation guidance, not capability isolation. Default Core and other host presentation
+remain unchanged.
+
 ## Verification Contract
 
 Feature 003 verification has six layers:

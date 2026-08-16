@@ -45,16 +45,23 @@ did not add adapter-owned workflow authority, a public contract, or release mach
 specs/003-codex-explicit-dev-flow/**
 packages/codex/tests/**
 packages/codex/package.json
+packages/codex/bin/dev-flow-codex.mjs
+cmd/dev-flow/main.go
+cmd/dev-flow/main_test.go
+internal/mcp/server.go
+internal/mcp/server_test.go
 scripts/run-codex-real-journey.sh
 scripts/validate-codex-journey-evidence.mjs
 scripts/write-codex-journey-evidence.mjs
 tests/contract/**
 ```
 
-The original simplification stayed within that list. Later user-approved minimal smoke repairs also
+The original simplification stayed within its original subset of that list. Later user-approved minimal smoke repairs also
 touched `packages/codex/plugin/skills/dev-flow/SKILL.md`, `internal/workflow/engine.go`, and their
-existing focused tests. `packages/codex/bin`, `packages/codex/lib`, protocol, DeepSeek,
-root-validator, main-branch, permanent ledger, and canonical-evidence paths remain unchanged.
+existing focused tests. The current Host-capability closure additionally updates the listed Codex
+launcher, CLI presentation boundary, MCP server options, and focused tests. `packages/codex/lib`,
+protocol, DeepSeek, root-validator, main-branch, permanent ledger, and canonical-evidence paths
+remain unchanged.
 
 ## Verification Design
 
@@ -75,8 +82,9 @@ Primary tests: `launcher.test.mjs`, `lifecycle.test.mjs`, and
 
 ### Layer 3 — Skill
 
-Owns exact explicit selector, ordinary/invalid zero-call behavior, six-tool handshake, and the
-absence of adapter-owned workflow authority.
+Owns exact explicit Skill activation, ordinary zero-call behavior, non-exact-selector state
+isolation with honest MCP observations, the six-tool handshake, and the absence of adapter-owned
+workflow authority.
 
 Primary test: `skill-contract.test.mjs`.
 
@@ -115,9 +123,10 @@ Primary test: rewritten `journey-harness.test.mjs` with the thin
 ### Final Acceptance
 
 Exactly once immediately before merge approval, an operator runs the real-host acceptance mode
-against the reviewed package. It must cover ordinary isolation, exact Skill invocation, handshake,
-create/apply/restart/resume/DONE, error-shape distinction, removal, and retained task data. Its
-result is an acceptance observation, not release provenance. This checkpoint does not execute it.
+against the reviewed package. It must cover ordinary zero-call isolation, bare-selector Skill
+non-activation and unchanged task/event/claim/repository state with all observed calls retained,
+exact Skill invocation, handshake, create/apply/restart/resume/DONE, error-shape distinction,
+removal, and retained task data. Its result is an acceptance observation, not release provenance.
 
 ## Test Audit
 
@@ -145,7 +154,7 @@ The passing regressions remain merge requirements and must not be weakened.
 During implementation, run only:
 
 ```bash
-go test ./internal/version ./tests/contract
+go test ./internal/mcp ./cmd/dev-flow ./internal/version ./tests/contract
 node --test packages/codex/tests/<targeted-files>
 git diff --check
 ```
