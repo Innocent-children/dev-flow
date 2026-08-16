@@ -341,12 +341,38 @@ When the journey cannot finish, write an honest `failed` or `blocked` diagnostic
 recovery directory, finalize and retain the external ledger entry,
 leave the canonical repository evidence path absent, and treat that chain's artifact as invalid. Do
 not fabricate task lineage, completed lifecycle data, patch the diagnostic, or relaunch the same
-chain. The consumed attempt-1 v1 and attempt-2 v2 diagnostic/facts bytes remain immutable and valid.
-Every later diagnostic uses version 3, `external-failure-record-v3`, and a required `failure_kind`.
+chain. The consumed attempt-1 v1, attempt-2 v2, and attempt-3 v3 diagnostic/facts bytes remain
+immutable and valid. Every diagnostic after attempt 3 uses version 4,
+`external-failure-record-v4`, and a required `failure_kind`.
 A completed-command failure uses `command_event` and requires the closed safe object
 `{session_role,event_type,command_sha256,output_sha256,status,exit_code}`; a `non_command` failure
-prohibits that object. Version-3 failure/skip observations use only closed phase/reason codes and a
-detail SHA-256.
+prohibits all event context. An official failed MCP terminal item uses `mcp_event` and requires only
+`{session_role,event_type,event_index,tool,status,result_kind,result_sha256,error_sha256}`. Its tool
+is one of the six exact tools; `tool_error_result` binds only the canonical complete-result digest,
+and `transport_error` binds only the canonical typed-error digest. Version-4 failure/skip
+observations use only closed phase/reason codes and a detail SHA-256.
+
+Treat Codex 0.147 failed MCP terminal events by their exact closed shape. `status=failed` with a
+complete text/structured Core `ok=false` result and `error=null` is a complete Core/tool error: consume that
+Core envelope and obey its stop or recovery instruction. `status=failed` with `result=null` and a
+typed `error` has no Core result and stops the chain fail-closed. Do not reinterpret a malformed
+`status=completed` item as either failed form, ignore a failed event, or retry an uncertain mutation
+without the required authoritative task and next-action reads. Treat a failed item whose complete
+Core envelope says `ok=true` as inconsistent protocol data.
+
+If a complete Core error is recoverable and the chain later passes, `journey.invocation` and the
+ledger-bound observed facts retain the same ordered `recoverable_mcp_failure_facts` entry. It carries
+only the failed apply item's role/index/tool, canonical request task ID/expected revision,
+status/result digest, bounded Core error code and
+`retry_safe=false` plus `read_task|read_next_action`, followed by safe
+role/index/tool/result-digest/task-ID/revision references to the exact
+`get_task`, `get_next_action`, and next `apply_action`. Validate strict failed-item → get-task →
+get-next-action → mutation order against the closed durable `mcp_call_facts` projection for every
+terminal Dev Flow item; both reads and the referenced next mutation must be complete successful
+calls. The failed request and all three references use the canonical journey task ID, its expected
+revision belongs to raw lineage, the reads share a revision, and the greater apply
+revision occurs in raw lineage and committed actions. A transport failure,
+missing/duplicate reference, unbound digest, or earlier mutation invalidates the passing candidate.
 
 Complete install/setup/readback and final immutable-input preflight before reserving an attempt;
 failure there writes no ledger entry/diagnostic and starts no session. Immediately before reservation,
@@ -357,8 +383,12 @@ counts and SHA-256, and closed event/completed-item/MCP-status counts. Each stre
 64 MiB. Unstarted roles remain zero-count `not_started` observations. The two files must carry the
 same four observations, while the ledger binds the exact failure-observed-facts bytes. Never store
 raw JSONL, stderr, prompt, command, output, environment, secret, thread ID, or repository path.
-Accept diagnostic v1 only for the exact immutable attempt 1 and v2 only for exact immutable attempt
-2; every later attempt is v3 and any v1/v2 downgrade is invalid.
+For a v4 `mcp_event`, require the context role observation to be `mcp_failed`, its aggregate counts
+to include a failed Dev Flow MCP completion, its event index to be in range, and the failure phase
+and reason to be exactly `codex-session` / `mcp-event-failed`. An earlier recovered MCP failure does
+not authorize context on a later unrelated failure.
+Accept diagnostic v1/v2/v3 only for the exact immutable attempts 1/2/3; every attempt numbered 4 or
+later is v4 and any v1/v2/v3 downgrade is invalid.
 Another launch requires a source correction and a
 wholly new step 7–9 chain using the same durable ledger. Only the unique passing attempt supports
 the product claim, and no launch is permitted after it. Regenerating reports for an

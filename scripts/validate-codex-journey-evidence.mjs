@@ -25,7 +25,9 @@ export const EXPECTED_TARGETED_COMMANDS = Object.freeze([
 export const EXPECTED_ROOT_VALIDATION_COMMAND = "pnpm run validate";
 export const PASS_COMMIT_PROTOCOL = "evidence-create-before-ledger-finalize-v1";
 export const FAILURE_COMMIT_PROTOCOL = "external-failure-record-v1";
+export const FAILURE_COMMIT_PROTOCOL_V2 = "external-failure-record-v2";
 export const FAILURE_COMMIT_PROTOCOL_V3 = "external-failure-record-v3";
+export const FAILURE_COMMIT_PROTOCOL_V4 = "external-failure-record-v4";
 export const NATIVE_LOGICAL_PROOF_NAME = "git hash-object native-proof.txt";
 export const NATIVE_RENDERED_PROOF_COMMAND = "/bin/zsh -lc 'git hash-object native-proof.txt'";
 
@@ -40,9 +42,66 @@ const deniedRenderedCommandDigests = new Set([
   "/bin/zsh -lc 'node --test packages/codex/tests/*.test.mjs'",
 ].map(sha256));
 const failureSessionRoles = Object.freeze(["ordinary", "invalid", "substantive", "resume"]);
+const failureSessionRoleOrder = new Map(failureSessionRoles.map((role, index) => [role, index]));
+const devFlowTools = new Set([
+  "dev_flow_server_info",
+  "dev_flow_open_task",
+  "dev_flow_get_task",
+  "dev_flow_get_next_action",
+  "dev_flow_apply_action",
+  "dev_flow_cancel_task",
+]);
+const recoveryActions = new Set(["read_task", "read_next_action"]);
+const legacyFailureV1 = Object.freeze({
+  chainId: "3b273663d554d6d1d61f22735bf8d98faba42c2a7c44e63a13f0412aa1fb0536",
+  diagnosticSha256: "acb8f447ebea55d4a3181e98f7e74810e85174bc32f3c506cda603c308d43663",
+  observedFactsSha256: "b90a41d5f8f632561a28d4e0f0c482b4eb848634137553827248985c3fec0715",
+});
+const mcpCallFactFields = Object.freeze([
+  "arguments_sha256",
+  "core_error_code",
+  "event_index",
+  "expected_revision",
+  "outcome",
+  "recovery_action",
+  "recovery_retry_safe",
+  "request_task_id",
+  "result_kind",
+  "result_sha256",
+  "revision",
+  "session_role",
+  "status",
+  "task_id",
+  "tool",
+]);
+const recoveryFactFields = Object.freeze([
+  "core_error_code",
+  "event_index",
+  "expected_revision",
+  "get_next_action",
+  "get_task",
+  "next_mutation",
+  "recovery_action",
+  "recovery_retry_safe",
+  "result_kind",
+  "result_sha256",
+  "session_role",
+  "status",
+  "task_id",
+  "tool",
+]);
+const mcpReferenceFields = Object.freeze([
+  "event_index",
+  "result_sha256",
+  "revision",
+  "session_role",
+  "task_id",
+  "tool",
+]);
 const processClosedFailureStages = new Set([
   "process_exited",
   "parse_failed",
+  "mcp_failed",
   "completed",
   "stop_marker_missing",
 ]);
@@ -694,9 +753,13 @@ export function validateAttemptLedgerSemantics(ledger) {
 
 export function validateFailureAttemptCandidate({
   diagnostic,
+  diagnosticText,
   observedFacts,
+  observedFactsText,
   ledger,
+  ledgerText,
   attemptLedgerPath,
+  attributableMcpFailureContext,
 } = {}) {
   const errors = [];
   if (!isObject(diagnostic)) errors.push("failure diagnostic must be an object");
@@ -712,35 +775,21 @@ export function validateFailureAttemptCandidate({
   );
 
   const nativeAttempt = isObject(diagnostic.native_attempt) ? diagnostic.native_attempt : {};
-  if (diagnostic.schema_version !== 3) {
-    errors.push("later failure diagnostic must use schema version 3; v1/v2 downgrade is forbidden");
-  }
-  if (!Number.isInteger(nativeAttempt.attempt_number) || nativeAttempt.attempt_number < 3) {
-    errors.push("version-3 failure diagnostic attempt number must be at least 3");
-  }
-  if (!Number.isInteger(nativeAttempt.total_attempts) || nativeAttempt.total_attempts < 3) {
-    errors.push("version-3 failure diagnostic total attempts must be at least 3");
-  }
-  if (nativeAttempt.commit_protocol !== FAILURE_COMMIT_PROTOCOL_V3) {
-    errors.push(`later failure diagnostic commit protocol must be ${FAILURE_COMMIT_PROTOCOL_V3}`);
-  }
+  validateFailureDiagnosticVersion(diagnostic, diagnosticText, errors);
 
-  const expectedFacts = {
-    schema_version: diagnostic.schema_version,
-    failure_kind: diagnostic.failure_kind,
-    failure: diagnostic.failure,
-    ...(Object.hasOwn(diagnostic, "failure_context")
-      ? { failure_context: diagnostic.failure_context }
-      : {}),
-    session_observations: diagnostic.session_observations,
-  };
+  const expectedFacts = failureObservedFactsProjection(diagnostic);
   if (!deepEqual(observedFacts, expectedFacts)) {
     errors.push("failure observed facts must be the closed exact diagnostic projection with identical four session observations");
   }
 
   let observedFactsDigest;
   try {
-    observedFactsDigest = sha256(canonicalDocumentText(observedFacts));
+    observedFactsDigest = digestExactOrCanonicalDocument(
+      observedFacts,
+      observedFactsText,
+      "failure observed facts",
+      errors,
+    );
   } catch (error) {
     errors.push(`failure observed facts cannot be canonically encoded: ${error.message}`);
   }
@@ -748,8 +797,12 @@ export function validateFailureAttemptCandidate({
     errors.push("observed facts digest must equal the exact canonical failure-observed-facts bytes");
   }
 
-  validateFailureSessionObservations(diagnostic.session_observations, errors);
-  if (diagnostic.failure_kind === "command_event") {
+  if ([3, 4].includes(diagnostic.schema_version)) {
+    validateFailureSessionObservations(diagnostic.session_observations, errors);
+  }
+  if (diagnostic.schema_version === 1) {
+    validateLegacyV1Failure(diagnostic, diagnosticText, observedFactsDigest, errors);
+  } else if (diagnostic.failure_kind === "command_event") {
     if (!isObject(diagnostic.failure_context)) {
       errors.push("command_event failure requires failure_context");
     } else {
@@ -760,12 +813,17 @@ export function validateFailureAttemptCandidate({
         errors.push("failure_context must bind a completed command event in the same session role");
       }
     }
+  } else if (diagnostic.failure_kind === "mcp_event" && diagnostic.schema_version === 4) {
+    validateMcpFailureContext(diagnostic, attributableMcpFailureContext, errors);
   } else if (diagnostic.failure_kind === "non_command") {
-    if (Object.hasOwn(diagnostic, "failure_context")) {
-      errors.push("non_command failure prohibits failure_context even when an earlier unrelated command occurred");
+    if (
+      Object.hasOwn(diagnostic, "failure_context")
+      || Object.hasOwn(diagnostic, "mcp_failure_context")
+    ) {
+      errors.push("non_command failure prohibits failure_context and mcp_failure_context even when an earlier unrelated event occurred");
     }
   } else {
-    errors.push("failure diagnostic must distinguish command_event from non_command");
+    errors.push("failure diagnostic must distinguish command_event, mcp_event, and non_command for its schema version");
   }
 
   if (ledger.schema_version !== 1) errors.push("failure attempt ledger schema version must be 1");
@@ -837,7 +895,12 @@ export function validateFailureAttemptCandidate({
 
   let ledgerDigest;
   try {
-    ledgerDigest = sha256(canonicalDocumentText(ledger));
+    ledgerDigest = digestExactOrCanonicalDocument(
+      ledger,
+      ledgerText,
+      "failure ledger candidate",
+      errors,
+    );
   } catch (error) {
     errors.push(`failure ledger candidate cannot be canonically encoded: ${error.message}`);
   }
@@ -846,6 +909,156 @@ export function validateFailureAttemptCandidate({
   }
 
   return errors;
+}
+
+function validateFailureDiagnosticVersion(diagnostic, diagnosticText, errors) {
+  const nativeAttempt = isObject(diagnostic.native_attempt) ? diagnostic.native_attempt : {};
+  const attemptNumber = nativeAttempt.attempt_number;
+  const schemaVersion = diagnostic.schema_version;
+  if (!Number.isInteger(attemptNumber) || attemptNumber < 1) {
+    errors.push("failure diagnostic attempt number must be a positive integer");
+    return;
+  }
+
+  if (attemptNumber <= 3) {
+    const expectedProtocol = `external-failure-record-v${attemptNumber}`;
+    if (schemaVersion !== attemptNumber) {
+      errors.push(`historical attempt ${attemptNumber} must use schema version ${attemptNumber}`);
+    }
+    if (nativeAttempt.total_attempts !== attemptNumber) {
+      errors.push(`historical attempt ${attemptNumber} total attempts must equal ${attemptNumber}`);
+    }
+    if (nativeAttempt.commit_protocol !== expectedProtocol) {
+      errors.push(`historical attempt ${attemptNumber} commit protocol must be ${expectedProtocol}`);
+    }
+    return;
+  }
+
+  if (schemaVersion !== 4) {
+    errors.push(`attempt ${attemptNumber} must use schema version 4; v1/v2/v3 downgrade is forbidden`);
+  }
+  if (!Number.isInteger(nativeAttempt.total_attempts) || nativeAttempt.total_attempts < 4) {
+    errors.push("version-4 failure diagnostic total attempts must be at least 4");
+  }
+  if (nativeAttempt.commit_protocol !== FAILURE_COMMIT_PROTOCOL_V4) {
+    errors.push(`attempt ${attemptNumber} version 4 commit protocol must be ${FAILURE_COMMIT_PROTOCOL_V4}`);
+  }
+
+  if (schemaVersion === 1 && typeof diagnosticText !== "string") {
+    errors.push("legacy version-1 diagnostic exact bytes are required");
+  }
+}
+
+function failureObservedFactsProjection(diagnostic) {
+  if (diagnostic.schema_version === 1) {
+    return {
+      observed: diagnostic.failure?.observed,
+      phase: diagnostic.failure?.phase,
+    };
+  }
+  return {
+    schema_version: diagnostic.schema_version,
+    failure_kind: diagnostic.failure_kind,
+    failure: diagnostic.failure,
+    ...(Object.hasOwn(diagnostic, "failure_context")
+      ? { failure_context: diagnostic.failure_context }
+      : {}),
+    ...(Object.hasOwn(diagnostic, "mcp_failure_context")
+      ? { mcp_failure_context: diagnostic.mcp_failure_context }
+      : {}),
+    ...(Object.hasOwn(diagnostic, "session_observations")
+      ? { session_observations: diagnostic.session_observations }
+      : {}),
+  };
+}
+
+function validateLegacyV1Failure(diagnostic, diagnosticText, observedFactsDigest, errors) {
+  if (
+    diagnostic.native_attempt?.attempt_number !== 1
+    || diagnostic.native_attempt?.chain_id !== legacyFailureV1.chainId
+    || diagnostic.native_attempt?.observed_facts_sha256 !== legacyFailureV1.observedFactsSha256
+    || observedFactsDigest !== legacyFailureV1.observedFactsSha256
+  ) {
+    errors.push("schema-version-1 is accepted only for the exact immutable attempt-1 legacy identity and facts digest");
+  }
+  if (typeof diagnosticText !== "string") {
+    errors.push("immutable attempt-1 diagnostic exact bytes are required for the legacy exception");
+  } else {
+    try {
+      if (!deepEqual(JSON.parse(diagnosticText), diagnostic)) {
+        errors.push("immutable attempt-1 diagnostic exact bytes do not encode the supplied diagnostic");
+      }
+      if (sha256(diagnosticText) !== legacyFailureV1.diagnosticSha256) {
+        errors.push("schema-version-1 diagnostic bytes must equal the exact immutable attempt-1 record");
+      }
+    } catch (error) {
+      errors.push(`immutable attempt-1 diagnostic exact bytes are invalid: ${error.message}`);
+    }
+  }
+}
+
+function validateMcpFailureContext(diagnostic, attributableMcpFailureContext, errors) {
+  const context = diagnostic.mcp_failure_context;
+  if (!isObject(context)) {
+    errors.push("mcp_event failure requires mcp_failure_context");
+    return;
+  }
+  const observation = asArray(diagnostic.session_observations).find(
+    (candidate) => candidate?.session_role === context.session_role,
+  );
+  if (!observation) {
+    errors.push("mcp_event context role must identify one fixed session observation");
+  } else {
+    if (observation.failure_stage !== "mcp_failed") {
+      errors.push("mcp_event context role observation must use mcp_failed stage");
+    }
+    if (observation.mcp_status_counts?.failed < 1) {
+      errors.push("mcp_event context role must retain at least one failed MCP count");
+    }
+    if (observation.mcp_status_counts?.dev_flow < 1) {
+      errors.push("mcp_event context role must retain at least one Dev Flow MCP count");
+    }
+    if (observation.item_counts?.mcp_tool_call < 1) {
+      errors.push("mcp_event context role must retain at least one completed MCP tool-call item");
+    }
+    if (observation.event_counts?.item_completed < 1) {
+      errors.push("mcp_event context role must retain at least one item_completed event");
+    }
+    const postThreadEventCount = observation.event_counts?.total
+      - observation.event_counts?.thread_started;
+    if (
+      observation.event_counts?.thread_started !== 1
+      || !Number.isInteger(context.event_index)
+      || context.event_index < 0
+      || !Number.isInteger(postThreadEventCount)
+      || context.event_index >= postThreadEventCount
+    ) {
+      errors.push("mcp_event context event index must be in range after the single thread.started event");
+    }
+  }
+  if (diagnostic.failure?.phase_code !== "codex-session") {
+    errors.push("mcp_event failure phase must be exactly codex-session");
+  }
+  if (diagnostic.failure?.reason_code !== "mcp-event-failed") {
+    errors.push("mcp_event failure reason must be exactly mcp-event-failed");
+  }
+  if (!isObject(attributableMcpFailureContext)) {
+    errors.push("mcp_event failure requires event-local attributable failed item context");
+  } else if (!deepEqual(context, attributableMcpFailureContext)) {
+    errors.push("mcp_event context must equal the event-local attributable failed item and cannot reuse an earlier recovered failure");
+  }
+}
+
+function digestExactOrCanonicalDocument(document, exactText, label, errors) {
+  if (typeof exactText !== "string") return sha256(canonicalDocumentText(document));
+  try {
+    if (!deepEqual(JSON.parse(exactText), document)) {
+      errors.push(`${label} exact bytes do not encode the supplied document`);
+    }
+  } catch (error) {
+    errors.push(`${label} exact bytes are invalid JSON: ${error.message}`);
+  }
+  return sha256(exactText);
 }
 
 function validateFailureSessionObservations(observations, errors) {
@@ -1250,6 +1463,8 @@ function validateObservedFacts(evidence, observedFacts, errors) {
     }
   }
 
+  validateRecoverableMcpFailureFacts(evidence, observedFacts, errors);
+
   const verification = observedFacts.verification;
   if (!isObject(verification)) {
     errors.push("durable facts must contain complete Core verification observations");
@@ -1296,6 +1511,343 @@ function validateObservedFacts(evidence, observedFacts, errors) {
   if (!deepEqual(observedFacts.task_data, evidence.journey?.task_data)) {
     errors.push("retained-data descriptor and task-data projection must match durable observed facts");
   }
+}
+
+function validateRecoverableMcpFailureFacts(evidence, observedFacts, errors) {
+  const lineage = evidence.journey?.task_lineage ?? {};
+  const invocation = evidence.journey?.invocation ?? {};
+  const callFacts = observedFacts.mcp_call_facts;
+  const durableRecoveryFacts = observedFacts.recoverable_mcp_failure_facts;
+  const evidenceRecoveryFacts = invocation.recoverable_mcp_failure_facts;
+  if (!Array.isArray(callFacts)) {
+    errors.push("durable observed facts must contain closed top-level mcp_call_facts");
+    return;
+  }
+  if (!Array.isArray(durableRecoveryFacts)) {
+    errors.push("durable observed facts must contain closed top-level recoverable_mcp_failure_facts");
+    return;
+  }
+  if (!Array.isArray(evidenceRecoveryFacts)) {
+    errors.push("passing evidence must contain recoverable_mcp_failure_facts");
+    return;
+  }
+  if (callFacts.length > 64 || evidenceRecoveryFacts.length > 64) {
+    errors.push("MCP call and recoverable failure facts must remain within the 64-call bound");
+  }
+  if (!deepEqual(durableRecoveryFacts, evidenceRecoveryFacts)) {
+    errors.push("passing evidence and durable top-level recoverable_mcp_failure_facts must be exact and ordered");
+  }
+
+  const identities = new Set();
+  let previousOrder = -1;
+  for (const fact of callFacts) {
+    validateMcpCallFactShape(fact, errors);
+    const identity = mcpFactIdentity(fact);
+    if (identities.has(identity)) {
+      errors.push("durable mcp_call_facts must have unique role-scoped event indexes");
+    }
+    identities.add(identity);
+    const order = mcpFactOrder(fact);
+    if (order <= previousOrder) {
+      errors.push("durable mcp_call_facts must remain ordered by fixed session role and event index");
+    }
+    previousOrder = Math.max(previousOrder, order);
+    if (fact?.result_kind === "transport_error") {
+      errors.push("transport errors are prohibited from a passing candidate");
+    }
+  }
+  if (invocation.core_call_count !== callFacts.length) {
+    errors.push("Core call count must equal the complete durable mcp_call_facts projection");
+  }
+  validateSessionMcpCallProjection(observedFacts, callFacts, errors);
+
+  const failedToolErrors = callFacts.filter((fact) => (
+    fact?.status === "failed" && fact?.result_kind === "tool_error_result"
+  ));
+  for (const fact of failedToolErrors) {
+    if (!isCompleteRecoverableApplyFact(fact)) {
+      errors.push("failed tool error must be one complete recoverable apply with complete Core error and recovery fields");
+    }
+  }
+  if (evidenceRecoveryFacts.length !== failedToolErrors.length) {
+    errors.push("recoverable MCP failure facts must be the exact 1:1 projection; missing or duplicate recoverable fact");
+  }
+
+  const canonicalTaskId = lineage.task_id_before_restart;
+  const rawRevisions = new Set(asArray(lineage.raw_revisions));
+  const committedRevisions = new Set(asArray(lineage.committed_actions).map((action) => action?.revision));
+  const recoveryReadIdentities = new Set();
+  const representedFailureIdentities = new Map();
+  for (const fact of evidenceRecoveryFacts) {
+    validateRecoverableFactShape(fact, errors);
+    const failureIdentity = mcpFactIdentity(fact);
+    representedFailureIdentities.set(
+      failureIdentity,
+      (representedFailureIdentities.get(failureIdentity) ?? 0) + 1,
+    );
+
+    if (fact?.task_id !== canonicalTaskId) {
+      errors.push("recoverable failed request task ID must equal the canonical journey task ID");
+    }
+    if (!rawRevisions.has(fact?.expected_revision)) {
+      errors.push("failed expected revision must appear in raw lineage");
+    }
+    const matchingFailures = callFacts.filter((call) => (
+      call?.session_role === fact?.session_role
+      && call?.event_index === fact?.event_index
+      && call?.tool === fact?.tool
+      && call?.result_sha256 === fact?.result_sha256
+    ));
+    if (matchingFailures.length !== 1) {
+      errors.push("recoverable failed item is unbound or duplicate in durable mcp_call_facts");
+    } else {
+      const failedCall = matchingFailures[0];
+      if (
+        failedCall.status !== "failed"
+        || failedCall.result_kind !== "tool_error_result"
+        || failedCall.request_task_id !== fact.task_id
+        || failedCall.expected_revision !== fact.expected_revision
+        || failedCall.core_error_code !== fact.core_error_code
+        || failedCall.recovery_retry_safe !== false
+        || failedCall.recovery_action !== fact.recovery_action
+      ) {
+        errors.push("recoverable failed item must exactly bind request identity and Core error/recovery authority");
+      }
+    }
+
+    const getTask = bindMcpRecoveryReference(
+      fact?.get_task,
+      "dev_flow_get_task",
+      callFacts,
+      canonicalTaskId,
+      errors,
+    );
+    const getNextAction = bindMcpRecoveryReference(
+      fact?.get_next_action,
+      "dev_flow_get_next_action",
+      callFacts,
+      canonicalTaskId,
+      errors,
+    );
+    const nextMutation = bindMcpRecoveryReference(
+      fact?.next_mutation,
+      "dev_flow_apply_action",
+      callFacts,
+      canonicalTaskId,
+      errors,
+    );
+    for (const reference of [fact?.get_task, fact?.get_next_action]) {
+      if (isObject(reference)) recoveryReadIdentities.add(mcpFactIdentity(reference));
+    }
+
+    const failedOrder = mcpFactOrder(fact);
+    const getTaskOrder = mcpFactOrder(fact?.get_task);
+    const getNextActionOrder = mcpFactOrder(fact?.get_next_action);
+    const nextMutationOrder = mcpFactOrder(fact?.next_mutation);
+    if (!(
+      failedOrder < getTaskOrder
+      && getTaskOrder < getNextActionOrder
+      && getNextActionOrder < nextMutationOrder
+    )) {
+      errors.push("recoverable MCP ordering must be failed item then get_task then get_next_action then next mutation");
+    }
+    const interveningMutation = callFacts.some((call) => (
+      call?.tool === "dev_flow_apply_action"
+      && call?.status === "completed"
+      && mcpFactOrder(call) > failedOrder
+      && mcpFactOrder(call) < nextMutationOrder
+    ));
+    if (interveningMutation) {
+      errors.push("recoverable MCP sequence prohibits an intervening mutation before both recovery reads");
+    }
+    if (
+      isObject(fact?.get_task)
+      && isObject(fact?.get_next_action)
+      && fact.get_task.revision !== fact.get_next_action.revision
+    ) {
+      errors.push("recovery read revisions must be equal");
+    }
+    if (
+      isObject(fact?.get_next_action)
+      && isObject(fact?.next_mutation)
+      && fact.next_mutation.revision <= fact.get_next_action.revision
+    ) {
+      errors.push("next apply revision must be greater than recovery read revisions; non-increasing apply revision is forbidden");
+    }
+    if (isObject(fact?.next_mutation) && !rawRevisions.has(fact.next_mutation.revision)) {
+      errors.push("next apply revision must appear in raw lineage");
+    }
+    if (isObject(fact?.next_mutation) && !committedRevisions.has(fact.next_mutation.revision)) {
+      errors.push("next apply revision must match a committed action");
+    }
+    if (getTask && getNextAction && nextMutation) {
+      // Bound references are intentionally consumed above; no raw result is needed here.
+    }
+  }
+
+  for (const failed of failedToolErrors) {
+    if ((representedFailureIdentities.get(mcpFactIdentity(failed)) ?? 0) !== 1) {
+      errors.push("recoverable MCP failure facts must be the exact 1:1 projection; missing or duplicate recoverable fact");
+    }
+  }
+
+  const resumeCalls = callFacts.filter((fact) => fact?.session_role === "resume");
+  const firstResumeMutation = resumeCalls.find((fact) => (
+    fact?.tool === "dev_flow_apply_action" && fact?.status === "completed"
+  ));
+  if (firstResumeMutation) {
+    const priorGetTask = resumeCalls.find((fact) => (
+      fact?.tool === "dev_flow_get_task"
+      && fact?.status === "completed"
+      && fact.event_index < firstResumeMutation.event_index
+    ));
+    const priorGetNextAction = resumeCalls.find((fact) => (
+      fact?.tool === "dev_flow_get_next_action"
+      && fact?.status === "completed"
+      && priorGetTask
+      && fact.event_index > priorGetTask.event_index
+      && fact.event_index < firstResumeMutation.event_index
+    ));
+    if (priorGetTask) recoveryReadIdentities.add(mcpFactIdentity(priorGetTask));
+    if (priorGetNextAction) recoveryReadIdentities.add(mcpFactIdentity(priorGetNextAction));
+  }
+  if (invocation.read_before_retry_observations !== recoveryReadIdentities.size) {
+    errors.push("read-before-retry observation count must exactly equal distinct recovery and restart reads");
+  }
+}
+
+function validateSessionMcpCallProjection(observedFacts, callFacts, errors) {
+  for (const role of failureSessionRoles) {
+    const sessionCalls = observedFacts.sessions?.[role]?.calls;
+    const expectedCalls = callFacts
+      .filter((fact) => fact?.session_role === role)
+      .map(sessionMcpCallProjection);
+    if (!Array.isArray(sessionCalls) || !deepEqual(sessionCalls, expectedCalls)) {
+      errors.push(`${role} role-scoped MCP call projection must exactly equal top-level mcp_call_facts`);
+    }
+    if (["ordinary", "invalid"].includes(role) && expectedCalls.length !== 0) {
+      errors.push(`${role} session must make zero Dev Flow calls and create zero Dev Flow tasks`);
+    }
+  }
+}
+
+function sessionMcpCallProjection(fact) {
+  return {
+    tool: fact?.tool,
+    arguments_sha256: fact?.arguments_sha256,
+    result_sha256: fact?.result_sha256,
+    task_id: fact?.task_id,
+    revision: fact?.revision,
+    outcome: fact?.outcome,
+  };
+}
+
+function isCompleteRecoverableApplyFact(fact) {
+  return ["substantive", "resume"].includes(fact?.session_role)
+    && fact?.tool === "dev_flow_apply_action"
+    && typeof fact?.request_task_id === "string"
+    && fact.request_task_id.length > 0
+    && Number.isInteger(fact?.expected_revision)
+    && typeof fact?.core_error_code === "string"
+    && /^[A-Z][A-Z0-9_]{0,63}$/u.test(fact.core_error_code)
+    && fact?.recovery_retry_safe === false
+    && recoveryActions.has(fact?.recovery_action);
+}
+
+function validateMcpCallFactShape(fact, errors) {
+  if (!isObject(fact) || !equalStringArrays(Object.keys(fact).sort(), mcpCallFactFields)) {
+    errors.push("each durable mcp_call_facts entry must be a closed safe projection");
+    return;
+  }
+  if (
+    !failureSessionRoleOrder.has(fact.session_role)
+    || !Number.isInteger(fact.event_index)
+    || fact.event_index < 0
+    || !devFlowTools.has(fact.tool)
+    || !isSha256(fact.arguments_sha256)
+    || !isSha256(fact.result_sha256)
+    || !["completed", "failed"].includes(fact.status)
+    || !["success_result", "tool_error_result", "transport_error"].includes(fact.result_kind)
+  ) {
+    errors.push("each durable mcp_call_facts entry must contain valid role/index/tool/digest/status/result-kind fields");
+  }
+  if (fact.status === "completed" && fact.result_kind !== "success_result") {
+    errors.push("completed MCP call facts must use success_result");
+  }
+  if (fact.status === "failed" && !["tool_error_result", "transport_error"].includes(fact.result_kind)) {
+    errors.push("failed MCP call facts must use a closed failed result kind");
+  }
+}
+
+function validateRecoverableFactShape(fact, errors) {
+  if (!isObject(fact) || !equalStringArrays(Object.keys(fact).sort(), recoveryFactFields)) {
+    errors.push("each top-level recoverable_mcp_failure_facts entry must be closed");
+    return;
+  }
+  if (
+    !["substantive", "resume"].includes(fact.session_role)
+    || !Number.isInteger(fact.event_index)
+    || fact.event_index < 0
+    || fact.tool !== "dev_flow_apply_action"
+    || fact.status !== "failed"
+    || fact.result_kind !== "tool_error_result"
+    || !isSha256(fact.result_sha256)
+    || typeof fact.task_id !== "string"
+    || fact.task_id.length === 0
+    || !Number.isInteger(fact.expected_revision)
+    || typeof fact.core_error_code !== "string"
+    || !/^[A-Z][A-Z0-9_]{0,63}$/u.test(fact.core_error_code)
+    || fact.recovery_retry_safe !== false
+    || !recoveryActions.has(fact.recovery_action)
+  ) {
+    errors.push("recoverable MCP failure fact has an invalid safe failed-apply projection");
+  }
+}
+
+function bindMcpRecoveryReference(reference, expectedTool, callFacts, canonicalTaskId, errors) {
+  if (!isObject(reference) || !equalStringArrays(Object.keys(reference).sort(), mcpReferenceFields)) {
+    errors.push("each recovery reference must be a closed task/revision-bearing safe projection");
+    return undefined;
+  }
+  if (reference.tool !== expectedTool) {
+    errors.push(`recovery reference tool must be ${expectedTool}`);
+  }
+  if (reference.task_id !== canonicalTaskId) {
+    errors.push("recovery reference task ID must equal canonical journey task ID");
+  }
+  const matches = callFacts.filter((call) => (
+    call?.session_role === reference.session_role
+    && call?.event_index === reference.event_index
+    && call?.tool === reference.tool
+    && call?.result_sha256 === reference.result_sha256
+  ));
+  if (matches.length !== 1) {
+    errors.push("recovery reference result digest is unbound to durable mcp_call_facts or duplicate");
+    return undefined;
+  }
+  const call = matches[0];
+  if (call.status !== "completed" || call.result_kind !== "success_result") {
+    errors.push("recovery reference must bind a completed successful call; failed reference is forbidden");
+  }
+  if (call.task_id !== reference.task_id || call.revision !== reference.revision) {
+    errors.push("recovery reference task/revision projection must exactly equal the bound call fact");
+  }
+  return call;
+}
+
+function mcpFactIdentity(fact) {
+  return `${fact?.session_role ?? ""}\u0000${fact?.event_index ?? ""}`;
+}
+
+function mcpFactOrder(fact) {
+  const role = failureSessionRoleOrder.get(fact?.session_role);
+  const eventIndex = fact?.event_index;
+  if (!Number.isInteger(role) || !Number.isInteger(eventIndex)) return Number.POSITIVE_INFINITY;
+  return role * 1_000_000 + eventIndex;
+}
+
+function isSha256(value) {
+  return typeof value === "string" && /^[0-9a-f]{64}$/u.test(value);
 }
 
 function validateAutomatedChecks(checks, commands, label, errors) {

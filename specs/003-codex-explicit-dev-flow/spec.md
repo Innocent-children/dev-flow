@@ -254,15 +254,53 @@ the repository is unchanged.
   stderr capture MUST each be capped at 64 MiB. A failed/blocked diagnostic whose failure is
   attributable to a completed command event MUST additionally retain only the typed safe context
   consisting of session role, event type, command/output digests, status, and exit code. The
-  diagnostic contract MUST accept the immutable attempt-1 version-1 and attempt-2 version-2 records
-  byte-unchanged. Structural and semantic validation MUST bind v1 to the actual immutable attempt 1,
-  v2 to the actual immutable attempt 2, and v3 to every attempt numbered 3 or later; a later attempt
-  MUST NOT downgrade to v1/v2. Every diagnostic created after this amendment MUST use schema version
-  3 and `external-failure-record-v3`, include the exact four safe session observations, and
-  distinguish `command_event` from `non_command`: command-event failures require the exact command
-  context while non-command failures prohibit it. Version-3 failure/skip detail MUST remain a closed
-  phase/reason code plus digest. The exact digest-bound legacy v1 record is the sole historical
-  exception to the typed observation shape; no new record and no v2/v3 record may add raw
+  Codex 0.147 `item.completed` contract MUST distinguish a Dev Flow MCP item with
+  `status=failed`, complete `result`/`structured_content` carrying a Core `ok=false` envelope, and
+  `error=null` from one with
+  `status=failed`, `result=null`, and a typed `error`. The former is a complete Core/tool error result:
+  its structured Core envelope remains authoritative and the Skill follows its stop or recovery
+  instruction, including recovery-before-retry where the Core requires it. The latter has no Core
+  result and MUST stop fail-closed. A successful MCP item with missing, truncated, or inconsistent
+  structured content remains a protocol parse failure and MUST NOT be relabelled as either official
+  failed form; a failed item whose complete envelope claims `ok=true` is likewise inconsistent. A
+  passing chain that observes a recoverable complete Core/tool error MUST retain a closed ordered
+  `recoverable_mcp_failure_facts` entry for every such item: role, event index, exact
+  `dev_flow_apply_action` tool, canonical task ID and expected revision, failed status, result
+  kind/digest,
+  bounded Core error code, Core `recovery.retry_safe=false` and
+  `recovery.action=read_task|read_next_action`, and exact safe references
+  to the later `get_task`, `get_next_action`, and next `apply_action` calls, including each
+  referenced result's task ID and revision. Passing evidence and durable
+  observed facts MUST contain the same ordered facts. Durable observed facts MUST also contain a
+  closed `mcp_call_facts` role/index/tool/digest/status/result-kind/task/error/recovery projection for every terminal
+  Dev Flow item, with no raw payload or message. Semantic validation MUST prove the failed item
+  precedes those two complete successful reads in order, both precede the referenced completed
+  successful apply. The failed request and all three references carry the canonical journey task ID;
+  the failed request's expected revision belongs to raw lineage, the two read revisions
+  are equal, and the apply revision is greater, appears in raw lineage, and matches a committed
+  action. Wrong-task or wrong-revision references MUST fail the package-bound candidate validator,
+  and no transport error appears
+  in a passing chain. Raw arguments/results/errors/messages and paths MUST NOT be retained.
+  A
+  future failed/blocked diagnostic attributable to a failed MCP item MUST retain only
+  a closed safe MCP context: session role, zero-based event order after `thread.started`, one of the
+  six exact tool names, failed status, `tool_error_result` or `transport_error` kind, and mutually
+  exclusive canonical result/error SHA-256 values. It MUST NOT retain raw arguments, result, error,
+  JSONL, thread ID, path, environment, or secret.
+  The diagnostic contract MUST accept the immutable attempt-1 version-1, attempt-2 version-2, and
+  attempt-3 version-3 records byte-unchanged. Structural and semantic validation MUST bind v1, v2,
+  and v3 to those exact historical attempts and bind v4 to every attempt numbered 4 or later; a
+  later attempt MUST NOT downgrade to v1/v2/v3. Every diagnostic created after attempt 3 MUST use
+  schema version 4 and `external-failure-record-v4`, include the exact four safe session
+  observations, and distinguish `command_event`, `mcp_event`, and `non_command`. Command-event
+  failures require the exact command context, MCP-event failures require the exact safe MCP context,
+  and non-command failures prohibit both. Version-4 failure/skip detail MUST remain a closed
+  phase/reason code plus digest. Semantic validation MUST bind an MCP-event context to the matching
+  role observation with `failure_stage=mcp_failed`, a present failed Dev Flow MCP terminal item, an
+  in-range event index, and exact `phase_code=codex-session` / `reason_code=mcp-event-failed`.
+  A recovered earlier MCP error MUST NOT be attached as context to an unrelated later failure. The
+  exact digest-bound legacy v1 record is the sole historical
+  exception to the typed observation shape; no new record and no v2/v3/v4 record may add raw
   command/output text or repository paths.
 - **FR-028**: The real journey runner MUST atomically create the single native evidence record from
   observed host events and lifecycle/data/repository measurements. The record MUST include exact

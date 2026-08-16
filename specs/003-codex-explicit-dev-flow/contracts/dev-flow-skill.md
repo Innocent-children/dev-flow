@@ -133,6 +133,19 @@ The Skill uses complete MCP structured results for decisions. User-facing summar
 
 If Codex exposes only a truncated preview and not the complete structured result, the Skill treats the operation as uncertain and follows recovery-before-retry. It never silently discards unknown result members or fills them from a local catalog.
 
+Codex 0.147 may emit a terminal MCP item with `status=failed`. When that item still contains a
+complete text/structured `ok=false` result with `error=null`, the result is a complete Core/tool error rather
+than a transport ambiguity: the Skill consumes the Core envelope and follows its explicit stop or
+recovery instruction. When the failed item has `result=null` and a typed error, no Core result exists
+and the native journey stops fail-closed. A malformed `status=completed` result is neither form and
+remains uncertain; a failed item whose complete envelope claims `ok=true` is also inconsistent. No failed event may be ignored, and no uncertain mutation may be retried before
+the required `dev_flow_get_task` then `dev_flow_get_next_action` reads.
+When a complete Core error is recovered and the journey later passes, the evidence binds that
+failed apply item's safe role/index/tool/request-task/expected-revision/result digest and Core error/recovery projection to those exact
+two later reads and the next apply mutation, including canonical task ID and non-regressing
+read/read/apply revisions tied to journey lineage. Passing evidence accepts only Core `retry_safe=false` with
+`read_task|read_next_action`; it never persists the raw result or recovery message.
+
 ## Testable examples
 
 | Scenario | Required observable behavior |

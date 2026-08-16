@@ -86,6 +86,40 @@ const retiredNativeProofCommand = `git diff --check -- ${nativeProofPath}`;
 const nativeProofCommandOutput = `${nativeProofGitBlobSha1}\n`;
 const nativeProofCommandOutputSha256 = createHash("sha256").update(nativeProofCommandOutput).digest("hex");
 const nativeSessionRoles = Object.freeze(["ordinary", "invalid", "substantive", "resume"]);
+const devFlowToolNames = new Set([
+  "dev_flow_server_info",
+  "dev_flow_open_task",
+  "dev_flow_get_task",
+  "dev_flow_get_next_action",
+  "dev_flow_apply_action",
+  "dev_flow_cancel_task",
+]);
+const coreErrorCodes = new Set([
+  "INVALID_ARGUMENT",
+  "NOT_GIT_REPOSITORY",
+  "TASK_NOT_FOUND",
+  "ACTIVE_TASK_CONFLICT",
+  "HOST_OWNERSHIP_CONFLICT",
+  "REVISION_CONFLICT",
+  "ACTION_STALE",
+  "REPOSITORY_DRIFT",
+  "VERIFICATION_BUDGET_EXCEEDED",
+  "TASK_BLOCKED",
+  "TASK_TERMINAL",
+  "SCHEMA_UNSUPPORTED",
+  "STORAGE_UNAVAILABLE",
+  "INTERNAL_ERROR",
+]);
+const coreRecoveryActions = new Set([
+  "none",
+  "read_task",
+  "read_next_action",
+  "resolve_repository_drift",
+  "use_origin_host",
+  "cancel_or_finish_active_task",
+  "repair_storage",
+  "report_internal_error",
+]);
 const nativeSkillSelector = "$dev-flow-codex:dev-flow";
 const nativeSessionStreamLimitBytes = 64 * 1024 * 1024;
 const knownTestCommandMarkers = Object.freeze([
@@ -442,13 +476,28 @@ export function parseCodexExecJSONL(text, { sessionRole = "resume" } = {}) {
       continue;
     }
     if (item?.type !== "mcp_tool_call" || item.server !== "dev-flow") continue;
-    if (
-      item.status !== "completed"
-      || item.error !== null
-      || !isPlainObject(item.result)
-      || !isPlainObject(item.result.structured_content)
-    ) {
-      throw new Error("completed Dev Flow MCP calls require a complete structured result without error");
+    if (typeof item.id !== "string" || item.id.length === 0 || !devFlowToolNames.has(item.tool)) {
+      throw new Error("Dev Flow MCP terminal items require an item ID and one exact Core Contract tool");
+    }
+    const isCompletedResult = item.status === "completed" && item.error === null && isPlainObject(item.result);
+    const isFailedResult = item.status === "failed" && item.error === null && isPlainObject(item.result);
+    const isTransportError = item.status === "failed" && item.result === null && isPlainObject(item.error);
+    if (isTransportError) {
+      throw mcpEventError(
+        "Dev Flow MCP transport failed without a Core structured result and must stop fail-closed",
+        {
+          sessionRole,
+          eventIndex,
+          tool: item.tool,
+          status: "failed",
+          resultKind: "transport_error",
+          resultSha256: null,
+          errorSha256: canonicalJSONSha256(item.error),
+        },
+      );
+    }
+    if ((!isCompletedResult && !isFailedResult) || !isPlainObject(item.result.structured_content)) {
+      throw new Error("Dev Flow MCP terminal item has an inconsistent protocol shape or incomplete structured result");
     }
     const textBlocks = Array.isArray(item.result.content)
       ? item.result.content.filter((block) => block?.type === "text" && typeof block.text === "string")
@@ -465,14 +514,21 @@ export function parseCodexExecJSONL(text, { sessionRole = "resume" } = {}) {
     if (!deepEqualJSON(textResult, item.result.structured_content)) {
       throw new Error("Dev Flow MCP text and structured results must be deeply equal");
     }
-    if (typeof item.tool !== "string" || !item.tool.startsWith("dev_flow_")) {
-      throw new Error("Dev Flow MCP call must identify one dev_flow tool");
-    }
+    const envelope = item.result.structured_content;
+    assertAuthoritativeCoreEnvelope(envelope, {
+      tool: item.tool,
+      ok: isCompletedResult,
+      callerArguments: item.arguments,
+    });
     devFlowCalls.push({
       itemId: item.id,
+      eventIndex,
       tool: item.tool,
       arguments: structuredClone(item.arguments ?? {}),
-      result: structuredClone(item.result.structured_content),
+      result: structuredClone(envelope),
+      status: item.status,
+      resultKind: isFailedResult ? "tool_error_result" : "success_result",
+      resultSha256: canonicalJSONSha256(item.result),
     });
   }
   return {
@@ -482,6 +538,79 @@ export function parseCodexExecJSONL(text, { sessionRole = "resume" } = {}) {
     ignoredPreviewCount,
     ignoredProseCount,
   };
+}
+
+function assertAuthoritativeCoreEnvelope(envelope, { tool, ok, callerArguments }) {
+  if (
+    envelope.schema_version !== 1
+    || envelope.ok !== ok
+    || typeof envelope.request_id !== "string"
+    || Buffer.byteLength(envelope.request_id) === 0
+    || Buffer.byteLength(envelope.request_id) > 128
+    || envelope.tool !== tool
+  ) {
+    throw new Error("Dev Flow MCP Core envelope has an inconsistent schema version, request ID, tool, or ok identity");
+  }
+  if (tool === "dev_flow_apply_action") {
+    const callerRequestID = isPlainObject(callerArguments) ? callerArguments.request_id : undefined;
+    if (
+      typeof callerRequestID !== "string"
+      || Buffer.byteLength(callerRequestID) === 0
+      || Buffer.byteLength(callerRequestID) > 128
+      || callerRequestID !== envelope.request_id
+    ) {
+      throw new Error("Dev Flow apply-action Core envelope request ID must byte-exactly echo the bounded caller request identity");
+    }
+  }
+  if (ok) {
+    requireExactKeys(
+      envelope,
+      ["schema_version", "ok", "request_id", "tool", "result"],
+      "successful Dev Flow MCP Core envelope",
+    );
+    if (!isPlainObject(envelope.result)) {
+      throw new Error("successful Dev Flow MCP Core envelope requires one closed result object");
+    }
+    return;
+  }
+
+  requireExactKeys(
+    envelope,
+    ["schema_version", "ok", "request_id", "tool", "error", "recovery"],
+    "failed Dev Flow MCP Core envelope",
+  );
+  const error = envelope.error;
+  if (
+    !isPlainObject(error)
+    || !Object.hasOwn(error, "code")
+    || !Object.hasOwn(error, "message")
+    || Object.keys(error).some((key) => !["code", "message", "details"].includes(key))
+    || !coreErrorCodes.has(error.code)
+    || typeof error.message !== "string"
+    || Buffer.byteLength(error.message) === 0
+    || Buffer.byteLength(error.message) > 4096
+    || (Object.hasOwn(error, "details") && !isPlainObject(error.details))
+  ) {
+    throw new Error("failed Dev Flow MCP Core envelope requires one closed typed error with a bounded message");
+  }
+  const recovery = envelope.recovery;
+  if (!isPlainObject(recovery)) {
+    throw new Error("failed Dev Flow MCP Core envelope requires closed recovery guidance");
+  }
+  requireExactKeys(
+    recovery,
+    ["retry_safe", "action", "message"],
+    "failed Dev Flow MCP Core envelope recovery",
+  );
+  if (
+    typeof recovery.retry_safe !== "boolean"
+    || !coreRecoveryActions.has(recovery.action)
+    || typeof recovery.message !== "string"
+    || Buffer.byteLength(recovery.message) === 0
+    || Buffer.byteLength(recovery.message) > 4096
+  ) {
+    throw new Error("failed Dev Flow MCP Core envelope requires typed recovery guidance with a bounded message");
+  }
 }
 
 export function summarizeRecordedSessions({ ordinary, invalid, substantive, resume } = {}) {
@@ -519,13 +648,6 @@ export function summarizeRecordedSessions({ ordinary, invalid, substantive, resu
   const resumeTasks = resume.devFlowCalls
     .map(taskProjectionFromCall)
     .filter(isPlainObject);
-  if (
-    substantiveTasks.length === 0
-    || substantiveTasks.at(-1).outcome?.status === "completed"
-    || resumeTasks.length === 0
-  ) {
-    throw new Error("native restart boundary requires a nonterminal substantive task and terminal resume observations");
-  }
   const taskObservations = observed
     .map((call) => ({ call, task: taskProjectionFromCall(call) }))
     .filter(({ task }) => isPlainObject(task));
@@ -551,6 +673,22 @@ export function summarizeRecordedSessions({ ordinary, invalid, substantive, resu
       action_id: task.last_operation.action_id,
       revision: task.revision,
     }));
+  const recoverableMCPFailureFacts = deriveRecoverableMCPFailureFacts({
+    calls: [
+      ...substantive.devFlowCalls.map((call) => ({ role: "substantive", call })),
+      ...resume.devFlowCalls.map((call) => ({ role: "resume", call })),
+    ],
+    canonicalTaskId: [...taskIDs][0],
+    rawRevisions,
+    committedActions,
+  });
+  if (
+    substantiveTasks.length === 0
+    || substantiveTasks.at(-1).outcome?.status === "completed"
+    || resumeTasks.length === 0
+  ) {
+    throw new Error("native restart boundary requires a nonterminal substantive task and terminal resume observations");
+  }
   if (committedActions.length < 2) throw new Error("recorded native sessions require at least two Core action commits");
   const resumeApplyIndex = resume.devFlowCalls.findIndex((call) => call.tool === "dev_flow_apply_action");
   const priorResumeTools = resumeApplyIndex < 0
@@ -561,6 +699,20 @@ export function summarizeRecordedSessions({ ordinary, invalid, substantive, resu
   if (resumeApplyIndex < 0 || getTaskIndex < 0 || getNextActionIndex < 0) {
     throw new Error("restart recovery requires get_task then get_next_action before a later apply mutation");
   }
+
+  const mcpCallFacts = [
+    ...substantive.devFlowCalls.map((call) => mcpCallFact("substantive", call)),
+    ...resume.devFlowCalls.map((call) => mcpCallFact("resume", call)),
+  ];
+  const restartReadFacts = [
+    mcpCallFacts.find((fact) => fact.session_role === "resume" && fact.tool === "dev_flow_get_task"),
+    mcpCallFacts.find((fact) => fact.session_role === "resume" && fact.tool === "dev_flow_get_next_action"),
+  ].filter(Boolean);
+  const recoveryReadFacts = recoverableMCPFailureFacts.flatMap((fact) => [fact.get_task, fact.get_next_action]);
+  const readBeforeRetryObservations = new Set(
+    [...restartReadFacts, ...recoveryReadFacts]
+      .map((fact) => `${fact.session_role}:${fact.event_index}`),
+  ).size;
 
   const budgets = taskObservations
     .map(({ task }) => task.contract?.verification_budget)
@@ -613,12 +765,159 @@ export function summarizeRecordedSessions({ ordinary, invalid, substantive, resu
     terminalOutcome: "DONE",
     coreCallCount: observed.length,
     restartRecoveryReads: ["dev_flow_get_task", "dev_flow_get_next_action"],
+    readBeforeRetryObservations,
+    mcpCallFacts,
+    recoverableMCPFailureFacts,
     budget,
     sessionCommandFacts: structuredClone(sessionCommandFacts),
     commandExecutions: structuredClone(commandExecutions),
     submittedAutomatedChecks,
     retainedAutomatedChecks,
     terminalTask: structuredClone(terminalTask),
+  };
+}
+
+function mcpCallFact(sessionRole, call) {
+  const task = taskProjectionFromCall(call);
+  const coreError = call.resultKind === "tool_error_result" ? call.result?.error : null;
+  const recovery = call.resultKind === "tool_error_result" ? call.result?.recovery : null;
+  const requestTaskID = call.tool === "dev_flow_apply_action" && typeof call.arguments?.task_id === "string"
+    ? call.arguments.task_id
+    : null;
+  const expectedRevision = call.tool === "dev_flow_apply_action" && Number.isInteger(call.arguments?.expected_revision)
+    ? call.arguments.expected_revision
+    : null;
+  return {
+    session_role: sessionRole,
+    event_index: call.eventIndex,
+    tool: call.tool,
+    arguments_sha256: canonicalJSONSha256(call.arguments),
+    result_sha256: call.resultSha256,
+    status: call.status,
+    result_kind: call.resultKind,
+    task_id: task?.task_id ?? null,
+    revision: task?.revision ?? null,
+    outcome: task?.outcome?.status ?? null,
+    request_task_id: requestTaskID,
+    expected_revision: expectedRevision,
+    core_error_code: typeof coreError?.code === "string" ? coreError.code : null,
+    recovery_retry_safe: typeof recovery?.retry_safe === "boolean" ? recovery.retry_safe : null,
+    recovery_action: typeof recovery?.action === "string" ? recovery.action : null,
+  };
+}
+
+function deriveRecoverableMCPFailureFacts({ calls, canonicalTaskId, rawRevisions, committedActions }) {
+  const failures = calls
+    .map(({ role, call }, index) => ({ role, call, index }))
+    .filter(({ call }) => call.status === "failed" && call.resultKind === "tool_error_result");
+  return failures.map(({ role, call, index }) => {
+    const fail = (message) => {
+      throw mcpEventError(message, {
+        sessionRole: role,
+        eventIndex: call.eventIndex,
+        tool: call.tool,
+        status: call.status,
+        resultKind: call.resultKind,
+        resultSha256: call.resultSha256,
+        errorSha256: null,
+      });
+    };
+    const error = call.result?.error;
+    const recovery = call.result?.recovery;
+    if (
+      call.tool !== "dev_flow_apply_action"
+      || typeof call.arguments?.task_id !== "string"
+      || !Number.isInteger(call.arguments?.expected_revision)
+      || !isPlainObject(error)
+      || typeof error.code !== "string"
+      || !/^[A-Z][A-Z0-9_]{0,63}$/u.test(error.code)
+      || !isPlainObject(recovery)
+      || recovery.retry_safe !== false
+      || !["read_task", "read_next_action"].includes(recovery.action)
+    ) {
+      return fail("complete failed MCP result is not a bounded Core-directed recoverable apply error");
+    }
+    if (
+      call.arguments.task_id !== canonicalTaskId
+      || !rawRevisions.includes(call.arguments.expected_revision)
+    ) {
+      return fail("recoverable failed MCP request is outside the canonical task lineage");
+    }
+
+    const afterFailure = calls.slice(index + 1);
+    const getTaskOffset = afterFailure.findIndex(({ call: candidate }) =>
+      candidate.tool === "dev_flow_get_task" && candidate.status === "completed");
+    const getTaskAbsolute = getTaskOffset < 0 ? -1 : index + 1 + getTaskOffset;
+    const getNextOffset = getTaskAbsolute < 0 ? -1 : calls.slice(getTaskAbsolute + 1).findIndex(({ call: candidate }) =>
+      candidate.tool === "dev_flow_get_next_action" && candidate.status === "completed");
+    const getNextAbsolute = getNextOffset < 0 ? -1 : getTaskAbsolute + 1 + getNextOffset;
+    const mutationOffset = getNextAbsolute < 0 ? -1 : calls.slice(getNextAbsolute + 1).findIndex(({ call: candidate }) =>
+      candidate.tool === "dev_flow_apply_action" && candidate.status === "completed");
+    const mutationAbsolute = mutationOffset < 0 ? -1 : getNextAbsolute + 1 + mutationOffset;
+    if (getTaskAbsolute < 0 || getNextAbsolute < 0 || mutationAbsolute < 0) {
+      return fail("recoverable failed MCP result requires get_task, get_next_action, and the next successful apply");
+    }
+    if (
+      calls.slice(index + 1, getTaskAbsolute).some(({ call: candidate }) => candidate.tool === "dev_flow_apply_action")
+      || calls.slice(getTaskAbsolute + 1, getNextAbsolute).some(({ call: candidate }) => candidate.tool === "dev_flow_apply_action")
+      || calls.slice(getNextAbsolute + 1, mutationAbsolute).some(({ call: candidate }) => candidate.tool === "dev_flow_apply_action")
+    ) {
+      return fail("recoverable failed MCP result has an intervening mutation before Core-directed recovery reads complete");
+    }
+
+    let getTask;
+    let getNextAction;
+    let nextMutation;
+    try {
+      getTask = mcpCallReference(calls[getTaskAbsolute]);
+      getNextAction = mcpCallReference(calls[getNextAbsolute]);
+      nextMutation = mcpCallReference(calls[mutationAbsolute]);
+    } catch {
+      return fail("recoverable MCP references require complete successful Core task projections");
+    }
+    const nextMutationCall = calls[mutationAbsolute].call;
+    if (
+      [getTask, getNextAction, nextMutation].some((reference) => reference.task_id !== canonicalTaskId)
+      || getTask.revision !== getNextAction.revision
+      || nextMutation.revision <= getNextAction.revision
+      || nextMutationCall.arguments?.task_id !== canonicalTaskId
+      || nextMutationCall.arguments?.expected_revision !== getNextAction.revision
+      || !rawRevisions.includes(nextMutation.revision)
+      || !committedActions.some(({ revision }) => revision === nextMutation.revision)
+    ) {
+      return fail("recoverable failed MCP references do not preserve the canonical task and revision lineage");
+    }
+    return {
+      session_role: role,
+      event_index: call.eventIndex,
+      tool: call.tool,
+      status: "failed",
+      result_kind: "tool_error_result",
+      task_id: call.arguments.task_id,
+      expected_revision: call.arguments.expected_revision,
+      result_sha256: call.resultSha256,
+      core_error_code: error.code,
+      recovery_retry_safe: false,
+      recovery_action: recovery.action,
+      get_task: getTask,
+      get_next_action: getNextAction,
+      next_mutation: nextMutation,
+    };
+  });
+}
+
+function mcpCallReference({ role, call }) {
+  const task = taskProjectionFromCall(call);
+  if (!isPlainObject(task) || call.status !== "completed" || call.resultKind !== "success_result") {
+    throw new Error("recoverable MCP references require complete successful Core task projections");
+  }
+  return {
+    session_role: role,
+    event_index: call.eventIndex,
+    tool: call.tool,
+    result_sha256: call.resultSha256,
+    task_id: task.task_id,
+    revision: task.revision,
   };
 }
 
@@ -734,6 +1033,32 @@ function commandEventError(message, fact) {
   return error;
 }
 
+function mcpEventError(message, fact) {
+  const error = new Error(message);
+  if (
+    isPlainObject(fact)
+    && nativeSessionRoles.includes(fact.sessionRole)
+    && Number.isInteger(fact.eventIndex)
+    && fact.eventIndex >= 0
+    && devFlowToolNames.has(fact.tool)
+    && fact.status === "failed"
+    && ["tool_error_result", "transport_error"].includes(fact.resultKind)
+  ) {
+    error.failureStage = "mcp_failed";
+    error.mcpFailureContext = {
+      session_role: fact.sessionRole,
+      event_type: "mcp_tool_call",
+      event_index: fact.eventIndex,
+      tool: fact.tool,
+      status: "failed",
+      result_kind: fact.resultKind,
+      result_sha256: fact.resultSha256 ?? null,
+      error_sha256: fact.errorSha256 ?? null,
+    };
+  }
+  return error;
+}
+
 export async function runRecordedNativeSessions({ spawnSession, sessionObservations } = {}) {
   if (typeof spawnSession !== "function") throw new Error("native session driver requires a spawnSession function");
   const observations = sessionObservations ?? createInitialSessionObservations();
@@ -767,13 +1092,32 @@ export async function runRecordedNativeSessions({ spawnSession, sessionObservati
       parsed[role] = parseCodexExecJSONL(capture.stdout, { sessionRole: role });
       replaceSessionObservation(observations, sessionObservationFromCapture(role, capture, "completed"));
     } catch (error) {
-      replaceSessionObservation(observations, sessionObservationFromCapture(role, capture, "parse_failed"));
+      replaceSessionObservation(
+        observations,
+        sessionObservationFromCapture(role, capture, normalizeFailureStage(error?.failureStage, "parse_failed")),
+      );
       throw attachSessionObservations(error, observations);
     }
   }
+  let summary;
+  try {
+    summary = summarizeRecordedSessions(parsed);
+  } catch (error) {
+    const role = error?.mcpFailureContext?.session_role;
+    if (nativeSessionRoles.includes(role)) {
+      const session = parsed[role];
+      const existing = observations[nativeSessionRoles.indexOf(role)];
+      replaceSessionObservation(observations, {
+        ...existing,
+        failure_stage: "mcp_failed",
+        ...(session ? {} : emptySessionObservation(role)),
+      });
+    }
+    throw attachSessionObservations(error, observations);
+  }
   return {
     sessions: parsed,
-    summary: summarizeRecordedSessions(parsed),
+    summary,
     sessionObservations: structuredClone(observations),
   };
 }
@@ -908,6 +1252,7 @@ function normalizeFailureStage(stage, fallback) {
     "capture_failed",
     "process_exited",
     "parse_failed",
+    "mcp_failed",
     "completed",
     "stop_marker_missing",
   ]);
@@ -1402,6 +1747,7 @@ export async function executeNativeJourney(inputs = {}, dependencies = {}) {
     const completedAt = now();
     const recordedAt = now();
     const safeFailure = failureProjection(error, sessionObservations);
+    const failureSchemaVersion = reservation.attemptNumber >= 4 ? 4 : 3;
     const failure = await finalizeFailedAttempt({
       ledgerPath: inputs.ledgerPath,
       evidencePath,
@@ -1410,10 +1756,11 @@ export async function executeNativeJourney(inputs = {}, dependencies = {}) {
       reservation,
       status: "failed",
       completedAt,
-      observedFacts: { schema_version: 3, ...structuredClone(safeFailure) },
+      observedFacts: { schema_version: failureSchemaVersion, ...structuredClone(safeFailure) },
       diagnosticBase: failureDiagnosticBase({
         preflight: firstPreflight,
         recordedAt,
+        schemaVersion: failureSchemaVersion,
         ...safeFailure,
       }),
     });
@@ -1519,14 +1866,19 @@ function passingEvidenceBase({ preflight, journey, recordedAt }) {
 function failureDiagnosticBase({
   preflight,
   recordedAt,
+  schemaVersion,
   failure_kind,
   failure,
   failure_context,
+  mcp_failure_context,
   session_observations,
 }) {
   requireTimestamp(recordedAt, "recordedAt");
+  if (![3, 4].includes(schemaVersion)) {
+    throw new Error("new native failure diagnostic requires version 3 or 4");
+  }
   return {
-    schema_version: 3,
+    schema_version: schemaVersion,
     report_type: "dev-flow-codex-native-attempt-diagnostic",
     recorded_at: recordedAt,
     classification: {
@@ -1558,6 +1910,7 @@ function failureDiagnosticBase({
     failure_kind,
     failure: structuredClone(failure),
     ...(failure_context ? { failure_context: structuredClone(failure_context) } : {}),
+    ...(mcp_failure_context ? { mcp_failure_context: structuredClone(mcp_failure_context) } : {}),
     session_observations: structuredClone(session_observations),
     skips: [],
   };
@@ -1565,6 +1918,7 @@ function failureDiagnosticBase({
 
 function failureProjection(error, currentSessionObservations) {
   const failureContext = error?.failureContext;
+  const mcpFailureContext = error?.mcpFailureContext;
   const hasCommandContext = isPlainObject(failureContext)
     && nativeSessionRoles.includes(failureContext.session_role)
     && failureContext.event_type === "command_execution"
@@ -1572,14 +1926,35 @@ function failureProjection(error, currentSessionObservations) {
     && hex(failureContext.output_sha256, 64)
     && ["completed", "failed", "declined"].includes(failureContext.status)
     && (Number.isInteger(failureContext.exit_code) || failureContext.exit_code === null);
+  const hasMCPContext = isPlainObject(mcpFailureContext)
+    && nativeSessionRoles.includes(mcpFailureContext.session_role)
+    && mcpFailureContext.event_type === "mcp_tool_call"
+    && Number.isInteger(mcpFailureContext.event_index)
+    && mcpFailureContext.event_index >= 0
+    && devFlowToolNames.has(mcpFailureContext.tool)
+    && mcpFailureContext.status === "failed"
+    && ["tool_error_result", "transport_error"].includes(mcpFailureContext.result_kind)
+    && (
+      (mcpFailureContext.result_kind === "tool_error_result"
+        && hex(mcpFailureContext.result_sha256, 64)
+        && mcpFailureContext.error_sha256 === null)
+      || (mcpFailureContext.result_kind === "transport_error"
+        && mcpFailureContext.result_sha256 === null
+        && hex(mcpFailureContext.error_sha256, 64))
+    );
+  const failureKind = hasMCPContext ? "mcp_event" : hasCommandContext ? "command_event" : "non_command";
   return {
-    failure_kind: hasCommandContext ? "command_event" : "non_command",
+    failure_kind: failureKind,
     failure: {
-      phase_code: hasCommandContext ? "codex-session" : "native-journey",
-      reason_code: hasCommandContext ? "command-event-rejected" : "unexpected-failure",
+      phase_code: hasMCPContext || hasCommandContext ? "codex-session" : "native-journey",
+      reason_code: hasMCPContext
+        ? "mcp-event-failed"
+        : hasCommandContext ? "command-event-rejected" : "unexpected-failure",
       detail_sha256: sha256(String(error?.message ?? "native attempt failed")),
     },
-    ...(hasCommandContext ? { failure_context: structuredClone(failureContext) } : {}),
+    ...(hasMCPContext
+      ? { mcp_failure_context: structuredClone(mcpFailureContext) }
+      : hasCommandContext ? { failure_context: structuredClone(failureContext) } : {}),
     session_observations: structuredClone(
       isSessionObservationSet(error?.sessionObservations)
         ? error.sessionObservations
@@ -1836,9 +2211,7 @@ async function finishNativeHost({ context, sessionResult, preflight }) {
       arguments_sha256: sha256(jsonBytes(call.arguments)),
       result_sha256: sha256(jsonBytes(call.result)),
     }));
-  const readBeforeRetryObservations = sessions.resume.devFlowCalls.filter(
-    (call) => ["dev_flow_get_task", "dev_flow_get_next_action"].includes(call.tool),
-  ).length;
+  const readBeforeRetryObservations = summary.readBeforeRetryObservations;
   const verification = nativeVerificationProjection(summary);
   const submittedAutomatedCommandCount = verification.submitted_automated_checks
     .reduce((total, check) => total + check.command_count, 0);
@@ -1862,6 +2235,7 @@ async function finishNativeHost({ context, sessionResult, preflight }) {
       implicit_invocation_core_calls: summary.ordinaryCoreCalls,
       read_before_retry_observations: readBeforeRetryObservations,
       restart_recovery_reads: summary.restartRecoveryReads,
+      recoverable_mcp_failure_facts: structuredClone(summary.recoverableMCPFailureFacts),
       verification_budget: verification.budget,
       session_command_facts: verification.session_command_facts,
       verification_commands: verification.command_executions,
@@ -1911,12 +2285,14 @@ async function finishNativeHost({ context, sessionResult, preflight }) {
       plugin_count: context.pluginReadback.installed.length,
     },
     sessions: {
-      ordinary: sessionFact(sessions.ordinary),
-      invalid: sessionFact(sessions.invalid),
-      substantive: sessionFact(sessions.substantive),
-      resume: sessionFact(sessions.resume),
+      ordinary: sessionFact("ordinary", sessions.ordinary),
+      invalid: sessionFact("invalid", sessions.invalid),
+      substantive: sessionFact("substantive", sessions.substantive),
+      resume: sessionFact("resume", sessions.resume),
       summary,
     },
+    mcp_call_facts: structuredClone(summary.mcpCallFacts),
+    recoverable_mcp_failure_facts: structuredClone(summary.recoverableMCPFailureFacts),
     verification: structuredClone(verification),
     terminal_task: structuredClone(summary.terminalTask),
     removal: {
@@ -2423,20 +2799,20 @@ export async function directCoreTaskReopen({
   }
 }
 
-function sessionFact(session) {
+function sessionFact(sessionRole, session) {
   return {
     thread_id: session.threadId,
     ignored_preview_count: session.ignoredPreviewCount,
     ignored_prose_count: session.ignoredProseCount,
     calls: session.devFlowCalls.map((call) => {
-      const task = taskProjectionFromCall(call);
+      const fact = mcpCallFact(sessionRole, call);
       return {
-        tool: call.tool,
-        arguments_sha256: sha256(jsonBytes(call.arguments)),
-        result_sha256: sha256(jsonBytes(call.result)),
-        task_id: task?.task_id ?? null,
-        revision: task?.revision ?? null,
-        outcome: task?.outcome?.status ?? null,
+        tool: fact.tool,
+        arguments_sha256: fact.arguments_sha256,
+        result_sha256: fact.result_sha256,
+        task_id: fact.task_id,
+        revision: fact.revision,
+        outcome: fact.outcome,
       };
     }),
   };
@@ -2938,8 +3314,12 @@ export async function writeFailureDiagnostic({
   if (
     !isPlainObject(diagnostic)
     || !["failed", "blocked"].includes(diagnostic.status)
-    || diagnostic.schema_version !== 3
-    || diagnostic.native_attempt?.commit_protocol !== "external-failure-record-v3"
+    || ![3, 4].includes(diagnostic.schema_version)
+    || diagnostic.native_attempt?.commit_protocol !== (
+      diagnostic.schema_version === 4
+        ? "external-failure-record-v4"
+        : "external-failure-record-v3"
+    )
   ) {
     throw new Error("failure diagnostic must be an honest failed/blocked external record");
   }
@@ -2997,6 +3377,13 @@ export async function finalizeFailedAttempt({
     if (entry?.chain_id !== reservation.chainId || entry.status !== "reserved") {
       throw new Error("failure finalization requires the matching unresolved reservation");
     }
+    const expectedDiagnosticVersion = reservation.attemptNumber >= 4 ? 4 : 3;
+    if (
+      diagnosticBase.schema_version !== expectedDiagnosticVersion
+      || observedFacts.schema_version !== expectedDiagnosticVersion
+    ) {
+      throw new Error("failure diagnostic version must match the consumed native attempt generation");
+    }
     ledger.attempts[ledger.attempts.length - 1] = {
       ...entry,
       completed_at: completedAt,
@@ -3013,7 +3400,9 @@ export async function finalizeFailedAttempt({
         attempt_number: reservation.attemptNumber,
         total_attempts: ledger.attempts.length,
         ledger_sha256: sha256(finalLedgerBytes),
-        commit_protocol: "external-failure-record-v3",
+        commit_protocol: expectedDiagnosticVersion === 4
+          ? "external-failure-record-v4"
+          : "external-failure-record-v3",
         observed_facts_sha256: observedFactsSha256,
       },
     };
@@ -3022,6 +3411,7 @@ export async function finalizeFailedAttempt({
       observedFacts,
       ledger,
       attemptLedgerPath: ledgerPath,
+      attributableMcpFailureContext: diagnosticBase.mcp_failure_context,
     });
     if (failureErrors.length !== 0) {
       throw new Error(`native failure candidate semantic validation failed: ${failureErrors.join("; ")}`);
@@ -3390,6 +3780,10 @@ function requireTimestamp(value, label) {
 
 function jsonBytes(value) {
   return `${JSON.stringify(sortValue(value))}\n`;
+}
+
+function canonicalJSONSha256(value) {
+  return sha256(JSON.stringify(sortValue(value)));
 }
 
 function sortValue(value) {

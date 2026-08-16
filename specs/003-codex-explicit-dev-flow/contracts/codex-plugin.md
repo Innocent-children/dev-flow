@@ -282,13 +282,11 @@ exact bytes/identities. The canonical repository path and journey-evidence schem
 unique passing record. Failed/blocked diagnostics conform to the independent closed
 `native-attempt-diagnostic.schema.json`, may contain only observations actually reached, remain
 outside the repository, and are invalidated with their chain while their ledger entries are
-retained. Conditional schema versions 1 and 2 preserve the immutable consumed attempt-1 v1 and
-attempt-2 v2 records without byte changes. Every later diagnostic uses
-`external-failure-record-v3` and, when a completed command caused the failure, adds only the safe
-typed context `{session_role,event_type,command_sha256,output_sha256,status,exit_code}`. Version 3
-requires `failure_kind=command_event` plus that context or `failure_kind=non_command` with the
-context prohibited; its failure/skips contain only closed phase/reason codes and detail digests. It
-also requires exactly four ordered safe session observations, one per
+retained. Conditional schema versions 1, 2, and 3 preserve the immutable consumed attempt-1 v1,
+attempt-2 v2, and attempt-3 v3 records without byte changes. Every diagnostic after attempt 3 uses
+`external-failure-record-v4` and, when a completed command caused the failure, adds only the safe
+typed context `{session_role,event_type,command_sha256,output_sha256,status,exit_code}`. Versions 3
+and 4 require exactly four ordered safe session observations, one per
 ordinary/invalid/substantive/resume role, with closed stage, nullable exit/signal, thread presence,
 bounded stdout/stderr bytes and digests, and closed event/item/MCP status counts. Those observations
 are persisted before cleanup in both the diagnostic and the ledger-bound failure-observed-facts file
@@ -296,9 +294,44 @@ and must be equal. Raw JSONL, stderr, prompts, commands, outputs, environment va
 IDs, and paths are forbidden. Any post-publication integrity failure is terminal blocked recovery
 and cannot authorize another host launch.
 
-Structural validation binds v1 to attempt/total count 1, v2 to attempt/total count 2, and v3 to
-counts of at least 3. Semantic validation also requires the exact corresponding ledger entry,
-identity, and observed-facts digest, so no later attempt can downgrade to a legacy shape. The exact
+Version 4 preserves the four observations and adds `failure_kind=mcp_event` with exactly
+`{session_role,event_type,event_index,tool,status,result_kind,result_sha256,error_sha256}`. The tool
+is one of the six exact Core Contract names. A complete canonical result digest with null error is
+`tool_error_result`; a canonical typed-error digest with null result is `transport_error`. Raw
+arguments, results, errors, JSONL, thread IDs, paths, environments, and secrets are prohibited.
+`command_event`, `mcp_event`, and `non_command` require respectively only command context, only MCP
+context, or neither.
+
+For a v4 `mcp_event`, semantic validation additionally binds the context to the observation for its
+role: stage `mcp_failed`, an in-range post-thread event index, and aggregate counts containing a
+failed Dev Flow completed MCP item. Its failure is exactly phase `codex-session` and reason
+`mcp-event-failed`. Writer attribution is event-local, so an earlier recovered MCP failure cannot be
+reused as context for a later unrelated failure.
+
+Codex 0.147 `item.completed` with `status=failed`, a complete result/text-structured parity, and
+`error=null` carrying a structured Core `ok=false` envelope is parsed as a complete Core/tool error result; its structured envelope drives the
+existing Core stop/recovery behavior. `status=failed`, `result=null`, and a typed error is a transport
+failure without Core authority and stops fail-closed. A malformed successful event remains a
+protocol error, as is a failed item whose complete envelope claims `ok=true`. The runner never ignores a failed event or retries an uncertain mutation without
+the authoritative read-before-retry sequence.
+
+A passing candidate contains a required (possibly empty) ordered
+`journey.invocation.recoverable_mcp_failure_facts` array equal to the ledger-bound observed-facts
+projection. Each entry safely identifies the failed apply item, canonical request task ID/expected
+revision, and complete result digest, projects the
+Core error code plus `retry_safe=false` and `read_task|read_next_action` authority, and binds exact safe references to the later
+`dev_flow_get_task`, `dev_flow_get_next_action`, and next `dev_flow_apply_action` calls, including
+their task IDs and revisions. The semantic validator
+requires that order against the role-scoped closed `mcp_call_facts` (role/index/tool,
+argument/result digests, status/result kind, nullable task projection and bounded Core
+error/recovery fields), requires the failed request and all three calls to use the canonical journey
+task ID, requires its expected revision in raw lineage, equal read revisions, plus a greater apply revision present in raw lineage
+and committed actions, and rejects transport failures,
+unbound/duplicate facts or references, raw messages, and any intervening mutation.
+
+Structural validation binds v1/v2/v3 to exact attempt/total counts 1/2/3, and v4 to counts of at
+least 4. Semantic validation also requires the exact corresponding ledger entry,
+identity, and observed-facts digest, so no later attempt can downgrade to v1/v2/v3. The exact
 immutable v1 record is the sole legacy textual-observation exception and is accepted only through
 its historical identity/digest; it is not a template for a new record.
 
@@ -314,5 +347,5 @@ production parser and full candidate validator exercise session-aware accounting
 the exact official installed Skill identity from plugin name plus Skill base name; bare `$dev-flow`,
 wrong namespace/base selectors, and missing selectors yield no synthetic MCP calls, while only
 `$dev-flow-codex:dev-flow` may drive the substantive/resume streams. Failed orchestration tests use
-that default subprocess boundary and require durable version-3 safe session observations before
-cleanup.
+that default subprocess boundary and require durable version-4 safe session observations before
+cleanup while retaining byte-exact read-only coverage for historical versions 1 through 3.

@@ -228,11 +228,26 @@ async function runCodexExec(prompt) {
       arguments_: ["status", "--short"],
     });
     if (process.env.FAKE_NATIVE_SESSION_MODE === "substantive-no-apply") return;
-    emitMCP("dev_flow_apply_action", coreEnvelope(4, "action-implement", false));
+    await emitMCP("dev_flow_apply_action", coreEnvelope(4, "action-implement", false));
     return;
   }
-  emitMCP("dev_flow_get_task", coreEnvelope(4, "action-read-task", false, "dev_flow_get_task"));
-  emitMCP("dev_flow_get_next_action", coreEnvelope(4, "action-read-next", false, "dev_flow_get_next_action"));
+  await emitMCP("dev_flow_get_task", coreEnvelope(4, "action-read-task", false, "dev_flow_get_task"));
+  await emitMCP("dev_flow_get_next_action", coreEnvelope(4, "action-read-next", false, "dev_flow_get_next_action"));
+  const sessionMode = process.env.FAKE_NATIVE_SESSION_MODE ?? "normal";
+  if (sessionMode === "recoverable-core-error") {
+    await emitMCP("dev_flow_apply_action", recoverableCoreErrorEnvelope(), {
+      arguments_: recoverableApplyArguments(),
+      status: "failed",
+      traceRole: "native-recoverable-mcp-result",
+    });
+    const recoveryTask = coreEnvelope(4, "action-recovery-task", false, "dev_flow_get_task");
+    const recoveryNext = coreEnvelope(4, "action-recovery-next", false, "dev_flow_get_next_action");
+    await emitMCP("dev_flow_get_task", recoveryTask);
+    await emitMCP("dev_flow_get_next_action", recoveryNext);
+  } else if (sessionMode === "transport-error") {
+    await emitTransportMCPFailure("dev_flow_apply_action", transportMCPError(), recoverableApplyArguments());
+    return;
+  }
   const objectFormatResult = await captureProcessResult("git", ["rev-parse", "--show-object-format"], {
     cwd: process.cwd(),
   });
@@ -251,7 +266,7 @@ async function runCodexExec(prompt) {
     arguments_: ["hash-object", "native-proof.txt"],
     logicalCommand: nativeVerificationCommand,
   });
-  emitMCP("dev_flow_apply_action", coreEnvelope(8, "action-handoff", true));
+  await emitMCP("dev_flow_apply_action", coreEnvelope(8, "action-handoff", true));
 }
 
 async function installedSkillIdentity() {
@@ -343,12 +358,17 @@ async function captureProcessResult(executable, arguments_, { cwd }) {
   });
 }
 
-function emitMCP(tool, envelope) {
-  const arguments_ = { request_id: envelope.request_id };
-  if (tool === "dev_flow_apply_action" && envelope.result.task.phase === "DONE") {
+async function emitMCP(tool, envelope, {
+  arguments_ = { request_id: envelope.request_id },
+  status = "completed",
+  traceRole,
+  } = {}) {
+  if (tool === "dev_flow_apply_action" && envelope.result?.task?.phase === "DONE") {
+    arguments_.task_id = "task-00000001";
+    arguments_.expected_revision = 4;
     arguments_.payload = { checks: [automatedEvidenceInput()] };
   }
-  process.stdout.write(`${JSON.stringify({
+  const event = {
     type: "item.completed",
     item: {
       id: `item-${envelope.request_id}-${tool}`,
@@ -361,38 +381,108 @@ function emitMCP(tool, envelope) {
         structured_content: envelope,
       },
       error: null,
-      status: "completed",
+      status,
     },
-  })}\n`);
+  };
+  if (traceRole) await trace({ role: traceRole, event });
+  process.stdout.write(`${JSON.stringify(event)}\n`);
+}
+
+async function emitTransportMCPFailure(tool, error, arguments_) {
+  const event = {
+    type: "item.completed",
+    item: {
+      id: "item-transport-failed-apply",
+      type: "mcp_tool_call",
+      server: "dev-flow",
+      tool,
+      arguments: arguments_,
+      result: null,
+      error,
+      status: "failed",
+    },
+  };
+  await trace({ role: "native-transport-mcp-error", event });
+  process.stdout.write(`${JSON.stringify(event)}\n`);
+}
+
+function recoverableCoreErrorEnvelope() {
+  return {
+    schema_version: 1,
+    ok: false,
+    request_id: "request-recoverable-failed-apply",
+    tool: "dev_flow_apply_action",
+    error: {
+      code: "REVISION_CONFLICT",
+      message: "The submitted task revision is stale.",
+    },
+    recovery: {
+      retry_safe: false,
+      action: "read_task",
+      message: "Read the authoritative task before another mutation.",
+    },
+  };
+}
+
+function recoverableApplyArguments() {
+  return {
+    request_id: "request-recoverable-failed-apply",
+    task_id: "task-00000001",
+    expected_revision: 4,
+    action_id: "action-handoff",
+    payload: {
+      result: "succeeded",
+      summary: "bounded deterministic recovery fixture",
+      changed_paths: ["native-proof.txt"],
+      no_file_changes: false,
+      deviations: [],
+      scope_confirmed: true,
+    },
+  };
+}
+
+function transportMCPError() {
+  return {
+    code: -32000,
+    message: "MCP transport disconnected before a result",
+  };
 }
 
 function coreEnvelope(revision, actionId, terminal, tool = "dev_flow_apply_action") {
-  return {
+  const task = {
+    task_id: "task-00000001",
+    revision,
+    phase: terminal ? "DONE" : "IMPLEMENT",
+    last_operation: {
+      kind: tool === "dev_flow_apply_action" ? "apply_action" : "read",
+      action_id: actionId,
+      to_revision: revision,
+    },
+    outcome: terminal ? { status: "completed" } : null,
+  };
+  task.contract = { verification_budget: verificationBudget() };
+  if (terminal) {
+    task.evidence = [{
+      evidence_id: "evidence-targeted",
+      source: "automated",
+      name: nativeVerificationCommand,
+      status: "passed",
+      summary: "one targeted command passed",
+      digest: "a".repeat(64),
+      command_count: 1,
+      full_suite: false,
+      recorded_at: "2026-08-16T00:00:00Z",
+    }];
+  }
+  const envelope = {
     schema_version: 1,
     ok: true,
-    request_id: `request-${revision}-${tool}`,
+    request_id: `request-${revision}`,
     tool,
-    result: {
-      task: {
-        task_id: "task-00000001",
-        revision,
-        phase: terminal ? "DONE" : "IMPLEMENT",
-        contract: { verification_budget: verificationBudget() },
-        last_operation: {
-          kind: tool === "dev_flow_apply_action" ? "apply_action" : "read",
-          action_id: actionId,
-          to_revision: revision,
-        },
-        evidence: terminal ? [{
-          evidence_id: "evidence-targeted",
-          ...automatedEvidenceInput(),
-          digest: "a".repeat(64),
-          recorded_at: "2026-08-16T00:00:00Z",
-        }] : [],
-        outcome: terminal ? { status: "completed" } : null,
-      },
-    },
+    result: { task },
   };
+  if (tool === "dev_flow_get_next_action") envelope.result = task;
+  return envelope;
 }
 
 function verificationBudget() {

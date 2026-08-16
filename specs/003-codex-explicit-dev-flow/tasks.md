@@ -338,22 +338,50 @@ one attempt passes, and validate evidence without post-validation writes.
   `$dev-flow`, wrong namespace, wrong base, and missing selector producing zero synthetic Dev Flow
   MCP calls/tasks even when role text otherwise matches; (22) four ordered safe session records
   initialized before spawn and advanced for completed, spawn/capture/process/parse, and missing-stop
-  stages; (23) the real default orchestration's exit-0/no-apply failure persisting version-3
+  stages; (23) the real default orchestration's exit-0/no-apply failure persisting the then-current version-3
   diagnostic and failure-observed-facts before cleanup; (24) each role's nullable exit/signal, thread
   presence, independently 64-MiB-bounded stdout/stderr byte counts and digests, and exact closed
   event/item/MCP status counts; (25) exact diagnostic/facts observation equality, ledger facts-digest
   binding, count-sum/thread/unstarted semantics, and rejection of raw JSONL, stderr, prompt, command,
   output, environment, secret, thread ID, or path fields; and (26) read-only validation that the
-  consumed attempt-1 v1 and attempt-2 v2 diagnostic/facts bytes and hashes remain unchanged while all
-  new records require v3/`external-failure-record-v3`; (27) install/setup/readback or final-preflight
+  consumed attempt-1 v1 and attempt-2 v2 diagnostic/facts bytes and hashes remain unchanged while the
+  then-current new record requires v3/`external-failure-record-v3`; (27) install/setup/readback or final-preflight
   failure occurring before reservation leaves the ledger unchanged, emits no consumed-attempt
   diagnostic, and starts no session, while the four observations are initialized immediately before
-  a successful reservation; (28) structural and semantic rejection of synthetic attempt 3+ v1/v2
+  a successful reservation; (28) structural and semantic rejection of synthetic attempt 3 v1/v2
   downgrade despite otherwise valid legacy shapes, with exact ledger-entry/facts-digest binding;
   (29) malformed empty-ID and duplicate valid `thread.started` events produce unambiguous counts and
   `parse_failed`; and (30) command context is required only when the failure is attributable to the
   completed command event, not merely because an earlier unrelated command occurred. Use the default fake subprocess and actual
   `executeNativeJourney` failure path; a parser-only unit fixture is insufficient.
+  After native attempt 3 exposed conflation of official failed MCP terminal items with malformed
+  successful results, reopen T054 again. Before production edits, add RED for: (31) Codex 0.147
+  `status=failed`, complete text/`structured_content` parity carrying Core `ok=false`, and `error=null` parsing as a
+  `tool_error_result` whose Core envelope remains authoritative; (32) a recoverable complete Core
+  error continuing only through the existing Core-directed recovery/read-before-retry path, with
+  passing evidence and durable facts carrying the same ordered safe failed-apply request
+  task/expected-revision/Core-recovery fact and exact digest-bound task/revision-bearing `get_task`,
+  `get_next_action`, and next-`apply_action` references against a closed per-session
+  `mcp_call_facts` projection;
+  (33) `status=failed`, `result=null`, and typed `error` stopping fail-closed as a
+  `transport_error`; (34) a malformed or truncated `status=completed` item, a mixed failed shape, or
+  a failed item whose complete Core envelope claims `ok=true` remaining a distinct protocol parse
+  failure; (35) the default fake subprocess, not only parser fixtures, emitting both
+  official failed variants and exercising the production `executeNativeJourney` boundary plus the
+  real passing candidate validator's failed-item/recovery ordering, transport exclusion, and
+  missing/duplicate/unbound/failed-reference/intervening-mutation/read-count rejection. The
+  candidate API and package-bound full validator RED MUST reject a wrong request/reference task ID,
+  a failed expected revision outside raw lineage, unequal read revisions, a non-increasing or
+  uncommitted apply revision, and a 65th fact while allowing the schema's 64-call bound; (36)
+  version-4 `mcp_event` diagnostics/facts carrying exactly role, zero-based event order, one of the
+  six tools, failed status, result kind, and mutually exclusive canonical result/error digests with
+  no raw arguments/result/error/JSONL/thread/path/environment/secret, with semantic RED for wrong
+  role/stage, absent failed/Dev Flow/MCP/item-completed counts, out-of-range event index, wrong
+  phase/reason, facts mismatch, and an earlier recovered failed item misattributed to an unrelated
+  later failure; and (37) exact immutable
+  attempt-1/v1, attempt-2/v2, and attempt-3/v3 bytes remaining valid while synthetic attempt 4+
+  v1/v2/v3 downgrades are structurally and semantically rejected. The official result and error
+  variants MUST be deterministic recorded data and MUST NOT start Codex.
   T054 may modify only these exact paths:
   `packages/codex/README.md`;
   `packages/codex/package.json`;
@@ -448,10 +476,11 @@ one attempt passes, and validate evidence without post-validation writes.
   its reserved/final ledger entry and external failure diagnostic, leave the canonical repository
   evidence path absent, discard that chain's artifact, fix source, and complete an entirely new
   T055–T057 chain with the same ledger before re-entering T058. Every failure after reservation MUST,
-  before isolated-host cleanup, persist a version-3 diagnostic and ledger-bound
+  before isolated-host cleanup, persist a version-4 diagnostic and ledger-bound
   failure-observed-facts file with the exact same four ordered safe session projections; attempts
-  1/v1 and 2/v2 remain byte-unchanged. No failed record may retain raw JSONL, stderr, prompts,
-  commands, outputs, environment values, secrets, thread IDs, or paths
+  1/v1, 2/v2, and 3/v3 remain byte-unchanged. An MCP-event failure additionally retains only the
+  closed safe MCP context defined by FR-027; no failed record may retain raw JSONL, stderr, prompts,
+  commands, outputs, MCP arguments/results/errors, environment values, secrets, thread IDs, or paths
   (FR-027, FR-028, SC-001–SC-005, SC-007–SC-008).
 - [ ] T059 Validate the evidence first against
   `contracts/journey-evidence.schema.json` and then with

@@ -252,28 +252,56 @@ failed or blocked diagnostic uses the independent closed
 [contracts/native-attempt-diagnostic.schema.json](./contracts/native-attempt-diagnostic.schema.json),
 `report_type=dev-flow-codex-native-attempt-diagnostic`. The schema conditionally accepts immutable
 attempt-1 `schema_version=1` / `commit_protocol=external-failure-record-v1` history and attempt-2
-`schema_version=2` / `commit_protocol=external-failure-record-v2` history byte-unchanged. Every new
-record uses `schema_version=3` / `commit_protocol=external-failure-record-v3`. Structural validation
-requires v1 attempt/total count 1, v2 attempt/total count 2, and v3 counts of at least 3. Semantic
-validation binds the version, identity, and facts digest to the exact durable-ledger entry and rejects
-v1/v2 for any later attempt. The digest-bound immutable v1 text is a legacy-only exception and cannot
+`schema_version=2` / `commit_protocol=external-failure-record-v2` history plus the immutable
+attempt-3 `schema_version=3` / `commit_protocol=external-failure-record-v3` history byte-unchanged.
+Every record after attempt 3 uses `schema_version=4` / `commit_protocol=external-failure-record-v4`.
+Structural validation requires exact v1/v2/v3 attempt and total counts 1/2/3, and v4 counts of at
+least 4. Semantic validation binds the version, identity, and facts digest to the exact
+durable-ledger entry and rejects v1/v2/v3 for any later attempt. The digest-bound immutable v1 text is a legacy-only exception and cannot
 be used as a new-record template. All versions record
 status, time, classification, versions, chain/ledger/report/artifact identity, validation projection,
-the consumed attempt, observed failure, and honest skips only. When a v2/v3 failure is attributable
+the consumed attempt, observed failure, and honest skips only. When a v2/v3/v4 failure is attributable
 to a completed command event, `failure_kind=command_event` requires `failure_context` as the closed
 safe projection `{session_role,event_type,command_sha256,output_sha256,status,exit_code}`. It contains
 no raw command, output, environment, or path. `failure_kind=non_command` prohibits that context.
-Version-2/3 failure and skip observations are closed `{phase_code,reason_code,detail_sha256}` values,
+Version-2/3/4 failure and skip observations are closed `{phase_code,reason_code,detail_sha256}` values,
 so their only unbounded diagnostic detail is represented by a digest.
 
-Version 3 additionally requires `session_observations` as an ordered four-element array. The role at
+Version 4 retains those command rules and adds `failure_kind=mcp_event` with a separate closed
+`mcp_failure_context`:
+
+| Field | Meaning |
+|---|---|
+| `session_role` | One of `ordinary`, `invalid`, `substantive`, or `resume`. |
+| `event_type` | Exactly `mcp_tool_call`. |
+| `event_index` | Zero-based order among events after the initial `thread.started`. |
+| `tool` | Exactly one of the six Core Contract 0.1 tool names. |
+| `status` | Exactly `failed`. |
+| `result_kind` | `tool_error_result` for a complete Core/MCP is-error result whose structured envelope is `ok=false`, or `transport_error` when no Core result exists. |
+| `result_sha256` | SHA-256 of recursively key-sorted compact UTF-8 JSON for the complete result; required only for `tool_error_result`, otherwise null. |
+| `error_sha256` | SHA-256 of recursively key-sorted compact UTF-8 JSON for the typed error; required only for `transport_error`, otherwise null. |
+
+No arguments, result, error, JSONL, tool preview, thread ID, repository path, environment value, or
+secret is serialized. `command_event` requires only the existing command context, `mcp_event`
+requires only the MCP context, and `non_command` prohibits both. Version-4 failure and skip
+observations remain the closed `{phase_code,reason_code,detail_sha256}` shape.
+
+For a v4 `mcp_event`, semantic validation binds the context to its fixed-role observation: that
+observation has `failure_stage=mcp_failed`, at least one completed MCP item, at least one failed and
+one Dev Flow MCP count, and `0 <= event_index < event_counts.total - 1` after its valid initial
+`thread.started`. The failure is exactly `{phase_code:"codex-session",
+reason_code:"mcp-event-failed",detail_sha256}`. The writer attaches context only to the error thrown
+from that exact failed item; an earlier recovered failed item cannot supply context for an unrelated
+later failure.
+
+Versions 3 and 4 additionally require `session_observations` as an ordered four-element array. The role at
 each index is fixed to `ordinary`, `invalid`, `substantive`, then `resume`; unstarted roles remain
 explicit rather than disappearing. Each closed role projection contains:
 
 | Field | Meaning |
 |---|---|
 | `session_role` | One fixed role from the ordered four-role sequence. |
-| `failure_stage` | One of `not_started`, `spawn_failed`, `capture_failed`, `process_exited`, `parse_failed`, `completed`, or `stop_marker_missing`. |
+| `failure_stage` | One of `not_started`, `spawn_failed`, `capture_failed`, `process_exited`, `parse_failed`, `mcp_failed`, `completed`, or `stop_marker_missing`. |
 | `exit_code` / `signal` | Observed process termination; each is nullable when not available. |
 | `thread_present` | Whether at least one structurally valid `thread.started` event with a nonempty thread ID was observed; no thread ID is retained. |
 | `stdout_bytes` / `stderr_bytes` | Captured byte counts, each bounded to 64 MiB. |
@@ -293,7 +321,8 @@ buckets equal item total and do not exceed completed-item events; MCP status buc
 must match the failure-observed-facts projection exactly.
 
 The external `failure-observed-facts.json` is the closed subset
-`{schema_version,failure_kind,failure,failure_context?,session_observations}`. Its four observations
+`{schema_version,failure_kind,failure,failure_context?,mcp_failure_context?,session_observations}`.
+Its four observations
 must equal the diagnostic projection exactly, and its exact bytes are bound by the ledger
 `observed_facts_sha256`. The writer schema-validates the diagnostic and checks that equality before
 atomic writes under the external chain recovery directory and before deleting the isolated host
@@ -324,10 +353,18 @@ contract above.
 | Group | Required contents |
 |---|---|
 | `task_lineage` | Four distinct thread IDs, task ID before/after restart, raw non-regressing revisions, adjacent-deduplicated strictly increasing lineage, at least two Core-confirmed actions, terminal Core phase/outcome. |
-| `invocation` | Exact installed-plugin selector `$dev-flow-codex:dev-flow`, Core call count/scenario budget, zero implicit calls, ordered restart recovery reads, complete Core verification budget, every official completed command execution as a role-scoped safe fact, the Core-bound verification subset, and reconciled submitted/retained automated evidence counts. |
+| `invocation` | Exact installed-plugin selector `$dev-flow-codex:dev-flow`, Core call count/scenario budget, zero implicit calls, ordered restart recovery reads, every complete recoverable failed MCP item plus its Core-directed recovery references, complete Core verification budget, every official completed command execution as a role-scoped safe fact, the Core-bound verification subset, and reconciled submitted/retained automated evidence counts. |
 | `lifecycle` | Setup/readback, restart/resume, removal/readback, data retention, task reopen, compatible reinstall, and exact setup/reinstall registry cardinalities. |
 | `repository` | Target path, before/after/removal digests, intended and unexpected paths. |
 | `task_data` | Canonical file lists and manifest digests before/after removal plus a non-secret retained-data descriptor `{kind:"isolated-explicit-data-directory", workspace_relative_path:"data", canonical_path_sha256}`; no absolute data path. |
+
+The ledger-bound passing observed facts retain a closed `mcp_call_facts` projection for every Dev
+Flow terminal item: role, event index, one of the six tools, argument/result digests, status,
+`success_result|tool_error_result`, nullable task ID/revision/outcome, and nullable bounded Core error
+code plus retry-safe/action values. Failed apply facts also retain the safe request task ID and
+expected revision. Successful results have null error/recovery fields; complete Core errors have the
+exact safe error/recovery projection; transport errors are not eligible for a pass.
+No raw argument, result, error message, recovery message, JSONL, thread ID, or path is retained.
 
 ## 7. Semantic Evidence Validation
 
@@ -349,29 +386,46 @@ JSON Schema validates shape only. The planned
 10. action count is at least two;
 11. Core call count does not exceed the scenario budget, and restart recovery observes
     `dev_flow_get_task` then `dev_flow_get_next_action` before any later mutation;
-12. `session_command_facts` is the exact bounded projection of every official `item.completed`
+12. `recoverable_mcp_failure_facts` is the exact ordered safe projection of every complete
+    `status=failed` Dev Flow item that the Core allows the passing chain to recover from, bounded by
+    the existing 64-call scenario budget rather than an unrelated smaller limit. Each fact
+    contains only role/event index, exact `dev_flow_apply_action`, canonical request task ID/expected
+    revision, failed status, `tool_error_result`, whole-result digest,
+    bounded Core error code, `recovery.retry_safe=false`, `recovery.action` in
+    `read_task|read_next_action`, and safe role/index/tool/result-digest/task-ID/revision references
+    to the later `get_task`, `get_next_action`, and next `apply_action`. References match durable `mcp_call_facts` and are
+    strictly ordered failed item < get-task < get-next-action < next mutation across the fixed role
+    order and per-role event indexes; all three references bind complete successful call facts, and
+    the failed request and all references use the canonical journey task ID, and its expected
+    revision belongs to raw lineage. The two read revisions are equal; the completed
+    `success_result` apply revision is greater, occurs in `raw_revisions`, and matches one
+    `committed_actions` entry. Transport failures, raw result/error/messages, missing or
+    duplicate facts/references, and an earlier mutation fail closed. The
+    `read_before_retry_observations` count equals the distinct fact-referenced recovery reads plus
+    the fixed restart pair, deduplicated by role/event index when one pair serves both purposes;
+13. `session_command_facts` is the exact bounded projection of every official `item.completed`
     `command_execution` across the four sessions, ordered within each role and containing only role,
     event index/type, item/command/output digests, status, exit code, and classification; the raw
     command/output/path values never enter durable evidence;
-13. ordinary and invalid facts are all `nonverification` and those sessions have zero Dev Flow
+14. ordinary and invalid facts are all `nonverification` and those sessions have zero Dev Flow
     calls/tasks; substantive/resume repository inspection and implementation facts may also be
     `nonverification`; the only `verification` fact is a successful exact controlled Codex 0.147
     macOS rendering of logical proof `git hash-object native-proof.txt`;
-14. each `verification_commands` entry matches exactly one `verification` session fact by role,
+15. each `verification_commands` entry matches exactly one `verification` session fact by role,
     event index and digests, uses the logical proof name rather than raw rendered text, and matches
     one submitted and one retained Core automated check; duplicates and unbound proof renderings
     fail closed, as does any rendered command containing a closed literal marker `go test`,
     `pnpm test`, `pnpm run test`, `pnpm run validate`, or `node --test`; only this subset counts
     against the complete Core-derived budget and `allow_full_suite`;
-15. authoritative terminal task phase is `DONE` and the Core outcome is completed;
-16. task-data file lists and manifest digests are equal before/after removal, and the non-secret
+16. authoritative terminal task phase is `DONE` and the Core outcome is completed;
+17. task-data file lists and manifest digests are equal before/after removal, and the non-secret
     retained-data descriptor matches durable observed facts without exposing an absolute path;
-17. repository digest after completion equals digest after removal;
-18. unexpected changed paths are empty;
-19. every required lifecycle boolean is true, and setup/reinstall readback each has exactly one
+18. repository digest after completion equals digest after removal;
+19. unexpected changed paths are empty;
+20. every required lifecycle boolean is true, and setup/reinstall readback each has exactly one
     owned marketplace, one installed owned plugin, and zero available plugins;
-20. targeted checks and root validation passed before artifact creation;
-21. passing failures/skips arrays are empty.
+21. targeted checks and root validation passed before artifact creation;
+22. passing failures/skips arrays are empty.
 
 Candidate validation is read-only. A failure before publication consumes the reserved attempt,
 retains its external diagnostic/ledger history, and permits a fresh deterministic/final-artifact/

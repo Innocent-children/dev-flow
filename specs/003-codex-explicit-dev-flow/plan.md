@@ -297,6 +297,31 @@ event is first captured with its session role, per-session event index, item/com
 status, and exit code; raw command/output/path material is discarded after classification and
 hashing. Separate processes cover ordinary and invalid invocation checks, the substantive task,
 and an explicit new-session resume; all four thread IDs are nonempty and pairwise distinct.
+For Dev Flow MCP terminal items, Codex 0.147 has two closed failed forms. A failed item with a
+complete `result`, complete text/`structured_content` parity carrying a Core `ok=false` envelope,
+and `error=null` is a
+`tool_error_result`; the parser retains the full Core envelope as authoritative and the driver obeys
+that envelope's stop/recovery semantics. A failed item with `result=null` and a typed `error` is a
+`transport_error`; because no Core result exists, the runner stops fail-closed. A `status=completed`
+item still requires a complete error-free result and exact text/structured parity. Unknown,
+mixed, truncated, or failed-with-`ok=true` shapes remain protocol failures rather than being normalized into either
+official failed form. A passing native chain may include a complete recoverable Core error only when
+the subsequent complete Core calls prove the required recovery-before-retry sequence. For every such
+item, both passing evidence and durable observed facts retain the same ordered safe
+`recoverable_mcp_failure_facts` entry: role/event index, exact `dev_flow_apply_action`, canonical
+request task ID/expected revision, failed status, complete-result digest,
+bounded Core error code, Core `retry_safe=false` and `read_task|read_next_action` recovery values,
+and digest-bound references with task ID/revision to the
+later `dev_flow_get_task`, `dev_flow_get_next_action`, and next `dev_flow_apply_action` calls. Semantic validation
+orders call references by the fixed session-role sequence and then event index, requires the failed
+item before both reads and both reads before the mutation, and binds every reference to the exact
+safe `mcp_call_facts` projection. The failed request and all references use the canonical journey
+task ID; its expected revision belongs to raw lineage, the two read revisions are equal, while the successful apply revision is greater, occurs in raw lineage, and
+matches a committed action. That closed observed-facts projection carries role/index/tool,
+argument/result digests, status/result kind, nullable task lineage, and nullable bounded Core
+error/recovery fields for every terminal Dev Flow item; it retains no raw payload or message.
+Transport failures are prohibited from passing facts. The journey may
+not ignore a failed item or treat a transport error as a Core decision.
 Ordinary and invalid-session commands are non-verification facts and those sessions are rejected
 only for a Dev Flow call/task, not for a read-only host command. Substantive/resume inspection and
 implementation commands are also non-verification facts. The only verification event is the exact
@@ -325,7 +350,8 @@ four ordered safe failure observations for
 `ordinary`, `invalid`, `substantive`, and `resume`. As each subprocess starts, streams, exits, parses,
 or fails its stop marker, the record advances through the closed stage set `not_started`,
 `spawn_failed`, `capture_failed`, `process_exited`, `parse_failed`, `completed`, or
-`stop_marker_missing`. Each role record contains only exit code/signal, thread presence, separately
+`stop_marker_missing`; a future official failed MCP item that terminates the journey uses `mcp_failed`.
+Each role record contains only exit code/signal, thread presence, separately
 bounded stdout/stderr byte counts and SHA-256 digests, and exact closed counters for event kinds,
 completed item kinds, and MCP statuses. The `thread_started` counter includes only structurally valid
 events with a nonempty thread ID; malformed thread events count as `other` and force `parse_failed`,
@@ -389,20 +415,31 @@ The canonical repository evidence path and `journey-evidence.schema.json` are pa
 Failed/blocked diagnostics use the independent closed
 `native-attempt-diagnostic.schema.json` contract under the external recovery directory; the writer
 validates each diagnostic before its atomic write. The conditional schema preserves the immutable
-attempt-1 schema-version-1/`external-failure-record-v1` and attempt-2
-schema-version-2/`external-failure-record-v2` files without replacing or enriching them. Every new
-failure uses schema version 3 and `external-failure-record-v3`, requires the four ordered safe session
-observations above, and requires semantic equality between those observations and the closed
-failure-observed-facts projection hashed by the ledger. Whenever the failure is attributable to a
-completed command event, `failure_kind=command_event` requires exactly
-`{session_role,event_type,command_sha256,output_sha256,status,exit_code}`. A non-command failure uses
-`failure_kind=non_command` and prohibits that context. Version-3 `failure` and `skips` contain only a
-closed phase code, closed reason code, and SHA-256 of the bounded detail; they never include raw
-command/output text or repository paths, claim journey-evidence schema version 3, or occupy the
-canonical path. Structural conditionals bind v1 to attempt/total count 1, v2 to attempt/total count
-2, and v3 to counts of at least 3; semantic validation additionally binds the diagnostic identity,
-observed-facts digest, and version to the exact corresponding durable-ledger entry and rejects any
-later v1/v2 downgrade. The exact immutable v1 bytes are a legacy-only exception, never a template
+attempt-1 schema-version-1/`external-failure-record-v1`, attempt-2
+schema-version-2/`external-failure-record-v2`, and attempt-3
+schema-version-3/`external-failure-record-v3` files without replacing or enriching them. Every
+failure after attempt 3 uses schema version 4 and `external-failure-record-v4`, requires the four
+ordered safe session observations above, and requires semantic equality between those observations
+and the closed failure-observed-facts projection hashed by the ledger. Whenever the failure is
+attributable to a completed command event, `failure_kind=command_event` requires exactly
+`{session_role,event_type,command_sha256,output_sha256,status,exit_code}`. Whenever it is attributable
+to a failed Dev Flow MCP terminal item, `failure_kind=mcp_event` requires exactly
+`{session_role,event_type,event_index,tool,status,result_kind,result_sha256,error_sha256}`. The tool is
+one of the six Core Contract names; `event_index` is zero-based after `thread.started`; and
+`tool_error_result` requires only the canonical complete-result digest while `transport_error`
+requires only the canonical typed-error digest. A non-command failure uses
+`failure_kind=non_command` and prohibits both contexts. Version-4 `failure` and `skips` contain only
+a closed phase code, closed reason code, and SHA-256 of the bounded detail; they never include raw
+arguments/result/error/command/output text or repository paths, claim journey-evidence schema
+version 3, or occupy the canonical path. Structural conditionals bind v1/v2/v3 to exact attempt and
+total counts 1/2/3 and v4 to counts of at least 4; semantic validation additionally binds the
+diagnostic identity, observed-facts digest, and version to the exact corresponding durable-ledger
+entry and rejects any later v1/v2/v3 downgrade. For `mcp_event`, semantic validation also requires
+the context role's observation to be `mcp_failed`, its failed/Dev Flow/MCP/item-completed counters to
+prove at least one such terminal item, its event index to be within the post-`thread.started` event
+range, and the failure to be exactly `codex-session` / `mcp-event-failed`. Only the error constructed
+from the attributable failed item may carry that context; an earlier recovered MCP failure cannot be
+reused by a later unrelated error. The exact immutable v1 bytes are a legacy-only exception, never a template
 for a new textual observation. The durable ledger remains the attempt authority. A post-publication integrity
 failure is a terminal blocked recovery condition, not permission to delete evidence or start a new
 chain.
@@ -412,9 +449,10 @@ chain.
 `journey-evidence.schema.json` validates the canonical passing record only.
 `native-attempt-diagnostic.schema.json` separately validates honest `failed` and `blocked` records
 containing only observations available before the failure. Its conditional versions accept the
-immutable attempt-1 v1 and attempt-2 v2 history plus new v3 records with four safe session
-observations, without allowing raw JSONL/command/output/environment/secret/thread/path material;
-those records never fabricate task lineage or completed lifecycle fields.
+immutable attempt-1 v1, attempt-2 v2, and attempt-3 v3 history byte-unchanged; every later record
+uses v4 with four safe session observations and, when applicable, exactly one closed command or MCP
+failure context. No version allows raw JSONL/command/output/environment/secret/thread/path material,
+and those records never fabricate task lineage or completed lifecycle fields.
 
 JSON Schema cannot compare values or prove ordering. Therefore
 `scripts/validate-codex-journey-evidence.mjs` performs required semantic checks for a passing record:
@@ -447,6 +485,16 @@ JSON Schema cannot compare values or prove ordering. Therefore
   non-verification; and the single exact rendered proof maps one-to-one to both submitted and
   retained automated evidence, stays within budget, and is rejected when duplicated, unbound, or
   inconsistent with `allow_full_suite=false`;
+- `recoverable_mcp_failure_facts` exactly equals the ordered safe projection of every complete
+  recoverable failed Dev Flow apply item in the four sessions; each fact binds its canonical request
+  task/expected revision, Core error/recovery fields and result digest, and its task/revision-bearing `get_task`, `get_next_action`, and
+  next-`apply_action` references match complete successful safe session calls in strict
+  recovery-before-mutation order. The failed request and references use the journey task ID, its
+  expected revision belongs to raw lineage, the reads share a revision and the
+  greater apply revision appears in raw lineage and committed actions. A transport failure, missing or
+  duplicate fact/reference, unbound result digest, or mutation before both reads fails validation;
+  `read_before_retry_observations` equals the distinct fact-referenced reads plus the fixed restart
+  pair, deduplicated by role/event index;
 - after the restart boundary, `dev_flow_get_task` then `dev_flow_get_next_action` precede any later
   `apply_action`;
 - terminal task phase and outcome are both `DONE`/completed;

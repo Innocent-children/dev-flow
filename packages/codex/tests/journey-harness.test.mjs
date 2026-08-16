@@ -233,6 +233,211 @@ test("Codex exec JSONL rejects missing thread identity and text/structured-resul
   );
 });
 
+test("Codex 0.147 failed MCP complete Core error remains an authoritative tool_error_result", async () => {
+  const writer = await import(pathToFileURL(writerPath));
+  const envelope = recoverableCoreErrorEnvelope();
+  const item = failedCoreMCPItem("dev_flow_apply_action", envelope, recoverableApplyArguments());
+  const parsed = writer.parseCodexExecJSONL(mcpItemSessionJSONL("thread-failed-core-result", [item]), {
+    sessionRole: "resume",
+  });
+
+  assert.equal(parsed.devFlowCalls.length, 1);
+  assert.deepEqual(parsed.devFlowCalls[0], {
+    itemId: item.id,
+    eventIndex: 0,
+    tool: "dev_flow_apply_action",
+    arguments: recoverableApplyArguments(),
+    result: envelope,
+    status: "failed",
+    resultKind: "tool_error_result",
+    resultSha256: canonicalJSONSha256(item.result),
+  });
+});
+
+test("Codex 0.147 failed MCP transport error stops fail-closed with only safe attributable context", async () => {
+  const writer = await import(pathToFileURL(writerPath));
+  const typedError = transportMCPError();
+  const item = failedTransportMCPItem("dev_flow_apply_action", typedError, recoverableApplyArguments());
+
+  assert.throws(
+    () => writer.parseCodexExecJSONL(mcpItemSessionJSONL("thread-transport-error", [item]), {
+      sessionRole: "resume",
+    }),
+    (error) => {
+      assert.match(error.message, /transport.*(?:without|no).*Core|Core.*transport.*fail.*closed/i);
+      assert.equal(error.failureStage, "mcp_failed");
+      assert.deepEqual(error.mcpFailureContext, {
+        session_role: "resume",
+        event_type: "mcp_tool_call",
+        event_index: 0,
+        tool: "dev_flow_apply_action",
+        status: "failed",
+        result_kind: "transport_error",
+        result_sha256: null,
+        error_sha256: canonicalJSONSha256(typedError),
+      });
+      assert.equal(JSON.stringify(error.mcpFailureContext).includes(typedError.message), false);
+      return true;
+    },
+  );
+});
+
+test("malformed completed and inconsistent failed MCP shapes remain protocol parse failures", async (t) => {
+  const writer = await import(pathToFileURL(writerPath));
+  const successEnvelope = coreEnvelope({
+    revision: 4,
+    actionId: "action-implement",
+    terminal: false,
+  });
+  const malformedCompleted = codexMCPItem("dev_flow_apply_action", successEnvelope);
+  malformedCompleted.result.content = [];
+  const mixedFailed = failedCoreMCPItem(
+    "dev_flow_apply_action",
+    recoverableCoreErrorEnvelope(),
+    recoverableApplyArguments(),
+  );
+  mixedFailed.error = transportMCPError();
+  const failedSuccess = failedCoreMCPItem(
+    "dev_flow_apply_action",
+    successEnvelope,
+    recoverableApplyArguments(),
+  );
+
+  for (const [label, item] of [
+    ["completed-truncated", malformedCompleted],
+    ["failed-mixed-result-and-error", mixedFailed],
+    ["failed-complete-ok-true", failedSuccess],
+  ]) {
+    await t.test(label, () => {
+      let observed;
+      assert.throws(
+        () => writer.parseCodexExecJSONL(mcpItemSessionJSONL(`thread-${label}`, [item]), {
+          sessionRole: "resume",
+        }),
+        (error) => {
+          observed = error;
+          return /protocol|complete|structured|inconsistent|ok=false/i.test(error.message);
+        },
+      );
+      assert.equal(observed.failureStage, undefined);
+      assert.equal(observed.mcpFailureContext, undefined);
+    });
+  }
+});
+
+test("authoritative Core envelopes are closed and bound to the outer MCP tool", async (t) => {
+  const writer = await import(pathToFileURL(writerPath));
+  const success = coreEnvelope({
+    revision: 4,
+    actionId: "action-implement",
+    terminal: false,
+  });
+  const failure = recoverableCoreErrorEnvelope();
+  const cases = [
+    ["success-wrong-schema-version", "completed", { ...success, schema_version: 2 }],
+    ["success-empty-request-id", "completed", { ...success, request_id: "" }],
+    ["success-wrong-envelope-tool", "completed", { ...success, tool: "dev_flow_get_task" }],
+    ["success-missing-result", "completed", (() => {
+      const envelope = structuredClone(success);
+      delete envelope.result;
+      return envelope;
+    })()],
+    ["success-extra-field", "completed", { ...success, debug: true }],
+    ["success-with-error", "completed", {
+      ...success,
+      error: structuredClone(failure.error),
+    }],
+    ["failure-missing-error-message", "failed", (() => {
+      const envelope = structuredClone(failure);
+      delete envelope.error.message;
+      return envelope;
+    })()],
+    ["failure-missing-recovery-message", "failed", (() => {
+      const envelope = structuredClone(failure);
+      delete envelope.recovery.message;
+      return envelope;
+    })()],
+    ["failure-extra-envelope-field", "failed", { ...failure, debug: true }],
+    ["failure-extra-error-field", "failed", {
+      ...failure,
+      error: { ...failure.error, raw: "must not pass" },
+    }],
+    ["failure-extra-recovery-field", "failed", {
+      ...failure,
+      recovery: { ...failure.recovery, retry_after_ms: 1 },
+    }],
+    ["failure-with-result", "failed", { ...failure, result: {} }],
+  ];
+
+  for (const [label, status, envelope] of cases) {
+    await t.test(label, () => {
+      const item = status === "failed"
+        ? failedCoreMCPItem("dev_flow_apply_action", envelope, recoverableApplyArguments())
+        : codexMCPItem("dev_flow_apply_action", envelope, recoverableApplyArguments());
+      assert.throws(
+        () => writer.parseCodexExecJSONL(mcpItemSessionJSONL(`thread-${label}`, [item]), {
+          sessionRole: "resume",
+        }),
+        /Core envelope|schema.version|request.id|envelope.tool|closed|exclusive|error|recovery|result/i,
+      );
+    });
+  }
+
+  for (const [label, item] of [
+    ["success-mismatched-request-id", codexMCPItem(
+      "dev_flow_apply_action",
+      success,
+      { ...recoverableApplyArguments(), request_id: "request-outer" },
+    )],
+    ["failure-mismatched-request-id", failedCoreMCPItem(
+      "dev_flow_apply_action",
+      failure,
+      { ...recoverableApplyArguments(), request_id: "request-outer" },
+    )],
+  ]) {
+    await t.test(label, () => {
+      assert.throws(
+        () => writer.parseCodexExecJSONL(mcpItemSessionJSONL(`thread-${label}`, [item]), {
+          sessionRole: "resume",
+        }),
+        /request.id|identity|correlation/i,
+      );
+    });
+  }
+});
+
+test("recoverable failed apply follows exact Core-directed reads before the next mutation", async () => {
+  const writer = await import(pathToFileURL(writerPath));
+  const recovery = recoverableResumeItems();
+  const sessions = {
+    ordinary: writer.parseCodexExecJSONL(mcpItemSessionJSONL("thread-ordinary", []), { sessionRole: "ordinary" }),
+    invalid: writer.parseCodexExecJSONL(mcpItemSessionJSONL("thread-invalid", []), { sessionRole: "invalid" }),
+    substantive: writer.parseCodexExecJSONL(sessionJSONL("thread-substantive", [
+      actionObservation(4, "action-implement", false),
+    ]), { sessionRole: "substantive" }),
+    resume: writer.parseCodexExecJSONL(recovery.jsonl, {
+      sessionRole: "resume",
+    }),
+  };
+  const summary = writer.summarizeRecordedSessions(sessions);
+
+  assert.equal(summary.terminalOutcome, "DONE");
+  assert.equal(summary.coreCallCount, 7);
+  assert.equal(summary.readBeforeRetryObservations, 4);
+  assert.deepEqual(summary.recoverableMCPFailureFacts, [recovery.fact]);
+  assert.equal(summary.mcpCallFacts.length, 7);
+  assert.deepEqual(
+    summary.mcpCallFacts.map(({ session_role, event_index, tool, status, result_kind }) => ({
+      session_role,
+      event_index,
+      tool,
+      status,
+      result_kind,
+    })),
+    recovery.expectedCallOrder,
+  );
+});
+
 test("reopened JSONL contract retains only completed official command_execution facts", async () => {
   const writer = await import(pathToFileURL(writerPath));
   const output = nativeVerificationOutput;
@@ -697,6 +902,14 @@ test("recorded native sessions prove zero implicit calls and one resumed Core li
     terminalOutcome: "DONE",
     coreCallCount: 4,
     restartRecoveryReads: ["dev_flow_get_task", "dev_flow_get_next_action"],
+    readBeforeRetryObservations: 2,
+    mcpCallFacts: [
+      successfulMCPCallFact("substantive", 0, actionObservation(4, "action-implement", false)),
+      successfulMCPCallFact("resume", 0, taskObservation("dev_flow_get_task", 4, false)),
+      successfulMCPCallFact("resume", 1, taskObservation("dev_flow_get_next_action", 4, false)),
+      successfulMCPCallFact("resume", 2, actionObservation(8, "action-handoff", true)),
+    ],
+    recoverableMCPFailureFacts: [],
     budget: nativeVerificationBudget,
     sessionCommandFacts: [sessionCommandFact({
       role: "resume",
@@ -1268,6 +1481,58 @@ test("native prompts and the default fake resolve only the exact installed Skill
   }
 });
 
+test("default fake subprocess emits both official failed MCP variants only for the exact selector", async (t) => {
+  const resumePrompt = `${nativeSkillSelector}\nResume the existing compatible Codex-owned task for this repository and continue only from fresh Core results.`;
+  const recoverable = await runFakeCodexPrompt(t, resumePrompt, "recoverable-core-error-shape", {
+    sessionMode: "recoverable-core-error",
+    seedNativeProof: true,
+  });
+  const recoverableEvents = parseJSONLText(recoverable.stdout);
+  const recoverableCalls = recoverableEvents
+    .filter(({ type, item }) => type === "item.completed" && item?.type === "mcp_tool_call")
+    .map(({ item }) => item);
+  assert.deepEqual(recoverableCalls.map(({ tool, status }) => [tool, status]), [
+    ["dev_flow_get_task", "completed"],
+    ["dev_flow_get_next_action", "completed"],
+    ["dev_flow_apply_action", "failed"],
+    ["dev_flow_get_task", "completed"],
+    ["dev_flow_get_next_action", "completed"],
+    ["dev_flow_apply_action", "completed"],
+  ]);
+  const completeFailure = recoverableCalls[2];
+  assert.equal(completeFailure.error, null);
+  assert.equal(completeFailure.result.structured_content.ok, false);
+  assert.deepEqual(JSON.parse(completeFailure.result.content[0].text), completeFailure.result.structured_content);
+
+  const transport = await runFakeCodexPrompt(t, resumePrompt, "transport-error-shape", {
+    sessionMode: "transport-error",
+  });
+  const transportCalls = parseJSONLText(transport.stdout)
+    .filter(({ type, item }) => type === "item.completed" && item?.type === "mcp_tool_call")
+    .map(({ item }) => item);
+  assert.deepEqual(transportCalls.map(({ tool, status }) => [tool, status]), [
+    ["dev_flow_get_task", "completed"],
+    ["dev_flow_get_next_action", "completed"],
+    ["dev_flow_apply_action", "failed"],
+  ]);
+  assert.equal(transportCalls[2].result, null);
+  assert.deepEqual(transportCalls[2].error, transportMCPError());
+
+  const unselected = await runFakeCodexPrompt(
+    t,
+    "$dev-flow\nResume the existing compatible Codex-owned task for this repository and continue only from fresh Core results.",
+    "recoverable-core-error-unselected",
+    { sessionMode: "recoverable-core-error", seedNativeProof: true },
+  );
+  assert.equal(
+    parseJSONLText(unselected.stdout).some(({ item }) => item?.server === "dev-flow"),
+    false,
+    "role text and failure mode must not synthesize calls without the full selector",
+  );
+  const resolution = (await readJSONL(unselected.tracePath)).find(({ role }) => role === "native-skill-resolution");
+  assert.equal(resolution.selected, false);
+});
+
 test("native session failures retain four ordered bounded safe observations", async (t) => {
   const writer = await import(pathToFileURL(writerPath));
   const success = (role) => ({
@@ -1753,6 +2018,29 @@ test("default native helpers execute the native proof command from target cwd an
     observedFacts.sessions.resume.calls.find(({ tool }) => tool === "dev_flow_get_next_action").revision,
     4,
   );
+  for (const role of ["substantive", "resume"]) {
+    assert.deepEqual(
+      observedFacts.sessions[role].calls,
+      observedFacts.mcp_call_facts
+        .filter(({ session_role }) => session_role === role)
+        .map(({
+          tool,
+          arguments_sha256,
+          result_sha256,
+          task_id,
+          revision,
+          outcome,
+        }) => ({
+          tool,
+          arguments_sha256,
+          result_sha256,
+          task_id,
+          revision,
+          outcome,
+        })),
+      `${role} session calls must reuse top-level canonical MCP digest identities`,
+    );
+  }
   const nativeWorkspace = dirname(observedFacts.journey.repository.target_path);
   assert.deepEqual(observedFacts.journey.task_data.retained_data_location, {
     kind: "isolated-explicit-data-directory",
@@ -1847,6 +2135,188 @@ test("default native helpers execute the native proof command from target cwd an
   );
   assert.equal(trace.some((entry) => entry.role === "core" && entry.argv.join(" ") === "mcp --stdio"), true);
   await assert.rejects(stat(nativeWorkspace), { code: "ENOENT" });
+});
+
+test("default fake subprocess carries a recoverable failed MCP result through the real candidate boundary", async (t) => {
+  const writer = await import(pathToFileURL(writerPath));
+  const fixture = await nativeSubprocessFixture(t, writer, "recoverable-failed-mcp", {
+    failedHistory: 3,
+    sessionMode: "recoverable-core-error",
+  });
+  const result = await writer.executeNativeJourney(fixture.inputs, fixture.dependencies);
+  const recoveryDirectory = join(fixture.recoveryRoot, result.chainId);
+  const observedFacts = JSON.parse(await readFile(join(recoveryDirectory, "observed-facts.json"), "utf8"));
+  const evidence = JSON.parse(await readFile(fixture.dependencies.evidencePath, "utf8"));
+
+  assert.equal(result.status, "committed");
+  assert.equal(result.attemptNumber, 4);
+  assert.deepEqual(
+    evidence.journey.invocation.recoverable_mcp_failure_facts,
+    observedFacts.recoverable_mcp_failure_facts,
+  );
+  assert.equal(observedFacts.recoverable_mcp_failure_facts.length, 1);
+  assert.equal(observedFacts.mcp_call_facts.length, 7);
+  assert.deepEqual(observedFacts.recoverable_mcp_failure_facts[0], recoverableResumeItems().fact);
+  const retained = JSON.stringify({
+    facts: observedFacts.recoverable_mcp_failure_facts,
+    calls: observedFacts.mcp_call_facts,
+  });
+  for (const forbidden of [
+    "The submitted task revision is stale.",
+    "Read the authoritative task before another mutation.",
+    "native-proof.txt",
+    "thread-resume",
+    fixture.root,
+  ]) {
+    assert.equal(retained.includes(forbidden), false, `safe passing facts leaked ${forbidden}`);
+  }
+
+  const trace = await readJSONL(fixture.tracePath);
+  const failedItem = trace.find(({ role }) => role === "native-recoverable-mcp-result")?.event?.item;
+  assert.equal(failedItem?.status, "failed");
+  assert.equal(failedItem?.error, null);
+  assert.equal(failedItem?.result?.structured_content?.ok, false);
+  assert.equal(trace.some(({ role }) => role === "native-skill-resolution"), true);
+});
+
+test("default fake subprocess transport failure persists only a v4 safe MCP diagnostic", async (t) => {
+  const writer = await import(pathToFileURL(writerPath));
+  const fixture = await nativeSubprocessFixture(t, writer, "transport-failed-mcp", {
+    failedHistory: 3,
+    sessionMode: "transport-error",
+  });
+
+  await assert.rejects(
+    writer.executeNativeJourney(fixture.inputs, fixture.dependencies),
+    /transport.*Core|mcp.*failed|external diagnostic/i,
+  );
+  assert.equal(await optionalContents(fixture.dependencies.evidencePath), null);
+  const ledger = JSON.parse(await readFile(fixture.inputs.ledgerPath, "utf8"));
+  assert.equal(ledger.attempts.length, 4);
+  assert.equal(ledger.attempts[3].status, "failed");
+  const recoveryDirectory = join(fixture.recoveryRoot, ledger.attempts[3].chain_id);
+  const diagnosticText = await readFile(join(recoveryDirectory, "failed.json"), "utf8");
+  const factsText = await readFile(join(recoveryDirectory, "failure-observed-facts.json"), "utf8");
+  const diagnostic = JSON.parse(diagnosticText);
+  const facts = JSON.parse(factsText);
+  const typedError = transportMCPError();
+  const expectedContext = {
+    session_role: "resume",
+    event_type: "mcp_tool_call",
+    event_index: 2,
+    tool: "dev_flow_apply_action",
+    status: "failed",
+    result_kind: "transport_error",
+    result_sha256: null,
+    error_sha256: canonicalJSONSha256(typedError),
+  };
+
+  assert.equal(diagnostic.schema_version, 4);
+  assert.equal(diagnostic.native_attempt.commit_protocol, "external-failure-record-v4");
+  assert.equal(diagnostic.failure_kind, "mcp_event");
+  assert.deepEqual(diagnostic.failure, {
+    phase_code: "codex-session",
+    reason_code: "mcp-event-failed",
+    detail_sha256: diagnostic.failure.detail_sha256,
+  });
+  assert.deepEqual(diagnostic.mcp_failure_context, expectedContext);
+  assert.deepEqual(facts, {
+    schema_version: 4,
+    failure_kind: "mcp_event",
+    failure: diagnostic.failure,
+    mcp_failure_context: expectedContext,
+    session_observations: diagnostic.session_observations,
+  });
+  const resume = diagnostic.session_observations.find(({ session_role }) => session_role === "resume");
+  assert.equal(resume.failure_stage, "mcp_failed");
+  assert.equal(resume.mcp_status_counts.failed, 1);
+  assert.equal(resume.mcp_status_counts.dev_flow >= 1, true);
+  assert.equal(resume.item_counts.mcp_tool_call >= 1, true);
+  assert.equal(resume.event_counts.item_completed > expectedContext.event_index, true);
+  assert.equal(sha256Text(factsText), ledger.attempts[3].observed_facts_sha256);
+  for (const forbidden of [
+    typedError.message,
+    JSON.stringify(typedError),
+    nativeSkillSelector,
+    "thread-resume",
+    fixture.root,
+    "arguments",
+    "structured_content",
+  ]) {
+    assert.equal(`${diagnosticText}${factsText}`.includes(forbidden), false, `v4 MCP diagnostic leaked ${forbidden}`);
+  }
+});
+
+test("unrecovered complete Core failure outranks generic summary gates in real orchestration", async (t) => {
+  const writer = await import(pathToFileURL(writerPath));
+  const fixture = await nativeSubprocessFixture(t, writer, "unrecovered-complete-core-error", {
+    failedHistory: 3,
+  });
+  const failedEnvelope = recoverableCoreErrorEnvelope();
+  const failedApply = failedCoreMCPItem(
+    "dev_flow_apply_action",
+    failedEnvelope,
+    recoverableApplyArguments(),
+  );
+  const streams = {
+    ordinary: mcpItemSessionJSONL("thread-ordinary", []),
+    invalid: mcpItemSessionJSONL("thread-invalid", []),
+    substantive: sessionJSONL("thread-substantive", [
+      actionObservation(4, "action-implement", false),
+    ]),
+    resume: mcpItemSessionJSONL("thread-resume", [failedApply]),
+  };
+
+  await assert.rejects(
+    writer.executeNativeJourney(fixture.inputs, {
+      ...fixture.dependencies,
+      async prepareHost() { return {}; },
+      async spawnSession({ role }) { return streams[role]; },
+      async cleanupHost() {},
+    }),
+    /external diagnostic/i,
+  );
+
+  const ledger = JSON.parse(await readFile(fixture.inputs.ledgerPath, "utf8"));
+  const attempt = ledger.attempts[3];
+  const recoveryDirectory = join(fixture.recoveryRoot, attempt.chain_id);
+  const diagnosticText = await readFile(join(recoveryDirectory, "failed.json"), "utf8");
+  const factsText = await readFile(join(recoveryDirectory, "failure-observed-facts.json"), "utf8");
+  const diagnostic = JSON.parse(diagnosticText);
+  const facts = JSON.parse(factsText);
+  const expectedContext = {
+    session_role: "resume",
+    event_type: "mcp_tool_call",
+    event_index: 0,
+    tool: "dev_flow_apply_action",
+    status: "failed",
+    result_kind: "tool_error_result",
+    result_sha256: canonicalJSONSha256(failedApply.result),
+    error_sha256: null,
+  };
+
+  assert.equal(attempt.status, "failed");
+  assert.equal(diagnostic.schema_version, 4);
+  assert.equal(diagnostic.failure_kind, "mcp_event");
+  assert.deepEqual(diagnostic.mcp_failure_context, expectedContext);
+  assert.deepEqual(facts.mcp_failure_context, expectedContext);
+  assert.equal(facts.failure_kind, "mcp_event");
+  assert.equal(
+    diagnostic.session_observations.find(({ session_role }) => session_role === "resume").failure_stage,
+    "mcp_failed",
+  );
+  assert.equal(diagnostic.failure.phase_code, "codex-session");
+  assert.equal(diagnostic.failure.reason_code, "mcp-event-failed");
+  for (const forbidden of [
+    failedEnvelope.error.message,
+    failedEnvelope.recovery.message,
+    "thread-resume",
+    "arguments",
+    "structured_content",
+    fixture.root,
+  ]) {
+    assert.equal(`${diagnosticText}${factsText}`.includes(forbidden), false);
+  }
 });
 
 test("default native exit-zero no-apply failure durably records v3 safe session observations", async (t) => {
@@ -2583,7 +3053,10 @@ function parsedRecordedSessions(writer, {
   };
 }
 
-async function runFakeCodexPrompt(t, prompt, label) {
+async function runFakeCodexPrompt(t, prompt, label, {
+  seedNativeProof = false,
+  sessionMode,
+} = {}) {
   const root = await temporaryRoot(t, `dev-flow-codex-skill-resolution-${label}-`);
   const targetPath = join(root, "target");
   const dataPath = join(root, "data");
@@ -2597,6 +3070,9 @@ async function runFakeCodexPrompt(t, prompt, label) {
     mkdir(join(packagePath, "plugin", "skills", "dev-flow"), { recursive: true, mode: 0o700 }),
   ]);
   await execFile("git", ["init", "--object-format=sha1", "--initial-branch=main"], { cwd: targetPath });
+  if (seedNativeProof) {
+    await writeFile(join(targetPath, "native-proof.txt"), nativeProofContent, { mode: 0o600 });
+  }
   await Promise.all([
     copyFile(join(packageRoot, "plugin", ".codex-plugin", "plugin.json"), join(packagePath, "plugin", ".codex-plugin", "plugin.json")),
     copyFile(join(packageRoot, "plugin", "skills", "dev-flow", "SKILL.md"), join(packagePath, "plugin", "skills", "dev-flow", "SKILL.md")),
@@ -2618,9 +3094,14 @@ async function runFakeCodexPrompt(t, prompt, label) {
       FAKE_NATIVE_TRACE: tracePath,
       FAKE_NATIVE_TOOL_PATH: fakeNativeToolPath,
       FAKE_NATIVE_PACKAGE_VERSION: "0.1.0",
+      ...(sessionMode ? { FAKE_NATIVE_SESSION_MODE: sessionMode } : {}),
     },
   });
   return { stdout, targetPath, tracePath };
+}
+
+function parseJSONLText(text) {
+  return text.trim().split("\n").filter(Boolean).map(JSON.parse);
 }
 
 function nativeSessionRolesAfter(role) {
@@ -3180,6 +3661,205 @@ function coreEnvelope({
   return envelope;
 }
 
+function recoverableCoreErrorEnvelope() {
+  return {
+    schema_version: 1,
+    ok: false,
+    request_id: "request-recoverable-failed-apply",
+    tool: "dev_flow_apply_action",
+    error: {
+      code: "REVISION_CONFLICT",
+      message: "The submitted task revision is stale.",
+    },
+    recovery: {
+      retry_safe: false,
+      action: "read_task",
+      message: "Read the authoritative task before another mutation.",
+    },
+  };
+}
+
+function recoverableApplyArguments() {
+  return {
+    request_id: "request-recoverable-failed-apply",
+    task_id: "task-00000001",
+    expected_revision: 4,
+    action_id: "action-handoff",
+    payload: {
+      result: "succeeded",
+      summary: "bounded deterministic recovery fixture",
+      changed_paths: ["native-proof.txt"],
+      no_file_changes: false,
+      deviations: [],
+      scope_confirmed: true,
+    },
+  };
+}
+
+function transportMCPError() {
+  return {
+    code: -32000,
+    message: "MCP transport disconnected before a result",
+  };
+}
+
+function failedCoreMCPItem(tool, envelope, arguments_) {
+  return {
+    ...codexMCPItem(tool, envelope, arguments_),
+    status: "failed",
+  };
+}
+
+function failedTransportMCPItem(tool, error, arguments_) {
+  return {
+    id: "item-transport-failed-apply",
+    type: "mcp_tool_call",
+    server: "dev-flow",
+    tool,
+    arguments: structuredClone(arguments_),
+    result: null,
+    error: structuredClone(error),
+    status: "failed",
+  };
+}
+
+function mcpItemSessionJSONL(threadId, items, commands = []) {
+  return [
+    { type: "thread.started", thread_id: threadId },
+    ...items.map((item) => ({ type: "item.completed", item })),
+    ...commands.map((command) => ({
+      type: "item.completed",
+      item: {
+        id: command.itemId,
+        type: "command_execution",
+        command: command.command,
+        aggregated_output: command.output,
+        exit_code: command.exitCode,
+        status: command.status,
+      },
+    })),
+  ].map(JSON.stringify).join("\n");
+}
+
+function recoverableResumeItems() {
+  const initialGetTask = codexMCPItem(
+    "dev_flow_get_task",
+    coreEnvelope({ revision: 4, actionId: "action-restart-task", terminal: false, tool: "dev_flow_get_task" }),
+  );
+  const initialGetNext = codexMCPItem(
+    "dev_flow_get_next_action",
+    coreEnvelope({ revision: 4, actionId: "action-restart-next", terminal: false, tool: "dev_flow_get_next_action" }),
+  );
+  const failedApply = failedCoreMCPItem(
+    "dev_flow_apply_action",
+    recoverableCoreErrorEnvelope(),
+    recoverableApplyArguments(),
+  );
+  const recoveryGetTask = codexMCPItem(
+    "dev_flow_get_task",
+    coreEnvelope({ revision: 4, actionId: "action-recovery-task", terminal: false, tool: "dev_flow_get_task" }),
+  );
+  const recoveryGetNext = codexMCPItem(
+    "dev_flow_get_next_action",
+    coreEnvelope({ revision: 4, actionId: "action-recovery-next", terminal: false, tool: "dev_flow_get_next_action" }),
+  );
+  const nextMutation = codexMCPItem(
+    "dev_flow_apply_action",
+    coreEnvelope({ revision: 8, actionId: "action-handoff", terminal: true }),
+  );
+  const proof = nativeCommandObservation();
+  const events = [
+    { type: "thread.started", thread_id: "thread-resume" },
+    ...[initialGetTask, initialGetNext, failedApply, recoveryGetTask, recoveryGetNext]
+      .map((item) => ({ type: "item.completed", item })),
+    {
+      type: "item.completed",
+      item: {
+        id: proof.itemId,
+        type: "command_execution",
+        command: proof.command,
+        aggregated_output: proof.output,
+        exit_code: proof.exitCode,
+        status: proof.status,
+      },
+    },
+    { type: "item.completed", item: nextMutation },
+  ];
+  const reference = (item, eventIndex, revision) => ({
+    session_role: "resume",
+    event_index: eventIndex,
+    tool: item.tool,
+    result_sha256: canonicalJSONSha256(item.result),
+    task_id: "task-00000001",
+    revision,
+  });
+  return {
+    jsonl: events.map(JSON.stringify).join("\n"),
+    items: [initialGetTask, initialGetNext, failedApply, recoveryGetTask, recoveryGetNext, nextMutation],
+    fact: {
+      session_role: "resume",
+      event_index: 2,
+      tool: "dev_flow_apply_action",
+      status: "failed",
+      result_kind: "tool_error_result",
+      task_id: "task-00000001",
+      expected_revision: 4,
+      result_sha256: canonicalJSONSha256(failedApply.result),
+      core_error_code: "REVISION_CONFLICT",
+      recovery_retry_safe: false,
+      recovery_action: "read_task",
+      get_task: reference(recoveryGetTask, 3, 4),
+      get_next_action: reference(recoveryGetNext, 4, 4),
+      next_mutation: reference(nextMutation, 6, 8),
+    },
+    expectedCallOrder: [
+      { session_role: "substantive", event_index: 0, tool: "dev_flow_apply_action", status: "completed", result_kind: "success_result" },
+      { session_role: "resume", event_index: 0, tool: "dev_flow_get_task", status: "completed", result_kind: "success_result" },
+      { session_role: "resume", event_index: 1, tool: "dev_flow_get_next_action", status: "completed", result_kind: "success_result" },
+      { session_role: "resume", event_index: 2, tool: "dev_flow_apply_action", status: "failed", result_kind: "tool_error_result" },
+      { session_role: "resume", event_index: 3, tool: "dev_flow_get_task", status: "completed", result_kind: "success_result" },
+      { session_role: "resume", event_index: 4, tool: "dev_flow_get_next_action", status: "completed", result_kind: "success_result" },
+      { session_role: "resume", event_index: 6, tool: "dev_flow_apply_action", status: "completed", result_kind: "success_result" },
+    ],
+  };
+}
+
+function successfulMCPCallFact(sessionRole, eventIndex, { tool, envelope, arguments_ }) {
+  const callArguments = arguments_ ?? defaultMCPArguments(tool, envelope);
+  const completeResult = codexMCPItem(tool, envelope, callArguments).result;
+  const task = envelope.result?.task ?? envelope.result;
+  return {
+    session_role: sessionRole,
+    event_index: eventIndex,
+    tool,
+    arguments_sha256: canonicalJSONSha256(callArguments),
+    result_sha256: canonicalJSONSha256(completeResult),
+    status: "completed",
+    result_kind: "success_result",
+    task_id: task.task_id,
+    revision: task.revision,
+    outcome: task.outcome?.status ?? null,
+    request_task_id: callArguments.task_id ?? null,
+    expected_revision: Number.isInteger(callArguments.expected_revision)
+      ? callArguments.expected_revision
+      : null,
+    core_error_code: null,
+    recovery_retry_safe: null,
+    recovery_action: null,
+  };
+}
+
+function canonicalJSONSha256(value) {
+  const normalize = (input) => {
+    if (Array.isArray(input)) return input.map(normalize);
+    if (input !== null && typeof input === "object") {
+      return Object.fromEntries(Object.keys(input).sort().map((key) => [key, normalize(input[key])]));
+    }
+    return input;
+  };
+  return sha256Text(JSON.stringify(normalize(value)));
+}
+
 function codexMCPItem(tool, envelope, arguments_ = defaultMCPArguments(tool, envelope)) {
   return {
     id: `item-${envelope.request_id}`,
@@ -3199,6 +3879,8 @@ function codexMCPItem(tool, envelope, arguments_ = defaultMCPArguments(tool, env
 function defaultMCPArguments(tool, envelope) {
   const arguments_ = { request_id: envelope.request_id };
   if (tool === "dev_flow_apply_action" && envelope.result?.task?.phase === "DONE") {
+    arguments_.task_id = "task-00000001";
+    arguments_.expected_revision = 4;
     arguments_.payload = {
       checks: [{
         source: "automated",

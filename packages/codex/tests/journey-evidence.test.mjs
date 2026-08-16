@@ -56,6 +56,12 @@ const immutableNativeRoot = join(
   "dev-flow-feature-003-native",
   "attempt-ledger.json.recovery",
 );
+const immutableAttemptLedgerPath = join(
+  homedir(),
+  ".codex",
+  "dev-flow-feature-003-native",
+  "attempt-ledger.json",
+);
 const immutableFailureAttempts = [
   {
     attemptNumber: 1,
@@ -72,6 +78,14 @@ const immutableFailureAttempts = [
     diagnosticSha256: "716db0273bea67a96ff2eb288936564b9766c7555c44884fbbcbf8f209cccd81",
     observedFactsSha256: "e53357a2f80eaa55ef7f66d5e59713f8b1d480edcaa9c548f726fe6aab1cea98",
     ledgerCandidateSha256: "a6309693587fc3ae2b4ffeb641cd2d1fc0a25f065536a8da25447eb86d61ad19",
+  },
+  {
+    attemptNumber: 3,
+    schemaVersion: 3,
+    chainID: "3f0ee530c5f4f3076666f9dfc7cb63ea711814b6769d55d60ef8b595cdc8579f",
+    diagnosticSha256: "821a3a29d1ae6d6b33e2b10c1369e271cb278595fc691d578ef33a1d94934634",
+    observedFactsSha256: "de8979c93856d8e81a34d5d1aa885893cc04e10603eaf88f7ba846ac79b78622",
+    ledgerCandidateSha256: "4a037457f6ea173ca4714b09ee6d4242acde0875c16043d702b5e1de0ce4481e",
   },
 ];
 
@@ -147,7 +161,7 @@ test("failed and blocked attempts use the independent closed diagnostic schema",
   );
 
   for (const [expected, mutate] of [
-    ["schema_version", (document) => { document.schema_version = 4; }],
+    ["schema_version", (document) => { document.schema_version = 5; }],
     ["report_type", (document) => { document.report_type = "journey-evidence"; }],
     ["failure.*required", (document) => { delete document.failure; }],
     ["journey.*not allowed", (document) => { document.journey = {}; }],
@@ -163,8 +177,9 @@ test("failed and blocked attempts use the independent closed diagnostic schema",
   }
 });
 
-test("diagnostic schema preserves exact immutable attempt-1 v1 and attempt-2 v2 history", async (t) => {
+test("diagnostic validation preserves exact immutable attempt-1 v1, attempt-2 v2, and attempt-3 v3 history", async (t) => {
   for (const immutable of immutableFailureAttempts) {
+    await t.test(`immutable attempt ${immutable.attemptNumber}`, async (historyT) => {
     const recoveryDirectory = join(immutableNativeRoot, immutable.chainID);
     const diagnosticPath = join(recoveryDirectory, "failed.json");
     const observedFactsPath = join(recoveryDirectory, "failure-observed-facts.json");
@@ -180,13 +195,14 @@ test("diagnostic schema preserves exact immutable attempt-1 v1 and attempt-2 v2 
       ]);
     } catch (error) {
       if (error?.code === "ENOENT") {
-        t.skip("immutable native failure history is not retained on this machine");
+        historyT.skip("immutable native failure history is not retained on this machine");
         return;
       }
       throw error;
     }
 
     const diagnostic = JSON.parse(diagnosticText);
+    const observedFacts = JSON.parse(observedFactsText);
     const ledgerCandidate = JSON.parse(ledgerCandidateText);
     const matchingEntry = ledgerCandidate.attempts[immutable.attemptNumber - 1];
     assert.equal(sha256(diagnosticText), immutable.diagnosticSha256);
@@ -203,6 +219,19 @@ test("diagnostic schema preserves exact immutable attempt-1 v1 and attempt-2 v2 
     assert.equal(matchingEntry.observed_facts_sha256, immutable.observedFactsSha256);
     assert.equal(matchingEntry.chain_id, immutable.chainID);
     assert.equal(matchingEntry.status, diagnostic.status);
+    assert.deepEqual(
+      validator.validateFailureAttemptCandidate({
+        diagnostic,
+        diagnosticText,
+        observedFacts,
+        observedFactsText,
+        ledger: ledgerCandidate,
+        ledgerText: ledgerCandidateText,
+        attemptLedgerPath: immutableAttemptLedgerPath,
+      }),
+      [],
+      `immutable attempt ${immutable.attemptNumber} semantic compatibility`,
+    );
 
     assert.deepEqual(
       await Promise.all([
@@ -216,6 +245,7 @@ test("diagnostic schema preserves exact immutable attempt-1 v1 and attempt-2 v2 
         immutable.ledgerCandidateSha256,
       ],
     );
+    });
   }
 
   const commandEvent = attemptDiagnosticV2("failed", "command_event");
@@ -373,7 +403,7 @@ test("synthetic attempt 3 cannot downgrade to v1 or v2 even with exact ledger an
     );
     assert.match(
       validateFailureCandidate(candidate).join("\n"),
-      /later failure diagnostic.*schema version 3|v1\/v2 downgrade/i,
+      /historical attempt 3.*schema version 3|v1\/v2 downgrade/i,
     );
   }
 });
@@ -495,6 +525,130 @@ test("v3 diagnostic and facts reject raw payloads, paths, thread IDs, and extra 
     validateFailureCandidate(factsLeak).join("\n"),
     /failure observed facts.*closed exact diagnostic projection/i,
   );
+});
+
+test("v4 MCP-event diagnostic structure is closed and result/error digests are exclusive", () => {
+  const baseline = failureCandidateV4();
+  assert.deepEqual(validator.validateDocumentStructure(baseline.diagnostic, diagnosticSchema), []);
+  const transport = structuredClone(baseline.diagnostic);
+  transport.mcp_failure_context.result_kind = "transport_error";
+  transport.mcp_failure_context.result_sha256 = null;
+  transport.mcp_failure_context.error_sha256 = sha256("canonical typed transport error");
+  assert.deepEqual(validator.validateDocumentStructure(transport, diagnosticSchema), []);
+
+  const cases = [
+    ["mcp_failure_context.*required", (document) => { delete document.mcp_failure_context; }],
+    ["tool", (document) => { document.mcp_failure_context.tool = "unknown_tool"; }],
+    ["error_sha256", (document) => { document.mcp_failure_context.error_sha256 = "e".repeat(64); }],
+    ["arguments.*not allowed", (document) => { document.mcp_failure_context.arguments = { secret: true }; }],
+    ["result.*not allowed", (document) => { document.mcp_failure_context.result = { ok: false }; }],
+    ["error.*not allowed", (document) => { document.mcp_failure_context.error = { message: "secret" }; }],
+    ["raw_jsonl.*not allowed", (document) => { document.mcp_failure_context.raw_jsonl = "{}"; }],
+    ["thread_id.*not allowed", (document) => { document.mcp_failure_context.thread_id = "secret"; }],
+    ["repository_path.*not allowed", (document) => { document.mcp_failure_context.repository_path = "/tmp/private"; }],
+    ["environment.*not allowed", (document) => { document.mcp_failure_context.environment = { TOKEN: "secret" }; }],
+    ["secret.*not allowed", (document) => { document.mcp_failure_context.secret = "secret"; }],
+  ];
+  for (const [expected, mutate] of cases) {
+    const diagnostic = structuredClone(baseline.diagnostic);
+    mutate(diagnostic);
+    assert.match(
+      validator.validateDocumentStructure(diagnostic, diagnosticSchema).join("\n"),
+      new RegExp(expected, "i"),
+      expected,
+    );
+  }
+});
+
+test("v4 MCP-event diagnostic semantics bind role, stage, counts, index, reason, facts, and event-local attribution", async (t) => {
+  await t.test("valid v4 MCP-event candidate", () => {
+    assert.deepEqual(validateFailureCandidate(failureCandidateV4()), []);
+  });
+
+  const cases = [
+    ["context role.*mcp_failed|role.*failed MCP", (candidate) => {
+      candidate.diagnostic.mcp_failure_context.session_role = "resume";
+    }],
+    ["mcp_failed", (candidate) => {
+      mcpFailureObservation(candidate).failure_stage = "completed";
+    }],
+    ["reached process close", (candidate) => {
+      const observation = mcpFailureObservation(candidate);
+      observation.exit_code = null;
+      observation.signal = null;
+    }],
+    ["failed.*MCP count", (candidate) => {
+      const counts = mcpFailureObservation(candidate).mcp_status_counts;
+      counts.failed = 0;
+      counts.completed = counts.total;
+    }],
+    ["Dev Flow MCP count", (candidate) => {
+      mcpFailureObservation(candidate).mcp_status_counts.dev_flow = 0;
+    }],
+    ["completed MCP.*item|MCP tool-call item", (candidate) => {
+      const counts = mcpFailureObservation(candidate).item_counts;
+      counts.mcp_tool_call = 0;
+      counts.total = 0;
+    }],
+    ["item.completed|item_completed", (candidate) => {
+      const counts = mcpFailureObservation(candidate).event_counts;
+      counts.item_completed = 0;
+      counts.total = 1;
+    }],
+    ["event index.*range|out-of-range", (candidate) => {
+      candidate.diagnostic.mcp_failure_context.event_index = 2;
+    }],
+    ["mcp_event.*phase.*codex-session", (candidate) => {
+      candidate.diagnostic.failure.phase_code = "native-journey";
+    }],
+    ["mcp_event.*reason.*mcp-event-failed", (candidate) => {
+      candidate.diagnostic.failure.reason_code = "protocol-invalid";
+    }],
+    ["failure observed facts.*exact|facts.*MCP context", (candidate) => {
+      candidate.observedFacts.mcp_failure_context.result_sha256 = "f".repeat(64);
+    }, { rebind: false }],
+    ["event-local|attributable.*failed item|matching failed MCP item", (candidate) => {
+      candidate.attributableMcpFailureContext = {
+        ...structuredClone(candidate.diagnostic.mcp_failure_context),
+        event_index: 0,
+        result_sha256: "e".repeat(64),
+      };
+    }, { rebind: false, syncAttribution: false }],
+  ];
+
+  for (const [expected, mutate, options = {}] of cases) {
+    await t.test(expected, () => {
+      const candidate = failureCandidateV4();
+      mutate(candidate);
+      if (options.rebind !== false) rebindFailureCandidate(candidate);
+      if (options.syncAttribution !== false) {
+        candidate.attributableMcpFailureContext = structuredClone(
+          candidate.diagnostic.mcp_failure_context,
+        );
+      }
+      assert.match(
+        validateFailureCandidate(candidate).join("\n"),
+        new RegExp(expected, "i"),
+        expected,
+      );
+    });
+  }
+});
+
+test("synthetic attempt 4 and later cannot downgrade to diagnostic v1, v2, or v3", async (t) => {
+  for (const schemaVersion of [1, 2, 3]) {
+    await t.test(`attempt 4 rejects v${schemaVersion}`, () => {
+      const candidate = downgradedFailureCandidateV4(schemaVersion);
+      assert.notDeepEqual(
+        validator.validateDocumentStructure(candidate.diagnostic, diagnosticSchema),
+        [],
+      );
+      assert.match(
+        validateFailureCandidate(candidate).join("\n"),
+        /attempt 4.*version 4|version 4.*attempt 4|v1\/v2\/v3 downgrade/i,
+      );
+    });
+  }
 });
 
 test("schema walker enforces not for reserved ledger entries", () => {
@@ -833,6 +987,139 @@ test("candidate validation binds Core-derived journey, verification, recovery, a
   }
 });
 
+test("recoverable MCP failures bind the exact durable call facts and recovery-before-retry references", async (t) => {
+  const baseline = passingCandidate();
+  const invocation = baseline.documents["journey-evidence"].journey.invocation;
+  assert.equal(invocation.recoverable_mcp_failure_facts.length, 1);
+  assert.equal(baseline.documents["observed-facts"].mcp_call_facts.length, 9);
+  assert.deepEqual(
+    invocation.recoverable_mcp_failure_facts,
+    baseline.documents["observed-facts"].journey.invocation.recoverable_mcp_failure_facts,
+  );
+  assert.deepEqual(candidateResult(baseline), {
+    valid: true,
+    structuralErrors: [],
+    semanticErrors: [],
+  });
+
+  const cases = [
+    ["failed request.*task ID|canonical journey task ID", (candidate) => {
+      recoveryFact(candidate).task_id = "task-other";
+    }],
+    ["reference.*task ID|canonical journey task ID", (candidate) => {
+      recoveryFact(candidate).get_task.task_id = "task-other";
+    }],
+    ["expected revision.*raw lineage", (candidate) => {
+      recoveryFact(candidate).expected_revision = 2;
+    }],
+    ["read revisions.*equal", (candidate) => {
+      recoveryFact(candidate).get_next_action.revision = 4;
+    }],
+    ["apply revision.*greater|non-increasing", (candidate) => {
+      recoveryFact(candidate).next_mutation.revision = 1;
+    }],
+    ["apply revision.*committed action|committed.*apply revision", (candidate) => {
+      candidate.documents["journey-evidence"].journey.task_lineage.committed_actions[0].revision = 8;
+    }],
+    ["transport.*passing|transport.*prohibited", (candidate) => {
+      const failed = failedMcpCallFact(candidate);
+      failed.result_kind = "transport_error";
+    }],
+    ["failed tool error.*complete recoverable apply|failed MCP.*recoverable apply", (candidate) => {
+      const failed = failedMcpCallFact(candidate);
+      failed.recovery_action = null;
+      candidate.documents["journey-evidence"].journey.invocation
+        .recoverable_mcp_failure_facts = [];
+      candidate.documents["journey-evidence"].journey.invocation
+        .read_before_retry_observations = 2;
+    }],
+    ["failed tool error.*complete recoverable apply|failed MCP.*recoverable apply", (candidate) => {
+      const facts = candidate.documents["observed-facts"].mcp_call_facts;
+      facts.push(mcpCallFact({
+        sessionRole: "substantive",
+        eventIndex: 6,
+        tool: "dev_flow_get_task",
+        status: "failed",
+        resultKind: "tool_error_result",
+        coreErrorCode: "READ_FAILED",
+        recoveryRetrySafe: false,
+        recoveryAction: "read_task",
+      }));
+      facts.sort(compareMcpCallFacts);
+      candidate.documents["journey-evidence"].journey.invocation.core_call_count += 1;
+      synchronizeSessionMcpProjection(candidate);
+    }],
+    ["missing.*recoverable|recoverable.*exact projection", (candidate) => {
+      candidate.documents["journey-evidence"].journey.invocation.recoverable_mcp_failure_facts = [];
+    }],
+    ["duplicate.*recoverable|recoverable.*exact projection", (candidate) => {
+      const duplicate = structuredClone(recoveryFact(candidate));
+      duplicate.core_error_code = "SECOND_CONFLICT";
+      candidate.documents["journey-evidence"].journey.invocation.recoverable_mcp_failure_facts.push(duplicate);
+    }],
+    ["reference.*result digest|unbound.*reference", (candidate) => {
+      recoveryFact(candidate).get_task.result_sha256 = "f".repeat(64);
+    }],
+    ["reference.*successful|failed.*reference", (candidate) => {
+      const getTask = candidate.documents["observed-facts"].mcp_call_facts.find(
+        (fact) => fact.session_role === "substantive" && fact.event_index === 3,
+      );
+      getTask.status = "failed";
+      getTask.result_kind = "tool_error_result";
+      getTask.core_error_code = "READ_FAILED";
+      getTask.recovery_retry_safe = false;
+      getTask.recovery_action = "read_task";
+    }],
+    ["intervening mutation", (candidate) => {
+      const facts = candidate.documents["observed-facts"].mcp_call_facts;
+      const getNext = facts.find((fact) => fact.session_role === "substantive" && fact.event_index === 4);
+      const nextMutation = facts.find((fact) => fact.session_role === "substantive" && fact.event_index === 5);
+      getNext.event_index = 5;
+      nextMutation.event_index = 6;
+      facts.push(mcpCallFact({
+        sessionRole: "substantive",
+        eventIndex: 4,
+        tool: "dev_flow_apply_action",
+        requestTaskId: "task-1",
+        expectedRevision: 1,
+        taskId: "task-1",
+        revision: 4,
+      }));
+      facts.sort(compareMcpCallFacts);
+      recoveryFact(candidate).get_next_action.event_index = 5;
+      recoveryFact(candidate).next_mutation.event_index = 6;
+    }],
+    ["read-before-retry observation count.*exact|read count.*recovery", (candidate) => {
+      candidate.documents["journey-evidence"].journey.invocation.read_before_retry_observations = 3;
+    }],
+  ];
+
+  for (const [expected, mutate] of cases) {
+    await t.test(expected, () => {
+      const candidate = passingCandidate();
+      mutate(candidate);
+      synchronizeRecoveryJourney(candidate);
+      assert.match(allErrors(candidateResult(candidate)), new RegExp(expected, "i"), expected);
+    });
+  }
+});
+
+test("recoverable MCP failure facts allow 64 structural entries and reject the 65th", () => {
+  const evidence = passingCandidate().documents["journey-evidence"];
+  const template = evidence.journey.invocation.recoverable_mcp_failure_facts[0];
+  evidence.journey.invocation.recoverable_mcp_failure_facts = Array.from(
+    { length: 64 },
+    (_, index) => indexedRecoveryFact(template, index),
+  );
+  assert.deepEqual(validator.validateEvidenceStructure(evidence, schemas["journey-evidence"]), []);
+
+  evidence.journey.invocation.recoverable_mcp_failure_facts.push(indexedRecoveryFact(template, 64));
+  assert.match(
+    validator.validateEvidenceStructure(evidence, schemas["journey-evidence"]).join("\n"),
+    /recoverable_mcp_failure_facts.*at most 64/i,
+  );
+});
+
 test("candidate validation enforces session-aware safe command facts and one bound proof", () => {
   const baseline = passingCandidate();
   const invocation = baseline.documents["journey-evidence"].journey.invocation;
@@ -940,26 +1227,57 @@ test("bound evidence-file validation loads every schema, artifact/root identity,
       candidate.documents["journey-evidence"].journey.task_lineage.terminal_outcome = "BLOCKED";
       candidate.documents["observed-facts"].journey.task_lineage.terminal_outcome = "BLOCKED";
     }, null],
+    ["failed request.*task ID|canonical journey task ID", (candidate) => {
+      recoveryFact(candidate).task_id = "task-other";
+      candidate.documents["observed-facts"].journey = structuredClone(
+        candidate.documents["journey-evidence"].journey,
+      );
+    }, null],
+    ["reference.*task ID|canonical journey task ID", (candidate) => {
+      recoveryFact(candidate).get_task.task_id = "task-other";
+      candidate.documents["observed-facts"].journey = structuredClone(
+        candidate.documents["journey-evidence"].journey,
+      );
+    }, null],
+    ["expected revision.*raw lineage", (candidate) => {
+      recoveryFact(candidate).expected_revision = 2;
+      candidate.documents["observed-facts"].journey = structuredClone(
+        candidate.documents["journey-evidence"].journey,
+      );
+    }, null],
+    ["role-scoped MCP call projection.*exact|ordinary.*zero Dev Flow", (candidate) => {
+      candidate.documents["observed-facts"].mcp_call_facts.unshift(mcpCallFact({
+        sessionRole: "ordinary",
+        eventIndex: 0,
+        tool: "dev_flow_server_info",
+      }));
+      candidate.documents["journey-evidence"].journey.invocation.core_call_count += 1;
+      candidate.documents["observed-facts"].journey = structuredClone(
+        candidate.documents["journey-evidence"].journey,
+      );
+    }, null],
     ["repository VERSION", null, "9.9.9\n"],
     ["actual artifact SHA-256", null, null, Buffer.from("substituted artifact")],
   ];
 
   for (const [expected, mutate, versionOverride, artifactOverride] of cases) {
-    const caseRoot = join(root, expected.replaceAll(/[^A-Za-z0-9]+/g, "-"));
-    await mkdir(caseRoot, { recursive: true });
-    const bound = await writeBoundCandidate(caseRoot, { mutate, versionOverride, artifactOverride });
-    const result = await validator.validateEvidenceFile(bound.evidencePath, {
-      validationReportPath: bound.validationReportPath,
-      artifactReportPath: bound.artifactReportPath,
-      attemptLedgerPath: bound.attemptLedgerPath,
-      canonicalEvidencePath: bound.evidencePath,
-      versionPath: bound.versionPath,
+    await t.test(expected, async () => {
+      const caseRoot = join(root, expected.replaceAll(/[^A-Za-z0-9]+/g, "-"));
+      await mkdir(caseRoot, { recursive: true });
+      const bound = await writeBoundCandidate(caseRoot, { mutate, versionOverride, artifactOverride });
+      const result = await validator.validateEvidenceFile(bound.evidencePath, {
+        validationReportPath: bound.validationReportPath,
+        artifactReportPath: bound.artifactReportPath,
+        attemptLedgerPath: bound.attemptLedgerPath,
+        canonicalEvidencePath: bound.evidencePath,
+        versionPath: bound.versionPath,
+      });
+      if (expected === "valid") {
+        assert.deepEqual(result, { valid: true, structuralErrors: [], semanticErrors: [] });
+      } else {
+        assert.match(allErrors(result), new RegExp(expected, "i"), expected);
+      }
     });
-    if (expected === "valid") {
-      assert.deepEqual(result, { valid: true, structuralErrors: [], semanticErrors: [] });
-    } else {
-      assert.match(allErrors(result), new RegExp(expected, "i"), expected);
-    }
   }
 });
 
@@ -1010,32 +1328,29 @@ function passingCandidate() {
   const sourceCommit = "c".repeat(40);
   const artifactPath = "/tmp/dev-flow codex final/dev-flow-codex-0.1.0.tgz";
   const artifactSha256 = "a".repeat(64);
-  const journey = passingJourney();
+  const mcpCallFacts = passingMcpCallFacts();
+  const journey = passingJourney(mcpCallFacts);
   const observedFacts = {
     schema_version: 1,
     source_commit: sourceCommit,
     terminal_outcome: "DONE",
     task_id: "task-1",
     journey: structuredClone(journey),
+    mcp_call_facts: structuredClone(mcpCallFacts),
+    recoverable_mcp_failure_facts: structuredClone(
+      journey.invocation.recoverable_mcp_failure_facts,
+    ),
     verification: verificationFacts(journey.invocation),
     sessions: {
       ordinary: { thread_id: journey.task_lineage.thread_ids[0], calls: [] },
       invalid: { thread_id: journey.task_lineage.thread_ids[1], calls: [] },
       substantive: {
         thread_id: journey.task_lineage.thread_ids[2],
-        calls: [
-          { tool: "dev_flow_open_task", revision: 1 },
-          { tool: "dev_flow_get_next_action", revision: 1 },
-          { tool: "dev_flow_apply_action", revision: 4 },
-        ],
+        calls: sessionCallsFromMcpFacts(mcpCallFacts, "substantive"),
       },
       resume: {
         thread_id: journey.task_lineage.thread_ids[3],
-        calls: [
-          { tool: "dev_flow_get_task", revision: 4 },
-          { tool: "dev_flow_get_next_action", revision: 4 },
-          { tool: "dev_flow_apply_action", revision: 8 },
-        ],
+        calls: sessionCallsFromMcpFacts(mcpCallFacts, "resume"),
       },
     },
     terminal_task: {
@@ -1323,7 +1638,7 @@ function refreshBoundCandidate(candidate) {
   candidate.evidenceText = encode(evidence);
 }
 
-function passingJourney() {
+function passingJourney(mcpCallFacts = passingMcpCallFacts()) {
   const ordinaryFact = commandFact({
     sessionRole: "ordinary",
     eventIndex: 0,
@@ -1365,12 +1680,29 @@ function passingJourney() {
     classification: "verification",
   });
   const sessionCommandFacts = [ordinaryFact, invalidFact, substantiveFact, proofFact];
+  const failedApply = mcpCallFacts.find((fact) => fact.status === "failed");
+  const getTask = mcpCallFacts.find((fact) => (
+    fact.session_role === failedApply.session_role
+    && fact.event_index > failedApply.event_index
+    && fact.tool === "dev_flow_get_task"
+  ));
+  const getNextAction = mcpCallFacts.find((fact) => (
+    fact.session_role === failedApply.session_role
+    && fact.event_index > getTask.event_index
+    && fact.tool === "dev_flow_get_next_action"
+  ));
+  const nextMutation = mcpCallFacts.find((fact) => (
+    fact.session_role === failedApply.session_role
+    && fact.event_index > getNextAction.event_index
+    && fact.tool === "dev_flow_apply_action"
+    && fact.status === "completed"
+  ));
   return {
     task_lineage: {
       thread_ids: ["thread-ordinary", "thread-invalid", "thread-substantive", "thread-resume"],
       task_id_before_restart: "task-1",
       task_id_after_restart: "task-1",
-      raw_revisions: [1, 1, 4, 4, 4, 8],
+      raw_revisions: [1, 1, 1, 1, 4, 4, 4, 8],
       revisions: [1, 4, 8],
       committed_actions: [
         {
@@ -1391,11 +1723,17 @@ function passingJourney() {
     },
     invocation: {
       explicit_selector: "$dev-flow-codex:dev-flow",
-      core_call_count: 10,
+      core_call_count: mcpCallFacts.length,
       scenario_call_budget: 10,
       implicit_invocation_core_calls: 0,
-      read_before_retry_observations: 2,
+      read_before_retry_observations: 4,
       restart_recovery_reads: ["dev_flow_get_task", "dev_flow_get_next_action"],
+      recoverable_mcp_failure_facts: [recoverableMcpFailureFact({
+        failedApply,
+        getTask,
+        getNextAction,
+        nextMutation,
+      })],
       verification_budget: {
         level: "targeted",
         max_automatic_commands: 2,
@@ -1439,6 +1777,206 @@ function passingJourney() {
       },
     },
   };
+}
+
+function passingMcpCallFacts() {
+  return [
+    mcpCallFact({
+      sessionRole: "substantive",
+      eventIndex: 0,
+      tool: "dev_flow_open_task",
+      taskId: "task-1",
+      revision: 1,
+    }),
+    mcpCallFact({
+      sessionRole: "substantive",
+      eventIndex: 1,
+      tool: "dev_flow_get_next_action",
+      taskId: "task-1",
+      revision: 1,
+    }),
+    mcpCallFact({
+      sessionRole: "substantive",
+      eventIndex: 2,
+      tool: "dev_flow_apply_action",
+      status: "failed",
+      resultKind: "tool_error_result",
+      requestTaskId: "task-1",
+      expectedRevision: 1,
+      coreErrorCode: "REVISION_CONFLICT",
+      recoveryRetrySafe: false,
+      recoveryAction: "read_task",
+    }),
+    mcpCallFact({
+      sessionRole: "substantive",
+      eventIndex: 3,
+      tool: "dev_flow_get_task",
+      taskId: "task-1",
+      revision: 1,
+    }),
+    mcpCallFact({
+      sessionRole: "substantive",
+      eventIndex: 4,
+      tool: "dev_flow_get_next_action",
+      taskId: "task-1",
+      revision: 1,
+    }),
+    mcpCallFact({
+      sessionRole: "substantive",
+      eventIndex: 5,
+      tool: "dev_flow_apply_action",
+      requestTaskId: "task-1",
+      expectedRevision: 1,
+      taskId: "task-1",
+      revision: 4,
+    }),
+    mcpCallFact({
+      sessionRole: "resume",
+      eventIndex: 0,
+      tool: "dev_flow_get_task",
+      taskId: "task-1",
+      revision: 4,
+    }),
+    mcpCallFact({
+      sessionRole: "resume",
+      eventIndex: 1,
+      tool: "dev_flow_get_next_action",
+      taskId: "task-1",
+      revision: 4,
+    }),
+    mcpCallFact({
+      sessionRole: "resume",
+      eventIndex: 2,
+      tool: "dev_flow_apply_action",
+      requestTaskId: "task-1",
+      expectedRevision: 4,
+      taskId: "task-1",
+      revision: 8,
+      outcome: "completed",
+    }),
+  ];
+}
+
+function mcpCallFact({
+  sessionRole,
+  eventIndex,
+  tool,
+  status = "completed",
+  resultKind = "success_result",
+  requestTaskId = null,
+  expectedRevision = null,
+  taskId = null,
+  revision = null,
+  outcome = null,
+  coreErrorCode = null,
+  recoveryRetrySafe = null,
+  recoveryAction = null,
+} = {}) {
+  return {
+    session_role: sessionRole,
+    event_index: eventIndex,
+    tool,
+    arguments_sha256: sha256(`arguments:${sessionRole}:${eventIndex}:${tool}`),
+    result_sha256: sha256(`result:${sessionRole}:${eventIndex}:${tool}:${status}`),
+    status,
+    result_kind: resultKind,
+    request_task_id: requestTaskId,
+    expected_revision: expectedRevision,
+    task_id: taskId,
+    revision,
+    outcome,
+    core_error_code: coreErrorCode,
+    recovery_retry_safe: recoveryRetrySafe,
+    recovery_action: recoveryAction,
+  };
+}
+
+function recoverableMcpFailureFact({ failedApply, getTask, getNextAction, nextMutation }) {
+  const reference = (fact) => ({
+    session_role: fact.session_role,
+    event_index: fact.event_index,
+    tool: fact.tool,
+    result_sha256: fact.result_sha256,
+    task_id: fact.task_id,
+    revision: fact.revision,
+  });
+  return {
+    session_role: failedApply.session_role,
+    event_index: failedApply.event_index,
+    tool: failedApply.tool,
+    status: failedApply.status,
+    result_kind: failedApply.result_kind,
+    task_id: failedApply.request_task_id,
+    expected_revision: failedApply.expected_revision,
+    result_sha256: failedApply.result_sha256,
+    core_error_code: failedApply.core_error_code,
+    recovery_retry_safe: failedApply.recovery_retry_safe,
+    recovery_action: failedApply.recovery_action,
+    get_task: reference(getTask),
+    get_next_action: reference(getNextAction),
+    next_mutation: reference(nextMutation),
+  };
+}
+
+function sessionCallsFromMcpFacts(facts, role) {
+  return facts
+    .filter((fact) => fact.session_role === role)
+    .map((fact) => ({
+      tool: fact.tool,
+      arguments_sha256: fact.arguments_sha256,
+      result_sha256: fact.result_sha256,
+      task_id: fact.task_id,
+      revision: fact.revision,
+      outcome: fact.outcome,
+    }));
+}
+
+function synchronizeSessionMcpProjection(candidate) {
+  const facts = candidate.documents["observed-facts"].mcp_call_facts;
+  for (const role of ["ordinary", "invalid", "substantive", "resume"]) {
+    candidate.documents["observed-facts"].sessions[role].calls = sessionCallsFromMcpFacts(
+      facts,
+      role,
+    );
+  }
+}
+
+function recoveryFact(candidate) {
+  return candidate.documents["journey-evidence"].journey.invocation
+    .recoverable_mcp_failure_facts[0];
+}
+
+function failedMcpCallFact(candidate) {
+  return candidate.documents["observed-facts"].mcp_call_facts.find(
+    (fact) => fact.status === "failed",
+  );
+}
+
+function synchronizeRecoveryJourney(candidate) {
+  candidate.documents["observed-facts"].journey = structuredClone(
+    candidate.documents["journey-evidence"].journey,
+  );
+  candidate.documents["observed-facts"].recoverable_mcp_failure_facts = structuredClone(
+    candidate.documents["journey-evidence"].journey.invocation.recoverable_mcp_failure_facts,
+  );
+  refreshObservedFacts(candidate);
+}
+
+function compareMcpCallFacts(left, right) {
+  const roles = ["ordinary", "invalid", "substantive", "resume"];
+  return roles.indexOf(left.session_role) - roles.indexOf(right.session_role)
+    || left.event_index - right.event_index;
+}
+
+function indexedRecoveryFact(template, index) {
+  const fact = structuredClone(template);
+  fact.event_index = index * 4;
+  fact.result_sha256 = sha256(`recoverable-result:${index}`);
+  for (const [offset, field] of [[1, "get_task"], [2, "get_next_action"], [3, "next_mutation"]]) {
+    fact[field].event_index = index * 4 + offset;
+    fact[field].result_sha256 = sha256(`recoverable-reference:${index}:${field}`);
+  }
+  return fact;
 }
 
 function verificationFacts(invocation) {
@@ -1621,6 +2159,7 @@ function validateFailureCandidate(candidate) {
     observedFacts: candidate.observedFacts,
     ledger: candidate.ledger,
     attemptLedgerPath: candidate.attemptLedgerPath,
+    attributableMcpFailureContext: candidate.attributableMcpFailureContext,
   });
 }
 
@@ -1746,6 +2285,109 @@ function failureCandidateV3({ failureKind = "non_command" } = {}) {
   return candidate;
 }
 
+function failureCandidateV4() {
+  const candidate = failureCandidateV3();
+  const matchingEntry = ledgerAttempt(4, "failed");
+  matchingEntry.chain_id = chainIdentity({
+    source_commit: matchingEntry.source_commit,
+    validation_report_sha256: matchingEntry.validation_report_sha256,
+    artifact_report_sha256: matchingEntry.artifact_report_sha256,
+    artifact_sha256: matchingEntry.artifact_sha256,
+  });
+  candidate.ledger.attempts.push(matchingEntry);
+
+  const diagnostic = candidate.diagnostic;
+  diagnostic.schema_version = 4;
+  diagnostic.recorded_at = matchingEntry.completed_at;
+  diagnostic.identity.source_commit = matchingEntry.source_commit;
+  diagnostic.identity.artifact_sha256 = matchingEntry.artifact_sha256;
+  diagnostic.identity.artifact_report_sha256 = matchingEntry.artifact_report_sha256;
+  diagnostic.validation.report_sha256 = matchingEntry.validation_report_sha256;
+  for (const observation of diagnostic.validation.targeted_checks) {
+    observation.source_commit = matchingEntry.source_commit;
+  }
+  diagnostic.validation.root_validation.source_commit = matchingEntry.source_commit;
+  diagnostic.native_attempt = {
+    chain_id: matchingEntry.chain_id,
+    ledger_id: candidate.ledger.ledger_id,
+    attempt_number: 4,
+    total_attempts: 4,
+    ledger_sha256: "0".repeat(64),
+    commit_protocol: "external-failure-record-v4",
+    observed_facts_sha256: "0".repeat(64),
+  };
+  diagnostic.failure_kind = "mcp_event";
+  diagnostic.failure = {
+    phase_code: "codex-session",
+    reason_code: "mcp-event-failed",
+    detail_sha256: "d".repeat(64),
+  };
+  delete diagnostic.failure_context;
+  diagnostic.mcp_failure_context = {
+    session_role: "substantive",
+    event_type: "mcp_tool_call",
+    event_index: 1,
+    tool: "dev_flow_apply_action",
+    status: "failed",
+    result_kind: "tool_error_result",
+    result_sha256: sha256("canonical complete failed MCP result"),
+    error_sha256: null,
+  };
+  diagnostic.session_observations = [
+    sessionObservation("ordinary"),
+    sessionObservation("invalid"),
+    sessionObservation("substantive", {
+      failureStage: "mcp_failed",
+      exitCode: 0,
+      threadPresent: true,
+      eventCounts: { thread_started: 1, item_completed: 2 },
+      itemCounts: { mcp_tool_call: 2 },
+      mcpStatusCounts: { dev_flow: 2, completed: 1, failed: 1 },
+    }),
+    sessionObservation("resume"),
+  ];
+  candidate.attributableMcpFailureContext = structuredClone(diagnostic.mcp_failure_context);
+  rebindFailureCandidate(candidate);
+  return candidate;
+}
+
+function mcpFailureObservation(candidate) {
+  return candidate.diagnostic.session_observations.find(
+    (observation) => (
+      observation.session_role === candidate.diagnostic.mcp_failure_context.session_role
+    ),
+  );
+}
+
+function downgradedFailureCandidateV4(schemaVersion) {
+  const candidate = failureCandidateV4();
+  const diagnostic = candidate.diagnostic;
+  diagnostic.schema_version = schemaVersion;
+  diagnostic.native_attempt.commit_protocol = `external-failure-record-v${schemaVersion}`;
+  delete diagnostic.mcp_failure_context;
+  delete diagnostic.failure_context;
+  delete candidate.attributableMcpFailureContext;
+  if (schemaVersion === 1) {
+    delete diagnostic.failure_kind;
+    delete diagnostic.session_observations;
+    diagnostic.failure = observation(
+      "native-journey",
+      "native attempt failed",
+      "synthetic legacy-shaped detail",
+    );
+  } else {
+    diagnostic.failure_kind = "non_command";
+    diagnostic.failure = {
+      phase_code: "native-journey",
+      reason_code: "unexpected-failure",
+      detail_sha256: "d".repeat(64),
+    };
+    if (schemaVersion === 2) delete diagnostic.session_observations;
+  }
+  rebindFailureCandidate(candidate);
+  return candidate;
+}
+
 function failureFactsProjection(diagnostic) {
   return {
     schema_version: diagnostic.schema_version,
@@ -1755,6 +2397,9 @@ function failureFactsProjection(diagnostic) {
     failure: structuredClone(diagnostic.failure),
     ...(Object.hasOwn(diagnostic, "failure_context")
       ? { failure_context: structuredClone(diagnostic.failure_context) }
+      : {}),
+    ...(Object.hasOwn(diagnostic, "mcp_failure_context")
+      ? { mcp_failure_context: structuredClone(diagnostic.mcp_failure_context) }
       : {}),
     ...(Object.hasOwn(diagnostic, "session_observations")
       ? { session_observations: structuredClone(diagnostic.session_observations) }

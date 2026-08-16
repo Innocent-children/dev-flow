@@ -20,7 +20,7 @@
   ],
   "properties": {
     "schema_version": {
-      "enum": [1, 2, 3]
+      "enum": [1, 2, 3, 4]
     },
     "report_type": {
       "const": "dev-flow-codex-native-attempt-diagnostic"
@@ -161,7 +161,8 @@
           "enum": [
             "external-failure-record-v1",
             "external-failure-record-v2",
-            "external-failure-record-v3"
+            "external-failure-record-v3",
+            "external-failure-record-v4"
           ]
         },
         "observed_facts_sha256": {
@@ -176,10 +177,13 @@
       ]
     },
     "failure_kind": {
-      "enum": ["command_event", "non_command"]
+      "enum": ["command_event", "mcp_event", "non_command"]
     },
     "failure_context": {
       "$ref": "#/$defs/failureContext"
+    },
+    "mcp_failure_context": {
+      "$ref": "#/$defs/mcpFailureContext"
     },
     "session_observations": {
       "type": "array",
@@ -300,6 +304,7 @@
         "reason_code": {
           "enum": [
             "command-event-rejected",
+            "mcp-event-failed",
             "host-command-failed",
             "host-process-failed",
             "lifecycle-failed",
@@ -350,6 +355,82 @@
         }
       }
     },
+    "mcpFailureContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_role",
+        "event_type",
+        "event_index",
+        "tool",
+        "status",
+        "result_kind",
+        "result_sha256",
+        "error_sha256"
+      ],
+      "properties": {
+        "session_role": {
+          "enum": ["ordinary", "invalid", "substantive", "resume"]
+        },
+        "event_type": {
+          "const": "mcp_tool_call"
+        },
+        "event_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tool": {
+          "enum": [
+            "dev_flow_server_info",
+            "dev_flow_open_task",
+            "dev_flow_get_task",
+            "dev_flow_get_next_action",
+            "dev_flow_apply_action",
+            "dev_flow_cancel_task"
+          ]
+        },
+        "status": {
+          "const": "failed"
+        },
+        "result_kind": {
+          "enum": ["tool_error_result", "transport_error"]
+        },
+        "result_sha256": {
+          "oneOf": [
+            { "$ref": "#/$defs/sha256" },
+            { "type": "null" }
+          ]
+        },
+        "error_sha256": {
+          "oneOf": [
+            { "$ref": "#/$defs/sha256" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "result_kind": { "const": "tool_error_result" }
+            },
+            "required": ["result_kind"]
+          },
+          "then": {
+            "properties": {
+              "result_sha256": { "$ref": "#/$defs/sha256" },
+              "error_sha256": { "type": "null" }
+            }
+          },
+          "else": {
+            "properties": {
+              "result_sha256": { "type": "null" },
+              "error_sha256": { "$ref": "#/$defs/sha256" }
+            }
+          }
+        }
+      ]
+    },
     "sessionObservation": {
       "type": "object",
       "additionalProperties": false,
@@ -378,6 +459,7 @@
             "capture_failed",
             "process_exited",
             "parse_failed",
+            "mcp_failed",
             "completed",
             "stop_marker_missing"
           ]
@@ -502,6 +584,7 @@
         "not": {
           "anyOf": [
             { "required": ["failure_context"] },
+            { "required": ["mcp_failure_context"] },
             { "required": ["failure_kind"] },
             { "required": ["session_observations"] }
           ]
@@ -518,6 +601,7 @@
       "then": {
         "required": ["failure_kind"],
         "properties": {
+          "failure_kind": { "enum": ["command_event", "non_command"] },
           "failure": { "$ref": "#/$defs/observationV2" },
           "skips": {
             "items": { "$ref": "#/$defs/observationV2" }
@@ -531,7 +615,10 @@
           }
         },
         "not": {
-          "required": ["session_observations"]
+          "anyOf": [
+            { "required": ["session_observations"] },
+            { "required": ["mcp_failure_context"] }
+          ]
         },
         "allOf": [
           {
@@ -563,17 +650,21 @@
       "then": {
         "required": ["failure_kind", "session_observations"],
         "properties": {
+          "failure_kind": { "enum": ["command_event", "non_command"] },
           "failure": { "$ref": "#/$defs/observationV2" },
           "skips": {
             "items": { "$ref": "#/$defs/observationV2" }
           },
           "native_attempt": {
             "properties": {
-              "attempt_number": { "type": "integer", "minimum": 3 },
-              "total_attempts": { "type": "integer", "minimum": 3 },
+              "attempt_number": { "const": 3 },
+              "total_attempts": { "const": 3 },
               "commit_protocol": { "const": "external-failure-record-v3" }
             }
           }
+        },
+        "not": {
+          "required": ["mcp_failure_context"]
         },
         "allOf": [
           {
@@ -590,6 +681,70 @@
               "not": {
                 "required": ["failure_context"]
               }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": { "const": 4 }
+        },
+        "required": ["schema_version"]
+      },
+      "then": {
+        "required": ["failure_kind", "session_observations"],
+        "properties": {
+          "failure": { "$ref": "#/$defs/observationV2" },
+          "skips": {
+            "items": { "$ref": "#/$defs/observationV2" }
+          },
+          "native_attempt": {
+            "properties": {
+              "attempt_number": { "type": "integer", "minimum": 4 },
+              "total_attempts": { "type": "integer", "minimum": 4 },
+              "commit_protocol": { "const": "external-failure-record-v4" }
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "failure_kind": { "const": "command_event" }
+              },
+              "required": ["failure_kind"]
+            },
+            "then": {
+              "required": ["failure_context"],
+              "not": { "required": ["mcp_failure_context"] }
+            },
+            "else": {
+              "not": { "required": ["failure_context"] }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "failure_kind": { "const": "mcp_event" }
+              },
+              "required": ["failure_kind"]
+            },
+            "then": {
+              "required": ["mcp_failure_context"],
+              "not": { "required": ["failure_context"] },
+              "properties": {
+                "failure": {
+                  "properties": {
+                    "phase_code": { "const": "codex-session" },
+                    "reason_code": { "const": "mcp-event-failed" }
+                  }
+                }
+              }
+            },
+            "else": {
+              "not": { "required": ["mcp_failure_context"] }
             }
           }
         ]
