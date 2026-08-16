@@ -346,7 +346,6 @@ func TestCodex0147SanitizedHostFixtures(t *testing.T) {
 					t.Fatalf("transport fixture result = %s, want null", completed.Item.Result)
 				}
 				var typedError struct {
-					Code    int    `json:"code"`
 					Message string `json:"message"`
 				}
 				if err := strictContractJSON(completed.Item.Error, &typedError); err != nil ||

@@ -23,7 +23,6 @@ const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = join(packageRoot, "..", "..");
 const buildScript = join(repositoryRoot, "scripts", "build-codex-local.sh");
 const fakeCodexPath = join(packageRoot, "tests", "fixtures", "fake-codex.mjs");
-const nativeEvidencePath = join(repositoryRoot, "tests", "journeys", "evidence", "codex-macos-arm64.json");
 const supportedMachine = process.platform === "darwin" && process.arch === "arm64";
 
 test("packaged Core task data survives deregistration, npm uninstall, and compatible reinstall", {
@@ -57,7 +56,6 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
     initializeRepository(targetRepository),
   ]);
 
-  const evidenceBefore = await optionalContents(nativeEvidencePath);
   const repositoryBefore = await directoryManifest(targetRepository);
   const { stdout: buildOutput } = await execFile(buildScript, ["--output", artifactDirectory], {
     cwd: repositoryRoot,
@@ -181,7 +179,6 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   assert.equal(fakeCalls.every((entry) => entry.argv[0] === "--version" || entry.argv[0] === "plugin"), true);
   assert.deepEqual(await directoryManifest(targetRepository), repositoryBefore);
   assert.equal(await readFile(adjacentFile, "utf8"), "preserve adjacent data\n");
-  assert.equal(await optionalContents(nativeEvidencePath), evidenceBefore);
 });
 
 class CoreClient {

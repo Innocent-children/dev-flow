@@ -108,8 +108,14 @@ function parseTerminalCall(item) {
     return call;
   }
   if (item.status === "failed" && item.result === null && isPlainObject(item.error)) {
-    if (!Object.hasOwn(item.error, "code") || typeof item.error.message !== "string") {
-      throw new Error("transport failure requires a typed code and message");
+    const errorKeys = Object.keys(item.error);
+    if (
+      errorKeys.length !== 1
+      || errorKeys[0] !== "message"
+      || typeof item.error.message !== "string"
+      || item.error.message.length === 0
+    ) {
+      throw new Error("Codex 0.147 transport failure requires exactly one nonempty message");
     }
     return {
       itemId: item.id,

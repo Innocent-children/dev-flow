@@ -81,9 +81,9 @@ test("Codex 0.147 failed MCP item without a complete result is a transport error
   assert.equal(call.resultPresent, false);
   assert.equal(call.structuredContent, null);
   assert.deepEqual(call.error, {
-    code: -32000,
     message: "MCP transport disconnected before a result",
   });
+  assert.equal(Object.hasOwn(call.error, "code"), false);
 });
 
 test("Codex host fixtures contain no prompt, source, user path, environment, token, or secret", async () => {

@@ -12,6 +12,7 @@ import {
   buildCodexExecArgs,
   runDevelopmentSmoke,
   smokePrompt,
+  validateAcceptanceReport,
 } from "../../../scripts/write-codex-journey-evidence.mjs";
 
 const execFile = promisify(execFileCallback);
@@ -34,6 +35,28 @@ const fixtures = [
   ["core-domain-error", "core-domain-error.jsonl", "core_domain_error"],
   ["transport-error", "transport-error.jsonl", "transport_error"],
 ];
+
+function validAcceptanceReport() {
+  return {
+    status: "pass",
+    source_commit: "0123456789abcdef0123456789abcdef01234567",
+    artifact_sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    codex_version: "0.147.0",
+    package_version: "0.1.0",
+    core_version: "0.1.0",
+    setup_readback_passed: true,
+    ordinary_prompt_core_call_count: 0,
+    explicit_selector: "$dev-flow-codex:dev-flow",
+    task_id_before_restart: "task-00000001",
+    task_id_after_restart: "task-00000001",
+    committed_action_count: 2,
+    terminal_outcome: "DONE",
+    remove_readback_passed: true,
+    task_data_retained: true,
+    task_reopened_after_removal: true,
+    unexpected_repository_paths: [],
+  };
+}
 
 test("thin native fixture tool emits the checked-in Codex 0.147 bytes without prompt inference", async () => {
   for (const [name, filename] of fixtures) {
@@ -142,6 +165,53 @@ test("real smoke wiring uses exact selector and ephemeral in-memory sessions", a
     persistent_attempt_state: false,
     status: "pass",
   });
+});
+
+test("simplified acceptance validates one complete closed FR-028 report", () => {
+  const report = validAcceptanceReport();
+  assert.deepEqual(validateAcceptanceReport(report), report);
+});
+
+test("simplified acceptance rejects every missing required fact without defaults", () => {
+  const report = validAcceptanceReport();
+  for (const field of Object.keys(report)) {
+    const candidate = structuredClone(report);
+    delete candidate[field];
+    assert.throws(
+      () => validateAcceptanceReport(candidate),
+      new RegExp(`required field ${field}`, "u"),
+      field,
+    );
+  }
+});
+
+test("simplified acceptance rejects incomplete or internally inconsistent FR-028 facts", () => {
+  const cases = [
+    ["non-pass status", { status: "failed" }, /status/u],
+    ["invalid source identity", { source_commit: "not-a-commit" }, /source_commit/u],
+    ["invalid artifact identity", { artifact_sha256: "not-a-digest" }, /artifact_sha256/u],
+    ["missing host version", { codex_version: "" }, /codex_version/u],
+    ["package/Core mismatch", { core_version: "0.2.0" }, /package_version.*core_version/u],
+    ["setup readback failed", { setup_readback_passed: false }, /setup_readback_passed/u],
+    ["ordinary prompt called Core", { ordinary_prompt_core_call_count: 1 }, /ordinary_prompt_core_call_count/u],
+    ["wrong selector", { explicit_selector: "$dev-flow" }, /explicit_selector/u],
+    ["restart changed task", { task_id_after_restart: "task-00000002" }, /task_id_before_restart.*task_id_after_restart/u],
+    ["too few commits", { committed_action_count: 1 }, /committed_action_count/u],
+    ["non-DONE terminal", { terminal_outcome: "BLOCKED" }, /terminal_outcome/u],
+    ["remove readback failed", { remove_readback_passed: false }, /remove_readback_passed/u],
+    ["task data lost", { task_data_retained: false }, /task_data_retained/u],
+    ["task did not reopen", { task_reopened_after_removal: false }, /task_reopened_after_removal/u],
+    ["repository contains unexpected paths", { unexpected_repository_paths: ["unexpected.txt"] }, /unexpected_repository_paths/u],
+    ["report is not closed", { extra_release_provenance: "deferred" }, /unexpected field extra_release_provenance/u],
+  ];
+
+  for (const [name, patch, expected] of cases) {
+    assert.throws(
+      () => validateAcceptanceReport({ ...validAcceptanceReport(), ...patch }),
+      expected,
+      name,
+    );
+  }
 });
 
 test("native runner rejects legacy ledger/report arguments before any host launch", async () => {

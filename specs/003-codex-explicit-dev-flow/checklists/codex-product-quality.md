@@ -10,14 +10,15 @@
   packaged Core form the complete Feature 003 product.
 - [x] Core Contract 0.1 remains the sole task, transition, claim, recovery, budget, and outcome
   authority.
-- [x] Node code is limited to paths, registration ownership, process launch, and evidence glue.
+- [x] Node code is limited to paths, registration ownership, process launch, ephemeral host
+  observations, and simplified acceptance validation.
 - [x] Publication, automatic update, other platforms/surfaces, Git management, proxying, and future
   host frameworks are excluded.
 
 ## Compatibility and lifecycle
 
-- [x] Planning-time Codex `0.147.x` is historical evidence; final compatibility is revalidated and
-  updated consistently across every compatibility-bearing artifact/test.
+- [x] The Codex `0.147.x` host baseline is explicit and consistent across package contracts,
+  sanitized fixtures, smoke checks, and the final acceptance report.
 - [x] Setup validates all preconditions before mutation, reads supported host state, performs bounded
   mutation, requires exact readback, and writes a receipt only after success.
 - [x] Removal reads receipt/current state first, removes only matching owned registration, preserves
@@ -45,8 +46,9 @@
 - [x] Core-loop tests own task lineage and verification-budget behavior; parser tests do not
   duplicate the workflow engine.
 - [x] One final real-host acceptance journey is a merge gate, not release-grade provenance.
-- [x] Final audit scope includes all Feature 003 docs, contracts, schemas, scripts, package code,
-  shared contract tests, and evidence.
+- [x] Final audit scope covers package composition, setup/readback ownership, the namespaced
+  selector, six Core tools and Core authority, domain/transport distinction, read-before-retry,
+  repeatable smoke, final acceptance, and removal/data retention.
 
 ## Approval
 
