@@ -168,6 +168,38 @@ test("real smoke wiring uses exact selector and ephemeral in-memory sessions", a
   });
 });
 
+test("acceptance sessions request workspace-write without disabling repository rules", async () => {
+  const invocations = [];
+  let sequence = 0;
+  const runProcess = async (executable, args, options) => {
+    sequence += 1;
+    invocations.push({ executable, args, options });
+    return {
+      exitCode: 0,
+      stdout: `{"type":"thread.started","thread_id":"thread-acceptance-${sequence}"}\n`,
+      stderr: "",
+    };
+  };
+
+  await assert.rejects(
+    smokeRuntime.runAcceptanceJourney({
+      codexExecutable: "/fixture/codex",
+      workspace: "/fixture/worktree",
+      runProcess,
+    }),
+    /handshake/u,
+  );
+
+  assert.equal(invocations.length, 4);
+  for (const invocation of invocations) {
+    const sandbox = invocation.args.indexOf("--sandbox");
+    assert.notEqual(sandbox, -1);
+    assert.equal(invocation.args[sandbox + 1], "workspace-write");
+    assert.equal(invocation.args.includes("--ephemeral"), false);
+    assert.equal(invocation.args.includes("--ignore-rules"), false);
+  }
+});
+
 test("development smoke allocates every run surface under one fresh root", () => {
   assert.equal(typeof smokeRuntime.createDevelopmentSmokeLayout, "function");
   const first = smokeRuntime.createDevelopmentSmokeLayout("/tmp/dev-flow-smoke-a");

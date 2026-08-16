@@ -82,12 +82,14 @@ export function buildCodexExecArgs(prompt, {
   ephemeral = false,
   skipGitRepoCheck = false,
   workspace = null,
+  workspaceWrite = false,
 } = {}) {
   if (typeof prompt !== "string" || prompt.trim() === "") {
     throw new TypeError("Codex prompt must be nonempty");
   }
   const args = ["exec", "--json"];
-  if (ephemeral) args.push("--ephemeral", "--ignore-rules", "--color", "never", "--sandbox", "workspace-write");
+  if (ephemeral) args.push("--ephemeral", "--ignore-rules", "--color", "never");
+  if (ephemeral || workspaceWrite) args.push("--sandbox", "workspace-write");
   if (skipGitRepoCheck) args.push("--skip-git-repo-check");
   if (workspace !== null) args.push("--cd", workspace);
   args.push(prompt);
@@ -104,6 +106,7 @@ export async function runCodexSession({
   environment,
   ephemeral = false,
   skipGitRepoCheck = false,
+  workspaceWrite = false,
   stopAfterApplyPath = null,
 }) {
   requireAbsolute(codexExecutable, "Codex executable");
@@ -114,6 +117,7 @@ export async function runCodexSession({
   const result = await runProcess(codexExecutable, buildCodexExecArgs(prompt, {
     ephemeral,
     skipGitRepoCheck,
+    workspaceWrite,
     workspace: ephemeral ? workspace : null,
   }), processOptions);
   const classified = classifyCodexSessionResult(result);
@@ -422,6 +426,7 @@ export async function runIsolatedDevelopmentSmoke(options) {
 export async function runAcceptanceJourney(options) {
   const ordinary = await runCodexSession({
     ...options,
+    workspaceWrite: true,
     role: "ordinary",
     prompt: ordinaryPrompt,
     includeCallFacts: true,
@@ -431,6 +436,7 @@ export async function runAcceptanceJourney(options) {
   }
   const invalid = await runCodexSession({
     ...options,
+    workspaceWrite: true,
     role: "invalid",
     prompt: invalidPrompt,
     includeCallFacts: true,
@@ -440,12 +446,14 @@ export async function runAcceptanceJourney(options) {
   }
   const substantive = await runCodexSession({
     ...options,
+    workspaceWrite: true,
     role: "substantive",
     prompt: acceptancePrompt,
     includeCallFacts: true,
   });
   const resume = await runCodexSession({
     ...options,
+    workspaceWrite: true,
     role: "resume",
     prompt: resumePrompt,
     includeCallFacts: true,
