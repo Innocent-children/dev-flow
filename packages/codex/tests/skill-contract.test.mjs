@@ -73,8 +73,9 @@ test("Skill admits only an exact current-turn selector with substantive or resum
   assert.match(admission, /substantive[^\n]*(?:requirement|request)/i);
   assert.match(admission, /explicit[^\n]*resume/i);
   assert.match(admission, /empty|conversational/i);
-  assert.match(admission, /stop before[^\n]*(?:Core|Dev Flow tool)/i);
-  assert.match(admission, /zero[^\n]*(?:Core|Dev Flow tool)[^\n]*calls/i);
+  assert.match(admission, /stop before Skill-owned task/i);
+  assert.match(admission, /do not complete a task-bearing call/i);
+  assert.match(admission, /Core-rejected calls[\s\S]*reported honestly/i);
   assert.match(admission, /implicit/i);
 
   assert.match(admission, /read-only Git/i);
@@ -96,7 +97,9 @@ test("README distinguishes the Skill base name from the only installed selector"
   assert.match(invocation, /wrong[^\n]*plugin namespace/i);
   assert.match(invocation, /wrong[^\n]*Skill base name/i);
   assert.match(invocation, /missing selector/i);
-  assert.match(invocation, /zero[^\n]*Dev Flow tool calls[^\n]*zero[^\n]*Dev Flow tasks/i);
+  assert.match(invocation, /ordinary prompt[\s\S]*zero Dev Flow\s*calls/i);
+  assert.match(invocation, /non-exact selectors[\s\S]*must not complete a task-bearing operation/i);
+  assert.match(invocation, /does not[\s\S]*claim selector-bound MCP visibility or authorization/i);
   assert.match(invocation, /allow_implicit_invocation[^\n]*false/i);
 });
 
@@ -284,11 +287,17 @@ test("Skill and production adapter contain no workflow authority or test fixture
       /\btaskStates?\b/,
       /\bactionPayloadCatalog\b/,
       /\bpersistTask\b/,
-      /\bsqlite\b/i,
     ]) {
       assert.doesNotMatch(source, forbidden, `${relativePath} embeds authority or a test import`);
     }
+    assert.doesNotMatch(
+      source,
+      /\b(?:INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|REPLACE)\s+(?:INTO|TABLE|FROM)\b/i,
+      `${relativePath} must not mutate Core storage`,
+    );
   }
+  const writer = await readFile(join(repositoryRoot, "scripts/write-codex-journey-evidence.mjs"), "utf8");
+  assert.match(writer, /new DatabaseSync\([^\n]+\{ readOnly: true \}\)/u);
 });
 
 function parseFrontmatter(markdown) {

@@ -386,8 +386,8 @@ test("HIGH-4 aggregate parity: top-level MCP facts equal four session projection
   );
   const sessions = [
     emptySession("ordinary"),
-    emptySession("invalid"),
-    activeSession("substantive", [success[1], domainError[1]]),
+    activeSession("invalid", [domainError[1]]),
+    activeSession("substantive", [success[1]]),
     activeSession("resume", [success[1]]),
   ];
   const aggregate = sessionRuntime.aggregateSessionFacts(sessions);
@@ -404,8 +404,8 @@ test("HIGH-4 aggregate parity: top-level MCP facts equal four session projection
     transport_error_count: 0,
     session_dev_flow_call_count: {
       ordinary: 0,
-      invalid: 0,
-      substantive: 2,
+      invalid: 1,
+      substantive: 1,
       resume: 1,
     },
   });

@@ -16,12 +16,13 @@ The Skill resource/base name is `dev-flow`; the installed Skill full name is `de
 The only exact explicit selector is `$dev-flow-codex:dev-flow`.
 Bare `$dev-flow` is not an alias and does not select this installed Skill. A wrong plugin namespace,
 a wrong Skill base name, or a missing selector also does not select it.
-All negative paths make zero Dev Flow tool calls and create zero Dev Flow tasks; there is no implicit fallback.
+Codex 0.147 may expose this plugin's MCP tools independently from Skill injection. This Skill does
+not claim selector-bound tool visibility or authorization.
 
 1. Require the exact standalone `$dev-flow-codex:dev-flow` selector in the current user turn. Do not infer the
    selector from earlier turns, repository contents, or a request that merely discusses Dev Flow.
-   If it is absent, stop before any Core call and make zero Dev Flow tool calls. Never activate this
-   Skill implicitly.
+   If it is absent, do not treat the turn as Skill activation and do not make a task-bearing Dev Flow
+   call. Never activate this Skill implicitly.
 2. After removing the selector, accept either one substantive, bounded requirement for the current
    repository or an explicit request to resume its compatible active Codex task. Reject an empty or
    conversational invocation before any Core call.
@@ -32,8 +33,9 @@ All negative paths make zero Dev Flow tool calls and create zero Dev Flow tasks;
    resolved. Preserve repository instructions and current user authority when checking whether the
    requested work is permitted.
 
-If any admission check fails, explain the missing precondition and stop before a Core or Dev Flow
-tool call. The failure path makes zero Core tool calls and creates no adapter state.
+If any admission check fails, explain the missing precondition and stop before Skill-owned task
+discovery. Do not complete a task-bearing call or create adapter state. Host-exposed read-only or
+Core-rejected calls are not activation and must be reported honestly.
 
 ## Compatibility handshake
 

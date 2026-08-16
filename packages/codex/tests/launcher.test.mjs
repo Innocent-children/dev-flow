@@ -32,7 +32,10 @@ test("mcp selects only the package-local Core and inherits protocol stdio", asyn
   const stdout = captureStream();
   const stderr = captureStream();
   const result = await runCLI(["mcp"], {
-    environment: { SAFE_PARENT_VALUE: "preserved" },
+    environment: {
+      SAFE_PARENT_VALUE: "preserved",
+      DEV_FLOW_CODEX_MCP_INSTRUCTIONS: "parent value must not override product guidance",
+    },
     stdout,
     stderr,
     resolvePaths: async () => paths,
@@ -55,6 +58,14 @@ test("mcp selects only the package-local Core and inherits protocol stdio", asyn
   assert.equal(calls[0].options.shell, false);
   assert.equal(calls[0].options.env.DEV_FLOW_DATA_DIR, paths.dataDirectory);
   assert.equal(calls[0].options.env.SAFE_PARENT_VALUE, "preserved");
+  assert.equal(
+    calls[0].options.env.DEV_FLOW_CODEX_MCP_INSTRUCTIONS,
+    "Dev Flow for Codex is explicit-only. " +
+      "Do not call tools from this server unless the current user turn contains the exact selector `$dev-flow-codex:dev-flow`. " +
+      "Bare `$dev-flow`, wrong or missing selectors, and implicit matches are not activation. " +
+      "After valid selection, `dev_flow_server_info` must be the first Dev Flow call. " +
+      "Call `dev_flow_open_task` only after exact `$dev-flow-codex:dev-flow` selection and a successful `dev_flow_server_info` handshake.",
+  );
 });
 
 test("mcp preserves an explicit data root without creating it", async (t) => {

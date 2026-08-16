@@ -17,6 +17,14 @@ import {
 
 const FORWARDED_SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"];
 const NPM_UNINSTALL_HANDOFF = "Run npm uninstall dev-flow-codex separately after deregistration.";
+const CODEX_MCP_INSTRUCTIONS_ENVIRONMENT = "DEV_FLOW_CODEX_MCP_INSTRUCTIONS";
+const CODEX_MCP_INSTRUCTIONS = [
+  "Dev Flow for Codex is explicit-only.",
+  "Do not call tools from this server unless the current user turn contains the exact selector `$dev-flow-codex:dev-flow`.",
+  "Bare `$dev-flow`, wrong or missing selectors, and implicit matches are not activation.",
+  "After valid selection, `dev_flow_server_info` must be the first Dev Flow call.",
+  "Call `dev_flow_open_task` only after exact `$dev-flow-codex:dev-flow` selection and a successful `dev_flow_server_info` handshake.",
+].join(" ");
 
 export async function runCLI(arguments_, dependencies = {}) {
   const stdout = dependencies.stdout ?? process.stdout;
@@ -102,6 +110,7 @@ export async function launchPackagedCore(
       env: {
         ...environment,
         DEV_FLOW_DATA_DIR: paths.dataDirectory,
+        [CODEX_MCP_INSTRUCTIONS_ENVIRONMENT]: CODEX_MCP_INSTRUCTIONS,
       },
       stdio: "inherit",
       shell: false,

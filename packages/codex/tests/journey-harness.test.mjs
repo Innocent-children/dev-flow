@@ -59,6 +59,62 @@ function validAcceptanceReport() {
   };
 }
 
+function coreSuccessEvent(tool, suffix, result) {
+  const requestID = `request-${suffix}`;
+  const envelope = { schema_version: 1, ok: true, request_id: requestID, tool, result };
+  return {
+    type: "item.completed",
+    item: {
+      id: `item-${suffix}`,
+      type: "mcp_tool_call",
+      server: "dev-flow",
+      tool,
+      arguments: { request_id: requestID },
+      result: {
+        content: [{ type: "text", text: JSON.stringify(envelope) }],
+        structured_content: envelope,
+      },
+      error: null,
+      status: "completed",
+    },
+  };
+}
+
+function rejectedOpenTaskEvent(suffix) {
+  const requestID = `request-${suffix}`;
+  const envelope = {
+    schema_version: 1,
+    ok: false,
+    request_id: requestID,
+    tool: "dev_flow_open_task",
+    error: { code: "INVALID_ARGUMENT", message: "The task request is invalid." },
+    recovery: { retry_safe: false, action: "none", message: "Correct the request before retrying." },
+  };
+  return {
+    type: "item.completed",
+    item: {
+      id: `item-${suffix}`,
+      type: "mcp_tool_call",
+      server: "dev-flow",
+      tool: "dev_flow_open_task",
+      arguments: { request_id: requestID },
+      result: {
+        content: [{ type: "text", text: JSON.stringify(envelope) }],
+        structured_content: envelope,
+      },
+      error: null,
+      status: "failed",
+    },
+  };
+}
+
+function acceptanceSession(role, events = []) {
+  return `${[
+    { type: "thread.started", thread_id: `thread-${role}` },
+    ...events,
+  ].map(JSON.stringify).join("\n")}\n`;
+}
+
 test("thin native fixture tool emits the checked-in Codex 0.147 bytes without prompt inference", async () => {
   for (const [name, filename] of fixtures) {
     const expected = await readFile(join(fixtureRoot, filename), "utf8");
@@ -186,6 +242,7 @@ test("acceptance sessions request workspace-write without disabling repository r
       codexExecutable: "/fixture/codex",
       workspace: "/fixture/worktree",
       runProcess,
+      snapshotState: async () => ({ stable: true }),
     }),
     /handshake/u,
   );
@@ -197,6 +254,90 @@ test("acceptance sessions request workspace-write without disabling repository r
     assert.equal(invocation.args[sandbox + 1], "workspace-write");
     assert.equal(invocation.args.includes("--ephemeral"), false);
     assert.equal(invocation.args.includes("--ignore-rules"), false);
+  }
+});
+
+test("bare acceptance retains Core rejection facts and continues when state is unchanged", async () => {
+  const streams = [
+    acceptanceSession("ordinary"),
+    acceptanceSession("bare", [
+      coreSuccessEvent("dev_flow_server_info", "bare-info", { product: "dev-flow" }),
+      rejectedOpenTaskEvent("bare-open"),
+    ]),
+    acceptanceSession("substantive", [
+      coreSuccessEvent("dev_flow_server_info", "substantive-info", { product: "dev-flow" }),
+      coreSuccessEvent("dev_flow_open_task", "substantive-open", {
+        task: { task_id: "task-fixture", phase: "INTAKE" },
+      }),
+    ]),
+    acceptanceSession("resume", [
+      coreSuccessEvent("dev_flow_apply_action", "resume-done", {
+        task: { task_id: "task-fixture", phase: "DONE" },
+        outcome: { status: "completed" },
+      }),
+    ]),
+  ];
+  let invocation = 0;
+  const stable = { tasks: [], events: [], claims: [], repository: "unchanged" };
+  const result = await smokeRuntime.runAcceptanceJourney({
+    codexExecutable: "/fixture/codex",
+    workspace: "/fixture/worktree",
+    runProcess: async () => ({ exitCode: 0, stdout: streams[invocation++], stderr: "" }),
+    snapshotState: async () => structuredClone(stable),
+  });
+
+  assert.equal(invocation, 4);
+  assert.equal(result.sessions[1].dev_flow_call_count, 2);
+  assert.deepEqual(
+    result.sessions[1].dev_flow_calls.map(({ tool, status, classification, error }) => ({
+      tool, status, classification, code: error?.code ?? null,
+    })),
+    [
+      { tool: "dev_flow_server_info", status: "completed", classification: "success", code: null },
+      { tool: "dev_flow_open_task", status: "failed", classification: "core-domain-error", code: "INVALID_ARGUMENT" },
+    ],
+  );
+  assert.equal(result.sessions[3].core_done, true);
+  assert.equal(result.mcp_summary.session_dev_flow_call_count.invalid, 2);
+});
+
+test("bare acceptance rejects successful task-bearing calls and state changes", async () => {
+  const ordinary = acceptanceSession("ordinary");
+  const successfulBare = acceptanceSession("bare-success", [
+    coreSuccessEvent("dev_flow_open_task", "bare-success-open", {
+      task: { task_id: "task-unexpected", phase: "INTAKE" },
+    }),
+  ]);
+  const rejectedBare = acceptanceSession("bare-rejected", [rejectedOpenTaskEvent("bare-rejected-open")]);
+  const stable = { tasks: [], events: [], claims: [], repository: "unchanged" };
+
+  for (const entry of [
+    {
+      name: "successful task-bearing call",
+      streams: [ordinary, successfulBare],
+      snapshots: [stable, stable, stable],
+      error: /successful task-bearing call/u,
+    },
+    {
+      name: "changed state",
+      streams: [ordinary, rejectedBare],
+      snapshots: [stable, stable, { ...stable, tasks: ["task-unexpected"] }],
+      error: /changed task, event, claim, or repository state/u,
+    },
+  ]) {
+    let invocation = 0;
+    let snapshot = 0;
+    await assert.rejects(
+      smokeRuntime.runAcceptanceJourney({
+        codexExecutable: "/fixture/codex",
+        workspace: "/fixture/worktree",
+        runProcess: async () => ({ exitCode: 0, stdout: entry.streams[invocation++], stderr: "" }),
+        snapshotState: async () => structuredClone(entry.snapshots[snapshot++]),
+      }),
+      entry.error,
+      entry.name,
+    );
+    assert.equal(invocation, 2, entry.name);
   }
 });
 

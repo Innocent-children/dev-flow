@@ -10,6 +10,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readlink,
   readdir,
   realpath,
   rm,
@@ -19,6 +20,7 @@ import {
 import { homedir, tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative } from "node:path";
 import { createInterface } from "node:readline";
+import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { isDeepStrictEqual, promisify } from "node:util";
 
@@ -108,9 +110,13 @@ export async function runCodexSession({
   skipGitRepoCheck = false,
   workspaceWrite = false,
   stopAfterApplyPath = null,
+  retainCoreRejections = false,
 }) {
   requireAbsolute(codexExecutable, "Codex executable");
   requireAbsolute(workspace, "workspace");
+  if (retainCoreRejections && (role !== "invalid" || prompt !== invalidPrompt)) {
+    throw new Error("Core rejection retention is limited to the bare acceptance session");
+  }
   const processOptions = { cwd: workspace };
   if (environment !== undefined) processOptions.env = environment;
   if (stopAfterApplyPath !== null) processOptions.stopAfterApplyPath = stopAfterApplyPath;
@@ -122,6 +128,11 @@ export async function runCodexSession({
   }), processOptions);
   const classified = classifyCodexSessionResult(result);
   if (classified.classification !== "success") {
+    if (retainCoreRejections && admissibleCoreRejection(classified, result)) {
+      return includeCallFacts
+        ? summarizeCodexSession(role, classified.parsed)
+        : summarizeSession(role, classified.parsed);
+    }
     const error = new Error(sessionFailureMessage(role, classified));
     error.classification = classified.classification;
     error.call = classified.call ?? null;
@@ -137,6 +148,20 @@ export async function runCodexSession({
   return includeCallFacts
     ? summarizeCodexSession(role, classified.parsed)
     : summarizeSession(role, classified.parsed);
+}
+
+function admissibleCoreRejection(classified, result) {
+  return classified.classification === "core-domain-error"
+    && result.exitCode === 0
+    && classified.transcriptIntegrity === null
+    && classified.parsed !== null
+    && classified.parsed.calls.every((call) => (
+      call.shape === "success"
+      || (
+        call.shape === "core_domain_error"
+        && call.structuredContent.error.code !== "INTERNAL_ERROR"
+      )
+    ));
 }
 
 export function classifyCodexSessionResult({ exitCode, stdout, stderr }) {
@@ -424,15 +449,26 @@ export async function runIsolatedDevelopmentSmoke(options) {
 }
 
 export async function runAcceptanceJourney(options) {
+  const snapshotState = options.snapshotState ?? snapshotAcceptanceState;
+  const snapshotOptions = {
+    workspace: options.workspace,
+    environment: options.environment ?? process.env,
+  };
+  const beforeOrdinary = await snapshotState(snapshotOptions);
   const ordinary = await runCodexSession({
     ...options,
     workspaceWrite: true,
     role: "ordinary",
     prompt: ordinaryPrompt,
     includeCallFacts: true,
+    retainCoreRejections: false,
   });
+  const afterOrdinary = await snapshotState(snapshotOptions);
   if (ordinary.dev_flow_call_count !== 0) {
     throw new Error("ordinary acceptance session must make zero Dev Flow calls");
+  }
+  if (!isDeepStrictEqual(beforeOrdinary, afterOrdinary)) {
+    throw new Error("ordinary acceptance session changed task, event, claim, or repository state");
   }
   const invalid = await runCodexSession({
     ...options,
@@ -440,16 +476,17 @@ export async function runAcceptanceJourney(options) {
     role: "invalid",
     prompt: invalidPrompt,
     includeCallFacts: true,
+    retainCoreRejections: true,
   });
-  if (invalid.dev_flow_call_count !== 0) {
-    throw new Error("invalid acceptance session must make zero Dev Flow calls");
-  }
+  const afterInvalid = await snapshotState(snapshotOptions);
+  assertBareAcceptanceIsolation(invalid, afterOrdinary, afterInvalid);
   const substantive = await runCodexSession({
     ...options,
     workspaceWrite: true,
     role: "substantive",
     prompt: acceptancePrompt,
     includeCallFacts: true,
+    retainCoreRejections: false,
   });
   const resume = await runCodexSession({
     ...options,
@@ -457,6 +494,7 @@ export async function runAcceptanceJourney(options) {
     role: "resume",
     prompt: resumePrompt,
     includeCallFacts: true,
+    retainCoreRejections: false,
   });
   const tools = new Set([...substantive.tools, ...resume.tools]);
   if (!tools.has("dev_flow_server_info") || !tools.has("dev_flow_open_task")) {
@@ -476,6 +514,26 @@ export async function runAcceptanceJourney(options) {
     acceptance_report_required: true,
     status: "observed",
   };
+}
+
+const TASK_BEARING_TOOLS = new Set([
+  "dev_flow_open_task",
+  "dev_flow_get_task",
+  "dev_flow_get_next_action",
+  "dev_flow_apply_action",
+  "dev_flow_cancel_task",
+]);
+
+function assertBareAcceptanceIsolation(session, before, after) {
+  const successfulTaskCall = session.dev_flow_calls.find((call) => (
+    TASK_BEARING_TOOLS.has(call.tool) && call.classification === "success"
+  ));
+  if (successfulTaskCall) {
+    throw new Error(`bare acceptance session allowed successful task-bearing call ${successfulTaskCall.tool}`);
+  }
+  if (!isDeepStrictEqual(before, after)) {
+    throw new Error("bare acceptance session changed task, event, claim, or repository state");
+  }
 }
 
 export function validateAcceptanceReport(report) {
@@ -672,7 +730,7 @@ export function aggregateSessionFacts(sessions) {
     ) {
       throw new Error(`${role} session summary does not equal its Dev Flow call facts`);
     }
-    if (["ordinary", "invalid"].includes(role) && projected.length !== 0) {
+    if (role === "ordinary" && projected.length !== 0) {
       throw new Error(`${role} session must make zero Dev Flow calls`);
     }
 
@@ -695,11 +753,12 @@ export function aggregateSessionFacts(sessions) {
     throw new Error("per-tool MCP counts do not equal the Dev Flow call total");
   }
   if (
-    aggregate.session_dev_flow_call_count.substantive
+    aggregate.session_dev_flow_call_count.invalid
+      + aggregate.session_dev_flow_call_count.substantive
       + aggregate.session_dev_flow_call_count.resume
     !== aggregate.dev_flow_mcp_calls
   ) {
-    throw new Error("active-session Dev Flow calls do not equal the aggregate total");
+    throw new Error("non-ordinary Dev Flow calls do not equal the aggregate total");
   }
   return aggregate;
 }
@@ -917,6 +976,77 @@ async function initializeSmokeRepository(path, environment) {
 
 async function gitStatus(path, environment) {
   return (await execFile("git", ["status", "--porcelain=v1"], { cwd: path, env: environment, encoding: "utf8" })).stdout;
+}
+
+async function snapshotAcceptanceState({ workspace, environment }) {
+  requireAbsolute(workspace, "acceptance workspace");
+  const dataDirectory = environment.DEV_FLOW_DATA_DIR
+    ?? join(environment.HOME ?? homedir(), "Library", "Application Support", "dev-flow", "data");
+  const databasePath = join(dataDirectory, "dev-flow.db");
+  const core = existsSync(databasePath) ? readCoreRows(databasePath) : emptyCoreRows();
+  const [head, status, repositoryDigest] = await Promise.all([
+    execFile("git", ["rev-parse", "HEAD"], { cwd: workspace, env: environment, encoding: "utf8" }),
+    gitStatus(workspace, environment),
+    digestRepositoryContents(workspace),
+  ]);
+  return {
+    core,
+    repository: {
+      head: head.stdout.trim(),
+      status,
+      content_sha256: repositoryDigest,
+    },
+  };
+}
+
+function emptyCoreRows() {
+  return { tasks: [], task_events: [], repository_claims: [] };
+}
+
+function readCoreRows(databasePath) {
+  const database = new DatabaseSync(databasePath, { readOnly: true });
+  try {
+    const rows = (statement) => database.prepare(statement).all().map((row) => ({ ...row }));
+    return {
+      tasks: rows(`SELECT task_id, origin_host, phase, revision, repository_identity,
+                          hex(snapshot) AS snapshot_hex, created_at, updated_at
+                     FROM tasks ORDER BY task_id`),
+      task_events: rows(`SELECT event_id, task_id, revision, event_type, phase_before, phase_after,
+                                action_id, request_id, payload_digest, created_at
+                           FROM task_events ORDER BY event_id`),
+      repository_claims: rows(`SELECT repository_identity, task_id, origin_host, claimed_at
+                                 FROM repository_claims ORDER BY repository_identity`),
+    };
+  } finally {
+    database.close();
+  }
+}
+
+async function digestRepositoryContents(root) {
+  const digest = createHash("sha256");
+  const visit = async (directory, prefix = "") => {
+    const names = (await readdir(directory)).sort();
+    for (const name of names) {
+      if (prefix === "" && name === ".git") continue;
+      const path = join(directory, name);
+      const relativePath = prefix === "" ? name : join(prefix, name);
+      const metadata = await lstat(path);
+      if (metadata.isDirectory()) {
+        digest.update(`directory\0${relativePath}\0${metadata.mode & 0o777}\0`);
+        await visit(path, relativePath);
+      } else if (metadata.isFile()) {
+        digest.update(`file\0${relativePath}\0${metadata.mode & 0o777}\0`);
+        digest.update(await readFile(path));
+        digest.update("\0");
+      } else if (metadata.isSymbolicLink()) {
+        digest.update(`symlink\0${relativePath}\0${await readlink(path)}\0`);
+      } else {
+        digest.update(`other\0${relativePath}\0${metadata.mode}\0`);
+      }
+    }
+  };
+  await visit(root);
+  return digest.digest("hex");
 }
 
 async function unexpectedRepositoryPaths(path, environment) {
