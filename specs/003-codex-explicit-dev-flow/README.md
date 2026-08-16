@@ -13,7 +13,8 @@ Current merge-preparation status:
 - closes the four native HIGH regression cases with one minimum regression each;
 - records two fresh isolated Codex 0.147 development-smoke PASS results with distinct tasks;
 - aligns non-exact-selector acceptance with Codex 0.147: Skill injection is exact, MCP visibility is
-  independent, and negative sessions are accepted only when Core and repository state are unchanged;
+  independent, Core state remains isolated, and final repository isolation uses a non-mutating bare
+  probe;
 - leaves only the final real Codex acceptance journey as the unmet Feature 003 acceptance gate.
 
 Read in this order:

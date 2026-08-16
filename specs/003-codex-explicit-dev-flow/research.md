@@ -87,9 +87,15 @@ required; the separate final acceptance journey is now the only unmet Feature 00
 plugin's MCP server independently, so its tools remain visible without exact Skill activation.
 Feature 003 therefore verifies negative sessions by outcome and state isolation: ordinary remains
 zero-call, while bare/wrong/missing selectors must not activate the Skill, complete a task-bearing
-operation, change task/event/claim state, or change the target repository. Host-exposed read-only
-and Core-rejected calls remain visible in acceptance observations. This is presentation hardening,
-not selector-bound authorization, and Feature 003 does not wait for an unavailable Host capability.
+operation, or change task/event/claim state. Host-exposed read-only and Core-rejected calls remain
+visible in acceptance observations. This is presentation hardening, not selector-bound
+authorization, and Feature 003 does not wait for an unavailable Host capability.
+
+The real acceptance on `41142a9f` observed zero Dev Flow calls and zero Core-state changes in the
+bare session, but that prompt still contained a substantive coding request, so Codex used ordinary
+host tools to modify the repository. This proves that Skill selection is not a repository-tool
+authorization boundary. Final acceptance therefore uses a non-mutating bare-selector probe to
+isolate selector behavior; this does not lower Dev Flow Core isolation requirements.
 
 ## Official Source Basis
 

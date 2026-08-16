@@ -33,7 +33,7 @@ export const EXPLICIT_SELECTOR = "$dev-flow-codex:dev-flow";
 export const ordinaryPrompt =
   "Reply with one short sentence describing this repository. Do not invoke Dev Flow.";
 export const invalidPrompt =
-  "$dev-flow Complete the bounded acceptance task in this repository.";
+  "$dev-flow Reply exactly `BARE_SELECTOR_PROBE`. Do not call tools, inspect files, run commands, or modify the repository.";
 export const smokePrompt =
   `${EXPLICIT_SELECTOR} Inspect the current repository and report the authoritative Dev Flow task status.`;
 export const acceptancePrompt =

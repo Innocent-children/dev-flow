@@ -19,8 +19,10 @@ $dev-flow-codex:dev-flow
 The base name remains `dev-flow`, but bare `$dev-flow`, a wrong namespace/base, a missing selector,
 and implicit invocation do not activate the installed Skill. Codex 0.147 may still expose the
 plugin's MCP tools independently. Negative sessions must not complete a task-bearing operation or
-change task, event, claim, or target-repository state; every observed read-only or Core-rejected call
-remains part of acceptance evidence.
+change task, event, or claim state; every observed read-only or Core-rejected call remains part of
+acceptance evidence. A non-exact selector does not revoke ordinary Codex repository tools or
+independent repository work authorized by the rest of the prompt. Final acceptance uses a
+non-mutating bare-selector probe and separately verifies that probe leaves the repository unchanged.
 
 Before the first tool call, the Skill requires:
 

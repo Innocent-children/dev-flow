@@ -248,6 +248,11 @@ test("acceptance sessions request workspace-write without disabling repository r
   );
 
   assert.equal(invocations.length, 4);
+  assert.equal(
+    invocations[1].args.at(-1),
+    "$dev-flow Reply exactly `BARE_SELECTOR_PROBE`. Do not call tools, inspect files, run commands, or modify the repository.",
+  );
+  assert.doesNotMatch(invocations[1].args.at(-1), /complete the bounded acceptance task/i);
   for (const invocation of invocations) {
     const sandbox = invocation.args.indexOf("--sandbox");
     assert.notEqual(sandbox, -1);
@@ -299,6 +304,49 @@ test("bare acceptance retains Core rejection facts and continues when state is u
   );
   assert.equal(result.sessions[3].core_done, true);
   assert.equal(result.mcp_summary.session_dev_flow_call_count.invalid, 2);
+
+  let substantiveInvocation = 0;
+  const substantiveFailureStreams = [
+    streams[0],
+    streams[1],
+    acceptanceSession("substantive-rejected", [rejectedOpenTaskEvent("substantive-rejected-open")]),
+  ];
+  await assert.rejects(
+    smokeRuntime.runAcceptanceJourney({
+      codexExecutable: "/fixture/codex",
+      workspace: "/fixture/worktree",
+      runProcess: async () => ({
+        exitCode: 0,
+        stdout: substantiveFailureStreams[substantiveInvocation++],
+        stderr: "",
+      }),
+      snapshotState: async () => structuredClone(stable),
+    }),
+    /substantive Codex session returned Core domain error INVALID_ARGUMENT/u,
+  );
+  assert.equal(substantiveInvocation, 3);
+
+  let resumeInvocation = 0;
+  const resumeFailureStreams = [
+    streams[0],
+    streams[1],
+    streams[2],
+    acceptanceSession("resume-rejected", [rejectedOpenTaskEvent("resume-rejected-open")]),
+  ];
+  await assert.rejects(
+    smokeRuntime.runAcceptanceJourney({
+      codexExecutable: "/fixture/codex",
+      workspace: "/fixture/worktree",
+      runProcess: async () => ({
+        exitCode: 0,
+        stdout: resumeFailureStreams[resumeInvocation++],
+        stderr: "",
+      }),
+      snapshotState: async () => structuredClone(stable),
+    }),
+    /resume Codex session returned Core domain error INVALID_ARGUMENT/u,
+  );
+  assert.equal(resumeInvocation, 4);
 });
 
 test("bare acceptance rejects successful task-bearing calls and state changes", async () => {
@@ -319,7 +367,13 @@ test("bare acceptance rejects successful task-bearing calls and state changes", 
       error: /successful task-bearing call/u,
     },
     {
-      name: "changed state",
+      name: "changed repository state",
+      streams: [ordinary, rejectedBare],
+      snapshots: [stable, stable, { ...stable, repository: "changed" }],
+      error: /changed task, event, claim, or repository state/u,
+    },
+    {
+      name: "changed Core state",
       streams: [ordinary, rejectedBare],
       snapshots: [stable, stable, { ...stable, tasks: ["task-unexpected"] }],
       error: /changed task, event, claim, or repository state/u,
@@ -338,6 +392,7 @@ test("bare acceptance rejects successful task-bearing calls and state changes", 
       entry.name,
     );
     assert.equal(invocation, 2, entry.name);
+    assert.equal(snapshot, 3, entry.name);
   }
 });
 

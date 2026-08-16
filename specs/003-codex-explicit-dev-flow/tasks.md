@@ -103,10 +103,14 @@ isolated development-smoke runs. Feature 003 remains NO-GO until T078 passes.
   target-repository snapshots before/after, rejects every successful task-bearing call or unsafe
   result, and then continues substantive/resume/removal/reopen. Add at most two regressions.
   (FR-010a, FR-023, FR-028, SC-002, SC-004, SC-007)
+- [X] **T083** Replace the substantive bare-selector acceptance request with one non-mutating probe,
+  align only the directly affected selector-boundary documentation and existing Node assertions,
+  and preserve workspace-write plus Core/repository snapshot enforcement. (FR-010a, FR-010b,
+  FR-017, FR-028, SC-002)
 - [ ] **T078** Run the final real Codex acceptance journey after T074–T077 close and
-  after T080–T082 close, immediately before merge approval. Ordinary must remain zero-call; the
-  bare-selector session must retain real call facts while proving unchanged task/event/claim and
-  target-repository state before substantive/restart/resume/DONE/removal/reopen.
+  after T080–T083 close, immediately before merge approval. Ordinary must remain zero-call; the
+  non-mutating bare-selector probe must retain real call facts while proving unchanged
+  task/event/claim and target-repository state before substantive/restart/resume/DONE/removal/reopen.
 - [ ] **T079 [EXTERNAL / DEFERRED]** Design release-grade provenance, immutable attempt state,
   digest chaining, crash transactions, and publication evidence in a dedicated release/supply-chain
   feature.
@@ -128,7 +132,7 @@ isolated development-smoke runs. Feature 003 remains NO-GO until T078 passes.
 - T072 runs once after T071.
 - T073 follows T072.
 - T074–T077 and the repeatable development smoke are complete.
-- T080–T082 and final validation on a clean reviewed commit precede T078.
+- T080–T083 and final validation on a clean reviewed commit precede T078.
 - T079 belongs to a separate release/supply-chain feature and is not a Feature 003 merge gate.
 
 ## Requirements Coverage
@@ -136,14 +140,14 @@ isolated development-smoke runs. Feature 003 remains NO-GO until T078 passes.
 | Requirement | Carrying tasks |
 |---|---|
 | FR-001–FR-008 package/lifecycle | T001–T030, T068–T070 |
-| FR-009–FR-014 explicit Skill/six tools and negative state isolation | T015–T030, T063–T070, T080–T082 |
+| FR-009–FR-014 explicit Skill/six tools and negative state isolation | T015–T030, T063–T070, T080–T083 |
 | FR-015–FR-024 Core authority/loop/errors | T031–T051, T063–T070 |
 | FR-025 package contracts | T001–T030, T068–T070 |
 | FR-026 deterministic Core loop/parser | T031–T043, T063–T070 |
 | FR-027 repeatable development smoke | T061, T066–T072 |
-| FR-028 final acceptance gate | T061, T067, T078, T080–T082 |
+| FR-028 final acceptance gate | T061, T067, T078, T080–T083 |
 | SC-001 | T015–T030, T068–T070 |
-| SC-002 | T015–T030, T063–T070, T080–T082 |
+| SC-002 | T015–T030, T063–T070, T080–T083 |
 | SC-003 | T031–T043, T069–T070 |
 | SC-004–SC-005 | T031–T043, T067, T078 |
 | SC-006 | T025, T031–T043, T069–T070 |

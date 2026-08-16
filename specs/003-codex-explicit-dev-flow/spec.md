@@ -18,17 +18,19 @@ As a Codex user, I can install a local `dev-flow-codex` package, complete explic
 setup.
 
 **Independent test**: Build the package, run setup/readback against isolated host state, verify that
-an ordinary prompt makes zero Dev Flow calls, verify that a bare selector leaves Core and repository
-state unchanged even if Codex exposes or rejects MCP calls, then explicitly select the installed
-Skill and observe the six-tool handshake.
+an ordinary prompt makes zero Dev Flow calls, verify that a non-mutating bare-selector probe leaves
+Core and repository state unchanged even if Codex exposes or rejects MCP calls, then explicitly
+select the installed Skill and observe the six-tool handshake.
 
 **Acceptance scenarios**:
 
 1. Setup registers exactly one owned plugin/Skill and one STDIO MCP server, and readback confirms it.
 2. An ordinary prompt without a selector makes zero Dev Flow calls and creates zero tasks.
 3. Bare `$dev-flow`, a wrong namespace/base, a missing selector, and implicit matching do not
-   activate the Skill or change task, event, claim, or target-repository state. Host-exposed
-   read-only calls and Core-rejected task calls remain visible in acceptance observations.
+   activate the Skill or change task, event, or claim state. They do not revoke ordinary Codex host
+   tools or independent repository work authorized by the rest of a user prompt. The final
+   non-mutating bare-selector probe leaves the target repository unchanged; host-exposed read-only
+   calls and Core-rejected task calls remain visible in acceptance observations.
 4. Exact `$dev-flow-codex:dev-flow` selection with an empty or conversational request, out-of-scope
    work, or a current directory that is not a Git worktree activates the Skill but stops at its
    admission gate without creating a task or changing Core or target-repository state.
@@ -115,11 +117,11 @@ cross-host takeover, Git mutation, and a Web UI also remain out of scope.
   exact selector `$dev-flow-codex:dev-flow`. Bare `$dev-flow`, a wrong namespace/base, a missing
   selector, and implicit matching are not supported Dev Flow Skill activation.
 - **FR-010a**: For ordinary and non-exact-selector sessions, no task-bearing Dev Flow operation other
-  than `dev_flow_server_info` may succeed. Such sessions MUST leave task, event, repository-claim,
-  and target-repository state unchanged. Host-exposed read-only or Core-rejected MCP calls MAY be
-  observed and MUST be reported accurately.
+  than `dev_flow_server_info` may succeed, and Core task, event, and repository-claim state MUST
+  remain unchanged. A non-exact selector does not disable ordinary Codex host tools or revoke
+  repository work independently authorized by the remainder of the user prompt.
 - **FR-010b**: Feature 003 MUST NOT claim per-Skill MCP visibility, selector-bound MCP authorization,
-  or capability isolation on Codex 0.147.
+  selector-bound host repository-tool authorization, or capability isolation on Codex 0.147.
 - **FR-011**: Empty or conversational invocation MUST stop before opening a task.
 - **FR-012**: The Skill MUST resolve one current Git worktree and reject work requiring another
   repository.
@@ -130,8 +132,8 @@ cross-host takeover, Git mutation, and a Web UI also remain out of scope.
   evidence requirements, recovery, conflicts, blockers, and terminal outcomes.
 - **FR-016**: The adapter and Skill MUST NOT implement a transition table, payload catalog, Core
   error reinterpretation, or independent completion test.
-- **FR-017**: Ordinary host repository tools may be used only for the current Core-authorized action;
-  no generic shell MCP proxy may be added.
+- **FR-017**: While the Dev Flow Skill is active, ordinary host repository tools may be used only for
+  the current Core-authorized action; no generic shell MCP proxy may be added.
 - **FR-018**: Repository instructions and user authority boundaries remain in force while the Skill
   follows Core guidance.
 
@@ -160,9 +162,9 @@ cross-host takeover, Git mutation, and a Web UI also remain out of scope.
   canonical evidence path, and report only ephemeral session observations. It MUST never be treated
   as final acceptance evidence.
 - **FR-028**: Immediately before merge approval, one real Codex acceptance journey MUST use the
-  reviewed package and supported host to prove ordinary-prompt zero-call isolation; bare-selector
-  Skill non-activation plus unchanged task/event/claim/repository state while retaining all observed
-  calls; exact explicit selection; six-tool handshake; create/apply/restart/resume/DONE;
+  reviewed package and supported host to prove ordinary-prompt zero-call isolation; a non-mutating
+  bare-selector probe with Skill non-activation, unchanged task/event/claim/repository state, and all
+  observed calls retained; exact explicit selection; six-tool handshake; create/apply/restart/resume/DONE;
   domain/transport distinction; and retained task data after removal. A failed run keeps Feature 003
   at NO-GO but does not permanently consume a chain.
 
@@ -188,10 +190,11 @@ reopen. These repeatable development observations satisfy FR-027 but do not sati
 ## Success Criteria
 
 - **SC-001**: Setup/readback succeeds in isolated state without target-repository edits.
-- **SC-002**: Ordinary, bare, wrong, missing, and implicit invocations do not activate the Dev Flow
-  Skill, produce no successful task-bearing Dev Flow operation other than server information, leave
-  task/event/claim state unchanged, and leave the target repository unchanged. Any host-exposed
-  read-only or Core-rejected calls remain visible in acceptance evidence.
+- **SC-002**: Ordinary and non-exact-selector invocations do not activate the Dev Flow Skill,
+  produce no successful task-bearing Dev Flow operation other than server information, and leave
+  Core task/event/claim state unchanged. The final acceptance uses a non-mutating bare-selector
+  probe and verifies that this controlled probe also leaves the target repository unchanged. Any
+  host-exposed read-only or Core-rejected calls remain visible in the acceptance evidence.
 - **SC-003**: Explicit invocation creates or resumes exactly one Codex-owned task for the repository.
 - **SC-004**: The final acceptance journey crosses committed actions, restarts, resumes the same task
   lineage, and reaches Core `DONE`.

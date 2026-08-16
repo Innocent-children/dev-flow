@@ -71,7 +71,8 @@ On Codex 0.147 the MCP server is registered independently of Skill injection. Co
 instructions and the `dev_flow_open_task` description remind the model that task discovery follows
 only exact `$dev-flow-codex:dev-flow` selection and a successful `dev_flow_server_info` handshake.
 They are presentation guidance, not capability isolation. Default Core and other host presentation
-remain unchanged.
+remain unchanged. Feature 003 does not claim that the selector authorizes or revokes ordinary Codex
+repository tools.
 
 ## Verification Contract
 

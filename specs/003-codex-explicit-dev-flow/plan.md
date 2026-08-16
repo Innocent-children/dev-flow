@@ -82,9 +82,9 @@ Primary tests: `launcher.test.mjs`, `lifecycle.test.mjs`, and
 
 ### Layer 3 — Skill
 
-Owns exact explicit Skill activation, ordinary zero-call behavior, non-exact-selector state
-isolation with honest MCP observations, the six-tool handshake, and the absence of adapter-owned
-workflow authority.
+Owns exact explicit Skill activation, ordinary zero-call behavior, non-exact-selector Core-state
+isolation with honest MCP observations, the non-mutating final bare probe, the six-tool handshake,
+and the absence of adapter-owned workflow authority.
 
 Primary test: `skill-contract.test.mjs`.
 
@@ -123,8 +123,9 @@ Primary test: rewritten `journey-harness.test.mjs` with the thin
 ### Final Acceptance
 
 Exactly once immediately before merge approval, an operator runs the real-host acceptance mode
-against the reviewed package. It must cover ordinary zero-call isolation, bare-selector Skill
-non-activation and unchanged task/event/claim/repository state with all observed calls retained,
+against the reviewed package. It must cover ordinary zero-call isolation, a non-mutating
+bare-selector probe with Skill non-activation and unchanged task/event/claim/repository state while
+all observed calls remain retained,
 exact Skill invocation, handshake, create/apply/restart/resume/DONE, error-shape distinction,
 removal, and retained task data. Its result is an acceptance observation, not release provenance.
 

@@ -100,6 +100,7 @@ test("README distinguishes the Skill base name from the only installed selector"
   assert.match(invocation, /ordinary prompt[\s\S]*zero Dev Flow\s*calls/i);
   assert.match(invocation, /non-exact selectors[\s\S]*must not complete a task-bearing operation/i);
   assert.match(invocation, /does not[\s\S]*claim selector-bound MCP visibility or authorization/i);
+  assert.match(invocation, /does not disable ordinary Codex repository tools/i);
   assert.match(invocation, /allow_implicit_invocation[^\n]*false/i);
 });
 
