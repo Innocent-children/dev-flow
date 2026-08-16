@@ -89,13 +89,14 @@ protocols, large-stream digest matrices, or canonical support evidence. The form
 concerns are removed from this feature and may be redesigned by a dedicated release/supply-chain
 feature.
 
-## Pending HIGH Cases
+## Closed HIGH Cases
 
-The package remains NO-GO while these follow-up regressions are pending:
+The following native regressions are closed by one minimum test each:
 
 - diagnostic precedence;
 - Core envelope closure;
 - failed-event/recovery binding;
 - aggregate/session MCP fact parity.
 
-This contract records the blockers without specifying their fixes.
+Their coverage must remain intact. The package remains NO-GO only until the separate final real
+Codex acceptance journey passes.

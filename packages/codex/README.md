@@ -187,8 +187,10 @@ formal support statement; failures add only a bounded, hashed diagnostic.
 
 ## Final pre-merge acceptance
 
-Run one final real-host acceptance only after development smoke is stable and the four pending HIGH
-regressions are closed. The real-host entry point records ephemeral session observations:
+The four native HIGH regressions are closed, and two fresh isolated Codex 0.147 development-smoke
+runs passed with distinct tasks. Those runs establish repeatability but do not replace acceptance.
+Run one final real-host acceptance against the reviewed commit immediately before merge approval.
+The real-host entry point records ephemeral session observations:
 
 ```bash
 ./scripts/run-codex-real-journey.sh \

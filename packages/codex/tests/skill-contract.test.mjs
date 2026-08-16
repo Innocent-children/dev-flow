@@ -166,6 +166,39 @@ test("Skill follows fresh Core authority for create, resume, one mutation, and c
   assert.match(forwarding, /recovery_apply[\s\S]*Core/i);
 });
 
+test("Skill forwards the exact closed Core new_task contract", async () => {
+  const discovery = section(await readFile(skillPath, "utf8"), "Task discovery");
+  for (const member of [
+    "goal",
+    "scope",
+    "out_of_scope",
+    "acceptance_criteria",
+    "verification_budget",
+    "level",
+    "max_automatic_commands",
+    "allow_full_suite",
+    "allow_manual_handoff",
+  ]) {
+    assert.equal(discovery.includes(`\`${member}\``), true, `missing closed Core member ${member}`);
+  }
+  for (const alias of ["requirement", "exclusions", "verification", "automatic_command_budget"]) {
+    assert.equal(discovery.includes(`\`${alias}\``), false, `forbidden Core member alias ${alias}`);
+  }
+  assert.match(discovery, /no additional members|exact members/i);
+});
+
+test("Skill uses payload_contract as the apply schema discriminator", async () => {
+  const forwarding = section(await readFile(skillPath, "utf8"), "Closed forwarding contract");
+  assert.match(forwarding, /`payload_contract`[\s\S]*schema branch/i);
+  assert.match(forwarding, /`inputSchema`[\s\S]*`allOf`[\s\S]*`oneOf`[\s\S]*`action_kind\.const`/i);
+  assert.match(forwarding, /payload `\$ref`[\s\S]*`\$defs`[\s\S]*`required`/i);
+  assert.match(forwarding, /do not search[\s\S]*(?:repository|installed package)[\s\S]*(?:binary|log)[\s\S]*another MCP server/i);
+  assert.match(forwarding, /`required_evidence`[\s\S]*(?:not|never)[\s\S]*payload (?:field|key|member)/i);
+  assert.match(forwarding, /top-level[\s\S]*`request_id`[\s\S]*`repository_binding_digest`/i);
+  assert.match(forwarding, /`payload`[\s\S]*only[\s\S]*phase[\s\S]*(?:never|do not)[\s\S]*(?:enclosing|whole|full) request/i);
+  assert.match(forwarding, /cannot (?:identify|read|resolve)[\s\S]*stop before[\s\S]*`dev_flow_apply_action`/i);
+});
+
 test("Skill reads before retry and preserves budgets, evidence labels, and terminal stops", async () => {
   const skill = await readFile(skillPath, "utf8");
   const recovery = section(skill, "Recovery-before-retry contract");
@@ -176,6 +209,7 @@ test("Skill reads before retry and preserves budgets, evidence labels, and termi
   assert.match(recovery, /dev_flow_get_task[\s\S]*dev_flow_get_next_action/i);
   assert.match(recovery, /operation probe[\s\S]*(?:retained|original)/i);
   assert.match(recovery, /retry[\s\S]*(?:fresh|Core)[\s\S]*safe/i);
+  assert.match(recovery, /`ok=false`[\s\S]*`retry_safe=false`[\s\S]*`action=none`[\s\S]*stop[\s\S]*do not call[\s\S]*dev_flow_get_next_action[\s\S]*dev_flow_apply_action/i);
   assert.match(recovery, /fabricated/i);
 
   const evidence = section(skill, "Evidence and verification budget");

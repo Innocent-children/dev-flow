@@ -61,9 +61,9 @@ The second form remains a Core domain result and its recovery/stop guidance is a
 third form has no Core authority and stops fail-closed. A malformed completed result is neither
 form.
 
-The current checkpoint verifies only these host shapes. Detailed diagnostic precedence, complete
-envelope closure, failed-event recovery binding, and aggregate/session fact parity remain the four
-explicit pending HIGH regression cases and are not claimed as solved.
+The current checkpoint verifies only these host shapes. Diagnostic precedence, complete envelope
+closure, failed-event recovery binding, and aggregate/session fact parity are each closed by one
+minimum regression and remain required coverage.
 
 ## Evidence and Terminal Reporting
 

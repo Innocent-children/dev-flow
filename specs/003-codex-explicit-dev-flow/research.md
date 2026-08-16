@@ -68,16 +68,17 @@ version compatibility, fsync/inode/TOCTOU gates, large-stream digest matrices, a
 provenance solve a future publication problem. They are not necessary to establish the first Codex
 product journey and are deferred to a dedicated release/supply-chain feature.
 
-## Decision 9 — Preserve unresolved HIGH cases explicitly
+## Decision 9 — Close the four native HIGH cases minimally
 
-The simplification records one follow-up test for each unresolved HIGH:
+The simplification preserved one follow-up test for each native HIGH:
 
 - diagnostic precedence;
 - Core envelope closure;
 - failed-event/recovery binding;
 - aggregate/session MCP fact parity.
 
-They remain NO-GO blockers and are not silently deleted or fixed by this checkpoint.
+T074–T077 subsequently closed those cases with one minimum regression each. Their tests remain
+required; the separate final acceptance journey is now the only unmet Feature 003 acceptance gate.
 
 ## Official Source Basis
 

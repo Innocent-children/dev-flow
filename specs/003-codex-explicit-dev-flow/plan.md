@@ -2,18 +2,19 @@
 
 **Branch**: `003-codex-explicit-dev-flow`  
 **Spec**: [spec.md](./spec.md)  
-**Checkpoint**: Test-suite simplification; Feature 003 remains **NO-GO**
+**Checkpoint**: Merge preparation; Feature 003 remains **NO-GO** until final acceptance
 
 ## Summary
 
-Retain the existing thin Codex package and Core-authoritative workflow implementation while reducing
-Feature 003 verification to product-facing contracts. Package, lifecycle, Skill, Core-loop, parser,
-and native-smoke layers remain. Release/supply-chain provenance, immutable attempts, and
-crash-transaction machinery are deferred.
+The test-suite simplification and four native result-handling regressions are complete. The thin
+Codex package, Core-authoritative workflow, package/lifecycle/Skill/Core-loop/parser layers, and
+repeatable development smoke remain. Two fresh isolated Codex 0.147 development-smoke runs passed.
+Release/supply-chain provenance, immutable attempts, and crash-transaction machinery remain
+deferred. The only unmet Feature 003 acceptance requirement is the final real-host journey.
 
-This checkpoint changes tests, validation scripts, and Feature 003 documentation only. It does not
-modify `packages/codex/bin`, `packages/codex/lib`, plugin resources, Core, protocol, DeepSeek, or
-the root validator.
+Subsequent explicitly approved smoke repairs added only bounded Core payload examples, stricter
+Skill forwarding guidance, the repeatable development-smoke runner, and their focused tests. They
+did not add adapter-owned workflow authority, a public contract, or release machinery.
 
 ## Technical Context
 
@@ -27,7 +28,7 @@ the root validator.
 | Runtime dependencies | none |
 | Test runtime | Node.js >=24 and Go toolchain |
 | Persistent smoke state | none |
-| Merge status | NO-GO until four HIGH cases and final acceptance are closed |
+| Merge status | NO-GO until the final acceptance journey passes |
 
 ## Constitution Check
 
@@ -38,7 +39,7 @@ the root validator.
 - The final acceptance journey is a merge gate, not a release-provenance system.
 - This checkpoint introduces no new product abstraction or schema version.
 
-## Allowed Checkpoint Paths
+## Implemented Checkpoint Paths
 
 ```text
 specs/003-codex-explicit-dev-flow/**
@@ -50,8 +51,10 @@ scripts/write-codex-journey-evidence.mjs
 tests/contract/**
 ```
 
-All product adapter, plugin, Core, protocol, DeepSeek, root-validator, main-branch, artifact, ledger,
-and canonical-evidence paths are read-only.
+The original simplification stayed within that list. Later user-approved minimal smoke repairs also
+touched `packages/codex/plugin/skills/dev-flow/SKILL.md`, `internal/workflow/engine.go`, and their
+existing focused tests. `packages/codex/bin`, `packages/codex/lib`, protocol, DeepSeek,
+root-validator, main-branch, permanent ledger, and canonical-evidence paths remain unchanged.
 
 ## Verification Design
 
@@ -126,17 +129,16 @@ result is an acceptance observation, not release provenance. This checkpoint doe
 | DEFER | attempt-ledger crash/recovery, pass-lock, fsync/TOCTOU, diagnostic versions, 64 MiB boundaries, one-shot chains, release provenance reports | Explicitly moved to a future release/supply-chain feature. |
 | DELETE | Feature 003 tests and schemas whose sole contract is a deferred release concern | Delete only after this plan and spec establish the deferral. |
 
-## Pending HIGH Regression Inventory
+## Closed HIGH Regression Inventory
 
-The checkpoint keeps four non-passing follow-up cases as `test.todo` and records them in
-`spec.md` and `tasks.md`:
+The four formerly pending native cases now have one minimum passing regression each:
 
 - HIGH-1 diagnostic precedence;
 - HIGH-2 Core envelope closure;
 - HIGH-3 failed event/recovery binding;
 - HIGH-4 aggregate/session MCP fact parity.
 
-No implementation change in this checkpoint may close or weaken those cases.
+The passing regressions remain merge requirements and must not be weakened.
 
 ## Development and Final Commands
 
@@ -158,10 +160,7 @@ Then run exactly one final `speckit-analyze` pass and at most one independent re
 
 ## Delivery Boundary
 
-Two commits separate intent from mechanics:
-
-1. `docs(codex): reduce feature verification scope`
-2. `test(codex): simplify adapter test suite`
-
-Push only `codex/feature-003-simplify-tests`. Do not merge main. Completion of this checkpoint
-does not change Feature 003 from NO-GO.
+The simplification and four-HIGH closure commits are already present in the Feature 003 history.
+The current merge-preparation work remains on `codex/feature-003-repeatable-development-smoke`.
+After the final validation/analyze/review gate, commit and push that branch, then run T078 exactly
+once against the reviewed commit. Do not merge `main` unless T078 passes.

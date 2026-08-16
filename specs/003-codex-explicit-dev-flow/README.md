@@ -2,7 +2,7 @@
 
 Feature 003 packages Dev Flow as a thin, explicit-only Codex integration.
 
-Current checkpoint:
+Current merge-preparation status:
 
 - retains package, setup/readback, exact Skill selector, six-tool handshake, Core loop, and removal
   retention;
@@ -10,8 +10,9 @@ Current checkpoint:
   repeatable ephemeral smoke;
 - defers attempt ledgers, frozen-chain admission, digest/provenance reports, crash transactions,
   diagnostic-version matrices, evidence-path durability protocols, and release publication;
-- preserves four unresolved HIGH regression cases;
-- does not run a real host or attempt #4.
+- closes the four native HIGH regression cases with one minimum regression each;
+- records two fresh isolated Codex 0.147 development-smoke PASS results with distinct tasks;
+- leaves only the final real Codex acceptance journey as the unmet Feature 003 acceptance gate.
 
 Read in this order:
 
@@ -22,5 +23,5 @@ Read in this order:
 5. [research.md](./research.md)
 6. [quickstart.md](./quickstart.md)
 
-Feature 003 remains **NO-GO** until HIGH-1 through HIGH-4 are closed and the final real Codex
-acceptance journey passes.
+Feature 003 remains **NO-GO** until the final real Codex acceptance journey passes. Release-grade
+provenance remains deferred and is not a Feature 003 merge gate.

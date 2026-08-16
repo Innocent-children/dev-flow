@@ -176,6 +176,8 @@ test("development smoke allocates every run surface under one fresh root", () =>
 
   assert.equal(first.root, "/tmp/dev-flow-smoke-a");
   assert.equal(second.root, "/tmp/dev-flow-smoke-b");
+  assert.equal(first.dataDirectory, `${first.home}/Library/Application Support/dev-flow/data`);
+  assert.equal(second.dataDirectory, `${second.home}/Library/Application Support/dev-flow/data`);
   for (const field of isolatedFields) {
     assert.notEqual(first[field], second[field], field);
     assert.equal(first[field].startsWith(`${first.root}/`), true, field);
@@ -198,6 +200,9 @@ test("development smoke admits only four bounded run labels and exact selectors"
     assert.equal(prompt.startsWith(`${EXPLICIT_SELECTOR} `), true);
   }
   assert.equal(smokeRuntime.ordinaryPrompt.includes(EXPLICIT_SELECTOR), false);
+  assert.equal(buildCodexExecArgs(smokeRuntime.developmentSubstantivePrompt, { ephemeral: true }).includes("--ignore-user-config"), false);
+  assert.match(smokeRuntime.developmentSubstantivePrompt, /ASSESS_TASK[\s\S]*PLAN_CHANGE[\s\S]*prerequisite/i);
+  assert.match(smokeRuntime.developmentSubstantivePrompt, /file exists[\s\S]*first successful[\s\S]*after (?:creating|creation)/i);
 });
 
 test("development smoke enforces ordinary and invalid zero-call admission", () => {
@@ -289,6 +294,13 @@ test("development smoke closes stdin before waiting for Codex JSONL", async () =
   const childProgram = "let ended=false;process.stdin.resume();process.stdin.once('end',()=>{ended=true;process.stdout.write('closed')});setTimeout(()=>process.exit(ended?0:7),100)";
   const result = await smokeRuntime.defaultRunProcess(process.execPath, ["-e", childProgram], { cwd: repositoryRoot });
   assert.deepEqual({ exitCode: result.exitCode, stdout: result.stdout }, { exitCode: 0, stdout: "closed" });
+});
+
+test("development smoke preserves the exact post-session invariant failure", () => {
+  assert.throws(
+    () => smokeRuntime.validateDevelopmentSessions([], {}),
+    (error) => error.classification === "post-session: MCP aggregate requires ordinary, invalid, substantive, and resume sessions",
+  );
 });
 
 test("simplified acceptance validates one complete closed FR-028 report", () => {

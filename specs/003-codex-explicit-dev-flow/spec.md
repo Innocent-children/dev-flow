@@ -4,7 +4,8 @@
 
 **Created**: 2026-08-14
 
-**Status**: Implementation checkpoint — test-suite simplification in progress; **NO-GO** for merge
+**Status**: Merge preparation — four native regressions closed and repeatable development smoke
+passed twice; **NO-GO** until the final acceptance journey passes
 **Input**: Package the shared Dev Flow Core as a thin Codex product that starts or resumes one
 single-repository task only when the user explicitly invokes `$dev-flow-codex:dev-flow`.
 
@@ -163,6 +164,13 @@ test each. Feature readiness still requires the separate final real Codex accept
 | **HIGH-2 Core envelope closure** | A complete-looking Core result with missing, extra, or mismatched envelope identity must be rejected as non-authoritative. |
 | **HIGH-3 failed event/recovery binding** | Every recoverable failed event must bind exactly to its later task read, next-action read, and mutation on the same task/revision lineage. |
 | **HIGH-4 aggregate/session MCP fact parity** | Aggregate MCP facts must be the exact ordered projection of the four session-level call facts, including zero-call ordinary/invalid sessions. |
+
+## Development Smoke Status
+
+On 2026-08-16, two fresh isolated Codex 0.147 development-smoke runs passed with distinct task IDs.
+Each run proved ordinary/invalid zero-call admission, exact explicit selection, the six-tool
+handshake, create/apply/restart/resume/DONE, successful removal readback, and direct retained-task
+reopen. These repeatable development observations satisfy FR-027 but do not satisfy FR-028.
 
 ## Success Criteria
 

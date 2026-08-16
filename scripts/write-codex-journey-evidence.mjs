@@ -40,13 +40,15 @@ export const resumePrompt =
   `${EXPLICIT_SELECTOR} Resume the existing compatible Dev Flow task and continue to the Core outcome.`;
 export const developmentInvalidPrompt =
   `${EXPLICIT_SELECTOR} Reject this bounded request because the current directory is not a Git repository. Make no Dev Flow tool call and create no task.`;
-export const developmentSubstantivePrompt = `${EXPLICIT_SELECTOR} Work only in the current repository. Open one host=codex task to create native-proof.txt with the exact UTF-8 bytes "Dev Flow Codex development smoke passed.\\n". The verification budget is one targeted command, full suites are forbidden, and verification is reserved for the restart session. After the file exists and one complete dev_flow_apply_action commits, stop while the Core task is nonterminal.`;
+export const developmentSubstantivePrompt = `${EXPLICIT_SELECTOR} Work only in the current repository. Open one host=codex task to create native-proof.txt with the exact UTF-8 bytes "Dev Flow Codex development smoke passed.\\n". Advance through the Core-required ASSESS_TASK and PLAN_CHANGE actions; those read-only commits are prerequisites and do not satisfy the stop condition. Create the file only when the current Core action permits repository edits. The verification budget is one targeted command, full suites are forbidden, and verification is reserved for the restart session. Stop only after the file exists and the first successful dev_flow_apply_action after creating it commits, while the Core task is nonterminal.`;
 export const developmentResumePrompt = `${EXPLICIT_SELECTOR} Resume the existing compatible host=codex task. After dev_flow_open_task, call dev_flow_get_task and then dev_flow_get_next_action before any new dev_flow_apply_action. Preserve the same task, run only "git hash-object native-proof.txt" as the single targeted verification command, and continue until Core reports phase DONE with outcome completed.`;
 
 const PROOF_CONTENT = "Dev Flow Codex development smoke passed.\n";
 const PROOF_COMMAND = "git hash-object native-proof.txt";
 const PROOF_RENDERED_COMMAND = "/bin/zsh -lc 'git hash-object native-proof.txt'";
-const PROOF_GIT_HASH = "5de13fdad681cf91a2877203917cf78afb4aa679";
+const PROOF_GIT_HASH = createHash("sha1")
+  .update(`blob ${Buffer.byteLength(PROOF_CONTENT)}\0${PROOF_CONTENT}`)
+  .digest("hex");
 const SMOKE_ROLES = Object.freeze(["ordinary", "invalid", "substantive", "resume"]);
 const SMOKE_RESULT_FIELDS = Object.freeze([
   "status", "run_id", "codex_version", "package_version", "core_version",
@@ -85,7 +87,7 @@ export function buildCodexExecArgs(prompt, {
     throw new TypeError("Codex prompt must be nonempty");
   }
   const args = ["exec", "--json"];
-  if (ephemeral) args.push("--ephemeral", "--ignore-user-config", "--ignore-rules", "--color", "never", "--sandbox", "workspace-write");
+  if (ephemeral) args.push("--ephemeral", "--ignore-rules", "--color", "never", "--sandbox", "workspace-write");
   if (skipGitRepoCheck) args.push("--skip-git-repo-check");
   if (workspace !== null) args.push("--cd", workspace);
   args.push(prompt);
@@ -236,12 +238,13 @@ export async function runDevelopmentSmoke(options) {
 export function createDevelopmentSmokeLayout(root) {
   requireAbsolute(root, "development smoke root");
   const under = (name) => join(root, name);
+  const home = under("home");
   return {
     root,
-    home: under("home"),
+    home,
     codexHome: under("codex-home"),
     installPrefix: under("install"),
-    dataDirectory: under("data"),
+    dataDirectory: join(home, "Library", "Application Support", "dev-flow", "data"),
     repository: under("repository"),
     invalidWorkspace: under("not-a-repository"),
     artifactDirectory: under("artifacts"),
@@ -747,7 +750,16 @@ function containsDone(value) {
   return Object.values(value).some(containsDone);
 }
 
-function validateDevelopmentSessions(sessions, state) {
+export function validateDevelopmentSessions(sessions, state) {
+  try {
+    return validateDevelopmentSessionsUnchecked(sessions, state);
+  } catch (error) {
+    if (typeof error?.classification !== "string") error.classification = `post-session: ${error.message}`;
+    throw error;
+  }
+}
+
+function validateDevelopmentSessionsUnchecked(sessions, state) {
   aggregateSessionFacts(sessions);
   const threadIDs = sessions.map((session) => session.thread_id);
   if (new Set(threadIDs).size !== 4 || threadIDs.some((id) => typeof id !== "string" || id.length === 0)) {
@@ -794,17 +806,19 @@ function validateDevelopmentSessions(sessions, state) {
 function assertHandshake(session) {
   const call = session.dev_flow_calls[0];
   const info = call?.core_result?.result;
-  if (
-    call?.tool !== "dev_flow_server_info"
-    || call.classification !== "success"
-    || info?.product !== "dev-flow"
-    || info.version !== "0.1.0"
-    || info.schema_version !== 1
-    || info.transport !== "stdio"
-    || info.health !== "ready"
-    || !info.supported_hosts?.includes("codex")
-    || !isDeepStrictEqual(info.tools, DEV_FLOW_TOOLS)
-  ) throw new Error("development smoke Core handshake is incomplete or incompatible");
+  const checks = {
+    first_tool: call?.tool === "dev_flow_server_info",
+    classification: call?.classification === "success",
+    product: info?.product === "dev-flow",
+    version: info?.version === "0.1.0",
+    schema: info?.schema_version === 1,
+    transport: info?.transport === "stdio",
+    health: info?.health === "ready",
+    host: info?.supported_hosts?.includes("codex") === true,
+    tools: isDeepStrictEqual(info?.tools, DEV_FLOW_TOOLS),
+  };
+  const failed = Object.entries(checks).filter(([, passed]) => !passed).map(([name]) => name);
+  if (failed.length !== 0) throw new Error(`development smoke ${session.role} Core handshake failed: ${failed.join(",")}`);
 }
 
 function successfulCalls(session, tool) {
@@ -933,13 +947,13 @@ async function readRetainedTask(runtimePath, dataDirectory, repository, taskID, 
   child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized", params: {} })}\n`);
   const response = await request("tools/call", { name: "dev_flow_get_task", arguments: { host: "codex", task_id: taskID } });
   const result = response.result?.structuredContent;
-  if (!result || JSON.parse(response.result.content?.[0]?.text ?? "null")?.result?.task?.task_id !== taskID) throw new Error("packaged Core retained-task result is incomplete");
   child.stdin.end();
   const stopped = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => { child.kill("SIGTERM"); reject(new Error("packaged Core did not stop after EOF")); }, 10_000);
     child.once("exit", (code, signal) => { clearTimeout(timer); code === 0 && signal === null ? resolve() : reject(new Error("packaged Core exited unexpectedly")); });
   });
   void stopped;
+  if (!result || JSON.parse(response.result.content?.[0]?.text ?? "null")?.result?.task?.task_id !== taskID) throw new Error("packaged Core retained-task result is incomplete");
   return result.result.task;
 }
 

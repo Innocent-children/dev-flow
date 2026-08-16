@@ -230,6 +230,31 @@ func TestPhaseActionMappingAndBlueprints(t *testing.T) {
 	}
 }
 
+func TestBlueprintGuidanceIncludesOneValidPayloadExample(t *testing.T) {
+	t.Parallel()
+	want := map[domain.Phase][]string{
+		domain.PhaseIntake:    {`Example payload: {"result":"succeeded"`, `"verification_budget_acknowledged":true`},
+		domain.PhaseAssess:    {`Example payload: {"result":"succeeded"`, `"unresolved_questions":[]`},
+		domain.PhasePlan:      {`Example payload: {"result":"succeeded"`, `"no_file_changes":false`, `"scope_confirmed":true`},
+		domain.PhaseImplement: {`Example payload: {"result":"ready"`, `"source":"automated"`, `"status":"passed"`},
+		domain.PhaseVerify:    {`Example payload: {"result":"pass"`, `"residual_risks":[]`},
+		domain.PhaseReview:    {`Example payload: {"result":"ready"`, `only source "automated"`, `only source "user"`, `omit host_observed and static`},
+		domain.PhaseHandoff:   {`Example payload: {"result":"complete"`, `only source "automated"`, `only source "user"`, `omit host_observed and static`},
+		domain.PhaseBlocked:   {`Example payload: {"result":"succeeded"`, `"resolution_evidence":`},
+	}
+	for phase, snippets := range want {
+		blueprint, err := BlueprintForPhase(phase)
+		if err != nil {
+			t.Fatalf("BlueprintForPhase(%s): %v", phase, err)
+		}
+		for _, snippet := range snippets {
+			if !strings.Contains(blueprint.Guidance, snippet) {
+				t.Errorf("BlueprintForPhase(%s) guidance does not contain %q: %q", phase, snippet, blueprint.Guidance)
+			}
+		}
+	}
+}
+
 func TestBuildNextActionUsesOnlyCallerInputs(t *testing.T) {
 	t.Parallel()
 	issuedAt := time.Date(2026, 8, 14, 1, 2, 3, 0, time.UTC)

@@ -69,23 +69,33 @@ After all edits, run the repository gate exactly once:
 pnpm run validate
 ```
 
-## 6. Real Development Smoke
+## 6. Repeatable Real Development Smoke
 
-Real-host mode is manual and must use a supported Codex executable and an isolated Git worktree:
+Run the isolated Codex 0.147 development smoke twice with distinct labels and empty result
+directories:
 
 ```bash
 ./scripts/run-codex-real-journey.sh \
-  --smoke \
+  --development-smoke \
+  --run-label A \
   --codex-executable /absolute/path/to/codex \
-  --workspace /absolute/path/to/isolated/git-worktree
+  --result-directory /absolute/path/to/empty/result-A
+
+./scripts/run-codex-real-journey.sh \
+  --development-smoke \
+  --run-label B \
+  --codex-executable /absolute/path/to/codex \
+  --result-directory /absolute/path/to/empty/result-B
 ```
 
-It may be repeated after a failure. It prints only ephemeral session observations. It does not
-consume an attempt or write canonical evidence.
+Two fresh isolated runs passed on 2026-08-16 with distinct task IDs, seven committed actions, Core
+`DONE`, successful removal, and retained-task reopen. Development smoke remains repeatable and does
+not consume an attempt or write canonical evidence.
 
 ## 7. Final Acceptance
 
-After HIGH-1 through HIGH-4 are closed and immediately before merge approval, run once:
+HIGH-1 through HIGH-4 are closed. After final validation and a reviewed clean commit, immediately
+before merge approval, run once:
 
 ```bash
 ./scripts/run-codex-real-journey.sh \
@@ -96,13 +106,15 @@ After HIGH-1 through HIGH-4 are closed and immediately before merge approval, ru
 
 The operator must verify ordinary zero-call isolation, exact explicit selection, six-tool handshake,
 create/apply/restart/resume/DONE, domain/transport distinction, removal, and retained task data.
-This checkpoint does not run either real-host mode.
+This acceptance journey has not run.
 
-## 8. Pending NO-GO Cases
+## 8. Merge Status
 
-- HIGH-1 diagnostic precedence
-- HIGH-2 Core envelope closure
-- HIGH-3 failed event/recovery binding
-- HIGH-4 aggregate/session MCP fact parity
+- HIGH-1 diagnostic precedence: closed.
+- HIGH-2 Core envelope closure: closed.
+- HIGH-3 failed event/recovery binding: closed.
+- HIGH-4 aggregate/session MCP fact parity: closed.
+- Repeatable real development smoke: two passing isolated runs.
+- Final real Codex acceptance: pending and still the NO-GO merge gate.
 
-No test result from this checkpoint closes those cases.
+Release-grade provenance remains deferred to a separate feature.

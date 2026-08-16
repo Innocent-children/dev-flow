@@ -67,6 +67,10 @@ worktree.
 - For a new substantive request, provide a bounded contract derived only from the current user
   request, repository instructions, stated exclusions, observable acceptance criteria, and the
   granted verification authority.
+- Forward `new_task` with exactly the members `goal`, `scope`, `out_of_scope`,
+  `acceptance_criteria`, and `verification_budget`, with no additional members. Forward
+  `verification_budget` with exactly `level`, `max_automatic_commands`, `allow_full_suite`, and
+  `allow_manual_handoff`; do not invent aliases for any of these Core-declared fields.
 - Ask before opening a new task if a material goal, scope, acceptance, or verification choice
   cannot be derived without changing user intent.
 - Let Core decide whether an exactly compatible contract creates or resumes a task. Never choose,
@@ -103,6 +107,21 @@ exact action ID, action kind, and repository-binding digest; one caller-generate
 closed payload containing only fields allowed by Core's returned schema. Do not add unknown fields,
 aliases, command logs, environment dumps, inferred status, or locally invented recovery flags.
 
+Use the fresh action's `payload_contract` as the discriminator for the corresponding closed schema
+branch in the `dev_flow_apply_action` input. `required_evidence` names describe obligations; they are
+not payload field names. If you cannot identify and read that exact schema branch, stop before
+calling `dev_flow_apply_action` instead of guessing or deriving keys from evidence names.
+
+Before calling, read the `dev_flow_apply_action` tool's supplied `inputSchema`: under `allOf`, choose
+the `oneOf` branch whose `action_kind.const` equals the fresh action kind, resolve the payload `$ref`
+through the same schema's `$defs`, and send exactly its `required` members. Do not search the
+repository or installed package, inspect a binary or log, or start another MCP server to recover the
+schema.
+
+At the top-level, forward `request_id`, `host`, `task_id`, `revision`, `action_id`, `action_kind`,
+and `repository_binding_digest`. The `payload` object contains only phase schema fields; never nest
+the enclosing request inside `payload`.
+
 Use `recovery_apply` only when a fresh Core recovery assessment explicitly requires the exact
 Core-defined form. Resolve context ambiguity through an ordinary Core read, never by guessing.
 
@@ -120,6 +139,10 @@ otherwise be consumed as one complete structured result. In that case:
 6. Retry or recover only when that fresh Core result says it is safe, using only the supplied
    identity and form.
 7. Otherwise stop and report the authoritative blocker or recovery condition.
+
+A complete Core result with `ok=false` is not an uncertain transport result. When it reports
+`retry_safe=false` and `action=none`, stop. Do not call `dev_flow_get_next_action` or
+`dev_flow_apply_action` to repair or retry that rejected mutation.
 
 If values needed for an operation probe were lost, send no fabricated probe. Do not complete a
 truncated preview from memory.

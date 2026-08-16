@@ -40,14 +40,14 @@ func BlueprintForPhase(phase domain.Phase) (ActionBlueprint, error) {
 			domain.RequirementRepositoryObservation,
 			domain.RequirementAssessmentSummary,
 		)
-		blueprint.Guidance = "Assess the task contract and repository without modifying source files."
+		blueprint.Guidance = `Assess the task contract and repository without modifying source files. Use the example keys in dev_flow_apply_action.payload; required_evidence names are not payload keys. Example payload: {"result":"succeeded","summary":"Assessed the bounded task.","constraints":[],"risks":[],"intended_changed_surface":["relative/path"],"verification_budget_acknowledged":true}.`
 	case domain.PhaseAssess:
 		blueprint.AllowedEffects = []domain.AllowedEffect{domain.EffectReadRepository}
 		blueprint.RequiredEvidence = required(
 			domain.RequirementRepositoryObservation,
 			domain.RequirementImplementationPlan,
 		)
-		blueprint.Guidance = "Produce the bounded implementation and verification plan."
+		blueprint.Guidance = `Produce the bounded implementation and verification plan. Use this shape in dev_flow_apply_action.payload. Example payload: {"result":"succeeded","summary":"Prepared the bounded plan.","steps":["Make the bounded change."],"expected_changed_paths":["relative/path"],"non_goals":[],"verification_steps":["Run the targeted check."],"unresolved_questions":[]}.`
 	case domain.PhasePlan:
 		blueprint.AllowedEffects = []domain.AllowedEffect{
 			domain.EffectReadRepository,
@@ -57,7 +57,7 @@ func BlueprintForPhase(phase domain.Phase) (ActionBlueprint, error) {
 			domain.RequirementRepositoryObservation,
 			domain.RequirementImplementationSummary,
 		)
-		blueprint.Guidance = "Implement only the current plan and report the changed surface."
+		blueprint.Guidance = `Implement only the current plan and report the changed surface. Use this shape in dev_flow_apply_action.payload. Example payload: {"result":"succeeded","summary":"Implemented the bounded change.","changed_paths":["relative/path"],"no_file_changes":false,"deviations":[],"scope_confirmed":true}.`
 	case domain.PhaseImplement:
 		blueprint.AllowedEffects = []domain.AllowedEffect{
 			domain.EffectReadRepository,
@@ -67,14 +67,14 @@ func BlueprintForPhase(phase domain.Phase) (ActionBlueprint, error) {
 			domain.RequirementRepositoryObservation,
 			domain.RequirementVerificationSummary,
 		)
-		blueprint.Guidance = "Verify the implementation within the task verification budget."
+		blueprint.Guidance = `Verify the implementation within the task verification budget. Use the exact result, source, and status values shown here. Example payload: {"result":"ready","summary":"Targeted verification passed.","checks":[{"source":"automated","name":"targeted_check","status":"passed","summary":"Targeted check passed.","command_count":1,"full_suite":false}],"failed_items":[],"unverified_items":[],"manual_handoff_items":[],"reason":""}.`
 	case domain.PhaseVerify:
 		blueprint.AllowedEffects = []domain.AllowedEffect{domain.EffectReadRepository}
 		blueprint.RequiredEvidence = required(
 			domain.RequirementRepositoryObservation,
 			domain.RequirementReviewSummary,
 		)
-		blueprint.Guidance = "Review the verified change against the contract and plan."
+		blueprint.Guidance = `Review the verified change against the contract and plan. Example payload: {"result":"pass","summary":"Verified change accepted.","findings":[],"residual_risks":[],"reason":""}.`
 	case domain.PhaseReview:
 		blueprint.AllowedEffects = []domain.AllowedEffect{
 			domain.EffectReadRepository,
@@ -84,7 +84,7 @@ func BlueprintForPhase(phase domain.Phase) (ActionBlueprint, error) {
 			domain.RequirementRepositoryObservation,
 			domain.RequirementReviewSummary,
 		)
-		blueprint.Guidance = "Prepare the final acceptance mapping and handoff decision."
+		blueprint.Guidance = `Prepare the final acceptance mapping and handoff decision. Copy every contract acceptance criterion. Put only source "automated" evidence IDs in automated_evidence_ids and only source "user" evidence IDs in manual_evidence_ids; omit host_observed and static evidence IDs from both lists. Replace angle-bracket values and repeat acceptance items as needed. Example payload: {"result":"ready","summary":"Handoff prepared.","delivery":{"acceptance":[{"criterion":"<exact acceptance criterion>","status":"satisfied"}],"automated_evidence_ids":["<automated evidence_id>"],"manual_evidence_ids":[],"unverified_items":[],"risks":[]},"reason":""}.`
 	case domain.PhaseHandoff:
 		blueprint.AllowedEffects = []domain.AllowedEffect{
 			domain.EffectReadRepository,
@@ -94,7 +94,7 @@ func BlueprintForPhase(phase domain.Phase) (ActionBlueprint, error) {
 			domain.RequirementRepositoryObservation,
 			domain.RequirementDeliverySummary,
 		)
-		blueprint.Guidance = "Complete the closed delivery summary for the task."
+		blueprint.Guidance = `Complete the closed delivery summary for the task. Copy every contract acceptance criterion. Put only source "automated" evidence IDs in automated_evidence_ids and only source "user" evidence IDs in manual_evidence_ids; omit host_observed and static evidence IDs from both lists. Replace angle-bracket values and repeat acceptance items as needed. Example payload: {"result":"complete","summary":"Delivery complete.","delivery":{"acceptance":[{"criterion":"<exact acceptance criterion>","status":"satisfied"}],"automated_evidence_ids":["<automated evidence_id>"],"manual_evidence_ids":[],"unverified_items":[],"risks":[]},"reason":""}.`
 	case domain.PhaseBlocked:
 		blueprint.AllowedEffects = []domain.AllowedEffect{
 			domain.EffectReadRepository,
@@ -104,7 +104,7 @@ func BlueprintForPhase(phase domain.Phase) (ActionBlueprint, error) {
 			domain.RequirementRepositoryObservation,
 			domain.RequirementBlockerResolution,
 		)
-		blueprint.Guidance = "Satisfy the stored blocker condition and return only to its resume phase."
+		blueprint.Guidance = `Satisfy the stored blocker condition and return only to its resume phase. Copy the current blocker identity and condition values. Example payload: {"result":"succeeded","blocker_id":"<current blocker_id>","summary":"Blocker condition satisfied.","resolution_evidence":{"condition":{"kind":"restore_issuance_binding","expected_binding_digest":"<expected binding digest>"},"observed_binding_digest":"<observed binding digest>"}}.`
 	default:
 		return ActionBlueprint{}, domain.NewError(domain.ErrorInternal, "workflow phase has no action blueprint")
 	}
