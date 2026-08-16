@@ -59,6 +59,72 @@ func TestMCPToolCatalogIsExactStableAndConservative(t *testing.T) {
 	}
 }
 
+func TestApplyActionSchemaDiscriminatesClosedPayloadsByActionKind(t *testing.T) {
+	t.Parallel()
+
+	var raw json.RawMessage
+	for _, tool := range coremcp.ToolCatalog() {
+		if tool.Name == coremcp.ToolApplyAction {
+			raw = tool.InputSchema
+			break
+		}
+	}
+	var schema map[string]any
+	if len(raw) == 0 || json.Unmarshal(raw, &schema) != nil {
+		t.Fatal("apply-action schema is missing or invalid")
+	}
+	allOf, ok := schema["allOf"].([]any)
+	if !ok || len(allOf) != 1 {
+		t.Fatalf("apply-action allOf = %#v, want one discriminator", schema["allOf"])
+	}
+	discriminator, ok := allOf[0].(map[string]any)
+	if !ok {
+		t.Fatalf("apply-action discriminator = %#v", allOf[0])
+	}
+	branches, ok := discriminator["oneOf"].([]any)
+	if !ok || len(branches) != 7 {
+		t.Fatalf("apply-action branches = %#v, want seven", discriminator["oneOf"])
+	}
+
+	want := map[string]struct {
+		title string
+		ref   string
+	}{
+		"ASSESS_TASK":      {title: "INTAKE / ASSESS_TASK", ref: "#/$defs/assessPayload"},
+		"PLAN_CHANGE":      {title: "ASSESS / PLAN_CHANGE", ref: "#/$defs/planPayload"},
+		"IMPLEMENT_CHANGE": {title: "PLAN / IMPLEMENT_CHANGE", ref: "#/$defs/implementPayload"},
+		"VERIFY_CHANGE":    {title: "IMPLEMENT / VERIFY_CHANGE", ref: "#/$defs/verifyPayload"},
+		"REVIEW_CHANGE":    {title: "VERIFY / REVIEW_CHANGE", ref: "#/$defs/reviewPayload"},
+		"PREPARE_HANDOFF":  {title: "REVIEW or HANDOFF / PREPARE_HANDOFF", ref: "#/$defs/prepareHandoffPayload"},
+		"RESOLVE_BLOCKER":  {title: "BLOCKED / RESOLVE_BLOCKER", ref: "#/$defs/resolveBlockerPayload"},
+	}
+	seen := make(map[string]bool, len(want))
+	for _, rawBranch := range branches {
+		branch, branchOK := rawBranch.(map[string]any)
+		properties, propertiesOK := branch["properties"].(map[string]any)
+		kindSchema, kindOK := properties["action_kind"].(map[string]any)
+		kind, valueOK := kindSchema["const"].(string)
+		payloadSchema, payloadOK := properties["payload"].(map[string]any)
+		alternatives, alternativesOK := payloadSchema["anyOf"].([]any)
+		if !branchOK || !propertiesOK || !kindOK || !valueOK || !payloadOK || !alternativesOK || len(alternatives) != 2 {
+			t.Fatalf("invalid apply-action branch: %#v", rawBranch)
+		}
+		expected, known := want[kind]
+		if !known || seen[kind] || branch["title"] != expected.title {
+			t.Fatalf("unexpected or duplicate apply-action branch: %#v", rawBranch)
+		}
+		ref, _ := alternatives[0].(map[string]any)["$ref"].(string)
+		nullType, _ := alternatives[1].(map[string]any)["type"].(string)
+		if ref != expected.ref || nullType != "null" {
+			t.Fatalf("payload branch for %s = %#v", kind, alternatives)
+		}
+		seen[kind] = true
+	}
+	if len(seen) != len(want) {
+		t.Fatalf("mapped action kinds = %v, want %v", seen, want)
+	}
+}
+
 func TestMCPStrictInputBoundary(t *testing.T) {
 	t.Parallel()
 

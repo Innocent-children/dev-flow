@@ -215,7 +215,7 @@ For active task:
     "repository_binding_digest": "sha256",
     "allowed_effects": ["edit_repository_files"],
     "required_evidence": [],
-    "payload_schema": {},
+    "payload_contract": "PLAN",
     "guidance": "Implement only the current plan and report changed paths."
   },
   "outcome": null,
@@ -250,8 +250,9 @@ binding.
 }
 ```
 
-`payload` must match the phase-specific closed schema returned by
-`dev_flow_get_next_action`. It is non-null for every normal apply and `RESOLVE_BLOCKER`.
+The public input schema selects one closed payload branch from `action_kind`; each branch is labeled
+with the corresponding Action `payload_contract`. Required-evidence names are not payload field
+aliases. `payload` is non-null for every normal apply and `RESOLVE_BLOCKER`.
 `request_id` is required and chosen/retained by the caller before dispatch. For a normal apply it is
 both response correlation and the operation ID stored in LastOperation/TaskEvent, so a lost response
 does not erase the identity needed by a later probe.
@@ -272,11 +273,11 @@ fresh observation becomes the next revision's binding. `RESOLVE_BLOCKER` succeed
 Feature 002's exact `restore_issuance_binding` condition and may return only to its stored
 `resume_phase`; it does not adopt changed worktree or identity state.
 
-`PREPARE_HANDOFF` is shared by REVIEW and HANDOFF. When its structurally identical rework/replan
-wire payload does not identify which sealed Go payload type is required, the adapter performs one
-ordinary no-probe Application task read to obtain the authoritative current source phase. That read
-does not observe Git or write state; the following ApplyAction still applies the exact revision,
-action, binding, workflow, recovery, and terminal checks.
+`PREPARE_HANDOFF` is shared by REVIEW and HANDOFF, so the public schema exposes one merged wire
+branch containing their existing result vocabulary. The adapter performs the existing ordinary
+no-probe Application task read to select the authoritative sealed source-Phase payload type. That
+read does not observe Git or write state; the following ApplyAction still applies the exact
+revision, action, binding, workflow, recovery, and terminal checks.
 
 ### Success Result
 

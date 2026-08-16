@@ -473,3 +473,23 @@ branches independently.
 5. Deliver User Story 4, run bounded recovery cases, and stop for recovery review.
 6. Add the MCP adapter only after the application service is stable.
 7. Freeze Core Contract 0.1 and only then branch features `003` and `004` in parallel.
+
+---
+
+## Phase 9: ApplyAction Payload Schema Clarification
+
+**Purpose**: Make the existing Core-owned payload catalog directly consumable by host agents without
+moving workflow authority into either host adapter.
+
+- [x] T091 Amend `spec.md`, `plan.md`, `data-model.md`, `contracts/mcp-tools.md`, and `tasks.md`
+  with the unique `action_kind` payload branches, merged `PREPARE_HANDOFF` wire branch, and explicit
+  non-goals. (FR-074, SC-017)
+- [x] T092 Add one RED structural contract test to `tests/contract/mcp_contract_test.go`, then
+  update only `internal/mcp/schemas.go` with the seven discriminated action branches and existing
+  recovery-null support. Do not change Domain, Workflow, Application, persistence, protocol
+  version, tools, or host packages. (FR-074, SC-010, SC-017)
+- [x] T093 Run only `go test ./internal/mcp ./tests/contract` and `git diff --check`. Do not run a
+  host journey, full suite, benchmark, fuzz, race, or add a new framework. (FR-074, SC-017)
+
+**Checkpoint**: Core Contract 0.1 exposes one machine-consumable payload branch per public action
+kind while runtime behavior and authority boundaries remain unchanged.

@@ -175,6 +175,16 @@ const schemaDefinitions = `
         "reason":{"type":"string","maxLength":4096}
       }
     },
+    "prepareHandoffPayload": {
+      "type":"object","additionalProperties":false,
+      "required":["result","summary","delivery","reason"],
+      "properties":{
+        "result":{"type":"string","enum":["ready","complete","rework_implementation","replan"]},
+        "summary":{"type":"string","minLength":1,"maxLength":2048},
+        "delivery":{"anyOf":[{"$ref":"#/$defs/delivery"},{"type":"null"}]},
+        "reason":{"type":"string","maxLength":4096}
+      }
+    },
     "resolveBlockerPayload": {
       "type":"object","additionalProperties":false,
       "required":["result","blocker_id","summary","resolution_evidence"],
@@ -263,6 +273,59 @@ const applyActionInputSchema = `{
     "payload":{"anyOf":[{"$ref":"#/$defs/actionPayload"},{"type":"null"}]},
     "recovery_apply":{"anyOf":[{"$ref":"#/$defs/recoveryApply"},{"type":"null"}]}
   },
+  "allOf":[{
+    "oneOf":[
+      {
+        "title":"INTAKE / ASSESS_TASK",
+        "properties":{
+          "action_kind":{"const":"ASSESS_TASK"},
+          "payload":{"anyOf":[{"$ref":"#/$defs/assessPayload"},{"type":"null"}]}
+        }
+      },
+      {
+        "title":"ASSESS / PLAN_CHANGE",
+        "properties":{
+          "action_kind":{"const":"PLAN_CHANGE"},
+          "payload":{"anyOf":[{"$ref":"#/$defs/planPayload"},{"type":"null"}]}
+        }
+      },
+      {
+        "title":"PLAN / IMPLEMENT_CHANGE",
+        "properties":{
+          "action_kind":{"const":"IMPLEMENT_CHANGE"},
+          "payload":{"anyOf":[{"$ref":"#/$defs/implementPayload"},{"type":"null"}]}
+        }
+      },
+      {
+        "title":"IMPLEMENT / VERIFY_CHANGE",
+        "properties":{
+          "action_kind":{"const":"VERIFY_CHANGE"},
+          "payload":{"anyOf":[{"$ref":"#/$defs/verifyPayload"},{"type":"null"}]}
+        }
+      },
+      {
+        "title":"VERIFY / REVIEW_CHANGE",
+        "properties":{
+          "action_kind":{"const":"REVIEW_CHANGE"},
+          "payload":{"anyOf":[{"$ref":"#/$defs/reviewPayload"},{"type":"null"}]}
+        }
+      },
+      {
+        "title":"REVIEW or HANDOFF / PREPARE_HANDOFF",
+        "properties":{
+          "action_kind":{"const":"PREPARE_HANDOFF"},
+          "payload":{"anyOf":[{"$ref":"#/$defs/prepareHandoffPayload"},{"type":"null"}]}
+        }
+      },
+      {
+        "title":"BLOCKED / RESOLVE_BLOCKER",
+        "properties":{
+          "action_kind":{"const":"RESOLVE_BLOCKER"},
+          "payload":{"anyOf":[{"$ref":"#/$defs/resolveBlockerPayload"},{"type":"null"}]}
+        }
+      }
+    ]
+  }],
 ` + schemaDefinitions + `
 }`
 

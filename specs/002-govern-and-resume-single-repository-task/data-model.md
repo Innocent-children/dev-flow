@@ -241,7 +241,7 @@ passes Domain invariants cannot be rejected merely because its encoded snapshot 
 | repository_binding_digest | SHA-256 | exact observed repository |
 | allowed_effects | string[] | closed values defined per action |
 | required_evidence | EvidenceRequirement[] | closed contract |
-| payload_contract | Phase | closed source-phase discriminator; no arbitrary JSON map |
+| payload_contract | Phase | closed source-phase discriminator; the public ApplyAction schema labels the matching action-kind payload branch; no arbitrary JSON map |
 | guidance | string | concise host-neutral direction within Core Limits 0.1 |
 | issued_at | timestamp | not used to expire an otherwise current action |
 
@@ -250,7 +250,8 @@ Story 2 implements the complete closed phase payload types in `internal/workflow
 specified by `contracts/state-machine.md`; the MCP adapter defines JSON schemas at its own
 boundary rather than storing `map[string]any` in Domain. `payload_contract` reuses the action's
 source `Phase`, which keeps `REVIEW` and `HANDOFF` distinct even though both issue
-`PREPARE_HANDOFF`.
+`PREPARE_HANDOFF`. The MCP schema exposes one merged wire branch for that shared action kind; the
+existing authoritative source-Phase read still selects the sealed REVIEW or HANDOFF Go payload.
 
 The `HANDOFF` phase's `PREPARE_HANDOFF` action allows both `read_repository` and
 `prepare_delivery_summary`; its required repository observation would otherwise be unauthorized.

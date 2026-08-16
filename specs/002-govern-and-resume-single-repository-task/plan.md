@@ -12,7 +12,9 @@ Implement the host-independent Dev Flow Core as one Go binary with one normal st
 SQLite database, one read-only Git observer, one application service, and exactly six STDIO MCP
 tools. The Core persists immutable task contracts, stage actions, repository claims, evidence
 summaries, revisions, blockers, and terminal outcomes. It supports restart resume and conservative
-read-before-retry recovery without executing development commands or mutating Git.
+read-before-retry recovery without executing development commands or mutating Git. The public
+ApplyAction JSON Schema discriminates the existing closed payloads by `action_kind`, so host
+adapters consume Core-owned shapes without copying a payload catalog.
 
 ## Technical Context
 
@@ -89,6 +91,16 @@ publication at this checkpoint.
 
 Post-design re-check: PASS. The Store and RepositoryObserver interfaces are the two explicitly
 permitted infrastructure ports. No additional abstraction is introduced.
+
+### Core Contract 0.1 payload-schema clarification
+
+- Keep Domain, Workflow, Application, persistence, tool count, and protocol version unchanged.
+- Add one JSON Schema branch per public `action_kind` in `internal/mcp/schemas.go`; each branch
+  permits only its existing closed payload plus the existing recovery `null` value.
+- Represent the shared `PREPARE_HANDOFF` action with one merged wire schema. Runtime keeps the
+  existing no-probe source-Phase read that selects REVIEW versus HANDOFF sealed Go payload types.
+- Add one structural contract test in `tests/contract/mcp_contract_test.go`; add no runtime schema
+  validator, dependency, framework, host fixture matrix, or real-host test to this Core change.
 
 ## Project Structure
 
