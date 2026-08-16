@@ -79,13 +79,13 @@ running a real host, building a final artifact, publishing evidence, or consumin
 
 ## Deferred Follow-up
 
-- [ ] **T074 [DEFERRED]** HIGH-1 diagnostic precedence: one minimal regression proving an MCP-specific
+- [X] **T074** HIGH-1 diagnostic precedence: one minimal regression proving an MCP-specific
   failure remains the primary diagnostic when later summary checks fail.
-- [ ] **T075 [DEFERRED]** HIGH-2 Core envelope closure: one minimal malformed/mismatched envelope
+- [X] **T075** HIGH-2 Core envelope closure: one minimal malformed/mismatched envelope
   regression.
-- [ ] **T076 [DEFERRED]** HIGH-3 failed event/recovery binding: one wrong-task or wrong-revision
-  recovery-chain regression.
-- [ ] **T077 [DEFERRED]** HIGH-4 aggregate/session MCP fact parity: one injected aggregate/session
+- [X] **T076** HIGH-3 failed event/recovery binding: one cross-item result/recovery binding regression
+  plus tool, request-ID, and duplicate-item negatives.
+- [X] **T077** HIGH-4 aggregate/session MCP fact parity: one injected aggregate/session
   mismatch regression.
 - [ ] **T078 [DEFERRED]** Run the final real Codex acceptance journey after T074–T077 close and
   immediately before merge approval.
@@ -100,7 +100,7 @@ running a real host, building a final artifact, publishing evidence, or consumin
 - T071 runs once after T070 passes.
 - T072 runs once after T071.
 - T073 follows T072.
-- T074–T079 are not part of this checkpoint and cannot be marked complete here.
+- T074–T077 are complete; T078–T079 remain deferred to their independent checkpoints.
 
 ## Requirements Coverage
 
