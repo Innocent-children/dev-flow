@@ -1,579 +1,167 @@
 # Implementation Plan: Codex Explicit Dev Flow
 
 **Branch**: `003-codex-explicit-dev-flow`  
-**Date**: 2026-08-15  
 **Spec**: [spec.md](./spec.md)  
-**Input**: Feature specification from `specs/003-codex-explicit-dev-flow/spec.md`
+**Checkpoint**: Test-suite simplification; Feature 003 remains **NO-GO**
 
 ## Summary
 
-Deliver one private, locally packed `dev-flow-codex` artifact containing exactly one Codex plugin,
-one explicitly selected `$dev-flow-codex:dev-flow` Skill, one local STDIO MCP registration, one packaged macOS
-arm64 Go Core executable, and small Node.js standard-library lifecycle/launch glue.
+Retain the existing thin Codex package and Core-authoritative workflow implementation while reducing
+Feature 003 verification to product-facing contracts. Package, lifecycle, Skill, Core-loop, parser,
+and native-smoke layers remain. Release/supply-chain provenance, immutable attempts, and
+crash-transaction machinery are deferred.
 
-The Go Core remains the sole authority for task state, transitions, repository claims, recovery,
-verification budgets, and terminal outcomes. The Codex layer owns only package composition,
-explicit registration/removal, process launch, invocation guidance, and evidence presentation.
-
-Feature 003 uses deterministic package, fake-Codex, fake-Core, and harness-contract checks during
-story implementation. It completes **exactly one passing real Codex host journey**. Only T058 may
-start Codex, each immutable source/validation/artifact chain permits at most one launch, and every
-launch occurs only after deterministic checks and root validation pass and one final artifact is
-built from frozen source. Failed or blocked attempts remain counted but never establish support;
-intermediate user-story checkpoints never start a real Codex host or create native support evidence.
+This checkpoint changes tests, validation scripts, and Feature 003 documentation only. It does not
+modify `packages/codex/bin`, `packages/codex/lib`, plugin resources, Core, protocol, DeepSeek, or
+the root validator.
 
 ## Technical Context
 
-**Core language/toolchain**: Go 1.26 or the repository-pinned compatible toolchain  
-**Host glue**: Node.js `>=24`, ECMAScript modules, Node standard library only  
-**Package manager**: pnpm `>=11 <12`; npm-compatible local `.tgz` installation  
-**Core dependencies**: existing `github.com/modelcontextprotocol/go-sdk` and `modernc.org/sqlite`  
-**Storage**: Core-owned SQLite under explicit `DEV_FLOW_DATA_DIR`, otherwise
-`~/Library/Application Support/dev-flow/data` on macOS  
-**Registration receipt**:
-`~/Library/Application Support/dev-flow/registrations/codex.json`  
-**Transport**: local STDIO only  
-**Target evidence platform**: macOS arm64, Codex CLI only  
-**Host compatibility**: Codex CLI `>=0.147.0 <0.148.0`; exact final host `0.147.0`, selected by
-implementation-time revalidation on 2026-08-15 rather than frozen into the product specification
-**Publication**: prohibited in Feature 003
+| Item | Decision |
+|---|---|
+| Core contract | Core Contract 0.1, six tools |
+| Package | private `dev-flow-codex@0.1.0` |
+| Host baseline | Codex CLI 0.147, macOS arm64 |
+| Skill selector | `$dev-flow-codex:dev-flow` |
+| Transport | direct local STDIO MCP |
+| Runtime dependencies | none |
+| Test runtime | Node.js >=24 and Go toolchain |
+| Persistent smoke state | none |
+| Merge status | NO-GO until four HIGH cases and final acceptance are closed |
 
 ## Constitution Check
 
-| Principle | Result | Design evidence |
-|---|---|---|
-| I. Self-Contained Product Scope | PASS | One bounded Codex package and one install-to-remove capability. |
-| II. Single Workflow Authority | PASS | Core alone owns task, action, recovery, claim, and outcome semantics. |
-| III. One State Machine, Bounded Surface | PASS | Exactly the six Core Contract 0.1 tools; no aliases or secondary catalog. |
-| IV. Thin Host Adapters | PASS | Node code is limited to lifecycle, paths, launch, and evidence glue. |
-| V. Recovery Before Retry | PASS | Uncertain mutations require authoritative task/next-action reads. |
-| VI. Read-Only Repository Boundary | PASS | Setup/removal write only product-owned user locations; Core does not mutate Git. |
-| VII. Evidence-Bounded Testing | PASS | Deterministic checks per story and one final real-host journey only. |
-| VIII. Proven Simplicity | PASS | No runtime dependency, proxy, generic framework, listener, or polling loop. |
-| IX. Vertical-Slice Specifications | PASS | US1, US2, and US3 remain independently testable without repeated native journeys. |
-| X. Two-Host Contract Parity | PASS | Shared Core fixtures are consumed in place and public Core contracts stay unchanged. |
+- Core alone owns state, transitions, next action, recovery, and terminal outcomes.
+- Codex remains a thin host adapter with no workflow engine or generic MCP proxy.
+- Product code does not mutate Git.
+- Fake/static checks are never promoted to real-host evidence.
+- The final acceptance journey is a merge gate, not a release-provenance system.
+- This checkpoint introduces no new product abstraction or schema version.
 
-No constitutional exception is requested.
-
-## Host Compatibility Revalidation
-
-Codex plugin, Skill, MCP, marketplace, setup, removal, and JSON readback contracts are volatile
-external inputs. Before final validation, one serialized compatibility task must:
-
-1. inspect the then-current official Codex documentation and exact stable CLI artifact;
-2. select a minimum supported version and a bounded compatible range;
-3. record the exact version used for native evidence;
-4. update every compatibility-bearing artifact together when the selected range or official
-   behavior differs from the planning baseline:
-   - `README.md` and `spec.md`;
-   - `research.md`;
-   - this `plan.md`;
-   - `contracts/codex-plugin.md`;
-   - `contracts/dev-flow-skill.md`;
-   - `contracts/registration-receipt.schema.json`;
-   - `contracts/journey-evidence.schema.json`;
-   - `data-model.md`;
-   - `quickstart.md`;
-   - `tasks.md`;
-   - affected package documentation, manifests, plugin resources, lifecycle/fake implementation,
-     and package/Skill/lifecycle tests under `packages/codex/`;
-   - affected local-build, fake-journey, root-validation, and shared contract gates;
-5. rerun analyze/checklist review if the official contract changes product behavior rather than
-   only field names, commands, or the compatible range.
-
-T052 selected exact stable CLI `0.147.0` and retained the bounded range
-`>=0.147.0 <0.148.0`. Official 0.147 source review changed behavior-bearing implementation details:
-
-- explicit-only Skill selection is declared by
-  `skills/dev-flow/agents/openai.yaml` at `policy.allow_implicit_invocation`, not by `SKILL.md`
-  frontmatter;
-- `.mcp.json` uses the intersection accepted by both 0.147 plugin parsers: the Agent Plugins v1
-  `$schema`, camelCase `mcpServers`, and a `type: stdio` server;
-- marketplace/plugin JSON commands return top-level objects with camelCase fields, so lifecycle
-  reconciliation validates those official objects and then compares the one owned entry;
-- the receipt digests the Skill metadata policy in addition to the Skill and MCP resources.
-
-This revalidation is not parallel with final test hardening, root validation, or artifact creation.
-
-## Project Structure
-
-### Documentation
+## Allowed Checkpoint Paths
 
 ```text
-specs/003-codex-explicit-dev-flow/
-├── README.md
-├── spec.md
-├── plan.md
-├── research.md
-├── data-model.md
-├── quickstart.md
-├── contracts/
-│   ├── codex-plugin.md
-│   ├── dev-flow-skill.md
-│   ├── artifact-report.schema.json
-│   ├── journey-evidence.schema.json
-│   ├── native-attempt-diagnostic.schema.json
-│   ├── native-attempt-ledger.schema.json
-│   ├── validation-report.schema.json
-│   └── registration-receipt.schema.json
-├── checklists/
-│   ├── requirements.md
-│   └── codex-product-quality.md
-└── tasks.md
+specs/003-codex-explicit-dev-flow/**
+packages/codex/tests/**
+packages/codex/package.json
+scripts/run-codex-real-journey.sh
+scripts/validate-codex-journey-evidence.mjs
+scripts/write-codex-journey-evidence.mjs
+tests/contract/**
 ```
 
-### Planned source and verification changes
-
-```text
-internal/version/
-├── version.go
-└── version_test.go
-
-packages/codex/
-├── package.json
-├── README.md
-├── .agents/plugins/marketplace.json
-├── bin/dev-flow-codex.mjs
-├── lib/lifecycle.mjs
-├── lib/paths.mjs
-├── plugin/.codex-plugin/plugin.json
-├── plugin/.mcp.json
-├── plugin/skills/dev-flow/SKILL.md
-├── plugin/skills/dev-flow/agents/openai.yaml
-└── tests/
-    ├── fixtures/fake-codex.mjs
-    ├── fixtures/fake-core.mjs
-    ├── fixtures/fake-native-tool.mjs
-    ├── fake-core-contract.test.mjs
-    ├── journey-evidence.test.mjs
-    ├── journey-harness.test.mjs
-    ├── launcher.test.mjs
-    ├── lifecycle.test.mjs
-    ├── package-contract.test.mjs
-    ├── paths.test.mjs
-    ├── removal-retention.test.mjs
-    └── skill-contract.test.mjs
-
-scripts/
-├── build-codex-local.sh
-├── run-codex-real-journey.sh
-├── write-codex-journey-evidence.mjs
-├── validate-codex-journey-evidence.mjs
-└── validate-repository.sh
-
-tests/
-├── contract/
-│   ├── fixture_contract_test.go
-│   ├── package_manifest_test.go
-│   └── repository_layout_test.go
-└── journeys/evidence/codex-macos-arm64.json
-```
-
-The prebuilt executable and `.tgz` exist only in temporary staging. They are never committed.
-
-## Product Design
-
-### Package and runtime
-
-The artifact contains one executable entry, `dev-flow-codex`. Production commands are limited to:
-
-- `setup [--json]`;
-- `remove [--json]`;
-- `mcp`;
-- `--version`.
-
-`mcp` resolves only the package-local Core executable, validates the supported platform and data
-root, and inherits stdin/stdout/stderr. It does not parse or project MCP messages.
-
-The shared `internal/version` seam permits a detached binary to report repository `VERSION` through
-link-time injection while preserving source-tree fallback behavior. It changes no public Core
-contract.
-
-### Explicit setup and removal
-
-npm installation runs with lifecycle scripts disabled and does not register anything. Explicit
-setup reads current Codex marketplace/plugin state, validates package resources and compatibility,
-performs supported Codex mutations, reads state back, and writes an ownership receipt only after
-success.
-
-The selected CLI contract uses `{marketplaces: [...]}` and `{installed: [...], available: [...]}`
-readback objects plus camelCase add/remove result objects. Only the owned local marketplace and
-installed plugin are reconciled; unrelated entries remain untouched.
-
-Removal reads the receipt and Codex state before mutation, removes only matching product-owned
-plugin/marketplace registration, verifies absence, deletes only the exact receipt, and preserves
-task data, the npm package, adjacent user files, Codex cache/config internals, and repositories.
-
-### Skill authority
-
-The sole Skill is excluded from implicit injection by its official `agents/openai.yaml` policy and
-also begins with an exact current-turn `$dev-flow-codex:dev-flow` guard. Codex 0.147 exposes the
-Skill base name `dev-flow` under its installed plugin namespace `dev-flow-codex`; bare `$dev-flow`
-does not select this plugin Skill. The Skill rejects empty,
-conversational, non-Git, and multi-repository requests before opening a task. It calls
-`dev_flow_server_info` first and accepts only Core Contract 0.1 with the exact six tools.
-
-For each action it follows live Core identity, schema, allowed effects, evidence requirements,
-recovery assessment, blocker, and outcome. It does not contain a state machine, action catalog,
-error reinterpretation, recovery classifier, or completion predicate.
+All product adapter, plugin, Core, protocol, DeepSeek, root-validator, main-branch, artifact, ledger,
+and canonical-evidence paths are read-only.
 
 ## Verification Design
 
-### Deterministic evidence layers
+### Layer 1 — Package
 
-1. **Static/package contracts**: artifact allowlist, one plugin/Skill/MCP server, no lifecycle
-   mutation, version parity, no embedded workflow authority, and no copied Core fixtures.
-2. **Fake Codex lifecycle**: exact setup/remove argv, exact total readback cardinality, idempotency,
-   conflicts, rollback ownership under a concurrent already-added result, and adjacent-file
-   preservation.
-3. **Fake Core contract**: exact six-tool mapping, closed argument forwarding, full results,
-   verification budgets, terminal outcomes, and read-before-retry ordering.
-4. **Journey harness contract**: stage ordering, artifact digest propagation, source identity,
-   session boundary, repository/data fingerprints, and evidence classification without starting
-   Codex.
-5. **Packaged-Core retention integration**: real packaged Core against a temporary data directory,
-   but no real Codex host.
-6. **Native-runner contract**: argument/preflight gates, frozen artifact and validation identity,
-   exact Codex `exec --json`/`command_execution` parsing, official full-name plugin Skill resolution,
-   MCP call/result extraction, session separation, role-scoped safe command facts, bounded durable
-   failure-session projections, Core-bound proof classification, direct-Core fail-closed framing,
-   and exclusive atomic evidence creation are
-   exercised through the production default helpers with deterministic fake npm/Codex/Core child
-   processes; this layer cannot emit `native-host` evidence, build the final artifact, or start
-   Codex.
+Owns private-package identity, exact packed allowlist, runtime executable selection, no lifecycle
+mutation hooks, and absence of copied Core/test authority.
 
-US1, US2, and US3 checkpoints use only these deterministic layers.
+Primary tests: `package-contract.test.mjs`, `paths.test.mjs`, and Go manifest/layout contracts.
 
-### Exactly one passing native journey
+### Layer 2 — Lifecycle
 
-After compatibility revalidation, all targeted tests, root validation, and a read-only pre-final
-diff audit pass, the source tree is frozen and one final artifact is built for the current chain.
-That exact artifact may be launched once and the single passing journey covers:
+Owns setup/readback, idempotence, bounded rollback, removal, compatible reinstall, and retained task
+data.
 
-1. install with scripts disabled;
-2. explicit setup and readback;
-3. ordinary prompt proving zero Dev Flow tool calls/tasks;
-4. invalid explicit invocations;
-5. a substantive `$dev-flow-codex:dev-flow` task;
-6. at least two Core-confirmed workflow action commits;
-7. Codex close/restart;
-8. same-task resume and continuing revision lineage;
-9. verification-budget compliance;
-10. Core-owned `DONE`;
-11. explicit deregistration;
-12. retained task-data digest and direct task reopen;
-13. npm uninstall and compatible reinstall;
-14. repository and adjacent-file comparison.
+Primary tests: `launcher.test.mjs`, `lifecycle.test.mjs`, and
+`removal-retention.test.mjs`.
 
-No earlier task may start a real Codex host or write native support evidence.
+### Layer 3 — Skill
 
-### Frozen-source native runner
+Owns exact explicit selector, ordinary/invalid zero-call behavior, six-tool handshake, and the
+absence of adapter-owned workflow authority.
 
-Before root validation and source freeze, the repository implements the native mode of
-`scripts/run-codex-real-journey.sh` plus the bounded
-`scripts/write-codex-journey-evidence.mjs` writer. Native mode accepts only the unmodified T057
-final-artifact report, the machine-generated T055 validation report, and an absolute exact 0.147.0
-Codex executable, plus a machine-maintained native-attempt ledger stored outside the repository.
-Both reports bind to the same frozen source commit; the runner recomputes both report digests and
-artifact identity, derives one chain ID from those immutable identities, and rejects missing,
-open-shaped, mismatched, substituted, or time-inverted inputs, an already-attempted chain, any
-source commit already present in the ledger, an existing passing attempt, any unresolved reserved
-entry, or a pre-existing evidence file before launching Codex. Evidence/ledger recovery is a
-separate no-host admission path and cannot fall through to native mode.
+Primary test: `skill-contract.test.mjs`.
 
-The runner installs the private artifact into isolated package/data/home paths, performs supported
-setup/readback, repeats the immutable-input preflight, and only then reserves an attempt. Failure in
-those pre-reservation steps writes no ledger entry or diagnostic and starts no session. Immediately
-before reservation it initializes all four safe session observations, so every error after a
-successful reservation carries that projection. It then uses official `codex exec --json` sessions.
-Its substantive and resume prompts
-select the installed Skill only as `$dev-flow-codex:dev-flow`; the deterministic Codex double derives
-that selector from plugin `dev-flow-codex` plus Skill base name `dev-flow`, rejects bare/wrong/missing
-selectors as unselected, and never manufactures MCP activity from a role regex. JSONL
-`thread.started` and complete
-`item.completed` MCP and `command_execution` events are the host observation boundary; truncated
-previews and free-form agent prose are never promoted into Core evidence. Every completed command
-event is first captured with its session role, per-session event index, item/command/output SHA-256,
-status, and exit code; raw command/output/path material is discarded after classification and
-hashing. Separate processes cover ordinary and invalid invocation checks, the substantive task,
-and an explicit new-session resume; all four thread IDs are nonempty and pairwise distinct.
-For Dev Flow MCP terminal items, Codex 0.147 has two closed failed forms. A failed item with a
-complete `result`, complete text/`structured_content` parity carrying a Core `ok=false` envelope,
-and `error=null` is a
-`tool_error_result`; the parser retains the full Core envelope as authoritative and the driver obeys
-that envelope's stop/recovery semantics. A failed item with `result=null` and a typed `error` is a
-`transport_error`; because no Core result exists, the runner stops fail-closed. A `status=completed`
-item still requires a complete error-free result and exact text/structured parity. Unknown,
-mixed, truncated, or failed-with-`ok=true` shapes remain protocol failures rather than being normalized into either
-official failed form. A passing native chain may include a complete recoverable Core error only when
-the subsequent complete Core calls prove the required recovery-before-retry sequence. For every such
-item, both passing evidence and durable observed facts retain the same ordered safe
-`recoverable_mcp_failure_facts` entry: role/event index, exact `dev_flow_apply_action`, canonical
-request task ID/expected revision, failed status, complete-result digest,
-bounded Core error code, Core `retry_safe=false` and `read_task|read_next_action` recovery values,
-and digest-bound references with task ID/revision to the
-later `dev_flow_get_task`, `dev_flow_get_next_action`, and next `dev_flow_apply_action` calls. Semantic validation
-orders call references by the fixed session-role sequence and then event index, requires the failed
-item before both reads and both reads before the mutation, and binds every reference to the exact
-safe `mcp_call_facts` projection. The failed request and all references use the canonical journey
-task ID; its expected revision belongs to raw lineage, the two read revisions are equal, while the successful apply revision is greater, occurs in raw lineage, and
-matches a committed action. That closed observed-facts projection carries role/index/tool,
-argument/result digests, status/result kind, nullable task lineage, and nullable bounded Core
-error/recovery fields for every terminal Dev Flow item; it retains no raw payload or message.
-Transport failures are prohibited from passing facts. The journey may
-not ignore a failed item or treat a transport error as a Core decision.
-Ordinary and invalid-session commands are non-verification facts and those sessions are rejected
-only for a Dev Flow call/task, not for a read-only host command. Substantive/resume inspection and
-implementation commands are also non-verification facts. The only verification event is the exact
-Codex 0.147 macOS rendering `/bin/zsh -lc 'git hash-object native-proof.txt'`, mapped to logical proof
-name `git hash-object native-proof.txt`; this byte-exact rendering is recognized directly and is not
-derived with a generic shell parser. It must appear exactly once, in a substantive or resume
-session, and map one-to-one to the submitted and retained Core automated check. Any second or
-unbound occurrence fails closed. Independently, any rendered command containing one of the closed
-known test/full-suite UTF-8 markers `go test`, `pnpm test`, `pnpm run test`, `pnpm run validate`, or
-`node --test` fails closed. `pnpm run validate` is explicit because it is the repository-wide root
-gate. Marker comparison is a literal deny check, not shell parsing or permission to normalize the
-accepted proof rendering.
+### Layer 4 — Core Loop
 
-After the substantive process is deliberately closed, the resume process must call
-`dev_flow_get_task` and then `dev_flow_get_next_action` before any later mutation. The runner derives
-the verification budget and terminal phase from complete Core task/action results, counts only the
-Core-bound verification subset against that budget, requires Core `phase=DONE`, and checks raw
-revision observations for non-regression before adjacent duplicates are collapsed. Setup and
-reinstall readback require exactly one owned marketplace, one installed plugin, and zero available
-entries. The runner then performs removal/readback, bounded fail-closed direct Core task reopen,
-separate npm uninstall, compatible reinstall, and repository/task-data/adjacent comparisons. Direct
-reopen rejects any non-JSON line, unknown or duplicate response ID, or output limit breach.
+Owns deterministic six-tool forwarding and create/apply/restart/resume/DONE behavior using the
+existing fake Core and shared Core fixtures. It also preserves the product-level distinction
+between a Core domain error and a transport failure.
 
-Immediately before reservation, and therefore before the first session spawn, the runner initializes
-four ordered safe failure observations for
-`ordinary`, `invalid`, `substantive`, and `resume`. As each subprocess starts, streams, exits, parses,
-or fails its stop marker, the record advances through the closed stage set `not_started`,
-`spawn_failed`, `capture_failed`, `process_exited`, `parse_failed`, `completed`, or
-`stop_marker_missing`; a future official failed MCP item that terminates the journey uses `mcp_failed`.
-Each role record contains only exit code/signal, thread presence, separately
-bounded stdout/stderr byte counts and SHA-256 digests, and exact closed counters for event kinds,
-completed item kinds, and MCP statuses. The `thread_started` counter includes only structurally valid
-events with a nonempty thread ID; malformed thread events count as `other` and force `parse_failed`,
-while multiple valid thread-start events remain counted and also fail parsing. Stdout and stderr are
-each capped at 64 MiB. The current four
-records are attached to every error after reservation and create-exclusively persisted in both the
-failure-observed-facts projection and its matching diagnostic before the isolated workspace is
-deleted. Raw JSONL, stderr, prompts, commands, outputs, environment values, secrets, thread IDs, and
-paths never enter either file.
+Primary test: `fake-core-contract.test.mjs`.
 
-The evidence writer consumes only those bounded observations and validates the closed schema-facing
-shape. After a successful host run it create-exclusively persists immutable observed facts outside
-the repository, fixes every timestamp, and prepares/fsyncs the exact final `pass` ledger candidate
-and exact final evidence candidate. The evidence binds the observed-facts digest, exact final ledger
-digest, and `evidence-create-before-ledger-finalize-v1` protocol. It first publishes the evidence at
-`tests/journeys/evidence/codex-macos-arm64.json` with a same-filesystem atomic create-no-replace
-operation only after the exact evidence/final-ledger candidates pass the complete structural and
-semantic validators together with both retained reports and the artifact. It then atomically
-replaces the reserved external ledger with only the precomputed final bytes. T054 tests the
-runner/writer and every recovery boundary with non-native inputs; T058 is the only task that may
-enter native mode or start Codex.
+### Layer 5 — Codex 0.147 Parser
 
-The same writer has one non-native T055 operation that creates a temporary validation report
-outside the repository from the exact targeted/root commands, pass results, completion times, and
-source commit. Because the calendar date crossed after T052, T055 first rereads the official
-`@openai/codex` `latest` dist-tag, requires it still resolve to selected `0.147.0`, and records the
-exact UTC query time/range in that report; any change returns to T052 and checklist/analyze before
-the frozen chain. That report is not journey evidence and cannot write the native evidence path.
-The exact ordered targeted command set is `go test ./internal/version ./tests/contract` followed by
-`node --test packages/codex/tests/*.test.mjs`; semantic validation rejects omissions, additions,
-duplicates, or reordering before the separate exact `pnpm run validate` observation.
+Owns only three host terminal shapes:
 
-The T055 validation report, T057 artifact report, and external attempt ledger each use a closed JSON
-Schema. The artifact report records `built_at`; the evidence records both report SHA-256 values,
-the artifact build time, the current chain ID, stable ledger ID, and the ledger's actual attempt
-count. One durable external ledger path/ID is initialized before the first T055 chain and reused by
-every failed/recovery/new chain; the runner rejects a report bound to a different ledger identity.
-The ID is SHA-256 over the domain-separated canonical absolute path, so moving or copying the bytes
-to another path cannot preserve admission identity; initialization and later access reject a
-symlinked ledger leaf or noncanonical parent.
-Every admission first performs full ledger schema and semantic validation: attempt numbers are
-exactly `1..N`; chain IDs and source commits are unique; finalized statuses have the required
-completion/facts fields; at most one `pass` exists and it is final; at most one `reserved` entry
-exists and it is final; and no entry follows either a pass or unresolved reservation. Reservation
-repeats those checks while holding an exclusive closed owner lock that binds ledger ID, owner token,
-PID, creation time, operation, and expected ledger-byte digest. A stale lock is recoverable only
-when its shape/identity is valid and its PID is definitely dead; a live, permission-ambiguous, or
-malformed owner blocks. Every reservation or finalization re-reads and compares the expected ledger
-bytes inside that same lock immediately before atomic replacement. After every preflight succeeds
-and immediately before spawning Codex, the writer atomically reserves the next attempt and
-permanently consumes that chain/source. A `reserved` entry never permits host launch.
-Before evidence publication, interrupted recovery may only finalize the attempt as failed/blocked
-from durable facts or leave it reserved; it cannot declare pass. Once valid passing evidence is
-published it is the immediate admission pass-lock even if the ledger is still reserved. Recovery
-may then only validate the evidence and idempotently install the precomputed exact final ledger
-bytes; if the ledger was already finalized it only validates both files. A later T058 attempt is
-allowed only after a source correction and a wholly new T055 validation report, T056 freeze, and
-T057 artifact/report for a ledger with no unresolved reservation or pass. Support derives only from
-the one passing evidence/ledger pair, and no launch is allowed after evidence publication.
-The canonical repository evidence path and `journey-evidence.schema.json` are pass-only.
-Failed/blocked diagnostics use the independent closed
-`native-attempt-diagnostic.schema.json` contract under the external recovery directory; the writer
-validates each diagnostic before its atomic write. The conditional schema preserves the immutable
-attempt-1 schema-version-1/`external-failure-record-v1`, attempt-2
-schema-version-2/`external-failure-record-v2`, and attempt-3
-schema-version-3/`external-failure-record-v3` files without replacing or enriching them. Every
-failure after attempt 3 uses schema version 4 and `external-failure-record-v4`, requires the four
-ordered safe session observations above, and requires semantic equality between those observations
-and the closed failure-observed-facts projection hashed by the ledger. Whenever the failure is
-attributable to a completed command event, `failure_kind=command_event` requires exactly
-`{session_role,event_type,command_sha256,output_sha256,status,exit_code}`. Whenever it is attributable
-to a failed Dev Flow MCP terminal item, `failure_kind=mcp_event` requires exactly
-`{session_role,event_type,event_index,tool,status,result_kind,result_sha256,error_sha256}`. The tool is
-one of the six Core Contract names; `event_index` is zero-based after `thread.started`; and
-`tool_error_result` requires only the canonical complete-result digest while `transport_error`
-requires only the canonical typed-error digest. A non-command failure uses
-`failure_kind=non_command` and prohibits both contexts. Version-4 `failure` and `skips` contain only
-a closed phase code, closed reason code, and SHA-256 of the bounded detail; they never include raw
-arguments/result/error/command/output text or repository paths, claim journey-evidence schema
-version 3, or occupy the canonical path. Structural conditionals bind v1/v2/v3 to exact attempt and
-total counts 1/2/3 and v4 to counts of at least 4; semantic validation additionally binds the
-diagnostic identity, observed-facts digest, and version to the exact corresponding durable-ledger
-entry and rejects any later v1/v2/v3 downgrade. For `mcp_event`, semantic validation also requires
-the context role's observation to be `mcp_failed`, its failed/Dev Flow/MCP/item-completed counters to
-prove at least one such terminal item, its event index to be within the post-`thread.started` event
-range, and the failure to be exactly `codex-session` / `mcp-event-failed`. Only the error constructed
-from the attributable failed item may carry that context; an earlier recovered MCP failure cannot be
-reused by a later unrelated error. The exact immutable v1 bytes are a legacy-only exception, never a template
-for a new textual observation. The durable ledger remains the attempt authority. A post-publication integrity
-failure is a terminal blocked recovery condition, not permission to delete evidence or start a new
-chain.
+1. `item.completed` + `status=completed` + complete structured/text-parity result;
+2. `item.completed` + `status=failed` + complete Core `ok=false` result;
+3. `item.completed` + `status=failed` + no complete result + typed transport error.
 
-## Journey Evidence Contract
+Three sanitized JSONL files under `tests/contract/testdata/codex-0.147/` are the only host-shape
+fixtures. They preserve event/item/status/tool/result-presence/parity/error shape and contain no
+prompt, source, user path, environment, token, or secret.
 
-`journey-evidence.schema.json` validates the canonical passing record only.
-`native-attempt-diagnostic.schema.json` separately validates honest `failed` and `blocked` records
-containing only observations available before the failure. Its conditional versions accept the
-immutable attempt-1 v1, attempt-2 v2, and attempt-3 v3 history byte-unchanged; every later record
-uses v4 with four safe session observations and, when applicable, exactly one closed command or MCP
-failure context. No version allows raw JSONL/command/output/environment/secret/thread/path material,
-and those records never fabricate task lineage or completed lifecycle fields.
+Primary test: rewritten `journey-evidence.test.mjs`.
 
-JSON Schema cannot compare values or prove ordering. Therefore
-`scripts/validate-codex-journey-evidence.mjs` performs required semantic checks for a passing record:
+### Layer 6 — Native Smoke
 
-- package version equals Core version and repository `VERSION`;
-- the exact Codex version satisfies the recorded compatible range;
-- evidence source commit equals the frozen source commit used to build the artifact;
-- validation/artifact report digests equal the retained input reports and all three source commits
-  match;
-- the validation report contains the exact two ordered targeted commands once, the exact root
-  command once, and the same stable ledger ID as evidence and the external ledger;
-- every targeted/root observation uses that source commit and completes no later than the validation
-  report's `completed_at`;
-- the official dist-tag query precedes every command completion, and evidence validation observations
-  equal the validation report observations exactly;
-- `validation.completed_at <= artifact.built_at < evidence.recorded_at`;
-- the attempt ledger contains no duplicate chain or source commit, its count equals the evidence
-  count, and exactly one entry—the current attempt—is passing;
-- evidence and its pass ledger entry bind the same durable observed-facts digest, exact final ledger
-  digest, chain, attempt number, and commit protocol;
-- the exact four Codex thread IDs are nonempty and pairwise distinct;
-- raw task revisions never regress, and their adjacent-deduplicated lineage is strictly increasing;
-- committed-action revisions belong to the recorded lineage;
-- task IDs before and after restart are equal;
-- at least two action commits are present;
-- `core_call_count <= scenario_call_budget`;
-- the complete Core-derived verification budget equals the evidence projection; every completed
-  official command execution is represented by a role/event/item/command/output digest, status,
-  exit code, and classification; all ordinary/invalid facts and non-proof active-session facts are
-  non-verification; and the single exact rendered proof maps one-to-one to both submitted and
-  retained automated evidence, stays within budget, and is rejected when duplicated, unbound, or
-  inconsistent with `allow_full_suite=false`;
-- `recoverable_mcp_failure_facts` exactly equals the ordered safe projection of every complete
-  recoverable failed Dev Flow apply item in the four sessions; each fact binds its canonical request
-  task/expected revision, Core error/recovery fields and result digest, and its task/revision-bearing `get_task`, `get_next_action`, and
-  next-`apply_action` references match complete successful safe session calls in strict
-  recovery-before-mutation order. The failed request and references use the journey task ID, its
-  expected revision belongs to raw lineage, the reads share a revision and the
-  greater apply revision appears in raw lineage and committed actions. A transport failure, missing or
-  duplicate fact/reference, unbound result digest, or mutation before both reads fails validation;
-  `read_before_retry_observations` equals the distinct fact-referenced reads plus the fixed restart
-  pair, deduplicated by role/event index;
-- after the restart boundary, `dev_flow_get_task` then `dev_flow_get_next_action` precede any later
-  `apply_action`;
-- terminal task phase and outcome are both `DONE`/completed;
-- setup and reinstall observations each contain exactly one owned marketplace, one installed owned
-  plugin, and zero available plugins;
-- retained data uses the closed non-secret descriptor and its path digest matches durable observed
-  facts without exposing the absolute path;
-- task-data manifests/digests before and after removal are equal;
-- repository digest after completion equals repository digest after removal;
-- unexpected changed paths are empty;
-- setup, restart/resume, removal, retention, and task-reopen flags are true;
-- the recorded targeted checks and root `pnpm run validate` passed before artifact creation.
+The checked-in smoke command accepts either one sanitized fixture or an explicitly supplied Codex
+executable and workspace. Fixture mode is the deterministic development gate. Real mode is manual,
+repeatable, emits only ephemeral summaries, and never creates a validation report, artifact report,
+attempt ledger, or canonical evidence.
 
-The bound `validate:evidence` command loads and validates the evidence, validation report, artifact
-report, attempt ledger, artifact bytes, and root version, then runs the same complete passing
-semantics used before publication. Post-publication recovery additionally checks the already
-prepared exact bytes and identities; it never weakens the public validator into digest-only
-acceptance. Neither validator modifies evidence.
+Primary test: rewritten `journey-harness.test.mjs` with the thin
+`tests/fixtures/fake-native-tool.mjs` fixture emitter.
 
-## Root Validation Ownership
+### Final Acceptance
 
-Feature 003 owns the first expansion of `scripts/validate-repository.sh` from skeleton dry-pack
-rules to the delivered Codex package boundary. The script must:
+Exactly once immediately before merge approval, an operator runs the real-host acceptance mode
+against the reviewed package. It must cover ordinary isolation, exact Skill invocation, handshake,
+create/apply/restart/resume/DONE, error-shape distinction, removal, and retained task data. Its
+result is an acceptance observation, not release provenance. This checkpoint does not execute it.
 
-- preserve root toolchain, formatting, vet, Go test, and frozen workspace checks;
-- validate the exact Codex source/dry-pack allowlist expected by this feature;
-- retain the DeepSeek skeleton rule until Feature 004 is merged;
-- run no real host, network publication, package installation into user state, or release action.
+## Test Audit
 
-Feature 004 may later extend this validator only from the merged Feature 003 baseline.
+| Classification | Files / behavior | Disposition |
+|---|---|---|
+| KEEP | `paths.test.mjs`, `launcher.test.mjs`, `lifecycle.test.mjs`, `package-contract.test.mjs`, `skill-contract.test.mjs`, `fake-core-contract.test.mjs`, `removal-retention.test.mjs` | Retain as product-bearing layers; remove only release-report assertions from package contracts. |
+| MERGE | create/apply/restart/resume/DONE and read-before-retry coverage | Keep in `fake-core-contract.test.mjs`; do not duplicate in native parser tests. |
+| REWRITE | `journey-harness.test.mjs`, `journey-evidence.test.mjs`, `fake-native-tool.mjs` | Replace thousands of release/evidence cases with parser and repeatable-smoke tests. |
+| DEFER | attempt-ledger crash/recovery, pass-lock, fsync/TOCTOU, diagnostic versions, 64 MiB boundaries, one-shot chains, release provenance reports | Explicitly moved to a future release/supply-chain feature. |
+| DELETE | Feature 003 tests and schemas whose sole contract is a deferred release concern | Delete only after this plan and spec establish the deferral. |
 
-## Final Artifact and Evidence Order
+## Pending HIGH Regression Inventory
 
-The final chain is strictly serialized:
+The checkpoint keeps four non-passing follow-up cases as `test.todo` and records them in
+`spec.md` and `tasks.md`:
 
-1. compatibility revalidation;
-2. documentation/contract reconciliation;
-3. all targeted Go/Node/package/fake checks;
-4. root `pnpm run validate`;
-5. after any source fix, rerun the complete ordered deterministic set and root gate from the new
-   clean commit;
-6. read-only pre-final scope/diff audit;
-7. freeze the source commit;
-8. build exactly one final artifact and closed artifact report for the current chain;
-9. verify artifact allowlist, versions, executable, source identity, and digest;
-10. reserve the chain, run its sole native attempt, durably prepare and completely validate exact
-    candidates, publish evidence create-no-replace, then finalize the ledger with the precomputed
-    bytes;
-11. rerun byte/identity validation of the already prevalidated evidence/ledger pair or the bounded
-    no-host recovery path;
-12. run a final read-only diff audit.
+- HIGH-1 diagnostic precedence;
+- HIGH-2 Core envelope closure;
+- HIGH-3 failed event/recovery binding;
+- HIGH-4 aggregate/session MCP fact parity.
 
-After step 8, no source or evidence-producing code may be changed without discarding the artifact and
-restarting from step 3. After a native launch begins, that chain may never launch again. A failed or
-blocked artifact/external-diagnostic pair is discarded as a whole while its attempt-ledger entry is
-retained; another launch requires a source correction and new steps 3–8 with the same ledger.
-Canonical evidence is pass-only and is never edited or repaired. A published passing record ends
-native execution immediately, including during recovery from an interrupted ledger finalize; any
-later integrity failure is terminal blocked recovery rather than retry authority.
+No implementation change in this checkpoint may close or weaken those cases.
 
-## Complexity Tracking
+## Development and Final Commands
 
-No constitutional exception is required. The build-version seam, registration receipt, semantic
-evidence validator, and product-specific root allowlist each solve a concrete packaging,
-ownership, or evidence-integrity requirement. None creates workflow authority or a generic host
-framework.
+During implementation, run only:
+
+```bash
+go test ./internal/version ./tests/contract
+node --test packages/codex/tests/<targeted-files>
+git diff --check
+```
+
+After all edits, run exactly once:
+
+```bash
+pnpm run validate
+```
+
+Then run exactly one final `speckit-analyze` pass and at most one independent read-only review.
 
 ## Delivery Boundary
 
-Feature 003 is complete only when:
+Two commits separate intent from mechanics:
 
-- reviewer-owned requirement checklists are approved;
-- deterministic package/fake/integration checks pass;
-- root validation passes;
-- one frozen-source artifact is built;
-- exactly one real Codex journey passes, with at most one launch per immutable chain and every
-  failed/blocked native attempt honestly counted;
-- its evidence passes both structural and semantic validation; and
-- the final diff remains within the approved Feature 003 scope.
+1. `docs(codex): reduce feature verification scope`
+2. `test(codex): simplify adapter test suite`
 
-Public publication, release automation, signatures, automatic updates, Windows/Linux packages,
-other Codex surfaces, DeepSeek implementation, and Core Contract changes remain out of scope.
+Push only `codex/feature-003-simplify-tests`. Do not merge main. Completion of this checkpoint
+does not change Feature 003 from NO-GO.

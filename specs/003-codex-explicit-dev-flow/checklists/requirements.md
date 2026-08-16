@@ -31,16 +31,17 @@
 - [x] Verification budgets, evidence-source labels, blockers, cancellation, and Core `DONE` are
   objectively measurable.
 
-## Test and artifact ordering
+## Test and acceptance ordering
 
-- [x] Deterministic user-story checkpoints are separated from native evidence.
-- [x] Exactly one passing real Codex journey is required and sufficient; consumed failed attempts
-  remain external and non-supporting, and each immutable chain permits at most one launch.
+- [x] Package, lifecycle, Skill, Core-loop, parser, and native-smoke responsibilities are separated.
+- [x] Development smoke is repeatable, ephemeral, and cannot be promoted to final acceptance.
 - [x] Feature 003 owns the Codex-aware root validation update.
-- [x] Structural and semantic evidence validation responsibilities are separated.
-- [x] Deterministic/root checks and source freeze precede one final artifact; evidence is written once
-  and validated read-only afterward.
-- [x] Honest failed/blocked records do not require fabricated unavailable journey fields.
+- [x] Three sanitized Codex 0.147 fixtures cover success, Core-domain-error, and transport-error
+  terminal shapes without private host material.
+- [x] One real acceptance journey runs only after deterministic/root checks and immediately before
+  merge approval.
+- [x] Failed smoke/acceptance runs create no fabricated support evidence or permanently consumed
+  attempt.
 
 ## Review result
 

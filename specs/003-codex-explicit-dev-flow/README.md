@@ -1,38 +1,26 @@
-# 003 Codex Explicit Dev Flow
+# Feature 003 — Codex Explicit Dev Flow
 
-Feature 002 and Core Contract 0.1 are complete. This directory contains the reviewed planning
-package for the thin, explicit-only Codex product.
+Feature 003 packages Dev Flow as a thin, explicit-only Codex integration.
 
-The remediation review establishes these implementation gates:
+Current checkpoint:
 
-1. Codex compatibility is revalidated immediately before final validation. T052 selected exact
-   stable Codex CLI `0.147.0` within `>=0.147.0 <0.148.0`; this remains an implementation-time
-   result rather than a permanent product-schema rule.
-2. User-story checkpoints use static, fake-Codex, fake-Core, packaged-Core, and journey-harness
-   evidence only.
-3. Feature 003 completes exactly one passing real Codex host journey. Only T058 may launch Codex,
-   and each immutable source/validation/artifact chain may launch it at most once after targeted
-   checks, root validation, a read-only scope audit, source freeze, and one final artifact/report.
-   Failed or blocked attempts remain counted in the external attempt ledger, cannot establish
-   support, and require a source fix plus a wholly new T055–T057 chain before another launch.
-   Passing commit is evidence-first: a reserved chain durably prepares exact candidates, publishes
-   evidence create-no-replace, then finalizes the ledger; valid passing evidence is an immediate
-   no-host lock across crash recovery.
-4. The canonical journey schema is pass-only; failed/blocked attempts use an independent closed
-   external diagnostic schema. A read-only semantic validator proves version, source/artifact,
-   raw-revision/thread lineage, Core-derived verification budget and commands, authoritative
-   terminal outcome, non-secret retained-data identity, registry cardinality, repository, ledger
-   lock/CAS, and prior-validation relationships.
-5. Feature 003 owns the first Codex-aware expansion of the root repository validator. Feature 004
-   consumes that merged capability rather than repairing it later.
+- retains package, setup/readback, exact Skill selector, six-tool handshake, Core loop, and removal
+  retention;
+- replaces release-grade evidence machinery with three sanitized Codex 0.147 parser fixtures and a
+  repeatable ephemeral smoke;
+- defers attempt ledgers, frozen-chain admission, digest/provenance reports, crash transactions,
+  diagnostic-version matrices, evidence-path durability protocols, and release publication;
+- preserves four unresolved HIGH regression cases;
+- does not run a real host or attempt #4.
 
-The package remains one private local artifact containing one plugin, one `dev-flow` Skill, one
-local STDIO MCP server, and one packaged Core runtime. It does not publish, mutate Git, edit target
-repositories during setup/removal, or duplicate Core workflow authority.
+Read in this order:
 
-The selected 0.147 contract stores the explicit-only policy in
-`plugin/skills/dev-flow/agents/openai.yaml`, uses the MCP shape accepted by both 0.147 plugin
-parsers, and reconciles the official top-level-object/camelCase plugin CLI JSON.
+1. [spec.md](./spec.md)
+2. [plan.md](./plan.md)
+3. [tasks.md](./tasks.md)
+4. [data-model.md](./data-model.md)
+5. [research.md](./research.md)
+6. [quickstart.md](./quickstart.md)
 
-Implementation proceeds only after the reviewer-owned checklists in this directory remain satisfied
-against the final revised artifacts.
+Feature 003 remains **NO-GO** until HIGH-1 through HIGH-4 are closed and the final real Codex
+acceptance journey passes.

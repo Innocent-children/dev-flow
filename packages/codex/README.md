@@ -18,12 +18,10 @@ packages/codex/
 └── runtime/darwin-arm64/dev-flow       # temporary build staging only
 ```
 
-The implementation-time compatibility review selected Codex CLI `>=0.147.0 <0.148.0` and exact
-latest stable `0.147.0` for the unique passing native journey. Immediately before the final
-deterministic/frozen chain, T055 must requery the official `@openai/codex` `latest` npm dist-tag and
-record the exact UTC query time in the closed validation report. The final evidence records the
-tested version and range; they remain bounded implementation evidence rather than an indefinite
-compatibility promise.
+The implementation baseline is Codex CLI `0.147.x` on macOS arm64. Sanitized fixtures and the
+development smoke target that host contract. The final pre-merge acceptance report records the
+actual Codex, package, and Core versions exercised; it is a product acceptance record, not an
+indefinite compatibility promise.
 
 Development requires Node.js `>=24`, pnpm `>=11 <12`, and the repository-pinned Go toolchain. The
 package has no production npm dependency and no install, publication, download, or release hook.
@@ -146,69 +144,71 @@ indefinitely. The selected MCP file uses Agent Plugins v1 `$schema`, camelCase `
 contract requires every compatibility-bearing contract, test, and guide to be updated before a
 final artifact is built.
 
-User-story checkpoints are deterministic only. Run targeted checks such as:
+## Deterministic validation
+
+Run the product-bearing package layers directly:
 
 ```bash
 pnpm --dir packages/codex test:package
 pnpm --dir packages/codex test:lifecycle
-pnpm --dir packages/codex test:journey-harness
+pnpm --dir packages/codex test:parser
+pnpm --dir packages/codex test:native-smoke
 pnpm --dir packages/codex pack:dry
 ```
 
-The fake-host journey is the only checkpoint command before final validation:
+The checked-in Codex 0.147 fixtures cover three mutually exclusive terminal shapes without starting
+Codex: completed success with text/structured parity, failed Core-domain result with the same parity,
+and failed transport with no complete Core result. They contain no prompt, source, user path,
+environment, token, or secret.
 
 ```bash
-./scripts/run-codex-real-journey.sh --fake-host --through setup
-./scripts/run-codex-real-journey.sh --fake-host --through done
-./scripts/run-codex-real-journey.sh --fake-host --through remove
+./scripts/run-codex-real-journey.sh --fixture success
+./scripts/run-codex-real-journey.sh --fixture core-domain-error
+./scripts/run-codex-real-journey.sh --fixture transport-error
 ```
 
-Those runs must not start Codex or write native evidence. After compatibility revalidation, all
-targeted checks, root validation, a read-only audit, source freeze, and one final artifact/report,
-only T058 may start Codex. Each immutable source/validation/artifact chain may launch once; failed,
-blocked, or interrupted attempts remain counted and require a source fix plus a wholly new T055–T057
-chain. Exactly one passing attempt supports the macOS arm64 Codex CLI claim, and its publication
-immediately prohibits any later host launch. Public npm publication, GitHub releases, tags,
-Windows/Linux claims, IDE support, and additional Codex surfaces remain out of scope.
+## Repeatable development smoke
 
-Before the first T055 chain, initialize one durable ledger outside the repository and keep that exact
-path and generated ledger ID for every failed, recovery, or replacement chain. The writer refuses to
-replace it with empty history. The native runner accepts only the closed T055 validation report,
-closed T057 artifact report, absolute exact Codex executable, and that same external attempt ledger:
+After deterministic checks are green, a developer may run the real smoke entry point with an
+explicit Codex executable and temporary worktree:
 
 ```bash
 ./scripts/run-codex-real-journey.sh \
-  --validation-report "$CODEX_VALIDATION_REPORT" \
-  --artifact-report "$CODEX_ARTIFACT_REPORT" \
+  --smoke \
   --codex-executable "$CODEX_EXECUTABLE" \
-  --attempt-ledger "$CODEX_ATTEMPT_LEDGER"
+  --workspace "$CODEX_SMOKE_WORKTREE"
 ```
 
-It permanently reserves the chain before spawn. After host success it fsyncs durable observed facts
-and exact final evidence/ledger candidates, performs complete structural and semantic validation of
-those exact candidates plus unchanged reports/artifact/ledger, publishes only a passing native
-evidence candidate create-no-replace, then atomically finalizes the ledger from the precomputed
-bytes. The canonical repository evidence path is pass-only; failed/blocked diagnostics stay under
-the external recovery directory. Every new attempt numbered 3 or later uses the closed version-3
-diagnostic with four ordered role-scoped session observations. A command-event failure additionally
-retains only session role, event type, safe command/output hashes, status, and exit code; no raw JSONL,
-stderr, prompt, command, output, environment, secret, thread ID, or path is retained. The immutable
-attempt-1 version-1 and attempt-2 version-2 records remain byte-unchanged. Valid
-passing evidence is an immediate no-host admission lock even
-if a crash left the ledger reserved. That recovery may only validate the published evidence and
-idempotently install the exact candidate ledger; a pre-evidence crash cannot be promoted to pass or
-relaunch the consumed chain. Post-publication validation only rechecks byte/identity integrity and
-never repairs evidence; failure there is terminal blocked recovery, not authority for another host
-launch.
+Development smoke is intentionally repeatable. It keeps only its returned in-memory session summary,
+may be rerun after a failure, and creates no formal support statement. It checks ordinary-prompt
+isolation and the exact `$dev-flow-codex:dev-flow` selector; deterministic package, lifecycle,
+Core-loop, parser, and removal-retention tests remain the normal development gates.
 
-The setup checkpoint builds and installs a temporary non-final artifact into isolated paths, puts
-the test-only Codex double first on `PATH`, performs supported JSON registration/readback, compares
-the repository fingerprint, and emits a `classification=simulated` JSON record with
-`real_codex_started=false` and `native_evidence_written=false`. Calling the harness without
-`--fake-host` is rejected during the user-story phases. The `done` checkpoint additionally drives
-two confirmed fake-Core action commits across a deliberate process restart, loses the second
-mutation response after persistence, reads the same task back before any retry, and captures Core
-`DONE` within the recorded call and verification budgets. The `remove` checkpoint then proves
-receipt-first deregistration, repeated absence, adjacent/repository/task-data preservation, direct
-task reopen, separate npm uninstall, and compatible reinstall. Every checkpoint remains simulated
-evidence only.
+## Final pre-merge acceptance
+
+Run one final real-host acceptance only after development smoke is stable and the four pending HIGH
+regressions are closed. The real-host entry point records ephemeral session observations:
+
+```bash
+./scripts/run-codex-real-journey.sh \
+  --acceptance \
+  --codex-executable "$CODEX_EXECUTABLE" \
+  --workspace "$CODEX_ACCEPTANCE_WORKTREE"
+```
+
+The observation itself does not claim acceptance. A single simplified JSON report must then record
+the reviewed source and artifact identities, Codex/package/Core versions, setup readback, zero Core
+calls for the ordinary prompt, the exact selector, the same task ID across restart, at least two
+committed actions, Core `DONE`, successful removal readback, retained and reopened task data, and an
+empty unexpected-repository-path list. Package and Core versions must match. Validate that closed
+object without creating any additional report files:
+
+```bash
+node scripts/write-codex-journey-evidence.mjs \
+  acceptance-report \
+  --report "$CODEX_ACCEPTANCE_REPORT"
+```
+
+Feature 003 uses this one acceptance report only as a pre-merge product gate. It does not implement
+a release or supply-chain proof system. Public npm publication, GitHub releases, tags,
+Windows/Linux claims, IDE support, and additional Codex surfaces remain out of scope.
