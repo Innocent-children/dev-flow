@@ -107,8 +107,15 @@ isolated development-smoke runs. Feature 003 remains NO-GO until T078 passes.
   align only the directly affected selector-boundary documentation and existing Node assertions,
   and preserve workspace-write plus Core/repository snapshot enforcement. (FR-010a, FR-010b,
   FR-017, FR-028, SC-002)
+- [X] **T084** Repair the real acceptance session boundary observed on reviewed commit `b7ca18e` in
+  `scripts/write-codex-journey-evidence.mjs` and
+  `packages/codex/tests/journey-harness.test.mjs`: stop substantive immediately after the first
+  successful Core mutation following the requested repository change while the task is
+  nonterminal, then let one fresh resume session continue that same task to `DONE`. Reuse the
+  existing bounded process stop; do not run a real Host during this repair checkpoint. (FR-028,
+  SC-004)
 - [ ] **T078** Run the final real Codex acceptance journey after T074–T077 close and
-  after T080–T083 close, immediately before merge approval. Ordinary must remain zero-call; the
+  after T080–T084 close, immediately before merge approval. Ordinary must remain zero-call; the
   non-mutating bare-selector probe must retain real call facts while proving unchanged
   task/event/claim and target-repository state before substantive/restart/resume/DONE/removal/reopen.
 - [ ] **T079 [EXTERNAL / DEFERRED]** Design release-grade provenance, immutable attempt state,
@@ -132,7 +139,7 @@ isolated development-smoke runs. Feature 003 remains NO-GO until T078 passes.
 - T072 runs once after T071.
 - T073 follows T072.
 - T074–T077 and the repeatable development smoke are complete.
-- T080–T083 and final validation on a clean reviewed commit precede T078.
+- T080–T084 and final validation on a clean reviewed commit precede T078.
 - T079 belongs to a separate release/supply-chain feature and is not a Feature 003 merge gate.
 
 ## Requirements Coverage
@@ -145,7 +152,7 @@ isolated development-smoke runs. Feature 003 remains NO-GO until T078 passes.
 | FR-025 package contracts | T001–T030, T068–T070 |
 | FR-026 deterministic Core loop/parser | T031–T043, T063–T070 |
 | FR-027 repeatable development smoke | T061, T066–T072 |
-| FR-028 final acceptance gate | T061, T067, T078, T080–T083 |
+| FR-028 final acceptance gate | T061, T067, T078, T080–T084 |
 | SC-001 | T015–T030, T068–T070 |
 | SC-002 | T015–T030, T063–T070, T080–T083 |
 | SC-003 | T031–T043, T069–T070 |

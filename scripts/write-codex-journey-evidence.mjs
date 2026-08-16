@@ -37,7 +37,7 @@ export const invalidPrompt =
 export const smokePrompt =
   `${EXPLICIT_SELECTOR} Inspect the current repository and report the authoritative Dev Flow task status.`;
 export const acceptancePrompt =
-  `${EXPLICIT_SELECTOR} Complete the bounded acceptance task in this repository and stop only at the Core outcome.`;
+  `${EXPLICIT_SELECTOR} Begin the bounded acceptance task in this repository. Stop immediately after the first successful dev_flow_apply_action following the requested repository change while the Core task remains nonterminal. Do not continue to verification or a terminal outcome in this session; a fresh session will resume the task.`;
 export const resumePrompt =
   `${EXPLICIT_SELECTOR} Resume the existing compatible Dev Flow task and continue to the Core outcome.`;
 export const developmentInvalidPrompt =
@@ -46,6 +46,7 @@ export const developmentSubstantivePrompt = `${EXPLICIT_SELECTOR} Work only in t
 export const developmentResumePrompt = `${EXPLICIT_SELECTOR} Resume the existing compatible host=codex task. After dev_flow_open_task, call dev_flow_get_task and then dev_flow_get_next_action before any new dev_flow_apply_action. Preserve the same task, run only "git hash-object native-proof.txt" as the single targeted verification command, and continue until Core reports phase DONE with outcome completed.`;
 
 const PROOF_CONTENT = "Dev Flow Codex development smoke passed.\n";
+const ACCEPTANCE_PROOF_CONTENT = "Dev Flow Codex final acceptance passed.\n";
 const PROOF_COMMAND = "git hash-object native-proof.txt";
 const PROOF_RENDERED_COMMAND = "/bin/zsh -lc 'git hash-object native-proof.txt'";
 const PROOF_GIT_HASH = createHash("sha1")
@@ -110,6 +111,7 @@ export async function runCodexSession({
   skipGitRepoCheck = false,
   workspaceWrite = false,
   stopAfterApplyPath = null,
+  stopAfterApplyContent = null,
   retainCoreRejections = false,
 }) {
   requireAbsolute(codexExecutable, "Codex executable");
@@ -119,7 +121,10 @@ export async function runCodexSession({
   }
   const processOptions = { cwd: workspace };
   if (environment !== undefined) processOptions.env = environment;
-  if (stopAfterApplyPath !== null) processOptions.stopAfterApplyPath = stopAfterApplyPath;
+  if (stopAfterApplyPath !== null) {
+    processOptions.stopAfterApplyPath = stopAfterApplyPath;
+    processOptions.stopAfterApplyContent = stopAfterApplyContent;
+  }
   const result = await runProcess(codexExecutable, buildCodexExecArgs(prompt, {
     ephemeral,
     skipGitRepoCheck,
@@ -388,7 +393,7 @@ export async function runIsolatedDevelopmentSmoke(options) {
     const substantive = await runCodexSession({
       codexExecutable: options.codexExecutable, workspace: layout.repository, role: currentRole,
       prompt: developmentSubstantivePrompt, includeCallFacts: true, environment, ephemeral: true,
-      stopAfterApplyPath: proofPath,
+      stopAfterApplyPath: proofPath, stopAfterApplyContent: PROOF_CONTENT,
     });
     currentRole = "resume";
     const resume = await runCodexSession({
@@ -486,6 +491,8 @@ export async function runAcceptanceJourney(options) {
     role: "substantive",
     prompt: acceptancePrompt,
     includeCallFacts: true,
+    stopAfterApplyPath: join(options.workspace, "acceptance-proof.txt"),
+    stopAfterApplyContent: ACCEPTANCE_PROOF_CONTENT,
     retainCoreRejections: false,
   });
   const resume = await runCodexSession({
@@ -1095,11 +1102,21 @@ async function readRetainedTask(runtimePath, dataDirectory, repository, taskID, 
   return result.result.task;
 }
 
-export async function defaultRunProcess(executable, args, { cwd, env, stopAfterApplyPath = null }) {
-  return streamingCodexProcess(executable, args, { cwd, env, stopAfterApplyPath });
+export async function defaultRunProcess(executable, args, {
+  cwd,
+  env,
+  stopAfterApplyPath = null,
+  stopAfterApplyContent = null,
+}) {
+  return streamingCodexProcess(executable, args, { cwd, env, stopAfterApplyPath, stopAfterApplyContent });
 }
 
-async function streamingCodexProcess(executable, args, { cwd, env, stopAfterApplyPath }) {
+async function streamingCodexProcess(executable, args, {
+  cwd,
+  env,
+  stopAfterApplyPath,
+  stopAfterApplyContent,
+}) {
   return new Promise((resolve) => {
     const child = spawn(executable, args, { cwd, env, stdio: ["ignore", "pipe", "pipe"], shell: false });
     const stdout = [];
@@ -1121,7 +1138,11 @@ async function streamingCodexProcess(executable, args, { cwd, env, stopAfterAppl
       const lines = lineBuffer.split("\n");
       lineBuffer = lines.pop();
       for (const line of lines) {
-        if (!intentionalStop && successfulApplyEvent(line) && exactProofExists(stopAfterApplyPath)) {
+        if (
+          !intentionalStop
+          && successfulApplyEvent(line)
+          && exactProofExists(stopAfterApplyPath, stopAfterApplyContent)
+        ) {
           intentionalStop = true;
           child.kill("SIGTERM");
         }
@@ -1157,8 +1178,9 @@ function successfulApplyEvent(line) {
   } catch { return false; }
 }
 
-function exactProofExists(path) {
-  try { return existsSync(path) && readFileSync(path).equals(Buffer.from(PROOF_CONTENT)); } catch { return false; }
+function exactProofExists(path, expectedContent) {
+  if (typeof path !== "string" || typeof expectedContent !== "string") return false;
+  try { return existsSync(path) && readFileSync(path).equals(Buffer.from(expectedContent)); } catch { return false; }
 }
 
 function requireAbsolute(value, label) {

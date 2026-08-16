@@ -253,6 +253,18 @@ test("acceptance sessions request workspace-write without disabling repository r
     "$dev-flow Reply exactly `BARE_SELECTOR_PROBE`. Do not call tools, inspect files, run commands, or modify the repository.",
   );
   assert.doesNotMatch(invocations[1].args.at(-1), /complete the bounded acceptance task/i);
+  assert.match(
+    invocations[2].args.at(-1),
+    /first successful dev_flow_apply_action following the requested repository change/u,
+  );
+  assert.match(invocations[2].args.at(-1), /Core task remains nonterminal/u);
+  assert.doesNotMatch(invocations[2].args.at(-1), /stop only at the Core outcome/u);
+  assert.equal(invocations[2].options.stopAfterApplyPath, "/fixture/worktree/acceptance-proof.txt");
+  assert.equal(
+    invocations[2].options.stopAfterApplyContent,
+    "Dev Flow Codex final acceptance passed.\n",
+  );
+  assert.equal(invocations[3].options.stopAfterApplyPath, undefined);
   for (const invocation of invocations) {
     const sandbox = invocation.args.indexOf("--sandbox");
     assert.notEqual(sandbox, -1);
