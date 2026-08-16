@@ -45,14 +45,14 @@ var codexPackageFiles = []string{
 }
 
 var codexDevelopmentScripts = map[string]string{
-	"build:local":          "../../scripts/build-codex-local.sh",
-	"journey:fake":         "../../scripts/run-codex-real-journey.sh --fake-host --through remove",
-	"pack:dry":             "pnpm pack --dry-run --json",
-	"test":                 "node --test tests/*.test.mjs",
-	"test:journey-harness": "node --test tests/journey-harness.test.mjs",
-	"test:lifecycle":       "node --test tests/lifecycle.test.mjs",
-	"test:package":         "node --test tests/package-contract.test.mjs",
-	"validate:evidence":    "node ../../scripts/validate-codex-journey-evidence.mjs ../../tests/journeys/evidence/codex-macos-arm64.json --validation-report \"$CODEX_VALIDATION_REPORT\" --artifact-report \"$CODEX_ARTIFACT_REPORT\" --attempt-ledger \"$CODEX_ATTEMPT_LEDGER\"",
+	"build:local":       "../../scripts/build-codex-local.sh",
+	"pack:dry":          "pnpm pack --dry-run --json",
+	"smoke:fixture":     "../../scripts/run-codex-real-journey.sh --fixture success",
+	"test":              "node --test tests/*.test.mjs",
+	"test:lifecycle":    "node --test tests/lifecycle.test.mjs",
+	"test:native-smoke": "node --test tests/journey-harness.test.mjs",
+	"test:package":      "node --test tests/package-contract.test.mjs",
+	"test:parser":       "node --test tests/journey-evidence.test.mjs",
 }
 
 func TestProjectPackageManifests(t *testing.T) {
@@ -199,11 +199,11 @@ func TestPackageManifestAcceptsBootstrapManifests(t *testing.T) {
 					"test": "node --test tests/*.test.mjs",
 					"test:package": "node --test tests/package-contract.test.mjs",
 					"test:lifecycle": "node --test tests/lifecycle.test.mjs",
-					"test:journey-harness": "node --test tests/journey-harness.test.mjs",
+					"test:parser": "node --test tests/journey-evidence.test.mjs",
+					"test:native-smoke": "node --test tests/journey-harness.test.mjs",
 					"pack:dry": "pnpm pack --dry-run --json",
 					"build:local": "../../scripts/build-codex-local.sh",
-					"validate:evidence": "node ../../scripts/validate-codex-journey-evidence.mjs ../../tests/journeys/evidence/codex-macos-arm64.json --validation-report \"$CODEX_VALIDATION_REPORT\" --artifact-report \"$CODEX_ARTIFACT_REPORT\" --attempt-ledger \"$CODEX_ATTEMPT_LEDGER\"",
-					"journey:fake": "../../scripts/run-codex-real-journey.sh --fake-host --through remove"
+					"smoke:fixture": "../../scripts/run-codex-real-journey.sh --fixture success"
 				}
 			}`,
 		},

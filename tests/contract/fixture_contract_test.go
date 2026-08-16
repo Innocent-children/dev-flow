@@ -251,6 +251,143 @@ func TestRepositoryProductionRootsRejectCopiedSharedFixtures(t *testing.T) {
 	}
 }
 
+func TestCodex0147SanitizedHostFixtures(t *testing.T) {
+	t.Parallel()
+
+	root := markdownRepositoryRoot(t)
+	fixtureRoot := filepath.Join(root, "tests", "contract", "testdata", "codex-0.147")
+	tests := []struct {
+		name         string
+		status       string
+		result       bool
+		transportErr bool
+	}{
+		{name: "success.jsonl", status: "completed", result: true},
+		{name: "core-domain-error.jsonl", status: "failed", result: true},
+		{name: "transport-error.jsonl", status: "failed", transportErr: true},
+	}
+
+	entries, err := os.ReadDir(fixtureRoot)
+	if err != nil {
+		t.Fatalf("read Codex 0.147 fixture directory: %v", err)
+	}
+	var names []string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			names = append(names, entry.Name())
+		}
+	}
+	sort.Strings(names)
+	if want := []string{"core-domain-error.jsonl", "success.jsonl", "transport-error.jsonl"}; !slices.Equal(names, want) {
+		t.Fatalf("Codex 0.147 fixtures = %v, want %v", names, want)
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			contents, err := os.ReadFile(filepath.Join(fixtureRoot, test.name))
+			if err != nil {
+				t.Fatalf("read fixture: %v", err)
+			}
+			lower := strings.ToLower(string(contents))
+			for _, forbidden := range []string{
+				"/users/", "/home/", `"prompt":`, `"source":`, `"path":`,
+				`"environment":`, `"env":`, `"token":`, `"secret":`,
+			} {
+				if strings.Contains(lower, forbidden) {
+					t.Fatalf("fixture contains forbidden private marker %q", forbidden)
+				}
+			}
+
+			lines := bytes.Split(bytes.TrimSpace(contents), []byte("\n"))
+			if len(lines) != 2 {
+				t.Fatalf("fixture has %d JSONL events, want 2", len(lines))
+			}
+			var started struct {
+				Type     string `json:"type"`
+				ThreadID string `json:"thread_id"`
+			}
+			if err := strictContractJSON(lines[0], &started); err != nil {
+				t.Fatalf("decode thread.started: %v", err)
+			}
+			if started.Type != "thread.started" || !strings.HasPrefix(started.ThreadID, "thread-redacted-") {
+				t.Fatalf("fixture starts with unsanitized thread identity: %#v", started)
+			}
+
+			var completed struct {
+				Type string `json:"type"`
+				Item struct {
+					ID        string          `json:"id"`
+					Type      string          `json:"type"`
+					Server    string          `json:"server"`
+					Tool      string          `json:"tool"`
+					Arguments json.RawMessage `json:"arguments"`
+					Result    json.RawMessage `json:"result"`
+					Error     json.RawMessage `json:"error"`
+					Status    string          `json:"status"`
+				} `json:"item"`
+			}
+			if err := strictContractJSON(lines[1], &completed); err != nil {
+				t.Fatalf("decode item.completed: %v", err)
+			}
+			if completed.Type != "item.completed" || completed.Item.Type != "mcp_tool_call" ||
+				completed.Item.Server != "dev-flow" || !slices.Contains(coremcpToolNames(), completed.Item.Tool) ||
+				completed.Item.Status != test.status || !strings.HasPrefix(completed.Item.ID, "item-redacted-") {
+				t.Fatalf("fixture terminal identity is not the reviewed Codex shape: %#v", completed)
+			}
+
+			if test.result {
+				assertCodexFixtureResultParity(t, completed.Item.Result)
+				if string(completed.Item.Error) != "null" {
+					t.Fatalf("complete result fixture error = %s, want null", completed.Item.Error)
+				}
+			} else {
+				if string(completed.Item.Result) != "null" {
+					t.Fatalf("transport fixture result = %s, want null", completed.Item.Result)
+				}
+				var typedError struct {
+					Code    int    `json:"code"`
+					Message string `json:"message"`
+				}
+				if err := strictContractJSON(completed.Item.Error, &typedError); err != nil ||
+					typedError.Message == "" || !test.transportErr {
+					t.Fatalf("transport fixture lacks the typed error shape: %#v (%v)", typedError, err)
+				}
+			}
+		})
+	}
+}
+
+func assertCodexFixtureResultParity(t *testing.T, raw json.RawMessage) {
+	t.Helper()
+	var result struct {
+		Content []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"content"`
+		Structured json.RawMessage `json:"structured_content"`
+	}
+	if err := strictContractJSON(raw, &result); err != nil {
+		t.Fatalf("decode complete Codex MCP result: %v", err)
+	}
+	if len(result.Content) != 1 || result.Content[0].Type != "text" {
+		t.Fatalf("complete result text blocks = %#v", result.Content)
+	}
+	var textValue any
+	if err := json.Unmarshal([]byte(result.Content[0].Text), &textValue); err != nil {
+		t.Fatalf("decode text result JSON: %v", err)
+	}
+	var structuredValue any
+	if err := json.Unmarshal(result.Structured, &structuredValue); err != nil {
+		t.Fatalf("decode structured result JSON: %v", err)
+	}
+	textCanonical, _ := json.Marshal(textValue)
+	structuredCanonical, _ := json.Marshal(structuredValue)
+	if !bytes.Equal(textCanonical, structuredCanonical) {
+		t.Fatalf("Codex fixture text/structured result mismatch")
+	}
+}
+
 func assertFixtureSuccessParity(t *testing.T, tool string, raw json.RawMessage) {
 	t.Helper()
 	var result map[string]json.RawMessage
