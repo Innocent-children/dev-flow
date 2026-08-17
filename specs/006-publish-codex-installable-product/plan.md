@@ -153,6 +153,63 @@ specs/006-publish-codex-installable-product/**
 Generated release output is written to an operator-selected temporary/output directory and is not
 committed.
 
+### User Story 1 implementation audit
+
+The Feature 003 package manifest currently names this production `files` allowlist:
+
+```text
+.agents/plugins/marketplace.json
+bin/dev-flow-codex.mjs
+lib/lifecycle.mjs
+lib/paths.mjs
+plugin/.codex-plugin/plugin.json
+plugin/.mcp.json
+plugin/skills/dev-flow/SKILL.md
+plugin/skills/dev-flow/agents/openai.yaml
+runtime/darwin-arm64/dev-flow
+```
+
+`package.json` and `README.md` are npm metadata files, and the current local builder stages the root
+license as package `LICENSE`. The packed contract therefore contains those three files plus the
+manifest allowlist. The sole runtime path is `runtime/darwin-arm64/dev-flow`; the approved current
+builder is `scripts/build-codex-local.sh`.
+
+Current package-contract coverage is in `packages/codex/tests/package-contract.test.mjs` and
+`packages/codex/tests/launcher.test.mjs`. Current lifecycle and retention coverage is in
+`packages/codex/tests/lifecycle.test.mjs` and
+`packages/codex/tests/removal-retention.test.mjs`. The public-package source-free checkpoint adds
+only `packages/codex/tests/release-package.test.mjs` to those layers.
+
+The bounded T001–T018 writable scope is:
+
+```text
+specs/006-publish-codex-installable-product/**
+release/**
+tests/contract/release_contract_test.go
+tests/contract/package_manifest_test.go
+tests/contract/repository_layout_test.go
+packages/codex/package.json
+packages/codex/LICENSE
+packages/codex/README.md
+packages/codex/tests/package-contract.test.mjs
+packages/codex/tests/launcher.test.mjs
+packages/codex/tests/release-package.test.mjs
+packages/codex/tests/removal-retention.test.mjs
+packages/codex/bin/dev-flow-codex.mjs
+packages/codex/lib/paths.mjs
+packages/codex/lib/lifecycle.mjs
+package.json
+scripts/validate-repository.sh
+.github/workflows/ci.yml
+```
+
+The launcher/path/lifecycle production files are conditional T017 targets and change only for a
+test-proven public-package defect. Generated tarballs, prefixes, npm caches, homes, data directories,
+repositories, and logs belong in explicit temporary/output directories and are never committed.
+The package `files` allowlist is the publication boundary, so no additional `.npmignore` contract is
+introduced. `packages/deepseek/` is read-only; the T003 baseline command
+`git diff --exit-code origin/main...HEAD -- packages/deepseek` passed with no output.
+
 ### CI path
 
 ```text

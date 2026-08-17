@@ -8,9 +8,9 @@
 ## Phase 1 — Setup and release baseline
 
 - [x] T001 Record the exact merged Feature 003/005 commits, Core fixture digest, Codex compatibility range, and intended release version in `specs/006-publish-codex-installable-product/research.md`.
-- [ ] T002 Verify authenticated npm permission for `dev-flow-codex` and GitHub release/tag permission; record bounded pass/fail evidence without credentials in `specs/006-publish-codex-installable-product/README.md`.
-- [ ] T003 Audit the Feature 003 packed layout and release writable scope, including an explicit unchanged `packages/deepseek/` baseline, in `specs/006-publish-codex-installable-product/plan.md`.
-- [ ] T004 Copy the approved JSON Schemas into implementation-owned paths `release/schemas/release-manifest.schema.json` and `release/schemas/publication-record.schema.json`.
+- [x] T002 Verify authenticated npm permission for `dev-flow-codex` and GitHub release/tag permission; record bounded pass/fail evidence without credentials in `specs/006-publish-codex-installable-product/README.md`.
+- [x] T003 Audit the Feature 003 packed layout and release writable scope, including an explicit unchanged `packages/deepseek/` baseline, in `specs/006-publish-codex-installable-product/plan.md`.
+- [x] T004 Copy the approved JSON Schemas into implementation-owned paths `release/schemas/release-manifest.schema.json` and `release/schemas/publication-record.schema.json`.
 
 ## Phase 2 — Foundational release contracts
 
