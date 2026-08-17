@@ -207,17 +207,30 @@ NODE
 
 artifact_path="$output_directory/dev-flow-codex-$version.tgz"
 find "$stage_root" -exec touch -t 198510260815.00 {} +
-(
-  cd "$build_root"
-  find package -type f -print | LC_ALL=C sort | COPYFILE_DISABLE=1 tar \
-    -cf "$build_root/dev-flow-codex.tar" \
-    --format ustar \
-    --uid 0 \
-    --gid 0 \
-    --uname root \
-    --gname root \
-    -T -
-)
+if tar --version 2>/dev/null | grep -q 'GNU tar'; then
+  (
+    cd "$build_root"
+    find package -type f -print | LC_ALL=C sort | COPYFILE_DISABLE=1 tar \
+      -cf "$build_root/dev-flow-codex.tar" \
+      --format ustar \
+      --owner 0 \
+      --group 0 \
+      --numeric-owner \
+      -T -
+  )
+else
+  (
+    cd "$build_root"
+    find package -type f -print | LC_ALL=C sort | COPYFILE_DISABLE=1 tar \
+      -cf "$build_root/dev-flow-codex.tar" \
+      --format ustar \
+      --uid 0 \
+      --gid 0 \
+      --uname root \
+      --gname root \
+      -T -
+  )
+fi
 gzip -n -c "$build_root/dev-flow-codex.tar" >"$artifact_path"
 [ -f "$artifact_path" ] || fail "archive creation did not produce the expected artifact"
 

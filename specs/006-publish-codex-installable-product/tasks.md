@@ -239,6 +239,10 @@ User Story 3 checkpoint evidence (2026-08-17):
   failed; `go test ./tests/contract`; four shell syntax checks; six Node syntax checks; seven JSON
   parses; two Schema equality checks; `git diff --check`; and both DeepSeek zero-diff checks. Real
   Host/registry tests were outside this deterministic command and did not run.
+- The first post-push Linux PR check exposed BSD-tar-only ownership flags in the local builder.
+  T044 selected GNU tar's equivalent normalized owner/group flags while preserving the existing
+  macOS/libarchive archive path. The affected package-contract command then passed 5/5 locally; the
+  PR remained Draft while GitHub CI exercised the real GNU tar branch.
 - T045 ran `RELEASE_BASE_SHA=<origin/main merge-base> pnpm run validate` exactly once and passed on
   Go 1.26.6 darwin/arm64, Node 24.18.0, and pnpm 11.21.0. Its internal `go test ./...` was not run
   separately or repeated.
