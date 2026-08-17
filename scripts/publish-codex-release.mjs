@@ -603,13 +603,14 @@ function isMainModule() {
 }
 
 function parseArguments(arguments_) {
+  const normalized = arguments_[0] === "--" ? arguments_.slice(1) : arguments_;
   let directory = null;
   let confirmation = null;
-  for (let index = 0; index < arguments_.length; index += 1) {
-    const argument = arguments_[index];
+  for (let index = 0; index < normalized.length; index += 1) {
+    const argument = normalized[index];
     if (argument === "--directory" || argument === "--confirm") {
-      if (index + 1 >= arguments_.length) throw new Error(`missing value for ${argument}`);
-      const value = arguments_[index + 1];
+      if (index + 1 >= normalized.length) throw new Error(`missing value for ${argument}`);
+      const value = normalized[index + 1];
       index += 1;
       if (argument === "--directory") {
         if (directory !== null) throw new Error("--directory may be supplied only once");

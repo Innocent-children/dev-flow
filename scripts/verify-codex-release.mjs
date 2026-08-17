@@ -836,8 +836,9 @@ function isMainModule() {
 }
 
 function parseVerifyArguments(arguments_) {
-  if (arguments_.length !== 2 || arguments_[0] !== "--directory" || !arguments_[1]) throw new Error("usage: verify-codex-release.mjs --directory ABSOLUTE_RELEASE_DIRECTORY");
-  return arguments_[1];
+  const normalized = arguments_[0] === "--" ? arguments_.slice(1) : arguments_;
+  if (normalized.length !== 2 || normalized[0] !== "--directory" || !normalized[1]) throw new Error("usage: verify-codex-release.mjs --directory ABSOLUTE_RELEASE_DIRECTORY");
+  return normalized[1];
 }
 
 function boundedError(error) {

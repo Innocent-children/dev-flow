@@ -5,6 +5,10 @@ set -eu
 repository_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 output_directory=""
 
+if [ "${1:-}" = "--" ]; then
+  shift
+fi
+
 usage() {
   printf '%s\n' 'usage: build-codex-release.sh --output ABSOLUTE_EMPTY_DIRECTORY' >&2
 }
