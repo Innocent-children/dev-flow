@@ -1,13 +1,85 @@
 package repository
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
 )
+
+func TestBindingDigestCoversClosedRepositoryComponents(t *testing.T) {
+	base := selfConsistentBinding()
+	tests := []struct {
+		name   string
+		mutate func(*domain.RepositoryBinding)
+	}{
+		{name: "branch", mutate: func(binding *domain.RepositoryBinding) { branch := "feature/component"; binding.Branch = &branch }},
+		{name: "detached", mutate: func(binding *domain.RepositoryBinding) { binding.Branch = nil; binding.Detached = true }},
+		{name: "HEAD", mutate: func(binding *domain.RepositoryBinding) { head := strings.Repeat("2", 40); binding.Head = &head }},
+		{name: "unborn", mutate: func(binding *domain.RepositoryBinding) { binding.Head = nil; binding.Unborn = true }},
+		{name: "worktree fingerprint", mutate: func(binding *domain.RepositoryBinding) { binding.WorktreeFingerprint = bindingDigest("4") }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			changed := base.Clone()
+			tt.mutate(&changed)
+			changed.BindingDigest = digestRepositoryBinding(changed)
+			if err := VerifyBindingDigests(changed); err != nil {
+				t.Fatalf("changed binding is not self-consistent: %v", err)
+			}
+			if changed.CanonicalRoot != base.CanonicalRoot ||
+				changed.GitCommonDirDigest != base.GitCommonDirDigest ||
+				changed.RepositoryIdentity != base.RepositoryIdentity ||
+				changed.BindingDigest == base.BindingDigest {
+				t.Fatalf("component change did not preserve repository identity or change binding: base=%#v changed=%#v", base, changed)
+			}
+		})
+	}
+}
+
+func TestCanonicalRepositoryAliasesConverge(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation is not reliably available without elevated privileges")
+	}
+	repositoryPath := newCommittedRepository(t, "alias-target")
+	subdirectory := filepath.Join(repositoryPath, "nested", "directory")
+	if err := os.MkdirAll(subdirectory, 0o755); err != nil {
+		t.Fatalf("create repository subdirectory: %v", err)
+	}
+	aliasRoot := t.TempDir()
+	symlinkAlias := filepath.Join(aliasRoot, "repository-link")
+	caseVariantAlias := filepath.Join(aliasRoot, "AlIaS-TaRgEt")
+	for _, alias := range []string{symlinkAlias, caseVariantAlias} {
+		if err := os.Symlink(repositoryPath, alias); err != nil {
+			t.Fatalf("create repository alias %q: %v", alias, err)
+		}
+	}
+
+	observer := NewGitObserver()
+	direct := observeRepository(t, observer, repositoryPath)
+	for name, path := range map[string]string{
+		"real path":          repositoryPath,
+		"subdirectory":       subdirectory,
+		"symlink alias":      symlinkAlias,
+		"case-variant alias": caseVariantAlias,
+	} {
+		t.Run(name, func(t *testing.T) {
+			observed := observeRepository(t, observer, path)
+			want := direct.Clone()
+			got := observed.Clone()
+			want.ObservedAt = time.Time{}
+			got.ObservedAt = time.Time{}
+			if !reflect.DeepEqual(got, want) {
+				t.Fatalf("alias did not converge on canonical binding: got=%#v want=%#v", got, want)
+			}
+		})
+	}
+}
 
 func TestVerifyBindingDigests(t *testing.T) {
 	binding := selfConsistentBinding()

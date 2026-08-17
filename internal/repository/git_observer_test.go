@@ -15,7 +15,77 @@ import (
 	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
+	corerecovery "github.com/Innocent-children/dev-flow/internal/recovery"
 )
+
+func TestGitObserverBindingComponentsChangeIndependently(t *testing.T) {
+	t.Run("branch at same commit", func(t *testing.T) {
+		repositoryPath := newCommittedRepository(t, "branch-component")
+		observer := NewGitObserver()
+		before := observeRepository(t, observer, repositoryPath)
+		runTestGit(t, repositoryPath, "checkout", "-b", "feature/component")
+		after := observeRepository(t, observer, repositoryPath)
+		if equalOptionalString(before.Branch, after.Branch) || before.Detached || after.Detached ||
+			!equalOptionalString(before.Head, after.Head) ||
+			before.WorktreeFingerprint != after.WorktreeFingerprint {
+			t.Fatalf("branch component facts: before=%#v after=%#v", before, after)
+		}
+		assertStableRepositoryLocation(t, before, after)
+		requireRepositoryRelation(t, before, after, corerecovery.RepositoryForbiddenChange)
+	})
+
+	t.Run("detached at same commit", func(t *testing.T) {
+		repositoryPath := newCommittedRepository(t, "detached-component")
+		observer := NewGitObserver()
+		before := observeRepository(t, observer, repositoryPath)
+		runTestGit(t, repositoryPath, "checkout", "--detach", "HEAD")
+		after := observeRepository(t, observer, repositoryPath)
+		if before.Detached || !after.Detached || before.Branch == nil || after.Branch != nil ||
+			!equalOptionalString(before.Head, after.Head) ||
+			before.WorktreeFingerprint != after.WorktreeFingerprint {
+			t.Fatalf("detached component facts: before=%#v after=%#v", before, after)
+		}
+		assertStableRepositoryLocation(t, before, after)
+		requireRepositoryRelation(t, before, after, corerecovery.RepositoryForbiddenChange)
+	})
+
+	t.Run("HEAD commit on same branch", func(t *testing.T) {
+		repositoryPath := newCommittedRepository(t, "head-component")
+		observer := NewGitObserver()
+		before := observeRepository(t, observer, repositoryPath)
+		writeTestFile(t, filepath.Join(repositoryPath, "tracked.txt"), "new committed content\n")
+		runTestGit(t, repositoryPath, "add", "tracked.txt")
+		runTestGit(t, repositoryPath, "commit", "-m", "advance HEAD")
+		after := observeRepository(t, observer, repositoryPath)
+		if !equalOptionalString(before.Branch, after.Branch) ||
+			equalOptionalString(before.Head, after.Head) ||
+			before.WorktreeFingerprint != after.WorktreeFingerprint {
+			t.Fatalf("HEAD component facts: before=%#v after=%#v", before, after)
+		}
+		assertStableRepositoryLocation(t, before, after)
+		requireRepositoryRelation(t, before, after, corerecovery.RepositoryForbiddenChange)
+	})
+
+	t.Run("unborn to born", func(t *testing.T) {
+		repositoryPath := newUnbornRepository(t, "unborn-component")
+		observer := NewGitObserver()
+		unborn := observeRepository(t, observer, repositoryPath)
+		if unborn.Head != nil || !unborn.Unborn || unborn.Detached || unborn.Branch == nil {
+			t.Fatalf("unborn component = %#v", unborn)
+		}
+		writeTestFile(t, filepath.Join(repositoryPath, "tracked.txt"), "first commit\n")
+		runTestGit(t, repositoryPath, "add", "tracked.txt")
+		runTestGit(t, repositoryPath, "commit", "-m", "create born repository")
+		born := observeRepository(t, observer, repositoryPath)
+		if born.Head == nil || born.Unborn || born.Detached ||
+			!equalOptionalString(unborn.Branch, born.Branch) ||
+			unborn.WorktreeFingerprint != born.WorktreeFingerprint {
+			t.Fatalf("born component = %#v, unborn=%#v", born, unborn)
+		}
+		assertStableRepositoryLocation(t, unborn, born)
+		requireRepositoryRelation(t, unborn, born, corerecovery.RepositoryForbiddenChange)
+	})
+}
 
 func TestGitObserverCleanRepositoryProducesStableBinding(t *testing.T) {
 	repositoryPath := newCommittedRepository(t, "clean-repository")
@@ -70,18 +140,19 @@ func TestGitObserverFingerprintsTrackedAndUntrackedChanges(t *testing.T) {
 	clean := observeRepository(t, observer, repositoryPath)
 	writeTestFile(t, trackedPath, "changed tracked content\n")
 	dirtyTracked := observeRepository(t, observer, repositoryPath)
-	if dirtyTracked.WorktreeFingerprint == clean.WorktreeFingerprint {
+	if dirtyTracked.WorktreeFingerprint == clean.WorktreeFingerprint ||
+		dirtyTracked.BindingDigest == clean.BindingDigest ||
+		!equalOptionalString(dirtyTracked.Head, clean.Head) ||
+		!equalOptionalString(dirtyTracked.Branch, clean.Branch) {
 		t.Fatal("tracked worktree change did not change the fingerprint")
 	}
-	if dirtyTracked.BindingDigest == clean.BindingDigest {
-		t.Fatal("tracked worktree change did not change the binding digest")
-	}
 	assertStableRepositoryIdentity(t, clean, dirtyTracked)
+	requireRepositoryRelation(t, clean, dirtyTracked, corerecovery.RepositoryWorktreeOnlyChanged)
 
 	writeTestFile(t, trackedPath, "initial content\n")
 	restored := observeRepository(t, observer, repositoryPath)
-	if restored.WorktreeFingerprint != clean.WorktreeFingerprint {
-		t.Fatalf("restored worktree fingerprint = %q, want %q", restored.WorktreeFingerprint, clean.WorktreeFingerprint)
+	if restored.WorktreeFingerprint != clean.WorktreeFingerprint || restored.BindingDigest != clean.BindingDigest {
+		t.Fatalf("restored tracked binding = %#v, want %#v", restored, clean)
 	}
 
 	writeTestFile(t, filepath.Join(repositoryPath, "untracked.txt"), "untracked content\n")
@@ -89,10 +160,24 @@ func TestGitObserverFingerprintsTrackedAndUntrackedChanges(t *testing.T) {
 	if dirtyUntracked.WorktreeFingerprint == clean.WorktreeFingerprint {
 		t.Fatal("untracked worktree change did not change the fingerprint")
 	}
+	if dirtyUntracked.BindingDigest == clean.BindingDigest ||
+		!equalOptionalString(dirtyUntracked.Head, clean.Head) ||
+		!equalOptionalString(dirtyUntracked.Branch, clean.Branch) {
+		t.Fatal("untracked worktree change did not preserve visible HEAD/branch or change binding")
+	}
 	if dirtyUntracked.WorktreeFingerprint == dirtyTracked.WorktreeFingerprint {
 		t.Fatal("tracked and untracked observations unexpectedly have the same fingerprint")
 	}
 	assertStableRepositoryIdentity(t, clean, dirtyUntracked)
+	requireRepositoryRelation(t, clean, dirtyUntracked, corerecovery.RepositoryWorktreeOnlyChanged)
+	if err := os.Remove(filepath.Join(repositoryPath, "untracked.txt")); err != nil {
+		t.Fatalf("remove untracked fixture: %v", err)
+	}
+	restoredAgain := observeRepository(t, observer, repositoryPath)
+	if restoredAgain.WorktreeFingerprint != clean.WorktreeFingerprint ||
+		restoredAgain.BindingDigest != clean.BindingDigest {
+		t.Fatalf("restored untracked binding = %#v, want %#v", restoredAgain, clean)
+	}
 }
 
 func TestGitObserverFingerprintChangesWhenDirtyTrackedContentChangesAgain(t *testing.T) {
@@ -348,8 +433,9 @@ func TestGitObserverUnbornRepository(t *testing.T) {
 	repositoryPath := newUnbornRepository(t, "unborn-repository")
 
 	binding := observeRepository(t, NewGitObserver(), repositoryPath)
-	if binding.Branch == nil || *binding.Branch != "main" || binding.Detached {
-		t.Fatalf("branch state = branch %v detached %t, want main/false", binding.Branch, binding.Detached)
+	wantBranch := strings.TrimSpace(runTestGit(t, repositoryPath, "symbolic-ref", "--short", "HEAD"))
+	if binding.Branch == nil || *binding.Branch != wantBranch || binding.Detached {
+		t.Fatalf("branch state = branch %v detached %t, want Git-reported %q/false", binding.Branch, binding.Detached, wantBranch)
 	}
 	if binding.Head != nil || !binding.Unborn {
 		t.Fatalf("HEAD state = head %v unborn %t, want nil/true", binding.Head, binding.Unborn)
@@ -414,6 +500,41 @@ func TestGitObserverResolvesSymlinkedRepositoryPath(t *testing.T) {
 	}
 	if linked.RepositoryIdentity != direct.RepositoryIdentity || linked.BindingDigest != direct.BindingDigest {
 		t.Fatalf("symlink observation did not converge on direct identity: linked=%+v direct=%+v", linked, direct)
+	}
+}
+
+func TestGitObserverDisappearanceAndSamePathReplacement(t *testing.T) {
+	root := t.TempDir()
+	repositoryPath := filepath.Join(root, "repository")
+	runTestGit(t, "", "init", repositoryPath)
+	writeTestFile(t, filepath.Join(repositoryPath, "tracked.txt"), "repository A\n")
+	runTestGit(t, repositoryPath, "add", "tracked.txt")
+	runTestGit(t, repositoryPath, "commit", "-m", "repository A")
+	observer := NewGitObserver()
+	original := observeRepository(t, observer, repositoryPath)
+
+	movedPath := filepath.Join(root, "repository-a-moved")
+	if err := os.Rename(repositoryPath, movedPath); err != nil {
+		t.Fatalf("move repository A fixture: %v", err)
+	}
+	if _, err := observer.Observe(context.Background(), repositoryPath); err == nil {
+		t.Fatal("missing repository path produced an observation")
+	}
+	if _, err := os.Stat(repositoryPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("Core observation recreated the missing path: %v", err)
+	}
+
+	replacementCommonDirectory := filepath.Join(root, "repository-b.git")
+	runTestGit(t, "", "init", "--separate-git-dir", replacementCommonDirectory, repositoryPath)
+	writeTestFile(t, filepath.Join(repositoryPath, "tracked.txt"), "repository B\n")
+	runTestGit(t, repositoryPath, "add", "tracked.txt")
+	runTestGit(t, repositoryPath, "commit", "-m", "repository B")
+	replacement := observeRepository(t, observer, repositoryPath)
+	if replacement.CanonicalRoot != original.CanonicalRoot ||
+		replacement.GitCommonDirDigest == original.GitCommonDirDigest ||
+		replacement.RepositoryIdentity == original.RepositoryIdentity ||
+		replacement.BindingDigest == original.BindingDigest {
+		t.Fatalf("same-path replacement was not distinguished: original=%#v replacement=%#v", original, replacement)
 	}
 }
 
@@ -542,6 +663,28 @@ func assertStableRepositoryIdentity(t *testing.T, before, after domain.Repositor
 		before.Detached != after.Detached || before.Unborn != after.Unborn ||
 		!equalOptionalString(before.Branch, after.Branch) || !equalOptionalString(before.Head, after.Head) {
 		t.Fatalf("worktree-only change altered repository identity/state: before=%+v after=%+v", before, after)
+	}
+}
+
+func assertStableRepositoryLocation(t *testing.T, before, after domain.RepositoryBinding) {
+	t.Helper()
+	if before.CanonicalRoot != after.CanonicalRoot ||
+		before.GitCommonDirDigest != after.GitCommonDirDigest ||
+		before.RepositoryIdentity != after.RepositoryIdentity {
+		t.Fatalf("repository location identity changed: before=%#v after=%#v", before, after)
+	}
+}
+
+func requireRepositoryRelation(
+	t *testing.T,
+	before domain.RepositoryBinding,
+	after domain.RepositoryBinding,
+	want corerecovery.RepositoryRelation,
+) {
+	t.Helper()
+	relation, err := corerecovery.CompareRepositoryBindings(before, after)
+	if err != nil || relation != want || before.BindingDigest == after.BindingDigest {
+		t.Fatalf("repository relation = %q/%v, want %q; before=%#v after=%#v", relation, err, want, before, after)
 	}
 }
 
