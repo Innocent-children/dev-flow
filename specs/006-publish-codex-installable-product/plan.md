@@ -199,16 +199,34 @@ packages/codex/bin/dev-flow-codex.mjs
 packages/codex/lib/paths.mjs
 packages/codex/lib/lifecycle.mjs
 package.json
+scripts/build-codex-local.sh
 scripts/validate-repository.sh
 .github/workflows/ci.yml
 ```
 
-The launcher/path/lifecycle production files are conditional T017 targets and change only for a
-test-proven public-package defect. Generated tarballs, prefixes, npm caches, homes, data directories,
-repositories, and logs belong in explicit temporary/output directories and are never committed.
+The local builder and launcher/path/lifecycle production files are conditional T017 targets and
+change only for a test-proven public-package defect. Generated tarballs, prefixes, npm caches,
+homes, data directories, repositories, and logs belong in explicit temporary/output directories
+and are never committed.
 The package `files` allowlist is the publication boundary, so no additional `.npmignore` contract is
 introduced. `packages/deepseek/` is read-only; the T003 baseline command
 `git diff --exit-code origin/main...HEAD -- packages/deepseek` passed with no output.
+
+#### Bounded User Story 1 scope amendment
+
+The first T015 source-free package test failed before building because
+`scripts/build-codex-local.sh` still required the Feature 003 private-package identity. The user
+explicitly added that file to the User Story 1 writable scope. Its authorization is limited to
+replacing the stale private assertion with the fixed Feature 006 public package contract: exact
+name/version, `private` absent-or-false, `darwin`/`arm64`, official public registry, Apache-2.0, and
+the unchanged package/plugin/Core compatibility identities.
+
+This amendment does not authorize changes to build arguments, source/dirty gates, Go flags,
+runtime layout, deterministic archive construction, SHA-256 reporting, final-artifact behavior, or
+any remote operation. After the builder correction, T015 reached setup and exposed the same stale
+private assertion in `lib/lifecycle.mjs`; T017 therefore made the matching fixed-public-contract
+correction there. `bin/dev-flow-codex.mjs` and `lib/paths.mjs` had no failing test and remain
+unchanged.
 
 ### CI path
 

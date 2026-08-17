@@ -14,11 +14,11 @@
 
 ## Phase 2 — Foundational release contracts
 
-- [ ] T005 [P] Add release schema and cross-identity contract tests in `tests/contract/release_contract_test.go`.
-- [ ] T006 [P] Create release operator documentation and generated-output boundary in `release/README.md` and `release/codex/README.md`.
-- [ ] T007 [P] Add root scripts `release:codex:prepare`, `release:codex:verify`, and `release:codex:publish` to `package.json` without adding an install lifecycle hook.
-- [ ] T008 [P] Add secret/path/raw-output fixture negatives and valid manifest/publication fixtures under `release/testdata/`.
-- [ ] T009 Extend `scripts/validate-repository.sh` and `.github/workflows/ci.yml` with preparation-safe release contract checks only; prohibit credentials, tags, releases, and npm publication.
+- [x] T005 [P] Add release schema and cross-identity contract tests in `tests/contract/release_contract_test.go`.
+- [x] T006 [P] Create release operator documentation and generated-output boundary in `release/README.md` and `release/codex/README.md`.
+- [x] T007 [P] Add root scripts `release:codex:prepare`, `release:codex:verify`, and `release:codex:publish` to `package.json` without adding an install lifecycle hook.
+- [x] T008 [P] Add secret/path/raw-output fixture negatives and valid manifest/publication fixtures under `release/testdata/`.
+- [x] T009 Extend `scripts/validate-repository.sh` and `.github/workflows/ci.yml` with preparation-safe release contract checks only; prohibit credentials, tags, releases, and npm publication.
 
 ## Phase 3 — User Story 1: Install and run from npm
 
@@ -26,15 +26,72 @@
 requires explicit setup/remove, rejects unsupported platforms, and preserves task data after
 uninstall.
 
-- [ ] T010 [US1] Convert `packages/codex/package.json` to the fixed public package identity with `darwin`/`arm64`, public publishConfig, repository/license metadata, and no install lifecycle hooks.
-- [ ] T011 [US1] Add `LICENSE` to the closed package files and update the exact allowlist in `packages/codex/package.json` and `packages/codex/tests/package-contract.test.mjs`.
-- [ ] T012 [P] [US1] Extend Go package-manifest/layout guards for the public Codex package and absence of DeepSeek resources in `tests/contract/package_manifest_test.go` and `tests/contract/repository_layout_test.go`.
-- [ ] T013 [P] [US1] Update `packages/codex/README.md` with public install, explicit setup/remove, platform, compatibility, data-retention, and unsupported-platform behavior.
-- [ ] T014 [US1] Add unsupported OS/CPU metadata and setup precondition tests in `packages/codex/tests/package-contract.test.mjs` and `packages/codex/tests/launcher.test.mjs`.
-- [ ] T015 [US1] Add source-free global-install/setup/remove/uninstall test harness support in `packages/codex/tests/release-package.test.mjs` using an isolated npm prefix and data directory.
-- [ ] T016 [US1] Add retained task reopen and unknown-adjacent-file preservation after package uninstall in `packages/codex/tests/release-package.test.mjs` and `packages/codex/tests/removal-retention.test.mjs`.
-- [ ] T017 [US1] Verify and minimally correct public-package path/version/lifecycle behavior in `packages/codex/bin/dev-flow-codex.mjs`, `packages/codex/lib/paths.mjs`, and `packages/codex/lib/lifecycle.mjs` only where release-package tests expose a gap.
-- [ ] T018 [US1] Run the User Story 1 package/lifecycle/source-free install checkpoint and record results in `specs/006-publish-codex-installable-product/tasks.md`.
+- [x] T010 [US1] Convert `packages/codex/package.json` to the fixed public package identity with `darwin`/`arm64`, public publishConfig, repository/license metadata, and no install lifecycle hooks.
+- [x] T011 [US1] Add `LICENSE` to the closed package files and update the exact allowlist in `packages/codex/package.json` and `packages/codex/tests/package-contract.test.mjs`.
+- [x] T012 [P] [US1] Extend Go package-manifest/layout guards for the public Codex package and absence of DeepSeek resources in `tests/contract/package_manifest_test.go` and `tests/contract/repository_layout_test.go`.
+- [x] T013 [P] [US1] Update `packages/codex/README.md` with public install, explicit setup/remove, platform, compatibility, data-retention, and unsupported-platform behavior.
+- [x] T014 [US1] Add unsupported OS/CPU metadata and setup precondition tests in `packages/codex/tests/package-contract.test.mjs` and `packages/codex/tests/launcher.test.mjs`.
+- [x] T015 [US1] Add source-free global-install/setup/remove/uninstall test harness support in `packages/codex/tests/release-package.test.mjs` using an isolated npm prefix and data directory.
+- [x] T016 [US1] Add retained task reopen and unknown-adjacent-file preservation after package uninstall in `packages/codex/tests/release-package.test.mjs` and `packages/codex/tests/removal-retention.test.mjs`.
+- [x] T017 [US1] Verify and minimally correct the stale private-package assertion in `scripts/build-codex-local.sh` and public-package path/version/lifecycle behavior in `packages/codex/bin/dev-flow-codex.mjs`, `packages/codex/lib/paths.mjs`, and `packages/codex/lib/lifecycle.mjs` only where release-package tests expose a gap. The builder amendment is limited to the fixed public manifest preflight and leaves its build/final-artifact behavior unchanged.
+- [x] T018 [US1] Run the User Story 1 package/lifecycle/source-free install checkpoint and record results in `specs/006-publish-codex-installable-product/tasks.md`.
+
+### User Story 1 Checkpoint Evidence — 2026-08-17
+
+- Baseline: implementation started from `main` commit
+  `850dd4a4ee07bf50af5d9a36b24373c6b09fdd28`; Feature 003 merge
+  `a2ba8bd5de9c87aaf758bff51a02ae120f60c7f7` and Feature 005 merge
+  `850dd4a4ee07bf50af5d9a36b24373c6b09fdd28` were present.
+- Permission preflight: official registry `https://registry.npmjs.org/`, authenticated npm account
+  `imotong`, fixed package `dev-flow-codex` absent by explicit E404, exact version `0.1.0` absent by
+  explicit E404, GitHub push/maintain/admin permission true, and `v0.1.0` Tag/Release absent. No
+  credential or raw authentication output was recorded.
+- Public package: `dev-flow-codex@0.1.0`, `private: false`, Apache-2.0, Node `>=24`, exact
+  `os=[darwin]`, `cpu=[arm64]`, public access at the official npm registry, one repository identity,
+  zero production dependencies, and no install/removal lifecycle hook.
+- Packed allowlist: exactly `package.json`, `README.md`, `LICENSE`, marketplace metadata, launcher,
+  two lifecycle/path helpers, plugin manifest, one MCP definition, one `dev-flow` Skill and policy,
+  and `runtime/darwin-arm64/dev-flow`. Package `LICENSE` is byte-identical to the root license; no
+  Core source, test/fixture, task data, receipt, credential, DeepSeek resource, or second runtime is
+  packed.
+- Unsupported platform: npm's installed platform checker rejects Linux/x64 with `EBADPLATFORM` from
+  the package metadata. The setup injection test rejects `linux-x64` before reading package/Core
+  identity, spawning Core, calling setup, creating task data/receipt, or modifying the repository;
+  its diagnostic contains no private fixture path.
+- T015 red/green: the first source-free test failed at the Feature 003 `private: true` assertion in
+  `scripts/build-codex-local.sh`. After the explicitly authorized public-manifest-only correction,
+  it reached setup and failed at the same stale assertion in `packages/codex/lib/lifecycle.mjs`.
+  The lifecycle correction then passed the complete source-free test. Build inputs, Go flags,
+  runtime layout, normalized tar format, digests, final-artifact behavior, and remote behavior are
+  unchanged.
+- Source-free install: one local deterministic `.tgz` was built with the real Go Core, then installed
+  globally with `--ignore-scripts --offline` into isolated prefix/cache A. HOME, Codex state, Dev
+  Flow data, repository, artifact output, process temp, and logs all remained under one test temp
+  root. The product ran only through `<prefix-A>/bin/dev-flow-codex`; its resolved JS and Core paths
+  were inside the installed prefix, `NODE_PATH` was absent, the source repository was absent from
+  product PATH, and `go` was unavailable to the product process.
+- Install/lifecycle: npm install changed only the isolated prefix/cache; it created no Codex
+  registration, receipt, database, repository change, or shell profile. Explicit setup and repeated
+  idempotent setup passed using deterministic fake Codex evidence. An npm uninstall performed before
+  remove deleted package files while leaving registration and receipt intact, proving uninstall did
+  not invoke remove. Reinstalling the same tarball allowed explicit remove, followed by separate npm
+  uninstall.
+- Retained data: the installed real packaged Core created task
+  `task-9a1011138eb6c3fd026f1cab98700e6d`. After explicit removal and uninstall, prefix B installed the
+  same exact tarball without Codex setup and its packaged Core/MCP directly reopened revision 1 in
+  phase `INTAKE`, action `ASSESS_TASK`, outcome `null`. A repeated product read kept the same complete
+  task identity and left the data-directory byte manifest unchanged. The SQLite task data,
+  data-adjacent unknown file, Codex-adjacent unknown file, and repository manifest were preserved.
+- Production impact: `scripts/build-codex-local.sh` and `packages/codex/lib/lifecycle.mjs` changed
+  only their fixed public package preflight. `packages/codex/bin/dev-flow-codex.mjs` and
+  `packages/codex/lib/paths.mjs` required no change.
+- Final commands passed: the five required Node files (5/5, 10/10, 20/20, 1/1, 1/1),
+  `go test ./tests/contract`, both required shell syntax checks, `git diff --check`, and both DeepSeek
+  zero-diff checks. Workflow YAML, byte-identical Schema copies, and byte-identical LICENSE were also
+  checked.
+- No `go test ./...`, `pnpm run validate`, npm publication/dry-run, Git Tag, GitHub Release,
+  registry read-back, real Codex Host journey, or DeepSeek Harness was run. T019–T050 remain
+  unstarted and unchecked.
 
 ## Phase 4 — User Story 2: Publish one immutable release
 

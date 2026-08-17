@@ -155,3 +155,21 @@ created directly from it.
 
 The authenticated publisher and remote permission observations are recorded separately in the
 Feature README because npm authentication is an implementation entry gate, not release identity.
+
+## User Story 1 Bounded Build-Script Amendment
+
+The first T015 source-free tarball test failed at the existing local builder's Feature 003
+`private: true` assertion before any runtime build or install step. The user explicitly authorized
+`scripts/build-codex-local.sh` as an additional User Story 1 path solely to replace that assertion
+with the already approved fixed public package contract.
+
+The amendment preserves the local builder's inputs, clean/final-source rules, Go build flags,
+runtime path, package allowlist, normalized tar format, digest calculation, report schema, and
+final-artifact behavior. It adds no network, authentication, publication, Tag, GitHub Release, or
+shared Core behavior.
+
+After that correction, the same T015 test progressed to explicit setup and failed at the equivalent
+Feature 003 private-package assertion in `packages/codex/lib/lifecycle.mjs`. The already conditional
+T017 authorization covered the matching fixed public package preflight there. No launcher or path
+change was required, and the existing setup/remove ownership, receipt, compatibility, Skill, and MCP
+checks remain intact.
