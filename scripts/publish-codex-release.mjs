@@ -80,19 +80,7 @@ export async function runPublisher({
 
   try {
     await validateCurrentSource(context);
-    const remote = await observeRemoteState(context, manifest);
-    if (remote.tagTarget !== null) record.github.tag_target = remote.tagTarget;
-    if (remote.release !== null) {
-      record.github.release_id = remote.release.id;
-      record.github.draft = remote.release.isDraft;
-      record.github.published = !remote.release.isDraft;
-    }
-    if (remote.exactNPM !== null) {
-      record.npm.published = true;
-      record.npm.verified = true;
-      record.npm.integrity = remote.exactNPM.integrity;
-      record.npm.tarball_sha256 = remote.npmReadback.sha256;
-    }
+    const remote = await observeRemoteState(context, manifest, record);
     record.last_observed_at = now();
     record.safe_next_action = confirmation === context.tag
       ? "Continue only exact missing publication steps after rereading remote state."
@@ -156,7 +144,7 @@ async function validateCurrentSource(context) {
   if (commit !== context.sourceCommit || tree !== context.sourceTree) throw new PublicationError("SOURCE_IDENTITY_CONFLICT", "current source commit/tree differs from the prepared release", { blocked: true });
 }
 
-async function observeRemoteState(context, manifest) {
+async function observeRemoteState(context, manifest, record) {
   await runText("npm", ["--version"], context);
   const account = await runText("npm", ["whoami", `--registry=${OFFICIAL_REGISTRY}`], context);
   if (!account || account.length > 128) throw new PublicationError("NPM_IDENTITY_INVALID", "npm account identity is missing or unbounded", { blocked: true });
@@ -178,11 +166,30 @@ async function observeRemoteState(context, manifest) {
     "api", `repos/${REPOSITORY}`, "--jq", "{push:.permissions.push,maintain:.permissions.maintain,admin:.permissions.admin}",
   ], context));
   if (!permissions.push || (!permissions.maintain && !permissions.admin)) throw new PublicationError("GITHUB_PERMISSION_CONFLICT", "GitHub repository permissions are insufficient", { blocked: true });
+  record.steps[0].summary = "Authenticated npm identity/ownership and GitHub repository permissions were observed through bounded read-only commands.";
+  record.last_observed_at = now();
+  await checkpoint(context.recordPath, record, manifest, context);
 
   const tagTarget = await observeTagTarget(context);
   if (tagTarget !== null && tagTarget !== context.sourceCommit) throw new PublicationError("TAG_TARGET_CONFLICT", "remote tag points to a different source commit", { blocked: true, step: "tag" });
+  if (record.github.tag_target !== null && tagTarget === null) throw new PublicationError("TAG_DISAPPEARED", "previously recorded exact remote tag is now absent", { blocked: true, step: "tag" });
+  if (record.github.tag_target !== null && tagTarget !== record.github.tag_target) throw new PublicationError("TAG_RECORD_CONFLICT", "remote tag differs from the recorded immutable target", { blocked: true, step: "tag" });
+  record.github.tag_target = tagTarget;
+  record.last_observed_at = now();
+  await checkpoint(context.recordPath, record, manifest, context);
+
   const release = await observeRelease(context);
   validateObservedRelease(context, release);
+  if (record.github.release_id !== null && release === null) throw new PublicationError("GITHUB_DRAFT_DISAPPEARED", "previously recorded GitHub draft is now absent", { blocked: true, step: "github_draft" });
+  if (record.github.release_id !== null && release !== null && release.id !== record.github.release_id) throw new PublicationError("GITHUB_DRAFT_RECORD_CONFLICT", "GitHub draft identity differs from the recorded release", { blocked: true, step: "github_draft" });
+  if (release !== null) {
+    record.github.release_id = release.id;
+    record.github.draft = release.isDraft;
+    record.github.published = !release.isDraft;
+  }
+  record.last_observed_at = now();
+  await checkpoint(context.recordPath, record, manifest, context);
+
   const exactNPM = await observeExactNPM(context, { delayed: false });
   const npmReadback = exactNPM === null ? null : await verifyRegistryTarball(context, exactNPM, manifest);
   if (exactNPM !== null && (tagTarget === null || release === null)) {
@@ -199,6 +206,14 @@ async function observeRemoteState(context, manifest) {
       throw new PublicationError("GITHUB_ASSET_CONFLICT", "GitHub draft contains an unrecognized asset name", { blocked: true, step: "github_draft" });
     }
   }
+  if (exactNPM !== null) {
+    record.npm.published = true;
+    record.npm.verified = true;
+    record.npm.integrity = exactNPM.integrity;
+    record.npm.tarball_sha256 = npmReadback.sha256;
+  }
+  record.last_observed_at = now();
+  await checkpoint(context.recordPath, record, manifest, context);
   return { account, tagTarget, release, exactNPM, npmReadback };
 }
 
@@ -248,7 +263,7 @@ async function ensurePublishedNPM(context, record, manifest) {
   const publishStep = startStep(record, "npm_publish");
   let observed = await observeExactNPM(context, { delayed: false });
   await checkpoint(context.recordPath, record, manifest, context);
-  if (observed === null) {
+  if (observed === null && !record.npm.published) {
     await runText("npm", [
       "publish", context.tarballPath,
       "--access", "public",
@@ -259,6 +274,14 @@ async function ensurePublishedNPM(context, record, manifest) {
       remoteID: `dev-flow-codex@${context.version}`,
       observedSHA256: context.tarballSHA256,
       summary: "Verified local tarball was published once; registry read-back remains required.",
+    });
+    record.overall_status = "npm_published";
+    await checkpoint(context.recordPath, record, manifest, context);
+  } else if (observed === null) {
+    completeStep(publishStep, {
+      remoteID: `dev-flow-codex@${context.version}`,
+      observedSHA256: context.tarballSHA256,
+      summary: "Prior npm publish is recorded; registry visibility is pending and publish was not called again.",
     });
     record.overall_status = "npm_published";
     await checkpoint(context.recordPath, record, manifest, context);
