@@ -170,14 +170,51 @@ real remote side effects.
 safe, removal/uninstall retain data, and finalization cannot occur without every remote and journey
 gate.
 
-- [ ] T034 [US3] Add release A to compatible release B explicit setup/read-back and active-task resume coverage in `packages/codex/tests/release-package.test.mjs`.
-- [ ] T035 [P] [US3] Add unsupported newer SQLite schema launch refusal and unchanged-data proof using the released package path in `packages/codex/tests/release-package.test.mjs`.
-- [ ] T036 [P] [US3] Extend removal/uninstall tests to prove task database, unknown adjacent files, and any unrelated host state remain unchanged in `packages/codex/tests/removal-retention.test.mjs`.
-- [ ] T037 [US3] Add exact partial-publication resume and manual-block output assertions in `packages/codex/tests/release-publication.test.mjs`.
-- [ ] T038 [US3] Add bounded final registry-package journey mode and no-local-substitution checks in `scripts/run-codex-real-journey.sh`, `scripts/write-codex-journey-evidence.mjs`, and `packages/codex/tests/journey-harness.test.mjs`.
-- [ ] T039 [US3] Add release finalization gating on npm read-back, asset read-back, final journey, removal, and retained reopen in `scripts/publish-codex-release.mjs` and `packages/codex/tests/release-publication.test.mjs`.
-- [ ] T040 [US3] Update support-matrix generation to emit only macOS arm64, actual Codex version, merged compatible range, package/Core digests, and journey result in `scripts/verify-codex-release.mjs`.
-- [ ] T041 [US3] Run the User Story 3 lifecycle/resume/finalization-fixture checkpoint and record results in `specs/006-publish-codex-installable-product/tasks.md`.
+- [x] T034 [US3] Add release A to compatible release B explicit setup/read-back and active-task resume coverage in `packages/codex/tests/release-package.test.mjs`.
+- [x] T035 [P] [US3] Add unsupported newer SQLite schema launch refusal and unchanged-data proof using the released package path in `packages/codex/tests/release-package.test.mjs`.
+- [x] T036 [P] [US3] Extend removal/uninstall tests to prove task database, unknown adjacent files, and any unrelated host state remain unchanged in `packages/codex/tests/removal-retention.test.mjs`.
+- [x] T037 [US3] Add exact partial-publication resume and manual-block output assertions in `packages/codex/tests/release-publication.test.mjs`.
+- [x] T038 [US3] Add bounded final registry-package journey mode and no-local-substitution checks in `scripts/run-codex-real-journey.sh`, `scripts/write-codex-journey-evidence.mjs`, and `packages/codex/tests/journey-harness.test.mjs`.
+- [x] T039 [US3] Add release finalization gating on npm read-back, asset read-back, final journey, removal, and retained reopen in `scripts/publish-codex-release.mjs` and `packages/codex/tests/release-publication.test.mjs`.
+- [x] T040 [US3] Update support-matrix generation to emit only macOS arm64, actual Codex version, merged compatible range, package/Core digests, and journey result in `scripts/verify-codex-release.mjs`.
+- [x] T041 [US3] Run the User Story 3 lifecycle/resume/finalization-fixture checkpoint and record results in `specs/006-publish-codex-installable-product/tasks.md`.
+
+User Story 3 checkpoint evidence (2026-08-17):
+
+- Compatible-upgrade evidence: two clean temporary source commits produced actual `0.1.0` and
+  `0.1.1` packages. npm update alone preserved the A receipt, registration, task database,
+  repository, and shell profiles. Explicit B setup updated only the exact owned registration and
+  atomic receipt; the packaged B Core reopened the same active Task ID, revision, phase, action, and
+  repository binding without adding an event. A downgrade attempt stopped without registration,
+  receipt, task-data, or repository mutation.
+- Unsupported-schema evidence: the installed packaged Core returned the existing bounded MCP
+  storage-startup refusal for a future migration marker. Complete table definitions, migration rows,
+  Task/Event/Claim rows, database bytes, unknown adjacent data, and repository bytes matched before
+  and after refusal; no shared Core, MCP, SQLite schema, state-machine, or persistence contract
+  changed.
+- Removal evidence: explicit remove and npm uninstall deleted only the exact Dev Flow marketplace,
+  plugin, receipt, and package bytes. A second marketplace/plugin, unrelated config, an outside
+  receipt-like file, task data, data/Codex-adjacent files, and repository bytes remained exact.
+- Partial-publication evidence: stale local records resumed from exact fake Tag, Draft, and npm
+  truth without another immutable write. Conflicts produced bounded manual-resolution records with
+  stable error codes, zero new remote mutation, and no path, token, auth-config, environment, or raw
+  remote-output disclosure.
+- Final-journey/finalization evidence: the production CLI contract accepts only
+  `dev-flow-codex@VERSION` from `https://registry.npmjs.org/`, constructs isolated
+  prefix/cache/HOME/Codex/data/temp/workspace/evidence surfaces, and rejects local package/Core or
+  bypass inputs. Fixture tests prove every lifecycle gate precedes four-asset read-back and one
+  finalization, including command failure, remote-success/local-record-loss recovery, exact public
+  read-back reuse, and public identity/asset conflicts. Fixture evidence cannot satisfy the native
+  production evidence validator or native support-matrix generator.
+- T041 passed: four required syntax checks; `release-package.test.mjs` 3/3;
+  `removal-retention.test.mjs` 1/1; `release-publication.test.mjs` 15/15;
+  `journey-harness.test.mjs` 22/22; lifecycle/launcher regression 31/31;
+  `go test ./tests/contract`; `git diff --check`; and both DeepSeek zero-diff commands.
+- Evidence labels are limited to deterministic compatible-upgrade evidence, packaged-Core
+  unsupported-schema evidence, fake npm/gh partial-publication and finalization-gate evidence, and
+  final-journey harness contract evidence. No real npm publication, Git Tag/Release/asset mutation,
+  public registry install, real Codex Journey, DeepSeek Harness, `pnpm run validate`, or Phase 6/7
+  task ran. T042–T050 remain unstarted.
 
 ## Phase 6 — Documentation and deterministic final gate
 

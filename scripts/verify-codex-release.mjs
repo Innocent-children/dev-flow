@@ -30,6 +30,8 @@ import {
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
+import { validateFinalJourneyEvidence } from "./write-codex-journey-evidence.mjs";
+
 const execFile = promisify(execFileCallback);
 
 export const RELEASE_OUTPUT_NAMES = Object.freeze([
@@ -493,6 +495,14 @@ export function validateManifest(manifest, { version, sourceCommit, sourceTree }
   if (support.os !== "darwin" || support.arch !== "arm64" || support.compatible_codex_range !== CODEX_RANGE || !["pending", "passed", "failed", "blocked"].includes(support.journey_result)) throw new Error("support entry differs from the darwin-arm64 contract");
   if (!SHA256_PATTERN.test(support.package_sha256) || !SHA256_PATTERN.test(support.core_sha256)) throw new Error("support digests are invalid");
   if (support.journey_result === "pending" && support.journey_observed_at !== null) throw new Error("pending support must not claim an observation time");
+  if (support.journey_result === "passed") {
+    if (!SEMVER_PATTERN.test(support.actual_codex_version) || !codexVersionSatisfiesRange(support.actual_codex_version)) {
+      throw new Error("passed support must contain the actual compatible Codex version");
+    }
+    if (support.journey_observed_at === null || !Number.isFinite(Date.parse(support.journey_observed_at))) {
+      throw new Error("passed support must contain the validated journey observation time");
+    }
+  }
   if (typeof support.notes !== "string" || support.notes.length > 1000) throw new Error("support notes are unbounded");
   if (!Array.isArray(manifest.validations) || manifest.validations.length < 1) throw new Error("release validations must be a nonempty array");
   requireSortedUnique(manifest.validations, (validation) => validation.name, "validations");
@@ -504,6 +514,41 @@ export function validateManifest(manifest, { version, sourceCommit, sourceTree }
   const runtimeFile = manifest.package_files.find((file) => file.path === "runtime/darwin-arm64/dev-flow");
   if (runtimeFile.sha256 !== artifactByKind.get("core_binary").sha256 || support.core_sha256 !== runtimeFile.sha256 || support.package_sha256 !== artifactByKind.get("npm_tarball").sha256) throw new Error("release Core/package digests are not cross-consistent");
   return manifest;
+}
+
+export function buildSupportMatrixFromFinalJourney({ manifest, evidence }) {
+  if (!manifest || !Array.isArray(manifest.artifacts) || !Array.isArray(manifest.package_files)) {
+    throw new Error("support generation requires one verified release manifest");
+  }
+  const artifacts = new Map(manifest.artifacts.map((artifact) => [artifact.kind, artifact]));
+  const packageArtifact = artifacts.get("npm_tarball");
+  const coreArtifact = artifacts.get("core_binary");
+  if (!packageArtifact || !coreArtifact) throw new Error("support generation requires exact package/Core artifacts");
+  const validated = validateFinalJourneyEvidence(evidence, {
+    expected: {
+      packageName: "dev-flow-codex",
+      version: manifest.release.version,
+      registry: "https://registry.npmjs.org/",
+      tarballSHA256: packageArtifact.sha256,
+      coreSHA256: coreArtifact.sha256,
+      sourceCommit: manifest.release.source_commit,
+    },
+  });
+  const bundledCore = manifest.package_files.find((file) => file.path === "runtime/darwin-arm64/dev-flow");
+  if (!bundledCore || bundledCore.sha256 !== validated.core_sha256) {
+    throw new Error("final journey Core digest differs from the bundled runtime");
+  }
+  return [{
+    os: "darwin",
+    arch: "arm64",
+    actual_codex_version: validated.codex_version,
+    compatible_codex_range: CODEX_RANGE,
+    package_sha256: validated.npm_tarball_sha256,
+    core_sha256: validated.core_sha256,
+    journey_result: "passed",
+    journey_observed_at: validated.observed_at,
+    notes: "Native registry-package Codex journey passed setup, zero-trigger, restart/resume, DONE, removal, uninstall, and retained reopen gates.",
+  }];
 }
 
 export function validatePublicationRecord(record, {
@@ -807,6 +852,11 @@ function stableJSON(value) {
 
 function arraysEqual(left, right) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function codexVersionSatisfiesRange(version) {
+  const match = SEMVER_PATTERN.exec(version);
+  return match !== null && Number(match[1]) === 0 && Number(match[2]) === 147;
 }
 
 async function runText(command, arguments_, options = {}) {

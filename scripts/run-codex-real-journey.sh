@@ -11,7 +11,8 @@ usage() {
     'usage: run-codex-real-journey.sh --fixture success|core-domain-error|transport-error' \
     '   or: run-codex-real-journey.sh --smoke --codex-executable ABS --workspace ABS' \
     '   or: run-codex-real-journey.sh --development-smoke --run-label A|B|C|D --codex-executable ABS --result-directory ABS' \
-    '   or: run-codex-real-journey.sh --acceptance --codex-executable ABS --workspace ABS' >&2
+    '   or: run-codex-real-journey.sh --acceptance --codex-executable ABS --workspace ABS' \
+    '   or: run-codex-real-journey.sh --final-registry --package dev-flow-codex --version VERSION --registry https://registry.npmjs.org/ --tarball-sha256 SHA256 --core-sha256 SHA256 --source-commit COMMIT --codex-executable ABS --workspace ABS --result-directory ABS' >&2
 }
 
 if [ "$#" -eq 2 ] && [ "$1" = "--fixture" ]; then
@@ -42,6 +43,11 @@ fi
 if [ "$#" -eq 7 ] && [ "$1" = "--development-smoke" ]; then
   shift
   exec node "$script_dir/write-codex-journey-evidence.mjs" development-smoke "$@"
+fi
+
+if [ "$#" -eq 19 ] && [ "$1" = "--final-registry" ]; then
+  shift
+  exec node "$script_dir/write-codex-journey-evidence.mjs" final-registry "$@"
 fi
 
 usage

@@ -16,6 +16,7 @@ import {
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join, relative } from "node:path";
 import { createInterface } from "node:readline";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -151,6 +152,38 @@ test("source-free global tarball install, explicit lifecycle, uninstall, and ret
   assert.equal(fakeRegistration.plugins.length, 1);
   assert.equal(fakeRegistration.marketplaces[0].root, firstInstallation.packageRoot);
   assert.equal(fakeRegistration.plugins[0].source.path, join(firstInstallation.packageRoot, "plugin"));
+  const unrelatedMarketplaceRoot = join(root, "unrelated-marketplace");
+  const unrelatedConfig = join(isolatedHome, ".codex", "config.toml");
+  const unrelatedReceipt = join(isolatedHome, "other-product", "registrations", "codex.json");
+  const unrelatedMarketplace = {
+    name: "other-marketplace",
+    root: unrelatedMarketplaceRoot,
+    marketplaceSource: { sourceType: "local", source: unrelatedMarketplaceRoot },
+  };
+  const unrelatedPlugin = {
+    pluginId: "other-plugin@other-marketplace",
+    name: "other-plugin",
+    marketplaceName: "other-marketplace",
+    version: "9.9.9",
+    installed: true,
+    enabled: false,
+    source: { source: "local", path: join(unrelatedMarketplaceRoot, "plugin") },
+    marketplaceSource: { sourceType: "local", source: unrelatedMarketplaceRoot },
+    installPolicy: "AVAILABLE",
+    authPolicy: "ON_INSTALL",
+  };
+  fakeRegistration.marketplaces.push(unrelatedMarketplace);
+  fakeRegistration.plugins.push(unrelatedPlugin);
+  await Promise.all([
+    mkdir(join(unrelatedMarketplaceRoot, "plugin"), { recursive: true }),
+    mkdir(dirname(unrelatedConfig), { recursive: true }),
+    mkdir(dirname(unrelatedReceipt), { recursive: true }),
+  ]);
+  await writeFile(fakeState, `${JSON.stringify(fakeRegistration, null, 2)}\n`);
+  await writeFile(join(unrelatedMarketplaceRoot, "plugin", "marker.txt"), "preserve unrelated plugin bytes\n");
+  await writeFile(unrelatedConfig, "model = \"unrelated-user-choice\"\n");
+  await writeFile(unrelatedReceipt, "{\"owner\":\"other-product\"}\n");
+  const unrelatedMarketplaceBefore = await directoryManifest(unrelatedMarketplaceRoot);
 
   const installedManifest = JSON.parse(await readFile(join(firstInstallation.packageRoot, "package.json"), "utf8"));
   assert.equal(installedManifest.private, false);
@@ -201,8 +234,8 @@ test("source-free global tarball install, explicit lifecycle, uninstall, and ret
   await assert.rejects(stat(firstInstallation.packageRoot), { code: "ENOENT" });
   assert.notEqual(await optionalContents(receiptPath), null, "npm uninstall must not run explicit remove");
   const registrationAfterUninstall = JSON.parse(await readFile(fakeState, "utf8"));
-  assert.equal(registrationAfterUninstall.marketplaces.length, 1);
-  assert.equal(registrationAfterUninstall.plugins.length, 1);
+  assert.deepEqual(registrationAfterUninstall.marketplaces, [fakeRegistration.marketplaces[0], unrelatedMarketplace]);
+  assert.deepEqual(registrationAfterUninstall.plugins, [fakeRegistration.plugins[0], unrelatedPlugin]);
   assert.deepEqual(await directoryManifest(dataDirectory), dataBeforeRemoval);
   assert.deepEqual(await directoryManifest(targetRepository), repositoryBefore);
 
@@ -215,13 +248,19 @@ test("source-free global tarball install, explicit lifecycle, uninstall, and ret
   assert.match(removed.next_step, /npm uninstall dev-flow-codex separately/u);
   await assert.rejects(stat(receiptPath), { code: "ENOENT" });
   const registrationAfterRemove = JSON.parse(await readFile(fakeState, "utf8"));
-  assert.deepEqual(registrationAfterRemove, { marketplaces: [], plugins: [] });
+  assert.deepEqual(registrationAfterRemove, {
+    marketplaces: [unrelatedMarketplace],
+    plugins: [unrelatedPlugin],
+  });
   await uninstallGlobalPackage(firstPrefix, firstCache);
   await assert.rejects(stat(reinstalledFirst.packageRoot), { code: "ENOENT" });
 
   assert.deepEqual(await directoryManifest(dataDirectory), dataBeforeRemoval);
   assert.equal(await readFile(unknownDataAdjacent, "utf8"), "preserve data-adjacent state\n");
   assert.equal(await readFile(unknownCodexAdjacent, "utf8"), "preserve Codex-adjacent state\n");
+  assert.equal(await readFile(unrelatedConfig, "utf8"), "model = \"unrelated-user-choice\"\n");
+  assert.equal(await readFile(unrelatedReceipt, "utf8"), "{\"owner\":\"other-product\"}\n");
+  assert.deepEqual(await directoryManifest(unrelatedMarketplaceRoot), unrelatedMarketplaceBefore);
   assert.deepEqual(await directoryManifest(targetRepository), repositoryBefore);
 
   await installGlobalTarball(build.artifact_path, secondPrefix, secondCache);
@@ -259,6 +298,13 @@ test("source-free global tarball install, explicit lifecycle, uninstall, and ret
   assert.deepEqual(await directoryManifest(targetRepository), repositoryBefore);
   assert.equal(await readFile(unknownDataAdjacent, "utf8"), "preserve data-adjacent state\n");
   assert.equal(await readFile(unknownCodexAdjacent, "utf8"), "preserve Codex-adjacent state\n");
+  assert.equal(await readFile(unrelatedConfig, "utf8"), "model = \"unrelated-user-choice\"\n");
+  assert.equal(await readFile(unrelatedReceipt, "utf8"), "{\"owner\":\"other-product\"}\n");
+  assert.deepEqual(await directoryManifest(unrelatedMarketplaceRoot), unrelatedMarketplaceBefore);
+  assert.deepEqual(JSON.parse(await readFile(fakeState, "utf8")), {
+    marketplaces: [unrelatedMarketplace],
+    plugins: [unrelatedPlugin],
+  });
   t.diagnostic(
     `retained task ${taskBefore.task_id}: revision=${taskBefore.revision} phase=${taskBefore.phase} ` +
       `action=${taskBefore.current_action?.kind ?? "none"} outcome=${taskBefore.outcome ?? "null"}`,
@@ -272,6 +318,210 @@ test("source-free global tarball install, explicit lifecycle, uninstall, and ret
     task: taskBefore,
     public_registry: false,
   })}\n`);
+});
+
+test("compatible package upgrade resumes the active task and a newer schema stops without mutation", {
+  skip: supportedMachine ? false : "darwin-arm64 package upgrade checkpoint only",
+  timeout: 300_000,
+}, async (t) => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-release-upgrade-")));
+  const clients = [];
+  t.after(async () => {
+    await Promise.all(clients.map((client) => client.dispose()));
+    await rm(root, { recursive: true, force: true });
+  });
+
+  const fixtureRoot = join(root, "source-fixture");
+  const artifactA = join(root, "artifact-a");
+  const artifactB = join(root, "artifact-b");
+  const prefix = join(root, "global-prefix");
+  const cache = join(root, "npm-cache");
+  const isolatedHome = join(root, "home");
+  const dataDirectory = join(root, "data");
+  const targetRepository = join(root, "workspace");
+  const hostBin = join(root, "host-bin");
+  const processTemp = join(root, "process-temp");
+  const fakeState = join(root, "fake-codex", "state.json");
+  const fakeTrace = join(root, "fake-codex", "trace.jsonl");
+  const receiptPath = join(
+    isolatedHome,
+    "Library",
+    "Application Support",
+    "dev-flow",
+    "registrations",
+    "codex.json",
+  );
+  await Promise.all([
+    copyRepositoryFixture(fixtureRoot),
+    mkdir(artifactA, { recursive: true }),
+    mkdir(artifactB, { recursive: true }),
+    mkdir(prefix, { recursive: true }),
+    mkdir(cache, { recursive: true }),
+    mkdir(isolatedHome, { recursive: true }),
+    mkdir(dataDirectory, { recursive: true }),
+    mkdir(hostBin, { recursive: true }),
+    mkdir(processTemp, { recursive: true }),
+    initializeRepository(targetRepository),
+  ]);
+  await symlink(fakeCodexPath, join(hostBin, "codex"));
+  await initializeMainFixture(fixtureRoot);
+
+  const buildA = await buildFixturePackage(fixtureRoot, artifactA);
+  assert.equal(buildA.package_version, "0.1.0");
+  await updateFixtureVersion(fixtureRoot, "0.1.1");
+  await execFile("git", ["add", "VERSION", "package.json", "packages/codex/package.json", "packages/codex/plugin/.codex-plugin/plugin.json"], {
+    cwd: fixtureRoot,
+  });
+  await execFile("git", ["commit", "-m", "fixture: compatible package B"], { cwd: fixtureRoot });
+  const buildB = await buildFixturePackage(fixtureRoot, artifactB);
+  assert.equal(buildB.package_version, "0.1.1");
+  assert.notEqual(buildB.artifact_sha256, buildA.artifact_sha256);
+
+  const environment = makeProductEnvironment({
+    prefix,
+    home: isolatedHome,
+    dataDirectory,
+    hostBin,
+    processTemp,
+    fakeState,
+    fakeTrace,
+  });
+  const repositoryBefore = await directoryManifest(targetRepository);
+  await installGlobalTarball(buildA.artifact_path, prefix, cache);
+  const installationA = await installedProduct(prefix);
+  const setupA = await runLifecycle(installationA.executable, "setup", environment, targetRepository);
+  assert.equal(setupA.status, "installed");
+  assert.equal(setupA.changed, true);
+
+  const coreA = await ReleaseCoreClient.start(
+    join(installationA.packageRoot, "runtime", "darwin-arm64", "dev-flow"),
+    dataDirectory,
+    targetRepository,
+    environment,
+  );
+  clients.push(coreA);
+  const opened = await coreA.callTool("dev_flow_open_task", {
+    host: "codex",
+    repository_path: targetRepository,
+    new_task: {
+      goal: "Resume one active task after a compatible package upgrade",
+      scope: ["one installed Codex package", "one retained task database"],
+      out_of_scope: ["public registry", "release publication", "repository mutation"],
+      acceptance_criteria: ["Package B opens the same active task without mutation."],
+      verification_budget: {
+        level: "targeted",
+        max_automatic_commands: 1,
+        allow_full_suite: false,
+        allow_manual_handoff: true,
+      },
+    },
+  });
+  const taskBeforeUpgrade = taskLifecycleIdentity(opened.result.task);
+  await coreA.close();
+
+  const receiptA = await readFile(receiptPath, "utf8");
+  const registrationA = await readFile(fakeState, "utf8");
+  const dataBeforeNpmUpdate = await directoryManifest(dataDirectory);
+  const runtimeDigestA = await sha256(readFile(join(installationA.packageRoot, "runtime", "darwin-arm64", "dev-flow")));
+
+  await installGlobalTarball(buildB.artifact_path, prefix, cache);
+  const installationB = await installedProduct(prefix);
+  const runtimeDigestB = await sha256(readFile(join(installationB.packageRoot, "runtime", "darwin-arm64", "dev-flow")));
+  assert.equal(installationB.packageRoot, installationA.packageRoot);
+  assert.notEqual(runtimeDigestB, runtimeDigestA);
+  assert.equal((await execFile(installationB.executable, ["--version"], {
+    cwd: targetRepository,
+    env: environment,
+    encoding: "utf8",
+  })).stdout, "dev-flow-codex 0.1.1 (core 0.1.1)\n");
+  assert.equal(await readFile(receiptPath, "utf8"), receiptA);
+  assert.equal(await readFile(fakeState, "utf8"), registrationA);
+  assert.deepEqual(await directoryManifest(dataDirectory), dataBeforeNpmUpdate);
+  assert.deepEqual(await directoryManifest(targetRepository), repositoryBefore);
+  await assertNoShellProfiles(isolatedHome);
+
+  const setupB = await runLifecycle(installationB.executable, "setup", environment, targetRepository);
+  assert.equal(setupB.status, "installed");
+  assert.equal(setupB.changed, true);
+  const receiptB = JSON.parse(await readFile(receiptPath, "utf8"));
+  assert.equal(receiptB.product.version, "0.1.1");
+  assert.equal(receiptB.product.core_version, "0.1.1");
+  assert.notDeepEqual(receiptB.resource_digests, JSON.parse(receiptA).resource_digests);
+  const registrationB = JSON.parse(await readFile(fakeState, "utf8"));
+  assert.equal(registrationB.marketplaces.length, 1);
+  assert.equal(registrationB.plugins.length, 1);
+  assert.equal(registrationB.marketplaces[0].root, installationB.packageRoot);
+  assert.equal(registrationB.plugins[0].version, "0.1.1");
+  assert.equal(registrationB.plugins[0].source.path, join(installationB.packageRoot, "plugin"));
+
+  const dataBeforeResume = await directoryManifest(dataDirectory);
+  const coreB = await ReleaseCoreClient.start(
+    join(installationB.packageRoot, "runtime", "darwin-arm64", "dev-flow"),
+    dataDirectory,
+    targetRepository,
+    environment,
+  );
+  clients.push(coreB);
+  const resumed = await coreB.callTool("dev_flow_open_task", {
+    host: "codex",
+    repository_path: targetRepository,
+  });
+  assert.deepEqual(taskLifecycleIdentity(resumed.result.task), taskBeforeUpgrade);
+  await coreB.close();
+  assert.deepEqual(await directoryManifest(dataDirectory), dataBeforeResume);
+  assert.deepEqual(await directoryManifest(targetRepository), repositoryBefore);
+
+  const receiptBeforeDowngrade = await readFile(receiptPath, "utf8");
+  const stateBeforeDowngrade = await readFile(fakeState, "utf8");
+  await installGlobalTarball(buildA.artifact_path, prefix, cache);
+  await assert.rejects(
+    execFile(installationA.executable, ["setup", "--json"], {
+      cwd: targetRepository,
+      env: environment,
+      encoding: "utf8",
+      maxBuffer: 4 * 1024 * 1024,
+    }),
+    (error) => {
+      assert.match(error.stderr, /downgrade/i);
+      return true;
+    },
+  );
+  assert.equal(await readFile(receiptPath, "utf8"), receiptBeforeDowngrade);
+  assert.equal(await readFile(fakeState, "utf8"), stateBeforeDowngrade);
+  assert.deepEqual(await directoryManifest(dataDirectory), dataBeforeResume);
+  assert.deepEqual(await directoryManifest(targetRepository), repositoryBefore);
+
+  await installGlobalTarball(buildB.artifact_path, prefix, cache);
+  const restoredB = await installedProduct(prefix);
+  const unknownAdjacent = join(dataDirectory, "user-owned-future-schema-note.txt");
+  await writeFile(unknownAdjacent, "preserve beside unsupported schema\n");
+  const databasePath = join(dataDirectory, "dev-flow.db");
+  const database = new DatabaseSync(databasePath);
+  database.prepare(
+    "INSERT INTO schema_migrations (version, applied_at, digest) VALUES (?, ?, ?)",
+  ).run(2, "2030-01-02T03:04:05Z", "future-schema-digest");
+  database.close();
+  const databaseBeforeRefusal = databaseSnapshot(databasePath);
+  const dataBeforeRefusal = await directoryManifest(dataDirectory);
+  await assert.rejects(
+    execFile(join(restoredB.packageRoot, "runtime", "darwin-arm64", "dev-flow"), ["mcp", "--stdio"], {
+      cwd: targetRepository,
+      env: { ...environment, DEV_FLOW_DATA_DIR: dataDirectory },
+      encoding: "utf8",
+      maxBuffer: 1024 * 1024,
+    }),
+    (error) => {
+      assert.equal(error.stdout, "");
+      assert.equal(error.stderr, "dev-flow: MCP storage startup failed\n");
+      return true;
+    },
+  );
+  assert.deepEqual(databaseSnapshot(databasePath), databaseBeforeRefusal);
+  assert.deepEqual(await directoryManifest(dataDirectory), dataBeforeRefusal);
+  assert.deepEqual(await directoryManifest(targetRepository), repositoryBefore);
+  assert.equal(await readFile(unknownAdjacent, "utf8"), "preserve beside unsupported schema\n");
+  await assertNoShellProfiles(isolatedHome);
+  await uninstallGlobalPackage(prefix, cache);
 });
 
 test("release preparation uses two clean worktrees and verifies one canonical five-file set", {
@@ -602,6 +852,79 @@ function taskIdentity(task) {
     },
     outcome: task.outcome,
   };
+}
+
+function taskLifecycleIdentity(task) {
+  return {
+    ...taskIdentity(task),
+    repository: structuredClone(task.repository),
+  };
+}
+
+async function buildFixturePackage(sourceRoot, outputDirectory) {
+  const { stdout, stderr } = await execFile(join(sourceRoot, "scripts", "build-codex-local.sh"), [
+    "--output",
+    outputDirectory,
+  ], {
+    cwd: sourceRoot,
+    encoding: "utf8",
+    maxBuffer: 20 * 1024 * 1024,
+    timeout: 150_000,
+  });
+  assert.equal(stderr, "");
+  return JSON.parse(stdout);
+}
+
+async function updateFixtureVersion(sourceRoot, version) {
+  await writeFile(join(sourceRoot, "VERSION"), `${version}\n`);
+  for (const path of [
+    "package.json",
+    "packages/codex/package.json",
+    "packages/codex/plugin/.codex-plugin/plugin.json",
+  ]) {
+    const absolute = join(sourceRoot, path);
+    const contents = await readFile(absolute, "utf8");
+    const updated = contents.replace('"version": "0.1.0"', `"version": "${version}"`);
+    assert.notEqual(updated, contents, `${path} fixture version did not change`);
+    await writeFile(absolute, updated);
+  }
+}
+
+function databaseSnapshot(path) {
+  const database = new DatabaseSync(path, { readOnly: true });
+  try {
+    return normalizeSQLiteValue({
+      schema: database.prepare(
+        "SELECT type, name, tbl_name, sql FROM sqlite_schema ORDER BY type, name",
+      ).all(),
+      migrations: database.prepare(
+        "SELECT version, applied_at, digest FROM schema_migrations ORDER BY version",
+      ).all(),
+      tasks: database.prepare(
+        "SELECT task_id, origin_host, phase, revision, repository_identity, hex(snapshot) AS snapshot, created_at, updated_at FROM tasks ORDER BY task_id",
+      ).all(),
+      events: database.prepare(
+        "SELECT event_id, task_id, revision, event_type, phase_before, phase_after, action_id, request_id, payload_digest, created_at FROM task_events ORDER BY event_id",
+      ).all(),
+      claims: database.prepare(
+        "SELECT repository_identity, task_id, origin_host, claimed_at FROM repository_claims ORDER BY repository_identity",
+      ).all(),
+    });
+  } finally {
+    database.close();
+  }
+}
+
+function normalizeSQLiteValue(value) {
+  return JSON.parse(JSON.stringify(value, (_key, item) => (
+    typeof item === "bigint" ? item.toString() : item
+  )));
+}
+
+async function assertNoShellProfiles(home) {
+  for (const profile of [".profile", ".zprofile", ".zshrc", ".bash_profile", ".bashrc"]) {
+    await assert.rejects(stat(join(home, profile)), { code: "ENOENT" });
+  }
 }
 
 async function initializeRepository(path) {

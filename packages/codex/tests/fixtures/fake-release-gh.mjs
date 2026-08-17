@@ -89,7 +89,10 @@ if (argv[0] === "release" && argv[1] === "edit") {
   if (state.fail_finalize || !state.release) await fail("fixture finalization refused", 1, "release-edit-failed");
   if (argv.includes("--draft=false")) {
     state.release.isDraft = false;
+    const failAfterFinalize = state.fail_after_finalize === true;
+    state.fail_after_finalize = false;
     await writeState(statePath, state);
+    if (failAfterFinalize) await fail("fixture process failed after immutable release finalization", 1, "release-finalized-then-failed");
   }
   await succeed("", "release-edit");
 }

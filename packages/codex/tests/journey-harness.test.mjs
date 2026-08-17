@@ -8,12 +8,23 @@ import test from "node:test";
 import { promisify } from "node:util";
 
 import {
+  CODEX_COMPATIBILITY_RANGE,
   EXPLICIT_SELECTOR,
+  FINAL_FIXTURE_EVIDENCE_KIND,
+  FINAL_NATIVE_EVIDENCE_KIND,
+  buildFinalJourneyEnvironment,
+  buildFinalRegistryInstallArgs,
+  buildFinalRegistryPackArgs,
   buildCodexExecArgs,
+  createFinalJourneyLayout,
+  parseCLI,
   runDevelopmentSmoke,
   smokePrompt,
   validateAcceptanceReport,
+  validateFinalJourneyEvidence,
+  validateFinalJourneyEvidenceShape,
 } from "../../../scripts/write-codex-journey-evidence.mjs";
+import { buildSupportMatrixFromFinalJourney } from "../../../scripts/verify-codex-release.mjs";
 import * as smokeRuntime from "../../../scripts/write-codex-journey-evidence.mjs";
 
 const execFile = promisify(execFileCallback);
@@ -56,6 +67,42 @@ function validAcceptanceReport() {
     task_data_retained: true,
     task_reopened_after_removal: true,
     unexpected_repository_paths: [],
+  };
+}
+
+function fixtureFinalJourneyEvidence() {
+  return {
+    evidence_kind: FINAL_FIXTURE_EVIDENCE_KIND,
+    status: "passed",
+    package_name: "dev-flow-codex",
+    package_version: "0.1.0",
+    registry: "https://registry.npmjs.org/",
+    npm_tarball_sha256: "a".repeat(64),
+    npm_integrity: `sha512-${Buffer.alloc(64, 7).toString("base64")}`,
+    package_root_location: "isolated-npm-prefix",
+    core_version: "0.1.0",
+    core_sha256: "b".repeat(64),
+    source_commit: "c".repeat(40),
+    codex_version: "0.147.0",
+    compatible_codex_range: CODEX_COMPATIBILITY_RANGE,
+    codex_compatible: true,
+    setup_readback_passed: true,
+    ordinary_prompt_core_call_count: 0,
+    explicit_selector: EXPLICIT_SELECTOR,
+    task_id_before_restart: "task-00000001",
+    task_revision_before_restart: 4,
+    task_action_id_before_restart: "action-00000004",
+    task_id_after_restart: "task-00000001",
+    task_revision_after_restart: 4,
+    task_action_id_after_restart: "action-00000004",
+    committed_action_count: 4,
+    terminal_outcome: "DONE",
+    remove_readback_passed: true,
+    npm_uninstall_passed: true,
+    task_data_retained: true,
+    task_reopened_after_uninstall: true,
+    unexpected_repository_paths: [],
+    observed_at: "2026-08-17T08:00:00.000Z",
   };
 }
 
@@ -541,6 +588,172 @@ test("development smoke preserves the exact post-session invariant failure", () 
     () => smokeRuntime.validateDevelopmentSessions([], {}),
     (error) => error.classification === "post-session: MCP aggregate requires ordinary, invalid, substantive, and resume sessions",
   );
+});
+
+test("final registry journey CLI is closed, registry-only, and rejects local substitution", () => {
+  const exact = [
+    "final-registry",
+    "--package", "dev-flow-codex",
+    "--version", "0.1.0",
+    "--registry", "https://registry.npmjs.org/",
+    "--tarball-sha256", "a".repeat(64),
+    "--core-sha256", "b".repeat(64),
+    "--source-commit", "c".repeat(40),
+    "--codex-executable", "/opt/codex/bin/codex",
+    "--workspace", "/tmp/final-workspace",
+    "--result-directory", "/tmp/final-result",
+  ];
+  assert.deepEqual(parseCLI([...exact]), {
+    mode: "final-registry",
+    packageName: "dev-flow-codex",
+    version: "0.1.0",
+    registry: "https://registry.npmjs.org/",
+    tarballSHA256: "a".repeat(64),
+    coreSHA256: "b".repeat(64),
+    sourceCommit: "c".repeat(40),
+    codexExecutable: "/opt/codex/bin/codex",
+    workspace: "/tmp/final-workspace",
+    resultDirectory: "/tmp/final-result",
+  });
+
+  const replaceValue = (flag, value) => {
+    const candidate = [...exact];
+    candidate[candidate.indexOf(flag) + 1] = value;
+    return candidate;
+  };
+  assert.throws(() => parseCLI(replaceValue("--package", "other-package")), /package must equal dev-flow-codex/u);
+  assert.throws(() => parseCLI(replaceValue("--registry", "https://registry.example.invalid/")), /official npm registry/u);
+  assert.throws(() => parseCLI(replaceValue("--workspace", "relative")), /workspace must be an absolute path/u);
+  assert.throws(() => parseCLI([...exact, "--local-tgz", "/tmp/package.tgz"]), /exact flag/u);
+  assert.throws(() => parseCLI([...exact, "--runtime-override", "/tmp/dev-flow"]), /exact flag/u);
+  assert.throws(() => parseCLI([...exact, "--skip-journey", "true"]), /exact flag/u);
+  assert.throws(() => parseCLI([...exact, "--registry", "https://registry.npmjs.org/"]), /exact flag/u);
+
+  assert.deepEqual(buildFinalRegistryInstallArgs({
+    version: "0.1.0",
+    prefix: "/tmp/isolated-prefix",
+    cache: "/tmp/isolated-cache",
+  }), [
+    "install", "--global", "dev-flow-codex@0.1.0",
+    "--registry=https://registry.npmjs.org/",
+    "--prefix", "/tmp/isolated-prefix",
+    "--cache", "/tmp/isolated-cache",
+    "--ignore-scripts", "--no-audit", "--no-fund",
+  ]);
+  assert.deepEqual(buildFinalRegistryPackArgs({
+    version: "0.1.0",
+    destination: "/tmp/registry-readback",
+  }), [
+    "pack", "dev-flow-codex@0.1.0",
+    "--pack-destination", "/tmp/registry-readback",
+    "--ignore-scripts", "--json",
+    "--registry=https://registry.npmjs.org/",
+  ]);
+});
+
+test("final registry journey layout and product environment stay inside isolated roots", () => {
+  const layout = createFinalJourneyLayout(
+    "/tmp/final-root",
+    "/tmp/final-workspace",
+    "/tmp/final-results",
+  );
+  assert.equal(layout.workspace, "/tmp/final-workspace");
+  assert.equal(layout.resultDirectory, "/tmp/final-results");
+  for (const field of [
+    "home", "codexHome", "installPrefix", "npmCache", "dataDirectory",
+    "temporaryDirectory", "registryReadbackDirectory",
+  ]) {
+    assert.equal(layout[field].startsWith("/tmp/final-root/"), true, field);
+  }
+
+  const environment = buildFinalJourneyEnvironment({
+    layout,
+    codexExecutable: "/opt/codex/bin/codex",
+    toolDirectories: ["/opt/node/bin", "/usr/bin", "/bin"],
+    baseEnvironment: {
+      PATH: `/source/repository/packages/codex/bin:${process.env.PATH ?? ""}`,
+      NODE_PATH: "/source/repository/node_modules",
+      DEV_FLOW_CORE_PATH: "/source/repository/dev-flow",
+      DEV_FLOW_PACKAGE_PATH: "/source/repository/packages/codex",
+      NPM_TOKEN: "private-fixture-token",
+      LANG: "en_US.UTF-8",
+    },
+  });
+  assert.equal(environment.HOME, layout.home);
+  assert.equal(environment.CODEX_HOME, layout.codexHome);
+  assert.equal(environment.DEV_FLOW_DATA_DIR, layout.dataDirectory);
+  assert.equal(environment.TMPDIR, layout.temporaryDirectory);
+  assert.equal(environment.npm_config_prefix, layout.installPrefix);
+  assert.equal(environment.npm_config_cache, layout.npmCache);
+  assert.equal(environment.PATH.split(":" )[0], join(layout.installPrefix, "bin"));
+  assert.equal(environment.PATH.includes("/source/repository"), false);
+  for (const name of ["NODE_PATH", "DEV_FLOW_CORE_PATH", "DEV_FLOW_PACKAGE_PATH", "NPM_TOKEN"]) {
+    assert.equal(name in environment, false, name);
+  }
+});
+
+test("fixture journey evidence is closed and can never satisfy the native production gate", () => {
+  const fixture = fixtureFinalJourneyEvidence();
+  assert.deepEqual(validateFinalJourneyEvidenceShape(fixture, { allowFixture: true }), fixture);
+  assert.throws(() => validateFinalJourneyEvidence(fixture), /native registry-package evidence/u);
+  assert.throws(
+    () => validateFinalJourneyEvidenceShape({ ...fixture, raw_stdout: "private raw output" }, { allowFixture: true }),
+    /unexpected field raw_stdout/u,
+  );
+  assert.throws(
+    () => validateFinalJourneyEvidenceShape({ ...fixture, package_root_location: "/private/tmp/package" }, { allowFixture: true }),
+    /package_root_location/u,
+  );
+  assert.throws(
+    () => validateFinalJourneyEvidenceShape({ ...fixture, task_revision_after_restart: 5 }, { allowFixture: true }),
+    /restart task identity/u,
+  );
+});
+
+test("passed support matrix is derived only from matching native registry journey identity", () => {
+  const fixture = fixtureFinalJourneyEvidence();
+  const manifest = {
+    release: { version: "0.1.0", source_commit: "c".repeat(40) },
+    artifacts: [
+      { kind: "core_binary", sha256: "b".repeat(64) },
+      { kind: "npm_tarball", sha256: "a".repeat(64) },
+    ],
+    package_files: [
+      { path: "runtime/darwin-arm64/dev-flow", sha256: "b".repeat(64) },
+    ],
+  };
+  assert.throws(
+    () => buildSupportMatrixFromFinalJourney({ manifest, evidence: fixture }),
+    /native registry-package evidence/u,
+  );
+
+  const nativeContract = { ...fixture, evidence_kind: FINAL_NATIVE_EVIDENCE_KIND };
+  assert.deepEqual(buildSupportMatrixFromFinalJourney({ manifest, evidence: nativeContract }), [{
+    os: "darwin",
+    arch: "arm64",
+    actual_codex_version: "0.147.0",
+    compatible_codex_range: CODEX_COMPATIBILITY_RANGE,
+    package_sha256: "a".repeat(64),
+    core_sha256: "b".repeat(64),
+    journey_result: "passed",
+    journey_observed_at: "2026-08-17T08:00:00.000Z",
+    notes: "Native registry-package Codex journey passed setup, zero-trigger, restart/resume, DONE, removal, uninstall, and retained reopen gates.",
+  }]);
+  for (const [name, patch, pattern] of [
+    ["package digest", { npm_tarball_sha256: "d".repeat(64) }, /npm_tarball_sha256/u],
+    ["Core digest", { core_sha256: "d".repeat(64) }, /core_sha256/u],
+    ["source commit", { source_commit: "d".repeat(40) }, /source_commit/u],
+    ["Codex range", { codex_version: "0.148.0" }, /outside the compatible range/u],
+  ]) {
+    assert.throws(
+      () => buildSupportMatrixFromFinalJourney({
+        manifest,
+        evidence: { ...nativeContract, ...patch },
+      }),
+      pattern,
+      name,
+    );
+  }
 });
 
 test("simplified acceptance validates one complete closed FR-028 report", () => {

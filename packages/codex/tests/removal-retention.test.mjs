@@ -84,8 +84,41 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   assert.equal(setup.status, "installed");
   const adjacentFile = join(dirname(paths.receiptPath), "user-owned-adjacent.txt");
   const codexAdjacentFile = join(dirname(fakeState), "user-owned-codex-state.txt");
+  const unrelatedMarketplaceRoot = join(root, "unrelated host marketplace");
+  const unrelatedConfig = join(isolatedHome, ".codex", "config.toml");
+  const unrelatedReceipt = join(isolatedHome, "other-product", "registrations", "codex.json");
+  const unrelatedMarketplace = {
+    name: "other-marketplace",
+    root: unrelatedMarketplaceRoot,
+    marketplaceSource: { sourceType: "local", source: unrelatedMarketplaceRoot },
+  };
+  const unrelatedPlugin = {
+    pluginId: "other-plugin@other-marketplace",
+    name: "other-plugin",
+    marketplaceName: "other-marketplace",
+    version: "9.9.9",
+    installed: true,
+    enabled: false,
+    source: { source: "local", path: join(unrelatedMarketplaceRoot, "plugin") },
+    marketplaceSource: { sourceType: "local", source: unrelatedMarketplaceRoot },
+    installPolicy: "AVAILABLE",
+    authPolicy: "ON_INSTALL",
+  };
+  const completeHostState = JSON.parse(await readFile(fakeState, "utf8"));
+  completeHostState.marketplaces.push(unrelatedMarketplace);
+  completeHostState.plugins.push(unrelatedPlugin);
+  await Promise.all([
+    mkdir(dirname(unrelatedConfig), { recursive: true }),
+    mkdir(dirname(unrelatedReceipt), { recursive: true }),
+    mkdir(join(unrelatedMarketplaceRoot, "plugin"), { recursive: true }),
+  ]);
+  await writeFile(fakeState, `${JSON.stringify(completeHostState, null, 2)}\n`);
   await writeFile(adjacentFile, "preserve adjacent data\n");
   await writeFile(codexAdjacentFile, "preserve Codex-adjacent data\n");
+  await writeFile(unrelatedConfig, "model = \"unrelated-user-choice\"\n");
+  await writeFile(unrelatedReceipt, "{\"owner\":\"other-product\"}\n");
+  await writeFile(join(unrelatedMarketplaceRoot, "plugin", "marker.txt"), "unrelated plugin bytes\n");
+  const unrelatedMarketplaceBefore = await directoryManifest(unrelatedMarketplaceRoot);
 
   const firstCore = await startCore(paths.runtimePath, dataDirectory, targetRepository);
   const info = await firstCore.callTool("dev_flow_server_info", {});
@@ -123,6 +156,13 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   assert.equal(await optionalContents(paths.receiptPath), null);
   assert.equal(await readFile(adjacentFile, "utf8"), "preserve adjacent data\n");
   assert.equal(await readFile(codexAdjacentFile, "utf8"), "preserve Codex-adjacent data\n");
+  assert.equal(await readFile(unrelatedConfig, "utf8"), "model = \"unrelated-user-choice\"\n");
+  assert.equal(await readFile(unrelatedReceipt, "utf8"), "{\"owner\":\"other-product\"}\n");
+  assert.deepEqual(await directoryManifest(unrelatedMarketplaceRoot), unrelatedMarketplaceBefore);
+  assert.deepEqual(JSON.parse(await readFile(fakeState, "utf8")), {
+    marketplaces: [unrelatedMarketplace],
+    plugins: [unrelatedPlugin],
+  });
   assert.deepEqual(await directoryManifest(dataDirectory), dataBeforeRemoval);
   assert.deepEqual(await directoryManifest(targetRepository), repositoryBefore);
 
@@ -150,6 +190,13 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   assert.deepEqual(await directoryManifest(targetRepository), repositoryBefore);
   assert.equal(await readFile(adjacentFile, "utf8"), "preserve adjacent data\n");
   assert.equal(await readFile(codexAdjacentFile, "utf8"), "preserve Codex-adjacent data\n");
+  assert.equal(await readFile(unrelatedConfig, "utf8"), "model = \"unrelated-user-choice\"\n");
+  assert.equal(await readFile(unrelatedReceipt, "utf8"), "{\"owner\":\"other-product\"}\n");
+  assert.deepEqual(await directoryManifest(unrelatedMarketplaceRoot), unrelatedMarketplaceBefore);
+  assert.deepEqual(JSON.parse(await readFile(fakeState, "utf8")), {
+    marketplaces: [unrelatedMarketplace],
+    plugins: [unrelatedPlugin],
+  });
 
   await installArtifact(build.artifact_path, reinstallPrefix);
   const reinstalledPackage = await realpath(join(reinstallPrefix, "node_modules", "dev-flow-codex"));
@@ -180,6 +227,13 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   assert.deepEqual(await directoryManifest(targetRepository), repositoryBefore);
   assert.equal(await readFile(adjacentFile, "utf8"), "preserve adjacent data\n");
   assert.equal(await readFile(codexAdjacentFile, "utf8"), "preserve Codex-adjacent data\n");
+  assert.equal(await readFile(unrelatedConfig, "utf8"), "model = \"unrelated-user-choice\"\n");
+  assert.equal(await readFile(unrelatedReceipt, "utf8"), "{\"owner\":\"other-product\"}\n");
+  assert.deepEqual(await directoryManifest(unrelatedMarketplaceRoot), unrelatedMarketplaceBefore);
+  assert.deepEqual(JSON.parse(await readFile(fakeState, "utf8")), {
+    marketplaces: [unrelatedMarketplace],
+    plugins: [unrelatedPlugin],
+  });
 });
 
 class CoreClient {

@@ -16,6 +16,12 @@ import test from "node:test";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
+import { runPublisher as runPublicationStateMachine } from "../../../scripts/publish-codex-release.mjs";
+import {
+  CODEX_COMPATIBILITY_RANGE,
+  EXPLICIT_SELECTOR,
+  FINAL_FIXTURE_EVIDENCE_KIND,
+} from "../../../scripts/write-codex-journey-evidence.mjs";
 import { prepareRelease } from "../../../scripts/verify-codex-release.mjs";
 
 const execFile = promisify(execFileCallback);
@@ -94,6 +100,96 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
     assert.deepEqual(record.steps.slice(0, 5).map((step) => step.status), ["complete", "complete", "complete", "complete", "complete"]);
     assert.equal(record.steps[5].status, "pending");
     assert.equal(record.github.published, false);
+  });
+
+  await t.test("stale local record resumes from exact immutable remote truth with bounded next-step output", async () => {
+    const scenario = await createScenario(root, template, "stale-record-resume");
+    assert.equal((await runPublisher(scenario, "v0.1.0")).status, "npm_verified");
+    const mutationsBeforeResume = remoteMutations(await callLog(scenario));
+    const remoteBeforeResume = {
+      tag: await remoteTagTarget(scenario),
+      npm: await readJSON(scenario.npmStatePath),
+      github: await readJSON(scenario.ghStatePath),
+    };
+
+    const staleRecord = await readJSON(join(template.releaseDirectory, "publication-record.json"));
+    await writeJSON(join(scenario.releaseDirectory, "publication-record.json"), staleRecord);
+    const resumed = await runPublisher(scenario, "v0.1.0");
+    assert.equal(resumed.status, "npm_verified");
+    assert.equal(resumed.mutated, false);
+    assert.deepEqual(resumed.reused_remote_state, ["github_draft", "npm_package", "tag"]);
+    assert.equal(resumed.next_incomplete_step, "final_journey");
+    assert.deepEqual(resumed.remaining_steps, [
+      "final_journey",
+      "github_upload",
+      "github_readback",
+      "github_finalize",
+    ]);
+    assert.match(resumed.safe_next_action, /final registry-package journey/u);
+    assert.equal(resumed.github_release_draft, true);
+    assert.ok(JSON.stringify(resumed).length <= 2_000);
+
+    assert.deepEqual(remoteMutations(await callLog(scenario)), mutationsBeforeResume);
+    assert.equal(await remoteTagTarget(scenario), remoteBeforeResume.tag);
+    assert.deepEqual(await readJSON(scenario.npmStatePath), remoteBeforeResume.npm);
+    assert.deepEqual(await readJSON(scenario.ghStatePath), remoteBeforeResume.github);
+    const record = await readJSON(join(scenario.releaseDirectory, "publication-record.json"));
+    assert.equal(record.overall_status, "npm_verified");
+    assert.deepEqual(record.steps.slice(0, 5).map((step) => step.status), [
+      "complete", "complete", "complete", "complete", "complete",
+    ]);
+    assert.equal(record.steps[5].status, "pending");
+    assert.equal(record.github.draft, true);
+    assert.equal(record.github.published, false);
+  });
+
+  await t.test("immutable conflict emits a bounded manual-resolution contract with zero new mutation", async () => {
+    const scenario = await createScenario(root, template, "bounded-manual-block");
+    scenario.environment.NPM_TOKEN = "private-test-token-marker";
+    const otherCommit = (await execFile("git", ["commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "bounded conflict fixture"], {
+      cwd: scenario.repository,
+      env: scenario.environment,
+      encoding: "utf8",
+    })).stdout.trim();
+    await execFile("git", ["push", scenario.bareRemote, `${otherCommit}:refs/tags/v0.1.0`], {
+      cwd: scenario.repository,
+      env: scenario.environment,
+    });
+
+    const failure = await publisherFailure(scenario, "v0.1.0");
+    assert.notEqual(failure.code, 0);
+    assert.equal(failure.stdout, "");
+    assert.ok(failure.stderr.length <= 600);
+    assert.match(failure.stderr, /different source commit/u);
+    for (const privateValue of [
+      scenario.root,
+      scenario.environment.HOME,
+      scenario.environment.NPM_CONFIG_USERCONFIG,
+      scenario.npmStatePath,
+      scenario.ghStatePath,
+      scenario.environment.NPM_TOKEN,
+    ]) {
+      assert.equal(failure.stderr.includes(privateValue), false);
+    }
+
+    const recordPath = join(scenario.releaseDirectory, "publication-record.json");
+    const record = await readJSON(recordPath);
+    const blockedStep = record.steps.find((step) => step.name === "tag");
+    assert.equal(record.overall_status, "blocked");
+    assert.equal(blockedStep.status, "blocked");
+    assert.equal(blockedStep.error_code, "TAG_TARGET_CONFLICT");
+    assert.ok(blockedStep.summary.length <= 500);
+    assert.match(blockedStep.safe_next_action, /manually/u);
+    assert.match(blockedStep.safe_next_action, /immutable remote state/u);
+    assert.doesNotMatch(
+      `${blockedStep.summary} ${blockedStep.safe_next_action}`,
+      /delete|overwrite|move (?:the )?tag|unpublish|rename (?:the )?package/iu,
+    );
+    const recordContents = await readFile(recordPath, "utf8");
+    for (const privateValue of [scenario.root, scenario.environment.HOME, scenario.npmStatePath, scenario.ghStatePath]) {
+      assert.equal(recordContents.includes(privateValue), false);
+    }
+    await assertRemoteMutationCount(scenario, 0, otherCommit);
   });
 
   await t.test("npm commit followed by process failure is recovered without a second publish", async () => {
@@ -177,7 +273,8 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
         },
       },
     });
-    await assertPublisherRejects(publishedConflict, "v0.1.0", /conflicts with the exact draft/u);
+    await assertPublisherRejects(publishedConflict, "v0.1.0", /public GitHub Release exists without the exact verified npm version/u);
+    assert.equal((await callLog(publishedConflict)).some((entry) => entry.tool === "npm" && entry.argv[0] === "publish"), false);
     assert.equal((await callLog(publishedConflict)).some((entry) => entry.tool === "gh" && entry.argv[0] === "release" && entry.argv[1] === "edit"), false);
 
     const registryConflict = await createScenario(root, template, "registry-conflict", {
@@ -247,6 +344,93 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
     assert.equal(blocked.overall_status, "blocked");
     assert.equal(blocked.github.published, false);
     assert.equal((await callLog(readback)).some((entry) => entry.tool === "gh" && entry.argv[0] === "release" && entry.argv[1] === "edit"), false);
+  });
+
+  await t.test("missing final journey lifecycle gate blocks before GitHub finalization", async () => {
+    const scenario = await createScenario(root, template, "missing-final-gate", {
+      gh: { fail_finalize: false },
+    });
+    await markTestLocalJourneyPassed(scenario);
+    scenario.finalJourneyEvidence.remove_readback_passed = false;
+    scenario.stopBeforeFinalize = false;
+    await assertPublisherRejects(scenario, "v0.1.0", /remove_readback_passed must be true/u);
+    const record = await readJSON(join(scenario.releaseDirectory, "publication-record.json"));
+    assert.equal(record.overall_status, "blocked");
+    assert.equal(record.steps[5].status, "blocked");
+    assert.equal(record.steps[5].error_code, "FINAL_JOURNEY_INVALID");
+    assert.equal((await callLog(scenario)).some((entry) => entry.tool === "gh" && entry.argv[0] === "release" && entry.argv[1] === "edit"), false);
+  });
+
+  await t.test("finalization command failure leaves the exact release draft and records the failed gate", async () => {
+    const scenario = await createScenario(root, template, "finalize-command-failure");
+    await markTestLocalJourneyPassed(scenario);
+    scenario.stopBeforeFinalize = false;
+    await assertPublisherRejects(scenario, "v0.1.0", /fixture finalization refused/u);
+    const remote = await readJSON(scenario.ghStatePath);
+    assert.equal(remote.release.isDraft, true);
+    assert.equal(remote.release.assets.length, 4);
+    const record = await readJSON(join(scenario.releaseDirectory, "publication-record.json"));
+    assert.equal(record.overall_status, "failed");
+    assert.equal(record.steps[8].status, "failed");
+    assert.equal(record.github.published, false);
+    const edits = (await callLog(scenario)).filter((entry) => entry.tool === "gh" && entry.argv[0] === "release" && entry.argv[1] === "edit");
+    assert.equal(edits.length, 1);
+  });
+
+  await t.test("remote finalization record loss resumes from the exact public release without a second edit", async () => {
+    const scenario = await createScenario(root, template, "finalize-record-loss", {
+      gh: { fail_finalize: false, fail_after_finalize: true },
+    });
+    await markTestLocalJourneyPassed(scenario);
+    scenario.stopBeforeFinalize = false;
+    await assertPublisherRejects(scenario, "v0.1.0", /process failed after immutable release finalization/u);
+    let remote = await readJSON(scenario.ghStatePath);
+    assert.equal(remote.release.isDraft, false);
+    assert.equal(remote.release.assets.length, 4);
+    let record = await readJSON(join(scenario.releaseDirectory, "publication-record.json"));
+    assert.equal(record.overall_status, "failed");
+    assert.equal(record.steps[8].status, "failed");
+
+    const resumed = await runPublisher(scenario, "v0.1.0");
+    assert.equal(resumed.status, "complete");
+    assert.equal(resumed.mutated, false);
+    assert.equal(resumed.github_release_draft, false);
+    assert.equal(resumed.next_incomplete_step, null);
+    remote = await readJSON(scenario.ghStatePath);
+    record = await readJSON(join(scenario.releaseDirectory, "publication-record.json"));
+    assert.equal(remote.release.isDraft, false);
+    assert.equal(record.overall_status, "complete");
+    assert.equal(record.github.published, true);
+    assert.equal(record.github.draft, false);
+    assert.equal(record.steps[8].status, "complete");
+    const edits = (await callLog(scenario)).filter((entry) => entry.tool === "gh" && entry.argv[0] === "release" && entry.argv[1] === "edit");
+    assert.equal(edits.length, 1);
+
+    remote.release.assets = remote.release.assets.filter((asset) => asset.name !== "SHA256SUMS");
+    await writeJSON(scenario.ghStatePath, remote);
+    await assertPublisherRejects(scenario, "v0.1.0", /published GitHub Release is missing immutable asset SHA256SUMS/u);
+    assert.equal((await callLog(scenario)).filter((entry) => entry.tool === "gh" && entry.argv[0] === "release" && entry.argv[1] === "edit").length, 1);
+  });
+
+  await t.test("public Release identity conflict blocks without finalization", async () => {
+    const scenario = await createScenario(root, template, "public-identity-conflict", {
+      gh: {
+        fail_finalize: false,
+        release: {
+          tagName: "v0.1.0",
+          isDraft: false,
+          isPrerelease: false,
+          targetCommitish: "f".repeat(40),
+          id: 880,
+          url: "https://github.example.invalid/releases/public-conflict",
+          assets: [],
+        },
+      },
+    });
+    await markTestLocalJourneyPassed(scenario);
+    scenario.stopBeforeFinalize = false;
+    await assertPublisherRejects(scenario, "v0.1.0", /conflicts with the exact draft\/source identity/u);
+    assert.equal((await callLog(scenario)).some((entry) => entry.tool === "gh" && entry.argv[0] === "release" && entry.argv[1] === "edit"), false);
   });
 });
 
@@ -327,6 +511,7 @@ async function createScenario(root, template, name, overrides = {}) {
     fail_after_upload_name: null,
     corrupt_download_name: null,
     fail_finalize: true,
+    fail_after_finalize: false,
     ...(overrides.gh ?? {}),
   };
   await writeJSON(npmStatePath, npmState);
@@ -354,28 +539,34 @@ async function createScenario(root, template, name, overrides = {}) {
     ghStatePath,
     callLogPath,
     environment,
+    finalJourneyEvidence: null,
+    stopBeforeFinalize: true,
   };
 }
 
 async function runPublisher(scenario, confirmation = null) {
-  const arguments_ = ["--directory", scenario.releaseDirectory];
-  if (confirmation !== null) arguments_.push("--confirm", confirmation);
-  const { stdout, stderr } = await execFile(join(scenario.repository, "scripts", "publish-codex-release.mjs"), arguments_, {
-    cwd: scenario.repository,
-    env: scenario.environment,
-    encoding: "utf8",
-    maxBuffer: 4 * 1024 * 1024,
-    timeout: 60_000,
+  return runPublicationStateMachine({
+    directory: scenario.releaseDirectory,
+    confirmation,
+    repositoryRoot: scenario.repository,
+    environment: scenario.environment,
+    runtime: {
+      stopAfterNPM: scenario.finalJourneyEvidence === null,
+      stopBeforeFinalize: scenario.stopBeforeFinalize,
+      allowFixtureJourney: true,
+      runFinalJourney: async (_context, _manifest, record) => ({
+        ...structuredClone(scenario.finalJourneyEvidence),
+        npm_integrity: record.npm.integrity,
+      }),
+    },
   });
-  assert.equal(stderr, "");
-  return JSON.parse(stdout);
 }
 
 async function assertPublisherRejects(scenario, confirmation, pattern) {
   await assert.rejects(
     runPublisher(scenario, confirmation),
     (error) => {
-      assert.match(error.stderr, pattern);
+      assert.match(String(error.stderr ?? error.message), pattern);
       return true;
     },
   );
@@ -397,38 +588,80 @@ async function assertPublisherRawRejects(scenario, arguments_, pattern) {
   );
 }
 
+async function publisherFailure(scenario, confirmation) {
+  try {
+    await execFile(join(scenario.repository, "scripts", "publish-codex-release.mjs"), [
+      "--directory", scenario.releaseDirectory,
+      "--confirm", confirmation,
+    ], {
+      cwd: scenario.repository,
+      env: scenario.environment,
+      encoding: "utf8",
+      maxBuffer: 1024 * 1024,
+      timeout: 10_000,
+    });
+    assert.fail("publisher unexpectedly succeeded");
+  } catch (error) {
+    if (error?.code === "ERR_ASSERTION") throw error;
+    return {
+      code: error.code,
+      stdout: String(error.stdout ?? ""),
+      stderr: String(error.stderr ?? ""),
+    };
+  }
+}
+
 async function markTestLocalJourneyPassed(scenario) {
-  const path = join(scenario.releaseDirectory, "publication-record.json");
-  const record = await readJSON(path);
-  const observedAt = "2026-08-17T06:30:00Z";
-  record.final_journey = {
+  const manifest = await readJSON(join(scenario.releaseDirectory, "release-manifest.json"));
+  const packageArtifact = manifest.artifacts.find((artifact) => artifact.kind === "npm_tarball");
+  const coreArtifact = manifest.artifacts.find((artifact) => artifact.kind === "core_binary");
+  scenario.finalJourneyEvidence = {
+    evidence_kind: FINAL_FIXTURE_EVIDENCE_KIND,
     status: "passed",
-    actual_codex_version: "0.147.0",
-    observed_at: observedAt,
-    summary: "Test-local journey fixture only; not real Codex evidence.",
+    package_name: "dev-flow-codex",
+    package_version: manifest.release.version,
+    registry: "https://registry.npmjs.org/",
+    npm_tarball_sha256: packageArtifact.sha256,
+    npm_integrity: `sha512-${Buffer.alloc(64, 11).toString("base64")}`,
+    package_root_location: "isolated-npm-prefix",
+    core_version: manifest.release.version,
+    core_sha256: coreArtifact.sha256,
+    source_commit: manifest.release.source_commit,
+    codex_version: "0.147.0",
+    compatible_codex_range: CODEX_COMPATIBILITY_RANGE,
+    codex_compatible: true,
+    setup_readback_passed: true,
+    ordinary_prompt_core_call_count: 0,
+    explicit_selector: EXPLICIT_SELECTOR,
+    task_id_before_restart: "task-fixture-finalization",
+    task_revision_before_restart: 4,
+    task_action_id_before_restart: "action-fixture-4",
+    task_id_after_restart: "task-fixture-finalization",
+    task_revision_after_restart: 4,
+    task_action_id_after_restart: "action-fixture-4",
+    committed_action_count: 4,
+    terminal_outcome: "DONE",
+    remove_readback_passed: true,
+    npm_uninstall_passed: true,
+    task_data_retained: true,
+    task_reopened_after_uninstall: true,
+    unexpected_repository_paths: [],
+    observed_at: "2026-08-17T06:30:00.000Z",
   };
-  const step = record.steps.find((candidate) => candidate.name === "final_journey");
-  step.status = "complete";
-  step.started_at = observedAt;
-  step.completed_at = observedAt;
-  step.remote_id = "test-local-journey-fixture";
-  step.error_code = null;
-  step.summary = "Test-local journey fixture passed the mechanical asset gate.";
-  step.safe_next_action = "Exercise mechanical asset upload/read-back while keeping the Release draft.";
-  record.overall_status = "journey_passed";
-  record.last_observed_at = observedAt;
-  record.safe_next_action = step.safe_next_action;
-  await writeJSON(path, record, 0o600);
 }
 
 async function assertRemoteMutationCount(scenario, expected, expectedTagTarget = null) {
   const calls = await callLog(scenario);
-  const mutations = calls.filter((entry) =>
+  const mutations = remoteMutations(calls);
+  assert.equal(mutations.length, expected);
+  assert.equal(await remoteTagTarget(scenario), expectedTagTarget);
+}
+
+function remoteMutations(calls) {
+  return calls.filter((entry) =>
     entry.tool === "npm" && entry.argv[0] === "publish" ||
     entry.tool === "gh" && entry.argv[0] === "release" && ["create", "upload", "edit"].includes(entry.argv[1]),
   );
-  assert.equal(mutations.length, expected);
-  assert.equal(await remoteTagTarget(scenario), expectedTagTarget);
 }
 
 async function remoteTagTarget(scenario) {

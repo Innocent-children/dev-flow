@@ -64,7 +64,7 @@ if (argv[0] === "publish" && argv.length === 5 && argv[2] === "--access" && argv
   state.package_exists = true;
   state.version = version;
   state.remote_tarball = remoteTarball;
-  state.integrity = "sha512-fixture-integrity";
+  state.integrity = `sha512-${Buffer.alloc(64, 11).toString("base64")}`;
   state.publish_count = (state.publish_count ?? 0) + 1;
   state.remote_sha256 = await sha256File(remoteTarball);
   const failAfterPublish = state.fail_after_publish === true;
