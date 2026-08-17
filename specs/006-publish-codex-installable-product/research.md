@@ -173,3 +173,20 @@ Feature 003 private-package assertion in `packages/codex/lib/lifecycle.mjs`. The
 T017 authorization covered the matching fixed public package preflight there. No launcher or path
 change was required, and the existing setup/remove ownership, receipt, compatibility, Skill, and MCP
 checks remain intact.
+
+## User Story 2 Implementation Decisions
+
+Deterministic preparation uses two independent detached worktrees at one admitted clean `main`
+commit. Runtime bytes must match exactly; package equality is the sorted path/size/SHA-256/mode
+inventory. Raw tgz equality is recorded as a fact and remains outside the permanent contract.
+
+The verifier and publisher use only Node standard-library code plus the existing local
+`git`/`tar`/`npm`/`pnpm`/`gh` executables. Preparation records the T001 GitHub CLI version rather than
+invoking `gh`. Publisher tests resolve npm/gh to bounded temporary fakes, use temporary state and a
+bare Git remote, and retain call-order evidence without environment or credential snapshots.
+
+Registry visibility uses four bounded observations with a fixed 250 ms interval. Retry always
+rereads remote state; an exact npm version is downloaded and verified before it is considered
+reusable. npm publish and asset upload record-loss cases therefore resume without repeating the
+immutable mutation. Asset conflicts block without clobber. The publisher contains no successful
+GitHub Release finalization path in this checkpoint, so the Release remains draft.

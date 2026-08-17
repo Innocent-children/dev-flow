@@ -56,6 +56,16 @@ authentication header, email, npm configuration file, or raw authentication outp
 Overall T002 result: **PASS**. The first attempt stopped before T003 because npm authentication was
 absent. The authenticated rerun passed without changing npm, Git tag, or GitHub Release state.
 
+## User Story 2 Checkpoint — 2026-08-17
+
+T001–T033 are complete. Deterministic local preparation uses two clean worktrees and emits one
+verified five-file release set. The publication state machine is implemented with exact
+confirmation, remote reread, publish-once, atomic record, exact resume, and conflict blocking, but
+its evidence is exclusively temporary fake npm/gh plus a temporary bare Git remote.
+
+No real npm publication, Git Tag creation/push, GitHub Draft/Release/asset mutation, registry
+read-back, final Codex journey, or Release finalization has occurred. T034–T050 remain unstarted.
+
 ## First-release boundary
 
 The first release contains one npm package with one bundled `darwin-arm64` Go runtime. It does not

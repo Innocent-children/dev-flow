@@ -238,6 +238,21 @@ scripts/validate-repository.sh
 CI may validate schemas, scripts, package metadata, and dry preparation. It must not publish, create
 tags/releases, or require credentials.
 
+### User Story 2 implementation boundary
+
+`scripts/build-codex-release.sh` owns only clean-`main` source admission and two temporary worktree
+build orchestration. Each worktree runs its own unchanged local builder. The verifier module owns
+normalized tree comparison, five-file generation, closed record/package validation, checksums, and
+bounded forbidden-content scanning. Preparation invokes no registry, GitHub CLI, Codex, Tag, push,
+or network operation.
+
+`scripts/publish-codex-release.mjs` uses argv-closed subprocess calls with fixed timeouts/buffers and
+no shell. It rereads exact npm, Tag, GitHub draft, and asset state before each mutation; writes the
+publication record atomically; publishes npm at most once; reuses only matching immutable state;
+and blocks rather than overwrites conflicts. User Story 2 tests put fake npm/gh first in an isolated
+PATH and use a temporary bare Git remote. A test-local passed-journey record exercises only the
+mechanical final-manifest/asset branch. No production bypass or Release finalization is added.
+
 ## Release Output
 
 For version `<VERSION>`, the prepared output directory contains:

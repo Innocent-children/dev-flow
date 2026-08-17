@@ -99,21 +99,70 @@ uninstall.
 publication proves exact tag/draft/npm/assets read-back and resumable conflict-safe records without
 real remote side effects.
 
-- [ ] T019 [US2] Implement two-clean-worktree Core/package preparation with documented Go flags and no remote effects in `scripts/build-codex-release.sh`.
-- [ ] T020 [US2] Implement normalized tarball tree, mode, version, runtime digest, and forbidden-content verification in `scripts/verify-codex-release.mjs`.
-- [ ] T021 [US2] Generate provisional `SHA256SUMS`, `release-manifest.json`, and the initial local `publication-record.json` in `scripts/build-codex-release.sh` and `scripts/verify-codex-release.mjs`.
-- [ ] T022 [P] [US2] Add two-build runtime-byte and normalized-package-tree regressions in `packages/codex/tests/release-package.test.mjs`.
-- [ ] T023 [P] [US2] Add manifest/publication schema, sorted collection, safe-relative-path, and cross-artifact digest tests in `tests/contract/release_contract_test.go`.
-- [ ] T024 [P] [US2] Add forbidden credentials, auth files, absolute paths, environment values, prompts, and unbounded output tests in `packages/codex/tests/release-package.test.mjs` and `tests/contract/release_contract_test.go`.
-- [ ] T025 [US2] Implement read-only npm/GitHub/source/version/ownership/conflict preflight in `scripts/publish-codex-release.mjs`.
-- [ ] T026 [US2] Implement exact-confirmation gating plus exact Git tag and draft GitHub Release create/reuse logic in `scripts/publish-codex-release.mjs`.
-- [ ] T027 [US2] Implement publish-once npm tarball upload and public registry metadata/tarball read-back in `scripts/publish-codex-release.mjs`.
-- [ ] T028 [US2] Implement post-journey final manifest/checksum generation, GitHub asset upload, official asset redownload, and draft retention in `scripts/publish-codex-release.mjs`.
-- [ ] T029 [US2] Implement stepwise publication-record writes, remote reread-before-mutation, exact resume, and conflict-safe blocking in `scripts/publish-codex-release.mjs`.
-- [ ] T030 [US2] Add fake npm/gh command fixtures for absent, exact-resume, delayed-readback, and conflicting remote states in `packages/codex/tests/fixtures/` and `packages/codex/tests/release-publication.test.mjs`.
-- [ ] T031 [US2] Add tests proving no publish/tag/release mutation without exact confirmation and no npm republish on resume in `packages/codex/tests/release-publication.test.mjs`.
-- [ ] T032 [US2] Add tests for npm-success/later-failure, upload-success/record-loss, asset mismatch, tag mismatch, draft mismatch, and finalization failure in `packages/codex/tests/release-publication.test.mjs`.
-- [ ] T033 [US2] Run the User Story 2 preparation/publication-fixture checkpoint and record results in `specs/006-publish-codex-installable-product/tasks.md`.
+- [x] T019 [US2] Implement two-clean-worktree Core/package preparation with documented Go flags and no remote effects in `scripts/build-codex-release.sh`.
+- [x] T020 [US2] Implement normalized tarball tree, mode, version, runtime digest, and forbidden-content verification in `scripts/verify-codex-release.mjs`.
+- [x] T021 [US2] Generate provisional `SHA256SUMS`, `release-manifest.json`, and the initial local `publication-record.json` in `scripts/build-codex-release.sh` and `scripts/verify-codex-release.mjs`.
+- [x] T022 [P] [US2] Add two-build runtime-byte and normalized-package-tree regressions in `packages/codex/tests/release-package.test.mjs`.
+- [x] T023 [P] [US2] Add manifest/publication schema, sorted collection, safe-relative-path, and cross-artifact digest tests in `tests/contract/release_contract_test.go`.
+- [x] T024 [P] [US2] Add forbidden credentials, auth files, absolute paths, environment values, prompts, and unbounded output tests in `packages/codex/tests/release-package.test.mjs` and `tests/contract/release_contract_test.go`.
+- [x] T025 [US2] Implement read-only npm/GitHub/source/version/ownership/conflict preflight in `scripts/publish-codex-release.mjs`.
+- [x] T026 [US2] Implement exact-confirmation gating plus exact Git tag and draft GitHub Release create/reuse logic in `scripts/publish-codex-release.mjs`.
+- [x] T027 [US2] Implement publish-once npm tarball upload and public registry metadata/tarball read-back in `scripts/publish-codex-release.mjs`.
+- [x] T028 [US2] Implement post-journey final manifest/checksum generation, GitHub asset upload, official asset redownload, and draft retention in `scripts/publish-codex-release.mjs`.
+- [x] T029 [US2] Implement stepwise publication-record writes, remote reread-before-mutation, exact resume, and conflict-safe blocking in `scripts/publish-codex-release.mjs`.
+- [x] T030 [US2] Add fake npm/gh command fixtures for absent, exact-resume, delayed-readback, and conflicting remote states in `packages/codex/tests/fixtures/` and `packages/codex/tests/release-publication.test.mjs`.
+- [x] T031 [US2] Add tests proving no publish/tag/release mutation without exact confirmation and no npm republish on resume in `packages/codex/tests/release-publication.test.mjs`.
+- [x] T032 [US2] Add tests for npm-success/later-failure, upload-success/record-loss, asset mismatch, tag mismatch, draft mismatch, and finalization failure in `packages/codex/tests/release-publication.test.mjs`.
+- [x] T033 [US2] Run the User Story 2 preparation/publication-fixture checkpoint and record results in `specs/006-publish-codex-installable-product/tasks.md`.
+
+### User Story 2 Checkpoint Evidence — 2026-08-17
+
+- Committed implementation fixture: clean local `main` at
+  `f14f88b1f0c2c852b9dd9ae7c3cf8ff78bde4728`, tree
+  `d0634d21a592e99f9953235973112687630e4fb5`. This is development preparation evidence, not final
+  remote-main release identity.
+- Production prepare created two independent detached clean worktrees at that exact commit. Each
+  worktree ran its own unchanged `scripts/build-codex-local.sh` and separate build output. Both
+  temporary worktrees were removed; the fixture source stayed clean on `main` with one worktree.
+- Determinism: Runtime SHA-256 was
+  `3f30d9b4607e063e67a7e9845d5a6f071aa5ae7231ccee89ed3f32870ddeb025`; normalized package inventory
+  SHA-256 was `36567157a5ab6914e2ada4f77a5b8f4122ea4da9c50bd87c47fe1cfa6a104ed8`.
+  Runtime bytes and normalized path/size/digest/mode trees matched. Raw tgz bytes also matched in
+  this run, recorded only as an observation rather than a permanent requirement.
+- Canonical output: exactly `dev-flow-codex-0.1.0.tgz`, `dev-flow-0.1.0-darwin-arm64`,
+  `SHA256SUMS`, `release-manifest.json`, and `publication-record.json`; no build/worktree/log/source,
+  database, receipt, auth, or temporary output remained.
+- Verifier: closed five-file set, non-link types, JSON/Schema-shaped records, source/version/Feature
+  identities, sorted collections, safe paths, exact 12-file package tree, modes, metadata, LICENSE,
+  standalone/bundled Core bytes, Core version, artifact/support digests, non-circular checksums, and
+  bounded forbidden-content scans passed. The manual root `pnpm` prepare/verify interface passed.
+- Provisional records: one pending darwin-arm64 support entry; two immutable ArtifactRecords; sorted
+  package inventory; checksums cover only tarball, standalone Core, and manifest. The publication
+  record is `prepared`, `preflight` complete, remaining eight steps pending, npm/GitHub absent,
+  final journey pending, and the safe next action requires review plus exact confirmation.
+- Publisher boundary: argv-closed npm/gh commands, no shell, fixed timeout/output bounds, source and
+  release verification before preflight, exact `v0.1.0` confirmation before mutation, atomic
+  publication-record writes, remote reread before every mutation, publish-once npm behavior, exact
+  reuse, and conflict-safe blocking.
+- Fake remote evidence: every test put temporary fake npm/gh first in isolated PATH, with isolated
+  HOME/cache/config/state/call log and a temporary bare Git remote. Missing/wrong confirmation was
+  read-only. Exact confirmation ordered Tag, GitHub draft, npm publish, and registry read-back. The
+  Release remained draft and final journey remained pending.
+- Resume/failure evidence: exact rerun did not republish; npm commit followed by record loss resumed
+  from registry truth; two delayed reads succeeded; bounded delayed-read timeout preserved the one
+  published version and later resumed; asset upload followed by record loss was reread and not
+  reuploaded.
+- Conflict evidence: conflicting Tag target, draft source/published state, registry bytes, asset
+  bytes, and asset read-back all blocked without moving a Tag, recreating/deleting a draft,
+  clobbering an asset, republishing npm, or finalizing the Release. Error/summary/next-action fields
+  remained bounded.
+- T033 passed: five required syntax checks, `release-package.test.mjs` 2/2,
+  `release-publication.test.mjs` 9/9, `go test ./tests/contract`, `git diff --check`, and both DeepSeek
+  zero-diff commands.
+- Evidence labels are limited to deterministic local release preparation, normalized package
+  verification, fake npm/gh publication evidence, and publication state-machine fixture evidence.
+  No real npm/Tag/GitHub Release/asset mutation, registry read-back, final Codex journey,
+  `go test ./...`, `pnpm run validate`, or DeepSeek Harness occurred. T034–T050 remain unstarted.
 
 ## Phase 5 — User Story 3: Upgrade, remove, and recover partial publication
 
