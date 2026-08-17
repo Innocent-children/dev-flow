@@ -3,12 +3,108 @@ package store
 import (
 	"context"
 	"errors"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/dev-flow/internal/repository"
+	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
+
+func TestCanonicalAliasObservationsShareSingleRepositoryClaim(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation is not reliably available without elevated privileges")
+	}
+	ctx := context.Background()
+	root := t.TempDir()
+	repositoryPath := filepath.Join(root, "RepositoryTarget")
+	runStoreAliasGit(t, "", "init", "-b", "main", repositoryPath)
+	if err := os.WriteFile(filepath.Join(repositoryPath, "tracked.txt"), []byte("initial\n"), 0o644); err != nil {
+		t.Fatalf("write alias claim fixture: %v", err)
+	}
+	runStoreAliasGit(t, repositoryPath, "add", "tracked.txt")
+	runStoreAliasGit(t, repositoryPath, "commit", "-m", "initial alias claim fixture")
+	aliasPath := filepath.Join(t.TempDir(), "rEpOsItOrYtArGeT")
+	if err := os.Symlink(repositoryPath, aliasPath); err != nil {
+		t.Fatalf("create alias claim symlink: %v", err)
+	}
+	observer := repository.NewGitObserver()
+	direct, err := observer.Observe(ctx, repositoryPath)
+	if err != nil {
+		t.Fatalf("observe direct claim repository: %v", err)
+	}
+	alias, err := observer.Observe(ctx, aliasPath)
+	if err != nil {
+		t.Fatalf("observe aliased claim repository: %v", err)
+	}
+	if direct.CanonicalRoot != alias.CanonicalRoot ||
+		direct.GitCommonDirDigest != alias.GitCommonDirDigest ||
+		direct.RepositoryIdentity != alias.RepositoryIdentity ||
+		direct.BindingDigest != alias.BindingDigest {
+		t.Fatalf("alias observations did not converge: direct=%#v alias=%#v", direct, alias)
+	}
+
+	taskStore, err := Open(ctx, filepath.Join(t.TempDir(), "alias-claim.db"))
+	if err != nil {
+		t.Fatalf("open alias claim store: %v", err)
+	}
+	defer taskStore.Close()
+	now := time.Date(2026, time.August, 17, 15, 0, 0, 0, time.UTC)
+	first := validTask(t, "task-alias-claim", direct.RepositoryIdentity, direct.CanonicalRoot, now)
+	first.Repository = direct.Clone()
+	firstAction, err := workflow.BuildNextAction(
+		first.Phase,
+		first.TaskID,
+		first.Revision,
+		first.Repository.BindingDigest,
+		"action-alias-claim",
+		now,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first.CurrentAction = &firstAction
+	firstEvent := taskEvent("event-alias-claim", &first, first.Phase, now)
+	if err := taskStore.CommitTask(ctx, TaskMutation{
+		Task: first, Event: firstEvent, Claim: ClaimAcquire,
+	}); err != nil {
+		t.Fatalf("commit canonical alias claim: %v", err)
+	}
+
+	second := validTask(t, "task-alias-duplicate", alias.RepositoryIdentity, alias.CanonicalRoot, now.Add(time.Second))
+	second.Repository = alias.Clone()
+	secondAction, err := workflow.BuildNextAction(
+		second.Phase,
+		second.TaskID,
+		second.Revision,
+		second.Repository.BindingDigest,
+		"action-alias-duplicate",
+		now.Add(time.Second),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second.CurrentAction = &secondAction
+	secondEvent := taskEvent("event-alias-duplicate", &second, second.Phase, now.Add(time.Second))
+	if err := taskStore.CommitTask(ctx, TaskMutation{
+		Task: second, Event: secondEvent, Claim: ClaimAcquire,
+	}); !errors.Is(err, ErrActiveTaskConflict) {
+		t.Fatalf("duplicate alias claim error = %v, want %v", err, ErrActiveTaskConflict)
+	}
+
+	active, err := taskStore.LoadActiveTask(ctx, direct.RepositoryIdentity)
+	if err != nil || active.TaskID != first.TaskID || active.Repository.CanonicalRoot != direct.CanonicalRoot {
+		t.Fatalf("canonical alias active task = %#v, error %v", active, err)
+	}
+	assertRowCount(t, ctx, taskStore.db, `SELECT COUNT(*) FROM tasks`, "", 1)
+	assertRowCount(t, ctx, taskStore.db, `SELECT COUNT(*) FROM task_events`, "", 1)
+	assertRowCount(t, ctx, taskStore.db, `SELECT COUNT(*) FROM repository_claims`, "", 1)
+	assertRowCount(t, ctx, taskStore.db, `SELECT COUNT(*) FROM task_events WHERE task_id = ?`, string(second.TaskID), 0)
+}
 
 func TestRepositoryClaimConcurrentAcquireHasSingleWinner(t *testing.T) {
 	ctx, cancel := context.WithTimeout(
@@ -100,4 +196,20 @@ func TestRepositoryClaimConcurrentAcquireHasSingleWinner(t *testing.T) {
 		string(loser.taskID),
 		0,
 	)
+}
+
+func runStoreAliasGit(t *testing.T, repositoryPath string, arguments ...string) {
+	t.Helper()
+	args := []string{
+		"-c", "user.name=Dev Flow Test",
+		"-c", "user.email=dev-flow@example.invalid",
+		"-c", "commit.gpgSign=false",
+	}
+	if repositoryPath != "" {
+		args = append(args, "-C", repositoryPath)
+	}
+	args = append(args, arguments...)
+	if output, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+		t.Fatalf("construct alias claim Git fixture: %v\n%s", err, output)
+	}
 }

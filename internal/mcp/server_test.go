@@ -141,6 +141,59 @@ func TestApplyActionInvalidRequestIDUsesFallback(t *testing.T) {
 	}
 }
 
+func TestCommittedApplicationResultDiscardedBeforeMCPSerializationRequiresReadBack(t *testing.T) {
+	fixture := newUncertainMCPFixture(t, "operation-pre-serialization")
+
+	// No MCP result is encoded: the application commits and the harness discards its return value
+	// at the pre_serialization boundary.
+	if _, err := fixture.service.ApplyAction(fixture.ctx, fixture.request); err != nil {
+		t.Fatalf("pre_serialization application commit: %v", err)
+	}
+	readBack := requireMCPCommittedReadBack(t, fixture)
+	if readBack.Task.CurrentAction == nil || readBack.Task.CurrentAction.Kind != domain.ActionPlanChange {
+		t.Fatalf("pre_serialization read-back resulting action = %#v", readBack.Task.CurrentAction)
+	}
+	if total, matching := countMCPRecoveryEvents(t, fixture); total != 2 || matching != 1 {
+		t.Fatalf("pre_serialization event cardinality = total %d matching %d", total, matching)
+	}
+}
+
+func TestPartialResponseWriterFailureRequiresAuthoritativeReadBack(t *testing.T) {
+	fixture := newUncertainMCPFixture(t, "operation-partial-write")
+	encoded := fixture.server.dispatch(
+		fixture.ctx,
+		ToolApplyAction,
+		"request-partial-write-fallback",
+		fixture.applyRaw,
+	)
+	if encoded.IsError {
+		t.Fatalf("partial_write source mutation failed: %s", encoded.JSON)
+	}
+
+	const prefixLimit = 37
+	writer := &boundedFailingResponseWriter{limit: prefixLimit}
+	written, writeErr := writer.Write(encoded.JSON)
+	prefix := writer.Bytes()
+	if writeErr != errBoundedResponseWrite || written != prefixLimit || len(prefix) != prefixLimit {
+		t.Fatalf("partial_write result = written %d bytes %d error %v", written, len(prefix), writeErr)
+	}
+	if len(prefix) >= len(encoded.JSON) || json.Valid(prefix) {
+		t.Fatalf("partial_write prefix was treated as a complete result: %q", prefix)
+	}
+	var partialEnvelope map[string]any
+	if err := json.Unmarshal(prefix, &partialEnvelope); err == nil {
+		t.Fatalf("partial_write prefix decoded as caller authority: %#v", partialEnvelope)
+	}
+
+	readBack := requireMCPCommittedReadBack(t, fixture)
+	if readBack.Task.CurrentAction == nil || readBack.Task.CurrentAction.Kind != domain.ActionPlanChange {
+		t.Fatalf("partial_write read-back resulting action = %#v", readBack.Task.CurrentAction)
+	}
+	if total, matching := countMCPRecoveryEvents(t, fixture); total != 2 || matching != 1 {
+		t.Fatalf("partial_write performed a second mutation: total %d matching %d", total, matching)
+	}
+}
+
 func TestOfficialSDKListsExactToolsAndCallsServerInfo(t *testing.T) {
 	const instructions = "Call only after this test host's explicit selection and successful handshake."
 	ctx := context.Background()

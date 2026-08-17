@@ -147,8 +147,20 @@ func TestClassifyRecoveryDecisionTable(t *testing.T) {
 				decision.Assessment.NextAdvice != tt.advice || decision.Directive != tt.directive {
 				t.Fatalf("Classify() = %#v", decision)
 			}
+			if decision.Assessment.Operation != facts.Operation ||
+				decision.Assessment.TaskRevision != facts.TaskRevision ||
+				decision.Assessment.IssuanceBindingDigest != facts.IssuanceBindingDigest ||
+				decision.Assessment.AuthoritativeBindingDigest != facts.AuthoritativeBindingDigest ||
+				decision.Assessment.ObservedBindingDigest != facts.ObservedBindingDigest ||
+				decision.Assessment.RepositoryRelation != facts.RepositoryRelation ||
+				decision.Assessment.OperationPayloadDigest != facts.OperationPayloadDigest {
+				t.Fatalf("classification changed Core-derived identity facts: decision=%#v facts=%#v", decision, facts)
+			}
 			if (decision.Assessment.CommittedProof != nil) != tt.proof {
 				t.Fatalf("CommittedProof presence = %t, want %t", decision.Assessment.CommittedProof != nil, tt.proof)
+			}
+			if tt.proof && !reflect.DeepEqual(decision.Assessment.CommittedProof, facts.CommittedProof) {
+				t.Fatalf("CommittedProof = %#v, want exact %#v", decision.Assessment.CommittedProof, facts.CommittedProof)
 			}
 			if (decision.Assessment.UnblockCondition != nil) != tt.condition {
 				t.Fatalf("UnblockCondition presence = %t, want %t", decision.Assessment.UnblockCondition != nil, tt.condition)
@@ -184,6 +196,134 @@ func TestClassifyRecoveryDecisionTable(t *testing.T) {
 			t.Fatalf("classification = %q", decision.Assessment.Classification)
 		}
 	})
+}
+
+func TestClassifySupersededSourcesAndInsufficientEvidenceRemainConservative(t *testing.T) {
+	tests := []struct {
+		name           string
+		mutate         func(*ClassificationFacts)
+		classification domain.RecoveryClassification
+		directive      MutationDirective
+		advice         RecoveryAdvice
+	}{
+		{
+			name: "stale expected revision",
+			mutate: func(facts *ClassificationFacts) {
+				facts.TaskRevision++
+				facts.SourceCurrent = false
+			},
+			classification: domain.RecoveryConflicting,
+			directive:      DirectiveRevisionConflict,
+			advice:         AdviceReadNextAction,
+		},
+		{
+			name: "current action changed",
+			mutate: func(facts *ClassificationFacts) {
+				actionID := domain.ID("action-current")
+				facts.CurrentActionID = &actionID
+				facts.SourceCurrent = false
+			},
+			classification: domain.RecoveryConflicting,
+			directive:      DirectiveActionStale,
+			advice:         AdviceReadNextAction,
+		},
+		{
+			name: "source phase changed",
+			mutate: func(facts *ClassificationFacts) {
+				facts.CurrentTaskPhase = domain.PhaseImplement
+				facts.SourceCurrent = false
+			},
+			classification: domain.RecoveryConflicting,
+			directive:      DirectiveActionStale,
+			advice:         AdviceReadNextAction,
+		},
+		{
+			name: "issuance binding superseded",
+			mutate: func(facts *ClassificationFacts) {
+				facts.AuthoritativeBindingDigest = recoveryDigest("3")
+				facts.ObservedBindingDigest = recoveryDigest("3")
+				facts.SourceCurrent = false
+			},
+			classification: domain.RecoveryConflicting,
+			directive:      DirectiveActionStale,
+			advice:         AdviceReadNextAction,
+		},
+		{
+			name: "blocked task retains existing blocker",
+			mutate: func(facts *ClassificationFacts) {
+				facts.CurrentTaskPhase = domain.PhaseBlocked
+				actionID := domain.ID("action-resolve-blocker")
+				facts.CurrentActionID = &actionID
+				condition := *facts.ProposedUnblockCondition
+				facts.ExistingUnblockCondition = &condition
+				facts.SourceCurrent = false
+			},
+			classification: domain.RecoveryConflicting,
+			directive:      DirectiveReturnExistingBlocker,
+			advice:         AdviceResolveBlocker,
+		},
+		{
+			name: "related committed record contradiction outranks complete evidence",
+			mutate: func(facts *ClassificationFacts) {
+				facts.LastOperationRelation = LastOperationContradictory
+				facts.OperationEvidence = OperationEvidenceComplete
+				facts.RepositoryRelation = RepositoryWorktreeOnlyChanged
+				facts.ObservedBindingDigest = recoveryDigest("3")
+			},
+			classification: domain.RecoveryConflicting,
+			directive:      DirectiveCreateBlocker,
+			advice:         AdviceSubmitRecoveryApply,
+		},
+		{
+			name: "contradictory evidence outranks worktree completion",
+			mutate: func(facts *ClassificationFacts) {
+				facts.OperationEvidence = OperationEvidenceContradictory
+				facts.RepositoryRelation = RepositoryWorktreeOnlyChanged
+				facts.ObservedBindingDigest = recoveryDigest("3")
+			},
+			classification: domain.RecoveryConflicting,
+			directive:      DirectiveCreateBlocker,
+			advice:         AdviceSubmitRecoveryApply,
+		},
+		{
+			name: "forbidden repository relation outranks complete payload",
+			mutate: func(facts *ClassificationFacts) {
+				facts.OperationEvidence = OperationEvidenceComplete
+				facts.RepositoryRelation = RepositoryForbiddenChange
+				facts.ObservedBindingDigest = recoveryDigest("3")
+				facts.CurrentActionAcceptsObserved = false
+			},
+			classification: domain.RecoveryConflicting,
+			directive:      DirectiveCreateBlocker,
+			advice:         AdviceSubmitRecoveryApply,
+		},
+		{
+			name: "worktree change without retained evidence stays partial",
+			mutate: func(facts *ClassificationFacts) {
+				facts.RepositoryRelation = RepositoryWorktreeOnlyChanged
+				facts.ObservedBindingDigest = recoveryDigest("3")
+			},
+			classification: domain.RecoveryPartiallyCompleted,
+			directive:      DirectiveCreateBlocker,
+			advice:         AdviceSubmitRecoveryApply,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			facts := validClassificationFacts()
+			tt.mutate(&facts)
+			decision, err := Classify(facts)
+			if err != nil {
+				t.Fatalf("Classify() error = %v", err)
+			}
+			if decision.Assessment.Classification != tt.classification ||
+				decision.Directive != tt.directive || decision.Assessment.NextAdvice != tt.advice ||
+				decision.Assessment.ActionRetrySafe || decision.Assessment.CommittedProof != nil {
+				t.Fatalf("conservative decision = %#v", decision)
+			}
+		})
+	}
 }
 
 func TestClassifyRecoveryRejectsInvalidFacts(t *testing.T) {

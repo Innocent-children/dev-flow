@@ -104,15 +104,49 @@ proof, and the named failure boundaries can be exercised more precisely below th
 
 ## Implementation-Time Baseline Record
 
-Before implementation, replace the placeholders below with the merged values:
+The User Story 1 checkpoint started from the current `origin/main` after `git fetch origin` and
+`git pull --ff-only origin main` both completed successfully.
 
-| Item | Required value |
+| Item | Recorded value |
 |---|---|
-| Feature 003 merge commit | Record exact `main` commit containing Feature 003 |
-| Core version | Read from root `VERSION` and `dev-flow version` |
-| Core fixture digest | Record the shared fixture digest reported by `dev_flow_server_info` |
-| Codex package version | Record `packages/codex/package.json` version |
-| Baseline targeted result | Record package/test commands and pass/fail only |
+| Baseline `main` | `a2ba8bd5de9c87aaf758bff51a02ae120f60c7f7` |
+| Feature 003 merge commit | `a2ba8bd5de9c87aaf758bff51a02ae120f60c7f7` (`Merge branch 'codex/feature-003-codex-explicit-dev-flow'`) |
+| Core version | root `VERSION` = `0.1.0` |
+| Core fixture aggregate digest | `8c27bcf6be0e4e5a4bf294c67cbda8cdf281b1b2b2c53fff16206db2828dede7` across 22 shared fixtures |
+| Codex package version | `0.1.0` |
+| Platform | Darwin 27.0.0 arm64 |
+| Go | `go1.26.6 darwin/arm64` |
+| Node.js | `v24.18.0` |
+| pnpm | `11.21.0` |
+| Baseline targeted result | Eight required commands passed; see the command summary in `README.md` |
 
-These are implementation-time baseline fields; the exact values cannot exist
-until Feature 003 is merged and are a named implementation entry task.
+Baseline commands also confirmed a clean worktree, branch `main`, the expected `origin` remote,
+the Feature 003 acceptance record, and the complete Feature 005 package. Feature 004 remains
+deferred and is not an implementation or acceptance dependency for Feature 005.
+
+## Implementation Finding — Existing Production Semantics Hold
+
+**Status**: Implementation complete through T038; final root validation and Spec Kit gates pending.
+
+The three user-story checkpoints passed against the existing production implementation. Lost-result
+and duplicate behavior, all five reconciliation classes, exact adoption, read-only observations,
+blockers, complete binding drift, aliases, repository replacement, the two-handle race, and restart
+did not expose a Core, Application, Recovery, Repository, Store, or MCP Go production defect.
+
+The focused Codex static test did expose a documentation ambiguity. The Skill now states that
+missing, malformed, cancelled, truncated, and transport-failed apply results share one
+read-before-retry path; retains the exact arguments from one fresh action and dispatch; uses only
+the existing seven-member probe with exact payload or JSON `null`; separates a complete `ok=false`
+domain error; and never branches on Core recovery classifications. This is caller-contract
+clarification, not new recovery authority.
+
+The proof sources are deliberately narrow: test-local pre-commit failure, post-commit discarded
+result, pre-serialization discard, bounded partial writer, SQLite close/reopen, two-handle
+deterministic race, temporary Git fixture mutation, and Codex Skill static contract. Root repository
+validation is the remaining separate evidence label. They do not demonstrate a real Codex crash,
+power loss, network interruption, DeepSeek execution, or a released artifact.
+
+The actual result preserves Core Contract 0.1, six tools, five recovery classes, stable errors,
+repository claims, blockers, and SQLite schema version 1. `packages/deepseek/` has zero diff. No
+additional real Codex Host Journey, DeepSeek Harness, production failpoint, migration, dependency,
+Feature 006 work, tag, release, or npm publication was introduced.

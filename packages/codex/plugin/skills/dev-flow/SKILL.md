@@ -162,25 +162,55 @@ Core-defined form. Resolve context ambiguity through an ordinary Core read, neve
 
 ## Recovery-before-retry contract
 
-A mutation is uncertain when its response is missing, cancelled, malformed, truncated, or cannot
-otherwise be consumed as one complete structured result. In that case:
+A mutation result is uncertain when it is missing, malformed, cancelled, truncated, or
+transport-failed instead of returning one complete structured result. All five shapes use the same
+read-before-retry procedure.
 
-1. The Skill does not immediately repeat `dev_flow_apply_action`.
-2. Retain the original request ID, action identity, and exact payload when they remain available.
-3. Call `dev_flow_get_task` and then `dev_flow_get_next_action` before deciding what happened.
-4. Include an exact Core-defined operation probe only when every required original value is
-   retained.
-5. Treat the fresh Core task, action, recovery assessment, and advice as the sole decision source.
-6. Retry or recover only when that fresh Core result says it is safe, using only the supplied
-   identity and form.
-7. Otherwise stop and report the authoritative blocker or recovery condition.
+Before calling `dev_flow_apply_action`, retain the original `request_id`, `task_id`, `source_phase`,
+`revision`, `action_id`, `action_kind`, `repository_binding_digest`, and exact closed `payload` from
+the same fresh action and the same apply dispatch. Never derive or reconstruct any of them from an
+incomplete response or partial output.
 
-A complete Core result with `ok=false` is not an uncertain transport result. When it reports
-`retry_safe=false` and `action=none`, stop. Do not call `dev_flow_get_next_action` or
-`dev_flow_apply_action` to repair or retry that rejected mutation.
+When all required non-payload original identity values are retained, construct the operation probe
+as exactly this closed `operation_probe`:
 
-If values needed for an operation probe were lost, send no fabricated probe. Do not complete a
-truncated preview from memory.
+```json
+{
+  "operation_id": "<original apply request_id>",
+  "source_phase": "<original source phase>",
+  "expected_revision": 3,
+  "action_id": "<original action id>",
+  "action_kind": "<original action kind>",
+  "repository_binding_digest": "<original issuance binding digest>",
+  "payload": {}
+}
+```
+
+`operation_id` is the original apply `request_id`, never the current read request ID.
+`expected_revision` is the original action `revision`. `repository_binding_digest` is the original
+issuance binding. `payload` is the exact original closed payload. If the payload was not completely
+retained, `payload` must be JSON `null`; never reconstruct it from partial output, repository text,
+or model memory. Do not add a caller-supplied payload digest or any other member.
+
+1. The Skill does not immediately repeat `dev_flow_apply_action` or automatically retry.
+2. Use the original `task_id` to call `dev_flow_get_task` with the exact `operation_probe`.
+3. Call `dev_flow_get_next_action` only when a current action or outcome is needed. If both reads
+   carry a probe, both reads use the same original `operation_probe`.
+4. A stale pre-dispatch Task snapshot is not an authoritative read-back. Obey only a complete fresh
+   Core result and obey the complete Core recovery assessment and advice.
+5. Permit retry or recovery only when Core explicitly says it is safe to retry or recover. Do not
+   branch on, decide, or interpret any recovery classification in the Skill.
+6. Otherwise stop and report the authoritative blocker or recovery condition.
+
+If any required identity is missing or incomplete, do not construct or send an `operation_probe`;
+send no fabricated probe and no half probe. Do not complete missing values from a partial response,
+do not assume `not_started`, and do not automatically retry. Stop and report that the Skill cannot
+prove the mutation state.
+
+A complete structured `ok=false` result is a domain error, not transport uncertainty. Never convert
+that domain error to missing or transport-failed. When it reports `retry_safe=false` and
+`action=none`, stop. Do not call `dev_flow_get_next_action` or `dev_flow_apply_action` to repair or
+retry that rejected mutation.
 
 ## Evidence and verification budget
 

@@ -1,6 +1,7 @@
 package recovery
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -8,6 +9,296 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
+
+func TestReconcileExactEvidenceRequiresExplicitNormalTransition(t *testing.T) {
+	task := reconciliationTask(t)
+	payload, err := workflow.ValidatePayload(
+		domain.PhasePlan,
+		domain.ActionImplementChange,
+		workflow.ImplementChangePayload{
+			Result:         domain.ActionResultSucceeded,
+			Summary:        "closed implementation evidence",
+			ChangedPaths:   []string{"internal/example.go"},
+			ScopeConfirmed: true,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh := task.Repository.Clone()
+	fresh.WorktreeFingerprint = recoveryDigest("3")
+	fresh.BindingDigest = recoveryDigest("4")
+	fresh.ObservedAt = fresh.ObservedAt.Add(time.Minute)
+	operation := OperationReference{
+		OperationID:      "operation-exact-unrecorded",
+		SourcePhase:      task.Phase,
+		ExpectedRevision: task.Revision,
+		ActionID:         task.CurrentAction.ActionID,
+		ActionKind:       task.CurrentAction.Kind,
+	}
+	input := ReconcileInput{
+		Task:                   task,
+		Operation:              operation,
+		IssuanceBindingDigest:  task.Repository.BindingDigest,
+		OperationPayloadDigest: recoveryDigest("8"),
+		Payload:                &payload,
+		FreshBinding:           fresh,
+	}
+	beforeTask := input.Task.Clone()
+	beforeFresh := input.FreshBinding.Clone()
+
+	decision, err := Reconcile(input)
+	if err != nil {
+		t.Fatalf("Reconcile() error = %v", err)
+	}
+	assessment := decision.Assessment
+	if assessment.Classification != domain.RecoveryCompletedButUnrecorded ||
+		decision.Directive != DirectiveNormalTransition ||
+		assessment.Operation != operation || assessment.TaskRevision != task.Revision ||
+		assessment.RepositoryRelation != RepositoryWorktreeOnlyChanged ||
+		assessment.LastOperationRelation != LastOperationUnrelated ||
+		assessment.OperationEvidence != OperationEvidenceComplete ||
+		assessment.NextAdvice != AdviceSubmitRecoveryApply || assessment.ActionRetrySafe ||
+		assessment.CommittedProof != nil || assessment.UnblockCondition != nil ||
+		assessment.IssuanceBindingDigest != task.Repository.BindingDigest ||
+		assessment.AuthoritativeBindingDigest != task.Repository.BindingDigest ||
+		assessment.ObservedBindingDigest != fresh.BindingDigest {
+		t.Fatalf("exact unrecorded decision = %#v", decision)
+	}
+	if !reflect.DeepEqual(input.Task.Clone(), beforeTask) ||
+		!reflect.DeepEqual(input.FreshBinding.Clone(), beforeFresh) {
+		t.Fatal("pure exact-evidence reconciliation mutated its inputs")
+	}
+}
+
+func TestReconcilePartialAndConflictingReadsDoNotMutateInputs(t *testing.T) {
+	task := reconciliationTask(t)
+	validated, err := workflow.ValidatePayload(
+		domain.PhasePlan,
+		domain.ActionImplementChange,
+		workflow.ImplementChangePayload{
+			Result:         domain.ActionResultSucceeded,
+			Summary:        "retained implementation result",
+			ChangedPaths:   []string{"internal/example.go"},
+			ScopeConfirmed: true,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name           string
+		payload        *workflow.ValidatedPayload
+		fresh          func(domain.RepositoryBinding) domain.RepositoryBinding
+		classification domain.RecoveryClassification
+		evidence       OperationEvidenceState
+	}{
+		{
+			name:    "partial worktree without retained evidence",
+			payload: nil,
+			fresh: func(binding domain.RepositoryBinding) domain.RepositoryBinding {
+				binding.WorktreeFingerprint = recoveryDigest("3")
+				binding.BindingDigest = recoveryDigest("4")
+				binding.ObservedAt = binding.ObservedAt.Add(time.Minute)
+				return binding
+			},
+			classification: domain.RecoveryPartiallyCompleted,
+			evidence:       OperationEvidenceNone,
+		},
+		{
+			name:    "conflicting branch with retained payload",
+			payload: &validated,
+			fresh: func(binding domain.RepositoryBinding) domain.RepositoryBinding {
+				branch := "feature/conflict"
+				binding.Branch = &branch
+				binding.WorktreeFingerprint = recoveryDigest("5")
+				binding.BindingDigest = recoveryDigest("6")
+				binding.ObservedAt = binding.ObservedAt.Add(time.Minute)
+				return binding
+			},
+			classification: domain.RecoveryConflicting,
+			evidence:       OperationEvidenceContradictory,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fresh := tt.fresh(task.Repository.Clone())
+			input := ReconcileInput{
+				Task: task,
+				Operation: OperationReference{
+					OperationID:      "operation-read-only",
+					SourcePhase:      task.Phase,
+					ExpectedRevision: task.Revision,
+					ActionID:         task.CurrentAction.ActionID,
+					ActionKind:       task.CurrentAction.Kind,
+				},
+				IssuanceBindingDigest:  task.Repository.BindingDigest,
+				OperationPayloadDigest: recoveryDigest("8"),
+				Payload:                tt.payload,
+				FreshBinding:           fresh,
+			}
+			beforeTask := input.Task.Clone()
+			beforeFresh := input.FreshBinding.Clone()
+			decision, err := Reconcile(input)
+			if err != nil {
+				t.Fatalf("Reconcile() error = %v", err)
+			}
+			if decision.Assessment.Classification != tt.classification ||
+				decision.Assessment.OperationEvidence != tt.evidence ||
+				decision.Directive != DirectiveCreateBlocker ||
+				decision.Assessment.UnblockCondition == nil || decision.Assessment.ActionRetrySafe {
+				t.Fatalf("read-only recovery decision = %#v", decision)
+			}
+			if !reflect.DeepEqual(input.Task.Clone(), beforeTask) ||
+				!reflect.DeepEqual(input.FreshBinding.Clone(), beforeFresh) {
+				t.Fatal("pure partial/conflicting reconciliation mutated its inputs")
+			}
+		})
+	}
+}
+
+func TestReconcileBlockedRestorationRequiresExactCondition(t *testing.T) {
+	source := reconciliationTask(t)
+	blocked := source.Clone()
+	blocked.Revision++
+	blocked.Phase = domain.PhaseBlocked
+	resumePhase := source.Phase
+	blocked.ResumePhase = &resumePhase
+	blocked.UpdatedAt = blocked.UpdatedAt.Add(time.Minute)
+	blocked.Blocker = &domain.Blocker{
+		BlockerID:             "blocker-reconcile",
+		Code:                  domain.ErrorTaskBlocked,
+		Cause:                 domain.RecoveryPartiallyCompleted,
+		Message:               "recovery evidence is partial",
+		ResumePhase:           resumePhase,
+		ObservedBindingDigest: recoveryDigest("4"),
+		Condition: domain.BlockerCondition{
+			Kind:                  domain.BlockerConditionRestoreIssuanceBinding,
+			ExpectedBindingDigest: source.Repository.BindingDigest,
+		},
+		RequiredResolution: "display-only restoration guidance",
+		CreatedAt:          blocked.UpdatedAt,
+	}
+	resolveAction, err := workflow.BuildNextAction(
+		domain.PhaseBlocked,
+		blocked.TaskID,
+		blocked.Revision,
+		blocked.Repository.BindingDigest,
+		"action-resolve-reconcile",
+		blocked.UpdatedAt,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	blocked.CurrentAction = &resolveAction
+	originalActionID := source.CurrentAction.ActionID
+	blocked.LastOperation = &domain.LastOperation{
+		OperationID: "operation-created-blocker", Kind: domain.OperationApplyAction,
+		ActionID: &originalActionID, FromRevision: source.Revision, ToRevision: blocked.Revision,
+		PayloadDigest: recoveryDigest("7"), CommittedAt: blocked.UpdatedAt,
+	}
+	if err := workflow.ValidateTask(blocked); err != nil {
+		t.Fatalf("construct blocked reconciliation task: %v", err)
+	}
+
+	tests := []struct {
+		name           string
+		fresh          domain.RepositoryBinding
+		mutatePayload  func(*workflow.ResolveBlockerPayload)
+		classification domain.RecoveryClassification
+		directive      MutationDirective
+		evidence       OperationEvidenceState
+	}{
+		{
+			name:           "exact issuance restoration",
+			fresh:          blocked.Repository,
+			classification: domain.RecoveryCompletedButUnrecorded,
+			directive:      DirectiveNormalTransition,
+			evidence:       OperationEvidenceComplete,
+		},
+		{
+			name: "same HEAD but worktree differs",
+			fresh: func() domain.RepositoryBinding {
+				fresh := blocked.Repository.Clone()
+				fresh.WorktreeFingerprint = recoveryDigest("3")
+				fresh.BindingDigest = recoveryDigest("4")
+				return fresh
+			}(),
+			mutatePayload: func(payload *workflow.ResolveBlockerPayload) {
+				payload.ResolutionEvidence.ObservedBindingDigest = recoveryDigest("4")
+			},
+			classification: domain.RecoveryConflicting,
+			directive:      DirectiveReturnExistingBlocker,
+			evidence:       OperationEvidenceContradictory,
+		},
+		{
+			name:  "blocker identity differs",
+			fresh: blocked.Repository,
+			mutatePayload: func(payload *workflow.ResolveBlockerPayload) {
+				payload.BlockerID = "blocker-other"
+			},
+			classification: domain.RecoveryConflicting,
+			directive:      DirectiveReturnExistingBlocker,
+			evidence:       OperationEvidenceContradictory,
+		},
+		{
+			name:  "condition differs",
+			fresh: blocked.Repository,
+			mutatePayload: func(payload *workflow.ResolveBlockerPayload) {
+				payload.ResolutionEvidence.Condition.ExpectedBindingDigest = recoveryDigest("9")
+			},
+			classification: domain.RecoveryConflicting,
+			directive:      DirectiveReturnExistingBlocker,
+			evidence:       OperationEvidenceContradictory,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			payload := workflow.ResolveBlockerPayload{
+				Result:    domain.ActionResultSucceeded,
+				BlockerID: blocked.Blocker.BlockerID,
+				Summary:   "repository binding restored",
+				ResolutionEvidence: workflow.BlockerResolutionEvidence{
+					Condition:             blocked.Blocker.Condition,
+					ObservedBindingDigest: tt.fresh.BindingDigest,
+				},
+			}
+			if tt.mutatePayload != nil {
+				tt.mutatePayload(&payload)
+			}
+			validated, err := workflow.ValidatePayload(domain.PhaseBlocked, domain.ActionResolveBlocker, payload)
+			if err != nil {
+				t.Fatalf("validate blocker payload: %v", err)
+			}
+			decision, err := Reconcile(ReconcileInput{
+				Task: blocked,
+				Operation: OperationReference{
+					OperationID:      "operation-resolve-reconcile",
+					SourcePhase:      domain.PhaseBlocked,
+					ExpectedRevision: blocked.Revision,
+					ActionID:         blocked.CurrentAction.ActionID,
+					ActionKind:       blocked.CurrentAction.Kind,
+				},
+				IssuanceBindingDigest:  blocked.Repository.BindingDigest,
+				OperationPayloadDigest: recoveryDigest("8"),
+				Payload:                &validated,
+				FreshBinding:           tt.fresh,
+			})
+			if err != nil {
+				t.Fatalf("Reconcile() error = %v", err)
+			}
+			if decision.Assessment.Classification != tt.classification ||
+				decision.Directive != tt.directive ||
+				decision.Assessment.OperationEvidence != tt.evidence ||
+				decision.Assessment.UnblockCondition == nil ||
+				*decision.Assessment.UnblockCondition != blocked.Blocker.Condition {
+				t.Fatalf("blocked restoration decision = %#v", decision)
+			}
+		})
+	}
+}
 
 func TestReconcileRepositoryBindingMatrix(t *testing.T) {
 	issued := recoveryBinding()

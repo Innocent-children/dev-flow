@@ -18,8 +18,9 @@ import (
 var fixtureREADMEReferencePattern = regexp.MustCompile("`([^`]+\\.json)`")
 
 const (
-	sharedFixtureCount           = 22
-	sharedFixtureAggregateSHA256 = "8c27bcf6be0e4e5a4bf294c67cbda8cdf281b1b2b2c53fff16206db2828dede7"
+	sharedFixtureCount               = 22
+	sharedFixtureAggregateSHA256     = "8c27bcf6be0e4e5a4bf294c67cbda8cdf281b1b2b2c53fff16206db2828dede7"
+	sharedResultEnvelopeSchemaSHA256 = "155b754efd5d2db7c659c1d0598fae2d5d49775e690245e3405cf2e0f9f9bebf"
 )
 
 var sharedFixtureSHA256 = map[string]string{
@@ -110,6 +111,15 @@ func TestSharedProtocolFixtureParity(t *testing.T) {
 	t.Parallel()
 
 	root := markdownRepositoryRoot(t)
+	schemaPath := filepath.Join(root, "specs", "002-govern-and-resume-single-repository-task", "contracts", "result-envelope.schema.json")
+	schema, err := os.ReadFile(schemaPath)
+	if err != nil {
+		t.Fatalf("read frozen result-envelope schema: %v", err)
+	}
+	if got := sha256Hex(schema); got != sharedResultEnvelopeSchemaSHA256 {
+		t.Fatalf("Feature 005 result-envelope schema digest = %s, want frozen %s", got, sharedResultEnvelopeSchemaSHA256)
+	}
+
 	paths, err := filepath.Glob(filepath.Join(root, "protocol", "fixtures", "*.json"))
 	if err != nil || len(paths) == 0 {
 		t.Fatalf("enumerate shared fixtures: %v", err)

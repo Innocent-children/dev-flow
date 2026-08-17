@@ -102,6 +102,118 @@ func TestRestartPersistence(t *testing.T) {
 	requireRestartTaskEqual(t, snapshotOnly, want)
 }
 
+func TestBlockedTaskRestartRetainsIssuanceAndResolutionState(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	databasePath := filepath.Join(root, "blocked-restart.db")
+	first, err := Open(ctx, databasePath)
+	if err != nil {
+		t.Fatalf("open blocked restart store: %v", err)
+	}
+	now := time.Date(2026, time.August, 17, 16, 0, 0, 0, time.UTC)
+	initial := validTask(t, "task-blocked-restart", digest("6"), filepath.Join(root, "repository"), now)
+	initial.Evidence = []domain.EvidenceSummary{{
+		EvidenceID: "evidence-before-blocker", Source: domain.EvidenceSourceHostObserved,
+		Name: "history", Status: domain.EvidenceObserved, Summary: "retained before blocker",
+		Digest: digest("e"), RecordedAt: now,
+	}}
+	initialEvent := taskEvent("event-blocked-restart-open", &initial, initial.Phase, now)
+	if err := first.CommitTask(ctx, TaskMutation{
+		Task: initial, Event: initialEvent, Claim: ClaimAcquire,
+	}); err != nil {
+		_ = first.Close()
+		t.Fatalf("commit blocked restart source: %v", err)
+	}
+
+	blockedAt := now.Add(time.Minute)
+	blocked := initial.Clone()
+	blocked.Revision++
+	blocked.Phase = domain.PhaseBlocked
+	blocked.UpdatedAt = blockedAt
+	resumePhase := initial.Phase
+	blocked.ResumePhase = &resumePhase
+	blocked.Blocker = &domain.Blocker{
+		BlockerID:             "blocker-restart",
+		Code:                  domain.ErrorTaskBlocked,
+		Cause:                 domain.RecoveryPartiallyCompleted,
+		Message:               "recovery evidence is partial",
+		ResumePhase:           resumePhase,
+		ObservedBindingDigest: digest("7"),
+		Condition: domain.BlockerCondition{
+			Kind:                  domain.BlockerConditionRestoreIssuanceBinding,
+			ExpectedBindingDigest: initial.Repository.BindingDigest,
+		},
+		RequiredResolution: "restore the issuance binding",
+		CreatedAt:          blockedAt,
+	}
+	resolveAction, err := workflow.BuildNextAction(
+		domain.PhaseBlocked,
+		blocked.TaskID,
+		blocked.Revision,
+		blocked.Repository.BindingDigest,
+		"action-resolve-restart",
+		blockedAt,
+	)
+	if err != nil {
+		_ = first.Close()
+		t.Fatal(err)
+	}
+	blocked.CurrentAction = &resolveAction
+	blockedEvent := taskEvent("event-blocked-restart", &blocked, initial.Phase, blockedAt)
+	originalActionID := initial.CurrentAction.ActionID
+	blockedEvent.ActionID = &originalActionID
+	blocked.LastOperation.ActionID = &originalActionID
+	if err := workflow.ValidateTask(blocked); err != nil {
+		_ = first.Close()
+		t.Fatalf("construct blocked restart task: %v", err)
+	}
+	if err := first.CommitTask(ctx, TaskMutation{
+		ExpectedRevision: initial.Revision, Task: blocked,
+		Event: blockedEvent, Claim: ClaimRetain,
+	}); err != nil {
+		_ = first.Close()
+		t.Fatalf("commit blocked restart task: %v", err)
+	}
+	want := blocked.Clone()
+	wantEvent := loadLatestRestartEvent(t, ctx, first.db, blocked.TaskID)
+	wantEventCount := restartEventCount(t, ctx, first.db, blocked.TaskID)
+	if err := first.Close(); err != nil {
+		t.Fatalf("close blocked restart source: %v", err)
+	}
+
+	second, err := Open(ctx, databasePath)
+	if err != nil {
+		t.Fatalf("reopen blocked restart store: %v", err)
+	}
+	defer second.Close()
+	got, err := second.LoadTask(ctx, blocked.TaskID)
+	if err != nil {
+		t.Fatalf("load blocked task after restart: %v", err)
+	}
+	requireRestartTaskEqual(t, got, want)
+	requireRestartCommittedFact(t, wantEvent, got)
+	if got.Phase != domain.PhaseBlocked || got.Blocker == nil ||
+		got.Blocker.BlockerID != blocked.Blocker.BlockerID ||
+		got.Blocker.Condition != blocked.Blocker.Condition || got.ResumePhase == nil ||
+		*got.ResumePhase != resumePhase || got.CurrentAction == nil ||
+		got.CurrentAction.Kind != domain.ActionResolveBlocker ||
+		got.Repository.BindingDigest != initial.Repository.BindingDigest {
+		t.Fatalf("blocked restart state = %#v", got)
+	}
+	active, err := second.LoadActiveTask(ctx, got.Repository.RepositoryIdentity)
+	if err != nil || active.TaskID != got.TaskID || active.Revision != got.Revision {
+		t.Fatalf("blocked restart claim = %#v, error %v", active, err)
+	}
+	if gotCount := restartEventCount(t, ctx, second.db, got.TaskID); gotCount != wantEventCount {
+		t.Fatalf("blocked restart event count = %d, want %d", gotCount, wantEventCount)
+	}
+	readAgain, err := second.LoadTask(ctx, got.TaskID)
+	if err != nil || !reflect.DeepEqual(readAgain, got) ||
+		restartEventCount(t, ctx, second.db, got.TaskID) != wantEventCount {
+		t.Fatalf("ordinary blocked read changed persistence: task=%#v error=%v", readAgain, err)
+	}
+}
+
 func requireRestartTaskEqual(t *testing.T, got, want domain.Task) {
 	t.Helper()
 	if got.TaskID != want.TaskID || got.OriginHost != want.OriginHost ||

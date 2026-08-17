@@ -2,15 +2,132 @@ package contract_test
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	coremcp "github.com/Innocent-children/dev-flow/internal/mcp"
+	"github.com/Innocent-children/dev-flow/internal/store"
 )
+
+func TestFeature005PublicSurfaceFreeze(t *testing.T) {
+	t.Parallel()
+
+	wantToolSchemaSHA256 := map[string]string{
+		coremcp.ToolServerInfo:    "9652cb940365521269cb61c4b4bc7f0b50af44d585c3c8485db25e857a5cd24e",
+		coremcp.ToolOpenTask:      "fa68148dd289c273ee6f04991e5a6309190254dadc13f3e1b41c285495238f53",
+		coremcp.ToolGetTask:       "5dfd5536e22457aa4b3788ab48b14e6386727604d615bc51f30f9785d53e5f2f",
+		coremcp.ToolGetNextAction: "5dfd5536e22457aa4b3788ab48b14e6386727604d615bc51f30f9785d53e5f2f",
+		coremcp.ToolApplyAction:   "6356ae925fba84f4920dac06091341793d7e159c6c2611b097309e1fa16f937e",
+		coremcp.ToolCancelTask:    "6498b14e73a3a380ab21486f3e4f1d33b05f7cb1c67d0fb9796ff4a954439f0e",
+	}
+	for _, tool := range coremcp.ToolCatalog() {
+		got := fmt.Sprintf("%x", sha256.Sum256(tool.InputSchema))
+		want, exists := wantToolSchemaSHA256[tool.Name]
+		if !exists {
+			t.Errorf("Feature 005 observed an unreviewed tool %q", tool.Name)
+			continue
+		}
+		if want == "" {
+			t.Logf("Feature 005 baseline input schema %s = %s", tool.Name, got)
+			continue
+		}
+		if got != want {
+			t.Errorf("Feature 005 input schema %s digest = %s, want frozen %s", tool.Name, got, want)
+		}
+		delete(wantToolSchemaSHA256, tool.Name)
+	}
+	for name, digest := range wantToolSchemaSHA256 {
+		if digest == "" {
+			t.Errorf("Feature 005 input schema %s needs its reviewed baseline digest", name)
+		} else {
+			t.Errorf("Feature 005 frozen tool %s is missing", name)
+		}
+	}
+
+	wantPhases := []domain.Phase{
+		domain.PhaseIntake,
+		domain.PhaseAssess,
+		domain.PhasePlan,
+		domain.PhaseImplement,
+		domain.PhaseVerify,
+		domain.PhaseReview,
+		domain.PhaseHandoff,
+		domain.PhaseDone,
+		domain.PhaseBlocked,
+		domain.PhaseCancelled,
+	}
+	for _, phase := range wantPhases {
+		if !phase.IsValid() {
+			t.Errorf("Feature 005 frozen phase %q is invalid", phase)
+		}
+	}
+	for _, value := range []domain.Phase{"RECOVERING", "RETRYING", "UNKNOWN"} {
+		if value.IsValid() {
+			t.Errorf("Feature 005 observed unreviewed phase %q", value)
+		}
+	}
+
+	wantRecovery := []domain.RecoveryClassification{
+		domain.RecoveryNotStarted,
+		domain.RecoveryCompletedAndRecorded,
+		domain.RecoveryCompletedButUnrecorded,
+		domain.RecoveryPartiallyCompleted,
+		domain.RecoveryConflicting,
+	}
+	if len(wantRecovery) != 5 {
+		t.Fatalf("Feature 005 recovery vocabulary count = %d, want 5", len(wantRecovery))
+	}
+	for _, classification := range wantRecovery {
+		if !classification.IsValid() {
+			t.Errorf("Feature 005 frozen recovery classification %q is invalid", classification)
+		}
+	}
+	for _, value := range []domain.RecoveryClassification{"unknown", "retry", "completed"} {
+		if value.IsValid() {
+			t.Errorf("Feature 005 observed unreviewed recovery classification %q", value)
+		}
+	}
+
+	wantErrors := []domain.ErrorCode{
+		domain.ErrorInvalidArgument,
+		domain.ErrorNotGitRepository,
+		domain.ErrorTaskNotFound,
+		domain.ErrorActiveTaskConflict,
+		domain.ErrorHostOwnershipConflict,
+		domain.ErrorRevisionConflict,
+		domain.ErrorActionStale,
+		domain.ErrorRepositoryDrift,
+		domain.ErrorVerificationBudgetExceeded,
+		domain.ErrorTaskBlocked,
+		domain.ErrorTaskTerminal,
+		domain.ErrorSchemaUnsupported,
+		domain.ErrorStorageUnavailable,
+		domain.ErrorInternal,
+	}
+	if len(wantErrors) != 14 {
+		t.Fatalf("Feature 005 stable error count = %d, want 14", len(wantErrors))
+	}
+	for _, code := range wantErrors {
+		if !code.IsValid() {
+			t.Errorf("Feature 005 frozen error code %q is invalid", code)
+		}
+	}
+	for _, value := range []domain.ErrorCode{"RECOVERY_UNKNOWN", "RETRY_REQUIRED", "DATABASE_BUSY"} {
+		if value.IsValid() {
+			t.Errorf("Feature 005 observed unreviewed error code %q", value)
+		}
+	}
+
+	if store.SchemaVersion != 1 {
+		t.Fatalf("Feature 005 SQLite schema version = %d, want frozen version 1", store.SchemaVersion)
+	}
+}
 
 func TestMCPToolCatalogIsExactStableAndConservative(t *testing.T) {
 	t.Parallel()
