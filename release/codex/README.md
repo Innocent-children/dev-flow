@@ -26,11 +26,26 @@ continuation after partial publication, and it is never uploaded as a release as
 
 ## Current implementation boundary
 
-This User Story 1 checkpoint establishes public package metadata, the closed packed layout,
-unsupported-platform rejection, explicit setup/remove, source-free local tarball installation, and
-retained task data. It performs no npm publication, Tag creation, GitHub Release creation, registry
-read-back, or final registry-package journey.
+The User Story 2 checkpoint adds deterministic two-worktree preparation, normalized package/Core
+verification, provisional manifest/checksums/publication state, and an exact-confirmation publisher
+whose resume/conflict behavior is exercised only with fake npm/gh and temporary Git remotes.
 
-The release script files referenced by the root package are implemented by T019–T029. Pull-request
-CI validates only checked-in contracts and package behavior and never calls the publish entrypoint.
-DeepSeek and every platform other than macOS arm64 remain outside Feature 006.
+Preparation output is exactly:
+
+```text
+dev-flow-codex-<VERSION>.tgz
+dev-flow-<VERSION>-darwin-arm64
+SHA256SUMS
+release-manifest.json
+publication-record.json
+```
+
+The publication record begins `prepared`, with `preflight` complete and the remaining eight steps
+pending. Exact fixture publication may establish Tag, draft, npm publish-once/read-back, and
+post-journey mechanical asset behavior, but production GitHub finalization remains absent. The
+Release stays draft.
+
+Pull-request CI syntax-checks the release commands and runs preparation-safe contracts; it never
+calls the publisher. This checkpoint performs no real npm publication, Tag push, GitHub Release or
+asset mutation, registry read-back, or final Codex journey. DeepSeek and every platform other than
+macOS arm64 remain outside Feature 006.

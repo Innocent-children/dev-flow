@@ -7,7 +7,7 @@
     "source_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   },
   "overall_status": "prepared",
-  "manifest_sha256": "1212121212121212121212121212121212121212121212121212121212121212",
+  "manifest_sha256": "a7e5297a2ced0ef16a1c1ec758476d2eb477b673ec655da9c18a40e7c3326e3c",
   "steps": [
     {
       "name": "preflight",

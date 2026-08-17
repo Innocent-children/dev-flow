@@ -172,6 +172,7 @@ type releaseNegativeCase struct {
 	Operation     string `json:"operation"`
 	Path          []any  `json:"path"`
 	Value         any    `json:"value"`
+	Count         int    `json:"count,omitempty"`
 	ExpectedError string `json:"expected_error"`
 }
 
@@ -295,6 +296,83 @@ func TestReleaseFixturesCrossIdentityAndDeterministicCollections(t *testing.T) {
 	}
 }
 
+func TestReleaseChecksumsAndInitialPublicationStateAreNonCircular(t *testing.T) {
+	t.Parallel()
+
+	root := markdownRepositoryRoot(t)
+	manifestBytes := releaseReadFile(t, root, "release/testdata/valid-release-manifest.json")
+	manifest := releaseReadObject(t, root, "release/testdata/valid-release-manifest.json")
+	publicationObject := releaseReadObject(t, root, "release/testdata/valid-publication-record.json")
+	publication, err := releaseValidatePublication(publicationObject)
+	if err != nil {
+		t.Fatalf("validate initial publication fixture: %v", err)
+	}
+	manifestDigest := sha256Hex(manifestBytes)
+	if publication.ManifestSHA256 != manifestDigest {
+		t.Fatalf("publication manifest digest = %s, want fixture bytes %s", publication.ManifestSHA256, manifestDigest)
+	}
+	if publication.Steps[0].Status != "complete" {
+		t.Fatal("prepared publication preflight step must be complete")
+	}
+	for _, step := range publication.Steps[1:] {
+		if step.Status != "pending" {
+			t.Fatalf("prepared publication step %s = %s, want pending", step.Name, step.Status)
+		}
+	}
+	if publication.NPM.Published || publication.NPM.Verified || publication.GitHub.TagTarget != nil || publication.GitHub.ReleaseID != nil || publication.GitHub.Draft || publication.GitHub.Published || len(publication.GitHub.Assets) != 0 || publication.FinalJourney.Status != "pending" {
+		t.Fatal("prepared publication fixture claims remote or final-journey state")
+	}
+
+	artifacts := manifest["artifacts"].([]any)
+	if len(artifacts) != 2 {
+		t.Fatalf("manifest immutable artifact count = %d, want 2", len(artifacts))
+	}
+	artifactDigests := make(map[string]string, len(artifacts))
+	for _, value := range artifacts {
+		artifact := value.(map[string]any)
+		name := artifact["name"].(string)
+		if name == "release-manifest.json" || name == "publication-record.json" || name == "SHA256SUMS" {
+			t.Fatalf("manifest inventories circular or mutable artifact %q", name)
+		}
+		artifactDigests[name] = artifact["sha256"].(string)
+		if artifact["source_commit"] != manifest["release"].(map[string]any)["source_commit"] {
+			t.Fatalf("artifact %s source differs from release identity", name)
+		}
+	}
+	artifactDigests["release-manifest.json"] = manifestDigest
+
+	checksumBytes := releaseReadFile(t, root, "release/testdata/valid-SHA256SUMS")
+	lines := strings.Split(strings.TrimSuffix(string(checksumBytes), "\n"), "\n")
+	names := make([]string, 0, len(lines))
+	observed := make(map[string]string, len(lines))
+	for _, line := range lines {
+		parts := strings.SplitN(line, "  ", 2)
+		if len(parts) != 2 || !releaseSHA256Pattern.MatchString(parts[0]) {
+			t.Fatalf("invalid checksum fixture line %q", line)
+		}
+		if err := releaseValidateRelativePath(parts[1]); err != nil {
+			t.Fatalf("checksum path: %v", err)
+		}
+		if _, exists := observed[parts[1]]; exists {
+			t.Fatalf("duplicate checksum path %q", parts[1])
+		}
+		observed[parts[1]] = parts[0]
+		names = append(names, parts[1])
+	}
+	if !slices.IsSorted(names) || len(names) != 3 {
+		t.Fatalf("checksum names = %v, want three stable sorted entries", names)
+	}
+	if _, exists := observed["SHA256SUMS"]; exists {
+		t.Fatal("checksums must not hash themselves")
+	}
+	if _, exists := observed["publication-record.json"]; exists {
+		t.Fatal("checksums must not hash the mutable publication record")
+	}
+	if !mapsEqualString(observed, artifactDigests) {
+		t.Fatalf("checksums = %v, want immutable payload digests %v", observed, artifactDigests)
+	}
+}
+
 func TestReleaseNegativeFixturesRejectUnsafeContentAndIdentityDrift(t *testing.T) {
 	t.Parallel()
 
@@ -303,8 +381,8 @@ func TestReleaseNegativeFixturesRejectUnsafeContentAndIdentityDrift(t *testing.T
 	basePublication := releaseReadObject(t, root, "release/testdata/valid-publication-record.json")
 	var suite releaseNegativeSuite
 	releaseReadClosedJSON(t, releaseReadFile(t, root, "release/testdata/invalid-release-fixtures.json"), &suite)
-	if suite.SchemaVersion != 1 || len(suite.Cases) != 10 {
-		t.Fatalf("negative fixture suite identity/count = %d/%d, want 1/10", suite.SchemaVersion, len(suite.Cases))
+	if suite.SchemaVersion != 1 || len(suite.Cases) != 17 {
+		t.Fatalf("negative fixture suite identity/count = %d/%d, want 1/17", suite.SchemaVersion, len(suite.Cases))
 	}
 
 	for _, test := range suite.Cases {
@@ -361,6 +439,9 @@ func TestReleaseValidationEntrypointsRemainPreparationSafe(t *testing.T) {
 
 	validator := string(releaseReadFile(t, root, "scripts/validate-repository.sh"))
 	workflow := string(releaseReadFile(t, root, ".github/workflows/ci.yml"))
+	prepare := string(releaseReadFile(t, root, "scripts/build-codex-release.sh"))
+	verifier := string(releaseReadFile(t, root, "scripts/verify-codex-release.mjs"))
+	publisher := string(releaseReadFile(t, root, "scripts/publish-codex-release.mjs"))
 	for _, required := range []string{"go test ./tests/contract", "node --test packages/codex/tests/package-contract.test.mjs"} {
 		if !strings.Contains(validator, required) {
 			t.Errorf("validator missing preparation-safe command %q", required)
@@ -378,6 +459,22 @@ func TestReleaseValidationEntrypointsRemainPreparationSafe(t *testing.T) {
 				t.Errorf("%s invokes forbidden release operation %q", source.name, forbidden)
 			}
 		}
+	}
+	for _, forbidden := range []string{"npm publish", "npm whoami", "npm view", "gh release", "git tag", "git push"} {
+		if strings.Contains(strings.ToLower(prepare), forbidden) {
+			t.Errorf("release prepare invokes forbidden remote/host operation %q", forbidden)
+		}
+	}
+	for _, forbidden := range []string{"runText(\"gh\"", "npm publish", "npm whoami", "npm view", "git tag", "git push"} {
+		if strings.Contains(verifier, forbidden) {
+			t.Errorf("release verifier invokes forbidden remote operation %q", forbidden)
+		}
+	}
+	if strings.Contains(publisher, "shell: true") || !strings.Contains(publisher, "shell: false") {
+		t.Error("release publisher must use argv-closed commands with shell disabled")
+	}
+	if strings.Contains(workflow, "publish-codex-release.mjs") || strings.Contains(validator, "publish-codex-release.mjs --") {
+		t.Error("CI/validator must syntax-check but never execute the publisher")
 	}
 }
 
@@ -565,7 +662,7 @@ func releaseWalkForbiddenContent(value any, field string) error {
 		sort.Strings(keys)
 		for _, key := range keys {
 			switch strings.ToLower(key) {
-			case "token", "secret", "credentials", "auth_header", "auth_file", "environment", "environment_values", "raw_prompt", "raw_output", "raw_command_output", "command_output":
+			case "token", "npm_token", "secret", "credentials", "auth_header", "auth_file", "environment", "environment_values", "raw_prompt", "raw_output", "raw_stdout", "raw_stderr", "raw_command_output", "command_output":
 				return fmt.Errorf("forbidden field %s", key)
 			}
 		}
@@ -593,6 +690,12 @@ func releaseWalkForbiddenContent(value any, field string) error {
 		}
 		if strings.Contains(typed, "HOME=") || strings.Contains(typed, "PATH=") {
 			return fmt.Errorf("forbidden environment value")
+		}
+		if strings.HasPrefix(typed, "/Users/") || strings.HasPrefix(typed, "/home/") || strings.HasPrefix(typed, "/private/var/") || strings.HasPrefix(typed, "/var/folders/") {
+			return fmt.Errorf("forbidden machine absolute path")
+		}
+		if (field == "summary" || field == "notes" || field == "safe_next_action") && len(typed) > 1000 {
+			return fmt.Errorf("unbounded summary field %s", field)
 		}
 	}
 	return nil
@@ -686,6 +789,17 @@ func releaseApplyMutation(document map[string]any, mutation releaseNegativeCase)
 			return fmt.Errorf("append target %s is %T", key, parent[key])
 		}
 		parent[key] = append(items, mutation.Value)
+	case "repeat":
+		parent, ok := current.(map[string]any)
+		if !ok {
+			return fmt.Errorf("repeat parent is %T", current)
+		}
+		key, ok := last.(string)
+		value, valueOK := mutation.Value.(string)
+		if !ok || !valueOK || mutation.Count < 1 || mutation.Count > 2000 {
+			return fmt.Errorf("invalid repeat mutation")
+		}
+		parent[key] = strings.Repeat(value, mutation.Count)
 	default:
 		return fmt.Errorf("unknown mutation operation %q", mutation.Operation)
 	}
@@ -827,4 +941,16 @@ func releaseAssertNoForbiddenSchemaFields(t *testing.T, schema map[string]any) {
 			t.Fatalf("release schema contains forbidden field/product marker %q", forbidden)
 		}
 	}
+}
+
+func mapsEqualString(left, right map[string]string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for key, value := range left {
+		if right[key] != value {
+			return false
+		}
+	}
+	return true
 }

@@ -90,6 +90,63 @@
       "path": ["support", 0, "package_sha256"],
       "value": "3434343434343434343434343434343434343434343434343434343434343434",
       "expected_error": "support package digest"
+    },
+    {
+      "name": "npm-token",
+      "target": "publication",
+      "operation": "set",
+      "path": ["npm_token"],
+      "value": "example-token-marker",
+      "expected_error": "forbidden field npm_token"
+    },
+    {
+      "name": "auth-header",
+      "target": "publication",
+      "operation": "set",
+      "path": ["auth_header"],
+      "value": "Authorization: Bearer example-public-marker",
+      "expected_error": "forbidden field auth_header"
+    },
+    {
+      "name": "temporary-machine-path",
+      "target": "manifest",
+      "operation": "set",
+      "path": ["validations", 0, "summary"],
+      "value": "/private/var/folders/example-release-output",
+      "expected_error": "machine absolute path"
+    },
+    {
+      "name": "raw-stderr",
+      "target": "publication",
+      "operation": "set",
+      "path": ["raw_stderr"],
+      "value": "example stderr marker",
+      "expected_error": "forbidden field raw_stderr"
+    },
+    {
+      "name": "raw-stdout",
+      "target": "publication",
+      "operation": "set",
+      "path": ["raw_stdout"],
+      "value": "example stdout marker",
+      "expected_error": "forbidden field raw_stdout"
+    },
+    {
+      "name": "unbounded-summary",
+      "target": "manifest",
+      "operation": "repeat",
+      "path": ["validations", 0, "summary"],
+      "value": "x",
+      "count": 1001,
+      "expected_error": "unbounded summary"
+    },
+    {
+      "name": "artifact-source-mismatch",
+      "target": "manifest",
+      "operation": "set",
+      "path": ["artifacts", 0, "source_commit"],
+      "value": "ffffffffffffffffffffffffffffffffffffffff",
+      "expected_error": "identity differs from the release"
     }
   ]
 }

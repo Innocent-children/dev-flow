@@ -60,6 +60,8 @@ const reviewedSourceAllowlist = new Set([
   "tests/fixtures/fake-codex.mjs",
   "tests/fixtures/fake-core.mjs",
   "tests/fixtures/fake-native-tool.mjs",
+  "tests/fixtures/fake-release-gh.mjs",
+  "tests/fixtures/fake-release-npm.mjs",
   "tests/journey-evidence.test.mjs",
   "tests/journey-harness.test.mjs",
   "tests/launcher.test.mjs",
@@ -68,6 +70,7 @@ const reviewedSourceAllowlist = new Set([
   "tests/paths.test.mjs",
   "tests/removal-retention.test.mjs",
   "tests/release-package.test.mjs",
+  "tests/release-publication.test.mjs",
   "tests/skill-contract.test.mjs",
 ]);
 

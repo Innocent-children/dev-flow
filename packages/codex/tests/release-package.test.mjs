@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFile as execFileCallback, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  cp,
   mkdir,
   mkdtemp,
   readFile,
@@ -273,6 +274,152 @@ test("source-free global tarball install, explicit lifecycle, uninstall, and ret
   })}\n`);
 });
 
+test("release preparation uses two clean worktrees and verifies one canonical five-file set", {
+  skip: supportedMachine ? false : "darwin-arm64 deterministic release preparation only",
+  timeout: 180_000,
+}, async (t) => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-release-prepare-")));
+  t.after(async () => rm(root, { recursive: true, force: true }));
+  const fixtureRoot = join(root, "source-fixture");
+  const output = join(root, "release-output");
+  await copyRepositoryFixture(fixtureRoot);
+  await initializeMainFixture(fixtureRoot);
+  await mkdir(output);
+
+  const { stdout, stderr } = await execFile(join(fixtureRoot, "scripts", "build-codex-release.sh"), [
+    "--output",
+    output,
+  ], {
+    cwd: fixtureRoot,
+    encoding: "utf8",
+    maxBuffer: 20 * 1024 * 1024,
+    timeout: 150_000,
+  });
+  assert.equal(stderr, "");
+  const prepared = JSON.parse(stdout);
+  assert.equal(prepared.status, "prepared");
+  assert.equal(prepared.build_count, 2);
+  assert.match(prepared.runtime_sha256, /^[0-9a-f]{64}$/u);
+  assert.match(prepared.normalized_package_sha256, /^[0-9a-f]{64}$/u);
+  assert.equal(typeof prepared.raw_tgz_equal, "boolean");
+  assert.deepEqual(await readdir(output), [
+    "SHA256SUMS",
+    "dev-flow-0.1.0-darwin-arm64",
+    "dev-flow-codex-0.1.0.tgz",
+    "publication-record.json",
+    "release-manifest.json",
+  ]);
+
+  const verification = await execFile(join(fixtureRoot, "scripts", "verify-codex-release.mjs"), [
+    "--directory",
+    output,
+  ], {
+    cwd: fixtureRoot,
+    encoding: "utf8",
+    maxBuffer: 4 * 1024 * 1024,
+    timeout: 30_000,
+  });
+  assert.equal(verification.stderr, "");
+  assert.equal(JSON.parse(verification.stdout).status, "verified");
+
+  const manifest = JSON.parse(await readFile(join(output, "release-manifest.json"), "utf8"));
+  const publication = JSON.parse(await readFile(join(output, "publication-record.json"), "utf8"));
+  assert.equal(manifest.validations.find((item) => item.name === "double-build").status, "passed");
+  assert.match(manifest.validations.find((item) => item.name === "double-build").summary, /raw tgz bytes (?:matched|differed)/u);
+  assert.equal(publication.overall_status, "prepared");
+  assert.equal(publication.steps[0].status, "complete");
+  assert.equal(publication.steps.slice(1).every((step) => step.status === "pending"), true);
+  assert.equal(publication.github.draft, false);
+  assert.equal(publication.github.assets.length, 0);
+  assert.equal(publication.final_journey.status, "pending");
+  assert.equal((await stat(join(output, "publication-record.json"))).mode & 0o777, 0o600);
+
+  assert.equal((await execFile("git", ["status", "--porcelain"], { cwd: fixtureRoot, encoding: "utf8" })).stdout, "");
+  assert.equal((await execFile("git", ["tag", "--list"], { cwd: fixtureRoot, encoding: "utf8" })).stdout, "");
+  const worktrees = (await execFile("git", ["worktree", "list", "--porcelain"], {
+    cwd: fixtureRoot,
+    encoding: "utf8",
+  })).stdout.match(/^worktree /gmu) ?? [];
+  assert.equal(worktrees.length, 1, "prepare must clean both temporary worktrees");
+  assert.equal((await walkPaths(output)).some((path) => /(?:build-[ab]|worktree|\.git|\.db|receipt)/u.test(path)), false);
+
+  await assertPrepareRejects(fixtureRoot, ["--output", "relative-output"], /output directory must be absolute/);
+  await assertPrepareRejects(fixtureRoot, ["--unknown"], /usage:/);
+  const nonemptyOutput = join(root, "nonempty-output");
+  await mkdir(nonemptyOutput);
+  await writeFile(join(nonemptyOutput, "existing.txt"), "existing\n");
+  await assertPrepareRejects(fixtureRoot, ["--output", nonemptyOutput], /must be empty/);
+  const linkedTarget = join(root, "linked-target");
+  const linkedOutput = join(root, "linked-output");
+  await mkdir(linkedTarget);
+  await symlink(linkedTarget, linkedOutput);
+  await assertPrepareRejects(fixtureRoot, ["--output", linkedOutput], /must not be a symbolic link/);
+  const insideOutput = join(fixtureRoot, "inside-output");
+  await mkdir(insideOutput);
+  await assertPrepareRejects(fixtureRoot, ["--output", insideOutput], /outside the source repository/);
+  await rm(insideOutput, { recursive: true });
+  const dirtyOutput = join(root, "dirty-output");
+  await mkdir(dirtyOutput);
+  await writeFile(join(fixtureRoot, "dirty-fixture.txt"), "dirty\n");
+  await assertPrepareRejects(fixtureRoot, ["--output", dirtyOutput], /clean checkout/);
+  await rm(join(fixtureRoot, "dirty-fixture.txt"));
+  await execFile("git", ["switch", "-c", "fixture-feature"], { cwd: fixtureRoot });
+  const branchOutput = join(root, "branch-output");
+  await mkdir(branchOutput);
+  await assertPrepareRejects(fixtureRoot, ["--output", branchOutput], /branch main/);
+  await execFile("git", ["switch", "main"], { cwd: fixtureRoot });
+
+  const extraOutput = await clonePreparedDirectory(root, output, "negative-extra");
+  await writeFile(join(extraOutput, "unexpected.log"), "bounded negative fixture\n");
+  await assertVerifierRejects(fixtureRoot, extraOutput, /approved five-file set/);
+
+  const forbiddenOutput = await clonePreparedDirectory(root, output, "negative-forbidden");
+  const forbiddenRecordPath = join(forbiddenOutput, "publication-record.json");
+  const forbiddenRecord = JSON.parse(await readFile(forbiddenRecordPath, "utf8"));
+  forbiddenRecord.safe_next_action = "authorization: bearer example-public-marker";
+  await writeFile(forbiddenRecordPath, `${JSON.stringify(forbiddenRecord, null, 2)}\n`, { mode: 0o600 });
+  await assertVerifierRejects(fixtureRoot, forbiddenOutput, /forbidden release content marker/);
+
+  const tokenOutput = await clonePreparedDirectory(root, output, "negative-token");
+  const tokenRecordPath = join(tokenOutput, "publication-record.json");
+  const tokenRecord = JSON.parse(await readFile(tokenRecordPath, "utf8"));
+  tokenRecord.safe_next_action = "example-token-marker";
+  await writeFile(tokenRecordPath, `${JSON.stringify(tokenRecord, null, 2)}\n`, { mode: 0o600 });
+  await assertVerifierRejects(fixtureRoot, tokenOutput, /forbidden release content marker/);
+
+  const rawOutput = await clonePreparedDirectory(root, output, "negative-raw-output");
+  const rawRecordPath = join(rawOutput, "publication-record.json");
+  const rawRecord = JSON.parse(await readFile(rawRecordPath, "utf8"));
+  rawRecord.raw_stderr = "bounded raw stderr fixture";
+  await writeFile(rawRecordPath, `${JSON.stringify(rawRecord, null, 2)}\n`, { mode: 0o600 });
+  await assertVerifierRejects(fixtureRoot, rawOutput, /fields do not match the closed contract/);
+
+  const machinePathOutput = await clonePreparedDirectory(root, output, "negative-machine-path");
+  const machineManifestPath = join(machinePathOutput, "release-manifest.json");
+  const machineManifest = JSON.parse(await readFile(machineManifestPath, "utf8"));
+  machineManifest.validations[0].summary = "/private/var/folders/example-release-output";
+  await writeFile(machineManifestPath, `${JSON.stringify(machineManifest, null, 2)}\n`);
+  const machineRecordPath = join(machinePathOutput, "publication-record.json");
+  const machineRecord = JSON.parse(await readFile(machineRecordPath, "utf8"));
+  machineRecord.manifest_sha256 = await sha256(readFile(machineManifestPath));
+  await writeFile(machineRecordPath, `${JSON.stringify(machineRecord, null, 2)}\n`, { mode: 0o600 });
+  await assertVerifierRejects(fixtureRoot, machinePathOutput, /machine path or environment value/);
+
+  const longOutput = await clonePreparedDirectory(root, output, "negative-long-summary");
+  const longManifestPath = join(longOutput, "release-manifest.json");
+  const longManifest = JSON.parse(await readFile(longManifestPath, "utf8"));
+  longManifest.validations[0].summary = "x".repeat(1001);
+  await writeFile(longManifestPath, `${JSON.stringify(longManifest, null, 2)}\n`);
+  await assertVerifierRejects(fixtureRoot, longOutput, /invalid or unbounded/);
+
+  const sourceOutput = await clonePreparedDirectory(root, output, "negative-source");
+  const sourceManifestPath = join(sourceOutput, "release-manifest.json");
+  const sourceManifest = JSON.parse(await readFile(sourceManifestPath, "utf8"));
+  sourceManifest.artifacts[0].source_commit = "f".repeat(40);
+  await writeFile(sourceManifestPath, `${JSON.stringify(sourceManifest, null, 2)}\n`);
+  await assertVerifierRejects(fixtureRoot, sourceOutput, /identity\/mode differs/);
+});
+
 class ReleaseCoreClient {
   static async start(runtimePath, dataDirectory, repositoryPath, environment) {
     const client = new ReleaseCoreClient(runtimePath, dataDirectory, repositoryPath, environment);
@@ -465,6 +612,76 @@ async function initializeRepository(path) {
   await writeFile(join(path, "README.md"), "source-free package fixture\n");
   await execFile("git", ["add", "README.md"], { cwd: path });
   await execFile("git", ["commit", "-m", "package fixture baseline"], { cwd: path });
+}
+
+async function copyRepositoryFixture(destination) {
+  await cp(repositoryRoot, destination, {
+    recursive: true,
+    filter(source) {
+      const path = relative(repositoryRoot, source).split("\\").join("/");
+      return path === "" || ![".git", "node_modules", ".codebase-memory"].some(
+        (excluded) => path === excluded || path.startsWith(`${excluded}/`),
+      );
+    },
+  });
+}
+
+async function initializeMainFixture(path) {
+  await execFile("git", ["init", "--initial-branch=main"], { cwd: path });
+  await execFile("git", ["config", "user.name", "Dev Flow Release Test"], { cwd: path });
+  await execFile("git", ["config", "user.email", "release-test@example.invalid"], { cwd: path });
+  await execFile("git", ["add", "."], { cwd: path, maxBuffer: 20 * 1024 * 1024 });
+  await execFile("git", ["commit", "-m", "release fixture source"], { cwd: path, maxBuffer: 20 * 1024 * 1024 });
+}
+
+async function clonePreparedDirectory(root, source, name) {
+  const destination = join(root, name);
+  await cp(source, destination, { recursive: true });
+  return destination;
+}
+
+async function assertVerifierRejects(repository, directory, pattern) {
+  await assert.rejects(
+    execFile(join(repository, "scripts", "verify-codex-release.mjs"), ["--directory", directory], {
+      cwd: repository,
+      encoding: "utf8",
+      maxBuffer: 4 * 1024 * 1024,
+      timeout: 30_000,
+    }),
+    (error) => {
+      assert.match(error.stderr, pattern);
+      return true;
+    },
+  );
+}
+
+async function assertPrepareRejects(repository, arguments_, pattern) {
+  await assert.rejects(
+    execFile(join(repository, "scripts", "build-codex-release.sh"), arguments_, {
+      cwd: repository,
+      encoding: "utf8",
+      maxBuffer: 1024 * 1024,
+      timeout: 10_000,
+    }),
+    (error) => {
+      assert.match(error.stderr, pattern);
+      return true;
+    },
+  );
+}
+
+async function walkPaths(root) {
+  const paths = [];
+  const visit = async (directory) => {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const absolute = join(directory, entry.name);
+      const path = relative(root, absolute).split("\\").join("/");
+      paths.push(path);
+      if (entry.isDirectory()) await visit(absolute);
+    }
+  };
+  await visit(root);
+  return paths.sort();
 }
 
 async function directoryManifest(root) {

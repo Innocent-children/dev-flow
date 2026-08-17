@@ -28,8 +28,11 @@ const (
 var rootScriptFiles = []string{
 	"README.md",
 	"build-codex-local.sh",
+	"build-codex-release.sh",
+	"publish-codex-release.mjs",
 	"run-codex-real-journey.sh",
 	"validate-codex-journey-evidence.mjs",
+	"verify-codex-release.mjs",
 	"validate-repository.sh",
 	"write-codex-journey-evidence.mjs",
 }
@@ -50,6 +53,8 @@ var codexSourceFiles = []string{
 	"tests/fixtures/fake-codex.mjs",
 	"tests/fixtures/fake-core.mjs",
 	"tests/fixtures/fake-native-tool.mjs",
+	"tests/fixtures/fake-release-gh.mjs",
+	"tests/fixtures/fake-release-npm.mjs",
 	"tests/journey-evidence.test.mjs",
 	"tests/journey-harness.test.mjs",
 	"tests/launcher.test.mjs",
@@ -58,6 +63,7 @@ var codexSourceFiles = []string{
 	"tests/paths.test.mjs",
 	"tests/removal-retention.test.mjs",
 	"tests/release-package.test.mjs",
+	"tests/release-publication.test.mjs",
 	"tests/skill-contract.test.mjs",
 }
 

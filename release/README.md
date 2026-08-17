@@ -15,6 +15,7 @@ release/
 └── testdata/
     ├── valid-release-manifest.json
     ├── valid-publication-record.json
+    ├── valid-SHA256SUMS
     └── invalid-release-fixtures.json
 ```
 
@@ -53,14 +54,23 @@ release:codex:verify
 release:codex:publish
 ```
 
-Tasks T019, T020, and T025 implement their respective script targets. Until then the entries are
-declared interfaces, not successful no-op implementations, and neither CI nor ordinary repository
-validation invokes them.
+T019–T029 now implement the three script targets. Preparation requires a clean `main` source,
+creates two independent temporary worktrees, compares Runtime bytes and normalized package trees,
+and emits one canonical five-file set. Verification is local, closed, dependency-free, and
+network-free. The publisher rereads remote truth through standard argv-closed `npm`/`gh` commands,
+requires exact confirmation before mutation, writes the publication record atomically after each
+step, reuses only exact immutable state, and stops on conflicts.
+
+User Story 2 validation resolves publisher commands only to temporary fake npm/gh executables and
+uses temporary bare Git remotes. Those results are fake npm/gh publication state-machine evidence,
+not public registry or GitHub Release evidence. The production publisher is never called manually
+or by pull-request CI in this checkpoint.
 
 Pull-request CI runs preparation-safe schema, fixture, repository, and package contract checks. It
 does not read npm/GitHub authentication, prepare real output, publish npm, create a tag, create or
 upload a GitHub Release, or run a real Codex Host journey.
 
-Feature 006 has not produced a public release. It covers only `dev-flow-codex` for macOS arm64;
-`dev-flow-deepseek`, other platforms, signing, notarization, and publication are outside the current
-User Story 1 checkpoint.
+Feature 006 has not produced a public release. GitHub finalization remains gated on the later real
+registry-package journey. The feature covers only `dev-flow-codex` for macOS arm64;
+`dev-flow-deepseek`, other platforms, signing, notarization, and real publication remain outside the
+User Story 2 checkpoint.
