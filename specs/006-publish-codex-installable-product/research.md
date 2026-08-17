@@ -129,20 +129,29 @@ rollback claims would be false or destructive.
 
 ## Implementation-Time Baseline Record
 
-Before implementation, record:
+The bounded implementation baseline was observed on 2026-08-17 before product or release-contract
+edits. The release source remains the updated `main` identity below; the implementation branch was
+created directly from it.
 
-| Item | Required value |
+| Item | Recorded value |
 |---|---|
-| Feature 003 merge commit | exact `main` commit |
-| Feature 005 merge commit | exact `main` commit |
-| Release source commit/tree | exact frozen identities |
-| Root/package/Core version | one strict SemVer |
-| Core fixture digest | exact server-reported digest |
-| Codex minimum/range | copied from merged Feature 003 |
-| Actual final Codex version | exact version used in registry-package journey |
-| npm publisher/account | account name only; no token |
-| npm package ownership result | pass/fail and timestamp |
-| GitHub release permission result | pass/fail and timestamp |
-| Toolchains | actual Go, Node, pnpm, npm, git, and gh versions |
+| Feature 003 merge commit | `a2ba8bd5de9c87aaf758bff51a02ae120f60c7f7` (`Merge branch 'codex/feature-003-codex-explicit-dev-flow'`) |
+| Feature 005 merge commit | `850dd4a4ee07bf50af5d9a36b24373c6b09fdd28` (`Merge pull request #4 from Innocent-children/codex/feature-005-recover-uncertain-actions-and-drift`) |
+| Updated `main` commit | `850dd4a4ee07bf50af5d9a36b24373c6b09fdd28` |
+| Updated `main` tree | `f9b1621688a34b0c4ffb1041bcdccc76eb2d9052` |
+| Root/package/plugin/Core version | `0.1.0` / `0.1.0` / `0.1.0` / `0.1.0` |
+| Core fixture aggregate digest | `sha256:8c27bcf6be0e4e5a4bf294c67cbda8cdf281b1b2b2c53fff16206db2828dede7`, using the existing contract-tested 22-fixture aggregate algorithm in `tests/contract/fixture_contract_test.go` |
+| Codex minimum/range | `0.147.0` / `>=0.147.0 <0.148.0` from merged Feature 003 |
+| Actual validated Codex version | `0.147.0` from the merged Feature 003 final real-host acceptance |
+| Current local Codex observation | `0.146.0`; outside the supported range and not used as support or User Story 1 evidence |
+| Platform | `darwin-arm64` (`Darwin`, `arm64`; Node reports `darwin`, `arm64`) |
+| Go | `go1.26.6 darwin/arm64` |
+| Node.js | `v24.18.0` |
+| pnpm | `11.21.0` |
+| npm | `11.16.0` |
+| git | `2.55.0` |
+| GitHub CLI | `2.97.0` |
+| Intended release version | `0.1.0`, unchanged from root `VERSION` |
 
-These values are produced at implementation/release time and are not unresolved design questions.
+The authenticated publisher and remote permission observations are recorded separately in the
+Feature README because npm authentication is an implementation entry gate, not release identity.

@@ -35,6 +35,32 @@ Package-name ownership is a preflight, not a fallback naming algorithm. If the a
 cannot publish `dev-flow-codex`, stop and amend the specification rather than silently choosing a
 different public identity.
 
+## T002 Read-Only Permission Preflight — 2026-08-17
+
+Checked at `2026-08-17T04:46:57Z` using only read-only npm, Git, and GitHub CLI operations. No
+credential, authentication header, email, npm configuration file, or raw authentication output was
+recorded.
+
+| Check | Result | Bounded observation |
+|---|---|---|
+| npm registry | PASS | Every registry query explicitly used `https://registry.npmjs.org/`; the active npm registry setting also identified the official registry. |
+| npm reachability | PASS | The official registry responded to the bounded ping. |
+| npm account | FAIL | `npm whoami` did not identify an authenticated account. No interactive login was attempted. |
+| Fixed package name | PASS for availability; permission unproven | `dev-flow-codex` returned explicit `E404` and was unoccupied at check time. Without an authenticated npm account, publish permission for the fixed identity cannot be proven. |
+| Exact version | PASS for absence | `dev-flow-codex@0.1.0` returned explicit `E404`; no immutable version conflict was observed. |
+| GitHub account | PASS | GitHub CLI was authenticated as `Innocent-children`. |
+| Repository permission | PASS | The repository reported `push=true`, `maintain=true`, and `admin=true`; no administrative override was used. |
+| Tag observation | PASS for absence | `v0.1.0` was absent from the remote tag namespace. |
+| Release observation | PASS for absence | GitHub Release `v0.1.0` was not found. |
+
+Overall T002 result: **FAIL / blocked**. The release operator must authenticate npm outside this
+implementation session and rerun the same official-registry `npm whoami`, package-name, and exact
+version checks. T002 remains incomplete, and T003–T018 must not start while this gate is blocked.
+
+```text
+FEATURE_006_PACKAGE_PERMISSION_BLOCKED
+```
+
 ## First-release boundary
 
 The first release contains one npm package with one bundled `darwin-arm64` Go runtime. It does not
