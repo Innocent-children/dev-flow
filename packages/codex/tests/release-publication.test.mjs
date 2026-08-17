@@ -41,7 +41,7 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
     ], /only once/u);
     const link = join(scenario.root, "release-link");
     await symlink(scenario.releaseDirectory, link);
-    await assertPublisherRawRejects(scenario, ["--directory", link], /canonical directory/u);
+    await assertPublisherRawRejects(scenario, ["--directory", link], /non-symlink directory/u);
     assert.equal((await callLog(scenario)).length, 0);
   });
 

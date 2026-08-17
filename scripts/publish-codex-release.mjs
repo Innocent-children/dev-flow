@@ -2,7 +2,7 @@
 
 import { execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFile, mkdtemp, readFile, realpath, rm, stat } from "node:fs/promises";
+import { copyFile, lstat, mkdtemp, readFile, realpath, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
@@ -562,9 +562,11 @@ async function canonicalRepositoryRoot(path) {
 
 async function canonicalReleaseDirectory(path) {
   if (typeof path !== "string" || !isAbsolute(path)) throw new Error("release directory must be absolute");
+  const supplied = await lstat(path);
+  if (!supplied.isDirectory() || supplied.isSymbolicLink()) throw new Error("release directory must be an existing non-symlink directory");
   const canonical = await realpath(path);
   const info = await stat(canonical);
-  if (!info.isDirectory() || canonical !== resolve(path)) throw new Error("release directory must be an existing canonical directory");
+  if (!info.isDirectory()) throw new Error("release directory must be an existing non-symlink directory");
   return canonical;
 }
 

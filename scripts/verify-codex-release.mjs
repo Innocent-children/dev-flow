@@ -724,7 +724,6 @@ async function validateReleaseDirectoryArgument(path, { label, requireEmpty }) {
   const info = await lstat(path).catch(() => null);
   if (!info || !info.isDirectory() || info.isSymbolicLink()) throw new Error(`${label} must be an existing non-symlink directory`);
   const canonical = await realpath(path);
-  if (canonical !== resolve(path)) throw new Error(`${label} must be canonical and may not traverse a symbolic link`);
   if (requireEmpty && (await readdir(canonical)).length !== 0) throw new Error(`${label} must be empty`);
   return canonical;
 }
@@ -739,6 +738,8 @@ async function canonicalDirectory(path, label) {
 
 async function canonicalRegularFile(path, label) {
   if (!isAbsolute(path)) throw new Error(`${label} must be absolute`);
+  const suppliedInfo = await lstat(path);
+  if (!suppliedInfo.isFile() || suppliedInfo.isSymbolicLink() || suppliedInfo.nlink !== 1) throw new Error(`${label} must be an ordinary single-link file`);
   const canonical = await realpath(path);
   const info = await lstat(canonical);
   if (!info.isFile() || info.isSymbolicLink() || info.nlink !== 1) throw new Error(`${label} must be an ordinary single-link file`);
