@@ -1,20 +1,7 @@
-# 初始治理与规格基线清单
+# 治理与规格资产清单
 
-本文件记录 Monorepo 启动时纳入版本控制的治理文档和规格基线，不是当前 checkout 的完整
-实现文件清单、npm 打包清单或发布 manifest。Feature 001 的权威布局合同位于
-`specs/001-bootstrap-monorepo/contracts/repository-layout.md`；Spec Kit 生成资产的精确文件
-集合也不由本清单固定。
-
-## Feature 001 主要交付索引
-
-- 根治理与元数据：`README.md`、`AGENTS.md`、`LICENSE`、`VERSION`、`.gitignore`；
-- 单一 Go 边界：`go.mod`、`cmd/dev-flow/`、`internal/version/`；
-- 单一 pnpm Workspace：`package.json`、`pnpm-workspace.yaml`、`pnpm-lock.yaml`；
-- 两个私有产品骨架：`packages/codex/`、`packages/deepseek/`；
-- 保留所有权区域：`protocol/fixtures/`、`release/`、`scripts/`；
-- 有界合同与 fixture：`tests/contract/`；
-- 本地与 PR 共用验证：`scripts/validate-repository.sh`、`.github/workflows/ci.yml`；
-- 唯一 Spec Kit 根：`.specify/`、`.agents/skills/speckit-*/`、`specs/`。
+本文件索引仓库中的治理文档和 Spec Kit 功能包，不是当前 checkout 的完整源码、npm
+allowlist 或 Release manifest。
 
 ## 项目治理
 
@@ -28,37 +15,74 @@
 - `docs/FEATURE-DEPENDENCIES.md`
 - `docs/TOOLCHAIN-BASELINES.md`
 
-## 可直接实施的完整功能包
+## 完整 Spec Kit 功能包
 
-### 001-bootstrap-monorepo
-
-- `spec.md`
-- `plan.md`
-- `research.md`
-- `data-model.md`
-- `quickstart.md`
-- `contracts/repository-layout.md`
-- `checklists/requirements.md`
-- `tasks.md`
-
-### 002-govern-and-resume-single-repository-task
+### `001-bootstrap-monorepo`
 
 - `spec.md`
 - `plan.md`
 - `research.md`
 - `data-model.md`
 - `quickstart.md`
-- `contracts/mcp-tools.md`
-- `contracts/result-envelope.schema.json`
-- `contracts/state-machine.md`
+- `contracts/`
 - `checklists/requirements.md`
 - `tasks.md`
 
-## 路线功能规格
+### `002-govern-and-resume-single-repository-task`
 
-- `003-codex-explicit-dev-flow/spec.md`
-- `004-deepseek-explicit-dev-flow/spec.md`
-- `005-recover-uncertain-actions-and-drift/spec.md`
-- `006-publish-two-installable-products/spec.md`
+- `spec.md`
+- `plan.md`
+- `research.md`
+- `data-model.md`
+- `quickstart.md`
+- `contracts/`
+- `checklists/requirements.md`
+- `tasks.md`
 
-每个路线功能目录都有 `README.md`，说明为什么计划和任务必须延后生成。
+### `003-codex-explicit-dev-flow`
+
+完整规划与实施跟踪包；产品实现位于独立 003 分支，合并后成为 005 的入口基线。
+
+### `004-deepseek-explicit-dev-flow`
+
+完整规划包，当前状态为 **DEFERRED**。保留用于未来重新核验和实施，不再阻塞 005/006。
+
+### `005-recover-uncertain-actions-and-drift`
+
+- `README.md`
+- `spec.md`
+- `plan.md`
+- `research.md`
+- `data-model.md`
+- `quickstart.md`
+- `contracts/recovery-hardening.md`
+- `contracts/test-failure-model.md`
+- `checklists/requirements.md`
+- `tasks.md`
+
+### `006-publish-codex-installable-product`
+
+- `README.md`
+- `spec.md`
+- `plan.md`
+- `research.md`
+- `data-model.md`
+- `quickstart.md`
+- `contracts/codex-public-package.md`
+- `contracts/release-process.md`
+- `contracts/release-manifest.schema.json`
+- `contracts/publication-record.schema.json`
+- `checklists/requirements.md`
+- `tasks.md`
+
+旧的 `006-publish-two-installable-products` 已被 Codex-only 首发规格取代。DeepSeek 发布将在
+Feature 004 完成后使用新的独立 Feature。
+
+## 主要实现边界
+
+- 根治理与元数据：`README.md`、`AGENTS.md`、`LICENSE`、`VERSION`；
+- Core：`cmd/dev-flow/`、`internal/`、`protocol/fixtures/`；
+- Host 产品：`packages/codex/`、`packages/deepseek/`；
+- 合同与 journey：`tests/contract/`、`tests/journeys/`；
+- 发布实现保留区：`release/`、`scripts/`；
+- Spec Kit：一个根 `.specify/`、`.agents/skills/speckit-*`、`specs/`。

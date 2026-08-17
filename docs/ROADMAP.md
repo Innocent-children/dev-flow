@@ -1,43 +1,20 @@
 # Dev Flow 发展路线
 
-路线图按能力门禁推进，不按日历承诺。每一阶段必须先证明用户闭环，再进入下一阶段。
+路线图按能力门禁推进，不按日历承诺。当前批准路线优先交付可用的 Codex 产品；DeepSeek
+Harness 产品保留但延期。
 
 ## Stage 0：Monorepo 工程基础
 
-### 对应规格
+**规格**：`001-bootstrap-monorepo`
 
-`001-bootstrap-monorepo`
-
-### 目标
-
-- 根级 Spec Kit；
-- Constitution 与 AGENTS；
-- 一个 Go module；
-- 一个 pnpm workspace；
-- Core、Codex、DeepSeek 责任目录；
-- 单一版本源；
-- 最小可运行 Go 命令；
-- 两个可本地 pack 的产品骨架；
-- 有界 CI。
-
-### 退出条件
-
-- 仓库布局合同通过；
-- `go test ./...` 可执行；
-- `pnpm install --frozen-lockfile` 可执行；
-- 两个 package 可本地 `pack`；
-- CI 只验证工程基础，不伪造产品行为；
-- Spec Kit 能激活 `002`。
-
----
+已交付根级 Spec Kit、Constitution、Go module、pnpm workspace、Core/Codex/DeepSeek 责任
+边界、单一版本源与有界 CI。
 
 ## Stage 1：共享流程内核 MVP
 
-### 对应规格
+**规格**：`002-govern-and-resume-single-repository-task`
 
-`002-govern-and-resume-single-repository-task`
-
-### 用户闭环
+用户闭环：
 
 ```text
 创建任务
@@ -50,223 +27,137 @@
 → 完成交付
 ```
 
-### 能力
+已交付单仓库、单状态机、六个 MCP 工具、SQLite、revision、repository claim、验证预算、
+只读 Git 指纹、基础五类恢复和本地 STDIO，并冻结 Core Contract 0.1。
 
-- 单仓库；
-- 单状态机；
-- 六个 MCP 工具；
-- SQLite 当前状态；
-- revision；
-- repository claim；
-- origin host；
-- 验证预算；
-- Git 只读指纹；
-- 基础恢复；
-- 本地 STDIO。
+## Stage 2：Codex 产品 MVP
 
-### 退出条件
+**规格**：`003-codex-explicit-dev-flow`
 
-- 临时 Git 仓库中的 Core journey 通过；
-- 合法和非法转换均有定向测试；
-- 过期 revision 和 claim 冲突被拒绝；
-- 进程重启后任务一致；
-- MCP contract fixture 稳定；
-- 无宿主代码参与 Core 验收。
-
-完成后冻结 `Core Contract 0.1`。
-
----
-
-## Stage 2A：Codex 产品 MVP
-
-### 对应规格
-
-`003-codex-explicit-dev-flow`
-
-### 用户闭环
+用户闭环：
 
 ```text
-安装产品
+安装本地产品
 → $dev-flow 启动真实任务
-→ 完成至少两个阶段
+→ 完成阶段
 → 关闭 Codex
 → 新会话恢复
-→ 完成任务
+→ Core DONE
 → 删除产品且保留任务数据
 ```
 
-### 范围
+退出条件：
 
-- 显式触发；
-- 一个 Skill；
-- 直接连接 Go MCP；
-- 包内 Runtime；
-- 显式 setup/remove；
-- 一个最终包真实 journey。
-
-### 退出条件
-
-- 不依赖目标仓库额外规则；
-- Skill 不定义状态机；
-- Codex 遵守验证预算；
+- 一个私有本地包携带一个 Runtime、Plugin、Skill 和 MCP；
+- 普通请求不进入 Dev Flow；
+- Core 保持唯一流程权威；
 - 重启后恢复同一任务；
-- 安装与删除边界清楚。
-
----
-
-## Stage 2B：DeepSeek 产品 MVP
-
-### 对应规格
-
-`004-deepseek-explicit-dev-flow`
-
-### 用户闭环
-
-```text
-安装产品
-→ /dev-flow 启动真实任务
-→ 完成至少两个阶段
-→ 重启 DeepSeek Harness
-→ 恢复
-→ 完成任务
-→ 删除产品且保留任务数据
-```
-
-### 范围
-
-- 显式触发；
-- 一个 Skill；
-- DSH bundle；
-- 仅在宿主需要时使用轻量 Projection Proxy；
-- 包内 Runtime；
-- 一个最终包真实 journey。
-
-### 退出条件
-
-- Proxy 不含业务规则；
-- 工具面与共享 fixture 一致；
-- DeepSeek 能消费完整权威结果；
-- 重启后恢复同一任务；
-- 删除插件不删除任务数据。
-
-`Stage 2A` 与 `Stage 2B` 可并行，但不能分别扩展 Core Contract。
-
----
+- setup/remove 边界与 retained data 通过；
+- 最终真实 Codex acceptance 通过；
+- 003 合并到 `main`。
 
 ## Stage 3：恢复加固
 
-### 对应规格
+**规格**：`005-recover-uncertain-actions-and-drift`
 
-`005-recover-uncertain-actions-and-drift`
+005 不再等待 DeepSeek。它在已合并 Codex 产品与 Core Contract 0.1 上证明：
 
-### 目标
+- mutation 提交后结果丢失；
+- pre-commit 失败；
+- 响应截断与写入失败；
+- completed-and-recorded / completed-but-unrecorded；
+- partial / conflicting；
+- branch、HEAD、tracked/untracked、路径和 repository identity 漂移；
+- 两个 Core handle 并发恢复。
 
-根据两个真实宿主暴露的恢复边界覆盖：
+退出条件：
 
-- mutation 提交后响应丢失；
-- 进程崩溃；
-- revision 冲突；
-- branch/HEAD/工作树漂移；
-- 同仓库被另一宿主占用；
-- completed-but-unrecorded；
-- partial；
-- conflicting。
+- 五种既有恢复分类都有确定性测试；
+- 不确定 mutation 必须 read-before-retry；
+- 提交后结果丢失只产生一次 revision/event；
+- 冲突读取零写入；
+- 两个 handle 最多一个提交；
+- 不新增 MCP 工具、状态、恢复类、Schema 或生产故障开关；
+- `packages/deepseek/` 不变。
 
-### 退出条件
+## Stage 4：Codex 首个公开 0.x Release
 
-- 五种恢复分类均有端到端测试；
-- 不确定 mutation 不会自动重放；
-- 冲突时不修改任务或仓库；
-- 两个宿主遵循同一恢复指令；
-- 没有为恢复场景增加第二套流程。
+**规格**：`006-publish-codex-installable-product`
 
----
+用户闭环：
 
-## Stage 4：双产品首发
+```text
+npm install -g dev-flow-codex
+→ 显式 setup
+→ $dev-flow 创建任务
+→ Codex 重启与恢复
+→ Core DONE
+→ 显式 remove
+→ npm uninstall
+→ retained task 仍可读取
+```
 
-### 对应规格
+首版边界：
 
-`006-publish-two-installable-products`
+- 产品：仅 `dev-flow-codex`；
+- 平台：仅 macOS arm64；
+- 制品：一个 npm 包，内含一个 Go Runtime；
+- 发布：显式 operator 流程，不由 PR CI 发布；
+- 完整性：一个版本、一个 source commit/tree、一个 Tag、一个 Draft/Release；
+- 远端 npm/GitHub 制品全部下载回读；
+- 最终 journey 必须使用 registry package；
+- 失败保留真实 publication record，不伪造回滚。
 
-### 目标
+退出条件：
 
-从一个源码身份发布两个可独立安装的产品。
+- 两次干净构建的 Runtime 与标准化包内容一致；
+- public package allowlist、模式、版本、Core identity 通过；
+- npm/GitHub read-back 通过；
+- 最终 registry-package Codex journey 通过；
+- removal/uninstall 保留任务数据；
+- Release 只声明实际验证的平台与 Host；
+- DeepSeek 不被发布或宣称支持。
 
-### 退出条件
+## 延期路线：DeepSeek 产品
 
-- 两个产品自包含；
-- 任一产品可独立安装和运行；
-- 版本、Tag、Runtime 和 package identity 一致；
-- 最终资产经过上传后 read-back；
-- 两个最终包真实宿主 journey 完成；
-- 首个公开 `0.x` Release 只声明已验证平台。
+**规格**：`004-deepseek-explicit-dev-flow`  
+**状态**：DEFERRED
 
----
+恢复条件：
 
-## MVP 后候选能力：只按真实使用进入
+- 使用当时官方稳定 Harness，而不是沿用旧 RC 假设；
+- 宿主能满足修订后的显式调用与完整结果合同；
+- 从当前 `main` 重新评估 package/profile/MCP 行为；
+- 保持 Core 与已发布 Codex 兼容；
+- 完成独立真实 Harness journey；
+- 通过新的 DeepSeek 发布 Feature 公开产品。
 
-### 合同修订
+004 的延期不降低未来 DeepSeek 质量门禁，也不阻塞当前 Codex 0.x 路线。
 
-准入条件：至少三个真实任务需要在不中止任务的情况下修改范围、验收或验证预算。
+## MVP 后候选能力
 
-可能能力：
+只有真实使用达到准入条件时才建立新规格：
 
-- 用户批准的 contract delta；
-- 证据失效规则；
-- 重新计划；
-- 验证预算调整。
-
-先评估能否通过现有工具表达，再决定是否增加 MCP 工具。
-
-### Doctor 与可诊断性
-
-准入条件：至少三次安装、启动或数据问题无法通过现有错误定位。
-
-Doctor 必须只读，可检查：
-
-- Runtime/package identity；
-- 数据库可读性；
-- Skill/MCP path；
-- repository claim；
-- 宿主注册状态。
-
-### 跨宿主显式 Handoff
-
-准入条件：至少三个真实任务需要从 Codex 切换至 DeepSeek 或反向。
-
-可能能力：
-
-- 用户明确授权的 owner transfer；
-- 当前任务与仓库 read-back；
-- 动作重新投影；
-- handoff 记录。
-
-始终禁止自动接管。
-
-### Linux 与 Windows 正式支持
-
-每个平台单独建立规格并完成最终包 journey。交叉编译和 CI 通过不能单独构成用户支持
-证据。
-
-### 只读任务检查
-
-准入条件：用户持续需要在宿主外查看活动任务、阻塞原因和最终结果。
-
-优先提供有界 CLI 读取命令，不直接建设 Web UI。
-
----
+- 合同修订与 verification budget delta；
+- 只读 doctor；
+- 用户授权的跨宿主 handoff；
+- Linux、Windows 或其他架构；
+- 只读任务检查；
+- 签名、notarization 或供应链透明度；
+- 多平台 Runtime 包拆分。
 
 ## 1.0.0 门禁
 
-`1.0.0` 只有在以下条件全部满足后进入：
+`1.0.0` 仍要求：
 
-- 两个产品可公开安装；
-- 两个宿主都有真实创建、重启、恢复和完成证据；
-- 公共 MCP 工具与结果合同稳定；
-- SQLite Schema 有明确升级政策；
-- 不确定 mutation 恢复经过真实验证；
-- Adapter 未复制状态机或任务存储；
-- Core 未操作用户 Git；
+- Codex 与 DeepSeek 两个产品都可公开安装；
+- 两个宿主都有真实创建、重启、恢复、完成与删除证据；
+- 公共 MCP、Result Envelope、Recovery 与 SQLite 升级政策稳定；
+- 不确定 mutation 恢复经过真实使用验证；
+- Adapter 不复制状态机或任务存储；
+- Core 不操作用户 Git；
 - 安装、升级和删除不会丢失任务；
-- 每个支持平台都有最终包证据；
-- 真实使用证明流程治理和恢复带来稳定价值。
+- 每个支持平台都有最终制品证据；
+- 真实使用证明流程治理与恢复具有稳定价值。
+
+Codex-only `0.x` Release 是通往 1.0 的阶段性交付，不等于放弃第二个产品。

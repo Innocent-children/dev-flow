@@ -1,34 +1,29 @@
 # 004 DeepSeek Explicit Dev Flow
 
-This directory contains the reviewed planning package for the thin, explicit-only DeepSeek Harness
-product.
+**Status**: Deferred by maintainer decision on 2026-08-17.
 
-Feature 004 is deliberately serialized after Feature 003:
+This directory retains the reviewed Spec Kit planning package for a future thin, explicit-only
+DeepSeek Harness product. Deferral is not cancellation and does not make any planned behavior an
+implemented capability.
 
-1. Feature 003 must be fully implemented and merged to `main`.
-2. Feature 004 records the exact merge commit and verifies the delivered detached-build version
-   seam, Codex-aware shared contracts, and Codex-aware root validator.
-3. Feature 004 consumes those merged capabilities; it does not depend on mutable Feature 003 task
-   numbers, duplicate shared code, or weaken Codex validation.
+Feature 004 is no longer a gate for:
 
-Harness evidence is deliberately split:
+- `005-recover-uncertain-actions-and-drift`;
+- `006-publish-codex-installable-product`;
+- the first public Codex-only `0.x` release.
 
-- a release-candidate direct-result spike is provisional engineering evidence only;
-- the full direct-result gate is established on the exact official stable Harness version/build
-  used by the final journey; RC or different-artifact evidence never substitutes;
-- user-story checkpoints use deterministic package, fake Core, fake profile, retained-data, and
-  journey-harness evidence only;
-- exactly one final stable Harness journey is run after stable Gate B, deterministic/root validation,
-  a read-only scope audit, source freeze, and creation of one final product artifact.
+No Feature 004 implementation, native Harness evidence, package publication, or support claim may
+be inferred from Features 005 or 006.
 
-Passing final evidence must use a real co-installed Codex product and prove DeepSeek removal does not
-change its registration, packaged runtime identity, package selection, or shared Core data. Codex
-absence is a blocker, not a passing skip.
+When Feature 004 resumes, it must:
 
-The adapter remains limited to one explicit Skill, one direct local STDIO MCP integration, a
-package-relative Core launcher, and package/profile lifecycle glue. No result proxy is authorized.
-A failed direct-result gate requires an explicit specification, plan, contract, test, and
-Constitution amendment before proxy work can begin.
+1. start from the then-current `main`;
+2. record the merged Feature 003, 005, and released Codex baselines;
+3. revalidate the official stable Harness package/profile/MCP behavior;
+4. revise stale compatibility and evidence assumptions before implementation;
+5. preserve Codex validation and shared Core semantics;
+6. receive its own final real-host journey and later publication feature.
 
-Implementation proceeds only after both reviewer-owned checklists remain satisfied against the
-revised artifacts.
+The existing plan, research, contracts, model, quickstart, checklists, and tasks remain planning
+history. Their original “after Feature 003” sequencing is superseded by this deferral notice.
+Implementation does not begin merely because those artifacts are complete.

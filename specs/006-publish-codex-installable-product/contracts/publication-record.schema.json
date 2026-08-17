@@ -1,0 +1,470 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-flow.local/schemas/publication-record.schema.json",
+  "title": "Dev Flow Codex Publication Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "release",
+    "overall_status",
+    "manifest_sha256",
+    "steps",
+    "npm",
+    "github",
+    "final_journey",
+    "last_observed_at",
+    "safe_next_action"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "tag",
+        "source_commit",
+        "source_tree"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+        },
+        "tag": {
+          "type": "string",
+          "pattern": "^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+        },
+        "source_commit": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "source_tree": {
+          "$ref": "#/$defs/gitSha"
+        }
+      }
+    },
+    "overall_status": {
+      "enum": [
+        "prepared",
+        "remote_initialized",
+        "npm_published",
+        "npm_verified",
+        "journey_passed",
+        "assets_uploaded",
+        "assets_verified",
+        "release_published",
+        "complete",
+        "failed",
+        "blocked"
+      ]
+    },
+    "manifest_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "prefixItems": [
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/publicationStep"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "preflight"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/publicationStep"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "tag"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/publicationStep"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "github_draft"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/publicationStep"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "npm_publish"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/publicationStep"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "npm_readback"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/publicationStep"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "final_journey"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/publicationStep"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "github_upload"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/publicationStep"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "github_readback"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/publicationStep"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "github_finalize"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "items": false
+    },
+    "npm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "published",
+        "integrity",
+        "tarball_sha256",
+        "verified"
+      ],
+      "properties": {
+        "name": {
+          "const": "dev-flow-codex"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+        },
+        "published": {
+          "type": "boolean"
+        },
+        "integrity": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 256
+        },
+        "tarball_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verified": {
+          "type": "boolean"
+        }
+      }
+    },
+    "github": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tag",
+        "tag_target",
+        "release_id",
+        "draft",
+        "published",
+        "assets"
+      ],
+      "properties": {
+        "tag": {
+          "type": "string"
+        },
+        "tag_target": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/gitSha"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "release_id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "draft": {
+          "type": "boolean"
+        },
+        "published": {
+          "type": "boolean"
+        },
+        "assets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "asset_id",
+              "sha256",
+              "verified"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "asset_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1
+              },
+              "sha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "verified": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    "final_journey": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "actual_codex_version",
+        "observed_at",
+        "summary"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "pending",
+            "passed",
+            "failed",
+            "blocked"
+          ]
+        },
+        "actual_codex_version": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 64
+        },
+        "observed_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "summary": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      }
+    },
+    "last_observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "safe_next_action": {
+      "type": "string",
+      "maxLength": 1000
+    }
+  },
+  "$defs": {
+    "gitSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "publicationStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "status",
+        "started_at",
+        "completed_at",
+        "remote_id",
+        "expected_sha256",
+        "observed_sha256",
+        "error_code",
+        "summary",
+        "safe_next_action"
+      ],
+      "properties": {
+        "name": {
+          "enum": [
+            "preflight",
+            "tag",
+            "github_draft",
+            "npm_publish",
+            "npm_readback",
+            "final_journey",
+            "github_upload",
+            "github_readback",
+            "github_finalize"
+          ]
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "complete",
+            "failed",
+            "blocked"
+          ]
+        },
+        "started_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "completed_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "remote_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 256
+        },
+        "expected_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observed_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error_code": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "summary": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "safe_next_action": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      }
+    }
+  }
+}

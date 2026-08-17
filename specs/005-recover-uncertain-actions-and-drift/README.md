@@ -1,25 +1,48 @@
-# 005 Recover Uncertain Actions and Drift
+# 005 Recover Uncertain Actions and Repository Drift
 
-This directory intentionally contains only `spec.md`.
+Feature 005 is the next shared-Core feature after the Codex product in Feature 003. Feature 004 is
+explicitly deferred and is not an implementation or acceptance dependency for this feature.
 
-Feature 002 owns the baseline contract and implementation responsibility for the closed OperationProbe,
-RecoveryAssessment, ordered five-class decision table, optional `recovery_apply` on ApplyAction,
-ordinary-drift zero-write behavior, Core-derived BLOCKED entry, exact
-`restore_issuance_binding`/ResolveBlockerPayload flow, latest-LastOperation proof, and bounded
-two-handle concurrency. Feature 005 must not reopen those decisions merely to restate baseline work.
+This directory is a complete Spec Kit package:
 
-Planning is blocked until final real-host reports from both `003` and `004` identify actual
-uncertain-response, truncation, cancellation, process-exit, and repository-drift behavior. Do not
-create synthetic requirements merely to fill a crash matrix.
+- `spec.md`
+- `plan.md`
+- `research.md`
+- `data-model.md`
+- `contracts/recovery-hardening.md`
+- `contracts/test-failure-model.md`
+- `quickstart.md`
+- `checklists/requirements.md`
+- `tasks.md`
 
-Before planning:
+## Entry gate
 
-1. List observed failures from both host journeys.
-2. Map each observation to an existing `002` recovery contract.
-3. Remove scenarios already proven and not requiring product change.
-4. Keep only concrete hardening gaps such as transport/crash failure injection, generic
-   expected-evidence adoption, host parity, or an evidence-justified binding-adoption change.
-5. Re-run `$speckit-clarify`; revise this specification downward when evidence supports less work.
+Implementation starts only from a `main` commit that contains the completed Feature 003 product and
+its final Codex acceptance result. Record that merge commit in `research.md` before changing Core
+code.
 
-Then generate the remaining Spec Kit artifacts. A proposed new MCP tool or workflow phase requires a
-Constitution amendment before plan approval.
+Feature 005 does not wait for DeepSeek Harness. It uses:
+
+1. Core Contract 0.1 delivered by Feature 002;
+2. the real Codex create/restart/resume journey delivered by Feature 003;
+3. the accepted local-STDIO threat model that a mutation result may be lost after commit;
+4. deterministic Core, Store, MCP, and repository tests.
+
+## Non-negotiable boundary
+
+This feature hardens and proves the existing recovery contract. It does not add:
+
+- a seventh MCP tool;
+- a new workflow phase;
+- a new recovery class;
+- a database schema migration;
+- a production fault-injection flag;
+- automatic mutation replay;
+- Git mutation or repository repair;
+- DeepSeek implementation work;
+- cross-host takeover.
+
+If implementation discovers that a public MCP schema, stable error, state transition, or persisted
+model must change, stop Feature 005 and amend the specification before coding that change. Such an
+amendment must satisfy the Constitution's two-host contract-parity rule; skipping Feature 004 does
+not authorize a public Core divergence.
