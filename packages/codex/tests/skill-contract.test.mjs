@@ -238,6 +238,76 @@ test("Skill reads before retry and preserves budgets, evidence labels, and termi
   assert.match(terminal, /stop/i);
 });
 
+test("Skill retains one exact apply probe across every uncertain result shape", async () => {
+  const recovery = section(await readFile(skillPath, "utf8"), "Recovery-before-retry contract");
+
+  for (const uncertainty of ["missing", "malformed", "cancelled", "truncated", "transport-failed"]) {
+    assert.match(recovery, new RegExp(escapeRegExp(uncertainty), "i"));
+  }
+
+  const retainedApply = recovery.match(/Before calling `dev_flow_apply_action`,[\s\S]*?(?=\n\n)/i)?.[0];
+  assert.ok(retainedApply, "recovery contract must retain one exact pre-dispatch apply identity");
+  for (const retained of [
+    "request_id",
+    "task_id",
+    "source_phase",
+    "revision",
+    "action_id",
+    "action_kind",
+    "repository_binding_digest",
+  ]) {
+    assert.equal(retainedApply.includes(`\`${retained}\``), true, `missing retained apply value ${retained}`);
+  }
+  assert.match(retainedApply, /exact closed `payload`|`payload`[^\n]*exact closed/i);
+  assert.match(retainedApply, /same fresh action[\s\S]*same apply dispatch/i);
+  assert.match(retainedApply, /(?:do not|never)[\s\S]{0,120}(?:derive|reconstruct)[\s\S]{0,120}(?:incomplete|partial)[\s\S]{0,80}(?:response|result|output)/i);
+
+  const probeBlock = recovery.match(/`operation_probe`[^\n]*\n\s*```json\n([\s\S]*?)\n```/i);
+  assert.ok(probeBlock, "recovery contract must show the exact operation_probe JSON object");
+  const probe = JSON.parse(probeBlock[1]);
+  assert.deepEqual(probe, {
+    operation_id: "<original apply request_id>",
+    source_phase: "<original source phase>",
+    expected_revision: 3,
+    action_id: "<original action id>",
+    action_kind: "<original action kind>",
+    repository_binding_digest: "<original issuance binding digest>",
+    payload: {},
+  });
+  assert.match(recovery, /`operation_id`[\s\S]{0,100}original[\s\S]{0,80}`request_id`/i);
+  assert.match(recovery, /`operation_id`[\s\S]{0,160}(?:not|never)[\s\S]{0,80}read request ID/i);
+  assert.match(recovery, /`expected_revision`[\s\S]{0,100}original[\s\S]{0,80}(?:action )?`revision`/i);
+  assert.match(recovery, /`repository_binding_digest`[\s\S]{0,100}original[\s\S]{0,80}issuance binding/i);
+  assert.match(recovery, /`payload`[\s\S]{0,100}exact original[\s\S]{0,80}closed payload/i);
+  assert.match(recovery, /(?:(?:JSON )?`null`[\s\S]{0,100}(?:payload|retained)|payload[\s\S]{0,100}(?:JSON )?`null`)/i);
+  assert.match(recovery, /(?:do not|never)[\s\S]{0,120}(?:partial output|repository text|model memory)/i);
+
+  assert.match(recovery, /(?:(?:do|does) not immediately repeat|before any retry)[\s\S]*`dev_flow_apply_action`/i);
+  assert.match(recovery, /original `task_id`[\s\S]*`dev_flow_get_task`/i);
+  assert.match(recovery, /all[\s\S]{0,100}(?:required|original)[\s\S]{0,100}(?:retained|available)[\s\S]{0,100}`operation_probe`/i);
+  assert.match(recovery, /`dev_flow_get_task`[\s\S]*`dev_flow_get_next_action`/i);
+  assert.match(recovery, /both reads[\s\S]{0,100}same[\s\S]{0,100}(?:original )?`operation_probe`/i);
+  assert.match(recovery, /stale pre-dispatch[\s\S]{0,120}(?:not|never)[\s\S]{0,100}(?:read-back|authoritative)/i);
+  assert.match(recovery, /complete fresh\s+Core[\s\S]{0,100}(?:result|response|assessment)/i);
+  assert.match(recovery, /(?:Core[\s\S]{0,100}explicitly[\s\S]{0,80}safe[\s\S]{0,80}(?:retry|recovery)|(?:retry|recovery)[\s\S]{0,100}Core[\s\S]{0,80}explicitly[\s\S]{0,80}safe)/i);
+
+  assert.match(recovery, /(?:required|identity)[\s\S]{0,120}(?:missing|incomplete)[\s\S]{0,160}(?:do not|never)[\s\S]{0,100}(?:construct|fabricate|send)[\s\S]{0,100}`operation_probe`/i);
+  assert.match(recovery, /(?:half|partial) probe/i);
+  assert.match(recovery, /(?:do not|never)[\s\S]{0,100}(?:complete|fill)[\s\S]{0,100}partial (?:response|result|output)/i);
+  assert.match(recovery, /(?:do not|never)[\s\S]{0,100}assume[\s\S]{0,80}`not_started`/i);
+  assert.match(recovery, /stop[\s\S]{0,100}report[\s\S]{0,100}(?:cannot|unable)[\s\S]{0,100}(?:prove|determine)[\s\S]{0,80}mutation/i);
+  assert.match(recovery, /(?:(?:do not|never)[\s\S]{0,100}automatically retry|no automatic retry)/i);
+
+  assert.match(recovery, /complete structured `ok=false`[\s\S]{0,120}(?:domain|transport uncertainty)/i);
+  assert.match(recovery, /(?:do not|never)[\s\S]{0,100}(?:convert|treat)[\s\S]{0,100}(?:domain error|`ok=false`)[\s\S]{0,100}(?:missing|transport)/i);
+  assert.match(recovery, /`retry_safe=false`[\s\S]*`action=none`[\s\S]*stop[\s\S]*(?:do not|never)[\s\S]*`dev_flow_get_next_action`[\s\S]*`dev_flow_apply_action`/i);
+
+  const adapterOwnedBranch = /\b(?:if|when|case|switch)\b[^\n]{0,160}\b(?:completed_and_recorded|completed_but_unrecorded|partially_completed|not_started|conflicting)\b/i;
+  assert.doesNotMatch(recovery, adapterOwnedBranch, "Skill must not branch on Core recovery classifications");
+  assert.match(recovery, /(?:do not|never)[\s\S]{0,100}(?:branch|decide|interpret)[\s\S]{0,100}recovery classification/i);
+  assert.match(recovery, /obey[\s\S]{0,100}complete Core recovery assessment[\s\S]{0,80}advice/i);
+});
+
 test("Skill and production adapter contain no workflow authority or test fixture dependency", async () => {
   const skill = await readFile(skillPath, "utf8");
   for (const forbiddenHeading of [
