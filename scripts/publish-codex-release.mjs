@@ -759,13 +759,31 @@ async function observeRelease(context) {
   const result = await runAllowFailure("gh", [
     "release", "view", context.tag,
     "--repo", REPOSITORY,
-    "--json", "tagName,isDraft,isPrerelease,targetCommitish,id,assets,url",
+    "--json", "tagName,isDraft,isPrerelease,targetCommitish,databaseId,assets,url",
   ], context);
   if (result.code !== 0) {
     if (isNotFound(result)) return null;
     throw commandFailure("GITHUB_DRAFT_OBSERVATION_FAILED", result, "github_draft");
   }
-  try { return JSON.parse(result.stdout); } catch { throw new PublicationError("GITHUB_DRAFT_INVALID", "GitHub draft metadata was not bounded JSON", { blocked: true, step: "github_draft" }); }
+  try {
+    const release = JSON.parse(result.stdout);
+    const assets = Array.isArray(release.assets)
+      ? release.assets.map((asset) => ({ ...asset, id: numericReleaseAssetID(asset) }))
+      : release.assets;
+    return { ...release, id: release.databaseId, assets };
+  } catch (error) {
+    if (error instanceof PublicationError) throw error;
+    throw new PublicationError("GITHUB_DRAFT_INVALID", "GitHub draft metadata was not bounded JSON", { blocked: true, step: "github_draft" });
+  }
+}
+
+function numericReleaseAssetID(asset) {
+  const match = typeof asset?.apiUrl === "string" ? asset.apiUrl.match(/\/releases\/assets\/([1-9][0-9]*)$/u) : null;
+  const id = match === null ? NaN : Number(match[1]);
+  if (!Number.isSafeInteger(id)) {
+    throw new PublicationError("GITHUB_ASSET_ID_INVALID", "GitHub asset REST identity is missing or invalid", { blocked: true, step: "github_draft" });
+  }
+  return id;
 }
 
 function validateObservedRelease(context, release, { required = false, draft = null } = {}) {
