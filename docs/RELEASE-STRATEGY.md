@@ -1,7 +1,8 @@
 # 分阶段产品发布策略
 
-> **文档状态**：本文定义 Feature 006 及后续 DeepSeek 发布 Feature 的目标策略。当前 `main`
-> 在 003 合并前仍不具备公开发布能力。
+> **文档状态**：Feature 003 与 Feature 005 已合并。Feature 006 的确定性实现与最终门禁
+> T001–T046 已通过，这只表示 implementation ready for review；public release 仍等待
+> T047–T050。
 
 ## 发布顺序
 
@@ -12,131 +13,132 @@ dev-flow-codex
 dev-flow-deepseek
 ```
 
-当前批准的首发顺序是：
+当前批准顺序是：
 
 1. `dev-flow-codex`：Feature 006，macOS arm64；
 2. `dev-flow-deepseek`：Feature 004 完成后，由新的发布 Feature 处理。
 
-首个 Codex-only `0.x` Release 不宣称 DeepSeek 已实现或受支持。`1.0.0` 仍要求两个产品。
+首个 Codex-only `0.x` Release 不宣称 DeepSeek 已实现或受支持。`1.0.0` 仍要求两个产品均可
+公开安装，并各自具有真实宿主最终制品证据。
 
-## 0.x 版本策略
+## 当前证据状态
 
-所有在同一 Release 中包含的组件使用根 `VERSION`：
+- Feature 003 已完成真实 Codex create/restart/resume/`DONE`/remove 验收；
+- Feature 005 recovery tests 与 Feature 006 local tgz/lifecycle/upgrade tests 已完成；
+- 两工作树 preparation、normalized verifier、fake npm/gh publication、resume/conflict、
+  simulated finalization 和 registry-only Journey contract 已完成确定性验证；
+- public npm publication、registry tarball read-back、真实 final Journey、GitHub asset read-back
+  与 public Release 尚未执行。
+
+fake 或本地证据不会生成 public support claim。
+
+## 0.x 版本与身份策略
+
+同一 Release 中包含的组件使用根 `VERSION`：
 
 ```text
 Git tag                 v${VERSION}
 Go Core                 ${VERSION}
 included host package   ${VERSION}
+GitHub Release          v${VERSION}
 ```
 
-当某一版本只发布 Codex 时，不生成或发布同版本 DeepSeek 包。未来 DeepSeek 首发从当时根版本
-构建，并通过自己的兼容与真实宿主证据。
+首版 package、bundled Runtime、Tag、manifest、publication record 与 GitHub Release 必须绑定同一
+clean `main` commit/tree。npm version 只发布一次；Tag、npm bytes 和 GitHub assets 均不可覆盖、
+移动或伪造回滚。
+
+只发布 Codex 的版本不生成同版本 DeepSeek 包。未来 DeepSeek 首发从当时根版本构建并取得自己
+的兼容与真实宿主证据。
 
 ## Codex 首版制品
 
-初始公开支持只有 macOS arm64，因此一个 npm 包直接携带一个 Runtime：
+初始公开支持只有 macOS arm64，一个 npm package 直接携带一个 Runtime：
 
 ```text
 dev-flow-codex-<VERSION>.tgz
 └── runtime/darwin-arm64/dev-flow
 ```
 
-首版不建立平台 Runtime npm 子包，不在首次启动下载二进制，也不要求用户安装 Go。
-
-包元数据限定 `darwin`/`arm64`，setup 再次核验实际平台、Runtime、package/Core version 与
-Codex 兼容范围。
+首版不建立平台 Runtime npm 子包，不首次启动下载二进制，也不要求用户安装 Go。package metadata
+限定 `darwin`/`arm64`，setup 再核验实际平台、Runtime、package/Core version 与 Codex 兼容范围。
 
 ## 安装与宿主变更边界
+
+最终发布后的标准入口是：
 
 ```bash
 npm install -g dev-flow-codex
 dev-flow-codex setup
 ```
 
+当前 registry publication 尚未发生。无论本地 tgz 还是未来 registry package：
+
 - npm 只安装或删除 package-manager-owned 文件；
 - setup/remove 才修改已证明归属的 Codex 注册；
-- 禁止 `postinstall`、`preuninstall` 或 shell profile 修改；
-- 删除注册与 npm uninstall 默认保留任务数据库；
-- 数据清理必须是独立、显式、后续定义的操作。
+- 禁止 install/uninstall lifecycle host mutation 与 shell profile 修改；
+- explicit remove 与 npm uninstall 默认保留任务数据库和未知相邻文件。
 
-## 构建一致性
+## 构建与五文件输出
 
-每个 Release 从一个干净 `main` commit/tree 构建两次：
+每个 Release 从一个 reviewed clean `main` commit/tree 的两个独立 clean worktree 构建：
 
-- Go Runtime 字节必须一致；
-- npm tarball 解包后的路径、字节、mode 和 metadata 必须一致；
-- 原始 `.tgz` 字节一致时记录，但不永久绑定包工具内部 metadata；
+- Go Runtime 字节一致；
+- npm tarball 的 normalized 路径、字节、mode 与 metadata 一致；
+- raw `.tgz` equality 可记录为观察，不成为永久规则；
 - package/Core/plugin/Tag/manifest 使用同一版本与 source identity；
-- 生成 `SHA256SUMS`、`release-manifest.json` 和 `publication-record.json`。
+- 输出恰好为 tarball、standalone Core、`SHA256SUMS`、`release-manifest.json`、
+  `publication-record.json`。
 
-Generated release output 不提交到源码树。
+publication record 是可变 operator state，不进入 SQLite、不上传为 Release asset；其他四个文件
+是最终 immutable payload/metadata。Generated output 不提交到源码树。
 
 ## 发布权限与执行位置
 
-发布由明确的本地 operator 命令执行，使用标准 `npm` 与 `gh` 登录状态。
+Preparation/verification 是可重复、无远端副作用的本地操作。真实发布只能从已评审、干净的
+`main` commit 执行，使用一次 frozen release directory 和精确 `v${VERSION}` confirmation。
 
 Pull Request CI：
 
 - 不持有 npm/GitHub 发布凭证；
-- 不创建 Tag、Release 或 npm version；
-- 只运行 schema、package、dry preparation 与普通 repository validation。
-
-未来自动化发布工作流需要独立规格，不从 Feature 006 顺带引入。
+- 不调用 publisher，不创建 Tag/Release/npm version；
+- 不运行真实 Codex 或 final registry-package Journey；
+- 只执行 preparation-safe contracts、syntax、package 和 repository validation。
 
 ## 发布门禁与顺序
 
-1. 003、005 已合并；
-2. clean `main` source 与 strict SemVer；
-3. npm 包名权限、GitHub 权限和远端冲突预检；
-4. 两个 clean worktree 构建/比较；
-5. package allowlist、mode、identity、secret/path 扫描；
-6. package/lifecycle/Skill/Core/parser 与 release contracts 通过；
-7. 生成并验证 manifest/checksum/publication record；
-8. operator 精确确认 `v${VERSION}`；
-9. 创建或复用精确 Tag 与 GitHub Draft Release；
-10. 发布 npm tarball 一次；
-11. 从 public registry 下载并验证；
-12. 使用 registry package 完成真实 Codex install/setup/create/restart/resume/DONE/remove/
-    uninstall/retained-reopen journey；
-13. 生成最终 support entry、release manifest 与 `SHA256SUMS`；
-14. 上传 GitHub assets；
-15. 从官方 asset 路径下载并验证；
-16. 全部门禁通过后发布 GitHub Release；
-17. 回读最终 Tag/Release identity 并完成本地 publication record。
+1. Features 003/005 已合并，Phase 6 review gate 通过；
+2. freeze 一个 reviewed clean `main` source commit/tree；
+3. 两个 clean worktree build/compare，生成并验证一次 frozen release directory；
+4. npm ownership、GitHub permission、Tag/Draft/npm conflict read-only preflight；
+5. operator 精确确认 `v${VERSION}`；
+6. 创建或复用精确 Tag 与 GitHub Draft Release；
+7. 发布 verified npm tarball 一次；
+8. 从 public registry 下载并验证 metadata、tarball、tree、mode 与 Runtime；
+9. 只使用 registry package 完成真实 Codex install/setup/create/restart/resume/`DONE`/remove/
+   uninstall/retained-reopen Journey；
+10. 生成 native passed support entry、最终 manifest 与 checksums；
+11. 上传 tarball、standalone Core、manifest、checksums，并从官方 asset path 回读；
+12. 全部门禁通过后 finalize GitHub Release；
+13. 最终回读 Tag/Release identity，将本地 publication record 标为 `complete`。
 
-## 不可变性与失败恢复
+## 失败与恢复
 
-- npm 同名同版本不覆盖、不自动 unpublish；
-- Tag 不移动；
-- 冲突 asset 不覆盖；
-- 已完成远端步骤必须先 read-back 再复用；
-- 失败记录实际已发布和未发布组件；
-- publication record 给出 safe next action；
-- 无法安全继续时由维护者决定新 patch version，不伪造事务回滚。
+- 每次 mutation 前重新读取远端；
+- 精确匹配的已完成步骤可复用；
+- npm 同名同版本不重发；
+- Tag 不移动，冲突 asset 不覆盖；
+- 失败记录真实已完成/未完成步骤和 safe next action；
+- 冲突进入 manual resolution，不删除远端状态或伪造事务回滚。
 
 ## 支持声明
 
-第一个公开支持表只包含：
+首个 public support table 只能在 native final Journey 后包含 macOS、arm64、registry package
+digest、bundled Core digest/version、实际 Codex version、Feature 003 compatible range 和 passed
+result。Linux、Windows、Intel Mac、DeepSeek 以及所有 fixture/simulated 环境均不产生 public
+passed support。
 
-- macOS；
-- arm64；
-- registry package digest；
-- bundled Core digest/version；
-- 实际最终 journey 的 Codex version；
-- Feature 003 定义并再次验证的兼容范围；
-- 最终 journey 结果。
+## DeepSeek 与 1.0.0
 
-Linux、Windows、Intel Mac、DeepSeek 或其他 Host/平台均标记 `UNVERIFIED`。
-
-## DeepSeek 后续发布
-
-Feature 004 恢复并完成后，新的发布 Feature 必须：
-
-- 基于当时 `main` 和已发布 Core；
-- 重新验证官方 Harness stable；
-- 构建并回读 DeepSeek package；
-- 完成独立最终 Harness journey；
-- 证明不会破坏已安装 Codex 和共享数据；
-- 更新支持表而不篡改历史 Codex Release。
-
-不要回写或重开已经完成的 Feature 006 来发布第二个产品。
+DeepSeek 仍由延期的 Feature 004 与未来独立发布 Feature 负责。Feature 006 不修改、构建、测试
+或发布 `packages/deepseek/`。`1.0.0` 仍要求 Codex 与 DeepSeek 两个可公开安装的产品、两个真实
+宿主 Journey，以及稳定的共享 Core/MCP/Recovery/SQLite 合同。
