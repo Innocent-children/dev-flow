@@ -3,7 +3,7 @@
 **Feature Branch**: `005-recover-uncertain-actions-and-drift`  
 **Created**: 2026-08-14  
 **Revised**: 2026-08-17  
-**Status**: Implementation complete through T038; final root validation and Spec Kit gates pending.
+**Status**: Complete — T001–T040 and all final validation gates passed on 2026-08-17.
 **Input**: Harden the existing Core recovery contract against lost mutation results, bounded
 repository drift, and concurrent reconnects without waiting for Feature 004 or creating another
 workflow.

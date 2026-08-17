@@ -3,7 +3,7 @@
 Feature 005 is the next shared-Core feature after the Codex product in Feature 003. Feature 004 is
 explicitly deferred and is not an implementation or acceptance dependency for this feature.
 
-**Status**: Implementation complete through T038; final root validation and Spec Kit gates pending.
+**Status**: Complete — all three user stories, root validation, final analyze, and final converge passed on 2026-08-17.
 
 This directory is a complete Spec Kit package:
 

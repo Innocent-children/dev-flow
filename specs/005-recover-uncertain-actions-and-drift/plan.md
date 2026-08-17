@@ -2,7 +2,7 @@
 
 **Branch**: `005-recover-uncertain-actions-and-drift`  
 **Spec**: [spec.md](./spec.md)  
-**Status**: Implementation complete through T038; final root validation and Spec Kit gates pending.
+**Status**: Complete — implementation and all final delivery gates passed on 2026-08-17.
 
 ## Summary
 
