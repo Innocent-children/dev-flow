@@ -3,6 +3,8 @@
 Feature 005 is the next shared-Core feature after the Codex product in Feature 003. Feature 004 is
 explicitly deferred and is not an implementation or acceptance dependency for this feature.
 
+**Status**: Implementation complete through T038; final root validation and Spec Kit gates pending.
+
 This directory is a complete Spec Kit package:
 
 - `spec.md`
@@ -65,3 +67,28 @@ edits.
 
 No baseline failure required investigation or correction. The baseline contains no
 `packages/deepseek/` change.
+
+## Implementation Reconciliation — 2026-08-17
+
+T001–T033 are complete. User Story 1 proves lost-result read-back, zero-write pre-commit failure,
+bounded partial output, and duplicate idempotency. User Story 2 proves the five existing recovery
+classes, exact adoption, read-only partial/conflicting reads, stale-source rejection, and the
+existing blocker lifecycle. User Story 3 proves complete binding drift, canonical aliases,
+same-path replacement, a two-handle deterministic race, and restart-safe blocker resolution.
+
+No Core, Application, Recovery, Repository, Store, or MCP Go production file required a change.
+The implementation is deterministic proof plus a Codex Skill static-contract clarification. That
+clarification now requires the five uncertainty shapes to retain one exact pre-dispatch identity,
+construct only the existing seven-member `operation_probe`, read before retry, keep complete
+`ok=false` domain errors separate from transport uncertainty, and obey rather than reproduce the
+Core recovery decision table. `packages/deepseek/` remains unchanged.
+
+Evidence is reported only as test-local pre-commit failure, post-commit discarded result,
+pre-serialization discard, bounded partial writer, SQLite close/reopen, two-handle deterministic
+race, temporary Git fixture mutation, Codex Skill static contract, or root repository validation.
+None of these is a real Codex crash, operating-system power loss, real network interruption,
+DeepSeek evidence, or release-artifact evidence.
+
+No extra real Codex Host Journey or DeepSeek Harness was run. The feature adds no seventh tool,
+schema migration, production failpoint, automatic replay, Git repair, cross-host takeover,
+Feature 006 work, dependency, npm publication, tag, or release.

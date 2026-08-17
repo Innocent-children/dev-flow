@@ -3,6 +3,8 @@
 Feature 005 introduces no persisted entity and no SQLite migration. This document records the
 existing authorities that the new tests exercise and the non-persisted test scenario vocabulary.
 
+**Status**: Implementation complete through T038; final root validation and Spec Kit gates pending.
+
 ## Existing Persistent Authorities
 
 ### Task
@@ -81,18 +83,22 @@ recorded phase and exact permitted binding.
 
 ### OperationProbe
 
-Caller-retained fields:
+The caller retains the read request's task ID separately and sends the existing closed probe with
+exactly these members:
 
-- task ID
-- operation ID
-- action ID
-- expected/from revision
-- canonical request payload or fields from which Core derives the digest
+- `operation_id`: the original apply `request_id`, not a read request ID;
+- `source_phase`: the phase from the original fresh action;
+- `expected_revision`: the original action revision;
+- `action_id`: the original action ID;
+- `action_kind`: the original action kind;
+- `repository_binding_digest`: the original issuance binding digest;
+- `payload`: the exact original closed payload, or JSON `null` when it was not completely retained.
 
 **Validation**:
 
 - all identity components must refer to the same original request;
 - a caller cannot supply an authoritative payload digest;
+- no partial response, repository text, or model memory may complete missing probe values;
 - a missing probe makes no completion claim.
 
 ### RecoveryAssessment
@@ -150,3 +156,17 @@ Not a production type and never persisted.
 - Protocol fixture schema/digests: unchanged unless only nonsemantic fixture metadata is regenerated
   by an existing required process.
 - No migration, journal table, attempt table, or fault table is authorized.
+
+## Implementation Verification — 2026-08-17
+
+T001–T033 exercised only these existing persistent and transient authorities. User Story 1 proved
+lost-result read-back and duplicate cardinality; User Story 2 proved the five-class/read-only/write
+matrix; User Story 3 proved complete binding, aliases, replacement, race, and restart behavior. No
+Core, Application, Recovery, Repository, Store, or MCP Go production model changed.
+
+The Codex Skill static contract now spells out the closed `OperationProbe` above without adding a
+field or accepting a caller digest. Deterministic boundary labels remain test-local pre-commit
+failure, post-commit discarded result, pre-serialization discard, bounded partial writer, SQLite
+close/reopen, two-handle deterministic race, and temporary Git fixture mutation. Root repository
+validation is a final gate, not a persisted entity or release record. SQLite schema version remains
+1, and `packages/deepseek/` remains unchanged.

@@ -3,7 +3,7 @@
 **Feature Branch**: `005-recover-uncertain-actions-and-drift`  
 **Created**: 2026-08-14  
 **Revised**: 2026-08-17  
-**Status**: Planning complete — implementation may start after Feature 003 is merged to `main`  
+**Status**: Implementation complete through T038; final root validation and Spec Kit gates pending.
 **Input**: Harden the existing Core recovery contract against lost mutation results, bounded
 repository drift, and concurrent reconnects without waiting for Feature 004 or creating another
 workflow.
@@ -39,6 +39,27 @@ resume journey, and distinction between Core-domain and transport failures.
 Feature 005 owns only the missing proof and bounded hardening around transaction/result-loss
 boundaries, repository drift combinations, and concurrent reconnect behavior. Existing baseline
 behavior that already passes the new tests remains unchanged.
+
+## Implementation Reconciliation — 2026-08-17
+
+T001–T033 passed as three independent checkpoints. User Story 1 covers lost results and
+read-before-retry; User Story 2 covers all five existing classes, exact adoption, read-only
+observations, stale sources, and blockers; User Story 3 covers binding components, aliases,
+replacement, concurrent reconnects, and restart. The focused Codex static contract additionally
+closes the exact retained apply identity and existing seven-member `operation_probe` for missing,
+malformed, cancelled, truncated, and transport-failed results.
+
+The implementation did not require a Core, Application, Recovery, Repository, Store, or MCP Go
+production change. Requirements FR-001–FR-026 and SC-001–SC-009 remain unchanged: no implementation
+finding required a public contract, stable-error, state-machine, recovery-class, repository-claim,
+or persistence amendment. `packages/deepseek/` has zero diff.
+
+The accepted evidence is deterministic and boundary-specific: test-local pre-commit failure,
+post-commit discarded result, pre-serialization discard, bounded partial writer, SQLite
+close/reopen, two-handle deterministic race, temporary Git fixture mutation, and Codex Skill static
+contract. Root repository validation is a separate final gate. These labels do not claim a real
+Codex crash, operating-system power loss, network interruption, DeepSeek execution, or release
+artifact.
 
 ## User Scenarios & Testing
 
@@ -176,6 +197,8 @@ Verify deterministic safe-stop, one winner where a commit is legal, and no Git m
 - binding adoption to a different repository;
 - stress, load, fuzz, or exhaustive crash testing;
 - release provenance, signing, publication, or artifact distribution.
+- Feature 006 implementation;
+- npm publication, tags, or GitHub releases.
 
 ## Requirements
 

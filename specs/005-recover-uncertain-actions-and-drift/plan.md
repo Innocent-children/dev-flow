@@ -2,7 +2,7 @@
 
 **Branch**: `005-recover-uncertain-actions-and-drift`  
 **Spec**: [spec.md](./spec.md)  
-**Status**: Ready after Feature 003 is merged to `main`
+**Status**: Implementation complete through T038; final root validation and Spec Kit gates pending.
 
 ## Summary
 
@@ -83,6 +83,26 @@ Production changes are conditional on a newly added deterministic test proving a
 sequencing or idempotency defect. T016 permits only `internal/application/apply_action.go`,
 `internal/application/get_task.go`, and `internal/store/sqlite.go`. `packages/deepseek/` is outside
 the writable scope and its baseline diff is empty.
+
+## Delivered Implementation Result — 2026-08-17
+
+T001–T033 passed without changing any Core, Application, Recovery, Repository, Store, or MCP Go
+production file. User Story 1 delivered lost-result and duplicate-write proof; User Story 2
+delivered five-class, exact-adoption, read-only, stale-source, and blocker proof; User Story 3
+delivered binding-component, alias, replacement, race, and restart proof. All helper mechanisms
+remain in `_test.go` files.
+
+The new Codex static contract first exposed an ambiguity in the Skill prose. The only Skill change
+clarifies the five uncertainty shapes, the eight values retained from one fresh action/apply
+dispatch, the exact seven-member existing `operation_probe`, exact payload-or-`null` behavior,
+read-before-retry ordering, complete domain-error separation, and obedience to Core-owned recovery
+assessment. It adds no retry classifier or public surface. `packages/deepseek/` remains unchanged.
+
+Evidence labels remain literal: test-local pre-commit failure, post-commit discarded result,
+pre-serialization discard, bounded partial writer, SQLite close/reopen, two-handle deterministic
+race, temporary Git fixture mutation, and Codex Skill static contract. The root repository
+validation is reported separately after its single authorized run. No real host crash, DeepSeek
+Harness, Feature 006, or release work is part of the result.
 
 ## Constitution Check
 
@@ -243,12 +263,15 @@ node --test packages/codex/tests/skill-contract.test.mjs
 ### Final checkpoint
 
 ```bash
-gofmt -w <changed-go-files>
+node --test packages/codex/tests/skill-contract.test.mjs
+go test ./tests/contract
 git diff --check
 pnpm run validate
 ```
 
-The root validator runs once after targeted checks and documentation are complete.
+No Go file changed during T034–T037, so no `gofmt` target exists. The root validator runs once after
+targeted checks and documentation are complete. After it passes, run one final `$speckit-analyze`
+and one final `$speckit-converge`.
 
 ## Complexity Tracking
 

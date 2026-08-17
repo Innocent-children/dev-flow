@@ -1,5 +1,7 @@
 # Quickstart: Validate Recovery Hardening
 
+**Status**: Implementation complete through T038; final root validation and Spec Kit gates pending.
+
 ## Prerequisites
 
 - Feature 003 is merged into the checked-out `main`.
@@ -31,9 +33,11 @@ Expected result: the six-tool Core Contract 0.1 passes and no Feature 005 schema
 Run the focused journey and application/MCP cases:
 
 ```bash
-go test ./tests/journeys -run 'Uncertain|LostResult|Restart'
-go test ./internal/application -run 'Recovery|OperationProbe|Duplicate'
-go test ./internal/mcp -run 'Partial|Writer|Uncertain'
+go test ./internal/application
+go test ./internal/store
+go test ./internal/mcp
+go test ./tests/journeys
+go test ./tests/contract
 ```
 
 Expected outcomes:
@@ -47,7 +51,10 @@ Expected outcomes:
 ## 3. Validate reconciliation
 
 ```bash
-go test ./internal/recovery -run 'NotStarted|Completed|Partial|Conflict|Blocker'
+go test ./internal/recovery
+go test ./internal/application
+go test ./internal/store
+go test ./tests/contract
 ```
 
 Expected result: all five existing classes are covered, reads are zero-write, and only explicit
@@ -56,9 +63,10 @@ recovery apply records/adopts or blocks.
 ## 4. Validate drift and concurrency
 
 ```bash
-go test ./internal/repository -run 'Binding|Alias|Replace|Tracked|Untracked|Unborn'
-go test ./internal/store -run 'Concurrent|Revision|Restart|Claim'
-go test ./tests/journeys -run 'Drift|Concurrent'
+go test ./internal/repository
+go test ./internal/store
+go test ./tests/journeys
+go test ./tests/contract
 ```
 
 Expected result: complete binding changes safe-stop, aliases share one claim, repository replacement
@@ -70,23 +78,31 @@ does not rebind, and two handles produce at most one commit.
 node --test packages/codex/tests/skill-contract.test.mjs
 ```
 
-Expected result: every missing, malformed, cancelled, truncated, or transport-failed mutation result
-requires authoritative read-back with the retained operation identity. The Skill does not choose a
-recovery class.
+Expected result: 11 tests pass. Every missing, malformed, cancelled, truncated, or transport-failed
+mutation result retains the original apply identity and exact closed payload, uses the existing
+seven-member probe with exact payload or JSON `null`, calls `dev_flow_get_task` before any retry,
+and calls `dev_flow_get_next_action` only when a current action/outcome is needed. A complete
+`ok=false` remains a domain error, and the Skill does not choose a recovery class.
 
 ## 6. Final checkpoint
 
 After all targeted checks and documentation are complete:
 
 ```bash
+node --test packages/codex/tests/skill-contract.test.mjs
+go test ./tests/contract
 git diff --check
 pnpm run validate
 ```
 
-Run the root validator once. Then run `$speckit-converge`; append only a concrete uncovered
-acceptance requirement.
+Run `pnpm run validate` exactly once. Only after it passes, run one `$speckit-analyze`, followed by
+one `$speckit-converge`; append only a concrete uncovered acceptance requirement.
 
 ## Evidence wording
 
-Report deterministic results as deterministic Core/Store/MCP/repository evidence. Do not label a
-failing writer or subprocess test as a real Codex or DeepSeek crash.
+Use the literal evidence boundary: test-local pre-commit failure, post-commit discarded result,
+pre-serialization discard, bounded partial writer, SQLite close/reopen, two-handle deterministic
+race, temporary Git fixture mutation, Codex Skill static contract, or root repository validation.
+Do not relabel any of them as a real Codex crash, operating-system power loss, real network
+interruption, DeepSeek evidence, or release-artifact evidence. No extra real Codex Host Journey or
+DeepSeek Harness is part of this quickstart.

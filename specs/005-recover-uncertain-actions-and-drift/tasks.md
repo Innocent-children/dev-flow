@@ -5,6 +5,8 @@
 
 **Entry gate**: Feature 003 is merged to `main`; Feature 004 is deferred and is not a dependency.
 
+**Status**: `FEATURE_005_COMPLETE`
+
 ## Phase 1 — Setup and baseline
 
 - [x] T001 Record the exact Feature 003 merge commit, root version, Core fixture digest, and baseline targeted results in `specs/005-recover-uncertain-actions-and-drift/research.md`.
@@ -54,7 +56,7 @@ objects reopen, and the exact probe reports `completed_and_recorded`; pre-commit
   identical to the first committed result.
 - SQLite locked reconnect: the bounded locked read returned `STORAGE_UNAVAILABLE`, not
   `not_started` or `TASK_NOT_FOUND`; the same task read succeeded after the lock was released.
-- T018–T040 remain unstarted and unchecked.
+- At this User Story 1 checkpoint, T018–T040 remained unstarted and unchecked.
 
 ## Phase 4 — User Story 2: Reconcile exact, partial, and conflicting work
 
@@ -101,7 +103,8 @@ cannot mutate.
   issuance binding, and did not adopt the stale completed observation.
 - Production code: unchanged; `internal/recovery/classify.go` and
   `internal/recovery/reconcile.go` required no correction.
-- T026–T040 remain unstarted and unchecked; User Story 3 and final Feature gates were not run.
+- At this User Story 2 checkpoint, T026–T040 remained unstarted and unchecked; User Story 3 and
+  final Feature gates had not run.
 
 ## Phase 5 — User Story 3: Drift and concurrent reconnects
 
@@ -151,17 +154,51 @@ share one claim, replacement never rebinds, and two handles commit at most one a
 - Production code: unchanged; canonicalization, fingerprint, Git observer, Store CAS, and restart
   persistence satisfy User Story 3.
 - Bounded User Story 3 `speckit-converge` found no concrete acceptance gap and appended no task.
-- T034–T040 remain unstarted and unchecked; the final Feature gate was not run.
+- At this User Story 3 checkpoint, T034–T040 remained unstarted and unchecked; the final Feature
+  gate had not run.
 
 ## Phase 6 — Codex contract, documentation, and final gate
 
-- [ ] T034 Extend `packages/codex/tests/skill-contract.test.mjs` to prove exact probe retention and read-before-retry for missing, malformed, cancelled, truncated, and transport-failed apply results without encoding recovery classes.
-- [ ] T035 Update `packages/codex/plugin/skills/dev-flow/SKILL.md` only if the new contract test exposes an ambiguity; preserve Core authority and the exact six-tool workflow.
-- [ ] T036 Confirm `git diff -- packages/deepseek` is empty and add the result to the Feature 005 checkpoint in `specs/005-recover-uncertain-actions-and-drift/tasks.md`.
-- [ ] T037 Reconcile delivered behavior and evidence labels in `specs/005-recover-uncertain-actions-and-drift/{README.md,spec.md,plan.md,research.md,data-model.md,quickstart.md}` and `contracts/*.md`.
-- [ ] T038 Run `gofmt` on changed Go files, targeted affected tests, and `git diff --check`; fix only Feature 005 regressions.
-- [ ] T039 Run `pnpm run validate` exactly once after targeted checks and documentation reconciliation.
-- [ ] T040 Run one final `$speckit-analyze` and `$speckit-converge`; append only concrete uncovered work to `specs/005-recover-uncertain-actions-and-drift/tasks.md`.
+- [x] T034 Extend `packages/codex/tests/skill-contract.test.mjs` to prove exact probe retention and read-before-retry for missing, malformed, cancelled, truncated, and transport-failed apply results without encoding recovery classes.
+- [x] T035 Update `packages/codex/plugin/skills/dev-flow/SKILL.md` only if the new contract test exposes an ambiguity; preserve Core authority and the exact six-tool workflow.
+- [x] T036 Confirm `git diff -- packages/deepseek` is empty and add the result to the Feature 005 checkpoint in `specs/005-recover-uncertain-actions-and-drift/tasks.md`.
+- [x] T037 Reconcile delivered behavior and evidence labels in `specs/005-recover-uncertain-actions-and-drift/{README.md,spec.md,plan.md,research.md,data-model.md,quickstart.md}` and `contracts/*.md`.
+- [x] T038 Run `gofmt` on changed Go files, targeted affected tests, and `git diff --check`; fix only Feature 005 regressions.
+- [x] T039 Run `pnpm run validate` exactly once after targeted checks and documentation reconciliation.
+- [x] T040 Run one final `$speckit-analyze` and `$speckit-converge`; append only concrete uncovered work to `specs/005-recover-uncertain-actions-and-drift/tasks.md`.
+
+### Final-phase pre-gate evidence — 2026-08-17
+
+- Codex baseline: `node --test packages/codex/tests/skill-contract.test.mjs` passed 10/10 tests.
+- T034 red/green proof: the new focused test first failed because the existing recovery section did
+  not name `transport-failed` or close the retained/probe semantics; after T035 it passed as part of
+  11/11 tests.
+- Codex contract: missing, malformed, cancelled, truncated, and transport-failed results retain the
+  original `request_id`, `task_id`, `source_phase`, revision, action ID/kind, issuance binding, and
+  exact closed payload from one fresh action/apply dispatch. The existing probe has only
+  `operation_id`, `source_phase`, `expected_revision`, `action_id`, `action_kind`,
+  `repository_binding_digest`, and exact `payload` or JSON `null`.
+- Read-before-retry: the original task/probe drives `dev_flow_get_task`, optional
+  `dev_flow_get_next_action` uses the same probe, stale snapshots are not read-back, incomplete
+  identity stops without a half probe or retry, and complete `ok=false` domain errors stay distinct.
+  The Skill obeys the complete Core assessment and contains no recovery-class decision table.
+- T035 scope: only `Recovery-before-retry contract` changed; selector, Skill name, six-tool
+  handshake, task discovery, verification budget, terminal semantics, package metadata, and MCP
+  configuration are unchanged.
+- DeepSeek zero diff: `git diff --exit-code origin/main...HEAD -- packages/deepseek` exited 0 with
+  no output. The committed PR file list contains no Feature 004 implementation, DeepSeek test or
+  package metadata, Harness evidence, or native journey.
+- Documentation: all nine Feature 005 reconciliation targets now distinguish the delivered
+  user-story proof, Codex static contract, deterministic evidence labels, production zero-change,
+  and explicit non-goals. Final root validation and final Spec Kit gates remain pending.
+- T038: `node --test packages/codex/tests/skill-contract.test.mjs` passed 11/11;
+  `go test ./tests/contract` passed; and `git diff --check` passed after removing one trailing-space
+  regression from the new spec status line. No Go file changed in T034–T037, so no `gofmt` target
+  existed.
+- T039: the single authorized `pnpm run validate` invocation passed. The unchanged authoritative
+  script completed toolchain, whitespace, Go formatting/source allowlists, package inventory, vet,
+  repository-wide Go tests/contracts, frozen pnpm install, workspace inventory, and both package
+  dry-packs. No standalone duplicate `go test ./...` was run.
 
 ## Dependencies
 
@@ -236,3 +273,70 @@ T028/T030/T031 converge in the journey file and must be sequenced there.
 Do not add a production failpoint, public tool/field/error/state/class, migration, Git mutation,
 DeepSeek implementation, host matrix, release ledger, or publication behavior. Such work is not an
 “implementation detail”; it requires a separate approved specification.
+
+## Final Feature 005 Checkpoint Evidence — 2026-08-17
+
+### Status
+
+```text
+FEATURE_005_COMPLETE
+```
+
+### Completed scope
+
+`T001–T040 complete`.
+
+### User stories
+
+- User Story 1: post-commit lost result plus SQLite close/reopen produced exact-probe
+  `completed_and_recorded`; pre-commit failure was zero-write; pre-serialization discard and the
+  bounded partial writer did not manufacture success; duplicate submission wrote nothing.
+- User Story 2: all five existing classes are deterministic; exact evidence is adopted only through
+  explicit recovery apply; partial/conflicting reads are read-only; stale sources are zero-write;
+  blocker creation, retention, fresh re-observation, and exact resolution preserve issuance.
+- User Story 3: every complete binding component, canonical aliases, same-path replacement,
+  two-handle deterministic race, and restart/blocker restoration have focused proof. At most one
+  concurrent action committed, and no repository replacement rebound the task.
+
+### Codex exact probe contract
+
+- The static contract covers missing, malformed, cancelled, truncated, and transport-failed apply
+  results with one read-before-retry procedure.
+- Before dispatch, the Skill retains the original `request_id`, `task_id`, `source_phase`, action
+  revision, `action_id`, `action_kind`, issuance `repository_binding_digest`, and exact closed
+  payload from the same fresh action/apply dispatch.
+- The existing closed probe contains only `operation_id`, `source_phase`, `expected_revision`,
+  `action_id`, `action_kind`, `repository_binding_digest`, and `payload`. The operation ID is the
+  original apply request ID; payload is exact or JSON `null`, never reconstructed or caller-digested.
+- The original task/probe drives `dev_flow_get_task`; optional `dev_flow_get_next_action` uses the
+  same probe. Incomplete identity stops without a half probe, a `not_started` assumption, or retry.
+- A complete structured `ok=false` remains a domain error. The Skill obeys the complete fresh Core
+  recovery assessment/advice and does not encode a recovery decision table.
+- T035 did modify only `packages/codex/plugin/skills/dev-flow/SKILL.md`'s
+  `Recovery-before-retry contract` to close these caller semantics; it added no Core authority,
+  state machine, tool, field, or retry policy.
+
+### Final tests and gates
+
+- `node --test packages/codex/tests/skill-contract.test.mjs`: PASS, 11/11.
+- `go test ./tests/contract`: PASS.
+- `git diff --check`: PASS at T038 and again after the final Markdown record.
+- `pnpm run validate`: PASS in its single authorized invocation. The validator internally ran its
+  repository-wide Go tests; no standalone duplicate `go test ./...` was run.
+- `$speckit-analyze`: PASS in one final read-only run; 26/26 FRs and 9/9 SCs are task-covered, with
+  zero unresolved CRITICAL, HIGH, or acceptance-affecting MEDIUM findings.
+- `$speckit-converge`: PASS in one final run; all 14 User Story acceptance scenarios and the final
+  constraints are satisfied, with zero concrete acceptance gap and zero appended task.
+
+### Scope conclusion
+
+- Feature 005 changed no Core, Application, Recovery, Repository, Store, or MCP Go production file;
+  the existing implementation passed all new deterministic proof.
+- `packages/deepseek/` has zero diff. No DeepSeek Harness or native journey ran; the root
+  validator's package dry-pack is not host evidence.
+- Core Contract 0.1, exactly six MCP tools, existing schemas/result envelope, normal states, five
+  recovery classes, stable errors, repository claims, blockers, and SQLite schema version 1 remain
+  unchanged.
+- No additional real Codex Host Journey, production failpoint, dependency, migration, automatic
+  replay, Git repair/mutation by Core, cross-host takeover, Feature 006 implementation, npm
+  publication, tag, GitHub release, or merge was performed.
