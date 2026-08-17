@@ -108,8 +108,20 @@ const [root, version, codexCompatibility] = process.argv.slice(2);
 const packageManifest = JSON.parse(fs.readFileSync(path.join(root, "packages/codex/package.json"), "utf8"));
 const pluginManifest = JSON.parse(fs.readFileSync(path.join(root, "packages/codex/plugin/.codex-plugin/plugin.json"), "utf8"));
 const lifecycleSource = fs.readFileSync(path.join(root, "packages/codex/lib/lifecycle.mjs"), "utf8");
-if (packageManifest.name !== "dev-flow-codex" || packageManifest.private !== true) {
-  throw new Error("Codex package identity must be private dev-flow-codex");
+const privateContract = !Object.hasOwn(packageManifest, "private") || packageManifest.private === false;
+const platformContract = JSON.stringify(packageManifest.os) === JSON.stringify(["darwin"]) &&
+  JSON.stringify(packageManifest.cpu) === JSON.stringify(["arm64"]);
+const publishContract = packageManifest.publishConfig?.access === "public" &&
+  packageManifest.publishConfig?.registry === "https://registry.npmjs.org/" &&
+  JSON.stringify(Object.keys(packageManifest.publishConfig).sort()) === JSON.stringify(["access", "registry"]);
+if (
+  packageManifest.name !== "dev-flow-codex" ||
+  !privateContract ||
+  !platformContract ||
+  !publishContract ||
+  packageManifest.license !== "Apache-2.0"
+) {
+  throw new Error("Codex package does not satisfy the fixed public package contract");
 }
 if (packageManifest.version !== version || pluginManifest.version !== version) {
   throw new Error("repository, package, and plugin versions must match");

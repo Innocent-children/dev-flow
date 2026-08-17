@@ -1,6 +1,7 @@
 package contract_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"go/parser"
@@ -35,6 +36,7 @@ var rootScriptFiles = []string{
 
 var codexSourceFiles = []string{
 	".agents/plugins/marketplace.json",
+	"LICENSE",
 	"README.md",
 	"bin/dev-flow-codex.mjs",
 	"lib/lifecycle.mjs",
@@ -55,6 +57,7 @@ var codexSourceFiles = []string{
 	"tests/package-contract.test.mjs",
 	"tests/paths.test.mjs",
 	"tests/removal-retention.test.mjs",
+	"tests/release-package.test.mjs",
 	"tests/skill-contract.test.mjs",
 }
 
@@ -154,6 +157,52 @@ func TestCodexRepositoryLayoutRejectsUnreviewedFilesAndFakeImports(t *testing.T)
 	}
 }
 
+func TestCodexPublicPackageSourceBoundary(t *testing.T) {
+	t.Parallel()
+
+	root := repositoryRoot(t)
+	rootLicense, err := os.ReadFile(filepath.Join(root, "LICENSE"))
+	if err != nil {
+		t.Fatalf("read root license: %v", err)
+	}
+	packageLicense, err := os.ReadFile(filepath.Join(root, "packages", "codex", "LICENSE"))
+	if err != nil {
+		t.Fatalf("read Codex package license: %v", err)
+	}
+	if !bytes.Equal(rootLicense, packageLicense) {
+		t.Fatal("Codex package LICENSE must remain byte-identical to the root LICENSE")
+	}
+
+	manifestPath := filepath.Join(root, "packages", "codex", "package.json")
+	manifest := readManifestObject(t, manifestPath)
+	var files []string
+	if err := json.Unmarshal(manifest["files"], &files); err != nil {
+		t.Fatalf("decode Codex files allowlist: %v", err)
+	}
+	if !sameStringSet(files, codexPackageFiles) {
+		t.Fatalf("Codex public files = %v, want exact reviewed allowlist %v", files, codexPackageFiles)
+	}
+
+	runtimeCount := 0
+	for _, path := range files {
+		if path == "runtime/darwin-arm64/dev-flow" {
+			runtimeCount++
+		}
+		lower := strings.ToLower(path)
+		for _, forbidden := range []string{"deepseek", "tests/", "fixtures/", "cmd/", "internal/", "protocol/", "node_modules/", ".git/", ".db", ".sqlite", "receipt", "cache/", "tmp/"} {
+			if strings.Contains(lower, forbidden) {
+				t.Errorf("Codex packed path %q contains forbidden source/state marker %q", path, forbidden)
+			}
+		}
+		if filepath.IsAbs(path) || strings.Contains(path, "..") {
+			t.Errorf("Codex packed path %q is not a safe package-relative path", path)
+		}
+	}
+	if runtimeCount != 1 {
+		t.Fatalf("Codex package runtime count = %d, want exactly one darwin-arm64 runtime", runtimeCount)
+	}
+}
+
 func TestRootScriptLayoutUsesReviewedExactAllowlist(t *testing.T) {
 	root := repositoryRoot(t)
 	if violations := validateRootScriptLayout(root); len(violations) != 0 {
@@ -191,6 +240,8 @@ func TestPullRequestCIContract(t *testing.T) {
 		"go-version: stable",
 		"node-version: lts/*",
 		"version: 11",
+		"fetch-depth: 0",
+		"RELEASE_BASE_SHA: ${{ github.event.pull_request.base.sha }}",
 		"run: ./scripts/validate-repository.sh",
 	}
 	for _, fragment := range requiredFragments {

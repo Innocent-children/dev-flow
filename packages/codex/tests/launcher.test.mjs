@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile as execFileCallback } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { mkdir, stat, symlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +12,7 @@ import {
   launchPackagedCore,
   runCLI,
 } from "../bin/dev-flow-codex.mjs";
+import { resolveProductPaths } from "../lib/paths.mjs";
 
 const execFile = promisify(execFileCallback);
 const launcherPath = fileURLToPath(new URL("../bin/dev-flow-codex.mjs", import.meta.url));
@@ -121,6 +122,67 @@ test("launcher fails before spawn for unsupported platforms and non-executable r
   );
   assert.match(secondError.text, /packaged Core.*executable/);
   assert.equal(spawned, false);
+});
+
+test("unsupported setup stops before every host, repository, data, receipt, and Core mutation", async (t) => {
+  const { mkdtemp } = await import("node:fs/promises");
+  const root = await mkdtemp(join(tmpdir(), "dev-flow-codex-unsupported-"));
+  const packageRoot = join(root, "installed-package");
+  const homeDirectory = join(root, "home");
+  const repository = join(root, "repository");
+  const repositoryFile = join(repository, "owned.txt");
+  const taskData = join(root, "task-data");
+  await Promise.all([
+    mkdir(packageRoot, { recursive: true }),
+    mkdir(homeDirectory, { recursive: true }),
+    mkdir(repository, { recursive: true }),
+  ]);
+  await writeFile(repositoryFile, "unchanged\n");
+
+  let setupCalled = false;
+  let spawned = false;
+  let coreInspected = false;
+  const stdout = captureStream();
+  const stderr = captureStream();
+  const result = await runCLI(["setup", "--json"], {
+    stdout,
+    stderr,
+    resolvePaths: () => resolveProductPaths({
+      packageRoot,
+      homeDirectory,
+      platform: "linux",
+      arch: "x64",
+      environment: {},
+    }),
+    readPackageVersion: async () => {
+      throw new Error("package version read must not run");
+    },
+    inspectCoreVersion: async () => {
+      coreInspected = true;
+    },
+    setupRegistration: async () => {
+      setupCalled = true;
+    },
+    spawnImpl: () => {
+      spawned = true;
+    },
+  });
+
+  assert.deepEqual(result, { code: 1, signal: null });
+  assert.equal(stdout.text, "");
+  assert.match(stderr.text, /unsupported platform linux-x64/);
+  assert.equal(stderr.text.includes(root), false, "diagnostic must not disclose private fixture paths");
+  assert.ok(stderr.text.length < 200, "unsupported-platform diagnostic must remain bounded");
+  assert.equal(setupCalled, false);
+  assert.equal(spawned, false);
+  assert.equal(coreInspected, false);
+  assert.equal(await readFile(repositoryFile, "utf8"), "unchanged\n");
+  assert.deepEqual(await readdir(repository), ["owned.txt"]);
+  await assert.rejects(stat(taskData), { code: "ENOENT" });
+  await assert.rejects(
+    stat(join(homeDirectory, "Library", "Application Support", "dev-flow")),
+    { code: "ENOENT" },
+  );
 });
 
 test("launcher returns the Core exit status and forwards termination signals", async (t) => {

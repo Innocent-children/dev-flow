@@ -43,6 +43,7 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
 
   const artifactDirectory = join(root, "artifacts");
   const installPrefix = join(root, "install prefix-安装");
+  const reinstallPrefix = join(root, "reinstall prefix-重装");
   const isolatedHome = join(root, "isolated home");
   const dataDirectory = join(root, "Core task data");
   const targetRepository = join(root, "target repository-仓库");
@@ -51,6 +52,7 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   await Promise.all([
     mkdir(artifactDirectory, { recursive: true }),
     mkdir(installPrefix, { recursive: true }),
+    mkdir(reinstallPrefix, { recursive: true }),
     mkdir(isolatedHome, { recursive: true }),
     mkdir(dataDirectory, { recursive: true }),
     initializeRepository(targetRepository),
@@ -67,9 +69,9 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   assert.match(build.artifact_sha256, /^[0-9a-f]{64}$/);
 
   await installArtifact(build.artifact_path, installPrefix);
-  let installedPackage = await realpath(join(installPrefix, "node_modules", "dev-flow-codex"));
-  let lifecycle = await importInstalledLifecycle(installedPackage, "initial");
-  let paths = productPaths(installedPackage, isolatedHome, dataDirectory);
+  const installedPackage = await realpath(join(installPrefix, "node_modules", "dev-flow-codex"));
+  const lifecycle = await importInstalledLifecycle(installedPackage, "initial");
+  const paths = productPaths(installedPackage, isolatedHome, dataDirectory);
   const environment = fakeEnvironment(installPrefix, fakeState, fakeTrace);
 
   const setup = await lifecycle.setupRegistration({
@@ -81,7 +83,9 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   });
   assert.equal(setup.status, "installed");
   const adjacentFile = join(dirname(paths.receiptPath), "user-owned-adjacent.txt");
+  const codexAdjacentFile = join(dirname(fakeState), "user-owned-codex-state.txt");
   await writeFile(adjacentFile, "preserve adjacent data\n");
+  await writeFile(codexAdjacentFile, "preserve Codex-adjacent data\n");
 
   const firstCore = await startCore(paths.runtimePath, dataDirectory, targetRepository);
   const info = await firstCore.callTool("dev_flow_server_info", {});
@@ -103,8 +107,8 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
     },
   });
   assert.equal(opened.ok, true);
-  const taskBefore = opened.result.task;
-  assert.equal(taskBefore.origin_host, "codex");
+  const taskBefore = taskIdentity(opened.result.task);
+  assert.equal(opened.result.task.origin_host, "codex");
   await firstCore.close();
 
   const dataBeforeRemoval = await directoryManifest(dataDirectory);
@@ -118,6 +122,7 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   assert.deepEqual(removed, { status: "removed", changed: true });
   assert.equal(await optionalContents(paths.receiptPath), null);
   assert.equal(await readFile(adjacentFile, "utf8"), "preserve adjacent data\n");
+  assert.equal(await readFile(codexAdjacentFile, "utf8"), "preserve Codex-adjacent data\n");
   assert.deepEqual(await directoryManifest(dataDirectory), dataBeforeRemoval);
   assert.deepEqual(await directoryManifest(targetRepository), repositoryBefore);
 
@@ -128,45 +133,10 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
     task_id: taskBefore.task_id,
   });
   assert.equal(reopened.ok, true);
-  assert.equal(reopened.result.task.task_id, taskBefore.task_id);
-  assert.equal(reopened.result.task.revision, taskBefore.revision);
+  assert.deepEqual(taskIdentity(reopened.result.task), taskBefore);
   await reopenedCore.close();
   const dataBeforeUninstall = await directoryManifest(dataDirectory);
 
-  await uninstallPackage(installPrefix);
-  await assert.rejects(stat(installedPackage), { code: "ENOENT" });
-  assert.deepEqual(await directoryManifest(dataDirectory), dataBeforeUninstall);
-  assert.deepEqual(await directoryManifest(targetRepository), repositoryBefore);
-
-  await installArtifact(build.artifact_path, installPrefix);
-  installedPackage = await realpath(join(installPrefix, "node_modules", "dev-flow-codex"));
-  lifecycle = await importInstalledLifecycle(installedPackage, "reinstall");
-  paths = productPaths(installedPackage, isolatedHome, dataDirectory);
-  const reinstalled = await lifecycle.setupRegistration({
-    paths,
-    packageVersion: build.package_version,
-    codexExecutable: fakeCodexPath,
-    environment,
-    now: () => new Date("2026-08-15T00:05:00.000Z"),
-  });
-  assert.equal(reinstalled.status, "installed");
-
-  const finalCore = await startCore(paths.runtimePath, dataDirectory, targetRepository);
-  await finalCore.callTool("dev_flow_server_info", {});
-  const retained = await finalCore.callTool("dev_flow_get_task", {
-    host: "codex",
-    task_id: taskBefore.task_id,
-  });
-  assert.equal(retained.result.task.task_id, taskBefore.task_id);
-  assert.equal(retained.result.task.revision, taskBefore.revision);
-  await finalCore.close();
-
-  assert.deepEqual(await lifecycle.removeRegistration({
-    paths,
-    packageVersion: build.package_version,
-    codexExecutable: fakeCodexPath,
-    environment,
-  }), { status: "removed", changed: true });
   assert.deepEqual(await lifecycle.removeRegistration({
     paths,
     packageVersion: build.package_version,
@@ -174,11 +144,42 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
     environment,
   }), { status: "already-absent", changed: false });
 
+  await uninstallPackage(installPrefix);
+  await assert.rejects(stat(installedPackage), { code: "ENOENT" });
+  assert.deepEqual(await directoryManifest(dataDirectory), dataBeforeUninstall);
+  assert.deepEqual(await directoryManifest(targetRepository), repositoryBefore);
+  assert.equal(await readFile(adjacentFile, "utf8"), "preserve adjacent data\n");
+  assert.equal(await readFile(codexAdjacentFile, "utf8"), "preserve Codex-adjacent data\n");
+
+  await installArtifact(build.artifact_path, reinstallPrefix);
+  const reinstalledPackage = await realpath(join(reinstallPrefix, "node_modules", "dev-flow-codex"));
+  assert.notEqual(reinstalledPackage, installedPackage);
+  const reinstalledPaths = productPaths(reinstalledPackage, isolatedHome, dataDirectory);
+  const dataBeforeRetainedRead = await directoryManifest(dataDirectory);
+  const finalCore = await startCore(reinstalledPaths.runtimePath, dataDirectory, targetRepository);
+  await finalCore.callTool("dev_flow_server_info", {});
+  const retained = await finalCore.callTool("dev_flow_get_task", {
+    host: "codex",
+    task_id: taskBefore.task_id,
+  });
+  assert.deepEqual(taskIdentity(retained.result.task), taskBefore);
+  const repeatedRead = await finalCore.callTool("dev_flow_get_task", {
+    host: "codex",
+    task_id: taskBefore.task_id,
+  });
+  assert.deepEqual(taskIdentity(repeatedRead.result.task), taskBefore);
+  await finalCore.close();
+  assert.deepEqual(await directoryManifest(dataDirectory), dataBeforeRetainedRead);
+
+  await uninstallPackage(reinstallPrefix);
+  await assert.rejects(stat(reinstalledPackage), { code: "ENOENT" });
+
   const fakeCalls = (await readFile(fakeTrace, "utf8")).trim().split("\n").filter(Boolean).map(JSON.parse);
   assert.equal(fakeCalls.length > 0, true);
   assert.equal(fakeCalls.every((entry) => entry.argv[0] === "--version" || entry.argv[0] === "plugin"), true);
   assert.deepEqual(await directoryManifest(targetRepository), repositoryBefore);
   assert.equal(await readFile(adjacentFile, "utf8"), "preserve adjacent data\n");
+  assert.equal(await readFile(codexAdjacentFile, "utf8"), "preserve Codex-adjacent data\n");
 });
 
 class CoreClient {
@@ -338,6 +339,20 @@ function productPaths(installedPackage, isolatedHome, dataDirectory) {
     dataDirectory,
     usesDefaultDataDirectory: false,
     runtimeKey: "darwin-arm64",
+  };
+}
+
+function taskIdentity(task) {
+  return {
+    task_id: task.task_id,
+    revision: task.revision,
+    phase: task.phase,
+    current_action: task.current_action === null ? null : {
+      action_id: task.current_action.action_id,
+      kind: task.current_action.kind,
+      revision: task.current_action.revision,
+    },
+    outcome: task.outcome,
   };
 }
 

@@ -301,8 +301,20 @@ async function inspectCodexVersion(codexExecutable, { environment, currentDirect
 
 async function assertPackageResources(paths, packageVersion) {
   const packageManifest = await readJSON(join(paths.packageRoot, "package.json"), "package manifest");
-  if (packageManifest.name !== PLUGIN_NAME || packageManifest.private !== true) {
-    throw new Error("package manifest has the wrong private product identity");
+  const privateContract = !Object.hasOwn(packageManifest, "private") || packageManifest.private === false;
+  const platformContract = stableJSON(packageManifest.os) === stableJSON(["darwin"]) &&
+    stableJSON(packageManifest.cpu) === stableJSON(["arm64"]);
+  const publishContract = packageManifest.publishConfig?.access === "public" &&
+    packageManifest.publishConfig?.registry === "https://registry.npmjs.org/" &&
+    stableJSON(Object.keys(packageManifest.publishConfig).sort()) === stableJSON(["access", "registry"]);
+  if (
+    packageManifest.name !== PLUGIN_NAME ||
+    !privateContract ||
+    !platformContract ||
+    !publishContract ||
+    packageManifest.license !== "Apache-2.0"
+  ) {
+    throw new Error("package manifest does not satisfy the fixed public package contract");
   }
   if (packageManifest.version !== packageVersion) {
     throw new Error("package manifest version does not match the requested package version");

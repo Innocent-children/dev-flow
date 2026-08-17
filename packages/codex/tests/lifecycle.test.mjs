@@ -239,6 +239,37 @@ test("setup preflights compatibility, resources, runtime, and PATH before regist
   await assert.rejects(stat(nonExecutable.statePath), { code: "ENOENT" });
 });
 
+test("setup rejects every mismatched public package identity before registration writes", async (t) => {
+  const cases = [
+    { name: "wrong-name", mutate: (manifest) => { manifest.name = "other-product"; }, error: /public package contract/ },
+    { name: "private", mutate: (manifest) => { manifest.private = true; }, error: /public package contract/ },
+    { name: "wrong-os", mutate: (manifest) => { manifest.os = ["linux"]; }, error: /public package contract/ },
+    { name: "wrong-cpu", mutate: (manifest) => { manifest.cpu = ["x64"]; }, error: /public package contract/ },
+    {
+      name: "wrong-registry",
+      mutate: (manifest) => { manifest.publishConfig.registry = "https://registry.example.invalid/"; },
+      error: /public package contract/,
+    },
+    {
+      name: "wrong-access",
+      mutate: (manifest) => { manifest.publishConfig.access = "restricted"; },
+      error: /public package contract/,
+    },
+    { name: "wrong-license", mutate: (manifest) => { manifest.license = "MIT"; }, error: /public package contract/ },
+    { name: "wrong-version", mutate: (manifest) => { manifest.version = "0.1.1"; }, error: /version.*requested package version/ },
+  ];
+
+  for (const testCase of cases) {
+    const fixture = await makeSetupFixture(t, `public-package-${testCase.name}`);
+    const manifest = publicPackageManifestFixture();
+    testCase.mutate(manifest);
+    await writeFile(join(fixture.paths.packageRoot, "package.json"), `${JSON.stringify(manifest)}\n`);
+    await assert.rejects(setupRegistration(fixture.options), testCase.error);
+    await assert.rejects(stat(fixture.statePath), { code: "ENOENT" });
+    await assert.rejects(stat(fixture.paths.receiptPath), { code: "ENOENT" });
+  }
+});
+
 test("setup registers through exact JSON commands, verifies readback, and writes the receipt last", async (t) => {
   const fixture = await makeSetupFixture(t, "successful");
   const repository = join(fixture.root, "target repository-仓库");
@@ -556,7 +587,7 @@ async function makeSetupFixture(t, name) {
   await mkdir(hostBin, { recursive: true });
   await writeFile(
     join(packageRoot, "package.json"),
-    `${JSON.stringify({ name: "dev-flow-codex", version: "0.1.0", private: true })}\n`,
+    `${JSON.stringify(publicPackageManifestFixture())}\n`,
   );
   await writeFile(
     join(packageRoot, ".agents", "plugins", "marketplace.json"),
@@ -627,6 +658,21 @@ async function makeSetupFixture(t, name) {
       environment,
       currentDirectory: packageRoot,
       now: () => new Date("2026-08-15T00:00:00.000Z"),
+    },
+  };
+}
+
+function publicPackageManifestFixture() {
+  return {
+    name: "dev-flow-codex",
+    version: "0.1.0",
+    private: false,
+    license: "Apache-2.0",
+    os: ["darwin"],
+    cpu: ["arm64"],
+    publishConfig: {
+      access: "public",
+      registry: "https://registry.npmjs.org/",
     },
   };
 }

@@ -58,6 +58,7 @@ const path = require("node:path");
 const packageRoot = "packages/codex";
 const expectedFiles = [
   ".agents/plugins/marketplace.json",
+  "LICENSE",
   "README.md",
   "bin/dev-flow-codex.mjs",
   "lib/lifecycle.mjs",
@@ -78,6 +79,7 @@ const expectedFiles = [
   "tests/package-contract.test.mjs",
   "tests/paths.test.mjs",
   "tests/removal-retention.test.mjs",
+  "tests/release-package.test.mjs",
   "tests/skill-contract.test.mjs",
 ].sort();
 
@@ -169,11 +171,32 @@ if (JSON.stringify(files) !== JSON.stringify(expectedFiles)) {
 NODE
 }
 
+check_deferred_package_unchanged() {
+  if [ -z "${RELEASE_BASE_SHA:-}" ]; then
+    return 0
+  fi
+  if [ "${#RELEASE_BASE_SHA}" -ne 40 ]; then
+    printf 'RELEASE_BASE_SHA must be a lowercase Git commit identity\n' >&2
+    return 1
+  fi
+  case "$RELEASE_BASE_SHA" in
+    *[!0-9a-f]*)
+      printf 'RELEASE_BASE_SHA must be a lowercase Git commit identity\n' >&2
+      return 1
+      ;;
+  esac
+  git cat-file -e "$RELEASE_BASE_SHA^{commit}"
+  git diff --exit-code "$RELEASE_BASE_SHA"...HEAD -- packages/deepseek
+}
+
 run_step "Toolchain versions" check_toolchains
 run_step "Working tree whitespace" git diff --check
 run_step "Go formatting" check_go_formatting
 run_step "Codex source allowlist" validate_codex_source_tree
 run_step "Root script allowlist" validate_root_script_tree
+run_step "Deferred package unchanged" check_deferred_package_unchanged
+run_step "Release contract tests" go test ./tests/contract
+run_step "Codex public package contract" node --test packages/codex/tests/package-contract.test.mjs
 run_step "Go package inventory" go list ./...
 run_step "Go vet" go vet ./...
 run_step "Go tests and repository contracts" go test ./...

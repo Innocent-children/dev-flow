@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "release": {
+    "version": "0.1.0",
+    "tag": "v0.1.0",
+    "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "source_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "core_fixture_digest": "sha256:8c27bcf6be0e4e5a4bf294c67cbda8cdf281b1b2b2c53fff16206db2828dede7",
+    "feature_003_commit": "dddddddddddddddddddddddddddddddddddddddd",
+    "feature_005_commit": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "build_profile": "codex-darwin-arm64-v1",
+    "created_at": "2026-08-17T00:00:00Z"
+  },
+  "toolchains": {
+    "go": "go1.26.6 darwin/arm64",
+    "node": "v24.18.0",
+    "pnpm": "11.21.0",
+    "npm": "11.16.0",
+    "git": "2.55.0",
+    "gh": "2.97.0"
+  },
+  "artifacts": [
+    {
+      "name": "dev-flow-0.1.0-darwin-arm64",
+      "kind": "core_binary",
+      "relative_path": "dev-flow-0.1.0-darwin-arm64",
+      "size_bytes": 2048,
+      "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "mode": "0755",
+      "npm_integrity": null,
+      "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "core_version": "0.1.0"
+    },
+    {
+      "name": "dev-flow-codex-0.1.0.tgz",
+      "kind": "npm_tarball",
+      "relative_path": "dev-flow-codex-0.1.0.tgz",
+      "size_bytes": 4096,
+      "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "mode": "0644",
+      "npm_integrity": null,
+      "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "core_version": "0.1.0"
+    }
+  ],
+  "package_files": [
+    {
+      "path": ".agents/plugins/marketplace.json",
+      "size_bytes": 128,
+      "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "mode": "0644"
+    },
+    {
+      "path": "LICENSE",
+      "size_bytes": 11357,
+      "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "mode": "0644"
+    },
+    {
+      "path": "README.md",
+      "size_bytes": 1024,
+      "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+      "mode": "0644"
+    },
+    {
+      "path": "bin/dev-flow-codex.mjs",
+      "size_bytes": 1024,
+      "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "mode": "0755"
+    },
+    {
+      "path": "lib/lifecycle.mjs",
+      "size_bytes": 1024,
+      "sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+      "mode": "0644"
+    },
+    {
+      "path": "lib/paths.mjs",
+      "size_bytes": 1024,
+      "sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+      "mode": "0644"
+    },
+    {
+      "path": "package.json",
+      "size_bytes": 512,
+      "sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+      "mode": "0644"
+    },
+    {
+      "path": "plugin/.codex-plugin/plugin.json",
+      "size_bytes": 256,
+      "sha256": "9999999999999999999999999999999999999999999999999999999999999999",
+      "mode": "0644"
+    },
+    {
+      "path": "plugin/.mcp.json",
+      "size_bytes": 256,
+      "sha256": "abababababababababababababababababababababababababababababababab",
+      "mode": "0644"
+    },
+    {
+      "path": "plugin/skills/dev-flow/SKILL.md",
+      "size_bytes": 1024,
+      "sha256": "bcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbc",
+      "mode": "0644"
+    },
+    {
+      "path": "plugin/skills/dev-flow/agents/openai.yaml",
+      "size_bytes": 64,
+      "sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+      "mode": "0644"
+    },
+    {
+      "path": "runtime/darwin-arm64/dev-flow",
+      "size_bytes": 2048,
+      "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "mode": "0755"
+    }
+  ],
+  "support": [
+    {
+      "os": "darwin",
+      "arch": "arm64",
+      "actual_codex_version": "0.147.0",
+      "compatible_codex_range": ">=0.147.0 <0.148.0",
+      "package_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "core_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "journey_result": "pending",
+      "journey_observed_at": null,
+      "notes": "Provisional local preparation fixture; no public release evidence."
+    }
+  ],
+  "validations": [
+    {
+      "name": "release-contract",
+      "status": "passed",
+      "summary": "Bounded fixture contract passed."
+    }
+  ]
+}

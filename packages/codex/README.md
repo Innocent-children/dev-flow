@@ -1,14 +1,34 @@
 # dev-flow-codex
 
-`dev-flow-codex` is the private, local Codex CLI product for Dev Flow. It packages one Codex plugin,
-one explicitly selected `dev-flow` Skill, one bundled STDIO MCP server definition, and one
-`darwin-arm64` Dev Flow Core executable. The package is never published by Feature 003.
+`dev-flow-codex` is the public-package contract for the Codex CLI product. It packages one Codex
+plugin, one explicitly selected `dev-flow` Skill, one bundled STDIO MCP server definition, and one
+`darwin-arm64` Dev Flow Core executable.
+
+Feature 006 has not published this version yet. After an explicitly authorized release, the user
+interface is:
+
+```bash
+npm install -g dev-flow-codex
+dev-flow-codex setup
+```
+
+The supported product is limited to native macOS arm64, Node.js `>=24`, and Codex
+`>=0.147.0 <0.148.0`; the exact merged host acceptance used Codex `0.147.0`. npm `os`/`cpu`
+metadata rejects unsupported package installation, and setup repeats the platform preflight before
+any Codex mutation. No Linux, Windows, Intel Mac, or DeepSeek support is claimed.
+
+npm installation only places package-manager-owned files. Explicit `setup` registers Codex, and
+explicit `remove` removes only proven product-owned registration. npm uninstall remains a separate
+file-removal operation. Task data and unknown adjacent files are retained by default. The package
+contains its Core and requires no Go toolchain, source checkout, first-run download, or separate
+backend.
 
 The production source layout is deliberately closed:
 
 ```text
 packages/codex/
 ├── .agents/plugins/marketplace.json
+├── LICENSE
 ├── bin/dev-flow-codex.mjs
 ├── lib/{lifecycle,paths}.mjs
 ├── plugin/.codex-plugin/plugin.json
@@ -21,10 +41,10 @@ packages/codex/
 The implementation baseline is Codex CLI `0.147.x` on macOS arm64. Sanitized fixtures and the
 development smoke target that host contract. The final pre-merge acceptance report records the
 actual Codex, package, and Core versions exercised; it is a product acceptance record, not an
-indefinite compatibility promise.
+indefinite compatibility promise or public-registry evidence.
 
 Development requires Node.js `>=24`, pnpm `>=11 <12`, and the repository-pinned Go toolchain. The
-package has no production npm dependency and no install, publication, download, or release hook.
+package has no production npm dependency and no install, download, or host-mutation lifecycle hook.
 Installation and explicit Codex registration are separate operations, and neither setup nor removal
 may edit the current repository or delete Core-owned task data.
 
@@ -123,7 +143,7 @@ Deregister before running npm uninstall:
 
 ```bash
 dev-flow-codex remove --json
-npm uninstall --ignore-scripts dev-flow-codex
+npm uninstall -g --ignore-scripts dev-flow-codex
 ```
 
 Removal is receipt-first. It reads and validates the exact ownership receipt, reads current Codex
