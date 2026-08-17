@@ -104,15 +104,22 @@ proof, and the named failure boundaries can be exercised more precisely below th
 
 ## Implementation-Time Baseline Record
 
-Before implementation, replace the placeholders below with the merged values:
+The User Story 1 checkpoint started from the current `origin/main` after `git fetch origin` and
+`git pull --ff-only origin main` both completed successfully.
 
-| Item | Required value |
+| Item | Recorded value |
 |---|---|
-| Feature 003 merge commit | Record exact `main` commit containing Feature 003 |
-| Core version | Read from root `VERSION` and `dev-flow version` |
-| Core fixture digest | Record the shared fixture digest reported by `dev_flow_server_info` |
-| Codex package version | Record `packages/codex/package.json` version |
-| Baseline targeted result | Record package/test commands and pass/fail only |
+| Baseline `main` | `a2ba8bd5de9c87aaf758bff51a02ae120f60c7f7` |
+| Feature 003 merge commit | `a2ba8bd5de9c87aaf758bff51a02ae120f60c7f7` (`Merge branch 'codex/feature-003-codex-explicit-dev-flow'`) |
+| Core version | root `VERSION` = `0.1.0` |
+| Core fixture aggregate digest | `8c27bcf6be0e4e5a4bf294c67cbda8cdf281b1b2b2c53fff16206db2828dede7` across 22 shared fixtures |
+| Codex package version | `0.1.0` |
+| Platform | Darwin 27.0.0 arm64 |
+| Go | `go1.26.6 darwin/arm64` |
+| Node.js | `v24.18.0` |
+| pnpm | `11.21.0` |
+| Baseline targeted result | Eight required commands passed; see the command summary in `README.md` |
 
-These are implementation-time baseline fields; the exact values cannot exist
-until Feature 003 is merged and are a named implementation entry task.
+Baseline commands also confirmed a clean worktree, branch `main`, the expected `origin` remote,
+the Feature 003 acceptance record, and the complete Feature 005 package. Feature 004 remains
+deferred and is not an implementation or acceptance dependency for Feature 005.

@@ -7,17 +7,17 @@
 
 ## Phase 1 — Setup and baseline
 
-- [ ] T001 Record the exact Feature 003 merge commit, root version, Core fixture digest, and baseline targeted results in `specs/005-recover-uncertain-actions-and-drift/research.md`.
-- [ ] T002 Confirm the writable scope excludes `packages/deepseek/` and record the implementation path inventory in `specs/005-recover-uncertain-actions-and-drift/plan.md`.
-- [ ] T003 Run the existing recovery, Store, repository, MCP, journey, contract, and Codex Skill baselines and record only command/result summaries in `specs/005-recover-uncertain-actions-and-drift/README.md`.
-- [ ] T004 [P] Add a Feature 005 public-surface guard covering six tools, existing schemas, state vocabulary, recovery classes, and SQLite schema in `tests/contract/mcp_contract_test.go` and `tests/contract/fixture_contract_test.go`.
+- [x] T001 Record the exact Feature 003 merge commit, root version, Core fixture digest, and baseline targeted results in `specs/005-recover-uncertain-actions-and-drift/research.md`.
+- [x] T002 Confirm the writable scope excludes `packages/deepseek/` and record the implementation path inventory in `specs/005-recover-uncertain-actions-and-drift/plan.md`.
+- [x] T003 Run the existing recovery, Store, repository, MCP, journey, contract, and Codex Skill baselines and record only command/result summaries in `specs/005-recover-uncertain-actions-and-drift/README.md`.
+- [x] T004 [P] Add a Feature 005 public-surface guard covering six tools, existing schemas, state vocabulary, recovery classes, and SQLite schema in `tests/contract/mcp_contract_test.go` and `tests/contract/fixture_contract_test.go`.
 
 ## Phase 2 — Foundational test support
 
-- [ ] T005 Add test-local operation/repository assertion helpers in `tests/journeys/recovery_test_helpers_test.go` without exporting production fault controls.
-- [ ] T006 [P] Add a test-local pre-commit Store wrapper in `internal/application/recovery_test_support_test.go` that cannot be referenced by non-test builds.
-- [ ] T007 [P] Add a bounded failing response writer in `internal/mcp/recovery_test_support_test.go` that accepts a configured prefix and returns a deterministic error.
-- [ ] T008 [P] Extend test cleanup and no-Git-mutation assertions in `tests/journeys/README.md` and the new Feature 005 journey helpers.
+- [x] T005 Add test-local operation/repository assertion helpers in `tests/journeys/recovery_test_helpers_test.go` without exporting production fault controls.
+- [x] T006 [P] Add a test-local pre-commit Store wrapper in `internal/application/recovery_test_support_test.go` that cannot be referenced by non-test builds.
+- [x] T007 [P] Add a bounded failing response writer in `internal/mcp/recovery_test_support_test.go` that accepts a configured prefix and returns a deterministic error.
+- [x] T008 [P] Extend test cleanup and no-Git-mutation assertions in `tests/journeys/README.md` and the new Feature 005 journey helpers.
 
 ## Phase 3 — User Story 1: Prove committed work after result loss
 
@@ -25,15 +25,36 @@
 objects reopen, and the exact probe reports `completed_and_recorded`; pre-commit failure reports
 `not_started`, partial output is not success, and duplicate recovery writes nothing.
 
-- [ ] T009 [US1] Add the post-commit discarded-result close/reopen journey in `tests/journeys/recovery_uncertainty_test.go` and assert one revision, event, claim outcome, and matching LastOperation.
-- [ ] T010 [P] [US1] Add exact OperationProbe read-back assertions after reopen in `internal/application/get_task_test.go` and `internal/application/next_action_test.go`.
-- [ ] T011 [P] [US1] Add a pre-commit failure case with zero persistent writes and `not_started` read-back in `internal/application/apply_action_test.go`.
-- [ ] T012 [P] [US1] Add a pre-serialization committed-result discard case in `internal/mcp/server_test.go` without introducing a production hook.
-- [ ] T013 [US1] Add partial-response writer failure coverage proving no complete caller result and mandatory read-back in `internal/mcp/server_test.go`.
-- [ ] T014 [US1] Add duplicate committed recovery submission assertions for revision, event, evidence, claim, and binding cardinality in `internal/application/apply_action_test.go` and `internal/store/sqlite_test.go`.
-- [ ] T015 [P] [US1] Add SQLite busy/locked reconnect coverage that remains a read failure and never authorizes replay in `internal/store/concurrency_test.go`.
-- [ ] T016 [US1] Verify and minimally correct only test-proven operation sequencing/idempotency gaps in `internal/application/apply_action.go`, `internal/application/get_task.go`, and `internal/store/sqlite.go`; leave production files unchanged when all new cases already pass.
-- [ ] T017 [US1] Run the User Story 1 targeted packages and record the checkpoint result in `specs/005-recover-uncertain-actions-and-drift/tasks.md`.
+- [x] T009 [US1] Add the post-commit discarded-result close/reopen journey in `tests/journeys/recovery_uncertainty_test.go` and assert one revision, event, claim outcome, and matching LastOperation.
+- [x] T010 [P] [US1] Add exact OperationProbe read-back assertions after reopen in `internal/application/get_task_test.go` and `internal/application/next_action_test.go`.
+- [x] T011 [P] [US1] Add a pre-commit failure case with zero persistent writes and `not_started` read-back in `internal/application/apply_action_test.go`.
+- [x] T012 [P] [US1] Add a pre-serialization committed-result discard case in `internal/mcp/server_test.go` without introducing a production hook.
+- [x] T013 [US1] Add partial-response writer failure coverage proving no complete caller result and mandatory read-back in `internal/mcp/server_test.go`.
+- [x] T014 [US1] Add duplicate committed recovery submission assertions for revision, event, evidence, claim, and binding cardinality in `internal/application/apply_action_test.go` and `internal/store/sqlite_test.go`.
+- [x] T015 [P] [US1] Add SQLite busy/locked reconnect coverage that remains a read failure and never authorizes replay in `internal/store/concurrency_test.go`.
+- [x] T016 [US1] Verify and minimally correct only test-proven operation sequencing/idempotency gaps in `internal/application/apply_action.go`, `internal/application/get_task.go`, and `internal/store/sqlite.go`; leave production files unchanged when all new cases already pass. New deterministic cases pass without production changes.
+- [x] T017 [US1] Run the User Story 1 targeted packages and record the checkpoint result in `specs/005-recover-uncertain-actions-and-drift/tasks.md`.
+
+### User Story 1 Checkpoint Evidence — 2026-08-17
+
+- Targeted commands: `go test ./internal/application`, `go test ./internal/store`,
+  `go test ./internal/mcp`, `go test ./tests/journeys`, and `go test ./tests/contract`.
+- Result: PASS, 5/5 targeted packages.
+- Production code: unchanged; all deterministic User Story 1 tests pass against the existing
+  operation sequencing and idempotency implementation.
+- `post_commit_discard`: one real SQLite apply advanced the task by one revision, appended one
+  matching action event, retained one claim, and reopened as `completed_and_recorded`.
+- `pre_commit`: the test-local Store boundary attempted one commit without delegating it; revision,
+  event count, snapshot, claim, and binding stayed unchanged and exact read-back was `not_started`.
+- `pre_serialization`: the application committed before any MCP result encoding, and the existing
+  MCP read tool proved the operation without a second mutation.
+- `partial_write`: the writer accepted exactly 37 bytes, returned its deterministic error, and the
+  invalid JSON prefix was rejected before authoritative read-back.
+- Duplicate submission: revision, event, evidence, claim, and repository binding cardinality stayed
+  identical to the first committed result.
+- SQLite locked reconnect: the bounded locked read returned `STORAGE_UNAVAILABLE`, not
+  `not_started` or `TASK_NOT_FOUND`; the same task read succeeded after the lock was released.
+- T018–T040 remain unstarted and unchecked.
 
 ## Phase 4 — User Story 2: Reconcile exact, partial, and conflicting work
 

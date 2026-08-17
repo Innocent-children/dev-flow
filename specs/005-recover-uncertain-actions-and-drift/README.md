@@ -46,3 +46,22 @@ If implementation discovers that a public MCP schema, stable error, state transi
 model must change, stop Feature 005 and amend the specification before coding that change. Such an
 amendment must satisfy the Constitution's two-host contract-parity rule; skipping Feature 004 does
 not authorize a public Core divergence.
+
+## User Story 1 Baseline — 2026-08-17
+
+The baseline was run once from `a2ba8bd5de9c87aaf758bff51a02ae120f60c7f7` before implementation
+edits.
+
+| Command | Result |
+|---|---|
+| `go test ./internal/recovery` | PASS |
+| `go test ./internal/application` | PASS |
+| `go test ./internal/repository` | PASS |
+| `go test ./internal/store` | PASS |
+| `go test ./internal/mcp` | PASS |
+| `go test ./tests/journeys` | PASS |
+| `go test ./tests/contract` | PASS |
+| `node --test packages/codex/tests/skill-contract.test.mjs` | PASS — 10 tests |
+
+No baseline failure required investigation or correction. The baseline contains no
+`packages/deepseek/` change.

@@ -41,6 +41,49 @@ Before the first implementation edit:
 A baseline failure is investigated before adding new tests. It is not hidden by changing the new
 feature requirements.
 
+## User Story 1 Implementation Inventory
+
+The checkpoint is implemented against the following current paths:
+
+```text
+tests/contract/mcp_contract_test.go
+tests/contract/fixture_contract_test.go
+tests/journeys/README.md
+tests/journeys/recovery_test_helpers_test.go
+tests/journeys/recovery_uncertainty_test.go
+internal/application/recovery_test_support_test.go
+internal/application/get_task_test.go
+internal/application/next_action_test.go
+internal/application/apply_action_test.go
+internal/mcp/recovery_test_support_test.go
+internal/mcp/server_test.go
+internal/store/sqlite_test.go
+internal/store/concurrency_test.go
+```
+
+The writable scope for this checkpoint is limited to:
+
+```text
+specs/005-recover-uncertain-actions-and-drift/**
+tests/contract/mcp_contract_test.go
+tests/contract/fixture_contract_test.go
+tests/journeys/README.md
+tests/journeys/recovery_test_helpers_test.go
+tests/journeys/recovery_uncertainty_test.go
+internal/application/*_test.go
+internal/recovery/*_test.go
+internal/repository/*_test.go
+internal/store/*_test.go
+internal/mcp/*_test.go
+packages/codex/tests/skill-contract.test.mjs
+packages/codex/plugin/skills/dev-flow/SKILL.md
+```
+
+Production changes are conditional on a newly added deterministic test proving an operation
+sequencing or idempotency defect. T016 permits only `internal/application/apply_action.go`,
+`internal/application/get_task.go`, and `internal/store/sqlite.go`. `packages/deepseek/` is outside
+the writable scope and its baseline diff is empty.
+
 ## Constitution Check
 
 | Principle | Result | Design response |
