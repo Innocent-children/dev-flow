@@ -110,9 +110,14 @@ function publicRelease(release) {
     isDraft: release.isDraft,
     isPrerelease: release.isPrerelease,
     targetCommitish: release.targetCommitish,
-    id: release.id,
+    databaseId: release.id,
     url: release.url,
-    assets: release.assets.map((asset) => ({ name: asset.name, id: asset.id, url: asset.url })),
+    assets: release.assets.map((asset) => ({
+      name: asset.name,
+      id: `RA_fixture_${asset.id}`,
+      apiUrl: `https://api.github.example.invalid/repos/Innocent-children/dev-flow/releases/assets/${asset.id}`,
+      url: asset.url,
+    })),
   };
 }
 
