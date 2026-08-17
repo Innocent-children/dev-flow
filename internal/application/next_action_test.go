@@ -6,8 +6,51 @@ import (
 	"testing"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/dev-flow/internal/recovery"
 	"github.com/Innocent-children/dev-flow/internal/store"
 )
+
+func TestGetNextActionExactOperationProbeAfterReopen(t *testing.T) {
+	fixture := newReopenedCommittedOperationFixture(t, "operation-next-action-reopen")
+	result, err := fixture.service.GetNextAction(context.Background(), GetNextActionRequest{
+		Host: fixture.source.OriginHost, TaskID: fixture.source.TaskID, OperationProbe: fixture.probe,
+	})
+	if err != nil {
+		t.Fatalf("GetNextAction exact probe after reopen: %v", err)
+	}
+	assessment := result.RecoveryAssessment
+	last := fixture.committed.LastOperation
+	if result.TaskID != fixture.source.TaskID || result.Revision != fixture.source.Revision+1 ||
+		result.Phase != domain.PhaseAssess || result.Action == nil ||
+		result.Action.Kind != domain.ActionPlanChange || result.Action.ActionID != fixture.committed.CurrentAction.ActionID ||
+		result.Action.RepositoryBindingDigest != fixture.committed.Repository.BindingDigest || last == nil {
+		t.Fatalf("GetNextAction reopened projection = %#v", result)
+	}
+	if last.OperationID != fixture.request.RequestID || last.ActionID == nil ||
+		*last.ActionID != fixture.request.ActionID || last.FromRevision != fixture.source.Revision ||
+		last.ToRevision != fixture.source.Revision+1 || last.PayloadDigest == "" || last.CommittedAt.IsZero() {
+		t.Fatalf("GetNextAction committed LastOperation = %#v", last)
+	}
+	if assessment == nil || assessment.Classification != domain.RecoveryCompletedAndRecorded ||
+		assessment.Operation.OperationID != fixture.request.RequestID ||
+		assessment.Operation.SourcePhase != fixture.source.Phase ||
+		assessment.Operation.ExpectedRevision != fixture.source.Revision ||
+		assessment.Operation.ActionID != fixture.request.ActionID ||
+		assessment.Operation.ActionKind != fixture.request.ActionKind ||
+		assessment.TaskRevision != fixture.committed.Revision ||
+		assessment.OperationPayloadDigest != last.PayloadDigest ||
+		assessment.LastOperationRelation != recovery.LastOperationExact ||
+		assessment.CurrentActionID == nil || *assessment.CurrentActionID != result.Action.ActionID ||
+		assessment.CommittedProof == nil ||
+		assessment.CommittedProof.OperationID != fixture.request.RequestID ||
+		assessment.CommittedProof.ActionID != fixture.request.ActionID ||
+		assessment.CommittedProof.FromRevision != fixture.source.Revision ||
+		assessment.CommittedProof.ToRevision != fixture.source.Revision+1 ||
+		assessment.CommittedProof.PayloadDigest != last.PayloadDigest ||
+		!assessment.CommittedProof.CommittedAt.Equal(last.CommittedAt) {
+		t.Fatalf("GetNextAction reopened recovery assessment = %#v", assessment)
+	}
+}
 
 func TestGetNextActionReturnsStablePersistedCloneWithoutSideEffects(t *testing.T) {
 	persisted := persistedTask(t, domain.HostCodex, testContract(t))

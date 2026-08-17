@@ -6,8 +6,49 @@ import (
 	"testing"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/dev-flow/internal/recovery"
 	"github.com/Innocent-children/dev-flow/internal/store"
 )
+
+func TestGetTaskExactOperationProbeAfterReopen(t *testing.T) {
+	fixture := newReopenedCommittedOperationFixture(t, "operation-get-task-reopen")
+	result, err := fixture.service.GetTask(context.Background(), GetTaskRequest{
+		Host: fixture.source.OriginHost, TaskID: fixture.source.TaskID, OperationProbe: fixture.probe,
+	})
+	if err != nil {
+		t.Fatalf("GetTask exact probe after reopen: %v", err)
+	}
+	assessment := result.RecoveryAssessment
+	last := result.Task.LastOperation
+	if result.Task.TaskID != fixture.source.TaskID || result.Task.Revision != fixture.source.Revision+1 ||
+		result.Task.Phase != domain.PhaseAssess || result.Task.CurrentAction == nil ||
+		result.Task.CurrentAction.Kind != domain.ActionPlanChange || last == nil {
+		t.Fatalf("GetTask reopened task projection = %#v", result.Task)
+	}
+	if last.OperationID != fixture.request.RequestID || last.ActionID == nil ||
+		*last.ActionID != fixture.request.ActionID || last.FromRevision != fixture.source.Revision ||
+		last.ToRevision != fixture.source.Revision+1 || last.PayloadDigest == "" || last.CommittedAt.IsZero() {
+		t.Fatalf("GetTask reopened LastOperation = %#v", last)
+	}
+	if assessment == nil || assessment.Classification != domain.RecoveryCompletedAndRecorded ||
+		assessment.Operation.OperationID != fixture.request.RequestID ||
+		assessment.Operation.SourcePhase != fixture.source.Phase ||
+		assessment.Operation.ExpectedRevision != fixture.source.Revision ||
+		assessment.Operation.ActionID != fixture.request.ActionID ||
+		assessment.Operation.ActionKind != fixture.request.ActionKind ||
+		assessment.TaskRevision != fixture.committed.Revision ||
+		assessment.OperationPayloadDigest != last.PayloadDigest ||
+		assessment.LastOperationRelation != recovery.LastOperationExact ||
+		assessment.CommittedProof == nil ||
+		assessment.CommittedProof.OperationID != fixture.request.RequestID ||
+		assessment.CommittedProof.ActionID != fixture.request.ActionID ||
+		assessment.CommittedProof.FromRevision != fixture.source.Revision ||
+		assessment.CommittedProof.ToRevision != fixture.source.Revision+1 ||
+		assessment.CommittedProof.PayloadDigest != last.PayloadDigest ||
+		!assessment.CommittedProof.CommittedAt.Equal(last.CommittedAt) {
+		t.Fatalf("GetTask reopened recovery assessment = %#v", assessment)
+	}
+}
 
 func TestGetTaskReturnsAuthoritativeCloneWithoutWritesOrObservation(t *testing.T) {
 	persisted := persistedTask(t, domain.HostCodex, testContract(t))

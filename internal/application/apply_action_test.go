@@ -14,10 +14,138 @@ import (
 	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/dev-flow/internal/recovery"
 	"github.com/Innocent-children/dev-flow/internal/repository"
 	"github.com/Innocent-children/dev-flow/internal/store"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
+
+func TestApplyActionPreCommitFailureIsZeroWriteAndReadsNotStarted(t *testing.T) {
+	ctx := context.Background()
+	repositoryRoot := newCommittedApplicationRepository(t)
+	databasePath := filepath.Join(t.TempDir(), "pre-commit-failure.db")
+	taskStore, err := store.Open(ctx, databasePath)
+	if err != nil {
+		t.Fatalf("open pre_commit store: %v", err)
+	}
+	closed := false
+	t.Cleanup(func() {
+		if !closed {
+			_ = taskStore.Close()
+		}
+	})
+	clock := &deterministicApplicationClock{next: time.Date(2026, time.August, 17, 10, 0, 0, 0, time.UTC)}
+	service, err := newService(taskStore, repository.NewGitObserver(), clock.Now, sequentialApplicationIDs())
+	if err != nil {
+		t.Fatalf("construct pre_commit setup service: %v", err)
+	}
+	opened, err := service.OpenTask(ctx, OpenTaskRequest{
+		RequestID:      "request-pre-commit-open",
+		Host:           domain.HostCodex,
+		RepositoryPath: repositoryRoot,
+		NewTask: &NewTaskInput{
+			Goal:               "prove pre-commit failure is zero write",
+			Scope:              []string{"application transaction boundary"},
+			OutOfScope:         []string{"automatic retry"},
+			AcceptanceCriteria: []string{"exact read reports not_started without persistence changes"},
+			VerificationBudget: testBudget(),
+		},
+	})
+	if err != nil {
+		t.Fatalf("open pre_commit task: %v", err)
+	}
+	source := opened.Task
+	beforeCounts := readApplicationPersistenceCounts(t, databasePath, source.TaskID)
+	payload := workflow.AssessTaskPayload{
+		Result:                         domain.ActionResultSucceeded,
+		Summary:                        "this result must not commit",
+		VerificationBudgetAcknowledged: true,
+	}
+	request := applyRequestForTask(source, "operation-pre-commit-failure", payload)
+	failingStore := &preCommitFailingStore{delegate: taskStore, failure: store.ErrStorageUnavailable}
+	failingService, err := newService(
+		failingStore,
+		repository.NewGitObserver(),
+		clock.Now,
+		sequentialApplicationIDs(),
+	)
+	if err != nil {
+		t.Fatalf("construct pre_commit failing service: %v", err)
+	}
+	result, err := failingService.ApplyAction(ctx, request)
+	requireError(t, err, domain.ErrStorageUnavailable)
+	if !reflect.DeepEqual(result, ApplyActionResult{}) || failingStore.commitAttempts != 1 {
+		t.Fatalf("pre_commit result/attempts = %#v/%d", result, failingStore.commitAttempts)
+	}
+	if err := taskStore.Close(); err != nil {
+		t.Fatalf("close pre_commit source store: %v", err)
+	}
+	closed = true
+
+	reopenedStore, err := store.Open(ctx, databasePath)
+	if err != nil {
+		t.Fatalf("reopen pre_commit store: %v", err)
+	}
+	t.Cleanup(func() { _ = reopenedStore.Close() })
+	reopenedService, err := NewService(reopenedStore, repository.NewGitObserver())
+	if err != nil {
+		t.Fatalf("recreate pre_commit service: %v", err)
+	}
+	probe := &OperationProbe{
+		OperationID:             request.RequestID,
+		SourcePhase:             source.Phase,
+		ExpectedRevision:        request.ExpectedRevision,
+		ActionID:                request.ActionID,
+		ActionKind:              request.ActionKind,
+		RepositoryBindingDigest: request.RepositoryBindingDigest,
+		Payload:                 nil,
+	}
+	read, err := reopenedService.GetTask(ctx, GetTaskRequest{
+		Host: source.OriginHost, TaskID: source.TaskID, OperationProbe: probe,
+	})
+	if err != nil {
+		t.Fatalf("read pre_commit recovery authority: %v", err)
+	}
+	if !reflect.DeepEqual(read.Task, source) || read.RecoveryAssessment == nil ||
+		read.RecoveryAssessment.Classification != domain.RecoveryNotStarted ||
+		!read.RecoveryAssessment.ActionRetrySafe ||
+		read.RecoveryAssessment.NextAdvice != recovery.AdviceRetryCurrentAction {
+		t.Fatalf("pre_commit read-back = %#v", read)
+	}
+	afterCounts := readApplicationPersistenceCounts(t, databasePath, source.TaskID)
+	if afterCounts != beforeCounts || afterCounts.Revision != source.Revision ||
+		afterCounts.Events != 1 || afterCounts.Claims != 1 {
+		t.Fatalf("pre_commit persistence changed: before=%#v after=%#v", beforeCounts, afterCounts)
+	}
+}
+
+func TestDuplicateCommittedRecoverySubmissionPreservesCardinality(t *testing.T) {
+	fixture := newReopenedCommittedOperationFixture(t, "operation-duplicate-recovery")
+	beforeCounts := readApplicationPersistenceCounts(t, fixture.databasePath, fixture.source.TaskID)
+	beforeTask := fixture.committed.Clone()
+	request := fixture.request
+	request.RequestID = "request-duplicate-recovery-read-back"
+	request.RecoveryApply = &RecoveryApplyInput{
+		OperationID: fixture.request.RequestID,
+		SourcePhase: fixture.source.Phase,
+	}
+
+	result, err := fixture.service.ApplyAction(context.Background(), request)
+	if err != nil {
+		t.Fatalf("duplicate committed recovery submission: %v", err)
+	}
+	if !reflect.DeepEqual(result.Task, beforeTask) || result.Task.Revision != fixture.source.Revision+1 ||
+		result.Task.LastOperation == nil || result.Task.LastOperation.OperationID != fixture.request.RequestID ||
+		len(result.Task.Evidence) != len(beforeTask.Evidence) ||
+		!reflect.DeepEqual(result.Task.Repository, beforeTask.Repository) {
+		t.Fatalf("duplicate committed recovery read-back = %#v, want %#v", result.Task, beforeTask)
+	}
+	afterCounts := readApplicationPersistenceCounts(t, fixture.databasePath, fixture.source.TaskID)
+	if afterCounts != beforeCounts || afterCounts.Revision != fixture.source.Revision+1 ||
+		afterCounts.Events != 2 || afterCounts.Claims != 1 {
+		t.Fatalf("duplicate committed recovery changed cardinality: before=%#v after=%#v", beforeCounts, afterCounts)
+	}
+}
 
 func TestApplyActionCompletesRealInProcessJourney(t *testing.T) {
 	ctx := context.Background()

@@ -111,6 +111,66 @@ func TestSchema1MigrationRollsBackOnFailure(t *testing.T) {
 	}
 }
 
+func TestDuplicateCommittedMutationIsZeroWrite(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	taskStore, err := Open(ctx, filepath.Join(t.TempDir(), "duplicate-committed.db"))
+	if err != nil {
+		t.Fatalf("open duplicate committed store: %v", err)
+	}
+	defer taskStore.Close()
+
+	now := time.Date(2026, time.August, 17, 11, 0, 0, 0, time.UTC)
+	initial := validTask(t, "task-duplicate-committed", digest("7"), "/public/duplicate-committed", now)
+	initialEvent := taskEvent("event-duplicate-initial", &initial, domain.PhaseIntake, now)
+	if err := taskStore.CommitTask(ctx, TaskMutation{
+		Task: initial, Event: initialEvent, Claim: ClaimAcquire,
+	}); err != nil {
+		t.Fatalf("commit duplicate test source: %v", err)
+	}
+
+	committedAt := now.Add(time.Minute)
+	committed := advancedTask(t, initial, domain.PhaseAssess, domain.ActionPlanChange, committedAt)
+	committed.Evidence = []domain.EvidenceSummary{{
+		EvidenceID: "evidence-duplicate-committed", Source: domain.EvidenceSourceHostObserved,
+		Name: "assessment_summary", Status: domain.EvidenceObserved,
+		Summary: "one retained assessment", Digest: digest("e"), RecordedAt: committedAt,
+	}}
+	if err := workflow.ValidateTask(committed); err != nil {
+		t.Fatalf("construct duplicate committed task: %v", err)
+	}
+	committedEvent := taskEvent("event-duplicate-committed", &committed, domain.PhaseIntake, committedAt)
+	mutation := TaskMutation{
+		ExpectedRevision: initial.Revision,
+		Task:             committed,
+		Event:            committedEvent,
+		Claim:            ClaimRetain,
+	}
+	if err := taskStore.CommitTask(ctx, mutation); err != nil {
+		t.Fatalf("commit duplicate test operation: %v", err)
+	}
+	before, err := taskStore.LoadTask(ctx, initial.TaskID)
+	if err != nil {
+		t.Fatalf("load committed duplicate source: %v", err)
+	}
+
+	if err := taskStore.CommitTask(ctx, mutation); !errors.Is(err, ErrRevisionConflict) {
+		t.Fatalf("duplicate committed mutation error = %v, want %v", err, ErrRevisionConflict)
+	}
+	after, err := taskStore.LoadTask(ctx, initial.TaskID)
+	if err != nil {
+		t.Fatalf("load task after duplicate mutation: %v", err)
+	}
+	if !reflect.DeepEqual(after, before) || after.Revision != initial.Revision+1 ||
+		len(after.Evidence) != 1 || after.Repository.BindingDigest != initial.Repository.BindingDigest {
+		t.Fatalf("duplicate committed mutation changed snapshot: before=%#v after=%#v", before, after)
+	}
+	assertRowCount(t, ctx, taskStore.db, `SELECT COUNT(*) FROM tasks WHERE task_id = ?`, string(initial.TaskID), 1)
+	assertRowCount(t, ctx, taskStore.db, `SELECT COUNT(*) FROM task_events WHERE task_id = ?`, string(initial.TaskID), 2)
+	assertRowCount(t, ctx, taskStore.db, `SELECT COUNT(*) FROM task_events WHERE event_id = ?`, "event-duplicate-committed", 1)
+	assertRowCount(t, ctx, taskStore.db, `SELECT COUNT(*) FROM repository_claims WHERE task_id = ?`, string(initial.TaskID), 1)
+}
+
 func TestOpenSetsFixedConnectionPragmas(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
