@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
+	corerecovery "github.com/Innocent-children/dev-flow/internal/recovery"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
@@ -169,6 +170,141 @@ func TestDuplicateCommittedMutationIsZeroWrite(t *testing.T) {
 	assertRowCount(t, ctx, taskStore.db, `SELECT COUNT(*) FROM task_events WHERE task_id = ?`, string(initial.TaskID), 2)
 	assertRowCount(t, ctx, taskStore.db, `SELECT COUNT(*) FROM task_events WHERE event_id = ?`, "event-duplicate-committed", 1)
 	assertRowCount(t, ctx, taskStore.db, `SELECT COUNT(*) FROM repository_claims WHERE task_id = ?`, string(initial.TaskID), 1)
+}
+
+func TestPartialAndConflictingRecoveryReadPersistenceBaselineIsImmutable(t *testing.T) {
+	validatedPayload, err := workflow.ValidatePayload(
+		domain.PhasePlan,
+		domain.ActionImplementChange,
+		workflow.ImplementChangePayload{
+			Result:         domain.ActionResultSucceeded,
+			Summary:        "retained implementation result",
+			ChangedPaths:   []string{"README.md"},
+			ScopeConfirmed: true,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name           string
+		payload        *workflow.ValidatedPayload
+		fresh          func(domain.RepositoryBinding) domain.RepositoryBinding
+		classification domain.RecoveryClassification
+	}{
+		{
+			name:    "partially_completed",
+			payload: nil,
+			fresh: func(binding domain.RepositoryBinding) domain.RepositoryBinding {
+				binding.WorktreeFingerprint = digest("3")
+				binding.BindingDigest = digest("4")
+				binding.ObservedAt = binding.ObservedAt.Add(time.Minute)
+				return binding
+			},
+			classification: domain.RecoveryPartiallyCompleted,
+		},
+		{
+			name:    "conflicting",
+			payload: &validatedPayload,
+			fresh: func(binding domain.RepositoryBinding) domain.RepositoryBinding {
+				branch := "feature/conflict"
+				binding.Branch = &branch
+				binding.WorktreeFingerprint = digest("5")
+				binding.BindingDigest = digest("6")
+				binding.ObservedAt = binding.ObservedAt.Add(time.Minute)
+				return binding
+			},
+			classification: domain.RecoveryConflicting,
+		},
+	}
+	for _, scenario := range tests {
+		t.Run(scenario.name, func(t *testing.T) {
+			ctx := context.Background()
+			taskStore, err := Open(ctx, filepath.Join(t.TempDir(), scenario.name+"-read-only.db"))
+			if err != nil {
+				t.Fatalf("open recovery read-only store: %v", err)
+			}
+			defer taskStore.Close()
+			now := time.Date(2026, time.August, 17, 14, 0, 0, 0, time.UTC)
+			initial := validTask(t, "task-"+scenario.name, digest("5"), t.TempDir(), now)
+			initialEvent := taskEvent("event-"+scenario.name+"-open", &initial, initial.Phase, now)
+			if err := taskStore.CommitTask(ctx, TaskMutation{
+				Task: initial, Event: initialEvent, Claim: ClaimAcquire,
+			}); err != nil {
+				t.Fatalf("commit recovery read-only initial task: %v", err)
+			}
+			assessedAt := now.Add(time.Minute)
+			assessed := advancedTask(t, initial, domain.PhaseAssess, domain.ActionPlanChange, assessedAt)
+			assessed.Evidence = []domain.EvidenceSummary{{
+				EvidenceID: "evidence-retained-" + domain.ID(scenario.name),
+				Source:     domain.EvidenceSourceHostObserved, Name: "retained_source",
+				Status: domain.EvidenceObserved, Summary: "retained before recovery read",
+				Digest: digest("e"), RecordedAt: assessedAt,
+			}}
+			assessedEvent := taskEvent("event-"+scenario.name+"-assess", &assessed, initial.Phase, assessedAt)
+			if err := workflow.ValidateTask(assessed); err != nil {
+				t.Fatalf("construct recovery read-only source: %v", err)
+			}
+			if err := taskStore.CommitTask(ctx, TaskMutation{
+				ExpectedRevision: initial.Revision, Task: assessed,
+				Event: assessedEvent, Claim: ClaimRetain,
+			}); err != nil {
+				t.Fatalf("commit recovery read-only assessment: %v", err)
+			}
+			plannedAt := now.Add(2 * time.Minute)
+			task := advancedTask(t, assessed, domain.PhasePlan, domain.ActionImplementChange, plannedAt)
+			plannedEvent := taskEvent("event-"+scenario.name+"-plan", &task, assessed.Phase, plannedAt)
+			if err := taskStore.CommitTask(ctx, TaskMutation{
+				ExpectedRevision: assessed.Revision, Task: task,
+				Event: plannedEvent, Claim: ClaimRetain,
+			}); err != nil {
+				t.Fatalf("commit recovery read-only plan: %v", err)
+			}
+
+			before := readRecoveryPersistenceState(t, ctx, taskStore.db, task.TaskID)
+			loaded, err := taskStore.LoadTask(ctx, task.TaskID)
+			if err != nil {
+				t.Fatalf("load %s recovery source: %v", scenario.name, err)
+			}
+			if !reflect.DeepEqual(loaded, task) || loaded.Blocker != nil ||
+				loaded.LastOperation == nil || len(loaded.Evidence) != 1 ||
+				loaded.Repository.BindingDigest != task.Repository.BindingDigest ||
+				loaded.CurrentAction == nil || loaded.CurrentAction.ActionID != task.CurrentAction.ActionID {
+				t.Fatalf("loaded %s recovery source = %#v", scenario.name, loaded)
+			}
+			fresh := scenario.fresh(task.Repository.Clone())
+			decision, err := corerecovery.Reconcile(corerecovery.ReconcileInput{
+				Task: loaded,
+				Operation: corerecovery.OperationReference{
+					OperationID:      "operation-read-only",
+					SourcePhase:      loaded.Phase,
+					ExpectedRevision: loaded.Revision,
+					ActionID:         loaded.CurrentAction.ActionID,
+					ActionKind:       loaded.CurrentAction.Kind,
+				},
+				IssuanceBindingDigest:  loaded.Repository.BindingDigest,
+				OperationPayloadDigest: digest("8"),
+				Payload:                scenario.payload,
+				FreshBinding:           fresh,
+			})
+			if err != nil {
+				t.Fatalf("reconcile %s recovery read: %v", scenario.name, err)
+			}
+			if decision.Assessment.Classification != scenario.classification ||
+				decision.Directive != corerecovery.DirectiveCreateBlocker ||
+				decision.Assessment.UnblockCondition == nil {
+				t.Fatalf("%s recovery decision = %#v", scenario.name, decision)
+			}
+			after := readRecoveryPersistenceState(t, ctx, taskStore.db, task.TaskID)
+			if !reflect.DeepEqual(after, before) {
+				t.Fatalf("%s recovery read changed SQLite state: before=%#v after=%#v", scenario.name, before, after)
+			}
+			reloaded, err := taskStore.LoadTask(ctx, task.TaskID)
+			if err != nil || !reflect.DeepEqual(reloaded, task) {
+				t.Fatalf("%s recovery read changed Task aggregate: task=%#v error=%v", scenario.name, reloaded, err)
+			}
+		})
+	}
 }
 
 func TestOpenSetsFixedConnectionPragmas(t *testing.T) {
@@ -1223,4 +1359,59 @@ func assertRowCount(
 	if got != want {
 		t.Fatalf("row count = %d, want %d", got, want)
 	}
+}
+
+type recoveryPersistenceState struct {
+	phase               string
+	revision            int64
+	snapshot            []byte
+	updatedAt           string
+	eventCount          int
+	latestEventRevision int64
+	claimCount          int
+	claimRepository     string
+	claimTask           string
+	claimHost           string
+	claimedAt           string
+}
+
+func readRecoveryPersistenceState(
+	t *testing.T,
+	ctx context.Context,
+	database *sql.DB,
+	taskID domain.ID,
+) recoveryPersistenceState {
+	t.Helper()
+	var state recoveryPersistenceState
+	if err := database.QueryRowContext(
+		ctx,
+		`SELECT phase, revision, snapshot, updated_at FROM tasks WHERE task_id = ?`,
+		string(taskID),
+	).Scan(&state.phase, &state.revision, &state.snapshot, &state.updatedAt); err != nil {
+		t.Fatalf("read recovery task row: %v", err)
+	}
+	state.snapshot = bytes.Clone(state.snapshot)
+	if err := database.QueryRowContext(
+		ctx,
+		`SELECT COUNT(*), COALESCE(MAX(revision), 0) FROM task_events WHERE task_id = ?`,
+		string(taskID),
+	).Scan(&state.eventCount, &state.latestEventRevision); err != nil {
+		t.Fatalf("read recovery event rows: %v", err)
+	}
+	if err := database.QueryRowContext(
+		ctx,
+		`SELECT COUNT(*), COALESCE(MIN(repository_identity), ''), COALESCE(MIN(task_id), ''),
+		        COALESCE(MIN(origin_host), ''), COALESCE(MIN(claimed_at), '')
+		   FROM repository_claims WHERE task_id = ?`,
+		string(taskID),
+	).Scan(
+		&state.claimCount,
+		&state.claimRepository,
+		&state.claimTask,
+		&state.claimHost,
+		&state.claimedAt,
+	); err != nil {
+		t.Fatalf("read recovery claim row: %v", err)
+	}
+	return state
 }

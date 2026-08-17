@@ -147,6 +147,492 @@ func TestDuplicateCommittedRecoverySubmissionPreservesCardinality(t *testing.T) 
 	}
 }
 
+func TestCompletedButUnrecordedRequiresExplicitRecoveryApply(t *testing.T) {
+	ctx := context.Background()
+	repositoryRoot := newCommittedApplicationRepository(t)
+	databasePath := filepath.Join(t.TempDir(), "completed-but-unrecorded.db")
+	taskStore, err := store.Open(ctx, databasePath)
+	if err != nil {
+		t.Fatalf("open exact adoption store: %v", err)
+	}
+	t.Cleanup(func() { _ = taskStore.Close() })
+	clock := &deterministicApplicationClock{next: time.Date(2026, time.August, 17, 13, 0, 0, 0, time.UTC)}
+	service, err := newService(taskStore, repository.NewGitObserver(), clock.Now, sequentialApplicationIDs())
+	if err != nil {
+		t.Fatalf("construct exact adoption service: %v", err)
+	}
+	opened, err := service.OpenTask(ctx, OpenTaskRequest{
+		RequestID:      "request-exact-adoption-open",
+		Host:           domain.HostCodex,
+		RepositoryPath: repositoryRoot,
+		NewTask: &NewTaskInput{
+			Goal:               "record exact unrecorded implementation work",
+			Scope:              []string{"explicit recovery apply"},
+			OutOfScope:         []string{"implicit adoption"},
+			AcceptanceCriteria: []string{"exact work is recorded once"},
+			VerificationBudget: testBudget(),
+		},
+	})
+	if err != nil {
+		t.Fatalf("open exact adoption task: %v", err)
+	}
+	task := applyJourneyAction(t, ctx, service, opened.Task, workflow.AssessTaskPayload{
+		Result: domain.ActionResultSucceeded, Summary: "adoption task assessed",
+		VerificationBudgetAcknowledged: true,
+	}, "request-exact-adoption-assess")
+	source := applyJourneyAction(t, ctx, service, task, workflow.PlanChangePayload{
+		Result: domain.ActionResultSucceeded, Summary: "exact adoption planned",
+		Steps:                []string{"record the retained implementation result"},
+		ExpectedChangedPaths: []string{"README.md"}, VerificationSteps: []string{"read authoritative recovery"},
+	}, "request-exact-adoption-plan")
+	if source.Phase != domain.PhasePlan || source.CurrentAction == nil ||
+		source.CurrentAction.Kind != domain.ActionImplementChange {
+		t.Fatalf("exact adoption source = %#v", source)
+	}
+	if err := os.WriteFile(filepath.Join(repositoryRoot, "README.md"), []byte("exact unrecorded work\n"), 0o644); err != nil {
+		t.Fatalf("create exact unrecorded work: %v", err)
+	}
+	payload := workflow.ImplementChangePayload{
+		Result: domain.ActionResultSucceeded, Summary: "retained implementation result",
+		ChangedPaths: []string{"README.md"}, ScopeConfirmed: true,
+	}
+	original := applyRequestForTask(source, "operation-exact-adoption", payload)
+	probe := &OperationProbe{
+		OperationID: original.RequestID, SourcePhase: source.Phase,
+		ExpectedRevision: original.ExpectedRevision, ActionID: original.ActionID,
+		ActionKind: original.ActionKind, RepositoryBindingDigest: original.RepositoryBindingDigest,
+		Payload: payload,
+	}
+	beforeReadCounts := readApplicationPersistenceCounts(t, databasePath, source.TaskID)
+	beforeReadSnapshot := readApplicationTaskSnapshot(t, databasePath, source.TaskID)
+	read, err := service.GetTask(ctx, GetTaskRequest{
+		Host: source.OriginHost, TaskID: source.TaskID, OperationProbe: probe,
+	})
+	if err != nil {
+		t.Fatalf("read exact unrecorded work: %v", err)
+	}
+	assessment := read.RecoveryAssessment
+	if !reflect.DeepEqual(read.Task, source) || assessment == nil ||
+		assessment.Classification != domain.RecoveryCompletedButUnrecorded ||
+		assessment.OperationEvidence != recovery.OperationEvidenceComplete ||
+		assessment.RepositoryRelation != recovery.RepositoryWorktreeOnlyChanged ||
+		assessment.NextAdvice != recovery.AdviceSubmitRecoveryApply || assessment.ActionRetrySafe {
+		t.Fatalf("exact unrecorded read = %#v", read)
+	}
+	if afterReadCounts := readApplicationPersistenceCounts(t, databasePath, source.TaskID); afterReadCounts != beforeReadCounts {
+		t.Fatalf("exact recovery read changed cardinality: before=%#v after=%#v", beforeReadCounts, afterReadCounts)
+	}
+	if afterReadSnapshot := readApplicationTaskSnapshot(t, databasePath, source.TaskID); !reflect.DeepEqual(afterReadSnapshot, beforeReadSnapshot) {
+		t.Fatal("exact recovery read changed the SQLite snapshot")
+	}
+
+	recoveryRequest := original
+	recoveryRequest.RequestID = "request-exact-adoption-envelope"
+	recoveryRequest.RecoveryApply = &RecoveryApplyInput{
+		OperationID: original.RequestID,
+		SourcePhase: source.Phase,
+	}
+	result, err := service.ApplyAction(ctx, recoveryRequest)
+	if err != nil {
+		t.Fatalf("explicit exact recovery apply: %v", err)
+	}
+	adopted := result.Task
+	if adopted.Revision != source.Revision+1 || adopted.Phase != domain.PhaseImplement ||
+		adopted.CurrentAction == nil || adopted.CurrentAction.Kind != domain.ActionVerifyChange ||
+		adopted.LastOperation == nil || adopted.LastOperation.OperationID != original.RequestID ||
+		adopted.LastOperation.ActionID == nil || *adopted.LastOperation.ActionID != original.ActionID ||
+		adopted.LastOperation.FromRevision != source.Revision ||
+		adopted.LastOperation.ToRevision != source.Revision+1 ||
+		adopted.LastOperation.PayloadDigest != assessment.OperationPayloadDigest ||
+		len(adopted.Evidence) != len(source.Evidence)+1 || adopted.Blocker != nil ||
+		adopted.Repository.BindingDigest != assessment.ObservedBindingDigest {
+		t.Fatalf("explicit exact adoption = %#v", adopted)
+	}
+	afterAdoptionCounts := readApplicationPersistenceCounts(t, databasePath, source.TaskID)
+	if afterAdoptionCounts.Revision != source.Revision+1 ||
+		afterAdoptionCounts.Events != beforeReadCounts.Events+1 ||
+		afterAdoptionCounts.Claims != 1 ||
+		readApplicationMatchingEventCount(t, databasePath, source.TaskID, original.RequestID) != 1 {
+		t.Fatalf("explicit exact adoption cardinality = %#v", afterAdoptionCounts)
+	}
+	requireActiveClaim(t, ctx, taskStore, adopted)
+	requireJourneyCommittedFact(t, databasePath, adopted)
+
+	duplicate, err := service.ApplyAction(ctx, recoveryRequest)
+	if err != nil {
+		t.Fatalf("duplicate exact recovery apply: %v", err)
+	}
+	if !reflect.DeepEqual(duplicate.Task, adopted) ||
+		readApplicationPersistenceCounts(t, databasePath, source.TaskID) != afterAdoptionCounts ||
+		readApplicationMatchingEventCount(t, databasePath, source.TaskID, original.RequestID) != 1 {
+		t.Fatal("duplicate exact recovery apply produced another persistent write")
+	}
+}
+
+func TestSupersededRecoverySourcesAreZeroWrite(t *testing.T) {
+	base := applicationTaskAtPhase(t, domain.PhaseIntake, 3, testContract(t), nil)
+	rebuildAction := func(task *domain.Task, phase domain.Phase, revision uint64, actionID domain.ID) {
+		action, err := workflow.BuildNextAction(
+			phase,
+			task.TaskID,
+			revision,
+			task.Repository.BindingDigest,
+			actionID,
+			task.UpdatedAt,
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		task.Phase = phase
+		task.Revision = revision
+		task.CurrentAction = &action
+		if err := workflow.ValidateTask(*task); err != nil {
+			t.Fatalf("construct superseded task: %v", err)
+		}
+	}
+	tests := []struct {
+		name           string
+		build          func() (domain.Task, domain.Task)
+		want           error
+		returnExisting bool
+	}{
+		{
+			name: "stale expected revision",
+			build: func() (domain.Task, domain.Task) {
+				source := base.Clone()
+				stored := source.Clone()
+				rebuildAction(&stored, source.Phase, source.Revision+1, source.CurrentAction.ActionID)
+				return source, stored
+			},
+			want: domain.ErrRevisionConflict,
+		},
+		{
+			name: "stale action identity",
+			build: func() (domain.Task, domain.Task) {
+				source := base.Clone()
+				stored := source.Clone()
+				rebuildAction(&stored, source.Phase, source.Revision, "action-superseding")
+				return source, stored
+			},
+			want: domain.ErrActionStale,
+		},
+		{
+			name: "source phase advanced",
+			build: func() (domain.Task, domain.Task) {
+				source := base.Clone()
+				stored := source.Clone()
+				rebuildAction(&stored, domain.PhaseAssess, source.Revision, source.CurrentAction.ActionID)
+				return source, stored
+			},
+			want: domain.ErrActionStale,
+		},
+		{
+			name: "issuance binding superseded",
+			build: func() (domain.Task, domain.Task) {
+				source := base.Clone()
+				stored := source.Clone()
+				stored.Repository = changeApplicationWorktree(stored.Repository)
+				rebuildAction(&stored, source.Phase, source.Revision, source.CurrentAction.ActionID)
+				return source, stored
+			},
+			want: domain.ErrActionStale,
+		},
+		{
+			name: "blocked task rejects old normal source",
+			build: func() (domain.Task, domain.Task) {
+				stored := applicationBlockedTask(t)
+				source := applicationTaskAtPhase(t, *stored.ResumePhase, stored.Revision-1, stored.Contract, nil)
+				return source, stored
+			},
+			returnExisting: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source, stored := tt.build()
+			before := stored.Clone()
+			request := recoveryRequestForSource(
+				source,
+				"request-superseded-recovery",
+				"operation-superseded-recovery",
+				workflow.AssessTaskPayload{
+					Result: domain.ActionResultSucceeded, Summary: "old expected evidence looks complete",
+					VerificationBudgetAcknowledged: true,
+				},
+			)
+			result, taskStore, observer, err := runRecoveryApply(t, stored, stored.Repository, request)
+			if tt.want != nil {
+				requireError(t, err, tt.want)
+				if !reflect.DeepEqual(result, ApplyActionResult{}) {
+					t.Fatalf("superseded source returned task authority: %#v", result)
+				}
+			} else if err != nil || !tt.returnExisting || !reflect.DeepEqual(result.Task, stored) {
+				t.Fatalf("blocked superseded source = %#v, error %v", result, err)
+			}
+			if observer.calls != 1 || taskStore.commitTaskCalls != 0 || len(taskStore.commits) != 0 ||
+				!reflect.DeepEqual(stored.Clone(), before) {
+				t.Fatalf("superseded recovery changed state: observations=%d commits=%d task=%#v",
+					observer.calls, taskStore.commitTaskCalls, stored)
+			}
+		})
+	}
+}
+
+func TestRecoveryBlockerLifecycleRetainsAndRestoresIssuanceBinding(t *testing.T) {
+	ctx := context.Background()
+	source := applicationTaskAtPhase(t, domain.PhasePlan, 3, testContract(t), nil)
+	partialBinding := changeApplicationWorktree(source.Repository)
+	current := source.Clone()
+	taskStore := &recordingStore{
+		loadTaskFn: func(context.Context, domain.ID) (domain.Task, error) {
+			return current.Clone(), nil
+		},
+		commitTaskFn: func(_ context.Context, mutation store.TaskMutation) error {
+			current = mutation.Task.Clone()
+			return nil
+		},
+	}
+	observer := &fixedRepositoryObserver{bindings: []domain.RepositoryBinding{
+		partialBinding,
+		partialBinding,
+		partialBinding,
+		source.Repository,
+	}}
+	service := newTestService(
+		t,
+		taskStore,
+		observer,
+		testTime().Add(4*time.Hour),
+		"blocker-us2",
+		"action-blocked-us2",
+		"event-blocked-us2",
+		"event-resolved-us2",
+		"evidence-resolved-us2",
+		"action-resumed-us2",
+	)
+	const operationID = domain.ID("operation-blocker-lifecycle")
+	probe := &OperationProbe{
+		OperationID: operationID, SourcePhase: source.Phase, ExpectedRevision: source.Revision,
+		ActionID: source.CurrentAction.ActionID, ActionKind: source.CurrentAction.Kind,
+		RepositoryBindingDigest: source.CurrentAction.RepositoryBindingDigest,
+	}
+	read, err := service.GetTask(ctx, GetTaskRequest{
+		Host: source.OriginHost, TaskID: source.TaskID, OperationProbe: probe,
+	})
+	if err != nil {
+		t.Fatalf("read partial blocker source: %v", err)
+	}
+	if !reflect.DeepEqual(read.Task, source) || read.RecoveryAssessment == nil ||
+		read.RecoveryAssessment.Classification != domain.RecoveryPartiallyCompleted ||
+		read.RecoveryAssessment.UnblockCondition == nil || taskStore.commitTaskCalls != 0 {
+		t.Fatalf("partial read created state or wrong assessment: %#v", read)
+	}
+
+	recoveryRequest := recoveryRequestForSource(
+		source,
+		"request-blocker-lifecycle-envelope",
+		operationID,
+		nil,
+	)
+	blockedResult, err := service.ApplyAction(ctx, recoveryRequest)
+	if err != nil {
+		t.Fatalf("create recovery blocker: %v", err)
+	}
+	blocked := blockedResult.Task
+	if taskStore.commitTaskCalls != 1 || blocked.TaskID != source.TaskID ||
+		blocked.Revision != source.Revision+1 || blocked.Phase != domain.PhaseBlocked ||
+		blocked.Blocker == nil || blocked.Blocker.BlockerID != "blocker-us2" ||
+		blocked.Blocker.Code != domain.ErrorTaskBlocked ||
+		blocked.Blocker.Cause != domain.RecoveryPartiallyCompleted ||
+		blocked.Blocker.ResumePhase != source.Phase || blocked.ResumePhase == nil ||
+		*blocked.ResumePhase != source.Phase ||
+		blocked.Blocker.ObservedBindingDigest != partialBinding.BindingDigest ||
+		blocked.Blocker.Condition.Kind != domain.BlockerConditionRestoreIssuanceBinding ||
+		blocked.Blocker.Condition.ExpectedBindingDigest != source.Repository.BindingDigest ||
+		blocked.Blocker.RequiredResolution != recoveryBlockerResolution ||
+		blocked.CurrentAction == nil || blocked.CurrentAction.Kind != domain.ActionResolveBlocker ||
+		blocked.Repository.BindingDigest != source.Repository.BindingDigest ||
+		len(blocked.Evidence) != len(source.Evidence) ||
+		taskStore.commits[0].Event.PhaseBefore != source.Phase ||
+		taskStore.commits[0].Event.PhaseAfter != domain.PhaseBlocked ||
+		taskStore.commits[0].Claim != store.ClaimRetain {
+		t.Fatalf("created recovery blocker = %#v, mutation=%#v", blocked, taskStore.commits[0])
+	}
+	blockerID := blocked.Blocker.BlockerID
+	condition := blocked.Blocker.Condition
+	resumePhase := *blocked.ResumePhase
+	current.Blocker.RequiredResolution = "display-only wording is not recovery authority"
+	if err := workflow.ValidateTask(current); err != nil {
+		t.Fatalf("display-only blocker text invalidated task: %v", err)
+	}
+
+	repeated, err := service.ApplyAction(ctx, recoveryRequest)
+	if err != nil {
+		t.Fatalf("retain existing recovery blocker: %v", err)
+	}
+	if taskStore.commitTaskCalls != 1 || !reflect.DeepEqual(repeated.Task, current) ||
+		repeated.Task.Blocker == nil || repeated.Task.Blocker.BlockerID != blockerID ||
+		repeated.Task.Blocker.Condition != condition || repeated.Task.ResumePhase == nil ||
+		*repeated.Task.ResumePhase != resumePhase {
+		t.Fatalf("repeated recovery changed existing blocker: %#v", repeated.Task)
+	}
+
+	resolveRequest := applyRequestForTask(
+		current,
+		"request-resolve-blocker-lifecycle",
+		validResolvePayload(current),
+	)
+	resolvedResult, err := service.ApplyAction(ctx, resolveRequest)
+	if err != nil {
+		t.Fatalf("resolve exact issuance binding: %v", err)
+	}
+	resolved := resolvedResult.Task
+	if observer.calls != 4 || taskStore.commitTaskCalls != 2 ||
+		resolved.TaskID != source.TaskID || resolved.Revision != blocked.Revision+1 ||
+		resolved.Phase != source.Phase || resolved.Blocker != nil || resolved.ResumePhase != nil ||
+		resolved.CurrentAction == nil || resolved.CurrentAction.Kind != source.CurrentAction.Kind ||
+		resolved.Repository.BindingDigest != source.Repository.BindingDigest ||
+		!sameApplicationBindingIdentity(resolved.Repository, source.Repository) ||
+		len(resolved.Evidence) != len(source.Evidence)+1 ||
+		taskStore.commits[1].Event.PhaseBefore != domain.PhaseBlocked ||
+		taskStore.commits[1].Event.PhaseAfter != source.Phase ||
+		taskStore.commits[1].Claim != store.ClaimRetain {
+		t.Fatalf("resolved blocker = %#v, commits=%#v", resolved, taskStore.commits)
+	}
+}
+
+func TestNonExactBlockerRestorationIsZeroWrite(t *testing.T) {
+	blocked := applicationBlockedTask(t)
+	otherDigest := domain.Digest(strings.Repeat("8", 64))
+	tests := []struct {
+		name   string
+		fresh  domain.RepositoryBinding
+		mutate func(*ApplyActionRequest)
+		want   error
+	}{
+		{
+			name:  "same visible HEAD with different worktree",
+			fresh: changeApplicationWorktree(blocked.Repository),
+			mutate: func(request *ApplyActionRequest) {
+				payload := request.Payload.(workflow.ResolveBlockerPayload)
+				payload.ResolutionEvidence.ObservedBindingDigest = changeApplicationWorktree(blocked.Repository).BindingDigest
+				request.Payload = payload
+			},
+			want: domain.ErrRepositoryDrift,
+		},
+		{
+			name:  "observed digest differs from condition",
+			fresh: blocked.Repository,
+			mutate: func(request *ApplyActionRequest) {
+				payload := request.Payload.(workflow.ResolveBlockerPayload)
+				payload.ResolutionEvidence.ObservedBindingDigest = otherDigest
+				request.Payload = payload
+			},
+			want: domain.ErrRepositoryDrift,
+		},
+		{
+			name:  "blocker identity differs",
+			fresh: blocked.Repository,
+			mutate: func(request *ApplyActionRequest) {
+				payload := request.Payload.(workflow.ResolveBlockerPayload)
+				payload.BlockerID = "blocker-stale"
+				request.Payload = payload
+			},
+			want: domain.ErrActionStale,
+		},
+		{
+			name:  "resolution revision is stale",
+			fresh: blocked.Repository,
+			mutate: func(request *ApplyActionRequest) {
+				request.ExpectedRevision++
+			},
+			want: domain.ErrRevisionConflict,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			before := blocked.Clone()
+			request := applyRequestForTask(blocked, "request-non-exact-resolution", validResolvePayload(blocked))
+			tt.mutate(&request)
+			result, taskStore, _, err := runRecoveryApply(t, blocked, tt.fresh, request)
+			requireError(t, err, tt.want)
+			if !reflect.DeepEqual(result, ApplyActionResult{}) || taskStore.commitTaskCalls != 0 ||
+				len(taskStore.commits) != 0 || !reflect.DeepEqual(blocked.Clone(), before) {
+				t.Fatalf("non-exact blocker restoration wrote state: result=%#v commits=%d", result, taskStore.commitTaskCalls)
+			}
+		})
+	}
+}
+
+func TestRecoveryApplyReobservesAfterCompletedButUnrecordedRead(t *testing.T) {
+	ctx := context.Background()
+	source := applicationTaskAtPhase(t, domain.PhasePlan, 3, testContract(t), nil)
+	firstReadBinding := changeApplicationWorktree(source.Repository)
+	latestApplyBinding := changeApplicationBranch(source.Repository)
+	taskStore := &recordingStore{
+		loadTaskFn: func(context.Context, domain.ID) (domain.Task, error) {
+			return source.Clone(), nil
+		},
+	}
+	observer := &fixedRepositoryObserver{bindings: []domain.RepositoryBinding{
+		firstReadBinding,
+		latestApplyBinding,
+	}}
+	service := recoveryTestService(t, taskStore, observer)
+	payload := workflow.ImplementChangePayload{
+		Result: domain.ActionResultSucceeded, Summary: "retained completed implementation",
+		ChangedPaths: []string{"README.md"}, ScopeConfirmed: true,
+	}
+	original := applyRequestForTask(source, "operation-fresh-recovery-observation", payload)
+	probe := &OperationProbe{
+		OperationID: original.RequestID, SourcePhase: source.Phase,
+		ExpectedRevision: source.Revision, ActionID: source.CurrentAction.ActionID,
+		ActionKind:              source.CurrentAction.Kind,
+		RepositoryBindingDigest: source.CurrentAction.RepositoryBindingDigest,
+		Payload:                 payload,
+	}
+	read, err := service.GetTask(ctx, GetTaskRequest{
+		Host: source.OriginHost, TaskID: source.TaskID, OperationProbe: probe,
+	})
+	if err != nil {
+		t.Fatalf("initial completed-but-unrecorded read: %v", err)
+	}
+	assessment := read.RecoveryAssessment
+	if assessment == nil || assessment.Classification != domain.RecoveryCompletedButUnrecorded ||
+		assessment.ObservedBindingDigest != firstReadBinding.BindingDigest ||
+		assessment.RepositoryRelation != recovery.RepositoryWorktreeOnlyChanged ||
+		taskStore.commitTaskCalls != 0 || observer.calls != 1 {
+		t.Fatalf("initial recovery assessment = %#v", assessment)
+	}
+
+	recoveryRequest := original
+	recoveryRequest.RequestID = "request-fresh-recovery-envelope"
+	recoveryRequest.RecoveryApply = &RecoveryApplyInput{
+		OperationID: original.RequestID,
+		SourcePhase: source.Phase,
+	}
+	result, err := service.ApplyAction(ctx, recoveryRequest)
+	if err != nil {
+		t.Fatalf("fresh recovery apply: %v", err)
+	}
+	blocked := result.Task
+	if observer.calls != 2 || taskStore.commitTaskCalls != 1 || len(taskStore.commits) != 1 ||
+		blocked.Phase != domain.PhaseBlocked || blocked.Revision != source.Revision+1 ||
+		blocked.Blocker == nil || blocked.Blocker.Cause != domain.RecoveryConflicting ||
+		blocked.Blocker.ObservedBindingDigest != latestApplyBinding.BindingDigest ||
+		blocked.Blocker.ObservedBindingDigest == assessment.ObservedBindingDigest ||
+		blocked.Repository.BindingDigest != source.Repository.BindingDigest ||
+		len(blocked.Evidence) != len(source.Evidence) ||
+		taskStore.commits[0].Task.Repository.BindingDigest != source.Repository.BindingDigest ||
+		taskStore.commits[0].Event.PhaseBefore != source.Phase ||
+		taskStore.commits[0].Event.PhaseAfter != domain.PhaseBlocked ||
+		taskStore.commits[0].Event.RequestID != original.RequestID {
+		t.Fatalf("fresh apply-time reconciliation = %#v, commits=%#v", blocked, taskStore.commits)
+	}
+}
+
 func TestApplyActionCompletesRealInProcessJourney(t *testing.T) {
 	ctx := context.Background()
 	repositoryRoot := newCommittedApplicationRepository(t)
@@ -1036,4 +1522,42 @@ func runApplicationGit(t *testing.T, root string, arguments ...string) {
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v: %s", arguments, err, output)
 	}
+}
+
+func readApplicationTaskSnapshot(t *testing.T, databasePath string, taskID domain.ID) []byte {
+	t.Helper()
+	database, err := sql.Open("sqlite", databasePath)
+	if err != nil {
+		t.Fatalf("open application snapshot database: %v", err)
+	}
+	defer database.Close()
+	var snapshot []byte
+	if err := database.QueryRow(
+		`SELECT snapshot FROM tasks WHERE task_id = ?`, string(taskID),
+	).Scan(&snapshot); err != nil {
+		t.Fatalf("read application task snapshot: %v", err)
+	}
+	return append([]byte(nil), snapshot...)
+}
+
+func readApplicationMatchingEventCount(
+	t *testing.T,
+	databasePath string,
+	taskID domain.ID,
+	requestID domain.ID,
+) int {
+	t.Helper()
+	database, err := sql.Open("sqlite", databasePath)
+	if err != nil {
+		t.Fatalf("open application event database: %v", err)
+	}
+	defer database.Close()
+	var count int
+	if err := database.QueryRow(
+		`SELECT COUNT(*) FROM task_events WHERE task_id = ? AND request_id = ?`,
+		string(taskID), string(requestID),
+	).Scan(&count); err != nil {
+		t.Fatalf("read matching application event count: %v", err)
+	}
+	return count
 }
