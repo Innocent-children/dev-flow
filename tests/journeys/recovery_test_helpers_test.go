@@ -3,6 +3,7 @@ package journeys
 import (
 	"context"
 	"database/sql"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -138,6 +139,7 @@ func recoveryJourneyProbe(
 }
 
 type recoveryJourneyDatabaseFacts struct {
+	taskCount          int
 	phase              domain.Phase
 	revision           uint64
 	eventCount         int
@@ -160,6 +162,9 @@ func readRecoveryJourneyDatabaseFacts(
 	defer database.Close()
 
 	var facts recoveryJourneyDatabaseFacts
+	if err := database.QueryRow(`SELECT COUNT(*) FROM tasks`).Scan(&facts.taskCount); err != nil {
+		t.Fatalf("read recovery journey task count: %v", err)
+	}
 	if err := database.QueryRow(
 		`SELECT phase, revision FROM tasks WHERE task_id = ?`, string(taskID),
 	).Scan(&facts.phase, &facts.revision); err != nil {
@@ -222,4 +227,27 @@ func runRecoveryReadOnlyGit(t *testing.T, repositoryPath string, arguments ...st
 		t.Fatalf("read-only recovery Git observation failed: %v\n%s", err, text)
 	}
 	return output.String()
+}
+
+func initializeRecoveryReplacementRepository(
+	t *testing.T,
+	repositoryPath string,
+	commonDirectory string,
+) {
+	t.Helper()
+	command := exec.Command("git", "init", "--separate-git-dir", commonDirectory, repositoryPath)
+	var output boundedRestartOutput
+	output.limit = maxRestartHelperOutputByte
+	command.Stdout = &output
+	command.Stderr = &output
+	if err := command.Run(); err != nil {
+		t.Fatalf("initialize replacement repository: %v\n%s", err, output.String())
+	}
+	runRestartGit(t, repositoryPath, "config", "user.email", "replacement@example.invalid")
+	runRestartGit(t, repositoryPath, "config", "user.name", "Replacement Journey")
+	if err := os.WriteFile(filepath.Join(repositoryPath, "README.md"), []byte("replacement repository\n"), 0o644); err != nil {
+		t.Fatalf("write replacement repository file: %v", err)
+	}
+	runRestartGit(t, repositoryPath, "add", "README.md")
+	runRestartGit(t, repositoryPath, "commit", "-m", "replacement repository fixture")
 }
