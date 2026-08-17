@@ -1,25 +1,30 @@
-# 003 Codex Explicit Dev Flow
+# Feature 003 — Codex Explicit Dev Flow
 
-Feature 002 and Core Contract 0.1 are complete. This directory contains the reviewed planning
-package for the thin, explicit-only Codex product.
+Feature 003 packages Dev Flow as a thin, explicit-only Codex integration.
 
-The remediation review establishes these implementation gates:
+Current merge-preparation status:
 
-1. Codex compatibility is revalidated immediately before final validation; the planning-time
-   `0.147.x` line is historical evidence, not a permanently frozen schema rule.
-2. User-story checkpoints use static, fake-Codex, fake-Core, packaged-Core, and journey-harness
-   evidence only.
-3. Feature 003 performs exactly one real Codex host journey, after targeted checks, root validation,
-   a read-only scope audit, source freeze, and creation of one final artifact.
-4. JSON Schema validates evidence structure; a separate read-only semantic validator proves version,
-   source/artifact, revision, task-lineage, budget, terminal-outcome, retained-data, repository, and
-   prior-validation relationships.
-5. Feature 003 owns the first Codex-aware expansion of the root repository validator. Feature 004
-   consumes that merged capability rather than repairing it later.
+- retains package, setup/readback, exact Skill selector, six-tool handshake, Core loop, and removal
+  retention;
+- replaces release-grade evidence machinery with three sanitized Codex 0.147 parser fixtures and a
+  repeatable ephemeral smoke;
+- defers attempt ledgers, frozen-chain admission, digest/provenance reports, crash transactions,
+  diagnostic-version matrices, evidence-path durability protocols, and release publication;
+- closes the four native HIGH regression cases with one minimum regression each;
+- records two fresh isolated Codex 0.147 development-smoke PASS results with distinct tasks;
+- aligns non-exact-selector acceptance with Codex 0.147: Skill injection is exact, MCP visibility is
+  independent, Core state remains isolated, and final repository isolation uses a non-mutating bare
+  probe;
+- leaves only the final real Codex acceptance journey as the unmet Feature 003 acceptance gate.
 
-The package remains one private local artifact containing one plugin, one `dev-flow` Skill, one
-local STDIO MCP server, and one packaged Core runtime. It does not publish, mutate Git, edit target
-repositories during setup/removal, or duplicate Core workflow authority.
+Read in this order:
 
-Implementation proceeds only after the reviewer-owned checklists in this directory remain satisfied
-against the final revised artifacts.
+1. [spec.md](./spec.md)
+2. [plan.md](./plan.md)
+3. [tasks.md](./tasks.md)
+4. [data-model.md](./data-model.md)
+5. [research.md](./research.md)
+6. [quickstart.md](./quickstart.md)
+
+Feature 003 remains **NO-GO** until the final real Codex acceptance journey passes. Release-grade
+provenance remains deferred and is not a Feature 003 merge gate.

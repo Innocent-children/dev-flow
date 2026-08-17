@@ -1,147 +1,95 @@
-# Contract: `$dev-flow` Codex Skill 0.1
+# Dev Flow Codex Skill Contract
 
 ## Authority
 
-The `dev-flow` Skill is host guidance, not a workflow engine. Core Contract 0.1 is the sole authority for task identity, state, revision, repository binding, current action, allowed effects, payload schema, required evidence, recovery, conflict, blocker, and terminal outcome.
+The `dev-flow` Skill is host guidance, not a workflow engine. Core Contract 0.1 alone owns task
+identity, state, revision, repository binding, current action, allowed effects, payload schema,
+required evidence, recovery, conflicts, blockers, and terminal outcomes.
 
-This contract names the interaction sequence needed by Codex but intentionally does not reproduce Core's state machine, action-payload catalog, error table, or completion rules.
+The Skill never persists task state, implements transitions, or decides completion.
 
-## Invocation contract
+## Invocation
 
-The Skill starts the workflow only when the current user turn explicitly selects it with the exact `$dev-flow` token.
-
-Accepted explicit intents are:
-
-- `$dev-flow` plus one substantive, bounded requirement for the current Git worktree; or
-- `$dev-flow` plus an explicit request to resume the compatible active Codex task for the current Git worktree.
-
-Before any Core call, the Skill verifies:
-
-1. the exact explicit selector is present in the current turn;
-2. the request is substantive or is an explicit resume request, not empty/conversational text;
-3. one current Git worktree can be resolved with read-only Git inspection;
-4. the requested work is bounded to that one repository;
-5. repository instructions and current user authority permit the requested kind of work.
-
-If any check fails, the Skill explains the missing precondition and stops. It makes no call to any of the six Dev Flow tools, creates no adapter state, edits no repository instruction, and attempts no implicit fallback. An ordinary request without `$dev-flow` creates zero Dev Flow tasks and is outside this Skill's execution path; host-level MCP initialization or tool discovery is not a Skill tool call.
-
-Paths with spaces, Unicode, symlinks, or a subdirectory working directory are canonicalized by read-only repository discovery and passed as one argv/value; they are never shell-concatenated. A request spanning another repository is rejected before task creation.
-
-## Compatibility handshake
-
-After local preconditions and before task discovery, the Skill calls:
+The installed Codex 0.147 identity is:
 
 ```text
-dev_flow_server_info({})
+$dev-flow-codex:dev-flow
 ```
 
-It requires the complete structured response to identify:
+The base name remains `dev-flow`, but bare `$dev-flow`, a wrong namespace/base, a missing selector,
+and implicit invocation do not activate the installed Skill. Codex 0.147 may still expose the
+plugin's MCP tools independently. Negative sessions must not complete a task-bearing operation or
+change task, event, or claim state; every observed read-only or Core-rejected call remains part of
+acceptance evidence. A non-exact selector does not revoke ordinary Codex repository tools or
+independent repository work authorized by the rest of the prompt. Final acceptance uses a
+non-mutating bare-selector probe and separately verifies that probe leaves the repository unchanged.
 
-- product `dev-flow`;
-- Core version equal to the packaged product version;
-- schema version corresponding to Core Contract 0.1;
-- STDIO transport and ready health;
-- `codex` in the supported-host set;
-- exactly the six frozen tool names, with no alias or additional tool.
+Before the first tool call, the Skill requires:
 
-An incomplete, truncated, incompatible, or malformed handshake stops the invocation. The Skill reports the observed mismatch and does not probe for undocumented tools.
+- a substantive requirement;
+- a current Git worktree;
+- work confined to that repository;
+- repository instructions and user authority that permit the requested work.
 
-## Task discovery
+Failure stops before Skill-owned task discovery. This guidance is not a selector-bound MCP
+authorization mechanism.
 
-The Skill calls `dev_flow_open_task` with `host=codex` and the canonical current worktree.
+## Handshake
 
-- For an explicit resume request, it omits `new_task` and lets Core select the unique compatible active task.
-- For a new substantive requirement, it supplies a bounded task contract derived only from the user's request, repository instructions, stated exclusions, observable acceptance criteria, and verification authority.
-- If a material goal, scope, acceptance, or verification choice cannot be derived without changing user intent, the Skill asks before opening the task.
-- Repeating the exact compatible contract may resume according to Core; the Skill does not merge or choose among task records.
+The first Dev Flow call is `dev_flow_server_info`. The complete result must identify the compatible
+Core contract and exactly the six tool names. Missing, malformed, incompatible, or additional
+surface stops the invocation.
 
-The complete `dev_flow_open_task` result determines whether Core created or resumed the task. A Core ownership or contract conflict is reported unchanged in meaning and stops the invocation.
+## Task Loop
 
-## Governed action loop
+1. Call `dev_flow_open_task` with `host=codex` and the current repository.
+2. Use the complete returned task/current action as one authoritative unit.
+3. Stop immediately for Core conflicts, blockers, `DONE`, or `CANCELLED`.
+4. Perform only the allowed repository effects for the current action.
+5. Submit `dev_flow_apply_action` with honest evidence labels and verification counts.
+6. Continue from the returned next action or perform one fresh read.
 
-For an active task, each loop iteration follows this order:
+After a missing, cancelled, malformed, truncated, or uncertain mutation result, call
+`dev_flow_get_task` and then `dev_flow_get_next_action` before considering a retry.
 
-1. Obtain the complete authoritative current action through the `open_task` result or `dev_flow_get_next_action`.
-2. Preserve the Core-returned task ID, revision, action ID/kind, repository-binding digest, allowed effects, required evidence, payload schema, guidance, blocker, and outcome as one inseparable result.
-3. If Core reports a blocker or terminal outcome, stop as described below.
-4. Perform only the work authorized by that current action, using ordinary Codex repository tools under the repository instructions and the user's authority.
-5. Count verification commands and label evidence sources by how they actually ran.
-6. Construct only the payload requested by Core's closed schema. Do not add aliases, commands, environment dumps, inferred status, or undocumented recovery fields.
-7. Before dispatch, create and retain an opaque request ID together with the exact submitted identity and payload.
-8. Call `dev_flow_apply_action` with the exact retained identity and closed payload.
-9. After a complete successful mutation result, continue only from its returned authoritative next action/outcome or perform one fresh Core read before more work.
+After host restart, reopen the compatible Codex-owned task; do not merge, take over, or create a
+replacement for an incompatible claim.
 
-The Skill never embeds a phase sequence, maps an action kind to a locally owned transition, reinterprets an error code, or declares completion from repository contents or Codex's own judgment.
+## Core Domain Error vs Transport Error
 
-## Closed forwarding contract
+A Codex 0.147 terminal MCP item may be:
 
-For every mutation, the Skill forwards:
+- `status=completed` with a complete structured/text-parity Core result;
+- `status=failed` with a complete structured/text-parity Core `ok=false` result;
+- `status=failed` with no complete result and a typed host transport error.
 
-- `host=codex`;
-- the task ID and revision from the same fresh Core result;
-- the exact action ID, action kind, and repository-binding digest from that result;
-- one caller-generated request ID retained before dispatch;
-- a payload containing only members allowed by the returned payload schema;
-- `recovery_apply` only when a fresh Core recovery assessment/advice requires the exact Core-defined form.
+The second form remains a Core domain result and its recovery/stop guidance is authoritative. The
+third form has no Core authority and stops fail-closed. A malformed completed result is neither
+form.
 
-Unknown fields, stale identities, reconstructed payloads, and locally inferred recovery flags are forbidden. When a Core action requires context disambiguation, the Skill obtains it through the ordinary Core read described by Contract 0.1 rather than guessing.
+The current checkpoint verifies only these host shapes. Diagnostic precedence, complete envelope
+closure, failed-event recovery binding, and aggregate/session fact parity are each closed by one
+minimum regression and remain required coverage.
 
-## Recovery-before-retry contract
+## Evidence and Terminal Reporting
 
-A mutation is uncertain if its response is missing, cancelled, malformed, truncated, or otherwise cannot be consumed as one complete structured result.
+- Automated, manual, fake, static, and user-observed checks keep distinct labels.
+- Verification commands must not exceed the current Core budget.
+- Free-form agent prose or a completed host process never substitutes for Core `DONE`.
+- User-facing reporting preserves task/revision, blocker/recovery condition, evidence limits, and
+  terminal outcome without exposing private data paths.
 
-For an uncertain mutation the Skill:
+## Removal
 
-1. does not immediately repeat `dev_flow_apply_action`;
-2. retains the original request ID, action identity, and exact payload when available;
-3. calls `dev_flow_get_task` and `dev_flow_get_next_action` before deciding what happened;
-4. includes the exact Core-defined operation probe only when all required original values are retained;
-5. uses the fresh Core task/action and recovery assessment/advice as the sole decision source;
-6. retries or applies recovery only when that fresh result says it is safe and only with the identity/form Core supplies;
-7. stops and reports the authoritative blocker or recovery condition when safety cannot be established.
+The Skill owns no lifecycle deletion. The package's explicit removal command removes product-owned
+registration only and preserves Core task data.
 
-If the original values needed for a probe were lost, the Skill sends no fabricated probe. It performs ordinary reads and stops if Core does not provide a safe next action. A truncated UI preview is never completed from memory.
+## Verification Layers
 
-## Evidence and verification budget
+- Skill contract tests own explicit selection and handshake guidance.
+- Fake-Core tests own deterministic task-loop and recovery behavior.
+- Three sanitized Codex fixtures own host terminal shape.
+- Repeatable smoke owns process wiring only.
+- One final acceptance journey owns the real-host end-to-end merge gate.
 
-- Ordinary Codex filesystem/editor/shell capabilities may be used only for the current Core-authorized action; the plugin adds no generic shell MCP tool.
-- The Skill honors repository instructions and explicit user authority even when a broader action would be technically possible.
-- Automatic verification commands are counted exactly against the Core task's verification budget.
-- A prohibited full suite is not run. When automatic capacity is exhausted, remaining allowed work is presented as a manual handoff.
-- Static inspection, fake-Core execution, user-performed evidence, and native automated evidence retain distinct labels.
-- Evidence submitted to Core names actual sources and outcomes; skipped, unavailable, or failed checks are not relabelled as passed.
-
-## Blocked and terminal behavior
-
-When the complete fresh Core result reports:
-
-- a blocked task, the Skill stops repository work and reports the authoritative blocker and unblock condition;
-- `DONE`, it reports Core's exact terminal outcome and evidence summary;
-- `CANCELLED`, it reports Core's exact cancellation outcome;
-- a conflict, it reports the Core conflict without taking over, merging, or creating a replacement task.
-
-The Skill does not continue merely because Codex believes the source change is complete, and it does not convert a blocker into success. Cancellation uses `dev_flow_cancel_task` only after explicit user authority and the current Core identity have been freshly established.
-
-## Presentation contract
-
-The Skill uses complete MCP structured results for decisions. User-facing summaries may be concise, but they preserve every outcome-bearing fact relevant to the next step: task identity, current revision, committed/not-committed status, blocker or recovery condition, verification evidence/limits, and terminal outcome. Raw private database locations are never requested or displayed.
-
-If Codex exposes only a truncated preview and not the complete structured result, the Skill treats the operation as uncertain and follows recovery-before-retry. It never silently discards unknown result members or fills them from a local catalog.
-
-## Testable examples
-
-| Scenario | Required observable behavior |
-|---|---|
-| Ordinary coding prompt, no `$dev-flow` | zero calls to the six Dev Flow tools and zero Dev Flow task creation |
-| `$dev-flow` with empty/conversational text | local precondition error; no task creation |
-| `$dev-flow` outside Git | repository precondition error; no task creation |
-| New bounded request | handshake, one `host=codex` open, then only the returned action |
-| Restart and explicit resume | handshake, open without a new contract, same Core task/revision lineage |
-| Different contract or host claim | Core conflict reported; no merge/takeover |
-| Closed payload contains an unknown member | adapter test fails before dispatch |
-| Successful mutation | full result handled; returned action or one fresh read precedes more work |
-| Lost mutation response | task read and next-action read precede any retry decision |
-| Verification budget exhausted | no extra automatic command; honest manual handoff |
-| Core blocker/terminal outcome | immediate stop with Core-owned condition/outcome |
-
-Fake-Core tests may exercise these scenarios deterministically but are labelled simulated. The native Codex journey must independently prove plugin discovery, explicit invocation, real repository work, restart/resume, bounded evidence, and removal using the final artifact.
+None of the deterministic layers may claim real-host success.

@@ -1,0 +1,20 @@
+{
+  "name": "dev-flow-local",
+  "interface": {
+    "displayName": "Dev Flow Local"
+  },
+  "plugins": [
+    {
+      "name": "dev-flow-codex",
+      "source": {
+        "source": "local",
+        "path": "./plugin"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

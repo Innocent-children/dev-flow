@@ -2,6 +2,34 @@
   "name": "dev-flow-codex",
   "version": "0.1.0",
   "private": true,
-  "description": "Feature 001 engineering skeleton for the future Codex product boundary.",
-  "license": "Apache-2.0"
+  "description": "Explicit-only Dev Flow integration for Codex CLI.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "dev-flow-codex": "bin/dev-flow-codex.mjs"
+  },
+  "files": [
+    ".agents/plugins/marketplace.json",
+    "bin/dev-flow-codex.mjs",
+    "lib/lifecycle.mjs",
+    "lib/paths.mjs",
+    "plugin/.codex-plugin/plugin.json",
+    "plugin/.mcp.json",
+    "plugin/skills/dev-flow/SKILL.md",
+    "plugin/skills/dev-flow/agents/openai.yaml",
+    "runtime/darwin-arm64/dev-flow"
+  ],
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "test:package": "node --test tests/package-contract.test.mjs",
+    "test:lifecycle": "node --test tests/lifecycle.test.mjs",
+    "test:parser": "node --test tests/journey-evidence.test.mjs",
+    "test:native-smoke": "node --test tests/journey-harness.test.mjs",
+    "pack:dry": "pnpm pack --dry-run --json",
+    "build:local": "../../scripts/build-codex-local.sh",
+    "smoke:fixture": "../../scripts/run-codex-real-journey.sh --fixture success"
+  }
 }

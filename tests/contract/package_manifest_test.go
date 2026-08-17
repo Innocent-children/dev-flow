@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -14,6 +15,7 @@ type manifestKind string
 
 const (
 	rootManifest    manifestKind = "root"
+	codexManifest   manifestKind = "codex"
 	productManifest manifestKind = "product"
 )
 
@@ -21,11 +23,36 @@ var runtimeDependencyFields = []string{
 	"dependencies",
 	"optionalDependencies",
 	"peerDependencies",
+	"bundledDependencies",
+	"bundleDependencies",
 }
 
 var rootDevelopmentScripts = map[string]string{
 	"validate":           "./scripts/validate-repository.sh",
 	"validate:contracts": "go test ./tests/contract",
+}
+
+var codexPackageFiles = []string{
+	".agents/plugins/marketplace.json",
+	"bin/dev-flow-codex.mjs",
+	"lib/lifecycle.mjs",
+	"lib/paths.mjs",
+	"plugin/.codex-plugin/plugin.json",
+	"plugin/.mcp.json",
+	"plugin/skills/dev-flow/SKILL.md",
+	"plugin/skills/dev-flow/agents/openai.yaml",
+	"runtime/darwin-arm64/dev-flow",
+}
+
+var codexDevelopmentScripts = map[string]string{
+	"build:local":       "../../scripts/build-codex-local.sh",
+	"pack:dry":          "pnpm pack --dry-run --json",
+	"smoke:fixture":     "../../scripts/run-codex-real-journey.sh --fixture success",
+	"test":              "node --test tests/*.test.mjs",
+	"test:lifecycle":    "node --test tests/lifecycle.test.mjs",
+	"test:native-smoke": "node --test tests/journey-harness.test.mjs",
+	"test:package":      "node --test tests/package-contract.test.mjs",
+	"test:parser":       "node --test tests/journey-evidence.test.mjs",
 }
 
 func TestProjectPackageManifests(t *testing.T) {
@@ -37,7 +64,7 @@ func TestProjectPackageManifests(t *testing.T) {
 		kind manifestKind
 	}{
 		{path: filepath.Join(repositoryRoot, "package.json"), kind: rootManifest},
-		{path: filepath.Join(repositoryRoot, "packages", "codex", "package.json"), kind: productManifest},
+		{path: filepath.Join(repositoryRoot, "packages", "codex", "package.json"), kind: codexManifest},
 		{path: filepath.Join(repositoryRoot, "packages", "deepseek", "package.json"), kind: productManifest},
 	}
 
@@ -139,13 +166,45 @@ func TestPackageManifestAcceptsBootstrapManifests(t *testing.T) {
 			}`,
 		},
 		{
-			name: "product",
+			name: "skeleton product",
 			kind: productManifest,
 			manifest: `{
 				"name": "dev-flow-codex",
 				"version": "1.2.3",
 				"private": true,
 				"devDependencies": {"example-development-tool": "1.0.0"}
+			}`,
+		},
+		{
+			name: "codex product",
+			kind: codexManifest,
+			manifest: `{
+				"name": "dev-flow-codex",
+				"version": "1.2.3",
+				"private": true,
+				"engines": {"node": ">=24"},
+				"bin": {"dev-flow-codex": "bin/dev-flow-codex.mjs"},
+				"files": [
+					".agents/plugins/marketplace.json",
+					"bin/dev-flow-codex.mjs",
+					"lib/lifecycle.mjs",
+					"lib/paths.mjs",
+					"plugin/.codex-plugin/plugin.json",
+					"plugin/.mcp.json",
+					"plugin/skills/dev-flow/SKILL.md",
+					"plugin/skills/dev-flow/agents/openai.yaml",
+					"runtime/darwin-arm64/dev-flow"
+				],
+				"scripts": {
+					"test": "node --test tests/*.test.mjs",
+					"test:package": "node --test tests/package-contract.test.mjs",
+					"test:lifecycle": "node --test tests/lifecycle.test.mjs",
+					"test:parser": "node --test tests/journey-evidence.test.mjs",
+					"test:native-smoke": "node --test tests/journey-harness.test.mjs",
+					"pack:dry": "pnpm pack --dry-run --json",
+					"build:local": "../../scripts/build-codex-local.sh",
+					"smoke:fixture": "../../scripts/run-codex-real-journey.sh --fixture success"
+				}
 			}`,
 		},
 	}
@@ -273,6 +332,92 @@ func TestPackageManifestRejectsForbiddenFields(t *testing.T) {
 	}
 }
 
+func TestCodexManifestRejectsUnreviewedPackageSurface(t *testing.T) {
+	t.Parallel()
+
+	validManifest := map[string]any{
+		"name":    "dev-flow-codex",
+		"version": "1.2.3",
+		"private": true,
+		"engines": map[string]string{"node": ">=24"},
+		"bin":     map[string]string{"dev-flow-codex": "bin/dev-flow-codex.mjs"},
+		"files":   codexPackageFiles,
+		"scripts": codexDevelopmentScripts,
+	}
+
+	tests := []struct {
+		name          string
+		violatedField string
+		mutate        func(map[string]any)
+	}{
+		{
+			name:          "wrong identity",
+			violatedField: "name",
+			mutate:        func(manifest map[string]any) { manifest["name"] = "other-product" },
+		},
+		{
+			name:          "second executable",
+			violatedField: "bin",
+			mutate: func(manifest map[string]any) {
+				manifest["bin"] = map[string]string{
+					"dev-flow-codex": "bin/dev-flow-codex.mjs",
+					"other":          "bin/other.mjs",
+				}
+			},
+		},
+		{
+			name:          "unreviewed packed file",
+			violatedField: "files",
+			mutate: func(manifest map[string]any) {
+				manifest["files"] = append(slices.Clone(codexPackageFiles), "tests/fixtures/fake-core.mjs")
+			},
+		},
+		{
+			name:          "install hook",
+			violatedField: "scripts.postinstall",
+			mutate: func(manifest map[string]any) {
+				scripts := cloneStringMap(codexDevelopmentScripts)
+				scripts["postinstall"] = "node setup.mjs"
+				manifest["scripts"] = scripts
+			},
+		},
+		{
+			name:          "publication script",
+			violatedField: "scripts.publish",
+			mutate: func(manifest map[string]any) {
+				scripts := cloneStringMap(codexDevelopmentScripts)
+				scripts["publish"] = "pnpm publish"
+				manifest["scripts"] = scripts
+			},
+		},
+		{
+			name:          "production dependency",
+			violatedField: "dependencies",
+			mutate: func(manifest map[string]any) {
+				manifest["dependencies"] = map[string]string{"example": "1.0.0"}
+			},
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			manifest := cloneManifest(t, validManifest)
+			test.mutate(manifest)
+			contents, err := json.Marshal(manifest)
+			if err != nil {
+				t.Fatalf("encode Codex manifest fixture: %v", err)
+			}
+			path := writeManifestFixture(t, string(contents))
+			violations := validatePackageManifest(path, codexManifest)
+			if !violationsContainField(violations, test.violatedField) {
+				t.Fatalf("Codex manifest violation does not name field %q: %v", test.violatedField, violations)
+			}
+		})
+	}
+}
+
 func TestProductManifestFixtures(t *testing.T) {
 	t.Parallel()
 
@@ -382,11 +527,91 @@ func validatePackageManifest(path string, kind manifestKind) []error {
 				violations = append(violations, manifestViolation(path, "scripts", "product scripts are forbidden"))
 			}
 		}
+	case codexManifest:
+		violations = append(violations, validateCodexManifest(path, manifest)...)
 	default:
 		violations = append(violations, manifestViolation(path, "$", "unknown manifest kind %q", kind))
 	}
 
 	return violations
+}
+
+func validateCodexManifest(path string, manifest map[string]json.RawMessage) []error {
+	var violations []error
+
+	var name string
+	if err := json.Unmarshal(manifest["name"], &name); err != nil || name != "dev-flow-codex" {
+		violations = append(violations, manifestViolation(path, "name", "must be %q", "dev-flow-codex"))
+	}
+
+	var engines map[string]string
+	if err := json.Unmarshal(manifest["engines"], &engines); err != nil || len(engines) != 1 || engines["node"] != ">=24" {
+		violations = append(violations, manifestViolation(path, "engines", "must contain only node %q", ">=24"))
+	}
+
+	var bin map[string]string
+	if err := json.Unmarshal(manifest["bin"], &bin); err != nil || len(bin) != 1 || bin["dev-flow-codex"] != "bin/dev-flow-codex.mjs" {
+		violations = append(violations, manifestViolation(path, "bin", "must expose exactly dev-flow-codex at bin/dev-flow-codex.mjs"))
+	}
+
+	var files []string
+	if err := json.Unmarshal(manifest["files"], &files); err != nil || !sameStringSet(files, codexPackageFiles) {
+		violations = append(violations, manifestViolation(path, "files", "must equal the reviewed Codex package allowlist"))
+	}
+
+	var scripts map[string]string
+	if err := json.Unmarshal(manifest["scripts"], &scripts); err != nil {
+		violations = append(violations, manifestViolation(path, "scripts", "must be a string-valued JSON object"))
+	} else {
+		for name, command := range codexDevelopmentScripts {
+			if scripts[name] != command {
+				violations = append(violations, manifestViolation(path, "scripts."+name, "must invoke %q", command))
+			}
+		}
+		for name := range scripts {
+			if _, allowed := codexDevelopmentScripts[name]; !allowed {
+				violations = append(violations, manifestViolation(path, "scripts."+name, "unreviewed, lifecycle, and publication scripts are forbidden"))
+			}
+		}
+	}
+
+	if _, present := manifest["publishConfig"]; present {
+		violations = append(violations, manifestViolation(path, "publishConfig", "product publication configuration is forbidden"))
+	}
+
+	return violations
+}
+
+func sameStringSet(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	got = slices.Clone(got)
+	want = slices.Clone(want)
+	slices.Sort(got)
+	slices.Sort(want)
+	return slices.Equal(got, want)
+}
+
+func cloneStringMap(source map[string]string) map[string]string {
+	clone := make(map[string]string, len(source))
+	for key, value := range source {
+		clone[key] = value
+	}
+	return clone
+}
+
+func cloneManifest(t *testing.T, source map[string]any) map[string]any {
+	t.Helper()
+	contents, err := json.Marshal(source)
+	if err != nil {
+		t.Fatalf("encode manifest template: %v", err)
+	}
+	var clone map[string]any
+	if err := json.Unmarshal(contents, &clone); err != nil {
+		t.Fatalf("decode manifest template: %v", err)
+	}
+	return clone
 }
 
 func readManifestObject(t *testing.T, path string) map[string]json.RawMessage {

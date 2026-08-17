@@ -17,8 +17,9 @@ import (
 )
 
 const (
-	dataDirectoryEnvironment = "DEV_FLOW_DATA_DIR"
-	databaseFileName         = "dev-flow.db"
+	dataDirectoryEnvironment   = "DEV_FLOW_DATA_DIR"
+	mcpInstructionsEnvironment = "DEV_FLOW_CODEX_MCP_INSTRUCTIONS"
+	databaseFileName           = "dev-flow.db"
 )
 
 const helpText = `dev-flow exposes the governed Core Contract 0.1 over local STDIO MCP.
@@ -32,7 +33,7 @@ Set DEV_FLOW_DATA_DIR to an existing local data directory before starting MCP.
 Host product integration, installation, publication, and remote transports are not included.
 `
 
-type mcpServeFunc func(context.Context, *application.Service, string, *coremcp.Diagnostics) error
+type mcpServeFunc func(context.Context, *application.Service, string, *coremcp.Diagnostics, string) error
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr, os.Getenv, serveStandardIO))
@@ -115,7 +116,7 @@ func runMCP(
 		return 1
 	}
 	diagnostics := coremcp.NewDiagnostics(stderr)
-	serveErr := serve(ctx, service, currentVersion, diagnostics)
+	serveErr := serve(ctx, service, currentVersion, diagnostics, getenv(mcpInstructionsEnvironment))
 	closeErr := taskStore.Close()
 	closed = true
 	if serveErr != nil && !errors.Is(serveErr, io.EOF) {
@@ -134,8 +135,12 @@ func serveStandardIO(
 	service *application.Service,
 	currentVersion string,
 	diagnostics *coremcp.Diagnostics,
+	instructions string,
 ) error {
-	server, err := coremcp.NewServer(service, currentVersion, &coremcp.ServerOptions{Diagnostics: diagnostics})
+	server, err := coremcp.NewServer(service, currentVersion, &coremcp.ServerOptions{
+		Diagnostics:  diagnostics,
+		Instructions: instructions,
+	})
 	if err != nil {
 		return err
 	}

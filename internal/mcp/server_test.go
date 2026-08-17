@@ -142,6 +142,7 @@ func TestApplyActionInvalidRequestIDUsesFallback(t *testing.T) {
 }
 
 func TestOfficialSDKListsExactToolsAndCallsServerInfo(t *testing.T) {
+	const instructions = "Call only after this test host's explicit selection and successful handshake."
 	ctx := context.Background()
 	taskStore, err := store.Open(ctx, filepath.Join(t.TempDir(), "sdk-test.db"))
 	if err != nil {
@@ -154,7 +155,8 @@ func TestOfficialSDKListsExactToolsAndCallsServerInfo(t *testing.T) {
 	}
 	var diagnostics bytes.Buffer
 	server, err := NewServer(service, "0.1.0", &ServerOptions{
-		Diagnostics: NewDiagnostics(&diagnostics),
+		Diagnostics:  NewDiagnostics(&diagnostics),
+		Instructions: instructions,
 		NewRequestID: func() (domain.ID, error) {
 			return "request-sdk-server-info", nil
 		},
@@ -175,10 +177,18 @@ func TestOfficialSDKListsExactToolsAndCallsServerInfo(t *testing.T) {
 		t.Fatalf("connect official SDK client: %v", err)
 	}
 	defer clientSession.Close()
+	initializeResult := clientSession.InitializeResult()
+	if initializeResult == nil || initializeResult.Instructions != instructions {
+		t.Fatalf("official SDK server instructions = %#v, want %q", initializeResult, instructions)
+	}
 
 	listed, err := clientSession.ListTools(ctx, nil)
 	if err != nil {
 		t.Fatalf("list tools over official SDK: %v", err)
+	}
+	definitions := make(map[string]ToolDefinition, len(catalog))
+	for _, definition := range ToolCatalog() {
+		definitions[definition.Name] = definition
 	}
 	names := make([]string, len(listed.Tools))
 	for index, tool := range listed.Tools {
@@ -186,6 +196,18 @@ func TestOfficialSDKListsExactToolsAndCallsServerInfo(t *testing.T) {
 		if tool.Annotations == nil || tool.Annotations.OpenWorldHint == nil || *tool.Annotations.OpenWorldHint ||
 			tool.Annotations.DestructiveHint == nil {
 			t.Errorf("tool %s annotations are not explicit and conservative", tool.Name)
+		}
+		definition, ok := definitions[tool.Name]
+		if !ok {
+			t.Errorf("tool %s has no catalog definition", tool.Name)
+			continue
+		}
+		wantDescription := definition.Description
+		if tool.Name == ToolOpenTask {
+			wantDescription += " " + instructions
+		}
+		if tool.Description != wantDescription {
+			t.Errorf("tool %s description = %q, want %q", tool.Name, tool.Description, wantDescription)
 		}
 	}
 	wantSDKNames := ToolNames()

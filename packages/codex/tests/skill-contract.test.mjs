@@ -1,0 +1,356 @@
+import assert from "node:assert/strict";
+import { readdir, readFile } from "node:fs/promises";
+import { dirname, join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
+import test from "node:test";
+
+const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+const repositoryRoot = join(packageRoot, "..", "..");
+const pluginRoot = join(packageRoot, "plugin");
+const readmePath = join(packageRoot, "README.md");
+const skillPath = join(pluginRoot, "skills", "dev-flow", "SKILL.md");
+const skillMetadataPath = join(pluginRoot, "skills", "dev-flow", "agents", "openai.yaml");
+const skillBaseName = "dev-flow";
+const installedSkillName = "dev-flow-codex:dev-flow";
+const explicitSelector = `$${installedSkillName}`;
+
+const exactTools = [
+  "dev_flow_server_info",
+  "dev_flow_open_task",
+  "dev_flow_get_task",
+  "dev_flow_get_next_action",
+  "dev_flow_apply_action",
+  "dev_flow_cancel_task",
+];
+
+test("plugin exposes exactly one explicitly selected dev-flow Skill", async () => {
+  const skillFiles = (await walkFiles(join(pluginRoot, "skills"))).filter((path) => path.endsWith("SKILL.md"));
+  assert.deepEqual(skillFiles, ["dev-flow/SKILL.md"]);
+
+  const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
+  const skill = await readFile(skillPath, "utf8");
+  const frontmatter = parseFrontmatter(skill);
+  assert.equal(frontmatter.name, skillBaseName);
+  assert.equal(`${manifest.name}:${frontmatter.name}`, installedSkillName);
+  assert.match(frontmatter.description, /explicit/i);
+  assert.match(frontmatter.description, new RegExp(escapeRegExp(explicitSelector)));
+  assert.match(frontmatter.description, /never.*implicit/i);
+  assert.equal("allow_implicit_invocation" in frontmatter, false);
+
+  const metadata = await readFile(skillMetadataPath, "utf8");
+  assert.equal(metadata, "policy:\n  allow_implicit_invocation: false\n");
+});
+
+test("plugin user-facing metadata emits only the installed full Skill selector", async () => {
+  const plugin = JSON.parse(await readFile(join(pluginRoot, ".codex-plugin", "plugin.json"), "utf8"));
+  assert.match(plugin.interface.longDescription, new RegExp(escapeRegExp(explicitSelector)));
+  assert.deepEqual(plugin.interface.defaultPrompt, [
+    `${explicitSelector} implement the requested change in this repository.`,
+  ]);
+  assert.equal(
+    JSON.stringify(plugin.interface).match(/\$dev-flow(?!-codex)/gu),
+    null,
+    "plugin metadata must not generate the unresolvable bare selector",
+  );
+});
+
+test("Skill admits only an exact current-turn selector with substantive or resume intent", async () => {
+  const skill = await readFile(skillPath, "utf8");
+  const admissionIndex = skill.indexOf("## Admission gate");
+  const handshakeIndex = skill.indexOf("## Compatibility handshake");
+  assert.ok(admissionIndex >= 0, "Skill must define a local admission gate");
+  assert.ok(handshakeIndex > admissionIndex, "local admission must precede the Core handshake");
+
+  const admission = skill.slice(admissionIndex, handshakeIndex);
+  assert.match(admission, /current user turn/i);
+  assert.match(admission, /Skill resource\/base name[^\n]*`dev-flow`/i);
+  assert.match(admission, /installed Skill full name[^\n]*`dev-flow-codex:dev-flow`/i);
+  assert.match(admission, /only exact explicit selector[^\n]*`\$dev-flow-codex:dev-flow`/i);
+  assert.match(admission, /bare[^\n]*`\$dev-flow`[^\n]*(?:not an alias|does not select)/i);
+  assert.match(admission, /wrong[^\n]*plugin namespace/i);
+  assert.match(admission, /wrong[^\n]*Skill base name/i);
+  assert.match(admission, /missing selector/i);
+  assert.match(admission, /substantive[^\n]*(?:requirement|request)/i);
+  assert.match(admission, /explicit[^\n]*resume/i);
+  assert.match(admission, /empty|conversational/i);
+  assert.match(admission, /stop before Skill-owned task/i);
+  assert.match(admission, /do not complete a task-bearing call/i);
+  assert.match(admission, /Core-rejected calls[\s\S]*reported honestly/i);
+  assert.match(admission, /implicit/i);
+
+  assert.match(admission, /read-only Git/i);
+  assert.match(admission, /one current Git worktree/i);
+  assert.match(admission, /canonical/i);
+  assert.match(admission, /another repository|multiple repositories|more than one repository/i);
+  assert.match(admission, /repository instructions/i);
+  assert.match(admission, /user authority/i);
+});
+
+test("README distinguishes the Skill base name from the only installed selector", async () => {
+  const readme = await readFile(readmePath, "utf8");
+  const invocation = section(readme, "Explicit invocation boundary");
+
+  assert.match(invocation, /Skill resource\/base name[^\n]*`dev-flow`/i);
+  assert.match(invocation, /installed Skill full name[^\n]*`dev-flow-codex:dev-flow`/i);
+  assert.match(invocation, /only exact explicit selector[^\n]*`\$dev-flow-codex:dev-flow`/i);
+  assert.match(invocation, /bare[^\n]*`\$dev-flow`[^\n]*(?:not an alias|does not select)/i);
+  assert.match(invocation, /wrong[^\n]*plugin namespace/i);
+  assert.match(invocation, /wrong[^\n]*Skill base name/i);
+  assert.match(invocation, /missing selector/i);
+  assert.match(invocation, /ordinary prompt[\s\S]*zero Dev Flow\s*calls/i);
+  assert.match(invocation, /non-exact selectors[\s\S]*must not complete a task-bearing operation/i);
+  assert.match(invocation, /does not[\s\S]*claim selector-bound MCP visibility or authorization/i);
+  assert.match(invocation, /does not disable ordinary Codex repository tools/i);
+  assert.match(invocation, /allow_implicit_invocation[^\n]*false/i);
+});
+
+test("Skill calls server-info first and admits only the exact six-tool Core contract", async () => {
+  const skill = await readFile(skillPath, "utf8");
+  const handshakeIndex = skill.indexOf("## Compatibility handshake");
+  assert.ok(handshakeIndex >= 0);
+
+  const firstToolCall = firstToolReference(skill.slice(handshakeIndex));
+  assert.equal(firstToolCall, "dev_flow_server_info");
+  assert.match(skill.slice(handshakeIndex), /dev_flow_server_info\(\{\}\)/);
+
+  const catalog = [...skill.matchAll(/^\d+\. `(dev_flow_[a-z_]+)`$/gm)].map((match) => match[1]);
+  assert.deepEqual(catalog, exactTools);
+
+  const handshake = skill.slice(handshakeIndex);
+  for (const expectation of [
+    /product[^\n]*`dev-flow`/i,
+    /Core Contract[^\n]*`0\.1`/i,
+    /transport[^\n]*`stdio`/i,
+    /health[^\n]*`ready`/i,
+    /supported host[^\n]*`codex`/i,
+    /exactly[^\n]*six/i,
+    /incomplete|truncated|malformed/i,
+    /stop/i,
+  ]) {
+    assert.match(handshake, expectation);
+  }
+
+  assert.doesNotMatch(skill, /tests\/fixtures|fake-(?:codex|core)/i);
+  assert.doesNotMatch(skill, /generic shell MCP|seventh tool/i);
+});
+
+test("Skill follows fresh Core authority for create, resume, one mutation, and continuation", async () => {
+  const skill = await readFile(skillPath, "utf8");
+  for (const heading of ["## Task discovery", "## Governed action loop", "## Closed forwarding contract"]) {
+    assert.equal(skill.includes(heading), true, `missing ${heading}`);
+  }
+  const discovery = section(skill, "Task discovery");
+  assert.match(discovery, /host=codex|host=`codex`|`host=codex`/i);
+  assert.match(discovery, /resume[\s\S]*omit[\s\S]*`new_task`/i);
+  assert.match(discovery, /new[\s\S]*contract[\s\S]*user/i);
+  assert.match(discovery, /ownership|contract conflict/i);
+  assert.match(discovery, /stop/i);
+
+  const loop = section(skill, "Governed action loop");
+  for (const identity of [
+    "task ID",
+    "revision",
+    "action ID",
+    "action kind",
+    "repository-binding digest",
+    "allowed effects",
+    "required evidence",
+    "payload schema",
+  ]) {
+    assert.match(loop, new RegExp(escapeRegExp(identity), "i"));
+  }
+  assert.match(loop, /fresh|live Core/i);
+  assert.match(loop, /one mutation|exactly one mutation/i);
+  assert.match(loop, /request ID/i);
+  assert.match(loop, /complete successful[\s\S]*(?:returned|fresh)[\s\S]*(?:next action|Core read)/i);
+
+  const forwarding = section(skill, "Closed forwarding contract");
+  assert.match(forwarding, /closed payload/i);
+  assert.match(forwarding, /unknown fields|aliases/i);
+  assert.match(forwarding, /recovery_apply[\s\S]*Core/i);
+});
+
+test("Skill forwards the exact closed Core new_task contract", async () => {
+  const discovery = section(await readFile(skillPath, "utf8"), "Task discovery");
+  for (const member of [
+    "goal",
+    "scope",
+    "out_of_scope",
+    "acceptance_criteria",
+    "verification_budget",
+    "level",
+    "max_automatic_commands",
+    "allow_full_suite",
+    "allow_manual_handoff",
+  ]) {
+    assert.equal(discovery.includes(`\`${member}\``), true, `missing closed Core member ${member}`);
+  }
+  for (const alias of ["requirement", "exclusions", "verification", "automatic_command_budget"]) {
+    assert.equal(discovery.includes(`\`${alias}\``), false, `forbidden Core member alias ${alias}`);
+  }
+  assert.match(discovery, /no additional members|exact members/i);
+});
+
+test("Skill uses payload_contract as the apply schema discriminator", async () => {
+  const forwarding = section(await readFile(skillPath, "utf8"), "Closed forwarding contract");
+  assert.match(forwarding, /`payload_contract`[\s\S]*schema branch/i);
+  assert.match(forwarding, /`inputSchema`[\s\S]*`allOf`[\s\S]*`oneOf`[\s\S]*`action_kind\.const`/i);
+  assert.match(forwarding, /payload `\$ref`[\s\S]*`\$defs`[\s\S]*`required`/i);
+  assert.match(forwarding, /do not search[\s\S]*(?:repository|installed package)[\s\S]*(?:binary|log)[\s\S]*another MCP server/i);
+  assert.match(forwarding, /`required_evidence`[\s\S]*(?:not|never)[\s\S]*payload (?:field|key|member)/i);
+  assert.match(forwarding, /top-level[\s\S]*`request_id`[\s\S]*`repository_binding_digest`/i);
+  assert.match(forwarding, /`payload`[\s\S]*only[\s\S]*phase[\s\S]*(?:never|do not)[\s\S]*(?:enclosing|whole|full) request/i);
+  assert.match(forwarding, /`fresh_action`[\s\S]*`result\.task\.current_action`[\s\S]*`result\.action`/i);
+  assert.match(forwarding, /`fresh_action\.kind`[\s\S]*top-level `action_kind`/i);
+  assert.match(forwarding, /`fresh_action\.revision`[\s\S]*top-level `revision`/i);
+  assert.match(forwarding, /caller-generated[\s\S]*top-level `request_id`/i);
+  assert.match(forwarding, /`revision`[\s\S]*integer[\s\S]*not (?:a )?string/i);
+  assert.match(forwarding, /`payload`[\s\S]*object[\s\S]*not (?:a )?string/i);
+  assert.match(forwarding, /do not wrap[\s\S]*request[\s\S]*outer `payload`/i);
+  assert.match(forwarding, /cannot (?:identify|read|resolve)[\s\S]*stop before[\s\S]*`dev_flow_apply_action`/i);
+});
+
+test("Skill reads before retry and preserves budgets, evidence labels, and terminal stops", async () => {
+  const skill = await readFile(skillPath, "utf8");
+  const recovery = section(skill, "Recovery-before-retry contract");
+  for (const uncertainty of ["missing", "cancelled", "malformed", "truncated", "uncertain"]) {
+    assert.match(recovery, new RegExp(uncertainty, "i"));
+  }
+  assert.match(recovery, /does not immediately repeat[\s\S]*dev_flow_apply_action/i);
+  assert.match(recovery, /dev_flow_get_task[\s\S]*dev_flow_get_next_action/i);
+  assert.match(recovery, /operation probe[\s\S]*(?:retained|original)/i);
+  assert.match(recovery, /retry[\s\S]*(?:fresh|Core)[\s\S]*safe/i);
+  assert.match(recovery, /`ok=false`[\s\S]*`retry_safe=false`[\s\S]*`action=none`[\s\S]*stop[\s\S]*do not call[\s\S]*dev_flow_get_next_action[\s\S]*dev_flow_apply_action/i);
+  assert.match(recovery, /fabricated/i);
+
+  const evidence = section(skill, "Evidence and verification budget");
+  assert.match(evidence, /counted exactly|count.*verification commands/i);
+  assert.match(evidence, /full suite/i);
+  assert.match(evidence, /manual handoff/i);
+  assert.match(evidence, /static[\s\S]*(?:simulated Core|fake-Core)[\s\S]*user[\s\S]*native/i);
+  assert.match(evidence, /repository instructions/i);
+
+  const terminal = section(skill, "Blocked and terminal behavior");
+  for (const outcome of ["BLOCKED", "DONE", "CANCELLED", "conflict"]) {
+    assert.match(terminal, new RegExp(outcome, "i"));
+  }
+  assert.match(terminal, /Core(?:'s|-owned| returns)|authoritative/i);
+  assert.match(terminal, /stop/i);
+});
+
+test("Skill and production adapter contain no workflow authority or test fixture dependency", async () => {
+  const skill = await readFile(skillPath, "utf8");
+  for (const forbiddenHeading of [
+    "## State machine",
+    "## Action catalog",
+    "## Transition table",
+    "## Error taxonomy",
+    "## Completion predicate",
+  ]) {
+    assert.equal(skill.includes(forbiddenHeading), false, forbiddenHeading);
+  }
+  for (const forbidden of [
+    /\btransitionTable\b/,
+    /\btaskStates?\b/,
+    /\bactionPayloadCatalog\b/,
+    /\bnextState\b/,
+    /\bpersistTask\b/,
+    /\bisComplete\b/,
+    /(?:tests\/fixtures|fake-(?:codex|core)|protocol\/fixtures)/i,
+  ]) {
+    assert.doesNotMatch(skill, forbidden);
+  }
+
+  const mcp = JSON.parse(await readFile(join(pluginRoot, ".mcp.json"), "utf8"));
+  assert.equal(mcp.$schema, "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json");
+  assert.deepEqual(Object.keys(mcp.mcpServers), ["dev-flow"]);
+  assert.deepEqual(mcp.mcpServers["dev-flow"], {
+    type: "stdio",
+    command: "dev-flow-codex",
+    args: ["mcp"],
+  });
+
+  for (const relativePath of ["bin/dev-flow-codex.mjs", "lib/lifecycle.mjs", "lib/paths.mjs"]) {
+    const source = await readFile(join(packageRoot, relativePath), "utf8");
+    for (const forbidden of [
+      /(?:tests\/fixtures|fake-(?:codex|core)|protocol\/fixtures)/i,
+      /\btransitionTable\b/,
+      /\btaskStates?\b/,
+      /\bactionPayloadCatalog\b/,
+      /\bpersistTask\b/,
+      /\bsqlite\b/i,
+    ]) {
+      assert.doesNotMatch(source, forbidden, `${relativePath} embeds authority or a test import`);
+    }
+  }
+
+  for (const relativePath of [
+    "scripts/write-codex-journey-evidence.mjs",
+    "scripts/validate-codex-journey-evidence.mjs",
+  ]) {
+    const source = await readFile(join(repositoryRoot, relativePath), "utf8");
+    for (const forbidden of [
+      /(?:tests\/fixtures|fake-(?:codex|core)|protocol\/fixtures)/i,
+      /\btransitionTable\b/,
+      /\btaskStates?\b/,
+      /\bactionPayloadCatalog\b/,
+      /\bpersistTask\b/,
+    ]) {
+      assert.doesNotMatch(source, forbidden, `${relativePath} embeds authority or a test import`);
+    }
+    assert.doesNotMatch(
+      source,
+      /\b(?:INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|REPLACE)\s+(?:INTO|TABLE|FROM)\b/i,
+      `${relativePath} must not mutate Core storage`,
+    );
+  }
+  const writer = await readFile(join(repositoryRoot, "scripts/write-codex-journey-evidence.mjs"), "utf8");
+  assert.match(writer, /new DatabaseSync\([^\n]+\{ readOnly: true \}\)/u);
+});
+
+function parseFrontmatter(markdown) {
+  const match = markdown.match(/^---\n([\s\S]*?)\n---\n/);
+  assert.ok(match, "Skill must start with YAML frontmatter");
+  const result = {};
+  for (const line of match[1].split("\n")) {
+    const separator = line.indexOf(":");
+    if (separator < 0) continue;
+    const key = line.slice(0, separator).trim();
+    let value = line.slice(separator + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    result[key] = value;
+  }
+  return result;
+}
+
+function firstToolReference(markdown) {
+  const match = markdown.match(/\b(dev_flow_[a-z_]+)\b/);
+  return match?.[1];
+}
+
+function section(markdown, heading) {
+  const marker = `## ${heading}`;
+  const start = markdown.indexOf(marker);
+  assert.ok(start >= 0, `missing ${marker}`);
+  const next = markdown.indexOf("\n## ", start + marker.length);
+  return markdown.slice(start, next < 0 ? undefined : next);
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function walkFiles(root) {
+  const files = [];
+  async function visit(directory) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) await visit(path);
+      else files.push(relative(root, path).split("\\").join("/"));
+    }
+  }
+  await visit(root);
+  return files.sort();
+}

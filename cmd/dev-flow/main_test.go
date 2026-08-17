@@ -66,17 +66,24 @@ func TestRunVersionUsesCurrentRepositoryVersion(t *testing.T) {
 }
 
 func TestRunMCPStdioStartsAndStopsCleanlyOnEOF(t *testing.T) {
+	const instructions = "test host-specific MCP presentation"
 	dataDirectory := t.TempDir()
 	stdin := bytes.NewReader(nil)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	serveCalls := 0
-	serve := func(ctx context.Context, service *application.Service, currentVersion string, diagnostics *coremcp.Diagnostics) error {
+	serve := func(ctx context.Context, service *application.Service, currentVersion string, diagnostics *coremcp.Diagnostics, actualInstructions string) error {
 		serveCalls++
 		if service == nil || currentVersion == "" || diagnostics == nil {
 			t.Fatal("MCP serve dependencies are incomplete")
 		}
-		server, err := coremcp.NewServer(service, currentVersion, &coremcp.ServerOptions{Diagnostics: diagnostics})
+		if actualInstructions != instructions {
+			t.Fatalf("MCP instructions = %q, want %q", actualInstructions, instructions)
+		}
+		server, err := coremcp.NewServer(service, currentVersion, &coremcp.ServerOptions{
+			Diagnostics:  diagnostics,
+			Instructions: actualInstructions,
+		})
 		if err != nil {
 			t.Fatalf("construct MCP server: %v", err)
 		}
@@ -89,6 +96,9 @@ func TestRunMCPStdioStartsAndStopsCleanlyOnEOF(t *testing.T) {
 	getenv := func(name string) string {
 		if name == dataDirectoryEnvironment {
 			return dataDirectory
+		}
+		if name == mcpInstructionsEnvironment {
+			return instructions
 		}
 		return ""
 	}
@@ -208,7 +218,7 @@ func emptyEnvironment(string) string { return "" }
 
 func unexpectedServe(t *testing.T) mcpServeFunc {
 	t.Helper()
-	return func(context.Context, *application.Service, string, *coremcp.Diagnostics) error {
+	return func(context.Context, *application.Service, string, *coremcp.Diagnostics, string) error {
 		t.Fatal("unexpected MCP server invocation")
 		return nil
 	}

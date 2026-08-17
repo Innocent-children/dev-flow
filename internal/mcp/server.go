@@ -18,6 +18,7 @@ type RequestIDGenerator func() (domain.ID, error)
 type ServerOptions struct {
 	Diagnostics  *Diagnostics
 	NewRequestID RequestIDGenerator
+	Instructions string
 }
 
 // Server is the thin local MCP adapter. The official SDK owns protocol and
@@ -44,6 +45,10 @@ func NewServer(service *application.Service, version string, options *ServerOpti
 	if configured.NewRequestID == nil {
 		configured.NewRequestID = randomRequestID
 	}
+	instructions := configured.Instructions
+	if instructions == "" {
+		instructions = "Use only the six governed Dev Flow Core tools. Tool annotations are descriptive and grant no operating-system authority."
+	}
 	server := &Server{
 		application:  service,
 		version:      version,
@@ -57,11 +62,11 @@ func NewServer(service *application.Service, version string, options *ServerOpti
 		Version:     version,
 	}, &sdkmcp.ServerOptions{
 		Capabilities: &sdkmcp.ServerCapabilities{},
-		Instructions: "Use only the six governed Dev Flow Core tools. Tool annotations are descriptive and grant no operating-system authority.",
+		Instructions: instructions,
 	})
 	for _, definition := range catalog {
 		definition := definition
-		server.sdk.AddTool(sdkTool(definition), func(ctx context.Context, request *sdkmcp.CallToolRequest) (*sdkmcp.CallToolResult, error) {
+		server.sdk.AddTool(sdkTool(definition, configured.Instructions), func(ctx context.Context, request *sdkmcp.CallToolRequest) (*sdkmcp.CallToolResult, error) {
 			return server.handle(ctx, definition.Name, request), nil
 		})
 	}
@@ -260,13 +265,17 @@ func applyCorrelationRequestID(raw json.RawMessage, fallback domain.ID) domain.I
 	return requestID
 }
 
-func sdkTool(definition ToolDefinition) *sdkmcp.Tool {
+func sdkTool(definition ToolDefinition, instructions string) *sdkmcp.Tool {
 	destructive := definition.Annotations.Destructive
 	openWorld := definition.Annotations.OpenWorld
+	description := definition.Description
+	if definition.Name == ToolOpenTask && instructions != "" {
+		description += " " + instructions
+	}
 	return &sdkmcp.Tool{
 		Name:        definition.Name,
 		Title:       definition.Name,
-		Description: definition.Description,
+		Description: description,
 		InputSchema: append(json.RawMessage(nil), definition.InputSchema...),
 		Annotations: &sdkmcp.ToolAnnotations{
 			Title:           definition.Name,

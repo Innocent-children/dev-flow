@@ -52,6 +52,14 @@ one workflow and safely resumes the task after interruption.
   host-specific/parity journeys, complex rebinding, takeover, and install/upgrade recovery remain
   Feature 005 work gated by Features 003 and 004 evidence.
 
+### Session 2026-08-16
+
+- Q: How does a host select the exact closed ApplyAction payload without copying the Core payload
+  catalog? → A: The public ApplyAction schema discriminates one closed wire payload branch from
+  `action_kind`. `PREPARE_HANDOFF` has one merged wire branch while the existing authoritative
+  source-Phase read selects its sealed Go payload type. Required-evidence names are not payload
+  field aliases, and host adapters retain no phase catalog.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Open a governed task and receive the next action (Priority: P1)
@@ -104,6 +112,9 @@ rejected.
    Core returns to the state-machine contract's permitted phase and records a non-empty reason.
 4. **Given** a task at `DONE` or `CANCELLED`, **When** any mutation other than an idempotent read is
    attempted, **Then** it is rejected as terminal.
+5. **Given** a fresh nonterminal action, **When** a host prepares its apply request, **Then** the
+   public tool schema exposes exactly one payload branch for that `action_kind`; a payload outside
+   that closed branch is rejected without changing the task.
 
 ---
 
@@ -505,6 +516,11 @@ not a way to reject a Domain-valid Task.
 - **FR-059**: The Core MUST negotiate MCP wire compatibility through the official Go SDK rather
   than defining a custom transport protocol.
 - **FR-060**: The Core MUST not execute user commands or tests.
+- **FR-074**: The public `dev_flow_apply_action` input schema MUST use `action_kind` to select
+  exactly one closed wire payload branch. `PREPARE_HANDOFF` MUST use one merged wire branch covering
+  its existing REVIEW/HANDOFF result vocabulary while the Core's existing source-Phase read remains
+  authoritative for the sealed Go type. The schema MUST retain recovery `null` payload support and
+  MUST NOT add a state, transition table, persisted schema copy, or host-owned payload catalog.
 
 #### Host Ownership and Cancellation
 
@@ -600,6 +616,8 @@ not a way to reject a Domain-valid Task.
 - **SC-016**: Normal drift produces a zero-write `REPOSITORY_DRIFT`; only an explicit recovery apply
   can create `BLOCKED`, and exact issuance-binding restoration resolves it through the existing
   ApplyAction with one revision/event and no Git mutation.
+- **SC-017**: One public contract test proves that every public `action_kind` maps to exactly one
+  closed wire payload schema branch and that `PREPARE_HANDOFF` uses the one merged branch.
 
 ## Assumptions
 
