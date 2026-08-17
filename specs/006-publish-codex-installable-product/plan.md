@@ -2,13 +2,15 @@
 
 **Branch**: `006-publish-codex-installable-product`  
 **Spec**: [spec.md](./spec.md)  
-**Status**: Ready after Features 003 and 005 are merged
+**Status**: Deterministic implementation complete — T001–T046 passed. Irreversible real release
+T047–T050 remains pending.
 
 ## Summary
 
-Feature 006 turns the private local package delivered by Feature 003 into the first public Dev Flow
-product. The release contains one `dev-flow-codex` npm package with one bundled macOS arm64 Core
-runtime. Feature 004 remains deferred and is neither modified nor published.
+Feature 006 has converted the private local package delivered by Feature 003 into a fixed public
+package contract and implemented its deterministic release machinery. The intended release contains
+one `dev-flow-codex` npm package with one bundled macOS arm64 Core runtime. Feature 004 remains
+deferred and is neither modified nor published. Real publication remains T047–T050 work.
 
 The workflow separates repeatable preparation from irreversible publication:
 
@@ -250,8 +252,26 @@ or network operation.
 no shell. It rereads exact npm, Tag, GitHub draft, and asset state before each mutation; writes the
 publication record atomically; publishes npm at most once; reuses only matching immutable state;
 and blocks rather than overwrites conflicts. User Story 2 tests put fake npm/gh first in an isolated
-PATH and use a temporary bare Git remote. A test-local passed-journey record exercises only the
-mechanical final-manifest/asset branch. No production bypass or Release finalization is added.
+PATH and use a temporary bare Git remote. A test-local simulated journey exercises only fake-remote
+manifest/asset behavior and cannot satisfy the production native evidence validator.
+
+### User Story 3 implementation boundary
+
+The released-package tests perform a real two-version compatible upgrade in isolated npm prefixes,
+prove explicit setup is the only registration transition, preserve the same active Task facts, and
+refuse downgrade. A packaged Core is also exercised against a future SQLite migration marker and
+must stop without changing Schema, Task/Event/Claim rows, database bytes, adjacent data, or the
+repository.
+
+The production publisher now owns the complete gated sequence after verified npm read-back:
+registry-only final Journey, native support entry, final manifest/checksum rewrite, four-asset
+upload/read-back, GitHub Release finalization, and final identity read-back. Fixture runtimes may
+stop after npm or before finalization and may inject simulated journey facts only inside isolated
+tests; production has no bypass and accepts only native registry-package evidence.
+
+The publisher remains an operator tool outside Core/MCP. Publication records remain external
+mutable artifacts and never enter SQLite or the public GitHub asset set. `packages/deepseek/`,
+shared Core semantics, MCP tools, recovery classifications, and SQLite Schema are unchanged.
 
 ## Release Output
 

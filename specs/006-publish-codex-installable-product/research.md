@@ -188,5 +188,29 @@ bare Git remote, and retain call-order evidence without environment or credentia
 Registry visibility uses four bounded observations with a fixed 250 ms interval. Retry always
 rereads remote state; an exact npm version is downloaded and verified before it is considered
 reusable. npm publish and asset upload record-loss cases therefore resume without repeating the
-immutable mutation. Asset conflicts block without clobber. The publisher contains no successful
-GitHub Release finalization path in this checkpoint, so the Release remains draft.
+immutable mutation. Asset conflicts block without clobber. At the User Story 2 checkpoint the
+Release intentionally remained draft; User Story 3 added the final Journey and finalization gates.
+
+## User Story 3 Implementation Conclusions
+
+Compatible upgrade is an explicit lifecycle action: npm update alone leaves registration and task
+data unchanged, setup verifies the new package/plugin/Core/Codex identities, and a compatible
+packaged Core resumes the same active Task. Downgrade refuses before mutation. A future SQLite
+Schema marker uses the existing Core safe-stop and required no shared persistence or MCP change.
+
+Removal and uninstall retain the task database, unknown adjacent data, unrelated Codex state, and
+repository bytes. Only receipt and registration paths with exact product ownership are removed.
+
+The production final Journey contract accepts only `dev-flow-codex@VERSION` from
+`https://registry.npmjs.org/`, uses a clean isolated environment, rejects local package/Core
+substitution, and validates setup, ordinary zero-trigger, restart/resume, `DONE`, removal,
+uninstall, and retained reopen. Native evidence alone can generate the public passed support entry.
+
+The publisher finalization gate rereads the exact Tag, npm tarball, four GitHub assets, native
+journey, support entry, manifest, and checksums before making the draft public. Fake npm/gh and a
+fixture-simulated journey test resume/conflict/finalization mechanics only; they are not native or
+public evidence.
+
+T001–T041 produced no real npm publication, registry read-back, Git Tag, GitHub Draft/Release/asset,
+or final registry-package Journey. Final release source commit, final artifact digests, registry
+integrity, native Journey result, and public Release identity can be recorded only by T047–T050.

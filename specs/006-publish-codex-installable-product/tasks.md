@@ -218,11 +218,39 @@ User Story 3 checkpoint evidence (2026-08-17):
 
 ## Phase 6 — Documentation and deterministic final gate
 
-- [ ] T042 Update `docs/PRODUCT.md`, `docs/ARCHITECTURE.md`, `docs/RELEASE-STRATEGY.md`, root `README.md`, and `release/README.md` to describe the delivered Codex-only release without claiming DeepSeek or extra platforms.
-- [ ] T043 Reconcile all Feature 006 docs and implementation schemas in `specs/006-publish-codex-installable-product/` and `release/schemas/`; remove no safety gate.
-- [ ] T044 Run targeted Node release/package tests, Go contract tests, shell syntax checks, JSON Schema validation, and `git diff --check`; fix only Feature 006 regressions.
-- [ ] T045 Run `pnpm run validate` once after all deterministic release work and documentation are complete.
-- [ ] T046 Run one final `$speckit-analyze` and `$speckit-converge`; append only concrete uncovered implementation work to `specs/006-publish-codex-installable-product/tasks.md`.
+- [x] T042 Update `docs/PRODUCT.md`, `docs/ARCHITECTURE.md`, `docs/RELEASE-STRATEGY.md`, root `README.md`, and `release/README.md` to describe the delivered Codex-only release without claiming DeepSeek or extra platforms.
+- [x] T043 Reconcile all Feature 006 docs and implementation schemas in `specs/006-publish-codex-installable-product/` and `release/schemas/`; remove no safety gate.
+- [x] T044 Run targeted Node release/package tests, Go contract tests, shell syntax checks, JSON Schema validation, and `git diff --check`; fix only Feature 006 regressions.
+- [x] T045 Run `pnpm run validate` once after all deterministic release work and documentation are complete.
+- [x] T046 Run one final `$speckit-analyze` and `$speckit-converge`; append only concrete uncovered implementation work to `specs/006-publish-codex-installable-product/tasks.md`.
+
+### Deterministic Final Gate Evidence — 2026-08-17
+
+- T001–T041 completed all three user stories: the public package/source-free lifecycle, deterministic
+  preparation/resumable fake-remote publication, and upgrade/retention/final-Journey/finalization
+  contracts.
+- T042 reconciled root product, architecture, release strategy, repository README, and release
+  operator documentation without claiming DeepSeek, another platform, or public publication.
+- T043 reconciled Feature 006 status, research, data model, quickstart, task mapping, and evidence
+  labels. Both implementation Schema copies remained byte-identical to their specification
+  authorities; required fields, `additionalProperties: false`, one `darwin-arm64` entry, identity
+  digests, and all nine publication steps were unchanged.
+- T044 passed `node --test packages/codex/tests/*.test.mjs` with 117/117 tests, 0 skipped, and 0
+  failed; `go test ./tests/contract`; four shell syntax checks; six Node syntax checks; seven JSON
+  parses; two Schema equality checks; `git diff --check`; and both DeepSeek zero-diff checks. Real
+  Host/registry tests were outside this deterministic command and did not run.
+- T045 ran `RELEASE_BASE_SHA=<origin/main merge-base> pnpm run validate` exactly once and passed on
+  Go 1.26.6 darwin/arm64, Node 24.18.0, and pnpm 11.21.0. Its internal `go test ./...` was not run
+  separately or repeated.
+- The single final `$speckit-analyze` found 46/46 FR/SC items covered, with zero unresolved
+  CRITICAL, HIGH, or acceptance-impacting MEDIUM findings; no public-contract, Schema, evidence, or
+  scope drift was found.
+- The single final `$speckit-converge` found zero uncovered implementation gaps and appended no
+  tasks. T047–T050 already cover the remaining frozen source, publish-once/read-back, native final
+  Journey, assets read-back, Release finalization, and complete publication record.
+- T047–T050 remain unchecked. No real npm publish, Git Tag, GitHub Release/asset mutation, registry
+  read-back, real Codex Host/registry Journey, DeepSeek Harness, or other irreversible remote effect
+  occurred. This gate permits PR review and does not claim Feature 006 or publication completion.
 
 ## Phase 7 — Irreversible final release
 

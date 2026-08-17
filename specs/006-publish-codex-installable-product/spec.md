@@ -3,7 +3,8 @@
 **Feature Branch**: `006-publish-codex-installable-product`  
 **Created**: 2026-08-14  
 **Revised**: 2026-08-17  
-**Status**: Planning complete — implementation starts after Features 003 and 005 are merged  
+**Status**: Deterministic implementation complete — T001–T046 passed. Irreversible real release
+T047–T050 remains pending.
 **Input**: Build, verify, publish, install, upgrade, and remove the first public `dev-flow-codex`
 package from one clean source identity while Feature 004 remains deferred.
 
@@ -302,6 +303,19 @@ publication record reports the exact remote state and safe next action.
   immutable component.
 - **SC-009**: `packages/deepseek/` is unchanged and no DeepSeek product claim is made.
 - **SC-010**: Pull-request CI contains no release credentials or irreversible publication step.
+
+## Implementation Evidence Status — 2026-08-17
+
+- T001–T046 implement and validate all three user stories without changing shared Core, MCP,
+  SQLite, workflow, recovery, or `packages/deepseek/` contracts.
+- Feature 003 supplies the existing real Codex create/restart/resume/`DONE`/remove evidence.
+- Feature 005 recovery and Feature 006 local tgz/lifecycle/upgrade/release/fake-remote tests are
+  deterministic evidence only.
+- The final Journey runner accepts only the official registry package in production; fixture
+  journeys exercise gates but do not create public support evidence.
+- T047–T050 retain the real source freeze, publish-once, registry read-back, native Journey,
+  GitHub asset read-back, Release finalization, and complete-record obligations.
+- No public npm version, Git Tag, GitHub Release/asset, or registry-package Journey exists yet.
 
 ## Assumptions
 

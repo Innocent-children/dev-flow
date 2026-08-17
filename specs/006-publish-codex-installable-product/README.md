@@ -1,6 +1,11 @@
 # 006 Publish the Codex Installable Product
 
-Feature 006 publishes the first public Dev Flow product: `dev-flow-codex` for macOS arm64.
+**Status**: Deterministic implementation complete — T001–T046 passed. Irreversible real release
+T047–T050 remains pending.
+
+Feature 006 defines and implements the first public Dev Flow product contract:
+`dev-flow-codex` for macOS arm64. The package and release machinery exist, but no public npm or
+GitHub release has been executed.
 
 Feature 004 remains deferred. Feature 006 does not publish `dev-flow-deepseek`, does not modify its
 package, and does not claim DeepSeek Harness support. A later feature may complete and publish that
@@ -20,9 +25,9 @@ This directory is a complete Spec Kit package:
 - `checklists/requirements.md`
 - `tasks.md`
 
-## Entry gate
+## Entry gate record
 
-Implementation starts only after:
+Implementation required the following gates, all of which were satisfied before T003:
 
 1. Feature 003 is merged and the local Codex package journey remains green;
 2. Feature 005 is complete and merged;
@@ -56,15 +61,33 @@ authentication header, email, npm configuration file, or raw authentication outp
 Overall T002 result: **PASS**. The first attempt stopped before T003 because npm authentication was
 absent. The authenticated rerun passed without changing npm, Git tag, or GitHub Release state.
 
-## User Story 2 Checkpoint — 2026-08-17
+## Deterministic implementation checkpoint — 2026-08-17
 
-T001–T033 are complete. Deterministic local preparation uses two clean worktrees and emits one
-verified five-file release set. The publication state machine is implemented with exact
-confirmation, remote reread, publish-once, atomic record, exact resume, and conflict blocking, but
-its evidence is exclusively temporary fake npm/gh plus a temporary bare Git remote.
+T001–T041 are complete across all three user stories:
+
+- User Story 1 establishes the fixed public package, source-free local tgz install, explicit
+  setup/remove, unsupported-platform refusal, uninstall separation, and retained task reopen.
+- User Story 2 establishes two-clean-worktree preparation, normalized verification, the five-file
+  output, exact-confirmation publisher, publish-once, remote reread, atomic record, exact resume,
+  and conflict blocking.
+- User Story 3 establishes compatible explicit upgrade, downgrade refusal, future SQLite Schema
+  safe-stop, unrelated-state retention, registry-only final Journey contract, finalization gate,
+  and native-only support-matrix generation.
 
 No real npm publication, Git Tag creation/push, GitHub Draft/Release/asset mutation, registry
-read-back, final Codex journey, or Release finalization has occurred. T034–T050 remain unstarted.
+read-back, final registry-package Codex journey, or Release finalization has occurred. T001–T046
+passed the deterministic merge gate; T047–T050 remain the irreversible operator tasks.
+
+## Evidence labels
+
+- **Real host evidence**: Feature 003 real Codex create/restart/resume/`DONE`/remove acceptance.
+- **Deterministic evidence**: Feature 005 recovery tests; Feature 006 local tgz/lifecycle/upgrade;
+  fake npm/gh publication/resume/conflict; simulated finalization; final Journey harness contract.
+- **Pending real release evidence**: public npm metadata/tarball read-back, native registry-package
+  Journey, GitHub asset read-back, public Release, and complete publication record.
+
+Fixture/simulated evidence cannot produce native public support. The mutable publication record is
+an operator artifact, is not stored in SQLite, and is not a GitHub Release asset.
 
 ## First-release boundary
 
