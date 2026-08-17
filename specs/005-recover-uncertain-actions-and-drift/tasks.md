@@ -108,14 +108,50 @@ cannot mutate.
 **Independent checkpoint**: Every complete binding component safe-stops where required, aliases
 share one claim, replacement never rebinds, and two handles commit at most one action.
 
-- [ ] T026 [P] [US3] Add independent branch, detached, HEAD, unborn, tracked, and untracked binding cases in `internal/repository/git_observer_test.go` and `internal/repository/binding_test.go`.
-- [ ] T027 [P] [US3] Add canonical alias and case-variant path cases that retain one repository claim in `internal/repository/binding_test.go` and `internal/store/repository_claim_test.go`.
-- [ ] T028 [US3] Add repository disappearance and same-path replacement cases that refuse rebinding in `internal/repository/git_observer_test.go` and `tests/journeys/recovery_uncertainty_test.go`.
-- [ ] T029 [P] [US3] Add same-visible-HEAD but different tracked/untracked binding cases covering fingerprint behavior in `internal/repository/git_observer_test.go`.
-- [ ] T030 [US3] Add a two-handle same-action race proving one committed revision/event and one stale loser in `internal/store/concurrency_test.go` and `tests/journeys/recovery_uncertainty_test.go`.
-- [ ] T031 [US3] Add restart-after-blocker and exact resolution binding assertions in `internal/store/restart_test.go` and `tests/journeys/recovery_uncertainty_test.go`.
-- [ ] T032 [US3] Verify and minimally correct only test-proven canonicalization or binding-comparison gaps in `internal/repository/paths.go`, `internal/repository/fingerprint.go`, and `internal/repository/git_observer.go`.
-- [ ] T033 [US3] Run the User Story 3 targeted packages and record the checkpoint result in `specs/005-recover-uncertain-actions-and-drift/tasks.md`.
+- [x] T026 [P] [US3] Add independent branch, detached, HEAD, unborn, tracked, and untracked binding cases in `internal/repository/git_observer_test.go` and `internal/repository/binding_test.go`.
+- [x] T027 [P] [US3] Add canonical alias and case-variant path cases that retain one repository claim in `internal/repository/binding_test.go` and `internal/store/repository_claim_test.go`.
+- [x] T028 [US3] Add repository disappearance and same-path replacement cases that refuse rebinding in `internal/repository/git_observer_test.go` and `tests/journeys/recovery_uncertainty_test.go`.
+- [x] T029 [P] [US3] Add same-visible-HEAD but different tracked/untracked binding cases covering fingerprint behavior in `internal/repository/git_observer_test.go`.
+- [x] T030 [US3] Add a two-handle same-action race proving one committed revision/event and one stale loser in `internal/store/concurrency_test.go` and `tests/journeys/recovery_uncertainty_test.go`.
+- [x] T031 [US3] Add restart-after-blocker and exact resolution binding assertions in `internal/store/restart_test.go` and `tests/journeys/recovery_uncertainty_test.go`.
+- [x] T032 [US3] Verify and minimally correct only test-proven canonicalization or binding-comparison gaps in `internal/repository/paths.go`, `internal/repository/fingerprint.go`, and `internal/repository/git_observer.go`. All new deterministic tests pass without production changes.
+- [x] T033 [US3] Run the User Story 3 targeted packages and record the checkpoint result in `specs/005-recover-uncertain-actions-and-drift/tasks.md`.
+
+### User Story 3 Checkpoint Evidence — 2026-08-17
+
+- Current baseline: `go test ./internal/repository`, `go test ./internal/store`, and
+  `go test ./tests/journeys` passed before User Story 3 edits.
+- Final checkpoint: `go test ./internal/repository`, `go test ./internal/store`,
+  `go test ./tests/journeys`, and `go test ./tests/contract` passed, 4/4 packages.
+- Binding components: branch-at-same-commit, detached-at-same-commit, clean HEAD advance,
+  unborn-to-born, tracked worktree, and untracked worktree each have one focused deterministic
+  proof. Identity/location fields remain stable where required; forbidden identity/HEAD changes
+  and existing worktree-only relations are asserted explicitly.
+- Canonical aliases: real path, repository subdirectory, symlink alias, and a real case-variant
+  symlink name converge on the same canonical root, Git common-directory digest, repository
+  identity, branch/HEAD, fingerprint, and binding digest. Store retains one Task, event, and claim.
+- Disappearance/replacement: a missing path returns observation failure without recreating it or
+  writing Task state. Repository B uses its own separate Git common directory at the original
+  worktree path; recovery reports conflict while the original Task, claim, and binding remain
+  unchanged.
+- Same visible HEAD: representative tracked and untracked changes preserve branch, HEAD,
+  repository identity, and common-directory identity while changing worktree fingerprint and
+  binding digest; restoring/removing the fixture change returns to the original binding digest.
+- Two-handle race: two Store/database/Application/Observer handles share one source action and a
+  channel barrier. Exactly one operation commits; the loser receives an existing conflict. A third
+  Core read proves one revision/event/evidence/claim/binding, winner `completed_and_recorded`, and
+  loser `conflicting` without retry permission.
+- Restart/blocker: one representative partial read is zero-write, explicit recovery enters
+  `BLOCKED`, and a full Store/Observer/Application recreation retains blocker ID, condition,
+  resume phase, issuance binding, claim, action, and LastOperation. Non-exact resolution is
+  zero-write; exact `RESOLVE_BLOCKER` restores only the recorded phase with one revision/event.
+- T028 initially failed because repository A and B fixtures reused the same common-directory path;
+  changing only B's fixture to a separate Git common directory satisfied the frozen Feature 002
+  identity algorithm. No production correction was required.
+- Production code: unchanged; canonicalization, fingerprint, Git observer, Store CAS, and restart
+  persistence satisfy User Story 3.
+- Bounded User Story 3 `speckit-converge` found no concrete acceptance gap and appended no task.
+- T034–T040 remain unstarted and unchecked; the final Feature gate was not run.
 
 ## Phase 6 — Codex contract, documentation, and final gate
 
