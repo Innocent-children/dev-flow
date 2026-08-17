@@ -108,8 +108,20 @@ const [root, version, codexCompatibility] = process.argv.slice(2);
 const packageManifest = JSON.parse(fs.readFileSync(path.join(root, "packages/codex/package.json"), "utf8"));
 const pluginManifest = JSON.parse(fs.readFileSync(path.join(root, "packages/codex/plugin/.codex-plugin/plugin.json"), "utf8"));
 const lifecycleSource = fs.readFileSync(path.join(root, "packages/codex/lib/lifecycle.mjs"), "utf8");
-if (packageManifest.name !== "dev-flow-codex" || packageManifest.private !== true) {
-  throw new Error("Codex package identity must be private dev-flow-codex");
+const privateContract = !Object.hasOwn(packageManifest, "private") || packageManifest.private === false;
+const platformContract = JSON.stringify(packageManifest.os) === JSON.stringify(["darwin"]) &&
+  JSON.stringify(packageManifest.cpu) === JSON.stringify(["arm64"]);
+const publishContract = packageManifest.publishConfig?.access === "public" &&
+  packageManifest.publishConfig?.registry === "https://registry.npmjs.org/" &&
+  JSON.stringify(Object.keys(packageManifest.publishConfig).sort()) === JSON.stringify(["access", "registry"]);
+if (
+  packageManifest.name !== "dev-flow-codex" ||
+  !privateContract ||
+  !platformContract ||
+  !publishContract ||
+  packageManifest.license !== "Apache-2.0"
+) {
+  throw new Error("Codex package does not satisfy the fixed public package contract");
 }
 if (packageManifest.version !== version || pluginManifest.version !== version) {
   throw new Error("repository, package, and plugin versions must match");
@@ -195,17 +207,30 @@ NODE
 
 artifact_path="$output_directory/dev-flow-codex-$version.tgz"
 find "$stage_root" -exec touch -t 198510260815.00 {} +
-(
-  cd "$build_root"
-  find package -type f -print | LC_ALL=C sort | COPYFILE_DISABLE=1 tar \
-    -cf "$build_root/dev-flow-codex.tar" \
-    --format ustar \
-    --uid 0 \
-    --gid 0 \
-    --uname root \
-    --gname root \
-    -T -
-)
+if tar --version 2>/dev/null | grep -q 'GNU tar'; then
+  (
+    cd "$build_root"
+    find package -type f -print | LC_ALL=C sort | COPYFILE_DISABLE=1 tar \
+      -cf "$build_root/dev-flow-codex.tar" \
+      --format ustar \
+      --owner 0 \
+      --group 0 \
+      --numeric-owner \
+      -T -
+  )
+else
+  (
+    cd "$build_root"
+    find package -type f -print | LC_ALL=C sort | COPYFILE_DISABLE=1 tar \
+      -cf "$build_root/dev-flow-codex.tar" \
+      --format ustar \
+      --uid 0 \
+      --gid 0 \
+      --uname root \
+      --gname root \
+      -T -
+  )
+fi
 gzip -n -c "$build_root/dev-flow-codex.tar" >"$artifact_path"
 [ -f "$artifact_path" ] || fail "archive creation did not produce the expected artifact"
 

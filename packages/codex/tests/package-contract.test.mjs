@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, readdir, stat } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,6 +18,7 @@ const execFile = promisify(execFileCallback);
 
 const expectedPackageFiles = [
   ".agents/plugins/marketplace.json",
+  "LICENSE",
   "bin/dev-flow-codex.mjs",
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
@@ -44,6 +46,7 @@ const expectedPackedFiles = [
 
 const reviewedSourceAllowlist = new Set([
   ".agents/plugins/marketplace.json",
+  "LICENSE",
   "README.md",
   "bin/dev-flow-codex.mjs",
   "lib/lifecycle.mjs",
@@ -57,6 +60,8 @@ const reviewedSourceAllowlist = new Set([
   "tests/fixtures/fake-codex.mjs",
   "tests/fixtures/fake-core.mjs",
   "tests/fixtures/fake-native-tool.mjs",
+  "tests/fixtures/fake-release-gh.mjs",
+  "tests/fixtures/fake-release-npm.mjs",
   "tests/journey-evidence.test.mjs",
   "tests/journey-harness.test.mjs",
   "tests/launcher.test.mjs",
@@ -64,10 +69,12 @@ const reviewedSourceAllowlist = new Set([
   "tests/package-contract.test.mjs",
   "tests/paths.test.mjs",
   "tests/removal-retention.test.mjs",
+  "tests/release-package.test.mjs",
+  "tests/release-publication.test.mjs",
   "tests/skill-contract.test.mjs",
 ]);
 
-test("source package declares one private explicit Codex plugin and bundled STDIO Core", async () => {
+test("source package declares one public macOS arm64 Codex product", async () => {
   const [version, manifest, plugin, marketplace, mcp] = await Promise.all([
     readFile(join(repositoryRoot, "VERSION"), "utf8").then((value) => value.trim()),
     readJSON(join(packageRoot, "package.json")),
@@ -78,7 +85,20 @@ test("source package declares one private explicit Codex plugin and bundled STDI
 
   assert.equal(manifest.name, "dev-flow-codex");
   assert.equal(manifest.version, version);
-  assert.equal(manifest.private, true);
+  assert.equal(manifest.private, false);
+  assert.equal(manifest.license, "Apache-2.0");
+  assert.deepEqual(manifest.os, ["darwin"]);
+  assert.deepEqual(manifest.cpu, ["arm64"]);
+  assert.deepEqual(manifest.publishConfig, {
+    access: "public",
+    registry: "https://registry.npmjs.org/",
+  });
+  assert.deepEqual(manifest.repository, {
+    type: "git",
+    url: "git+https://github.com/Innocent-children/dev-flow.git",
+    directory: "packages/codex",
+  });
+  assert.deepEqual(manifest.engines, { node: ">=24" });
   assert.equal(CODEX_COMPATIBILITY_RANGE, ">=0.147.0 <0.148.0");
   for (const field of [
     "dependencies",
@@ -136,15 +156,34 @@ test("package metadata closes source, artifact, and development command surfaces
     "prepublishOnly",
     "publish",
     "postpublish",
+    "preuninstall",
+    "uninstall",
   ]) {
     assert.equal(name in manifest.scripts, false, name);
   }
-  assert.equal("publishConfig" in manifest, false);
 
   const sourceFiles = await walkFiles(packageRoot, { skipDirectories: new Set(["node_modules"]) });
   assert.deepEqual(sourceFiles.filter((path) => !reviewedSourceAllowlist.has(path)), []);
   assert.equal(sourceFiles.some((path) => path.startsWith("runtime/")), false);
   assert.equal(sourceFiles.some((path) => /\.(?:tgz|db|sqlite)$/iu.test(path)), false);
+});
+
+test("npm compatibility metadata rejects an unsupported OS and CPU", async () => {
+  const manifest = await readJSON(join(packageRoot, "package.json"));
+  const { stdout } = await execFile("npm", ["root", "--global"], { encoding: "utf8" });
+  const npmRequire = createRequire(join(stdout.trim(), "npm", "package.json"));
+  const { checkPlatform } = npmRequire("npm-install-checks");
+
+  assert.doesNotThrow(() => checkPlatform(manifest, false, { os: "darwin", cpu: "arm64" }));
+  assert.throws(
+    () => checkPlatform(manifest, false, { os: "linux", cpu: "x64", libc: "glibc" }),
+    (error) => {
+      assert.equal(error.code, "EBADPLATFORM");
+      assert.deepEqual(error.required.os, ["darwin"]);
+      assert.deepEqual(error.required.cpu, ["arm64"]);
+      return true;
+    },
+  );
 });
 
 test("packaged resources contain no copied fixtures or workflow engine", async () => {
@@ -184,6 +223,16 @@ test("local package builder stages one exact non-final artifact in a temporary d
   assert.equal(report.final_artifact, false);
   assert.equal((await stat(report.artifact_path)).isFile(), true);
   assert.equal(await sha256(readFile(report.artifact_path)), report.artifact_sha256);
+
+  const { stdout: manifestContents } = await execFile(
+    "tar",
+    ["-xOzf", report.artifact_path, "package/package.json"],
+    { encoding: "utf8" },
+  );
+  const packedManifest = JSON.parse(manifestContents);
+  assert.equal(packedManifest.private, false);
+  assert.deepEqual(packedManifest.os, ["darwin"]);
+  assert.deepEqual(packedManifest.cpu, ["arm64"]);
 
   const { stdout: listing } = await execFile("tar", ["-tzf", report.artifact_path], {
     encoding: "utf8",

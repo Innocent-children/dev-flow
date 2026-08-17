@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Set up current stable Go
         uses: actions/setup-go@v7
@@ -30,4 +32,6 @@ jobs:
           version: 11
 
       - name: Run bounded repository validation
+        env:
+          RELEASE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: ./scripts/validate-repository.sh

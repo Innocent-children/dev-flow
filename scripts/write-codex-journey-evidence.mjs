@@ -14,11 +14,12 @@ import {
   readdir,
   realpath,
   rm,
+  symlink,
   stat,
   writeFile,
 } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
-import { dirname, isAbsolute, join, relative } from "node:path";
+import { basename, delimiter, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -29,7 +30,11 @@ import { DEV_FLOW_TOOLS, parseCodexJSONL } from "./validate-codex-journey-eviden
 const execFile = promisify(execFileCallback);
 const REPOSITORY_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 
+export const CODEX_COMPATIBILITY_RANGE = ">=0.147.0 <0.148.0";
 export const EXPLICIT_SELECTOR = "$dev-flow-codex:dev-flow";
+export const FINAL_NATIVE_EVIDENCE_KIND = "registry-package-native-codex-journey";
+export const FINAL_FIXTURE_EVIDENCE_KIND = "fixture-simulated-registry-package-journey";
+export const OFFICIAL_NPM_REGISTRY = "https://registry.npmjs.org/";
 export const ordinaryPrompt =
   "Reply with one short sentence describing this repository. Do not invoke Dev Flow.";
 export const invalidPrompt =
@@ -44,6 +49,8 @@ export const developmentInvalidPrompt =
   `${EXPLICIT_SELECTOR} Reject this bounded request because the current directory is not a Git repository. Make no Dev Flow tool call and create no task.`;
 export const developmentSubstantivePrompt = `${EXPLICIT_SELECTOR} Work only in the current repository. Open one host=codex task to create native-proof.txt with the exact UTF-8 bytes "Dev Flow Codex development smoke passed.\\n". Advance through the Core-required ASSESS_TASK and PLAN_CHANGE actions; those read-only commits are prerequisites and do not satisfy the stop condition. Create the file only when the current Core action permits repository edits. The verification budget is one targeted command, full suites are forbidden, and verification is reserved for the restart session. Stop only after the file exists and the first successful dev_flow_apply_action after creating it commits, while the Core task is nonterminal.`;
 export const developmentResumePrompt = `${EXPLICIT_SELECTOR} Resume the existing compatible host=codex task. After dev_flow_open_task, call dev_flow_get_task and then dev_flow_get_next_action before any new dev_flow_apply_action. Preserve the same task, run only "git hash-object native-proof.txt" as the single targeted verification command, and continue until Core reports phase DONE with outcome completed.`;
+export const finalRegistrySubstantivePrompt = `${EXPLICIT_SELECTOR} Work only in the current repository. Open one host=codex task to create final-registry-proof.txt with the exact UTF-8 bytes "Dev Flow Codex final registry journey passed.\\n". Advance through the Core-required read-only prerequisites, create the file only when the current action permits repository edits, and stop after the first successful dev_flow_apply_action following file creation while the task remains nonterminal.`;
+export const finalRegistryResumePrompt = `${EXPLICIT_SELECTOR} Resume the existing compatible host=codex task. Read the task and next action before applying another action, run only "git hash-object final-registry-proof.txt" as the targeted verification command, and continue until Core reports phase DONE with outcome completed.`;
 
 const PROOF_CONTENT = "Dev Flow Codex development smoke passed.\n";
 const ACCEPTANCE_PROOF_CONTENT = "Dev Flow Codex final acceptance passed.\n";
@@ -51,6 +58,13 @@ const PROOF_COMMAND = "git hash-object native-proof.txt";
 const PROOF_RENDERED_COMMAND = "/bin/zsh -lc 'git hash-object native-proof.txt'";
 const PROOF_GIT_HASH = createHash("sha1")
   .update(`blob ${Buffer.byteLength(PROOF_CONTENT)}\0${PROOF_CONTENT}`)
+  .digest("hex");
+const FINAL_PROOF_NAME = "final-registry-proof.txt";
+const FINAL_PROOF_CONTENT = "Dev Flow Codex final registry journey passed.\n";
+const FINAL_PROOF_COMMAND = `git hash-object ${FINAL_PROOF_NAME}`;
+const FINAL_PROOF_RENDERED_COMMAND = `/bin/zsh -lc 'git hash-object ${FINAL_PROOF_NAME}'`;
+const FINAL_PROOF_GIT_HASH = createHash("sha1")
+  .update(`blob ${Buffer.byteLength(FINAL_PROOF_CONTENT)}\0${FINAL_PROOF_CONTENT}`)
   .digest("hex");
 const SMOKE_ROLES = Object.freeze(["ordinary", "invalid", "substantive", "resume"]);
 const SMOKE_RESULT_FIELDS = Object.freeze([
@@ -80,6 +94,185 @@ const ACCEPTANCE_REPORT_FIELDS = Object.freeze([
   "task_reopened_after_removal",
   "unexpected_repository_paths",
 ]);
+
+const FINAL_JOURNEY_EVIDENCE_FIELDS = Object.freeze([
+  "evidence_kind",
+  "status",
+  "package_name",
+  "package_version",
+  "registry",
+  "npm_tarball_sha256",
+  "npm_integrity",
+  "package_root_location",
+  "core_version",
+  "core_sha256",
+  "source_commit",
+  "codex_version",
+  "compatible_codex_range",
+  "codex_compatible",
+  "setup_readback_passed",
+  "ordinary_prompt_core_call_count",
+  "explicit_selector",
+  "task_id_before_restart",
+  "task_revision_before_restart",
+  "task_action_id_before_restart",
+  "task_id_after_restart",
+  "task_revision_after_restart",
+  "task_action_id_after_restart",
+  "committed_action_count",
+  "terminal_outcome",
+  "remove_readback_passed",
+  "npm_uninstall_passed",
+  "task_data_retained",
+  "task_reopened_after_uninstall",
+  "unexpected_repository_paths",
+  "observed_at",
+]);
+
+export function createFinalJourneyLayout(root, workspace, resultDirectory) {
+  requireAbsolute(root, "final journey root");
+  requireAbsolute(workspace, "workspace");
+  requireAbsolute(resultDirectory, "final journey result directory");
+  const under = (name) => join(root, name);
+  const home = under("home");
+  return {
+    root,
+    home,
+    codexHome: under("codex-home"),
+    hostBin: under("host-bin"),
+    installPrefix: under("npm-prefix"),
+    npmCache: under("npm-cache"),
+    dataDirectory: join(home, "Library", "Application Support", "dev-flow", "data"),
+    temporaryDirectory: under("tmp"),
+    registryReadbackDirectory: under("registry-readback"),
+    workspace,
+    resultDirectory,
+  };
+}
+
+export function buildFinalJourneyEnvironment({
+  layout,
+  codexExecutable,
+  toolDirectories,
+  baseEnvironment = process.env,
+}) {
+  requireAbsolute(codexExecutable, "Codex executable");
+  if (!isPlainObject(layout) || !Array.isArray(toolDirectories) || toolDirectories.length === 0) {
+    throw new Error("final journey environment requires one closed layout and tool directory list");
+  }
+  for (const directory of toolDirectories) requireAbsolute(directory, "final journey tool directory");
+  const environment = {};
+  for (const name of ["LANG", "LC_ALL", "TERM", "SSL_CERT_FILE"]) {
+    if (typeof baseEnvironment?.[name] === "string" && baseEnvironment[name] !== "") {
+      environment[name] = baseEnvironment[name];
+    }
+  }
+  Object.assign(environment, {
+    HOME: layout.home,
+    CODEX_HOME: layout.codexHome,
+    TMPDIR: layout.temporaryDirectory,
+    DEV_FLOW_DATA_DIR: layout.dataDirectory,
+    npm_config_prefix: layout.installPrefix,
+    npm_config_cache: layout.npmCache,
+    npm_config_registry: OFFICIAL_NPM_REGISTRY,
+    XDG_CACHE_HOME: join(layout.root, "xdg-cache"),
+    GIT_CONFIG_GLOBAL: "/dev/null",
+    GIT_CONFIG_NOSYSTEM: "1",
+    NO_COLOR: "1",
+    PATH: [
+      join(layout.installPrefix, "bin"),
+      layout.hostBin,
+      dirname(codexExecutable),
+      ...toolDirectories,
+    ].filter((value, index, values) => values.indexOf(value) === index).join(delimiter),
+  });
+  return environment;
+}
+
+export function buildFinalRegistryInstallArgs({ version, prefix, cache }) {
+  requireReleaseVersion(version);
+  requireAbsolute(prefix, "final npm prefix");
+  requireAbsolute(cache, "final npm cache");
+  return [
+    "install", "--global", `dev-flow-codex@${version}`,
+    `--registry=${OFFICIAL_NPM_REGISTRY}`,
+    "--prefix", prefix,
+    "--cache", cache,
+    "--ignore-scripts", "--no-audit", "--no-fund",
+  ];
+}
+
+export function buildFinalRegistryPackArgs({ version, destination }) {
+  requireReleaseVersion(version);
+  requireAbsolute(destination, "registry read-back directory");
+  return [
+    "pack", `dev-flow-codex@${version}`,
+    "--pack-destination", destination,
+    "--ignore-scripts", "--json",
+    `--registry=${OFFICIAL_NPM_REGISTRY}`,
+  ];
+}
+
+export function validateFinalJourneyEvidenceShape(evidence, { allowFixture = false, expected = null } = {}) {
+  assertExactFields(evidence, FINAL_JOURNEY_EVIDENCE_FIELDS, "final journey evidence");
+  const allowedKind = evidence.evidence_kind === FINAL_NATIVE_EVIDENCE_KIND
+    || (allowFixture && evidence.evidence_kind === FINAL_FIXTURE_EVIDENCE_KIND);
+  if (!allowedKind) throw new Error("final journey evidence must be native registry-package evidence");
+  if (evidence.status !== "passed") throw new Error("final journey evidence status must be passed");
+  if (evidence.package_name !== "dev-flow-codex") throw new Error("final journey package_name must equal dev-flow-codex");
+  requireReleaseVersion(evidence.package_version);
+  if (evidence.registry !== OFFICIAL_NPM_REGISTRY) throw new Error("final journey registry must be the official npm registry");
+  requireDigest(evidence.npm_tarball_sha256, "npm_tarball_sha256");
+  if (typeof evidence.npm_integrity !== "string" || !/^sha512-[A-Za-z0-9+/]+={0,2}$/u.test(evidence.npm_integrity)) {
+    throw new Error("final journey npm_integrity must be a bounded sha512 integrity");
+  }
+  if (evidence.package_root_location !== "isolated-npm-prefix") {
+    throw new Error("final journey package_root_location must identify the isolated npm prefix");
+  }
+  if (evidence.core_version !== evidence.package_version) throw new Error("final journey package/Core versions differ");
+  requireDigest(evidence.core_sha256, "core_sha256");
+  if (!/^[0-9a-f]{40}$/u.test(evidence.source_commit)) throw new Error("final journey source_commit is invalid");
+  requireReleaseVersion(evidence.codex_version);
+  if (evidence.compatible_codex_range !== CODEX_COMPATIBILITY_RANGE || evidence.codex_compatible !== true) {
+    throw new Error("final journey Codex compatibility identity is invalid");
+  }
+  if (!versionSatisfiesFixedRange(evidence.codex_version)) throw new Error("final journey Codex version is outside the compatible range");
+  for (const field of [
+    "setup_readback_passed", "remove_readback_passed", "npm_uninstall_passed",
+    "task_data_retained", "task_reopened_after_uninstall",
+  ]) {
+    if (evidence[field] !== true) throw new Error(`final journey ${field} must be true`);
+  }
+  if (evidence.ordinary_prompt_core_call_count !== 0) throw new Error("final journey ordinary prompt must make zero Core calls");
+  if (evidence.explicit_selector !== EXPLICIT_SELECTOR) throw new Error("final journey explicit selector is invalid");
+  for (const field of ["task_id_before_restart", "task_action_id_before_restart", "task_id_after_restart", "task_action_id_after_restart"]) {
+    if (typeof evidence[field] !== "string" || evidence[field].length < 1 || evidence[field].length > 160) {
+      throw new Error(`final journey ${field} is invalid`);
+    }
+  }
+  for (const field of ["task_revision_before_restart", "task_revision_after_restart", "committed_action_count"]) {
+    if (!Number.isSafeInteger(evidence[field]) || evidence[field] < 1) throw new Error(`final journey ${field} is invalid`);
+  }
+  if (
+    evidence.task_id_after_restart !== evidence.task_id_before_restart
+    || evidence.task_revision_after_restart !== evidence.task_revision_before_restart
+    || evidence.task_action_id_after_restart !== evidence.task_action_id_before_restart
+  ) throw new Error("final journey restart task identity is not exact");
+  if (evidence.committed_action_count < 2) throw new Error("final journey requires at least two committed actions");
+  if (evidence.terminal_outcome !== "DONE") throw new Error("final journey terminal outcome must be DONE");
+  if (!Array.isArray(evidence.unexpected_repository_paths) || evidence.unexpected_repository_paths.length !== 0) {
+    throw new Error("final journey unexpected_repository_paths must be empty");
+  }
+  if (typeof evidence.observed_at !== "string" || !Number.isFinite(Date.parse(evidence.observed_at))) {
+    throw new Error("final journey observed_at must be an RFC 3339 date-time");
+  }
+  if (expected !== null) assertFinalEvidenceIdentity(evidence, expected);
+  return structuredClone(evidence);
+}
+
+export function validateFinalJourneyEvidence(evidence, options = {}) {
+  return validateFinalJourneyEvidenceShape(evidence, { ...options, allowFixture: false });
+}
 
 export function buildCodexExecArgs(prompt, {
   ephemeral = false,
@@ -458,6 +651,245 @@ export async function runIsolatedDevelopmentSmoke(options) {
   }
 }
 
+export async function runFinalRegistryJourney(options) {
+  assertFinalJourneyOptions(options);
+  assertSupportedCodexHost("final registry journey");
+  const [codexExecutable, workspace, resultDirectory] = await Promise.all([
+    realpath(options.codexExecutable),
+    assertEmptyFinalDirectory(options.workspace, "final journey workspace"),
+    assertEmptyFinalDirectory(options.resultDirectory, "final journey result directory"),
+  ]);
+  assertFinalJourneyLocations({ codexExecutable, workspace, resultDirectory });
+
+  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-final-registry-")));
+  try {
+    const layout = createFinalJourneyLayout(root, workspace, resultDirectory);
+    await Promise.all([
+      layout.home,
+      layout.codexHome,
+      layout.hostBin,
+      layout.installPrefix,
+      layout.npmCache,
+      layout.dataDirectory,
+      layout.temporaryDirectory,
+      layout.registryReadbackDirectory,
+      join(layout.root, "xdg-cache"),
+    ].map((path) => mkdir(path, { recursive: true, mode: 0o700 })));
+    await symlink(codexExecutable, join(layout.hostBin, "codex"));
+
+    const [npmExecutable, gitExecutable, fileExecutable] = await Promise.all([
+      findExecutableOnPath("npm"),
+      findExecutableOnPath("git"),
+      findExecutableOnPath("file"),
+    ]);
+    const environment = buildFinalJourneyEnvironment({
+      layout,
+      codexExecutable,
+      toolDirectories: [
+        dirname(process.execPath),
+        dirname(npmExecutable),
+        dirname(gitExecutable),
+        dirname(fileExecutable),
+        "/usr/bin",
+        "/bin",
+        "/usr/sbin",
+        "/sbin",
+      ],
+    });
+    await copyFinalCodexAuthentication(layout);
+    const codexVersion = await inspectFinalCodexExecutable(codexExecutable, fileExecutable, environment);
+
+    const registry = await readFinalRegistryPackage({
+      npmExecutable,
+      version: options.version,
+      layout,
+      environment,
+    });
+    if (registry.tarballSHA256 !== options.tarballSHA256) {
+      throw new Error("registry package tarball digest differs from the approved release");
+    }
+
+    await installFinalRegistryPackage(npmExecutable, options.version, layout, environment);
+    let product = await inspectFinalInstalledProduct({
+      npmExecutable,
+      version: options.version,
+      layout,
+      environment,
+      repositoryRoot: REPOSITORY_ROOT,
+      resultDirectory,
+    });
+    if (product.coreSHA256 !== options.coreSHA256) {
+      throw new Error("installed bundled Core digest differs from the approved release");
+    }
+
+    await initializeSmokeRepository(workspace, environment);
+    const setup = await execJSON(product.packageCLI, ["setup", "--json"], { cwd: workspace, env: environment });
+    if (setup.operation !== "setup" || !["installed", "already-installed"].includes(setup.status)) {
+      throw new Error("final registry journey setup read-back failed");
+    }
+    const receiptPath = join(layout.home, "Library", "Application Support", "dev-flow", "registrations", "codex.json");
+    const adjacentPath = join(dirname(receiptPath), "user-owned-adjacent.txt");
+    await writeFile(adjacentPath, "preserve final registry journey data\n", { mode: 0o600 });
+
+    const ordinary = await runCodexSession({
+      codexExecutable,
+      workspace,
+      role: "ordinary",
+      prompt: ordinaryPrompt,
+      includeCallFacts: true,
+      environment,
+      ephemeral: true,
+    });
+    const invalid = await runCodexSession({
+      codexExecutable,
+      workspace: layout.temporaryDirectory,
+      role: "invalid",
+      prompt: developmentInvalidPrompt,
+      includeCallFacts: true,
+      environment,
+      ephemeral: true,
+      skipGitRepoCheck: true,
+    });
+    assertDevelopmentAdmissionIsolation(ordinary, invalid);
+    const proofPath = join(workspace, FINAL_PROOF_NAME);
+    const substantive = await runCodexSession({
+      codexExecutable,
+      workspace,
+      role: "substantive",
+      prompt: finalRegistrySubstantivePrompt,
+      includeCallFacts: true,
+      environment,
+      ephemeral: true,
+      stopAfterApplyPath: proofPath,
+      stopAfterApplyContent: FINAL_PROOF_CONTENT,
+    });
+    const resume = await runCodexSession({
+      codexExecutable,
+      workspace,
+      role: "resume",
+      prompt: finalRegistryResumePrompt,
+      includeCallFacts: true,
+      environment,
+      ephemeral: true,
+    });
+    const sessions = [ordinary, invalid, substantive, resume];
+    const state = {
+      taskIdBeforeRestart: null,
+      taskIdAfterRestart: null,
+      committedActionCount: 0,
+      terminalOutcome: null,
+    };
+    validateDevelopmentSessions(sessions, state, {
+      coreVersion: options.version,
+      proofCommand: FINAL_PROOF_COMMAND,
+      proofRenderedCommand: FINAL_PROOF_RENDERED_COMMAND,
+      proofHash: FINAL_PROOF_GIT_HASH,
+    });
+    if ((await readFile(proofPath, "utf8")) !== FINAL_PROOF_CONTENT) {
+      throw new Error("final registry journey proof bytes differ");
+    }
+    const taskFacts = finalJourneyTaskFacts(sessions);
+    const unexpectedPaths = await unexpectedRepositoryPaths(workspace, environment, FINAL_PROOF_NAME);
+    if (unexpectedPaths.length !== 0) throw new Error("final registry journey repository contains unexpected paths");
+    const statusBeforeRemove = await gitStatus(workspace, environment);
+
+    const removed = await execJSON(product.packageCLI, ["remove", "--json"], { cwd: workspace, env: environment });
+    if (removed.operation !== "remove" || removed.status !== "removed" || removed.changed !== true) {
+      throw new Error("final registry journey removal read-back failed");
+    }
+    if (await pathExists(receiptPath)) throw new Error("final registry journey receipt remains after removal");
+    if ((await readFile(adjacentPath, "utf8")) !== "preserve final registry journey data\n") {
+      throw new Error("final registry journey removal changed adjacent data");
+    }
+    if (await gitStatus(workspace, environment) !== statusBeforeRemove) {
+      throw new Error("final registry journey removal changed the repository");
+    }
+
+    await uninstallFinalRegistryPackage(npmExecutable, layout, environment);
+    if (await pathExists(product.packageRoot) || await pathExists(product.packageCLI)) {
+      throw new Error("final registry journey npm uninstall left product bytes");
+    }
+    if ((await readFile(adjacentPath, "utf8")) !== "preserve final registry journey data\n") {
+      throw new Error("final registry journey npm uninstall changed retained data");
+    }
+
+    await installFinalRegistryPackage(npmExecutable, options.version, layout, environment);
+    product = await inspectFinalInstalledProduct({
+      npmExecutable,
+      version: options.version,
+      layout,
+      environment,
+      repositoryRoot: REPOSITORY_ROOT,
+      resultDirectory,
+    });
+    if (product.coreSHA256 !== options.coreSHA256) {
+      throw new Error("reinstalled bundled Core digest differs from the approved release");
+    }
+    const retained = await readRetainedTask(
+      product.runtimePath,
+      layout.dataDirectory,
+      workspace,
+      taskFacts.taskIDBeforeRestart,
+      environment,
+    );
+    if (
+      retained.task_id !== taskFacts.taskIDBeforeRestart
+      || retained.phase !== "DONE"
+      || retained.outcome?.status !== "completed"
+    ) throw new Error("final registry journey retained task reopen failed");
+    const database = await stat(join(layout.dataDirectory, "dev-flow.db"));
+    if (!database.isFile()) throw new Error("final registry journey retained task database is absent");
+    await uninstallFinalRegistryPackage(npmExecutable, layout, environment);
+    if (await pathExists(product.packageRoot) || await pathExists(product.packageCLI)) {
+      throw new Error("final registry journey cleanup uninstall left product bytes");
+    }
+    if ((await readFile(adjacentPath, "utf8")) !== "preserve final registry journey data\n") {
+      throw new Error("final registry journey retained reopen changed adjacent data");
+    }
+    if (await gitStatus(workspace, environment) !== statusBeforeRemove) {
+      throw new Error("final registry journey retained reopen changed the repository");
+    }
+
+    const evidence = validateFinalJourneyEvidence({
+      evidence_kind: FINAL_NATIVE_EVIDENCE_KIND,
+      status: "passed",
+      package_name: options.packageName,
+      package_version: options.version,
+      registry: options.registry,
+      npm_tarball_sha256: registry.tarballSHA256,
+      npm_integrity: registry.integrity,
+      package_root_location: "isolated-npm-prefix",
+      core_version: product.coreVersion,
+      core_sha256: product.coreSHA256,
+      source_commit: options.sourceCommit,
+      codex_version: codexVersion,
+      compatible_codex_range: CODEX_COMPATIBILITY_RANGE,
+      codex_compatible: true,
+      setup_readback_passed: true,
+      ordinary_prompt_core_call_count: ordinary.dev_flow_call_count,
+      explicit_selector: EXPLICIT_SELECTOR,
+      task_id_before_restart: taskFacts.taskIDBeforeRestart,
+      task_revision_before_restart: taskFacts.taskRevisionBeforeRestart,
+      task_action_id_before_restart: taskFacts.taskActionIDBeforeRestart,
+      task_id_after_restart: taskFacts.taskIDAfterRestart,
+      task_revision_after_restart: taskFacts.taskRevisionAfterRestart,
+      task_action_id_after_restart: taskFacts.taskActionIDAfterRestart,
+      committed_action_count: state.committedActionCount,
+      terminal_outcome: state.terminalOutcome,
+      remove_readback_passed: true,
+      npm_uninstall_passed: true,
+      task_data_retained: true,
+      task_reopened_after_uninstall: true,
+      unexpected_repository_paths: unexpectedPaths,
+      observed_at: new Date().toISOString(),
+    }, { expected: options });
+    await writeSmokeOutput(resultDirectory, "final-journey-evidence.json", evidence);
+    return evidence;
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
 export async function runAcceptanceJourney(options) {
   const snapshotState = options.snapshotState ?? snapshotAcceptanceState;
   const snapshotOptions = {
@@ -621,6 +1053,53 @@ function isPlainObject(value) {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
+}
+
+function assertExactFields(value, fields, label) {
+  if (!isPlainObject(value)) throw new Error(`${label} must be an object`);
+  for (const field of fields) {
+    if (!Object.hasOwn(value, field)) throw new Error(`${label} missing required field ${field}`);
+  }
+  const allowed = new Set(fields);
+  for (const field of Object.keys(value)) {
+    if (!allowed.has(field)) throw new Error(`${label} has unexpected field ${field}`);
+  }
+}
+
+function requireReleaseVersion(value) {
+  if (typeof value !== "string" || !/^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$/u.test(value)) {
+    throw new Error("release version must be a stable SemVer string");
+  }
+}
+
+function requireDigest(value, label) {
+  if (typeof value !== "string" || !/^[0-9a-f]{64}$/u.test(value)) {
+    throw new Error(`final journey ${label} must be a lowercase SHA-256 digest`);
+  }
+}
+
+function versionSatisfiesFixedRange(value) {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/u.exec(value);
+  if (!match) return false;
+  const parts = match.slice(1).map(Number);
+  return parts[0] === 0 && parts[1] === 147;
+}
+
+function assertFinalEvidenceIdentity(evidence, expected) {
+  const identities = [
+    ["package_name", expected.packageName],
+    ["package_version", expected.version],
+    ["registry", expected.registry],
+    ["npm_tarball_sha256", expected.tarballSHA256],
+    ["npm_integrity", expected.npmIntegrity],
+    ["core_sha256", expected.coreSHA256],
+    ["source_commit", expected.sourceCommit],
+  ];
+  for (const [field, value] of identities) {
+    if (value !== undefined && evidence[field] !== value) {
+      throw new Error(`final journey evidence ${field} differs from the expected release identity`);
+    }
+  }
 }
 
 function summarizeSession(role, parsed) {
@@ -829,22 +1308,27 @@ function containsDone(value) {
   return Object.values(value).some(containsDone);
 }
 
-export function validateDevelopmentSessions(sessions, state) {
+export function validateDevelopmentSessions(sessions, state, options = {}) {
   try {
-    return validateDevelopmentSessionsUnchecked(sessions, state);
+    return validateDevelopmentSessionsUnchecked(sessions, state, options);
   } catch (error) {
     if (typeof error?.classification !== "string") error.classification = `post-session: ${error.message}`;
     throw error;
   }
 }
 
-function validateDevelopmentSessionsUnchecked(sessions, state) {
+function validateDevelopmentSessionsUnchecked(sessions, state, {
+  coreVersion = "0.1.0",
+  proofCommand = PROOF_COMMAND,
+  proofRenderedCommand = PROOF_RENDERED_COMMAND,
+  proofHash = PROOF_GIT_HASH,
+} = {}) {
   aggregateSessionFacts(sessions);
   const threadIDs = sessions.map((session) => session.thread_id);
   if (new Set(threadIDs).size !== 4 || threadIDs.some((id) => typeof id !== "string" || id.length === 0)) {
     throw new Error("development smoke requires four distinct Codex sessions");
   }
-  for (const session of sessions.slice(2)) assertHandshake(session);
+  for (const session of sessions.slice(2)) assertHandshake(session, coreVersion);
   const substantive = sessions[2];
   const resume = sessions[3];
   const substantiveApplies = successfulCalls(substantive, "dev_flow_apply_action");
@@ -866,8 +1350,8 @@ function validateDevelopmentSessionsUnchecked(sessions, state) {
     throw new Error("resume must read task and next action before a new apply");
   }
   const commands = [...substantive.commands, ...resume.commands];
-  const proof = commands.filter((command) => command.command === PROOF_RENDERED_COMMAND || command.command === PROOF_COMMAND);
-  if (proof.length !== 1 || proof[0].status !== "completed" || proof[0].exitCode !== 0 || proof[0].output !== `${PROOF_GIT_HASH}\n`) {
+  const proof = commands.filter((command) => command.command === proofRenderedCommand || command.command === proofCommand);
+  if (proof.length !== 1 || proof[0].status !== "completed" || proof[0].exitCode !== 0 || proof[0].output !== `${proofHash}\n`) {
     throw new Error("development smoke requires one successful targeted proof command");
   }
   if (commands.some((command) => /(?:go test \.\/\.\.\.|pnpm (?:run )?(?:test|validate)|node --test .*\*)/u.test(command.command))) {
@@ -882,14 +1366,14 @@ function validateDevelopmentSessionsUnchecked(sessions, state) {
   }
 }
 
-function assertHandshake(session) {
+function assertHandshake(session, coreVersion = "0.1.0") {
   const call = session.dev_flow_calls[0];
   const info = call?.core_result?.result;
   const checks = {
     first_tool: call?.tool === "dev_flow_server_info",
     classification: call?.classification === "success",
     product: info?.product === "dev-flow",
-    version: info?.version === "0.1.0",
+    version: info?.version === coreVersion,
     schema: info?.schema_version === 1,
     transport: info?.transport === "stdio",
     health: info?.health === "ready",
@@ -920,8 +1404,244 @@ async function assertEmptyResultDirectory(path) {
   }
 }
 
-function assertSupportedCodexHost() {
-  if (process.platform !== "darwin" || process.arch !== "arm64") throw new Error("development smoke requires macOS arm64");
+function assertFinalJourneyOptions(options) {
+  assertExactFields(options, [
+    "mode", "packageName", "version", "registry", "tarballSHA256", "coreSHA256",
+    "sourceCommit", "codexExecutable", "workspace", "resultDirectory",
+  ], "final registry journey options");
+  if (options.mode !== "final-registry") throw new Error("final registry journey mode is invalid");
+  if (options.packageName !== "dev-flow-codex") throw new Error("final registry journey package must equal dev-flow-codex");
+  if (options.registry !== OFFICIAL_NPM_REGISTRY) throw new Error("final registry journey requires the official npm registry");
+  requireReleaseVersion(options.version);
+  requireDigest(options.tarballSHA256, "tarball-sha256");
+  requireDigest(options.coreSHA256, "core-sha256");
+  if (!/^[0-9a-f]{40}$/u.test(options.sourceCommit)) throw new Error("final registry journey source commit is invalid");
+  requireAbsolute(options.codexExecutable, "Codex executable");
+  requireAbsolute(options.workspace, "workspace");
+  requireAbsolute(options.resultDirectory, "final journey result directory");
+}
+
+async function assertEmptyFinalDirectory(path, label) {
+  const supplied = await lstat(path);
+  if (!supplied.isDirectory() || supplied.isSymbolicLink() || (await readdir(path)).length !== 0) {
+    throw new Error(`${label} must be an empty real directory`);
+  }
+  return realpath(path);
+}
+
+function assertFinalJourneyLocations({ codexExecutable, workspace, resultDirectory }) {
+  if (
+    pathWithin(REPOSITORY_ROOT, codexExecutable)
+    || pathWithin(REPOSITORY_ROOT, workspace)
+    || pathWithin(REPOSITORY_ROOT, resultDirectory)
+  ) throw new Error("final registry journey inputs must remain outside the source repository");
+  if (
+    pathWithin(workspace, resultDirectory)
+    || pathWithin(resultDirectory, workspace)
+  ) throw new Error("final registry journey workspace and result directory must be separate");
+}
+
+function pathWithin(root, candidate) {
+  const offset = relative(root, candidate);
+  return offset === "" || (!offset.startsWith("..") && !isAbsolute(offset));
+}
+
+async function findExecutableOnPath(name) {
+  for (const directory of (process.env.PATH ?? "").split(delimiter).filter(Boolean)) {
+    const candidate = resolve(directory, name);
+    if (pathWithin(REPOSITORY_ROOT, candidate)) continue;
+    try {
+      const info = await stat(candidate);
+      if (info.isFile() && (info.mode & 0o111) !== 0) return candidate;
+    } catch (error) {
+      if (error?.code !== "ENOENT" && error?.code !== "ENOTDIR") throw error;
+    }
+  }
+  throw new Error(`final registry journey requires executable ${name}`);
+}
+
+async function copyFinalCodexAuthentication(layout) {
+  const authSource = join(homedir(), ".codex", "auth.json");
+  const authInfo = await lstat(authSource);
+  if (!authInfo.isFile() || authInfo.isSymbolicLink() || (authInfo.mode & 0o077) !== 0) {
+    throw new Error("final registry journey Codex authentication source is unavailable");
+  }
+  const destination = join(layout.codexHome, "auth.json");
+  await copyFile(authSource, destination);
+  await chmod(destination, 0o600);
+}
+
+async function inspectFinalCodexExecutable(executable, fileExecutable, environment) {
+  const metadata = await stat(executable);
+  if (!metadata.isFile() || (metadata.mode & 0o111) === 0) {
+    throw new Error("final registry journey Codex executable is not executable");
+  }
+  const { stdout } = await execFile(executable, ["--version"], { env: environment, encoding: "utf8" });
+  const match = /^codex(?:-cli)? (\d+\.\d+\.\d+)\n?$/u.exec(stdout);
+  if (!match || !versionSatisfiesFixedRange(match[1])) {
+    throw new Error(`final registry journey Codex version must satisfy ${CODEX_COMPATIBILITY_RANGE}`);
+  }
+  const inspected = await execFile(fileExecutable, [executable], { env: environment, encoding: "utf8" });
+  if (!/Mach-O.*arm64|Mach-O.*universal.*arm64/iu.test(inspected.stdout)) {
+    throw new Error("final registry journey Codex executable must be macOS arm64");
+  }
+  return match[1];
+}
+
+async function readFinalRegistryPackage({ npmExecutable, version, layout, environment }) {
+  const specification = `dev-flow-codex@${version}`;
+  const metadata = await execFile(npmExecutable, [
+    "view", specification, "dist.integrity", "--json", `--registry=${OFFICIAL_NPM_REGISTRY}`,
+  ], {
+    cwd: layout.root,
+    env: environment,
+    encoding: "utf8",
+    maxBuffer: 1024 * 1024,
+  });
+  let integrity;
+  try {
+    integrity = JSON.parse(metadata.stdout);
+  } catch {
+    throw new Error("final registry journey npm integrity read-back is invalid");
+  }
+  if (typeof integrity !== "string" || !/^sha512-[A-Za-z0-9+/]+={0,2}$/u.test(integrity)) {
+    throw new Error("final registry journey npm integrity read-back is invalid");
+  }
+  const packed = await execFile(npmExecutable, buildFinalRegistryPackArgs({
+    version,
+    destination: layout.registryReadbackDirectory,
+  }), {
+    cwd: layout.root,
+    env: environment,
+    encoding: "utf8",
+    maxBuffer: 20 * 1024 * 1024,
+  });
+  let filename;
+  try {
+    filename = JSON.parse(packed.stdout)?.[0]?.filename;
+  } catch {
+    throw new Error("final registry journey npm pack read-back is invalid");
+  }
+  if (typeof filename !== "string" || basename(filename) !== filename) {
+    throw new Error("final registry journey npm pack filename is invalid");
+  }
+  return {
+    integrity,
+    tarballSHA256: await digestFile(join(layout.registryReadbackDirectory, filename)),
+  };
+}
+
+async function installFinalRegistryPackage(npmExecutable, version, layout, environment) {
+  await execFile(npmExecutable, buildFinalRegistryInstallArgs({
+    version,
+    prefix: layout.installPrefix,
+    cache: layout.npmCache,
+  }), {
+    cwd: layout.root,
+    env: environment,
+    encoding: "utf8",
+    maxBuffer: 20 * 1024 * 1024,
+  });
+}
+
+async function uninstallFinalRegistryPackage(npmExecutable, layout, environment) {
+  await execFile(npmExecutable, [
+    "uninstall", "--global", "dev-flow-codex",
+    `--registry=${OFFICIAL_NPM_REGISTRY}`,
+    "--prefix", layout.installPrefix,
+    "--cache", layout.npmCache,
+    "--ignore-scripts", "--no-audit", "--no-fund",
+  ], {
+    cwd: layout.root,
+    env: environment,
+    encoding: "utf8",
+    maxBuffer: 20 * 1024 * 1024,
+  });
+}
+
+async function inspectFinalInstalledProduct({
+  npmExecutable,
+  version,
+  layout,
+  environment,
+  repositoryRoot,
+  resultDirectory,
+}) {
+  const rootResult = await execFile(npmExecutable, ["root", "--global", "--prefix", layout.installPrefix], {
+    cwd: layout.root,
+    env: environment,
+    encoding: "utf8",
+  });
+  const packageRoot = await realpath(join(rootResult.stdout.trim(), "dev-flow-codex"));
+  if (
+    !pathWithin(layout.installPrefix, packageRoot)
+    || pathWithin(repositoryRoot, packageRoot)
+    || pathWithin(resultDirectory, packageRoot)
+  ) throw new Error("final registry journey package root is outside the isolated npm prefix");
+  const packageCLI = join(layout.installPrefix, "bin", "dev-flow-codex");
+  if (await realpath(packageCLI) !== join(packageRoot, "bin", "dev-flow-codex.mjs")) {
+    throw new Error("final registry journey executable is not owned by the isolated package");
+  }
+  const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
+  if (
+    manifest.name !== "dev-flow-codex"
+    || manifest.version !== version
+    || manifest.private === true
+    || !isDeepStrictEqual(manifest.os, ["darwin"])
+    || !isDeepStrictEqual(manifest.cpu, ["arm64"])
+    || manifest.publishConfig?.access !== "public"
+    || manifest.publishConfig?.registry !== OFFICIAL_NPM_REGISTRY
+  ) throw new Error("final registry journey installed package metadata is invalid");
+  const productVersion = await execFile(packageCLI, ["--version"], {
+    cwd: layout.root,
+    env: environment,
+    encoding: "utf8",
+  });
+  if (productVersion.stdout !== `dev-flow-codex ${version} (core ${version})\n`) {
+    throw new Error("final registry journey product version read-back is invalid");
+  }
+  const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
+  const runtimeVersion = await execFile(runtimePath, ["version"], {
+    cwd: layout.root,
+    env: environment,
+    encoding: "utf8",
+  });
+  if (runtimeVersion.stdout !== `dev-flow ${version}\n`) {
+    throw new Error("final registry journey bundled Core version is invalid");
+  }
+  return {
+    packageRoot,
+    packageCLI,
+    runtimePath,
+    coreVersion: version,
+    coreSHA256: await digestFile(runtimePath),
+  };
+}
+
+function finalJourneyTaskFacts(sessions) {
+  const substantive = sessions[2];
+  const resume = sessions[3];
+  const before = lastTask(successfulCalls(substantive, "dev_flow_apply_action"));
+  const after = taskFromCall(successfulCalls(resume, "dev_flow_open_task")[0]);
+  if (!before || !after || !before.current_action || !after.current_action) {
+    throw new Error("final registry journey restart task facts are incomplete");
+  }
+  return {
+    taskIDBeforeRestart: before.task_id,
+    taskRevisionBeforeRestart: before.revision,
+    taskActionIDBeforeRestart: before.current_action.action_id,
+    taskIDAfterRestart: after.task_id,
+    taskRevisionAfterRestart: after.revision,
+    taskActionIDAfterRestart: after.current_action.action_id,
+  };
+}
+
+async function digestFile(path) {
+  return createHash("sha256").update(await readFile(path)).digest("hex");
+}
+
+function assertSupportedCodexHost(label = "development smoke") {
+  if (process.platform !== "darwin" || process.arch !== "arm64") throw new Error(`${label} requires macOS arm64`);
 }
 
 async function isolatedEnvironment(layout, codexExecutable) {
@@ -1061,9 +1781,9 @@ async function digestRepositoryContents(root) {
   return digest.digest("hex");
 }
 
-async function unexpectedRepositoryPaths(path, environment) {
+async function unexpectedRepositoryPaths(path, environment, allowedPath = "native-proof.txt") {
   return (await gitStatus(path, environment)).split("\n").filter(Boolean)
-    .map((line) => line.slice(3)).filter((name) => name !== "native-proof.txt");
+    .map((line) => line.slice(3)).filter((name) => name !== allowedPath);
 }
 
 async function pathExists(path) {
@@ -1203,6 +1923,50 @@ export function parseCLI(argv) {
     requireAbsolute(argv[1], "acceptance report");
     return { mode, reportPath: argv[1] };
   }
+  if (mode === "final-registry") {
+    const flags = [
+      "--package", "--version", "--registry", "--tarball-sha256", "--core-sha256",
+      "--source-commit", "--codex-executable", "--workspace", "--result-directory",
+    ];
+    const values = {};
+    while (argv.length > 0) {
+      const flag = argv.shift();
+      if (!flags.includes(flag) || Object.hasOwn(values, flag) || argv.length === 0) {
+        throw new Error("final registry journey requires each exact flag once");
+      }
+      values[flag] = argv.shift();
+    }
+    if (flags.some((flag) => !Object.hasOwn(values, flag))) {
+      throw new Error("final registry journey requires each exact flag once");
+    }
+    if (values["--package"] !== "dev-flow-codex") {
+      throw new Error("final registry journey package must equal dev-flow-codex");
+    }
+    if (values["--registry"] !== OFFICIAL_NPM_REGISTRY) {
+      throw new Error("final registry journey requires the official npm registry");
+    }
+    requireReleaseVersion(values["--version"]);
+    requireDigest(values["--tarball-sha256"], "tarball-sha256");
+    requireDigest(values["--core-sha256"], "core-sha256");
+    if (!/^[0-9a-f]{40}$/u.test(values["--source-commit"])) {
+      throw new Error("final registry journey source commit must be a lowercase 40-character digest");
+    }
+    requireAbsolute(values["--codex-executable"], "Codex executable");
+    requireAbsolute(values["--workspace"], "workspace");
+    requireAbsolute(values["--result-directory"], "final journey result directory");
+    return {
+      mode,
+      packageName: values["--package"],
+      version: values["--version"],
+      registry: values["--registry"],
+      tarballSHA256: values["--tarball-sha256"],
+      coreSHA256: values["--core-sha256"],
+      sourceCommit: values["--source-commit"],
+      codexExecutable: values["--codex-executable"],
+      workspace: values["--workspace"],
+      resultDirectory: values["--result-directory"],
+    };
+  }
   if (mode === "development-smoke") {
     const values = {};
     while (argv.length > 0) {
@@ -1223,7 +1987,7 @@ export function parseCLI(argv) {
     };
   }
   if (!["smoke", "acceptance"].includes(mode)) {
-    throw new Error("mode must be smoke, acceptance, or acceptance-report");
+    throw new Error("mode must be smoke, acceptance, development-smoke, final-registry, or acceptance-report");
   }
   const values = {};
   while (argv.length > 0) {
@@ -1254,6 +2018,8 @@ async function main(argv) {
     ? await runDevelopmentSmoke(options)
     : options.mode === "development-smoke"
       ? await runIsolatedDevelopmentSmoke(options)
+      : options.mode === "final-registry"
+        ? await runFinalRegistryJourney(options)
       : await runAcceptanceJourney(options);
   process.stdout.write(`${JSON.stringify(summary)}\n`);
 }

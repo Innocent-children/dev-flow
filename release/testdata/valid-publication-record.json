@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "release": {
+    "version": "0.1.0",
+    "tag": "v0.1.0",
+    "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "source_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "overall_status": "prepared",
+  "manifest_sha256": "a7e5297a2ced0ef16a1c1ec758476d2eb477b673ec655da9c18a40e7c3326e3c",
+  "steps": [
+    {
+      "name": "preflight",
+      "status": "complete",
+      "started_at": "2026-08-17T00:00:00Z",
+      "completed_at": "2026-08-17T00:00:01Z",
+      "remote_id": null,
+      "expected_sha256": null,
+      "observed_sha256": null,
+      "error_code": null,
+      "summary": "Read-only preflight passed.",
+      "safe_next_action": "Begin the exact tag step after explicit confirmation."
+    },
+    {
+      "name": "tag",
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "remote_id": null,
+      "expected_sha256": null,
+      "observed_sha256": null,
+      "error_code": null,
+      "summary": "Not started.",
+      "safe_next_action": "Await explicit publication confirmation."
+    },
+    {
+      "name": "github_draft",
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "remote_id": null,
+      "expected_sha256": null,
+      "observed_sha256": null,
+      "error_code": null,
+      "summary": "Not started.",
+      "safe_next_action": "Complete the exact tag step first."
+    },
+    {
+      "name": "npm_publish",
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "remote_id": null,
+      "expected_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "observed_sha256": null,
+      "error_code": null,
+      "summary": "Not started.",
+      "safe_next_action": "Complete exact tag and draft checks first."
+    },
+    {
+      "name": "npm_readback",
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "remote_id": null,
+      "expected_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "observed_sha256": null,
+      "error_code": null,
+      "summary": "Not started.",
+      "safe_next_action": "Publish the verified npm tarball first."
+    },
+    {
+      "name": "final_journey",
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "remote_id": null,
+      "expected_sha256": null,
+      "observed_sha256": null,
+      "error_code": null,
+      "summary": "Not started.",
+      "safe_next_action": "Verify registry read-back first."
+    },
+    {
+      "name": "github_upload",
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "remote_id": null,
+      "expected_sha256": null,
+      "observed_sha256": null,
+      "error_code": null,
+      "summary": "Not started.",
+      "safe_next_action": "Pass the final journey first."
+    },
+    {
+      "name": "github_readback",
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "remote_id": null,
+      "expected_sha256": null,
+      "observed_sha256": null,
+      "error_code": null,
+      "summary": "Not started.",
+      "safe_next_action": "Upload final immutable assets first."
+    },
+    {
+      "name": "github_finalize",
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "remote_id": null,
+      "expected_sha256": null,
+      "observed_sha256": null,
+      "error_code": null,
+      "summary": "Not started.",
+      "safe_next_action": "Verify every uploaded asset first."
+    }
+  ],
+  "npm": {
+    "name": "dev-flow-codex",
+    "version": "0.1.0",
+    "published": false,
+    "integrity": null,
+    "tarball_sha256": null,
+    "verified": false
+  },
+  "github": {
+    "tag": "v0.1.0",
+    "tag_target": null,
+    "release_id": null,
+    "draft": false,
+    "published": false,
+    "assets": []
+  },
+  "final_journey": {
+    "status": "pending",
+    "actual_codex_version": null,
+    "observed_at": null,
+    "summary": "Final registry-package journey has not run."
+  },
+  "last_observed_at": "2026-08-17T00:00:01Z",
+  "safe_next_action": "Run the explicit publication command only after review."
+}

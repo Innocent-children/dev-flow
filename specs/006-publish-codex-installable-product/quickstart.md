@@ -1,51 +1,62 @@
-# Quickstart: Prepare and Publish `dev-flow-codex`
+# Quickstart: Prepare and Later Publish `dev-flow-codex`
 
-The commands below define the Feature 006 operator interface. Preparation and verification are safe
-to repeat. Publication is irreversible and requires exact confirmation.
+This is the implemented Feature 006 operator interface. Deterministic preparation and verification
+are repeatable and have no remote side effects. Irreversible publication, the native final Journey,
+and GitHub Release finalization are T047–T050 work and have not been executed.
 
-## Prerequisites
+## Current status
 
-- Features 003 and 005 are merged into `main`.
-- The worktree is clean and checked out at the exact release commit on `main`.
-- Go, Node.js, pnpm, npm, git, and GitHub CLI satisfy repository policies.
-- `npm whoami` identifies the authorized publisher.
-- GitHub CLI is authenticated to `Innocent-children/dev-flow`.
-- The publisher has verified permission for `dev-flow-codex`.
+```text
+T001–T046 deterministic implementation passed
+T047–T050 irreversible real release not started
+```
 
-Activate the feature for Spec Kit work:
+No public npm version, registry tarball read-back, Git Tag, GitHub Draft/Release/assets, or final
+registry-package Journey currently exists.
+
+Activate the existing feature package for Spec Kit work:
 
 ```bash
 export SPECIFY_FEATURE_DIRECTORY="$PWD/specs/006-publish-codex-installable-product"
 ```
 
-## 1. Run release preflight
+## Operator prerequisites for T047–T050
+
+- Feature 006 Phase 6 is committed, reviewed, and merged.
+- The checkout is the frozen release commit on branch `main` and the worktree is clean.
+- The machine is native macOS arm64.
+- Go, Node.js, pnpm, npm, git, and GitHub CLI satisfy the recorded policy.
+- npm identifies the authorized publisher for the fixed `dev-flow-codex` name.
+- GitHub CLI has release/tag permission for `Innocent-children/dev-flow`.
+- Root, package, plugin, Core, Tag, manifest, and record versions equal root `VERSION`.
+- The npm version and remote Tag/Release state are absent or exact reusable state.
+
+T002 already recorded the development permission preflight. Account checks are repeated only by the
+real operator workflow when T047–T050 run, not by deterministic Phase 6 validation.
+
+## Repeatable operations with no remote mutation
+
+### 1. Select one empty external directory
 
 ```bash
-VERSION="$(cat VERSION)"
-test "$VERSION" = "$(node -p "require('./packages/codex/package.json').version")"
-npm whoami
-npm view "dev-flow-codex@$VERSION" version
-gh repo view Innocent-children/dev-flow
+RELEASE_OUTPUT="$(mktemp -d)"
 ```
 
-Expected result:
+The directory must be absolute, empty, non-symlinked, and outside the source repository. For the
+real release, T047 freezes one reviewed source commit and uses one frozen output directory for the
+entire T047–T050 sequence.
 
-- local versions agree;
-- authentication succeeds;
-- the intended npm version is absent;
-- any existing `v$VERSION` tag/draft is either absent or exactly matches the release source.
-
-An npm “not found” result is acceptable only for the exact version lookup after package ownership
-has separately been proven.
-
-## 2. Prepare in a temporary output directory
+### 2. Prepare
 
 ```bash
-OUT="$(mktemp -d)"
-pnpm run release:codex:prepare -- --output "$OUT"
+pnpm run release:codex:prepare -- --output "$RELEASE_OUTPUT"
 ```
 
-Expected output includes:
+Preparation admits only a clean native `main` checkout, creates two independent detached clean
+worktrees at the same commit, builds twice, compares Runtime bytes and normalized package trees,
+then removes the temporary worktrees. It performs no npm/GitHub/Tag/Host mutation.
+
+The output is exactly:
 
 ```text
 dev-flow-codex-<VERSION>.tgz
@@ -55,93 +66,118 @@ release-manifest.json
 publication-record.json
 ```
 
-Preparation creates no tag, release, npm version, Codex registration, or task data.
+The support entry is `pending`; the publication record is `prepared`. The mutable publication
+record is not a GitHub Release asset.
 
-## 3. Verify prepared artifacts
+### 3. Verify
 
 ```bash
-pnpm run release:codex:verify -- --directory "$OUT"
+pnpm run release:codex:verify -- --directory "$RELEASE_OUTPUT"
 ```
 
-Expected result:
+Verification rehashes the exact artifacts, validates normalized files/modes/metadata, source and
+Core identities, Schema shape, provisional checksums/support, and bounded forbidden content. It is
+local, network-free, and safe to repeat before any real publication.
 
-- two clean runtime builds match byte-for-byte;
-- normalized package trees match;
-- package allowlist, executable modes, metadata, schemas, provisional checksums, and
-  forbidden-content scans pass;
-- the support entry is still `pending`;
-- the publication record remains the local operator record in status `prepared`.
-
-## 4. Inspect before irreversible publication
-
-Review:
+### 4. Inspect
 
 ```bash
-cat "$OUT/release-manifest.json"
-cat "$OUT/publication-record.json"
-cat "$OUT/SHA256SUMS"
+sed -n '1,240p' "$RELEASE_OUTPUT/release-manifest.json"
+sed -n '1,260p' "$RELEASE_OUTPUT/publication-record.json"
+sed -n '1,40p' "$RELEASE_OUTPUT/SHA256SUMS"
 ```
 
-Confirm there are no absolute paths, credentials, raw environment values, prompts, or unbounded
-outputs.
+Reject absolute paths, credentials, auth configuration, raw environment values, prompts, unbounded
+output, source, database, receipt, cache, or DeepSeek content.
 
-## 5. Publish explicitly
+## Read-only remote preflight
+
+The publisher can observe source, npm, Tag, and GitHub state without confirmation:
 
 ```bash
+pnpm run release:codex:publish -- --directory "$RELEASE_OUTPUT"
+```
+
+Without `--confirm`, it writes bounded observations and a safe next action to the local publication
+record, then exits before remote mutation.
+
+## Irreversible operations — not yet executed
+
+### 5. Exact publication command
+
+Only T047–T050 may run this command, from the reviewed clean `main` commit and the same frozen
+directory:
+
+```bash
+VERSION="$(cat VERSION)"
 pnpm run release:codex:publish -- \
-  --directory "$OUT" \
+  --directory "$RELEASE_OUTPUT" \
   --confirm "v$VERSION"
 ```
 
-Without the exact confirmation, the command performs read-only preflight and exits.
+The production publisher owns one gated sequence:
 
-The command must:
+1. reread exact source/npm/GitHub state;
+2. create or reuse the exact Git Tag and GitHub Draft Release;
+3. publish the verified npm tarball at most once;
+4. read back and verify the public registry metadata and tarball;
+5. invoke the closed native `--final-registry` Journey runner;
+6. generate the native passed support entry and final manifest/checksums;
+7. upload and officially redownload the four immutable GitHub assets;
+8. finalize and reread the GitHub Release;
+9. mark the local publication record `complete`.
 
-1. create/reuse the exact tag and draft;
-2. publish the verified npm tarball once;
-3. download and verify the public registry package;
-4. run the final clean registry-package Codex journey;
-5. finalize the support entry, manifest, and checksums;
-6. upload and redownload GitHub assets;
-7. finalize the GitHub Release only after every prior step passes.
+The T048, T049, and T050 task boundaries are operator evidence checkpoints inside this resumable
+sequence; they are not alternative package sources or bypass flags.
 
-## 6. Resume after interruption
+### 6. Final registry-package Journey gate
 
-Rerun the same publish command with the same verified directory and confirmation.
-
-Expected behavior:
-
-- exact matching completed steps are reread and reused;
-- npm is never republished for the same version;
-- missing later steps continue;
-- conflicting remote state stops with `blocked`;
-- `publication-record.json` states the safe next action.
-
-## 7. Final user lifecycle check
-
-The final journey uses a clean macOS arm64 environment:
+The publisher invokes `scripts/run-codex-real-journey.sh --final-registry` with closed package,
+version, official registry, digest, source, Codex executable, workspace, and result-directory
+arguments. Production accepts only:
 
 ```text
-npm install -g dev-flow-codex@<VERSION>
-dev-flow-codex setup
-ordinary Codex request → zero Dev Flow task
-$dev-flow substantive task → create and advance
-restart Codex → resume same task
-Core reports DONE
-dev-flow-codex remove
-npm uninstall -g dev-flow-codex
-released Core reopens retained task data
+dev-flow-codex@<VERSION>
+https://registry.npmjs.org/
+native macOS arm64
+compatible real Codex
+isolated npm prefix/cache/HOME/Codex/data/temp/workspace/evidence
 ```
 
-No local tarball, source checkout, runtime override, or development package path may substitute for
-the registry package.
+The Journey proves install, explicit setup, ordinary zero-trigger, explicit `$dev-flow`, task
+create/apply, Codex restart, same-task resume, Core `DONE`, explicit remove, npm uninstall, and
+retained task reopen. Local tgz, source checkout, Runtime override, fake Codex, or fixture evidence
+cannot satisfy this production gate.
 
-## 8. Final repository checks
+### 7. GitHub finalization gate
+
+Finalization occurs only after exact npm read-back, native final Journey, one passed macOS arm64
+support entry, final manifest/checksums, four verified assets, removal/uninstall, and retained reopen.
+The publisher rereads Tag, npm, assets, Release identity, and support facts immediately before and
+after finalization.
+
+## Resume after interruption
+
+Rerun the same exact publish command with the same frozen directory and confirmation.
+
+- Every invocation rereads remote truth before mutation.
+- Exact matching completed steps are reused.
+- An existing npm version is never republished.
+- Missing later steps continue.
+- Conflicting source, Tag, Draft, npm bytes, asset bytes, or final identity stops with `blocked`.
+- `publication-record.json` records the exact failure and safe next action.
+
+Never move/delete a Tag, overwrite an asset, unpublish npm as rollback, force-publish, or substitute
+a new release directory to hide partial truth.
+
+## Final repository checks
+
+After the real operator sequence:
 
 ```bash
 git diff --check
-pnpm run validate
 git status --short
 ```
 
-Generated release output stays outside Git. `packages/deepseek/` must remain unchanged.
+Generated release output remains outside Git. `packages/deepseek/` and shared Core/MCP/SQLite
+semantics remain unchanged.

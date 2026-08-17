@@ -172,13 +172,17 @@ async function handlePlugin(state, command) {
       installPolicy: catalogPlugin.policy?.installation ?? "AVAILABLE",
       authPolicy: catalogPlugin.policy?.authentication ?? "ON_INSTALL",
     };
-    const existing = state.plugins.find((item) => item.pluginId === operand);
-    if (existing && JSON.stringify(existing) !== JSON.stringify(entry)) {
-      fail(`plugin conflict: ${operand}`, 74);
+    const existingIndex = state.plugins.findIndex((item) => item.pluginId === operand);
+    const existing = existingIndex < 0 ? null : state.plugins[existingIndex];
+    if (existing) {
+      const sameOwner = JSON.stringify({ ...existing, version: entry.version }) === JSON.stringify(entry);
+      if (!sameOwner) fail(`plugin conflict: ${operand}`, 74);
+      if (existing.version !== entry.version) state.plugins[existingIndex] = entry;
+    } else {
+      state.plugins.push(entry);
     }
-    if (!existing) state.plugins.push(entry);
     return {
-      mutated: !existing,
+      mutated: !existing || existing.version !== entry.version,
       output: {
         pluginId: entry.pluginId,
         name: entry.name,

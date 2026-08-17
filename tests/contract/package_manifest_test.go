@@ -28,12 +28,16 @@ var runtimeDependencyFields = []string{
 }
 
 var rootDevelopmentScripts = map[string]string{
-	"validate":           "./scripts/validate-repository.sh",
-	"validate:contracts": "go test ./tests/contract",
+	"release:codex:prepare": "./scripts/build-codex-release.sh",
+	"release:codex:publish": "node ./scripts/publish-codex-release.mjs",
+	"release:codex:verify":  "node ./scripts/verify-codex-release.mjs",
+	"validate":              "./scripts/validate-repository.sh",
+	"validate:contracts":    "go test ./tests/contract",
 }
 
 var codexPackageFiles = []string{
 	".agents/plugins/marketplace.json",
+	"LICENSE",
 	"bin/dev-flow-codex.mjs",
 	"lib/lifecycle.mjs",
 	"lib/paths.mjs",
@@ -181,11 +185,24 @@ func TestPackageManifestAcceptsBootstrapManifests(t *testing.T) {
 			manifest: `{
 				"name": "dev-flow-codex",
 				"version": "1.2.3",
-				"private": true,
+				"private": false,
+				"license": "Apache-2.0",
+				"repository": {
+					"type": "git",
+					"url": "git+https://github.com/Innocent-children/dev-flow.git",
+					"directory": "packages/codex"
+				},
+				"os": ["darwin"],
+				"cpu": ["arm64"],
+				"publishConfig": {
+					"access": "public",
+					"registry": "https://registry.npmjs.org/"
+				},
 				"engines": {"node": ">=24"},
 				"bin": {"dev-flow-codex": "bin/dev-flow-codex.mjs"},
 				"files": [
 					".agents/plugins/marketplace.json",
+					"LICENSE",
 					"bin/dev-flow-codex.mjs",
 					"lib/lifecycle.mjs",
 					"lib/paths.mjs",
@@ -338,11 +355,20 @@ func TestCodexManifestRejectsUnreviewedPackageSurface(t *testing.T) {
 	validManifest := map[string]any{
 		"name":    "dev-flow-codex",
 		"version": "1.2.3",
-		"private": true,
-		"engines": map[string]string{"node": ">=24"},
-		"bin":     map[string]string{"dev-flow-codex": "bin/dev-flow-codex.mjs"},
-		"files":   codexPackageFiles,
-		"scripts": codexDevelopmentScripts,
+		"private": false,
+		"license": "Apache-2.0",
+		"repository": map[string]string{
+			"type":      "git",
+			"url":       "git+https://github.com/Innocent-children/dev-flow.git",
+			"directory": "packages/codex",
+		},
+		"os":            []string{"darwin"},
+		"cpu":           []string{"arm64"},
+		"publishConfig": map[string]string{"access": "public", "registry": "https://registry.npmjs.org/"},
+		"engines":       map[string]string{"node": ">=24"},
+		"bin":           map[string]string{"dev-flow-codex": "bin/dev-flow-codex.mjs"},
+		"files":         codexPackageFiles,
+		"scripts":       codexDevelopmentScripts,
 	}
 
 	tests := []struct {
@@ -350,6 +376,11 @@ func TestCodexManifestRejectsUnreviewedPackageSurface(t *testing.T) {
 		violatedField string
 		mutate        func(map[string]any)
 	}{
+		{
+			name:          "private package",
+			violatedField: "private",
+			mutate:        func(manifest map[string]any) { manifest["private"] = true },
+		},
 		{
 			name:          "wrong identity",
 			violatedField: "name",
@@ -388,6 +419,23 @@ func TestCodexManifestRejectsUnreviewedPackageSurface(t *testing.T) {
 				scripts := cloneStringMap(codexDevelopmentScripts)
 				scripts["publish"] = "pnpm publish"
 				manifest["scripts"] = scripts
+			},
+		},
+		{
+			name:          "second platform",
+			violatedField: "os",
+			mutate:        func(manifest map[string]any) { manifest["os"] = []string{"darwin", "linux"} },
+		},
+		{
+			name:          "wrong architecture",
+			violatedField: "cpu",
+			mutate:        func(manifest map[string]any) { manifest["cpu"] = []string{"x64"} },
+		},
+		{
+			name:          "wrong public registry",
+			violatedField: "publishConfig",
+			mutate: func(manifest map[string]any) {
+				manifest["publishConfig"] = map[string]string{"access": "public", "registry": "https://registry.example.invalid/"}
 			},
 		},
 		{
@@ -474,7 +522,14 @@ func validatePackageManifest(path string, kind manifestKind) []error {
 
 	var violations []error
 	privateValue, present := manifest["private"]
-	if !present {
+	if kind == codexManifest {
+		if present {
+			var private bool
+			if err := json.Unmarshal(privateValue, &private); err != nil || private {
+				violations = append(violations, manifestViolation(path, "private", "must be absent or the boolean false"))
+			}
+		}
+	} else if !present {
 		violations = append(violations, manifestViolation(path, "private", "must be true"))
 	} else {
 		var private bool
@@ -544,6 +599,34 @@ func validateCodexManifest(path string, manifest map[string]json.RawMessage) []e
 		violations = append(violations, manifestViolation(path, "name", "must be %q", "dev-flow-codex"))
 	}
 
+	var license string
+	if err := json.Unmarshal(manifest["license"], &license); err != nil || license != "Apache-2.0" {
+		violations = append(violations, manifestViolation(path, "license", "must be %q", "Apache-2.0"))
+	}
+
+	var repository map[string]string
+	if err := json.Unmarshal(manifest["repository"], &repository); err != nil ||
+		len(repository) != 3 || repository["type"] != "git" ||
+		repository["url"] != "git+https://github.com/Innocent-children/dev-flow.git" ||
+		repository["directory"] != "packages/codex" {
+		violations = append(violations, manifestViolation(path, "repository", "must identify the public repository and packages/codex directory"))
+	}
+
+	var supportedOS []string
+	if err := json.Unmarshal(manifest["os"], &supportedOS); err != nil || !slices.Equal(supportedOS, []string{"darwin"}) {
+		violations = append(violations, manifestViolation(path, "os", "must equal [darwin]"))
+	}
+	var supportedCPU []string
+	if err := json.Unmarshal(manifest["cpu"], &supportedCPU); err != nil || !slices.Equal(supportedCPU, []string{"arm64"}) {
+		violations = append(violations, manifestViolation(path, "cpu", "must equal [arm64]"))
+	}
+
+	var publishConfig map[string]string
+	if err := json.Unmarshal(manifest["publishConfig"], &publishConfig); err != nil || len(publishConfig) != 2 ||
+		publishConfig["access"] != "public" || publishConfig["registry"] != "https://registry.npmjs.org/" {
+		violations = append(violations, manifestViolation(path, "publishConfig", "must select public access at the official npm registry"))
+	}
+
 	var engines map[string]string
 	if err := json.Unmarshal(manifest["engines"], &engines); err != nil || len(engines) != 1 || engines["node"] != ">=24" {
 		violations = append(violations, manifestViolation(path, "engines", "must contain only node %q", ">=24"))
@@ -573,10 +656,6 @@ func validateCodexManifest(path string, manifest map[string]json.RawMessage) []e
 				violations = append(violations, manifestViolation(path, "scripts."+name, "unreviewed, lifecycle, and publication scripts are forbidden"))
 			}
 		}
-	}
-
-	if _, present := manifest["publishConfig"]; present {
-		violations = append(violations, manifestViolation(path, "publishConfig", "product publication configuration is forbidden"))
 	}
 
 	return violations

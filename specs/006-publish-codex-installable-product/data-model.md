@@ -46,12 +46,14 @@ The manifest does not record its own digest and does not inventory the mutable p
 | `compatible_codex_range` | string | copied from Feature 003 |
 | `package_sha256` | hex digest | published tarball |
 | `core_sha256` | hex digest | bundled runtime |
-| `journey_result` | enum | `passed`, `failed`, `blocked` |
+| `journey_result` | enum | `pending`, `passed`, `failed`, `blocked` |
 | `journey_observed_at` | RFC 3339 UTC/null | required for passed/failed |
 | `notes` | bounded string | no secrets or raw output |
 
-During preparation the entry may be `pending`. Only the final manifest with a `passed` entry
-becomes a public support claim.
+During preparation the entry may be `pending`. Only a final manifest derived from validated native
+registry-package evidence may use `passed` as a public support claim. Fixture/simulated tests may
+exercise the same closed shape inside isolated fake-remote tests, but their evidence kind and notes
+remain non-public and production validation does not accept them as native support.
 
 ## ReleaseManifest
 
@@ -159,3 +161,13 @@ Raw prompts, source files, environment values, and unbounded host output are exc
 - The publication record remains an operator artifact and is not a public immutable release asset.
 - Generated release files live only in the operator-selected release output directory and approved
   remote release systems.
+
+## Evidence Classification
+
+- Feature 003 real Codex acceptance is prior native host evidence, not final registry-package
+  evidence for this release.
+- Local tgz lifecycle/upgrade results are deterministic package evidence.
+- Fake npm/gh, temporary Git remotes, and fixture-simulated journeys are deterministic publisher
+  evidence and cannot establish public support.
+- Only T047–T050 can bind a frozen reviewed source, public registry bytes, native final Journey,
+  official GitHub asset read-back, and complete publication record.

@@ -129,20 +129,88 @@ rollback claims would be false or destructive.
 
 ## Implementation-Time Baseline Record
 
-Before implementation, record:
+The bounded implementation baseline was observed on 2026-08-17 before product or release-contract
+edits. The release source remains the updated `main` identity below; the implementation branch was
+created directly from it.
 
-| Item | Required value |
+| Item | Recorded value |
 |---|---|
-| Feature 003 merge commit | exact `main` commit |
-| Feature 005 merge commit | exact `main` commit |
-| Release source commit/tree | exact frozen identities |
-| Root/package/Core version | one strict SemVer |
-| Core fixture digest | exact server-reported digest |
-| Codex minimum/range | copied from merged Feature 003 |
-| Actual final Codex version | exact version used in registry-package journey |
-| npm publisher/account | account name only; no token |
-| npm package ownership result | pass/fail and timestamp |
-| GitHub release permission result | pass/fail and timestamp |
-| Toolchains | actual Go, Node, pnpm, npm, git, and gh versions |
+| Feature 003 merge commit | `a2ba8bd5de9c87aaf758bff51a02ae120f60c7f7` (`Merge branch 'codex/feature-003-codex-explicit-dev-flow'`) |
+| Feature 005 merge commit | `850dd4a4ee07bf50af5d9a36b24373c6b09fdd28` (`Merge pull request #4 from Innocent-children/codex/feature-005-recover-uncertain-actions-and-drift`) |
+| Updated `main` commit | `850dd4a4ee07bf50af5d9a36b24373c6b09fdd28` |
+| Updated `main` tree | `f9b1621688a34b0c4ffb1041bcdccc76eb2d9052` |
+| Root/package/plugin/Core version | `0.1.0` / `0.1.0` / `0.1.0` / `0.1.0` |
+| Core fixture aggregate digest | `sha256:8c27bcf6be0e4e5a4bf294c67cbda8cdf281b1b2b2c53fff16206db2828dede7`, using the existing contract-tested 22-fixture aggregate algorithm in `tests/contract/fixture_contract_test.go` |
+| Codex minimum/range | `0.147.0` / `>=0.147.0 <0.148.0` from merged Feature 003 |
+| Actual validated Codex version | `0.147.0` from the merged Feature 003 final real-host acceptance |
+| Current local Codex observation | `0.146.0`; outside the supported range and not used as support or User Story 1 evidence |
+| Platform | `darwin-arm64` (`Darwin`, `arm64`; Node reports `darwin`, `arm64`) |
+| Go | `go1.26.6 darwin/arm64` |
+| Node.js | `v24.18.0` |
+| pnpm | `11.21.0` |
+| npm | `11.16.0` |
+| git | `2.55.0` |
+| GitHub CLI | `2.97.0` |
+| Intended release version | `0.1.0`, unchanged from root `VERSION` |
 
-These values are produced at implementation/release time and are not unresolved design questions.
+The authenticated publisher and remote permission observations are recorded separately in the
+Feature README because npm authentication is an implementation entry gate, not release identity.
+
+## User Story 1 Bounded Build-Script Amendment
+
+The first T015 source-free tarball test failed at the existing local builder's Feature 003
+`private: true` assertion before any runtime build or install step. The user explicitly authorized
+`scripts/build-codex-local.sh` as an additional User Story 1 path solely to replace that assertion
+with the already approved fixed public package contract.
+
+The amendment preserves the local builder's inputs, clean/final-source rules, Go build flags,
+runtime path, package allowlist, normalized tar format, digest calculation, report schema, and
+final-artifact behavior. It adds no network, authentication, publication, Tag, GitHub Release, or
+shared Core behavior.
+
+After that correction, the same T015 test progressed to explicit setup and failed at the equivalent
+Feature 003 private-package assertion in `packages/codex/lib/lifecycle.mjs`. The already conditional
+T017 authorization covered the matching fixed public package preflight there. No launcher or path
+change was required, and the existing setup/remove ownership, receipt, compatibility, Skill, and MCP
+checks remain intact.
+
+## User Story 2 Implementation Decisions
+
+Deterministic preparation uses two independent detached worktrees at one admitted clean `main`
+commit. Runtime bytes must match exactly; package equality is the sorted path/size/SHA-256/mode
+inventory. Raw tgz equality is recorded as a fact and remains outside the permanent contract.
+
+The verifier and publisher use only Node standard-library code plus the existing local
+`git`/`tar`/`npm`/`pnpm`/`gh` executables. Preparation records the T001 GitHub CLI version rather than
+invoking `gh`. Publisher tests resolve npm/gh to bounded temporary fakes, use temporary state and a
+bare Git remote, and retain call-order evidence without environment or credential snapshots.
+
+Registry visibility uses four bounded observations with a fixed 250 ms interval. Retry always
+rereads remote state; an exact npm version is downloaded and verified before it is considered
+reusable. npm publish and asset upload record-loss cases therefore resume without repeating the
+immutable mutation. Asset conflicts block without clobber. At the User Story 2 checkpoint the
+Release intentionally remained draft; User Story 3 added the final Journey and finalization gates.
+
+## User Story 3 Implementation Conclusions
+
+Compatible upgrade is an explicit lifecycle action: npm update alone leaves registration and task
+data unchanged, setup verifies the new package/plugin/Core/Codex identities, and a compatible
+packaged Core resumes the same active Task. Downgrade refuses before mutation. A future SQLite
+Schema marker uses the existing Core safe-stop and required no shared persistence or MCP change.
+
+Removal and uninstall retain the task database, unknown adjacent data, unrelated Codex state, and
+repository bytes. Only receipt and registration paths with exact product ownership are removed.
+
+The production final Journey contract accepts only `dev-flow-codex@VERSION` from
+`https://registry.npmjs.org/`, uses a clean isolated environment, rejects local package/Core
+substitution, and validates setup, ordinary zero-trigger, restart/resume, `DONE`, removal,
+uninstall, and retained reopen. Native evidence alone can generate the public passed support entry.
+
+The publisher finalization gate rereads the exact Tag, npm tarball, four GitHub assets, native
+journey, support entry, manifest, and checksums before making the draft public. Fake npm/gh and a
+fixture-simulated journey test resume/conflict/finalization mechanics only; they are not native or
+public evidence.
+
+T001–T041 produced no real npm publication, registry read-back, Git Tag, GitHub Draft/Release/asset,
+or final registry-package Journey. Final release source commit, final artifact digests, registry
+integrity, native Journey result, and public Release identity can be recorded only by T047–T050.

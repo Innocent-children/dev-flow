@@ -2,13 +2,15 @@
 
 **Branch**: `006-publish-codex-installable-product`  
 **Spec**: [spec.md](./spec.md)  
-**Status**: Ready after Features 003 and 005 are merged
+**Status**: Deterministic implementation complete — T001–T046 passed. Irreversible real release
+T047–T050 remains pending.
 
 ## Summary
 
-Feature 006 turns the private local package delivered by Feature 003 into the first public Dev Flow
-product. The release contains one `dev-flow-codex` npm package with one bundled macOS arm64 Core
-runtime. Feature 004 remains deferred and is neither modified nor published.
+Feature 006 has converted the private local package delivered by Feature 003 into a fixed public
+package contract and implemented its deterministic release machinery. The intended release contains
+one `dev-flow-codex` npm package with one bundled macOS arm64 Core runtime. Feature 004 remains
+deferred and is neither modified nor published. Real publication remains T047–T050 work.
 
 The workflow separates repeatable preparation from irreversible publication:
 
@@ -153,6 +155,81 @@ specs/006-publish-codex-installable-product/**
 Generated release output is written to an operator-selected temporary/output directory and is not
 committed.
 
+### User Story 1 implementation audit
+
+The Feature 003 package manifest currently names this production `files` allowlist:
+
+```text
+.agents/plugins/marketplace.json
+bin/dev-flow-codex.mjs
+lib/lifecycle.mjs
+lib/paths.mjs
+plugin/.codex-plugin/plugin.json
+plugin/.mcp.json
+plugin/skills/dev-flow/SKILL.md
+plugin/skills/dev-flow/agents/openai.yaml
+runtime/darwin-arm64/dev-flow
+```
+
+`package.json` and `README.md` are npm metadata files, and the current local builder stages the root
+license as package `LICENSE`. The packed contract therefore contains those three files plus the
+manifest allowlist. The sole runtime path is `runtime/darwin-arm64/dev-flow`; the approved current
+builder is `scripts/build-codex-local.sh`.
+
+Current package-contract coverage is in `packages/codex/tests/package-contract.test.mjs` and
+`packages/codex/tests/launcher.test.mjs`. Current lifecycle and retention coverage is in
+`packages/codex/tests/lifecycle.test.mjs` and
+`packages/codex/tests/removal-retention.test.mjs`. The public-package source-free checkpoint adds
+only `packages/codex/tests/release-package.test.mjs` to those layers.
+
+The bounded T001–T018 writable scope is:
+
+```text
+specs/006-publish-codex-installable-product/**
+release/**
+tests/contract/release_contract_test.go
+tests/contract/package_manifest_test.go
+tests/contract/repository_layout_test.go
+packages/codex/package.json
+packages/codex/LICENSE
+packages/codex/README.md
+packages/codex/tests/package-contract.test.mjs
+packages/codex/tests/launcher.test.mjs
+packages/codex/tests/release-package.test.mjs
+packages/codex/tests/removal-retention.test.mjs
+packages/codex/bin/dev-flow-codex.mjs
+packages/codex/lib/paths.mjs
+packages/codex/lib/lifecycle.mjs
+package.json
+scripts/build-codex-local.sh
+scripts/validate-repository.sh
+.github/workflows/ci.yml
+```
+
+The local builder and launcher/path/lifecycle production files are conditional T017 targets and
+change only for a test-proven public-package defect. Generated tarballs, prefixes, npm caches,
+homes, data directories, repositories, and logs belong in explicit temporary/output directories
+and are never committed.
+The package `files` allowlist is the publication boundary, so no additional `.npmignore` contract is
+introduced. `packages/deepseek/` is read-only; the T003 baseline command
+`git diff --exit-code origin/main...HEAD -- packages/deepseek` passed with no output.
+
+#### Bounded User Story 1 scope amendment
+
+The first T015 source-free package test failed before building because
+`scripts/build-codex-local.sh` still required the Feature 003 private-package identity. The user
+explicitly added that file to the User Story 1 writable scope. Its authorization is limited to
+replacing the stale private assertion with the fixed Feature 006 public package contract: exact
+name/version, `private` absent-or-false, `darwin`/`arm64`, official public registry, Apache-2.0, and
+the unchanged package/plugin/Core compatibility identities.
+
+This amendment does not authorize changes to build arguments, source/dirty gates, Go flags,
+runtime layout, deterministic archive construction, SHA-256 reporting, final-artifact behavior, or
+any remote operation. After the builder correction, T015 reached setup and exposed the same stale
+private assertion in `lib/lifecycle.mjs`; T017 therefore made the matching fixed-public-contract
+correction there. `bin/dev-flow-codex.mjs` and `lib/paths.mjs` had no failing test and remain
+unchanged.
+
 ### CI path
 
 ```text
@@ -162,6 +239,39 @@ scripts/validate-repository.sh
 
 CI may validate schemas, scripts, package metadata, and dry preparation. It must not publish, create
 tags/releases, or require credentials.
+
+### User Story 2 implementation boundary
+
+`scripts/build-codex-release.sh` owns only clean-`main` source admission and two temporary worktree
+build orchestration. Each worktree runs its own unchanged local builder. The verifier module owns
+normalized tree comparison, five-file generation, closed record/package validation, checksums, and
+bounded forbidden-content scanning. Preparation invokes no registry, GitHub CLI, Codex, Tag, push,
+or network operation.
+
+`scripts/publish-codex-release.mjs` uses argv-closed subprocess calls with fixed timeouts/buffers and
+no shell. It rereads exact npm, Tag, GitHub draft, and asset state before each mutation; writes the
+publication record atomically; publishes npm at most once; reuses only matching immutable state;
+and blocks rather than overwrites conflicts. User Story 2 tests put fake npm/gh first in an isolated
+PATH and use a temporary bare Git remote. A test-local simulated journey exercises only fake-remote
+manifest/asset behavior and cannot satisfy the production native evidence validator.
+
+### User Story 3 implementation boundary
+
+The released-package tests perform a real two-version compatible upgrade in isolated npm prefixes,
+prove explicit setup is the only registration transition, preserve the same active Task facts, and
+refuse downgrade. A packaged Core is also exercised against a future SQLite migration marker and
+must stop without changing Schema, Task/Event/Claim rows, database bytes, adjacent data, or the
+repository.
+
+The production publisher now owns the complete gated sequence after verified npm read-back:
+registry-only final Journey, native support entry, final manifest/checksum rewrite, four-asset
+upload/read-back, GitHub Release finalization, and final identity read-back. Fixture runtimes may
+stop after npm or before finalization and may inject simulated journey facts only inside isolated
+tests; production has no bypass and accepts only native registry-package evidence.
+
+The publisher remains an operator tool outside Core/MCP. Publication records remain external
+mutable artifacts and never enter SQLite or the public GitHub asset set. `packages/deepseek/`,
+shared Core semantics, MCP tools, recovery classifications, and SQLite Schema are unchanged.
 
 ## Release Output
 

@@ -124,14 +124,45 @@ export async function setupRegistration({
   });
 
   if (existingReceipt) {
-    if (!receiptOwnershipMatches(existingReceipt, expectedReceipt)) {
-      throw new Error("registration receipt ownership conflict; setup made no changes");
+    if (receiptOwnershipMatches(existingReceipt, expectedReceipt)) {
+      assertMatchingRegistrationState(initialState, paths, preflight.packageVersion);
+      return {
+        status: "already-installed",
+        changed: false,
+        receipt: existingReceipt,
+      };
     }
-    assertMatchingRegistrationState(initialState, paths, preflight.packageVersion);
+
+    assertCompatibleReceiptUpgrade(existingReceipt, expectedReceipt);
+    const registrationMatchesPrevious = registrationStateMatches(
+      initialState,
+      paths,
+      existingReceipt.product.version,
+    );
+    const registrationMatchesCurrent = registrationStateMatches(
+      initialState,
+      paths,
+      preflight.packageVersion,
+    );
+    if (!registrationMatchesPrevious && !registrationMatchesCurrent) {
+      throw new Error("registration state conflicts with the owned upgrade; setup made no changes");
+    }
+    if (registrationMatchesPrevious) {
+      const pluginAddResult = await runCodexJSON(
+        ["plugin", "add", PLUGIN_SELECTOR, "--json"],
+        commandOptions,
+      );
+      assertPluginAddResult(pluginAddResult, paths, preflight.packageVersion);
+      const finalState = await readRegistrationState(commandOptions);
+      assertMatchingRegistrationState(finalState, paths, preflight.packageVersion);
+    }
+    await writeReceiptAtomic(paths.receiptPath, expectedReceipt, {
+      ownedRoot: paths.productSupportRoot,
+    });
     return {
-      status: "already-installed",
-      changed: false,
-      receipt: existingReceipt,
+      status: "installed",
+      changed: true,
+      receipt: expectedReceipt,
     };
   }
 
@@ -301,8 +332,20 @@ async function inspectCodexVersion(codexExecutable, { environment, currentDirect
 
 async function assertPackageResources(paths, packageVersion) {
   const packageManifest = await readJSON(join(paths.packageRoot, "package.json"), "package manifest");
-  if (packageManifest.name !== PLUGIN_NAME || packageManifest.private !== true) {
-    throw new Error("package manifest has the wrong private product identity");
+  const privateContract = !Object.hasOwn(packageManifest, "private") || packageManifest.private === false;
+  const platformContract = stableJSON(packageManifest.os) === stableJSON(["darwin"]) &&
+    stableJSON(packageManifest.cpu) === stableJSON(["arm64"]);
+  const publishContract = packageManifest.publishConfig?.access === "public" &&
+    packageManifest.publishConfig?.registry === "https://registry.npmjs.org/" &&
+    stableJSON(Object.keys(packageManifest.publishConfig).sort()) === stableJSON(["access", "registry"]);
+  if (
+    packageManifest.name !== PLUGIN_NAME ||
+    !privateContract ||
+    !platformContract ||
+    !publishContract ||
+    packageManifest.license !== "Apache-2.0"
+  ) {
+    throw new Error("package manifest does not satisfy the fixed public package contract");
   }
   if (packageManifest.version !== packageVersion) {
     throw new Error("package manifest version does not match the requested package version");
@@ -535,6 +578,15 @@ function assertMatchingRegistrationState(state, paths, packageVersion) {
     },
     "plugin readback",
   );
+}
+
+function registrationStateMatches(state, paths, packageVersion) {
+  try {
+    assertMatchingRegistrationState(state, paths, packageVersion);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function rollbackCreatedMarketplace(paths, commandOptions) {
@@ -931,6 +983,41 @@ export function receiptOwnershipMatches(left, right) {
   } catch {
     return false;
   }
+}
+
+function assertCompatibleReceiptUpgrade(previousReceipt, currentReceipt) {
+  const previous = validateReceipt(previousReceipt);
+  const current = validateReceipt(currentReceipt);
+  const order = compareSemver(
+    parseSemver(current.product.version, "current product version"),
+    parseSemver(previous.product.version, "previous product version"),
+  );
+  if (order < 0) {
+    throw new Error("package downgrade is not allowed; setup made no changes");
+  }
+  if (order === 0) {
+    throw new Error("registration receipt ownership conflict; setup made no changes");
+  }
+  if (stableJSON(upgradeOwnershipProjection(previous)) !== stableJSON(upgradeOwnershipProjection(current))) {
+    throw new Error("registration receipt ownership conflict; setup made no changes");
+  }
+}
+
+function upgradeOwnershipProjection(receipt) {
+  return {
+    schema_version: receipt.schema_version,
+    product: {
+      name: receipt.product.name,
+      codex_compatibility: receipt.product.codex_compatibility,
+    },
+    host: {
+      surface: receipt.host.surface,
+      os: receipt.host.os,
+      arch: receipt.host.arch,
+    },
+    registration: receipt.registration,
+    paths: receipt.paths,
+  };
 }
 
 function ownershipProjection(receipt) {

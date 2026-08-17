@@ -239,6 +239,37 @@ test("setup preflights compatibility, resources, runtime, and PATH before regist
   await assert.rejects(stat(nonExecutable.statePath), { code: "ENOENT" });
 });
 
+test("setup rejects every mismatched public package identity before registration writes", async (t) => {
+  const cases = [
+    { name: "wrong-name", mutate: (manifest) => { manifest.name = "other-product"; }, error: /public package contract/ },
+    { name: "private", mutate: (manifest) => { manifest.private = true; }, error: /public package contract/ },
+    { name: "wrong-os", mutate: (manifest) => { manifest.os = ["linux"]; }, error: /public package contract/ },
+    { name: "wrong-cpu", mutate: (manifest) => { manifest.cpu = ["x64"]; }, error: /public package contract/ },
+    {
+      name: "wrong-registry",
+      mutate: (manifest) => { manifest.publishConfig.registry = "https://registry.example.invalid/"; },
+      error: /public package contract/,
+    },
+    {
+      name: "wrong-access",
+      mutate: (manifest) => { manifest.publishConfig.access = "restricted"; },
+      error: /public package contract/,
+    },
+    { name: "wrong-license", mutate: (manifest) => { manifest.license = "MIT"; }, error: /public package contract/ },
+    { name: "wrong-version", mutate: (manifest) => { manifest.version = "0.1.1"; }, error: /version.*requested package version/ },
+  ];
+
+  for (const testCase of cases) {
+    const fixture = await makeSetupFixture(t, `public-package-${testCase.name}`);
+    const manifest = publicPackageManifestFixture();
+    testCase.mutate(manifest);
+    await writeFile(join(fixture.paths.packageRoot, "package.json"), `${JSON.stringify(manifest)}\n`);
+    await assert.rejects(setupRegistration(fixture.options), testCase.error);
+    await assert.rejects(stat(fixture.statePath), { code: "ENOENT" });
+    await assert.rejects(stat(fixture.paths.receiptPath), { code: "ENOENT" });
+  }
+});
+
 test("setup registers through exact JSON commands, verifies readback, and writes the receipt last", async (t) => {
   const fixture = await makeSetupFixture(t, "successful");
   const repository = join(fixture.root, "target repository-仓库");
@@ -318,6 +349,42 @@ test("matching repeated setup is a no-op while receipt or readback conflicts fai
       plugins: [],
     })}\n`,
   );
+});
+
+test("setup upgrades only an exactly owned registration and rejects package downgrade", async (t) => {
+  const fixture = await makeSetupFixture(t, "compatible-upgrade");
+  await setupRegistration(fixture.options);
+  const stateA = JSON.parse(await readFile(fixture.statePath, "utf8"));
+  const unrelatedMarketplace = marketplaceStateEntry("other-marketplace", join(fixture.root, "other-marketplace"));
+  const unrelatedPlugin = pluginStateEntry({
+    name: "other-plugin",
+    marketplaceName: "other-marketplace",
+    pluginRoot: join(fixture.root, "other-marketplace", "plugin"),
+    marketplaceRoot: join(fixture.root, "other-marketplace"),
+    version: "9.9.9",
+  });
+  stateA.marketplaces.push(unrelatedMarketplace);
+  stateA.plugins.push(unrelatedPlugin);
+  await writeFile(fixture.statePath, `${JSON.stringify(stateA, null, 2)}\n`);
+
+  await updateSetupFixtureVersion(fixture, "0.1.1");
+  const upgraded = await setupRegistration(fixture.options);
+  assert.equal(upgraded.status, "installed");
+  assert.equal(upgraded.changed, true);
+  assert.equal(upgraded.receipt.product.version, "0.1.1");
+  assert.equal(upgraded.receipt.product.core_version, "0.1.1");
+  const stateB = JSON.parse(await readFile(fixture.statePath, "utf8"));
+  assert.deepEqual(stateB.marketplaces, [stateA.marketplaces[0], unrelatedMarketplace]);
+  assert.equal(stateB.plugins.length, 2);
+  assert.equal(stateB.plugins[0].version, "0.1.1");
+  assert.deepEqual(stateB.plugins[1], unrelatedPlugin);
+
+  const receiptBeforeDowngrade = await readFile(fixture.paths.receiptPath, "utf8");
+  const stateBeforeDowngrade = await readFile(fixture.statePath, "utf8");
+  await updateSetupFixtureVersion(fixture, "0.1.0");
+  await assert.rejects(setupRegistration(fixture.options), /downgrade/i);
+  assert.equal(await readFile(fixture.paths.receiptPath, "utf8"), receiptBeforeDowngrade);
+  assert.equal(await readFile(fixture.statePath, "utf8"), stateBeforeDowngrade);
 });
 
 test("setup rolls back only a marketplace created by the failing attempt", async (t) => {
@@ -556,7 +623,7 @@ async function makeSetupFixture(t, name) {
   await mkdir(hostBin, { recursive: true });
   await writeFile(
     join(packageRoot, "package.json"),
-    `${JSON.stringify({ name: "dev-flow-codex", version: "0.1.0", private: true })}\n`,
+    `${JSON.stringify(publicPackageManifestFixture())}\n`,
   );
   await writeFile(
     join(packageRoot, ".agents", "plugins", "marketplace.json"),
@@ -627,6 +694,35 @@ async function makeSetupFixture(t, name) {
       environment,
       currentDirectory: packageRoot,
       now: () => new Date("2026-08-15T00:00:00.000Z"),
+    },
+  };
+}
+
+async function updateSetupFixtureVersion(fixture, version) {
+  const packageManifestPath = join(fixture.paths.packageRoot, "package.json");
+  const packageManifest = JSON.parse(await readFile(packageManifestPath, "utf8"));
+  packageManifest.version = version;
+  await writeFile(packageManifestPath, `${JSON.stringify(packageManifest)}\n`);
+
+  const pluginManifestPath = join(fixture.paths.pluginRoot, ".codex-plugin", "plugin.json");
+  const pluginManifest = JSON.parse(await readFile(pluginManifestPath, "utf8"));
+  pluginManifest.version = version;
+  await writeFile(pluginManifestPath, `${JSON.stringify(pluginManifest)}\n`);
+  await writeFile(fixture.paths.runtimePath, `#!/bin/sh\nprintf 'dev-flow ${version}\\n'\n`, { mode: 0o700 });
+  fixture.options.packageVersion = version;
+}
+
+function publicPackageManifestFixture() {
+  return {
+    name: "dev-flow-codex",
+    version: "0.1.0",
+    private: false,
+    license: "Apache-2.0",
+    os: ["darwin"],
+    cpu: ["arm64"],
+    publishConfig: {
+      access: "public",
+      registry: "https://registry.npmjs.org/",
     },
   };
 }
