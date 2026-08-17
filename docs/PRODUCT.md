@@ -2,14 +2,28 @@
 
 ## 当前交付
 
-Feature 002 交付的是 **Core Contract 0.1**：一个通过本地 STDIO MCP 使用的单仓库任务控制
-Core。它已经具备共享状态机、SQLite 持久化、只读 Git 观察、重启续作与保守恢复，但尚未
-交付 Codex 或 DeepSeek 产品集成、安装和发布。
+Dev Flow 当前包含一个共享 Core 和一个已实现但尚未公开发布的 Codex 产品：
 
-`server_info.supported_hosts = [codex, deepseek]` 只表示 Core 接受这两个 `origin_host` identity，
-不表示两个宿主包已可安装、运行或通过真实宿主 journey。
+- **Core Contract 0.1**：本地 STDIO MCP、SQLite、只读 Git、单仓库单活动任务、统一状态机与
+  五类恢复；
+- **Feature 003 Codex 显式产品**：一个 Plugin、一个 `dev-flow` Skill、一个本地 MCP 声明、
+  一个 bundled Core，以及显式 setup/remove；
+- **Feature 005 恢复加固**：不确定 mutation 的 read-after-write proof、repository drift 拒绝、
+  partial/conflicting blocker 与并发提交保护；
+- **Feature 006 确定性发布实现**：固定 `dev-flow-codex@0.1.0` public package 合同、仅
+  `darwin-arm64`、source-free 本地 tgz、生命周期与 retained data、兼容升级、两工作树准备、
+  normalized verifier、resumable publisher、registry-only final Journey 合同和 finalization gate。
 
-## 用户价值
+Feature 006 尚未执行 public npm/GitHub release。package manifest 的 `private: false` 与 public
+publishConfig 定义的是发布合同，不表示 registry 已经存在该包。
+
+Deterministic implementation complete — T001–T046 passed. Irreversible real release T047–T050
+remains pending.
+
+`server_info.supported_hosts = [codex, deepseek]` 只表示 Core 接受两个 `origin_host` identity；
+DeepSeek 产品仍未实现、未验证、未发布。
+
+## 用户价值与权威边界
 
 Core 把一次开发工作固定为不可静默修改的任务合同：
 
@@ -23,27 +37,26 @@ origin_host
 repository binding
 ```
 
-它为任务保存唯一权威下一动作，让调用者在进程关闭后找回相同 task/revision/action，并在写入
-前核对新的仓库现实。遇到 stale identity、仓库漂移或无法证明的 mutation 时，Core 返回稳定
-错误或进入可机器验证的 `BLOCKED`，不会猜测完成、重放宿主副作用或自动修复 Git。
+Core 保存唯一权威下一动作。Codex Skill 负责显式调用和结果投影，不保存 Task、不复制转换表、
+不判断完成。遇到 stale identity、仓库漂移或无法证明的 mutation，Core 返回稳定错误或机器可
+验证的 `BLOCKED`；publisher 只处理本仓库的发布状态，不进入 Core 或 SQLite。
 
-## 已实现能力
+## 已实现产品能力
 
-- 一个现有本地 Git repository；
-- 每个 repository identity 最多一个活动 governed task；
-- `codex` 或 `deepseek` origin-host ownership，禁止自动跨宿主接管；
-- `INTAKE → ASSESS → PLAN → IMPLEMENT → VERIFY → REVIEW → HANDOFF → DONE`；
-- `BLOCKED` 与 `CANCELLED`；
-- 阶段级闭合 payload、revision CAS、action identity 与 repository binding；
-- verification budget 与单一 retained Task evidence authority；
+- 一个现有本地 Git repository，每个 repository identity 最多一个活动 governed task；
+- `INTAKE → ASSESS → PLAN → IMPLEMENT → VERIFY → REVIEW → HANDOFF → DONE`，以及
+  `BLOCKED`、`CANCELLED`；
+- revision CAS、action identity、repository binding、verification budget 与 retained evidence；
 - SQLite snapshot、audit event 与 repository claim 的同事务 mutation；
-- 关闭全部 Core/database objects 后重开同一数据库并恢复相同 action；
-- 不确定 ApplyAction 的 read-after-write proof 与五类瞬时 RecoveryAssessment；
-- ordinary repository drift 的零写入拒绝；
-- partial/conflicting recovery 的显式 BLOCKED entry；
-- 仅在精确恢复 issuance binding 后执行 `RESOLVE_BLOCKER`；
-- 显式 cancellation、终态 Outcome 与 claim release；
-- 本地 STDIO MCP 和统一 typed result envelope。
+- `not_started`、`completed_and_recorded`、`completed_but_unrecorded`、
+  `partially_completed`、`conflicting` 五类恢复；
+- 一个 Codex Plugin、一个显式 `dev-flow` Skill、一个 local STDIO MCP 和恰好六个工具；
+- npm install/update/uninstall 与显式 setup/remove 分离；
+- source-free local tgz 安装、unsupported-platform 拒绝、retained task reopen；
+- compatible explicit upgrade、downgrade refusal、future SQLite Schema safe-stop；
+- 两个 clean worktree 的 release preparation、五文件 output、Schema/identity verifier；
+- fake npm/gh 下的 publish-once、resume、conflict、asset read-back 与 finalization gate；
+- 只允许 official registry package 的最终 Codex Journey runner 和 native support-matrix 合同。
 
 ## MCP 使用面
 
@@ -56,62 +69,45 @@ dev_flow_apply_action
 dev_flow_cancel_task
 ```
 
-工具输入不接受任意命令、环境、数据库路径或输出路径。调用者通过 `dev_flow_get_next_action`
-取得 Core 已持久化的动作与 payload contract，使用自身已有的文件、Shell 和开发工具完成动作，
-再提交有界结果。Core 本身不运行测试或用户命令。
+Core 本身不运行测试、用户命令或 Git mutation。调用者通过 `dev_flow_get_next_action` 取得
+持久化动作与 closed payload contract，使用宿主已有工具完成动作，再提交有界结果。
 
-服务通过以下唯一模式启动：
+服务唯一启动模式是：
 
 ```bash
 DEV_FLOW_DATA_DIR="<existing-directory>" dev-flow mcp --stdio
 ```
 
-CLI 还提供 bounded help 与 `dev-flow version`。没有 HTTP、SSE 或监听端口。
+## 证据分层
 
-详细 wire contract 见 [MCP Tools 0.1](../specs/002-govern-and-resume-single-repository-task/contracts/mcp-tools.md)，
-转换与恢复规则见 [State Machine](../specs/002-govern-and-resume-single-repository-task/contracts/state-machine.md)，
-共享示例见 [Protocol Fixtures](../protocol/fixtures/README.md)。
+### 已完成的真实证据
 
-## 恢复与证据边界
+- Feature 003 使用真实 Codex 完成显式 create、restart、resume、Core `DONE` 与 remove 验收。
 
-不带 probe 的任务读取只返回持久状态，不观察 Git。带 `operation_probe` 的读取对所有阶段进行
-一次新观察，返回以下五类之一，并且不写 Task、revision、event、binding 或 blocker：
+### 已完成的确定性证据
 
-```text
-not_started
-completed_and_recorded
-completed_but_unrecorded
-partially_completed
-conflicting
-```
+- Feature 005 Core/Store/MCP/repository recovery tests；
+- Feature 006 source-free local tgz package/lifecycle、retention、upgrade 与 future-schema tests；
+- 两工作树 preparation、normalized verifier 与 release Schema contracts；
+- 隔离 fake npm/gh/临时 bare remote 的 publication、resume、conflict 和 simulated finalization；
+- registry-only final Journey harness contract 与 native-only support-matrix validator。
 
-只有显式 `recovery_apply` 可以记录未落账完成或创建 blocker。恢复分类来自 Core 的 typed facts，
-不是模型文本。成功读取中的 `recovery_assessment` 与错误信封中的 retry guidance `recovery`
-保持分离。
+### 尚未完成的真实发布证据
 
-Retained evidence 只保存有界 summary、source、status、digest、command count 与 full-suite 标记；
-不保存源码、diff、raw Git status、环境值或 raw command output。Outcome 只引用 Task.Evidence 中的
-canonical IDs，不复制 evidence authority。
+- public npm publication 与 registry metadata/tarball read-back；
+- 使用 public registry package 的最终真实 Codex Journey；
+- GitHub 四资产 official-path read-back；
+- 公开 Git Tag/GitHub Release 与完成态 publication record。
 
-## 已验证边界
-
-当前仓库测试覆盖 Domain/Workflow invariants、SQLite migration/CAS/claim、只读 Git fingerprint、
-Application 全流程、五类 recovery、blocker exact resolution、共享 MCP contract/fixtures、官方
-SDK 六工具握手、CLI EOF shutdown，以及独立进程关闭/重开后完成任务的 Core journey。
-
-这些证据是 Core-local evidence。它们不是 Codex/DeepSeek 真实宿主证据，也不是安装、发布或
-所有平台的产品兼容性声明。
+fixture、fake、静态合同或本地 tgz 不会升级为 native/public evidence。
 
 ## 明确不支持
 
-- Codex product integration 或真实 Codex journey；
-- DeepSeek product integration、Proxy 或真实 DeepSeek journey；
-- installation、upgrade、remove、publication、Tag 或 Release；
-- Web UI、remote MCP、HTTP/SSE、authentication、account 或 telemetry；
-- multi-repository task、并行执行器或 cross-host takeover；
-- Git mutation、自动 repository repair、新 binding adoption 或通用 Shell MCP；
-- workflow plugin/DSL、通用 recovery policy 或 TaskEvent runtime replay；
-- Windows release claim 或未经真实验证的平台产品声明；
-- real-host transport-loss/crash/truncation hardening。
+- 当前从 npm registry 安装 `dev-flow-codex@0.1.0` 的可用性声明；
+- 已发布 Git Tag、GitHub Release 或完成态公开支持声明；
+- DeepSeek product、Harness journey 或 publication；
+- Linux、Windows、Intel Mac、Rosetta 或未经最终制品验证的平台；
+- Web UI、remote MCP、HTTP/SSE、authentication、telemetry、多仓库或跨宿主自动接管；
+- Core Git mutation、通用 Shell MCP、自动 repository repair、自动升级、签名或 notarization。
 
-后续 Feature 的目标不能视为本版本已交付能力。
+真实不可逆发布仅由 Feature 006 T047–T050 在 reviewed clean `main` 上执行。
