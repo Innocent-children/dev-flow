@@ -62,14 +62,46 @@ objects reopen, and the exact probe reports `completed_and_recorded`; pre-commit
 recorded only by explicit recovery apply; partial/conflicting reads write nothing; stale sources
 cannot mutate.
 
-- [ ] T018 [P] [US2] Complete independent five-class table coverage in `internal/recovery/classify_test.go`, including insufficient-evidence conservative ordering.
-- [ ] T019 [US2] Add exact completed-but-unrecorded adoption with one explicit recovery apply and one event in `internal/recovery/reconcile_test.go` and `internal/application/apply_action_test.go`.
-- [ ] T020 [P] [US2] Add partial and conflicting read-only cardinality assertions in `internal/recovery/reconcile_test.go` and `internal/store/sqlite_test.go`.
-- [ ] T021 [P] [US2] Add stale/superseded recovery-source zero-write cases in `internal/application/apply_action_test.go`.
-- [ ] T022 [US2] Add exact blocker entry, retention, and restore-issuance-binding resolution cases in `internal/recovery/reconcile_test.go` and `internal/application/apply_action_test.go`.
-- [ ] T023 [US2] Add a repository-change-between-read-and-recovery-apply case proving fresh observation before write in `internal/application/apply_action_test.go`.
-- [ ] T024 [US2] Verify and minimally correct only test-proven classification/reconciliation gaps in `internal/recovery/classify.go` and `internal/recovery/reconcile.go` without adding a class or public field.
-- [ ] T025 [US2] Run the User Story 2 targeted packages and record the checkpoint result in `specs/005-recover-uncertain-actions-and-drift/tasks.md`.
+- [x] T018 [P] [US2] Complete independent five-class table coverage in `internal/recovery/classify_test.go`, including insufficient-evidence conservative ordering.
+- [x] T019 [US2] Add exact completed-but-unrecorded adoption with one explicit recovery apply and one event in `internal/recovery/reconcile_test.go` and `internal/application/apply_action_test.go`.
+- [x] T020 [P] [US2] Add partial and conflicting read-only cardinality assertions in `internal/recovery/reconcile_test.go` and `internal/store/sqlite_test.go`.
+- [x] T021 [P] [US2] Add stale/superseded recovery-source zero-write cases in `internal/application/apply_action_test.go`.
+- [x] T022 [US2] Add exact blocker entry, retention, and restore-issuance-binding resolution cases in `internal/recovery/reconcile_test.go` and `internal/application/apply_action_test.go`.
+- [x] T023 [US2] Add a repository-change-between-read-and-recovery-apply case proving fresh observation before write in `internal/application/apply_action_test.go`.
+- [x] T024 [US2] Verify and minimally correct only test-proven classification/reconciliation gaps in `internal/recovery/classify.go` and `internal/recovery/reconcile.go` without adding a class or public field. All new deterministic tests pass without production changes.
+- [x] T025 [US2] Run the User Story 2 targeted packages and record the checkpoint result in `specs/005-recover-uncertain-actions-and-drift/tasks.md`.
+
+### User Story 2 Checkpoint Evidence — 2026-08-17
+
+- Current baseline: `go test ./internal/recovery`, `go test ./internal/application`, and
+  `go test ./internal/store` passed before User Story 2 edits.
+- Final checkpoint: `go test ./internal/recovery`, `go test ./internal/application`,
+  `go test ./internal/store`, and `go test ./tests/contract` passed, 4/4 packages.
+- Five-class proof: the ordered classifier independently covers `completed_and_recorded`,
+  `conflicting`, `partially_completed`, `completed_but_unrecorded`, and `not_started`, including
+  exact identity/digest projection, directives, advice, retry safety, proof, and conditions.
+- Conservative precedence: exact committed proof wins first; contradictory LastOperation,
+  contradictory evidence, forbidden repository facts, and stale sources cannot fall through to a
+  completion or retry classification; worktree change without retained evidence remains partial.
+- Exact adoption: a real SQLite-backed recovery read returned `completed_but_unrecorded`; one
+  explicit `recovery_apply` advanced one phase and revision with one matching event, LastOperation,
+  retained claim, one evidence addition, and the observed binding. Repeating it wrote nothing.
+- Read-only proof: partial and conflicting reads left the complete Task aggregate, raw SQLite
+  snapshot, revision, phase/action, blocker, LastOperation, events, evidence, claim, and binding
+  byte-for-byte unchanged.
+- Superseded sources: stale revision, stale action, advanced phase, superseded issuance binding,
+  and an old normal source against a blocked task produced existing conflict/read-back behavior
+  with zero commits.
+- Blocker lifecycle: a read remained zero-write; one explicit current-source recovery apply created
+  one blocker/event; repeating it retained the same ID, condition, and resume phase; exact
+  `restore_issuance_binding` plus `RESOLVE_BLOCKER` returned only to the recorded phase. Worktree,
+  observed-digest, blocker-ID, and revision mismatches were zero-write failures.
+- Fresh observation: the first read saw complete worktree evidence, then the apply-time observer
+  returned a newer conflicting binding; Core used the second digest, entered `BLOCKED`, retained the
+  issuance binding, and did not adopt the stale completed observation.
+- Production code: unchanged; `internal/recovery/classify.go` and
+  `internal/recovery/reconcile.go` required no correction.
+- T026–T040 remain unstarted and unchecked; User Story 3 and final Feature gates were not run.
 
 ## Phase 5 — User Story 3: Drift and concurrent reconnects
 
