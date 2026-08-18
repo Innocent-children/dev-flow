@@ -159,10 +159,10 @@ while preserving Feature 006 frozen truth.
 
 - [x] T018 Export version-derived release output names and remove the stale fixed `0.1.0` current-release list in `scripts/verify-codex-release.mjs` per FR-021.
 - [x] T019 Add current `0.3.0` release-output-name coverage in `packages/codex/tests/package-contract.test.mjs` and rerun the complete repository validation per FR-021–FR-022.
-- [ ] T020 Commit the complete Feature 007 implementation, push the exact clean commit to `origin/main`, and record its commit/tree identity in `specs/007-close-open-task-contract/tasks.md` per FR-020.
-- [ ] T021 Prepare exactly once into `/Users/innocent-children/dev-flow-releases/v0.3.0` and verify the five-file set, source identity, package/Core version, digests, and publication preflight per FR-022–FR-023.
-- [ ] T022 Execute the explicit production publisher once with confirmation `v0.3.0`; stop without retry on any failure and retain exact remote/publication-record truth per FR-023–FR-025.
-- [ ] T023 Verify npm read-back, native registry Codex journey, final support entry, four GitHub asset read-backs, public `v0.3.0` Release identity, complete publication record, and unchanged Feature 006 frozen identities per FR-024–FR-026.
+- [x] T020 Commit the complete Feature 007 implementation, push the exact clean commit to `origin/main`, and record its commit/tree identity in `specs/007-close-open-task-contract/tasks.md` per FR-020.
+- [x] T021 Prepare exactly once into `/Users/innocent-children/dev-flow-releases/v0.3.0` and verify the five-file set, source identity, package/Core version, digests, and publication preflight per FR-022–FR-023.
+- [x] T022 Execute the explicit production publisher once with confirmation `v0.3.0`; stop without retry on any failure and retain exact remote/publication-record truth per FR-023–FR-025.
+- [x] T023 Verify npm read-back, native registry Codex journey, final support entry, four GitHub asset read-backs, public `v0.3.0` Release identity, complete publication record, and unchanged Feature 006 frozen identities per FR-024–FR-026.
 
 **Checkpoint**: `dev-flow-codex@0.3.0` and GitHub Release `v0.3.0` are public, verified, and bound to
 one clean source; no `v0.1.0` identity changed.
@@ -204,8 +204,8 @@ resume guidance and using reviewed tooling against the frozen tagged source.
 
 - [x] T028 Require the exact `open_task → get_task → get_next_action → apply_action` resume sequence and no-skip rule in `scripts/write-codex-journey-evidence.mjs` per FR-030.
 - [x] T029 Add final registry resume prompt contract coverage in `packages/codex/tests/journey-harness.test.mjs` and run targeted/full validation per SC-014.
-- [ ] T030 Commit and push the tooling correction, create a detached external checkout at immutable Tag `v0.3.0`, and run the reviewed publisher tooling against that frozen source without moving the Tag or republishing npm per FR-029.
-- [ ] T031 Verify final Journey, four assets, public GitHub Release, complete publication record, and unchanged npm/Tag/source identities per FR-024–FR-030.
+- [x] T030 Commit and push the tooling correction, create a detached external checkout at immutable Tag `v0.3.0`, and run the reviewed publisher tooling against that frozen source without moving the Tag or republishing npm per FR-029.
+- [x] T031 Verify final Journey, four assets, public GitHub Release, complete publication record, and unchanged npm/Tag/source identities per FR-024–FR-030.
 
 ### Confirmed Publication Outcome — 2026-08-18
 
@@ -214,8 +214,8 @@ resume guidance and using reviewed tooling against the frozen tagged source.
 - Tag `v0.3.0`, GitHub Draft `372256319`, npm `dev-flow-codex@0.3.0`, and registry tarball
   SHA-256 `963e0a7391035db89e89733b9135f0c2fdd98dce85fdbab5ceee12c1ba873186`
   are exact and immutable. npm publish count is one.
-- Two final Journey runs reached the resume evidence gate but Codex selected the shorter
-  open-result-to-apply path. GitHub assets remain empty and the Release remains Draft.
+- Two earlier final Journey runs reached the resume evidence gate but Codex selected the shorter
+  open-result-to-apply path; at that checkpoint GitHub assets were empty and the Release remained Draft.
 - The reviewed tooling correction names both read tools, their order, and the explicit no-skip
   rule. Its targeted contract and full repository validation pass.
 
@@ -230,7 +230,7 @@ resume guidance and using reviewed tooling against the frozen tagged source.
 - [x] T033 Restore preflight completion only after the complete read-only remote observation passes,
   and reuse an internally consistent passed Journey/final manifest on confirmed retry in
   `scripts/publish-codex-release.mjs` per FR-025 and FR-031.
-- [ ] T034 Run the targeted publication state-machine test, syntax/diff checks, commit and push the
+- [x] T034 Run the targeted publication state-machine test, syntax/diff checks, commit and push the
   reviewed tooling correction, then run the confirmed publisher against frozen `v0.3.0` source;
   verify the public Release, four assets, npm/Tag/source identity, and complete publication record.
 
@@ -242,3 +242,9 @@ resume guidance and using reviewed tooling against the frozen tagged source.
   proves the next run finalizes successfully with Journey invocation count still one and identical
   `release-manifest.json` bytes.
 - `release-publication.test.mjs` passed 18/18; publisher syntax and `git diff --check` passed.
+- Recovery tooling commit `9a0b2d6` was pushed to `origin/main`. The confirmed publisher reused
+  npm `0.3.0`, Tag `v0.3.0`, Draft `372256319`, the passed Journey, and all four verified assets;
+  npm was not republished and the Journey was not rerun.
+- GitHub Release `v0.3.0` was published at `2026-08-18T11:54:09Z`. Final public read-back returned
+  source `94cf8308abac8a34a15a426c7c2f2e1113f0a6f9`, four assets, npm `latest=0.3.0`, and a complete
+  nine-step publication record with no remaining action.

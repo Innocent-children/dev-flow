@@ -4,7 +4,8 @@
 
 **Created**: 2026-08-18
 
-**Status**: Draft
+**Status**: Complete — the open-task contract fix, `0.3.0` alignment, publication recovery, native
+Journey, four-asset read-back, and public GitHub Release gates passed on 2026-08-18.
 
 **Input**: Prevent Codex from submitting malformed `dev_flow_open_task.new_task` contracts after two observed failures: an unsupported verification level and list-valued contract fields encoded as strings.
 
