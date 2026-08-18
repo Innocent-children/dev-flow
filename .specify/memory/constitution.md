@@ -1,26 +1,20 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 → 1.1.0
-- Amendment date: 2026-08-17
-- Modified principles:
-  - X. Two-Host Contract Parity: clarified that one host-specific 0.x product may be released
-    independently when shared semantics do not change and the deferred host is explicit.
+- Version change: 1.1.0 → 1.2.0
+- Amendment date: 2026-08-18
 - Modified sections:
-  - Development Workflow and Quality Gates: release gates now apply to every product included in
-    the release rather than requiring both products in every 0.x release.
-  - Product and Technology Constraints: retained two-product destination and synchronized version
-    rules for components included in one release.
+  - Product and Technology Constraints: every production feature now owns its current product
+    version increment and component alignment; version alignment is not a separate feature.
+  - Development Workflow and Quality Gates: feature completion now requires current version
+    alignment while preserving frozen historical release identities.
 - Preserved gates:
+  - released and incident-frozen Tag, Draft, artifact digest, and recovery identities remain
+    immutable;
   - public semantic changes still require two-host contract parity;
-  - 1.0.0 still requires both products and both real-host journeys;
-  - no adapter may patch around a Core contract mismatch.
-- Follow-up documents updated:
-  - docs/FEATURE-DEPENDENCIES.md
-  - docs/ROADMAP.md
-  - docs/RELEASE-STRATEGY.md
-  - specs/004-deepseek-explicit-dev-flow/README.md
-  - specs/005-recover-uncertain-actions-and-drift/**
-  - specs/006-publish-codex-installable-product/**
+  - no release side effect is authorized by a version increment.
+- Follow-up artifacts:
+  - active feature specification, plan, and tasks must name the approved next version and exact
+    current version authorities.
 -->
 # Dev Flow Constitution
 
@@ -172,6 +166,12 @@ host product to deliver value without waiting for an unrelated unavailable host 
   telemetry, agent orchestration, Git mutation, or a plugin framework.
 - Product version, package versions, embedded core version, and Git release tag included in one
   `0.x` release MUST remain aligned unless a later approved specification defines decoupling.
+- Every production feature MUST include its current product version increment and alignment in that
+  feature's specification and tasks; version alignment MUST NOT be split into a separate feature.
+  Before the feature completes, root `VERSION` and every current root/package/plugin version
+  authority MUST equal the feature's approved next version. Historical released or incident-frozen
+  Tag, Draft, artifact digest, publication record, fixture, and recovery identities remain bound to
+  their original version and MUST NOT be rewritten as current-version alignment.
 
 ## Development Workflow and Quality Gates
 
@@ -201,6 +201,8 @@ Before implementation:
 
 Before merge:
 
+- the active feature's approved next version is aligned across root `VERSION` and every current
+  root/package/plugin version authority;
 - required targeted tests pass;
 - public contract fixtures pass;
 - no unauthorized scope appears in the diff;
@@ -245,4 +247,4 @@ preferences.
   when dependency, roadmap, release, and active Spec Kit artifacts are updated together and no
   public-contract gate is bypassed.
 
-**Version**: 1.1.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-17
+**Version**: 1.2.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-18

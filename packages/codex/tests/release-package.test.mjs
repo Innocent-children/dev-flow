@@ -24,6 +24,7 @@ import { fileURLToPath } from "node:url";
 const execFile = promisify(execFileCallback);
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = join(packageRoot, "..", "..");
+const currentVersion = (await readFile(join(repositoryRoot, "VERSION"), "utf8")).trim();
 const buildScript = join(repositoryRoot, "scripts", "build-codex-local.sh");
 const fakeCodexPath = join(packageRoot, "tests", "fixtures", "fake-codex.mjs");
 const supportedMachine = process.platform === "darwin" && process.arch === "arm64";
@@ -86,7 +87,7 @@ test("source-free global tarball install, explicit lifecycle, uninstall, and ret
   });
   const build = JSON.parse(buildOutput);
   assert.equal(build.final_artifact, false);
-  assert.equal(build.package_version, "0.1.0");
+  assert.equal(build.package_version, currentVersion);
   assert.equal(build.core_version, build.package_version);
   assert.equal(build.platform, "darwin-arm64");
   assert.match(build.artifact_sha256, /^[0-9a-f]{64}$/u);
@@ -128,7 +129,7 @@ test("source-free global tarball install, explicit lifecycle, uninstall, and ret
     env: productEnvironment,
     encoding: "utf8",
   });
-  assert.equal(version.stdout, "dev-flow-codex 0.1.0 (core 0.1.0)\n");
+  assert.equal(version.stdout, `dev-flow-codex ${currentVersion} (core ${currentVersion})\n`);
   assert.equal(version.stderr, "");
 
   const setup = await runLifecycle(firstInstallation.executable, "setup", productEnvironment, targetRepository);
@@ -364,12 +365,13 @@ test("compatible package upgrade resumes the active task and a newer schema stop
     initializeRepository(targetRepository),
   ]);
   await symlink(fakeCodexPath, join(hostBin, "codex"));
+  await updateFixtureVersion(fixtureRoot, "0.1.0");
   await initializeMainFixture(fixtureRoot);
 
   const buildA = await buildFixturePackage(fixtureRoot, artifactA);
   assert.equal(buildA.package_version, "0.1.0");
   await updateFixtureVersion(fixtureRoot, "0.1.1");
-  await execFile("git", ["add", "VERSION", "package.json", "packages/codex/package.json", "packages/codex/plugin/.codex-plugin/plugin.json"], {
+  await execFile("git", ["add", "VERSION", "package.json", "packages/codex/package.json", "packages/codex/plugin/.codex-plugin/plugin.json", "packages/deepseek/package.json"], {
     cwd: fixtureRoot,
   });
   await execFile("git", ["commit", "-m", "fixture: compatible package B"], { cwd: fixtureRoot });
@@ -533,6 +535,7 @@ test("release preparation uses two clean worktrees and verifies one canonical fi
   const fixtureRoot = join(root, "source-fixture");
   const output = join(root, "release-output");
   await copyRepositoryFixture(fixtureRoot);
+  await updateFixtureVersion(fixtureRoot, "0.1.0");
   await initializeMainFixture(fixtureRoot);
   await mkdir(output);
 
@@ -876,15 +879,17 @@ async function buildFixturePackage(sourceRoot, outputDirectory) {
 }
 
 async function updateFixtureVersion(sourceRoot, version) {
+  const previousVersion = (await readFile(join(sourceRoot, "VERSION"), "utf8")).trim();
   await writeFile(join(sourceRoot, "VERSION"), `${version}\n`);
   for (const path of [
     "package.json",
     "packages/codex/package.json",
     "packages/codex/plugin/.codex-plugin/plugin.json",
+    "packages/deepseek/package.json",
   ]) {
     const absolute = join(sourceRoot, path);
     const contents = await readFile(absolute, "utf8");
-    const updated = contents.replace('"version": "0.1.0"', `"version": "${version}"`);
+    const updated = contents.replace(`"version": "${previousVersion}"`, `"version": "${version}"`);
     assert.notEqual(updated, contents, `${path} fixture version did not change`);
     await writeFile(absolute, updated);
   }

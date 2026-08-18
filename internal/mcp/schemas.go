@@ -243,7 +243,26 @@ const openTaskInputSchema = `{
   "properties":{
     "host":{"$ref":"#/$defs/host"},
     "repository_path":{"type":"string","minLength":1,"maxLength":4096},
-    "new_task":{"anyOf":[{"$ref":"#/$defs/newTask"},{"type":"null"}]}
+    "new_task":{"anyOf":[{
+      "type":"object","additionalProperties":false,
+      "required":["goal","scope","out_of_scope","acceptance_criteria","verification_budget"],
+      "properties":{
+        "goal":{"type":"string","minLength":1,"maxLength":8192},
+        "scope":{"type":"array","maxItems":64,"items":{"type":"string","maxLength":1024}},
+        "out_of_scope":{"type":"array","maxItems":64,"items":{"type":"string","maxLength":1024}},
+        "acceptance_criteria":{"type":"array","minItems":1,"maxItems":64,"items":{"type":"string","maxLength":2048}},
+        "verification_budget":{
+          "type":"object","additionalProperties":false,
+          "required":["level","max_automatic_commands","allow_full_suite","allow_manual_handoff"],
+          "properties":{
+            "level":{"type":"string","enum":["minimal","targeted","full"]},
+            "max_automatic_commands":{"type":"integer","minimum":0,"maximum":20},
+            "allow_full_suite":{"type":"boolean"},
+            "allow_manual_handoff":{"type":"boolean"}
+          }
+        }
+      }
+    },{"type":"null"}]}
   },
 ` + schemaDefinitions + `
 }`

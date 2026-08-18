@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -20,7 +21,7 @@ func TestFeature005PublicSurfaceFreeze(t *testing.T) {
 
 	wantToolSchemaSHA256 := map[string]string{
 		coremcp.ToolServerInfo:    "9652cb940365521269cb61c4b4bc7f0b50af44d585c3c8485db25e857a5cd24e",
-		coremcp.ToolOpenTask:      "fa68148dd289c273ee6f04991e5a6309190254dadc13f3e1b41c285495238f53",
+		coremcp.ToolOpenTask:      "7bf0b72ab0a36a057a2089f8376decf7f051861428645e70b979123a4002f59d",
 		coremcp.ToolGetTask:       "5dfd5536e22457aa4b3788ab48b14e6386727604d615bc51f30f9785d53e5f2f",
 		coremcp.ToolGetNextAction: "5dfd5536e22457aa4b3788ab48b14e6386727604d615bc51f30f9785d53e5f2f",
 		coremcp.ToolApplyAction:   "6356ae925fba84f4920dac06091341793d7e159c6c2611b097309e1fa16f937e",
@@ -172,6 +173,99 @@ func TestMCPToolCatalogIsExactStableAndConservative(t *testing.T) {
 	for _, fragment := range forbidden {
 		if strings.Contains(joined, fragment) {
 			t.Errorf("tool catalog contains forbidden surface %q", fragment)
+		}
+	}
+}
+
+func TestOpenTaskSchemaPublishesCompleteInlineNewTaskContract(t *testing.T) {
+	t.Parallel()
+
+	var schema map[string]any
+	for _, tool := range coremcp.ToolCatalog() {
+		if tool.Name != coremcp.ToolOpenTask {
+			continue
+		}
+		if err := json.Unmarshal(tool.InputSchema, &schema); err != nil {
+			t.Fatalf("decode open-task schema: %v", err)
+		}
+		break
+	}
+	if schema == nil {
+		t.Fatal("open-task schema is missing")
+	}
+
+	properties := requireSchemaObject(t, schema, "properties")
+	requireSchemaRequired(t, schema, []string{"host", "repository_path"})
+	newTaskProperty := requireSchemaObject(t, properties, "new_task")
+	branches, ok := newTaskProperty["anyOf"].([]any)
+	if !ok || len(branches) != 2 {
+		t.Fatalf("new_task anyOf = %#v, want object and null", newTaskProperty["anyOf"])
+	}
+	newTask, ok := branches[0].(map[string]any)
+	if !ok || newTask["type"] != "object" || newTask["additionalProperties"] != false {
+		t.Fatalf("new_task object schema = %#v", branches[0])
+	}
+	if _, usesReference := newTask["$ref"]; usesReference {
+		t.Fatalf("new_task remains hidden behind a reference: %#v", newTask)
+	}
+	requireSchemaRequired(t, newTask, []string{
+		"goal", "scope", "out_of_scope", "acceptance_criteria", "verification_budget",
+	})
+
+	newTaskProperties := requireSchemaObject(t, newTask, "properties")
+	goal := requireSchemaObject(t, newTaskProperties, "goal")
+	if goal["type"] != "string" || goal["minLength"] != float64(1) || goal["maxLength"] != float64(8192) {
+		t.Errorf("new_task.goal schema = %#v", goal)
+	}
+	for _, name := range []string{"scope", "out_of_scope", "acceptance_criteria"} {
+		field := requireSchemaObject(t, newTaskProperties, name)
+		items := requireSchemaObject(t, field, "items")
+		wantItemLimit := float64(1024)
+		if name == "acceptance_criteria" {
+			wantItemLimit = 2048
+		}
+		if field["type"] != "array" || field["maxItems"] != float64(64) ||
+			items["type"] != "string" || items["maxLength"] != wantItemLimit {
+			t.Errorf("new_task.%s schema = %#v", name, field)
+		}
+		if name == "acceptance_criteria" && field["minItems"] != float64(1) {
+			t.Errorf("new_task.acceptance_criteria minimum = %#v", field["minItems"])
+		}
+	}
+
+	budget := requireSchemaObject(t, newTaskProperties, "verification_budget")
+	if budget["type"] != "object" || budget["additionalProperties"] != false {
+		t.Fatalf("verification_budget schema = %#v", budget)
+	}
+	requireSchemaRequired(t, budget, []string{
+		"level", "max_automatic_commands", "allow_full_suite", "allow_manual_handoff",
+	})
+	budgetProperties := requireSchemaObject(t, budget, "properties")
+	level := requireSchemaObject(t, budgetProperties, "level")
+	if got := schemaStrings(t, level["enum"]); !slices.Equal(got, []string{"minimal", "targeted", "full"}) {
+		t.Fatalf("verification level enum = %v", got)
+	}
+	commands := requireSchemaObject(t, budgetProperties, "max_automatic_commands")
+	if commands["type"] != "integer" || commands["minimum"] != float64(0) || commands["maximum"] != float64(20) {
+		t.Errorf("max_automatic_commands schema = %#v", commands)
+	}
+	for _, name := range []string{"allow_full_suite", "allow_manual_handoff"} {
+		if field := requireSchemaObject(t, budgetProperties, name); field["type"] != "boolean" {
+			t.Errorf("verification_budget.%s schema = %#v", name, field)
+		}
+	}
+
+	definitions := requireSchemaObject(t, schema, "$defs")
+	compatibilityNewTask := requireSchemaObject(t, definitions, "newTask")
+	compatibilityNewTaskProperties := requireSchemaObject(t, compatibilityNewTask, "properties")
+	compatibilityNewTaskProperties["verification_budget"] = requireSchemaObject(t, definitions, "verificationBudget")
+	if !reflect.DeepEqual(newTask, compatibilityNewTask) {
+		t.Fatalf("inline new_task drifted from shared compatibility definition\ninline: %#v\nshared: %#v", newTask, compatibilityNewTask)
+	}
+	if branches[1] != nil {
+		nullBranch, nullOK := branches[1].(map[string]any)
+		if !nullOK || nullBranch["type"] != "null" {
+			t.Fatalf("new_task null branch = %#v", branches[1])
 		}
 	}
 }
@@ -386,4 +480,37 @@ func assertClosedObjectSchemas(t *testing.T, tool string, raw json.RawMessage) {
 		}
 	}
 	visit("$", schema)
+}
+
+func requireSchemaObject(t *testing.T, parent map[string]any, name string) map[string]any {
+	t.Helper()
+	value, ok := parent[name].(map[string]any)
+	if !ok {
+		t.Fatalf("schema member %s = %#v, want object", name, parent[name])
+	}
+	return value
+}
+
+func requireSchemaRequired(t *testing.T, schema map[string]any, want []string) {
+	t.Helper()
+	if got := schemaStrings(t, schema["required"]); !slices.Equal(got, want) {
+		t.Fatalf("required members = %v, want %v", got, want)
+	}
+}
+
+func schemaStrings(t *testing.T, value any) []string {
+	t.Helper()
+	raw, ok := value.([]any)
+	if !ok {
+		t.Fatalf("schema string list = %#v", value)
+	}
+	result := make([]string, len(raw))
+	for index, item := range raw {
+		text, textOK := item.(string)
+		if !textOK {
+			t.Fatalf("schema string list item %d = %#v", index, item)
+		}
+		result[index] = text
+	}
+	return result
 }

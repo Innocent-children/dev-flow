@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -136,6 +137,37 @@ func TestApplyActionInvalidRequestIDUsesFallback(t *testing.T) {
 			if tt.forbiddenEcho != "" && (bytes.Contains(encoded, []byte(tt.forbiddenEcho)) ||
 				bytes.Contains(diagnostics.Bytes(), []byte(tt.forbiddenEcho))) {
 				t.Fatalf("invalid request ID %q was echoed", tt.forbiddenEcho)
+			}
+		})
+	}
+}
+
+func TestOpenTaskMalformedContractStopsBeforeObservationOrPersistence(t *testing.T) {
+	t.Parallel()
+
+	valid := `{"host":"codex","repository_path":"/workspace/example","new_task":{"goal":"goal","scope":["scope"],"out_of_scope":["excluded"],"acceptance_criteria":["criterion"],"verification_budget":{"level":"targeted","max_automatic_commands":4,"allow_full_suite":false,"allow_manual_handoff":true}}}`
+	tests := []struct {
+		name string
+		raw  string
+	}{
+		{name: "unsupported focused verification level", raw: strings.Replace(valid, `"level":"targeted"`, `"level":"focused"`, 1)},
+		{name: "scope collapsed into prose", raw: strings.Replace(valid, `"scope":["scope"]`, `"scope":"scope"`, 1)},
+		{name: "out of scope collapsed into prose", raw: strings.Replace(valid, `"out_of_scope":["excluded"]`, `"out_of_scope":"excluded"`, 1)},
+		{name: "acceptance criteria collapsed into prose", raw: strings.Replace(valid, `"acceptance_criteria":["criterion"]`, `"acceptance_criteria":"criterion"`, 1)},
+	}
+	for index, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			requestID := domain.ID(fmt.Sprintf("request-open-invalid-%d", index))
+			server, diagnostics, dependencies := newApplyCorrelationTestServer(t, requestID)
+			response := server.dispatch(context.Background(), ToolOpenTask, requestID, json.RawMessage(tt.raw))
+			if !response.IsError || !bytes.Contains(response.JSON, []byte(`"code":"INVALID_ARGUMENT"`)) {
+				t.Fatalf("invalid open-task response = %s", response.JSON)
+			}
+			if dependencies.storeCalls != 0 || dependencies.observerCalls != 0 {
+				t.Fatalf("invalid open-task dependencies = store %d observer %d", dependencies.storeCalls, dependencies.observerCalls)
+			}
+			if bytes.Contains(response.JSON, []byte("/workspace/example")) || bytes.Contains(diagnostics.Bytes(), []byte("/workspace/example")) {
+				t.Fatal("invalid open-task request leaked repository path")
 			}
 		})
 	}

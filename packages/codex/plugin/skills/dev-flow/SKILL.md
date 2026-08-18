@@ -73,6 +73,28 @@ worktree.
   `acceptance_criteria`, and `verification_budget`, with no additional members. Forward
   `verification_budget` with exactly `level`, `max_automatic_commands`, `allow_full_suite`, and
   `allow_manual_handoff`; do not invent aliases for any of these Core-declared fields.
+- `goal` is a JSON string. `scope`, `out_of_scope`, and `acceptance_criteria` are JSON arrays of strings;
+  never collapse an array into one prose string. `verification_budget.level` is exactly `minimal`,
+  `targeted`, or `full`; do not translate phrases such as "focused verification" into a new enum.
+- Use this exact `new_task` JSON shape, replacing only the values derived from the admitted request:
+
+<!-- new-task-example:start -->
+```json
+{
+  "goal": "Return the requested field from the bounded endpoint.",
+  "scope": ["Update the endpoint response"],
+  "out_of_scope": ["Change unrelated endpoints"],
+  "acceptance_criteria": ["The response contains the requested field"],
+  "verification_budget": {
+    "level": "targeted",
+    "max_automatic_commands": 4,
+    "allow_full_suite": false,
+    "allow_manual_handoff": true
+  }
+}
+```
+<!-- new-task-example:end -->
+
 - Ask before opening a new task if a material goal, scope, acceptance, or verification choice
   cannot be derived without changing user intent.
 - Let Core decide whether an exactly compatible contract creates or resumes a task. Never choose,

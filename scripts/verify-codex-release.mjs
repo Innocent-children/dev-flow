@@ -34,13 +34,10 @@ import { validateFinalJourneyEvidence } from "./write-codex-journey-evidence.mjs
 
 const execFile = promisify(execFileCallback);
 
-export const RELEASE_OUTPUT_NAMES = Object.freeze([
-  "SHA256SUMS",
-  "dev-flow-0.1.0-darwin-arm64",
-  "dev-flow-codex-0.1.0.tgz",
-  "publication-record.json",
-  "release-manifest.json",
-]);
+export function releaseOutputNames(version) {
+  if (!SEMVER_PATTERN.test(version)) throw new Error("release output version must be strict MAJOR.MINOR.PATCH");
+  return ["SHA256SUMS", `dev-flow-${version}-darwin-arm64`, `dev-flow-codex-${version}.tgz`, "publication-record.json", "release-manifest.json"].sort();
+}
 
 export const PACKAGE_FILE_PATHS = Object.freeze([
   ".agents/plugins/marketplace.json",
@@ -815,10 +812,6 @@ function isSafeRelativePath(value) {
 
 function fileMode(info) {
   return (info.mode & 0o777).toString(8).padStart(4, "0");
-}
-
-function releaseOutputNames(version) {
-  return ["SHA256SUMS", `dev-flow-${version}-darwin-arm64`, `dev-flow-codex-${version}.tgz`, "publication-record.json", "release-manifest.json"].sort();
 }
 
 function normalizedInventoryDigest(files) {

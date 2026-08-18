@@ -285,11 +285,8 @@ func TestReleaseFixturesCrossIdentityAndDeterministicCollections(t *testing.T) {
 		t.Fatalf("cross-identity contract: %v", err)
 	}
 
-	rootVersion := strings.TrimSpace(string(releaseReadFile(t, root, "VERSION")))
-	packageManifest := releaseReadObject(t, root, "packages/codex/package.json")
-	pluginManifest := releaseReadObject(t, root, "packages/codex/plugin/.codex-plugin/plugin.json")
-	if manifest.Release.Version != rootVersion || packageManifest["version"] != rootVersion || pluginManifest["version"] != rootVersion {
-		t.Fatalf("release/package/plugin/root version mismatch: release=%s root=%s package=%v plugin=%v", manifest.Release.Version, rootVersion, packageManifest["version"], pluginManifest["version"])
+	if manifest.Release.Version != "0.1.0" {
+		t.Fatalf("Feature 006 frozen release fixture version = %s, want 0.1.0", manifest.Release.Version)
 	}
 	if manifest.Release.CoreFixtureDigest != "sha256:"+sharedFixtureAggregateSHA256 {
 		t.Fatalf("Core fixture digest = %s, want existing contract-tested aggregate sha256:%s", manifest.Release.CoreFixtureDigest, sharedFixtureAggregateSHA256)

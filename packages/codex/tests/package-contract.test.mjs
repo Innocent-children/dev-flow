@@ -10,11 +10,13 @@ import test from "node:test";
 import { promisify } from "node:util";
 
 import { CODEX_COMPATIBILITY_RANGE } from "../lib/lifecycle.mjs";
+import { releaseOutputNames } from "../../../scripts/verify-codex-release.mjs";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = dirname(dirname(packageRoot));
 const pluginRoot = join(packageRoot, "plugin");
 const execFile = promisify(execFileCallback);
+const currentVersion = (await readFile(join(repositoryRoot, "VERSION"), "utf8")).trim();
 
 const expectedPackageFiles = [
   ".agents/plugins/marketplace.json",
@@ -212,6 +214,42 @@ test("packaged resources contain no copied fixtures or workflow engine", async (
   }
 });
 
+test("packaged Skill publishes the exact new-task value types and vocabulary", async () => {
+  const skill = await readFile(join(pluginRoot, "skills", "dev-flow", "SKILL.md"), "utf8");
+
+  assert.match(
+    skill,
+    /`scope`, `out_of_scope`, and `acceptance_criteria` are JSON arrays of strings/u,
+  );
+  assert.match(skill, /exactly `minimal`,\s+`targeted`, or `full`/u);
+
+  const example = skill.match(/<!-- new-task-example:start -->\n```json\n([\s\S]*?)\n```\n<!-- new-task-example:end -->/u);
+  assert.notEqual(example, null);
+  assert.deepEqual(JSON.parse(example[1]), {
+    goal: "Return the requested field from the bounded endpoint.",
+    scope: ["Update the endpoint response"],
+    out_of_scope: ["Change unrelated endpoints"],
+    acceptance_criteria: ["The response contains the requested field"],
+    verification_budget: {
+      level: "targeted",
+      max_automatic_commands: 4,
+      allow_full_suite: false,
+      allow_manual_handoff: true,
+    },
+  });
+});
+
+test("release output names derive from the current product version", () => {
+  assert.deepEqual(releaseOutputNames(currentVersion), [
+    "SHA256SUMS",
+    `dev-flow-${currentVersion}-darwin-arm64`,
+    `dev-flow-codex-${currentVersion}.tgz`,
+    "publication-record.json",
+    "release-manifest.json",
+  ].sort());
+  assert.throws(() => releaseOutputNames("0.3"), /strict MAJOR\.MINOR\.PATCH/u);
+});
+
 test("local package builder stages one exact non-final artifact in a temporary directory", async () => {
   const outputDirectory = await mkdtemp(join(tmpdir(), "dev-flow-codex-package-contract-"));
   const { stdout } = await execFile(
@@ -254,7 +292,7 @@ test("local package builder stages one exact non-final artifact in a temporary d
       cwd: extractDirectory,
       encoding: "utf8",
     });
-    assert.equal(versionLine, "dev-flow 0.1.0\n");
+    assert.equal(versionLine, `dev-flow ${currentVersion}\n`);
   }
 });
 

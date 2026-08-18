@@ -98,6 +98,9 @@ func TestProjectManifestBootstrapMetadata(t *testing.T) {
 		t.Fatalf("read root VERSION: %v", err)
 	}
 	wantVersion := strings.TrimSpace(string(versionBytes))
+	if wantVersion != "0.3.0" {
+		t.Fatalf("Feature 007 current version = %q, want 0.3.0", wantVersion)
+	}
 
 	tests := []struct {
 		path             string
