@@ -130,6 +130,12 @@ owns exact Tag/Draft handling, publish-once npm, registry read-back, real Codex 
 manifest/checksums, four GitHub asset read-backs, Release finalization, and the durable publication
 record. Stop on any conflict or uncertain mutation under the existing recovery rules.
 
+After the first confirmed attempt stopped during preflight with `COMMAND_FAILED` after the prior
+10-second boundary and zero remote mutation, ordinary publisher subprocesses use a reviewed
+60-second timeout. The native final Journey keeps its explicit 30-minute timeout. The failed
+prepared directory remains retained as audit evidence; the corrected source is committed and a new
+release directory is prepared from that exact commit before another confirmed attempt.
+
 ## Complexity Tracking
 
 No Constitution violations or complexity exceptions.

@@ -16,7 +16,10 @@ import test from "node:test";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
-import { runPublisher as runPublicationStateMachine } from "../../../scripts/publish-codex-release.mjs";
+import {
+  PUBLICATION_COMMAND_TIMEOUT_MS,
+  runPublisher as runPublicationStateMachine,
+} from "../../../scripts/publish-codex-release.mjs";
 import {
   CODEX_COMPATIBILITY_RANGE,
   EXPLICIT_SELECTOR,
@@ -28,6 +31,10 @@ const execFile = promisify(execFileCallback);
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = join(packageRoot, "..", "..");
 const supportedMachine = process.platform === "darwin" && process.arch === "arm64";
+
+test("publisher allows sixty seconds for ordinary external commands", () => {
+  assert.equal(PUBLICATION_COMMAND_TIMEOUT_MS, 60_000);
+});
 
 test("fake npm/gh publication is confirmation-gated, publish-once, resumable, and conflict-safe", {
   skip: supportedMachine ? false : "darwin-arm64 fake publication checkpoint only",
@@ -441,6 +448,7 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
 async function createPublisherTemplate(root) {
   const repository = join(root, "template-repository");
   await copyRepositoryFixture(repository);
+  await updateFixtureVersion(repository, "0.1.0");
   await initializeMainFixture(repository);
   const sourceCommit = await gitOutput(repository, ["rev-parse", "HEAD"]);
   const sourceTree = await gitOutput(repository, ["rev-parse", "HEAD^{tree}"]);
@@ -695,6 +703,23 @@ async function copyRepositoryFixture(destination) {
       );
     },
   });
+}
+
+async function updateFixtureVersion(sourceRoot, version) {
+  const previousVersion = (await readFile(join(sourceRoot, "VERSION"), "utf8")).trim();
+  await writeFile(join(sourceRoot, "VERSION"), `${version}\n`);
+  for (const path of [
+    "package.json",
+    "packages/codex/package.json",
+    "packages/codex/plugin/.codex-plugin/plugin.json",
+    "packages/deepseek/package.json",
+  ]) {
+    const absolute = join(sourceRoot, path);
+    const contents = await readFile(absolute, "utf8");
+    const updated = contents.replace(`"version": "${previousVersion}"`, `"version": "${version}"`);
+    assert.notEqual(updated, contents, `${path} fixture version did not change`);
+    await writeFile(absolute, updated);
+  }
 }
 
 async function initializeMainFixture(path) {

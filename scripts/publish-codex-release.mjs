@@ -27,7 +27,7 @@ import {
 const execFile = promisify(execFileCallback);
 const OFFICIAL_REGISTRY = "https://registry.npmjs.org/";
 const REPOSITORY = "Innocent-children/dev-flow";
-const COMMAND_TIMEOUT = 10_000;
+export const PUBLICATION_COMMAND_TIMEOUT_MS = 60_000;
 const COMMAND_BUFFER = 256 * 1024;
 const READBACK_ATTEMPTS = 10;
 const READBACK_DELAY_MS = 2_000;
@@ -877,7 +877,7 @@ async function runAllowFailure(command, arguments_, context, options = {}) {
       cwd: options.cwd ?? context.root,
       env: context.environment,
       encoding: "utf8",
-      timeout: options.timeout ?? COMMAND_TIMEOUT,
+      timeout: options.timeout ?? PUBLICATION_COMMAND_TIMEOUT_MS,
       maxBuffer: COMMAND_BUFFER,
       windowsHide: true,
       shell: false,

@@ -176,3 +176,23 @@ one clean source; no `v0.1.0` identity changed.
 - `pnpm run validate` passed after the publication amendment, including all Go tests/vet,
   repository contracts, workspace inventory at `0.3.0`, and both package dry-packs.
 - No remote release mutation occurred during T018–T019.
+
+## Phase 7: Preflight Timeout Correction
+
+**Goal**: Replace the observed 10-second preflight boundary with 60 seconds, preserve the failed
+zero-mutation attempt, and prepare a new exact source for the next confirmed publication attempt.
+
+- [x] T024 Export and use a 60,000-millisecond ordinary command timeout in `scripts/publish-codex-release.mjs` per FR-027.
+- [x] T025 Add the exact timeout contract assertion and explicitly preserve the isolated Feature 006 `v0.1.0` publication fixture in `packages/codex/tests/release-publication.test.mjs`, then rerun targeted/full validation per SC-013 and FR-026.
+- [ ] T026 Commit and push the timeout correction, retain `/Users/innocent-children/dev-flow-releases/v0.3.0` as failed-attempt evidence, and prepare a new clean durable release directory from the corrected source per FR-028.
+- [ ] T027 Execute one corrected confirmed publication attempt and verify or truthfully record its exact remote outcome per FR-023–FR-028.
+
+### Timeout Correction Evidence — 2026-08-18
+
+- The first confirmed attempt stopped in preflight with `COMMAND_FAILED` after approximately the
+  prior 10-second boundary. Tag, Draft, npm `0.3.0`, assets, and Release remained absent.
+- Ordinary publisher commands now expose and use `PUBLICATION_COMMAND_TIMEOUT_MS = 60_000`; the
+  native final Journey retains its explicit 30-minute timeout.
+- `release-publication.test.mjs` passed 16/16, including the exact 60,000-millisecond assertion and
+  the isolated frozen `v0.1.0` publication scenarios.
+- `pnpm run validate` passed after the correction.

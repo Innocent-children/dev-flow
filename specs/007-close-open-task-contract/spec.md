@@ -130,6 +130,8 @@ the registry-package Codex journey, and observe a complete publication record.
 - **FR-024**: Publication MUST complete npm read-back, the real registry-package Codex journey, final manifest/checksums, four GitHub asset read-backs, and GitHub Release finalization before recording completion.
 - **FR-025**: Any failure or conflict MUST preserve the durable publication record and stop without moving, deleting, overwriting, or republishing an immutable component.
 - **FR-026**: Feature 006 `v0.1.0` Tag, Draft, assets, fixed digests, and recovery evidence MUST remain untouched by the `v0.3.0` publication.
+- **FR-027**: Ordinary external publisher commands MUST allow 60 seconds before timeout; the real final Codex journey retains its explicit longer timeout.
+- **FR-028**: A failed preflight attempt with zero remote mutation MAY be superseded only by a new clean source commit and newly prepared durable directory after the timeout correction is validated.
 
 ### Key Entities
 
@@ -154,6 +156,7 @@ the registry-package Codex journey, and observe a complete publication record.
 - **SC-010**: The final real Codex journey reaches `DONE`, removes registration, uninstalls the package, and reopens retained task data.
 - **SC-011**: Tag `v0.3.0`, the public GitHub Release, four verified assets, and the complete publication record point to one source identity.
 - **SC-012**: No Feature 006 remote or frozen local identity changes during publication.
+- **SC-013**: A deterministic contract test exposes the ordinary publisher timeout as exactly 60,000 milliseconds.
 
 ## Assumptions
 
