@@ -214,3 +214,43 @@ public evidence.
 T001–T041 produced no real npm publication, registry read-back, Git Tag, GitHub Draft/Release/asset,
 or final registry-package Journey. Final release source commit, final artifact digests, registry
 integrity, native Journey result, and public Release identity can be recorded only by T047–T050.
+
+## Decision 10 — Recover the lost volatile operator directory once
+
+**Decision**: Permit one recovery preparation from the frozen source into the durable external
+directory `/Users/innocent-children/dev-flow-releases/v0.1.0-recovery`. Require the already reviewed
+npm tarball and Core digests, then reconstruct mutable publication truth through read-only remote
+observation using the fixed publisher tooling commit.
+
+**Rationale**: The exact Tag and GitHub Draft are remotely preserved, npm `0.1.0` and assets remain
+absent, and the lost files were local operator state rather than published public payloads. A
+digest-locked reconstruction preserves release identity while allowing truthful recovery from the
+observed volatile-directory failure.
+
+**Alternatives considered**:
+
+- Abandon `0.1.0`: rejected because the exact Tag/Draft and reviewed payload identity remain valid.
+- Reuse a development fixture or copy an arbitrary matching tarball: rejected because it would not
+  provide one clean recovery preparation and complete local provenance.
+- Recreate the old publication record manually: rejected because remote truth must be observed by
+  the production publisher rather than asserted from memory.
+- Continue using a system temporary root: rejected because operator evidence must remain available
+  across authentication and recovery turns.
+
+## Decision 11 — Use ten npm read-back observations at two-second intervals
+
+**Decision**: Expand only the npm registry replication window from four observations at 250 ms to
+ten observations at two-second intervals. Keep the final failure code and publish-once recovery
+behavior unchanged.
+
+**Rationale**: The first real npm publication succeeded but became publicly visible only after the
+original sub-second bounded window expired. A maximum eighteen-second inter-observation wait covers
+ordinary registry propagation while remaining bounded and operationally small.
+
+**Alternatives considered**:
+
+- Retry the publisher immediately after every timeout: rejected because each confirmed invocation
+  is an explicit operator action and must first preserve/read remote truth.
+- Poll indefinitely: rejected because the publisher requires bounded execution and diagnostics.
+- Add a fixed sleep before the first read: rejected because immediate visibility should still
+  complete without unnecessary delay.

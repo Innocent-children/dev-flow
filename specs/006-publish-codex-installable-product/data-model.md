@@ -169,5 +169,24 @@ Raw prompts, source files, environment values, and unbounded host output are exc
 - Local tgz lifecycle/upgrade results are deterministic package evidence.
 - Fake npm/gh, temporary Git remotes, and fixture-simulated journeys are deterministic publisher
   evidence and cannot establish public support.
-- Only T047–T050 can bind a frozen reviewed source, public registry bytes, native final Journey,
-  official GitHub asset read-back, and complete publication record.
+- T047–T050 bind the ordinary frozen release path; T051–T055 provide the one approved
+  lost-directory recovery path to the same public registry bytes, native final Journey, official
+  GitHub asset read-back, and complete publication record.
+
+## Lost-Directory Recovery
+
+The recovery directory contains the same five-file closed set as preparation. Its tarball and Core
+ArtifactRecords retain the frozen source and exact digests. The regenerated provisional Manifest
+and PublicationRecord receive new timestamps and digests and are explicitly classified as recovery
+evidence, not byte-preserved copies of the lost operator files.
+
+Recovery state is valid only when a production read-only observation establishes:
+
+- Tag `v0.1.0` targets the frozen source commit;
+- GitHub Draft ID `371678198` targets the same commit, remains draft, and has no assets;
+- npm `dev-flow-codex@0.1.0` is absent;
+- final Journey remains pending;
+- no remote conflict or unrecorded immutable payload exists.
+
+The PublicationRecord then follows the existing state transitions. No new Schema field, step name,
+Core persistence state, or rollback state is introduced.

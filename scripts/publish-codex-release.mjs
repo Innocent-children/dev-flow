@@ -29,8 +29,8 @@ const OFFICIAL_REGISTRY = "https://registry.npmjs.org/";
 const REPOSITORY = "Innocent-children/dev-flow";
 const COMMAND_TIMEOUT = 10_000;
 const COMMAND_BUFFER = 256 * 1024;
-const READBACK_ATTEMPTS = 4;
-const READBACK_DELAY_MS = 250;
+const READBACK_ATTEMPTS = 10;
+const READBACK_DELAY_MS = 2_000;
 const STEP_NAMES = [
   "preflight",
   "tag",
@@ -411,7 +411,9 @@ async function ensurePublishedNPM(context, record, manifest) {
     readbackStep.summary = observed === null ? `Registry read-back pending after bounded attempt ${attempt + 1}.` : "Registry version metadata observed.";
     await checkpoint(context.recordPath, record, manifest, context);
     if (observed !== null) break;
-    if (attempt + 1 < READBACK_ATTEMPTS) await delay(READBACK_DELAY_MS);
+    if (attempt + 1 < READBACK_ATTEMPTS) {
+      await (context.execution.delay ?? delay)(READBACK_DELAY_MS);
+    }
   }
   if (observed === null) throw new PublicationError("NPM_READBACK_TIMEOUT", "registry version was not visible within the bounded read-back window", { step: "npm_readback" });
   const readback = await verifyRegistryTarball(context, observed, manifest);

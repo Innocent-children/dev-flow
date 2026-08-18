@@ -88,6 +88,7 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
     const packIndex = calls.findIndex((entry) => entry.tool === "npm" && entry.argv[0] === "pack");
     assert.ok(createIndex >= 0 && publishIndex > createIndex && packIndex > publishIndex);
     assert.equal(calls.filter((entry) => entry.result === "version-delayed").length, 2);
+    assert.deepEqual(scenario.readbackDelays, [2_000, 2_000]);
     assert.equal(calls.some((entry) => entry.tool === "gh" && entry.argv[0] === "release" && entry.argv[1] === "edit"), false);
 
     const beforeResumePublishes = calls.filter((entry) => entry.tool === "npm" && entry.argv[0] === "publish").length;
@@ -222,6 +223,8 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
     const failed = await readJSON(join(scenario.releaseDirectory, "publication-record.json"));
     assert.equal(failed.overall_status, "failed");
     assert.equal(failed.steps[4].error_code, "NPM_READBACK_TIMEOUT");
+    assert.equal((await callLog(scenario)).filter((entry) => entry.result === "version-delayed").length, 10);
+    assert.deepEqual(scenario.readbackDelays, Array(9).fill(2_000));
     state.delayed_reads_remaining = 0;
     await writeJSON(scenario.npmStatePath, state);
     assert.equal((await runPublisher(scenario, "v0.1.0")).status, "npm_verified");
@@ -529,6 +532,7 @@ async function createScenario(root, template, name, overrides = {}) {
   };
   assert.equal((await execFile("which", ["npm"], { env: environment, encoding: "utf8" })).stdout.trim(), join(fakeBin, "npm"));
   assert.equal((await execFile("which", ["gh"], { env: environment, encoding: "utf8" })).stdout.trim(), join(fakeBin, "gh"));
+  const readbackDelays = [];
   return {
     root: scenarioRoot,
     repository,
@@ -539,6 +543,7 @@ async function createScenario(root, template, name, overrides = {}) {
     ghStatePath,
     callLogPath,
     environment,
+    readbackDelays,
     finalJourneyEvidence: null,
     stopBeforeFinalize: true,
   };
@@ -554,6 +559,7 @@ async function runPublisher(scenario, confirmation = null) {
       stopAfterNPM: scenario.finalJourneyEvidence === null,
       stopBeforeFinalize: scenario.stopBeforeFinalize,
       allowFixtureJourney: true,
+      delay: async (milliseconds) => scenario.readbackDelays.push(milliseconds),
       runFinalJourney: async (_context, _manifest, record) => ({
         ...structuredClone(scenario.finalJourneyEvidence),
         npm_integrity: record.npm.integrity,

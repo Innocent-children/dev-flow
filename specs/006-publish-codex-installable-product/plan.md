@@ -2,15 +2,19 @@
 
 **Branch**: `006-publish-codex-installable-product`  
 **Spec**: [spec.md](./spec.md)  
-**Status**: Deterministic implementation complete — T001–T046 passed. Irreversible real release
-T047–T050 remains pending.
+**Status**: Recovery amendment active. T001–T046 passed; exact Tag and GitHub Draft exist; npm,
+Journey, assets, and finalization remain incomplete. T051–T055 recover the lost volatile operator
+directory without changing frozen payload/source identity.
 
 ## Summary
 
 Feature 006 has converted the private local package delivered by Feature 003 into a fixed public
 package contract and implemented its deterministic release machinery. The intended release contains
 one `dev-flow-codex` npm package with one bundled macOS arm64 Core runtime. Feature 004 remains
-deferred and is neither modified nor published. Real publication remains T047–T050 work.
+deferred and is neither modified nor published. The first publication attempts stopped at npm
+`EOTP`; their exact Tag and Draft remain reusable. The original output directory was lost because it
+was placed under a volatile macOS temporary root, so the approved route adds one durable recovery
+preparation before completing the existing publication sequence.
 
 The workflow separates repeatable preparation from irreversible publication:
 
@@ -27,6 +31,17 @@ clean source
 → final manifest/checksums
 → GitHub upload/read-back
 → GitHub Release finalization
+```
+
+Recovery inserts one bounded prefix before the existing confirmed sequence:
+
+```text
+lost volatile operator directory
+→ one durable repository-external output directory
+→ prepare from frozen source commit/tree
+→ require the frozen tarball/Core digests
+→ read-only reconstruction from exact Tag/Draft/npm truth
+→ existing confirmed publication sequence
 ```
 
 ## Technical Context
@@ -119,6 +134,28 @@ conflict.
 
 The final Codex journey installs the package from the public registry in a clean environment. A
 local tarball journey is preparation evidence, not final release evidence.
+
+### 7. Recover a lost operator directory without redefining the release
+
+The recovery preparation runs once from frozen commit
+`eb3b1b128c7d3d117dc09470fb3477a722b1c13b` and tree
+`9466505a70ec3d9d4e3607cd9d20ec038343fb36`. Its output lives under the persistent external root
+`/Users/innocent-children/dev-flow-releases/v0.1.0-recovery`, never under `mktemp` or another
+volatile system temporary root. The tarball and Core must reproduce the already reviewed digests.
+
+The provisional manifest and mutable publication record may be regenerated because neither was a
+published public asset. They are new recovery evidence, not byte-preserved copies of the lost
+operator files. The fixed tooling commit rereads and reuses Tag `v0.1.0` and GitHub Draft
+`371678198`; any difference in target, Draft identity, assets, npm bytes, version, or source blocks
+the route.
+
+### 8. Allow bounded npm replication time
+
+The production publisher observes npm metadata up to ten times and waits two seconds between
+unsuccessful observations. Tests inject the wait operation through the existing publication runtime
+fixture boundary so they can prove the exact attempt count and interval without adding eighteen
+seconds of wall-clock delay. Production keeps the real timer and all existing publish-once,
+checkpoint, conflict, and timeout behavior.
 
 ## Project Structure
 
@@ -319,24 +356,33 @@ upgrade/read-back, explicit removal, npm uninstall, retained data, and unsupport
 Freeze one source commit, prepare once, publish once, complete all read-backs, run the final
 registry-package journey, finalize the GitHub Release, and commit no generated secrets/output.
 
+### Phase 6 — Lost-directory recovery
+
+Record the operator-directory loss, prepare exactly once into the durable external directory from
+the frozen source, require fixed payload digests, reconstruct publication truth through a
+confirmation-free production preflight using tooling commit `4345bd12`, and then resume the one
+confirmed publisher sequence already defined by Phase 5.
+
 ## Publication Sequence
 
-1. Validate clean `main` source and version.
-2. Validate npm/GitHub auth and package/repository ownership.
-3. Prove npm version and conflicting tag/release do not exist.
-4. Prepare and verify artifacts twice locally.
-5. Write a provisional manifest/support entry and initial `publication-record.json` with status
+1. For lost-directory recovery only, create the approved durable empty directory and prepare once
+   from the frozen clean `main` source.
+2. Require recovered tarball/Core digests to equal the frozen values; stop on any mismatch.
+3. Validate clean `main` source and version.
+4. Validate npm/GitHub auth and package/repository ownership.
+5. Prove npm is absent and the existing Tag/Draft are exact reusable state.
+6. Write a provisional manifest/support entry and initial `publication-record.json` with status
    `prepared`.
-6. Create or reuse the exact Git tag and draft release.
-7. Publish the verified npm tarball once.
-8. Poll boundedly for public registry visibility; download and verify.
-9. Install `dev-flow-codex@<VERSION>` from the registry in a clean environment and run the final
+7. Reuse the exact Git tag and draft release.
+8. Publish the verified npm tarball once.
+9. Poll boundedly for public registry visibility; download and verify.
+10. Install `dev-flow-codex@<VERSION>` from the registry in a clean environment and run the final
    journey.
-10. Finalize the support entry, release manifest, and `SHA256SUMS`.
-11. Upload the tarball copy, standalone Core, final manifest, and checksum file; redownload and
+11. Finalize the support entry, release manifest, and `SHA256SUMS`.
+12. Upload the tarball copy, standalone Core, final manifest, and checksum file; redownload and
     verify.
-12. Publish the GitHub Release.
-13. Read final release metadata and mark the local operator record `complete`.
+13. Publish the GitHub Release.
+14. Read final release metadata and mark the local operator record `complete`.
 
 At any failure, write the observed state and safe next action. Never delete or overwrite an
 immutable remote component as automatic recovery.

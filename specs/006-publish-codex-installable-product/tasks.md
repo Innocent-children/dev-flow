@@ -265,6 +265,20 @@ These tasks are operator checkpoints. They run only after Phase 6 is committed, 
 - [ ] T049 Install the public registry package in a clean macOS arm64 environment and complete the final Codex create/restart/resume/DONE/remove/uninstall/retained-reopen journey through `scripts/run-codex-real-journey.sh`.
 - [ ] T050 Finalize and read back the GitHub Release only after npm/assets/journey checks pass, then record `complete` in `publication-record.json` and verify the repository worktree contains no generated release output or credential material.
 
+## Phase 8 — Lost frozen-directory recovery
+
+These tasks implement the 2026-08-18 route amendment after the sole volatile T047 output directory
+disappeared. They preserve the frozen source, payload digests, Tag, Draft, package version, platform,
+and host boundaries.
+
+- [x] T051 Record the approved lost-directory recovery requirements and operator route in `specs/006-publish-codex-installable-product/spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, `contracts/release-process.md`, and `tasks.md`.
+- [x] T052 Prepare exactly once from frozen commit `eb3b1b128c7d3d117dc09470fb3477a722b1c13b` into `/Users/innocent-children/dev-flow-releases/v0.1.0-recovery`, then require the fixed npm tarball/Core SHA-256 values before any publisher confirmation.
+- [x] T053 Create independent fixed-tooling and frozen-source checkouts outside the repository, run one confirmation-free production `runPublisher` preflight, and require exact reuse of Tag `v0.1.0` and GitHub Draft `371678198` with npm/assets/Journey still absent or pending.
+- [ ] T054 Resume the production publisher once under the existing explicit recovery authorization; stop without retry on any failure and preserve the durable recovery directory and exact remote state.
+- [ ] T055 Verify complete Publication Record, npm read-back, native registry Journey, final manifest/support entry, four GitHub asset read-backs, published Release identity, and absence of generated release output or credential material in the repository.
+- [x] T056 Extend npm registry read-back to ten observations at two-second intervals and add deterministic attempt/interval coverage in `scripts/publish-codex-release.mjs` and `packages/codex/tests/release-publication.test.mjs` per FR-041.
+- [x] T057 Run the targeted publication-state-machine test and syntax/diff gates for the read-back policy change before resuming T054.
+
 ## Dependencies
 
 ```text
@@ -278,9 +292,11 @@ US2 preparation/publication machinery
   ↓
 US3 lifecycle and finalization gates
   ↓
-Deterministic final gate
+  Deterministic final gate
   ↓
-Frozen final release
+  Frozen final release
+  ↓ on lost operator directory only
+  Durable recovery preparation and exact remote reuse
 ```
 
 - User Story 1 establishes the exact public package consumed by later phases.
@@ -288,6 +304,8 @@ Frozen final release
   stable, but remote-step implementation converges in one publisher file.
 - User Story 3 depends on the package and publication record contracts.
 - Phase 7 is never run by PR CI or before final review.
+- Phase 8 is authorized only for the observed lost-directory incident and does not create a general
+  reprepare or alternate-version path.
 - No task depends on or modifies Feature 004 implementation.
 
 ## Parallel Examples
@@ -317,7 +335,7 @@ T037 may proceed with T038 after the publication record contract is stable.
 
 1. Finish the public package and source-free install before release automation.
 2. Make preparation and all fake-remote publication tests repeatable and side-effect free.
-3. Keep real publication as the last four tasks.
+3. Keep real publication and the incident-scoped recovery as the final operator tasks.
 4. Never “fix” a remote conflict by moving, deleting, overwriting, or republishing.
 5. Stop if npm package ownership cannot be proven.
 6. Keep `packages/deepseek/` and shared Core semantics unchanged.
@@ -331,10 +349,14 @@ T037 may proceed with T038 after the publication record contract is stable.
 | FR-014–FR-020 build/verification | T019–T024, T042–T047 |
 | FR-021–FR-029 publication/read-back | T025–T033, T037–T040, T047–T050 |
 | FR-030–FR-036 lifecycle/final evidence | T034–T041, T048–T050 |
+| FR-037–FR-040 lost-directory recovery | T051–T055 |
+| FR-041 npm replication window | T056–T057 |
 | SC-001–SC-002 | T010–T018 |
 | SC-003–SC-005 | T019–T033, T047–T050 |
 | SC-006–SC-008 | T034–T041, T048–T050 |
 | SC-009–SC-010 | T003, T009, T042–T046, T050 |
+| SC-011 | T051–T055 |
+| SC-012 | T056–T057 |
 
 ## Scope Guard
 

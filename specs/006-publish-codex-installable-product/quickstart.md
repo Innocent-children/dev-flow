@@ -1,18 +1,22 @@
 # Quickstart: Prepare and Later Publish `dev-flow-codex`
 
 This is the implemented Feature 006 operator interface. Deterministic preparation and verification
-are repeatable and have no remote side effects. Irreversible publication, the native final Journey,
-and GitHub Release finalization are T047–T050 work and have not been executed.
+are repeatable and have no remote side effects. Real publication created the exact Tag and GitHub
+Draft, then stopped at npm `EOTP`; the original volatile output directory was subsequently lost.
+T051–T055 define the one approved durable recovery route.
 
 ## Current status
 
 ```text
 T001–T046 deterministic implementation passed
-T047–T050 irreversible real release not started
+T047 frozen payload identity established; exact Tag and Draft exist
+T048 npm publish stopped at EOTP; npm version remains absent
+T051–T055 durable lost-directory recovery authorized
 ```
 
-No public npm version, registry tarball read-back, Git Tag, GitHub Draft/Release/assets, or final
-registry-package Journey currently exists.
+No public npm version, registry tarball read-back, GitHub asset, published Release, or final
+registry-package Journey currently exists. Tag `v0.1.0` and Draft `371678198` exist at the frozen
+source and must be reused.
 
 Activate the existing feature package for Spec Kit work:
 
@@ -36,15 +40,43 @@ real operator workflow when T047–T050 run, not by deterministic Phase 6 valida
 
 ## Repeatable operations with no remote mutation
 
+### 0. Approved lost-directory recovery output
+
+The original `mktemp`-backed operator directory no longer exists. For this recovery only, use the
+durable external path:
+
+```bash
+RELEASE_OUTPUT="/Users/innocent-children/dev-flow-releases/v0.1.0-recovery"
+```
+
+It must be created empty, remain outside the repository and volatile system temporary roots, and be
+retained until publication completes or the maintainer explicitly retires the attempt. Run prepare
+exactly once from the frozen clean `main` source, then require:
+
+```text
+dev-flow-codex-0.1.0.tgz
+288a665eb88789dede7ac30b29d447dad8b90347d0f95753df71ceb9e5a06bf4
+
+dev-flow-0.1.0-darwin-arm64
+3f30d9b4607e063e67a7e9845d5a6f071aa5ae7231ccee89ed3f32870ddeb025
+```
+
+The regenerated provisional manifest/checksums/publication record are new recovery evidence. Do
+not claim they are byte-identical to the lost operator files. Before confirmation, import
+`runPublisher` from tooling commit `4345bd12fce027a2737f919a1851cfdf54f085af` and require a
+read-only preflight that exactly reuses the Tag and Draft while npm/assets/Journey remain absent or
+pending.
+
 ### 1. Select one empty external directory
 
 ```bash
-RELEASE_OUTPUT="$(mktemp -d)"
+RELEASE_OUTPUT="$(mktemp -d)" # deterministic development preparation only
 ```
 
 The directory must be absolute, empty, non-symlinked, and outside the source repository. For the
-real release, T047 freezes one reviewed source commit and uses one frozen output directory for the
-entire T047–T050 sequence.
+ordinary real release, T047 freezes one reviewed source commit and uses one frozen output directory
+for the entire T047–T050 sequence. The approved lost-directory recovery uses the durable path in
+step 0 instead.
 
 ### 2. Prepare
 
@@ -101,12 +133,12 @@ pnpm run release:codex:publish -- --directory "$RELEASE_OUTPUT"
 Without `--confirm`, it writes bounded observations and a safe next action to the local publication
 record, then exits before remote mutation.
 
-## Irreversible operations — not yet executed
+## Remaining irreversible operations
 
 ### 5. Exact publication command
 
-Only T047–T050 may run this command, from the reviewed clean `main` commit and the same frozen
-directory:
+T054 may run this command once from the fixed tooling checkout, using the frozen clean `main`
+identity checkout and the durable recovered directory:
 
 ```bash
 VERSION="$(cat VERSION)"

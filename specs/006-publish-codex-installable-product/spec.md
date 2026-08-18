@@ -2,9 +2,11 @@
 
 **Feature Branch**: `006-publish-codex-installable-product`  
 **Created**: 2026-08-14  
-**Revised**: 2026-08-17  
-**Status**: Deterministic implementation complete — T001–T046 passed. Irreversible real release
-T047–T050 remains pending.
+**Revised**: 2026-08-18
+**Status**: Deterministic implementation complete — T001–T046 passed. Real publication created the
+exact Tag and GitHub Draft, then stopped twice at npm `EOTP`. The original external release
+directory was removed by volatile temporary-directory cleanup; T051–T055 define the approved
+recovery preparation and completion route.
 **Input**: Build, verify, publish, install, upgrade, and remove the first public `dev-flow-codex`
 package from one clean source identity while Feature 004 remains deferred.
 
@@ -17,6 +19,12 @@ semantics are unchanged and the deferred host is stated explicitly.
 
 The existing directory `006-publish-two-installable-products` is superseded by
 `006-publish-codex-installable-product`.
+
+The 2026-08-18 recovery amendment preserves the frozen release identity and remote immutable state.
+It permits one recovery preparation only because the original external operator directory no
+longer exists. Recovery MUST reproduce the frozen npm tarball and Core digests, use a durable
+repository-external directory, reconstruct mutable publication truth from exact remote read-back,
+and reuse rather than replace the existing Tag and GitHub Draft.
 
 ## User Scenarios & Testing
 
@@ -115,6 +123,10 @@ publication record reports the exact remote state and safe next action.
 6. **Given** existing remote state conflicts by source, digest, version, tag target, or release
    identity, **When** the operator retries, **Then** publication stops for manual resolution and
    does not overwrite or delete the conflict.
+7. **Given** the only local release directory is lost after exact Tag and Draft creation but before
+   npm publication, **When** the maintainer authorizes recovery preparation, **Then** one durable
+   replacement directory may be prepared from the frozen source only if the npm tarball and Core
+   digests reproduce exactly and remote truth is reread before any further mutation.
 
 ## Edge Cases
 
@@ -135,6 +147,8 @@ publication record reports the exact remote state and safe next action.
 - GitHub Release finalization fails after all assets and npm bytes are immutable.
 - A generated manifest accidentally contains tokens, home paths, registry auth, or raw command
   output.
+- The operator selected a volatile system temporary directory and it disappears after a partial
+  publication attempt while the exact Tag and GitHub Draft remain remotely observable.
 
 ## Scope Boundaries
 
@@ -155,6 +169,8 @@ publication record reports the exact remote state and safe next action.
 - one final journey using the registry-downloaded package;
 - explicit setup, compatible upgrade, removal, npm uninstall, and retained-data checks;
 - truthful partial-publication recovery;
+- one explicitly authorized recovery preparation after loss of the sole local operator directory,
+  with fixed payload digests and exact remote-state reconstruction;
 - documentation for only the supported platform and tested Codex version/range.
 
 ### Out of Scope
@@ -268,6 +284,24 @@ publication record reports the exact remote state and safe next action.
 - **FR-035**: The support matrix MUST list only macOS arm64 and the actual tested Codex version plus
   the compatible range delivered by Feature 003; every other platform/host remains `UNVERIFIED`.
 - **FR-036**: Feature 006 MUST leave `packages/deepseek/` and all shared Core semantics unchanged.
+- **FR-037**: If the sole local release directory is lost after partial remote initialization, one
+  recovery preparation MAY run only under explicit maintainer approval from the same frozen source
+  commit/tree and version.
+- **FR-038**: Recovery preparation MUST use a durable absolute directory outside the source
+  repository and outside volatile system temporary roots, and that directory MUST be retained until
+  publication completes or a maintainer explicitly retires the attempt.
+- **FR-039**: The recovered npm tarball SHA-256 MUST equal
+  `288a665eb88789dede7ac30b29d447dad8b90347d0f95753df71ceb9e5a06bf4`, and the recovered
+  standalone Core SHA-256 MUST equal
+  `3f30d9b4607e063e67a7e9845d5a6f071aa5ae7231ccee89ed3f32870ddeb025`; mismatch MUST stop
+  recovery before publisher confirmation.
+- **FR-040**: A recovered publication record MUST be derived from local verification plus read-only
+  remote observation, reuse only Tag `v0.1.0` at the frozen source and GitHub Draft `371678198`,
+  require npm `dev-flow-codex@0.1.0` to remain absent before publish, and MUST NOT claim that the
+  lost record or provisional manifest was preserved byte-for-byte.
+- **FR-041**: npm registry replication read-back MUST make ten bounded observations with a two-second
+  interval between unsuccessful observations; the publisher MUST preserve publish-once truth and
+  stop with `NPM_READBACK_TIMEOUT` if the version is still unavailable after the tenth observation.
 
 ## Key Entities
 
@@ -282,6 +316,8 @@ publication record reports the exact remote state and safe next action.
 - **Support Matrix Entry**: OS, architecture, actual Codex version, compatible range, package digest,
   Core version, and final-journey result.
 - **Lifecycle Observation**: Bounded setup/upgrade/remove/read-back facts used by final evidence.
+- **Recovery Preparation**: One approved reconstruction of the lost operator directory that binds
+  reproduced immutable payloads to reread remote Tag, Draft, npm, asset, and journey state.
 
 ## Success Criteria
 
@@ -303,6 +339,12 @@ publication record reports the exact remote state and safe next action.
   immutable component.
 - **SC-009**: `packages/deepseek/` is unchanged and no DeepSeek product claim is made.
 - **SC-010**: Pull-request CI contains no release credentials or irreversible publication step.
+- **SC-011**: Loss of the sole local operator directory can be recovered once without moving or
+  deleting the exact Tag/Draft, without publishing a different payload, and without treating a
+  regenerated provisional manifest or publication record as prior preserved evidence.
+- **SC-012**: A registry version that becomes visible within ten observations separated by
+  two-second intervals is verified in the same publisher invocation, while a longer delay stops
+  truthfully without a second npm publication.
 
 ## Implementation Evidence Status — 2026-08-17
 
@@ -313,9 +355,12 @@ publication record reports the exact remote state and safe next action.
   deterministic evidence only.
 - The final Journey runner accepts only the official registry package in production; fixture
   journeys exercise gates but do not create public support evidence.
-- T047–T050 retain the real source freeze, publish-once, registry read-back, native Journey,
-  GitHub asset read-back, Release finalization, and complete-record obligations.
-- No public npm version, Git Tag, GitHub Release/asset, or registry-package Journey exists yet.
+- T047 created the frozen payload and real publication attempts created the exact Tag and GitHub
+  Draft. Both npm attempts stopped at `EOTP`; npm `0.1.0`, assets, final Journey, and Release
+  finalization remain absent/pending.
+- The sole T047 operator directory was under a volatile macOS temporary root and is now absent.
+  T051–T055 cover the approved one-time durable recovery preparation, exact payload digest proof,
+  remote-state reconstruction, resumed publisher, and final completion verification.
 
 ## Assumptions
 
@@ -326,3 +371,6 @@ publication record reports the exact remote state and safe next action.
 - The bundled-runtime package layout from Feature 003 remains suitable for the first release.
 - GitHub and npm remote publication are non-transactional; truth and resumability come from the
   publication record, not rollback claims.
+- The lost provisional manifest and mutable publication record had not been uploaded as public
+  assets; recovery may regenerate them only while preserving the frozen payload/source identities
+  and rereading all remote state.

@@ -79,6 +79,26 @@ Every invocation rereads remote state before mutation.
 - Conflicting target, digest, source, package integrity, or asset set stops with status `blocked`.
 - The tool never moves/deletes a tag, overwrites an asset, unpublishes npm, or hides prior failure.
 
+### Lost local operator directory
+
+If the sole local output directory is lost after partial remote initialization, recovery normally
+stops. One maintainer-approved exception may prepare a new durable external directory from the same
+frozen source only when the fixed npm tarball and Core digests reproduce exactly. The regenerated
+provisional manifest and mutable publication record are new recovery evidence.
+
+Before any confirmed publisher call, the production publisher must run without confirmation and
+observe the exact existing Tag and Draft, absent npm version, empty assets, and pending Journey.
+Recovery reuses those exact remote identities and does not move, delete, recreate, overwrite, or
+manually synthesize completion state.
+
+### npm registry replication window
+
+After a successful npm publish or an exact previously published version observation, the publisher
+makes at most ten registry metadata observations. It waits two seconds after each unsuccessful
+observation except the tenth. If visibility remains absent, `npm_readback` fails with
+`NPM_READBACK_TIMEOUT`, the successful publish fact remains recorded, and a later authorized resume
+must reread rather than republish the version.
+
 ## Output and Diagnostics
 
 Machine output is one bounded JSON summary or record path. Diagnostics go to stderr and exclude
