@@ -120,8 +120,15 @@ export async function runPublisher({
       return publisherSummary(record, context, { mode: "confirmed-fixture-publication" });
     }
 
-    const journeyEvidence = await ensureFinalJourney(context, manifest, record);
-    ({ manifest, record } = await prepareFinalManifest(context, manifest, record, journeyEvidence));
+    if (hasReusableFinalJourney(context, manifest, record)) {
+      record.overall_status = "journey_passed";
+      record.last_observed_at = now();
+      record.safe_next_action = "Reuse the exact passed final Journey and continue with asset read-back and finalization.";
+      await checkpoint(recordPath, record, manifest, context);
+    } else {
+      const journeyEvidence = await ensureFinalJourney(context, manifest, record);
+      ({ manifest, record } = await prepareFinalManifest(context, manifest, record, journeyEvidence));
+    }
     await ensureExactAssets(context, manifest, record);
     if (execution.stopBeforeFinalize === true) {
       record.safe_next_action = "All fixture assets are verified; keep the GitHub Release draft until the later finalization gate.";
@@ -235,6 +242,7 @@ async function validateCurrentSource(context) {
 }
 
 async function observeRemoteState(context, manifest, record) {
+  const preflightStep = startStep(record, "preflight");
   await runText("npm", ["--version"], context);
   const account = await runText("npm", ["whoami", `--registry=${OFFICIAL_REGISTRY}`], context);
   if (!account || account.length > 128) throw new PublicationError("NPM_IDENTITY_INVALID", "npm account identity is missing or unbounded", { blocked: true });
@@ -311,6 +319,10 @@ async function observeRemoteState(context, manifest, record) {
     record.npm.integrity = exactNPM.integrity;
     record.npm.tarball_sha256 = npmReadback.sha256;
   }
+  completeStep(preflightStep, {
+    summary: "Authenticated npm identity/ownership, GitHub permissions, and exact remote release state were observed.",
+  });
+  record.overall_status = completedPublicationStatus(record);
   record.last_observed_at = now();
   await checkpoint(context.recordPath, record, manifest, context);
   return { account, tagTarget, release, exactNPM, npmReadback };
@@ -500,6 +512,35 @@ async function ensureFinalJourney(context, manifest, record) {
   record.overall_status = "journey_passed";
   await checkpoint(context.recordPath, record, manifest, context);
   return evidence;
+}
+
+function hasReusableFinalJourney(context, manifest, record) {
+  const step = record.steps.find((candidate) => candidate.name === "final_journey");
+  const validation = manifest.validations.find((candidate) => candidate.name === "final-journey");
+  const support = manifest.support[0];
+  const hasCompletedSignal = step?.status === "complete"
+    || record.final_journey.status === "passed"
+    || validation?.status === "passed"
+    || support?.journey_result === "passed";
+  if (!hasCompletedSignal) return false;
+  if (
+    step?.status !== "complete"
+    || record.final_journey.status !== "passed"
+    || validation?.status !== "passed"
+    || support?.os !== "darwin"
+    || support?.arch !== "arm64"
+    || support?.journey_result !== "passed"
+    || support?.package_sha256 !== context.tarballSHA256
+    || support?.actual_codex_version !== record.final_journey.actual_codex_version
+    || support?.journey_observed_at !== record.final_journey.observed_at
+  ) {
+    throw new PublicationError(
+      "FINAL_JOURNEY_RECORD_CONFLICT",
+      "completed final Journey state differs from the final manifest",
+      { blocked: true, step: "final_journey" },
+    );
+  }
+  return true;
 }
 
 async function prepareFinalManifest(context, manifest, record, evidence) {
@@ -844,6 +885,18 @@ function completeStep(step, { remoteID = null, observedSHA256 = null, summary })
   step.error_code = null;
   step.summary = summary;
   step.safe_next_action = "Continue only after rereading exact remote state.";
+}
+
+function completedPublicationStatus(record) {
+  const complete = new Set(record.steps.filter((step) => step.status === "complete").map((step) => step.name));
+  if (complete.has("github_finalize")) return "complete";
+  if (complete.has("github_readback")) return "assets_verified";
+  if (complete.has("github_upload")) return "assets_uploaded";
+  if (complete.has("final_journey")) return "journey_passed";
+  if (complete.has("npm_readback")) return "npm_verified";
+  if (complete.has("npm_publish")) return "npm_published";
+  if (complete.has("tag") && complete.has("github_draft")) return "remote_initialized";
+  return "prepared";
 }
 
 function publisherSummary(record, context, { mode }) {

@@ -74,6 +74,18 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
     assert.equal(wrongRecord.steps[0].error_code, "CONFIRMATION_MISMATCH");
   });
 
+  await t.test("successful preflight supersedes an earlier preflight failure", async () => {
+    const scenario = await createScenario(root, template, "preflight-recovery");
+    await assertPublisherRejects(scenario, "v9.9.9", /confirmation must equal v0\.1\.0/u);
+
+    const resumed = await runPublisher(scenario);
+    const record = await readJSON(join(scenario.releaseDirectory, "publication-record.json"));
+    assert.equal(resumed.mutated, false);
+    assert.equal(record.steps[0].status, "complete");
+    assert.equal(record.steps[0].error_code, null);
+    assert.match(record.steps[0].summary, /Authenticated npm identity\/ownership/u);
+  });
+
   await t.test("exact confirmation creates tag/draft/npm/readback once and exact resume never republishes", async () => {
     const scenario = await createScenario(root, template, "exact-and-resume", {
       npm: { delayed_reads_remaining: 2 },
@@ -388,6 +400,27 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
     assert.equal(edits.length, 1);
   });
 
+  await t.test("finalization retry reuses the passed journey and final manifest", async () => {
+    const scenario = await createScenario(root, template, "finalize-reuses-journey");
+    await markTestLocalJourneyPassed(scenario);
+    scenario.stopBeforeFinalize = false;
+    await assertPublisherRejects(scenario, "v0.1.0", /fixture finalization refused/u);
+    const manifestBefore = await readFile(join(scenario.releaseDirectory, "release-manifest.json"));
+    assert.equal(scenario.finalJourneyRunCount, 1);
+
+    const remote = await readJSON(scenario.ghStatePath);
+    remote.fail_finalize = false;
+    await writeJSON(scenario.ghStatePath, remote);
+    const resumed = await runPublisher(scenario, "v0.1.0");
+
+    assert.equal(resumed.status, "complete");
+    assert.equal(scenario.finalJourneyRunCount, 1);
+    assert.deepEqual(
+      await readFile(join(scenario.releaseDirectory, "release-manifest.json")),
+      manifestBefore,
+    );
+  });
+
   await t.test("remote finalization record loss resumes from the exact public release without a second edit", async () => {
     const scenario = await createScenario(root, template, "finalize-record-loss", {
       gh: { fail_finalize: false, fail_after_finalize: true },
@@ -554,6 +587,7 @@ async function createScenario(root, template, name, overrides = {}) {
     environment,
     readbackDelays,
     finalJourneyEvidence: null,
+    finalJourneyRunCount: 0,
     stopBeforeFinalize: true,
   };
 }
@@ -569,10 +603,13 @@ async function runPublisher(scenario, confirmation = null) {
       stopBeforeFinalize: scenario.stopBeforeFinalize,
       allowFixtureJourney: true,
       delay: async (milliseconds) => scenario.readbackDelays.push(milliseconds),
-      runFinalJourney: async (_context, _manifest, record) => ({
-        ...structuredClone(scenario.finalJourneyEvidence),
-        npm_integrity: record.npm.integrity,
-      }),
+      runFinalJourney: async (_context, _manifest, record) => {
+        scenario.finalJourneyRunCount += 1;
+        return {
+          ...structuredClone(scenario.finalJourneyEvidence),
+          npm_integrity: record.npm.integrity,
+        };
+      },
     },
   });
 }

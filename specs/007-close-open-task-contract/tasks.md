@@ -218,3 +218,27 @@ resume guidance and using reviewed tooling against the frozen tagged source.
   open-result-to-apply path. GitHub assets remain empty and the Release remains Draft.
 - The reviewed tooling correction names both read tools, their order, and the explicit no-skip
   rule. Its targeted contract and full repository validation pass.
+
+## Phase 9: Publication State Recovery
+
+**Goal**: Clear a stale preflight failure from exact current observations and finish the existing
+`v0.3.0` Draft without rerunning its passed Journey or changing immutable release payloads.
+
+- [x] T032 Add deterministic regressions proving successful preflight supersedes its prior failed
+  status and a retry after finalization failure reuses the completed Journey and byte-identical
+  final manifest per FR-031 and SC-015.
+- [x] T033 Restore preflight completion only after the complete read-only remote observation passes,
+  and reuse an internally consistent passed Journey/final manifest on confirmed retry in
+  `scripts/publish-codex-release.mjs` per FR-025 and FR-031.
+- [ ] T034 Run the targeted publication state-machine test, syntax/diff checks, commit and push the
+  reviewed tooling correction, then run the confirmed publisher against frozen `v0.3.0` source;
+  verify the public Release, four assets, npm/Tag/source identity, and complete publication record.
+
+### Publication State Recovery Evidence — 2026-08-18
+
+- The new preflight recovery regression first records `CONFIRMATION_MISMATCH`, then proves a
+  complete read-only remote observation changes the same step to `complete` and clears its error.
+- The new finalization recovery regression fails after one completed Journey and four assets, then
+  proves the next run finalizes successfully with Journey invocation count still one and identical
+  `release-manifest.json` bytes.
+- `release-publication.test.mjs` passed 18/18; publisher syntax and `git diff --check` passed.

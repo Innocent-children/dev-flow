@@ -143,6 +143,13 @@ prepared manifest. The resume prompt names the exact tool sequence and forbids t
 open-result-to-apply path. The publisher rereads and reuses npm, Tag, and Draft without republishing
 or moving them.
 
+After a later recovery exposed a stale failed `preflight` step, successful read-only observation
+becomes the current preflight truth and clears the prior attempt error. A retry also treats an exact
+passed Journey plus matching final manifest as a completed gate: it reuses those immutable facts,
+revalidates the existing assets, and proceeds to finalization without starting another real Host
+session or rewriting final payload bytes. Attempt failures remain recorded until a complete current
+observation supersedes them; immutable remote identity conflicts remain blocking.
+
 ## Complexity Tracking
 
 No Constitution violations or complexity exceptions.

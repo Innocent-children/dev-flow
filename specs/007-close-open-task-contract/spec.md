@@ -134,6 +134,11 @@ the registry-package Codex journey, and observe a complete publication record.
 - **FR-028**: A failed preflight attempt with zero remote mutation MAY be superseded only by a new clean source commit and newly prepared durable directory after the timeout correction is validated.
 - **FR-029**: After npm `0.3.0` and Tag/Draft become immutable, a final-Journey tooling correction MUST NOT move the Tag or change published package bytes; the publisher MAY run from a reviewed tooling commit against a detached frozen `v0.3.0` source checkout.
 - **FR-030**: The final registry resume prompt MUST name `dev_flow_get_task` and `dev_flow_get_next_action` in order, prohibit using the `dev_flow_open_task` action to skip either read, and require both before any new apply.
+- **FR-031**: A successful publisher preflight MUST supersede an earlier failed or blocked preflight
+  attempt for the same exact release identity, clearing the stale step error before finalization.
+  When the final Journey and final manifest are already complete and internally consistent, a
+  publication retry MUST reuse that evidence without running another Journey or rewriting the
+  immutable final payloads.
 
 ### Key Entities
 
@@ -160,6 +165,9 @@ the registry-package Codex journey, and observe a complete publication record.
 - **SC-012**: No Feature 006 remote or frozen local identity changes during publication.
 - **SC-013**: A deterministic contract test exposes the ordinary publisher timeout as exactly 60,000 milliseconds.
 - **SC-014**: The final registry resume prompt contract test proves the exact open/read/read/apply order and explicit no-skip rule.
+- **SC-015**: Deterministic publication recovery proves that a successful preflight clears an older
+  preflight failure and that a retry after a finalization failure runs the Journey exactly once,
+  preserves final manifest bytes, and completes the existing Release.
 
 ## Assumptions
 
