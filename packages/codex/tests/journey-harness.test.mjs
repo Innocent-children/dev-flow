@@ -17,6 +17,7 @@ import {
   buildFinalRegistryPackArgs,
   buildCodexExecArgs,
   createFinalJourneyLayout,
+  inspectFinalCodexExecutable,
   parseCLI,
   runDevelopmentSmoke,
   smokePrompt,
@@ -651,6 +652,10 @@ test("final registry journey CLI is closed, registry-only, and rejects local sub
   ]);
 });
 
+test("final registry journey accepts an executable Codex script and records its semantic version", async () => {
+  assert.equal(await inspectFinalCodexExecutable(fakeNativeTool, process.env), "0.147.0");
+});
+
 test("final registry journey layout and product environment stay inside isolated roots", () => {
   const layout = createFinalJourneyLayout(
     "/tmp/final-root",
@@ -743,7 +748,6 @@ test("passed support matrix is derived only from matching native registry journe
     ["package digest", { npm_tarball_sha256: "d".repeat(64) }, /npm_tarball_sha256/u],
     ["Core digest", { core_sha256: "d".repeat(64) }, /core_sha256/u],
     ["source commit", { source_commit: "d".repeat(40) }, /source_commit/u],
-    ["Codex range", { codex_version: "0.148.0" }, /outside the compatible range/u],
   ]) {
     assert.throws(
       () => buildSupportMatrixFromFinalJourney({
@@ -754,6 +758,12 @@ test("passed support matrix is derived only from matching native registry journe
       name,
     );
   }
+  const unboundedVersion = buildSupportMatrixFromFinalJourney({
+    manifest,
+    evidence: { ...nativeContract, codex_version: "9.9.9" },
+  });
+  assert.equal(unboundedVersion[0].actual_codex_version, "9.9.9");
+  assert.equal(unboundedVersion[0].compatible_codex_range, CODEX_COMPATIBILITY_RANGE);
 });
 
 test("simplified acceptance validates one complete closed FR-028 report", () => {

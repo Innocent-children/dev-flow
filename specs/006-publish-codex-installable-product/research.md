@@ -269,3 +269,21 @@ closed metadata surface and matches both official registry behavior and the vali
   simpler and makes the fixture contract exact.
 - Query the complete package document: rejected because it expands remote output beyond the fields
   required for release identity.
+
+## Decision 13 — Record Codex version without gating the final Journey
+
+**Decision**: Accept any repository-external executable Codex launcher whose `--version` output
+contains a strict semantic version. Do not require Mach-O or enforce the Feature 003 range during
+final release evidence.
+
+**Rationale**: The installed official Codex 0.147.0 entry point is an executable Node.js script.
+File format does not determine whether the real host can complete the registry-package Journey, and
+the Journey itself supplies stronger end-to-end compatibility evidence than a static range check.
+
+**Alternatives considered**:
+
+- Require a native Mach-O wrapper: rejected because it excludes the actual official launcher used
+  by the maintainer without improving Journey evidence.
+- Remove version observation entirely: rejected because the final support entry still needs
+  traceable host identity.
+- Expand the fixed range: rejected because any new fixed range would recreate the same static gate.

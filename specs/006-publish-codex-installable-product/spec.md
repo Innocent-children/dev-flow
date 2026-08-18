@@ -281,8 +281,9 @@ publication record reports the exact remote state and safe next action.
   preserve the shared task database and unknown adjacent files.
 - **FR-034**: A Core that encounters an unsupported newer SQLite schema MUST refuse mutation and
   preserve data.
-- **FR-035**: The support matrix MUST list only macOS arm64 and the actual tested Codex version plus
-  the compatible range delivered by Feature 003; every other platform/host remains `UNVERIFIED`.
+- **FR-035**: The support matrix MUST list only macOS arm64, record the actual tested Codex version,
+  and retain the package-declared Feature 003 range as informational metadata rather than a release
+  gate; every other platform/host remains `UNVERIFIED`.
 - **FR-036**: Feature 006 MUST leave `packages/deepseek/` and all shared Core semantics unchanged.
 - **FR-037**: If the sole local release directory is lost after partial remote initialization, one
   recovery preparation MAY run only under explicit maintainer approval from the same frozen source
@@ -305,6 +306,10 @@ publication record reports the exact remote state and safe next action.
 - **FR-042**: npm registry metadata observation MUST request the bounded `version` and `dist` object
   fields from the supported npm CLI, require string `dist.integrity` and `dist.tarball` values, and
   reject missing or malformed identity before package read-back.
+- **FR-043**: The final registry Journey MUST accept a real executable Codex located outside the
+  source repository when `codex --version` returns a strict semantic version. It MUST NOT require a
+  fixed Codex version/range or Mach-O file type, and MUST record the observed version in final
+  evidence.
 
 ## Key Entities
 
@@ -350,6 +355,9 @@ publication record reports the exact remote state and safe next action.
   truthfully without a second npm publication.
 - **SC-013**: The production npm CLI metadata shape used by the publisher is exercised by a closed
   fixture command contract and yields the exact version, integrity, and official tarball identity.
+- **SC-014**: A repository-external executable Codex launcher, including an official Node.js script,
+  can complete the final Journey regardless of its semantic version while the observed version is
+  preserved in the final support entry.
 
 ## Implementation Evidence Status — 2026-08-17
 

@@ -164,6 +164,14 @@ for `version` and the bounded `dist` object, then validates nested integrity and
 The fake npm command contract accepts only that production argument shape so fixture evidence
 cannot silently diverge from the real CLI query.
 
+### 10. Treat the observed Codex launcher as evidence, not a version gate
+
+The final registry Journey requires an absolute, executable Codex launcher outside the source
+repository and a parseable semantic version response. It accepts native binaries and executable
+scripts, removes the fixed range and Mach-O admission checks, and records the observed version in
+the final evidence/support entry. The package-declared Feature 003 range remains informational
+metadata; the successful real Journey is the release support proof.
+
 ## Project Structure
 
 ### Package and build paths

@@ -172,7 +172,7 @@ arguments. Production accepts only:
 dev-flow-codex@<VERSION>
 https://registry.npmjs.org/
 native macOS arm64
-compatible real Codex
+repository-external executable real Codex with parseable semantic version
 isolated npm prefix/cache/HOME/Codex/data/temp/workspace/evidence
 ```
 
@@ -180,6 +180,9 @@ The Journey proves install, explicit setup, ordinary zero-trigger, explicit `$de
 create/apply, Codex restart, same-task resume, Core `DONE`, explicit remove, npm uninstall, and
 retained task reopen. Local tgz, source checkout, Runtime override, fake Codex, or fixture evidence
 cannot satisfy this production gate.
+
+The Codex launcher may be a native binary or an executable official script. Its observed semantic
+version is recorded but is not compared with a fixed release range.
 
 ### 7. GitHub finalization gate
 

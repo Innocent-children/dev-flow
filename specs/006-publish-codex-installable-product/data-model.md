@@ -43,7 +43,7 @@ The manifest does not record its own digest and does not inventory the mutable p
 | `os` | string | `darwin` |
 | `arch` | string | `arm64` |
 | `actual_codex_version` | string | exact final journey version |
-| `compatible_codex_range` | string | copied from Feature 003 |
+| `compatible_codex_range` | string | informational package range copied from Feature 003; not a final-Journey admission gate |
 | `package_sha256` | hex digest | published tarball |
 | `core_sha256` | hex digest | bundled runtime |
 | `journey_result` | enum | `pending`, `passed`, `failed`, `blocked` |

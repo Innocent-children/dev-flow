@@ -236,7 +236,6 @@ export function validateFinalJourneyEvidenceShape(evidence, { allowFixture = fal
   if (evidence.compatible_codex_range !== CODEX_COMPATIBILITY_RANGE || evidence.codex_compatible !== true) {
     throw new Error("final journey Codex compatibility identity is invalid");
   }
-  if (!versionSatisfiesFixedRange(evidence.codex_version)) throw new Error("final journey Codex version is outside the compatible range");
   for (const field of [
     "setup_readback_passed", "remove_readback_passed", "npm_uninstall_passed",
     "task_data_retained", "task_reopened_after_uninstall",
@@ -677,10 +676,9 @@ export async function runFinalRegistryJourney(options) {
     ].map((path) => mkdir(path, { recursive: true, mode: 0o700 })));
     await symlink(codexExecutable, join(layout.hostBin, "codex"));
 
-    const [npmExecutable, gitExecutable, fileExecutable] = await Promise.all([
+    const [npmExecutable, gitExecutable] = await Promise.all([
       findExecutableOnPath("npm"),
       findExecutableOnPath("git"),
-      findExecutableOnPath("file"),
     ]);
     const environment = buildFinalJourneyEnvironment({
       layout,
@@ -689,7 +687,6 @@ export async function runFinalRegistryJourney(options) {
         dirname(process.execPath),
         dirname(npmExecutable),
         dirname(gitExecutable),
-        dirname(fileExecutable),
         "/usr/bin",
         "/bin",
         "/usr/sbin",
@@ -697,7 +694,7 @@ export async function runFinalRegistryJourney(options) {
       ],
     });
     await copyFinalCodexAuthentication(layout);
-    const codexVersion = await inspectFinalCodexExecutable(codexExecutable, fileExecutable, environment);
+    const codexVersion = await inspectFinalCodexExecutable(codexExecutable, environment);
 
     const registry = await readFinalRegistryPackage({
       npmExecutable,
@@ -1471,20 +1468,14 @@ async function copyFinalCodexAuthentication(layout) {
   await chmod(destination, 0o600);
 }
 
-async function inspectFinalCodexExecutable(executable, fileExecutable, environment) {
+export async function inspectFinalCodexExecutable(executable, environment) {
   const metadata = await stat(executable);
   if (!metadata.isFile() || (metadata.mode & 0o111) === 0) {
     throw new Error("final registry journey Codex executable is not executable");
   }
   const { stdout } = await execFile(executable, ["--version"], { env: environment, encoding: "utf8" });
   const match = /^codex(?:-cli)? (\d+\.\d+\.\d+)\n?$/u.exec(stdout);
-  if (!match || !versionSatisfiesFixedRange(match[1])) {
-    throw new Error(`final registry journey Codex version must satisfy ${CODEX_COMPATIBILITY_RANGE}`);
-  }
-  const inspected = await execFile(fileExecutable, [executable], { env: environment, encoding: "utf8" });
-  if (!/Mach-O.*arm64|Mach-O.*universal.*arm64/iu.test(inspected.stdout)) {
-    throw new Error("final registry journey Codex executable must be macOS arm64");
-  }
+  if (!match) throw new Error("final registry journey Codex version must be semantic");
   return match[1];
 }
 
