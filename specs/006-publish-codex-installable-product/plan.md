@@ -157,6 +157,13 @@ fixture boundary so they can prove the exact attempt count and interval without 
 seconds of wall-clock delay. Production keeps the real timer and all existing publish-once,
 checkpoint, conflict, and timeout behavior.
 
+### 9. Query npm metadata as a bounded object
+
+The supported npm CLI returns dot-selected fields as flat JSON keys. The publisher therefore asks
+for `version` and the bounded `dist` object, then validates nested integrity and tarball strings.
+The fake npm command contract accepts only that production argument shape so fixture evidence
+cannot silently diverge from the real CLI query.
+
 ## Project Structure
 
 ### Package and build paths

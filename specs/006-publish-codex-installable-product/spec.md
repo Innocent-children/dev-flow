@@ -302,6 +302,9 @@ publication record reports the exact remote state and safe next action.
 - **FR-041**: npm registry replication read-back MUST make ten bounded observations with a two-second
   interval between unsuccessful observations; the publisher MUST preserve publish-once truth and
   stop with `NPM_READBACK_TIMEOUT` if the version is still unavailable after the tenth observation.
+- **FR-042**: npm registry metadata observation MUST request the bounded `version` and `dist` object
+  fields from the supported npm CLI, require string `dist.integrity` and `dist.tarball` values, and
+  reject missing or malformed identity before package read-back.
 
 ## Key Entities
 
@@ -345,6 +348,8 @@ publication record reports the exact remote state and safe next action.
 - **SC-012**: A registry version that becomes visible within ten observations separated by
   two-second intervals is verified in the same publisher invocation, while a longer delay stops
   truthfully without a second npm publication.
+- **SC-013**: The production npm CLI metadata shape used by the publisher is exercised by a closed
+  fixture command contract and yields the exact version, integrity, and official tarball identity.
 
 ## Implementation Evidence Status — 2026-08-17
 

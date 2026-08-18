@@ -254,3 +254,18 @@ ordinary registry propagation while remaining bounded and operationally small.
 - Poll indefinitely: rejected because the publisher requires bounded execution and diagnostics.
 - Add a fixed sleep before the first read: rejected because immediate visibility should still
   complete without unnecessary delay.
+
+## Decision 12 — Request npm `dist` as an object
+
+**Decision**: Query `npm view` for `version` and `dist`, not the two dot-selected `dist` children.
+
+**Rationale**: npm 11.16.0 serializes multiple dot-selected fields as flat JSON keys, while the
+publisher's bounded validator requires the nested `dist` object. Requesting `dist` preserves the
+closed metadata surface and matches both official registry behavior and the validator shape.
+
+**Alternatives considered**:
+
+- Accept both flat and nested keys: rejected because one supported production command shape is
+  simpler and makes the fixture contract exact.
+- Query the complete package document: rejected because it expands remote output beyond the fields
+  required for release identity.

@@ -733,7 +733,7 @@ async function downloadAssetDigest(context, name) {
 
 async function observeExactNPM(context, { delayed }) {
   const result = await runAllowFailure("npm", [
-    "view", `dev-flow-codex@${context.version}`, "version", "dist.integrity", "dist.tarball", "--json", `--registry=${OFFICIAL_REGISTRY}`,
+    "view", `dev-flow-codex@${context.version}`, "version", "dist", "--json", `--registry=${OFFICIAL_REGISTRY}`,
   ], context);
   if (result.code !== 0) {
     if (isNotFound(result)) return null;

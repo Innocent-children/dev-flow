@@ -278,6 +278,8 @@ and host boundaries.
 - [ ] T055 Verify complete Publication Record, npm read-back, native registry Journey, final manifest/support entry, four GitHub asset read-backs, published Release identity, and absence of generated release output or credential material in the repository.
 - [x] T056 Extend npm registry read-back to ten observations at two-second intervals and add deterministic attempt/interval coverage in `scripts/publish-codex-release.mjs` and `packages/codex/tests/release-publication.test.mjs` per FR-041.
 - [x] T057 Run the targeted publication-state-machine test and syntax/diff gates for the read-back policy change before resuming T054.
+- [x] T058 Query bounded npm metadata through `version` plus the nested `dist` object and enforce the exact CLI argument shape in `scripts/publish-codex-release.mjs`, `packages/codex/tests/fixtures/fake-release-npm.mjs`, and `packages/codex/tests/release-publication.test.mjs` per FR-042.
+- [x] T059 Run the targeted publication-state-machine, syntax, and real confirmation-free preflight gates for the npm metadata-shape correction before resuming T054.
 
 ## Dependencies
 
@@ -351,12 +353,14 @@ T037 may proceed with T038 after the publication record contract is stable.
 | FR-030–FR-036 lifecycle/final evidence | T034–T041, T048–T050 |
 | FR-037–FR-040 lost-directory recovery | T051–T055 |
 | FR-041 npm replication window | T056–T057 |
+| FR-042 npm metadata shape | T058–T059 |
 | SC-001–SC-002 | T010–T018 |
 | SC-003–SC-005 | T019–T033, T047–T050 |
 | SC-006–SC-008 | T034–T041, T048–T050 |
 | SC-009–SC-010 | T003, T009, T042–T046, T050 |
 | SC-011 | T051–T055 |
 | SC-012 | T056–T057 |
+| SC-013 | T058–T059 |
 
 ## Scope Guard
 

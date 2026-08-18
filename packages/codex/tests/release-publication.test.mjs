@@ -89,6 +89,7 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
     assert.ok(createIndex >= 0 && publishIndex > createIndex && packIndex > publishIndex);
     assert.equal(calls.filter((entry) => entry.result === "version-delayed").length, 2);
     assert.deepEqual(scenario.readbackDelays, [2_000, 2_000]);
+    assert.equal(calls.filter((entry) => entry.tool === "npm" && entry.argv[0] === "view" && entry.argv[2] === "version" && entry.argv[3] === "dist").length >= 1, true);
     assert.equal(calls.some((entry) => entry.tool === "gh" && entry.argv[0] === "release" && entry.argv[1] === "edit"), false);
 
     const beforeResumePublishes = calls.filter((entry) => entry.tool === "npm" && entry.argv[0] === "publish").length;

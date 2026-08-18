@@ -35,6 +35,9 @@ if (argv[0] === "view" && argv[1] === "dev-flow-codex") {
 
 if (argv[0] === "view" && /^dev-flow-codex@/u.test(argv[1] ?? "")) {
   if (!officialRegistry(argv.at(-1))) await fail("fake npm version view requires the official registry", 2, "invalid-registry");
+  if (argv.length !== 6 || argv[2] !== "version" || argv[3] !== "dist" || argv[4] !== "--json") {
+    await fail("fake npm version view requires bounded version and dist fields", 2, "invalid-version-view-fields");
+  }
   const version = argv[1].slice("dev-flow-codex@".length);
   if (state.version !== version) await notFound("version-absent");
   if ((state.delayed_reads_remaining ?? 0) > 0) {
