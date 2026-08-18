@@ -282,6 +282,8 @@ and host boundaries.
 - [x] T059 Run the targeted publication-state-machine, syntax, and real confirmation-free preflight gates for the npm metadata-shape correction before resuming T054.
 - [x] T060 Remove fixed Codex range and Mach-O admission from the final registry Journey while preserving repository-external executable and semantic-version observation gates in `scripts/write-codex-journey-evidence.mjs`, `scripts/verify-codex-release.mjs`, and `packages/codex/tests/journey-harness.test.mjs` per FR-043.
 - [x] T061 Run targeted Journey/publication tests, syntax/diff gates, and one real confirmation-free preflight before resuming T054.
+- [x] T062 Resolve the production final Journey runner from the fixed tooling module rather than frozen `repositoryRoot` in `scripts/publish-codex-release.mjs` and add path-ownership coverage in `packages/codex/tests/journey-harness.test.mjs` per FR-044.
+- [x] T063 Run targeted Journey/publication tests, syntax/diff gates, and one real confirmation-free preflight for the tooling/source separation before resuming T054.
 
 ## Dependencies
 
@@ -357,6 +359,7 @@ T037 may proceed with T038 after the publication record contract is stable.
 | FR-041 npm replication window | T056–T057 |
 | FR-042 npm metadata shape | T058–T059 |
 | FR-043 observed Codex host identity | T060–T061 |
+| FR-044 tooling/source separation | T062–T063 |
 | SC-001–SC-002 | T010–T018 |
 | SC-003–SC-005 | T019–T033, T047–T050 |
 | SC-006–SC-008 | T034–T041, T048–T050 |
@@ -365,6 +368,7 @@ T037 may proceed with T038 after the publication record contract is stable.
 | SC-012 | T056–T057 |
 | SC-013 | T058–T059 |
 | SC-014 | T060–T061 |
+| SC-015 | T062–T063 |
 
 ## Scope Guard
 

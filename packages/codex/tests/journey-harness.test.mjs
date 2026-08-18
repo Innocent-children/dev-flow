@@ -26,6 +26,7 @@ import {
   validateFinalJourneyEvidenceShape,
 } from "../../../scripts/write-codex-journey-evidence.mjs";
 import { buildSupportMatrixFromFinalJourney } from "../../../scripts/verify-codex-release.mjs";
+import { productionJourneyRunnerPath } from "../../../scripts/publish-codex-release.mjs";
 import * as smokeRuntime from "../../../scripts/write-codex-journey-evidence.mjs";
 
 const execFile = promisify(execFileCallback);
@@ -650,6 +651,11 @@ test("final registry journey CLI is closed, registry-only, and rejects local sub
     "--ignore-scripts", "--json",
     "--registry=https://registry.npmjs.org/",
   ]);
+});
+
+test("production publisher owns the final Journey runner independently of frozen source identity", () => {
+  assert.equal(productionJourneyRunnerPath(), runner);
+  assert.equal(productionJourneyRunnerPath().startsWith(`${repositoryRoot}/`), true);
 });
 
 test("final registry journey accepts an executable Codex script and records its semantic version", async () => {

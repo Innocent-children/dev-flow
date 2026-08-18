@@ -171,7 +171,7 @@ async function runProductionFinalJourney(context, manifest) {
       mkdir(workspace, { mode: 0o700 }),
       mkdir(resultDirectory, { mode: 0o700 }),
     ]);
-    const runner = join(context.root, "scripts", "run-codex-real-journey.sh");
+    const runner = productionJourneyRunnerPath();
     const stdout = await runText(runner, [
       "--final-registry",
       "--package", "dev-flow-codex",
@@ -958,6 +958,10 @@ function boundedMessage(error) {
 
 function repositoryRootFromModule() {
   return dirname(dirname(fileURLToPath(import.meta.url)));
+}
+
+export function productionJourneyRunnerPath() {
+  return join(repositoryRootFromModule(), "scripts", "run-codex-real-journey.sh");
 }
 
 function isMainModule() {

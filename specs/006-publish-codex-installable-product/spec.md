@@ -310,6 +310,9 @@ publication record reports the exact remote state and safe next action.
   source repository when `codex --version` returns a strict semantic version. It MUST NOT require a
   fixed Codex version/range or Mach-O file type, and MUST record the observed version in final
   evidence.
+- **FR-044**: The production publisher MUST load the final Journey runner and evidence validator
+  from its own fixed tooling checkout. The frozen source checkout MUST remain limited to release
+  source identity and MUST NOT select an older publisher/Journey implementation.
 
 ## Key Entities
 
@@ -358,6 +361,8 @@ publication record reports the exact remote state and safe next action.
 - **SC-014**: A repository-external executable Codex launcher, including an official Node.js script,
   can complete the final Journey regardless of its semantic version while the observed version is
   preserved in the final support entry.
+- **SC-015**: A publisher imported from a tooling checkout invokes the runner adjacent to that
+  tooling module even when `repositoryRoot` points at a different frozen source commit.
 
 ## Implementation Evidence Status — 2026-08-17
 

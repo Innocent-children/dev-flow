@@ -172,6 +172,13 @@ scripts, removes the fixed range and Mach-O admission checks, and records the ob
 the final evidence/support entry. The package-declared Feature 003 range remains informational
 metadata; the successful real Journey is the release support proof.
 
+### 11. Separate tooling code from frozen product source
+
+The publisher module resolves the production Journey runner relative to its own module checkout.
+`repositoryRoot` continues to validate the frozen release commit/tree and provides no executable
+release tooling. This lets a reviewed recovery tooling commit fix publisher/Journey behavior without
+changing or substituting the immutable product source and payload.
+
 ## Project Structure
 
 ### Package and build paths

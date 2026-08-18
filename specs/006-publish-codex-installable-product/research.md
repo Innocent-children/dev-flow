@@ -287,3 +287,19 @@ the Journey itself supplies stronger end-to-end compatibility evidence than a st
 - Remove version observation entirely: rejected because the final support entry still needs
   traceable host identity.
 - Expand the fixed range: rejected because any new fixed range would recreate the same static gate.
+
+## Decision 14 — Resolve the Journey runner from the tooling module
+
+**Decision**: The production publisher invokes `scripts/run-codex-real-journey.sh` adjacent to the
+imported publisher module. The frozen source root is never used to select recovery tooling.
+
+**Rationale**: Recovery intentionally combines immutable product source `eb3b1b12…` with later
+reviewed publisher fixes. Resolving the runner through `context.root` silently reintroduced the old
+Journey gate from frozen source and made the tooling fix ineffective.
+
+**Alternatives considered**:
+
+- Patch files inside the frozen source checkout: rejected because it would invalidate source/tree
+  identity and the prepared payload contract.
+- Pass a runtime override from the operator command: rejected because production recovery uses one
+  closed publisher API without bypass inputs.
