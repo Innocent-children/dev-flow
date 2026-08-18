@@ -494,6 +494,15 @@ test("development smoke admits only four bounded run labels and exact selectors"
   assert.match(smokeRuntime.developmentSubstantivePrompt, /file exists[\s\S]*first successful[\s\S]*after (?:creating|creation)/i);
 });
 
+test("final registry resume prompt requires both authoritative reads before apply", () => {
+  assert.equal(smokeRuntime.finalRegistryResumePrompt.startsWith(`${EXPLICIT_SELECTOR} `), true);
+  assert.match(
+    smokeRuntime.finalRegistryResumePrompt,
+    /dev_flow_open_task[\s\S]*MUST call dev_flow_get_task[\s\S]*then dev_flow_get_next_action[\s\S]*before any dev_flow_apply_action/u,
+  );
+  assert.match(smokeRuntime.finalRegistryResumePrompt, /Do not use the action returned by dev_flow_open_task to skip either read/u);
+});
+
 test("development smoke enforces ordinary and invalid zero-call admission", () => {
   assert.equal(typeof smokeRuntime.assertDevelopmentAdmissionIsolation, "function");
   const ordinary = { dev_flow_call_count: 0, tools: [] };

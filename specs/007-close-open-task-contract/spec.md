@@ -132,6 +132,8 @@ the registry-package Codex journey, and observe a complete publication record.
 - **FR-026**: Feature 006 `v0.1.0` Tag, Draft, assets, fixed digests, and recovery evidence MUST remain untouched by the `v0.3.0` publication.
 - **FR-027**: Ordinary external publisher commands MUST allow 60 seconds before timeout; the real final Codex journey retains its explicit longer timeout.
 - **FR-028**: A failed preflight attempt with zero remote mutation MAY be superseded only by a new clean source commit and newly prepared durable directory after the timeout correction is validated.
+- **FR-029**: After npm `0.3.0` and Tag/Draft become immutable, a final-Journey tooling correction MUST NOT move the Tag or change published package bytes; the publisher MAY run from a reviewed tooling commit against a detached frozen `v0.3.0` source checkout.
+- **FR-030**: The final registry resume prompt MUST name `dev_flow_get_task` and `dev_flow_get_next_action` in order, prohibit using the `dev_flow_open_task` action to skip either read, and require both before any new apply.
 
 ### Key Entities
 
@@ -157,6 +159,7 @@ the registry-package Codex journey, and observe a complete publication record.
 - **SC-011**: Tag `v0.3.0`, the public GitHub Release, four verified assets, and the complete publication record point to one source identity.
 - **SC-012**: No Feature 006 remote or frozen local identity changes during publication.
 - **SC-013**: A deterministic contract test exposes the ordinary publisher timeout as exactly 60,000 milliseconds.
+- **SC-014**: The final registry resume prompt contract test proves the exact open/read/read/apply order and explicit no-skip rule.
 
 ## Assumptions
 

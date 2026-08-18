@@ -184,8 +184,8 @@ zero-mutation attempt, and prepare a new exact source for the next confirmed pub
 
 - [x] T024 Export and use a 60,000-millisecond ordinary command timeout in `scripts/publish-codex-release.mjs` per FR-027.
 - [x] T025 Add the exact timeout contract assertion and explicitly preserve the isolated Feature 006 `v0.1.0` publication fixture in `packages/codex/tests/release-publication.test.mjs`, then rerun targeted/full validation per SC-013 and FR-026.
-- [ ] T026 Commit and push the timeout correction, retain `/Users/innocent-children/dev-flow-releases/v0.3.0` as failed-attempt evidence, and prepare a new clean durable release directory from the corrected source per FR-028.
-- [ ] T027 Execute one corrected confirmed publication attempt and verify or truthfully record its exact remote outcome per FR-023–FR-028.
+- [x] T026 Commit and push the timeout correction, retain `/Users/innocent-children/dev-flow-releases/v0.3.0` as failed-attempt evidence, and prepare a new clean durable release directory from the corrected source per FR-028.
+- [x] T027 Execute one corrected confirmed publication attempt and verify or truthfully record its exact remote outcome per FR-023–FR-028.
 
 ### Timeout Correction Evidence — 2026-08-18
 
@@ -196,3 +196,25 @@ zero-mutation attempt, and prepare a new exact source for the next confirmed pub
 - `release-publication.test.mjs` passed 16/16, including the exact 60,000-millisecond assertion and
   the isolated frozen `v0.1.0` publication scenarios.
 - `pnpm run validate` passed after the correction.
+
+## Phase 8: Final Journey Recovery
+
+**Goal**: Complete the existing immutable `0.3.0` publication by correcting only the final Journey
+resume guidance and using reviewed tooling against the frozen tagged source.
+
+- [x] T028 Require the exact `open_task → get_task → get_next_action → apply_action` resume sequence and no-skip rule in `scripts/write-codex-journey-evidence.mjs` per FR-030.
+- [x] T029 Add final registry resume prompt contract coverage in `packages/codex/tests/journey-harness.test.mjs` and run targeted/full validation per SC-014.
+- [ ] T030 Commit and push the tooling correction, create a detached external checkout at immutable Tag `v0.3.0`, and run the reviewed publisher tooling against that frozen source without moving the Tag or republishing npm per FR-029.
+- [ ] T031 Verify final Journey, four assets, public GitHub Release, complete publication record, and unchanged npm/Tag/source identities per FR-024–FR-030.
+
+### Confirmed Publication Outcome — 2026-08-18
+
+- Corrected source commit `94cf8308abac8a34a15a426c7c2f2e1113f0a6f9` and tree
+  `d1515664775d8a6852b1d9a73acd6a0d181a9f1c` were prepared and verified.
+- Tag `v0.3.0`, GitHub Draft `372256319`, npm `dev-flow-codex@0.3.0`, and registry tarball
+  SHA-256 `963e0a7391035db89e89733b9135f0c2fdd98dce85fdbab5ceee12c1ba873186`
+  are exact and immutable. npm publish count is one.
+- Two final Journey runs reached the resume evidence gate but Codex selected the shorter
+  open-result-to-apply path. GitHub assets remain empty and the Release remains Draft.
+- The reviewed tooling correction names both read tools, their order, and the explicit no-skip
+  rule. Its targeted contract and full repository validation pass.

@@ -136,6 +136,13 @@ After the first confirmed attempt stopped during preflight with `COMMAND_FAILED`
 prepared directory remains retained as audit evidence; the corrected source is committed and a new
 release directory is prepared from that exact commit before another confirmed attempt.
 
+After npm and Tag/Draft become immutable, final-Journey tooling fixes use the existing
+tooling/source separation: current reviewed tooling supplies the Journey runner and validator while
+a detached external checkout at Tag `v0.3.0` supplies the frozen source identity required by the
+prepared manifest. The resume prompt names the exact tool sequence and forbids the shorter
+open-result-to-apply path. The publisher rereads and reuses npm, Tag, and Draft without republishing
+or moving them.
+
 ## Complexity Tracking
 
 No Constitution violations or complexity exceptions.
