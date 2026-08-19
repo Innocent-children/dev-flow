@@ -10,6 +10,7 @@ const pluginRoot = join(packageRoot, "plugin");
 const readmePath = join(packageRoot, "README.md");
 const skillPath = join(pluginRoot, "skills", "dev-flow", "SKILL.md");
 const skillMetadataPath = join(pluginRoot, "skills", "dev-flow", "agents", "openai.yaml");
+const methodProfileFixturePath = join(packageRoot, "tests", "fixtures", "graph-method-profiles.json");
 const skillBaseName = "dev-flow";
 const installedSkillName = "dev-flow-codex:dev-flow";
 const explicitSelector = `$${installedSkillName}`;
@@ -321,6 +322,111 @@ test("Skill selects one immutable profile and renders complete honest method evi
   assert.match(rendering, /existing[\s\S]*(?:spec|plan|tasks)[\s\S]*(?:review|revise|amend)[\s\S]*(?:not|instead of)[\s\S]*(?:regenerate|rerun)/i);
 });
 
+test("method-profile fixtures close the three profiles and every Phase 6C capability scenario", async () => {
+  const fixture = await readJSON(methodProfileFixturePath);
+  assert.equal(fixture.fixture_kind, "simulated_codex_adapter_contract_0_2");
+  assert.equal(fixture.evidence_class, "simulated_static_adapter_journey");
+  assert.equal(fixture.scenarios.length, 11);
+
+  const scenarios = new Map(fixture.scenarios.map((scenario) => [scenario.id, scenario]));
+  assert.deepEqual(
+    [...new Set(fixture.scenarios.map((scenario) => scenario.profile))].sort(),
+    ["openspec", "plain", "spec-kit"],
+  );
+  for (const id of [
+    "plain-requirements",
+    "spec-kit-requirements-available",
+    "spec-kit-clarify-unavailable-pending",
+    "spec-kit-clarify-unavailable-fallback-complete",
+    "openspec-requirements-available",
+    "openspec-verify-unavailable-pending",
+    "openspec-verify-unavailable-fallback-complete",
+    "method-tool-state-without-core-result",
+    "comprehension-awaiting-user-verdict",
+    "comprehension-user-understands",
+    "comprehension-code-too-complex",
+  ]) {
+    assert.equal(scenarios.has(id), true, id);
+  }
+
+  assert.deepEqual(scenarios.get("plain-requirements").available_capabilities, []);
+  assert.equal(
+    scenarios.get("spec-kit-clarify-unavailable-pending").available_capabilities.includes("speckit-clarify"),
+    false,
+  );
+  assert.equal(
+    scenarios.get("openspec-verify-unavailable-pending").available_capabilities.includes("openspec-verify"),
+    false,
+  );
+  assert.equal(JSON.stringify(fixture).includes("native evidence"), false);
+  assert.equal(JSON.stringify(fixture).includes("released package evidence"), false);
+});
+
+test("fixture admission requires one honest MethodEvidence per required step and a typed result", async () => {
+  const fixture = await readJSON(methodProfileFixturePath);
+  const scenarios = new Map(fixture.scenarios.map((scenario) => [scenario.id, scenario]));
+
+  for (const id of [
+    "plain-requirements",
+    "spec-kit-requirements-available",
+    "spec-kit-clarify-unavailable-fallback-complete",
+    "openspec-requirements-available",
+    "openspec-verify-unavailable-fallback-complete",
+    "comprehension-user-understands",
+    "comprehension-code-too-complex",
+  ]) {
+    const result = buildFixtureApply(fixture, scenarios.get(id));
+    assert.notEqual(result, null, id);
+    assert.equal("destination" in result.payload, false, id);
+    assert.equal("next_node" in result.payload, false, id);
+    assert.equal("next_cursor" in result.payload, false, id);
+    assert.equal(result.payload.node_result.problem_class.length > 0, true, id);
+  }
+
+  for (const id of [
+    "spec-kit-clarify-unavailable-pending",
+    "openspec-verify-unavailable-pending",
+    "method-tool-state-without-core-result",
+    "comprehension-awaiting-user-verdict",
+  ]) {
+    assert.equal(buildFixtureApply(fixture, scenarios.get(id)), null, id);
+  }
+
+  const specKitFallback = scenarios.get("spec-kit-clarify-unavailable-fallback-complete");
+  const clarify = specKitFallback.method_evidence.find((item) => item.step_id === "requirements.clarify");
+  assert.deepEqual({ status: clarify.status, capability: clarify.capability }, {
+    status: "plain_fallback",
+    capability: "",
+  });
+  const openSpecFallback = scenarios.get("openspec-verify-unavailable-fallback-complete");
+  assert.equal(openSpecFallback.method_evidence.every((item) => item.status === "plain_fallback"), true);
+  assert.equal(openSpecFallback.method_evidence.every((item) => item.capability === ""), true);
+});
+
+test("equivalent profile fixtures select one Core transition and destination from identical facts", async () => {
+  const fixture = await readJSON(methodProfileFixturePath);
+  const scenarios = new Map(fixture.scenarios.map((scenario) => [scenario.id, scenario]));
+  const applies = [
+    "plain-requirements",
+    "spec-kit-requirements-available",
+    "openspec-requirements-available",
+  ].map((id) => buildFixtureApply(fixture, scenarios.get(id)));
+
+  for (const apply of applies) {
+    assert.equal(apply.action.process_id, "standard-development");
+    assert.equal(apply.action.process_version, 1);
+    assert.equal(apply.action.current_node, "REQUIREMENTS");
+    assert.equal(apply.payload.transition_id, "requirements_ready");
+    assert.equal(apply.core_destination, "DESIGN");
+    assert.deepEqual(apply.payload.node_result, fixture.requirements_node_result);
+    assert.deepEqual(apply.action.available_transitions, applies[0].action.available_transitions);
+  }
+  assert.equal(new Set(applies.map((apply) => apply.action.process_definition_digest)).size, 1);
+  assert.equal(new Set(applies.map((apply) => apply.profile)).size, 3);
+  assert.notDeepEqual(applies[0].payload.method_evidence, applies[1].payload.method_evidence);
+  assert.notDeepEqual(applies[1].payload.method_evidence, applies[2].payload.method_evidence);
+});
+
 test("Skill presents all Core transitions and reserves comprehension verdict for the user", async () => {
   const skill = await readFile(skillPath, "utf8");
   const loop = section(skill, "Governed action loop");
@@ -603,6 +709,44 @@ function section(markdown, heading) {
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function readJSON(path) {
+  return JSON.parse(await readFile(path, "utf8"));
+}
+
+function buildFixtureApply(fixture, scenario) {
+  const action = fixture.actions[scenario.action];
+  if (!scenario.should_apply || !action || !scenario.node_result || !scenario.transition_id) return null;
+  if (scenario.method_evidence.length !== action.method_steps.length) return null;
+  for (const [index, step] of action.method_steps.entries()) {
+    const evidence = scenario.method_evidence[index];
+    if (evidence.step_id !== step.step_id) return null;
+    if (step.required && !["completed", "plain_fallback"].includes(evidence.status)) return null;
+    if (evidence.status === "completed" && (
+      evidence.capability === "" || !scenario.available_capabilities.includes(evidence.capability)
+    )) return null;
+    if (evidence.status === "plain_fallback" && evidence.capability !== "") return null;
+  }
+  const transition = action.available_transitions.find((candidate) => candidate.transition_id === scenario.transition_id);
+  if (!transition) return null;
+  const nodeResult = typeof scenario.node_result === "string"
+    ? fixture[scenario.node_result]
+    : scenario.node_result;
+  if (!nodeResult || typeof nodeResult.problem_class !== "string") return null;
+  return {
+    profile: scenario.profile,
+    action,
+    core_destination: transition.destination,
+    payload: {
+      transition_id: scenario.transition_id,
+      summary: `Fixture ${scenario.id} completed the semantic node work.`,
+      reason: scenario.reason ?? "",
+      artifacts: [],
+      method_evidence: scenario.method_evidence,
+      node_result: nodeResult,
+    },
+  };
 }
 
 async function walkFiles(root) {

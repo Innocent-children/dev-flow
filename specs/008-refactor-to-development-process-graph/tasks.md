@@ -3,7 +3,7 @@
 **Input**: Complete Feature 008 package in
 `specs/008-refactor-to-development-process-graph/`
 
-**Status**: Implementing — Phase 6A Core method contract complete; Phase 6B/6C and Phase 7–8 remain unstarted.
+**Status**: Implementing — User Story 3 and Phase 6A–6C complete; Phase 7–8 remain unstarted.
 
 **Release Boundary**: Every task in this file is source/local-evidence work. No task may modify
 `VERSION`, publish npm, create/move a Tag, mutate a GitHub Release, or claim final registry support.
@@ -278,24 +278,25 @@ verification, and comprehension failures; stale evidence cannot reach delivery.
 - [x] T067 [US3] Remove any adapter-owned normal phase sequence/destination inference from the Codex
   Skill while retaining exact request identity, closed payload forwarding, evidence budget, and
   recovery-before-retry rules per FR-039 and FR-S010.
-- [ ] T068 [P] [US3] Add Codex fixtures for all three profiles, missing Spec Kit clarify, missing
+- [x] T068 [P] [US3] Add Codex fixtures for all three profiles, missing Spec Kit clarify, missing
   OpenSpec verify, plain fallback, and equivalent semantic transition in
   `packages/codex/tests/skill-contract.test.mjs` and focused fixture files per SC-008–SC-009.
-- [ ] T069 [US3] Extend `packages/codex/tests/journey-harness.test.mjs` to assert node-contract
+- [x] T069 [US3] Extend `packages/codex/tests/journey-harness.test.mjs` to assert node-contract
   presentation, multiple destinations, explicit user comprehension prompt, and no method-tool
   completion claim without actual capability evidence per SC-008–SC-009.
-- [ ] T070 [P] [US3] Add shared Core Contract 0.2 fixtures with `host=codex` and `host=deepseek` in
+- [x] T070 [P] [US3] Add shared Core Contract 0.2 fixtures with `host=codex` and `host=deepseek` in
   `protocol/fixtures/` and parity assertions in `tests/contract/fixture_contract_test.go` per
   FR-040 and SC-010; do not modify `packages/deepseek/` product behavior.
 
 **Verification**
 
-- [ ] T071 [US3] Run only `node --test packages/codex/tests/skill-contract.test.mjs
+- [x] T071 [US3] Run only `node --test packages/codex/tests/skill-contract.test.mjs
   packages/codex/tests/package-contract.test.mjs packages/codex/tests/journey-harness.test.mjs` and
   the focused shared fixture Go tests.
-- [ ] T072 [US3] Run `$speckit-converge`; record `USER_STORY_3_CHECKPOINT_COMPLETE` and stop.
+- [x] T072 [US3] Run `$speckit-converge`; record `USER_STORY_3_CHECKPOINT_COMPLETE` and stop.
 
-**Checkpoint**: Method profiles reduce tool-step memory burden but cannot change Core semantics.
+**Checkpoint**: `USER_STORY_3_CHECKPOINT_COMPLETE` — method profiles reduce tool-step memory burden
+but cannot change Core semantics; Phase 7–8 remain unstarted.
 
 ---
 

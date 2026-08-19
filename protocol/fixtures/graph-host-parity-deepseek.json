@@ -1,0 +1,36 @@
+{
+  "fixture_kind": "core_contract_0_2_host_parity",
+  "host": "deepseek",
+  "origin_host": "deepseek",
+  "request_id": "fixture-deepseek-host-parity",
+  "schema_version": 2,
+  "process_id": "standard-development",
+  "process_version": 1,
+  "definition_digest": "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1",
+  "current_node": "REQUIREMENTS",
+  "action_kind": "COMPLETE_REQUIREMENTS",
+  "node_contract": {
+    "purpose": "Transform the immutable initial intent into the current requirements authority.",
+    "entry_condition_ids": ["intent_available", "repository_claimed", "requirements_context_available"],
+    "completion_condition_ids": ["requirements_goal_defined", "requirements_scope_bounded", "requirements_exclusions_explicit", "requirements_acceptance_nonempty", "requirements_material_questions_resolved", "requirements_user_decisions_recorded"],
+    "allowed_effects": ["read_repository", "edit_process_artifacts", "request_user_decision"],
+    "required_evidence": ["repository_observation", "requirements_baseline"]
+  },
+  "method_profile_enum": ["plain", "spec-kit", "openspec"],
+  "semantic_method_steps": ["requirements.capture", "requirements.clarify", "requirements.validate"],
+  "available_transitions": ["requirements_ready"],
+  "apply_payload_shape": ["transition_id", "summary", "reason", "artifacts", "method_evidence", "node_result"],
+  "problem_class_rules": [
+    {"problem_class": "none", "transition_id": "requirements_ready", "reason_required": false}
+  ],
+  "error_shape": {
+    "required": ["code", "message", "recovery"],
+    "recovery_required": ["retry_safe", "action", "message"]
+  },
+  "storage_generation": {
+    "schema_version": 2,
+    "snapshot_version": 2,
+    "process_id": "standard-development",
+    "process_version": 1
+  }
+}

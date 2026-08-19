@@ -67,6 +67,7 @@ const reviewedSourceAllowlist = new Set([
   "tests/fixtures/fake-native-tool.mjs",
   "tests/fixtures/fake-release-gh.mjs",
   "tests/fixtures/fake-release-npm.mjs",
+  "tests/fixtures/graph-method-profiles.json",
   "tests/journey-evidence.test.mjs",
   "tests/journey-harness.test.mjs",
   "tests/launcher.test.mjs",

@@ -43,6 +43,14 @@ const fakeNativeTool = join(
   "fake-native-tool.mjs",
 );
 const fixtureRoot = join(repositoryRoot, "tests", "contract", "testdata", "codex-0.147");
+const methodProfileFixturePath = join(
+  repositoryRoot,
+  "packages",
+  "codex",
+  "tests",
+  "fixtures",
+  "graph-method-profiles.json",
+);
 
 const fixtures = [
   ["success", "success.jsonl", "success"],
@@ -594,6 +602,179 @@ test("development smoke closes stdin before waiting for Codex JSONL", async () =
   assert.deepEqual({ exitCode: result.exitCode, stdout: result.stdout }, { exitCode: 0, stdout: "closed" });
 });
 
+test("simulated Contract 0.2 journey starts with handshake and presents the complete multi-edge node contract", async () => {
+  const fixture = await readMethodProfileFixture();
+  const scenario = fixture.scenarios.find(({ id }) => id === "comprehension-awaiting-user-verdict");
+  const journey = simulateMethodAdapterJourney(fixture, scenario);
+
+  assert.equal(fixture.evidence_class, "simulated_static_adapter_journey");
+  assert.equal(journey.calls[0].tool, "dev_flow_server_info");
+  assert.deepEqual(journey.calls.map(({ tool }) => tool), [
+    "dev_flow_server_info",
+    "dev_flow_get_next_action",
+  ]);
+  assert.deepEqual(journey.handshake, {
+    schema_version: 2,
+    core_limits_version: "0.2",
+    process: "standard-development@1",
+    definition_digest: "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1",
+    new_task_supported: true,
+    method_profiles: ["plain", "spec-kit", "openspec"],
+    tools: [
+      "dev_flow_server_info",
+      "dev_flow_open_task",
+      "dev_flow_get_task",
+      "dev_flow_get_next_action",
+      "dev_flow_apply_action",
+      "dev_flow_cancel_task",
+    ],
+  });
+  assert.equal(journey.presentation.current_node, "COMPREHENSION_REVIEW");
+  for (const field of [
+    "node_purpose",
+    "entry_conditions",
+    "completion_conditions",
+    "allowed_effects",
+    "required_evidence",
+    "method_profile",
+    "method_steps",
+    "available_transitions",
+  ]) {
+    assert.notEqual(journey.presentation[field], undefined, field);
+  }
+  assert.equal(journey.presentation.method_steps.length, 3);
+  assert.equal(journey.presentation.available_transitions.length, 6);
+  assert.deepEqual(
+    journey.presentation.available_transitions.map(({ transition_id }) => transition_id),
+    fixture.actions.comprehension_review.available_transitions.map(({ transition_id }) => transition_id),
+  );
+  for (const transition of journey.presentation.available_transitions) {
+    assert.equal(typeof transition.destination, "string");
+    assert.equal(typeof transition.when, "string");
+    assert.equal(typeof transition.reason_required, "boolean");
+  }
+  assert.equal(journey.selected_transition, null);
+  assert.equal(journey.apply_request, null);
+});
+
+test("simulated method journeys use only visible capabilities and wait for completed fallback work", async () => {
+  const fixture = await readMethodProfileFixture();
+  const byID = new Map(fixture.scenarios.map((scenario) => [scenario.id, scenario]));
+
+  const available = simulateMethodAdapterJourney(fixture, byID.get("spec-kit-requirements-available"));
+  assert.deepEqual(
+    available.rendered_operations.map(({ capability_id, availability }) => ({ capability_id, availability })),
+    [
+      { capability_id: "speckit-specify", availability: "available" },
+      { capability_id: "speckit-clarify", availability: "available" },
+      { capability_id: "speckit-checklist", availability: "available" },
+    ],
+  );
+  assert.equal(available.apply_request.payload.node_result.problem_class, "none");
+  assert.equal("destination" in available.apply_request, false);
+  assert.equal("destination" in available.apply_request.payload, false);
+  assert.equal(available.core_destination, "DESIGN");
+
+  const specKitPending = simulateMethodAdapterJourney(fixture, byID.get("spec-kit-clarify-unavailable-pending"));
+  const missingClarify = specKitPending.rendered_operations.find(({ step_id }) => step_id === "requirements.clarify");
+  assert.deepEqual({ capability_id: missingClarify.capability_id, availability: missingClarify.availability }, {
+    capability_id: "speckit-clarify",
+    availability: "unavailable",
+  });
+  assert.match(missingClarify.plain_equivalent, /material questions/i);
+  assert.equal(specKitPending.apply_request, null);
+
+  const specKitFallback = simulateMethodAdapterJourney(
+    fixture,
+    byID.get("spec-kit-clarify-unavailable-fallback-complete"),
+  );
+  assert.equal(specKitFallback.presentation.method_profile, "spec-kit");
+  assert.equal(specKitFallback.apply_request.payload.method_evidence[1].status, "plain_fallback");
+  assert.equal(specKitFallback.apply_request.payload.method_evidence[1].capability, "");
+  assert.equal(specKitFallback.core_destination, "DESIGN");
+
+  const openSpecPending = simulateMethodAdapterJourney(fixture, byID.get("openspec-verify-unavailable-pending"));
+  const missingVerify = openSpecPending.rendered_operations.find(({ step_id }) => step_id === "test.run_budgeted_checks");
+  assert.deepEqual({ capability_id: missingVerify.capability_id, availability: missingVerify.availability }, {
+    capability_id: "openspec-verify",
+    availability: "unavailable",
+  });
+  assert.match(missingVerify.plain_equivalent, /bounded verification|plan-defined checks/i);
+  assert.equal(openSpecPending.apply_request, null);
+
+  const openSpecFallback = simulateMethodAdapterJourney(
+    fixture,
+    byID.get("openspec-verify-unavailable-fallback-complete"),
+  );
+  assert.equal(openSpecFallback.presentation.method_profile, "openspec");
+  assert.equal(openSpecFallback.apply_request.payload.method_evidence.every(({ status }) => status === "plain_fallback"), true);
+  assert.equal(openSpecFallback.core_destination, "COMPREHENSION_REVIEW");
+});
+
+test("simulated comprehension journey waits for the developer and uses only the matching Core edge", async () => {
+  const fixture = await readMethodProfileFixture();
+  const byID = new Map(fixture.scenarios.map((scenario) => [scenario.id, scenario]));
+
+  const awaiting = simulateMethodAdapterJourney(fixture, byID.get("comprehension-awaiting-user-verdict"));
+  assert.deepEqual(awaiting.comprehension_prompt, {
+    presents_requirements_design_and_code_paths: true,
+    presents_unnecessary_abstractions: true,
+    presents_maintenance_risks: true,
+    asks_developer_to_explain_and_maintain: true,
+    waits_for_explicit_verdict: true,
+  });
+  assert.equal(awaiting.apply_request, null);
+  assert.equal(awaiting.selected_transition, null);
+
+  const understood = simulateMethodAdapterJourney(fixture, byID.get("comprehension-user-understands"));
+  assert.equal(understood.apply_request.payload.transition_id, "comprehension_passed");
+  assert.deepEqual(understood.apply_request.payload.node_result.user_confirmation, {
+    source: "user",
+    status: "passed",
+    summary: "The developer explicitly confirmed understanding.",
+  });
+  assert.equal(understood.apply_request.payload.node_result.problem_class, "none");
+  assert.equal(understood.core_destination, "DELIVERY");
+
+  const tooComplex = simulateMethodAdapterJourney(fixture, byID.get("comprehension-code-too-complex"));
+  assert.equal(tooComplex.apply_request.payload.transition_id, "code_too_complex");
+  assert.equal(tooComplex.apply_request.payload.node_result.problem_class, "code_complexity");
+  assert.equal(tooComplex.apply_request.payload.node_result.user_confirmation, null);
+  assert.equal(tooComplex.core_destination, "REFACTOR");
+});
+
+test("simulated tool-state and uncertain-result journeys cannot claim Core completion", async () => {
+  const fixture = await readMethodProfileFixture();
+  const byID = new Map(fixture.scenarios.map((scenario) => [scenario.id, scenario]));
+  const toolOnly = simulateMethodAdapterJourney(fixture, byID.get("method-tool-state-without-core-result"));
+  assert.deepEqual(toolOnly.method_tool_state, [
+    "command_success",
+    "artifact_exists",
+    "checkbox_checked",
+    "archive_complete",
+  ]);
+  assert.equal(toolOnly.apply_request, null);
+  assert.equal(toolOnly.current_node_after, "REQUIREMENTS");
+  assert.equal(toolOnly.selected_transition, null);
+
+  const completed = simulateMethodAdapterJourney(
+    fixture,
+    byID.get("openspec-verify-unavailable-fallback-complete"),
+  );
+  const recovery = handleUncertainFixtureResult(fixture, completed.apply_request);
+  assert.equal(recovery.calls[0].tool, "dev_flow_get_task");
+  assert.equal(recovery.operation_probe.source_cursor, "TEST");
+  assert.deepEqual(recovery.core_response, {
+    code: "RECOVERY_UNAVAILABLE",
+    retry_safe: false,
+    action: "none",
+  });
+  assert.equal(recovery.stopped, true);
+  assert.equal(recovery.automatic_retry, false);
+  assert.equal(recovery.recovery_apply_used, false);
+  assert.equal(recovery.classification_inferred, false);
+});
+
 test("development smoke preserves the exact post-session invariant failure", () => {
   assert.throws(
     () => smokeRuntime.validateDevelopmentSessions([], {}),
@@ -856,3 +1037,174 @@ test("native smoke scripts contain no active release ledger, report, or canonica
     );
   }
 });
+
+async function readMethodProfileFixture() {
+  return JSON.parse(await readFile(methodProfileFixturePath, "utf8"));
+}
+
+function simulateMethodAdapterJourney(fixture, scenario) {
+  const calls = [{ tool: "dev_flow_server_info", arguments: {} }];
+  const info = fixture.server_info;
+  assert.equal(info.schema_version, 2);
+  assert.equal(info.core_limits_version, "0.2");
+  assert.deepEqual(info.method_profiles, ["plain", "spec-kit", "openspec"]);
+  assert.equal(info.supported_processes.length, 1);
+  assert.equal(info.supported_processes[0].process_id, "standard-development");
+  assert.equal(info.supported_processes[0].process_version, 1);
+  assert.equal(info.supported_processes[0].new_task_supported, true);
+  assert.equal(info.tools.length, 6);
+
+  const action = fixture.actions[scenario.action];
+  calls.push({ tool: "dev_flow_get_next_action", arguments: { task_id: action.task_id } });
+  const presentation = {
+    current_node: action.current_node,
+    node_purpose: action.node_purpose,
+    entry_conditions: action.entry_conditions,
+    completion_conditions: action.completion_conditions,
+    allowed_effects: action.allowed_effects,
+    required_evidence: action.required_evidence,
+    method_profile: scenario.profile,
+    method_steps: action.method_steps,
+    available_transitions: action.available_transitions,
+  };
+  const renderedOperations = action.method_steps.map((step) => renderFixtureOperation(step, scenario));
+  const applyRequest = buildFixtureApplyRequest(fixture, action, scenario);
+  const transition = applyRequest
+    ? action.available_transitions.find(({ transition_id }) => transition_id === applyRequest.payload.transition_id)
+    : null;
+  if (applyRequest) calls.push({ tool: "dev_flow_apply_action", arguments: applyRequest });
+
+  return {
+    calls,
+    handshake: {
+      schema_version: info.schema_version,
+      core_limits_version: info.core_limits_version,
+      process: `${info.supported_processes[0].process_id}@${info.supported_processes[0].process_version}`,
+      definition_digest: info.supported_processes[0].definition_digest,
+      new_task_supported: info.supported_processes[0].new_task_supported,
+      method_profiles: info.method_profiles,
+      tools: info.tools,
+    },
+    presentation,
+    rendered_operations: renderedOperations,
+    comprehension_prompt: action.current_node === "COMPREHENSION_REVIEW" ? {
+      presents_requirements_design_and_code_paths: true,
+      presents_unnecessary_abstractions: true,
+      presents_maintenance_risks: true,
+      asks_developer_to_explain_and_maintain: true,
+      waits_for_explicit_verdict: true,
+    } : null,
+    method_tool_state: scenario.method_tool_state ?? [],
+    selected_transition: applyRequest?.payload.transition_id ?? null,
+    apply_request: applyRequest,
+    core_destination: transition?.destination ?? null,
+    current_node_after: transition?.destination ?? action.current_node,
+  };
+}
+
+function renderFixtureOperation(step, scenario) {
+  const preferred = preferredFixtureCapability(scenario.profile, step.step_id);
+  const available = preferred !== "" && scenario.available_capabilities.includes(preferred);
+  return {
+    step_id: step.step_id,
+    purpose: step.purpose,
+    required: step.required,
+    profile: scenario.profile,
+    capability_id: preferred,
+    availability: preferred === "" ? "not_applicable" : available ? "available" : "unavailable",
+    plain_equivalent: plainFixtureWork(step.step_id),
+  };
+}
+
+function preferredFixtureCapability(profile, stepID) {
+  const capabilities = {
+    "spec-kit": {
+      "requirements.capture": "speckit-specify",
+      "requirements.clarify": "speckit-clarify",
+      "requirements.validate": "speckit-checklist",
+    },
+    openspec: {
+      "requirements.capture": "openspec-propose",
+      "requirements.validate": "openspec-validate",
+      "test.run_budgeted_checks": "openspec-verify",
+    },
+  };
+  return capabilities[profile]?.[stepID] ?? "";
+}
+
+function plainFixtureWork(stepID) {
+  const work = {
+    "requirements.capture": "Write or revise bounded requirements.",
+    "requirements.clarify": "Ask only material questions and record the developer's answers.",
+    "requirements.validate": "Review observable acceptance and resolve material ambiguity.",
+    "test.run_budgeted_checks": "Run the bounded verification or plan-defined checks.",
+    "test.record_evidence": "Record actual current evidence.",
+    "test.classify_failure": "Classify the observed test result.",
+    "comprehension.explain": "Explain the requirements, design, and major code paths.",
+    "comprehension.identify_complexity": "List unnecessary abstractions and maintenance risks.",
+    "comprehension.obtain_user_verdict": "Ask the developer and wait for an explicit verdict.",
+  };
+  return work[stepID];
+}
+
+function buildFixtureApplyRequest(fixture, action, scenario) {
+  if (!scenario.should_apply || !scenario.transition_id || !scenario.node_result) return null;
+  if (scenario.method_evidence.length !== action.method_steps.length) return null;
+  for (const [index, step] of action.method_steps.entries()) {
+    const evidence = scenario.method_evidence[index];
+    if (evidence.step_id !== step.step_id) return null;
+    if (step.required && !["completed", "plain_fallback"].includes(evidence.status)) return null;
+    if (evidence.status === "completed" && !scenario.available_capabilities.includes(evidence.capability)) return null;
+    if (evidence.status === "plain_fallback" && evidence.capability !== "") return null;
+  }
+  if (!action.available_transitions.some(({ transition_id }) => transition_id === scenario.transition_id)) return null;
+  const nodeResult = typeof scenario.node_result === "string"
+    ? fixture[scenario.node_result]
+    : scenario.node_result;
+  if (!nodeResult || typeof nodeResult.problem_class !== "string") return null;
+  return {
+    request_id: `request-${scenario.id}`,
+    host: "codex",
+    task_id: action.task_id,
+    revision: action.revision,
+    action_id: action.action_id,
+    action_kind: action.action_kind,
+    process_id: action.process_id,
+    process_version: action.process_version,
+    process_definition_digest: action.process_definition_digest,
+    source_cursor: action.current_node,
+    repository_binding_digest: action.repository_binding_digest,
+    payload: {
+      transition_id: scenario.transition_id,
+      summary: `Completed simulated semantic work for ${scenario.id}.`,
+      reason: scenario.reason ?? "",
+      artifacts: [],
+      method_evidence: scenario.method_evidence,
+      node_result: nodeResult,
+    },
+  };
+}
+
+function handleUncertainFixtureResult(fixture, applyRequest) {
+  const operationProbe = {
+    operation_id: applyRequest.request_id,
+    process_id: applyRequest.process_id,
+    process_version: applyRequest.process_version,
+    process_definition_digest: applyRequest.process_definition_digest,
+    source_cursor: applyRequest.source_cursor,
+    expected_revision: applyRequest.revision,
+    action_id: applyRequest.action_id,
+    action_kind: applyRequest.action_kind,
+    repository_binding_digest: applyRequest.repository_binding_digest,
+    payload: applyRequest.payload,
+  };
+  return {
+    calls: [{ tool: "dev_flow_get_task", arguments: { task_id: applyRequest.task_id, operation_probe: operationProbe } }],
+    operation_probe: operationProbe,
+    core_response: fixture.uncertain_result.core_response,
+    stopped: true,
+    automatic_retry: false,
+    recovery_apply_used: false,
+    classification_inferred: false,
+  };
+}

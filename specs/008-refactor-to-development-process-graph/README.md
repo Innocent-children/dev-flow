@@ -108,8 +108,8 @@ acceptance-impacting MEDIUM issue. Feature 008 remains a non-release Product Fea
 
 The Phase 5D audit on 2026-08-19 reopened selected Phase 2–5 tasks and User Story 2 for contract and
 runtime hardening. The hardening checks and `$speckit-converge` now have zero remaining gap;
-`USER_STORY_2_CHECKPOINT_COMPLETE` is restored. Phase 6A is complete; Phase 6B/6C and Phase 7–8
-remain unstarted.
+`USER_STORY_2_CHECKPOINT_COMPLETE` is restored. Phase 6A–6C and User Story 3 are complete with zero
+remaining convergence gap; Phase 7–8 remain unstarted.
 
 Before production code changes:
 
@@ -133,7 +133,9 @@ approved.
 | User Story 2 | Test/rework/comprehension/refactor loops are enforced and independently demonstrated | Hardened / Complete — selected T010–T060 and T096–T104 complete; `USER_STORY_2_CHECKPOINT_COMPLETE` |
 | Phase 5D | Contract and runtime hardening for completed Phase 2–5 | Complete — `FEATURE_008_PHASE_5D_HARDENING_COMPLETE`; Phase 6–8 unstarted |
 | Phase 6A | Core semantic method steps, immutable profiles, MethodEvidence validation, and public projections | Complete — T061–T062; `FEATURE_008_PHASE_6A_CORE_METHOD_CONTRACT_CHECKPOINT_COMPLETE` |
-| User Story 3 | `plain`, `spec-kit`, and `openspec` guidance is rendered without adapter-owned state | In progress — Phase 6A complete; T063–T072 pending; no User Story 3 checkpoint yet |
+| Phase 6B | Codex Skill and packaged method-profile rendering reference | Complete — T063–T067; `FEATURE_008_PHASE_6B_CODEX_METHOD_ADAPTER_CHECKPOINT_COMPLETE` |
+| Phase 6C | Profile fixtures, simulated Codex Journey, and shared Host parity | Complete — T068–T072; `FEATURE_008_USER_STORY_3_CHECKPOINT_COMPLETE` |
+| User Story 3 | `plain`, `spec-kit`, and `openspec` guidance is rendered without adapter-owned state | Complete — T061–T072; `USER_STORY_3_CHECKPOINT_COMPLETE` |
 | User Story 4 | Fresh storage bootstrap, Schema 1 zero-write rejection, current-task recovery, and future-schema safety pass | Pending |
 | Final feature gate | One repository validation and one local-artifact Codex journey pass | Pending |
 

@@ -1,5 +1,7 @@
 # Protocol Fixtures
 
+## Feature 008 Core Contract 0.2 graph fixtures
+
 Core Contract 0.2 graph fixtures remain separate from frozen Core Contract 0.1 historical fixtures:
 
 - `graph-server-info.json` records the complete ordered Schema 2 public ServerInfo DTO, supported
@@ -8,11 +10,23 @@ Core Contract 0.2 graph fixtures remain separate from frozen Core Contract 0.1 h
 - `graph-design-action.json` records the complete DESIGN edge set;
 - `graph-invalid-edge.json` records zero-write rejection of an undeclared DESIGN edge.
 
+## Core Contract 0.2 Host parity fixtures
+
+- `graph-host-parity-codex.json` records the shared graph contract with `host=codex`;
+- `graph-host-parity-deepseek.json` records the same shared graph contract with `host=deepseek`.
+
+The two Host parity fixtures differ only in `host`, `origin_host`, and their fixture-specific opaque
+`request_id`. They prove that Core accepts both Host identities with the same Contract 0.2 process,
+node, method, payload, error, and storage semantics. They do not implement or claim a DeepSeek
+Adapter, Skill, package, native Journey, or product support.
+
 This directory owns the shared public-contract fixtures produced by the Dev Flow Core. The same
 fixtures are consumed by future Codex and DeepSeek adapters; host-specific copies or alternate
 workflow contracts do not belong here.
 
-Feature 002 User Story 1 provides these shared examples:
+## Released Core Contract 0.1 historical fixtures
+
+Feature 002 User Story 1 provides these frozen shared examples:
 
 - `server-info.json`: product and six-tool catalog metadata;
 - `open-task.json`: creation of one governed task;
