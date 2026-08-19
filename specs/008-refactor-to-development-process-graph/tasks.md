@@ -3,7 +3,7 @@
 **Input**: Complete Feature 008 package in
 `specs/008-refactor-to-development-process-graph/`
 
-**Status**: Implementing — User Story 3 and Phase 6A–6C complete; Phase 7A complete; Phase 7B/7C
+**Status**: Implementing — User Story 3 and Phase 6A–6C complete; Phase 7A/7B complete; Phase 7C
 and Phase 8 remain unstarted.
 
 **Release Boundary**: Every task in this file is source/local-evidence work. No task may modify
@@ -321,16 +321,16 @@ recovery for current graph tasks.
 - [x] T076 [US4] Extend recovery BLOCKED/RESOLVE_BLOCKER storage and projection with exact process
   reference and standard resume node, returning only to that node with a new action identity per the
   process/storage contracts.
-- [ ] T077 [P] [US4] Extend `tests/journeys/recovery_uncertainty_test.go` and helpers with all five
+- [x] T077 [P] [US4] Extend `tests/journeys/recovery_uncertainty_test.go` and helpers with all five
   classifications for a repository-changing REFACTOR action and exact process/source operation probe
   per SC-014.
-- [ ] T078 [P] [US4] Add a two-handle graph transition CAS race in
+- [x] T078 [P] [US4] Add a two-handle graph transition CAS race in
   `tests/journeys/process_graph_concurrency_test.go`, proving one revision/event at most and exact
   loser readback per SC-014.
-- [ ] T079 [US4] Add `tests/journeys/process_graph_restart_test.go` implementing restart at
+- [x] T079 [US4] Add `tests/journeys/process_graph_restart_test.go` implementing restart at
   COMPREHENSION_REVIEW and exact task/action/baseline/test/profile/transition equality per Quickstart
   Journey E and SC-011.
-- [ ] T080 [US4] Add `tests/journeys/storage_generation_boundary_test.go` implementing Quickstart
+- [x] T080 [US4] Add `tests/journeys/storage_generation_boundary_test.go` implementing Quickstart
   Journey F: direct fresh Schema 2 bootstrap, representative Schema 1 zero-write rejection before
   decode, explicit switch to a fresh data directory, and creation of only a standard task per
   FR-S001–FR-S007 and SC-011–SC-013.
@@ -352,7 +352,10 @@ recover exactly, and unsupported old data remains unchanged until the user expli
 or reset data directory.
 
 **Phase 7A Checkpoint**: `FEATURE_008_PHASE_7A_GRAPH_RECOVERY_FOUNDATION_CHECKPOINT_COMPLETE` —
-T073–T076 complete; T077–T085 remain unchecked and User Story 4 is not complete.
+T073–T076 complete.
+
+**Phase 7B Checkpoint**: `FEATURE_008_PHASE_7B_RECOVERY_RESTART_STORAGE_JOURNEYS_CHECKPOINT_COMPLETE` —
+T077–T080 complete; T081–T085 remain unchecked and User Story 4 is not complete.
 
 ---
 

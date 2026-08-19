@@ -109,7 +109,7 @@ acceptance-impacting MEDIUM issue. Feature 008 remains a non-release Product Fea
 The Phase 5D audit on 2026-08-19 reopened selected Phase 2–5 tasks and User Story 2 for contract and
 runtime hardening. The hardening checks and `$speckit-converge` now have zero remaining gap;
 `USER_STORY_2_CHECKPOINT_COMPLETE` is restored. Phase 6A–6C and User Story 3 are complete with zero
-remaining convergence gap; Phase 7–8 remain unstarted.
+remaining convergence gap. Phase 7A and Phase 7B are complete; Phase 7C and Phase 8 remain unstarted.
 
 Before production code changes:
 
@@ -136,8 +136,9 @@ approved.
 | Phase 6B | Codex Skill and packaged method-profile rendering reference | Complete — T063–T067; `FEATURE_008_PHASE_6B_CODEX_METHOD_ADAPTER_CHECKPOINT_COMPLETE` |
 | Phase 6C | Profile fixtures, simulated Codex Journey, and shared Host parity | Complete — T068–T072; `FEATURE_008_USER_STORY_3_CHECKPOINT_COMPLETE` |
 | User Story 3 | `plain`, `spec-kit`, and `openspec` guidance is rendered without adapter-owned state | Complete — T061–T072; `USER_STORY_3_CHECKPOINT_COMPLETE` |
-| Phase 7A | Graph operation identity, five-class reconciliation, repository effects, and graph-native blocker resolution | Complete — T073–T076; Phase 7B/7C pending |
-| User Story 4 | Fresh storage bootstrap, Schema 1 zero-write rejection, current-task recovery, and future-schema safety pass | In progress — Phase 7A complete; T077–T085 pending |
+| Phase 7A | Graph operation identity, five-class reconciliation, repository effects, and graph-native blocker resolution | Complete — T073–T076 |
+| Phase 7B | Real five-class/CAS/restart/storage-boundary journeys | Complete — T077–T080; `FEATURE_008_PHASE_7B_RECOVERY_RESTART_STORAGE_JOURNEYS_CHECKPOINT_COMPLETE` |
+| User Story 4 | Fresh storage bootstrap, Schema 1 zero-write rejection, current-task recovery, and future-schema safety pass | In progress — Phase 7A/7B complete; T081–T085 pending |
 | Final feature gate | One repository validation and one local-artifact Codex journey pass | Pending |
 
 ## Release Boundary
