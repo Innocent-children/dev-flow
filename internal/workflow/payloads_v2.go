@@ -176,25 +176,49 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 			return domain.ErrInvalidArgument
 		}
 	case *TestResult:
-		if source != domain.NodeTest {
+		if source != domain.NodeTest || !validStringLists(value.FailedItems, value.UnverifiedItems, value.ManualHandoffItems, value.Findings) {
 			return domain.ErrInvalidArgument
+		}
+		seen := map[string]bool{}
+		for _, check := range value.Checks {
+			if validateNormalizedEvidenceInput(check) != nil || seen[check.Name] {
+				return domain.ErrInvalidArgument
+			}
+			seen[check.Name] = true
 		}
 	case *ComprehensionResult:
-		if source != domain.NodeComprehensionReview {
+		if source != domain.NodeComprehensionReview || !validStringLists(value.ExplainedComponents, value.UnresolvedQuestions, value.UnnecessaryAbstractions, value.MaintenanceRisks, value.Findings) {
 			return domain.ErrInvalidArgument
 		}
-		if envelope.TransitionID == "comprehension_passed" && (value.UserConfirmation == nil || value.UserConfirmation.Source != domain.EvidenceSourceUser || value.UserConfirmation.Status != domain.EvidencePassed || len(value.ExplainedComponents) == 0 || len(value.UnresolvedQuestions) != 0 || len(value.UnnecessaryAbstractions) != 0) {
-			return domain.ErrInvalidArgument
+		if value.UserConfirmation != nil {
+			if !value.UserConfirmation.Source.IsValid() || !value.UserConfirmation.Status.IsValid() || !validText(value.UserConfirmation.Summary, domain.MaxEvidenceSummaryBytes) {
+				return domain.ErrInvalidArgument
+			}
 		}
 	case *RefactorResult:
-		if source != domain.NodeRefactor {
-			return domain.ErrInvalidArgument
-		}
-		if envelope.TransitionID == "refactor_ready_for_test" && (len(value.Simplifications) == 0 || value.BehaviorChangeIntended) {
+		if source != domain.NodeRefactor || (len(value.ChangedPaths) > 0) == value.NoFileChanges || !validStringLists(value.Simplifications, value.Findings) {
 			return domain.ErrInvalidArgument
 		}
 	case *DeliveryResult:
-		if source != domain.NodeDelivery {
+		if source != domain.NodeDelivery || !validStringLists(value.UnverifiedItems, value.Risks, value.Findings) {
+			return domain.ErrInvalidArgument
+		}
+		for _, criterion := range value.Acceptance {
+			if criterion.Validate() != nil {
+				return domain.ErrInvalidArgument
+			}
+		}
+		for _, ids := range [][]domain.ID{value.AutomatedEvidenceIDs, value.ManualEvidenceIDs} {
+			for _, id := range ids {
+				if !id.IsValid() {
+					return domain.ErrInvalidArgument
+				}
+			}
+		}
+		if value.TestRecordID != "" && !value.TestRecordID.IsValid() {
+			return domain.ErrInvalidArgument
+		}
+		if value.ComprehensionRecordID != "" && !value.ComprehensionRecordID.IsValid() {
 			return domain.ErrInvalidArgument
 		}
 	default:

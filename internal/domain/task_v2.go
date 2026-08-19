@@ -96,7 +96,7 @@ type ProcessOutcome struct {
 }
 
 func (o ProcessOutcome) Validate() error {
-	if !o.Status.IsValid() || requireNormalizedText(o.Summary, MaxOutcomeSummaryBytes, true) != nil || !o.FinalRepositoryDigest.IsValid() || validateUTC(o.CompletedAt) != nil {
+	if !o.Status.IsValid() || requireNormalizedText(o.Summary, MaxOutcomeSummaryBytes, true) != nil || !o.FinalRepositoryDigest.IsValid() || validateUTC(o.CompletedAt) != nil || validateNormalizedList(o.Risks) != nil || len(o.AutomatedEvidenceIDs)+len(o.ManualEvidenceIDs) > MaxRetainedEvidenceItems {
 		return ErrInvalidArgument
 	}
 	if o.Status == TerminalCompleted && (o.RequirementsRevision == 0 || len(o.Acceptance) == 0 || validateID(o.TestRecordID) != nil || validateID(o.ComprehensionRecordID) != nil) {
@@ -105,6 +105,15 @@ func (o ProcessOutcome) Validate() error {
 	for _, criterion := range o.Acceptance {
 		if criterion.Validate() != nil {
 			return ErrInvalidArgument
+		}
+	}
+	seen := map[ID]bool{}
+	for _, ids := range [][]ID{o.AutomatedEvidenceIDs, o.ManualEvidenceIDs} {
+		for _, id := range ids {
+			if validateID(id) != nil || seen[id] {
+				return ErrInvalidArgument
+			}
+			seen[id] = true
 		}
 	}
 	return nil
@@ -149,7 +158,7 @@ func (t ProcessTask) Validate() error {
 	if t.TaskPlan != nil && (t.TaskPlan.Validate() != nil || t.Design == nil || t.TaskPlan.DesignRevision != t.Design.Revision) {
 		return ErrInvalidArgument
 	}
-	if t.Implementation != nil && (t.Implementation.Validate() != nil || t.TaskPlan == nil || t.Implementation.TaskPlanRevision != t.TaskPlan.Revision) {
+	if t.Implementation != nil && (t.Implementation.Validate() != nil || t.TaskPlan == nil || t.Implementation.TaskPlanRevision != t.TaskPlan.Revision || t.Implementation.RepositoryBindingDigest != t.Repository.BindingDigest) {
 		return ErrInvalidArgument
 	}
 	if t.CurrentNode.Terminal() {
@@ -173,16 +182,35 @@ func (t ProcessTask) Validate() error {
 		return ErrInvalidArgument
 	}
 	evidenceIDs := map[ID]bool{}
+	evidenceByID := map[ID]EvidenceSummary{}
 	for _, item := range t.Evidence {
 		if item.Validate() != nil || evidenceIDs[item.EvidenceID] {
 			return ErrInvalidArgument
 		}
 		evidenceIDs[item.EvidenceID] = true
+		evidenceByID[item.EvidenceID] = item
 	}
 	if t.Test != nil && (t.Test.Validate() != nil || t.Requirements == nil || t.Design == nil || t.TaskPlan == nil || t.Test.RequirementsRevision != t.Requirements.Revision || t.Test.DesignRevision != t.Design.Revision || t.Test.TaskPlanRevision != t.TaskPlan.Revision || t.Test.RepositoryBindingDigest != t.Repository.BindingDigest) {
 		return ErrInvalidArgument
 	}
+	if t.Test != nil {
+		for _, id := range t.Test.EvidenceIDs {
+			item, ok := evidenceByID[id]
+			if !ok || item.Status != EvidencePassed {
+				return ErrInvalidArgument
+			}
+		}
+	}
 	if t.Comprehension != nil && (t.Comprehension.Validate() != nil || t.Test == nil || t.Comprehension.RequirementsRevision != t.Test.RequirementsRevision || t.Comprehension.DesignRevision != t.Test.DesignRevision || t.Comprehension.TaskPlanRevision != t.Test.TaskPlanRevision || t.Comprehension.RepositoryBindingDigest != t.Test.RepositoryBindingDigest) {
+		return ErrInvalidArgument
+	}
+	if t.Comprehension != nil {
+		item, ok := evidenceByID[t.Comprehension.UserEvidenceID]
+		if !ok || item.Source != EvidenceSourceUser || item.Status != EvidencePassed || !item.RecordedAt.Equal(t.Comprehension.ConfirmedAt) {
+			return ErrInvalidArgument
+		}
+	}
+	if t.Outcome != nil && t.Outcome.Status == TerminalCompleted && !completedOutcomeMatchesTask(t, evidenceByID) {
 		return ErrInvalidArgument
 	}
 	history := map[BaselineKind]map[uint32]bool{}
@@ -204,6 +232,40 @@ func (t ProcessTask) Validate() error {
 		return ErrInvalidArgument
 	}
 	return nil
+}
+
+func completedOutcomeMatchesTask(t ProcessTask, evidence map[ID]EvidenceSummary) bool {
+	if t.Requirements == nil || t.Design == nil || t.TaskPlan == nil || t.Implementation == nil || t.Test == nil || t.Comprehension == nil ||
+		t.Outcome.RequirementsRevision != t.Requirements.Revision || t.Outcome.TestRecordID != t.Test.RecordID ||
+		t.Outcome.ComprehensionRecordID != t.Comprehension.RecordID || t.Outcome.FinalRepositoryDigest != t.Repository.BindingDigest ||
+		len(t.Test.UnverifiedItems) != 0 || len(t.Outcome.Acceptance) != len(t.Requirements.AcceptanceCriteria) {
+		return false
+	}
+	for i, criterion := range t.Outcome.Acceptance {
+		if criterion.Criterion != t.Requirements.AcceptanceCriteria[i] || criterion.Status != CriterionSatisfied {
+			return false
+		}
+	}
+	seen := map[ID]bool{}
+	testEvidence := map[ID]bool{}
+	for _, id := range t.Test.EvidenceIDs {
+		testEvidence[id] = true
+	}
+	for _, id := range t.Outcome.AutomatedEvidenceIDs {
+		item, ok := evidence[id]
+		if !ok || seen[id] || !testEvidence[id] || item.Source != EvidenceSourceAutomated || item.Status != EvidencePassed {
+			return false
+		}
+		seen[id] = true
+	}
+	for _, id := range t.Outcome.ManualEvidenceIDs {
+		item, ok := evidence[id]
+		if !ok || seen[id] || id != t.Comprehension.UserEvidenceID || item.Source != EvidenceSourceUser || item.Status != EvidencePassed {
+			return false
+		}
+		seen[id] = true
+	}
+	return true
 }
 
 func baselineReferencePrecedesCurrent(ref BaselineReference, t ProcessTask) bool {

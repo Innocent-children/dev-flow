@@ -86,11 +86,19 @@ func (s *Service) ApplyAction(ctx context.Context, r ApplyActionRequest) (ApplyA
 		err = applyTaskPlanResult(&next, transition, envelope, value, now)
 	case *workflow.ImplementationResult:
 		err = applyImplementationResult(&next, transition, envelope, value, fresh, relation, now)
+	case *workflow.TestResult:
+		err = s.applyTestResult(&next, transition, value, now)
+	case *workflow.ComprehensionResult:
+		err = s.applyComprehensionResult(&next, transition, value, now)
+	case *workflow.RefactorResult:
+		err = applyRefactorResult(&next, transition, envelope, value, fresh, relation, now)
+	case *workflow.DeliveryResult:
+		err = applyDeliveryResult(&next, transition, envelope, value, now)
 	default:
 		err = domain.ErrTransitionNotAllowed
 	}
 	if err != nil {
-		if err == domain.ErrTransitionNotAllowed || err == domain.ErrRepositoryDrift {
+		if err == domain.ErrTransitionNotAllowed || err == domain.ErrRepositoryDrift || err == domain.ErrVerificationBudgetExceeded {
 			return ApplyActionResult{}, err
 		}
 		return ApplyActionResult{}, domain.ErrInvalidArgument
@@ -99,15 +107,21 @@ func (s *Service) ApplyAction(ctx context.Context, r ApplyActionRequest) (ApplyA
 	next.CurrentNode = transition.Destination
 	next.Revision++
 	next.UpdatedAt = now
-	nextID, err := s.id("action")
-	if err != nil {
-		return ApplyActionResult{}, err
+	claim := store.ClaimRetain
+	if next.CurrentNode.Terminal() {
+		next.CurrentAction = nil
+		claim = store.ClaimRelease
+	} else {
+		nextID, err := s.id("action")
+		if err != nil {
+			return ApplyActionResult{}, err
+		}
+		action, err := workflow.BuildProcessAction(definition, next.CurrentNode, next.TaskID, next.Revision, next.Repository.BindingDigest, next.Intent.MethodProfile, nextID, now)
+		if err != nil {
+			return ApplyActionResult{}, domain.ErrInternal
+		}
+		next.CurrentAction = &action
 	}
-	action, err := workflow.BuildProcessAction(definition, next.CurrentNode, next.TaskID, next.Revision, next.Repository.BindingDigest, next.Intent.MethodProfile, nextID, now)
-	if err != nil {
-		return ApplyActionResult{}, domain.ErrInternal
-	}
-	next.CurrentAction = &action
 	actionID := r.ActionID
 	next.LastOperation = &domain.LastOperation{OperationID: r.RequestID, Kind: domain.OperationApplyAction, ActionID: &actionID, FromRevision: r.ExpectedRevision, ToRevision: next.Revision, PayloadDigest: operationDigest, CommittedAt: now}
 	if workflow.ValidateProcessTask(next) != nil {
@@ -119,7 +133,7 @@ func (s *Service) ApplyAction(ctx context.Context, r ApplyActionRequest) (ApplyA
 	}
 	tid := transition.TransitionID
 	event := store.TaskEvent{EventID: eventID, TaskID: next.TaskID, Revision: next.Revision, Kind: domain.OperationApplyAction, SourceNode: task.CurrentNode, DestinationNode: next.CurrentNode, TransitionID: &tid, TransitionReason: envelope.Reason, ActionID: &actionID, RequestID: r.RequestID, PayloadDigest: operationDigest, CreatedAt: now}
-	if err := s.taskStore.CommitTask(ctx, store.TaskMutation{ExpectedRevision: r.ExpectedRevision, Task: next, Event: event, Claim: store.ClaimRetain}); err != nil {
+	if err := s.taskStore.CommitTask(ctx, store.TaskMutation{ExpectedRevision: r.ExpectedRevision, Task: next, Event: event, Claim: claim}); err != nil {
 		return ApplyActionResult{}, mapStoreError(err)
 	}
 	return ApplyActionResult{Task: next}, nil

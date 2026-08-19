@@ -210,19 +210,19 @@ existing tool surface.
 - [x] T048 [US2] Implement standard IMPLEMENT repository-effect validation, implementation record,
   problem-class transitions, and current-evidence invalidation in `internal/workflow/engine.go` and
   `internal/recovery/` integration points per FR-016 and the graph contract.
-- [ ] T049 [US2] Implement TEST payload validation, budget accounting, failure classification,
+- [x] T049 [US2] Implement TEST payload validation, budget accounting, failure classification,
   Core-owned evidence IDs, and current TestRecord creation in
   `internal/workflow/payloads_v2.go` and `internal/application/apply_action.go` per FR-013,
   FR-025, and FR-041.
-- [ ] T050 [US2] Implement COMPREHENSION_REVIEW payload/transition validation and explicit
+- [x] T050 [US2] Implement COMPREHENSION_REVIEW payload/transition validation and explicit
   `source=user,status=passed` evidence requirement in the workflow/application layers per
   FR-014–FR-015.
-- [ ] T051 [US2] Implement REFACTOR payload, repository-change handling, simplification guard, and
+- [x] T051 [US2] Implement REFACTOR payload, repository-change handling, simplification guard, and
   mandatory `refactor_ready_for_test → TEST` behavior per FR-016–FR-017.
-- [ ] T052 [US2] Implement DELIVERY current-authority validation and ProcessOutcome construction from
+- [x] T052 [US2] Implement DELIVERY current-authority validation and ProcessOutcome construction from
   the latest requirements/test/comprehension/evidence/repository state per FR-018 and
   `data-model.md`.
-- [ ] T053 [US2] Implement every backward/remediation guard and normalized reason rule for the 29
+- [x] T053 [US2] Implement every backward/remediation guard and normalized reason rule for the 29
   transitions in `internal/workflow/standard_process.go` and
   `internal/workflow/payloads_v2.go` per FR-011–FR-012.
 - [ ] T054 [P] [US2] Add table-driven `internal/workflow/standard_process_test.go` coverage proving

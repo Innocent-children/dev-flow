@@ -111,6 +111,7 @@ func validateNormalizedEvidenceInput(input NormalizedEvidenceInput) error {
 	summary, err := normalizeRequiredPayloadText(input.Summary, domain.MaxEvidenceSummaryBytes)
 	if err != nil || summary != input.Summary || !input.Source.IsValid() || !input.Status.IsValid() ||
 		input.CommandCount < 0 || input.CommandCount > domain.MaxAutomaticVerificationCommands ||
+		(input.Source == domain.EvidenceSourceAutomated && input.CommandCount == 0) ||
 		(input.Source != domain.EvidenceSourceAutomated && (input.CommandCount != 0 || input.FullSuite)) {
 		return domain.ErrInvalidArgument
 	}

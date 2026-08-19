@@ -23,6 +23,7 @@ func TestRequirementsBaselineRevisionDigestHistoryAndInvalidation(t *testing.T) 
 
 	// Current downstream records are valid authorities and must be cleared by the requirement return.
 	now := task.UpdatedAt
+	task.Evidence = append(task.Evidence, phase5UserEvidence(now, "user-old"))
 	task.Test = &domain.TestRecord{RecordID: "test-old", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, RepositoryBindingDigest: task.Repository.BindingDigest, PassedAt: now}
 	task.Comprehension = &domain.ComprehensionAssessment{RecordID: "review-old", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, RepositoryBindingDigest: task.Repository.BindingDigest, ExplainedComponents: []string{"component"}, UserEvidenceID: "user-old", ConfirmedAt: now}
 	ms.task = &task
@@ -174,6 +175,7 @@ func TestImplementationRevisionAndCurrentEvidenceInvalidation(t *testing.T) {
 	s, ms, _ := phase5Service(t)
 	task := phase5TaskAtImplement(t, s)
 	now := task.UpdatedAt
+	task.Evidence = append(task.Evidence, phase5UserEvidence(now, "user-old"))
 	task.Test = &domain.TestRecord{RecordID: "test-old", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, RepositoryBindingDigest: task.Repository.BindingDigest, PassedAt: now}
 	task.Comprehension = &domain.ComprehensionAssessment{RecordID: "review-old", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, RepositoryBindingDigest: task.Repository.BindingDigest, ExplainedComponents: []string{"component"}, UserEvidenceID: "user-old", ConfirmedAt: now}
 	ms.task = &task
@@ -227,7 +229,7 @@ func phase5Service(t *testing.T) (*Service, *memoryStore, *mutableObserver) {
 
 func openPhase5Task(t *testing.T, s *Service) domain.ProcessTask {
 	t.Helper()
-	result, err := s.OpenTask(context.Background(), OpenTaskRequest{RequestID: "open-request", Host: domain.HostCodex, RepositoryPath: "/repo", NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: domain.MethodPlain}})
+	result, err := s.OpenTask(context.Background(), OpenTaskRequest{RequestID: "open-request", Host: domain.HostCodex, RepositoryPath: "/repo", NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4, AllowManualHandoff: true}, MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -311,6 +313,9 @@ func hasHistory(task domain.ProcessTask, kind domain.BaselineKind, revision uint
 	return false
 }
 func digestOf(char string) domain.Digest { return domain.Digest(strings.Repeat(char, 64)) }
+func phase5UserEvidence(now time.Time, id domain.ID) domain.EvidenceSummary {
+	return domain.EvidenceSummary{EvidenceID: id, Source: domain.EvidenceSourceUser, Name: "confirmation", Status: domain.EvidencePassed, Summary: "User confirmed.", Digest: digestOf("a"), RecordedAt: now}
+}
 
 func workflowRequirements(t *testing.T, value map[string]any) workflow.RequirementsBaselineInput {
 	t.Helper()
