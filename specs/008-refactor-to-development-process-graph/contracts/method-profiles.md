@@ -336,6 +336,8 @@ All profiles render the same mandatory interaction:
 5. submit only the matching transition returned by Core.
 
 No profile command can answer on behalf of the developer.
+This user verdict is comprehension authority, not TEST manual handoff, and remains required and
+permitted when the task verification budget sets `allow_manual_handoff=false`.
 
 ## 11. Adapter Boundary
 

@@ -124,6 +124,28 @@ plain_fallback
 
 A method status is evidence about how node work was performed, not a workflow decision.
 
+### 2.8 Node problem classes
+
+Each transition-bearing node result after `REQUIREMENTS` carries one closed `problem_class`:
+
+```text
+REQUIREMENTS: none
+DESIGN: none | requirement_gap
+TASKS: none | design_gap | requirement_gap
+IMPLEMENT: none | design_gap | requirement_gap | code_complexity
+TEST: none | implementation_failure | design_failure | requirement_gap
+COMPREHENSION_REVIEW:
+  none | implementation_defect | code_complexity | design_complexity |
+  verification_gap | requirement_gap
+REFACTOR: none | design_change | requirement_change
+DELIVERY:
+  none | implementation_gap | test_gap | comprehension_gap | design_gap | requirement_gap
+```
+
+The exact transition mapping is normative in `contracts/process-graph.md`. A forward result uses
+`none` and no classification finding. A remediation result uses the one mapped non-`none` class,
+matching structured findings, and a normalized reason.
+
 ## 3. ProcessDefinition
 
 ```go
@@ -152,6 +174,8 @@ type ProcessDefinition struct {
 - `BLOCKED` is not the destination of a normal transition.
 - `CANCELLED` is not the destination of a normal transition.
 - Definition order is stable and included in the digest.
+- Digest input contains only the frozen stable semantic identifiers and ordering; all human purpose,
+  descriptions, selection conditions, guidance, localized text, and examples are excluded.
 - Definitions are compiled into Core; no runtime deserialization path exists.
 
 ## 4. NodeDefinition
@@ -313,6 +337,7 @@ Invariants:
 - At least one work item exists.
 - Work item IDs are unique and dependency references resolve within the same baseline.
 - Dependency graph is acyclic.
+- Every acceptance index is within the current RequirementsBaseline acceptance range.
 - Every current acceptance criterion is referenced by at least one work item or an explicit
   delivery-only rationale.
 - Expected paths are repository-relative and parent-safe.
@@ -399,6 +424,7 @@ type ImplementationRecord struct {
 ### Invariants
 
 - Task-plan revision equals current plan.
+- Every completed work-item ID resolves in the current TaskPlanBaseline.
 - Exactly one of non-empty changed paths or `NoFileChanges=true` is used.
 - Changed paths are normalized and parent-safe.
 - Repository binding matches the accepted post-action observation.
@@ -427,9 +453,10 @@ type TestRecord struct {
 - Created only by `tests_passed`.
 - All referenced revisions and binding equal current authorities.
 - Evidence IDs resolve to current retained evidence.
-- No referenced evidence is failed.
+- Every referenced evidence is passed; missing or failed evidence is invalid.
 - Failed items are empty.
 - Automatic command/full-suite/manual handoff constraints obey the immutable verification budget.
+  `allow_manual_handoff` applies only to TEST manual-handoff items and TEST `source=user` evidence.
 - Any later repository-changing implementation/refactor or baseline change invalidates the current
   record but does not delete retained evidence.
 
@@ -438,6 +465,7 @@ type TestRecord struct {
 ```go
 type ComprehensionAssessment struct {
     RecordID                 ID
+    TestRecordID             ID
     RequirementsRevision     uint32
     DesignRevision           uint32
     TaskPlanRevision         uint32
@@ -453,9 +481,12 @@ type ComprehensionAssessment struct {
 
 - Created only by `comprehension_passed`.
 - Current TestRecord exists and matches all revisions/binding.
+- TestRecordID equals the exact current TestRecord authority.
 - Explained components are non-empty.
 - Unresolved questions and unnecessary-abstraction lists in the source payload are empty.
 - `UserEvidenceID` resolves to source `user`, status `passed`, and the current action.
+- User confirmation uses its independent comprehension validation and is not disabled by
+  `allow_manual_handoff=false`.
 - Host-observed/static/automated evidence cannot replace user confirmation.
 - Any later repository/baseline change invalidates the current assessment.
 
@@ -487,7 +518,8 @@ type ProcessActionV2 struct {
 - Action revision equals Task revision.
 - Process and node equal the current Task cursor.
 - Node contract, edges, and method steps equal the built-in definition identified by the Task's
-  process digest.
+  process digest for machine-authoritative fields. Human wording is bounded/normalized but is not a
+  process identity comparison.
 - Repository binding equals the Task binding at issuance.
 - Action identity and complete contract persist across reads/restarts.
 - An action must use the exact current-node payload contract; no historical payload branch exists.
@@ -539,6 +571,44 @@ type ProcessTask struct {
 - Encoded task remains within `MaxPersistedTaskSnapshotBytes`.
 - Process definition mismatch returns `PROCESS_UNSUPPORTED`; it is never silently upgraded.
 
+### 14.1 Current-node authority matrix
+
+`ProcessTask.Validate` applies this closed matrix in addition to the general invariants:
+
+| Current node | Required current authority | Allowed current authority | Forbidden current authority |
+| --- | --- | --- | --- |
+| `REQUIREMENTS` | none | Requirements | Design, TaskPlan, Implementation, Test, Comprehension, Outcome |
+| `DESIGN` | Requirements | — | TaskPlan, Implementation, Test, Comprehension, Outcome |
+| `TASKS` | Requirements, Design | — | TaskPlan, Implementation, Test, Comprehension, Outcome |
+| `IMPLEMENT` | Requirements, Design, TaskPlan | Implementation may be absent or retain the current prior round | Test, Comprehension, Outcome |
+| `TEST` | Requirements, Design, TaskPlan, Implementation | — | current Test, Comprehension, Outcome |
+| `COMPREHENSION_REVIEW` | Requirements, Design, TaskPlan, Implementation, current passed TestRecord | — | Comprehension, Outcome |
+| `REFACTOR` | Requirements, Design, TaskPlan, Implementation | — | Test, Comprehension, Outcome |
+| `DELIVERY` | Requirements, Design, TaskPlan, Implementation, current TestRecord, current ComprehensionAssessment | — | Outcome |
+| `DONE` | Requirements, Design, TaskPlan, Implementation, Test, Comprehension, completed Outcome, CompletedAt | — | CurrentAction, Blocker, ResumeNode |
+| `BLOCKED` | Blocker, ResumeNode, `RESOLVE_BLOCKER` action and every authority required by ResumeNode | ResumeNode-specific authority only | authority forbidden by ResumeNode |
+| `CANCELLED` | cancelled Outcome, CompletedAt | partial authority valid at cancellation time | CurrentAction, Blocker, ResumeNode |
+
+For `BLOCKED`, `ProcessBlocker` has valid normalized bounded `blocker_id`, `resume_node`, and
+`message`; its action and resume node agree with the task. For every nonterminal normal node there
+is exactly one current action; terminal nodes have none.
+
+The matrix is enforced after strict decode, during Store-open preflight, and on every `LoadTask`.
+Invalid downstream authority is never retained merely because the current mutation does not touch
+that field.
+
+### 14.2 Cross-record authority invariants
+
+- TaskPlan acceptance indexes are within the current RequirementsBaseline acceptance range.
+- Implementation completed work-item IDs all belong to the current TaskPlanBaseline.
+- Every TestRecord evidence ID resolves to a passed retained EvidenceSummary.
+- Comprehension references and proves the current TestRecord authority.
+- A completed Outcome references the current TestRecord and ComprehensionAssessment and matches their
+  current repository/baseline identities.
+- Current-node downstream authority invalidation follows Section 18 exactly.
+
+Any violation is corrupt storage/aggregate state and safe-stops before mutation.
+
 ## 15. ProcessOutcome
 
 ```go
@@ -563,7 +633,14 @@ type ProcessOutcome struct {
 - Completed acceptance count/order/text equals the latest requirements baseline.
 - Every criterion is `satisfied`; no current unverified item remains.
 - Test and comprehension IDs resolve to current records.
-- Evidence source types match their lists.
+- Automated evidence IDs exactly equal all current passed automated TestRecord evidence in original
+  TestRecord order.
+- Manual evidence IDs exactly equal all current passed user TestRecord evidence in original
+  TestRecord order followed by the comprehension user evidence ID.
+- Static and host-observed TestRecord evidence remain in the audit chain but appear in neither
+  automated nor manual Outcome list.
+- Evidence lists contain no missing, stale, failed, duplicate, cross-list, or wrong-source ID.
+- TestRecord unverified/manual-handoff items and delivery unverified items are empty.
 - Final repository digest equals Task repository binding.
 - Cancellation retains the latest available authorities but does not claim criteria satisfied.
 

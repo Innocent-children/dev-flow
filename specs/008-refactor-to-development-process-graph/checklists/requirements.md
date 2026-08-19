@@ -43,7 +43,8 @@ does not mean implementation or runtime evidence exists.
 - [x] CHK016 Every normal node has a purpose, entry conditions, completion conditions, allowed
   effects, required evidence, action kind, payload contract, and method steps.
 - [x] CHK017 Every normal node lists its complete outgoing transition set.
-- [x] CHK018 All 29 normal transitions have stable IDs, source, destination, guard, and reason rule.
+- [x] CHK018 All 29 normal transitions have stable IDs, source, destination, guard, reason rule, and
+  exact per-node `problem_class` mapping.
 - [x] CHK019 `BLOCKED`, `CANCELLED`, and `DONE` semantics are separate from normal transition
   selection.
 - [x] CHK020 Caller destination, next node, guard result, and adapter-selected transition are
@@ -51,13 +52,14 @@ does not mean implementation or runtime evidence exists.
 - [x] CHK021 Test success cannot skip comprehension review.
 - [x] CHK022 Refactor cannot skip retesting.
 - [x] CHK023 Backward transitions invalidate stale downstream authorities.
-- [x] CHK024 Delivery requires current requirements, test, comprehension, evidence, and repository
-  identity.
+- [x] CHK024 Delivery requires current requirements, test, comprehension, repository identity, and
+  exact Core-derived ordered automated/manual evidence sets.
 
 ## Comprehensibility
 
 - [x] CHK025 Comprehension review is distinct from automated/static code review.
-- [x] CHK026 `comprehension_passed` requires explicit current user evidence.
+- [x] CHK026 `comprehension_passed` requires explicit current user evidence independently of the
+  TEST `allow_manual_handoff` budget.
 - [x] CHK027 AI explanation alone cannot assert that the developer understands the change.
 - [x] CHK028 The remediation choices distinguish code complexity, design complexity, implementation
   defect, verification insufficiency, and requirement ambiguity.
@@ -73,10 +75,11 @@ does not mean implementation or runtime evidence exists.
 ## Public Contract and Method Profiles
 
 - [x] CHK034 The exact six-tool catalog is retained.
-- [x] CHK035 Core Contract schema 2 inputs, outputs, payload envelope, identity fields, and errors are
-  defined.
+- [x] CHK035 Core Contract schema 2 optional/null inputs, outputs, public DTOs, payload envelope,
+  identity fields, and stable errors including temporary `RECOVERY_UNAVAILABLE` are defined.
 - [x] CHK036 Standard payload branches are closed and transition-aware.
-- [x] CHK037 Recovery probe semantics are updated from phase-only to process/source cursor.
+- [x] CHK037 Phase 5D non-null Recovery fail-closed behavior is separated from the Phase 7 target
+  process/source-cursor five-class semantics.
 - [x] CHK038 `plain`, `spec-kit`, and `openspec` are closed immutable task profiles.
 - [x] CHK039 Core semantic method steps are separated from Host command spelling.
 - [x] CHK040 Method capability absence, plain fallback, and honest evidence are explicit.
@@ -86,14 +89,18 @@ does not mean implementation or runtime evidence exists.
 
 ## Persistence Generation, Explicit Reset, and Recovery
 
-- [x] CHK043 Fresh Schema 2 bootstrap statements, metadata, constraints, indexes, and digest rules are specified.
+- [x] CHK043 Fresh Schema 2 bootstrap statements, metadata, constraints, indexes, digest rules, and
+  Store-open task/claim preflight are specified.
 - [x] CHK044 Schema 1/pre-graph databases are rejected before task decoding with a zero-write manifest requirement.
-- [x] CHK045 Exactly one strict snapshot-version-2 codec and exact row/snapshot metadata agreement are defined; no v1 or dual-codec route exists.
+- [x] CHK045 Exactly one strict snapshot-version-2 codec, closed current-node authority matrix,
+  cross-record references, and exact row/snapshot metadata agreement are defined; no v1 or
+  dual-codec route exists.
 - [x] CHK046 `legacy-linear`, old-task continuation, migration, import/export, and conversion are explicitly unsupported.
 - [x] CHK047 Future/unsupported schema, snapshot, process, malformed row, partial bootstrap, and digest mismatch all safe-stop with zero writes; no old-binary journey is required.
 - [x] CHK048 Five-class recovery, operation identity, read-before-retry, CAS, and at-most-once
   behavior remain defined.
-- [x] CHK049 Bootstrap/rejection/normal mutation/event/claim transaction boundaries are explicit.
+- [x] CHK049 Bootstrap/rejection/normal mutation/event/claim transaction boundaries and active/
+  terminal claim cardinality are explicit.
 - [x] CHK050 Removal/uninstall retain supported Schema 2 task data and never automatically delete unsupported old data.
 
 ## Plan and Verification
@@ -112,11 +119,11 @@ does not mean implementation or runtime evidence exists.
 
 ## Review Result
 
-**Unresolved findings**: None at requirements-quality review.
+**Unresolved findings**: None after the Phase 5D requirements-quality re-review.
 
-**Decision**: Ready for `$speckit-analyze`; Feature status remains `Planned` until cross-artifact
-analysis is run and blocking findings are resolved.
+**Decision**: Phase 5D amendment is ready for `$speckit-analyze`; Feature remains `Implementing`
+until the reopened and corrective tasks pass their acceptance gates.
 
 **Reviewer**: OpenAI GPT-5.6 Pro
 
-**Reviewed at**: 2026-08-18
+**Reviewed at**: 2026-08-19 (Phase 5D amendment re-review)

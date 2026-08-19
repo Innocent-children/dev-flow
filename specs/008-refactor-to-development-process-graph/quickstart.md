@@ -121,6 +121,7 @@ After developer clarification, submit `COMPLETE_REQUIREMENTS` using the exact ac
     }
   ],
   "node_result": {
+    "problem_class": "none",
     "baseline": {
       "goal": "Simplify order submission while preserving observable behavior.",
       "scope": ["order submission request path"],
@@ -200,7 +201,8 @@ Expected:
 ### Step B4: First test fails
 
 Run one targeted check that demonstrates an implementation defect. Submit
-`tests_failed_implementation` with a reason and failed evidence.
+`tests_failed_implementation` with `problem_class=implementation_failure`, a reason, and failed
+evidence.
 
 Expected:
 
@@ -228,6 +230,7 @@ Submit:
 
 ```text
 transition_id=code_too_complex
+problem_class=code_complexity
 reason=<developer-visible complexity reason>
 unnecessary_abstractions=<non-empty>
 user_confirmation=null
@@ -263,14 +266,15 @@ Present the simplified path and obtain an explicit user answer. Submit
 
 ```json
 {
-  "explained_components": [
+    "explained_components": [
     "request entry",
     "duplicate guard",
     "repository write"
   ],
-  "unresolved_questions": [],
-  "unnecessary_abstractions": [],
-  "maintenance_risks": [],
+    "unresolved_questions": [],
+    "unnecessary_abstractions": [],
+    "maintenance_risks": [],
+    "problem_class": "none",
   "user_confirmation": {
     "source": "user",
     "status": "passed",
@@ -296,6 +300,11 @@ Submit `delivery_complete` using:
 - current ComprehensionAssessment ID;
 - current automated/user evidence IDs;
 - no unverified item.
+
+The automated list must equal every current passed automated TestRecord evidence in its original
+order. The manual list must equal every current passed user TEST evidence in original order followed
+by the comprehension user evidence. Empty, missing, stale, duplicate, failed, wrong-source,
+static/host-observed, or cross-list IDs are rejected.
 
 Expected:
 
@@ -531,7 +540,54 @@ Expected:
 - two handles attempting the same commit produce at most one success;
 - adapter never decides the classification.
 
-## 10. Final Real Codex Journey
+## 10. Journey H — Phase 5D Contract and Runtime Hardening
+
+**Proves**: SC-017–SC-025 without entering Phase 6–8
+
+**Evidence class**: deterministic domain/workflow/application/store/MCP/contract journey tests
+
+### Recovery fail-closed
+
+Call `get_task` and `get_next_action` with `operation_probe` omitted and explicitly null; both are
+ordinary reads. Call ordinary `apply_action` with `recovery_apply` omitted and explicitly null; both
+follow the normal transition path.
+
+Then submit a syntactically valid non-null probe and recovery apply. Both return:
+
+```text
+RECOVERY_UNAVAILABLE
+retry_safe=false
+action=none
+```
+
+The repository observer invocation count and Task/Event/Evidence/Claim/Schema manifests remain
+unchanged. Malformed, unknown-member, and duplicate-member Recovery input returns
+`INVALID_ARGUMENT`. This journey does not exercise the five Phase 7 classifications.
+
+### Problem-class binding
+
+Table-drive all 29 transitions using the closed per-node enums. Prove at minimum that an
+`implementation_failure` TEST result cannot select `tests_expose_design_issue`, a
+`code_complexity` comprehension result cannot select `design_too_complex`, and a delivery
+`test_gap` cannot select `delivery_needs_requirements`. Every mismatch is
+`TRANSITION_NOT_ALLOWED` and zero-write.
+
+### Manual-handoff separation and exact delivery evidence
+
+Create a task with `allow_manual_handoff=false`. Prove `source=user` TEST evidence is rejected, then
+pass TEST using automated evidence, obtain explicit user comprehension confirmation, and reach DONE
+with the exact current evidence sets. Empty, incomplete, stale, duplicate, failed, wrong-source, or
+cross-list evidence remains rejected.
+
+### Load/cancel/store hardening
+
+Use strict snapshot fixtures to exercise every node-authority row and cross-record reference. Use
+database copies to exercise active/terminal claim cardinality, orphan and identity mismatches; every
+Store-open failure is `STORAGE_UNAVAILABLE` with an unchanged manifest. Finally prove terminal
+cancellation returns `TASK_TERMINAL`, invalid reasons return `INVALID_ARGUMENT`, and valid active or
+blocked cancellation commits once.
+
+## 11. Final Real Codex Journey
 
 **Proves**: SC-015
 
@@ -556,7 +612,7 @@ The final journey must:
 
 This journey does not publish npm, create a Tag, or create a GitHub Release.
 
-## 11. Final Acceptance Matrix
+## 12. Final Acceptance Matrix
 
 | Capability | Deterministic | Native |
 | --- | ---: | ---: |
@@ -568,4 +624,5 @@ This journey does not publish npm, create a Tag, or create a GitHub Release.
 | Restart/resume | Required | Required |
 | Fresh Schema 2 / Schema 1 zero-write rejection | Required | Fresh data used in final journey |
 | Five-class uncertain recovery | Required | No extra native fault matrix |
+| Phase 5D Recovery fail-closed / problem classes / authority / claim / delivery hardening | Required before Phase 6 | No native run |
 | Public release | Forbidden | Forbidden |

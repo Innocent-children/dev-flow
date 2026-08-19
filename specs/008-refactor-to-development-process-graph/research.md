@@ -407,3 +407,40 @@ acceptance, and force release work before the product design is stable.
 
 Feature 008 can reach `Complete` while `VERSION` remains `0.3.0`. The next release has its own
 source identity, artifact gates, registry journey, and support statement.
+
+---
+
+## Decision 13: Harden Phase 2–5 contracts before adding Phase 6–8 behavior
+
+**Decision**
+
+Insert Phase 5D as a corrective checkpoint. Bind transition choice to closed typed problem classes,
+close public optional/error/DTO shapes, enforce current aggregate/claim/evidence authority at read
+boundaries, and fail closed on non-null Recovery requests until Phase 7 implements classification.
+
+**Rationale**
+
+The audit showed that passing CI did not prove caller facts selected only one edge, that accepted
+Recovery fields were acted on, or that loaded snapshots/claims/outcomes were internally current.
+These are safety and contract gaps in already implemented work and must be closed before adapters or
+full Recovery add more call paths.
+
+**Alternatives considered**
+
+- Defer the gaps to Phase 7 or Phase 8.
+- Remove the public Recovery fields until Phase 7.
+- Accept multiple issue labels and infer the destination from free text.
+- Repair malformed task/claim state automatically during Store open.
+
+**Why alternatives were rejected**
+
+Deferral leaves silent acceptance and ambiguous transition authority in the public contract.
+Removing fields creates avoidable wire churn. Free-text inference lets callers select incompatible
+destinations. Automatic repair violates zero-write safe-stop and can destroy audit evidence.
+
+**Consequences**
+
+Phase 5D introduces `RECOVERY_UNAVAILABLE` as a temporary closed error, not a sixth recovery class.
+Payloads gain per-node `problem_class`; definition identity remains based on the previously frozen
+stable identifiers. Store open becomes stricter and may reject corrupt current-generation data with
+`STORAGE_UNAVAILABLE`. Phase 6–8 remain unchanged and unstarted.

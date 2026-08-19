@@ -63,7 +63,9 @@ Digest input contains only stable semantic identifiers:
       "entry_condition_ids": ["..."],
       "completion_condition_ids": ["..."],
       "allowed_effects": ["..."],
-      "required_evidence": ["..."],
+      "required_evidence": [
+        {"kind": "...", "required": true}
+      ],
       "method_step_ids": ["..."],
       "outgoing_transition_ids": ["..."]
     }
@@ -83,6 +85,18 @@ Digest input contains only stable semantic identifiers:
 Human-readable purpose, explanation, examples, localized text, and adapter command spelling are not
 included. Changing a stable semantic identifier or ordering requires a new process version. A
 wording clarification that preserves identifiers/semantics may retain version 1.
+
+Canonical encoding does not rely on Go struct-field order. Object keys are lexicographically sorted
+by an explicitly tested canonical projection/encoder; arrays come only from the declaration-ordered
+slices above. Definition construction must propagate encoding failure or panic during immutable
+initialization and must never publish an empty or partial `ProcessReference`.
+
+When validating a persisted action against this definition, Core compares all machine-authoritative
+fields exactly: kind, task/revision/process/node/binding identity, payload contract, allowed effects,
+evidence kind/required flags, method-step IDs/required flags, and transition
+ID/source/destination/guard/reason rules. Human purpose, entry/completion descriptions, method-step
+purpose, transition selection text, and guidance are validated for UTF-8, normalization, bounds, and
+completeness, but wording differences alone do not produce `PROCESS_UNSUPPORTED`.
 
 The Task stores the process reference/digest. An unsupported or mismatched definition returns
 `PROCESS_UNSUPPORTED` with zero writes.
@@ -709,6 +723,47 @@ Terminal cancellation node. It has no action and no outgoing transition. It is e
 Guards are evaluated by Core from typed payload, current Task authorities, current repository
 observation, and retained evidence.
 
+Every normal node result contains a required `problem_class` selected from that node's closed enum.
+The exact transition mapping is:
+
+| Source | Problem class | Required transition |
+| --- | --- | --- |
+| `REQUIREMENTS` | `none` | `requirements_ready` |
+| `DESIGN` | `none` | `design_ready` |
+| `DESIGN` | `requirement_gap` | `design_requires_requirements` |
+| `TASKS` | `none` | `tasks_ready` |
+| `TASKS` | `design_gap` | `tasks_require_design` |
+| `TASKS` | `requirement_gap` | `tasks_require_requirements` |
+| `IMPLEMENT` | `none` | `implementation_ready_for_test` |
+| `IMPLEMENT` | `design_gap` | `implementation_requires_design` |
+| `IMPLEMENT` | `requirement_gap` | `implementation_requires_requirements` |
+| `IMPLEMENT` | `code_complexity` | `implementation_needs_refactor` |
+| `TEST` | `none` | `tests_passed` |
+| `TEST` | `implementation_failure` | `tests_failed_implementation` |
+| `TEST` | `design_failure` | `tests_expose_design_issue` |
+| `TEST` | `requirement_gap` | `tests_expose_requirement_issue` |
+| `COMPREHENSION_REVIEW` | `none` | `comprehension_passed` |
+| `COMPREHENSION_REVIEW` | `implementation_defect` | `implementation_defect` |
+| `COMPREHENSION_REVIEW` | `code_complexity` | `code_too_complex` |
+| `COMPREHENSION_REVIEW` | `design_complexity` | `design_too_complex` |
+| `COMPREHENSION_REVIEW` | `verification_gap` | `evidence_insufficient` |
+| `COMPREHENSION_REVIEW` | `requirement_gap` | `requirement_unclear` |
+| `REFACTOR` | `none` | `refactor_ready_for_test` |
+| `REFACTOR` | `design_change` | `refactor_requires_design` |
+| `REFACTOR` | `requirement_change` | `refactor_requires_requirements` |
+| `DELIVERY` | `none` | `delivery_complete` |
+| `DELIVERY` | `implementation_gap` | `delivery_needs_implementation` |
+| `DELIVERY` | `test_gap` | `delivery_needs_test` |
+| `DELIVERY` | `comprehension_gap` | `delivery_needs_comprehension` |
+| `DELIVERY` | `design_gap` | `delivery_needs_design` |
+| `DELIVERY` | `requirement_gap` | `delivery_needs_requirements` |
+
+Forward transitions require `problem_class=none` and no classification finding. Remediation
+transitions require their exact non-`none` class, at least one normalized bounded finding that is
+structurally relevant to that class, and the required normalized reason. A payload may satisfy at
+most one transition; changing only `transition_id` is insufficient. Every mismatch returns
+`TRANSITION_NOT_ALLOWED` with zero writes.
+
 ### 9.1 Forward guards
 
 - `requirements_baseline_complete`: valid next RequirementsBaseline; non-empty acceptance; material
@@ -732,7 +787,8 @@ observation, and retained evidence.
 Each guard requires:
 
 - a non-empty normalized reason;
-- payload findings consistent with the selected problem class;
+- the exact source-node `problem_class` mapped to the selected transition;
+- non-empty normalized payload findings structurally consistent with that class;
 - exact current action/process/node/baseline identity;
 - allowed repository relation for the source action.
 
@@ -807,6 +863,8 @@ adopt caller state.
 Any nonterminal task may be cancelled through the existing cancellation tool. Cancellation:
 
 - requires current revision and explicit reason;
+- validates a non-empty, trimmed, bounded valid-UTF-8 reason at the Application boundary;
+- returns `TASK_TERMINAL` with zero writes for `DONE` or `CANCELLED`;
 - writes one terminal mutation;
 - releases repository claim;
 - retains all task data;
@@ -863,6 +921,7 @@ Developer says the code works but is too complex. The caller submits:
   "artifacts": [],
   "method_evidence": [],
   "node_result": {
+    "problem_class": "code_complexity",
     "explained_components": ["request entry", "service boundary"],
     "unresolved_questions": ["Why two adapter layers are required"],
     "unnecessary_abstractions": ["second adapter layer", "generic factory"],

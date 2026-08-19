@@ -157,7 +157,15 @@ checks:
 - schema history is exactly the supported Schema 2 baseline;
 - every required table, column, constraint, and index exists;
 - every distinct task row identifies the exact supported process and snapshot version;
-- no row/snapshot mismatch is accepted.
+- every task snapshot decodes and satisfies the complete node-authority and cross-record aggregate
+  invariants from `data-model.md`;
+- active nodes `REQUIREMENTS`, `DESIGN`, `TASKS`, `IMPLEMENT`, `TEST`,
+  `COMPREHENSION_REVIEW`, `REFACTOR`, `DELIVERY`, and `BLOCKED` each have exactly one claim;
+- terminal nodes `DONE` and `CANCELLED` have no claim;
+- every claim references an existing active task and exactly matches its `repository_identity`,
+  `task_id`, and `origin_host`;
+- no task is referenced by more than one repository claim;
+- no row/snapshot or task/claim mismatch is accepted.
 
 Example metadata scan:
 
@@ -170,8 +178,11 @@ SELECT DISTINCT
 FROM tasks;
 ```
 
-Failures return `SCHEMA_UNSUPPORTED`, `PROCESS_UNSUPPORTED`, or `STORAGE_UNAVAILABLE` according to
-the closed error contract. The Store is not exposed for writes.
+Unsupported schema/process failures retain their closed codes. Any malformed authority, missing or
+multiple active claim, terminal claim, orphan claim, duplicate task ownership, or
+repository/task/host mismatch returns `STORAGE_UNAVAILABLE`. Preflight runs before write exposure,
+does not repair/release/delete/create any claim or task, and leaves the database file and logical
+Task/Event/Evidence/Claim/Schema manifest unchanged.
 
 ## 7. Strict Snapshot Version 2 Codec
 
@@ -202,6 +213,9 @@ Decode rules:
 - current node in snapshot equals row `current_node`;
 - task/action revisions and identities agree;
 - process definition/digest is supported;
+- current authority presence/absence exactly matches the node-authority matrix in `data-model.md`;
+- TaskPlan acceptance indexes, completed work-item IDs, TestRecord evidence, comprehension authority,
+  and completed Outcome references resolve against the current aggregate;
 - no runtime event replay or historical decoder is used to repair invalid data.
 
 Encoding validates the complete domain/workflow aggregate before producing compact JSON and remains
@@ -318,9 +332,12 @@ partially_completed
 conflicting
 ```
 
-Read-only assessment never writes. Explicit recovery apply commits at most one revision/event or
-enters one blocker transaction. Storage bootstrap and unsupported-data rejection are not task
-mutations and do not create TaskEvents.
+The complete five-class behavior is the Phase 7 target. Before Phase 7, syntactically valid non-null
+operation probes and recovery applies return `RECOVERY_UNAVAILABLE`, `retry_safe=false`, and
+`action=none` before repository observation or writes. Omitted/null fields retain ordinary
+read/mutation behavior; malformed Recovery input returns `INVALID_ARGUMENT`. Phase 5D never commits
+a recovery revision/event or blocker transaction. Storage bootstrap and unsupported-data rejection
+are not task mutations and do not create TaskEvents.
 
 ## 14. Package Removal and Data Retention
 
@@ -347,7 +364,9 @@ Deterministic tests:
 - current-generation concurrent apply;
 - event transition fields;
 - repository claim retention/release;
-- five-class uncertain mutation recovery.
+- complete Store-open task/claim preflight with zero-write manifests;
+- Phase 5D non-null Recovery fail-closed behavior; five-class uncertain mutation recovery remains a
+  Phase 7 gate.
 
 Native evidence:
 

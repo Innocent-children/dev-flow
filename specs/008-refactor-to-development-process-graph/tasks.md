@@ -3,8 +3,7 @@
 **Input**: Complete Feature 008 package in
 `specs/008-refactor-to-development-process-graph/`
 
-**Status**: Planned — do not begin production tasks until Phase 1 completes and Feature status is
-changed to `Ready`.
+**Status**: Implementing — Phase 5D hardening complete; Phase 6–8 remain unstarted.
 
 **Release Boundary**: Every task in this file is source/local-evidence work. No task may modify
 `VERSION`, publish npm, create/move a Tag, mutate a GitHub Release, or claim final registry support.
@@ -244,12 +243,11 @@ existing tool surface.
 
 - [x] T059 [US2] Run only `go test ./internal/domain ./internal/workflow ./internal/application
   ./tests/journeys -run 'StandardProcess|Invalidation|ProcessGraphIteration|ProcessGraphRework'`.
-- [x] T060 [US2] Run `$speckit-converge`; record `USER_STORY_2_CHECKPOINT_COMPLETE` and stop.
+- [x] T060 [US2] Run `$speckit-converge`; keep `USER_STORY_2_HARDENING_IN_PROGRESS` until Phase 5D
+  has zero remaining acceptance gap, then restore `USER_STORY_2_CHECKPOINT_COMPLETE` and stop.
 
 **Checkpoint**: The development loop distinguishes implementation, design, requirement, complexity,
 verification, and comprehension failures; stale evidence cannot reach delivery.
-
----
 
 ## Phase 6: User Story 3 — Plain, Spec Kit, and OpenSpec Profiles
 
@@ -398,6 +396,8 @@ US1 navigation
         ↓
 US2 iterative graph
         ↓
+Phase 5D hardening
+        ↓
 US3 method profiles
         ↓
 US4 storage boundary/recovery
@@ -413,7 +413,7 @@ touch different files.
 | Scope | Maximum / Rule |
 | --- | --- |
 | Targeted checks | Run at named checkpoints; rerun only after a concrete failure/fix |
-| Repository-wide validation | Exactly 1 final `pnpm run validate` |
+| Repository-wide validation | One Phase 5D `pnpm run validate`, then one later final Phase 8 invocation; retry only after a concrete fixed failure |
 | Real Codex journey | Exactly 1 final local-artifact journey |
 | Released 0.3.0 old-binary/legacy-task journey | 0 |
 | Real Spec Kit/OpenSpec installation matrix | 0 |
@@ -428,3 +428,53 @@ touch different files.
 - Do not use a full suite as a substitute for a missing targeted contract.
 - Do not create a generic workflow framework while implementing static definitions.
 - Stop at every phase/user-story checkpoint unless the user explicitly authorizes the next slice.
+
+---
+
+## Phase 5D Corrective Tasks: Contract and Runtime Hardening
+
+**Execution position**: These corrective tasks were appended after T095 by the Phase 5D audit but
+execute before Phase 6. They do not authorize Phase 6–8 work.
+
+- [x] T096 [US2] Make non-null `OperationProbe` and `RecoveryApplyInput` fail closed as
+  `RECOVERY_UNAVAILABLE` in `internal/domain/errors.go`, `internal/application/get_task.go`,
+  `internal/application/next_action.go`, `internal/application/apply_action.go`,
+  `internal/mcp/schemas.go`, `internal/mcp/tools.go`, `internal/mcp/results.go`,
+  `protocol/fixtures/`, and focused tests while omitted/null retains ordinary behavior and no
+  repository observation/write occurs per FR-S011 and SC-017.
+- [x] T097 [US2] Add each node's closed `problem_class` field and bind all 29 transition IDs to the
+  exact class, structured facts, and reason in `internal/workflow/payloads_v2.go`,
+  `internal/workflow/engine.go`, and `internal/workflow/standard_process.go` plus table/journey tests
+  per FR-011–FR-012 and SC-018.
+- [x] T098 [US2] Separate COMPREHENSION_REVIEW user-confirmation evidence from TEST manual-handoff
+  budget validation in `internal/application/apply_action.go`, `internal/domain/baselines.go`, and
+  `tests/journeys/process_graph_iteration_test.go` per FR-014, FR-048, and SC-019.
+- [x] T099 [US1] Align optional `new_task`/`operation_probe`/`recovery_apply` schemas, explicit
+  ServerInfo public DTO, full ordered JSON fixture, and duplicate/unknown-member tests in
+  `internal/mcp/schemas.go`, `internal/mcp/results.go`, `internal/mcp/tools.go`,
+  `internal/mcp/server.go`, `protocol/fixtures/`, and `tests/contract/` per FR-033, FR-047, and
+  SC-020.
+- [x] T100 Make process definition digest use only the frozen stable semantic projection and make
+  persisted action wording identity-stable in `internal/workflow/definitions.go`,
+  `internal/domain/task_v2.go`, and focused definition/codec tests per FR-043 and SC-021.
+- [x] T101 Add the closed ProcessTask current-node authority matrix and WorkItem/Implementation/
+  Test/Comprehension/Outcome cross-record validation in `internal/domain/task_v2.go`,
+  `internal/domain/baselines.go`, `internal/store/codec.go`, and corrupt-snapshot tests per FR-044
+  and SC-022.
+- [x] T102 Add Store-open task/repository-claim preflight for active/terminal cardinality, orphan,
+  duplicate ownership, and repository/task/host mismatch in `internal/store/sqlite.go` and focused
+  restart/manifest tests per FR-045 and SC-023.
+- [x] T103 Stabilize terminal `CancelTask`, bounded normalized UTF-8 reason validation, and Store
+  invalid-argument mapping in `internal/application/cancel_task.go`, `internal/application/service.go`,
+  `internal/mcp/results.go`, and focused zero-write tests per FR-046 and SC-024.
+- [x] T104 Require DELIVERY and completed Outcome to reference the exact current ordered automated/
+  manual evidence sets and reject current unverified/manual-handoff items in
+  `internal/workflow/payloads_v2.go`, `internal/application/apply_action.go`,
+  `internal/domain/task_v2.go`, and Journey B negative/positive tests per FR-018 and SC-025.
+
+**Verification**: Run the Phase 5D named focused tests, the affected package set, one authorized
+`pnpm run validate`, `git diff --check`, then `$speckit-converge`. Recheck T010/T012/T018/T024/T031/
+T039/T040/T042/T050/T052/T053/T054/T057/T060 and T096–T104 only after their evidence passes.
+
+**Checkpoint**: `FEATURE_008_PHASE_5D_HARDENING_COMPLETE`; User Story 2 is hardened/complete and
+Phase 6–8 remain unstarted.

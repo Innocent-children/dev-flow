@@ -15,6 +15,11 @@ observer, revision CAS, and five-class recovery. Replace the Core Contract 0.1 w
 definition for every task supported by Core Contract 0.2; its nodes,
 node contracts, and legal transitions are visible in every current action.
 
+Phase 5D first closes the audited Phase 2–5 contract/runtime gaps. Because full current-generation
+five-class Recovery remains scheduled for Phase 7, Phase 5D makes every valid non-null Recovery
+request fail closed as `RECOVERY_UNAVAILABLE` before observation or mutation; omitted/null fields
+retain ordinary behavior.
+
 The implementation introduces one snapshot-version-2 task aggregate with an immutable `TaskIntent`,
 versioned semantic baselines, a process cursor, current test/comprehension authorities, and
 transition-aware actions. SQLite Schema 2 is created directly as a fresh storage generation. Schema 1
@@ -319,16 +324,18 @@ does so automatically.
 
 ### 9. Recovery and Repository Reconciliation
 
-Retain the existing five classifications and operation-probe semantics for current graph tasks.
-Replace the probe's `source_phase` with exact `source_cursor`/process identity in Contract 0.2; there
-is no mixed or legacy shape.
+The final Phase 7 design retains the existing five classifications and operation-probe semantics for
+current graph tasks, replacing `source_phase` with exact `source_cursor`/process identity in Contract
+0.2; there is no mixed or legacy shape.
 
 Recovery continues to derive the payload digest inside Core and never trusts caller classification,
 destination, blocker, or binding. Repository-changing `IMPLEMENT` and `REFACTOR` actions use the
 existing worktree-only effect relation. Non-editing nodes require an exact binding. A partial or
 conflicting mutation enters `BLOCKED` with its original source node as resume cursor.
 
-No runtime event replay is introduced.
+Until that phase is implemented, Application types preserve the closed `OperationProbe` and
+`RecoveryApplyInput`, but any non-null value returns `RECOVERY_UNAVAILABLE` before repository
+observation or ordinary apply dispatch. No runtime event replay is introduced.
 
 ### 10. Method Profiles
 
@@ -381,6 +388,31 @@ After code and contracts pass:
 - update `docs/ROADMAP.md` only with delivered behavior and next release decision;
 - update Codex package README for local-artifact behavior;
 - preserve historical Feature and release evidence.
+
+### 13. Phase 5D Contract and Runtime Hardening
+
+Phase 5D is a bounded corrective slice over completed Phase 2–5 work:
+
+- add source-node `problem_class` enums and bind all 29 transitions to exactly one class/fact/reason
+  combination in `internal/workflow/payloads_v2.go` and `internal/workflow/engine.go`;
+- separate comprehension user confirmation from TEST manual-handoff budget enforcement in
+  `internal/application/apply_action.go`;
+- close optional MCP fields and introduce explicit ServerInfo/process public DTOs in
+  `internal/mcp/{schemas,results,tools,server}.go` and current fixtures;
+- project definition identity from stable identifiers only and compare persisted human text by
+  validation rather than identity in `internal/workflow/definitions.go`;
+- enforce the current-node authority matrix and cross-record references in
+  `internal/domain/task_v2.go` and the strict Store decode/load path;
+- inspect both tasks and repository claims before Store write exposure in
+  `internal/store/sqlite.go`;
+- stabilize terminal cancellation and Application reason validation in
+  `internal/application/cancel_task.go` and error mapping;
+- require exact current delivery evidence sets in workflow/application/domain outcome validation;
+- update only Feature 008 contracts, model, quickstart, fixtures, and focused tests needed by these
+  corrections.
+
+No Phase 6 adapter/profile work, Phase 7 Recovery classification/observation/mutation work, Phase 8
+final artifact work, node, edge, tool, compatibility route, or release operation is included.
 
 ## Project Structure
 
@@ -476,13 +508,16 @@ and direct dispatch because only one process implementation exists.
 | Foundation | Targeted `internal/domain`, `internal/workflow`, `internal/store` tests | Repository-wide validate, Codex |
 | User Story 1 | Targeted `internal/application`, `internal/mcp`, graph contract tests | Recovery matrix, native journey |
 | User Story 2 | Targeted workflow/application graph-loop and stale-evidence tests | Full repository validate |
+| Phase 5D hardening | Focused domain/workflow/application/store/MCP/contract/journey tests, affected-package tests, then one repository validation | Phase 6–8 work, native journey, release |
 | User Story 3 | Codex Skill/method-profile static and package-local tests | Real OpenSpec/Spec Kit installation matrix |
 | User Story 4 | Fresh bootstrap, Schema 1 zero-write rejection, current recovery/concurrency, shared fixture tests | Old-task continuation, old-binary matrix, public release |
 | Final | `pnpm run validate` exactly once; one local-artifact real Codex journey exactly once | npm publish, Tag/Release, Linux/Windows/Intel/DeepSeek journeys |
 
-Approved maxima:
+Approved maxima after the explicit Phase 5D audit amendment:
 
-- repository-wide validation: **1** final invocation;
+- repository-wide validation: **1** Phase 5D invocation and **1** later Phase 8 final invocation;
+- a failed Phase 5D invocation may be followed by one final confirming invocation only after a
+  concrete defect is fixed and targeted checks pass;
 - real Codex journey: **1** final local-artifact invocation;
 - released-0.3.0 old-binary or legacy-task observation: **0**;
 - real Spec Kit/OpenSpec command matrix: **0** for this Feature; adapter contracts use capability

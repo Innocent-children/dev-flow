@@ -57,6 +57,12 @@ behavior. A diagram or example never overrides a contract table.
 - Preserve revision CAS, action identity, repository binding, evidence budgets, repository claims,
   five-class recovery, and read-before-retry.
 
+Phase 5D is an implementation hardening checkpoint before Phase 7. Until Phase 7 completes the
+current-generation five-class Recovery route, omitted/null Recovery fields retain ordinary behavior
+and every valid non-null `operation_probe` or `recovery_apply` fails closed as
+`RECOVERY_UNAVAILABLE` before repository observation or mutation. This temporary boundary is not a
+claim that Recovery is complete.
+
 ## Non-Goals
 
 - No user-defined graph, YAML/JSON process DSL, graph editor, process marketplace, or plugin system.
@@ -100,6 +106,10 @@ Contract-freeze review completed on 2026-08-19: clarification found no acceptanc
 question, the requirements checklist passed 60/60 items, and analyze found no CRITICAL, HIGH, or
 acceptance-impacting MEDIUM issue. Feature 008 remains a non-release Product Feature.
 
+The Phase 5D audit on 2026-08-19 reopened selected Phase 2–5 tasks and User Story 2 for contract and
+runtime hardening. The hardening checks and `$speckit-converge` now have zero remaining gap;
+`USER_STORY_2_CHECKPOINT_COMPLETE` is restored and Phase 6–8 remain unstarted.
+
 Before production code changes:
 
 1. run `$speckit-clarify` against this prepared package;
@@ -119,7 +129,8 @@ approved.
 | Contract freeze | All graph, MCP, method-profile, and persistence contracts are internally consistent | Complete — T001–T006 |
 | Foundation | Standard process definition, current Task model, fresh Schema 2 bootstrap, strict v2 codec, and old-data rejection pass targeted tests | Complete — T007–T034; targeted domain/workflow/store tests pass |
 | User Story 1 | New task exposes current node contract and all legal next transitions | Stabilized / Complete — T035–T045; Phase 2–4 contract, Journey A, repository validation pass |
-| User Story 2 | Test/rework/comprehension/refactor loops are enforced and independently demonstrated | Complete — T046–T060; `USER_STORY_2_CHECKPOINT_COMPLETE` |
+| User Story 2 | Test/rework/comprehension/refactor loops are enforced and independently demonstrated | Hardened / Complete — selected T010–T060 and T096–T104 complete; `USER_STORY_2_CHECKPOINT_COMPLETE` |
+| Phase 5D | Contract and runtime hardening for completed Phase 2–5 | Complete — `FEATURE_008_PHASE_5D_HARDENING_COMPLETE`; Phase 6–8 unstarted |
 | User Story 3 | `plain`, `spec-kit`, and `openspec` guidance is rendered without adapter-owned state | Pending |
 | User Story 4 | Fresh storage bootstrap, Schema 1 zero-write rejection, current-task recovery, and future-schema safety pass | Pending |
 | Final feature gate | One repository validation and one local-artifact Codex journey pass | Pending |
