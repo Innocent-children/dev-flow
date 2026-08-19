@@ -1,83 +1,71 @@
 # Protocol Fixtures
 
+本目录保存有界、可复查的 public projection fixture。它们由 contract tests 消费，不被
+Application 当作 runtime workflow authority。fixture 不包含真实数据库路径、用户目录、source
+content、Git diff/status、raw command output、environment、token 或 secret。
+
 ## Feature 008 Core Contract 0.2 graph fixtures
 
-Core Contract 0.2 graph fixtures remain separate from frozen Core Contract 0.1 historical fixtures:
+- `graph-server-info.json`：完整、定序的 Schema 2 ServerInfo、`standard-development@1`、三种
+  method profile 和六工具 catalog；
+- `graph-open-requirements.json`：创建 graph Task、TaskIntent、REQUIREMENTS Action 和唯一出边；
+- `graph-design-action.json`：DESIGN Action 的完整合法出边；
+- `graph-invalid-edge.json`：DESIGN 上 undeclared transition 的 closed zero-write error。
 
-- `graph-server-info.json` records the complete ordered Schema 2 public ServerInfo DTO, supported
-  process object, method profiles, and exact six-tool catalog;
-- `graph-open-requirements.json` records early task creation and the REQUIREMENTS edge;
-- `graph-design-action.json` records the complete DESIGN edge set;
-- `graph-invalid-edge.json` records zero-write rejection of an undeclared DESIGN edge.
+这些文件是当前 source Contract 0.2 的 static fixture evidence；它们不等同于 native Host 或
+released package evidence。
 
 ## Core Contract 0.2 Host parity fixtures
 
-- `graph-host-parity-codex.json` records the shared graph contract with `host=codex`;
-- `graph-host-parity-deepseek.json` records the same shared graph contract with `host=deepseek`.
+- `graph-host-parity-codex.json`；
+- `graph-host-parity-deepseek.json`。
 
-The two Host parity fixtures differ only in `host`, `origin_host`, and their fixture-specific opaque
-`request_id`. They prove that Core accepts both Host identities with the same Contract 0.2 process,
-node, method, payload, error, and storage semantics. They do not implement or claim a DeepSeek
-Adapter, Skill, package, native Journey, or product support.
-
-This directory owns the shared public-contract fixtures produced by the Dev Flow Core. The same
-fixtures are consumed by future Codex and DeepSeek adapters; host-specific copies or alternate
-workflow contracts do not belong here.
+两份文件只在 `host`、`origin_host` 和 fixture-specific opaque `request_id` 上不同。它们证明 Core
+对两个 Host identity 投影相同的 process、node、method、payload、error 和 storage 语义。
+DeepSeek fixture 只证明 Host identity/Core parity。These fixtures do not implement or claim a DeepSeek
+Adapter, Skill, package, native Journey, or product support. 静态 fixture 也不是任何真实 Host 证据。
 
 ## Released Core Contract 0.1 historical fixtures
 
-Feature 002 User Story 1 provides these frozen shared examples:
+以下文件记录已发布线性合同的历史事实，不能作为当前 graph 操作说明：
 
-- `server-info.json`: product and six-tool catalog metadata;
-- `open-task.json`: creation of one governed task;
-- `active-task-conflict.json`: a same-host incompatible-contract conflict;
-- `host-ownership-conflict.json`: a cross-host ownership conflict;
-- `task.json`: the authoritative persisted task projection;
-- `next-action.json`: the persisted `ASSESS_TASK` projection.
+- `server-info.json`；
+- `open-task.json`；
+- `active-task-conflict.json`；
+- `host-ownership-conflict.json`；
+- `task.json`；
+- `next-action.json`；
+- `apply-success.json`；
+- `rework.json`；
+- `verification-budget-failure.json`；
+- `revision-conflict.json`；
+- `stale-action.json`；
+- `repository-drift.json`；
+- `completed-outcome.json`；
+- `cancelled-outcome.json`。
 
-The three successful task fixtures describe the same task, revision, repository binding, and action
-identity. Error fixtures intentionally return only a stable error and recovery instruction; they do
-not expose a task contract or repository path. `${VERSION}` is replaced by the implemented adapter's
-repository-visible version, and paths below `/workspace/` are fictional public examples.
+其中出现的旧阶段、action 或 Schema 含义属于 Contract 0.1 freeze evidence。Contract 0.2 runtime
+不会读取、迁移、继续或投影这些历史 Task。
 
-Feature 002 User Story 2 adds these shared mutation examples:
+## Frozen Recovery fixtures
 
-- `apply-success.json`: an accepted implementation apply, fresh worktree binding, next action, and
-  committed operation;
-- `rework.json`: `VERIFY_CHANGE/failed` returning to `IMPLEMENT` with a new action and retained
-  transition reason;
-- `verification-budget-failure.json`: a bounded `VERIFICATION_BUDGET_EXCEEDED` result;
-- `revision-conflict.json`: a stale revision with `read_task` recovery;
-- `stale-action.json`: stale action identity with `read_next_action` recovery;
-- `repository-drift.json`: rejected repository drift with explicit drift-resolution guidance;
-- `completed-outcome.json`: the terminal completed Outcome, evidence-ID references, and released
-  claim indication;
-- `cancelled-outcome.json`: complete unverified acceptance classification, retained evidence-ID
-  references, and released claim indication.
+以下 Contract 0.1 recovery 文件独立分组，以保留五分类和 read-before-retry 的历史公共形状：
 
-Feature 002 User Story 4 adds the transient uncertain-action and blocker examples:
+- `recovery-not-started.json`；
+- `recovery-completed-and-recorded.json`；
+- `recovery-completed-but-unrecorded.json`；
+- `recovery-partially-completed.json`；
+- `recovery-conflicting.json`；
+- `recovery-apply-read-back.json`；
+- `recovery-blocked.json`；
+- `recovery-resolved.json`。
 
-- `recovery-not-started.json`: exact current source with no retained payload and safe retry advice;
-- `recovery-completed-and-recorded.json`: latest exact `LastOperation` proof and committed read-back;
-- `recovery-completed-but-unrecorded.json`: complete payload/effect evidence awaiting recovery apply;
-- `recovery-partially-completed.json`: worktree-only implementation evidence with a restore condition;
-- `recovery-conflicting.json`: forbidden repository evidence classified as a current-source conflict;
-- `recovery-apply-read-back.json`: ordinary `ApplyActionResult` read-back without an embedded assessment;
-- `recovery-blocked.json`: retained issuance binding, Core-owned blocker, condition, and resolve action;
-- `recovery-resolved.json`: explicit exact restoration, one resolution evidence item, and a fresh normal action.
+当前 graph-native Recovery 使用 process reference 和 `source_cursor`，由 Domain/Application/
+Journey tests 确定性证明。历史 fixture 不授权 `source_phase` 或旧 payload 进入 Contract 0.2。
 
-`task.json` and `next-action.json` show their no-probe shape with a null `recovery_assessment`;
-`next-action.json` also carries explicit nullable `action`, `blocker`, and `outcome` projections. The
-five classification fixtures keep recovery assessment under the successful result, never in the
-top-level error recovery instruction used by failure fixtures such as `repository-drift.json`.
+## Evidence classification
 
-The success fixtures keep revision, current-action revision, and binding digest aligned. Outcome
-evidence remains canonical ID references to `Task.Evidence`; it never embeds a second copy. Mutation
-error fixtures intentionally omit Task, Contract, repository path, status, source content, diff,
-and raw command/output data.
-
-Fixtures contain bounded public projections only: never database paths, source contents, Git diffs
-or raw Git status, environment values, raw command output, or host-private state. The Application
-does not read these files. They are contract evidence rather than runtime workflow authority, do
-not replace the Domain model, and are checked against the implemented six-tool MCP adapter by the
-shared contract suite.
+- 上述 JSON 都是 **static evidence**；
+- contract tests 对 exact JSON/schema/order/parity 的执行结果是 **deterministic contract evidence**；
+- Contract 0.1 文件是 **historical freeze evidence**；
+- 无 fixture 可称为 simulated/native Codex、real DeepSeek、registry package 或 released artifact。

@@ -1,70 +1,134 @@
 # Dev Flow
 
-Dev Flow 是一个本地开发流程控制 Monorepo。共享 Go Core 通过本地 STDIO MCP 管理单仓库、
-单活动任务；Codex 产品以显式 Skill 调用 Core，Core 仍是任务状态、流程转换、恢复判断与终态的
-唯一权威。
+Dev Flow 是一个由 Go Core 状态图驱动的开发过程管理工具。它记录开发者当前位于需求、
+设计、任务拆分、实现、测试、理解审查、重构或交付中的哪个节点，并返回该节点的目标、完成
+条件、证据要求和全部合法下一流转。Codex 等 Host 负责执行用户明确授权的工作；Core 是任务、
+过程、流转、恢复和终态的唯一权威。
 
-当前仓库已经交付：
+Dev Flow 解决的是开发过程容易失去上下文的问题：开发者或 AI 可能跳过需求和设计、在测试
+通过后直接交付难以维护的实现，或在中断和不确定 mutation 后凭聊天记录猜测下一步。一个
+Core 读取即可回答“当前在哪里、需要完成什么、可以去哪里以及为什么”。
 
-- Core Contract 0.1：SQLite 持久化、只读 Git 观察、八个正常阶段、五类恢复和恰好六个 MCP 工具；
-- Feature 003 Codex 显式产品：Plugin、`dev-flow` Skill、本地 MCP 注册、显式 setup/remove，
-  并完成真实 Codex create/restart/resume/`DONE`/remove 验收；
-- Feature 005：不确定 mutation 的 read-before-retry 证明与 repository drift 加固；
-- Feature 006 的确定性实现：固定 public package 合同、source-free 本地 tgz 安装、兼容升级、
-  retained task reopen、两工作树发布准备、验证器、可恢复 publisher、final Journey 合同与
-  finalization gate。
+当前 Feature 008 分支中的图运行时是 **unreleased source-local behavior**。仓库历史上的
+`0.3.0` Tag、npm 包、Release 和 Features 001–007 证据保持不变；公开的 `0.3.0` 包不能被视为
+必然包含本文描述的图运行时。正式发布需要未来单独批准的 Release Change。
 
-Feature 006 的确定性实现与合并前门禁 T001–T046 已通过。`dev-flow-codex@0.1.0` 已采用公开包
-元数据，但尚未执行 npm/GitHub 真实发布。public npm publication、registry read-back、最终
-registry-package Codex Journey 和公开 GitHub Release 仍由 Feature 006 的 T047–T050 完成。
+## 开发过程图
+
+当前源码只包含内建的 `standard-development@1`，共有 9 个正常工作节点、`DONE` 终态以及
+`BLOCKED`、`CANCELLED` 两个异常节点，合计 11 个节点和 29 条正常流转。
+
+```mermaid
+flowchart LR
+    R[REQUIREMENTS] --> D[DESIGN]
+    D --> T[TASKS]
+    T --> I[IMPLEMENT]
+    I --> V[TEST]
+    V --> C[COMPREHENSION_REVIEW]
+    C --> L[DELIVERY]
+    L --> O[DONE]
+    C --> F[REFACTOR]
+    F --> V
+    V -. 需求/设计/实现问题 .-> R
+    C -. 理解或证据问题 .-> D
+    L -. 交付缺口 .-> I
+```
+
+图中的虚线只概括受控回退。精确的 29 条边、guard、问题分类和 reason 规则见
+[Development Process Graph Contract](specs/008-refactor-to-development-process-graph/contracts/process-graph.md)。
+调用者只提交 Core 返回的 `transition_id`；目标节点由 Core 推导，Adapter 不能提供或发明
+destination。
+
+每个当前 Action 至少返回：
+
+- 当前 process、节点和 action identity；
+- 节点目的、进入条件和完成条件；
+- 允许的 Host 副作用与所需证据；
+- 选定的 method profile 和 tool-neutral semantic method steps；
+- 全部合法 transitions，以及每条 transition 的 destination、guard、选择条件和 reason 规则。
+
+需求修订、设计返工、测试失败、理解失败、重构和交付拒绝都会通过显式边回到正确节点，并
+使下游过期 authority 失效。状态图记录真实迭代，而不是假设开发只能线性成功。
+
+## 理解审查与重构
 
 ```text
-Codex explicit Skill
-        │ local Plugin + STDIO MCP declaration
-        ▼
-dev-flow Core
-        │
-Application → Workflow / Recovery → read-only Git + SQLite
+TEST 通过 ≠ 可以直接交付
 ```
 
-项目使用 [Apache License 2.0](LICENSE)，产品版本以根 [VERSION](VERSION) 为唯一
-repository-visible source。
+测试通过后必须进入 `COMPREHENSION_REVIEW`。开发者明确确认能够解释和维护当前实现后，
+任务才可进入 `DELIVERY`。如果结果难以理解，可以按 Core 返回的边进入：
 
-## 工具链
+- `REFACTOR`：代码存在不必要复杂度；
+- `DESIGN`：设计本身过度复杂；
+- `TEST`：验证证据不足；
+- `REQUIREMENTS`：需求仍不清楚；
+- `IMPLEMENT`：实现存在缺陷。
 
-- Go `>= 1.26`；
-- Node.js `>= 24`，且版本仍在官方支持周期；
-- pnpm `>= 11 < 12`；
-- 官方最新稳定版 Spec Kit。
+任何改变仓库内容的重构都必须回到 `TEST`，重新建立测试和理解证据。
 
-完整范围见 [工具链兼容策略](docs/TOOLCHAIN-BASELINES.md)。安装根 workspace 时不执行脚本：
+## Method profiles
 
-```bash
-pnpm install --frozen-lockfile --ignore-scripts
+新任务选择且始终保留一个 profile：
+
+```text
+plain
+spec-kit
+openspec
 ```
 
-## 使用边界
+三种 profile 共用同一个 Core 状态图。Spec Kit 和 OpenSpec 只帮助完成当前节点的 semantic
+method steps；它们不保存第二个游标，checkbox、archive 或命令成功也不会直接推进 Core。
+工具不可用时，Adapter 会诚实报告 capability unavailable，并可执行合同允许的
+plain-equivalent work；只有一次有效的 Core apply 才能完成流转。
 
-Core CLI 只接受 help、version 与精确的本地 STDIO 模式：
+## 不确定 mutation 与 Recovery
 
-```bash
-go run ./cmd/dev-flow --help
-go run ./cmd/dev-flow version
-DEV_FLOW_DATA_DIR="$(mktemp -d)" go run ./cmd/dev-flow mcp --stdio
+调用者在 mutation 前保留 operation identity、source cursor、revision、action、repository
+binding 和原始 closed payload。响应缺失、取消、损坏、截断或传输失败时不得盲目重试：先用
+operation probe 读取 Core 的权威状态。Core 会给出以下五类之一：
+
+```text
+not_started
+completed_and_recorded
+completed_but_unrecorded
+partially_completed
+conflicting
 ```
 
-最终公开发布后，标准 Codex 安装入口是：
+只有 Core 能决定安全重试、recovery apply 或进入 `BLOCKED`。阻塞解除后，任务只返回保存的
+resume node。详细合同见 [MCP Tools 0.2](specs/008-refactor-to-development-process-graph/contracts/mcp-tools-0.2.md)。
 
-```bash
-npm install -g dev-flow-codex
-dev-flow-codex setup
+## 存储边界
+
+当前图源码使用：
+
+```text
+SQLite Schema 2
+Snapshot Version 2
+standard-development@1
 ```
 
-这两个 registry 命令是最终用户合同，不是当前发布完成声明；`dev-flow-codex` 的 public npm
-publication 仍等待 T047–T050。普通 npm install/update/uninstall 只管理包文件，Codex 注册只能由
-显式 `setup`/`remove` 修改，任务数据库默认保留。
+Feature 008 不兼容任何历史 Task。检测到 Schema 1 或其他 pre-graph 数据时，Core 返回
+`SCHEMA_UNSUPPORTED`，并且不修改、不迁移、不删除也不自动 reset 旧数据。用户必须显式使用
+新的 `DEV_FLOW_DATA_DIR`，或在 Core 外部手工 archive、rename 或 delete 旧目录。setup、update、
+remove 和 uninstall 同样不会自动清除任务数据。完整边界见
+[Storage Generation 2 Contract](specs/008-refactor-to-development-process-graph/contracts/storage-generation-2.md)。
 
-Core 公开工具恰好是：
+## 使用入口与发布边界
+
+Codex Skill 只接受精确显式 selector：
+
+```text
+$dev-flow-codex:dev-flow
+```
+
+已公开版本的 registry 安装、历史兼容范围与证据以对应 Release 文档为准。当前 Feature 008
+图能力只能从本分支源码构建 source-local、unpublished、commit-bound test artifact；它不是
+official `0.3.0` artifact，也不能上传 registry。构建器用法见
+[Codex package README](packages/codex/README.md)。
+
+Core 的公开 MCP 工具仍恰好六个：
 
 ```text
 dev_flow_server_info
@@ -75,90 +139,40 @@ dev_flow_apply_action
 dev_flow_cancel_task
 ```
 
-任务、输入、结果与恢复合同见
-[Feature 002 MCP Tools](specs/002-govern-and-resume-single-repository-task/contracts/mcp-tools.md)。
+传输仅限 local STDIO。Core 可以有界、只读地观察 Git，但不会 checkout、reset、clean、stash、
+commit、merge、rebase、push、tag、publish 或暴露 generic shell。
 
-## 证据边界
+## 开发与验证
 
-| 证据 | 当前状态 |
-| --- | --- |
-| Feature 003 真实 Codex create/restart/resume/`DONE`/remove | 已完成 |
-| Feature 005 recovery 与 Feature 006 本地 tgz/lifecycle/upgrade 测试 | 已完成的确定性证据 |
-| Feature 006 fake npm/gh publication、resume/conflict、finalization gate | 已完成的确定性 fixture 证据 |
-| public npm、registry tarball、最终 registry-package Journey、GitHub assets/Release | 尚未执行 |
+工具链为 Go `>=1.26`、Node.js `>=24` 和 pnpm `>=11 <12`；具体基线见
+[Toolchain Baselines](docs/TOOLCHAIN-BASELINES.md)。
 
-fake、fixture、静态合同和本地 tgz 证据不构成 public registry 或真实 Release 证据。
-
-## 验证
-
-本地与 Pull Request CI 共用一个 preparation-safe 入口：
+Feature 008 的阶段性实现只运行活动任务批准的定向检查。最终 repository-wide 验证保留给
+Feature 的最终门禁：
 
 ```bash
 pnpm run validate
 ```
 
-当前入口依次检查 toolchain、工作区 whitespace、Go formatting、Codex 源文件和根脚本 allowlist、
-DeepSeek zero-diff（提供 `RELEASE_BASE_SHA` 时）、release shell/Node/fake CLI 语法、Go release
-contracts、Codex public package contract、`go list`/`go vet`/`go test ./...`、冻结 pnpm install、
-workspace inventory，以及 Codex public source package 与 DeepSeek deferred skeleton 的 dry-pack。
+该命令不发布 npm、不创建 Tag/Release，也不执行真实 Host Journey。
 
-该入口不调用 publisher，不读取 npm/GitHub 发布身份，不创建或推送 Tag，不创建/上传/发布
-GitHub Release，不执行 npm publish，也不运行真实 Codex/DeepSeek Host Journey。
+## 目录与权威
 
-## 目录边界
-
-| 路径 | 当前所有权 |
+| 路径 | 职责 |
 | --- | --- |
-| `cmd/dev-flow/` | 唯一 CLI 与本地 STDIO server lifecycle |
-| `internal/domain/` | Task、Contract、Action、Outcome、稳定错误与 Core Limits |
-| `internal/workflow/` | 唯一状态转换与 closed action payload authority |
-| `internal/recovery/` | 唯一五类恢复与 repository reconciliation authority |
-| `internal/repository/` | read-only Git observation 与 binding digest authority |
-| `internal/store/` | SQLite snapshot、migration、CAS 与 repository claim |
+| `cmd/dev-flow/` | CLI、version 和 local STDIO server |
+| `internal/domain/` | ProcessTask、TaskIntent、baselines、evidence、outcome 和 limits |
+| `internal/workflow/` | `standard-development@1`、node/transition 和 payload authority |
+| `internal/recovery/` | 五类 reconciliation、blocker 和 read-before-retry authority |
+| `internal/repository/` | 只读 Git observation 和 binding digest |
+| `internal/store/` | Fresh Schema 2、strict snapshot-v2、CAS、events 和 claims |
 | `internal/application/` | Core use-case orchestration |
-| `internal/mcp/` | 六工具 thin adapter、strict JSON 与 typed result envelope |
-| `protocol/fixtures/` | Codex/DeepSeek 共用的 Core Contract 0.1 fixtures |
-| `tests/contract/` | repository、Schema、MCP、package 与 release contracts |
-| `packages/codex/` | public package metadata、launcher/lifecycle、Plugin、Skill、MCP 声明、runtime staging 合同与测试 |
-| `packages/deepseek/` | deferred、未实现、未发布的私有 skeleton |
-| `release/` | Release Schema、bounded fixtures 与 operator 文档；不存放生成制品 |
-| `scripts/` | 本地 builder、两工作树 prepare、verifier、resumable publisher 与 final Journey evidence |
+| `internal/mcp/` | Contract 0.2 六工具、closed JSON 和 typed envelope |
+| `packages/codex/` | explicit-only Codex Adapter、Skill、method renderer 和 local package |
+| `protocol/fixtures/` | 历史 0.1、当前 0.2、Host parity 和 Recovery fixtures |
+| `tests/contract/`, `tests/journeys/` | deterministic contract 与 process evidence |
 
-详细依赖与权威边界见 [架构文档](docs/ARCHITECTURE.md)，当前能力与非目标见
-[产品定义](docs/PRODUCT.md)。
-
-## 当前范围外
-
-- T047–T050 的真实 npm、Git Tag、GitHub Release、registry-package Journey 与公开支持证据；
-- DeepSeek product integration、Harness journey 与 publication；
-- Linux、Windows、Intel Mac 或其他平台支持；
-- Web UI、remote MCP、HTTP/SSE、authentication、telemetry、multi-repository 或 cross-host takeover；
-- Core Git mutation、generic shell、自动 repository repair、自动更新、签名或 notarization。
-
-## Spec Kit
-
-活动 Feature 由 `.specify/feature.json` 或 `SPECIFY_FEATURE_DIRECTORY` 选择，不能只从 Git branch
-推断。Feature 006 的现有规格包是本轮权威，不应重新生成：
-
-```bash
-export SPECIFY_FEATURE_DIRECTORY="$PWD/specs/006-publish-codex-installable-product"
-```
-
-不要重复初始化已有 `.specify/` 或修改 `.agents/skills/speckit-*` 生成资产。
-
-## 文档索引
-
-- [贡献与代理规则](AGENTS.md)
-- [项目 Constitution](.specify/memory/constitution.md)
-- [产品定义](docs/PRODUCT.md)
-- [架构与依赖边界](docs/ARCHITECTURE.md)
-- [工具链兼容策略](docs/TOOLCHAIN-BASELINES.md)
-- [Spec Kit 工作流](docs/SPEC-KIT-WORKFLOW.md)
-- [Feature 依赖关系](docs/FEATURE-DEPENDENCIES.md)
-- [路线图](docs/ROADMAP.md)
-- [发布策略](docs/RELEASE-STRATEGY.md)
-- [Release operator 文档](release/README.md)
-- [Feature 002 Core Contract 规格](specs/002-govern-and-resume-single-repository-task/spec.md)
-- [Feature 003 Codex 产品规格](specs/003-codex-explicit-dev-flow/spec.md)
-- [Feature 005 恢复加固规格](specs/005-recover-uncertain-actions-and-drift/spec.md)
-- [Feature 006 发布规格包](specs/006-publish-codex-installable-product/README.md)
+阅读顺序从 [Constitution](.specify/memory/constitution.md)、
+[Spec Kit Workflow](docs/SPEC-KIT-WORKFLOW.md) 开始。当前 Feature 的完整规格入口是
+[Feature 008](specs/008-refactor-to-development-process-graph/README.md)，稳定产品边界和实现结构
+分别见 [Product](docs/PRODUCT.md) 与 [Architecture](docs/ARCHITECTURE.md)。

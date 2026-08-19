@@ -3,7 +3,8 @@
 **Input**: Complete Feature 008 package in
 `specs/008-refactor-to-development-process-graph/`
 
-**Status**: Implementing — User Story 4 and Phase 7A–7C complete; Phase 8 remains unstarted.
+**Status**: Implementing — User Story 4 and Phase 7A–7C complete; Phase 8A documentation and
+targeted acceptance complete, source-local artifact preparation pending.
 
 **Release Boundary**: Every task in this file is source/local-evidence work. No task may modify
 `VERSION`, publish npm, create/move a Tag, mutate a GitHub Release, or claim final registry support.
@@ -366,17 +367,17 @@ unstarted.
 
 **Goal**: Reconcile delivered behavior and run the one allowed full/local-host gates.
 
-- [ ] T086 Update `README.md` with the delivered graph-based local behavior, exact current release
+- [x] T086 Update `README.md` with the delivered graph-based local behavior, exact current release
   boundary, and no statement that an unpublished graph version is available from npm.
-- [ ] T087 [P] Update `docs/PRODUCT.md` and `docs/ARCHITECTURE.md` with TaskIntent/baselines,
+- [x] T087 [P] Update `docs/PRODUCT.md` and `docs/ARCHITECTURE.md` with TaskIntent/baselines,
   single standard process authority, method profiles, comprehension/refactor loop, fresh Schema 2, and
   unchanged six-tool/read-only Git boundaries.
-- [ ] T088 [P] Update `docs/ROADMAP.md` and `MANIFEST.md` only with Feature 008 delivered status and a
+- [x] T088 [P] Update `docs/ROADMAP.md` and `MANIFEST.md` only with Feature 008 delivered status and a
   separate future Release Change; retain historical 0.3.0 identities.
-- [ ] T089 [P] Update `packages/codex/README.md`,
+- [x] T089 [P] Update `packages/codex/README.md`,
   `protocol/fixtures/README.md`, and `tests/{contract,journeys}/README.md` for the implemented local
   Contract 0.2 evidence classes without public-release claims.
-- [ ] T090 Run the complete targeted Go and Codex package sets named by prior checkpoints once after
+- [x] T090 Run the complete targeted Go and Codex package sets named by prior checkpoints once after
   documentation reconciliation; fix only concrete failures.
 - [ ] T091 Build one source-local Codex package artifact with the existing local builder, verify
   package/Core identity and closed contents, and keep it outside the repository; do not publish.

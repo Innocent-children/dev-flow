@@ -1,163 +1,70 @@
 # Dev Flow 发展路线
 
-路线图按能力门禁推进，不按日历承诺。当前批准路线优先交付可用的 Codex 产品；DeepSeek
-Harness 产品保留但延期。
+路线图描述当前源码能力、尚未完成的 Feature 门禁和真正的未来方向。已经完成的 Features
+001–007 与公开 `0.3.0` 保留为历史证据，不在这里重述实施流水账。
 
-## Stage 0：Monorepo 工程基础
+## 当前源码：Development Process Graph
 
-**规格**：`001-bootstrap-monorepo`
+**规格**：[`008-refactor-to-development-process-graph`](../specs/008-refactor-to-development-process-graph/README.md)
 
-已交付根级 Spec Kit、Constitution、Go module、pnpm workspace、Core/Codex/DeepSeek 责任
-边界、单一版本源与有界 CI。
+Feature 008 当前源码已经实现：
 
-## Stage 1：共享流程内核 MVP
+- 内建 `standard-development@1`，11 个节点和 29 条正常流转；
+- `TaskIntent`、versioned requirements/design/task-plan baselines 和 authority invalidation；
+- TEST、COMPREHENSION_REVIEW、REFACTOR 与受控回退循环；
+- `plain`、`spec-kit`、`openspec` method profiles；
+- Core Contract 0.2 六工具与 closed graph payload；
+- Fresh Schema 2、strict snapshot-v2 和无历史任务兼容的零写入拒绝；
+- 五分类 graph-native recovery、CAS、BLOCKED/resume、restart 和 retained data；
+- Codex explicit-only Adapter、Skill 和 method-profile renderer。
 
-**规格**：`002-govern-and-resume-single-repository-task`
-
-用户闭环：
-
-```text
-创建任务
-→ 获取下一动作
-→ 提交阶段结果
-→ 退出进程
-→ 重启
-→ 恢复任务
-→ 继续流程
-→ 完成交付
-```
-
-已交付单仓库、单状态机、六个 MCP 工具、SQLite、revision、repository claim、验证预算、
-只读 Git 指纹、基础五类恢复和本地 STDIO，并冻结 Core Contract 0.1。
-
-## Stage 2：Codex 产品 MVP
-
-**规格**：`003-codex-explicit-dev-flow`
-
-用户闭环：
+Phase 8A 完成后的准确状态为：
 
 ```text
-安装本地产品
-→ $dev-flow 启动真实任务
-→ 完成阶段
-→ 关闭 Codex
-→ 新会话恢复
-→ Core DONE
-→ 删除产品且保留任务数据
+source implementation complete through local artifact preparation;
+final native acceptance and final feature gate pending
 ```
 
-退出条件：
+在 T095 之前，Feature 008 仍为 `Implementing`，不得声明 Complete、released、published、ready
+for merge 或 production available from npm。
 
-- 一个私有本地包携带一个 Runtime、Plugin、Skill 和 MCP；
-- 普通请求不进入 Dev Flow；
-- Core 保持唯一流程权威；
-- 重启后恢复同一任务；
-- setup/remove 边界与 retained data 通过；
-- 最终真实 Codex acceptance 通过；
-- 003 合并到 `main`。
+## 待完成：Final Feature Gate
 
-## Stage 3：恢复加固
+Phase 8B 只包含：
 
-**规格**：`005-recover-uncertain-actions-and-drift`
+1. 使用 Phase 8A 保留的精确 source-local artifact 运行一次 native Codex Journey；
+2. 运行唯一一次最终 `RELEASE_BASE_SHA=... pnpm run validate`；
+3. 运行最终 Spec Kit analyze/converge；
+4. 收敛 Feature 状态和全部 evidence labels。
 
-005 不再等待 DeepSeek。它在已合并 Codex 产品与 Core Contract 0.1 上证明：
+该门禁仍不执行 npm publication、Tag、GitHub Release 或 public installation claim。
 
-- mutation 提交后结果丢失；
-- pre-commit 失败；
-- 响应截断与写入失败；
-- completed-and-recorded / completed-but-unrecorded；
-- partial / conflicting；
-- branch、HEAD、tracked/untracked、路径和 repository identity 漂移；
-- 两个 Core handle 并发恢复。
+## Feature 008 之后：独立 Release Change
 
-退出条件：
+公开图产品必须由单独批准的 Release Feature/PR 完成：
 
-- 五种既有恢复分类都有确定性测试；
-- 不确定 mutation 必须 read-before-retry；
-- 提交后结果丢失只产生一次 revision/event；
-- 冲突读取零写入；
-- 两个 handle 最多一个提交；
-- 不新增 MCP 工具、状态、恢复类、Schema 或生产故障开关；
-- `packages/deepseek/` 不变。
+- 选择发布版本；
+- 对齐 `VERSION`、package、plugin 和 bundled Core identity；
+- 从一个 reviewed clean source identity 构建 official artifact；
+- 执行 npm publication 和 registry read-back；
+- 创建精确 Git Tag 和 GitHub Release；
+- 上传、回读并验证 official assets；
+- 使用最终分发制品完成要求的 native Journey；
+- 形成与真实证据一致的 platform/Host/public installation claim。
 
-## Stage 4：Codex 首个公开 0.x Release
+当前 Feature 不预选发布版本，也不把 source-local acceptance artifact 称为 release candidate
+或 official artifact。
 
-**规格**：`006-publish-codex-installable-product`
+## 未来产品方向
 
-用户闭环：
+只有真实使用证明价值并建立独立规格后，才考虑：
 
-```text
-npm install -g dev-flow-codex
-→ 显式 setup
-→ $dev-flow 创建任务
-→ Codex 重启与恢复
-→ Core DONE
-→ 显式 remove
-→ npm uninstall
-→ retained task 仍可读取
-```
+- 新平台或架构的最终制品；
+- 只读 doctor 和任务检查；
+- 有明确用户授权的跨 Host handoff；
+- verification budget 或 shared contract 的下一次版本化修订；
+- 独立实现和验收的 DeepSeek 产品；
+- 供应链签名、notarization 或透明度证据。
 
-首版边界：
-
-- 产品：仅 `dev-flow-codex`；
-- 平台：仅 macOS arm64；
-- 制品：一个 npm 包，内含一个 Go Runtime；
-- 发布：显式 operator 流程，不由 PR CI 发布；
-- 完整性：一个版本、一个 source commit/tree、一个 Tag、一个 Draft/Release；
-- 远端 npm/GitHub 制品全部下载回读；
-- 最终 journey 必须使用 registry package；
-- 失败保留真实 publication record，不伪造回滚。
-
-退出条件：
-
-- 两次干净构建的 Runtime 与标准化包内容一致；
-- public package allowlist、模式、版本、Core identity 通过；
-- npm/GitHub read-back 通过；
-- 最终 registry-package Codex journey 通过；
-- removal/uninstall 保留任务数据；
-- Release 只声明实际验证的平台与 Host；
-- DeepSeek 不被发布或宣称支持。
-
-## 延期路线：DeepSeek 产品
-
-**规格**：`004-deepseek-explicit-dev-flow`  
-**状态**：DEFERRED
-
-恢复条件：
-
-- 使用当时官方稳定 Harness，而不是沿用旧 RC 假设；
-- 宿主能满足修订后的显式调用与完整结果合同；
-- 从当前 `main` 重新评估 package/profile/MCP 行为；
-- 保持 Core 与已发布 Codex 兼容；
-- 完成独立真实 Harness journey；
-- 通过新的 DeepSeek 发布 Feature 公开产品。
-
-004 的延期不降低未来 DeepSeek 质量门禁，也不阻塞当前 Codex 0.x 路线。
-
-## MVP 后候选能力
-
-只有真实使用达到准入条件时才建立新规格：
-
-- 合同修订与 verification budget delta；
-- 只读 doctor；
-- 用户授权的跨宿主 handoff；
-- Linux、Windows 或其他架构；
-- 只读任务检查；
-- 签名、notarization 或供应链透明度；
-- 多平台 Runtime 包拆分。
-
-## 1.0.0 门禁
-
-`1.0.0` 仍要求：
-
-- Codex 与 DeepSeek 两个产品都可公开安装；
-- 两个宿主都有真实创建、重启、恢复、完成与删除证据；
-- 公共 MCP、Result Envelope、Recovery 与 SQLite 升级政策稳定；
-- 不确定 mutation 恢复经过真实使用验证；
-- Adapter 不复制状态机或任务存储；
-- Core 不操作用户 Git；
-- 安装、升级和删除不会丢失任务；
-- 每个支持平台都有最终制品证据；
-- 真实使用证明流程治理与恢复具有稳定价值。
-
-Codex-only `0.x` Release 是通往 1.0 的阶段性交付，不等于放弃第二个产品。
+用户自定义 graph、workflow DSL、Web UI、remote MCP、generic shell、Core Git mutation、
+multi-repository 和自动历史任务迁移不属于当前路线。

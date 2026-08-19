@@ -1,20 +1,38 @@
 # Core Journeys
 
-This directory owns process-level journeys for the shared Dev Flow Core. Feature 002 adds the
-restart journey only after the application and MCP slices exist; Phase 1–2 reserve this boundary and
-do not create a fake adapter or in-process substitute for restart evidence.
+本目录验证 shared Go Core 的跨层开发过程行为。所有 repository 和 SQLite 数据均位于测试框架
+管理的临时目录；测试完成后不保留用户数据，不修改真实 Git repository 或 Codex 配置。
 
-Journey fixtures must use temporary repositories and data directories, report simulated or
-user-performed evidence honestly, and leave no database or repository state behind.
+## 已实现 Journey
 
-Feature 005 recovery journeys use only `t.TempDir()` for SQLite databases, Git repositories, JSON,
-and bounded helper output. Test setup may initialize and commit a temporary repository fixture.
-After setup, the recovery helper exposes read-only Git observations only and compares HEAD plus the
-complete porcelain status before and after Core calls. The journey fails if Core or its test helper
-mutates the target repository.
+| 文件 / Journey | 能力 | 证据类型 |
+| --- | --- | --- |
+| `process_graph_navigation_test.go` | 创建 Graph Task、REQUIREMENTS/DESIGN 导航、完整合法出边、invalid edge zero-write | in-process deterministic；real temporary Git/SQLite |
+| `process_graph_iteration_test.go` | IMPLEMENT/TEST/COMPREHENSION_REVIEW/REFACTOR/retest/delivery、negative comprehension/delivery | in-process deterministic；real temporary Git/SQLite |
+| `process_graph_iteration_test.go` rework cases | requirements/design/delivery remediation 和 downstream authority invalidation | in-process deterministic；real temporary Git/SQLite |
+| `recovery_uncertainty_test.go` | graph operation probe、五分类、read-before-retry、blocker/recovery apply | in-process deterministic；real temporary Git/SQLite |
+| `process_graph_concurrency_test.go` | 两个 Store/Application handle 对同一 mutation 的 CAS 竞争与单次提交 | two-handle deterministic；real temporary Git/SQLite |
+| `process_graph_restart_test.go` | COMPREHENSION_REVIEW 跨进程关闭/重开、同一 task/action/baseline/test/profile/transition | subprocess；real temporary Git/SQLite |
+| `storage_generation_boundary_test.go` | direct Schema 2 bootstrap、Schema 1 zero-write rejection、显式新目录、restart | in-process deterministic；real temporary Git/SQLite |
 
-Failure labels describe only their deterministic boundary: `pre_commit`, `post_commit_discard`,
-`pre_serialization`, `partial_write`, and `restart`. They are not real-host crash evidence. Stores,
-database handles, observers, application services, and related Core objects are closed or discarded
-before a restart/read-back assertion creates replacements. Test-owned directories are removed by
-the Go test framework when each test finishes.
+测试 helper 可以在 setup 阶段初始化并 commit 临时 repository。进入 Core Journey 后，Repository
+Observer 只执行有界只读 Git 观察；测试会比较预期 repository state，并关闭/丢弃旧 Store、DB
+handle、observer 和 service 后再证明 restart。
+
+## Adapter 与 native 边界
+
+`packages/codex/tests/journey-harness.test.mjs` 和相关 fixture 验证 simulated Codex Adapter/Harness
+控制流、parser 和 evidence closure。它们属于 **simulated Codex adapter** evidence，不属于本目录
+Go Journey，也不能标记为 real/native Codex。
+
+Feature 003 历史 native evidence 仍是对应已发布合同的冻结事实。Feature 008 Contract 0.2 的
+**native Codex** Journey 在 T092 前为 **not executed**。当前 Journey 不证明 released package、
+registry artifact、真实 Codex setup/remove 或 public support。
+
+## Evidence rules
+
+- `in-process deterministic`、`real temporary Git/SQLite`、`two-handle`、`subprocess`、
+  `simulated Codex adapter` 和 `native Codex` 必须保持不同标签；
+- failure injection/response-loss fixtures 只证明其确定性边界，不是 real-host crash；
+- fake、fixture、static、user-performed 或 simulated evidence 不能升级为 native evidence；
+- Journey 不写入 repository artifact、用户 HOME、真实数据库路径或真实 Codex state。
