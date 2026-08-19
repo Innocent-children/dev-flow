@@ -20,7 +20,7 @@ func TestProcessTaskBaselineMonotonicityAndInvalidation(t *testing.T) {
 	task.Design.RequirementsRevision = 1
 	task.TaskPlan = &TaskPlanBaseline{Revision: 1, Digest: digest, DesignRevision: 1, WorkItems: []WorkItem{{WorkItemID: "work", Summary: "Work", VerificationSteps: []string{"Test"}}}, CreatedAt: now}
 	task.Test = &TestRecord{RecordID: "test", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, RepositoryBindingDigest: digest, PassedAt: now}
-	task.Comprehension = &ComprehensionAssessment{RecordID: "review", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, RepositoryBindingDigest: digest, ExplainedComponents: []string{"component"}, UserEvidenceID: "user", ConfirmedAt: now}
+	task.Comprehension = &ComprehensionAssessment{RecordID: "review", TestRecordID: "test", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, RepositoryBindingDigest: digest, ExplainedComponents: []string{"component"}, UserEvidenceID: "user", ConfirmedAt: now}
 	task.InvalidateForDestination(NodeDesign)
 	if task.TaskPlan != nil || task.Test != nil || task.Comprehension != nil {
 		t.Fatal("design invalidation retained downstream authority")

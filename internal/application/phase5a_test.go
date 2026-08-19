@@ -13,7 +13,7 @@ import (
 )
 
 func TestRequirementsBaselineRevisionDigestHistoryAndInvalidation(t *testing.T) {
-	s, ms, _ := phase5Service(t)
+	s, _, _ := phase5Service(t)
 	task := openPhase5Task(t, s)
 	requirements := requirementsNodeResult("Goal", []string{"criterion-a", "criterion-b"})
 	task = applyPhase5(t, s, task, "requirements_ready", "", requirements)
@@ -21,12 +21,6 @@ func TestRequirementsBaselineRevisionDigestHistoryAndInvalidation(t *testing.T) 
 	task = applyPhase5(t, s, task, "design_ready", "", designNodeResult(1, "Direct design"))
 	task = applyPhase5(t, s, task, "tasks_ready", "", tasksNodeResult(1, []map[string]any{workItem("work-a", []uint32{0, 1}, nil)}))
 
-	// Current downstream records are valid authorities and must be cleared by the requirement return.
-	now := task.UpdatedAt
-	task.Evidence = append(task.Evidence, phase5UserEvidence(now, "user-old"))
-	task.Test = &domain.TestRecord{RecordID: "test-old", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, RepositoryBindingDigest: task.Repository.BindingDigest, PassedAt: now}
-	task.Comprehension = &domain.ComprehensionAssessment{RecordID: "review-old", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, RepositoryBindingDigest: task.Repository.BindingDigest, ExplainedComponents: []string{"component"}, UserEvidenceID: "user-old", ConfirmedAt: now}
-	ms.task = &task
 	task = applyPhase5(t, s, task, "implementation_requires_requirements", "Acceptance changed.", implementationNodeResult(1, nil, true, []string{"Requirement gap"}))
 	if task.CurrentNode != domain.NodeRequirements || task.Design != nil || task.TaskPlan != nil || task.Implementation != nil || task.Test != nil || task.Comprehension != nil {
 		t.Fatal("requirements return retained downstream authority")
@@ -174,11 +168,6 @@ func TestImplementationTransitionsRecordsRepositoryEffectsAndZeroWrites(t *testi
 func TestImplementationRevisionAndCurrentEvidenceInvalidation(t *testing.T) {
 	s, ms, _ := phase5Service(t)
 	task := phase5TaskAtImplement(t, s)
-	now := task.UpdatedAt
-	task.Evidence = append(task.Evidence, phase5UserEvidence(now, "user-old"))
-	task.Test = &domain.TestRecord{RecordID: "test-old", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, RepositoryBindingDigest: task.Repository.BindingDigest, PassedAt: now}
-	task.Comprehension = &domain.ComprehensionAssessment{RecordID: "review-old", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, RepositoryBindingDigest: task.Repository.BindingDigest, ExplainedComponents: []string{"component"}, UserEvidenceID: "user-old", ConfirmedAt: now}
-	ms.task = &task
 	task = applyPhase5(t, s, task, "implementation_needs_refactor", "Complexity found.", implementationNodeResult(1, []string{"work-a"}, true, []string{"Complexity"}))
 	if task.Test != nil || task.Comprehension != nil || task.Implementation == nil || task.Implementation.Revision != 1 {
 		t.Fatal("implementation did not invalidate current evidence")
@@ -186,7 +175,7 @@ func TestImplementationRevisionAndCurrentEvidenceInvalidation(t *testing.T) {
 
 	// Simulate the contract-defined tested rework return without implementing the later TEST mutation slice.
 	task.CurrentNode = domain.NodeImplement
-	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), domain.NodeImplement, task.TaskID, task.Revision, task.Repository.BindingDigest, task.Intent.MethodProfile, "action-rework", now)
+	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), domain.NodeImplement, task.TaskID, task.Revision, task.Repository.BindingDigest, task.Intent.MethodProfile, "action-rework", task.UpdatedAt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,11 +251,27 @@ func assertApplyFails(t *testing.T, s *Service, task domain.ProcessTask, transit
 }
 func phase5Payload(t *testing.T, transition, reason string, nodeResult any) json.RawMessage {
 	t.Helper()
+	if fields, ok := nodeResult.(map[string]any); ok {
+		fields["problem_class"] = phase5ProblemClass(transition)
+	}
 	raw, err := json.Marshal(map[string]any{"transition_id": transition, "summary": "Result recorded.", "reason": reason, "artifacts": []any{}, "method_evidence": []any{}, "node_result": nodeResult})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return raw
+}
+func phase5ProblemClass(transition string) string {
+	classes := map[string]string{
+		"requirements_ready": "none",
+		"design_ready":       "none", "design_requires_requirements": "requirement_gap",
+		"tasks_ready": "none", "tasks_require_design": "design_gap", "tasks_require_requirements": "requirement_gap",
+		"implementation_ready_for_test": "none", "implementation_requires_design": "design_gap", "implementation_requires_requirements": "requirement_gap", "implementation_needs_refactor": "code_complexity",
+		"tests_passed": "none", "tests_failed_implementation": "implementation_failure", "tests_expose_design_issue": "design_failure", "tests_expose_requirement_issue": "requirement_gap",
+		"comprehension_passed": "none", "implementation_defect": "implementation_defect", "code_too_complex": "code_complexity", "design_too_complex": "design_complexity", "evidence_insufficient": "verification_gap", "requirement_unclear": "requirement_gap",
+		"refactor_ready_for_test": "none", "refactor_requires_design": "design_change", "refactor_requires_requirements": "requirement_change",
+		"delivery_complete": "none", "delivery_needs_implementation": "implementation_gap", "delivery_needs_test": "test_gap", "delivery_needs_comprehension": "comprehension_gap", "delivery_needs_design": "design_gap", "delivery_needs_requirements": "requirement_gap",
+	}
+	return classes[transition]
 }
 func requirementsNodeResult(goal string, acceptance []string) map[string]any {
 	return map[string]any{"baseline": map[string]any{"goal": goal, "scope": []string{}, "out_of_scope": []string{}, "acceptance_criteria": acceptance, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}}

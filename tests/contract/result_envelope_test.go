@@ -15,6 +15,13 @@ func TestResultEnvelopeContract02(t *testing.T) {
 	failure := core.EncodeError("request-error", core.ToolGetTask, domain.ErrStorageUnavailable)
 	assertEnvelope(t, failure, true)
 }
+func TestRecoveryUnavailableResultEnvelope(t *testing.T) {
+	encoded := core.EncodeError("request-recovery", core.ToolApplyAction, domain.ErrRecoveryUnavailable)
+	assertEnvelope(t, encoded, true)
+	if !bytes.Contains(encoded.JSON, []byte(`"code":"RECOVERY_UNAVAILABLE"`)) || !bytes.Contains(encoded.JSON, []byte(`"retry_safe":false`)) || !bytes.Contains(encoded.JSON, []byte(`"action":"none"`)) {
+		t.Fatal(string(encoded.JSON))
+	}
+}
 func assertEnvelope(t *testing.T, e core.EncodedResult, wantError bool) {
 	t.Helper()
 	if e.IsError != wantError || len(e.JSON) > domain.MaxResultEnvelopeBytes {

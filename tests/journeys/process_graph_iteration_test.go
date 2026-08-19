@@ -58,7 +58,7 @@ func TestProcessGraphIterationJourney(t *testing.T) {
 	if j.task.CurrentNode != domain.NodeComprehensionReview {
 		t.Fatal("passing TEST skipped comprehension review")
 	}
-	j.apply("code_too_complex", "The factory layer obscures the request path.", comprehensionJourneyResult(nil, nil, []string{"factory layer"}, "", "", nil))
+	j.apply("code_too_complex", "The factory layer obscures the request path.", comprehensionJourneyResult(nil, nil, []string{"factory layer"}, "", "", []string{"Code complexity"}))
 	if j.task.CurrentNode != domain.NodeRefactor || j.task.Test != nil || j.task.Comprehension != nil {
 		t.Fatal("complexity remediation did not invalidate current verification")
 	}
@@ -101,6 +101,20 @@ func TestProcessGraphIterationJourney(t *testing.T) {
 	_, err = service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "terminal-apply", Host: domain.HostCodex, TaskID: loaded.TaskID, ExpectedRevision: loaded.Revision, ActionID: "terminal-action", ActionKind: domain.ActionCompleteDelivery, ProcessID: loaded.Process.ID, ProcessVersion: loaded.Process.Version, ProcessDefinitionDigest: loaded.Process.DefinitionDigest, SourceCursor: loaded.CurrentNode, RepositoryBindingDigest: loaded.Repository.BindingDigest, Payload: journeyPayload(t, "delivery_complete", "", deliveryJourneyResult(loaded))})
 	if err != domain.ErrTaskTerminal {
 		t.Fatalf("terminal apply error=%v", err)
+	}
+}
+
+func TestManualHandoffFalseStillAllowsComprehensionJourney(t *testing.T) {
+	j := newIterationJourneyWithManualHandoff(t, false)
+	defer j.close()
+	j.toTest()
+	userTest := map[string]any{"checks": []map[string]any{{"source": "user", "name": "manual-test", "status": "passed", "summary": "User performed test.", "command_count": 0, "full_suite": false}}, "failed_items": []string{}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}}
+	j.assertRejected(domain.ErrVerificationBudgetExceeded, "tests_passed", "", userTest)
+	j.apply("tests_passed", "", passedTestJourneyResult())
+	j.apply("comprehension_passed", "", comprehensionJourneyResult([]string{"component"}, nil, nil, "user", "passed", nil))
+	j.apply("delivery_complete", "", deliveryJourneyResult(j.task))
+	if j.task.CurrentNode != domain.NodeDone || j.task.Outcome == nil || j.claimCount() != 0 {
+		t.Fatal("mandatory comprehension confirmation was blocked by TEST manual-handoff budget")
 	}
 }
 
@@ -158,7 +172,7 @@ func TestProcessGraphIterationNegativeComprehension(t *testing.T) {
 			}
 			before := j.state()
 			_, err = service.ApplyAction(context.Background(), journeyApplyRequest(j.task, "stale-comprehension", journeyPayload(t, "comprehension_passed", "", comprehensionJourneyResult([]string{"component"}, nil, nil, "user", "passed", nil))))
-			if err != domain.ErrInternal {
+			if err != domain.ErrStorageUnavailable {
 				t.Fatalf("error=%v", err)
 			}
 			j.assertStateUnchanged(before)
@@ -174,7 +188,7 @@ func TestProcessGraphIterationNegativeComprehension(t *testing.T) {
 		j := newIterationJourney(t)
 		defer j.close()
 		j.toComprehension()
-		j.apply("code_too_complex", "The code contains an unnecessary layer.", comprehensionJourneyResult(nil, nil, []string{"factory"}, "", "", nil))
+		j.apply("code_too_complex", "The code contains an unnecessary layer.", comprehensionJourneyResult(nil, nil, []string{"factory"}, "", "", []string{"Code complexity"}))
 		j.assertRejected(domain.ErrInvalidArgument, "comprehension_passed", "", comprehensionJourneyResult([]string{"component"}, nil, nil, "user", "passed", nil))
 	})
 }
@@ -266,10 +280,7 @@ func TestProcessGraphIterationNegativeDelivery(t *testing.T) {
 			}
 			before := j.state()
 			_, err = service.ApplyAction(context.Background(), journeyApplyRequest(j.task, "tampered-delivery", journeyPayload(t, "delivery_complete", "", deliveryJourneyResult(j.task))))
-			want := domain.ErrInternal
-			if target == "comprehension" {
-				want = domain.ErrTransitionNotAllowed
-			}
+			want := domain.ErrStorageUnavailable
 			if err != want {
 				t.Fatalf("error=%v", err)
 			}
@@ -316,7 +327,7 @@ func TestProcessGraphReworkRequirementsAndDesign(t *testing.T) {
 		defer j.close()
 		j.toComprehension()
 		requirements := j.task.Requirements
-		j.apply("design_too_complex", "The design has unnecessary layers.", comprehensionJourneyResult(nil, nil, []string{"layer"}, "", "", nil))
+		j.apply("design_too_complex", "The design has unnecessary layers.", comprehensionJourneyResult(nil, nil, []string{"layer"}, "", "", []string{"Design complexity"}))
 		if j.task.CurrentNode != domain.NodeDesign || j.task.Requirements.Revision != requirements.Revision || j.task.TaskPlan != nil || j.task.Implementation != nil || j.task.Test != nil || j.task.Comprehension != nil {
 			t.Fatal("design rework invalidation mismatch")
 		}
@@ -386,6 +397,10 @@ func (s *journeyTamperingStore) LoadTask(ctx context.Context, id domain.ID) (dom
 }
 
 func newIterationJourney(t *testing.T) *iterationJourney {
+	return newIterationJourneyWithManualHandoff(t, true)
+}
+
+func newIterationJourneyWithManualHandoff(t *testing.T, allowManualHandoff bool) *iterationJourney {
 	t.Helper()
 	repo := filepath.Join(t.TempDir(), "repository")
 	if err := os.Mkdir(repo, 0o755); err != nil {
@@ -408,7 +423,7 @@ func newIterationJourney(t *testing.T) *iterationJourney {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "open-journey", Host: domain.HostCodex, RepositoryPath: repo, NewTask: &application.NewTaskInput{Request: "Prove the iterative development loop.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 16, AllowManualHandoff: true}, MethodProfile: domain.MethodPlain}})
+	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "open-journey", Host: domain.HostCodex, RepositoryPath: repo, NewTask: &application.NewTaskInput{Request: "Prove the iterative development loop.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 16, AllowManualHandoff: allowManualHandoff}, MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -560,11 +575,27 @@ func journeyApplyRequest(task domain.ProcessTask, requestID domain.ID, payload j
 
 func journeyPayload(t *testing.T, transition domain.TransitionID, reason string, node any) json.RawMessage {
 	t.Helper()
+	if fields, ok := node.(map[string]any); ok {
+		fields["problem_class"] = journeyProblemClass(transition)
+	}
 	raw, err := json.Marshal(map[string]any{"transition_id": transition, "summary": "The journey recorded the current result.", "reason": reason, "artifacts": []any{}, "method_evidence": []any{}, "node_result": node})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return raw
+}
+func journeyProblemClass(transition domain.TransitionID) string {
+	classes := map[domain.TransitionID]string{
+		"requirements_ready": "none",
+		"design_ready":       "none", "design_requires_requirements": "requirement_gap",
+		"tasks_ready": "none", "tasks_require_design": "design_gap", "tasks_require_requirements": "requirement_gap",
+		"implementation_ready_for_test": "none", "implementation_requires_design": "design_gap", "implementation_requires_requirements": "requirement_gap", "implementation_needs_refactor": "code_complexity",
+		"tests_passed": "none", "tests_failed_implementation": "implementation_failure", "tests_expose_design_issue": "design_failure", "tests_expose_requirement_issue": "requirement_gap",
+		"comprehension_passed": "none", "implementation_defect": "implementation_defect", "code_too_complex": "code_complexity", "design_too_complex": "design_complexity", "evidence_insufficient": "verification_gap", "requirement_unclear": "requirement_gap",
+		"refactor_ready_for_test": "none", "refactor_requires_design": "design_change", "refactor_requires_requirements": "requirement_change",
+		"delivery_complete": "none", "delivery_needs_implementation": "implementation_gap", "delivery_needs_test": "test_gap", "delivery_needs_comprehension": "comprehension_gap", "delivery_needs_design": "design_gap", "delivery_needs_requirements": "requirement_gap",
+	}
+	return classes[transition]
 }
 
 func requirementsJourneyResult(goal string) map[string]any {

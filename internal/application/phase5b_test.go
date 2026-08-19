@@ -70,7 +70,7 @@ func TestTestRejectsStaleAuthorityAndRepository(t *testing.T) {
 	stale.Implementation.TaskPlanRevision++
 	ms.task = &stale
 	before := ms.commits
-	assertApplyFails(t, s, task, "tests_passed", "", testNodeResult([]map[string]any{evidenceCheck("automated", "passed", "targeted", 1, false)}, nil, nil, nil), domain.ErrInternal)
+	assertApplyFails(t, s, task, "tests_passed", "", testNodeResult([]map[string]any{evidenceCheck("automated", "passed", "targeted", 1, false)}, nil, nil, nil), domain.ErrStorageUnavailable)
 	if ms.commits != before {
 		t.Fatal("stale test authority wrote state")
 	}
@@ -127,10 +127,10 @@ func TestComprehensionRemediationTransitions(t *testing.T) {
 		unresolved, abstractions, findings []string
 	}{
 		{"implementation_defect", domain.NodeImplement, nil, nil, []string{"defect"}},
-		{"code_too_complex", domain.NodeRefactor, nil, []string{"factory"}, nil},
-		{"design_too_complex", domain.NodeDesign, nil, []string{"layers"}, nil},
-		{"evidence_insufficient", domain.NodeTest, []string{"coverage unknown"}, nil, nil},
-		{"requirement_unclear", domain.NodeRequirements, []string{"behavior unclear"}, nil, nil},
+		{"code_too_complex", domain.NodeRefactor, nil, []string{"factory"}, []string{"Code complexity"}},
+		{"design_too_complex", domain.NodeDesign, nil, []string{"layers"}, []string{"Design complexity"}},
+		{"evidence_insufficient", domain.NodeTest, []string{"coverage unknown"}, nil, []string{"Verification gap"}},
+		{"requirement_unclear", domain.NodeRequirements, []string{"behavior unclear"}, nil, []string{"Requirement gap"}},
 	} {
 		t.Run(tc.transition, func(t *testing.T) {
 			s, _, _ := phase5Service(t)
@@ -152,7 +152,7 @@ func TestComprehensionRejectsStaleTestRecord(t *testing.T) {
 	stale.Test = &record
 	ms.task = &stale
 	before := ms.commits
-	assertApplyFails(t, s, task, "comprehension_passed", "", comprehensionNodeResult([]string{"component"}, nil, nil, "user", "passed", nil), domain.ErrInternal)
+	assertApplyFails(t, s, task, "comprehension_passed", "", comprehensionNodeResult([]string{"component"}, nil, nil, "user", "passed", nil), domain.ErrStorageUnavailable)
 	if ms.commits != before {
 		t.Fatal("stale test record wrote comprehension state")
 	}
@@ -263,7 +263,7 @@ func TestDeliveryRejectsStaleCurrentRecords(t *testing.T) {
 			}
 			ms.task = &stale
 			before := ms.commits
-			assertApplyFails(t, s, task, "delivery_complete", "", deliveryCompleteNodeResult(task), domain.ErrInternal)
+			assertApplyFails(t, s, task, "delivery_complete", "", deliveryCompleteNodeResult(task), domain.ErrStorageUnavailable)
 			if ms.commits != before {
 				t.Fatal("stale delivery authority wrote state")
 			}
@@ -334,7 +334,7 @@ func phase5TaskAtComprehension(t *testing.T, s *Service) domain.ProcessTask {
 }
 func phase5TaskAtRefactor(t *testing.T, s *Service) domain.ProcessTask {
 	task := phase5TaskAtComprehension(t, s)
-	return applyPhase5(t, s, task, "code_too_complex", "Code is too complex.", comprehensionNodeResult(nil, nil, []string{"factory"}, "", "", nil))
+	return applyPhase5(t, s, task, "code_too_complex", "Code is too complex.", comprehensionNodeResult(nil, nil, []string{"factory"}, "", "", []string{"Code complexity"}))
 }
 func phase5TaskAtDelivery(t *testing.T, s *Service) domain.ProcessTask {
 	task := phase5TaskAtComprehension(t, s)

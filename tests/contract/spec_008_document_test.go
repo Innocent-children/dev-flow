@@ -59,12 +59,12 @@ func TestFeature008DocumentContract(t *testing.T) {
 	}
 
 	assertFeature008Identifiers(t, filepath.Join(featureDir, "spec.md"), feature008RequirementPattern, map[string]int{
-		"FR":   42,
-		"FR-S": 10,
-		"SC":   16,
+		"FR":   48,
+		"FR-S": 11,
+		"SC":   25,
 	})
 	assertFeature008Sequence(t, filepath.Join(featureDir, "checklists", "requirements.md"), feature008ChecklistPattern, "CHK", 60)
-	assertFeature008Sequence(t, filepath.Join(featureDir, "tasks.md"), feature008TaskPattern, "T", 95)
+	assertFeature008Sequence(t, filepath.Join(featureDir, "tasks.md"), feature008TaskPattern, "T", 104)
 	assertFeature008Transitions(t, filepath.Join(featureDir, "contracts", "process-graph.md"))
 }
 

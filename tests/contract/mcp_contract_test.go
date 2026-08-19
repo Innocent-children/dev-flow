@@ -76,10 +76,10 @@ func TestMCPContract02RequiredShapes(t *testing.T) {
 			t.Fatalf("%s required=%v", tool, required)
 		}
 	}
-	requireNames(core.ToolOpenTask, []string{"host", "repository_path", "new_task"})
-	requireNames(core.ToolGetTask, []string{"host", "task_id", "operation_probe"})
-	requireNames(core.ToolGetNextAction, []string{"host", "task_id", "operation_probe"})
-	requireNames(core.ToolApplyAction, []string{"request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_version", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload", "recovery_apply"})
+	requireNames(core.ToolOpenTask, []string{"host", "repository_path"})
+	requireNames(core.ToolGetTask, []string{"host", "task_id"})
+	requireNames(core.ToolGetNextAction, []string{"host", "task_id"})
+	requireNames(core.ToolApplyAction, []string{"request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_version", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload"})
 	requireNames(core.ToolCancelTask, []string{"request_id", "host", "task_id", "revision", "reason"})
 }
 func stringsOf(v any) []string {

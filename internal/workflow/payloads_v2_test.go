@@ -7,7 +7,7 @@ import (
 )
 
 func TestV2PayloadDispatchIsClosedAndTransitionAware(t *testing.T) {
-	valid := []byte(`{"transition_id":"requirements_ready","summary":"Requirements ready.","reason":"","artifacts":[],"method_evidence":[],"node_result":{"baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
+	valid := []byte(`{"transition_id":"requirements_ready","summary":"Requirements ready.","reason":"","artifacts":[],"method_evidence":[],"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
 	envelope, result, err := DecodeStandardPayload("REQUIREMENTS", valid)
 	if err != nil {
 		t.Fatal(err)
@@ -32,7 +32,7 @@ func TestV2PayloadDispatchIsClosedAndTransitionAware(t *testing.T) {
 }
 
 func TestV2PayloadReasonRulesAndForbiddenTransitions(t *testing.T) {
-	raw := []byte(`{"transition_id":"design_requires_requirements","summary":"Gap found.","reason":"","artifacts":[],"method_evidence":[],"node_result":{"baseline":null,"findings":["Acceptance is unclear"]}}`)
+	raw := []byte(`{"transition_id":"design_requires_requirements","summary":"Gap found.","reason":"","artifacts":[],"method_evidence":[],"node_result":{"problem_class":"requirement_gap","baseline":null,"findings":["Acceptance is unclear"]}}`)
 	envelope, result, err := DecodeStandardPayload("DESIGN", raw)
 	if err != nil {
 		t.Fatal(err)
@@ -50,8 +50,8 @@ func TestV2PayloadReasonRulesAndForbiddenTransitions(t *testing.T) {
 	}
 }
 func TestCanonicalValidatedPayloadIgnoresJSONFormatting(t *testing.T) {
-	left := []byte(`{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":[],"node_result":{"baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
-	right := []byte(`{ "node_result": {"unresolved_questions":[],"baseline":{"assumptions":[],"constraints":[],"acceptance_criteria":["Accepted"],"out_of_scope":[],"scope":[],"goal":"Goal"}},"method_evidence":[],"artifacts":[],"reason":"","summary":"Ready.","transition_id":"requirements_ready"}`)
+	left := []byte(`{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":[],"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
+	right := []byte(`{ "node_result": {"unresolved_questions":[],"problem_class":"none","baseline":{"assumptions":[],"constraints":[],"acceptance_criteria":["Accepted"],"out_of_scope":[],"scope":[],"goal":"Goal"}},"method_evidence":[],"artifacts":[],"reason":"","summary":"Ready.","transition_id":"requirements_ready"}`)
 	a, ar, err := DecodeStandardPayload(domain.NodeRequirements, left)
 	if err != nil {
 		t.Fatal(err)

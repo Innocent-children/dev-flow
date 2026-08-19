@@ -303,9 +303,25 @@ func standardPayload(t *testing.T, transition domain.TransitionID, reason string
 	}
 	return raw
 }
+func standardProblemClass(transition domain.TransitionID) string {
+	classes := map[domain.TransitionID]string{
+		"requirements_ready": "none",
+		"design_ready":       "none", "design_requires_requirements": "requirement_gap",
+		"tasks_ready": "none", "tasks_require_design": "design_gap", "tasks_require_requirements": "requirement_gap",
+		"implementation_ready_for_test": "none", "implementation_requires_design": "design_gap", "implementation_requires_requirements": "requirement_gap", "implementation_needs_refactor": "code_complexity",
+		"tests_passed": "none", "tests_failed_implementation": "implementation_failure", "tests_expose_design_issue": "design_failure", "tests_expose_requirement_issue": "requirement_gap",
+		"comprehension_passed": "none", "implementation_defect": "implementation_defect", "code_too_complex": "code_complexity", "design_too_complex": "design_complexity", "evidence_insufficient": "verification_gap", "requirement_unclear": "requirement_gap",
+		"refactor_ready_for_test": "none", "refactor_requires_design": "design_change", "refactor_requires_requirements": "requirement_change",
+		"delivery_complete": "none", "delivery_needs_implementation": "implementation_gap", "delivery_needs_test": "test_gap", "delivery_needs_comprehension": "comprehension_gap", "delivery_needs_design": "design_gap", "delivery_needs_requirements": "requirement_gap",
+	}
+	return classes[transition]
+}
 
 func applyStandard(t *testing.T, service *application.Service, task domain.ProcessTask, transition domain.TransitionID, reason string, node any) (domain.ProcessTask, error) {
 	t.Helper()
+	if fields, ok := node.(map[string]any); ok && task.CurrentNode.Normal() {
+		fields["problem_class"] = standardProblemClass(transition)
+	}
 	a := task.CurrentAction
 	result, err := service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: domain.ID(fmt.Sprintf("request-%s-%d", transition, task.Revision)), Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessVersion: task.Process.Version, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: standardPayload(t, transition, reason, node)})
 	return result.Task, err
@@ -357,6 +373,9 @@ func validNodeResult(task domain.ProcessTask, transition domain.TransitionID) an
 			result["unresolved_questions"] = []string{"current question"}
 		default:
 			result["findings"] = []string{"implementation defect"}
+		}
+		if len(result["findings"].([]string)) == 0 {
+			result["findings"] = []string{"The selected problem class is present."}
 		}
 		return result
 	case domain.NodeRefactor:

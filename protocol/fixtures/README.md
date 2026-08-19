@@ -2,7 +2,8 @@
 
 Core Contract 0.2 graph fixtures remain separate from frozen Core Contract 0.1 historical fixtures:
 
-- `graph-server-info.json` records the Schema 2 handshake and exact six-tool catalog;
+- `graph-server-info.json` records the complete ordered Schema 2 public ServerInfo DTO, supported
+  process object, method profiles, and exact six-tool catalog;
 - `graph-open-requirements.json` records early task creation and the REQUIREMENTS edge;
 - `graph-design-action.json` records the complete DESIGN edge set;
 - `graph-invalid-edge.json` records zero-write rejection of an undeclared DESIGN edge.

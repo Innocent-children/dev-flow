@@ -197,7 +197,14 @@ func invalidationMatrixTask(t *testing.T) ProcessTask {
 	user := EvidenceSummary{EvidenceID: "user", Source: EvidenceSourceUser, Name: "confirmation", Status: EvidencePassed, Summary: "User confirmed understanding", Digest: digest, RecordedAt: now}
 	task.Evidence = []EvidenceSummary{automated, user}
 	task.Test = &TestRecord{RecordID: "test", RequirementsRevision: 2, DesignRevision: 1, TaskPlanRevision: 1, RepositoryBindingDigest: digest, EvidenceIDs: []ID{"automated"}, PassedAt: now}
-	task.Comprehension = &ComprehensionAssessment{RecordID: "comprehension", RequirementsRevision: 2, DesignRevision: 1, TaskPlanRevision: 1, RepositoryBindingDigest: digest, ExplainedComponents: []string{"component"}, UserEvidenceID: "user", ConfirmedAt: now}
+	task.Comprehension = &ComprehensionAssessment{RecordID: "comprehension", TestRecordID: "test", RequirementsRevision: 2, DesignRevision: 1, TaskPlanRevision: 1, RepositoryBindingDigest: digest, ExplainedComponents: []string{"component"}, UserEvidenceID: "user", ConfirmedAt: now}
+	task.CurrentNode = NodeDelivery
+	task.CurrentAction.Kind = ActionCompleteDelivery
+	task.CurrentAction.NodeID = NodeDelivery
+	task.CurrentAction.PayloadContract = "delivery-result@1"
+	task.CurrentAction.NodeContract = NodeContractProjection{Purpose: "Reconcile delivery.", EntryConditions: []string{"authorities current"}, CompletionConditions: []string{"delivery complete"}}
+	task.CurrentAction.SemanticMethodSteps = []SemanticMethodStep{{StepID: "delivery.reconcile_acceptance", Purpose: "Reconcile acceptance.", Required: true}}
+	task.CurrentAction.AvailableTransitions = nil
 	task.BaselineHistory = []BaselineReference{{Kind: BaselineRequirements, Revision: 1, Digest: digest, Summary: "Original goal", CreatedAt: now}}
 	return task
 }
