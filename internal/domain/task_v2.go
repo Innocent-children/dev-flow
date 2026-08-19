@@ -228,10 +228,38 @@ func (t ProcessTask) Validate() error {
 			return ErrInvalidArgument
 		}
 	}
+	if !baselineRevisionChainsValid(t, history) {
+		return ErrInvalidArgument
+	}
 	if size, err := compactJSONSize(t); err != nil || size > MaxPersistedTaskSnapshotBytes {
 		return ErrInvalidArgument
 	}
 	return nil
+}
+
+func baselineRevisionChainsValid(t ProcessTask, history map[BaselineKind]map[uint32]bool) bool {
+	current := map[BaselineKind]uint32{}
+	if t.Requirements != nil {
+		current[BaselineRequirements] = t.Requirements.Revision
+	}
+	if t.Design != nil {
+		current[BaselineDesign] = t.Design.Revision
+	}
+	if t.TaskPlan != nil {
+		current[BaselineTaskPlan] = t.TaskPlan.Revision
+	}
+	for _, kind := range []BaselineKind{BaselineRequirements, BaselineDesign, BaselineTaskPlan} {
+		revisions := history[kind]
+		for revision := uint32(1); revision <= uint32(len(revisions)); revision++ {
+			if !revisions[revision] {
+				return false
+			}
+		}
+		if revision := current[kind]; revision != 0 && revision != uint32(len(revisions))+1 {
+			return false
+		}
+	}
+	return true
 }
 
 func completedOutcomeMatchesTask(t ProcessTask, evidence map[ID]EvidenceSummary) bool {
@@ -294,7 +322,11 @@ func (t *ProcessTask) InvalidateForDestination(destination NodeID) {
 		t.Implementation = nil
 		t.Test = nil
 		t.Comprehension = nil
-	case NodeTasks, NodeImplement, NodeTest, NodeRefactor:
+	case NodeTasks:
+		t.Implementation = nil
+		t.Test = nil
+		t.Comprehension = nil
+	case NodeImplement, NodeTest, NodeRefactor:
 		t.Test = nil
 		t.Comprehension = nil
 	case NodeComprehensionReview:
