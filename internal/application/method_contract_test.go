@@ -208,7 +208,7 @@ func TestMethodProfileGetNextActionActiveBlockedAndTerminal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	blocked.CurrentNode, blocked.ResumeNode, blocked.Blocker, blocked.CurrentAction = domain.NodeBlocked, &resume, &domain.ProcessBlocker{BlockerID: "blocker", ResumeNode: resume, Message: "Restore repository binding."}, &action
+	blocked.CurrentNode, blocked.ResumeNode, blocked.Blocker, blocked.CurrentAction = domain.NodeBlocked, &resume, &domain.ProcessBlocker{BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.RecoveryConflicting, ResumeNode: resume, Message: "Restore repository binding.", ObservedBindingDigest: blocked.Repository.BindingDigest, Condition: domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: blocked.Repository.BindingDigest}, RequiredResolution: "Restore the issuance binding.", CreatedAt: blocked.UpdatedAt}, &action
 	memory.task = &blocked
 	result, err = service.GetNextAction(context.Background(), GetNextActionRequest{Host: domain.HostCodex, TaskID: blocked.TaskID})
 	if err != nil || result.MethodProfile != domain.MethodSpecKit || result.Action == nil {

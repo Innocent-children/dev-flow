@@ -12,6 +12,7 @@ type RepositoryBinding struct {
 	Head                *string   `json:"head"`
 	Unborn              bool      `json:"unborn"`
 	WorktreeFingerprint Digest    `json:"worktree_fingerprint"`
+	ChangedPaths        []string  `json:"changed_paths"`
 	ObservedAt          time.Time `json:"observed_at"`
 	BindingDigest       Digest    `json:"binding_digest"`
 }
@@ -23,6 +24,16 @@ func (b RepositoryBinding) Validate() error {
 		validateDigest(b.WorktreeFingerprint) != nil ||
 		validateDigest(b.BindingDigest) != nil || validateUTC(b.ObservedAt) != nil {
 		return ErrInvalidArgument
+	}
+	if len(b.ChangedPaths) > MaxBoundedStringListItems {
+		return ErrInvalidArgument
+	}
+	seenPaths := map[string]bool{}
+	for _, path := range b.ChangedPaths {
+		if validateRepositoryRelativePath(path) != nil || seenPaths[path] {
+			return ErrInvalidArgument
+		}
+		seenPaths[path] = true
 	}
 	if b.Detached {
 		if b.Branch != nil {
@@ -48,5 +59,6 @@ func (b RepositoryBinding) Validate() error {
 func (b RepositoryBinding) Clone() RepositoryBinding {
 	b.Branch = cloneStringPointer(b.Branch)
 	b.Head = cloneStringPointer(b.Head)
+	b.ChangedPaths = append([]string(nil), b.ChangedPaths...)
 	return b
 }

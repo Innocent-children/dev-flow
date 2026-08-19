@@ -502,9 +502,10 @@ test("Skill reads before retry and preserves budgets, evidence labels, and termi
     assert.match(recovery, new RegExp(uncertainty, "i"));
   }
   assert.match(recovery, /(?:do|does) not immediately repeat[\s\S]*dev_flow_apply_action/i);
-  assert.match(recovery, /dev_flow_get_task[\s\S]*RECOVERY_UNAVAILABLE/i);
+  assert.match(recovery, /dev_flow_get_task[\s\S]*recovery_assessment[\s\S]*next_advice/i);
   assert.match(recovery, /operation[_ -]probe[\s\S]*(?:retained|original)/i);
-  assert.match(recovery, /RECOVERY_UNAVAILABLE[\s\S]*retry_safe=false[\s\S]*action=none/i);
+  assert.match(recovery, /retry_current_action[\s\S]*action_retry_safe=true/i);
+  assert.match(recovery, /submit_recovery_apply[\s\S]*recovery_apply/i);
   assert.match(recovery, /`ok=false`[\s\S]*`retry_safe=false`[\s\S]*`action=none`[\s\S]*stop[\s\S]*do not call[\s\S]*dev_flow_get_next_action[\s\S]*dev_flow_apply_action/i);
   assert.match(recovery, /fabricated/i);
 
@@ -577,7 +578,7 @@ test("Skill retains one exact apply probe across every uncertain result shape", 
   assert.match(recovery, /original `task_id`[\s\S]*`dev_flow_get_task`/i);
   assert.match(recovery, /all[\s\S]{0,100}(?:required|original)[\s\S]{0,100}(?:retained|available)[\s\S]{0,100}`operation_probe`/i);
   assert.match(recovery, /stale pre-dispatch[\s\S]{0,120}(?:not|never)[\s\S]{0,100}(?:read-back|authoritative)/i);
-  assert.match(recovery, /`RECOVERY_UNAVAILABLE`[\s\S]*stop[\s\S]*(?:do not|never)[\s\S]*`dev_flow_get_next_action`/i);
+  assert.match(recovery, /complete `recovery_assessment`[\s\S]*obey only Core's complete[\s\S]*`next_advice`/i);
 
   assert.match(recovery, /(?:required|identity)[\s\S]{0,120}(?:missing|incomplete)[\s\S]{0,160}(?:do not|never)[\s\S]{0,100}(?:construct|fabricate|send)[\s\S]{0,100}`operation_probe`/i);
   assert.match(recovery, /(?:half|partial) probe/i);
@@ -589,8 +590,8 @@ test("Skill retains one exact apply probe across every uncertain result shape", 
   assert.match(recovery, /complete structured `ok=false`[\s\S]{0,120}(?:domain|transport uncertainty)/i);
   assert.match(recovery, /(?:do not|never)[\s\S]{0,100}(?:convert|treat)[\s\S]{0,100}(?:domain error|`ok=false`)[\s\S]{0,100}(?:missing|transport)/i);
   assert.match(recovery, /`retry_safe=false`[\s\S]*`action=none`[\s\S]*stop[\s\S]*(?:do not|never)[\s\S]*`dev_flow_get_next_action`[\s\S]*`dev_flow_apply_action`/i);
-  assert.match(recovery, /`RECOVERY_UNAVAILABLE`[\s\S]*(?:stop|do not retry)/i);
-  assert.match(recovery, /(?:do not|never)[\s\S]{0,120}`recovery_apply`/i);
+  assert.match(recovery, /`submit_recovery_apply`[\s\S]*`recovery_apply=[\s\S]*(?:do not|never)[\s\S]*(?:destination|classification)/i);
+  assert.match(recovery, /recovery read itself cannot create a blocker[\s\S]*Only a Core-requested explicit recovery apply/i);
   assert.match(recovery, /(?:do not|never)[\s\S]{0,120}(?:(?:guess|infer)[\s\S]{0,120}(?:repository state|worktree)|(?:repository state|worktree)[\s\S]{0,120}(?:guess|infer))/i);
   assert.doesNotMatch(recovery, /`source_phase`/u);
 

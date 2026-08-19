@@ -34,7 +34,7 @@ func TestProcessTaskTerminalAndBlockedShapes(t *testing.T) {
 	task.CurrentNode = NodeBlocked
 	resume := NodeRequirements
 	task.ResumeNode = &resume
-	task.Blocker = &ProcessBlocker{BlockerID: "blocker", ResumeNode: resume, Message: "Restore binding"}
+	task.Blocker = &ProcessBlocker{BlockerID: "blocker", Code: ErrorTaskBlocked, Cause: RecoveryConflicting, ResumeNode: resume, Message: "Restore binding", ObservedBindingDigest: task.Repository.BindingDigest, Condition: BlockerCondition{Kind: BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: task.Repository.BindingDigest}, RequiredResolution: "Restore the issuance binding.", CreatedAt: task.UpdatedAt}
 	task.CurrentAction.Kind = ActionResolveBlocker
 	task.CurrentAction.NodeID = NodeBlocked
 	if err := task.Validate(); err != nil {
@@ -43,6 +43,30 @@ func TestProcessTaskTerminalAndBlockedShapes(t *testing.T) {
 	task.ResumeNode = nil
 	if err := task.Validate(); err == nil {
 		t.Fatal("blocked task without resume accepted")
+	}
+}
+
+func TestProcessBlockerStrictGraphAuthority(t *testing.T) {
+	now := time.Date(2026, 8, 19, 1, 0, 0, 0, time.UTC)
+	digest := Digest(strings.Repeat("a", 64))
+	base := ProcessBlocker{BlockerID: "blocker", Code: ErrorTaskBlocked, Cause: RecoveryPartiallyCompleted, Message: "Restore the issuance binding.", ResumeNode: NodeRefactor, ObservedBindingDigest: digest, Condition: BlockerCondition{Kind: BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: digest}, RequiredResolution: "Restore the exact issuance binding.", CreatedAt: now}
+	if err := base.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for name, mutate := range map[string]func(*ProcessBlocker){
+		"missing code":             func(v *ProcessBlocker) { v.Code = "" },
+		"invalid cause":            func(v *ProcessBlocker) { v.Cause = RecoveryNotStarted },
+		"terminal resume":          func(v *ProcessBlocker) { v.ResumeNode = NodeDone },
+		"invalid condition":        func(v *ProcessBlocker) { v.Condition.Kind = "future" },
+		"missing observed binding": func(v *ProcessBlocker) { v.ObservedBindingDigest = "" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			candidate := base
+			mutate(&candidate)
+			if candidate.Validate() == nil {
+				t.Fatal("invalid blocker accepted")
+			}
+		})
 	}
 }
 

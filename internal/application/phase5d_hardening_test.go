@@ -37,7 +37,7 @@ func (o *phase5DNoIOObserver) Observe(context.Context, string) (domain.Repositor
 	return domain.RepositoryBinding{}, domain.ErrInternal
 }
 
-func TestRecoveryUnavailableApplicationBoundaryZeroObservationWrite(t *testing.T) {
+func TestMalformedGraphRecoveryInputStopsBeforeObservationWrite(t *testing.T) {
 	storage := &phase5DNoIOStore{}
 	observer := &phase5DNoIOObserver{}
 	service, err := newService(storage, observer, time.Now, func(prefix string) (domain.ID, error) { return domain.ID(prefix + "-id"), nil })
@@ -45,43 +45,13 @@ func TestRecoveryUnavailableApplicationBoundaryZeroObservationWrite(t *testing.T
 		t.Fatal(err)
 	}
 	process := workflow.StandardProcess().Reference
-	requirementsSteps := workflow.StandardProcess().Nodes[0].SemanticMethodSteps
-	probe := &OperationProbe{OperationID: "original-operation", ProcessID: process.ID, ProcessVersion: process.Version, ProcessDefinitionDigest: process.DefinitionDigest, SourceCursor: domain.NodeRequirements, ExpectedRevision: 1, ActionID: "action", ActionKind: domain.ActionCompleteRequirements, RepositoryBindingDigest: digestOf("a"), Payload: json.RawMessage("null")}
-
-	if _, err := service.GetTask(context.Background(), GetTaskRequest{Host: domain.HostCodex, TaskID: "task", OperationProbe: probe}); err != domain.ErrRecoveryUnavailable {
-		t.Fatalf("get task error=%v", err)
-	}
-	if _, err := service.GetNextAction(context.Background(), GetNextActionRequest{Host: domain.HostCodex, TaskID: "task", OperationProbe: probe}); err != domain.ErrRecoveryUnavailable {
-		t.Fatalf("get next action error=%v", err)
-	}
-	payload, err := json.Marshal(map[string]any{"transition_id": "requirements_ready", "summary": "Ready.", "reason": "", "artifacts": []any{}, "method_evidence": methodEvidenceForSteps(requirementsSteps, domain.MethodStepPlainFallback, ""), "node_result": map[string]any{"problem_class": "none", "baseline": map[string]any{"goal": "Goal", "scope": []string{}, "out_of_scope": []string{}, "acceptance_criteria": []string{"Accepted"}, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	request := ApplyActionRequest{RequestID: "recovery-request", Host: domain.HostCodex, TaskID: "task", ExpectedRevision: 1, ActionID: "action", ActionKind: domain.ActionCompleteRequirements, ProcessID: process.ID, ProcessVersion: process.Version, ProcessDefinitionDigest: process.DefinitionDigest, SourceCursor: domain.NodeRequirements, RepositoryBindingDigest: digestOf("a"), Payload: payload, RecoveryApply: &RecoveryApplyInput{OperationID: "original-operation", SourceCursor: domain.NodeRequirements}}
-	if _, err := service.ApplyAction(context.Background(), request); err != domain.ErrRecoveryUnavailable {
-		t.Fatalf("recovery apply error=%v", err)
-	}
-	if storage.loads != 0 || storage.commits != 0 || observer.calls != 0 {
-		t.Fatalf("loads=%d commits=%d observations=%d", storage.loads, storage.commits, observer.calls)
-	}
-
-	badProbe := *probe
-	badProbe.Payload = nil
-	if _, err := service.GetTask(context.Background(), GetTaskRequest{Host: domain.HostCodex, TaskID: "task", OperationProbe: &badProbe}); err != domain.ErrInvalidArgument {
+	badProbe := &OperationProbe{OperationID: "original-operation", ProcessID: process.ID, ProcessVersion: process.Version, ProcessDefinitionDigest: process.DefinitionDigest, SourceCursor: domain.NodeRequirements, ExpectedRevision: 1, ActionID: "action", ActionKind: domain.ActionCompleteRequirements, RepositoryBindingDigest: digestOf("a")}
+	if _, err := service.GetTask(context.Background(), GetTaskRequest{Host: domain.HostCodex, TaskID: "task", OperationProbe: badProbe}); err != domain.ErrInvalidArgument {
 		t.Fatalf("malformed probe error=%v", err)
 	}
-	request.RecoveryApply.OperationID = ""
+	request := ApplyActionRequest{RequestID: "original-operation", Host: domain.HostCodex, TaskID: "task", ExpectedRevision: 1, ActionID: "action", ActionKind: domain.ActionCompleteRequirements, ProcessID: process.ID, ProcessVersion: process.Version, ProcessDefinitionDigest: process.DefinitionDigest, SourceCursor: domain.NodeRequirements, RepositoryBindingDigest: digestOf("a"), Payload: json.RawMessage("null"), RecoveryApply: &RecoveryApplyInput{SourceCursor: domain.NodeRequirements}}
 	if _, err := service.ApplyAction(context.Background(), request); err != domain.ErrInvalidArgument {
 		t.Fatalf("malformed recovery apply error=%v", err)
-	}
-	request.RecoveryApply.OperationID = "original-operation"
-	request.Payload, err = json.Marshal(map[string]any{"transition_id": "requirements_ready", "summary": "Ready.", "reason": "", "artifacts": []any{}, "method_evidence": methodEvidenceForSteps(requirementsSteps, domain.MethodStepPlainFallback, ""), "node_result": map[string]any{"baseline": map[string]any{"goal": "Goal", "scope": []string{}, "out_of_scope": []string{}, "acceptance_criteria": []string{"Accepted"}, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := service.ApplyAction(context.Background(), request); err != domain.ErrInvalidArgument {
-		t.Fatalf("missing Recovery payload field error=%v", err)
 	}
 	if storage.loads != 0 || storage.commits != 0 || observer.calls != 0 {
 		t.Fatal("malformed recovery input reached I/O")
@@ -214,7 +184,7 @@ func TestCancelTerminalAndReasonValidationZeroWrite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	blocked.CurrentNode, blocked.ResumeNode, blocked.Blocker, blocked.CurrentAction = domain.NodeBlocked, &resume, &domain.ProcessBlocker{BlockerID: "blocker", ResumeNode: resume, Message: "Restore repository binding."}, &action
+	blocked.CurrentNode, blocked.ResumeNode, blocked.Blocker, blocked.CurrentAction = domain.NodeBlocked, &resume, &domain.ProcessBlocker{BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.RecoveryConflicting, ResumeNode: resume, Message: "Restore repository binding.", ObservedBindingDigest: blocked.Repository.BindingDigest, Condition: domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: blocked.Repository.BindingDigest}, RequiredResolution: "Restore the issuance binding.", CreatedAt: blocked.UpdatedAt}, &action
 	blockedMemory.task = &blocked
 	blockedResult, err := blockedService.CancelTask(context.Background(), CancelTaskRequest{RequestID: "cancel-blocked", Host: domain.HostCodex, TaskID: blocked.TaskID, ExpectedRevision: blocked.Revision, Reason: "Cancel blocked task."})
 	if err != nil || blockedResult.Task.CurrentNode != domain.NodeCancelled || blockedResult.Task.Blocker != nil || blockedResult.Task.ResumeNode != nil {

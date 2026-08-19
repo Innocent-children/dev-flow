@@ -3,7 +3,8 @@
 **Input**: Complete Feature 008 package in
 `specs/008-refactor-to-development-process-graph/`
 
-**Status**: Implementing — User Story 3 and Phase 6A–6C complete; Phase 7–8 remain unstarted.
+**Status**: Implementing — User Story 3 and Phase 6A–6C complete; Phase 7A complete; Phase 7B/7C
+and Phase 8 remain unstarted.
 
 **Release Boundary**: Every task in this file is source/local-evidence work. No task may modify
 `VERSION`, publish npm, create/move a Tag, mutate a GitHub Release, or claim final registry support.
@@ -307,17 +308,17 @@ recovery for current graph tasks.
 
 **Independent Test**: Quickstart Journeys E–G.
 
-- [ ] T073 [US4] Replace phase-only operation-probe public/internal fields with exact process
+- [x] T073 [US4] Replace phase-only operation-probe public/internal fields with exact process
   reference plus `source_cursor` in `internal/domain/operation.go`, `internal/application/`,
   `internal/mcp/schemas.go`, and related fixtures per FR-S009–FR-S010 and
   `contracts/mcp-tools-0.2.md`.
-- [ ] T074 [US4] Generalize `internal/recovery/` classification/committed-proof logic for the single
+- [x] T074 [US4] Generalize `internal/recovery/` classification/committed-proof logic for the single
   graph process, exact source cursor, sealed transition payload, and source action without changing
   the five classifications per FR-S009–FR-S010.
-- [ ] T075 [US4] Add repository-effect derivation for process-artifact-only, product-file, exact
-  binding, and blocker restoration in `internal/workflow/payloads.go` and `internal/recovery/` while
+- [x] T075 [US4] Add repository-effect derivation for process-artifact-only, product-file, exact
+  binding, and blocker restoration in `internal/workflow/payloads_v2.go` and `internal/recovery/` while
   retaining read-only Git per FR-038 and FR-041.
-- [ ] T076 [US4] Extend recovery BLOCKED/RESOLVE_BLOCKER storage and projection with exact process
+- [x] T076 [US4] Extend recovery BLOCKED/RESOLVE_BLOCKER storage and projection with exact process
   reference and standard resume node, returning only to that node with a new action identity per the
   process/storage contracts.
 - [ ] T077 [P] [US4] Extend `tests/journeys/recovery_uncertainty_test.go` and helpers with all five
@@ -349,6 +350,9 @@ recovery for current graph tasks.
 **Checkpoint**: The graph Core carries no historical-task runtime, fresh/current tasks restart and
 recover exactly, and unsupported old data remains unchanged until the user explicitly chooses a new
 or reset data directory.
+
+**Phase 7A Checkpoint**: `FEATURE_008_PHASE_7A_GRAPH_RECOVERY_FOUNDATION_CHECKPOINT_COMPLETE` —
+T073–T076 complete; T077–T085 remain unchecked and User Story 4 is not complete.
 
 ---
 

@@ -1,8 +1,10 @@
 package application
 
 import (
+	"bytes"
 	"context"
 	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/dev-flow/internal/recovery"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
@@ -14,18 +16,34 @@ func (s *Service) GetTask(ctx context.Context, r GetTaskRequest) (GetTaskResult,
 		if err := validateProbeInput(r.OperationProbe); err != nil {
 			return GetTaskResult{}, err
 		}
-		return GetTaskResult{}, domain.ErrRecoveryUnavailable
+		task, err := s.loadOwned(ctx, r.Host, r.TaskID)
+		if err != nil {
+			return GetTaskResult{}, err
+		}
+		fresh, err := s.repositoryObserver.Observe(ctx, task.Repository.CanonicalRoot)
+		if err != nil || fresh.Validate() != nil {
+			return GetTaskResult{}, domain.ErrInternal
+		}
+		decision, err := recovery.Reconcile(recovery.ReconcileInput{Host: r.Host, Task: task, Operation: r.OperationProbe.Reference(), Payload: r.OperationProbe.Payload, Observed: fresh})
+		if err != nil {
+			return GetTaskResult{}, err
+		}
+		return GetTaskResult{Task: task, RecoveryAssessment: &decision.Assessment}, nil
 	}
 	task, err := s.loadOwned(ctx, r.Host, r.TaskID)
 	return GetTaskResult{Task: task}, err
 }
 func validateProbeInput(p *OperationProbe) error {
-	if p == nil || !p.OperationID.IsValid() || !p.ProcessID.IsValid() || p.ProcessVersion != 1 ||
-		!p.ProcessDefinitionDigest.IsValid() || !p.SourceCursor.Normal() || p.ExpectedRevision == 0 ||
-		!p.ActionID.IsValid() || !p.ActionKind.IsValidV2() || !p.RepositoryBindingDigest.IsValid() || len(p.Payload) == 0 {
+	if p == nil || len(p.Payload) == 0 || workflow.ValidateOperationReference(p.Reference()) != nil {
 		return domain.ErrInvalidArgument
 	}
-	if string(p.Payload) != "null" {
+	if !bytes.Equal(bytes.TrimSpace(p.Payload), []byte("null")) {
+		if p.SourceCursor == domain.NodeBlocked {
+			if _, _, err := recovery.DecodeBlockerResolutionPayload(p.Payload); err != nil {
+				return domain.ErrInvalidArgument
+			}
+			return nil
+		}
 		if err := workflow.ValidateRetainedPayload(p.SourceCursor, p.Payload); err != nil {
 			return domain.ErrInvalidArgument
 		}

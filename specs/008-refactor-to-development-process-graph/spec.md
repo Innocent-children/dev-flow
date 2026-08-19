@@ -199,10 +199,10 @@ that current-generation task.
 6. **Given** an uncertain current-generation graph mutation, **When** the caller follows
    read-before-retry, **Then** the five recovery classifications and duplicate-prevention guarantees
    remain in force.
-7. **Given** Phase 7 current-generation Recovery is not yet implemented, **When** a caller submits a
-   syntactically valid non-null `operation_probe` or `recovery_apply`, **Then** Core returns
-   `RECOVERY_UNAVAILABLE`, advises against automatic retry, performs no repository observation or
-   mutation, and writes no task, event, evidence, claim, or schema state.
+7. **Given** an exact current-generation graph operation probe, **When** a caller performs a recovery
+   read or explicit recovery apply, **Then** Core derives one of the five classifications; the read
+   remains zero-write and only explicit recovery apply may adopt exact unrecorded work or create a
+   recovery blocker.
 
 ### Edge Cases
 
@@ -362,19 +362,21 @@ after its machine condition is proven. `CANCELLED` is entered only through
 
 The exact capability and fallback contract is in `contracts/method-profiles.md`.
 
-## Phase 5D Implementation Boundary
+## Phase 5D Historical Implementation Boundary
 
-Phase 5D hardens the already implemented Phase 2–5 runtime. It does not implement Phase 6 method
-rendering, Phase 7 five-class Recovery, or Phase 8 final acceptance. Until Phase 7 is implemented:
+Phase 5D hardened the already implemented Phase 2–5 runtime. Its temporary Recovery behavior was:
 
-- omitted or explicit-null `operation_probe` and `recovery_apply` preserve ordinary read/apply
+- omitted or explicit-null `operation_probe` and `recovery_apply` preserved ordinary read/apply
   behavior;
-- every syntactically valid non-null Recovery request fails closed as `RECOVERY_UNAVAILABLE` with
+- every syntactically valid non-null Recovery request failed closed as `RECOVERY_UNAVAILABLE` with
   `retry_safe=false` and `action=none` before repository observation or mutation;
-- malformed, incomplete, duplicate-member, or unknown-member Recovery input remains
+- malformed, incomplete, duplicate-member, or unknown-member Recovery input remained
   `INVALID_ARGUMENT`;
-- the five-class Recovery model remains the Feature target and is not claimed complete by this
+- the five-class Recovery model remained the Feature target and was not claimed complete by this
   temporary safety boundary.
+
+Phase 7A supersedes this runtime boundary for supported `standard-development@1` tasks. The historical
+T096 checkpoint remains complete evidence of the earlier fail-closed state.
 
 ## Requirements
 
@@ -460,8 +462,8 @@ rendering, Phase 7 five-class Recovery, or Phase 8 final acceptance. Until Phase
 - **FR-036**: Unknown/duplicate members, a caller destination, wrong node payload, stale identity,
   stale transition, or incompatible baseline reference MUST fail closed.
 - **FR-037**: Core MUST add stable `TRANSITION_NOT_ALLOWED` and `PROCESS_UNSUPPORTED` errors while
-  retaining existing stable recovery, repository, storage, conflict, and terminal errors; before
-  Phase 7 it MUST also expose stable `RECOVERY_UNAVAILABLE` for valid non-null Recovery requests.
+  retaining existing stable recovery, repository, storage, conflict, and terminal errors;
+  `RECOVERY_UNAVAILABLE` remains reserved after its Phase 5D historical use.
 - **FR-038**: Core MUST remain read-only with respect to Git history and MUST expose no generic shell.
 - **FR-039**: Codex guidance MUST consume the Core-returned node and transition contract rather than
   embedding a second transition table.
@@ -486,7 +488,7 @@ rendering, Phase 7 five-class Recovery, or Phase 8 final acceptance. Until Phase
   `TASK_TERMINAL` with zero writes.
 - **FR-047**: `open_task.new_task`, read `operation_probe`, and apply `recovery_apply` MUST be
   optional and accept explicit null; omitted/null values retain ordinary behavior while non-null
-  Recovery values follow the Phase 5D fail-closed boundary.
+  Recovery values follow the graph-native five-class reconciliation contract.
 - **FR-048**: Test manual-handoff budget enforcement MUST apply only to `TEST` manual handoff items
   and `source=user` TEST evidence; comprehension user confirmation uses its independent mandatory
   evidence validation while retaining common evidence limits and identity rules.
@@ -515,10 +517,9 @@ rendering, Phase 7 five-class Recovery, or Phase 8 final acceptance. Until Phase
   `conflicting`.
 - **FR-S010**: A graph mutation whose result is missing, cancelled, malformed, truncated, or
   transport-failed MUST require the complete operation probe and read-before-retry route.
-- **FR-S011**: Before Phase 7 implements the current-generation five-class route, syntactically valid
-  non-null `operation_probe` and `recovery_apply` MUST return `RECOVERY_UNAVAILABLE`,
-  `retry_safe=false`, and `action=none` before repository observation or any write; malformed
-  Recovery inputs remain `INVALID_ARGUMENT`.
+- **FR-S011**: Phase 5D's completed historical checkpoint required valid non-null Recovery inputs to
+  return `RECOVERY_UNAVAILABLE` before observation or writes. Phase 7A supersedes that temporary
+  runtime behavior; malformed Recovery inputs remain `INVALID_ARGUMENT`.
 
 ### Non-Goals
 
@@ -593,9 +594,9 @@ rendering, Phase 7 five-class Recovery, or Phase 8 final acceptance. Until Phase
   restarts/resumes the same task, reaches `DONE`, removes registration, and reopens retained data.
 - **SC-016**: Feature completion changes no public npm version, Git Tag, GitHub Release, or released
   `0.3.0` artifact identity.
-- **SC-017**: Omitted/null Recovery fields preserve ordinary behavior, while every valid non-null
-  probe/apply is rejected as `RECOVERY_UNAVAILABLE` with zero repository observation and zero state
-  writes until Phase 7.
+- **SC-017**: Omitted/null Recovery fields preserve ordinary behavior; valid non-null graph probes
+  produce a Core-derived read-only assessment, and only explicit recovery apply may commit the
+  classifier's internal directive.
 - **SC-018**: Table-driven tests prove all 29 transitions accept only their exact `problem_class`,
   typed facts, and reason combination; changing only the transition ID is rejected with zero writes.
 - **SC-019**: A task with `allow_manual_handoff=false` completes the automated-test → explicit-user-

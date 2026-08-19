@@ -178,7 +178,7 @@ func TestStandardProcessReasonMalformedTerminalAndExceptionalRejections(t *testi
 			actionID, actionKind = terminal.CurrentAction.ActionID, terminal.CurrentAction.Kind
 		}
 		_, err = service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "terminal-attempt", Host: domain.HostCodex, TaskID: terminal.TaskID, ExpectedRevision: terminal.Revision, ActionID: actionID, ActionKind: actionKind, ProcessID: terminal.Process.ID, ProcessVersion: terminal.Process.Version, ProcessDefinitionDigest: terminal.Process.DefinitionDigest, SourceCursor: terminal.CurrentNode, RepositoryBindingDigest: terminal.Repository.BindingDigest, Payload: standardPayload(t, snapshots[domain.NodeTest], "tests_passed", "", validNodeResult(snapshots[domain.NodeTest], "tests_passed"))})
-		if terminal.CurrentNode == domain.NodeBlocked && err != domain.ErrTaskBlocked || terminal.CurrentNode.Terminal() && err != domain.ErrTaskTerminal || memory.writes != before {
+		if terminal.CurrentNode == domain.NodeBlocked && err != domain.ErrInvalidArgument || terminal.CurrentNode.Terminal() && err != domain.ErrTaskTerminal || memory.writes != before {
 			t.Fatalf("node=%s error=%v writes=%d", terminal.CurrentNode, err, memory.writes-before)
 		}
 	}
@@ -453,7 +453,7 @@ func blockedTask(t *testing.T, source domain.ProcessTask) domain.ProcessTask {
 	resume := source.CurrentNode
 	source.CurrentNode = domain.NodeBlocked
 	source.ResumeNode = &resume
-	source.Blocker = &domain.ProcessBlocker{BlockerID: "blocker", ResumeNode: resume, Message: "Restore the repository binding."}
+	source.Blocker = &domain.ProcessBlocker{BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.RecoveryConflicting, ResumeNode: resume, Message: "Restore the repository binding.", ObservedBindingDigest: source.Repository.BindingDigest, Condition: domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: source.Repository.BindingDigest}, RequiredResolution: "Restore the issuance binding.", CreatedAt: source.UpdatedAt}
 	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), domain.NodeBlocked, source.TaskID, source.Revision, source.Repository.BindingDigest, source.Intent.MethodProfile, "blocked-action", source.UpdatedAt)
 	if err != nil {
 		t.Fatal(err)

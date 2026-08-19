@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/Innocent-children/dev-flow/internal/application"
 	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/dev-flow/internal/recovery"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 	"io"
 	"strings"
@@ -162,11 +163,17 @@ func ValidateToolInput(tool string, raw []byte) error {
 			return domain.ErrInvalidArgument
 		}
 		var v applyWire
-		if decodeClosed(raw, &v) != nil || !v.RequestID.IsValid() || !v.Host.IsValid() || !v.TaskID.IsValid() || v.Revision == 0 || !v.ActionID.IsValid() || !v.ActionKind.IsValidV2() || v.ProcessID != domain.ProcessStandardDevelopment || v.ProcessVersion != 1 || !v.ProcessDefinitionDigest.IsValid() || !v.SourceCursor.Normal() || !v.RepositoryBindingDigest.IsValid() || len(v.Payload) == 0 || !validRecoveryApply(v.RecoveryApply, v.SourceCursor) || v.RecoveryApply == nil && string(v.Payload) == "null" {
+		if decodeClosed(raw, &v) != nil || !v.RequestID.IsValid() || !v.Host.IsValid() || !v.TaskID.IsValid() || v.Revision == 0 || !v.ActionID.IsValid() || !v.ActionKind.IsValidV2() || v.ProcessID != domain.ProcessStandardDevelopment || v.ProcessVersion != 1 || !v.ProcessDefinitionDigest.IsValid() || (!v.SourceCursor.Normal() && v.SourceCursor != domain.NodeBlocked) || !v.RepositoryBindingDigest.IsValid() || len(v.Payload) == 0 || !validRecoveryApply(v.RecoveryApply, v.SourceCursor, v.RequestID) || v.RecoveryApply == nil && bytes.Equal(bytes.TrimSpace(v.Payload), []byte("null")) {
 			return domain.ErrInvalidArgument
 		}
-		if string(v.Payload) != "null" {
-			if err := workflow.ValidateRetainedPayload(v.SourceCursor, v.Payload); err != nil {
+		if !bytes.Equal(bytes.TrimSpace(v.Payload), []byte("null")) {
+			var err error
+			if v.SourceCursor == domain.NodeBlocked {
+				_, _, err = recovery.DecodeBlockerResolutionPayload(v.Payload)
+			} else {
+				err = workflow.ValidateRetainedPayload(v.SourceCursor, v.Payload)
+			}
+			if err != nil {
 				if errors.Is(err, domain.ErrTransitionNotAllowed) {
 					return domain.ErrTransitionNotAllowed
 				}
@@ -191,18 +198,21 @@ func validOperationProbe(v *operationProbeWire) bool {
 	if v == nil {
 		return true
 	}
-	if !v.OperationID.IsValid() || v.ProcessID != domain.ProcessStandardDevelopment || v.ProcessVersion != 1 ||
-		!v.ProcessDefinitionDigest.IsValid() || !v.SourceCursor.Normal() || v.ExpectedRevision == 0 ||
-		!v.ActionID.IsValid() || !v.ActionKind.IsValidV2() || !v.RepositoryBindingDigest.IsValid() || len(v.Payload) == 0 {
+	operation := domain.OperationReference{OperationID: v.OperationID, Process: domain.ProcessReference{ID: v.ProcessID, Version: v.ProcessVersion, DefinitionDigest: v.ProcessDefinitionDigest}, SourceCursor: v.SourceCursor, ExpectedRevision: v.ExpectedRevision, ActionID: v.ActionID, ActionKind: v.ActionKind, RepositoryBindingDigest: v.RepositoryBindingDigest}
+	if workflow.ValidateOperationReference(operation) != nil || len(v.Payload) == 0 {
 		return false
 	}
-	if string(v.Payload) == "null" {
+	if bytes.Equal(bytes.TrimSpace(v.Payload), []byte("null")) {
 		return true
+	}
+	if v.SourceCursor == domain.NodeBlocked {
+		_, _, err := recovery.DecodeBlockerResolutionPayload(v.Payload)
+		return err == nil
 	}
 	return workflow.ValidateRetainedPayload(v.SourceCursor, v.Payload) == nil
 }
-func validRecoveryApply(v *recoveryApplyWire, source domain.NodeID) bool {
-	return v == nil || v.OperationID.IsValid() && v.SourceCursor.Normal() && v.SourceCursor == source
+func validRecoveryApply(v *recoveryApplyWire, source domain.NodeID, requestID domain.ID) bool {
+	return v == nil || v.OperationID == requestID && v.SourceCursor == source && (source.Normal() || source == domain.NodeBlocked)
 }
 func hasKeys(raw []byte, keys ...string) bool {
 	var value map[string]json.RawMessage

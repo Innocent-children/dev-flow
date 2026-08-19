@@ -136,6 +136,7 @@ func TestImplementationTransitionsRecordsRepositoryEffectsAndZeroWrites(t *testi
 	changed := observer.binding.Clone()
 	changed.WorktreeFingerprint = digestOf("c")
 	changed.BindingDigest = digestOf("d")
+	changed.ChangedPaths = []string{"internal/file.go"}
 	observer.binding = changed
 	task = applyPhase5(t, s, task, "implementation_ready_for_test", "", implementationNodeResultWithPaths(1, []string{"work-a"}, []string{"internal/file.go"}, nil))
 	if task.Repository.BindingDigest != changed.BindingDigest || task.Implementation.RepositoryBindingDigest != changed.BindingDigest {

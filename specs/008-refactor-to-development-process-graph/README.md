@@ -57,11 +57,11 @@ behavior. A diagram or example never overrides a contract table.
 - Preserve revision CAS, action identity, repository binding, evidence budgets, repository claims,
   five-class recovery, and read-before-retry.
 
-Phase 5D is an implementation hardening checkpoint before Phase 7. Until Phase 7 completes the
-current-generation five-class Recovery route, omitted/null Recovery fields retain ordinary behavior
-and every valid non-null `operation_probe` or `recovery_apply` fails closed as
-`RECOVERY_UNAVAILABLE` before repository observation or mutation. This temporary boundary is not a
-claim that Recovery is complete.
+Phase 5D was the implementation hardening checkpoint before Recovery. Phase 7A supersedes that
+temporary boundary: omitted/null Recovery fields retain ordinary behavior, while valid non-null
+`operation_probe` and `recovery_apply` use the graph-native five-class route. The stable
+`RECOVERY_UNAVAILABLE` code remains reserved, but supported `standard-development@1` recovery does
+not return it.
 
 ## Non-Goals
 
@@ -136,7 +136,8 @@ approved.
 | Phase 6B | Codex Skill and packaged method-profile rendering reference | Complete — T063–T067; `FEATURE_008_PHASE_6B_CODEX_METHOD_ADAPTER_CHECKPOINT_COMPLETE` |
 | Phase 6C | Profile fixtures, simulated Codex Journey, and shared Host parity | Complete — T068–T072; `FEATURE_008_USER_STORY_3_CHECKPOINT_COMPLETE` |
 | User Story 3 | `plain`, `spec-kit`, and `openspec` guidance is rendered without adapter-owned state | Complete — T061–T072; `USER_STORY_3_CHECKPOINT_COMPLETE` |
-| User Story 4 | Fresh storage bootstrap, Schema 1 zero-write rejection, current-task recovery, and future-schema safety pass | Pending |
+| Phase 7A | Graph operation identity, five-class reconciliation, repository effects, and graph-native blocker resolution | Complete — T073–T076; Phase 7B/7C pending |
+| User Story 4 | Fresh storage bootstrap, Schema 1 zero-write rejection, current-task recovery, and future-schema safety pass | In progress — Phase 7A complete; T077–T085 pending |
 | Final feature gate | One repository validation and one local-artifact Codex journey pass | Pending |
 
 ## Release Boundary

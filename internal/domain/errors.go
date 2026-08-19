@@ -80,7 +80,7 @@ var (
 	ErrSchemaUnsupported          = &Error{Code: ErrorSchemaUnsupported, Message: "pre-graph data is unsupported; choose a fresh data directory or archive, rename, or delete the old directory outside Core"}
 	ErrProcessUnsupported         = &Error{Code: ErrorProcessUnsupported, Message: "the stored process definition is unsupported"}
 	ErrTransitionNotAllowed       = &Error{Code: ErrorTransitionNotAllowed, Message: "the transition is not allowed from the current node"}
-	ErrRecoveryUnavailable        = &Error{Code: ErrorRecoveryUnavailable, Message: "current implementation does not yet provide recovery for an uncertain mutation"}
+	ErrRecoveryUnavailable        = &Error{Code: ErrorRecoveryUnavailable, Message: "recovery is unavailable for this operation"}
 	ErrStorageUnavailable         = &Error{Code: ErrorStorageUnavailable, Message: "storage is unavailable"}
 	ErrInternal                   = &Error{Code: ErrorInternal, Message: "an internal error occurred"}
 )

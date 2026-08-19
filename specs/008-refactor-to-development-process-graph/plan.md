@@ -15,10 +15,10 @@ observer, revision CAS, and five-class recovery. Replace the Core Contract 0.1 w
 definition for every task supported by Core Contract 0.2; its nodes,
 node contracts, and legal transitions are visible in every current action.
 
-Phase 5D first closes the audited Phase 2–5 contract/runtime gaps. Because full current-generation
-five-class Recovery remains scheduled for Phase 7, Phase 5D makes every valid non-null Recovery
-request fail closed as `RECOVERY_UNAVAILABLE` before observation or mutation; omitted/null fields
-retain ordinary behavior.
+Phase 5D first closed the audited Phase 2–5 contract/runtime gaps with a temporary
+`RECOVERY_UNAVAILABLE` boundary. Phase 7A supersedes it with graph-native operation identity,
+five-class reconciliation, repository-effect proof, explicit recovery apply, and graph-native
+BLOCKED/resolution; omitted/null fields retain ordinary behavior.
 
 The implementation introduces one snapshot-version-2 task aggregate with an immutable `TaskIntent`,
 versioned semantic baselines, a process cursor, current test/comprehension authorities, and
@@ -333,9 +333,9 @@ destination, blocker, or binding. Repository-changing `IMPLEMENT` and `REFACTOR`
 existing worktree-only effect relation. Non-editing nodes require an exact binding. A partial or
 conflicting mutation enters `BLOCKED` with its original source node as resume cursor.
 
-Until that phase is implemented, Application types preserve the closed `OperationProbe` and
-`RecoveryApplyInput`, but any non-null value returns `RECOVERY_UNAVAILABLE` before repository
-observation or ordinary apply dispatch. No runtime event replay is introduced.
+Phase 7A implements this route through the existing read and apply tools. Recovery reads observe once
+and remain zero-write; recovery apply re-observes and commits only the Core-derived directive. No
+runtime event replay is introduced.
 
 ### 10. Method Profiles
 

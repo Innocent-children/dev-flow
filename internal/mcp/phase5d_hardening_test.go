@@ -35,8 +35,8 @@ func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 		{"probe nonnull", ToolGetTask, fmt.Sprintf(`{"host":"codex","task_id":"task","operation_probe":{"operation_id":"original","process_id":"standard-development","process_version":1,"process_definition_digest":"%s","source_cursor":"REQUIREMENTS","expected_revision":1,"action_id":"action","action_kind":"COMPLETE_REQUIREMENTS","repository_binding_digest":"%s","payload":null}}`, digest, binding)},
 		{"apply omitted", ToolApplyAction, fmt.Sprintf("{"+applyBase+"}", digest, binding, payload)},
 		{"apply null", ToolApplyAction, fmt.Sprintf("{"+applyBase+`,"recovery_apply":null}`, digest, binding, payload)},
-		{"recovery nonnull", ToolApplyAction, fmt.Sprintf("{"+applyBase+`,"recovery_apply":{"operation_id":"original","source_cursor":"REQUIREMENTS"}}`, digest, binding, payload)},
-		{"recovery nonnull without retained payload", ToolApplyAction, fmt.Sprintf("{"+applyBase+`,"recovery_apply":{"operation_id":"original","source_cursor":"REQUIREMENTS"}}`, digest, binding, "null")},
+		{"recovery nonnull", ToolApplyAction, fmt.Sprintf("{"+applyBase+`,"recovery_apply":{"operation_id":"request","source_cursor":"REQUIREMENTS"}}`, digest, binding, payload)},
+		{"recovery nonnull without retained payload", ToolApplyAction, fmt.Sprintf("{"+applyBase+`,"recovery_apply":{"operation_id":"request","source_cursor":"REQUIREMENTS"}}`, digest, binding, "null")},
 	}
 	for _, tc := range valid {
 		t.Run(tc.name, func(t *testing.T) {

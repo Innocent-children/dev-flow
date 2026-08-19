@@ -192,13 +192,34 @@ partially_completed
 conflicting
 ```
 
-Before Phase 7 is implemented, a syntactically valid non-null probe returns
-`RECOVERY_UNAVAILABLE` with `retry_safe=false` and `action=none`. Core performs no repository
-observation, classification, task read-side mutation, or Task/Event/Evidence/Claim/Schema write.
-Malformed, incomplete, unknown-member, or duplicate-member probes return `INVALID_ARGUMENT`.
-Ordinary omitted/null reads return `recovery_assessment:null`.
+Phase 7A implements this route. A valid non-null probe loads the authoritative graph task, observes
+the repository exactly once, and returns a transient closed assessment containing:
 
-After Phase 7, the assessment remains transient/read-only. Apply results never embed the assessment.
+```text
+classification
+operation
+task_revision
+current_action_id
+issuance_binding_digest
+authoritative_binding_digest
+observed_binding_digest
+repository_relation
+last_operation_relation
+operation_evidence
+operation_payload_digest
+committed_proof
+action_retry_safe
+next_advice
+unblock_condition
+observed_at
+```
+
+`operation` contains the original process ID/version/digest, source cursor, expected revision,
+action ID/kind, and operation ID. The internal mutation directive, canonical repository root, raw
+Git output, raw payload, TaskEvent row, and private error are not projected. Probed reads never
+mutate Task/Event/Evidence/Claim/Schema state or create a blocker. Malformed, incomplete,
+unknown-member, or duplicate-member probes return `INVALID_ARGUMENT`. Ordinary omitted/null reads
+return `recovery_assessment:null`. Apply results never embed the assessment.
 The result-envelope top-level error `recovery` object remains error advice and is not a
 classification. Phase 5D does not claim that assessment behavior is implemented.
 
@@ -938,11 +959,12 @@ for Phase 7 is:
 The top-level request carries the same original process/action identity. Payload is the exact
 original payload or null.
 
-Before Phase 7, every syntactically valid non-null `recovery_apply` returns
-`RECOVERY_UNAVAILABLE`, `retry_safe=false`, and `action=none` before repository observation,
-ordinary ApplyAction dispatch, mutation, or any Task/Event/Evidence/Claim/Schema write. It is not
-treated as a normal apply and never retries the original mutation. Malformed, incomplete,
-unknown-member, or duplicate-member input returns `INVALID_ARGUMENT`.
+Phase 7A handles syntactically valid non-null `recovery_apply` by reloading the Task, observing the
+repository again, and rerunning Core reconciliation. `completed_and_recorded` and `not_started` are
+zero-write; `completed_but_unrecorded` commits the original graph transition once using the original
+operation identity; `partially_completed` and still-current `conflicting` create or return one
+graph-native recovery blocker. Malformed, incomplete, unknown-member, duplicate-member, stale-source,
+or contradictory identity input fails closed with zero writes.
 
 ## 12. Apply Success and Failure
 
@@ -976,21 +998,22 @@ Decode precedence:
 - known well-typed transition absent for source/current action → `TRANSITION_NOT_ALLOWED`;
 - unsupported process ID/version/digest in loaded/caller identity → `PROCESS_UNSUPPORTED` or stale
   identity error according to source;
-- syntactically valid non-null Recovery input before Phase 7 → `RECOVERY_UNAVAILABLE`;
+- syntactically valid non-null supported graph Recovery input → five-class probe/apply route;
 - stale revision/action/binding retain existing stable errors.
 
 Every rejected mutation is zero-write.
 
-`RECOVERY_UNAVAILABLE` public advice is stable:
+`RECOVERY_UNAVAILABLE` remains a stable reserved public advice shape, but the supported
+`standard-development@1` Phase 7A recovery path does not return it:
 
 ```json
 {
   "code": "RECOVERY_UNAVAILABLE",
-  "message": "Current implementation does not yet provide recovery for an uncertain mutation.",
+  "message": "Recovery is unavailable for this operation.",
   "recovery": {
     "retry_safe": false,
     "action": "none",
-    "message": "Do not automatically retry the original mutation; wait for the Phase 7 current-storage-generation recovery implementation."
+    "message": "Do not automatically retry; use only a supported graph recovery route."
   }
 }
 ```

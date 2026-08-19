@@ -90,19 +90,6 @@ func (a ProcessActionV2) Validate() error {
 	return nil
 }
 
-type ProcessBlocker struct {
-	BlockerID  ID     `json:"blocker_id"`
-	ResumeNode NodeID `json:"resume_node"`
-	Message    string `json:"message"`
-}
-
-func (b ProcessBlocker) Validate() error {
-	if validateID(b.BlockerID) != nil || !b.ResumeNode.Normal() || requireNormalizedText(b.Message, MaxReasonBytes, true) != nil {
-		return ErrInvalidArgument
-	}
-	return nil
-}
-
 type ProcessOutcome struct {
 	Status                TerminalStatus     `json:"status"`
 	Summary               string             `json:"summary"`
@@ -191,7 +178,9 @@ func (t ProcessTask) Validate() error {
 			return ErrInvalidArgument
 		}
 	} else if t.CurrentNode == NodeBlocked {
-		if t.Blocker == nil || t.Blocker.Validate() != nil || t.ResumeNode == nil || !t.ResumeNode.Normal() || t.Blocker.ResumeNode != *t.ResumeNode || t.CurrentAction == nil || t.CurrentAction.Kind != ActionResolveBlocker {
+		if t.Blocker == nil || t.Blocker.Validate() != nil || t.ResumeNode == nil || !t.ResumeNode.Normal() ||
+			t.Blocker.ResumeNode != *t.ResumeNode || t.Blocker.Condition.ExpectedBindingDigest != t.Repository.BindingDigest ||
+			t.CurrentAction == nil || t.CurrentAction.Kind != ActionResolveBlocker {
 			return ErrInvalidArgument
 		}
 	} else if !t.CurrentNode.Normal() || t.CurrentAction == nil || t.Blocker != nil || t.ResumeNode != nil || t.Outcome != nil || t.CompletedAt != nil {

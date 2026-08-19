@@ -16,6 +16,11 @@ snapshot_version 2 → ProcessTask / standard-development@1
 Schema 1 and snapshot-version-1 task data are rejected before task decoding. There is no legacy task
 model, compatibility process, dual decoder, or conversion path.
 
+`RepositoryBinding` also retains one bounded, sorted `changed_paths` observation for the current
+worktree fingerprint. The paths are repository-relative structured facts used only for Core
+repository-effect proof; raw status records, Git output, and file contents are not persisted or
+projected in `RecoveryAssessment`.
+
 ## 2. Closed Identifiers
 
 ### 2.1 Process identifiers
@@ -594,9 +599,10 @@ type ProcessTask struct {
 | `BLOCKED` | Blocker, ResumeNode, `RESOLVE_BLOCKER` action and every authority required by ResumeNode | ResumeNode-specific authority only | authority forbidden by ResumeNode |
 | `CANCELLED` | cancelled Outcome, CompletedAt | partial authority valid at cancellation time | CurrentAction, Blocker, ResumeNode |
 
-For `BLOCKED`, `ProcessBlocker` has valid normalized bounded `blocker_id`, `resume_node`, and
-`message`; its action and resume node agree with the task. For every nonterminal normal node there
-is exactly one current action; terminal nodes have none.
+For `BLOCKED`, `ProcessBlocker` contains `blocker_id`, `code`, recovery `cause`, bounded `message`,
+`resume_node`, `observed_binding_digest`, exact `condition`, `required_resolution`, and `created_at`.
+Its action, condition, authoritative issuance binding, and resume node agree with the task. For every
+nonterminal normal node there is exactly one current action; terminal nodes have none.
 
 The matrix is enforced after strict decode, during Store-open preflight, and on every `LoadTask`.
 Invalid downstream authority is never retained merely because the current mutation does not touch

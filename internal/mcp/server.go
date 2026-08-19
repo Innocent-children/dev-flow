@@ -79,7 +79,7 @@ func (s *Server) dispatch(ctx context.Context, tool string, id domain.ID, raw []
 		if err != nil {
 			return EncodeError(string(id), tool, err)
 		}
-		return EncodeSuccess(string(id), tool, map[string]any{"task": projectTask(r.Task), "recovery_assessment": nil})
+		return EncodeSuccess(string(id), tool, map[string]any{"task": projectTask(r.Task), "recovery_assessment": projectRecoveryAssessment(r.RecoveryAssessment)})
 	case ToolGetNextAction:
 		var w readWire
 		_ = decodeClosed(raw, &w)

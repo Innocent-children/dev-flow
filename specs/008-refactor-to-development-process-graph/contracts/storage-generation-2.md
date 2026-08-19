@@ -332,12 +332,15 @@ partially_completed
 conflicting
 ```
 
-The complete five-class behavior is the Phase 7 target. Before Phase 7, syntactically valid non-null
-operation probes and recovery applies return `RECOVERY_UNAVAILABLE`, `retry_safe=false`, and
-`action=none` before repository observation or writes. Omitted/null fields retain ordinary
-read/mutation behavior; malformed Recovery input returns `INVALID_ARGUMENT`. Phase 5D never commits
-a recovery revision/event or blocker transaction. Storage bootstrap and unsupported-data rejection
-are not task mutations and do not create TaskEvents.
+Phase 7A implements the complete five-class Core for graph tasks. A probe observes once and writes
+nothing. Explicit recovery apply observes again and may commit exactly one recovered normal
+transition or one source-to-`BLOCKED` exceptional transaction. A blocker stores the source resume
+node, classification, observed drift digest, exact restoration condition, required resolution, and
+creation time while retaining the authoritative issuance binding. Resolution returns only to the
+stored resume node with a new action identity and one exceptional event. Duplicate recovered
+transition, blocker creation, or resolution performs no additional write. Omitted/null fields retain
+ordinary behavior; malformed Recovery input returns `INVALID_ARGUMENT`. Storage bootstrap and
+unsupported-data rejection are not task mutations and do not create TaskEvents.
 
 ## 14. Package Removal and Data Retention
 
@@ -365,8 +368,9 @@ Deterministic tests:
 - event transition fields;
 - repository claim retention/release;
 - complete Store-open task/claim preflight with zero-write manifests;
-- Phase 5D non-null Recovery fail-closed behavior; five-class uncertain mutation recovery remains a
-  Phase 7 gate.
+- historical Phase 5D non-null Recovery fail-closed evidence plus the superseding Phase 7A
+  graph-native operation probe, five-class reconciliation, repository effects, blocker, and
+  resolution tests.
 
 Native evidence:
 

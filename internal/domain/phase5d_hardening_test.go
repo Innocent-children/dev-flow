@@ -102,7 +102,7 @@ func authorityMatrixTask(t *testing.T, node NodeID) ProcessTask {
 		resume := NodeTest
 		base.Test, base.Comprehension = nil, nil
 		base.ResumeNode = &resume
-		base.Blocker = &ProcessBlocker{BlockerID: "blocker", ResumeNode: resume, Message: "Restore repository binding."}
+		base.Blocker = &ProcessBlocker{BlockerID: "blocker", Code: ErrorTaskBlocked, Cause: RecoveryConflicting, ResumeNode: resume, Message: "Restore repository binding.", ObservedBindingDigest: base.Repository.BindingDigest, Condition: BlockerCondition{Kind: BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: base.Repository.BindingDigest}, RequiredResolution: "Restore the issuance binding.", CreatedAt: base.UpdatedAt}
 	case NodeCancelled:
 		now := base.UpdatedAt
 		base.Design, base.TaskPlan, base.Implementation, base.Test, base.Comprehension = nil, nil, nil, nil, nil

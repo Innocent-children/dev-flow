@@ -164,6 +164,7 @@ func TestRefactorTransitionsRepositoryEffectsAndGuards(t *testing.T) {
 	changed := observer.binding.Clone()
 	changed.WorktreeFingerprint = digestOf("c")
 	changed.BindingDigest = digestOf("d")
+	changed.ChangedPaths = []string{"internal/file.go"}
 	observer.binding = changed
 	result := applyPhase5(t, s, task, "refactor_ready_for_test", "", refactorNodeResult([]string{"internal/file.go"}, false, []string{"Removed indirection"}, false, nil))
 	if result.CurrentNode != domain.NodeTest || result.Test != nil || result.Comprehension != nil || result.Implementation == nil || result.Implementation.Revision != 2 || result.Repository.BindingDigest != changed.BindingDigest {

@@ -307,11 +307,27 @@ retained, send JSON `null`. Never reconstruct it from partial output, repository
 memory.
 
 Use the original `task_id` to call `dev_flow_get_task` with that exact probe. A stale pre-dispatch
-Task snapshot is not an authoritative read-back. During the current pre-Phase-7 boundary, a valid
-non-null probe returns `RECOVERY_UNAVAILABLE`, `retry_safe=false`, and `action=none`. Report that
-authoritative result and stop. This safe-stop is not an ordinary rejection to repair and continue.
-Do not call `dev_flow_get_next_action`, do not retry the original
-mutation, do not call `dev_flow_apply_action`, and never use `recovery_apply` to bypass the stop.
+Task snapshot is not an authoritative read-back. Require one complete `recovery_assessment` with the
+original graph operation identity, binding relations, operation evidence, optional committed proof,
+retry flag, `next_advice`, optional unblock condition, and observation time. Stop if it is absent,
+truncated, malformed, or refers to another operation.
+
+Do not implement or branch on the five-class decision table. Obey only Core's complete
+`next_advice`:
+
+- `retry_current_action`: retry the ordinary current action only when Core also returns
+  `action_retry_safe=true` and the authoritative task still exposes the exact original action;
+- `submit_recovery_apply`: submit the retained original top-level operation identity and payload,
+  adding exactly `recovery_apply={"operation_id":<original request_id>,"source_cursor":<original
+  source_cursor>}`; do not add a new recovery operation ID, destination, or classification;
+- `read_next_action`: read the authoritative next action and continue only from that result;
+- `resolve_blocker`: stop ordinary work and handle only the Core-returned current
+  `RESOLVE_BLOCKER` action;
+- `stop_for_repository_drift`: report the bounded drift condition and stop.
+
+Never infer that an unlisted action is safe. A recovery read itself cannot create a blocker or adopt
+work. Only a Core-requested explicit recovery apply may do so, and its result becomes the next
+authority.
 
 If any required identity is missing or incomplete, do not construct or send an `operation_probe`;
 send no fabricated or half probe. Do not fill missing values from a partial response, do not assume
@@ -319,7 +335,7 @@ send no fabricated or half probe. Do not fill missing values from a partial resp
 mutation state.
 
 Do not branch, decide, or interpret any recovery classification and do not guess from repository
-state. Core owns future classification behavior.
+state. Core owns classification, effect proof, blocker eligibility, and mutation directives.
 
 A complete structured `ok=false` result is an authoritative domain error, not transport
 uncertainty. Never convert or treat that domain error as missing or transport failure. Obey Core's
