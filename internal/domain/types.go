@@ -21,51 +21,9 @@ const (
 
 func (h Host) IsValid() bool { return h == HostCodex || h == HostDeepSeek }
 
-type Phase string
-
-const (
-	PhaseIntake    Phase = "INTAKE"
-	PhaseAssess    Phase = "ASSESS"
-	PhasePlan      Phase = "PLAN"
-	PhaseImplement Phase = "IMPLEMENT"
-	PhaseVerify    Phase = "VERIFY"
-	PhaseReview    Phase = "REVIEW"
-	PhaseHandoff   Phase = "HANDOFF"
-	PhaseDone      Phase = "DONE"
-	PhaseBlocked   Phase = "BLOCKED"
-	PhaseCancelled Phase = "CANCELLED"
-)
-
-func (p Phase) IsValid() bool {
-	switch p {
-	case PhaseIntake, PhaseAssess, PhasePlan, PhaseImplement, PhaseVerify, PhaseReview,
-		PhaseHandoff, PhaseDone, PhaseBlocked, PhaseCancelled:
-		return true
-	default:
-		return false
-	}
-}
-
-func (p Phase) Terminal() bool { return p == PhaseDone || p == PhaseCancelled }
-
-func (p Phase) NormalNonTerminal() bool {
-	switch p {
-	case PhaseIntake, PhaseAssess, PhasePlan, PhaseImplement, PhaseVerify, PhaseReview, PhaseHandoff:
-		return true
-	default:
-		return false
-	}
-}
-
 type ActionKind string
 
 const (
-	ActionAssessTask                  ActionKind = "ASSESS_TASK"
-	ActionPlanChange                  ActionKind = "PLAN_CHANGE"
-	ActionImplementChange             ActionKind = "IMPLEMENT_CHANGE"
-	ActionVerifyChange                ActionKind = "VERIFY_CHANGE"
-	ActionReviewChange                ActionKind = "REVIEW_CHANGE"
-	ActionPrepareHandoff              ActionKind = "PREPARE_HANDOFF"
 	ActionResolveBlocker              ActionKind = "RESOLVE_BLOCKER"
 	ActionCompleteRequirements        ActionKind = "COMPLETE_REQUIREMENTS"
 	ActionCompleteDesign              ActionKind = "COMPLETE_DESIGN"
@@ -76,16 +34,6 @@ const (
 	ActionCompleteRefactor            ActionKind = "COMPLETE_REFACTOR"
 	ActionCompleteDelivery            ActionKind = "COMPLETE_DELIVERY"
 )
-
-func (k ActionKind) IsValid() bool {
-	switch k {
-	case ActionAssessTask, ActionPlanChange, ActionImplementChange, ActionVerifyChange,
-		ActionReviewChange, ActionPrepareHandoff, ActionResolveBlocker:
-		return true
-	default:
-		return false
-	}
-}
 
 func (k ActionKind) IsValidV2() bool {
 	switch k {
@@ -108,28 +56,6 @@ const (
 
 func (k OperationKind) IsValid() bool {
 	return k == OperationOpenTask || k == OperationApplyAction || k == OperationCancelTask
-}
-
-type ActionResult string
-
-const (
-	ActionResultSucceeded            ActionResult = "succeeded"
-	ActionResultReady                ActionResult = "ready"
-	ActionResultFailed               ActionResult = "failed"
-	ActionResultPass                 ActionResult = "pass"
-	ActionResultReworkImplementation ActionResult = "rework_implementation"
-	ActionResultReplan               ActionResult = "replan"
-	ActionResultComplete             ActionResult = "complete"
-)
-
-func (r ActionResult) IsValid() bool {
-	switch r {
-	case ActionResultSucceeded, ActionResultReady, ActionResultFailed, ActionResultPass,
-		ActionResultReworkImplementation, ActionResultReplan, ActionResultComplete:
-		return true
-	default:
-		return false
-	}
 }
 
 type EvidenceSource string
@@ -210,7 +136,6 @@ type AllowedEffect string
 
 const (
 	EffectReadRepository          AllowedEffect = "read_repository"
-	EffectEditRepositoryFiles     AllowedEffect = "edit_repository_files"
 	EffectRunVerificationCommands AllowedEffect = "run_verification_commands"
 	EffectPrepareDeliverySummary  AllowedEffect = "prepare_delivery_summary"
 	EffectResolveBlocker          AllowedEffect = "resolve_blocker"
@@ -218,16 +143,6 @@ const (
 	EffectEditProductFiles        AllowedEffect = "edit_product_files"
 	EffectRequestUserDecision     AllowedEffect = "request_user_decision"
 )
-
-func (e AllowedEffect) IsValid() bool {
-	switch e {
-	case EffectReadRepository, EffectEditRepositoryFiles, EffectRunVerificationCommands,
-		EffectPrepareDeliverySummary, EffectResolveBlocker:
-		return true
-	default:
-		return false
-	}
-}
 
 func (e AllowedEffect) IsValidV2() bool {
 	switch e {
@@ -244,26 +159,10 @@ type EvidenceRequirementKind string
 
 const (
 	RequirementRepositoryObservation EvidenceRequirementKind = "repository_observation"
-	RequirementAssessmentSummary     EvidenceRequirementKind = "assessment_summary"
-	RequirementImplementationPlan    EvidenceRequirementKind = "implementation_plan"
 	RequirementImplementationSummary EvidenceRequirementKind = "implementation_summary"
-	RequirementVerificationSummary   EvidenceRequirementKind = "verification_summary"
-	RequirementReviewSummary         EvidenceRequirementKind = "review_summary"
 	RequirementDeliverySummary       EvidenceRequirementKind = "delivery_summary"
 	RequirementBlockerResolution     EvidenceRequirementKind = "blocker_resolution"
 )
-
-func (k EvidenceRequirementKind) IsValid() bool {
-	switch k {
-	case RequirementRepositoryObservation, RequirementAssessmentSummary,
-		RequirementImplementationPlan, RequirementImplementationSummary,
-		RequirementVerificationSummary, RequirementReviewSummary,
-		RequirementDeliverySummary, RequirementBlockerResolution:
-		return true
-	default:
-		return false
-	}
-}
 
 type OutcomeCriterionStatus string
 

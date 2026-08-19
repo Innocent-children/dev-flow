@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
+import { execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmod, lstat, mkdir, readFile, readdir, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
+import { promisify } from "node:util";
 
 import {
   CODEX_COMPATIBILITY_RANGE,
@@ -28,6 +31,7 @@ const receiptSchemaPath = join(
   "registration-receipt.schema.json",
 );
 const fakeCodexPath = fileURLToPath(new URL("./fixtures/fake-codex.mjs", import.meta.url));
+const execFile = promisify(execFileCallback);
 
 test("receipt parser enforces the checked-in closed schema", async (t) => {
   const root = await makeRoot(t);
@@ -446,6 +450,58 @@ child.once("exit", (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
   assert.equal(calls.includes("plugin marketplace remove dev-flow-local --json"), false);
 });
 
+test("setup update and remove preserve Schema 2 pre-graph and ordinary user data manifests", async (t) => {
+  for (const kind of ["schema2", "pre-graph", "user-files"]) {
+    await t.test(kind, async () => {
+      const fixture = await makeSetupFixture(t, `data-retention-${kind}`);
+      await createLifecycleDataFixture(fixture.paths.dataDirectory, kind);
+
+      const beforeSetup = await lifecycleDataManifest(fixture.paths.dataDirectory);
+      const setup = await setupRegistration(fixture.options);
+      assert.equal(setup.status, "installed");
+      assert.deepEqual(await lifecycleDataManifest(fixture.paths.dataDirectory), beforeSetup);
+
+      await updateSetupFixtureVersion(fixture, "0.1.1");
+      const beforeUpdate = await lifecycleDataManifest(fixture.paths.dataDirectory);
+      const update = await setupRegistration(fixture.options);
+      assert.equal(update.status, "installed");
+      assert.deepEqual(await lifecycleDataManifest(fixture.paths.dataDirectory), beforeUpdate);
+
+      const beforeRemove = await lifecycleDataManifest(fixture.paths.dataDirectory);
+      assert.deepEqual(await removeRegistration(fixture.options), { status: "removed", changed: true });
+      assert.deepEqual(await lifecycleDataManifest(fixture.paths.dataDirectory), beforeRemove);
+    });
+  }
+});
+
+test("local npm uninstall removes only package-managed files and retains every data generation", async (t) => {
+  for (const kind of ["schema2", "pre-graph", "user-files"]) {
+    await t.test(kind, async () => {
+      const root = join(await makeRoot(t), `npm-uninstall-${kind}`);
+      const installPrefix = join(root, "local prefix");
+      const dataDirectory = join(root, "task data");
+      await mkdir(installPrefix, { recursive: true });
+      await createLifecycleDataFixture(dataDirectory, kind);
+      await writeFile(join(installPrefix, "package.json"), `${JSON.stringify({ name: `retention-${kind}`, private: true })}\n`);
+
+      await execFile("npm", [
+        "install", "--prefix", installPrefix, join(repositoryRoot, "packages", "codex"),
+        "--ignore-scripts", "--no-audit", "--no-fund", "--package-lock=false",
+      ], { encoding: "utf8" });
+      const installedPackage = join(installPrefix, "node_modules", "dev-flow-codex");
+      assert.equal((await stat(installedPackage)).isDirectory(), true);
+
+      const beforeUninstall = await lifecycleDataManifest(dataDirectory);
+      await execFile("npm", [
+        "uninstall", "--prefix", installPrefix, "dev-flow-codex",
+        "--ignore-scripts", "--no-audit", "--no-fund", "--package-lock=false",
+      ], { encoding: "utf8" });
+      await assert.rejects(stat(installedPackage), { code: "ENOENT" });
+      assert.deepEqual(await lifecycleDataManifest(dataDirectory), beforeUninstall);
+    });
+  }
+});
+
 test("removal deletes only matching registration and the exact receipt", async (t) => {
   const fixture = await makeSetupFixture(t, "remove-matching");
   await setupRegistration(fixture.options);
@@ -746,6 +802,95 @@ async function directoryFingerprint(root) {
   }
   await visit(root);
   return hash.digest("hex");
+}
+
+async function createLifecycleDataFixture(dataDirectory, kind) {
+  await mkdir(dataDirectory, { recursive: true });
+  await writeFile(join(dataDirectory, "user-owned-sentinel.txt"), `${kind}:preserve\n`);
+  if (kind === "user-files") {
+    await mkdir(join(dataDirectory, "user-folder"), { recursive: true });
+    await writeFile(join(dataDirectory, "user-folder", "notes.txt"), "ordinary user data\n");
+    return;
+  }
+
+  const database = new DatabaseSync(join(dataDirectory, "dev-flow.db"));
+  if (kind === "schema2") {
+    database.exec(`
+      CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL, digest TEXT NOT NULL);
+      CREATE TABLE tasks(task_id TEXT PRIMARY KEY, snapshot BLOB NOT NULL);
+      CREATE TABLE task_events(event_id TEXT PRIMARY KEY, task_id TEXT NOT NULL);
+      CREATE TABLE repository_claims(repository_identity TEXT PRIMARY KEY, task_id TEXT NOT NULL);
+      INSERT INTO schema_migrations VALUES(2, '2026-08-19T00:00:00Z', '${"a".repeat(64)}');
+      INSERT INTO tasks VALUES('graph-task', X'7B2267656E65726174696F6E223A327D');
+      INSERT INTO task_events VALUES('graph-event', 'graph-task');
+      INSERT INTO repository_claims VALUES('${"b".repeat(64)}', 'graph-task');
+    `);
+  } else {
+    database.exec(`
+      CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL, digest TEXT NOT NULL);
+      CREATE TABLE tasks(task_id TEXT PRIMARY KEY, snapshot BLOB NOT NULL);
+      CREATE TABLE task_events(event_id TEXT PRIMARY KEY, task_id TEXT NOT NULL);
+      CREATE TABLE repository_claims(repository_identity TEXT PRIMARY KEY, task_id TEXT NOT NULL);
+      INSERT INTO schema_migrations VALUES(1, '2026-08-01T00:00:00Z', 'pre-graph');
+      INSERT INTO tasks VALUES('old-task', X'7B227068617365223A22494E54414B45227D');
+      INSERT INTO task_events VALUES('old-event', 'old-task');
+      INSERT INTO repository_claims VALUES('old-repository', 'old-task');
+    `);
+  }
+  database.close();
+}
+
+async function lifecycleDataManifest(dataDirectory) {
+  const files = [];
+  async function visit(directory, prefix = "") {
+    const entries = await readdir(directory, { withFileTypes: true });
+    entries.sort((left, right) => left.name.localeCompare(right.name));
+    for (const entry of entries) {
+      const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+      const absolute = join(directory, entry.name);
+      if (entry.isDirectory()) {
+        files.push({ path: `${relativePath}/`, type: "directory" });
+        await visit(absolute, relativePath);
+        continue;
+      }
+      const contents = await readFile(absolute);
+      files.push({
+        path: relativePath,
+        type: "file",
+        size: contents.byteLength,
+        sha256: createHash("sha256").update(contents).digest("hex"),
+      });
+    }
+  }
+  await visit(dataDirectory);
+
+  const databasePath = join(dataDirectory, "dev-flow.db");
+  let database = null;
+  try {
+    await stat(databasePath);
+    const sqlite = new DatabaseSync(databasePath, { readOnly: true });
+    const schema = sqlite.prepare(
+      "SELECT type, name, COALESCE(sql, '') AS sql FROM sqlite_master WHERE type IN ('table','index') AND name NOT LIKE 'sqlite_%' ORDER BY type, name",
+    ).all();
+    const tables = {};
+    for (const name of ["schema_migrations", "tasks", "task_events", "repository_claims"]) {
+      const exists = sqlite.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type='table' AND name=?").get(name).count;
+      if (exists !== 1) continue;
+      const rows = sqlite.prepare(`SELECT * FROM "${name}" ORDER BY rowid`).all();
+      tables[name] = rows.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [key, manifestSQLiteValue(value)])));
+    }
+    database = { schema, tables };
+    sqlite.close();
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+  return { exists: true, files, database };
+}
+
+function manifestSQLiteValue(value) {
+  if (value instanceof Uint8Array) return `blob:${Buffer.from(value).toString("hex")}`;
+  if (typeof value === "bigint") return `integer:${value}`;
+  return value;
 }
 
 function validReceipt(root, { receiptPath = join(root, "registrations", "codex.json") } = {}) {

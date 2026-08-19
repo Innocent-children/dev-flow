@@ -23,6 +23,20 @@ var schema2Statements = []string{
 	`CREATE TABLE task_events (event_id TEXT PRIMARY KEY, task_id TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision >= 1), event_type TEXT NOT NULL, source_node TEXT NOT NULL, destination_node TEXT NOT NULL, transition_id TEXT, transition_reason TEXT, action_id TEXT, request_id TEXT NOT NULL, payload_digest TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE (task_id, revision), FOREIGN KEY (task_id) REFERENCES tasks (task_id) ON DELETE RESTRICT)`,
 	`CREATE TABLE repository_claims (repository_identity TEXT PRIMARY KEY, task_id TEXT NOT NULL UNIQUE, origin_host TEXT NOT NULL, claimed_at TEXT NOT NULL, FOREIGN KEY (task_id) REFERENCES tasks (task_id) ON DELETE RESTRICT)`,
 }
+var schema2Objects = []struct {
+	name           string
+	kind           string
+	statementIndex int
+}{
+	{"schema_migrations", "table", 0},
+	{"tasks", "table", 1},
+	{"tasks_node_idx", "index", 2},
+	{"tasks_origin_host_idx", "index", 3},
+	{"tasks_updated_at_idx", "index", 4},
+	{"tasks_process_idx", "index", 5},
+	{"task_events", "table", 6},
+	{"repository_claims", "table", 7},
+}
 var requiredTables = []string{"schema_migrations", "tasks", "task_events", "repository_claims"}
 var requiredIndexes = []string{"tasks_node_idx", "tasks_origin_host_idx", "tasks_updated_at_idx", "tasks_process_idx"}
 var requiredColumns = map[string][]string{"schema_migrations": {"version", "applied_at", "digest"}, "tasks": {"task_id", "origin_host", "process_id", "process_version", "process_definition_digest", "snapshot_version", "current_node", "revision", "repository_identity", "snapshot", "created_at", "updated_at"}, "task_events": {"event_id", "task_id", "revision", "event_type", "source_node", "destination_node", "transition_id", "transition_reason", "action_id", "request_id", "payload_digest", "created_at"}, "repository_claims": {"repository_identity", "task_id", "origin_host", "claimed_at"}}
@@ -89,6 +103,16 @@ func verifySchema2(ctx context.Context, q queryer) error {
 			return ErrSchemaUnsupported
 		}
 	}
+	for _, object := range schema2Objects {
+		if object.statementIndex >= len(schema2Statements) {
+			return ErrSchemaUnsupported
+		}
+		var actual string
+		if err := q.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE type=? AND name=?`, object.kind, object.name).Scan(&actual); err != nil ||
+			normalizeSchemaSQL(actual) != normalizeSchemaSQL(schema2Statements[object.statementIndex]) {
+			return ErrSchemaUnsupported
+		}
+	}
 	for table, columns := range requiredColumns {
 		for _, column := range columns {
 			var n int
@@ -97,9 +121,9 @@ func verifySchema2(ctx context.Context, q queryer) error {
 			}
 		}
 	}
-	var tasksSQL string
-	if err := q.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE type='table' AND name='tasks'`).Scan(&tasksSQL); err != nil || !strings.Contains(tasksSQL, "snapshot_version = 2") {
-		return ErrSchemaUnsupported
-	}
 	return nil
+}
+
+func normalizeSchemaSQL(statement string) string {
+	return strings.ToLower(strings.Join(strings.Fields(strings.TrimSpace(statement)), " "))
 }

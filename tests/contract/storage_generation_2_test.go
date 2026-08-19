@@ -1,0 +1,216 @@
+package contract_test
+
+import (
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+	"testing"
+)
+
+func TestStorageGeneration2ProductionHasNoHistoricalTaskRuntime(t *testing.T) {
+	root := storageGenerationRepositoryRoot(t)
+	roots := []string{
+		"internal",
+		"cmd",
+		"packages/codex/lib",
+		"packages/codex/bin",
+		"packages/codex/plugin",
+		"scripts",
+	}
+	files := storageGenerationProductionFiles(t, root, roots)
+
+	forbiddenText := []*regexp.Regexp{
+		regexp.MustCompile(`(?i)legacy[-_]linear`),
+		regexp.MustCompile(`\b(?:LegacyTask|LegacyProcess|continueLegacyTask|resumeLegacyTask)\b`),
+		regexp.MustCompile(`(?i)\b(?:codec_v1|decodeTaskV1|encodeTaskV1)\b`),
+		regexp.MustCompile(`(?i)\bALTER\s+TABLE\b`),
+		regexp.MustCompile(`(?i)\b(?:import|export)(?:Legacy|Historical|Old)?Task\b`),
+	}
+	for _, path := range files {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, pattern := range forbiddenText {
+			if pattern.Match(raw) {
+				t.Errorf("production source %s contains forbidden historical runtime pattern %s", filepath.ToSlash(strings.TrimPrefix(path, root+string(filepath.Separator))), pattern)
+			}
+		}
+	}
+
+	forbiddenGoSymbols := map[string]bool{
+		"Task": true, "Contract": true, "Outcome": true, "Action": true, "Blocker": true,
+		"Phase": true, "ActionResult": true, "NewContract": true,
+		"decodeTaskV1": true, "encodeTaskV1": true, "persistedTaskV1": true,
+	}
+	for _, path := range files {
+		if filepath.Ext(path) != ".go" {
+			continue
+		}
+		file, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
+		if err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		ast.Inspect(file, func(node ast.Node) bool {
+			switch value := node.(type) {
+			case *ast.TypeSpec:
+				if forbiddenGoSymbols[value.Name.Name] {
+					t.Errorf("production source %s declares forbidden historical type %s", filepath.ToSlash(strings.TrimPrefix(path, root+string(filepath.Separator))), value.Name.Name)
+				}
+			case *ast.FuncDecl:
+				if forbiddenGoSymbols[value.Name.Name] {
+					t.Errorf("production source %s declares forbidden historical function %s", filepath.ToSlash(strings.TrimPrefix(path, root+string(filepath.Separator))), value.Name.Name)
+				}
+			}
+			return true
+		})
+	}
+
+	// Historical specifications, protocol fixtures, tests, and release evidence are deliberately
+	// outside this allowlist. They may describe or construct Contract 0.1 only as frozen evidence.
+	t.Logf("scanned %d production files under %s", len(files), strings.Join(roots, ", "))
+}
+
+func TestStorageGeneration2HasOneSchemaCodecProcessAndProjection(t *testing.T) {
+	root := storageGenerationRepositoryRoot(t)
+	read := func(path string) string {
+		t.Helper()
+		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(raw)
+	}
+
+	migrations := read("internal/store/migrations.go")
+	for _, required := range []string{
+		"const SchemaVersion = 2",
+		"const SnapshotVersion = 2",
+		"schema2Statements",
+		"INSERT INTO schema_migrations(version,applied_at,digest) VALUES(2,?,?)",
+	} {
+		if !strings.Contains(migrations, required) {
+			t.Errorf("Schema 2 bootstrap missing %q", required)
+		}
+	}
+	if regexp.MustCompile(`(?i)ALTER\s+TABLE|VALUES\s*\(\s*1\s*,`).MatchString(migrations) {
+		t.Fatal("Schema 2 bootstrap contains a Schema 1 or ALTER TABLE migration path")
+	}
+
+	codec := read("internal/store/codec.go")
+	for _, required := range []string{
+		"type persistedTaskV2 domain.ProcessTask",
+		"func encodeTask(task domain.ProcessTask)",
+		"func decodeTask(raw []byte) (domain.ProcessTask, error)",
+	} {
+		if strings.Count(codec, required) != 1 {
+			t.Errorf("strict v2 codec must contain exactly one %q", required)
+		}
+	}
+	if strings.Count(codec, "workflow.ValidateProcessTask(task)") != 2 {
+		t.Error("strict v2 codec must validate the ProcessTask on both encode and decode")
+	}
+	if regexp.MustCompile(`(?i)(snapshot.*switch|switch.*snapshot|persistedTaskV[013-9]|decodeTaskV|encodeTaskV)`).MatchString(codec) {
+		t.Fatal("task codec contains a version-selected or non-v2 branch")
+	}
+
+	process := read("internal/workflow/standard_process.go")
+	if strings.Count(process, "func StandardProcess() domain.ProcessDefinition") != 1 ||
+		!strings.Contains(process, "domain.ProcessStandardDevelopment") {
+		t.Fatal("standard-development@1 is not the single code-owned process entrypoint")
+	}
+	projection := read("internal/mcp/results.go")
+	if strings.Count(projection, "func projectTask(t domain.ProcessTask) any") != 1 || strings.Contains(projection, "domain.Task") {
+		t.Fatal("MCP must expose one ProcessTask projection and no historical Task projection")
+	}
+	applicationTypes := read("internal/application/types.go")
+	if strings.Contains(applicationTypes, "domain.Task") || !strings.Contains(applicationTypes, "domain.ProcessTask") {
+		t.Fatal("Application must use only the ProcessTask projection")
+	}
+}
+
+func TestStorageGeneration2LifecycleHasNoTaskDataResetCapability(t *testing.T) {
+	root := storageGenerationRepositoryRoot(t)
+	lifecyclePaths := []string{
+		"packages/codex/lib/lifecycle.mjs",
+		"packages/codex/lib/paths.mjs",
+		"packages/codex/bin/dev-flow-codex.mjs",
+	}
+	for _, relative := range lifecyclePaths {
+		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		source := string(raw)
+		for _, forbidden := range []*regexp.Regexp{
+			regexp.MustCompile(`\b(?:rm|rmdir|truncate)\s*\(`),
+			regexp.MustCompile(`(?i)\b(?:DELETE|DROP)\s+(?:FROM\s+)?(?:tasks|task_events|repository_claims|schema_migrations)\b`),
+			regexp.MustCompile(`(?i)\b(?:migrate|convert|reset)(?:Task|Database|DataDirectory)\b`),
+		} {
+			if forbidden.MatchString(source) {
+				t.Errorf("%s contains task-data lifecycle capability %s", relative, forbidden)
+			}
+		}
+	}
+	lifecycle, err := os.ReadFile(filepath.Join(root, "packages/codex/lib/lifecycle.mjs"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(string(lifecycle), "unlink(paths.receiptPath)") != 1 {
+		t.Fatal("remove may unlink only the exact package-managed registration receipt")
+	}
+	if strings.Count(string(lifecycle), "rename(temporaryPath, receiptPath)") != 1 {
+		t.Fatal("lifecycle may rename only the atomic package-managed receipt temporary file")
+	}
+}
+
+func storageGenerationProductionFiles(t *testing.T, root string, roots []string) []string {
+	t.Helper()
+	extensions := map[string]bool{".go": true, ".mjs": true, ".js": true, ".json": true, ".md": true, ".sh": true}
+	var files []string
+	for _, relativeRoot := range roots {
+		base := filepath.Join(root, filepath.FromSlash(relativeRoot))
+		count := 0
+		err := filepath.WalkDir(base, func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if entry.IsDir() {
+				if entry.Name() == "node_modules" || entry.Name() == "testdata" || entry.Name() == "fixtures" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			name := entry.Name()
+			if strings.HasSuffix(name, "_test.go") || strings.HasSuffix(name, ".test.mjs") || !extensions[filepath.Ext(name)] {
+				return nil
+			}
+			files = append(files, path)
+			count++
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if count == 0 {
+			t.Fatalf("production scan root %s is empty", relativeRoot)
+		}
+	}
+	sort.Strings(files)
+	return files
+}
+
+func storageGenerationRepositoryRoot(t *testing.T) string {
+	t.Helper()
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
+}

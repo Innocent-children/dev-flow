@@ -55,12 +55,9 @@ func TestPartialSchemaIsRejectedWithoutCompletion(t *testing.T) {
 		t.Fatal(err)
 	}
 	db.Close()
-	before := fileDigest(t, path)
+	before := databaseManifest(t, path)
 	if _, err := Open(context.Background(), path); err == nil {
 		t.Fatal("partial schema accepted")
 	}
-	after := fileDigest(t, path)
-	if before != after {
-		t.Fatal("unsupported database changed")
-	}
+	assertDatabaseManifestUnchanged(t, path, before)
 }

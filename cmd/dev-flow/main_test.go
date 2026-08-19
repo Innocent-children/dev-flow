@@ -38,7 +38,7 @@ func TestRunHelp(t *testing.T) {
 			if stderr.Len() != 0 {
 				t.Fatalf("run(%q) stderr = %q", tt.args, stderr.String())
 			}
-			assertContainsAll(t, stdout.String(), "Core Contract 0.1", "local STDIO MCP", "dev-flow mcp --stdio", dataDirectoryEnvironment)
+			assertContainsAll(t, stdout.String(), "Core Contract 0.2", "local STDIO MCP", "dev-flow mcp --stdio", dataDirectoryEnvironment)
 			for _, stale := range []string{"Feature 001", "placeholder", "MCP functionality", "installed", "published"} {
 				if strings.Contains(stdout.String(), stale) {
 					t.Errorf("help contains stale or unsupported claim %q", stale)

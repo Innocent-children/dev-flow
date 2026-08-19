@@ -14,15 +14,12 @@ func TestSchema1IsRejectedBeforeDecodeWithZeroWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 	db.Close()
-	before := fileDigest(t, path)
+	before := databaseManifest(t, path)
 	_, err = Open(context.Background(), path)
 	if !errors.Is(err, ErrSchemaUnsupported) {
 		t.Fatalf("error=%v", err)
 	}
-	after := fileDigest(t, path)
-	if before != after {
-		t.Fatal("Schema 1 file changed")
-	}
+	assertDatabaseManifestUnchanged(t, path, before)
 	db = openRaw(t, path)
 	defer db.Close()
 	var count int

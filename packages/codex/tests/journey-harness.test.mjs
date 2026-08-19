@@ -498,7 +498,7 @@ test("development smoke admits only four bounded run labels and exact selectors"
   }
   assert.equal(smokeRuntime.ordinaryPrompt.includes(EXPLICIT_SELECTOR), false);
   assert.equal(buildCodexExecArgs(smokeRuntime.developmentSubstantivePrompt, { ephemeral: true }).includes("--ignore-user-config"), false);
-  assert.match(smokeRuntime.developmentSubstantivePrompt, /ASSESS_TASK[\s\S]*PLAN_CHANGE[\s\S]*prerequisite/i);
+  assert.match(smokeRuntime.developmentSubstantivePrompt, /Core-required[\s\S]*current-node[\s\S]*returned transitions[\s\S]*prerequisite/i);
   assert.match(smokeRuntime.developmentSubstantivePrompt, /file exists[\s\S]*first successful[\s\S]*after (?:creating|creation)/i);
 });
 

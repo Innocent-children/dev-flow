@@ -41,14 +41,6 @@ func TestClaimPreflightRejectsCorruptionWithZeroWriteManifest(t *testing.T) {
 		{"orphan claim", false, func(t *testing.T, path string, _ domain.ProcessTask) {
 			execClaimCorruption(t, path, `PRAGMA foreign_keys=OFF; DELETE FROM tasks`)
 		}},
-		{"multiple claims", false, func(t *testing.T, path string, task domain.ProcessTask) {
-			db := openRaw(t, path)
-			defer db.Close()
-			_, err := db.Exec(`PRAGMA foreign_keys=OFF; DROP TABLE repository_claims; CREATE TABLE repository_claims (repository_identity TEXT PRIMARY KEY, task_id TEXT NOT NULL, origin_host TEXT NOT NULL, claimed_at TEXT NOT NULL); INSERT INTO repository_claims VALUES(?,?,?,?),(?,?,?,?)`, task.Repository.RepositoryIdentity, task.TaskID, task.OriginHost, formatTime(task.CreatedAt), domain.Digest(strings.Repeat("f", 64)), task.TaskID, task.OriginHost, formatTime(task.CreatedAt))
-			if err != nil {
-				t.Fatal(err)
-			}
-		}},
 		{"terminal retains claim", true, func(t *testing.T, path string, task domain.ProcessTask) {
 			db := openRaw(t, path)
 			defer db.Close()
@@ -62,7 +54,7 @@ func TestClaimPreflightRejectsCorruptionWithZeroWriteManifest(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			path, task := claimPreflightDatabase(t, tc.terminal)
 			tc.corrupt(t, path, task)
-			before := fileDigest(t, path)
+			before := databaseManifest(t, path)
 			opened, err := Open(context.Background(), path)
 			if opened != nil {
 				opened.Close()
@@ -70,10 +62,18 @@ func TestClaimPreflightRejectsCorruptionWithZeroWriteManifest(t *testing.T) {
 			if !errors.Is(err, ErrStorageUnavailable) {
 				t.Fatalf("error=%v", err)
 			}
-			if after := fileDigest(t, path); after != before {
-				t.Fatalf("database changed: %s != %s", after, before)
-			}
+			assertDatabaseManifestUnchanged(t, path, before)
 		})
+	}
+}
+
+func TestClaimSchemaPreventsDuplicateTaskOwnership(t *testing.T) {
+	path, task := claimPreflightDatabase(t, false)
+	db := openRaw(t, path)
+	defer db.Close()
+	_, err := db.Exec(`INSERT INTO repository_claims(repository_identity,task_id,origin_host,claimed_at) VALUES(?,?,?,?)`, domain.Digest("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"), task.TaskID, task.OriginHost, formatTime(task.CreatedAt))
+	if err == nil {
+		t.Fatal("exact Schema 2 accepted duplicate task ownership")
 	}
 }
 

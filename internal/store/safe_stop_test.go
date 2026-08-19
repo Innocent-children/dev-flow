@@ -14,14 +14,12 @@ func TestFutureSchemaAndUnsupportedProcessSafeStop(t *testing.T) {
 			t.Fatal(err)
 		}
 		db.Close()
-		before := fileDigest(t, path)
+		before := databaseManifest(t, path)
 		_, err := Open(context.Background(), path)
 		if !errors.Is(err, ErrSchemaUnsupported) {
 			t.Fatalf("error=%v", err)
 		}
-		if before != fileDigest(t, path) {
-			t.Fatal("future schema changed")
-		}
+		assertDatabaseManifestUnchanged(t, path, before)
 	})
 	t.Run("unsupported process", func(t *testing.T) {
 		path := dbPath(t)
@@ -39,14 +37,12 @@ func TestFutureSchemaAndUnsupportedProcessSafeStop(t *testing.T) {
 			t.Fatal(err)
 		}
 		db.Close()
-		before := fileDigest(t, path)
+		before := databaseManifest(t, path)
 		_, err = Open(context.Background(), path)
 		if !errors.Is(err, ErrProcessUnsupported) {
 			t.Fatalf("error=%v", err)
 		}
-		if before != fileDigest(t, path) {
-			t.Fatal("unsupported process changed")
-		}
+		assertDatabaseManifestUnchanged(t, path, before)
 	})
 	t.Run("malformed snapshot", func(t *testing.T) {
 		path := dbPath(t)
@@ -64,14 +60,12 @@ func TestFutureSchemaAndUnsupportedProcessSafeStop(t *testing.T) {
 			t.Fatal(err)
 		}
 		db.Close()
-		before := fileDigest(t, path)
+		before := databaseManifest(t, path)
 		_, err = Open(context.Background(), path)
 		if !errors.Is(err, ErrStorageUnavailable) {
 			t.Fatalf("error=%v", err)
 		}
-		if before != fileDigest(t, path) {
-			t.Fatal("malformed row changed")
-		}
+		assertDatabaseManifestUnchanged(t, path, before)
 	})
 	t.Run("row snapshot mismatch", func(t *testing.T) {
 		path := dbPath(t)
@@ -89,14 +83,12 @@ func TestFutureSchemaAndUnsupportedProcessSafeStop(t *testing.T) {
 			t.Fatal(err)
 		}
 		db.Close()
-		before := fileDigest(t, path)
+		before := databaseManifest(t, path)
 		_, err = Open(context.Background(), path)
 		if !errors.Is(err, ErrStorageUnavailable) {
 			t.Fatalf("error=%v", err)
 		}
-		if before != fileDigest(t, path) {
-			t.Fatal("mismatched row changed")
-		}
+		assertDatabaseManifestUnchanged(t, path, before)
 	})
 	t.Run("future snapshot", func(t *testing.T) {
 		path := dbPath(t)
@@ -114,14 +106,12 @@ func TestFutureSchemaAndUnsupportedProcessSafeStop(t *testing.T) {
 			t.Fatal(err)
 		}
 		db.Close()
-		before := fileDigest(t, path)
+		before := databaseManifest(t, path)
 		_, err = Open(context.Background(), path)
 		if !errors.Is(err, ErrSchemaUnsupported) {
 			t.Fatalf("error=%v", err)
 		}
-		if before != fileDigest(t, path) {
-			t.Fatal("future snapshot changed")
-		}
+		assertDatabaseManifestUnchanged(t, path, before)
 	})
 }
 
@@ -144,14 +134,12 @@ func TestCompleteRowSnapshotMetadataPreflight(t *testing.T) {
 				t.Fatal(err)
 			}
 			db.Close()
-			before := fileDigest(t, path)
+			before := databaseManifest(t, path)
 			_, err = Open(context.Background(), path)
 			if !errors.Is(err, ErrStorageUnavailable) {
 				t.Fatalf("error=%v", err)
 			}
-			if before != fileDigest(t, path) {
-				t.Fatal("unsupported row changed")
-			}
+			assertDatabaseManifestUnchanged(t, path, before)
 		})
 	}
 }

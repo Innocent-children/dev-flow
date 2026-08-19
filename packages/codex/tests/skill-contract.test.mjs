@@ -463,6 +463,10 @@ test("Skill safe-stops on unsupported storage without exposing or mutating priva
   assert.match(storage, /(?:do not|never)[\s\S]*(?:retry|reset|convert|migrate)/i);
   assert.match(storage, /(?:do not|never)[\s\S]*(?:search|discover)[\s\S]*(?:data directory|database path)/i);
   assert.match(storage, /(?:do not|never)[\s\S]*(?:display|reveal|expose)[\s\S]*private[\s\S]*(?:path|location)/i);
+  assert.match(storage, /stable error code[\s\S]*bounded[\s\S]*guidance/i);
+  assert.match(storage, /(?:do not|never)[\s\S]*(?:HOME|username)[\s\S]*(?:raw SQLite|raw Git)/i);
+  assert.match(storage, /result-envelope[\s\S]*data path/i);
+  assert.doesNotMatch(storage, /(?:\/Users\/|\/home\/|\/private\/var\/|[A-Za-z]:\\\\)/u);
 });
 
 test("Skill uses payload_contract as the apply schema discriminator", async () => {

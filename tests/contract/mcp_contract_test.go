@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -108,4 +109,19 @@ func TestMCPStableErrorEnvelopesAreClosedAndRedacted(t *testing.T) {
 		t.Fatal(string(encoded.JSON))
 	}
 	_ = domain.ErrorInternal
+}
+
+func TestSchemaUnsupportedGuidanceIsBoundedAndPathFree(t *testing.T) {
+	encoded := core.EncodeError("schema-unsupported", core.ToolOpenTask, domain.ErrSchemaUnsupported)
+	text := string(encoded.JSON)
+	for _, forbidden := range []string{"/Users/", "/home/", "HOME=", "dev-flow.db", "SELECT ", "sqlite", "repository_path", "data_path"} {
+		if strings.Contains(strings.ToLower(text), strings.ToLower(forbidden)) {
+			t.Fatalf("SCHEMA_UNSUPPORTED leaked private/storage detail %q: %s", forbidden, text)
+		}
+	}
+	for _, required := range []string{`"code":"SCHEMA_UNSUPPORTED"`, "fresh data directory", "outside Core"} {
+		if !strings.Contains(text, required) {
+			t.Fatalf("SCHEMA_UNSUPPORTED guidance missing %q: %s", required, text)
+		}
+	}
 }

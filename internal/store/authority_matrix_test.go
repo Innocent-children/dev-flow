@@ -39,14 +39,12 @@ func TestAuthorityMatrixCorruptSnapshotSafeStopsDecodeLoadAndPreflight(t *testin
 		t.Fatalf("load error=%v", err)
 	}
 	opened.Close()
-	before := fileDigest(t, path)
+	before := databaseManifest(t, path)
 	if reopened, err := Open(context.Background(), path); !errors.Is(err, ErrStorageUnavailable) {
 		if reopened != nil {
 			reopened.Close()
 		}
 		t.Fatalf("preflight error=%v", err)
 	}
-	if after := fileDigest(t, path); after != before {
-		t.Fatalf("preflight changed corrupt database: %s != %s", after, before)
-	}
+	assertDatabaseManifestUnchanged(t, path, before)
 }

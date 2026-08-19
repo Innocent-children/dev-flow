@@ -2,18 +2,7 @@ package domain
 
 import "time"
 
-type OutcomeCriterion struct {
-	Criterion string                 `json:"criterion"`
-	Status    OutcomeCriterionStatus `json:"status"`
-}
-
-func (c OutcomeCriterion) Validate() error {
-	if requireNormalizedText(c.Criterion, MaxAcceptanceCriterionBytes, true) != nil || !c.Status.IsValid() {
-		return ErrInvalidArgument
-	}
-	return nil
-}
-
+// Outcome is the frozen Contract 0.1 test-only terminal projection.
 type Outcome struct {
 	Status                       TerminalStatus     `json:"status"`
 	Acceptance                   []OutcomeCriterion `json:"acceptance"`
