@@ -60,19 +60,38 @@ func (p Phase) NormalNonTerminal() bool {
 type ActionKind string
 
 const (
-	ActionAssessTask      ActionKind = "ASSESS_TASK"
-	ActionPlanChange      ActionKind = "PLAN_CHANGE"
-	ActionImplementChange ActionKind = "IMPLEMENT_CHANGE"
-	ActionVerifyChange    ActionKind = "VERIFY_CHANGE"
-	ActionReviewChange    ActionKind = "REVIEW_CHANGE"
-	ActionPrepareHandoff  ActionKind = "PREPARE_HANDOFF"
-	ActionResolveBlocker  ActionKind = "RESOLVE_BLOCKER"
+	ActionAssessTask                  ActionKind = "ASSESS_TASK"
+	ActionPlanChange                  ActionKind = "PLAN_CHANGE"
+	ActionImplementChange             ActionKind = "IMPLEMENT_CHANGE"
+	ActionVerifyChange                ActionKind = "VERIFY_CHANGE"
+	ActionReviewChange                ActionKind = "REVIEW_CHANGE"
+	ActionPrepareHandoff              ActionKind = "PREPARE_HANDOFF"
+	ActionResolveBlocker              ActionKind = "RESOLVE_BLOCKER"
+	ActionCompleteRequirements        ActionKind = "COMPLETE_REQUIREMENTS"
+	ActionCompleteDesign              ActionKind = "COMPLETE_DESIGN"
+	ActionCompleteTasks               ActionKind = "COMPLETE_TASKS"
+	ActionCompleteImplementation      ActionKind = "COMPLETE_IMPLEMENTATION"
+	ActionCompleteTest                ActionKind = "COMPLETE_TEST"
+	ActionCompleteComprehensionReview ActionKind = "COMPLETE_COMPREHENSION_REVIEW"
+	ActionCompleteRefactor            ActionKind = "COMPLETE_REFACTOR"
+	ActionCompleteDelivery            ActionKind = "COMPLETE_DELIVERY"
 )
 
 func (k ActionKind) IsValid() bool {
 	switch k {
 	case ActionAssessTask, ActionPlanChange, ActionImplementChange, ActionVerifyChange,
 		ActionReviewChange, ActionPrepareHandoff, ActionResolveBlocker:
+		return true
+	default:
+		return false
+	}
+}
+
+func (k ActionKind) IsValidV2() bool {
+	switch k {
+	case ActionCompleteRequirements, ActionCompleteDesign, ActionCompleteTasks, ActionCompleteImplementation,
+		ActionCompleteTest, ActionCompleteComprehensionReview, ActionCompleteRefactor,
+		ActionCompleteDelivery, ActionResolveBlocker:
 		return true
 	default:
 		return false
@@ -195,11 +214,25 @@ const (
 	EffectRunVerificationCommands AllowedEffect = "run_verification_commands"
 	EffectPrepareDeliverySummary  AllowedEffect = "prepare_delivery_summary"
 	EffectResolveBlocker          AllowedEffect = "resolve_blocker"
+	EffectEditProcessArtifacts    AllowedEffect = "edit_process_artifacts"
+	EffectEditProductFiles        AllowedEffect = "edit_product_files"
+	EffectRequestUserDecision     AllowedEffect = "request_user_decision"
 )
 
 func (e AllowedEffect) IsValid() bool {
 	switch e {
 	case EffectReadRepository, EffectEditRepositoryFiles, EffectRunVerificationCommands,
+		EffectPrepareDeliverySummary, EffectResolveBlocker:
+		return true
+	default:
+		return false
+	}
+}
+
+func (e AllowedEffect) IsValidV2() bool {
+	switch e {
+	case EffectReadRepository, EffectEditProcessArtifacts, EffectEditProductFiles,
+		EffectRunVerificationCommands, EffectRequestUserDecision,
 		EffectPrepareDeliverySummary, EffectResolveBlocker:
 		return true
 	default:

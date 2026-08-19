@@ -3,7 +3,7 @@
 ## Status
 
 - **Feature**: `008-refactor-to-development-process-graph`
-- **Status**: Ready
+- **Status**: Implementing
 - **Change Type**: Product Feature
 - **Created**: 2026-08-18
 - **Baseline**: `main` at `29885cd4d0b97ad03bbe09876168e48db371a048`
@@ -116,8 +116,8 @@ approved.
 
 | Checkpoint | Exit Condition | Initial Status |
 | --- | --- | --- |
-| Contract freeze | All graph, MCP, method-profile, and persistence contracts are internally consistent | Pending review |
-| Foundation | Standard process definition, current Task model, fresh Schema 2 bootstrap, strict v2 codec, and old-data rejection pass targeted tests | Pending |
+| Contract freeze | All graph, MCP, method-profile, and persistence contracts are internally consistent | Complete — T001–T006 |
+| Foundation | Standard process definition, current Task model, fresh Schema 2 bootstrap, strict v2 codec, and old-data rejection pass targeted tests | In progress — process/domain T007–T020 complete; storage remains Phase 3 |
 | User Story 1 | New task exposes current node contract and all legal next transitions | Pending |
 | User Story 2 | Test/rework/comprehension/refactor loops are enforced and independently demonstrated | Pending |
 | User Story 3 | `plain`, `spec-kit`, and `openspec` guidance is rendered without adapter-owned state | Pending |

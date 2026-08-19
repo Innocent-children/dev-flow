@@ -46,48 +46,48 @@ changed to `Ready`.
 
 **Goal**: Represent the single standard process definition and graph Task model without changing MCP behavior yet.
 
-- [ ] T007 [P] Add closed `ProcessID`, `ProcessReference`, `NodeID`, `TransitionID`,
+- [x] T007 [P] Add closed `ProcessID`, `ProcessReference`, `NodeID`, `TransitionID`,
   `TransitionDefinition`, `NodeDefinition`, and definition-validation types in
   `internal/domain/process.go` per FR-001–FR-012 and
   `contracts/process-graph.md`.
-- [ ] T008 [P] Add `MethodProfile`, `MethodStepID`, `SemanticMethodStep`, `MethodEvidence`, and their
+- [x] T008 [P] Add `MethodProfile`, `MethodStepID`, `SemanticMethodStep`, `MethodEvidence`, and their
   closed validation in `internal/domain/method.go` per FR-027–FR-031 and
   `contracts/method-profiles.md`.
-- [ ] T009 [P] Add requirements/design/task-plan baseline, compact history, work-item,
+- [x] T009 [P] Add requirements/design/task-plan baseline, compact history, work-item,
   ArtifactReference, ImplementationRecord, TestRecord, and ComprehensionAssessment types in
   `internal/domain/baselines.go` per FR-019–FR-026 and `data-model.md`.
-- [ ] T010 Add `ProcessTask`, `ProcessOutcome`, v2 aggregate validation, invalidation helpers, and
+- [x] T010 Add `ProcessTask`, `ProcessOutcome`, v2 aggregate validation, invalidation helpers, and
   terminal/blocker invariants in `internal/domain/task_v2.go` per FR-014–FR-018 and
   `data-model.md`.
-- [ ] T011 Extend `internal/domain/limits.go` to Core Limits 0.2 with only the eight new bounded
+- [x] T011 Extend `internal/domain/limits.go` to Core Limits 0.2 with only the eight new bounded
   graph/baseline/method limits from `data-model.md`; retain existing byte/command limits per FR-041.
-- [ ] T012 [P] Add deterministic canonical process-definition encoding/digest and structural
+- [x] T012 [P] Add deterministic canonical process-definition encoding/digest and structural
   validation in `internal/workflow/definitions.go` per the definition-digest contract.
-- [ ] T013 Remove the released linear runtime vocabulary from current workflow dispatch and add
+- [x] T013 Remove the released linear runtime vocabulary from current workflow dispatch and add
   negative source checks proving no `legacy-linear`, old action result, or v1 payload is registered in
   `internal/workflow/` per FR-S003.
-- [ ] T014 Add the exact `standard-development@1` node/transition declaration in
+- [x] T014 Add the exact `standard-development@1` node/transition declaration in
   `internal/workflow/standard_process.go` with canonical order, 29 edges, guard IDs, and action
   mappings per FR-001–FR-018.
-- [ ] T015 Refactor `internal/workflow/engine.go` to resolve a supported code-owned definition and
+- [x] T015 Refactor `internal/workflow/engine.go` to resolve a supported code-owned definition and
   issue the exact graph action while rejecting alternate process/digest mismatch per FR-005–FR-010 and
   FR-S002–FR-S003.
-- [ ] T016 Add sealed standard node payload structs, common transition envelope, canonical encoding,
+- [x] T016 Add sealed standard node payload structs, common transition envelope, canonical encoding,
   and source-node dispatch in `internal/workflow/payloads_v2.go` per FR-035–FR-036 and
   `contracts/mcp-tools-0.2.md`.
-- [ ] T017 [P] Add `internal/workflow/definitions_test.go` proving stable definition digests,
+- [x] T017 [P] Add `internal/workflow/definitions_test.go` proving stable definition digests,
   declaration order, unique/known nodes and edges, terminal closure, and no runtime definition input
   per SC-001–SC-002.
-- [ ] T018 Add targeted domain/workflow tests in
+- [x] T018 Add targeted domain/workflow tests in
   `internal/domain/task_v2_test.go` and `internal/workflow/payloads_v2_test.go` for baseline
   monotonicity, strict payload branches, reason rules, forbidden destinations, limits, and aggregate
   invariants per FR-009–FR-026.
 
 **Verification**
 
-- [ ] T019 Run only `go test ./internal/domain ./internal/workflow`; record the Foundation
+- [x] T019 Run only `go test ./internal/domain ./internal/workflow`; record the Foundation
   checkpoint and do not run repository-wide validation.
-- [ ] T020 Run `$speckit-converge` for the foundation slice; append only concrete contract/acceptance
+- [x] T020 Run `$speckit-converge` for the foundation slice; append only concrete contract/acceptance
   gaps and stop.
 
 **Checkpoint**: The single static process definition and graph aggregate/payload model pass targeted

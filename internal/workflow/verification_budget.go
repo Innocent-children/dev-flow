@@ -1,6 +1,13 @@
 package workflow
 
-import "github.com/Innocent-children/dev-flow/internal/domain"
+import (
+	"strings"
+	"unicode/utf8"
+
+	"github.com/Innocent-children/dev-flow/internal/domain"
+)
+
+type NormalizedEvidenceInput = EvidenceInput
 
 // EvaluateVerificationBudget applies the task-wide verification policy to
 // retained evidence plus one normalized incoming action. It performs no I/O.
@@ -66,6 +73,34 @@ func EvaluateVerificationBudget(
 		return domain.ErrVerificationBudgetExceeded
 	}
 	return nil
+}
+
+func normalizeRequiredPayloadText(value string, max int) (string, error) {
+	if !utf8.ValidString(value) {
+		return "", domain.ErrInvalidArgument
+	}
+	normalized := strings.TrimSpace(value)
+	if normalized == "" || len(normalized) > max {
+		return "", domain.ErrInvalidArgument
+	}
+	return normalized, nil
+}
+
+func normalizePayloadList(items []string, required bool) ([]string, error) {
+	if required && len(items) == 0 || len(items) > domain.MaxBoundedStringListItems {
+		return nil, domain.ErrInvalidArgument
+	}
+	out := make([]string, len(items))
+	seen := map[string]bool{}
+	for i, item := range items {
+		normalized, err := normalizeRequiredPayloadText(item, domain.MaxEvidenceSummaryBytes)
+		if err != nil || seen[normalized] {
+			return nil, domain.ErrInvalidArgument
+		}
+		seen[normalized] = true
+		out[i] = normalized
+	}
+	return out, nil
 }
 
 func validateNormalizedEvidenceInput(input NormalizedEvidenceInput) error {
