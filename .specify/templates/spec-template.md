@@ -6,126 +6,154 @@
 
 **Status**: Draft
 
+**Change Type**: [Governance | Product Feature | Corrective Change | Release Change]
+
+**Contract Impact**: [None | Internal | Public Core | MCP | Persistence | Host Adapter | Release]
+
+**Release Impact**: [None — separate release required | Release-only feature]
+
+**Dependencies**: [Completed predecessor features, exact contract/version, or None]
+
 **Input**: User description: "$ARGUMENTS"
+
+## Problem Statement *(mandatory)*
+
+[Describe the developer/user problem, the current observable behavior, and why the existing behavior
+is insufficient. Do not describe the implementation here.]
 
 ## User Scenarios & Testing *(mandatory)*
 
 <!--
-  IMPORTANT: User stories should be PRIORITIZED as user journeys ordered by importance.
-  Each user story/journey must be INDEPENDENTLY TESTABLE - meaning if you implement just ONE of them,
-  you should still have a viable MVP (Minimum Viable Product) that delivers value.
-
-  Assign priorities (P1, P2, P3, etc.) to each story, where P1 is the most critical.
-  Think of each story as a standalone slice of functionality that can be:
-  - Developed independently
-  - Tested independently
-  - Deployed independently
-  - Demonstrated to users independently
+User stories are ordered by user value. Each story must be independently demonstrable at its
+checkpoint. A story may depend on shared foundational work, but its user value and test must not
+depend on unimplemented future stories.
 -->
 
 ### User Story 1 - [Brief Title] (Priority: P1)
 
-[Describe this user journey in plain language]
+[Describe the user journey in plain language.]
 
-**Why this priority**: [Explain the value and why it has this priority level]
+**Why this priority**: [Why this is the first useful vertical slice.]
 
-**Independent Test**: [Describe how this can be tested independently - e.g., "Can be fully tested by [specific action] and delivers [specific value]"]
+**Independent Test**: [One bounded journey proving the story without relying on later stories.]
 
 **Acceptance Scenarios**:
 
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
-2. **Given** [initial state], **When** [action], **Then** [expected outcome]
+1. **Given** [initial state], **When** [action], **Then** [observable result]
+2. **Given** [initial state], **When** [action], **Then** [observable result]
 
 ---
 
 ### User Story 2 - [Brief Title] (Priority: P2)
 
-[Describe this user journey in plain language]
+[Describe the user journey.]
 
-**Why this priority**: [Explain the value and why it has this priority level]
+**Why this priority**: [Reason.]
 
-**Independent Test**: [Describe how this can be tested independently]
-
-**Acceptance Scenarios**:
-
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
-
----
-
-### User Story 3 - [Brief Title] (Priority: P3)
-
-[Describe this user journey in plain language]
-
-**Why this priority**: [Explain the value and why it has this priority level]
-
-**Independent Test**: [Describe how this can be tested independently]
+**Independent Test**: [Bounded test.]
 
 **Acceptance Scenarios**:
 
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
+1. **Given** [initial state], **When** [action], **Then** [observable result]
 
 ---
 
-[Add more user stories as needed, each with an assigned priority]
+[Add only user stories needed by this feature.]
 
 ### Edge Cases
 
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right edge cases.
--->
+- [Boundary condition and required behavior]
+- [Error condition and zero-write/retention behavior]
+- [Persisted-data condition: migrate, retain-read-only, reject-and-reset, or N/A]
+- [Interrupted or uncertain operation condition]
 
-- What happens when [boundary condition]?
-- How does system handle [error scenario]?
+## State-Graph Impact *(mandatory for process features; otherwise state N/A with reason)*
+
+### Process Definition
+
+- **Process ID**: [stable ID or N/A]
+- **Process Version**: [integer or N/A]
+- **Affected Nodes**: [closed list]
+- **Existing Data Disposition**: [reject-and-reset | migrate | retain-read-only | N/A]
+- **Historical Runtime Code**: [None by default; justify any explicitly supported route]
+
+### Target Graph
+
+```mermaid
+flowchart TD
+    A[CURRENT_NODE] -->|transition_id| B[NEXT_NODE]
+```
+
+### Node Contract Summary
+
+| Node | Purpose | Completion Conditions | Allowed Effects | Required Evidence |
+| --- | --- | --- | --- | --- |
+| `[NODE]` | [purpose] | [conditions] | [effects] | [evidence] |
+
+### Transition Summary
+
+| Source | Transition ID | Destination | Guard / When to Choose | Reason Required |
+| --- | --- | --- | --- | --- |
+| `[NODE]` | `[transition_id]` | `[NODE]` | [closed condition] | [yes/no] |
+
+Every affected node must list its complete outgoing edge set. Detailed contracts belong in
+`contracts/`.
+
+### Method-Profile Impact
+
+| Node | Semantic Step | `plain` | `spec-kit` | `openspec` |
+| --- | --- | --- | --- | --- |
+| `[NODE]` | `[step_id]` | [guidance] | [mapping] | [mapping] |
 
 ## Requirements *(mandatory)*
 
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right functional requirements.
--->
-
 ### Functional Requirements
 
-- **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]
-- **FR-002**: System MUST [specific capability, e.g., "validate email addresses"]
-- **FR-003**: Users MUST be able to [key interaction, e.g., "reset their password"]
-- **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
-- **FR-005**: System MUST [behavior, e.g., "log all security events"]
+- **FR-001**: System MUST [specific observable capability]
+- **FR-002**: System MUST [specific observable capability]
 
-*Example of marking unclear requirements:*
+Requirements must be individually testable, use stable terms, and avoid implementation choices
+unless the choice is itself a user-visible or persistence-transition contract.
 
-- **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
-- **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
+### Persistence Transition Requirements
 
-### Key Entities *(include if feature involves data)*
+- **FR-S001**: Persisted data MUST follow exactly one declared disposition: `reject-and-reset`,
+  `migrate`, `retain-read-only`, or `N/A`.
+- **FR-S002**: Unsupported data MUST fail closed with zero writes and MUST NOT be deleted, renamed,
+  truncated, replaced, or converted automatically.
+- **FR-S003**: Unless historical compatibility is an explicit user requirement, production code MUST
+  NOT retain a legacy runtime, historical decoder, dual projection, migration, or conversion path.
 
-- **[Entity 1]**: [What it represents, key attributes without implementation]
-- **[Entity 2]**: [What it represents, relationships to other entities]
+Before `1.0.0`, `reject-and-reset` is the default for incompatible task-model changes. Use migration
+or retained historical runtime only when the active user requirement explicitly justifies their
+long-term cost. Use `N/A` only when the feature provably changes no persisted or public behavior.
+
+### Non-Goals *(mandatory)*
+
+- The feature MUST NOT [explicitly excluded capability].
+- The feature MUST NOT [release/platform/host/future abstraction exclusion].
+
+### Key Entities *(mandatory when feature involves data or state)*
+
+- **[Entity]**: [Meaning and key relations, without implementation details.]
 
 ## Success Criteria *(mandatory)*
 
-<!--
-  ACTION REQUIRED: Define measurable success criteria.
-  These must be technology-agnostic and measurable.
--->
-
 ### Measurable Outcomes
 
-- **SC-001**: [Measurable metric, e.g., "Users can complete account creation in under 2 minutes"]
-- **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"]
-- **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
-- **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
+- **SC-001**: [Observable, technology-independent result]
+- **SC-002**: [Bounded quality/recovery/persistence-transition result]
+- **SC-003**: [User can complete primary journey with defined reads/actions]
+
+Success criteria must be verifiable without interpreting model intent.
 
 ## Assumptions
 
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right assumptions based on reasonable defaults
-  chosen when the feature description did not specify certain details.
--->
+- [Assumption selected as a reasonable default.]
+- [Dependency assumed to exist.]
+- [Support or platform boundary.]
 
-- [Assumption about target users, e.g., "Users have stable internet connectivity"]
-- [Assumption about scope boundaries, e.g., "Mobile support is out of scope for v1"]
-- [Assumption about data/environment, e.g., "Existing authentication system will be reused"]
-- [Dependency on existing system/service, e.g., "Requires access to the existing user profile API"]
+## Open Questions
+
+[List only unresolved questions that block planning. A feature cannot become Ready while any
+acceptance-impacting question remains.]

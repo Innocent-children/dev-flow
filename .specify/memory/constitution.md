@@ -1,181 +1,322 @@
 <!--
 Sync Impact Report
-- Version change: 1.1.0 → 1.2.0
+- Constitution version: 1.2.0 → 2.0.0
 - Amendment date: 2026-08-18
-- Modified sections:
-  - Product and Technology Constraints: every production feature now owns its current product
-    version increment and component alignment; version alignment is not a separate feature.
-  - Development Workflow and Quality Gates: feature completion now requires current version
-    alignment while preserving frozen historical release identities.
-- Preserved gates:
-  - released and incident-frozen Tag, Draft, artifact digest, and recovery identities remain
-    immutable;
-  - public semantic changes still require two-host contract parity;
-  - no release side effect is authorized by a version increment.
+- Reason for MAJOR:
+  - Dev Flow 的产品权威从固定线性阶段表重定义为显式开发过程状态图；
+  - “开发者可理解性审查”和“重构后回归”成为绑定流程门禁；
+  - Spec Kit/OpenSpec 从外围提示词约定重定义为方法工具画像，仍不得拥有任务状态；
+  - 产品 Feature 与 Release Feature 分离，普通 Feature 不再强制递增公开版本。
+- Preserved invariants:
+  - Go Core 仍是唯一任务与流转权威；
+  - Git 仍只读；
+  - mutation 仍使用 revision、action identity 与 read-before-retry；
+  - SQLite 当前代任务、repository claim、证据预算和稳定错误仍保持严格；
+  - `1.0.0` 前历史任务兼容改为显式 opt-in，Feature 008 明确不兼容任何 Core Contract 0.1 历史任务数据；
+  - MCP 工具数量仍限制为六个；
+  - Codex/DeepSeek 适配器仍不得复制 Core 语义。
+- Breaking transition authority:
+  - `specs/008-refactor-to-development-process-graph/` 是用开发过程状态图替换 Core Contract 0.1
+    线性运行时的唯一批准规格。
+  - 已发布 `0.3.0`、Tag、npm 包、GitHub Release、制品摘要和历史 Feature 证据保持冻结。
+  - Feature 008 不提供历史任务迁移、读取、继续或转换；旧数据目录只允许安全拒绝并由用户显式
+    归档、改名或删除后重新开始。
+  - Feature 008 完成前，现有 Core Contract 0.1 可继续运行；不得再向旧线性阶段模型增加新能力。
 - Follow-up artifacts:
-  - active feature specification, plan, and tasks must name the approved next version and exact
-    current version authorities.
+  - `AGENTS.md`
+  - `docs/SPEC-KIT-WORKFLOW.md`
+  - `.specify/templates/*.md`
+  - `MANIFEST.md`
+  - `specs/008-refactor-to-development-process-graph/`
 -->
 # Dev Flow Constitution
 
 ## Core Principles
 
-### I. Self-Contained Product Scope
+### I. Developer-Visible Process Navigation
 
-Specifications, plans, tasks, tests, and documentation MUST describe the current product through
-repository-visible behavior and observable acceptance criteria. Background context that does not
-change implementation, interfaces, persisted data, verification, or release behavior MUST NOT
-create requirements, scripts, tests, or CI gates. Every implementation task MUST trace to an active
-requirement or an approved engineering constraint.
+Dev Flow MUST make the governed development process visible to the developer. Every active task MUST
+expose, through one authoritative Core read:
 
-Rationale: product artifacts should tell contributors what the system is and what must be proven,
-without turning unrelated context into permanent maintenance work.
+- the current process definition and version;
+- the current node;
+- the node's purpose, entry assumptions, completion conditions, allowed effects, and required evidence;
+- the closed set of legal outgoing transitions;
+- the condition for choosing each transition;
+- whether a transition requires an explicit reason;
+- the method-tool operations recommended for the selected task profile.
 
-### II. Single Workflow Authority
+A developer or host MUST NOT need to reconstruct the next step from chat history, repository
+conventions, Spec Kit/OpenSpec memory, or adapter-owned state.
 
-The Go core MUST be the sole authority for task state, workflow transitions, next-action selection,
-repository claims, recovery classification, and terminal outcomes. MCP, CLI, Codex, and DeepSeek
-surfaces are adapters over that authority. No adapter, Skill, proxy, package script, or host prompt
-may independently define or persist workflow truth.
+Rationale: process management has value only when the developer can always answer “where am I,
+what must be completed, and where may I go next?”
 
-Rationale: two authorities inevitably drift and make recovery unsafe.
+### II. Single Process Authority
 
-### III. One State Machine, Bounded Surface
+The Go Core MUST be the sole authority for:
 
-The product MUST have one normal workflow shared by all task types. Task differences MUST be
-expressed through contracts, obligations, and verification budgets rather than parallel state
-machines. Before product version 1.0:
+- task identity, immutable original intent, verification authority, and selected method profile;
+- versioned requirements, design, task-plan, verification, and comprehension baselines;
+- process definition identity and version;
+- current node and resume node;
+- node contract;
+- allowed transitions and transition guards;
+- next-action identity;
+- repository claim;
+- recovery classification;
+- blocker state;
+- terminal outcome.
 
-- normal workflow states MUST NOT exceed eight, excluding `BLOCKED` and `CANCELLED`;
-- public MCP tools MUST NOT exceed six without a Constitution amendment;
-- the core MUST expose one task representation and one result envelope;
-- a second workflow catalog, user-defined workflow DSL, or hidden fast path is prohibited.
+CLI, MCP, Codex, DeepSeek, Spec Kit guidance, OpenSpec guidance, and package scripts are adapters or
+execution aids over that authority. They MUST NOT independently persist a cursor, add a hidden
+transition, infer completion, or select a destination not returned by Core.
 
-Rationale: parallel workflow families multiply transition, recovery, verification, and compatibility
-paths without necessarily adding user value.
+Rationale: a process graph with more than one authority becomes a suggestion rather than a reliable
+development-management system.
 
-### IV. Thin Host Adapters
+### III. One Bounded Standard Development Graph
 
-`dev-flow-codex` and `dev-flow-deepseek` MUST contain only host registration, invocation guidance,
-required result projection, lifecycle glue, and package-specific verification. They MUST NOT contain
-task persistence, transition rules, completion rules, repository claim logic, or recovery
-decisions. Host UX may differ; product semantics MUST not.
+New tasks MUST use one built-in standard development process graph. Before `1.0.0`, its normal nodes
+are bounded to:
 
-Rationale: host differences belong at the edge, while workflow behavior belongs in the shared core.
+```text
+REQUIREMENTS
+DESIGN
+TASKS
+IMPLEMENT
+TEST
+COMPREHENSION_REVIEW
+REFACTOR
+DELIVERY
+DONE
+```
 
-### V. Recovery Before Retry
+`BLOCKED` and `CANCELLED` are exceptional nodes and are excluded from the normal-node count.
 
-Every mutation MUST carry a revision and action identity. When a mutation response is missing,
-cancelled, truncated, or uncertain, the caller MUST read the authoritative task and observe the
-repository before deciding whether another mutation is safe. Blind mutation replay is prohibited.
-Recovery MUST classify reality as one of:
+The graph MUST support explicit backward and looping transitions required by real development,
+including requirement correction, redesign, implementation rework, failed testing, comprehension
+failure, refactoring, regression testing, and delivery rejection. It MUST NOT contain an
+adapter-only fast path or permit arbitrary node skipping.
 
-- `not_started`;
-- `completed_and_recorded`;
-- `completed_but_unrecorded`;
-- `partially_completed`;
-- `conflicting`.
+Feature 008 intentionally removes the released linear runtime from the new Core contract. The
+implementation MUST NOT retain a compatibility process, v1 snapshot codec, dual task projection, or
+historical-task continuation path. A pre-graph database is rejected with zero writes until the user
+explicitly selects a fresh data directory or archives/renames/deletes the old data outside Core.
+Core and package lifecycle commands MUST NOT erase it automatically.
 
-Rationale: resumability is a product capability only when it prevents duplicate or contradictory
-side effects.
+A user-configurable workflow DSL, arbitrary graph upload, or multiple selectable product workflows
+is prohibited before a separate accepted specification and Constitution amendment.
 
-### VI. Read-Only Repository Boundary
+Rationale: the product needs a real graph rather than a linear ceremony, while remaining small,
+deterministic, and supportable.
 
-The core MAY inspect an existing Git repository and calculate a bounded fingerprint. It MUST NOT
-create, switch, repair, reset, clean, stash, commit, merge, rebase, push, tag, publish, or delete Git
-state. The core MUST NOT expose a generic shell tool. Host agents perform authorized development
-work with their normal tools outside the MCP authority.
+### IV. Human Comprehensibility Is a Delivery Gate
+
+Passing automated tests is necessary evidence, but it is not sufficient for delivery. The standard
+graph MUST include a distinct `COMPREHENSION_REVIEW` node that evaluates whether the implemented
+design, code, and supporting documentation are understandable and proportionate to the requirement.
+
+When a developer cannot reasonably understand or maintain the result, the task MUST have an
+authoritative route to `REFACTOR`, `DESIGN`, `TEST`, or another earlier node. Refactoring MUST return
+through `TEST` before delivery when repository behavior or code structure changed.
+
+The product MUST NOT treat “the AI produced code” or “tests passed” as proof that the change is
+maintainable.
+
+Rationale: AI-generated complexity is a product failure mode, not a personal failure of the
+developer.
+
+### V. Method Tools Are Guidance, Not Workflow Authority
+
+A task MAY select one closed method profile:
+
+```text
+plain
+spec-kit
+openspec
+```
+
+The profile is immutable for that task and maps Core-owned semantic method steps to external
+tooling guidance. Core owns the semantic step; adapters may render the exact supported command or
+instruction for the installed tool.
+
+Spec Kit and OpenSpec MUST NOT become runtime state stores, transition authorities, or hidden
+dependencies of Core. Missing, outdated, or unavailable method tooling MUST be reported honestly
+and MUST NOT fabricate node completion. A task may continue only through behavior explicitly
+permitted by its profile and current node contract.
+
+Rationale: Dev Flow should tell developers how Spec Kit or OpenSpec fits into the current step
+without outsourcing process truth to either tool.
+
+### VI. Recovery Before Retry
+
+Every mutation MUST carry a revision, action identity, source process/node identity, and repository
+binding. When a mutation response is missing, cancelled, truncated, malformed, or otherwise
+uncertain, the caller MUST read the authoritative task and current action before deciding whether
+another mutation is safe.
+
+Blind mutation replay is prohibited. Recovery MUST continue to classify reality as one of:
+
+```text
+not_started
+completed_and_recorded
+completed_but_unrecorded
+partially_completed
+conflicting
+```
+
+A graph transition, including a backward transition, MUST be committed at most once. Recovery
+requirements apply to tasks created by the current graph contract; pre-graph tasks are unsupported.
+
+Rationale: loops make duplicate side effects more dangerous, not less dangerous.
+
+### VII. Read-Only Repository Boundary
+
+The Core MAY inspect an existing Git repository and calculate a bounded structured fingerprint. It
+MUST NOT create, switch, repair, reset, clean, stash, commit, merge, rebase, push, tag, publish, or
+delete Git state. It MUST NOT expose a generic shell tool.
+
+Host agents perform explicitly authorized development work with their normal tools and submit
+bounded results to Core. Method-tool guidance does not expand Core's operating-system authority.
 
 Repository development and release tooling may mutate this product repository only under explicit
-maintainer authority and an active implementation/release specification. That tooling is not Core
-runtime behavior and MUST NOT be exposed through MCP.
+maintainer authority and an active implementation or release specification. Such tooling is not
+Core runtime behavior and MUST NOT be exposed through MCP.
 
-Rationale: Dev Flow governs the development process; it does not replace Git or become an ambient
-execution engine.
+Rationale: Dev Flow governs development; it does not replace Git or become an ambient executor.
 
-### VII. Evidence-Bounded Testing
+### VIII. Evidence-Bounded Verification
 
 Every task MUST carry a verification budget. Automated checks MUST be directly connected to the
-active specification, changed surface, or recovery risk. A full suite, platform matrix, stress test,
-fuzz test, or real-host journey requires an explicit requirement or release gate. Fake, simulated,
-static, and user-performed evidence MUST be labeled accurately and MUST NOT be promoted into stronger
-evidence.
+active node, changed surface, acceptance criteria, or recovery risk.
 
-Rationale: excessive testing is a cost and can obscure product value just as much as insufficient
-testing.
+A full suite, platform matrix, stress test, fuzz test, or real-host journey requires an explicit
+requirement or final checkpoint. Fake, simulated, static, host-observed, user-performed, and native
+automated evidence MUST retain distinct labels.
 
-### VIII. Proven Simplicity
+Targeted tests SHOULD run at node or user-story checkpoints. Repository-wide validation MUST NOT run
+after every small edit and MUST run at most once for a final feature checkpoint unless the active
+specification records a concrete reason for a retry.
+
+Rationale: excessive validation can obscure the process just as much as insufficient validation.
+
+### IX. Proven Simplicity
 
 New abstraction or configuration requires demonstrated need:
 
-- no generic interface before two real implementations require it, except the minimal storage and
-  repository-observation ports needed to isolate infrastructure;
-- no configurable policy before three real tasks demonstrate the same variation;
-- no new recovery branch before a concrete failure or accepted threat model requires it;
+- no generic process engine beyond what the one standard graph requires;
+- no user-defined node, edge, guard, policy, or tool profile;
+- no interface before two real implementations require it, except existing Store and
+  RepositoryObserver ports;
+- no new recovery classification without an observed failure or accepted threat model;
 - no direct production dependency unless standard-library implementation is unreasonable and the
   dependency removes more complexity than it introduces;
-- no public feature may be added “for future hosts” or “for future workflows.”
+- no public feature added only for a future host, future workflow, or hypothetical platform.
 
-Any violation MUST be documented in the plan's Complexity Tracking table and approved before
+Any exception MUST be listed in the active plan's Complexity Tracking table and approved before
 implementation.
 
-Rationale: simplicity is an enforceable budget, not an aesthetic preference.
+Rationale: a process-management product must not become the over-engineered artifact it is intended
+to prevent.
 
-### IX. Vertical-Slice Specifications
+### X. Vertical-Slice Specifications and Release Separation
 
-Each feature specification MUST be self-contained and produce one independently demonstrable
-capability. It MUST include explicit non-goals, measurable success criteria, and a bounded test plan.
-A feature MUST NOT combine core architecture, both host integrations, release infrastructure, and
-future extensibility unless the user journey itself requires all of them. Implementation MUST
-proceed one task phase or one user story at a time and stop at each checkpoint.
+Every production feature MUST be self-contained and deliver one independently demonstrable user
+capability. It MUST include explicit non-goals, measurable success criteria, a bounded test plan,
+persisted-data disposition, and exact affected contracts.
 
-Rationale: small vertical slices expose product mistakes before they become architecture.
+State-graph features MUST additionally define:
 
-### X. Two-Host Contract Parity
+- affected nodes;
+- complete outgoing transitions for each affected node;
+- transition reasons and guards;
+- node completion obligations;
+- method-profile effects;
+- persistence transition and exact disposition of pre-existing task data;
+- forbidden transitions.
 
-Any change to public task semantics, MCP schemas, error codes, result envelopes, persisted task
-meaning, or state transitions MUST be validated against both Codex and DeepSeek contract fixtures
-before merge. Host-specific features may be implemented and released independently only when they
-do not alter shared semantics, the deferred/unsupported host is stated explicitly, and no evidence
-for one host is promoted into support for the other. An adapter MUST NOT patch around a core
-contract mismatch.
+Product implementation and public release are separate change types. A product feature MUST NOT
+publish npm, create or move a Tag, create or finalize a GitHub Release, or rewrite historical
+release evidence. Product versions change only in an explicitly authorized Release Feature or
+Release PR after the included product work is complete.
 
-A host-specific `0.x` release may contain one product. This does not waive the two-product and
-two-real-host requirement for `1.0.0`.
+Rationale: a functional change should not become an accidental publication project, and a release
+should not redefine product behavior.
 
-Rationale: the Monorepo exists to maintain one product across two hosts, while allowing a proven
-host product to deliver value without waiting for an unrelated unavailable host capability.
+### XI. Shared-Contract Host Parity
+
+Any change to public task semantics, process/node schemas, transition schemas, error codes, result
+envelopes, persisted task meaning, or recovery behavior MUST be validated against both Codex and
+DeepSeek contract fixtures before merge.
+
+Host-specific products may be implemented and released independently when they do not alter shared
+semantics, the unsupported host remains explicit, and evidence for one host is not promoted into
+support for another. An adapter MUST NOT patch around a Core contract mismatch.
+
+A Codex-only stable release is permitted when the shared Core contract is host-neutral and Codex has
+final-artifact evidence. DeepSeek support is not a mandatory blocker for Core or Codex `1.0.0`; it
+becomes a support claim only after its own public package and real-host evidence exist.
+
+Rationale: shared semantics require parity, while product maturity must not be held hostage by an
+unavailable external host.
 
 ## Product and Technology Constraints
 
-- The core implementation language is Go.
-- The first persistent store is one local SQLite database accessed through a CGo-free driver.
-- The first transport is local STDIO MCP only.
+- The Core implementation language is Go.
+- The persistent store is one local SQLite database accessed through a CGo-free driver.
+- Before `1.0.0`, historical task compatibility is NOT a default requirement. When a Product Feature
+  changes persisted task meaning, `reject-and-reset` is the default disposition unless the user's
+  explicit requirement justifies migration or retained historical runtime. A breaking generation MUST
+  reject old data with zero writes, document the fresh-data boundary, prohibit automatic deletion,
+  and contain no migration, import/export, decoder, dual projection, or legacy runtime solely for
+  compatibility.
+- The transport is local STDIO MCP only.
 - The first product journey supports one existing Git repository and one active task per canonical
   repository root.
-- The two intended distributable products are `dev-flow-codex` and `dev-flow-deepseek`; an
-  explicitly scoped `0.x` release may include only one of them.
-- Spec Kit is a repository development tool only; it MUST NOT become a runtime dependency or a
-  user-facing Dev Flow feature. Repository setup and updates use the latest stable Spec Kit release.
-- Development tools and third-party libraries MUST be governed by minimum versions or compatible
-  major-version ranges. Exact resolved versions belong in lockfiles and release evidence, not in
-  compatibility rejection rules.
+- The public MCP tool catalog remains exactly six tools unless this Constitution is amended.
+- The graph-based Core supports only the built-in `standard-development` process. Feature 008
+  intentionally does not read, resume, convert, or complete pre-graph tasks.
+- Method profiles are limited to `plain`, `spec-kit`, and `openspec`.
+- Spec Kit and OpenSpec are repository-development aids, not Core runtime dependencies.
 - The repository contains one root `.specify/` project and one Constitution.
-- Before the first stable release, the project MUST NOT implement data import/export,
-  multi-repository tasks, cross-host automatic takeover, Web UI, remote MCP, authentication,
-  telemetry, agent orchestration, Git mutation, or a plugin framework.
-- Product version, package versions, embedded core version, and Git release tag included in one
-  `0.x` release MUST remain aligned unless a later approved specification defines decoupling.
-- Every production feature MUST include its current product version increment and alignment in that
-  feature's specification and tasks; version alignment MUST NOT be split into a separate feature.
-  Before the feature completes, root `VERSION` and every current root/package/plugin version
-  authority MUST equal the feature's approved next version. Historical released or incident-frozen
-  Tag, Draft, artifact digest, publication record, fixture, and recovery identities remain bound to
-  their original version and MUST NOT be rewritten as current-version alignment.
+- Before the first stable release, the project MUST NOT implement arbitrary process graphs,
+  data import/export, multi-repository tasks, cross-host automatic takeover, Web UI, remote MCP,
+  authentication, telemetry, agent orchestration, Git mutation, or a plugin framework.
+- Current product/package versions remain unchanged during ordinary feature implementation.
+  Version, package, embedded Core, Tag, and Release identity are aligned only by a separate Release
+  Feature or Release PR.
+- Historical released or incident-frozen Tags, Drafts, Releases, artifact digests, publication
+  records, fixtures, and recovery identities remain immutable.
+
+## Spec Kit Documentation Standard
+
+A public-behavior, shared-contract, persistence, process-graph, adapter-contract, or release change
+MUST have one complete feature package:
+
+```text
+specs/<NNN-feature-name>/
+├── README.md
+├── spec.md
+├── plan.md
+├── research.md
+├── data-model.md
+├── quickstart.md
+├── contracts/
+├── checklists/requirements.md
+└── tasks.md
+```
+
+The repository-specific artifact responsibilities, lifecycle, status vocabulary, change
+classification, and amendment rules are authoritative in `docs/SPEC-KIT-WORKFLOW.md`.
+
+Historical completed Feature packages are evidence and MUST NOT be rewritten to match a later
+template. Corrections to historical factual claims require a dedicated amendment that preserves the
+original release identity and explains the correction.
 
 ## Development Workflow and Quality Gates
 
-Every production feature follows:
+Every full production feature follows:
 
 1. `specify`
 2. `clarify`
@@ -186,65 +327,80 @@ Every production feature follows:
 7. staged `implement`
 8. `converge`
 
-A prepared feature package may start at `clarify`; existing artifacts MUST NOT be regenerated
+An already complete feature package begins at `clarify`; existing artifacts MUST NOT be regenerated
 without an explicit amendment decision.
 
 Before implementation:
 
-- all requirement checklist items must be reviewed;
-- no unresolved clarification marker may remain;
-- the Constitution Check must pass before and after design;
-- every task must name exact files or directories;
-- tasks must be grouped into independently testable user-story phases;
-- predecessor features named by the active specification must be merged or explicitly waived by an
-  approved route amendment.
+- the active feature is selected explicitly;
+- its `README.md` identifies status, dependencies, authority, and execution boundary;
+- the requirements checklist is reviewed;
+- no unresolved clarification marker remains;
+- the Constitution Check passes before and after design;
+- every task names exact files or directories and requirement IDs;
+- node and transition contracts are complete for every affected state;
+- the exact persisted-data disposition is explicit: migrate, retain read-only, reject, or require a user-controlled reset;
+- release operations are absent unless the feature is classified as a Release Feature.
+
+During implementation:
+
+- implement one phase or user story at a time;
+- stop at its checkpoint;
+- run only the targeted checks required by that slice;
+- update the specification before expanding behavior;
+- use `$speckit-converge` only to capture concrete acceptance gaps.
 
 Before merge:
 
-- the active feature's approved next version is aligned across root `VERSION` and every current
-  root/package/plugin version authority;
 - required targeted tests pass;
-- public contract fixtures pass;
-- no unauthorized scope appears in the diff;
-- documentation reflects the delivered behavior;
-- unsupported platforms and unverified host journeys remain explicitly unverified;
-- `$speckit-converge` finds no acceptance-criteria gap, or appends a bounded remaining task.
+- shared contract fixtures pass;
+- persistence bootstrap, unsupported-data zero-write rejection, and current-generation restart/recovery pass when storage changes;
+- no unauthorized node, edge, tool, dependency, platform, host support, or release side effect
+  appears in the diff;
+- documentation reflects delivered behavior;
+- `$speckit-converge` finds no acceptance gap or appends a bounded remaining task;
+- the final repository-wide validation runs no more than the active specification authorizes.
 
-Before any release:
+Before release:
 
-- every product/package included in that release is built from one clean source identity;
-- each claimed host journey is exercised in the real host using the final distributed artifact;
-- package contents and bundled Core identity are verified;
-- every public support claim is bounded to final-artifact evidence;
-- a host-specific `0.x` release explicitly labels deferred products and does not change shared
-  semantics;
-- no release side effect occurs from an ordinary pull-request workflow.
+- a separate Release Feature or Release PR names the included completed features;
+- every included product is built from one clean source identity;
+- final distributed artifacts and claimed host journeys are verified;
+- no release side effect occurs from ordinary feature or pull-request validation.
 
-Before `1.0.0`:
+## Transition Rule for Core Contract 0.1
 
-- both intended products are publicly installable;
-- both real-host journeys pass;
-- shared public contracts and persistence compatibility are stable.
+The published `0.3.0` Core Contract 0.1 implementation may remain operational while Feature 008 is
+planned and implemented. During this transition:
+
+- no new product feature may extend the old phase or result vocabulary;
+- bug fixes required to preserve existing `0.3.0` behavior remain permitted and must not pre-decide
+  Feature 008 design;
+- Feature 008 deliberately provides no runtime compatibility for `0.3.0` task databases;
+- the graph Core creates only fresh Schema 2 data and rejects Schema 1 with zero writes;
+- users who wish to preserve old files must do so outside the active data root; before using the
+  graph Core they explicitly select a fresh directory or archive/rename/delete the old directory;
+- Core, setup, update, remove, and uninstall must not perform that destructive reset automatically;
+- new state-graph tasks must not be created until the complete Core Contract 0.2 gate passes;
+- public release remains a separate, later decision.
 
 ## Governance
 
 This Constitution supersedes conflicting plans, tasks, prompts, conventions, and implementation
 preferences.
 
-- **Authority**: Principles I–X are binding gates. A conflicting specification, plan, or task MUST
-  be changed; the Constitution MUST NOT be weakened merely to unblock implementation.
-- **Amendments**: An amendment requires a dedicated documentation change with rationale, impact on
-  active specs, data implications, and explicit maintainer approval.
+- **Authority**: Principles I–XI are binding gates. Conflicting specifications, plans, or tasks MUST
+  be corrected instead of weakening the Constitution merely to unblock implementation.
+- **Amendments**: An amendment requires a sync-impact report, rationale, affected active features,
+  persistence implications, exact data disposition, and explicit maintainer approval.
 - **Versioning**: Constitution versions follow SemVer. MAJOR removes or redefines a binding
-  principle; MINOR adds a principle or materially expands governance; PATCH clarifies without
-  changing meaning.
-- **Compliance review**: Every feature plan MUST include a Constitution Check. Every review MUST call
-  out any complexity-budget exception. Unjustified exceptions block merge.
-- **Specification locality**: Requirements and tasks MUST be justified by the current repository
-  artifacts and observable acceptance criteria. Unrecorded assumptions do not authorize product
-  work.
-- **Route amendments**: A maintainer may defer a feature and approve a different vertical sequence
-  when dependency, roadmap, release, and active Spec Kit artifacts are updated together and no
-  public-contract gate is bypassed.
+  principle; MINOR adds or materially expands a principle; PATCH clarifies without changing
+  meaning.
+- **Compliance review**: Every feature plan MUST include a Constitution Check. Every review MUST
+  identify any complexity-budget exception.
+- **Specification locality**: Only this Constitution, the active feature artifacts, and the user's
+  current explicit instruction authorize product work.
+- **Transition authority**: `specs/008-refactor-to-development-process-graph/` is the only approved
+  breaking replacement specification from the linear runtime to the standard development graph.
 
-**Version**: 1.2.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-18
+**Version**: 2.0.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-18

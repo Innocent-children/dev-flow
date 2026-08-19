@@ -2,85 +2,170 @@
 
 ## Authority
 
-Before any implementation work, read:
+Before any implementation work, read in this order:
 
 1. `.specify/memory/constitution.md`
-2. the active feature's `spec.md`
-3. the active feature's `plan.md`
-4. the active feature's `tasks.md`
+2. `docs/SPEC-KIT-WORKFLOW.md`
+3. the active feature's `README.md`
+4. the active feature's `spec.md`
+5. the active feature's `plan.md`
+6. the active feature's `contracts/`
+7. the active feature's `tasks.md`
 
-The active Spec Kit feature is selected by `.specify/feature.json` or
-`SPECIFY_FEATURE_DIRECTORY`. Do not infer it only from the current Git branch.
+The active Spec Kit feature is selected by `.specify/feature.json` when available or by
+`SPECIFY_FEATURE_DIRECTORY`. Do not infer it only from the Git branch, directory name, chat history,
+or the most recently edited specification.
 
 ## Requirement Scope
 
-Only the Constitution, the active feature artifacts, and the user's current explicit instruction
-define product work.
+Only the Constitution, the complete active feature package, and the user's current explicit
+instruction define authorized product work.
 
-- Every implementation task must trace to an active requirement or approved engineering constraint.
-- Do not invent compatibility, migration, integration, platform, or release requirements that the
-  active feature does not define.
-- Do not turn rationale, examples, future candidates, or unrelated repository context into product
-  behavior or test gates.
-- When current artifacts are insufficient, stop implementation and amend the feature before coding.
+- Every implementation task must trace to an active `FR-*`, `SC-*`, contract clause, or approved
+  engineering constraint.
+- A task must name exact files or directories before implementation.
+- Do not convert rationale, examples, future candidates, historical incidents, or release evidence
+  into new product behavior.
+- Do not broaden an implementation because a nearby abstraction appears useful.
+- When the active package is incomplete or contradictory, stop implementation and amend the
+  specification first.
+- Completed historical feature packages are evidence. Do not rewrite them to match current
+  templates or terminology.
 
 ## Product Boundary
 
-Only the Go core owns:
+Only the Go Core owns:
 
-- task state;
-- workflow transitions;
-- next-action selection;
-- repository claims;
-- recovery classification;
-- terminal outcomes.
+- task and repository-claim identity;
+- process definition and version;
+- current node and resume node;
+- node purpose, obligations, allowed effects, and required evidence;
+- legal outgoing transitions and transition guards;
+- next-action identity;
+- blocker and recovery classification;
+- terminal outcome.
 
-Codex and DeepSeek adapters must remain host-specific and thin. They must not persist task state,
-reimplement the transition table, or infer completion independently of the core.
+Codex, DeepSeek, Spec Kit, OpenSpec, CLI, MCP, and package scripts are adapters or execution aids.
+They must not persist a second process cursor, add a transition, skip a node, infer completion, or
+reinterpret a Core result.
+
+The target product direction is the development-process state graph defined by the active replacement
+feature. Feature 008 intentionally carries no Core Contract 0.1 task runtime, migration, v1 codec, or
+legacy process. Until the replacement completes, do not add new old-model phases, result values, or
+hidden fast paths.
+
+## Method-Tool Boundary
+
+`plain`, `spec-kit`, and `openspec` are method profiles, not workflow authorities.
+
+- Core owns semantic method steps and the current process node.
+- Host adapters may render supported commands or instructions for the selected profile.
+- Missing tooling must be reported honestly; it does not authorize fabricated completion.
+- Spec Kit/OpenSpec artifacts may provide evidence, but their local status does not mutate Core
+  state without an exact Core action submission.
+- Do not make Spec Kit or OpenSpec a production dependency of the Go Core.
+
+## Spec Kit Package Discipline
+
+A public-behavior, process, shared-contract, persistence, adapter-contract, or release change
+requires this complete package:
+
+```text
+specs/<NNN-feature-name>/
+├── README.md
+├── spec.md
+├── plan.md
+├── research.md
+├── data-model.md
+├── quickstart.md
+├── contracts/
+├── checklists/requirements.md
+└── tasks.md
+```
+
+Use `docs/SPEC-KIT-WORKFLOW.md` for artifact responsibilities, status values, change
+classification, execution order, amendment rules, and release separation.
+
+For an already prepared package:
+
+1. select the exact feature directory;
+2. run `$speckit-clarify`;
+3. review or run `$speckit-checklist`;
+4. run `$speckit-analyze`;
+5. implement one approved phase or user story;
+6. run its targeted checks;
+7. run `$speckit-converge`;
+8. stop at the requested checkpoint.
+
+Do not regenerate `spec.md`, `plan.md`, or `tasks.md` merely because a command is available. Amend
+them intentionally and keep requirement/task traceability.
+
+Do not modify generated skills under `.agents/skills/`.
+
+## State-Graph Specification Discipline
+
+When a feature changes process behavior, its artifacts must define all of the following before code:
+
+- affected process definition and version;
+- affected nodes;
+- complete outgoing transitions for every affected node;
+- transition IDs, destinations, guards, and required reasons;
+- node entry assumptions and completion conditions;
+- allowed effects and required evidence;
+- method-profile operations;
+- payload and MCP projections;
+- exact persisted-data disposition; before `1.0.0`, do not invent historical-task compatibility unless the user explicitly requires it;
+- forbidden transitions and non-goals.
+
+Do not implement a node without its full edge set. Do not add a destination in code and ask the
+documentation to recognize it later.
 
 ## Implementation Discipline
 
 - Implement only tasks explicitly listed in the active `tasks.md`.
-- Stop at the requested phase or user-story checkpoint.
-- Do not add future abstractions, generic plugin frameworks, workflow DSLs, HTTP transports,
-  Web UI, multi-repository support, or unspecified compatibility layers.
-- Do not change public contracts from an adapter branch.
-- When a core contract is insufficient, stop and create or amend a core specification first.
-- Keep normal state count, MCP tool count, and direct dependency count within the Constitution.
-- Prefer direct, readable code over frameworks and wrappers.
-- Do not create an interface until at least two real implementations need it, except for the
-  minimal Store and RepositoryObserver ports required to isolate infrastructure from domain logic.
+- Stop at the requested phase, user story, or checkpoint.
+- Prefer direct readable code over frameworks, registries, builders, and wrappers.
+- Do not create a generic graph DSL, user-configurable process, plugin framework, HTTP transport,
+  Web UI, multi-repository flow, or unspecified compatibility layer.
+- Keep Core and host responsibilities separate.
+- Do not change public contracts from a host-only branch.
+- When a shared contract is insufficient, amend the shared feature first.
+- Do not add `legacy-linear`, snapshot-v1 decoding, dual task projections, or Schema 1 migration for Feature 008.
+- Reject pre-graph databases with zero writes and require explicit user-controlled archive/rename/delete or a fresh data directory; never delete automatically.
+- No release operation belongs in an ordinary product feature.
 
 ## Git Boundary
 
-The product core may inspect Git read-only. It may not create, switch, delete, reset, clean,
-stash, commit, push, merge, rebase, tag, or publish Git state.
+The product Core may inspect Git read-only. It may not create, switch, delete, reset, clean, stash,
+commit, push, merge, rebase, tag, publish, or otherwise mutate Git state.
 
-Repository development actions also require explicit user authority. Do not publish releases or
-npm packages during ordinary implementation.
+Repository development actions require explicit user authority. npm publication, Git Tag changes,
+GitHub Release changes, asset upload, and public support claims require a separate Release Feature
+or Release PR.
 
 ## Test Budget
 
-Run only checks required by the active task and its acceptance criteria.
+Run only checks required by the active task and acceptance criteria.
 
-- Do not run an entire repository suite after every small change.
-- Prefer package-local or user-story-local checks.
-- Run full cross-repository validation only at the final feature checkpoint or when explicitly
-  required by the specification.
-- Never claim native-host or real-agent evidence from a fake adapter, static inspection, or a
-  different operating system.
-- User-performed validation must be reported as user evidence, not automated evidence.
+- Prefer package-local, node-local, storage-boundary-local, or user-story-local checks.
+- Do not run the complete repository suite after each edit.
+- Run the final repository-wide validation at most once unless the active specification records a
+  concrete reason for a retry.
+- Real-host journeys run only at an explicit final checkpoint.
+- Never promote fake, fixture, static, different-platform, or user-performed evidence into native
+  automated evidence.
+- Report unavailable checks as unavailable; do not replace them with broader unrelated testing.
 
-## Spec Kit Workflow
+## Change Control
 
-For an already prepared feature package:
+When approved behavior changes:
 
-1. Review the existing spec; do not recreate it.
-2. Run `$speckit-clarify`.
-3. Run `$speckit-checklist`.
-4. Run `$speckit-analyze`.
-5. Implement one phase at a time with `$speckit-implement`.
-6. Run `$speckit-converge` after the selected implementation slice.
-7. Append only concrete remaining work.
+1. update `spec.md`;
+2. update the affected contract documents;
+3. rerun clarification and requirements-quality review;
+4. update `plan.md`, `data-model.md`, `quickstart.md`, and `tasks.md`;
+5. rerun analyze;
+6. reassess completed tasks against the amended requirements;
+7. only then resume implementation.
 
-Do not modify Spec Kit generated skills under `.agents/skills/`.
+Do not enlarge code scope first and ask the specification to ratify it afterward.

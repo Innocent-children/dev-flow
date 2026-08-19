@@ -1,113 +1,150 @@
 # Implementation Plan: [FEATURE]
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [relative link]
 
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+**Change Type**: [Governance | Product Feature | Corrective Change | Release Change]
 
-**Note**: This template is filled in by the `$speckit-plan` command; its definition describes the execution workflow.
+**Input**: Feature specification from `specs/[###-feature-name]/spec.md`
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+[Primary user capability and the selected technical approach in two or three paragraphs.]
+
+## Current System Baseline *(mandatory)*
+
+Describe the exact current behavior and authoritative files before proposing changes.
+
+| Surface | Current Authority | Current Behavior | Feature Impact |
+| --- | --- | --- | --- |
+| Domain | `[path]` | [behavior] | [change/unchanged] |
+| Workflow/Process | `[path]` | [behavior] | [change/unchanged] |
+| Persistence | `[path]` | [behavior] | [change/unchanged] |
+| MCP | `[path]` | [behavior] | [change/unchanged] |
+| Host Adapter | `[path]` | [behavior] | [change/unchanged] |
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
+**Language/Version**: [exact governed range]
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]
+**Primary Dependencies**: [existing dependencies; mark new dependency explicitly]
 
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
+**Storage**: [SQLite schema/version or N/A]
 
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
+**Transport/Public Surface**: [MCP/CLI/package or N/A]
 
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]
+**Testing**: [targeted packages, contract fixtures, final validation]
 
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Target Platform**: [supported implementation platform]
 
-**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]
+**Performance Goals**: [only observable goals relevant to this feature]
 
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]
+**Constraints**: [security, size, selected data disposition, read-only Git, tool count, etc.]
 
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]
-
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Scale/Scope**: [one repo/one task/bounded graph/etc.]
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+*GATE: Pass before research and repeat after design.*
 
-[Gates determined based on constitution file]
+| Principle / Constraint | Status | Evidence / Design Response |
+| --- | --- | --- |
+| Single Core authority | [PASS/FAIL] | [response] |
+| Bounded state graph | [PASS/FAIL/N/A] | [response] |
+| Comprehensibility gate | [PASS/FAIL/N/A] | [response] |
+| Method tools are guidance | [PASS/FAIL/N/A] | [response] |
+| Recovery before retry | [PASS/FAIL/N/A] | [response] |
+| Read-only Git | [PASS/FAIL] | [response] |
+| Evidence-bounded testing | [PASS/FAIL] | [response] |
+| Proven simplicity | [PASS/FAIL] | [response] |
+| Release separation | [PASS/FAIL] | [response] |
+| Host fixture parity | [PASS/FAIL/N/A] | [response] |
+
+Any FAIL blocks tasks and implementation.
+
+## Design
+
+### Process and Domain Model
+
+[Exact new entities, ownership, invariants, process/node/transition design, and any supported data-generation split.]
+
+### Public Contract
+
+[Tool count, schema version, new/changed fields, errors, forbidden input, result envelope.]
+
+### Persistence Transition
+
+[Schema/bootstrap version, selected existing-data disposition, current-generation task behavior,
+unsupported/future data behavior, reset authority, zero-write proof, and transaction boundary.]
+
+### Recovery and Concurrency
+
+[How revision/action identity, uncertain mutation classification, CAS, blocker, and duplicate
+prevention remain correct.]
+
+### Method Profiles and Host Adapters
+
+[Core semantic steps, profile mapping, adapter responsibilities, missing-tool behavior, parity.]
+
+### Documentation and Product Definition
+
+[Which user-facing and architecture documents change during implementation.]
 
 ## Project Structure
 
-### Documentation (this feature)
+### Feature Documentation
 
 ```text
-specs/[###-feature]/
-├── plan.md              # This file ($speckit-plan command output)
-├── research.md          # Phase 0 output ($speckit-plan command)
-├── data-model.md        # Phase 1 output ($speckit-plan command)
-├── quickstart.md        # Phase 1 output ($speckit-plan command)
-├── contracts/           # Phase 1 output ($speckit-plan command)
-└── tasks.md             # Phase 2 output ($speckit-tasks command - NOT created by $speckit-plan)
+specs/[###-feature-name]/
+├── README.md
+├── spec.md
+├── plan.md
+├── research.md
+├── data-model.md
+├── quickstart.md
+├── contracts/
+├── checklists/requirements.md
+└── tasks.md
 ```
 
-### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
+### Source Changes
+
+List only real repository paths. Do not include generic Web/mobile examples.
 
 ```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
-
-tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+internal/domain/
+internal/workflow/
+internal/application/
+internal/recovery/
+internal/store/
+internal/mcp/
+protocol/fixtures/
+tests/contract/
+packages/codex/
+docs/
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Structure Decision**: [Why these existing boundaries are retained or deliberately changed.]
+
+## Test Strategy and Budget
+
+| Checkpoint | Required Checks | Explicitly Excluded |
+| --- | --- | --- |
+| Foundation | [targeted checks] | [full suite/native journey/etc.] |
+| User Story 1 | [checks] | [excluded] |
+| User Story N | [checks] | [excluded] |
+| Final | [one full validation and any real-host gate] | [unsupported matrices] |
+
+State the maximum number of repository-wide validations and real-host journeys.
+
+## Rollout and Persistence Boundary
+
+[Feature merge behavior, old-data disposition, feature flag if any, bootstrap/reset ordering. Product
+publication belongs to a separate Release Feature unless this plan is release-only.]
 
 ## Complexity Tracking
 
-> **Fill ONLY if Constitution Check has violations that must be justified**
+> Fill only for approved Constitution exceptions.
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+| Violation | Why Needed | Simpler Alternative Rejected Because | Approval |
+| --- | --- | --- | --- |
+| [exception] | [need] | [reason] | [owner/date] |
