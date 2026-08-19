@@ -3,8 +3,7 @@
 **Input**: Complete Feature 008 package in
 `specs/008-refactor-to-development-process-graph/`
 
-**Status**: Implementing — User Story 3 and Phase 6A–6C complete; Phase 7A/7B complete; Phase 7C
-and Phase 8 remain unstarted.
+**Status**: Implementing — User Story 4 and Phase 7A–7C complete; Phase 8 remains unstarted.
 
 **Release Boundary**: Every task in this file is source/local-evidence work. No task may modify
 `VERSION`, publish npm, create/move a Tag, mutate a GitHub Release, or claim final registry support.
@@ -334,18 +333,18 @@ recovery for current graph tasks.
   Journey F: direct fresh Schema 2 bootstrap, representative Schema 1 zero-write rejection before
   decode, explicit switch to a fresh data directory, and creation of only a standard task per
   FR-S001–FR-S007 and SC-011–SC-013.
-- [ ] T081 [US4] Add static/contract assertions in `tests/contract/storage_generation_2_test.go` that
+- [x] T081 [US4] Add static/contract assertions in `tests/contract/storage_generation_2_test.go` that
   production source contains no `legacy-linear`, v1 task codec, dual task projection, `ALTER TABLE`
   compatibility migration, task import/export, or automatic data-reset path per FR-S003.
-- [ ] T082 [US4] Add package/Skill contract tests proving setup/update/remove/uninstall and
+- [x] T082 [US4] Add package/Skill contract tests proving setup/update/remove/uninstall and
   `SCHEMA_UNSUPPORTED` guidance never delete/rename/truncate old data and never expose a private data
   path per FR-S004–FR-S006.
-- [ ] T083 [US4] Add future/corrupt Schema 2 and unsupported process/digest cases to focused Store and
+- [x] T083 [US4] Add future/corrupt Schema 2 and unsupported process/digest cases to focused Store and
   contract tests, with unchanged before/after manifests per FR-S007 and SC-013.
-- [ ] T084 [US4] Run focused Store/recovery/journey/contract/package tests for bootstrap, old-data
+- [x] T084 [US4] Run focused Store/recovery/journey/contract/package tests for bootstrap, old-data
   rejection, current uncertainty, blocker resolution, concurrency, restart, lifecycle non-deletion,
   and future/corrupt safe-stop.
-- [ ] T085 [US4] Run `$speckit-converge`; record `USER_STORY_4_CHECKPOINT_COMPLETE` and stop.
+- [x] T085 [US4] Run `$speckit-converge`; record `USER_STORY_4_CHECKPOINT_COMPLETE` and stop.
 
 **Checkpoint**: The graph Core carries no historical-task runtime, fresh/current tasks restart and
 recover exactly, and unsupported old data remains unchanged until the user explicitly chooses a new
@@ -355,7 +354,11 @@ or reset data directory.
 T073–T076 complete.
 
 **Phase 7B Checkpoint**: `FEATURE_008_PHASE_7B_RECOVERY_RESTART_STORAGE_JOURNEYS_CHECKPOINT_COMPLETE` —
-T077–T080 complete; T081–T085 remain unchecked and User Story 4 is not complete.
+T077–T080 complete.
+
+**Phase 7C / User Story 4 Checkpoint**: `USER_STORY_4_CHECKPOINT_COMPLETE` — T081–T085 complete,
+the convergence assessment found zero remaining User Story 4 acceptance gap, and Phase 8 remains
+unstarted.
 
 ---
 
