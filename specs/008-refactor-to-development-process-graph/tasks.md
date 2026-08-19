@@ -261,21 +261,21 @@ verification, and comprehension failures; stale evidence cannot reach delivery.
 - [x] T062 [US3] Include immutable method profile and semantic steps in standard Task/Action/MCP
   projections and validate submitted MethodEvidence against the current node in
   `internal/domain/method.go` and `internal/workflow/payloads_v2.go` per FR-027–FR-031.
-- [ ] T063 [P] [US3] Add
+- [x] T063 [P] [US3] Add
   `packages/codex/plugin/skills/dev-flow/references/method-profiles.md` containing the exact
   Host-rendering/capability/fallback contract from
   `specs/008-refactor-to-development-process-graph/contracts/method-profiles.md`.
-- [ ] T064 [US3] Add the method-profile reference to the closed files allowlist in
+- [x] T064 [US3] Add the method-profile reference to the closed files allowlist in
   `packages/codex/package.json` and package-contract expectations in
   `packages/codex/tests/package-contract.test.mjs` without adding a production dependency.
-- [ ] T065 [US3] Refactor `packages/codex/plugin/skills/dev-flow/SKILL.md` handshake/admission/action
+- [x] T065 [US3] Refactor `packages/codex/plugin/skills/dev-flow/SKILL.md` handshake/admission/action
   loop to require schema 2, read the complete Core node/transition/method result, render only
   available profile capabilities, and submit only Core-returned transitions per FR-029,
   FR-039, and the method-profile contract.
-- [ ] T066 [US3] Add Codex Skill handling for `SCHEMA_UNSUPPORTED` pre-graph data that reports the
+- [x] T066 [US3] Add Codex Skill handling for `SCHEMA_UNSUPPORTED` pre-graph data that reports the
   fresh-directory/user-controlled archive-rename-delete boundary, reveals no private database path,
   and performs no automatic reset per FR-S004–FR-S006.
-- [ ] T067 [US3] Remove any adapter-owned normal phase sequence/destination inference from the Codex
+- [x] T067 [US3] Remove any adapter-owned normal phase sequence/destination inference from the Codex
   Skill while retaining exact request identity, closed payload forwarding, evidence budget, and
   recovery-before-retry rules per FR-039 and FR-S010.
 - [ ] T068 [P] [US3] Add Codex fixtures for all three profiles, missing Spec Kit clarify, missing

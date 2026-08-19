@@ -51,6 +51,7 @@ export const PACKAGE_FILE_PATHS = Object.freeze([
   "plugin/.mcp.json",
   "plugin/skills/dev-flow/SKILL.md",
   "plugin/skills/dev-flow/agents/openai.yaml",
+  "plugin/skills/dev-flow/references/method-profiles.md",
   "runtime/darwin-arm64/dev-flow",
 ]);
 
@@ -705,7 +706,7 @@ function validatePublicPackageManifest(manifest, version) {
     manifest.publishConfig?.registry !== "https://registry.npmjs.org/" ||
     stableJSON(manifest.engines) !== stableJSON({ node: ">=24" }) ||
     stableJSON(manifest.files) !== stableJSON([
-      ".agents/plugins/marketplace.json", "LICENSE", "bin/dev-flow-codex.mjs", "lib/lifecycle.mjs", "lib/paths.mjs", "plugin/.codex-plugin/plugin.json", "plugin/.mcp.json", "plugin/skills/dev-flow/SKILL.md", "plugin/skills/dev-flow/agents/openai.yaml", "runtime/darwin-arm64/dev-flow",
+      ".agents/plugins/marketplace.json", "LICENSE", "bin/dev-flow-codex.mjs", "lib/lifecycle.mjs", "lib/paths.mjs", "plugin/.codex-plugin/plugin.json", "plugin/.mcp.json", "plugin/skills/dev-flow/SKILL.md", "plugin/skills/dev-flow/agents/openai.yaml", "plugin/skills/dev-flow/references/method-profiles.md", "runtime/darwin-arm64/dev-flow",
     ])
   ) throw new Error("packed package.json differs from the fixed public package contract");
   for (const field of ["dependencies", "optionalDependencies", "peerDependencies", "bundledDependencies", "bundleDependencies"]) if (field in manifest) throw new Error(`packed package contains forbidden ${field}`);

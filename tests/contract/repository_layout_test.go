@@ -49,6 +49,7 @@ var codexSourceFiles = []string{
 	"plugin/.mcp.json",
 	"plugin/skills/dev-flow/SKILL.md",
 	"plugin/skills/dev-flow/agents/openai.yaml",
+	"plugin/skills/dev-flow/references/method-profiles.md",
 	"tests/fake-core-contract.test.mjs",
 	"tests/fixtures/fake-codex.mjs",
 	"tests/fixtures/fake-core.mjs",

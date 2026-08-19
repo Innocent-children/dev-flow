@@ -23,6 +23,53 @@ const exactTools = [
   "dev_flow_cancel_task",
 ];
 
+const semanticMethodSteps = [
+  "requirements.capture",
+  "requirements.clarify",
+  "requirements.validate",
+  "design.choose_approach",
+  "design.review_complexity",
+  "design.record_decisions",
+  "tasks.decompose",
+  "tasks.map_acceptance",
+  "tasks.analyze_consistency",
+  "implementation.execute_plan",
+  "implementation.record_surface",
+  "implementation.classify_deviations",
+  "test.run_budgeted_checks",
+  "test.record_evidence",
+  "test.classify_failure",
+  "comprehension.explain",
+  "comprehension.identify_complexity",
+  "comprehension.obtain_user_verdict",
+  "refactor.simplify",
+  "refactor.reconcile_artifacts",
+  "refactor.record_surface",
+  "delivery.reconcile_acceptance",
+  "delivery.reconcile_method_artifacts",
+  "delivery.prepare_summary",
+];
+
+const specKitCapabilities = [
+  "speckit-specify",
+  "speckit-clarify",
+  "speckit-plan",
+  "speckit-checklist",
+  "speckit-tasks",
+  "speckit-analyze",
+  "speckit-implement",
+];
+
+const openSpecCapabilities = [
+  "openspec-explore",
+  "openspec-propose",
+  "openspec-apply",
+  "openspec-verify",
+  "openspec-sync",
+  "openspec-archive",
+  "openspec-validate",
+];
+
 test("plugin exposes exactly one explicitly selected dev-flow Skill", async () => {
   const skillFiles = (await walkFiles(join(pluginRoot, "skills"))).filter((path) => path.endsWith("SKILL.md"));
   assert.deepEqual(skillFiles, ["dev-flow/SKILL.md"]);
@@ -74,8 +121,8 @@ test("Skill admits only an exact current-turn selector with substantive or resum
   assert.match(admission, /explicit[^\n]*resume/i);
   assert.match(admission, /empty|conversational/i);
   assert.match(admission, /stop before Skill-owned task/i);
-  assert.match(admission, /do not complete a task-bearing call/i);
-  assert.match(admission, /Core-rejected calls[\s\S]*reported honestly/i);
+  assert.match(admission, /do\s+not complete a task-bearing call/i);
+  assert.match(admission, /Core-rejected\s+calls[\s\S]*reported honestly/i);
   assert.match(admission, /implicit/i);
 
   assert.match(admission, /read-only Git/i);
@@ -119,16 +166,23 @@ test("Skill calls server-info first and admits only the exact six-tool Core cont
   const handshake = skill.slice(handshakeIndex);
   for (const expectation of [
     /product[^\n]*`dev-flow`/i,
-    /Core Contract[^\n]*`0\.1`/i,
+    /schema_version[^\n]*`2`/i,
+    /core_limits_version[^\n]*`0\.2`/i,
     /transport[^\n]*`stdio`/i,
     /health[^\n]*`ready`/i,
-    /supported host[^\n]*`codex`/i,
+    /supported host[\s\S]{0,80}`codex`/i,
+    /standard-development@1/i,
+    /definition_digest/i,
+    /new_task_supported[^\n]*`true`/i,
+    /plain[^\n]*spec-kit[^\n]*openspec/i,
     /exactly[^\n]*six/i,
     /incomplete|truncated|malformed/i,
     /stop/i,
   ]) {
     assert.match(handshake, expectation);
   }
+  assert.doesNotMatch(handshake, /(?:schema|Core Contract)[^\n]*`?0\.1`?/i);
+  assert.match(handshake, /(?:do\s+not|never)[\s\S]*local source[\s\S]*second MCP server/i);
 
   assert.doesNotMatch(skill, /tests\/fixtures|fake-(?:codex|core)/i);
   assert.doesNotMatch(skill, /generic shell MCP|seventh tool/i);
@@ -152,32 +206,43 @@ test("Skill follows fresh Core authority for create, resume, one mutation, and c
     "revision",
     "action ID",
     "action kind",
+    "process ID",
+    "process version",
+    "process-definition digest",
+    "current node",
+    "node purpose",
+    "entry conditions",
+    "completion conditions",
     "repository-binding digest",
     "allowed effects",
     "required evidence",
+    "method profile",
+    "method steps",
+    "available transitions",
     "payload schema",
   ]) {
-    assert.match(loop, new RegExp(escapeRegExp(identity), "i"));
+    assert.match(loop, new RegExp(escapeRegExp(identity).replaceAll(" ", "\\s+"), "i"));
   }
   assert.match(loop, /fresh|live Core/i);
-  assert.match(loop, /one mutation|exactly one mutation/i);
+  assert.match(loop, /one mutation|exactly one[\s\S]{0,80}mutation/i);
   assert.match(loop, /request ID/i);
-  assert.match(loop, /complete successful[\s\S]*(?:returned|fresh)[\s\S]*(?:next action|Core read)/i);
+  assert.match(loop, /complete (?:successful|committed)[\s\S]*(?:authoritative|returned|fresh)[\s\S]*(?:next Action|Core read)/i);
 
   const forwarding = section(skill, "Closed forwarding contract");
   assert.match(forwarding, /closed payload/i);
   assert.match(forwarding, /unknown fields|aliases/i);
-  assert.match(forwarding, /recovery_apply[\s\S]*Core/i);
+  assert.match(forwarding, /recovery_apply[\s\S]*(?:omit|null)/i);
 });
 
-test("Skill forwards the exact closed Core new_task contract", async () => {
+test("Skill forwards the exact closed Core Contract 0.2 new_task contract", async () => {
   const discovery = section(await readFile(skillPath, "utf8"), "Task discovery");
   for (const member of [
-    "goal",
-    "scope",
-    "out_of_scope",
-    "acceptance_criteria",
+    "request",
+    "initial_scope",
+    "initial_out_of_scope",
+    "known_acceptance_criteria",
     "verification_budget",
+    "method_profile",
     "level",
     "max_automatic_commands",
     "allow_full_suite",
@@ -185,29 +250,143 @@ test("Skill forwards the exact closed Core new_task contract", async () => {
   ]) {
     assert.equal(discovery.includes(`\`${member}\``), true, `missing closed Core member ${member}`);
   }
-  for (const alias of ["requirement", "exclusions", "verification", "automatic_command_budget"]) {
+  for (const alias of ["goal", "scope", "out_of_scope", "acceptance_criteria", "exclusions", "verification", "automatic_command_budget"]) {
     assert.equal(discovery.includes(`\`${alias}\``), false, `forbidden Core member alias ${alias}`);
   }
   assert.match(discovery, /no additional members|exact members/i);
+  assert.match(discovery, /acceptance[\s\S]{0,100}(?:may be|need not be|does not\s+need to be)[\s\S]{0,80}complete/i);
+  assert.match(discovery, /resume[\s\S]*(?:omit `new_task`|`new_task=null`)/i);
+  assert.match(discovery, /(?:immutable|must not|never)[^\n]*profile/i);
+});
+
+test("method-profile reference closes all 24 rendering steps without owning Core state", async () => {
+  const referencePath = join(pluginRoot, "skills", "dev-flow", "references", "method-profiles.md");
+  const reference = await readFile(referencePath, "utf8");
+  const catalog = reference.match(/<!-- semantic-step-table:start -->\n([\s\S]*?)\n<!-- semantic-step-table:end -->/u);
+  assert.notEqual(catalog, null);
+  const catalogSteps = [...catalog[1].matchAll(/^\| `([^`]+)` \|/gmu)].map((match) => match[1]);
+  assert.deepEqual(catalogSteps, semanticMethodSteps);
+
+  for (const profile of ["plain", "spec-kit", "openspec"]) {
+    assert.match(reference, new RegExp("`" + escapeRegExp(profile) + "`", "u"));
+  }
+  for (const capability of [...specKitCapabilities, ...openSpecCapabilities]) {
+    assert.match(reference, new RegExp("`" + escapeRegExp(capability) + "`", "u"));
+  }
+  assert.match(reference, /`speckit-converge`[\s\S]*optional[\s\S]*(?:not|never)[\s\S]*Core required step/i);
+  assert.match(reference, /available[\s\S]*unavailable[\s\S]*not_applicable[\s\S]*unknown/i);
+  assert.match(reference, /`plain_fallback`[\s\S]*`capability`[\s\S]*empty/i);
+  assert.match(reference, /exactly one `MethodEvidence`[\s\S]*Action order/i);
+  assert.match(reference, /`unavailable`[\s\S]*`not_run`[\s\S]*(?:do not|cannot)[\s\S]*required/i);
+  assert.match(reference, /`role`[\s\S]*repository-relative `path`[\s\S]*`digest`[\s\S]*`summary`/i);
+  assert.match(reference, /explicit[\s\S]*user[\s\S]*(?:verdict|confirmation)/i);
+  assert.match(reference, /(?:does not|must not|never)[\s\S]*(?:derive|select)[\s\S]*(?:transition|destination)/i);
+  assert.match(reference, /(?:checkbox|archive|capability)[\s\S]*(?:does not|cannot|must not)[\s\S]*(?:advance|mutate)[\s\S]*Core/i);
+
+  const rendered = reference.match(/<!-- rendered-operation-example:start -->\n```json\n([\s\S]*?)\n```\n<!-- rendered-operation-example:end -->/u);
+  assert.notEqual(rendered, null);
+  assert.deepEqual(JSON.parse(rendered[1]), {
+    step_id: "requirements.clarify",
+    purpose: "Resolve material requirement ambiguity.",
+    required: true,
+    profile: "spec-kit",
+    capability_id: "speckit-clarify",
+    rendered_instruction: "Use the installed Spec Kit clarify capability for the active feature.",
+    expected_artifacts: ["active feature specification clarification"],
+    availability: "available",
+  });
+});
+
+test("Skill selects one immutable profile and renders complete honest method evidence", async () => {
+  const skill = await readFile(skillPath, "utf8");
+  const discovery = section(skill, "Task discovery");
+  assert.match(discovery, /explicit[\s\S]{0,120}`plain`[\s\S]{0,80}`spec-kit`[\s\S]{0,80}`openspec`/i);
+  assert.match(discovery, /Spec Kit[\s\S]{0,80}`spec-kit`/i);
+  assert.match(discovery, /OpenSpec[\s\S]{0,80}`openspec`/i);
+  assert.match(discovery, /otherwise[\s\S]{0,80}`plain`/i);
+  assert.match(discovery, /conflicting[^\n]*profile[\s\S]*stop/i);
+  assert.match(discovery, /(?:do not|never)[^\n]*installed[^\n]*switch|installed[^\n]*(?:does not|must not)[^\n]*select/i);
+
+  const rendering = section(skill, "Method operation rendering");
+  assert.match(rendering, /`references\/method-profiles\.md`/u);
+  assert.match(rendering, /each[\s\S]*Core-returned[\s\S]*method\s+step/i);
+  assert.match(rendering, /actual(?:ly)? (?:visible|available)[\s\S]{0,80}capability/i);
+  assert.match(rendering, /plain-equivalent/i);
+  assert.match(rendering, /exactly one[\s\S]*`MethodEvidence`[\s\S]*same order/i);
+  assert.match(rendering, /(?:`completed`|status=completed)[\s\S]*actual capability/i);
+  assert.match(rendering, /(?:`plain_fallback`|status=plain_fallback)[\s\S]*empty/i);
+  assert.match(rendering, /(?:`unavailable`|status=unavailable)[\s\S]*required[\s\S]*(?:do not|must not)[\s\S]*`dev_flow_apply_action`/i);
+  assert.match(rendering, /(?:does not|cannot|must not)[\s\S]*substitute[\s\S]*typed `node_result`/i);
+  assert.match(rendering, /(?:do not|never)[\s\S]*(?:automatically install|auto-install)/i);
+  assert.match(rendering, /existing[\s\S]*(?:spec|plan|tasks)[\s\S]*(?:review|revise|amend)[\s\S]*(?:not|instead of)[\s\S]*(?:regenerate|rerun)/i);
+});
+
+test("Skill presents all Core transitions and reserves comprehension verdict for the user", async () => {
+  const skill = await readFile(skillPath, "utf8");
+  const loop = section(skill, "Governed action loop");
+  assert.match(loop, /present[\s\S]*all[\s\S]*`available_transitions`/i);
+  assert.match(loop, /(?:description|when|selection condition)[\s\S]*reason rule/i);
+  assert.match(loop, /(?:not|never)[\s\S]*one\s+recommended next step/i);
+
+  const transition = section(skill, "Transition selection");
+  assert.match(transition, /only[\s\S]*`fresh_action\.available_transitions`/i);
+  assert.match(transition, /`problem_class`/u);
+  assert.match(transition, /(?:destination[\s\S]*Core[\s\S]*(?:derive|own)|Core[\s\S]*(?:derive|own)[\s\S]*destination)/i);
+  assert.match(transition, /(?:checkbox|method tool|capability)[\s\S]*(?:does not|cannot|must not)[\s\S]*(?:advance|select|complete)/i);
+
+  const comprehension = section(skill, "Comprehension user interaction");
+  assert.match(comprehension, /bounded explanation/i);
+  assert.match(comprehension, /unnecessary abstractions/i);
+  assert.match(comprehension, /maintenance risks/i);
+  assert.match(comprehension, /ask[\s\S]*developer[\s\S]*(?:explain|maintain)/i);
+  assert.match(comprehension, /wait[\s\S]*explicit[\s\S]*(?:answer|verdict|confirmation)/i);
+  assert.match(comprehension, /`comprehension_passed`[\s\S]*explicit[\s\S]*user/i);
+  assert.match(comprehension, /AI[\s\S]*(?:must not|cannot|does not)[\s\S]*(?:answer|confirm|self-confirm)/i);
+  assert.match(comprehension, /Spec Kit|OpenSpec/i);
+});
+
+test("Skill safe-stops on unsupported storage without exposing or mutating private data", async () => {
+  const storage = section(await readFile(skillPath, "utf8"), "SCHEMA_UNSUPPORTED");
+  assert.match(storage, /pre-graph|incompatible data/i);
+  assert.match(storage, /Core[\s\S]*(?:did not|has not)[\s\S]*(?:modify|delete)/i);
+  assert.match(storage, /fresh[\s\S]*`DEV_FLOW_DATA_DIR`/i);
+  for (const operation of ["archive", "rename", "delete"]) {
+    assert.match(storage, new RegExp(`manual(?:ly)?|user-controlled[\\s\\S]*${operation}|${operation}[\\s\\S]*outside Core`, "i"));
+  }
+  assert.match(storage, /stop[\s\S]*(?:task discovery|open|create)/i);
+  assert.match(storage, /(?:do not|never)[\s\S]*(?:retry|reset|convert|migrate)/i);
+  assert.match(storage, /(?:do not|never)[\s\S]*(?:search|discover)[\s\S]*(?:data directory|database path)/i);
+  assert.match(storage, /(?:do not|never)[\s\S]*(?:display|reveal|expose)[\s\S]*private[\s\S]*(?:path|location)/i);
 });
 
 test("Skill uses payload_contract as the apply schema discriminator", async () => {
   const forwarding = section(await readFile(skillPath, "utf8"), "Closed forwarding contract");
-  assert.match(forwarding, /`payload_contract`[\s\S]*schema branch/i);
+  assert.match(forwarding, /`(?:fresh_action\.)?payload_contract`[\s\S]*payload branch/i);
   assert.match(forwarding, /`inputSchema`[\s\S]*`allOf`[\s\S]*`oneOf`[\s\S]*`action_kind\.const`/i);
   assert.match(forwarding, /payload `\$ref`[\s\S]*`\$defs`[\s\S]*`required`/i);
   assert.match(forwarding, /do not search[\s\S]*(?:repository|installed package)[\s\S]*(?:binary|log)[\s\S]*another MCP server/i);
-  assert.match(forwarding, /`required_evidence`[\s\S]*(?:not|never)[\s\S]*payload (?:field|key|member)/i);
-  assert.match(forwarding, /top-level[\s\S]*`request_id`[\s\S]*`repository_binding_digest`/i);
-  assert.match(forwarding, /`payload`[\s\S]*only[\s\S]*phase[\s\S]*(?:never|do not)[\s\S]*(?:enclosing|whole|full) request/i);
+  assert.match(forwarding, /(?:do not|never)[\s\S]{0,80}(?:derive|treat)[\s\S]{0,80}payload (?:field|key|member)s?[\s\S]{0,80}`required_evidence`|`required_evidence`[\s\S]{0,80}(?:not|never)[\s\S]{0,80}payload (?:field|key|member)/i);
+  assert.match(forwarding, /top-level[\s\S]*`request_id`[\s\S]*`process_id`[\s\S]*`source_cursor`[\s\S]*`repository_binding_digest`/i);
+  assert.match(forwarding, /selected\s+payload[\s\S]*contains exactly/i);
+  assert.match(forwarding, /do\s+not wrap[\s\S]*(?:whole|full|that) request[\s\S]*outer `payload`/i);
   assert.match(forwarding, /`fresh_action`[\s\S]*`result\.task\.current_action`[\s\S]*`result\.action`/i);
-  assert.match(forwarding, /`fresh_action\.kind`[\s\S]*top-level `action_kind`/i);
+  assert.match(forwarding, /`fresh_action\.(?:action_kind|kind)`[\s\S]*top-level `action_kind`/i);
   assert.match(forwarding, /`fresh_action\.revision`[\s\S]*top-level `revision`/i);
+  assert.match(forwarding, /`fresh_action\.process_id`[\s\S]*top-level `process_id`/i);
+  assert.match(forwarding, /`fresh_action\.process_version`[\s\S]*top-level `process_version`/i);
+  assert.match(forwarding, /`fresh_action\.process_definition_digest`[\s\S]*top-level `process_definition_digest`/i);
+  assert.match(forwarding, /`fresh_action\.current_node`[\s\S]*top-level `source_cursor`/i);
   assert.match(forwarding, /caller-generated[\s\S]*top-level `request_id`/i);
   assert.match(forwarding, /`revision`[\s\S]*integer[\s\S]*not (?:a )?string/i);
   assert.match(forwarding, /`payload`[\s\S]*object[\s\S]*not (?:a )?string/i);
   assert.match(forwarding, /do not wrap[\s\S]*request[\s\S]*outer `payload`/i);
-  assert.match(forwarding, /cannot (?:identify|read|resolve)[\s\S]*stop before[\s\S]*`dev_flow_apply_action`/i);
+  assert.match(forwarding, /cannot\s+be\s+identified[\s\S]*stop before[\s\S]*`dev_flow_apply_action`/i);
+  for (const member of ["transition_id", "summary", "reason", "artifacts", "method_evidence", "node_result", "problem_class"]) {
+    assert.match(forwarding, new RegExp("`" + escapeRegExp(member) + "`", "u"));
+  }
+  assert.doesNotMatch(forwarding, /`source_phase`/u);
+  assert.match(forwarding, /(?:do not|never)[\s\S]*`destination`[\s\S]*`next_node`[\s\S]*`next_cursor`/i);
+  assert.match(forwarding, /(?:omit[\s\S]{0,40}`recovery_apply`|`recovery_apply`[\s\S]{0,40}(?:null|`null`))/i);
 });
 
 test("Skill reads before retry and preserves budgets, evidence labels, and terminal stops", async () => {
@@ -216,10 +395,10 @@ test("Skill reads before retry and preserves budgets, evidence labels, and termi
   for (const uncertainty of ["missing", "cancelled", "malformed", "truncated", "uncertain"]) {
     assert.match(recovery, new RegExp(uncertainty, "i"));
   }
-  assert.match(recovery, /does not immediately repeat[\s\S]*dev_flow_apply_action/i);
-  assert.match(recovery, /dev_flow_get_task[\s\S]*dev_flow_get_next_action/i);
-  assert.match(recovery, /operation probe[\s\S]*(?:retained|original)/i);
-  assert.match(recovery, /retry[\s\S]*(?:fresh|Core)[\s\S]*safe/i);
+  assert.match(recovery, /(?:do|does) not immediately repeat[\s\S]*dev_flow_apply_action/i);
+  assert.match(recovery, /dev_flow_get_task[\s\S]*RECOVERY_UNAVAILABLE/i);
+  assert.match(recovery, /operation[_ -]probe[\s\S]*(?:retained|original)/i);
+  assert.match(recovery, /RECOVERY_UNAVAILABLE[\s\S]*retry_safe=false[\s\S]*action=none/i);
   assert.match(recovery, /`ok=false`[\s\S]*`retry_safe=false`[\s\S]*`action=none`[\s\S]*stop[\s\S]*do not call[\s\S]*dev_flow_get_next_action[\s\S]*dev_flow_apply_action/i);
   assert.match(recovery, /fabricated/i);
 
@@ -250,7 +429,10 @@ test("Skill retains one exact apply probe across every uncertain result shape", 
   for (const retained of [
     "request_id",
     "task_id",
-    "source_phase",
+    "process_id",
+    "process_version",
+    "process_definition_digest",
+    "source_cursor",
     "revision",
     "action_id",
     "action_kind",
@@ -267,7 +449,10 @@ test("Skill retains one exact apply probe across every uncertain result shape", 
   const probe = JSON.parse(probeBlock[1]);
   assert.deepEqual(probe, {
     operation_id: "<original apply request_id>",
-    source_phase: "<original source phase>",
+    process_id: "standard-development",
+    process_version: 1,
+    process_definition_digest: "<original process definition digest>",
+    source_cursor: "<original source cursor>",
     expected_revision: 3,
     action_id: "<original action id>",
     action_kind: "<original action kind>",
@@ -285,11 +470,8 @@ test("Skill retains one exact apply probe across every uncertain result shape", 
   assert.match(recovery, /(?:(?:do|does) not immediately repeat|before any retry)[\s\S]*`dev_flow_apply_action`/i);
   assert.match(recovery, /original `task_id`[\s\S]*`dev_flow_get_task`/i);
   assert.match(recovery, /all[\s\S]{0,100}(?:required|original)[\s\S]{0,100}(?:retained|available)[\s\S]{0,100}`operation_probe`/i);
-  assert.match(recovery, /`dev_flow_get_task`[\s\S]*`dev_flow_get_next_action`/i);
-  assert.match(recovery, /both reads[\s\S]{0,100}same[\s\S]{0,100}(?:original )?`operation_probe`/i);
   assert.match(recovery, /stale pre-dispatch[\s\S]{0,120}(?:not|never)[\s\S]{0,100}(?:read-back|authoritative)/i);
-  assert.match(recovery, /complete fresh\s+Core[\s\S]{0,100}(?:result|response|assessment)/i);
-  assert.match(recovery, /(?:Core[\s\S]{0,100}explicitly[\s\S]{0,80}safe[\s\S]{0,80}(?:retry|recovery)|(?:retry|recovery)[\s\S]{0,100}Core[\s\S]{0,80}explicitly[\s\S]{0,80}safe)/i);
+  assert.match(recovery, /`RECOVERY_UNAVAILABLE`[\s\S]*stop[\s\S]*(?:do not|never)[\s\S]*`dev_flow_get_next_action`/i);
 
   assert.match(recovery, /(?:required|identity)[\s\S]{0,120}(?:missing|incomplete)[\s\S]{0,160}(?:do not|never)[\s\S]{0,100}(?:construct|fabricate|send)[\s\S]{0,100}`operation_probe`/i);
   assert.match(recovery, /(?:half|partial) probe/i);
@@ -301,11 +483,15 @@ test("Skill retains one exact apply probe across every uncertain result shape", 
   assert.match(recovery, /complete structured `ok=false`[\s\S]{0,120}(?:domain|transport uncertainty)/i);
   assert.match(recovery, /(?:do not|never)[\s\S]{0,100}(?:convert|treat)[\s\S]{0,100}(?:domain error|`ok=false`)[\s\S]{0,100}(?:missing|transport)/i);
   assert.match(recovery, /`retry_safe=false`[\s\S]*`action=none`[\s\S]*stop[\s\S]*(?:do not|never)[\s\S]*`dev_flow_get_next_action`[\s\S]*`dev_flow_apply_action`/i);
+  assert.match(recovery, /`RECOVERY_UNAVAILABLE`[\s\S]*(?:stop|do not retry)/i);
+  assert.match(recovery, /(?:do not|never)[\s\S]{0,120}`recovery_apply`/i);
+  assert.match(recovery, /(?:do not|never)[\s\S]{0,120}(?:(?:guess|infer)[\s\S]{0,120}(?:repository state|worktree)|(?:repository state|worktree)[\s\S]{0,120}(?:guess|infer))/i);
+  assert.doesNotMatch(recovery, /`source_phase`/u);
 
   const adapterOwnedBranch = /\b(?:if|when|case|switch)\b[^\n]{0,160}\b(?:completed_and_recorded|completed_but_unrecorded|partially_completed|not_started|conflicting)\b/i;
   assert.doesNotMatch(recovery, adapterOwnedBranch, "Skill must not branch on Core recovery classifications");
   assert.match(recovery, /(?:do not|never)[\s\S]{0,100}(?:branch|decide|interpret)[\s\S]{0,100}recovery classification/i);
-  assert.match(recovery, /obey[\s\S]{0,100}complete Core recovery assessment[\s\S]{0,80}advice/i);
+  assert.match(recovery, /obey[\s\S]{0,100}Core(?:'s)?[\s\S]{0,100}`code`[\s\S]{0,100}`recovery\.message`/i);
 });
 
 test("Skill and production adapter contain no workflow authority or test fixture dependency", async () => {
@@ -330,6 +516,13 @@ test("Skill and production adapter contain no workflow authority or test fixture
   ]) {
     assert.doesNotMatch(skill, forbidden);
   }
+  assert.doesNotMatch(skill, /`source_phase`/u);
+  assert.doesNotMatch(skill, /\b(?:INTAKE|ASSESS|VERIFY|HANDOFF)\b/u);
+  assert.doesNotMatch(skill, /Core Contract[^\n]*0\.1/iu);
+  assert.doesNotMatch(skill, /(?:REQUIREMENTS\s*(?:→|->)\s*DESIGN|DESIGN\s*(?:→|->)\s*TASKS)/u);
+  assert.doesNotMatch(skill, /(?:transition|destination)\s+(?:table|matrix)/iu);
+  assert.match(skill, /current node[\s\S]*Core/i);
+  assert.match(skill, /`available_transitions`[\s\S]*(?:Core-returned|returned by Core|fresh_action)/i);
 
   const mcp = JSON.parse(await readFile(join(pluginRoot, ".mcp.json"), "utf8"));
   assert.equal(mcp.$schema, "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json");

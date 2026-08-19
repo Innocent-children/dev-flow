@@ -5,8 +5,10 @@ description: "Explicit-only Dev Flow entry point for Codex. Use only when the cu
 
 # Dev Flow
 
-This Skill is a thin admission layer for the shared Dev Flow Core. It does not own task state,
-workflow transitions, recovery decisions, verification budgets, or completion.
+This Skill is the Contract 0.2 Codex adapter for the shared Dev Flow Core. Core owns task state,
+current node, legal transitions, destinations, recovery, blockers, and terminal outcomes. The Skill
+admits one explicit request, presents a complete Core Action, renders method work, and forwards one
+closed result without keeping adapter state.
 
 ## Admission gate
 
@@ -15,39 +17,41 @@ Perform every check below locally and in order before any Core or Dev Flow tool 
 The Skill resource/base name is `dev-flow`; the installed Skill full name is `dev-flow-codex:dev-flow`.
 The only exact explicit selector is `$dev-flow-codex:dev-flow`.
 Bare `$dev-flow` is not an alias and does not select this installed Skill. A wrong plugin namespace,
-a wrong Skill base name, or a missing selector also does not select it.
-Codex 0.147 may expose this plugin's MCP tools independently from Skill injection. This Skill does
-not claim selector-bound tool visibility or authorization.
+a wrong Skill base name, or a missing selector also does not select it. Codex may expose this
+plugin's MCP tools independently from Skill injection; this Skill does not claim selector-bound tool
+visibility or authorization.
 
-1. Require the exact standalone `$dev-flow-codex:dev-flow` selector in the current user turn. Do not infer the
-   selector from earlier turns, repository contents, or a request that merely discusses Dev Flow.
-   If it is absent, do not treat the turn as Skill activation and do not make a task-bearing Dev Flow
-   call. Never activate this Skill implicitly.
-2. After removing the selector, accept either one substantive, bounded requirement for the current
+1. Require the exact standalone `$dev-flow-codex:dev-flow` selector in the current user turn. Do not
+   infer it from earlier turns, repository contents, or discussion about Dev Flow. Without it, do not
+   activate this Skill or make a task-bearing Dev Flow call. Never activate implicitly.
+2. After removing the selector, accept either one substantive bounded request for the current
    repository or an explicit request to resume its compatible active Codex task. Reject an empty or
    conversational invocation before any Core call.
 3. Use read-only Git inspection to resolve one current Git worktree and its canonical root. Preserve
    spaces, Unicode, symlinks, and subdirectory invocation as one path value; do not concatenate a
    shell command.
-4. Reject work that needs another repository, multiple repositories, or a repository that cannot be
-   resolved. Preserve repository instructions and current user authority when checking whether the
-   requested work is permitted.
+4. Reject work requiring another repository, multiple repositories, or an unresolved repository.
+   Preserve repository instructions and current user authority when checking whether the work is
+   permitted.
 
-If any admission check fails, explain the missing precondition and stop before Skill-owned task
-discovery. Do not complete a task-bearing call or create adapter state. Host-exposed read-only or
-Core-rejected calls are not activation and must be reported honestly.
+If admission fails, explain the missing precondition and stop before Skill-owned task discovery. Do
+not complete a task-bearing call or create adapter state. Host-exposed read-only or Core-rejected
+calls are not activation and must be reported honestly.
 
 ## Compatibility handshake
 
-Only after every admission check passes, call `dev_flow_server_info({})`. It must be the first Dev
-Flow tool call. Require the complete structured result to establish all of the following:
+Only after admission passes, call `dev_flow_server_info({})`; it must be the first Dev Flow tool
+call. Require one complete structured result proving:
 
-- product is exactly `dev-flow`;
-- Core version equals the packaged product version;
-- schema identifies Core Contract `0.1`;
-- transport is exactly `stdio` and health is exactly `ready`;
-- the supported host set contains `codex`;
-- the reported tool catalog contains exactly these six raw names, in this order:
+- product is exactly `dev-flow`, and Core version equals the packaged product version;
+- `schema_version` is exactly `2` and `core_limits_version` is exactly `0.2`;
+- transport is exactly `stdio`, health is exactly `ready`, and the supported host set contains
+  `codex`;
+- `supported_processes` contains exactly one closed `standard-development@1` entry:
+  `process_id` is `standard-development`, `process_version` is `1`, `definition_digest` is present
+  and canonical, and `new_task_supported` is exactly `true`;
+- `method_profiles` is exactly `plain`, `spec-kit`, `openspec` in that order;
+- the tool catalog contains exactly these six raw names, in this order:
 
 1. `dev_flow_server_info`
 2. `dev_flow_open_task`
@@ -56,110 +60,170 @@ Flow tool call. Require the complete structured result to establish all of the f
 5. `dev_flow_apply_action`
 6. `dev_flow_cancel_task`
 
-An incomplete, truncated, malformed, incompatible, missing, additional, or reordered catalog is a
-failed handshake. Stop without probing an undocumented tool or continuing to task discovery.
+Any other schema, unsupported process version, absent process digest, false new-task support,
+incomplete method-profile set, missing/additional/reordered tool, or incomplete, truncated, malformed,
+or incompatible result fails the handshake. Stop without task discovery or undocumented probing. Do
+not inspect local source or an installed binary, and do not start a second MCP server to bypass a
+failed handshake.
 
 ## Task discovery
 
-After the handshake, call `dev_flow_open_task` with `host=codex` and the canonical current
-worktree.
+After the handshake, call `dev_flow_open_task` with `host=codex` and the canonical current worktree.
 
-- For an explicit resume request, omit `new_task` and let Core select the unique compatible active
-  Codex task.
-- For a new substantive request, provide a bounded contract derived only from the current user
-  request, repository instructions, stated exclusions, observable acceptance criteria, and the
-  granted verification authority.
-- Forward `new_task` with exactly the members `goal`, `scope`, `out_of_scope`,
-  `acceptance_criteria`, and `verification_budget`, with no additional members. Forward
-  `verification_budget` with exactly `level`, `max_automatic_commands`, `allow_full_suite`, and
-  `allow_manual_handoff`; do not invent aliases for any of these Core-declared fields.
-- `goal` is a JSON string. `scope`, `out_of_scope`, and `acceptance_criteria` are JSON arrays of strings;
-  never collapse an array into one prose string. `verification_budget.level` is exactly `minimal`,
-  `targeted`, or `full`; do not translate phrases such as "focused verification" into a new enum.
-- Use this exact `new_task` JSON shape, replacing only the values derived from the admitted request:
+- For an explicit resume, omit `new_task` or send `new_task=null`. Do not resend a guessed intent or
+  select another profile; accept the immutable profile returned by Core.
+- For a new request, select one profile from explicit current user intent. An explicit `plain`,
+  `spec-kit`, or `openspec` request selects that exact profile. An explicit request to use Spec Kit
+  selects `spec-kit`; an explicit request to use OpenSpec selects `openspec`; otherwise use the
+  conservative `plain` profile.
+- Installed tooling does not select or switch a profile. Never change the profile after creation. If
+  the user explicitly requests conflicting profiles, report the profile conflict and stop.
+- Derive the new-task contract only from the admitted user request, repository instructions, known
+  initial bounds, known acceptance, and granted verification authority. Formal acceptance does not
+  need to be complete at creation; the current requirements work forms that authority.
+- Forward `new_task` with exactly the members `request`, `initial_scope`,
+  `initial_out_of_scope`, `known_acceptance_criteria`, `verification_budget`, and `method_profile`,
+  with no additional members. Forward `verification_budget` with exactly `level`,
+  `max_automatic_commands`, `allow_full_suite`, and `allow_manual_handoff`.
+- `request` is a JSON string. `initial_scope`, `initial_out_of_scope`, and
+  `known_acceptance_criteria` are JSON arrays of strings and may be empty. Never collapse an array
+  into prose. `verification_budget.level` is exactly `minimal`, `targeted`, or `full`.
+
+Use this exact `new_task` JSON shape, changing only values derived from the admitted request:
 
 <!-- new-task-example:start -->
 ```json
 {
-  "goal": "Return the requested field from the bounded endpoint.",
-  "scope": ["Update the endpoint response"],
-  "out_of_scope": ["Change unrelated endpoints"],
-  "acceptance_criteria": ["The response contains the requested field"],
+  "request": "Return the requested field from the bounded endpoint.",
+  "initial_scope": ["Update the endpoint response"],
+  "initial_out_of_scope": ["Change unrelated endpoints"],
+  "known_acceptance_criteria": ["The response contains the requested field"],
   "verification_budget": {
     "level": "targeted",
     "max_automatic_commands": 4,
     "allow_full_suite": false,
     "allow_manual_handoff": true
-  }
+  },
+  "method_profile": "plain"
 }
 ```
 <!-- new-task-example:end -->
 
-- Ask before opening a new task if a material goal, scope, acceptance, or verification choice
-  cannot be derived without changing user intent.
-- Let Core decide whether an exactly compatible contract creates or resumes a task. Never choose,
-  merge, or take over task records locally.
-
-The complete open result is authoritative. Report a Core ownership or contract conflict unchanged
-in meaning and stop.
+Ask before opening only when a material request, initial-bound, verification, or profile choice
+cannot be derived without changing user intent. Let Core decide whether a compatible intent creates
+or resumes a task. Report an ownership or contract conflict unchanged in meaning and stop.
 
 ## Governed action loop
 
+The inseparable Action fields are exactly `task_id`, `revision`, `action_id`, `action_kind`,
+`process_id`, `process_version`, `process_definition_digest`, `current_node`, `node_purpose`,
+`entry_conditions`, `completion_conditions`, `allowed_effects`, `required_evidence`,
+`method_profile`, `method_steps`, `available_transitions`, `payload_contract`, `guidance`,
+`repository_binding_digest`, and `issued_at`.
+
 For an active task, perform each iteration in this order:
 
-1. Obtain one complete, fresh action from the open result or `dev_flow_get_next_action`.
-2. Treat the returned task ID, revision, action ID, action kind, repository-binding digest, allowed
-   effects, required evidence, payload schema, guidance, blocker, and outcome as one inseparable
-   Core result.
-3. Stop when that result reports a blocker or terminal outcome.
-4. Perform only the current action's allowed effects, under the repository instructions and
-   current user authority.
-5. Count verification commands and label evidence by how it actually ran.
-6. Build only the closed payload requested by the returned payload schema.
-7. Before dispatch, generate and retain an opaque request ID with the exact identity and payload.
-8. Submit exactly one mutation through `dev_flow_apply_action` using that retained material.
-9. After a complete successful mutation, continue only from the returned authoritative next action
-   or outcome, or make one fresh Core read before doing more work.
+1. Obtain one complete fresh Action from the open result or `dev_flow_get_next_action`, and bind it as
+   `fresh_action` from `result.task.current_action` or `result.action` respectively.
+2. Treat its task ID, revision, action ID, action kind, process ID, process version,
+   process-definition digest, current node, node purpose, entry conditions, completion conditions,
+   allowed effects, required evidence, method profile, method steps, available transitions, payload
+   schema/contract, guidance, repository-binding digest, and issued time as one inseparable Core
+   result. Stop if any field is absent, malformed, or truncated.
+3. Present the current node, purpose, entry and completion conditions, allowed effects, required
+   evidence, immutable method profile, every method step, and all `available_transitions`. For every
+   returned transition show its identifier, Core-returned destination for visibility, description or
+   `when` selection condition, guard identifier, and reason rule. Do not reduce this to one
+   recommended next step.
+4. Stop when the complete result reports a blocker or terminal outcome.
+5. Render and perform each current method operation under the allowed effects, repository
+   instructions, verification budget, and current user authority.
+6. Build only the closed payload branch named by the Action and select only a Core-returned
+   transition consistent with the actual typed node facts.
+7. Before dispatch, generate and retain one opaque request ID plus the exact Action identity and
+   payload. Submit exactly one `dev_flow_apply_action` mutation.
+8. After a complete committed result, continue only from its authoritative next Action/outcome or a
+   fresh ordinary Core read.
 
-Do not infer a transition, reinterpret an error, or decide completion from repository contents or
-host judgment.
+Repository contents, adapter judgment, artifacts, or method-tool status never determine the current
+node or completion.
+
+## Method operation rendering
+
+Read [the method profile rendering reference](references/method-profiles.md) from the packaged path
+`references/method-profiles.md` after receiving the complete Action. For each Core-returned method
+step, preserve its `step_id`, purpose, required flag, and order, then render the operation for the
+immutable profile:
+
+- `plain` renders the catalog's plain-equivalent bounded work with no external capability.
+- `spec-kit` and `openspec` render only an actually visible and appropriate capability ID. A catalog
+  entry is not proof of availability.
+- If a capability is unavailable or unknown, report that state and show the exact plain-equivalent
+  work. Never automatically install a tool or silently substitute another tool.
+- A tool invocation is not semantic completion. Record evidence only after the work and expected
+  result actually complete.
+
+Build exactly one `MethodEvidence` item for every current Action step, in the same order:
+
+- actual capability completion uses `status=completed` and the actual capability ID;
+- completed ordinary work uses `status=plain_fallback` and an empty capability;
+- incomplete work uses `status=unavailable` or `status=not_run` honestly.
+
+An unavailable or not-run required step is unsatisfied, so do not call `dev_flow_apply_action`.
+Capability output cannot substitute for the typed `node_result`, node obligations, evidence, or
+user decision. Artifact references contain only an observed role, repository-relative path, digest,
+and summary.
+
+Existing authorized spec, plan, or tasks artifacts should be reviewed, revised, or amended as
+needed, not regenerated or rerun mechanically because a semantic step appears. Resolve the active
+Feature from explicit repository context, never only from the branch name. Checklist state,
+analysis output, implementation completion, proposal state, verification state, sync, or archive
+state does not advance Core.
+
+## Transition selection
+
+Select only from `fresh_action.available_transitions`. Match the actual current typed `node_result`,
+the Core-returned description or selection condition, current `problem_class`, any explicit user
+decision, and the returned reason rule. Submit the matching transition identifier; Core validates
+the facts and owns/derives the destination.
+
+Never infer an edge from a fixed stage sequence, artifact checkbox, AI belief, profile, method-tool
+result, or capability status. A checkbox or method tool cannot advance, select, or complete Core.
+Never submit a transition absent from the fresh Action and never maintain a copied transition list.
 
 ## Closed forwarding contract
 
-For every mutation, forward `host=codex`; the task ID and revision from the same fresh result; the
-exact action ID, action kind, and repository-binding digest; one caller-generated request ID; and a
-closed payload containing only fields allowed by Core's returned schema. Do not add unknown fields,
-aliases, command logs, environment dumps, inferred status, or locally invented recovery flags.
+Use the same `fresh_action` already bound from `result.task.current_action` or `result.action`; do
+not construct another Action view.
 
-Use the fresh action's `payload_contract` as the discriminator for the corresponding closed schema
-branch in the `dev_flow_apply_action` input. `required_evidence` names describe obligations; they are
-not payload field names. If you cannot identify and read that exact schema branch, stop before
-calling `dev_flow_apply_action` instead of guessing or deriving keys from evidence names.
+Use `fresh_action.payload_contract`, `fresh_action.action_kind`, and `fresh_action.current_node` to
+identify the one closed node payload branch. Read the supplied `dev_flow_apply_action` `inputSchema`:
+under `allOf`, choose the `oneOf` branch whose `action_kind.const` matches, resolve its payload `$ref`
+through the same schema's `$defs`, and send exactly its `required` members. If the branch cannot be
+identified and read, stop before `dev_flow_apply_action`.
 
-Before calling, read the `dev_flow_apply_action` tool's supplied `inputSchema`: under `allOf`, choose
-the `oneOf` branch whose `action_kind.const` equals the fresh action kind, resolve the payload `$ref`
-through the same schema's `$defs`, and send exactly its `required` members. Do not search the
-repository or installed package, inspect a binary or log, or start another MCP server to recover the
-schema.
+Do not derive payload keys from `required_evidence`. Do not search the repository or installed
+package, inspect a binary or log, or start another MCP server to recover a schema. The selected
+payload contains exactly `transition_id`, `summary`, `reason`, `artifacts`, `method_evidence`, and
+`node_result`; put `problem_class` exactly where that node branch's actual schema requires it. Keep
+arrays as arrays and the payload as an object. Do not add unknown fields, caller classification,
+caller digest, authoritative repository facts, command/output/configuration data, `destination`,
+`next_node`, or `next_cursor`, and do not wrap the whole request in an outer `payload`.
 
-At the top-level, forward `request_id`, `host`, `task_id`, `revision`, `action_id`, `action_kind`,
-and `repository_binding_digest`. The `payload` object contains only phase schema fields; never nest
-the enclosing request inside `payload`.
-
-Bind a source-neutral `fresh_action` from `result.task.current_action` when Core returns a task, or
-from `result.action` when `dev_flow_get_next_action` returns the action directly. Map that same
-fresh action into the tool input exactly:
+Map every mutation top-level field from the same fresh Action:
 
 - caller-generated opaque identity -> top-level `request_id`;
 - exact value `codex` -> top-level `host`;
 - `fresh_action.task_id` -> top-level `task_id`;
 - `fresh_action.revision` -> top-level `revision`;
 - `fresh_action.action_id` -> top-level `action_id`;
-- `fresh_action.kind` -> top-level `action_kind`;
+- `fresh_action.action_kind` -> top-level `action_kind`;
+- `fresh_action.process_id` -> top-level `process_id`;
+- `fresh_action.process_version` -> top-level `process_version`;
+- `fresh_action.process_definition_digest` -> top-level `process_definition_digest`;
+- `fresh_action.current_node` -> top-level `source_cursor`;
 - `fresh_action.repository_binding_digest` -> top-level `repository_binding_digest`;
-- the payload object built from the selected schema branch -> top-level `payload`.
-
-Use this type-preserving structure for the `dev_flow_apply_action` arguments:
+- the selected closed payload -> top-level `payload`.
 
 ```text
 apply_arguments = {
@@ -168,38 +232,66 @@ apply_arguments = {
   "task_id": fresh_action.task_id,
   "revision": fresh_action.revision,
   "action_id": fresh_action.action_id,
-  "action_kind": fresh_action.kind,
+  "action_kind": fresh_action.action_kind,
+  "process_id": fresh_action.process_id,
+  "process_version": fresh_action.process_version,
+  "process_definition_digest": fresh_action.process_definition_digest,
+  "source_cursor": fresh_action.current_node,
   "repository_binding_digest": fresh_action.repository_binding_digest,
   "payload": payload_for_selected_schema_branch
 }
 ```
 
-`revision` remains an integer, not a string. `payload` remains an object, not a string, containing
-exactly the selected branch's required members.
+`revision` remains an integer, not a string. `payload` remains an object, not a string. Do not wrap
+that request inside an outer `payload` object. For an ordinary mutation, omit `recovery_apply` or
+send `recovery_apply=null`.
 
-Do not wrap that request inside an outer `payload` object.
+## Comprehension user interaction
 
-Use `recovery_apply` only when a fresh Core recovery assessment explicitly requires the exact
-Core-defined form. Resolve context ambiguity through an ordinary Core read, never by guessing.
+At `COMPREHENSION_REVIEW`, present a bounded explanation of current requirements, design, and major
+code paths; list unnecessary abstractions and maintenance risks; explicitly ask whether the
+developer can explain and maintain the result; and wait for an explicit user answer or verdict.
+
+Use that answer and only the fresh Core transitions to form a candidate transition and matching
+typed facts. `comprehension_passed` requires explicit current user confirmation. AI must not answer,
+self-confirm, or infer that the user understands. Neither Spec Kit nor OpenSpec can own or replace
+the verdict.
+
+## SCHEMA_UNSUPPORTED
+
+When Core returns `SCHEMA_UNSUPPORTED`, explain that the selected data directory contains pre-graph
+or otherwise incompatible data and that Core did not modify or delete the old data. The user must
+act explicitly outside Core by choosing a fresh `DEV_FLOW_DATA_DIR`, manually archiving the old
+directory, manually renaming it, or manually deleting it.
+
+Stop current task discovery and do not continue open/create, automatically retry, reset, convert,
+migrate, install a migration tool, or create a substitute task. Never run delete, move, truncate, or
+reset operations for the user. Do not search for a local data directory or database path, and do not
+display, reveal, or expose a private path or location. After the user completes an explicit external
+choice, they may invoke the exact Skill selector again; no background handling is promised.
 
 ## Recovery-before-retry contract
 
-A mutation result is uncertain when it is missing, malformed, cancelled, truncated, or
-transport-failed instead of returning one complete structured result. All five shapes use the same
-read-before-retry procedure.
+A mutation result is uncertain when it is missing, cancelled, malformed, truncated, or
+transport-failed instead of returning one complete structured result. Do not immediately repeat
+`dev_flow_apply_action` and do not infer the result from repository state or worktree contents.
 
-Before calling `dev_flow_apply_action`, retain the original `request_id`, `task_id`, `source_phase`,
-`revision`, `action_id`, `action_kind`, `repository_binding_digest`, and exact closed `payload` from
-the same fresh action and the same apply dispatch. Never derive or reconstruct any of them from an
-incomplete response or partial output.
+Before calling `dev_flow_apply_action`, retain the original `request_id`, `task_id`, `process_id`,
+`process_version`, `process_definition_digest`, `source_cursor`, `revision`, `action_id`,
+`action_kind`, `repository_binding_digest`, and exact closed `payload` from the same fresh action and
+the same apply dispatch. Never derive or reconstruct them from an incomplete response or partial
+output.
 
-When all required non-payload original identity values are retained, construct the operation probe
-as exactly this closed `operation_probe`:
+When all required original identity values are retained, construct exactly this closed
+`operation_probe`:
 
 ```json
 {
   "operation_id": "<original apply request_id>",
-  "source_phase": "<original source phase>",
+  "process_id": "standard-development",
+  "process_version": 1,
+  "process_definition_digest": "<original process definition digest>",
+  "source_cursor": "<original source cursor>",
   "expected_revision": 3,
   "action_id": "<original action id>",
   "action_kind": "<original action kind>",
@@ -208,58 +300,58 @@ as exactly this closed `operation_probe`:
 }
 ```
 
-`operation_id` is the original apply `request_id`, never the current read request ID.
+`operation_id` is the original apply `request_id`, never a read request ID.
 `expected_revision` is the original action `revision`. `repository_binding_digest` is the original
-issuance binding. `payload` is the exact original closed payload. If the payload was not completely
-retained, `payload` must be JSON `null`; never reconstruct it from partial output, repository text,
-or model memory. Do not add a caller-supplied payload digest or any other member.
+issuance binding. `payload` is the exact original closed payload; when it was not completely
+retained, send JSON `null`. Never reconstruct it from partial output, repository text, or model
+memory.
 
-1. The Skill does not immediately repeat `dev_flow_apply_action` or automatically retry.
-2. Use the original `task_id` to call `dev_flow_get_task` with the exact `operation_probe`.
-3. Call `dev_flow_get_next_action` only when a current action or outcome is needed. If both reads
-   carry a probe, both reads use the same original `operation_probe`.
-4. A stale pre-dispatch Task snapshot is not an authoritative read-back. Obey only a complete fresh
-   Core result and obey the complete Core recovery assessment and advice.
-5. Permit retry or recovery only when Core explicitly says it is safe to retry or recover. Do not
-   branch on, decide, or interpret any recovery classification in the Skill.
-6. Otherwise stop and report the authoritative blocker or recovery condition.
+Use the original `task_id` to call `dev_flow_get_task` with that exact probe. A stale pre-dispatch
+Task snapshot is not an authoritative read-back. During the current pre-Phase-7 boundary, a valid
+non-null probe returns `RECOVERY_UNAVAILABLE`, `retry_safe=false`, and `action=none`. Report that
+authoritative result and stop. This safe-stop is not an ordinary rejection to repair and continue.
+Do not call `dev_flow_get_next_action`, do not retry the original
+mutation, do not call `dev_flow_apply_action`, and never use `recovery_apply` to bypass the stop.
 
 If any required identity is missing or incomplete, do not construct or send an `operation_probe`;
-send no fabricated probe and no half probe. Do not complete missing values from a partial response,
-do not assume `not_started`, and do not automatically retry. Stop and report that the Skill cannot
-prove the mutation state.
+send no fabricated or half probe. Do not fill missing values from a partial response, do not assume
+`not_started`, and do not automatically retry. Stop and report that the Skill cannot prove the
+mutation state.
 
-A complete structured `ok=false` result is a domain error, not transport uncertainty. Never convert
-that domain error to missing or transport-failed. When it reports `retry_safe=false` and
-`action=none`, stop. Do not call `dev_flow_get_next_action` or `dev_flow_apply_action` to repair or
-retry that rejected mutation.
+Do not branch, decide, or interpret any recovery classification and do not guess from repository
+state. Core owns future classification behavior.
+
+A complete structured `ok=false` result is an authoritative domain error, not transport
+uncertainty. Never convert or treat that domain error as missing or transport failure. Obey Core's
+`code`, `message`, `recovery.retry_safe`, `recovery.action`, and `recovery.message`. When it reports
+`retry_safe=false` and `action=none`, stop; do not call `dev_flow_get_next_action` or
+`dev_flow_apply_action`.
 
 ## Evidence and verification budget
 
-- Count verification commands exactly against Core's budget.
-- Do not run a prohibited full suite. When automatic capacity is exhausted, present the remaining
-  allowed work as a manual handoff.
-- Preserve repository instructions and explicit user authority even when broader work is possible.
+- Count verification commands exactly against Core's immutable budget.
+- Do not run a prohibited full suite. When automatic capacity is exhausted, report the remaining
+  permitted work as manual handoff without claiming it ran.
+- Preserve repository instructions and explicit user authority.
 - Keep static inspection, simulated Core execution, user-performed evidence, and native automated
   evidence distinctly labelled.
-- Submit actual evidence sources and outcomes. Never relabel a failed, skipped, or unavailable
-  check as passed.
+- Submit actual sources and outcomes. Never relabel failed, skipped, or unavailable work as passed.
 
 ## Blocked and terminal behavior
 
-Stop repository work when Core returns an authoritative blocker, ownership or contract conflict,
-`DONE`, or `CANCELLED`. Report Core's blocker and unblock condition, exact terminal outcome and
+Stop repository work when Core returns authoritative `BLOCKED`, `DONE`, `CANCELLED`, an ownership or
+contract conflict, or another safe-stop. Report Core's blocker and condition, terminal outcome,
 evidence summary, cancellation, or conflict without replacing or merging a task. Use
 `dev_flow_cancel_task` only after explicit user authority and a fresh current Core identity.
 
-Codex's belief that source work is complete does not override Core, and a blocker is not success.
+Codex's belief that work is complete does not override Core, and a blocker is not success.
 
 ## Presentation contract
 
-Use complete structured Core results for every decision. A concise user summary must still preserve
-task identity, current revision, whether a mutation committed, any blocker or recovery condition,
-verification evidence and limits, and the terminal outcome. Never request or display private
-database locations.
+Use complete structured Core results for every decision. A concise user summary still preserves task
+identity, revision, current node, whether a mutation committed, method capability/fallback status,
+verification evidence and limits, every blocker or recovery condition, and the terminal outcome.
+Never request or display private database locations.
 
-If only a truncated preview is available, treat the operation as uncertain and follow the recovery
-contract. Do not fill missing data from a local catalog or silently discard outcome-bearing fields.
+Treat a truncated preview as uncertainty and follow the recovery-before-retry contract. Never fill
+missing data from a local catalog or discard outcome-bearing fields.
