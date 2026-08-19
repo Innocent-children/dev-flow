@@ -3,8 +3,8 @@
 **Input**: Complete Feature 008 package in
 `specs/008-refactor-to-development-process-graph/`
 
-**Status**: Implementing — User Story 4 and Phase 7A–7C complete; Phase 8A documentation and
-targeted acceptance complete, source-local artifact preparation pending.
+**Status**: Implementing — User Story 4 and Phase 7A–7C complete; Phase 8A complete; native/final
+gate pending.
 
 **Release Boundary**: Every task in this file is source/local-evidence work. No task may modify
 `VERSION`, publish npm, create/move a Tag, mutate a GitHub Release, or claim final registry support.
@@ -379,7 +379,7 @@ unstarted.
   Contract 0.2 evidence classes without public-release claims.
 - [x] T090 Run the complete targeted Go and Codex package sets named by prior checkpoints once after
   documentation reconciliation; fix only concrete failures.
-- [ ] T091 Build one source-local Codex package artifact with the existing local builder, verify
+- [x] T091 Build one source-local Codex package artifact with the existing local builder, verify
   package/Core identity and closed contents, and keep it outside the repository; do not publish.
 - [ ] T092 Run exactly one native real Codex journey implementing Quickstart Final Journey, including
   fresh data root, visible multiple destinations, test/complexity/refactor/retest, restart/resume, explicit user
@@ -394,6 +394,12 @@ unstarted.
 
 **Final Checkpoint**: Product source supports the development process graph locally, all storage-boundary
 and recovery gates pass, and no release mutation has occurred.
+
+**Phase 8A Checkpoint**: `FEATURE_008_PHASE_8A_DOCUMENTATION_AND_LOCAL_ARTIFACT_CHECKPOINT_COMPLETE` —
+T086–T091 complete. The retained source-local, unpublished test artifact is
+`dev-flow-codex-0.3.0.tgz`, SHA-256
+`8ae2c41711fc88531bafed3985bb3038c520fc0fe546f0f1288f3c815af888c5`, size 4,378,118 bytes, built
+from source commit `e0d32b07ea7ede62b2d01539bad8b8f52312bdb2`. T092–T095 remain unstarted.
 
 ## Dependencies and Execution Order
 

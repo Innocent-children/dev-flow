@@ -110,7 +110,7 @@ The Phase 5D audit on 2026-08-19 reopened selected Phase 2–5 tasks and User St
 runtime hardening. The hardening checks and `$speckit-converge` now have zero remaining gap;
 `USER_STORY_2_CHECKPOINT_COMPLETE` is restored. Phase 6A–6C and User Story 3 are complete with zero
 remaining convergence gap. Phase 7A–7C and User Story 4 are complete with zero remaining convergence
-gap; Phase 8 remains unstarted.
+gap. Phase 8A is complete; the native Journey and final Feature gate in Phase 8B remain pending.
 
 Before production code changes:
 
@@ -141,7 +141,28 @@ approved.
 | Phase 7B | Real five-class/CAS/restart/storage-boundary journeys | Complete — T077–T080; `FEATURE_008_PHASE_7B_RECOVERY_RESTART_STORAGE_JOURNEYS_CHECKPOINT_COMPLETE` |
 | Phase 7C | No-legacy, lifecycle retention, private-path redaction, and future/corrupt safe-stop evidence | Complete — T081–T085 |
 | User Story 4 | Fresh storage bootstrap, Schema 1 zero-write rejection, current-task recovery, and future-schema safety pass | Complete — T073–T085; `USER_STORY_4_CHECKPOINT_COMPLETE` |
+| Phase 8A | Documentation convergence, complete targeted regression, and one retained source-local unpublished Codex artifact | Complete — T086–T091; `FEATURE_008_PHASE_8A_DOCUMENTATION_AND_LOCAL_ARTIFACT_CHECKPOINT_COMPLETE` |
 | Final feature gate | One repository validation and one local-artifact Codex journey pass | Pending |
+
+## Phase 8A Artifact Evidence
+
+The retained acceptance artifact is source-local, unpublished, commit-bound test evidence. It is
+not the historical public `0.3.0` artifact, a registry artifact, a release candidate, or an official
+Release asset.
+
+```text
+filename: dev-flow-codex-0.3.0.tgz
+size: 4,378,118 bytes
+sha256: 8ae2c41711fc88531bafed3985bb3038c520fc0fe546f0f1288f3c815af888c5
+source commit: e0d32b07ea7ede62b2d01539bad8b8f52312bdb2
+package/Core version: 0.3.0
+platform: darwin-arm64
+```
+
+Builder and independent readback verified the closed package allowlist, executable detached Core,
+Contract 0.2 `schema_version=2`, Core Limits `0.2`, exact `standard-development@1` definition digest,
+all three method profiles, and the ordered six-tool ServerInfo catalog. The repository records no
+local artifact path. T092 must use the separately retained local path and exact digest above.
 
 ## Release Boundary
 
