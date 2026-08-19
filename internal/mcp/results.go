@@ -259,7 +259,8 @@ func publicFailure(code domain.ErrorCode) (ErrorResult, RecoveryGuidance) {
 		domain.ErrorVerificationBudgetExceeded: {"The submitted evidence exceeds the verification budget.", "read_next_action", "Read the current action and remain within its evidence budget."},
 		domain.ErrorTaskBlocked:                {"The task is blocked.", "read_next_action", "Read the persisted blocker-resolution action."},
 		domain.ErrorTaskTerminal:               {"The task is terminal.", "read_task", "Read the retained terminal outcome."},
-		domain.ErrorSchemaUnsupported:          {"The storage schema is unsupported.", "repair_storage", "Use compatible Core storage before continuing."},
+		domain.ErrorSchemaUnsupported:          {"Pre-graph task data is unsupported by this Core.", "select_fresh_storage", "Choose a fresh data directory or archive, rename, or delete the old directory outside Core."},
+		domain.ErrorProcessUnsupported:         {"The stored process definition is unsupported.", "select_fresh_storage", "Use storage created by this graph Core; existing data is not modified."},
 		domain.ErrorStorageUnavailable:         {"Core storage is unavailable.", "repair_storage", "Restore storage availability before continuing."},
 		domain.ErrorInternal:                   {"The Core could not complete the operation.", "report_internal_error", "Report the bounded failure and stop this operation."},
 	}

@@ -12,6 +12,7 @@ const (
 	ErrorActiveTaskConflict = domain.ErrorActiveTaskConflict
 	ErrorRevisionConflict   = domain.ErrorRevisionConflict
 	ErrorSchemaUnsupported  = domain.ErrorSchemaUnsupported
+	ErrorProcessUnsupported = domain.ErrorProcessUnsupported
 	ErrorStorageUnavailable = domain.ErrorStorageUnavailable
 )
 
@@ -34,8 +35,9 @@ var (
 	}
 	ErrSchemaUnsupported = &domain.Error{
 		Code:    ErrorSchemaUnsupported,
-		Message: "the database schema is unsupported",
+		Message: "pre-graph data is unsupported; choose a fresh data directory or archive, rename, or delete the old directory outside Core",
 	}
+	ErrProcessUnsupported = &domain.Error{Code: ErrorProcessUnsupported, Message: "the stored process definition is unsupported"}
 	ErrStorageUnavailable = &domain.Error{
 		Code:    ErrorStorageUnavailable,
 		Message: "the task store is unavailable",

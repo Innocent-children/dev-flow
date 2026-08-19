@@ -129,6 +129,8 @@ func mapStoreError(ctx context.Context, err error) error {
 		return domain.ErrRevisionConflict
 	case errors.Is(err, store.ErrSchemaUnsupported):
 		return domain.ErrSchemaUnsupported
+	case errors.Is(err, store.ErrProcessUnsupported):
+		return domain.ErrProcessUnsupported
 	case errors.Is(err, store.ErrStorageUnavailable):
 		return domain.ErrStorageUnavailable
 	default:

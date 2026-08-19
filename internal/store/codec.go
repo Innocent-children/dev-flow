@@ -3,135 +3,92 @@ package store
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
-	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
-func encodeTask(task domain.Task) ([]byte, error) {
-	if err := workflow.ValidateTask(task); err != nil {
+type persistedTaskV2 domain.ProcessTask
+
+func encodeTask(task domain.ProcessTask) ([]byte, error) {
+	if err := workflow.ValidateProcessTask(task); err != nil {
 		return nil, ErrInvalidArgument
 	}
-	encoded, err := encodeCompactJSON(taskToDTO(task))
-	if err != nil || len(encoded) > domain.MaxPersistedTaskSnapshotBytes {
+	var b bytes.Buffer
+	e := json.NewEncoder(&b)
+	e.SetEscapeHTML(false)
+	if err := e.Encode(persistedTaskV2(task)); err != nil {
 		return nil, ErrInvalidArgument
 	}
-	return encoded, nil
+	raw := bytes.TrimSuffix(b.Bytes(), []byte("\n"))
+	if len(raw) > domain.MaxPersistedTaskSnapshotBytes {
+		return nil, ErrInvalidArgument
+	}
+	return append([]byte(nil), raw...), nil
 }
-
-func encodeCompactJSON(value any) ([]byte, error) {
-	var buffer bytes.Buffer
-	encoder := json.NewEncoder(&buffer)
-	encoder.SetEscapeHTML(false)
-	if err := encoder.Encode(value); err != nil {
-		return nil, err
+func decodeTask(raw []byte) (domain.ProcessTask, error) {
+	if len(raw) == 0 || len(raw) > domain.MaxPersistedTaskSnapshotBytes || rejectDuplicateJSON(raw) != nil {
+		return domain.ProcessTask{}, ErrStorageUnavailable
 	}
-	encoded := buffer.Bytes()
-	if len(encoded) == 0 || encoded[len(encoded)-1] != '\n' {
-		return nil, ErrInvalidArgument
+	d := json.NewDecoder(bytes.NewReader(raw))
+	d.DisallowUnknownFields()
+	var dto persistedTaskV2
+	if err := d.Decode(&dto); err != nil {
+		return domain.ProcessTask{}, ErrStorageUnavailable
 	}
-	return append([]byte(nil), encoded[:len(encoded)-1]...), nil
-}
-
-func decodeTask(encoded []byte) (domain.Task, error) {
-	var task domain.Task
-	if len(encoded) == 0 || len(encoded) > domain.MaxPersistedTaskSnapshotBytes {
-		return task, ErrStorageUnavailable
+	var trailing any
+	if err := d.Decode(&trailing); err != io.EOF {
+		return domain.ProcessTask{}, ErrStorageUnavailable
 	}
-
-	decoder := json.NewDecoder(bytes.NewReader(encoded))
-	decoder.DisallowUnknownFields()
-	var persisted persistedTask
-	if err := decoder.Decode(&persisted); err != nil {
-		return domain.Task{}, ErrStorageUnavailable
-	}
-	var trailing json.RawMessage
-	if err := decoder.Decode(&trailing); err != io.EOF {
-		return domain.Task{}, ErrStorageUnavailable
-	}
-	contract, err := domain.NewContract(
-		persisted.Contract.Goal,
-		persisted.Contract.Scope,
-		persisted.Contract.OutOfScope,
-		persisted.Contract.AcceptanceCriteria,
-		persisted.Contract.VerificationBudget,
-	)
-	if err != nil {
-		return domain.Task{}, ErrStorageUnavailable
-	}
-	task = domain.Task{
-		TaskID:        persisted.TaskID,
-		OriginHost:    persisted.OriginHost,
-		Contract:      contract,
-		Repository:    persisted.Repository,
-		Phase:         persisted.Phase,
-		ResumePhase:   persisted.ResumePhase,
-		CurrentAction: persisted.CurrentAction,
-		Blocker:       persisted.Blocker,
-		LastOperation: persisted.LastOperation,
-		Evidence:      persisted.Evidence,
-		Outcome:       persisted.Outcome,
-		Revision:      persisted.Revision,
-		CreatedAt:     persisted.CreatedAt,
-		UpdatedAt:     persisted.UpdatedAt,
-		CompletedAt:   persisted.CompletedAt,
-	}
-	if err := workflow.ValidateTask(task); err != nil {
-		return domain.Task{}, ErrStorageUnavailable
+	task := domain.ProcessTask(dto)
+	if err := workflow.ValidateProcessTask(task); err != nil {
+		return domain.ProcessTask{}, ErrStorageUnavailable
 	}
 	return task, nil
 }
-
-type persistedTask struct {
-	TaskID        domain.ID                `json:"task_id"`
-	OriginHost    domain.Host              `json:"origin_host"`
-	Contract      persistedContract        `json:"contract"`
-	Repository    domain.RepositoryBinding `json:"repository"`
-	Phase         domain.Phase             `json:"phase"`
-	ResumePhase   *domain.Phase            `json:"resume_phase"`
-	CurrentAction *domain.Action           `json:"current_action"`
-	Blocker       *domain.Blocker          `json:"blocker"`
-	LastOperation *domain.LastOperation    `json:"last_operation"`
-	Evidence      []domain.EvidenceSummary `json:"evidence"`
-	Outcome       *domain.Outcome          `json:"outcome"`
-	Revision      uint64                   `json:"revision"`
-	CreatedAt     time.Time                `json:"created_at"`
-	UpdatedAt     time.Time                `json:"updated_at"`
-	CompletedAt   *time.Time               `json:"completed_at"`
-}
-
-type persistedContract struct {
-	Goal               string                    `json:"goal"`
-	Scope              []string                  `json:"scope"`
-	OutOfScope         []string                  `json:"out_of_scope"`
-	AcceptanceCriteria []string                  `json:"acceptance_criteria"`
-	VerificationBudget domain.VerificationBudget `json:"verification_budget"`
-}
-
-func taskToDTO(task domain.Task) persistedTask {
-	return persistedTask{
-		TaskID:     task.TaskID,
-		OriginHost: task.OriginHost,
-		Contract: persistedContract{
-			Goal:               task.Contract.Goal(),
-			Scope:              task.Contract.Scope(),
-			OutOfScope:         task.Contract.OutOfScope(),
-			AcceptanceCriteria: task.Contract.AcceptanceCriteria(),
-			VerificationBudget: task.Contract.VerificationBudget(),
-		},
-		Repository:    task.Repository,
-		Phase:         task.Phase,
-		ResumePhase:   task.ResumePhase,
-		CurrentAction: task.CurrentAction,
-		Blocker:       task.Blocker,
-		LastOperation: task.LastOperation,
-		Evidence:      task.Evidence,
-		Outcome:       task.Outcome,
-		Revision:      task.Revision,
-		CreatedAt:     task.CreatedAt,
-		UpdatedAt:     task.UpdatedAt,
-		CompletedAt:   task.CompletedAt,
+func rejectDuplicateJSON(raw []byte) error {
+	d := json.NewDecoder(bytes.NewReader(raw))
+	var walk func() error
+	walk = func() error {
+		token, err := d.Token()
+		if err != nil {
+			return err
+		}
+		delim, ok := token.(json.Delim)
+		if !ok {
+			return nil
+		}
+		if delim == '{' {
+			seen := map[string]bool{}
+			for d.More() {
+				keyToken, err := d.Token()
+				if err != nil {
+					return err
+				}
+				key := keyToken.(string)
+				if seen[key] {
+					return fmt.Errorf("duplicate %s", key)
+				}
+				seen[key] = true
+				if err := walk(); err != nil {
+					return err
+				}
+			}
+			_, err = d.Token()
+			return err
+		}
+		if delim == '[' {
+			for d.More() {
+				if err := walk(); err != nil {
+					return err
+				}
+			}
+			_, err = d.Token()
+			return err
+		}
+		return nil
 	}
+	return walk()
 }

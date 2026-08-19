@@ -117,7 +117,7 @@ approved.
 | Checkpoint | Exit Condition | Initial Status |
 | --- | --- | --- |
 | Contract freeze | All graph, MCP, method-profile, and persistence contracts are internally consistent | Complete — T001–T006 |
-| Foundation | Standard process definition, current Task model, fresh Schema 2 bootstrap, strict v2 codec, and old-data rejection pass targeted tests | In progress — process/domain T007–T020 complete; storage remains Phase 3 |
+| Foundation | Standard process definition, current Task model, fresh Schema 2 bootstrap, strict v2 codec, and old-data rejection pass targeted tests | Complete — T007–T034; targeted domain/workflow/store tests pass |
 | User Story 1 | New task exposes current node contract and all legal next transitions | Pending |
 | User Story 2 | Test/rework/comprehension/refactor loops are enforced and independently demonstrated | Pending |
 | User Story 3 | `plain`, `spec-kit`, and `openspec` guidance is rendered without adapter-owned state | Pending |

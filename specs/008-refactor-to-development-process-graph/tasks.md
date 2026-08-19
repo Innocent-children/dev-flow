@@ -100,46 +100,47 @@ tests; no public MCP behavior is claimed.
 **Goal**: Persist only graph tasks and enforce the intentional pre-1.0 storage break without silent
 data deletion.
 
-- [ ] T021 Replace the Schema 1 migration list in `internal/store/migrations.go` with the exact direct
+- [x] T021 Replace the Schema 1 migration list in `internal/store/migrations.go` with the exact direct
   Schema 2 bootstrap statements, version-2 digest, required table/column/index verification, and
   `SchemaVersion=2` per FR-S001–FR-S002 and `contracts/storage-generation-2.md`.
-- [ ] T022 Replace Store row selection/insertion/update metadata in `internal/store/sqlite.go` with
+- [x] T022 Replace Store row selection/insertion/update metadata in `internal/store/sqlite.go` with
   immutable process ID/version/digest, snapshot version 2, and `current_node` per FR-S002.
-- [ ] T023 Replace the existing task DTO/encode/decode path in `internal/store/codec.go` with the single
+- [x] T023 Replace the existing task DTO/encode/decode path in `internal/store/codec.go` with the single
   strict graph snapshot-version-2 codec; remove any v1 or metadata-selected dual-codec branch per
   FR-S002–FR-S003.
-- [ ] T024 Add Store-open schema/history/process/snapshot preflight in `internal/store/sqlite.go`,
+- [x] T024 Add Store-open schema/history/process/snapshot preflight in `internal/store/sqlite.go`,
   rejecting Schema 1 and every unsupported generation before task decoding or write exposure per
   FR-S004 and FR-S007.
-- [ ] T025 Add a bounded public storage error reason/advice path in the existing domain/MCP error
+- [x] T025 Add a bounded public storage error reason/advice path in the existing domain/MCP error
   mapping that explains the fresh-directory requirement without returning private database paths or
   deleting data per FR-S004–FR-S006.
-- [ ] T026 Replace TaskEvent persistence/readback columns in `internal/store/sqlite.go` with
+- [x] T026 Replace TaskEvent persistence/readback columns in `internal/store/sqlite.go` with
   graph-native `source_node`, `destination_node`, `transition_id`, and `transition_reason` per the
   storage contract.
-- [ ] T027 [P] Add fresh Schema 2 bootstrap and representative Schema 1 copied-database builders in
+- [x] T027 [P] Add fresh Schema 2 bootstrap and representative Schema 1 copied-database builders in
   focused Store test helpers; fixtures contain active/terminal rows only to prove rejection, not
   decode/continuation, per SC-011–SC-012.
-- [ ] T028 Add `internal/store/schema2_bootstrap_test.go` proving direct one-transaction bootstrap,
+- [x] T028 Add `internal/store/schema2_bootstrap_test.go` proving direct one-transaction bootstrap,
   exact statement/digest order, no Schema 1 intermediate history, complete verification, rollback on
   failure, and no partial schema acceptance per SC-011 and SC-013.
-- [ ] T029 Add `internal/store/schema1_rejection_test.go` proving `SCHEMA_UNSUPPORTED` before task
+- [x] T029 Add `internal/store/schema1_rejection_test.go` proving `SCHEMA_UNSUPPORTED` before task
   decode and unchanged database/file/logical manifests with no event/claim/schema mutation per
   FR-S004–FR-S006 and SC-012.
-- [ ] T030 Add strict codec/restart tests in `internal/store/codec_test.go` for standard
+- [x] T030 Add strict codec/restart tests in `internal/store/codec_test.go` for standard
   create/close/reopen, unknown/duplicate fields, metadata/snapshot agreement, current action
   stability, aggregate limits, and current baselines per FR-S002 and SC-011.
-- [ ] T031 Add future schema/snapshot/process/digest, bootstrap mismatch, malformed row, and partial
+- [x] T031 Add future schema/snapshot/process/digest, bootstrap mismatch, malformed row, and partial
   Schema 2 safe-stop cases with row/file manifests proving zero writes per FR-S007 and SC-013.
-- [ ] T032 Update Store/application ports only as required for the single graph Task; do not add a
+- [x] T032 Update Store/application ports only as required for the single graph Task; do not add a
   generic process plugin, legacy adapter, import/export, automatic reset, or migration interface per
   FR-S003–FR-S006.
 
 **Verification**
 
-- [ ] T033 Run only `go test ./internal/store ./internal/application`; do not run MCP, contract,
-  package, or repository-wide tests.
-- [ ] T034 Run `$speckit-converge` for the Schema 2/storage-boundary foundation and stop.
+- [x] T033 Run only `go test ./internal/store`; Application still depends on the public graph
+  navigation work scheduled in T035–T037 and is verified with that slice in T044. Do not run MCP,
+  contract, package, or repository-wide tests.
+- [x] T034 Run `$speckit-converge` for the Schema 2/storage-boundary foundation and stop.
 
 **Checkpoint**: A fresh directory creates exact Schema 2 and graph tasks restart exactly; every
 Schema 1/pre-graph database safe-stops with zero writes; public tool schemas are still not changed.

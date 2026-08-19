@@ -15,6 +15,7 @@ const (
 	ErrorTaskBlocked                ErrorCode = "TASK_BLOCKED"
 	ErrorTaskTerminal               ErrorCode = "TASK_TERMINAL"
 	ErrorSchemaUnsupported          ErrorCode = "SCHEMA_UNSUPPORTED"
+	ErrorProcessUnsupported         ErrorCode = "PROCESS_UNSUPPORTED"
 	ErrorStorageUnavailable         ErrorCode = "STORAGE_UNAVAILABLE"
 	ErrorInternal                   ErrorCode = "INTERNAL_ERROR"
 )
@@ -24,7 +25,7 @@ func (c ErrorCode) IsValid() bool {
 	case ErrorInvalidArgument, ErrorNotGitRepository, ErrorTaskNotFound, ErrorActiveTaskConflict,
 		ErrorHostOwnershipConflict, ErrorRevisionConflict, ErrorActionStale, ErrorRepositoryDrift,
 		ErrorVerificationBudgetExceeded, ErrorTaskBlocked, ErrorTaskTerminal,
-		ErrorSchemaUnsupported, ErrorStorageUnavailable, ErrorInternal:
+		ErrorSchemaUnsupported, ErrorProcessUnsupported, ErrorStorageUnavailable, ErrorInternal:
 		return true
 	default:
 		return false
@@ -73,7 +74,8 @@ var (
 	ErrVerificationBudgetExceeded = &Error{Code: ErrorVerificationBudgetExceeded, Message: "the verification budget was exceeded"}
 	ErrTaskBlocked                = &Error{Code: ErrorTaskBlocked, Message: "the task is blocked"}
 	ErrTaskTerminal               = &Error{Code: ErrorTaskTerminal, Message: "the task is terminal"}
-	ErrSchemaUnsupported          = &Error{Code: ErrorSchemaUnsupported, Message: "the storage schema is unsupported"}
+	ErrSchemaUnsupported          = &Error{Code: ErrorSchemaUnsupported, Message: "pre-graph data is unsupported; choose a fresh data directory or archive, rename, or delete the old directory outside Core"}
+	ErrProcessUnsupported         = &Error{Code: ErrorProcessUnsupported, Message: "the stored process definition is unsupported"}
 	ErrStorageUnavailable         = &Error{Code: ErrorStorageUnavailable, Message: "storage is unavailable"}
 	ErrInternal                   = &Error{Code: ErrorInternal, Message: "an internal error occurred"}
 )
