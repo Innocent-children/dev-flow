@@ -32,6 +32,7 @@ func testGraphTask(t *testing.T) domain.ProcessTask {
 func testMutation(t *testing.T, task domain.ProcessTask) TaskMutation {
 	t.Helper()
 	payload := domain.Digest(strings.Repeat("c", 64))
+	task.LastOperation = &domain.LastOperation{OperationID: "request", Kind: domain.OperationOpenTask, FromRevision: 0, ToRevision: 1, PayloadDigest: payload, CommittedAt: task.CreatedAt}
 	return TaskMutation{Task: task, Event: TaskEvent{EventID: "event", TaskID: task.TaskID, Revision: task.Revision, Kind: domain.OperationOpenTask, SourceNode: domain.NodeRequirements, DestinationNode: domain.NodeRequirements, RequestID: "request", PayloadDigest: payload, CreatedAt: task.CreatedAt}, Claim: ClaimAcquire}
 }
 func openRaw(t *testing.T, path string) *sql.DB {

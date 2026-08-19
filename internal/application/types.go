@@ -23,14 +23,28 @@ type OpenTaskResult struct {
 	Created bool
 	Task    domain.ProcessTask
 }
+type OperationProbe struct {
+	OperationID             domain.ID
+	ProcessID               domain.ProcessID
+	ProcessVersion          uint32
+	ProcessDefinitionDigest domain.Digest
+	SourceCursor            domain.NodeID
+	ExpectedRevision        uint64
+	ActionID                domain.ID
+	ActionKind              domain.ActionKind
+	RepositoryBindingDigest domain.Digest
+	Payload                 json.RawMessage
+}
 type GetTaskRequest struct {
-	Host   domain.Host
-	TaskID domain.ID
+	Host           domain.Host
+	TaskID         domain.ID
+	OperationProbe *OperationProbe
 }
 type GetTaskResult struct{ Task domain.ProcessTask }
 type GetNextActionRequest struct {
-	Host   domain.Host
-	TaskID domain.ID
+	Host           domain.Host
+	TaskID         domain.ID
+	OperationProbe *OperationProbe
 }
 type NextActionResult struct {
 	TaskID      domain.ID
@@ -47,7 +61,10 @@ type ApplyActionRequest struct {
 	ExpectedRevision        uint64
 	ActionID                domain.ID
 	ActionKind              domain.ActionKind
+	ProcessID               domain.ProcessID
+	ProcessVersion          uint32
 	ProcessDefinitionDigest domain.Digest
+	SourceCursor            domain.NodeID
 	RepositoryBindingDigest domain.Digest
 	Payload                 json.RawMessage
 }

@@ -57,15 +57,17 @@ func (r ProcessReference) Validate() error {
 }
 
 type TransitionDefinition struct {
-	TransitionID   TransitionID      `json:"transition_id"`
-	Source         NodeID            `json:"source"`
-	Destination    NodeID            `json:"destination"`
-	Guard          TransitionGuardID `json:"guard_id"`
-	ReasonRequired bool              `json:"reason_required"`
+	TransitionID       TransitionID      `json:"transition_id"`
+	Source             NodeID            `json:"source"`
+	Destination        NodeID            `json:"destination"`
+	Guard              TransitionGuardID `json:"guard_id"`
+	Description        string            `json:"description"`
+	SelectionCondition string            `json:"selection_condition"`
+	ReasonRequired     bool              `json:"reason_required"`
 }
 
 func (d TransitionDefinition) Validate() error {
-	if !d.TransitionID.IsValid() || !d.Source.Normal() || !d.Destination.IsValid() ||
+	if !d.TransitionID.IsValid() || !d.Source.Normal() || !d.Destination.IsValid() || requireNormalizedText(d.Description, MaxGuidanceBytes, true) != nil || requireNormalizedText(d.SelectionCondition, MaxGuidanceBytes, true) != nil ||
 		d.Destination == NodeBlocked || d.Destination == NodeCancelled || !d.Guard.IsValid() {
 		return ErrInvalidArgument
 	}

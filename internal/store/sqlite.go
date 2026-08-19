@@ -80,17 +80,18 @@ func preflightExisting(ctx context.Context, path string) error {
 	return preflightRows(ctx, db)
 }
 func preflightRows(ctx context.Context, db *sql.DB) error {
-	rows, err := db.QueryContext(ctx, `SELECT task_id,process_id,process_version,process_definition_digest,snapshot_version,current_node,snapshot FROM tasks`)
+	rows, err := db.QueryContext(ctx, `SELECT task_id,origin_host,process_id,process_version,process_definition_digest,snapshot_version,current_node,revision,repository_identity,snapshot,created_at,updated_at FROM tasks`)
 	if err != nil {
 		return ErrSchemaUnsupported
 	}
 	defer rows.Close()
 	standard := workflow.StandardProcess().Reference
 	for rows.Next() {
-		var taskID, processID, digest, node string
+		var taskID, originHost, processID, digest, node, repositoryIdentity, createdAt, updatedAt string
 		var version, snapshotVersion int
+		var revision int64
 		var snapshot []byte
-		if err := rows.Scan(&taskID, &processID, &version, &digest, &snapshotVersion, &node, &snapshot); err != nil {
+		if err := rows.Scan(&taskID, &originHost, &processID, &version, &digest, &snapshotVersion, &node, &revision, &repositoryIdentity, &snapshot, &createdAt, &updatedAt); err != nil {
 			return ErrStorageUnavailable
 		}
 		if processID != string(standard.ID) || version != int(standard.Version) || digest != string(standard.DefinitionDigest) {
@@ -103,7 +104,7 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 		if err != nil {
 			return err
 		}
-		if string(task.TaskID) != taskID || task.Process != standard || string(task.CurrentNode) != node {
+		if string(task.TaskID) != taskID || string(task.OriginHost) != originHost || task.Process != standard || string(task.CurrentNode) != node || int64(task.Revision) != revision || string(task.Repository.RepositoryIdentity) != repositoryIdentity || formatTime(task.CreatedAt) != createdAt || formatTime(task.UpdatedAt) != updatedAt {
 			return ErrStorageUnavailable
 		}
 	}
@@ -237,6 +238,10 @@ func validateMutation(m TaskMutation) error {
 	if workflow.ValidateProcessTask(m.Task) != nil || m.Task.Revision != m.ExpectedRevision+1 || m.Event.TaskID != m.Task.TaskID || m.Event.Revision != m.Task.Revision || m.Event.DestinationNode != m.Task.CurrentNode || !m.Event.SourceNode.IsValid() || !m.Event.DestinationNode.IsValid() || m.Event.EventID == "" || m.Event.RequestID == "" || !m.Event.PayloadDigest.IsValid() {
 		return ErrInvalidArgument
 	}
+	op := m.Task.LastOperation
+	if op == nil || op.Validate() != nil || op.OperationID != m.Event.RequestID || op.Kind != m.Event.Kind || op.FromRevision != m.ExpectedRevision || op.ToRevision != m.Task.Revision || op.PayloadDigest != m.Event.PayloadDigest || !op.CommittedAt.Equal(m.Event.CreatedAt) || !sameOptionalID(op.ActionID, m.Event.ActionID) {
+		return ErrInvalidArgument
+	}
 	if m.Event.TransitionID != nil {
 		definition := workflow.StandardProcess()
 		transition, err := workflow.TransitionFor(definition, m.Event.SourceNode, *m.Event.TransitionID)
@@ -245,5 +250,11 @@ func validateMutation(m TaskMutation) error {
 		}
 	}
 	return nil
+}
+func sameOptionalID(a, b *domain.ID) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
 }
 func formatTime(v time.Time) string { return v.UTC().Format(time.RFC3339Nano) }

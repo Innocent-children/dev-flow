@@ -41,7 +41,8 @@ func TestStrictV2CodecAndRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := store.CommitTask(context.Background(), testMutation(t, task)); err != nil {
+	mutation := testMutation(t, task)
+	if err := store.CommitTask(context.Background(), mutation); err != nil {
 		t.Fatal(err)
 	}
 	store.Close()
@@ -54,7 +55,7 @@ func TestStrictV2CodecAndRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(task, reopened) {
+	if !reflect.DeepEqual(mutation.Task, reopened) {
 		t.Fatal("restart changed task/action")
 	}
 }

@@ -211,6 +211,14 @@ func CanonicalPayload(envelope StandardPayload) ([]byte, error) {
 	}
 	return bytes.TrimSuffix(buffer.Bytes(), []byte("\n")), nil
 }
+func CanonicalValidatedPayload(envelope StandardPayload, result any) ([]byte, error) {
+	raw, err := json.Marshal(result)
+	if err != nil {
+		return nil, err
+	}
+	envelope.NodeResult = raw
+	return CanonicalPayload(envelope)
+}
 func decodeClosed(raw []byte, destination any) error {
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()

@@ -1,6 +1,9 @@
 package workflow
 
-import "github.com/Innocent-children/dev-flow/internal/domain"
+import (
+	"github.com/Innocent-children/dev-flow/internal/domain"
+	"strings"
+)
 
 type nodeSpec struct {
 	id                                                  domain.NodeID
@@ -11,7 +14,10 @@ type nodeSpec struct {
 }
 
 func tr(id string, source, destination domain.NodeID, guard string, reason bool) domain.TransitionDefinition {
-	return domain.TransitionDefinition{TransitionID: domain.TransitionID(id), Source: source, Destination: destination, Guard: domain.TransitionGuardID(guard), ReasonRequired: reason}
+	return domain.TransitionDefinition{TransitionID: domain.TransitionID(id), Source: source, Destination: destination, Guard: domain.TransitionGuardID(guard), Description: "Move from " + string(source) + " to " + string(destination) + " after completing the declared node obligations.", SelectionCondition: "Choose this transition only when the " + humanize(guard) + " condition is satisfied.", ReasonRequired: reason}
+}
+func humanize(value string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(value, "_", " "), ".", " ")
 }
 
 var standardTransitions = []domain.TransitionDefinition{
@@ -53,7 +59,7 @@ func StandardProcess() domain.ProcessDefinition {
 		}
 		steps := make([]domain.SemanticMethodStep, len(s.steps))
 		for i, v := range s.steps {
-			steps[i] = domain.SemanticMethodStep{StepID: domain.MethodStepID(v), Purpose: v, Required: true}
+			steps[i] = domain.SemanticMethodStep{StepID: domain.MethodStepID(v), Purpose: "Perform the " + humanize(v) + " step for this node.", Required: true}
 		}
 		out := make([]domain.TransitionDefinition, len(s.outgoing))
 		for i, v := range s.outgoing {

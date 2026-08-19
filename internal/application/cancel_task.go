@@ -19,22 +19,33 @@ func (s *Service) CancelTask(ctx context.Context, r CancelTaskRequest) (CancelTa
 		return CancelTaskResult{}, domain.ErrInvalidArgument
 	}
 	source := task.CurrentNode
-	now := s.now().UTC()
-	task.CurrentNode = domain.NodeCancelled
-	task.CurrentAction = nil
-	task.Revision++
-	task.UpdatedAt = now
-	task.CompletedAt = &now
-	rev := uint32(0)
-	if task.Requirements != nil {
-		rev = task.Requirements.Revision
+	next, err := cloneProcessTask(task)
+	if err != nil {
+		return CancelTaskResult{}, domain.ErrInternal
 	}
-	task.Outcome = &domain.ProcessOutcome{Status: domain.TerminalCancelled, Summary: r.Reason, RequirementsRevision: rev, FinalRepositoryDigest: task.Repository.BindingDigest, CompletedAt: now}
-	eventID, _ := s.id("event")
-	digest, _ := digestCanonical(r)
-	event := store.TaskEvent{EventID: eventID, TaskID: task.TaskID, Revision: task.Revision, Kind: domain.OperationCancelTask, SourceNode: source, DestinationNode: domain.NodeCancelled, RequestID: r.RequestID, PayloadDigest: digest, CreatedAt: now}
-	if err := s.taskStore.CommitTask(ctx, store.TaskMutation{ExpectedRevision: r.ExpectedRevision, Task: task, Event: event, Claim: store.ClaimRelease}); err != nil {
+	now := s.now().UTC()
+	next.CurrentNode = domain.NodeCancelled
+	next.CurrentAction = nil
+	next.Revision++
+	next.UpdatedAt = now
+	next.CompletedAt = &now
+	rev := uint32(0)
+	if next.Requirements != nil {
+		rev = next.Requirements.Revision
+	}
+	next.Outcome = &domain.ProcessOutcome{Status: domain.TerminalCancelled, Summary: r.Reason, RequirementsRevision: rev, FinalRepositoryDigest: next.Repository.BindingDigest, CompletedAt: now}
+	digest, err := digestCanonical(r)
+	if err != nil {
+		return CancelTaskResult{}, domain.ErrInternal
+	}
+	next.LastOperation = &domain.LastOperation{OperationID: r.RequestID, Kind: domain.OperationCancelTask, FromRevision: r.ExpectedRevision, ToRevision: next.Revision, PayloadDigest: digest, CommittedAt: now}
+	eventID, err := s.id("event")
+	if err != nil {
+		return CancelTaskResult{}, err
+	}
+	event := store.TaskEvent{EventID: eventID, TaskID: next.TaskID, Revision: next.Revision, Kind: domain.OperationCancelTask, SourceNode: source, DestinationNode: domain.NodeCancelled, RequestID: r.RequestID, PayloadDigest: digest, CreatedAt: now}
+	if err := s.taskStore.CommitTask(ctx, store.TaskMutation{ExpectedRevision: r.ExpectedRevision, Task: next, Event: event, Claim: store.ClaimRelease}); err != nil {
 		return CancelTaskResult{}, mapStoreError(err)
 	}
-	return CancelTaskResult{Task: task}, nil
+	return CancelTaskResult{Task: next}, nil
 }

@@ -15,7 +15,7 @@ func TestStandardDefinitionIsStableAndComplete(t *testing.T) {
 	if err := ValidateDefinition(definition); err != nil {
 		t.Fatalf("ValidateDefinition: %v", err)
 	}
-	if got, want := definition.Reference.DefinitionDigest, domain.Digest("852deeafee2e27d0612a19f9e927b3d8b2b7f68d169c251852c09ebca9815fe7"); got != want {
+	if got, want := definition.Reference.DefinitionDigest, domain.Digest("53b0fca507664657201ed5b5472c101007897c0f2d7a1e5034d91d322d9bacbe"); got != want {
 		t.Fatalf("digest = %s, want %s", got, want)
 	}
 	wantNodes := []domain.NodeID{domain.NodeRequirements, domain.NodeDesign, domain.NodeTasks, domain.NodeImplement, domain.NodeTest, domain.NodeComprehensionReview, domain.NodeRefactor, domain.NodeDelivery, domain.NodeDone, domain.NodeBlocked, domain.NodeCancelled}
@@ -34,6 +34,24 @@ func TestStandardDefinitionIsStableAndComplete(t *testing.T) {
 		if node.NodeID.Terminal() && len(node.OutgoingTransitions) != 0 {
 			t.Fatalf("terminal %s has edges", node.NodeID)
 		}
+	}
+}
+func TestDefinitionDigestBindsObservableSemantics(t *testing.T) {
+	base := StandardProcess()
+	for name, mutate := range map[string]func(*domain.ProcessDefinition){"purpose": func(d *domain.ProcessDefinition) { d.Nodes[0].Purpose += " Updated." }, "condition": func(d *domain.ProcessDefinition) {
+		d.Nodes[0].EntryAssumptions = append([]string(nil), d.Nodes[0].EntryAssumptions...)
+		d.Nodes[0].EntryAssumptions[0] += " updated"
+	}, "transition description": func(d *domain.ProcessDefinition) { d.Transitions[0].Description += " Updated." }} {
+		t.Run(name, func(t *testing.T) {
+			changed := base
+			changed.Nodes = append([]domain.NodeDefinition(nil), base.Nodes...)
+			changed.Transitions = append([]domain.TransitionDefinition(nil), base.Transitions...)
+			mutate(&changed)
+			digest, err := DefinitionDigest(changed)
+			if err != nil || digest == base.Reference.DefinitionDigest {
+				t.Fatal("observable semantic change did not change digest")
+			}
+		})
 	}
 }
 

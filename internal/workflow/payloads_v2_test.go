@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"github.com/Innocent-children/dev-flow/internal/domain"
 	"testing"
 )
 
@@ -46,5 +47,22 @@ func TestV2PayloadReasonRulesAndForbiddenTransitions(t *testing.T) {
 	envelope.TransitionID = "delivery_complete"
 	if err := ValidatePayload(StandardProcess(), "DESIGN", envelope, result, nil); err == nil {
 		t.Fatal("forbidden destination accepted")
+	}
+}
+func TestCanonicalValidatedPayloadIgnoresJSONFormatting(t *testing.T) {
+	left := []byte(`{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":[],"node_result":{"baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
+	right := []byte(`{ "node_result": {"unresolved_questions":[],"baseline":{"assumptions":[],"constraints":[],"acceptance_criteria":["Accepted"],"out_of_scope":[],"scope":[],"goal":"Goal"}},"method_evidence":[],"artifacts":[],"reason":"","summary":"Ready.","transition_id":"requirements_ready"}`)
+	a, ar, err := DecodeStandardPayload(domain.NodeRequirements, left)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, br, err := DecodeStandardPayload(domain.NodeRequirements, right)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ca, _ := CanonicalValidatedPayload(a, ar)
+	cb, _ := CanonicalValidatedPayload(b, br)
+	if string(ca) != string(cb) {
+		t.Fatalf("canonical drift\n%s\n%s", ca, cb)
 	}
 }

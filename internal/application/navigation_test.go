@@ -59,16 +59,19 @@ func TestProcessGraphNavigation(t *testing.T) {
 		t.Fatal("requirements action incomplete")
 	}
 	payload := json.RawMessage(`{"transition_id":"requirements_ready","summary":"Requirements ready.","reason":"","artifacts":[],"method_evidence":[],"node_result":{"baseline":{"goal":"Simplify order submission.","scope":["request path"],"out_of_scope":["payments"],"acceptance_criteria":["behavior preserved"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
-	applied, err := service.ApplyAction(context.Background(), ApplyActionRequest{RequestID: "request-apply", Host: domain.HostCodex, TaskID: opened.Task.TaskID, ExpectedRevision: 1, ActionID: opened.Task.CurrentAction.ActionID, ActionKind: opened.Task.CurrentAction.Kind, ProcessDefinitionDigest: opened.Task.Process.DefinitionDigest, RepositoryBindingDigest: binding.BindingDigest, Payload: payload})
+	applied, err := service.ApplyAction(context.Background(), ApplyActionRequest{RequestID: "request-apply", Host: domain.HostCodex, TaskID: opened.Task.TaskID, ExpectedRevision: 1, ActionID: opened.Task.CurrentAction.ActionID, ActionKind: opened.Task.CurrentAction.Kind, ProcessID: opened.Task.Process.ID, ProcessVersion: opened.Task.Process.Version, ProcessDefinitionDigest: opened.Task.Process.DefinitionDigest, SourceCursor: opened.Task.CurrentNode, RepositoryBindingDigest: binding.BindingDigest, Payload: payload})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if applied.Task.CurrentNode != domain.NodeDesign || applied.Task.Revision != 2 || len(applied.Task.CurrentAction.AvailableTransitions) != 2 {
 		t.Fatal("design projection incomplete")
 	}
+	if applied.Task.LastOperation == nil || applied.Task.LastOperation.OperationID != "request-apply" || applied.Task.LastOperation.ToRevision != 2 || applied.Task.LastOperation.PayloadDigest == applied.Task.Process.DefinitionDigest || applied.Task.Requirements.Digest == applied.Task.Process.DefinitionDigest {
+		t.Fatal("mutation identities or content digest are not independent")
+	}
 	before := ms.commits
 	bad := payload
-	_, err = service.ApplyAction(context.Background(), ApplyActionRequest{RequestID: "request-bad", Host: domain.HostCodex, TaskID: applied.Task.TaskID, ExpectedRevision: 2, ActionID: applied.Task.CurrentAction.ActionID, ActionKind: applied.Task.CurrentAction.Kind, ProcessDefinitionDigest: applied.Task.Process.DefinitionDigest, RepositoryBindingDigest: binding.BindingDigest, Payload: bad})
+	_, err = service.ApplyAction(context.Background(), ApplyActionRequest{RequestID: "request-bad", Host: domain.HostCodex, TaskID: applied.Task.TaskID, ExpectedRevision: 2, ActionID: applied.Task.CurrentAction.ActionID, ActionKind: applied.Task.CurrentAction.Kind, ProcessID: applied.Task.Process.ID, ProcessVersion: applied.Task.Process.Version, ProcessDefinitionDigest: applied.Task.Process.DefinitionDigest, SourceCursor: applied.Task.CurrentNode, RepositoryBindingDigest: binding.BindingDigest, Payload: bad})
 	if err == nil || ms.commits != before {
 		t.Fatal("invalid DESIGN edge wrote state")
 	}

@@ -124,3 +124,34 @@ func TestFutureSchemaAndUnsupportedProcessSafeStop(t *testing.T) {
 		}
 	})
 }
+
+func TestCompleteRowSnapshotMetadataPreflight(t *testing.T) {
+	cases := []struct{ name, update string }{{"task_id", `PRAGMA foreign_keys=OFF;UPDATE tasks SET task_id='other-task'`}, {"origin_host", `UPDATE tasks SET origin_host='deepseek'`}, {"revision", `UPDATE tasks SET revision=2`}, {"repository_identity", `UPDATE tasks SET repository_identity='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'`}, {"created_at", `UPDATE tasks SET created_at='2026-08-19T00:00:00Z'`}, {"updated_at", `UPDATE tasks SET updated_at='2026-08-19T00:00:00Z'`}}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			path := dbPath(t)
+			s, err := Open(context.Background(), path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			task := testGraphTask(t)
+			if err := s.CommitTask(context.Background(), testMutation(t, task)); err != nil {
+				t.Fatal(err)
+			}
+			s.Close()
+			db := openRaw(t, path)
+			if _, err := db.Exec(tc.update); err != nil {
+				t.Fatal(err)
+			}
+			db.Close()
+			before := fileDigest(t, path)
+			_, err = Open(context.Background(), path)
+			if !errors.Is(err, ErrStorageUnavailable) {
+				t.Fatalf("error=%v", err)
+			}
+			if before != fileDigest(t, path) {
+				t.Fatal("unsupported row changed")
+			}
+		})
+	}
+}
