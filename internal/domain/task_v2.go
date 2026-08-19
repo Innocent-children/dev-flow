@@ -209,11 +209,11 @@ func (t ProcessTask) Validate() error {
 func baselineReferencePrecedesCurrent(ref BaselineReference, t ProcessTask) bool {
 	switch ref.Kind {
 	case BaselineRequirements:
-		return t.Requirements != nil && ref.Revision < t.Requirements.Revision
+		return t.Requirements == nil || ref.Revision < t.Requirements.Revision
 	case BaselineDesign:
-		return t.Design != nil && ref.Revision < t.Design.Revision
+		return t.Design == nil || ref.Revision < t.Design.Revision
 	case BaselineTaskPlan:
-		return t.TaskPlan != nil && ref.Revision < t.TaskPlan.Revision
+		return t.TaskPlan == nil || ref.Revision < t.TaskPlan.Revision
 	default:
 		return false
 	}

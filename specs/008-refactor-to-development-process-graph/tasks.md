@@ -201,13 +201,13 @@ existing tool surface.
 
 **Independent Test**: Quickstart Journeys B and C.
 
-- [ ] T046 [P] [US2] Implement requirements-baseline creation/revision and destination
+- [x] T046 [P] [US2] Implement requirements-baseline creation/revision and destination
   `REQUIREMENTS` invalidation in `internal/workflow/payloads_v2.go`,
   `internal/workflow/engine.go`, and `internal/domain/task_v2.go` per FR-021–FR-022.
-- [ ] T047 [P] [US2] Implement design/task-plan baseline validation, upstream revision binding,
+- [x] T047 [P] [US2] Implement design/task-plan baseline validation, upstream revision binding,
   work-item dependency/acceptance coverage, and downstream invalidation in the same workflow/domain
   files per FR-023–FR-024.
-- [ ] T048 [US2] Implement standard IMPLEMENT repository-effect validation, implementation record,
+- [x] T048 [US2] Implement standard IMPLEMENT repository-effect validation, implementation record,
   problem-class transitions, and current-evidence invalidation in `internal/workflow/engine.go` and
   `internal/recovery/` integration points per FR-016 and the graph contract.
 - [ ] T049 [US2] Implement TEST payload validation, budget accounting, failure classification,

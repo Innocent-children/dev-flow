@@ -11,8 +11,9 @@ import (
 )
 
 type memoryStore struct {
-	task    *domain.ProcessTask
-	commits int
+	task         *domain.ProcessTask
+	commits      int
+	lastMutation store.TaskMutation
 }
 
 func (m *memoryStore) LoadTask(context.Context, domain.ID) (domain.ProcessTask, error) {
@@ -31,6 +32,7 @@ func (m *memoryStore) CommitTask(_ context.Context, x store.TaskMutation) error 
 	task := x.Task
 	m.task = &task
 	m.commits++
+	m.lastMutation = x
 	return nil
 }
 

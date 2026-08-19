@@ -160,19 +160,19 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 	}
 	switch value := result.(type) {
 	case *RequirementsResult:
-		if source != domain.NodeRequirements || value.Baseline == nil || len(value.Baseline.AcceptanceCriteria) == 0 || len(value.UnresolvedQuestions) != 0 {
+		if source != domain.NodeRequirements || value.Baseline == nil || len(value.Baseline.AcceptanceCriteria) == 0 || len(value.UnresolvedQuestions) != 0 || !validStringLists(value.Baseline.Scope, value.Baseline.OutOfScope, value.Baseline.AcceptanceCriteria, value.Baseline.Constraints, value.Baseline.Assumptions) {
 			return domain.ErrInvalidArgument
 		}
 	case *DesignResult:
-		if source != domain.NodeDesign || ((envelope.TransitionID == "design_ready") != (value.Baseline != nil)) {
+		if source != domain.NodeDesign || ((envelope.TransitionID == "design_ready") != (value.Baseline != nil)) || !validStringLists(value.Findings) {
 			return domain.ErrInvalidArgument
 		}
 	case *TasksResult:
-		if source != domain.NodeTasks || ((envelope.TransitionID == "tasks_ready") != (value.Baseline != nil)) {
+		if source != domain.NodeTasks || ((envelope.TransitionID == "tasks_ready") != (value.Baseline != nil)) || !validStringLists(value.Findings) {
 			return domain.ErrInvalidArgument
 		}
 	case *ImplementationResult:
-		if source != domain.NodeImplement || (len(value.ChangedPaths) > 0) == value.NoFileChanges {
+		if source != domain.NodeImplement || (len(value.ChangedPaths) > 0) == value.NoFileChanges || !validStringLists(value.Deviations, value.Findings) {
 			return domain.ErrInvalidArgument
 		}
 	case *TestResult:
@@ -238,6 +238,22 @@ func validReason(value string, required bool) bool {
 		return value == ""
 	}
 	return validText(value, domain.MaxReasonBytes)
+}
+
+func validStringLists(lists ...[]string) bool {
+	for _, items := range lists {
+		if len(items) > domain.MaxBoundedStringListItems {
+			return false
+		}
+		seen := map[string]bool{}
+		for _, item := range items {
+			if !validText(item, domain.MaxEvidenceSummaryBytes) || seen[item] {
+				return false
+			}
+			seen[item] = true
+		}
+	}
+	return true
 }
 func rejectDuplicateMembers(raw []byte) error {
 	decoder := json.NewDecoder(bytes.NewReader(raw))

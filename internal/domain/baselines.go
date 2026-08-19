@@ -133,13 +133,29 @@ func (b TaskPlanBaseline) Validate() error {
 			return ErrInvalidArgument
 		}
 		known[item.WorkItemID] = true
+		paths := map[string]bool{}
 		for _, p := range item.ExpectedPaths {
-			if validateRepositoryRelativePath(p) != nil {
+			if validateRepositoryRelativePath(p) != nil || paths[p] {
 				return ErrInvalidArgument
 			}
+			paths[p] = true
 		}
-		if validateNormalizedList(item.VerificationSteps) != nil {
+		if len(item.VerificationSteps) == 0 || validateNormalizedList(item.VerificationSteps) != nil {
 			return ErrInvalidArgument
+		}
+		acceptance := map[uint32]bool{}
+		for _, index := range item.AcceptanceIndexes {
+			if acceptance[index] {
+				return ErrInvalidArgument
+			}
+			acceptance[index] = true
+		}
+		dependencies := map[ID]bool{}
+		for _, dependency := range item.Dependencies {
+			if dependencies[dependency] {
+				return ErrInvalidArgument
+			}
+			dependencies[dependency] = true
 		}
 	}
 	for _, item := range b.WorkItems {
