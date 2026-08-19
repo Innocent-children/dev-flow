@@ -252,6 +252,7 @@ func (r TestRecord) Validate() error {
 
 type ComprehensionAssessment struct {
 	RecordID                ID        `json:"record_id"`
+	TestRecordID            ID        `json:"test_record_id"`
 	RequirementsRevision    uint32    `json:"requirements_revision"`
 	DesignRevision          uint32    `json:"design_revision"`
 	TaskPlanRevision        uint32    `json:"task_plan_revision"`
@@ -263,7 +264,7 @@ type ComprehensionAssessment struct {
 }
 
 func (r ComprehensionAssessment) Validate() error {
-	if validateID(r.RecordID) != nil || r.RequirementsRevision == 0 || r.DesignRevision == 0 || r.TaskPlanRevision == 0 || !r.RepositoryBindingDigest.IsValid() || len(r.ExplainedComponents) == 0 || len(r.ExplainedComponents) > MaxExplainedComponents || validateID(r.UserEvidenceID) != nil || validateUTC(r.ConfirmedAt) != nil || validateNormalizedList(r.ExplainedComponents) != nil || validateNormalizedList(r.MaintenanceRisks) != nil {
+	if validateID(r.RecordID) != nil || validateID(r.TestRecordID) != nil || r.RequirementsRevision == 0 || r.DesignRevision == 0 || r.TaskPlanRevision == 0 || !r.RepositoryBindingDigest.IsValid() || len(r.ExplainedComponents) == 0 || len(r.ExplainedComponents) > MaxExplainedComponents || validateID(r.UserEvidenceID) != nil || validateUTC(r.ConfirmedAt) != nil || validateNormalizedList(r.ExplainedComponents) != nil || validateNormalizedList(r.MaintenanceRisks) != nil {
 		return ErrInvalidArgument
 	}
 	return nil

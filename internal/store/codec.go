@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"unicode/utf8"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
@@ -29,7 +30,7 @@ func encodeTask(task domain.ProcessTask) ([]byte, error) {
 	return append([]byte(nil), raw...), nil
 }
 func decodeTask(raw []byte) (domain.ProcessTask, error) {
-	if len(raw) == 0 || len(raw) > domain.MaxPersistedTaskSnapshotBytes || rejectDuplicateJSON(raw) != nil {
+	if len(raw) == 0 || len(raw) > domain.MaxPersistedTaskSnapshotBytes || !utf8.Valid(raw) || rejectDuplicateJSON(raw) != nil {
 		return domain.ProcessTask{}, ErrStorageUnavailable
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))

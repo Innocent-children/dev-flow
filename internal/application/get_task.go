@@ -10,21 +10,23 @@ func (s *Service) GetTask(ctx context.Context, r GetTaskRequest) (GetTaskResult,
 	if !s.valid() || ctx == nil || !r.Host.IsValid() || !r.TaskID.IsValid() {
 		return GetTaskResult{}, domain.ErrInvalidArgument
 	}
-	task, err := s.loadOwned(ctx, r.Host, r.TaskID)
-	if err == nil {
-		err = validateProbe(task, r.OperationProbe)
+	if r.OperationProbe != nil {
+		if err := validateProbeInput(r.OperationProbe); err != nil {
+			return GetTaskResult{}, err
+		}
+		return GetTaskResult{}, domain.ErrRecoveryUnavailable
 	}
+	task, err := s.loadOwned(ctx, r.Host, r.TaskID)
 	return GetTaskResult{Task: task}, err
 }
-func validateProbe(task domain.ProcessTask, p *OperationProbe) error {
-	if p == nil {
-		return nil
-	}
-	if !p.OperationID.IsValid() || p.ProcessID != task.Process.ID || p.ProcessVersion != task.Process.Version || p.ProcessDefinitionDigest != task.Process.DefinitionDigest || !p.SourceCursor.IsValid() || p.ExpectedRevision == 0 || !p.ActionID.IsValid() || !p.ActionKind.IsValidV2() || !p.RepositoryBindingDigest.IsValid() {
+func validateProbeInput(p *OperationProbe) error {
+	if p == nil || !p.OperationID.IsValid() || !p.ProcessID.IsValid() || p.ProcessVersion != 1 ||
+		!p.ProcessDefinitionDigest.IsValid() || !p.SourceCursor.Normal() || p.ExpectedRevision == 0 ||
+		!p.ActionID.IsValid() || !p.ActionKind.IsValidV2() || !p.RepositoryBindingDigest.IsValid() || len(p.Payload) == 0 {
 		return domain.ErrInvalidArgument
 	}
-	if len(p.Payload) != 0 && string(p.Payload) != "null" {
-		if _, _, err := workflow.DecodeStandardPayload(p.SourceCursor, p.Payload); err != nil {
+	if string(p.Payload) != "null" {
+		if err := workflow.ValidateRetainedPayload(p.SourceCursor, p.Payload); err != nil {
 			return domain.ErrInvalidArgument
 		}
 	}

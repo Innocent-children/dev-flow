@@ -65,11 +65,14 @@ func StandardProcess() domain.ProcessDefinition {
 		for i, v := range s.outgoing {
 			out[i] = byID[v]
 		}
-		nodes = append(nodes, domain.NodeDefinition{NodeID: s.id, Purpose: s.purpose, EntryConditionIDs: s.entry, EntryAssumptions: s.entry, CompletionConditionIDs: s.complete, CompletionConditions: s.complete, AllowedEffects: effects, RequiredEvidence: evidence, SemanticMethodSteps: steps, OutgoingTransitions: out, ActionKind: s.action, PayloadContract: s.payload})
+		nodes = append(nodes, domain.NodeDefinition{NodeID: s.id, Purpose: s.purpose, EntryConditionIDs: append([]string(nil), s.entry...), EntryAssumptions: append([]string(nil), s.entry...), CompletionConditionIDs: append([]string(nil), s.complete...), CompletionConditions: append([]string(nil), s.complete...), AllowedEffects: effects, RequiredEvidence: evidence, SemanticMethodSteps: steps, OutgoingTransitions: out, ActionKind: s.action, PayloadContract: s.payload})
 	}
 	nodes = append(nodes, domain.NodeDefinition{NodeID: domain.NodeDone}, domain.NodeDefinition{NodeID: domain.NodeBlocked, Purpose: "Preserve a safety or recovery blocker.", EntryConditionIDs: []string{"blocker_recorded"}, EntryAssumptions: []string{"blocker_recorded"}, CompletionConditionIDs: []string{"blocker_condition_resolved"}, CompletionConditions: []string{"blocker_condition_resolved"}, AllowedEffects: []domain.AllowedEffect{domain.EffectReadRepository, domain.EffectResolveBlocker}, RequiredEvidence: []domain.EvidenceRequirement{{Kind: "repository_observation", Required: true}, {Kind: "blocker_resolution", Required: true}}, SemanticMethodSteps: []domain.SemanticMethodStep{{StepID: "blocker.resolve", Purpose: "blocker.resolve", Required: true}}, ActionKind: domain.ActionResolveBlocker, PayloadContract: "blocker-resolution@1"}, domain.NodeDefinition{NodeID: domain.NodeCancelled})
 	d := domain.ProcessDefinition{Reference: domain.ProcessReference{ID: domain.ProcessStandardDevelopment, Version: 1}, EntryNode: domain.NodeRequirements, Nodes: nodes, Transitions: append([]domain.TransitionDefinition(nil), standardTransitions...)}
-	digest, _ := DefinitionDigest(d)
+	digest, err := DefinitionDigest(d)
+	if err != nil {
+		panic("standard process definition digest failed: " + err.Error())
+	}
 	d.Reference.DefinitionDigest = digest
 	return d
 }

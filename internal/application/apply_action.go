@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/recovery"
@@ -11,6 +12,27 @@ import (
 )
 
 func (s *Service) ApplyAction(ctx context.Context, r ApplyActionRequest) (ApplyActionResult, error) {
+	if !s.valid() || ctx == nil || !r.RequestID.IsValid() || !r.Host.IsValid() || !r.TaskID.IsValid() ||
+		r.ExpectedRevision == 0 || !r.ActionID.IsValid() || !r.ActionKind.IsValidV2() ||
+		!r.ProcessID.IsValid() || r.ProcessVersion != 1 || !r.ProcessDefinitionDigest.IsValid() ||
+		!r.SourceCursor.IsValid() || !r.RepositoryBindingDigest.IsValid() || len(r.Payload) == 0 || !json.Valid(r.Payload) {
+		return ApplyActionResult{}, domain.ErrInvalidArgument
+	}
+	if r.RecoveryApply != nil {
+		if !r.RecoveryApply.OperationID.IsValid() || !r.RecoveryApply.SourceCursor.Normal() ||
+			r.RecoveryApply.SourceCursor != r.SourceCursor {
+			return ApplyActionResult{}, domain.ErrInvalidArgument
+		}
+		if string(r.Payload) != "null" {
+			if err := workflow.ValidateRetainedPayload(r.SourceCursor, r.Payload); err != nil {
+				return ApplyActionResult{}, domain.ErrInvalidArgument
+			}
+		}
+		return ApplyActionResult{}, domain.ErrRecoveryUnavailable
+	}
+	if string(r.Payload) == "null" {
+		return ApplyActionResult{}, domain.ErrInvalidArgument
+	}
 	task, err := s.loadOwned(ctx, r.Host, r.TaskID)
 	if err != nil {
 		return ApplyActionResult{}, err
@@ -44,6 +66,9 @@ func (s *Service) ApplyAction(ctx context.Context, r ApplyActionRequest) (ApplyA
 		return ApplyActionResult{}, domain.ErrTransitionNotAllowed
 	}
 	if err := workflow.ValidatePayload(definition, task.CurrentNode, envelope, result, task.CurrentAction.SemanticMethodSteps); err != nil {
+		if errors.Is(err, domain.ErrTransitionNotAllowed) {
+			return ApplyActionResult{}, domain.ErrTransitionNotAllowed
+		}
 		return ApplyActionResult{}, domain.ErrInvalidArgument
 	}
 

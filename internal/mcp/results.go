@@ -80,7 +80,7 @@ func mustEncode(v Envelope) []byte {
 	return raw
 }
 func publicFailure(code domain.ErrorCode) (string, string, string) {
-	m := map[domain.ErrorCode][3]string{domain.ErrorInvalidArgument: {"The request does not match the closed Core contract.", "none", "Correct the request before submitting it again."}, domain.ErrorNotGitRepository: {"The requested path is not a Git repository.", "none", "Choose a valid local Git repository."}, domain.ErrorTaskNotFound: {"The task was not found.", "read_task", "Confirm the retained task identity before continuing."}, domain.ErrorActiveTaskConflict: {"The repository already has an incompatible active task.", "cancel_or_finish_active_task", "Finish or cancel the active task before opening another task."}, domain.ErrorHostOwnershipConflict: {"The task belongs to another host.", "use_origin_host", "Resume the task from its origin host."}, domain.ErrorRevisionConflict: {"The submitted task revision is stale.", "read_task", "Read the authoritative task before another mutation."}, domain.ErrorActionStale: {"The submitted action identity is stale.", "read_next_action", "Read and use the exact persisted next action."}, domain.ErrorRepositoryDrift: {"The repository binding is not permitted for this operation.", "resolve_repository_drift", "Restore the required repository reality before continuing."}, domain.ErrorTransitionNotAllowed: {"The transition is not allowed from the current node.", "read_next_action", "Read the complete current transition set."}, domain.ErrorProcessUnsupported: {"The process definition is unsupported.", "repair_storage", "Use storage created by this graph Core."}, domain.ErrorVerificationBudgetExceeded: {"The submitted evidence exceeds the verification budget.", "read_next_action", "Remain within the current evidence budget."}, domain.ErrorTaskBlocked: {"The task is blocked.", "read_next_action", "Read the blocker-resolution action."}, domain.ErrorTaskTerminal: {"The task is terminal.", "read_task", "Read the retained terminal outcome."}, domain.ErrorSchemaUnsupported: {"Pre-graph task data is unsupported by this Core.", "repair_storage", "Choose a fresh data directory or manage the old directory outside Core."}, domain.ErrorStorageUnavailable: {"Core storage is unavailable.", "repair_storage", "Restore storage availability before continuing."}, domain.ErrorInternal: {"The Core could not complete the operation.", "report_internal_error", "Report the bounded failure and stop this operation."}}
+	m := map[domain.ErrorCode][3]string{domain.ErrorInvalidArgument: {"The request does not match the closed Core contract.", "none", "Correct the request before submitting it again."}, domain.ErrorNotGitRepository: {"The requested path is not a Git repository.", "none", "Choose a valid local Git repository."}, domain.ErrorTaskNotFound: {"The task was not found.", "read_task", "Confirm the retained task identity before continuing."}, domain.ErrorActiveTaskConflict: {"The repository already has an incompatible active task.", "cancel_or_finish_active_task", "Finish or cancel the active task before opening another task."}, domain.ErrorHostOwnershipConflict: {"The task belongs to another host.", "use_origin_host", "Resume the task from its origin host."}, domain.ErrorRevisionConflict: {"The submitted task revision is stale.", "read_task", "Read the authoritative task before another mutation."}, domain.ErrorActionStale: {"The submitted action identity is stale.", "read_next_action", "Read and use the exact persisted next action."}, domain.ErrorRepositoryDrift: {"The repository binding is not permitted for this operation.", "resolve_repository_drift", "Restore the required repository reality before continuing."}, domain.ErrorTransitionNotAllowed: {"The transition is not allowed from the current node.", "read_next_action", "Read the complete current transition set."}, domain.ErrorProcessUnsupported: {"The process definition is unsupported.", "repair_storage", "Use storage created by this graph Core."}, domain.ErrorRecoveryUnavailable: {"Current implementation does not yet provide recovery for an uncertain mutation.", "none", "Do not automatically retry the original mutation; wait for the Phase 7 current-storage-generation recovery implementation."}, domain.ErrorVerificationBudgetExceeded: {"The submitted evidence exceeds the verification budget.", "read_next_action", "Remain within the current evidence budget."}, domain.ErrorTaskBlocked: {"The task is blocked.", "read_next_action", "Read the blocker-resolution action."}, domain.ErrorTaskTerminal: {"The task is terminal.", "read_task", "Read the retained terminal outcome."}, domain.ErrorSchemaUnsupported: {"Pre-graph task data is unsupported by this Core.", "repair_storage", "Choose a fresh data directory or manage the old directory outside Core."}, domain.ErrorStorageUnavailable: {"Core storage is unavailable.", "repair_storage", "Restore storage availability before continuing."}, domain.ErrorInternal: {"The Core could not complete the operation.", "report_internal_error", "Report the bounded failure and stop this operation."}}
 	v, ok := m[code]
 	if !ok {
 		v = m[domain.ErrorInternal]
@@ -89,16 +89,22 @@ func publicFailure(code domain.ErrorCode) (string, string, string) {
 }
 
 type ServerInfoResult struct {
-	Product            string                    `json:"product"`
-	Version            string                    `json:"version"`
-	SchemaVersion      int                       `json:"schema_version"`
-	CoreLimitsVersion  string                    `json:"core_limits_version"`
-	Transport          string                    `json:"transport"`
-	Health             string                    `json:"health"`
-	SupportedHosts     []string                  `json:"supported_hosts"`
-	SupportedProcesses []domain.ProcessReference `json:"supported_processes"`
-	MethodProfiles     []domain.MethodProfile    `json:"method_profiles"`
-	Tools              []string                  `json:"tools"`
+	Product            string                   `json:"product"`
+	Version            string                   `json:"version"`
+	SchemaVersion      int                      `json:"schema_version"`
+	CoreLimitsVersion  string                   `json:"core_limits_version"`
+	Transport          string                   `json:"transport"`
+	Health             string                   `json:"health"`
+	SupportedHosts     []string                 `json:"supported_hosts"`
+	SupportedProcesses []SupportedProcessResult `json:"supported_processes"`
+	MethodProfiles     []domain.MethodProfile   `json:"method_profiles"`
+	Tools              []string                 `json:"tools"`
+}
+type SupportedProcessResult struct {
+	ProcessID        domain.ProcessID `json:"process_id"`
+	ProcessVersion   uint32           `json:"process_version"`
+	DefinitionDigest domain.Digest    `json:"definition_digest"`
+	NewTaskSupported bool             `json:"new_task_supported"`
 }
 
 func projectAction(a *domain.ProcessActionV2) any {

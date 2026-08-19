@@ -86,6 +86,7 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 	}
 	defer rows.Close()
 	standard := workflow.StandardProcess().Reference
+	tasks := map[string]preflightTask{}
 	for rows.Next() {
 		var taskID, originHost, processID, digest, node, repositoryIdentity, createdAt, updatedAt string
 		var version, snapshotVersion int
@@ -107,12 +108,54 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 		if string(task.TaskID) != taskID || string(task.OriginHost) != originHost || task.Process != standard || string(task.CurrentNode) != node || int64(task.Revision) != revision || string(task.Repository.RepositoryIdentity) != repositoryIdentity || formatTime(task.CreatedAt) != createdAt || formatTime(task.UpdatedAt) != updatedAt {
 			return ErrStorageUnavailable
 		}
+		if _, exists := tasks[taskID]; exists {
+			return ErrStorageUnavailable
+		}
+		tasks[taskID] = preflightTask{repositoryIdentity: repositoryIdentity, originHost: originHost, terminal: task.CurrentNode.Terminal()}
 	}
-	if rows.Err() != nil {
+	if rows.Err() != nil || rows.Close() != nil {
 		return ErrStorageUnavailable
+	}
+	claims, err := db.QueryContext(ctx, `SELECT repository_identity,task_id,origin_host FROM repository_claims`)
+	if err != nil {
+		return ErrSchemaUnsupported
+	}
+	defer claims.Close()
+	claimCount := map[string]int{}
+	for claims.Next() {
+		var repositoryIdentity, taskID, originHost string
+		if err := claims.Scan(&repositoryIdentity, &taskID, &originHost); err != nil {
+			claims.Close()
+			return ErrStorageUnavailable
+		}
+		task, exists := tasks[taskID]
+		if !exists || task.terminal || task.repositoryIdentity != repositoryIdentity || task.originHost != originHost {
+			claims.Close()
+			return ErrStorageUnavailable
+		}
+		claimCount[taskID]++
+		if claimCount[taskID] != 1 {
+			claims.Close()
+			return ErrStorageUnavailable
+		}
+	}
+	if claims.Err() != nil || claims.Close() != nil {
+		return ErrStorageUnavailable
+	}
+	for taskID, task := range tasks {
+		if task.terminal && claimCount[taskID] != 0 || !task.terminal && claimCount[taskID] != 1 {
+			return ErrStorageUnavailable
+		}
 	}
 	return nil
 }
+
+type preflightTask struct {
+	repositoryIdentity string
+	originHost         string
+	terminal           bool
+}
+
 func (s *SQLite) Close() error {
 	if s == nil || s.db == nil {
 		return nil

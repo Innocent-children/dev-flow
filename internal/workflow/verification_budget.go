@@ -75,6 +75,23 @@ func EvaluateVerificationBudget(
 	return nil
 }
 
+func ValidateComprehensionConfirmation(existing []domain.EvidenceSummary, input NormalizedEvidenceInput) error {
+	if len(existing)+1 > domain.MaxRetainedEvidenceItems {
+		return domain.ErrVerificationBudgetExceeded
+	}
+	seen := make(map[domain.ID]bool, len(existing))
+	for _, item := range existing {
+		if item.Validate() != nil || seen[item.EvidenceID] {
+			return domain.ErrInvalidArgument
+		}
+		seen[item.EvidenceID] = true
+	}
+	if validateNormalizedEvidenceInput(input) != nil || input.Source != domain.EvidenceSourceUser || input.Status != domain.EvidencePassed {
+		return domain.ErrInvalidArgument
+	}
+	return nil
+}
+
 func normalizeRequiredPayloadText(value string, max int) (string, error) {
 	if !utf8.ValidString(value) {
 		return "", domain.ErrInvalidArgument

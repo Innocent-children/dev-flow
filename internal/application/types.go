@@ -35,6 +35,10 @@ type OperationProbe struct {
 	RepositoryBindingDigest domain.Digest
 	Payload                 json.RawMessage
 }
+type RecoveryApplyInput struct {
+	OperationID  domain.ID
+	SourceCursor domain.NodeID
+}
 type GetTaskRequest struct {
 	Host           domain.Host
 	TaskID         domain.ID
@@ -67,6 +71,7 @@ type ApplyActionRequest struct {
 	SourceCursor            domain.NodeID
 	RepositoryBindingDigest domain.Digest
 	Payload                 json.RawMessage
+	RecoveryApply           *RecoveryApplyInput
 }
 type ApplyActionResult struct{ Task domain.ProcessTask }
 type CancelTaskRequest struct {

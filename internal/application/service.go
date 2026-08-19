@@ -56,6 +56,8 @@ func (s *Service) id(prefix string) (domain.ID, error) {
 }
 func mapStoreError(err error) error {
 	switch {
+	case errors.Is(err, store.ErrInvalidArgument):
+		return domain.ErrInvalidArgument
 	case errors.Is(err, store.ErrTaskNotFound):
 		return domain.ErrTaskNotFound
 	case errors.Is(err, store.ErrActiveTaskConflict):
@@ -81,7 +83,7 @@ func (s *Service) loadOwned(ctx context.Context, host domain.Host, id domain.ID)
 		return domain.ProcessTask{}, domain.ErrHostOwnershipConflict
 	}
 	if workflow.ValidateProcessTask(task) != nil {
-		return domain.ProcessTask{}, domain.ErrInternal
+		return domain.ProcessTask{}, domain.ErrStorageUnavailable
 	}
 	return task, nil
 }

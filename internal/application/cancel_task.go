@@ -2,20 +2,28 @@ package application
 
 import (
 	"context"
+	"strings"
+	"unicode/utf8"
+
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/store"
-	"strings"
 )
 
 func (s *Service) CancelTask(ctx context.Context, r CancelTaskRequest) (CancelTaskResult, error) {
+	if !s.valid() || ctx == nil || !r.RequestID.IsValid() || !r.Host.IsValid() || !r.TaskID.IsValid() {
+		return CancelTaskResult{}, domain.ErrInvalidArgument
+	}
 	task, err := s.loadOwned(ctx, r.Host, r.TaskID)
 	if err != nil {
 		return CancelTaskResult{}, err
 	}
+	if task.CurrentNode.Terminal() {
+		return CancelTaskResult{}, domain.ErrTaskTerminal
+	}
 	if task.Revision != r.ExpectedRevision {
 		return CancelTaskResult{}, domain.ErrRevisionConflict
 	}
-	if strings.TrimSpace(r.Reason) == "" || r.Reason != strings.TrimSpace(r.Reason) {
+	if !utf8.ValidString(r.Reason) || strings.TrimSpace(r.Reason) == "" || r.Reason != strings.TrimSpace(r.Reason) || len(r.Reason) > domain.MaxReasonBytes {
 		return CancelTaskResult{}, domain.ErrInvalidArgument
 	}
 	source := task.CurrentNode
@@ -26,6 +34,8 @@ func (s *Service) CancelTask(ctx context.Context, r CancelTaskRequest) (CancelTa
 	now := s.now().UTC()
 	next.CurrentNode = domain.NodeCancelled
 	next.CurrentAction = nil
+	next.Blocker = nil
+	next.ResumeNode = nil
 	next.Revision++
 	next.UpdatedAt = now
 	next.CompletedAt = &now

@@ -62,7 +62,8 @@ func (s *Server) dispatch(ctx context.Context, tool string, id domain.ID, raw []
 	switch tool {
 	case ToolServerInfo:
 		d := workflow.StandardProcess()
-		return EncodeSuccess(string(id), tool, ServerInfoResult{Product: "dev-flow", Version: s.version, SchemaVersion: 2, CoreLimitsVersion: domain.CoreLimitsVersion, Transport: "stdio", Health: "ready", SupportedProcesses: []domain.ProcessReference{d.Reference}, SupportedHosts: []string{"codex", "deepseek"}, MethodProfiles: []domain.MethodProfile{domain.MethodPlain, domain.MethodSpecKit, domain.MethodOpenSpec}, Tools: ToolNames()})
+		process := SupportedProcessResult{ProcessID: d.Reference.ID, ProcessVersion: d.Reference.Version, DefinitionDigest: d.Reference.DefinitionDigest, NewTaskSupported: true}
+		return EncodeSuccess(string(id), tool, ServerInfoResult{Product: "dev-flow", Version: s.version, SchemaVersion: 2, CoreLimitsVersion: domain.CoreLimitsVersion, Transport: "stdio", Health: "ready", SupportedProcesses: []SupportedProcessResult{process}, SupportedHosts: []string{"codex", "deepseek"}, MethodProfiles: []domain.MethodProfile{domain.MethodPlain, domain.MethodSpecKit, domain.MethodOpenSpec}, Tools: ToolNames()})
 	case ToolOpenTask:
 		var w openWire
 		_ = decodeClosed(raw, &w)
@@ -95,7 +96,7 @@ func (s *Server) dispatch(ctx context.Context, tool string, id domain.ID, raw []
 	case ToolApplyAction:
 		var w applyWire
 		_ = decodeClosed(raw, &w)
-		r, err := s.application.ApplyAction(ctx, application.ApplyActionRequest{RequestID: w.RequestID, Host: w.Host, TaskID: w.TaskID, ExpectedRevision: w.Revision, ActionID: w.ActionID, ActionKind: w.ActionKind, ProcessID: w.ProcessID, ProcessVersion: w.ProcessVersion, ProcessDefinitionDigest: w.ProcessDefinitionDigest, SourceCursor: w.SourceCursor, RepositoryBindingDigest: w.RepositoryBindingDigest, Payload: w.Payload})
+		r, err := s.application.ApplyAction(ctx, application.ApplyActionRequest{RequestID: w.RequestID, Host: w.Host, TaskID: w.TaskID, ExpectedRevision: w.Revision, ActionID: w.ActionID, ActionKind: w.ActionKind, ProcessID: w.ProcessID, ProcessVersion: w.ProcessVersion, ProcessDefinitionDigest: w.ProcessDefinitionDigest, SourceCursor: w.SourceCursor, RepositoryBindingDigest: w.RepositoryBindingDigest, Payload: w.Payload, RecoveryApply: toRecoveryApply(w.RecoveryApply)})
 		if err != nil {
 			return EncodeError(string(id), tool, err)
 		}

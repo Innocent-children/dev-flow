@@ -64,10 +64,36 @@ func ValidateProcessTask(task domain.ProcessTask) error {
 	return nil
 }
 func sameAction(a, b domain.ProcessActionV2) bool {
-	if a.ActionID != b.ActionID || a.Kind != b.Kind || a.TaskID != b.TaskID || a.Revision != b.Revision || a.Process != b.Process || a.NodeID != b.NodeID || a.RepositoryBindingDigest != b.RepositoryBindingDigest || a.PayloadContract != b.PayloadContract || a.MethodProfile != b.MethodProfile || a.Guidance != b.Guidance || !a.IssuedAt.Equal(b.IssuedAt) {
+	if a.ActionID != b.ActionID || a.Kind != b.Kind || a.TaskID != b.TaskID || a.Revision != b.Revision || a.Process != b.Process || a.NodeID != b.NodeID || a.RepositoryBindingDigest != b.RepositoryBindingDigest || a.PayloadContract != b.PayloadContract || a.MethodProfile != b.MethodProfile || !a.IssuedAt.Equal(b.IssuedAt) {
 		return false
 	}
-	return slicesEqual(a.AllowedEffects, b.AllowedEffects) && slicesEqual(a.RequiredEvidence, b.RequiredEvidence) && slicesEqual(a.SemanticMethodSteps, b.SemanticMethodSteps) && slicesEqual(a.AvailableTransitions, b.AvailableTransitions) && slicesEqual(a.NodeContract.EntryConditions, b.NodeContract.EntryConditions) && slicesEqual(a.NodeContract.CompletionConditions, b.NodeContract.CompletionConditions) && a.NodeContract.Purpose == b.NodeContract.Purpose
+	return slicesEqual(a.AllowedEffects, b.AllowedEffects) &&
+		slicesEqual(a.RequiredEvidence, b.RequiredEvidence) &&
+		sameMethodStepAuthority(a.SemanticMethodSteps, b.SemanticMethodSteps) &&
+		sameTransitionAuthority(a.AvailableTransitions, b.AvailableTransitions)
+}
+func sameMethodStepAuthority(a, b []domain.SemanticMethodStep) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].StepID != b[i].StepID || a[i].Required != b[i].Required {
+			return false
+		}
+	}
+	return true
+}
+func sameTransitionAuthority(a, b []domain.TransitionProjection) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].TransitionID != b[i].TransitionID || a[i].Destination != b[i].Destination ||
+			a[i].Guard != b[i].Guard || a[i].ReasonRequired != b[i].ReasonRequired {
+			return false
+		}
+	}
+	return true
 }
 func slicesEqual[T comparable](a, b []T) bool {
 	if len(a) != len(b) {

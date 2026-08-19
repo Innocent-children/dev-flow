@@ -56,12 +56,26 @@ type ProcessActionV2 struct {
 }
 
 func (a ProcessActionV2) Validate() error {
-	if validateID(a.ActionID) != nil || validateID(a.TaskID) != nil || a.Revision == 0 || a.Process.Validate() != nil || !a.NodeID.IsValid() || !a.Kind.IsValidV2() || !a.RepositoryBindingDigest.IsValid() || !a.MethodProfile.IsValid() || validateUTC(a.IssuedAt) != nil || requireNormalizedText(a.PayloadContract, MaxIdentifierBytes, true) != nil || requireNormalizedText(a.Guidance, MaxGuidanceBytes, true) != nil || len(a.AllowedEffects) == 0 || len(a.RequiredEvidence) == 0 || len(a.SemanticMethodSteps) == 0 || len(a.AvailableTransitions) > MaxStandardProcessTransitions {
+	if validateID(a.ActionID) != nil || validateID(a.TaskID) != nil || a.Revision == 0 || a.Process.Validate() != nil || !a.NodeID.IsValid() || !a.Kind.IsValidV2() || !a.RepositoryBindingDigest.IsValid() || !a.MethodProfile.IsValid() || validateUTC(a.IssuedAt) != nil || requireNormalizedText(a.PayloadContract, MaxIdentifierBytes, true) != nil || requireNormalizedText(a.Guidance, MaxGuidanceBytes, true) != nil || requireNormalizedText(a.NodeContract.Purpose, MaxGuidanceBytes, true) != nil || len(a.NodeContract.EntryConditions) == 0 || validateNormalizedList(a.NodeContract.EntryConditions) != nil || len(a.NodeContract.CompletionConditions) == 0 || validateNormalizedList(a.NodeContract.CompletionConditions) != nil || len(a.AllowedEffects) == 0 || len(a.RequiredEvidence) == 0 || len(a.SemanticMethodSteps) == 0 || len(a.AvailableTransitions) > MaxStandardProcessTransitions {
 		return ErrInvalidArgument
+	}
+	seenEffects := map[AllowedEffect]bool{}
+	for _, effect := range a.AllowedEffects {
+		if !effect.IsValidV2() || seenEffects[effect] {
+			return ErrInvalidArgument
+		}
+		seenEffects[effect] = true
+	}
+	seenEvidence := map[EvidenceRequirementKind]bool{}
+	for _, requirement := range a.RequiredEvidence {
+		if requirement.ValidateV2() != nil || seenEvidence[requirement.Kind] {
+			return ErrInvalidArgument
+		}
+		seenEvidence[requirement.Kind] = true
 	}
 	seenTransitions := map[TransitionID]bool{}
 	for _, transition := range a.AvailableTransitions {
-		if !transition.TransitionID.IsValid() || !transition.Destination.IsValid() || !transition.Guard.IsValid() || seenTransitions[transition.TransitionID] {
+		if !transition.TransitionID.IsValid() || !transition.Destination.IsValid() || !transition.Guard.IsValid() || requireNormalizedText(transition.Description, MaxGuidanceBytes, true) != nil || requireNormalizedText(transition.SelectionCondition, MaxGuidanceBytes, true) != nil || seenTransitions[transition.TransitionID] {
 			return ErrInvalidArgument
 		}
 		seenTransitions[transition.TransitionID] = true
@@ -81,6 +95,14 @@ type ProcessBlocker struct {
 	ResumeNode NodeID `json:"resume_node"`
 	Message    string `json:"message"`
 }
+
+func (b ProcessBlocker) Validate() error {
+	if validateID(b.BlockerID) != nil || !b.ResumeNode.Normal() || requireNormalizedText(b.Message, MaxReasonBytes, true) != nil {
+		return ErrInvalidArgument
+	}
+	return nil
+}
+
 type ProcessOutcome struct {
 	Status                TerminalStatus     `json:"status"`
 	Summary               string             `json:"summary"`
@@ -169,13 +191,16 @@ func (t ProcessTask) Validate() error {
 			return ErrInvalidArgument
 		}
 	} else if t.CurrentNode == NodeBlocked {
-		if t.Blocker == nil || t.ResumeNode == nil || !t.ResumeNode.Normal() || t.Blocker.ResumeNode != *t.ResumeNode || t.CurrentAction == nil || t.CurrentAction.Kind != ActionResolveBlocker {
+		if t.Blocker == nil || t.Blocker.Validate() != nil || t.ResumeNode == nil || !t.ResumeNode.Normal() || t.Blocker.ResumeNode != *t.ResumeNode || t.CurrentAction == nil || t.CurrentAction.Kind != ActionResolveBlocker {
 			return ErrInvalidArgument
 		}
 	} else if !t.CurrentNode.Normal() || t.CurrentAction == nil || t.Blocker != nil || t.ResumeNode != nil || t.Outcome != nil || t.CompletedAt != nil {
 		return ErrInvalidArgument
 	}
 	if t.CurrentAction != nil && (t.CurrentAction.Validate() != nil || t.CurrentAction.TaskID != t.TaskID || t.CurrentAction.Revision != t.Revision || t.CurrentAction.Process != t.Process || t.CurrentAction.NodeID != t.CurrentNode || t.CurrentAction.RepositoryBindingDigest != t.Repository.BindingDigest || t.CurrentAction.MethodProfile != t.Intent.MethodProfile) {
+		return ErrInvalidArgument
+	}
+	if !authorityMatchesCurrentNode(t) {
 		return ErrInvalidArgument
 	}
 	if t.LastOperation != nil && (t.LastOperation.Validate() != nil || t.LastOperation.ToRevision != t.Revision) {
@@ -201,7 +226,13 @@ func (t ProcessTask) Validate() error {
 			}
 		}
 	}
-	if t.Comprehension != nil && (t.Comprehension.Validate() != nil || t.Test == nil || t.Comprehension.RequirementsRevision != t.Test.RequirementsRevision || t.Comprehension.DesignRevision != t.Test.DesignRevision || t.Comprehension.TaskPlanRevision != t.Test.TaskPlanRevision || t.Comprehension.RepositoryBindingDigest != t.Test.RepositoryBindingDigest) {
+	if t.TaskPlan != nil && !taskPlanAcceptanceIndexesValid(*t.TaskPlan, t.Requirements) {
+		return ErrInvalidArgument
+	}
+	if t.Implementation != nil && !implementationWorkItemsValid(*t.Implementation, t.TaskPlan) {
+		return ErrInvalidArgument
+	}
+	if t.Comprehension != nil && (t.Comprehension.Validate() != nil || t.Test == nil || t.Comprehension.TestRecordID != t.Test.RecordID || t.Comprehension.RequirementsRevision != t.Test.RequirementsRevision || t.Comprehension.DesignRevision != t.Test.DesignRevision || t.Comprehension.TaskPlanRevision != t.Test.TaskPlanRevision || t.Comprehension.RepositoryBindingDigest != t.Test.RepositoryBindingDigest) {
 		return ErrInvalidArgument
 	}
 	if t.Comprehension != nil {
@@ -237,6 +268,70 @@ func (t ProcessTask) Validate() error {
 	return nil
 }
 
+func authorityMatchesCurrentNode(t ProcessTask) bool {
+	node := t.CurrentNode
+	if node == NodeBlocked {
+		if t.ResumeNode == nil {
+			return false
+		}
+		node = *t.ResumeNode
+	}
+	switch node {
+	case NodeRequirements:
+		return t.Design == nil && t.TaskPlan == nil && t.Implementation == nil && t.Test == nil && t.Comprehension == nil && t.Outcome == nil
+	case NodeDesign:
+		return t.Requirements != nil && t.TaskPlan == nil && t.Implementation == nil && t.Test == nil && t.Comprehension == nil && t.Outcome == nil
+	case NodeTasks:
+		return t.Requirements != nil && t.Design != nil && t.TaskPlan == nil && t.Implementation == nil && t.Test == nil && t.Comprehension == nil && t.Outcome == nil
+	case NodeImplement:
+		return t.Requirements != nil && t.Design != nil && t.TaskPlan != nil && t.Test == nil && t.Comprehension == nil && t.Outcome == nil
+	case NodeTest:
+		return t.Requirements != nil && t.Design != nil && t.TaskPlan != nil && t.Implementation != nil && t.Test == nil && t.Comprehension == nil && t.Outcome == nil
+	case NodeComprehensionReview:
+		return t.Requirements != nil && t.Design != nil && t.TaskPlan != nil && t.Implementation != nil && t.Test != nil && t.Comprehension == nil && t.Outcome == nil
+	case NodeRefactor:
+		return t.Requirements != nil && t.Design != nil && t.TaskPlan != nil && t.Implementation != nil && t.Test == nil && t.Comprehension == nil && t.Outcome == nil
+	case NodeDelivery:
+		return t.Requirements != nil && t.Design != nil && t.TaskPlan != nil && t.Implementation != nil && t.Test != nil && t.Comprehension != nil && t.Outcome == nil
+	case NodeDone:
+		return t.Requirements != nil && t.Design != nil && t.TaskPlan != nil && t.Implementation != nil && t.Test != nil && t.Comprehension != nil && t.Outcome != nil && t.Outcome.Status == TerminalCompleted && t.CompletedAt != nil
+	case NodeCancelled:
+		return t.Outcome != nil && t.Outcome.Status == TerminalCancelled && t.CompletedAt != nil
+	default:
+		return false
+	}
+}
+
+func taskPlanAcceptanceIndexesValid(plan TaskPlanBaseline, requirements *RequirementsBaseline) bool {
+	if requirements == nil {
+		return false
+	}
+	for _, item := range plan.WorkItems {
+		for _, index := range item.AcceptanceIndexes {
+			if int(index) >= len(requirements.AcceptanceCriteria) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func implementationWorkItemsValid(implementation ImplementationRecord, plan *TaskPlanBaseline) bool {
+	if plan == nil {
+		return false
+	}
+	known := make(map[ID]bool, len(plan.WorkItems))
+	for _, item := range plan.WorkItems {
+		known[item.WorkItemID] = true
+	}
+	for _, id := range implementation.CompletedWorkItemIDs {
+		if !known[id] {
+			return false
+		}
+	}
+	return true
+}
+
 func baselineRevisionChainsValid(t ProcessTask, history map[BaselineKind]map[uint32]bool) bool {
 	current := map[BaselineKind]uint32{}
 	if t.Requirements != nil {
@@ -266,7 +361,7 @@ func completedOutcomeMatchesTask(t ProcessTask, evidence map[ID]EvidenceSummary)
 	if t.Requirements == nil || t.Design == nil || t.TaskPlan == nil || t.Implementation == nil || t.Test == nil || t.Comprehension == nil ||
 		t.Outcome.RequirementsRevision != t.Requirements.Revision || t.Outcome.TestRecordID != t.Test.RecordID ||
 		t.Outcome.ComprehensionRecordID != t.Comprehension.RecordID || t.Outcome.FinalRepositoryDigest != t.Repository.BindingDigest ||
-		len(t.Test.UnverifiedItems) != 0 || len(t.Outcome.Acceptance) != len(t.Requirements.AcceptanceCriteria) {
+		len(t.Test.UnverifiedItems) != 0 || len(t.Test.ManualHandoffItems) != 0 || len(t.Outcome.Acceptance) != len(t.Requirements.AcceptanceCriteria) {
 		return false
 	}
 	for i, criterion := range t.Outcome.Acceptance {
@@ -274,24 +369,39 @@ func completedOutcomeMatchesTask(t ProcessTask, evidence map[ID]EvidenceSummary)
 			return false
 		}
 	}
-	seen := map[ID]bool{}
-	testEvidence := map[ID]bool{}
+	expectedAutomated := []ID{}
+	expectedManual := []ID{}
 	for _, id := range t.Test.EvidenceIDs {
-		testEvidence[id] = true
-	}
-	for _, id := range t.Outcome.AutomatedEvidenceIDs {
 		item, ok := evidence[id]
-		if !ok || seen[id] || !testEvidence[id] || item.Source != EvidenceSourceAutomated || item.Status != EvidencePassed {
+		if !ok || item.Status != EvidencePassed {
 			return false
 		}
-		seen[id] = true
-	}
-	for _, id := range t.Outcome.ManualEvidenceIDs {
-		item, ok := evidence[id]
-		if !ok || seen[id] || id != t.Comprehension.UserEvidenceID || item.Source != EvidenceSourceUser || item.Status != EvidencePassed {
+		switch item.Source {
+		case EvidenceSourceAutomated:
+			expectedAutomated = append(expectedAutomated, id)
+		case EvidenceSourceUser:
+			expectedManual = append(expectedManual, id)
+		case EvidenceSourceStatic, EvidenceSourceHostObserved:
+		default:
 			return false
 		}
-		seen[id] = true
+	}
+	confirmation, ok := evidence[t.Comprehension.UserEvidenceID]
+	if !ok || confirmation.Source != EvidenceSourceUser || confirmation.Status != EvidencePassed {
+		return false
+	}
+	expectedManual = append(expectedManual, t.Comprehension.UserEvidenceID)
+	return sameIDs(t.Outcome.AutomatedEvidenceIDs, expectedAutomated) && sameIDs(t.Outcome.ManualEvidenceIDs, expectedManual)
+}
+
+func sameIDs(actual, expected []ID) bool {
+	if len(actual) != len(expected) {
+		return false
+	}
+	for i := range actual {
+		if actual[i] != expected[i] {
+			return false
+		}
 	}
 	return true
 }

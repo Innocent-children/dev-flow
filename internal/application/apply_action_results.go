@@ -208,7 +208,7 @@ func (s *Service) applyComprehensionResult(task *domain.ProcessTask, transition 
 		return domain.ErrTransitionNotAllowed
 	}
 	input := workflow.EvidenceInput{Source: confirmation.Source, Name: "comprehension_confirmation", Status: confirmation.Status, Summary: confirmation.Summary}
-	if err := workflow.EvaluateVerificationBudget(task.Intent.VerificationBudget, task.Evidence, []workflow.NormalizedEvidenceInput{input}, nil); err != nil {
+	if err := workflow.ValidateComprehensionConfirmation(task.Evidence, input); err != nil {
 		return err
 	}
 	evidence, err := s.buildEvidence([]workflow.EvidenceInput{input}, now)
@@ -220,7 +220,7 @@ func (s *Service) applyComprehensionResult(task *domain.ProcessTask, transition 
 		return err
 	}
 	task.Evidence = append(task.Evidence, evidence[0])
-	task.Comprehension = &domain.ComprehensionAssessment{RecordID: recordID, RequirementsRevision: task.Requirements.Revision, DesignRevision: task.Design.Revision, TaskPlanRevision: task.TaskPlan.Revision, RepositoryBindingDigest: task.Repository.BindingDigest, ExplainedComponents: result.ExplainedComponents, MaintenanceRisks: result.MaintenanceRisks, UserEvidenceID: evidence[0].EvidenceID, ConfirmedAt: now}
+	task.Comprehension = &domain.ComprehensionAssessment{RecordID: recordID, TestRecordID: task.Test.RecordID, RequirementsRevision: task.Requirements.Revision, DesignRevision: task.Design.Revision, TaskPlanRevision: task.TaskPlan.Revision, RepositoryBindingDigest: task.Repository.BindingDigest, ExplainedComponents: result.ExplainedComponents, MaintenanceRisks: result.MaintenanceRisks, UserEvidenceID: evidence[0].EvidenceID, ConfirmedAt: now}
 	return nil
 }
 
@@ -270,7 +270,7 @@ func applyDeliveryResult(task *domain.ProcessTask, transition domain.TransitionD
 		}
 		return invalidateForDestination(task, transition.Destination)
 	}
-	if task.Requirements == nil || task.Design == nil || task.TaskPlan == nil || task.Implementation == nil || task.Test == nil || task.Comprehension == nil || len(task.Test.UnverifiedItems) != 0 || len(result.UnverifiedItems) != 0 || len(result.Findings) != 0 || result.TestRecordID != task.Test.RecordID || result.ComprehensionRecordID != task.Comprehension.RecordID || len(result.Acceptance) != len(task.Requirements.AcceptanceCriteria) {
+	if task.Requirements == nil || task.Design == nil || task.TaskPlan == nil || task.Implementation == nil || task.Test == nil || task.Comprehension == nil || len(task.Test.UnverifiedItems) != 0 || len(task.Test.ManualHandoffItems) != 0 || len(result.UnverifiedItems) != 0 || len(result.Findings) != 0 || result.TestRecordID != task.Test.RecordID || result.ComprehensionRecordID != task.Comprehension.RecordID || len(result.Acceptance) != len(task.Requirements.AcceptanceCriteria) {
 		return domain.ErrTransitionNotAllowed
 	}
 	for i, criterion := range result.Acceptance {
@@ -294,24 +294,39 @@ func deliveryEvidenceCurrent(task *domain.ProcessTask, automated, manual []domai
 	for _, item := range task.Evidence {
 		byID[item.EvidenceID] = item
 	}
-	testIDs := map[domain.ID]bool{}
+	expectedAutomated := []domain.ID{}
+	expectedManual := []domain.ID{}
 	for _, id := range task.Test.EvidenceIDs {
-		testIDs[id] = true
-	}
-	seen := map[domain.ID]bool{}
-	for _, id := range automated {
 		item, ok := byID[id]
-		if !ok || seen[id] || !testIDs[id] || item.Source != domain.EvidenceSourceAutomated || item.Status != domain.EvidencePassed {
+		if !ok || item.Status != domain.EvidencePassed {
 			return false
 		}
-		seen[id] = true
-	}
-	for _, id := range manual {
-		item, ok := byID[id]
-		if !ok || seen[id] || id != task.Comprehension.UserEvidenceID || item.Source != domain.EvidenceSourceUser || item.Status != domain.EvidencePassed {
+		switch item.Source {
+		case domain.EvidenceSourceAutomated:
+			expectedAutomated = append(expectedAutomated, id)
+		case domain.EvidenceSourceUser:
+			expectedManual = append(expectedManual, id)
+		case domain.EvidenceSourceStatic, domain.EvidenceSourceHostObserved:
+		default:
 			return false
 		}
-		seen[id] = true
+	}
+	confirmation, ok := byID[task.Comprehension.UserEvidenceID]
+	if !ok || confirmation.Source != domain.EvidenceSourceUser || confirmation.Status != domain.EvidencePassed {
+		return false
+	}
+	expectedManual = append(expectedManual, task.Comprehension.UserEvidenceID)
+	return sameEvidenceIDs(automated, expectedAutomated) && sameEvidenceIDs(manual, expectedManual)
+}
+
+func sameEvidenceIDs(actual, expected []domain.ID) bool {
+	if len(actual) != len(expected) {
+		return false
+	}
+	for i := range actual {
+		if actual[i] != expected[i] {
+			return false
+		}
 	}
 	return true
 }

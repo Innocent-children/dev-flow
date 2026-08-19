@@ -9,6 +9,7 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 	"io"
 	"strings"
+	"unicode/utf8"
 )
 
 type openWire struct {
@@ -41,19 +42,23 @@ type operationProbeWire struct {
 	Payload                 json.RawMessage   `json:"payload"`
 }
 type applyWire struct {
-	RequestID               domain.ID         `json:"request_id"`
-	Host                    domain.Host       `json:"host"`
-	TaskID                  domain.ID         `json:"task_id"`
-	Revision                uint64            `json:"revision"`
-	ActionID                domain.ID         `json:"action_id"`
-	ActionKind              domain.ActionKind `json:"action_kind"`
-	ProcessID               domain.ProcessID  `json:"process_id"`
-	ProcessVersion          uint32            `json:"process_version"`
-	ProcessDefinitionDigest domain.Digest     `json:"process_definition_digest"`
-	SourceCursor            domain.NodeID     `json:"source_cursor"`
-	RepositoryBindingDigest domain.Digest     `json:"repository_binding_digest"`
-	Payload                 json.RawMessage   `json:"payload"`
-	RecoveryApply           json.RawMessage   `json:"recovery_apply"`
+	RequestID               domain.ID          `json:"request_id"`
+	Host                    domain.Host        `json:"host"`
+	TaskID                  domain.ID          `json:"task_id"`
+	Revision                uint64             `json:"revision"`
+	ActionID                domain.ID          `json:"action_id"`
+	ActionKind              domain.ActionKind  `json:"action_kind"`
+	ProcessID               domain.ProcessID   `json:"process_id"`
+	ProcessVersion          uint32             `json:"process_version"`
+	ProcessDefinitionDigest domain.Digest      `json:"process_definition_digest"`
+	SourceCursor            domain.NodeID      `json:"source_cursor"`
+	RepositoryBindingDigest domain.Digest      `json:"repository_binding_digest"`
+	Payload                 json.RawMessage    `json:"payload"`
+	RecoveryApply           *recoveryApplyWire `json:"recovery_apply"`
+}
+type recoveryApplyWire struct {
+	OperationID  domain.ID     `json:"operation_id"`
+	SourceCursor domain.NodeID `json:"source_cursor"`
 }
 type cancelWire struct {
 	RequestID domain.ID   `json:"request_id"`
@@ -64,7 +69,7 @@ type cancelWire struct {
 }
 
 func decodeClosed(raw []byte, out any) error {
-	if rejectDuplicateMembers(raw) != nil {
+	if !utf8.Valid(raw) || rejectDuplicateMembers(raw) != nil {
 		return domain.ErrInvalidArgument
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))
@@ -128,7 +133,7 @@ func ValidateToolInput(tool string, raw []byte) error {
 		var v struct{}
 		return decodeClosed(raw, &v)
 	case ToolOpenTask:
-		if !hasKeys(raw, "host", "repository_path", "new_task") {
+		if !hasKeys(raw, "host", "repository_path") {
 			return domain.ErrInvalidArgument
 		}
 		var v openWire
@@ -143,24 +148,26 @@ func ValidateToolInput(tool string, raw []byte) error {
 		}
 		return nil
 	case ToolGetTask, ToolGetNextAction:
-		if !hasKeys(raw, "host", "task_id", "operation_probe") {
+		if !hasKeys(raw, "host", "task_id") {
 			return domain.ErrInvalidArgument
 		}
 		var v readWire
-		if decodeClosed(raw, &v) != nil || !v.Host.IsValid() || !v.TaskID.IsValid() {
+		if decodeClosed(raw, &v) != nil || !v.Host.IsValid() || !v.TaskID.IsValid() || !validOperationProbe(v.OperationProbe) {
 			return domain.ErrInvalidArgument
 		}
 		return nil
 	case ToolApplyAction:
-		if !hasKeys(raw, "request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_version", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload", "recovery_apply") {
+		if !hasKeys(raw, "request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_version", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload") {
 			return domain.ErrInvalidArgument
 		}
 		var v applyWire
-		if decodeClosed(raw, &v) != nil || !v.RequestID.IsValid() || !v.Host.IsValid() || !v.TaskID.IsValid() || v.Revision == 0 || !v.ActionID.IsValid() || !v.ActionKind.IsValidV2() || v.ProcessID != domain.ProcessStandardDevelopment || v.ProcessVersion != 1 || !v.ProcessDefinitionDigest.IsValid() || !v.SourceCursor.IsValid() || !v.RepositoryBindingDigest.IsValid() || len(v.Payload) == 0 || string(v.Payload) == "null" {
+		if decodeClosed(raw, &v) != nil || !v.RequestID.IsValid() || !v.Host.IsValid() || !v.TaskID.IsValid() || v.Revision == 0 || !v.ActionID.IsValid() || !v.ActionKind.IsValidV2() || v.ProcessID != domain.ProcessStandardDevelopment || v.ProcessVersion != 1 || !v.ProcessDefinitionDigest.IsValid() || !v.SourceCursor.Normal() || !v.RepositoryBindingDigest.IsValid() || len(v.Payload) == 0 || !validRecoveryApply(v.RecoveryApply, v.SourceCursor) || v.RecoveryApply == nil && string(v.Payload) == "null" {
 			return domain.ErrInvalidArgument
 		}
-		if _, _, err := workflow.DecodeStandardPayload(v.SourceCursor, v.Payload); err != nil {
-			return domain.ErrInvalidArgument
+		if string(v.Payload) != "null" {
+			if err := workflow.ValidateRetainedPayload(v.SourceCursor, v.Payload); err != nil {
+				return domain.ErrInvalidArgument
+			}
 		}
 		return nil
 	case ToolCancelTask:
@@ -168,13 +175,30 @@ func ValidateToolInput(tool string, raw []byte) error {
 			return domain.ErrInvalidArgument
 		}
 		var v cancelWire
-		if decodeClosed(raw, &v) != nil || !v.RequestID.IsValid() || !v.Host.IsValid() || !v.TaskID.IsValid() || v.Revision == 0 || strings.TrimSpace(v.Reason) == "" {
+		if decodeClosed(raw, &v) != nil || !v.RequestID.IsValid() || !v.Host.IsValid() || !v.TaskID.IsValid() || v.Revision == 0 || !utf8.ValidString(v.Reason) || strings.TrimSpace(v.Reason) == "" || v.Reason != strings.TrimSpace(v.Reason) || len(v.Reason) > domain.MaxReasonBytes {
 			return domain.ErrInvalidArgument
 		}
 		return nil
 	default:
 		return domain.ErrInvalidArgument
 	}
+}
+func validOperationProbe(v *operationProbeWire) bool {
+	if v == nil {
+		return true
+	}
+	if !v.OperationID.IsValid() || v.ProcessID != domain.ProcessStandardDevelopment || v.ProcessVersion != 1 ||
+		!v.ProcessDefinitionDigest.IsValid() || !v.SourceCursor.Normal() || v.ExpectedRevision == 0 ||
+		!v.ActionID.IsValid() || !v.ActionKind.IsValidV2() || !v.RepositoryBindingDigest.IsValid() || len(v.Payload) == 0 {
+		return false
+	}
+	if string(v.Payload) == "null" {
+		return true
+	}
+	return workflow.ValidateRetainedPayload(v.SourceCursor, v.Payload) == nil
+}
+func validRecoveryApply(v *recoveryApplyWire, source domain.NodeID) bool {
+	return v == nil || v.OperationID.IsValid() && v.SourceCursor.Normal() && v.SourceCursor == source
 }
 func hasKeys(raw []byte, keys ...string) bool {
 	var value map[string]json.RawMessage
@@ -200,4 +224,10 @@ func toProbe(w *operationProbeWire) *application.OperationProbe {
 		return nil
 	}
 	return &application.OperationProbe{OperationID: w.OperationID, ProcessID: w.ProcessID, ProcessVersion: w.ProcessVersion, ProcessDefinitionDigest: w.ProcessDefinitionDigest, SourceCursor: w.SourceCursor, ExpectedRevision: w.ExpectedRevision, ActionID: w.ActionID, ActionKind: w.ActionKind, RepositoryBindingDigest: w.RepositoryBindingDigest, Payload: w.Payload}
+}
+func toRecoveryApply(w *recoveryApplyWire) *application.RecoveryApplyInput {
+	if w == nil {
+		return nil
+	}
+	return &application.RecoveryApplyInput{OperationID: w.OperationID, SourceCursor: w.SourceCursor}
 }
