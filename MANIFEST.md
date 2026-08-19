@@ -1,88 +1,90 @@
-# 治理与规格资产清单
+# Dev Flow Governance and Spec Kit Manifest
 
-本文件索引仓库中的治理文档和 Spec Kit 功能包，不是当前 checkout 的完整源码、npm
-allowlist 或 Release manifest。
+This file indexes governance assets and Feature packages. It is not a source allowlist, npm package
+manifest, release manifest, or proof that every listed capability is currently published.
 
-## 项目治理
+## Governance Authority
 
-- `.specify/memory/constitution.md`
-- `AGENTS.md`
-- `docs/PRODUCT.md`
-- `docs/ARCHITECTURE.md`
-- `docs/ROADMAP.md`
-- `docs/SPEC-KIT-WORKFLOW.md`
-- `docs/RELEASE-STRATEGY.md`
-- `docs/FEATURE-DEPENDENCIES.md`
-- `docs/TOOLCHAIN-BASELINES.md`
+Read governance in this order:
 
-## 完整 Spec Kit 功能包
+1. `.specify/memory/constitution.md`
+2. `docs/SPEC-KIT-WORKFLOW.md`
+3. `AGENTS.md`
+4. the active Feature's `README.md`, `spec.md`, `plan.md`, `contracts/`, and `tasks.md`
 
-### `001-bootstrap-monorepo`
+The repository contains one root `.specify/` project. Completed historical Feature packages are
+frozen delivery evidence and are not bulk-rewritten when templates change.
 
-- `spec.md`
-- `plan.md`
-- `research.md`
-- `data-model.md`
-- `quickstart.md`
-- `contracts/`
-- `checklists/requirements.md`
-- `tasks.md`
+## Spec Kit Templates
 
-### `002-govern-and-resume-single-repository-task`
+```text
+.specify/templates/
+├── constitution-template.md
+├── feature-readme-template.md
+├── spec-template.md
+├── plan-template.md
+├── checklist-template.md
+└── tasks-template.md
+```
 
-- `spec.md`
-- `plan.md`
-- `research.md`
-- `data-model.md`
-- `quickstart.md`
-- `contracts/`
-- `checklists/requirements.md`
-- `tasks.md`
+New Product, shared-contract, persistence, Host Adapter, and Release changes follow
+`docs/SPEC-KIT-WORKFLOW.md`.
 
-### `003-codex-explicit-dev-flow`
+## Feature Registry
 
-完整规划与实施跟踪包；产品实现位于独立 003 分支，合并后成为 005 的入口基线。
+| Feature | Type | Status | Product Role |
+| --- | --- | --- | --- |
+| `001-bootstrap-monorepo` | Product foundation | Historical | Root project, module/workspace, governance, bounded CI |
+| `002-govern-and-resume-single-repository-task` | Product Feature | Historical | Core Contract 0.1, SQLite, six MCP tools, released linear workflow |
+| `003-codex-explicit-dev-flow` | Host Product Feature | Historical | Explicit Codex Plugin/Skill/MCP product and native acceptance |
+| `004-deepseek-explicit-dev-flow` | Host Product Feature | Deferred | Future DeepSeek product; not current support |
+| `005-recover-uncertain-actions-and-drift` | Product Feature | Historical | Read-before-retry and repository-drift recovery hardening |
+| `006-publish-codex-installable-product` | Release Feature | Historical | Deterministic/public Codex release machinery and first release evidence |
+| `007-close-open-task-contract` | Corrective/Product Feature | Historical | Complete open-task contract and published `0.3.0` evidence |
+| `008-refactor-to-development-process-graph` | Product Feature | Planned | Replace new-task linear workflow with developer-visible process graph |
 
-### `004-deepseek-explicit-dev-flow`
+## Current Product Transition
 
-完整规划包，当前状态为 **DEFERRED**。保留用于未来重新核验和实施，不再阻塞 005/006。
+`0.3.0` and Features 001–007 remain historical truth. Feature 008 is the only approved specification
+for changing new-task workflow semantics from Core Contract 0.1 to the development-process graph.
 
-### `005-recover-uncertain-actions-and-drift`
+Until Feature 008 completes:
 
-- `README.md`
-- `spec.md`
-- `plan.md`
-- `research.md`
-- `data-model.md`
-- `quickstart.md`
-- `contracts/recovery-hardening.md`
-- `contracts/test-failure-model.md`
-- `checklists/requirements.md`
-- `tasks.md`
+- existing runtime behavior remains Core Contract 0.1;
+- no new capability may be added to the released linear workflow;
+- Feature 008 does not carry that workflow or its task data into the graph runtime;
+- no implementation may infer the Feature 008 graph from this manifest alone;
+- Feature 008 must pass clarify/checklist/analyze before production code changes.
 
-### `006-publish-codex-installable-product`
+Feature 008 is not release authority. Version alignment, npm publication, Tag creation, GitHub
+Release mutation, and final distributed-artifact support claims require a later Release Change.
 
-- `README.md`
-- `spec.md`
-- `plan.md`
-- `research.md`
-- `data-model.md`
-- `quickstart.md`
-- `contracts/codex-public-package.md`
-- `contracts/release-process.md`
-- `contracts/release-manifest.schema.json`
-- `contracts/publication-record.schema.json`
-- `checklists/requirements.md`
-- `tasks.md`
+## Repository Boundaries
 
-旧的 `006-publish-two-installable-products` 已被 Codex-only 首发规格取代。DeepSeek 发布将在
-Feature 004 完成后使用新的独立 Feature。
+| Area | Paths |
+| --- | --- |
+| Governance | `.specify/memory/`, `.specify/templates/`, `AGENTS.md`, `docs/SPEC-KIT-WORKFLOW.md` |
+| Feature evidence | `specs/` |
+| Core | `cmd/dev-flow/`, `internal/`, `protocol/fixtures/` |
+| Host products | `packages/codex/`, `packages/deepseek/` |
+| Contract and journey tests | `tests/contract/`, `tests/journeys/` |
+| Maintainer release tooling | `release/`, `scripts/` |
 
-## 主要实现边界
+## Feature Package Standard
 
-- 根治理与元数据：`README.md`、`AGENTS.md`、`LICENSE`、`VERSION`；
-- Core：`cmd/dev-flow/`、`internal/`、`protocol/fixtures/`；
-- Host 产品：`packages/codex/`、`packages/deepseek/`；
-- 合同与 journey：`tests/contract/`、`tests/journeys/`；
-- 发布实现保留区：`release/`、`scripts/`；
-- Spec Kit：一个根 `.specify/`、`.agents/skills/speckit-*`、`specs/`。
+Every new complete Feature package contains:
+
+```text
+specs/<NNN-feature-name>/
+├── README.md
+├── spec.md
+├── plan.md
+├── research.md
+├── data-model.md
+├── quickstart.md
+├── contracts/
+├── checklists/requirements.md
+└── tasks.md
+```
+
+A file may state `N/A` with a reason, but it must not be silently omitted.
