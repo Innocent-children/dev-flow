@@ -225,26 +225,26 @@ existing tool surface.
 - [x] T053 [US2] Implement every backward/remediation guard and normalized reason rule for the 29
   transitions in `internal/workflow/standard_process.go` and
   `internal/workflow/payloads_v2.go` per FR-011–FR-012.
-- [ ] T054 [P] [US2] Add table-driven `internal/workflow/standard_process_test.go` coverage proving
+- [x] T054 [P] [US2] Add table-driven `internal/workflow/standard_process_test.go` coverage proving
   all 29 legal transitions, declaration order, guard acceptance/rejection, and every undeclared
   source/transition zero-write outcome per SC-002.
-- [ ] T055 [P] [US2] Add `internal/domain/task_v2_invalidation_test.go` for the complete invalidation
+- [x] T055 [P] [US2] Add `internal/domain/task_v2_invalidation_test.go` for the complete invalidation
   matrix, monotonic baseline revisions, compact history limits, and stale record rejection per
   SC-005–SC-007.
-- [ ] T056 [US2] Add `tests/journeys/process_graph_iteration_test.go` implementing test failure →
+- [x] T056 [US2] Add `tests/journeys/process_graph_iteration_test.go` implementing test failure →
   implementation, test pass → comprehension, code-too-complex → refactor, refactor → test, fresh
   comprehension, and DONE per SC-004–SC-007.
-- [ ] T057 [US2] Add negative comprehension/delivery tests in the same journey file for absent user
+- [x] T057 [US2] Add negative comprehension/delivery tests in the same journey file for absent user
   evidence, stale test, stale comprehension, old baseline revisions, wrong evidence source, and
   direct refactor/delivery skips per SC-006–SC-007.
-- [ ] T058 [US2] Add requirement/design rework journeys from TEST/COMPREHENSION/DELIVERY and prove
+- [x] T058 [US2] Add requirement/design rework journeys from TEST/COMPREHENSION/DELIVERY and prove
   exact authority invalidation/revision rebinding per Quickstart Journey C.
 
 **Verification**
 
-- [ ] T059 [US2] Run only `go test ./internal/domain ./internal/workflow ./internal/application
+- [x] T059 [US2] Run only `go test ./internal/domain ./internal/workflow ./internal/application
   ./tests/journeys -run 'StandardProcess|Invalidation|ProcessGraphIteration|ProcessGraphRework'`.
-- [ ] T060 [US2] Run `$speckit-converge`; record `USER_STORY_2_CHECKPOINT_COMPLETE` and stop.
+- [x] T060 [US2] Run `$speckit-converge`; record `USER_STORY_2_CHECKPOINT_COMPLETE` and stop.
 
 **Checkpoint**: The development loop distinguishes implementation, design, requirement, complexity,
 verification, and comprehension failures; stale evidence cannot reach delivery.
