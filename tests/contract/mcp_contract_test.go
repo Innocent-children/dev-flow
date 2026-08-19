@@ -16,6 +16,15 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/store"
 )
 
+func TestMCPContractGraphCatalogAndClosedInput(t *testing.T) {
+	if len(coremcp.ToolNames()) != 6 {
+		t.Fatal("expected six tools")
+	}
+	if err := coremcp.ValidateToolInput(coremcp.ToolGetTask, []byte(`{"host":"codex","task_id":"task","destination":"DONE"}`)); err == nil {
+		t.Fatal("destination input accepted")
+	}
+}
+
 func TestFeature005PublicSurfaceFreeze(t *testing.T) {
 	t.Parallel()
 

@@ -96,10 +96,10 @@ type ProcessOutcome struct {
 }
 
 func (o ProcessOutcome) Validate() error {
-	if !o.Status.IsValid() || requireNormalizedText(o.Summary, MaxOutcomeSummaryBytes, true) != nil || o.RequirementsRevision == 0 || !o.FinalRepositoryDigest.IsValid() || validateUTC(o.CompletedAt) != nil {
+	if !o.Status.IsValid() || requireNormalizedText(o.Summary, MaxOutcomeSummaryBytes, true) != nil || !o.FinalRepositoryDigest.IsValid() || validateUTC(o.CompletedAt) != nil {
 		return ErrInvalidArgument
 	}
-	if o.Status == TerminalCompleted && (len(o.Acceptance) == 0 || validateID(o.TestRecordID) != nil || validateID(o.ComprehensionRecordID) != nil) {
+	if o.Status == TerminalCompleted && (o.RequirementsRevision == 0 || len(o.Acceptance) == 0 || validateID(o.TestRecordID) != nil || validateID(o.ComprehensionRecordID) != nil) {
 		return ErrInvalidArgument
 	}
 	for _, criterion := range o.Acceptance {

@@ -153,41 +153,41 @@ Schema 1/pre-graph database safe-stops with zero writes; public tool schemas are
 
 **Independent Test**: Quickstart Journey A.
 
-- [ ] T035 [US1] Replace standard new-task construction in
+- [x] T035 [US1] Replace standard new-task construction in
   `internal/application/open_task.go` with immutable TaskIntent and
   `standard-development@1/REQUIREMENTS` creation and current-generation resume/conflict selection
   per FR-002, FR-019–FR-020, and FR-S002.
-- [ ] T036 [US1] Add the graph application projection for task reads in
+- [x] T036 [US1] Add the graph application projection for task reads in
   `internal/application/get_task.go` and `internal/application/next_action.go`, including process,
   cursor, baselines, method profile, node contract, and complete transitions per FR-005–FR-008 and
   FR-034.
-- [ ] T037 [US1] Implement standard transition lookup, sealed-payload validation, guard dispatch,
+- [x] T037 [US1] Implement standard transition lookup, sealed-payload validation, guard dispatch,
   destination derivation, authority invalidation, next-action issuance, and CAS request assembly in
   `internal/application/apply_action.go` and `internal/workflow/engine.go` per FR-009–FR-012.
-- [ ] T038 [US1] Add `TRANSITION_NOT_ALLOWED` and `PROCESS_UNSUPPORTED` domain/application mappings in
+- [x] T038 [US1] Add `TRANSITION_NOT_ALLOWED` and `PROCESS_UNSUPPORTED` domain/application mappings in
   `internal/domain/errors.go` and current error adapters per FR-037.
-- [ ] T039 [US1] Upgrade server/open/read/next/apply schemas in `internal/mcp/schemas.go` to the exact
+- [x] T039 [US1] Upgrade server/open/read/next/apply schemas in `internal/mcp/schemas.go` to the exact
   Core Contract 0.2 closed shapes while keeping six tool names/order per FR-032–FR-036.
-- [ ] T040 [US1] Upgrade result projections in `internal/mcp/results.go` and tool dispatch in
+- [x] T040 [US1] Upgrade result projections in `internal/mcp/results.go` and tool dispatch in
   `internal/mcp/tools.go` for graph tasks without exposing private paths/raw artifacts
   per FR-033–FR-036.
-- [ ] T041 [P] [US1] Add canonical standard handshake/open/requirements/design/invalid-edge fixtures
+- [x] T041 [P] [US1] Add canonical standard handshake/open/requirements/design/invalid-edge fixtures
   under `protocol/fixtures/graph-*.json` and document version separation in
   `protocol/fixtures/README.md` per SC-001–SC-003 and SC-010.
-- [ ] T042 [US1] Extend `tests/contract/mcp_contract_test.go`,
+- [x] T042 [US1] Extend `tests/contract/mcp_contract_test.go`,
   `tests/contract/fixture_contract_test.go`, and
   `tests/contract/result_envelope_test.go` for schema 2, exact tool catalog, closed inputs, action
   projection, transition order, and zero-write invalid edge per FR-032–FR-037.
-- [ ] T043 [US1] Add `tests/journeys/process_graph_navigation_test.go` implementing Quickstart
+- [x] T043 [US1] Add `tests/journeys/process_graph_navigation_test.go` implementing Quickstart
   Journey A, including requirements baseline creation, DESIGN edge list, repeated-read identity, and
   invalid `delivery_complete` from DESIGN per SC-001–SC-003.
 
 **Verification**
 
-- [ ] T044 [US1] Run only `go test ./internal/application ./internal/mcp ./tests/contract
+- [x] T044 [US1] Run only `go test ./internal/application ./internal/mcp ./tests/contract
   ./tests/journeys -run 'ProcessGraphNavigation|GraphContract|MCPContract|FixtureContract'` (or the
   exact equivalent focused patterns created by the tests); do not run the full repository suite.
-- [ ] T045 [US1] Run `$speckit-converge`; record `USER_STORY_1_CHECKPOINT_COMPLETE` only when the
+- [x] T045 [US1] Run `$speckit-converge`; record `USER_STORY_1_CHECKPOINT_COMPLETE` only when the
   independent journey passes and stop.
 
 **Checkpoint**: A developer can read current node obligations and all legal next nodes through the

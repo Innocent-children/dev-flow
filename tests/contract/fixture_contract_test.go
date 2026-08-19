@@ -17,6 +17,15 @@ import (
 
 var fixtureREADMEReferencePattern = regexp.MustCompile("`([^`]+\\.json)`")
 
+func TestFixtureContractGraphFixturesExist(t *testing.T) {
+	root := markdownRepositoryRoot(t)
+	for _, name := range []string{"graph-server-info.json", "graph-open-requirements.json", "graph-design-action.json", "graph-invalid-edge.json"} {
+		if _, err := os.Stat(filepath.Join(root, "protocol", "fixtures", name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 const (
 	sharedFixtureCount               = 22
 	sharedFixtureAggregateSHA256     = "8c27bcf6be0e4e5a4bf294c67cbda8cdf281b1b2b2c53fff16206db2828dede7"

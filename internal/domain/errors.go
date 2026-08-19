@@ -16,6 +16,7 @@ const (
 	ErrorTaskTerminal               ErrorCode = "TASK_TERMINAL"
 	ErrorSchemaUnsupported          ErrorCode = "SCHEMA_UNSUPPORTED"
 	ErrorProcessUnsupported         ErrorCode = "PROCESS_UNSUPPORTED"
+	ErrorTransitionNotAllowed       ErrorCode = "TRANSITION_NOT_ALLOWED"
 	ErrorStorageUnavailable         ErrorCode = "STORAGE_UNAVAILABLE"
 	ErrorInternal                   ErrorCode = "INTERNAL_ERROR"
 )
@@ -25,7 +26,7 @@ func (c ErrorCode) IsValid() bool {
 	case ErrorInvalidArgument, ErrorNotGitRepository, ErrorTaskNotFound, ErrorActiveTaskConflict,
 		ErrorHostOwnershipConflict, ErrorRevisionConflict, ErrorActionStale, ErrorRepositoryDrift,
 		ErrorVerificationBudgetExceeded, ErrorTaskBlocked, ErrorTaskTerminal,
-		ErrorSchemaUnsupported, ErrorProcessUnsupported, ErrorStorageUnavailable, ErrorInternal:
+		ErrorSchemaUnsupported, ErrorProcessUnsupported, ErrorTransitionNotAllowed, ErrorStorageUnavailable, ErrorInternal:
 		return true
 	default:
 		return false
@@ -76,6 +77,7 @@ var (
 	ErrTaskTerminal               = &Error{Code: ErrorTaskTerminal, Message: "the task is terminal"}
 	ErrSchemaUnsupported          = &Error{Code: ErrorSchemaUnsupported, Message: "pre-graph data is unsupported; choose a fresh data directory or archive, rename, or delete the old directory outside Core"}
 	ErrProcessUnsupported         = &Error{Code: ErrorProcessUnsupported, Message: "the stored process definition is unsupported"}
+	ErrTransitionNotAllowed       = &Error{Code: ErrorTransitionNotAllowed, Message: "the transition is not allowed from the current node"}
 	ErrStorageUnavailable         = &Error{Code: ErrorStorageUnavailable, Message: "storage is unavailable"}
 	ErrInternal                   = &Error{Code: ErrorInternal, Message: "an internal error occurred"}
 )

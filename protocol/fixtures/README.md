@@ -1,5 +1,8 @@
 # Protocol Fixtures
 
+Core Contract 0.2 graph fixtures use the `graph-*.json` prefix. They describe Schema 2
+`standard-development@1` navigation and remain separate from frozen Contract 0.1 historical fixtures.
+
 This directory owns the shared public-contract fixtures produced by the Dev Flow Core. The same
 fixtures are consumed by future Codex and DeepSeek adapters; host-specific copies or alternate
 workflow contracts do not belong here.

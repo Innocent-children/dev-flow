@@ -24,6 +24,17 @@ type committedEnvelopeSchema struct {
 	AllOf                []json.RawMessage          `json:"allOf"`
 }
 
+func TestGraphContractResultEnvelopeUsesSchema2(t *testing.T) {
+	encoded := coremcp.EncodeSuccess("request", "dev_flow_get_task", map[string]any{"current_node": "REQUIREMENTS"})
+	var envelope map[string]any
+	if err := json.Unmarshal(encoded.JSON, &envelope); err != nil {
+		t.Fatal(err)
+	}
+	if envelope["schema_version"] != float64(2) {
+		t.Fatalf("schema=%v", envelope["schema_version"])
+	}
+}
+
 func TestResultEnvelopeCommittedSchemaShape(t *testing.T) {
 	t.Parallel()
 
