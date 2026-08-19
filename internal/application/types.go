@@ -51,12 +51,13 @@ type GetNextActionRequest struct {
 	OperationProbe *OperationProbe
 }
 type NextActionResult struct {
-	TaskID      domain.ID
-	Process     domain.ProcessReference
-	CurrentNode domain.NodeID
-	Revision    uint64
-	Action      *domain.ProcessActionV2
-	Outcome     *domain.ProcessOutcome
+	TaskID        domain.ID
+	Process       domain.ProcessReference
+	CurrentNode   domain.NodeID
+	Revision      uint64
+	MethodProfile domain.MethodProfile
+	Action        *domain.ProcessActionV2
+	Outcome       *domain.ProcessOutcome
 }
 type ApplyActionRequest struct {
 	RequestID               domain.ID

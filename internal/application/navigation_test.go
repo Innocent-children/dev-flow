@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/store"
 	"strings"
@@ -60,7 +59,7 @@ func TestProcessGraphNavigation(t *testing.T) {
 	if opened.Task.CurrentNode != domain.NodeRequirements || len(opened.Task.CurrentAction.AvailableTransitions) != 1 {
 		t.Fatal("requirements action incomplete")
 	}
-	payload := json.RawMessage(`{"transition_id":"requirements_ready","summary":"Requirements ready.","reason":"","artifacts":[],"method_evidence":[],"node_result":{"problem_class":"none","baseline":{"goal":"Simplify order submission.","scope":["request path"],"out_of_scope":["payments"],"acceptance_criteria":["behavior preserved"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
+	payload := phase5Payload(t, opened.Task, "requirements_ready", "", requirementsNodeResult("Simplify order submission.", []string{"behavior preserved"}))
 	applied, err := service.ApplyAction(context.Background(), ApplyActionRequest{RequestID: "request-apply", Host: domain.HostCodex, TaskID: opened.Task.TaskID, ExpectedRevision: 1, ActionID: opened.Task.CurrentAction.ActionID, ActionKind: opened.Task.CurrentAction.Kind, ProcessID: opened.Task.Process.ID, ProcessVersion: opened.Task.Process.Version, ProcessDefinitionDigest: opened.Task.Process.DefinitionDigest, SourceCursor: opened.Task.CurrentNode, RepositoryBindingDigest: binding.BindingDigest, Payload: payload})
 	if err != nil {
 		t.Fatal(err)

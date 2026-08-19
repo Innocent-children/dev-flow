@@ -32,7 +32,7 @@ func list() map[string]any {
 func problemClass(values ...string) map[string]any { return map[string]any{"enum": values} }
 func payloadSchema(nodeResult map[string]any) map[string]any {
 	artifact := obj([]string{"role", "path", "digest", "summary"}, map[string]any{"role": map[string]any{"enum": []string{"requirements", "design", "task_plan", "implementation", "test", "comprehension", "refactor", "delivery", "other_process"}}, "path": str(), "digest": digest(), "summary": str()})
-	method := obj([]string{"step_id", "status", "capability", "summary"}, map[string]any{"step_id": id(), "status": map[string]any{"enum": []string{"completed", "not_run", "unavailable", "plain_fallback"}}, "capability": map[string]any{"type": "string", "maxLength": 128}, "summary": str()})
+	method := obj([]string{"step_id", "status", "capability", "summary"}, map[string]any{"step_id": id(), "status": map[string]any{"enum": []string{"completed", "not_run", "unavailable", "plain_fallback"}}, "capability": map[string]any{"type": "string", "maxLength": 128, "pattern": "^[a-z0-9_.@-]*$"}, "summary": str()})
 	return obj([]string{"transition_id", "summary", "reason", "artifacts", "method_evidence", "node_result"}, map[string]any{"transition_id": id(), "summary": str(), "reason": map[string]any{"type": "string", "maxLength": 4096}, "artifacts": map[string]any{"type": "array", "maxItems": 16, "items": artifact}, "method_evidence": map[string]any{"type": "array", "maxItems": 16, "items": method}, "node_result": nodeResult})
 }
 func graphPayloads() ([]any, []any) {

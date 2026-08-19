@@ -47,8 +47,9 @@ func TestProblemClassMismatchRejectsTransitionSelection(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			envelope := StandardPayload{TransitionID: tc.transition, Summary: "Classified result.", Reason: "Remediation is required.", Artifacts: []domain.ArtifactReference{}, MethodEvidence: []domain.MethodEvidence{}}
-			if err := ValidatePayload(definition, tc.source, envelope, tc.result, nil); err != domain.ErrTransitionNotAllowed {
+			steps, evidence := phase5DMethodEvidence(t, definition, tc.source)
+			envelope := StandardPayload{TransitionID: tc.transition, Summary: "Classified result.", Reason: "Remediation is required.", Artifacts: []domain.ArtifactReference{}, MethodEvidence: evidence}
+			if err := ValidatePayload(definition, tc.source, envelope, tc.result, steps); err != domain.ErrTransitionNotAllowed {
 				t.Fatalf("error=%v", err)
 			}
 		})
@@ -57,16 +58,30 @@ func TestProblemClassMismatchRejectsTransitionSelection(t *testing.T) {
 
 func TestProblemClassClosedFactsAndForwardRules(t *testing.T) {
 	definition := StandardProcess()
+	steps, evidence := phase5DMethodEvidence(t, definition, domain.NodeDesign)
 	unknown := &DesignResult{ProblemClass: "future", Baseline: &DesignBaselineInput{RequirementsRevision: 1, Approach: "Direct.", Decisions: []string{"Reuse."}}}
-	if err := ValidatePayload(definition, domain.NodeDesign, StandardPayload{TransitionID: "design_ready", Summary: "Ready.", Artifacts: []domain.ArtifactReference{}, MethodEvidence: []domain.MethodEvidence{}}, unknown, nil); err != domain.ErrInvalidArgument {
+	if err := ValidatePayload(definition, domain.NodeDesign, StandardPayload{TransitionID: "design_ready", Summary: "Ready.", Artifacts: []domain.ArtifactReference{}, MethodEvidence: evidence}, unknown, steps); err != domain.ErrInvalidArgument {
 		t.Fatalf("unknown class error=%v", err)
 	}
 	forwardWithFinding := &DesignResult{ProblemClass: ProblemNone, Baseline: &DesignBaselineInput{RequirementsRevision: 1, Approach: "Direct.", Decisions: []string{"Reuse."}}, Findings: []string{"Unexpected classification"}}
-	if err := ValidatePayload(definition, domain.NodeDesign, StandardPayload{TransitionID: "design_ready", Summary: "Ready.", Artifacts: []domain.ArtifactReference{}, MethodEvidence: []domain.MethodEvidence{}}, forwardWithFinding, nil); err != domain.ErrTransitionNotAllowed {
+	if err := ValidatePayload(definition, domain.NodeDesign, StandardPayload{TransitionID: "design_ready", Summary: "Ready.", Artifacts: []domain.ArtifactReference{}, MethodEvidence: evidence}, forwardWithFinding, steps); err != domain.ErrTransitionNotAllowed {
 		t.Fatalf("forward finding error=%v", err)
 	}
 	remediationWithoutFinding := &DesignResult{ProblemClass: ProblemRequirementGap}
-	if err := ValidatePayload(definition, domain.NodeDesign, StandardPayload{TransitionID: "design_requires_requirements", Summary: "Gap.", Reason: "Requirement gap.", Artifacts: []domain.ArtifactReference{}, MethodEvidence: []domain.MethodEvidence{}}, remediationWithoutFinding, nil); err != domain.ErrTransitionNotAllowed {
+	if err := ValidatePayload(definition, domain.NodeDesign, StandardPayload{TransitionID: "design_requires_requirements", Summary: "Gap.", Reason: "Requirement gap.", Artifacts: []domain.ArtifactReference{}, MethodEvidence: evidence}, remediationWithoutFinding, steps); err != domain.ErrTransitionNotAllowed {
 		t.Fatalf("empty remediation finding error=%v", err)
 	}
+}
+
+func phase5DMethodEvidence(t *testing.T, definition domain.ProcessDefinition, node domain.NodeID) ([]domain.SemanticMethodStep, []domain.MethodEvidence) {
+	t.Helper()
+	nodeDefinition, err := NodeDefinition(definition, node)
+	if err != nil {
+		t.Fatal(err)
+	}
+	items := make([]domain.MethodEvidence, len(nodeDefinition.SemanticMethodSteps))
+	for i, step := range nodeDefinition.SemanticMethodSteps {
+		items[i] = domain.MethodEvidence{StepID: step.StepID, Status: domain.MethodStepPlainFallback, Summary: "Completed the current semantic method step."}
+	}
+	return nodeDefinition.SemanticMethodSteps, items
 }

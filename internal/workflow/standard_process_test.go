@@ -177,7 +177,7 @@ func TestStandardProcessReasonMalformedTerminalAndExceptionalRejections(t *testi
 		if terminal.CurrentAction != nil {
 			actionID, actionKind = terminal.CurrentAction.ActionID, terminal.CurrentAction.Kind
 		}
-		_, err = service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "terminal-attempt", Host: domain.HostCodex, TaskID: terminal.TaskID, ExpectedRevision: terminal.Revision, ActionID: actionID, ActionKind: actionKind, ProcessID: terminal.Process.ID, ProcessVersion: terminal.Process.Version, ProcessDefinitionDigest: terminal.Process.DefinitionDigest, SourceCursor: terminal.CurrentNode, RepositoryBindingDigest: terminal.Repository.BindingDigest, Payload: standardPayload(t, "tests_passed", "", validNodeResult(snapshots[domain.NodeTest], "tests_passed"))})
+		_, err = service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "terminal-attempt", Host: domain.HostCodex, TaskID: terminal.TaskID, ExpectedRevision: terminal.Revision, ActionID: actionID, ActionKind: actionKind, ProcessID: terminal.Process.ID, ProcessVersion: terminal.Process.Version, ProcessDefinitionDigest: terminal.Process.DefinitionDigest, SourceCursor: terminal.CurrentNode, RepositoryBindingDigest: terminal.Repository.BindingDigest, Payload: standardPayload(t, snapshots[domain.NodeTest], "tests_passed", "", validNodeResult(snapshots[domain.NodeTest], "tests_passed"))})
 		if terminal.CurrentNode == domain.NodeBlocked && err != domain.ErrTaskBlocked || terminal.CurrentNode.Terminal() && err != domain.ErrTaskTerminal || memory.writes != before {
 			t.Fatalf("node=%s error=%v writes=%d", terminal.CurrentNode, err, memory.writes-before)
 		}
@@ -295,13 +295,20 @@ func reasonFor(tc standardTransitionCase) string {
 	return ""
 }
 
-func standardPayload(t *testing.T, transition domain.TransitionID, reason string, node any) json.RawMessage {
+func standardPayload(t *testing.T, task domain.ProcessTask, transition domain.TransitionID, reason string, node any) json.RawMessage {
 	t.Helper()
-	raw, err := json.Marshal(map[string]any{"transition_id": transition, "summary": "The node result is recorded.", "reason": reason, "artifacts": []any{}, "method_evidence": []any{}, "node_result": node})
+	raw, err := json.Marshal(map[string]any{"transition_id": transition, "summary": "The node result is recorded.", "reason": reason, "artifacts": []any{}, "method_evidence": standardMethodEvidence(task), "node_result": node})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return raw
+}
+func standardMethodEvidence(task domain.ProcessTask) []map[string]any {
+	items := make([]map[string]any, len(task.CurrentAction.SemanticMethodSteps))
+	for i, step := range task.CurrentAction.SemanticMethodSteps {
+		items[i] = map[string]any{"step_id": step.StepID, "status": "plain_fallback", "capability": "", "summary": "Completed the current semantic method step."}
+	}
+	return items
 }
 func standardProblemClass(transition domain.TransitionID) string {
 	classes := map[domain.TransitionID]string{
@@ -323,7 +330,7 @@ func applyStandard(t *testing.T, service *application.Service, task domain.Proce
 		fields["problem_class"] = standardProblemClass(transition)
 	}
 	a := task.CurrentAction
-	result, err := service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: domain.ID(fmt.Sprintf("request-%s-%d", transition, task.Revision)), Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessVersion: task.Process.Version, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: standardPayload(t, transition, reason, node)})
+	result, err := service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: domain.ID(fmt.Sprintf("request-%s-%d", transition, task.Revision)), Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessVersion: task.Process.Version, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: standardPayload(t, task, transition, reason, node)})
 	return result.Task, err
 }
 

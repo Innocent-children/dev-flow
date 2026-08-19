@@ -45,6 +45,7 @@ func TestRecoveryUnavailableApplicationBoundaryZeroObservationWrite(t *testing.T
 		t.Fatal(err)
 	}
 	process := workflow.StandardProcess().Reference
+	requirementsSteps := workflow.StandardProcess().Nodes[0].SemanticMethodSteps
 	probe := &OperationProbe{OperationID: "original-operation", ProcessID: process.ID, ProcessVersion: process.Version, ProcessDefinitionDigest: process.DefinitionDigest, SourceCursor: domain.NodeRequirements, ExpectedRevision: 1, ActionID: "action", ActionKind: domain.ActionCompleteRequirements, RepositoryBindingDigest: digestOf("a"), Payload: json.RawMessage("null")}
 
 	if _, err := service.GetTask(context.Background(), GetTaskRequest{Host: domain.HostCodex, TaskID: "task", OperationProbe: probe}); err != domain.ErrRecoveryUnavailable {
@@ -53,7 +54,10 @@ func TestRecoveryUnavailableApplicationBoundaryZeroObservationWrite(t *testing.T
 	if _, err := service.GetNextAction(context.Background(), GetNextActionRequest{Host: domain.HostCodex, TaskID: "task", OperationProbe: probe}); err != domain.ErrRecoveryUnavailable {
 		t.Fatalf("get next action error=%v", err)
 	}
-	payload := json.RawMessage(`{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":[],"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
+	payload, err := json.Marshal(map[string]any{"transition_id": "requirements_ready", "summary": "Ready.", "reason": "", "artifacts": []any{}, "method_evidence": methodEvidenceForSteps(requirementsSteps, domain.MethodStepPlainFallback, ""), "node_result": map[string]any{"problem_class": "none", "baseline": map[string]any{"goal": "Goal", "scope": []string{}, "out_of_scope": []string{}, "acceptance_criteria": []string{"Accepted"}, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	request := ApplyActionRequest{RequestID: "recovery-request", Host: domain.HostCodex, TaskID: "task", ExpectedRevision: 1, ActionID: "action", ActionKind: domain.ActionCompleteRequirements, ProcessID: process.ID, ProcessVersion: process.Version, ProcessDefinitionDigest: process.DefinitionDigest, SourceCursor: domain.NodeRequirements, RepositoryBindingDigest: digestOf("a"), Payload: payload, RecoveryApply: &RecoveryApplyInput{OperationID: "original-operation", SourceCursor: domain.NodeRequirements}}
 	if _, err := service.ApplyAction(context.Background(), request); err != domain.ErrRecoveryUnavailable {
 		t.Fatalf("recovery apply error=%v", err)
@@ -72,7 +76,10 @@ func TestRecoveryUnavailableApplicationBoundaryZeroObservationWrite(t *testing.T
 		t.Fatalf("malformed recovery apply error=%v", err)
 	}
 	request.RecoveryApply.OperationID = "original-operation"
-	request.Payload = json.RawMessage(`{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":[],"node_result":{"baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
+	request.Payload, err = json.Marshal(map[string]any{"transition_id": "requirements_ready", "summary": "Ready.", "reason": "", "artifacts": []any{}, "method_evidence": methodEvidenceForSteps(requirementsSteps, domain.MethodStepPlainFallback, ""), "node_result": map[string]any{"baseline": map[string]any{"goal": "Goal", "scope": []string{}, "out_of_scope": []string{}, "acceptance_criteria": []string{"Accepted"}, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, err := service.ApplyAction(context.Background(), request); err != domain.ErrInvalidArgument {
 		t.Fatalf("missing Recovery payload field error=%v", err)
 	}
@@ -131,7 +138,7 @@ func TestProblemClassMismatchIsTransitionNotAllowedAndZeroWrite(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			service, memory, _ := phase5Service(t)
 			task := tc.prepare(t, service)
-			raw, err := json.Marshal(map[string]any{"transition_id": tc.transition, "summary": "Mismatch.", "reason": "Remediation is required.", "artifacts": []any{}, "method_evidence": []any{}, "node_result": tc.result})
+			raw, err := json.Marshal(map[string]any{"transition_id": tc.transition, "summary": "Mismatch.", "reason": "Remediation is required.", "artifacts": []any{}, "method_evidence": methodEvidenceForCurrentAction(task, domain.MethodStepPlainFallback, ""), "node_result": tc.result})
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -232,7 +232,7 @@ func phase5TaskAtImplement(t *testing.T, s *Service) domain.ProcessTask {
 }
 func applyPhase5(t *testing.T, s *Service, task domain.ProcessTask, transition, reason string, nodeResult any) domain.ProcessTask {
 	t.Helper()
-	raw := phase5Payload(t, transition, reason, nodeResult)
+	raw := phase5Payload(t, task, transition, reason, nodeResult)
 	a := task.CurrentAction
 	result, err := s.ApplyAction(context.Background(), ApplyActionRequest{RequestID: domain.ID(fmt.Sprintf("apply-%d", task.Revision)), Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessVersion: task.Process.Version, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: raw})
 	if err != nil {
@@ -242,23 +242,36 @@ func applyPhase5(t *testing.T, s *Service, task domain.ProcessTask, transition, 
 }
 func assertApplyFails(t *testing.T, s *Service, task domain.ProcessTask, transition, reason string, nodeResult any, want error) {
 	t.Helper()
-	raw := phase5Payload(t, transition, reason, nodeResult)
+	raw := phase5Payload(t, task, transition, reason, nodeResult)
 	a := task.CurrentAction
 	_, err := s.ApplyAction(context.Background(), ApplyActionRequest{RequestID: "apply-invalid", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessVersion: task.Process.Version, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: raw})
 	if err != want {
 		t.Fatalf("error=%v want=%v", err, want)
 	}
 }
-func phase5Payload(t *testing.T, transition, reason string, nodeResult any) json.RawMessage {
+func phase5Payload(t *testing.T, task domain.ProcessTask, transition, reason string, nodeResult any) json.RawMessage {
 	t.Helper()
 	if fields, ok := nodeResult.(map[string]any); ok {
 		fields["problem_class"] = phase5ProblemClass(transition)
 	}
-	raw, err := json.Marshal(map[string]any{"transition_id": transition, "summary": "Result recorded.", "reason": reason, "artifacts": []any{}, "method_evidence": []any{}, "node_result": nodeResult})
+	raw, err := json.Marshal(map[string]any{"transition_id": transition, "summary": "Result recorded.", "reason": reason, "artifacts": []any{}, "method_evidence": methodEvidenceForCurrentAction(task, domain.MethodStepPlainFallback, ""), "node_result": nodeResult})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return raw
+}
+func methodEvidenceForCurrentAction(task domain.ProcessTask, status domain.MethodStepStatus, capability string) []map[string]any {
+	if task.CurrentAction == nil {
+		return nil
+	}
+	return methodEvidenceForSteps(task.CurrentAction.SemanticMethodSteps, status, capability)
+}
+func methodEvidenceForSteps(steps []domain.SemanticMethodStep, status domain.MethodStepStatus, capability string) []map[string]any {
+	items := make([]map[string]any, len(steps))
+	for i, step := range steps {
+		items[i] = map[string]any{"step_id": step.StepID, "status": status, "capability": capability, "summary": "Completed the current semantic method step."}
+	}
+	return items
 }
 func phase5ProblemClass(transition string) string {
 	classes := map[string]string{

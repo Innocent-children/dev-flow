@@ -20,9 +20,9 @@ func DefinitionDigest(definition domain.ProcessDefinition) (domain.Digest, error
 		for i, v := range node.RequiredEvidence {
 			evidence[i] = map[string]any{"kind": v.Kind, "required": v.Required}
 		}
-		steps := make([]domain.MethodStepID, len(node.SemanticMethodSteps))
+		steps := make([]any, len(node.SemanticMethodSteps))
 		for i, v := range node.SemanticMethodSteps {
-			steps[i] = v.StepID
+			steps[i] = map[string]any{"required": v.Required, "step_id": v.StepID}
 		}
 		outgoing := make([]domain.TransitionID, len(node.OutgoingTransitions))
 		for i, v := range node.OutgoingTransitions {
@@ -33,7 +33,7 @@ func DefinitionDigest(definition domain.ProcessDefinition) (domain.Digest, error
 			"allowed_effects":          effects,
 			"completion_condition_ids": node.CompletionConditionIDs,
 			"entry_condition_ids":      node.EntryConditionIDs,
-			"method_step_ids":          steps,
+			"method_steps":             steps,
 			"node_id":                  node.NodeID,
 			"outgoing_transition_ids":  outgoing,
 			"payload_contract":         node.PayloadContract,

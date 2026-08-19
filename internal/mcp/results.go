@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/Innocent-children/dev-flow/internal/application"
 	"github.com/Innocent-children/dev-flow/internal/domain"
 )
 
@@ -111,10 +112,13 @@ func projectAction(a *domain.ProcessActionV2) any {
 	if a == nil {
 		return nil
 	}
-	return map[string]any{"task_id": a.TaskID, "revision": a.Revision, "action_id": a.ActionID, "action_kind": a.Kind, "process_id": a.Process.ID, "process_version": a.Process.Version, "process_definition_digest": a.Process.DefinitionDigest, "current_node": a.NodeID, "node_purpose": a.NodeContract.Purpose, "entry_conditions": a.NodeContract.EntryConditions, "completion_conditions": a.NodeContract.CompletionConditions, "allowed_effects": a.AllowedEffects, "required_evidence": a.RequiredEvidence, "method_steps": a.SemanticMethodSteps, "available_transitions": a.AvailableTransitions, "payload_contract": a.PayloadContract, "guidance": a.Guidance, "repository_binding_digest": a.RepositoryBindingDigest, "issued_at": a.IssuedAt}
+	return map[string]any{"task_id": a.TaskID, "revision": a.Revision, "action_id": a.ActionID, "action_kind": a.Kind, "process_id": a.Process.ID, "process_version": a.Process.Version, "process_definition_digest": a.Process.DefinitionDigest, "current_node": a.NodeID, "node_purpose": a.NodeContract.Purpose, "entry_conditions": a.NodeContract.EntryConditions, "completion_conditions": a.NodeContract.CompletionConditions, "allowed_effects": a.AllowedEffects, "required_evidence": a.RequiredEvidence, "method_profile": a.MethodProfile, "method_steps": a.SemanticMethodSteps, "available_transitions": a.AvailableTransitions, "payload_contract": a.PayloadContract, "guidance": a.Guidance, "repository_binding_digest": a.RepositoryBindingDigest, "issued_at": a.IssuedAt}
 }
 func projectTask(t domain.ProcessTask) any {
 	return map[string]any{"task_id": t.TaskID, "origin_host": t.OriginHost, "snapshot_version": 2, "process_id": t.Process.ID, "process_version": t.Process.Version, "process_definition_digest": t.Process.DefinitionDigest, "intent": t.Intent, "current_cursor": t.CurrentNode, "resume_cursor": t.ResumeNode, "repository": map[string]any{"repository_identity": t.Repository.RepositoryIdentity, "branch": t.Repository.Branch, "detached": t.Repository.Detached, "head": t.Repository.Head, "unborn": t.Repository.Unborn, "worktree_fingerprint": t.Repository.WorktreeFingerprint, "observed_at": t.Repository.ObservedAt, "binding_digest": t.Repository.BindingDigest}, "baselines": map[string]any{"requirements": t.Requirements, "design": t.Design, "task_plan": t.TaskPlan, "history": t.BaselineHistory}, "implementation": t.Implementation, "test": t.Test, "comprehension": t.Comprehension, "current_action": projectAction(t.CurrentAction), "blocker": t.Blocker, "last_operation": t.LastOperation, "evidence": t.Evidence, "outcome": t.Outcome, "revision": t.Revision, "created_at": t.CreatedAt, "updated_at": t.UpdatedAt, "completed_at": t.CompletedAt}
+}
+func projectNextAction(result application.NextActionResult) any {
+	return map[string]any{"task_id": result.TaskID, "snapshot_version": 2, "process": result.Process, "current_cursor": result.CurrentNode, "revision": result.Revision, "method_profile": result.MethodProfile, "blocker": nil, "action": projectAction(result.Action), "outcome": result.Outcome, "recovery_assessment": nil}
 }
 
 func WithinResultEnvelopeLimit(raw []byte) bool { return len(raw) <= domain.MaxResultEnvelopeBytes }

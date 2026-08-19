@@ -110,6 +110,12 @@ intentionally permits requirements grooming after task creation.
 `status` is `completed`, `not_run`, `unavailable`, or `plain_fallback`. `step_id` must be returned by
 the current action. Command logs, prompts, token data, and environment dumps are forbidden.
 
+A normal mutation submits exactly one item for every current Action method step. Unknown, duplicate,
+previous-node, and missing step IDs are forbidden. Every current normal step is required and is
+satisfied only by `completed` or `plain_fallback`; `unavailable` and `not_run` are valid status
+spellings but do not satisfy a required step. Syntactically valid incomplete/unsatisfied coverage
+returns `TRANSITION_NOT_ALLOWED`; malformed fields return `INVALID_ARGUMENT`.
+
 ### 3.5 Verification evidence input
 
 ```json
@@ -147,7 +153,11 @@ explicit JSON `null` are ordinary read requests. A non-null value uses this clos
     "summary": "Removed the unnecessary factory.",
     "reason": "",
     "artifacts": [],
-    "method_evidence": [],
+    "method_evidence": [
+      {"step_id": "refactor.simplify", "status": "plain_fallback", "capability": "", "summary": "Completed the bounded simplification."},
+      {"step_id": "refactor.reconcile_artifacts", "status": "plain_fallback", "capability": "", "summary": "Reconciled affected process artifacts."},
+      {"step_id": "refactor.record_surface", "status": "plain_fallback", "capability": "", "summary": "Recorded the exact changed surface."}
+    ],
     "node_result": {
       "changed_paths": ["internal/order/factory.go"],
       "no_file_changes": false,
@@ -462,6 +472,7 @@ completion_conditions
 allowed_effects
 required_evidence
 method_steps
+method_profile
 available_transitions
 payload_contract
 guidance
@@ -525,6 +536,9 @@ schema requires only `host` and `task_id`; `operation_probe` is optional and nul
 For terminal tasks, `action` and `blocker` are null and `outcome` is present. For blocked tasks,
 returns the exact persisted blocker and `RESOLVE_BLOCKER` action.
 
+`method_profile` always comes from immutable `TaskIntent.MethodProfile`, including active, blocked,
+`DONE`, and `CANCELLED` tasks; it never becomes empty merely because `action` is null.
+
 The top-level schema requires only `host` and `task_id`; `operation_probe` is optional and nullable
 and follows Section 4.
 
@@ -558,7 +572,8 @@ selects ordinary mutation. A non-null value follows Section 11.12.
 
 ### 11.2 Shared standard payload envelope
 
-Every standard node payload is:
+Every standard node payload uses this illustrative REQUIREMENTS example; other nodes replace the
+three entries with their exact current-step set required by Section 3.4:
 
 ```json
 {
@@ -566,7 +581,11 @@ Every standard node payload is:
   "summary": "<required normalized summary>",
   "reason": "<empty or required according to transition>",
   "artifacts": [],
-  "method_evidence": [],
+  "method_evidence": [
+    {"step_id": "requirements.capture", "status": "plain_fallback", "capability": "", "summary": "Captured the bounded requirements."},
+    {"step_id": "requirements.clarify", "status": "plain_fallback", "capability": "", "summary": "Resolved material questions."},
+    {"step_id": "requirements.validate", "status": "plain_fallback", "capability": "", "summary": "Validated the requirements."}
+  ],
   "node_result": {}
 }
 ```
@@ -575,7 +594,11 @@ Common rules:
 
 - `transition_id`, `summary`, `reason`, `artifacts`, `method_evidence`, and `node_result` are required.
 - `reason` is empty for a transition with `reason_required=false`; non-empty for true.
-- `artifacts` and `method_evidence` may be empty when semantic obligations are otherwise satisfied.
+- `artifacts` may be empty when semantic obligations are otherwise satisfied.
+- `method_evidence` contains exactly one item for every current Action step, in Action order; it is
+  never empty for a normal node because all 24 catalog steps are required.
+- `completed` and `plain_fallback` satisfy a required step. `unavailable`, `not_run`, or a missing
+  required step returns `TRANSITION_NOT_ALLOWED` with zero writes.
 - `node_result` selects exactly one closed branch from the current action kind.
 - Caller destination/process/node/guard/classification fields are forbidden inside payload.
 
@@ -587,7 +610,11 @@ Common rules:
   "summary": "Requirements are bounded and testable.",
   "reason": "",
   "artifacts": [],
-  "method_evidence": [],
+  "method_evidence": [
+    {"step_id": "requirements.capture", "status": "plain_fallback", "capability": "", "summary": "Captured the bounded requirements."},
+    {"step_id": "requirements.clarify", "status": "plain_fallback", "capability": "", "summary": "Resolved material questions."},
+    {"step_id": "requirements.validate", "status": "plain_fallback", "capability": "", "summary": "Validated the requirements."}
+  ],
   "node_result": {
     "problem_class": "none",
     "baseline": {
@@ -621,7 +648,11 @@ Rules:
   "summary": "Selected a direct bounded design.",
   "reason": "",
   "artifacts": [],
-  "method_evidence": [],
+  "method_evidence": [
+    {"step_id": "design.choose_approach", "status": "plain_fallback", "capability": "", "summary": "Selected the simplest viable approach."},
+    {"step_id": "design.review_complexity", "status": "plain_fallback", "capability": "", "summary": "Reviewed and bounded complexity."},
+    {"step_id": "design.record_decisions", "status": "plain_fallback", "capability": "", "summary": "Recorded decisions and risks."}
+  ],
   "node_result": {
     "problem_class": "none",
     "baseline": {
@@ -650,7 +681,11 @@ a material requirement gap, and reason is required. No other problem class is ac
   "summary": "The design is decomposed into bounded work.",
   "reason": "",
   "artifacts": [],
-  "method_evidence": [],
+  "method_evidence": [
+    {"step_id": "tasks.decompose", "status": "plain_fallback", "capability": "", "summary": "Decomposed the design into bounded work."},
+    {"step_id": "tasks.map_acceptance", "status": "plain_fallback", "capability": "", "summary": "Mapped acceptance to work and verification."},
+    {"step_id": "tasks.analyze_consistency", "status": "plain_fallback", "capability": "", "summary": "Checked requirements, design, and tasks for gaps."}
+  ],
   "node_result": {
     "problem_class": "none",
     "baseline": {
@@ -683,7 +718,11 @@ null baseline, non-empty findings consistent with the selected class, and reason
   "summary": "Removed the redundant adapter.",
   "reason": "",
   "artifacts": [],
-  "method_evidence": [],
+  "method_evidence": [
+    {"step_id": "implementation.execute_plan", "status": "plain_fallback", "capability": "", "summary": "Executed the current task plan."},
+    {"step_id": "implementation.record_surface", "status": "plain_fallback", "capability": "", "summary": "Recorded the changed surface."},
+    {"step_id": "implementation.classify_deviations", "status": "plain_fallback", "capability": "", "summary": "Classified implementation deviations."}
+  ],
   "node_result": {
     "problem_class": "none",
     "task_plan_revision": 1,
@@ -710,7 +749,11 @@ The fresh repository observation is authoritative for accepted binding.
   "summary": "Targeted order tests passed.",
   "reason": "",
   "artifacts": [],
-  "method_evidence": [],
+  "method_evidence": [
+    {"step_id": "test.run_budgeted_checks", "status": "plain_fallback", "capability": "", "summary": "Ran the budgeted checks."},
+    {"step_id": "test.record_evidence", "status": "plain_fallback", "capability": "", "summary": "Recorded current verification evidence."},
+    {"step_id": "test.classify_failure", "status": "plain_fallback", "capability": "", "summary": "Classified the current test result."}
+  ],
   "node_result": {
     "problem_class": "none",
     "checks": [
@@ -750,7 +793,11 @@ Rules:
   "summary": "The developer can explain and maintain the result.",
   "reason": "",
   "artifacts": [],
-  "method_evidence": [],
+  "method_evidence": [
+    {"step_id": "comprehension.explain", "status": "plain_fallback", "capability": "", "summary": "Explained the current behavior and code path."},
+    {"step_id": "comprehension.identify_complexity", "status": "plain_fallback", "capability": "", "summary": "Identified complexity and maintenance risks."},
+    {"step_id": "comprehension.obtain_user_verdict", "status": "plain_fallback", "capability": "", "summary": "Obtained the developer's explicit verdict."}
+  ],
   "node_result": {
     "problem_class": "none",
     "explained_components": ["request entry", "submission guard", "repository write"],
@@ -789,7 +836,11 @@ Rules:
   "summary": "Removed unnecessary indirection without intended behavior change.",
   "reason": "",
   "artifacts": [],
-  "method_evidence": [],
+  "method_evidence": [
+    {"step_id": "refactor.simplify", "status": "plain_fallback", "capability": "", "summary": "Completed the bounded simplification."},
+    {"step_id": "refactor.reconcile_artifacts", "status": "plain_fallback", "capability": "", "summary": "Reconciled affected process artifacts."},
+    {"step_id": "refactor.record_surface", "status": "plain_fallback", "capability": "", "summary": "Recorded the exact changed surface."}
+  ],
   "node_result": {
     "problem_class": "none",
     "changed_paths": ["internal/order/factory.go"],
@@ -815,7 +866,11 @@ design/requirements instead.
   "summary": "Current acceptance, verification, comprehension, and risks are reconciled.",
   "reason": "",
   "artifacts": [],
-  "method_evidence": [],
+  "method_evidence": [
+    {"step_id": "delivery.reconcile_acceptance", "status": "plain_fallback", "capability": "", "summary": "Reconciled current acceptance and evidence."},
+    {"step_id": "delivery.reconcile_method_artifacts", "status": "plain_fallback", "capability": "", "summary": "Reconciled current method artifacts."},
+    {"step_id": "delivery.prepare_summary", "status": "plain_fallback", "capability": "", "summary": "Prepared the delivery summary and risks."}
+  ],
   "node_result": {
     "problem_class": "none",
     "acceptance": [

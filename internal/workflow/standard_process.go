@@ -31,6 +31,33 @@ var standardTransitions = []domain.TransitionDefinition{
 	tr("delivery_complete", domain.NodeDelivery, domain.NodeDone, "delivery_current_and_complete", false), tr("delivery_needs_implementation", domain.NodeDelivery, domain.NodeImplement, "delivery_implementation_gap_identified", true), tr("delivery_needs_test", domain.NodeDelivery, domain.NodeTest, "delivery_test_gap_identified", true), tr("delivery_needs_comprehension", domain.NodeDelivery, domain.NodeComprehensionReview, "delivery_comprehension_gap_identified", true), tr("delivery_needs_design", domain.NodeDelivery, domain.NodeDesign, "delivery_design_gap_identified", true), tr("delivery_needs_requirements", domain.NodeDelivery, domain.NodeRequirements, "delivery_requirement_gap_identified", true),
 }
 
+var standardMethodStepPurposes = map[domain.MethodStepID]string{
+	"requirements.capture":                "Capture a bounded goal, scope, exclusions, acceptance criteria, constraints, and assumptions.",
+	"requirements.clarify":                "Resolve material requirement questions with the developer.",
+	"requirements.validate":               "Verify that requirements are observable, bounded, and free of material ambiguity.",
+	"design.choose_approach":              "Select the simplest viable approach for the current requirements.",
+	"design.review_complexity":            "Identify unnecessary abstractions and justify retained complexity.",
+	"design.record_decisions":             "Record components, decisions, rejected alternatives, and risks.",
+	"tasks.decompose":                     "Decompose the current design into bounded, ordered work items.",
+	"tasks.map_acceptance":                "Map every current acceptance criterion to work and verification.",
+	"tasks.analyze_consistency":           "Check requirements, design, and tasks for gaps or contradictions.",
+	"implementation.execute_plan":         "Execute only the work authorized by the current task plan.",
+	"implementation.record_surface":       "Record exact changed paths or the no-change state and deviations.",
+	"implementation.classify_deviations":  "Classify implementation deviations as requirement, design, or complexity concerns.",
+	"test.run_budgeted_checks":            "Run only verification authorized by the current verification budget.",
+	"test.record_evidence":                "Record actual evidence sources, outcomes, and unverified or manual items.",
+	"test.classify_failure":               "Classify failures as implementation, design, or requirement problems.",
+	"comprehension.explain":               "Explain the current behavior, design, and code path in developer-readable terms.",
+	"comprehension.identify_complexity":   "Identify unnecessary abstractions and maintenance risks.",
+	"comprehension.obtain_user_verdict":   "Obtain the developer's explicit understanding or remediation verdict.",
+	"refactor.simplify":                   "Remove unnecessary complexity within the approved behavior boundary.",
+	"refactor.reconcile_artifacts":        "Reconcile affected process artifacts with the simplification.",
+	"refactor.record_surface":             "Record exact simplifications and the changed surface.",
+	"delivery.reconcile_acceptance":       "Map the latest acceptance criteria to current test and comprehension evidence.",
+	"delivery.reconcile_method_artifacts": "Reconcile method artifacts with the delivered behavior.",
+	"delivery.prepare_summary":            "Prepare a bounded delivery summary and remaining risks.",
+}
+
 var specs = []nodeSpec{
 	{domain.NodeRequirements, "Transform the immutable initial intent into the current requirements authority.", []string{"intent_available", "repository_claimed", "requirements_context_available"}, []string{"requirements_goal_defined", "requirements_scope_bounded", "requirements_exclusions_explicit", "requirements_acceptance_nonempty", "requirements_material_questions_resolved", "requirements_user_decisions_recorded"}, []string{"read_repository", "edit_process_artifacts", "request_user_decision"}, []string{"repository_observation", "requirements_baseline"}, []string{"requirements.capture", "requirements.clarify", "requirements.validate"}, []string{"requirements_ready"}, domain.ActionCompleteRequirements, "requirements-result@1"},
 	{domain.NodeDesign, "Select and explain the simplest viable design for the current requirements baseline.", []string{"requirements_current", "repository_context_available"}, []string{"design_approach_defined", "design_components_bounded", "design_decisions_explicit", "design_alternatives_considered", "design_complexity_justified", "design_risks_recorded"}, []string{"read_repository", "edit_process_artifacts", "request_user_decision"}, []string{"repository_observation", "design_baseline"}, []string{"design.choose_approach", "design.review_complexity", "design.record_decisions"}, []string{"design_ready", "design_requires_requirements"}, domain.ActionCompleteDesign, "design-result@1"},
@@ -59,7 +86,12 @@ func StandardProcess() domain.ProcessDefinition {
 		}
 		steps := make([]domain.SemanticMethodStep, len(s.steps))
 		for i, v := range s.steps {
-			steps[i] = domain.SemanticMethodStep{StepID: domain.MethodStepID(v), Purpose: "Perform the " + humanize(v) + " step for this node.", Required: true}
+			stepID := domain.MethodStepID(v)
+			purpose, ok := standardMethodStepPurposes[stepID]
+			if !ok {
+				panic("missing standard method-step purpose: " + v)
+			}
+			steps[i] = domain.SemanticMethodStep{StepID: stepID, Purpose: purpose, Required: true}
 		}
 		out := make([]domain.TransitionDefinition, len(s.outgoing))
 		for i, v := range s.outgoing {

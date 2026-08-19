@@ -87,12 +87,7 @@ func (s *Server) dispatch(ctx context.Context, tool string, id domain.ID, raw []
 		if err != nil {
 			return EncodeError(string(id), tool, err)
 		}
-		return EncodeSuccess(string(id), tool, map[string]any{"task_id": r.TaskID, "snapshot_version": 2, "process": r.Process, "current_cursor": r.CurrentNode, "revision": r.Revision, "method_profile": func() domain.MethodProfile {
-			if r.Action != nil {
-				return r.Action.MethodProfile
-			}
-			return ""
-		}(), "blocker": nil, "action": projectAction(r.Action), "outcome": r.Outcome, "recovery_assessment": nil})
+		return EncodeSuccess(string(id), tool, projectNextAction(r))
 	case ToolApplyAction:
 		var w applyWire
 		_ = decodeClosed(raw, &w)

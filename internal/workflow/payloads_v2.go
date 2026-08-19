@@ -281,10 +281,8 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 			return domain.ErrInvalidArgument
 		}
 	}
-	for _, item := range envelope.MethodEvidence {
-		if item.Validate(steps) != nil {
-			return domain.ErrInvalidArgument
-		}
+	if err := domain.ValidateMethodEvidence(envelope.MethodEvidence, steps); err != nil {
+		return err
 	}
 	switch value := result.(type) {
 	case *RequirementsResult:

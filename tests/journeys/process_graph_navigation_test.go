@@ -2,7 +2,6 @@ package journeys
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/Innocent-children/dev-flow/internal/application"
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/store"
@@ -59,7 +58,7 @@ func TestProcessGraphNavigation(t *testing.T) {
 	if opened.Task.CurrentNode != "REQUIREMENTS" || len(a.AvailableTransitions) != 1 {
 		t.Fatal("requirements projection")
 	}
-	payload := json.RawMessage(`{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":[],"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
+	payload := journeyPayload(t, opened.Task, "requirements_ready", "", map[string]any{"baseline": map[string]any{"goal": "Goal", "scope": []string{}, "out_of_scope": []string{}, "acceptance_criteria": []string{"Accepted"}, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}})
 	result, err := service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "request-apply", Host: domain.HostCodex, TaskID: opened.Task.TaskID, ExpectedRevision: 1, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: opened.Task.Process.ID, ProcessVersion: opened.Task.Process.Version, ProcessDefinitionDigest: opened.Task.Process.DefinitionDigest, SourceCursor: opened.Task.CurrentNode, RepositoryBindingDigest: b.BindingDigest, Payload: payload})
 	if err != nil {
 		t.Fatal(err)

@@ -3,7 +3,7 @@
 **Input**: Complete Feature 008 package in
 `specs/008-refactor-to-development-process-graph/`
 
-**Status**: Implementing — Phase 5D hardening complete; Phase 6–8 remain unstarted.
+**Status**: Implementing — Phase 6A Core method contract complete; Phase 6B/6C and Phase 7–8 remain unstarted.
 
 **Release Boundary**: Every task in this file is source/local-evidence work. No task may modify
 `VERSION`, publish npm, create/move a Tag, mutate a GitHub Release, or claim final registry support.
@@ -255,10 +255,10 @@ verification, and comprehension failures; stale evidence cannot reach delivery.
 
 **Independent Test**: Quickstart Journey D.
 
-- [ ] T061 [P] [US3] Add all semantic method-step definitions and per-node required ordering to
+- [x] T061 [P] [US3] Add all semantic method-step definitions and per-node required ordering to
   `internal/workflow/standard_process.go` and validate them in
   `internal/workflow/definitions_test.go` per FR-027–FR-030.
-- [ ] T062 [US3] Include immutable method profile and semantic steps in standard Task/Action/MCP
+- [x] T062 [US3] Include immutable method profile and semantic steps in standard Task/Action/MCP
   projections and validate submitted MethodEvidence against the current node in
   `internal/domain/method.go` and `internal/workflow/payloads_v2.go` per FR-027–FR-031.
 - [ ] T063 [P] [US3] Add

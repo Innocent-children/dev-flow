@@ -15,7 +15,7 @@ func TestStandardDefinitionIsStableAndComplete(t *testing.T) {
 	if err := ValidateDefinition(definition); err != nil {
 		t.Fatalf("ValidateDefinition: %v", err)
 	}
-	if got, want := definition.Reference.DefinitionDigest, domain.Digest("193f505f576e73971601d67ca2ed1d6bb44a845590c893af376c50cb74f21954"); got != want {
+	if got, want := definition.Reference.DefinitionDigest, domain.Digest("5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1"); got != want {
 		t.Fatalf("digest = %s, want %s", got, want)
 	}
 	wantNodes := []domain.NodeID{domain.NodeRequirements, domain.NodeDesign, domain.NodeTasks, domain.NodeImplement, domain.NodeTest, domain.NodeComprehensionReview, domain.NodeRefactor, domain.NodeDelivery, domain.NodeDone, domain.NodeBlocked, domain.NodeCancelled}
@@ -34,6 +34,79 @@ func TestStandardDefinitionIsStableAndComplete(t *testing.T) {
 		if node.NodeID.Terminal() && len(node.OutgoingTransitions) != 0 {
 			t.Fatalf("terminal %s has edges", node.NodeID)
 		}
+	}
+}
+func TestSemanticMethodCatalogExact(t *testing.T) {
+	expected := map[domain.NodeID][]domain.SemanticMethodStep{
+		domain.NodeRequirements: {
+			{StepID: "requirements.capture", Purpose: "Capture a bounded goal, scope, exclusions, acceptance criteria, constraints, and assumptions.", Required: true},
+			{StepID: "requirements.clarify", Purpose: "Resolve material requirement questions with the developer.", Required: true},
+			{StepID: "requirements.validate", Purpose: "Verify that requirements are observable, bounded, and free of material ambiguity.", Required: true},
+		},
+		domain.NodeDesign: {
+			{StepID: "design.choose_approach", Purpose: "Select the simplest viable approach for the current requirements.", Required: true},
+			{StepID: "design.review_complexity", Purpose: "Identify unnecessary abstractions and justify retained complexity.", Required: true},
+			{StepID: "design.record_decisions", Purpose: "Record components, decisions, rejected alternatives, and risks.", Required: true},
+		},
+		domain.NodeTasks: {
+			{StepID: "tasks.decompose", Purpose: "Decompose the current design into bounded, ordered work items.", Required: true},
+			{StepID: "tasks.map_acceptance", Purpose: "Map every current acceptance criterion to work and verification.", Required: true},
+			{StepID: "tasks.analyze_consistency", Purpose: "Check requirements, design, and tasks for gaps or contradictions.", Required: true},
+		},
+		domain.NodeImplement: {
+			{StepID: "implementation.execute_plan", Purpose: "Execute only the work authorized by the current task plan.", Required: true},
+			{StepID: "implementation.record_surface", Purpose: "Record exact changed paths or the no-change state and deviations.", Required: true},
+			{StepID: "implementation.classify_deviations", Purpose: "Classify implementation deviations as requirement, design, or complexity concerns.", Required: true},
+		},
+		domain.NodeTest: {
+			{StepID: "test.run_budgeted_checks", Purpose: "Run only verification authorized by the current verification budget.", Required: true},
+			{StepID: "test.record_evidence", Purpose: "Record actual evidence sources, outcomes, and unverified or manual items.", Required: true},
+			{StepID: "test.classify_failure", Purpose: "Classify failures as implementation, design, or requirement problems.", Required: true},
+		},
+		domain.NodeComprehensionReview: {
+			{StepID: "comprehension.explain", Purpose: "Explain the current behavior, design, and code path in developer-readable terms.", Required: true},
+			{StepID: "comprehension.identify_complexity", Purpose: "Identify unnecessary abstractions and maintenance risks.", Required: true},
+			{StepID: "comprehension.obtain_user_verdict", Purpose: "Obtain the developer's explicit understanding or remediation verdict.", Required: true},
+		},
+		domain.NodeRefactor: {
+			{StepID: "refactor.simplify", Purpose: "Remove unnecessary complexity within the approved behavior boundary.", Required: true},
+			{StepID: "refactor.reconcile_artifacts", Purpose: "Reconcile affected process artifacts with the simplification.", Required: true},
+			{StepID: "refactor.record_surface", Purpose: "Record exact simplifications and the changed surface.", Required: true},
+		},
+		domain.NodeDelivery: {
+			{StepID: "delivery.reconcile_acceptance", Purpose: "Map the latest acceptance criteria to current test and comprehension evidence.", Required: true},
+			{StepID: "delivery.reconcile_method_artifacts", Purpose: "Reconcile method artifacts with the delivered behavior.", Required: true},
+			{StepID: "delivery.prepare_summary", Purpose: "Prepare a bounded delivery summary and remaining risks.", Required: true},
+		},
+	}
+	definition := StandardProcess()
+	normalNodes, stepCount := 0, 0
+	seen := map[domain.MethodStepID]bool{}
+	for _, node := range definition.Nodes {
+		if node.NodeID.Normal() {
+			normalNodes++
+			want := expected[node.NodeID]
+			if !slicesEqual(node.SemanticMethodSteps, want) {
+				t.Fatalf("%s steps=%#v want=%#v", node.NodeID, node.SemanticMethodSteps, want)
+			}
+			for _, step := range node.SemanticMethodSteps {
+				if seen[step.StepID] || strings.Contains(strings.ToLower(step.Purpose), "speckit") || strings.Contains(strings.ToLower(step.Purpose), "openspec") || strings.Contains(strings.ToLower(step.Purpose), "codex") {
+					t.Fatalf("invalid or duplicate semantic step %#v", step)
+				}
+				seen[step.StepID] = true
+				stepCount++
+			}
+		}
+		if node.NodeID.Terminal() && len(node.SemanticMethodSteps) != 0 {
+			t.Fatalf("terminal %s has method steps", node.NodeID)
+		}
+	}
+	if normalNodes != 8 || stepCount != 24 || len(seen) != 24 || len(standardMethodStepPurposes) != 24 {
+		t.Fatalf("normal nodes=%d steps=%d unique=%d purposes=%d", normalNodes, stepCount, len(seen), len(standardMethodStepPurposes))
+	}
+	blocked, err := NodeDefinition(definition, domain.NodeBlocked)
+	if err != nil || len(blocked.SemanticMethodSteps) != 1 || blocked.SemanticMethodSteps[0].StepID != "blocker.resolve" || seen[blocked.SemanticMethodSteps[0].StepID] {
+		t.Fatalf("blocked method step mixed into normal catalog: %#v err=%v", blocked.SemanticMethodSteps, err)
 	}
 }
 func TestDefinitionDigestIgnoresHumanWording(t *testing.T) {
@@ -62,7 +135,14 @@ func TestDefinitionDigestChangesWithStableSemantics(t *testing.T) {
 		"transition id": func(d *domain.ProcessDefinition) { d.Transitions[0].TransitionID = "requirements_ready_v2" },
 		"guard id":      func(d *domain.ProcessDefinition) { d.Transitions[0].Guard = "requirements_baseline_complete_v2" },
 		"reason rule":   func(d *domain.ProcessDefinition) { d.Transitions[0].ReasonRequired = true },
-		"node order":    func(d *domain.ProcessDefinition) { d.Nodes[0], d.Nodes[1] = d.Nodes[1], d.Nodes[0] },
+		"method step id": func(d *domain.ProcessDefinition) {
+			d.Nodes[0].SemanticMethodSteps[0].StepID = "requirements.capture_v2"
+		},
+		"method required": func(d *domain.ProcessDefinition) { d.Nodes[0].SemanticMethodSteps[0].Required = false },
+		"method order": func(d *domain.ProcessDefinition) {
+			d.Nodes[0].SemanticMethodSteps[0], d.Nodes[0].SemanticMethodSteps[1] = d.Nodes[0].SemanticMethodSteps[1], d.Nodes[0].SemanticMethodSteps[0]
+		},
+		"node order": func(d *domain.ProcessDefinition) { d.Nodes[0], d.Nodes[1] = d.Nodes[1], d.Nodes[0] },
 		"transition order": func(d *domain.ProcessDefinition) {
 			d.Transitions[0], d.Transitions[1] = d.Transitions[1], d.Transitions[0]
 		},

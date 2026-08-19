@@ -398,8 +398,13 @@ type MethodEvidence struct {
 ### Invariants
 
 - Step ID must be returned by the current node.
+- A normal mutation contains exactly one MethodEvidence item for every current Action step, in
+  Action order; unknown, duplicate, previous-node, and missing step IDs are rejected.
 - Capability is adapter/Host evidence and may be empty for plain work.
-- `unavailable` cannot satisfy a required semantic step.
+- `completed` and `plain_fallback` satisfy a required semantic step; `unavailable` and `not_run` do
+  not.
+- `completed` carries a non-empty normalized capability identifier; `plain_fallback` carries an
+  empty capability so it cannot claim external execution.
 - `plain_fallback` can satisfy a semantic step only when the payload also contains the required
   semantic node result.
 - Command spelling is never used by Core to determine completion.

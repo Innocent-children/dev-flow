@@ -20,6 +20,6 @@ func (s *Service) GetNextAction(ctx context.Context, r GetNextActionRequest) (Ne
 	if err != nil {
 		return NextActionResult{}, err
 	}
-	result := NextActionResult{TaskID: task.TaskID, Process: task.Process, CurrentNode: task.CurrentNode, Revision: task.Revision, Action: task.CurrentAction, Outcome: task.Outcome}
+	result := NextActionResult{TaskID: task.TaskID, Process: task.Process, CurrentNode: task.CurrentNode, Revision: task.Revision, MethodProfile: task.Intent.MethodProfile, Action: task.CurrentAction, Outcome: task.Outcome}
 	return result, nil
 }

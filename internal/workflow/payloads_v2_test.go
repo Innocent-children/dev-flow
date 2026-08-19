@@ -1,13 +1,18 @@
 package workflow
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"testing"
 )
 
+const requirementsMethodEvidenceJSON = `[{"step_id":"requirements.capture","status":"plain_fallback","capability":"","summary":"Captured requirements."},{"step_id":"requirements.clarify","status":"plain_fallback","capability":"","summary":"Clarified requirements."},{"step_id":"requirements.validate","status":"plain_fallback","capability":"","summary":"Validated requirements."}]`
+const requirementsMethodEvidenceReorderedJSON = `[{"summary":"Captured requirements.","capability":"","status":"plain_fallback","step_id":"requirements.capture"},{"summary":"Clarified requirements.","capability":"","status":"plain_fallback","step_id":"requirements.clarify"},{"summary":"Validated requirements.","capability":"","status":"plain_fallback","step_id":"requirements.validate"}]`
+const designMethodEvidenceJSON = `[{"step_id":"design.choose_approach","status":"plain_fallback","capability":"","summary":"Selected the approach."},{"step_id":"design.review_complexity","status":"plain_fallback","capability":"","summary":"Reviewed complexity."},{"step_id":"design.record_decisions","status":"plain_fallback","capability":"","summary":"Recorded decisions."}]`
+
 func TestV2PayloadDispatchIsClosedAndTransitionAware(t *testing.T) {
-	valid := []byte(`{"transition_id":"requirements_ready","summary":"Requirements ready.","reason":"","artifacts":[],"method_evidence":[],"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
+	valid := []byte(`{"transition_id":"requirements_ready","summary":"Requirements ready.","reason":"","artifacts":[],"method_evidence":` + requirementsMethodEvidenceJSON + `,"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
 	envelope, result, err := DecodeStandardPayload("REQUIREMENTS", valid)
 	if err != nil {
 		t.Fatal(err)
@@ -31,8 +36,41 @@ func TestV2PayloadDispatchIsClosedAndTransitionAware(t *testing.T) {
 	}
 }
 
+func TestMethodEvidenceChangesCanonicalPayloadDigest(t *testing.T) {
+	result := &RequirementsResult{ProblemClass: ProblemNone, Baseline: &RequirementsBaselineInput{Goal: "Goal", AcceptanceCriteria: []string{"Accepted"}}, UnresolvedQuestions: []string{}}
+	base := StandardPayload{TransitionID: "requirements_ready", Summary: "Ready.", Reason: "", Artifacts: []domain.ArtifactReference{}, MethodEvidence: []domain.MethodEvidence{
+		{StepID: "requirements.capture", Status: domain.MethodStepCompleted, Capability: "capability-a", Summary: "Captured requirements."},
+		{StepID: "requirements.clarify", Status: domain.MethodStepCompleted, Capability: "capability-a", Summary: "Clarified requirements."},
+		{StepID: "requirements.validate", Status: domain.MethodStepCompleted, Capability: "capability-a", Summary: "Validated requirements."},
+	}}
+	canonical, err := CanonicalValidatedPayload(base, result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantDifferent := sha256.Sum256(canonical)
+	for name, mutate := range map[string]func(*StandardPayload){
+		"step": func(value *StandardPayload) { value.MethodEvidence[0].StepID = "requirements.capture_v2" },
+		"status": func(value *StandardPayload) {
+			value.MethodEvidence[0].Status = domain.MethodStepPlainFallback
+			value.MethodEvidence[0].Capability = ""
+		},
+		"capability": func(value *StandardPayload) { value.MethodEvidence[0].Capability = "capability-b" },
+		"summary":    func(value *StandardPayload) { value.MethodEvidence[0].Summary = "Different summary." },
+	} {
+		t.Run(name, func(t *testing.T) {
+			changed := base
+			changed.MethodEvidence = append([]domain.MethodEvidence(nil), base.MethodEvidence...)
+			mutate(&changed)
+			raw, err := CanonicalValidatedPayload(changed, result)
+			if err != nil || sha256.Sum256(raw) == wantDifferent {
+				t.Fatal("MethodEvidence change did not change canonical payload digest")
+			}
+		})
+	}
+}
+
 func TestV2PayloadReasonRulesAndForbiddenTransitions(t *testing.T) {
-	raw := []byte(`{"transition_id":"design_requires_requirements","summary":"Gap found.","reason":"","artifacts":[],"method_evidence":[],"node_result":{"problem_class":"requirement_gap","baseline":null,"findings":["Acceptance is unclear"]}}`)
+	raw := []byte(`{"transition_id":"design_requires_requirements","summary":"Gap found.","reason":"","artifacts":[],"method_evidence":` + designMethodEvidenceJSON + `,"node_result":{"problem_class":"requirement_gap","baseline":null,"findings":["Acceptance is unclear"]}}`)
 	envelope, result, err := DecodeStandardPayload("DESIGN", raw)
 	if err != nil {
 		t.Fatal(err)
@@ -50,8 +88,8 @@ func TestV2PayloadReasonRulesAndForbiddenTransitions(t *testing.T) {
 	}
 }
 func TestCanonicalValidatedPayloadIgnoresJSONFormatting(t *testing.T) {
-	left := []byte(`{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":[],"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
-	right := []byte(`{ "node_result": {"unresolved_questions":[],"problem_class":"none","baseline":{"assumptions":[],"constraints":[],"acceptance_criteria":["Accepted"],"out_of_scope":[],"scope":[],"goal":"Goal"}},"method_evidence":[],"artifacts":[],"reason":"","summary":"Ready.","transition_id":"requirements_ready"}`)
+	left := []byte(`{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":` + requirementsMethodEvidenceJSON + `,"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
+	right := []byte(`{ "node_result": {"unresolved_questions":[],"problem_class":"none","baseline":{"assumptions":[],"constraints":[],"acceptance_criteria":["Accepted"],"out_of_scope":[],"scope":[],"goal":"Goal"}},"method_evidence":` + requirementsMethodEvidenceReorderedJSON + `,"artifacts":[],"reason":"","summary":"Ready.","transition_id":"requirements_ready"}`)
 	a, ar, err := DecodeStandardPayload(domain.NodeRequirements, left)
 	if err != nil {
 		t.Fatal(err)

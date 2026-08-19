@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"strings"
 	"testing"
@@ -36,9 +35,13 @@ func TestOpenTaskIntentConflictAndIDFailureAreZeroWrite(t *testing.T) {
 	}
 }
 
-type mutableObserver struct{ binding domain.RepositoryBinding }
+type mutableObserver struct {
+	binding domain.RepositoryBinding
+	calls   int
+}
 
 func (o *mutableObserver) Observe(context.Context, string) (domain.RepositoryBinding, error) {
+	o.calls++
 	return o.binding, nil
 }
 func TestApplyRepositoryDriftIsZeroWrite(t *testing.T) {
@@ -47,7 +50,7 @@ func TestApplyRepositoryDriftIsZeroWrite(t *testing.T) {
 	branch := "main"
 	head := strings.Repeat("b", 40)
 	binding := domain.RepositoryBinding{CanonicalRoot: "/repo", GitCommonDirDigest: d, RepositoryIdentity: d, Branch: &branch, Head: &head, WorktreeFingerprint: d, ObservedAt: now, BindingDigest: d}
-	o := &mutableObserver{binding}
+	o := &mutableObserver{binding: binding}
 	ms := &memoryStore{}
 	s, _ := newService(ms, o, func() time.Time { return now }, func(prefix string) (domain.ID, error) { return domain.ID(prefix + "-id"), nil })
 	opened, err := s.OpenTask(context.Background(), OpenTaskRequest{RequestID: "request-open", Host: domain.HostCodex, RepositoryPath: "/repo", NewTask: &NewTaskInput{Request: "Requirement", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 1}, MethodProfile: domain.MethodPlain}})
@@ -55,7 +58,7 @@ func TestApplyRepositoryDriftIsZeroWrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	o.binding.BindingDigest = domain.Digest(strings.Repeat("c", 64))
-	payload := json.RawMessage(`{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":[],"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
+	payload := phase5Payload(t, opened.Task, "requirements_ready", "", requirementsNodeResult("Goal", []string{"Accepted"}))
 	before := ms.commits
 	a := opened.Task.CurrentAction
 	_, err = s.ApplyAction(context.Background(), ApplyActionRequest{RequestID: "request-apply", Host: domain.HostCodex, TaskID: opened.Task.TaskID, ExpectedRevision: 1, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: opened.Task.Process.ID, ProcessVersion: 1, ProcessDefinitionDigest: opened.Task.Process.DefinitionDigest, SourceCursor: opened.Task.CurrentNode, RepositoryBindingDigest: binding.BindingDigest, Payload: payload})

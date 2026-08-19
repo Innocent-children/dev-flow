@@ -66,7 +66,9 @@ Digest input contains only stable semantic identifiers:
       "required_evidence": [
         {"kind": "...", "required": true}
       ],
-      "method_step_ids": ["..."],
+      "method_steps": [
+        {"step_id": "...", "required": true}
+      ],
       "outgoing_transition_ids": ["..."]
     }
   ],
@@ -83,8 +85,9 @@ Digest input contains only stable semantic identifiers:
 ```
 
 Human-readable purpose, explanation, examples, localized text, and adapter command spelling are not
-included. Changing a stable semantic identifier or ordering requires a new process version. A
-wording clarification that preserves identifiers/semantics may retain version 1.
+included. Changing a stable semantic identifier, a method-step `required` flag, or declaration
+ordering requires a new process version. A wording clarification that preserves
+identifiers/semantics may retain version 1.
 
 Canonical encoding does not rely on Go struct-field order. Object keys are lexicographically sorted
 by an explicitly tested canonical projection/encoder; arrays come only from the declaration-ordered
@@ -189,6 +192,7 @@ Every standard nonterminal action returns:
   "completion_conditions": ["..."],
   "allowed_effects": ["read_repository", "run_verification_commands"],
   "required_evidence": ["repository_observation", "test_summary"],
+  "method_profile": "spec-kit",
   "method_steps": [
     {
       "step_id": "test.run_budgeted_checks",
@@ -919,14 +923,34 @@ Developer says the code works but is too complex. The caller submits:
   "summary": "The behavior is correct, but the abstraction chain is not maintainable.",
   "reason": "The developer cannot trace the request path without crossing four unnecessary wrappers.",
   "artifacts": [],
-  "method_evidence": [],
+  "method_evidence": [
+    {
+      "step_id": "comprehension.explain",
+      "status": "plain_fallback",
+      "capability": "",
+      "summary": "Explained the current behavior and code path."
+    },
+    {
+      "step_id": "comprehension.identify_complexity",
+      "status": "plain_fallback",
+      "capability": "",
+      "summary": "Identified the unnecessary abstraction and maintenance risk."
+    },
+    {
+      "step_id": "comprehension.obtain_user_verdict",
+      "status": "plain_fallback",
+      "capability": "",
+      "summary": "Recorded the developer's remediation verdict."
+    }
+  ],
   "node_result": {
     "problem_class": "code_complexity",
     "explained_components": ["request entry", "service boundary"],
     "unresolved_questions": ["Why two adapter layers are required"],
     "unnecessary_abstractions": ["second adapter layer", "generic factory"],
     "maintenance_risks": ["simple changes require edits across four files"],
-    "user_confirmation": null
+    "user_confirmation": null,
+    "findings": ["The request path contains unnecessary abstraction."]
   }
 }
 ```

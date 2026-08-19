@@ -98,7 +98,7 @@ func TestProcessGraphIterationJourney(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "terminal-apply", Host: domain.HostCodex, TaskID: loaded.TaskID, ExpectedRevision: loaded.Revision, ActionID: "terminal-action", ActionKind: domain.ActionCompleteDelivery, ProcessID: loaded.Process.ID, ProcessVersion: loaded.Process.Version, ProcessDefinitionDigest: loaded.Process.DefinitionDigest, SourceCursor: loaded.CurrentNode, RepositoryBindingDigest: loaded.Repository.BindingDigest, Payload: journeyPayload(t, "delivery_complete", "", deliveryJourneyResult(loaded))})
+	_, err = service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "terminal-apply", Host: domain.HostCodex, TaskID: loaded.TaskID, ExpectedRevision: loaded.Revision, ActionID: "terminal-action", ActionKind: domain.ActionCompleteDelivery, ProcessID: loaded.Process.ID, ProcessVersion: loaded.Process.Version, ProcessDefinitionDigest: loaded.Process.DefinitionDigest, SourceCursor: loaded.CurrentNode, RepositoryBindingDigest: loaded.Repository.BindingDigest, Payload: journeyPayload(t, loaded, "delivery_complete", "", deliveryJourneyResult(loaded))})
 	if err != domain.ErrTaskTerminal {
 		t.Fatalf("terminal apply error=%v", err)
 	}
@@ -171,7 +171,7 @@ func TestProcessGraphIterationNegativeComprehension(t *testing.T) {
 				t.Fatal(err)
 			}
 			before := j.state()
-			_, err = service.ApplyAction(context.Background(), journeyApplyRequest(j.task, "stale-comprehension", journeyPayload(t, "comprehension_passed", "", comprehensionJourneyResult([]string{"component"}, nil, nil, "user", "passed", nil))))
+			_, err = service.ApplyAction(context.Background(), journeyApplyRequest(j.task, "stale-comprehension", journeyPayload(t, j.task, "comprehension_passed", "", comprehensionJourneyResult([]string{"component"}, nil, nil, "user", "passed", nil))))
 			if err != domain.ErrStorageUnavailable {
 				t.Fatalf("error=%v", err)
 			}
@@ -279,7 +279,7 @@ func TestProcessGraphIterationNegativeDelivery(t *testing.T) {
 				t.Fatal(err)
 			}
 			before := j.state()
-			_, err = service.ApplyAction(context.Background(), journeyApplyRequest(j.task, "tampered-delivery", journeyPayload(t, "delivery_complete", "", deliveryJourneyResult(j.task))))
+			_, err = service.ApplyAction(context.Background(), journeyApplyRequest(j.task, "tampered-delivery", journeyPayload(t, j.task, "delivery_complete", "", deliveryJourneyResult(j.task))))
 			want := domain.ErrStorageUnavailable
 			if err != want {
 				t.Fatalf("error=%v", err)
@@ -452,7 +452,7 @@ func (j *iterationJourney) apply(transition domain.TransitionID, reason string, 
 	j.t.Helper()
 	before := j.state()
 	requestID := domain.ID(fmt.Sprintf("request-%02d-%s", j.task.Revision, transition))
-	result, err := j.service.ApplyAction(context.Background(), journeyApplyRequest(j.task, requestID, journeyPayload(j.t, transition, reason, node)))
+	result, err := j.service.ApplyAction(context.Background(), journeyApplyRequest(j.task, requestID, journeyPayload(j.t, j.task, transition, reason, node)))
 	if err != nil {
 		j.t.Fatalf("apply %s: %v", transition, err)
 	}
@@ -475,7 +475,7 @@ func (j *iterationJourney) apply(transition domain.TransitionID, reason string, 
 func (j *iterationJourney) assertRejected(want error, transition domain.TransitionID, reason string, node any) {
 	j.t.Helper()
 	before := j.state()
-	_, err := j.service.ApplyAction(context.Background(), journeyApplyRequest(j.task, "rejected-"+domain.ID(transition), journeyPayload(j.t, transition, reason, node)))
+	_, err := j.service.ApplyAction(context.Background(), journeyApplyRequest(j.task, "rejected-"+domain.ID(transition), journeyPayload(j.t, j.task, transition, reason, node)))
 	if !errors.Is(err, want) {
 		j.t.Fatalf("transition=%s error=%v want=%v", transition, err, want)
 	}
@@ -573,12 +573,18 @@ func journeyApplyRequest(task domain.ProcessTask, requestID domain.ID, payload j
 	return application.ApplyActionRequest{RequestID: requestID, Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessVersion: task.Process.Version, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: payload}
 }
 
-func journeyPayload(t *testing.T, transition domain.TransitionID, reason string, node any) json.RawMessage {
+func journeyPayload(t *testing.T, task domain.ProcessTask, transition domain.TransitionID, reason string, node any) json.RawMessage {
 	t.Helper()
 	if fields, ok := node.(map[string]any); ok {
 		fields["problem_class"] = journeyProblemClass(transition)
 	}
-	raw, err := json.Marshal(map[string]any{"transition_id": transition, "summary": "The journey recorded the current result.", "reason": reason, "artifacts": []any{}, "method_evidence": []any{}, "node_result": node})
+	methodEvidence := []map[string]any{}
+	if task.CurrentAction != nil {
+		for _, step := range task.CurrentAction.SemanticMethodSteps {
+			methodEvidence = append(methodEvidence, map[string]any{"step_id": step.StepID, "status": "plain_fallback", "capability": "", "summary": "Completed the current semantic method step."})
+		}
+	}
+	raw, err := json.Marshal(map[string]any{"transition_id": transition, "summary": "The journey recorded the current result.", "reason": reason, "artifacts": []any{}, "method_evidence": methodEvidence, "node_result": node})
 	if err != nil {
 		t.Fatal(err)
 	}

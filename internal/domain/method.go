@@ -50,9 +50,7 @@ type MethodEvidence struct {
 }
 
 func (e MethodEvidence) Validate(steps []SemanticMethodStep) error {
-	capability, err := normalizeOptionalText(e.Capability, MaxIdentifierBytes)
-	if !e.StepID.IsValid() || !e.Status.IsValid() || err != nil || capability != e.Capability ||
-		requireNormalizedText(e.Summary, MaxEvidenceSummaryBytes, true) != nil {
+	if e.validateSyntax() != nil {
 		return ErrInvalidArgument
 	}
 	for _, step := range steps {
@@ -61,4 +59,50 @@ func (e MethodEvidence) Validate(steps []SemanticMethodStep) error {
 		}
 	}
 	return ErrInvalidArgument
+}
+
+func (e MethodEvidence) validateSyntax() error {
+	if !e.StepID.IsValid() || !e.Status.IsValid() || requireNormalizedText(e.Summary, MaxEvidenceSummaryBytes, true) != nil {
+		return ErrInvalidArgument
+	}
+	if e.Capability != "" && !validSemanticID(e.Capability) {
+		return ErrInvalidArgument
+	}
+	if e.Status == MethodStepCompleted && e.Capability == "" || e.Status == MethodStepPlainFallback && e.Capability != "" {
+		return ErrInvalidArgument
+	}
+	return nil
+}
+
+func ValidateMethodEvidence(items []MethodEvidence, steps []SemanticMethodStep) error {
+	if len(items) > MaxMethodEvidencePerAction || len(steps) > MaxMethodEvidencePerAction {
+		return ErrInvalidArgument
+	}
+	stepIndexes := make(map[MethodStepID]int, len(steps))
+	for index, step := range steps {
+		if step.Validate() != nil || stepIndexes[step.StepID] != 0 {
+			return ErrInvalidArgument
+		}
+		stepIndexes[step.StepID] = index + 1
+	}
+	seen := make(map[MethodStepID]bool, len(items))
+	for _, item := range items {
+		if item.validateSyntax() != nil || stepIndexes[item.StepID] == 0 || seen[item.StepID] {
+			return ErrInvalidArgument
+		}
+		seen[item.StepID] = true
+	}
+	if len(items) != len(steps) {
+		return ErrTransitionNotAllowed
+	}
+	for index, step := range steps {
+		item := items[index]
+		if item.StepID != step.StepID {
+			return ErrTransitionNotAllowed
+		}
+		if step.Required && item.Status != MethodStepCompleted && item.Status != MethodStepPlainFallback {
+			return ErrTransitionNotAllowed
+		}
+	}
+	return nil
 }

@@ -3,6 +3,7 @@ package mcp
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/Innocent-children/dev-flow/internal/application"
 	"github.com/Innocent-children/dev-flow/internal/domain"
@@ -166,6 +167,9 @@ func ValidateToolInput(tool string, raw []byte) error {
 		}
 		if string(v.Payload) != "null" {
 			if err := workflow.ValidateRetainedPayload(v.SourceCursor, v.Payload); err != nil {
+				if errors.Is(err, domain.ErrTransitionNotAllowed) {
+					return domain.ErrTransitionNotAllowed
+				}
 				return domain.ErrInvalidArgument
 			}
 		}

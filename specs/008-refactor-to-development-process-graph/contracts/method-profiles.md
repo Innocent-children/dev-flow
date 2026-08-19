@@ -108,6 +108,41 @@ delivery.prepare_summary
 
 Step IDs are stable Core contract. Host command spelling is not.
 
+### 3.1 Core purpose and ordering catalog
+
+Every normal node declares exactly the following three required steps in this order:
+
+| Node | Step ID | Purpose |
+| --- | --- | --- |
+| `REQUIREMENTS` | `requirements.capture` | Capture a bounded goal, scope, exclusions, acceptance criteria, constraints, and assumptions. |
+| `REQUIREMENTS` | `requirements.clarify` | Resolve material requirement questions with the developer. |
+| `REQUIREMENTS` | `requirements.validate` | Verify that requirements are observable, bounded, and free of material ambiguity. |
+| `DESIGN` | `design.choose_approach` | Select the simplest viable approach for the current requirements. |
+| `DESIGN` | `design.review_complexity` | Identify unnecessary abstractions and justify retained complexity. |
+| `DESIGN` | `design.record_decisions` | Record components, decisions, rejected alternatives, and risks. |
+| `TASKS` | `tasks.decompose` | Decompose the current design into bounded, ordered work items. |
+| `TASKS` | `tasks.map_acceptance` | Map every current acceptance criterion to work and verification. |
+| `TASKS` | `tasks.analyze_consistency` | Check requirements, design, and tasks for gaps or contradictions. |
+| `IMPLEMENT` | `implementation.execute_plan` | Execute only the work authorized by the current task plan. |
+| `IMPLEMENT` | `implementation.record_surface` | Record exact changed paths or the no-change state and deviations. |
+| `IMPLEMENT` | `implementation.classify_deviations` | Classify implementation deviations as requirement, design, or complexity concerns. |
+| `TEST` | `test.run_budgeted_checks` | Run only verification authorized by the current verification budget. |
+| `TEST` | `test.record_evidence` | Record actual evidence sources, outcomes, and unverified or manual items. |
+| `TEST` | `test.classify_failure` | Classify failures as implementation, design, or requirement problems. |
+| `COMPREHENSION_REVIEW` | `comprehension.explain` | Explain the current behavior, design, and code path in developer-readable terms. |
+| `COMPREHENSION_REVIEW` | `comprehension.identify_complexity` | Identify unnecessary abstractions and maintenance risks. |
+| `COMPREHENSION_REVIEW` | `comprehension.obtain_user_verdict` | Obtain the developer's explicit understanding or remediation verdict. |
+| `REFACTOR` | `refactor.simplify` | Remove unnecessary complexity within the approved behavior boundary. |
+| `REFACTOR` | `refactor.reconcile_artifacts` | Reconcile affected process artifacts with the simplification. |
+| `REFACTOR` | `refactor.record_surface` | Record exact simplifications and the changed surface. |
+| `DELIVERY` | `delivery.reconcile_acceptance` | Map the latest acceptance criteria to current test and comprehension evidence. |
+| `DELIVERY` | `delivery.reconcile_method_artifacts` | Reconcile method artifacts with the delivered behavior. |
+| `DELIVERY` | `delivery.prepare_summary` | Prepare a bounded delivery summary and remaining risks. |
+
+`DONE` and `CANCELLED` declare no steps. `BLOCKED` retains only its exceptional blocker-resolution
+step and is not part of this 24-step normal-node catalog. Purpose wording is validated and persisted
+but does not affect definition identity; step ID, `required`, and declaration order do.
+
 ## 4. Rendered Operation Shape
 
 The Host Adapter presents each current step as:
@@ -295,6 +330,13 @@ For each returned semantic step:
 7. Core validates the semantic result regardless of method status.
 
 Required semantic steps cannot be satisfied by `unavailable` or `not_run`.
+
+For every normal-node mutation, Core requires exactly one MethodEvidence item for every step returned
+by the current Action and rejects unknown, duplicate, previous-node, or omitted steps. Required steps
+are satisfied only by `completed` or `plain_fallback`. A syntactically valid but incomplete set, or a
+required step reported as `unavailable`/`not_run`, returns `TRANSITION_NOT_ALLOWED`; malformed item
+fields return `INVALID_ARGUMENT`. MethodEvidence never substitutes for the typed node result and is
+included without omission in the canonical mutation payload digest.
 
 Tool absence does not cause a Core mutation, blocker, cancellation, or profile change.
 
