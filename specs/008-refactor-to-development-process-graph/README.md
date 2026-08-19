@@ -3,7 +3,7 @@
 ## Status
 
 - **Feature**: `008-refactor-to-development-process-graph`
-- **Status**: Planned
+- **Status**: Ready
 - **Change Type**: Product Feature
 - **Created**: 2026-08-18
 - **Baseline**: `main` at `29885cd4d0b97ad03bbe09876168e48db371a048`
@@ -95,6 +95,10 @@ export SPECIFY_FEATURE_DIRECTORY="$PWD/specs/008-refactor-to-development-process
 The Git branch does not select the active Feature.
 
 ## Workflow Gate
+
+Contract-freeze review completed on 2026-08-19: clarification found no acceptance-impacting open
+question, the requirements checklist passed 60/60 items, and analyze found no CRITICAL, HIGH, or
+acceptance-impacting MEDIUM issue. Feature 008 remains a non-release Product Feature.
 
 Before production code changes:
 

@@ -19,23 +19,23 @@ changed to `Ready`.
 
 **Goal**: Make the prepared package implementation-ready without touching production code.
 
-- [ ] T001 Review this complete package under
+- [x] T001 Review this complete package under
   `.specify/memory/constitution.md` and `docs/SPEC-KIT-WORKFLOW.md`; record only material
   clarification changes in `specs/008-refactor-to-development-process-graph/` per the Feature
   workflow gate.
-- [ ] T002 Run `$speckit-clarify` with
+- [x] T002 Run `$speckit-clarify` with
   `SPECIFY_FEATURE_DIRECTORY=specs/008-refactor-to-development-process-graph`; resolve every
   acceptance-impacting answer in `spec.md`, `plan.md`, `data-model.md`, and contracts without
   regenerating the package.
-- [ ] T003 Re-review
+- [x] T003 Re-review
   `specs/008-refactor-to-development-process-graph/checklists/requirements.md`; leave no unchecked
   or waived item without an exact written reason.
-- [ ] T004 Add `tests/contract/spec_008_document_test.go` to verify the Feature's required files,
+- [x] T004 Add `tests/contract/spec_008_document_test.go` to verify the Feature's required files,
   relative Markdown links, unique FR/SC/CHK/T identifiers, 29 transition IDs, and absence of
   unresolved template markers per `docs/SPEC-KIT-WORKFLOW.md`.
-- [ ] T005 Run `$speckit-analyze`; resolve every CRITICAL/HIGH and every acceptance-impacting MEDIUM
+- [x] T005 Run `$speckit-analyze`; resolve every CRITICAL/HIGH and every acceptance-impacting MEDIUM
   finding across the Feature artifacts.
-- [ ] T006 Update `specs/008-refactor-to-development-process-graph/README.md` and `spec.md` status
+- [x] T006 Update `specs/008-refactor-to-development-process-graph/README.md` and `spec.md` status
   from `Planned` to `Ready`, recording the analyze result and no release authority.
 
 **Checkpoint**: Feature contracts are frozen and reviewable; production source has zero diff.
