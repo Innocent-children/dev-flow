@@ -60,7 +60,7 @@ func TestProcessGraphNavigation(t *testing.T) {
 		t.Fatal("requirements projection")
 	}
 	payload := json.RawMessage(`{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":[],"node_result":{"baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
-	result, err := service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "request-apply", Host: domain.HostCodex, TaskID: opened.Task.TaskID, ExpectedRevision: 1, ActionID: a.ActionID, ActionKind: a.Kind, ProcessDefinitionDigest: opened.Task.Process.DefinitionDigest, RepositoryBindingDigest: b.BindingDigest, Payload: payload})
+	result, err := service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "request-apply", Host: domain.HostCodex, TaskID: opened.Task.TaskID, ExpectedRevision: 1, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: opened.Task.Process.ID, ProcessVersion: opened.Task.Process.Version, ProcessDefinitionDigest: opened.Task.Process.DefinitionDigest, SourceCursor: opened.Task.CurrentNode, RepositoryBindingDigest: b.BindingDigest, Payload: payload})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestProcessGraphNavigation(t *testing.T) {
 		t.Fatal("design edges incomplete")
 	}
 	before := s.writes
-	_, err = service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "request-invalid", Host: domain.HostCodex, TaskID: result.Task.TaskID, ExpectedRevision: 2, ActionID: result.Task.CurrentAction.ActionID, ActionKind: result.Task.CurrentAction.Kind, ProcessDefinitionDigest: result.Task.Process.DefinitionDigest, RepositoryBindingDigest: b.BindingDigest, Payload: payload})
+	_, err = service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "request-invalid", Host: domain.HostCodex, TaskID: result.Task.TaskID, ExpectedRevision: 2, ActionID: result.Task.CurrentAction.ActionID, ActionKind: result.Task.CurrentAction.Kind, ProcessID: result.Task.Process.ID, ProcessVersion: result.Task.Process.Version, ProcessDefinitionDigest: result.Task.Process.DefinitionDigest, SourceCursor: result.Task.CurrentNode, RepositoryBindingDigest: b.BindingDigest, Payload: payload})
 	if err == nil || s.writes != before {
 		t.Fatal("invalid edge wrote")
 	}

@@ -25,10 +25,10 @@ func TestGraphContractCatalogAndFixtures(t *testing.T) {
 	}
 }
 func TestFixtureContractGraphInputsAreClosed(t *testing.T) {
-	if err := coremcp.ValidateToolInput(coremcp.ToolGetTask, []byte(`{"host":"codex","task_id":"task"}`)); err != nil {
+	if err := coremcp.ValidateToolInput(coremcp.ToolGetTask, []byte(`{"host":"codex","task_id":"task","operation_probe":null}`)); err != nil {
 		t.Fatal(err)
 	}
-	if err := coremcp.ValidateToolInput(coremcp.ToolGetTask, []byte(`{"host":"codex","task_id":"task","destination":"DONE"}`)); err == nil {
+	if err := coremcp.ValidateToolInput(coremcp.ToolGetTask, []byte(`{"host":"codex","task_id":"task","operation_probe":null,"destination":"DONE"}`)); err == nil {
 		t.Fatal("caller destination accepted")
 	}
 }

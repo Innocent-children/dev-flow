@@ -1,7 +1,11 @@
 # Protocol Fixtures
 
-Core Contract 0.2 graph fixtures use the `graph-*.json` prefix. They describe Schema 2
-`standard-development@1` navigation and remain separate from frozen Contract 0.1 historical fixtures.
+Core Contract 0.2 graph fixtures remain separate from frozen Core Contract 0.1 historical fixtures:
+
+- `graph-server-info.json` records the Schema 2 handshake and exact six-tool catalog;
+- `graph-open-requirements.json` records early task creation and the REQUIREMENTS edge;
+- `graph-design-action.json` records the complete DESIGN edge set;
+- `graph-invalid-edge.json` records zero-write rejection of an undeclared DESIGN edge.
 
 This directory owns the shared public-contract fixtures produced by the Dev Flow Core. The same
 fixtures are consumed by future Codex and DeepSeek adapters; host-specific copies or alternate
