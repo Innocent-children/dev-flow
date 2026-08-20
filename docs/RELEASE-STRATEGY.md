@@ -1,8 +1,8 @@
 # 分阶段产品发布策略
 
-> **文档状态**：Feature 003 与 Feature 005 已合并。Feature 006 的确定性实现与最终门禁
-> T001–T046 已通过，这只表示 implementation ready for review；public release 仍等待
-> T047–T050。
+> **文档状态**：Feature 008 已完成并合并。Feature 009 正在将图运行时对齐为 `0.4.0`，并以一个
+> exact-confirmation 命令完成 preparation、verification、publication、最终 Journey 和 Release
+> finalization。公开 `0.4.0` 证据在该命令成功前保持 pending。
 
 ## 发布顺序
 
@@ -21,14 +21,14 @@ dev-flow-deepseek
 首个 Codex-only `0.x` Release 不宣称 DeepSeek 已实现或受支持。`1.0.0` 仍要求两个产品均可
 公开安装，并各自具有真实宿主最终制品证据。
 
-## 当前证据状态
+## 当前 `0.4.0` 证据状态
 
-- Feature 003 已完成真实 Codex create/restart/resume/`DONE`/remove 验收；
-- Feature 005 recovery tests 与 Feature 006 local tgz/lifecycle/upgrade tests 已完成；
+- Feature 008 已完成 Contract 0.2、Schema 2、`standard-development@1`、恢复、方法画像和
+  source-local Codex 验收；
 - 两工作树 preparation、normalized verifier、fake npm/gh publication、resume/conflict、
-  simulated finalization 和 registry-only Journey contract 已完成确定性验证；
-- public npm publication、registry tarball read-back、真实 final Journey、GitHub asset read-back
-  与 public Release 尚未执行。
+  finalization 和 registry-only Journey contract 已有确定性覆盖；
+- Feature 009 的当前 source validation 通过后，公开 npm、registry read-back、真实 final
+  Journey、GitHub assets 与 Release 由一条命令完成。
 
 fake 或本地证据不会生成 public support claim。
 
@@ -71,7 +71,8 @@ npm install -g dev-flow-codex
 dev-flow-codex setup
 ```
 
-当前 registry publication 尚未发生。无论本地 tgz 还是未来 registry package：
+历史 `0.3.0` registry package 已冻结；`0.4.0` graph package 在 Feature 009 完成前保持 pending。
+对于当前发布包：
 
 - npm 只安装或删除 package-manager-owned 文件；
 - setup/remove 才修改已证明归属的 Codex 注册；
@@ -94,8 +95,8 @@ publication record 是可变 operator state，不进入 SQLite、不上传为 Re
 
 ## 发布权限与执行位置
 
-Preparation/verification 是可重复、无远端副作用的本地操作。真实发布只能从已评审、干净的
-`main` commit 执行，使用一次 frozen release directory 和精确 `v${VERSION}` confirmation。
+真实发布从已验证、干净且已推送的 `main` commit 执行，使用一个 durable release directory 和
+精确 `v${VERSION}` confirmation。根命令负责 preparation、verification 和 publisher 调用。
 
 Pull Request CI：
 

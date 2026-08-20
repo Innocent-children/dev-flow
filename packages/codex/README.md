@@ -5,25 +5,22 @@ Plugin、一个 `dev-flow` Skill、一份 local STDIO MCP 声明、method-profil
 `darwin-arm64` Core executable。它不保存 Task、process cursor、transition table 或 recovery
 classification。
 
-## 当前发布与源码边界
+## 安装与发布身份
 
-仓库版本和 package metadata 当前仍为 `0.3.0`，因为 Feature 008 是 Product Feature，没有版本
-或发布权限。已公开的历史 `0.3.0` 包、Tag、Release 与证据保持不变；registry 上的
-`dev-flow-codex@0.3.0` 不能被视为必然包含本分支的 graph runtime。
+当前 package、plugin 和 bundled Core 版本是 `0.4.0`。Feature 009 发布已完成的 Feature 008
+graph runtime；历史 `0.3.0` 包、Tag、Release 与证据保持冻结。
 
-Feature 008 从当前提交构建的制品只能标记为：
+标准安装和显式注册入口是：
 
-```text
-source-local
-unpublished
-working-tree/commit-bound
-Feature 008 acceptance test artifact
+```bash
+npm install -g dev-flow-codex@0.4.0
+dev-flow-codex setup
 ```
 
-它不是 official/released/registry `0.3.0` artifact，不能上传 npm 或 GitHub Release。图运行时
-的公开发布需要 Feature 完成后的独立 Release Change。
+精确 npm tarball、standalone Core、manifest、checksums、实际 Codex 版本和最终 Journey 结果以
+GitHub Release `v0.4.0` 与 registry 回读证据为准。
 
-当前 source-local 构建支持 native macOS arm64、Node.js `>=24` 和 Codex
+当前公开支持 native macOS arm64、Node.js `>=24` 和 Codex
 `>=0.147.0 <0.148.0`。没有 Linux、Windows、Intel Mac、Rosetta 或 DeepSeek 产品支持声明。
 
 ## Closed package
@@ -51,28 +48,29 @@ Artifact 不包含 tests、fixtures、specs、source tree、`.git`、`node_modul
 或绝对路径。package 没有 production npm dependency 和 install/update/uninstall lifecycle hook；
 安装文件与显式 Codex 注册是两个操作。
 
-## Source-local artifact
+## Local package build
 
 在干净、已提交的 source commit 上，把最终验收制品构建到仓库外的空目录：
 
 ```bash
-ARTIFACT_ROOT="${TMPDIR:-/tmp}/dev-flow-feature-008-artifacts"
+ARTIFACT_ROOT="${TMPDIR:-/tmp}/dev-flow-local-artifacts"
 mkdir -p "$ARTIFACT_ROOT"
 SOURCE_COMMIT="$(git rev-parse HEAD)"
 
-pnpm --dir packages/codex build:local -- \
+pnpm --dir packages/codex run build:local \
   --output "$ARTIFACT_ROOT" \
   --final \
   --source-commit "$SOURCE_COMMIT" \
   --report "$ARTIFACT_ROOT/artifact-evidence.json"
 ```
 
-`--final` 在这里表示 builder 的 clean-source/identity verification 模式，不表示 public Release。
+`--final` 表示 builder 的 clean-source/identity verification 模式；公开 Release 由 Feature 009
+的一键 publisher 产生。
 Builder 要求输出目录已经存在、没有 `.tgz`，source tree 干净且 HEAD 等于 `--source-commit`；
 它验证 package/Core/plugin version identity、platform、detached runtime executable 和 closed pack
 contents，并输出 SHA-256 evidence。制品与 evidence JSON 均保留在仓库外。
 
-T091 只构建和检查，不执行 setup/remove、不修改真实 Codex 配置、不启动 native Journey。
+本地构建只生成和检查制品，不执行 setup/remove、不修改真实 Codex 配置、不启动 native Journey。
 
 ## Explicit invocation boundary
 
@@ -155,8 +153,7 @@ archive/rename/delete 旧目录，再启动 graph Core。错误信息不回显�
 
 ## Setup、remove 与 retained data
 
-公开历史版本的安装和 setup 行为以对应 Release 文档为准。对于未来明确授权安装的兼容 graph
-artifact，package 文件安装仍与 Codex 注册分离：只有 `dev-flow-codex setup` 可以创建经 ownership
+`0.4.0` package 文件安装仍与 Codex 注册分离：只有 `dev-flow-codex setup` 可以创建经 ownership
 和 read-back 验证的注册，只有 `dev-flow-codex remove` 可以删除该产品拥有的注册。
 
 setup/update/remove/uninstall 均保留 Core task data 和未知相邻文件，不会修改目标 repository 或

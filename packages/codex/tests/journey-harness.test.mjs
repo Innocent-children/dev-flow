@@ -47,6 +47,7 @@ import * as smokeRuntime from "../../../scripts/write-codex-journey-evidence.mjs
 
 const execFile = promisify(execFileCallback);
 const repositoryRoot = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
+const currentVersion = (await readFile(join(repositoryRoot, "VERSION"), "utf8")).trim();
 const runner = join(repositoryRoot, "scripts", "run-codex-real-journey.sh");
 const writer = join(repositoryRoot, "scripts", "write-codex-journey-evidence.mjs");
 const validator = join(repositoryRoot, "scripts", "validate-codex-journey-evidence.mjs");
@@ -103,17 +104,17 @@ function validAcceptanceReport() {
   };
 }
 
-function fixtureFinalJourneyEvidence() {
+function fixtureFinalJourneyEvidence(packageVersion = "0.1.0") {
   return {
     evidence_kind: FINAL_FIXTURE_EVIDENCE_KIND,
     status: "passed",
     package_name: "dev-flow-codex",
-    package_version: "0.1.0",
+    package_version: packageVersion,
     registry: "https://registry.npmjs.org/",
     npm_tarball_sha256: "a".repeat(64),
     npm_integrity: `sha512-${Buffer.alloc(64, 7).toString("base64")}`,
     package_root_location: "isolated-npm-prefix",
-    core_version: "0.1.0",
+    core_version: packageVersion,
     core_sha256: "b".repeat(64),
     source_commit: "c".repeat(40),
     codex_version: "0.147.0",
@@ -1289,7 +1290,7 @@ test("final registry journey CLI is closed, registry-only, and rejects local sub
   const exact = [
     "final-registry",
     "--package", "dev-flow-codex",
-    "--version", "0.1.0",
+    "--version", currentVersion,
     "--registry", "https://registry.npmjs.org/",
     "--tarball-sha256", "a".repeat(64),
     "--core-sha256", "b".repeat(64),
@@ -1301,7 +1302,7 @@ test("final registry journey CLI is closed, registry-only, and rejects local sub
   assert.deepEqual(parseCLI([...exact]), {
     mode: "final-registry",
     packageName: "dev-flow-codex",
-    version: "0.1.0",
+    version: currentVersion,
     registry: "https://registry.npmjs.org/",
     tarballSHA256: "a".repeat(64),
     coreSHA256: "b".repeat(64),
@@ -1325,21 +1326,21 @@ test("final registry journey CLI is closed, registry-only, and rejects local sub
   assert.throws(() => parseCLI([...exact, "--registry", "https://registry.npmjs.org/"]), /exact flag/u);
 
   assert.deepEqual(buildFinalRegistryInstallArgs({
-    version: "0.1.0",
+    version: currentVersion,
     prefix: "/tmp/isolated-prefix",
     cache: "/tmp/isolated-cache",
   }), [
-    "install", "--global", "dev-flow-codex@0.1.0",
+    "install", "--global", `dev-flow-codex@${currentVersion}`,
     "--registry=https://registry.npmjs.org/",
     "--prefix", "/tmp/isolated-prefix",
     "--cache", "/tmp/isolated-cache",
     "--ignore-scripts", "--no-audit", "--no-fund",
   ]);
   assert.deepEqual(buildFinalRegistryPackArgs({
-    version: "0.1.0",
+    version: currentVersion,
     destination: "/tmp/registry-readback",
   }), [
-    "pack", "dev-flow-codex@0.1.0",
+    "pack", `dev-flow-codex@${currentVersion}`,
     "--pack-destination", "/tmp/registry-readback",
     "--ignore-scripts", "--json",
     "--registry=https://registry.npmjs.org/",
@@ -1397,7 +1398,7 @@ test("final registry journey layout and product environment stay inside isolated
 });
 
 test("fixture journey evidence is closed and can never satisfy the native production gate", () => {
-  const fixture = fixtureFinalJourneyEvidence();
+  const fixture = fixtureFinalJourneyEvidence(currentVersion);
   assert.deepEqual(validateFinalJourneyEvidenceShape(fixture, { allowFixture: true }), fixture);
   assert.throws(() => validateFinalJourneyEvidence(fixture), /native registry-package evidence/u);
   assert.throws(
@@ -1415,9 +1416,9 @@ test("fixture journey evidence is closed and can never satisfy the native produc
 });
 
 test("passed support matrix is derived only from matching native registry journey identity", () => {
-  const fixture = fixtureFinalJourneyEvidence();
+  const fixture = fixtureFinalJourneyEvidence(currentVersion);
   const manifest = {
-    release: { version: "0.1.0", source_commit: "c".repeat(40) },
+    release: { version: currentVersion, source_commit: "c".repeat(40) },
     artifacts: [
       { kind: "core_binary", sha256: "b".repeat(64) },
       { kind: "npm_tarball", sha256: "a".repeat(64) },

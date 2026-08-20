@@ -9,9 +9,10 @@ Dev Flow 解决的是开发过程容易失去上下文的问题：开发者或 A
 通过后直接交付难以维护的实现，或在中断和不确定 mutation 后凭聊天记录猜测下一步。一个
 Core 读取即可回答“当前在哪里、需要完成什么、可以去哪里以及为什么”。
 
-当前 Feature 008 分支中的图运行时是 **unreleased source-local behavior**。仓库历史上的
-`0.3.0` Tag、npm 包、Release 和 Features 001–007 证据保持不变；公开的 `0.3.0` 包不能被视为
-必然包含本文描述的图运行时。正式发布需要未来单独批准的 Release Change。
+当前产品版本是 `0.4.0`。Feature 009 选择已完成的 Feature 008 图运行时作为 Codex-only
+macOS arm64 Release；仓库历史上的 `0.3.0` Tag、npm 包、Release 和 Features 001–007 证据保持
+冻结。公开状态与精确制品摘要以 npm `dev-flow-codex@0.4.0` 和 GitHub Release `v0.4.0` 的发布
+记录为准。
 
 ## 开发过程图
 
@@ -123,9 +124,14 @@ Codex Skill 只接受精确显式 selector：
 $dev-flow-codex:dev-flow
 ```
 
-已公开版本的 registry 安装、历史兼容范围与证据以对应 Release 文档为准。当前 Feature 008
-图能力只能从本分支源码构建 source-local、unpublished、commit-bound test artifact；它不是
-official `0.3.0` artifact，也不能上传 registry。构建器用法见
+Codex-only `0.4.0` 的标准安装入口是：
+
+```bash
+npm install -g dev-flow-codex@0.4.0
+dev-flow-codex setup
+```
+
+版本、支持平台、历史数据边界和精确制品证据见对应 npm/GitHub Release 与
 [Codex package README](packages/codex/README.md)。
 
 Core 的公开 MCP 工具仍恰好六个：

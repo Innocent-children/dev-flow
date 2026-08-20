@@ -147,8 +147,12 @@ push、tag、publish，也不暴露 generic shell。Action 的 `allowed_effects`
 | `protocol/fixtures/` | historical/current public contract fixtures |
 | `tests/contract/`, `tests/journeys/` | deterministic contract and process evidence |
 
-## 发布边界
+## 发布架构
 
-当前图实现是 source-local、unreleased behavior。已发布 `0.3.0` 历史不变，Feature 008 不修改
-版本、npm、Tag 或 GitHub Release。release schemas、publisher 和远端 artifact 属于维护者 Release
-Change，不进入 Core 或 SQLite，也不能改变当前产品语义。
+Feature 009 使用仓库外的五文件 release directory、Manifest Schema 2、Publication Record
+Schema 1 和一条 exact-confirmation 根命令发布 `0.4.0`。命令编排 builder、verifier 和 publisher；
+publisher 独自拥有 Tag/Draft/npm/read-back/Journey/assets/finalization 的远端状态机。
+
+发布工具不进入 Core、MCP 或 SQLite，也不改变 Feature 008 产品语义。已发布 `0.3.0` 历史保持
+冻结；当前 manifest 绑定 Feature 008 commit、Contract 0.2、Schema 2、snapshot v2 和
+`standard-development@1` definition digest。

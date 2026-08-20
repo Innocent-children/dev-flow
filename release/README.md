@@ -20,10 +20,11 @@ release/
     └── invalid-release-fixtures.json
 ```
 
-The Schema authorities under `specs/006-publish-codex-installable-product/contracts/` and their
-implementation copies under `release/schemas/` are byte-identical. Contract tests guard exact
-identity, closed required fields, `additionalProperties: false`, one `darwin-arm64` support entry,
-safe paths, immutable digests, and all nine publication steps.
+The current release-manifest authority is
+`specs/009-publish-codex-0.4.0/contracts/release-manifest.schema.json`; its implementation copy under
+`release/schemas/` is byte-identical. Publication Record Schema 1 remains owned by Feature 006.
+Contract tests guard exact identity, closed required fields, `additionalProperties: false`, one
+`darwin-arm64` support entry, safe paths, immutable digests, and all nine publication steps.
 
 ## Five-file generated output
 
@@ -45,14 +46,18 @@ The tarball, standalone Core, final manifest, and checksum file are immutable re
 completed/failed/blocked step, and safe continuation. It is not stored in SQLite and is not uploaded
 as a GitHub Release asset.
 
-## Operator commands
+## Operator command
 
 ```bash
-pnpm run release:codex:prepare -- --output "<empty-absolute-directory>"
-pnpm run release:codex:verify -- --directory "<release-directory>"
-pnpm run release:codex:publish -- --directory "<release-directory>"
-pnpm run release:codex:publish -- --directory "<release-directory>" --confirm "v<VERSION>"
+pnpm run release:codex -- \
+  --output "<absolute-release-directory>" \
+  --confirm "v<VERSION>"
 ```
+
+This is the production operator entrypoint. It creates or prepares a missing/empty directory, resumes
+an exact five-file directory, runs local verification, and invokes the exact-confirmation publisher.
+The `release:codex:prepare`, `release:codex:verify`, and `release:codex:publish` scripts remain reviewed
+internal components and diagnostic commands.
 
 ### Prepare
 
@@ -105,15 +110,14 @@ Generated output stays in the operator-selected external directory and is never 
 not contain credentials, auth configuration, home/machine paths, raw environment values, raw host
 prompts, unbounded command output, source, task databases, receipts, caches, or DeepSeek resources.
 
-## Feature 006 status
+## Current release status
 
-- T001–T041 implemented: public package/lifecycle, deterministic preparation/verifier, resumable
-  publisher, compatible upgrade/retention, final Journey contract, finalization gate, and native-only
-  support matrix.
-- T042–T046 deterministic documentation/final gates passed.
-- T047–T050 not executed.
-- No real publication side effect or public Release evidence exists.
+- Feature 008 graph behavior and source-local acceptance are complete.
+- Feature 009 aligns current identity to `0.4.0`, upgrades the current manifest to graph-aware Schema
+  2, and exposes the one-command release entrypoint.
+- Public `0.4.0` npm, Tag, final Journey, assets, and Release evidence remain pending until the clean
+  source gate passes and the exact command runs.
 
 The release scope is only `dev-flow-codex` on macOS arm64. DeepSeek, other platforms,
-platform-runtime packages, signing, notarization, and automated PR publication remain outside
-Feature 006.
+platform-runtime packages, signing, notarization, and automated CI publication remain outside
+Feature 009.

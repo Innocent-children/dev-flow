@@ -84,6 +84,7 @@ const expectedFiles = [
   "tests/package-contract.test.mjs",
   "tests/paths.test.mjs",
   "tests/removal-retention.test.mjs",
+  "tests/release-command.test.mjs",
   "tests/release-package.test.mjs",
   "tests/release-publication.test.mjs",
   "tests/skill-contract.test.mjs",
@@ -117,6 +118,7 @@ const expectedFiles = [
   "build-codex-local.sh",
   "build-codex-release.sh",
   "publish-codex-release.mjs",
+  "release-codex.mjs",
   "run-codex-real-journey.sh",
   "validate-codex-journey-evidence.mjs",
   "verify-codex-release.mjs",
@@ -209,10 +211,12 @@ run_step "Deferred package unchanged" check_deferred_package_unchanged
 run_step "Codex release prepare syntax" bash -n scripts/build-codex-release.sh
 run_step "Codex release verifier syntax" node --check scripts/verify-codex-release.mjs
 run_step "Codex release publisher syntax" node --check scripts/publish-codex-release.mjs
+run_step "Codex one-command release syntax" node --check scripts/release-codex.mjs
 run_step "Fake release npm syntax" node --check packages/codex/tests/fixtures/fake-release-npm.mjs
 run_step "Fake release GitHub syntax" node --check packages/codex/tests/fixtures/fake-release-gh.mjs
 run_step "Release contract tests" go test ./tests/contract
 run_step "Codex public package contract" node --test packages/codex/tests/package-contract.test.mjs
+run_step "Codex one-command release contract" node --test packages/codex/tests/release-command.test.mjs
 run_step "Go package inventory" go list ./...
 run_step "Go vet" go vet ./...
 run_step "Go tests and repository contracts" go test ./...

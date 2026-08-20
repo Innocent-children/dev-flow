@@ -68,9 +68,13 @@ export const PUBLICATION_STEPS = Object.freeze([
   "github_finalize",
 ]);
 
-const FEATURE_003_COMMIT = "a2ba8bd5de9c87aaf758bff51a02ae120f60c7f7";
-const FEATURE_005_COMMIT = "850dd4a4ee07bf50af5d9a36b24373c6b09fdd28";
-const CORE_FIXTURE_DIGEST = "sha256:8c27bcf6be0e4e5a4bf294c67cbda8cdf281b1b2b2c53fff16206db2828dede7";
+const FEATURE_008_COMMIT = "872cdcfc2d40dd06fa7e85109d5f69e08de4ceda";
+const CORE_CONTRACT_VERSION = "0.2";
+const STORAGE_SCHEMA_VERSION = 2;
+const SNAPSHOT_VERSION = 2;
+const PROCESS_ID = "standard-development";
+const PROCESS_VERSION = 1;
+const PROCESS_DEFINITION_DIGEST = "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1";
 const CODEX_RANGE = ">=0.147.0 <0.148.0";
 const MAX_RECORD_BYTES = 2 * 1024 * 1024;
 const MAX_TEXT_FILE_BYTES = 2 * 1024 * 1024;
@@ -146,15 +150,19 @@ export async function prepareRelease({
       },
     ];
     const manifest = {
-      schema_version: 1,
+      schema_version: 2,
       release: {
         version,
         tag: `v${version}`,
         source_commit: sourceCommit,
         source_tree: sourceTree,
-        core_fixture_digest: CORE_FIXTURE_DIGEST,
-        feature_003_commit: FEATURE_003_COMMIT,
-        feature_005_commit: FEATURE_005_COMMIT,
+        feature_008_commit: FEATURE_008_COMMIT,
+        core_contract_version: CORE_CONTRACT_VERSION,
+        storage_schema_version: STORAGE_SCHEMA_VERSION,
+        snapshot_version: SNAPSHOT_VERSION,
+        process_id: PROCESS_ID,
+        process_version: PROCESS_VERSION,
+        process_definition_digest: PROCESS_DEFINITION_DIGEST,
         build_profile: "codex-darwin-arm64-v1",
         created_at: createdAt,
       },
@@ -448,16 +456,24 @@ export async function inspectPackageTarball(tarballPath, { repositoryRoot, versi
 
 export function validateManifest(manifest, { version, sourceCommit, sourceTree }) {
   assertExactKeys(manifest, ["schema_version", "release", "toolchains", "artifacts", "package_files", "support", "validations"], "release manifest");
-  if (manifest.schema_version !== 1) throw new Error("release manifest schema_version must equal 1");
-  assertExactKeys(manifest.release, ["version", "tag", "source_commit", "source_tree", "core_fixture_digest", "feature_003_commit", "feature_005_commit", "build_profile", "created_at"], "release identity");
+  if (manifest.schema_version !== 2) throw new Error("release manifest schema_version must equal 2");
+  assertExactKeys(manifest.release, [
+    "version", "tag", "source_commit", "source_tree", "feature_008_commit", "core_contract_version",
+    "storage_schema_version", "snapshot_version", "process_id", "process_version",
+    "process_definition_digest", "build_profile", "created_at",
+  ], "release identity");
   if (
     manifest.release.version !== version ||
     manifest.release.tag !== `v${version}` ||
     manifest.release.source_commit !== sourceCommit ||
     manifest.release.source_tree !== sourceTree ||
-    manifest.release.core_fixture_digest !== CORE_FIXTURE_DIGEST ||
-    manifest.release.feature_003_commit !== FEATURE_003_COMMIT ||
-    manifest.release.feature_005_commit !== FEATURE_005_COMMIT ||
+    manifest.release.feature_008_commit !== FEATURE_008_COMMIT ||
+    manifest.release.core_contract_version !== CORE_CONTRACT_VERSION ||
+    manifest.release.storage_schema_version !== STORAGE_SCHEMA_VERSION ||
+    manifest.release.snapshot_version !== SNAPSHOT_VERSION ||
+    manifest.release.process_id !== PROCESS_ID ||
+    manifest.release.process_version !== PROCESS_VERSION ||
+    manifest.release.process_definition_digest !== PROCESS_DEFINITION_DIGEST ||
     manifest.release.build_profile !== "codex-darwin-arm64-v1" ||
     !Number.isFinite(Date.parse(manifest.release.created_at))
   ) {

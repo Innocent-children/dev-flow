@@ -28,6 +28,7 @@ var runtimeDependencyFields = []string{
 }
 
 var rootDevelopmentScripts = map[string]string{
+	"release:codex":         "node ./scripts/release-codex.mjs",
 	"release:codex:prepare": "./scripts/build-codex-release.sh",
 	"release:codex:publish": "node ./scripts/publish-codex-release.mjs",
 	"release:codex:verify":  "node ./scripts/verify-codex-release.mjs",
@@ -100,8 +101,8 @@ func TestProjectManifestBootstrapMetadata(t *testing.T) {
 		t.Fatalf("read root VERSION: %v", err)
 	}
 	wantVersion := strings.TrimSpace(string(versionBytes))
-	if wantVersion != "0.3.0" {
-		t.Fatalf("Feature 007 current version = %q, want 0.3.0", wantVersion)
+	if wantVersion != "0.4.0" {
+		t.Fatalf("Feature 009 current version = %q, want 0.4.0", wantVersion)
 	}
 
 	tests := []struct {

@@ -78,6 +78,7 @@ const reviewedSourceAllowlist = new Set([
   "tests/package-contract.test.mjs",
   "tests/paths.test.mjs",
   "tests/removal-retention.test.mjs",
+  "tests/release-command.test.mjs",
   "tests/release-package.test.mjs",
   "tests/release-publication.test.mjs",
   "tests/skill-contract.test.mjs",

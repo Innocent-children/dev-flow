@@ -26,8 +26,8 @@ Implementation: Complete
 Native graph-flow acceptance: Complete
 Exact-artifact lifecycle acceptance: Complete
 Composite local acceptance: Complete
-Publication: Not performed
-Separate Release Change: Required
+    Publication: Feature 009 implementing
+    Selected release: dev-flow-codex@0.4.0 / macOS arm64
 ```
 
 最终 source-local 门禁使用同一精确 artifact 的两个互补证据组件：Attempt 3 的 native Codex
@@ -49,21 +49,22 @@ Feature 完成不代表 released、published、ready for merge 或 production av
 
 该门禁未执行 npm publication、Tag、GitHub Release 或 public installation claim。
 
-## Feature 008 之后：独立 Release Change
+## 当前 Release Change：Feature 009
 
-公开图产品必须由单独批准的 Release Feature/PR 完成：
+Feature 009 已批准以下 Codex-only 发布工作：
 
-- 选择发布版本；
+- 使用版本 `0.4.0`；
 - 对齐 `VERSION`、package、plugin 和 bundled Core identity；
 - 从一个 reviewed clean source identity 构建 official artifact；
 - 执行 npm publication 和 registry read-back；
 - 创建精确 Git Tag 和 GitHub Release；
 - 上传、回读并验证 official assets；
 - 使用最终分发制品完成要求的 native Journey；
-- 形成与真实证据一致的 platform/Host/public installation claim。
+- 形成与真实证据一致的 macOS arm64 Codex public installation claim；
+- 使用一条 exact-confirmation 命令编排完整发布并支持精确恢复。
 
-当前 Feature 不预选发布版本，也不把 source-local acceptance artifact 称为 release candidate
-或 official artifact。
+Feature 008 的 source-local acceptance artifact 继续作为冻结测试证据；Feature 009 从新的干净
+`main` source identity 构建 official `0.4.0` artifact，不复用或改写该历史制品。
 
 ## 未来产品方向
 

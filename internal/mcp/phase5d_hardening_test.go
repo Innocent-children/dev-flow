@@ -70,7 +70,11 @@ func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 }
 
 func TestServerInfoUsesExactPublicDTOFixture(t *testing.T) {
-	encoded := (&Server{version: "0.3.0"}).dispatch(context.Background(), ToolServerInfo, "server-info", []byte(`{}`))
+	versionBytes, err := os.ReadFile(filepath.Join("..", "..", "VERSION"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded := (&Server{version: strings.TrimSpace(string(versionBytes))}).dispatch(context.Background(), ToolServerInfo, "server-info", []byte(`{}`))
 	if encoded.IsError {
 		t.Fatal(string(encoded.JSON))
 	}

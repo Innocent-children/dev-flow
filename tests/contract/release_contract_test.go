@@ -189,7 +189,7 @@ func TestReleaseSchemasMirrorPlanningAuthorityAndRemainClosed(t *testing.T) {
 	}{
 		{
 			name:           "release manifest",
-			specPath:       "specs/006-publish-codex-installable-product/contracts/release-manifest.schema.json",
+			specPath:       "specs/009-publish-codex-0.4.0/contracts/release-manifest.schema.json",
 			implementation: "release/schemas/release-manifest.schema.json",
 			id:             releaseManifestSchemaID,
 			rootRequired:   []string{"schema_version", "release", "toolchains", "artifacts", "package_files", "support", "validations"},
@@ -226,8 +226,19 @@ func TestReleaseSchemasMirrorPlanningAuthorityAndRemainClosed(t *testing.T) {
 
 	manifest := releaseReadSchema(t, root, "release/schemas/release-manifest.schema.json")
 	releaseAssertClosedSchemaObject(t, releaseSchemaAt(t, manifest, "properties", "release"), []string{
-		"version", "tag", "source_commit", "source_tree", "core_fixture_digest", "feature_003_commit", "feature_005_commit", "build_profile", "created_at",
+		"version", "tag", "source_commit", "source_tree", "feature_008_commit", "core_contract_version",
+		"storage_schema_version", "snapshot_version", "process_id", "process_version",
+		"process_definition_digest", "build_profile", "created_at",
 	})
+	releaseProperties := releaseSchemaAt(t, manifest, "properties", "release", "properties")
+	if releaseSchemaAt(t, manifest, "properties", "schema_version")["const"] != float64(2) ||
+		releaseSchemaAt(t, releaseProperties, "core_contract_version")["const"] != "0.2" ||
+		releaseSchemaAt(t, releaseProperties, "storage_schema_version")["const"] != float64(2) ||
+		releaseSchemaAt(t, releaseProperties, "snapshot_version")["const"] != float64(2) ||
+		releaseSchemaAt(t, releaseProperties, "process_id")["const"] != "standard-development" ||
+		releaseSchemaAt(t, releaseProperties, "process_version")["const"] != float64(1) {
+		t.Fatal("current release manifest does not bind the Feature 008 graph contract")
+	}
 	releaseAssertClosedSchemaObject(t, releaseSchemaAt(t, manifest, "properties", "toolchains"), []string{"go", "node", "pnpm", "npm", "git", "gh"})
 	releaseAssertClosedSchemaObject(t, releaseSchemaAt(t, manifest, "properties", "artifacts", "items"), []string{"name", "kind", "relative_path", "size_bytes", "sha256", "mode", "source_commit"})
 	releaseAssertClosedSchemaObject(t, releaseSchemaAt(t, manifest, "properties", "package_files", "items"), []string{"path", "size_bytes", "sha256", "mode"})
@@ -419,6 +430,7 @@ func TestReleaseValidationEntrypointsRemainPreparationSafe(t *testing.T) {
 		t.Fatal("root package scripts must be an object")
 	}
 	expected := map[string]string{
+		"release:codex":         "node ./scripts/release-codex.mjs",
 		"release:codex:prepare": "./scripts/build-codex-release.sh",
 		"release:codex:verify":  "node ./scripts/verify-codex-release.mjs",
 		"release:codex:publish": "node ./scripts/publish-codex-release.mjs",
@@ -439,7 +451,12 @@ func TestReleaseValidationEntrypointsRemainPreparationSafe(t *testing.T) {
 	prepare := string(releaseReadFile(t, root, "scripts/build-codex-release.sh"))
 	verifier := string(releaseReadFile(t, root, "scripts/verify-codex-release.mjs"))
 	publisher := string(releaseReadFile(t, root, "scripts/publish-codex-release.mjs"))
-	for _, required := range []string{"go test ./tests/contract", "node --test packages/codex/tests/package-contract.test.mjs"} {
+	for _, required := range []string{
+		"go test ./tests/contract",
+		"node --test packages/codex/tests/package-contract.test.mjs",
+		"node --test packages/codex/tests/release-command.test.mjs",
+		"node --check scripts/release-codex.mjs",
+	} {
 		if !strings.Contains(validator, required) {
 			t.Errorf("validator missing preparation-safe command %q", required)
 		}
@@ -470,7 +487,8 @@ func TestReleaseValidationEntrypointsRemainPreparationSafe(t *testing.T) {
 	if strings.Contains(publisher, "shell: true") || !strings.Contains(publisher, "shell: false") {
 		t.Error("release publisher must use argv-closed commands with shell disabled")
 	}
-	if strings.Contains(workflow, "publish-codex-release.mjs") || strings.Contains(validator, "publish-codex-release.mjs --") {
+	if strings.Contains(workflow, "publish-codex-release.mjs") || strings.Contains(workflow, "release:codex") ||
+		strings.Contains(validator, "publish-codex-release.mjs --") || strings.Contains(validator, "release:codex --") {
 		t.Error("CI/validator must syntax-check but never execute the publisher")
 	}
 }

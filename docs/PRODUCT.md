@@ -100,14 +100,15 @@ lifecycle 都不会自动迁移、reset 或删除旧数据。
 - DeepSeek 产品、真实 Journey 或公开支持声明；
 - 在普通 Product Feature 中进行 version、npm、Tag 或 GitHub Release 操作。
 
-## 当前发布边界
+## 当前发布
 
-已发布的 `0.3.0`、对应 Tag/npm/GitHub Release 和 Features 001–007 是冻结历史事实。当前
-Feature 008 分支已经在源码中实现图运行时，但仍属于 **unreleased source-local behavior**。
-公开 `dev-flow-codex@0.3.0` 不构成当前图运行时的 registry 可用性证明。
+已发布的 `0.3.0`、对应 Tag/npm/GitHub Release 和 Features 001–007 是冻结历史事实。
+Feature 009 将完成的 Feature 008 图运行时对齐为 `0.4.0`，公开产品限定为 macOS arm64 上的
+`dev-flow-codex`。
 
-Feature 008 只能构建未发布、commit-bound 的本地验收制品。选择下一版本、对齐 version、npm
-publication、Tag、GitHub Release、official artifact 和 public installation claim，必须由
-Feature 008 完成后的独立 Release Change 授权。
+标准安装入口是 `npm install -g dev-flow-codex@0.4.0` 后显式运行 `dev-flow-codex setup`。公开
+可用性、制品摘要、实际 Codex 版本和最终 Journey 结果以 npm 与 GitHub Release `v0.4.0` 的
+回读证据为准。DeepSeek 和其他平台没有公开支持声明。
 
-精确产品合同见 [Feature 008 specification](../specs/008-refactor-to-development-process-graph/spec.md)。
+精确产品合同见 [Feature 008 specification](../specs/008-refactor-to-development-process-graph/spec.md)，
+发布合同见 [Feature 009 specification](../specs/009-publish-codex-0.4.0/spec.md)。

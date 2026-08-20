@@ -42,12 +42,13 @@ New Product, shared-contract, persistence, Host Adapter, and Release changes fol
 | `006-publish-codex-installable-product` | Release Feature | Historical | Deterministic/public Codex release machinery and first release evidence |
 | `007-close-open-task-contract` | Corrective/Product Feature | Historical | Complete open-task contract and published `0.3.0` evidence |
 | `008-refactor-to-development-process-graph` | Product Feature | Complete | Development process graph, composite source-local acceptance, final validation, and zero-gap convergence complete; publication remains separate |
+| `009-publish-codex-0.4.0` | Release Change | Implementing | Align current identity, add one-command publication, and release the Feature 008 graph as Codex `0.4.0` |
 
 ## Current Source Authority
 
-`0.3.0` and Features 001–007 remain historical truth. Feature 008 is the only approved specification
-for the current source graph and does not reinterpret the released artifact. The current source
-authority is distributed as follows:
+`0.3.0` and Features 001–007 remain historical truth. Feature 008 is the approved product
+specification for the current graph; Feature 009 is the release authority for current version
+`0.4.0`. The source authority is distributed as follows:
 
 | Responsibility | Authority |
 | --- | --- |
@@ -62,6 +63,7 @@ authority is distributed as follows:
 | Historical/current/Host parity/Recovery fixtures | `protocol/fixtures/` |
 | Deterministic contract and Journey evidence | `tests/contract/`, `tests/journeys/` |
 | Feature scope, contracts and checkpoints | `specs/008-refactor-to-development-process-graph/` |
+| `0.4.0` identity, manifest and publication contract | `specs/009-publish-codex-0.4.0/` |
 
 Current source supports only fresh Schema 2 `standard-development@1` tasks. It contains no
 historical-task runtime, migration, snapshot-v1 decoder or legacy process. Feature 008 completed
@@ -69,9 +71,9 @@ source-local acceptance by combining Attempt 3 native graph-flow evidence with n
 lifecycle evidence bound to the same exact unpublished artifact. Final repository validation and
 zero-gap analyze/converge passed.
 
-Feature 008 is not release authority. Version selection/alignment, npm publication, Tag creation,
-GitHub Release mutation, official artifact construction and public installation claims require a
-later Release Change.
+Feature 009 authorizes version alignment, npm publication, Tag creation, GitHub Release mutation,
+official artifact construction and the final macOS arm64 Codex installation claim. Its exact
+publication evidence is recorded only after the production one-command release completes.
 
 ## Repository Boundaries
 
