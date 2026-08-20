@@ -102,7 +102,10 @@ const FINAL_LOCAL_EVIDENCE_FIELDS = Object.freeze([
   "terminal_outcome", "remove_readback_passed", "npm_uninstall_passed", "task_data_retained",
   "task_reopened_after_uninstall", "unexpected_repository_paths", "native_journey_attempt_count",
   "total_native_attempts", "successful_attempt", "attempt_1_status", "attempt_1_stage",
-  "attempt_1_failure", "attempt_2_status", "attempt_2_authorization", "previous_attempt_preserved",
+  "attempt_1_failure", "attempt_1_evidence_preserved", "attempt_2_status", "attempt_2_stage",
+  "attempt_2_failure", "attempt_2_authorization", "attempt_2_evidence_preserved",
+  "attempt_3_status", "attempt_3_authorization", "attempt_3_final_allowed_attempt",
+  "previous_attempt_preserved",
   "observed_at",
 ]);
 const SMOKE_ROLES = Object.freeze(["ordinary", "invalid", "substantive", "resume"]);
@@ -414,14 +417,21 @@ export function validateFinalLocalJourneyEvidence(evidence, expected = null) {
   }
   if (
     evidence.terminal_outcome !== "DONE"
-    || evidence.native_journey_attempt_count !== 2
-    || evidence.total_native_attempts !== 2
-    || evidence.successful_attempt !== 2
+    || evidence.native_journey_attempt_count !== 3
+    || evidence.total_native_attempts !== 3
+    || evidence.successful_attempt !== 3
     || evidence.attempt_1_status !== "failed"
     || evidence.attempt_1_stage !== "initial-comprehension-first-requirements-apply"
     || evidence.attempt_1_failure !== "invalid-contract-0.2-payload"
-    || evidence.attempt_2_status !== "passed"
+    || evidence.attempt_1_evidence_preserved !== true
+    || evidence.attempt_2_status !== "failed"
+    || evidence.attempt_2_stage !== "design-apply"
+    || evidence.attempt_2_failure !== "invalid-contract-0.2-design-baseline"
     || evidence.attempt_2_authorization !== "explicit_user_authorization"
+    || evidence.attempt_2_evidence_preserved !== true
+    || evidence.attempt_3_status !== "passed"
+    || evidence.attempt_3_authorization !== "explicit_user_authorization"
+    || evidence.attempt_3_final_allowed_attempt !== true
     || evidence.previous_attempt_preserved !== true
   ) {
     throw new Error("final local terminal outcome or native-attempt count is invalid");
@@ -1136,12 +1146,14 @@ export async function runFinalLocalJourney(options) {
     if (emptyState.tasks.length !== 0 || emptyState.task_events.length !== 0 || emptyState.repository_claims.length !== 0) {
       throw new Error("final local pre-session Core state is not empty");
     }
-    await writeSmokeOutput(resultDirectory, "native-attempt-2.json", {
+    await writeSmokeOutput(resultDirectory, "native-attempt-3.json", {
       evidence_kind: "source-local-native-attempt",
       status: "started",
-      native_journey_attempt_count: 2,
+      native_journey_attempt_count: 3,
       authorization: options.authorization,
-      previous_attempt_status: "failed",
+      final_allowed_attempt: true,
+      attempt_1_status: "failed",
+      attempt_2_status: "failed",
       previous_attempt_preserved: true,
       artifact_filename: basename(artifact),
       artifact_sha256: options.artifactSHA256,
@@ -1310,25 +1322,34 @@ export async function runFinalLocalJourney(options) {
       task_data_retained: true,
       task_reopened_after_uninstall: true,
       unexpected_repository_paths: unexpectedPaths,
-      native_journey_attempt_count: 2,
-      total_native_attempts: 2,
-      successful_attempt: 2,
+      native_journey_attempt_count: 3,
+      total_native_attempts: 3,
+      successful_attempt: 3,
       attempt_1_status: "failed",
       attempt_1_stage: "initial-comprehension-first-requirements-apply",
       attempt_1_failure: "invalid-contract-0.2-payload",
-      attempt_2_status: "passed",
-      attempt_2_authorization: options.authorization,
+      attempt_1_evidence_preserved: true,
+      attempt_2_status: "failed",
+      attempt_2_stage: "design-apply",
+      attempt_2_failure: "invalid-contract-0.2-design-baseline",
+      attempt_2_authorization: "explicit_user_authorization",
+      attempt_2_evidence_preserved: true,
+      attempt_3_status: "passed",
+      attempt_3_authorization: options.authorization,
+      attempt_3_final_allowed_attempt: true,
       previous_attempt_preserved: true,
       observed_at: new Date().toISOString(),
     }, options);
     await writeSmokeOutput(resultDirectory, "task-data-manifest.json", finalLocalTaskManifest(finalCoreState, finalTask, dataBeforeLifecycle));
     await writeSmokeOutput(resultDirectory, "final-local-journey-evidence.json", evidence);
-    await writeSmokeOutput(resultDirectory, "native-attempt-2-complete.json", {
+    await writeSmokeOutput(resultDirectory, "native-attempt-3-complete.json", {
       evidence_kind: "source-local-native-attempt",
       status: "passed",
-      native_journey_attempt_count: 2,
+      native_journey_attempt_count: 3,
       authorization: options.authorization,
-      previous_attempt_status: "failed",
+      final_allowed_attempt: true,
+      attempt_1_status: "failed",
+      attempt_2_status: "failed",
       previous_attempt_preserved: true,
       artifact_filename: basename(artifact),
       artifact_sha256: options.artifactSHA256,
@@ -1341,9 +1362,11 @@ export async function runFinalLocalJourney(options) {
       await writeSmokeOutput(resultDirectory, "final-local-journey-diagnostic.json", {
         evidence_kind: "source-local-package-native-codex-journey-diagnostic",
         status: "failed",
-        native_journey_attempt_count: 2,
+        native_journey_attempt_count: 3,
         authorization: options.authorization,
-        previous_attempt_status: "failed",
+        final_allowed_attempt: true,
+        attempt_1_status: "failed",
+        attempt_2_status: "failed",
         previous_attempt_preserved: true,
         session_role: error.role ?? currentRole,
         classification: error.classification ?? "journey-error",
@@ -1876,8 +1899,8 @@ function assertFinalLocalJourneyOptions(options) {
   requireDigest(options.artifactSHA256, "artifact-sha256");
   if (!Number.isSafeInteger(options.artifactSize) || options.artifactSize < 1) throw new Error("final local artifact size is invalid");
   if (!/^[0-9a-f]{40}$/u.test(options.sourceCommit)) throw new Error("final local source commit is invalid");
-  if (options.nativeAttempt !== 2 || options.authorization !== "explicit_user_authorization") {
-    throw new Error("final local second attempt requires explicit user authorization");
+  if (options.nativeAttempt !== 3 || options.authorization !== "explicit_user_authorization") {
+    throw new Error("final local third attempt requires explicit user authorization");
   }
   requireAbsolute(options.codexExecutable, "Codex executable");
   requireAbsolute(options.workspace, "final local workspace");
@@ -2930,8 +2953,8 @@ export function parseCLI(argv) {
     requireDigest(values["--artifact-sha256"], "artifact-sha256");
     if (!/^[1-9][0-9]*$/u.test(values["--artifact-size"])) throw new Error("final local artifact size must be a positive integer");
     if (!/^[0-9a-f]{40}$/u.test(values["--source-commit"])) throw new Error("final local source commit is invalid");
-    if (values["--native-attempt"] !== "2" || values["--authorization"] !== "explicit_user_authorization") {
-      throw new Error("final local attempt 2 requires explicit user authorization");
+    if (values["--native-attempt"] !== "3" || values["--authorization"] !== "explicit_user_authorization") {
+      throw new Error("final local attempt 3 requires explicit user authorization");
     }
     requireAbsolute(values["--codex-executable"], "Codex executable");
     requireAbsolute(values["--workspace"], "final local workspace");
@@ -2945,7 +2968,7 @@ export function parseCLI(argv) {
       codexExecutable: values["--codex-executable"],
       workspace: values["--workspace"],
       resultDirectory: values["--result-directory"],
-      nativeAttempt: 2,
+      nativeAttempt: 3,
       authorization: values["--authorization"],
     };
   }

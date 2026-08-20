@@ -69,7 +69,7 @@ async function handleMessage(request) {
     await handleApply(request.id, params.arguments);
     return;
   }
-  writeToolResult(request.id, envelopeFor(params.name, params.arguments));
+  writeToolResult(request.id, await envelopeFor(params.name, params.arguments));
 }
 
 async function handleApply(id, arguments_) {
@@ -92,10 +92,10 @@ async function handleApply(id, arguments_) {
     return;
   }
   await writeState();
-  writeToolResult(id, envelopeFor("dev_flow_apply_action", arguments_));
+  writeToolResult(id, await envelopeFor("dev_flow_apply_action", arguments_));
 }
 
-function envelopeFor(tool, arguments_) {
+async function envelopeFor(tool, arguments_) {
   if (tool === "dev_flow_server_info") {
     return success(tool, {
       product: "dev-flow",
@@ -115,7 +115,7 @@ function envelopeFor(tool, arguments_) {
     if (selectedCase === "host-conflict") return failure(tool, "HOST_OWNERSHIP_CONFLICT");
     const created = state.opened !== true;
     state.opened = true;
-    void writeState();
+    await writeState();
     return success(tool, { created, task: currentTask(), recovery_assessment: null });
   }
   if (tool === "dev_flow_get_task") {
@@ -138,7 +138,7 @@ function envelopeFor(tool, arguments_) {
   }
   if (tool === "dev_flow_cancel_task") {
     state.cancelled = true;
-    void writeState();
+    await writeState();
     return success(tool, { task: currentTask(), claim_released: true });
   }
   if (tool === "dev_flow_apply_action") {
@@ -146,7 +146,7 @@ function envelopeFor(tool, arguments_) {
     if (selectedCase === "budget") return failure(tool, "VERIFICATION_BUDGET_EXCEEDED", arguments_.request_id);
     if (selectedCase === "blocker") state.blocked = true;
     if (selectedCase === "terminal") state.done = true;
-    void writeState();
+    await writeState();
     return success(tool, { task: currentTask(), recovery_assessment: null }, arguments_.request_id);
   }
   throw new Error(`unsupported tool ${tool}`);

@@ -138,7 +138,7 @@ function fixtureFinalLocalJourneyEvidence() {
     status: "passed",
     artifact_filename: "dev-flow-codex-0.3.0.tgz",
     artifact_sha256: "a".repeat(64),
-    artifact_size: 4378118,
+    artifact_size: 4381869,
     artifact_source_commit: "b".repeat(40),
     package_name: "dev-flow-codex",
     package_version: "0.3.0",
@@ -170,14 +170,21 @@ function fixtureFinalLocalJourneyEvidence() {
     task_data_retained: true,
     task_reopened_after_uninstall: true,
     unexpected_repository_paths: [],
-    native_journey_attempt_count: 2,
-    total_native_attempts: 2,
-    successful_attempt: 2,
+    native_journey_attempt_count: 3,
+    total_native_attempts: 3,
+    successful_attempt: 3,
     attempt_1_status: "failed",
     attempt_1_stage: "initial-comprehension-first-requirements-apply",
     attempt_1_failure: "invalid-contract-0.2-payload",
-    attempt_2_status: "passed",
+    attempt_1_evidence_preserved: true,
+    attempt_2_status: "failed",
+    attempt_2_stage: "design-apply",
+    attempt_2_failure: "invalid-contract-0.2-design-baseline",
     attempt_2_authorization: "explicit_user_authorization",
+    attempt_2_evidence_preserved: true,
+    attempt_3_status: "passed",
+    attempt_3_authorization: "explicit_user_authorization",
+    attempt_3_final_allowed_attempt: true,
     previous_attempt_preserved: true,
     observed_at: "2026-08-20T08:00:00.000Z",
   };
@@ -854,24 +861,24 @@ test("final local journey CLI is artifact-bound and has no registry substitution
     "final-local",
     "--artifact", "/tmp/artifacts/dev-flow-codex-0.3.0.tgz",
     "--artifact-sha256", "a".repeat(64),
-    "--artifact-size", "4378118",
+    "--artifact-size", "4381869",
     "--source-commit", "b".repeat(40),
     "--codex-executable", "/opt/codex/bin/codex",
     "--workspace", "/tmp/final-local/workspace",
     "--result-directory", "/tmp/final-local/result",
-    "--native-attempt", "2",
+    "--native-attempt", "3",
     "--authorization", "explicit_user_authorization",
   ];
   assert.deepEqual(parseCLI([...exact]), {
     mode: "final-local",
     artifact: "/tmp/artifacts/dev-flow-codex-0.3.0.tgz",
     artifactSHA256: "a".repeat(64),
-    artifactSize: 4378118,
+    artifactSize: 4381869,
     sourceCommit: "b".repeat(40),
     codexExecutable: "/opt/codex/bin/codex",
     workspace: "/tmp/final-local/workspace",
     resultDirectory: "/tmp/final-local/result",
-    nativeAttempt: 2,
+    nativeAttempt: 3,
     authorization: "explicit_user_authorization",
   });
   assert.throws(() => parseCLI([...exact, "--package", "dev-flow-codex"]), /exact flag/u);
@@ -881,6 +888,11 @@ test("final local journey CLI is artifact-bound and has no registry substitution
   const relative = [...exact];
   relative[relative.indexOf("--artifact") + 1] = "package.tgz";
   assert.throws(() => parseCLI(relative), /local artifact must be an absolute path/u);
+  for (const attempt of ["2", "4"]) {
+    const wrongAttempt = [...exact];
+    wrongAttempt[wrongAttempt.indexOf("--native-attempt") + 1] = attempt;
+    assert.throws(() => parseCLI(wrongAttempt), /attempt 3 requires explicit user authorization/u);
+  }
 
   assert.deepEqual(buildFinalLocalInstallArgs({
     artifact: "/tmp/artifacts/dev-flow-codex-0.3.0.tgz",
@@ -960,7 +972,7 @@ test("final local layout isolates every mutable surface and evidence remains clo
 
   const evidence = fixtureFinalLocalJourneyEvidence();
   assert.deepEqual(validateFinalLocalJourneyEvidence(evidence), evidence);
-  assert.throws(() => validateFinalLocalJourneyEvidence({ ...evidence, native_journey_attempt_count: 3 }), /attempt count/u);
+  assert.throws(() => validateFinalLocalJourneyEvidence({ ...evidence, native_journey_attempt_count: 4 }), /attempt count/u);
   assert.throws(() => validateFinalLocalJourneyEvidence({ ...evidence, unexpected_repository_paths: ["extra.txt"] }), /unexpected_repository_paths/u);
   assert.throws(() => validateFinalLocalJourneyEvidence({ ...evidence, artifact_filename: "/Users/private/package.tgz" }), /filename|private path/u);
 });
