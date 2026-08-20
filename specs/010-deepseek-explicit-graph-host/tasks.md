@@ -43,15 +43,15 @@
 
 ## Phase 3 — Runtime and Data Foundation
 
-- [ ] **T019 [US1]** Add package-root resolution from `import.meta.url`. — Files: `packages/deepseek/lib/paths.mjs`; Refs: FR-040.
-- [ ] **T020 [US1]** Add exact darwin-arm64 runtime selection and fail-closed unsupported-platform behavior. — Files: `packages/deepseek/lib/runtime.mjs`; Refs: FR-030, FR-039, FR-040.
-- [ ] **T021 [US1]** Add explicit/default data-directory resolution matching the contract. — Files: `packages/deepseek/lib/paths.mjs`; Refs: FR-041, FR-042.
-- [ ] **T022 [US1]** Add restrictive default-directory creation and invalid path/symlink/non-directory rejection. — Files: `packages/deepseek/lib/paths.mjs`; Refs: FR-042, FR-043.
-- [ ] **T023 [US1]** Add package-relative Core preflight for regular file, executable mode, and reported version. — Files: `packages/deepseek/lib/runtime.mjs`; Refs: FR-030, FR-040.
-- [ ] **T024 [US1]** Add targeted path/runtime tests, including moved package outside the checkout. — Files: `packages/deepseek/tests/paths.test.mjs`; Refs: FR-039–FR-043, FR-050.
-- [ ] **T025 [US1]** Build one CGo-free darwin-arm64 Core through the existing version-injection seam for tests. — Files: `packages/deepseek/runtime/darwin-arm64/dev-flow`, `scripts/`; Refs: FR-030, FR-039, FR-040.
-- [ ] **T026 [US1]** Verify the detached packaged Core `version` command and STDIO startup preconditions. — Files: `packages/deepseek/tests/package-contract.test.mjs`; Refs: FR-030, FR-040, FR-050.
-- [ ] **T027 [US1]** Add parity cases against the externally observable Codex data-path contract without importing Codex at runtime. — Files: `packages/deepseek/tests/paths.test.mjs`, `packages/codex/tests/`; Refs: FR-036, FR-041–FR-043.
+- [x] **T019 [US1]** Add package-root resolution from `import.meta.url`. — Files: `packages/deepseek/lib/paths.mjs`; Refs: FR-040.
+- [x] **T020 [US1]** Add exact darwin-arm64 runtime selection and fail-closed unsupported-platform behavior. — Files: `packages/deepseek/lib/runtime.mjs`; Refs: FR-030, FR-039, FR-040.
+- [x] **T021 [US1]** Add explicit/default data-directory resolution matching the contract. — Files: `packages/deepseek/lib/paths.mjs`; Refs: FR-041, FR-042.
+- [x] **T022 [US1]** Add restrictive default-directory creation and invalid path/symlink/non-directory rejection. — Files: `packages/deepseek/lib/paths.mjs`; Refs: FR-042, FR-043.
+- [x] **T023 [US1]** Add package-relative Core preflight for regular file, executable mode, and reported version. — Files: `packages/deepseek/lib/runtime.mjs`; Refs: FR-030, FR-040.
+- [x] **T024 [US1]** Add targeted path/runtime tests, including moved package outside the checkout. — Files: `packages/deepseek/tests/paths.test.mjs`; Refs: FR-039–FR-043, FR-050.
+- [x] **T025 [US1]** Build one CGo-free darwin-arm64 Core through the existing version-injection seam for tests. — Files: `packages/deepseek/runtime/darwin-arm64/dev-flow`, `scripts/`; Refs: FR-030, FR-039, FR-040.
+- [x] **T026 [US1]** Verify the detached packaged Core `version` command and STDIO startup preconditions. — Files: `packages/deepseek/tests/package-contract.test.mjs`; Refs: FR-030, FR-040, FR-050.
+- [x] **T027 [US1]** Add parity cases against the externally observable Codex data-path contract without importing Codex at runtime. — Files: `packages/deepseek/tests/paths.test.mjs`, `packages/codex/tests/`; Refs: FR-036, FR-041–FR-043.
 
 **Checkpoint**: package runtime and shared data selection are deterministic and product-local.
 

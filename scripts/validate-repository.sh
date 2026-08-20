@@ -118,9 +118,13 @@ const packageRoot = "packages/deepseek";
 const expectedFiles = [
   "README.md",
   "cordis.patch.yml",
+  "lib/paths.mjs",
+  "lib/runtime.mjs",
   "package.json",
+  "runtime/darwin-arm64/dev-flow",
   "tests/bundle-contract.test.mjs",
   "tests/package-contract.test.mjs",
+  "tests/paths.test.mjs",
 ].sort();
 
 function listFiles(directory, prefix = "") {
@@ -150,6 +154,7 @@ const expectedFiles = [
   "README.md",
   "build-codex-local.sh",
   "build-codex-release.sh",
+  "build-deepseek-runtime.sh",
   "publish-codex-release.mjs",
   "release-codex.mjs",
   "run-codex-real-journey.sh",

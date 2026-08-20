@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { execFile as execFileCallback } from "node:child_process";
-import { readFile, stat } from "node:fs/promises";
+import { execFile as execFileCallback, spawn } from "node:child_process";
+import { mkdtemp, readFile, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -127,6 +128,54 @@ test("dry pack contains only declared product files and excludes development sta
   assert.equal(packedFiles.some((path) => /(?:^|\/)(?:tests?|evidence|profiles?|data)(?:\/|$)/iu.test(path)), false);
   assert.equal(packedFiles.some((path) => /\.(?:db|sqlite|tgz|map)$/iu.test(path)), false);
 });
+
+test("packaged Core is detached, CGo-free, versioned, and accepts STDIO startup", async (t) => {
+  const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
+  const currentVersion = (await readFile(join(repositoryRoot, "VERSION"), "utf8")).trim();
+  const dataDirectory = await mkdtemp(join(tmpdir(), "dev-flow-deepseek-core-"));
+  t.after(async () => {
+    const { rm } = await import("node:fs/promises");
+    await rm(dataDirectory, { recursive: true, force: true });
+  });
+
+  const { stdout: versionOutput } = await execFile(runtimePath, ["version"], {
+    cwd: dataDirectory,
+    encoding: "utf8",
+  });
+  assert.equal(versionOutput, `dev-flow ${currentVersion}\n`);
+
+  const { stdout: buildMetadata } = await execFile("go", ["version", "-m", runtimePath], {
+    encoding: "utf8",
+  });
+  assert.match(buildMetadata, /\tbuild\tCGO_ENABLED=0(?:\n|$)/u);
+  assert.match(buildMetadata, /\tbuild\tGOOS=darwin(?:\n|$)/u);
+  assert.match(buildMetadata, /\tbuild\tGOARCH=arm64(?:\n|$)/u);
+
+  const { stdout, stderr } = await runWithClosedInput(runtimePath, ["mcp", "--stdio"], {
+    cwd: dataDirectory,
+    env: { DEV_FLOW_DATA_DIR: dataDirectory },
+  });
+  assert.equal(stdout, "");
+  assert.equal(stderr, "");
+});
+
+async function runWithClosedInput(command, args, options) {
+  return await new Promise((resolve, reject) => {
+    const child = spawn(command, args, { ...options, stdio: ["pipe", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => { stdout += chunk; });
+    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.once("error", reject);
+    child.once("exit", (code, signal) => {
+      if (code === 0) resolve({ stdout, stderr });
+      else reject(new Error(`packaged Core exited with code ${code} and signal ${signal ?? "none"}: ${stderr}`));
+    });
+    child.stdin.end();
+  });
+}
 
 async function readJSON(path) {
   return JSON.parse(await readFile(path, "utf8"));
