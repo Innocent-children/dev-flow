@@ -109,6 +109,39 @@ if (JSON.stringify(actualFiles) !== JSON.stringify(expectedFiles)) {
 NODE
 }
 
+validate_deepseek_source_tree() {
+  node <<'NODE'
+const fs = require("node:fs");
+const path = require("node:path");
+
+const packageRoot = "packages/deepseek";
+const expectedFiles = [
+  "README.md",
+  "cordis.patch.yml",
+  "package.json",
+  "tests/bundle-contract.test.mjs",
+  "tests/package-contract.test.mjs",
+].sort();
+
+function listFiles(directory, prefix = "") {
+  const files = [];
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    if (entry.name === "node_modules") continue;
+    const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+    const absolute = path.join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...listFiles(absolute, relative));
+    else files.push(relative);
+  }
+  return files;
+}
+
+const actualFiles = listFiles(packageRoot).sort();
+if (JSON.stringify(actualFiles) !== JSON.stringify(expectedFiles)) {
+  throw new Error(`DeepSeek source files ${JSON.stringify(actualFiles)}; expected ${JSON.stringify(expectedFiles)}`);
+}
+NODE
+}
+
 validate_root_script_tree() {
   node <<'NODE'
 const fs = require("node:fs");
@@ -153,7 +186,6 @@ if (!packed || packed.name !== process.env.EXPECTED_PACKAGE_NAME) {
 const files = (packed.files ?? [])
   .map((file) => typeof file === "string" ? file : file.path ?? file.name)
   .sort();
-const deepseekSkeletonFiles = ["LICENSE", "README.md", "package.json"];
 const codexFinalStagingFiles = [
   ".agents/plugins/marketplace.json",
   "LICENSE",
@@ -172,7 +204,6 @@ const codexFinalStagingFiles = [
 ].sort();
 const expectedByProfile = {
   "codex-source": codexFinalStagingFiles.filter((file) => file !== "runtime/darwin-arm64/dev-flow"),
-  "deepseek-skeleton": deepseekSkeletonFiles,
 };
 const expectedFiles = expectedByProfile[process.env.PACKAGE_PROFILE];
 if (!expectedFiles) {
@@ -184,30 +215,12 @@ if (JSON.stringify(files) !== JSON.stringify(expectedFiles)) {
 NODE
 }
 
-check_deferred_package_unchanged() {
-  if [ -z "${RELEASE_BASE_SHA:-}" ]; then
-    return 0
-  fi
-  if [ "${#RELEASE_BASE_SHA}" -ne 40 ]; then
-    printf 'RELEASE_BASE_SHA must be a lowercase Git commit identity\n' >&2
-    return 1
-  fi
-  case "$RELEASE_BASE_SHA" in
-    *[!0-9a-f]*)
-      printf 'RELEASE_BASE_SHA must be a lowercase Git commit identity\n' >&2
-      return 1
-      ;;
-  esac
-  git cat-file -e "$RELEASE_BASE_SHA^{commit}"
-  git diff --exit-code "$RELEASE_BASE_SHA"...HEAD -- packages/deepseek
-}
-
 run_step "Toolchain versions" check_toolchains
 run_step "Working tree whitespace" git diff --check
 run_step "Go formatting" check_go_formatting
 run_step "Codex source allowlist" validate_codex_source_tree
+run_step "DeepSeek source allowlist" validate_deepseek_source_tree
 run_step "Root script allowlist" validate_root_script_tree
-run_step "Deferred package unchanged" check_deferred_package_unchanged
 run_step "Codex release prepare syntax" bash -n scripts/build-codex-release.sh
 run_step "Codex release verifier syntax" node --check scripts/verify-codex-release.mjs
 run_step "Codex release publisher syntax" node --check scripts/publish-codex-release.mjs
@@ -216,6 +229,8 @@ run_step "Fake release npm syntax" node --check packages/codex/tests/fixtures/fa
 run_step "Fake release GitHub syntax" node --check packages/codex/tests/fixtures/fake-release-gh.mjs
 run_step "Release contract tests" go test ./tests/contract
 run_step "Codex public package contract" node --test packages/codex/tests/package-contract.test.mjs
+run_step "DeepSeek public package contract" node --test packages/deepseek/tests/package-contract.test.mjs
+run_step "DeepSeek bundle contract" node --test packages/deepseek/tests/bundle-contract.test.mjs
 run_step "Codex one-command release contract" node --test packages/codex/tests/release-command.test.mjs
 run_step "Go package inventory" go list ./...
 run_step "Go vet" go vet ./...
@@ -223,6 +238,5 @@ run_step "Go tests and repository contracts" go test ./...
 run_step "Frozen pnpm workspace install" pnpm install --frozen-lockfile --ignore-scripts
 run_step "pnpm workspace inventory" pnpm --recursive list --depth -1
 run_step "Codex package dry-pack" validate_package_pack packages/codex dev-flow-codex codex-source
-run_step "DeepSeek package dry-pack" validate_package_pack packages/deepseek dev-flow-deepseek deepseek-skeleton
 
 printf '\nRepository validation passed.\n'

@@ -30,14 +30,14 @@
 
 ## Phase 2 — Replace the DeepSeek Placeholder with Package Contracts
 
-- [ ] **T011 [US1]** Replace the placeholder package manifest with an ESM, packable, unpublished DSH bundle manifest. — Files: `packages/deepseek/package.json`; Refs: FR-001, FR-002, FR-005, FR-008.
-- [ ] **T012 [US1]** Add `cordis.patch.yml` with exactly one integration plugin row. — Files: `packages/deepseek/cordis.patch.yml`; Refs: FR-002, FR-003.
-- [ ] **T013 [US1]** Define the closed package file allowlist and exclude tests/evidence/profile/data files. — Files: `packages/deepseek/package.json`; Refs: FR-006, FR-007.
-- [ ] **T014 [US1]** Add package-contract tests for identity, engines, DSH bundle declaration, no lifecycle hooks, and no Codex dependency. — Files: `packages/deepseek/tests/package-contract.test.mjs`; Refs: FR-001, FR-002, FR-005–FR-008, FR-050.
-- [ ] **T015 [US1]** Add bundle-contract tests for the exact single-row patch. — Files: `packages/deepseek/tests/bundle-contract.test.mjs`; Refs: FR-002, FR-003, FR-050.
-- [ ] **T016 [US1]** Replace the root validator's “DeepSeek must remain unchanged” rule with the new package contract. — Files: `scripts/validate-repository.sh`; Refs: FR-050, SC-001.
-- [ ] **T017 [US1]** Keep Codex validation unchanged and prove the validator does not weaken Codex gates. — Files: `scripts/validate-repository.sh`, `packages/codex/tests/`; Refs: FR-048, SC-009.
-- [ ] **T018 [US1]** Add `packages/deepseek/README.md` describing supported profile lifecycle and developer-preview support boundary. — Files: `packages/deepseek/README.md`; Refs: FR-004, FR-008, FR-039, FR-047–FR-049, FR-059.
+- [x] **T011 [US1]** Replace the placeholder package manifest with an ESM, packable, unpublished DSH bundle manifest and synchronize the workspace dependency policy and lockfile. — Files: `packages/deepseek/package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`; Refs: FR-001, FR-002, FR-005, FR-008.
+- [x] **T012 [US1]** Add `cordis.patch.yml` with exactly one integration plugin row. — Files: `packages/deepseek/cordis.patch.yml`; Refs: FR-002, FR-003.
+- [x] **T013 [US1]** Define the closed package file allowlist and exclude tests/evidence/profile/data files. — Files: `packages/deepseek/package.json`; Refs: FR-006, FR-007.
+- [x] **T014 [US1]** Add package-contract tests for identity, engines, DSH bundle declaration, no lifecycle hooks, and no Codex dependency. — Files: `packages/deepseek/tests/package-contract.test.mjs`; Refs: FR-001, FR-002, FR-005–FR-008, FR-050.
+- [x] **T015 [US1]** Add bundle-contract tests for the exact single-row patch. — Files: `packages/deepseek/tests/bundle-contract.test.mjs`; Refs: FR-002, FR-003, FR-050.
+- [x] **T016 [US1]** Replace the root validator's “DeepSeek must remain unchanged” rule with the new package contract. — Files: `scripts/validate-repository.sh`; Refs: FR-050, SC-001.
+- [x] **T017 [US1]** Keep Codex validation unchanged and prove the validator does not weaken Codex gates. — Files: `scripts/validate-repository.sh`, `packages/codex/tests/`; Refs: FR-048, SC-009.
+- [x] **T018 [US1]** Add the package lifecycle/support documentation and record the completed Phase 2 checkpoint. — Files: `packages/deepseek/README.md`, `specs/010-deepseek-explicit-graph-host/README.md`; Refs: FR-004, FR-008, FR-039, FR-047–FR-049, FR-059.
 
 **Checkpoint**: the repository permits only the intended DeepSeek product shape.
 

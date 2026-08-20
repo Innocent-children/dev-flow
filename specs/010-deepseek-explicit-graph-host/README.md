@@ -3,7 +3,7 @@
 ## Status
 
 - **Feature**: `010-deepseek-explicit-graph-host`
-- **Status**: Ready
+- **Status**: Implementing
 - **Change Type**: Product Feature
 - **Created**: 2026-08-20
 - **Baseline**: `main` at `70726d0ba59ead5496657e445b25494152e6d8f8`
@@ -12,7 +12,7 @@
 - **DeepSeek Harness Compatibility Floor**: `@deepseek-ai/dsh >=0.1.0-rc.8 <0.2.0`
 - **Exact Planning Evidence**: `@deepseek-ai/dsh 0.1.0-rc.8`, npm integrity `sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==`, upstream tag `dsh-v0.1.0-rc.8` at `141eb6fef83422698aef7a981029e843e8161534`
 - **Release Authority**: Not authorized
-- **Current Checkpoint**: Contract freeze complete; implementation stops before T011
+- **Current Checkpoint**: Phase 2 package contracts complete; implementation stops before T019
 
 ## Purpose
 
