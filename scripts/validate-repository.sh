@@ -118,11 +118,17 @@ const packageRoot = "packages/deepseek";
 const expectedFiles = [
   "README.md",
   "cordis.patch.yml",
+  "lib/authorization.mjs",
+  "lib/index.mjs",
   "lib/paths.mjs",
   "lib/runtime.mjs",
+  "lib/tool-names.mjs",
   "package.json",
   "runtime/darwin-arm64/dev-flow",
+  "skills/dev-flow/SKILL.md",
+  "tests/authorization.test.mjs",
   "tests/bundle-contract.test.mjs",
+  "tests/integration-plugin.test.mjs",
   "tests/package-contract.test.mjs",
   "tests/paths.test.mjs",
 ].sort();

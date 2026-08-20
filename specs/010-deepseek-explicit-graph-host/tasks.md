@@ -57,20 +57,20 @@
 
 ## Phase 4 — DSH Skill, MCP Composition, and Execution Guard
 
-- [ ] **T028 [US1]** Implement the exact six qualified tool constants and namespace prefix. — Files: `packages/deepseek/lib/tool-names.mjs`; Refs: FR-018, FR-019, FR-027–FR-029.
-- [ ] **T029 [US1]** Implement current-turn derivation from immutable DSH session events. — Files: `packages/deepseek/lib/authorization.mjs`; Refs: FR-012, FR-013, FR-020, FR-022.
-- [ ] **T030 [US1]** Implement the exact direct-user selector matcher. — Files: `packages/deepseek/lib/authorization.mjs`; Refs: FR-011–FR-014.
-- [ ] **T031 [US1]** Register a plain-context monotonic guard over the entire `mcp__dev_flow__` namespace. — Files: `packages/deepseek/lib/authorization.mjs`, `packages/deepseek/lib/index.mjs`; Refs: FR-017, FR-018, FR-025.
-- [ ] **T032 [US1]** Deny unexpected namespace tools, missing Agent, missing/closed/ambiguous turn, and missing selector with stable classes. — Files: `packages/deepseek/lib/authorization.mjs`; Refs: FR-018–FR-025.
-- [ ] **T033 [US1]** Cover direct calls and nested Code Mode calls without persisting authorization. — Files: `packages/deepseek/lib/authorization.mjs`; Refs: FR-012–FR-014, FR-023.
-- [ ] **T034 [US1]** Add the runtime `dev-flow` Skill registration with user-only invocation policy. — Files: `packages/deepseek/lib/index.mjs`, `packages/deepseek/skills/dev-flow/SKILL.md`; Refs: FR-009, FR-010.
-- [ ] **T035 [US1]** Mount the official MCP-client child plugin with `serverName=dev_flow` and direct packaged-Core command. — Files: `packages/deepseek/lib/index.mjs`; Refs: FR-026–FR-030.
-- [ ] **T036 [US1]** Configure explicit data env, stable cwd, bounded timeout, startup isolation, and official reconnect. — Files: `packages/deepseek/lib/index.mjs`, `packages/deepseek/lib/paths.mjs`; Refs: FR-041–FR-046.
-- [ ] **T037 [US1]** Verify exactly six connected public names and fail compatibility on missing/extra names. — Files: `packages/deepseek/lib/tool-names.mjs`, `packages/deepseek/lib/index.mjs`; Refs: FR-019, FR-027–FR-029, SC-001.
-- [ ] **T038 [US1]** Add authorization tests for ordinary, exact, malformed, prior-turn, injected, nested, missing-context, and unexpected-tool cases. — Files: `packages/deepseek/tests/authorization.test.mjs`; Refs: FR-011–FR-025, FR-051, SC-002–SC-004.
-- [ ] **T039 [US1]** Prove denial occurs before MCP dispatch and produces zero Core writes. — Files: `packages/deepseek/tests/authorization.test.mjs`; Refs: FR-024, FR-051, SC-002.
-- [ ] **T040 [US1]** Add fake-Cordis/DSH integration tests for Skill, guard, MCP child config, disposal, and reconnect. — Files: `packages/deepseek/tests/integration-plugin.test.mjs`; Refs: FR-009, FR-010, FR-017–FR-029, FR-044–FR-046.
-- [ ] **T041 [US1]** Prove unrelated DSH tools and ordinary host behavior remain unaffected. — Files: `packages/deepseek/tests/integration-plugin.test.mjs`; Refs: FR-018, FR-024, SC-002.
+- [x] **T028 [US1]** Implement the exact six qualified tool constants and namespace prefix. — Files: `packages/deepseek/lib/tool-names.mjs`; Refs: FR-018, FR-019, FR-027–FR-029.
+- [x] **T029 [US1]** Implement current-turn derivation from immutable DSH session events. — Files: `packages/deepseek/lib/authorization.mjs`; Refs: FR-012, FR-013, FR-020, FR-022.
+- [x] **T030 [US1]** Implement the exact direct-user selector matcher. — Files: `packages/deepseek/lib/authorization.mjs`; Refs: FR-011–FR-014.
+- [x] **T031 [US1]** Register a plain-context monotonic guard over the entire `mcp__dev_flow__` namespace. — Files: `packages/deepseek/lib/authorization.mjs`, `packages/deepseek/lib/index.mjs`; Refs: FR-017, FR-018, FR-025.
+- [x] **T032 [US1]** Deny unexpected namespace tools, missing Agent, missing/closed/ambiguous turn, and missing selector with stable classes. — Files: `packages/deepseek/lib/authorization.mjs`; Refs: FR-018–FR-025.
+- [x] **T033 [US1]** Cover direct calls and nested Code Mode calls without persisting authorization. — Files: `packages/deepseek/lib/authorization.mjs`; Refs: FR-012–FR-014, FR-023.
+- [x] **T034 [US1]** Add the runtime `dev-flow` Skill registration with user-only invocation policy. — Files: `packages/deepseek/lib/index.mjs`, `packages/deepseek/skills/dev-flow/SKILL.md`; Refs: FR-009, FR-010.
+- [x] **T035 [US1]** Mount the official MCP-client child plugin with `serverName=dev_flow` and direct packaged-Core command. — Files: `packages/deepseek/lib/index.mjs`; Refs: FR-026–FR-030.
+- [x] **T036 [US1]** Configure explicit data env, stable cwd, bounded timeout, startup isolation, and official reconnect. — Files: `packages/deepseek/lib/index.mjs`, `packages/deepseek/lib/paths.mjs`; Refs: FR-041–FR-046.
+- [x] **T037 [US1]** Verify exactly six connected public names and fail compatibility on missing/extra names. — Files: `packages/deepseek/lib/tool-names.mjs`, `packages/deepseek/lib/index.mjs`; Refs: FR-019, FR-027–FR-029, SC-001.
+- [x] **T038 [US1]** Add authorization tests for ordinary, exact, malformed, prior-turn, injected, nested, missing-context, and unexpected-tool cases. — Files: `packages/deepseek/tests/authorization.test.mjs`; Refs: FR-011–FR-025, FR-051, SC-002–SC-004.
+- [x] **T039 [US1]** Prove denial occurs before MCP dispatch and produces zero Core writes. — Files: `packages/deepseek/tests/authorization.test.mjs`; Refs: FR-024, FR-051, SC-002.
+- [x] **T040 [US1]** Add fake-Cordis/DSH integration tests for Skill, guard, MCP child config, disposal, and reconnect. — Files: `packages/deepseek/tests/integration-plugin.test.mjs`; Refs: FR-009, FR-010, FR-017–FR-029, FR-044–FR-046.
+- [x] **T041 [US1]** Prove unrelated DSH tools and ordinary host behavior remain unaffected. — Files: `packages/deepseek/tests/integration-plugin.test.mjs`; Refs: FR-018, FR-024, SC-002.
 
 **Checkpoint**: `USER_STORY_1_CHECKPOINT_COMPLETE`.
 
