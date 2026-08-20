@@ -13,15 +13,19 @@ import {
   FINAL_FIXTURE_EVIDENCE_KIND,
   FINAL_LOCAL_NATIVE_EVIDENCE_KIND,
   FINAL_NATIVE_EVIDENCE_KIND,
+  assertFinalLocalCommands,
   buildFinalLocalInstallArgs,
   buildFinalLocalJourneyEnvironment,
+  buildFinalLocalLifecycleEnvironment,
   buildFinalLocalUninstallArgs,
   buildFinalJourneyEnvironment,
   buildFinalRegistryInstallArgs,
   buildFinalRegistryPackArgs,
   buildCodexExecArgs,
+  classifyFinalLocalVerificationCommand,
   createFinalJourneyLayout,
   createFinalLocalJourneyLayout,
+  createFinalLocalLifecycleLayout,
   finalLocalSessionOnePrompt,
   finalLocalSessionTwoPrompt,
   finalLocalSessionThreePrompt,
@@ -30,6 +34,9 @@ import {
   runDevelopmentSmoke,
   smokePrompt,
   validateAcceptanceReport,
+  validateAttempt3NativeFlowEvidence,
+  validateCompositeAcceptanceEvidence,
+  validateExactArtifactLifecycleEvidence,
   validateFinalJourneyEvidence,
   validateFinalJourneyEvidenceShape,
   validateFinalLocalJourneyEvidence,
@@ -187,6 +194,132 @@ function fixtureFinalLocalJourneyEvidence() {
     attempt_3_final_allowed_attempt: true,
     previous_attempt_preserved: true,
     observed_at: "2026-08-20T08:00:00.000Z",
+  };
+}
+
+function fixtureAttempt3NativeFlowEvidence() {
+  return {
+    evidence_kind: "attempt-3-native-codex-graph-flow",
+    native_flow_status: "passed",
+    runner_status: "failed_after_native_flow",
+    lifecycle_status: "not_run",
+    source_attempt: 3,
+    artifact_filename: "dev-flow-codex-0.3.0.tgz",
+    artifact_sha256: "aa8fb5269f03d9cebbceb604d15e66d8b26690b8b5ab19c46bd7b09c1294f92b",
+    artifact_size: 4381869,
+    artifact_source_commit: "a032f7080fc40f303a32162960dc44345ad8dd2d",
+    package_name: "dev-flow-codex",
+    package_version: "0.3.0",
+    core_version: "0.3.0",
+    core_sha256: "c3cccb91f25394b16765f025b4e901d41cbb9792fd9428eabdae1b764e197faf",
+    platform: "darwin-arm64",
+    source_transcripts: [
+      { filename: "session-0-ordinary.jsonl", size: 3043, sha256: "f8c5461e256c3248b662bb2ab094c2aec982e622ed51687ba3f55b5de8988ad9" },
+      { filename: "session-1-initial-comprehension.jsonl", size: 122954, sha256: "55bd97084e453a869213f5752b4fa2124fdc06322e032e4f7c8a5622f8e553b3" },
+      { filename: "session-2-complexity-refactor-retest.jsonl", size: 133284, sha256: "600e15e0a49b21c3039fd8d7d453f7a1886d498011ec5cbc9814d2ed93e9e78d" },
+      { filename: "session-3-confirmation-delivery.jsonl", size: 122458, sha256: "b63ec4a42bd634694486bc2588113b077460fa9d1e2d2576ce742bf35b6adbb8" },
+    ],
+    source_artifact_marker: { filename: "native-attempt-3.json", size: 465, sha256: "0f35251490e2e51b4b23e2b425f22fe8f2e1ebd89fd31a0c566a932afeab5b41" },
+    original_failed_marker: { filename: "native-attempt-3-failed.json", size: 1293, sha256: "26defc139e75f75549d491a5c3254f58b9722852e4ed23b1d1be9b0704fb4044" },
+    ordinary_zero_calls: true,
+    distinct_real_codex_threads: 4,
+    handshake_passed: true,
+    schema_version: 2,
+    core_limits_version: "0.2",
+    process_identity: "standard-development@1",
+    definition_digest: "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1",
+    method_profiles: ["plain", "spec-kit", "openspec"],
+    tool_order: [
+      "dev_flow_server_info", "dev_flow_open_task", "dev_flow_get_task",
+      "dev_flow_get_next_action", "dev_flow_apply_action", "dev_flow_cancel_task",
+    ],
+    transition_sequence: [
+      "requirements_ready", "design_ready", "tasks_ready", "implementation_ready_for_test",
+      "tests_passed", "code_too_complex", "refactor_ready_for_test", "tests_passed",
+      "comprehension_passed", "delivery_complete",
+    ],
+    successful_mutation_count: 10,
+    request_binding_passed: true,
+    revision_start: 1,
+    revision_end: 11,
+    revision_increment_exact: true,
+    last_operation_binding_passed: true,
+    duplicate_mutation_identities: 0,
+    duplicate_evidence_ids: 0,
+    restart_identity_passed: true,
+    complexity_refactor_retest: true,
+    explicit_user_confirmation: true,
+    targeted_command_count: 2,
+    targeted_command_identity: "node --test test/proof-writer.test.mjs",
+    targeted_exit_codes: [0, 0],
+    forbidden_suite_count: 0,
+    terminal_cursor: "DONE",
+    terminal_outcome_status: "completed",
+    current_action_null: true,
+    unexpected_repository_paths: [],
+    attempt_history: {
+      attempt_1: { status: "failed", stage: "first_requirements_apply", cause: "invalid_closed_requirements_payload" },
+      attempt_2: { status: "failed", stage: "design_apply", cause: "invalid_closed_design_baseline" },
+      attempt_3: {
+        status: "runner_failed_after_native_sessions",
+        native_sessions_status: "passed",
+        core_terminal_status: "DONE",
+        lifecycle_status: "not_run",
+        cause: "verification_command_classifier_false_positive",
+      },
+      attempt_4: { status: "forbidden" },
+    },
+    observed_at: "2026-08-20T08:00:00.000Z",
+  };
+}
+
+function fixtureExactArtifactLifecycleEvidence() {
+  return {
+    evidence_kind: "exact-artifact-packaged-core-lifecycle",
+    status: "passed",
+    evidence_class: "deterministic exact-artifact lifecycle evidence",
+    artifact_filename: "dev-flow-codex-0.3.0.tgz",
+    artifact_sha256: "aa8fb5269f03d9cebbceb604d15e66d8b26690b8b5ab19c46bd7b09c1294f92b",
+    artifact_size: 4381869,
+    artifact_source_commit: "a032f7080fc40f303a32162960dc44345ad8dd2d",
+    same_artifact_identity: true,
+    package_name: "dev-flow-codex",
+    package_version: "0.3.0",
+    core_version: "0.3.0",
+    core_sha256: "c3cccb91f25394b16765f025b4e901d41cbb9792fd9428eabdae1b764e197faf",
+    platform: "darwin-arm64",
+    codex_invocation_count: 0,
+    codex_auth_read_count: 0,
+    codex_thread_count: 0,
+    closed_package_contents_passed: true,
+    handshake_passed: true,
+    live_apply_schema_passed: true,
+    packaged_payload_reference_passed: true,
+    setup_passed: true,
+    task_id: "task-lifecycle-fixture",
+    final_revision: 8,
+    event_count: 8,
+    evidence_count: 8,
+    current_cursor: "DONE",
+    outcome_status: "completed",
+    current_action_null: true,
+    claim_absent: true,
+    targeted_command_count: 1,
+    targeted_command_identity: "node --test test/proof-writer.test.mjs",
+    targeted_exit_codes: [0],
+    comprehension_evidence_class: "deterministic_test_fixture",
+    remove_passed: true,
+    repeated_remove_noop: true,
+    npm_uninstall_passed: true,
+    data_retained: true,
+    adjacent_sentinel_retained: true,
+    repository_unchanged: true,
+    exact_artifact_reinstall_passed: true,
+    same_task_reopened: true,
+    read_zero_write: true,
+    database_manifest: [{ path: "dev-flow.db", size: 4096, sha256: "d".repeat(64) }],
+    final_package_uninstalled: true,
+    observed_at: "2026-08-20T08:10:00.000Z",
   };
 }
 
@@ -913,6 +1046,181 @@ test("final local journey CLI is artifact-bound and has no registry substitution
     "--cache", "/tmp/final-local/npm-cache",
     "--ignore-scripts", "--no-audit", "--no-fund",
   ]);
+});
+
+test("final local verification classifier uses exact executable command identity", () => {
+  const direct = "node --test test/proof-writer.test.mjs";
+  const rendered = "/bin/zsh -lc 'node --test test/proof-writer.test.mjs'";
+  const readOnlyCommands = [
+    "sed -n '/node-payload-template:test:start/,/node-payload-template:test:end/p' plugin/skills/dev-flow/references/node-payloads.md",
+    "grep -n 'TEST' plugin/skills/dev-flow/references/node-payloads.md",
+    "cat plugin/skills/dev-flow/references/node-payloads.md",
+    "/bin/zsh -lc 'python3 -c \"print(\\\"node TEST validate\\\")\"'",
+    "/bin/zsh -lc 'sed -n \"/node-payload-template:test:start/,/node-payload-template:test:end/p\" plugin/skills/dev-flow/references/node-payloads.md'",
+  ];
+  assert.equal(classifyFinalLocalVerificationCommand(direct), "authorized");
+  assert.equal(classifyFinalLocalVerificationCommand(rendered), "authorized");
+  for (const command of readOnlyCommands) {
+    assert.equal(classifyFinalLocalVerificationCommand(command), "other", command);
+  }
+  for (const command of [
+    "npm test",
+    "pnpm test",
+    "pnpm run validate",
+    "go test ./...",
+    "node --test *",
+    "node --test .",
+    "node --test test/different.test.mjs",
+    "/bin/zsh -lc 'node --test test/different.test.mjs'",
+  ]) {
+    assert.equal(classifyFinalLocalVerificationCommand(command), "forbidden", command);
+  }
+
+  const completed = (command, itemId) => ({
+    itemId,
+    command,
+    output: "bounded output\n",
+    exitCode: 0,
+    status: "completed",
+  });
+  const sessions = [
+    { role: "ordinary", commands: [completed(readOnlyCommands[1], "ordinary-read")] },
+    { role: "initial-comprehension", commands: [
+      completed(readOnlyCommands[0], "initial-template-read"),
+      completed(rendered, "initial-targeted-test"),
+    ] },
+    { role: "complexity-refactor-retest", commands: [
+      completed(rendered, "refactor-targeted-test"),
+      completed(readOnlyCommands[4], "attempt-3-false-positive-equivalent"),
+    ] },
+    { role: "confirmation-delivery", commands: [completed(readOnlyCommands[2], "delivery-read")] },
+  ];
+  assert.equal(assertFinalLocalCommands(sessions), 2);
+  sessions[3].commands.push(completed("npm test", "forbidden-suite"));
+  assert.throws(() => assertFinalLocalCommands(sessions), /forbidden full or alternate suite/u);
+});
+
+test("final local lifecycle CLI and environment expose no Codex execution surface", async () => {
+  const exact = [
+    "final-local-lifecycle",
+    "--artifact", "/tmp/artifacts/dev-flow-codex-0.3.0.tgz",
+    "--artifact-sha256", "a".repeat(64),
+    "--artifact-size", "4381869",
+    "--core-sha256", "b".repeat(64),
+    "--source-commit", "c".repeat(40),
+    "--native-result-directory", "/tmp/attempt-3/result",
+    "--workspace", "/tmp/final-lifecycle/workspace",
+    "--result-directory", "/tmp/final-lifecycle/result",
+  ];
+  assert.deepEqual(parseCLI([...exact]), {
+    mode: "final-local-lifecycle",
+    artifact: "/tmp/artifacts/dev-flow-codex-0.3.0.tgz",
+    artifactSHA256: "a".repeat(64),
+    artifactSize: 4381869,
+    coreSHA256: "b".repeat(64),
+    sourceCommit: "c".repeat(40),
+    nativeResultDirectory: "/tmp/attempt-3/result",
+    workspace: "/tmp/final-lifecycle/workspace",
+    resultDirectory: "/tmp/final-lifecycle/result",
+  });
+  assert.throws(() => parseCLI([...exact, "--codex-executable", "/opt/codex"]), /exact flag/u);
+  assert.throws(() => parseCLI([...exact, "--authorization", "explicit_user_authorization"]), /exact flag/u);
+
+  const layout = createFinalLocalLifecycleLayout(
+    "/tmp/final-lifecycle/workspace",
+    "/tmp/final-lifecycle/result",
+  );
+  const environment = buildFinalLocalLifecycleEnvironment({
+    layout,
+    toolDirectories: ["/usr/bin", "/bin"],
+    baseEnvironment: { LANG: "C.UTF-8", AUTH_TOKEN: "forbidden", CODEX_HOME: "/private" },
+  });
+  assert.equal(environment.HOME, layout.home);
+  assert.equal(environment.DEV_FLOW_DATA_DIR, layout.dataDirectory);
+  assert.equal("CODEX_HOME" in environment, false);
+  assert.equal("AUTH_TOKEN" in environment, false);
+  assert.equal("npm_config_registry" in environment, false);
+
+  const source = await readFile(writer, "utf8");
+  const start = source.indexOf("export async function runFinalLocalLifecycle(options)");
+  const end = source.indexOf("export async function runFinalLocalJourney(options)", start);
+  assert.equal(start >= 0 && end > start, true);
+  const lifecycleBody = source.slice(start, end);
+  assert.doesNotMatch(lifecycleBody, /runCodexSession\s*\(/u);
+  assert.doesNotMatch(lifecycleBody, /copyFinalCodexAuthentication\s*\(/u);
+  assert.doesNotMatch(lifecycleBody, /findExecutableOnPath\("codex"\)/u);
+  assert.doesNotMatch(lifecycleBody, /inspectFinalCodexExecutable\s*\(/u);
+  const runnerText = await readFile(runner, "utf8");
+  const lifecycleDispatch = runnerText.split("\n").filter((line) => line.includes("final-local-lifecycle"));
+  assert.equal(lifecycleDispatch.length >= 3, true);
+  assert.equal(lifecycleDispatch.some((line) => line.includes("codex-executable")), false);
+});
+
+test("composite acceptance evidence keeps Attempt 3 and deterministic lifecycle labels exact", () => {
+  const nativeEvidence = fixtureAttempt3NativeFlowEvidence();
+  const lifecycleEvidence = fixtureExactArtifactLifecycleEvidence();
+  assert.deepEqual(validateAttempt3NativeFlowEvidence(nativeEvidence), nativeEvidence);
+  assert.deepEqual(validateExactArtifactLifecycleEvidence(lifecycleEvidence), lifecycleEvidence);
+  const composite = {
+    evidence_kind: "feature-008-composite-source-local-acceptance",
+    status: "passed",
+    artifact_filename: nativeEvidence.artifact_filename,
+    artifact_sha256: nativeEvidence.artifact_sha256,
+    artifact_size: nativeEvidence.artifact_size,
+    artifact_source_commit: nativeEvidence.artifact_source_commit,
+    core_sha256: nativeEvidence.core_sha256,
+    package_version: nativeEvidence.package_version,
+    core_version: nativeEvidence.core_version,
+    native_component: {
+      source_attempt: 3,
+      runner_status: "failed_after_native_flow",
+      native_flow_status: "passed",
+      ordinary_zero_calls: true,
+      four_distinct_threads: true,
+      transition_sequence: nativeEvidence.transition_sequence,
+      task_revision: 11,
+      terminal_outcome: "DONE",
+      targeted_command_count: 2,
+      complexity_refactor_retest: true,
+      explicit_user_confirmation: true,
+      unexpected_repository_paths: [],
+    },
+    lifecycle_component: {
+      evidence_class: "deterministic_exact_artifact",
+      same_artifact_identity: true,
+      setup_passed: true,
+      remove_passed: true,
+      repeated_remove_noop: true,
+      npm_uninstall_passed: true,
+      data_retained: true,
+      exact_artifact_reinstall_passed: true,
+      same_task_reopened: true,
+      terminal_outcome: "DONE",
+      read_zero_write: true,
+      same_task_as_native_component: false,
+    },
+    attempt_history: nativeEvidence.attempt_history,
+    component_relationship: "complementary_components_bound_to_one_exact_artifact_with_distinct_tasks",
+    publication_mutations_performed: false,
+    observed_at: "2026-08-20T08:20:00.000Z",
+  };
+  assert.deepEqual(validateCompositeAcceptanceEvidence(composite, nativeEvidence, lifecycleEvidence), composite);
+  assert.throws(
+    () => validateAttempt3NativeFlowEvidence({ ...nativeEvidence, lifecycle_status: "passed" }),
+    /status is invalid/u,
+  );
+  assert.throws(
+    () => validateExactArtifactLifecycleEvidence({ ...lifecycleEvidence, codex_invocation_count: 1 }),
+    /must not use Codex/u,
+  );
+  assert.throws(
+    () => validateExactArtifactLifecycleEvidence({ ...lifecycleEvidence, task_id: "/Users/private/task" }),
+    /private or raw material/u,
+  );
+  assert.throws(
+    () => validateCompositeAcceptanceEvidence({ ...composite, artifact_sha256: "e".repeat(64) }, nativeEvidence, lifecycleEvidence),
+    /differs between components/u,
+  );
 });
 
 test("final local payload fixtures and prompts preserve every closed graph branch", async () => {

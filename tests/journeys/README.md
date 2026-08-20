@@ -27,9 +27,19 @@ Go Journey，也不能标记为 real/native Codex。
 
 Feature 003 历史 native evidence 仍是对应已发布合同的冻结事实。Feature 008 Contract 0.2 的
 native attempt 1 在第一条 REQUIREMENTS payload 上失败；explicitly authorized attempt 2 在
-`requirements_ready` 提交后因非法 DESIGN payload 失败。两份原始外部证据均保留，T092 仍未
-完成，attempt 3 尚未授权。当前 Journey 不证明 successful native acceptance、released package、
-registry artifact 或 public support。
+`requirements_ready` 提交后因非法 DESIGN payload 失败。Attempt 3 的四个真实 Codex 会话完成
+graph workflow 并到达 Core `DONE`，随后 runner 在命令分类阶段误把只读 TEST 模板检查识别为
+验证命令，因此 lifecycle 未执行。三个原始外部证据目录均保留，Attempt 3 的 failed marker 不
+改写，Attempt 4 禁止执行。
+
+Feature 008 的最终 SC-015 采用同一精确 source-local artifact 的组合证据：Attempt 3 提供
+`native Codex graph-flow evidence`；独立的 no-Codex packaged-Core runner 提供
+`deterministic exact-artifact lifecycle evidence`，覆盖 setup/remove/repeated remove/npm
+uninstall/data retention/exact-artifact reinstall/同一 lifecycle Task retained reopen。两个组件
+使用不同 Task，组合记录只绑定共同 artifact identity。T092 仅在离线 native 重验、确定性
+lifecycle 和闭合组合证据全部通过后完成。
+
+当前 Journey 不证明 released package、registry artifact 或 public support。
 
 ## Evidence rules
 
@@ -37,4 +47,6 @@ registry artifact 或 public support。
   `simulated Codex adapter` 和 `native Codex` 必须保持不同标签；
 - failure injection/response-loss fixtures 只证明其确定性边界，不是 real-host crash；
 - fake、fixture、static、user-performed 或 simulated evidence 不能升级为 native evidence；
+- deterministic exact-artifact lifecycle evidence 不能升级为 native Codex evidence，也不能
+  表示为 Attempt 3 的同一 Task；
 - Journey 不写入 repository artifact、用户 HOME、真实数据库路径或真实 Codex state。

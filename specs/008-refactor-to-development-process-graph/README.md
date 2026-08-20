@@ -110,7 +110,11 @@ The Phase 5D audit on 2026-08-19 reopened selected Phase 2–5 tasks and User St
 runtime hardening. The hardening checks and `$speckit-converge` now have zero remaining gap;
 `USER_STORY_2_CHECKPOINT_COMPLETE` is restored. Phase 6A–6C and User Story 3 are complete with zero
 remaining convergence gap. Phase 7A–7C and User Story 4 are complete with zero remaining convergence
-gap. Phase 8A is complete; the native Journey and final Feature gate in Phase 8B remain pending.
+gap. Phase 8A and Native Adapter hardening are complete. Attempt 3 produced a successful native
+graph-flow evidence set and reached Core `DONE`; its runner then failed during post-session command
+classification, so its lifecycle execution did not begin. T092 composite SC-015 acceptance is now
+complete through offline validation of those native sessions plus a separate no-Codex deterministic
+lifecycle against the same artifact. T093–T095 remain pending.
 
 Before production code changes:
 
@@ -142,7 +146,8 @@ approved.
 | Phase 7C | No-legacy, lifecycle retention, private-path redaction, and future/corrupt safe-stop evidence | Complete — T081–T085 |
 | User Story 4 | Fresh storage bootstrap, Schema 1 zero-write rejection, current-task recovery, and future-schema safety pass | Complete — T073–T085; `USER_STORY_4_CHECKPOINT_COMPLETE` |
 | Phase 8A | Documentation convergence, complete targeted regression, and one retained source-local unpublished Codex artifact | Complete — T086–T091; `FEATURE_008_PHASE_8A_DOCUMENTATION_AND_LOCAL_ARTIFACT_CHECKPOINT_COMPLETE` |
-| Final feature gate | One repository validation and one local-artifact Codex journey pass | Pending |
+| Composite SC-015 | Attempt 3 native graph-flow evidence plus deterministic same-artifact lifecycle evidence | Complete — T092 and T109–T112 |
+| Final feature gate | Attempt 3 native graph-flow evidence plus deterministic same-artifact lifecycle evidence, one repository validation, and final analyze/converge pass | Pending |
 
 ## Phase 8A Artifact Evidence
 
@@ -165,7 +170,7 @@ all three method profiles, and the ordered six-tool ServerInfo catalog. The repo
 local artifact path. This Phase 8A artifact remains retained historical evidence but is superseded
 for any future native acceptance by the hardened readiness artifact recorded below.
 
-## Phase 8B Native Attempt Budget
+## Phase 8B Composite Source-Local Acceptance
 
 Native attempt 1 failed during the first `REQUIREMENTS` mutation because the submitted Journey
 payload did not match the closed Contract 0.2 branch: a required-evidence kind was used as an
@@ -177,17 +182,28 @@ its launch preflight. `requirements_ready` committed once, then the DESIGN paylo
 `requirements_revision` and `complexity_justification` and added the unknown `complexity` member.
 Core correctly returned `INVALID_ARGUMENT`; external failure evidence remains retained.
 
+Native attempt 3 used the hardened source-local artifact and completed four real Codex sessions. The
+native sessions proved the Contract 0.2 handshake, graph path, restart, code-complexity verdict,
+refactor/retest loop, explicit user comprehension confirmation, and Core `DONE`. The runner then
+misclassified a read-only inspection of the packaged `node-payloads.md` TEST template as a third
+verification command. Its lifecycle stage did not run, and its original failed marker remains
+retained unchanged.
+
 ```text
-attempt 1: failed and permanently retained
-attempt 2: failed and permanently retained
-successful native Journey required: 1
-attempt 3: not authorized
+attempt 1: failed at first REQUIREMENTS apply; permanently retained
+attempt 2: failed at DESIGN apply; permanently retained
+attempt 3 native sessions: passed; Core terminal status DONE
+attempt 3 runner: failed after native sessions
+attempt 3 lifecycle: not run
+attempt 4: forbidden
 Feature 008: incomplete
 ```
 
-The corrective Phase 9 work hardens packaged node-payload construction and request binding and
-prepares a new source-local artifact. It does not authorize attempt 3, add product graph behavior,
-or satisfy T092.
+SC-015 now uses two complementary components bound to the exact same artifact identity: the retained
+Attempt 3 native graph-flow evidence and a no-Codex deterministic lifecycle acceptance covering
+setup/remove/repeated remove/npm uninstall/data retention/exact-artifact reinstall/zero-write
+terminal reopen. The lifecycle component creates its own packaged-Core Task and does not claim it is
+the Attempt 3 Task.
 
 ## Native Adapter Hardening Readiness
 
@@ -214,8 +230,28 @@ package/Core version: 0.3.0
 platform: darwin-arm64
 ```
 
-The former Phase 8A artifact and both failed attempt directories remain retained. Attempt 3 is not
-authorized and has not started. Feature 008 remains `Implementing`; T092–T095 remain unchecked.
+The former Phase 8A artifact and all three attempt directories remain retained. The hardened artifact
+was used by Attempt 3 and remains the exact identity for both composite acceptance components.
+Attempt 4 is forbidden. Feature 008 remains `Implementing`; T093–T095 remain unchecked.
+
+## Composite T092 Evidence
+
+T092 is complete. The repository-external evidence records are closed and contain no authentication,
+token, prompt, private path, full environment, database absolute path, or raw JSONL content:
+
+```text
+attempt-3-native-flow-evidence.json
+  sha256=61e1a5e2834c61f0481476380e8fb85cb8177fb0b85f7b5d1ab801d9b8a82026
+exact-artifact-lifecycle-evidence.json
+  sha256=aefa193923be8b8de4c371ae254c5f6936e0cfcdb9342a59ca630ba1a16116af
+feature-008-composite-native-acceptance.json
+  sha256=16a8fcf7e2c82acc77b72f1a8deb4c7937dd7b6acda59fd3af95db1f8d84e6b0
+```
+
+The native component retains Attempt 3 as native-flow passed, runner failed after native sessions,
+and lifecycle not run. The deterministic component used a separate Task and proved setup, remove,
+repeated-remove no-op, npm uninstall, retained Task/Event/Evidence data, exact-artifact reinstall,
+same terminal Task reopen, zero claim, and zero-write read. Attempt 4 had zero executions.
 
 The scoped native-readiness Spec Kit review found no CRITICAL, HIGH, or acceptance-impacting MEDIUM
 issue across the two failures, packaged Adapter payload usability, request binding, reopened tasks,

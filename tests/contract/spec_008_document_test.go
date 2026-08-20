@@ -64,7 +64,7 @@ func TestFeature008DocumentContract(t *testing.T) {
 		"SC":   25,
 	})
 	assertFeature008Sequence(t, filepath.Join(featureDir, "checklists", "requirements.md"), feature008ChecklistPattern, "CHK", 60)
-	assertFeature008Sequence(t, filepath.Join(featureDir, "tasks.md"), feature008TaskPattern, "T", 108)
+	assertFeature008Sequence(t, filepath.Join(featureDir, "tasks.md"), feature008TaskPattern, "T", 112)
 	assertFeature008Transitions(t, filepath.Join(featureDir, "contracts", "process-graph.md"))
 }
 

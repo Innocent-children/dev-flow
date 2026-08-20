@@ -444,3 +444,42 @@ Phase 5D introduces `RECOVERY_UNAVAILABLE` as a temporary closed error, not a si
 Payloads gain per-node `problem_class`; definition identity remains based on the previously frozen
 stable identifiers. Store open becomes stricter and may reject corrupt current-generation data with
 `STORAGE_UNAVAILABLE`. Phase 6–8 remain unchanged and unstarted.
+
+---
+
+## Decision 14: Compose final acceptance from native graph-flow and deterministic lifecycle evidence
+
+**Decision**
+
+Complete SC-015 with two closed evidence components bound to the same exact source-local artifact.
+Attempt 3 supplies the native Codex graph-flow component. A lifecycle-only runner supplies the
+deterministic package/Core/data-retention component without launching Codex. A composite record
+closes the shared artifact identity and both component results.
+
+**Rationale**
+
+Model-driven workflow behavior and deterministic package lifecycle behavior have different evidence
+mechanisms. The retained Attempt 3 sessions already prove the model-dependent graph path through
+Core `DONE`. Installation, setup, removal, uninstall, retention, reinstall, and terminal reopen use
+deterministic commands and packaged-Core calls. Binding both components to one exact artifact proves
+the complete source-local product surface without making completed native evidence depend on a
+post-session command classifier.
+
+**Alternatives considered**
+
+- Require one runner invocation to perform both evidence classes.
+- Start an additional native Codex attempt to repeat the whole path.
+- Accept only deterministic or simulated evidence for the graph flow.
+
+**Why alternatives were rejected**
+
+The single-runner form couples completed native sessions to deterministic post-processing. Repeating
+the native path adds stochastic cost without adding product coverage. Deterministic or simulated
+graph-flow evidence cannot replace real Codex evidence.
+
+**Consequences**
+
+Attempt 3 remains recorded as native-flow passed, runner failed after native sessions, and lifecycle
+not run. The lifecycle component uses a separate Task and retains the exact label
+`deterministic exact-artifact lifecycle evidence`. Attempts 1–3 remain immutable evidence, Attempt 4
+is forbidden, and publication remains outside Feature 008.

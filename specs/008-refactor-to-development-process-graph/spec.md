@@ -589,9 +589,24 @@ T096 checkpoint remains complete evidence of the earlier fail-closed state.
   malformed-row tests all safe-stop with zero writes.
 - **SC-014**: Five-class uncertain-mutation tests pass for a repository-changing standard transition
   and prove at-most-once revision/event mutation under two concurrent Core handles.
-- **SC-015**: The final local-artifact Codex journey creates a standard task, displays multiple legal
-  destinations, performs a test/refactor/test loop, obtains user comprehension confirmation,
-  restarts/resumes the same task, reaches `DONE`, removes registration, and reopens retained data.
+- **SC-015**: Final source-local acceptance MUST combine two complementary evidence components bound
+  to the same exact artifact filename, SHA-256, size, source commit, package version, Core version,
+  and Core SHA-256:
+  1. native Codex graph-flow evidence from Attempt 3 proving ordinary-prompt zero Core calls,
+     Contract 0.2 handshake, multiple legal destinations, restart/resume, the code-complexity verdict,
+     `REFACTOR → TEST`, exactly two successful targeted
+     `node --test test/proof-writer.test.mjs` commands, explicit current user comprehension
+     confirmation, `DELIVERY → DONE`, and no unexpected repository path; and
+  2. deterministic exact-artifact lifecycle evidence, executed without Codex, proving installation,
+     setup, creation and completion of one real Schema 2 graph Task through the packaged Core,
+     remove, repeated-remove no-op, npm uninstall, retained Task/Event/Evidence data, reinstall from
+     the same artifact, and zero-write reopen of that same terminal Task with
+     `current_cursor=DONE`, `outcome.status=completed`, `current_action=null`, and no claim.
+  Attempt 3 remains recorded as `runner_failed_after_native_sessions`: its native sessions reached
+  Core `DONE`, while its lifecycle stage was not run because command classification produced a false
+  positive after those sessions. Attempts 1 and 2 remain failed evidence, and Attempt 4 is forbidden.
+  Deterministic lifecycle evidence MUST NOT be labeled native Codex evidence or represented as the
+  Attempt 3 Task.
 - **SC-016**: Feature completion changes no public npm version, Git Tag, GitHub Release, or released
   `0.3.0` artifact identity.
 - **SC-017**: Omitted/null Recovery fields preserve ordinary behavior; valid non-null graph probes

@@ -113,17 +113,20 @@ does not mean implementation or runtime evidence exists.
   journeys.
 - [x] CHK056 Tasks must trace to FR/SC/contracts and stop at user-story checkpoints.
 - [x] CHK057 Repository-wide validation is capped at one final invocation.
-- [x] CHK058 Real Codex journey is capped at one; old-binary and legacy-task journeys are explicitly zero.
+- [x] CHK058 Native graph-flow evidence is limited to the retained Attempt 3 evidence set, additional
+  Codex execution is zero, deterministic lifecycle uses no Codex, and Attempt 4 is explicitly
+  forbidden. SC-015 defines the exact shared artifact identity, separate Task identities, closed
+  completion conditions, Attempt 1–3 outcomes, and evidence-label boundaries.
 - [x] CHK059 Unsupported platform/Host and real Spec Kit/OpenSpec installation matrices are excluded.
 - [x] CHK060 Feature completion cannot modify version/npm/Tag/GitHub Release.
 
 ## Review Result
 
-**Unresolved findings**: None after the Phase 5D requirements-quality re-review.
+**Unresolved findings**: None after the composite SC-015 requirements-quality re-review.
 
-**Decision**: Phase 5D amendment is ready for `$speckit-analyze`; Feature remains `Implementing`
-until the reopened and corrective tasks pass their acceptance gates.
+**Decision**: The composite SC-015 amendment is ready for targeted `$speckit-analyze`; Feature
+remains `Implementing` until T092–T095 pass their acceptance gates.
 
 **Reviewer**: OpenAI GPT-5.6 Pro
 
-**Reviewed at**: 2026-08-19 (Phase 5D amendment re-review)
+**Reviewed at**: 2026-08-20 (composite SC-015 amendment re-review)

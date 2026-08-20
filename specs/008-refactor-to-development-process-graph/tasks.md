@@ -3,8 +3,9 @@
 **Input**: Complete Feature 008 package in
 `specs/008-refactor-to-development-process-graph/`
 
-**Status**: Implementing — User Story 4 and Phase 7A–7C complete; native Adapter hardened and a new
-source-local artifact is ready; T092 native acceptance and final gates remain pending.
+**Status**: Implementing — User Story 4, Phase 7A–7C, and T092 composite source-local acceptance are
+complete. Attempt 3 native graph-flow evidence reached Core `DONE`, its runner failure remains
+visible, and the no-Codex same-artifact lifecycle passed. T093–T095 remain pending.
 
 **Release Boundary**: Every task in this file is source/local-evidence work. No task may modify
 `VERSION`, publish npm, create/move a Tag, mutate a GitHub Release, or claim final registry support.
@@ -381,10 +382,12 @@ unstarted.
   documentation reconciliation; fix only concrete failures.
 - [x] T091 Build one source-local Codex package artifact with the existing local builder, verify
   package/Core identity and closed contents, and keep it outside the repository; do not publish.
-- [ ] T092 Complete the one required successful native real Codex Journey implementing Quickstart
-  Final Journey on the explicitly authorized second attempt, retaining the failed first-attempt evidence, including
-  fresh data root, visible multiple destinations, test/complexity/refactor/retest, restart/resume, explicit user
-  comprehension, DONE, removal/uninstall, and retained reopen per SC-015.
+- [x] T092 Validate Attempt 3 native graph-flow evidence offline, complete deterministic
+  setup/remove/repeated-remove/npm-uninstall/data-retention/exact-artifact-reinstall/zero-write
+  retained reopen against the same exact source-local artifact, and close
+  `attempt-3-native-flow-evidence.json`, `exact-artifact-lifecycle-evidence.json`, and
+  `feature-008-composite-native-acceptance.json` without any new Codex execution per SC-015 and
+  Quickstart Journey 11.
 - [ ] T093 Run `RELEASE_BASE_SHA=<feature-base> pnpm run validate` exactly once; do not separately
   duplicate the repository-wide Go suite that it runs.
 - [ ] T094 Run final `$speckit-analyze` and `$speckit-converge`; resolve blocking findings and append
@@ -392,6 +395,23 @@ unstarted.
 - [ ] T095 Reconcile all Feature checkboxes/status/evidence labels; mark Feature 008 `Complete` only
   when SC-001–SC-016 are satisfied, confirm `VERSION`/package versions/Tags/npm/GitHub Releases are
   unchanged, and state that publication requires a separate Release Change.
+
+**T092 Composite Checkpoint**: Complete. The three repository-external closed evidence records are:
+
+```text
+attempt-3-native-flow-evidence.json
+  sha256=61e1a5e2834c61f0481476380e8fb85cb8177fb0b85f7b5d1ab801d9b8a82026
+exact-artifact-lifecycle-evidence.json
+  sha256=aefa193923be8b8de4c371ae254c5f6936e0cfcdb9342a59ca630ba1a16116af
+feature-008-composite-native-acceptance.json
+  sha256=16a8fcf7e2c82acc77b72f1a8deb4c7937dd7b6acda59fd3af95db1f8d84e6b0
+```
+
+Attempt 3 remains `runner_failed_after_native_sessions` with lifecycle `not_run`; its native-flow
+component passed offline with four threads, ten mutations, revision 11, two exact targeted commands,
+and Core `DONE`. The deterministic lifecycle used a separate Task, reached revision 8 with eight
+events, two evidence records, zero claim, and reopened the same terminal Task after remove/uninstall/
+exact-artifact reinstall with a zero-write read. Attempt 4 had zero executions.
 
 **Final Checkpoint**: Product source supports the development process graph locally, all storage-boundary
 and recovery gates pass, and no release mutation has occurred.
@@ -401,7 +421,8 @@ T086–T091 complete. The retained source-local, unpublished test artifact is
 `dev-flow-codex-0.3.0.tgz`, SHA-256
 `8ae2c41711fc88531bafed3985bb3038c520fc0fe546f0f1288f3c815af888c5`, size 4,378,118 bytes, built
 from source commit `e0d32b07ea7ede62b2d01539bad8b8f52312bdb2`. It remains retained historical evidence and is
-superseded for future native acceptance by the Phase 9 hardening artifact. T092–T095 remain unstarted.
+superseded for future native acceptance by the Phase 9 hardening artifact. At the Phase 8A
+checkpoint, T092–T095 were unstarted.
 
 ## Dependencies and Execution Order
 
@@ -434,7 +455,8 @@ touch different files.
 | --- | --- |
 | Targeted checks | Run at named checkpoints; rerun only after a concrete failure/fix |
 | Repository-wide validation | One Phase 5D `pnpm run validate`, then one later final Phase 8 invocation; retry only after a concrete fixed failure |
-| Real Codex journey | One successful final local-artifact Journey is still required; attempts 1 and 2 failed with retained evidence, attempt 3 is not authorized, and no further `codex exec` may run without a new explicit user decision |
+| Native Codex execution | Zero additional invocations; Attempt 3 is the retained successful native graph-flow component, its runner failure remains visible, and Attempt 4 is forbidden |
+| Exact-artifact lifecycle | One deterministic lifecycle-only invocation against the Attempt 3 artifact; no Codex executable, authentication read, thread, or model call |
 | Released 0.3.0 old-binary/legacy-task journey | 0 |
 | Real Spec Kit/OpenSpec installation matrix | 0 |
 | Linux/Windows/Intel Mac native journey | 0 |
@@ -526,16 +548,50 @@ prepare a new source-local artifact without starting another native Journey.
   record attempt-3 readiness, and stop without `codex exec` per SC-008–SC-010 and SC-015–SC-016.
 
 **Readiness checkpoint**:
-`FEATURE_008_NATIVE_ADAPTER_HARDENING_READY_FOR_EXPLICIT_ATTEMPT_3_AUTHORIZATION` only after
-T105–T108 and reopened T037/T040/T042/T064/T065/T068/T069/T091 pass. T092–T095 remain unchecked;
-attempt 1 and attempt 2 remain failed retained evidence; attempt 3 is not authorized.
+`FEATURE_008_NATIVE_ADAPTER_HARDENING_READY_FOR_EXPLICIT_ATTEMPT_3_AUTHORIZATION` was reached after
+T105–T108 and reopened T037/T040/T042/T064/T065/T068/T069/T091 passed. Attempts 1 and 2 remain
+failed retained evidence. Attempt 3 subsequently produced the retained native graph-flow component;
+its runner failed before lifecycle execution. At the readiness checkpoint T092–T095 were unchecked;
+Attempt 4 remains forbidden.
 
 **Native Adapter hardening artifact**: `dev-flow-codex-0.3.0.tgz`, 4,381,869 bytes, SHA-256
 `aa8fb5269f03d9cebbceb604d15e66d8b26690b8b5ab19c46bd7b09c1294f92b`, Core SHA-256
 `c3cccb91f25394b16765f025b4e901d41cbb9792fd9428eabdae1b764e197faf`, built from clean source
-commit `a032f7080fc40f303a32162960dc44345ad8dd2d`. The prior Phase 8A artifact and both failed native
-attempt evidence sets remain retained. No native attempt used this new artifact.
+commit `a032f7080fc40f303a32162960dc44345ad8dd2d`. The prior Phase 8A artifact and all three native
+attempt evidence sets remain retained. Attempt 3 used this exact artifact.
 
 **Scoped Spec Kit result**: the native-readiness analyze found no CRITICAL/HIGH or
 acceptance-impacting MEDIUM finding, and scoped converge found zero Adapter-hardening gap with no
 task append. This does not complete or consume T094.
+
+---
+
+## Phase 10: Composite Final Acceptance Hardening
+
+**Execution position**: T109–T112 execute after Attempt 3 and before T092. They add no Core node,
+transition, MCP tool, recovery class, storage compatibility route, product version, or release
+operation.
+
+- [x] T109 Amend SC-015 and its acceptance/test-budget documentation in
+  `specs/008-refactor-to-development-process-graph/{README.md,spec.md,plan.md,research.md,quickstart.md,tasks.md,checklists/requirements.md}`
+  `tests/journeys/README.md`, and `tests/contract/spec_008_document_test.go` to define the
+  same-artifact native-plus-deterministic composite, retain exact Attempt 1–3 history, accept the
+  continuous T001–T112 task set, and forbid Attempt 4 per SC-015–SC-016.
+- [x] T110 Replace broad substring verification-command detection with exact direct/known-zsh
+  command identity and forbidden executable/subcommand classification in
+  `scripts/write-codex-journey-evidence.mjs`; add direct, wrapped, read-only template inspection,
+  Attempt 3 false-positive, and forbidden-suite regressions in
+  `packages/codex/tests/journey-harness.test.mjs` per SC-015.
+- [x] T111 Add the offline Attempt 3 transcript validator and closed redacted native evidence writer
+  in `scripts/write-codex-journey-evidence.mjs` and its focused tests in
+  `packages/codex/tests/journey-harness.test.mjs`, proving four threads, Contract 0.2 handshakes,
+  exact transitions/request/revision/restart/complexity/retest/confirmation/DONE/changed-surface
+  facts while preserving `native-attempt-3-failed.json` per SC-015.
+- [x] T112 Add `--final-local-lifecycle` dispatch in
+  `scripts/run-codex-real-journey.sh`, deterministic packaged-Core lifecycle/composite evidence in
+  `scripts/write-codex-journey-evidence.mjs`, and static/behavioral no-Codex plus exact-artifact
+  retention tests in `packages/codex/tests/journey-harness.test.mjs` per FR-S008 and SC-015–SC-016.
+
+**Checkpoint**: Complete. T109–T112 targeted tests passed, Attempt 3 validated offline, the
+deterministic lifecycle reopened its same terminal Task with zero writes, all three closed evidence
+files passed validation, and Attempt 4 had zero executions.

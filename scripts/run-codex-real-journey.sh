@@ -12,6 +12,7 @@ usage() {
     '   or: run-codex-real-journey.sh --smoke --codex-executable ABS --workspace ABS' \
     '   or: run-codex-real-journey.sh --development-smoke --run-label A|B|C|D --codex-executable ABS --result-directory ABS' \
     '   or: run-codex-real-journey.sh --acceptance --codex-executable ABS --workspace ABS' \
+    '   or: run-codex-real-journey.sh --final-local-lifecycle --artifact ABS.tgz --artifact-sha256 SHA256 --artifact-size BYTES --core-sha256 SHA256 --source-commit COMMIT --native-result-directory ABS --workspace ABS --result-directory ABS' \
     '   or: run-codex-real-journey.sh --final-local --artifact ABS.tgz --artifact-sha256 SHA256 --artifact-size BYTES --source-commit COMMIT --codex-executable ABS --workspace ABS --result-directory ABS --native-attempt 3 --authorization explicit_user_authorization' \
     '   or: run-codex-real-journey.sh --final-registry --package dev-flow-codex --version VERSION --registry https://registry.npmjs.org/ --tarball-sha256 SHA256 --core-sha256 SHA256 --source-commit COMMIT --codex-executable ABS --workspace ABS --result-directory ABS' >&2
 }
@@ -49,6 +50,11 @@ fi
 if [ "$#" -eq 19 ] && [ "$1" = "--final-registry" ]; then
   shift
   exec node "$script_dir/write-codex-journey-evidence.mjs" final-registry "$@"
+fi
+
+if [ "$#" -eq 17 ] && [ "$1" = "--final-local-lifecycle" ]; then
+  shift
+  exec node "$script_dir/write-codex-journey-evidence.mjs" final-local-lifecycle "$@"
 fi
 
 if [ "$#" -eq 19 ] && [ "$1" = "--final-local" ]; then

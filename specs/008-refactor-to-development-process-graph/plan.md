@@ -63,7 +63,8 @@ No new production dependency.
 **Transport/Public Surface**: Local STDIO MCP, exactly six tools, result contract schema 2
 
 **Testing**: Targeted Go package tests, shared contract fixtures, Codex package/Skill contract tests,
-one final repository validation and one local-artifact real Codex journey; no old-binary or legacy-task journey
+one final repository validation, retained native Attempt 3 graph-flow evidence, and one deterministic
+exact-artifact lifecycle acceptance; no old-binary or legacy-task journey
 
 **Target Platform**: Implementation and deterministic tests remain repository-portable; the one
 real Codex journey uses the currently supported native macOS arm64 environment
@@ -414,6 +415,28 @@ Phase 5D is a bounded corrective slice over completed Phase 2–5 work:
 No Phase 6 adapter/profile work, Phase 7 Recovery classification/observation/mutation work, Phase 8
 final artifact work, node, edge, tool, compatibility route, or release operation is included.
 
+### 14. Composite Source-Local Acceptance
+
+SC-015 is accepted through two closed evidence components bound to the exact same source-local
+artifact identity:
+
+- the four retained Attempt 3 Codex JSONL transcripts are parsed offline by the repository harness
+  and prove the native graph workflow, restart, complexity/refactor/retest loop, explicit user
+  comprehension confirmation, and Core `DONE`;
+- a lifecycle-only runner invokes no Codex capability and drives one separate real Schema 2 Task to
+  `DONE` through the packaged Core, then proves setup/remove/repeated remove/npm uninstall/data
+  retention/exact-artifact reinstall/zero-write retained reopen for that same lifecycle Task.
+
+The native and deterministic components remain separately labeled and share artifact filename,
+artifact SHA-256, artifact size, source commit, package/Core versions, and Core SHA-256. The lifecycle
+Task is not the Attempt 3 Task. Attempt 3 remains `runner_failed_after_native_sessions` because its
+post-session command classifier stopped the original runner before lifecycle execution. Attempt 4
+has a zero-execution budget.
+
+Lifecycle commands contain no model decision. Separating their deterministic package/data proof from
+the already completed native sessions preserves every required product behavior while preventing a
+post-session harness classification error from discarding valid native evidence.
+
 ## Project Structure
 
 ### Feature Documentation
@@ -512,17 +535,19 @@ and direct dispatch because only one process implementation exists.
 | Phase 5D hardening | Focused domain/workflow/application/store/MCP/contract/journey tests, affected-package tests, then one repository validation | Phase 6–8 work, native journey, release |
 | User Story 3 | Codex Skill/method-profile static and package-local tests | Real OpenSpec/Spec Kit installation matrix |
 | User Story 4 | Fresh bootstrap, Schema 1 zero-write rejection, current recovery/concurrency, shared fixture tests | Old-task continuation, old-binary matrix, public release |
-| Final | `pnpm run validate` exactly once after T092; one successful local-artifact real Codex Journey is still required, with failed attempts 1/2 retained and attempt 3 not authorized | npm publish, Tag/Release, Linux/Windows/Intel/DeepSeek journeys |
+| Final | Offline validation of Attempt 3 native graph-flow evidence plus one no-Codex deterministic lifecycle run against the same exact artifact, then `pnpm run validate` exactly once after T092 | Attempt 4, npm publish, Tag/Release, Linux/Windows/Intel/DeepSeek journeys |
 
 Approved maxima after the explicit Phase 5D audit amendment:
 
 - repository-wide validation: **1** Phase 5D invocation and **1** later Phase 8 final invocation;
 - a failed Phase 5D invocation may be followed by one final confirming invocation only after a
   concrete defect is fixed and targeted checks pass;
-- real Codex journey: **1 successful** final local-artifact Journey remains required. Attempt 1
-  failed before its first mutation, and attempt 2 committed REQUIREMENTS before an invalid DESIGN
-  payload; both evidence sets are retained. Attempt 3 is not authorized and requires a new explicit
-  user decision before any further `codex exec`;
+- native Codex execution: **0 additional invocations**. Attempt 1 failed at its first REQUIREMENTS
+  apply, Attempt 2 failed at DESIGN, and Attempt 3 produced the one successful native graph-flow
+  evidence set before its runner failed in post-session command classification. All three evidence
+  sets remain retained; Attempt 4 is forbidden;
+- deterministic exact-artifact lifecycle acceptance: **1 invocation**, with no Codex executable,
+  authentication read, thread creation, or model call;
 - released-0.3.0 old-binary or legacy-task observation: **0**;
 - real Spec Kit/OpenSpec command matrix: **0** for this Feature; adapter contracts use capability
   fixtures and one profile example in the final Codex journey;
@@ -538,7 +563,8 @@ A failed targeted check may be rerun after a concrete fix. Do not rerun unrelate
 3. Implement the single graph process, Task model, direct Schema 2 bootstrap, and strict v2 codec.
 4. Deliver user stories in order, stopping at each checkpoint.
 5. Run fresh-bootstrap, Schema 1 zero-write rejection, and current-task recovery gates.
-6. Complete one final local-artifact Codex journey and repository validation using a fresh data root.
+6. Offline-validate the retained Attempt 3 native transcripts, complete the deterministic lifecycle
+   acceptance against the same exact artifact and a fresh data root, then run repository validation.
 7. Mark Feature 008 complete without publishing.
 8. Create a separate Release Change to choose the next version, communicate the breaking storage
    boundary, build the distributed artifact, rerun the final registry-package journey, and publish
