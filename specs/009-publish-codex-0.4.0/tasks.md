@@ -157,7 +157,7 @@ publication with reviewed tooling against the frozen source.
 - [x] T022 Run `node --test packages/codex/tests/journey-harness.test.mjs packages/codex/tests/release-publication.test.mjs`, Node syntax checks for the publisher/Journey tooling, and `git diff --check`; do not rerun repository-wide validation per the amended test budget.
 - [x] T023 Add an explicit Contract 0.2 graph branch to final-registry post-session and retained-task validation in `scripts/write-codex-journey-evidence.mjs`, and add a closed four-session graph regression in `packages/codex/tests/journey-harness.test.mjs`; preserve historical Schema 1/`phase` defaults per FR-003, FR-013, and FR-017.
 - [x] T024 Run `node --test packages/codex/tests/journey-harness.test.mjs packages/codex/tests/release-publication.test.mjs`, Node syntax checks, and `git diff --check`; commit and push the second reviewed tooling/spec correction to `main` without another repository-wide validation per the amended budget.
-- [ ] T025 Reuse the existing clean external checkout at Tag `v0.4.0`, run the newest production `runPublisher` once without confirmation against the retained directory, and require exact Tag `v0.4.0`, Draft `373558395`, verified npm bytes, zero assets, and pending/failed Journey per FR-017.
+- [x] T025 Reuse the existing clean external checkout at Tag `v0.4.0`, run the newest production `runPublisher` once without confirmation against the retained directory, and require exact Tag `v0.4.0`, Draft `373558395`, verified npm bytes, zero assets, and pending/failed Journey per FR-017.
 - [ ] T026 Run the newest production `runPublisher` once with confirmation `v0.4.0` against the frozen source checkout and retained directory; preserve exact state and stop without blind retry on any domain or immutable conflict per FR-017 and SC-008.
 - [ ] T027 Verify the passed final registry Journey, final Manifest Schema 2/checksums, four GitHub asset read-backs, public Release `v0.4.0`, complete nine-step Publication Record, npm publish count one, unchanged Tag/source/package/Core digests, and clean repository; record bounded completion in `specs/009-publish-codex-0.4.0/README.md`, `tasks.md`, and `MANIFEST.md`, mark Feature 009 `Complete`, commit, and push without moving Tag per FR-008–FR-017 and SC-003–SC-008.
 
@@ -178,6 +178,8 @@ identity or payload was created.
   terminal, and retained tasks, and leaves historical Schema 1/`phase` behavior as the default.
 - A complete four-session graph fixture and the publication state machine passed 54/54 tests. Node
   syntax and `git diff --check` passed; no full validation or remote mutation ran.
+- The newest fixed-tooling preflight returned `mutated=false`, reused Tag/Draft/npm, observed npm
+  verified, Draft true, zero assets, and `final_journey` as the next incomplete step.
 
 ## Dependencies and Execution Order
 
@@ -214,7 +216,7 @@ Evidence-only completion commit
 | --- | --- |
 | Targeted package checks | One run per implementation checkpoint; rerun only after a recorded fix |
 | Repository-wide validation | Exactly one before the release source commit |
-| Production real-host journeys | Initial failed Journey plus one recovery Journey after the recorded prompt fix |
+| Production real-host journeys | Request-binding failure, Schema 1 validator failure, then one graph-validator recovery Journey |
 | Unsupported platform/Host matrices | Excluded |
 
 ## Notes

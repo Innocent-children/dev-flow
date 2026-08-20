@@ -216,9 +216,10 @@ Repository-wide validation budget: one initial run before publication. The 2026-
 reached `go test ./...` and exposed one current-version fixture test that still constructed ServerInfo
 with literal `0.3.0`; all preceding release/command/contract gates passed. One retry is authorized only
 after `internal/mcp` derives that current test version from root `VERSION` and its targeted package
-test passes. The initial production Journey failed at the observed resume request-binding gate. One
-recovery Journey is authorized after a targeted prompt-contract correction and test; no additional
-repository-wide validation is authorized.
+test passes. The initial production Journey failed at the observed resume request-binding gate. The
+first recovery Journey passed that gate and exposed the historical Schema 1 post-session validator.
+One graph-validator recovery Journey is authorized after its closed four-session regression passes;
+no additional repository-wide validation is authorized.
 
 ## Rollout and Persistence Boundary
 
