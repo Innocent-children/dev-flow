@@ -162,7 +162,8 @@ platform: darwin-arm64
 Builder and independent readback verified the closed package allowlist, executable detached Core,
 Contract 0.2 `schema_version=2`, Core Limits `0.2`, exact `standard-development@1` definition digest,
 all three method profiles, and the ordered six-tool ServerInfo catalog. The repository records no
-local artifact path. T092 must use the separately retained local path and exact digest above.
+local artifact path. This Phase 8A artifact remains retained historical evidence but is superseded
+for any future native acceptance by the hardened readiness artifact recorded below.
 
 ## Phase 8B Native Attempt Budget
 
@@ -187,6 +188,39 @@ Feature 008: incomplete
 The corrective Phase 9 work hardens packaged node-payload construction and request binding and
 prepares a new source-local artifact. It does not authorize attempt 3, add product graph behavior,
 or satisfy T092.
+
+## Native Adapter Hardening Readiness
+
+The packaged Skill now cross-checks each fresh Action and live apply schema against
+`references/node-payloads.md`. Ten marked templates cover every normal-node payload decision used by
+the acceptance path plus BLOCKED resolution. Contract tests extract those JSON templates and pass
+them through current MCP input validation, workflow decoding/validation, current Action method-step
+ordering, and the blocker decoder. Exact regressions retain both failed native payload shapes.
+
+Mutation result identity is now unambiguous: apply/cancel envelopes echo the valid caller mutation
+`request_id`, which is also the committed LastOperation/TaskEvent operation identity. Tools without
+a caller request ID keep a Core-generated local transport identity. Success, domain-error,
+transport, and committed LastOperation bindings are independently tested.
+
+The new readiness artifact is source-local, unpublished, commit-bound acceptance-test evidence:
+
+```text
+filename: dev-flow-codex-0.3.0.tgz
+size: 4,381,869 bytes
+sha256: aa8fb5269f03d9cebbceb604d15e66d8b26690b8b5ab19c46bd7b09c1294f92b
+source commit: a032f7080fc40f303a32162960dc44345ad8dd2d
+Core sha256: c3cccb91f25394b16765f025b4e901d41cbb9792fd9428eabdae1b764e197faf
+package/Core version: 0.3.0
+platform: darwin-arm64
+```
+
+The former Phase 8A artifact and both failed attempt directories remain retained. Attempt 3 is not
+authorized and has not started. Feature 008 remains `Implementing`; T092–T095 remain unchecked.
+
+The scoped native-readiness Spec Kit review found no CRITICAL, HIGH, or acceptance-impacting MEDIUM
+issue across the two failures, packaged Adapter payload usability, request binding, reopened tasks,
+and T105–T108. Scoped converge found zero remaining Adapter-hardening gap and left `tasks.md`
+byte-for-byte unchanged. These checks are not the final T094 analyze/converge gate.
 
 ## Release Boundary
 

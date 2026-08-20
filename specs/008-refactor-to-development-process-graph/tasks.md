@@ -3,8 +3,8 @@
 **Input**: Complete Feature 008 package in
 `specs/008-refactor-to-development-process-graph/`
 
-**Status**: Implementing — User Story 4 and Phase 7A–7C complete; Phase 8A complete; native/final
-gate pending.
+**Status**: Implementing — User Story 4 and Phase 7A–7C complete; native Adapter hardened and a new
+source-local artifact is ready; T092 native acceptance and final gates remain pending.
 
 **Release Boundary**: Every task in this file is source/local-evidence work. No task may modify
 `VERSION`, publish npm, create/move a Tag, mutate a GitHub Release, or claim final registry support.
@@ -379,7 +379,7 @@ unstarted.
   Contract 0.2 evidence classes without public-release claims.
 - [x] T090 Run the complete targeted Go and Codex package sets named by prior checkpoints once after
   documentation reconciliation; fix only concrete failures.
-- [ ] T091 Build one source-local Codex package artifact with the existing local builder, verify
+- [x] T091 Build one source-local Codex package artifact with the existing local builder, verify
   package/Core identity and closed contents, and keep it outside the repository; do not publish.
 - [ ] T092 Complete the one required successful native real Codex Journey implementing Quickstart
   Final Journey on the explicitly authorized second attempt, retaining the failed first-attempt evidence, including
@@ -400,7 +400,8 @@ and recovery gates pass, and no release mutation has occurred.
 T086–T091 complete. The retained source-local, unpublished test artifact is
 `dev-flow-codex-0.3.0.tgz`, SHA-256
 `8ae2c41711fc88531bafed3985bb3038c520fc0fe546f0f1288f3c815af888c5`, size 4,378,118 bytes, built
-from source commit `e0d32b07ea7ede62b2d01539bad8b8f52312bdb2`. T092–T095 remain unstarted.
+from source commit `e0d32b07ea7ede62b2d01539bad8b8f52312bdb2`. It remains retained historical evidence and is
+superseded for future native acceptance by the Phase 9 hardening artifact. T092–T095 remain unstarted.
 
 ## Dependencies and Execution Order
 
@@ -519,7 +520,7 @@ prepare a new source-local artifact without starting another native Journey.
   and cover success/domain-error/transport parsing plus LastOperation binding in
   `internal/mcp/{server.go,tools.go,results.go}`, the Contract 0.2 document, and focused tests per
   FR-033, FR-041, FR-S009–FR-S010, and SC-014/SC-017/SC-020.
-- [ ] T108 From the clean hardening source commit, build a new repository-external source-local,
+- [x] T108 From the clean hardening source commit, build a new repository-external source-local,
   unpublished, commit-bound acceptance artifact with the exact closed package including
   `references/node-payloads.md`; verify package/Core/schema/process/digest/content/path identity,
   record attempt-3 readiness, and stop without `codex exec` per SC-008–SC-010 and SC-015–SC-016.
@@ -528,3 +529,13 @@ prepare a new source-local artifact without starting another native Journey.
 `FEATURE_008_NATIVE_ADAPTER_HARDENING_READY_FOR_EXPLICIT_ATTEMPT_3_AUTHORIZATION` only after
 T105–T108 and reopened T037/T040/T042/T064/T065/T068/T069/T091 pass. T092–T095 remain unchecked;
 attempt 1 and attempt 2 remain failed retained evidence; attempt 3 is not authorized.
+
+**Native Adapter hardening artifact**: `dev-flow-codex-0.3.0.tgz`, 4,381,869 bytes, SHA-256
+`aa8fb5269f03d9cebbceb604d15e66d8b26690b8b5ab19c46bd7b09c1294f92b`, Core SHA-256
+`c3cccb91f25394b16765f025b4e901d41cbb9792fd9428eabdae1b764e197faf`, built from clean source
+commit `a032f7080fc40f303a32162960dc44345ad8dd2d`. The prior Phase 8A artifact and both failed native
+attempt evidence sets remain retained. No native attempt used this new artifact.
+
+**Scoped Spec Kit result**: the native-readiness analyze found no CRITICAL/HIGH or
+acceptance-impacting MEDIUM finding, and scoped converge found zero Adapter-hardening gap with no
+task append. This does not complete or consume T094.
