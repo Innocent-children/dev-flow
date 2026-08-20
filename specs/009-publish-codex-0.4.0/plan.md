@@ -123,6 +123,11 @@ approved recovery uses reviewed prompt tooling from a later commit against a cle
 checkout at frozen source `a749143b74d786cfc7c864155897984481c1d24b`. A confirmation-free preflight
 must first prove exact reuse and zero assets. The confirmed recovery may then rerun the Journey and
 continue finalization without moving Tag, republishing npm, changing artifacts, or recreating Draft.
+The first fixed-prompt recovery passed the request-binding gate, then exposed that final-registry
+post-session validation still required the historical Schema 1 handshake and `phase` cursor. The
+second tooling correction adds an explicit graph-contract validation branch that reuses the existing
+Contract 0.2 handshake and reads `current_cursor` for terminal and retained tasks; the historical
+linear validator remains the default for frozen fixture paths.
 
 ### Method Profiles and Host Adapters
 

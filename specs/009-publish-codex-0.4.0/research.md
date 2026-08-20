@@ -133,3 +133,24 @@ does not address a complete domain rejection, and Core correctly enforced the cl
 **Consequences**: One read-only fixed-tooling preflight must prove exact reuse before confirmation.
 Recovery may rerun the Journey and complete later steps; npm publish count remains one and artifact
 digests remain unchanged.
+
+## Decision 9: Validate final registry sessions as Contract 0.2 graph tasks
+
+**Decision**: Select an explicit graph-contract branch for the final-registry session validator,
+reuse the existing Schema 2/process handshake assertion, and read `current_cursor` for nonterminal,
+`DONE`, and retained-reopen checks. Historical development fixture validation keeps its Schema 1 and
+`phase` defaults.
+
+**Rationale**: The fixed request-ID prompt completed both native sessions, then the old post-session
+validator rejected the substantive Schema 2 handshake before it could assess the graph task.
+
+**Alternatives considered**: Change the released Core back to Schema 1; weaken handshake validation;
+rewrite the separate historical development smoke.
+
+**Why alternatives were rejected**: The released Core correctly implements Feature 008, omitted
+handshake checks would invalidate public evidence, and historical fixture behavior is outside the
+release correction.
+
+**Consequences**: A closed four-session graph fixture must prove Contract 0.2 handshake, read order,
+current cursor, revision growth, one targeted command, and terminal outcome before another recovery
+Journey.

@@ -43,6 +43,7 @@ import {
 } from "../../../scripts/write-codex-journey-evidence.mjs";
 import { buildSupportMatrixFromFinalJourney } from "../../../scripts/verify-codex-release.mjs";
 import { productionJourneyRunnerPath } from "../../../scripts/publish-codex-release.mjs";
+import { DEV_FLOW_TOOLS } from "../../../scripts/validate-codex-journey-evidence.mjs";
 import * as smokeRuntime from "../../../scripts/write-codex-journey-evidence.mjs";
 
 const execFile = promisify(execFileCallback);
@@ -378,6 +379,46 @@ function acceptanceSession(role, events = []) {
     { type: "thread.started", thread_id: `thread-${role}` },
     ...events,
   ].map(JSON.stringify).join("\n")}\n`;
+}
+
+function graphSuccessCall(tool, suffix, result) {
+  const requestID = `request-${suffix}`;
+  return {
+    session_role: null,
+    item_id: `item-${suffix}`,
+    server: "dev-flow",
+    tool,
+    request_id: requestID,
+    arguments: { request_id: requestID },
+    status: "completed",
+    classification: "success",
+    core_result: { schema_version: 2, ok: true, request_id: requestID, tool, result },
+    host_error: null,
+    error: null,
+    recovery: null,
+  };
+}
+
+function graphSession(role, calls, commands = []) {
+  const devFlowCalls = calls.map((call) => ({ ...call, session_role: role }));
+  return {
+    role,
+    thread_id: `thread-graph-${role}`,
+    thread_started: true,
+    dev_flow_call_count: devFlowCalls.length,
+    tools: devFlowCalls.map((call) => call.tool),
+    terminal_shapes: devFlowCalls.map(() => "success"),
+    core_done: devFlowCalls.some((call) => call.core_result?.result?.task?.current_cursor === "DONE"),
+    commands,
+    mcp_calls: devFlowCalls.map((call) => ({
+      item_id: call.item_id,
+      server: "dev-flow",
+      tool: call.tool,
+      status: call.status,
+      classification: call.classification,
+    })),
+    dev_flow_calls: devFlowCalls,
+  };
 }
 
 test("thin native fixture tool emits the checked-in Codex 0.147 bytes without prompt inference", async () => {
@@ -721,6 +762,73 @@ test("final registry resume prompt requires both authoritative reads before appl
     smokeRuntime.finalRegistryResumePrompt,
     /every dev_flow_apply_action[\s\S]*new nonempty opaque caller request ID[\s\S]*top-level request_id[\s\S]*never omit[\s\S]*reuse a read request ID[\s\S]*inside payload/u,
   );
+});
+
+test("final registry session validation accepts Contract 0.2 graph cursors and handshake", () => {
+  const process = {
+    process_id: "standard-development",
+    process_version: 1,
+    definition_digest: "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1",
+    new_task_supported: true,
+  };
+  const serverInfo = {
+    product: "dev-flow",
+    version: currentVersion,
+    schema_version: 2,
+    core_limits_version: "0.2",
+    transport: "stdio",
+    health: "ready",
+    supported_hosts: ["codex", "deepseek"],
+    supported_processes: [process],
+    method_profiles: ["plain", "spec-kit", "openspec"],
+    tools: DEV_FLOW_TOOLS,
+  };
+  const before = {
+    task_id: "task-final-registry-graph",
+    revision: 3,
+    current_cursor: "TEST",
+    current_action: { action_id: "action-before-restart" },
+    outcome: null,
+  };
+  const after = structuredClone(before);
+  const done = {
+    ...structuredClone(before),
+    revision: 4,
+    current_cursor: "DONE",
+    current_action: null,
+    outcome: { status: "completed" },
+  };
+  const infoCall = (suffix) => graphSuccessCall("dev_flow_server_info", `${suffix}-info`, serverInfo);
+  const sessions = [
+    graphSession("ordinary", []),
+    graphSession("invalid", []),
+    graphSession("substantive", [
+      infoCall("substantive"),
+      graphSuccessCall("dev_flow_apply_action", "substantive-apply", { task: before }),
+    ], [{ command: "git hash-object final-registry-proof.txt", status: "completed", exitCode: 0, output: "fixture-proof-hash\n" }]),
+    graphSession("resume", [
+      infoCall("resume"),
+      graphSuccessCall("dev_flow_open_task", "resume-open", { created: false, task: after }),
+      graphSuccessCall("dev_flow_get_task", "resume-read", { task: after }),
+      graphSuccessCall("dev_flow_get_next_action", "resume-next", { task_id: after.task_id, action: after.current_action }),
+      graphSuccessCall("dev_flow_apply_action", "resume-apply", { task: done }),
+    ]),
+  ];
+  const state = {};
+
+  assert.doesNotThrow(() => smokeRuntime.validateDevelopmentSessions(sessions, state, {
+    coreVersion: currentVersion,
+    graphContract: true,
+    proofCommand: "git hash-object final-registry-proof.txt",
+    proofRenderedCommand: "/bin/zsh -lc 'git hash-object final-registry-proof.txt'",
+    proofHash: "fixture-proof-hash",
+  }));
+  assert.deepEqual(state, {
+    taskIdBeforeRestart: before.task_id,
+    taskIdAfterRestart: after.task_id,
+    committedActionCount: 2,
+    terminalOutcome: "DONE",
+  });
 });
 
 test("development smoke enforces ordinary and invalid zero-call admission", () => {

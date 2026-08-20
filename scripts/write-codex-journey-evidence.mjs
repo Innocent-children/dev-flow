@@ -1325,6 +1325,7 @@ export async function runFinalRegistryJourney(options) {
     };
     validateDevelopmentSessions(sessions, state, {
       coreVersion: options.version,
+      graphContract: true,
       proofCommand: FINAL_PROOF_COMMAND,
       proofRenderedCommand: FINAL_PROOF_RENDERED_COMMAND,
       proofHash: FINAL_PROOF_GIT_HASH,
@@ -1378,7 +1379,7 @@ export async function runFinalRegistryJourney(options) {
     );
     if (
       retained.task_id !== taskFacts.taskIDBeforeRestart
-      || retained.phase !== "DONE"
+      || retained.current_cursor !== "DONE"
       || retained.outcome?.status !== "completed"
     ) throw new Error("final registry journey retained task reopen failed");
     const database = await stat(join(layout.dataDirectory, "dev-flow.db"));
@@ -2883,7 +2884,7 @@ function displayShape(shape) {
 function containsDone(value) {
   if (Array.isArray(value)) return value.some(containsDone);
   if (value === null || typeof value !== "object") return false;
-  if (value.phase === "DONE" || value.outcome?.status === "completed") return true;
+  if (value.phase === "DONE" || value.current_cursor === "DONE" || value.outcome?.status === "completed") return true;
   return Object.values(value).some(containsDone);
 }
 
@@ -2898,6 +2899,7 @@ export function validateDevelopmentSessions(sessions, state, options = {}) {
 
 function validateDevelopmentSessionsUnchecked(sessions, state, {
   coreVersion = "0.1.0",
+  graphContract = false,
   proofCommand = PROOF_COMMAND,
   proofRenderedCommand = PROOF_RENDERED_COMMAND,
   proofHash = PROOF_GIT_HASH,
@@ -2907,7 +2909,10 @@ function validateDevelopmentSessionsUnchecked(sessions, state, {
   if (new Set(threadIDs).size !== 4 || threadIDs.some((id) => typeof id !== "string" || id.length === 0)) {
     throw new Error("development smoke requires four distinct Codex sessions");
   }
-  for (const session of sessions.slice(2)) assertHandshake(session, coreVersion);
+  for (const session of sessions.slice(2)) {
+    if (graphContract) assertFinalLocalHandshake(session, coreVersion);
+    else assertHandshake(session, coreVersion);
+  }
   const substantive = sessions[2];
   const resume = sessions[3];
   const substantiveApplies = successfulCalls(substantive, "dev_flow_apply_action");
@@ -2916,9 +2921,11 @@ function validateDevelopmentSessionsUnchecked(sessions, state, {
   const resumeOpen = successfulCalls(resume, "dev_flow_open_task")[0];
   const taskAfter = taskFromCall(resumeOpen);
   const finalTask = lastTask(resumeApplies);
-  if (!taskBefore || taskBefore.phase === "DONE" || taskBefore.outcome !== null) throw new Error("substantive session did not stop on a nonterminal Core task");
+  const taskBeforeCursor = graphContract ? taskBefore?.current_cursor : taskBefore?.phase;
+  const finalCursor = graphContract ? finalTask?.current_cursor : finalTask?.phase;
+  if (!taskBefore || taskBeforeCursor === "DONE" || taskBefore.outcome !== null) throw new Error("substantive session did not stop on a nonterminal Core task");
   if (!taskAfter || taskAfter.task_id !== taskBefore.task_id) throw new Error("restart did not resume the same Core task");
-  if (!finalTask || finalTask.task_id !== taskBefore.task_id || finalTask.phase !== "DONE" || finalTask.outcome?.status !== "completed") {
+  if (!finalTask || finalTask.task_id !== taskBefore.task_id || finalCursor !== "DONE" || finalTask.outcome?.status !== "completed") {
     throw new Error("resume session did not reach authoritative Core DONE");
   }
   const tools = resume.dev_flow_calls.map((call) => call.tool);
