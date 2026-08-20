@@ -1,179 +1,182 @@
 import assert from "node:assert/strict";
 import { execFile as execFileCallback } from "node:child_process";
-import { chmod, mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
 
-import {
-  parseReleaseArguments,
-  runReleaseCommand,
-} from "../../../scripts/release-codex.mjs";
+import { parseReleaseArguments, quickModeBlockingPaths, runReleaseCommand } from "../../../scripts/release-codex.mjs";
 
 const execFile = promisify(execFileCallback);
-const version = "0.4.0";
+const baseVersion = "1.2.3";
+const targetVersion = "1.2.4";
 
-test("one-command release accepts exactly one output and exact confirmation", () => {
+test("release command requires mode/version/confirmation and explicit normal comprehension", () => {
   assert.deepEqual(parseReleaseArguments([
-    "--output", "/tmp/dev-flow-release-v0.4.0",
-    "--confirm", "v0.4.0",
+    "--mode", "normal", "--version", targetVersion,
+    "--output", "/tmp/dev-flow-release-v1.2.4",
+    "--confirm", `v${targetVersion}`, "--confirm-comprehension",
   ]), {
-    outputDirectory: "/tmp/dev-flow-release-v0.4.0",
-    confirmation: "v0.4.0",
+    mode: "normal",
+    targetVersion,
+    outputDirectory: "/tmp/dev-flow-release-v1.2.4",
+    confirmation: `v${targetVersion}`,
+    comprehensionConfirmed: true,
   });
-
+  assert.deepEqual(parseReleaseArguments([
+    "--mode", "quick", "--version", targetVersion, "--confirm", `v${targetVersion}`,
+  ]).mode, "quick");
   for (const arguments_ of [
     [],
-    ["--output", "/tmp/release"],
-    ["--confirm", "v0.4.0"],
-    ["--output", "/tmp/release", "--output", "/tmp/other", "--confirm", "v0.4.0"],
-    ["--output", "/tmp/release", "--confirm", "v0.4.0", "--unknown", "value"],
-  ]) {
-    assert.throws(() => parseReleaseArguments(arguments_), /usage|only once|unknown argument/u);
-  }
+    ["--mode", "normal", "--version", targetVersion],
+    ["--mode", "quick", "--version", targetVersion, "--confirm", `v${targetVersion}`, "--unknown"],
+  ]) assert.throws(() => parseReleaseArguments(arguments_), /usage|unknown argument/u);
 });
 
-test("missing output prepares, verifies, and publishes in one ordered invocation", async (t) => {
-  const scenario = await createScenario(t);
-  const output = join(scenario.root, "release-v0.4.0");
+test("quick eligibility rejects product surfaces and accepts release-only paths", () => {
+  assert.deepEqual(quickModeBlockingPaths([
+    "README.md", "docs/PRODUCT.md", "scripts/release-codex.mjs", "tests/contract/release_contract_test.go",
+  ]), []);
+  assert.deepEqual(quickModeBlockingPaths([
+    "internal/mcp/server.go", "packages/codex/lib/lifecycle.mjs", "go.mod",
+  ]), ["go.mod", "internal/mcp/server.go", "packages/codex/lib/lifecycle.mjs"]);
+});
+
+test("normal mode bumps versions, commits, pushes, prepares, verifies, and publishes", async (t) => {
+  const scenario = await createScenario(t, { changedPath: "docs/change.md" });
+  const output = join(scenario.root, `v${targetVersion}`);
   const calls = [];
-
   const result = await runReleaseCommand({
-    repositoryRoot: scenario.repository,
+    mode: "normal",
+    targetVersion,
     outputDirectory: output,
-    confirmation: "v0.4.0",
+    confirmation: `v${targetVersion}`,
+    comprehensionConfirmed: true,
+    repositoryRoot: scenario.repository,
     platform: "darwin",
     architecture: "arm64",
-    runProcess: recordingRunner(calls, { prepareOutput: output }),
+    runProcess: recordingRunner(calls, { prepareOutput: output, version: targetVersion, mode: "normal" }),
   });
 
-  assert.equal(result.mode, "prepared-and-published");
-  assert.equal(result.version, version);
-  assert.deepEqual(calls.map((call) => call.label), ["prepare", "verify", "publish"]);
-  assert.deepEqual(calls.at(-1).arguments.slice(-2), ["--confirm", "v0.4.0"]);
+  assert.equal(result.version, targetVersion);
+  assert.equal(result.verification_mode, "normal");
+  assert.equal(result.based_on_release, null);
+  assert.deepEqual(calls.map((call) => call.label), ["normal-validation", "prepare", "verify", "publish"]);
+  assert.equal((await readFile(join(scenario.repository, "VERSION"), "utf8")).trim(), targetVersion);
+  assert.equal((await git(scenario.repository, ["log", "-1", "--format=%s"])).trim(), `release: bump Codex to v${targetVersion}`);
+  assert.equal((await git(scenario.repository, ["rev-parse", "HEAD"])).trim(), (await git(scenario.repository, ["rev-parse", "origin/main"])).trim());
+
+  const resumed = [];
+  const resume = await runReleaseCommand({
+    mode: "normal",
+    targetVersion,
+    outputDirectory: output,
+    confirmation: `v${targetVersion}`,
+    comprehensionConfirmed: true,
+    repositoryRoot: scenario.repository,
+    platform: "darwin",
+    architecture: "arm64",
+    runProcess: recordingRunner(resumed),
+  });
+  assert.equal(resume.mode, "resumed-and-published");
+  assert.deepEqual(resumed.map((call) => call.label), ["publish"]);
 });
 
-test("empty output prepares while an exact five-file output resumes publisher only", async (t) => {
-  const empty = await createScenario(t);
-  const emptyOutput = join(empty.root, "empty-release");
-  await mkdir(emptyOutput);
-  const preparedCalls = [];
-  await runReleaseCommand({
-    repositoryRoot: empty.repository,
-    outputDirectory: emptyOutput,
-    confirmation: "v0.4.0",
-    platform: "darwin",
-    architecture: "arm64",
-    runProcess: recordingRunner(preparedCalls, { prepareOutput: emptyOutput }),
-  });
-  assert.deepEqual(preparedCalls.map((call) => call.label), ["prepare", "verify", "publish"]);
-
-  const resumed = await createScenario(t);
-  const resumedOutput = join(resumed.root, "resumed-release");
-  await mkdir(resumedOutput);
-  await writeReleaseFiles(resumedOutput);
-  const resumedCalls = [];
+test("quick mode records its previous release and refuses product-affecting diffs", async (t) => {
+  const quick = await createScenario(t, { changedPath: "docs/change.md" });
+  const output = join(quick.root, `v${targetVersion}`);
+  const calls = [];
   const result = await runReleaseCommand({
-    repositoryRoot: resumed.repository,
-    outputDirectory: resumedOutput,
-    confirmation: "v0.4.0",
+    mode: "quick",
+    targetVersion,
+    outputDirectory: output,
+    confirmation: `v${targetVersion}`,
+    repositoryRoot: quick.repository,
     platform: "darwin",
     architecture: "arm64",
-    runProcess: recordingRunner(resumedCalls),
+    runProcess: recordingRunner(calls, { prepareOutput: output, version: targetVersion, mode: "quick", basedOnRelease: baseVersion }),
+  });
+  assert.equal(result.based_on_release, baseVersion);
+  assert.deepEqual(calls.map((call) => call.label), ["quick-contracts", "quick-journey-contract", "prepare", "verify", "publish"]);
+  assert.equal(calls[0].options.env.DEV_FLOW_RELEASE_MODE, "quick");
+  assert.equal(calls[0].options.env.DEV_FLOW_BASED_ON_RELEASE, baseVersion);
+
+  const blocked = await createScenario(t, { changedPath: "internal/domain/change.go" });
+  await assert.rejects(runReleaseCommand({
+    mode: "quick",
+    targetVersion,
+    outputDirectory: join(blocked.root, "blocked"),
+    confirmation: `v${targetVersion}`,
+    repositoryRoot: blocked.repository,
+    platform: "darwin",
+    architecture: "arm64",
+    runProcess: async () => assert.fail("quick rejection must precede child commands"),
+  }), /quick mode is not eligible[\s\S]*internal\/domain\/change.go/u);
+  assert.equal((await readFile(join(blocked.repository, "VERSION"), "utf8")).trim(), baseVersion);
+});
+
+test("resume automatically publishes from the prepared frozen source after tooling advances", async (t) => {
+  const scenario = await createScenario(t, { changedPath: "docs/change.md" });
+  const output = join(scenario.root, `v${targetVersion}`);
+  await runReleaseCommand({
+    mode: "normal", targetVersion, outputDirectory: output, confirmation: `v${targetVersion}`,
+    comprehensionConfirmed: true, repositoryRoot: scenario.repository, platform: "darwin", architecture: "arm64",
+    runProcess: recordingRunner([], { prepareOutput: output, version: targetVersion, mode: "normal" }),
+  });
+  const prepared = JSON.parse(await readFile(join(output, "release-manifest.json"), "utf8"));
+  await writeFile(join(scenario.repository, "scripts", "release-codex.mjs"), "new release tooling\n");
+  await git(scenario.repository, ["add", "scripts/release-codex.mjs"]);
+  await git(scenario.repository, ["commit", "-m", "chore: advance release tooling"]);
+  await git(scenario.repository, ["push", "origin", "main"]);
+
+  const calls = [];
+  const result = await runReleaseCommand({
+    mode: "normal", targetVersion, outputDirectory: output, confirmation: `v${targetVersion}`,
+    comprehensionConfirmed: true, repositoryRoot: scenario.repository, platform: "darwin", architecture: "arm64",
+    runProcess: recordingRunner(calls),
   });
   assert.equal(result.mode, "resumed-and-published");
-  assert.deepEqual(resumedCalls.map((call) => call.label), ["publish"]);
+  assert.deepEqual(calls.map((call) => call.label), ["publish"]);
+  const sourceRootIndex = calls[0].arguments.indexOf("--source-root");
+  assert.notEqual(sourceRootIndex, -1);
+  const frozenRoot = calls[0].arguments[sourceRootIndex + 1];
+  assert.equal((await git(frozenRoot, ["rev-parse", "HEAD"])).trim(), prepared.release.source_commit);
+  assert.equal(result.source_commit, prepared.release.source_commit);
 });
 
-test("invalid output, symlink, confirmation, version, dirty source, and unpushed source fail before children", async (t) => {
-  const cases = [
-    {
-      name: "unexpected output",
-      arrange: async (scenario) => {
-        const output = join(scenario.root, "invalid-release");
-        await mkdir(output);
-        await writeFile(join(output, "unexpected.txt"), "invalid\n");
-        return { output, expected: /exact five-file set/u };
-      },
-    },
-    {
-      name: "symlink output",
-      arrange: async (scenario) => {
-        const target = join(scenario.root, "real-release");
-        const output = join(scenario.root, "linked-release");
-        await mkdir(target);
-        await symlink(target, output);
-        return { output, expected: /symbolic link/u };
-      },
-    },
-    {
-      name: "confirmation mismatch",
-      arrange: async (scenario) => ({ output: join(scenario.root, "confirmation-release"), confirmation: "v0.3.0", expected: /confirmation must equal v0\.4\.0/u }),
-    },
-    {
-      name: "version mismatch",
-      arrange: async (scenario) => {
-        const path = join(scenario.repository, "packages", "deepseek", "package.json");
-        const manifest = JSON.parse(await readFile(path, "utf8"));
-        manifest.version = "0.3.0";
-        await writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`);
-        return { output: join(scenario.root, "version-release"), expected: /version authorities must equal 0\.4\.0/u };
-      },
-    },
-    {
-      name: "dirty source",
-      arrange: async (scenario) => {
-        await writeFile(join(scenario.repository, "README.md"), "dirty\n");
-        return { output: join(scenario.root, "dirty-release"), expected: /clean source checkout/u };
-      },
-    },
-    {
-      name: "unpushed source",
-      arrange: async (scenario) => {
-        await writeFile(join(scenario.repository, "README.md"), "unpushed\n");
-        await git(scenario.repository, ["add", "README.md"]);
-        await git(scenario.repository, ["commit", "-m", "unpushed"]);
-        return { output: join(scenario.root, "unpushed-release"), expected: /HEAD must equal origin\/main/u };
-      },
-    },
-  ];
-
-  for (const candidate of cases) {
-    await t.test(candidate.name, async (t) => {
-      const scenario = await createScenario(t);
-      const arranged = await candidate.arrange(scenario);
-      const calls = [];
+test("selection, version, and source failures stop before publication children", async (t) => {
+  const scenario = await createScenario(t, { changedPath: "docs/change.md" });
+  for (const [name, patch, pattern] of [
+    ["mode", { mode: "fast" }, /mode must equal quick or normal/u],
+    ["confirmation", { confirmation: "v9.9.9" }, /confirmation must equal/u],
+    ["comprehension", { comprehensionConfirmed: false }, /requires --confirm-comprehension/u],
+    ["version", { targetVersion: "1.2.2", confirmation: "v1.2.2" }, /must be greater/u],
+  ]) {
+    await t.test(name, async () => {
       await assert.rejects(runReleaseCommand({
-        repositoryRoot: scenario.repository,
-        outputDirectory: arranged.output,
-        confirmation: arranged.confirmation ?? "v0.4.0",
-        platform: "darwin",
-        architecture: "arm64",
-        runProcess: recordingRunner(calls),
-      }), arranged.expected);
-      assert.deepEqual(calls, []);
+        mode: "normal", targetVersion, confirmation: `v${targetVersion}`, comprehensionConfirmed: true,
+        outputDirectory: join(scenario.root, `failure-${name}`), repositoryRoot: scenario.repository,
+        platform: "darwin", architecture: "arm64", runProcess: async () => assert.fail("no child command expected"),
+        ...patch,
+      }), pattern);
     });
   }
 });
 
-async function createScenario(t) {
+async function createScenario(t, { changedPath }) {
   const root = await mkdtemp(join(tmpdir(), "dev-flow-release-command-test-"));
-  t.after(async () => {
-    await import("node:fs/promises").then(({ rm }) => rm(root, { recursive: true, force: true }));
-  });
+  t.after(() => rm(root, { recursive: true, force: true }));
   const repository = join(root, "repository");
   const remote = join(root, "origin.git");
   await Promise.all([
     mkdir(join(repository, "packages", "codex", "plugin", ".codex-plugin"), { recursive: true }),
+    mkdir(join(repository, "packages", "codex", "tests", "fixtures"), { recursive: true }),
     mkdir(join(repository, "packages", "deepseek"), { recursive: true }),
+    mkdir(join(repository, "protocol", "fixtures"), { recursive: true }),
     mkdir(join(repository, "scripts"), { recursive: true }),
   ]);
-  await writeFile(join(repository, "VERSION"), `${version}\n`);
-  await writeJSON(join(repository, "package.json"), { name: "dev-flow", version, private: true });
-  await writeJSON(join(repository, "packages", "codex", "package.json"), { name: "dev-flow-codex", version, private: false });
-  await writeJSON(join(repository, "packages", "codex", "plugin", ".codex-plugin", "plugin.json"), { name: "dev-flow-codex", version });
-  await writeJSON(join(repository, "packages", "deepseek", "package.json"), { name: "dev-flow-deepseek", version, private: true });
+  await writeVersionAuthorities(repository, baseVersion);
   await writeFile(join(repository, "README.md"), "release command fixture\n");
   for (const name of ["build-codex-release.sh", "verify-codex-release.mjs", "publish-codex-release.mjs"]) {
     const path = join(repository, "scripts", name);
@@ -185,34 +188,64 @@ async function createScenario(t) {
   await git(repository, ["config", "user.name", "Dev Flow Release Test"]);
   await git(repository, ["config", "user.email", "release-test@example.invalid"]);
   await git(repository, ["add", "."]);
-  await git(repository, ["commit", "-m", "fixture"]);
+  await git(repository, ["commit", "-m", "release baseline"]);
+  await git(repository, ["tag", `v${baseVersion}`]);
   await git(repository, ["remote", "add", "origin", remote]);
-  await git(repository, ["push", "-u", "origin", "main"]);
+  await git(repository, ["push", "-u", "origin", "main", "--tags"]);
+  const path = join(repository, changedPath);
+  await mkdir(join(path, ".."), { recursive: true });
+  await writeFile(path, "change\n");
+  await git(repository, ["add", changedPath]);
+  await git(repository, ["commit", "-m", "feature change"]);
+  await git(repository, ["push", "origin", "main"]);
   return { root, repository };
 }
 
-function recordingRunner(calls, { prepareOutput = null } = {}) {
-  return async (executable, arguments_) => {
+async function writeVersionAuthorities(repository, version) {
+  await writeFile(join(repository, "VERSION"), `${version}\n`);
+  await writeJSON(join(repository, "package.json"), { name: "dev-flow", version, private: true });
+  await writeJSON(join(repository, "packages", "codex", "package.json"), { name: "dev-flow-codex", version, private: false });
+  await writeJSON(join(repository, "packages", "codex", "plugin", ".codex-plugin", "plugin.json"), { name: "dev-flow-codex", version });
+  await writeJSON(join(repository, "packages", "deepseek", "package.json"), { name: "dev-flow-deepseek", version, private: true });
+  await writeJSON(join(repository, "protocol", "fixtures", "graph-server-info.json"), { product: "dev-flow", version });
+  await writeJSON(join(repository, "packages", "codex", "tests", "fixtures", "graph-method-profiles.json"), { server_info: { version } });
+  await writeFile(join(repository, "packages", "codex", "tests", "fixtures", "fake-core.mjs"), `const first = "${version}";\nconst second = "${version}";\n`);
+}
+
+function recordingRunner(calls, { prepareOutput = null, version = targetVersion, mode = "normal", basedOnRelease = null } = {}) {
+  return async (executable, arguments_, options) => {
     const name = executable.split("/").at(-1);
-    const label = name === "build-codex-release.sh"
-      ? "prepare"
-      : arguments_[0]?.endsWith("verify-codex-release.mjs")
-        ? "verify"
-        : "publish";
-    calls.push({ label, executable, arguments: [...arguments_] });
-    if (label === "prepare") await writeReleaseFiles(prepareOutput);
+    const label = name === "pnpm" ? "normal-validation"
+      : name === "go" ? "quick-contracts"
+        : name === "build-codex-release.sh" ? "prepare"
+          : arguments_[0] === "--test" ? "quick-journey-contract"
+            : arguments_[0]?.endsWith("verify-codex-release.mjs") ? "verify"
+              : "publish";
+    calls.push({ label, executable, arguments: [...arguments_], options });
+    if (label === "prepare") {
+      const sourceCommit = (await git(options.cwd, ["rev-parse", "HEAD"])).trim();
+      const sourceTree = (await git(options.cwd, ["rev-parse", "HEAD^{tree}"])).trim();
+      await writeReleaseFiles(prepareOutput, { version, mode, basedOnRelease, sourceCommit, sourceTree });
+    }
   };
 }
 
-async function writeReleaseFiles(directory) {
-  const files = [
-    "SHA256SUMS",
-    `dev-flow-${version}-darwin-arm64`,
-    `dev-flow-codex-${version}.tgz`,
-    "publication-record.json",
-    "release-manifest.json",
-  ];
-  await Promise.all(files.map((name) => writeFile(join(directory, name), `${name}\n`)));
+async function writeReleaseFiles(directory, { version, mode, basedOnRelease, sourceCommit, sourceTree }) {
+  await Promise.all([
+    writeFile(join(directory, "SHA256SUMS"), "checksums\n"),
+    writeFile(join(directory, `dev-flow-${version}-darwin-arm64`), "core\n"),
+    writeFile(join(directory, `dev-flow-codex-${version}.tgz`), "package\n"),
+    writeFile(join(directory, "publication-record.json"), "{}\n"),
+    writeJSON(join(directory, "release-manifest.json"), {
+      release: {
+        version,
+        verification_mode: mode,
+        based_on_release: basedOnRelease,
+        source_commit: sourceCommit,
+        source_tree: sourceTree,
+      },
+    }),
+  ]);
 }
 
 async function writeJSON(path, value) {
@@ -220,5 +253,5 @@ async function writeJSON(path, value) {
 }
 
 async function git(repository, arguments_) {
-  await execFile("git", arguments_, { cwd: repository });
+  return execFile("git", arguments_, { cwd: repository }).then(({ stdout }) => stdout);
 }

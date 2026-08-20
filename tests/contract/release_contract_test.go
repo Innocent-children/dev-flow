@@ -188,13 +188,6 @@ func TestReleaseSchemasMirrorPlanningAuthorityAndRemainClosed(t *testing.T) {
 		rootRequired   []string
 	}{
 		{
-			name:           "release manifest",
-			specPath:       "specs/009-publish-codex-0.4.0/contracts/release-manifest.schema.json",
-			implementation: "release/schemas/release-manifest.schema.json",
-			id:             releaseManifestSchemaID,
-			rootRequired:   []string{"schema_version", "release", "toolchains", "artifacts", "package_files", "support", "validations"},
-		},
-		{
 			name:           "publication record",
 			specPath:       "specs/006-publish-codex-installable-product/contracts/publication-record.schema.json",
 			implementation: "release/schemas/publication-record.schema.json",
@@ -225,10 +218,14 @@ func TestReleaseSchemasMirrorPlanningAuthorityAndRemainClosed(t *testing.T) {
 	}
 
 	manifest := releaseReadSchema(t, root, "release/schemas/release-manifest.schema.json")
+	if manifest["$schema"] != releaseSchemaDraft || manifest["$id"] != releaseManifestSchemaID || manifest["type"] != "object" {
+		t.Fatal("current standalone release manifest schema identity is invalid")
+	}
+	releaseAssertClosedSchemaObject(t, manifest, []string{"schema_version", "release", "toolchains", "artifacts", "package_files", "support", "validations"})
 	releaseAssertClosedSchemaObject(t, releaseSchemaAt(t, manifest, "properties", "release"), []string{
 		"version", "tag", "source_commit", "source_tree", "feature_008_commit", "core_contract_version",
 		"storage_schema_version", "snapshot_version", "process_id", "process_version",
-		"process_definition_digest", "build_profile", "created_at",
+		"process_definition_digest", "verification_mode", "based_on_release", "build_profile", "created_at",
 	})
 	releaseProperties := releaseSchemaAt(t, manifest, "properties", "release", "properties")
 	if releaseSchemaAt(t, manifest, "properties", "schema_version")["const"] != float64(2) ||
@@ -243,7 +240,7 @@ func TestReleaseSchemasMirrorPlanningAuthorityAndRemainClosed(t *testing.T) {
 	releaseAssertClosedSchemaObject(t, releaseSchemaAt(t, manifest, "properties", "artifacts", "items"), []string{"name", "kind", "relative_path", "size_bytes", "sha256", "mode", "source_commit"})
 	releaseAssertClosedSchemaObject(t, releaseSchemaAt(t, manifest, "properties", "package_files", "items"), []string{"path", "size_bytes", "sha256", "mode"})
 	releaseAssertClosedSchemaObject(t, releaseSchemaAt(t, manifest, "properties", "support", "items"), []string{
-		"os", "arch", "actual_codex_version", "compatible_codex_range", "package_sha256", "core_sha256", "journey_result", "journey_observed_at", "notes",
+		"os", "arch", "actual_codex_version", "compatible_codex_range", "package_sha256", "core_sha256", "journey_result", "journey_observed_at", "verification_mode", "based_on_release", "notes",
 	})
 	releaseAssertClosedSchemaObject(t, releaseSchemaAt(t, manifest, "properties", "validations", "items"), []string{"name", "status", "summary"})
 	support := releaseSchemaAt(t, manifest, "properties", "support")

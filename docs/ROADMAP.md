@@ -26,7 +26,7 @@ Implementation: Complete
 Native graph-flow acceptance: Complete
 Exact-artifact lifecycle acceptance: Complete
 Composite local acceptance: Complete
-    Publication: Feature 009 implementing
+    Publication: dev-flow-codex@0.4.0 complete
     Selected release: dev-flow-codex@0.4.0 / macOS arm64
 ```
 
@@ -49,7 +49,7 @@ Feature 完成不代表 released、published、ready for merge 或 production av
 
 该门禁未执行 npm publication、Tag、GitHub Release 或 public installation claim。
 
-## 当前 Release Change：Feature 009
+## 已完成：Feature 009 Release Change
 
 Feature 009 已批准以下 Codex-only 发布工作：
 

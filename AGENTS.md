@@ -12,14 +12,24 @@ Before any implementation work, read in this order:
 6. the active feature's `contracts/`
 7. the active feature's `tasks.md`
 
+Before a version-only release, do not select or create a Feature. Read in this order:
+
+1. `.specify/memory/constitution.md`
+2. `docs/SPEC-KIT-WORKFLOW.md`
+3. `release/README.md`
+4. `release/codex/README.md`
+5. the current release schemas and publisher contracts under `release/`
+
 The active Spec Kit feature is selected by `.specify/feature.json` when available or by
 `SPECIFY_FEATURE_DIRECTORY`. Do not infer it only from the Git branch, directory name, chat history,
 or the most recently edited specification.
 
 ## Requirement Scope
 
-Only the Constitution, the complete active feature package, and the user's current explicit
-instruction define authorized product work.
+Only the Constitution, the complete active Product Feature package when product behavior changes,
+and the user's current explicit instruction define authorized product work. A version-only release
+is authorized by completed product work plus the user's selected release mode, target version, and
+exact confirmation; it does not use a release Feature.
 
 - Every implementation task must trace to an active `FR-*`, `SC-*`, contract clause, or approved
   engineering constraint.
@@ -67,8 +77,8 @@ hidden fast paths.
 
 ## Spec Kit Package Discipline
 
-A public-behavior, process, shared-contract, persistence, adapter-contract, or release change
-requires this complete package:
+A public-behavior, process, shared-contract, persistence, or adapter-contract change requires this
+complete package:
 
 ```text
 specs/<NNN-feature-name>/
@@ -85,6 +95,9 @@ specs/<NNN-feature-name>/
 
 Use `docs/SPEC-KIT-WORKFLOW.md` for artifact responsibilities, status values, change
 classification, execution order, amendment rules, and release separation.
+
+Version alignment and publication MUST NOT create a Feature. They use the standalone release command,
+release schemas, external manifest/publication record, and immutable public identities.
 
 For an already prepared package:
 
@@ -122,7 +135,9 @@ documentation to recognize it later.
 
 ## Implementation Discipline
 
-- Implement only tasks explicitly listed in the active `tasks.md`.
+- Implement product behavior only through tasks explicitly listed in the active `tasks.md`.
+- Implement version-only release work only through the standalone release contracts after the user
+  selects a release mode; do not create or reopen a Feature for publication.
 - Stop at the requested phase, user story, or checkpoint.
 - Prefer direct readable code over frameworks, registries, builders, and wrappers.
 - Do not create a generic graph DSL, user-configurable process, plugin framework, HTTP transport,
@@ -140,8 +155,31 @@ The product Core may inspect Git read-only. It may not create, switch, delete, r
 commit, push, merge, rebase, tag, publish, or otherwise mutate Git state.
 
 Repository development actions require explicit user authority. npm publication, Git Tag changes,
-GitHub Release changes, asset upload, and public support claims require a separate Release Feature
-or Release PR.
+GitHub Release changes, asset upload, and public support claims require an explicit target version,
+the user's selected `quick` or `normal` mode, exact release confirmation, and the standalone release
+command. They do not require or permit a new release Feature.
+
+## Release Mode Selection
+
+Before every version release, the agent must inspect the changed paths since the current public Tag,
+recommend `quick` or `normal` with a concise eligibility reason, and ask the user which mode to use.
+The agent must not modify versions, commit a release bump, or publish until the user answers.
+
+- Recommend `quick` only when product/runtime behavior is unchanged. Eligible changes are limited to
+  documentation, specifications, tests, repository configuration, release tooling, and approved
+  version metadata. `quick` must be rejected when Core, MCP, Schema, process, persistence, Codex
+  launcher/lifecycle/Skill/library, package layout, platform, or support behavior changed.
+- Recommend `normal` for every product-affecting change or whenever quick eligibility cannot be
+  proven.
+- If the user explicitly requests `quick` for an ineligible diff, stop and report the exact blocking
+  paths; never silently downgrade verification.
+- Both modes first align all current version authorities, create and push one version commit on clean
+  `main`, and only then create Tag/npm/GitHub effects.
+- `quick` runs bounded targeted checks and a final registry-package smoke tied to the previous normal
+  release. `normal` runs the approved full validation and complete registry-package graph Journey.
+- Recovery always reuses the same mode, version, output directory, source identity, Tag, npm bytes,
+  and publication record. The script must automatically handle reviewed tooling against a frozen
+  source after immutable remote state exists.
 
 ## Test Budget
 
@@ -149,9 +187,10 @@ Run only checks required by the active task and acceptance criteria.
 
 - Prefer package-local, node-local, storage-boundary-local, or user-story-local checks.
 - Do not run the complete repository suite after each edit.
-- Run the final repository-wide validation at most once unless the active specification records a
-  concrete reason for a retry.
-- Real-host journeys run only at an explicit final checkpoint.
+- Run the final repository-wide validation at most once for `normal` unless the active Product
+  Feature records a concrete reason for a retry. `quick` does not run the repository-wide suite.
+- Real-host journeys run only at the selected release mode's explicit final checkpoint: bounded smoke
+  for `quick`, complete graph Journey for `normal`.
 - Never promote fake, fixture, static, different-platform, or user-performed evidence into native
   automated evidence.
 - Report unavailable checks as unavailable; do not replace them with broader unrelated testing.

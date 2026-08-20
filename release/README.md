@@ -20,9 +20,9 @@ release/
     └── invalid-release-fixtures.json
 ```
 
-The current release-manifest authority is
-`specs/009-publish-codex-0.4.0/contracts/release-manifest.schema.json`; its implementation copy under
-`release/schemas/` is byte-identical. Publication Record Schema 1 remains owned by Feature 006.
+The current release-manifest authority is `release/schemas/release-manifest.schema.json`.
+Completed release Features remain historical evidence and are not rewritten as the current contract.
+Publication Record Schema 1 remains owned by Feature 006.
 Contract tests guard exact identity, closed required fields, `additionalProperties: false`, one
 `darwin-arm64` support entry, safe paths, immutable digests, and all nine publication steps.
 
@@ -50,18 +50,24 @@ as a GitHub Release asset.
 
 ```bash
 pnpm run release:codex -- \
+  --mode quick|normal \
+  --version "<VERSION>" \
   --output "<absolute-release-directory>" \
-  --confirm "v<VERSION>"
+  --confirm "v<VERSION>" \
+  [--confirm-comprehension]
 ```
 
-This is the production operator entrypoint. It creates or prepares a missing/empty directory, resumes
-an exact five-file directory, runs local verification, and invokes the exact-confirmation publisher.
+This is the production operator entrypoint. Before running it, the agent inspects paths changed since
+the current public Tag, recommends `quick` or `normal`, and waits for the maintainer's selection. The
+command aligns every current version authority, commits and pushes that version change on `main`, then
+runs the selected validation and invokes the exact-confirmation publisher. It creates or prepares a
+missing/empty directory and resumes an exact five-file directory.
 The `release:codex:prepare`, `release:codex:verify`, and `release:codex:publish` scripts remain reviewed
 internal components and diagnostic commands.
 
 ### Prepare
 
-- requires a clean `main` checkout on native macOS arm64;
+- requires a clean, pushed `main` checkout on native macOS arm64 after the version commit;
 - creates two temporary detached clean worktrees at the same commit;
 - runs the local builder independently, compares Runtime bytes and normalized package trees;
 - emits the canonical five-file set;
@@ -80,7 +86,11 @@ internal components and diagnostic commands.
   verified directory;
 - creates/reuses only the exact Tag and GitHub Draft, publishes npm at most once, and verifies the
   public registry tarball before later gates;
-- runs the closed `--final-registry` Journey contract, finalizes native support/manifest/checksums,
+- `quick` runs the bounded contract checks and `--quick-registry` install/setup/remove smoke only when
+  the changed paths prove that product/runtime behavior is unchanged;
+- `normal` runs `pnpm run validate`, requires `--confirm-comprehension`, and runs the closed
+  `--final-registry` graph Journey;
+- finalizes native support/manifest/checksums,
   uploads and redownloads four assets, then finalizes and rereads the GitHub Release;
 - writes `publication-record.json` atomically after each observation/mutation;
 - resumes exact matching remote state and blocks conflicts without moving, deleting, overwriting,
@@ -110,14 +120,20 @@ Generated output stays in the operator-selected external directory and is never 
 not contain credentials, auth configuration, home/machine paths, raw environment values, raw host
 prompts, unbounded command output, source, task databases, receipts, caches, or DeepSeek resources.
 
-## Current release status
+## Expected duration
 
-- Feature 008 graph behavior and source-local acceptance are complete.
-- Feature 009 aligns current identity to `0.4.0`, upgrades the current manifest to graph-aware Schema
-  2, and exposes the one-command release entrypoint.
-- Public `0.4.0` npm, Tag, final Journey, assets, and Release evidence remain pending until the clean
-  source gate passes and the exact command runs.
+| Stage | Quick | Normal |
+| --- | ---: | ---: |
+| Version alignment, commit, push | 1–3 min | 1–3 min |
+| Local validation and deterministic build | 3–8 min | 8–20 min |
+| npm/GitHub publication and registry read-back | 2–5 min | 2–5 min |
+| Native registry-package evidence | 2–5 min | 10–20 min |
+| Typical total | 8–20 min | 20–45 min |
 
-The release scope is only `dev-flow-codex` on macOS arm64. DeepSeek, other platforms,
-platform-runtime packages, signing, notarization, and automated CI publication remain outside
-Feature 009.
+Registry propagation and native Host execution can extend these estimates. A rerun uses the same
+mode, version, output directory, source identity and immutable remote objects. If release tooling on
+`main` advances after preparation, the command automatically reconstructs the prepared frozen-source
+checkout and continues publication without moving a Tag or republishing npm bytes.
+
+The current release scope is only `dev-flow-codex` on macOS arm64. DeepSeek, other platforms,
+platform-runtime packages, signing, notarization, and automated CI publication remain unsupported.

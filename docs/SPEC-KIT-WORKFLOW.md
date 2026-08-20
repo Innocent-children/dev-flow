@@ -75,11 +75,12 @@ Host Adapter 合同。
 - 若改变节点、转换、公共 Schema、错误、持久化语义或支持声明，按 Product Feature 处理；
 - 不得用“Bug Fix”绕过合同和持久化数据处置设计。
 
-### 3.4 Release Change
+### 3.4 Version Release
 
-只负责版本对齐、构建、公开制品、Tag、npm、GitHub Release、最终制品 Journey 和支持声明。
+版本发布负责版本对齐、构建、公开制品、Tag、npm、GitHub Release、最终制品验证和支持声明。
 
-Release Feature 不得重新定义产品行为。Product Feature 不得包含不可逆发布操作。
+版本发布不创建 Feature，也不执行 Spec Kit Feature 生命周期。它只能发布已经完成的 Product
+Feature 或 corrective work，不得重新定义产品行为。Product Feature 不得包含不可逆发布操作。
 
 ## 4. Feature 状态词汇
 
@@ -102,7 +103,7 @@ Release Feature 不得重新定义产品行为。Product Feature 不得包含不
 
 ## 5. 完整 Feature 目录
 
-Product Feature、共享合同 Feature、持久化 Feature 和 Release Feature 必须使用：
+Product Feature、共享合同 Feature 和持久化 Feature 必须使用：
 
 ```text
 specs/<NNN-feature-name>/
@@ -474,7 +475,7 @@ Converge 只处理真实实现暴露的验收缺口。不得加入未来能力�
 - 真实 Host Journey 只在规格明确要求时运行一次；
 - 失败重跑必须记录根因，不能默默重复直到通过。
 
-## 14. Product Feature 与 Release Feature 分离
+## 14. Product Feature 与轻量发布分离
 
 Product Feature：
 
@@ -485,12 +486,19 @@ Product Feature：
 - 不创建/完成 GitHub Release；
 - 不生成公开支持声明。
 
-Release Feature：
+Version Release：
 
-- 选择已经完成的 Product Features；
-- 对齐 VERSION/package/runtime；
-- 构建、回读、Journey、制品与支持矩阵；
-- 不改变产品语义。
+- 不创建新的 Feature 或 Release PR 规格包；
+- 发布已完成并合并的 Product Feature/corrective work；
+- 发布前 Agent 必须检查当前 Tag 后的 diff，建议 `quick` 或 `normal`，并等待用户明确选择；
+- 两种模式都先对齐 VERSION/package/runtime/current fixtures，提交并推送版本 commit，再执行
+  任何 Tag/npm/GitHub mutation；
+- `quick` 只允许无产品/runtime 合同变化的 diff，并运行定向检查与 registry-package smoke；
+- `normal` 用于所有产品表面变化，并运行完整 repository validation 与 registry graph Journey；
+- quick 不合格时必须报告阻塞路径并停止，不能静默降低验证强度；
+- 构建、回读、模式证据、制品、支持矩阵与恢复状态由 release manifest/publication record 记录；
+- 中断后使用相同 mode/version/output/source 续跑；Tag/npm 固定后的 tooling 修复自动使用 frozen
+  source，不移动或重新发布不可变状态。
 
 ## 15. 模板维护
 

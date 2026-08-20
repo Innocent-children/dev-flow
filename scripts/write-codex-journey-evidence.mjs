@@ -33,6 +33,7 @@ const REPOSITORY_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 export const CODEX_COMPATIBILITY_RANGE = ">=0.147.0 <0.148.0";
 export const EXPLICIT_SELECTOR = "$dev-flow-codex:dev-flow";
 export const FINAL_NATIVE_EVIDENCE_KIND = "registry-package-native-codex-journey";
+export const QUICK_NATIVE_EVIDENCE_KIND = "registry-package-quick-smoke";
 export const FINAL_FIXTURE_EVIDENCE_KIND = "fixture-simulated-registry-package-journey";
 export const FINAL_LOCAL_NATIVE_EVIDENCE_KIND = "source-local-package-native-codex-journey";
 export const OFFICIAL_NPM_REGISTRY = "https://registry.npmjs.org/";
@@ -52,7 +53,7 @@ export const developmentSubstantivePrompt = `${EXPLICIT_SELECTOR} Work only in t
 export const developmentResumePrompt = `${EXPLICIT_SELECTOR} Resume the existing compatible host=codex task. After dev_flow_open_task, call dev_flow_get_task and then dev_flow_get_next_action before any new dev_flow_apply_action. Preserve the same task, run only "git hash-object native-proof.txt" as the single targeted verification command, and continue until Core reports current_cursor DONE with outcome completed.`;
 const FINAL_REGISTRY_REQUEST_BINDING_RULE = `For every dev_flow_apply_action, generate a new nonempty opaque caller request ID and include it exactly as the top-level request_id member of that tool call; never omit it, reuse a read request ID, or place it inside payload.`;
 const FINAL_REGISTRY_PAYLOAD_RULES = `Before every apply, bind the latest complete Action and read action_kind, payload_contract, method_steps, available_transitions, and the current dev_flow_apply_action inputSchema branch. The payload must have exactly transition_id, summary, reason, artifacts, method_evidence, and node_result. Use artifacts=[] because this journey creates no process artifact; required_evidence is not an ArtifactReference role and repository_observation must never appear in artifacts. Preserve the complete node_result wrapper, arrays as arrays, and exactly one plain_fallback/capability-empty MethodEvidence item for every current method step in Action order. Never submit destination, next_node, next_cursor, unknown fields, or a guessed transition. If any call returns INVALID_ARGUMENT, stop immediately without trying another payload. The success wrappers are: REQUIREMENTS={problem_class,baseline,unresolved_questions}; DESIGN/TASKS={problem_class,baseline,findings}; IMPLEMENT={problem_class,task_plan_revision,completed_work_item_ids,changed_paths,no_file_changes,deviations,findings}; TEST={problem_class,checks,failed_items,unverified_items,manual_handoff_items,findings}; COMPREHENSION_REVIEW={problem_class,explained_components,unresolved_questions,unnecessary_abstractions,maintenance_risks,user_confirmation,findings}; REFACTOR={problem_class,changed_paths,no_file_changes,simplifications,behavior_change_intended,findings}; DELIVERY={problem_class,acceptance,automated_evidence_ids,manual_evidence_ids,test_record_id,comprehension_record_id,unverified_items,risks,findings}, with all delivery IDs read dynamically from the current Core task.`;
-const FINAL_REGISTRY_COMPREHENSION_VERDICT = `The maintainer explicitly confirms: I have read and understood the 0.4.0 final-registry proof implementation and validation path, can explain and maintain it, and confirm it passes COMPREHENSION_REVIEW. At COMPREHENSION_REVIEW, submit comprehension_passed only from the current Action with problem_class=none, empty unresolved_questions and unnecessary_abstractions, and user_confirmation source=user status=passed reflecting this exact verdict.`;
+const FINAL_REGISTRY_COMPREHENSION_VERDICT = `The maintainer explicitly confirmed the target release with --confirm-comprehension: I have read and understood the final-registry proof implementation and validation path, can explain and maintain it, and confirm it passes COMPREHENSION_REVIEW. At COMPREHENSION_REVIEW, submit comprehension_passed only from the current Action with problem_class=none, empty unresolved_questions and unnecessary_abstractions, and user_confirmation source=user status=passed reflecting this exact verdict.`;
 export const finalRegistrySubstantivePrompt = `${EXPLICIT_SELECTOR} ${FINAL_REGISTRY_REQUEST_BINDING_RULE} ${FINAL_REGISTRY_PAYLOAD_RULES} Work only in the current repository. Open one host=codex task to create final-registry-proof.txt with the exact UTF-8 bytes "Dev Flow Codex final registry journey passed.\\n". Advance through the Core-required read-only prerequisites, create the file only when the current action permits repository edits, and stop after the first successful dev_flow_apply_action following file creation while the task remains nonterminal.`;
 export const finalRegistryResumePrompt = `${EXPLICIT_SELECTOR} ${FINAL_REGISTRY_REQUEST_BINDING_RULE} ${FINAL_REGISTRY_PAYLOAD_RULES} ${FINAL_REGISTRY_COMPREHENSION_VERDICT} Resume the existing compatible host=codex task. After dev_flow_open_task, you MUST call dev_flow_get_task and then dev_flow_get_next_action before any dev_flow_apply_action. Do not use the action returned by dev_flow_open_task to skip either read. Run only "git hash-object final-registry-proof.txt" as the targeted verification command, and continue until Core reports current_cursor DONE with outcome completed.`;
 const FINAL_LOCAL_PAYLOAD_RULES = `Before every apply, bind the latest complete Action and read action_kind, payload_contract, method_steps, available_transitions, and the current dev_flow_apply_action inputSchema branch. The payload must have exactly transition_id, summary, reason, artifacts, method_evidence, and node_result. Use artifacts=[] because this journey creates no process artifact; required_evidence is not an ArtifactReference role and repository_observation must never appear in artifacts. Preserve the complete node_result wrapper, arrays as arrays, and exactly one plain_fallback/capability-empty MethodEvidence item for every current method step in Action order. Never submit destination, next_node, next_cursor, unknown fields, or a guessed transition. If any call returns INVALID_ARGUMENT, stop immediately without trying another payload. The success wrappers are: REQUIREMENTS={problem_class,baseline,unresolved_questions}; DESIGN/TASKS={problem_class,baseline,findings}; IMPLEMENT={problem_class,task_plan_revision,completed_work_item_ids,changed_paths,no_file_changes,deviations,findings}; TEST={problem_class,checks,failed_items,unverified_items,manual_handoff_items,findings}; COMPREHENSION_REVIEW={problem_class,explained_components,unresolved_questions,unnecessary_abstractions,maintenance_risks,user_confirmation,findings}; REFACTOR={problem_class,changed_paths,no_file_changes,simplifications,behavior_change_intended,findings}; DELIVERY={problem_class,acceptance,automated_evidence_ids,manual_evidence_ids,test_record_id,comprehension_record_id,unverified_items,risks,findings}, with all delivery IDs read dynamically from the current Core task.`;
@@ -223,6 +224,27 @@ const FINAL_JOURNEY_EVIDENCE_FIELDS = Object.freeze([
   "task_data_retained",
   "task_reopened_after_uninstall",
   "unexpected_repository_paths",
+  "observed_at",
+]);
+
+const QUICK_JOURNEY_EVIDENCE_FIELDS = Object.freeze([
+  "evidence_kind",
+  "status",
+  "package_name",
+  "package_version",
+  "registry",
+  "npm_tarball_sha256",
+  "npm_integrity",
+  "core_version",
+  "core_sha256",
+  "source_commit",
+  "codex_version",
+  "compatible_codex_range",
+  "setup_readback_passed",
+  "handshake_passed",
+  "remove_readback_passed",
+  "npm_uninstall_passed",
+  "repository_unchanged",
   "observed_at",
 ]);
 
@@ -461,6 +483,34 @@ export function validateFinalJourneyEvidenceShape(evidence, { allowFixture = fal
 
 export function validateFinalJourneyEvidence(evidence, options = {}) {
   return validateFinalJourneyEvidenceShape(evidence, { ...options, allowFixture: false });
+}
+
+export function validateQuickJourneyEvidence(evidence, { expected = null } = {}) {
+  assertExactFields(evidence, QUICK_JOURNEY_EVIDENCE_FIELDS, "quick journey evidence");
+  if (evidence.evidence_kind !== QUICK_NATIVE_EVIDENCE_KIND || evidence.status !== "passed") {
+    throw new Error("quick journey evidence must be passed registry-package smoke evidence");
+  }
+  if (evidence.package_name !== "dev-flow-codex" || evidence.registry !== OFFICIAL_NPM_REGISTRY) {
+    throw new Error("quick journey package or registry identity is invalid");
+  }
+  requireReleaseVersion(evidence.package_version);
+  requireDigest(evidence.npm_tarball_sha256, "npm_tarball_sha256");
+  if (typeof evidence.npm_integrity !== "string" || !/^sha512-[A-Za-z0-9+/]+={0,2}$/u.test(evidence.npm_integrity)) {
+    throw new Error("quick journey npm_integrity is invalid");
+  }
+  if (evidence.core_version !== evidence.package_version) throw new Error("quick journey package/Core versions differ");
+  requireDigest(evidence.core_sha256, "core_sha256");
+  if (!/^[0-9a-f]{40}$/u.test(evidence.source_commit)) throw new Error("quick journey source_commit is invalid");
+  requireReleaseVersion(evidence.codex_version);
+  if (evidence.compatible_codex_range !== CODEX_COMPATIBILITY_RANGE) throw new Error("quick journey Codex range is invalid");
+  for (const field of ["setup_readback_passed", "handshake_passed", "remove_readback_passed", "npm_uninstall_passed", "repository_unchanged"]) {
+    if (evidence[field] !== true) throw new Error(`quick journey ${field} must be true`);
+  }
+  if (typeof evidence.observed_at !== "string" || !Number.isFinite(Date.parse(evidence.observed_at))) {
+    throw new Error("quick journey observed_at must be an RFC 3339 date-time");
+  }
+  if (expected !== null) assertFinalEvidenceIdentity(evidence, expected);
+  return structuredClone(evidence);
 }
 
 export function validateFinalLocalJourneyEvidence(evidence, expected = null) {
@@ -1432,6 +1482,96 @@ export async function runFinalRegistryJourney(options) {
       observed_at: new Date().toISOString(),
     }, { expected: options });
     await writeSmokeOutput(resultDirectory, "final-journey-evidence.json", evidence);
+    return evidence;
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
+export async function runQuickRegistryJourney(options) {
+  assertQuickJourneyOptions(options);
+  assertSupportedCodexHost("quick registry journey");
+  const [codexExecutable, workspace, resultDirectory] = await Promise.all([
+    realpath(options.codexExecutable),
+    assertEmptyFinalDirectory(options.workspace, "quick journey workspace"),
+    assertEmptyFinalDirectory(options.resultDirectory, "quick journey result directory"),
+  ]);
+  assertFinalJourneyLocations({ codexExecutable, workspace, resultDirectory });
+
+  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-quick-registry-")));
+  try {
+    const layout = createFinalJourneyLayout(root, workspace, resultDirectory);
+    await Promise.all([
+      layout.home, layout.codexHome, layout.hostBin, layout.installPrefix, layout.npmCache,
+      layout.dataDirectory, layout.temporaryDirectory, layout.registryReadbackDirectory,
+      join(layout.root, "xdg-cache"),
+    ].map((path) => mkdir(path, { recursive: true, mode: 0o700 })));
+    await symlink(codexExecutable, join(layout.hostBin, "codex"));
+
+    const [npmExecutable, gitExecutable] = await Promise.all([
+      findExecutableOnPath("npm"),
+      findExecutableOnPath("git"),
+    ]);
+    const environment = buildFinalJourneyEnvironment({
+      layout,
+      codexExecutable,
+      toolDirectories: [dirname(process.execPath), dirname(npmExecutable), dirname(gitExecutable), "/usr/bin", "/bin", "/usr/sbin", "/sbin"],
+    });
+    await copyFinalCodexAuthentication(layout);
+    const codexVersion = await inspectFinalCodexExecutable(codexExecutable, environment);
+    const registry = await readFinalRegistryPackage({ npmExecutable, version: options.version, layout, environment });
+    if (registry.tarballSHA256 !== options.tarballSHA256) throw new Error("quick registry tarball digest differs from the approved release");
+
+    await installFinalRegistryPackage(npmExecutable, options.version, layout, environment);
+    const product = await inspectFinalInstalledProduct({
+      npmExecutable,
+      version: options.version,
+      layout,
+      environment,
+      repositoryRoot: REPOSITORY_ROOT,
+      resultDirectory,
+    });
+    if (product.coreSHA256 !== options.coreSHA256) throw new Error("quick installed Core digest differs from the approved release");
+
+    await initializeSmokeRepository(workspace, environment);
+    const repositoryStatus = await gitStatus(workspace, environment);
+    const setup = await execJSON(product.packageCLI, ["setup", "--json"], { cwd: workspace, env: environment });
+    if (setup.operation !== "setup" || !["installed", "already-installed"].includes(setup.status)) {
+      throw new Error("quick registry setup read-back failed");
+    }
+    assertFinalLocalServerInfo(await readPackagedServerInfo(product.runtimePath, layout.dataDirectory, workspace, environment), product.coreVersion);
+    const removed = await execJSON(product.packageCLI, ["remove", "--json"], { cwd: workspace, env: environment });
+    if (removed.operation !== "remove" || removed.status !== "removed" || removed.changed !== true) {
+      throw new Error("quick registry removal read-back failed");
+    }
+    if (await gitStatus(workspace, environment) !== repositoryStatus) throw new Error("quick registry lifecycle changed the repository");
+
+    await uninstallFinalRegistryPackage(npmExecutable, layout, environment);
+    if (await pathExists(product.packageRoot) || await pathExists(product.packageCLI)) {
+      throw new Error("quick registry uninstall left product bytes");
+    }
+
+    const evidence = validateQuickJourneyEvidence({
+      evidence_kind: QUICK_NATIVE_EVIDENCE_KIND,
+      status: "passed",
+      package_name: options.packageName,
+      package_version: options.version,
+      registry: options.registry,
+      npm_tarball_sha256: registry.tarballSHA256,
+      npm_integrity: registry.integrity,
+      core_version: product.coreVersion,
+      core_sha256: product.coreSHA256,
+      source_commit: options.sourceCommit,
+      codex_version: codexVersion,
+      compatible_codex_range: CODEX_COMPATIBILITY_RANGE,
+      setup_readback_passed: true,
+      handshake_passed: true,
+      remove_readback_passed: true,
+      npm_uninstall_passed: true,
+      repository_unchanged: true,
+      observed_at: new Date().toISOString(),
+    }, { expected: options });
+    await writeSmokeOutput(resultDirectory, "quick-journey-evidence.json", evidence);
     return evidence;
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -3475,17 +3615,25 @@ async function assertEmptyResultDirectory(path) {
 }
 
 function assertFinalJourneyOptions(options) {
+  assertRegistryJourneyOptions(options, "final-registry", "final registry journey");
+}
+
+function assertQuickJourneyOptions(options) {
+  assertRegistryJourneyOptions(options, "quick-registry", "quick registry journey");
+}
+
+function assertRegistryJourneyOptions(options, expectedMode, label) {
   assertExactFields(options, [
     "mode", "packageName", "version", "registry", "tarballSHA256", "coreSHA256",
     "sourceCommit", "codexExecutable", "workspace", "resultDirectory",
-  ], "final registry journey options");
-  if (options.mode !== "final-registry") throw new Error("final registry journey mode is invalid");
-  if (options.packageName !== "dev-flow-codex") throw new Error("final registry journey package must equal dev-flow-codex");
-  if (options.registry !== OFFICIAL_NPM_REGISTRY) throw new Error("final registry journey requires the official npm registry");
+  ], `${label} options`);
+  if (options.mode !== expectedMode) throw new Error(`${label} mode is invalid`);
+  if (options.packageName !== "dev-flow-codex") throw new Error(`${label} package must equal dev-flow-codex`);
+  if (options.registry !== OFFICIAL_NPM_REGISTRY) throw new Error(`${label} requires the official npm registry`);
   requireReleaseVersion(options.version);
   requireDigest(options.tarballSHA256, "tarball-sha256");
   requireDigest(options.coreSHA256, "core-sha256");
-  if (!/^[0-9a-f]{40}$/u.test(options.sourceCommit)) throw new Error("final registry journey source commit is invalid");
+  if (!/^[0-9a-f]{40}$/u.test(options.sourceCommit)) throw new Error(`${label} source commit is invalid`);
   requireAbsolute(options.codexExecutable, "Codex executable");
   requireAbsolute(options.workspace, "workspace");
   requireAbsolute(options.resultDirectory, "final journey result directory");
@@ -4026,7 +4174,7 @@ export function parseCLI(argv) {
     requireAbsolute(argv[1], "acceptance report");
     return { mode, reportPath: argv[1] };
   }
-  if (mode === "final-registry") {
+  if (mode === "final-registry" || mode === "quick-registry") {
     const flags = [
       "--package", "--version", "--registry", "--tarball-sha256", "--core-sha256",
       "--source-commit", "--codex-executable", "--workspace", "--result-directory",
@@ -4035,18 +4183,18 @@ export function parseCLI(argv) {
     while (argv.length > 0) {
       const flag = argv.shift();
       if (!flags.includes(flag) || Object.hasOwn(values, flag) || argv.length === 0) {
-        throw new Error("final registry journey requires each exact flag once");
+        throw new Error("registry journey requires each exact flag once");
       }
       values[flag] = argv.shift();
     }
     if (flags.some((flag) => !Object.hasOwn(values, flag))) {
-      throw new Error("final registry journey requires each exact flag once");
+      throw new Error("registry journey requires each exact flag once");
     }
     if (values["--package"] !== "dev-flow-codex") {
-      throw new Error("final registry journey package must equal dev-flow-codex");
+      throw new Error("registry journey package must equal dev-flow-codex");
     }
     if (values["--registry"] !== OFFICIAL_NPM_REGISTRY) {
-      throw new Error("final registry journey requires the official npm registry");
+      throw new Error("registry journey requires the official npm registry");
     }
     requireReleaseVersion(values["--version"]);
     requireDigest(values["--tarball-sha256"], "tarball-sha256");
@@ -4202,7 +4350,9 @@ async function main(argv) {
           ? await runFinalLocalJourney(options)
           : options.mode === "final-registry"
             ? await runFinalRegistryJourney(options)
-            : await runAcceptanceJourney(options);
+            : options.mode === "quick-registry"
+              ? await runQuickRegistryJourney(options)
+              : await runAcceptanceJourney(options);
   process.stdout.write(`${JSON.stringify(summary)}\n`);
 }
 

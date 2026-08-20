@@ -2,7 +2,7 @@
 
 **Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [relative link]
 
-**Change Type**: [Governance | Product Feature | Corrective Change | Release Change]
+**Change Type**: [Governance | Product Feature | Corrective Change]
 
 **Input**: Feature specification from `specs/[###-feature-name]/spec.md`
 
@@ -138,8 +138,9 @@ State the maximum number of repository-wide validations and real-host journeys.
 
 ## Rollout and Persistence Boundary
 
-[Feature merge behavior, old-data disposition, feature flag if any, bootstrap/reset ordering. Product
-publication belongs to a separate Release Feature unless this plan is release-only.]
+[Feature merge behavior, old-data disposition, feature flag if any, bootstrap/reset ordering.
+Publication is a later standalone release command after the feature is complete and does not create a
+release Feature.]
 
 ## Complexity Tracking
 

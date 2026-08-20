@@ -15,7 +15,8 @@ dev-flow-deepseek
 当前批准顺序是：
 
 1. `dev-flow-codex`：Feature 006，macOS arm64；
-2. `dev-flow-deepseek`：Feature 004 完成后，由新的发布 Feature 处理。
+2. `dev-flow-deepseek`：Feature 004 完成后，由 standalone release command 处理，不新建发布
+   Feature。
 
 首个 Codex-only `0.x` Release 不宣称 DeepSeek 已实现或受支持。`1.0.0` 仍要求两个产品均可
 公开安装，并各自具有真实宿主最终制品证据。
@@ -26,8 +27,8 @@ dev-flow-deepseek
   source-local Codex 验收；
 - 两工作树 preparation、normalized verifier、fake npm/gh publication、resume/conflict、
   finalization 和 registry-only Journey contract 已有确定性覆盖；
-- Feature 009 的当前 source validation 通过后，公开 npm、registry read-back、真实 final
-  Journey、GitHub assets 与 Release 由一条命令完成。
+- `0.4.0` 的公开 npm、registry read-back、真实 final Journey、GitHub assets 与 Release 已由
+  一条命令完成并回读验证；后续版本继续使用 standalone release command。
 
 fake 或本地证据不会生成 public support claim。
 
@@ -70,7 +71,7 @@ npm install -g dev-flow-codex
 dev-flow-codex setup
 ```
 
-历史 `0.3.0` registry package 已冻结；`0.4.0` graph package 在 Feature 009 完成前保持 pending。
+历史 `0.3.0` registry package 已冻结；`0.4.0` graph package 已公开并完成回读验证。
 对于当前发布包：
 
 - npm 只安装或删除 package-manager-owned 文件；
@@ -96,6 +97,16 @@ publication record 是可变 operator state，不进入 SQLite、不上传为 Re
 
 真实发布从已验证、干净且已推送的 `main` commit 执行，使用一个 durable release directory 和
 精确 `v${VERSION}` confirmation。根命令负责 preparation、verification 和 publisher 调用。
+
+版本发布不创建 Feature。发布前 Agent 检查当前公开 Tag 后的路径差异，推荐并询问维护者选择：
+
+- `quick`：仅用于文档、规格、测试、仓库配置、发布工具或版本元数据变化；先提交并推送版本，
+  再运行定向合同测试、registry install/setup/remove smoke 和通用发布门禁，通常 8–20 分钟；
+- `normal`：Core、MCP、Schema、流程、持久化、Codex 产品代码、包布局、平台或支持行为发生变化
+  时使用；先提交并推送版本，再运行一次完整 `pnpm run validate` 和 registry graph Journey，
+  通常 20–45 分钟。
+
+两种模式都使用相同的五文件输出和可恢复 publisher；quick 不合格时必须停止并报告阻塞路径。
 
 Pull Request CI：
 
@@ -139,6 +150,6 @@ passed support。
 
 ## DeepSeek 与 1.0.0
 
-DeepSeek 仍由延期的 Feature 004 与未来独立发布 Feature 负责。Feature 006 不修改、构建、测试
-或发布 `packages/deepseek/`。`1.0.0` 仍要求 Codex 与 DeepSeek 两个可公开安装的产品、两个真实
-宿主 Journey，以及稳定的共享 Core/MCP/Recovery/SQLite 合同。
+DeepSeek 仍由延期的 Feature 004 负责产品实现，并在完成后通过 standalone release command
+发布。`1.0.0` 仍要求 Codex 与 DeepSeek 两个可公开安装的产品、两个真实宿主 Journey，以及
+稳定的共享 Core/MCP/Recovery/SQLite 合同。

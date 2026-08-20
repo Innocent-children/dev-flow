@@ -13,6 +13,7 @@ import {
   FINAL_FIXTURE_EVIDENCE_KIND,
   FINAL_LOCAL_NATIVE_EVIDENCE_KIND,
   FINAL_NATIVE_EVIDENCE_KIND,
+  QUICK_NATIVE_EVIDENCE_KIND,
   assertFinalLocalCommands,
   buildFinalLocalInstallArgs,
   buildFinalLocalJourneyEnvironment,
@@ -40,6 +41,7 @@ import {
   validateFinalJourneyEvidence,
   validateFinalJourneyEvidenceShape,
   validateFinalLocalJourneyEvidence,
+  validateQuickJourneyEvidence,
 } from "../../../scripts/write-codex-journey-evidence.mjs";
 import { buildSupportMatrixFromFinalJourney } from "../../../scripts/verify-codex-release.mjs";
 import { productionJourneyRunnerPath } from "../../../scripts/publish-codex-release.mjs";
@@ -770,7 +772,7 @@ test("final registry task-bearing prompts require request binding and resume rea
   assert.match(smokeRuntime.finalRegistryResumePrompt, /Do not use the action returned by dev_flow_open_task to skip either read/u);
   assert.match(
     smokeRuntime.finalRegistryResumePrompt,
-    /maintainer explicitly confirms[\s\S]*read and understood[\s\S]*can explain and maintain[\s\S]*passes COMPREHENSION_REVIEW[\s\S]*user_confirmation source=user status=passed/u,
+    /maintainer explicitly confirm(?:s|ed)[\s\S]*read and understood[\s\S]*can explain and maintain[\s\S]*passes COMPREHENSION_REVIEW[\s\S]*user_confirmation source=user status=passed/u,
   );
 });
 
@@ -1469,6 +1471,53 @@ test("final registry journey CLI is closed, registry-only, and rejects local sub
   ]);
 });
 
+test("quick registry journey has one closed CLI and bounded lifecycle evidence", () => {
+  const parsed = parseCLI([
+    "quick-registry",
+    "--package", "dev-flow-codex",
+    "--version", currentVersion,
+    "--registry", "https://registry.npmjs.org/",
+    "--tarball-sha256", "a".repeat(64),
+    "--core-sha256", "b".repeat(64),
+    "--source-commit", "c".repeat(40),
+    "--codex-executable", "/opt/codex/bin/codex",
+    "--workspace", "/tmp/quick-workspace",
+    "--result-directory", "/tmp/quick-result",
+  ]);
+  assert.equal(parsed.mode, "quick-registry");
+  const evidence = {
+    evidence_kind: QUICK_NATIVE_EVIDENCE_KIND,
+    status: "passed",
+    package_name: "dev-flow-codex",
+    package_version: currentVersion,
+    registry: "https://registry.npmjs.org/",
+    npm_tarball_sha256: "a".repeat(64),
+    npm_integrity: `sha512-${Buffer.alloc(64, 7).toString("base64")}`,
+    core_version: currentVersion,
+    core_sha256: "b".repeat(64),
+    source_commit: "c".repeat(40),
+    codex_version: "0.147.0",
+    compatible_codex_range: CODEX_COMPATIBILITY_RANGE,
+    setup_readback_passed: true,
+    handshake_passed: true,
+    remove_readback_passed: true,
+    npm_uninstall_passed: true,
+    repository_unchanged: true,
+    observed_at: "2026-08-20T08:00:00.000Z",
+  };
+  assert.deepEqual(validateQuickJourneyEvidence(evidence, {
+    expected: {
+      packageName: "dev-flow-codex",
+      version: currentVersion,
+      registry: "https://registry.npmjs.org/",
+      tarballSHA256: "a".repeat(64),
+      coreSHA256: "b".repeat(64),
+      sourceCommit: "c".repeat(40),
+    },
+  }), evidence);
+  assert.throws(() => validateQuickJourneyEvidence({ ...evidence, handshake_passed: false }), /handshake_passed/u);
+});
+
 test("production publisher owns the final Journey runner independently of frozen source identity", () => {
   assert.equal(productionJourneyRunnerPath(), runner);
   assert.equal(productionJourneyRunnerPath().startsWith(`${repositoryRoot}/`), true);
@@ -1540,7 +1589,7 @@ test("fixture journey evidence is closed and can never satisfy the native produc
 test("passed support matrix is derived only from matching native registry journey identity", () => {
   const fixture = fixtureFinalJourneyEvidence(currentVersion);
   const manifest = {
-    release: { version: currentVersion, source_commit: "c".repeat(40) },
+    release: { version: currentVersion, source_commit: "c".repeat(40), verification_mode: "normal", based_on_release: null },
     artifacts: [
       { kind: "core_binary", sha256: "b".repeat(64) },
       { kind: "npm_tarball", sha256: "a".repeat(64) },
@@ -1564,6 +1613,8 @@ test("passed support matrix is derived only from matching native registry journe
     core_sha256: "b".repeat(64),
     journey_result: "passed",
     journey_observed_at: "2026-08-17T08:00:00.000Z",
+    verification_mode: "normal",
+    based_on_release: null,
     notes: "Native registry-package Codex journey passed setup, zero-trigger, restart/resume, DONE, removal, uninstall, and retained reopen gates.",
   }]);
   for (const [name, patch, pattern] of [

@@ -27,8 +27,9 @@ frozen delivery evidence and are not bulk-rewritten when templates change.
 └── tasks-template.md
 ```
 
-New Product, shared-contract, persistence, Host Adapter, and Release changes follow
-`docs/SPEC-KIT-WORKFLOW.md`.
+New Product, shared-contract, persistence, and Host Adapter changes follow
+`docs/SPEC-KIT-WORKFLOW.md`. Version releases use the standalone release contract and do not create a
+Feature.
 
 ## Feature Registry
 
@@ -47,8 +48,9 @@ New Product, shared-contract, persistence, Host Adapter, and Release changes fol
 ## Current Source Authority
 
 `0.3.0` and Features 001–007 remain historical truth. Feature 008 is the approved product
-specification for the current graph; Feature 009 is the release authority for current version
-`0.4.0`. The source authority is distributed as follows:
+specification for the current graph; Feature 009 is historical `0.4.0` release evidence. Current
+version releases are governed by `.specify/memory/constitution.md`, `AGENTS.md`, `release/`, and the
+standalone release command. The source authority is distributed as follows:
 
 | Responsibility | Authority |
 | --- | --- |
@@ -63,7 +65,8 @@ specification for the current graph; Feature 009 is the release authority for cu
 | Historical/current/Host parity/Recovery fixtures | `protocol/fixtures/` |
 | Deterministic contract and Journey evidence | `tests/contract/`, `tests/journeys/` |
 | Feature scope, contracts and checkpoints | `specs/008-refactor-to-development-process-graph/` |
-| `0.4.0` identity, manifest and publication contract | `specs/009-publish-codex-0.4.0/` |
+| Current manifest and publication contract | `release/`, `scripts/release-codex.mjs` |
+| Historical `0.4.0` identity and release evidence | `specs/009-publish-codex-0.4.0/` |
 
 Current source supports only fresh Schema 2 `standard-development@1` tasks. It contains no
 historical-task runtime, migration, snapshot-v1 decoder or legacy process. Feature 008 completed
@@ -71,9 +74,9 @@ source-local acceptance by combining Attempt 3 native graph-flow evidence with n
 lifecycle evidence bound to the same exact unpublished artifact. Final repository validation and
 zero-gap analyze/converge passed.
 
-Feature 009 authorizes version alignment, npm publication, Tag creation, GitHub Release mutation,
-official artifact construction and the final macOS arm64 Codex installation claim. Its exact
-publication evidence is recorded only after the production one-command release completes.
+Version alignment, npm publication, Tag creation, GitHub Release mutation, official artifact
+construction and the final macOS arm64 Codex installation claim require the selected standalone
+release mode and exact command confirmation. Feature 009 records the completed `0.4.0` publication.
 
 ## Repository Boundaries
 

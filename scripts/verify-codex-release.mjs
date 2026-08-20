@@ -89,6 +89,8 @@ export async function prepareRelease({
   firstTarball,
   secondTarball,
   outputDirectory,
+  verificationMode = "normal",
+  basedOnRelease = null,
   createdAt = new Date().toISOString(),
 }) {
   const root = await canonicalDirectory(repositoryRoot, "repository root");
@@ -103,9 +105,9 @@ export async function prepareRelease({
   if (!Number.isFinite(Date.parse(createdAt))) {
     throw new Error("preparation time must be an RFC 3339 date-time");
   }
-
   const version = (await readBoundedFile(join(root, "VERSION"), 128)).toString("utf8").trim();
   if (!SEMVER_PATTERN.test(version)) throw new Error("root VERSION must be strict MAJOR.MINOR.PATCH");
+  validateReleaseMode(verificationMode, basedOnRelease, version);
   const expectedTarballName = `dev-flow-codex-${version}.tgz`;
   const expectedCoreName = `dev-flow-${version}-darwin-arm64`;
 
@@ -163,6 +165,8 @@ export async function prepareRelease({
         process_id: PROCESS_ID,
         process_version: PROCESS_VERSION,
         process_definition_digest: PROCESS_DEFINITION_DIGEST,
+        verification_mode: verificationMode,
+        based_on_release: basedOnRelease,
         build_profile: "codex-darwin-arm64-v1",
         created_at: createdAt,
       },
@@ -202,6 +206,8 @@ export async function prepareRelease({
           core_sha256: coreSHA256,
           journey_result: "pending",
           journey_observed_at: null,
+          verification_mode: verificationMode,
+          based_on_release: basedOnRelease,
           notes: "Deterministic local preparation only; final registry-package journey is pending.",
         },
       ],
@@ -460,7 +466,7 @@ export function validateManifest(manifest, { version, sourceCommit, sourceTree }
   assertExactKeys(manifest.release, [
     "version", "tag", "source_commit", "source_tree", "feature_008_commit", "core_contract_version",
     "storage_schema_version", "snapshot_version", "process_id", "process_version",
-    "process_definition_digest", "build_profile", "created_at",
+    "process_definition_digest", "verification_mode", "based_on_release", "build_profile", "created_at",
   ], "release identity");
   if (
     manifest.release.version !== version ||
@@ -479,6 +485,7 @@ export function validateManifest(manifest, { version, sourceCommit, sourceTree }
   ) {
     throw new Error("release manifest identity differs from the approved source/version baseline");
   }
+  validateReleaseMode(manifest.release.verification_mode, manifest.release.based_on_release, version);
   assertExactKeys(manifest.toolchains, ["go", "node", "pnpm", "npm", "git", "gh"], "release toolchains");
   for (const [name, value] of Object.entries(manifest.toolchains)) {
     if (typeof value !== "string" || value.length < 1 || value.length > 128) throw new Error(`toolchain ${name} is not bounded`);
@@ -506,8 +513,9 @@ export function validateManifest(manifest, { version, sourceCommit, sourceTree }
   }
   if (!Array.isArray(manifest.support) || manifest.support.length !== 1) throw new Error("release manifest must contain exactly one support entry");
   const support = manifest.support[0];
-  assertExactKeys(support, ["os", "arch", "actual_codex_version", "compatible_codex_range", "package_sha256", "core_sha256", "journey_result", "journey_observed_at", "notes"], "support entry");
+  assertExactKeys(support, ["os", "arch", "actual_codex_version", "compatible_codex_range", "package_sha256", "core_sha256", "journey_result", "journey_observed_at", "verification_mode", "based_on_release", "notes"], "support entry");
   if (support.os !== "darwin" || support.arch !== "arm64" || support.compatible_codex_range !== CODEX_RANGE || !["pending", "passed", "failed", "blocked"].includes(support.journey_result)) throw new Error("support entry differs from the darwin-arm64 contract");
+  if (support.verification_mode !== manifest.release.verification_mode || support.based_on_release !== manifest.release.based_on_release) throw new Error("support release mode differs from release identity");
   if (!SHA256_PATTERN.test(support.package_sha256) || !SHA256_PATTERN.test(support.core_sha256)) throw new Error("support digests are invalid");
   if (support.journey_result === "pending" && support.journey_observed_at !== null) throw new Error("pending support must not claim an observation time");
   if (support.journey_result === "passed") {
@@ -562,6 +570,8 @@ export function buildSupportMatrixFromFinalJourney({ manifest, evidence }) {
     core_sha256: validated.core_sha256,
     journey_result: "passed",
     journey_observed_at: validated.observed_at,
+    verification_mode: manifest.release.verification_mode,
+    based_on_release: manifest.release.based_on_release,
     notes: "Native registry-package Codex journey passed setup, zero-trigger, restart/resume, DONE, removal, uninstall, and retained reopen gates.",
   }];
 }
@@ -863,6 +873,18 @@ function stableJSON(value) {
 
 function arraysEqual(left, right) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function validateReleaseMode(mode, basedOnRelease, version) {
+  if (!['quick', 'normal'].includes(mode)) throw new Error("release verification_mode must equal quick or normal");
+  if (mode === "normal" && basedOnRelease !== null) throw new Error("normal release must not declare based_on_release");
+  if (mode === "quick") {
+    if (!SEMVER_PATTERN.test(basedOnRelease ?? "")) throw new Error("quick release requires one strict based_on_release version");
+    const current = version.split(".").map(Number);
+    const previous = basedOnRelease.split(".").map(Number);
+    const older = previous.some((value, index) => value < current[index] && previous.slice(0, index).every((entry, prior) => entry === current[prior]));
+    if (!older) throw new Error("quick based_on_release must be lower than the release version");
+  }
 }
 
 function codexVersionSatisfiesRange(version) {

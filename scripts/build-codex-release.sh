@@ -115,6 +115,8 @@ node --input-type=module - \
 import { pathToFileURL } from "node:url";
 const [modulePath, repositoryRoot, sourceCommit, sourceTree, firstTarball, secondTarball, outputDirectory] = process.argv.slice(2);
 const { prepareRelease } = await import(pathToFileURL(modulePath).href);
+const verificationMode = process.env.DEV_FLOW_RELEASE_MODE || "normal";
+const basedOnRelease = process.env.DEV_FLOW_BASED_ON_RELEASE || null;
 const result = await prepareRelease({
   repositoryRoot,
   sourceCommit,
@@ -122,6 +124,8 @@ const result = await prepareRelease({
   firstTarball,
   secondTarball,
   outputDirectory,
+  verificationMode,
+  basedOnRelease,
 });
 process.stdout.write(`${JSON.stringify(result)}\n`);
 NODE

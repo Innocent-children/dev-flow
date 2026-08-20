@@ -20,8 +20,10 @@ import {
 } from "./verify-codex-release.mjs";
 import {
   FINAL_FIXTURE_EVIDENCE_KIND,
+  QUICK_NATIVE_EVIDENCE_KIND,
   validateFinalJourneyEvidence,
   validateFinalJourneyEvidenceShape,
+  validateQuickJourneyEvidence,
 } from "./write-codex-journey-evidence.mjs";
 
 const execFile = promisify(execFileCallback);
@@ -59,7 +61,6 @@ export async function runPublisher({
   environment = process.env,
   runtime = null,
 } = {}) {
-  const execution = runtime ?? productionPublicationRuntime();
   const root = await canonicalRepositoryRoot(repositoryRoot);
   const releaseDirectory = await canonicalReleaseDirectory(directory);
   const verified = await verifyReleaseDirectory({
@@ -71,6 +72,7 @@ export async function runPublisher({
   const recordPath = join(releaseDirectory, "publication-record.json");
   let manifest = verified.manifest;
   let record = verified.publication;
+  const execution = runtime ?? productionPublicationRuntime(manifest.release.verification_mode);
   const context = {
     root,
     releaseDirectory,
@@ -107,6 +109,9 @@ export async function runPublisher({
         `confirmation must equal ${context.tag}`,
         { blocked: true, step: "preflight" },
       );
+    }
+    if (runtime === null && manifest.release.verification_mode === "normal" && environment.DEV_FLOW_RELEASE_COMPREHENSION_CONFIRMED !== "true") {
+      throw new PublicationError("COMPREHENSION_CONFIRMATION_REQUIRED", "normal release requires explicit maintainer comprehension confirmation", { blocked: true, step: "preflight" });
     }
 
     await ensureExactTag(context, record, remote.tagTarget);
@@ -157,16 +162,32 @@ export async function runPublisher({
   }
 }
 
-function productionPublicationRuntime() {
+function productionPublicationRuntime(mode) {
   return {
     stopAfterNPM: false,
     stopBeforeFinalize: false,
     allowFixtureJourney: false,
-    runFinalJourney: runProductionFinalJourney,
+    runFinalJourney: mode === "quick" ? runProductionQuickJourney : runProductionFinalJourney,
   };
 }
 
 async function runProductionFinalJourney(context, manifest) {
+  return runProductionRegistryJourney(context, manifest, {
+    runnerMode: "--final-registry",
+    evidenceName: "final-journey-evidence.json",
+    validateEvidence: validateFinalJourneyEvidence,
+  });
+}
+
+async function runProductionQuickJourney(context, manifest) {
+  return runProductionRegistryJourney(context, manifest, {
+    runnerMode: "--quick-registry",
+    evidenceName: "quick-journey-evidence.json",
+    validateEvidence: validateQuickJourneyEvidence,
+  });
+}
+
+async function runProductionRegistryJourney(context, manifest, { runnerMode, evidenceName, validateEvidence }) {
   const coreArtifact = manifest.artifacts.find((artifact) => artifact.kind === "core_binary");
   if (!coreArtifact) throw new Error("final journey requires the verified Core artifact identity");
   const codexExecutable = await findExecutableInEnvironment("codex", context.environment);
@@ -180,7 +201,7 @@ async function runProductionFinalJourney(context, manifest) {
     ]);
     const runner = productionJourneyRunnerPath();
     const stdout = await runText(runner, [
-      "--final-registry",
+      runnerMode,
       "--package", "dev-flow-codex",
       "--version", context.version,
       "--registry", OFFICIAL_REGISTRY,
@@ -192,10 +213,10 @@ async function runProductionFinalJourney(context, manifest) {
       "--result-directory", resultDirectory,
     ], context, { cwd: root, timeout: 30 * 60_000 });
     const names = await readdir(resultDirectory);
-    if (stableJSON(names.sort()) !== stableJSON(["final-journey-evidence.json"])) {
-      throw new Error("final journey result directory does not contain the exact evidence file");
+    if (stableJSON(names.sort()) !== stableJSON([evidenceName])) {
+      throw new Error("registry journey result directory does not contain the exact evidence file");
     }
-    const evidencePath = join(resultDirectory, "final-journey-evidence.json");
+    const evidencePath = join(resultDirectory, evidenceName);
     const info = await stat(evidencePath);
     if (!info.isFile() || info.size > 64 * 1024) throw new Error("final journey evidence file is missing or unbounded");
     const evidence = JSON.parse(await readFile(evidencePath, "utf8"));
@@ -203,7 +224,7 @@ async function runProductionFinalJourney(context, manifest) {
     if (stableJSON(emitted) !== stableJSON(evidence)) {
       throw new Error("final journey stdout differs from the closed evidence file");
     }
-    return validateFinalJourneyEvidence(evidence, {
+    return validateEvidence(evidence, {
       expected: {
         packageName: "dev-flow-codex",
         version: context.version,
@@ -493,7 +514,9 @@ async function ensureFinalJourney(context, manifest, record) {
   try {
     evidence = context.execution.allowFixtureJourney === true
       ? validateFinalJourneyEvidenceShape(observed, { allowFixture: true, expected })
-      : validateFinalJourneyEvidence(observed, { expected });
+      : manifest.release.verification_mode === "quick"
+        ? validateQuickJourneyEvidence(observed, { expected })
+        : validateFinalJourneyEvidence(observed, { expected });
   } catch (error) {
     throw new PublicationError("FINAL_JOURNEY_INVALID", boundedMessage(error), { blocked: true, step: "final_journey" });
   }
@@ -503,7 +526,9 @@ async function ensureFinalJourney(context, manifest, record) {
     observed_at: evidence.observed_at,
     summary: evidence.evidence_kind === FINAL_FIXTURE_EVIDENCE_KIND
       ? "Fixture-simulated journey facts passed only the fake finalization gate."
-      : "Native registry-package journey passed setup, zero-trigger, restart/resume, DONE, removal, uninstall, and retained reopen.",
+      : evidence.evidence_kind === QUICK_NATIVE_EVIDENCE_KIND
+        ? "Quick registry-package smoke passed install, version/Core handshake, setup, removal, and uninstall."
+        : "Native registry-package journey passed setup, zero-trigger, restart/resume, DONE, removal, uninstall, and retained reopen.",
   };
   completeStep(step, {
     remoteID: evidence.evidence_kind,
@@ -530,6 +555,8 @@ function hasReusableFinalJourney(context, manifest, record) {
     || support?.os !== "darwin"
     || support?.arch !== "arm64"
     || support?.journey_result !== "passed"
+    || support?.verification_mode !== manifest.release.verification_mode
+    || support?.based_on_release !== manifest.release.based_on_release
     || support?.package_sha256 !== context.tarballSHA256
     || support?.actual_codex_version !== record.final_journey.actual_codex_version
     || support?.journey_observed_at !== record.final_journey.observed_at
@@ -556,14 +583,32 @@ async function prepareFinalManifest(context, manifest, record, evidence) {
       core_sha256: evidence.core_sha256,
       journey_result: "passed",
       journey_observed_at: evidence.observed_at,
+      verification_mode: "normal",
+      based_on_release: null,
       notes: "Fixture-simulated journey support exists only in isolated fake finalization tests.",
     }]
-    : buildSupportMatrixFromFinalJourney({ manifest, evidence });
+    : evidence.evidence_kind === QUICK_NATIVE_EVIDENCE_KIND
+      ? [{
+        os: "darwin",
+        arch: "arm64",
+        actual_codex_version: evidence.codex_version,
+        compatible_codex_range: evidence.compatible_codex_range,
+        package_sha256: evidence.npm_tarball_sha256,
+        core_sha256: evidence.core_sha256,
+        journey_result: "passed",
+        journey_observed_at: evidence.observed_at,
+        verification_mode: "quick",
+        based_on_release: manifest.release.based_on_release,
+        notes: `Quick registry-package smoke passed; complete graph support is based on v${manifest.release.based_on_release}.`,
+      }]
+      : buildSupportMatrixFromFinalJourney({ manifest, evidence });
   const existingSupport = manifest.support[0];
   manifest.support = existingSupport.journey_result === "passed"
     && existingSupport.actual_codex_version === generatedSupport[0].actual_codex_version
     && existingSupport.package_sha256 === generatedSupport[0].package_sha256
     && existingSupport.core_sha256 === generatedSupport[0].core_sha256
+    && existingSupport.verification_mode === generatedSupport[0].verification_mode
+    && existingSupport.based_on_release === generatedSupport[0].based_on_release
     && existingSupport.notes === generatedSupport[0].notes
       ? [existingSupport]
       : generatedSupport;
@@ -578,7 +623,9 @@ async function prepareFinalManifest(context, manifest, record, evidence) {
       status: "passed",
       summary: evidence.evidence_kind === FINAL_FIXTURE_EVIDENCE_KIND
         ? "Fixture-simulated journey passed the isolated fake finalization gate."
-        : "Native registry-package journey passed every final lifecycle gate.",
+        : evidence.evidence_kind === QUICK_NATIVE_EVIDENCE_KIND
+          ? "Quick registry-package smoke passed the bounded final-artifact gates."
+          : "Native registry-package journey passed every final lifecycle gate.",
     },
   ].sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
   validateManifest(manifest, { version: context.version, sourceCommit: context.sourceCommit, sourceTree: context.sourceTree });
@@ -1026,25 +1073,29 @@ function parseArguments(arguments_) {
   const normalized = arguments_[0] === "--" ? arguments_.slice(1) : arguments_;
   let directory = null;
   let confirmation = null;
+  let repositoryRoot = null;
   for (let index = 0; index < normalized.length; index += 1) {
     const argument = normalized[index];
-    if (argument === "--directory" || argument === "--confirm") {
+    if (argument === "--directory" || argument === "--confirm" || argument === "--source-root") {
       if (index + 1 >= normalized.length) throw new Error(`missing value for ${argument}`);
       const value = normalized[index + 1];
       index += 1;
       if (argument === "--directory") {
         if (directory !== null) throw new Error("--directory may be supplied only once");
         directory = value;
-      } else {
+      } else if (argument === "--confirm") {
         if (confirmation !== null) throw new Error("--confirm may be supplied only once");
         confirmation = value;
+      } else {
+        if (repositoryRoot !== null) throw new Error("--source-root may be supplied only once");
+        repositoryRoot = value;
       }
       continue;
     }
     throw new Error(`unknown argument ${argument}`);
   }
-  if (directory === null) throw new Error("usage: publish-codex-release.mjs --directory ABSOLUTE_RELEASE_DIRECTORY [--confirm vVERSION]");
-  return { directory, confirmation };
+  if (directory === null) throw new Error("usage: publish-codex-release.mjs --directory ABSOLUTE_RELEASE_DIRECTORY [--source-root ABSOLUTE_FROZEN_SOURCE] [--confirm vVERSION]");
+  return { directory, confirmation, repositoryRoot: repositoryRoot ?? undefined };
 }
 
 if (isMainModule()) {

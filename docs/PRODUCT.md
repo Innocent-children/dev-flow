@@ -110,5 +110,5 @@ Feature 009 将完成的 Feature 008 图运行时对齐为 `0.4.0`，公开产�
 可用性、制品摘要、实际 Codex 版本和最终 Journey 结果以 npm 与 GitHub Release `v0.4.0` 的
 回读证据为准。DeepSeek 和其他平台没有公开支持声明。
 
-精确产品合同见 [Feature 008 specification](../specs/008-refactor-to-development-process-graph/spec.md)，
-发布合同见 [Feature 009 specification](../specs/009-publish-codex-0.4.0/spec.md)。
+精确产品合同见 [Feature 008 specification](../specs/008-refactor-to-development-process-graph/spec.md)。
+当前发布合同见 [`release/README.md`](../release/README.md)；Feature 009 保留为 `0.4.0` 历史证据。

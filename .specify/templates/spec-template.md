@@ -6,11 +6,11 @@
 
 **Status**: Draft
 
-**Change Type**: [Governance | Product Feature | Corrective Change | Release Change]
+**Change Type**: [Governance | Product Feature | Corrective Change]
 
 **Contract Impact**: [None | Internal | Public Core | MCP | Persistence | Host Adapter | Release]
 
-**Release Impact**: [None — separate release required | Release-only feature]
+**Release Impact**: [None | Standalone version release may follow after feature completion]
 
 **Dependencies**: [Completed predecessor features, exact contract/version, or None]
 

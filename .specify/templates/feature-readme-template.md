@@ -5,7 +5,7 @@
 - **Feature**: `[###-feature-name]`
 - **Status**: [Draft | Clarifying | Planned | Ready | Implementing | Blocked | Complete | Deferred |
   Superseded | Historical]
-- **Change Type**: [Governance | Product Feature | Corrective Change | Release Change]
+- **Change Type**: [Governance | Product Feature | Corrective Change]
 - **Created**: [DATE]
 - **Baseline**: [branch/commit/contract]
 - **Release Authority**: [Not authorized | Exact release scope]

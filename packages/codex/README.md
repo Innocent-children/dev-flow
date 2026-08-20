@@ -64,8 +64,8 @@ pnpm --dir packages/codex run build:local \
   --report "$ARTIFACT_ROOT/artifact-evidence.json"
 ```
 
-`--final` 表示 builder 的 clean-source/identity verification 模式；公开 Release 由 Feature 009
-的一键 publisher 产生。
+`--final` 表示 builder 的 clean-source/identity verification 模式；公开 Release 由 standalone
+一键发布命令产生。
 Builder 要求输出目录已经存在、没有 `.tgz`，source tree 干净且 HEAD 等于 `--source-commit`；
 它验证 package/Core/plugin version identity、platform、detached runtime executable 和 closed pack
 contents，并输出 SHA-256 evidence。制品与 evidence JSON 均保留在仓库外。

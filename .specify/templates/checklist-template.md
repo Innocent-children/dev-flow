@@ -71,7 +71,8 @@ does not mean code exists or a test passed.
 - [ ] CHK034 Every task names exact paths and traces to a requirement, success criterion, or contract.
 - [ ] CHK035 Targeted, repository-wide, native, simulated, and user evidence are kept distinct.
 - [ ] CHK036 The test budget caps full validation and real-host journeys.
-- [ ] CHK037 No task can publish, tag, or release unless this is a Release Change.
+- [ ] CHK037 Are feature tasks prevented from publishing, tagging, or finalizing a Release, with later
+  publication assigned to the standalone release command and explicit mode selection? [Release Separation]
 
 ## Review Result
 

@@ -38,8 +38,8 @@ Rules:
 - Every implementation task traces to at least one requirement, success criterion, or contract.
 - Verification belongs in the same phase as the behavior it proves.
 - Repository-wide validation and real-host journeys appear only at an explicit final checkpoint.
-- Product implementation tasks MUST NOT publish a package, create or move a Tag, or finalize a
-  Release unless the active feature is a Release Change.
+- Feature implementation tasks MUST NOT publish a package, create or move a Tag, or finalize a
+  Release. Publication uses the later standalone release command after explicit mode selection.
 - Do not add generic cleanup, coverage expansion, future abstraction, or unrelated refactoring.
 
 ## Phase 1: Governance and Contract Freeze
@@ -144,8 +144,8 @@ the feature.
 - [ ] T0XX Reconcile `README.md`, `spec.md`, and `tasks.md` status without changing product version or
   performing release work.
 
-**Checkpoint**: Feature implementation is complete and ready for a separate Release Change when one
-is authorized.
+**Checkpoint**: Feature implementation is complete and may be published later through the standalone
+release command after the agent recommends and the maintainer selects `quick` or `normal`.
 
 ## Dependencies and Execution Order
 

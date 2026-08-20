@@ -29,12 +29,20 @@ continuation after partial publication, and it is never uploaded as a release as
 The maintainer invokes one command:
 
 ```bash
-pnpm run release:codex -- --output "<absolute-release-directory>" --confirm "v<VERSION>"
+pnpm run release:codex -- \
+  --mode quick|normal \
+  --version "<VERSION>" \
+  --output "<absolute-release-directory>" \
+  --confirm "v<VERSION>" \
+  [--confirm-comprehension]
 ```
 
-It composes deterministic two-worktree preparation, normalized package/Core verification,
-provisional manifest/checksums/publication state, exact remote preflight, resumable publication, the
-native final registry Journey, asset read-back, and Release finalization.
+It first commits and pushes the aligned version authorities. `quick` is admitted only for a proven
+non-product diff and runs bounded checks plus registry lifecycle smoke. `normal` runs complete
+repository validation and the native final registry graph Journey. Both modes then compose
+deterministic two-worktree preparation, normalized package/Core verification, provisional
+manifest/checksums/publication state, exact remote preflight, resumable publication, asset read-back,
+and Release finalization. Normal mode also requires `--confirm-comprehension`.
 
 Preparation output is exactly:
 
@@ -51,5 +59,5 @@ pending. Each rerun rereads exact remote state and continues missing steps. Prod
 requires npm read-back, native Journey, final manifest/checksums, and four verified assets.
 
 CI syntax-checks release commands and runs preparation-safe contracts; it never calls the production
-entrypoint or publisher. DeepSeek and every platform other than macOS arm64 remain outside Feature
-009.
+entrypoint or publisher. DeepSeek and every platform other than macOS arm64 remain outside the
+current release scope.
