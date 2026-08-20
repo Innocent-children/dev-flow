@@ -154,3 +154,21 @@ release correction.
 **Consequences**: A closed four-session graph fixture must prove Contract 0.2 handshake, read order,
 current cursor, revision growth, one targeted command, and terminal outcome before another recovery
 Journey.
+
+## Decision 10: Bind every final-registry task-bearing prompt
+
+**Decision**: Define one shared final-registry instruction requiring a new nonempty opaque top-level
+`request_id` for every apply, and embed it in both substantive and resume prompts.
+
+**Rationale**: The resume-specific correction worked, but a later substantive session omitted the
+same required field. Native publication evidence cannot depend on a previously successful model
+choice when both sessions issue mutations.
+
+**Alternatives considered**: Retry the unchanged substantive prompt; weaken Core validation; inject
+or repair tool arguments after Codex emits them.
+
+**Why alternatives were rejected**: Retry is blind after a complete domain rejection, Core is
+correct, and post-generation mutation would create hidden adapter behavior outside the live schema.
+
+**Consequences**: Tests must assert the full rule in both prompts and retain the existing read-order
+rule in resume. Another Journey is allowed only after the combined targeted suite passes.

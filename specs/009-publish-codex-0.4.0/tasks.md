@@ -158,8 +158,8 @@ publication with reviewed tooling against the frozen source.
 - [x] T023 Add an explicit Contract 0.2 graph branch to final-registry post-session and retained-task validation in `scripts/write-codex-journey-evidence.mjs`, and add a closed four-session graph regression in `packages/codex/tests/journey-harness.test.mjs`; preserve historical Schema 1/`phase` defaults per FR-003, FR-013, and FR-017.
 - [x] T024 Run `node --test packages/codex/tests/journey-harness.test.mjs packages/codex/tests/release-publication.test.mjs`, Node syntax checks, and `git diff --check`; commit and push the second reviewed tooling/spec correction to `main` without another repository-wide validation per the amended budget.
 - [x] T025 Reuse the existing clean external checkout at Tag `v0.4.0`, run the newest production `runPublisher` once without confirmation against the retained directory, and require exact Tag `v0.4.0`, Draft `373558395`, verified npm bytes, zero assets, and pending/failed Journey per FR-017.
-- [ ] T026 Run the newest production `runPublisher` once with confirmation `v0.4.0` against the frozen source checkout and retained directory; preserve exact state and stop without blind retry on any domain or immutable conflict per FR-017 and SC-008.
-- [ ] T027 Verify the passed final registry Journey, final Manifest Schema 2/checksums, four GitHub asset read-backs, public Release `v0.4.0`, complete nine-step Publication Record, npm publish count one, unchanged Tag/source/package/Core digests, and clean repository; record bounded completion in `specs/009-publish-codex-0.4.0/README.md`, `tasks.md`, and `MANIFEST.md`, mark Feature 009 `Complete`, commit, and push without moving Tag per FR-008–FR-017 and SC-003–SC-008.
+- [x] T026 Run the newest production `runPublisher` once with confirmation `v0.4.0` against the frozen source checkout and retained directory; preserve exact state and stop without blind retry on any domain or immutable conflict per FR-017 and SC-008.
+- [x] T027 Record that the graph-validator recovery reached the substantive session but Core rejected an apply whose prompt omitted the shared caller request-binding rule; preserve exact Tag/Draft/npm/digests, zero assets, pending Journey, and update the recovery design/tasks per FR-017.
 
 **Checkpoint**: The existing immutable `v0.4.0` publication is complete; no replacement release
 identity or payload was created.
@@ -180,6 +180,33 @@ identity or payload was created.
   syntax and `git diff --check` passed; no full validation or remote mutation ran.
 - The newest fixed-tooling preflight returned `mutated=false`, reused Tag/Draft/npm, observed npm
   verified, Draft true, zero assets, and `final_journey` as the next incomplete step.
+- The graph-validator recovery stopped in the substantive session with Core `INVALID_ARGUMENT` and a
+  missing caller request binding. The resume prompt had the rule; the substantive prompt did not.
+  Remote identities and digests remained exact, assets stayed empty, and Release stayed Draft.
+
+---
+
+## Phase 7: Shared Final-Registry Request Binding Recovery
+
+**Goal**: Apply one exact request-binding rule to both task-bearing Journey prompts and finish the
+same immutable publication.
+
+- [x] T028 Define one shared final-registry request-binding instruction in `scripts/write-codex-journey-evidence.mjs`, embed it in both `finalRegistrySubstantivePrompt` and `finalRegistryResumePrompt`, and assert both prompt contracts in `packages/codex/tests/journey-harness.test.mjs` per FR-017.
+- [x] T029 Run `node --test packages/codex/tests/journey-harness.test.mjs packages/codex/tests/release-publication.test.mjs`, Node syntax checks, and `git diff --check`; commit and push the reviewed tooling/spec correction without repository-wide validation.
+- [ ] T030 Run one newest-tooling confirmation-free preflight against the frozen source and retained directory; require exact Tag/Draft/npm, zero assets, and pending Journey per FR-017.
+- [ ] T031 Run one newest-tooling confirmed publisher recovery against the frozen source and retained directory; stop on any complete domain or immutable conflict per FR-017 and SC-008.
+- [ ] T032 Verify final Journey, final Manifest Schema 2/checksums, four asset read-backs, public Release `v0.4.0`, complete Publication Record, npm publish count one, unchanged Tag/source/package/Core digests, and clean repository; record completion, mark Feature 009 `Complete`, commit, and push without moving Tag per FR-008–FR-017 and SC-003–SC-008.
+
+**Checkpoint**: The original immutable `v0.4.0` publication is complete with shared request binding
+enforced across both native task-bearing sessions.
+
+### Shared Prompt Correction Evidence — 2026-08-20
+
+- One shared final-registry rule now requires a new nonempty opaque top-level caller `request_id` for
+  every apply in both substantive and resume sessions; both prompts forbid omission, read-ID reuse,
+  and payload placement.
+- Journey graph/prompt tests and the publication state machine passed 54/54. Node syntax and
+  `git diff --check` passed; no repository-wide validation or remote mutation ran.
 
 ## Dependencies and Execution Order
 
@@ -216,7 +243,7 @@ Evidence-only completion commit
 | --- | --- |
 | Targeted package checks | One run per implementation checkpoint; rerun only after a recorded fix |
 | Repository-wide validation | Exactly one before the release source commit |
-| Production real-host journeys | Request-binding failure, Schema 1 validator failure, then one graph-validator recovery Journey |
+| Production real-host journeys | Recorded request-binding/schema/substantive-binding failures, then one shared-prompt recovery Journey |
 | Unsupported platform/Host matrices | Excluded |
 
 ## Notes

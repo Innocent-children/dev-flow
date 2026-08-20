@@ -128,6 +128,10 @@ post-session validation still required the historical Schema 1 handshake and `ph
 second tooling correction adds an explicit graph-contract validation branch that reuses the existing
 Contract 0.2 handshake and reads `current_cursor` for terminal and retained tasks; the historical
 linear validator remains the default for frozen fixture paths.
+The graph-validator recovery then exposed that the substantive prompt, unlike the corrected resume
+prompt, did not repeat the caller request-ID rule and one native run omitted it. The next bounded
+correction defines one shared final-registry request-binding instruction and embeds it in both
+task-bearing prompts; both prompt contracts must pass before another recovery Journey.
 
 ### Method Profiles and Host Adapters
 
@@ -218,8 +222,9 @@ with literal `0.3.0`; all preceding release/command/contract gates passed. One r
 after `internal/mcp` derives that current test version from root `VERSION` and its targeted package
 test passes. The initial production Journey failed at the observed resume request-binding gate. The
 first recovery Journey passed that gate and exposed the historical Schema 1 post-session validator.
-One graph-validator recovery Journey is authorized after its closed four-session regression passes;
-no additional repository-wide validation is authorized.
+The graph-validator recovery Journey exposed the missing substantive request-binding instruction.
+One shared-prompt recovery Journey is authorized after both prompt regressions and the graph fixture
+pass; no additional repository-wide validation is authorized.
 
 ## Rollout and Persistence Boundary
 
