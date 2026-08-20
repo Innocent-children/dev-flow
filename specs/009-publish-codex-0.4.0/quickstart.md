@@ -38,6 +38,21 @@ Retain the external directory and rerun the same command with the same arguments
 remote truth before every mutation, reuses exact matching state, and continues only missing steps.
 An immutable identity conflict stops as `blocked` and preserves the safe next action.
 
+### Frozen-source tooling recovery
+
+If Tag/npm are already immutable and the final Journey records a tooling-domain failure, preserve the
+same release directory. After the active Feature records and tests one reviewed tooling correction:
+
+1. create a clean external checkout whose local branch is `main` at Tag `v0.4.0`;
+2. load `runPublisher` from the reviewed tooling checkout with that frozen checkout as
+   `repositoryRoot`;
+3. run once without confirmation and require exact Tag, Draft, verified npm, zero assets, and pending
+   Journey;
+4. run once with confirmation `v0.4.0` to resume the existing publication.
+
+This incident route keeps npm publish count one and does not move Tag, recreate Draft, rebuild
+artifacts, or change the release directory.
+
 ## Installer boundary
 
 The public package supports Codex on macOS arm64. New graph tasks use fresh Schema 2. A Schema 1 or

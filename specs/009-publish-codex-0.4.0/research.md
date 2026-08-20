@@ -114,3 +114,22 @@ Journeys.
 native evidence cannot replace final registry evidence.
 
 **Consequences**: Any retry records the failing cause before repeating the affected gate.
+
+## Decision 8: Recover Journey tooling against the frozen release source
+
+**Decision**: Strengthen only the final-registry resume prompt so every apply explicitly carries a
+caller-generated top-level `request_id`, commit the reviewed tooling correction, and run that tooling
+against a clean external `main`-named checkout of frozen Tag `v0.4.0` and the retained directory.
+
+**Rationale**: Tag, Draft, npm bytes, and source are immutable. The observed substantive session
+passed, while the resume apply was correctly rejected for missing caller request binding.
+
+**Alternatives considered**: Move the Tag; republish npm; rebuild artifacts; blindly rerun the same
+prompt; weaken Core input validation.
+
+**Why alternatives were rejected**: The first three corrupt immutable release identity, blind retry
+does not address a complete domain rejection, and Core correctly enforced the closed mutation schema.
+
+**Consequences**: One read-only fixed-tooling preflight must prove exact reuse before confirmation.
+Recovery may rerun the Journey and complete later steps; npm publish count remains one and artifact
+digests remain unchanged.

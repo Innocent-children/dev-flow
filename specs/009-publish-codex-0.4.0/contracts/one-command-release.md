@@ -59,6 +59,20 @@ Release state is blocked.
 The command never moves or deletes a Tag, overwrites an asset, republishes or unpublishes npm, deletes
 the output directory, or synthesizes a completed publication record.
 
+### Frozen-source tooling recovery
+
+When Tag and npm are already immutable and a final-Journey tooling defect is observed, one reviewed
+tooling correction may invoke the same publisher state machine with:
+
+- the retained five-file release directory;
+- exact confirmation `vVERSION`;
+- a clean `main`-named checkout at the manifest's frozen source commit/tree;
+- the current reviewed publisher and Journey runner from the tooling checkout.
+
+Before confirmation, the fixed tooling must perform one read-only preflight and observe the exact Tag,
+Draft, verified npm tarball, zero conflicting assets, and pending/failed Journey state. Recovery reuses
+all exact immutable state. Any source, digest, remote ID, asset, or publication conflict blocks.
+
 ## Output
 
 Child command diagnostics stream to the operator. Successful completion emits the publisher's bounded

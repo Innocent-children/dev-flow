@@ -114,12 +114,11 @@ record exact public evidence.
 - [x] T016 Run the initial `pnpm run validate`; after its recorded literal-current-version fixture failure, run `go test ./internal/mcp`, then run the one authorized `pnpm run validate` retry and record toolchain and both outcomes in `specs/009-publish-codex-0.4.0/tasks.md` per FR-016 and SC-007.
 - [x] T017 Run `$speckit-converge` against the implemented source; append only concrete missing work and require a zero-gap result before publication per Constitution Development Workflow.
 - [x] T018 Update `specs/009-publish-codex-0.4.0/README.md`, `spec.md`, and `tasks.md` to the clean-source checkpoint; commit all source changes directly on `main`, push the exact commit to `origin/main`, and require `HEAD == origin/main` with an empty worktree per FR-003, FR-016, and SC-007.
-- [ ] T019 Execute `pnpm run release:codex -- --output /Users/innocent-children/dev-flow-releases/v0.4.0 --confirm v0.4.0` exactly once from the clean source; preserve the directory and stop truthfully on failure per FR-004–FR-010.
-- [ ] T020 Verify npm `dev-flow-codex@0.4.0`, Tag `v0.4.0`, final registry-package Journey, final manifest/checksums, four GitHub asset read-backs, public GitHub Release, complete nine-step `publication-record.json`, unchanged historical `v0.3.0`, and a clean repository per FR-008–FR-013 and SC-003–SC-007.
-- [ ] T021 Record bounded public identities, digests, timestamps, support, and completion in `specs/009-publish-codex-0.4.0/README.md` and `tasks.md`; update `MANIFEST.md` and current public docs if observed facts require it; mark Feature 009 `Complete`, commit the evidence-only changes on `main`, and push without moving Tag `v0.4.0` per FR-013–FR-014 and SC-003–SC-007.
+- [x] T019 Execute the one-command release from clean source `a749143b74d786cfc7c864155897984481c1d24b`, preserve the retained directory across the registry-readback and final-Journey failures, and reread exact remote truth before any continuation per FR-004–FR-010.
+- [x] T020 Record the immutable partial publication and incident-scoped recovery requirements in `specs/009-publish-codex-0.4.0/spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, `contracts/one-command-release.md`, `checklists/release.md`, and `tasks.md` per FR-017 and SC-008.
 
-**Checkpoint**: `dev-flow-codex@0.4.0` and GitHub Release `v0.4.0` are public, verified, and bound to
-one frozen source commit; Feature 009 is complete.
+**Checkpoint**: Tag, Draft, npm, registry bytes, source, and retained release directory are immutable;
+Journey/assets/finalization remain pending under the recorded recovery route.
 
 ### Repository Validation Evidence — 2026-08-20
 
@@ -132,6 +131,44 @@ one frozen source commit; Feature 009 is complete.
 - The one authorized `pnpm run validate` retry passed completely on Go 1.26.6 darwin/arm64, Node
   24.18.0, and pnpm 11.21.0. It included `go vet ./...`, `go test ./...`, frozen workspace install,
   workspace inventory at `0.4.0`, and both package dry-packs.
+
+### Partial Publication Evidence — 2026-08-20
+
+- Frozen source `a749143b74d786cfc7c864155897984481c1d24b` / tree
+  `7dc95d6d01800ecd597f661dade25bd8eb280fc1` produced package SHA-256
+  `2e36e9d13daa5e4b669617de2ddfa7fb40086245090a695ac406ce2681043e84` and Core SHA-256
+  `bfb2c769e5f0460f9a55c78b866f0a778a37b34864bbc51fe89068988676200d`.
+- The first confirmed invocation created Tag `v0.4.0`, GitHub Draft `373558395`, and published npm
+  `dev-flow-codex@0.4.0` once, then stopped during immediate registry propagation with `ETARGET`.
+- Exact rerun reused Tag/Draft/npm, verified registry integrity and identical tarball bytes, then ran
+  the native Journey. The substantive session passed; resume apply returned Core `INVALID_ARGUMENT`
+  because caller request binding was missing.
+- Publication Record is failed at `final_journey`; npm is verified, assets are empty, Release remains
+  Draft, final support is pending, and no immutable identity was moved, recreated, or republished.
+
+---
+
+## Phase 6: Frozen-Source Journey Tooling Recovery
+
+**Goal**: Correct only the observed resume request-binding guidance and finish the existing immutable
+publication with reviewed tooling against the frozen source.
+
+- [x] T021 Strengthen `finalRegistryResumePrompt` in `scripts/write-codex-journey-evidence.mjs` to require one nonempty caller-generated top-level `request_id` on every `dev_flow_apply_action`, and add exact prompt coverage in `packages/codex/tests/journey-harness.test.mjs` per FR-017 and SC-008.
+- [x] T022 Run `node --test packages/codex/tests/journey-harness.test.mjs packages/codex/tests/release-publication.test.mjs`, Node syntax checks for the publisher/Journey tooling, and `git diff --check`; do not rerun repository-wide validation per the amended test budget.
+- [ ] T023 Commit and push the reviewed tooling/spec correction to `main`; create one clean external checkout at Tag `v0.4.0` with local branch name `main`, then run the fixed production `runPublisher` once without confirmation against the retained directory and require exact Tag `v0.4.0`, Draft `373558395`, verified npm bytes, zero assets, and pending/failed Journey per FR-017.
+- [ ] T024 Run the fixed production `runPublisher` once with confirmation `v0.4.0` against the frozen source checkout and retained directory; preserve exact state and stop without blind retry on any domain or immutable conflict per FR-017 and SC-008.
+- [ ] T025 Verify the passed final registry Journey, final Manifest Schema 2/checksums, four GitHub asset read-backs, public Release `v0.4.0`, complete nine-step Publication Record, npm publish count one, unchanged Tag/source/package/Core digests, and clean repository; record bounded completion in `specs/009-publish-codex-0.4.0/README.md`, `tasks.md`, and `MANIFEST.md`, mark Feature 009 `Complete`, commit, and push without moving Tag per FR-008–FR-017 and SC-003–SC-008.
+
+**Checkpoint**: The existing immutable `v0.4.0` publication is complete; no replacement release
+identity or payload was created.
+
+### Journey Tooling Correction Evidence — 2026-08-20
+
+- The resume prompt now requires a new nonempty opaque caller `request_id` as the top-level member of
+  every apply, and forbids omission, reuse of a read request ID, or placement inside payload.
+- Journey harness plus publication-state-machine checks passed 53/53. Node syntax and
+  `git diff --check` passed. No repository-wide validation, remote mutation, or Host Journey ran in
+  this correction checkpoint.
 
 ## Dependencies and Execution Order
 
@@ -150,14 +187,17 @@ Clean main commit/push
       ↓
 One-command public release
       ↓
+Frozen-source Journey tooling recovery when the observed domain failure occurs
+      ↓
 Evidence-only completion commit
 ```
 
 - Phase 2 must finish before the command can prepare a truthful `0.4.0` manifest.
 - User Story 1 must finish before the real operator command exists.
 - User Story 2 source evidence must finish before the source is frozen.
-- T019–T020 are the only tasks authorized to create or observe irreversible public `0.4.0` state.
-- T021 records evidence and cannot change the frozen Tag or published bytes.
+- T019 created the immutable remote state; T021–T024 may only reread/reuse it and complete missing
+  Journey/assets/finalization steps.
+- T025 records evidence and cannot change the frozen Tag or published bytes.
 
 ## Test Budget
 
@@ -165,7 +205,7 @@ Evidence-only completion commit
 | --- | --- |
 | Targeted package checks | One run per implementation checkpoint; rerun only after a recorded fix |
 | Repository-wide validation | Exactly one before the release source commit |
-| Production real-host journeys | Exactly one, invoked by the confirmed publisher |
+| Production real-host journeys | Initial failed Journey plus one recovery Journey after the recorded prompt fix |
 | Unsupported platform/Host matrices | Excluded |
 
 ## Notes

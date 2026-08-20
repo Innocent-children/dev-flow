@@ -44,6 +44,7 @@ does not mean code exists or a test passed.
 
 - [x] CHK017 Does the plan name exact files, preserve existing component ownership, and justify the single thin wrapper? [Traceability, Plan §Project Structure]
 - [x] CHK018 Are targeted checks, one full repository validation, one native Journey, clean-source publication, and post-release evidence recording explicitly bounded? [Measurability, Plan §Test Strategy and Budget]
+- [x] CHK019 Is post-Tag/npm tooling recovery limited to reviewed guidance, a clean frozen-source checkout, exact remote preflight, retained artifacts, and zero immutable identity changes? [Coverage, Spec §FR-017]
 
 ## Review Result
 

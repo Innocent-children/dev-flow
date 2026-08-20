@@ -72,6 +72,20 @@ Tag, npm version, and GitHub Release derive from the same value.
 Historical specifications, artifacts, fixtures that model completed releases, Tags, npm versions,
 Release assets, digests, and publication records retain their literal historical versions.
 
+## FrozenSourceToolingRecovery
+
+| Field | Rule |
+| --- | --- |
+| `frozen_source_commit` | Exact manifest and Tag source `a749143b74d786cfc7c864155897984481c1d24b` |
+| `frozen_source_tree` | Exact manifest tree `7dc95d6d01800ecd597f661dade25bd8eb280fc1` |
+| `tooling_commit` | Later reviewed commit containing only bounded release-tooling/spec evidence changes |
+| `release_directory` | Original retained five-file directory |
+| `remote_state` | Exact Tag, Draft, verified npm; assets empty before recovery |
+
+Lifecycle: `failed_journey → reviewed_tooling → read_only_preflight → confirmed_resume → complete`.
+The frozen checkout is clean and uses local branch name `main`; publisher/Journey code loads from the
+reviewed tooling checkout. Immutable source, Tag, npm bytes, artifacts, and remote IDs never change.
+
 ## Runtime Persistence Boundary
 
 Release tooling has no Core database entity or transition. The distributed runtime retains Feature

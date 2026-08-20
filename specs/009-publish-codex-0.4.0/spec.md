@@ -92,6 +92,9 @@ retained-reopen Journey against fresh Schema 2 data.
   008's Schema 1 zero-write rejection and user-controlled reset contract.
 - An interrupted command retains the durable output and publication record so the same command can
   reread reality before continuing.
+- After Tag and npm become immutable, a final-Journey tooling defect may be corrected only by reviewed
+  release tooling operating against the exact frozen source checkout and retained release directory;
+  immutable remote identities and bytes remain unchanged.
 
 ## State-Graph Impact
 
@@ -147,6 +150,11 @@ remain exactly those approved and completed by Feature 008.
   create a Tag, publish npm, mutate a GitHub Release, or run the production publisher.
 - **FR-016**: One final repository-wide validation MUST pass before the clean source commit is pushed
   and used for publication.
+- **FR-017**: If the immutable Tag and npm version exist but the final Journey fails because reviewed
+  tooling guidance is insufficient, a later reviewed tooling commit MAY resume the retained publisher
+  against a clean checkout of the frozen source only after an exact read-only remote preflight; the
+  recovery MUST reuse the Tag, Draft, npm bytes, manifest identity, and publication record, and MUST
+  NOT republish npm, move the Tag, recreate the Draft, or change the prepared artifacts.
 
 ### Persistence Transition Requirements
 
@@ -193,6 +201,8 @@ remain exactly those approved and completed by Feature 008.
   mutations.
 - **SC-007**: The repository records one passing full validation and contains no generated release
   output or credential material.
+- **SC-008**: Incident recovery completes the existing release with npm publish count one, unchanged
+  Tag/source/package digests, one passed final Journey, and no replacement release identity.
 
 ## Assumptions
 

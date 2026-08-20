@@ -115,6 +115,15 @@ publisher, which validates manifest/publication identity and rereads npm, Tag, D
 and Release state before mutation. One command may be rerun with the same directory and confirmation;
 publish-once and immutable conflict rules remain in `scripts/publish-codex-release.mjs`.
 
+The first confirmed production invocation published npm once and created the exact Tag/Draft, then
+stopped during registry propagation; exact rerun verified npm and entered the final Journey. The
+substantive native session passed, while the resume mutation omitted the caller-generated request ID
+binding and Core correctly returned `INVALID_ARGUMENT`. Because source/Tag/npm are now immutable, the
+approved recovery uses reviewed prompt tooling from a later commit against a clean `main`-named
+checkout at frozen source `a749143b74d786cfc7c864155897984481c1d24b`. A confirmation-free preflight
+must first prove exact reuse and zero assets. The confirmed recovery may then rerun the Journey and
+continue finalization without moving Tag, republishing npm, changing artifacts, or recreating Draft.
+
 ### Method Profiles and Host Adapters
 
 The Codex package continues to expose `plain`, `spec-kit`, and `openspec` over the same Core graph.
@@ -202,7 +211,9 @@ Repository-wide validation budget: one initial run before publication. The 2026-
 reached `go test ./...` and exposed one current-version fixture test that still constructed ServerInfo
 with literal `0.3.0`; all preceding release/command/contract gates passed. One retry is authorized only
 after `internal/mcp` derives that current test version from root `VERSION` and its targeted package
-test passes. Maximum production real-host journeys: **one**, owned by the confirmed publisher.
+test passes. The initial production Journey failed at the observed resume request-binding gate. One
+recovery Journey is authorized after a targeted prompt-contract correction and test; no additional
+repository-wide validation is authorized.
 
 ## Rollout and Persistence Boundary
 
@@ -211,6 +222,10 @@ to `origin/main`, then the one-command release creates and retains
 `/Users/innocent-children/dev-flow-releases/v0.4.0`, publishes `v0.4.0`, and records remote truth. After
 successful publication, a documentation-only completion commit records bounded public evidence on
 `main` without moving Tag `v0.4.0` or changing published bytes.
+
+Incident recovery retains the original release directory and frozen source. Reviewed tooling is
+committed separately, then runs one read-only preflight and one confirmed publisher resume against a
+clean external checkout of Tag `v0.4.0` with local branch name `main`.
 
 No feature flag or persistence rollout exists. Installers with Schema 1/pre-graph data receive the
 Feature 008 safe-stop and choose a fresh data directory or manage the old directory explicitly.

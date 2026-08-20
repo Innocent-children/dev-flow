@@ -717,6 +717,10 @@ test("final registry resume prompt requires both authoritative reads before appl
     /dev_flow_open_task[\s\S]*MUST call dev_flow_get_task[\s\S]*then dev_flow_get_next_action[\s\S]*before any dev_flow_apply_action/u,
   );
   assert.match(smokeRuntime.finalRegistryResumePrompt, /Do not use the action returned by dev_flow_open_task to skip either read/u);
+  assert.match(
+    smokeRuntime.finalRegistryResumePrompt,
+    /every dev_flow_apply_action[\s\S]*new nonempty opaque caller request ID[\s\S]*top-level request_id[\s\S]*never omit[\s\S]*reuse a read request ID[\s\S]*inside payload/u,
+  );
 });
 
 test("development smoke enforces ordinary and invalid zero-call admission", () => {
