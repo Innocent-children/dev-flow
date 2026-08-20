@@ -187,5 +187,5 @@ bypass the node.
 
 **Why alternatives were rejected**: All three violate the Core graph and Constitution IV.
 
-**Consequences**: Feature 009 is `Blocked` until the maintainer provides the explicit verdict. The
-next tooling correction can then embed the exact user-provided fact alongside closed payload rules.
+**Consequences**: The maintainer supplied the explicit verdict on 2026-08-20. The next tooling
+correction may embed that exact fact alongside closed payload rules; AI inference remains forbidden.

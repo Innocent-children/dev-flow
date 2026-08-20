@@ -757,6 +757,10 @@ test("final registry task-bearing prompts require request binding and resume rea
       prompt,
       /every dev_flow_apply_action[\s\S]*new nonempty opaque caller request ID[\s\S]*top-level request_id[\s\S]*never omit[\s\S]*reuse a read request ID[\s\S]*inside payload/u,
     );
+    assert.match(
+      prompt,
+      /payload must have exactly transition_id, summary, reason, artifacts, method_evidence, and node_result[\s\S]*artifacts=\[\][\s\S]*REQUIREMENTS=\{problem_class,baseline,unresolved_questions\}[\s\S]*DELIVERY=\{problem_class,acceptance/u,
+    );
   }
   assert.equal(smokeRuntime.finalRegistryResumePrompt.startsWith(`${EXPLICIT_SELECTOR} `), true);
   assert.match(
@@ -764,6 +768,10 @@ test("final registry task-bearing prompts require request binding and resume rea
     /dev_flow_open_task[\s\S]*MUST call dev_flow_get_task[\s\S]*then dev_flow_get_next_action[\s\S]*before any dev_flow_apply_action/u,
   );
   assert.match(smokeRuntime.finalRegistryResumePrompt, /Do not use the action returned by dev_flow_open_task to skip either read/u);
+  assert.match(
+    smokeRuntime.finalRegistryResumePrompt,
+    /maintainer explicitly confirms[\s\S]*read and understood[\s\S]*can explain and maintain[\s\S]*passes COMPREHENSION_REVIEW[\s\S]*user_confirmation source=user status=passed/u,
+  );
 });
 
 test("final registry session validation accepts Contract 0.2 graph cursors and handshake", () => {

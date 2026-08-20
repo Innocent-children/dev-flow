@@ -137,6 +137,8 @@ returned `INVALID_ARGUMENT` with caller binding present. The remaining correctio
 008's exact closed graph payload construction rules in both task-bearing prompts. Reaching
 `COMPREHENSION_REVIEW` additionally requires a current explicit maintainer verdict; tooling cannot
 create or infer it.
+The maintainer supplied that verdict on 2026-08-20, confirming they read and understood the proof
+implementation and validation path, can explain and maintain it, and approve comprehension.
 
 ### Method Profiles and Host Adapters
 

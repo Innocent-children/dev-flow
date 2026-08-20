@@ -218,14 +218,23 @@ payload and human comprehension recovery remain pending.
 **Goal**: Reuse the proven Feature 008 payload construction contract and one explicit maintainer
 verdict before the final recovery Journey.
 
-- [ ] T033 Record the maintainer's explicit current `COMPREHENSION_REVIEW` verdict in `specs/009-publish-codex-0.4.0/spec.md`, `README.md`, and `tasks.md`; keep Feature 009 `Blocked` until the verdict is supplied per Constitution IV.
-- [ ] T034 Add the exact closed graph payload rules from the Feature 008 final-local contract to both final-registry task-bearing prompts in `scripts/write-codex-journey-evidence.mjs`, include only the user-provided comprehension fact in resume, and add exact prompt/payload coverage in `packages/codex/tests/journey-harness.test.mjs` per FR-003 and FR-017.
-- [ ] T035 Run the Journey/publication targeted suite, syntax, and `git diff --check`; commit and push reviewed tooling/spec changes without full validation.
+- [x] T033 Record the maintainer's explicit current `COMPREHENSION_REVIEW` verdict in `specs/009-publish-codex-0.4.0/spec.md`, `README.md`, and `tasks.md`; keep Feature 009 `Blocked` until the verdict is supplied per Constitution IV.
+- [x] T034 Add the exact closed graph payload rules from the Feature 008 final-local contract to both final-registry task-bearing prompts in `scripts/write-codex-journey-evidence.mjs`, include only the user-provided comprehension fact in resume, and add exact prompt/payload coverage in `packages/codex/tests/journey-harness.test.mjs` per FR-003 and FR-017.
+- [x] T035 Per the maintainer's direct-publication instruction, run only `node --test packages/codex/tests/journey-harness.test.mjs`, Journey syntax, and `git diff --check`; commit and push reviewed tooling/spec changes without broader workflow or full validation.
 - [ ] T036 Run newest-tooling read-only preflight, then one confirmed frozen-source publisher recovery if all immutable state remains exact; stop on any domain or immutable conflict per FR-017.
 - [ ] T037 Verify and record final Journey, assets, Release, complete Publication Record, npm publish count one, unchanged identities/digests, and clean repository; mark Feature 009 `Complete`, commit, and push without moving Tag per FR-008–FR-017 and SC-003–SC-008.
 
 **Checkpoint**: The final registry graph task reaches `DONE` using closed payloads and a real current
 maintainer comprehension verdict, then the original Release is finalized.
+
+### Maintainer Comprehension Evidence — 2026-08-20
+
+- The maintainer explicitly confirmed they read and understood the `0.4.0` final-registry proof
+  implementation and validation path, can explain and maintain it, and confirm it passes
+  `COMPREHENSION_REVIEW`.
+- Both final-registry task-bearing prompts now contain the exact closed graph payload wrappers,
+  per-action MethodEvidence rules, empty ArtifactReference rule, shared request binding, and the
+  maintainer-provided comprehension fact. Journey harness passed 36/36; syntax and diff checks passed.
 
 ## Dependencies and Execution Order
 

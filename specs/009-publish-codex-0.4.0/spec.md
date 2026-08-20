@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-20
 
-**Status**: Blocked
+**Status**: Implementing
 
 **Change Type**: Release Change
 
@@ -23,6 +23,16 @@ but the maintainer must currently coordinate separate preparation, verification,
 publication commands. The completed Feature 008 graph runtime also remains identified as unpublished
 `0.3.0` source. The maintainer needs one bounded release change that aligns the product to `0.4.0`
 and exposes one exact-confirmation command for the complete public release.
+
+## Clarifications
+
+### Session 2026-08-20
+
+- Q: Has the maintainer read the final-registry proof implementation and validation path, can explain
+  and maintain it, and explicitly confirms that the current result passes `COMPREHENSION_REVIEW`?
+  → A: Confirmed. The maintainer has read and understood the `0.4.0` final-registry proof
+  implementation and validation path, can explain and maintain it, and explicitly confirms that it
+  passes `COMPREHENSION_REVIEW`.
 
 ## User Scenarios & Testing
 
@@ -216,5 +226,4 @@ remain exactly those approved and completed by Feature 008.
 
 ## Open Questions
 
-- Has the maintainer read the final-registry proof implementation and validation path, can explain and
-  maintain it, and explicitly confirms that the current result passes `COMPREHENSION_REVIEW`?
+None.

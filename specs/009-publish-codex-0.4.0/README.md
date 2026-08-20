@@ -3,7 +3,7 @@
 ## Status
 
 - **Feature**: `009-publish-codex-0.4.0`
-- **Status**: Blocked
+- **Status**: Implementing
 - **Change Type**: Release Change
 - **Created**: 2026-08-20
 - **Baseline**: `main` at `3b99b0c198a72f0e079ada18bc7f214075585f79`
@@ -78,13 +78,13 @@ Before implementation:
 | Clean source gate | One repository validation passes and the exact clean `main` source is pushed | Complete — T016–T018; validated source committed directly to `main` |
 | Public release | npm, Tag, final Journey, four assets, GitHub Release, and publication record are verified | Pending |
 
-## Current Blocker
+## Current Recovery
 
 Tag, Draft, npm and registry bytes are exact and immutable. Assets remain empty and the Release
 remains Draft. The shared-request-binding Journey passed substantive mutation binding, then resume
-returned Core `INVALID_ARGUMENT` with caller binding present. Before another Journey, release tooling
-must reuse the closed Feature 008 graph payload rules, and the maintainer must provide an explicit
-current comprehension verdict; Core does not permit AI-inferred confirmation.
+returned Core `INVALID_ARGUMENT` with caller binding present. The maintainer has now explicitly
+confirmed current comprehension. Release tooling is applying the closed Feature 008 graph payload
+rules to both task-bearing final-registry prompts before another Journey.
 
 ## Release Boundary
 
