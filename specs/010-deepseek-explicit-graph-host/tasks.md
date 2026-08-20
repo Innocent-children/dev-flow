@@ -94,16 +94,16 @@
 
 ## Phase 6 — Deterministic Graph and Lifecycle Journeys
 
-- [ ] **T055 [US2]** Add a deterministic DeepSeek journey using the exact six qualified names and real Core envelopes. — Files: `tests/journeys/deepseek/fake-core.mjs`, `tests/journeys/deepseek/simulated-graph-journey.test.mjs`; Refs: FR-053.
-- [ ] **T056 [US2]** Prove create/apply/restart/resume with the same task/action/revision lineage. — Files: `tests/journeys/deepseek/simulated-graph-journey.test.mjs`; Refs: FR-053, SC-005, SC-006.
-- [ ] **T057 [US2]** Prove method-profile guidance, test rework, comprehension, refactor/retest, and Core `DONE`. — Files: `tests/journeys/deepseek/simulated-graph-journey.test.mjs`; Refs: FR-053, SC-006, SC-008.
-- [ ] **T058 [US2]** Prove uncertain mutation performs task read and next-action read before any repeated mutation. — Files: `tests/journeys/deepseek/simulated-graph-journey.test.mjs`; Refs: FR-046, FR-052, FR-053, SC-007.
-- [ ] **T059 [US2]** Prove ordinary and non-current-turn prompts cannot dispatch Core during the journey. — Files: `tests/journeys/deepseek/simulated-graph-journey.test.mjs`; Refs: FR-011–FR-025, SC-002–SC-004.
-- [ ] **T060 [US3]** Build one retained source-local unpublished package artifact and record package/Core identities. — Files: `packages/deepseek/`, `tests/journeys/deepseek/evidence/`; Refs: FR-006, FR-008, FR-057.
-- [ ] **T061 [US3]** Add the exact artifact through official DSH profile lifecycle in isolated state and restart/read back. — Files: `packages/deepseek/tests/lifecycle.test.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-004, FR-054, SC-001.
-- [ ] **T062 [US3]** Remove through official lifecycle, restart, and prove Skill/guard/namespace absence. — Files: `packages/deepseek/tests/lifecycle.test.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-004, FR-047, FR-048, FR-054, SC-009.
-- [ ] **T063 [US3]** Prove shared task data, repository content, and bounded Codex-owned identities are unchanged. — Files: `packages/deepseek/tests/lifecycle.test.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-047, FR-048, FR-054, SC-009.
-- [ ] **T064 [US3]** Reinstall the exact artifact, restart, and reopen the same compatible task without read-only writes. — Files: `packages/deepseek/tests/lifecycle.test.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-049, FR-054, SC-010.
+- [x] **T055 [US2]** Add a deterministic DeepSeek journey using the exact six qualified names and real Core envelopes. — Files: `tests/journeys/deepseek/fake-core.mjs`, `tests/journeys/deepseek/simulated-graph-journey.test.mjs`; Refs: FR-053.
+- [x] **T056 [US2]** Prove create/apply/restart/resume with the same task/action/revision lineage. — Files: `tests/journeys/deepseek/simulated-graph-journey.test.mjs`; Refs: FR-053, SC-005, SC-006.
+- [x] **T057 [US2]** Prove method-profile guidance, test rework, comprehension, refactor/retest, and Core `DONE`. — Files: `tests/journeys/deepseek/simulated-graph-journey.test.mjs`; Refs: FR-053, SC-006, SC-008.
+- [x] **T058 [US2]** Prove uncertain mutation performs task read and next-action read before any repeated mutation. — Files: `tests/journeys/deepseek/simulated-graph-journey.test.mjs`; Refs: FR-046, FR-052, FR-053, SC-007.
+- [x] **T059 [US2]** Prove ordinary and non-current-turn prompts cannot dispatch Core during the journey. — Files: `tests/journeys/deepseek/simulated-graph-journey.test.mjs`; Refs: FR-011–FR-025, SC-002–SC-004.
+- [x] **T060 [US3]** Build one retained source-local unpublished package artifact and record package/Core identities. — Files: `packages/deepseek/`, `tests/journeys/deepseek/evidence/`; Refs: FR-006, FR-008, FR-057.
+- [x] **T061 [US3]** Add the exact artifact through official DSH profile lifecycle in isolated state and restart/read back. — Files: `packages/deepseek/tests/lifecycle.test.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-004, FR-054, SC-001.
+- [x] **T062 [US3]** Remove through official lifecycle, restart, and prove Skill/guard/namespace absence. — Files: `packages/deepseek/tests/lifecycle.test.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-004, FR-047, FR-048, FR-054, SC-009.
+- [x] **T063 [US3]** Prove shared task data, repository content, and bounded Codex-owned identities are unchanged. — Files: `packages/deepseek/tests/lifecycle.test.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-047, FR-048, FR-054, SC-009.
+- [x] **T064 [US3]** Reinstall the exact artifact, restart, and reopen the same compatible task without read-only writes. — Files: `packages/deepseek/tests/lifecycle.test.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-049, FR-054, SC-010.
 
 **Checkpoint**: `USER_STORY_2_CHECKPOINT_COMPLETE` and `USER_STORY_3_CHECKPOINT_COMPLETE`.
 
