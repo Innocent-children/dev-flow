@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-20
 
-**Status**: Implementing
+**Status**: Blocked
 
 **Change Type**: Release Change
 
@@ -216,4 +216,5 @@ remain exactly those approved and completed by Feature 008.
 
 ## Open Questions
 
-None.
+- Has the maintainer read the final-registry proof implementation and validation path, can explain and
+  maintain it, and explicitly confirms that the current result passes `COMPREHENSION_REVIEW`?

@@ -132,6 +132,11 @@ The graph-validator recovery then exposed that the substantive prompt, unlike th
 prompt, did not repeat the caller request-ID rule and one native run omitted it. The next bounded
 correction defines one shared final-registry request-binding instruction and embeds it in both
 task-bearing prompts; both prompt contracts must pass before another recovery Journey.
+That shared-prompt recovery passed request binding in substantive and resume calls, then resume
+returned `INVALID_ARGUMENT` with caller binding present. The remaining correction must reuse Feature
+008's exact closed graph payload construction rules in both task-bearing prompts. Reaching
+`COMPREHENSION_REVIEW` additionally requires a current explicit maintainer verdict; tooling cannot
+create or infer it.
 
 ### Method Profiles and Host Adapters
 
@@ -223,8 +228,9 @@ after `internal/mcp` derives that current test version from root `VERSION` and i
 test passes. The initial production Journey failed at the observed resume request-binding gate. The
 first recovery Journey passed that gate and exposed the historical Schema 1 post-session validator.
 The graph-validator recovery Journey exposed the missing substantive request-binding instruction.
-One shared-prompt recovery Journey is authorized after both prompt regressions and the graph fixture
-pass; no additional repository-wide validation is authorized.
+The shared-prompt recovery exposed the missing closed graph payload/comprehension instruction. No
+further Journey is authorized until the exact payload-rule regression passes and the maintainer
+provides the explicit comprehension verdict. No additional repository-wide validation is authorized.
 
 ## Rollout and Persistence Boundary
 

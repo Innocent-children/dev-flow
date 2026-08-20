@@ -193,12 +193,12 @@ same immutable publication.
 
 - [x] T028 Define one shared final-registry request-binding instruction in `scripts/write-codex-journey-evidence.mjs`, embed it in both `finalRegistrySubstantivePrompt` and `finalRegistryResumePrompt`, and assert both prompt contracts in `packages/codex/tests/journey-harness.test.mjs` per FR-017.
 - [x] T029 Run `node --test packages/codex/tests/journey-harness.test.mjs packages/codex/tests/release-publication.test.mjs`, Node syntax checks, and `git diff --check`; commit and push the reviewed tooling/spec correction without repository-wide validation.
-- [ ] T030 Run one newest-tooling confirmation-free preflight against the frozen source and retained directory; require exact Tag/Draft/npm, zero assets, and pending Journey per FR-017.
-- [ ] T031 Run one newest-tooling confirmed publisher recovery against the frozen source and retained directory; stop on any complete domain or immutable conflict per FR-017 and SC-008.
-- [ ] T032 Verify final Journey, final Manifest Schema 2/checksums, four asset read-backs, public Release `v0.4.0`, complete Publication Record, npm publish count one, unchanged Tag/source/package/Core digests, and clean repository; record completion, mark Feature 009 `Complete`, commit, and push without moving Tag per FR-008–FR-017 and SC-003–SC-008.
+- [x] T030 Run one newest-tooling confirmation-free preflight against the frozen source and retained directory; require exact Tag/Draft/npm, zero assets, and pending Journey per FR-017.
+- [x] T031 Run one newest-tooling confirmed publisher recovery against the frozen source and retained directory; stop on any complete domain or immutable conflict per FR-017 and SC-008.
+- [x] T032 Record that shared request binding succeeded but resume returned Core `INVALID_ARGUMENT` with caller binding present; preserve exact immutable state and block another Journey until closed graph payload guidance and explicit maintainer comprehension are available per Constitution IV and FR-017.
 
-**Checkpoint**: The original immutable `v0.4.0` publication is complete with shared request binding
-enforced across both native task-bearing sessions.
+**Checkpoint**: Shared request binding is enforced across both native task-bearing sessions; closed
+payload and human comprehension recovery remain pending.
 
 ### Shared Prompt Correction Evidence — 2026-08-20
 
@@ -207,6 +207,25 @@ enforced across both native task-bearing sessions.
   and payload placement.
 - Journey graph/prompt tests and the publication state machine passed 54/54. Node syntax and
   `git diff --check` passed; no repository-wide validation or remote mutation ran.
+- Confirmation-free preflight returned `mutated=false`, exact Tag/Draft/npm, zero assets, and pending
+  Journey. The confirmed run passed substantive request binding; resume returned Core
+  `INVALID_ARGUMENT` with caller binding present. Assets remained empty and Release stayed Draft.
+
+---
+
+## Phase 8: Closed Graph Payload and Human Comprehension Recovery
+
+**Goal**: Reuse the proven Feature 008 payload construction contract and one explicit maintainer
+verdict before the final recovery Journey.
+
+- [ ] T033 Record the maintainer's explicit current `COMPREHENSION_REVIEW` verdict in `specs/009-publish-codex-0.4.0/spec.md`, `README.md`, and `tasks.md`; keep Feature 009 `Blocked` until the verdict is supplied per Constitution IV.
+- [ ] T034 Add the exact closed graph payload rules from the Feature 008 final-local contract to both final-registry task-bearing prompts in `scripts/write-codex-journey-evidence.mjs`, include only the user-provided comprehension fact in resume, and add exact prompt/payload coverage in `packages/codex/tests/journey-harness.test.mjs` per FR-003 and FR-017.
+- [ ] T035 Run the Journey/publication targeted suite, syntax, and `git diff --check`; commit and push reviewed tooling/spec changes without full validation.
+- [ ] T036 Run newest-tooling read-only preflight, then one confirmed frozen-source publisher recovery if all immutable state remains exact; stop on any domain or immutable conflict per FR-017.
+- [ ] T037 Verify and record final Journey, assets, Release, complete Publication Record, npm publish count one, unchanged identities/digests, and clean repository; mark Feature 009 `Complete`, commit, and push without moving Tag per FR-008–FR-017 and SC-003–SC-008.
+
+**Checkpoint**: The final registry graph task reaches `DONE` using closed payloads and a real current
+maintainer comprehension verdict, then the original Release is finalized.
 
 ## Dependencies and Execution Order
 
@@ -243,7 +262,7 @@ Evidence-only completion commit
 | --- | --- |
 | Targeted package checks | One run per implementation checkpoint; rerun only after a recorded fix |
 | Repository-wide validation | Exactly one before the release source commit |
-| Production real-host journeys | Recorded request-binding/schema/substantive-binding failures, then one shared-prompt recovery Journey |
+| Production real-host journeys | Further recovery blocked pending closed payload rules and explicit maintainer comprehension |
 | Unsupported platform/Host matrices | Excluded |
 
 ## Notes

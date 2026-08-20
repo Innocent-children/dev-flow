@@ -172,3 +172,20 @@ correct, and post-generation mutation would create hidden adapter behavior outsi
 
 **Consequences**: Tests must assert the full rule in both prompts and retain the existing read-order
 rule in resume. Another Journey is allowed only after the combined targeted suite passes.
+
+## Decision 11: Require current human comprehension before delivery
+
+**Decision**: Final-registry resume tooling may carry a comprehension-passed payload only after the
+maintainer explicitly states that they have read the proof implementation and validation path, can
+explain and maintain it, and confirm the current result passes comprehension review.
+
+**Rationale**: Feature 008 makes human comprehension a binding Core node. AI output, passing tests,
+release confirmation, and publication intent cannot substitute for the developer verdict.
+
+**Alternatives considered**: Infer confirmation from `--confirm v0.4.0`; let Codex self-confirm;
+bypass the node.
+
+**Why alternatives were rejected**: All three violate the Core graph and Constitution IV.
+
+**Consequences**: Feature 009 is `Blocked` until the maintainer provides the explicit verdict. The
+next tooling correction can then embed the exact user-provided fact alongside closed payload rules.
