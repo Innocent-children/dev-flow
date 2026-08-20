@@ -76,19 +76,19 @@
 
 ## Phase 5 — Current Graph Skill Projection
 
-- [ ] **T042 [US2]** Adapt the current Contract 0.2 Skill to DSH qualified tool names and `/dev-flow`. — Files: `packages/deepseek/skills/dev-flow/SKILL.md`; Refs: FR-009–FR-016, FR-031–FR-036.
-- [ ] **T043 [US2]** Require server-info as the first authorized Core call and validate current schema/limits/process/tool/method identities. — Files: `packages/deepseek/skills/dev-flow/SKILL.md`; Refs: FR-029, FR-031, FR-032.
-- [ ] **T044 [US2]** Implement bounded substantive-request and single-canonical-repository admission guidance. — Files: `packages/deepseek/skills/dev-flow/SKILL.md`; Refs: FR-015, FR-016.
-- [ ] **T045 [US2]** Open new tasks with `host=deepseek` and resume only compatible active tasks. — Files: `packages/deepseek/skills/dev-flow/SKILL.md`; Refs: FR-033, FR-034, SC-005.
-- [ ] **T046 [US2]** Render current node purpose, conditions, effects, evidence, method steps, payload contract, and legal transitions. — Files: `packages/deepseek/skills/dev-flow/SKILL.md`; Refs: FR-034–FR-036, SC-006.
-- [ ] **T047 [US2]** Package host-neutral method-profile and node-payload references. — Files: `packages/deepseek/skills/dev-flow/references/method-profiles.md`, `packages/deepseek/skills/dev-flow/references/node-payloads.md`; Refs: FR-036.
-- [ ] **T048 [US2]** Add parity/marker/schema tests for DeepSeek and current Codex host-neutral references. — Files: `packages/deepseek/tests/skill-contract.test.mjs`, `packages/codex/plugin/skills/dev-flow/references/`; Refs: FR-036, SC-008.
-- [ ] **T049 [US2]** Encode read-before-retry after uncertain mutation and prohibit reconnect-driven replay. — Files: `packages/deepseek/skills/dev-flow/SKILL.md`; Refs: FR-034, FR-046, SC-007.
-- [ ] **T050 [US2]** Encode explicit comprehension verdict, refactor/retest, blocker, cancellation, and terminal behavior. — Files: `packages/deepseek/skills/dev-flow/SKILL.md`; Refs: FR-014, FR-034, FR-035, SC-006, SC-008.
-- [ ] **T051 [US2]** Add Skill contract tests that reject adapter-owned graph/persistence/completion/recovery instructions. — Files: `packages/deepseek/tests/skill-contract.test.mjs`; Refs: FR-034–FR-036, SC-013.
-- [ ] **T052 [US2]** Add direct MCP result tests for complete success and Core-domain-error/transport distinction. — Files: `packages/deepseek/tests/mcp-result-gate.test.mjs`; Refs: FR-037, FR-052.
-- [ ] **T053 [US2]** Run the bounded near-spill/spill/Core-envelope/result-retrieval compatibility gate. — Files: `packages/deepseek/tests/mcp-result-gate.test.mjs`; Refs: FR-037, FR-052, SC-011.
-- [ ] **T054 [US2]** If the direct-result gate fails, stop and prepare an amendment; do not implement a proxy under the current contract. — Files: `spec.md`, `contracts/skill-and-mcp.md`, `plan.md`, `tasks.md`; Refs: FR-038.
+- [x] **T042 [US2]** Adapt the current Contract 0.2 Skill to DSH qualified tool names and `/dev-flow`. — Files: `packages/deepseek/skills/dev-flow/SKILL.md`; Refs: FR-009–FR-016, FR-031–FR-036.
+- [x] **T043 [US2]** Require server-info as the first authorized Core call and validate current schema/limits/process/tool/method identities. — Files: `packages/deepseek/skills/dev-flow/SKILL.md`; Refs: FR-029, FR-031, FR-032.
+- [x] **T044 [US2]** Implement bounded substantive-request and single-canonical-repository admission guidance. — Files: `packages/deepseek/skills/dev-flow/SKILL.md`; Refs: FR-015, FR-016.
+- [x] **T045 [US2]** Open new tasks with `host=deepseek` and resume only compatible active tasks. — Files: `packages/deepseek/skills/dev-flow/SKILL.md`; Refs: FR-033, FR-034, SC-005.
+- [x] **T046 [US2]** Render current node purpose, conditions, effects, evidence, method steps, payload contract, and legal transitions. — Files: `packages/deepseek/skills/dev-flow/SKILL.md`; Refs: FR-034–FR-036, SC-006.
+- [x] **T047 [US2]** Package host-neutral method-profile and node-payload references. — Files: `packages/deepseek/skills/dev-flow/references/method-profiles.md`, `packages/deepseek/skills/dev-flow/references/node-payloads.md`; Refs: FR-036.
+- [x] **T048 [US2]** Add parity/marker/schema tests for DeepSeek and current Codex host-neutral references. — Files: `packages/deepseek/tests/skill-contract.test.mjs`, `packages/codex/plugin/skills/dev-flow/references/`; Refs: FR-036, SC-008.
+- [x] **T049 [US2]** Encode read-before-retry after uncertain mutation and prohibit reconnect-driven replay. — Files: `packages/deepseek/skills/dev-flow/SKILL.md`; Refs: FR-034, FR-046, SC-007.
+- [x] **T050 [US2]** Encode explicit comprehension verdict, refactor/retest, blocker, cancellation, and terminal behavior. — Files: `packages/deepseek/skills/dev-flow/SKILL.md`; Refs: FR-014, FR-034, FR-035, SC-006, SC-008.
+- [x] **T051 [US2]** Add Skill contract tests that reject adapter-owned graph/persistence/completion/recovery instructions. — Files: `packages/deepseek/tests/skill-contract.test.mjs`; Refs: FR-034–FR-036, SC-013.
+- [x] **T052 [US2]** Add direct MCP result tests for complete success and Core-domain-error/transport distinction. — Files: `packages/deepseek/tests/mcp-result-gate.test.mjs`; Refs: FR-037, FR-052.
+- [x] **T053 [US2]** Run the bounded near-spill/spill/Core-envelope/result-retrieval compatibility gate. — Files: `packages/deepseek/tests/mcp-result-gate.test.mjs`; Refs: FR-037, FR-052, SC-011.
+- [x] **T054 [US2]** If the direct-result gate fails, stop and prepare an amendment; do not implement a proxy under the current contract. — Files: `spec.md`, `contracts/skill-and-mcp.md`, `plan.md`, `tasks.md`; Refs: FR-038.
 
 **Checkpoint**: current graph guidance is complete and the direct path is proven or explicitly blocked.
 

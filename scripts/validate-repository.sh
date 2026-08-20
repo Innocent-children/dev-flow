@@ -126,11 +126,15 @@ const expectedFiles = [
   "package.json",
   "runtime/darwin-arm64/dev-flow",
   "skills/dev-flow/SKILL.md",
+  "skills/dev-flow/references/method-profiles.md",
+  "skills/dev-flow/references/node-payloads.md",
   "tests/authorization.test.mjs",
   "tests/bundle-contract.test.mjs",
   "tests/integration-plugin.test.mjs",
+  "tests/mcp-result-gate.test.mjs",
   "tests/package-contract.test.mjs",
   "tests/paths.test.mjs",
+  "tests/skill-contract.test.mjs",
 ].sort();
 
 function listFiles(directory, prefix = "") {
