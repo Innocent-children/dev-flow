@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-18
 
-**Status**: Planned
+**Status**: Complete
 
 **Change Type**: Product Feature
 
@@ -17,6 +17,21 @@
 **Input**: Replace the existing mostly linear development workflow with a visible state graph that
 guides a developer through requirements, design, implementation, testing, comprehension, refactoring,
 and delivery, while mapping each node to Spec Kit or OpenSpec operations.
+
+**Contract Freeze Review**: Completed 2026-08-19 with no acceptance-impacting clarification, a
+60/60 requirements-quality checklist, and no CRITICAL, HIGH, or acceptance-impacting MEDIUM analyze
+finding. Release authority remains excluded.
+
+**Phase 5D Audit Amendment**: The 2026-08-19 Phase 2–5 audit reopened User Story 2 hardening for
+closed problem classifications, exact current-evidence and aggregate invariants, store-open claim
+preflight, public MCP closure, and explicit pre-Phase-7 Recovery fail-closed behavior. The audit
+introduced no new process node, transition, method profile, storage generation, or release scope.
+
+**Final Completion Review**: Completed 2026-08-20. Attempt 3 native graph-flow evidence and the
+no-Codex deterministic lifecycle evidence passed as the same-artifact SC-015 composite. T093 final
+repository validation passed on its first invocation; final analyze found no CRITICAL, HIGH, or
+acceptance-impacting MEDIUM issue; final converge found zero remaining Feature gap. SC-001–SC-025
+are satisfied. No version, npm, Tag, GitHub Release, or public artifact mutation was performed.
 
 ## Problem Statement
 
@@ -102,10 +117,12 @@ refactor; prove that delivery is forbidden until testing and comprehension pass 
 **Acceptance Scenarios**:
 
 1. **Given** `TEST` exposes an implementation defect, **When** the caller selects
-   `tests_failed_implementation`, **Then** Core returns to `IMPLEMENT` and retains the reason.
+   `tests_failed_implementation` with `problem_class=implementation_failure`, **Then** Core returns
+   to `IMPLEMENT` and retains the reason.
 2. **Given** `TEST` exposes a design flaw or requirement gap, **When** the corresponding transition
-   is selected, **Then** Core returns to `DESIGN` or `REQUIREMENTS` and invalidates downstream
-   authorities.
+   and exact problem class are selected, **Then** Core returns to `DESIGN` or `REQUIREMENTS` and
+   invalidates downstream authorities; changing only `transition_id` cannot select another
+   destination from the same facts.
 3. **Given** tests pass, **When** the test result commits, **Then** the only forward destination is
    `COMPREHENSION_REVIEW`, not `DELIVERY` or `DONE`.
 4. **Given** the developer cannot explain the design or code, **When** comprehension review reports
@@ -115,7 +132,11 @@ refactor; prove that delivery is forbidden until testing and comprehension pass 
    enters `TEST`, invalidates stale test/comprehension evidence, and refuses direct delivery.
 6. **Given** current test and developer-comprehension evidence both match the latest repository and
    baselines, **When** delivery completes every current acceptance criterion, **Then** Core enters
-   `DONE`.
+   `DONE` only when the submitted automated and manual evidence lists exactly equal the current
+   Core-derived evidence sets.
+7. **Given** a task has `allow_manual_handoff=false`, **When** automated testing passes and the
+   developer explicitly confirms comprehension, **Then** the task can still reach `DONE`; the same
+   budget continues to reject `source=user` evidence submitted at `TEST`.
 
 ---
 
@@ -184,6 +205,10 @@ that current-generation task.
 6. **Given** an uncertain current-generation graph mutation, **When** the caller follows
    read-before-retry, **Then** the five recovery classifications and duplicate-prevention guarantees
    remain in force.
+7. **Given** an exact current-generation graph operation probe, **When** a caller performs a recovery
+   read or explicit recovery apply, **Then** Core derives one of the five classifications; the read
+   remains zero-write and only explicit recovery apply may adopt exact unrecorded work or create a
+   recovery blocker.
 
 ### Edge Cases
 
@@ -196,6 +221,8 @@ that current-generation task.
 - AI reports comprehension success without an explicit user confirmation.
 - A refactor changes files but claims testing can be skipped.
 - A backward transition omits its required reason.
+- A caller reuses one finding while changing only `transition_id` or supplies a `problem_class` that
+  does not match that transition.
 - A caller supplies both `transition_id` and a destination node.
 - A method profile is selected but its command integration is not installed.
 - A task is interrupted after repository mutation but before the apply result is received.
@@ -205,6 +232,13 @@ that current-generation task.
 - Two Core handles attempt the same graph transition concurrently.
 - A delivery payload references test or comprehension evidence produced before the latest code
   change.
+- A delivery payload omits current automated, user-test, or comprehension-confirmation evidence, or
+  includes static/host-observed/old evidence in an automated/manual list.
+- A valid non-null Recovery input arrives before Phase 7.
+- A decoded task carries authority that is impossible for its current node, or an active/terminal
+  task has a missing, duplicate, orphaned, or mismatched repository claim.
+- Cancellation is attempted for `DONE`/`CANCELLED`, or the cancellation reason is empty, untrimmed,
+  invalid UTF-8, or oversized.
 
 ## State-Graph Impact
 
@@ -334,6 +368,22 @@ after its machine condition is proven. `CANCELLED` is entered only through
 
 The exact capability and fallback contract is in `contracts/method-profiles.md`.
 
+## Phase 5D Historical Implementation Boundary
+
+Phase 5D hardened the already implemented Phase 2–5 runtime. Its temporary Recovery behavior was:
+
+- omitted or explicit-null `operation_probe` and `recovery_apply` preserved ordinary read/apply
+  behavior;
+- every syntactically valid non-null Recovery request failed closed as `RECOVERY_UNAVAILABLE` with
+  `retry_safe=false` and `action=none` before repository observation or mutation;
+- malformed, incomplete, duplicate-member, or unknown-member Recovery input remained
+  `INVALID_ARGUMENT`;
+- the five-class Recovery model remained the Feature target and was not claimed complete by this
+  temporary safety boundary.
+
+Phase 7A supersedes this runtime boundary for supported `standard-development@1` tasks. The historical
+T096 checkpoint remains complete evidence of the earlier fail-closed state.
+
 ## Requirements
 
 ### Functional Requirements
@@ -359,13 +409,17 @@ The exact capability and fallback contract is in `contracts/method-profiles.md`.
 - **FR-010**: Core MUST derive the destination from its built-in definition and reject an absent,
   stale, unknown, or source-incompatible transition with zero writes.
 - **FR-011**: Every backward, rework, or remediation transition marked by the process contract MUST
-  require a normalized bounded reason.
+  require a normalized bounded reason and an exact source-node `problem_class` bound to that
+  transition.
 - **FR-012**: The exact legal transition table MUST match the complete transition summary and
-  `contracts/process-graph.md`.
+  `contracts/process-graph.md`; every forward transition MUST use `problem_class=none`, every
+  remediation transition MUST use its one mapped non-`none` class, and the typed facts MUST match
+  that class.
 - **FR-013**: `TEST` success MUST enter `COMPREHENSION_REVIEW`; no test result may skip directly to
   `DELIVERY` or `DONE`.
 - **FR-014**: `COMPREHENSION_REVIEW` success MUST require explicit user-confirmation evidence tied to
-  the current repository and current requirements/design authorities.
+  the current repository and current requirements/design authorities. This confirmation is not a
+  TEST manual-handoff item and MUST NOT be disabled by `allow_manual_handoff=false`.
 - **FR-015**: AI-generated explanation or static inspection alone MUST NOT satisfy
   `comprehension_passed`.
 - **FR-016**: Any repository-changing `IMPLEMENT` or `REFACTOR` mutation MUST invalidate previously
@@ -373,7 +427,9 @@ The exact capability and fallback contract is in `contracts/method-profiles.md`.
 - **FR-017**: `REFACTOR` MUST have no direct transition to `COMPREHENSION_REVIEW`, `DELIVERY`, or
   `DONE`; completed refactor work MUST return through `TEST`.
 - **FR-018**: `DELIVERY` MUST construct terminal acceptance from the latest requirements baseline and
-  reject stale test, comprehension, baseline, repository, or evidence references.
+  reject stale test, comprehension, baseline, repository, or evidence references. Caller-submitted
+  automated/manual evidence IDs MUST exactly equal the current Core-derived source-partitioned sets;
+  current unverified or manual-handoff items prevent completion.
 - **FR-019**: Task creation MUST persist an immutable `TaskIntent` containing the initial request,
   known initial bounds, verification authority, and selected method profile.
 - **FR-020**: Task creation MUST NOT require complete final acceptance criteria before entering
@@ -402,7 +458,8 @@ The exact capability and fallback contract is in `contracts/method-profiles.md`.
   their checkbox, archive, or command state MUST NOT mutate Core without a valid apply.
 - **FR-032**: Core Contract 0.2 MUST preserve exactly six public MCP tools with their existing names.
 - **FR-033**: `dev_flow_server_info` MUST report Core Contract schema `2`, supported process
-  definitions, method profiles, and the unchanged six-tool catalog.
+  definitions through an explicit public DTO using `definition_digest`, method profiles, and the
+  unchanged six-tool catalog in the contract-defined order and with no additional field.
 - **FR-034**: `open_task`, `get_task`, and `get_next_action` results MUST expose process, node,
   baseline, node-contract, transition, method-profile, and terminal projections defined by
   `contracts/mcp-tools-0.2.md`.
@@ -411,7 +468,8 @@ The exact capability and fallback contract is in `contracts/method-profiles.md`.
 - **FR-036**: Unknown/duplicate members, a caller destination, wrong node payload, stale identity,
   stale transition, or incompatible baseline reference MUST fail closed.
 - **FR-037**: Core MUST add stable `TRANSITION_NOT_ALLOWED` and `PROCESS_UNSUPPORTED` errors while
-  retaining existing stable recovery, repository, storage, conflict, and terminal errors.
+  retaining existing stable recovery, repository, storage, conflict, and terminal errors;
+  `RECOVERY_UNAVAILABLE` remains reserved after its Phase 5D historical use.
 - **FR-038**: Core MUST remain read-only with respect to Git history and MUST expose no generic shell.
 - **FR-039**: Codex guidance MUST consume the Core-returned node and transition contract rather than
   embedding a second transition table.
@@ -421,6 +479,25 @@ The exact capability and fallback contract is in `contracts/method-profiles.md`.
   operation identity, bounded evidence, and transactionally consistent snapshot/event/claim writes.
 - **FR-042**: Feature implementation MUST NOT change product/package version or perform any public
   release mutation.
+- **FR-043**: Process definition identity MUST hash only the stable semantic identifiers and
+  declaration ordering frozen in `contracts/process-graph.md`; human purpose, descriptions,
+  selection text, guidance, and localized wording MUST NOT affect the digest or invalidate an
+  otherwise machine-equivalent persisted action.
+- **FR-044**: `ProcessTask` validation MUST enforce the closed current-node authority matrix and all
+  cross-record references in `data-model.md`; corrupt snapshots MUST safe-stop during decode,
+  store-open preflight, and load rather than waiting for mutation.
+- **FR-045**: Store-open preflight MUST validate task/claim cardinality and exact repository, task,
+  and host identity for every active task, forbid claims for terminal tasks and orphan claims, and
+  return `STORAGE_UNAVAILABLE` with zero writes for every mismatch.
+- **FR-046**: Cancellation MUST validate service/context/request identity and a normalized bounded
+  UTF-8 reason at the Application boundary; cancelling `DONE` or `CANCELLED` MUST return
+  `TASK_TERMINAL` with zero writes.
+- **FR-047**: `open_task.new_task`, read `operation_probe`, and apply `recovery_apply` MUST be
+  optional and accept explicit null; omitted/null values retain ordinary behavior while non-null
+  Recovery values follow the graph-native five-class reconciliation contract.
+- **FR-048**: Test manual-handoff budget enforcement MUST apply only to `TEST` manual handoff items
+  and `source=user` TEST evidence; comprehension user confirmation uses its independent mandatory
+  evidence validation while retaining common evidence limits and identity rules.
 
 ### Storage Generation and Reset Requirements
 
@@ -446,6 +523,9 @@ The exact capability and fallback contract is in `contracts/method-profiles.md`.
   `conflicting`.
 - **FR-S010**: A graph mutation whose result is missing, cancelled, malformed, truncated, or
   transport-failed MUST require the complete operation probe and read-before-retry route.
+- **FR-S011**: Phase 5D's completed historical checkpoint required valid non-null Recovery inputs to
+  return `RECOVERY_UNAVAILABLE` before observation or writes. Phase 7A supersedes that temporary
+  runtime behavior; malformed Recovery inputs remain `INVALID_ARGUMENT`.
 
 ### Non-Goals
 
@@ -515,11 +595,45 @@ The exact capability and fallback contract is in `contracts/method-profiles.md`.
   malformed-row tests all safe-stop with zero writes.
 - **SC-014**: Five-class uncertain-mutation tests pass for a repository-changing standard transition
   and prove at-most-once revision/event mutation under two concurrent Core handles.
-- **SC-015**: The final local-artifact Codex journey creates a standard task, displays multiple legal
-  destinations, performs a test/refactor/test loop, obtains user comprehension confirmation,
-  restarts/resumes the same task, reaches `DONE`, removes registration, and reopens retained data.
+- **SC-015**: Final source-local acceptance MUST combine two complementary evidence components bound
+  to the same exact artifact filename, SHA-256, size, source commit, package version, Core version,
+  and Core SHA-256:
+  1. native Codex graph-flow evidence from Attempt 3 proving ordinary-prompt zero Core calls,
+     Contract 0.2 handshake, multiple legal destinations, restart/resume, the code-complexity verdict,
+     `REFACTOR → TEST`, exactly two successful targeted
+     `node --test test/proof-writer.test.mjs` commands, explicit current user comprehension
+     confirmation, `DELIVERY → DONE`, and no unexpected repository path; and
+  2. deterministic exact-artifact lifecycle evidence, executed without Codex, proving installation,
+     setup, creation and completion of one real Schema 2 graph Task through the packaged Core,
+     remove, repeated-remove no-op, npm uninstall, retained Task/Event/Evidence data, reinstall from
+     the same artifact, and zero-write reopen of that same terminal Task with
+     `current_cursor=DONE`, `outcome.status=completed`, `current_action=null`, and no claim.
+  Attempt 3 remains recorded as `runner_failed_after_native_sessions`: its native sessions reached
+  Core `DONE`, while its lifecycle stage was not run because command classification produced a false
+  positive after those sessions. Attempts 1 and 2 remain failed evidence, and Attempt 4 is forbidden.
+  Deterministic lifecycle evidence MUST NOT be labeled native Codex evidence or represented as the
+  Attempt 3 Task.
 - **SC-016**: Feature completion changes no public npm version, Git Tag, GitHub Release, or released
   `0.3.0` artifact identity.
+- **SC-017**: Omitted/null Recovery fields preserve ordinary behavior; valid non-null graph probes
+  produce a Core-derived read-only assessment, and only explicit recovery apply may commit the
+  classifier's internal directive.
+- **SC-018**: Table-driven tests prove all 29 transitions accept only their exact `problem_class`,
+  typed facts, and reason combination; changing only the transition ID is rejected with zero writes.
+- **SC-019**: A task with `allow_manual_handoff=false` completes the automated-test → explicit-user-
+  comprehension → delivery journey while `source=user` TEST evidence remains rejected.
+- **SC-020**: MCP schema tests prove the four optional fields accept omission/null, reject unknown
+  and duplicate members, and the full ServerInfo fixture matches the exact public DTO and ordering.
+- **SC-021**: Definition-digest tests prove human wording changes are identity-stable while changing
+  a node, transition, guard, reason rule, or declaration order changes the digest.
+- **SC-022**: Every node-authority and cross-record corruption fixture safe-stops at decode,
+  store-open, and load with no write exposure.
+- **SC-023**: Store-open claim tests cover active/terminal cardinality, orphan, repository/task/host
+  mismatch, and duplicate ownership with byte/logical manifests proving zero writes.
+- **SC-024**: Terminal cancellation and every invalid reason return stable public errors with zero
+  writes; valid active and blocked cancellation still commit once and release the claim.
+- **SC-025**: Delivery rejects empty, omitted, stale, duplicate, cross-list, wrong-source, failed, or
+  incomplete current evidence and succeeds only with the exact Core-derived ordered evidence sets.
 
 ## Assumptions
 

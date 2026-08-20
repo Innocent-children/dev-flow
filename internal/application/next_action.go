@@ -6,43 +6,22 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/domain"
 )
 
-// GetNextAction projects the persisted action, blocker, or terminal outcome.
-// It never generates workflow identity and recovery assessment remains read-only.
-func (s *Service) GetNextAction(ctx context.Context, request GetNextActionRequest) (NextActionResult, error) {
-	if !s.valid() || validateReadRequest(ctx, request.Host, request.TaskID) != nil {
+func (s *Service) GetNextAction(ctx context.Context, r GetNextActionRequest) (NextActionResult, error) {
+	if !s.valid() || ctx == nil || !r.Host.IsValid() || !r.TaskID.IsValid() {
 		return NextActionResult{}, domain.ErrInvalidArgument
 	}
-	task, err := s.loadOwnedTask(ctx, request.Host, request.TaskID)
+	if r.OperationProbe != nil {
+		read, err := s.GetTask(ctx, GetTaskRequest{Host: r.Host, TaskID: r.TaskID, OperationProbe: r.OperationProbe})
+		if err != nil {
+			return NextActionResult{}, err
+		}
+		task := read.Task
+		return NextActionResult{TaskID: task.TaskID, Process: task.Process, CurrentNode: task.CurrentNode, Revision: task.Revision, MethodProfile: task.Intent.MethodProfile, Action: task.CurrentAction, Outcome: task.Outcome, Blocker: task.Blocker, RecoveryAssessment: read.RecoveryAssessment}, nil
+	}
+	task, err := s.loadOwned(ctx, r.Host, r.TaskID)
 	if err != nil {
 		return NextActionResult{}, err
 	}
-	assessment, err := s.assessOperationProbe(ctx, request.Host, task, request.OperationProbe)
-	if err != nil {
-		return NextActionResult{}, err
-	}
-	result := NextActionResult{
-		TaskID: task.TaskID, Phase: task.Phase, Revision: task.Revision,
-		RecoveryAssessment: assessment,
-	}
-	if task.Phase.Terminal() {
-		if task.Outcome == nil {
-			return NextActionResult{}, domain.ErrInternal
-		}
-		outcome := task.Outcome.Clone()
-		result.Outcome = &outcome
-		return result, nil
-	}
-	if task.CurrentAction == nil {
-		return NextActionResult{}, domain.ErrInternal
-	}
-	action := task.CurrentAction.Clone()
-	result.Action = &action
-	if task.Phase == domain.PhaseBlocked {
-		if task.Blocker == nil {
-			return NextActionResult{}, domain.ErrInternal
-		}
-		blocker := *task.Blocker
-		result.Blocker = &blocker
-	}
+	result := NextActionResult{TaskID: task.TaskID, Process: task.Process, CurrentNode: task.CurrentNode, Revision: task.Revision, MethodProfile: task.Intent.MethodProfile, Action: task.CurrentAction, Outcome: task.Outcome, Blocker: task.Blocker}
 	return result, nil
 }

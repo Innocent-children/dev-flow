@@ -2,71 +2,160 @@ package store
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"errors"
-	"math"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
-	sqlite "modernc.org/sqlite"
-	sqlite3 "modernc.org/sqlite/lib"
+	"github.com/Innocent-children/dev-flow/internal/workflow"
+	_ "modernc.org/sqlite"
 )
 
-// SQLite is the Schema 1 implementation of Store.
-type SQLite struct {
-	db *sql.DB
-}
+type SQLite struct{ db *sql.DB }
 
-// Open opens or creates one SQLite task store and verifies its schema before
-// returning it to the caller.
 func Open(ctx context.Context, path string) (*SQLite, error) {
-	dsn, err := sqliteDataSourceName(path)
+	if path == "" {
+		return nil, ErrInvalidArgument
+	}
+	absolute, err := filepath.Abs(path)
 	if err != nil {
 		return nil, ErrInvalidArgument
 	}
-
+	if info, err := os.Stat(absolute); err == nil && info.Size() > 0 {
+		if err := preflightExisting(ctx, absolute); err != nil {
+			return nil, err
+		}
+	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, ErrStorageUnavailable
+	}
+	dsn := dataSource(absolute, false)
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, ErrStorageUnavailable
 	}
 	db.SetMaxOpenConns(1)
-
 	if err := db.PingContext(ctx); err != nil {
-		_ = db.Close()
+		db.Close()
 		return nil, ErrStorageUnavailable
 	}
-	if err := migrate(ctx, db, time.Now()); err != nil {
-		_ = db.Close()
+	if err := bootstrapSchema2(ctx, db, time.Now()); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := preflightRows(ctx, db); err != nil {
+		db.Close()
 		return nil, err
 	}
 	return &SQLite{db: db}, nil
 }
-
-func sqliteDataSourceName(path string) (string, error) {
-	if path == "" {
-		return "", ErrInvalidArgument
+func dataSource(path string, readOnly bool) string {
+	u := &url.URL{Scheme: "file", Path: filepath.Clean(path)}
+	q := u.Query()
+	q.Set("_foreign_keys", "on")
+	q.Set("_busy_timeout", strconv.FormatInt(domain.SQLiteBusyTimeout.Milliseconds(), 10))
+	if readOnly {
+		q.Set("mode", "ro")
+		q.Set("immutable", "1")
 	}
-	absolute, err := filepath.Abs(path)
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+func preflightExisting(ctx context.Context, path string) error {
+	db, err := sql.Open("sqlite", dataSource(path, true))
 	if err != nil {
-		return "", err
+		return ErrSchemaUnsupported
 	}
-	u := &url.URL{Scheme: "file", Path: filepath.Clean(absolute)}
-	query := u.Query()
-	query.Set("_foreign_keys", "on")
-	query.Set("_busy_timeout", strconv.FormatInt(domain.SQLiteBusyTimeout.Milliseconds(), 10))
-	u.RawQuery = query.Encode()
-	return u.String(), nil
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	if err := db.PingContext(ctx); err != nil {
+		return ErrSchemaUnsupported
+	}
+	if err := verifySchema2(ctx, db); err != nil {
+		return err
+	}
+	return preflightRows(ctx, db)
+}
+func preflightRows(ctx context.Context, db *sql.DB) error {
+	rows, err := db.QueryContext(ctx, `SELECT task_id,origin_host,process_id,process_version,process_definition_digest,snapshot_version,current_node,revision,repository_identity,snapshot,created_at,updated_at FROM tasks`)
+	if err != nil {
+		return ErrSchemaUnsupported
+	}
+	defer rows.Close()
+	standard := workflow.StandardProcess().Reference
+	tasks := map[string]preflightTask{}
+	for rows.Next() {
+		var taskID, originHost, processID, digest, node, repositoryIdentity, createdAt, updatedAt string
+		var version, snapshotVersion int
+		var revision int64
+		var snapshot []byte
+		if err := rows.Scan(&taskID, &originHost, &processID, &version, &digest, &snapshotVersion, &node, &revision, &repositoryIdentity, &snapshot, &createdAt, &updatedAt); err != nil {
+			return ErrStorageUnavailable
+		}
+		if processID != string(standard.ID) || version != int(standard.Version) || digest != string(standard.DefinitionDigest) {
+			return ErrProcessUnsupported
+		}
+		if snapshotVersion != SnapshotVersion {
+			return ErrSchemaUnsupported
+		}
+		task, err := decodeTask(snapshot)
+		if err != nil {
+			return err
+		}
+		if string(task.TaskID) != taskID || string(task.OriginHost) != originHost || task.Process != standard || string(task.CurrentNode) != node || int64(task.Revision) != revision || string(task.Repository.RepositoryIdentity) != repositoryIdentity || formatTime(task.CreatedAt) != createdAt || formatTime(task.UpdatedAt) != updatedAt {
+			return ErrStorageUnavailable
+		}
+		if _, exists := tasks[taskID]; exists {
+			return ErrStorageUnavailable
+		}
+		tasks[taskID] = preflightTask{repositoryIdentity: repositoryIdentity, originHost: originHost, terminal: task.CurrentNode.Terminal()}
+	}
+	if rows.Err() != nil || rows.Close() != nil {
+		return ErrStorageUnavailable
+	}
+	claims, err := db.QueryContext(ctx, `SELECT repository_identity,task_id,origin_host FROM repository_claims`)
+	if err != nil {
+		return ErrSchemaUnsupported
+	}
+	defer claims.Close()
+	claimCount := map[string]int{}
+	for claims.Next() {
+		var repositoryIdentity, taskID, originHost string
+		if err := claims.Scan(&repositoryIdentity, &taskID, &originHost); err != nil {
+			claims.Close()
+			return ErrStorageUnavailable
+		}
+		task, exists := tasks[taskID]
+		if !exists || task.terminal || task.repositoryIdentity != repositoryIdentity || task.originHost != originHost {
+			claims.Close()
+			return ErrStorageUnavailable
+		}
+		claimCount[taskID]++
+		if claimCount[taskID] != 1 {
+			claims.Close()
+			return ErrStorageUnavailable
+		}
+	}
+	if claims.Err() != nil || claims.Close() != nil {
+		return ErrStorageUnavailable
+	}
+	for taskID, task := range tasks {
+		if task.terminal && claimCount[taskID] != 0 || !task.terminal && claimCount[taskID] != 1 {
+			return ErrStorageUnavailable
+		}
+	}
+	return nil
 }
 
-// Close releases the database handle. It does not remove persisted data.
+type preflightTask struct {
+	repositoryIdentity string
+	originHost         string
+	terminal           bool
+}
+
 func (s *SQLite) Close() error {
 	if s == nil || s.db == nil {
 		return nil
@@ -76,148 +165,68 @@ func (s *SQLite) Close() error {
 	}
 	return nil
 }
-
-// LoadTask reads the authoritative typed snapshot for taskID in a read-only
-// transaction.
-func (s *SQLite) LoadTask(ctx context.Context, taskID domain.ID) (domain.Task, error) {
-	if s == nil || s.db == nil || !validIdentifier(string(taskID)) {
-		return domain.Task{}, ErrInvalidArgument
-	}
-	return s.loadTask(
-		ctx,
-		`SELECT task_id, origin_host, phase, revision, repository_identity,
-		        snapshot, created_at, updated_at
-		   FROM tasks
-		  WHERE task_id = ?`,
-		string(taskID),
-	)
+func (s *SQLite) LoadTask(ctx context.Context, id domain.ID) (domain.ProcessTask, error) {
+	return s.load(ctx, `SELECT task_id,origin_host,process_id,process_version,process_definition_digest,snapshot_version,current_node,revision,repository_identity,snapshot,created_at,updated_at FROM tasks WHERE task_id=?`, string(id))
 }
-
-// LoadActiveTask resolves the unique active task through its repository claim.
-func (s *SQLite) LoadActiveTask(
-	ctx context.Context,
-	repositoryIdentity domain.Digest,
-) (domain.Task, error) {
-	if s == nil || s.db == nil || !validSHA256(string(repositoryIdentity)) {
-		return domain.Task{}, ErrInvalidArgument
-	}
-	return s.loadTask(
-		ctx,
-		`SELECT t.task_id, t.origin_host, t.phase, t.revision, t.repository_identity,
-		        t.snapshot, t.created_at, t.updated_at
-		   FROM repository_claims AS c
-		   JOIN tasks AS t ON t.task_id = c.task_id
-		  WHERE c.repository_identity = ?`,
-		string(repositoryIdentity),
-	)
+func (s *SQLite) LoadActiveTask(ctx context.Context, identity domain.Digest) (domain.ProcessTask, error) {
+	return s.load(ctx, `SELECT t.task_id,t.origin_host,t.process_id,t.process_version,t.process_definition_digest,t.snapshot_version,t.current_node,t.revision,t.repository_identity,t.snapshot,t.created_at,t.updated_at FROM repository_claims c JOIN tasks t ON t.task_id=c.task_id WHERE c.repository_identity=?`, string(identity))
 }
-
-func (s *SQLite) loadTask(
-	ctx context.Context,
-	query string,
-	argument string,
-) (task domain.Task, err error) {
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{
-		Isolation: sql.LevelSerializable,
-		ReadOnly:  true,
-	})
-	if err != nil {
-		return domain.Task{}, ErrStorageUnavailable
+func (s *SQLite) load(ctx context.Context, query, arg string) (domain.ProcessTask, error) {
+	if s == nil || s.db == nil {
+		return domain.ProcessTask{}, ErrStorageUnavailable
 	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
-
-	var (
-		taskID, originHost, phase, repositoryIdentity string
-		revision                                      int64
-		snapshot                                      []byte
-		createdAt, updatedAt                          string
-	)
-	err = tx.QueryRowContext(ctx, query, argument).Scan(
-		&taskID,
-		&originHost,
-		&phase,
-		&revision,
-		&repositoryIdentity,
-		&snapshot,
-		&createdAt,
-		&updatedAt,
-	)
-	if err == sql.ErrNoRows {
-		return domain.Task{}, ErrTaskNotFound
+	var taskID, host, processID, digest, node, identity, created, updated string
+	var version, snapshotVersion int
+	var revision int64
+	var snapshot []byte
+	err := s.db.QueryRowContext(ctx, query, arg).Scan(&taskID, &host, &processID, &version, &digest, &snapshotVersion, &node, &revision, &identity, &snapshot, &created, &updated)
+	if errors.Is(err, sql.ErrNoRows) {
+		return domain.ProcessTask{}, ErrTaskNotFound
 	}
 	if err != nil {
-		return domain.Task{}, ErrStorageUnavailable
+		return domain.ProcessTask{}, ErrStorageUnavailable
 	}
-
-	task, err = decodeTask(snapshot)
+	task, err := decodeTask(snapshot)
 	if err != nil {
-		return domain.Task{}, err
+		return domain.ProcessTask{}, err
 	}
-	if !taskMatchesColumns(
-		task,
-		taskID,
-		originHost,
-		phase,
-		revision,
-		repositoryIdentity,
-		createdAt,
-		updatedAt,
-	) {
-		return domain.Task{}, ErrStorageUnavailable
-	}
-	if err := tx.Commit(); err != nil {
-		return domain.Task{}, ErrStorageUnavailable
+	if taskID != string(task.TaskID) || host != string(task.OriginHost) || processID != string(task.Process.ID) || version != int(task.Process.Version) || digest != string(task.Process.DefinitionDigest) || snapshotVersion != 2 || node != string(task.CurrentNode) || revision != int64(task.Revision) || identity != string(task.Repository.RepositoryIdentity) || created != formatTime(task.CreatedAt) || updated != formatTime(task.UpdatedAt) {
+		return domain.ProcessTask{}, ErrStorageUnavailable
 	}
 	return task, nil
 }
-
-// CommitTask atomically commits one authoritative snapshot, its same-revision
-// audit event, and its repository-claim effect.
-func (s *SQLite) CommitTask(ctx context.Context, mutation TaskMutation) (err error) {
-	if s == nil || s.db == nil {
-		return ErrStorageUnavailable
+func (s *SQLite) CommitTask(ctx context.Context, m TaskMutation) error {
+	if s == nil || s.db == nil || validateMutation(m) != nil {
+		return ErrInvalidArgument
 	}
-	snapshot, err := encodeTask(mutation.Task)
+	snapshot, err := encodeTask(m.Task)
 	if err != nil {
 		return err
 	}
-	if err := validateMutation(mutation); err != nil {
-		return err
-	}
-	if mutation.ExpectedRevision != 0 {
-		current, err := s.LoadTask(ctx, mutation.Task.TaskID)
-		if err != nil {
-			return err
-		}
-		if current.Revision != mutation.ExpectedRevision {
-			return ErrRevisionConflict
-		}
-		if !current.Contract.Equal(mutation.Task.Contract) {
-			return ErrInvalidArgument
-		}
-	}
-
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return ErrStorageUnavailable
 	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
-
-	if mutation.ExpectedRevision == 0 {
-		if err := insertTask(ctx, tx, mutation.Task, snapshot); err != nil {
-			return err
+	defer tx.Rollback()
+	if m.ExpectedRevision == 0 {
+		_, err = tx.ExecContext(ctx, `INSERT INTO tasks(task_id,origin_host,process_id,process_version,process_definition_digest,snapshot_version,current_node,revision,repository_identity,snapshot,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, m.Task.TaskID, m.Task.OriginHost, m.Task.Process.ID, m.Task.Process.Version, m.Task.Process.DefinitionDigest, 2, m.Task.CurrentNode, m.Task.Revision, m.Task.Repository.RepositoryIdentity, snapshot, formatTime(m.Task.CreatedAt), formatTime(m.Task.UpdatedAt))
+	} else {
+		result, e := tx.ExecContext(ctx, `UPDATE tasks SET current_node=?,revision=?,snapshot=?,updated_at=? WHERE task_id=? AND revision=? AND process_id=? AND process_version=? AND process_definition_digest=? AND snapshot_version=2`, m.Task.CurrentNode, m.Task.Revision, snapshot, formatTime(m.Task.UpdatedAt), m.Task.TaskID, m.ExpectedRevision, m.Task.Process.ID, m.Task.Process.Version, m.Task.Process.DefinitionDigest)
+		err = e
+		if err == nil {
+			n, _ := result.RowsAffected()
+			if n != 1 {
+				return ErrRevisionConflict
+			}
 		}
-	} else if err := compareAndSwapTask(ctx, tx, mutation, snapshot); err != nil {
+	}
+	if err != nil {
+		return ErrStorageUnavailable
+	}
+	if err := insertEvent(ctx, tx, m.Event); err != nil {
 		return err
 	}
-	if err := insertEvent(ctx, tx, mutation.Event); err != nil {
-		return err
-	}
-	if err := applyClaim(ctx, tx, mutation); err != nil {
+	if err := applyClaim(ctx, tx, m); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {
@@ -225,335 +234,70 @@ func (s *SQLite) CommitTask(ctx context.Context, mutation TaskMutation) (err err
 	}
 	return nil
 }
-
-func insertTask(ctx context.Context, tx *sql.Tx, task domain.Task, snapshot []byte) error {
-	_, err := tx.ExecContext(
-		ctx,
-		`INSERT INTO tasks (
-		     task_id, origin_host, phase, revision, repository_identity,
-		     snapshot, created_at, updated_at
-		 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		string(task.TaskID),
-		string(task.OriginHost),
-		string(task.Phase),
-		int64(task.Revision),
-		string(task.Repository.RepositoryIdentity),
-		snapshot,
-		formatTime(task.CreatedAt),
-		formatTime(task.UpdatedAt),
-	)
+func insertEvent(ctx context.Context, tx *sql.Tx, e TaskEvent) error {
+	var transition, reason, action any
+	if e.TransitionID != nil {
+		transition = string(*e.TransitionID)
+	}
+	if e.TransitionReason != "" {
+		reason = e.TransitionReason
+	}
+	if e.ActionID != nil {
+		action = string(*e.ActionID)
+	}
+	_, err := tx.ExecContext(ctx, `INSERT INTO task_events(event_id,task_id,revision,event_type,source_node,destination_node,transition_id,transition_reason,action_id,request_id,payload_digest,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, e.EventID, e.TaskID, e.Revision, e.Kind, e.SourceNode, e.DestinationNode, transition, reason, action, e.RequestID, e.PayloadDigest, formatTime(e.CreatedAt))
 	if err != nil {
 		return ErrStorageUnavailable
 	}
 	return nil
 }
-
-func compareAndSwapTask(
-	ctx context.Context,
-	tx *sql.Tx,
-	mutation TaskMutation,
-	snapshot []byte,
-) error {
-	task := mutation.Task
-	result, err := tx.ExecContext(
-		ctx,
-		`UPDATE tasks
-		    SET phase = ?, revision = ?, snapshot = ?, updated_at = ?
-		  WHERE task_id = ?
-		    AND revision = ?
-		    AND origin_host = ?
-		    AND repository_identity = ?
-		    AND created_at = ?
-		    AND phase = ?`,
-		string(task.Phase),
-		int64(task.Revision),
-		snapshot,
-		formatTime(task.UpdatedAt),
-		string(task.TaskID),
-		int64(mutation.ExpectedRevision),
-		string(task.OriginHost),
-		string(task.Repository.RepositoryIdentity),
-		formatTime(task.CreatedAt),
-		string(mutation.Event.PhaseBefore),
-	)
-	if err != nil {
-		return ErrStorageUnavailable
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return ErrStorageUnavailable
-	}
-	if rows == 1 {
-		return nil
-	}
-
-	var revision int64
-	err = tx.QueryRowContext(
-		ctx,
-		`SELECT revision FROM tasks WHERE task_id = ?`,
-		string(task.TaskID),
-	).Scan(&revision)
-	if err == sql.ErrNoRows {
-		return ErrTaskNotFound
-	}
-	if err != nil {
-		return ErrStorageUnavailable
-	}
-	if revision != int64(mutation.ExpectedRevision) {
-		return ErrRevisionConflict
-	}
-	return ErrInvalidArgument
-}
-
-func insertEvent(ctx context.Context, tx *sql.Tx, event TaskEvent) error {
-	var actionID any
-	if event.ActionID != nil {
-		actionID = string(*event.ActionID)
-	}
-	_, err := tx.ExecContext(
-		ctx,
-		`INSERT INTO task_events (
-		     event_id, task_id, revision, event_type, phase_before, phase_after,
-		     action_id, request_id, payload_digest, created_at
-		 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		string(event.EventID),
-		string(event.TaskID),
-		int64(event.Revision),
-		string(event.Kind),
-		string(event.PhaseBefore),
-		string(event.PhaseAfter),
-		actionID,
-		string(event.RequestID),
-		string(event.PayloadDigest),
-		formatTime(event.CreatedAt),
-	)
-	if err != nil {
-		return ErrStorageUnavailable
-	}
-	return nil
-}
-
-func applyClaim(ctx context.Context, tx *sql.Tx, mutation TaskMutation) error {
-	task := mutation.Task
-	switch mutation.Claim {
+func applyClaim(ctx context.Context, tx *sql.Tx, m TaskMutation) error {
+	switch m.Claim {
 	case ClaimAcquire:
-		var insertedRepositoryIdentity string
-		err := tx.QueryRowContext(
-			ctx,
-			`INSERT INTO repository_claims (
-			     repository_identity, task_id, origin_host, claimed_at
-			 ) VALUES (?, ?, ?, ?)
-			 ON CONFLICT(repository_identity) DO NOTHING
-			 RETURNING repository_identity`,
-			string(task.Repository.RepositoryIdentity),
-			string(task.TaskID),
-			string(task.OriginHost),
-			formatTime(mutation.Event.CreatedAt),
-		).Scan(&insertedRepositoryIdentity)
-		switch {
-		case err == nil:
-			if insertedRepositoryIdentity != string(task.Repository.RepositoryIdentity) {
-				return ErrStorageUnavailable
-			}
-			return nil
-		case ctx.Err() != nil:
-			return ErrStorageUnavailable
-		case errors.Is(err, sql.ErrNoRows):
-			if claimedRepositoryConflict(ctx, tx, task.Repository.RepositoryIdentity) {
-				return ErrActiveTaskConflict
-			}
-			return ErrStorageUnavailable
-		case claimedTaskConflict(ctx, tx, task.TaskID, err):
+		_, err := tx.ExecContext(ctx, `INSERT INTO repository_claims(repository_identity,task_id,origin_host,claimed_at) VALUES(?,?,?,?)`, m.Task.Repository.RepositoryIdentity, m.Task.TaskID, m.Task.OriginHost, formatTime(m.Event.CreatedAt))
+		if err != nil {
 			return ErrActiveTaskConflict
-		default:
-			return ErrStorageUnavailable
 		}
 	case ClaimRetain:
-		var repositoryIdentity, originHost string
-		err := tx.QueryRowContext(
-			ctx,
-			`SELECT repository_identity, origin_host
-			   FROM repository_claims
-			  WHERE task_id = ?`,
-			string(task.TaskID),
-		).Scan(&repositoryIdentity, &originHost)
-		if err != nil ||
-			repositoryIdentity != string(task.Repository.RepositoryIdentity) ||
-			originHost != string(task.OriginHost) {
+		var n int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM repository_claims WHERE repository_identity=? AND task_id=?`, m.Task.Repository.RepositoryIdentity, m.Task.TaskID).Scan(&n); err != nil || n != 1 {
 			return ErrStorageUnavailable
 		}
-		return nil
 	case ClaimRelease:
-		result, err := tx.ExecContext(
-			ctx,
-			`DELETE FROM repository_claims
-			  WHERE repository_identity = ? AND task_id = ? AND origin_host = ?`,
-			string(task.Repository.RepositoryIdentity),
-			string(task.TaskID),
-			string(task.OriginHost),
-		)
+		result, err := tx.ExecContext(ctx, `DELETE FROM repository_claims WHERE repository_identity=? AND task_id=?`, m.Task.Repository.RepositoryIdentity, m.Task.TaskID)
 		if err != nil {
 			return ErrStorageUnavailable
 		}
-		rows, err := result.RowsAffected()
-		if err != nil || rows != 1 {
+		n, _ := result.RowsAffected()
+		if n != 1 {
 			return ErrStorageUnavailable
-		}
-		return nil
-	default:
-		return ErrInvalidArgument
-	}
-}
-
-func validateMutation(mutation TaskMutation) error {
-	task := mutation.Task
-	if mutation.ExpectedRevision > math.MaxInt64 ||
-		task.Revision > math.MaxInt64 ||
-		mutation.ExpectedRevision == math.MaxUint64 ||
-		task.Revision != mutation.ExpectedRevision+1 {
-		return ErrInvalidArgument
-	}
-	if !validIdentifier(string(task.TaskID)) ||
-		mutation.Event.TaskID != task.TaskID ||
-		mutation.Event.Revision != task.Revision ||
-		mutation.Event.PhaseAfter != task.Phase ||
-		!validTaskEvent(mutation.Event) {
-		return ErrInvalidArgument
-	}
-	operation := task.LastOperation
-	if operation == nil || operation.Validate() != nil ||
-		operation.OperationID != mutation.Event.RequestID ||
-		operation.Kind != mutation.Event.Kind ||
-		!sameOptionalID(operation.ActionID, mutation.Event.ActionID) ||
-		operation.FromRevision != mutation.ExpectedRevision ||
-		operation.ToRevision != task.Revision ||
-		operation.ToRevision != mutation.Event.Revision ||
-		operation.PayloadDigest != mutation.Event.PayloadDigest ||
-		!operation.CommittedAt.Equal(mutation.Event.CreatedAt) {
-		return ErrInvalidArgument
-	}
-	switch operation.Kind {
-	case domain.OperationOpenTask:
-		if mutation.ExpectedRevision != 0 || mutation.Claim != ClaimAcquire || task.Phase.Terminal() ||
-			mutation.Event.PhaseBefore != task.Phase {
-			return ErrInvalidArgument
-		}
-	case domain.OperationApplyAction:
-		if mutation.ExpectedRevision == 0 || task.Phase == domain.PhaseCancelled ||
-			(task.Phase == domain.PhaseDone && mutation.Claim != ClaimRelease) ||
-			(task.Phase != domain.PhaseDone && mutation.Claim != ClaimRetain) {
-			return ErrInvalidArgument
-		}
-	case domain.OperationCancelTask:
-		if mutation.ExpectedRevision == 0 || task.Phase != domain.PhaseCancelled ||
-			mutation.Claim != ClaimRelease {
-			return ErrInvalidArgument
 		}
 	default:
 		return ErrInvalidArgument
 	}
 	return nil
 }
-
-func validTaskEvent(event TaskEvent) bool {
-	return validIdentifier(string(event.EventID)) &&
-		validIdentifier(string(event.TaskID)) &&
-		event.Kind.IsValid() &&
-		(event.ActionID == nil || validIdentifier(string(*event.ActionID))) &&
-		validIdentifier(string(event.RequestID)) &&
-		validSHA256(string(event.PayloadDigest)) &&
-		event.PhaseBefore.IsValid() &&
-		event.PhaseAfter.IsValid() &&
-		!event.CreatedAt.IsZero() &&
-		isUTC(event.CreatedAt)
-}
-
-func sameOptionalID(left, right *domain.ID) bool {
-	if left == nil || right == nil {
-		return left == nil && right == nil
+func validateMutation(m TaskMutation) error {
+	if workflow.ValidateProcessTask(m.Task) != nil || m.Task.Revision != m.ExpectedRevision+1 || m.Event.TaskID != m.Task.TaskID || m.Event.Revision != m.Task.Revision || m.Event.DestinationNode != m.Task.CurrentNode || !m.Event.SourceNode.IsValid() || !m.Event.DestinationNode.IsValid() || m.Event.EventID == "" || m.Event.RequestID == "" || !m.Event.PayloadDigest.IsValid() {
+		return ErrInvalidArgument
 	}
-	return *left == *right
-}
-
-func claimedTaskConflict(ctx context.Context, tx *sql.Tx, taskID domain.ID, cause error) bool {
-	var sqliteError *sqlite.Error
-	if !errors.As(cause, &sqliteError) {
-		return false
+	op := m.Task.LastOperation
+	if op == nil || op.Validate() != nil || op.OperationID != m.Event.RequestID || op.Kind != m.Event.Kind || op.FromRevision != m.ExpectedRevision || op.ToRevision != m.Task.Revision || op.PayloadDigest != m.Event.PayloadDigest || !op.CommittedAt.Equal(m.Event.CreatedAt) || !sameOptionalID(op.ActionID, m.Event.ActionID) {
+		return ErrInvalidArgument
 	}
-	switch sqliteError.Code() {
-	case sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY, sqlite3.SQLITE_CONSTRAINT_UNIQUE:
-	default:
-		return false
+	if m.Event.TransitionID != nil {
+		definition := workflow.StandardProcess()
+		transition, err := workflow.TransitionFor(definition, m.Event.SourceNode, *m.Event.TransitionID)
+		if err != nil || transition.Destination != m.Event.DestinationNode || (transition.ReasonRequired != (m.Event.TransitionReason != "")) {
+			return ErrInvalidArgument
+		}
 	}
-
-	var existingTaskID string
-	err := tx.QueryRowContext(
-		ctx,
-		`SELECT task_id
-		   FROM repository_claims
-		  WHERE task_id = ?`,
-		string(taskID),
-	).Scan(&existingTaskID)
-	return err == nil && existingTaskID == string(taskID)
+	return nil
 }
-
-func claimedRepositoryConflict(
-	ctx context.Context,
-	tx *sql.Tx,
-	repositoryIdentity domain.Digest,
-) bool {
-	var existingRepositoryIdentity string
-	err := tx.QueryRowContext(
-		ctx,
-		`SELECT repository_identity
-		   FROM repository_claims
-		  WHERE repository_identity = ?`,
-		string(repositoryIdentity),
-	).Scan(&existingRepositoryIdentity)
-	return err == nil && existingRepositoryIdentity == string(repositoryIdentity)
-}
-
-func validIdentifier(value string) bool {
-	return utf8.ValidString(value) &&
-		value != "" &&
-		len(value) <= domain.MaxIdentifierBytes &&
-		strings.TrimSpace(value) == value &&
-		strings.IndexFunc(value, unicode.IsSpace) < 0
-}
-
-func validSHA256(value string) bool {
-	if len(value) != sha256.Size*2 || strings.ToLower(value) != value {
-		return false
+func sameOptionalID(a, b *domain.ID) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
 	}
-	_, err := hex.DecodeString(value)
-	return err == nil
+	return *a == *b
 }
-
-func isUTC(value time.Time) bool {
-	_, offset := value.Zone()
-	return offset == 0
-}
-
-func formatTime(value time.Time) string {
-	return value.UTC().Format(time.RFC3339Nano)
-}
-
-func taskMatchesColumns(
-	task domain.Task,
-	taskID string,
-	originHost string,
-	phase string,
-	revision int64,
-	repositoryIdentity string,
-	createdAt string,
-	updatedAt string,
-) bool {
-	return revision >= 0 &&
-		string(task.TaskID) == taskID &&
-		string(task.OriginHost) == originHost &&
-		string(task.Phase) == phase &&
-		task.Revision == uint64(revision) &&
-		string(task.Repository.RepositoryIdentity) == repositoryIdentity &&
-		formatTime(task.CreatedAt) == createdAt &&
-		formatTime(task.UpdatedAt) == updatedAt
-}
+func formatTime(v time.Time) string { return v.UTC().Format(time.RFC3339Nano) }

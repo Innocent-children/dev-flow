@@ -15,6 +15,25 @@
 - Standard task state is governed only by `standard-development@1`.
 - Tool/method artifacts never mutate Core without a valid `dev_flow_apply_action`.
 
+### 1.1 Result-envelope and mutation-operation request identity
+
+`Envelope.request_id` has one frozen rule:
+
+- for `dev_flow_apply_action` and `dev_flow_cancel_task`, it equals the valid caller-provided
+  top-level `request_id` on both success and domain-error results;
+- that same apply/cancel identity is the mutation operation ID persisted in
+  `Task.LastOperation.operation_id` and `TaskEvent.request_id` when a mutation commits;
+- an uncertain apply probe therefore uses the original caller apply `request_id` as
+  `operation_id`;
+- tools without a caller-provided `request_id` use a Core-generated local transport request
+  identity in the result envelope;
+- when a malformed mutation input has no valid unambiguous caller `request_id`, the error envelope
+  uses the Core-generated transport request identity.
+
+The MCP SDK/JSON-RPC request identity is transport framing and is not projected as the mutation
+operation identity. Adapters must not compare unrelated generated read identities to an apply
+operation. For an apply/cancel result with a valid caller request identity, mismatch is a contract failure and must not be silently ignored.
+
 ## 2. Exact Tool Catalog
 
 ```text
@@ -110,6 +129,12 @@ intentionally permits requirements grooming after task creation.
 `status` is `completed`, `not_run`, `unavailable`, or `plain_fallback`. `step_id` must be returned by
 the current action. Command logs, prompts, token data, and environment dumps are forbidden.
 
+A normal mutation submits exactly one item for every current Action method step. Unknown, duplicate,
+previous-node, and missing step IDs are forbidden. Every current normal step is required and is
+satisfied only by `completed` or `plain_fallback`; `unavailable` and `not_run` are valid status
+spellings but do not satisfy a required step. Syntactically valid incomplete/unsatisfied coverage
+returns `TRANSITION_NOT_ALLOWED`; malformed fields return `INVALID_ARGUMENT`.
+
 ### 3.5 Verification evidence input
 
 ```json
@@ -128,7 +153,8 @@ identity and digest after validation.
 
 ## 4. Shared Operation Probe
 
-`dev_flow_get_task` and `dev_flow_get_next_action` accept optional `operation_probe`:
+`dev_flow_get_task` and `dev_flow_get_next_action` accept optional `operation_probe`. Omission and
+explicit JSON `null` are ordinary read requests. A non-null value uses this closed syntax:
 
 ```json
 {
@@ -146,7 +172,11 @@ identity and digest after validation.
     "summary": "Removed the unnecessary factory.",
     "reason": "",
     "artifacts": [],
-    "method_evidence": [],
+    "method_evidence": [
+      {"step_id": "refactor.simplify", "status": "plain_fallback", "capability": "", "summary": "Completed the bounded simplification."},
+      {"step_id": "refactor.reconcile_artifacts", "status": "plain_fallback", "capability": "", "summary": "Reconciled affected process artifacts."},
+      {"step_id": "refactor.record_surface", "status": "plain_fallback", "capability": "", "summary": "Recorded the exact changed surface."}
+    ],
     "node_result": {
       "changed_paths": ["internal/order/factory.go"],
       "no_file_changes": false,
@@ -170,8 +200,8 @@ Rules:
 
 ### Recovery assessment
 
-A successful probed read returns the same five-class assessment model as Core Contract 0.1, updated
-to carry process reference and `source_cursor` instead of assuming a standard phase:
+The final Phase 7 target is the same five-class assessment model as Core Contract 0.1, updated to
+carry process reference and `source_cursor` instead of assuming a standard phase:
 
 ```text
 not_started
@@ -181,8 +211,36 @@ partially_completed
 conflicting
 ```
 
-The assessment remains transient/read-only. Apply results never embed the assessment. The
-result-envelope top-level error `recovery` object remains error advice and is not a classification.
+Phase 7A implements this route. A valid non-null probe loads the authoritative graph task, observes
+the repository exactly once, and returns a transient closed assessment containing:
+
+```text
+classification
+operation
+task_revision
+current_action_id
+issuance_binding_digest
+authoritative_binding_digest
+observed_binding_digest
+repository_relation
+last_operation_relation
+operation_evidence
+operation_payload_digest
+committed_proof
+action_retry_safe
+next_advice
+unblock_condition
+observed_at
+```
+
+`operation` contains the original process ID/version/digest, source cursor, expected revision,
+action ID/kind, and operation ID. The internal mutation directive, canonical repository root, raw
+Git output, raw payload, TaskEvent row, and private error are not projected. Probed reads never
+mutate Task/Event/Evidence/Claim/Schema state or create a blocker. Malformed, incomplete,
+unknown-member, or duplicate-member probes return `INVALID_ARGUMENT`. Ordinary omitted/null reads
+return `recovery_assessment:null`. Apply results never embed the assessment.
+The result-envelope top-level error `recovery` object remains error advice and is not a
+classification. Phase 5D does not claim that assessment behavior is implemented.
 
 ## 5. `dev_flow_server_info`
 
@@ -225,6 +283,11 @@ result-envelope top-level error `recovery` object remains error advice and is no
 
 No task, path, database, method installation, or environment data is returned.
 
+This is an explicit public DTO, not direct serialization of an internal `ProcessReference`.
+`supported_processes` uses `definition_digest` (never `process_definition_digest`) and adds only
+`new_task_supported`. The top-level member order shown above, the supported-process member order,
+the method-profile order, and the six-tool order are fixture-frozen; no additional member is allowed.
+
 ## 6. `dev_flow_open_task`
 
 Creates a new standard task or resumes the unique compatible active task for the repository/host.
@@ -262,6 +325,9 @@ Creates a new standard task or resumes the unique compatible active task for the
 ```
 
 `new_task` may be omitted or null only for resume.
+
+The top-level schema requires only `host` and `repository_path`; `new_task` is optional and nullable.
+Unknown/duplicate members remain invalid.
 
 ### Selection rules
 
@@ -446,6 +512,7 @@ completion_conditions
 allowed_effects
 required_evidence
 method_steps
+method_profile
 available_transitions
 payload_contract
 guidance
@@ -474,7 +541,8 @@ repository_binding_digest
 ```
 
 Without a probe, it does not observe the repository and does not mutate. With a probe, it performs
-the existing bounded observation/classification and still performs zero task writes.
+the Phase 5D fail-closed behavior in Section 4 before any repository observation. The top-level
+schema requires only `host` and `task_id`; `operation_probe` is optional and nullable.
 
 ## 10. `dev_flow_get_next_action`
 
@@ -508,6 +576,12 @@ the existing bounded observation/classification and still performs zero task wri
 For terminal tasks, `action` and `blocker` are null and `outcome` is present. For blocked tasks,
 returns the exact persisted blocker and `RESOLVE_BLOCKER` action.
 
+`method_profile` always comes from immutable `TaskIntent.MethodProfile`, including active, blocked,
+`DONE`, and `CANCELLED` tasks; it never becomes empty merely because `action` is null.
+
+The top-level schema requires only `host` and `task_id`; `operation_probe` is optional and nullable
+and follows Section 4.
+
 ## 11. `dev_flow_apply_action`
 
 ### 11.1 Shared top-level input
@@ -533,9 +607,13 @@ returns the exact persisted blocker and `RESOLVE_BLOCKER` action.
 All identity values come from the same fresh action. `revision` is an integer. The top-level object
 must not be nested inside payload.
 
+`recovery_apply` is optional and nullable; it is not in the top-level `required` set. Omission/null
+selects ordinary mutation. A non-null value follows Section 11.12.
+
 ### 11.2 Shared standard payload envelope
 
-Every standard node payload is:
+Every standard node payload uses this illustrative REQUIREMENTS example; other nodes replace the
+three entries with their exact current-step set required by Section 3.4:
 
 ```json
 {
@@ -543,7 +621,11 @@ Every standard node payload is:
   "summary": "<required normalized summary>",
   "reason": "<empty or required according to transition>",
   "artifacts": [],
-  "method_evidence": [],
+  "method_evidence": [
+    {"step_id": "requirements.capture", "status": "plain_fallback", "capability": "", "summary": "Captured the bounded requirements."},
+    {"step_id": "requirements.clarify", "status": "plain_fallback", "capability": "", "summary": "Resolved material questions."},
+    {"step_id": "requirements.validate", "status": "plain_fallback", "capability": "", "summary": "Validated the requirements."}
+  ],
   "node_result": {}
 }
 ```
@@ -552,7 +634,11 @@ Common rules:
 
 - `transition_id`, `summary`, `reason`, `artifacts`, `method_evidence`, and `node_result` are required.
 - `reason` is empty for a transition with `reason_required=false`; non-empty for true.
-- `artifacts` and `method_evidence` may be empty when semantic obligations are otherwise satisfied.
+- `artifacts` may be empty when semantic obligations are otherwise satisfied.
+- `method_evidence` contains exactly one item for every current Action step, in Action order; it is
+  never empty for a normal node because all 24 catalog steps are required.
+- `completed` and `plain_fallback` satisfy a required step. `unavailable`, `not_run`, or a missing
+  required step returns `TRANSITION_NOT_ALLOWED` with zero writes.
 - `node_result` selects exactly one closed branch from the current action kind.
 - Caller destination/process/node/guard/classification fields are forbidden inside payload.
 
@@ -564,8 +650,13 @@ Common rules:
   "summary": "Requirements are bounded and testable.",
   "reason": "",
   "artifacts": [],
-  "method_evidence": [],
+  "method_evidence": [
+    {"step_id": "requirements.capture", "status": "plain_fallback", "capability": "", "summary": "Captured the bounded requirements."},
+    {"step_id": "requirements.clarify", "status": "plain_fallback", "capability": "", "summary": "Resolved material questions."},
+    {"step_id": "requirements.validate", "status": "plain_fallback", "capability": "", "summary": "Validated the requirements."}
+  ],
   "node_result": {
+    "problem_class": "none",
     "baseline": {
       "goal": "Simplify order submission while retaining behavior.",
       "scope": ["order submission path"],
@@ -584,7 +675,7 @@ Common rules:
 
 Rules:
 
-- only `requirements_ready` is accepted;
+- only `requirements_ready` with `problem_class=none` is accepted;
 - baseline and non-empty acceptance are required;
 - unresolved questions must be empty;
 - Core assigns baseline revision/digest/time.
@@ -597,8 +688,13 @@ Rules:
   "summary": "Selected a direct bounded design.",
   "reason": "",
   "artifacts": [],
-  "method_evidence": [],
+  "method_evidence": [
+    {"step_id": "design.choose_approach", "status": "plain_fallback", "capability": "", "summary": "Selected the simplest viable approach."},
+    {"step_id": "design.review_complexity", "status": "plain_fallback", "capability": "", "summary": "Reviewed and bounded complexity."},
+    {"step_id": "design.record_decisions", "status": "plain_fallback", "capability": "", "summary": "Recorded decisions and risks."}
+  ],
   "node_result": {
+    "problem_class": "none",
     "baseline": {
       "requirements_revision": 1,
       "approach": "Keep one service boundary and remove duplicate adapters.",
@@ -614,8 +710,8 @@ Rules:
 ```
 
 For `design_ready`, baseline is required and findings may be empty. For
-`design_requires_requirements`, baseline is null, findings contain a material requirement gap, and
-reason is required.
+`design_requires_requirements`, `problem_class=requirement_gap`, baseline is null, findings contain
+a material requirement gap, and reason is required. No other problem class is accepted.
 
 ### 11.5 TASKS result
 
@@ -625,8 +721,13 @@ reason is required.
   "summary": "The design is decomposed into bounded work.",
   "reason": "",
   "artifacts": [],
-  "method_evidence": [],
+  "method_evidence": [
+    {"step_id": "tasks.decompose", "status": "plain_fallback", "capability": "", "summary": "Decomposed the design into bounded work."},
+    {"step_id": "tasks.map_acceptance", "status": "plain_fallback", "capability": "", "summary": "Mapped acceptance to work and verification."},
+    {"step_id": "tasks.analyze_consistency", "status": "plain_fallback", "capability": "", "summary": "Checked requirements, design, and tasks for gaps."}
+  ],
   "node_result": {
+    "problem_class": "none",
     "baseline": {
       "design_revision": 1,
       "work_items": [
@@ -645,8 +746,9 @@ reason is required.
 }
 ```
 
-For `tasks_ready`, baseline is required. Backward transitions require null baseline, non-empty
-findings consistent with the selected destination, and reason.
+For `tasks_ready`, `problem_class=none` and baseline is required. `tasks_require_design` requires
+`design_gap`; `tasks_require_requirements` requires `requirement_gap`. Backward transitions require
+null baseline, non-empty findings consistent with the selected class, and reason.
 
 ### 11.6 IMPLEMENT result
 
@@ -656,8 +758,13 @@ findings consistent with the selected destination, and reason.
   "summary": "Removed the redundant adapter.",
   "reason": "",
   "artifacts": [],
-  "method_evidence": [],
+  "method_evidence": [
+    {"step_id": "implementation.execute_plan", "status": "plain_fallback", "capability": "", "summary": "Executed the current task plan."},
+    {"step_id": "implementation.record_surface", "status": "plain_fallback", "capability": "", "summary": "Recorded the changed surface."},
+    {"step_id": "implementation.classify_deviations", "status": "plain_fallback", "capability": "", "summary": "Classified implementation deviations."}
+  ],
   "node_result": {
+    "problem_class": "none",
     "task_plan_revision": 1,
     "completed_work_item_ids": ["remove-duplicate-adapter"],
     "changed_paths": ["internal/order/adapter.go"],
@@ -669,8 +776,10 @@ findings consistent with the selected destination, and reason.
 ```
 
 Exactly one of non-empty `changed_paths` or `no_file_changes=true` is accepted. Backward/refactor
-transitions require findings matching the selected problem class and a reason. The fresh repository
-observation is authoritative for accepted binding.
+transitions require the exact mapping `design_gap → implementation_requires_design`,
+`requirement_gap → implementation_requires_requirements`, or
+`code_complexity → implementation_needs_refactor`, plus matching non-empty findings and a reason.
+The fresh repository observation is authoritative for accepted binding.
 
 ### 11.7 TEST result
 
@@ -680,8 +789,13 @@ observation is authoritative for accepted binding.
   "summary": "Targeted order tests passed.",
   "reason": "",
   "artifacts": [],
-  "method_evidence": [],
+  "method_evidence": [
+    {"step_id": "test.run_budgeted_checks", "status": "plain_fallback", "capability": "", "summary": "Ran the budgeted checks."},
+    {"step_id": "test.record_evidence", "status": "plain_fallback", "capability": "", "summary": "Recorded current verification evidence."},
+    {"step_id": "test.classify_failure", "status": "plain_fallback", "capability": "", "summary": "Classified the current test result."}
+  ],
   "node_result": {
+    "problem_class": "none",
     "checks": [
       {
         "source": "automated",
@@ -702,9 +816,13 @@ observation is authoritative for accepted binding.
 
 Rules:
 
-- `tests_passed` requires no failed items/findings attributable to a defect and obeys budget.
-- A failure transition requires a reason and at least one failed check/item/finding consistent with
-  implementation, design, or requirement classification.
+- `tests_passed` requires `problem_class=none`, no failed items/classification findings, and obeys
+  budget.
+- Failure mappings are exact: `implementation_failure → tests_failed_implementation`,
+  `design_failure → tests_expose_design_issue`, and
+  `requirement_gap → tests_expose_requirement_issue`.
+- A failure transition requires a reason and at least one failed check/item/finding structurally
+  consistent with its exact class.
 - Core creates EvidenceSummary IDs and a current TestRecord only for `tests_passed`.
 
 ### 11.8 COMPREHENSION_REVIEW result
@@ -715,8 +833,13 @@ Rules:
   "summary": "The developer can explain and maintain the result.",
   "reason": "",
   "artifacts": [],
-  "method_evidence": [],
+  "method_evidence": [
+    {"step_id": "comprehension.explain", "status": "plain_fallback", "capability": "", "summary": "Explained the current behavior and code path."},
+    {"step_id": "comprehension.identify_complexity", "status": "plain_fallback", "capability": "", "summary": "Identified complexity and maintenance risks."},
+    {"step_id": "comprehension.obtain_user_verdict", "status": "plain_fallback", "capability": "", "summary": "Obtained the developer's explicit verdict."}
+  ],
   "node_result": {
+    "problem_class": "none",
     "explained_components": ["request entry", "submission guard", "repository write"],
     "unresolved_questions": [],
     "unnecessary_abstractions": [],
@@ -735,8 +858,14 @@ Rules:
 - pass requires current TestRecord, non-empty explained components, empty unresolved/abstraction
   lists, and the exact user-confirmation shape;
 - user confirmation creates a Core-owned user EvidenceSummary and ComprehensionAssessment;
-- remediation transitions require null user confirmation, a reason, and findings in the appropriate
-  list;
+- `allow_manual_handoff` does not control this confirmation; it controls only TEST manual-handoff
+  items and TEST `source=user` evidence. Confirmation still obeys common evidence count, ID, UTF-8,
+  text, digest, timestamp, and aggregate-size rules;
+- remediation mappings are exact:
+  `implementation_defect → implementation_defect`, `code_complexity → code_too_complex`,
+  `design_complexity → design_too_complex`, `verification_gap → evidence_insufficient`, and
+  `requirement_gap → requirement_unclear`; they require null user confirmation, a reason, and a
+  matching non-empty finding;
 - AI/static/host-observed evidence cannot substitute for `source=user`.
 
 ### 11.9 REFACTOR result
@@ -747,8 +876,13 @@ Rules:
   "summary": "Removed unnecessary indirection without intended behavior change.",
   "reason": "",
   "artifacts": [],
-  "method_evidence": [],
+  "method_evidence": [
+    {"step_id": "refactor.simplify", "status": "plain_fallback", "capability": "", "summary": "Completed the bounded simplification."},
+    {"step_id": "refactor.reconcile_artifacts", "status": "plain_fallback", "capability": "", "summary": "Reconciled affected process artifacts."},
+    {"step_id": "refactor.record_surface", "status": "plain_fallback", "capability": "", "summary": "Recorded the exact changed surface."}
+  ],
   "node_result": {
+    "problem_class": "none",
     "changed_paths": ["internal/order/factory.go"],
     "no_file_changes": false,
     "simplifications": ["Replaced the generic factory with direct construction"],
@@ -759,8 +893,10 @@ Rules:
 ```
 
 `refactor_ready_for_test` requires at least one simplification and proceeds only to `TEST`.
-Backward transitions require reason/findings. `behavior_change_intended=true` is invalid for the
-forward refactor edge and must route to design/requirements instead.
+Backward mappings are exact: `design_change → refactor_requires_design` and
+`requirement_change → refactor_requires_requirements`; both require matching reason/findings.
+`behavior_change_intended=true` is invalid for the forward refactor edge and must route to
+design/requirements instead.
 
 ### 11.10 DELIVERY result
 
@@ -770,8 +906,13 @@ forward refactor edge and must route to design/requirements instead.
   "summary": "Current acceptance, verification, comprehension, and risks are reconciled.",
   "reason": "",
   "artifacts": [],
-  "method_evidence": [],
+  "method_evidence": [
+    {"step_id": "delivery.reconcile_acceptance", "status": "plain_fallback", "capability": "", "summary": "Reconciled current acceptance and evidence."},
+    {"step_id": "delivery.reconcile_method_artifacts", "status": "plain_fallback", "capability": "", "summary": "Reconciled current method artifacts."},
+    {"step_id": "delivery.prepare_summary", "status": "plain_fallback", "capability": "", "summary": "Prepared the delivery summary and risks."}
+  ],
   "node_result": {
+    "problem_class": "none",
     "acceptance": [
       {
         "criterion": "duplicate submission remains rejected",
@@ -795,15 +936,27 @@ forward refactor edge and must route to design/requirements instead.
 
 For `delivery_complete`:
 
+- `problem_class=none`;
 - acceptance count/order/text equals latest requirements;
 - every criterion is satisfied;
 - test/comprehension IDs are exact/current;
-- evidence IDs resolve to correct sources;
-- unverified items and findings are empty;
+- `automated_evidence_ids` exactly equals, in original `TestRecord.EvidenceIDs` order, every current
+  passed evidence item whose source is `automated`;
+- `manual_evidence_ids` exactly equals, in original `TestRecord.EvidenceIDs` order, every current
+  passed evidence item whose source is `user`, followed by the current
+  `ComprehensionAssessment.UserEvidenceID`;
+- static and host-observed evidence remain reachable through `TestRecord.EvidenceIDs` but never
+  appear in either delivery list;
+- missing, extra, stale, nonexistent, failed, duplicate, cross-list, or wrong-source IDs are rejected;
+- `TestRecord.UnverifiedItems`, `TestRecord.ManualHandoffItems`, delivery unverified items, and
+  findings are all empty;
 - current repository binding matches both records.
 
-Backward transitions require no completed delivery data, a non-empty finding/reason, and select the
-matching remediation node.
+Backward mappings are exact:
+`implementation_gap → delivery_needs_implementation`, `test_gap → delivery_needs_test`,
+`comprehension_gap → delivery_needs_comprehension`, `design_gap → delivery_needs_design`, and
+`requirement_gap → delivery_needs_requirements`. They require no completed delivery data and a
+matching non-empty finding/reason.
 
 ### 11.11 Blocker resolution
 
@@ -812,7 +965,8 @@ cannot select a normal transition or destination.
 
 ### 11.12 Recovery apply
 
-`recovery_apply` is normally null. When Core read advice permits explicit recovery:
+`recovery_apply` may be omitted or null for an ordinary mutation. The closed non-null syntax reserved
+for Phase 7 is:
 
 ```json
 {
@@ -821,9 +975,15 @@ cannot select a normal transition or destination.
 }
 ```
 
-The top-level request carries the same original process/action identity. Payload is exact original
-payload or null. Core reruns classification and returns the ordinary committed/read-back Task shape,
-not a RecoveryAssessment object.
+The top-level request carries the same original process/action identity. Payload is the exact
+original payload or null.
+
+Phase 7A handles syntactically valid non-null `recovery_apply` by reloading the Task, observing the
+repository again, and rerunning Core reconciliation. `completed_and_recorded` and `not_started` are
+zero-write; `completed_but_unrecorded` commits the original graph transition once using the original
+operation identity; `partially_completed` and still-current `conflicting` create or return one
+graph-native recovery blocker. Malformed, incomplete, unknown-member, duplicate-member, stale-source,
+or contradictory identity input fails closed with zero writes.
 
 ## 12. Apply Success and Failure
 
@@ -841,6 +1001,7 @@ REVISION_CONFLICT
 ACTION_STALE
 TRANSITION_NOT_ALLOWED
 PROCESS_UNSUPPORTED
+RECOVERY_UNAVAILABLE
 REPOSITORY_DRIFT
 VERIFICATION_BUDGET_EXCEEDED
 TASK_BLOCKED
@@ -856,9 +1017,25 @@ Decode precedence:
 - known well-typed transition absent for source/current action → `TRANSITION_NOT_ALLOWED`;
 - unsupported process ID/version/digest in loaded/caller identity → `PROCESS_UNSUPPORTED` or stale
   identity error according to source;
+- syntactically valid non-null supported graph Recovery input → five-class probe/apply route;
 - stale revision/action/binding retain existing stable errors.
 
 Every rejected mutation is zero-write.
+
+`RECOVERY_UNAVAILABLE` remains a stable reserved public advice shape, but the supported
+`standard-development@1` Phase 7A recovery path does not return it:
+
+```json
+{
+  "code": "RECOVERY_UNAVAILABLE",
+  "message": "Recovery is unavailable for this operation.",
+  "recovery": {
+    "retry_safe": false,
+    "action": "none",
+    "message": "Do not automatically retry; use only a supported graph recovery route."
+  }
+}
+```
 
 ## 13. `dev_flow_cancel_task`
 
@@ -877,6 +1054,11 @@ Every rejected mutation is zero-write.
 
 Returns the `CANCELLED` outcome, released-claim status, and retained task ID. It never deletes task
 data, method artifacts, repository files, or adjacent state.
+
+Application validates service/context/request identity before loading the task. The reason must be
+valid UTF-8, non-empty, already trimmed, and within the contract text limit. Invalid reasons return
+`INVALID_ARGUMENT`; cancelling `DONE` or `CANCELLED` returns `TASK_TERMINAL`. Every rejection is
+zero-write, while current active and blocked tasks may cancel once with revision CAS.
 
 ## 14. Contract and Storage-Generation Boundary
 

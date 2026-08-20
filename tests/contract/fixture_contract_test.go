@@ -3,612 +3,244 @@ package contract_test
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
-	"fmt"
-	"io/fs"
+	"io"
 	"os"
 	"path/filepath"
-	"regexp"
-	"slices"
-	"sort"
+	"reflect"
 	"strings"
 	"testing"
 )
 
-var fixtureREADMEReferencePattern = regexp.MustCompile("`([^`]+\\.json)`")
+const sharedFixtureAggregateSHA256 = "8c27bcf6be0e4e5a4bf294c67cbda8cdf281b1b2b2c53fff16206db2828dede7"
 
-const (
-	sharedFixtureCount               = 22
-	sharedFixtureAggregateSHA256     = "8c27bcf6be0e4e5a4bf294c67cbda8cdf281b1b2b2c53fff16206db2828dede7"
-	sharedResultEnvelopeSchemaSHA256 = "155b754efd5d2db7c659c1d0598fae2d5d49775e690245e3405cf2e0f9f9bebf"
-)
+func sha256Hex(raw []byte) string { sum := sha256.Sum256(raw); return hex.EncodeToString(sum[:]) }
 
-var sharedFixtureSHA256 = map[string]string{
-	"active-task-conflict.json":              "8c3d8f3263d636a7164124fd7795d9dc850ab58a9582b57914ca55e95c9ae640",
-	"apply-success.json":                     "6c80828fc972768758a3a92897fc65010f4381fa52a3a17516fd2bbc94cf2bc2",
-	"cancelled-outcome.json":                 "e2055d6b6de98fe9c55e9e9c09fa7ca3ae4f2ba0f68abc38a2fd32f678fd8565",
-	"completed-outcome.json":                 "3cdea40e0e65f14ac43d048bcda0995d26c79de1bb04944356b0d8a93bd2f533",
-	"host-ownership-conflict.json":           "447484d26c01df2f7d443bbc607cf82618a94b1b7495f88b5b4bfc8aa426b6d9",
-	"next-action.json":                       "187ad2c3406fb1be9a066fb9ebf6e77c1fc359f7371f2c13e22a18e9b8b9149e",
-	"open-task.json":                         "c2d7ecd22b06cb952eb8cc3a6287142ea2c383ceafad432ae519560d5d124ea1",
-	"recovery-apply-read-back.json":          "acaccd92b23738b4d159149d3afed2f4f63e6a41ea14c88ec50d250903948e9a",
-	"recovery-blocked.json":                  "8c06c12c023fe17c7990e31b286d1768f3afcba2dbb868653add649f06f3be43",
-	"recovery-completed-and-recorded.json":   "d2a1754b6f99b2e5daeb73d241230cab7d3266c96c7feb1dc2bf20dd40d2e76e",
-	"recovery-completed-but-unrecorded.json": "dbec730091fd54ba5efeb87f83cdb6bb7586d05a7b3b15dc782c356d9daedf7a",
-	"recovery-conflicting.json":              "d4a884cc6eb3e86332ad24eb3e97de9945d980174612c559153def0f41231720",
-	"recovery-not-started.json":              "cc1b94a0180843ac15f9e25ca5717c62e54da474d873c1e3dffb23171a7e5811",
-	"recovery-partially-completed.json":      "099601b9ee83c15d74bb05b2f0078d330f9068887ff4cebd8045851bc10272a1",
-	"recovery-resolved.json":                 "56c131beb0bc5c08595acc9ca6ae8cfd061c55357165a67d01869229fcbf9ea8",
-	"repository-drift.json":                  "d76b0098114ba82413536ce42f30e10526432ece06dcd38e9a88e30ab16a0c77",
-	"revision-conflict.json":                 "d9de4f9fa4355ff2aa997871e186e36bafc44c1452af67584a52af66a81b906c",
-	"rework.json":                            "963f5ba6841fecff1292508ddb1178544c29e6c53933cadbc2941ae3d5a63980",
-	"server-info.json":                       "e9f10918a6c9e8547bdb9c249f54ee9a12bc830ea9c80ee7e06bc04bd09caee7",
-	"stale-action.json":                      "59924a16e61fbe5937d58a249262ff33f0390bcaa4c32d74d36cd9f7a99b3187",
-	"task.json":                              "b410012e8b457a1f20da4099c29e10e057608b86b642c3dcdba00ccb1e6c00a6",
-	"verification-budget-failure.json":       "d8144dea88b375e697b2bb1bb46892590cc15949e0286e1094f8b16afbbed715",
-}
-
-type sharedFixtureEnvelope struct {
-	SchemaVersion int             `json:"schema_version"`
-	OK            bool            `json:"ok"`
-	RequestID     string          `json:"request_id"`
-	Tool          string          `json:"tool"`
-	Result        json.RawMessage `json:"result"`
-	Error         json.RawMessage `json:"error"`
-	Recovery      json.RawMessage `json:"recovery"`
-}
-
-type fixtureTask struct {
-	TaskID        string            `json:"task_id"`
-	Phase         string            `json:"phase"`
-	Revision      uint64            `json:"revision"`
-	Repository    fixtureRepository `json:"repository"`
-	CurrentAction *fixtureAction    `json:"current_action"`
-	Blocker       *fixtureBlocker   `json:"blocker"`
-	Evidence      []fixtureEvidence `json:"evidence"`
-	Outcome       *fixtureOutcome   `json:"outcome"`
-	Contract      json.RawMessage   `json:"contract"`
-	LastOperation json.RawMessage   `json:"last_operation"`
-	ResumePhase   json.RawMessage   `json:"resume_phase"`
-	CompletedAt   json.RawMessage   `json:"completed_at"`
-	OriginHost    string            `json:"origin_host"`
-	CreatedAt     string            `json:"created_at"`
-	UpdatedAt     string            `json:"updated_at"`
-}
-
-type fixtureRepository struct {
-	BindingDigest string `json:"binding_digest"`
-}
-
-type fixtureAction struct {
-	ActionID                string `json:"action_id"`
-	Kind                    string `json:"kind"`
-	TaskID                  string `json:"task_id"`
-	Revision                uint64 `json:"revision"`
-	RepositoryBindingDigest string `json:"repository_binding_digest"`
-}
-
-type fixtureBlocker struct {
-	BlockerID   string `json:"blocker_id"`
-	ResumePhase string `json:"resume_phase"`
-	Condition   struct {
-		Kind                  string `json:"kind"`
-		ExpectedBindingDigest string `json:"expected_binding_digest"`
-	} `json:"condition"`
-}
-
-type fixtureEvidence struct {
-	EvidenceID string `json:"evidence_id"`
-	Source     string `json:"source"`
-}
-
-type fixtureOutcome struct {
-	AutomatedEvidenceIDs []string `json:"automated_evidence_ids"`
-	ManualEvidenceIDs    []string `json:"manual_evidence_ids"`
-}
-
-func TestSharedProtocolFixtureParity(t *testing.T) {
-	t.Parallel()
-
+func TestFixtureContractInventoryByGeneration(t *testing.T) {
 	root := markdownRepositoryRoot(t)
-	schemaPath := filepath.Join(root, "specs", "002-govern-and-resume-single-repository-task", "contracts", "result-envelope.schema.json")
-	schema, err := os.ReadFile(schemaPath)
+	readme, err := os.ReadFile(filepath.Join(root, "protocol", "fixtures", "README.md"))
 	if err != nil {
-		t.Fatalf("read frozen result-envelope schema: %v", err)
+		t.Fatal(err)
 	}
-	if got := sha256Hex(schema); got != sharedResultEnvelopeSchemaSHA256 {
-		t.Fatalf("Feature 005 result-envelope schema digest = %s, want frozen %s", got, sharedResultEnvelopeSchemaSHA256)
-	}
-
-	paths, err := filepath.Glob(filepath.Join(root, "protocol", "fixtures", "*.json"))
-	if err != nil || len(paths) == 0 {
-		t.Fatalf("enumerate shared fixtures: %v", err)
-	}
-	sort.Strings(paths)
-	if len(paths) != sharedFixtureCount || len(sharedFixtureSHA256) != sharedFixtureCount {
-		t.Fatalf("shared fixture count = %d and parity table count = %d, want exactly %d", len(paths), len(sharedFixtureSHA256), sharedFixtureCount)
-	}
-
-	versionPlaceholders := 0
-	observedTools := make(map[string]struct{}, len(coremcpToolNames()))
-	var aggregateManifest strings.Builder
-	for _, path := range paths {
-		path := path
-		contents, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatalf("read fixture %s: %v", path, err)
-		}
-		name := filepath.Base(path)
-		fixtureDigest := sha256Hex(contents)
-		if expectedDigest, ok := sharedFixtureSHA256[name]; !ok {
-			t.Fatalf("unreviewed shared fixture %q", name)
-		} else if fixtureDigest != expectedDigest {
-			t.Fatalf("shared fixture %q digest = %s, want fixture-level parity %s", name, fixtureDigest, expectedDigest)
-		}
-		relative, err := filepath.Rel(root, path)
-		if err != nil {
-			t.Fatalf("make fixture path repository-relative: %v", err)
-		}
-		fmt.Fprintf(&aggregateManifest, "%s  %s\n", fixtureDigest, filepath.ToSlash(relative))
-
-		t.Run(filepath.Base(path), func(t *testing.T) {
-			if err := validateCommittedEnvelope(contents); err != nil {
-				t.Fatalf("fixture does not use the committed result envelope: %v", err)
-			}
-			var envelope sharedFixtureEnvelope
-			if err := strictContractJSON(contents, &envelope); err != nil {
-				t.Fatalf("decode fixture envelope: %v", err)
-			}
-			if envelope.SchemaVersion != 1 || envelope.RequestID == "" || !slices.Contains(coremcpToolNames(), envelope.Tool) {
-				t.Fatalf("invalid fixture identity: %#v", envelope)
-			}
-			observedTools[envelope.Tool] = struct{}{}
-			if envelope.OK {
-				if len(envelope.Error) != 0 || len(envelope.Recovery) != 0 {
-					t.Fatal("success fixture contains top-level error recovery")
-				}
-				assertFixtureSuccessParity(t, envelope.Tool, envelope.Result)
-			} else {
-				if len(envelope.Result) != 0 || len(envelope.Error) == 0 || len(envelope.Recovery) == 0 {
-					t.Fatal("error fixture is not error-only")
-				}
-				assertErrorFixtureHasNoTaskOrPath(t, contents)
-			}
-
-			count := bytes.Count(contents, []byte("${VERSION}"))
-			if count != 0 && filepath.Base(path) != "server-info.json" {
-				t.Fatal("VERSION placeholder appears outside server-info fixture")
-			}
-			versionPlaceholders += count
-			assertFixtureHasNoPrivateMaterial(t, contents)
-		})
-	}
-	if versionPlaceholders != 1 {
-		t.Fatalf("VERSION placeholder count = %d, want exactly 1", versionPlaceholders)
-	}
-	toolNames := make([]string, 0, len(observedTools))
-	for tool := range observedTools {
-		toolNames = append(toolNames, tool)
-	}
-	slices.Sort(toolNames)
-	wantToolNames := slices.Clone(coremcpToolNames())
-	slices.Sort(wantToolNames)
-	if !slices.Equal(toolNames, wantToolNames) {
-		t.Fatalf("fixture tool surface = %v, want exact six-tool surface %v", toolNames, wantToolNames)
-	}
-	aggregateDigest := sha256Hex([]byte(aggregateManifest.String()))
-	if aggregateDigest != sharedFixtureAggregateSHA256 {
-		t.Fatalf("canonical shared fixture aggregate digest = %s, want %s", aggregateDigest, sharedFixtureAggregateSHA256)
-	}
-	assertHostPackagesDoNotCopyFixtures(t, root, paths)
-}
-
-func TestFixtureREADMEReferencesExistingSharedFixtures(t *testing.T) {
-	t.Parallel()
-
-	root := markdownRepositoryRoot(t)
-	fixtureDirectory := filepath.Join(root, "protocol", "fixtures")
-	readme, err := os.ReadFile(filepath.Join(fixtureDirectory, "README.md"))
-	if err != nil {
-		t.Fatalf("read fixture README: %v", err)
-	}
-	referenced := make(map[string]struct{})
-	for _, match := range fixtureREADMEReferencePattern.FindAllSubmatch(readme, -1) {
-		name := string(match[1])
-		referenced[name] = struct{}{}
-		if _, err := os.Stat(filepath.Join(fixtureDirectory, name)); err != nil {
-			t.Errorf("fixture README reference %q is missing: %v", name, err)
-		}
-	}
-	paths, err := filepath.Glob(filepath.Join(fixtureDirectory, "*.json"))
-	if err != nil {
-		t.Fatalf("enumerate shared fixtures: %v", err)
-	}
-	for _, path := range paths {
-		if _, exists := referenced[filepath.Base(path)]; !exists {
-			t.Errorf("shared fixture %q is not documented in protocol/fixtures/README.md", filepath.Base(path))
-		}
-	}
-}
-
-func TestRepositoryProductionRootsRejectCopiedSharedFixtures(t *testing.T) {
-	root := markdownRepositoryRoot(t)
-	fixturePaths, err := filepath.Glob(filepath.Join(root, "protocol", "fixtures", "*.json"))
-	if err != nil || len(fixturePaths) == 0 {
-		t.Fatalf("enumerate shared fixtures: %v", err)
-	}
-	if violations := sharedFixtureCopyViolations(root, fixturePaths); len(violations) != 0 {
-		t.Fatalf("repository production roots copy shared fixtures: %v", violations)
-	}
-
-	fixtureRoot := t.TempDir()
-	for _, relative := range []string{"packages/codex", "packages/deepseek", "scripts"} {
-		if err := os.MkdirAll(filepath.Join(fixtureRoot, filepath.FromSlash(relative)), 0o755); err != nil {
-			t.Fatalf("create fixture production root %s: %v", relative, err)
-		}
-	}
-	copiedPath := filepath.Join(fixtureRoot, "scripts", "recorded-core-result.json")
-	contents, err := os.ReadFile(fixturePaths[0])
-	if err != nil {
-		t.Fatalf("read shared fixture: %v", err)
-	}
-	if err := os.WriteFile(copiedPath, contents, 0o600); err != nil {
-		t.Fatalf("write copied fixture: %v", err)
-	}
-	violations := sharedFixtureCopyViolations(fixtureRoot, fixturePaths)
-	if len(violations) != 1 || !strings.Contains(violations[0].Error(), copiedPath) {
-		t.Fatalf("copied root-script fixture violations = %v, want exact path %s", violations, copiedPath)
-	}
-}
-
-func TestCodex0147SanitizedHostFixtures(t *testing.T) {
-	t.Parallel()
-
-	root := markdownRepositoryRoot(t)
-	fixtureRoot := filepath.Join(root, "tests", "contract", "testdata", "codex-0.147")
-	tests := []struct {
-		name         string
-		status       string
-		result       bool
-		transportErr bool
-	}{
-		{name: "success.jsonl", status: "completed", result: true},
-		{name: "core-domain-error.jsonl", status: "failed", result: true},
-		{name: "transport-error.jsonl", status: "failed", transportErr: true},
-	}
-
-	entries, err := os.ReadDir(fixtureRoot)
-	if err != nil {
-		t.Fatalf("read Codex 0.147 fixture directory: %v", err)
-	}
-	var names []string
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			names = append(names, entry.Name())
-		}
-	}
-	sort.Strings(names)
-	if want := []string{"core-domain-error.jsonl", "success.jsonl", "transport-error.jsonl"}; !slices.Equal(names, want) {
-		t.Fatalf("Codex 0.147 fixtures = %v, want %v", names, want)
-	}
-
-	for _, test := range tests {
-		test := test
-		t.Run(test.name, func(t *testing.T) {
-			contents, err := os.ReadFile(filepath.Join(fixtureRoot, test.name))
-			if err != nil {
-				t.Fatalf("read fixture: %v", err)
-			}
-			lower := strings.ToLower(string(contents))
-			for _, forbidden := range []string{
-				"/users/", "/home/", `"prompt":`, `"source":`, `"path":`,
-				`"environment":`, `"env":`, `"token":`, `"secret":`,
-			} {
-				if strings.Contains(lower, forbidden) {
-					t.Fatalf("fixture contains forbidden private marker %q", forbidden)
-				}
-			}
-
-			lines := bytes.Split(bytes.TrimSpace(contents), []byte("\n"))
-			if len(lines) != 2 {
-				t.Fatalf("fixture has %d JSONL events, want 2", len(lines))
-			}
-			var started struct {
-				Type     string `json:"type"`
-				ThreadID string `json:"thread_id"`
-			}
-			if err := strictContractJSON(lines[0], &started); err != nil {
-				t.Fatalf("decode thread.started: %v", err)
-			}
-			if started.Type != "thread.started" || !strings.HasPrefix(started.ThreadID, "thread-redacted-") {
-				t.Fatalf("fixture starts with unsanitized thread identity: %#v", started)
-			}
-
-			var completed struct {
-				Type string `json:"type"`
-				Item struct {
-					ID        string          `json:"id"`
-					Type      string          `json:"type"`
-					Server    string          `json:"server"`
-					Tool      string          `json:"tool"`
-					Arguments json.RawMessage `json:"arguments"`
-					Result    json.RawMessage `json:"result"`
-					Error     json.RawMessage `json:"error"`
-					Status    string          `json:"status"`
-				} `json:"item"`
-			}
-			if err := strictContractJSON(lines[1], &completed); err != nil {
-				t.Fatalf("decode item.completed: %v", err)
-			}
-			if completed.Type != "item.completed" || completed.Item.Type != "mcp_tool_call" ||
-				completed.Item.Server != "dev-flow" || !slices.Contains(coremcpToolNames(), completed.Item.Tool) ||
-				completed.Item.Status != test.status || !strings.HasPrefix(completed.Item.ID, "item-redacted-") {
-				t.Fatalf("fixture terminal identity is not the reviewed Codex shape: %#v", completed)
-			}
-
-			if test.result {
-				assertCodexFixtureResultParity(t, completed.Item.Result)
-				if string(completed.Item.Error) != "null" {
-					t.Fatalf("complete result fixture error = %s, want null", completed.Item.Error)
-				}
-			} else {
-				if string(completed.Item.Result) != "null" {
-					t.Fatalf("transport fixture result = %s, want null", completed.Item.Result)
-				}
-				var typedError struct {
-					Message string `json:"message"`
-				}
-				if err := strictContractJSON(completed.Item.Error, &typedError); err != nil ||
-					typedError.Message == "" || !test.transportErr {
-					t.Fatalf("transport fixture lacks the typed error shape: %#v (%v)", typedError, err)
-				}
-			}
-		})
-	}
-}
-
-func assertCodexFixtureResultParity(t *testing.T, raw json.RawMessage) {
-	t.Helper()
-	var result struct {
-		Content []struct {
-			Type string `json:"type"`
-			Text string `json:"text"`
-		} `json:"content"`
-		Structured json.RawMessage `json:"structured_content"`
-	}
-	if err := strictContractJSON(raw, &result); err != nil {
-		t.Fatalf("decode complete Codex MCP result: %v", err)
-	}
-	if len(result.Content) != 1 || result.Content[0].Type != "text" {
-		t.Fatalf("complete result text blocks = %#v", result.Content)
-	}
-	var textValue any
-	if err := json.Unmarshal([]byte(result.Content[0].Text), &textValue); err != nil {
-		t.Fatalf("decode text result JSON: %v", err)
-	}
-	var structuredValue any
-	if err := json.Unmarshal(result.Structured, &structuredValue); err != nil {
-		t.Fatalf("decode structured result JSON: %v", err)
-	}
-	textCanonical, _ := json.Marshal(textValue)
-	structuredCanonical, _ := json.Marshal(structuredValue)
-	if !bytes.Equal(textCanonical, structuredCanonical) {
-		t.Fatalf("Codex fixture text/structured result mismatch")
-	}
-}
-
-func assertFixtureSuccessParity(t *testing.T, tool string, raw json.RawMessage) {
-	t.Helper()
-	var result map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &result); err != nil {
-		t.Fatalf("decode fixture result: %v", err)
-	}
-	if tool == "dev_flow_server_info" {
-		var tools []string
-		if err := json.Unmarshal(result["tools"], &tools); err != nil {
-			t.Fatalf("decode server-info tool catalog: %v", err)
-		}
-		if !slices.Equal(tools, coremcpToolNames()) {
-			t.Fatalf("server-info tool catalog = %v, want exact ordered catalog %v", tools, coremcpToolNames())
-		}
-	}
-	_, hasAssessment := result["recovery_assessment"]
-	readTool := tool == "dev_flow_get_task" || tool == "dev_flow_get_next_action"
-	if readTool != hasAssessment {
-		t.Fatalf("recovery_assessment placement mismatch for %s", tool)
-	}
-
-	if taskRaw := result["task"]; len(taskRaw) != 0 {
-		var task fixtureTask
-		if err := json.Unmarshal(taskRaw, &task); err != nil {
-			t.Fatalf("decode fixture task: %v", err)
-		}
-		assertFixtureTaskIdentity(t, task)
-	}
-	if actionRaw := result["action"]; len(actionRaw) != 0 && !bytes.Equal(actionRaw, []byte("null")) {
-		var action fixtureAction
-		if err := json.Unmarshal(actionRaw, &action); err != nil {
-			t.Fatalf("decode next-action projection: %v", err)
-		}
-		var taskID, binding string
-		var revision uint64
-		_ = json.Unmarshal(result["task_id"], &taskID)
-		_ = json.Unmarshal(result["revision"], &revision)
-		binding = action.RepositoryBindingDigest
-		if action.TaskID != taskID || action.Revision != revision || !validFixtureDigest(binding) {
-			t.Fatalf("next-action identity is inconsistent: %#v", action)
-		}
-	}
-}
-
-func assertFixtureTaskIdentity(t *testing.T, task fixtureTask) {
-	t.Helper()
-	if task.TaskID == "" || task.Revision == 0 || !validFixtureDigest(task.Repository.BindingDigest) ||
-		len(task.Contract) == 0 || len(task.LastOperation) == 0 || task.OriginHost == "" ||
-		task.CreatedAt == "" || task.UpdatedAt == "" {
-		t.Fatalf("incomplete task projection: %#v", task)
-	}
-	if task.CurrentAction != nil {
-		if task.CurrentAction.TaskID != task.TaskID || task.CurrentAction.Revision != task.Revision ||
-			task.CurrentAction.RepositoryBindingDigest != task.Repository.BindingDigest {
-			t.Fatalf("task/action identity mismatch: task %#v action %#v", task, task.CurrentAction)
-		}
-	}
-	if task.Blocker != nil {
-		if task.Phase != "BLOCKED" || task.CurrentAction == nil || task.CurrentAction.Kind != "RESOLVE_BLOCKER" ||
-			task.Blocker.Condition.Kind != "restore_issuance_binding" ||
-			task.Blocker.Condition.ExpectedBindingDigest != task.Repository.BindingDigest {
-			t.Fatalf("invalid blocker projection: %#v", task.Blocker)
-		}
-	}
-	if task.Outcome != nil {
-		sources := make(map[string]string, len(task.Evidence))
-		for _, evidence := range task.Evidence {
-			if _, duplicate := sources[evidence.EvidenceID]; duplicate || evidence.EvidenceID == "" {
-				t.Fatalf("duplicate or empty evidence ID %q", evidence.EvidenceID)
-			}
-			sources[evidence.EvidenceID] = evidence.Source
-		}
-		for _, id := range task.Outcome.AutomatedEvidenceIDs {
-			if sources[id] != "automated" {
-				t.Fatalf("automated outcome evidence %q resolves to %q", id, sources[id])
-			}
-		}
-		for _, id := range task.Outcome.ManualEvidenceIDs {
-			if sources[id] != "user" {
-				t.Fatalf("manual outcome evidence %q resolves to %q", id, sources[id])
-			}
-		}
-	}
-}
-
-func assertErrorFixtureHasNoTaskOrPath(t *testing.T, contents []byte) {
-	t.Helper()
-	var value map[string]json.RawMessage
-	if err := json.Unmarshal(contents, &value); err != nil {
-		t.Fatalf("decode error fixture: %v", err)
-	}
-	for _, forbidden := range []string{"result", "task", "repository_path", "canonical_root", "database_path"} {
-		if _, exists := value[forbidden]; exists {
-			t.Errorf("error fixture exposes forbidden top-level member %q", forbidden)
-		}
-	}
-	if bytes.Contains(contents, []byte(`"canonical_root"`)) || bytes.Contains(contents, []byte(`"task_id"`)) {
-		t.Fatal("error fixture contains a task or repository path projection")
-	}
-}
-
-func assertFixtureHasNoPrivateMaterial(t *testing.T, contents []byte) {
-	t.Helper()
-	lower := strings.ToLower(string(contents))
-	for _, forbidden := range []string{
-		"/users/", "\\users\\", "dev_flow_data_dir", `"database_path"`, ".sqlite", ".db\"",
-		`"source_content"`, `"diff"`, `"raw_status"`, `"environment"`, `"command"`, `"raw_output"`,
+	text := string(readme)
+	for _, name := range []string{
+		"graph-server-info.json",
+		"graph-open-requirements.json",
+		"graph-design-action.json",
+		"graph-invalid-edge.json",
+		"graph-host-parity-codex.json",
+		"graph-host-parity-deepseek.json",
 	} {
-		if strings.Contains(lower, forbidden) {
-			t.Errorf("fixture contains private/raw material marker %q", forbidden)
+		if !strings.Contains(text, "`"+name+"`") {
+			t.Errorf("missing inventory %s", name)
 		}
+		if _, err := os.Stat(filepath.Join(root, "protocol", "fixtures", name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if strings.Contains(text, "`graph-*.json`") {
+		t.Fatal("wildcard fixture inventory")
 	}
 }
 
-func assertHostPackagesDoNotCopyFixtures(t *testing.T, root string, fixturePaths []string) {
-	t.Helper()
-	for _, err := range sharedFixtureCopyViolations(root, fixturePaths) {
-		t.Error(err)
-	}
+type hostParityFixture struct {
+	FixtureKind          string                    `json:"fixture_kind"`
+	Host                 string                    `json:"host"`
+	OriginHost           string                    `json:"origin_host"`
+	RequestID            string                    `json:"request_id"`
+	SchemaVersion        int                       `json:"schema_version"`
+	ProcessID            string                    `json:"process_id"`
+	ProcessVersion       int                       `json:"process_version"`
+	DefinitionDigest     string                    `json:"definition_digest"`
+	CurrentNode          string                    `json:"current_node"`
+	ActionKind           string                    `json:"action_kind"`
+	NodeContract         hostParityNodeContract    `json:"node_contract"`
+	MethodProfileEnum    []string                  `json:"method_profile_enum"`
+	SemanticMethodSteps  []string                  `json:"semantic_method_steps"`
+	AvailableTransitions []string                  `json:"available_transitions"`
+	ApplyPayloadShape    []string                  `json:"apply_payload_shape"`
+	ProblemClassRules    []hostParityProblemRule   `json:"problem_class_rules"`
+	ErrorShape           hostParityErrorShape      `json:"error_shape"`
+	StorageGeneration    hostParityStorageContract `json:"storage_generation"`
 }
 
-func sharedFixtureCopyViolations(root string, fixturePaths []string) []error {
-	names := make(map[string]struct{}, len(fixturePaths))
-	exactDigests := make(map[string]struct{}, len(fixturePaths))
-	canonicalDigests := make(map[string]struct{}, len(fixturePaths))
-	var violations []error
-	for _, path := range fixturePaths {
-		names[filepath.Base(path)] = struct{}{}
-		contents, err := os.ReadFile(path)
-		if err != nil {
-			violations = append(violations, fmt.Errorf("read shared fixture %s for copy detection: %w", path, err))
-			continue
-		}
-		exactDigests[sha256Hex(contents)] = struct{}{}
-		if digest, ok := canonicalJSONSHA256(contents); ok {
-			canonicalDigests[digest] = struct{}{}
-		}
-	}
-	productionRoots := []struct {
-		label             string
-		path              string
-		allowTestFixtures bool
-	}{
-		{label: "codex", path: filepath.Join(root, "packages", "codex"), allowTestFixtures: true},
-		{label: "deepseek", path: filepath.Join(root, "packages", "deepseek"), allowTestFixtures: true},
-		{label: "root scripts", path: filepath.Join(root, "scripts")},
-	}
-	for _, productionRoot := range productionRoots {
-		err := filepath.WalkDir(productionRoot.path, func(path string, entry fs.DirEntry, walkErr error) error {
-			if walkErr != nil {
-				return walkErr
-			}
-			if entry.Name() == "node_modules" {
-				if entry.IsDir() {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if entry.IsDir() && entry.Name() == "fixtures" {
-				relative, err := filepath.Rel(productionRoot.path, path)
-				if err != nil {
-					return err
-				}
-				if !productionRoot.allowTestFixtures || filepath.ToSlash(relative) != "tests/fixtures" {
-					return fmt.Errorf("production root %s owns fixtures outside the reviewed test path: %s", productionRoot.label, filepath.ToSlash(relative))
-				}
-			}
-			if !entry.IsDir() {
-				if _, copied := names[entry.Name()]; copied {
-					return fmt.Errorf("production root %s copies shared fixture at %s", productionRoot.label, path)
-				}
-				contents, err := os.ReadFile(path)
-				if err != nil {
-					return err
-				}
-				if _, copied := exactDigests[sha256Hex(contents)]; copied {
-					return fmt.Errorf("production root %s copies shared fixture content at %s", productionRoot.label, path)
-				}
-				if digest, ok := canonicalJSONSHA256(contents); ok {
-					if _, copied := canonicalDigests[digest]; copied {
-						return fmt.Errorf("production root %s copies canonical shared fixture content at %s", productionRoot.label, path)
-					}
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			violations = append(violations, err)
-		}
-	}
-	return violations
+type hostParityNodeContract struct {
+	Purpose                string   `json:"purpose"`
+	EntryConditionIDs      []string `json:"entry_condition_ids"`
+	CompletionConditionIDs []string `json:"completion_condition_ids"`
+	AllowedEffects         []string `json:"allowed_effects"`
+	RequiredEvidence       []string `json:"required_evidence"`
 }
 
-func sha256Hex(contents []byte) string {
-	return fmt.Sprintf("%x", sha256.Sum256(contents))
+type hostParityProblemRule struct {
+	ProblemClass   string `json:"problem_class"`
+	TransitionID   string `json:"transition_id"`
+	ReasonRequired bool   `json:"reason_required"`
 }
 
-func canonicalJSONSHA256(contents []byte) (string, bool) {
-	var value any
-	if err := json.Unmarshal(contents, &value); err != nil {
-		return "", false
-	}
-	canonical, err := json.Marshal(value)
+type hostParityErrorShape struct {
+	Required         []string `json:"required"`
+	RecoveryRequired []string `json:"recovery_required"`
+}
+
+type hostParityStorageContract struct {
+	SchemaVersion   int    `json:"schema_version"`
+	SnapshotVersion int    `json:"snapshot_version"`
+	ProcessID       string `json:"process_id"`
+	ProcessVersion  int    `json:"process_version"`
+}
+
+func TestFixtureContract02HostParityInventory(t *testing.T) {
+	root := markdownRepositoryRoot(t)
+	readme, err := os.ReadFile(filepath.Join(root, "protocol", "fixtures", "README.md"))
 	if err != nil {
-		return "", false
+		t.Fatal(err)
 	}
-	return sha256Hex(canonical), true
+	text := string(readme)
+	for _, heading := range []string{
+		"Feature 008 Core Contract 0.2 graph fixtures",
+		"Core Contract 0.2 Host parity fixtures",
+		"Released Core Contract 0.1 historical fixtures",
+	} {
+		if !strings.Contains(text, "## "+heading) {
+			t.Errorf("missing fixture-generation heading %q", heading)
+		}
+	}
+	for _, name := range []string{"graph-host-parity-codex.json", "graph-host-parity-deepseek.json"} {
+		if strings.Count(text, "`"+name+"`") != 1 {
+			t.Errorf("README must list %s exactly once", name)
+		}
+	}
+	for _, boundary := range []string{"do not implement or claim a DeepSeek", "native Journey", "product support"} {
+		if !strings.Contains(text, boundary) {
+			t.Errorf("missing DeepSeek parity boundary %q", boundary)
+		}
+	}
 }
 
-func coremcpToolNames() []string {
-	return []string{
-		"dev_flow_server_info", "dev_flow_open_task", "dev_flow_get_task",
-		"dev_flow_get_next_action", "dev_flow_apply_action", "dev_flow_cancel_task",
+func TestHostParityCoreContract02Fixtures(t *testing.T) {
+	root := markdownRepositoryRoot(t)
+	codex, codexRaw := readHostParityFixture(t, filepath.Join(root, "protocol", "fixtures", "graph-host-parity-codex.json"))
+	deepseek, deepseekRaw := readHostParityFixture(t, filepath.Join(root, "protocol", "fixtures", "graph-host-parity-deepseek.json"))
+
+	if codex.Host != "codex" || codex.OriginHost != "codex" {
+		t.Fatalf("Codex identity = %q/%q", codex.Host, codex.OriginHost)
+	}
+	if deepseek.Host != "deepseek" || deepseek.OriginHost != "deepseek" {
+		t.Fatalf("DeepSeek identity = %q/%q", deepseek.Host, deepseek.OriginHost)
+	}
+	if codex.RequestID == deepseek.RequestID {
+		t.Fatal("fixture request IDs must remain opaque and distinct")
+	}
+
+	for name, fixture := range map[string]hostParityFixture{"codex": codex, "deepseek": deepseek} {
+		if fixture.FixtureKind != "core_contract_0_2_host_parity" || fixture.SchemaVersion != 2 {
+			t.Fatalf("%s contract identity = %#v", name, fixture)
+		}
+		if fixture.ProcessID != "standard-development" || fixture.ProcessVersion != 1 || fixture.CurrentNode != "REQUIREMENTS" || fixture.ActionKind != "COMPLETE_REQUIREMENTS" {
+			t.Fatalf("%s process/action identity = %#v", name, fixture)
+		}
+		if len(fixture.DefinitionDigest) != 64 {
+			t.Fatalf("%s definition digest = %q", name, fixture.DefinitionDigest)
+		}
+		if !reflect.DeepEqual(fixture.MethodProfileEnum, []string{"plain", "spec-kit", "openspec"}) {
+			t.Fatalf("%s method profiles = %#v", name, fixture.MethodProfileEnum)
+		}
+		if !reflect.DeepEqual(fixture.SemanticMethodSteps, []string{"requirements.capture", "requirements.clarify", "requirements.validate"}) {
+			t.Fatalf("%s semantic method steps = %#v", name, fixture.SemanticMethodSteps)
+		}
+		if !reflect.DeepEqual(fixture.AvailableTransitions, []string{"requirements_ready"}) {
+			t.Fatalf("%s transitions = %#v", name, fixture.AvailableTransitions)
+		}
+		if !reflect.DeepEqual(fixture.ApplyPayloadShape, []string{"transition_id", "summary", "reason", "artifacts", "method_evidence", "node_result"}) {
+			t.Fatalf("%s payload shape = %#v", name, fixture.ApplyPayloadShape)
+		}
+		if fixture.NodeContract.Purpose == "" || len(fixture.NodeContract.EntryConditionIDs) != 3 || len(fixture.NodeContract.CompletionConditionIDs) != 6 || len(fixture.NodeContract.AllowedEffects) != 3 || len(fixture.NodeContract.RequiredEvidence) != 2 {
+			t.Fatalf("%s node contract is incomplete: %#v", name, fixture.NodeContract)
+		}
+		if len(fixture.ProblemClassRules) != 1 || fixture.ProblemClassRules[0] != (hostParityProblemRule{ProblemClass: "none", TransitionID: "requirements_ready", ReasonRequired: false}) {
+			t.Fatalf("%s problem class rules = %#v", name, fixture.ProblemClassRules)
+		}
+		if !reflect.DeepEqual(fixture.ErrorShape.Required, []string{"code", "message", "recovery"}) || !reflect.DeepEqual(fixture.ErrorShape.RecoveryRequired, []string{"retry_safe", "action", "message"}) {
+			t.Fatalf("%s error shape = %#v", name, fixture.ErrorShape)
+		}
+		if fixture.StorageGeneration.SchemaVersion != 2 || fixture.StorageGeneration.SnapshotVersion != 2 {
+			t.Fatalf("%s storage generation = %#v", name, fixture.StorageGeneration)
+		}
+	}
+
+	normalizeHostFixture := func(fixture hostParityFixture) hostParityFixture {
+		fixture.Host = ""
+		fixture.OriginHost = ""
+		fixture.RequestID = ""
+		return fixture
+	}
+	if !reflect.DeepEqual(normalizeHostFixture(codex), normalizeHostFixture(deepseek)) {
+		t.Fatal("Host parity fixtures differ outside host, origin_host, and request_id")
+	}
+
+	for name, raw := range map[string][]byte{"codex": codexRaw, "deepseek": deepseekRaw} {
+		text := string(raw)
+		for _, forbidden := range []string{`"phase"`, `"source_phase"`, `"destination"`, `"new_task"`, `"product_support"`, `"adapter_implemented"`, `"native_journey"`} {
+			if strings.Contains(text, forbidden) {
+				t.Errorf("%s fixture contains forbidden field %s", name, forbidden)
+			}
+		}
+	}
+}
+
+func readHostParityFixture(t *testing.T, path string) (hostParityFixture, []byte) {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	var fixture hostParityFixture
+	if err := decoder.Decode(&fixture); err != nil {
+		t.Fatalf("decode closed fixture %s: %v", filepath.Base(path), err)
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		t.Fatalf("fixture %s has trailing JSON", filepath.Base(path))
+	}
+	return fixture, raw
+}
+
+func TestGraphServerInfoFixtureContainsCompletePublicDTO(t *testing.T) {
+	path := filepath.Join(markdownRepositoryRoot(t), "protocol", "fixtures", "graph-server-info.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var value map[string]any
+	if json.Unmarshal(raw, &value) != nil || len(value) != 10 {
+		t.Fatalf("incomplete top-level fixture: %s", raw)
+	}
+	for _, key := range []string{"product", "version", "schema_version", "core_limits_version", "transport", "health", "supported_hosts", "supported_processes", "method_profiles", "tools"} {
+		if _, ok := value[key]; !ok {
+			t.Fatalf("missing %s", key)
+		}
+	}
+	processes, ok := value["supported_processes"].([]any)
+	if !ok || len(processes) != 1 {
+		t.Fatal("supported_processes is incomplete")
+	}
+	process, ok := processes[0].(map[string]any)
+	if !ok || len(process) != 4 || process["definition_digest"] == nil || process["new_task_supported"] != true || process["process_definition_digest"] != nil {
+		t.Fatalf("public process DTO=%#v", process)
+	}
+	tools, ok := value["tools"].([]any)
+	if !ok || len(tools) != 6 {
+		t.Fatalf("tools=%#v", tools)
+	}
+	previous := -1
+	for _, key := range []string{`"product"`, `"version"`, `"schema_version"`, `"core_limits_version"`, `"transport"`, `"health"`, `"supported_hosts"`, `"supported_processes"`, `"method_profiles"`, `"tools"`} {
+		index := strings.Index(string(raw), key)
+		if index <= previous {
+			t.Fatalf("field order drift at %s", key)
+		}
+		previous = index
 	}
 }

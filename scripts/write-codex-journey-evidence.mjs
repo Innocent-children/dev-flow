@@ -34,6 +34,7 @@ export const CODEX_COMPATIBILITY_RANGE = ">=0.147.0 <0.148.0";
 export const EXPLICIT_SELECTOR = "$dev-flow-codex:dev-flow";
 export const FINAL_NATIVE_EVIDENCE_KIND = "registry-package-native-codex-journey";
 export const FINAL_FIXTURE_EVIDENCE_KIND = "fixture-simulated-registry-package-journey";
+export const FINAL_LOCAL_NATIVE_EVIDENCE_KIND = "source-local-package-native-codex-journey";
 export const OFFICIAL_NPM_REGISTRY = "https://registry.npmjs.org/";
 export const ordinaryPrompt =
   "Reply with one short sentence describing this repository. Do not invoke Dev Flow.";
@@ -47,10 +48,14 @@ export const resumePrompt =
   `${EXPLICIT_SELECTOR} Resume the existing compatible Dev Flow task and continue to the Core outcome.`;
 export const developmentInvalidPrompt =
   `${EXPLICIT_SELECTOR} Reject this bounded request because the current directory is not a Git repository. Make no Dev Flow tool call and create no task.`;
-export const developmentSubstantivePrompt = `${EXPLICIT_SELECTOR} Work only in the current repository. Open one host=codex task to create native-proof.txt with the exact UTF-8 bytes "Dev Flow Codex development smoke passed.\\n". Advance through the Core-required ASSESS_TASK and PLAN_CHANGE actions; those read-only commits are prerequisites and do not satisfy the stop condition. Create the file only when the current Core action permits repository edits. The verification budget is one targeted command, full suites are forbidden, and verification is reserved for the restart session. Stop only after the file exists and the first successful dev_flow_apply_action after creating it commits, while the Core task is nonterminal.`;
-export const developmentResumePrompt = `${EXPLICIT_SELECTOR} Resume the existing compatible host=codex task. After dev_flow_open_task, call dev_flow_get_task and then dev_flow_get_next_action before any new dev_flow_apply_action. Preserve the same task, run only "git hash-object native-proof.txt" as the single targeted verification command, and continue until Core reports phase DONE with outcome completed.`;
+export const developmentSubstantivePrompt = `${EXPLICIT_SELECTOR} Work only in the current repository. Open one host=codex task to create native-proof.txt with the exact UTF-8 bytes "Dev Flow Codex development smoke passed.\\n". Complete the Core-required current-node work and select only returned transitions; read-only prerequisite commits do not satisfy the stop condition. Create the file only when the current Core action permits repository edits. The verification budget is one targeted command, full suites are forbidden, and verification is reserved for the restart session. Stop only after the file exists and the first successful dev_flow_apply_action after creating it commits, while the Core task is nonterminal.`;
+export const developmentResumePrompt = `${EXPLICIT_SELECTOR} Resume the existing compatible host=codex task. After dev_flow_open_task, call dev_flow_get_task and then dev_flow_get_next_action before any new dev_flow_apply_action. Preserve the same task, run only "git hash-object native-proof.txt" as the single targeted verification command, and continue until Core reports current_cursor DONE with outcome completed.`;
 export const finalRegistrySubstantivePrompt = `${EXPLICIT_SELECTOR} Work only in the current repository. Open one host=codex task to create final-registry-proof.txt with the exact UTF-8 bytes "Dev Flow Codex final registry journey passed.\\n". Advance through the Core-required read-only prerequisites, create the file only when the current action permits repository edits, and stop after the first successful dev_flow_apply_action following file creation while the task remains nonterminal.`;
-export const finalRegistryResumePrompt = `${EXPLICIT_SELECTOR} Resume the existing compatible host=codex task. After dev_flow_open_task, you MUST call dev_flow_get_task and then dev_flow_get_next_action before any dev_flow_apply_action. Do not use the action returned by dev_flow_open_task to skip either read. Run only "git hash-object final-registry-proof.txt" as the targeted verification command, and continue until Core reports phase DONE with outcome completed.`;
+export const finalRegistryResumePrompt = `${EXPLICIT_SELECTOR} Resume the existing compatible host=codex task. After dev_flow_open_task, you MUST call dev_flow_get_task and then dev_flow_get_next_action before any dev_flow_apply_action. Do not use the action returned by dev_flow_open_task to skip either read. Run only "git hash-object final-registry-proof.txt" as the targeted verification command, and continue until Core reports current_cursor DONE with outcome completed.`;
+const FINAL_LOCAL_PAYLOAD_RULES = `Before every apply, bind the latest complete Action and read action_kind, payload_contract, method_steps, available_transitions, and the current dev_flow_apply_action inputSchema branch. The payload must have exactly transition_id, summary, reason, artifacts, method_evidence, and node_result. Use artifacts=[] because this journey creates no process artifact; required_evidence is not an ArtifactReference role and repository_observation must never appear in artifacts. Preserve the complete node_result wrapper, arrays as arrays, and exactly one plain_fallback/capability-empty MethodEvidence item for every current method step in Action order. Never submit destination, next_node, next_cursor, unknown fields, or a guessed transition. If any call returns INVALID_ARGUMENT, stop immediately without trying another payload. The success wrappers are: REQUIREMENTS={problem_class,baseline,unresolved_questions}; DESIGN/TASKS={problem_class,baseline,findings}; IMPLEMENT={problem_class,task_plan_revision,completed_work_item_ids,changed_paths,no_file_changes,deviations,findings}; TEST={problem_class,checks,failed_items,unverified_items,manual_handoff_items,findings}; COMPREHENSION_REVIEW={problem_class,explained_components,unresolved_questions,unnecessary_abstractions,maintenance_risks,user_confirmation,findings}; REFACTOR={problem_class,changed_paths,no_file_changes,simplifications,behavior_change_intended,findings}; DELIVERY={problem_class,acceptance,automated_evidence_ids,manual_evidence_ids,test_record_id,comprehension_record_id,unverified_items,risks,findings}, with all delivery IDs read dynamically from the current Core task.`;
+export const finalLocalSessionOnePrompt = `${EXPLICIT_SELECTOR} ${FINAL_LOCAL_PAYLOAD_RULES} Work only in the current workspace. Create one new host=codex task with method_profile=plain to implement writeProof so it writes the exact UTF-8 bytes "Dev Flow Feature 008 native journey passed.\\n". Use verification_budget level=targeted, max_automatic_commands=2, allow_full_suite=false, allow_manual_handoff=false. For the first REQUIREMENTS mutation, use artifacts=[], problem_class=none, a complete baseline object containing goal/scope/out_of_scope/acceptance_criteria/constraints/assumptions, and unresolved_questions=[]; do not flatten baseline fields. Advance REQUIREMENTS, DESIGN, TASKS, and IMPLEMENT using only the complete current Core action and returned transition IDs. During the first implementation preserve the existing ProofWriterFactory and ProofWriter layering. Modify only src/proof-writer.mjs; do not modify package.json or test/proof-writer.test.mjs, create files, commit, or change Git HEAD/branch. Run exactly one verification command: node --test test/proof-writer.test.mjs. Do not run npm test, pnpm test, a wildcard node test, or any other verification command. After tests pass, enter COMPREHENSION_REVIEW, present all six legal transitions/destinations, and explain the current design and code path. Do not supply a user comprehension confirmation, do not enter REFACTOR, DELIVERY, or DONE, and stop while waiting for the developer verdict.`;
+export const finalLocalSessionTwoPrompt = `${EXPLICIT_SELECTOR} ${FINAL_LOCAL_PAYLOAD_RULES} 我已经阅读了当前解释。Factory 与 Writer 的分层对这个单一写入行为来说是不必要的，我无法清晰解释和维护它。请将其作为明确的 code complexity verdict。 Resume the existing host=codex task by omitting or using null new_task. After dev_flow_server_info and dev_flow_open_task, call dev_flow_get_task and then dev_flow_get_next_action before any dev_flow_apply_action, and prove the task/revision/action/process/current-node identity is unchanged. Select only the returned code_too_complex transition with problem_class=code_complexity, user_confirmation=null, nonempty unnecessary_abstractions/findings, and an explicit reason. In REFACTOR remove ProofWriterFactory and ProofWriter, leaving one direct understandable writeProof implementation in src/proof-writer.mjs. Modify only src/proof-writer.mjs; do not modify package.json or test/proof-writer.test.mjs, create files, commit, or change Git HEAD/branch. Select refactor_ready_for_test with problem_class=none, behavior_change_intended=false, and nonempty simplifications; run exactly one verification command: node --test test/proof-writer.test.mjs, and run no other verification command. Submit tests_passed, return to COMPREHENSION_REVIEW, explain the simplified path, do not provide a passing user verdict, do not enter DELIVERY, and stop waiting for the final developer verdict.`;
+export const finalLocalSessionThreePrompt = `${EXPLICIT_SELECTOR} ${FINAL_LOCAL_PAYLOAD_RULES} 我已经阅读并检查了简化后的实现。我现在能够解释它的主要路径、约束和维护方式，并明确确认它可以通过理解审查。 Resume the same host=codex task. After dev_flow_server_info and dev_flow_open_task, call dev_flow_get_task and then dev_flow_get_next_action before any dev_flow_apply_action. Submit comprehension_passed only from the current Core action with problem_class=none, empty unresolved_questions/unnecessary_abstractions, and user_confirmation source=user status=passed reflecting this prompt. Enter DELIVERY, read the latest TestRecord, ComprehensionAssessment, and exact ordered Core-derived automated/manual evidence IDs from the current task; do not hard-code those IDs. Then select delivery_complete and stop only when Core reports current_cursor DONE with outcome.status=completed and current_action=null. Do not modify files, run a verification command, commit, or change Git HEAD/branch.`;
 
 const PROOF_CONTENT = "Dev Flow Codex development smoke passed.\n";
 const ACCEPTANCE_PROOF_CONTENT = "Dev Flow Codex final acceptance passed.\n";
@@ -66,6 +71,95 @@ const FINAL_PROOF_RENDERED_COMMAND = `/bin/zsh -lc 'git hash-object ${FINAL_PROO
 const FINAL_PROOF_GIT_HASH = createHash("sha1")
   .update(`blob ${Buffer.byteLength(FINAL_PROOF_CONTENT)}\0${FINAL_PROOF_CONTENT}`)
   .digest("hex");
+const FINAL_LOCAL_PROOF_CONTENT = "Dev Flow Feature 008 native journey passed.\n";
+const FINAL_LOCAL_TEST_COMMAND = "node --test test/proof-writer.test.mjs";
+const FINAL_LOCAL_RENDERED_TEST_COMMAND = "/bin/zsh -lc 'node --test test/proof-writer.test.mjs'";
+const FINAL_LOCAL_DEFINITION_DIGEST = "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1";
+const FINAL_LOCAL_PACKAGE_FILES = Object.freeze([
+  ".agents/plugins/marketplace.json",
+  "LICENSE",
+  "README.md",
+  "bin/dev-flow-codex.mjs",
+  "lib/lifecycle.mjs",
+  "lib/paths.mjs",
+  "package.json",
+  "plugin/.codex-plugin/plugin.json",
+  "plugin/.mcp.json",
+  "plugin/skills/dev-flow/SKILL.md",
+  "plugin/skills/dev-flow/agents/openai.yaml",
+  "plugin/skills/dev-flow/references/method-profiles.md",
+  "plugin/skills/dev-flow/references/node-payloads.md",
+  "runtime/darwin-arm64/dev-flow",
+]);
+const FINAL_LOCAL_EVIDENCE_FIELDS = Object.freeze([
+  "evidence_kind", "status", "artifact_filename", "artifact_sha256", "artifact_size",
+  "artifact_source_commit", "package_name", "package_version", "core_version", "core_sha256",
+  "platform", "codex_version", "compatible_codex_range", "codex_compatible", "explicit_selector",
+  "handshake_passed", "setup_readback_passed", "ordinary_prompt_core_call_count",
+  "task_id_before_restart", "task_revision_before_restart", "task_action_id_before_restart",
+  "task_id_after_restart", "task_revision_after_restart", "task_action_id_after_restart",
+  "multiple_destinations_observed", "complexity_transition_observed", "refactor_retest_observed",
+  "explicit_user_confirmation_observed", "committed_action_count", "targeted_command_count",
+  "terminal_outcome", "remove_readback_passed", "npm_uninstall_passed", "task_data_retained",
+  "task_reopened_after_uninstall", "unexpected_repository_paths", "native_journey_attempt_count",
+  "total_native_attempts", "successful_attempt", "attempt_1_status", "attempt_1_stage",
+  "attempt_1_failure", "attempt_1_evidence_preserved", "attempt_2_status", "attempt_2_stage",
+  "attempt_2_failure", "attempt_2_authorization", "attempt_2_evidence_preserved",
+  "attempt_3_status", "attempt_3_authorization", "attempt_3_final_allowed_attempt",
+  "previous_attempt_preserved",
+  "observed_at",
+]);
+const ATTEMPT_3_TRANSCRIPTS = Object.freeze([
+  Object.freeze({ role: "ordinary", filename: "session-0-ordinary.jsonl", size: 3043, sha256: "f8c5461e256c3248b662bb2ab094c2aec982e622ed51687ba3f55b5de8988ad9" }),
+  Object.freeze({ role: "initial-comprehension", filename: "session-1-initial-comprehension.jsonl", size: 122954, sha256: "55bd97084e453a869213f5752b4fa2124fdc06322e032e4f7c8a5622f8e553b3" }),
+  Object.freeze({ role: "complexity-refactor-retest", filename: "session-2-complexity-refactor-retest.jsonl", size: 133284, sha256: "600e15e0a49b21c3039fd8d7d453f7a1886d498011ec5cbc9814d2ed93e9e78d" }),
+  Object.freeze({ role: "confirmation-delivery", filename: "session-3-confirmation-delivery.jsonl", size: 122458, sha256: "b63ec4a42bd634694486bc2588113b077460fa9d1e2d2576ce742bf35b6adbb8" }),
+]);
+const ATTEMPT_3_ARTIFACT_MARKER = Object.freeze({
+  filename: "native-attempt-3.json",
+  size: 465,
+  sha256: "0f35251490e2e51b4b23e2b425f22fe8f2e1ebd89fd31a0c566a932afeab5b41",
+});
+const ATTEMPT_3_FAILED_MARKER = Object.freeze({
+  filename: "native-attempt-3-failed.json",
+  size: 1293,
+  sha256: "26defc139e75f75549d491a5c3254f58b9722852e4ed23b1d1be9b0704fb4044",
+});
+const ATTEMPT_3_NATIVE_EVIDENCE_FIELDS = Object.freeze([
+  "evidence_kind", "native_flow_status", "runner_status", "lifecycle_status", "source_attempt",
+  "artifact_filename", "artifact_sha256", "artifact_size", "artifact_source_commit",
+  "package_name", "package_version", "core_version", "core_sha256", "platform",
+  "source_transcripts", "source_artifact_marker", "original_failed_marker",
+  "ordinary_zero_calls", "distinct_real_codex_threads", "handshake_passed", "schema_version",
+  "core_limits_version", "process_identity", "definition_digest", "method_profiles", "tool_order",
+  "transition_sequence", "successful_mutation_count", "request_binding_passed", "revision_start",
+  "revision_end", "revision_increment_exact", "last_operation_binding_passed",
+  "duplicate_mutation_identities", "duplicate_evidence_ids", "restart_identity_passed",
+  "complexity_refactor_retest", "explicit_user_confirmation", "targeted_command_count",
+  "targeted_command_identity", "targeted_exit_codes", "forbidden_suite_count",
+  "terminal_cursor", "terminal_outcome_status", "current_action_null",
+  "unexpected_repository_paths", "attempt_history", "observed_at",
+]);
+const EXACT_ARTIFACT_LIFECYCLE_EVIDENCE_FIELDS = Object.freeze([
+  "evidence_kind", "status", "evidence_class", "artifact_filename", "artifact_sha256",
+  "artifact_size", "artifact_source_commit", "same_artifact_identity", "package_name",
+  "package_version", "core_version", "core_sha256", "platform", "codex_invocation_count",
+  "codex_auth_read_count", "codex_thread_count", "closed_package_contents_passed",
+  "handshake_passed", "live_apply_schema_passed", "packaged_payload_reference_passed",
+  "setup_passed", "task_id", "final_revision", "event_count", "evidence_count",
+  "current_cursor", "outcome_status", "current_action_null", "claim_absent",
+  "targeted_command_count", "targeted_command_identity", "targeted_exit_codes",
+  "comprehension_evidence_class", "remove_passed", "repeated_remove_noop",
+  "npm_uninstall_passed", "data_retained", "adjacent_sentinel_retained",
+  "repository_unchanged", "exact_artifact_reinstall_passed", "same_task_reopened",
+  "read_zero_write", "database_manifest", "final_package_uninstalled", "observed_at",
+]);
+const COMPOSITE_ACCEPTANCE_EVIDENCE_FIELDS = Object.freeze([
+  "evidence_kind", "status", "artifact_filename", "artifact_sha256", "artifact_size",
+  "artifact_source_commit", "core_sha256", "package_version", "core_version",
+  "native_component", "lifecycle_component", "attempt_history", "component_relationship",
+  "publication_mutations_performed", "observed_at",
+]);
 const SMOKE_ROLES = Object.freeze(["ordinary", "invalid", "substantive", "resume"]);
 const SMOKE_RESULT_FIELDS = Object.freeze([
   "status", "run_id", "codex_version", "package_version", "core_version",
@@ -189,6 +283,99 @@ export function buildFinalJourneyEnvironment({
   return environment;
 }
 
+export function createFinalLocalJourneyLayout(workspace, resultDirectory) {
+  requireAbsolute(workspace, "final local workspace");
+  requireAbsolute(resultDirectory, "final local result directory");
+  const root = dirname(workspace);
+  if (basename(workspace) !== "workspace" || dirname(resultDirectory) !== root || basename(resultDirectory) !== "result") {
+    throw new Error("final local workspace and result must be sibling workspace/result directories");
+  }
+  return {
+    root,
+    home: join(root, "home"),
+    codexHome: join(root, "codex-home"),
+    installPrefix: join(root, "npm-prefix"),
+    npmCache: join(root, "npm-cache"),
+    dataDirectory: join(root, "data"),
+    temporaryDirectory: join(root, "tmp"),
+    xdgCache: join(root, "xdg-cache"),
+    workspace,
+    resultDirectory,
+  };
+}
+
+export function buildFinalLocalJourneyEnvironment({ layout, codexExecutable, toolDirectories, baseEnvironment = process.env }) {
+  requireAbsolute(codexExecutable, "Codex executable");
+  if (!isPlainObject(layout) || !Array.isArray(toolDirectories) || toolDirectories.length === 0) {
+    throw new Error("final local environment requires one closed layout and tool directory list");
+  }
+  const environment = {};
+  for (const name of ["LANG", "LC_ALL", "TERM", "SSL_CERT_FILE"]) {
+    if (typeof baseEnvironment?.[name] === "string" && baseEnvironment[name] !== "") environment[name] = baseEnvironment[name];
+  }
+  Object.assign(environment, {
+    HOME: layout.home,
+    CODEX_HOME: layout.codexHome,
+    TMPDIR: layout.temporaryDirectory,
+    DEV_FLOW_DATA_DIR: layout.dataDirectory,
+    npm_config_prefix: layout.installPrefix,
+    npm_config_cache: layout.npmCache,
+    XDG_CACHE_HOME: layout.xdgCache,
+    GIT_CONFIG_GLOBAL: "/dev/null",
+    GIT_CONFIG_NOSYSTEM: "1",
+    NO_COLOR: "1",
+    PATH: [join(layout.installPrefix, "bin"), dirname(codexExecutable), ...toolDirectories]
+      .filter((value, index, values) => values.indexOf(value) === index)
+      .join(delimiter),
+  });
+  return environment;
+}
+
+export function createFinalLocalLifecycleLayout(workspace, resultDirectory) {
+  requireAbsolute(workspace, "final local lifecycle workspace");
+  requireAbsolute(resultDirectory, "final local lifecycle result directory");
+  const root = dirname(workspace);
+  if (basename(workspace) !== "workspace" || dirname(resultDirectory) !== root || basename(resultDirectory) !== "result") {
+    throw new Error("final local lifecycle workspace and result must be sibling workspace/result directories");
+  }
+  return {
+    root,
+    home: join(root, "home"),
+    installPrefix: join(root, "npm-prefix"),
+    npmCache: join(root, "npm-cache"),
+    dataDirectory: join(root, "data"),
+    temporaryDirectory: join(root, "tmp"),
+    xdgCache: join(root, "xdg-cache"),
+    workspace,
+    resultDirectory,
+  };
+}
+
+export function buildFinalLocalLifecycleEnvironment({ layout, toolDirectories, baseEnvironment = process.env }) {
+  if (!isPlainObject(layout) || !Array.isArray(toolDirectories) || toolDirectories.length === 0) {
+    throw new Error("final local lifecycle environment requires one closed layout and tool directory list");
+  }
+  const environment = {};
+  for (const name of ["LANG", "LC_ALL", "TERM", "SSL_CERT_FILE"]) {
+    if (typeof baseEnvironment?.[name] === "string" && baseEnvironment[name] !== "") environment[name] = baseEnvironment[name];
+  }
+  Object.assign(environment, {
+    HOME: layout.home,
+    TMPDIR: layout.temporaryDirectory,
+    DEV_FLOW_DATA_DIR: layout.dataDirectory,
+    npm_config_prefix: layout.installPrefix,
+    npm_config_cache: layout.npmCache,
+    XDG_CACHE_HOME: layout.xdgCache,
+    GIT_CONFIG_GLOBAL: "/dev/null",
+    GIT_CONFIG_NOSYSTEM: "1",
+    NO_COLOR: "1",
+    PATH: [join(layout.installPrefix, "bin"), ...toolDirectories]
+      .filter((value, index, values) => values.indexOf(value) === index)
+      .join(delimiter),
+  });
+  return environment;
+}
+
 export function buildFinalRegistryInstallArgs({ version, prefix, cache }) {
   requireReleaseVersion(version);
   requireAbsolute(prefix, "final npm prefix");
@@ -273,6 +460,361 @@ export function validateFinalJourneyEvidence(evidence, options = {}) {
   return validateFinalJourneyEvidenceShape(evidence, { ...options, allowFixture: false });
 }
 
+export function validateFinalLocalJourneyEvidence(evidence, expected = null) {
+  assertExactFields(evidence, FINAL_LOCAL_EVIDENCE_FIELDS, "final local journey evidence");
+  if (evidence.evidence_kind !== FINAL_LOCAL_NATIVE_EVIDENCE_KIND || evidence.status !== "passed") {
+    throw new Error("final local evidence must be passed source-local native evidence");
+  }
+  if (evidence.package_name !== "dev-flow-codex" || evidence.package_version !== evidence.core_version) {
+    throw new Error("final local package/Core identity is invalid");
+  }
+  if (evidence.artifact_filename !== `dev-flow-codex-${evidence.package_version}.tgz`) {
+    throw new Error("final local artifact filename is invalid");
+  }
+  requireDigest(evidence.artifact_sha256, "artifact_sha256");
+  requireDigest(evidence.core_sha256, "core_sha256");
+  if (!Number.isSafeInteger(evidence.artifact_size) || evidence.artifact_size < 1) {
+    throw new Error("final local artifact_size is invalid");
+  }
+  if (!/^[0-9a-f]{40}$/u.test(evidence.artifact_source_commit)) {
+    throw new Error("final local artifact source commit is invalid");
+  }
+  if (evidence.platform !== "darwin-arm64" || !versionSatisfiesFixedRange(evidence.codex_version)) {
+    throw new Error("final local native platform or Codex version is invalid");
+  }
+  if (evidence.compatible_codex_range !== CODEX_COMPATIBILITY_RANGE || evidence.codex_compatible !== true) {
+    throw new Error("final local Codex compatibility identity is invalid");
+  }
+  for (const field of [
+    "handshake_passed", "setup_readback_passed", "multiple_destinations_observed",
+    "complexity_transition_observed", "refactor_retest_observed",
+    "explicit_user_confirmation_observed", "remove_readback_passed", "npm_uninstall_passed",
+    "task_data_retained", "task_reopened_after_uninstall",
+  ]) {
+    if (evidence[field] !== true) throw new Error(`final local ${field} must be true`);
+  }
+  if (evidence.ordinary_prompt_core_call_count !== 0 || evidence.explicit_selector !== EXPLICIT_SELECTOR) {
+    throw new Error("final local ordinary admission or selector identity is invalid");
+  }
+  for (const field of ["task_id_before_restart", "task_action_id_before_restart", "task_id_after_restart", "task_action_id_after_restart"]) {
+    if (typeof evidence[field] !== "string" || evidence[field].length < 1 || evidence[field].length > 160) {
+      throw new Error(`final local ${field} is invalid`);
+    }
+  }
+  for (const field of ["task_revision_before_restart", "task_revision_after_restart", "committed_action_count"]) {
+    if (!Number.isSafeInteger(evidence[field]) || evidence[field] < 1) throw new Error(`final local ${field} is invalid`);
+  }
+  if (
+    evidence.task_id_after_restart !== evidence.task_id_before_restart
+    || evidence.task_revision_after_restart !== evidence.task_revision_before_restart
+    || evidence.task_action_id_after_restart !== evidence.task_action_id_before_restart
+  ) throw new Error("final local restart identity is not exact");
+  if (evidence.committed_action_count < 10 || evidence.targeted_command_count !== 2) {
+    throw new Error("final local committed-action or targeted-command count is invalid");
+  }
+  if (
+    evidence.terminal_outcome !== "DONE"
+    || evidence.native_journey_attempt_count !== 3
+    || evidence.total_native_attempts !== 3
+    || evidence.successful_attempt !== 3
+    || evidence.attempt_1_status !== "failed"
+    || evidence.attempt_1_stage !== "initial-comprehension-first-requirements-apply"
+    || evidence.attempt_1_failure !== "invalid-contract-0.2-payload"
+    || evidence.attempt_1_evidence_preserved !== true
+    || evidence.attempt_2_status !== "failed"
+    || evidence.attempt_2_stage !== "design-apply"
+    || evidence.attempt_2_failure !== "invalid-contract-0.2-design-baseline"
+    || evidence.attempt_2_authorization !== "explicit_user_authorization"
+    || evidence.attempt_2_evidence_preserved !== true
+    || evidence.attempt_3_status !== "passed"
+    || evidence.attempt_3_authorization !== "explicit_user_authorization"
+    || evidence.attempt_3_final_allowed_attempt !== true
+    || evidence.previous_attempt_preserved !== true
+  ) {
+    throw new Error("final local terminal outcome or native-attempt count is invalid");
+  }
+  if (!Array.isArray(evidence.unexpected_repository_paths) || evidence.unexpected_repository_paths.length !== 0) {
+    throw new Error("final local unexpected_repository_paths must be empty");
+  }
+  if (typeof evidence.observed_at !== "string" || !Number.isFinite(Date.parse(evidence.observed_at))) {
+    throw new Error("final local observed_at must be an RFC 3339 date-time");
+  }
+  if (expected !== null) {
+    for (const [field, value] of [
+      ["artifact_filename", basename(expected.artifact)],
+      ["artifact_sha256", expected.artifactSHA256],
+      ["artifact_size", expected.artifactSize],
+      ["artifact_source_commit", expected.sourceCommit],
+    ]) {
+      if (evidence[field] !== value) throw new Error(`final local evidence ${field} differs from the approved artifact`);
+    }
+  }
+  const serialized = JSON.stringify(evidence);
+  if (/(?:\/Users\/|\/home\/|[A-Za-z]:\\\\|auth\.json|CODEX_HOME|HOME=)/u.test(serialized)) {
+    throw new Error("final local evidence contains private path or authentication material");
+  }
+  return structuredClone(evidence);
+}
+
+function validateClosedEvidenceFileIdentity(value, expected, label) {
+  assertExactFields(value, ["filename", "size", "sha256"], label);
+  if (
+    value.filename !== expected.filename
+    || value.size !== expected.size
+    || value.sha256 !== expected.sha256
+  ) throw new Error(`${label} identity is invalid`);
+}
+
+function assertCompositeEvidenceSanitized(value) {
+  const serialized = JSON.stringify(value);
+  if (
+    /(?:\/Users\/|\/home\/|[A-Za-z]:\\\\|auth\.json|CODEX_HOME|HOME=|"(?:prompt|raw_jsonl|database_path|environment|token|secret|auth)"\s*:)/u.test(serialized)
+  ) throw new Error("composite acceptance evidence contains private or raw material");
+}
+
+export function validateAttempt3NativeFlowEvidence(evidence, expected = null) {
+  assertExactFields(evidence, ATTEMPT_3_NATIVE_EVIDENCE_FIELDS, "Attempt 3 native-flow evidence");
+  if (
+    evidence.evidence_kind !== "attempt-3-native-codex-graph-flow"
+    || evidence.native_flow_status !== "passed"
+    || evidence.runner_status !== "failed_after_native_flow"
+    || evidence.lifecycle_status !== "not_run"
+    || evidence.source_attempt !== 3
+  ) throw new Error("Attempt 3 native-flow status is invalid");
+  if (
+    evidence.artifact_filename !== "dev-flow-codex-0.3.0.tgz"
+    || evidence.package_name !== "dev-flow-codex"
+    || evidence.package_version !== "0.3.0"
+    || evidence.core_version !== "0.3.0"
+    || evidence.platform !== "darwin-arm64"
+  ) throw new Error("Attempt 3 artifact or product identity is invalid");
+  requireDigest(evidence.artifact_sha256, "artifact_sha256");
+  requireDigest(evidence.core_sha256, "core_sha256");
+  if (!Number.isSafeInteger(evidence.artifact_size) || evidence.artifact_size < 1) {
+    throw new Error("Attempt 3 artifact size is invalid");
+  }
+  if (!/^[0-9a-f]{40}$/u.test(evidence.artifact_source_commit)) {
+    throw new Error("Attempt 3 source commit is invalid");
+  }
+  if (!Array.isArray(evidence.source_transcripts) || evidence.source_transcripts.length !== ATTEMPT_3_TRANSCRIPTS.length) {
+    throw new Error("Attempt 3 transcript manifest is incomplete");
+  }
+  for (let index = 0; index < ATTEMPT_3_TRANSCRIPTS.length; index += 1) {
+    validateClosedEvidenceFileIdentity(evidence.source_transcripts[index], ATTEMPT_3_TRANSCRIPTS[index], "Attempt 3 transcript");
+  }
+  validateClosedEvidenceFileIdentity(evidence.source_artifact_marker, ATTEMPT_3_ARTIFACT_MARKER, "Attempt 3 artifact marker");
+  validateClosedEvidenceFileIdentity(evidence.original_failed_marker, ATTEMPT_3_FAILED_MARKER, "Attempt 3 failed marker");
+  for (const field of [
+    "ordinary_zero_calls", "handshake_passed", "request_binding_passed",
+    "revision_increment_exact", "last_operation_binding_passed", "restart_identity_passed",
+    "complexity_refactor_retest", "explicit_user_confirmation", "current_action_null",
+  ]) {
+    if (evidence[field] !== true) throw new Error(`Attempt 3 ${field} must be true`);
+  }
+  const expectedTransitions = [
+    "requirements_ready", "design_ready", "tasks_ready", "implementation_ready_for_test",
+    "tests_passed", "code_too_complex", "refactor_ready_for_test", "tests_passed",
+    "comprehension_passed", "delivery_complete",
+  ];
+  if (
+    evidence.distinct_real_codex_threads !== 4
+    || evidence.schema_version !== 2
+    || evidence.core_limits_version !== "0.2"
+    || evidence.process_identity !== "standard-development@1"
+    || evidence.definition_digest !== FINAL_LOCAL_DEFINITION_DIGEST
+    || !isDeepStrictEqual(evidence.method_profiles, ["plain", "spec-kit", "openspec"])
+    || !isDeepStrictEqual(evidence.tool_order, DEV_FLOW_TOOLS)
+    || !isDeepStrictEqual(evidence.transition_sequence, expectedTransitions)
+    || evidence.successful_mutation_count !== 10
+    || evidence.revision_start !== 1
+    || evidence.revision_end !== 11
+    || evidence.duplicate_mutation_identities !== 0
+    || evidence.duplicate_evidence_ids !== 0
+    || evidence.targeted_command_count !== 2
+    || evidence.targeted_command_identity !== FINAL_LOCAL_TEST_COMMAND
+    || !isDeepStrictEqual(evidence.targeted_exit_codes, [0, 0])
+    || evidence.forbidden_suite_count !== 0
+    || evidence.terminal_cursor !== "DONE"
+    || evidence.terminal_outcome_status !== "completed"
+    || !isDeepStrictEqual(evidence.unexpected_repository_paths, [])
+  ) throw new Error("Attempt 3 native graph-flow facts are incomplete");
+  assertExactFields(evidence.attempt_history, ["attempt_1", "attempt_2", "attempt_3", "attempt_4"], "Attempt history");
+  if (!isDeepStrictEqual(evidence.attempt_history, {
+    attempt_1: { status: "failed", stage: "first_requirements_apply", cause: "invalid_closed_requirements_payload" },
+    attempt_2: { status: "failed", stage: "design_apply", cause: "invalid_closed_design_baseline" },
+    attempt_3: {
+      status: "runner_failed_after_native_sessions",
+      native_sessions_status: "passed",
+      core_terminal_status: "DONE",
+      lifecycle_status: "not_run",
+      cause: "verification_command_classifier_false_positive",
+    },
+    attempt_4: { status: "forbidden" },
+  })) throw new Error("Attempt history is invalid");
+  if (typeof evidence.observed_at !== "string" || !Number.isFinite(Date.parse(evidence.observed_at))) {
+    throw new Error("Attempt 3 observed_at is invalid");
+  }
+  if (expected !== null) {
+    for (const [field, value] of [
+      ["artifact_filename", basename(expected.artifact)],
+      ["artifact_sha256", expected.artifactSHA256],
+      ["artifact_size", expected.artifactSize],
+      ["artifact_source_commit", expected.sourceCommit],
+      ["core_sha256", expected.coreSHA256],
+    ]) {
+      if (evidence[field] !== value) throw new Error(`Attempt 3 evidence ${field} differs from the approved artifact`);
+    }
+  }
+  assertCompositeEvidenceSanitized(evidence);
+  return structuredClone(evidence);
+}
+
+export function validateExactArtifactLifecycleEvidence(evidence, expected = null) {
+  assertExactFields(evidence, EXACT_ARTIFACT_LIFECYCLE_EVIDENCE_FIELDS, "exact-artifact lifecycle evidence");
+  if (
+    evidence.evidence_kind !== "exact-artifact-packaged-core-lifecycle"
+    || evidence.status !== "passed"
+    || evidence.evidence_class !== "deterministic exact-artifact lifecycle evidence"
+    || evidence.artifact_filename !== "dev-flow-codex-0.3.0.tgz"
+    || evidence.package_name !== "dev-flow-codex"
+    || evidence.package_version !== "0.3.0"
+    || evidence.core_version !== "0.3.0"
+    || evidence.platform !== "darwin-arm64"
+    || evidence.same_artifact_identity !== true
+  ) throw new Error("exact-artifact lifecycle identity is invalid");
+  requireDigest(evidence.artifact_sha256, "artifact_sha256");
+  requireDigest(evidence.core_sha256, "core_sha256");
+  if (!Number.isSafeInteger(evidence.artifact_size) || evidence.artifact_size < 1 || !/^[0-9a-f]{40}$/u.test(evidence.artifact_source_commit)) {
+    throw new Error("exact-artifact lifecycle artifact metadata is invalid");
+  }
+  if (evidence.codex_invocation_count !== 0 || evidence.codex_auth_read_count !== 0 || evidence.codex_thread_count !== 0) {
+    throw new Error("exact-artifact lifecycle must not use Codex");
+  }
+  for (const field of [
+    "closed_package_contents_passed", "handshake_passed", "live_apply_schema_passed",
+    "packaged_payload_reference_passed", "setup_passed", "current_action_null", "claim_absent",
+    "remove_passed", "repeated_remove_noop", "npm_uninstall_passed", "data_retained",
+    "adjacent_sentinel_retained", "repository_unchanged", "exact_artifact_reinstall_passed",
+    "same_task_reopened", "read_zero_write", "final_package_uninstalled",
+  ]) {
+    if (evidence[field] !== true) throw new Error(`exact-artifact lifecycle ${field} must be true`);
+  }
+  if (
+    typeof evidence.task_id !== "string"
+    || evidence.task_id.length === 0
+    || evidence.task_id.length > 160
+    || !Number.isSafeInteger(evidence.final_revision)
+    || evidence.final_revision < 2
+    || !Number.isSafeInteger(evidence.event_count)
+    || evidence.event_count < 1
+    || !Number.isSafeInteger(evidence.evidence_count)
+    || evidence.evidence_count < 1
+    || evidence.current_cursor !== "DONE"
+    || evidence.outcome_status !== "completed"
+    || evidence.targeted_command_count !== 1
+    || evidence.targeted_command_identity !== FINAL_LOCAL_TEST_COMMAND
+    || !isDeepStrictEqual(evidence.targeted_exit_codes, [0])
+    || evidence.comprehension_evidence_class !== "deterministic_test_fixture"
+  ) throw new Error("exact-artifact lifecycle task or verification facts are invalid");
+  if (!Array.isArray(evidence.database_manifest) || evidence.database_manifest.length === 0) {
+    throw new Error("exact-artifact lifecycle database manifest is empty");
+  }
+  for (const entry of evidence.database_manifest) {
+    assertExactFields(entry, ["path", "size", "sha256"], "lifecycle database manifest entry");
+    if (
+      typeof entry.path !== "string"
+      || entry.path === ""
+      || isAbsolute(entry.path)
+      || entry.path.split(/[\\/]/u).includes("..")
+      || !Number.isSafeInteger(entry.size)
+      || entry.size < 1
+    ) throw new Error("lifecycle database manifest entry is invalid");
+    requireDigest(entry.sha256, "database manifest sha256");
+  }
+  if (expected !== null) {
+    for (const [field, value] of [
+      ["artifact_filename", basename(expected.artifact)],
+      ["artifact_sha256", expected.artifactSHA256],
+      ["artifact_size", expected.artifactSize],
+      ["artifact_source_commit", expected.sourceCommit],
+      ["core_sha256", expected.coreSHA256],
+    ]) {
+      if (evidence[field] !== value) throw new Error(`lifecycle evidence ${field} differs from the approved artifact`);
+    }
+  }
+  if (typeof evidence.observed_at !== "string" || !Number.isFinite(Date.parse(evidence.observed_at))) {
+    throw new Error("lifecycle observed_at is invalid");
+  }
+  assertCompositeEvidenceSanitized(evidence);
+  return structuredClone(evidence);
+}
+
+export function validateCompositeAcceptanceEvidence(evidence, nativeEvidence, lifecycleEvidence) {
+  assertExactFields(evidence, COMPOSITE_ACCEPTANCE_EVIDENCE_FIELDS, "Feature 008 composite acceptance evidence");
+  if (
+    evidence.evidence_kind !== "feature-008-composite-source-local-acceptance"
+    || evidence.status !== "passed"
+    || evidence.publication_mutations_performed !== false
+    || evidence.component_relationship !== "complementary_components_bound_to_one_exact_artifact_with_distinct_tasks"
+  ) throw new Error("Feature 008 composite acceptance status is invalid");
+  for (const field of [
+    "artifact_filename", "artifact_sha256", "artifact_size", "artifact_source_commit",
+    "core_sha256", "package_version", "core_version",
+  ]) {
+    if (evidence[field] !== nativeEvidence[field] || evidence[field] !== lifecycleEvidence[field]) {
+      throw new Error(`Feature 008 composite ${field} differs between components`);
+    }
+  }
+  assertExactFields(evidence.native_component, [
+    "source_attempt", "runner_status", "native_flow_status", "ordinary_zero_calls",
+    "four_distinct_threads", "transition_sequence", "task_revision", "terminal_outcome",
+    "targeted_command_count", "complexity_refactor_retest", "explicit_user_confirmation",
+    "unexpected_repository_paths",
+  ], "native composite component");
+  assertExactFields(evidence.lifecycle_component, [
+    "evidence_class", "same_artifact_identity", "setup_passed", "remove_passed",
+    "repeated_remove_noop", "npm_uninstall_passed", "data_retained",
+    "exact_artifact_reinstall_passed", "same_task_reopened", "terminal_outcome",
+    "read_zero_write", "same_task_as_native_component",
+  ], "lifecycle composite component");
+  if (!isDeepStrictEqual(evidence.native_component, {
+    source_attempt: 3,
+    runner_status: "failed_after_native_flow",
+    native_flow_status: "passed",
+    ordinary_zero_calls: true,
+    four_distinct_threads: true,
+    transition_sequence: nativeEvidence.transition_sequence,
+    task_revision: 11,
+    terminal_outcome: "DONE",
+    targeted_command_count: 2,
+    complexity_refactor_retest: true,
+    explicit_user_confirmation: true,
+    unexpected_repository_paths: [],
+  })) throw new Error("native composite component is invalid");
+  if (!isDeepStrictEqual(evidence.lifecycle_component, {
+    evidence_class: "deterministic_exact_artifact",
+    same_artifact_identity: true,
+    setup_passed: true,
+    remove_passed: true,
+    repeated_remove_noop: true,
+    npm_uninstall_passed: true,
+    data_retained: true,
+    exact_artifact_reinstall_passed: true,
+    same_task_reopened: true,
+    terminal_outcome: "DONE",
+    read_zero_write: true,
+    same_task_as_native_component: false,
+  })) throw new Error("lifecycle composite component is invalid");
+  if (!isDeepStrictEqual(evidence.attempt_history, nativeEvidence.attempt_history)) {
+    throw new Error("Feature 008 composite attempt history differs from native evidence");
+  }
+  if (typeof evidence.observed_at !== "string" || !Number.isFinite(Date.parse(evidence.observed_at))) {
+    throw new Error("Feature 008 composite observed_at is invalid");
+  }
+  assertCompositeEvidenceSanitized(evidence);
+  return structuredClone(evidence);
+}
+
 export function buildCodexExecArgs(prompt, {
   ephemeral = false,
   skipGitRepoCheck = false,
@@ -305,6 +847,7 @@ export async function runCodexSession({
   stopAfterApplyPath = null,
   stopAfterApplyContent = null,
   retainCoreRejections = false,
+  transcriptPath = null,
 }) {
   requireAbsolute(codexExecutable, "Codex executable");
   requireAbsolute(workspace, "workspace");
@@ -323,6 +866,10 @@ export async function runCodexSession({
     workspaceWrite,
     workspace: ephemeral ? workspace : null,
   }), processOptions);
+  if (transcriptPath !== null) {
+    requireAbsolute(transcriptPath, "Codex transcript path");
+    await writeFile(transcriptPath, result.stdout, { mode: 0o600, flag: "wx" });
+  }
   const classified = classifyCodexSessionResult(result);
   if (classified.classification !== "success") {
     if (retainCoreRejections && admissibleCoreRejection(classified, result)) {
@@ -887,6 +1434,1040 @@ export async function runFinalRegistryJourney(options) {
   }
 }
 
+async function readExactEvidenceFileIdentity(directory, expected) {
+  const path = join(directory, expected.filename);
+  const info = await lstat(path);
+  if (!info.isFile() || info.isSymbolicLink() || info.size !== expected.size) {
+    throw new Error(`retained evidence file ${expected.filename} identity is invalid`);
+  }
+  const identity = { filename: expected.filename, size: info.size, sha256: await digestFile(path) };
+  validateClosedEvidenceFileIdentity(identity, expected, "retained Attempt 3 evidence file");
+  return identity;
+}
+
+async function assertFinalLocalFixtureRepository(workspace, environment) {
+  const [status, branch, head, files, packageText, testText, sourceText] = await Promise.all([
+    gitStatus(workspace, environment),
+    execFile("git", ["branch", "--show-current"], { cwd: workspace, env: environment, encoding: "utf8" }),
+    execFile("git", ["rev-parse", "HEAD"], { cwd: workspace, env: environment, encoding: "utf8" }),
+    finalLocalRepositoryFiles(workspace),
+    readFile(join(workspace, "package.json"), "utf8"),
+    readFile(join(workspace, "test", "proof-writer.test.mjs"), "utf8"),
+    readFile(join(workspace, "src", "proof-writer.mjs"), "utf8"),
+  ]);
+  const expectedPackage = `${JSON.stringify({ name: "feature-008-native-fixture", private: true, type: "module" }, null, 2)}\n`;
+  const expectedTest = `import assert from "node:assert/strict";\nimport { mkdtemp, readFile, rm } from "node:fs/promises";\nimport { tmpdir } from "node:os";\nimport { join } from "node:path";\nimport test from "node:test";\n\nimport { writeProof } from "../src/proof-writer.mjs";\n\ntest("writeProof emits the exact Feature 008 native bytes", async (t) => {\n  const root = await mkdtemp(join(tmpdir(), "feature-008-proof-"));\n  t.after(() => rm(root, { recursive: true, force: true }));\n  const output = join(root, "proof.txt");\n  await writeProof(output);\n  assert.equal(await readFile(output, "utf8"), ${JSON.stringify(FINAL_LOCAL_PROOF_CONTENT)});\n});\n`;
+  if (
+    status !== " M src/proof-writer.mjs\n"
+    || branch.stdout.trim() !== "main"
+    || !/^[0-9a-f]{40}$/u.test(head.stdout.trim())
+    || !isDeepStrictEqual(files, ["package.json", "src/proof-writer.mjs", "test/proof-writer.test.mjs"])
+    || packageText !== expectedPackage
+    || testText !== expectedTest
+    || /ProofWriterFactory|class\s+ProofWriter/u.test(sourceText)
+    || !/export async function writeProof/u.test(sourceText)
+    || !sourceText.includes(FINAL_LOCAL_PROOF_CONTENT.trim())
+  ) throw new Error("final local fixture repository state is invalid");
+  return [];
+}
+
+export async function validateRetainedAttempt3NativeFlow(options) {
+  assertExactFields(options, [
+    "artifact", "artifactSHA256", "artifactSize", "sourceCommit", "coreSHA256",
+    "nativeResultDirectory",
+  ], "retained Attempt 3 validation options");
+  requireAbsolute(options.artifact, "Attempt 3 artifact");
+  requireDigest(options.artifactSHA256, "artifact-sha256");
+  requireDigest(options.coreSHA256, "core-sha256");
+  if (!Number.isSafeInteger(options.artifactSize) || options.artifactSize < 1) throw new Error("Attempt 3 artifact size is invalid");
+  if (!/^[0-9a-f]{40}$/u.test(options.sourceCommit)) throw new Error("Attempt 3 source commit is invalid");
+  requireAbsolute(options.nativeResultDirectory, "Attempt 3 result directory");
+
+  const nativeResultDirectory = await realpath(options.nativeResultDirectory);
+  const nativeWorkspace = await realpath(join(dirname(nativeResultDirectory), "workspace"));
+  if (basename(nativeResultDirectory) !== "result" || pathWithin(REPOSITORY_ROOT, nativeResultDirectory) || pathWithin(REPOSITORY_ROOT, nativeWorkspace)) {
+    throw new Error("Attempt 3 retained directories are invalid");
+  }
+  const transcriptIdentities = [];
+  const sessions = [];
+  for (const source of ATTEMPT_3_TRANSCRIPTS) {
+    transcriptIdentities.push(await readExactEvidenceFileIdentity(nativeResultDirectory, source));
+    const parsed = parseCodexJSONL(await readFile(join(nativeResultDirectory, source.filename), "utf8"));
+    if (parsed.transcriptIntegrity !== null) throw new Error(`Attempt 3 ${source.filename} is incomplete`);
+    sessions.push(summarizeCodexSession(source.role, parsed));
+  }
+  const sourceArtifactMarker = await readExactEvidenceFileIdentity(nativeResultDirectory, ATTEMPT_3_ARTIFACT_MARKER);
+  const failedMarkerBefore = await readExactEvidenceFileIdentity(nativeResultDirectory, ATTEMPT_3_FAILED_MARKER);
+  const started = JSON.parse(await readFile(join(nativeResultDirectory, ATTEMPT_3_ARTIFACT_MARKER.filename), "utf8"));
+  const failed = JSON.parse(await readFile(join(nativeResultDirectory, ATTEMPT_3_FAILED_MARKER.filename), "utf8"));
+  if (
+    started.status !== "started"
+    || started.native_journey_attempt_count !== 3
+    || started.authorization !== "explicit_user_authorization"
+    || started.final_allowed_attempt !== true
+    || started.attempt_1_status !== "failed"
+    || started.attempt_2_status !== "failed"
+    || started.previous_attempt_preserved !== true
+    || started.artifact_filename !== basename(options.artifact)
+    || started.artifact_sha256 !== options.artifactSHA256
+    || started.artifact_source_commit !== options.sourceCommit
+  ) throw new Error("Attempt 3 start marker is invalid");
+  if (
+    failed.status !== "failed"
+    || failed.attempt_3_stage !== "post-session-verification-classification"
+    || failed.attempt_3_failure !== "verification-command-classifier-false-positive"
+    || failed.broad_classifier_count !== 3
+    || failed.exact_targeted_command_count !== 2
+    || failed.successful_mutation_count !== 10
+    || failed.final_revision !== 11
+    || failed.final_cursor !== "DONE"
+    || failed.final_outcome !== "completed"
+    || failed.final_action_is_null !== true
+    || failed.lifecycle_remove_started !== false
+    || failed.npm_uninstall_started !== false
+    || failed.retained_reopen_started !== false
+    || failed.attempt_4_allowed !== false
+    || failed.attempt_4_started !== false
+  ) throw new Error("Attempt 3 failure marker does not preserve the real runner boundary");
+
+  if (new Set(sessions.map((session) => session.thread_id)).size !== 4 || sessions[0].dev_flow_call_count !== 0) {
+    throw new Error("Attempt 3 session identity or ordinary-call boundary is invalid");
+  }
+  for (const session of sessions.slice(1)) assertFinalLocalHandshake(session, "0.3.0");
+  const taskBeforeRestart = lastGraphTask(sessions[1]);
+  assertInitialComprehensionTask(taskBeforeRestart);
+  assertFinalLocalResume(sessions[2], taskBeforeRestart);
+  assertFinalLocalSessionTwo(sessions[2]);
+  const taskAfterRefactor = lastGraphTask(sessions[2]);
+  assertInitialComprehensionTask(taskAfterRefactor);
+  assertFinalLocalResume(sessions[3], taskAfterRefactor);
+  assertFinalLocalSessionThree(sessions[3]);
+  const finalTask = lastGraphTask(sessions[3]);
+  if (finalTask?.current_cursor !== "DONE" || finalTask.current_action !== null || finalTask.outcome?.status !== "completed") {
+    throw new Error("Attempt 3 retained sessions do not reach Core DONE");
+  }
+  const transitionFacts = assertFinalLocalTransitions(sessions, finalTask);
+  assertFinalLocalCommands(sessions);
+  const requestIDs = [];
+  const actionIDs = [];
+  let requestBindingPassed = true;
+  let lastOperationBindingPassed = true;
+  for (let index = 0; index < transitionFacts.length; index += 1) {
+    const fact = transitionFacts[index];
+    const requestID = fact.call.arguments?.request_id;
+    const actionID = fact.call.arguments?.action_id;
+    requestIDs.push(requestID);
+    actionIDs.push(actionID);
+    if (fact.call.request_id !== requestID || fact.call.arguments?.revision !== index + 1 || fact.task?.revision !== index + 2) {
+      requestBindingPassed = false;
+    }
+    const operation = fact.task?.last_operation;
+    if (
+      operation?.operation_id !== requestID
+      || operation?.action_id !== actionID
+      || operation?.from_revision !== index + 1
+      || operation?.to_revision !== index + 2
+    ) lastOperationBindingPassed = false;
+  }
+  const duplicateMutationIdentities = requestIDs.length - new Set(requestIDs).size
+    + actionIDs.length - new Set(actionIDs).size;
+  const evidenceIDs = (finalTask.evidence ?? []).map((item) => item.evidence_id);
+  const duplicateEvidenceIDs = evidenceIDs.length - new Set(evidenceIDs).size;
+  const commands = sessions.flatMap((session) => session.commands.map((command) => ({ role: session.role, ...command })));
+  const targeted = commands.filter((command) => classifyFinalLocalVerificationCommand(command.command) === "authorized");
+  const forbidden = commands.filter((command) => classifyFinalLocalVerificationCommand(command.command) === "forbidden");
+  const unexpectedRepositoryPaths = await assertFinalLocalFixtureRepository(nativeWorkspace, process.env);
+  const info = sessions[1].dev_flow_calls[0].core_result.result;
+
+  const evidence = validateAttempt3NativeFlowEvidence({
+    evidence_kind: "attempt-3-native-codex-graph-flow",
+    native_flow_status: "passed",
+    runner_status: "failed_after_native_flow",
+    lifecycle_status: "not_run",
+    source_attempt: 3,
+    artifact_filename: basename(options.artifact),
+    artifact_sha256: options.artifactSHA256,
+    artifact_size: options.artifactSize,
+    artifact_source_commit: options.sourceCommit,
+    package_name: "dev-flow-codex",
+    package_version: "0.3.0",
+    core_version: info.version,
+    core_sha256: options.coreSHA256,
+    platform: "darwin-arm64",
+    source_transcripts: transcriptIdentities,
+    source_artifact_marker: sourceArtifactMarker,
+    original_failed_marker: failedMarkerBefore,
+    ordinary_zero_calls: true,
+    distinct_real_codex_threads: 4,
+    handshake_passed: true,
+    schema_version: info.schema_version,
+    core_limits_version: info.core_limits_version,
+    process_identity: `${info.supported_processes[0].process_id}@${info.supported_processes[0].process_version}`,
+    definition_digest: info.supported_processes[0].definition_digest,
+    method_profiles: info.method_profiles,
+    tool_order: info.tools,
+    transition_sequence: transitionFacts.map((fact) => fact.transition_id),
+    successful_mutation_count: transitionFacts.length,
+    request_binding_passed: requestBindingPassed,
+    revision_start: transitionFacts[0].call.arguments.revision,
+    revision_end: finalTask.revision,
+    revision_increment_exact: true,
+    last_operation_binding_passed: lastOperationBindingPassed,
+    duplicate_mutation_identities: duplicateMutationIdentities,
+    duplicate_evidence_ids: duplicateEvidenceIDs,
+    restart_identity_passed: true,
+    complexity_refactor_retest: true,
+    explicit_user_confirmation: true,
+    targeted_command_count: targeted.length,
+    targeted_command_identity: FINAL_LOCAL_TEST_COMMAND,
+    targeted_exit_codes: targeted.map((command) => command.exitCode),
+    forbidden_suite_count: forbidden.length,
+    terminal_cursor: finalTask.current_cursor,
+    terminal_outcome_status: finalTask.outcome.status,
+    current_action_null: finalTask.current_action === null,
+    unexpected_repository_paths: unexpectedRepositoryPaths,
+    attempt_history: {
+      attempt_1: { status: "failed", stage: "first_requirements_apply", cause: "invalid_closed_requirements_payload" },
+      attempt_2: { status: "failed", stage: "design_apply", cause: "invalid_closed_design_baseline" },
+      attempt_3: {
+        status: "runner_failed_after_native_sessions",
+        native_sessions_status: "passed",
+        core_terminal_status: "DONE",
+        lifecycle_status: "not_run",
+        cause: "verification_command_classifier_false_positive",
+      },
+      attempt_4: { status: "forbidden" },
+    },
+    observed_at: new Date().toISOString(),
+  }, options);
+  const failedMarkerAfter = await readExactEvidenceFileIdentity(nativeResultDirectory, ATTEMPT_3_FAILED_MARKER);
+  if (!isDeepStrictEqual(failedMarkerAfter, failedMarkerBefore)) throw new Error("Attempt 3 failed marker changed during offline validation");
+  return evidence;
+}
+
+function assertFinalLocalLifecycleOptions(options) {
+  assertExactFields(options, [
+    "mode", "artifact", "artifactSHA256", "artifactSize", "sourceCommit", "coreSHA256",
+    "nativeResultDirectory", "workspace", "resultDirectory",
+  ], "final local lifecycle options");
+  if (options.mode !== "final-local-lifecycle") throw new Error("final local lifecycle mode is invalid");
+  requireAbsolute(options.artifact, "lifecycle artifact");
+  requireDigest(options.artifactSHA256, "artifact-sha256");
+  requireDigest(options.coreSHA256, "core-sha256");
+  if (!Number.isSafeInteger(options.artifactSize) || options.artifactSize < 1) throw new Error("lifecycle artifact size is invalid");
+  if (!/^[0-9a-f]{40}$/u.test(options.sourceCommit)) throw new Error("lifecycle source commit is invalid");
+  requireAbsolute(options.nativeResultDirectory, "Attempt 3 result directory");
+  requireAbsolute(options.workspace, "lifecycle workspace");
+  requireAbsolute(options.resultDirectory, "lifecycle result directory");
+}
+
+function extractPackagedNodePayloadTemplates(text) {
+  const names = [
+    "requirements", "design", "tasks", "implement", "test", "comprehension-complexity",
+    "comprehension-passed", "refactor", "delivery", "blocked",
+  ];
+  const templates = new Map();
+  for (const name of names) {
+    const startMarker = `<!-- node-payload-template:${name}:start -->`;
+    const endMarker = `<!-- node-payload-template:${name}:end -->`;
+    const start = text.indexOf(startMarker);
+    const end = text.indexOf(endMarker);
+    if (start < 0 || end <= start) throw new Error(`packaged node payload template ${name} is missing`);
+    const section = text.slice(start + startMarker.length, end);
+    const match = /```json\s*([\s\S]*?)\s*```/u.exec(section);
+    if (match === null) throw new Error(`packaged node payload template ${name} has no JSON body`);
+    const payload = JSON.parse(match[1]);
+    assertExactFields(
+      payload,
+      name === "blocked"
+        ? ["blocker_id", "condition", "observed_binding_digest"]
+        : ["transition_id", "summary", "reason", "artifacts", "method_evidence", "node_result"],
+      `packaged ${name} payload template`,
+    );
+    templates.set(name, payload);
+  }
+  return templates;
+}
+
+function completeLifecycleMethodEvidence(payload) {
+  payload.method_evidence = payload.method_evidence.map((item) => ({
+    step_id: item.step_id,
+    status: "plain_fallback",
+    capability: "",
+    summary: `Completed ${item.step_id} for deterministic lifecycle acceptance.`,
+  }));
+  return payload;
+}
+
+function assertLifecyclePayloadClosed(payload, action) {
+  assertExactFields(payload, ["transition_id", "summary", "reason", "artifacts", "method_evidence", "node_result"], "lifecycle apply payload");
+  if (JSON.stringify(payload).includes("placeholder-")) throw new Error("lifecycle payload retains a template placeholder");
+  if (!action.available_transitions.some((transition) => transition.transition_id === payload.transition_id)) {
+    throw new Error("lifecycle payload selects a transition outside the current Action");
+  }
+  if (!isDeepStrictEqual(payload.method_evidence.map((item) => item.step_id), action.method_steps.map((step) => step.step_id))) {
+    throw new Error("lifecycle payload method evidence differs from the current Action");
+  }
+}
+
+function buildLifecyclePayload(name, templates, task) {
+  const payload = completeLifecycleMethodEvidence(structuredClone(templates.get(name)));
+  payload.artifacts = [];
+  if (name === "requirements") {
+    payload.summary = "Defined the deterministic exact-artifact lifecycle requirement.";
+    Object.assign(payload.node_result.baseline, {
+      goal: "Prove exact-artifact packaged Core lifecycle retention.",
+      scope: ["packaged Core task lifecycle"],
+      out_of_scope: ["native Codex model behavior"],
+      acceptance_criteria: ["The same terminal Task reopens unchanged after remove, uninstall, and exact-artifact reinstall."],
+      constraints: ["Use one exact source-local artifact and no Codex execution."],
+      assumptions: [],
+    });
+  } else if (name === "design") {
+    payload.summary = "Selected one direct packaged-Core lifecycle fixture.";
+    Object.assign(payload.node_result.baseline, {
+      requirements_revision: task.baselines.requirements.revision,
+      approach: "Drive the primary graph path directly through the packaged six-tool MCP contract.",
+      components: ["packaged Core", "Schema 2 data", "isolated package lifecycle"],
+      decisions: ["Use one real Task from creation through retained terminal reopen."],
+      rejected_alternatives: ["Copied fixture database"],
+      complexity_justification: [],
+      risks: [],
+    });
+  } else if (name === "tasks") {
+    payload.summary = "Decomposed the deterministic lifecycle into one bounded work item.";
+    Object.assign(payload.node_result.baseline, {
+      design_revision: task.baselines.design.revision,
+      work_items: [{
+        work_item_id: "implement-lifecycle-proof",
+        summary: "Implement the direct lifecycle proof writer.",
+        expected_paths: ["src/proof-writer.mjs"],
+        acceptance_indexes: [0],
+        verification_steps: ["Run node --test test/proof-writer.test.mjs."],
+        dependencies: [],
+      }],
+    });
+  } else if (name === "implement") {
+    payload.summary = "Implemented the direct lifecycle proof writer.";
+    Object.assign(payload.node_result, {
+      task_plan_revision: task.baselines.task_plan.revision,
+      completed_work_item_ids: ["implement-lifecycle-proof"],
+      changed_paths: ["src/proof-writer.mjs"],
+      no_file_changes: false,
+      deviations: [],
+      findings: [],
+    });
+  } else if (name === "test") {
+    payload.summary = "The bounded lifecycle proof test passed.";
+    Object.assign(payload.node_result, {
+      checks: [{
+        source: "automated",
+        name: "deterministic_exact_artifact_targeted_test",
+        status: "passed",
+        summary: "The packaged lifecycle proof writer emitted the exact bytes.",
+        command_count: 1,
+        full_suite: false,
+      }],
+      failed_items: [],
+      unverified_items: [],
+      manual_handoff_items: [],
+      findings: [],
+    });
+  } else if (name === "comprehension-passed") {
+    payload.summary = "The deterministic fixture records an explicit comprehension pass.";
+    Object.assign(payload.node_result, {
+      explained_components: ["packaged MCP call", "Schema 2 Task", "package data retention"],
+      unresolved_questions: [],
+      unnecessary_abstractions: [],
+      maintenance_risks: [],
+      user_confirmation: {
+        source: "user",
+        status: "passed",
+        summary: "evidence_class=deterministic_test_fixture; the lifecycle fixture confirms the direct path is understandable.",
+      },
+      findings: [],
+    });
+  } else if (name === "delivery") {
+    const evidenceByID = new Map(task.evidence.map((item) => [item.evidence_id, item]));
+    const automatedEvidence = task.test.evidence_ids.filter((id) => evidenceByID.get(id)?.source === "automated");
+    const userTestEvidence = task.test.evidence_ids.filter((id) => evidenceByID.get(id)?.source === "user");
+    payload.summary = "Reconciled deterministic lifecycle acceptance and current evidence.";
+    Object.assign(payload.node_result, {
+      acceptance: task.baselines.requirements.acceptance_criteria.map((criterion) => ({ criterion, status: "satisfied" })),
+      automated_evidence_ids: automatedEvidence,
+      manual_evidence_ids: [...userTestEvidence, task.comprehension.user_evidence_id],
+      test_record_id: task.test.record_id,
+      comprehension_record_id: task.comprehension.record_id,
+      unverified_items: [],
+      risks: [],
+      findings: [],
+    });
+  } else {
+    throw new Error(`unsupported deterministic lifecycle payload ${name}`);
+  }
+  return payload;
+}
+
+async function applyLifecyclePayload(product, layout, environment, task, payload, facts) {
+  const action = task.current_action;
+  if (!isPlainObject(action)) throw new Error("lifecycle Task has no current Action");
+  assertLifecyclePayloadClosed(payload, action);
+  const requestID = `lifecycle-${randomUUID()}`;
+  const request = {
+    request_id: requestID,
+    host: "codex",
+    task_id: task.task_id,
+    revision: task.revision,
+    action_id: action.action_id,
+    action_kind: action.action_kind,
+    process_id: task.process_id,
+    process_version: task.process_version,
+    process_definition_digest: task.process_definition_digest,
+    source_cursor: task.current_cursor,
+    repository_binding_digest: action.repository_binding_digest,
+    payload,
+  };
+  const envelope = await callPackagedCoreTool(
+    product.runtimePath,
+    layout.dataDirectory,
+    layout.workspace,
+    "dev_flow_apply_action",
+    request,
+    environment,
+  );
+  const nextTask = isPlainObject(envelope?.result?.task) ? envelope.result.task : envelope?.result;
+  if (envelope?.ok !== true) {
+    throw new Error(`lifecycle packaged-Core mutation returned ${envelope?.error?.code ?? "an invalid result"}`);
+  }
+  const identityChecks = {
+    envelope_request: envelope.request_id === requestID,
+    task_projection: isPlainObject(nextTask),
+    task_identity: nextTask?.task_id === task.task_id,
+    revision: nextTask?.revision === task.revision + 1,
+    operation_identity: nextTask?.last_operation?.operation_id === requestID,
+    operation_action: nextTask?.last_operation?.action_id === action.action_id,
+  };
+  const failedChecks = Object.entries(identityChecks).filter(([, passed]) => !passed).map(([name]) => name);
+  if (failedChecks.length !== 0) {
+    throw new Error(`lifecycle packaged-Core mutation identity is invalid: ${failedChecks.join(",")}`);
+  }
+  facts.push({
+    transition_id: payload.transition_id,
+    from_revision: task.revision,
+    to_revision: nextTask.revision,
+  });
+  return nextTask;
+}
+
+function validateLifecycleToolCatalog(tools) {
+  const names = tools.map((tool) => tool.name);
+  if (
+    new Set(names).size !== DEV_FLOW_TOOLS.length
+    || !isDeepStrictEqual([...names].sort(), [...DEV_FLOW_TOOLS].sort())
+  ) {
+    throw new Error("lifecycle packaged Core tool catalog is invalid");
+  }
+  const apply = tools.find((tool) => tool.name === "dev_flow_apply_action");
+  const schemaText = JSON.stringify(apply?.inputSchema);
+  if (
+    apply?.inputSchema?.type !== "object"
+    || apply.inputSchema.additionalProperties !== false
+    || !schemaText.includes("COMPLETE_REQUIREMENTS")
+    || !schemaText.includes("COMPLETE_DELIVERY")
+    || !schemaText.includes("transition_id")
+    || !schemaText.includes("node_result")
+  ) throw new Error("lifecycle live apply input schema is incomplete");
+}
+
+function lifecycleCoreManifest(coreRows) {
+  if (coreRows.tasks.length !== 1) throw new Error("lifecycle database must contain one Task");
+  const task = coreRows.tasks[0];
+  return {
+    task_id: task.task_id,
+    revision: task.revision,
+    current_cursor: task.current_node,
+    outcome_status: task.snapshot?.outcome?.status ?? null,
+    current_action_null: task.snapshot?.current_action === null,
+    event_count: coreRows.task_events.length,
+    evidence_count: task.snapshot?.evidence?.length ?? 0,
+    claim_count: coreRows.repository_claims.length,
+  };
+}
+
+function buildCompositeAcceptanceEvidence(nativeEvidence, lifecycleEvidence) {
+  return validateCompositeAcceptanceEvidence({
+    evidence_kind: "feature-008-composite-source-local-acceptance",
+    status: "passed",
+    artifact_filename: nativeEvidence.artifact_filename,
+    artifact_sha256: nativeEvidence.artifact_sha256,
+    artifact_size: nativeEvidence.artifact_size,
+    artifact_source_commit: nativeEvidence.artifact_source_commit,
+    core_sha256: nativeEvidence.core_sha256,
+    package_version: nativeEvidence.package_version,
+    core_version: nativeEvidence.core_version,
+    native_component: {
+      source_attempt: 3,
+      runner_status: nativeEvidence.runner_status,
+      native_flow_status: nativeEvidence.native_flow_status,
+      ordinary_zero_calls: nativeEvidence.ordinary_zero_calls,
+      four_distinct_threads: nativeEvidence.distinct_real_codex_threads === 4,
+      transition_sequence: nativeEvidence.transition_sequence,
+      task_revision: nativeEvidence.revision_end,
+      terminal_outcome: nativeEvidence.terminal_cursor,
+      targeted_command_count: nativeEvidence.targeted_command_count,
+      complexity_refactor_retest: nativeEvidence.complexity_refactor_retest,
+      explicit_user_confirmation: nativeEvidence.explicit_user_confirmation,
+      unexpected_repository_paths: nativeEvidence.unexpected_repository_paths,
+    },
+    lifecycle_component: {
+      evidence_class: "deterministic_exact_artifact",
+      same_artifact_identity: lifecycleEvidence.same_artifact_identity,
+      setup_passed: lifecycleEvidence.setup_passed,
+      remove_passed: lifecycleEvidence.remove_passed,
+      repeated_remove_noop: lifecycleEvidence.repeated_remove_noop,
+      npm_uninstall_passed: lifecycleEvidence.npm_uninstall_passed,
+      data_retained: lifecycleEvidence.data_retained,
+      exact_artifact_reinstall_passed: lifecycleEvidence.exact_artifact_reinstall_passed,
+      same_task_reopened: lifecycleEvidence.same_task_reopened,
+      terminal_outcome: lifecycleEvidence.current_cursor,
+      read_zero_write: lifecycleEvidence.read_zero_write,
+      same_task_as_native_component: false,
+    },
+    attempt_history: nativeEvidence.attempt_history,
+    component_relationship: "complementary_components_bound_to_one_exact_artifact_with_distinct_tasks",
+    publication_mutations_performed: false,
+    observed_at: new Date().toISOString(),
+  }, nativeEvidence, lifecycleEvidence);
+}
+
+export async function runFinalLocalLifecycle(options) {
+  assertFinalLocalLifecycleOptions(options);
+  const artifact = await realpath(options.artifact);
+  const workspace = await assertEmptyFinalDirectory(options.workspace, "final local lifecycle workspace");
+  const resultDirectory = await assertEmptyFinalDirectory(options.resultDirectory, "final local lifecycle result directory");
+  const layout = createFinalLocalLifecycleLayout(workspace, resultDirectory);
+  if (
+    pathWithin(REPOSITORY_ROOT, artifact)
+    || pathWithin(REPOSITORY_ROOT, layout.root)
+    || pathWithin(layout.root, artifact)
+    || pathWithin(dirname(options.nativeResultDirectory), layout.root)
+    || pathWithin(layout.root, dirname(options.nativeResultDirectory))
+  ) throw new Error("final local lifecycle paths are not isolated");
+
+  await execFile("git", [
+    "diff", "--exit-code", `${options.sourceCommit}..HEAD`, "--",
+    "internal", "cmd", "packages/codex/bin", "packages/codex/lib", "packages/codex/plugin",
+    "packages/codex/package.json", "scripts/build-codex-local.sh",
+  ], { cwd: REPOSITORY_ROOT, encoding: "utf8" });
+  const nativeEvidence = await validateRetainedAttempt3NativeFlow({
+    artifact,
+    artifactSHA256: options.artifactSHA256,
+    artifactSize: options.artifactSize,
+    sourceCommit: options.sourceCommit,
+    coreSHA256: options.coreSHA256,
+    nativeResultDirectory: options.nativeResultDirectory,
+  });
+
+  await Promise.all([
+    layout.home,
+    layout.installPrefix,
+    layout.npmCache,
+    layout.dataDirectory,
+    layout.temporaryDirectory,
+    layout.xdgCache,
+  ].map((path) => mkdir(path, { recursive: true, mode: 0o700 })));
+  for (const path of [layout.root, layout.home, layout.installPrefix, layout.npmCache, layout.dataDirectory, layout.temporaryDirectory, layout.xdgCache, workspace, resultDirectory]) {
+    const info = await lstat(path);
+    if (!info.isDirectory() || info.isSymbolicLink()) throw new Error("lifecycle layout requires real directories");
+  }
+
+  const [npmExecutable, gitExecutable, nodeExecutable] = await Promise.all([
+    findExecutableOnPath("npm"),
+    findExecutableOnPath("git"),
+    findExecutableOnPath("node"),
+  ]);
+  const environment = buildFinalLocalLifecycleEnvironment({
+    layout,
+    toolDirectories: [dirname(nodeExecutable), dirname(npmExecutable), dirname(gitExecutable), "/usr/bin", "/bin", "/usr/sbin", "/sbin"],
+  });
+  const artifactInfo = await inspectFinalLocalArtifact(artifact, options);
+  await installFinalLocalPackage(npmExecutable, artifact, layout, environment);
+  let product = await inspectFinalLocalInstalledProduct({ npmExecutable, layout, environment, repositoryRoot: REPOSITORY_ROOT, resultDirectory });
+  artifactInfo.coreSHA256 = product.coreSHA256;
+  if (product.coreSHA256 !== options.coreSHA256) throw new Error("lifecycle packaged Core digest differs from the approved artifact");
+  const handshake = await readPackagedServerInfo(product.runtimePath, layout.dataDirectory, workspace, environment);
+  assertFinalLocalServerInfo(handshake, product.coreVersion);
+  const tools = await listPackagedCoreTools(product.runtimePath, layout.dataDirectory, workspace, environment);
+  validateLifecycleToolCatalog(tools);
+  const payloadReference = await readFile(join(product.packageRoot, "plugin", "skills", "dev-flow", "references", "node-payloads.md"), "utf8");
+  const templates = extractPackagedNodePayloadTemplates(payloadReference);
+
+  await initializeFinalLocalRepository(workspace, environment);
+  const setup = await execJSON(product.packageCLI, ["setup", "--json"], { cwd: workspace, env: environment });
+  if (setup.operation !== "setup" || !["installed", "already-installed"].includes(setup.status)) {
+    throw new Error("lifecycle setup readback failed");
+  }
+  const receiptPath = join(layout.home, "Library", "Application Support", "dev-flow", "registrations", "codex.json");
+  if (!(await pathExists(receiptPath))) throw new Error("lifecycle setup registration is absent");
+  const adjacentPath = join(dirname(receiptPath), "user-owned-adjacent.txt");
+  const adjacentContent = "preserve deterministic exact-artifact lifecycle data\n";
+  await writeFile(adjacentPath, adjacentContent, { mode: 0o600, flag: "wx" });
+
+  const opened = await callPackagedCoreTool(product.runtimePath, layout.dataDirectory, workspace, "dev_flow_open_task", {
+    host: "codex",
+    repository_path: workspace,
+    new_task: {
+      request: "Prove exact-artifact packaged Core lifecycle retention.",
+      initial_scope: ["packaged Core task lifecycle"],
+      initial_out_of_scope: ["native Codex model behavior"],
+      known_acceptance_criteria: [],
+      verification_budget: {
+        level: "targeted",
+        max_automatic_commands: 1,
+        allow_full_suite: false,
+        allow_manual_handoff: false,
+      },
+      method_profile: "plain",
+    },
+  }, environment);
+  let task = opened?.result?.task;
+  if (opened?.ok !== true || opened.result?.created !== true || task?.current_cursor !== "REQUIREMENTS" || task.revision !== 1) {
+    throw new Error("lifecycle packaged Core did not create a fresh graph Task");
+  }
+  const facts = [];
+  task = await applyLifecyclePayload(product, layout, environment, task, buildLifecyclePayload("requirements", templates, task), facts);
+  task = await applyLifecyclePayload(product, layout, environment, task, buildLifecyclePayload("design", templates, task), facts);
+  task = await applyLifecyclePayload(product, layout, environment, task, buildLifecyclePayload("tasks", templates, task), facts);
+  await writeFile(join(workspace, "src", "proof-writer.mjs"), `import { writeFile } from "node:fs/promises";\n\nexport async function writeProof(path) {\n  await writeFile(path, ${JSON.stringify(FINAL_LOCAL_PROOF_CONTENT)});\n}\n`);
+  task = await applyLifecyclePayload(product, layout, environment, task, buildLifecyclePayload("implement", templates, task), facts);
+  await execFile(nodeExecutable, ["--test", "test/proof-writer.test.mjs"], { cwd: workspace, env: environment, encoding: "utf8" });
+  task = await applyLifecyclePayload(product, layout, environment, task, buildLifecyclePayload("test", templates, task), facts);
+  task = await applyLifecyclePayload(product, layout, environment, task, buildLifecyclePayload("comprehension-passed", templates, task), facts);
+  task = await applyLifecyclePayload(product, layout, environment, task, buildLifecyclePayload("delivery", templates, task), facts);
+  if (
+    task.current_cursor !== "DONE"
+    || task.outcome?.status !== "completed"
+    || task.current_action !== null
+    || facts.length !== 7
+    || !isDeepStrictEqual(facts.map((fact) => fact.transition_id), [
+      "requirements_ready", "design_ready", "tasks_ready", "implementation_ready_for_test",
+      "tests_passed", "comprehension_passed", "delivery_complete",
+    ])
+  ) throw new Error("lifecycle packaged Core primary path did not reach DONE");
+  await assertFinalLocalFixtureRepository(workspace, environment);
+
+  const databasePath = join(layout.dataDirectory, "dev-flow.db");
+  const coreBeforeLifecycle = await readGraphCoreRows(databasePath);
+  const retainedManifest = lifecycleCoreManifest(coreBeforeLifecycle);
+  if (
+    retainedManifest.task_id !== task.task_id
+    || retainedManifest.revision !== task.revision
+    || retainedManifest.current_cursor !== "DONE"
+    || retainedManifest.outcome_status !== "completed"
+    || retainedManifest.current_action_null !== true
+    || retainedManifest.claim_count !== 0
+  ) throw new Error("lifecycle terminal database manifest is invalid");
+  const dataBeforeLifecycle = await directoryManifest(layout.dataDirectory);
+  const repositoryBeforeLifecycle = {
+    status: await gitStatus(workspace, environment),
+    digest: await digestRepositoryContents(workspace),
+  };
+  const removed = await execJSON(product.packageCLI, ["remove", "--json"], { cwd: workspace, env: environment });
+  if (removed.operation !== "remove" || removed.status !== "removed" || removed.changed !== true || await pathExists(receiptPath)) {
+    throw new Error("lifecycle remove readback failed");
+  }
+  if (!isDeepStrictEqual(await directoryManifest(layout.dataDirectory), dataBeforeLifecycle)) throw new Error("lifecycle remove changed Task data");
+  if (!isDeepStrictEqual(lifecycleCoreManifest(await readGraphCoreRows(databasePath)), retainedManifest)) throw new Error("lifecycle remove changed Task/Event/Evidence rows");
+  const repeatedRemove = await execJSON(product.packageCLI, ["remove", "--json"], { cwd: workspace, env: environment });
+  if (repeatedRemove.status !== "already-absent" || repeatedRemove.changed !== false) throw new Error("lifecycle repeated remove is not a no-op");
+  if ((await readFile(adjacentPath, "utf8")) !== adjacentContent) throw new Error("lifecycle remove changed adjacent data");
+
+  await uninstallFinalLocalPackage(npmExecutable, layout, environment);
+  if (await pathExists(product.packageRoot) || await pathExists(product.packageCLI)) throw new Error("lifecycle npm uninstall left package bytes");
+  if (!isDeepStrictEqual(await directoryManifest(layout.dataDirectory), dataBeforeLifecycle)) throw new Error("lifecycle npm uninstall changed Task data");
+  if (!isDeepStrictEqual(lifecycleCoreManifest(await readGraphCoreRows(databasePath)), retainedManifest)) throw new Error("lifecycle npm uninstall changed Task/Event/Evidence rows");
+  if ((await readFile(adjacentPath, "utf8")) !== adjacentContent) throw new Error("lifecycle npm uninstall changed adjacent data");
+
+  await installFinalLocalPackage(npmExecutable, artifact, layout, environment);
+  product = await inspectFinalLocalInstalledProduct({ npmExecutable, layout, environment, repositoryRoot: REPOSITORY_ROOT, resultDirectory });
+  if (product.coreSHA256 !== options.coreSHA256) throw new Error("lifecycle reinstall changed packaged Core identity");
+  assertFinalLocalServerInfo(await readPackagedServerInfo(product.runtimePath, layout.dataDirectory, workspace, environment), product.coreVersion);
+  const beforeRetainedRead = await directoryManifest(layout.dataDirectory);
+  const retained = await readRetainedTask(product.runtimePath, layout.dataDirectory, workspace, task.task_id, environment);
+  const afterRetainedRead = await directoryManifest(layout.dataDirectory);
+  if (
+    retained.task_id !== task.task_id
+    || retained.revision !== task.revision
+    || retained.current_cursor !== "DONE"
+    || retained.outcome?.status !== "completed"
+    || retained.current_action !== null
+    || !isDeepStrictEqual(beforeRetainedRead, afterRetainedRead)
+    || !isDeepStrictEqual(lifecycleCoreManifest(await readGraphCoreRows(databasePath)), retainedManifest)
+  ) throw new Error("lifecycle retained terminal Task reopen is invalid");
+  if (
+    await gitStatus(workspace, environment) !== repositoryBeforeLifecycle.status
+    || await digestRepositoryContents(workspace) !== repositoryBeforeLifecycle.digest
+    || (await readFile(adjacentPath, "utf8")) !== adjacentContent
+  ) throw new Error("lifecycle commands changed the repository or adjacent data");
+  await uninstallFinalLocalPackage(npmExecutable, layout, environment);
+  if (await pathExists(product.packageRoot) || await pathExists(product.packageCLI)) throw new Error("lifecycle final uninstall left package bytes");
+  if (!isDeepStrictEqual(await directoryManifest(layout.dataDirectory), dataBeforeLifecycle)) throw new Error("lifecycle final uninstall changed Task data");
+
+  const lifecycleEvidence = validateExactArtifactLifecycleEvidence({
+    evidence_kind: "exact-artifact-packaged-core-lifecycle",
+    status: "passed",
+    evidence_class: "deterministic exact-artifact lifecycle evidence",
+    artifact_filename: basename(artifact),
+    artifact_sha256: options.artifactSHA256,
+    artifact_size: options.artifactSize,
+    artifact_source_commit: options.sourceCommit,
+    same_artifact_identity: true,
+    package_name: "dev-flow-codex",
+    package_version: product.packageVersion,
+    core_version: product.coreVersion,
+    core_sha256: product.coreSHA256,
+    platform: "darwin-arm64",
+    codex_invocation_count: 0,
+    codex_auth_read_count: 0,
+    codex_thread_count: 0,
+    closed_package_contents_passed: true,
+    handshake_passed: true,
+    live_apply_schema_passed: true,
+    packaged_payload_reference_passed: templates.size === 10,
+    setup_passed: true,
+    task_id: task.task_id,
+    final_revision: retainedManifest.revision,
+    event_count: retainedManifest.event_count,
+    evidence_count: retainedManifest.evidence_count,
+    current_cursor: retainedManifest.current_cursor,
+    outcome_status: retainedManifest.outcome_status,
+    current_action_null: retainedManifest.current_action_null,
+    claim_absent: retainedManifest.claim_count === 0,
+    targeted_command_count: 1,
+    targeted_command_identity: FINAL_LOCAL_TEST_COMMAND,
+    targeted_exit_codes: [0],
+    comprehension_evidence_class: "deterministic_test_fixture",
+    remove_passed: true,
+    repeated_remove_noop: true,
+    npm_uninstall_passed: true,
+    data_retained: true,
+    adjacent_sentinel_retained: true,
+    repository_unchanged: true,
+    exact_artifact_reinstall_passed: true,
+    same_task_reopened: retained.task_id === task.task_id,
+    read_zero_write: isDeepStrictEqual(beforeRetainedRead, afterRetainedRead),
+    database_manifest: dataBeforeLifecycle,
+    final_package_uninstalled: true,
+    observed_at: new Date().toISOString(),
+  }, options);
+  const compositeEvidence = buildCompositeAcceptanceEvidence(nativeEvidence, lifecycleEvidence);
+  await writeSmokeOutput(resultDirectory, "attempt-3-native-flow-evidence.json", nativeEvidence);
+  await writeSmokeOutput(resultDirectory, "exact-artifact-lifecycle-evidence.json", lifecycleEvidence);
+  await writeSmokeOutput(resultDirectory, "feature-008-composite-native-acceptance.json", compositeEvidence);
+  return compositeEvidence;
+}
+
+export async function runFinalLocalJourney(options) {
+  assertFinalLocalJourneyOptions(options);
+  assertSupportedCodexHost("final local journey");
+  const artifact = await realpath(options.artifact);
+  const codexExecutable = await realpath(options.codexExecutable);
+  const workspace = await assertEmptyFinalDirectory(options.workspace, "final local workspace");
+  const resultDirectory = await assertEmptyFinalDirectory(options.resultDirectory, "final local result directory");
+  const layout = createFinalLocalJourneyLayout(workspace, resultDirectory);
+  assertFinalLocalJourneyLocations({ artifact, codexExecutable, layout });
+
+  let nativeStarted = false;
+  let currentRole = null;
+  try {
+    await Promise.all([
+      layout.home,
+      layout.codexHome,
+      layout.installPrefix,
+      layout.npmCache,
+      layout.dataDirectory,
+      layout.temporaryDirectory,
+      layout.xdgCache,
+    ].map((path) => mkdir(path, { recursive: true, mode: 0o700 })));
+    await assertRealFinalLocalDirectories(layout);
+
+    const [npmExecutable, gitExecutable, nodeExecutable, codexCommand] = await Promise.all([
+      findExecutableOnPath("npm"),
+      findExecutableOnPath("git"),
+      findExecutableOnPath("node"),
+      findExecutableOnPath("codex"),
+    ]);
+    if (await realpath(codexCommand) !== codexExecutable) throw new Error("final local Codex PATH identity differs from the approved executable");
+    const environment = buildFinalLocalJourneyEnvironment({
+      layout,
+      codexExecutable,
+      toolDirectories: [dirname(codexCommand), dirname(nodeExecutable), dirname(npmExecutable), dirname(gitExecutable), "/usr/bin", "/bin", "/usr/sbin", "/sbin"],
+    });
+    await copyFinalCodexAuthentication(layout);
+    const codexVersion = await inspectFinalCodexExecutable(codexExecutable, environment);
+    if (!versionSatisfiesFixedRange(codexVersion)) throw new Error("final local Codex version is outside the frozen compatibility range");
+
+    const artifactInfo = await inspectFinalLocalArtifact(artifact, options);
+    await installFinalLocalPackage(npmExecutable, artifact, layout, environment);
+    let product = await inspectFinalLocalInstalledProduct({ npmExecutable, layout, environment, repositoryRoot: REPOSITORY_ROOT, resultDirectory });
+    artifactInfo.coreSHA256 = product.coreSHA256;
+    if (product.coreVersion !== "0.3.0") throw new Error("final local package/Core version must remain 0.3.0");
+    const handshake = await readPackagedServerInfo(product.runtimePath, layout.dataDirectory, workspace, environment);
+    assertFinalLocalServerInfo(handshake, product.coreVersion);
+
+    await initializeFinalLocalRepository(workspace, environment);
+    const baselineHead = (await execFile(gitExecutable, ["rev-parse", "HEAD"], { cwd: workspace, env: environment, encoding: "utf8" })).stdout.trim();
+    const baselineBranch = (await execFile(gitExecutable, ["branch", "--show-current"], { cwd: workspace, env: environment, encoding: "utf8" })).stdout.trim();
+    const baselineFiles = await finalLocalRepositoryFiles(workspace);
+    const baselinePackageDigest = await digestFile(join(workspace, "package.json"));
+    const baselineTestDigest = await digestFile(join(workspace, "test", "proof-writer.test.mjs"));
+
+    const setup = await execJSON(product.packageCLI, ["setup", "--json"], { cwd: workspace, env: environment });
+    if (setup.operation !== "setup" || !["installed", "already-installed"].includes(setup.status)) {
+      throw new Error("final local setup read-back failed");
+    }
+    const receiptPath = join(layout.home, "Library", "Application Support", "dev-flow", "registrations", "codex.json");
+    if (!(await pathExists(receiptPath))) throw new Error("final local setup receipt is absent");
+    const adjacentPath = join(dirname(receiptPath), "user-owned-adjacent.txt");
+    await writeFile(adjacentPath, "preserve final local journey data\n", { mode: 0o600, flag: "wx" });
+
+    const emptyState = await readGraphCoreRows(join(layout.dataDirectory, "dev-flow.db"));
+    if (emptyState.tasks.length !== 0 || emptyState.task_events.length !== 0 || emptyState.repository_claims.length !== 0) {
+      throw new Error("final local pre-session Core state is not empty");
+    }
+    await writeSmokeOutput(resultDirectory, "native-attempt-3.json", {
+      evidence_kind: "source-local-native-attempt",
+      status: "started",
+      native_journey_attempt_count: 3,
+      authorization: options.authorization,
+      final_allowed_attempt: true,
+      attempt_1_status: "failed",
+      attempt_2_status: "failed",
+      previous_attempt_preserved: true,
+      artifact_filename: basename(artifact),
+      artifact_sha256: options.artifactSHA256,
+      artifact_source_commit: options.sourceCommit,
+    });
+    nativeStarted = true;
+
+    currentRole = "ordinary";
+    const beforeOrdinary = await snapshotFinalLocalState(workspace, layout.dataDirectory, environment);
+    const ordinary = await runCodexSession({
+      codexExecutable,
+      workspace,
+      role: currentRole,
+      prompt: ordinaryPrompt,
+      includeCallFacts: true,
+      environment,
+      ephemeral: true,
+      workspaceWrite: true,
+      transcriptPath: join(resultDirectory, "session-0-ordinary.jsonl"),
+    });
+    const afterOrdinary = await snapshotFinalLocalState(workspace, layout.dataDirectory, environment);
+    if (ordinary.dev_flow_call_count !== 0 || !isDeepStrictEqual(beforeOrdinary, afterOrdinary)) {
+      throw new Error("final local ordinary session changed Core or repository state");
+    }
+
+    currentRole = "initial-comprehension";
+    const sessionOne = await runCodexSession({
+      codexExecutable,
+      workspace,
+      role: currentRole,
+      prompt: finalLocalSessionOnePrompt,
+      includeCallFacts: true,
+      environment,
+      ephemeral: true,
+      workspaceWrite: true,
+      transcriptPath: join(resultDirectory, "session-1-initial-comprehension.jsonl"),
+    });
+    assertFinalLocalHandshake(sessionOne, product.coreVersion);
+    const taskBeforeRestart = lastGraphTask(sessionOne);
+    assertInitialComprehensionTask(taskBeforeRestart);
+    const stateAfterSessionOne = await readGraphCoreRows(join(layout.dataDirectory, "dev-flow.db"));
+
+    currentRole = "complexity-refactor-retest";
+    const sessionTwo = await runCodexSession({
+      codexExecutable,
+      workspace,
+      role: currentRole,
+      prompt: finalLocalSessionTwoPrompt,
+      includeCallFacts: true,
+      environment,
+      ephemeral: true,
+      workspaceWrite: true,
+      transcriptPath: join(resultDirectory, "session-2-complexity-refactor-retest.jsonl"),
+    });
+    assertFinalLocalHandshake(sessionTwo, product.coreVersion);
+    const taskAfterRestart = assertFinalLocalResume(sessionTwo, taskBeforeRestart);
+    assertFinalLocalSessionTwo(sessionTwo);
+    const taskAfterRefactor = lastGraphTask(sessionTwo);
+    assertInitialComprehensionTask(taskAfterRefactor);
+    const stateAfterSessionTwo = await readGraphCoreRows(join(layout.dataDirectory, "dev-flow.db"));
+
+    currentRole = "confirmation-delivery";
+    const sessionThree = await runCodexSession({
+      codexExecutable,
+      workspace,
+      role: currentRole,
+      prompt: finalLocalSessionThreePrompt,
+      includeCallFacts: true,
+      environment,
+      ephemeral: true,
+      workspaceWrite: true,
+      transcriptPath: join(resultDirectory, "session-3-confirmation-delivery.jsonl"),
+    });
+    assertFinalLocalHandshake(sessionThree, product.coreVersion);
+    assertFinalLocalResume(sessionThree, taskAfterRefactor);
+    assertFinalLocalSessionThree(sessionThree);
+    const finalTask = lastGraphTask(sessionThree);
+    if (finalTask?.current_cursor !== "DONE" || finalTask.current_action !== null || finalTask.outcome?.status !== "completed") {
+      throw new Error("final local Session 3 did not reach authoritative DONE");
+    }
+
+    const sessions = [ordinary, sessionOne, sessionTwo, sessionThree];
+    if (new Set(sessions.map((session) => session.thread_id)).size !== 4) {
+      throw new Error("final local sessions must use four distinct Codex thread IDs");
+    }
+    const transitionFacts = assertFinalLocalTransitions(sessions, finalTask);
+    const targetedCommandCount = assertFinalLocalCommands(sessions);
+    const unexpectedPaths = await assertFinalLocalRepository({
+      workspace,
+      environment,
+      baselineHead,
+      baselineBranch,
+      baselineFiles,
+      baselinePackageDigest,
+      baselineTestDigest,
+    });
+    const finalCoreState = await readGraphCoreRows(join(layout.dataDirectory, "dev-flow.db"));
+    assertFinalLocalAtMostOnce({ finalCoreState, finalTask, transitionFacts });
+    if (stateAfterSessionOne.repository_claims.length !== 1 || stateAfterSessionTwo.repository_claims.length !== 1 || finalCoreState.repository_claims.length !== 0) {
+      throw new Error("final local repository claim lifecycle is invalid");
+    }
+
+    const statusBeforeLifecycle = await gitStatus(workspace, environment);
+    const dataBeforeLifecycle = await directoryManifest(layout.dataDirectory);
+    const removed = await execJSON(product.packageCLI, ["remove", "--json"], { cwd: workspace, env: environment });
+    if (removed.operation !== "remove" || removed.status !== "removed" || removed.changed !== true || await pathExists(receiptPath)) {
+      throw new Error("final local remove read-back failed");
+    }
+    if ((await readFile(adjacentPath, "utf8")) !== "preserve final local journey data\n") throw new Error("final local remove changed adjacent data");
+    if (!isDeepStrictEqual(await directoryManifest(layout.dataDirectory), dataBeforeLifecycle) || await gitStatus(workspace, environment) !== statusBeforeLifecycle) {
+      throw new Error("final local remove changed task data or repository");
+    }
+    const repeatedRemove = await execJSON(product.packageCLI, ["remove", "--json"], { cwd: workspace, env: environment });
+    if (repeatedRemove.status !== "already-absent" || repeatedRemove.changed !== false) throw new Error("final local repeated remove is not a no-op");
+
+    await uninstallFinalLocalPackage(npmExecutable, layout, environment);
+    if (await pathExists(product.packageRoot) || await pathExists(product.packageCLI)) throw new Error("final local npm uninstall left package bytes");
+    if (!isDeepStrictEqual(await directoryManifest(layout.dataDirectory), dataBeforeLifecycle)) throw new Error("final local npm uninstall changed task data");
+    if ((await readFile(adjacentPath, "utf8")) !== "preserve final local journey data\n") throw new Error("final local npm uninstall changed adjacent data");
+
+    await installFinalLocalPackage(npmExecutable, artifact, layout, environment);
+    product = await inspectFinalLocalInstalledProduct({ npmExecutable, layout, environment, repositoryRoot: REPOSITORY_ROOT, resultDirectory });
+    if (product.coreSHA256 !== artifactInfo.coreSHA256) throw new Error("final local reinstall changed bundled Core identity");
+    const retained = await readRetainedTask(product.runtimePath, layout.dataDirectory, workspace, finalTask.task_id, environment);
+    if (retained.task_id !== finalTask.task_id || retained.current_cursor !== "DONE" || retained.current_action !== null || retained.outcome?.status !== "completed" || retained.revision !== finalTask.revision) {
+      throw new Error("final local retained task reopen failed");
+    }
+    if (!isDeepStrictEqual(await directoryManifest(layout.dataDirectory), dataBeforeLifecycle)) throw new Error("final local retained read mutated task data");
+    await uninstallFinalLocalPackage(npmExecutable, layout, environment);
+    if (await pathExists(product.packageRoot) || await pathExists(product.packageCLI)) throw new Error("final local cleanup uninstall left package bytes");
+
+    const evidence = validateFinalLocalJourneyEvidence({
+      evidence_kind: FINAL_LOCAL_NATIVE_EVIDENCE_KIND,
+      status: "passed",
+      artifact_filename: basename(artifact),
+      artifact_sha256: options.artifactSHA256,
+      artifact_size: options.artifactSize,
+      artifact_source_commit: options.sourceCommit,
+      package_name: "dev-flow-codex",
+      package_version: product.packageVersion,
+      core_version: product.coreVersion,
+      core_sha256: product.coreSHA256,
+      platform: "darwin-arm64",
+      codex_version: codexVersion,
+      compatible_codex_range: CODEX_COMPATIBILITY_RANGE,
+      codex_compatible: true,
+      explicit_selector: EXPLICIT_SELECTOR,
+      handshake_passed: true,
+      setup_readback_passed: true,
+      ordinary_prompt_core_call_count: ordinary.dev_flow_call_count,
+      task_id_before_restart: taskBeforeRestart.task_id,
+      task_revision_before_restart: taskBeforeRestart.revision,
+      task_action_id_before_restart: taskBeforeRestart.current_action.action_id,
+      task_id_after_restart: taskAfterRestart.task_id,
+      task_revision_after_restart: taskAfterRestart.revision,
+      task_action_id_after_restart: taskAfterRestart.current_action.action_id,
+      multiple_destinations_observed: true,
+      complexity_transition_observed: true,
+      refactor_retest_observed: true,
+      explicit_user_confirmation_observed: true,
+      committed_action_count: transitionFacts.length,
+      targeted_command_count: targetedCommandCount,
+      terminal_outcome: "DONE",
+      remove_readback_passed: true,
+      npm_uninstall_passed: true,
+      task_data_retained: true,
+      task_reopened_after_uninstall: true,
+      unexpected_repository_paths: unexpectedPaths,
+      native_journey_attempt_count: 3,
+      total_native_attempts: 3,
+      successful_attempt: 3,
+      attempt_1_status: "failed",
+      attempt_1_stage: "initial-comprehension-first-requirements-apply",
+      attempt_1_failure: "invalid-contract-0.2-payload",
+      attempt_1_evidence_preserved: true,
+      attempt_2_status: "failed",
+      attempt_2_stage: "design-apply",
+      attempt_2_failure: "invalid-contract-0.2-design-baseline",
+      attempt_2_authorization: "explicit_user_authorization",
+      attempt_2_evidence_preserved: true,
+      attempt_3_status: "passed",
+      attempt_3_authorization: options.authorization,
+      attempt_3_final_allowed_attempt: true,
+      previous_attempt_preserved: true,
+      observed_at: new Date().toISOString(),
+    }, options);
+    await writeSmokeOutput(resultDirectory, "task-data-manifest.json", finalLocalTaskManifest(finalCoreState, finalTask, dataBeforeLifecycle));
+    await writeSmokeOutput(resultDirectory, "final-local-journey-evidence.json", evidence);
+    await writeSmokeOutput(resultDirectory, "native-attempt-3-complete.json", {
+      evidence_kind: "source-local-native-attempt",
+      status: "passed",
+      native_journey_attempt_count: 3,
+      authorization: options.authorization,
+      final_allowed_attempt: true,
+      attempt_1_status: "failed",
+      attempt_2_status: "failed",
+      previous_attempt_preserved: true,
+      artifact_filename: basename(artifact),
+      artifact_sha256: options.artifactSHA256,
+      task_id: finalTask.task_id,
+    });
+    currentRole = null;
+    return evidence;
+  } catch (error) {
+    if (nativeStarted) {
+      await writeSmokeOutput(resultDirectory, "final-local-journey-diagnostic.json", {
+        evidence_kind: "source-local-package-native-codex-journey-diagnostic",
+        status: "failed",
+        native_journey_attempt_count: 3,
+        authorization: options.authorization,
+        final_allowed_attempt: true,
+        attempt_1_status: "failed",
+        attempt_2_status: "failed",
+        previous_attempt_preserved: true,
+        session_role: error.role ?? currentRole,
+        classification: error.classification ?? "journey-error",
+        event_count: Number.isInteger(error.eventCount) ? error.eventCount : 0,
+      });
+    }
+    throw error;
+  } finally {
+    await cleanupFinalLocalSensitiveState(layout);
+  }
+}
+
 export async function runAcceptanceJourney(options) {
   const snapshotState = options.snapshotState ?? snapshotAcceptanceState;
   const snapshotOptions = {
@@ -1136,6 +2717,7 @@ export function summarizeCodexSession(role, parsed) {
       item_id: call.itemId,
       tool: call.tool,
       request_id: call.requestId,
+      arguments: call.arguments === null ? null : structuredClone(call.arguments),
       status: call.status,
       classification: displayShape(call.shape),
       core_result: call.resultPresent ? structuredClone(call.structuredContent) : null,
@@ -1386,11 +2968,492 @@ function successfulCalls(session, tool) {
 }
 
 function taskFromCall(call) {
-  return call?.core_result?.result?.task ?? null;
+  const result = call?.core_result?.result;
+  if (isPlainObject(result?.task)) return result.task;
+  if (isPlainObject(result) && typeof result.task_id === "string" && typeof result.current_cursor === "string") return result;
+  return null;
 }
 
 function lastTask(calls) {
   return calls.map(taskFromCall).filter(Boolean).at(-1) ?? null;
+}
+
+function assertFinalLocalJourneyOptions(options) {
+  assertExactFields(options, [
+    "mode", "artifact", "artifactSHA256", "artifactSize", "sourceCommit",
+    "codexExecutable", "workspace", "resultDirectory", "nativeAttempt", "authorization",
+  ], "final local journey options");
+  if (options.mode !== "final-local") throw new Error("final local journey mode is invalid");
+  requireAbsolute(options.artifact, "local artifact");
+  requireDigest(options.artifactSHA256, "artifact-sha256");
+  if (!Number.isSafeInteger(options.artifactSize) || options.artifactSize < 1) throw new Error("final local artifact size is invalid");
+  if (!/^[0-9a-f]{40}$/u.test(options.sourceCommit)) throw new Error("final local source commit is invalid");
+  if (options.nativeAttempt !== 3 || options.authorization !== "explicit_user_authorization") {
+    throw new Error("final local third attempt requires explicit user authorization");
+  }
+  requireAbsolute(options.codexExecutable, "Codex executable");
+  requireAbsolute(options.workspace, "final local workspace");
+  requireAbsolute(options.resultDirectory, "final local result directory");
+}
+
+function assertFinalLocalJourneyLocations({ artifact, codexExecutable, layout }) {
+  for (const candidate of [artifact, codexExecutable, layout.root, layout.workspace, layout.resultDirectory]) {
+    if (pathWithin(REPOSITORY_ROOT, candidate)) throw new Error("final local inputs must remain outside the source repository");
+  }
+  if (pathWithin(layout.workspace, layout.resultDirectory) || pathWithin(layout.resultDirectory, layout.workspace)) {
+    throw new Error("final local workspace and result directory must be separate");
+  }
+  if (pathWithin(layout.root, artifact)) throw new Error("final local artifact must remain outside the journey root");
+}
+
+async function assertRealFinalLocalDirectories(layout) {
+  for (const path of [
+    layout.root, layout.home, layout.codexHome, layout.installPrefix, layout.npmCache,
+    layout.dataDirectory, layout.temporaryDirectory, layout.xdgCache, layout.workspace, layout.resultDirectory,
+  ]) {
+    const info = await lstat(path);
+    if (!info.isDirectory() || info.isSymbolicLink()) throw new Error("final local layout requires real directories");
+  }
+}
+
+async function inspectFinalLocalArtifact(artifact, options) {
+  const info = await lstat(artifact);
+  if (!info.isFile() || info.isSymbolicLink() || info.size !== options.artifactSize) {
+    throw new Error("final local artifact file identity is invalid");
+  }
+  const artifactSHA256 = await digestFile(artifact);
+  if (artifactSHA256 !== options.artifactSHA256 || basename(artifact) !== "dev-flow-codex-0.3.0.tgz") {
+    throw new Error("final local artifact digest or filename differs from the approved identity");
+  }
+  return { artifactSHA256, coreSHA256: null };
+}
+
+export function buildFinalLocalInstallArgs({ artifact, prefix, cache }) {
+  requireAbsolute(artifact, "local artifact");
+  requireAbsolute(prefix, "final local npm prefix");
+  requireAbsolute(cache, "final local npm cache");
+  return [
+    "install", "--global", artifact,
+    "--prefix", prefix,
+    "--cache", cache,
+    "--ignore-scripts", "--no-audit", "--no-fund",
+  ];
+}
+
+export function buildFinalLocalUninstallArgs({ prefix, cache }) {
+  requireAbsolute(prefix, "final local npm prefix");
+  requireAbsolute(cache, "final local npm cache");
+  return [
+    "uninstall", "--global", "dev-flow-codex",
+    "--prefix", prefix,
+    "--cache", cache,
+    "--ignore-scripts", "--no-audit", "--no-fund",
+  ];
+}
+
+async function installFinalLocalPackage(npmExecutable, artifact, layout, environment) {
+  await execFile(npmExecutable, buildFinalLocalInstallArgs({
+    artifact,
+    prefix: layout.installPrefix,
+    cache: layout.npmCache,
+  }), {
+    cwd: layout.root,
+    env: environment,
+    encoding: "utf8",
+    maxBuffer: 20 * 1024 * 1024,
+  });
+}
+
+async function uninstallFinalLocalPackage(npmExecutable, layout, environment) {
+  await execFile(npmExecutable, buildFinalLocalUninstallArgs({
+    prefix: layout.installPrefix,
+    cache: layout.npmCache,
+  }), {
+    cwd: layout.root,
+    env: environment,
+    encoding: "utf8",
+    maxBuffer: 20 * 1024 * 1024,
+  });
+}
+
+async function inspectFinalLocalInstalledProduct({ npmExecutable, layout, environment, repositoryRoot, resultDirectory }) {
+  const rootResult = await execFile(npmExecutable, ["root", "--global", "--prefix", layout.installPrefix], {
+    cwd: layout.root,
+    env: environment,
+    encoding: "utf8",
+  });
+  const packageRoot = await realpath(join(rootResult.stdout.trim(), "dev-flow-codex"));
+  if (!pathWithin(layout.installPrefix, packageRoot) || pathWithin(repositoryRoot, packageRoot) || pathWithin(resultDirectory, packageRoot)) {
+    throw new Error("final local package root is outside the isolated npm prefix");
+  }
+  const packageCLI = join(layout.installPrefix, "bin", "dev-flow-codex");
+  if (await realpath(packageCLI) !== join(packageRoot, "bin", "dev-flow-codex.mjs")) {
+    throw new Error("final local package CLI is not owned by the installed package");
+  }
+  const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
+  if (
+    manifest.name !== "dev-flow-codex"
+    || manifest.version !== "0.3.0"
+    || manifest.private === true
+    || !isDeepStrictEqual(manifest.os, ["darwin"])
+    || !isDeepStrictEqual(manifest.cpu, ["arm64"])
+  ) throw new Error("final local installed package metadata is invalid");
+  const actualFiles = await recursiveFileList(packageRoot);
+  if (!isDeepStrictEqual(actualFiles, [...FINAL_LOCAL_PACKAGE_FILES].sort())) {
+    throw new Error("final local installed package contents are not closed");
+  }
+  const productVersion = await execFile(packageCLI, ["--version"], { cwd: layout.root, env: environment, encoding: "utf8" });
+  if (productVersion.stdout !== "dev-flow-codex 0.3.0 (core 0.3.0)\n") throw new Error("final local package version read-back is invalid");
+  const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
+  const runtimeInfo = await stat(runtimePath);
+  if (!runtimeInfo.isFile() || (runtimeInfo.mode & 0o111) === 0) throw new Error("final local runtime is not executable");
+  const runtimeVersion = await execFile(runtimePath, ["version"], { cwd: layout.root, env: environment, encoding: "utf8" });
+  if (runtimeVersion.stdout !== "dev-flow 0.3.0\n") throw new Error("final local Core version read-back is invalid");
+  return {
+    packageRoot,
+    packageCLI,
+    runtimePath,
+    packageVersion: manifest.version,
+    coreVersion: "0.3.0",
+    coreSHA256: await digestFile(runtimePath),
+  };
+}
+
+async function recursiveFileList(root) {
+  const files = [];
+  const visit = async (directory, prefix = "") => {
+    for (const name of (await readdir(directory)).sort()) {
+      const absolute = join(directory, name);
+      const relativePath = prefix === "" ? name : join(prefix, name);
+      const info = await lstat(absolute);
+      if (info.isDirectory()) await visit(absolute, relativePath);
+      else if (info.isFile()) files.push(relativePath);
+      else throw new Error("final local package contains a non-file entry");
+    }
+  };
+  await visit(root);
+  return files.sort();
+}
+
+async function readPackagedServerInfo(runtimePath, dataDirectory, repository, environment) {
+  return callPackagedCoreTool(runtimePath, dataDirectory, repository, "dev_flow_server_info", {}, environment);
+}
+
+function assertFinalLocalServerInfo(envelope, coreVersion) {
+  const info = envelope?.result;
+  if (
+    envelope?.schema_version !== 2
+    || envelope?.ok !== true
+    || info?.product !== "dev-flow"
+    || info?.version !== coreVersion
+    || info?.schema_version !== 2
+    || info?.core_limits_version !== "0.2"
+    || info?.transport !== "stdio"
+    || info?.health !== "ready"
+    || !isDeepStrictEqual(info?.method_profiles, ["plain", "spec-kit", "openspec"])
+    || !isDeepStrictEqual(info?.tools, DEV_FLOW_TOOLS)
+    || info?.supported_processes?.length !== 1
+    || info.supported_processes[0]?.process_id !== "standard-development"
+    || info.supported_processes[0]?.process_version !== 1
+    || info.supported_processes[0]?.definition_digest !== FINAL_LOCAL_DEFINITION_DIGEST
+  ) throw new Error("final local packaged Core Contract 0.2 handshake is invalid");
+}
+
+async function initializeFinalLocalRepository(path, environment) {
+  await execFile("git", ["init", "--initial-branch=main", "--object-format=sha1"], { cwd: path, env: environment });
+  await mkdir(join(path, "src"), { mode: 0o755 });
+  await mkdir(join(path, "test"), { mode: 0o755 });
+  await writeFile(join(path, "package.json"), `${JSON.stringify({ name: "feature-008-native-fixture", private: true, type: "module" }, null, 2)}\n`);
+  await writeFile(join(path, "src", "proof-writer.mjs"), `import { writeFile } from "node:fs/promises";\n\nexport class ProofWriterFactory {\n  create() {\n    return new ProofWriter();\n  }\n}\n\nexport class ProofWriter {\n  async write(path, bytes) {\n    throw new Error("ProofWriter is not implemented");\n  }\n}\n\nexport async function writeProof(path) {\n  const writer = new ProofWriterFactory().create();\n  await writer.write(path, ${JSON.stringify(FINAL_LOCAL_PROOF_CONTENT)});\n}\n`);
+  await writeFile(join(path, "test", "proof-writer.test.mjs"), `import assert from "node:assert/strict";\nimport { mkdtemp, readFile, rm } from "node:fs/promises";\nimport { tmpdir } from "node:os";\nimport { join } from "node:path";\nimport test from "node:test";\n\nimport { writeProof } from "../src/proof-writer.mjs";\n\ntest("writeProof emits the exact Feature 008 native bytes", async (t) => {\n  const root = await mkdtemp(join(tmpdir(), "feature-008-proof-"));\n  t.after(() => rm(root, { recursive: true, force: true }));\n  const output = join(root, "proof.txt");\n  await writeProof(output);\n  assert.equal(await readFile(output, "utf8"), ${JSON.stringify(FINAL_LOCAL_PROOF_CONTENT)});\n});\n`);
+  await execFile("git", ["add", "package.json", "src/proof-writer.mjs", "test/proof-writer.test.mjs"], { cwd: path, env: environment });
+  await execFile("git", ["-c", "user.name=Dev Flow Native", "-c", "user.email=native@example.invalid", "commit", "-m", "native fixture baseline"], { cwd: path, env: environment });
+  if (await gitStatus(path, environment) !== "") throw new Error("final local fixture baseline is dirty");
+}
+
+async function snapshotFinalLocalState(workspace, dataDirectory, environment) {
+  return {
+    core: await readGraphCoreRows(join(dataDirectory, "dev-flow.db")),
+    repository: {
+      head: (await execFile("git", ["rev-parse", "HEAD"], { cwd: workspace, env: environment, encoding: "utf8" })).stdout.trim(),
+      branch: (await execFile("git", ["branch", "--show-current"], { cwd: workspace, env: environment, encoding: "utf8" })).stdout.trim(),
+      status: await gitStatus(workspace, environment),
+      content_sha256: await digestRepositoryContents(workspace),
+    },
+  };
+}
+
+async function readGraphCoreRows(databasePath) {
+  if (!existsSync(databasePath)) return { tasks: [], task_events: [], repository_claims: [] };
+  const database = new DatabaseSync(databasePath, { readOnly: true });
+  try {
+    const tasks = database.prepare("SELECT task_id, origin_host, process_id, process_version, process_definition_digest, snapshot_version, current_node, revision, repository_identity, hex(snapshot) AS snapshot_hex FROM tasks ORDER BY task_id").all()
+      .map((row) => ({ ...row, process_version: Number(row.process_version), snapshot_version: Number(row.snapshot_version), revision: Number(row.revision), snapshot: JSON.parse(Buffer.from(row.snapshot_hex, "hex").toString("utf8")), snapshot_hex: undefined }));
+    const taskEvents = database.prepare("SELECT event_id, task_id, revision, event_type, source_node, destination_node, transition_id, transition_reason, action_id, request_id, payload_digest FROM task_events ORDER BY revision").all()
+      .map((row) => ({ ...row, revision: Number(row.revision) }));
+    const claims = database.prepare("SELECT repository_identity, task_id, origin_host FROM repository_claims ORDER BY repository_identity").all().map((row) => ({ ...row }));
+    return { tasks, task_events: taskEvents, repository_claims: claims };
+  } finally {
+    database.close();
+  }
+}
+
+function assertFinalLocalHandshake(session, coreVersion) {
+  const first = session.dev_flow_calls[0];
+  if (first?.tool !== "dev_flow_server_info" || first.classification !== "success") {
+    throw new Error(`final local ${session.role} must call server_info first`);
+  }
+  assertFinalLocalServerInfo(first.core_result, coreVersion);
+}
+
+function lastGraphTask(session) {
+  return session.dev_flow_calls.map(taskFromCall).filter(Boolean).at(-1) ?? null;
+}
+
+function assertInitialComprehensionTask(task) {
+  const transitions = task?.current_action?.available_transitions?.map((edge) => edge.transition_id);
+  if (
+    task?.current_cursor !== "COMPREHENSION_REVIEW"
+    || task.outcome !== null
+    || task.current_action === null
+    || !isDeepStrictEqual(transitions, [
+      "comprehension_passed", "implementation_defect", "code_too_complex",
+      "design_too_complex", "evidence_insufficient", "requirement_unclear",
+    ])
+  ) throw new Error("final local comprehension action is incomplete or missing six destinations");
+}
+
+function finalLocalRestartIdentity(task) {
+  return structuredClone({
+    task_id: task.task_id,
+    revision: task.revision,
+    current_action: task.current_action,
+    process_id: task.process_id,
+    process_version: task.process_version,
+    process_definition_digest: task.process_definition_digest,
+    current_cursor: task.current_cursor,
+    repository: task.repository,
+    method_profile: task.intent.method_profile,
+    baselines: task.baselines,
+    implementation: task.implementation,
+    test: task.test,
+    evidence: task.evidence,
+    last_operation: task.last_operation,
+  });
+}
+
+function assertFinalLocalResume(session, expectedTask) {
+  const tools = session.dev_flow_calls.map((call) => call.tool);
+  if (!isDeepStrictEqual(tools.slice(0, 4), [
+    "dev_flow_server_info", "dev_flow_open_task", "dev_flow_get_task", "dev_flow_get_next_action",
+  ])) throw new Error(`final local ${session.role} resume reads are not in the required order`);
+  const openCall = session.dev_flow_calls[1];
+  const getCall = session.dev_flow_calls[2];
+  const nextCall = session.dev_flow_calls[3];
+  if (Object.hasOwn(openCall.arguments ?? {}, "new_task") && openCall.arguments.new_task !== null) {
+    throw new Error("final local resume must omit or null new_task");
+  }
+  const opened = taskFromCall(openCall);
+  const read = taskFromCall(getCall);
+  if (!isDeepStrictEqual(finalLocalRestartIdentity(opened), finalLocalRestartIdentity(expectedTask))) {
+    throw new Error("final local open_task did not restore exact restart identity");
+  }
+  if (!isDeepStrictEqual(finalLocalRestartIdentity(read), finalLocalRestartIdentity(expectedTask))) {
+    throw new Error("final local get_task changed restart identity");
+  }
+  const next = nextCall.core_result?.result;
+  if (next?.task_id !== expectedTask.task_id || next.revision !== expectedTask.revision || !isDeepStrictEqual(next.action, expectedTask.current_action)) {
+    throw new Error("final local get_next_action changed restart identity");
+  }
+  return opened;
+}
+
+function successfulApplyFacts(session) {
+  return successfulCalls(session, "dev_flow_apply_action").map((call) => ({
+    call,
+    transition_id: call.arguments?.payload?.transition_id,
+    problem_class: call.arguments?.payload?.node_result?.problem_class,
+    task: taskFromCall(call),
+  }));
+}
+
+function assertFinalLocalSessionTwo(session) {
+  const facts = successfulApplyFacts(session);
+  if (!isDeepStrictEqual(facts.map((fact) => fact.transition_id), ["code_too_complex", "refactor_ready_for_test", "tests_passed"])) {
+    throw new Error("final local Session 2 transition sequence is invalid");
+  }
+  if (facts[0].problem_class !== "code_complexity" || facts[0].task?.current_cursor !== "REFACTOR") {
+    throw new Error("final local code complexity verdict did not enter REFACTOR");
+  }
+  if (facts[0].task.test !== null || facts[0].task.comprehension !== null) {
+    throw new Error("final local REFACTOR entry retained stale test/comprehension authority");
+  }
+  if (facts[1].task?.current_cursor !== "TEST" || facts[2].task?.current_cursor !== "COMPREHENSION_REVIEW") {
+    throw new Error("final local refactor did not return through TEST and comprehension");
+  }
+}
+
+function assertFinalLocalSessionThree(session) {
+  const facts = successfulApplyFacts(session);
+  if (!isDeepStrictEqual(facts.map((fact) => fact.transition_id), ["comprehension_passed", "delivery_complete"])) {
+    throw new Error("final local Session 3 transition sequence is invalid");
+  }
+  const confirmation = facts[0].call.arguments?.payload?.node_result?.user_confirmation;
+  if (facts[0].problem_class !== "none" || confirmation?.source !== "user" || confirmation?.status !== "passed") {
+    throw new Error("final local Session 3 lacks explicit user comprehension confirmation");
+  }
+  if (facts[0].task?.current_cursor !== "DELIVERY" || facts[1].task?.current_cursor !== "DONE") {
+    throw new Error("final local Session 3 did not complete delivery");
+  }
+}
+
+function assertFinalLocalTransitions(sessions, finalTask) {
+  const facts = sessions.slice(1).flatMap(successfulApplyFacts);
+  const expected = [
+    "requirements_ready", "design_ready", "tasks_ready", "implementation_ready_for_test", "tests_passed",
+    "code_too_complex", "refactor_ready_for_test", "tests_passed", "comprehension_passed", "delivery_complete",
+  ];
+  if (!isDeepStrictEqual(facts.map((fact) => fact.transition_id), expected)) {
+    throw new Error("final local complete transition sequence is invalid");
+  }
+  const requestIDs = facts.map((fact) => fact.call.arguments?.request_id);
+  if (requestIDs.some((id) => typeof id !== "string") || new Set(requestIDs).size !== requestIDs.length) {
+    throw new Error("final local apply request IDs are not unique");
+  }
+  for (let index = 0; index < facts.length; index += 1) {
+    const evidence = facts[index].call.arguments?.payload?.method_evidence;
+    if (!Array.isArray(evidence) || evidence.length !== 3 || new Set(evidence.map((item) => item.step_id)).size !== 3) {
+      throw new Error("final local apply does not carry one MethodEvidence item per required step");
+    }
+    if (evidence.some((item) => item.status !== "plain_fallback" || item.capability !== "")) {
+      throw new Error("final local plain MethodEvidence is not an honest fallback");
+    }
+    if (index > 0 && facts[index].task?.revision !== facts[index - 1].task?.revision + 1) {
+      throw new Error("final local successful applies do not increment revision exactly once");
+    }
+  }
+  if (facts.at(-1)?.task?.revision !== finalTask.revision) throw new Error("final local transition facts do not reach final revision");
+  return facts;
+}
+
+export function classifyFinalLocalVerificationCommand(command) {
+  if (typeof command !== "string" || command.length === 0 || command.includes("\n")) {
+    return "other";
+  }
+  if (command === FINAL_LOCAL_TEST_COMMAND || command === FINAL_LOCAL_RENDERED_TEST_COMMAND) {
+    return "authorized";
+  }
+  const rendered = /^\/bin\/zsh -lc '([^'\n]*)'$/u.exec(command);
+  const executableCommand = rendered?.[1] ?? command;
+  const executable = String.raw`(?:[^\s/]*/)*`;
+  const forbidden = new RegExp(
+    String.raw`^(?:${executable}npm\s+(?:test|run\s+(?:test|validate))(?:\s|$)|${executable}pnpm\s+(?:test|validate|run\s+(?:test|validate))(?:\s|$)|${executable}go\s+test(?:\s|$)|${executable}node\s+--test(?:\s|$))`,
+    "u",
+  );
+  return forbidden.test(executableCommand) ? "forbidden" : "other";
+}
+
+export function assertFinalLocalCommands(sessions) {
+  const commands = sessions.flatMap((session) => session.commands.map((command) => ({ role: session.role, ...command })));
+  const classified = commands.map((command) => ({
+    ...command,
+    verificationClassification: classifyFinalLocalVerificationCommand(command.command),
+  }));
+  const forbidden = classified.filter((command) => command.verificationClassification === "forbidden");
+  if (forbidden.length !== 0) {
+    throw new Error("final local journey ran a forbidden full or alternate suite");
+  }
+  const verification = classified.filter((command) => command.verificationClassification === "authorized");
+  if (verification.length !== 2 || verification.some((command) => command.exitCode !== 0 || command.status !== "completed")) {
+    throw new Error("final local verification command count or identity is invalid");
+  }
+  if (verification[0].role !== "initial-comprehension" || verification[1].role !== "complexity-refactor-retest") {
+    throw new Error("final local targeted checks ran in the wrong sessions");
+  }
+  return verification.length;
+}
+
+async function finalLocalRepositoryFiles(root) {
+  const files = await recursiveFileList(root);
+  return files.filter((path) => path !== ".git" && !path.startsWith(".git/"));
+}
+
+async function assertFinalLocalRepository({ workspace, environment, baselineHead, baselineBranch, baselineFiles, baselinePackageDigest, baselineTestDigest }) {
+  const head = (await execFile("git", ["rev-parse", "HEAD"], { cwd: workspace, env: environment, encoding: "utf8" })).stdout.trim();
+  const branch = (await execFile("git", ["branch", "--show-current"], { cwd: workspace, env: environment, encoding: "utf8" })).stdout.trim();
+  const status = await gitStatus(workspace, environment);
+  if (head !== baselineHead || branch !== baselineBranch || status !== " M src/proof-writer.mjs\n") {
+    throw new Error("final local repository HEAD, branch, or changed surface is invalid");
+  }
+  if (!isDeepStrictEqual(await finalLocalRepositoryFiles(workspace), baselineFiles)) {
+    throw new Error("final local repository contains unexpected files");
+  }
+  if (await digestFile(join(workspace, "package.json")) !== baselinePackageDigest || await digestFile(join(workspace, "test", "proof-writer.test.mjs")) !== baselineTestDigest) {
+    throw new Error("final local journey changed package or test files");
+  }
+  const source = await readFile(join(workspace, "src", "proof-writer.mjs"), "utf8");
+  if (/ProofWriterFactory|class\s+ProofWriter/u.test(source) || !/export async function writeProof/u.test(source) || !/writeFile/u.test(source)) {
+    throw new Error("final local refactor did not produce one direct writeProof path");
+  }
+  return [];
+}
+
+function assertFinalLocalAtMostOnce({ finalCoreState, finalTask, transitionFacts }) {
+  if (finalCoreState.tasks.length !== 1 || finalCoreState.tasks[0].task_id !== finalTask.task_id) {
+    throw new Error("final local final database task identity is invalid");
+  }
+  const transitionEvents = finalCoreState.task_events.filter((event) => event.transition_id !== null);
+  if (transitionEvents.length !== transitionFacts.length) throw new Error("final local apply/event count differs");
+  if (new Set(finalCoreState.task_events.map((event) => event.revision)).size !== finalCoreState.task_events.length) {
+    throw new Error("final local database contains duplicate event revisions");
+  }
+  const requestIDs = transitionEvents.map((event) => event.request_id);
+  if (new Set(requestIDs).size !== requestIDs.length) throw new Error("final local database contains duplicate request IDs");
+  const evidence = finalTask.evidence ?? [];
+  if (new Set(evidence.map((item) => item.evidence_id)).size !== evidence.length) throw new Error("final local task contains duplicate evidence");
+  if (finalTask.last_operation?.operation_id !== transitionFacts.at(-1)?.call.arguments?.request_id || finalTask.last_operation?.to_revision !== finalTask.revision) {
+    throw new Error("final local LastOperation does not match final delivery commit");
+  }
+}
+
+async function directoryManifest(root) {
+  const entries = [];
+  const visit = async (directory, prefix = "") => {
+    for (const name of (await readdir(directory)).sort()) {
+      const absolute = join(directory, name);
+      const relativePath = prefix === "" ? name : join(prefix, name);
+      const info = await lstat(absolute);
+      if (info.isDirectory()) await visit(absolute, relativePath);
+      else if (info.isFile()) entries.push({ path: relativePath, size: info.size, sha256: await digestFile(absolute) });
+      else if (info.isSymbolicLink()) entries.push({ path: relativePath, symlink: await readlink(absolute) });
+      else throw new Error("final local manifest found an unsupported entry");
+    }
+  };
+  await visit(root);
+  return entries;
+}
+
+function finalLocalTaskManifest(finalCoreState, finalTask, dataManifest) {
+  return {
+    schema_version: 2,
+    task_id: finalTask.task_id,
+    final_revision: finalTask.revision,
+    current_cursor: finalTask.current_cursor,
+    outcome_status: finalTask.outcome?.status,
+    task_count: finalCoreState.tasks.length,
+    event_count: finalCoreState.task_events.length,
+    evidence_count: finalTask.evidence?.length ?? 0,
+    claim_count: finalCoreState.repository_claims.length,
+    data_files: dataManifest,
+  };
+}
+
+async function cleanupFinalLocalSensitiveState(layout) {
+  for (const path of [layout.home, layout.codexHome, layout.installPrefix, layout.npmCache, layout.dataDirectory, layout.temporaryDirectory, layout.xdgCache]) {
+    if (pathWithin(layout.root, path) && path !== layout.workspace && path !== layout.resultDirectory) {
+      await rm(path, { recursive: true, force: true });
+    }
+  }
 }
 
 async function assertEmptyResultDirectory(path) {
@@ -1786,6 +3849,21 @@ async function writeSmokeOutput(directory, name, value) {
 }
 
 async function readRetainedTask(runtimePath, dataDirectory, repository, taskID, environment) {
+  const envelope = await callPackagedCoreTool(
+    runtimePath,
+    dataDirectory,
+    repository,
+    "dev_flow_get_task",
+    { host: "codex", task_id: taskID },
+    environment,
+  );
+  if (envelope?.ok !== true || envelope.result?.task?.task_id !== taskID) {
+    throw new Error("packaged Core retained-task result is incomplete");
+  }
+  return envelope.result.task;
+}
+
+async function withPackagedCoreRPC(runtimePath, dataDirectory, repository, environment, operation) {
   const child = spawn(runtimePath, ["mcp", "--stdio"], {
     cwd: repository, env: { ...environment, DEV_FLOW_DATA_DIR: dataDirectory }, stdio: ["pipe", "pipe", "pipe"], shell: false,
   });
@@ -1806,16 +3884,40 @@ async function readRetainedTask(runtimePath, dataDirectory, repository, taskID, 
   const initialized = await request("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "dev-flow-development-smoke", version: "0.1.0" } });
   if (initialized.result?.serverInfo?.name !== "dev-flow") throw new Error("packaged Core initialize failed");
   child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized", params: {} })}\n`);
-  const response = await request("tools/call", { name: "dev_flow_get_task", arguments: { host: "codex", task_id: taskID } });
-  const result = response.result?.structuredContent;
-  child.stdin.end();
-  const stopped = await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => { child.kill("SIGTERM"); reject(new Error("packaged Core did not stop after EOF")); }, 10_000);
-    child.once("exit", (code, signal) => { clearTimeout(timer); code === 0 && signal === null ? resolve() : reject(new Error("packaged Core exited unexpectedly")); });
+  try {
+    return await operation(request);
+  } finally {
+    child.stdin.end();
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => { child.kill("SIGTERM"); reject(new Error("packaged Core did not stop after EOF")); }, 10_000);
+      child.once("exit", (code, signal) => { clearTimeout(timer); code === 0 && signal === null ? resolve() : reject(new Error("packaged Core exited unexpectedly")); });
+    });
+  }
+}
+
+async function callPackagedCoreTool(runtimePath, dataDirectory, repository, tool, arguments_, environment) {
+  return withPackagedCoreRPC(runtimePath, dataDirectory, repository, environment, async (request) => {
+    const response = await request("tools/call", { name: tool, arguments: arguments_ });
+    let result;
+    try {
+      result = JSON.parse(response.result?.content?.[0]?.text ?? "null");
+    } catch {
+      throw new Error("packaged Core returned malformed tool text");
+    }
+    if (response.result?.structuredContent !== undefined && response.result.structuredContent !== null && !isDeepStrictEqual(result, response.result.structuredContent)) {
+      throw new Error("packaged Core text and structured results differ");
+    }
+    if (!isPlainObject(result)) throw new Error("packaged Core tool result is incomplete");
+    return result;
   });
-  void stopped;
-  if (!result || JSON.parse(response.result.content?.[0]?.text ?? "null")?.result?.task?.task_id !== taskID) throw new Error("packaged Core retained-task result is incomplete");
-  return result.result.task;
+}
+
+async function listPackagedCoreTools(runtimePath, dataDirectory, repository, environment) {
+  return withPackagedCoreRPC(runtimePath, dataDirectory, repository, environment, async (request) => {
+    const response = await request("tools/list", {});
+    if (!Array.isArray(response.result?.tools)) throw new Error("packaged Core tool catalog is incomplete");
+    return response.result.tools;
+  });
 }
 
 export async function defaultRunProcess(executable, args, {
@@ -1958,6 +4060,81 @@ export function parseCLI(argv) {
       resultDirectory: values["--result-directory"],
     };
   }
+  if (mode === "final-local-lifecycle") {
+    const flags = [
+      "--artifact", "--artifact-sha256", "--artifact-size", "--core-sha256", "--source-commit",
+      "--native-result-directory", "--workspace", "--result-directory",
+    ];
+    const values = {};
+    while (argv.length > 0) {
+      const flag = argv.shift();
+      if (!flags.includes(flag) || Object.hasOwn(values, flag) || argv.length === 0) {
+        throw new Error("final local lifecycle requires each exact flag once");
+      }
+      values[flag] = argv.shift();
+    }
+    if (flags.some((flag) => !Object.hasOwn(values, flag))) {
+      throw new Error("final local lifecycle requires each exact flag once");
+    }
+    requireAbsolute(values["--artifact"], "lifecycle artifact");
+    requireDigest(values["--artifact-sha256"], "artifact-sha256");
+    requireDigest(values["--core-sha256"], "core-sha256");
+    if (!/^[1-9][0-9]*$/u.test(values["--artifact-size"])) throw new Error("lifecycle artifact size must be a positive integer");
+    if (!/^[0-9a-f]{40}$/u.test(values["--source-commit"])) throw new Error("lifecycle source commit is invalid");
+    requireAbsolute(values["--native-result-directory"], "Attempt 3 result directory");
+    requireAbsolute(values["--workspace"], "lifecycle workspace");
+    requireAbsolute(values["--result-directory"], "lifecycle result directory");
+    return {
+      mode,
+      artifact: values["--artifact"],
+      artifactSHA256: values["--artifact-sha256"],
+      artifactSize: Number(values["--artifact-size"]),
+      coreSHA256: values["--core-sha256"],
+      sourceCommit: values["--source-commit"],
+      nativeResultDirectory: values["--native-result-directory"],
+      workspace: values["--workspace"],
+      resultDirectory: values["--result-directory"],
+    };
+  }
+  if (mode === "final-local") {
+    const flags = [
+      "--artifact", "--artifact-sha256", "--artifact-size", "--source-commit",
+      "--codex-executable", "--workspace", "--result-directory", "--native-attempt", "--authorization",
+    ];
+    const values = {};
+    while (argv.length > 0) {
+      const flag = argv.shift();
+      if (!flags.includes(flag) || Object.hasOwn(values, flag) || argv.length === 0) {
+        throw new Error("final local journey requires each exact flag once");
+      }
+      values[flag] = argv.shift();
+    }
+    if (flags.some((flag) => !Object.hasOwn(values, flag))) {
+      throw new Error("final local journey requires each exact flag once");
+    }
+    requireAbsolute(values["--artifact"], "local artifact");
+    requireDigest(values["--artifact-sha256"], "artifact-sha256");
+    if (!/^[1-9][0-9]*$/u.test(values["--artifact-size"])) throw new Error("final local artifact size must be a positive integer");
+    if (!/^[0-9a-f]{40}$/u.test(values["--source-commit"])) throw new Error("final local source commit is invalid");
+    if (values["--native-attempt"] !== "3" || values["--authorization"] !== "explicit_user_authorization") {
+      throw new Error("final local attempt 3 requires explicit user authorization");
+    }
+    requireAbsolute(values["--codex-executable"], "Codex executable");
+    requireAbsolute(values["--workspace"], "final local workspace");
+    requireAbsolute(values["--result-directory"], "final local result directory");
+    return {
+      mode,
+      artifact: values["--artifact"],
+      artifactSHA256: values["--artifact-sha256"],
+      artifactSize: Number(values["--artifact-size"]),
+      sourceCommit: values["--source-commit"],
+      codexExecutable: values["--codex-executable"],
+      workspace: values["--workspace"],
+      resultDirectory: values["--result-directory"],
+      nativeAttempt: 3,
+      authorization: values["--authorization"],
+    };
+  }
   if (mode === "development-smoke") {
     const values = {};
     while (argv.length > 0) {
@@ -1978,7 +4155,7 @@ export function parseCLI(argv) {
     };
   }
   if (!["smoke", "acceptance"].includes(mode)) {
-    throw new Error("mode must be smoke, acceptance, development-smoke, final-registry, or acceptance-report");
+    throw new Error("mode must be smoke, acceptance, development-smoke, final-local-lifecycle, final-local, final-registry, or acceptance-report");
   }
   const values = {};
   while (argv.length > 0) {
@@ -2009,9 +4186,13 @@ async function main(argv) {
     ? await runDevelopmentSmoke(options)
     : options.mode === "development-smoke"
       ? await runIsolatedDevelopmentSmoke(options)
-      : options.mode === "final-registry"
-        ? await runFinalRegistryJourney(options)
-      : await runAcceptanceJourney(options);
+      : options.mode === "final-local-lifecycle"
+        ? await runFinalLocalLifecycle(options)
+        : options.mode === "final-local"
+          ? await runFinalLocalJourney(options)
+          : options.mode === "final-registry"
+            ? await runFinalRegistryJourney(options)
+            : await runAcceptanceJourney(options);
   process.stdout.write(`${JSON.stringify(summary)}\n`);
 }
 

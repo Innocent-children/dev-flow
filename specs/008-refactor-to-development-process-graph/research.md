@@ -407,3 +407,79 @@ acceptance, and force release work before the product design is stable.
 
 Feature 008 can reach `Complete` while `VERSION` remains `0.3.0`. The next release has its own
 source identity, artifact gates, registry journey, and support statement.
+
+---
+
+## Decision 13: Harden Phase 2–5 contracts before adding Phase 6–8 behavior
+
+**Decision**
+
+Insert Phase 5D as a corrective checkpoint. Bind transition choice to closed typed problem classes,
+close public optional/error/DTO shapes, enforce current aggregate/claim/evidence authority at read
+boundaries, and fail closed on non-null Recovery requests until Phase 7 implements classification.
+
+**Rationale**
+
+The audit showed that passing CI did not prove caller facts selected only one edge, that accepted
+Recovery fields were acted on, or that loaded snapshots/claims/outcomes were internally current.
+These are safety and contract gaps in already implemented work and must be closed before adapters or
+full Recovery add more call paths.
+
+**Alternatives considered**
+
+- Defer the gaps to Phase 7 or Phase 8.
+- Remove the public Recovery fields until Phase 7.
+- Accept multiple issue labels and infer the destination from free text.
+- Repair malformed task/claim state automatically during Store open.
+
+**Why alternatives were rejected**
+
+Deferral leaves silent acceptance and ambiguous transition authority in the public contract.
+Removing fields creates avoidable wire churn. Free-text inference lets callers select incompatible
+destinations. Automatic repair violates zero-write safe-stop and can destroy audit evidence.
+
+**Consequences**
+
+Phase 5D introduces `RECOVERY_UNAVAILABLE` as a temporary closed error, not a sixth recovery class.
+Payloads gain per-node `problem_class`; definition identity remains based on the previously frozen
+stable identifiers. Store open becomes stricter and may reject corrupt current-generation data with
+`STORAGE_UNAVAILABLE`. Phase 6–8 remain unchanged and unstarted.
+
+---
+
+## Decision 14: Compose final acceptance from native graph-flow and deterministic lifecycle evidence
+
+**Decision**
+
+Complete SC-015 with two closed evidence components bound to the same exact source-local artifact.
+Attempt 3 supplies the native Codex graph-flow component. A lifecycle-only runner supplies the
+deterministic package/Core/data-retention component without launching Codex. A composite record
+closes the shared artifact identity and both component results.
+
+**Rationale**
+
+Model-driven workflow behavior and deterministic package lifecycle behavior have different evidence
+mechanisms. The retained Attempt 3 sessions already prove the model-dependent graph path through
+Core `DONE`. Installation, setup, removal, uninstall, retention, reinstall, and terminal reopen use
+deterministic commands and packaged-Core calls. Binding both components to one exact artifact proves
+the complete source-local product surface without making completed native evidence depend on a
+post-session command classifier.
+
+**Alternatives considered**
+
+- Require one runner invocation to perform both evidence classes.
+- Start an additional native Codex attempt to repeat the whole path.
+- Accept only deterministic or simulated evidence for the graph flow.
+
+**Why alternatives were rejected**
+
+The single-runner form couples completed native sessions to deterministic post-processing. Repeating
+the native path adds stochastic cost without adding product coverage. Deterministic or simulated
+graph-flow evidence cannot replace real Codex evidence.
+
+**Consequences**
+
+Attempt 3 remains recorded as native-flow passed, runner failed after native sessions, and lifecycle
+not run. The lifecycle component uses a separate Task and retains the exact label
+`deterministic exact-artifact lifecycle evidence`. Attempts 1–3 remain immutable evidence, Attempt 4
+is forbidden, and publication remains outside Feature 008.

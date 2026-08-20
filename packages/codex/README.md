@@ -1,243 +1,199 @@
 # dev-flow-codex
 
-`dev-flow-codex` is the public-package contract for the Codex CLI product. It packages one Codex
-plugin, one explicitly selected `dev-flow` Skill, one bundled STDIO MCP server definition, and one
-`darwin-arm64` Dev Flow Core executable.
+`dev-flow-codex` 是 Codex CLI 的 explicit-only Dev Flow Adapter。package 包含一个 Codex
+Plugin、一个 `dev-flow` Skill、一份 local STDIO MCP 声明、method-profile reference 和一个
+`darwin-arm64` Core executable。它不保存 Task、process cursor、transition table 或 recovery
+classification。
 
-Feature 006 has not published this version yet. After an explicitly authorized release, the user
-interface is:
+## 当前发布与源码边界
 
-```bash
-npm install -g dev-flow-codex
-dev-flow-codex setup
-```
+仓库版本和 package metadata 当前仍为 `0.3.0`，因为 Feature 008 是 Product Feature，没有版本
+或发布权限。已公开的历史 `0.3.0` 包、Tag、Release 与证据保持不变；registry 上的
+`dev-flow-codex@0.3.0` 不能被视为必然包含本分支的 graph runtime。
 
-The supported product is limited to native macOS arm64, Node.js `>=24`, and Codex
-`>=0.147.0 <0.148.0`; the exact merged host acceptance used Codex `0.147.0`. npm `os`/`cpu`
-metadata rejects unsupported package installation, and setup repeats the platform preflight before
-any Codex mutation. No Linux, Windows, Intel Mac, or DeepSeek support is claimed.
-
-npm installation only places package-manager-owned files. Explicit `setup` registers Codex, and
-explicit `remove` removes only proven product-owned registration. npm uninstall remains a separate
-file-removal operation. Task data and unknown adjacent files are retained by default. The package
-contains its Core and requires no Go toolchain, source checkout, first-run download, or separate
-backend.
-
-The production source layout is deliberately closed:
+Feature 008 从当前提交构建的制品只能标记为：
 
 ```text
-packages/codex/
-├── .agents/plugins/marketplace.json
-├── LICENSE
-├── bin/dev-flow-codex.mjs
-├── lib/{lifecycle,paths}.mjs
-├── plugin/.codex-plugin/plugin.json
-├── plugin/.mcp.json
-├── plugin/skills/dev-flow/SKILL.md
-├── plugin/skills/dev-flow/agents/openai.yaml
-└── runtime/darwin-arm64/dev-flow       # temporary build staging only
+source-local
+unpublished
+working-tree/commit-bound
+Feature 008 acceptance test artifact
 ```
 
-The implementation baseline is Codex CLI `0.147.x` on macOS arm64. Sanitized fixtures and the
-development smoke target that host contract. The final pre-merge acceptance report records the
-actual Codex, package, and Core versions exercised; it is a product acceptance record, not an
-indefinite compatibility promise or public-registry evidence.
+它不是 official/released/registry `0.3.0` artifact，不能上传 npm 或 GitHub Release。图运行时
+的公开发布需要 Feature 完成后的独立 Release Change。
 
-Development requires Node.js `>=24`, pnpm `>=11 <12`, and the repository-pinned Go toolchain. The
-package has no production npm dependency and no install, download, or host-mutation lifecycle hook.
-Installation and explicit Codex registration are separate operations, and neither setup nor removal
-may edit the current repository or delete Core-owned task data.
+当前 source-local 构建支持 native macOS arm64、Node.js `>=24` 和 Codex
+`>=0.147.0 <0.148.0`。没有 Linux、Windows、Intel Mac、Rosetta 或 DeepSeek 产品支持声明。
 
-## Local artifact and explicit setup
+## Closed package
 
-Create a temporary, non-final development artifact and install it with lifecycle scripts disabled:
+生产 package 内容由 `package.json.files` 和本地 builder 共同关闭：
+
+```text
+.agents/plugins/marketplace.json
+LICENSE
+README.md
+bin/dev-flow-codex.mjs
+lib/lifecycle.mjs
+lib/paths.mjs
+package.json
+plugin/.codex-plugin/plugin.json
+plugin/.mcp.json
+plugin/skills/dev-flow/SKILL.md
+plugin/skills/dev-flow/agents/openai.yaml
+plugin/skills/dev-flow/references/method-profiles.md
+plugin/skills/dev-flow/references/node-payloads.md
+runtime/darwin-arm64/dev-flow
+```
+
+Artifact 不包含 tests、fixtures、specs、source tree、`.git`、`node_modules`、用户数据、构建日志
+或绝对路径。package 没有 production npm dependency 和 install/update/uninstall lifecycle hook；
+安装文件与显式 Codex 注册是两个操作。
+
+## Source-local artifact
+
+在干净、已提交的 source commit 上，把最终验收制品构建到仓库外的空目录：
 
 ```bash
-CODEX_ARTIFACT_DIR="$(mktemp -d -t dev-flow-codex-local.XXXXXX)"
-./scripts/build-codex-local.sh --output "$CODEX_ARTIFACT_DIR"
+ARTIFACT_ROOT="${TMPDIR:-/tmp}/dev-flow-feature-008-artifacts"
+mkdir -p "$ARTIFACT_ROOT"
+SOURCE_COMMIT="$(git rev-parse HEAD)"
 
-CODEX_INSTALL_PREFIX="$(mktemp -d -t dev-flow-codex-install.XXXXXX)"
-npm install --ignore-scripts --no-audit --no-fund \
-  --prefix "$CODEX_INSTALL_PREFIX" \
-  "$CODEX_ARTIFACT_DIR/dev-flow-codex-0.1.0.tgz"
-export PATH="$CODEX_INSTALL_PREFIX/node_modules/.bin:$PATH"
+pnpm --dir packages/codex build:local -- \
+  --output "$ARTIFACT_ROOT" \
+  --final \
+  --source-commit "$SOURCE_COMMIT" \
+  --report "$ARTIFACT_ROOT/artifact-evidence.json"
 ```
 
-Installation alone makes no Codex registration and runs no product lifecycle hook. Verify the
-detached package/Core identity, then perform the separately authorized setup:
+`--final` 在这里表示 builder 的 clean-source/identity verification 模式，不表示 public Release。
+Builder 要求输出目录已经存在、没有 `.tgz`，source tree 干净且 HEAD 等于 `--source-commit`；
+它验证 package/Core/plugin version identity、platform、detached runtime executable 和 closed pack
+contents，并输出 SHA-256 evidence。制品与 evidence JSON 均保留在仓库外。
 
-```bash
-dev-flow-codex --version
-dev-flow-codex setup --json
-codex plugin marketplace list --json
-codex plugin list --json
-```
-
-Setup supports only macOS arm64 in this feature. It verifies the installed Codex version against
-the selected bounded range, the package/plugin/Core version identity, the package-local executable,
-the one Skill, its explicit-only `agents/openai.yaml` policy, the typed MCP resource, and
-`dev-flow-codex` discovery on `PATH` before its first registry write. It registers
-`dev-flow-local` and `dev-flow-codex@dev-flow-local` through Codex JSON commands, validates the
-official camelCase mutation results, and requires exact `{marketplaces: [...]}` plus
-`{installed: [...], available: [...]}` readback before writing the ownership receipt at
-`~/Library/Application Support/dev-flow/registrations/codex.json`. Matching repeated setup is a
-no-op; malformed, incomplete, or conflicting state fails closed. Restart or open a fresh Codex
-session after setup so the host refreshes plugin, Skill, and MCP discovery.
-
-Without `DEV_FLOW_DATA_DIR`, `dev-flow-codex mcp` creates only
-`~/Library/Application Support/dev-flow/data` with restrictive permissions. A nonempty override
-must already be an absolute, canonical, usable directory. Runtime selection is always relative to
-the installed package; it never falls back to a Core binary in the current repository.
+T091 只构建和检查，不执行 setup/remove、不修改真实 Codex 配置、不启动 native Journey。
 
 ## Explicit invocation boundary
 
-The official Skill metadata sets `policy.allow_implicit_invocation: false`. The Skill resource/base name is `dev-flow`;
-the installed Skill full name is `dev-flow-codex:dev-flow`. The only exact explicit selector is `$dev-flow-codex:dev-flow`.
-Bare `$dev-flow` is not an alias and does not select this installed Skill. A wrong plugin namespace,
-a wrong Skill base name, or a missing selector also does not select it.
-Codex 0.147 registers plugin MCP tools independently from Skill injection, so this package does not
-claim selector-bound MCP visibility or authorization. An ordinary prompt must make zero Dev Flow
-calls. Other non-exact selectors must not complete a task-bearing operation or change task, event,
-or claim state; host-exposed read-only and Core-rejected calls remain observable. Non-exact Skill
-selection does not disable ordinary Codex repository tools or revoke work independently authorized
-by the rest of the prompt. Final acceptance therefore uses a non-mutating bare-selector probe and
-verifies that controlled probe leaves the repository unchanged.
-`$dev-flow-codex:dev-flow` with no substantive requirement, a conversational request, a non-Git
-directory, or work spanning more than one repository stops before Skill-owned task discovery.
-For an admitted request, the Skill resolves one canonical current worktree and calls
-`dev_flow_server_info({})` first; an incomplete or incompatible six-tool catalog stops the request.
+Skill metadata 设置 `policy.allow_implicit_invocation: false`。唯一精确 selector 是：
 
-## Core-governed create and resume
-
-After the handshake, a new invocation opens one `host=codex` task using only the bounded user
-request, repository instructions, acceptance criteria, exclusions, and verification authority. An
-explicit resume omits `new_task`; Core must return the compatible active task. A restart/resume must
-preserve the same task ID and continue its advancing revision lineage. An ownership or contract
-conflict stops the invocation without choosing, merging, or replacing task records.
-
-Every iteration consumes one complete fresh Core action. Its task/revision/action identity,
-repository binding, allowed effects, required evidence, payload schema, blocker, and outcome stay
-together. Codex performs only the allowed effect, constructs the returned closed payload, retains a
-request ID, and submits exactly one mutation. A complete success continues only from the returned
-next action or a fresh Core read; Codex does not infer transitions or completion.
-
-If a mutation result is missing, cancelled, malformed, truncated, or otherwise uncertain, read
-before retry: retain the exact original operation, call `dev_flow_get_task` and
-`dev_flow_get_next_action`, and follow only Core's recovery assessment. Never reconstruct a missing
-operation probe or repeat a mutation because its response was lost.
-
-Every completed host command event is retained only as role-scoped status, exit code, and safe
-command/output hashes. Ambient commands in the ordinary or invalid sessions and repository
-inspection or implementation commands in active sessions are non-verification facts. Only the one
-Core-submitted and retained logical proof, rendered by Codex 0.147 on macOS as the closed supported
-command, counts against the verification budget. An unbound or duplicate proof and any known test
-or full-suite command fail closed. Do not run a forbidden full suite; when automatic capacity is
-exhausted, report an honest manual handoff.
-Static, simulated, user-performed, and native evidence keep distinct labels. A Core blocker,
-ownership/contract conflict, `CANCELLED`, or Core-owned `DONE` outcome stops repository work and is
-reported without reinterpretation.
-
-## Explicit removal and retained task data
-
-Deregister before running npm uninstall:
-
-```bash
-dev-flow-codex remove --json
-npm uninstall -g --ignore-scripts dev-flow-codex
+```text
+$dev-flow-codex:dev-flow
 ```
 
-Removal is receipt-first. It reads and validates the exact ownership receipt, reads current Codex
-marketplace/plugin state, and fails closed on an identity, root, or readback conflict before any
-mutation. It removes the matching plugin, verifies absence, removes the matching marketplace,
-verifies absence again, and deletes only the exact receipt. An interrupted removal keeps the
-receipt, so the next explicit call can resume from fresh readback. Repeated removal after complete
-absence is an idempotent no-op.
+Skill resource/base name 是 `dev-flow`，installed Skill full name 是 `dev-flow-codex:dev-flow`，
+only exact explicit selector 是 `$dev-flow-codex:dev-flow`。bare `$dev-flow` is not an alias and
+does not select this Skill；wrong plugin namespace、wrong Skill base name 或 missing selector 也不会
+选择它。ordinary prompt 必须产生 zero Dev Flow calls。non-exact selectors must not complete a task-bearing operation；
+This does not disable ordinary Codex repository tools. The package does not make or claim selector-bound MCP visibility or authorization。
 
-The command does not delete the npm package, Core task data, repository, Codex config/cache, receipt
-parents, or unknown adjacent resources. Stop Core before comparing task-data manifests; after
-deregistration, directly reopen the recorded task with Core to prove retention. Perform npm
-uninstall separately only after successful absence readback. A later artifact within the selected
-compatible range may be installed and explicitly set up again against the retained data.
+被接纳的请求必须只涉及一个现有 Git repository，并先调用 `dev_flow_server_info({})`。当前
+source-local Contract 0.2 handshake 必须返回：
 
-Setup, version reporting, and removal are package/user-state operations and behave the same from
-any working directory. They do not add configuration, databases, instructions, or generated files
-to the target repository and never mutate Git.
+```text
+schema_version = 2
+core_limits_version = 0.2
+process = standard-development@1
+method_profiles = plain, spec-kit, openspec
+exact six-tool catalog
+```
 
-The `>=0.147.0 <0.148.0` line and exact `0.147.0` host were selected on 2026-08-15, not promised
-indefinitely. The selected MCP file uses Agent Plugins v1 `$schema`, camelCase `mcpServers`, and one
-`type: stdio` entry, a shape accepted by both 0.147 plugin parsers. A future changed official
-contract requires every compatibility-bearing contract, test, and guide to be updated before a
-final artifact is built.
+不完整、不同版本或不同顺序的 catalog 会停止请求。公开工具为：
+
+```text
+dev_flow_server_info
+dev_flow_open_task
+dev_flow_get_task
+dev_flow_get_next_action
+dev_flow_apply_action
+dev_flow_cancel_task
+```
+
+## Graph task 与 method profiles
+
+新任务从 `REQUIREMENTS` 开始，Core 返回完整 node contract、semantic method steps 和全部合法
+transitions。Codex 只提交 Core 返回的 `transition_id` 和 closed node payload；destination、guard、
+current node 和 completion 都由 Core 决定。
+
+Task 创建时选择一个 immutable profile：
+
+```text
+plain
+spec-kit
+openspec
+```
+
+三种 profile 使用同一状态图。Adapter 按当前 Action 渲染实际存在的 capability 和预期 artifact。
+capability unavailable 或 unknown 时，它明确报告缺失，并呈现合同定义的 plain-equivalent work；
+只有等价工作实际完成时才提交 `plain_fallback` method evidence。command、checkbox、sync、archive
+或 artifact 自身不会推进 Core。
+
+`TEST` 成功后必须进入 `COMPREHENSION_REVIEW`。Codex 向开发者解释当前行为、复杂度和维护
+风险，并取得明确 verdict；AI/static evidence 不能替代用户确认。复杂代码进入 `REFACTOR`，
+repository-changing refactor 只能回到 `TEST`。
+
+## Read-before-retry
+
+每次 mutation 前，Adapter 保留完整 operation identity：request/operation ID、process、source
+cursor、revision、action、issuance binding 和原始 closed payload。结果缺失、取消、损坏、截断或
+transport failure 时不得盲目重试，也不得重建缺失的 probe。
+
+Adapter 使用 `dev_flow_get_task` 或 `dev_flow_get_next_action` 提交原 operation probe，并只遵循
+Core 返回的五分类 Assessment 和 advice。Probe 零写入；只有显式 recovery apply 可以完成一次
+Core-derived transition 或创建一次 blocker。Adapter 不判断 classification、retry safety、resume
+node 或 destination。
+
+## Schema 1 unsupported guidance
+
+Graph package 只支持 fresh Schema 2、snapshot-v2 和精确 `standard-development@1`。遇到 Schema
+1/pre-graph data 时 Core 返回 `SCHEMA_UNSUPPORTED`，且不 decode、migrate、rename、truncate、
+delete 或 reset 旧数据。不要重复启动或自动清理。
+
+用户必须明确选择一个新的绝对、canonical、usable `DEV_FLOW_DATA_DIR`，或在 Core 外部手工
+archive/rename/delete 旧目录，再启动 graph Core。错误信息不回显私有数据库路径。
+
+## Setup、remove 与 retained data
+
+公开历史版本的安装和 setup 行为以对应 Release 文档为准。对于未来明确授权安装的兼容 graph
+artifact，package 文件安装仍与 Codex 注册分离：只有 `dev-flow-codex setup` 可以创建经 ownership
+和 read-back 验证的注册，只有 `dev-flow-codex remove` 可以删除该产品拥有的注册。
+
+setup/update/remove/uninstall 均保留 Core task data 和未知相邻文件，不会修改目标 repository 或
+Git。remove 应先证明 plugin/marketplace absence，再单独执行 package-manager uninstall。重新安装
+兼容的 graph artifact 可以从同一 Schema 2 数据目录恢复任务；没有任何 Schema 1 reader 或
+conversion path。
+
+## Closed node payload construction
+
+打包 Skill 在每次普通 apply 前同时读取 live Action、`dev_flow_apply_action` `inputSchema` 和
+`plugin/skills/dev-flow/references/node-payloads.md` 的对应标记模板。该 reference 覆盖
+REQUIREMENTS、DESIGN、TASKS、IMPLEMENT、TEST、COMPREHENSION_REVIEW 的复杂度/通过分支、
+REFACTOR、DELIVERY 和 BLOCKED resolution，并由真实 MCP validator、workflow decoder 和 payload
+validator 提取验证。它只提供构造指引，不保存游标、复制 transition authority 或替代 Core。
+
+`required_evidence` 与 ArtifactReference role 不同；`repository_observation` 不得作为 artifact
+role。无真实 process artifact 时使用空 `artifacts`，同时保留完整 branch wrapper、当前 baseline/
+record/evidence identity 和精确 MethodEvidence。Core `INVALID_ARGUMENT` 会停止该 mutation，不会
+触发候选 payload 试探或自动重试。
+
+对于 apply/cancel，Result Envelope `request_id` 与 caller mutation `request_id` 相同，并与成功
+提交后的 `LastOperation.operation_id`/TaskEvent identity 对齐。没有 caller request ID 的 read/open/
+info 工具继续使用 Core 生成的本地 transport identity。
 
 ## Deterministic validation
 
-Run the product-bearing package layers directly:
+完整 package-local 测试入口为：
 
 ```bash
-pnpm --dir packages/codex test:package
-pnpm --dir packages/codex test:lifecycle
-pnpm --dir packages/codex test:parser
-pnpm --dir packages/codex test:native-smoke
-pnpm --dir packages/codex pack:dry
+pnpm --dir packages/codex test
 ```
 
-The checked-in Codex 0.147 fixtures cover three mutually exclusive terminal shapes without starting
-Codex: completed success with text/structured parity, failed Core-domain result with the same parity,
-and failed transport with no complete Core result. They contain no prompt, source, user path,
-environment, token, or secret.
+它覆盖 package contract、Skill contract、lifecycle、journey harness、parser/evidence 以及已有
+launcher/runtime tests。fixture、simulated Harness 和 static contract 证据不属于 native Codex
+evidence，也不证明 package 已公开发布。
 
-```bash
-./scripts/run-codex-real-journey.sh --fixture success
-./scripts/run-codex-real-journey.sh --fixture core-domain-error
-./scripts/run-codex-real-journey.sh --fixture transport-error
-```
-
-## Repeatable development smoke
-
-After deterministic checks are green, run the full isolated chain twice with fresh empty result
-directories and labels `A` then `B`:
-
-```bash
-./scripts/run-codex-real-journey.sh \
-  --development-smoke \
-  --run-label A \
-  --codex-executable "$CODEX_EXECUTABLE" \
-  --result-directory "$CODEX_SMOKE_RESULT_DIRECTORY"
-```
-
-Each invocation builds and installs a non-final package in one new temporary root, performs setup,
-four fresh Codex 0.147 sessions, removal, and a direct packaged-Core retention read, then deletes the
-temporary root. The external `smoke-result.json` is a development result, not final acceptance or a
-formal support statement; failures add only a bounded, hashed diagnostic.
-
-## Final pre-merge acceptance
-
-The four native HIGH regressions are closed, and two fresh isolated Codex 0.147 development-smoke
-runs passed with distinct tasks. Those runs establish repeatability but do not replace acceptance.
-Run one final real-host acceptance against the reviewed commit immediately before merge approval.
-The real-host entry point records ephemeral session observations:
-
-```bash
-./scripts/run-codex-real-journey.sh \
-  --acceptance \
-  --codex-executable "$CODEX_EXECUTABLE" \
-  --workspace "$CODEX_ACCEPTANCE_WORKTREE"
-```
-
-The observation itself does not claim acceptance. A single simplified JSON report must then record
-the reviewed source and artifact identities, Codex/package/Core versions, setup readback, zero Core
-calls for the ordinary prompt, unchanged Core/repository state around the non-mutating bare-selector
-probe, the exact selector, the same task ID across restart, at least two
-committed actions, Core `DONE`, successful removal readback, retained and reopened task data, and an
-empty unexpected-repository-path list. Package and Core versions must match. Validate that closed
-object without creating any additional report files:
-
-```bash
-node scripts/write-codex-journey-evidence.mjs \
-  acceptance-report \
-  --report "$CODEX_ACCEPTANCE_REPORT"
-```
-
-Feature 003 uses this one acceptance report only as a pre-merge product gate. It does not implement
-a release or supply-chain proof system. Public npm publication, GitHub releases, tags,
-Windows/Linux claims, IDE support, and additional Codex surfaces remain out of scope.
+Feature 008 的 source-local acceptance 已完成。Attempt 3 提供真实 native Codex graph-flow
+evidence；独立的 no-Codex deterministic lifecycle 使用同一精确 artifact 证明 setup、remove、
+npm uninstall、data retention、相同 artifact reinstall 和同一 lifecycle Task terminal reopen。
+两类 evidence 保持不同标签，且都不构成 registry package 或公开发布证明。

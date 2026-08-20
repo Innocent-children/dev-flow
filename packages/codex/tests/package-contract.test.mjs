@@ -28,6 +28,8 @@ const expectedPackageFiles = [
   "plugin/.mcp.json",
   "plugin/skills/dev-flow/SKILL.md",
   "plugin/skills/dev-flow/agents/openai.yaml",
+  "plugin/skills/dev-flow/references/method-profiles.md",
+  "plugin/skills/dev-flow/references/node-payloads.md",
   "runtime/darwin-arm64/dev-flow",
 ];
 
@@ -43,6 +45,8 @@ const expectedPackedFiles = [
   "plugin/.mcp.json",
   "plugin/skills/dev-flow/SKILL.md",
   "plugin/skills/dev-flow/agents/openai.yaml",
+  "plugin/skills/dev-flow/references/method-profiles.md",
+  "plugin/skills/dev-flow/references/node-payloads.md",
   "runtime/darwin-arm64/dev-flow",
 ].sort();
 
@@ -58,12 +62,15 @@ const reviewedSourceAllowlist = new Set([
   "plugin/.mcp.json",
   "plugin/skills/dev-flow/SKILL.md",
   "plugin/skills/dev-flow/agents/openai.yaml",
+  "plugin/skills/dev-flow/references/method-profiles.md",
+  "plugin/skills/dev-flow/references/node-payloads.md",
   "tests/fake-core-contract.test.mjs",
   "tests/fixtures/fake-codex.mjs",
   "tests/fixtures/fake-core.mjs",
   "tests/fixtures/fake-native-tool.mjs",
   "tests/fixtures/fake-release-gh.mjs",
   "tests/fixtures/fake-release-npm.mjs",
+  "tests/fixtures/graph-method-profiles.json",
   "tests/journey-evidence.test.mjs",
   "tests/journey-harness.test.mjs",
   "tests/launcher.test.mjs",
@@ -135,6 +142,9 @@ test("source package declares one public macOS arm64 Codex product", async () =>
 test("package metadata closes source, artifact, and development command surfaces", async () => {
   const manifest = await readJSON(join(packageRoot, "package.json"));
   assert.deepEqual([...manifest.files].sort(), [...expectedPackageFiles].sort());
+  assert.equal(manifest.files.includes("plugin/skills/dev-flow/references/method-profiles.md"), true);
+  assert.equal(manifest.files.includes("plugin/skills/dev-flow/references/node-payloads.md"), true);
+  assert.equal(manifest.files.some((path) => /[*?[\]{}]/u.test(path)), false);
   assert.deepEqual(manifest.bin, { "dev-flow-codex": "bin/dev-flow-codex.mjs" });
   assert.deepEqual(manifest.scripts, {
     test: "node --test tests/*.test.mjs",
@@ -168,6 +178,41 @@ test("package metadata closes source, artifact, and development command surfaces
   assert.deepEqual(sourceFiles.filter((path) => !reviewedSourceAllowlist.has(path)), []);
   assert.equal(sourceFiles.some((path) => path.startsWith("runtime/")), false);
   assert.equal(sourceFiles.some((path) => /\.(?:tgz|db|sqlite)$/iu.test(path)), false);
+});
+
+test("method-profile reference is one closed dependency-free packaged resource", async () => {
+  const manifest = await readJSON(join(packageRoot, "package.json"));
+  const referencePath = "plugin/skills/dev-flow/references/method-profiles.md";
+  const reference = await readFile(join(packageRoot, referencePath), "utf8");
+
+  assert.equal(manifest.files.filter((path) => path === referencePath).length, 1);
+  assert.equal((await stat(join(packageRoot, referencePath))).isFile(), true);
+  for (const field of [
+    "dependencies",
+    "optionalDependencies",
+    "peerDependencies",
+    "bundledDependencies",
+    "bundleDependencies",
+  ]) {
+    assert.equal(field in manifest, false, field);
+  }
+  assert.doesNotMatch(reference, /(?:^|\s)(?:\/Users\/|\/home\/|[A-Za-z]:\\\\)/u);
+  assert.doesNotMatch(reference, /(?:node_modules|tests?\/fixtures?|\.tmp|\.sqlite|\.db)(?:\/|\b)/iu);
+  assert.doesNotMatch(reference, /(?:process\.env|environment variable|token log|command log)/iu);
+});
+
+test("node-payload reference is one explicit closed packaged resource", async () => {
+  const manifest = await readJSON(join(packageRoot, "package.json"));
+  const referencePath = "plugin/skills/dev-flow/references/node-payloads.md";
+  const reference = await readFile(join(packageRoot, referencePath), "utf8");
+  assert.equal(manifest.files.filter((path) => path === referencePath).length, 1);
+  assert.equal((await stat(join(packageRoot, referencePath))).isFile(), true);
+  assert.match(reference, /node-payload-template:requirements:start/u);
+  assert.match(reference, /node-payload-template:blocked:start/u);
+  assert.match(reference, /`repository_observation` is a Core evidence requirement/u);
+  assert.match(reference, /Never submit `destination`, `next_node`/u);
+  assert.doesNotMatch(reference, /(?:^|\s)(?:\/Users\/|\/home\/|[A-Za-z]:\\\\)/u);
+  assert.doesNotMatch(reference, /(?:node_modules|tests?\/fixtures?|\.tmp|\.sqlite|\.db)(?:\/|\b)/iu);
 });
 
 test("npm compatibility metadata rejects an unsupported OS and CPU", async () => {
@@ -214,28 +259,29 @@ test("packaged resources contain no copied fixtures or workflow engine", async (
   }
 });
 
-test("packaged Skill publishes the exact new-task value types and vocabulary", async () => {
+test("packaged Skill publishes the exact Contract 0.2 new-task value types and vocabulary", async () => {
   const skill = await readFile(join(pluginRoot, "skills", "dev-flow", "SKILL.md"), "utf8");
 
   assert.match(
     skill,
-    /`scope`, `out_of_scope`, and `acceptance_criteria` are JSON arrays of strings/u,
+    /`initial_scope`,\s+`initial_out_of_scope`, and\s+`known_acceptance_criteria` are JSON arrays of strings/u,
   );
   assert.match(skill, /exactly `minimal`,\s+`targeted`, or `full`/u);
 
   const example = skill.match(/<!-- new-task-example:start -->\n```json\n([\s\S]*?)\n```\n<!-- new-task-example:end -->/u);
   assert.notEqual(example, null);
   assert.deepEqual(JSON.parse(example[1]), {
-    goal: "Return the requested field from the bounded endpoint.",
-    scope: ["Update the endpoint response"],
-    out_of_scope: ["Change unrelated endpoints"],
-    acceptance_criteria: ["The response contains the requested field"],
+    request: "Return the requested field from the bounded endpoint.",
+    initial_scope: ["Update the endpoint response"],
+    initial_out_of_scope: ["Change unrelated endpoints"],
+    known_acceptance_criteria: ["The response contains the requested field"],
     verification_budget: {
       level: "targeted",
       max_automatic_commands: 4,
       allow_full_suite: false,
       allow_manual_handoff: true,
     },
+    method_profile: "plain",
   });
 });
 

@@ -1,78 +1,75 @@
 package application
 
 import (
+	"encoding/json"
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/recovery"
-	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
-// OpenTaskRequest either creates a governed task from NewTask or resumes the
-// active task for the observed repository when NewTask is nil.
+type NewTaskInput struct {
+	Request                 string
+	InitialScope            []string
+	InitialOutOfScope       []string
+	KnownAcceptanceCriteria []string
+	VerificationBudget      domain.VerificationBudget
+	MethodProfile           domain.MethodProfile
+}
 type OpenTaskRequest struct {
 	RequestID      domain.ID
 	Host           domain.Host
 	RepositoryPath string
 	NewTask        *NewTaskInput
 }
-
-// NewTaskInput contains only caller-owned contract fields. Task, action,
-// revision, repository, and workflow identity remain Core-owned.
-type NewTaskInput struct {
-	Goal               string
-	Scope              []string
-	OutOfScope         []string
-	AcceptanceCriteria []string
-	VerificationBudget domain.VerificationBudget
-}
-
-// OpenTaskResult identifies whether this call created a task or resumed the
-// persisted active task.
 type OpenTaskResult struct {
 	Created bool
-	Task    domain.Task
+	Task    domain.ProcessTask
 }
-
 type OperationProbe struct {
 	OperationID             domain.ID
-	SourcePhase             domain.Phase
+	ProcessID               domain.ProcessID
+	ProcessVersion          uint32
+	ProcessDefinitionDigest domain.Digest
+	SourceCursor            domain.NodeID
 	ExpectedRevision        uint64
 	ActionID                domain.ID
 	ActionKind              domain.ActionKind
 	RepositoryBindingDigest domain.Digest
-	Payload                 workflow.ActionPayload
+	Payload                 json.RawMessage
 }
 
+func (p OperationProbe) Reference() domain.OperationReference {
+	return domain.OperationReference{OperationID: p.OperationID, Process: domain.ProcessReference{ID: p.ProcessID, Version: p.ProcessVersion, DefinitionDigest: p.ProcessDefinitionDigest}, SourceCursor: p.SourceCursor, ExpectedRevision: p.ExpectedRevision, ActionID: p.ActionID, ActionKind: p.ActionKind, RepositoryBindingDigest: p.RepositoryBindingDigest}
+}
+
+type RecoveryApplyInput struct {
+	OperationID  domain.ID
+	SourceCursor domain.NodeID
+}
 type GetTaskRequest struct {
 	Host           domain.Host
 	TaskID         domain.ID
 	OperationProbe *OperationProbe
 }
-
+type GetTaskResult struct {
+	Task               domain.ProcessTask
+	RecoveryAssessment *recovery.RecoveryAssessment
+}
 type GetNextActionRequest struct {
 	Host           domain.Host
 	TaskID         domain.ID
 	OperationProbe *OperationProbe
 }
-
-type GetTaskResult struct {
-	Task               domain.Task
-	RecoveryAssessment *recovery.RecoveryAssessment
-}
-
-// NextActionResult is the persisted next-action projection for one task.
-// Terminal tasks carry Outcome instead of Action.
 type NextActionResult struct {
 	TaskID             domain.ID
-	Phase              domain.Phase
+	Process            domain.ProcessReference
+	CurrentNode        domain.NodeID
 	Revision           uint64
-	Action             *domain.Action
-	Blocker            *domain.Blocker
-	Outcome            *domain.Outcome
+	MethodProfile      domain.MethodProfile
+	Action             *domain.ProcessActionV2
+	Outcome            *domain.ProcessOutcome
+	Blocker            *domain.ProcessBlocker
 	RecoveryAssessment *recovery.RecoveryAssessment
 }
-
-// ApplyActionRequest binds one closed payload to the exact persisted action
-// identity and issuance repository binding.
 type ApplyActionRequest struct {
 	RequestID               domain.ID
 	Host                    domain.Host
@@ -80,22 +77,15 @@ type ApplyActionRequest struct {
 	ExpectedRevision        uint64
 	ActionID                domain.ID
 	ActionKind              domain.ActionKind
+	ProcessID               domain.ProcessID
+	ProcessVersion          uint32
+	ProcessDefinitionDigest domain.Digest
+	SourceCursor            domain.NodeID
 	RepositoryBindingDigest domain.Digest
-	Payload                 workflow.ActionPayload
+	Payload                 json.RawMessage
 	RecoveryApply           *RecoveryApplyInput
 }
-
-type RecoveryApplyInput struct {
-	OperationID domain.ID
-	SourcePhase domain.Phase
-}
-
-type ApplyActionResult struct {
-	Task domain.Task
-}
-
-// CancelTaskRequest explicitly terminates one host-owned task without using
-// or regenerating its current action identity.
+type ApplyActionResult struct{ Task domain.ProcessTask }
 type CancelTaskRequest struct {
 	RequestID        domain.ID
 	Host             domain.Host
@@ -103,7 +93,4 @@ type CancelTaskRequest struct {
 	ExpectedRevision uint64
 	Reason           string
 }
-
-type CancelTaskResult struct {
-	Task domain.Task
-}
+type CancelTaskResult struct{ Task domain.ProcessTask }

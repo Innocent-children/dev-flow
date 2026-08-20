@@ -1,240 +1,333 @@
 package recovery
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
+	"sort"
+
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
-// CompareRepositoryBindings compares already-verified structured bindings.
-// ObservedAt is freshness metadata and never participates in the relation.
-func CompareRepositoryBindings(
-	authoritative domain.RepositoryBinding,
-	fresh domain.RepositoryBinding,
-) (RepositoryRelation, error) {
+type BlockerResolutionPayload struct {
+	BlockerID             domain.ID               `json:"blocker_id"`
+	Condition             domain.BlockerCondition `json:"condition"`
+	ObservedBindingDigest domain.Digest           `json:"observed_binding_digest"`
+}
+
+func CompareRepositoryBindings(authoritative, fresh domain.RepositoryBinding) (RepositoryRelation, error) {
 	if authoritative.Validate() != nil || fresh.Validate() != nil {
 		return "", domain.ErrInvalidArgument
 	}
-	identityExact := authoritative.CanonicalRoot == fresh.CanonicalRoot &&
+	identity := authoritative.CanonicalRoot == fresh.CanonicalRoot &&
 		authoritative.GitCommonDirDigest == fresh.GitCommonDirDigest &&
 		authoritative.RepositoryIdentity == fresh.RepositoryIdentity &&
-		sameOptionalText(authoritative.Branch, fresh.Branch) &&
-		authoritative.Detached == fresh.Detached &&
-		sameOptionalText(authoritative.Head, fresh.Head) &&
-		authoritative.Unborn == fresh.Unborn
-	worktreeExact := authoritative.WorktreeFingerprint == fresh.WorktreeFingerprint
-	bindingExact := authoritative.BindingDigest == fresh.BindingDigest
-	switch {
-	case identityExact && worktreeExact && bindingExact:
+		sameText(authoritative.Branch, fresh.Branch) && authoritative.Detached == fresh.Detached &&
+		sameText(authoritative.Head, fresh.Head) && authoritative.Unborn == fresh.Unborn
+	if identity && authoritative.WorktreeFingerprint == fresh.WorktreeFingerprint && authoritative.BindingDigest == fresh.BindingDigest {
 		return RepositoryExact, nil
-	case identityExact && !worktreeExact && !bindingExact:
+	}
+	if identity && authoritative.WorktreeFingerprint != fresh.WorktreeFingerprint && authoritative.BindingDigest != fresh.BindingDigest {
 		return RepositoryWorktreeOnlyChanged, nil
+	}
+	return RepositoryForbiddenChange, nil
+}
+
+func BindingAcceptedForAction(action domain.ActionKind, relation RepositoryRelation) (bool, error) {
+	if !action.IsValidV2() || !relation.IsValid() {
+		return false, domain.ErrInvalidArgument
+	}
+	switch action {
+	case domain.ActionCompleteImplementation, domain.ActionCompleteRefactor:
+		return relation == RepositoryExact || relation == RepositoryWorktreeOnlyChanged, nil
 	default:
-		return RepositoryForbiddenChange, nil
+		return relation == RepositoryExact, nil
 	}
 }
 
-// BindingAcceptedForAction is the sole action-specific binding acceptance
-// rule used by normal apply, recovery, and blocker resolution.
-func BindingAcceptedForAction(
-	action domain.ActionKind,
-	relation RepositoryRelation,
-) (bool, error) {
-	if !action.IsValid() || !relation.IsValid() {
-		return false, domain.ErrInvalidArgument
-	}
-	return operationAllowsRelation(action, relation), nil
-}
-
-func DeriveRestoreIssuanceCondition(
-	issuance domain.RepositoryBinding,
-) (domain.BlockerCondition, error) {
-	if issuance.Validate() != nil {
-		return domain.BlockerCondition{}, domain.ErrInvalidArgument
-	}
-	condition := domain.BlockerCondition{
-		Kind:                  domain.BlockerConditionRestoreIssuanceBinding,
-		ExpectedBindingDigest: issuance.BindingDigest,
-	}
-	if condition.Validate() != nil {
-		return domain.BlockerCondition{}, domain.ErrInvalidArgument
-	}
-	return condition, nil
-}
-
-func RestoreIssuanceBindingSatisfied(
-	condition domain.BlockerCondition,
-	issuance domain.RepositoryBinding,
-	fresh domain.RepositoryBinding,
-) (bool, error) {
-	if condition.Validate() != nil || issuance.Validate() != nil || fresh.Validate() != nil {
-		return false, domain.ErrInvalidArgument
-	}
-	if condition.Kind != domain.BlockerConditionRestoreIssuanceBinding ||
-		condition.ExpectedBindingDigest != issuance.BindingDigest {
-		return false, nil
-	}
-	relation, err := CompareRepositoryBindings(issuance, fresh)
-	if err != nil {
-		return false, err
-	}
-	return relation == RepositoryExact, nil
-}
-
-// ReconcileInput contains only Core-derived operation/payload facts and
-// already-verified repository bindings. Reconcile performs no I/O.
-type ReconcileInput struct {
-	Task                   domain.Task
-	Operation              OperationReference
-	IssuanceBindingDigest  domain.Digest
-	OperationPayloadDigest domain.Digest
-	Payload                *workflow.ValidatedPayload
-	FreshBinding           domain.RepositoryBinding
-}
-
-// Reconcile derives all relations and invokes the sole ordered classifier.
-// Application coordinates observation and persistence but does not repeat any
-// relation or five-class rule.
 func Reconcile(input ReconcileInput) (RecoveryDecision, error) {
-	if workflow.ValidateTask(input.Task) != nil || input.Operation.Validate() != nil ||
-		!input.IssuanceBindingDigest.IsValid() || !input.OperationPayloadDigest.IsValid() ||
-		input.FreshBinding.Validate() != nil {
+	if !input.Host.IsValid() || workflow.ValidateProcessTask(input.Task) != nil ||
+		workflow.ValidateOperationReference(input.Operation) != nil || input.Observed.Validate() != nil ||
+		input.Task.OriginHost != input.Host || input.Task.Process != input.Operation.Process || len(input.Payload) == 0 {
 		return RecoveryDecision{}, domain.ErrInvalidArgument
 	}
-	expectedAction, ok := workflow.ActionForPhase(input.Operation.SourcePhase)
-	if !ok || expectedAction != input.Operation.ActionKind {
-		return RecoveryDecision{}, domain.ErrInvalidArgument
-	}
-	if input.Payload != nil && (!input.Payload.RepositoryEffect.IsValid() ||
-		len(input.Payload.CanonicalBytes) == 0) {
-		return RecoveryDecision{}, domain.ErrInvalidArgument
-	}
-
-	repositoryRelation, err := CompareRepositoryBindings(input.Task.Repository, input.FreshBinding)
+	relation, err := CompareRepositoryBindings(input.Task.Repository, input.Observed)
 	if err != nil {
 		return RecoveryDecision{}, err
 	}
-	lastRelation, proof := reconcileLastOperation(input)
-	sourceCurrent := sourceIsCurrent(input.Task, input.Operation, input.IssuanceBindingDigest)
-	evidence := reconcileOperationEvidence(input.Payload, repositoryRelation, input.Task, input.FreshBinding)
 
-	currentActionID := currentActionID(input.Task)
-	currentActionAccepts := true
-	if input.Task.CurrentAction != nil {
-		currentActionAccepts, err = BindingAcceptedForAction(input.Task.CurrentAction.Kind, repositoryRelation)
-		if err != nil {
-			return RecoveryDecision{}, err
+	payloadRetained := !bytes.Equal(bytes.TrimSpace(input.Payload), []byte("null"))
+	var canonical json.RawMessage
+	var payloadDigest *domain.Digest
+	evidence := OperationEvidenceNone
+	if payloadRetained {
+		var effect RepositoryEffect
+		if input.Operation.SourceCursor == domain.NodeBlocked {
+			payload, raw, decodeErr := DecodeBlockerResolutionPayload(input.Payload)
+			if decodeErr != nil {
+				return RecoveryDecision{}, decodeErr
+			}
+			canonical = raw
+			effect = RepositoryEffect{Kind: EffectExactBlockerRestoration, NoFileChanges: true}
+			if input.Task.Blocker == nil || payload.BlockerID != input.Task.Blocker.BlockerID ||
+				payload.Condition != input.Task.Blocker.Condition || payload.ObservedBindingDigest != input.Observed.BindingDigest {
+				evidence = OperationEvidenceContradictory
+			}
+		} else {
+			envelope, result, decodeErr := workflow.DecodeStandardPayload(input.Operation.SourceCursor, input.Payload)
+			if decodeErr != nil {
+				return RecoveryDecision{}, domain.ErrInvalidArgument
+			}
+			node, nodeErr := workflow.NodeDefinition(workflow.StandardProcess(), input.Operation.SourceCursor)
+			if nodeErr != nil || workflow.ValidatePayload(workflow.StandardProcess(), input.Operation.SourceCursor, envelope, result, node.SemanticMethodSteps) != nil {
+				return RecoveryDecision{}, domain.ErrInvalidArgument
+			}
+			canonical, err = workflow.CanonicalValidatedPayload(envelope, result)
+			if err != nil {
+				return RecoveryDecision{}, domain.ErrInvalidArgument
+			}
+			effect, err = DeriveRepositoryEffect(input.Operation.SourceCursor, envelope, result)
+			if err != nil {
+				return RecoveryDecision{}, err
+			}
+		}
+		digest, digestErr := workflow.GraphOperationDigest(input.Host, input.Task.TaskID, input.Operation, canonical)
+		if digestErr != nil {
+			return RecoveryDecision{}, domain.ErrInvalidArgument
+		}
+		payloadDigest = &digest
+		if evidence != OperationEvidenceContradictory {
+			evidence = operationEvidenceFor(effect, relation, input.Observed)
 		}
 	}
-	proposedCondition := domain.BlockerCondition{
-		Kind:                  domain.BlockerConditionRestoreIssuanceBinding,
-		ExpectedBindingDigest: input.IssuanceBindingDigest,
-	}
 
-	var existingCondition *domain.BlockerCondition
-	if input.Task.Blocker != nil {
-		condition := input.Task.Blocker.Condition
-		existingCondition = &condition
-	}
-	return Classify(ClassificationFacts{
+	lastRelation, proof := compareLastOperation(input.Task.LastOperation, input.Operation, payloadDigest, input.Task.Revision)
+	facts := ClassificationFacts{
 		Operation:                    input.Operation,
 		TaskRevision:                 input.Task.Revision,
-		CurrentTaskPhase:             input.Task.Phase,
-		CurrentActionID:              currentActionID,
-		IssuanceBindingDigest:        input.IssuanceBindingDigest,
+		CurrentNode:                  input.Task.CurrentNode,
+		CurrentActionID:              currentActionID(input.Task.CurrentAction),
+		IssuanceBindingDigest:        input.Operation.RepositoryBindingDigest,
 		AuthoritativeBindingDigest:   input.Task.Repository.BindingDigest,
-		ObservedBindingDigest:        input.FreshBinding.BindingDigest,
-		RepositoryRelation:           repositoryRelation,
+		ObservedBindingDigest:        input.Observed.BindingDigest,
+		RepositoryRelation:           relation,
 		LastOperationRelation:        lastRelation,
 		OperationEvidence:            evidence,
-		OperationPayloadDigest:       input.OperationPayloadDigest,
+		OperationPayloadDigest:       payloadDigest,
 		CommittedProof:               proof,
-		SourceCurrent:                sourceCurrent,
-		CurrentActionAcceptsObserved: currentActionAccepts,
-		ProposedUnblockCondition:     &proposedCondition,
-		ExistingUnblockCondition:     existingCondition,
-		ObservedAt:                   input.FreshBinding.ObservedAt,
-	})
+		SourceCurrent:                sourceCurrent(input.Task, input.Operation),
+		PayloadRetained:              payloadRetained,
+		MayHavePartialRepositoryWork: mayHavePartialRepositoryWork(input.Operation, relation, input.Observed),
+		ExistingBlocker:              input.Task.Blocker,
+		ObservedAt:                   input.Observed.ObservedAt,
+	}
+	decision, err := Classify(facts)
+	if err != nil {
+		return RecoveryDecision{}, err
+	}
+	decision.CanonicalPayload = canonical
+	return decision, nil
 }
 
-func reconcileLastOperation(input ReconcileInput) (LastOperationRelation, *CommittedOperationProof) {
-	operation := input.Task.LastOperation
-	if operation == nil {
-		return LastOperationUnrelated, nil
-	}
-	actionMatches := operation.ActionID != nil && *operation.ActionID == input.Operation.ActionID
-	identityMatches := operation.OperationID == input.Operation.OperationID || actionMatches
-	exact := operation.Kind == domain.OperationApplyAction &&
-		operation.OperationID == input.Operation.OperationID && actionMatches &&
-		operation.FromRevision == input.Operation.ExpectedRevision &&
-		operation.ToRevision == input.Operation.ExpectedRevision+1 &&
-		operation.ToRevision == input.Task.Revision &&
-		operation.PayloadDigest == input.OperationPayloadDigest && validUTC(operation.CommittedAt)
-	if exact {
-		return LastOperationExact, &CommittedOperationProof{
-			OperationID:   operation.OperationID,
-			Kind:          operation.Kind,
-			ActionID:      *operation.ActionID,
-			FromRevision:  operation.FromRevision,
-			ToRevision:    operation.ToRevision,
-			PayloadDigest: operation.PayloadDigest,
-			CommittedAt:   operation.CommittedAt,
-		}
-	}
-	if identityMatches {
-		return LastOperationContradictory, nil
-	}
-	return LastOperationUnrelated, nil
-}
-
-func sourceIsCurrent(task domain.Task, operation OperationReference, issuance domain.Digest) bool {
-	return task.Revision == operation.ExpectedRevision && task.Phase == operation.SourcePhase &&
-		task.CurrentAction != nil && task.CurrentAction.ActionID == operation.ActionID &&
-		task.CurrentAction.Kind == operation.ActionKind && task.CurrentAction.Revision == task.Revision &&
-		task.CurrentAction.RepositoryBindingDigest == issuance && task.Repository.BindingDigest == issuance
-}
-
-func reconcileOperationEvidence(
-	payload *workflow.ValidatedPayload,
-	relation RepositoryRelation,
-	task domain.Task,
-	fresh domain.RepositoryBinding,
-) OperationEvidenceState {
-	if payload == nil {
+func operationEvidenceFor(effect RepositoryEffect, relation RepositoryRelation, observed domain.RepositoryBinding) OperationEvidenceState {
+	if relation == RepositoryExact && !effect.NoFileChanges &&
+		(effect.Kind == EffectProductFileChange || effect.Kind == EffectProcessArtifactOnly) {
 		return OperationEvidenceNone
 	}
-	matches := false
-	switch payload.RepositoryEffect {
-	case workflow.RepositoryEffectExactBinding:
-		matches = relation == RepositoryExact
-	case workflow.RepositoryEffectExactBlockerRestoration:
-		if task.Phase != domain.PhaseBlocked || task.Blocker == nil || payload.BlockerResolution == nil {
-			return OperationEvidenceContradictory
-		}
-		resolution := payload.BlockerResolution
-		satisfied, err := RestoreIssuanceBindingSatisfied(resolution.Condition, task.Repository, fresh)
-		matches = err == nil && satisfied && resolution.BlockerID == task.Blocker.BlockerID &&
-			resolution.Condition == task.Blocker.Condition &&
-			resolution.ObservedBindingDigest == fresh.BindingDigest
-	case workflow.RepositoryEffectWorktreeOnlyChange:
-		matches = relation == RepositoryWorktreeOnlyChanged
-	}
-	if matches {
+	if RepositoryEffectMatches(effect, relation, observed) {
 		return OperationEvidenceComplete
 	}
 	return OperationEvidenceContradictory
 }
 
-func currentActionID(task domain.Task) *domain.ID {
-	if task.CurrentAction == nil {
+func DeriveRepositoryEffect(source domain.NodeID, envelope workflow.StandardPayload, result any) (RepositoryEffect, error) {
+	switch value := result.(type) {
+	case *workflow.ImplementationResult:
+		return RepositoryEffect{Kind: EffectProductFileChange, ChangedPaths: sortedPaths(value.ChangedPaths), NoFileChanges: value.NoFileChanges}, nil
+	case *workflow.RefactorResult:
+		return RepositoryEffect{Kind: EffectProductFileChange, ChangedPaths: sortedPaths(value.ChangedPaths), NoFileChanges: value.NoFileChanges}, nil
+	}
+	paths := make([]string, 0, len(envelope.Artifacts))
+	for _, artifact := range envelope.Artifacts {
+		if !artifactRoleAllowed(source, artifact.Role) {
+			return RepositoryEffect{}, domain.ErrInvalidArgument
+		}
+		paths = append(paths, artifact.Path)
+	}
+	if len(paths) == 0 {
+		return RepositoryEffect{Kind: EffectExactBinding, NoFileChanges: true}, nil
+	}
+	return RepositoryEffect{Kind: EffectProcessArtifactOnly, ChangedPaths: sortedPaths(paths)}, nil
+}
+
+func RepositoryEffectMatches(effect RepositoryEffect, relation RepositoryRelation, observed domain.RepositoryBinding) bool {
+	if relation == RepositoryForbiddenChange {
+		return false
+	}
+	switch effect.Kind {
+	case EffectExactBinding, EffectExactBlockerRestoration:
+		return relation == RepositoryExact
+	case EffectProcessArtifactOnly:
+		return relation == RepositoryExact || relation == RepositoryWorktreeOnlyChanged && samePaths(effect.ChangedPaths, observed.ChangedPaths)
+	case EffectProductFileChange:
+		if effect.NoFileChanges {
+			return relation == RepositoryExact && len(effect.ChangedPaths) == 0
+		}
+		return relation == RepositoryWorktreeOnlyChanged && len(effect.ChangedPaths) > 0 && samePaths(effect.ChangedPaths, observed.ChangedPaths)
+	default:
+		return false
+	}
+}
+
+func DecodeBlockerResolutionPayload(raw []byte) (BlockerResolutionPayload, json.RawMessage, error) {
+	if len(raw) == 0 || !json.Valid(raw) || rejectDuplicateMembers(raw) != nil {
+		return BlockerResolutionPayload{}, nil, domain.ErrInvalidArgument
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	var payload BlockerResolutionPayload
+	if decoder.Decode(&payload) != nil || decoder.Decode(&struct{}{}) != io.EOF ||
+		!payload.BlockerID.IsValid() || payload.Condition.Validate() != nil || !payload.ObservedBindingDigest.IsValid() {
+		return BlockerResolutionPayload{}, nil, domain.ErrInvalidArgument
+	}
+	canonical, err := json.Marshal(payload)
+	if err != nil {
+		return BlockerResolutionPayload{}, nil, domain.ErrInvalidArgument
+	}
+	return payload, canonical, nil
+}
+
+func compareLastOperation(last *domain.LastOperation, operation domain.OperationReference, digest *domain.Digest, taskRevision uint64) (LastOperationRelation, *CommittedOperationProof) {
+	if last == nil {
+		return LastOperationUnrelated, nil
+	}
+	actionMatches := last.ActionID != nil && *last.ActionID == operation.ActionID
+	if last.OperationID == operation.OperationID {
+		if digest != nil && last.Kind == domain.OperationApplyAction && actionMatches &&
+			last.FromRevision == operation.ExpectedRevision && last.ToRevision == operation.ExpectedRevision+1 &&
+			last.ToRevision == taskRevision && last.PayloadDigest == *digest {
+			return LastOperationExact, &CommittedOperationProof{OperationID: last.OperationID, Kind: last.Kind, ActionID: *last.ActionID, FromRevision: last.FromRevision, ToRevision: last.ToRevision, PayloadDigest: last.PayloadDigest, CommittedAt: last.CommittedAt}
+		}
+		return LastOperationContradictory, nil
+	}
+	if actionMatches && last.Kind == domain.OperationApplyAction && last.FromRevision == operation.ExpectedRevision {
+		return LastOperationContradictory, nil
+	}
+	return LastOperationUnrelated, nil
+}
+
+func sourceCurrent(task domain.ProcessTask, operation domain.OperationReference) bool {
+	return task.Revision == operation.ExpectedRevision && task.CurrentNode == operation.SourceCursor &&
+		task.CurrentAction != nil && task.CurrentAction.ActionID == operation.ActionID &&
+		task.CurrentAction.Kind == operation.ActionKind && task.CurrentAction.Process == operation.Process &&
+		task.CurrentAction.NodeID == operation.SourceCursor &&
+		task.CurrentAction.RepositoryBindingDigest == operation.RepositoryBindingDigest &&
+		task.Repository.BindingDigest == operation.RepositoryBindingDigest
+}
+
+func mayHavePartialRepositoryWork(operation domain.OperationReference, relation RepositoryRelation, observed domain.RepositoryBinding) bool {
+	return relation == RepositoryWorktreeOnlyChanged && len(observed.ChangedPaths) > 0 &&
+		(operation.ActionKind == domain.ActionCompleteImplementation || operation.ActionKind == domain.ActionCompleteRefactor)
+}
+
+func currentActionID(action *domain.ProcessActionV2) *domain.ID {
+	if action == nil {
 		return nil
 	}
-	id := task.CurrentAction.ActionID
+	id := action.ActionID
 	return &id
 }
 
-func sameOptionalText(left, right *string) bool {
-	if left == nil || right == nil {
-		return left == nil && right == nil
+func artifactRoleAllowed(source domain.NodeID, role domain.ArtifactRole) bool {
+	if role == domain.ArtifactOtherProcess {
+		return true
 	}
-	return *left == *right
+	switch source {
+	case domain.NodeRequirements:
+		return role == domain.ArtifactRequirements
+	case domain.NodeDesign:
+		return role == domain.ArtifactDesign
+	case domain.NodeTasks:
+		return role == domain.ArtifactTaskPlan
+	case domain.NodeTest:
+		return role == domain.ArtifactTest
+	case domain.NodeComprehensionReview:
+		return role == domain.ArtifactComprehension
+	case domain.NodeDelivery:
+		return role == domain.ArtifactDelivery
+	default:
+		return false
+	}
+}
+
+func sortedPaths(paths []string) []string {
+	result := append([]string(nil), paths...)
+	sort.Strings(result)
+	return result
+}
+
+func samePaths(left, right []string) bool {
+	left, right = sortedPaths(left), sortedPaths(right)
+	if len(left) != len(right) {
+		return false
+	}
+	for i := range left {
+		if left[i] != right[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func sameText(a, b *string) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
+}
+
+func rejectDuplicateMembers(raw []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	var walk func() error
+	walk = func() error {
+		token, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		delimiter, ok := token.(json.Delim)
+		if !ok {
+			return nil
+		}
+		if delimiter == '{' {
+			seen := map[string]bool{}
+			for decoder.More() {
+				keyToken, err := decoder.Token()
+				if err != nil {
+					return err
+				}
+				key := keyToken.(string)
+				if seen[key] {
+					return domain.ErrInvalidArgument
+				}
+				seen[key] = true
+				if err := walk(); err != nil {
+					return err
+				}
+			}
+			_, err = decoder.Token()
+			return err
+		}
+		if delimiter == '[' {
+			for decoder.More() {
+				if err := walk(); err != nil {
+					return err
+				}
+			}
+			_, err = decoder.Token()
+			return err
+		}
+		return nil
+	}
+	return walk()
 }

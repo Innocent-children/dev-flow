@@ -208,16 +208,17 @@ test("source-free global tarball install, explicit lifecycle, uninstall, and ret
     host: "codex",
     repository_path: targetRepository,
     new_task: {
-      goal: "Prove a source-free package retains task data after uninstall",
-      scope: ["one isolated repository", "one packaged Core"],
-      out_of_scope: ["public registry", "real Codex host", "repository mutation"],
-      acceptance_criteria: ["The same task identity is read by a reinstalled packaged Core."],
+      request: "Prove a source-free package retains graph task data after uninstall",
+      initial_scope: ["one isolated repository", "one packaged Core"],
+      initial_out_of_scope: ["public registry", "real Codex host", "repository mutation"],
+      known_acceptance_criteria: ["The same task identity is read by a reinstalled packaged Core."],
       verification_budget: {
         level: "targeted",
         max_automatic_commands: 1,
         allow_full_suite: false,
         allow_manual_handoff: true,
       },
+      method_profile: "plain",
     },
   });
   assert.equal(opened.ok, true);
@@ -307,7 +308,7 @@ test("source-free global tarball install, explicit lifecycle, uninstall, and ret
     plugins: [unrelatedPlugin],
   });
   t.diagnostic(
-    `retained task ${taskBefore.task_id}: revision=${taskBefore.revision} phase=${taskBefore.phase} ` +
+    `retained task ${taskBefore.task_id}: revision=${taskBefore.revision} cursor=${taskBefore.current_cursor} ` +
       `action=${taskBefore.current_action?.kind ?? "none"} outcome=${taskBefore.outcome ?? "null"}`,
   );
 
@@ -406,16 +407,17 @@ test("compatible package upgrade resumes the active task and a newer schema stop
     host: "codex",
     repository_path: targetRepository,
     new_task: {
-      goal: "Resume one active task after a compatible package upgrade",
-      scope: ["one installed Codex package", "one retained task database"],
-      out_of_scope: ["public registry", "release publication", "repository mutation"],
-      acceptance_criteria: ["Package B opens the same active task without mutation."],
+      request: "Resume one active graph task after a compatible package upgrade",
+      initial_scope: ["one installed Codex package", "one retained task database"],
+      initial_out_of_scope: ["public registry", "release publication", "repository mutation"],
+      known_acceptance_criteria: ["Package B opens the same active task without mutation."],
       verification_budget: {
         level: "targeted",
         max_automatic_commands: 1,
         allow_full_suite: false,
         allow_manual_handoff: true,
       },
+      method_profile: "plain",
     },
   });
   const taskBeforeUpgrade = taskLifecycleIdentity(opened.result.task);
@@ -501,7 +503,7 @@ test("compatible package upgrade resumes the active task and a newer schema stop
   const database = new DatabaseSync(databasePath);
   database.prepare(
     "INSERT INTO schema_migrations (version, applied_at, digest) VALUES (?, ?, ?)",
-  ).run(2, "2030-01-02T03:04:05Z", "future-schema-digest");
+  ).run(3, "2030-01-02T03:04:05Z", "future-schema-digest");
   database.close();
   const databaseBeforeRefusal = databaseSnapshot(databasePath);
   const dataBeforeRefusal = await directoryManifest(dataDirectory);
@@ -731,9 +733,10 @@ class ReleaseCoreClient {
     const response = await this.request("tools/call", { name, arguments: arguments_ });
     if (response.error) throw new Error(`Core RPC error ${response.error.code}: ${response.error.message}`);
     const result = response.result;
-    assert.ok(result?.structuredContent, `tool ${name} returned no complete structured result`);
-    assert.deepEqual(JSON.parse(result.content[0].text), result.structuredContent);
-    return result.structuredContent;
+    assert.equal(result?.content?.[0]?.type, "text", `tool ${name} returned no complete text result`);
+    const decoded = JSON.parse(result.content[0].text);
+    if (result.structuredContent !== undefined) assert.deepEqual(decoded, result.structuredContent);
+    return decoded;
   }
 
   request(method, params) {
@@ -847,11 +850,16 @@ function taskIdentity(task) {
   return {
     task_id: task.task_id,
     revision: task.revision,
-    phase: task.phase,
+    snapshot_version: task.snapshot_version,
+    process_id: task.process_id,
+    process_version: task.process_version,
+    process_definition_digest: task.process_definition_digest,
+    current_cursor: task.current_cursor,
     current_action: task.current_action === null ? null : {
       action_id: task.current_action.action_id,
       kind: task.current_action.kind,
       revision: task.current_action.revision,
+      current_node: task.current_action.current_node,
     },
     outcome: task.outcome,
   };
@@ -906,10 +914,10 @@ function databaseSnapshot(path) {
         "SELECT version, applied_at, digest FROM schema_migrations ORDER BY version",
       ).all(),
       tasks: database.prepare(
-        "SELECT task_id, origin_host, phase, revision, repository_identity, hex(snapshot) AS snapshot, created_at, updated_at FROM tasks ORDER BY task_id",
+        "SELECT task_id, origin_host, process_id, process_version, process_definition_digest, snapshot_version, current_node, revision, repository_identity, hex(snapshot) AS snapshot, created_at, updated_at FROM tasks ORDER BY task_id",
       ).all(),
       events: database.prepare(
-        "SELECT event_id, task_id, revision, event_type, phase_before, phase_after, action_id, request_id, payload_digest, created_at FROM task_events ORDER BY event_id",
+        "SELECT event_id, task_id, revision, event_type, source_node, destination_node, transition_id, transition_reason, action_id, request_id, payload_digest, created_at FROM task_events ORDER BY event_id",
       ).all(),
       claims: database.prepare(
         "SELECT repository_identity, task_id, origin_host, claimed_at FROM repository_claims ORDER BY repository_identity",

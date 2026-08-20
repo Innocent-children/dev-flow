@@ -22,6 +22,9 @@ const coreErrorRecoveryAction = new Map(Object.entries(Object.freeze({
   HOST_OWNERSHIP_CONFLICT: "use_origin_host",
   REVISION_CONFLICT: "read_task",
   ACTION_STALE: "read_next_action",
+  TRANSITION_NOT_ALLOWED: "read_next_action",
+  PROCESS_UNSUPPORTED: "repair_storage",
+  RECOVERY_UNAVAILABLE: "none",
   REPOSITORY_DRIFT: "resolve_repository_drift",
   VERIFICATION_BUDGET_EXCEEDED: "read_next_action",
   TASK_BLOCKED: "read_next_action",
@@ -216,6 +219,7 @@ function parseTerminalCall(item) {
         : null,
       status: item.status,
       shape: "transport_error",
+      arguments: isPlainObject(item.arguments) ? structuredClone(item.arguments) : null,
       resultPresent: false,
       structuredContent: null,
       error: structuredClone(item.error),
@@ -225,11 +229,9 @@ function parseTerminalCall(item) {
 }
 
 function resultCall(item, shape) {
-  const structured = item.result.structured_content;
   const content = item.result.content;
   if (
-    !isPlainObject(structured)
-    || !Array.isArray(content)
+    !Array.isArray(content)
     || content.length !== 1
     || content[0]?.type !== "text"
     || typeof content[0].text !== "string"
@@ -242,7 +244,11 @@ function resultCall(item, shape) {
   } catch (error) {
     throw new Error(`Dev Flow text result is not complete JSON: ${error.message}`);
   }
-  if (!isDeepStrictEqual(textResult, structured)) {
+  const structured = item.result.structured_content ?? textResult;
+  if (!isPlainObject(structured)) {
+    throw new Error("complete Dev Flow result requires a closed text or structured result");
+  }
+  if (item.result.structured_content !== undefined && item.result.structured_content !== null && !isDeepStrictEqual(textResult, structured)) {
     throw new Error("Dev Flow text and structured results differ");
   }
   const requestBinding = validateCoreEnvelope(structured, item, shape);
@@ -252,6 +258,7 @@ function resultCall(item, shape) {
     requestId: structured.request_id,
     status: item.status,
     shape,
+    arguments: isPlainObject(item.arguments) ? structuredClone(item.arguments) : null,
     requestBinding,
     resultPresent: true,
     structuredContent: structuredClone(structured),
@@ -268,7 +275,7 @@ function validateCoreEnvelope(envelope, item, shape) {
       : ["schema_version", "ok", "request_id", "tool", "error", "recovery"],
     "Core result envelope",
   );
-  if (envelope.schema_version !== 1 || envelope.ok !== success) {
+  if (![1, 2].includes(envelope.schema_version) || envelope.ok !== success) {
     throw new Error("Core result envelope has an invalid schema_version or ok discriminator");
   }
   if (!validIdentifier(envelope.request_id)) {
@@ -278,10 +285,10 @@ function validateCoreEnvelope(envelope, item, shape) {
     throw new Error("Core result envelope tool does not match the MCP item");
   }
   const requestBinding = callerRequestBinding(envelope, item);
-  if (requestBinding === "missing" && success) {
+  if (item.tool === "dev_flow_apply_action" && success && requestBinding !== "matched") {
     throw new Error("dev_flow_apply_action MCP item requires its caller request_id");
   }
-  if (requestBinding === "mismatched" && (success || item.tool !== "dev_flow_apply_action")) {
+  if (requestBinding === "mismatched") {
     throw new Error("Core result envelope request_id does not match the MCP item");
   }
 
@@ -320,10 +327,8 @@ function callerRequestBinding(envelope, item) {
   if (argumentsObject === null || !Object.hasOwn(argumentsObject, "request_id")) {
     return item.tool === "dev_flow_apply_action" ? "missing" : null;
   }
-  return validIdentifier(argumentsObject.request_id)
-    && argumentsObject.request_id === envelope.request_id
-    ? "matched"
-    : "mismatched";
+  if (!validIdentifier(argumentsObject.request_id)) return "invalid";
+  return argumentsObject.request_id === envelope.request_id ? "matched" : "mismatched";
 }
 
 function assertExactKeys(value, allowed, label, { optional = [] } = {}) {

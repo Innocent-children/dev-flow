@@ -3,7 +3,7 @@
 ## Status
 
 - **Feature**: `008-refactor-to-development-process-graph`
-- **Status**: Planned
+- **Status**: Complete
 - **Change Type**: Product Feature
 - **Created**: 2026-08-18
 - **Baseline**: `main` at `29885cd4d0b97ad03bbe09876168e48db371a048`
@@ -57,6 +57,12 @@ behavior. A diagram or example never overrides a contract table.
 - Preserve revision CAS, action identity, repository binding, evidence budgets, repository claims,
   five-class recovery, and read-before-retry.
 
+Phase 5D was the implementation hardening checkpoint before Recovery. Phase 7A supersedes that
+temporary boundary: omitted/null Recovery fields retain ordinary behavior, while valid non-null
+`operation_probe` and `recovery_apply` use the graph-native five-class route. The stable
+`RECOVERY_UNAVAILABLE` code remains reserved, but supported `standard-development@1` recovery does
+not return it.
+
 ## Non-Goals
 
 - No user-defined graph, YAML/JSON process DSL, graph editor, process marketplace, or plugin system.
@@ -96,6 +102,22 @@ The Git branch does not select the active Feature.
 
 ## Workflow Gate
 
+Contract-freeze review completed on 2026-08-19: clarification found no acceptance-impacting open
+question, the requirements checklist passed 60/60 items, and analyze found no CRITICAL, HIGH, or
+acceptance-impacting MEDIUM issue. Feature 008 remains a non-release Product Feature.
+
+The Phase 5D audit on 2026-08-19 reopened selected Phase 2–5 tasks and User Story 2 for contract and
+runtime hardening. The hardening checks and `$speckit-converge` now have zero remaining gap;
+`USER_STORY_2_CHECKPOINT_COMPLETE` is restored. Phase 6A–6C and User Story 3 are complete with zero
+remaining convergence gap. Phase 7A–7C and User Story 4 are complete with zero remaining convergence
+gap. Phase 8A and Native Adapter hardening are complete. Attempt 3 produced a successful native
+graph-flow evidence set and reached Core `DONE`; its runner then failed during post-session command
+classification, so its lifecycle execution did not begin. T092 composite SC-015 acceptance is now
+complete through offline validation of those native sessions plus a separate no-Codex deterministic
+lifecycle against the same artifact. T093 final repository validation passed on its first
+invocation. Final analyze found no blocking or acceptance-impacting finding, and final converge found
+zero remaining Feature gap. T001–T112 and SC-001–SC-025 are complete.
+
 Before production code changes:
 
 1. run `$speckit-clarify` against this prepared package;
@@ -110,15 +132,133 @@ approved.
 
 ## Checkpoints
 
-| Checkpoint | Exit Condition | Initial Status |
+| Checkpoint | Exit Condition | Status |
 | --- | --- | --- |
-| Contract freeze | All graph, MCP, method-profile, and persistence contracts are internally consistent | Pending review |
-| Foundation | Standard process definition, current Task model, fresh Schema 2 bootstrap, strict v2 codec, and old-data rejection pass targeted tests | Pending |
-| User Story 1 | New task exposes current node contract and all legal next transitions | Pending |
-| User Story 2 | Test/rework/comprehension/refactor loops are enforced and independently demonstrated | Pending |
-| User Story 3 | `plain`, `spec-kit`, and `openspec` guidance is rendered without adapter-owned state | Pending |
-| User Story 4 | Fresh storage bootstrap, Schema 1 zero-write rejection, current-task recovery, and future-schema safety pass | Pending |
-| Final feature gate | One repository validation and one local-artifact Codex journey pass | Pending |
+| Contract freeze | All graph, MCP, method-profile, and persistence contracts are internally consistent | Complete — T001–T006 |
+| Foundation | Standard process definition, current Task model, fresh Schema 2 bootstrap, strict v2 codec, and old-data rejection pass targeted tests | Complete — T007–T034; targeted domain/workflow/store tests pass |
+| User Story 1 | New task exposes current node contract and all legal next transitions | Stabilized / Complete — T035–T045; Phase 2–4 contract, Journey A, repository validation pass |
+| User Story 2 | Test/rework/comprehension/refactor loops are enforced and independently demonstrated | Hardened / Complete — selected T010–T060 and T096–T104 complete; `USER_STORY_2_CHECKPOINT_COMPLETE` |
+| Phase 5D | Contract and runtime hardening for completed Phase 2–5 | Complete — `FEATURE_008_PHASE_5D_HARDENING_COMPLETE`; Phase 6–8 unstarted |
+| Phase 6A | Core semantic method steps, immutable profiles, MethodEvidence validation, and public projections | Complete — T061–T062; `FEATURE_008_PHASE_6A_CORE_METHOD_CONTRACT_CHECKPOINT_COMPLETE` |
+| Phase 6B | Codex Skill and packaged method-profile rendering reference | Complete — T063–T067; `FEATURE_008_PHASE_6B_CODEX_METHOD_ADAPTER_CHECKPOINT_COMPLETE` |
+| Phase 6C | Profile fixtures, simulated Codex Journey, and shared Host parity | Complete — T068–T072; `FEATURE_008_USER_STORY_3_CHECKPOINT_COMPLETE` |
+| User Story 3 | `plain`, `spec-kit`, and `openspec` guidance is rendered without adapter-owned state | Complete — T061–T072; `USER_STORY_3_CHECKPOINT_COMPLETE` |
+| Phase 7A | Graph operation identity, five-class reconciliation, repository effects, and graph-native blocker resolution | Complete — T073–T076 |
+| Phase 7B | Real five-class/CAS/restart/storage-boundary journeys | Complete — T077–T080; `FEATURE_008_PHASE_7B_RECOVERY_RESTART_STORAGE_JOURNEYS_CHECKPOINT_COMPLETE` |
+| Phase 7C | No-legacy, lifecycle retention, private-path redaction, and future/corrupt safe-stop evidence | Complete — T081–T085 |
+| User Story 4 | Fresh storage bootstrap, Schema 1 zero-write rejection, current-task recovery, and future-schema safety pass | Complete — T073–T085; `USER_STORY_4_CHECKPOINT_COMPLETE` |
+| Phase 8A | Documentation convergence, complete targeted regression, and one retained source-local unpublished Codex artifact | Complete — T086–T091; `FEATURE_008_PHASE_8A_DOCUMENTATION_AND_LOCAL_ARTIFACT_CHECKPOINT_COMPLETE` |
+| Composite SC-015 | Attempt 3 native graph-flow evidence plus deterministic same-artifact lifecycle evidence | Complete — T092 and T109–T112 |
+| Final feature gate | Attempt 3 native graph-flow evidence plus deterministic same-artifact lifecycle evidence, one repository validation, and final analyze/converge pass | Complete — T093–T095; `FEATURE_008_COMPLETE` |
+
+## Phase 8A Artifact Evidence
+
+The retained acceptance artifact is source-local, unpublished, commit-bound test evidence. It is
+not the historical public `0.3.0` artifact, a registry artifact, a release candidate, or an official
+Release asset.
+
+```text
+filename: dev-flow-codex-0.3.0.tgz
+size: 4,378,118 bytes
+sha256: 8ae2c41711fc88531bafed3985bb3038c520fc0fe546f0f1288f3c815af888c5
+source commit: e0d32b07ea7ede62b2d01539bad8b8f52312bdb2
+package/Core version: 0.3.0
+platform: darwin-arm64
+```
+
+Builder and independent readback verified the closed package allowlist, executable detached Core,
+Contract 0.2 `schema_version=2`, Core Limits `0.2`, exact `standard-development@1` definition digest,
+all three method profiles, and the ordered six-tool ServerInfo catalog. The repository records no
+local artifact path. This Phase 8A artifact remains retained historical evidence but is superseded
+for any future native acceptance by the hardened readiness artifact recorded below.
+
+## Phase 8B Composite Source-Local Acceptance
+
+Native attempt 1 failed during the first `REQUIREMENTS` mutation because the submitted Journey
+payload did not match the closed Contract 0.2 branch: a required-evidence kind was used as an
+ArtifactReference role and the required `node_result` wrapper was flattened. Core correctly returned
+`INVALID_ARGUMENT`; no product mutation passed, and the external failure evidence remains retained.
+
+Native attempt 2 was explicitly authorized after deterministic payload-matrix correction and passed
+its launch preflight. `requirements_ready` committed once, then the DESIGN payload omitted
+`requirements_revision` and `complexity_justification` and added the unknown `complexity` member.
+Core correctly returned `INVALID_ARGUMENT`; external failure evidence remains retained.
+
+Native attempt 3 used the hardened source-local artifact and completed four real Codex sessions. The
+native sessions proved the Contract 0.2 handshake, graph path, restart, code-complexity verdict,
+refactor/retest loop, explicit user comprehension confirmation, and Core `DONE`. The runner then
+misclassified a read-only inspection of the packaged `node-payloads.md` TEST template as a third
+verification command. Its lifecycle stage did not run, and its original failed marker remains
+retained unchanged.
+
+```text
+attempt 1: failed at first REQUIREMENTS apply; permanently retained
+attempt 2: failed at DESIGN apply; permanently retained
+attempt 3 native sessions: passed; Core terminal status DONE
+attempt 3 runner: failed after native sessions
+attempt 3 lifecycle: not run
+attempt 4: forbidden
+Feature 008: complete through composite source-local acceptance
+```
+
+SC-015 now uses two complementary components bound to the exact same artifact identity: the retained
+Attempt 3 native graph-flow evidence and a no-Codex deterministic lifecycle acceptance covering
+setup/remove/repeated remove/npm uninstall/data retention/exact-artifact reinstall/zero-write
+terminal reopen. The lifecycle component creates its own packaged-Core Task and does not claim it is
+the Attempt 3 Task.
+
+## Native Adapter Hardening Readiness
+
+The packaged Skill now cross-checks each fresh Action and live apply schema against
+`references/node-payloads.md`. Ten marked templates cover every normal-node payload decision used by
+the acceptance path plus BLOCKED resolution. Contract tests extract those JSON templates and pass
+them through current MCP input validation, workflow decoding/validation, current Action method-step
+ordering, and the blocker decoder. Exact regressions retain both failed native payload shapes.
+
+Mutation result identity is now unambiguous: apply/cancel envelopes echo the valid caller mutation
+`request_id`, which is also the committed LastOperation/TaskEvent operation identity. Tools without
+a caller request ID keep a Core-generated local transport identity. Success, domain-error,
+transport, and committed LastOperation bindings are independently tested.
+
+The new readiness artifact is source-local, unpublished, commit-bound acceptance-test evidence:
+
+```text
+filename: dev-flow-codex-0.3.0.tgz
+size: 4,381,869 bytes
+sha256: aa8fb5269f03d9cebbceb604d15e66d8b26690b8b5ab19c46bd7b09c1294f92b
+source commit: a032f7080fc40f303a32162960dc44345ad8dd2d
+Core sha256: c3cccb91f25394b16765f025b4e901d41cbb9792fd9428eabdae1b764e197faf
+package/Core version: 0.3.0
+platform: darwin-arm64
+```
+
+The former Phase 8A artifact and all three attempt directories remain retained. The hardened artifact
+was used by Attempt 3 and remains the exact identity for both composite acceptance components.
+Attempt 4 is forbidden. Feature 008 is `Complete`; all T001–T112 tasks are checked.
+
+## Composite T092 Evidence
+
+T092 is complete. The repository-external evidence records are closed and contain no authentication,
+token, prompt, private path, full environment, database absolute path, or raw JSONL content:
+
+```text
+attempt-3-native-flow-evidence.json
+  sha256=61e1a5e2834c61f0481476380e8fb85cb8177fb0b85f7b5d1ab801d9b8a82026
+exact-artifact-lifecycle-evidence.json
+  sha256=aefa193923be8b8de4c371ae254c5f6936e0cfcdb9342a59ca630ba1a16116af
+feature-008-composite-native-acceptance.json
+  sha256=16a8fcf7e2c82acc77b72f1a8deb4c7937dd7b6acda59fd3af95db1f8d84e6b0
+```
+
+The native component retains Attempt 3 as native-flow passed, runner failed after native sessions,
+and lifecycle not run. The deterministic component used a separate Task and proved setup, remove,
+repeated-remove no-op, npm uninstall, retained Task/Event/Evidence data, exact-artifact reinstall,
+same terminal Task reopen, zero claim, and zero-write read. Attempt 4 had zero executions.
+
+The scoped native-readiness Spec Kit review found no CRITICAL, HIGH, or acceptance-impacting MEDIUM
+issue across the two failures, packaged Adapter payload usability, request binding, reopened tasks,
+and T105–T108. Scoped converge found zero remaining Adapter-hardening gap and left `tasks.md`
+byte-for-byte unchanged. These checks are not the final T094 analyze/converge gate.
 
 ## Release Boundary
 

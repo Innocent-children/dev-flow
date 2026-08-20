@@ -1,22 +1,16 @@
 #!/usr/bin/env node
 
 import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname, isAbsolute, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { dirname, isAbsolute, resolve } from "node:path";
 import { createInterface } from "node:readline";
 
-const repositoryRoot = fileURLToPath(new URL("../../../../", import.meta.url));
-const fixtureRoot = join(repositoryRoot, "protocol", "fixtures");
-const schemaSourcePath = join(repositoryRoot, "internal", "mcp", "schemas.go");
-const version = (await readFile(join(repositoryRoot, "VERSION"), "utf8")).trim();
 const statePath = requiredIsolatedPath("FAKE_CORE_STATE");
 const tracePath = requiredIsolatedPath("FAKE_CORE_TRACE");
 const selectedCase = process.env.FAKE_CORE_CASE ?? "success";
 const session = process.env.FAKE_CORE_SESSION ?? "session-1";
-const lossOnApply = Number(process.env.FAKE_CORE_LOSS_ON_APPLY ?? "0");
-const toolDefinitions = await loadExactToolDefinitions();
-const toolByName = new Map(toolDefinitions.map((tool) => [tool.name, tool]));
 const state = await readState();
+const tools = toolDefinitions();
+const toolByName = new Map(tools.map((tool) => [tool.name, tool]));
 
 const input = createInterface({ input: process.stdin, crlfDelay: Infinity });
 for await (const line of input) {
@@ -38,7 +32,6 @@ async function handleMessage(request) {
   }
   await appendTrace({ method: request.method, id: request.id ?? null, params: request.params ?? null });
   if (!("id" in request)) return;
-
   if (request.method === "initialize") {
     writeMessage({
       jsonrpc: "2.0",
@@ -46,148 +39,227 @@ async function handleMessage(request) {
       result: {
         protocolVersion: request.params?.protocolVersion ?? "2025-06-18",
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "dev-flow-fake-core", version },
-        instructions: "Test-only exact Core Contract 0.1 fixture server.",
+        serverInfo: { name: "dev-flow-fake-core", version: "0.3.0" },
+        instructions: "Test-only Core Contract 0.2 fixture server.",
       },
     });
     return;
   }
   if (request.method === "tools/list") {
-    writeMessage({ jsonrpc: "2.0", id: request.id, result: { tools: toolDefinitions } });
+    writeMessage({ jsonrpc: "2.0", id: request.id, result: { tools } });
     return;
   }
   if (request.method !== "tools/call") {
     writeMessage({ jsonrpc: "2.0", id: request.id, error: { code: -32601, message: "Method not found" } });
     return;
   }
-
   const params = request.params;
   if (!isPlainObject(params) || !hasExactKeys(params, ["name", "arguments"]) || !toolByName.has(params.name)) {
     writeMessage({ jsonrpc: "2.0", id: request.id, error: { code: -32602, message: "Invalid tool call" } });
     return;
   }
-  const schema = toolByName.get(params.name).inputSchema;
-  const validationError = validateTopLevelArguments(params.arguments, schema);
+  const validationError = validateTopLevelArguments(params.arguments, toolByName.get(params.name).inputSchema);
   if (validationError) {
     writeMessage({ jsonrpc: "2.0", id: request.id, error: { code: -32602, message: validationError } });
     return;
   }
-
-  const callNumber = state.calls.length + 1;
-  state.calls.push({ number: callNumber, session, name: params.name, arguments: structuredClone(params.arguments) });
-  if (params.name === "dev_flow_open_task" && !["conflict", "host-conflict"].includes(selectedCase)) {
-    state.journey.last_open_created = state.journey.opened !== true;
-    state.journey.opened = true;
-  }
+  state.calls.push({ number: state.calls.length + 1, session, name: params.name, arguments: structuredClone(params.arguments) });
   await writeState();
   if (params.name === "dev_flow_apply_action") {
     await handleApply(request.id, params.arguments);
     return;
   }
-  const envelope = await envelopeFor(params.name, params.arguments);
-  writeToolResult(request.id, envelope);
+  writeToolResult(request.id, await envelopeFor(params.name, params.arguments));
 }
 
 async function handleApply(id, arguments_) {
-  state.journey.last_request_id = arguments_.request_id;
-  state.journey.last_action_id = arguments_.action_id;
-  const rejected = ["domain-error", "conflict", "budget"].includes(selectedCase);
-  if (!rejected) state.journey.apply_count += 1;
-  if (selectedCase === "terminal" || state.journey.apply_count >= 2) state.journey.done = true;
-  await writeState();
-
-  const shouldLose = !rejected && (selectedCase === "loss" || lossOnApply === state.journey.apply_count);
-  if (shouldLose) {
-    state.journey.last_response_lost = true;
+  state.operationId = arguments_.request_id;
+  state.actionId = arguments_.action_id;
+  if (!["domain-error", "budget"].includes(selectedCase)) state.applyCount += 1;
+  if (selectedCase === "loss") {
+    state.responseLost = true;
     await writeState();
     process.exit(75);
   }
   if (selectedCase === "truncation") {
-    state.journey.last_response_lost = true;
+    state.responseLost = true;
     await writeState();
     writeMessage({
       jsonrpc: "2.0",
       id,
-      result: {
-        content: [{ type: "text", text: '{"schema_version":1,"ok":true,"tool":"dev_flow_apply_action"' }],
-        isError: false,
-      },
+      result: { content: [{ type: "text", text: '{"schema_version":2,"ok":true' }], isError: false },
     });
     return;
   }
-
-  const envelope = await envelopeFor("dev_flow_apply_action", arguments_);
-  if (typeof arguments_.request_id === "string") envelope.request_id = arguments_.request_id;
-  writeToolResult(id, envelope);
+  await writeState();
+  writeToolResult(id, await envelopeFor("dev_flow_apply_action", arguments_));
 }
 
 async function envelopeFor(tool, arguments_) {
-  if (tool === "dev_flow_server_info") return loadFixture("server-info.json");
-  if (tool === "dev_flow_cancel_task") return loadFixture("cancelled-outcome.json");
+  if (tool === "dev_flow_server_info") {
+    return success(tool, {
+      product: "dev-flow",
+      version: "0.3.0",
+      schema_version: 2,
+      core_limits_version: "0.2",
+      transport: "stdio",
+      health: "ready",
+      supported_hosts: ["codex", "deepseek"],
+      supported_processes: [{ process_id: "standard-development", process_version: 1, definition_digest: digest(), new_task_supported: true }],
+      method_profiles: ["plain", "spec-kit", "openspec"],
+      tools: tools.map((toolDefinition) => toolDefinition.name),
+    });
+  }
   if (tool === "dev_flow_open_task") {
-    if (selectedCase === "conflict") return loadFixture("active-task-conflict.json");
-    if (selectedCase === "host-conflict") return loadFixture("host-ownership-conflict.json");
-    const envelope = await loadFixture("open-task.json");
-    envelope.result.created = state.journey.last_open_created === true;
-    envelope.result.task = await currentJourneyTask();
-    return envelope;
+    if (selectedCase === "conflict") return failure(tool, "ACTIVE_TASK_CONFLICT");
+    if (selectedCase === "host-conflict") return failure(tool, "HOST_OWNERSHIP_CONFLICT");
+    const created = state.opened !== true;
+    state.opened = true;
+    await writeState();
+    return success(tool, { created, task: currentTask(), recovery_assessment: null });
   }
   if (tool === "dev_flow_get_task") {
-    const envelope = await loadFixture("task.json");
-    envelope.result.task = await currentJourneyTask();
-    envelope.result.recovery_assessment = state.journey.last_response_lost
-      ? await completedAndRecordedAssessment()
-      : null;
-    return envelope;
+    return success(tool, { task: currentTask(), recovery_assessment: recoveryAssessment() });
   }
   if (tool === "dev_flow_get_next_action") {
-    const task = await currentJourneyTask();
-    const envelope = await loadFixture("next-action.json");
-    envelope.result = {
+    const task = currentTask();
+    return success(tool, {
       task_id: task.task_id,
-      phase: task.phase,
+      snapshot_version: 2,
+      process: processReference(),
+      current_cursor: task.current_cursor,
       revision: task.revision,
-      action: task.current_action,
+      method_profile: task.intent.method_profile,
       blocker: task.blocker,
+      action: task.current_action,
       outcome: task.outcome,
-      recovery_assessment: state.journey.last_response_lost
-        ? await completedAndRecordedAssessment()
-        : null,
-    };
-    return envelope;
+      recovery_assessment: recoveryAssessment(),
+    });
+  }
+  if (tool === "dev_flow_cancel_task") {
+    state.cancelled = true;
+    await writeState();
+    return success(tool, { task: currentTask(), claim_released: true });
   }
   if (tool === "dev_flow_apply_action") {
-    if (selectedCase === "domain-error") return loadFixture("stale-action.json");
-    if (selectedCase === "conflict") return loadFixture("revision-conflict.json");
-    if (selectedCase === "blocker") return loadFixture("recovery-blocked.json");
-    if (selectedCase === "budget") return loadFixture("verification-budget-failure.json");
-    if (selectedCase === "terminal" || state.journey.apply_count >= 2) {
-      return loadFixture("completed-outcome.json");
-    }
-    return loadFixture("apply-success.json");
+    if (selectedCase === "domain-error") return failure(tool, "ACTION_STALE", arguments_.request_id);
+    if (selectedCase === "budget") return failure(tool, "VERIFICATION_BUDGET_EXCEEDED", arguments_.request_id);
+    if (selectedCase === "blocker") state.blocked = true;
+    if (selectedCase === "terminal") state.done = true;
+    await writeState();
+    return success(tool, { task: currentTask(), recovery_assessment: null }, arguments_.request_id);
   }
-  throw new Error(`unsupported fake Core tool ${tool} for ${JSON.stringify(arguments_)}`);
+  throw new Error(`unsupported tool ${tool}`);
 }
 
-async function currentJourneyTask() {
-  if (state.journey.done || state.journey.apply_count >= 2) {
-    return structuredClone((await loadFixture("completed-outcome.json")).result.task);
-  }
-  if (state.journey.apply_count === 1) {
-    return structuredClone((await loadFixture("apply-success.json")).result.task);
-  }
-  return structuredClone((await loadFixture("open-task.json")).result.task);
+function currentTask() {
+  const terminal = state.done || state.cancelled;
+  const currentCursor = state.cancelled ? "CANCELLED" : state.done ? "DONE" : state.blocked ? "BLOCKED" : state.applyCount > 0 ? "DESIGN" : "REQUIREMENTS";
+  const revision = state.cancelled || state.done || state.blocked ? 2 : state.applyCount > 0 ? 2 : 1;
+  return {
+    task_id: "task-graph-0001",
+    origin_host: "codex",
+    snapshot_version: 2,
+    process_id: "standard-development",
+    process_version: 1,
+    process_definition_digest: digest(),
+    intent: {
+      request: "Define one bounded graph requirement.",
+      initial_scope: ["one repository"],
+      initial_out_of_scope: ["real host"],
+      known_acceptance_criteria: [],
+      verification_budget: { level: "targeted", max_automatic_commands: 2, allow_full_suite: false, allow_manual_handoff: true },
+      method_profile: "plain",
+    },
+    current_cursor: currentCursor,
+    resume_cursor: state.blocked ? "REQUIREMENTS" : null,
+    repository: { digest: digest() },
+    baselines: { requirements: state.applyCount > 0 ? { revision: 1, digest: digest() } : null, design: null, task_plan: null, history: [] },
+    implementation: null,
+    test: null,
+    comprehension: null,
+    current_action: terminal ? null : state.blocked ? blockerAction(revision) : state.applyCount > 0 ? designAction(revision) : requirementsAction(revision),
+    blocker: state.blocked ? { blocker_id: "blocker-graph-0001", code: "TASK_BLOCKED", resume_node: "REQUIREMENTS" } : null,
+    last_operation: state.operationId ? { operation_id: state.operationId } : null,
+    evidence: [],
+    outcome: state.cancelled ? { status: "cancelled", summary: "Cancelled by the user." } : state.done ? { status: "completed", summary: "Completed by the fixture." } : null,
+    revision,
+  };
 }
 
-async function completedAndRecordedAssessment() {
-  const assessment = structuredClone(
-    (await loadFixture("recovery-completed-and-recorded.json")).result.recovery_assessment,
-  );
-  assessment.task_revision = state.journey.done ? 8 : 4;
-  assessment.current_action_id = state.journey.done ? null : "action-verify-0004";
-  if (state.journey.last_request_id) assessment.operation.operation_id = state.journey.last_request_id;
-  if (state.journey.last_action_id) assessment.operation.action_id = state.journey.last_action_id;
-  return assessment;
+function requirementsAction(revision) {
+  return action(revision, "COMPLETE_REQUIREMENTS", "REQUIREMENTS", "requirements-result@1", [
+    transition("requirements_ready", "DESIGN", false),
+  ]);
+}
+
+function designAction(revision) {
+  return action(revision, "COMPLETE_DESIGN", "DESIGN", "design-result@1", [
+    transition("design_ready", "TASKS", false),
+    transition("design_requires_requirements", "REQUIREMENTS", true),
+  ]);
+}
+
+function blockerAction(revision) {
+  return action(revision, "RESOLVE_BLOCKER", "BLOCKED", "blocker-resolution@1", []);
+}
+
+function action(revision, kind, node, payloadContract, availableTransitions) {
+  return {
+    action_id: `action-${node.toLowerCase()}-${revision}`,
+    kind,
+    task_id: "task-graph-0001",
+    revision,
+    process: processReference(),
+    current_node: node,
+    repository_binding_digest: digest(),
+    payload_contract: payloadContract,
+    available_transitions: availableTransitions,
+    method_profile: "plain",
+  };
+}
+
+function transition(transitionId, destination, reasonRequired) {
+  return { transition_id: transitionId, destination, guard_id: `${transitionId}_guard`, when: "Fixture guard is satisfied.", reason_required: reasonRequired };
+}
+
+function recoveryAssessment() {
+  if (!state.responseLost) return null;
+  return {
+    classification: "completed_and_recorded",
+    operation: {
+      operation_id: state.operationId,
+      process_id: "standard-development",
+      process_version: 1,
+      process_definition_digest: digest(),
+      source_cursor: "REQUIREMENTS",
+      expected_revision: 1,
+      action_id: state.actionId,
+      action_kind: "COMPLETE_REQUIREMENTS",
+    },
+    task_revision: 2,
+    action_retry_safe: false,
+    next_advice: "Read the current action.",
+  };
+}
+
+function processReference() {
+  return { process_id: "standard-development", process_version: 1, definition_digest: digest() };
+}
+
+function success(tool, result, requestId = null) {
+  return { schema_version: 2, ok: true, tool, request_id: requestId, result, error: null };
+}
+
+function failure(tool, code, requestId = null) {
+  return {
+    schema_version: 2,
+    ok: false,
+    tool,
+    request_id: requestId,
+    result: null,
+    error: { code, message: code, recovery: { retry_safe: false, action: "read_task", message: "Read Core authority." } },
+  };
 }
 
 function writeToolResult(id, envelope) {
@@ -202,73 +274,69 @@ function writeToolResult(id, envelope) {
   });
 }
 
-function writeMessage(value) {
-  process.stdout.write(`${JSON.stringify(value)}\n`);
-}
-
-async function loadFixture(name) {
-  const raw = await readFile(join(fixtureRoot, name), "utf8");
-  return JSON.parse(raw.replaceAll("${VERSION}", version));
-}
-
-async function loadExactToolDefinitions() {
-  const source = await readFile(schemaSourcePath, "utf8");
-  const definitions = rawGoConstant(source, "schemaDefinitions");
-  const schemas = {
-    dev_flow_server_info: composedGoSchema(source, "serverInfoInputSchema", definitions),
-    dev_flow_open_task: composedGoSchema(source, "openTaskInputSchema", definitions),
-    dev_flow_get_task: composedGoSchema(source, "readTaskInputSchema", definitions),
-    dev_flow_get_next_action: composedGoSchema(source, "readTaskInputSchema", definitions),
-    dev_flow_apply_action: composedGoSchema(source, "applyActionInputSchema", definitions),
-    dev_flow_cancel_task: composedGoSchema(source, "cancelTaskInputSchema", definitions),
-  };
+function toolDefinitions() {
   const metadata = [
-    ["dev_flow_server_info", "Report the ready local Core contract, version, supported host identities, and exact tool list.", true, false, true],
-    ["dev_flow_open_task", "Create one governed repository task or resume its compatible active task.", false, false, false],
-    ["dev_flow_get_task", "Read one authoritative task and optionally assess an uncertain operation without persistence.", true, false, true],
-    ["dev_flow_get_next_action", "Read the exact persisted next action or terminal outcome, with optional transient recovery assessment.", true, false, true],
-    ["dev_flow_apply_action", "Submit the closed payload for the exact current action or an explicit recovery apply.", false, false, false],
-    ["dev_flow_cancel_task", "Explicitly cancel a host-owned task at its exact revision while retaining task history.", false, true, false],
+    ["dev_flow_server_info", [], [] , true, false, true],
+    ["dev_flow_open_task", ["host", "repository_path"], ["host", "repository_path", "new_task"], false, false, false],
+    ["dev_flow_get_task", ["host", "task_id"], ["host", "task_id", "operation_probe"], true, false, true],
+    ["dev_flow_get_next_action", ["host", "task_id"], ["host", "task_id", "operation_probe"], true, false, true],
+    ["dev_flow_apply_action", ["request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_version", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload"], ["request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_version", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload", "recovery_apply"], false, false, false],
+    ["dev_flow_cancel_task", ["request_id", "host", "task_id", "revision", "reason"], ["request_id", "host", "task_id", "revision", "reason"], false, true, false],
   ];
-  return metadata.map(([name, description, readOnlyHint, destructiveHint, idempotentHint]) => ({
+  return metadata.map(([name, required, properties, readOnlyHint, destructiveHint, idempotentHint]) => ({
     name,
     title: name,
-    description,
-    inputSchema: schemas[name],
-    annotations: {
-      title: name,
-      readOnlyHint,
-      destructiveHint,
-      idempotentHint,
-      openWorldHint: false,
-    },
+    description: `${name} Core Contract 0.2 fixture definition.`,
+    inputSchema: closedSchema(required, properties),
+    annotations: { title: name, readOnlyHint, destructiveHint, idempotentHint, openWorldHint: false },
   }));
 }
 
-function rawGoConstant(source, name) {
-  const match = new RegExp("const " + name + " = `([^`]*)`").exec(source);
-  if (!match) throw new Error(`cannot load Core schema constant ${name}`);
-  return match[1];
-}
-
-function composedGoSchema(source, name, definitions) {
-  const composed = new RegExp(
-    "const " + name + " = `([^`]*)`[ \\t]*\\+ schemaDefinitions \\+ `([^`]*)`",
-  ).exec(source);
-  const raw = composed ? `${composed[1]}${definitions}${composed[2]}` : rawGoConstant(source, name);
-  return JSON.parse(raw);
+function closedSchema(required, properties) {
+  return { type: "object", additionalProperties: false, required, properties: Object.fromEntries(properties.map((name) => [name, {}])) };
 }
 
 function validateTopLevelArguments(arguments_, schema) {
   if (!isPlainObject(arguments_)) return "tool arguments must be an object";
-  for (const required of schema.required ?? []) {
+  for (const required of schema.required) {
     if (!Object.hasOwn(arguments_, required)) return `tool arguments missing ${required}`;
   }
-  const allowed = new Set(Object.keys(schema.properties ?? {}));
+  const allowed = new Set(Object.keys(schema.properties));
   for (const key of Object.keys(arguments_)) {
     if (!allowed.has(key)) return `tool arguments contain unexpected field ${key}`;
   }
   return null;
+}
+
+async function readState() {
+  try {
+    return JSON.parse(await readFile(statePath, "utf8"));
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+    return { calls: [], opened: false, applyCount: 0, responseLost: false, blocked: false, done: false, cancelled: false, operationId: null, actionId: null };
+  }
+}
+
+async function writeState() {
+  await mkdir(dirname(statePath), { recursive: true });
+  const temporaryPath = `${statePath}.tmp-${process.pid}`;
+  await writeFile(temporaryPath, `${JSON.stringify(state)}\n`, { mode: 0o600 });
+  await rename(temporaryPath, statePath);
+}
+
+async function appendTrace(value) {
+  await mkdir(dirname(tracePath), { recursive: true });
+  await appendFile(tracePath, `${JSON.stringify(value)}\n`, { mode: 0o600 });
+}
+
+function requiredIsolatedPath(name) {
+  const value = process.env[name];
+  if (!value || !isAbsolute(value)) throw new Error(`${name} must be an absolute path`);
+  return resolve(value);
+}
+
+function writeMessage(value) {
+  process.stdout.write(`${JSON.stringify(value)}\n`);
 }
 
 function hasExactKeys(value, keys) {
@@ -279,52 +347,6 @@ function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function requiredIsolatedPath(name) {
-  const value = process.env[name];
-  if (!value || !isAbsolute(value)) {
-    process.stderr.write(`${name} must name an absolute test-only path\n`);
-    process.exit(64);
-  }
-  return resolve(value);
-}
-
-async function readState() {
-  try {
-    const parsed = JSON.parse(await readFile(statePath, "utf8"));
-    if (!Array.isArray(parsed.calls) || !isPlainObject(parsed.journey)) {
-      throw new Error("fake Core state shape is invalid");
-    }
-    return parsed;
-  } catch (error) {
-    if (error?.code === "ENOENT") {
-      return {
-        schema_version: 1,
-        calls: [],
-        journey: {
-          task_id: "task-00000001",
-          opened: false,
-          apply_count: 0,
-          done: false,
-          last_response_lost: false,
-        },
-      };
-    }
-    throw error;
-  }
-}
-
-async function writeState() {
-  await mkdir(dirname(statePath), { recursive: true, mode: 0o700 });
-  const temporary = `${statePath}.tmp-${process.pid}`;
-  await writeFile(temporary, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
-  await rename(temporary, statePath);
-}
-
-async function appendTrace(entry) {
-  await mkdir(dirname(tracePath), { recursive: true, mode: 0o700 });
-  await appendFile(
-    tracePath,
-    `${JSON.stringify({ session, at: new Date().toISOString(), ...entry })}\n`,
-    { mode: 0o600 },
-  );
+function digest() {
+  return "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1";
 }

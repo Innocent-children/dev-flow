@@ -1,113 +1,113 @@
 # Dev Flow 产品定义
 
-## 当前交付
+## 用户问题
 
-Dev Flow 当前包含一个共享 Core 和一个已实现但尚未公开发布的 Codex 产品：
+Dev Flow 面向使用 AI 或普通工具完成真实软件开发的开发者。它处理以下容易反复出现的问题：
 
-- **Core Contract 0.1**：本地 STDIO MCP、SQLite、只读 Git、单仓库单活动任务、统一状态机与
-  五类恢复；
-- **Feature 003 Codex 显式产品**：一个 Plugin、一个 `dev-flow` Skill、一个本地 MCP 声明、
-  一个 bundled Core，以及显式 setup/remove；
-- **Feature 005 恢复加固**：不确定 mutation 的 read-after-write proof、repository drift 拒绝、
-  partial/conflicting blocker 与并发提交保护；
-- **Feature 006 确定性发布实现**：固定 `dev-flow-codex@0.1.0` public package 合同、仅
-  `darwin-arm64`、source-free 本地 tgz、生命周期与 retained data、兼容升级、两工作树准备、
-  normalized verifier、resumable publisher、registry-only final Journey 合同和 finalization gate。
+- 开发者忘记当前开发步骤、完成条件或允许的下一步；
+- AI 跳过需求、设计、任务拆分、测试或交付核对；
+- 测试已经通过，但代码过度设计，开发者无法解释和维护；
+- Spec Kit、OpenSpec 和 Host 自己维护流程状态，形成多个互相漂移的游标；
+- mutation 中断、结果不确定或 repository drift 后，调用者不知道是重试、读取还是恢复；
+- 需求、设计、任务计划和验证证据发生变化后，旧证据仍被误当作当前 authority。
 
-Feature 006 尚未执行 public npm/GitHub release。package manifest 的 `private: false` 与 public
-publishConfig 定义的是发布合同，不表示 registry 已经存在该包。
+## 产品能力
 
-Deterministic implementation complete — T001–T046 passed. Irreversible real release T047–T050
-remains pending.
-
-`server_info.supported_hosts = [codex, deepseek]` 只表示 Core 接受两个 `origin_host` identity；
-DeepSeek 产品仍未实现、未验证、未发布。
-
-## 用户价值与权威边界
-
-Core 把一次开发工作固定为不可静默修改的任务合同：
+Dev Flow 以 Go Core 中唯一的 `standard-development@1` 状态图管理当前代任务。当前源码图有
+11 个节点和 29 条正常流转：
 
 ```text
-goal
-scope
-out_of_scope
-acceptance_criteria
-verification_budget
-origin_host
-repository binding
+REQUIREMENTS
+→ DESIGN
+→ TASKS
+→ IMPLEMENT
+→ TEST
+→ COMPREHENSION_REVIEW
+→ DELIVERY
+→ DONE
+
+REFACTOR
+BLOCKED
+CANCELLED
 ```
 
-Core 保存唯一权威下一动作。Codex Skill 负责显式调用和结果投影，不保存 Task、不复制转换表、
-不判断完成。遇到 stale identity、仓库漂移或无法证明的 mutation，Core 返回稳定错误或机器可
-验证的 `BLOCKED`；publisher 只处理本仓库的发布状态，不进入 Core 或 SQLite。
+主路径之外，Core 提供受控的需求修订、重新设计、实现返工、测试失败、理解失败、重构、
+重新测试和交付拒绝循环。每个 Action 同时返回当前节点目的、进入/完成条件、允许副作用、所需
+证据、semantic method steps 和完整合法出边。调用者选择 `transition_id`，Core 校验 guard 并
+推导 destination。
 
-## 已实现产品能力
+当前能力包括：
 
-- 一个现有本地 Git repository，每个 repository identity 最多一个活动 governed task；
-- `INTAKE → ASSESS → PLAN → IMPLEMENT → VERIFY → REVIEW → HANDOFF → DONE`，以及
-  `BLOCKED`、`CANCELLED`；
-- revision CAS、action identity、repository binding、verification budget 与 retained evidence；
-- SQLite snapshot、audit event 与 repository claim 的同事务 mutation；
-- `not_started`、`completed_and_recorded`、`completed_but_unrecorded`、
-  `partially_completed`、`conflicting` 五类恢复；
-- 一个 Codex Plugin、一个显式 `dev-flow` Skill、一个 local STDIO MCP 和恰好六个工具；
-- npm install/update/uninstall 与显式 setup/remove 分离；
-- source-free local tgz 安装、unsupported-platform 拒绝、retained task reopen；
-- compatible explicit upgrade、downgrade refusal、future SQLite Schema safe-stop；
-- 两个 clean worktree 的 release preparation、五文件 output、Schema/identity verifier；
-- fake npm/gh 下的 publish-once、resume、conflict、asset read-back 与 finalization gate；
-- 只允许 official registry package 的最终 Codex Journey runner 和 native support-matrix 合同。
+- 单一开发过程图和当前节点导航；
+- 完整合法出边、稳定 transition identity 和受控回退；
+- immutable `TaskIntent` 以及 versioned requirements/design/task-plan baselines；
+- verification budget、current repository binding 和有界 evidence；
+- 独立的 developer comprehension gate；
+- repository-changing refactor 后强制 retest；
+- `plain`、`spec-kit`、`openspec` 三种 method profile；
+- 五分类 graph-native recovery、read-before-retry 和 Core-owned blocker/resume；
+- local SQLite persistence、CAS、restart/resume 和 terminal retained data；
+- local STDIO Core Contract 0.2，公开工具数量仍为六个；
+- read-only Git observation，不把 Git mutation 或通用 shell 放入 Core。
 
-## MCP 使用面
+## 产品权威
+
+Go Core 唯一管理 Task、process/node/transition/guard/destination、baselines、evidence、recovery、
+blocker 和 terminal outcome。Codex Adapter 只负责显式 selector、capability admission、method
+operation rendering、用户呈现、closed payload forwarding 和不确定 mutation 的 read-before-
+retry。
+
+Spec Kit 与 OpenSpec 是 method tools，不是状态机。它们的文档、checkbox、command、sync 或
+archive 状态可以成为有界 evidence，但没有一个能在缺少有效 Core apply 时推进任务。工具
+不可用时允许诚实执行 Core 合同定义的 plain-equivalent work。
+
+## 可理解性门禁
+
+`TEST` 成功只证明当前验证完成，不等于允许交付。Core 必须进入
+`COMPREHENSION_REVIEW`，由开发者明确确认能解释和维护当前设计与实现。理解审查可以把任务
+送回 `IMPLEMENT`、`REFACTOR`、`DESIGN`、`TEST` 或 `REQUIREMENTS`。只有 current test 和
+current user comprehension evidence 同时成立，任务才可进入 `DELIVERY`。
+
+## Recovery 与本地持久化
+
+不确定 mutation 使用 operation identity 和原始 source/action/payload 做 probe。Core 从当前
+Task、LastOperation 和一次只读 repository observation 得出 `not_started`、
+`completed_and_recorded`、`completed_but_unrecorded`、`partially_completed` 或 `conflicting`，
+并独自决定 retry advice、recovery apply 或 `BLOCKED`。Adapter 不做分类。
+
+当前代持久化只接受：
 
 ```text
-dev_flow_server_info
-dev_flow_open_task
-dev_flow_get_task
-dev_flow_get_next_action
-dev_flow_apply_action
-dev_flow_cancel_task
+Schema 2
+Snapshot Version 2
+standard-development@1
 ```
 
-Core 本身不运行测试、用户命令或 Git mutation。调用者通过 `dev_flow_get_next_action` 取得
-持久化动作与 closed payload contract，使用宿主已有工具完成动作，再提交有界结果。
+Feature 008 不兼容历史 Task。Schema 1/pre-graph 数据返回 `SCHEMA_UNSUPPORTED`，全程零写入；
+用户显式选择新数据目录或在 Core 外部手工 archive/rename/delete 旧目录。Core 和 package
+lifecycle 都不会自动迁移、reset 或删除旧数据。
 
-服务唯一启动模式是：
+## 非目标
 
-```bash
-DEV_FLOW_DATA_DIR="<existing-directory>" dev-flow mcp --stdio
-```
+当前产品不提供：
 
-## 证据分层
+- 用户自定义图、workflow DSL、graph editor 或 plugin framework；
+- Web UI、remote MCP、HTTP/SSE、authentication 或 telemetry；
+- 通用 shell、自动 repository repair 或任何 Core Git history mutation；
+- 多仓库任务、并行节点、subtasks 或 cross-host takeover；
+- historical task compatibility、Schema 1 migration、snapshot-v1 codec 或 legacy process；
+- Core 内运行、安装或解析 Spec Kit/OpenSpec；
+- DeepSeek 产品、真实 Journey 或公开支持声明；
+- 在普通 Product Feature 中进行 version、npm、Tag 或 GitHub Release 操作。
 
-### 已完成的真实证据
+## 当前发布边界
 
-- Feature 003 使用真实 Codex 完成显式 create、restart、resume、Core `DONE` 与 remove 验收。
+已发布的 `0.3.0`、对应 Tag/npm/GitHub Release 和 Features 001–007 是冻结历史事实。当前
+Feature 008 分支已经在源码中实现图运行时，但仍属于 **unreleased source-local behavior**。
+公开 `dev-flow-codex@0.3.0` 不构成当前图运行时的 registry 可用性证明。
 
-### 已完成的确定性证据
+Feature 008 只能构建未发布、commit-bound 的本地验收制品。选择下一版本、对齐 version、npm
+publication、Tag、GitHub Release、official artifact 和 public installation claim，必须由
+Feature 008 完成后的独立 Release Change 授权。
 
-- Feature 005 Core/Store/MCP/repository recovery tests；
-- Feature 006 source-free local tgz package/lifecycle、retention、upgrade 与 future-schema tests；
-- 两工作树 preparation、normalized verifier 与 release Schema contracts；
-- 隔离 fake npm/gh/临时 bare remote 的 publication、resume、conflict 和 simulated finalization；
-- registry-only final Journey harness contract 与 native-only support-matrix validator。
-
-### 尚未完成的真实发布证据
-
-- public npm publication 与 registry metadata/tarball read-back；
-- 使用 public registry package 的最终真实 Codex Journey；
-- GitHub 四资产 official-path read-back；
-- 公开 Git Tag/GitHub Release 与完成态 publication record。
-
-fixture、fake、静态合同或本地 tgz 不会升级为 native/public evidence。
-
-## 明确不支持
-
-- 当前从 npm registry 安装 `dev-flow-codex@0.1.0` 的可用性声明；
-- 已发布 Git Tag、GitHub Release 或完成态公开支持声明；
-- DeepSeek product、Harness journey 或 publication；
-- Linux、Windows、Intel Mac、Rosetta 或未经最终制品验证的平台；
-- Web UI、remote MCP、HTTP/SSE、authentication、telemetry、多仓库或跨宿主自动接管；
-- Core Git mutation、通用 Shell MCP、自动 repository repair、自动升级、签名或 notarization。
-
-真实不可逆发布仅由 Feature 006 T047–T050 在 reviewed clean `main` 上执行。
+精确产品合同见 [Feature 008 specification](../specs/008-refactor-to-development-process-graph/spec.md)。

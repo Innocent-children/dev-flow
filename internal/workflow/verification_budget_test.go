@@ -1,12 +1,20 @@
 package workflow
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
 )
+
+func requireWorkflowError(t *testing.T, err, target error) {
+	t.Helper()
+	if !errors.Is(err, target) {
+		t.Fatalf("error = %v, want %v", err, target)
+	}
+}
 
 func TestEvaluateVerificationBudgetAcceptsExactRemainingCommands(t *testing.T) {
 	budget := verificationTestBudget()

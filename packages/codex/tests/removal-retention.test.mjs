@@ -127,16 +127,17 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
     host: "codex",
     repository_path: targetRepository,
     new_task: {
-      goal: "Prove task data survives bounded Codex deregistration",
-      scope: ["one isolated repository"],
-      out_of_scope: ["real Codex", "repository mutation"],
-      acceptance_criteria: ["The same task is readable after deregistration."],
+      request: "Prove graph task data survives bounded Codex deregistration",
+      initial_scope: ["one isolated repository"],
+      initial_out_of_scope: ["real Codex", "repository mutation"],
+      known_acceptance_criteria: ["The same task is readable after deregistration."],
       verification_budget: {
         level: "targeted",
         max_automatic_commands: 1,
         allow_full_suite: false,
         allow_manual_handoff: true,
       },
+      method_profile: "plain",
     },
   });
   assert.equal(opened.ok, true);
@@ -294,9 +295,10 @@ class CoreClient {
     const response = await this.request("tools/call", { name, arguments: arguments_ });
     if (response.error) throw new Error(`Core RPC error ${response.error.code}: ${response.error.message}`);
     const result = response.result;
-    assert.ok(result?.structuredContent, `tool ${name} returned no complete structured result`);
-    assert.deepEqual(JSON.parse(result.content[0].text), result.structuredContent);
-    return result.structuredContent;
+    assert.equal(result?.content?.[0]?.type, "text", `tool ${name} returned no complete text result`);
+    const decoded = JSON.parse(result.content[0].text);
+    if (result.structuredContent !== undefined) assert.deepEqual(decoded, result.structuredContent);
+    return decoded;
   }
 
   request(method, params) {
@@ -400,11 +402,16 @@ function taskIdentity(task) {
   return {
     task_id: task.task_id,
     revision: task.revision,
-    phase: task.phase,
+    snapshot_version: task.snapshot_version,
+    process_id: task.process_id,
+    process_version: task.process_version,
+    process_definition_digest: task.process_definition_digest,
+    current_cursor: task.current_cursor,
     current_action: task.current_action === null ? null : {
       action_id: task.current_action.action_id,
       kind: task.current_action.kind,
       revision: task.current_action.revision,
+      current_node: task.current_action.current_node,
     },
     outcome: task.outcome,
   };

@@ -121,6 +121,7 @@ After developer clarification, submit `COMPLETE_REQUIREMENTS` using the exact ac
     }
   ],
   "node_result": {
+    "problem_class": "none",
     "baseline": {
       "goal": "Simplify order submission while preserving observable behavior.",
       "scope": ["order submission request path"],
@@ -200,7 +201,8 @@ Expected:
 ### Step B4: First test fails
 
 Run one targeted check that demonstrates an implementation defect. Submit
-`tests_failed_implementation` with a reason and failed evidence.
+`tests_failed_implementation` with `problem_class=implementation_failure`, a reason, and failed
+evidence.
 
 Expected:
 
@@ -228,6 +230,7 @@ Submit:
 
 ```text
 transition_id=code_too_complex
+problem_class=code_complexity
 reason=<developer-visible complexity reason>
 unnecessary_abstractions=<non-empty>
 user_confirmation=null
@@ -263,14 +266,15 @@ Present the simplified path and obtain an explicit user answer. Submit
 
 ```json
 {
-  "explained_components": [
+    "explained_components": [
     "request entry",
     "duplicate guard",
     "repository write"
   ],
-  "unresolved_questions": [],
-  "unnecessary_abstractions": [],
-  "maintenance_risks": [],
+    "unresolved_questions": [],
+    "unnecessary_abstractions": [],
+    "maintenance_risks": [],
+    "problem_class": "none",
   "user_confirmation": {
     "source": "user",
     "status": "passed",
@@ -296,6 +300,11 @@ Submit `delivery_complete` using:
 - current ComprehensionAssessment ID;
 - current automated/user evidence IDs;
 - no unverified item.
+
+The automated list must equal every current passed automated TestRecord evidence in its original
+order. The manual list must equal every current passed user TEST evidence in original order followed
+by the comprehension user evidence. Empty, missing, stale, duplicate, failed, wrong-source,
+static/host-observed, or cross-list IDs are rejected.
 
 Expected:
 
@@ -531,41 +540,170 @@ Expected:
 - two handles attempting the same commit produce at most one success;
 - adapter never decides the classification.
 
-## 10. Final Real Codex Journey
+## 10. Journey H — Phase 5D Contract and Runtime Hardening
+
+**Proves**: SC-017–SC-025 without entering Phase 6–8
+
+**Evidence class**: deterministic domain/workflow/application/store/MCP/contract journey tests
+
+### Recovery fail-closed
+
+Call `get_task` and `get_next_action` with `operation_probe` omitted and explicitly null; both are
+ordinary reads. Call ordinary `apply_action` with `recovery_apply` omitted and explicitly null; both
+follow the normal transition path.
+
+Then submit a syntactically valid non-null probe and recovery apply. Both return:
+
+```text
+RECOVERY_UNAVAILABLE
+retry_safe=false
+action=none
+```
+
+The repository observer invocation count and Task/Event/Evidence/Claim/Schema manifests remain
+unchanged. Malformed, unknown-member, and duplicate-member Recovery input returns
+`INVALID_ARGUMENT`. This journey does not exercise the five Phase 7 classifications.
+
+### Problem-class binding
+
+Table-drive all 29 transitions using the closed per-node enums. Prove at minimum that an
+`implementation_failure` TEST result cannot select `tests_expose_design_issue`, a
+`code_complexity` comprehension result cannot select `design_too_complex`, and a delivery
+`test_gap` cannot select `delivery_needs_requirements`. Every mismatch is
+`TRANSITION_NOT_ALLOWED` and zero-write.
+
+### Manual-handoff separation and exact delivery evidence
+
+Create a task with `allow_manual_handoff=false`. Prove `source=user` TEST evidence is rejected, then
+pass TEST using automated evidence, obtain explicit user comprehension confirmation, and reach DONE
+with the exact current evidence sets. Empty, incomplete, stale, duplicate, failed, wrong-source, or
+cross-list evidence remains rejected.
+
+### Load/cancel/store hardening
+
+Use strict snapshot fixtures to exercise every node-authority row and cross-record reference. Use
+database copies to exercise active/terminal claim cardinality, orphan and identity mismatches; every
+Store-open failure is `STORAGE_UNAVAILABLE` with an unchanged manifest. Finally prove terminal
+cancellation returns `TASK_TERMINAL`, invalid reasons return `INVALID_ARGUMENT`, and valid active or
+blocked cancellation commits once.
+
+## 11. Final Composite Source-Local Acceptance
 
 **Proves**: SC-015
 
-**Evidence class**: one native real Codex journey against one local source-built package artifact
+**Shared identity**:
 
-The final journey must:
+```text
+artifact filename: dev-flow-codex-0.3.0.tgz
+artifact size: 4381869
+artifact SHA-256: aa8fb5269f03d9cebbceb604d15e66d8b26690b8b5ab19c46bd7b09c1294f92b
+artifact source commit: a032f7080fc40f303a32162960dc44345ad8dd2d
+Core SHA-256: c3cccb91f25394b16765f025b4e901d41cbb9792fd9428eabdae1b764e197faf
+package/Core version: 0.3.0
+```
 
-1. install the local artifact in an isolated prefix;
-2. run explicit setup;
-3. invoke the exact Dev Flow selector;
-4. create a `spec-kit` or `plain` standard task;
-5. show at least one node with multiple legal destinations;
-6. perform implementation/test/comprehension complexity/refactor/retest;
-7. close and restart Codex;
-8. resume the exact same task/action;
-9. obtain explicit developer comprehension confirmation;
-10. reach Core `DONE`;
-11. remove registration;
-12. uninstall the local package;
-13. reopen retained task data directly with packaged Core;
-14. record no unexpected repository path.
+### Component A — Native Codex graph-flow evidence
 
-This journey does not publish npm, create a Tag, or create a GitHub Release.
+**Evidence class**: native Codex graph-flow evidence, produced by Attempt 3 and validated offline
+from its four retained JSONL transcripts.
 
-## 11. Final Acceptance Matrix
+The offline validator must prove:
 
-| Capability | Deterministic | Native |
-| --- | ---: | ---: |
-| Complete graph/forbidden edges | Required | Sampled in final journey |
-| Baseline revision/invalidation | Required | Sampled |
-| Method-profile parity/fallback | Required | One profile sampled |
-| Comprehension user evidence | Required | Required |
-| Refactor → test loop | Required | Required |
-| Restart/resume | Required | Required |
-| Fresh Schema 2 / Schema 1 zero-write rejection | Required | Fresh data used in final journey |
-| Five-class uncertain recovery | Required | No extra native fault matrix |
-| Public release | Forbidden | Forbidden |
+1. four distinct real Codex threads and zero Dev Flow calls from the ordinary prompt;
+2. Contract 0.2 handshake before every Dev Flow session;
+3. the exact transition sequence
+   `requirements_ready → design_ready → tasks_ready → implementation_ready_for_test → tests_passed
+   → code_too_complex → refactor_ready_for_test → tests_passed → comprehension_passed →
+   delivery_complete`;
+4. ten unique successful mutations, exact request/result/LastOperation binding, and revisions 1–11
+   increasing by one;
+5. exact restart identity before the complexity/refactor session;
+6. the explicit code-complexity verdict, `REFACTOR → TEST`, and fresh retest;
+7. exactly two successful commands with the closed identity
+   `node --test test/proof-writer.test.mjs`, with no forbidden suite;
+8. explicit `source=user,status=passed` comprehension confirmation;
+9. terminal `DONE`, completed outcome, null current action, and only
+   `src/proof-writer.mjs` changed.
+
+Attempt 3 retains these exact statuses:
+
+```text
+native_sessions_status = passed
+core_terminal_status = DONE
+runner_status = failed_after_native_sessions
+lifecycle_status = not_run
+cause = verification command classifier false positive
+```
+
+Its original `native-attempt-3-failed.json` remains unchanged.
+
+### Component B — Deterministic exact-artifact lifecycle evidence
+
+**Evidence class**: deterministic exact-artifact lifecycle evidence.
+
+Run the lifecycle-only mode in a fresh external layout containing `home/`, `npm-prefix/`,
+`npm-cache/`, `data/`, `tmp/`, `workspace/`, and `result/`. This mode must not invoke Codex, read
+Codex authentication, or create a Codex thread.
+
+The lifecycle component must:
+
+1. install the exact shared artifact into the isolated prefix and verify its closed contents,
+   package/Core identity, Contract 0.2 handshake, process digest, method profiles, and six-tool
+   order;
+2. run explicit setup and verify registration readback;
+3. use the packaged node-payload reference and live input schema to create one real `host=codex`,
+   `method_profile=plain` Schema 2 Task in a real temporary Git repository;
+4. drive that Task through
+   `REQUIREMENTS → DESIGN → TASKS → IMPLEMENT → TEST → COMPREHENSION_REVIEW → DELIVERY → DONE`,
+   including one bounded targeted test and a comprehension fixture explicitly labeled
+   `evidence_class=deterministic_test_fixture`;
+5. record terminal Task revision, Event/Evidence counts, zero claim, and a relative database
+   manifest;
+6. remove registration, prove repeated remove is a no-op, and preserve Task/Event/Evidence data,
+   the repository, and an adjacent user sentinel;
+7. npm-uninstall package bytes while preserving data and the sentinel;
+8. reinstall the same exact artifact and reopen the same lifecycle Task with unchanged revision,
+   Event/Evidence counts, `current_cursor=DONE`, `outcome.status=completed`,
+   `current_action=null`, no claim, and a zero-write read;
+9. uninstall package bytes after the retained reopen while preserving external data and result
+   evidence.
+
+The lifecycle Task is a separate deterministic Task and must not be represented as the Attempt 3
+Task.
+
+### Composite record
+
+The final record closes:
+
+```text
+attempt-3-native-flow-evidence.json
+exact-artifact-lifecycle-evidence.json
+feature-008-composite-native-acceptance.json
+```
+
+All three records contain only closed, bounded evidence. They exclude authentication, tokens, raw
+prompts, private paths, full environments, database absolute paths, and raw JSONL content.
+
+Attempt history remains:
+
+```text
+Attempt 1: failed at first REQUIREMENTS apply; invalid closed REQUIREMENTS payload
+Attempt 2: failed at DESIGN apply; invalid closed DESIGN baseline
+Attempt 3: native graph-flow passed; runner failed after native sessions; lifecycle not run
+Attempt 4: forbidden
+```
+
+## 12. Final Acceptance Matrix
+
+| Capability | Deterministic Core/contracts | Native Attempt 3 | Deterministic exact-artifact lifecycle |
+| --- | ---: | ---: | ---: |
+| Complete graph/forbidden edges | Required | Sampled | Primary path through packaged Core |
+| Baseline revision/invalidation | Required | Sampled | Primary path |
+| Method-profile parity/fallback | Required | Plain profile sampled | Plain profile payloads |
+| Comprehension user evidence | Required | Explicit real user prompt evidence | Explicit deterministic fixture label |
+| Refactor → test loop | Required | Required | Not repeated |
+| Restart/resume | Required | Required | Terminal retained reopen |
+| Fresh Schema 2 / Schema 1 zero-write rejection | Required | Fresh Schema 2 used | Fresh Schema 2 used and retained |
+| Setup/remove/uninstall/reinstall | Package contracts | Not run after Attempt 3 sessions | Required |
+| Five-class uncertain recovery | Required | No extra native fault matrix | Not repeated |
+| Public release | Forbidden | Forbidden | Forbidden |

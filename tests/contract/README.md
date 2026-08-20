@@ -1,6 +1,34 @@
 # Repository Contract Tests
 
-These Go tests validate the repository layout, package manifests, pull-request CI, Markdown links,
-and Feature 002 Core Contract 0.1 result/MCP/fixture boundaries. Invalid layouts and malformed
-contract inputs are materialized only in test data or temporary directories; host packages consume
-the one shared protocol surface and own no copied workflow contract.
+本目录提供 deterministic contract evidence，验证当前源码的公共闭合边界。测试使用 checkout
+中的权威文件或临时目录/数据库；它们不启动真实 Codex，不发布 package，也不产生 public
+Release evidence。
+
+## 覆盖范围
+
+- `mcp_contract_test.go`：Core Contract 0.2 exact six-tool catalog、closed input schemas、nullable
+  Recovery fields、ServerInfo DTO、process/method/storage identity；
+- `result_envelope_test.go`：typed Result Envelope、stable public errors、closed/redacted output；
+- `graph_contract_test.go`：`standard-development@1` 节点、29 transitions、guard/reason/problem
+  class 和 method-profile public semantics；
+- `storage_generation_2_test.go`：Fresh Schema 2、snapshot-v2、no-legacy source、unsupported/future
+  safe-stop、lifecycle non-deletion 和 private-path redaction；
+- `fixture_contract_test.go`：Contract 0.2 graph fixtures、Host parity、Recovery fixtures 与冻结
+  Contract 0.1 inventory/parity；
+- `package_manifest_test.go`：root/Codex package closed manifest、scripts、allowlist 和 platform；
+- `repository_layout_test.go`：repository layout、single module/Spec Kit root、host source allowlist
+  和 root script allowlist；
+- `markdown_links_test.go`、`spec_008_document_test.go`：Markdown 相对链接、Feature 008 完整包、
+  identifier/transition/task inventory 和 template-marker absence；
+- `release_contract_test.go`：历史 release schema/fixture/tooling freeze，不能作为当前发布动作。
+
+## 证据类型
+
+- **static evidence**：checked-in Markdown、manifest、schema 和 JSON fixture；
+- **deterministic contract evidence**：Go tests 对闭合 schema、ordering、allowlist、zero-write 和
+  redaction 的实际执行结果；
+- **historical freeze evidence**：Contract 0.1、已发布 `0.3.0` 和既有 release fixtures，仅证明
+  已发生历史，不定义当前 graph runtime。
+
+Host parity fixture 证明 Core identity parity，不证明 DeepSeek 产品。Package/layout contract
+通过不等于 source-local artifact 已构建，也不等于 native Codex 或 public registry 验收。

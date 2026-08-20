@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -152,6 +153,7 @@ func (o *GitObserver) Observe(ctx context.Context, repositoryPath string) (domai
 		Head:                head,
 		Unborn:              unborn,
 		WorktreeFingerprint: fingerprintWorktree(fingerprintRecords),
+		ChangedPaths:        observedChangedPaths(statusRecords),
 		ObservedAt:          time.Now().UTC(),
 	}
 	binding.BindingDigest = digestRepositoryBinding(binding)
@@ -159,6 +161,20 @@ func (o *GitObserver) Observe(ctx context.Context, repositoryPath string) (domai
 		return domain.RepositoryBinding{}, fmt.Errorf("%w: invalid repository binding: %v", ErrGitObservation, err)
 	}
 	return binding, nil
+}
+
+func observedChangedPaths(records []porcelainRecord) []string {
+	paths := make([]string, 0, len(records))
+	seen := map[string]bool{}
+	for _, record := range records {
+		if record.path == "" || seen[record.path] {
+			continue
+		}
+		seen[record.path] = true
+		paths = append(paths, record.path)
+	}
+	sort.Strings(paths)
+	return paths
 }
 
 func (o *GitObserver) contentFingerprintRecords(

@@ -4,280 +4,147 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"time"
-
+	"github.com/Innocent-children/dev-flow/internal/application"
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/recovery"
 )
 
-const resultSchemaVersion = 1
+const resultSchemaVersion = 2
 
-const fixedInternalErrorFallbackJSON = `{"schema_version":1,"ok":false,"request_id":"request-invalid","tool":"dev_flow_server_info","error":{"code":"INTERNAL_ERROR","message":"The Core could not return a result."},"recovery":{"retry_safe":false,"action":"report_internal_error","message":"Report the bounded failure and stop this operation."}}`
-
-// EncodedResult is the complete compact JSON value returned by one tool call.
-// JSON is already size-checked and safe to place in both MCP structured and
-// text content.
-type EncodedResult struct {
-	JSON    []byte
-	IsError bool
+type Envelope struct {
+	SchemaVersion int               `json:"schema_version"`
+	OK            bool              `json:"ok"`
+	RequestID     string            `json:"request_id"`
+	Tool          string            `json:"tool"`
+	Result        any               `json:"result,omitempty"`
+	Error         *ErrorResult      `json:"error,omitempty"`
+	Recovery      *RecoveryGuidance `json:"recovery,omitempty"`
 }
-
-type successEnvelope[T any] struct {
-	SchemaVersion int    `json:"schema_version"`
-	OK            bool   `json:"ok"`
-	RequestID     string `json:"request_id"`
-	Tool          string `json:"tool"`
-	Result        T      `json:"result"`
-}
-
-type errorEnvelope struct {
-	SchemaVersion int              `json:"schema_version"`
-	OK            bool             `json:"ok"`
-	RequestID     string           `json:"request_id"`
-	Tool          string           `json:"tool"`
-	Error         ErrorResult      `json:"error"`
-	Recovery      RecoveryGuidance `json:"recovery"`
-}
-
-// ErrorResult is the closed public failure projection. Details, when present,
-// are adapter-owned fixed values rather than raw dependency errors.
 type ErrorResult struct {
 	Code    domain.ErrorCode `json:"code"`
 	Message string           `json:"message"`
-	Details *ErrorDetails    `json:"details,omitempty"`
 }
-
-type ErrorDetails struct {
-	Reason string `json:"reason"`
-}
-
-// RecoveryGuidance is error-only retry guidance. It is intentionally distinct
-// from recovery.RecoveryAssessment in successful read results.
 type RecoveryGuidance struct {
 	RetrySafe bool   `json:"retry_safe"`
 	Action    string `json:"action"`
 	Message   string `json:"message"`
 }
-
-type ContractProjection struct {
-	Goal               string                    `json:"goal"`
-	Scope              []string                  `json:"scope"`
-	OutOfScope         []string                  `json:"out_of_scope"`
-	AcceptanceCriteria []string                  `json:"acceptance_criteria"`
-	VerificationBudget domain.VerificationBudget `json:"verification_budget"`
+type EncodedResult struct {
+	JSON    []byte
+	IsError bool
 }
 
-type TaskProjection struct {
-	TaskID        domain.ID                `json:"task_id"`
-	OriginHost    domain.Host              `json:"origin_host"`
-	Contract      ContractProjection       `json:"contract"`
-	Repository    domain.RepositoryBinding `json:"repository"`
-	Phase         domain.Phase             `json:"phase"`
-	ResumePhase   *domain.Phase            `json:"resume_phase"`
-	CurrentAction *domain.Action           `json:"current_action"`
-	Blocker       *domain.Blocker          `json:"blocker"`
-	LastOperation *domain.LastOperation    `json:"last_operation"`
-	Evidence      []domain.EvidenceSummary `json:"evidence"`
-	Outcome       *domain.Outcome          `json:"outcome"`
-	Revision      uint64                   `json:"revision"`
-	CreatedAt     time.Time                `json:"created_at"`
-	UpdatedAt     time.Time                `json:"updated_at"`
-	CompletedAt   *time.Time               `json:"completed_at"`
+var fallbackBytes = mustEncode(Envelope{SchemaVersion: 2, OK: false, RequestID: "request-unavailable", Tool: ToolServerInfo, Error: &ErrorResult{Code: domain.ErrorInternal, Message: "The Core could not complete the operation."}, Recovery: &RecoveryGuidance{RetrySafe: false, Action: "report_internal_error", Message: "Report the bounded failure and stop this operation."}})
+
+func EncodeSuccess(id, tool string, result any) EncodedResult {
+	if !domain.ID(id).IsValid() || !isToolName(tool) {
+		return fixedFallback()
+	}
+	raw, err := encodeEnvelope(Envelope{SchemaVersion: 2, OK: true, RequestID: id, Tool: tool, Result: result})
+	if err != nil || !WithinResultEnvelopeLimit(raw) {
+		return fixedFallback()
+	}
+	return EncodedResult{JSON: raw}
+}
+func EncodeError(id, tool string, err error) EncodedResult {
+	if !domain.ID(id).IsValid() || !isToolName(tool) {
+		return fixedFallback()
+	}
+	code := domain.ErrorInternal
+	var typed *domain.Error
+	if errors.As(err, &typed) && typed.Code.IsValid() {
+		code = typed.Code
+	}
+	message, action, recovery := publicFailure(code)
+	raw, encodeErr := encodeEnvelope(Envelope{SchemaVersion: 2, OK: false, RequestID: id, Tool: tool, Error: &ErrorResult{Code: code, Message: message}, Recovery: &RecoveryGuidance{RetrySafe: false, Action: action, Message: recovery}})
+	if encodeErr != nil || !WithinResultEnvelopeLimit(raw) {
+		return fixedFallback()
+	}
+	return EncodedResult{JSON: raw, IsError: true}
+}
+func fixedFallback() EncodedResult {
+	return EncodedResult{JSON: append([]byte(nil), fallbackBytes...), IsError: true}
+}
+func encodeEnvelope(v Envelope) ([]byte, error) {
+	var b bytes.Buffer
+	e := json.NewEncoder(&b)
+	e.SetEscapeHTML(false)
+	if err := e.Encode(v); err != nil {
+		return nil, err
+	}
+	return bytes.TrimSuffix(b.Bytes(), []byte("\n")), nil
+}
+func mustEncode(v Envelope) []byte {
+	raw, err := encodeEnvelope(v)
+	if err != nil || len(raw) > domain.MaxResultEnvelopeBytes {
+		panic("invalid fixed result envelope")
+	}
+	return raw
+}
+func publicFailure(code domain.ErrorCode) (string, string, string) {
+	m := map[domain.ErrorCode][3]string{domain.ErrorInvalidArgument: {"The request does not match the closed Core contract.", "none", "Correct the request before submitting it again."}, domain.ErrorNotGitRepository: {"The requested path is not a Git repository.", "none", "Choose a valid local Git repository."}, domain.ErrorTaskNotFound: {"The task was not found.", "read_task", "Confirm the retained task identity before continuing."}, domain.ErrorActiveTaskConflict: {"The repository already has an incompatible active task.", "cancel_or_finish_active_task", "Finish or cancel the active task before opening another task."}, domain.ErrorHostOwnershipConflict: {"The task belongs to another host.", "use_origin_host", "Resume the task from its origin host."}, domain.ErrorRevisionConflict: {"The submitted task revision is stale.", "read_task", "Read the authoritative task before another mutation."}, domain.ErrorActionStale: {"The submitted action identity is stale.", "read_next_action", "Read and use the exact persisted next action."}, domain.ErrorRepositoryDrift: {"The repository binding is not permitted for this operation.", "resolve_repository_drift", "Restore the required repository reality before continuing."}, domain.ErrorTransitionNotAllowed: {"The transition is not allowed from the current node.", "read_next_action", "Read the complete current transition set."}, domain.ErrorProcessUnsupported: {"The process definition is unsupported.", "repair_storage", "Use storage created by this graph Core."}, domain.ErrorRecoveryUnavailable: {"Recovery is unavailable for this operation.", "none", "Do not automatically retry; use only a supported graph recovery route."}, domain.ErrorVerificationBudgetExceeded: {"The submitted evidence exceeds the verification budget.", "read_next_action", "Remain within the current evidence budget."}, domain.ErrorTaskBlocked: {"The task is blocked.", "read_next_action", "Read the blocker-resolution action."}, domain.ErrorTaskTerminal: {"The task is terminal.", "read_task", "Read the retained terminal outcome."}, domain.ErrorSchemaUnsupported: {"Pre-graph task data is unsupported by this Core.", "repair_storage", "Choose a fresh data directory or manage the old directory outside Core."}, domain.ErrorStorageUnavailable: {"Core storage is unavailable.", "repair_storage", "Restore storage availability before continuing."}, domain.ErrorInternal: {"The Core could not complete the operation.", "report_internal_error", "Report the bounded failure and stop this operation."}}
+	v, ok := m[code]
+	if !ok {
+		v = m[domain.ErrorInternal]
+	}
+	return v[0], v[1], v[2]
 }
 
 type ServerInfoResult struct {
-	Product        string   `json:"product"`
-	Version        string   `json:"version"`
-	SchemaVersion  int      `json:"schema_version"`
-	Transport      string   `json:"transport"`
-	Health         string   `json:"health"`
-	SupportedHosts []string `json:"supported_hosts"`
-	Tools          []string `json:"tools"`
+	Product            string                   `json:"product"`
+	Version            string                   `json:"version"`
+	SchemaVersion      int                      `json:"schema_version"`
+	CoreLimitsVersion  string                   `json:"core_limits_version"`
+	Transport          string                   `json:"transport"`
+	Health             string                   `json:"health"`
+	SupportedHosts     []string                 `json:"supported_hosts"`
+	SupportedProcesses []SupportedProcessResult `json:"supported_processes"`
+	MethodProfiles     []domain.MethodProfile   `json:"method_profiles"`
+	Tools              []string                 `json:"tools"`
+}
+type SupportedProcessResult struct {
+	ProcessID        domain.ProcessID `json:"process_id"`
+	ProcessVersion   uint32           `json:"process_version"`
+	DefinitionDigest domain.Digest    `json:"definition_digest"`
+	NewTaskSupported bool             `json:"new_task_supported"`
 }
 
-type OpenTaskToolResult struct {
-	Created bool           `json:"created"`
-	Task    TaskProjection `json:"task"`
-}
-
-type GetTaskToolResult struct {
-	Task               TaskProjection               `json:"task"`
-	RecoveryAssessment *recovery.RecoveryAssessment `json:"recovery_assessment"`
-}
-
-type NextActionToolResult struct {
-	TaskID             domain.ID                    `json:"task_id"`
-	Phase              domain.Phase                 `json:"phase"`
-	Revision           uint64                       `json:"revision"`
-	Action             *domain.Action               `json:"action"`
-	Blocker            *domain.Blocker              `json:"blocker"`
-	Outcome            *domain.Outcome              `json:"outcome"`
-	RecoveryAssessment *recovery.RecoveryAssessment `json:"recovery_assessment"`
-}
-
-type ApplyActionToolResult struct {
-	Task                    TaskProjection `json:"task"`
-	RepositoryClaimReleased bool           `json:"repository_claim_released"`
-}
-
-type CancelTaskToolResult struct {
-	Task                    TaskProjection `json:"task"`
-	RepositoryClaimReleased bool           `json:"repository_claim_released"`
-}
-
-// EncodeSuccess produces the one success envelope and replaces an oversized or
-// unencodable result with a small, non-recursive INTERNAL_ERROR envelope.
-func EncodeSuccess[T any](requestID, tool string, result T) EncodedResult {
-	requestID, tool = safeEnvelopeIdentity(requestID, tool)
-	encoded, err := encodeCompact(successEnvelope[T]{
-		SchemaVersion: resultSchemaVersion,
-		OK:            true,
-		RequestID:     requestID,
-		Tool:          tool,
-		Result:        result,
-	})
-	if err != nil {
-		return fixedInternalError(requestID, tool, "result_encoding_failed")
+func projectAction(a *domain.ProcessActionV2) any {
+	if a == nil {
+		return nil
 	}
-	if !WithinResultEnvelopeLimit(encoded) {
-		return fixedInternalError(requestID, tool, "result_size_exceeded")
-	}
-	return EncodedResult{JSON: encoded}
+	return map[string]any{"task_id": a.TaskID, "revision": a.Revision, "action_id": a.ActionID, "action_kind": a.Kind, "process_id": a.Process.ID, "process_version": a.Process.Version, "process_definition_digest": a.Process.DefinitionDigest, "current_node": a.NodeID, "node_purpose": a.NodeContract.Purpose, "entry_conditions": a.NodeContract.EntryConditions, "completion_conditions": a.NodeContract.CompletionConditions, "allowed_effects": a.AllowedEffects, "required_evidence": a.RequiredEvidence, "method_profile": a.MethodProfile, "method_steps": a.SemanticMethodSteps, "available_transitions": a.AvailableTransitions, "payload_contract": a.PayloadContract, "guidance": a.Guidance, "repository_binding_digest": a.RepositoryBindingDigest, "issued_at": a.IssuedAt}
+}
+func projectTask(t domain.ProcessTask) any {
+	return map[string]any{"task_id": t.TaskID, "origin_host": t.OriginHost, "snapshot_version": 2, "process_id": t.Process.ID, "process_version": t.Process.Version, "process_definition_digest": t.Process.DefinitionDigest, "intent": t.Intent, "current_cursor": t.CurrentNode, "resume_cursor": t.ResumeNode, "repository": map[string]any{"repository_identity": t.Repository.RepositoryIdentity, "branch": t.Repository.Branch, "detached": t.Repository.Detached, "head": t.Repository.Head, "unborn": t.Repository.Unborn, "worktree_fingerprint": t.Repository.WorktreeFingerprint, "observed_at": t.Repository.ObservedAt, "binding_digest": t.Repository.BindingDigest}, "baselines": map[string]any{"requirements": t.Requirements, "design": t.Design, "task_plan": t.TaskPlan, "history": t.BaselineHistory}, "implementation": t.Implementation, "test": t.Test, "comprehension": t.Comprehension, "current_action": projectAction(t.CurrentAction), "blocker": t.Blocker, "last_operation": t.LastOperation, "evidence": t.Evidence, "outcome": t.Outcome, "revision": t.Revision, "created_at": t.CreatedAt, "updated_at": t.UpdatedAt, "completed_at": t.CompletedAt}
+}
+func projectNextAction(result application.NextActionResult) any {
+	return map[string]any{"task_id": result.TaskID, "snapshot_version": 2, "process": result.Process, "current_cursor": result.CurrentNode, "revision": result.Revision, "method_profile": result.MethodProfile, "blocker": result.Blocker, "action": projectAction(result.Action), "outcome": result.Outcome, "recovery_assessment": projectRecoveryAssessment(result.RecoveryAssessment)}
 }
 
-// EncodeError maps Domain/Application failures onto a fixed, redacted public
-// contract. Unexpected dependency text is never echoed.
-func EncodeError(requestID, tool string, err error) EncodedResult {
-	requestID, tool = safeEnvelopeIdentity(requestID, tool)
-	code := domain.ErrorInternal
-	var domainError *domain.Error
-	if errors.As(err, &domainError) && domainError != nil && domainError.Code.IsValid() {
-		code = domainError.Code
+func projectRecoveryAssessment(assessment *recovery.RecoveryAssessment) any {
+	if assessment == nil {
+		return nil
 	}
-	failure, guidance := publicFailure(code)
-	encoded, encodeErr := encodeCompact(errorEnvelope{
-		SchemaVersion: resultSchemaVersion,
-		OK:            false,
-		RequestID:     requestID,
-		Tool:          tool,
-		Error:         failure,
-		Recovery:      guidance,
-	})
-	if encodeErr != nil || !WithinResultEnvelopeLimit(encoded) {
-		return fixedInternalError(requestID, tool, "error_encoding_failed")
-	}
-	return EncodedResult{JSON: encoded, IsError: true}
-}
-
-func WithinResultEnvelopeLimit(encoded []byte) bool {
-	return len(encoded) <= domain.MaxResultEnvelopeBytes
-}
-
-func projectTask(task domain.Task) TaskProjection {
-	contract := task.Contract
-	return TaskProjection{
-		TaskID:     task.TaskID,
-		OriginHost: task.OriginHost,
-		Contract: ContractProjection{
-			Goal:               contract.Goal(),
-			Scope:              nonNilSlice(contract.Scope()),
-			OutOfScope:         nonNilSlice(contract.OutOfScope()),
-			AcceptanceCriteria: nonNilSlice(contract.AcceptanceCriteria()),
-			VerificationBudget: contract.VerificationBudget(),
-		},
-		Repository:    task.Repository,
-		Phase:         task.Phase,
-		ResumePhase:   task.ResumePhase,
-		CurrentAction: task.CurrentAction,
-		Blocker:       task.Blocker,
-		LastOperation: task.LastOperation,
-		Evidence:      nonNilSlice(task.Evidence),
-		Outcome:       task.Outcome,
-		Revision:      task.Revision,
-		CreatedAt:     task.CreatedAt,
-		UpdatedAt:     task.UpdatedAt,
-		CompletedAt:   task.CompletedAt,
+	operation := assessment.Operation
+	return map[string]any{
+		"classification":               assessment.Classification,
+		"operation":                    map[string]any{"operation_id": operation.OperationID, "process_id": operation.Process.ID, "process_version": operation.Process.Version, "process_definition_digest": operation.Process.DefinitionDigest, "source_cursor": operation.SourceCursor, "expected_revision": operation.ExpectedRevision, "action_id": operation.ActionID, "action_kind": operation.ActionKind},
+		"task_revision":                assessment.TaskRevision,
+		"current_action_id":            assessment.CurrentActionID,
+		"issuance_binding_digest":      assessment.IssuanceBindingDigest,
+		"authoritative_binding_digest": assessment.AuthoritativeBindingDigest,
+		"observed_binding_digest":      assessment.ObservedBindingDigest,
+		"repository_relation":          assessment.RepositoryRelation,
+		"last_operation_relation":      assessment.LastOperationRelation,
+		"operation_evidence":           assessment.OperationEvidence,
+		"operation_payload_digest":     assessment.OperationPayloadDigest,
+		"committed_proof":              assessment.CommittedProof,
+		"action_retry_safe":            assessment.ActionRetrySafe,
+		"next_advice":                  assessment.NextAdvice,
+		"unblock_condition":            assessment.UnblockCondition,
+		"observed_at":                  assessment.ObservedAt,
 	}
 }
 
-func fixedInternalError(requestID, tool, reason string) EncodedResult {
-	failure, guidance := publicFailure(domain.ErrorInternal)
-	failure.Details = &ErrorDetails{Reason: reason}
-	encoded, err := encodeCompact(errorEnvelope{
-		SchemaVersion: resultSchemaVersion,
-		OK:            false,
-		RequestID:     requestID,
-		Tool:          tool,
-		Error:         failure,
-		Recovery:      guidance,
-	})
-	if err != nil || !WithinResultEnvelopeLimit(encoded) {
-		return fixedInternalErrorFallback()
-	}
-	return EncodedResult{JSON: encoded, IsError: true}
-}
-
-func fixedInternalErrorFallback() EncodedResult {
-	return EncodedResult{JSON: []byte(fixedInternalErrorFallbackJSON), IsError: true}
-}
-
-func safeEnvelopeIdentity(requestID, tool string) (string, string) {
-	if !domain.ID(requestID).IsValid() {
-		requestID = "request-invalid"
-	}
-	if !isToolName(tool) {
-		tool = ToolServerInfo
-	}
-	return requestID, tool
-}
-
-func encodeCompact(value any) ([]byte, error) {
-	var buffer bytes.Buffer
-	encoder := json.NewEncoder(&buffer)
-	encoder.SetEscapeHTML(false)
-	if err := encoder.Encode(value); err != nil {
-		return nil, err
-	}
-	return bytes.TrimSuffix(buffer.Bytes(), []byte{'\n'}), nil
-}
-
-func publicFailure(code domain.ErrorCode) (ErrorResult, RecoveryGuidance) {
-	type publicContract struct {
-		message         string
-		recoveryAction  string
-		recoveryMessage string
-	}
-	contracts := map[domain.ErrorCode]publicContract{
-		domain.ErrorInvalidArgument:            {"The request does not match the closed Core contract.", "none", "Correct the request before submitting it again."},
-		domain.ErrorNotGitRepository:           {"The requested path is not a Git repository.", "none", "Choose a valid local Git repository."},
-		domain.ErrorTaskNotFound:               {"The task was not found.", "read_task", "Confirm the retained task identity before continuing."},
-		domain.ErrorActiveTaskConflict:         {"The repository already has an incompatible active task.", "cancel_or_finish_active_task", "Finish or cancel the active task before opening another contract."},
-		domain.ErrorHostOwnershipConflict:      {"The task belongs to another host.", "use_origin_host", "Resume the task from its origin host."},
-		domain.ErrorRevisionConflict:           {"The submitted task revision is stale.", "read_task", "Read the authoritative task before another mutation."},
-		domain.ErrorActionStale:                {"The submitted action identity is stale.", "read_next_action", "Read and use the exact persisted next action."},
-		domain.ErrorRepositoryDrift:            {"The repository binding is not permitted for this operation.", "resolve_repository_drift", "Restore the required repository reality before continuing."},
-		domain.ErrorVerificationBudgetExceeded: {"The submitted evidence exceeds the verification budget.", "read_next_action", "Read the current action and remain within its evidence budget."},
-		domain.ErrorTaskBlocked:                {"The task is blocked.", "read_next_action", "Read the persisted blocker-resolution action."},
-		domain.ErrorTaskTerminal:               {"The task is terminal.", "read_task", "Read the retained terminal outcome."},
-		domain.ErrorSchemaUnsupported:          {"The storage schema is unsupported.", "repair_storage", "Use compatible Core storage before continuing."},
-		domain.ErrorStorageUnavailable:         {"Core storage is unavailable.", "repair_storage", "Restore storage availability before continuing."},
-		domain.ErrorInternal:                   {"The Core could not complete the operation.", "report_internal_error", "Report the bounded failure and stop this operation."},
-	}
-	contract, exists := contracts[code]
-	if !exists {
-		code = domain.ErrorInternal
-		contract = contracts[code]
-	}
-	return ErrorResult{Code: code, Message: contract.message}, RecoveryGuidance{
-		RetrySafe: false,
-		Action:    contract.recoveryAction,
-		Message:   contract.recoveryMessage,
-	}
-}
-
-func nonNilSlice[T any](values []T) []T {
-	if values == nil {
-		return []T{}
-	}
-	return values
-}
+func WithinResultEnvelopeLimit(raw []byte) bool { return len(raw) <= domain.MaxResultEnvelopeBytes }

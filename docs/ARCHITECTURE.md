@@ -1,122 +1,154 @@
 # Dev Flow 架构与边界
 
-## 当前实现
+## 当前结构
 
-共享 Go Core 是任务、流程、恢复和终态的唯一权威。Codex package 提供 host-specific 的注册、
-显式 Skill、MCP 声明、launcher/lifecycle 和 bundled runtime；它不持久化 Task，也不复制状态机。
+当前源码使用一个共享 Go Core 和一个薄 Host Adapter。公开传输仍是 local STDIO，MCP
+Contract 0.2 恰好包含六个工具。
 
 ```text
-Codex package
-  Plugin + explicit Skill + local MCP declaration
-                         │ STDIO
-                         ▼
-                    MCP adapter
-                         ▼
-                Application Service
-                    ┌────┴────┐
-                    ▼         ▼
-                 Workflow   Recovery
-                    └────┬────┘
-                         ▼
-                       Domain
-                    ┌────┴────┐
-                    ▼         ▼
-             read-only Git   SQLite
+Host Adapter
+    │ explicit selector / closed payload / read-before-retry
+    ▼
+Six-tool MCP Contract 0.2
+    ▼
+Application Service
+    ▼
+Workflow / standard-development@1
+    ▼
+ProcessTask / TaskIntent / Baselines
+    ▼
+SQLite Schema 2
 ```
 
-CLI、MCP、Codex adapter 和 release tooling 都不能选择 Core 转换、推断完成或创建第二套恢复
-规则。Application 协调用例，Workflow/Recovery/Domain 保持产品语义权威。
+三个旁路组件各有单一职责：
+
+```text
+Read-only Git Repository Observer ──► RepositoryBinding
+Recovery Classifier              ──► five-class Assessment / Blocker
+Codex method-profile renderer    ──► user-visible operations / evidence
+```
+
+Application Service 协调读取、观察、工作流验证和 Store CAS；它不拥有另一套流程语义。
+
+## Go Core 权威
+
+Core 唯一管理：
+
+- Task identity、immutable `TaskIntent` 和 repository claim；
+- process definition/version/digest、current node 和 resume node；
+- node purpose、entry/completion obligations、allowed effects 和 required evidence；
+- 全部 legal transitions、guard、reason rule 和 Core-derived destination；
+- requirements/design/task-plan baseline authority 和 invalidation；
+- current action、revision CAS、evidence 和 verification budget；
+- graph-native recovery classification、blocker 和 resolution；
+- terminal `DONE`/`CANCELLED` outcome。
+
+`internal/workflow/standard_process.go` 定义唯一的 `standard-development@1`。它有 11 个节点、
+29 条正常流转，无 runtime graph parser、registry、DSL 或 compatibility process。精确合同见
+[process-graph.md](../specs/008-refactor-to-development-process-graph/contracts/process-graph.md)。
+
+## Adapter 权威
+
+Codex Adapter 只负责：
+
+- 精确 selector `$dev-flow-codex:dev-flow` 和请求 admission；
+- Core Contract 0.2 handshake 与 capability availability；
+- 将 Core semantic method steps 渲染成 `plain`、`spec-kit` 或 `openspec` 操作；
+- 呈现当前节点、全部合法 transitions 和 developer comprehension request；
+- 转发 closed node-specific payload；
+- 在不确定 mutation 后保留 operation 并 read-before-retry。
+
+Adapter 不保存 Task、current node、transition table、baseline、repository claim 或 recovery
+classification。它不能发明 destination、推断 completion 或把 Host command success 当作 Core
+mutation。
+
+Spec Kit/OpenSpec 是方法工具。它们产生的 spec、plan、tasks、delta 或 archive 可以成为
+repository artifact/evidence，但不成为 Core 的 process cursor，也不是 Go Core 生产依赖。
+
+## 数据模型
+
+Schema 2 的 strict snapshot-v2 持久化一个 `ProcessTask` 聚合，主要 authority 为：
+
+```text
+TaskIntent
+RequirementsBaseline
+DesignBaseline
+TaskPlanBaseline
+ImplementationRecord
+TestRecord
+ComprehensionAssessment
+ProcessOutcome
+```
+
+`TaskIntent` 保留初始授权与 immutable method profile；Requirements、Design 和 TaskPlan 是递增
+revision 的当前 authority。新 requirements 会使 design 及下游失效，新 design 会使 task plan
+及下游失效，repository-changing implementation/refactor 会使 test、comprehension 和 delivery
+readiness 失效。`TEST` 创建 current `TestRecord`，用户确认后才创建 current
+`ComprehensionAssessment`。完整字段和 current-node authority matrix 见
+[data-model.md](../specs/008-refactor-to-development-process-graph/data-model.md)。
+
+## Storage
+
+`internal/store` 只支持：
+
+```text
+SQLite Schema 2
+Snapshot Version 2
+standard-development@1 exact definition digest
+```
+
+Fresh directory 直接 bootstrap Schema 2；不会先创建 Schema 1，也没有 `ALTER TABLE` migration、
+snapshot-v1 decoder、dual projection 或 `legacy-linear`。Store 在暴露写能力前只读验证 schema、
+task row/snapshot、node authority 和 Task/Event/Claim cardinality。Schema 1/pre-graph 数据返回
+`SCHEMA_UNSUPPORTED` 并保持零写入；corrupt current-generation state safe-stop。用户自己选择新
+目录或在 Core 外部处理旧目录，任何 lifecycle 命令都不自动删除。
+
+Task snapshot 是当前状态 authority，TaskEvent 是 append-only audit，不用于普通读取的 event
+replay。正常 mutation 在一个事务中更新 snapshot、event、evidence 和 repository claim，并以
+revision CAS 保证最多一次提交。
+
+## Recovery
+
+`internal/recovery` 接收 Core 生成的 operation identity、当前 Task/LastOperation 和一次只读 Git
+observation，返回五类 Assessment：
+
+```text
+not_started
+completed_and_recorded
+completed_but_unrecorded
+partially_completed
+conflicting
+```
+
+Probe 始终零写入。显式 recovery apply 会重新观察，并且只能按 Core 内部 directive 完成一次
+原 transition，或为 partial/conflicting 创建一个 graph-native `BLOCKED`。Blocker 保存原 source
+作为 resume node，解除后只回到该节点。Adapter 永远不选择分类或 recovery destination。
+
+## Read-only Git
+
+`internal/repository` 只读取 canonical repository identity、branch、HEAD、index/worktree 与
+bounded changed paths。Core 不执行 checkout、reset、clean、stash、commit、merge、rebase、
+push、tag、publish，也不暴露 generic shell。Action 的 `allowed_effects` 约束 Host 可执行的已授权
+工作，不授予 Core 操作系统能力。
 
 ## 源码所有权
 
-```text
-cmd/dev-flow/
-  Core CLI、version、mcp --stdio 与 SQLite lifecycle
+| 路径 | 责任 |
+| --- | --- |
+| `cmd/dev-flow/` | CLI、version、STDIO server lifecycle |
+| `internal/domain/` | ProcessTask、baselines、actions、evidence、outcome、limits |
+| `internal/workflow/` | static process、node/transition、payload/guard/invalidation |
+| `internal/recovery/` | operation reconciliation、assessment、blocker |
+| `internal/repository/` | read-only Git observer |
+| `internal/store/` | Schema 2 bootstrap、strict codec、CAS、events、claims |
+| `internal/application/` | use-case orchestration |
+| `internal/mcp/` | six tools、closed JSON、typed Result Envelope |
+| `packages/codex/` | explicit Adapter、Skill、method rendering、lifecycle/package |
+| `protocol/fixtures/` | historical/current public contract fixtures |
+| `tests/contract/`, `tests/journeys/` | deterministic contract and process evidence |
 
-internal/
-  domain       Task/Contract/Action/Outcome/Core limits
-  workflow     唯一转换表、下一动作与 closed payload
-  recovery     唯一五类恢复与 blocker reconciliation
-  repository   read-only Git observation 与 binding digest
-  store        SQLite migration/snapshot/CAS/repository claim
-  application  Core use-case orchestration
-  mcp          恰好六个工具、strict JSON 与 typed envelope
+## 发布边界
 
-packages/codex/
-  public-package metadata
-  launcher/lifecycle/paths
-  Codex plugin
-  explicit Skill
-  local STDIO MCP declaration
-  bundled runtime staging contract
-  package/release tests
-
-release/
-  schemas
-  bounded testdata
-  operator documentation
-
-scripts/
-  local builder
-  two-worktree release preparation
-  verifier
-  resumable publisher
-  final Journey runner/evidence
-
-packages/deepseek/
-  deferred private skeleton only
-```
-
-仓库仍只有一个根 Go module 和一个 Core 可执行源码根。生产 Go direct dependencies 只有
-`modernc.org/sqlite` 与 `github.com/modelcontextprotocol/go-sdk`；Codex package 没有 production
-Node dependency。
-
-## Core 权威边界
-
-### Workflow 与 Recovery
-
-`internal/workflow` 的显式转换表是阶段、动作、结果和下一阶段的唯一权威；
-`internal/recovery` 是持久任务与新仓库观察之间结构化比较的唯一权威。Codex Skill 只遵循
-Core 返回的 action/payload/result，不把模型文本当成完成或恢复事实。
-
-### Repository 与 Store
-
-Core 只通过固定参数执行有界的只读 Git 命令，不执行 checkout、reset、clean、stash、commit、
-push、merge、rebase 或 tag。SQLite `tasks` snapshot 是当前状态权威；mutation 在单事务中执行
-revision CAS、snapshot、TaskEvent 和 repository claim 更新。
-
-Release Schema 不改变 Core Schema。`release-manifest.json` 与 `publication-record.json` 都不写入
-SQLite；publication record 是可变 operator artifact，也不是 GitHub Release asset。
-
-## Codex adapter 边界
-
-`packages/codex` 的 package manifest 固定为 `dev-flow-codex`、`darwin`/`arm64`、一个 bundled
-Core、一个 Plugin、一个 `dev-flow` Skill 和一个 local STDIO MCP。npm lifecycle inert；只有
-`dev-flow-codex setup`/`remove` 可以修改经 ownership/read-back 证明的 Codex 注册。
-
-Codex adapter 不保存 Task、状态机、repository claim 或 recovery result。Feature 003 的真实
-Codex 验收证明 host journey；Feature 006 的本地 tgz、upgrade 和 retention tests 是确定性 package
-证据，尚不是 public registry evidence。
-
-## Release operator 边界
-
-publisher 是仓库维护者工具，不是 MCP 工具，也不是 Core runtime。它只能在显式 operator 阶段
-针对本仓库创建/复用精确 Tag、GitHub Draft/Release、npm version 与四个 release assets。真实
-mutation 要求 reviewed clean `main`、frozen release directory 和精确 `v<VERSION>` confirmation。
-
-Preparation 使用两个 clean worktree；verifier 核对 normalized package tree、Runtime、Schema、
-source/version/digest 和 forbidden content。publisher 在每次 mutation 前回读远端，npm 至多发布
-一次，冲突时停止；registry package 的 native Journey、四资产回读和全部前置步骤完成后，才允许
-finalize GitHub Release。
-
-PR CI 不持有发布凭证，不调用 publisher，不创建 Tag/Release，不执行 npm publish 或真实 Host
-Journey。fake npm/gh 与 simulated journey 只验证 publisher 控制流，不能产生公开支持证据。
-
-## 当前发布状态
-
-Feature 006 已实现 public package、preparation/verifier、resumable publisher、final Journey 合同、
-finalization gate 与 native-only support matrix，并已通过 T001–T046 确定性门禁。尚无 public npm
-read-back、真实 registry-package Journey、GitHub asset read-back 或公开 Release evidence。
-
-DeepSeek 仍是 deferred skeleton；当前没有 DeepSeek runtime、Skill、Harness journey 或 Release
-evidence，也没有 Linux、Windows 或 Intel Mac 支持声明。
+当前图实现是 source-local、unreleased behavior。已发布 `0.3.0` 历史不变，Feature 008 不修改
+版本、npm、Tag 或 GitHub Release。release schemas、publisher 和远端 artifact 属于维护者 Release
+Change，不进入 Core 或 SQLite，也不能改变当前产品语义。

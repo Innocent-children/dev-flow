@@ -52,6 +52,119 @@ test("Codex 0.147 completed MCP item preserves complete structured/text parity",
   });
 });
 
+test("Contract 0.2 native parser accepts one complete text-only Core result", () => {
+  const envelope = {
+    schema_version: 2,
+    ok: true,
+    request_id: "request-contract-0-2-server-info",
+    tool: "dev_flow_server_info",
+    result: {
+      product: "dev-flow",
+      version: "0.3.0",
+      schema_version: 2,
+      core_limits_version: "0.2",
+      tools: DEV_FLOW_TOOLS,
+    },
+  };
+  const parsed = parseCodexJSONL([
+    JSON.stringify({ type: "thread.started", thread_id: "thread-contract-0-2-text-only" }),
+    JSON.stringify({
+      type: "item.completed",
+      item: {
+        id: "item-contract-0-2-server-info",
+        type: "mcp_tool_call",
+        server: "dev-flow",
+        tool: "dev_flow_server_info",
+        arguments: {},
+        status: "completed",
+        error: null,
+        result: { content: [{ type: "text", text: JSON.stringify(envelope) }] },
+      },
+    }),
+  ].join("\n"));
+  assert.equal(parsed.calls[0].structuredContent.schema_version, 2);
+  assert.deepEqual(parsed.calls[0].arguments, {});
+});
+
+test("Contract 0.2 RequestBinding uses caller operation identity for success and domain error", () => {
+  const callerRequestID = "request-contract-0-2-apply";
+  const arguments_ = { request_id: callerRequestID, task_id: "task-contract-0-2" };
+  const successEnvelope = {
+    schema_version: 2,
+    ok: true,
+    request_id: callerRequestID,
+    tool: "dev_flow_apply_action",
+    result: {
+      task_id: "task-contract-0-2",
+      last_operation: { operation_id: callerRequestID },
+    },
+  };
+  const success = parseCodexJSONL(encodeJSONL([
+    { type: "thread.started", thread_id: "thread-contract-0-2-success" },
+    {
+      type: "item.completed",
+      item: {
+        id: "item-contract-0-2-success",
+        type: "mcp_tool_call",
+        server: "dev-flow",
+        tool: "dev_flow_apply_action",
+        arguments: arguments_,
+        status: "completed",
+        error: null,
+        result: { content: [{ type: "text", text: JSON.stringify(successEnvelope) }] },
+      },
+    },
+  ]));
+  assert.equal(success.calls[0].requestBinding, "matched");
+  assert.equal(success.calls[0].structuredContent.result.last_operation.operation_id, callerRequestID);
+
+  const errorEnvelope = {
+    schema_version: 2,
+    ok: false,
+    request_id: callerRequestID,
+    tool: "dev_flow_apply_action",
+    error: { code: "INVALID_ARGUMENT", message: "The request does not match the closed Core contract." },
+    recovery: { retry_safe: false, action: "none", message: "Correct the request before submitting it again." },
+  };
+  const domainError = parseCodexJSONL(encodeJSONL([
+    { type: "thread.started", thread_id: "thread-contract-0-2-error" },
+    {
+      type: "item.completed",
+      item: {
+        id: "item-contract-0-2-error",
+        type: "mcp_tool_call",
+        server: "dev-flow",
+        tool: "dev_flow_apply_action",
+        arguments: arguments_,
+        status: "failed",
+        error: null,
+        result: { content: [{ type: "text", text: JSON.stringify(errorEnvelope) }] },
+      },
+    },
+  ]));
+  assert.equal(domainError.calls[0].requestBinding, "matched");
+  assert.equal(domainError.calls[0].shape, "core_domain_error");
+
+  const transport = parseCodexJSONL(encodeJSONL([
+    { type: "thread.started", thread_id: "thread-contract-0-2-transport" },
+    {
+      type: "item.completed",
+      item: {
+        id: "item-contract-0-2-transport",
+        type: "mcp_tool_call",
+        server: "dev-flow",
+        tool: "dev_flow_apply_action",
+        arguments: arguments_,
+        status: "failed",
+        error: { message: "transport ended before a complete Core result" },
+        result: null,
+      },
+    },
+  ]));
+  assert.equal(transport.calls[0].shape, "transport_error");
+  assert.equal(transport.calls[0].requestId, callerRequestID);
+});
+
 test("Codex 0.147 failed MCP item with a complete Core result remains a domain error", async () => {
   const parsed = await parseCodexFixtureFile(
     fixtures.coreDomainError.path,
@@ -411,6 +524,7 @@ test("HIGH-3 failed event binding: authority remains attached to one session ite
     item_id: "item-redacted-core-error",
     tool: "dev_flow_apply_action",
     request_id: "request-redacted-core-error",
+    arguments: parsed.calls[0].arguments,
     status: "failed",
     classification: "core-domain-error",
     core_result: parsed.calls[0].structuredContent,
@@ -422,15 +536,17 @@ test("HIGH-3 failed event binding: authority remains attached to one session ite
   const crossItemResult = structuredClone(domainError);
   crossItemResult[1].item.id = "item-redacted-a";
   crossItemResult[1].item.arguments.request_id = "request-redacted-a";
-  const crossItemParsed = parseCodexJSONL(encodeJSONL(crossItemResult));
-  assert.equal(crossItemParsed.calls[0].requestBinding, "mismatched");
+  assert.throws(
+    () => parseCodexJSONL(encodeJSONL(crossItemResult)),
+    /request_id does not match/u,
+  );
   const crossItemFailure = await captureSessionFailure({
     exitCode: 0,
     stdout: encodeJSONL(crossItemResult),
     stderr: "",
   });
-  assert.equal(crossItemFailure.classification, "core-domain-error");
-  assert.equal(crossItemFailure.requestBinding, "mismatched");
+  assert.equal(crossItemFailure.classification, "parser-error");
+  assert.equal(crossItemFailure.requestBinding, null);
   assert.equal(crossItemFailure.acceptance, "failed");
   const toolMismatch = mutateEnvelope(domainError, (envelope) => {
     envelope.tool = "dev_flow_get_task";

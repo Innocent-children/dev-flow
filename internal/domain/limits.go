@@ -3,7 +3,7 @@ package domain
 import "time"
 
 // CoreLimitsVersion identifies the fixed limits contract implemented by this package.
-const CoreLimitsVersion = "0.1"
+const CoreLimitsVersion = "0.2"
 
 const (
 	MaxRepositoryPathBytes            = 4_096
@@ -33,6 +33,14 @@ const (
 	MaxResultEnvelopeOverheadBytes    = 131_072
 	MaxResultEnvelopeBytes            = 1_048_576
 	MaxPersistedTaskSnapshotBytes     = 1_048_576
+	MaxRetainedBaselineReferences     = 32
+	MaxArtifactReferencesPerAction    = 16
+	MaxMethodEvidencePerAction        = 16
+	MaxWorkItemsPerTaskPlan           = 64
+	MaxDependenciesPerWorkItem        = 64
+	MaxExplainedComponents            = 64
+	MaxStandardProcessTransitions     = 64
+	MaxStandardProcessNodes           = 16
 	MaxFingerprintPaths               = 1_024
 	MaxGitCommandOutputBytes          = 1_048_576
 	MaxAutomaticVerificationCommands  = 20

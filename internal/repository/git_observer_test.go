@@ -147,6 +147,9 @@ func TestGitObserverFingerprintsTrackedAndUntrackedChanges(t *testing.T) {
 		t.Fatal("tracked worktree change did not change the fingerprint")
 	}
 	assertStableRepositoryIdentity(t, clean, dirtyTracked)
+	if !equalStrings(dirtyTracked.ChangedPaths, []string{"tracked.txt"}) {
+		t.Fatalf("tracked changed paths=%v", dirtyTracked.ChangedPaths)
+	}
 	requireRepositoryRelation(t, clean, dirtyTracked, corerecovery.RepositoryWorktreeOnlyChanged)
 
 	writeTestFile(t, trackedPath, "initial content\n")
@@ -169,6 +172,9 @@ func TestGitObserverFingerprintsTrackedAndUntrackedChanges(t *testing.T) {
 		t.Fatal("tracked and untracked observations unexpectedly have the same fingerprint")
 	}
 	assertStableRepositoryIdentity(t, clean, dirtyUntracked)
+	if !equalStrings(dirtyUntracked.ChangedPaths, []string{"untracked.txt"}) {
+		t.Fatalf("untracked changed paths=%v", dirtyUntracked.ChangedPaths)
+	}
 	requireRepositoryRelation(t, clean, dirtyUntracked, corerecovery.RepositoryWorktreeOnlyChanged)
 	if err := os.Remove(filepath.Join(repositoryPath, "untracked.txt")); err != nil {
 		t.Fatalf("remove untracked fixture: %v", err)
@@ -324,7 +330,7 @@ func TestPorcelainPathLimitIsEnforcedBeforeContentHashing(t *testing.T) {
 	}
 }
 
-func TestGitObserverBindingDoesNotExposeRawStatusOrContent(t *testing.T) {
+func TestGitObserverBindingExposesOnlyStructuredChangedPathWithoutStatusOrContent(t *testing.T) {
 	repositoryPath := newCommittedRepository(t, "no-raw-content")
 	const rawContent = "private source bytes that must never leave the observer 7b58d79d"
 	const rawPath = "private source 名称.txt"
@@ -335,9 +341,9 @@ func TestGitObserverBindingDoesNotExposeRawStatusOrContent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encode binding: %v", err)
 	}
-	if bytes.Contains(encoded, []byte(rawContent)) || bytes.Contains(encoded, []byte(rawPath)) ||
-		bytes.Contains(encoded, []byte("? "+rawPath)) {
-		t.Fatalf("binding exposed raw status, path, or content: %s", encoded)
+	if bytes.Contains(encoded, []byte(rawContent)) || bytes.Contains(encoded, []byte("? "+rawPath)) ||
+		!bytes.Contains(encoded, []byte(`"changed_paths":["`+rawPath+`"]`)) {
+		t.Fatalf("binding did not retain the bounded path-only observation: %s", encoded)
 	}
 }
 

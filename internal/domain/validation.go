@@ -165,14 +165,6 @@ func cloneIDPointer(value *ID) *ID {
 	return &copy
 }
 
-func clonePhasePointer(value *Phase) *Phase {
-	if value == nil {
-		return nil
-	}
-	copy := *value
-	return &copy
-}
-
 func cloneTimePointer(value *time.Time) *time.Time {
 	if value == nil {
 		return nil
