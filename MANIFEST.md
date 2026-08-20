@@ -58,6 +58,7 @@ authority is distributed as follows:
 | Core Contract 0.2 six-tool schemas and projections | `internal/mcp/` |
 | Explicit Codex Adapter and current Skill | `packages/codex/plugin/skills/dev-flow/SKILL.md` |
 | Method-profile rendering reference | `packages/codex/plugin/skills/dev-flow/references/method-profiles.md` |
+| Schema-bound Codex node-payload construction reference | `packages/codex/plugin/skills/dev-flow/references/node-payloads.md` |
 | Historical/current/Host parity/Recovery fixtures | `protocol/fixtures/` |
 | Deterministic contract and Journey evidence | `tests/contract/`, `tests/journeys/` |
 | Feature scope, contracts and checkpoints | `specs/008-refactor-to-development-process-graph/` |

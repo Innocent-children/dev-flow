@@ -69,6 +69,7 @@ const expectedFiles = [
   "plugin/skills/dev-flow/SKILL.md",
   "plugin/skills/dev-flow/agents/openai.yaml",
   "plugin/skills/dev-flow/references/method-profiles.md",
+  "plugin/skills/dev-flow/references/node-payloads.md",
   "tests/fake-core-contract.test.mjs",
   "tests/fixtures/fake-codex.mjs",
   "tests/fixtures/fake-core.mjs",
@@ -164,6 +165,7 @@ const codexFinalStagingFiles = [
   "plugin/skills/dev-flow/SKILL.md",
   "plugin/skills/dev-flow/agents/openai.yaml",
   "plugin/skills/dev-flow/references/method-profiles.md",
+  "plugin/skills/dev-flow/references/node-payloads.md",
   "runtime/darwin-arm64/dev-flow",
 ].sort();
 const expectedByProfile = {

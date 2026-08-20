@@ -29,6 +29,7 @@ const expectedPackageFiles = [
   "plugin/skills/dev-flow/SKILL.md",
   "plugin/skills/dev-flow/agents/openai.yaml",
   "plugin/skills/dev-flow/references/method-profiles.md",
+  "plugin/skills/dev-flow/references/node-payloads.md",
   "runtime/darwin-arm64/dev-flow",
 ];
 
@@ -45,6 +46,7 @@ const expectedPackedFiles = [
   "plugin/skills/dev-flow/SKILL.md",
   "plugin/skills/dev-flow/agents/openai.yaml",
   "plugin/skills/dev-flow/references/method-profiles.md",
+  "plugin/skills/dev-flow/references/node-payloads.md",
   "runtime/darwin-arm64/dev-flow",
 ].sort();
 
@@ -61,6 +63,7 @@ const reviewedSourceAllowlist = new Set([
   "plugin/skills/dev-flow/SKILL.md",
   "plugin/skills/dev-flow/agents/openai.yaml",
   "plugin/skills/dev-flow/references/method-profiles.md",
+  "plugin/skills/dev-flow/references/node-payloads.md",
   "tests/fake-core-contract.test.mjs",
   "tests/fixtures/fake-codex.mjs",
   "tests/fixtures/fake-core.mjs",
@@ -140,6 +143,7 @@ test("package metadata closes source, artifact, and development command surfaces
   const manifest = await readJSON(join(packageRoot, "package.json"));
   assert.deepEqual([...manifest.files].sort(), [...expectedPackageFiles].sort());
   assert.equal(manifest.files.includes("plugin/skills/dev-flow/references/method-profiles.md"), true);
+  assert.equal(manifest.files.includes("plugin/skills/dev-flow/references/node-payloads.md"), true);
   assert.equal(manifest.files.some((path) => /[*?[\]{}]/u.test(path)), false);
   assert.deepEqual(manifest.bin, { "dev-flow-codex": "bin/dev-flow-codex.mjs" });
   assert.deepEqual(manifest.scripts, {
@@ -195,6 +199,20 @@ test("method-profile reference is one closed dependency-free packaged resource",
   assert.doesNotMatch(reference, /(?:^|\s)(?:\/Users\/|\/home\/|[A-Za-z]:\\\\)/u);
   assert.doesNotMatch(reference, /(?:node_modules|tests?\/fixtures?|\.tmp|\.sqlite|\.db)(?:\/|\b)/iu);
   assert.doesNotMatch(reference, /(?:process\.env|environment variable|token log|command log)/iu);
+});
+
+test("node-payload reference is one explicit closed packaged resource", async () => {
+  const manifest = await readJSON(join(packageRoot, "package.json"));
+  const referencePath = "plugin/skills/dev-flow/references/node-payloads.md";
+  const reference = await readFile(join(packageRoot, referencePath), "utf8");
+  assert.equal(manifest.files.filter((path) => path === referencePath).length, 1);
+  assert.equal((await stat(join(packageRoot, referencePath))).isFile(), true);
+  assert.match(reference, /node-payload-template:requirements:start/u);
+  assert.match(reference, /node-payload-template:blocked:start/u);
+  assert.match(reference, /`repository_observation` is a Core evidence requirement/u);
+  assert.match(reference, /Never submit `destination`, `next_node`/u);
+  assert.doesNotMatch(reference, /(?:^|\s)(?:\/Users\/|\/home\/|[A-Za-z]:\\\\)/u);
+  assert.doesNotMatch(reference, /(?:node_modules|tests?\/fixtures?|\.tmp|\.sqlite|\.db)(?:\/|\b)/iu);
 });
 
 test("npm compatibility metadata rejects an unsupported OS and CPU", async () => {

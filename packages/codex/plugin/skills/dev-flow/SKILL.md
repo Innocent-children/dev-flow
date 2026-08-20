@@ -196,11 +196,39 @@ Never submit a transition absent from the fresh Action and never maintain a copi
 Use the same `fresh_action` already bound from `result.task.current_action` or `result.action`; do
 not construct another Action view.
 
-Use `fresh_action.payload_contract`, `fresh_action.action_kind`, and `fresh_action.current_node` to
-identify the one closed node payload branch. Read the supplied `dev_flow_apply_action` `inputSchema`:
-under `allOf`, choose the `oneOf` branch whose `action_kind.const` matches, resolve its payload `$ref`
-through the same schema's `$defs`, and send exactly its `required` members. If the branch cannot be
-identified and read, stop before `dev_flow_apply_action`.
+Read [the node payload construction reference](references/node-payloads.md) from the packaged path
+`references/node-payloads.md` before every ordinary apply. The reference is construction guidance;
+the fresh Action, live `dev_flow_apply_action` `inputSchema`, and Core remain authoritative.
+
+Before calling `dev_flow_apply_action`, perform this order exactly:
+
+`fresh_action.payload_contract` identifies the payload branch that must agree with the live schema
+and packaged template.
+
+1. Rebind the complete `fresh_action` and read its `action_kind`, `current_node`, `payload_contract`,
+   `method_steps`, and all `available_transitions`.
+2. Read the live `dev_flow_apply_action` `inputSchema`; under `allOf`, choose the `oneOf` payload
+   branch whose `action_kind.const` matches the current action kind and source node.
+3. Open the corresponding marked template in `references/node-payloads.md`.
+4. Preserve the template's complete common envelope and `node_result` wrapper; replace only dynamic
+   values with facts from the current Task, Action, user decision, repository work, and actual check.
+5. Use current baseline revisions, work-item IDs, record IDs, acceptance, and evidence sets; never
+   guess or reuse stale values.
+6. Confirm all six common payload members exist and no seventh member exists.
+7. Confirm every branch-specific required `node_result` key exists and arrays remain arrays.
+8. Confirm every ArtifactReference role belongs to the live closed enum. Never convert a
+   `required_evidence` kind such as `repository_observation` into an artifact role. Use
+   `"artifacts": []` when no real repository-relative process artifact exists.
+9. Confirm MethodEvidence exactly matches current Action steps in ID, order, and count. Completed
+   `plain` work uses `plain_fallback` with an empty capability.
+10. Confirm the selected transition is present in the fresh Action and its reason rule matches.
+11. Confirm `destination`, `next_node`, `next_cursor`, caller classification, repository facts,
+    payload digest, raw output, and unknown members are absent.
+12. Map the mutation top-level identity from that same fresh Action.
+13. Retain the exact request and call `dev_flow_apply_action` once.
+
+If the live schema and packaged reference disagree, stop before mutation and report the packaging
+contract defect. Do not choose whichever shape appears more convenient.
 
 Do not derive payload keys from `required_evidence`. Do not search the repository or installed
 package, inspect a binary or log, or start another MCP server to recover a schema. The selected
@@ -245,6 +273,11 @@ apply_arguments = {
 `revision` remains an integer, not a string. `payload` remains an object, not a string. Do not wrap
 that request inside an outer `payload` object. For an ordinary mutation, omit `recovery_apply` or
 send `recovery_apply=null`.
+
+If Core returns `INVALID_ARGUMENT`, treat it as a complete payload-contract rejection. Stop the
+current mutation, report the failing action/payload contract without private data, and do not delete
+fields, submit a second candidate payload for the same Action, automatically retry, or treat the
+result as transport uncertainty.
 
 ## Comprehension user interaction
 

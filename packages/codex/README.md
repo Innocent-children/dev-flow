@@ -43,6 +43,7 @@ plugin/.mcp.json
 plugin/skills/dev-flow/SKILL.md
 plugin/skills/dev-flow/agents/openai.yaml
 plugin/skills/dev-flow/references/method-profiles.md
+plugin/skills/dev-flow/references/node-payloads.md
 runtime/darwin-arm64/dev-flow
 ```
 
@@ -162,6 +163,23 @@ setup/update/remove/uninstall 均保留 Core task data 和未知相邻文件，�
 Git。remove 应先证明 plugin/marketplace absence，再单独执行 package-manager uninstall。重新安装
 兼容的 graph artifact 可以从同一 Schema 2 数据目录恢复任务；没有任何 Schema 1 reader 或
 conversion path。
+
+## Closed node payload construction
+
+打包 Skill 在每次普通 apply 前同时读取 live Action、`dev_flow_apply_action` `inputSchema` 和
+`plugin/skills/dev-flow/references/node-payloads.md` 的对应标记模板。该 reference 覆盖
+REQUIREMENTS、DESIGN、TASKS、IMPLEMENT、TEST、COMPREHENSION_REVIEW 的复杂度/通过分支、
+REFACTOR、DELIVERY 和 BLOCKED resolution，并由真实 MCP validator、workflow decoder 和 payload
+validator 提取验证。它只提供构造指引，不保存游标、复制 transition authority 或替代 Core。
+
+`required_evidence` 与 ArtifactReference role 不同；`repository_observation` 不得作为 artifact
+role。无真实 process artifact 时使用空 `artifacts`，同时保留完整 branch wrapper、当前 baseline/
+record/evidence identity 和精确 MethodEvidence。Core `INVALID_ARGUMENT` 会停止该 mutation，不会
+触发候选 payload 试探或自动重试。
+
+对于 apply/cancel，Result Envelope `request_id` 与 caller mutation `request_id` 相同，并与成功
+提交后的 `LastOperation.operation_id`/TaskEvent identity 对齐。没有 caller request ID 的 read/open/
+info 工具继续使用 Core 生成的本地 transport identity。
 
 ## Deterministic validation
 

@@ -146,7 +146,8 @@ plugin/.codex-plugin/plugin.json
 plugin/.mcp.json
 plugin/skills/dev-flow/SKILL.md
 plugin/skills/dev-flow/agents/openai.yaml
-plugin/skills/dev-flow/references/method-profiles.md'
+plugin/skills/dev-flow/references/method-profiles.md
+plugin/skills/dev-flow/references/node-payloads.md'
 
 printf '%s\n' "$production_files" | while IFS= read -r relative_path; do
   [ -n "$relative_path" ] || continue
@@ -200,6 +201,7 @@ const expected = [
   "plugin/skills/dev-flow/SKILL.md",
   "plugin/skills/dev-flow/agents/openai.yaml",
   "plugin/skills/dev-flow/references/method-profiles.md",
+  "plugin/skills/dev-flow/references/node-payloads.md",
   "runtime/darwin-arm64/dev-flow",
 ].sort();
 if (report.name !== "dev-flow-codex" || JSON.stringify(actual) !== JSON.stringify(expected)) {

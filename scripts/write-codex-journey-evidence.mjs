@@ -87,6 +87,7 @@ const FINAL_LOCAL_PACKAGE_FILES = Object.freeze([
   "plugin/skills/dev-flow/SKILL.md",
   "plugin/skills/dev-flow/agents/openai.yaml",
   "plugin/skills/dev-flow/references/method-profiles.md",
+  "plugin/skills/dev-flow/references/node-payloads.md",
   "runtime/darwin-arm64/dev-flow",
 ]);
 const FINAL_LOCAL_EVIDENCE_FIELDS = Object.freeze([
@@ -1855,7 +1856,10 @@ function successfulCalls(session, tool) {
 }
 
 function taskFromCall(call) {
-  return call?.core_result?.result?.task ?? null;
+  const result = call?.core_result?.result;
+  if (isPlainObject(result?.task)) return result.task;
+  if (isPlainObject(result) && typeof result.task_id === "string" && typeof result.current_cursor === "string") return result;
+  return null;
 }
 
 function lastTask(calls) {

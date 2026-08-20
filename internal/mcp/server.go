@@ -56,57 +56,73 @@ func NewServer(service *application.Service, version string, options *ServerOpti
 }
 func (s *Server) Run(ctx context.Context, t sdk.Transport) error { return s.sdk.Run(ctx, t) }
 func (s *Server) dispatch(ctx context.Context, tool string, id domain.ID, raw []byte) EncodedResult {
+	resultID := resultEnvelopeRequestID(tool, raw, id)
 	if err := ValidateToolInput(tool, raw); err != nil {
-		return EncodeError(string(id), tool, err)
+		return EncodeError(string(resultID), tool, err)
 	}
 	switch tool {
 	case ToolServerInfo:
 		d := workflow.StandardProcess()
 		process := SupportedProcessResult{ProcessID: d.Reference.ID, ProcessVersion: d.Reference.Version, DefinitionDigest: d.Reference.DefinitionDigest, NewTaskSupported: true}
-		return EncodeSuccess(string(id), tool, ServerInfoResult{Product: "dev-flow", Version: s.version, SchemaVersion: 2, CoreLimitsVersion: domain.CoreLimitsVersion, Transport: "stdio", Health: "ready", SupportedProcesses: []SupportedProcessResult{process}, SupportedHosts: []string{"codex", "deepseek"}, MethodProfiles: []domain.MethodProfile{domain.MethodPlain, domain.MethodSpecKit, domain.MethodOpenSpec}, Tools: ToolNames()})
+		return EncodeSuccess(string(resultID), tool, ServerInfoResult{Product: "dev-flow", Version: s.version, SchemaVersion: 2, CoreLimitsVersion: domain.CoreLimitsVersion, Transport: "stdio", Health: "ready", SupportedProcesses: []SupportedProcessResult{process}, SupportedHosts: []string{"codex", "deepseek"}, MethodProfiles: []domain.MethodProfile{domain.MethodPlain, domain.MethodSpecKit, domain.MethodOpenSpec}, Tools: ToolNames()})
 	case ToolOpenTask:
 		var w openWire
 		_ = decodeClosed(raw, &w)
 		r, err := s.application.OpenTask(ctx, toOpen(w, id))
 		if err != nil {
-			return EncodeError(string(id), tool, err)
+			return EncodeError(string(resultID), tool, err)
 		}
-		return EncodeSuccess(string(id), tool, map[string]any{"created": r.Created, "task": projectTask(r.Task), "recovery_assessment": nil})
+		return EncodeSuccess(string(resultID), tool, map[string]any{"created": r.Created, "task": projectTask(r.Task), "recovery_assessment": nil})
 	case ToolGetTask:
 		var w readWire
 		_ = decodeClosed(raw, &w)
 		r, err := s.application.GetTask(ctx, application.GetTaskRequest{Host: w.Host, TaskID: w.TaskID, OperationProbe: toProbe(w.OperationProbe)})
 		if err != nil {
-			return EncodeError(string(id), tool, err)
+			return EncodeError(string(resultID), tool, err)
 		}
-		return EncodeSuccess(string(id), tool, map[string]any{"task": projectTask(r.Task), "recovery_assessment": projectRecoveryAssessment(r.RecoveryAssessment)})
+		return EncodeSuccess(string(resultID), tool, map[string]any{"task": projectTask(r.Task), "recovery_assessment": projectRecoveryAssessment(r.RecoveryAssessment)})
 	case ToolGetNextAction:
 		var w readWire
 		_ = decodeClosed(raw, &w)
 		r, err := s.application.GetNextAction(ctx, application.GetNextActionRequest{Host: w.Host, TaskID: w.TaskID, OperationProbe: toProbe(w.OperationProbe)})
 		if err != nil {
-			return EncodeError(string(id), tool, err)
+			return EncodeError(string(resultID), tool, err)
 		}
-		return EncodeSuccess(string(id), tool, projectNextAction(r))
+		return EncodeSuccess(string(resultID), tool, projectNextAction(r))
 	case ToolApplyAction:
 		var w applyWire
 		_ = decodeClosed(raw, &w)
 		r, err := s.application.ApplyAction(ctx, application.ApplyActionRequest{RequestID: w.RequestID, Host: w.Host, TaskID: w.TaskID, ExpectedRevision: w.Revision, ActionID: w.ActionID, ActionKind: w.ActionKind, ProcessID: w.ProcessID, ProcessVersion: w.ProcessVersion, ProcessDefinitionDigest: w.ProcessDefinitionDigest, SourceCursor: w.SourceCursor, RepositoryBindingDigest: w.RepositoryBindingDigest, Payload: w.Payload, RecoveryApply: toRecoveryApply(w.RecoveryApply)})
 		if err != nil {
-			return EncodeError(string(id), tool, err)
+			return EncodeError(string(resultID), tool, err)
 		}
-		return EncodeSuccess(string(id), tool, projectTask(r.Task))
+		return EncodeSuccess(string(resultID), tool, projectTask(r.Task))
 	case ToolCancelTask:
 		var w cancelWire
 		_ = decodeClosed(raw, &w)
 		r, err := s.application.CancelTask(ctx, application.CancelTaskRequest{RequestID: w.RequestID, Host: w.Host, TaskID: w.TaskID, ExpectedRevision: w.Revision, Reason: w.Reason})
 		if err != nil {
-			return EncodeError(string(id), tool, err)
+			return EncodeError(string(resultID), tool, err)
 		}
-		return EncodeSuccess(string(id), tool, projectTask(r.Task))
+		return EncodeSuccess(string(resultID), tool, projectTask(r.Task))
 	default:
-		return EncodeError(string(id), tool, domain.ErrInvalidArgument)
+		return EncodeError(string(resultID), tool, domain.ErrInvalidArgument)
 	}
+}
+
+func resultEnvelopeRequestID(tool string, raw []byte, generated domain.ID) domain.ID {
+	if tool != ToolApplyAction && tool != ToolCancelTask || !generated.IsValid() || rejectDuplicateMembers(raw) != nil {
+		return generated
+	}
+	var object map[string]json.RawMessage
+	if json.Unmarshal(raw, &object) != nil {
+		return generated
+	}
+	var caller domain.ID
+	if json.Unmarshal(object["request_id"], &caller) != nil || !caller.IsValid() {
+		return generated
+	}
+	return caller
 }
 func randomRequestID() (domain.ID, error) {
 	var b [16]byte

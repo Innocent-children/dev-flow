@@ -493,6 +493,7 @@ packages/codex/
 ├── package.json
 ├── plugin/skills/dev-flow/SKILL.md
 ├── plugin/skills/dev-flow/references/method-profiles.md
+├── plugin/skills/dev-flow/references/node-payloads.md
 └── tests/
 ```
 
@@ -511,17 +512,17 @@ and direct dispatch because only one process implementation exists.
 | Phase 5D hardening | Focused domain/workflow/application/store/MCP/contract/journey tests, affected-package tests, then one repository validation | Phase 6–8 work, native journey, release |
 | User Story 3 | Codex Skill/method-profile static and package-local tests | Real OpenSpec/Spec Kit installation matrix |
 | User Story 4 | Fresh bootstrap, Schema 1 zero-write rejection, current recovery/concurrency, shared fixture tests | Old-task continuation, old-binary matrix, public release |
-| Final | `pnpm run validate` exactly once; one successful local-artifact real Codex Journey with failed attempt 1 retained and explicitly authorized final attempt 2 | npm publish, Tag/Release, Linux/Windows/Intel/DeepSeek journeys |
+| Final | `pnpm run validate` exactly once after T092; one successful local-artifact real Codex Journey is still required, with failed attempts 1/2 retained and attempt 3 not authorized | npm publish, Tag/Release, Linux/Windows/Intel/DeepSeek journeys |
 
 Approved maxima after the explicit Phase 5D audit amendment:
 
 - repository-wide validation: **1** Phase 5D invocation and **1** later Phase 8 final invocation;
 - a failed Phase 5D invocation may be followed by one final confirming invocation only after a
   concrete defect is fixed and targeted checks pass;
-- real Codex journey: **1 successful** final local-artifact Journey. Attempt 1 failed before its first
-  mutation because the Harness submitted an invalid Contract 0.2 payload; its evidence is retained.
-  The user explicitly authorized one corrected attempt 2 after deterministic preflight. Total
-  attempts are capped at **2**, and attempt 3 is forbidden;
+- real Codex journey: **1 successful** final local-artifact Journey remains required. Attempt 1
+  failed before its first mutation, and attempt 2 committed REQUIREMENTS before an invalid DESIGN
+  payload; both evidence sets are retained. Attempt 3 is not authorized and requires a new explicit
+  user decision before any further `codex exec`;
 - released-0.3.0 old-binary or legacy-task observation: **0**;
 - real Spec Kit/OpenSpec command matrix: **0** for this Feature; adapter contracts use capability
   fixtures and one profile example in the final Codex journey;

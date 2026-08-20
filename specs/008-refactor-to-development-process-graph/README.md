@@ -171,20 +171,22 @@ payload did not match the closed Contract 0.2 branch: a required-evidence kind w
 ArtifactReference role and the required `node_result` wrapper was flattened. Core correctly returned
 `INVALID_ARGUMENT`; no product mutation passed, and the external failure evidence remains retained.
 
-Native attempt 2 is explicitly authorized by the user after deterministic payload-matrix correction,
-full launch preflight, a clean harness-fix commit, and passing CI. Successful native acceptance
-evidence may come only from attempt 2. The bounded execution record is:
+Native attempt 2 was explicitly authorized after deterministic payload-matrix correction and passed
+its launch preflight. `requirements_ready` committed once, then the DESIGN payload omitted
+`requirements_revision` and `complexity_justification` and added the unknown `complexity` member.
+Core correctly returned `INVALID_ARGUMENT`; external failure evidence remains retained.
 
 ```text
-total native attempts allowed: 2
 attempt 1: failed and permanently retained
-attempt 2: final explicitly authorized attempt
+attempt 2: failed and permanently retained
 successful native Journey required: 1
-attempt 3: forbidden
+attempt 3: not authorized
+Feature 008: incomplete
 ```
 
-This is an acceptance-execution budget exception only. It adds no product behavior, requirement,
-node, transition, recovery class, platform, release authority, or Success Criterion.
+The corrective Phase 9 work hardens packaged node-payload construction and request binding and
+prepares a new source-local artifact. It does not authorize attempt 3, add product graph behavior,
+or satisfy T092.
 
 ## Release Boundary
 

@@ -298,6 +298,36 @@ test("method-profile reference closes all 24 rendering steps without owning Core
   });
 });
 
+test("node-payload reference makes every closed branch operational without owning Core state", async () => {
+  const referencePath = join(pluginRoot, "skills", "dev-flow", "references", "node-payloads.md");
+  const reference = await readFile(referencePath, "utf8");
+  for (const name of [
+    "requirements", "design", "tasks", "implement", "test", "comprehension-complexity",
+    "comprehension-passed", "refactor", "delivery", "blocked",
+  ]) {
+    const pattern = new RegExp(`<!-- node-payload-template:${name}:start -->\\n\`\`\`json\\n([\\s\\S]*?)\\n\`\`\`\\n<!-- node-payload-template:${name}:end -->`, "u");
+    const template = pattern.exec(reference);
+    assert.notEqual(template, null, name);
+    assert.doesNotThrow(() => JSON.parse(template[1]), name);
+  }
+  assert.match(reference, /`repository_observation` is a Core evidence requirement, not an ArtifactReference role/u);
+  assert.match(reference, /Allowed ArtifactReference roles are only/u);
+  assert.match(reference, /exactly the six common/u);
+  assert.match(reference, /Never submit `destination`, `next_node`/u);
+  assert.match(reference, /INVALID_ARGUMENT[\s\S]*stop/u);
+
+  const skill = await readFile(skillPath, "utf8");
+  const forwarding = section(skill, "Closed forwarding contract");
+  assert.match(forwarding, /`references\/node-payloads\.md`/u);
+  assert.match(forwarding, /fresh Action, live `dev_flow_apply_action` `inputSchema`, and Core remain authoritative/u);
+  assert.match(forwarding, /all six common payload members/u);
+  assert.match(forwarding, /branch-specific required `node_result` key/u);
+  assert.match(forwarding, /Never convert a[\s\S]*`required_evidence`[\s\S]*`repository_observation`[\s\S]*artifact role/u);
+  assert.match(forwarding, /MethodEvidence exactly matches current Action steps/u);
+  assert.match(forwarding, /`destination`, `next_node`, `next_cursor`/u);
+  assert.match(forwarding, /Core returns `INVALID_ARGUMENT`[\s\S]*do not[\s\S]*second candidate payload/u);
+});
+
 test("Skill selects one immutable profile and renders complete honest method evidence", async () => {
   const skill = await readFile(skillPath, "utf8");
   const discovery = section(skill, "Task discovery");
@@ -473,7 +503,7 @@ test("Skill uses payload_contract as the apply schema discriminator", async () =
   const forwarding = section(await readFile(skillPath, "utf8"), "Closed forwarding contract");
   assert.match(forwarding, /`(?:fresh_action\.)?payload_contract`[\s\S]*payload branch/i);
   assert.match(forwarding, /`inputSchema`[\s\S]*`allOf`[\s\S]*`oneOf`[\s\S]*`action_kind\.const`/i);
-  assert.match(forwarding, /payload `\$ref`[\s\S]*`\$defs`[\s\S]*`required`/i);
+  assert.match(forwarding, /`references\/node-payloads\.md`[\s\S]*complete common envelope[\s\S]*branch-specific required `node_result`/i);
   assert.match(forwarding, /do not search[\s\S]*(?:repository|installed package)[\s\S]*(?:binary|log)[\s\S]*another MCP server/i);
   assert.match(forwarding, /(?:do not|never)[\s\S]{0,80}(?:derive|treat)[\s\S]{0,80}payload (?:field|key|member)s?[\s\S]{0,80}`required_evidence`|`required_evidence`[\s\S]{0,80}(?:not|never)[\s\S]{0,80}payload (?:field|key|member)/i);
   assert.match(forwarding, /top-level[\s\S]*`request_id`[\s\S]*`process_id`[\s\S]*`source_cursor`[\s\S]*`repository_binding_digest`/i);
@@ -490,7 +520,7 @@ test("Skill uses payload_contract as the apply schema discriminator", async () =
   assert.match(forwarding, /`revision`[\s\S]*integer[\s\S]*not (?:a )?string/i);
   assert.match(forwarding, /`payload`[\s\S]*object[\s\S]*not (?:a )?string/i);
   assert.match(forwarding, /do not wrap[\s\S]*request[\s\S]*outer `payload`/i);
-  assert.match(forwarding, /cannot\s+be\s+identified[\s\S]*stop before[\s\S]*`dev_flow_apply_action`/i);
+  assert.match(forwarding, /live schema[\s\S]*packaged reference disagree[\s\S]*stop before mutation/i);
   for (const member of ["transition_id", "summary", "reason", "artifacts", "method_evidence", "node_result", "problem_class"]) {
     assert.match(forwarding, new RegExp("`" + escapeRegExp(member) + "`", "u"));
   }

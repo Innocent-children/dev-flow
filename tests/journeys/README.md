@@ -26,8 +26,10 @@ handle、observer 和 service 后再证明 restart。
 Go Journey，也不能标记为 real/native Codex。
 
 Feature 003 历史 native evidence 仍是对应已发布合同的冻结事实。Feature 008 Contract 0.2 的
-**native Codex** Journey 在 T092 前为 **not executed**。当前 Journey 不证明 released package、
-registry artifact、真实 Codex setup/remove 或 public support。
+native attempt 1 在第一条 REQUIREMENTS payload 上失败；explicitly authorized attempt 2 在
+`requirements_ready` 提交后因非法 DESIGN payload 失败。两份原始外部证据均保留，T092 仍未
+完成，attempt 3 尚未授权。当前 Journey 不证明 successful native acceptance、released package、
+registry artifact 或 public support。
 
 ## Evidence rules
 

@@ -15,6 +15,25 @@
 - Standard task state is governed only by `standard-development@1`.
 - Tool/method artifacts never mutate Core without a valid `dev_flow_apply_action`.
 
+### 1.1 Result-envelope and mutation-operation request identity
+
+`Envelope.request_id` has one frozen rule:
+
+- for `dev_flow_apply_action` and `dev_flow_cancel_task`, it equals the valid caller-provided
+  top-level `request_id` on both success and domain-error results;
+- that same apply/cancel identity is the mutation operation ID persisted in
+  `Task.LastOperation.operation_id` and `TaskEvent.request_id` when a mutation commits;
+- an uncertain apply probe therefore uses the original caller apply `request_id` as
+  `operation_id`;
+- tools without a caller-provided `request_id` use a Core-generated local transport request
+  identity in the result envelope;
+- when a malformed mutation input has no valid unambiguous caller `request_id`, the error envelope
+  uses the Core-generated transport request identity.
+
+The MCP SDK/JSON-RPC request identity is transport framing and is not projected as the mutation
+operation identity. Adapters must not compare unrelated generated read identities to an apply
+operation. For an apply/cancel result with a valid caller request identity, mismatch is a contract failure and must not be silently ignored.
+
 ## 2. Exact Tool Catalog
 
 ```text

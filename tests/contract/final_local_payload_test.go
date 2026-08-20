@@ -105,6 +105,44 @@ func TestFinalLocalJourneyPayloadMatrixRejectsAttemptOneDrift(t *testing.T) {
 	}
 }
 
+func TestFinalLocalJourneyPayloadMatrixRejectsAttemptTwoDrift(t *testing.T) {
+	t.Parallel()
+	design := readFinalLocalPayloadMatrix(t).Entries[1]
+	tests := []struct {
+		name   string
+		mutate func(map[string]any)
+	}{
+		{name: "missing requirements revision", mutate: func(payload map[string]any) {
+			delete(payload["node_result"].(map[string]any)["baseline"].(map[string]any), "requirements_revision")
+		}},
+		{name: "missing complexity justification", mutate: func(payload map[string]any) {
+			delete(payload["node_result"].(map[string]any)["baseline"].(map[string]any), "complexity_justification")
+		}},
+		{name: "unknown complexity member", mutate: func(payload map[string]any) {
+			payload["node_result"].(map[string]any)["baseline"].(map[string]any)["complexity"] = "invalid prose alias"
+		}},
+		{name: "previous node method step", mutate: func(payload map[string]any) {
+			payload["method_evidence"].([]any)[0].(map[string]any)["step_id"] = "requirements.capture"
+		}},
+		{name: "array encoded as prose", mutate: func(payload map[string]any) {
+			payload["node_result"].(map[string]any)["baseline"].(map[string]any)["components"] = "one component"
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			payload := decodePayloadObject(t, design.Payload)
+			test.mutate(payload)
+			raw, err := json.Marshal(payload)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := validateFinalLocalPayload(design.Node, raw); err == nil {
+				t.Fatalf("invalid attempt-2 payload was accepted: %s", raw)
+			}
+		})
+	}
+}
+
 func readFinalLocalPayloadMatrix(t *testing.T) finalLocalPayloadMatrix {
 	t.Helper()
 	path := filepath.Join(markdownRepositoryRoot(t), "tests", "contract", "testdata", "final-local-payloads.json")

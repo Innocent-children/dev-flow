@@ -46,6 +46,7 @@ var codexPackageFiles = []string{
 	"plugin/skills/dev-flow/SKILL.md",
 	"plugin/skills/dev-flow/agents/openai.yaml",
 	"plugin/skills/dev-flow/references/method-profiles.md",
+	"plugin/skills/dev-flow/references/node-payloads.md",
 	"runtime/darwin-arm64/dev-flow",
 }
 
@@ -215,6 +216,7 @@ func TestPackageManifestAcceptsBootstrapManifests(t *testing.T) {
 					"plugin/skills/dev-flow/SKILL.md",
 					"plugin/skills/dev-flow/agents/openai.yaml",
 					"plugin/skills/dev-flow/references/method-profiles.md",
+					"plugin/skills/dev-flow/references/node-payloads.md",
 					"runtime/darwin-arm64/dev-flow"
 				],
 				"scripts": {

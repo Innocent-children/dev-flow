@@ -285,10 +285,10 @@ function validateCoreEnvelope(envelope, item, shape) {
     throw new Error("Core result envelope tool does not match the MCP item");
   }
   const requestBinding = callerRequestBinding(envelope, item);
-  if (requestBinding === "missing" && success) {
+  if (item.tool === "dev_flow_apply_action" && success && requestBinding !== "matched") {
     throw new Error("dev_flow_apply_action MCP item requires its caller request_id");
   }
-  if (requestBinding === "mismatched" && (success || item.tool !== "dev_flow_apply_action")) {
+  if (requestBinding === "mismatched") {
     throw new Error("Core result envelope request_id does not match the MCP item");
   }
 
@@ -327,10 +327,8 @@ function callerRequestBinding(envelope, item) {
   if (argumentsObject === null || !Object.hasOwn(argumentsObject, "request_id")) {
     return item.tool === "dev_flow_apply_action" ? "missing" : null;
   }
-  return validIdentifier(argumentsObject.request_id)
-    && argumentsObject.request_id === envelope.request_id
-    ? "matched"
-    : "mismatched";
+  if (!validIdentifier(argumentsObject.request_id)) return "invalid";
+  return argumentsObject.request_id === envelope.request_id ? "matched" : "mismatched";
 }
 
 function assertExactKeys(value, allowed, label, { optional = [] } = {}) {

@@ -379,7 +379,7 @@ unstarted.
   Contract 0.2 evidence classes without public-release claims.
 - [x] T090 Run the complete targeted Go and Codex package sets named by prior checkpoints once after
   documentation reconciliation; fix only concrete failures.
-- [x] T091 Build one source-local Codex package artifact with the existing local builder, verify
+- [ ] T091 Build one source-local Codex package artifact with the existing local builder, verify
   package/Core identity and closed contents, and keep it outside the repository; do not publish.
 - [ ] T092 Complete the one required successful native real Codex Journey implementing Quickstart
   Final Journey on the explicitly authorized second attempt, retaining the failed first-attempt evidence, including
@@ -433,7 +433,7 @@ touch different files.
 | --- | --- |
 | Targeted checks | Run at named checkpoints; rerun only after a concrete failure/fix |
 | Repository-wide validation | One Phase 5D `pnpm run validate`, then one later final Phase 8 invocation; retry only after a concrete fixed failure |
-| Real Codex journey | One successful final local-artifact Journey; attempt 1 failed on an invalid Harness payload, attempt 2 is explicitly user-authorized and final, and attempt 3 is forbidden |
+| Real Codex journey | One successful final local-artifact Journey is still required; attempts 1 and 2 failed with retained evidence, attempt 3 is not authorized, and no further `codex exec` may run without a new explicit user decision |
 | Released 0.3.0 old-binary/legacy-task journey | 0 |
 | Real Spec Kit/OpenSpec installation matrix | 0 |
 | Linux/Windows/Intel Mac native journey | 0 |
@@ -497,3 +497,34 @@ T039/T040/T042/T050/T052/T053/T054/T057/T060 and T096–T104 only after their ev
 
 **Checkpoint**: `FEATURE_008_PHASE_5D_HARDENING_COMPLETE`; User Story 2 is hardened/complete and
 Phase 6–8 remain unstarted.
+
+---
+
+## Phase 9: Native Adapter Payload Hardening
+
+**Goal**: Make every packaged Codex graph payload operationally constructible from the current
+Action and real Contract 0.2 schema, bind mutation result identity to the caller operation, and
+prepare a new source-local artifact without starting another native Journey.
+
+- [x] T105 Add `packages/codex/plugin/skills/dev-flow/references/node-payloads.md` with parseable
+  closed templates for all normal graph nodes plus BLOCKED resolution; update the Skill to require
+  that reference while preserving Core/inputSchema authority and Artifact/required-evidence
+  separation per FR-029, FR-035–FR-036, FR-039, and the two retained native failure facts.
+- [x] T106 Bind every packaged node-payload template to current `workflow.DecodeStandardPayload`,
+  `workflow.ValidatePayload`, standard Action method steps, and the blocker decoder in
+  `tests/contract/codex_payload_reference_test.go`; retain exact attempt-1/attempt-2 and closed-input
+  negative regressions without implementing a second validator per FR-035–FR-036 and SC-018–SC-020.
+- [x] T107 Define mutation Result Envelope `request_id` as the caller-provided apply/cancel operation
+  identity, preserve independent Core-generated identities for tools without caller request IDs,
+  and cover success/domain-error/transport parsing plus LastOperation binding in
+  `internal/mcp/{server.go,tools.go,results.go}`, the Contract 0.2 document, and focused tests per
+  FR-033, FR-041, FR-S009–FR-S010, and SC-014/SC-017/SC-020.
+- [ ] T108 From the clean hardening source commit, build a new repository-external source-local,
+  unpublished, commit-bound acceptance artifact with the exact closed package including
+  `references/node-payloads.md`; verify package/Core/schema/process/digest/content/path identity,
+  record attempt-3 readiness, and stop without `codex exec` per SC-008–SC-010 and SC-015–SC-016.
+
+**Readiness checkpoint**:
+`FEATURE_008_NATIVE_ADAPTER_HARDENING_READY_FOR_EXPLICIT_ATTEMPT_3_AUTHORIZATION` only after
+T105–T108 and reopened T037/T040/T042/T064/T065/T068/T069/T091 pass. T092–T095 remain unchecked;
+attempt 1 and attempt 2 remain failed retained evidence; attempt 3 is not authorized.
