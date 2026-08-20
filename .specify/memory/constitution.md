@@ -1,12 +1,11 @@
 <!--
 Sync Impact Report
-- Constitution version: 1.2.0 → 2.0.0
-- Amendment date: 2026-08-18
+- Constitution version: 2.0.0 → 3.0.0
+- Amendment date: 2026-08-20
 - Reason for MAJOR:
-  - Dev Flow 的产品权威从固定线性阶段表重定义为显式开发过程状态图；
-  - “开发者可理解性审查”和“重构后回归”成为绑定流程门禁；
-  - Spec Kit/OpenSpec 从外围提示词约定重定义为方法工具画像，仍不得拥有任务状态；
-  - 产品 Feature 与 Release Feature 分离，普通 Feature 不再强制递增公开版本。
+  - 公开发布不再创建独立 Release Feature 或执行完整 Spec Kit Feature 生命周期；
+  - 发布改由轻量、可恢复的一键命令治理，并显式区分 `quick` 与 `normal`；
+  - 每次发布前，Host 必须建议模式并询问维护者选择，随后先提交版本对齐再发布。
 - Preserved invariants:
   - Go Core 仍是唯一任务与流转权威；
   - Git 仍只读；
@@ -15,6 +14,8 @@ Sync Impact Report
   - `1.0.0` 前历史任务兼容改为显式 opt-in，Feature 008 明确不兼容任何 Core Contract 0.1 历史任务数据；
   - MCP 工具数量仍限制为六个；
   - Codex/DeepSeek 适配器仍不得复制 Core 语义。
+- Modified principles:
+  - X. Vertical-Slice Specifications and Release Separation → X. Vertical-Slice Specifications and Lightweight Release Execution
 - Breaking transition authority:
   - `specs/008-refactor-to-development-process-graph/` 是用开发过程状态图替换 Core Contract 0.1
     线性运行时的唯一批准规格。
@@ -22,12 +23,15 @@ Sync Impact Report
   - Feature 008 不提供历史任务迁移、读取、继续或转换；旧数据目录只允许安全拒绝并由用户显式
     归档、改名或删除后重新开始。
   - Feature 008 完成前，现有 Core Contract 0.1 可继续运行；不得再向旧线性阶段模型增加新能力。
-- Follow-up artifacts:
+- Required follow-up:
   - `AGENTS.md`
-  - `docs/SPEC-KIT-WORKFLOW.md`
+  - `docs/SPEC-KIT-WORKFLOW.md` and Spec Kit templates/checklists
+  - `scripts/release-codex.mjs` and release contracts/tests
+  - `release/README.md` and current product/release documentation
   - `.specify/templates/*.md`
   - `MANIFEST.md`
-  - `specs/008-refactor-to-development-process-graph/`
+- Affected active features:
+  - None; completed Feature 009 remains frozen historical evidence.
 -->
 # Dev Flow Constitution
 
@@ -180,9 +184,11 @@ delete Git state. It MUST NOT expose a generic shell tool.
 Host agents perform explicitly authorized development work with their normal tools and submit
 bounded results to Core. Method-tool guidance does not expand Core's operating-system authority.
 
-Repository development and release tooling may mutate this product repository only under explicit
-maintainer authority and an active implementation or release specification. Such tooling is not
-Core runtime behavior and MUST NOT be exposed through MCP.
+Repository development tooling may mutate this product repository only under explicit maintainer
+authority and an active implementation specification. Release tooling may mutate Git/npm/GitHub only
+under explicit maintainer authority, an exact target version, a selected release mode, and the
+release command's confirmation contract. Such tooling is not Core runtime behavior and MUST NOT be
+exposed through MCP.
 
 Rationale: Dev Flow governs development; it does not replace Git or become an ambient executor.
 
@@ -220,7 +226,7 @@ implementation.
 Rationale: a process-management product must not become the over-engineered artifact it is intended
 to prevent.
 
-### X. Vertical-Slice Specifications and Release Separation
+### X. Vertical-Slice Specifications and Lightweight Release Execution
 
 Every production feature MUST be self-contained and deliver one independently demonstrable user
 capability. It MUST include explicit non-goals, measurable success criteria, a bounded test plan,
@@ -236,10 +242,31 @@ State-graph features MUST additionally define:
 - persistence transition and exact disposition of pre-existing task data;
 - forbidden transitions.
 
-Product implementation and public release are separate change types. A product feature MUST NOT
+Product implementation and public release are separate operations. A product feature MUST NOT
 publish npm, create or move a Tag, create or finalize a GitHub Release, or rewrite historical
-release evidence. Product versions change only in an explicitly authorized Release Feature or
-Release PR after the included product work is complete.
+release evidence. Product versions change only after the included product work is complete and the
+maintainer explicitly invokes the release command with a target version, release mode, and exact
+confirmation.
+
+A version publication MUST NOT create a new Feature. Release intent is carried by the completed
+product work, the version-alignment commit, the selected `quick` or `normal` mode, the reviewed
+release contracts, the retained external publication record, and the public Tag/npm/GitHub Release.
+If a release requires new product behavior, that behavior MUST be specified and completed in a
+Product Feature before the release command runs.
+
+Before version mutation, the Host MUST recommend `quick` or `normal`, explain the eligibility reason,
+and ask the maintainer to choose. `quick` is admitted only when the changed surface is outside the
+distributed product/runtime contract or is limited to approved version metadata; an ineligible
+`quick` request MUST stop rather than silently weaken verification. `normal` is required for Core,
+MCP, Schema, process, persistence, Host Adapter, packaged Skill/library, package-layout, platform, or
+support changes.
+
+Both modes MUST first align all current version authorities, create and push one version commit on a
+clean `main`, and only then prepare or resume publication. Both modes retain exact confirmation,
+deterministic artifacts, registry and asset read-back, immutable Tag/npm rules, atomic publication
+state, and read-before-retry. `quick` may use a bounded final-artifact smoke only when its admission
+proof shows no product-contract change; `normal` requires the complete final registry-package
+Journey and current human comprehension evidence.
 
 Rationale: a functional change should not become an accidental publication project, and a release
 should not redefine product behavior.
@@ -284,15 +311,18 @@ unavailable external host.
   data import/export, multi-repository tasks, cross-host automatic takeover, Web UI, remote MCP,
   authentication, telemetry, agent orchestration, Git mutation, or a plugin framework.
 - Current product/package versions remain unchanged during ordinary feature implementation.
-  Version, package, embedded Core, Tag, and Release identity are aligned only by a separate Release
-  Feature or Release PR.
+  Version, package, embedded Core, Tag, and Release identity are aligned by the explicitly selected
+  release mode after product work is complete. The version-alignment commit precedes all remote
+  publication effects.
+- Every release starts from one user-owned mode decision: `quick` or `normal`. The Host MUST suggest
+  and ask; it MUST NOT choose or publish before the maintainer answers.
 - Historical released or incident-frozen Tags, Drafts, Releases, artifact digests, publication
   records, fixtures, and recovery identities remain immutable.
 
 ## Spec Kit Documentation Standard
 
-A public-behavior, shared-contract, persistence, process-graph, adapter-contract, or release change
-MUST have one complete feature package:
+A public-behavior, shared-contract, persistence, process-graph, or adapter-contract change MUST have
+one complete feature package:
 
 ```text
 specs/<NNN-feature-name>/
@@ -313,6 +343,12 @@ classification, and amendment rules are authoritative in `docs/SPEC-KIT-WORKFLOW
 Historical completed Feature packages are evidence and MUST NOT be rewritten to match a later
 template. Corrections to historical factual claims require a dedicated amendment that preserves the
 original release identity and explains the correction.
+
+Version-only publication does not create a Feature package. Its authority and evidence are the
+completed included Product Feature or corrective work, explicit mode choice, version commit,
+release contracts, external `release-manifest.json` and `publication-record.json`, immutable public
+identities, and final read-back. Repository documentation may summarize a completed release, but it
+MUST NOT recreate the publication as a Feature lifecycle.
 
 ## Development Workflow and Quality Gates
 
@@ -340,7 +376,8 @@ Before implementation:
 - every task names exact files or directories and requirement IDs;
 - node and transition contracts are complete for every affected state;
 - the exact persisted-data disposition is explicit: migrate, retain read-only, reject, or require a user-controlled reset;
-- release operations are absent unless the feature is classified as a Release Feature.
+- release operations are absent from Product Feature implementation; later publication uses the
+  standalone release command after an explicit mode choice.
 
 During implementation:
 
@@ -363,9 +400,12 @@ Before merge:
 
 Before release:
 
-- a separate Release Feature or Release PR names the included completed features;
-- every included product is built from one clean source identity;
-- final distributed artifacts and claimed host journeys are verified;
+- the included product work is complete and merged;
+- the Host recommends a mode and the maintainer explicitly chooses `quick` or `normal`;
+- the release command proves the chosen mode is eligible before version mutation;
+- all current version authorities are aligned in one pushed version commit on clean `main`;
+- every included product is built from that one source identity;
+- final distributed artifacts and the evidence required by the chosen mode are verified;
 - no release side effect occurs from ordinary feature or pull-request validation.
 
 ## Transition Rule for Core Contract 0.1
@@ -397,10 +437,12 @@ preferences.
   principle; MINOR adds or materially expands a principle; PATCH clarifies without changing
   meaning.
 - **Compliance review**: Every feature plan MUST include a Constitution Check. Every review MUST
-  identify any complexity-budget exception.
-- **Specification locality**: Only this Constitution, the active feature artifacts, and the user's
-  current explicit instruction authorize product work.
+  identify any complexity-budget exception. Every release MUST record mode eligibility and the
+  maintainer's explicit selection before the version commit.
+- **Specification locality**: Only this Constitution, active Product Feature artifacts, and the
+  user's current explicit instruction authorize product work. Version-only release authority comes
+  from the completed product work plus the exact release invocation; no release Feature is created.
 - **Transition authority**: `specs/008-refactor-to-development-process-graph/` is the only approved
   breaking replacement specification from the linear runtime to the standard development graph.
 
-**Version**: 2.0.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-18
+**Version**: 3.0.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-20
