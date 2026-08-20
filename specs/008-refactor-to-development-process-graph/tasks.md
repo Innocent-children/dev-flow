@@ -3,9 +3,10 @@
 **Input**: Complete Feature 008 package in
 `specs/008-refactor-to-development-process-graph/`
 
-**Status**: Implementing — User Story 4, Phase 7A–7C, and T092 composite source-local acceptance are
-complete. Attempt 3 native graph-flow evidence reached Core `DONE`, its runner failure remains
-visible, and the no-Codex same-artifact lifecycle passed. T093–T095 remain pending.
+**Status**: Complete — T001–T112 have passed their exact evidence gates. Attempt 3 native graph-flow
+evidence reached Core `DONE`, its runner failure remains visible, the no-Codex same-artifact
+lifecycle passed, T093 final repository validation passed on its first invocation, and final
+analyze/converge found zero remaining Feature gap. Publication was not performed.
 
 **Release Boundary**: Every task in this file is source/local-evidence work. No task may modify
 `VERSION`, publish npm, create/move a Tag, mutate a GitHub Release, or claim final registry support.
@@ -388,13 +389,16 @@ unstarted.
   `attempt-3-native-flow-evidence.json`, `exact-artifact-lifecycle-evidence.json`, and
   `feature-008-composite-native-acceptance.json` without any new Codex execution per SC-015 and
   Quickstart Journey 11.
-- [ ] T093 Run `RELEASE_BASE_SHA=<feature-base> pnpm run validate` exactly once; do not separately
+- [x] T093 Run `RELEASE_BASE_SHA=<feature-base> pnpm run validate` exactly once; do not separately
   duplicate the repository-wide Go suite that it runs.
-- [ ] T094 Run final `$speckit-analyze` and `$speckit-converge`; resolve blocking findings and append
+- [x] T094 Run final `$speckit-analyze` and `$speckit-converge`; resolve blocking findings and append
   only concrete remaining acceptance gaps.
-- [ ] T095 Reconcile all Feature checkboxes/status/evidence labels; mark Feature 008 `Complete` only
-  when SC-001–SC-016 are satisfied, confirm `VERSION`/package versions/Tags/npm/GitHub Releases are
-  unchanged, and state that publication requires a separate Release Change.
+- [x] T095 Reconcile Feature status and evidence labels in
+  `specs/008-refactor-to-development-process-graph/{README.md,spec.md,tasks.md}`, `README.md`,
+  `MANIFEST.md`, `docs/ROADMAP.md`, `packages/codex/README.md`, and `tests/journeys/README.md`; mark
+  Feature 008 `Complete` only when SC-001–SC-025 and T001–T112 are satisfied, confirm
+  `VERSION`/package versions/Tags/npm/GitHub Releases are unchanged, and state that publication
+  requires a separate Release Change.
 
 **T092 Composite Checkpoint**: Complete. The three repository-external closed evidence records are:
 
@@ -413,8 +417,9 @@ and Core `DONE`. The deterministic lifecycle used a separate Task, reached revis
 events, two evidence records, zero claim, and reopened the same terminal Task after remove/uninstall/
 exact-artifact reinstall with a zero-write read. Attempt 4 had zero executions.
 
-**Final Checkpoint**: Product source supports the development process graph locally, all storage-boundary
-and recovery gates pass, and no release mutation has occurred.
+**Final Checkpoint**: `FEATURE_008_COMPLETE` — product source supports the development process graph
+locally; SC-001–SC-025 and T001–T112 pass; composite source-local acceptance, final repository
+validation, analyze, and zero-gap converge are complete; no release mutation occurred.
 
 **Phase 8A Checkpoint**: `FEATURE_008_PHASE_8A_DOCUMENTATION_AND_LOCAL_ARTIFACT_CHECKPOINT_COMPLETE` —
 T086–T091 complete. The retained source-local, unpublished test artifact is

@@ -147,14 +147,16 @@ commit、merge、rebase、push、tag、publish 或暴露 generic shell。
 工具链为 Go `>=1.26`、Node.js `>=24` 和 pnpm `>=11 <12`；具体基线见
 [Toolchain Baselines](docs/TOOLCHAIN-BASELINES.md)。
 
-Feature 008 的阶段性实现只运行活动任务批准的定向检查。最终 repository-wide 验证保留给
-Feature 的最终门禁：
+Feature 008 的阶段性实现只运行活动任务批准的定向检查。最终门禁已经用以下入口完成唯一一次
+repository-wide 验证：
 
 ```bash
 pnpm run validate
 ```
 
-该命令不发布 npm、不创建 Tag/Release，也不执行真实 Host Journey。
+该命令已通过；它不发布 npm、不创建 Tag/Release，也不执行真实 Host Journey。Feature 008 的
+真实 Host graph-flow evidence 来自保留的 Attempt 3 session，package/data lifecycle 由同一精确
+artifact 的 no-Codex deterministic acceptance 独立证明。
 
 ## 目录与权威
 

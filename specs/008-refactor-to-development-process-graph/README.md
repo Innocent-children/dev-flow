@@ -3,7 +3,7 @@
 ## Status
 
 - **Feature**: `008-refactor-to-development-process-graph`
-- **Status**: Implementing
+- **Status**: Complete
 - **Change Type**: Product Feature
 - **Created**: 2026-08-18
 - **Baseline**: `main` at `29885cd4d0b97ad03bbe09876168e48db371a048`
@@ -114,7 +114,9 @@ gap. Phase 8A and Native Adapter hardening are complete. Attempt 3 produced a su
 graph-flow evidence set and reached Core `DONE`; its runner then failed during post-session command
 classification, so its lifecycle execution did not begin. T092 composite SC-015 acceptance is now
 complete through offline validation of those native sessions plus a separate no-Codex deterministic
-lifecycle against the same artifact. T093–T095 remain pending.
+lifecycle against the same artifact. T093 final repository validation passed on its first
+invocation. Final analyze found no blocking or acceptance-impacting finding, and final converge found
+zero remaining Feature gap. T001–T112 and SC-001–SC-025 are complete.
 
 Before production code changes:
 
@@ -130,7 +132,7 @@ approved.
 
 ## Checkpoints
 
-| Checkpoint | Exit Condition | Initial Status |
+| Checkpoint | Exit Condition | Status |
 | --- | --- | --- |
 | Contract freeze | All graph, MCP, method-profile, and persistence contracts are internally consistent | Complete — T001–T006 |
 | Foundation | Standard process definition, current Task model, fresh Schema 2 bootstrap, strict v2 codec, and old-data rejection pass targeted tests | Complete — T007–T034; targeted domain/workflow/store tests pass |
@@ -147,7 +149,7 @@ approved.
 | User Story 4 | Fresh storage bootstrap, Schema 1 zero-write rejection, current-task recovery, and future-schema safety pass | Complete — T073–T085; `USER_STORY_4_CHECKPOINT_COMPLETE` |
 | Phase 8A | Documentation convergence, complete targeted regression, and one retained source-local unpublished Codex artifact | Complete — T086–T091; `FEATURE_008_PHASE_8A_DOCUMENTATION_AND_LOCAL_ARTIFACT_CHECKPOINT_COMPLETE` |
 | Composite SC-015 | Attempt 3 native graph-flow evidence plus deterministic same-artifact lifecycle evidence | Complete — T092 and T109–T112 |
-| Final feature gate | Attempt 3 native graph-flow evidence plus deterministic same-artifact lifecycle evidence, one repository validation, and final analyze/converge pass | Pending |
+| Final feature gate | Attempt 3 native graph-flow evidence plus deterministic same-artifact lifecycle evidence, one repository validation, and final analyze/converge pass | Complete — T093–T095; `FEATURE_008_COMPLETE` |
 
 ## Phase 8A Artifact Evidence
 
@@ -196,7 +198,7 @@ attempt 3 native sessions: passed; Core terminal status DONE
 attempt 3 runner: failed after native sessions
 attempt 3 lifecycle: not run
 attempt 4: forbidden
-Feature 008: incomplete
+Feature 008: complete through composite source-local acceptance
 ```
 
 SC-015 now uses two complementary components bound to the exact same artifact identity: the retained
@@ -232,7 +234,7 @@ platform: darwin-arm64
 
 The former Phase 8A artifact and all three attempt directories remain retained. The hardened artifact
 was used by Attempt 3 and remains the exact identity for both composite acceptance components.
-Attempt 4 is forbidden. Feature 008 remains `Implementing`; T093–T095 remain unchecked.
+Attempt 4 is forbidden. Feature 008 is `Complete`; all T001–T112 tasks are checked.
 
 ## Composite T092 Evidence
 

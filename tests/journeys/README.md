@@ -37,7 +37,7 @@ Feature 008 的最终 SC-015 采用同一精确 source-local artifact 的组合�
 `deterministic exact-artifact lifecycle evidence`，覆盖 setup/remove/repeated remove/npm
 uninstall/data retention/exact-artifact reinstall/同一 lifecycle Task retained reopen。两个组件
 使用不同 Task，组合记录只绑定共同 artifact identity。T092 仅在离线 native 重验、确定性
-lifecycle 和闭合组合证据全部通过后完成。
+lifecycle 和闭合组合证据全部通过后完成；该门禁现已满足，T092 状态为 Complete。
 
 当前 Journey 不证明 released package、registry artifact 或 public support。
 

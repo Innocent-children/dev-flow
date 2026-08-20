@@ -41,7 +41,7 @@ New Product, shared-contract, persistence, Host Adapter, and Release changes fol
 | `005-recover-uncertain-actions-and-drift` | Product Feature | Historical | Read-before-retry and repository-drift recovery hardening |
 | `006-publish-codex-installable-product` | Release Feature | Historical | Deterministic/public Codex release machinery and first release evidence |
 | `007-close-open-task-contract` | Corrective/Product Feature | Historical | Complete open-task contract and published `0.3.0` evidence |
-| `008-refactor-to-development-process-graph` | Product Feature | Implementing | Source graph implementation complete through local artifact preparation; native/final gate pending |
+| `008-refactor-to-development-process-graph` | Product Feature | Complete | Development process graph, composite source-local acceptance, final validation, and zero-gap convergence complete; publication remains separate |
 
 ## Current Source Authority
 
@@ -64,8 +64,10 @@ authority is distributed as follows:
 | Feature scope, contracts and checkpoints | `specs/008-refactor-to-development-process-graph/` |
 
 Current source supports only fresh Schema 2 `standard-development@1` tasks. It contains no
-historical-task runtime, migration, snapshot-v1 decoder or legacy process. Phase 8A prepares one
-source-local unpublished artifact; native acceptance and the final Feature gate remain pending.
+historical-task runtime, migration, snapshot-v1 decoder or legacy process. Feature 008 completed
+source-local acceptance by combining Attempt 3 native graph-flow evidence with no-Codex deterministic
+lifecycle evidence bound to the same exact unpublished artifact. Final repository validation and
+zero-gap analyze/converge passed.
 
 Feature 008 is not release authority. Version selection/alignment, npm publication, Tag creation,
 GitHub Release mutation, official artifact construction and public installation claims require a

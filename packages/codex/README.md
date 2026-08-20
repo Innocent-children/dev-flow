@@ -193,5 +193,7 @@ pnpm --dir packages/codex test
 launcher/runtime tests。fixture、simulated Harness 和 static contract 证据不属于 native Codex
 evidence，也不证明 package 已公开发布。
 
-Feature 008 的唯一 native Codex Journey 保留到 Phase 8B；T091 的 source-local artifact 仅为该
-Journey 提供精确 path、source commit 和 SHA-256 identity。
+Feature 008 的 source-local acceptance 已完成。Attempt 3 提供真实 native Codex graph-flow
+evidence；独立的 no-Codex deterministic lifecycle 使用同一精确 artifact 证明 setup、remove、
+npm uninstall、data retention、相同 artifact reinstall 和同一 lifecycle Task terminal reopen。
+两类 evidence 保持不同标签，且都不构成 registry package 或公开发布证明。

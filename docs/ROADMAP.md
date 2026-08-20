@@ -18,26 +18,36 @@ Feature 008 当前源码已经实现：
 - 五分类 graph-native recovery、CAS、BLOCKED/resume、restart 和 retained data；
 - Codex explicit-only Adapter、Skill 和 method-profile renderer。
 
-Phase 8A 完成后的准确状态为：
+Feature 008 的准确状态为：
 
 ```text
-source implementation complete through local artifact preparation;
-final native acceptance and final feature gate pending
+Feature 008: Complete
+Implementation: Complete
+Native graph-flow acceptance: Complete
+Exact-artifact lifecycle acceptance: Complete
+Composite local acceptance: Complete
+Publication: Not performed
+Separate Release Change: Required
 ```
 
-在 T095 之前，Feature 008 仍为 `Implementing`，不得声明 Complete、released、published、ready
-for merge 或 production available from npm。
+最终 source-local 门禁使用同一精确 artifact 的两个互补证据组件：Attempt 3 的 native Codex
+graph-flow evidence，以及不启动 Codex 的 deterministic exact-artifact lifecycle evidence。前者
+保留 runner 在 native sessions 完成后的真实失败状态，后者独立证明 setup/remove/uninstall/
+reinstall/retained reopen。最终 repository validation 首次通过，analyze 无阻塞发现，converge
+为零 gap。
 
-## 待完成：Final Feature Gate
+Feature 完成不代表 released、published、ready for merge 或 production available from npm。
 
-Phase 8B 只包含：
+## 已完成：Final Feature Gate
 
-1. 使用 Phase 8A 保留的精确 source-local artifact 运行一次 native Codex Journey；
-2. 运行唯一一次最终 `RELEASE_BASE_SHA=... pnpm run validate`；
-3. 运行最终 Spec Kit analyze/converge；
-4. 收敛 Feature 状态和全部 evidence labels。
+1. Attempt 3 的四个真实 Codex session 离线重验通过，Core 到达 `DONE`；
+2. 同一精确 source-local artifact 的 deterministic lifecycle 完成同一 lifecycle Task 的
+   remove/uninstall/reinstall/terminal reopen；
+3. 唯一一次最终 `RELEASE_BASE_SHA=... pnpm run validate` 首次通过；
+4. 最终 Spec Kit analyze 无阻塞发现，converge 零 gap；
+5. T001–T112 和 SC-001–SC-025 全部完成。
 
-该门禁仍不执行 npm publication、Tag、GitHub Release 或 public installation claim。
+该门禁未执行 npm publication、Tag、GitHub Release 或 public installation claim。
 
 ## Feature 008 之后：独立 Release Change
 
