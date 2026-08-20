@@ -3,7 +3,7 @@
 ## Status
 
 - **Feature**: `009-publish-codex-0.4.0`
-- **Status**: Implementing
+- **Status**: Complete
 - **Change Type**: Release Change
 - **Created**: 2026-08-20
 - **Baseline**: `main` at `3b99b0c198a72f0e079ada18bc7f214075585f79`
@@ -76,15 +76,19 @@ Before implementation:
 | Contract freeze | Version, command, manifest, failure, support, and historical-evidence boundaries are closed | Complete — T001–T003; analyze found zero blocking findings |
 | Release implementation | One-command orchestration and `0.4.0` identity pass targeted checks | Complete — T004–T015; targeted source/package/release checks passed |
 | Clean source gate | One repository validation passes and the exact clean `main` source is pushed | Complete — T016–T018; validated source committed directly to `main` |
-| Public release | npm, Tag, final Journey, four assets, GitHub Release, and publication record are verified | Pending |
+| Public release | npm, Tag, final Journey, four assets, GitHub Release, and publication record are verified | Complete — T036–T037; nine-step record complete |
 
-## Current Recovery
+## Public Release Evidence
 
-Tag, Draft, npm and registry bytes are exact and immutable. Assets remain empty and the Release
-remains Draft. The shared-request-binding Journey passed substantive mutation binding, then resume
-returned Core `INVALID_ARGUMENT` with caller binding present. The maintainer has now explicitly
-confirmed current comprehension. Release tooling is applying the closed Feature 008 graph payload
-rules to both task-bearing final-registry prompts before another Journey.
+- **Source commit/tree**: `a749143b74d786cfc7c864155897984481c1d24b` /
+  `7dc95d6d01800ecd597f661dade25bd8eb280fc1`
+- **Recovery tooling**: `d341e2c`
+- **npm package SHA-256**: `2e36e9d13daa5e4b669617de2ddfa7fb40086245090a695ac406ce2681043e84`
+- **Core SHA-256**: `bfb2c769e5f0460f9a55c78b866f0a778a37b34864bbc51fe89068988676200d`
+- **Final manifest SHA-256**: `e06ac5685312148e89aec8f017bf5c8c1f5ce8a633b8bfa4002347a757aa5644`
+- **GitHub Release**: `v0.4.0`, ID `373558395`, published `2026-08-20T08:51:23Z`
+- **Final Journey**: passed with Codex `0.147.0` at `2026-08-20T08:50:26.112Z`
+- **Publication Record**: all nine steps complete; npm verified; four assets verified; no further action
 
 ## Release Boundary
 

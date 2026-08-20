@@ -42,7 +42,7 @@ New Product, shared-contract, persistence, Host Adapter, and Release changes fol
 | `006-publish-codex-installable-product` | Release Feature | Historical | Deterministic/public Codex release machinery and first release evidence |
 | `007-close-open-task-contract` | Corrective/Product Feature | Historical | Complete open-task contract and published `0.3.0` evidence |
 | `008-refactor-to-development-process-graph` | Product Feature | Complete | Development process graph, composite source-local acceptance, final validation, and zero-gap convergence complete; publication remains separate |
-| `009-publish-codex-0.4.0` | Release Change | Implementing | Align current identity, add one-command publication, and release the Feature 008 graph as Codex `0.4.0` |
+| `009-publish-codex-0.4.0` | Release Change | Complete | Published and verified Feature 008 graph as Codex `0.4.0` with one-command and frozen-source recovery evidence |
 
 ## Current Source Authority
 

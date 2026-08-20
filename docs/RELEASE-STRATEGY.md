@@ -1,8 +1,7 @@
 # 分阶段产品发布策略
 
-> **文档状态**：Feature 008 已完成并合并。Feature 009 正在将图运行时对齐为 `0.4.0`，并以一个
-> exact-confirmation 命令完成 preparation、verification、publication、最终 Journey 和 Release
-> finalization。公开 `0.4.0` 证据在该命令成功前保持 pending。
+> **文档状态**：Feature 009 已完成。`dev-flow-codex@0.4.0`、Tag、四个 assets 和 GitHub Release
+> 已公开并回读验证；最终 registry-package Journey 已通过。
 
 ## 发布顺序
 

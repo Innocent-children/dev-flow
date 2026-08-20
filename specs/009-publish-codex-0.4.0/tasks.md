@@ -221,8 +221,8 @@ verdict before the final recovery Journey.
 - [x] T033 Record the maintainer's explicit current `COMPREHENSION_REVIEW` verdict in `specs/009-publish-codex-0.4.0/spec.md`, `README.md`, and `tasks.md`; keep Feature 009 `Blocked` until the verdict is supplied per Constitution IV.
 - [x] T034 Add the exact closed graph payload rules from the Feature 008 final-local contract to both final-registry task-bearing prompts in `scripts/write-codex-journey-evidence.mjs`, include only the user-provided comprehension fact in resume, and add exact prompt/payload coverage in `packages/codex/tests/journey-harness.test.mjs` per FR-003 and FR-017.
 - [x] T035 Per the maintainer's direct-publication instruction, run only `node --test packages/codex/tests/journey-harness.test.mjs`, Journey syntax, and `git diff --check`; commit and push reviewed tooling/spec changes without broader workflow or full validation.
-- [ ] T036 Run newest-tooling read-only preflight, then one confirmed frozen-source publisher recovery if all immutable state remains exact; stop on any domain or immutable conflict per FR-017.
-- [ ] T037 Verify and record final Journey, assets, Release, complete Publication Record, npm publish count one, unchanged identities/digests, and clean repository; mark Feature 009 `Complete`, commit, and push without moving Tag per FR-008–FR-017 and SC-003–SC-008.
+- [x] T036 Run newest-tooling read-only preflight, then one confirmed frozen-source publisher recovery if all immutable state remains exact; stop on any domain or immutable conflict per FR-017.
+- [x] T037 Verify and record final Journey, assets, Release, complete Publication Record, npm publish count one, unchanged identities/digests, and clean repository; mark Feature 009 `Complete`, commit, and push without moving Tag per FR-008–FR-017 and SC-003–SC-008.
 
 **Checkpoint**: The final registry graph task reaches `DONE` using closed payloads and a real current
 maintainer comprehension verdict, then the original Release is finalized.
@@ -235,6 +235,16 @@ maintainer comprehension verdict, then the original Release is finalized.
 - Both final-registry task-bearing prompts now contain the exact closed graph payload wrappers,
   per-action MethodEvidence rules, empty ArtifactReference rule, shared request binding, and the
   maintainer-provided comprehension fact. Journey harness passed 36/36; syntax and diff checks passed.
+- The final frozen-source preflight returned `mutated=false` and exact Tag/Draft/npm state. Confirmed
+  recovery completed the native registry Journey, final manifest/checksums, four asset read-backs,
+  and GitHub finalization.
+- Publication Record is `complete` with nine complete steps. npm publish count remains one; Tag
+  `v0.4.0` still targets `a749143b74d786cfc7c864155897984481c1d24b`; package/Core SHA-256 values
+  remain `2e36e9d13daa5e4b669617de2ddfa7fb40086245090a695ac406ce2681043e84` and
+  `bfb2c769e5f0460f9a55c78b866f0a778a37b34864bbc51fe89068988676200d`.
+- Final Journey passed setup, zero-trigger, restart/resume, Core `DONE`, removal, uninstall, and
+  retained reopen with Codex `0.147.0`. GitHub Release `v0.4.0` was published at
+  `2026-08-20T08:51:23Z` with all four assets verified.
 
 ## Dependencies and Execution Order
 
