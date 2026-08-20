@@ -3,12 +3,15 @@
   "evidence_class": "simulated_static_adapter_journey",
   "server_info": {
     "product": "dev-flow",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "schema_version": 2,
     "core_limits_version": "0.2",
     "transport": "stdio",
     "health": "ready",
-    "supported_hosts": ["codex", "deepseek"],
+    "supported_hosts": [
+      "codex",
+      "deepseek"
+    ],
     "supported_processes": [
       {
         "process_id": "standard-development",
@@ -17,7 +20,11 @@
         "new_task_supported": true
       }
     ],
-    "method_profiles": ["plain", "spec-kit", "openspec"],
+    "method_profiles": [
+      "plain",
+      "spec-kit",
+      "openspec"
+    ],
     "tools": [
       "dev_flow_server_info",
       "dev_flow_open_task",
@@ -38,14 +45,39 @@
       "process_definition_digest": "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1",
       "current_node": "REQUIREMENTS",
       "node_purpose": "Transform the immutable initial intent into the current requirements authority.",
-      "entry_conditions": ["A valid immutable TaskIntent exists.", "The canonical repository is claimed by this task."],
-      "completion_conditions": ["The goal and boundaries are explicit.", "Acceptance is observable and material questions are resolved."],
-      "allowed_effects": ["read_repository", "edit_process_artifacts", "request_user_decision"],
-      "required_evidence": ["repository_observation", "requirements_baseline"],
+      "entry_conditions": [
+        "A valid immutable TaskIntent exists.",
+        "The canonical repository is claimed by this task."
+      ],
+      "completion_conditions": [
+        "The goal and boundaries are explicit.",
+        "Acceptance is observable and material questions are resolved."
+      ],
+      "allowed_effects": [
+        "read_repository",
+        "edit_process_artifacts",
+        "request_user_decision"
+      ],
+      "required_evidence": [
+        "repository_observation",
+        "requirements_baseline"
+      ],
       "method_steps": [
-        {"step_id": "requirements.capture", "purpose": "Capture bounded requirements.", "required": true},
-        {"step_id": "requirements.clarify", "purpose": "Resolve material questions with the developer.", "required": true},
-        {"step_id": "requirements.validate", "purpose": "Validate observable and bounded acceptance.", "required": true}
+        {
+          "step_id": "requirements.capture",
+          "purpose": "Capture bounded requirements.",
+          "required": true
+        },
+        {
+          "step_id": "requirements.clarify",
+          "purpose": "Resolve material questions with the developer.",
+          "required": true
+        },
+        {
+          "step_id": "requirements.validate",
+          "purpose": "Validate observable and bounded acceptance.",
+          "required": true
+        }
       ],
       "available_transitions": [
         {
@@ -71,20 +103,67 @@
       "process_definition_digest": "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1",
       "current_node": "TEST",
       "node_purpose": "Verify current repository behavior within the immutable verification budget.",
-      "entry_conditions": ["The implementation and repository binding are current."],
-      "completion_conditions": ["Checks, evidence, failures, and unverified work are classified."],
-      "allowed_effects": ["read_repository", "run_verification_commands", "edit_process_artifacts"],
-      "required_evidence": ["repository_observation", "test_summary"],
+      "entry_conditions": [
+        "The implementation and repository binding are current."
+      ],
+      "completion_conditions": [
+        "Checks, evidence, failures, and unverified work are classified."
+      ],
+      "allowed_effects": [
+        "read_repository",
+        "run_verification_commands",
+        "edit_process_artifacts"
+      ],
+      "required_evidence": [
+        "repository_observation",
+        "test_summary"
+      ],
       "method_steps": [
-        {"step_id": "test.run_budgeted_checks", "purpose": "Run only budgeted checks.", "required": true},
-        {"step_id": "test.record_evidence", "purpose": "Record actual evidence.", "required": true},
-        {"step_id": "test.classify_failure", "purpose": "Classify the observed outcome.", "required": true}
+        {
+          "step_id": "test.run_budgeted_checks",
+          "purpose": "Run only budgeted checks.",
+          "required": true
+        },
+        {
+          "step_id": "test.record_evidence",
+          "purpose": "Record actual evidence.",
+          "required": true
+        },
+        {
+          "step_id": "test.classify_failure",
+          "purpose": "Classify the observed outcome.",
+          "required": true
+        }
       ],
       "available_transitions": [
-        {"transition_id": "tests_passed", "destination": "COMPREHENSION_REVIEW", "guard_id": "current_tests_pass", "when": "All required current checks pass.", "reason_required": false},
-        {"transition_id": "tests_failed_implementation", "destination": "IMPLEMENT", "guard_id": "implementation_failure_identified", "when": "A current failure is attributable to implementation.", "reason_required": true},
-        {"transition_id": "tests_expose_design_issue", "destination": "DESIGN", "guard_id": "test_design_failure_identified", "when": "A current failure demonstrates a design defect.", "reason_required": true},
-        {"transition_id": "tests_expose_requirement_issue", "destination": "REQUIREMENTS", "guard_id": "test_requirement_gap_identified", "when": "A current failure demonstrates a requirement gap.", "reason_required": true}
+        {
+          "transition_id": "tests_passed",
+          "destination": "COMPREHENSION_REVIEW",
+          "guard_id": "current_tests_pass",
+          "when": "All required current checks pass.",
+          "reason_required": false
+        },
+        {
+          "transition_id": "tests_failed_implementation",
+          "destination": "IMPLEMENT",
+          "guard_id": "implementation_failure_identified",
+          "when": "A current failure is attributable to implementation.",
+          "reason_required": true
+        },
+        {
+          "transition_id": "tests_expose_design_issue",
+          "destination": "DESIGN",
+          "guard_id": "test_design_failure_identified",
+          "when": "A current failure demonstrates a design defect.",
+          "reason_required": true
+        },
+        {
+          "transition_id": "tests_expose_requirement_issue",
+          "destination": "REQUIREMENTS",
+          "guard_id": "test_requirement_gap_identified",
+          "when": "A current failure demonstrates a requirement gap.",
+          "reason_required": true
+        }
       ],
       "payload_contract": "test-result@1",
       "guidance": "Complete the TEST contract and select one returned transition.",
@@ -101,22 +180,82 @@
       "process_definition_digest": "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1",
       "current_node": "COMPREHENSION_REVIEW",
       "node_purpose": "Verify that the developer can explain and maintain the current result.",
-      "entry_conditions": ["Current tests passed against the current repository and baselines."],
-      "completion_conditions": ["The explanation and complexity review are complete.", "The developer provided an explicit verdict."],
-      "allowed_effects": ["read_repository", "edit_process_artifacts", "request_user_decision"],
-      "required_evidence": ["repository_observation", "comprehension_assessment"],
+      "entry_conditions": [
+        "Current tests passed against the current repository and baselines."
+      ],
+      "completion_conditions": [
+        "The explanation and complexity review are complete.",
+        "The developer provided an explicit verdict."
+      ],
+      "allowed_effects": [
+        "read_repository",
+        "edit_process_artifacts",
+        "request_user_decision"
+      ],
+      "required_evidence": [
+        "repository_observation",
+        "comprehension_assessment"
+      ],
       "method_steps": [
-        {"step_id": "comprehension.explain", "purpose": "Explain current behavior, design, and code paths.", "required": true},
-        {"step_id": "comprehension.identify_complexity", "purpose": "Identify unnecessary abstractions and maintenance risks.", "required": true},
-        {"step_id": "comprehension.obtain_user_verdict", "purpose": "Obtain the developer's explicit verdict.", "required": true}
+        {
+          "step_id": "comprehension.explain",
+          "purpose": "Explain current behavior, design, and code paths.",
+          "required": true
+        },
+        {
+          "step_id": "comprehension.identify_complexity",
+          "purpose": "Identify unnecessary abstractions and maintenance risks.",
+          "required": true
+        },
+        {
+          "step_id": "comprehension.obtain_user_verdict",
+          "purpose": "Obtain the developer's explicit verdict.",
+          "required": true
+        }
       ],
       "available_transitions": [
-        {"transition_id": "comprehension_passed", "destination": "DELIVERY", "guard_id": "current_user_comprehension_confirmed", "when": "The developer explicitly confirms current comprehension.", "reason_required": false},
-        {"transition_id": "implementation_defect", "destination": "IMPLEMENT", "guard_id": "implementation_defect_identified", "when": "The review identifies an implementation defect.", "reason_required": true},
-        {"transition_id": "code_too_complex", "destination": "REFACTOR", "guard_id": "code_complexity_identified", "when": "The developer identifies unnecessary code complexity.", "reason_required": true},
-        {"transition_id": "design_too_complex", "destination": "DESIGN", "guard_id": "design_complexity_identified", "when": "The developer identifies unnecessary design complexity.", "reason_required": true},
-        {"transition_id": "evidence_insufficient", "destination": "TEST", "guard_id": "verification_gap_identified", "when": "Current verification cannot support comprehension.", "reason_required": true},
-        {"transition_id": "requirement_unclear", "destination": "REQUIREMENTS", "guard_id": "comprehension_requirement_gap_identified", "when": "A material requirement remains unclear.", "reason_required": true}
+        {
+          "transition_id": "comprehension_passed",
+          "destination": "DELIVERY",
+          "guard_id": "current_user_comprehension_confirmed",
+          "when": "The developer explicitly confirms current comprehension.",
+          "reason_required": false
+        },
+        {
+          "transition_id": "implementation_defect",
+          "destination": "IMPLEMENT",
+          "guard_id": "implementation_defect_identified",
+          "when": "The review identifies an implementation defect.",
+          "reason_required": true
+        },
+        {
+          "transition_id": "code_too_complex",
+          "destination": "REFACTOR",
+          "guard_id": "code_complexity_identified",
+          "when": "The developer identifies unnecessary code complexity.",
+          "reason_required": true
+        },
+        {
+          "transition_id": "design_too_complex",
+          "destination": "DESIGN",
+          "guard_id": "design_complexity_identified",
+          "when": "The developer identifies unnecessary design complexity.",
+          "reason_required": true
+        },
+        {
+          "transition_id": "evidence_insufficient",
+          "destination": "TEST",
+          "guard_id": "verification_gap_identified",
+          "when": "Current verification cannot support comprehension.",
+          "reason_required": true
+        },
+        {
+          "transition_id": "requirement_unclear",
+          "destination": "REQUIREMENTS",
+          "guard_id": "comprehension_requirement_gap_identified",
+          "when": "A material requirement remains unclear.",
+          "reason_required": true
+        }
       ],
       "payload_contract": "comprehension-result@1",
       "guidance": "Present the review and wait for the developer's explicit verdict.",
@@ -128,10 +267,19 @@
     "problem_class": "none",
     "baseline": {
       "goal": "Prove method profiles share one Core transition.",
-      "scope": ["Codex adapter fixture behavior"],
-      "out_of_scope": ["Method tool installation", "DeepSeek product behavior"],
-      "acceptance_criteria": ["Equivalent profile results enter DESIGN"],
-      "constraints": ["Core remains the only transition authority"],
+      "scope": [
+        "Codex adapter fixture behavior"
+      ],
+      "out_of_scope": [
+        "Method tool installation",
+        "DeepSeek product behavior"
+      ],
+      "acceptance_criteria": [
+        "Equivalent profile results enter DESIGN"
+      ],
+      "constraints": [
+        "Core remains the only transition authority"
+      ],
       "assumptions": []
     },
     "unresolved_questions": []
@@ -143,9 +291,24 @@
       "action": "requirements",
       "available_capabilities": [],
       "method_evidence": [
-        {"step_id": "requirements.capture", "status": "plain_fallback", "capability": "", "summary": "Captured bounded requirements directly."},
-        {"step_id": "requirements.clarify", "status": "plain_fallback", "capability": "", "summary": "Resolved material questions directly."},
-        {"step_id": "requirements.validate", "status": "plain_fallback", "capability": "", "summary": "Validated observable acceptance directly."}
+        {
+          "step_id": "requirements.capture",
+          "status": "plain_fallback",
+          "capability": "",
+          "summary": "Captured bounded requirements directly."
+        },
+        {
+          "step_id": "requirements.clarify",
+          "status": "plain_fallback",
+          "capability": "",
+          "summary": "Resolved material questions directly."
+        },
+        {
+          "step_id": "requirements.validate",
+          "status": "plain_fallback",
+          "capability": "",
+          "summary": "Validated observable acceptance directly."
+        }
       ],
       "node_result": "requirements_node_result",
       "transition_id": "requirements_ready",
@@ -155,11 +318,30 @@
       "id": "spec-kit-requirements-available",
       "profile": "spec-kit",
       "action": "requirements",
-      "available_capabilities": ["speckit-specify", "speckit-clarify", "speckit-checklist"],
+      "available_capabilities": [
+        "speckit-specify",
+        "speckit-clarify",
+        "speckit-checklist"
+      ],
       "method_evidence": [
-        {"step_id": "requirements.capture", "status": "completed", "capability": "speckit-specify", "summary": "The prepared specification captures the requirements."},
-        {"step_id": "requirements.clarify", "status": "completed", "capability": "speckit-clarify", "summary": "Material questions were resolved."},
-        {"step_id": "requirements.validate", "status": "completed", "capability": "speckit-checklist", "summary": "Requirements quality was reviewed."}
+        {
+          "step_id": "requirements.capture",
+          "status": "completed",
+          "capability": "speckit-specify",
+          "summary": "The prepared specification captures the requirements."
+        },
+        {
+          "step_id": "requirements.clarify",
+          "status": "completed",
+          "capability": "speckit-clarify",
+          "summary": "Material questions were resolved."
+        },
+        {
+          "step_id": "requirements.validate",
+          "status": "completed",
+          "capability": "speckit-checklist",
+          "summary": "Requirements quality was reviewed."
+        }
       ],
       "node_result": "requirements_node_result",
       "transition_id": "requirements_ready",
@@ -169,11 +351,29 @@
       "id": "spec-kit-clarify-unavailable-pending",
       "profile": "spec-kit",
       "action": "requirements",
-      "available_capabilities": ["speckit-specify", "speckit-checklist"],
+      "available_capabilities": [
+        "speckit-specify",
+        "speckit-checklist"
+      ],
       "method_evidence": [
-        {"step_id": "requirements.capture", "status": "completed", "capability": "speckit-specify", "summary": "The prepared specification captures the requirements."},
-        {"step_id": "requirements.clarify", "status": "unavailable", "capability": "", "summary": "Spec Kit clarify is unavailable and equivalent work is incomplete."},
-        {"step_id": "requirements.validate", "status": "completed", "capability": "speckit-checklist", "summary": "Requirements quality was reviewed."}
+        {
+          "step_id": "requirements.capture",
+          "status": "completed",
+          "capability": "speckit-specify",
+          "summary": "The prepared specification captures the requirements."
+        },
+        {
+          "step_id": "requirements.clarify",
+          "status": "unavailable",
+          "capability": "",
+          "summary": "Spec Kit clarify is unavailable and equivalent work is incomplete."
+        },
+        {
+          "step_id": "requirements.validate",
+          "status": "completed",
+          "capability": "speckit-checklist",
+          "summary": "Requirements quality was reviewed."
+        }
       ],
       "node_result": null,
       "transition_id": null,
@@ -183,11 +383,29 @@
       "id": "spec-kit-clarify-unavailable-fallback-complete",
       "profile": "spec-kit",
       "action": "requirements",
-      "available_capabilities": ["speckit-specify", "speckit-checklist"],
+      "available_capabilities": [
+        "speckit-specify",
+        "speckit-checklist"
+      ],
       "method_evidence": [
-        {"step_id": "requirements.capture", "status": "completed", "capability": "speckit-specify", "summary": "The prepared specification captures the requirements."},
-        {"step_id": "requirements.clarify", "status": "plain_fallback", "capability": "", "summary": "Resolved material questions directly with the developer."},
-        {"step_id": "requirements.validate", "status": "completed", "capability": "speckit-checklist", "summary": "Requirements quality was reviewed."}
+        {
+          "step_id": "requirements.capture",
+          "status": "completed",
+          "capability": "speckit-specify",
+          "summary": "The prepared specification captures the requirements."
+        },
+        {
+          "step_id": "requirements.clarify",
+          "status": "plain_fallback",
+          "capability": "",
+          "summary": "Resolved material questions directly with the developer."
+        },
+        {
+          "step_id": "requirements.validate",
+          "status": "completed",
+          "capability": "speckit-checklist",
+          "summary": "Requirements quality was reviewed."
+        }
       ],
       "node_result": "requirements_node_result",
       "transition_id": "requirements_ready",
@@ -197,11 +415,29 @@
       "id": "openspec-requirements-available",
       "profile": "openspec",
       "action": "requirements",
-      "available_capabilities": ["openspec-propose", "openspec-validate"],
+      "available_capabilities": [
+        "openspec-propose",
+        "openspec-validate"
+      ],
       "method_evidence": [
-        {"step_id": "requirements.capture", "status": "completed", "capability": "openspec-propose", "summary": "The OpenSpec proposal captures the requirements."},
-        {"step_id": "requirements.clarify", "status": "plain_fallback", "capability": "", "summary": "Resolved material questions directly in the current proposal."},
-        {"step_id": "requirements.validate", "status": "completed", "capability": "openspec-validate", "summary": "Validated the current OpenSpec change."}
+        {
+          "step_id": "requirements.capture",
+          "status": "completed",
+          "capability": "openspec-propose",
+          "summary": "The OpenSpec proposal captures the requirements."
+        },
+        {
+          "step_id": "requirements.clarify",
+          "status": "plain_fallback",
+          "capability": "",
+          "summary": "Resolved material questions directly in the current proposal."
+        },
+        {
+          "step_id": "requirements.validate",
+          "status": "completed",
+          "capability": "openspec-validate",
+          "summary": "Validated the current OpenSpec change."
+        }
       ],
       "node_result": "requirements_node_result",
       "transition_id": "requirements_ready",
@@ -211,11 +447,28 @@
       "id": "openspec-verify-unavailable-pending",
       "profile": "openspec",
       "action": "test",
-      "available_capabilities": ["openspec-validate"],
+      "available_capabilities": [
+        "openspec-validate"
+      ],
       "method_evidence": [
-        {"step_id": "test.run_budgeted_checks", "status": "unavailable", "capability": "", "summary": "OpenSpec verify is unavailable and plain verification is incomplete."},
-        {"step_id": "test.record_evidence", "status": "not_run", "capability": "", "summary": "No current verification evidence exists."},
-        {"step_id": "test.classify_failure", "status": "not_run", "capability": "", "summary": "No current result exists to classify."}
+        {
+          "step_id": "test.run_budgeted_checks",
+          "status": "unavailable",
+          "capability": "",
+          "summary": "OpenSpec verify is unavailable and plain verification is incomplete."
+        },
+        {
+          "step_id": "test.record_evidence",
+          "status": "not_run",
+          "capability": "",
+          "summary": "No current verification evidence exists."
+        },
+        {
+          "step_id": "test.classify_failure",
+          "status": "not_run",
+          "capability": "",
+          "summary": "No current result exists to classify."
+        }
       ],
       "node_result": null,
       "transition_id": null,
@@ -225,15 +478,41 @@
       "id": "openspec-verify-unavailable-fallback-complete",
       "profile": "openspec",
       "action": "test",
-      "available_capabilities": ["openspec-validate"],
+      "available_capabilities": [
+        "openspec-validate"
+      ],
       "method_evidence": [
-        {"step_id": "test.run_budgeted_checks", "status": "plain_fallback", "capability": "", "summary": "Ran the plan-defined checks directly."},
-        {"step_id": "test.record_evidence", "status": "plain_fallback", "capability": "", "summary": "Recorded the actual current evidence."},
-        {"step_id": "test.classify_failure", "status": "plain_fallback", "capability": "", "summary": "Classified the successful result from observed facts."}
+        {
+          "step_id": "test.run_budgeted_checks",
+          "status": "plain_fallback",
+          "capability": "",
+          "summary": "Ran the plan-defined checks directly."
+        },
+        {
+          "step_id": "test.record_evidence",
+          "status": "plain_fallback",
+          "capability": "",
+          "summary": "Recorded the actual current evidence."
+        },
+        {
+          "step_id": "test.classify_failure",
+          "status": "plain_fallback",
+          "capability": "",
+          "summary": "Classified the successful result from observed facts."
+        }
       ],
       "node_result": {
         "problem_class": "none",
-        "checks": [{"source": "automated", "name": "focused-adapter-test", "status": "passed", "summary": "Focused adapter checks passed.", "command_count": 1, "full_suite": false}],
+        "checks": [
+          {
+            "source": "automated",
+            "name": "focused-adapter-test",
+            "status": "passed",
+            "summary": "Focused adapter checks passed.",
+            "command_count": 1,
+            "full_suite": false
+          }
+        ],
         "failed_items": [],
         "unverified_items": [],
         "manual_handoff_items": [],
@@ -246,11 +525,20 @@
       "id": "method-tool-state-without-core-result",
       "profile": "openspec",
       "action": "requirements",
-      "available_capabilities": ["openspec-propose", "openspec-apply", "openspec-archive"],
+      "available_capabilities": [
+        "openspec-propose",
+        "openspec-apply",
+        "openspec-archive"
+      ],
       "method_evidence": [],
       "node_result": null,
       "transition_id": null,
-      "method_tool_state": ["command_success", "artifact_exists", "checkbox_checked", "archive_complete"],
+      "method_tool_state": [
+        "command_success",
+        "artifact_exists",
+        "checkbox_checked",
+        "archive_complete"
+      ],
       "should_apply": false
     },
     {
@@ -259,9 +547,24 @@
       "action": "comprehension_review",
       "available_capabilities": [],
       "method_evidence": [
-        {"step_id": "comprehension.explain", "status": "plain_fallback", "capability": "", "summary": "Presented the bounded explanation."},
-        {"step_id": "comprehension.identify_complexity", "status": "plain_fallback", "capability": "", "summary": "Presented complexity and maintenance risks."},
-        {"step_id": "comprehension.obtain_user_verdict", "status": "not_run", "capability": "", "summary": "Waiting for the developer's verdict."}
+        {
+          "step_id": "comprehension.explain",
+          "status": "plain_fallback",
+          "capability": "",
+          "summary": "Presented the bounded explanation."
+        },
+        {
+          "step_id": "comprehension.identify_complexity",
+          "status": "plain_fallback",
+          "capability": "",
+          "summary": "Presented complexity and maintenance risks."
+        },
+        {
+          "step_id": "comprehension.obtain_user_verdict",
+          "status": "not_run",
+          "capability": "",
+          "summary": "Waiting for the developer's verdict."
+        }
       ],
       "node_result": null,
       "transition_id": null,
@@ -273,17 +576,42 @@
       "action": "comprehension_review",
       "available_capabilities": [],
       "method_evidence": [
-        {"step_id": "comprehension.explain", "status": "plain_fallback", "capability": "", "summary": "Presented the bounded explanation."},
-        {"step_id": "comprehension.identify_complexity", "status": "plain_fallback", "capability": "", "summary": "Presented complexity and maintenance risks."},
-        {"step_id": "comprehension.obtain_user_verdict", "status": "plain_fallback", "capability": "", "summary": "Recorded the developer's explicit understanding verdict."}
+        {
+          "step_id": "comprehension.explain",
+          "status": "plain_fallback",
+          "capability": "",
+          "summary": "Presented the bounded explanation."
+        },
+        {
+          "step_id": "comprehension.identify_complexity",
+          "status": "plain_fallback",
+          "capability": "",
+          "summary": "Presented complexity and maintenance risks."
+        },
+        {
+          "step_id": "comprehension.obtain_user_verdict",
+          "status": "plain_fallback",
+          "capability": "",
+          "summary": "Recorded the developer's explicit understanding verdict."
+        }
       ],
       "node_result": {
         "problem_class": "none",
-        "explained_components": ["requirements authority", "Core transition selection", "Codex method rendering"],
+        "explained_components": [
+          "requirements authority",
+          "Core transition selection",
+          "Codex method rendering"
+        ],
         "unresolved_questions": [],
         "unnecessary_abstractions": [],
-        "maintenance_risks": ["Capability availability must be reported honestly."],
-        "user_confirmation": {"source": "user", "status": "passed", "summary": "The developer explicitly confirmed understanding."}
+        "maintenance_risks": [
+          "Capability availability must be reported honestly."
+        ],
+        "user_confirmation": {
+          "source": "user",
+          "status": "passed",
+          "summary": "The developer explicitly confirmed understanding."
+        }
       },
       "transition_id": "comprehension_passed",
       "should_apply": true
@@ -294,18 +622,45 @@
       "action": "comprehension_review",
       "available_capabilities": [],
       "method_evidence": [
-        {"step_id": "comprehension.explain", "status": "plain_fallback", "capability": "", "summary": "Presented the bounded explanation."},
-        {"step_id": "comprehension.identify_complexity", "status": "plain_fallback", "capability": "", "summary": "Identified unnecessary code complexity."},
-        {"step_id": "comprehension.obtain_user_verdict", "status": "plain_fallback", "capability": "", "summary": "Recorded the developer's explicit complexity verdict."}
+        {
+          "step_id": "comprehension.explain",
+          "status": "plain_fallback",
+          "capability": "",
+          "summary": "Presented the bounded explanation."
+        },
+        {
+          "step_id": "comprehension.identify_complexity",
+          "status": "plain_fallback",
+          "capability": "",
+          "summary": "Identified unnecessary code complexity."
+        },
+        {
+          "step_id": "comprehension.obtain_user_verdict",
+          "status": "plain_fallback",
+          "capability": "",
+          "summary": "Recorded the developer's explicit complexity verdict."
+        }
       ],
       "node_result": {
         "problem_class": "code_complexity",
-        "explained_components": ["requirements authority", "Core transition selection", "Codex method rendering"],
-        "unresolved_questions": ["The adapter path contains unnecessary indirection."],
-        "unnecessary_abstractions": ["An unnecessary method rendering wrapper."],
-        "maintenance_risks": ["A simple capability change would cross too many layers."],
+        "explained_components": [
+          "requirements authority",
+          "Core transition selection",
+          "Codex method rendering"
+        ],
+        "unresolved_questions": [
+          "The adapter path contains unnecessary indirection."
+        ],
+        "unnecessary_abstractions": [
+          "An unnecessary method rendering wrapper."
+        ],
+        "maintenance_risks": [
+          "A simple capability change would cross too many layers."
+        ],
         "user_confirmation": null,
-        "findings": ["The current code path is unnecessarily complex."]
+        "findings": [
+          "The current code path is unnecessarily complex."
+        ]
       },
       "transition_id": "code_too_complex",
       "reason": "The developer cannot maintain the unnecessary rendering wrapper.",
