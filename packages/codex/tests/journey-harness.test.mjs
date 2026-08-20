@@ -11,12 +11,20 @@ import {
   CODEX_COMPATIBILITY_RANGE,
   EXPLICIT_SELECTOR,
   FINAL_FIXTURE_EVIDENCE_KIND,
+  FINAL_LOCAL_NATIVE_EVIDENCE_KIND,
   FINAL_NATIVE_EVIDENCE_KIND,
+  buildFinalLocalInstallArgs,
+  buildFinalLocalJourneyEnvironment,
+  buildFinalLocalUninstallArgs,
   buildFinalJourneyEnvironment,
   buildFinalRegistryInstallArgs,
   buildFinalRegistryPackArgs,
   buildCodexExecArgs,
   createFinalJourneyLayout,
+  createFinalLocalJourneyLayout,
+  finalLocalSessionOnePrompt,
+  finalLocalSessionTwoPrompt,
+  finalLocalSessionThreePrompt,
   inspectFinalCodexExecutable,
   parseCLI,
   runDevelopmentSmoke,
@@ -24,6 +32,7 @@ import {
   validateAcceptanceReport,
   validateFinalJourneyEvidence,
   validateFinalJourneyEvidenceShape,
+  validateFinalLocalJourneyEvidence,
 } from "../../../scripts/write-codex-journey-evidence.mjs";
 import { buildSupportMatrixFromFinalJourney } from "../../../scripts/verify-codex-release.mjs";
 import { productionJourneyRunnerPath } from "../../../scripts/publish-codex-release.mjs";
@@ -50,6 +59,13 @@ const methodProfileFixturePath = join(
   "tests",
   "fixtures",
   "graph-method-profiles.json",
+);
+const finalLocalPayloadFixturePath = join(
+  repositoryRoot,
+  "tests",
+  "contract",
+  "testdata",
+  "final-local-payloads.json",
 );
 
 const fixtures = [
@@ -113,6 +129,57 @@ function fixtureFinalJourneyEvidence() {
     task_reopened_after_uninstall: true,
     unexpected_repository_paths: [],
     observed_at: "2026-08-17T08:00:00.000Z",
+  };
+}
+
+function fixtureFinalLocalJourneyEvidence() {
+  return {
+    evidence_kind: FINAL_LOCAL_NATIVE_EVIDENCE_KIND,
+    status: "passed",
+    artifact_filename: "dev-flow-codex-0.3.0.tgz",
+    artifact_sha256: "a".repeat(64),
+    artifact_size: 4378118,
+    artifact_source_commit: "b".repeat(40),
+    package_name: "dev-flow-codex",
+    package_version: "0.3.0",
+    core_version: "0.3.0",
+    core_sha256: "c".repeat(64),
+    platform: "darwin-arm64",
+    codex_version: "0.147.0",
+    compatible_codex_range: CODEX_COMPATIBILITY_RANGE,
+    codex_compatible: true,
+    explicit_selector: EXPLICIT_SELECTOR,
+    handshake_passed: true,
+    setup_readback_passed: true,
+    ordinary_prompt_core_call_count: 0,
+    task_id_before_restart: "task-local-0001",
+    task_revision_before_restart: 6,
+    task_action_id_before_restart: "action-local-0006",
+    task_id_after_restart: "task-local-0001",
+    task_revision_after_restart: 6,
+    task_action_id_after_restart: "action-local-0006",
+    multiple_destinations_observed: true,
+    complexity_transition_observed: true,
+    refactor_retest_observed: true,
+    explicit_user_confirmation_observed: true,
+    committed_action_count: 10,
+    targeted_command_count: 2,
+    terminal_outcome: "DONE",
+    remove_readback_passed: true,
+    npm_uninstall_passed: true,
+    task_data_retained: true,
+    task_reopened_after_uninstall: true,
+    unexpected_repository_paths: [],
+    native_journey_attempt_count: 2,
+    total_native_attempts: 2,
+    successful_attempt: 2,
+    attempt_1_status: "failed",
+    attempt_1_stage: "initial-comprehension-first-requirements-apply",
+    attempt_1_failure: "invalid-contract-0.2-payload",
+    attempt_2_status: "passed",
+    attempt_2_authorization: "explicit_user_authorization",
+    previous_attempt_preserved: true,
+    observed_at: "2026-08-20T08:00:00.000Z",
   };
 }
 
@@ -780,6 +847,122 @@ test("development smoke preserves the exact post-session invariant failure", () 
     () => smokeRuntime.validateDevelopmentSessions([], {}),
     (error) => error.classification === "post-session: MCP aggregate requires ordinary, invalid, substantive, and resume sessions",
   );
+});
+
+test("final local journey CLI is artifact-bound and has no registry substitution", () => {
+  const exact = [
+    "final-local",
+    "--artifact", "/tmp/artifacts/dev-flow-codex-0.3.0.tgz",
+    "--artifact-sha256", "a".repeat(64),
+    "--artifact-size", "4378118",
+    "--source-commit", "b".repeat(40),
+    "--codex-executable", "/opt/codex/bin/codex",
+    "--workspace", "/tmp/final-local/workspace",
+    "--result-directory", "/tmp/final-local/result",
+    "--native-attempt", "2",
+    "--authorization", "explicit_user_authorization",
+  ];
+  assert.deepEqual(parseCLI([...exact]), {
+    mode: "final-local",
+    artifact: "/tmp/artifacts/dev-flow-codex-0.3.0.tgz",
+    artifactSHA256: "a".repeat(64),
+    artifactSize: 4378118,
+    sourceCommit: "b".repeat(40),
+    codexExecutable: "/opt/codex/bin/codex",
+    workspace: "/tmp/final-local/workspace",
+    resultDirectory: "/tmp/final-local/result",
+    nativeAttempt: 2,
+    authorization: "explicit_user_authorization",
+  });
+  assert.throws(() => parseCLI([...exact, "--package", "dev-flow-codex"]), /exact flag/u);
+  assert.throws(() => parseCLI([...exact, "--registry", "https://registry.npmjs.org/"]), /exact flag/u);
+  assert.throws(() => parseCLI([...exact, "--version", "0.3.0"]), /exact flag/u);
+  assert.throws(() => parseCLI([...exact, "--artifact", exact[2]]), /exact flag/u);
+  const relative = [...exact];
+  relative[relative.indexOf("--artifact") + 1] = "package.tgz";
+  assert.throws(() => parseCLI(relative), /local artifact must be an absolute path/u);
+
+  assert.deepEqual(buildFinalLocalInstallArgs({
+    artifact: "/tmp/artifacts/dev-flow-codex-0.3.0.tgz",
+    prefix: "/tmp/final-local/npm-prefix",
+    cache: "/tmp/final-local/npm-cache",
+  }), [
+    "install", "--global", "/tmp/artifacts/dev-flow-codex-0.3.0.tgz",
+    "--prefix", "/tmp/final-local/npm-prefix",
+    "--cache", "/tmp/final-local/npm-cache",
+    "--ignore-scripts", "--no-audit", "--no-fund",
+  ]);
+  assert.deepEqual(buildFinalLocalUninstallArgs({
+    prefix: "/tmp/final-local/npm-prefix",
+    cache: "/tmp/final-local/npm-cache",
+  }), [
+    "uninstall", "--global", "dev-flow-codex",
+    "--prefix", "/tmp/final-local/npm-prefix",
+    "--cache", "/tmp/final-local/npm-cache",
+    "--ignore-scripts", "--no-audit", "--no-fund",
+  ]);
+});
+
+test("final local payload fixtures and prompts preserve every closed graph branch", async () => {
+  const fixture = JSON.parse(await readFile(finalLocalPayloadFixturePath, "utf8"));
+  assert.equal(fixture.fixture_kind, "feature_008_final_local_payload_matrix");
+  assert.deepEqual(fixture.entries.map((entry) => entry.name), [
+    "requirements_ready", "design_ready", "tasks_ready", "implementation_ready_for_test",
+    "tests_passed_initial", "code_too_complex", "refactor_ready_for_test",
+    "tests_passed_after_refactor", "comprehension_passed", "delivery_complete",
+  ]);
+  for (const entry of fixture.entries) {
+    assert.deepEqual(Object.keys(entry.payload).sort(), [
+      "artifacts", "method_evidence", "node_result", "reason", "summary", "transition_id",
+    ]);
+    assert.deepEqual(entry.payload.artifacts, []);
+    assert.equal(entry.payload.method_evidence.length, 3);
+    assert.equal(new Set(entry.payload.method_evidence.map((item) => item.step_id)).size, 3);
+    assert.equal(entry.payload.method_evidence.every((item) => item.status === "plain_fallback" && item.capability === ""), true);
+    assert.equal("destination" in entry.payload, false);
+  }
+  const requirements = fixture.entries[0].payload.node_result;
+  assert.deepEqual(Object.keys(requirements).sort(), ["baseline", "problem_class", "unresolved_questions"]);
+  assert.equal(requirements.problem_class, "none");
+  assert.deepEqual(requirements.unresolved_questions, []);
+  assert.equal(JSON.stringify(fixture).includes("repository_observation"), false);
+  for (const prompt of [finalLocalSessionOnePrompt, finalLocalSessionTwoPrompt, finalLocalSessionThreePrompt]) {
+    assert.match(prompt, /artifacts=\[\]/u);
+    assert.match(prompt, /required_evidence is not an ArtifactReference role/u);
+    assert.match(prompt, /complete node_result wrapper/u);
+    assert.match(prompt, /INVALID_ARGUMENT, stop immediately/u);
+    assert.match(prompt, /Never submit destination, next_node, next_cursor/u);
+  }
+});
+
+test("final local layout isolates every mutable surface and evidence remains closed", () => {
+  const layout = createFinalLocalJourneyLayout(
+    "/tmp/final-local/workspace",
+    "/tmp/final-local/result",
+  );
+  assert.equal(layout.root, "/tmp/final-local");
+  for (const field of ["home", "codexHome", "installPrefix", "npmCache", "dataDirectory", "temporaryDirectory", "xdgCache"]) {
+    assert.equal(layout[field].startsWith("/tmp/final-local/"), true, field);
+  }
+  const environment = buildFinalLocalJourneyEnvironment({
+    layout,
+    codexExecutable: "/opt/codex/bin/codex",
+    toolDirectories: ["/usr/bin", "/bin"],
+    baseEnvironment: { LANG: "C.UTF-8", AUTH_TOKEN: "forbidden" },
+  });
+  assert.equal(environment.HOME, layout.home);
+  assert.equal(environment.CODEX_HOME, layout.codexHome);
+  assert.equal(environment.DEV_FLOW_DATA_DIR, layout.dataDirectory);
+  assert.equal(environment.GIT_CONFIG_GLOBAL, "/dev/null");
+  assert.equal(environment.GIT_CONFIG_NOSYSTEM, "1");
+  assert.equal("AUTH_TOKEN" in environment, false);
+  assert.equal("npm_config_registry" in environment, false);
+
+  const evidence = fixtureFinalLocalJourneyEvidence();
+  assert.deepEqual(validateFinalLocalJourneyEvidence(evidence), evidence);
+  assert.throws(() => validateFinalLocalJourneyEvidence({ ...evidence, native_journey_attempt_count: 3 }), /attempt count/u);
+  assert.throws(() => validateFinalLocalJourneyEvidence({ ...evidence, unexpected_repository_paths: ["extra.txt"] }), /unexpected_repository_paths/u);
+  assert.throws(() => validateFinalLocalJourneyEvidence({ ...evidence, artifact_filename: "/Users/private/package.tgz" }), /filename|private path/u);
 });
 
 test("final registry journey CLI is closed, registry-only, and rejects local substitution", () => {

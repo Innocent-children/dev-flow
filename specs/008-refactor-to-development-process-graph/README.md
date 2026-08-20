@@ -164,6 +164,28 @@ Contract 0.2 `schema_version=2`, Core Limits `0.2`, exact `standard-development@
 all three method profiles, and the ordered six-tool ServerInfo catalog. The repository records no
 local artifact path. T092 must use the separately retained local path and exact digest above.
 
+## Phase 8B Native Attempt Budget
+
+Native attempt 1 failed during the first `REQUIREMENTS` mutation because the submitted Journey
+payload did not match the closed Contract 0.2 branch: a required-evidence kind was used as an
+ArtifactReference role and the required `node_result` wrapper was flattened. Core correctly returned
+`INVALID_ARGUMENT`; no product mutation passed, and the external failure evidence remains retained.
+
+Native attempt 2 is explicitly authorized by the user after deterministic payload-matrix correction,
+full launch preflight, a clean harness-fix commit, and passing CI. Successful native acceptance
+evidence may come only from attempt 2. The bounded execution record is:
+
+```text
+total native attempts allowed: 2
+attempt 1: failed and permanently retained
+attempt 2: final explicitly authorized attempt
+successful native Journey required: 1
+attempt 3: forbidden
+```
+
+This is an acceptance-execution budget exception only. It adds no product behavior, requirement,
+node, transition, recovery class, platform, release authority, or Success Criterion.
+
 ## Release Boundary
 
 Feature 008 may prepare source and local test artifacts only. It must not change `VERSION`, package

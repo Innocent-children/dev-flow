@@ -591,7 +591,9 @@ blocked cancellation commits once.
 
 **Proves**: SC-015
 
-**Evidence class**: one native real Codex journey against one local source-built package artifact
+**Evidence class**: one successful native real Codex Journey against one local source-built package
+artifact. Failed attempt 1 remains retained evidence; the successful Journey must come from the
+explicitly authorized final attempt 2, and attempt 3 is forbidden.
 
 The final journey must:
 

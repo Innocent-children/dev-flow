@@ -52,6 +52,40 @@ test("Codex 0.147 completed MCP item preserves complete structured/text parity",
   });
 });
 
+test("Contract 0.2 native parser accepts one complete text-only Core result", () => {
+  const envelope = {
+    schema_version: 2,
+    ok: true,
+    request_id: "request-contract-0-2-server-info",
+    tool: "dev_flow_server_info",
+    result: {
+      product: "dev-flow",
+      version: "0.3.0",
+      schema_version: 2,
+      core_limits_version: "0.2",
+      tools: DEV_FLOW_TOOLS,
+    },
+  };
+  const parsed = parseCodexJSONL([
+    JSON.stringify({ type: "thread.started", thread_id: "thread-contract-0-2-text-only" }),
+    JSON.stringify({
+      type: "item.completed",
+      item: {
+        id: "item-contract-0-2-server-info",
+        type: "mcp_tool_call",
+        server: "dev-flow",
+        tool: "dev_flow_server_info",
+        arguments: {},
+        status: "completed",
+        error: null,
+        result: { content: [{ type: "text", text: JSON.stringify(envelope) }] },
+      },
+    }),
+  ].join("\n"));
+  assert.equal(parsed.calls[0].structuredContent.schema_version, 2);
+  assert.deepEqual(parsed.calls[0].arguments, {});
+});
+
 test("Codex 0.147 failed MCP item with a complete Core result remains a domain error", async () => {
   const parsed = await parseCodexFixtureFile(
     fixtures.coreDomainError.path,
@@ -411,6 +445,7 @@ test("HIGH-3 failed event binding: authority remains attached to one session ite
     item_id: "item-redacted-core-error",
     tool: "dev_flow_apply_action",
     request_id: "request-redacted-core-error",
+    arguments: parsed.calls[0].arguments,
     status: "failed",
     classification: "core-domain-error",
     core_result: parsed.calls[0].structuredContent,

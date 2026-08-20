@@ -381,7 +381,8 @@ unstarted.
   documentation reconciliation; fix only concrete failures.
 - [x] T091 Build one source-local Codex package artifact with the existing local builder, verify
   package/Core identity and closed contents, and keep it outside the repository; do not publish.
-- [ ] T092 Run exactly one native real Codex journey implementing Quickstart Final Journey, including
+- [ ] T092 Complete the one required successful native real Codex Journey implementing Quickstart
+  Final Journey on the explicitly authorized second attempt, retaining the failed first-attempt evidence, including
   fresh data root, visible multiple destinations, test/complexity/refactor/retest, restart/resume, explicit user
   comprehension, DONE, removal/uninstall, and retained reopen per SC-015.
 - [ ] T093 Run `RELEASE_BASE_SHA=<feature-base> pnpm run validate` exactly once; do not separately
@@ -432,7 +433,7 @@ touch different files.
 | --- | --- |
 | Targeted checks | Run at named checkpoints; rerun only after a concrete failure/fix |
 | Repository-wide validation | One Phase 5D `pnpm run validate`, then one later final Phase 8 invocation; retry only after a concrete fixed failure |
-| Real Codex journey | Exactly 1 final local-artifact journey |
+| Real Codex journey | One successful final local-artifact Journey; attempt 1 failed on an invalid Harness payload, attempt 2 is explicitly user-authorized and final, and attempt 3 is forbidden |
 | Released 0.3.0 old-binary/legacy-task journey | 0 |
 | Real Spec Kit/OpenSpec installation matrix | 0 |
 | Linux/Windows/Intel Mac native journey | 0 |
