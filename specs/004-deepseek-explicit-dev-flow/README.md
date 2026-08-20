@@ -2,6 +2,10 @@
 
 **Status**: Deferred by maintainer decision on 2026-08-17.
 
+**Implementation planning superseded**: Feature 010 (`specs/010-deepseek-explicit-graph-host/`)
+replaces this package as the current DeepSeek implementation authority. This Feature remains frozen
+historical planning against Core Contract 0.1.
+
 This directory retains the reviewed Spec Kit planning package for a future thin, explicit-only
 DeepSeek Harness product. Deferral is not cancellation and does not make any planned behavior an
 implemented capability.
@@ -22,7 +26,7 @@ When Feature 004 resumes, it must:
 3. revalidate the official stable Harness package/profile/MCP behavior;
 4. revise stale compatibility and evidence assumptions before implementation;
 5. preserve Codex validation and shared Core semantics;
-6. receive its own final real-host journey and later publication feature.
+6. receive its own final real-host journey and later standalone Release Change.
 
 The existing plan, research, contracts, model, quickstart, checklists, and tasks remain planning
 history. Their original “after Feature 003” sequencing is superseded by this deferral notice.

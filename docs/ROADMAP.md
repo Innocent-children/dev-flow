@@ -1,7 +1,7 @@
 # Dev Flow 发展路线
 
-路线图描述当前源码能力、尚未完成的 Feature 门禁和真正的未来方向。已经完成的 Features
-001–007 与公开 `0.3.0` 保留为历史证据，不在这里重述实施流水账。
+路线图描述当前源码能力、活动 Feature 门禁和真正的未来方向。已经完成的 Features 001–009
+与公开 `0.3.0`、`0.4.0` 保留为历史证据，不在这里重述实施流水账。
 
 ## 当前源码：Development Process Graph
 
@@ -66,6 +66,16 @@ Feature 009 已批准以下 Codex-only 发布工作：
 Feature 008 的 source-local acceptance artifact 继续作为冻结测试证据；Feature 009 从新的干净
 `main` source identity 构建 official `0.4.0` artifact，不复用或改写该历史制品。
 
+当前公开 Codex 产品版本为 `0.5.0`；npm `dev-flow-codex@0.5.0`、Tag `v0.5.0` 和 GitHub
+Release `v0.5.0` 使用同一 source identity。Feature 009 仍只记录 `0.4.0` 历史发布，不被改写。
+
+## 当前活动：Feature 010 DeepSeek Explicit Graph Host
+
+Feature 010 从当前 Core Contract 0.2、Schema 2 和 `standard-development@1` 基线实现独立的
+DeepSeek source-local 产品。它在正式实现前冻结 DSH rc.8、显式 `/dev-flow` 授权、六工具、
+生命周期、数据保留和证据合同。Feature 完成不选择公开 DeepSeek 版本，也不执行 npm、Tag 或
+GitHub Release 操作。
+
 ## 未来产品方向
 
 只有真实使用证明价值并建立独立规格后，才考虑：
@@ -74,7 +84,7 @@ Feature 008 的 source-local acceptance artifact 继续作为冻结测试证据�
 - 只读 doctor 和任务检查；
 - 有明确用户授权的跨 Host handoff；
 - verification budget 或 shared contract 的下一次版本化修订；
-- 独立实现和验收的 DeepSeek 产品；
+- DeepSeek 产品完成后的独立公开发布；
 - 供应链签名、notarization 或透明度证据。
 
 用户自定义 graph、workflow DSL、Web UI、remote MCP、generic shell、Core Git mutation、
