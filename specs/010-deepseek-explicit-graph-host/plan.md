@@ -503,6 +503,44 @@ A3 changes only Runner composition parsing, its Self-Test, Feature status, freez
 and acceptance evidence. Adapter, Skill, Core, packaged runtime, package manifest, Artifact Product
 Bytes, Schema, process graph, Codex behavior, version, and release contracts remain unchanged.
 
+## Post-Freeze Amendment A4 Plan
+
+### Failure Classification
+
+The A3 Formal Preflight stop is classified as
+`dsh_npm_identity_evidence_source_mismatch`. Semantic Headless Composition passed, but the supplied
+DeepSeek Harness source-workspace lockfile represents `@deepseek-ai/dsh` as an importer with
+workspace-linked internal dependencies. That lockfile is valid upstream source dependency-graph
+evidence and is not a consumer installation record for the published DSH npm tarball. The stop
+occurred before the Attempt 4 start marker, so Attempt 4 remains unconsumed.
+
+### Corrective Design
+
+- Create a fresh external consumer project outside the repository and Attempt root.
+- Install exactly `@deepseek-ai/dsh@0.1.0-rc.8` with pnpm 11 and scripts disabled.
+- Require the consumer lockfile to contain the exact registry package key and
+  `sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==`
+  integrity using the frozen Runner predicate.
+- Require the executable shim, its `@deepseek-ai/dsh/lib/bin.js` target, the package manifest, and
+  the lockfile to share the same consumer installation root.
+- Use the consumer installation as npm Artifact Identity evidence and retain upstream commit
+  `141eb6fef83422698aef7a981029e843e8161534` as independent Upstream Source Identity evidence.
+
+### Freeze and Attempt Boundary
+
+Commit and push only the A4 Feature documentation after consumer identity diagnostics pass. Freeze
+the new source only after Ubuntu CI passes for that exact commit, then rebuild the external Attempt 4
+Artifact from the new source. Run one Formal Preflight in a fresh Attempt root with the consumer CLI
+and consumer lockfile. Only a passing Preflight may emit `NATIVE_ATTEMPT_4_START` and execute Attempt
+4 once. A Preflight failure leaves Attempt 4 unconsumed; a later native failure does not authorize a
+retry or Attempt 5.
+
+### No Runner or Product Change
+
+A4 changes no Runner, Evidence Schema, integrity/version predicate, Headless Composition parser,
+Recovery stage, Adapter, Skill, Core, packaged runtime, package manifest, Artifact Product Bytes,
+Schema, process graph, Codex behavior, public version, validator, or release contract.
+
 ## Documentation Changes
 
 Bounded current-authority changes are permitted:

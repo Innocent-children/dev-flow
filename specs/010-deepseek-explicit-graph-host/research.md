@@ -237,6 +237,32 @@ non-model preflight must inspect the isolated Profile manifest and default confi
 **Rejected**: another Attempt-numbered custom Profile. Isolation already comes from the Attempt root,
 and a custom name omits the Headless app composition.
 
+## Decision 14 — Separate npm Artifact Identity from Upstream Source Identity
+
+Post-Freeze Amendment A4 uses two independent evidence chains for the exact DSH acceptance input.
+
+The npm Artifact Identity is proven by a fresh external consumer installation of
+`@deepseek-ai/dsh@0.1.0-rc.8`: its lockfile contains the exact registry package key and npm
+integrity, and the same installation supplies the package manifest, executable shim,
+`lib/bin.js` target, and CLI version.
+
+The Upstream Source Identity remains the independently reviewed DeepSeek Harness commit
+`141eb6fef83422698aef7a981029e843e8161534`. The upstream workspace lockfile is useful for source
+dependency-graph review because it records importers and `link:` workspace dependencies. It does not
+prove the registry integrity of the workspace's own published npm tarball.
+
+This correction changes only the Formal Preflight evidence source. The frozen Runner predicates,
+Headless Composition parser, Recovery stages, Adapter, Skill, Core, runtime, manifest, Artifact
+Product Bytes, graph, Evidence Schema, and release contract remain unchanged. The A3 Preflight stop
+occurred before `NATIVE_ATTEMPT_4_START`; Attempt 4 remains authorized once with execution count zero,
+and Attempt 5 remains unauthorized.
+
+**Rejected**: use the upstream workspace lockfile as npm tarball identity. A workspace does not
+contain a registry integrity entry for its own importer package.
+
+**Rejected**: replace consumer lockfile evidence with `npm view` or a version-only CLI check. Neither
+binds the exact executed CLI to an installed package entry and integrity under one consumer root.
+
 ## Source Observations That Drive Repository Improvements
 
 1. `packages/deepseek/` is only a two-file placeholder while its version was advanced with repository

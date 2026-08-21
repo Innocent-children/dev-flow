@@ -12,7 +12,7 @@
 - **DeepSeek Harness Compatibility Floor**: `@deepseek-ai/dsh >=0.1.0-rc.8 <0.2.0`
 - **Exact Planning Evidence**: `@deepseek-ai/dsh 0.1.0-rc.8`, npm integrity `sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==`, upstream tag `dsh-v0.1.0-rc.8` at `141eb6fef83422698aef7a981029e843e8161534`
 - **Release Authority**: Not authorized
-- **Current Checkpoint**: Post-Freeze Amendment A3 is authorized to correct the A2 Runner's YAML-serialization false negative, freeze one new CI-passing source, rebuild the Attempt 4 Artifact, rerun the formal Headless Composition Preflight once, and execute the still-unconsumed native attempt 4 exactly once after that Preflight passes; T065–T075 remain incomplete until the native gate succeeds
+- **Current Checkpoint**: Post-Freeze Amendment A4 is authorized to replace the A3 Formal Preflight's upstream-workspace lockfile input with an exact external npm consumer installation, freeze one new CI-passing source, rebuild the Attempt 4 Artifact, rerun the formal Preflight once, and execute the still-unconsumed native attempt 4 exactly once after that Preflight passes; T065–T075 remain incomplete until the native gate succeeds
 
 ## Purpose
 
@@ -152,6 +152,51 @@ process graph, Schema, Codex behavior, public version, or release contract.
 - Attempt 5 remains unauthorized.
 - `1602531a600676855ea14c5216230a8a60429b02` is the immutable A2 Preflight-blocked Runner Freeze; it
   is neither successful nor failed Attempt 4 Source Evidence.
+
+## Post-Freeze Amendment A4 — 2026-08-21
+
+### Trigger
+
+- The A3 semantic Headless Composition parser passed.
+- The A3 Formal Preflight stopped at the DSH lockfile identity gate before
+  `NATIVE_ATTEMPT_4_START`.
+- The supplied lockfile was the upstream DeepSeek Harness source-workspace lockfile. It represents
+  DSH components as importers and `link:` workspace dependencies, so it cannot provide the registry
+  integrity of its own published npm tarball.
+- Attempt 4 has not started and its execution count remains zero.
+
+### Classification
+
+```text
+dsh_npm_identity_evidence_source_mismatch
+```
+
+### Resolution
+
+- Create a fresh external consumer project and install exactly
+  `@deepseek-ai/dsh@0.1.0-rc.8` with pnpm 11 and package scripts disabled.
+- Bind `DEV_FLOW_DSH_CLI` and `DEV_FLOW_DSH_LOCKFILE` to the same consumer installation root.
+- Prove npm Artifact Identity with the consumer lockfile's exact package and integrity entry, the
+  installed package manifest and bin target, and the consumer CLI's exact version.
+- Retain `141eb6fef83422698aef7a981029e843e8161534` as the separate Upstream Source Identity evidence.
+
+### No Runner Change
+
+- The Runner and Evidence Schema remain unchanged.
+- The integrity and version gates retain their exact predicates.
+- The Headless Composition gate and Recovery stages remain unchanged.
+
+### No Product Change
+
+- Adapter, Skill, Core, runtime, package manifest, Artifact Product Bytes, process graph, release
+  contract, and public version remain unchanged.
+
+### Attempt Authority
+
+- The A3 Formal Preflight stop is not an Attempt 4 failure.
+- Attempts 1, 2, and 3 remain immutable historical failures.
+- Attempt 4 remains authorized exactly once and its execution count remains zero.
+- Attempt 5 remains unauthorized.
 
 ## Why This Is a New Feature
 
