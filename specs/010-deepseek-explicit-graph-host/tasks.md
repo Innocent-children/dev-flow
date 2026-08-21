@@ -159,6 +159,23 @@
   CI, the new freeze/artifact, attempt 3 `DONE`, remove/reinstall, evidence validation, the one final
   Repository Validator, final analyze, and final converge all pass.
 
+### Post-Freeze Amendment A1 Blocked Evidence
+
+- Ubuntu portability run `32443343919` passed for new frozen source
+  `20bc5c34291bb78a8771dc7b30dff4ac74de3cf1` without changing the Frozen Product Surface.
+- Attempt 3 used a newly built external Artifact named
+  `dev-flow-deepseek-0.5.0-feature010-attempt3.tgz`, size `4374117`, SHA-256
+  `2414bfdf18b22afdb30395dd108fd3a881f723766e53faa1f24aba4e94ea4c73`; its embedded Core size
+  was `10655234`, SHA-256 `56541e7da864fffdefb7e56de42c8df0f51f6bd63b76742bada9cd8edcfbf135`.
+- `NATIVE_ATTEMPT_3_START` was recorded once. The real DSH journey failed at `ordinary-turn` after
+  its 120-second stage timeout, before any Dev Flow session artifact, Core task, task event, or
+  repository claim existed.
+- `native-attempt-3-failed.json` records `stage_timeout`, `final_task: null`, successful isolated
+  process cleanup, and no publication effects. Attempt 3 was not retried; attempt 4 is not authorized.
+- The final Repository Validator, analyze, converge, Core `DONE`, remove/reinstall, and final
+  non-interference gates were not run. T065–T075 remain unchecked and `FEATURE_010_COMPLETE` is not
+  recorded.
+
 ## Deferred Release Work
 
 Not tasks in Feature 010:

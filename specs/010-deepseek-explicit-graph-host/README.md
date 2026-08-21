@@ -3,7 +3,7 @@
 ## Status
 
 - **Feature**: `010-deepseek-explicit-graph-host`
-- **Status**: Implementing
+- **Status**: Blocked
 - **Change Type**: Product Feature
 - **Created**: 2026-08-20
 - **Baseline**: `main` at `70726d0ba59ead5496657e445b25494152e6d8f8`
@@ -12,7 +12,7 @@
 - **DeepSeek Harness Compatibility Floor**: `@deepseek-ai/dsh >=0.1.0-rc.8 <0.2.0`
 - **Exact Planning Evidence**: `@deepseek-ai/dsh 0.1.0-rc.8`, npm integrity `sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==`, upstream tag `dsh-v0.1.0-rc.8` at `141eb6fef83422698aef7a981029e843e8161534`
 - **Release Authority**: Not authorized
-- **Current Checkpoint**: Post-Freeze Amendment A1 authorized after native attempt 2 and Ubuntu portability failures; T065–T075 remain incomplete pending the new frozen source and the single authorized native attempt 3
+- **Current Checkpoint**: Post-Freeze Amendment A1 portability CI passed and new source was frozen, but the single authorized native attempt 3 timed out in the ordinary Turn before any Core task write; T065–T075 remain incomplete and attempt 4 is not authorized
 
 ## Purpose
 
@@ -64,6 +64,21 @@ Feature completion requires all of the following: passing Ubuntu portability CI;
 source and newly built artifact; the single attempt 3 reaching Core `DONE`; official remove and
 same-artifact reinstall; sanitized schema-valid evidence; the one final Repository Validator;
 final analyze and converge; and evidence-backed completion of T065–T075.
+
+### Attempt 3 Outcome
+
+- Ubuntu run `32443343919` passed for frozen source
+  `20bc5c34291bb78a8771dc7b30dff4ac74de3cf1`.
+- A new source-bound Artifact was built at the Attempt 3 filename with size `4374117`, SHA-256
+  `2414bfdf18b22afdb30395dd108fd3a881f723766e53faa1f24aba4e94ea4c73`, and embedded Core
+  SHA-256 `56541e7da864fffdefb7e56de42c8df0f51f6bd63b76742bada9cd8edcfbf135`.
+- `NATIVE_ATTEMPT_3_START` was recorded once. The installed real DSH journey timed out in the
+  120-second `ordinary-turn` stage before a session artifact, Dev Flow dispatch, task, event, or
+  repository claim existed.
+- The isolated process group cleanup passed. Sanitized failure evidence is retained in
+  `tests/journeys/deepseek/evidence/native-attempt-3-failed.json`.
+- Attempt 3 was not retried. Attempt 4 is not authorized. The final Repository Validator, analyze,
+  converge, lifecycle completion, Core `DONE`, and `FEATURE_010_COMPLETE` were not reached.
 
 ## Why This Is a New Feature
 
