@@ -1104,13 +1104,16 @@ async function validateDshConsumer(config) {
   const cli = await realpath(config.dshCli);
   assertWithinRoot(consumerRoot, cli, "DSH CLI");
 
-  const packageRoot = dirname(dirname(cli));
-  const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
+  const manifestPath = await realpath(join(consumerRoot, "node_modules", "@deepseek-ai", "dsh", "package.json"));
+  const packageRoot = dirname(manifestPath);
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   assert.equal(manifest.name, "@deepseek-ai/dsh");
   assert.equal(manifest.version, "0.1.0-rc.8");
   const bin = typeof manifest.bin === "string" ? manifest.bin : manifest.bin?.dsh;
   assert.equal(bin?.replace(/^\.\//u, ""), "lib/bin.js");
-  assert.equal(await realpath(join(packageRoot, bin)), cli);
+  const binTarget = await realpath(join(packageRoot, bin));
+  assertWithinRoot(consumerRoot, binTarget, "DSH package bin target");
+  await assertFile(binTarget);
   assert.equal((await execFile(config.dshCli, ["--version"])).stdout.trim(), manifest.version);
 
   const integrity = dshIntegrityFromConsumerLockfile(await readFile(lockfile, "utf8"));
