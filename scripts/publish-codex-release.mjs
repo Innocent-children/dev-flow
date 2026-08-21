@@ -79,11 +79,12 @@ export async function runPublisher({
     manifestPath,
     recordPath,
     version: verified.version,
-    tag: `v${verified.version}`,
+    coreVersion: verified.core_version,
+    tag: verified.manifest.release.tag,
     sourceCommit: verified.source_commit,
     sourceTree: verified.source_tree,
     tarballPath: join(releaseDirectory, `dev-flow-codex-${verified.version}.tgz`),
-    corePath: join(releaseDirectory, `dev-flow-${verified.version}-darwin-arm64`),
+    corePath: join(releaseDirectory, `dev-flow-core-${verified.core_version}-darwin-arm64`),
     tarballSHA256: verified.tarball_sha256,
     environment,
     remoteMutated: false,
@@ -324,7 +325,7 @@ async function observeRemoteState(context, manifest, record) {
   }
   if (release !== null) {
     const allowedAssets = new Set([
-      `dev-flow-${context.version}-darwin-arm64`,
+      `dev-flow-core-${context.coreVersion}-darwin-arm64`,
       `dev-flow-codex-${context.version}.tgz`,
       "release-manifest.json",
       "SHA256SUMS",
@@ -583,8 +584,8 @@ async function prepareFinalManifest(context, manifest, record, evidence) {
       core_sha256: evidence.core_sha256,
       journey_result: "passed",
       journey_observed_at: evidence.observed_at,
-      verification_mode: "normal",
-      based_on_release: null,
+      verification_mode: manifest.release.verification_mode,
+      based_on_release: manifest.release.based_on_release,
       notes: "Fixture-simulated journey support exists only in isolated fake finalization tests.",
     }]
     : evidence.evidence_kind === QUICK_NATIVE_EVIDENCE_KIND
@@ -599,7 +600,7 @@ async function prepareFinalManifest(context, manifest, record, evidence) {
         journey_observed_at: evidence.observed_at,
         verification_mode: "quick",
         based_on_release: manifest.release.based_on_release,
-        notes: `Quick registry-package smoke passed; complete graph support is based on v${manifest.release.based_on_release}.`,
+        notes: `Quick registry-package smoke passed; complete graph support is based on ${manifest.release.based_on_release}.`,
       }]
       : buildSupportMatrixFromFinalJourney({ manifest, evidence });
   const existingSupport = manifest.support[0];
@@ -628,10 +629,10 @@ async function prepareFinalManifest(context, manifest, record, evidence) {
           : "Native registry-package journey passed every final lifecycle gate.",
     },
   ].sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
-  validateManifest(manifest, { version: context.version, sourceCommit: context.sourceCommit, sourceTree: context.sourceTree });
+  validateManifest(manifest, { codexVersion: context.version, coreVersion: context.coreVersion, sourceCommit: context.sourceCommit, sourceTree: context.sourceTree });
   scanStructuredContent(manifest, { repositoryRoot: context.root });
   await writeJSONAtomic(context.manifestPath, manifest, 0o644);
-  await rewriteChecksums(context.releaseDirectory, context.version);
+  await rewriteChecksums(context.releaseDirectory, context.version, context.coreVersion);
   record.manifest_sha256 = await sha256File(context.manifestPath);
   record.overall_status = "journey_passed";
   record.last_observed_at = now();
@@ -643,7 +644,7 @@ async function prepareFinalManifest(context, manifest, record, evidence) {
 async function ensureExactAssets(context, manifest, record) {
   const uploadStep = startStep(record, "github_upload");
   const assetNames = [
-    `dev-flow-${context.version}-darwin-arm64`,
+    `dev-flow-core-${context.coreVersion}-darwin-arm64`,
     `dev-flow-codex-${context.version}.tgz`,
     "release-manifest.json",
     "SHA256SUMS",
@@ -784,7 +785,7 @@ function assertFinalizationGates(context, manifest, record) {
     || support[0].package_sha256 !== context.tarballSHA256
   ) throw new PublicationError("FINALIZATION_SUPPORT_GATE", "GitHub finalization requires one exact passed support entry", { blocked: true, step: "github_finalize" });
   const expectedNames = [
-    `dev-flow-${context.version}-darwin-arm64`,
+    `dev-flow-core-${context.coreVersion}-darwin-arm64`,
     `dev-flow-codex-${context.version}.tgz`,
     "release-manifest.json",
     "SHA256SUMS",
@@ -904,7 +905,10 @@ async function checkpoint(path, record, manifest, context) {
   const manifestSHA256 = await sha256File(context.manifestPath);
   record.manifest_sha256 = manifestSHA256;
   validatePublicationRecord(record, {
-    version: context.version,
+    codexVersion: context.version,
+    coreVersion: context.coreVersion,
+    verificationMode: manifest.release.verification_mode,
+    basedOnRelease: manifest.release.based_on_release,
     sourceCommit: context.sourceCommit,
     sourceTree: context.sourceTree,
     manifestSHA256,

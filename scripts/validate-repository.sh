@@ -97,6 +97,7 @@ NODE
 
 run_step "Toolchain versions" check_toolchains
 run_step "Frozen pnpm workspace install" pnpm install --frozen-lockfile --ignore-scripts
+run_step "Product version authorities" pnpm run versions:check
 run_step "Working tree whitespace" git diff --check
 run_step "Go formatting" check_go_formatting
 run_step "Codex release prepare syntax" bash -n scripts/build-codex-release.sh

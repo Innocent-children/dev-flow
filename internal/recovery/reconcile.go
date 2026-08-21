@@ -35,7 +35,7 @@ func CompareRepositoryBindings(authoritative, fresh domain.RepositoryBinding) (R
 }
 
 func BindingAcceptedForAction(action domain.ActionKind, relation RepositoryRelation) (bool, error) {
-	if !action.IsValidV2() || !relation.IsValid() {
+	if !action.IsValid() || !relation.IsValid() {
 		return false, domain.ErrInvalidArgument
 	}
 	switch action {
@@ -231,7 +231,7 @@ func mayHavePartialRepositoryWork(operation domain.OperationReference, relation 
 		(operation.ActionKind == domain.ActionCompleteImplementation || operation.ActionKind == domain.ActionCompleteRefactor)
 }
 
-func currentActionID(action *domain.ProcessActionV2) *domain.ID {
+func currentActionID(action *domain.ProcessAction) *domain.ID {
 	if action == nil {
 		return nil
 	}

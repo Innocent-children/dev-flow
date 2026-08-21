@@ -41,7 +41,7 @@ func TestGetTaskDispatchReturnsActualRecoveryAssessment(t *testing.T) {
 	}
 	action := opened.Task.CurrentAction
 	payload := `{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":[{"step_id":"requirements.capture","status":"plain_fallback","capability":"","summary":"Captured."},{"step_id":"requirements.clarify","status":"plain_fallback","capability":"","summary":"Clarified."},{"step_id":"requirements.validate","status":"plain_fallback","capability":"","summary":"Validated."}],"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Works"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`
-	input := map[string]any{"host": "codex", "task_id": opened.Task.TaskID, "operation_probe": map[string]any{"operation_id": "uncertain", "process_id": action.Process.ID, "process_version": action.Process.Version, "process_definition_digest": action.Process.DefinitionDigest, "source_cursor": action.NodeID, "expected_revision": action.Revision, "action_id": action.ActionID, "action_kind": action.Kind, "repository_binding_digest": action.RepositoryBindingDigest, "payload": json.RawMessage(payload)}}
+	input := map[string]any{"host": "codex", "task_id": opened.Task.TaskID, "operation_probe": map[string]any{"operation_id": "uncertain", "process_id": action.Process.ID, "process_definition_digest": action.Process.DefinitionDigest, "source_cursor": action.NodeID, "expected_revision": action.Revision, "action_id": action.ActionID, "action_kind": action.Kind, "repository_binding_digest": action.RepositoryBindingDigest, "payload": json.RawMessage(payload)}}
 	raw, _ := json.Marshal(input)
 	server, err := NewServer(service, "0.3.0", &ServerOptions{NewRequestID: func() (domain.ID, error) { return "read-request", nil }})
 	if err != nil {
@@ -77,7 +77,7 @@ func TestRecoveryAssessmentProjectionIsClosedAndRedacted(t *testing.T) {
 
 func TestResolveBlockerInputUsesClosedPayloadAndNoDestination(t *testing.T) {
 	digest := workflow.StandardProcess().Reference.DefinitionDigest
-	raw := []byte(`{"request_id":"resolve","host":"codex","task_id":"task","revision":2,"action_id":"action","action_kind":"RESOLVE_BLOCKER","process_id":"standard-development","process_version":1,"process_definition_digest":"` + string(digest) + `","source_cursor":"BLOCKED","repository_binding_digest":"` + string(digest) + `","payload":{"blocker_id":"blocker","condition":{"kind":"restore_issuance_binding","expected_binding_digest":"` + string(digest) + `"},"observed_binding_digest":"` + string(digest) + `"}}`)
+	raw := []byte(`{"request_id":"resolve","host":"codex","task_id":"task","revision":2,"action_id":"action","action_kind":"RESOLVE_BLOCKER","process_id":"standard-development","process_definition_digest":"` + string(digest) + `","source_cursor":"BLOCKED","repository_binding_digest":"` + string(digest) + `","payload":{"blocker_id":"blocker","condition":{"kind":"restore_issuance_binding","expected_binding_digest":"` + string(digest) + `"},"observed_binding_digest":"` + string(digest) + `"}}`)
 	if err := ValidateToolInput(ToolApplyAction, raw); err != nil {
 		t.Fatal(err)
 	}

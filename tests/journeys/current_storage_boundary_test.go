@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -31,19 +30,8 @@ type databaseManifest struct {
 	Rows       map[string][]string
 }
 
-var journeySchema2Statements = []string{
-	`CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL, digest TEXT NOT NULL)`,
-	`CREATE TABLE tasks (task_id TEXT PRIMARY KEY, origin_host TEXT NOT NULL, process_id TEXT NOT NULL, process_version INTEGER NOT NULL CHECK (process_version >= 1), process_definition_digest TEXT NOT NULL, snapshot_version INTEGER NOT NULL CHECK (snapshot_version = 2), current_node TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision >= 1), repository_identity TEXT NOT NULL, snapshot BLOB NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-	`CREATE INDEX tasks_node_idx ON tasks (current_node)`,
-	`CREATE INDEX tasks_origin_host_idx ON tasks (origin_host)`,
-	`CREATE INDEX tasks_updated_at_idx ON tasks (updated_at)`,
-	`CREATE INDEX tasks_process_idx ON tasks (process_id, process_version, snapshot_version)`,
-	`CREATE TABLE task_events (event_id TEXT PRIMARY KEY, task_id TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision >= 1), event_type TEXT NOT NULL, source_node TEXT NOT NULL, destination_node TEXT NOT NULL, transition_id TEXT, transition_reason TEXT, action_id TEXT, request_id TEXT NOT NULL, payload_digest TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE (task_id, revision), FOREIGN KEY (task_id) REFERENCES tasks (task_id) ON DELETE RESTRICT)`,
-	`CREATE TABLE repository_claims (repository_identity TEXT PRIMARY KEY, task_id TEXT NOT NULL UNIQUE, origin_host TEXT NOT NULL, claimed_at TEXT NOT NULL, FOREIGN KEY (task_id) REFERENCES tasks (task_id) ON DELETE RESTRICT)`,
-}
-
-func TestStorageGenerationBoundaryJourney(t *testing.T) {
-	t.Run("fresh_schema_2", func(t *testing.T) {
+func TestCurrentStorageBoundaryJourney(t *testing.T) {
+	t.Run("fresh_current_format", func(t *testing.T) {
 		root := t.TempDir()
 		repoPath := filepath.Join(root, "repository")
 		initializeJourneyRepository(t, repoPath)
@@ -55,12 +43,12 @@ func TestStorageGenerationBoundaryJourney(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		assertFreshSchema2(t, dbPath)
+		assertFreshCurrentSchema(t, dbPath)
 		service, err := application.NewService(sqliteStore, repository.NewGitObserver())
 		if err != nil {
 			t.Fatal(err)
 		}
-		opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "fresh-schema-open", Host: domain.HostCodex, RepositoryPath: repoPath, NewTask: &application.NewTaskInput{Request: "Prove fresh Schema 2.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: domain.MethodPlain}})
+		opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "fresh-storage-open", Host: domain.HostCodex, RepositoryPath: repoPath, NewTask: &application.NewTaskInput{Request: "Prove the current storage format.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: domain.MethodPlain}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -73,14 +61,13 @@ func TestStorageGenerationBoundaryJourney(t *testing.T) {
 		if task.CurrentNode != domain.NodeDesign || task.Revision != 2 {
 			t.Fatal("fresh task did not advance to DESIGN")
 		}
-		var snapshotVersion, processVersion int
 		var processID, definitionDigest string
 		readOnly := openImmutableDatabase(t, dbPath)
-		if err := readOnly.QueryRow(`SELECT snapshot_version,process_id,process_version,process_definition_digest FROM tasks WHERE task_id=?`, task.TaskID).Scan(&snapshotVersion, &processID, &processVersion, &definitionDigest); err != nil {
+		if err := readOnly.QueryRow(`SELECT process_id,process_definition_digest FROM tasks WHERE task_id=?`, task.TaskID).Scan(&processID, &definitionDigest); err != nil {
 			t.Fatal(err)
 		}
 		readOnly.Close()
-		if snapshotVersion != 2 || processID != "standard-development" || processVersion != 1 || definitionDigest != string(task.Process.DefinitionDigest) {
+		if processID != "standard-development" || definitionDigest != string(task.Process.DefinitionDigest) {
 			t.Fatal("fresh task metadata mismatch")
 		}
 		events := databaseCount(t, dbPath, `SELECT COUNT(*) FROM task_events WHERE task_id=?`, task.TaskID)
@@ -99,7 +86,7 @@ func TestStorageGenerationBoundaryJourney(t *testing.T) {
 		}
 	})
 
-	t.Run("schema_1_zero_write_and_explicit_new_directory", func(t *testing.T) {
+	t.Run("former_data_zero_write_and_explicit_new_directory", func(t *testing.T) {
 		root := t.TempDir()
 		repoPath := filepath.Join(root, "repository")
 		initializeJourneyRepository(t, repoPath)
@@ -107,7 +94,7 @@ func TestStorageGenerationBoundaryJourney(t *testing.T) {
 		if err := os.MkdirAll(filepath.Dir(legacyPath), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		createRepresentativeSchema1(t, legacyPath)
+		createRepresentativeFormerSchema(t, legacyPath)
 		before := captureDatabaseManifest(t, legacyPath)
 		opened, err := store.Open(context.Background(), legacyPath)
 		if opened != nil {
@@ -170,23 +157,11 @@ func initializeJourneyRepository(t *testing.T, repoPath string) {
 	runJourneyGit(t, repoPath, "commit", "-q", "-m", "initial")
 }
 
-func assertFreshSchema2(t *testing.T, dbPath string) {
+func assertFreshCurrentSchema(t *testing.T, dbPath string) {
 	t.Helper()
 	db := openImmutableDatabase(t, dbPath)
 	defer db.Close()
-	var version int
-	var digest string
-	if err := db.QueryRow(`SELECT version,digest FROM schema_migrations`).Scan(&version, &digest); err != nil {
-		t.Fatal(err)
-	}
-	if version != 2 || digest != expectedSchema2Digest() {
-		t.Fatalf("history version=%d digest=%s", version, digest)
-	}
-	var histories int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&histories); err != nil || histories != 1 {
-		t.Fatalf("histories=%d err=%v", histories, err)
-	}
-	want := []string{"index:tasks_node_idx", "index:tasks_origin_host_idx", "index:tasks_process_idx", "index:tasks_updated_at_idx", "table:repository_claims", "table:schema_migrations", "table:task_events", "table:tasks"}
+	want := []string{"index:tasks_node_idx", "index:tasks_origin_host_idx", "index:tasks_updated_at_idx", "table:repository_claims", "table:task_events", "table:tasks"}
 	rows, err := db.Query(`SELECT type||':'||name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name`)
 	if err != nil {
 		t.Fatal(err)
@@ -203,7 +178,7 @@ func assertFreshSchema2(t *testing.T, dbPath string) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("schema=%v", got)
 	}
-	for table, columns := range map[string][]string{"schema_migrations": {"version", "applied_at", "digest"}, "tasks": {"task_id", "origin_host", "process_id", "process_version", "process_definition_digest", "snapshot_version", "current_node", "revision", "repository_identity", "snapshot", "created_at", "updated_at"}, "task_events": {"event_id", "task_id", "revision", "event_type", "source_node", "destination_node", "transition_id", "transition_reason", "action_id", "request_id", "payload_digest", "created_at"}, "repository_claims": {"repository_identity", "task_id", "origin_host", "claimed_at"}} {
+	for table, columns := range map[string][]string{"tasks": {"task_id", "origin_host", "process_id", "process_definition_digest", "current_node", "revision", "repository_identity", "snapshot", "created_at", "updated_at"}, "task_events": {"event_id", "task_id", "revision", "event_type", "source_node", "destination_node", "transition_id", "transition_reason", "action_id", "request_id", "payload_digest", "created_at"}, "repository_claims": {"repository_identity", "task_id", "origin_host", "claimed_at"}} {
 		columnRows, err := db.Query(`SELECT name FROM pragma_table_info(?) ORDER BY cid`, table)
 		if err != nil {
 			t.Fatal(err)
@@ -227,18 +202,7 @@ func assertFreshSchema2(t *testing.T, dbPath string) {
 	}
 }
 
-func expectedSchema2Digest() string {
-	hash := sha256.New()
-	hash.Write([]byte(strconv.Itoa(2)))
-	hash.Write([]byte{0})
-	for _, statement := range journeySchema2Statements {
-		hash.Write([]byte(strings.TrimSpace(statement)))
-		hash.Write([]byte{0})
-	}
-	return hex.EncodeToString(hash.Sum(nil))
-}
-
-func createRepresentativeSchema1(t *testing.T, path string) {
+func createRepresentativeFormerSchema(t *testing.T, path string) {
 	t.Helper()
 	db, err := sql.Open("sqlite", path)
 	if err != nil {

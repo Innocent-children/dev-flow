@@ -17,7 +17,7 @@ const sharedFixtureAggregateSHA256 = "8c27bcf6be0e4e5a4bf294c67cbda8cdf281b1b2b2
 
 func sha256Hex(raw []byte) string { sum := sha256.Sum256(raw); return hex.EncodeToString(sum[:]) }
 
-func TestFixtureContractInventoryByGeneration(t *testing.T) {
+func TestFixtureContractInventory(t *testing.T) {
 	root := markdownRepositoryRoot(t)
 	readme, err := os.ReadFile(filepath.Join(root, "protocol", "fixtures", "README.md"))
 	if err != nil {
@@ -45,24 +45,21 @@ func TestFixtureContractInventoryByGeneration(t *testing.T) {
 }
 
 type hostParityFixture struct {
-	FixtureKind          string                    `json:"fixture_kind"`
-	Host                 string                    `json:"host"`
-	OriginHost           string                    `json:"origin_host"`
-	RequestID            string                    `json:"request_id"`
-	SchemaVersion        int                       `json:"schema_version"`
-	ProcessID            string                    `json:"process_id"`
-	ProcessVersion       int                       `json:"process_version"`
-	DefinitionDigest     string                    `json:"definition_digest"`
-	CurrentNode          string                    `json:"current_node"`
-	ActionKind           string                    `json:"action_kind"`
-	NodeContract         hostParityNodeContract    `json:"node_contract"`
-	MethodProfileEnum    []string                  `json:"method_profile_enum"`
-	SemanticMethodSteps  []string                  `json:"semantic_method_steps"`
-	AvailableTransitions []string                  `json:"available_transitions"`
-	ApplyPayloadShape    []string                  `json:"apply_payload_shape"`
-	ProblemClassRules    []hostParityProblemRule   `json:"problem_class_rules"`
-	ErrorShape           hostParityErrorShape      `json:"error_shape"`
-	StorageGeneration    hostParityStorageContract `json:"storage_generation"`
+	FixtureKind          string                  `json:"fixture_kind"`
+	Host                 string                  `json:"host"`
+	OriginHost           string                  `json:"origin_host"`
+	RequestID            string                  `json:"request_id"`
+	ProcessID            string                  `json:"process_id"`
+	DefinitionDigest     string                  `json:"definition_digest"`
+	CurrentNode          string                  `json:"current_node"`
+	ActionKind           string                  `json:"action_kind"`
+	NodeContract         hostParityNodeContract  `json:"node_contract"`
+	MethodProfileEnum    []string                `json:"method_profile_enum"`
+	SemanticMethodSteps  []string                `json:"semantic_method_steps"`
+	AvailableTransitions []string                `json:"available_transitions"`
+	ApplyPayloadShape    []string                `json:"apply_payload_shape"`
+	ProblemClassRules    []hostParityProblemRule `json:"problem_class_rules"`
+	ErrorShape           hostParityErrorShape    `json:"error_shape"`
 }
 
 type hostParityNodeContract struct {
@@ -84,14 +81,7 @@ type hostParityErrorShape struct {
 	RecoveryRequired []string `json:"recovery_required"`
 }
 
-type hostParityStorageContract struct {
-	SchemaVersion   int    `json:"schema_version"`
-	SnapshotVersion int    `json:"snapshot_version"`
-	ProcessID       string `json:"process_id"`
-	ProcessVersion  int    `json:"process_version"`
-}
-
-func TestFixtureContract02HostParityInventory(t *testing.T) {
+func TestCurrentHostParityInventory(t *testing.T) {
 	root := markdownRepositoryRoot(t)
 	readme, err := os.ReadFile(filepath.Join(root, "protocol", "fixtures", "README.md"))
 	if err != nil {
@@ -99,9 +89,9 @@ func TestFixtureContract02HostParityInventory(t *testing.T) {
 	}
 	text := string(readme)
 	for _, heading := range []string{
-		"Feature 008 Core Contract 0.2 graph fixtures",
-		"Core Contract 0.2 Host parity fixtures",
-		"Released Core Contract 0.1 historical fixtures",
+		"Current graph fixtures",
+		"Current Core Host parity fixtures",
+		"Released linear Core historical fixtures",
 	} {
 		if !strings.Contains(text, "## "+heading) {
 			t.Errorf("missing fixture-generation heading %q", heading)
@@ -119,7 +109,7 @@ func TestFixtureContract02HostParityInventory(t *testing.T) {
 	}
 }
 
-func TestHostParityCoreContract02Fixtures(t *testing.T) {
+func TestCurrentHostParityFixtures(t *testing.T) {
 	root := markdownRepositoryRoot(t)
 	codex, codexRaw := readHostParityFixture(t, filepath.Join(root, "protocol", "fixtures", "graph-host-parity-codex.json"))
 	deepseek, deepseekRaw := readHostParityFixture(t, filepath.Join(root, "protocol", "fixtures", "graph-host-parity-deepseek.json"))
@@ -135,10 +125,10 @@ func TestHostParityCoreContract02Fixtures(t *testing.T) {
 	}
 
 	for name, fixture := range map[string]hostParityFixture{"codex": codex, "deepseek": deepseek} {
-		if fixture.FixtureKind != "core_contract_0_2_host_parity" || fixture.SchemaVersion != 2 {
+		if fixture.FixtureKind != "core_host_parity" {
 			t.Fatalf("%s contract identity = %#v", name, fixture)
 		}
-		if fixture.ProcessID != "standard-development" || fixture.ProcessVersion != 1 || fixture.CurrentNode != "REQUIREMENTS" || fixture.ActionKind != "COMPLETE_REQUIREMENTS" {
+		if fixture.ProcessID != "standard-development" || fixture.CurrentNode != "REQUIREMENTS" || fixture.ActionKind != "COMPLETE_REQUIREMENTS" {
 			t.Fatalf("%s process/action identity = %#v", name, fixture)
 		}
 		if len(fixture.DefinitionDigest) != 64 {
@@ -164,9 +154,6 @@ func TestHostParityCoreContract02Fixtures(t *testing.T) {
 		}
 		if !reflect.DeepEqual(fixture.ErrorShape.Required, []string{"code", "message", "recovery"}) || !reflect.DeepEqual(fixture.ErrorShape.RecoveryRequired, []string{"retry_safe", "action", "message"}) {
 			t.Fatalf("%s error shape = %#v", name, fixture.ErrorShape)
-		}
-		if fixture.StorageGeneration.SchemaVersion != 2 || fixture.StorageGeneration.SnapshotVersion != 2 {
-			t.Fatalf("%s storage generation = %#v", name, fixture.StorageGeneration)
 		}
 	}
 
@@ -215,10 +202,10 @@ func TestGraphServerInfoFixtureContainsCompletePublicDTO(t *testing.T) {
 		t.Fatal(err)
 	}
 	var value map[string]any
-	if json.Unmarshal(raw, &value) != nil || len(value) != 10 {
+	if json.Unmarshal(raw, &value) != nil || len(value) != 8 {
 		t.Fatalf("incomplete top-level fixture: %s", raw)
 	}
-	for _, key := range []string{"product", "version", "schema_version", "core_limits_version", "transport", "health", "supported_hosts", "supported_processes", "method_profiles", "tools"} {
+	for _, key := range []string{"product", "version", "transport", "health", "supported_hosts", "supported_processes", "method_profiles", "tools"} {
 		if _, ok := value[key]; !ok {
 			t.Fatalf("missing %s", key)
 		}
@@ -228,7 +215,7 @@ func TestGraphServerInfoFixtureContainsCompletePublicDTO(t *testing.T) {
 		t.Fatal("supported_processes is incomplete")
 	}
 	process, ok := processes[0].(map[string]any)
-	if !ok || len(process) != 4 || process["definition_digest"] == nil || process["new_task_supported"] != true || process["process_definition_digest"] != nil {
+	if !ok || len(process) != 3 || process["definition_digest"] == nil || process["new_task_supported"] != true || process["process_definition_digest"] != nil {
 		t.Fatalf("public process DTO=%#v", process)
 	}
 	tools, ok := value["tools"].([]any)
@@ -236,7 +223,7 @@ func TestGraphServerInfoFixtureContainsCompletePublicDTO(t *testing.T) {
 		t.Fatalf("tools=%#v", tools)
 	}
 	previous := -1
-	for _, key := range []string{`"product"`, `"version"`, `"schema_version"`, `"core_limits_version"`, `"transport"`, `"health"`, `"supported_hosts"`, `"supported_processes"`, `"method_profiles"`, `"tools"`} {
+	for _, key := range []string{`"product"`, `"version"`, `"transport"`, `"health"`, `"supported_hosts"`, `"supported_processes"`, `"method_profiles"`, `"tools"`} {
 		index := strings.Index(string(raw), key)
 		if index <= previous {
 			t.Fatalf("field order drift at %s", key)

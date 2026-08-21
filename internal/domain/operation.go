@@ -14,7 +14,7 @@ type OperationReference struct {
 func (o OperationReference) Validate() error {
 	if !o.OperationID.IsValid() || o.Process.Validate() != nil ||
 		(!o.SourceCursor.Normal() && o.SourceCursor != NodeBlocked) ||
-		o.ExpectedRevision == 0 || !o.ActionID.IsValid() || !o.ActionKind.IsValidV2() ||
+		o.ExpectedRevision == 0 || !o.ActionID.IsValid() || !o.ActionKind.IsValid() ||
 		!o.RepositoryBindingDigest.IsValid() {
 		return ErrInvalidArgument
 	}

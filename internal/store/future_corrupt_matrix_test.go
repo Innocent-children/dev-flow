@@ -12,67 +12,40 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
-func TestSchemaHistorySafeStopMatrix(t *testing.T) {
-	cases := []struct {
-		name   string
-		mutate string
-	}{
-		{"pre-graph history 1", `UPDATE schema_migrations SET version=1`},
-		{"mixed history 1 2", `INSERT INTO schema_migrations VALUES(1,'old','old')`},
-		{"future history 3", `UPDATE schema_migrations SET version=3`},
-		{"future history 2 3", `INSERT INTO schema_migrations VALUES(3,'future','future')`},
-		{"gapped history 2 4", `INSERT INTO schema_migrations VALUES(4,'future','future')`},
-		{"Schema 2 digest mismatch", `UPDATE schema_migrations SET digest='ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'`},
-		{"missing Schema 2 history row", `DELETE FROM schema_migrations`},
+func TestFormerVersionMetadataSafeStops(t *testing.T) {
+	path := exactCurrentSchemaDatabase(t)
+	db := openRaw(t, path)
+	if _, err := db.Exec(`CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,applied_at TEXT,digest TEXT)`); err != nil {
+		t.Fatal(err)
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			path := exactSchema2Database(t)
-			db := openRaw(t, path)
-			if _, err := db.Exec(tc.mutate); err != nil {
-				t.Fatal(err)
-			}
-			db.Close()
-			assertSafeStop(t, path, ErrSchemaUnsupported)
-		})
-	}
+	db.Close()
+	assertSafeStop(t, path, ErrSchemaUnsupported)
 }
 
-func TestPartialSchema2SafeStopMatrix(t *testing.T) {
+func TestPartialCurrentSchemaSafeStopMatrix(t *testing.T) {
 	cases := []struct {
 		name   string
 		change func([]string) []string
 	}{
-		{"missing tasks table", func(statements []string) []string { return withoutSchemaStatements(statements, 1, 2, 3, 4, 5) }},
-		{"missing task_events table", func(statements []string) []string { return withoutSchemaStatements(statements, 6) }},
-		{"missing repository_claims table", func(statements []string) []string { return withoutSchemaStatements(statements, 7) }},
-		{"missing schema_migrations table", func(statements []string) []string { return withoutSchemaStatements(statements, 0) }},
+		{"missing tasks table", func(statements []string) []string { return withoutSchemaStatements(statements, 0, 1, 2, 3) }},
+		{"missing task_events table", func(statements []string) []string { return withoutSchemaStatements(statements, 4) }},
+		{"missing repository_claims table", func(statements []string) []string { return withoutSchemaStatements(statements, 5) }},
 		{"missing required column", func(statements []string) []string {
-			statements[1] = strings.Replace(statements[1], `origin_host TEXT NOT NULL, `, ``, 1)
-			return withoutSchemaStatements(statements, 3)
+			statements[0] = strings.Replace(statements[0], `origin_host TEXT NOT NULL, `, ``, 1)
+			return withoutSchemaStatements(statements, 2)
 		}},
-		{"wrong column type", replaceSchemaStatement(1, `origin_host TEXT NOT NULL`, `origin_host BLOB NOT NULL`)},
-		{"missing required index", func(statements []string) []string { return withoutSchemaStatements(statements, 4) }},
-		{"wrong snapshot constraint", replaceSchemaStatement(1, `CHECK (snapshot_version = 2)`, `CHECK (snapshot_version >= 1)`)},
-		{"wrong process constraint", replaceSchemaStatement(1, `CHECK (process_version >= 1)`, `CHECK (process_version >= 0)`)},
-		{"extra task column", replaceSchemaStatement(1, `updated_at TEXT NOT NULL)`, `updated_at TEXT NOT NULL, compatibility_state TEXT)`)},
+		{"wrong column type", replaceSchemaStatement(0, `origin_host TEXT NOT NULL`, `origin_host BLOB NOT NULL`)},
+		{"missing required index", func(statements []string) []string { return withoutSchemaStatements(statements, 3) }},
+		{"wrong revision constraint", replaceSchemaStatement(0, `CHECK (revision >= 1)`, `CHECK (revision >= 0)`)},
+		{"extra task column", replaceSchemaStatement(0, `updated_at TEXT NOT NULL)`, `updated_at TEXT NOT NULL, compatibility_state TEXT)`)},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			path := dbPath(t)
 			db := openRaw(t, path)
-			statements := tc.change(append([]string(nil), schema2Statements...))
+			statements := tc.change(append([]string(nil), currentSchemaStatements...))
 			for _, statement := range statements {
 				if _, err := db.Exec(statement); err != nil {
-					t.Fatal(err)
-				}
-			}
-			var historyTable int
-			if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='schema_migrations'`).Scan(&historyTable); err != nil {
-				t.Fatal(err)
-			}
-			if historyTable == 1 {
-				if _, err := db.Exec(`INSERT INTO schema_migrations(version,applied_at,digest) VALUES(2,'2026-08-19T00:00:00Z',?)`, schema2Digest()); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -90,10 +63,8 @@ func TestUnsupportedProcessAndDigestSafeStopMatrix(t *testing.T) {
 		want           error
 	}{
 		{"unknown process id", `UPDATE tasks SET process_id='future-process'`, nil, ErrProcessUnsupported},
-		{"future process version", `UPDATE tasks SET process_version=2`, nil, ErrProcessUnsupported},
 		{"definition digest mismatch", `UPDATE tasks SET process_definition_digest='ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'`, nil, ErrProcessUnsupported},
 		{"row snapshot process disagreement", ``, func(task *domain.ProcessTask) { task.Process.ID = "future-process" }, ErrStorageUnavailable},
-		{"row snapshot process version disagreement", ``, func(task *domain.ProcessTask) { task.Process.Version = 2 }, ErrStorageUnavailable},
 		{"row snapshot digest disagreement", ``, func(task *domain.ProcessTask) { task.Process.DefinitionDigest = domain.Digest(strings.Repeat("f", 64)) }, ErrStorageUnavailable},
 	}
 	for _, tc := range cases {
@@ -165,12 +136,12 @@ func TestActionAuthorityAndAggregateCorruptionSafeStopMatrix(t *testing.T) {
 	}{
 		{"action task mismatch", func(task *domain.ProcessTask) { task.CurrentAction.TaskID = "other-task" }},
 		{"action revision mismatch", func(task *domain.ProcessTask) { task.CurrentAction.Revision++ }},
-		{"action process mismatch", func(task *domain.ProcessTask) { task.CurrentAction.Process.Version++ }},
+		{"action process mismatch", func(task *domain.ProcessTask) { task.CurrentAction.Process.ID = "other-process" }},
 		{"action node mismatch", func(task *domain.ProcessTask) { task.CurrentAction.NodeID = domain.NodeDesign }},
 		{"action binding mismatch", func(task *domain.ProcessTask) {
 			task.CurrentAction.RepositoryBindingDigest = domain.Digest(strings.Repeat("f", 64))
 		}},
-		{"invalid action blueprint", func(task *domain.ProcessTask) { task.CurrentAction.PayloadContract = "future-result@9" }},
+		{"invalid action blueprint", func(task *domain.ProcessTask) { task.CurrentAction.PayloadContract = "future-result" }},
 	}
 	for _, tc := range actionCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -234,7 +205,7 @@ func TestBlockerAndRecoveryCorruptionSafeStopMatrix(t *testing.T) {
 	}{
 		{"blocker resume node mismatch", func(task *domain.ProcessTask) { task.Blocker.ResumeNode = domain.NodeDesign }},
 		{"BLOCKED without RESOLVE_BLOCKER action", func(task *domain.ProcessTask) { task.CurrentAction = nil }},
-		{"recovery action process mismatch", func(task *domain.ProcessTask) { task.CurrentAction.Process.Version++ }},
+		{"recovery action process mismatch", func(task *domain.ProcessTask) { task.CurrentAction.Process.ID = "other-process" }},
 		{"recovery action source mismatch", func(task *domain.ProcessTask) { task.CurrentAction.NodeID = domain.NodeRequirements }},
 		{"recovery LastOperation revision mismatch", func(task *domain.ProcessTask) { task.LastOperation.ToRevision++ }},
 	}
@@ -248,7 +219,7 @@ func TestBlockerAndRecoveryCorruptionSafeStopMatrix(t *testing.T) {
 	}
 }
 
-func exactSchema2Database(t *testing.T) string {
+func exactCurrentSchemaDatabase(t *testing.T) string {
 	t.Helper()
 	path := dbPath(t)
 	opened, err := Open(context.Background(), path)
@@ -284,10 +255,10 @@ func withoutSchemaStatements(statements []string, indexes ...int) []string {
 
 func taskDatabase(t *testing.T, task domain.ProcessTask, snapshot []byte) string {
 	t.Helper()
-	path := exactSchema2Database(t)
+	path := exactCurrentSchemaDatabase(t)
 	db := openRaw(t, path)
-	_, err := db.Exec(`INSERT INTO tasks(task_id,origin_host,process_id,process_version,process_definition_digest,snapshot_version,current_node,revision,repository_identity,snapshot,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`,
-		task.TaskID, task.OriginHost, task.Process.ID, task.Process.Version, task.Process.DefinitionDigest, SnapshotVersion, task.CurrentNode, task.Revision, task.Repository.RepositoryIdentity, snapshot, formatTime(task.CreatedAt), formatTime(task.UpdatedAt))
+	_, err := db.Exec(`INSERT INTO tasks(task_id,origin_host,process_id,process_definition_digest,current_node,revision,repository_identity,snapshot,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)`,
+		task.TaskID, task.OriginHost, task.Process.ID, task.Process.DefinitionDigest, task.CurrentNode, task.Revision, task.Repository.RepositoryIdentity, snapshot, formatTime(task.CreatedAt), formatTime(task.UpdatedAt))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -304,7 +275,7 @@ func taskDatabase(t *testing.T, task domain.ProcessTask, snapshot []byte) string
 
 func mustJSONTask(t *testing.T, task domain.ProcessTask) []byte {
 	t.Helper()
-	raw, err := json.Marshal(persistedTaskV2(task))
+	raw, err := json.Marshal(persistedTask(task))
 	if err != nil {
 		t.Fatal(err)
 	}

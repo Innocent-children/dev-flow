@@ -30,18 +30,18 @@ func TransitionFor(definition domain.ProcessDefinition, source domain.NodeID, id
 	return domain.TransitionDefinition{}, domain.NewError(domain.ErrorInvalidArgument, "transition is not allowed from the current node")
 }
 
-func BuildProcessAction(definition domain.ProcessDefinition, nodeID domain.NodeID, taskID domain.ID, revision uint64, binding domain.Digest, profile domain.MethodProfile, actionID domain.ID, issuedAt time.Time) (domain.ProcessActionV2, error) {
+func BuildProcessAction(definition domain.ProcessDefinition, nodeID domain.NodeID, taskID domain.ID, revision uint64, binding domain.Digest, profile domain.MethodProfile, actionID domain.ID, issuedAt time.Time) (domain.ProcessAction, error) {
 	node, err := NodeDefinition(definition, nodeID)
 	if err != nil || nodeID.Terminal() {
-		return domain.ProcessActionV2{}, domain.ErrInvalidArgument
+		return domain.ProcessAction{}, domain.ErrInvalidArgument
 	}
 	available := make([]domain.TransitionProjection, len(node.OutgoingTransitions))
 	for i, v := range node.OutgoingTransitions {
 		available[i] = domain.TransitionProjection{TransitionID: v.TransitionID, Destination: v.Destination, Guard: v.Guard, Description: v.Description, SelectionCondition: v.SelectionCondition, ReasonRequired: v.ReasonRequired}
 	}
-	action := domain.ProcessActionV2{ActionID: actionID, Kind: node.ActionKind, TaskID: taskID, Revision: revision, Process: definition.Reference, NodeID: nodeID, RepositoryBindingDigest: binding, AllowedEffects: append([]domain.AllowedEffect(nil), node.AllowedEffects...), RequiredEvidence: append([]domain.EvidenceRequirement(nil), node.RequiredEvidence...), PayloadContract: node.PayloadContract, NodeContract: domain.NodeContractProjection{Purpose: node.Purpose, EntryConditions: append([]string(nil), node.EntryAssumptions...), CompletionConditions: append([]string(nil), node.CompletionConditions...)}, AvailableTransitions: available, MethodProfile: profile, SemanticMethodSteps: append([]domain.SemanticMethodStep(nil), node.SemanticMethodSteps...), Guidance: "Complete the current node contract and select one available transition.", IssuedAt: issuedAt}
+	action := domain.ProcessAction{ActionID: actionID, Kind: node.ActionKind, TaskID: taskID, Revision: revision, Process: definition.Reference, NodeID: nodeID, RepositoryBindingDigest: binding, AllowedEffects: append([]domain.AllowedEffect(nil), node.AllowedEffects...), RequiredEvidence: append([]domain.EvidenceRequirement(nil), node.RequiredEvidence...), PayloadContract: node.PayloadContract, NodeContract: domain.NodeContractProjection{Purpose: node.Purpose, EntryConditions: append([]string(nil), node.EntryAssumptions...), CompletionConditions: append([]string(nil), node.CompletionConditions...)}, AvailableTransitions: available, MethodProfile: profile, SemanticMethodSteps: append([]domain.SemanticMethodStep(nil), node.SemanticMethodSteps...), Guidance: "Complete the current node contract and select one available transition.", IssuedAt: issuedAt}
 	if action.Process != StandardProcess().Reference || !profile.IsValid() || !actionID.IsValid() || !taskID.IsValid() || revision == 0 || !binding.IsValid() {
-		return domain.ProcessActionV2{}, domain.ErrInvalidArgument
+		return domain.ProcessAction{}, domain.ErrInvalidArgument
 	}
 	return action, nil
 }
@@ -63,7 +63,7 @@ func ValidateProcessTask(task domain.ProcessTask) error {
 	}
 	return nil
 }
-func sameAction(a, b domain.ProcessActionV2) bool {
+func sameAction(a, b domain.ProcessAction) bool {
 	if a.ActionID != b.ActionID || a.Kind != b.Kind || a.TaskID != b.TaskID || a.Revision != b.Revision || a.Process != b.Process || a.NodeID != b.NodeID || a.RepositoryBindingDigest != b.RepositoryBindingDigest || a.PayloadContract != b.PayloadContract || a.MethodProfile != b.MethodProfile || !a.IssuedAt.Equal(b.IssuedAt) {
 		return false
 	}

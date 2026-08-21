@@ -402,9 +402,7 @@ function taskIdentity(task) {
   return {
     task_id: task.task_id,
     revision: task.revision,
-    snapshot_version: task.snapshot_version,
     process_id: task.process_id,
-    process_version: task.process_version,
     process_definition_digest: task.process_definition_digest,
     current_cursor: task.current_cursor,
     current_action: task.current_action === null ? null : {

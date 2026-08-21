@@ -98,13 +98,15 @@ elif [ -n "$expected_source_commit" ]; then
   fail "--source-commit is valid only with --final"
 fi
 
-version=$(sed -n '1p' "$repository_root/VERSION")
-[ -n "$version" ] || fail "repository VERSION is empty"
+core_version=$(sed -n '1p' "$repository_root/CORE_VERSION")
+codex_version=$(node -p 'require(process.argv[1]).version' "$repository_root/packages/codex/package.json")
+[ -n "$core_version" ] || fail "CORE_VERSION is empty"
+[ -n "$codex_version" ] || fail "Codex package version is empty"
 
-node - "$repository_root" "$version" "$codex_compatibility" <<'NODE'
+node - "$repository_root" "$codex_version" "$core_version" "$codex_compatibility" <<'NODE'
 const fs = require("node:fs");
 const path = require("node:path");
-const [root, version, codexCompatibility] = process.argv.slice(2);
+const [root, codexVersion, coreVersion, codexCompatibility] = process.argv.slice(2);
 const packageManifest = JSON.parse(fs.readFileSync(path.join(root, "packages/codex/package.json"), "utf8"));
 const pluginManifest = JSON.parse(fs.readFileSync(path.join(root, "packages/codex/plugin/.codex-plugin/plugin.json"), "utf8"));
 const lifecycleSource = fs.readFileSync(path.join(root, "packages/codex/lib/lifecycle.mjs"), "utf8");
@@ -123,8 +125,11 @@ if (
 ) {
   throw new Error("Codex package does not satisfy the fixed public package contract");
 }
-if (packageManifest.version !== version || pluginManifest.version !== version) {
-  throw new Error("repository, package, and plugin versions must match");
+if (packageManifest.version !== codexVersion || pluginManifest.version !== codexVersion) {
+  throw new Error("Codex package and plugin versions must match");
+}
+if (![codexVersion, coreVersion].every((value) => /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(value))) {
+  throw new Error("Codex and Core versions must be strict MAJOR.MINOR.PATCH");
 }
 if (!lifecycleSource.includes(`CODEX_COMPATIBILITY_RANGE = "${codexCompatibility}"`)) {
   throw new Error("Codex compatibility metadata does not match the selected range");
@@ -165,18 +170,18 @@ chmod 0755 "$stage_root/bin/dev-flow-codex.mjs"
     -mod=readonly \
     -trimpath \
     -buildvcs=false \
-    -ldflags "-s -w -X github.com/Innocent-children/dev-flow/internal/version.buildVersion=$version" \
+    -ldflags "-s -w -X github.com/Innocent-children/dev-flow/internal/version.buildVersion=$core_version" \
     -o "$stage_root/runtime/darwin-arm64/dev-flow" \
     ./cmd/dev-flow
 )
 chmod 0755 "$stage_root/runtime/darwin-arm64/dev-flow"
 
 if [ "$(uname -s)" = Darwin ] && [ "$(uname -m)" = arm64 ]; then
-  core_version=$(
+  reported_core=$(
     cd "$build_root"
     "$stage_root/runtime/darwin-arm64/dev-flow" version
   )
-  [ "$core_version" = "dev-flow $version" ] || fail "detached Core version does not match repository VERSION"
+  [ "$reported_core" = "dev-flow $core_version" ] || fail "detached Core version does not match CORE_VERSION"
 else
   go version "$stage_root/runtime/darwin-arm64/dev-flow" >/dev/null
 fi
@@ -209,7 +214,7 @@ if (report.name !== "dev-flow-codex" || JSON.stringify(actual) !== JSON.stringif
 }
 NODE
 
-artifact_path="$output_directory/dev-flow-codex-$version.tgz"
+artifact_path="$output_directory/dev-flow-codex-$codex_version.tgz"
 find "$stage_root" -exec touch -t 198510260815.00 {} +
 if tar --version 2>/dev/null | grep -q 'GNU tar'; then
   (
@@ -248,7 +253,8 @@ fi
 
 ARTIFACT_PATH=$artifact_path \
 ARTIFACT_SHA256=$artifact_sha256 \
-PACKAGE_VERSION=$version \
+PACKAGE_VERSION=$codex_version \
+CORE_VERSION=$core_version \
 SOURCE_COMMIT=$source_commit \
 SOURCE_DIRTY=$source_dirty \
 FINAL_ARTIFACT=$final_artifact \
@@ -262,7 +268,7 @@ const baseReport = {
   artifact_path: process.env.ARTIFACT_PATH,
   artifact_sha256: process.env.ARTIFACT_SHA256,
   package_version: process.env.PACKAGE_VERSION,
-  core_version: process.env.PACKAGE_VERSION,
+  core_version: process.env.CORE_VERSION,
   source_commit: process.env.SOURCE_COMMIT,
   source_dirty: process.env.SOURCE_DIRTY === "true",
   final_artifact: process.env.FINAL_ARTIFACT === "true",
@@ -275,7 +281,6 @@ if (!baseReport.final_artifact) {
 }
 
 const report = {
-  schema_version: 1,
   report_type: "dev-flow-codex-final-artifact",
   artifact_path: baseReport.artifact_path,
   artifact_sha256: baseReport.artifact_sha256,

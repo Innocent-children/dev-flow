@@ -3,21 +3,21 @@
 ## 当前结构
 
 当前源码使用一个共享 Go Core 和一个薄 Host Adapter。公开传输仍是 local STDIO，MCP
-Contract 0.2 恰好包含六个工具。
+current contract 恰好包含六个工具。
 
 ```text
 Host Adapter
     │ explicit selector / closed payload / read-before-retry
     ▼
-Six-tool MCP Contract 0.2
+Six-tool MCP current contract
     ▼
 Application Service
     ▼
-Workflow / standard-development@1
+Workflow / standard-development
     ▼
 ProcessTask / TaskIntent / Baselines
     ▼
-SQLite Schema 2
+SQLite current SQLite format
 ```
 
 三个旁路组件各有单一职责：
@@ -35,7 +35,7 @@ Application Service 协调读取、观察、工作流验证和 Store CAS；它�
 Core 唯一管理：
 
 - Task identity、immutable `TaskIntent` 和 repository claim；
-- process definition/version/digest、current node 和 resume node；
+- process definition/digest、current node 和 resume node；
 - node purpose、entry/completion obligations、allowed effects 和 required evidence；
 - 全部 legal transitions、guard、reason rule 和 Core-derived destination；
 - requirements/design/task-plan baseline authority 和 invalidation；
@@ -43,7 +43,7 @@ Core 唯一管理：
 - graph-native recovery classification、blocker 和 resolution；
 - terminal `DONE`/`CANCELLED` outcome。
 
-`internal/workflow/standard_process.go` 定义唯一的 `standard-development@1`。它有 11 个节点、
+`internal/workflow/standard_process.go` 定义唯一的 `standard-development`。它有 11 个节点、
 29 条正常流转，无 runtime graph parser、registry、DSL 或 compatibility process。精确合同见
 [process-graph.md](../specs/008-refactor-to-development-process-graph/contracts/process-graph.md)。
 
@@ -52,7 +52,7 @@ Core 唯一管理：
 Codex Adapter 只负责：
 
 - 精确 selector `$dev-flow-codex:dev-flow` 和请求 admission；
-- Core Contract 0.2 handshake 与 capability availability；
+- current Core contract handshake 与 capability availability；
 - 将 Core semantic method steps 渲染成 `plain`、`spec-kit` 或 `openspec` 操作；
 - 呈现当前节点、全部合法 transitions 和 developer comprehension request；
 - 转发 closed node-specific payload；
@@ -67,7 +67,7 @@ repository artifact/evidence，但不成为 Core 的 process cursor，也不是 
 
 ## 数据模型
 
-Schema 2 的 strict snapshot-v2 持久化一个 `ProcessTask` 聚合，主要 authority 为：
+Current SQLite layout 的 strict snapshot 持久化一个 `ProcessTask` 聚合，主要 authority 为：
 
 ```text
 TaskIntent
@@ -92,14 +92,14 @@ readiness 失效。`TEST` 创建 current `TestRecord`，用户确认后才创建
 `internal/store` 只支持：
 
 ```text
-SQLite Schema 2
-Snapshot Version 2
-standard-development@1 exact definition digest
+SQLite current SQLite format
+Strict current snapshot
+standard-development exact definition digest
 ```
 
-Fresh directory 直接 bootstrap Schema 2；不会先创建 Schema 1，也没有 `ALTER TABLE` migration、
-snapshot-v1 decoder、dual projection 或 `legacy-linear`。Store 在暴露写能力前只读验证 schema、
-task row/snapshot、node authority 和 Task/Event/Claim cardinality。Schema 1/pre-graph 数据返回
+Fresh directory 直接 bootstrap current SQLite format；不会先创建 pre-graph data，也没有 `ALTER TABLE` migration、
+legacy snapshot decoder、dual projection 或 `legacy-linear`。Store 在暴露写能力前只读验证 schema、
+task row/snapshot、node authority 和 Task/Event/Claim cardinality。pre-graph data/pre-graph 数据返回
 `SCHEMA_UNSUPPORTED` 并保持零写入；corrupt current-generation state safe-stop。用户自己选择新
 目录或在 Core 外部处理旧目录，任何 lifecycle 命令都不自动删除。
 
@@ -140,7 +140,7 @@ push、tag、publish，也不暴露 generic shell。Action 的 `allowed_effects`
 | `internal/workflow/` | static process、node/transition、payload/guard/invalidation |
 | `internal/recovery/` | operation reconciliation、assessment、blocker |
 | `internal/repository/` | read-only Git observer |
-| `internal/store/` | Schema 2 bootstrap、strict codec、CAS、events、claims |
+| `internal/store/` | current SQLite format bootstrap、strict codec、CAS、events、claims |
 | `internal/application/` | use-case orchestration |
 | `internal/mcp/` | six tools、closed JSON、typed Result Envelope |
 | `packages/codex/` | explicit Adapter、Skill、method rendering、lifecycle/package |
@@ -149,12 +149,11 @@ push、tag、publish，也不暴露 generic shell。Action 的 `allowed_effects`
 
 ## 发布架构
 
-Standalone release command 使用仓库外的五文件 release directory、当前 Manifest Schema、
-Publication Record Schema 1 和 exact-confirmation 发布。命令先在 `main` 提交并推送版本对齐，
+Standalone Codex release command 使用仓库外的五文件 release directory、current-only manifest/
+publication record 和 exact-confirmation 发布。命令先在 `main` 只提交并推送 Codex package/plugin，
 再按 `quick` 或 `normal` 编排 validation、builder、verifier 和 publisher；publisher 独自拥有
 Tag/Draft/npm/read-back/Journey/assets/finalization 的远端状态机。Feature 009 保留为 `0.4.0`
 历史发布证据。
 
 发布工具不进入 Core、MCP 或 SQLite，也不改变 Feature 008 产品语义。已发布 `0.3.0` 历史保持
-冻结；当前 manifest 绑定 Feature 008 commit、Contract 0.2、Schema 2、snapshot v2 和
-`standard-development@1` definition digest。
+冻结；当前 manifest 绑定 Codex/Core 两个产品版本、source commit/tree 和 artifact digests。

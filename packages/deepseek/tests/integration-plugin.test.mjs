@@ -19,7 +19,7 @@ import {
 
 const sourcePackageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = dirname(dirname(sourcePackageRoot));
-const currentVersion = (await readFile(join(repositoryRoot, "VERSION"), "utf8")).trim();
+const currentVersion = (await readFile(join(repositoryRoot, "CORE_VERSION"), "utf8")).trim();
 
 test("plugin identity and injection surface are fixed", () => {
   assert.equal(name, "dev-flow-deepseek");

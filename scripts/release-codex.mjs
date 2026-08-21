@@ -14,16 +14,11 @@ const SEMVER_PATTERN = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/u;
 const GIT_SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const RELEASE_MODES = Object.freeze(["quick", "normal"]);
 const VERSION_AUTHORITY_PATHS = Object.freeze([
-  "VERSION",
-  "package.json",
   "packages/codex/package.json",
   "packages/codex/plugin/.codex-plugin/plugin.json",
-  "packages/deepseek/package.json",
-  "protocol/fixtures/graph-server-info.json",
-  "packages/codex/tests/fixtures/fake-core.mjs",
-  "packages/codex/tests/fixtures/graph-method-profiles.json",
 ]);
 const QUICK_BLOCKED_PATHS = Object.freeze([
+  "CORE_VERSION",
   "go.mod",
   "go.sum",
   "scripts/build-codex-local.sh",
@@ -57,7 +52,7 @@ export function parseReleaseArguments(arguments_) {
     index += 1;
   }
   if (!["--mode", "--version", "--confirm"].every((flag) => values.has(flag))) {
-    throw new Error("usage: release-codex.mjs --mode quick|normal --version VERSION [--output ABSOLUTE_DIRECTORY] --confirm vVERSION [--confirm-comprehension]");
+    throw new Error("usage: release-codex.mjs --mode quick|normal --version CODEX_VERSION [--output ABSOLUTE_DIRECTORY] --confirm codex-vCODEX_VERSION [--confirm-comprehension]");
   }
   return {
     mode: values.get("--mode"),
@@ -92,30 +87,36 @@ export async function runReleaseCommand({
   validateReleaseSelection({ mode, targetVersion, confirmation, comprehensionConfirmed });
   if (platform !== "darwin" || architecture !== "arm64") throw new Error("release command requires darwin-arm64");
 
-  let currentVersion = await validateVersionAuthorities(root);
   let source = await validateSource(root);
-  let basedOnRelease = mode === "quick" ? currentVersion : null;
-
-  if (currentVersion !== targetVersion) {
-    if (compareSemVer(targetVersion, currentVersion) <= 0) {
-      throw new Error(`target version ${targetVersion} must be greater than current version ${currentVersion}`);
+  const output = await resolveOutputDirectory(root, outputDirectory ?? defaultOutputDirectory(targetVersion));
+  const initialNames = await releaseDirectoryNames(output);
+  let coreVersion;
+  let basedOnRelease;
+  let prepared = null;
+  if (initialNames.length === 0) {
+    let currentVersion = await validateCodexAuthorities(root);
+    coreVersion = await readCoreVersion(root);
+    basedOnRelease = await previousCodexRelease(root, targetVersion);
+    if (currentVersion !== targetVersion) {
+      if (compareSemVer(targetVersion, currentVersion) <= 0) {
+        throw new Error(`target version ${targetVersion} must be greater than current version ${currentVersion}`);
+      }
+      const changedPaths = await changedPathsSinceTag(root, basedOnRelease);
+      if (mode === "quick") {
+        const blocked = quickModeBlockingPaths(changedPaths);
+        if (blocked.length !== 0) throw new Error(`quick mode is not eligible; product-affecting paths: ${blocked.join(", ")}`);
+      }
+      await updateCodexVersion(root, currentVersion, targetVersion);
+      currentVersion = await validateCodexAuthorities(root);
+      await commitAndPushVersion(root, targetVersion);
+      source = await validateSource(root);
     }
-    const changedPaths = await changedPathsSinceTag(root, currentVersion);
-    if (mode === "quick") {
-      const blocked = quickModeBlockingPaths(changedPaths);
-      if (blocked.length !== 0) throw new Error(`quick mode is not eligible; product-affecting paths: ${blocked.join(", ")}`);
-    }
-    await updateVersionAuthorities(root, currentVersion, targetVersion);
-    currentVersion = await validateVersionAuthorities(root);
-    await commitAndPushVersion(root, targetVersion);
-    source = await validateSource(root);
-  } else if (mode === "quick") {
-    basedOnRelease = await previousReleaseVersion(root, targetVersion);
+  } else {
+    prepared = await requireMatchingPreparedMode(output, { mode, targetVersion });
+    coreVersion = prepared.release.core_version;
+    basedOnRelease = prepared.release.based_on_release;
   }
 
-  const output = await resolveOutputDirectory(root, outputDirectory ?? defaultOutputDirectory(targetVersion));
-  const expectedNames = releaseOutputNames(targetVersion);
-  const initialNames = await releaseDirectoryNames(output);
   const releaseEnvironment = {
     ...environment,
     DEV_FLOW_RELEASE_MODE: mode,
@@ -127,20 +128,23 @@ export async function runReleaseCommand({
   let publicationSource = source;
 
   if (initialNames.length === 0) {
+    const expectedNames = releaseOutputNames(targetVersion, coreVersion);
     await runModeValidation(root, mode, releaseEnvironment, runProcess);
     await runProcess(join(root, "scripts", "build-codex-release.sh"), ["--output", output], { cwd: root, env: releaseEnvironment });
     await requireExactReleaseFiles(output, expectedNames);
     await runProcess(process.execPath, [join(root, "scripts", "verify-codex-release.mjs"), "--directory", output], { cwd: root, env: releaseEnvironment });
     executionMode = "prepared-and-published";
   } else {
+    const expectedNames = releaseOutputNames(targetVersion, coreVersion);
     await requireExactReleaseFiles(output, expectedNames);
-    const prepared = await requireMatchingPreparedMode(output, { mode, targetVersion, basedOnRelease });
     if (prepared.release.source_commit !== source.commit || prepared.release.source_tree !== source.tree) {
       publicationRoot = await ensureFrozenSourceCheckout(root, output, prepared.release.source_commit);
       publicationSource = await validateFrozenSource(publicationRoot, prepared.release);
     }
     executionMode = "resumed-and-published";
   }
+
+  const expectedNames = releaseOutputNames(targetVersion, coreVersion);
 
   const publisherArguments = [
     join(root, "scripts", "publish-codex-release.mjs"),
@@ -156,7 +160,8 @@ export async function runReleaseCommand({
     verification_mode: mode,
     based_on_release: basedOnRelease,
     version: targetVersion,
-    tag: `v${targetVersion}`,
+    core_version: coreVersion,
+    tag: `codex-v${targetVersion}`,
     source_commit: publicationSource.commit,
     source_tree: publicationSource.tree,
     output_files: expectedNames,
@@ -178,40 +183,34 @@ async function runModeValidation(root, mode, environment, runProcess) {
 function validateReleaseSelection({ mode, targetVersion, confirmation, comprehensionConfirmed }) {
   if (!RELEASE_MODES.includes(mode)) throw new Error("release mode must equal quick or normal");
   if (!SEMVER_PATTERN.test(targetVersion ?? "")) throw new Error("target version must be strict MAJOR.MINOR.PATCH");
-  if (confirmation !== `v${targetVersion}`) throw new Error(`confirmation must equal v${targetVersion}`);
+  if (confirmation !== `codex-v${targetVersion}`) throw new Error(`confirmation must equal codex-v${targetVersion}`);
   if (mode === "normal" && comprehensionConfirmed !== true) {
     throw new Error("normal mode requires --confirm-comprehension");
   }
 }
 
-async function validateVersionAuthorities(root) {
-  const version = (await readFile(join(root, "VERSION"), "utf8")).trim();
-  if (!SEMVER_PATTERN.test(version)) throw new Error("root VERSION must be strict MAJOR.MINOR.PATCH");
+async function validateCodexAuthorities(root) {
   const manifests = await Promise.all([
-    readJSON(join(root, "package.json")),
     readJSON(join(root, "packages", "codex", "package.json")),
     readJSON(join(root, "packages", "codex", "plugin", ".codex-plugin", "plugin.json")),
-    readJSON(join(root, "packages", "deepseek", "package.json")),
   ]);
-  const identities = [
-    [manifests[0], "dev-flow"],
-    [manifests[1], "dev-flow-codex"],
-    [manifests[2], "dev-flow-codex"],
-    [manifests[3], "dev-flow-deepseek"],
-  ];
-  if (identities.some(([manifest, name]) => manifest.name !== name || manifest.version !== version)) {
-    throw new Error(`version authorities must equal ${version}`);
+  const version = manifests[0]?.version;
+  if (!SEMVER_PATTERN.test(version ?? "") || manifests.some((manifest) => manifest.name !== "dev-flow-codex" || manifest.version !== version)) {
+    throw new Error("Codex package/plugin version authorities are invalid");
   }
   return version;
 }
 
-async function updateVersionAuthorities(root, currentVersion, targetVersion) {
-  await writeFile(join(root, "VERSION"), `${targetVersion}\n`);
+async function readCoreVersion(root) {
+  const version = (await readFile(join(root, "CORE_VERSION"), "utf8")).trim();
+  if (!SEMVER_PATTERN.test(version)) throw new Error("CORE_VERSION must be strict MAJOR.MINOR.PATCH");
+  return version;
+}
+
+async function updateCodexVersion(root, currentVersion, targetVersion) {
   for (const relativePath of [
-    "package.json",
     "packages/codex/package.json",
     "packages/codex/plugin/.codex-plugin/plugin.json",
-    "packages/deepseek/package.json",
   ]) {
     const path = join(root, relativePath);
     const manifest = await readJSON(path);
@@ -219,46 +218,31 @@ async function updateVersionAuthorities(root, currentVersion, targetVersion) {
     manifest.version = targetVersion;
     await writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`);
   }
-  for (const relativePath of [
-    "protocol/fixtures/graph-server-info.json",
-    "packages/codex/tests/fixtures/graph-method-profiles.json",
-  ]) {
-    const path = join(root, relativePath);
-    const fixture = await readJSON(path);
-    const authority = relativePath.startsWith("protocol/") ? fixture : fixture.server_info;
-    if (authority.version !== currentVersion) throw new Error(`${relativePath} version changed during release preparation`);
-    authority.version = targetVersion;
-    const indentation = relativePath.startsWith("protocol/") ? 0 : 2;
-    await writeFile(path, `${JSON.stringify(fixture, null, indentation)}\n`);
-  }
-  const fakeCorePath = join(root, "packages", "codex", "tests", "fixtures", "fake-core.mjs");
-  const fakeCore = await readFile(fakeCorePath, "utf8");
-  const marker = `\"${currentVersion}\"`;
-  const occurrences = fakeCore.split(marker).length - 1;
-  if (occurrences !== 2) throw new Error("fake Core current-version markers are not exact");
-  await writeFile(fakeCorePath, fakeCore.replaceAll(marker, `\"${targetVersion}\"`));
 }
 
 async function commitAndPushVersion(root, version) {
   await runText("git", ["add", "--", ...VERSION_AUTHORITY_PATHS], { cwd: root });
   await runText("git", ["diff", "--cached", "--check"], { cwd: root });
-  await runText("git", ["commit", "-m", `release: bump Codex to v${version}`], { cwd: root });
+  await runText("git", ["commit", "-m", `release(codex): v${version}`], { cwd: root });
   await runText("git", ["push", "origin", "main"], { cwd: root, timeout: 120_000 });
 }
 
-async function changedPathsSinceTag(root, version) {
-  const tag = `v${version}`;
+async function changedPathsSinceTag(root, tag) {
   await runText("git", ["rev-parse", "--verify", `refs/tags/${tag}`], { cwd: root });
   const output = await runText("git", ["diff", "--name-only", `${tag}...HEAD`], { cwd: root });
   return output === "" ? [] : output.split("\n").filter(Boolean);
 }
 
-async function previousReleaseVersion(root, targetVersion) {
-  const output = await runText("git", ["tag", "--list", "v*", "--sort=-version:refname"], { cwd: root });
-  const version = output.split("\n").map((tag) => tag.replace(/^v/u, ""))
-    .find((candidate) => SEMVER_PATTERN.test(candidate) && compareSemVer(candidate, targetVersion) < 0);
-  if (!version) throw new Error(`quick mode cannot find a previous release before ${targetVersion}`);
-  return version;
+async function previousCodexRelease(root, targetVersion) {
+  const output = await runText("git", ["tag", "--list", "codex-v*", "--sort=-version:refname"], { cwd: root });
+  const tag = output.split("\n").find((candidate) => {
+    const version = candidate.replace(/^codex-v/u, "");
+    return SEMVER_PATTERN.test(version) && compareSemVer(version, targetVersion) < 0;
+  });
+  if (tag) return tag;
+  await runText("git", ["rev-parse", "--verify", "refs/tags/v0.5.0"], { cwd: root });
+  if (compareSemVer("0.5.0", targetVersion) >= 0) throw new Error(`cannot find a previous Codex release before ${targetVersion}`);
+  return "v0.5.0";
 }
 
 async function validateSource(root) {
@@ -302,9 +286,12 @@ async function requireMatchingPreparedMode(directory, expected) {
   const manifest = await readJSON(join(directory, "release-manifest.json"));
   const release = manifest.release ?? {};
   if (
-    release.version !== expected.targetVersion
+    release.product !== "codex"
+    || release.version !== expected.targetVersion
+    || release.tag !== `codex-v${expected.targetVersion}`
+    || !SEMVER_PATTERN.test(release.core_version ?? "")
     || release.verification_mode !== expected.mode
-    || (release.based_on_release ?? null) !== (expected.basedOnRelease ?? null)
+    || (expected.basedOnRelease !== undefined && release.based_on_release !== expected.basedOnRelease)
   ) throw new Error("prepared release mode/version differs from the requested resume");
   return manifest;
 }
@@ -356,7 +343,7 @@ function compareSemVer(left, right) {
 }
 
 function defaultOutputDirectory(version) {
-  return join(homedir(), "dev-flow-releases", `v${version}`);
+  return join(homedir(), "dev-flow-releases", `codex-v${version}`);
 }
 
 async function releaseDirectoryNames(directory) {

@@ -3,7 +3,7 @@ package domain
 // ID is a caller-provided stable identity.
 type ID string
 
-// IsValid reports whether id is a non-empty canonical identifier within Core Limits 0.1.
+// IsValid reports whether id is a non-empty canonical identifier within Core limits.
 func (id ID) IsValid() bool { return validateID(id) == nil }
 
 // Digest is a lowercase hexadecimal SHA-256 digest.
@@ -35,7 +35,7 @@ const (
 	ActionCompleteDelivery            ActionKind = "COMPLETE_DELIVERY"
 )
 
-func (k ActionKind) IsValidV2() bool {
+func (k ActionKind) IsValid() bool {
 	switch k {
 	case ActionCompleteRequirements, ActionCompleteDesign, ActionCompleteTasks, ActionCompleteImplementation,
 		ActionCompleteTest, ActionCompleteComprehensionReview, ActionCompleteRefactor,
@@ -144,7 +144,7 @@ const (
 	EffectRequestUserDecision     AllowedEffect = "request_user_decision"
 )
 
-func (e AllowedEffect) IsValidV2() bool {
+func (e AllowedEffect) IsValid() bool {
 	switch e {
 	case EffectReadRepository, EffectEditProcessArtifacts, EffectEditProductFiles,
 		EffectRunVerificationCommands, EffectRequestUserDecision,

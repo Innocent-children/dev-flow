@@ -133,10 +133,7 @@ test("official DSH add/remove/reinstall preserves Core data, repository, and Cod
       os: platform(), architecture: arch(), profile_identity_sha256: sha256(profileName),
     },
     core_contract: {
-      schema_version: serverInfo.result.schema_version,
-      core_limits_version: serverInfo.result.core_limits_version,
       process_id: serverInfo.result.supported_processes[0].process_id,
-      process_version: serverInfo.result.supported_processes[0].process_version,
       process_definition_digest: serverInfo.result.supported_processes[0].definition_digest,
       qualified_tools: DEV_FLOW_QUALIFIED_TOOL_NAMES,
     },

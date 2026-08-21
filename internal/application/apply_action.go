@@ -97,7 +97,7 @@ func validateStandardRequestAgainstTask(r ApplyActionRequest, task domain.Proces
 	if task.CurrentAction == nil || task.Revision != r.ExpectedRevision {
 		return domain.ErrRevisionConflict
 	}
-	if r.ProcessID != task.Process.ID || r.ProcessVersion != task.Process.Version || r.ProcessDefinitionDigest != task.Process.DefinitionDigest {
+	if r.ProcessID != task.Process.ID || r.ProcessDefinitionDigest != task.Process.DefinitionDigest {
 		return domain.ErrProcessUnsupported
 	}
 	if r.SourceCursor != task.CurrentNode || task.CurrentAction.ActionID != r.ActionID || task.CurrentAction.Kind != r.ActionKind || task.Repository.BindingDigest != r.RepositoryBindingDigest {
@@ -123,7 +123,7 @@ func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionReques
 	if task.CurrentAction == nil || task.Revision != r.ExpectedRevision {
 		return ApplyActionResult{}, domain.ErrRevisionConflict
 	}
-	if r.ProcessID != task.Process.ID || r.ProcessVersion != task.Process.Version || r.ProcessDefinitionDigest != task.Process.DefinitionDigest {
+	if r.ProcessID != task.Process.ID || r.ProcessDefinitionDigest != task.Process.DefinitionDigest {
 		return ApplyActionResult{}, domain.ErrProcessUnsupported
 	}
 	if r.SourceCursor != task.CurrentNode || task.CurrentAction.ActionID != r.ActionID || task.CurrentAction.Kind != r.ActionKind || task.Repository.BindingDigest != r.RepositoryBindingDigest {
@@ -302,7 +302,7 @@ func (s *Service) createRecoveryBlocker(ctx context.Context, r ApplyActionReques
 func (s *Service) resolveBlocker(ctx context.Context, r ApplyActionRequest, task domain.ProcessTask) (ApplyActionResult, error) {
 	if task.Blocker == nil || task.ResumeNode == nil || task.CurrentAction == nil || r.SourceCursor != domain.NodeBlocked ||
 		task.Revision != r.ExpectedRevision || task.CurrentAction.ActionID != r.ActionID || r.ActionKind != domain.ActionResolveBlocker ||
-		r.ProcessID != task.Process.ID || r.ProcessVersion != task.Process.Version || r.ProcessDefinitionDigest != task.Process.DefinitionDigest ||
+		r.ProcessID != task.Process.ID || r.ProcessDefinitionDigest != task.Process.DefinitionDigest ||
 		r.RepositoryBindingDigest != task.Repository.BindingDigest {
 		return ApplyActionResult{}, domain.ErrActionStale
 	}
@@ -384,12 +384,12 @@ func validateRecoveryPayload(source domain.NodeID, payload json.RawMessage) erro
 }
 
 func operationFromApply(r ApplyActionRequest) domain.OperationReference {
-	return domain.OperationReference{OperationID: r.RequestID, Process: domain.ProcessReference{ID: r.ProcessID, Version: r.ProcessVersion, DefinitionDigest: r.ProcessDefinitionDigest}, SourceCursor: r.SourceCursor, ExpectedRevision: r.ExpectedRevision, ActionID: r.ActionID, ActionKind: r.ActionKind, RepositoryBindingDigest: r.RepositoryBindingDigest}
+	return domain.OperationReference{OperationID: r.RequestID, Process: domain.ProcessReference{ID: r.ProcessID, DefinitionDigest: r.ProcessDefinitionDigest}, SourceCursor: r.SourceCursor, ExpectedRevision: r.ExpectedRevision, ActionID: r.ActionID, ActionKind: r.ActionKind, RepositoryBindingDigest: r.RepositoryBindingDigest}
 }
 
 func validApplyIdentity(operation domain.OperationReference) bool {
 	return operation.OperationID.IsValid() && operation.Process.Validate() == nil && operation.SourceCursor.IsValid() &&
-		operation.ExpectedRevision > 0 && operation.ActionID.IsValid() && operation.ActionKind.IsValidV2() && operation.RepositoryBindingDigest.IsValid()
+		operation.ExpectedRevision > 0 && operation.ActionID.IsValid() && operation.ActionKind.IsValid() && operation.RepositoryBindingDigest.IsValid()
 }
 
 func digestApplyRequest(r ApplyActionRequest, canonicalPayload json.RawMessage) (domain.Digest, error) {

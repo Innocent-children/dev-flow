@@ -28,7 +28,7 @@ func TestFeature005HistoricalEvidenceFreeze(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !bytes.Contains(contract, []byte("SQLite Schema 1/CAS foundations")) {
-		t.Fatal("historical Schema 1 evidence changed")
+		t.Fatal("historical former storage evidence changed")
 	}
 }
 func TestMCPToolCatalogIsExactStableAndConservative(t *testing.T) {
@@ -64,7 +64,7 @@ func assertClosed(t *testing.T, value any, path string) {
 		}
 	}
 }
-func TestMCPContract02RequiredShapes(t *testing.T) {
+func TestMCPCurrentContractRequiredShapes(t *testing.T) {
 	schemas := map[string]map[string]any{}
 	for _, tool := range core.ToolCatalog() {
 		var v map[string]any
@@ -80,7 +80,7 @@ func TestMCPContract02RequiredShapes(t *testing.T) {
 	requireNames(core.ToolOpenTask, []string{"host", "repository_path"})
 	requireNames(core.ToolGetTask, []string{"host", "task_id"})
 	requireNames(core.ToolGetNextAction, []string{"host", "task_id"})
-	requireNames(core.ToolApplyAction, []string{"request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_version", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload"})
+	requireNames(core.ToolApplyAction, []string{"request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload"})
 	requireNames(core.ToolCancelTask, []string{"request_id", "host", "task_id", "revision", "reason"})
 }
 func stringsOf(v any) []string {

@@ -34,7 +34,6 @@ type readWire struct {
 type operationProbeWire struct {
 	OperationID             domain.ID         `json:"operation_id"`
 	ProcessID               domain.ProcessID  `json:"process_id"`
-	ProcessVersion          uint32            `json:"process_version"`
 	ProcessDefinitionDigest domain.Digest     `json:"process_definition_digest"`
 	SourceCursor            domain.NodeID     `json:"source_cursor"`
 	ExpectedRevision        uint64            `json:"expected_revision"`
@@ -51,7 +50,6 @@ type applyWire struct {
 	ActionID                domain.ID          `json:"action_id"`
 	ActionKind              domain.ActionKind  `json:"action_kind"`
 	ProcessID               domain.ProcessID   `json:"process_id"`
-	ProcessVersion          uint32             `json:"process_version"`
 	ProcessDefinitionDigest domain.Digest      `json:"process_definition_digest"`
 	SourceCursor            domain.NodeID      `json:"source_cursor"`
 	RepositoryBindingDigest domain.Digest      `json:"repository_binding_digest"`
@@ -159,11 +157,11 @@ func ValidateToolInput(tool string, raw []byte) error {
 		}
 		return nil
 	case ToolApplyAction:
-		if !hasKeys(raw, "request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_version", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload") {
+		if !hasKeys(raw, "request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload") {
 			return domain.ErrInvalidArgument
 		}
 		var v applyWire
-		if decodeClosed(raw, &v) != nil || !v.RequestID.IsValid() || !v.Host.IsValid() || !v.TaskID.IsValid() || v.Revision == 0 || !v.ActionID.IsValid() || !v.ActionKind.IsValidV2() || v.ProcessID != domain.ProcessStandardDevelopment || v.ProcessVersion != 1 || !v.ProcessDefinitionDigest.IsValid() || (!v.SourceCursor.Normal() && v.SourceCursor != domain.NodeBlocked) || !v.RepositoryBindingDigest.IsValid() || len(v.Payload) == 0 || !validRecoveryApply(v.RecoveryApply, v.SourceCursor, v.RequestID) || v.RecoveryApply == nil && bytes.Equal(bytes.TrimSpace(v.Payload), []byte("null")) {
+		if decodeClosed(raw, &v) != nil || !v.RequestID.IsValid() || !v.Host.IsValid() || !v.TaskID.IsValid() || v.Revision == 0 || !v.ActionID.IsValid() || !v.ActionKind.IsValid() || v.ProcessID != domain.ProcessStandardDevelopment || !v.ProcessDefinitionDigest.IsValid() || (!v.SourceCursor.Normal() && v.SourceCursor != domain.NodeBlocked) || !v.RepositoryBindingDigest.IsValid() || len(v.Payload) == 0 || !validRecoveryApply(v.RecoveryApply, v.SourceCursor, v.RequestID) || v.RecoveryApply == nil && bytes.Equal(bytes.TrimSpace(v.Payload), []byte("null")) {
 			return domain.ErrInvalidArgument
 		}
 		if !bytes.Equal(bytes.TrimSpace(v.Payload), []byte("null")) {
@@ -198,7 +196,7 @@ func validOperationProbe(v *operationProbeWire) bool {
 	if v == nil {
 		return true
 	}
-	operation := domain.OperationReference{OperationID: v.OperationID, Process: domain.ProcessReference{ID: v.ProcessID, Version: v.ProcessVersion, DefinitionDigest: v.ProcessDefinitionDigest}, SourceCursor: v.SourceCursor, ExpectedRevision: v.ExpectedRevision, ActionID: v.ActionID, ActionKind: v.ActionKind, RepositoryBindingDigest: v.RepositoryBindingDigest}
+	operation := domain.OperationReference{OperationID: v.OperationID, Process: domain.ProcessReference{ID: v.ProcessID, DefinitionDigest: v.ProcessDefinitionDigest}, SourceCursor: v.SourceCursor, ExpectedRevision: v.ExpectedRevision, ActionID: v.ActionID, ActionKind: v.ActionKind, RepositoryBindingDigest: v.RepositoryBindingDigest}
 	if workflow.ValidateOperationReference(operation) != nil || len(v.Payload) == 0 {
 		return false
 	}
@@ -237,7 +235,7 @@ func toProbe(w *operationProbeWire) *application.OperationProbe {
 	if w == nil {
 		return nil
 	}
-	return &application.OperationProbe{OperationID: w.OperationID, ProcessID: w.ProcessID, ProcessVersion: w.ProcessVersion, ProcessDefinitionDigest: w.ProcessDefinitionDigest, SourceCursor: w.SourceCursor, ExpectedRevision: w.ExpectedRevision, ActionID: w.ActionID, ActionKind: w.ActionKind, RepositoryBindingDigest: w.RepositoryBindingDigest, Payload: w.Payload}
+	return &application.OperationProbe{OperationID: w.OperationID, ProcessID: w.ProcessID, ProcessDefinitionDigest: w.ProcessDefinitionDigest, SourceCursor: w.SourceCursor, ExpectedRevision: w.ExpectedRevision, ActionID: w.ActionID, ActionKind: w.ActionKind, RepositoryBindingDigest: w.RepositoryBindingDigest, Payload: w.Payload}
 }
 func toRecoveryApply(w *recoveryApplyWire) *application.RecoveryApplyInput {
 	if w == nil {

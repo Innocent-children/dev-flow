@@ -235,7 +235,7 @@ func applyPhase5(t *testing.T, s *Service, task domain.ProcessTask, transition, 
 	t.Helper()
 	raw := phase5Payload(t, task, transition, reason, nodeResult)
 	a := task.CurrentAction
-	result, err := s.ApplyAction(context.Background(), ApplyActionRequest{RequestID: domain.ID(fmt.Sprintf("apply-%d", task.Revision)), Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessVersion: task.Process.Version, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: raw})
+	result, err := s.ApplyAction(context.Background(), ApplyActionRequest{RequestID: domain.ID(fmt.Sprintf("apply-%d", task.Revision)), Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: raw})
 	if err != nil {
 		t.Fatalf("apply %s: %v", transition, err)
 	}
@@ -245,7 +245,7 @@ func assertApplyFails(t *testing.T, s *Service, task domain.ProcessTask, transit
 	t.Helper()
 	raw := phase5Payload(t, task, transition, reason, nodeResult)
 	a := task.CurrentAction
-	_, err := s.ApplyAction(context.Background(), ApplyActionRequest{RequestID: "apply-invalid", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessVersion: task.Process.Version, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: raw})
+	_, err := s.ApplyAction(context.Background(), ApplyActionRequest{RequestID: "apply-invalid", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: raw})
 	if err != want {
 		t.Fatalf("error=%v want=%v", err, want)
 	}

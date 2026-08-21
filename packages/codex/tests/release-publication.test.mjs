@@ -67,7 +67,7 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
     await assertRemoteMutationCount(missing, 0);
 
     const wrong = await createScenario(root, template, "wrong-confirmation");
-    await assertPublisherRejects(wrong, "v9.9.9", /confirmation must equal v0\.1\.0/u);
+    await assertPublisherRejects(wrong, "v9.9.9", /confirmation must equal codex-v1\.2\.4/u);
     await assertRemoteMutationCount(wrong, 0);
     const wrongRecord = await readJSON(join(wrong.releaseDirectory, "publication-record.json"));
     assert.equal(wrongRecord.overall_status, "blocked");
@@ -76,7 +76,7 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
 
   await t.test("successful preflight supersedes an earlier preflight failure", async () => {
     const scenario = await createScenario(root, template, "preflight-recovery");
-    await assertPublisherRejects(scenario, "v9.9.9", /confirmation must equal v0\.1\.0/u);
+    await assertPublisherRejects(scenario, "v9.9.9", /confirmation must equal codex-v1\.2\.4/u);
 
     const resumed = await runPublisher(scenario);
     const record = await readJSON(join(scenario.releaseDirectory, "publication-record.json"));
@@ -90,7 +90,7 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
     const scenario = await createScenario(root, template, "exact-and-resume", {
       npm: { delayed_reads_remaining: 2 },
     });
-    const first = await runPublisher(scenario, "v0.1.0");
+    const first = await runPublisher(scenario, "codex-v1.2.4");
     assert.equal(first.status, "npm_verified");
     assert.equal(first.final_journey, "pending");
     assert.equal(first.github_release_draft, true);
@@ -112,7 +112,7 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
     assert.equal(calls.some((entry) => entry.tool === "gh" && entry.argv[0] === "release" && entry.argv[1] === "edit"), false);
 
     const beforeResumePublishes = calls.filter((entry) => entry.tool === "npm" && entry.argv[0] === "publish").length;
-    const resumed = await runPublisher(scenario, "v0.1.0");
+    const resumed = await runPublisher(scenario, "codex-v1.2.4");
     assert.equal(resumed.status, "npm_verified");
     const afterResume = await callLog(scenario);
     assert.equal(afterResume.filter((entry) => entry.tool === "npm" && entry.argv[0] === "publish").length, beforeResumePublishes);
@@ -125,7 +125,7 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
 
   await t.test("stale local record resumes from exact immutable remote truth with bounded next-step output", async () => {
     const scenario = await createScenario(root, template, "stale-record-resume");
-    assert.equal((await runPublisher(scenario, "v0.1.0")).status, "npm_verified");
+    assert.equal((await runPublisher(scenario, "codex-v1.2.4")).status, "npm_verified");
     const mutationsBeforeResume = remoteMutations(await callLog(scenario));
     const remoteBeforeResume = {
       tag: await remoteTagTarget(scenario),
@@ -135,7 +135,7 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
 
     const staleRecord = await readJSON(join(template.releaseDirectory, "publication-record.json"));
     await writeJSON(join(scenario.releaseDirectory, "publication-record.json"), staleRecord);
-    const resumed = await runPublisher(scenario, "v0.1.0");
+    const resumed = await runPublisher(scenario, "codex-v1.2.4");
     assert.equal(resumed.status, "npm_verified");
     assert.equal(resumed.mutated, false);
     assert.deepEqual(resumed.reused_remote_state, ["github_draft", "npm_package", "tag"]);
@@ -172,12 +172,12 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
       env: scenario.environment,
       encoding: "utf8",
     })).stdout.trim();
-    await execFile("git", ["push", scenario.bareRemote, `${otherCommit}:refs/tags/v0.1.0`], {
+    await execFile("git", ["push", scenario.bareRemote, `${otherCommit}:refs/tags/codex-v1.2.4`], {
       cwd: scenario.repository,
       env: scenario.environment,
     });
 
-    const failure = await publisherFailure(scenario, "v0.1.0");
+    const failure = await publisherFailure(scenario, "codex-v1.2.4");
     assert.notEqual(failure.code, 0);
     assert.equal(failure.stdout, "");
     assert.ok(failure.stderr.length <= 600);
@@ -217,15 +217,15 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
     const scenario = await createScenario(root, template, "npm-record-loss", {
       npm: { fail_after_publish: true },
     });
-    await assertPublisherRejects(scenario, "v0.1.0", /fixture process failed after immutable npm publish/u);
+    await assertPublisherRejects(scenario, "codex-v1.2.4", /fixture process failed after immutable npm publish/u);
     let npmState = await readJSON(scenario.npmStatePath);
-    assert.equal(npmState.version, "0.1.0");
+    assert.equal(npmState.version, "1.2.4");
     assert.equal(npmState.publish_count, 1);
     const failedRecord = await readJSON(join(scenario.releaseDirectory, "publication-record.json"));
     assert.equal(failedRecord.overall_status, "failed");
     assert.equal(failedRecord.steps[3].status, "failed");
 
-    const resumed = await runPublisher(scenario, "v0.1.0");
+    const resumed = await runPublisher(scenario, "codex-v1.2.4");
     assert.equal(resumed.status, "npm_verified");
     npmState = await readJSON(scenario.npmStatePath);
     assert.equal(npmState.publish_count, 1);
@@ -236,10 +236,10 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
     const scenario = await createScenario(root, template, "delayed-timeout", {
       npm: { delayed_reads_remaining: 20 },
     });
-    await assertPublisherRejects(scenario, "v0.1.0", /bounded read-back window/u);
+    await assertPublisherRejects(scenario, "codex-v1.2.4", /bounded read-back window/u);
     let state = await readJSON(scenario.npmStatePath);
     assert.equal(state.publish_count, 1);
-    assert.equal(state.version, "0.1.0");
+    assert.equal(state.version, "1.2.4");
     const failed = await readJSON(join(scenario.releaseDirectory, "publication-record.json"));
     assert.equal(failed.overall_status, "failed");
     assert.equal(failed.steps[4].error_code, "NPM_READBACK_TIMEOUT");
@@ -247,7 +247,7 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
     assert.deepEqual(scenario.readbackDelays, Array(9).fill(2_000));
     state.delayed_reads_remaining = 0;
     await writeJSON(scenario.npmStatePath, state);
-    assert.equal((await runPublisher(scenario, "v0.1.0")).status, "npm_verified");
+    assert.equal((await runPublisher(scenario, "codex-v1.2.4")).status, "npm_verified");
     assert.equal((await readJSON(scenario.npmStatePath)).publish_count, 1);
   });
 
@@ -258,18 +258,18 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
       env: tagConflict.environment,
       encoding: "utf8",
     })).stdout.trim();
-    await execFile("git", ["push", tagConflict.bareRemote, `${otherCommit}:refs/tags/v0.1.0`], {
+    await execFile("git", ["push", tagConflict.bareRemote, `${otherCommit}:refs/tags/codex-v1.2.4`], {
       cwd: tagConflict.repository,
       env: tagConflict.environment,
     });
-    await assertPublisherRejects(tagConflict, "v0.1.0", /different source commit/u);
+    await assertPublisherRejects(tagConflict, "codex-v1.2.4", /different source commit/u);
     assert.equal((await readJSON(join(tagConflict.releaseDirectory, "publication-record.json"))).overall_status, "blocked");
     await assertRemoteMutationCount(tagConflict, 0, otherCommit);
 
     const draftConflict = await createScenario(root, template, "draft-conflict", {
       gh: {
         release: {
-          tagName: "v0.1.0",
+          tagName: "codex-v1.2.4",
           isDraft: true,
           isPrerelease: false,
           targetCommitish: "f".repeat(40),
@@ -279,14 +279,14 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
         },
       },
     });
-    await assertPublisherRejects(draftConflict, "v0.1.0", /conflicts with the exact draft/u);
+    await assertPublisherRejects(draftConflict, "codex-v1.2.4", /conflicts with the exact draft/u);
     assert.equal((await readJSON(join(draftConflict.releaseDirectory, "publication-record.json"))).overall_status, "blocked");
     assert.equal((await callLog(draftConflict)).some((entry) => entry.result === "release-create"), false);
 
     const publishedConflict = await createScenario(root, template, "published-release-conflict", {
       gh: {
         release: {
-          tagName: "v0.1.0",
+          tagName: "codex-v1.2.4",
           isDraft: false,
           isPrerelease: false,
           targetCommitish: template.sourceCommit,
@@ -296,34 +296,34 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
         },
       },
     });
-    await assertPublisherRejects(publishedConflict, "v0.1.0", /public GitHub Release exists without the exact verified npm version/u);
+    await assertPublisherRejects(publishedConflict, "codex-v1.2.4", /public GitHub Release exists without the exact verified npm version/u);
     assert.equal((await callLog(publishedConflict)).some((entry) => entry.tool === "npm" && entry.argv[0] === "publish"), false);
     assert.equal((await callLog(publishedConflict)).some((entry) => entry.tool === "gh" && entry.argv[0] === "release" && entry.argv[1] === "edit"), false);
 
     const registryConflict = await createScenario(root, template, "registry-conflict", {
       npm: { corrupt_readback: true },
     });
-    await assertPublisherRejects(registryConflict, "v0.1.0", /registry tarball differs|npm tarball contains/u);
+    await assertPublisherRejects(registryConflict, "codex-v1.2.4", /registry tarball differs|npm tarball contains/u);
     assert.equal((await readJSON(registryConflict.npmStatePath)).publish_count, 1);
-    await assertPublisherRejects(registryConflict, "v0.1.0", /registry tarball differs|npm tarball contains/u);
+    await assertPublisherRejects(registryConflict, "codex-v1.2.4", /registry tarball differs|npm tarball contains/u);
     assert.equal((await readJSON(registryConflict.npmStatePath)).publish_count, 1);
   });
 
   await t.test("asset upload record loss resumes exactly and keeps the Release draft", async () => {
     const scenario = await createScenario(root, template, "asset-record-loss");
-    assert.equal((await runPublisher(scenario, "v0.1.0")).status, "npm_verified");
+    assert.equal((await runPublisher(scenario, "codex-v1.2.4")).status, "npm_verified");
     await markTestLocalJourneyPassed(scenario);
     const ghState = await readJSON(scenario.ghStatePath);
     ghState.fail_after_upload_name = "SHA256SUMS";
     await writeJSON(scenario.ghStatePath, ghState);
 
-    await assertPublisherRejects(scenario, "v0.1.0", /fixture process failed after immutable asset upload/u);
+    await assertPublisherRejects(scenario, "codex-v1.2.4", /fixture process failed after immutable asset upload/u);
     let observedGH = await readJSON(scenario.ghStatePath);
     assert.equal(observedGH.release.assets.some((asset) => asset.name === "SHA256SUMS"), true);
     const failed = await readJSON(join(scenario.releaseDirectory, "publication-record.json"));
     assert.equal(failed.steps[6].status, "failed");
 
-    const resumed = await runPublisher(scenario, "v0.1.0");
+    const resumed = await runPublisher(scenario, "codex-v1.2.4");
     assert.equal(resumed.status, "assets_verified");
     observedGH = await readJSON(scenario.ghStatePath);
     assert.equal(observedGH.release.isDraft, true);
@@ -339,7 +339,7 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
 
   await t.test("asset name/digest and asset read-back conflicts block without clobber or finalization", async () => {
     const conflict = await createScenario(root, template, "asset-conflict");
-    await runPublisher(conflict, "v0.1.0");
+    await runPublisher(conflict, "codex-v1.2.4");
     await markTestLocalJourneyPassed(conflict);
     const ghState = await readJSON(conflict.ghStatePath);
     const badAssetPath = join(conflict.remoteRoot, "conflicting-SHA256SUMS");
@@ -352,17 +352,17 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
       sha256: "0".repeat(64),
     });
     await writeJSON(conflict.ghStatePath, ghState);
-    await assertPublisherRejects(conflict, "v0.1.0", /conflicting bytes/u);
+    await assertPublisherRejects(conflict, "codex-v1.2.4", /conflicting bytes/u);
     const conflictCalls = await callLog(conflict);
     assert.equal(conflictCalls.some((entry) => entry.tool === "gh" && entry.argv[0] === "release" && entry.argv[1] === "upload" && entry.argv[3].endsWith("SHA256SUMS")), false);
 
     const readback = await createScenario(root, template, "asset-readback-conflict");
-    await runPublisher(readback, "v0.1.0");
+    await runPublisher(readback, "codex-v1.2.4");
     await markTestLocalJourneyPassed(readback);
     const readbackState = await readJSON(readback.ghStatePath);
     readbackState.corrupt_download_name = "SHA256SUMS";
     await writeJSON(readback.ghStatePath, readbackState);
-    await assertPublisherRejects(readback, "v0.1.0", /read-back differs/u);
+    await assertPublisherRejects(readback, "codex-v1.2.4", /read-back differs/u);
     const blocked = await readJSON(join(readback.releaseDirectory, "publication-record.json"));
     assert.equal(blocked.overall_status, "blocked");
     assert.equal(blocked.github.published, false);
@@ -376,7 +376,7 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
     await markTestLocalJourneyPassed(scenario);
     scenario.finalJourneyEvidence.remove_readback_passed = false;
     scenario.stopBeforeFinalize = false;
-    await assertPublisherRejects(scenario, "v0.1.0", /remove_readback_passed must be true/u);
+    await assertPublisherRejects(scenario, "codex-v1.2.4", /remove_readback_passed must be true/u);
     const record = await readJSON(join(scenario.releaseDirectory, "publication-record.json"));
     assert.equal(record.overall_status, "blocked");
     assert.equal(record.steps[5].status, "blocked");
@@ -388,7 +388,7 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
     const scenario = await createScenario(root, template, "finalize-command-failure");
     await markTestLocalJourneyPassed(scenario);
     scenario.stopBeforeFinalize = false;
-    await assertPublisherRejects(scenario, "v0.1.0", /fixture finalization refused/u);
+    await assertPublisherRejects(scenario, "codex-v1.2.4", /fixture finalization refused/u);
     const remote = await readJSON(scenario.ghStatePath);
     assert.equal(remote.release.isDraft, true);
     assert.equal(remote.release.assets.length, 4);
@@ -404,14 +404,14 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
     const scenario = await createScenario(root, template, "finalize-reuses-journey");
     await markTestLocalJourneyPassed(scenario);
     scenario.stopBeforeFinalize = false;
-    await assertPublisherRejects(scenario, "v0.1.0", /fixture finalization refused/u);
+    await assertPublisherRejects(scenario, "codex-v1.2.4", /fixture finalization refused/u);
     const manifestBefore = await readFile(join(scenario.releaseDirectory, "release-manifest.json"));
     assert.equal(scenario.finalJourneyRunCount, 1);
 
     const remote = await readJSON(scenario.ghStatePath);
     remote.fail_finalize = false;
     await writeJSON(scenario.ghStatePath, remote);
-    const resumed = await runPublisher(scenario, "v0.1.0");
+    const resumed = await runPublisher(scenario, "codex-v1.2.4");
 
     assert.equal(resumed.status, "complete");
     assert.equal(scenario.finalJourneyRunCount, 1);
@@ -427,7 +427,7 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
     });
     await markTestLocalJourneyPassed(scenario);
     scenario.stopBeforeFinalize = false;
-    await assertPublisherRejects(scenario, "v0.1.0", /process failed after immutable release finalization/u);
+    await assertPublisherRejects(scenario, "codex-v1.2.4", /process failed after immutable release finalization/u);
     let remote = await readJSON(scenario.ghStatePath);
     assert.equal(remote.release.isDraft, false);
     assert.equal(remote.release.assets.length, 4);
@@ -435,7 +435,7 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
     assert.equal(record.overall_status, "failed");
     assert.equal(record.steps[8].status, "failed");
 
-    const resumed = await runPublisher(scenario, "v0.1.0");
+    const resumed = await runPublisher(scenario, "codex-v1.2.4");
     assert.equal(resumed.status, "complete");
     assert.equal(resumed.mutated, false);
     assert.equal(resumed.github_release_draft, false);
@@ -452,7 +452,7 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
 
     remote.release.assets = remote.release.assets.filter((asset) => asset.name !== "SHA256SUMS");
     await writeJSON(scenario.ghStatePath, remote);
-    await assertPublisherRejects(scenario, "v0.1.0", /published GitHub Release is missing immutable asset SHA256SUMS/u);
+    await assertPublisherRejects(scenario, "codex-v1.2.4", /published GitHub Release is missing immutable asset SHA256SUMS/u);
     assert.equal((await callLog(scenario)).filter((entry) => entry.tool === "gh" && entry.argv[0] === "release" && entry.argv[1] === "edit").length, 1);
   });
 
@@ -461,7 +461,7 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
       gh: {
         fail_finalize: false,
         release: {
-          tagName: "v0.1.0",
+          tagName: "codex-v1.2.4",
           isDraft: false,
           isPrerelease: false,
           targetCommitish: "f".repeat(40),
@@ -473,7 +473,7 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
     });
     await markTestLocalJourneyPassed(scenario);
     scenario.stopBeforeFinalize = false;
-    await assertPublisherRejects(scenario, "v0.1.0", /conflicts with the exact draft\/source identity/u);
+    await assertPublisherRejects(scenario, "codex-v1.2.4", /conflicts with the exact draft\/source identity/u);
     assert.equal((await callLog(scenario)).some((entry) => entry.tool === "gh" && entry.argv[0] === "release" && entry.argv[1] === "edit"), false);
   });
 });
@@ -481,7 +481,7 @@ test("fake npm/gh publication is confirmation-gated, publish-once, resumable, an
 async function createPublisherTemplate(root) {
   const repository = join(root, "template-repository");
   await copyRepositoryFixture(repository);
-  await updateFixtureVersion(repository, "0.1.0");
+  await updateFixtureVersion(repository, "1.2.4");
   await initializeMainFixture(repository);
   const sourceCommit = await gitOutput(repository, ["rev-parse", "HEAD"]);
   const sourceTree = await gitOutput(repository, ["rev-parse", "HEAD^{tree}"]);
@@ -499,6 +499,8 @@ async function createPublisherTemplate(root) {
     firstTarball: build.artifact_path,
     secondTarball: build.artifact_path,
     outputDirectory: releaseDirectory,
+    verificationMode: "normal",
+    basedOnRelease: "v0.5.0",
     createdAt: "2026-08-17T06:00:00Z",
   });
   return { repository, releaseDirectory, sourceCommit, sourceTree };
@@ -536,7 +538,7 @@ async function createScenario(root, template, name, overrides = {}) {
     package_exists: false,
     owners: ["fixture-publisher"],
     version: null,
-    expected_version: "0.1.0",
+    expected_version: "1.2.4",
     remote_root: join(remoteRoot, "npm"),
     remote_tarball: null,
     integrity: null,
@@ -676,7 +678,7 @@ async function markTestLocalJourneyPassed(scenario) {
     npm_tarball_sha256: packageArtifact.sha256,
     npm_integrity: `sha512-${Buffer.alloc(64, 11).toString("base64")}`,
     package_root_location: "isolated-npm-prefix",
-    core_version: manifest.release.version,
+    core_version: manifest.release.core_version,
     core_sha256: coreArtifact.sha256,
     source_commit: manifest.release.source_commit,
     codex_version: "0.147.0",
@@ -717,7 +719,7 @@ function remoteMutations(calls) {
 }
 
 async function remoteTagTarget(scenario) {
-  const { stdout } = await execFile("git", ["ls-remote", "--tags", scenario.bareRemote, "refs/tags/v0.1.0"], {
+  const { stdout } = await execFile("git", ["ls-remote", "--tags", scenario.bareRemote, "refs/tags/codex-v1.2.4"], {
     cwd: scenario.repository,
     env: scenario.environment,
     encoding: "utf8",
@@ -743,13 +745,11 @@ async function copyRepositoryFixture(destination) {
 }
 
 async function updateFixtureVersion(sourceRoot, version) {
-  const previousVersion = (await readFile(join(sourceRoot, "VERSION"), "utf8")).trim();
-  await writeFile(join(sourceRoot, "VERSION"), `${version}\n`);
+  const manifest = JSON.parse(await readFile(join(sourceRoot, "packages/codex/package.json"), "utf8"));
+  const previousVersion = manifest.version;
   for (const path of [
-    "package.json",
     "packages/codex/package.json",
     "packages/codex/plugin/.codex-plugin/plugin.json",
-    "packages/deepseek/package.json",
   ]) {
     const absolute = join(sourceRoot, path);
     const contents = await readFile(absolute, "utf8");

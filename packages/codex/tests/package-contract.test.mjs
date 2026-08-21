@@ -16,7 +16,7 @@ const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = dirname(dirname(packageRoot));
 const pluginRoot = join(packageRoot, "plugin");
 const execFile = promisify(execFileCallback);
-const currentVersion = (await readFile(join(repositoryRoot, "VERSION"), "utf8")).trim();
+const currentVersion = (await readFile(join(repositoryRoot, "CORE_VERSION"), "utf8")).trim();
 
 const expectedPackageFiles = [
   ".agents/plugins/marketplace.json",
@@ -86,7 +86,7 @@ const reviewedSourceAllowlist = new Set([
 
 test("source package declares one public macOS arm64 Codex product", async () => {
   const [version, manifest, plugin, marketplace, mcp] = await Promise.all([
-    readFile(join(repositoryRoot, "VERSION"), "utf8").then((value) => value.trim()),
+    readFile(join(repositoryRoot, "CORE_VERSION"), "utf8").then((value) => value.trim()),
     readJSON(join(packageRoot, "package.json")),
     readJSON(join(pluginRoot, ".codex-plugin", "plugin.json")),
     readJSON(join(packageRoot, ".agents", "plugins", "marketplace.json")),
@@ -260,7 +260,7 @@ test("packaged resources contain no copied fixtures or workflow engine", async (
   }
 });
 
-test("packaged Skill publishes the exact Contract 0.2 new-task value types and vocabulary", async () => {
+test("packaged Skill publishes the exact current Core contract new-task value types and vocabulary", async () => {
   const skill = await readFile(join(pluginRoot, "skills", "dev-flow", "SKILL.md"), "utf8");
 
   assert.match(
@@ -286,15 +286,15 @@ test("packaged Skill publishes the exact Contract 0.2 new-task value types and v
   });
 });
 
-test("release output names derive from the current product version", () => {
-  assert.deepEqual(releaseOutputNames(currentVersion), [
+test("release output names derive from Codex and Core versions", () => {
+  assert.deepEqual(releaseOutputNames(currentVersion, currentVersion), [
     "SHA256SUMS",
-    `dev-flow-${currentVersion}-darwin-arm64`,
+    `dev-flow-core-${currentVersion}-darwin-arm64`,
     `dev-flow-codex-${currentVersion}.tgz`,
     "publication-record.json",
     "release-manifest.json",
   ].sort());
-  assert.throws(() => releaseOutputNames("0.3"), /strict MAJOR\.MINOR\.PATCH/u);
+  assert.throws(() => releaseOutputNames("0.3", currentVersion), /strict MAJOR\.MINOR\.PATCH/u);
 });
 
 test("local package builder stages one exact non-final artifact in a temporary directory", async () => {

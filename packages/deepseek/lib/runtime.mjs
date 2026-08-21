@@ -35,7 +35,6 @@ export async function selectPackagedRuntime({
 export async function preflightPackagedCore(
   selection,
   {
-    expectedVersion,
     environment = process.env,
     currentDirectory = dirname(selection?.runtimePath ?? "."),
   } = {},
@@ -43,10 +42,6 @@ export async function preflightPackagedCore(
   if (!selection || selection.runtimeKey !== SUPPORTED_RUNTIME_KEY) {
     throw new Error("packaged Core selection must use darwin-arm64");
   }
-  if (!semverPattern.test(expectedVersion ?? "")) {
-    throw new Error("expected packaged Core version must be SemVer");
-  }
-
   const expectedRuntimePath = containedPath(
     selection.packageRoot,
     join(selection.packageRoot, "runtime", SUPPORTED_RUNTIME_KEY, "dev-flow"),
@@ -73,9 +68,6 @@ export async function preflightPackagedCore(
   const match = /^dev-flow (\S+)\n?$/u.exec(stdout);
   if (!match || !semverPattern.test(match[1])) {
     throw new Error("packaged Core returned an invalid version line");
-  }
-  if (match[1] !== expectedVersion) {
-    throw new Error(`packaged Core version ${match[1]} does not match expected ${expectedVersion}`);
   }
   return Object.freeze({ ...selection, version: match[1] });
 }

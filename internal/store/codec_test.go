@@ -9,7 +9,7 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/domain"
 )
 
-func TestStrictV2CodecAndRestart(t *testing.T) {
+func TestStrictCodecAndRestart(t *testing.T) {
 	task := testGraphTask(t)
 	task.Requirements = &domain.RequirementsBaseline{Revision: 1, Digest: task.Process.DefinitionDigest, Goal: "Graph storage", AcceptanceCriteria: []string{"Restart exactly"}, CreatedAt: task.CreatedAt}
 	raw, err := encodeTask(task)

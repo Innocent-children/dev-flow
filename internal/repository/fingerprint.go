@@ -16,10 +16,10 @@ import (
 var ErrInvalidBindingDigests = errors.New("repository binding digests are inconsistent")
 
 const (
-	commonDirectoryDigestDomain = "dev-flow/git-common-dir/v1"
-	repositoryIdentityDomain    = "dev-flow/repository-identity/v1"
-	worktreeFingerprintDomain   = "dev-flow/worktree-fingerprint/v1"
-	repositoryBindingDomain     = "dev-flow/repository-binding/v1"
+	commonDirectoryDigestDomain = "dev-flow/git-common-dir"
+	repositoryIdentityDomain    = "dev-flow/repository-identity"
+	worktreeFingerprintDomain   = "dev-flow/worktree-fingerprint"
+	repositoryBindingDomain     = "dev-flow/repository-binding"
 	missingContentIdentity      = "missing"
 	gitObjectContentPrefix      = "git-object:"
 	gitlinkContentPrefix        = "gitlink-object:"

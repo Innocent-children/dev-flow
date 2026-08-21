@@ -59,7 +59,7 @@ func TestGetNextActionMethodProfileActiveBlockedDoneAndCancelled(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		node   domain.NodeID
-		action *domain.ProcessActionV2
+		action *domain.ProcessAction
 	}{
 		{"active", domain.NodeRequirements, &action},
 		{"blocked", domain.NodeBlocked, &blockedAction},

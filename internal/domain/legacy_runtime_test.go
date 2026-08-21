@@ -2,7 +2,7 @@ package domain
 
 import "time"
 
-// Contract 0.1 types remain test-only fixtures for frozen historical validation.
+// frozen linear contract types remain test-only fixtures for frozen historical validation.
 type Phase string
 
 const (
@@ -48,7 +48,7 @@ const (
 	ActionPrepareHandoff  ActionKind = "PREPARE_HANDOFF"
 )
 
-func (k ActionKind) IsValid() bool {
+func legacyActionKindValid(k ActionKind) bool {
 	switch k {
 	case ActionAssessTask, ActionPlanChange, ActionImplementChange, ActionVerifyChange,
 		ActionReviewChange, ActionPrepareHandoff, ActionResolveBlocker:
@@ -82,7 +82,7 @@ func (r ActionResult) IsValid() bool {
 
 const EffectEditRepositoryFiles AllowedEffect = "edit_repository_files"
 
-func (e AllowedEffect) IsValid() bool {
+func legacyAllowedEffectValid(e AllowedEffect) bool {
 	switch e {
 	case EffectReadRepository, EffectEditRepositoryFiles, EffectRunVerificationCommands,
 		EffectPrepareDeliverySummary, EffectResolveBlocker:
@@ -111,7 +111,7 @@ func (k EvidenceRequirementKind) IsValid() bool {
 	}
 }
 
-func (r EvidenceRequirement) Validate() error {
+func validateLegacyEvidenceRequirement(r EvidenceRequirement) error {
 	if !r.Kind.IsValid() {
 		return ErrInvalidArgument
 	}
@@ -132,7 +132,7 @@ type Action struct {
 }
 
 func (a Action) Validate() error {
-	if validateID(a.ActionID) != nil || validateID(a.TaskID) != nil || !a.Kind.IsValid() ||
+	if validateID(a.ActionID) != nil || validateID(a.TaskID) != nil || !legacyActionKindValid(a.Kind) ||
 		a.Revision == 0 || validateDigest(a.RepositoryBindingDigest) != nil ||
 		(!a.PayloadContract.NormalNonTerminal() && a.PayloadContract != PhaseBlocked) ||
 		requireNormalizedText(a.Guidance, MaxGuidanceBytes, true) != nil || validateUTC(a.IssuedAt) != nil ||
@@ -142,7 +142,7 @@ func (a Action) Validate() error {
 	}
 	effects := make(map[AllowedEffect]struct{}, len(a.AllowedEffects))
 	for _, effect := range a.AllowedEffects {
-		if !effect.IsValid() {
+		if !legacyAllowedEffectValid(effect) {
 			return ErrInvalidArgument
 		}
 		if _, duplicate := effects[effect]; duplicate {
@@ -152,7 +152,7 @@ func (a Action) Validate() error {
 	}
 	requirements := make(map[EvidenceRequirementKind]struct{}, len(a.RequiredEvidence))
 	for _, requirement := range a.RequiredEvidence {
-		if requirement.Validate() != nil {
+		if validateLegacyEvidenceRequirement(requirement) != nil {
 			return ErrInvalidArgument
 		}
 		if _, duplicate := requirements[requirement.Kind]; duplicate {

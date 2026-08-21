@@ -293,9 +293,6 @@ async function preflightSetup({ paths, packageVersion, codexExecutable, environm
     environment,
     currentDirectory: paths.packageRoot,
   });
-  if (coreVersion !== packageVersion) {
-    throw new Error(`packaged Core version ${coreVersion} does not match package version ${packageVersion}`);
-  }
   const codexVersion = await inspectCodexVersion(codexExecutable, {
     environment,
     currentDirectory: paths.packageRoot,
@@ -473,7 +470,6 @@ function assertRegistrationAbsent(state, paths) {
 function assertRemovalReceipt(receipt, paths, packageVersion) {
   const matches =
     receipt.product.version === packageVersion &&
-    receipt.product.core_version === packageVersion &&
     receipt.registration.marketplace_name === MARKETPLACE_NAME &&
     receipt.registration.marketplace_root === paths.marketplaceRoot &&
     receipt.registration.plugin_name === PLUGIN_NAME &&
@@ -739,7 +735,6 @@ function createReceipt({
   installedAt,
 }) {
   return validateReceipt({
-    schema_version: 3,
     product: {
       name: PLUGIN_NAME,
       version: packageVersion,
@@ -834,17 +829,15 @@ export function validateReceipt(receipt, { compatibilityRange = CODEX_COMPATIBIL
   assertObject(receipt, "registration receipt");
   assertExactKeys(
     receipt,
-    ["schema_version", "product", "host", "registration", "paths", "resource_digests", "installed_at"],
+    ["product", "host", "registration", "paths", "resource_digests", "installed_at"],
     "registration receipt",
   );
-  if (receipt.schema_version !== 3) throw new Error("registration receipt schema_version must equal 3");
 
   assertObject(receipt.product, "product");
   assertExactKeys(receipt.product, ["name", "version", "core_version", "codex_compatibility"], "product");
   assertEqual(receipt.product.name, "dev-flow-codex", "product.name");
   parseSemver(receipt.product.version, "product.version");
   parseSemver(receipt.product.core_version, "product.core_version");
-  assertEqual(receipt.product.core_version, receipt.product.version, "product Core version");
   assertEqual(receipt.product.codex_compatibility, compatibilityRange, "product compatibility range");
 
   assertObject(receipt.host, "host");
@@ -1005,7 +998,6 @@ function assertCompatibleReceiptUpgrade(previousReceipt, currentReceipt) {
 
 function upgradeOwnershipProjection(receipt) {
   return {
-    schema_version: receipt.schema_version,
     product: {
       name: receipt.product.name,
       codex_compatibility: receipt.product.codex_compatibility,
@@ -1022,7 +1014,6 @@ function upgradeOwnershipProjection(receipt) {
 
 function ownershipProjection(receipt) {
   return {
-    schema_version: receipt.schema_version,
     product: receipt.product,
     host: receipt.host,
     registration: receipt.registration,

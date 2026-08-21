@@ -74,7 +74,7 @@ func (j *iterationJourney) installCountingObserver() *countingRepositoryObserver
 
 func recoveryProbe(task domain.ProcessTask, operationID domain.ID, payload json.RawMessage) application.OperationProbe {
 	action := task.CurrentAction
-	return application.OperationProbe{OperationID: operationID, ProcessID: task.Process.ID, ProcessVersion: task.Process.Version, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: payload}
+	return application.OperationProbe{OperationID: operationID, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: payload}
 }
 
 func recoveryApplyRequest(task domain.ProcessTask, operationID domain.ID, payload json.RawMessage) application.ApplyActionRequest {

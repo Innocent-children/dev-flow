@@ -35,13 +35,12 @@ func GraphOperationDigest(host domain.Host, taskID domain.ID, operation domain.O
 		ActionID                domain.ID         `json:"action_id"`
 		ActionKind              domain.ActionKind `json:"action_kind"`
 		ProcessID               domain.ProcessID  `json:"process_id"`
-		ProcessVersion          uint32            `json:"process_version"`
 		ProcessDefinitionDigest domain.Digest     `json:"process_definition_digest"`
 		SourceCursor            domain.NodeID     `json:"source_cursor"`
 		RepositoryBindingDigest domain.Digest     `json:"repository_binding_digest"`
 		Payload                 json.RawMessage   `json:"payload"`
 	}{host, taskID, operation.ExpectedRevision, operation.ActionID, operation.ActionKind,
-		operation.Process.ID, operation.Process.Version, operation.Process.DefinitionDigest,
+		operation.Process.ID, operation.Process.DefinitionDigest,
 		operation.SourceCursor, operation.RepositoryBindingDigest, canonicalPayload}
 	var buffer bytes.Buffer
 	encoder := json.NewEncoder(&buffer)

@@ -18,7 +18,7 @@ import (
 var buildVersion string
 
 // Current returns the injected detached-build version when present, otherwise
-// the SemVer value stored in the repository root VERSION file.
+// the SemVer value stored in the repository root CORE_VERSION file.
 func Current() (string, error) {
 	if buildVersion != "" {
 		if err := validateSemVer(buildVersion); err != nil {
@@ -29,22 +29,22 @@ func Current() (string, error) {
 
 	_, sourceFile, _, ok := runtime.Caller(0)
 	if !ok {
-		return "", errors.New("locate VERSION: runtime caller source path is unavailable")
+		return "", errors.New("locate CORE_VERSION: runtime caller source path is unavailable")
 	}
 
-	versionPath := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "..", "..", "VERSION"))
+	versionPath := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "..", "..", "CORE_VERSION"))
 	return read(versionPath)
 }
 
 func read(path string) (string, error) {
 	contents, err := os.ReadFile(path)
 	if err != nil {
-		return "", fmt.Errorf("read VERSION %q: %w", path, err)
+		return "", fmt.Errorf("read CORE_VERSION %q: %w", path, err)
 	}
 
 	value := strings.TrimSpace(string(contents))
 	if err := validateSemVer(value); err != nil {
-		return "", fmt.Errorf("validate VERSION at %q: %w", path, err)
+		return "", fmt.Errorf("validate CORE_VERSION at %q: %w", path, err)
 	}
 	return value, nil
 }

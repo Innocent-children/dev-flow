@@ -56,7 +56,7 @@ func TestMutationRequestBindingMatchesCommittedLastOperation(t *testing.T) {
 	}
 	action := opened.Task.CurrentAction
 	payload := json.RawMessage(`{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":[{"step_id":"requirements.capture","status":"plain_fallback","capability":"","summary":"Captured."},{"step_id":"requirements.clarify","status":"plain_fallback","capability":"","summary":"Clarified."},{"step_id":"requirements.validate","status":"plain_fallback","capability":"","summary":"Validated."}],"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Works"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
-	input := map[string]any{"request_id": "request-caller-operation", "host": "codex", "task_id": opened.Task.TaskID, "revision": action.Revision, "action_id": action.ActionID, "action_kind": action.Kind, "process_id": action.Process.ID, "process_version": action.Process.Version, "process_definition_digest": action.Process.DefinitionDigest, "source_cursor": action.NodeID, "repository_binding_digest": action.RepositoryBindingDigest, "payload": payload}
+	input := map[string]any{"request_id": "request-caller-operation", "host": "codex", "task_id": opened.Task.TaskID, "revision": action.Revision, "action_id": action.ActionID, "action_kind": action.Kind, "process_id": action.Process.ID, "process_definition_digest": action.Process.DefinitionDigest, "source_cursor": action.NodeID, "repository_binding_digest": action.RepositoryBindingDigest, "payload": payload}
 	raw, err := json.Marshal(input)
 	if err != nil {
 		t.Fatal(err)

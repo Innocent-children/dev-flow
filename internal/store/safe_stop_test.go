@@ -1,10 +1,37 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"os"
 	"testing"
 )
+
+func TestZeroLengthDatabaseWithSidecarIsRejectedWithoutWrites(t *testing.T) {
+	path := dbPath(t)
+	sidecar := path + "-wal"
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(sidecar, []byte("former sqlite sidecar"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	beforeMain, _ := os.ReadFile(path)
+	beforeSidecar, _ := os.ReadFile(sidecar)
+	opened, err := Open(context.Background(), path)
+	if opened != nil {
+		opened.Close()
+	}
+	if !errors.Is(err, ErrSchemaUnsupported) {
+		t.Fatalf("error=%v", err)
+	}
+	afterMain, _ := os.ReadFile(path)
+	afterSidecar, _ := os.ReadFile(sidecar)
+	if !bytes.Equal(beforeMain, afterMain) || !bytes.Equal(beforeSidecar, afterSidecar) {
+		t.Fatal("database or sidecar changed")
+	}
+}
 
 func TestFutureSchemaAndUnsupportedProcessSafeStop(t *testing.T) {
 	t.Run("future schema", func(t *testing.T) {
@@ -90,7 +117,7 @@ func TestFutureSchemaAndUnsupportedProcessSafeStop(t *testing.T) {
 		}
 		assertDatabaseManifestUnchanged(t, path, before)
 	})
-	t.Run("future snapshot", func(t *testing.T) {
+	t.Run("obsolete snapshot metadata", func(t *testing.T) {
 		path := dbPath(t)
 		store, err := Open(context.Background(), path)
 		if err != nil {
@@ -102,7 +129,7 @@ func TestFutureSchemaAndUnsupportedProcessSafeStop(t *testing.T) {
 		}
 		store.Close()
 		db := openRaw(t, path)
-		if _, err := db.Exec(`PRAGMA ignore_check_constraints=ON;UPDATE tasks SET snapshot_version=3`); err != nil {
+		if _, err := db.Exec(`ALTER TABLE tasks ADD COLUMN snapshot_version INTEGER NOT NULL DEFAULT 2`); err != nil {
 			t.Fatal(err)
 		}
 		db.Close()

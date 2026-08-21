@@ -73,7 +73,7 @@ export class DeterministicCoreHost {
 
     const runtimeDirectory = join(dirname(this.dataDirectory), "current-platform-runtime");
     const runtimePath = join(runtimeDirectory, "dev-flow");
-    const version = (await readFile(join(repositoryRoot, "VERSION"), "utf8")).trim();
+    const version = (await readFile(join(repositoryRoot, "CORE_VERSION"), "utf8")).trim();
     await mkdir(runtimeDirectory, { recursive: true });
     await execFile("go", [
       "build",
@@ -123,7 +123,6 @@ export class DeterministicCoreHost {
     const start = text.indexOf("{");
     assert.ok(start >= 0, `Core result for ${name} has no JSON envelope`);
     const envelope = JSON.parse(text.slice(start));
-    assert.equal(envelope.schema_version, 2);
     if (!envelope.ok) throw new CoreEnvelopeError(envelope);
     return envelope;
   }

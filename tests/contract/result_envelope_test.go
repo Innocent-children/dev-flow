@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestResultEnvelopeContract02(t *testing.T) {
+func TestCurrentResultEnvelopeContract(t *testing.T) {
 	success := core.EncodeSuccess("request-success", core.ToolServerInfo, map[string]any{"product": "dev-flow"})
 	assertEnvelope(t, success, false)
 	failure := core.EncodeError("request-error", core.ToolGetTask, domain.ErrStorageUnavailable)
@@ -31,8 +31,8 @@ func assertEnvelope(t *testing.T, e core.EncodedResult, wantError bool) {
 	if json.Unmarshal(e.JSON, &top) != nil {
 		t.Fatal("invalid JSON")
 	}
-	if string(top["schema_version"]) != "2" {
-		t.Fatal("wrong schema")
+	if _, exists := top["schema_version"]; exists {
+		t.Fatal("result envelope must not declare a schema version")
 	}
 	if wantError {
 		if len(top["error"]) == 0 || len(top["recovery"]) == 0 || len(top["result"]) != 0 {

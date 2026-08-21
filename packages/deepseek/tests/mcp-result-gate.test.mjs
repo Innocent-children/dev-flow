@@ -22,8 +22,6 @@ test("official MCP client preserves complete Core success and distinguishes doma
   const firstEnvelope = parseSingleTextEnvelope(serverInfo);
   assert.equal(firstEnvelope.ok, true);
   assert.equal(firstEnvelope.result.product, "dev-flow");
-  assert.equal(firstEnvelope.result.schema_version, 2);
-  assert.equal(firstEnvelope.result.core_limits_version, "0.2");
 
   const getTaskName = "mcp__gate_core__dev_flow_get_task";
   const definition = first.ctx.tools.get(getTaskName);
@@ -262,7 +260,6 @@ function singleText(content) {
 
 function fixtureEnvelope(bytes) {
   return {
-    schema_version: 2,
     ok: true,
     request_id: `fixture-${bytes}`,
     tool: "envelope",
@@ -286,14 +283,11 @@ server.registerTool("dev_flow_server_info", {
   inputSchema: {},
 }, async () => {
   const structuredContent = {
-    schema_version: 2,
     ok: true,
     request_id: "fixture-server-info",
     tool: "dev_flow_server_info",
     result: {
       product: "dev-flow",
-      schema_version: 2,
-      core_limits_version: "0.2",
     },
   };
   return { content: [{ type: "text", text: JSON.stringify(structuredContent) }], structuredContent };
@@ -303,7 +297,6 @@ server.registerTool("dev_flow_get_task", {
   inputSchema: { host: z.string(), task_id: z.string() },
 }, async () => {
   const domainError = {
-    schema_version: 2,
     ok: false,
     request_id: "fixture-missing-task",
     tool: "dev_flow_get_task",
@@ -317,7 +310,6 @@ server.registerTool("envelope", {
   inputSchema: { bytes: z.number().int().min(0).max(1000000) },
 }, async ({ bytes }) => {
   const structuredContent = {
-    schema_version: 2,
     ok: true,
     request_id: \`fixture-\${bytes}\`,
     tool: "envelope",

@@ -58,27 +58,28 @@ case "$source_commit$source_tree" in
   *[!0-9a-f]*) fail "source commit/tree must be lowercase Git identities" ;;
 esac
 
-version=$(sed -n '1p' "$repository_root/VERSION")
-node - "$repository_root" "$version" <<'NODE'
+core_version=$(sed -n '1p' "$repository_root/CORE_VERSION")
+codex_version=$(node -p 'require(process.argv[1]).version' "$repository_root/packages/codex/package.json")
+node - "$repository_root" "$codex_version" "$core_version" <<'NODE'
 const fs = require("node:fs");
 const path = require("node:path");
-const [root, version] = process.argv.slice(2);
-if (!/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(version)) {
-  throw new Error("root VERSION must be strict MAJOR.MINOR.PATCH");
+const [root, codexVersion, coreVersion] = process.argv.slice(2);
+if (![codexVersion, coreVersion].every((value) => /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(value))) {
+  throw new Error("Codex and Core versions must be strict MAJOR.MINOR.PATCH");
 }
 const packageManifest = JSON.parse(fs.readFileSync(path.join(root, "packages/codex/package.json"), "utf8"));
 const pluginManifest = JSON.parse(fs.readFileSync(path.join(root, "packages/codex/plugin/.codex-plugin/plugin.json"), "utf8"));
 const privateContract = !Object.hasOwn(packageManifest, "private") || packageManifest.private === false;
 if (
-  packageManifest.name !== "dev-flow-codex" || packageManifest.version !== version ||
-  pluginManifest.name !== "dev-flow-codex" || pluginManifest.version !== version ||
+  packageManifest.name !== "dev-flow-codex" || packageManifest.version !== codexVersion ||
+  pluginManifest.name !== "dev-flow-codex" || pluginManifest.version !== codexVersion ||
   !privateContract || packageManifest.license !== "Apache-2.0" ||
   JSON.stringify(packageManifest.os) !== JSON.stringify(["darwin"]) ||
   JSON.stringify(packageManifest.cpu) !== JSON.stringify(["arm64"]) ||
   packageManifest.publishConfig?.access !== "public" ||
   packageManifest.publishConfig?.registry !== "https://registry.npmjs.org/"
 ) {
-  throw new Error("repository package/plugin versions or fixed public contract do not match");
+  throw new Error("Codex package/plugin or fixed public contract does not match");
 }
 NODE
 
@@ -116,7 +117,7 @@ import { pathToFileURL } from "node:url";
 const [modulePath, repositoryRoot, sourceCommit, sourceTree, firstTarball, secondTarball, outputDirectory] = process.argv.slice(2);
 const { prepareRelease } = await import(pathToFileURL(modulePath).href);
 const verificationMode = process.env.DEV_FLOW_RELEASE_MODE || "normal";
-const basedOnRelease = process.env.DEV_FLOW_BASED_ON_RELEASE || null;
+const basedOnRelease = process.env.DEV_FLOW_BASED_ON_RELEASE || "v0.5.0";
 const result = await prepareRelease({
   repositoryRoot,
   sourceCommit,

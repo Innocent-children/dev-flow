@@ -31,7 +31,7 @@ var (
 	ErrDirtySubmodule = fmt.Errorf("%w: dirty submodule", ErrGitObservation)
 
 	// ErrFingerprintPathLimit identifies an observation whose complete set of
-	// affected paths exceeds Core Limits 0.1.
+	// affected paths exceeds the Core limit.
 	ErrFingerprintPathLimit = fmt.Errorf("%w: fingerprint path limit exceeded", ErrGitObservation)
 
 	// ErrInconsistentWorktree identifies a path or second status observation

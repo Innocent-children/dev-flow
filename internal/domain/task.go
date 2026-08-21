@@ -36,7 +36,7 @@ type NodeContractProjection struct {
 	EntryConditions      []string `json:"entry_conditions"`
 	CompletionConditions []string `json:"completion_conditions"`
 }
-type ProcessActionV2 struct {
+type ProcessAction struct {
 	ActionID                ID                     `json:"action_id"`
 	Kind                    ActionKind             `json:"kind"`
 	TaskID                  ID                     `json:"task_id"`
@@ -55,20 +55,20 @@ type ProcessActionV2 struct {
 	IssuedAt                time.Time              `json:"issued_at"`
 }
 
-func (a ProcessActionV2) Validate() error {
-	if validateID(a.ActionID) != nil || validateID(a.TaskID) != nil || a.Revision == 0 || a.Process.Validate() != nil || !a.NodeID.IsValid() || !a.Kind.IsValidV2() || !a.RepositoryBindingDigest.IsValid() || !a.MethodProfile.IsValid() || validateUTC(a.IssuedAt) != nil || requireNormalizedText(a.PayloadContract, MaxIdentifierBytes, true) != nil || requireNormalizedText(a.Guidance, MaxGuidanceBytes, true) != nil || requireNormalizedText(a.NodeContract.Purpose, MaxGuidanceBytes, true) != nil || len(a.NodeContract.EntryConditions) == 0 || validateNormalizedList(a.NodeContract.EntryConditions) != nil || len(a.NodeContract.CompletionConditions) == 0 || validateNormalizedList(a.NodeContract.CompletionConditions) != nil || len(a.AllowedEffects) == 0 || len(a.RequiredEvidence) == 0 || len(a.SemanticMethodSteps) == 0 || len(a.AvailableTransitions) > MaxStandardProcessTransitions {
+func (a ProcessAction) Validate() error {
+	if validateID(a.ActionID) != nil || validateID(a.TaskID) != nil || a.Revision == 0 || a.Process.Validate() != nil || !a.NodeID.IsValid() || !a.Kind.IsValid() || !a.RepositoryBindingDigest.IsValid() || !a.MethodProfile.IsValid() || validateUTC(a.IssuedAt) != nil || requireNormalizedText(a.PayloadContract, MaxIdentifierBytes, true) != nil || requireNormalizedText(a.Guidance, MaxGuidanceBytes, true) != nil || requireNormalizedText(a.NodeContract.Purpose, MaxGuidanceBytes, true) != nil || len(a.NodeContract.EntryConditions) == 0 || validateNormalizedList(a.NodeContract.EntryConditions) != nil || len(a.NodeContract.CompletionConditions) == 0 || validateNormalizedList(a.NodeContract.CompletionConditions) != nil || len(a.AllowedEffects) == 0 || len(a.RequiredEvidence) == 0 || len(a.SemanticMethodSteps) == 0 || len(a.AvailableTransitions) > MaxStandardProcessTransitions {
 		return ErrInvalidArgument
 	}
 	seenEffects := map[AllowedEffect]bool{}
 	for _, effect := range a.AllowedEffects {
-		if !effect.IsValidV2() || seenEffects[effect] {
+		if !effect.IsValid() || seenEffects[effect] {
 			return ErrInvalidArgument
 		}
 		seenEffects[effect] = true
 	}
 	seenEvidence := map[EvidenceRequirementKind]bool{}
 	for _, requirement := range a.RequiredEvidence {
-		if requirement.ValidateV2() != nil || seenEvidence[requirement.Kind] {
+		if requirement.Validate() != nil || seenEvidence[requirement.Kind] {
 			return ErrInvalidArgument
 		}
 		seenEvidence[requirement.Kind] = true
@@ -135,7 +135,7 @@ type ProcessTask struct {
 	Process         ProcessReference         `json:"process"`
 	CurrentNode     NodeID                   `json:"current_node"`
 	ResumeNode      *NodeID                  `json:"resume_node"`
-	CurrentAction   *ProcessActionV2         `json:"current_action"`
+	CurrentAction   *ProcessAction           `json:"current_action"`
 	Blocker         *ProcessBlocker          `json:"blocker"`
 	LastOperation   *LastOperation           `json:"last_operation"`
 	Repository      RepositoryBinding        `json:"repository"`

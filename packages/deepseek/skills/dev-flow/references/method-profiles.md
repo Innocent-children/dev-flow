@@ -1,6 +1,6 @@
 # Host Method Profile Rendering Reference
 
-This is the closed Host-rendering reference for Core Contract 0.2 semantic method steps. Read it only
+This is the closed Host-rendering reference for current Core contract semantic method steps. Read it only
 after Core returns a complete current Action. It explains how the Host may perform the work; it
 is not a process definition or a second task cursor.
 

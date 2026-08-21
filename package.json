@@ -1,10 +1,10 @@
 {
   "name": "dev-flow",
-  "version": "0.5.0",
   "private": true,
   "scripts": {
     "validate": "./scripts/validate-repository.sh",
     "validate:contracts": "go test ./tests/contract",
+    "versions:check": "node ./scripts/check-versions.mjs",
     "release:codex": "node ./scripts/release-codex.mjs",
     "release:codex:prepare": "./scripts/build-codex-release.sh",
     "release:codex:verify": "node ./scripts/verify-codex-release.mjs",

@@ -176,23 +176,21 @@ type releaseNegativeCase struct {
 	ExpectedError string `json:"expected_error"`
 }
 
-func TestReleaseSchemasMirrorPlanningAuthorityAndRemainClosed(t *testing.T) {
+func TestCurrentReleaseSchemasRemainClosed(t *testing.T) {
 	t.Parallel()
 
 	root := markdownRepositoryRoot(t)
 	tests := []struct {
 		name           string
-		specPath       string
 		implementation string
 		id             string
 		rootRequired   []string
 	}{
 		{
 			name:           "publication record",
-			specPath:       "specs/006-publish-codex-installable-product/contracts/publication-record.schema.json",
 			implementation: "release/schemas/publication-record.schema.json",
 			id:             publicationRecordSchemaID,
-			rootRequired:   []string{"schema_version", "release", "overall_status", "manifest_sha256", "steps", "npm", "github", "final_journey", "last_observed_at", "safe_next_action"},
+			rootRequired:   []string{"release", "overall_status", "manifest_sha256", "steps", "npm", "github", "final_journey", "last_observed_at", "safe_next_action"},
 		},
 	}
 
@@ -200,11 +198,7 @@ func TestReleaseSchemasMirrorPlanningAuthorityAndRemainClosed(t *testing.T) {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			specBytes := releaseReadFile(t, root, test.specPath)
 			implementationBytes := releaseReadFile(t, root, test.implementation)
-			if !bytes.Equal(specBytes, implementationBytes) {
-				t.Fatalf("implementation schema %s differs byte-for-byte from %s", test.implementation, test.specPath)
-			}
 			var schema map[string]any
 			if err := json.Unmarshal(implementationBytes, &schema); err != nil {
 				t.Fatalf("parse %s: %v", test.implementation, err)
@@ -221,20 +215,14 @@ func TestReleaseSchemasMirrorPlanningAuthorityAndRemainClosed(t *testing.T) {
 	if manifest["$schema"] != releaseSchemaDraft || manifest["$id"] != releaseManifestSchemaID || manifest["type"] != "object" {
 		t.Fatal("current standalone release manifest schema identity is invalid")
 	}
-	releaseAssertClosedSchemaObject(t, manifest, []string{"schema_version", "release", "toolchains", "artifacts", "package_files", "support", "validations"})
+	releaseAssertClosedSchemaObject(t, manifest, []string{"release", "toolchains", "artifacts", "package_files", "support", "validations"})
 	releaseAssertClosedSchemaObject(t, releaseSchemaAt(t, manifest, "properties", "release"), []string{
-		"version", "tag", "source_commit", "source_tree", "feature_008_commit", "core_contract_version",
-		"storage_schema_version", "snapshot_version", "process_id", "process_version",
-		"process_definition_digest", "verification_mode", "based_on_release", "build_profile", "created_at",
+		"product", "version", "core_version", "tag", "source_commit", "source_tree",
+		"verification_mode", "based_on_release", "created_at",
 	})
 	releaseProperties := releaseSchemaAt(t, manifest, "properties", "release", "properties")
-	if releaseSchemaAt(t, manifest, "properties", "schema_version")["const"] != float64(2) ||
-		releaseSchemaAt(t, releaseProperties, "core_contract_version")["const"] != "0.2" ||
-		releaseSchemaAt(t, releaseProperties, "storage_schema_version")["const"] != float64(2) ||
-		releaseSchemaAt(t, releaseProperties, "snapshot_version")["const"] != float64(2) ||
-		releaseSchemaAt(t, releaseProperties, "process_id")["const"] != "standard-development" ||
-		releaseSchemaAt(t, releaseProperties, "process_version")["const"] != float64(1) {
-		t.Fatal("current release manifest does not bind the Feature 008 graph contract")
+	if releaseSchemaAt(t, releaseProperties, "product")["const"] != "codex" {
+		t.Fatal("current release manifest does not bind the Codex product")
 	}
 	releaseAssertClosedSchemaObject(t, releaseSchemaAt(t, manifest, "properties", "toolchains"), []string{"go", "node", "pnpm", "npm", "git", "gh"})
 	releaseAssertClosedSchemaObject(t, releaseSchemaAt(t, manifest, "properties", "artifacts", "items"), []string{"name", "kind", "relative_path", "size_bytes", "sha256", "mode", "source_commit"})
@@ -252,7 +240,7 @@ func TestReleaseSchemasMirrorPlanningAuthorityAndRemainClosed(t *testing.T) {
 	}
 
 	publication := releaseReadSchema(t, root, "release/schemas/publication-record.schema.json")
-	releaseAssertClosedSchemaObject(t, releaseSchemaAt(t, publication, "properties", "release"), []string{"version", "tag", "source_commit", "source_tree"})
+	releaseAssertClosedSchemaObject(t, releaseSchemaAt(t, publication, "properties", "release"), []string{"product", "version", "core_version", "tag", "source_commit", "source_tree", "verification_mode", "based_on_release"})
 	releaseAssertClosedSchemaObject(t, releaseSchemaAt(t, publication, "properties", "npm"), []string{"name", "version", "published", "integrity", "tarball_sha256", "verified"})
 	releaseAssertClosedSchemaObject(t, releaseSchemaAt(t, publication, "properties", "github"), []string{"tag", "tag_target", "release_id", "draft", "published", "assets"})
 	releaseAssertClosedSchemaObject(t, releaseSchemaAt(t, publication, "properties", "github", "properties", "assets", "items"), []string{"name", "asset_id", "sha256", "verified"})

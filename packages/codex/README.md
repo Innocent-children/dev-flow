@@ -87,17 +87,17 @@ does not select this Skill；wrong plugin namespace、wrong Skill base name 或 
 This does not disable ordinary Codex repository tools. The package does not make or claim selector-bound MCP visibility or authorization。
 
 被接纳的请求必须只涉及一个现有 Git repository，并先调用 `dev_flow_server_info({})`。当前
-source-local Contract 0.2 handshake 必须返回：
+source-local current contract handshake 必须返回：
 
 ```text
-schema_version = 2
-core_limits_version = 0.2
-process = standard-development@1
+process = standard-development
+definition_digest = exact current process content
 method_profiles = plain, spec-kit, openspec
 exact six-tool catalog
 ```
 
-不完整、不同版本或不同顺序的 catalog 会停止请求。公开工具为：
+不完整或不同顺序的 catalog、schema、process digest 会停止请求。Core 产品版本从实际 bundled
+executable 读取，不要求与 Codex package version 相等。公开工具为：
 
 ```text
 dev_flow_server_info
@@ -142,10 +142,10 @@ Core 返回的五分类 Assessment 和 advice。Probe 零写入；只有显式 r
 Core-derived transition 或创建一次 blocker。Adapter 不判断 classification、retry safety、resume
 node 或 destination。
 
-## Schema 1 unsupported guidance
+## pre-graph data unsupported guidance
 
-Graph package 只支持 fresh Schema 2、snapshot-v2 和精确 `standard-development@1`。遇到 Schema
-1/pre-graph data 时 Core 返回 `SCHEMA_UNSUPPORTED`，且不 decode、migrate、rename、truncate、
+Graph package 只支持 current SQLite layout、strict current snapshot 和精确 `standard-development`。
+遇到 incompatible/pre-graph data 时 Core 返回 `SCHEMA_UNSUPPORTED`，且不 decode、migrate、rename、truncate、
 delete 或 reset 旧数据。不要重复启动或自动清理。
 
 用户必须明确选择一个新的绝对、canonical、usable `DEV_FLOW_DATA_DIR`，或在 Core 外部手工
@@ -158,7 +158,7 @@ archive/rename/delete 旧目录，再启动 graph Core。错误信息不回显�
 
 setup/update/remove/uninstall 均保留 Core task data 和未知相邻文件，不会修改目标 repository 或
 Git。remove 应先证明 plugin/marketplace absence，再单独执行 package-manager uninstall。重新安装
-兼容的 graph artifact 可以从同一 Schema 2 数据目录恢复任务；没有任何 Schema 1 reader 或
+兼容的 graph artifact 可以从同一 current SQLite format 数据目录恢复任务；没有任何 pre-graph data reader 或
 conversion path。
 
 ## Closed node payload construction

@@ -4,12 +4,12 @@ This file records current public support separately from source capability and a
 
 | Product surface | Version or contract | Platform / host | Status | Authority |
 | --- | --- | --- | --- | --- |
-| Go Core | `0.5.0`, Core Contract 0.2, Schema 2, Core Limits 0.2, `standard-development@1` | local STDIO | Current source and published Codex runtime | `internal/`, `VERSION` |
+| Go Core | `0.5.0`, current Core contract, current SQLite format, bounded Core limits, `standard-development` | local STDIO | Current source and published Codex runtime | `internal/`, `CORE_VERSION` |
 | `dev-flow-codex` | `0.5.0` | macOS arm64, Node.js `>=24` | Publicly supported | npm `dev-flow-codex@0.5.0`, Tag and GitHub Release `v0.5.0` |
-| `dev-flow-deepseek` | private source package; public version not selected | exact DSH `0.1.0-rc.8`, macOS arm64 | Source-local acceptance complete for the exact tested Artifact; unpublished and not publicly supported | `specs/010-deepseek-explicit-graph-host/`, `tests/journeys/deepseek/evidence/native-acceptance.json` |
+| `dev-flow-deepseek` | `0.5.0` private source package | exact DSH `0.1.0-rc.8`, macOS arm64 | Source-local acceptance complete for the exact tested Artifact; unpublished and not publicly supported | `packages/deepseek/package.json`, `tests/journeys/deepseek/evidence/native-acceptance.json` |
 
-Core contract versions, Codex product versions, and a future DeepSeek public product version are
-independent identities. A source package version, Core recognition of `host=deepseek`, or successful
+Core, Codex, and DeepSeek product versions are independent identities. Internal compatibility has no
+separate version number. A source package version, Core recognition of `host=deepseek`, or successful
 deterministic test does not create a DeepSeek support claim.
 
 Feature 010 may produce one source-local unpublished acceptance artifact. Selecting a public

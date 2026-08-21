@@ -98,7 +98,7 @@ func TestProcessGraphIterationJourney(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "terminal-apply", Host: domain.HostCodex, TaskID: loaded.TaskID, ExpectedRevision: loaded.Revision, ActionID: "terminal-action", ActionKind: domain.ActionCompleteDelivery, ProcessID: loaded.Process.ID, ProcessVersion: loaded.Process.Version, ProcessDefinitionDigest: loaded.Process.DefinitionDigest, SourceCursor: loaded.CurrentNode, RepositoryBindingDigest: loaded.Repository.BindingDigest, Payload: journeyPayload(t, loaded, "delivery_complete", "", deliveryJourneyResult(loaded))})
+	_, err = service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "terminal-apply", Host: domain.HostCodex, TaskID: loaded.TaskID, ExpectedRevision: loaded.Revision, ActionID: "terminal-action", ActionKind: domain.ActionCompleteDelivery, ProcessID: loaded.Process.ID, ProcessDefinitionDigest: loaded.Process.DefinitionDigest, SourceCursor: loaded.CurrentNode, RepositoryBindingDigest: loaded.Repository.BindingDigest, Payload: journeyPayload(t, loaded, "delivery_complete", "", deliveryJourneyResult(loaded))})
 	if err != domain.ErrTaskTerminal {
 		t.Fatalf("terminal apply error=%v", err)
 	}
@@ -570,7 +570,7 @@ func (j *iterationJourney) evidence(id domain.ID) domain.EvidenceSummary {
 
 func journeyApplyRequest(task domain.ProcessTask, requestID domain.ID, payload json.RawMessage) application.ApplyActionRequest {
 	a := task.CurrentAction
-	return application.ApplyActionRequest{RequestID: requestID, Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessVersion: task.Process.Version, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: payload}
+	return application.ApplyActionRequest{RequestID: requestID, Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: payload}
 }
 
 func journeyPayload(t *testing.T, task domain.ProcessTask, transition domain.TransitionID, reason string, node any) json.RawMessage {

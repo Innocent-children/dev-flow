@@ -55,9 +55,7 @@ test("Skill is explicit-only and performs the qualified server-info handshake fi
   assert.match(admission, /repository instructions and current user authority/u);
 
   assert.equal(firstQualifiedTool(handshake), qualifiedTools[0]);
-  assert.match(handshake, /schema_version[^\n]*`2`/u);
-  assert.match(handshake, /core_limits_version[^\n]*`0\.2`/u);
-  assert.match(handshake, /standard-development@1/u);
+  assert.match(handshake, /standard-development/u);
   assert.match(handshake, /supported host set contains\s+`deepseek`/u);
   assert.match(handshake, /method_profiles[^\n]*`plain`, `spec-kit`, `openspec`/u);
   const rawCatalog = [...handshake.matchAll(/^\d+\. `(dev_flow_[a-z_]+)`$/gmu)].map((match) => match[1]);
@@ -84,8 +82,7 @@ test("Skill opens or resumes one deepseek task and follows one complete fresh Ac
 
   const loop = section(skill, "Governed action loop");
   for (const field of [
-    "task_id", "revision", "action_id", "action_kind", "process_id", "process_version",
-    "process_definition_digest", "current_node", "node_purpose", "entry_conditions",
+    "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "current_node", "node_purpose", "entry_conditions",
     "completion_conditions", "allowed_effects", "required_evidence", "method_profile",
     "method_steps", "available_transitions", "payload_contract", "repository_binding_digest",
   ]) {

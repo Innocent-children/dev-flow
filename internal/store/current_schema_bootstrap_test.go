@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestFreshSchema2BootstrapIsDirectAndExact(t *testing.T) {
+func TestFreshCurrentSchemaBootstrapIsDirectAndExact(t *testing.T) {
 	path := dbPath(t)
 	store, err := Open(context.Background(), path)
 	if err != nil {
@@ -14,29 +14,18 @@ func TestFreshSchema2BootstrapIsDirectAndExact(t *testing.T) {
 	store.Close()
 	db := openRaw(t, path)
 	defer db.Close()
-	var count, version int
-	var digest string
-	if err := db.QueryRow(`SELECT COUNT(*),MIN(version),MIN(digest) FROM schema_migrations`).Scan(&count, &version, &digest); err != nil {
+	if err := verifyCurrentSchema(context.Background(), db); err != nil {
 		t.Fatal(err)
-	}
-	if count != 1 || version != 2 || digest != schema2Digest() {
-		t.Fatalf("history=%d/%d/%s", count, version, digest)
-	}
-	for _, name := range append(requiredTables, requiredIndexes...) {
-		var found string
-		if err := db.QueryRow(`SELECT name FROM sqlite_master WHERE name=?`, name).Scan(&found); err != nil || found != name {
-			t.Fatalf("missing %s", name)
-		}
 	}
 }
 
 func TestBootstrapFailureLeavesNoPartialSchema(t *testing.T) {
 	path := dbPath(t)
 	db := openRaw(t, path)
-	original := schema2Statements
-	schema2Statements = append(append([]string(nil), original...), `CREATE TABLE tasks (`)
-	defer func() { schema2Statements = original }()
-	if err := bootstrapSchema2(context.Background(), db, testGraphTask(t).CreatedAt); err == nil {
+	original := currentSchemaStatements
+	currentSchemaStatements = append(append([]string(nil), original...), `CREATE TABLE tasks (`)
+	defer func() { currentSchemaStatements = original }()
+	if err := bootstrapCurrentSchema(context.Background(), db); err == nil {
 		t.Fatal("invalid bootstrap succeeded")
 	}
 	defer db.Close()

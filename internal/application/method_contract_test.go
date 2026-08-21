@@ -260,7 +260,7 @@ func methodContractPayload(t *testing.T, task domain.ProcessTask, transition, re
 
 func methodApplyRequest(task domain.ProcessTask, requestID domain.ID, payload json.RawMessage) ApplyActionRequest {
 	action := task.CurrentAction
-	return ApplyActionRequest{RequestID: requestID, Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: task.Process.ID, ProcessVersion: task.Process.Version, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: payload}
+	return ApplyActionRequest{RequestID: requestID, Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: payload}
 }
 
 func cloneMethodEvidenceMaps(items []map[string]any) []map[string]any {

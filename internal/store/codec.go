@@ -11,7 +11,7 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
-type persistedTaskV2 domain.ProcessTask
+type persistedTask domain.ProcessTask
 
 func encodeTask(task domain.ProcessTask) ([]byte, error) {
 	if err := workflow.ValidateProcessTask(task); err != nil {
@@ -20,7 +20,7 @@ func encodeTask(task domain.ProcessTask) ([]byte, error) {
 	var b bytes.Buffer
 	e := json.NewEncoder(&b)
 	e.SetEscapeHTML(false)
-	if err := e.Encode(persistedTaskV2(task)); err != nil {
+	if err := e.Encode(persistedTask(task)); err != nil {
 		return nil, ErrInvalidArgument
 	}
 	raw := bytes.TrimSuffix(b.Bytes(), []byte("\n"))
@@ -35,7 +35,7 @@ func decodeTask(raw []byte) (domain.ProcessTask, error) {
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
-	var dto persistedTaskV2
+	var dto persistedTask
 	if err := d.Decode(&dto); err != nil {
 		return domain.ProcessTask{}, ErrStorageUnavailable
 	}

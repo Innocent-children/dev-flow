@@ -210,8 +210,8 @@ func TestRecoveryUncertaintyCallerShapesUseOneExactProbe(t *testing.T) {
 	shapes := []uncertainShape{
 		{name: "missing"},
 		{name: "cancelled", err: context.Canceled, cancelled: true},
-		{name: "malformed", result: []byte(`{"schema_version":2`)},
-		{name: "truncated", result: []byte(`{"schema_version":2,"ok":true`)},
+		{name: "malformed", result: []byte(`{"ok":`)},
+		{name: "truncated", result: []byte(`{"ok":true`)},
 		{name: "transport_failed", err: errors.New("test transport failed")},
 	}
 	for _, shape := range shapes {

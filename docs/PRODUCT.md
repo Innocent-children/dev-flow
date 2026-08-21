@@ -13,7 +13,7 @@ Dev Flow 面向使用 AI 或普通工具完成真实软件开发的开发者。�
 
 ## 产品能力
 
-Dev Flow 以 Go Core 中唯一的 `standard-development@1` 状态图管理当前代任务。当前源码图有
+Dev Flow 以 Go Core 中唯一的 `standard-development` 状态图管理当前代任务。当前源码图有
 11 个节点和 29 条正常流转：
 
 ```text
@@ -47,7 +47,7 @@ CANCELLED
 - `plain`、`spec-kit`、`openspec` 三种 method profile；
 - 五分类 graph-native recovery、read-before-retry 和 Core-owned blocker/resume；
 - local SQLite persistence、CAS、restart/resume 和 terminal retained data；
-- local STDIO Core Contract 0.2，公开工具数量仍为六个；
+- local STDIO current Core contract，公开工具数量仍为六个；
 - read-only Git observation，不把 Git mutation 或通用 shell 放入 Core。
 
 ## 产品权威
@@ -78,12 +78,12 @@ Task、LastOperation 和一次只读 repository observation 得出 `not_started`
 当前代持久化只接受：
 
 ```text
-Schema 2
-Snapshot Version 2
-standard-development@1
+current SQLite format
+Strict current snapshot
+standard-development
 ```
 
-Feature 008 不兼容历史 Task。Schema 1/pre-graph 数据返回 `SCHEMA_UNSUPPORTED`，全程零写入；
+Feature 008 不兼容历史 Task。pre-graph data/pre-graph 数据返回 `SCHEMA_UNSUPPORTED`，全程零写入；
 用户显式选择新数据目录或在 Core 外部手工 archive/rename/delete 旧目录。Core 和 package
 lifecycle 都不会自动迁移、reset 或删除旧数据。
 
@@ -95,7 +95,7 @@ lifecycle 都不会自动迁移、reset 或删除旧数据。
 - Web UI、remote MCP、HTTP/SSE、authentication 或 telemetry；
 - 通用 shell、自动 repository repair 或任何 Core Git history mutation；
 - 多仓库任务、并行节点、subtasks 或 cross-host takeover；
-- historical task compatibility、Schema 1 migration、snapshot-v1 codec 或 legacy process；
+- historical task compatibility、pre-graph data migration、legacy snapshot codec 或 legacy process；
 - Core 内运行、安装或解析 Spec Kit/OpenSpec；
 - DeepSeek 产品、真实 Journey 或公开支持声明；
 - 在普通 Product Feature 中进行 version、npm、Tag 或 GitHub Release 操作。

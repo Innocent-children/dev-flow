@@ -23,27 +23,14 @@ import {
 } from "../lib/lifecycle.mjs";
 
 const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
-const receiptSchemaPath = join(
-  repositoryRoot,
-  "specs",
-  "003-codex-explicit-dev-flow",
-  "contracts",
-  "registration-receipt.schema.json",
-);
 const fakeCodexPath = fileURLToPath(new URL("./fixtures/fake-codex.mjs", import.meta.url));
 const execFile = promisify(execFileCallback);
 
-test("receipt parser enforces the checked-in closed schema", async (t) => {
+test("receipt parser enforces the current closed shape", async (t) => {
   const root = await makeRoot(t);
-  const schema = JSON.parse(await readFile(receiptSchemaPath, "utf8"));
-  assert.equal(schema.additionalProperties, false);
-  assert.equal(schema.properties.schema_version.const, 3);
-  for (const field of ["product", "host", "registration", "paths", "resource_digests"]) {
-    assert.equal(schema.properties[field].additionalProperties, false, `${field} must remain closed`);
-  }
-
   const receipt = validReceipt(root);
   assert.deepEqual(validateReceipt(receipt), receipt);
+  assert.throws(() => validateReceipt({ ...receipt, schema_version: 3 }), /unexpected field schema_version/u);
   assert.throws(() => validateReceipt({ ...receipt, unexpected: true }), /unexpected field.*unexpected/);
   assert.throws(
     () => validateReceipt({ ...receipt, product: { ...receipt.product, projection: "forbidden" } }),
@@ -450,8 +437,8 @@ child.once("exit", (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
   assert.equal(calls.includes("plugin marketplace remove dev-flow-local --json"), false);
 });
 
-test("setup update and remove preserve Schema 2 pre-graph and ordinary user data manifests", async (t) => {
-  for (const kind of ["schema2", "pre-graph", "user-files"]) {
+test("setup update and remove preserve current storage pre-graph and ordinary user data manifests", async (t) => {
+  for (const kind of ["currentSchema", "pre-graph", "user-files"]) {
     await t.test(kind, async () => {
       const fixture = await makeSetupFixture(t, `data-retention-${kind}`);
       await createLifecycleDataFixture(fixture.paths.dataDirectory, kind);
@@ -475,7 +462,7 @@ test("setup update and remove preserve Schema 2 pre-graph and ordinary user data
 });
 
 test("local npm uninstall removes only package-managed files and retains every data generation", async (t) => {
-  for (const kind of ["schema2", "pre-graph", "user-files"]) {
+  for (const kind of ["currentSchema", "pre-graph", "user-files"]) {
     await t.test(kind, async () => {
       const root = join(await makeRoot(t), `npm-uninstall-${kind}`);
       const installPrefix = join(root, "local prefix");
@@ -814,7 +801,7 @@ async function createLifecycleDataFixture(dataDirectory, kind) {
   }
 
   const database = new DatabaseSync(join(dataDirectory, "dev-flow.db"));
-  if (kind === "schema2") {
+  if (kind === "currentSchema") {
     database.exec(`
       CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL, digest TEXT NOT NULL);
       CREATE TABLE tasks(task_id TEXT PRIMARY KEY, snapshot BLOB NOT NULL);
@@ -895,7 +882,6 @@ function manifestSQLiteValue(value) {
 
 function validReceipt(root, { receiptPath = join(root, "registrations", "codex.json") } = {}) {
   return {
-    schema_version: 3,
     product: {
       name: "dev-flow-codex",
       version: "0.1.0",

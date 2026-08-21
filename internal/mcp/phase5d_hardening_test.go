@@ -18,7 +18,7 @@ func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 	digest := workflow.StandardProcess().Reference.DefinitionDigest
 	payload := `{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":[{"step_id":"requirements.capture","status":"plain_fallback","capability":"","summary":"Captured requirements."},{"step_id":"requirements.clarify","status":"plain_fallback","capability":"","summary":"Clarified requirements."},{"step_id":"requirements.validate","status":"plain_fallback","capability":"","summary":"Validated requirements."}],"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`
 	emptyMethodPayload := `{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":[],"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`
-	applyBase := `"request_id":"request","host":"codex","task_id":"task","revision":1,"action_id":"action","action_kind":"COMPLETE_REQUIREMENTS","process_id":"standard-development","process_version":1,"process_definition_digest":"%s","source_cursor":"REQUIREMENTS","repository_binding_digest":"%s","payload":%s`
+	applyBase := `"request_id":"request","host":"codex","task_id":"task","revision":1,"action_id":"action","action_kind":"COMPLETE_REQUIREMENTS","process_id":"standard-development","process_definition_digest":"%s","source_cursor":"REQUIREMENTS","repository_binding_digest":"%s","payload":%s`
 	binding := strings.Repeat("a", 64)
 	valid := []struct {
 		name string
@@ -32,7 +32,7 @@ func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 		{"read null", ToolGetTask, `{"host":"codex","task_id":"task","operation_probe":null}`},
 		{"next omitted", ToolGetNextAction, `{"host":"codex","task_id":"task"}`},
 		{"next null", ToolGetNextAction, `{"host":"codex","task_id":"task","operation_probe":null}`},
-		{"probe nonnull", ToolGetTask, fmt.Sprintf(`{"host":"codex","task_id":"task","operation_probe":{"operation_id":"original","process_id":"standard-development","process_version":1,"process_definition_digest":"%s","source_cursor":"REQUIREMENTS","expected_revision":1,"action_id":"action","action_kind":"COMPLETE_REQUIREMENTS","repository_binding_digest":"%s","payload":null}}`, digest, binding)},
+		{"probe nonnull", ToolGetTask, fmt.Sprintf(`{"host":"codex","task_id":"task","operation_probe":{"operation_id":"original","process_id":"standard-development","process_definition_digest":"%s","source_cursor":"REQUIREMENTS","expected_revision":1,"action_id":"action","action_kind":"COMPLETE_REQUIREMENTS","repository_binding_digest":"%s","payload":null}}`, digest, binding)},
 		{"apply omitted", ToolApplyAction, fmt.Sprintf("{"+applyBase+"}", digest, binding, payload)},
 		{"apply null", ToolApplyAction, fmt.Sprintf("{"+applyBase+`,"recovery_apply":null}`, digest, binding, payload)},
 		{"recovery nonnull", ToolApplyAction, fmt.Sprintf("{"+applyBase+`,"recovery_apply":{"operation_id":"request","source_cursor":"REQUIREMENTS"}}`, digest, binding, payload)},
@@ -70,7 +70,7 @@ func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 }
 
 func TestServerInfoUsesExactPublicDTOFixture(t *testing.T) {
-	versionBytes, err := os.ReadFile(filepath.Join("..", "..", "VERSION"))
+	versionBytes, err := os.ReadFile(filepath.Join("..", "..", "CORE_VERSION"))
 	if err != nil {
 		t.Fatal(err)
 	}

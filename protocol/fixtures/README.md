@@ -4,18 +4,18 @@
 Application 当作 runtime workflow authority。fixture 不包含真实数据库路径、用户目录、source
 content、Git diff/status、raw command output、environment、token 或 secret。
 
-## Feature 008 Core Contract 0.2 graph fixtures
+## Current graph fixtures
 
-- `graph-server-info.json`：完整、定序的 Schema 2 ServerInfo、`standard-development@1`、三种
+- `graph-server-info.json`：完整、定序的 current ServerInfo、`standard-development`、三种
   method profile 和六工具 catalog；
 - `graph-open-requirements.json`：创建 graph Task、TaskIntent、REQUIREMENTS Action 和唯一出边；
 - `graph-design-action.json`：DESIGN Action 的完整合法出边；
 - `graph-invalid-edge.json`：DESIGN 上 undeclared transition 的 closed zero-write error。
 
-这些文件是当前 source Contract 0.2 的 static fixture evidence；它们不等同于 native Host 或
+这些文件是当前 source contract 的 static fixture evidence；它们不等同于 native Host 或
 released package evidence。
 
-## Core Contract 0.2 Host parity fixtures
+## Current Core Host parity fixtures
 
 - `graph-host-parity-codex.json`；
 - `graph-host-parity-deepseek.json`。
@@ -25,7 +25,7 @@ released package evidence。
 DeepSeek fixture 只证明 Host identity/Core parity。These fixtures do not implement or claim a DeepSeek
 Adapter, Skill, package, native Journey, or product support. 静态 fixture 也不是任何真实 Host 证据。
 
-## Released Core Contract 0.1 historical fixtures
+## Released linear Core historical fixtures
 
 以下文件记录已发布线性合同的历史事实，不能作为当前 graph 操作说明：
 

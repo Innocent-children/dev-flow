@@ -271,12 +271,12 @@ function validateCoreEnvelope(envelope, item, shape) {
   assertExactKeys(
     envelope,
     success
-      ? ["schema_version", "ok", "request_id", "tool", "result"]
-      : ["schema_version", "ok", "request_id", "tool", "error", "recovery"],
+      ? ["ok", "request_id", "tool", "result"]
+      : ["ok", "request_id", "tool", "error", "recovery"],
     "Core result envelope",
   );
-  if (![1, 2].includes(envelope.schema_version) || envelope.ok !== success) {
-    throw new Error("Core result envelope has an invalid schema_version or ok discriminator");
+  if (envelope.ok !== success) {
+    throw new Error("Core result envelope has an invalid ok discriminator");
   }
   if (!validIdentifier(envelope.request_id)) {
     throw new Error("Core result envelope request_id is invalid");
