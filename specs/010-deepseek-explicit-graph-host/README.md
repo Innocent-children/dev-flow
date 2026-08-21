@@ -12,10 +12,10 @@
 - **DeepSeek Harness Compatibility Floor**: `@deepseek-ai/dsh >=0.1.0-rc.8 <0.2.0`
 - **Exact Planning Evidence**: `@deepseek-ai/dsh 0.1.0-rc.8`, npm integrity `sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==`, upstream tag `dsh-v0.1.0-rc.8` at `141eb6fef83422698aef7a981029e843e8161534`
 - **Release Authority**: Not authorized
-- **Current Checkpoint**: `SIMPLIFIED_NATIVE_BLOCKED`; Acceptance commit
-  `be640f9e41ba3de1b3b42fe6722e7bbbfe0c47d6` passed CI and repeatable Preflight, while the one
-  simplified Native run ended at `DELIVERY` revision 7 after `delivery_complete` returned
-  `INVALID_ARGUMENT`; T065–T068, T072, and T075 remain incomplete
+- **Current Checkpoint**: `DELIVERY_PAYLOAD_FIX_NATIVE_AUTHORIZED`; commit
+  `ef4bc46fee070cf2d9082fdb2d196220c84a0d7c` and CI run `32470257249` froze the minimal DELIVERY
+  Payload correction; the user authorized one Native rerun, while T065–T070, T072, and T075 remain
+  incomplete pending its Acceptance commit and gates
 
 ## Purpose
 
@@ -45,11 +45,10 @@ repeated removal and exhaustive retention. Native acceptance owns only ordinary 
 real six-tool handshake, one interrupted restart/resume, one smallest successful path through
 explicit comprehension acceptance to `DONE`, and one remove/reinstall terminal readback.
 
-Preflight validates credential-file metadata without parsing credential content. The simplified
-Native run completed ordinary control, restart/recovery, the single targeted test, and explicit
-comprehension acceptance. Its final Headless Turn ended normally with no unanswered Dev Flow Call,
-but Core retained the Task at `DELIVERY` revision 7 after rejecting `delivery_complete` as
-`INVALID_ARGUMENT`. Canonical failure Evidence records that bounded state; the run was not retried.
+Preflight validates credential-file metadata without parsing credential content. Git retains the
+previous bounded DELIVERY failure and its `INVALID_ARGUMENT` Evidence. The canonical path is cleared
+for the one authorized rerun using the corrected DELIVERY Prompt; Product Source and Artifact remain
+unchanged.
 
 ## Why This Is a New Feature
 
