@@ -1,0 +1,13 @@
+{
+  "status": "failed",
+  "stage": "accept-and-deliver",
+  "diagnostic": "stage_no_progress:DSH_STAGE_NO_PROGRESS:accept-and-deliver:stage did not stop at its target node",
+  "final_task": {
+    "task_id": "task-ef221ec563dd60428a46413ced4842fd",
+    "current_node": "DELIVERY",
+    "revision": 7,
+    "origin_host": "deepseek"
+  },
+  "process_cleanup": "passed",
+  "publication_effects": false
+}

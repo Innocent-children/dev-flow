@@ -12,10 +12,10 @@
 - **DeepSeek Harness Compatibility Floor**: `@deepseek-ai/dsh >=0.1.0-rc.8 <0.2.0`
 - **Exact Planning Evidence**: `@deepseek-ai/dsh 0.1.0-rc.8`, npm integrity `sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==`, upstream tag `dsh-v0.1.0-rc.8` at `141eb6fef83422698aef7a981029e843e8161534`
 - **Release Authority**: Not authorized
-- **Current Checkpoint**: `SIMPLIFIED_NATIVE_RERUN_AUTHORIZED`; commit
-  `a8606a6e164532d9b675d36cb89880b5b22cf9d7` and CI run `32466452949` froze the simplified Harness;
-  the user authorized one Native rerun, while T065–T070, T072, and T075 remain incomplete pending
-  its Acceptance commit and gates
+- **Current Checkpoint**: `SIMPLIFIED_NATIVE_BLOCKED`; Acceptance commit
+  `be640f9e41ba3de1b3b42fe6722e7bbbfe0c47d6` passed CI and repeatable Preflight, while the one
+  simplified Native run ended at `DELIVERY` revision 7 after `delivery_complete` returned
+  `INVALID_ARGUMENT`; T065–T068, T072, and T075 remain incomplete
 
 ## Purpose
 
@@ -45,9 +45,11 @@ repeated removal and exhaustive retention. Native acceptance owns only ordinary 
 real six-tool handshake, one interrupted restart/resume, one smallest successful path through
 explicit comprehension acceptance to `DONE`, and one remove/reinstall terminal readback.
 
-Preflight validates credential-file metadata without parsing credential content. DSH validates the
-credential only through the authorized real request. Git retains the previous canonical failure;
-the path is cleared for the one explicitly authorized simplified Native Acceptance rerun.
+Preflight validates credential-file metadata without parsing credential content. The simplified
+Native run completed ordinary control, restart/recovery, the single targeted test, and explicit
+comprehension acceptance. Its final Headless Turn ended normally with no unanswered Dev Flow Call,
+but Core retained the Task at `DELIVERY` revision 7 after rejecting `delivery_complete` as
+`INVALID_ARGUMENT`. Canonical failure Evidence records that bounded state; the run was not retried.
 
 ## Why This Is a New Feature
 
