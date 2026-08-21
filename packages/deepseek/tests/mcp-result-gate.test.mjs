@@ -8,17 +8,14 @@ import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const repositoryRoot = dirname(dirname(packageRoot));
-const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
 const signal = new AbortController().signal;
 const exactGateModules = process.env.DEV_FLOW_DSH_GATE_NODE_MODULES;
 
 test("official MCP client preserves complete Core success and distinguishes domain from transport failure", async (t) => {
   const root = await temporaryRoot(t, "core");
-  const dataDirectory = join(root, "data");
-  await mkdir(dataDirectory, { mode: 0o700 });
   const stack = await loadStack();
-  const first = await mountMcp(stack, coreConfig(dataDirectory));
+  const fixturePath = await writeFixtureServer(root, stack.require);
+  const first = await mountMcp(stack, fixtureConfig(fixturePath, root, "gate_core"));
 
   const serverInfo = await execute(first.ctx, "mcp__gate_core__dev_flow_server_info", {});
   assert.equal(serverInfo.isError, false);
@@ -52,7 +49,7 @@ test("official MCP client preserves complete Core success and distinguishes doma
   );
   await first.dispose();
 
-  const second = await mountMcp(stack, coreConfig(dataDirectory));
+  const second = await mountMcp(stack, fixtureConfig(fixturePath, root, "gate_core"));
   const reread = await execute(second.ctx, "mcp__gate_core__dev_flow_server_info", {});
   const rereadEnvelope = parseSingleTextEnvelope(reread);
   assert.deepEqual(rereadEnvelope.result, firstEnvelope.result);
@@ -189,20 +186,6 @@ async function mountMcp(stack, config, spill) {
   };
 }
 
-function coreConfig(dataDirectory) {
-  return {
-    transport: "stdio",
-    serverName: "gate_core",
-    command: runtimePath,
-    args: ["mcp", "--stdio"],
-    env: { DEV_FLOW_DATA_DIR: dataDirectory },
-    cwd: packageRoot,
-    toolCallTimeoutMs: 15_000,
-    failOnStartupError: true,
-    reconnect: reconnectDisabled(),
-  };
-}
-
 function fixtureConfig(fixturePath, cwd, serverName) {
   return {
     transport: "stdio",
@@ -298,6 +281,37 @@ import { McpServer } from ${JSON.stringify(mcpUrl)};
 import { StdioServerTransport } from ${JSON.stringify(stdioUrl)};
 import { z } from ${JSON.stringify(zodUrl)};
 const server = new McpServer({ name: "dev-flow-result-gate", version: "1.0.0" });
+server.registerTool("dev_flow_server_info", {
+  description: "Returns the bounded Core handshake envelope used by the direct bridge gate.",
+  inputSchema: {},
+}, async () => {
+  const structuredContent = {
+    schema_version: 2,
+    ok: true,
+    request_id: "fixture-server-info",
+    tool: "dev_flow_server_info",
+    result: {
+      product: "dev-flow",
+      schema_version: 2,
+      core_limits_version: "0.2",
+    },
+  };
+  return { content: [{ type: "text", text: JSON.stringify(structuredContent) }], structuredContent };
+});
+server.registerTool("dev_flow_get_task", {
+  description: "Returns a stable Core-style domain error for a missing task.",
+  inputSchema: { host: z.string(), task_id: z.string() },
+}, async () => {
+  const domainError = {
+    schema_version: 2,
+    ok: false,
+    request_id: "fixture-missing-task",
+    tool: "dev_flow_get_task",
+    error: { code: "TASK_NOT_FOUND", message: "task not found", details: {} },
+    recovery: { retry_safe: false },
+  };
+  return { isError: true, content: [{ type: "text", text: JSON.stringify(domainError) }] };
+});
 server.registerTool("envelope", {
   description: "Returns a complete bounded JSON envelope.",
   inputSchema: { bytes: z.number().int().min(0).max(1000000) },

@@ -87,24 +87,28 @@ test("preflight rejects a missing, symlinked, non-regular, or non-executable run
   const runtimeDirectory = join(root, "runtime", "darwin-arm64");
   const runtimePath = join(runtimeDirectory, "dev-flow");
   await mkdir(runtimeDirectory, { recursive: true });
-  const selection = await selectPackagedRuntime({ packageRoot: root });
+  const selection = await selectPackagedRuntime({
+    packageRoot: root,
+    platform: "darwin",
+    arch: "arm64",
+  });
 
   await assert.rejects(
     preflightPackagedCore(selection, { expectedVersion: currentVersion }),
-    /regular executable file/,
+    /packaged Core must be a regular executable file/,
   );
 
   await mkdir(runtimePath);
   await assert.rejects(
     preflightPackagedCore(selection, { expectedVersion: currentVersion }),
-    /regular executable file/,
+    /packaged Core must be a regular executable file/,
   );
   await import("node:fs/promises").then(({ rm }) => rm(runtimePath, { recursive: true }));
 
   await writeFile(runtimePath, "not executable\n", { mode: 0o600 });
   await assert.rejects(
     preflightPackagedCore(selection, { expectedVersion: currentVersion }),
-    /executable mode/,
+    /packaged Core must have executable mode/,
   );
   await chmod(runtimePath, 0o755);
 
@@ -114,7 +118,20 @@ test("preflight rejects a missing, symlinked, non-regular, or non-executable run
   await symlink(linkTarget, runtimePath);
   await assert.rejects(
     preflightPackagedCore(selection, { expectedVersion: currentVersion }),
-    /regular executable file/,
+    /packaged Core must be a regular executable file/,
+  );
+
+  await import("node:fs/promises").then(({ rm }) => rm(runtimePath));
+  await writeRuntimeOutput(runtimePath, "dev-flow 9.9.9");
+  await assert.rejects(
+    preflightPackagedCore(selection, { expectedVersion: currentVersion }),
+    /packaged Core version 9\.9\.9 does not match expected/,
+  );
+
+  await writeRuntimeOutput(runtimePath, "not-a-dev-flow-version");
+  await assert.rejects(
+    preflightPackagedCore(selection, { expectedVersion: currentVersion }),
+    /packaged Core returned an invalid version line/,
   );
 });
 
@@ -224,10 +241,14 @@ async function makeDirectory(t, name) {
 }
 
 async function writeFakeRuntime(path) {
+  await writeRuntimeOutput(path, `dev-flow ${currentVersion}`);
+}
+
+async function writeRuntimeOutput(path, output) {
   await writeFile(path, [
     "#!/bin/sh",
     "if [ \"$1\" = \"version\" ]; then",
-    `  printf 'dev-flow ${currentVersion}\\n'`,
+    `  printf '${output}\\n'`,
     "  exit 0",
     "fi",
     "exit 1",
