@@ -14,9 +14,10 @@ import (
 type manifestKind string
 
 const (
-	rootManifest    manifestKind = "root"
-	codexManifest   manifestKind = "codex"
-	productManifest manifestKind = "product"
+	rootManifest     manifestKind = "root"
+	codexManifest    manifestKind = "codex"
+	productManifest  manifestKind = "product"
+	deepseekManifest manifestKind = "deepseek"
 )
 
 var runtimeDependencyFields = []string{
@@ -62,6 +63,38 @@ var codexDevelopmentScripts = map[string]string{
 	"test:parser":       "node --test tests/journey-evidence.test.mjs",
 }
 
+var deepseekPackageFiles = []string{
+	"LICENSE",
+	"README.md",
+	"cordis.patch.yml",
+	"lib/authorization.mjs",
+	"lib/index.mjs",
+	"lib/paths.mjs",
+	"lib/runtime.mjs",
+	"lib/tool-names.mjs",
+	"runtime/darwin-arm64/dev-flow",
+	"skills/dev-flow/SKILL.md",
+	"skills/dev-flow/references/method-profiles.md",
+	"skills/dev-flow/references/node-payloads.md",
+}
+
+var deepseekDevelopmentScripts = map[string]string{
+	"pack:dry":     "pnpm pack --dry-run --json",
+	"test":         "node --test tests/*.test.mjs",
+	"test:bundle":  "node --test tests/bundle-contract.test.mjs",
+	"test:package": "node --test tests/package-contract.test.mjs",
+}
+
+var deepseekDependencies = map[string]string{
+	"@deepseek-ai/dsh-mcp-client": ">=0.1.0-rc.8 <0.2.0",
+}
+
+var deepseekPeerDependencies = map[string]string{
+	"@deepseek-ai/cordis":    ">=4.0.1 <5.0.0",
+	"@deepseek-ai/dsh-skill": ">=0.1.0-rc.8 <0.2.0",
+	"@deepseek-ai/dsh-tools": ">=0.1.0-rc.8 <0.2.0",
+}
+
 func TestProjectPackageManifests(t *testing.T) {
 	t.Parallel()
 
@@ -72,7 +105,7 @@ func TestProjectPackageManifests(t *testing.T) {
 	}{
 		{path: filepath.Join(repositoryRoot, "package.json"), kind: rootManifest},
 		{path: filepath.Join(repositoryRoot, "packages", "codex", "package.json"), kind: codexManifest},
-		{path: filepath.Join(repositoryRoot, "packages", "deepseek", "package.json"), kind: productManifest},
+		{path: filepath.Join(repositoryRoot, "packages", "deepseek", "package.json"), kind: deepseekManifest},
 	}
 
 	for _, test := range tests {
@@ -471,6 +504,94 @@ func TestCodexManifestRejectsUnreviewedPackageSurface(t *testing.T) {
 	}
 }
 
+func TestDeepseekManifestRejectsUnreviewedPackageSurface(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		violatedField string
+		mutate        func(map[string]any)
+	}{
+		{
+			name:          "unreviewed dependency",
+			violatedField: "dependencies",
+			mutate: func(manifest map[string]any) {
+				manifest["dependencies"] = map[string]string{"unreviewed": "1.0.0"}
+			},
+		},
+		{
+			name:          "unreviewed peer dependency",
+			violatedField: "peerDependencies",
+			mutate: func(manifest map[string]any) {
+				manifest["peerDependencies"] = map[string]string{"@deepseek-ai/cordis": "*"}
+			},
+		},
+		{
+			name:          "install lifecycle hook",
+			violatedField: "scripts.postinstall",
+			mutate: func(manifest map[string]any) {
+				scripts := cloneStringMap(deepseekDevelopmentScripts)
+				scripts["postinstall"] = "node install.mjs"
+				manifest["scripts"] = scripts
+			},
+		},
+		{
+			name:          "unreviewed script",
+			violatedField: "scripts.release",
+			mutate: func(manifest map[string]any) {
+				scripts := cloneStringMap(deepseekDevelopmentScripts)
+				scripts["release"] = "pnpm publish"
+				manifest["scripts"] = scripts
+			},
+		},
+		{
+			name:          "unreviewed packed file",
+			violatedField: "files",
+			mutate: func(manifest map[string]any) {
+				manifest["files"] = append(slices.Clone(deepseekPackageFiles), "runtime/linux-arm64/dev-flow")
+			},
+		},
+		{
+			name:          "executable entry",
+			violatedField: "bin",
+			mutate:        func(manifest map[string]any) { manifest["bin"] = map[string]string{"dev-flow": "lib/index.mjs"} },
+		},
+		{
+			name:          "publication configuration",
+			violatedField: "publishConfig",
+			mutate:        func(manifest map[string]any) { manifest["publishConfig"] = map[string]string{"access": "public"} },
+		},
+		{
+			name:          "install-time build dependency",
+			violatedField: "devDependencies",
+			mutate:        func(manifest map[string]any) { manifest["devDependencies"] = map[string]string{"esbuild": "1.0.0"} },
+		},
+		{
+			name:          "unreviewed top-level field",
+			violatedField: "exports",
+			mutate:        func(manifest map[string]any) { manifest["exports"] = "./lib/index.mjs" },
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			manifest := validDeepseekManifest()
+			test.mutate(manifest)
+			contents, err := json.Marshal(manifest)
+			if err != nil {
+				t.Fatalf("encode DeepSeek manifest fixture: %v", err)
+			}
+			path := writeManifestFixture(t, string(contents))
+			violations := validatePackageManifest(path, deepseekManifest)
+			if !violationsContainField(violations, test.violatedField) {
+				t.Fatalf("DeepSeek manifest violation does not name field %q: %v", test.violatedField, violations)
+			}
+		})
+	}
+}
+
 func TestProductManifestFixtures(t *testing.T) {
 	t.Parallel()
 
@@ -543,9 +664,11 @@ func validatePackageManifest(path string, kind manifestKind) []error {
 		}
 	}
 
-	for _, field := range runtimeDependencyFields {
-		if _, present := manifest[field]; present {
-			violations = append(violations, manifestViolation(path, field, "runtime dependency fields are forbidden"))
+	if kind != deepseekManifest {
+		for _, field := range runtimeDependencyFields {
+			if _, present := manifest[field]; present {
+				violations = append(violations, manifestViolation(path, field, "runtime dependency fields are forbidden"))
+			}
 		}
 	}
 
@@ -589,10 +712,100 @@ func validatePackageManifest(path string, kind manifestKind) []error {
 		}
 	case codexManifest:
 		violations = append(violations, validateCodexManifest(path, manifest)...)
+	case deepseekManifest:
+		violations = append(violations, validateDeepseekManifest(path, manifest)...)
 	default:
 		violations = append(violations, manifestViolation(path, "$", "unknown manifest kind %q", kind))
 	}
 
+	return violations
+}
+
+func validateDeepseekManifest(path string, manifest map[string]json.RawMessage) []error {
+	var violations []error
+	allowedFields := map[string]struct{}{
+		"name": {}, "version": {}, "private": {}, "description": {}, "license": {},
+		"type": {}, "main": {}, "files": {}, "scripts": {}, "engines": {},
+		"dsh": {}, "dependencies": {}, "peerDependencies": {},
+	}
+	for field := range manifest {
+		if _, allowed := allowedFields[field]; !allowed {
+			violations = append(violations, manifestViolation(path, field, "unreviewed DeepSeek manifest field is forbidden"))
+		}
+	}
+
+	var name, description, moduleType, main, license string
+	_ = json.Unmarshal(manifest["name"], &name)
+	_ = json.Unmarshal(manifest["description"], &description)
+	_ = json.Unmarshal(manifest["type"], &moduleType)
+	_ = json.Unmarshal(manifest["main"], &main)
+	_ = json.Unmarshal(manifest["license"], &license)
+	if name != "dev-flow-deepseek" {
+		violations = append(violations, manifestViolation(path, "name", "must be %q", "dev-flow-deepseek"))
+	}
+	if description != "Explicit DeepSeek Harness adapter for the Dev Flow process graph." {
+		violations = append(violations, manifestViolation(path, "description", "must use the reviewed private product description"))
+	}
+	if moduleType != "module" {
+		violations = append(violations, manifestViolation(path, "type", "must be %q", "module"))
+	}
+	if main != "lib/index.mjs" {
+		violations = append(violations, manifestViolation(path, "main", "must be %q", "lib/index.mjs"))
+	}
+	if license != "Apache-2.0" {
+		violations = append(violations, manifestViolation(path, "license", "must be %q", "Apache-2.0"))
+	}
+	if _, present := manifest["bin"]; present {
+		violations = append(violations, manifestViolation(path, "bin", "DeepSeek executable entries are forbidden"))
+	}
+	if _, present := manifest["publishConfig"]; present {
+		violations = append(violations, manifestViolation(path, "publishConfig", "Feature 010 remains unpublished"))
+	}
+	var engines map[string]string
+	if json.Unmarshal(manifest["engines"], &engines) != nil || !sameStringMap(engines, map[string]string{"node": ">=24"}) {
+		violations = append(violations, manifestViolation(path, "engines", "must contain only node %q", ">=24"))
+	}
+	var files []string
+	if json.Unmarshal(manifest["files"], &files) != nil || !sameStringSet(files, deepseekPackageFiles) {
+		violations = append(violations, manifestViolation(path, "files", "must equal the reviewed DeepSeek package allowlist"))
+	}
+
+	var dsh map[string]json.RawMessage
+	var bundle map[string]json.RawMessage
+	var patch string
+	if json.Unmarshal(manifest["dsh"], &dsh) != nil || len(dsh) != 1 ||
+		json.Unmarshal(dsh["bundle"], &bundle) != nil || len(bundle) != 1 ||
+		json.Unmarshal(bundle["patch"], &patch) != nil || patch != "./cordis.patch.yml" {
+		violations = append(violations, manifestViolation(path, "dsh", "must declare only bundle.patch %q", "./cordis.patch.yml"))
+	}
+
+	var dependencies, peers map[string]string
+	if json.Unmarshal(manifest["dependencies"], &dependencies) != nil || !sameStringMap(dependencies, deepseekDependencies) {
+		violations = append(violations, manifestViolation(path, "dependencies", "must contain only the reviewed MCP client range"))
+	}
+	if json.Unmarshal(manifest["peerDependencies"], &peers) != nil || !sameStringMap(peers, deepseekPeerDependencies) {
+		violations = append(violations, manifestViolation(path, "peerDependencies", "must contain the three reviewed DSH service ranges"))
+	}
+	for _, field := range []string{"optionalDependencies", "devDependencies", "bundledDependencies", "bundleDependencies"} {
+		if _, present := manifest[field]; present {
+			violations = append(violations, manifestViolation(path, field, "unreviewed dependency fields are forbidden"))
+		}
+	}
+	var scripts map[string]string
+	if json.Unmarshal(manifest["scripts"], &scripts) != nil {
+		violations = append(violations, manifestViolation(path, "scripts", "must be a string-valued JSON object"))
+	} else {
+		for name, command := range deepseekDevelopmentScripts {
+			if scripts[name] != command {
+				violations = append(violations, manifestViolation(path, "scripts."+name, "must invoke %q", command))
+			}
+		}
+		for name := range scripts {
+			if _, allowed := deepseekDevelopmentScripts[name]; !allowed {
+				violations = append(violations, manifestViolation(path, "scripts."+name, "unreviewed, lifecycle, and publication scripts are forbidden"))
+			}
+		}
+	}
 	return violations
 }
 
@@ -675,6 +888,36 @@ func sameStringSet(got, want []string) bool {
 	slices.Sort(got)
 	slices.Sort(want)
 	return slices.Equal(got, want)
+}
+
+func sameStringMap(got, want map[string]string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for key, value := range want {
+		if got[key] != value {
+			return false
+		}
+	}
+	return true
+}
+
+func validDeepseekManifest() map[string]any {
+	return map[string]any{
+		"name":             "dev-flow-deepseek",
+		"version":          "1.2.3",
+		"private":          true,
+		"description":      "Explicit DeepSeek Harness adapter for the Dev Flow process graph.",
+		"license":          "Apache-2.0",
+		"type":             "module",
+		"main":             "lib/index.mjs",
+		"files":            slices.Clone(deepseekPackageFiles),
+		"scripts":          cloneStringMap(deepseekDevelopmentScripts),
+		"engines":          map[string]string{"node": ">=24"},
+		"dsh":              map[string]any{"bundle": map[string]string{"patch": "./cordis.patch.yml"}},
+		"dependencies":     cloneStringMap(deepseekDependencies),
+		"peerDependencies": cloneStringMap(deepseekPeerDependencies),
+	}
 }
 
 func cloneStringMap(source map[string]string) map[string]string {

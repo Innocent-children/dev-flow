@@ -233,12 +233,14 @@ NODE
 }
 
 run_step "Toolchain versions" check_toolchains
+run_step "Frozen pnpm workspace install" pnpm install --frozen-lockfile --ignore-scripts
 run_step "Working tree whitespace" git diff --check
 run_step "Go formatting" check_go_formatting
 run_step "Codex source allowlist" validate_codex_source_tree
 run_step "DeepSeek source allowlist" validate_deepseek_source_tree
 run_step "Root script allowlist" validate_root_script_tree
 run_step "Codex release prepare syntax" bash -n scripts/build-codex-release.sh
+run_step "DeepSeek runtime build syntax" bash -n scripts/build-deepseek-runtime.sh
 run_step "Codex release verifier syntax" node --check scripts/verify-codex-release.mjs
 run_step "Codex release publisher syntax" node --check scripts/publish-codex-release.mjs
 run_step "Codex one-command release syntax" node --check scripts/release-codex.mjs
@@ -246,13 +248,21 @@ run_step "Fake release npm syntax" node --check packages/codex/tests/fixtures/fa
 run_step "Fake release GitHub syntax" node --check packages/codex/tests/fixtures/fake-release-gh.mjs
 run_step "Release contract tests" go test ./tests/contract
 run_step "Codex public package contract" node --test packages/codex/tests/package-contract.test.mjs
-run_step "DeepSeek public package contract" node --test packages/deepseek/tests/package-contract.test.mjs
-run_step "DeepSeek bundle contract" node --test packages/deepseek/tests/bundle-contract.test.mjs
+run_step "DeepSeek package and adapter contracts" \
+  node --test \
+    packages/deepseek/tests/package-contract.test.mjs \
+    packages/deepseek/tests/bundle-contract.test.mjs \
+    packages/deepseek/tests/paths.test.mjs \
+    packages/deepseek/tests/authorization.test.mjs \
+    packages/deepseek/tests/integration-plugin.test.mjs \
+    packages/deepseek/tests/mcp-result-gate.test.mjs \
+    packages/deepseek/tests/skill-contract.test.mjs
+run_step "DeepSeek simulated graph journey" \
+  node --test tests/journeys/deepseek/simulated-graph-journey.test.mjs
 run_step "Codex one-command release contract" node --test packages/codex/tests/release-command.test.mjs
 run_step "Go package inventory" go list ./...
 run_step "Go vet" go vet ./...
 run_step "Go tests and repository contracts" go test ./...
-run_step "Frozen pnpm workspace install" pnpm install --frozen-lockfile --ignore-scripts
 run_step "pnpm workspace inventory" pnpm --recursive list --depth -1
 run_step "Codex package dry-pack" validate_package_pack packages/codex dev-flow-codex codex-source
 

@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
+import { chmod, copyFile, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   activateDeepSeekIntegration,
@@ -15,6 +16,10 @@ import {
   DEV_FLOW_TOOL_NAMESPACE_PREFIX,
   assertQualifiedToolCatalog,
 } from "../lib/tool-names.mjs";
+
+const sourcePackageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+const repositoryRoot = dirname(dirname(sourcePackageRoot));
+const currentVersion = (await readFile(join(repositoryRoot, "VERSION"), "utf8")).trim();
 
 test("plugin identity and injection surface are fixed", () => {
   assert.equal(name, "dev-flow-deepseek");
@@ -33,9 +38,13 @@ test("plugin identity and injection surface are fixed", () => {
 
 test("registers one user-only Skill, one guard, and the official MCP child config", async (t) => {
   const dataDirectory = await temporaryDirectory(t, "data");
-  const fake = createFakeContext({ initialToolNames: DEV_FLOW_QUALIFIED_TOOL_NAMES });
+  const packageRoot = await temporaryPackage(t, "integration package-工具");
+  const fake = createFakeContext({ packageRoot, initialToolNames: DEV_FLOW_QUALIFIED_TOOL_NAMES });
 
   await activateDeepSeekIntegration(fake.ctx, {
+    packageRoot,
+    platform: "darwin",
+    arch: "arm64",
     environment: { DEV_FLOW_DATA_DIR: dataDirectory },
   });
 
@@ -78,8 +87,12 @@ test("registers one user-only Skill, one guard, and the official MCP child confi
 
 test("ordinary host tools remain executable and reconnect restores the exact catalog", async (t) => {
   const dataDirectory = await temporaryDirectory(t, "reconnect-data");
-  const fake = createFakeContext({ initialToolNames: [], unrelatedToolNames: ["read_file"] });
+  const packageRoot = await temporaryPackage(t, "reconnect-package");
+  const fake = createFakeContext({ packageRoot, initialToolNames: [], unrelatedToolNames: ["read_file"] });
   await activateDeepSeekIntegration(fake.ctx, {
+    packageRoot,
+    platform: "darwin",
+    arch: "arm64",
     environment: { DEV_FLOW_DATA_DIR: dataDirectory },
   });
 
@@ -98,8 +111,12 @@ test("ordinary host tools remain executable and reconnect restores the exact cat
 
 test("missing or extra connected namespace tools fail compatibility and dispose the MCP child", async (t) => {
   const dataDirectory = await temporaryDirectory(t, "catalog-data");
-  const fake = createFakeContext({ initialToolNames: DEV_FLOW_QUALIFIED_TOOL_NAMES });
+  const packageRoot = await temporaryPackage(t, "catalog-package");
+  const fake = createFakeContext({ packageRoot, initialToolNames: DEV_FLOW_QUALIFIED_TOOL_NAMES });
   await activateDeepSeekIntegration(fake.ctx, {
+    packageRoot,
+    platform: "darwin",
+    arch: "arm64",
     environment: { DEV_FLOW_DATA_DIR: dataDirectory },
   });
 
@@ -117,9 +134,11 @@ test("missing or extra connected namespace tools fail compatibility and dispose 
 
 test("preflight failure contributes no Skill, guard, or MCP child", async (t) => {
   const dataDirectory = await temporaryDirectory(t, "unsupported-data");
-  const fake = createFakeContext({ initialToolNames: DEV_FLOW_QUALIFIED_TOOL_NAMES });
+  const packageRoot = await temporaryPackage(t, "unsupported-package");
+  const fake = createFakeContext({ packageRoot, initialToolNames: DEV_FLOW_QUALIFIED_TOOL_NAMES });
   await assert.rejects(
     activateDeepSeekIntegration(fake.ctx, {
+      packageRoot,
       environment: { DEV_FLOW_DATA_DIR: dataDirectory },
       platform: "linux",
       arch: "arm64",
@@ -131,7 +150,7 @@ test("preflight failure contributes no Skill, guard, or MCP child", async (t) =>
   assert.equal(fake.children.length, 0);
 });
 
-function createFakeContext({ initialToolNames, unrelatedToolNames = [] }) {
+function createFakeContext({ packageRoot, initialToolNames, unrelatedToolNames = [] }) {
   const skills = [];
   const guards = [];
   const listeners = [];
@@ -140,8 +159,6 @@ function createFakeContext({ initialToolNames, unrelatedToolNames = [] }) {
   const errors = [];
   const definitions = new Set(unrelatedToolNames);
   let mcpNames = new Set();
-  const packageRoot = new URL("..", import.meta.url).pathname.replace(/\/$/u, "");
-
   const emitToolsChange = () => {
     for (const listener of [...listeners]) listener();
   };
@@ -230,6 +247,38 @@ async function temporaryDirectory(t, name) {
   await mkdir(directory, { recursive: true });
   t.after(() => rm(root, { recursive: true, force: true }));
   return directory;
+}
+
+async function temporaryPackage(t, name) {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-deepseek-package-")));
+  const packageRoot = join(root, name);
+  const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
+  const skillRoot = join(packageRoot, "skills", "dev-flow");
+  await mkdir(dirname(runtimePath), { recursive: true });
+  await mkdir(join(skillRoot, "references"), { recursive: true });
+  await writeFile(join(packageRoot, "package.json"), `${JSON.stringify({
+    name: "dev-flow-deepseek",
+    version: currentVersion,
+  })}\n`);
+  await copyFile(join(sourcePackageRoot, "skills", "dev-flow", "SKILL.md"), join(skillRoot, "SKILL.md"));
+  for (const reference of ["method-profiles.md", "node-payloads.md"]) {
+    await copyFile(
+      join(sourcePackageRoot, "skills", "dev-flow", "references", reference),
+      join(skillRoot, "references", reference),
+    );
+  }
+  await writeFile(runtimePath, [
+    "#!/bin/sh",
+    "if [ \"$1\" = \"version\" ]; then",
+    `  printf 'dev-flow ${currentVersion}\\n'`,
+    "  exit 0",
+    "fi",
+    "exit 1",
+    "",
+  ].join("\n"));
+  await chmod(runtimePath, 0o755);
+  t.after(() => rm(root, { recursive: true, force: true }));
+  return packageRoot;
 }
 
 async function nextMicrotask() {

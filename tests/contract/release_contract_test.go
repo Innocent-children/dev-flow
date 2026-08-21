@@ -451,6 +451,15 @@ func TestReleaseValidationEntrypointsRemainPreparationSafe(t *testing.T) {
 	for _, required := range []string{
 		"go test ./tests/contract",
 		"node --test packages/codex/tests/package-contract.test.mjs",
+		"validate_deepseek_source_tree",
+		"packages/deepseek/tests/package-contract.test.mjs",
+		"packages/deepseek/tests/bundle-contract.test.mjs",
+		"packages/deepseek/tests/paths.test.mjs",
+		"packages/deepseek/tests/authorization.test.mjs",
+		"packages/deepseek/tests/integration-plugin.test.mjs",
+		"packages/deepseek/tests/mcp-result-gate.test.mjs",
+		"packages/deepseek/tests/skill-contract.test.mjs",
+		"tests/journeys/deepseek/simulated-graph-journey.test.mjs",
 		"node --test packages/codex/tests/release-command.test.mjs",
 		"node --check scripts/release-codex.mjs",
 	} {
@@ -458,14 +467,14 @@ func TestReleaseValidationEntrypointsRemainPreparationSafe(t *testing.T) {
 			t.Errorf("validator missing preparation-safe command %q", required)
 		}
 	}
-	if !strings.Contains(workflow, "RELEASE_BASE_SHA: ${{ github.event.pull_request.base.sha }}") || !strings.Contains(validator, "git diff --exit-code \"$RELEASE_BASE_SHA\"...HEAD -- packages/deepseek") {
-		t.Error("pull-request workflow and validator must enforce the unchanged DeepSeek boundary")
+	if strings.Contains(workflow, "RELEASE_BASE_SHA") || strings.Contains(validator, "RELEASE_BASE_SHA") {
+		t.Error("pull-request validation must not retain the obsolete DeepSeek comparison baseline")
 	}
 	for _, source := range []struct {
 		name string
 		text string
 	}{{"validator", validator}, {"pull-request workflow", workflow}} {
-		for _, forbidden := range []string{"npm whoami", "npm publish", "gh auth status", "gh release create", "gh release upload", "git tag"} {
+		for _, forbidden := range []string{"npm whoami", "npm publish", "gh auth status", "gh release create", "gh release upload", "git tag", "git push"} {
 			if strings.Contains(source.text, forbidden) {
 				t.Errorf("%s invokes forbidden release operation %q", source.name, forbidden)
 			}

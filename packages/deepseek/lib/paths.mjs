@@ -19,7 +19,6 @@ export async function resolveDataDirectory({
     join(canonicalHome, "Library", "Application Support", "dev-flow"),
     "product support root",
   );
-  await assertNoSymlinkComponents(canonicalHome, productSupportRoot);
 
   const explicitDataDirectory = environment?.[DATA_DIRECTORY_ENVIRONMENT] ?? "";
   if (explicitDataDirectory !== "") {
@@ -31,6 +30,8 @@ export async function resolveDataDirectory({
       usesDefaultDataDirectory: false,
     });
   }
+
+  await assertNoSymlinkComponents(canonicalHome, productSupportRoot);
 
   return Object.freeze({
     dataDirectory: containedPath(

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile as execFileCallback, spawn } from "node:child_process";
-import { mkdtemp, readFile, stat } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { copyFile, mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { arch, platform, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -129,7 +129,26 @@ test("dry pack contains only declared product files and excludes development sta
   assert.equal(packedFiles.some((path) => /\.(?:db|sqlite|tgz|map)$/iu.test(path)), false);
 });
 
-test("packaged Core is detached, CGo-free, versioned, and accepts STDIO startup", async (t) => {
+test("packaged Core is a detached executable darwin-arm64 CGo-free file", async () => {
+  const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
+  const runtime = await import("node:fs/promises").then(({ lstat }) => lstat(runtimePath));
+  assert.equal(runtime.isFile(), true);
+  assert.equal(runtime.isSymbolicLink(), false);
+  assert.notEqual(runtime.mode & 0o111, 0);
+
+  const { stdout: buildMetadata } = await execFile("go", ["version", "-m", runtimePath], {
+    encoding: "utf8",
+  });
+  assert.match(buildMetadata, /\tbuild\tCGO_ENABLED=0(?:\n|$)/u);
+  assert.match(buildMetadata, /\tbuild\tGOOS=darwin(?:\n|$)/u);
+  assert.match(buildMetadata, /\tbuild\tGOARCH=arm64(?:\n|$)/u);
+});
+
+test("packaged Core native version and STDIO startup", {
+  skip: platform() === "darwin" && arch() === "arm64"
+    ? false
+    : "requires native darwin-arm64 execution",
+}, async (t) => {
   const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
   const currentVersion = (await readFile(join(repositoryRoot, "VERSION"), "utf8")).trim();
   const dataDirectory = await mkdtemp(join(tmpdir(), "dev-flow-deepseek-core-"));
@@ -144,19 +163,54 @@ test("packaged Core is detached, CGo-free, versioned, and accepts STDIO startup"
   });
   assert.equal(versionOutput, `dev-flow ${currentVersion}\n`);
 
-  const { stdout: buildMetadata } = await execFile("go", ["version", "-m", runtimePath], {
-    encoding: "utf8",
-  });
-  assert.match(buildMetadata, /\tbuild\tCGO_ENABLED=0(?:\n|$)/u);
-  assert.match(buildMetadata, /\tbuild\tGOOS=darwin(?:\n|$)/u);
-  assert.match(buildMetadata, /\tbuild\tGOARCH=arm64(?:\n|$)/u);
-
   const { stdout, stderr } = await runWithClosedInput(runtimePath, ["mcp", "--stdio"], {
     cwd: dataDirectory,
     env: { DEV_FLOW_DATA_DIR: dataDirectory },
   });
   assert.equal(stdout, "");
   assert.equal(stderr, "");
+});
+
+test("artifact builder rejects a root LICENSE changed after the source commit", async (t) => {
+  const fixtureRoot = await mkdtemp(join(tmpdir(), "dev-flow-deepseek-artifact-binding-"));
+  const fixtureTests = join(fixtureRoot, "packages", "deepseek", "tests");
+  const fixturePackage = join(fixtureRoot, "packages", "deepseek");
+  const fixtureBuilder = join(fixtureTests, "build-artifact.mjs");
+  const artifact = join(fixtureRoot, "artifact.tgz");
+  t.after(async () => {
+    const { rm } = await import("node:fs/promises");
+    await rm(fixtureRoot, { recursive: true, force: true });
+  });
+
+  await mkdir(fixtureTests, { recursive: true });
+  await copyFile(join(packageRoot, "tests", "build-artifact.mjs"), fixtureBuilder);
+  await writeFile(join(fixtureRoot, "LICENSE"), "source license\n");
+  await writeFile(join(fixturePackage, "README.md"), "# Fixture\n");
+  await writeFile(join(fixturePackage, "package.json"), `${JSON.stringify({
+    name: "dev-flow-deepseek",
+    version: "0.5.0",
+    files: ["LICENSE"],
+  })}\n`);
+
+  const gitEnvironment = { ...process.env, GIT_CONFIG_NOSYSTEM: "1" };
+  await execFile("git", ["init", "-q"], { cwd: fixtureRoot, env: gitEnvironment });
+  await execFile("git", ["config", "user.email", "artifact@example.invalid"], { cwd: fixtureRoot, env: gitEnvironment });
+  await execFile("git", ["config", "user.name", "Artifact Fixture"], { cwd: fixtureRoot, env: gitEnvironment });
+  await execFile("git", ["add", "LICENSE", "packages/deepseek"], { cwd: fixtureRoot, env: gitEnvironment });
+  await execFile("git", ["commit", "-q", "-m", "fixture source"], { cwd: fixtureRoot, env: gitEnvironment });
+  const { stdout: sourceCommit } = await execFile("git", ["rev-parse", "HEAD"], {
+    cwd: fixtureRoot,
+    env: gitEnvironment,
+    encoding: "utf8",
+  });
+  await writeFile(join(fixtureRoot, "LICENSE"), "changed license\n");
+
+  await assert.rejects(execFile(process.execPath, [
+    fixtureBuilder,
+    "--output", artifact,
+    "--source-commit", sourceCommit.trim(),
+  ], { cwd: fixtureRoot, env: gitEnvironment }));
+  await assert.rejects(stat(artifact), { code: "ENOENT" });
 });
 
 async function runWithClosedInput(command, args, options) {

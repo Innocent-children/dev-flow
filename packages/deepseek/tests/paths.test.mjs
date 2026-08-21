@@ -40,17 +40,16 @@ test("resolves package root and runtime after the package is moved outside the c
   await mkdir(join(detachedRoot, "runtime", "darwin-arm64"), { recursive: true });
   await copyFile(join(packageRoot, "lib", "paths.mjs"), join(detachedRoot, "lib", "paths.mjs"));
   await copyFile(join(packageRoot, "lib", "runtime.mjs"), join(detachedRoot, "lib", "runtime.mjs"));
-  await copyFile(
-    join(packageRoot, "runtime", "darwin-arm64", "dev-flow"),
-    join(detachedRoot, "runtime", "darwin-arm64", "dev-flow"),
-  );
-  await chmod(join(detachedRoot, "runtime", "darwin-arm64", "dev-flow"), 0o755);
+  await writeFakeRuntime(join(detachedRoot, "runtime", "darwin-arm64", "dev-flow"));
 
   const detachedPaths = await import(pathToFileURL(join(detachedRoot, "lib", "paths.mjs")));
   const detachedRuntime = await import(pathToFileURL(join(detachedRoot, "lib", "runtime.mjs")));
   assert.equal(detachedPaths.packageRootFromModule(), detachedRoot);
 
-  const selection = await detachedRuntime.selectPackagedRuntime();
+  const selection = await detachedRuntime.selectPackagedRuntime({
+    platform: "darwin",
+    arch: "arm64",
+  });
   assert.deepEqual(selection, {
     packageRoot: detachedRoot,
     runtimeKey: "darwin-arm64",
@@ -69,7 +68,7 @@ test("packageRootFromModule handles encoded spaces and Unicode", async (t) => {
 });
 
 test("selects only the exact darwin-arm64 package runtime", async () => {
-  const selected = await selectPackagedRuntime({ packageRoot });
+  const selected = await selectPackagedRuntime({ packageRoot, platform: "darwin", arch: "arm64" });
   assert.equal(selected.runtimeKey, "darwin-arm64");
   assert.equal(selected.runtimePath, join(packageRoot, "runtime", "darwin-arm64", "dev-flow"));
 
@@ -169,6 +168,26 @@ test("default data directory is restrictive and rejects symbolic-link components
   );
 });
 
+test("explicit data directory takes precedence over an unused symlinked default", async (t) => {
+  const homeDirectory = await makeDirectory(t, "explicit-precedence-home");
+  const explicit = await makeDirectory(t, "explicit-precedence-data");
+  const unusedDefaultTarget = await makeDirectory(t, "unused-default-target");
+  const supportParent = join(homeDirectory, "Library", "Application Support");
+  const productSupportRoot = join(supportParent, "dev-flow");
+  await mkdir(supportParent, { recursive: true });
+  await symlink(unusedDefaultTarget, productSupportRoot);
+
+  const selected = await resolveDataDirectory({
+    homeDirectory,
+    environment: { DEV_FLOW_DATA_DIR: explicit },
+  });
+
+  assert.equal(selected.dataDirectory, explicit);
+  assert.equal(selected.usesDefaultDataDirectory, false);
+  assert.equal((await lstat(productSupportRoot)).isSymbolicLink(), true);
+  await assert.rejects(stat(join(productSupportRoot, "data")), { code: "ENOENT" });
+});
+
 test("DeepSeek data-path cases remain externally aligned with Codex", async (t) => {
   const packageDirectory = await makeDirectory(t, "codex-package");
   const homeDirectory = await makeDirectory(t, "parity-home");
@@ -202,4 +221,17 @@ async function makeDirectory(t, name) {
     await rm(root, { recursive: true, force: true });
   });
   return directory;
+}
+
+async function writeFakeRuntime(path) {
+  await writeFile(path, [
+    "#!/bin/sh",
+    "if [ \"$1\" = \"version\" ]; then",
+    `  printf 'dev-flow ${currentVersion}\\n'`,
+    "  exit 0",
+    "fi",
+    "exit 1",
+    "",
+  ].join("\n"));
+  await chmod(path, 0o755);
 }

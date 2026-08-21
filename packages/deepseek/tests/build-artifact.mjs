@@ -18,9 +18,12 @@ await assertMissing(options.output);
 const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
 const packagePaths = ["package.json", "README.md", ...manifest.files]
   .filter((path, index, values) => values.indexOf(path) === index);
-const repositoryPaths = packagePaths
-  .filter((path) => path !== "LICENSE")
-  .map((path) => join("packages", "deepseek", path));
+const repositoryPaths = [
+  "LICENSE",
+  ...packagePaths
+    .filter((path) => path !== "LICENSE")
+    .map((path) => join("packages", "deepseek", path)),
+];
 await execFile("git", ["cat-file", "-e", `${options.sourceCommit}^{commit}`], { cwd: repositoryRoot });
 await execFile("git", ["diff", "--quiet", options.sourceCommit, "--", ...repositoryPaths], { cwd: repositoryRoot });
 

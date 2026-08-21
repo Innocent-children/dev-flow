@@ -32,6 +32,4 @@ jobs:
           version: 11
 
       - name: Run bounded repository validation
-        env:
-          RELEASE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: ./scripts/validate-repository.sh
