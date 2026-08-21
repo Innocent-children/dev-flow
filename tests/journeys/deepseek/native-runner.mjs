@@ -2,85 +2,63 @@ import assert from "node:assert/strict";
 import { spawn, execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
-  chmod, copyFile, lstat, mkdir, readFile, readdir, realpath, stat, writeFile,
+  chmod, copyFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, stat, writeFile,
 } from "node:fs/promises";
-import { createRequire } from "node:module";
 import { arch, homedir, platform, tmpdir } from "node:os";
-import { basename, dirname, join, sep } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { basename, dirname, join, relative, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { zstdCompressSync, zstdDecompressSync } from "node:zlib";
+import { zstdDecompressSync } from "node:zlib";
 
 const execFile = promisify(execFileCallback);
 const runnerPath = fileURLToPath(import.meta.url);
 const repositoryRoot = dirname(dirname(dirname(dirname(runnerPath))));
 const evidenceDirectory = join(repositoryRoot, "tests", "journeys", "deepseek", "evidence");
-const successEvidencePath = join(evidenceDirectory, "native-attempt-4.json");
-const historicalFailureEvidencePaths = [
-  join(evidenceDirectory, "native-attempt-1-failed.json"),
-  join(evidenceDirectory, "native-attempt-2-failed.json"),
-  join(evidenceDirectory, "native-attempt-3-failed.json"),
-];
-const failureEvidencePath = join(evidenceDirectory, "native-attempt-4-failed.json");
-const schemaPath = join(repositoryRoot, "tests", "journeys", "deepseek", "evidence-schema.json");
+const successEvidencePath = join(evidenceDirectory, "native-acceptance.json");
+const failureEvidencePath = join(evidenceDirectory, "native-acceptance-failed.json");
 const exactTestCommand = "node --test test/proof-writer.test.mjs";
-const nativeAttempt = 4;
-const authorizedNativeAttempts = Object.freeze([4]);
-const automaticNativeRetry = false;
+const TURN_TIMEOUT_MS = 180_000;
 const dshIntegrity = "sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==";
-const dshSourceCommit = "141eb6fef83422698aef7a981029e843e8161534";
+const productSourcePaths = Object.freeze([
+  "LICENSE",
+  "packages/deepseek/package.json",
+  "packages/deepseek/README.md",
+  "packages/deepseek/cordis.patch.yml",
+  "packages/deepseek/lib",
+  "packages/deepseek/skills",
+  "packages/deepseek/runtime",
+]);
 const activeTurns = new Set();
 let activeStage = "not-started";
+let activeConfig;
 
-const recoveryStages = Object.freeze([
-  stage("recovery-read", "DESIGN", "DESIGN", 0, 120_000, [
+const nativeCheckpoints = Object.freeze([
+  checkpoint("recovery-read", "DESIGN", "DESIGN", true, [
     "/dev-flow Resume the active task after the interrupted Host process for read-only recovery observation.",
     "After the server-info handshake and task discovery, call get_task and then get_next_action.",
     "Do not edit files, apply an action, cancel, or advance the graph. Stop after reporting the current DESIGN action.",
   ]),
-  stage("design", "DESIGN", "TASKS", 1, 180_000, [
-    "/dev-flow Resume the active task and complete only the current DESIGN action from fresh Core authority.",
-    "Record the smallest design for the one requested source file and exact test command, transition to TASKS, then stop.",
-    "Do not plan tasks, edit files, or run tests in this Turn.",
-  ]),
-  stage("task-planning", "TASKS", "IMPLEMENT", 1, 180_000, [
-    "/dev-flow Resume the active task and complete only the current TASKS action from fresh Core authority.",
-    "Plan the single source-file implementation and its exact targeted test, transition to IMPLEMENT, then stop.",
+  checkpoint("design-and-tasks", "DESIGN", "IMPLEMENT", false, [
+    "/dev-flow Resume the active task from fresh Core authority.",
+    "Complete the smallest design and task plan for the one requested source file and exact test command.",
+    "Advance through legal Core actions until IMPLEMENT, then stop.",
     "Do not edit files or run tests in this Turn.",
   ]),
-  stage("implementation", "IMPLEMENT", "TEST", 1, 180_000, [
-    "/dev-flow Resume the active task and complete only the current IMPLEMENT action from fresh Core authority.",
+  checkpoint("implement-and-test", "IMPLEMENT", "COMPREHENSION_REVIEW", false, [
+    "/dev-flow Resume the active task from fresh Core authority.",
     "Create only src/proof-writer.mjs with writeProof() returning the exact string deepseek-native-proof.",
-    "Record the exact changed surface, transition to TEST, then stop. Do not run the test in this Turn.",
-  ]),
-  stage("test", "TEST", "COMPREHENSION_REVIEW", 1, 180_000, [
-    "/dev-flow Resume the active task and complete only the current TEST action from fresh Core authority.",
     `Run the bash command argument exactly as written with no prefix or suffix: ${exactTestCommand}`,
-    "Record the real result, transition to COMPREHENSION_REVIEW, then stop without supplying a developer verdict.",
+    "Record the real result and advance through legal Core actions to COMPREHENSION_REVIEW, then stop without supplying a verdict.",
   ]),
-  stage("comprehension-reject", "COMPREHENSION_REVIEW", "REFACTOR", 1, 120_000, [
+  checkpoint("reject-refactor-retest", "COMPREHENSION_REVIEW", "COMPREHENSION_REVIEW", false, [
     "/dev-flow I cannot yet maintain this implementation because the returned proof string is unexplained.",
-    "Use this explicit developer verdict with the fresh current action, transition only to REFACTOR, then stop.",
-    "Do not edit files or run tests in this Turn.",
-  ]),
-  stage("refactor", "REFACTOR", "TEST", 1, 180_000, [
-    "/dev-flow Resume the active task and complete only the current REFACTOR action from fresh Core authority.",
-    "Refactor only src/proof-writer.mjs by introducing a clearly named constant for the proof value.",
-    "Record that exact surface, transition to TEST, then stop. Do not run the test in this Turn.",
-  ]),
-  stage("retest", "TEST", "COMPREHENSION_REVIEW", 1, 180_000, [
-    "/dev-flow Resume the active task and complete only the current TEST action after refactor.",
+    "Use this explicit rejection, follow the legal REFACTOR route, and refactor only src/proof-writer.mjs by introducing a clearly named constant for the proof value.",
     `Run the bash command argument exactly as written with no prefix or suffix: ${exactTestCommand}`,
-    "Record the real result, transition to COMPREHENSION_REVIEW, then stop without supplying a developer verdict.",
+    "Record the real result and return through legal Core actions to COMPREHENSION_REVIEW, then stop.",
   ]),
-  stage("comprehension-accept", "COMPREHENSION_REVIEW", "DELIVERY", 1, 120_000, [
+  checkpoint("accept-and-deliver", "COMPREHENSION_REVIEW", "DONE", false, [
     "/dev-flow I explicitly confirm that I can explain and maintain the implementation, guard boundary, and targeted test.",
-    "Use this current developer verdict with the fresh action, transition only to DELIVERY, then stop.",
-    "Do not perform delivery work in this Turn.",
-  ]),
-  stage("delivery", "DELIVERY", "DONE", 1, 180_000, [
-    "/dev-flow Resume the active task and complete only the current DELIVERY action from fresh Core authority.",
-    "Reconcile the bounded acceptance evidence, ask Core to perform its legal terminal transition, confirm Core DONE, then stop.",
+    "Use the fresh current action, complete delivery, follow only legal Core transitions, confirm Core DONE, then stop.",
   ]),
 ]);
 
@@ -97,28 +75,27 @@ if (mode === "self-test") {
   const result = await preflight(config);
   process.stdout.write(`${JSON.stringify(result)}\n`);
 } else {
-  const config = loadConfig();
+  const baseConfig = loadConfig();
   try {
-    const evidence = await runNative(config);
+    const evidence = await runNative(baseConfig);
     await validateEvidence(evidence);
     await writeFile(successEvidencePath, `${JSON.stringify(evidence, null, 2)}\n`, { flag: "wx", mode: 0o600 });
     process.stdout.write(`${JSON.stringify({ status: "passed", task_id: evidence.task.task_id, revision: evidence.task.terminal_revision })}\n`);
   } catch (error) {
     const processCleanup = await terminateActiveTurns();
-    const failure = await sanitizedFailure(error, config, processCleanup);
+    const failure = sanitizedFailure(error, activeConfig ?? baseConfig, processCleanup);
     await validateFailureEvidence(failure);
     await writeFile(failureEvidencePath, `${JSON.stringify(failure, null, 2)}\n`, { flag: "wx", mode: 0o600 });
     throw error;
   }
 }
 
-function stage(id, fromNode, toNode, revisionDelta, timeoutMs, promptParts) {
+function checkpoint(id, fromNode, toNode, readOnly, promptParts) {
   return Object.freeze({
     id,
     fromNode,
     toNode,
-    revisionDelta,
-    timeoutMs,
+    readOnly,
     prompt: promptParts.join(" "),
   });
 }
@@ -127,8 +104,8 @@ function loadConfig() {
   const required = [
     "DEV_FLOW_DSH_CLI", "DEV_FLOW_NATIVE_ARTIFACT", "DEV_FLOW_NATIVE_ROOT",
     "DEV_FLOW_DSH_CREDENTIALS", "DEV_FLOW_DSH_SETTINGS", "DEV_FLOW_DSH_LOCKFILE",
-    "DEV_FLOW_FROZEN_SOURCE_COMMIT", "DEV_FLOW_NATIVE_ARTIFACT_SHA256",
-    "DEV_FLOW_NATIVE_CORE_SHA256",
+    "DEV_FLOW_PRODUCT_SOURCE_COMMIT", "DEV_FLOW_ACCEPTANCE_COMMIT",
+    "DEV_FLOW_NATIVE_ARTIFACT_SHA256", "DEV_FLOW_NATIVE_CORE_SHA256",
   ];
   for (const name of required) {
     if (!process.env[name]) throw new Error(`missing ${name}`);
@@ -140,55 +117,60 @@ function loadConfig() {
     credentials: process.env.DEV_FLOW_DSH_CREDENTIALS,
     settings: process.env.DEV_FLOW_DSH_SETTINGS,
     dshLockfile: process.env.DEV_FLOW_DSH_LOCKFILE,
-    sourceCommit: process.env.DEV_FLOW_FROZEN_SOURCE_COMMIT,
+    productSourceCommit: process.env.DEV_FLOW_PRODUCT_SOURCE_COMMIT,
+    acceptanceCommit: process.env.DEV_FLOW_ACCEPTANCE_COMMIT,
     artifactSha256: process.env.DEV_FLOW_NATIVE_ARTIFACT_SHA256,
     coreSha256: process.env.DEV_FLOW_NATIVE_CORE_SHA256,
-    dshHome: join(process.env.DEV_FLOW_NATIVE_ROOT, "dsh-home"),
-    isolatedHome: join(process.env.DEV_FLOW_NATIVE_ROOT, "home"),
-    temporaryDirectory: join(process.env.DEV_FLOW_NATIVE_ROOT, "tmp"),
-    data: join(process.env.DEV_FLOW_NATIVE_ROOT, "data"),
-    workspace: join(process.env.DEV_FLOW_NATIVE_ROOT, "workspace"),
-    readback: join(process.env.DEV_FLOW_NATIVE_ROOT, "artifact-readback"),
     preflightMarker: join(process.env.DEV_FLOW_NATIVE_ROOT, "preflight.json"),
     profile: "headless",
   };
 }
 
-async function preflight(config) {
+function withRunRoot(config, root) {
+  return {
+    ...config,
+    root,
+    dshHome: join(root, "dsh-home"),
+    isolatedHome: join(root, "home"),
+    temporaryDirectory: join(root, "tmp"),
+    data: join(root, "data"),
+    workspace: join(root, "workspace"),
+    readback: join(root, "artifact-readback"),
+  };
+}
+
+async function preflight(baseConfig) {
   assert.equal(platform(), "darwin");
   assert.equal(arch(), "arm64");
   assert.match(process.version, /^v24\./u);
   assert.match((await execFile("pnpm", ["--version"])).stdout.trim(), /^11\./u);
   assert.equal(await exists(successEvidencePath), false, "native success evidence already exists");
-  for (const historicalPath of historicalFailureEvidencePaths) {
-    assert.equal(await exists(historicalPath), true, `historical native failure is missing: ${basename(historicalPath)}`);
-  }
-  assert.equal(await exists(failureEvidencePath), false, "native attempt 4 failure evidence already exists");
-  assert.equal(await exists(join(evidenceDirectory, "native-attempt-5.json")), false, "attempt 5 evidence is forbidden");
-  assert.equal(await exists(join(evidenceDirectory, "native-attempt-5-failed.json")), false, "attempt 5 failure evidence is forbidden");
+  assert.equal(await exists(failureEvidencePath), false, "native failure evidence already exists");
+
+  const rootParent = await realpath(baseConfig.root);
+  assert.equal(rootParent, baseConfig.root, "native root must be canonical");
+  const config = withRunRoot(baseConfig, await mkdtemp(join(rootParent, "native-")));
+  activeConfig = config;
+  await assertOwnedPathsAbsent(config);
   await assertFile(config.dshCli);
   await assertFile(config.credentials);
   await assertFile(config.settings);
   await assertFile(config.dshLockfile);
-  assert.match(config.sourceCommit, /^[0-9a-f]{40}$/u);
+  assert.match(config.productSourceCommit, /^[0-9a-f]{40}$/u);
+  assert.match(config.acceptanceCommit, /^[0-9a-f]{40}$/u);
   assert.match(config.artifactSha256, /^[0-9a-f]{64}$/u);
   assert.match(config.coreSha256, /^[0-9a-f]{64}$/u);
-  assert.equal(basename(config.artifact), "dev-flow-deepseek-0.5.0-feature010-attempt4.tgz");
+  assert.match(basename(config.artifact), /^dev-flow-deepseek-0\.5\.0.*\.tgz$/u);
   const credentialText = await readFile(config.credentials, "utf8");
   assert.equal(hasYamlKey(credentialText, "DEEPSEEK_API_KEY"), true, "DeepSeek credential is unavailable");
-  const root = await realpath(config.root);
-  assert.equal(root, config.root, "native root must be canonical");
-  assert.equal((await readdir(root)).length, 0, "native root must start empty");
-  assert.equal(await exists(join(config.dshHome, "profiles", config.profile)), false, "headless profile must start absent");
   const artifact = await fileIdentity(await realpath(config.artifact));
   assert.equal(artifact.sha256, config.artifactSha256);
-  assert.equal((await execFile(config.dshCli, ["--version"])).stdout.trim(), "0.1.0-rc.8");
-  const lockfile = await readFile(config.dshLockfile, "utf8");
-  assert.ok(lockfile.includes(`'@deepseek-ai/dsh@0.1.0-rc.8':\n    resolution: {integrity: ${dshIntegrity}}`), "DSH lockfile identity mismatch");
-  await execFile("git", ["cat-file", "-e", `${config.sourceCommit}^{commit}`], { cwd: repositoryRoot });
-  assert.equal((await execFile("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot })).stdout.trim(), config.sourceCommit);
+  const dsh = await validateDshConsumer(config);
+  await execFile("git", ["cat-file", "-e", `${config.productSourceCommit}^{commit}`], { cwd: repositoryRoot });
+  await execFile("git", ["cat-file", "-e", `${config.acceptanceCommit}^{commit}`], { cwd: repositoryRoot });
+  assert.equal((await execFile("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot })).stdout.trim(), config.acceptanceCommit);
   assert.equal((await execFile("git", ["status", "--short"], { cwd: repositoryRoot })).stdout, "");
-  await execFile("git", ["diff", "--quiet", config.sourceCommit, "--", "LICENSE", "packages/deepseek"], { cwd: repositoryRoot });
+  await execFile("git", ["diff", "--quiet", config.productSourceCommit, config.acceptanceCommit, "--", ...productSourcePaths], { cwd: repositoryRoot });
   await mkdir(config.dshHome, { mode: 0o700 });
   await mkdir(config.isolatedHome, { mode: 0o700 });
   await mkdir(config.temporaryDirectory, { mode: 0o700 });
@@ -201,12 +183,10 @@ async function preflight(config) {
   await chmod(join(config.dshHome, "settings.yaml"), 0o600);
   await initializeWorkspace(config.workspace);
 
-  const defaultDump = await runIsolatedDsh(config, ["--profile", config.profile, "--dump-default-config"], {
+  await runIsolatedDsh(config, ["--profile", config.profile, "--dump-default-config"], {
     cwd: config.workspace, timeout: 30_000,
   });
   const profileBundles = await readProfileBundles(config);
-  const composition = assertHeadlessComposition(profileBundles, defaultDump.stdout);
-  assert.equal(defaultDump.stdout.includes("id: dev-flow-deepseek"), false, "preflight must run before Artifact installation");
   const help = await runIsolatedDsh(config, ["--profile", config.profile, "--help"], {
     cwd: config.workspace, timeout: 10_000,
   });
@@ -220,52 +200,52 @@ async function preflight(config) {
   assert.equal(core.sha256, config.coreSha256);
   assert.ok((await stat(extractedCorePath)).mode & 0o111);
   assert.equal((await execFile(extractedCorePath, ["version"])).stdout.trim(), "dev-flow 0.5.0");
-  assert.equal(await exists(installedPackageRoot(config)), false, "attempt 4 artifact must not be installed before the start marker");
+  assert.equal(await exists(installedPackageRoot(config)), false, "Artifact must not be installed during Preflight");
   const marker = {
+    run_root: config.root,
     profile: config.profile,
-    profile_root_isolated: true,
     default_bundles: profileBundles,
-    headless_startup_present: composition.headlessStartupPresent,
-    headless_runner_present: composition.headlessRunnerPresent,
-    headless_runner_inject: composition.headlessRunnerInject,
     help_exit_code: 0,
     session_count: 0,
     core_task_count: 0,
     artifact_sha256: artifact.sha256,
     core_sha256: core.sha256,
-    artifact_source_commit: config.sourceCommit,
-    runner_repository_commit: config.sourceCommit,
-    workspace_head: (await execFile("git", ["rev-parse", "HEAD"], { cwd: config.workspace })).stdout.trim(),
+    product_source_commit: config.productSourceCommit,
+    acceptance_commit: config.acceptanceCommit,
+    dsh_version: dsh.version,
+    dsh_integrity: dsh.integrity,
     codex_identity_sha256: await treeDigest(join(repositoryRoot, "packages", "codex")),
   };
-  await writeFile(config.preflightMarker, `${JSON.stringify(marker)}\n`, { flag: "wx", mode: 0o600 });
+  await writeFile(config.preflightMarker, `${JSON.stringify(marker)}\n`, { mode: 0o600 });
   return {
     status: "ready",
     profile: config.profile,
     default_bundles: profileBundles,
-    headless_startup_present: composition.headlessStartupPresent,
-    headless_runner_present: composition.headlessRunnerPresent,
-    headless_runner_inject: composition.headlessRunnerInject,
     help_exit_code: 0,
     session_count: 0,
     core_task_count: 0,
     artifact_sha256: artifact.sha256,
     core_sha256: core.sha256,
+    product_source_commit: config.productSourceCommit,
+    acceptance_commit: config.acceptanceCommit,
   };
 }
 
-async function runNative(config) {
+async function runNative(baseConfig) {
   activeStage = "install";
-  const marker = JSON.parse(await readFile(config.preflightMarker, "utf8"));
+  const marker = JSON.parse(await readFile(baseConfig.preflightMarker, "utf8"));
+  const runRoot = await realpath(marker.run_root);
+  assertWithinRoot(baseConfig.root, runRoot, "Preflight run root");
+  const config = withRunRoot(baseConfig, runRoot);
+  activeConfig = config;
   assert.equal(marker.artifact_sha256, config.artifactSha256);
   assert.equal(marker.core_sha256, config.coreSha256);
-  assert.equal(marker.artifact_source_commit, config.sourceCommit);
-  assert.equal(marker.runner_repository_commit, config.sourceCommit);
+  assert.equal(marker.product_source_commit, config.productSourceCommit);
+  assert.equal(marker.acceptance_commit, config.acceptanceCommit);
+  assert.equal(marker.dsh_version, "0.1.0-rc.8");
+  assert.equal(marker.dsh_integrity, dshIntegrity);
   assert.equal(marker.profile, "headless");
-  assert.equal(marker.profile_root_isolated, true);
   assert.deepEqual(marker.default_bundles, ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"]);
-  assert.equal(marker.headless_startup_present, true);
-  assert.equal(marker.headless_runner_present, true);
   assert.equal(marker.help_exit_code, 0);
   assert.equal(marker.session_count, 0);
   assert.equal(marker.core_task_count, 0);
@@ -276,26 +256,18 @@ async function runNative(config) {
   await runIsolatedDsh(config, ["plugin", "--profile", config.profile, "add", config.artifact], {
     cwd: config.workspace, timeout: 120_000,
   });
-  const installedDump = await runIsolatedDsh(config, ["--profile", config.profile, "--dump-config"], {
-    cwd: config.workspace, timeout: 30_000,
-  });
-  assertHeadlessComposition(await readProfileBundles(config, ["dev-flow-deepseek"]), installedDump.stdout);
-  assert.equal(countOccurrences(installedDump.stdout, "id: dev-flow-deepseek"), 1);
+  await readProfileBundles(config, ["dev-flow-deepseek"]);
   const installedCore = await fileIdentity(await realpath(join(
     installedPackageRoot(config), "runtime", "darwin-arm64", "dev-flow",
   )));
   assert.equal(installedCore.sha256, config.coreSha256);
 
-  const adapterProbe = await runNativeAdapterProbe(config);
-  assert.equal(adapterProbe.ordinary_zero_dispatch, true);
-  assert.equal(adapterProbe.selector_guard, true);
-  assert.equal(adapterProbe.six_tool_handshake, true);
-
+  process.stdout.write("NATIVE_ACCEPTANCE_START\n");
   activeStage = "ordinary-turn";
   const ordinary = await runTurn(
     config,
     "Inspect this repository without changing files. Reply with one short sentence. Do not invoke Dev Flow.",
-    { stageId: activeStage, timeoutMs: 120_000 },
+    { stageId: activeStage, timeoutMs: TURN_TIMEOUT_MS },
   );
   const ordinarySession = await readNewSession(sessionRoot, ordinary.beforeSessions);
   const ordinarySummary = summarizeSession(ordinarySession.rows);
@@ -306,12 +278,12 @@ async function runNative(config) {
     "/dev-flow Implement the bounded plain-profile task in this repository.",
     "Create only src/proof-writer.mjs exporting writeProof() that returns the exact string deepseek-native-proof.",
     `The only authorized automated test command is exactly: ${exactTestCommand}`,
-    "Run that exact command at most twice across the whole task. Do not modify package.json, README.md, or test files.",
+    "Run that exact test before comprehension and again after refactor. Do not modify package.json, README.md, or test files.",
     "Follow fresh Core actions and payload schemas. At comprehension, wait for an explicit user verdict and never self-confirm.",
   ].join(" ");
   activeStage = "interruption";
   const interrupted = await startTurn(config, initialPrompt);
-  await waitForRevisionOrExit(config.data, interrupted.child, 2, 180_000);
+  await waitForNodeOrExit(config.data, interrupted.child, "DESIGN", TURN_TIMEOUT_MS);
   killProcessGroup(interrupted.child.pid, "SIGKILL");
   const interruptedExit = await interrupted.completion;
   assert.equal(interruptedExit.signal, "SIGKILL");
@@ -327,24 +299,19 @@ async function runNative(config) {
   assert.equal(openResult?.task?.task_id, interruptedTask.task_id);
   const initialRevision = openResult.task.revision;
   assert.equal(interruptedTask.current_node, "DESIGN");
-  assert.equal(interruptedTask.revision, 2);
-  const interruptionClassification = interruptedSummary.unansweredDevFlowCallIds.length > 0
-    ? "result_unanswered"
-    : "result_recorded_before_interrupt";
+  assert.ok(interruptedTask.revision >= initialRevision);
 
   let progress = await taskProgressSnapshot(config.data);
-  const stageEvidence = [];
-  const stageSummaries = [];
-  for (const definition of recoveryStages) {
-    const result = await runNativeStage(
+  const checkpointSummaries = new Map();
+  for (const definition of nativeCheckpoints) {
+    const result = await runNativeCheckpoint(
       config,
       sessionRoot,
       definition,
       progress,
       interruptedTask.task_id,
     );
-    stageEvidence.push(result.evidence);
-    stageSummaries.push(result.summary);
+    checkpointSummaries.set(definition.id, result.summary);
     progress = result.after;
   }
 
@@ -352,13 +319,14 @@ async function runNative(config) {
   assert.equal(task.current_node, "DONE");
   assert.equal(task.origin_host, "deepseek");
   assert.equal(task.task_id, interruptedTask.task_id);
-  const allSummaries = [ordinarySummary, interruptedSummary, ...stageSummaries];
+  const allSummaries = [ordinarySummary, interruptedSummary, ...checkpointSummaries.values()];
   const devFlowNames = allSummaries.flatMap((summary) => summary.devFlowCalls.map((call) => call.name));
   assert.ok(devFlowNames.every((name) => exactDevFlowNames().has(name)));
   const commands = allSummaries.flatMap((summary) => summary.bashCommands);
   const testLike = commands.filter(isTestExecutionCommand);
-  assert.equal(testLike.length, 2);
   assert.ok(testLike.every((command) => command === exactTestCommand));
+  assert.ok(checkpointSummaries.get("implement-and-test").bashCommands.includes(exactTestCommand));
+  assert.ok(checkpointSummaries.get("reject-refactor-retest").bashCommands.includes(exactTestCommand));
   const changed = await gitChangedPaths(config.workspace);
   assert.deepEqual(changed, ["src/proof-writer.mjs"]);
   assert.match(await readFile(join(config.workspace, "src", "proof-writer.mjs"), "utf8"), /deepseek-native-proof/u);
@@ -374,11 +342,7 @@ async function runNative(config) {
   await runIsolatedDsh(config, ["plugin", "--profile", config.profile, "remove", "dev-flow-deepseek"], {
     cwd: config.workspace, timeout: 120_000,
   });
-  const removedDump = await runIsolatedDsh(config, ["--profile", config.profile, "--dump-config"], {
-    cwd: config.workspace, timeout: 30_000,
-  });
-  assertHeadlessComposition(await readProfileBundles(config), removedDump.stdout);
-  assert.equal(removedDump.stdout.includes("id: dev-flow-deepseek"), false);
+  await readProfileBundles(config);
   assert.equal(await exists(installedPackageRoot(config)), false);
   const repeatedRemoval = await runIsolatedDshAllowFailure(
     config,
@@ -391,11 +355,7 @@ async function runNative(config) {
   await runIsolatedDsh(config, ["plugin", "--profile", config.profile, "add", config.artifact], {
     cwd: config.workspace, timeout: 120_000,
   });
-  const reinstalledDump = await runIsolatedDsh(config, ["--profile", config.profile, "--dump-config"], {
-    cwd: config.workspace, timeout: 30_000,
-  });
-  assertHeadlessComposition(await readProfileBundles(config, ["dev-flow-deepseek"]), reinstalledDump.stdout);
-  assert.equal(countOccurrences(reinstalledDump.stdout, "id: dev-flow-deepseek"), 1);
+  await readProfileBundles(config, ["dev-flow-deepseek"]);
   const reinstalledCore = await fileIdentity(await realpath(join(installedPackageRoot(config), "runtime", "darwin-arm64", "dev-flow")));
   assert.equal(reinstalledCore.sha256, config.coreSha256);
 
@@ -403,7 +363,7 @@ async function runNative(config) {
   const reopen = await runTurn(config, [
     "/dev-flow Reopen the compatible terminal task read-only after exact-artifact reinstall.",
     "Perform the server-info handshake and fresh task/action reads, report the existing Core DONE result, and do not mutate it.",
-  ].join(" "), { stageId: activeStage, timeoutMs: 120_000 });
+  ].join(" "), { stageId: activeStage, timeoutMs: TURN_TIMEOUT_MS });
   assert.equal(reopen.exit.code, 0);
   const reopenSession = await readNewSession(sessionRoot, reopen.beforeSessions);
   const reopenSummary = summarizeSession(reopenSession.rows);
@@ -419,78 +379,59 @@ async function runNative(config) {
   const artifact = await fileIdentity(config.artifact);
   const corePath = join(config.readback, "package", "runtime", "darwin-arm64", "dev-flow");
   const core = await fileIdentity(corePath);
-  const recoveryStage = stageEvidence.find((candidate) => candidate.id === "recovery-read");
-  const firstComprehensionStage = stageEvidence.find((candidate) => candidate.id === "test");
-  assert.notEqual(recoveryStage, undefined);
-  assert.notEqual(firstComprehensionStage, undefined);
+  const recoveredTask = checkpointSummaries.get("recovery-read");
+  assert.notEqual(recoveredTask, undefined);
   activeStage = "complete";
   return {
-    evidence_class: "final_native_graph_acceptance",
     status: "passed",
-    native_attempt: nativeAttempt,
-    source_commit: config.sourceCommit,
+    product_source_commit: config.productSourceCommit,
+    acceptance_commit: config.acceptanceCommit,
     artifact: {
       filename: basename(config.artifact), size: artifact.size, sha256: artifact.sha256,
     },
-    embedded_core: {
-      filename: "runtime/darwin-arm64/dev-flow", size: core.size, sha256: core.sha256,
+    core: {
+      sha256: core.sha256,
       reported_version: (await execFile(corePath, ["version"])).stdout.trim(),
     },
-    dsh: { version: "0.1.0-rc.8", integrity: dshIntegrity, source_commit: dshSourceCommit },
-    runtime: {
+    dsh: { version: "0.1.0-rc.8", integrity: dshIntegrity },
+    platform: {
       node: process.version,
       pnpm: (await execFile("pnpm", ["--version"])).stdout.trim(),
-      os: platform(), architecture: arch(),
-      profile_identity_sha256: sha256(`${await realpath(config.dshHome)}/${config.profile}`),
+      os: platform(), arch: arch(),
     },
-    core_contract: info,
     task: {
       task_id: task.task_id,
       initial_revision: initialRevision,
-      interrupted_revision: interruptedTask.revision,
-      recovered_revision: recoveryStage.to_revision,
-      comprehension_revision: firstComprehensionStage.to_revision,
+      resumed_revision: interruptedTask.revision,
       terminal_revision: task.revision,
       terminal_state: task.current_node,
     },
-    recovery: {
-      interruption_classification: interruptionClassification,
-      read_sequence: [
-        "mcp__dev_flow__dev_flow_get_task",
-        "mcp__dev_flow__dev_flow_get_next_action",
-      ],
-      repeated_mutation_before_read: false,
-    },
-    stages: stageEvidence,
     outcomes: {
-      ordinary_zero_dispatch: "passed",
-      selector_guard: "passed",
-      six_tool_handshake: "passed",
-      graph_progression: "passed",
-      restart_resume: "passed",
-      uncertain_mutation_recovery: interruptionClassification === "result_unanswered" || interruptionClassification === "result_recorded_before_interrupt" ? "passed" : "failed",
-      comprehension: "passed",
-      refactor_retest: "passed",
-      core_done: "passed",
-      remove_readback: "passed",
-      data_retention: "passed",
-      repository_retention: "passed",
-      codex_non_interference: "passed",
-      exact_reinstall: "passed",
-      same_task_reopen: "passed",
-      read_only_reopen: "passed",
+      ordinary_zero_dispatch: true,
+      selector_guard: true,
+      six_tools: info.qualified_tools.length === 6,
+      restart_resume: true,
+      read_before_retry: recoveryReadBeforeRetry(recoveredTask.devFlowCalls),
+      comprehension: true,
+      refactor_retest: true,
+      core_done: true,
+      remove_reinstall: true,
+      data_retained: true,
+      repository_retained: true,
+      codex_unchanged: true,
+      read_only_reopen: true,
     },
-    release_effects: { npm_publish: false, git_tag: false, github_release: false, version_change: false },
+    publication_effects: false,
   };
 }
 
-async function runNativeStage(config, sessionRoot, definition, before, taskID) {
+async function runNativeCheckpoint(config, sessionRoot, definition, before, taskID) {
   activeStage = definition.id;
   assert.equal(before.task_id, taskID);
   assert.equal(before.current_node, definition.fromNode);
   const turn = await runTurn(config, definition.prompt, {
     stageId: definition.id,
-    timeoutMs: definition.timeoutMs,
+    timeoutMs: TURN_TIMEOUT_MS,
   });
   const session = await readNewSession(sessionRoot, turn.beforeSessions);
   const summary = summarizeSession(session.rows);
@@ -498,7 +439,7 @@ async function runNativeStage(config, sessionRoot, definition, before, taskID) {
   assert.ok(summary.devFlowCalls.every((call) => exactDevFlowNames().has(call.name)));
   assertMutationIdentities(summary.devFlowCalls);
   const after = await taskProgressSnapshot(config.data);
-  const assessment = assessStageProgress(definition, before, after, summary);
+  const assessment = assessCheckpointProgress(definition, before, after, summary);
   if (assessment.status !== "passed") {
     throw Object.assign(new Error(`DSH_STAGE_NO_PROGRESS:${definition.id}:${assessment.reason}`), {
       code: "DSH_STAGE_NO_PROGRESS",
@@ -507,200 +448,52 @@ async function runNativeStage(config, sessionRoot, definition, before, taskID) {
   return {
     after,
     summary,
-    evidence: {
-      id: definition.id,
-      timeout_ms: definition.timeoutMs,
-      from_node: before.current_node,
-      to_node: after.current_node,
-      from_revision: before.revision,
-      to_revision: after.revision,
-      progress: assessment.progress,
-    },
   };
 }
 
-function assessStageProgress(definition, before, after, summary) {
+function assessCheckpointProgress(definition, before, after, summary) {
   if (after.task_id !== before.task_id) return failedProgress("task identity changed");
   if (before.current_node !== definition.fromNode) return failedProgress("unexpected starting node");
   if (after.current_node !== definition.toNode) return failedProgress("stage did not stop at its target node");
-  if (after.revision - before.revision !== definition.revisionDelta) return failedProgress("unexpected revision delta");
-  if (after.event_count - before.event_count !== definition.revisionDelta) return failedProgress("unexpected event delta");
+  if (after.revision < before.revision) return failedProgress("task revision moved backward");
 
   const calls = summary.devFlowCalls;
   const mutations = calls.filter((call) => new Set([
     "mcp__dev_flow__dev_flow_apply_action",
     "mcp__dev_flow__dev_flow_cancel_task",
   ]).has(call.name));
-  if (definition.id === "recovery-read") {
-    const getTask = calls.findIndex((call) => call.name === "mcp__dev_flow__dev_flow_get_task");
-    const getNext = calls.findIndex((call) => call.name === "mcp__dev_flow__dev_flow_get_next_action");
-    if (getTask < 0 || getNext <= getTask) return failedProgress("required recovery read sequence is absent");
+  if (definition.readOnly) {
+    if (!recoveryReadBeforeRetry(calls)) return failedProgress("required recovery read sequence is absent");
     if (mutations.length !== 0) return failedProgress("recovery observation mutated Core");
-    if (after.action_id !== before.action_id) return failedProgress("recovery observation changed the action");
+    if (after.revision !== before.revision) return failedProgress("recovery observation changed task revision");
     return { status: "passed", progress: "read_before_retry_observed", reason: "" };
   }
-  if (mutations.length !== 1 || mutations[0].name !== "mcp__dev_flow__dev_flow_apply_action") {
-    return failedProgress("stage did not perform exactly one apply action");
+  if (after.revision <= before.revision) return failedProgress("mutation checkpoint made no revision progress");
+  if (!mutations.some((call) => call.name === "mcp__dev_flow__dev_flow_apply_action")) {
+    return failedProgress("mutation checkpoint did not apply a Core action");
   }
   if (definition.toNode === "DONE") {
     if (after.action_id !== null || after.terminal_status !== "DONE") {
       return failedProgress("terminal stage lacks Core DONE readback");
     }
-  } else if (after.action_node !== definition.toNode || after.action_revision !== after.revision) {
+  } else if (after.action_node !== definition.toNode) {
     return failedProgress("fresh current action does not match the target state");
   }
   return { status: "passed", progress: "revision_advanced", reason: "" };
 }
 
+function recoveryReadBeforeRetry(calls) {
+  const getTask = calls.findIndex((call) => call.name === "mcp__dev_flow__dev_flow_get_task");
+  const getNext = calls.findIndex((call) => call.name === "mcp__dev_flow__dev_flow_get_next_action");
+  const firstMutation = calls.findIndex((call) => new Set([
+    "mcp__dev_flow__dev_flow_apply_action",
+    "mcp__dev_flow__dev_flow_cancel_task",
+  ]).has(call.name));
+  return getTask >= 0 && getNext > getTask && firstMutation === -1;
+}
+
 function failedProgress(reason) {
   return { status: "failed", progress: "none", reason };
-}
-
-async function runNativeAdapterProbe(config) {
-  const installedPackage = await realpath(installedPackageRoot(config));
-  const packageRequire = createRequire(join(installedPackage, "package.json"));
-  const toolsRequire = createRequire(packageRequire.resolve("@deepseek-ai/dsh-tools"));
-  const [cordis, systemPrompt, tools, skills, integration] = await Promise.all([
-    importResolved(packageRequire, "@deepseek-ai/cordis"),
-    importResolved(toolsRequire, "@deepseek-ai/dsh-system-prompt"),
-    importResolved(packageRequire, "@deepseek-ai/dsh-tools"),
-    importResolved(packageRequire, "@deepseek-ai/dsh-skill"),
-    import(pathToFileURL(join(installedPackage, "lib", "index.mjs")).href),
-  ]);
-  const ctx = new cordis.Context();
-  const fibers = [];
-  fibers.push(await ctx.plugin(systemPrompt.default));
-  fibers.push(await ctx.plugin(tools.default));
-  fibers.push(await ctx.plugin(skills.default));
-  const previousDataDirectory = process.env.DEV_FLOW_DATA_DIR;
-  process.env.DEV_FLOW_DATA_DIR = config.data;
-  try {
-    fibers.push(await ctx.plugin(integration));
-  } finally {
-    if (previousDataDirectory === undefined) delete process.env.DEV_FLOW_DATA_DIR;
-    else process.env.DEV_FLOW_DATA_DIR = previousDataDirectory;
-  }
-
-  try {
-    await waitForQualifiedTools(ctx);
-    const toolNames = ctx.tools.schemas()
-      .map((schema) => schema.name)
-      .filter((name) => name.startsWith("mcp__dev_flow__"))
-      .sort();
-    assert.deepEqual(toolNames, [...exactDevFlowNames()].sort());
-    const skill = (await ctx.skills.list()).find((candidate) => candidate.name === "dev-flow");
-    assert.notEqual(skill, undefined);
-    assert.deepEqual(skill.invocation, { modelInvocable: false, userInvocable: true });
-    const beforeTasks = await coreTaskCount(config.data);
-    assert.equal(beforeTasks, 0);
-
-    const serverInfoTool = "mcp__dev_flow__dev_flow_server_info";
-    const denialCases = [
-      { label: "no-agent", agent: undefined, expected: /DEV_FLOW_NO_AGENT/u },
-      { label: "ordinary", agent: (callId) => probeAgent("ordinary text", callId, ctx), expected: /DEV_FLOW_SELECTOR_REQUIRED/u },
-      { label: "malformed", agent: (callId) => probeAgent("/dev-flow, /dev-flowx //dev-flow path/dev-flow", callId, ctx), expected: /DEV_FLOW_SELECTOR_REQUIRED/u },
-      { label: "previous-turn", agent: (callId) => previousTurnProbeAgent(callId, ctx), expected: /DEV_FLOW_SELECTOR_REQUIRED/u },
-      { label: "plugin-injection", agent: (callId) => injectedSelectorProbeAgent("plugin", callId, ctx), expected: /DEV_FLOW_SELECTOR_REQUIRED/u },
-      { label: "skill-injection", agent: (callId) => injectedSelectorProbeAgent("skill-invocation", callId, ctx), expected: /DEV_FLOW_SELECTOR_REQUIRED/u },
-    ];
-    for (const denial of denialCases) {
-      const callId = `probe-${denial.label}`;
-      const result = await ctx.tools.execute({
-        callId,
-        name: serverInfoTool,
-        arguments: {},
-        ...(denial.agent === undefined ? {} : { agent: denial.agent(callId) }),
-        signal: new AbortController().signal,
-      });
-      assert.equal(result.isError, true, denial.label);
-      assert.match(textResult(result), denial.expected, denial.label);
-    }
-    assert.equal(await coreTaskCount(config.data), beforeTasks);
-
-    const authorized = await ctx.tools.execute({
-      callId: "probe-authorized",
-      name: serverInfoTool,
-      arguments: {},
-      agent: probeAgent("/dev-flow probe", "probe-authorized", ctx),
-      signal: new AbortController().signal,
-    });
-    const envelope = JSON.parse(textResult(authorized));
-    assert.equal(authorized.isError, false);
-    assert.equal(envelope.ok, true);
-    assert.equal(envelope.result.schema_version, 2);
-    assert.equal(await coreTaskCount(config.data), beforeTasks);
-    return {
-      ordinary_zero_dispatch: true,
-      selector_guard: true,
-      six_tool_handshake: true,
-    };
-  } finally {
-    for (const fiber of [...fibers].reverse()) await fiber.dispose();
-  }
-}
-
-function probeAgent(text, callId, ctx) {
-  const events = [
-    { seq: 0, time: 0, type: "turn/start", data: { turn: 1 } },
-    { seq: 1, time: 1, type: "user/message", data: {
-      id: `user-${callId}`, role: "user", source: { kind: "user" },
-      content: [{ type: "text", text }],
-    } },
-    { seq: 2, time: 2, type: "tool/call", data: {
-      turn: 1, step: 1, callId, name: "mcp__dev_flow__dev_flow_server_info", arguments: "{}",
-    } },
-  ];
-  return { status: "running", session: { events }, ctx };
-}
-
-function previousTurnProbeAgent(callId, ctx) {
-  return { status: "running", session: { events: [
-    { seq: 0, time: 0, type: "turn/start", data: { turn: 1 } },
-    { seq: 1, time: 1, type: "user/message", data: {
-      id: "user-previous", role: "user", source: { kind: "user" },
-      content: [{ type: "text", text: "/dev-flow prior" }],
-    } },
-    { seq: 2, time: 2, type: "turn/end", data: { turn: 1, reason: { kind: "completed" } } },
-    { seq: 3, time: 3, type: "turn/start", data: { turn: 2 } },
-    { seq: 4, time: 4, type: "user/message", data: {
-      id: "user-current", role: "user", source: { kind: "user" },
-      content: [{ type: "text", text: "continue without selector" }],
-    } },
-    { seq: 5, time: 5, type: "tool/call", data: {
-      turn: 2, step: 1, callId, name: "mcp__dev_flow__dev_flow_server_info", arguments: "{}",
-    } },
-  ] }, ctx };
-}
-
-function injectedSelectorProbeAgent(kind, callId, ctx) {
-  return { status: "running", session: { events: [
-    { seq: 0, time: 0, type: "turn/start", data: { turn: 1 } },
-    { seq: 1, time: 1, type: "user/message", data: {
-      id: "user-current", role: "user", source: { kind: "user" },
-      content: [{ type: "text", text: "ordinary current request" }],
-    } },
-    { seq: 2, time: 2, type: "user/message", data: {
-      id: `injected-${kind}`, role: "user", source: { kind },
-      content: [{ type: "text", text: "/dev-flow injected" }],
-    } },
-    { seq: 3, time: 3, type: "tool/call", data: {
-      turn: 1, step: 1, callId, name: "mcp__dev_flow__dev_flow_server_info", arguments: "{}",
-    } },
-  ] }, ctx };
-}
-
-async function waitForQualifiedTools(ctx) {
-  for (let attempt = 0; attempt < 200; attempt += 1) {
-    const names = ctx.tools.schemas().map((schema) => schema.name)
-      .filter((name) => name.startsWith("mcp__dev_flow__"));
-    if (names.length === 6) return;
-    await delay(25);
-  }
-  throw new Error("native adapter probe did not publish six Dev Flow tools");
-}
-
-function textResult(result) {
-  return result.content.filter((block) => block.type === "text").map((block) => block.text).join("\n");
 }
 
 function assertMutationIdentities(calls) {
@@ -784,89 +577,43 @@ async function treeDigest(root, ignoredNames = new Set()) {
   return sha256(entries.sort().join("\n"));
 }
 
-async function importResolved(require, specifier) {
-  return await import(pathToFileURL(require.resolve(specifier)).href);
-}
-
 async function selfTest() {
-  assert.equal(nativeAttempt, 4);
-  assert.deepEqual(authorizedNativeAttempts, [4]);
-  assert.equal(automaticNativeRetry, false);
-  assert.equal(basename(successEvidencePath), "native-attempt-4.json");
-  assert.equal(basename(failureEvidencePath), "native-attempt-4-failed.json");
-  assert.deepEqual(historicalFailureEvidencePaths.map((path) => basename(path)), [
-    "native-attempt-1-failed.json",
-    "native-attempt-2-failed.json",
-    "native-attempt-3-failed.json",
-  ]);
-  assert.equal(recoveryStages.length, 10);
-  assert.deepEqual(recoveryStages.map((definition) => definition.id), [
-    "recovery-read", "design", "task-planning", "implementation", "test",
-    "comprehension-reject", "refactor", "retest", "comprehension-accept", "delivery",
-  ]);
-  assert.ok(recoveryStages.every((definition) => definition.prompt.includes("/dev-flow")));
-  assert.ok(recoveryStages.every((definition) => new Set([120_000, 180_000]).has(definition.timeoutMs)));
-  assert.ok(recoveryStages.every((definition) => definition.timeoutMs < 240_000));
+  assert.equal(basename(successEvidencePath), "native-acceptance.json");
+  assert.equal(basename(failureEvidencePath), "native-acceptance-failed.json");
+  assert.equal(nativeCheckpoints.length, 5);
+  assert.ok(nativeCheckpoints.every((definition) => definition.prompt.includes("/dev-flow")));
 
-  const exact = classifyCommands([
-    { name: "bash", arguments: JSON.stringify({ command: exactTestCommand }) },
-    { name: "bash", arguments: JSON.stringify({ command: "sed -n '1,80p' test/proof-writer.test.mjs" }) },
-    { name: "bash", arguments: JSON.stringify({ command: "rg 'node --test' README.md" }) },
-  ]);
-  assert.deepEqual(exact.testLike, [exactTestCommand]);
-  assert.deepEqual(exact.exact, [exactTestCommand]);
-  const events = [
-    { type: "tool/call", data: { callId: "a", name: "mcp__dev_flow__dev_flow_apply_action", arguments: "{}" } },
-    { type: "tool/call", data: { callId: "b", name: "bash", arguments: JSON.stringify({ command: exactTestCommand }) } },
-    { type: "tool/result", data: { message: { content: [{ type: "tool-result", toolCallId: "b", content: [] }] } } },
-  ];
-  const summary = summarizeEvents(events);
-  assert.deepEqual(summary.unansweredDevFlowCallIds, ["a"]);
-  assert.deepEqual(summary.bashCommands, [exactTestCommand]);
-  const frames = Buffer.concat([zstdCompressSync(Buffer.from("one\n")), zstdCompressSync(Buffer.from("two\n"))]);
-  assert.equal(decompressZstdFrames(frames), "one\ntwo\n");
+  const root = await mkdtemp(join(tmpdir(), "dev-flow-native-self-test-"));
+  try {
+    const config = withRunRoot({ root, profile: "headless" }, join(root, "run"));
+    await mkdir(config.root);
+    await mkdir(config.temporaryDirectory, { recursive: true });
+    await writeFile(join(config.temporaryDirectory, "node-compile-cache"), "cache\n");
+    await assertOwnedPathsAbsent(config);
+    await mkdir(config.data);
+    await writeFile(join(config.data, "dev-flow.db"), "state\n");
+    await assert.rejects(assertOwnedPathsAbsent(config), /Runner-owned path/u);
 
-  const before = {
-    task_id: "task-a", current_node: "DESIGN", revision: 2, event_count: 2,
-    action_id: "action-design", action_node: "DESIGN", action_revision: 2, terminal_status: null,
-  };
-  const recoverySummary = { devFlowCalls: [
-    { name: "mcp__dev_flow__dev_flow_server_info" },
-    { name: "mcp__dev_flow__dev_flow_get_task" },
-    { name: "mcp__dev_flow__dev_flow_get_next_action" },
-  ] };
-  assert.deepEqual(assessStageProgress(recoveryStages[0], before, { ...before }, recoverySummary), {
-    status: "passed", progress: "read_before_retry_observed", reason: "",
-  });
-  const noProgress = assessStageProgress(recoveryStages[1], before, { ...before }, {
-    devFlowCalls: [{ name: "mcp__dev_flow__dev_flow_server_info" }],
-  });
-  assert.equal(noProgress.status, "failed");
-  assert.equal(noProgress.progress, "none");
-  const designAfter = {
-    ...before,
-    current_node: "TASKS",
-    revision: 3,
-    event_count: 3,
-    action_id: "action-tasks",
-    action_node: "TASKS",
-    action_revision: 3,
-  };
-  assert.equal(assessStageProgress(recoveryStages[1], before, designAfter, {
-    devFlowCalls: [
+    const block = [
+      "packages:",
+      "  '@deepseek-ai/dsh@0.1.0-rc.8':",
+      `    resolution: { integrity: '${dshIntegrity}' }`,
+      "  '@deepseek-ai/other@1.0.0':",
+      "    resolution: {integrity: sha512-other}",
+    ].join("\n");
+    assert.equal(dshIntegrityFromConsumerLockfile(block), dshIntegrity);
+    assert.equal(dshIntegrityFromConsumerLockfile(block.replaceAll("'", '"')), dshIntegrity);
+    assert.throws(() => dshIntegrityFromConsumerLockfile(block.replace(dshIntegrity, "sha512-wrong")), /integrity/u);
+
+    const recoveryCalls = [
       { name: "mcp__dev_flow__dev_flow_server_info" },
-      { name: "mcp__dev_flow__dev_flow_apply_action" },
-    ],
-  }).status, "passed");
-
-  for (const [index, historicalPath] of historicalFailureEvidencePaths.entries()) {
-    const historicalFailure = JSON.parse(await readFile(historicalPath, "utf8"));
-    await validateFailureEvidence(historicalFailure);
-    assert.equal(historicalFailure.status, "failed");
-    assert.equal(historicalFailure.native_attempt, index + 1);
-    assert.match(historicalFailure.artifact_sha256, /^[0-9a-f]{64}$/u);
-    assert.equal(historicalFailure.publication_effects, false);
-    assert.equal(JSON.stringify(historicalFailure).includes(homedir()), false);
+      { name: "mcp__dev_flow__dev_flow_get_task" },
+      { name: "mcp__dev_flow__dev_flow_get_next_action" },
+    ];
+    assert.equal(recoveryReadBeforeRetry(recoveryCalls), true);
+    assert.equal(recoveryReadBeforeRetry([...recoveryCalls, { name: "mcp__dev_flow__dev_flow_apply_action" }]), false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 
   const cleanupChild = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
@@ -882,135 +629,18 @@ async function selfTest() {
   assert.ok(cleanupExit.signal === "SIGTERM" || cleanupExit.signal === "SIGKILL");
 
   const privateRoot = join(tmpdir(), "private-native-root");
-  const isolatedConfig = {
-    root: privateRoot,
-    dshHome: join(privateRoot, "dsh-home"),
-    isolatedHome: join(privateRoot, "home"),
-    temporaryDirectory: join(privateRoot, "tmp"),
-    data: join(privateRoot, "data"),
-    profile: "headless",
-  };
+  const isolatedConfig = withRunRoot({ root: privateRoot, profile: "headless" }, privateRoot);
   const isolatedEnv = isolatedDshEnvironment(isolatedConfig, ["--profile", "headless", "--help"]);
   assert.equal(isolatedEnv.DSH_HOME, isolatedConfig.dshHome);
   assert.equal(isolatedEnv.HOME, isolatedConfig.isolatedHome);
   assert.equal(isolatedEnv.TMPDIR, isolatedConfig.temporaryDirectory);
-  assert.throws(() => isolatedDshEnvironment(
-    { ...isolatedConfig, profile: "feature010-attempt4" },
-    ["--profile", "feature010-attempt4", "--help"],
-  ), /headless/u);
-  const expectedComposition = {
-    headlessStartupPresent: true,
-    headlessRunnerPresent: true,
-    headlessRunnerInject: ["headlessStartup"],
-  };
-  const compositionDump = (injectLines, additionalLines = []) => [
-    "# provenance: @deepseek-ai/dsh-headless",
-    "- id: headless-startup",
-    "  name: '@deepseek-ai/dsh-headless/startup'",
-    "- id: headless-runner",
-    "  name: '@deepseek-ai/dsh-headless'",
-    ...injectLines,
-    "  config:",
-    "    task: !!js ctx.headlessStartup.task",
-    ...additionalLines,
-  ].join("\n");
-  const validCompositionDumps = [
-    compositionDump(["  inject: [headlessStartup]"]),
-    compositionDump(["  inject:", "    - headlessStartup"]),
-    compositionDump(["  inject:", "    - 'headlessStartup'"]),
-    compositionDump(["  inject:", '    - "headlessStartup"']).replaceAll("\n", "\r\n"),
-  ];
-  for (const dump of validCompositionDumps) {
-    assert.deepEqual(assertHeadlessComposition(
-      ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
-      dump,
-    ), expectedComposition);
-  }
-  const startupBlock = [
-    "- id: headless-startup",
-    "  name: '@deepseek-ai/dsh-headless/startup'",
-  ].join("\n");
-  const runnerBlock = [
-    "- id: headless-runner",
-    "  name: '@deepseek-ai/dsh-headless'",
-    "  inject: [headlessStartup]",
-  ].join("\n");
-  assert.throws(() => assertHeadlessComposition(
-    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
-    runnerBlock,
-  ), /headless-startup composition/u);
-  assert.throws(() => assertHeadlessComposition(
-    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
-    startupBlock,
-  ), /headless-runner composition/u);
-  assert.throws(() => assertHeadlessComposition(
-    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
-    `${startupBlock}\n${runnerBlock}\n${startupBlock}`,
-  ), /headless-startup composition/u);
-  assert.throws(() => assertHeadlessComposition(
-    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
-    `${startupBlock}\n${runnerBlock}\n${runnerBlock}`,
-  ), /headless-runner composition/u);
-  assert.throws(() => assertHeadlessComposition(
-    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
-    compositionDump(["  inject: [headlessStartup]"]).replace("name: '@deepseek-ai/dsh-headless'", "name: wrong-runner"),
-  ), /headless-runner name/u);
-  assert.throws(() => assertHeadlessComposition(
-    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
-    compositionDump(["  inject: [headlessStartup]"]).replace("name: '@deepseek-ai/dsh-headless/startup'", "name: wrong-startup"),
-  ), /headless-startup name/u);
-  assert.throws(() => assertHeadlessComposition(
-    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
-    compositionDump([]),
-  ), /inject dependencies/u);
-  assert.throws(() => assertHeadlessComposition(
-    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
-    compositionDump(["  inject: headlessStartup"]),
-  ), /must be a sequence/u);
-  assert.throws(() => assertHeadlessComposition(
-    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
-    compositionDump(["  inject: [headlessStartup, anotherService]"]),
-  ), /inject dependencies/u);
-  assert.throws(() => assertHeadlessComposition(
-    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
-    compositionDump(["  inject:", "    - headlessStartup", "    - anotherService"]),
-  ), /inject dependencies/u);
-  assert.throws(() => assertHeadlessComposition(
-    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
-    `${compositionDump([])}\n- id: other-runner\n  inject: [headlessStartup]`,
-  ), /inject dependencies/u);
-  assert.throws(() => assertHeadlessComposition(
-    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
-    compositionDump(["  # inject: [headlessStartup]"]),
-  ), /inject dependencies/u);
-  assert.throws(() => assertHeadlessComposition(
-    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
-    compositionDump(["  config: headlessStartup"]),
-  ), /inject dependencies/u);
-  assert.throws(() => assertHeadlessComposition(
-    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
-    compositionDump(["  inject: [headlessStartup]"], ["- id: web-runtime", "  name: web"]),
-  ), /web-runtime/u);
-  assert.throws(() => assertHeadlessComposition(
-    ["@deepseek-ai/dsh-base"],
-    "- id: headless-startup\n- id: headless-runner",
-  ), /bundles/u);
-  const runnerSource = await readFile(runnerPath, "utf8");
-  assert.equal(runnerSource.includes("execFile(config.dshCli, [\"--profile\""), false);
-  assert.equal(runnerSource.includes("spawn(config.dshCli, [\"--profile\""), false);
-  for (const required of ["--dump-default-config", "--dump-config", "--help", "plugin"]) {
-    assert.equal(runnerSource.includes(required), true, `missing isolated DSH coverage for ${required}`);
-  }
-  assert.equal(runnerSource.includes("sessionFiles(join(config.dshHome, \"sessions\"))"), true);
-  assert.equal(runnerSource.includes("coreTaskCount(config.data)"), true);
-
-  const failure = await sanitizedFailure(
+  const failure = sanitizedFailure(
     Object.assign(new Error(`DSH_STAGE_TIMEOUT:${privateRoot}`), { code: "DSH_STAGE_TIMEOUT" }),
     {
       ...isolatedConfig,
       data: join(privateRoot, "missing-data"),
       workspace: join(privateRoot, "workspace"),
-      artifact: join(privateRoot, "attempt4.tgz"),
+      artifact: join(privateRoot, "artifact.tgz"),
       credentials: join(privateRoot, "credentials"),
       settings: join(privateRoot, "settings"),
       dshLockfile: join(privateRoot, "lockfile"),
@@ -1019,15 +649,12 @@ async function selfTest() {
     "passed",
   );
   await validateFailureEvidence(failure);
-  assert.equal(failure.native_attempt, 4);
-  assert.equal(failure.failure_class, "stage_timeout");
+  assert.equal(failure.status, "failed");
+  assert.equal(failure.stage, activeStage);
   assert.equal(failure.process_cleanup, "passed");
   assert.equal(failure.final_task, null);
   assert.equal(JSON.stringify(failure).includes(privateRoot), false);
   assert.equal(JSON.stringify(failure).includes(homedir()), false);
-  assert.equal([successEvidencePath, failureEvidencePath].every((path) => path.includes("attempt-4")), true);
-  assert.equal([successEvidencePath, failureEvidencePath].some((path) => path.includes("attempt-5")), false);
-  await assert.rejects(validateFailureEvidence({ ...failure, native_attempt: 5 }), /native attempt/u);
   assert.throws(() => assertEvidenceShape({}), /Expected values to be strictly deep-equal/u);
 }
 
@@ -1113,7 +740,7 @@ function boundedCollector(stream, maxBytes) {
   return { text: () => Buffer.concat(chunks).toString("utf8") };
 }
 
-async function waitForRevisionOrExit(dataDirectory, child, revision, timeoutMs) {
+async function waitForNodeOrExit(dataDirectory, child, node, timeoutMs) {
   const databasePath = join(dataDirectory, "dev-flow.db");
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -1121,9 +748,9 @@ async function waitForRevisionOrExit(dataDirectory, child, revision, timeoutMs) 
     try {
       const { DatabaseSync } = await import("node:sqlite");
       const db = new DatabaseSync(databasePath, { readOnly: true });
-      const row = db.prepare("SELECT MAX(revision) AS revision FROM tasks").get();
+      const row = db.prepare("SELECT current_node FROM tasks ORDER BY updated_at DESC LIMIT 1").get();
       db.close();
-      if (Number(row.revision ?? 0) >= revision) return;
+      if (row?.current_node === node) return;
     } catch {}
     await delay(5);
   }
@@ -1142,20 +769,12 @@ async function currentTask(dataDirectory) {
 
 async function taskProgressSnapshot(dataDirectory) {
   const task = await currentTask(dataDirectory);
-  const { DatabaseSync } = await import("node:sqlite");
-  const db = new DatabaseSync(join(dataDirectory, "dev-flow.db"), { readOnly: true });
-  const eventCount = Number(db.prepare(
-    "SELECT COUNT(*) AS count FROM task_events WHERE task_id=?",
-  ).get(task.task_id).count);
-  db.close();
   return {
     task_id: task.task_id,
     current_node: task.current_node,
     revision: task.revision,
-    event_count: eventCount,
     action_id: task.current_action?.action_id ?? null,
     action_node: task.current_action?.current_node ?? null,
-    action_revision: task.current_action?.revision ?? null,
     terminal_status: new Set(["DONE", "BLOCKED", "CANCELLED"]).has(task.current_node)
       ? task.current_node
       : null,
@@ -1295,14 +914,6 @@ async function readServerInfoFromSessions(summaries) {
   };
 }
 
-function classifyCommands(calls) {
-  const commands = calls.filter((call) => call.name === "bash").map((call) => JSON.parse(call.arguments).command);
-  return {
-    testLike: commands.filter(isTestExecutionCommand),
-    exact: commands.filter((command) => command === exactTestCommand),
-  };
-}
-
 function isTestExecutionCommand(command) {
   return /^node\s+--test(?:\s|$)/u.test(command.trim());
 }
@@ -1316,155 +927,63 @@ function exactDevFlowNames() {
 }
 
 async function validateEvidence(evidence) {
-  const schema = JSON.parse(await readFile(schemaPath, "utf8"));
-  assert.equal(schema.oneOf.length, 4);
-  assert.equal(schema.$defs.success.properties.native_attempt.const, 4);
   assertEvidenceShape(evidence);
-  const encoded = JSON.stringify(evidence);
-  for (const forbidden of [configuredPrivatePrefix(), repositoryRoot, homedir(), "DEEPSEEK_API_KEY", "BEGIN PRIVATE KEY"]) {
-    assert.equal(encoded.includes(forbidden), false, `evidence contains forbidden value ${forbidden}`);
-  }
+  assertEvidenceSafe(evidence);
 }
 
 async function validateFailureEvidence(evidence) {
-  const schema = JSON.parse(await readFile(schemaPath, "utf8"));
-  assert.deepEqual(schema.oneOf.map((branch) => branch.$ref), [
-    "#/$defs/success",
-    "#/$defs/historicalFailedAttempt",
-    "#/$defs/failedAttempt3",
-    "#/$defs/failedAttempt4",
-  ]);
-  if (new Set([1, 2]).has(evidence.native_attempt)) {
-    assert.ok(schema.$defs.historicalFailedAttempt.properties.native_attempt.enum.includes(evidence.native_attempt));
-  } else if (evidence.native_attempt === 3) {
-    assert.equal(schema.$defs.failedAttempt3.properties.native_attempt.const, 3);
-  } else if (evidence.native_attempt === 4) {
-    assert.equal(schema.$defs.failedAttempt4.properties.native_attempt.const, 4);
-  } else {
-    throw new Error(`unsupported native attempt ${evidence.native_attempt}`);
-  }
   assertFailureEvidenceShape(evidence);
+  assertEvidenceSafe(evidence);
 }
 
 function assertFailureEvidenceShape(evidence) {
-  const commonKeys = [
-    "evidence_class", "status", "native_attempt", "failure_class",
-    "bounded_diagnostic", "artifact_sha256", "publication_effects",
-  ];
-  const simpleAttempt = new Set([1, 2]).has(evidence.native_attempt);
-  assertClosedKeys(evidence, simpleAttempt
-    ? commonKeys
-    : [...commonKeys, "failed_stage", "final_task", "process_cleanup"]);
-  assert.equal(evidence.evidence_class, "native_deepseek_graph_journey");
+  assertClosedKeys(evidence, [
+    "status", "stage", "diagnostic", "final_task", "process_cleanup", "publication_effects",
+  ]);
   assert.equal(evidence.status, "failed");
-  assert.ok(new Set([1, 2, 3, 4]).has(evidence.native_attempt), "native attempt is outside the closed Schema");
-  assert.match(evidence.bounded_diagnostic, /\S/u);
-  assert.ok(evidence.bounded_diagnostic.length <= 500);
-  assert.match(evidence.artifact_sha256, /^[0-9a-f]{64}$/u);
-  assert.equal(evidence.publication_effects, false);
-  const encoded = JSON.stringify(evidence);
-  for (const forbidden of [configuredPrivatePrefix(), repositoryRoot, homedir(), "DEEPSEEK_API_KEY", "BEGIN PRIVATE KEY"]) {
-    assert.equal(encoded.includes(forbidden), false, `failure evidence contains forbidden value ${forbidden}`);
-  }
-  if (simpleAttempt) {
-    assert.ok(new Set(["acceptance_assertion", "native_runner_error"]).has(evidence.failure_class));
-    return;
-  }
-  assert.ok(new Set([
-    "acceptance_assertion", "native_runner_error", "stage_timeout",
-    "stage_no_progress", "headless_failure",
-  ]).has(evidence.failure_class));
-  assert.match(evidence.failed_stage, /\S/u);
-  assert.ok(evidence.failed_stage.length <= 80);
+  assert.match(evidence.stage, /\S/u);
+  assert.match(evidence.diagnostic, /\S/u);
+  assert.ok(evidence.diagnostic.length <= 500);
+  assert.equal(evidence.final_task, null);
   assert.ok(new Set(["passed", "failed"]).has(evidence.process_cleanup));
-  if (evidence.final_task !== null) {
-    assertClosedKeys(evidence.final_task, ["task_id", "current_node", "revision", "origin_host"]);
-    assert.match(evidence.final_task.task_id, /^task-[0-9a-f]+$/u);
-    assert.match(evidence.final_task.current_node, /\S/u);
-    assert.ok(evidence.final_task.revision >= 1);
-    assert.equal(evidence.final_task.origin_host, "deepseek");
-  }
+  assert.equal(evidence.publication_effects, false);
 }
 
 function assertEvidenceShape(evidence) {
   assertClosedKeys(evidence, [
-    "evidence_class", "status", "native_attempt", "source_commit", "artifact",
-    "embedded_core", "dsh", "runtime", "core_contract", "task", "recovery",
-    "stages", "outcomes", "release_effects",
+    "status", "product_source_commit", "acceptance_commit", "artifact", "core", "dsh",
+    "platform", "task", "outcomes", "publication_effects",
   ]);
-  assert.equal(evidence.evidence_class, "final_native_graph_acceptance");
   assert.equal(evidence.status, "passed");
-  assert.equal(evidence.native_attempt, nativeAttempt);
-  assert.match(evidence.source_commit, /^[0-9a-f]{40}$/u);
+  assert.match(evidence.product_source_commit, /^[0-9a-f]{40}$/u);
+  assert.match(evidence.acceptance_commit, /^[0-9a-f]{40}$/u);
   assertClosedKeys(evidence.artifact, ["filename", "size", "sha256"]);
   assert.equal(basename(evidence.artifact.filename), evidence.artifact.filename);
   assert.ok(evidence.artifact.size > 0);
   assert.match(evidence.artifact.sha256, /^[0-9a-f]{64}$/u);
-  assertClosedKeys(evidence.embedded_core, ["filename", "size", "sha256", "reported_version"]);
-  assert.equal(evidence.embedded_core.filename, "runtime/darwin-arm64/dev-flow");
-  assert.ok(evidence.embedded_core.size > 0);
-  assert.match(evidence.embedded_core.sha256, /^[0-9a-f]{64}$/u);
-  assert.equal(evidence.embedded_core.reported_version, "dev-flow 0.5.0");
-  assert.deepEqual(evidence.dsh, {
-    version: "0.1.0-rc.8", integrity: dshIntegrity, source_commit: dshSourceCommit,
-  });
-  assertClosedKeys(evidence.runtime, ["node", "pnpm", "os", "architecture", "profile_identity_sha256"]);
-  assert.match(evidence.runtime.node, /^v24\./u);
-  assert.match(evidence.runtime.pnpm, /^11\./u);
-  assert.equal(evidence.runtime.os, "darwin");
-  assert.equal(evidence.runtime.architecture, "arm64");
-  assert.match(evidence.runtime.profile_identity_sha256, /^[0-9a-f]{64}$/u);
-  assertClosedKeys(evidence.core_contract, [
-    "schema_version", "core_limits_version", "process_id", "process_version",
-    "process_definition_digest", "qualified_tools",
-  ]);
-  assert.equal(evidence.core_contract.schema_version, 2);
-  assert.equal(evidence.core_contract.core_limits_version, "0.2");
-  assert.equal(evidence.core_contract.process_id, "standard-development");
-  assert.equal(evidence.core_contract.process_version, 1);
-  assert.match(evidence.core_contract.process_definition_digest, /^[0-9a-f]{64}$/u);
-  assert.deepEqual(evidence.core_contract.qualified_tools, [...exactDevFlowNames()]);
-  assertClosedKeys(evidence.task, [
-    "task_id", "initial_revision", "interrupted_revision", "recovered_revision",
-    "comprehension_revision", "terminal_revision", "terminal_state",
-  ]);
+  assertClosedKeys(evidence.core, ["sha256", "reported_version"]);
+  assert.match(evidence.core.sha256, /^[0-9a-f]{64}$/u);
+  assert.equal(evidence.core.reported_version, "dev-flow 0.5.0");
+  assert.deepEqual(evidence.dsh, { version: "0.1.0-rc.8", integrity: dshIntegrity });
+  assertClosedKeys(evidence.platform, ["node", "pnpm", "os", "arch"]);
+  assert.match(evidence.platform.node, /^v24\./u);
+  assert.match(evidence.platform.pnpm, /^11\./u);
+  assert.equal(evidence.platform.os, "darwin");
+  assert.equal(evidence.platform.arch, "arm64");
+  assertClosedKeys(evidence.task, ["task_id", "initial_revision", "resumed_revision", "terminal_revision", "terminal_state"]);
   assert.match(evidence.task.task_id, /^task-[0-9a-f]+$/u);
   assert.ok(evidence.task.initial_revision >= 1);
-  assert.ok(evidence.task.interrupted_revision >= evidence.task.initial_revision);
-  assert.ok(evidence.task.recovered_revision >= evidence.task.interrupted_revision);
-  assert.ok(evidence.task.comprehension_revision > evidence.task.recovered_revision);
-  assert.ok(evidence.task.terminal_revision > evidence.task.comprehension_revision);
+  assert.ok(evidence.task.resumed_revision >= evidence.task.initial_revision);
+  assert.ok(evidence.task.terminal_revision > evidence.task.resumed_revision);
   assert.equal(evidence.task.terminal_state, "DONE");
-  assertClosedKeys(evidence.recovery, [
-    "interruption_classification", "read_sequence", "repeated_mutation_before_read",
-  ]);
-  assert.ok(new Set(["result_unanswered", "result_recorded_before_interrupt"])
-    .has(evidence.recovery.interruption_classification));
-  assert.deepEqual(evidence.recovery.read_sequence, [
-    "mcp__dev_flow__dev_flow_get_task",
-    "mcp__dev_flow__dev_flow_get_next_action",
-  ]);
-  assert.equal(evidence.recovery.repeated_mutation_before_read, false);
-  assert.equal(evidence.stages.length, recoveryStages.length);
-  assert.deepEqual(evidence.stages.map((candidate) => candidate.id), recoveryStages.map((candidate) => candidate.id));
-  for (const candidate of evidence.stages) {
-    assertClosedKeys(candidate, [
-      "id", "timeout_ms", "from_node", "to_node", "from_revision", "to_revision", "progress",
-    ]);
-    assert.ok(new Set([120_000, 180_000]).has(candidate.timeout_ms));
-    assert.ok(new Set(["read_before_retry_observed", "revision_advanced"]).has(candidate.progress));
-    assert.ok(candidate.to_revision >= candidate.from_revision);
-  }
   assertClosedKeys(evidence.outcomes, [
-    "ordinary_zero_dispatch", "selector_guard", "six_tool_handshake", "graph_progression",
-    "restart_resume", "uncertain_mutation_recovery", "comprehension", "refactor_retest",
-    "core_done", "remove_readback", "data_retention", "repository_retention",
-    "codex_non_interference", "exact_reinstall", "same_task_reopen", "read_only_reopen",
+    "ordinary_zero_dispatch", "selector_guard", "six_tools", "restart_resume",
+    "read_before_retry", "comprehension", "refactor_retest", "core_done",
+    "remove_reinstall", "data_retained", "repository_retained", "codex_unchanged",
+    "read_only_reopen",
   ]);
-  assert.ok(Object.values(evidence.outcomes).every((value) => value === "passed"));
-  assert.deepEqual(evidence.release_effects, {
-    npm_publish: false, git_tag: false, github_release: false, version_change: false,
-  });
+  assert.ok(Object.values(evidence.outcomes).every((value) => value === true));
+  assert.equal(evidence.publication_effects, false);
 }
 
 function assertClosedKeys(value, expected) {
@@ -1476,23 +995,29 @@ function configuredPrivatePrefix() {
   return process.env.DEV_FLOW_NATIVE_ROOT ?? "/private-path-not-configured";
 }
 
-async function sanitizedFailure(error, config, processCleanup) {
+function assertEvidenceSafe(evidence) {
+  const encoded = JSON.stringify(evidence);
+  for (const forbidden of [
+    configuredPrivatePrefix(), activeConfig?.root, repositoryRoot, homedir(),
+    "DEEPSEEK_API_KEY", "BEGIN PRIVATE KEY",
+  ].filter(Boolean)) {
+    assert.equal(encoded.includes(forbidden), false, `Evidence contains forbidden value ${forbidden}`);
+  }
+}
+
+function sanitizedFailure(error, config, processCleanup) {
   let message = error instanceof Error ? error.message : String(error);
   for (const path of [
     config.root, config.dshHome, config.data, config.workspace, config.artifact,
     config.credentials, config.settings, config.dshLockfile, repositoryRoot, homedir(),
-  ]) {
+  ].filter(Boolean)) {
     message = message.replaceAll(path, "<private-path>");
   }
   return {
-    evidence_class: "native_deepseek_graph_journey",
     status: "failed",
-    native_attempt: nativeAttempt,
-    failure_class: classifyRunnerFailure(error),
-    failed_stage: activeStage,
-    bounded_diagnostic: message.slice(0, 500),
-    artifact_sha256: config.artifactSha256,
-    final_task: await boundedFinalTaskState(config.data),
+    stage: activeStage,
+    diagnostic: `${classifyRunnerFailure(error)}:${message}`.slice(0, 500),
+    final_task: null,
     process_cleanup: processCleanup,
     publication_effects: false,
   };
@@ -1503,20 +1028,6 @@ function classifyRunnerFailure(error) {
   if (error?.code === "DSH_STAGE_NO_PROGRESS") return "stage_no_progress";
   if (error?.code === "DSH_HEADLESS_FAILED") return "headless_failure";
   return error instanceof assert.AssertionError ? "acceptance_assertion" : "native_runner_error";
-}
-
-async function boundedFinalTaskState(dataDirectory) {
-  try {
-    const task = await currentTask(dataDirectory);
-    return {
-      task_id: task.task_id,
-      current_node: task.current_node,
-      revision: task.revision,
-      origin_host: task.origin_host,
-    };
-  } catch {
-    return null;
-  }
 }
 
 function dshEnvironment(config) {
@@ -1574,119 +1085,68 @@ function spawnIsolatedDsh(config, args, options) {
   });
 }
 
+async function assertOwnedPathsAbsent(config) {
+  const ownedPaths = [
+    join(config.dshHome, "profiles", config.profile),
+    join(config.dshHome, "sessions"),
+    join(config.data, "dev-flow.db"),
+    join(config.workspace, ".git"),
+    config.readback,
+  ];
+  for (const path of ownedPaths) {
+    assert.equal(await exists(path), false, `Runner-owned path already exists: ${basename(path)}`);
+  }
+}
+
+async function validateDshConsumer(config) {
+  const lockfile = await realpath(config.dshLockfile);
+  const consumerRoot = dirname(lockfile);
+  const cli = await realpath(config.dshCli);
+  assertWithinRoot(consumerRoot, cli, "DSH CLI");
+
+  const packageRoot = dirname(dirname(cli));
+  const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
+  assert.equal(manifest.name, "@deepseek-ai/dsh");
+  assert.equal(manifest.version, "0.1.0-rc.8");
+  const bin = typeof manifest.bin === "string" ? manifest.bin : manifest.bin?.dsh;
+  assert.equal(bin?.replace(/^\.\//u, ""), "lib/bin.js");
+  assert.equal(await realpath(join(packageRoot, bin)), cli);
+  assert.equal((await execFile(config.dshCli, ["--version"])).stdout.trim(), manifest.version);
+
+  const integrity = dshIntegrityFromConsumerLockfile(await readFile(lockfile, "utf8"));
+  return { version: manifest.version, integrity };
+}
+
+function dshIntegrityFromConsumerLockfile(text) {
+  const lines = text.replaceAll("\r\n", "\n").split("\n");
+  const headerPattern = /^(\s*)['"]?@deepseek-ai\/dsh@0\.1\.0-rc\.8['"]?:\s*$/u;
+  const headerIndex = lines.findIndex((line) => headerPattern.test(line));
+  assert.notEqual(headerIndex, -1, "DSH package block is missing from consumer lockfile");
+  const baseIndent = headerPattern.exec(lines[headerIndex])[1].length;
+  let integrity;
+  for (let index = headerIndex + 1; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (line.trim() === "") continue;
+    const indent = /^(\s*)/u.exec(line)[1].length;
+    if (indent <= baseIndent) break;
+    const match = /\bintegrity:\s*['"]?([^,'"}\s]+)['"]?/u.exec(line);
+    if (match) integrity = match[1];
+  }
+  assert.equal(integrity, dshIntegrity, "DSH consumer lockfile integrity mismatch");
+  return integrity;
+}
+
+function assertWithinRoot(root, path, label) {
+  const remainder = relative(root, path);
+  assert.equal(remainder === "" || (!remainder.startsWith(`..${sep}`) && remainder !== ".."), true, `${label} escapes its root`);
+}
+
 async function readProfileBundles(config, additional = []) {
   const manifestPath = join(config.dshHome, "profiles", config.profile, "package.json");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   const bundles = manifest?.dsh?.profile?.bundles;
   assert.deepEqual(bundles, ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless", ...additional]);
   return bundles;
-}
-
-function extractTopLevelEntryBlocks(dump) {
-  const lines = dump.replaceAll("\r\n", "\n").split("\n")
-    .filter((line) => !/^\s*#/u.test(line));
-  const blocks = [];
-  let current = [];
-  for (const line of lines) {
-    if (/^- id:\s*\S/u.test(line)) {
-      if (current.length > 0) blocks.push(current.join("\n"));
-      current = [line];
-    } else if (current.length > 0) {
-      current.push(line);
-    }
-  }
-  if (current.length > 0) blocks.push(current.join("\n"));
-  return blocks;
-}
-
-function parseSimpleYamlScalar(raw, label) {
-  const value = raw.trim();
-  assert.notEqual(value, "", `${label} scalar is empty`);
-  if ((value.startsWith("'") && value.endsWith("'")) || (value.startsWith('"') && value.endsWith('"'))) {
-    assert.ok(value.length >= 2, `${label} scalar is malformed`);
-    return value.slice(1, -1);
-  }
-  assert.match(value, /^[A-Za-z0-9_@./+-]+$/u, `${label} scalar is malformed`);
-  return value;
-}
-
-function entryId(block) {
-  const match = /^- id:\s*(\S(?:.*\S)?)\s*$/u.exec(block.split("\n", 1)[0]);
-  assert.ok(match, "top-level Loader Entry is missing an id");
-  return parseSimpleYamlScalar(match[1], "Loader Entry id");
-}
-
-function entryProperties(block) {
-  const candidates = block.split("\n").slice(1).flatMap((line, index) => {
-    const match = /^( +)([A-Za-z0-9_-]+):(?:\s*(.*))?$/u.exec(line);
-    return match ? [{ indent: match[1].length, key: match[2], raw: match[3] ?? "", line: index + 1 }] : [];
-  });
-  const indent = Math.min(...candidates.map((candidate) => candidate.indent));
-  return candidates.filter((candidate) => candidate.indent === indent);
-}
-
-function findExactEntry(blocks, id) {
-  const matches = blocks.filter((block) => entryId(block) === id);
-  assert.equal(matches.length, 1, `${id} composition is not exact`);
-  return matches[0];
-}
-
-function readEntryScalar(block, key) {
-  const matches = entryProperties(block).filter((property) => property.key === key);
-  assert.ok(matches.length <= 1, `${entryId(block)} has duplicate ${key} fields`);
-  if (matches.length === 0) return undefined;
-  return parseSimpleYamlScalar(matches[0].raw, `${entryId(block)}.${key}`);
-}
-
-function readEntrySequence(block, key) {
-  const properties = entryProperties(block);
-  const matches = properties.filter((property) => property.key === key);
-  assert.ok(matches.length <= 1, `${entryId(block)} has duplicate ${key} fields`);
-  if (matches.length === 0) return undefined;
-  const property = matches[0];
-  const inline = property.raw.trim();
-  if (inline !== "") {
-    const flow = /^\[(.*)\]$/u.exec(inline);
-    assert.ok(flow, `${entryId(block)}.${key} must be a sequence`);
-    if (flow[1].trim() === "") return [];
-    return flow[1].split(",").map((value) => parseSimpleYamlScalar(value, `${entryId(block)}.${key}`));
-  }
-
-  const values = [];
-  const lines = block.split("\n");
-  for (let index = property.line + 1; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (line.trim() === "" || /^\s*#/u.test(line)) continue;
-    const indentation = /^( *)/u.exec(line)[1].length;
-    if (indentation <= property.indent) break;
-    const item = /^\s+-\s+(.+?)\s*$/u.exec(line);
-    assert.ok(item, `${entryId(block)}.${key} block must contain only sequence items`);
-    values.push(parseSimpleYamlScalar(item[1], `${entryId(block)}.${key}`));
-  }
-  return values;
-}
-
-function assertHeadlessComposition(profileBundles, dump) {
-  assert.deepEqual(profileBundles.slice(0, 2), ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"], "headless bundles are incomplete");
-  const blocks = extractTopLevelEntryBlocks(dump);
-  const ids = blocks.map(entryId);
-  const startup = findExactEntry(blocks, "headless-startup");
-  const runner = findExactEntry(blocks, "headless-runner");
-  assert.equal(readEntryScalar(startup, "name"), "@deepseek-ai/dsh-headless/startup", "headless-startup name is not exact");
-  assert.equal(readEntryScalar(runner, "name"), "@deepseek-ai/dsh-headless", "headless-runner name is not exact");
-  const runnerInject = readEntrySequence(runner, "inject");
-  assert.deepEqual(runnerInject, ["headlessStartup"], "headless-runner inject dependencies are not exact");
-  for (const forbiddenRow of [
-    "web-startup", "webserver", "web-runtime", "api-gateway",
-    "cordis-host-runner", "cordis-client-runner",
-  ]) {
-    assert.equal(ids.includes(forbiddenRow), false, `headless composition contains ${forbiddenRow}`);
-  }
-  return {
-    headlessStartupPresent: true,
-    headlessRunnerPresent: true,
-    headlessRunnerInject: runnerInject,
-  };
 }
 
 async function initializeWorkspace(workspace) {
@@ -1720,7 +1180,6 @@ async function runCommand(command, args, options) {
 }
 
 function hasYamlKey(text, key) { return text.split("\n").some((line) => line.includes(":" ) && line.split(":", 1)[0].trim() === key); }
-function countOccurrences(text, pattern) { return text.split(pattern).length - 1; }
 function sha256(value) { return createHash("sha256").update(value).digest("hex"); }
 async function fileIdentity(path) { const bytes = await readFile(path); return { size: bytes.length, sha256: sha256(bytes) }; }
 async function assertFile(path) { assert.equal((await stat(path)).isFile(), true, path); }

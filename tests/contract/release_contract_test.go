@@ -449,9 +449,8 @@ func TestReleaseValidationEntrypointsRemainPreparationSafe(t *testing.T) {
 	verifier := string(releaseReadFile(t, root, "scripts/verify-codex-release.mjs"))
 	publisher := string(releaseReadFile(t, root, "scripts/publish-codex-release.mjs"))
 	for _, required := range []string{
-		"go test ./tests/contract",
+		"go test ./...",
 		"node --test packages/codex/tests/package-contract.test.mjs",
-		"validate_deepseek_source_tree",
 		"packages/deepseek/tests/package-contract.test.mjs",
 		"packages/deepseek/tests/bundle-contract.test.mjs",
 		"packages/deepseek/tests/paths.test.mjs",

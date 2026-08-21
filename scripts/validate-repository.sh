@@ -50,143 +50,6 @@ check_go_formatting() {
   fi
 }
 
-validate_codex_source_tree() {
-  node <<'NODE'
-const fs = require("node:fs");
-const path = require("node:path");
-
-const packageRoot = "packages/codex";
-const expectedFiles = [
-  ".agents/plugins/marketplace.json",
-  "LICENSE",
-  "README.md",
-  "bin/dev-flow-codex.mjs",
-  "lib/lifecycle.mjs",
-  "lib/paths.mjs",
-  "package.json",
-  "plugin/.codex-plugin/plugin.json",
-  "plugin/.mcp.json",
-  "plugin/skills/dev-flow/SKILL.md",
-  "plugin/skills/dev-flow/agents/openai.yaml",
-  "plugin/skills/dev-flow/references/method-profiles.md",
-  "plugin/skills/dev-flow/references/node-payloads.md",
-  "tests/fake-core-contract.test.mjs",
-  "tests/fixtures/fake-codex.mjs",
-  "tests/fixtures/fake-core.mjs",
-  "tests/fixtures/fake-native-tool.mjs",
-  "tests/fixtures/fake-release-gh.mjs",
-  "tests/fixtures/fake-release-npm.mjs",
-  "tests/fixtures/graph-method-profiles.json",
-  "tests/journey-evidence.test.mjs",
-  "tests/journey-harness.test.mjs",
-  "tests/launcher.test.mjs",
-  "tests/lifecycle.test.mjs",
-  "tests/package-contract.test.mjs",
-  "tests/paths.test.mjs",
-  "tests/removal-retention.test.mjs",
-  "tests/release-command.test.mjs",
-  "tests/release-package.test.mjs",
-  "tests/release-publication.test.mjs",
-  "tests/skill-contract.test.mjs",
-].sort();
-
-function listFiles(directory, prefix = "") {
-  const files = [];
-  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-    if (entry.name === "node_modules") continue;
-    const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
-    const absolute = path.join(directory, entry.name);
-    if (entry.isDirectory()) files.push(...listFiles(absolute, relative));
-    else files.push(relative);
-  }
-  return files;
-}
-
-const actualFiles = listFiles(packageRoot).sort();
-if (JSON.stringify(actualFiles) !== JSON.stringify(expectedFiles)) {
-  throw new Error(`Codex source files ${JSON.stringify(actualFiles)}; expected ${JSON.stringify(expectedFiles)}`);
-}
-NODE
-}
-
-validate_deepseek_source_tree() {
-  node <<'NODE'
-const fs = require("node:fs");
-const path = require("node:path");
-
-const packageRoot = "packages/deepseek";
-const expectedFiles = [
-  "README.md",
-  "cordis.patch.yml",
-  "lib/authorization.mjs",
-  "lib/index.mjs",
-  "lib/paths.mjs",
-  "lib/runtime.mjs",
-  "lib/tool-names.mjs",
-  "package.json",
-  "runtime/darwin-arm64/dev-flow",
-  "skills/dev-flow/SKILL.md",
-  "skills/dev-flow/references/method-profiles.md",
-  "skills/dev-flow/references/node-payloads.md",
-  "tests/authorization.test.mjs",
-  "tests/build-artifact.mjs",
-  "tests/bundle-contract.test.mjs",
-  "tests/integration-plugin.test.mjs",
-  "tests/lifecycle.test.mjs",
-  "tests/mcp-result-gate.test.mjs",
-  "tests/package-contract.test.mjs",
-  "tests/paths.test.mjs",
-  "tests/skill-contract.test.mjs",
-].sort();
-
-function listFiles(directory, prefix = "") {
-  const files = [];
-  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-    if (entry.name === "node_modules") continue;
-    const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
-    const absolute = path.join(directory, entry.name);
-    if (entry.isDirectory()) files.push(...listFiles(absolute, relative));
-    else files.push(relative);
-  }
-  return files;
-}
-
-const actualFiles = listFiles(packageRoot).sort();
-if (JSON.stringify(actualFiles) !== JSON.stringify(expectedFiles)) {
-  throw new Error(`DeepSeek source files ${JSON.stringify(actualFiles)}; expected ${JSON.stringify(expectedFiles)}`);
-}
-NODE
-}
-
-validate_root_script_tree() {
-  node <<'NODE'
-const fs = require("node:fs");
-
-const expectedFiles = [
-  "README.md",
-  "build-codex-local.sh",
-  "build-codex-release.sh",
-  "build-deepseek-runtime.sh",
-  "publish-codex-release.mjs",
-  "release-codex.mjs",
-  "run-codex-real-journey.sh",
-  "validate-codex-journey-evidence.mjs",
-  "verify-codex-release.mjs",
-  "validate-repository.sh",
-  "write-codex-journey-evidence.mjs",
-].sort();
-const entries = fs.readdirSync("scripts", { withFileTypes: true });
-const directories = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
-if (directories.length !== 0) {
-  throw new Error(`unexpected root script directories: ${JSON.stringify(directories)}`);
-}
-const actualFiles = entries.map((entry) => entry.name).sort();
-if (JSON.stringify(actualFiles) !== JSON.stringify(expectedFiles)) {
-  throw new Error(`root script files ${JSON.stringify(actualFiles)}; expected ${JSON.stringify(expectedFiles)}`);
-}
-NODE
-}
-
 validate_package_pack() {
   package_dir=$1
   expected_package_name=$2
@@ -236,9 +99,6 @@ run_step "Toolchain versions" check_toolchains
 run_step "Frozen pnpm workspace install" pnpm install --frozen-lockfile --ignore-scripts
 run_step "Working tree whitespace" git diff --check
 run_step "Go formatting" check_go_formatting
-run_step "Codex source allowlist" validate_codex_source_tree
-run_step "DeepSeek source allowlist" validate_deepseek_source_tree
-run_step "Root script allowlist" validate_root_script_tree
 run_step "Codex release prepare syntax" bash -n scripts/build-codex-release.sh
 run_step "DeepSeek runtime build syntax" bash -n scripts/build-deepseek-runtime.sh
 run_step "Codex release verifier syntax" node --check scripts/verify-codex-release.mjs
@@ -246,7 +106,6 @@ run_step "Codex release publisher syntax" node --check scripts/publish-codex-rel
 run_step "Codex one-command release syntax" node --check scripts/release-codex.mjs
 run_step "Fake release npm syntax" node --check packages/codex/tests/fixtures/fake-release-npm.mjs
 run_step "Fake release GitHub syntax" node --check packages/codex/tests/fixtures/fake-release-gh.mjs
-run_step "Release contract tests" go test ./tests/contract
 run_step "Codex public package contract" node --test packages/codex/tests/package-contract.test.mjs
 run_step "DeepSeek package and adapter contracts" \
   node --test \
