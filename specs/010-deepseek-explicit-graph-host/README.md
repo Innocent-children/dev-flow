@@ -12,10 +12,10 @@
 - **DeepSeek Harness Compatibility Floor**: `@deepseek-ai/dsh >=0.1.0-rc.8 <0.2.0`
 - **Exact Planning Evidence**: `@deepseek-ai/dsh 0.1.0-rc.8`, npm integrity `sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==`, upstream tag `dsh-v0.1.0-rc.8` at `141eb6fef83422698aef7a981029e843e8161534`
 - **Release Authority**: Not authorized
-- **Current Checkpoint**: `ACCEPTANCE_RESPONSIBILITY_SIMPLIFIED_NATIVE_PENDING`; T076–T078 removed
-  duplicated native coverage and active status journaling with targeted checks passed and Product
-  Source unchanged; T065–T068, T070, T072, and T075 remain incomplete pending commit CI and separate
-  Native authority
+- **Current Checkpoint**: `SIMPLIFIED_NATIVE_RERUN_AUTHORIZED`; commit
+  `a8606a6e164532d9b675d36cb89880b5b22cf9d7` and CI run `32466452949` froze the simplified Harness;
+  the user authorized one Native rerun, while T065–T070, T072, and T075 remain incomplete pending
+  its Acceptance commit and gates
 
 ## Purpose
 
@@ -46,8 +46,8 @@ real six-tool handshake, one interrupted restart/resume, one smallest successful
 explicit comprehension acceptance to `DONE`, and one remove/reinstall terminal readback.
 
 Preflight validates credential-file metadata without parsing credential content. DSH validates the
-credential only through the authorized real request. No new Native Acceptance run is authorized by
-this harness simplification alone.
+credential only through the authorized real request. Git retains the previous canonical failure;
+the path is cleared for the one explicitly authorized simplified Native Acceptance rerun.
 
 ## Why This Is a New Feature
 
