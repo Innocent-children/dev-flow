@@ -3,7 +3,7 @@
 ## Status
 
 - **Feature**: `010-deepseek-explicit-graph-host`
-- **Status**: Blocked
+- **Status**: Implementing
 - **Change Type**: Product Feature
 - **Created**: 2026-08-20
 - **Baseline**: `main` at `70726d0ba59ead5496657e445b25494152e6d8f8`
@@ -12,7 +12,9 @@
 - **DeepSeek Harness Compatibility Floor**: `@deepseek-ai/dsh >=0.1.0-rc.8 <0.2.0`
 - **Exact Planning Evidence**: `@deepseek-ai/dsh 0.1.0-rc.8`, npm integrity `sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==`, upstream tag `dsh-v0.1.0-rc.8` at `141eb6fef83422698aef7a981029e843e8161534`
 - **Release Authority**: Not authorized
-- **Current Checkpoint**: Post-Freeze Amendment A4 is authorized to replace the A3 Formal Preflight's upstream-workspace lockfile input with an exact external npm consumer installation, freeze one new CI-passing source, rebuild the Attempt 4 Artifact, rerun the formal Preflight once, and execute the still-unconsumed native attempt 4 exactly once after that Preflight passes; T065–T075 remain incomplete until the native gate succeeds
+- **Current Checkpoint**: Feature 010 Simplification Revision is implementing a repeatable Preflight,
+  one bounded Native Acceptance, minimal Evidence, exact-commit CI, and final convergence; T065–T075
+  remain incomplete until those gates succeed
 
 ## Purpose
 
@@ -25,178 +27,30 @@ local STDIO MCP client, and enforces selector authorization at the DSH tool-exec
 The adapter does not own workflow state, graph transitions, completion, recovery, repository mutation,
 or task persistence. Those remain authoritative in the shared Go Core.
 
-## Post-Freeze Amendment A1 — 2026-08-21
+## Feature 010 Simplification Revision — 2026-08-21
 
-### Trigger
+The Product Contract is unchanged. Acceptance now uses a repeatable non-model Preflight, one bounded
+Native Acceptance, minimal semantic Evidence, exact-commit CI, and final Spec Kit convergence.
 
-- Native attempt 2's final recovery headless Turn exceeded 240 seconds. The retained DSH sequence
-  continued through Core `TEST` revision 5 and cleanup retained `COMPREHENSION_REVIEW` revision 6,
-  but the attempt did not reach `DONE` or the lifecycle checks.
-- Ubuntu PR validation proved that `mcp-result-gate.test.mjs` still launched the packaged Mach-O Core
-  and that one `paths.test.mjs` negative preflight used the current Linux platform tuple before
-  reaching its intended assertion.
-- Frozen source `3747aa0e34c9f0aafa744edcd4abc96523e394b5` remains the immutable source binding for
-  attempt 2. It is no longer a final acceptance candidate.
+Product Source Identity covers only files entering the Artifact. Acceptance Harness Identity covers
+the Runner, Evidence validation, Feature documents, and current PR commit. The retained Artifact may
+be reused while its Product Source bytes, package SHA-256, embedded Core SHA-256, executable mode,
+and version still match.
 
-### Authorized Scope
+Historical failures remain evidence only:
 
-A1 permits only the two package-test portability corrections and the existing deterministic
-fake-Core helper needed to execute them in Ubuntu CI, staged recovery Turns with bounded progress
-gates in the native runner, matching evidence/schema/status updates, one new pushed and
-Ubuntu-validated frozen source, one newly built source-local unpublished artifact, and native
-attempt 3 once. It does not authorize a new Feature.
+| Stage | Failure | Product defect | Current handling |
+| --- | --- | --- | --- |
+| Attempt 1 | Artifact executable mode loss | no | verify retained Artifact mode |
+| Attempt 2 | Recovery Turn too broad | Runner | use bounded semantic checkpoints |
+| Attempt 3 | Custom Profile lacked Headless composition | Runner | use shipped `headless` Profile |
+| A2 Preflight | YAML representation binding | Preflight | verify Profile bundles and working Help |
+| A3 Preflight | source-workspace lockfile input | Input | use one external npm consumer |
+| A4 Preflight | whole-root empty check rejected runtime cache | Preflight | verify Runner-owned paths only |
 
-### Product Contract Boundary
-
-A1 changes no Core, DeepSeek Adapter, Skill, package manifest, packaged runtime, public version,
-release contract, Schema, process definition, or Codex behavior. It introduces no Result Proxy.
-
-### Attempt Authority
-
-- Attempt 1 remains a retained historical failure caused by artifact mode loss.
-- Attempt 2 remains a retained historical failure caused by the unbounded recovery Turn timeout.
-- Attempt 3 is the only native attempt authorized by A1 and must use fresh isolated state.
-- Attempt 4 is not authorized. Attempt 3 failure is terminal for this Amendment.
-
-### Completion Rule
-
-Feature completion requires all of the following: passing Ubuntu portability CI; a new frozen
-source and newly built artifact; the single attempt 3 reaching Core `DONE`; official remove and
-same-artifact reinstall; sanitized schema-valid evidence; the one final Repository Validator;
-final analyze and converge; and evidence-backed completion of T065–T075.
-
-### Attempt 3 Outcome
-
-- Ubuntu run `32443343919` passed for frozen source
-  `20bc5c34291bb78a8771dc7b30dff4ac74de3cf1`.
-- A new source-bound Artifact was built at the Attempt 3 filename with size `4374117`, SHA-256
-  `2414bfdf18b22afdb30395dd108fd3a881f723766e53faa1f24aba4e94ea4c73`, and embedded Core
-  SHA-256 `56541e7da864fffdefb7e56de42c8df0f51f6bd63b76742bada9cd8edcfbf135`.
-- `NATIVE_ATTEMPT_3_START` was recorded once. The installed real DSH journey timed out in the
-  120-second `ordinary-turn` stage before a session artifact, Dev Flow dispatch, task, event, or
-  repository claim existed.
-- The isolated process group cleanup passed. Sanitized failure evidence is retained in
-  `tests/journeys/deepseek/evidence/native-attempt-3-failed.json`.
-- Attempt 3 was not retried. Attempt 4 is not authorized. The final Repository Validator, analyze,
-  converge, lifecycle completion, Core `DONE`, and `FEATURE_010_COMPLETE` were not reached.
-
-## Post-Freeze Amendment A2 — 2026-08-21
-
-### Trigger
-
-- Attempt 3 timed out in `ordinary-turn` without a Session, Agent, Core Task, Core Event, Repository
-  Claim, or Dev Flow dispatch.
-- A1 changed the Runner from the shipped `headless` Profile to the custom
-  `feature010-attempt3` Profile. Official DSH profile initialization gives an unknown custom Profile
-  only `@deepseek-ai/dsh-base`, so it did not contain `headless-startup` or `headless-runner`.
-- Without the Headless app argument consumer, the ordinary positional Prompt was never submitted to
-  an Agent. The failure classification is `native_runner_profile_composition_regression`.
-- This is not a Core, Adapter, Skill, MCP reconnect, model-speed, DeepSeek API timeout, or ordinary
-  product Journey defect.
-
-### Authorized Scope
-
-A2 permits only restoring the shipped `headless` Profile in fresh isolated `DSH_HOME`, `HOME`, and
-`TMPDIR`; adding a non-model Headless Composition Preflight; updating Attempt 4 Runner and Evidence
-identities; freezing one new pushed Ubuntu-validated source; rebuilding one source-local unpublished
-Artifact; executing Attempt 4 once; and, only after native success, completing the existing final
-Feature gates. It does not authorize a new Feature or Attempt 5.
-
-### Product Contract Boundary
-
-A2 changes no package Artifact content, Adapter, Skill, Core, runtime, manifest, Schema, process,
-Codex behavior, public version, or release contract. The Adapter Probe remains bounded evidence for
-integration loading, selector guard, six-tool exposure, and Core connectivity; only the real shipped
-Headless composition may prove positional Prompt consumption, Agent creation, one-shot completion,
-and process exit.
-
-### Attempt Authority
-
-- Attempts 1, 2, and 3 remain immutable historical failures.
-- Attempt 4 is the only native attempt authorized by A2 and uses entirely fresh isolated state.
-- Attempt 4 is not automatically retried. Attempt 5 is prohibited.
-- A Headless Composition Preflight failure stops before Attempt 4. An Attempt 4 failure retains
-  schema-valid evidence and blocks Feature completion.
-
-## Post-Freeze Amendment A3 — 2026-08-21
-
-### Trigger
-
-- The A2 isolated `headless` Profile manifest already contained `@deepseek-ai/dsh-base` and
-  `@deepseek-ai/dsh-headless`, and the rc.8 default composition already contained the exact
-  `headless-startup` and `headless-runner` Loader Entries.
-- The A2 Frozen Runner bound `headless-runner.inject` to the Flow Sequence spelling
-  `inject: [headlessStartup]`; rc.8 emitted the equivalent Block Sequence with one
-  `headlessStartup` item.
-- The Preflight stopped on that false negative before Headless `--help`, Artifact installation,
-  Agent or Session creation, Core Task creation, or `NATIVE_ATTEMPT_4_START`.
-- The classification is `native_runner_preflight_yaml_serialization_false_negative`.
-
-### Authorized Scope
-
-A3 permits only the Runner's bounded Loader Entry parser, Composition Self-Test, this Feature status,
-one new pushed Ubuntu-validated freeze, one newly rebuilt external Attempt 4 Artifact, one formal
-Preflight in a fresh isolated root, and the still-unconsumed native Attempt 4 once after Preflight
-passes. It does not authorize Attempt 5 or a new Feature.
-
-### Product Contract Boundary
-
-A3 changes no Adapter, Skill, Core, packaged runtime, package manifest, Artifact Product Bytes,
-process graph, Schema, Codex behavior, public version, or release contract.
-
-### Attempt Authority and Historical Freeze
-
-- Attempts 1, 2, and 3 remain immutable historical failures.
-- The A2 Preflight is not Attempt 4 evidence. Attempt 4's execution count remains zero and Attempt 4
-  remains authorized exactly once after the A3 formal Preflight passes.
-- Attempt 5 remains unauthorized.
-- `1602531a600676855ea14c5216230a8a60429b02` is the immutable A2 Preflight-blocked Runner Freeze; it
-  is neither successful nor failed Attempt 4 Source Evidence.
-
-## Post-Freeze Amendment A4 — 2026-08-21
-
-### Trigger
-
-- The A3 semantic Headless Composition parser passed.
-- The A3 Formal Preflight stopped at the DSH lockfile identity gate before
-  `NATIVE_ATTEMPT_4_START`.
-- The supplied lockfile was the upstream DeepSeek Harness source-workspace lockfile. It represents
-  DSH components as importers and `link:` workspace dependencies, so it cannot provide the registry
-  integrity of its own published npm tarball.
-- Attempt 4 has not started and its execution count remains zero.
-
-### Classification
-
-```text
-dsh_npm_identity_evidence_source_mismatch
-```
-
-### Resolution
-
-- Create a fresh external consumer project and install exactly
-  `@deepseek-ai/dsh@0.1.0-rc.8` with pnpm 11 and package scripts disabled.
-- Bind `DEV_FLOW_DSH_CLI` and `DEV_FLOW_DSH_LOCKFILE` to the same consumer installation root.
-- Prove npm Artifact Identity with the consumer lockfile's exact package and integrity entry, the
-  installed package manifest and bin target, and the consumer CLI's exact version.
-- Retain `141eb6fef83422698aef7a981029e843e8161534` as the separate Upstream Source Identity evidence.
-
-### No Runner Change
-
-- The Runner and Evidence Schema remain unchanged.
-- The integrity and version gates retain their exact predicates.
-- The Headless Composition gate and Recovery stages remain unchanged.
-
-### No Product Change
-
-- Adapter, Skill, Core, runtime, package manifest, Artifact Product Bytes, process graph, release
-  contract, and public version remain unchanged.
-
-### Attempt Authority
-
-- The A3 Formal Preflight stop is not an Attempt 4 failure.
-- Attempts 1, 2, and 3 remain immutable historical failures.
-- Attempt 4 remains authorized exactly once and its execution count remains zero.
-- Attempt 5 remains unauthorized.
+Current success and failure records are `native-acceptance.json` and
+`native-acceptance-failed.json`. Attempt numbers, repeated freezes, and one-shot Preflight are not
+active acceptance controls.
 
 ## Why This Is a New Feature
 

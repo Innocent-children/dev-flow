@@ -133,8 +133,7 @@ packages/deepseek/
 tests/journeys/deepseek/
 ├── fake-core.mjs
 ├── simulated-graph-journey.test.mjs
-├── native-runner.mjs
-└── evidence-schema.json
+└── native-runner.mjs
 ```
 
 Exact names may change during implementation only when the contracts and task references are amended
@@ -362,8 +361,8 @@ The test may inspect DSH-owned profile metadata but never edits it directly.
 
 ### Layer E — One Native Journey
 
-One macOS arm64 real-host journey after source freeze. It is the only final native execution and uses
-the exact retained artifact.
+One macOS arm64 real-host journey after repeatable Preflight. It is the only final native execution
+in the current acceptance run and uses the exact retained Artifact.
 
 ### Test Budget
 
@@ -371,175 +370,51 @@ the exact retained artifact.
 - one direct-result gate for the frozen host artifact;
 - one official lifecycle journey for the frozen package;
 - one native graph journey;
-- one final repository validation;
-- no repeated native retries without an explicit failure classification and amendment;
+- one exact-commit repository validation in CI;
+- a repeatable non-model Preflight after relevant input or Preflight changes;
+- no automatic native retry after failure in the current acceptance run;
 - no test is repeated only to increase confidence after a pass.
 
-## Post-Freeze Amendment A1 Plan
+## Feature 010 Simplification Revision Plan
 
-### Failure Classification
+### Identity and Artifact Reuse
 
-Native attempt 2 did not expose a Core, Adapter, Skill, MCP bridge, or reconnect behavior defect.
-Its recovery session performed the required `get_task` then `get_next_action` reads before mutation,
-continued through implementation and the authorized test, and committed revisions 3–6. The 240
-second wall-clock limit expired because one recovery Turn owned several graph nodes plus repository
-work and test execution. Cleanup retained `COMPREHENSION_REVIEW` revision 6 without reaching the
-terminal or lifecycle gates.
+Product Source Identity contains only `LICENSE` and the package files that enter the Artifact.
+Acceptance Harness Identity contains the Runner, Evidence validation, Feature documents, and the
+exact PR commit. Reuse the retained Artifact when its package SHA-256, embedded Core SHA-256,
+executable mode, version, and Product Source bytes match. Rebuild only after a Product Source change
+or when the retained Artifact is unavailable.
 
-The two Ubuntu failures are test portability defects: one direct-result test selected the packaged
-Mach-O Core when a protocol-compatible temporary MCP fixture is sufficient, and one negative path
-preflight omitted its explicit `darwin-arm64` selection. After those tests passed, the next Ubuntu
-run reached the deterministic graph journey and proved its existing fake-Core host also selected the
-Mach-O runtime; the authorized test-only helper builds the same Core source for the current CI
-platform while retaining the real official MCP client and real Core graph assertions.
+### Repeatable Preflight
 
-### Corrective Design
+The Runner creates a fresh temporary root for each invocation. Preflight calls no model and creates
+no business Task. It verifies platform/toolchain, external DSH consumer identity, Artifact/Core
+identity, Product Source and Acceptance commits, the `headless` Profile manifest bundles, working
+Headless `--help`, zero Sessions, zero Core Tasks, and absence of an installed Dev Flow Artifact.
+Isolation is limited to Runner-owned business paths.
 
-- Use a temporary Node MCP STDIO fixture through the real official DSH MCP client for portable
-  success, Core-domain-error, transport-error, result normalization, size-boundary, spill, and
-  retrieval assertions. Keep packaged-Core execution in the native macOS gate.
-- Make each negative runtime-selection case name `platform: "darwin"` and `arch: "arm64"`; execute
-  version checks only through a current-platform temporary executable fixture.
-- Replace the single broad recovery Turn with a closed ordered stage list. Every direct user Turn
-  that may invoke Dev Flow includes `/dev-flow`, has one terminal target, and is followed by a fresh
-  task/action readback.
-- Gate every stage on the same task identity plus an allowed node/revision outcome. A completed Turn
-  with no expected progress fails the attempt. A timed-out Turn terminates only its isolated process
-  group, performs one final bounded readback, writes sanitized failure evidence, and is not retried.
-- Preserve the real DSH session order as the read-before-retry proof. Runner-side read-only SQLite
-  probes control stage admission but do not substitute for Agent tool calls.
-- Use explicit per-stage timeouts. Narrow read/recovery stages use 120 seconds and bounded graph-work
-  stages use 180 seconds; increasing a timeout alone is not a recovery strategy.
+### Minimal Native Journey
 
-### Freeze and Attempt Boundary
+Use one ordinary control Turn and at most six `/dev-flow` Turns with one 180-second timeout:
 
-The corrected tests, runner, evidence schema, and A1 documents are committed and pushed before the
-new source is frozen. Ubuntu CI must pass for that exact commit. A new artifact is built from that
-commit into a new external path. Attempt 3 uses a fresh root, profile, data directory, repository,
-task, session, artifact filename, and evidence filename. No post-freeze runner/test/schema/Product
-Surface edit or automatic native retry is permitted.
+1. start a task, commit the first graph state, and interrupt the Host;
+2. restart and perform read-only `server_info`, `get_task`, then `get_next_action` recovery;
+3. advance design and tasks to `IMPLEMENT`;
+4. implement the target file, run the target test, and reach `COMPREHENSION_REVIEW`;
+5. reject comprehension, refactor, retest, and return to `COMPREHENSION_REVIEW`;
+6. accept, deliver, and reach Core `DONE`.
 
-Attempt 1 and attempt 2 evidence remain immutable. Attempt 3 is the only A1 native authority;
-attempt 4 is prohibited.
+Checkpoint validation covers stable Task identity, monotonic revision, mutation progress, recovery
+read order, required semantic nodes, the target source boundary, and final test success. Official
+remove/reinstall then proves retention and read-only terminal reopen.
 
-## Post-Freeze Amendment A2 Plan
+### Evidence and Final Gates
 
-### Failure Classification
-
-Attempt 3 is classified as `native_runner_profile_composition_regression`. Its custom
-`feature010-attempt3` Profile was initialized with `@deepseek-ai/dsh-base` only and therefore lacked
-the shipped `@deepseek-ai/dsh-headless` rows `headless-startup` and `headless-runner`. The positional
-Prompt had no app argument consumer, so no Agent, Session, Dev Flow dispatch, Core Task, Event, or
-Repository Claim was created before timeout. This classification changes no product contract.
-
-### Corrective Design
-
-- Use Profile name `headless` with a fresh isolated `DSH_HOME`, `HOME`, `TMPDIR`, Core data directory,
-  workspace, Session, Task, Artifact path, and Evidence path for Attempt 4.
-- Route every Profile dump, help, plugin add/remove, repeated remove, reinstall, and real Turn through
-  one isolated DSH invocation boundary that asserts all three host roots remain under the Attempt root.
-- Before Artifact installation or any model request, initialize the shipped Headless template with
-  `--dump-default-config`, read back the Profile manifest, and require exactly
-  `@deepseek-ai/dsh-base` plus `@deepseek-ai/dsh-headless`.
-- Require exactly one `headless-startup` and one `headless-runner`, with the runner supplied by
-  `@deepseek-ai/dsh-headless` and injected with `headlessStartup`; reject Web/HTTP/browser rows.
-- Run `dsh --profile headless --help` under the same isolation and require bounded exit code 0 with
-  zero Sessions, Agents, Core Tasks, and installed Dev Flow Artifact.
-- Preserve A1's ten recovery stages, 120/180-second limits, progress gates, read-before-retry proof,
-  exact test-command identity, process-group cleanup, and no automatic retry.
-
-### Freeze and Attempt Boundary
-
-The Runner, Evidence Schema, and A2 documents are committed and pushed before the new source is
-frozen. Ubuntu CI must pass for that exact commit, and the Frozen Product Surface must remain
-byte-identical to Attempt 3. A newly built external
-`dev-flow-deepseek-0.5.0-feature010-attempt4.tgz` is bound to the new frozen source. Attempt 4 may run
-once only after the composition preflight passes. A preflight failure does not consume Attempt 4; a
-failure after `NATIVE_ATTEMPT_4_START` is terminal for A2 and does not authorize Runner edits or
-Attempt 5.
-
-### Completion Boundary
-
-Only a complete Attempt 4 may unlock the one final Repository Validator, final analyze, final
-converge, evidence-backed T065–T075 completion, support-matrix update, and
-`FEATURE_010_COMPLETE`. A2 performs no publication, version, Tag, GitHub Release, or public promotion.
-
-## Post-Freeze Amendment A3 Plan
-
-### Failure Classification
-
-The A2 Preflight stop is classified as
-`native_runner_preflight_yaml_serialization_false_negative`. The shipped Headless composition was
-already correct, but the Frozen Runner required the Flow Sequence spelling
-`inject: [headlessStartup]` while rc.8 serialized the same one-item dependency as a Block Sequence.
-Headless `--help` and the native Journey did not start, so Attempt 4 remains unconsumed.
-
-### Corrective Design
-
-- Normalize line endings and split the config dump at exact top-level `- id:` Loader Entry
-  boundaries while ignoring provenance comments and nested lists.
-- Require exactly one `headless-startup` and one `headless-runner`, then read each Entry's immediate
-  `name` field so a later Entry cannot satisfy the assertion.
-- Read `headless-runner.inject` as either a Flow Sequence or Block Sequence and require the semantic
-  value to equal exactly `["headlessStartup"]`.
-- Retain the exact first two Profile bundles and reject the closed Web/HTTP/browser Loader Entry set.
-- Cover valid Flow/Block/quoted forms and missing, duplicate, cross-Entry, comment, config, scalar,
-  extra-dependency, wrong-name, forbidden-row, incomplete-manifest, and custom-Profile cases in the
-  non-model Runner Self-Test.
-
-### Freeze and Attempt Boundary
-
-The A3 Runner and documents are committed and pushed before a new source is frozen. Runner Self-Test,
-Node syntax, `git diff --check`, Frozen Product Surface equality, a clean worktree, and Ubuntu CI must
-pass for that exact commit. A new external Attempt 4 Artifact is built from that source. One formal
-Preflight uses a fresh isolated root and records the semantic inject dependency before Artifact
-installation. Only a passing formal Preflight may emit `NATIVE_ATTEMPT_4_START` and execute Attempt 4
-once. A Preflight failure does not consume Attempt 4; a later native failure does not authorize a
-retry or Attempt 5.
-
-### Product Boundary
-
-A3 changes only Runner composition parsing, its Self-Test, Feature status, freeze/artifact identity,
-and acceptance evidence. Adapter, Skill, Core, packaged runtime, package manifest, Artifact Product
-Bytes, Schema, process graph, Codex behavior, version, and release contracts remain unchanged.
-
-## Post-Freeze Amendment A4 Plan
-
-### Failure Classification
-
-The A3 Formal Preflight stop is classified as
-`dsh_npm_identity_evidence_source_mismatch`. Semantic Headless Composition passed, but the supplied
-DeepSeek Harness source-workspace lockfile represents `@deepseek-ai/dsh` as an importer with
-workspace-linked internal dependencies. That lockfile is valid upstream source dependency-graph
-evidence and is not a consumer installation record for the published DSH npm tarball. The stop
-occurred before the Attempt 4 start marker, so Attempt 4 remains unconsumed.
-
-### Corrective Design
-
-- Create a fresh external consumer project outside the repository and Attempt root.
-- Install exactly `@deepseek-ai/dsh@0.1.0-rc.8` with pnpm 11 and scripts disabled.
-- Require the consumer lockfile to contain the exact registry package key and
-  `sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==`
-  integrity using the frozen Runner predicate.
-- Require the executable shim, its `@deepseek-ai/dsh/lib/bin.js` target, the package manifest, and
-  the lockfile to share the same consumer installation root.
-- Use the consumer installation as npm Artifact Identity evidence and retain upstream commit
-  `141eb6fef83422698aef7a981029e843e8161534` as independent Upstream Source Identity evidence.
-
-### Freeze and Attempt Boundary
-
-Commit and push only the A4 Feature documentation after consumer identity diagnostics pass. Freeze
-the new source only after Ubuntu CI passes for that exact commit, then rebuild the external Attempt 4
-Artifact from the new source. Run one Formal Preflight in a fresh Attempt root with the consumer CLI
-and consumer lockfile. Only a passing Preflight may emit `NATIVE_ATTEMPT_4_START` and execute Attempt
-4 once. A Preflight failure leaves Attempt 4 unconsumed; a later native failure does not authorize a
-retry or Attempt 5.
-
-### No Runner or Product Change
-
-A4 changes no Runner, Evidence Schema, integrity/version predicate, Headless Composition parser,
-Recovery stage, Adapter, Skill, Core, packaged runtime, package manifest, Artifact Product Bytes,
-Schema, process graph, Codex behavior, public version, validator, or release contract.
+Use one small hand-written semantic validator and the two current files
+`native-acceptance.json`/`native-acceptance-failed.json`. CI runs the full Repository Validator for
+the exact acceptance commit. `$speckit-analyze` checks the amended artifacts once before
+implementation; the Constitution-required `$speckit-converge` checks the delivered implementation
+once before completion.
 
 ## Documentation Changes
 

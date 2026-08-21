@@ -107,28 +107,58 @@ DeepSeek add/remove may change none of the Codex-owned identities.
 
 Do not record credentials or full user configuration.
 
-## Acceptance Artifact Evidence
+## Acceptance Identities
+
+Product Source Identity covers:
+
+- root `LICENSE`;
+- `packages/deepseek/package.json`;
+- `packages/deepseek/README.md`;
+- `packages/deepseek/cordis.patch.yml`;
+- `packages/deepseek/lib/`;
+- `packages/deepseek/skills/`;
+- `packages/deepseek/runtime/`.
+
+Acceptance Harness Identity covers the native Runner, Evidence validation, Feature documents, and
+the exact acceptance commit. A Harness-only change does not require rebuilding byte-identical
+Product Source.
+
+## Repeatable Non-Model Preflight
+
+Each invocation creates a fresh Runner-owned temporary root. Preflight calls no model, creates no
+business Task, mutates no target repository, and does not consume the native Journey budget.
+
+Preflight verifies:
+
+- darwin arm64 plus required Node and pnpm major versions;
+- one external consumer installation whose manifest name/version/bin, CLI realpath/version, and
+  lockfile package block/integrity identify `@deepseek-ai/dsh@0.1.0-rc.8`;
+- retained Artifact and embedded Core digests, Core executable mode, and reported version;
+- Product Source and Acceptance commit identities;
+- initialized `headless` Profile manifest bundles equal
+  `@deepseek-ai/dsh-base` and `@deepseek-ai/dsh-headless`;
+- Headless one-shot `--help` exits successfully;
+- zero Session, zero Core Task, and no installed Dev Flow Artifact before native execution.
+
+Isolation checks cover only Runner-owned business paths. Runtime caches under the temporary root do
+not fail Preflight.
+
+## Acceptance Evidence
 
 Required fields:
 
 ```text
-repository commit
+product source commit
+acceptance commit
 package filename, size, sha256
-package manifest version label
-embedded Core size, sha256, reported version
+embedded Core sha256 and reported version
 DSH package version and integrity
-DSH upstream commit
 Node and pnpm versions
 OS and architecture
-hashed/opaque profile identity
-Core schema and limits versions
-process ID/version/digest
-exact qualified tool list
-task ID and revision lineage
-restart/resume result
-terminal result
-removal/reinstall result
-Codex non-interference result
+task ID, initial/resumed/terminal revisions, and terminal state
+ordinary dispatch, selector guard, six-tool, restart/resume, read-before-retry,
+comprehension/refactor/retest, terminal, lifecycle, retention, and read-only reopen outcomes
+publication effects
 ```
 
 ## Evidence Classes
@@ -157,29 +187,19 @@ Never retain:
 Paths are reduced to package-relative names or hashes. Errors retain stable class/code and bounded
 message only.
 
-## Attempt Policy
+## Native Acceptance Policy
 
-- attempt 1 remains the immutable historical artifact-mode-loss failure;
-- attempt 2 remains the immutable historical recovery-Turn-timeout failure bound to frozen source
-  `3747aa0e34c9f0aafa744edcd4abc96523e394b5`;
-- Post-Freeze Amendment A1 authorizes one native attempt 3 after a new pushed, Ubuntu-validated source
-  freeze and a newly built source-local artifact;
-- attempt 3 uses fresh isolated host, profile, data, repository, task, session, artifact-path, and
-  evidence identities;
-- Post-Freeze Amendment A2 retains attempt 3 as an immutable Profile-composition failure and
-  authorizes attempt 4 exactly once after a new pushed, Ubuntu-validated source freeze;
-- attempt 4 uses the shipped Profile name `headless` inside fresh isolated `DSH_HOME`, `HOME`, and
-  `TMPDIR`; its non-model preflight requires the `@deepseek-ai/dsh-base` and
-  `@deepseek-ai/dsh-headless` manifest layers plus exact `headless-startup` and `headless-runner`
-  composition before Artifact installation;
-- the preflight runs Headless `--help` with zero Session and Core Task creation and does not consume
-  attempt 4;
-- attempt 4 has no automatic retry, and attempt 5 is not authorized;
-- one official lifecycle against the same artifact;
-- no silent replacement of a failed record;
-- a failure blocks completion until classified and the source or contract is amended;
-- a source change invalidates the artifact and requires a newly identified gate;
-- a passed native gate is not rerun merely for confidence.
+- Current success is written to `native-acceptance.json`.
+- Current failure is written to `native-acceptance-failed.json`.
+- Historical Attempt 1–3 files remain retained history and are outside current Runner control.
+- The Journey uses one ordinary control Turn and at most six `/dev-flow` Turns with one shared bounded
+  timeout.
+- Checkpoints verify stable Task identity, monotonic revision, progress after mutation checkpoints,
+  read-only recovery ordering, required graph outcomes, and final Core `DONE`.
+- One official remove/reinstall lifecycle uses the same Artifact.
+- A native failure writes sanitized failure evidence and ends the current run without automatic
+  retry.
+- Product Source changes invalidate the Artifact; Harness-only changes retain a matching Artifact.
 
 ## Release Exclusion
 

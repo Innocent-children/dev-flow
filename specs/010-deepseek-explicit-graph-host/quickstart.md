@@ -76,9 +76,11 @@ node --test tests/journeys/deepseek/simulated-graph-journey.test.mjs
 
 Do not repeatedly run the full repository validator during implementation.
 
-## 6. Build One Source-Local Artifact
+## 6. Reuse or Build One Source-Local Artifact
 
-The package build must:
+Reuse the retained Artifact when Product Source files and the recorded package/Core digests still
+match. Runner and Feature-document changes do not require a rebuild. If the Artifact is unavailable
+or Product Source changed, build once and:
 
 - build the CGo-free darwin-arm64 Core using the repository's existing version injection seam;
 - copy only the binary and declared package files;
@@ -92,16 +94,16 @@ No artifact is published.
 
 ## 7. Install into an Isolated DSH Profile
 
-Use the exact accepted DSH artifact and an isolated profile name:
+Use the exact accepted DSH artifact and the shipped Headless Profile under isolated host roots:
 
 ```bash
-dsh plugin --profile dev-flow-acceptance add /absolute/path/to/dev-flow-deepseek-<version>.tgz
+dsh plugin --profile headless add /absolute/path/to/dev-flow-deepseek-<version>.tgz
 ```
 
 Restart DSH after profile mutation:
 
 ```bash
-dsh --profile dev-flow-acceptance
+dsh --profile headless
 ```
 
 DSH owns the profile path and package metadata. Tests may inspect official readback but must not edit
@@ -137,7 +139,7 @@ action first.
 Stop the profile, then use the official package-manager path:
 
 ```bash
-dsh plugin --profile dev-flow-acceptance remove dev-flow-deepseek
+dsh plugin --profile headless remove dev-flow-deepseek
 ```
 
 Restart and verify the Skill and `mcp__dev_flow__...` namespace are absent.
@@ -152,17 +154,16 @@ Reinstall the exact same tarball, restart, and reopen the same task.
 
 ## 11. Final Gates
 
-After all targeted checkpoints pass and source is frozen:
+After all targeted checkpoints pass:
 
-1. run the one direct-result compatibility gate;
-2. run the one official add/remove/reinstall lifecycle;
-3. run the one real DSH graph journey;
-4. write sanitized evidence;
-5. run `pnpm validate` once;
-6. run final `$speckit-analyze`;
-7. run final `$speckit-converge`.
+1. push the Simplification Revision and use CI's full Validator result;
+2. run the repeatable non-model Preflight in a fresh Runner-owned root;
+3. run one real DSH graph and lifecycle Journey;
+4. write minimal sanitized Evidence;
+5. push the exact acceptance commit and wait for its CI result;
+6. run the Constitution-required `$speckit-converge` once.
 
-A native failure is retained and classified. Do not edit evidence or silently rerun to replace it.
+A native failure is retained as `native-acceptance-failed.json` and ends the current acceptance run.
 
 ## 12. Stop at Feature Completion
 

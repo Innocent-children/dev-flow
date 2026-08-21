@@ -172,9 +172,9 @@ Invariants:
 
 ```text
 AcceptanceArtifactIdentity {
-  repository_commit
+  product_source_commit
+  acceptance_commit
   package_filename
-  package_version_label
   package_size
   package_sha256
   core_filename
@@ -182,15 +182,10 @@ AcceptanceArtifactIdentity {
   core_reported_version
   dsh_version
   dsh_integrity
-  dsh_source_commit
   node_version
   pnpm_version
   operating_system
   architecture
-  profile_name_hash
-  process_definition_id
-  process_definition_version
-  process_definition_digest
 }
 ```
 

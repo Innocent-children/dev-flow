@@ -208,60 +208,27 @@ Current documentation and validation are corrected so:
 Run:
 
 - deterministic package and guard tests during implementation;
-- one direct-result gate for the frozen DSH artifact;
-- one official add/remove/reinstall lifecycle;
-- one final native graph journey;
-- one final repository validation.
+- one direct-result gate for the retained DSH Artifact;
+- one repeatable non-model Preflight after relevant input changes;
+- one native graph Journey with official remove/reinstall lifecycle;
+- one exact-commit repository validation in CI.
 
-Do not create repeated native attempts simply to gain confidence after a pass. A failure is classified,
-retained, and either fixed before source freeze or escalated to amendment.
+A native failure is retained and ends the current acceptance run without an automatic retry.
 
-## Decision 13 — Preserve the Shipped Headless Profile Composition
+## Decision 13 — Keep Acceptance Semantic and Repeatable
 
-Post-Freeze Amendment A2 uses the fixed Profile name `headless`. Attempt identity comes from the
-fresh isolated root, source binding, Artifact, Session, Task, and Evidence rather than from a custom
-Profile name.
+Preflight is a repeatable non-model check over a fresh Runner-owned root. The shipped `headless`
+Profile is accepted when its manifest contains exactly the base and Headless bundles and one-shot
+Help works; serialized Loader Entry layout is not an acceptance contract.
 
-Official DSH initializes the shipped `headless` template with
-`@deepseek-ai/dsh-base` and `@deepseek-ai/dsh-headless`. An unknown custom Profile created through
-plugin add starts with `@deepseek-ai/dsh-base` only. Only the Headless bundle supplies
-`headless-startup`, which consumes the positional Prompt, and `headless-runner`, which creates the
-Agent, submits the Prompt, waits for idle, flushes the Session, prints the final reply, and requests
-process exit.
+The npm Artifact Identity comes from one external consumer installation whose manifest, executable
+realpath, CLI version, lockfile package block, and integrity refer to the same
+`@deepseek-ai/dsh@0.1.0-rc.8` installation.
 
-The native Adapter Probe composes Cordis services manually and remains useful for the integration,
-selector, six-tool, and MCP connectivity checks. It is not Headless composition evidence. A
-non-model preflight must inspect the isolated Profile manifest and default config, run Headless
-`--help`, and prove zero Session and Core Task creation before Attempt 4.
-
-**Rejected**: another Attempt-numbered custom Profile. Isolation already comes from the Attempt root,
-and a custom name omits the Headless app composition.
-
-## Decision 14 — Separate npm Artifact Identity from Upstream Source Identity
-
-Post-Freeze Amendment A4 uses two independent evidence chains for the exact DSH acceptance input.
-
-The npm Artifact Identity is proven by a fresh external consumer installation of
-`@deepseek-ai/dsh@0.1.0-rc.8`: its lockfile contains the exact registry package key and npm
-integrity, and the same installation supplies the package manifest, executable shim,
-`lib/bin.js` target, and CLI version.
-
-The Upstream Source Identity remains the independently reviewed DeepSeek Harness commit
-`141eb6fef83422698aef7a981029e843e8161534`. The upstream workspace lockfile is useful for source
-dependency-graph review because it records importers and `link:` workspace dependencies. It does not
-prove the registry integrity of the workspace's own published npm tarball.
-
-This correction changes only the Formal Preflight evidence source. The frozen Runner predicates,
-Headless Composition parser, Recovery stages, Adapter, Skill, Core, runtime, manifest, Artifact
-Product Bytes, graph, Evidence Schema, and release contract remain unchanged. The A3 Preflight stop
-occurred before `NATIVE_ATTEMPT_4_START`; Attempt 4 remains authorized once with execution count zero,
-and Attempt 5 remains unauthorized.
-
-**Rejected**: use the upstream workspace lockfile as npm tarball identity. A workspace does not
-contain a registry integrity entry for its own importer package.
-
-**Rejected**: replace consumer lockfile evidence with `npm view` or a version-only CLI check. Neither
-binds the exact executed CLI to an installed package entry and integrity under one consumer root.
+The retained Dev Flow Artifact is bound to Product Source bytes. Runner and documentation changes
+belong to Acceptance Harness Identity and do not rebuild byte-identical Product Source. Native
+acceptance checks graph and lifecycle outcomes with bounded checkpoints rather than Attempt numbers,
+fixed event deltas, or serialization formatting.
 
 ## Source Observations That Drive Repository Improvements
 

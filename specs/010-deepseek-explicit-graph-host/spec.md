@@ -6,6 +6,17 @@
 **Input**: Implement the current Dev Flow graph Core as an explicit-only DeepSeek Harness product
 without copying Core authority into the adapter.
 
+## Feature 010 Simplification Revision
+
+The Product Contract remains unchanged. Final acceptance uses one repeatable non-model Preflight,
+one bounded native Journey, one minimal sanitized Evidence record, and CI for the exact acceptance
+commit. Historical native failures remain retained evidence and do not authorize or block execution
+through Attempt numbers.
+
+Product Source Identity covers only the files packed into the DeepSeek Artifact. Acceptance Harness
+Identity covers the Runner, Evidence validation, Feature documents, and current PR commit. Harness
+changes do not invalidate an Artifact whose Product Source bytes and recorded digests still match.
+
 ## Problem Statement
 
 The repository already has a complete graph Core and a functioning Codex product. The DeepSeek
@@ -265,11 +276,14 @@ Core-owned Schema 2 data.
   comprehension, and terminal handling without claiming native evidence.
 - **FR-054**: Lifecycle tests MUST cover official add/restart/remove/restart/reinstall and data/Codex
   retention against isolated state.
-- **FR-055**: Exactly one final native DSH journey MUST use the exact retained artifact after source
-  freeze.
-- **FR-056**: Exactly one final repository-wide validation MUST run after all targeted checkpoints.
-- **FR-057**: Evidence MUST record exact source commit, package digest, embedded Core digest, DSH
-  version/integrity, platform, profile identity, task identity, and sanitized outcomes.
+- **FR-055**: Final acceptance MUST run one bounded native DSH journey after a repeatable non-model
+  Preflight passes. A failed native Journey is retained without an automatic retry in the same
+  acceptance run.
+- **FR-056**: Repository-wide validation MUST run once in CI for the exact acceptance commit. The
+  same Validator MUST NOT be repeated locally when that CI result is available.
+- **FR-057**: Evidence MUST record Product Source commit, Acceptance commit, package digest, embedded
+  Core digest/version, DSH version/integrity, platform, task revision lineage, semantic outcomes,
+  cleanup, and publication safety.
 - **FR-058**: Feature evidence MUST NOT contain prompts, secrets, tokens, full environment dumps,
   private home paths, raw databases, or unbounded host logs.
 - **FR-059**: Feature completion MUST NOT publish an npm package, Tag, Release, or support claim beyond
@@ -309,7 +323,8 @@ Core-owned Schema 2 data.
 - **SC-011**: The direct MCP result compatibility gate passes without a proxy.
 - **SC-012**: All product claims are limited to the exact tested DSH artifact and macOS arm64.
 - **SC-013**: DeepSeek-specific source contains no task-state persistence or transition authority.
-- **SC-014**: One final native journey and one final repository validation pass after source freeze.
+- **SC-014**: One repeatable Preflight, one bounded native Journey, and one exact-commit CI validation
+  pass for the retained Product Artifact.
 - **SC-015**: No publication or release mutation occurs.
 
 ## Assumptions

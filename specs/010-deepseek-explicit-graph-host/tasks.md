@@ -109,89 +109,17 @@
 
 ## Phase 7 — Final Native Acceptance and Closure
 
-- [ ] **T065** Freeze source and record the exact DSH/package/Core/platform acceptance chain. — Files: `tests/journeys/deepseek/evidence/`; Refs: FR-055, FR-057.
-- [ ] **T066** Run the one final real DSH macOS arm64 graph journey against the frozen artifact. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-055, SC-014.
-- [ ] **T067** Verify explicit selector, six-tool handshake, graph progression, restart/resume, recovery, comprehension, and Core `DONE`. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: SC-001–SC-008, SC-014.
-- [ ] **T068** Verify official removal/reinstall evidence against the same artifact and bounded Codex non-interference. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: SC-009, SC-010, SC-014.
-- [ ] **T069** Write sanitized native evidence with exact digests and no prompts, secrets, private paths, raw databases, or unbounded logs. — Files: `tests/journeys/deepseek/evidence-schema.json`, `tests/journeys/deepseek/evidence/`; Refs: FR-057, FR-058.
-- [ ] **T070** Run the repository-wide validator once. — Files: `scripts/validate-repository.sh`, `tests/journeys/deepseek/evidence/`; Refs: FR-056, SC-014.
-- [ ] **T071** Run final `$speckit-analyze`; resolve every blocking or acceptance-impacting finding. — Files: `spec.md`, `plan.md`, `tasks.md`, `tests/journeys/deepseek/evidence/`; Refs: FR-001–FR-059, SC-001–SC-015.
-- [ ] **T072** Run final `$speckit-converge`; append tasks only for a real uncovered Feature gap. — Files: `tasks.md`, `tests/journeys/deepseek/evidence/`; Refs: SC-001–SC-015.
+- [ ] **T065** Record Product Source commit, Acceptance commit, retained Artifact/Core digests, DSH consumer identity, and platform identity. — Files: `tests/journeys/deepseek/evidence/`; Refs: FR-055, FR-057.
+- [ ] **T066** Run one successful real DSH macOS arm64 Native Acceptance after repeatable Preflight passes. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-055, SC-014.
+- [ ] **T067** Prove ordinary zero dispatch, explicit selector, six tools, restart/resume, read-before-retry, comprehension, refactor/retest, and Core `DONE`. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: SC-001–SC-008, SC-014.
+- [ ] **T068** Prove official remove/reinstall with the same Artifact, retained data/repository/Codex identities, and read-only terminal reopen. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: SC-009, SC-010, SC-014.
+- [ ] **T069** Write minimal sanitized `native-acceptance.json` or `native-acceptance-failed.json` Evidence. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-057, FR-058.
+- [ ] **T070** Use the exact acceptance commit's successful CI Validator result as repository-wide evidence. — Files: `.github/workflows/ci.yml`, `tests/journeys/deepseek/evidence/`; Refs: FR-056, SC-014.
+- [x] **T071** Run one `$speckit-analyze` consistency check for the Simplification Revision before implementation and resolve blocking findings. — Files: `spec.md`, `plan.md`, `tasks.md`; Refs: FR-001–FR-059, SC-001–SC-015.
+- [ ] **T072** Run the Constitution-required final `$speckit-converge`; append tasks only for a real uncovered Feature gap. — Files: `tasks.md`, `tests/journeys/deepseek/evidence/`; Refs: SC-001–SC-015.
 - [ ] **T073** Update Feature status/checkpoints and current product support matrix to the exact tested combination. — Files: `README.md`, `docs/SUPPORT-MATRIX.md`; Refs: FR-059, SC-012.
 - [ ] **T074** Verify no npm publication, version bump, Tag, GitHub Release, or public promotion occurred. — Files: `VERSION`, `package.json`, `packages/deepseek/package.json`, `tests/journeys/deepseek/evidence/`; Refs: FR-005, FR-059, SC-015.
-- [ ] **T075** Record `FEATURE_010_COMPLETE` only when every success criterion is supported by retained evidence. — Files: `README.md`, `tasks.md`, `tests/journeys/deepseek/evidence/`; Refs: SC-001–SC-015.
-
-### Phase 7 Blocked Evidence — 2026-08-21
-
-- Frozen product source: `3747aa0e34c9f0aafa744edcd4abc96523e394b5`; `LICENSE` and
-  `packages/deepseek/` remained byte-bound to that commit after the attempt.
-- Final local artifact: `dev-flow-deepseek-0.5.0-feature010-final.tgz`, size `4374117`, SHA-256
-  `2414bfdf18b22afdb30395dd108fd3a881f723766e53faa1f24aba4e94ea4c73`; embedded Core size
-  `10655234`, SHA-256 `56541e7da864fffdefb7e56de42c8df0f51f6bd63b76742bada9cd8edcfbf135`,
-  reported version `dev-flow 0.5.0`.
-- Preflight passed for macOS arm64, Node `v24.18.0`, pnpm `11.21.0`, exact
-  `@deepseek-ai/dsh@0.1.0-rc.8`, fixed npm integrity, isolated profile/home/data, official add, and
-  installed Core readback.
-- Final native attempt 2 ran once. The native adapter probe, ordinary zero-task turn, initial
-  explicit task open, first graph transitions, host interruption, and restart reached the recovery
-  turn. The recovery headless turn timed out after 240 seconds while Core was at `TEST`, revision 5,
-  for task `task-83a5625a645b246d41507b50e572ab6f`.
-- Failure evidence is retained in `tests/journeys/deepseek/evidence/native-attempt-2-failed.json`.
-  The timed-out isolated DSH/Core process group was terminated, no retry was started, and frozen
-  product source was not modified.
-- The final Repository Validator, final analyze, and final converge were not run because the native
-  success gate did not pass. T065–T075 remain unchecked and `FEATURE_010_COMPLETE` is not recorded.
-
-### Post-Freeze Amendment A1 — 2026-08-21
-
-- Trigger: attempt 2 exceeded the 240-second recovery Turn budget while making bounded progress, and
-  Ubuntu run `32438075117` exposed two package-test portability defects.
-- Scope: correct `mcp-result-gate.test.mjs` and `paths.test.mjs`, plus the existing
-  `tests/journeys/deepseek/fake-core.mjs` helper required by the same Ubuntu portability boundary;
-  stage the native runner's recovery Turns with progress gates; update matching
-  evidence/schema/status; freeze one new pushed CI-passing source; build one new local artifact;
-  execute attempt 3 once.
-- Contract boundary: no Core, Adapter, Skill, package manifest, packaged runtime, Schema, process,
-  Codex, VERSION, release, or Result Proxy change.
-- Attempt authority: attempts 1 and 2 remain immutable failures; attempt 3 is the only A1 native
-  attempt; attempt 4 is not authorized.
-- Completion: T065–T075 remain the sole Phase 7 completion tasks and may be checked only after Ubuntu
-  CI, the new freeze/artifact, attempt 3 `DONE`, remove/reinstall, evidence validation, the one final
-  Repository Validator, final analyze, and final converge all pass.
-
-### Post-Freeze Amendment A1 Blocked Evidence
-
-- Ubuntu portability run `32443343919` passed for new frozen source
-  `20bc5c34291bb78a8771dc7b30dff4ac74de3cf1` without changing the Frozen Product Surface.
-- Attempt 3 used a newly built external Artifact named
-  `dev-flow-deepseek-0.5.0-feature010-attempt3.tgz`, size `4374117`, SHA-256
-  `2414bfdf18b22afdb30395dd108fd3a881f723766e53faa1f24aba4e94ea4c73`; its embedded Core size
-  was `10655234`, SHA-256 `56541e7da864fffdefb7e56de42c8df0f51f6bd63b76742bada9cd8edcfbf135`.
-- `NATIVE_ATTEMPT_3_START` was recorded once. The real DSH journey failed at `ordinary-turn` after
-  its 120-second stage timeout, before any Dev Flow session artifact, Core task, task event, or
-  repository claim existed.
-- `native-attempt-3-failed.json` records `stage_timeout`, `final_task: null`, successful isolated
-  process cleanup, and no publication effects. Attempt 3 was not retried; attempt 4 is not authorized.
-- The final Repository Validator, analyze, converge, Core `DONE`, remove/reinstall, and final
-  non-interference gates were not run. T065–T075 remain unchecked and `FEATURE_010_COMPLETE` is not
-  recorded.
-
-### Post-Freeze Amendment A2 — 2026-08-21
-
-- Trigger: Attempt 3 timed out at `ordinary-turn` with no Session, Agent, Dev Flow dispatch, Core
-  Task, Event, or Repository Claim because A1 used custom Profile `feature010-attempt3`, whose
-  base-only composition omitted `headless-startup` and `headless-runner`.
-- Classification: `native_runner_profile_composition_regression`; no Core, Adapter, Skill, MCP
-  reconnect, model-speed, DeepSeek API timeout, or product Journey defect is authorized by this
-  classification.
-- Scope: restore the shipped `headless` Profile under fresh isolated roots; add a non-model manifest,
-  default-config, and Headless `--help` composition preflight; update Attempt 4 Runner/Evidence;
-  freeze one new pushed CI-passing source; rebuild one external Artifact; execute Attempt 4 once;
-  complete T065–T075 only after native success.
-- Product boundary: package Artifact contents, Adapter, Skill, Core, runtime, manifest, Schema,
-  process, Codex, VERSION, and release contracts remain unchanged.
-- Attempt authority: Attempts 1–3 remain immutable failures; Attempt 4 is the only authorized A2
-  attempt and has no automatic retry; Attempt 5 is prohibited.
+- [ ] **T075** Record `FEATURE_010_COMPLETE` only when every success criterion is supported by retained Evidence. — Files: `README.md`, `tasks.md`, `tests/journeys/deepseek/evidence/`; Refs: SC-001–SC-015.
 
 ## Deferred Release Work
 
