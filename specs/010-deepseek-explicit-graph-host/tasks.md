@@ -113,20 +113,26 @@
 - [ ] **T066** Run one successful real DSH macOS arm64 Native Acceptance after repeatable Preflight passes. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-055, SC-014.
 - [ ] **T067** Prove ordinary zero dispatch, explicit selector, six tools, restart/resume, read-before-retry, comprehension, refactor/retest, and Core `DONE`. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: SC-001–SC-008, SC-014.
 - [ ] **T068** Prove official remove/reinstall with the same Artifact, retained data/repository/Codex identities, and read-only terminal reopen. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: SC-009, SC-010, SC-014.
-- [x] **T069** Write minimal sanitized `native-acceptance.json` or `native-acceptance-failed.json` Evidence. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-057, FR-058.
-- [x] **T070** Use the exact acceptance commit's successful CI Validator result as repository-wide evidence. — Files: `.github/workflows/ci.yml`, `tests/journeys/deepseek/evidence/`; Refs: FR-056, SC-014.
+- [ ] **T069** Write minimal sanitized `native-acceptance.json` or `native-acceptance-failed.json` Evidence. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-057, FR-058.
+- [ ] **T070** Use the exact acceptance commit's successful CI Validator result as repository-wide evidence. — Files: `.github/workflows/ci.yml`, `tests/journeys/deepseek/evidence/`; Refs: FR-056, SC-014.
 - [x] **T071** Run one `$speckit-analyze` consistency check for the Simplification Revision before implementation and resolve blocking findings. — Files: `spec.md`, `plan.md`, `tasks.md`; Refs: FR-001–FR-059, SC-001–SC-015.
 - [ ] **T072** Run the Constitution-required final `$speckit-converge`; append tasks only for a real uncovered Feature gap. — Files: `tasks.md`, `tests/journeys/deepseek/evidence/`; Refs: SC-001–SC-015.
 - [x] **T073** Update Feature status/checkpoints and current product support matrix to the exact tested combination. — Files: `README.md`, `docs/SUPPORT-MATRIX.md`; Refs: FR-059, SC-012.
 - [x] **T074** Verify no npm publication, version bump, Tag, GitHub Release, or public promotion occurred. — Files: `VERSION`, `package.json`, `packages/deepseek/package.json`, `tests/journeys/deepseek/evidence/`; Refs: FR-005, FR-059, SC-015.
 - [ ] **T075** Record `FEATURE_010_COMPLETE` only when every success criterion is supported by retained Evidence. — Files: `README.md`, `tasks.md`, `tests/journeys/deepseek/evidence/`; Refs: SC-001–SC-015.
 
-### Current Blocker — 2026-08-21
+### Native Acceptance Boundary Correction — 2026-08-21
 
-- CI and repeatable Preflight passed for Acceptance commit `225bbbf9a4b1ecb36adc41b755fcae035412fd80`.
-- The single Native Acceptance wrote `native-acceptance-failed.json` after the
-  `design-and-tasks` Turn timed out; Core retained the same DeepSeek task at `IMPLEMENT` revision 4.
-- No automatic retry is authorized in this task. T065–T068, T072, and T075 remain open.
+- CI and repeatable Preflight passed for the prior Acceptance commit
+  `225bbbf9a4b1ecb36adc41b755fcae035412fd80`.
+- The retained `design-and-tasks` Session has no completed `turn/end`; its last Dev Flow mutation
+  result committed `TASKS → IMPLEMENT` at revision 4, then the Skill continued from the fresh next
+  Action without changing the Workspace.
+- The Runner now uses one `DESIGN → COMPREHENSION_REVIEW` `work-to-comprehension` checkpoint and
+  requires natural Headless exit plus a completed Turn at checkpoint boundaries.
+- Product Surface and the retained Artifact are unchanged. T069 and T070 are reopened until the
+  corrected Evidence path and correction commit CI pass; T071, T073, and T074 remain complete.
+- One final Native Acceptance rerun is authorized after exact-commit CI and repeatable Preflight.
 
 ## Deferred Release Work
 

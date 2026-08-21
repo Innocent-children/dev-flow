@@ -17,7 +17,7 @@ const evidenceDirectory = join(repositoryRoot, "tests", "journeys", "deepseek", 
 const successEvidencePath = join(evidenceDirectory, "native-acceptance.json");
 const failureEvidencePath = join(evidenceDirectory, "native-acceptance-failed.json");
 const exactTestCommand = "node --test test/proof-writer.test.mjs";
-const TURN_TIMEOUT_MS = 180_000;
+const TURN_TIMEOUT_MS = 300_000;
 const dshIntegrity = "sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==";
 const productSourcePaths = Object.freeze([
   "LICENSE",
@@ -38,17 +38,15 @@ const nativeCheckpoints = Object.freeze([
     "After the server-info handshake and task discovery, call get_task and then get_next_action.",
     "Do not edit files, apply an action, cancel, or advance the graph. Stop after reporting the current DESIGN action.",
   ]),
-  checkpoint("design-and-tasks", "DESIGN", "IMPLEMENT", false, [
+  checkpoint("work-to-comprehension", "DESIGN", "COMPREHENSION_REVIEW", false, [
     "/dev-flow Resume the active task from fresh Core authority.",
-    "Complete the smallest design and task plan for the one requested source file and exact test command.",
-    "Advance through legal Core actions until IMPLEMENT, then stop.",
-    "Do not edit files or run tests in this Turn.",
-  ]),
-  checkpoint("implement-and-test", "IMPLEMENT", "COMPREHENSION_REVIEW", false, [
-    "/dev-flow Resume the active task from fresh Core authority.",
-    "Create only src/proof-writer.mjs with writeProof() returning the exact string deepseek-native-proof.",
-    `Run the bash command argument exactly as written with no prefix or suffix: ${exactTestCommand}`,
-    "Record the real result and advance through legal Core actions to COMPREHENSION_REVIEW, then stop without supplying a verdict.",
+    "Complete the bounded design, task planning, implementation, and targeted test for the single requested source file.",
+    "Create only src/proof-writer.mjs exporting writeProof() that returns exactly deepseek-native-proof.",
+    `Run only: ${exactTestCommand}`,
+    "Follow legal Core actions until COMPREHENSION_REVIEW.",
+    "At COMPREHENSION_REVIEW, explain the result, ask for the developer's explicit verdict, and stop.",
+    "Do not self-confirm the comprehension verdict.",
+    "Do not modify package.json, README.md, or test files.",
   ]),
   checkpoint("reject-refactor-retest", "COMPREHENSION_REVIEW", "COMPREHENSION_REVIEW", false, [
     "/dev-flow I cannot yet maintain this implementation because the returned proof string is unexplained.",
@@ -83,7 +81,7 @@ if (mode === "self-test") {
     process.stdout.write(`${JSON.stringify({ status: "passed", task_id: evidence.task.task_id, revision: evidence.task.terminal_revision })}\n`);
   } catch (error) {
     const processCleanup = await terminateActiveTurns();
-    const failure = sanitizedFailure(error, activeConfig ?? baseConfig, processCleanup);
+    const failure = await sanitizedFailure(error, activeConfig ?? baseConfig, processCleanup);
     await validateFailureEvidence(failure);
     await writeFile(failureEvidencePath, `${JSON.stringify(failure, null, 2)}\n`, { flag: "wx", mode: 0o600 });
     throw error;
@@ -271,6 +269,7 @@ async function runNative(baseConfig) {
   );
   const ordinarySession = await readNewSession(sessionRoot, ordinary.beforeSessions);
   const ordinarySummary = summarizeSession(ordinarySession.rows);
+  assertCompletedTurn(ordinarySummary);
   assert.equal(ordinarySummary.devFlowCalls.length, 0);
   assert.equal(await coreTaskCount(config.data), 0);
 
@@ -289,6 +288,7 @@ async function runNative(baseConfig) {
   assert.equal(interruptedExit.signal, "SIGKILL");
   const interruptedSession = await readNewSession(sessionRoot, interrupted.beforeSessions);
   const interruptedSummary = summarizeSession(interruptedSession.rows);
+  assert.deepEqual(interruptedSummary.turnEndKinds, []);
   assert.equal(interruptedSummary.devFlowCalls[0]?.name, "mcp__dev_flow__dev_flow_server_info");
   assert.ok(interruptedSummary.devFlowCalls.some((call) => call.name === "mcp__dev_flow__dev_flow_apply_action"));
   const interruptedTask = await currentTask(config.data);
@@ -325,7 +325,7 @@ async function runNative(baseConfig) {
   const commands = allSummaries.flatMap((summary) => summary.bashCommands);
   const testLike = commands.filter(isTestExecutionCommand);
   assert.ok(testLike.every((command) => command === exactTestCommand));
-  assert.ok(checkpointSummaries.get("implement-and-test").bashCommands.includes(exactTestCommand));
+  assert.ok(checkpointSummaries.get("work-to-comprehension").bashCommands.includes(exactTestCommand));
   assert.ok(checkpointSummaries.get("reject-refactor-retest").bashCommands.includes(exactTestCommand));
   const changed = await gitChangedPaths(config.workspace);
   assert.deepEqual(changed, ["src/proof-writer.mjs"]);
@@ -367,6 +367,7 @@ async function runNative(baseConfig) {
   assert.equal(reopen.exit.code, 0);
   const reopenSession = await readNewSession(sessionRoot, reopen.beforeSessions);
   const reopenSummary = summarizeSession(reopenSession.rows);
+  assertCompletedTurn(reopenSummary);
   assert.equal(reopenSummary.devFlowCalls[0]?.name, "mcp__dev_flow__dev_flow_server_info");
   assert.equal(reopenSummary.devFlowCalls.some((call) => call.name === "mcp__dev_flow__dev_flow_apply_action"), false);
   assert.equal(reopenSummary.devFlowCalls.some((call) => call.name === "mcp__dev_flow__dev_flow_cancel_task"), false);
@@ -435,6 +436,7 @@ async function runNativeCheckpoint(config, sessionRoot, definition, before, task
   });
   const session = await readNewSession(sessionRoot, turn.beforeSessions);
   const summary = summarizeSession(session.rows);
+  assertCompletedTurn(summary);
   assert.equal(summary.devFlowCalls[0]?.name, "mcp__dev_flow__dev_flow_server_info");
   assert.ok(summary.devFlowCalls.every((call) => exactDevFlowNames().has(call.name)));
   assertMutationIdentities(summary.devFlowCalls);
@@ -580,8 +582,14 @@ async function treeDigest(root, ignoredNames = new Set()) {
 async function selfTest() {
   assert.equal(basename(successEvidencePath), "native-acceptance.json");
   assert.equal(basename(failureEvidencePath), "native-acceptance-failed.json");
-  assert.equal(nativeCheckpoints.length, 5);
+  assert.equal(TURN_TIMEOUT_MS, 300_000);
+  assert.deepEqual(nativeCheckpoints.map((definition) => definition.id), [
+    "recovery-read", "work-to-comprehension", "reject-refactor-retest", "accept-and-deliver",
+  ]);
   assert.ok(nativeCheckpoints.every((definition) => definition.prompt.includes("/dev-flow")));
+  assertCompletedTurn(summarizeEvents([
+    { type: "turn/end", data: { reason: { kind: "completed" } } },
+  ]));
 
   const root = await mkdtemp(join(tmpdir(), "dev-flow-native-self-test-"));
   try {
@@ -634,7 +642,7 @@ async function selfTest() {
   assert.equal(isolatedEnv.DSH_HOME, isolatedConfig.dshHome);
   assert.equal(isolatedEnv.HOME, isolatedConfig.isolatedHome);
   assert.equal(isolatedEnv.TMPDIR, isolatedConfig.temporaryDirectory);
-  const failure = sanitizedFailure(
+  const failure = await sanitizedFailure(
     Object.assign(new Error(`DSH_STAGE_TIMEOUT:${privateRoot}`), { code: "DSH_STAGE_TIMEOUT" }),
     {
       ...isolatedConfig,
@@ -655,6 +663,33 @@ async function selfTest() {
   assert.equal(failure.final_task, null);
   assert.equal(JSON.stringify(failure).includes(privateRoot), false);
   assert.equal(JSON.stringify(failure).includes(homedir()), false);
+
+  const taskRoot = await mkdtemp(join(tmpdir(), "dev-flow-native-task-self-test-"));
+  try {
+    const taskData = join(taskRoot, "data");
+    await mkdir(taskData);
+    const { DatabaseSync } = await import("node:sqlite");
+    const db = new DatabaseSync(join(taskData, "dev-flow.db"));
+    db.exec("CREATE TABLE tasks (task_id TEXT, origin_host TEXT, current_node TEXT, revision INTEGER, snapshot BLOB, updated_at TEXT)");
+    db.prepare("INSERT INTO tasks VALUES (?, ?, ?, ?, ?, ?)").run(
+      "task-deadbeef", "deepseek", "IMPLEMENT", 4, Buffer.from("{}"), "2026-08-21T00:00:00Z",
+    );
+    db.close();
+    const taskFailure = await sanitizedFailure(
+      Object.assign(new Error("DSH_STAGE_TIMEOUT:work-to-comprehension"), { code: "DSH_STAGE_TIMEOUT" }),
+      { ...isolatedConfig, data: taskData },
+      "passed",
+    );
+    await validateFailureEvidence(taskFailure);
+    assert.deepEqual(taskFailure.final_task, {
+      task_id: "task-deadbeef",
+      current_node: "IMPLEMENT",
+      revision: 4,
+      origin_host: "deepseek",
+    });
+  } finally {
+    await rm(taskRoot, { recursive: true, force: true });
+  }
   assert.throws(() => assertEvidenceShape({}), /Expected values to be strictly deep-equal/u);
 }
 
@@ -883,7 +918,13 @@ function summarizeEvents(events) {
     devFlowCalls,
     bashCommands,
     unansweredDevFlowCallIds: devFlowCalls.map((call) => call.callId).filter((id) => !resultIds.has(id)),
+    turnEndKinds: events.filter((event) => event.type === "turn/end")
+      .map((event) => event.data?.reason?.kind ?? null),
   };
+}
+
+function assertCompletedTurn(summary) {
+  assert.deepEqual(summary.turnEndKinds, ["completed"]);
 }
 
 function toolResultEnvelope(events, callId) {
@@ -944,7 +985,13 @@ function assertFailureEvidenceShape(evidence) {
   assert.match(evidence.stage, /\S/u);
   assert.match(evidence.diagnostic, /\S/u);
   assert.ok(evidence.diagnostic.length <= 500);
-  assert.equal(evidence.final_task, null);
+  if (evidence.final_task !== null) {
+    assertClosedKeys(evidence.final_task, ["task_id", "current_node", "revision", "origin_host"]);
+    assert.match(evidence.final_task.task_id, /^task-[0-9a-f]+$/u);
+    assert.match(evidence.final_task.current_node, /\S/u);
+    assert.ok(Number.isInteger(evidence.final_task.revision));
+    assert.equal(evidence.final_task.origin_host, "deepseek");
+  }
   assert.ok(new Set(["passed", "failed"]).has(evidence.process_cleanup));
   assert.equal(evidence.publication_effects, false);
 }
@@ -1005,7 +1052,7 @@ function assertEvidenceSafe(evidence) {
   }
 }
 
-function sanitizedFailure(error, config, processCleanup) {
+async function sanitizedFailure(error, config, processCleanup) {
   let message = error instanceof Error ? error.message : String(error);
   for (const path of [
     config.root, config.dshHome, config.data, config.workspace, config.artifact,
@@ -1017,10 +1064,24 @@ function sanitizedFailure(error, config, processCleanup) {
     status: "failed",
     stage: activeStage,
     diagnostic: `${classifyRunnerFailure(error)}:${message}`.slice(0, 500),
-    final_task: null,
+    final_task: await boundedFinalTaskState(config.data),
     process_cleanup: processCleanup,
     publication_effects: false,
   };
+}
+
+async function boundedFinalTaskState(dataDirectory) {
+  try {
+    const task = await currentTask(dataDirectory);
+    return {
+      task_id: task.task_id,
+      current_node: task.current_node,
+      revision: task.revision,
+      origin_host: task.origin_host,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function classifyRunnerFailure(error) {

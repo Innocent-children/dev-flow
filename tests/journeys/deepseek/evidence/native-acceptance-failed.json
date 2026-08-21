@@ -1,8 +1,0 @@
-{
-  "status": "failed",
-  "stage": "design-and-tasks",
-  "diagnostic": "stage_timeout:DSH_STAGE_TIMEOUT:design-and-tasks",
-  "final_task": null,
-  "process_cleanup": "passed",
-  "publication_effects": false
-}

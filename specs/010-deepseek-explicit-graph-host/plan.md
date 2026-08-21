@@ -395,18 +395,34 @@ Isolation is limited to Runner-owned business paths.
 
 ### Minimal Native Journey
 
-Use one ordinary control Turn and at most six `/dev-flow` Turns with one 180-second timeout:
+Use one ordinary control Turn and at most five `/dev-flow` Turns with one 300-second timeout per
+Headless Turn:
 
 1. start a task, commit the first graph state, and interrupt the Host;
 2. restart and perform read-only `server_info`, `get_task`, then `get_next_action` recovery;
-3. advance design and tasks to `IMPLEMENT`;
-4. implement the target file, run the target test, and reach `COMPREHENSION_REVIEW`;
-5. reject comprehension, refactor, retest, and return to `COMPREHENSION_REVIEW`;
-6. accept, deliver, and reach Core `DONE`.
+3. advance design and tasks, implement the target file, run the target test, and reach
+   `COMPREHENSION_REVIEW`;
+4. reject comprehension, refactor, retest, and return to `COMPREHENSION_REVIEW`;
+5. accept, deliver, and reach Core `DONE`.
 
 Checkpoint validation covers stable Task identity, monotonic revision, mutation progress, recovery
 read order, required semantic nodes, the target source boundary, and final test success. Official
 remove/reinstall then proves retention and read-only terminal reopen.
+
+### Native Acceptance Boundary Correction
+
+The retained failure reached Core `IMPLEMENT` revision 4 without a completed Turn or Workspace
+change. The intermediate `DESIGN → IMPLEMENT` and `IMPLEMENT → COMPREHENSION_REVIEW` checkpoints
+are replaced by one `work-to-comprehension` checkpoint from `DESIGN` to
+`COMPREHENSION_REVIEW`. This aligns the Runner with the Skill's fresh-Action loop and preserves
+`COMPREHENSION_REVIEW` as the natural developer-verdict pause.
+
+The final checkpoint set is `recovery-read`, `work-to-comprehension`,
+`reject-refactor-retest`, and `accept-and-deliver`, plus the ordinary control and initial
+interruption Turns. Each Headless Turn must exit normally with a completed Session Turn at its target
+boundary. The unified Turn timeout is 300 seconds, with no automatic retry. Product Source, Product
+Surface, Skill, and the retained Artifact remain unchanged; one final Native Acceptance rerun is
+authorized after exact-commit CI and repeatable Preflight pass.
 
 ### Evidence and Final Gates
 

@@ -12,9 +12,9 @@
 - **DeepSeek Harness Compatibility Floor**: `@deepseek-ai/dsh >=0.1.0-rc.8 <0.2.0`
 - **Exact Planning Evidence**: `@deepseek-ai/dsh 0.1.0-rc.8`, npm integrity `sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==`, upstream tag `dsh-v0.1.0-rc.8` at `141eb6fef83422698aef7a981029e843e8161534`
 - **Release Authority**: Not authorized
-- **Current Checkpoint**: `SIMPLIFICATION_COMPLETE_NATIVE_BLOCKED`; exact-commit CI and repeatable
-  Preflight passed, while the single Native Acceptance timed out in `design-and-tasks` after Core
-  durably reached `IMPLEMENT` revision 4; T065–T068, T072, and T075 remain incomplete
+- **Current Checkpoint**: `NATIVE_BOUNDARY_CORRECTED_AWAITING_FINAL_RERUN`; the retained failure was
+  classified as a Runner checkpoint conflict after Core reached `IMPLEMENT` revision 4; T065–T070,
+  T072, and T075 remain incomplete pending the correction commit's CI and one authorized final rerun
 
 ## Purpose
 
@@ -61,6 +61,19 @@ active acceptance controls.
   `native-acceptance-failed.json` is retained.
 - Core retained task `task-1af84eae7d3e1d04a5baac376fa1c7d5` at `IMPLEMENT` revision 4.
 - No automatic retry was started.
+
+## Native Acceptance Boundary Correction
+
+The retained `design-and-tasks` Session has no completed `turn/end`, no unanswered Dev Flow call,
+and no Workspace change. After Core committed `TASKS → IMPLEMENT` at revision 4, the Skill continued
+its fresh-Action loop, so the Runner's intermediate `IMPLEMENT` stop conflicted with the Skill's
+natural control flow.
+
+Final acceptance now combines bounded design, task planning, implementation, and targeted test into
+`work-to-comprehension`, where Headless must exit naturally with a completed Turn at
+`COMPREHENSION_REVIEW` and wait for the developer's explicit verdict. The Product Surface and
+retained Artifact are unchanged. Current authority permits one final Native Acceptance rerun after
+the correction commit's CI and repeatable Preflight pass.
 
 ## Why This Is a New Feature
 
