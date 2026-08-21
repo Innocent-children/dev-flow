@@ -8,7 +8,7 @@
 - **Created**: 2026-08-21
 - **Baseline**: `main` at `189cd3f1b36d75b495aa5758298252b4ea3465d0`
 - **Release Authority**: Not authorized
-- **Current Checkpoint**: Implementation, convergence, targeted checks, final validation, and scoped diff review complete; Draft PR delivery pending
+- **Current Checkpoint**: Feature complete in unmerged Draft PR #10
 
 ## Purpose
 
@@ -86,4 +86,4 @@ publication, GitHub Release, release asset upload, or invocation of the real one
 
 ## Pull Request
 
-Draft PR pending creation from `codex/011-simplify-product-version-governance`.
+Draft PR: <https://github.com/Innocent-children/dev-flow/pull/10>
