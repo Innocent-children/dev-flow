@@ -126,7 +126,7 @@
 - CI and repeatable Preflight passed for Acceptance commit `225bbbf9a4b1ecb36adc41b755fcae035412fd80`.
 - The single Native Acceptance wrote `native-acceptance-failed.json` after the
   `design-and-tasks` Turn timed out; Core retained the same DeepSeek task at `IMPLEMENT` revision 4.
-- No automatic retry is authorized in this task. T066–T068, T072, and T075 remain open.
+- No automatic retry is authorized in this task. T065–T068, T072, and T075 remain open.
 
 ## Deferred Release Work
 

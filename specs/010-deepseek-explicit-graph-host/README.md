@@ -14,7 +14,7 @@
 - **Release Authority**: Not authorized
 - **Current Checkpoint**: `SIMPLIFICATION_COMPLETE_NATIVE_BLOCKED`; exact-commit CI and repeatable
   Preflight passed, while the single Native Acceptance timed out in `design-and-tasks` after Core
-  durably reached `IMPLEMENT` revision 4; T066–T068, T072, and T075 remain incomplete
+  durably reached `IMPLEMENT` revision 4; T065–T068, T072, and T075 remain incomplete
 
 ## Purpose
 
