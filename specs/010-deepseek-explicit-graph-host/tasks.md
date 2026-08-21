@@ -113,8 +113,8 @@
 - [ ] **T066** Run one successful real DSH macOS arm64 Native Acceptance after repeatable Preflight passes. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-055, SC-014.
 - [ ] **T067** Prove ordinary zero dispatch, explicit selector, six tools, restart/resume, read-before-retry, comprehension, refactor/retest, and Core `DONE`. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: SC-001–SC-008, SC-014.
 - [ ] **T068** Prove official remove/reinstall with the same Artifact, retained data/repository/Codex identities, and read-only terminal reopen. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: SC-009, SC-010, SC-014.
-- [x] **T069** Write minimal sanitized `native-acceptance.json` or `native-acceptance-failed.json` Evidence. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-057, FR-058.
-- [x] **T070** Use the exact acceptance commit's successful CI Validator result as repository-wide evidence. — Files: `.github/workflows/ci.yml`, `tests/journeys/deepseek/evidence/`; Refs: FR-056, SC-014.
+- [ ] **T069** Write minimal sanitized `native-acceptance.json` or `native-acceptance-failed.json` Evidence. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-057, FR-058.
+- [ ] **T070** Use the exact acceptance commit's successful CI Validator result as repository-wide evidence. — Files: `.github/workflows/ci.yml`, `tests/journeys/deepseek/evidence/`; Refs: FR-056, SC-014.
 - [x] **T071** Run one `$speckit-analyze` consistency check for the Simplification Revision before implementation and resolve blocking findings. — Files: `spec.md`, `plan.md`, `tasks.md`; Refs: FR-001–FR-059, SC-001–SC-015.
 - [ ] **T072** Run the Constitution-required final `$speckit-converge`; append tasks only for a real uncovered Feature gap. — Files: `tasks.md`, `tests/journeys/deepseek/evidence/`; Refs: SC-001–SC-015.
 - [x] **T073** Update Feature status/checkpoints and current product support matrix to the exact tested combination. — Files: `README.md`, `docs/SUPPORT-MATRIX.md`; Refs: FR-059, SC-012.
@@ -138,6 +138,17 @@
   existing credential; the bounded final Task remained at `DESIGN` revision 2 and process cleanup
   passed.
 - The final run was not retried. T065–T068, T072, and T075 remain open.
+
+### Credential-Corrected Native Rerun Authorization — 2026-08-21
+
+- Commit `d281ae3b3fe216268c9115f83a48c46bfafd2e40` and CI run `32461905889` preserve the
+  prior credential-blocked canonical Evidence and Feature status.
+- The user confirmed the DSH credential was corrected and authorized one new Native Acceptance
+  rerun. Credential contents remain unread and unrecorded.
+- The canonical failure path is cleared for the new run. T069 is reopened until the run writes one
+  sanitized success or failure record; T070 is reopened until the new Acceptance commit CI passes.
+- T065–T068, T072, and T075 remain open. T071, T073, and T074 remain complete.
+- Product Source, Product Surface, Runner, Skill, retained Artifact, and embedded Core are unchanged.
 
 ## Deferred Release Work
 

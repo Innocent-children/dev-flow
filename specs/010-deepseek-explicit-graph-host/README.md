@@ -12,10 +12,10 @@
 - **DeepSeek Harness Compatibility Floor**: `@deepseek-ai/dsh >=0.1.0-rc.8 <0.2.0`
 - **Exact Planning Evidence**: `@deepseek-ai/dsh 0.1.0-rc.8`, npm integrity `sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==`, upstream tag `dsh-v0.1.0-rc.8` at `141eb6fef83422698aef7a981029e843e8161534`
 - **Release Authority**: Not authorized
-- **Current Checkpoint**: `FINAL_NATIVE_ACCEPTANCE_BLOCKED`; Boundary Correction commit
-  `91df0a44f65fbad395d4e70c64a391b1d027f87b` passed CI and repeatable Preflight, while the one
-  authorized final rerun stopped at `work-to-comprehension` because DSH authentication failed;
-  T065–T068, T072, and T075 remain incomplete
+- **Current Checkpoint**: `CREDENTIAL_CORRECTED_NATIVE_RERUN_AUTHORIZED`; the credential-blocked
+  failure is frozen by commit `d281ae3b3fe216268c9115f83a48c46bfafd2e40` and successful CI run
+  `32461905889`; the user confirmed the DSH credential was corrected and authorized one new native
+  rerun, while T065–T070, T072, and T075 remain incomplete pending its Acceptance commit and gates
 
 ## Purpose
 
@@ -90,6 +90,20 @@ commit's CI and repeatable Preflight passed.
   retry was started.
 - Product Source, Product Surface, retained Artifact, embedded Core, and publication state are
   unchanged.
+
+### Credential-Corrected Native Acceptance Rerun Authorization
+
+The credential-blocked run remains frozen in Git at
+`d281ae3b3fe216268c9115f83a48c46bfafd2e40`. Its Evidence retained the bounded final Task at
+`DESIGN` revision 2 with a stable authentication diagnostic, passed process cleanup, and no
+Workspace change. The canonical failure path is cleared only after that commit and CI preserved the
+record.
+
+The user confirmed that the DSH credential was corrected. The credential file is verified only as an
+existing regular file with restrictive permissions; its content is not read or recorded. Current
+authority permits one credential-corrected Native Acceptance rerun after the new Acceptance commit's
+CI and one fresh repeatable Preflight pass. Product Source, Product Surface, Runner, Skill, retained
+Artifact, and embedded Core remain unchanged.
 
 ## Why This Is a New Feature
 
