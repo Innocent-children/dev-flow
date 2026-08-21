@@ -3,7 +3,7 @@
 ## Status
 
 - **Feature**: `010-deepseek-explicit-graph-host`
-- **Status**: Implementing
+- **Status**: Blocked
 - **Change Type**: Product Feature
 - **Created**: 2026-08-20
 - **Baseline**: `main` at `70726d0ba59ead5496657e445b25494152e6d8f8`
@@ -12,7 +12,7 @@
 - **DeepSeek Harness Compatibility Floor**: `@deepseek-ai/dsh >=0.1.0-rc.8 <0.2.0`
 - **Exact Planning Evidence**: `@deepseek-ai/dsh 0.1.0-rc.8`, npm integrity `sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==`, upstream tag `dsh-v0.1.0-rc.8` at `141eb6fef83422698aef7a981029e843e8161534`
 - **Release Authority**: Not authorized
-- **Current Checkpoint**: Phase 6 `USER_STORY_2_CHECKPOINT_COMPLETE` and `USER_STORY_3_CHECKPOINT_COMPLETE`; implementation stops before T065
+- **Current Checkpoint**: Phase 6 `USER_STORY_2_CHECKPOINT_COMPLETE` and `USER_STORY_3_CHECKPOINT_COMPLETE`; frozen-source final native attempt 2 failed during the recovery turn, so T065–T075 remain incomplete
 
 ## Purpose
 

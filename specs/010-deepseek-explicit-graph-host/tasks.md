@@ -121,6 +121,27 @@
 - [ ] **T074** Verify no npm publication, version bump, Tag, GitHub Release, or public promotion occurred. — Files: `VERSION`, `package.json`, `packages/deepseek/package.json`, `tests/journeys/deepseek/evidence/`; Refs: FR-005, FR-059, SC-015.
 - [ ] **T075** Record `FEATURE_010_COMPLETE` only when every success criterion is supported by retained evidence. — Files: `README.md`, `tasks.md`, `tests/journeys/deepseek/evidence/`; Refs: SC-001–SC-015.
 
+### Phase 7 Blocked Evidence — 2026-08-21
+
+- Frozen product source: `3747aa0e34c9f0aafa744edcd4abc96523e394b5`; `LICENSE` and
+  `packages/deepseek/` remained byte-bound to that commit after the attempt.
+- Final local artifact: `dev-flow-deepseek-0.5.0-feature010-final.tgz`, size `4374117`, SHA-256
+  `2414bfdf18b22afdb30395dd108fd3a881f723766e53faa1f24aba4e94ea4c73`; embedded Core size
+  `10655234`, SHA-256 `56541e7da864fffdefb7e56de42c8df0f51f6bd63b76742bada9cd8edcfbf135`,
+  reported version `dev-flow 0.5.0`.
+- Preflight passed for macOS arm64, Node `v24.18.0`, pnpm `11.21.0`, exact
+  `@deepseek-ai/dsh@0.1.0-rc.8`, fixed npm integrity, isolated profile/home/data, official add, and
+  installed Core readback.
+- Final native attempt 2 ran once. The native adapter probe, ordinary zero-task turn, initial
+  explicit task open, first graph transitions, host interruption, and restart reached the recovery
+  turn. The recovery headless turn timed out after 240 seconds while Core was at `TEST`, revision 5,
+  for task `task-83a5625a645b246d41507b50e572ab6f`.
+- Failure evidence is retained in `tests/journeys/deepseek/evidence/native-attempt-2-failed.json`.
+  The timed-out isolated DSH/Core process group was terminated, no retry was started, and frozen
+  product source was not modified.
+- The final Repository Validator, final analyze, and final converge were not run because the native
+  success gate did not pass. T065–T075 remain unchecked and `FEATURE_010_COMPLETE` is not recorded.
+
 ## Deferred Release Work
 
 Not tasks in Feature 010:

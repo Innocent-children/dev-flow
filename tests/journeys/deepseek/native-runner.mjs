@@ -631,9 +631,33 @@ async function startTurn(config, env, prompt) {
 
 async function runTurn(config, env, prompt) {
   const running = await startTurn(config, env, prompt);
-  const exit = await withTimeout(running.completion, 240_000, "DSH headless turn timed out");
+  let exit;
+  try {
+    exit = await withTimeout(running.completion, 240_000, "DSH headless turn timed out");
+  } catch (error) {
+    await terminateTurn(running);
+    throw error;
+  }
   if (exit.code !== 0) throw new Error(`DSH_HEADLESS_FAILED: ${exit.stderr.slice(0, 500)}`);
   return { ...running, exit };
+}
+
+async function terminateTurn(running) {
+  if (running.child.exitCode !== null || running.child.signalCode !== null) return;
+  try {
+    process.kill(-running.child.pid, "SIGTERM");
+  } catch (error) {
+    if (error.code !== "ESRCH") throw error;
+  }
+  await Promise.race([running.completion, delay(1_000)]);
+  if (running.child.exitCode === null && running.child.signalCode === null) {
+    try {
+      process.kill(-running.child.pid, "SIGKILL");
+    } catch (error) {
+      if (error.code !== "ESRCH") throw error;
+    }
+    await withTimeout(running.completion, 5_000, "timed-out DSH process group did not terminate");
+  }
 }
 
 function boundedCollector(stream, maxBytes) {
