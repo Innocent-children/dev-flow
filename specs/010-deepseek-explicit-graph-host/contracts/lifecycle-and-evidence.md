@@ -159,7 +159,14 @@ message only.
 
 ## Attempt Policy
 
-- one final native attempt after source freeze;
+- attempt 1 remains the immutable historical artifact-mode-loss failure;
+- attempt 2 remains the immutable historical recovery-Turn-timeout failure bound to frozen source
+  `3747aa0e34c9f0aafa744edcd4abc96523e394b5`;
+- Post-Freeze Amendment A1 authorizes one native attempt 3 after a new pushed, Ubuntu-validated source
+  freeze and a newly built source-local artifact;
+- attempt 3 uses fresh isolated host, profile, data, repository, task, session, artifact-path, and
+  evidence identities;
+- attempt 4 is not authorized;
 - one official lifecycle against the same artifact;
 - no silent replacement of a failed record;
 - a failure blocks completion until classified and the source or contract is amended;

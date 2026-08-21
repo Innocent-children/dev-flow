@@ -142,6 +142,21 @@
 - The final Repository Validator, final analyze, and final converge were not run because the native
   success gate did not pass. T065–T075 remain unchecked and `FEATURE_010_COMPLETE` is not recorded.
 
+### Post-Freeze Amendment A1 — 2026-08-21
+
+- Trigger: attempt 2 exceeded the 240-second recovery Turn budget while making bounded progress, and
+  Ubuntu run `32438075117` exposed two package-test portability defects.
+- Scope: correct only `mcp-result-gate.test.mjs` and `paths.test.mjs`; stage the native runner's
+  recovery Turns with progress gates; update matching evidence/schema/status; freeze one new pushed
+  CI-passing source; build one new local artifact; execute attempt 3 once.
+- Contract boundary: no Core, Adapter, Skill, package manifest, packaged runtime, Schema, process,
+  Codex, VERSION, release, or Result Proxy change.
+- Attempt authority: attempts 1 and 2 remain immutable failures; attempt 3 is the only A1 native
+  attempt; attempt 4 is not authorized.
+- Completion: T065–T075 remain the sole Phase 7 completion tasks and may be checked only after Ubuntu
+  CI, the new freeze/artifact, attempt 3 `DONE`, remove/reinstall, evidence validation, the one final
+  Repository Validator, final analyze, and final converge all pass.
+
 ## Deferred Release Work
 
 Not tasks in Feature 010:

@@ -3,7 +3,8 @@
   "title": "Feature 010 Final Native DeepSeek Evidence",
   "oneOf": [
     { "$ref": "#/$defs/success" },
-    { "$ref": "#/$defs/failedAttempt" }
+    { "$ref": "#/$defs/historicalFailedAttempt" },
+    { "$ref": "#/$defs/failedAttempt3" }
   ],
   "$defs": {
     "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
@@ -14,13 +15,13 @@
       "additionalProperties": false,
       "required": [
         "evidence_class", "status", "native_attempt", "source_commit", "artifact",
-        "embedded_core", "dsh", "runtime", "core_contract", "task", "outcomes",
-        "release_effects"
+        "embedded_core", "dsh", "runtime", "core_contract", "task", "recovery",
+        "stages", "outcomes", "release_effects"
       ],
       "properties": {
         "evidence_class": { "const": "final_native_graph_acceptance" },
         "status": { "const": "passed" },
-        "native_attempt": { "const": 2 },
+        "native_attempt": { "const": 3 },
         "source_commit": { "$ref": "#/$defs/gitCommit" },
         "artifact": {
           "type": "object",
@@ -97,13 +98,69 @@
         "task": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["task_id", "initial_revision", "resumed_revision", "terminal_revision", "terminal_state"],
+          "required": [
+            "task_id", "initial_revision", "interrupted_revision", "recovered_revision",
+            "comprehension_revision", "terminal_revision", "terminal_state"
+          ],
           "properties": {
             "task_id": { "type": "string", "pattern": "^task-[0-9a-f]+$" },
             "initial_revision": { "type": "integer", "minimum": 1 },
-            "resumed_revision": { "type": "integer", "minimum": 1 },
+            "interrupted_revision": { "type": "integer", "minimum": 1 },
+            "recovered_revision": { "type": "integer", "minimum": 1 },
+            "comprehension_revision": { "type": "integer", "minimum": 1 },
             "terminal_revision": { "type": "integer", "minimum": 1 },
             "terminal_state": { "const": "DONE" }
+          }
+        },
+        "recovery": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["interruption_classification", "read_sequence", "repeated_mutation_before_read"],
+          "properties": {
+            "interruption_classification": {
+              "enum": ["result_unanswered", "result_recorded_before_interrupt"]
+            },
+            "read_sequence": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "prefixItems": [
+                { "const": "mcp__dev_flow__dev_flow_get_task" },
+                { "const": "mcp__dev_flow__dev_flow_get_next_action" }
+              ],
+              "items": false
+            },
+            "repeated_mutation_before_read": { "const": false }
+          }
+        },
+        "stages": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id", "timeout_ms", "from_node", "to_node", "from_revision", "to_revision", "progress"
+            ],
+            "properties": {
+              "id": {
+                "enum": [
+                  "recovery-read", "design", "task-planning", "implementation", "test",
+                  "comprehension-reject", "refactor", "retest", "comprehension-accept", "delivery"
+                ]
+              },
+              "timeout_ms": { "enum": [120000, 180000] },
+              "from_node": {
+                "enum": ["DESIGN", "TASKS", "IMPLEMENT", "TEST", "COMPREHENSION_REVIEW", "REFACTOR", "DELIVERY"]
+              },
+              "to_node": {
+                "enum": ["DESIGN", "TASKS", "IMPLEMENT", "TEST", "COMPREHENSION_REVIEW", "REFACTOR", "DELIVERY", "DONE"]
+              },
+              "from_revision": { "type": "integer", "minimum": 1 },
+              "to_revision": { "type": "integer", "minimum": 1 },
+              "progress": { "enum": ["read_before_retry_observed", "revision_advanced"] }
+            }
           }
         },
         "outcomes": {
@@ -113,7 +170,7 @@
             "ordinary_zero_dispatch", "selector_guard", "six_tool_handshake", "graph_progression",
             "restart_resume", "uncertain_mutation_recovery", "comprehension", "refactor_retest",
             "core_done", "remove_readback", "data_retention", "repository_retention",
-            "codex_non_interference", "exact_reinstall", "same_task_reopen"
+            "codex_non_interference", "exact_reinstall", "same_task_reopen", "read_only_reopen"
           ],
           "properties": {
             "ordinary_zero_dispatch": { "$ref": "#/$defs/passed" },
@@ -130,7 +187,8 @@
             "repository_retention": { "$ref": "#/$defs/passed" },
             "codex_non_interference": { "$ref": "#/$defs/passed" },
             "exact_reinstall": { "$ref": "#/$defs/passed" },
-            "same_task_reopen": { "$ref": "#/$defs/passed" }
+            "same_task_reopen": { "$ref": "#/$defs/passed" },
+            "read_only_reopen": { "$ref": "#/$defs/passed" }
           }
         },
         "release_effects": {
@@ -146,7 +204,7 @@
         }
       }
     },
-    "failedAttempt": {
+    "historicalFailedAttempt": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -156,7 +214,7 @@
       "properties": {
         "evidence_class": { "const": "native_deepseek_graph_journey" },
         "status": { "const": "failed" },
-        "native_attempt": { "type": "integer", "minimum": 1 },
+        "native_attempt": { "enum": [1, 2] },
         "failure_class": { "enum": ["acceptance_assertion", "native_runner_error"] },
         "bounded_diagnostic": {
           "type": "string",
@@ -165,6 +223,51 @@
           "pattern": "^(?!.*(?:/Users/|/home/|DEEPSEEK_API_KEY|BEGIN [A-Z ]*PRIVATE KEY)).*$"
         },
         "artifact_sha256": { "$ref": "#/$defs/sha256" },
+        "publication_effects": { "const": false }
+      }
+    },
+    "failedAttempt3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_class", "status", "native_attempt", "failure_class", "failed_stage",
+        "bounded_diagnostic", "artifact_sha256", "final_task", "process_cleanup", "publication_effects"
+      ],
+      "properties": {
+        "evidence_class": { "const": "native_deepseek_graph_journey" },
+        "status": { "const": "failed" },
+        "native_attempt": { "const": 3 },
+        "failure_class": {
+          "enum": [
+            "acceptance_assertion", "native_runner_error", "stage_timeout",
+            "stage_no_progress", "headless_failure"
+          ]
+        },
+        "failed_stage": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "bounded_diagnostic": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "^(?!.*(?:/Users/|/home/|DEEPSEEK_API_KEY|BEGIN [A-Z ]*PRIVATE KEY)).*$"
+        },
+        "artifact_sha256": { "$ref": "#/$defs/sha256" },
+        "final_task": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["task_id", "current_node", "revision", "origin_host"],
+              "properties": {
+                "task_id": { "type": "string", "pattern": "^task-[0-9a-f]+$" },
+                "current_node": { "type": "string", "minLength": 1 },
+                "revision": { "type": "integer", "minimum": 1 },
+                "origin_host": { "const": "deepseek" }
+              }
+            }
+          ]
+        },
+        "process_cleanup": { "enum": ["passed", "failed"] },
         "publication_effects": { "const": false }
       }
     }

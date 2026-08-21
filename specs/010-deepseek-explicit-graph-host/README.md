@@ -3,7 +3,7 @@
 ## Status
 
 - **Feature**: `010-deepseek-explicit-graph-host`
-- **Status**: Blocked
+- **Status**: Implementing
 - **Change Type**: Product Feature
 - **Created**: 2026-08-20
 - **Baseline**: `main` at `70726d0ba59ead5496657e445b25494152e6d8f8`
@@ -12,7 +12,7 @@
 - **DeepSeek Harness Compatibility Floor**: `@deepseek-ai/dsh >=0.1.0-rc.8 <0.2.0`
 - **Exact Planning Evidence**: `@deepseek-ai/dsh 0.1.0-rc.8`, npm integrity `sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==`, upstream tag `dsh-v0.1.0-rc.8` at `141eb6fef83422698aef7a981029e843e8161534`
 - **Release Authority**: Not authorized
-- **Current Checkpoint**: Phase 6 `USER_STORY_2_CHECKPOINT_COMPLETE` and `USER_STORY_3_CHECKPOINT_COMPLETE`; frozen-source final native attempt 2 failed during the recovery turn, so T065–T075 remain incomplete
+- **Current Checkpoint**: Post-Freeze Amendment A1 authorized after native attempt 2 and Ubuntu portability failures; T065–T075 remain incomplete pending the new frozen source and the single authorized native attempt 3
 
 ## Purpose
 
@@ -24,6 +24,45 @@ local STDIO MCP client, and enforces selector authorization at the DSH tool-exec
 
 The adapter does not own workflow state, graph transitions, completion, recovery, repository mutation,
 or task persistence. Those remain authoritative in the shared Go Core.
+
+## Post-Freeze Amendment A1 — 2026-08-21
+
+### Trigger
+
+- Native attempt 2's final recovery headless Turn exceeded 240 seconds. The retained DSH sequence
+  continued through Core `TEST` revision 5 and cleanup retained `COMPREHENSION_REVIEW` revision 6,
+  but the attempt did not reach `DONE` or the lifecycle checks.
+- Ubuntu PR validation proved that `mcp-result-gate.test.mjs` still launched the packaged Mach-O Core
+  and that one `paths.test.mjs` negative preflight used the current Linux platform tuple before
+  reaching its intended assertion.
+- Frozen source `3747aa0e34c9f0aafa744edcd4abc96523e394b5` remains the immutable source binding for
+  attempt 2. It is no longer a final acceptance candidate.
+
+### Authorized Scope
+
+A1 permits only the two package-test portability corrections, staged recovery Turns with bounded
+progress gates in the native runner, matching evidence/schema/status updates, one new pushed and
+Ubuntu-validated frozen source, one newly built source-local unpublished artifact, and native
+attempt 3 once. It does not authorize a new Feature.
+
+### Product Contract Boundary
+
+A1 changes no Core, DeepSeek Adapter, Skill, package manifest, packaged runtime, public version,
+release contract, Schema, process definition, or Codex behavior. It introduces no Result Proxy.
+
+### Attempt Authority
+
+- Attempt 1 remains a retained historical failure caused by artifact mode loss.
+- Attempt 2 remains a retained historical failure caused by the unbounded recovery Turn timeout.
+- Attempt 3 is the only native attempt authorized by A1 and must use fresh isolated state.
+- Attempt 4 is not authorized. Attempt 3 failure is terminal for this Amendment.
+
+### Completion Rule
+
+Feature completion requires all of the following: passing Ubuntu portability CI; a new frozen
+source and newly built artifact; the single attempt 3 reaching Core `DONE`; official remove and
+same-artifact reinstall; sanitized schema-valid evidence; the one final Repository Validator;
+final analyze and converge; and evidence-backed completion of T065–T075.
 
 ## Why This Is a New Feature
 

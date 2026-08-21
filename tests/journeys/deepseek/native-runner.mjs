@@ -5,7 +5,7 @@ import {
   chmod, copyFile, lstat, mkdir, readFile, readdir, realpath, stat, writeFile,
 } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { arch, homedir, platform } from "node:os";
+import { arch, homedir, platform, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
@@ -15,14 +15,73 @@ const execFile = promisify(execFileCallback);
 const runnerPath = fileURLToPath(import.meta.url);
 const repositoryRoot = dirname(dirname(dirname(dirname(runnerPath))));
 const evidenceDirectory = join(repositoryRoot, "tests", "journeys", "deepseek", "evidence");
-const successEvidencePath = join(evidenceDirectory, "native-evidence.json");
-const historicalFailureEvidencePath = join(evidenceDirectory, "native-attempt-1-failed.json");
-const failureEvidencePath = join(evidenceDirectory, "native-attempt-2-failed.json");
+const successEvidencePath = join(evidenceDirectory, "native-attempt-3.json");
+const historicalFailureEvidencePaths = [
+  join(evidenceDirectory, "native-attempt-1-failed.json"),
+  join(evidenceDirectory, "native-attempt-2-failed.json"),
+];
+const failureEvidencePath = join(evidenceDirectory, "native-attempt-3-failed.json");
 const schemaPath = join(repositoryRoot, "tests", "journeys", "deepseek", "evidence-schema.json");
 const exactTestCommand = "node --test test/proof-writer.test.mjs";
-const nativeAttempt = 2;
+const nativeAttempt = 3;
+const authorizedNativeAttempts = Object.freeze([3]);
+const automaticNativeRetry = false;
 const dshIntegrity = "sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==";
 const dshSourceCommit = "141eb6fef83422698aef7a981029e843e8161534";
+const activeTurns = new Set();
+let activeStage = "not-started";
+
+const recoveryStages = Object.freeze([
+  stage("recovery-read", "DESIGN", "DESIGN", 0, 120_000, [
+    "/dev-flow Resume the active task after the interrupted Host process for read-only recovery observation.",
+    "After the server-info handshake and task discovery, call get_task and then get_next_action.",
+    "Do not edit files, apply an action, cancel, or advance the graph. Stop after reporting the current DESIGN action.",
+  ]),
+  stage("design", "DESIGN", "TASKS", 1, 180_000, [
+    "/dev-flow Resume the active task and complete only the current DESIGN action from fresh Core authority.",
+    "Record the smallest design for the one requested source file and exact test command, transition to TASKS, then stop.",
+    "Do not plan tasks, edit files, or run tests in this Turn.",
+  ]),
+  stage("task-planning", "TASKS", "IMPLEMENT", 1, 180_000, [
+    "/dev-flow Resume the active task and complete only the current TASKS action from fresh Core authority.",
+    "Plan the single source-file implementation and its exact targeted test, transition to IMPLEMENT, then stop.",
+    "Do not edit files or run tests in this Turn.",
+  ]),
+  stage("implementation", "IMPLEMENT", "TEST", 1, 180_000, [
+    "/dev-flow Resume the active task and complete only the current IMPLEMENT action from fresh Core authority.",
+    "Create only src/proof-writer.mjs with writeProof() returning the exact string deepseek-native-proof.",
+    "Record the exact changed surface, transition to TEST, then stop. Do not run the test in this Turn.",
+  ]),
+  stage("test", "TEST", "COMPREHENSION_REVIEW", 1, 180_000, [
+    "/dev-flow Resume the active task and complete only the current TEST action from fresh Core authority.",
+    `Run the bash command argument exactly as written with no prefix or suffix: ${exactTestCommand}`,
+    "Record the real result, transition to COMPREHENSION_REVIEW, then stop without supplying a developer verdict.",
+  ]),
+  stage("comprehension-reject", "COMPREHENSION_REVIEW", "REFACTOR", 1, 120_000, [
+    "/dev-flow I cannot yet maintain this implementation because the returned proof string is unexplained.",
+    "Use this explicit developer verdict with the fresh current action, transition only to REFACTOR, then stop.",
+    "Do not edit files or run tests in this Turn.",
+  ]),
+  stage("refactor", "REFACTOR", "TEST", 1, 180_000, [
+    "/dev-flow Resume the active task and complete only the current REFACTOR action from fresh Core authority.",
+    "Refactor only src/proof-writer.mjs by introducing a clearly named constant for the proof value.",
+    "Record that exact surface, transition to TEST, then stop. Do not run the test in this Turn.",
+  ]),
+  stage("retest", "TEST", "COMPREHENSION_REVIEW", 1, 180_000, [
+    "/dev-flow Resume the active task and complete only the current TEST action after refactor.",
+    `Run the bash command argument exactly as written with no prefix or suffix: ${exactTestCommand}`,
+    "Record the real result, transition to COMPREHENSION_REVIEW, then stop without supplying a developer verdict.",
+  ]),
+  stage("comprehension-accept", "COMPREHENSION_REVIEW", "DELIVERY", 1, 120_000, [
+    "/dev-flow I explicitly confirm that I can explain and maintain the implementation, guard boundary, and targeted test.",
+    "Use this current developer verdict with the fresh action, transition only to DELIVERY, then stop.",
+    "Do not perform delivery work in this Turn.",
+  ]),
+  stage("delivery", "DELIVERY", "DONE", 1, 180_000, [
+    "/dev-flow Resume the active task and complete only the current DELIVERY action from fresh Core authority.",
+    "Reconcile the bounded acceptance evidence, ask Core to perform its legal terminal transition, confirm Core DONE, then stop.",
+  ]),
+]);
 
 const mode = process.argv[2];
 if (!new Set(["self-test", "preflight", "run"]).has(mode)) {
@@ -44,10 +103,22 @@ if (mode === "self-test") {
     await writeFile(successEvidencePath, `${JSON.stringify(evidence, null, 2)}\n`, { flag: "wx", mode: 0o600 });
     process.stdout.write(`${JSON.stringify({ status: "passed", task_id: evidence.task.task_id, revision: evidence.task.terminal_revision })}\n`);
   } catch (error) {
-    const failure = sanitizedFailure(error, loadConfig());
+    const processCleanup = await terminateActiveTurns();
+    const failure = await sanitizedFailure(error, config, processCleanup);
     await writeFile(failureEvidencePath, `${JSON.stringify(failure, null, 2)}\n`, { flag: "wx", mode: 0o600 });
     throw error;
   }
+}
+
+function stage(id, fromNode, toNode, revisionDelta, timeoutMs, promptParts) {
+  return Object.freeze({
+    id,
+    fromNode,
+    toNode,
+    revisionDelta,
+    timeoutMs,
+    prompt: promptParts.join(" "),
+  });
 }
 
 function loadConfig() {
@@ -77,7 +148,7 @@ function loadConfig() {
     workspace: join(process.env.DEV_FLOW_NATIVE_ROOT, "workspace"),
     readback: join(process.env.DEV_FLOW_NATIVE_ROOT, "artifact-readback"),
     preflightMarker: join(process.env.DEV_FLOW_NATIVE_ROOT, "preflight.json"),
-    profile: "headless",
+    profile: "feature010-attempt3",
   };
 }
 
@@ -87,8 +158,12 @@ async function preflight(config) {
   assert.match(process.version, /^v24\./u);
   assert.match((await execFile("pnpm", ["--version"])).stdout.trim(), /^11\./u);
   assert.equal(await exists(successEvidencePath), false, "native success evidence already exists");
-  assert.equal(await exists(historicalFailureEvidencePath), true, "native attempt 1 failure history is missing");
-  assert.equal(await exists(failureEvidencePath), false, "native attempt 2 failure evidence already exists");
+  for (const historicalPath of historicalFailureEvidencePaths) {
+    assert.equal(await exists(historicalPath), true, `historical native failure is missing: ${basename(historicalPath)}`);
+  }
+  assert.equal(await exists(failureEvidencePath), false, "native attempt 3 failure evidence already exists");
+  assert.equal(await exists(join(evidenceDirectory, "native-attempt-4.json")), false, "attempt 4 evidence is forbidden");
+  assert.equal(await exists(join(evidenceDirectory, "native-attempt-4-failed.json")), false, "attempt 4 failure evidence is forbidden");
   await assertFile(config.dshCli);
   await assertFile(config.credentials);
   await assertFile(config.settings);
@@ -96,6 +171,7 @@ async function preflight(config) {
   assert.match(config.sourceCommit, /^[0-9a-f]{40}$/u);
   assert.match(config.artifactSha256, /^[0-9a-f]{64}$/u);
   assert.match(config.coreSha256, /^[0-9a-f]{64}$/u);
+  assert.equal(basename(config.artifact), "dev-flow-deepseek-0.5.0-feature010-attempt3.tgz");
   const credentialText = await readFile(config.credentials, "utf8");
   assert.equal(hasYamlKey(credentialText, "DEEPSEEK_API_KEY"), true, "DeepSeek credential is unavailable");
   const root = await realpath(config.root);
@@ -107,6 +183,8 @@ async function preflight(config) {
   const lockfile = await readFile(config.dshLockfile, "utf8");
   assert.ok(lockfile.includes(`'@deepseek-ai/dsh@0.1.0-rc.8':\n    resolution: {integrity: ${dshIntegrity}}`), "DSH lockfile identity mismatch");
   await execFile("git", ["cat-file", "-e", `${config.sourceCommit}^{commit}`], { cwd: repositoryRoot });
+  assert.equal((await execFile("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot })).stdout.trim(), config.sourceCommit);
+  assert.equal((await execFile("git", ["status", "--short"], { cwd: repositoryRoot })).stdout, "");
   await execFile("git", ["diff", "--quiet", config.sourceCommit, "--", "LICENSE", "packages/deepseek"], { cwd: repositoryRoot });
   await mkdir(config.dshHome, { mode: 0o700 });
   await mkdir(config.isolatedHome, { mode: 0o700 });
@@ -125,17 +203,12 @@ async function preflight(config) {
   assert.equal(core.sha256, config.coreSha256);
   assert.ok((await stat(extractedCorePath)).mode & 0o111);
   assert.equal((await execFile(extractedCorePath, ["version"])).stdout.trim(), "dev-flow 0.5.0");
-  const env = dshEnvironment(config);
-  await runCommand(config.dshCli, ["plugin", "--profile", config.profile, "add", config.artifact], { cwd: config.workspace, env, timeout: 120_000 });
-  const dump = await runCommand(config.dshCli, ["--profile", config.profile, "--dump-config"], { cwd: config.workspace, env, timeout: 30_000 });
-  assert.equal(countOccurrences(dump.stdout, "id: dev-flow-deepseek"), 1);
-  const installedCore = await fileIdentity(await realpath(join(config.dshHome, "profiles", config.profile, "node_modules", "dev-flow-deepseek", "runtime", "darwin-arm64", "dev-flow")));
-  assert.deepEqual(installedCore, core);
+  assert.equal(await exists(installedPackageRoot(config)), false, "attempt 3 artifact must not be installed before the start marker");
   const marker = {
     artifact_sha256: artifact.sha256,
     core_sha256: core.sha256,
     artifact_source_commit: config.sourceCommit,
-    runner_repository_commit: (await execFile("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot })).stdout.trim(),
+    runner_repository_commit: config.sourceCommit,
     workspace_head: (await execFile("git", ["rev-parse", "HEAD"], { cwd: config.workspace })).stdout.trim(),
     codex_identity_sha256: await treeDigest(join(repositoryRoot, "packages", "codex")),
   };
@@ -144,21 +217,41 @@ async function preflight(config) {
 }
 
 async function runNative(config) {
+  activeStage = "install";
   const marker = JSON.parse(await readFile(config.preflightMarker, "utf8"));
   assert.equal(marker.artifact_sha256, config.artifactSha256);
   assert.equal(marker.core_sha256, config.coreSha256);
   assert.equal(marker.artifact_source_commit, config.sourceCommit);
+  assert.equal(marker.runner_repository_commit, config.sourceCommit);
   assert.equal(await exists(successEvidencePath), false);
   assert.equal(await exists(failureEvidencePath), false);
   const env = dshEnvironment(config);
   const sessionRoot = join(config.dshHome, "sessions");
+
+  await runCommand(config.dshCli, ["plugin", "--profile", config.profile, "add", config.artifact], {
+    cwd: config.workspace, env, timeout: 120_000,
+  });
+  const installedDump = await runCommand(config.dshCli, ["--profile", config.profile, "--dump-config"], {
+    cwd: config.workspace, env, timeout: 30_000,
+  });
+  assert.equal(countOccurrences(installedDump.stdout, "id: dev-flow-deepseek"), 1);
+  const installedCore = await fileIdentity(await realpath(join(
+    installedPackageRoot(config), "runtime", "darwin-arm64", "dev-flow",
+  )));
+  assert.equal(installedCore.sha256, config.coreSha256);
+
   const adapterProbe = await runNativeAdapterProbe(config);
   assert.equal(adapterProbe.ordinary_zero_dispatch, true);
   assert.equal(adapterProbe.selector_guard, true);
   assert.equal(adapterProbe.six_tool_handshake, true);
 
-  const ordinary = await runTurn(config, env,
-    "Inspect this repository without changing files. Reply with one short sentence. Do not invoke Dev Flow.");
+  activeStage = "ordinary-turn";
+  const ordinary = await runTurn(
+    config,
+    env,
+    "Inspect this repository without changing files. Reply with one short sentence. Do not invoke Dev Flow.",
+    { stageId: activeStage, timeoutMs: 120_000 },
+  );
   const ordinarySession = await readNewSession(sessionRoot, ordinary.beforeSessions);
   const ordinarySummary = summarizeSession(ordinarySession.rows);
   assert.equal(ordinarySummary.devFlowCalls.length, 0);
@@ -171,9 +264,10 @@ async function runNative(config) {
     "Run that exact command at most twice across the whole task. Do not modify package.json, README.md, or test files.",
     "Follow fresh Core actions and payload schemas. At comprehension, wait for an explicit user verdict and never self-confirm.",
   ].join(" ");
+  activeStage = "interruption";
   const interrupted = await startTurn(config, env, initialPrompt);
   await waitForRevisionOrExit(config.data, interrupted.child, 2, 180_000);
-  process.kill(-interrupted.child.pid, "SIGKILL");
+  killProcessGroup(interrupted.child.pid, "SIGKILL");
   const interruptedExit = await interrupted.completion;
   assert.equal(interruptedExit.signal, "SIGKILL");
   const interruptedSession = await readNewSession(sessionRoot, interrupted.beforeSessions);
@@ -187,65 +281,39 @@ async function runNative(config) {
   );
   assert.equal(openResult?.task?.task_id, interruptedTask.task_id);
   const initialRevision = openResult.task.revision;
+  assert.equal(interruptedTask.current_node, "DESIGN");
+  assert.equal(interruptedTask.revision, 2);
   const interruptionClassification = interruptedSummary.unansweredDevFlowCallIds.length > 0
     ? "result_unanswered"
     : "result_recorded_before_interrupt";
 
-  const recovery = await runTurn(config, env, [
-    "/dev-flow Resume the active DeepSeek task after the prior Host interruption.",
-    "The prior mutation result may or may not have been recorded: after handshake and task discovery, read get_task then get_next_action before any apply.",
-    "Continue the implementation and exact targeted verification from fresh Core authority.",
-    "At comprehension, explain the result and wait for an explicit user verdict.",
-  ].join(" "));
-  assert.equal(recovery.exit.code, 0);
-  const recoverySession = await readNewSession(sessionRoot, recovery.beforeSessions);
-  const recoverySummary = summarizeSession(recoverySession.rows);
-  assert.equal(recoverySummary.devFlowCalls[0]?.name, "mcp__dev_flow__dev_flow_server_info");
-  const firstApply = recoverySummary.devFlowCalls.findIndex((call) => call.name === "mcp__dev_flow__dev_flow_apply_action");
-  const getTask = recoverySummary.devFlowCalls.findIndex((call) => call.name === "mcp__dev_flow__dev_flow_get_task");
-  const getNext = recoverySummary.devFlowCalls.findIndex((call) => call.name === "mcp__dev_flow__dev_flow_get_next_action");
-  assert.ok(getTask >= 0 && getNext > getTask && firstApply > getNext);
-  assertMutationIdentities(recoverySummary.devFlowCalls);
-
-  const beforeRefactor = await currentTask(config.data);
-  assert.equal(beforeRefactor.current_node, "COMPREHENSION_REVIEW");
-  assert.equal(beforeRefactor.task_id, interruptedTask.task_id);
-
-  const refactor = await runTurn(config, env, [
-    "/dev-flow I cannot yet maintain this implementation because the returned proof string is unexplained.",
-    "Use the current developer verdict and a fresh Core action to enter REFACTOR.",
-    "Refactor only src/proof-writer.mjs by naming the proof value clearly, run the one authorized test command,",
-    "return through TEST, and stop again at COMPREHENSION_REVIEW for a new verdict.",
-  ].join(" "));
-  assert.equal(refactor.exit.code, 0);
-  const refactorSession = await readNewSession(sessionRoot, refactor.beforeSessions);
-  const refactorSummary = summarizeSession(refactorSession.rows);
-  assert.equal(refactorSummary.devFlowCalls[0]?.name, "mcp__dev_flow__dev_flow_server_info");
-  assertMutationIdentities(refactorSummary.devFlowCalls);
-  const afterRefactor = await currentTask(config.data);
-  assert.equal(afterRefactor.current_node, "COMPREHENSION_REVIEW");
-  assert.ok(afterRefactor.revision > beforeRefactor.revision);
-
-  const confirmation = await runTurn(config, env, [
-    "/dev-flow Resume the active task. I explicitly confirm that I can explain and maintain the implementation, guard boundary, and targeted test.",
-    "Use that current user verdict only with fresh Core transitions, then complete delivery if Core permits it.",
-  ].join(" "));
-  assert.equal(confirmation.exit.code, 0);
-  const confirmationSession = await readNewSession(sessionRoot, confirmation.beforeSessions);
-  const confirmationSummary = summarizeSession(confirmationSession.rows);
-  assert.equal(confirmationSummary.devFlowCalls[0]?.name, "mcp__dev_flow__dev_flow_server_info");
-  assertMutationIdentities(confirmationSummary.devFlowCalls);
+  let progress = await taskProgressSnapshot(config.data);
+  const stageEvidence = [];
+  const stageSummaries = [];
+  for (const definition of recoveryStages) {
+    const result = await runNativeStage(
+      config,
+      env,
+      sessionRoot,
+      definition,
+      progress,
+      interruptedTask.task_id,
+    );
+    stageEvidence.push(result.evidence);
+    stageSummaries.push(result.summary);
+    progress = result.after;
+  }
 
   const task = await currentTask(config.data);
   assert.equal(task.current_node, "DONE");
   assert.equal(task.origin_host, "deepseek");
   assert.equal(task.task_id, interruptedTask.task_id);
-  const allSummaries = [ordinarySummary, interruptedSummary, recoverySummary, refactorSummary, confirmationSummary];
+  const allSummaries = [ordinarySummary, interruptedSummary, ...stageSummaries];
   const devFlowNames = allSummaries.flatMap((summary) => summary.devFlowCalls.map((call) => call.name));
   assert.ok(devFlowNames.every((name) => exactDevFlowNames().has(name)));
   const commands = allSummaries.flatMap((summary) => summary.bashCommands);
-  const testLike = commands.filter((command) => command.includes("node --test"));
-  assert.ok(testLike.length >= 1 && testLike.length <= 2);
+  const testLike = commands.filter(isTestExecutionCommand);
+  assert.equal(testLike.length, 2);
   assert.ok(testLike.every((command) => command === exactTestCommand));
   const changed = await gitChangedPaths(config.workspace);
   assert.deepEqual(changed, ["src/proof-writer.mjs"]);
@@ -285,10 +353,11 @@ async function runNative(config) {
   const reinstalledCore = await fileIdentity(await realpath(join(installedPackageRoot(config), "runtime", "darwin-arm64", "dev-flow")));
   assert.equal(reinstalledCore.sha256, config.coreSha256);
 
+  activeStage = "read-only-reopen";
   const reopen = await runTurn(config, env, [
     "/dev-flow Reopen the compatible terminal task read-only after exact-artifact reinstall.",
     "Perform the server-info handshake and fresh task/action reads, report the existing Core DONE result, and do not mutate it.",
-  ].join(" "));
+  ].join(" "), { stageId: activeStage, timeoutMs: 120_000 });
   assert.equal(reopen.exit.code, 0);
   const reopenSession = await readNewSession(sessionRoot, reopen.beforeSessions);
   const reopenSummary = summarizeSession(reopenSession.rows);
@@ -304,6 +373,11 @@ async function runNative(config) {
   const artifact = await fileIdentity(config.artifact);
   const corePath = join(config.readback, "package", "runtime", "darwin-arm64", "dev-flow");
   const core = await fileIdentity(corePath);
+  const recoveryStage = stageEvidence.find((candidate) => candidate.id === "recovery-read");
+  const firstComprehensionStage = stageEvidence.find((candidate) => candidate.id === "test");
+  assert.notEqual(recoveryStage, undefined);
+  assert.notEqual(firstComprehensionStage, undefined);
+  activeStage = "complete";
   return {
     evidence_class: "final_native_graph_acceptance",
     status: "passed",
@@ -327,10 +401,21 @@ async function runNative(config) {
     task: {
       task_id: task.task_id,
       initial_revision: initialRevision,
-      resumed_revision: beforeRefactor.revision,
+      interrupted_revision: interruptedTask.revision,
+      recovered_revision: recoveryStage.to_revision,
+      comprehension_revision: firstComprehensionStage.to_revision,
       terminal_revision: task.revision,
       terminal_state: task.current_node,
     },
+    recovery: {
+      interruption_classification: interruptionClassification,
+      read_sequence: [
+        "mcp__dev_flow__dev_flow_get_task",
+        "mcp__dev_flow__dev_flow_get_next_action",
+      ],
+      repeated_mutation_before_read: false,
+    },
+    stages: stageEvidence,
     outcomes: {
       ordinary_zero_dispatch: "passed",
       selector_guard: "passed",
@@ -347,9 +432,82 @@ async function runNative(config) {
       codex_non_interference: "passed",
       exact_reinstall: "passed",
       same_task_reopen: "passed",
+      read_only_reopen: "passed",
     },
     release_effects: { npm_publish: false, git_tag: false, github_release: false, version_change: false },
   };
+}
+
+async function runNativeStage(config, env, sessionRoot, definition, before, taskID) {
+  activeStage = definition.id;
+  assert.equal(before.task_id, taskID);
+  assert.equal(before.current_node, definition.fromNode);
+  const turn = await runTurn(config, env, definition.prompt, {
+    stageId: definition.id,
+    timeoutMs: definition.timeoutMs,
+  });
+  const session = await readNewSession(sessionRoot, turn.beforeSessions);
+  const summary = summarizeSession(session.rows);
+  assert.equal(summary.devFlowCalls[0]?.name, "mcp__dev_flow__dev_flow_server_info");
+  assert.ok(summary.devFlowCalls.every((call) => exactDevFlowNames().has(call.name)));
+  assertMutationIdentities(summary.devFlowCalls);
+  const after = await taskProgressSnapshot(config.data);
+  const assessment = assessStageProgress(definition, before, after, summary);
+  if (assessment.status !== "passed") {
+    throw Object.assign(new Error(`DSH_STAGE_NO_PROGRESS:${definition.id}:${assessment.reason}`), {
+      code: "DSH_STAGE_NO_PROGRESS",
+    });
+  }
+  return {
+    after,
+    summary,
+    evidence: {
+      id: definition.id,
+      timeout_ms: definition.timeoutMs,
+      from_node: before.current_node,
+      to_node: after.current_node,
+      from_revision: before.revision,
+      to_revision: after.revision,
+      progress: assessment.progress,
+    },
+  };
+}
+
+function assessStageProgress(definition, before, after, summary) {
+  if (after.task_id !== before.task_id) return failedProgress("task identity changed");
+  if (before.current_node !== definition.fromNode) return failedProgress("unexpected starting node");
+  if (after.current_node !== definition.toNode) return failedProgress("stage did not stop at its target node");
+  if (after.revision - before.revision !== definition.revisionDelta) return failedProgress("unexpected revision delta");
+  if (after.event_count - before.event_count !== definition.revisionDelta) return failedProgress("unexpected event delta");
+
+  const calls = summary.devFlowCalls;
+  const mutations = calls.filter((call) => new Set([
+    "mcp__dev_flow__dev_flow_apply_action",
+    "mcp__dev_flow__dev_flow_cancel_task",
+  ]).has(call.name));
+  if (definition.id === "recovery-read") {
+    const getTask = calls.findIndex((call) => call.name === "mcp__dev_flow__dev_flow_get_task");
+    const getNext = calls.findIndex((call) => call.name === "mcp__dev_flow__dev_flow_get_next_action");
+    if (getTask < 0 || getNext <= getTask) return failedProgress("required recovery read sequence is absent");
+    if (mutations.length !== 0) return failedProgress("recovery observation mutated Core");
+    if (after.action_id !== before.action_id) return failedProgress("recovery observation changed the action");
+    return { status: "passed", progress: "read_before_retry_observed", reason: "" };
+  }
+  if (mutations.length !== 1 || mutations[0].name !== "mcp__dev_flow__dev_flow_apply_action") {
+    return failedProgress("stage did not perform exactly one apply action");
+  }
+  if (definition.toNode === "DONE") {
+    if (after.action_id !== null || after.terminal_status !== "DONE") {
+      return failedProgress("terminal stage lacks Core DONE readback");
+    }
+  } else if (after.action_node !== definition.toNode || after.action_revision !== after.revision) {
+    return failedProgress("fresh current action does not match the target state");
+  }
+  return { status: "passed", progress: "revision_advanced", reason: "" };
+}
+
+function failedProgress(reason) {
+  return { status: "failed", progress: "none", reason };
 }
 
 async function runNativeAdapterProbe(config) {
@@ -585,9 +743,24 @@ async function importResolved(require, specifier) {
 }
 
 async function selfTest() {
+  assert.equal(nativeAttempt, 3);
+  assert.deepEqual(authorizedNativeAttempts, [3]);
+  assert.equal(automaticNativeRetry, false);
+  assert.equal(basename(successEvidencePath), "native-attempt-3.json");
+  assert.equal(basename(failureEvidencePath), "native-attempt-3-failed.json");
+  assert.equal(recoveryStages.length, 10);
+  assert.deepEqual(recoveryStages.map((definition) => definition.id), [
+    "recovery-read", "design", "task-planning", "implementation", "test",
+    "comprehension-reject", "refactor", "retest", "comprehension-accept", "delivery",
+  ]);
+  assert.ok(recoveryStages.every((definition) => definition.prompt.includes("/dev-flow")));
+  assert.ok(recoveryStages.every((definition) => new Set([120_000, 180_000]).has(definition.timeoutMs)));
+  assert.ok(recoveryStages.every((definition) => definition.timeoutMs < 240_000));
+
   const exact = classifyCommands([
     { name: "bash", arguments: JSON.stringify({ command: exactTestCommand }) },
     { name: "bash", arguments: JSON.stringify({ command: "sed -n '1,80p' test/proof-writer.test.mjs" }) },
+    { name: "bash", arguments: JSON.stringify({ command: "rg 'node --test' README.md" }) },
   ]);
   assert.deepEqual(exact.testLike, [exactTestCommand]);
   assert.deepEqual(exact.exact, [exactTestCommand]);
@@ -601,17 +774,88 @@ async function selfTest() {
   assert.deepEqual(summary.bashCommands, [exactTestCommand]);
   const frames = Buffer.concat([zstdCompressSync(Buffer.from("one\n")), zstdCompressSync(Buffer.from("two\n"))]);
   assert.equal(decompressZstdFrames(frames), "one\ntwo\n");
-  const historicalFailure = JSON.parse(await readFile(historicalFailureEvidencePath, "utf8"));
-  assertClosedKeys(historicalFailure, [
-    "evidence_class", "status", "native_attempt", "failure_class",
-    "bounded_diagnostic", "artifact_sha256", "publication_effects",
-  ]);
-  assert.equal(historicalFailure.status, "failed");
-  assert.equal(historicalFailure.native_attempt, 1);
-  assert.equal(historicalFailure.bounded_diagnostic, "interrupted mutation result was already recorded");
-  assert.match(historicalFailure.artifact_sha256, /^[0-9a-f]{64}$/u);
-  assert.equal(historicalFailure.publication_effects, false);
-  assert.equal(JSON.stringify(historicalFailure).includes(homedir()), false);
+
+  const before = {
+    task_id: "task-a", current_node: "DESIGN", revision: 2, event_count: 2,
+    action_id: "action-design", action_node: "DESIGN", action_revision: 2, terminal_status: null,
+  };
+  const recoverySummary = { devFlowCalls: [
+    { name: "mcp__dev_flow__dev_flow_server_info" },
+    { name: "mcp__dev_flow__dev_flow_get_task" },
+    { name: "mcp__dev_flow__dev_flow_get_next_action" },
+  ] };
+  assert.deepEqual(assessStageProgress(recoveryStages[0], before, { ...before }, recoverySummary), {
+    status: "passed", progress: "read_before_retry_observed", reason: "",
+  });
+  const noProgress = assessStageProgress(recoveryStages[1], before, { ...before }, {
+    devFlowCalls: [{ name: "mcp__dev_flow__dev_flow_server_info" }],
+  });
+  assert.equal(noProgress.status, "failed");
+  assert.equal(noProgress.progress, "none");
+  const designAfter = {
+    ...before,
+    current_node: "TASKS",
+    revision: 3,
+    event_count: 3,
+    action_id: "action-tasks",
+    action_node: "TASKS",
+    action_revision: 3,
+  };
+  assert.equal(assessStageProgress(recoveryStages[1], before, designAfter, {
+    devFlowCalls: [
+      { name: "mcp__dev_flow__dev_flow_server_info" },
+      { name: "mcp__dev_flow__dev_flow_apply_action" },
+    ],
+  }).status, "passed");
+
+  for (const [index, historicalPath] of historicalFailureEvidencePaths.entries()) {
+    const historicalFailure = JSON.parse(await readFile(historicalPath, "utf8"));
+    assertClosedKeys(historicalFailure, [
+      "evidence_class", "status", "native_attempt", "failure_class",
+      "bounded_diagnostic", "artifact_sha256", "publication_effects",
+    ]);
+    assert.equal(historicalFailure.status, "failed");
+    assert.equal(historicalFailure.native_attempt, index + 1);
+    assert.match(historicalFailure.artifact_sha256, /^[0-9a-f]{64}$/u);
+    assert.equal(historicalFailure.publication_effects, false);
+    assert.equal(JSON.stringify(historicalFailure).includes(homedir()), false);
+  }
+
+  const cleanupChild = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+    detached: true,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const cleanupCompletion = new Promise((resolve, reject) => {
+    cleanupChild.once("error", reject);
+    cleanupChild.once("exit", (code, signalName) => resolve({ code, signal: signalName, stdout: "", stderr: "" }));
+  });
+  await terminateTurn({ child: cleanupChild, completion: cleanupCompletion });
+  const cleanupExit = await withTimeout(cleanupCompletion, 5_000, new Error("self-test child cleanup timed out"));
+  assert.ok(cleanupExit.signal === "SIGTERM" || cleanupExit.signal === "SIGKILL");
+
+  const privateRoot = join(tmpdir(), "private-native-root");
+  const failure = await sanitizedFailure(
+    Object.assign(new Error(`DSH_STAGE_TIMEOUT:${privateRoot}`), { code: "DSH_STAGE_TIMEOUT" }),
+    {
+      root: privateRoot,
+      dshHome: join(privateRoot, "dsh-home"),
+      data: join(privateRoot, "missing-data"),
+      workspace: join(privateRoot, "workspace"),
+      artifact: join(privateRoot, "attempt3.tgz"),
+      credentials: join(privateRoot, "credentials"),
+      settings: join(privateRoot, "settings"),
+      dshLockfile: join(privateRoot, "lockfile"),
+      artifactSha256: "a".repeat(64),
+    },
+    "passed",
+  );
+  assert.equal(failure.native_attempt, 3);
+  assert.equal(failure.failure_class, "stage_timeout");
+  assert.equal(failure.process_cleanup, "passed");
+  assert.equal(failure.final_task, null);
+  assert.equal(JSON.stringify(failure).includes(privateRoot), false);
+  assert.equal(JSON.stringify(failure).includes(homedir()), false);
+  assert.equal([successEvidencePath, failureEvidencePath].some((path) => path.includes("attempt-4")), false);
   assert.throws(() => assertEvidenceShape({}), /Expected values to be strictly deep-equal/u);
 }
 
@@ -622,42 +866,69 @@ async function startTurn(config, env, prompt) {
   });
   const stdout = boundedCollector(child.stdout, 1_048_576);
   const stderr = boundedCollector(child.stderr, 1_048_576);
-  const completion = new Promise((resolve, reject) => {
+  const rawCompletion = new Promise((resolve, reject) => {
     child.once("error", reject);
     child.once("exit", (code, signalName) => resolve({ code, signal: signalName, stdout: stdout.text(), stderr: stderr.text() }));
   });
-  return { child, completion, beforeSessions };
+  const running = { child, completion: undefined, beforeSessions };
+  running.completion = rawCompletion.finally(() => activeTurns.delete(running));
+  activeTurns.add(running);
+  return running;
 }
 
-async function runTurn(config, env, prompt) {
+async function runTurn(config, env, prompt, { stageId, timeoutMs }) {
   const running = await startTurn(config, env, prompt);
   let exit;
   try {
-    exit = await withTimeout(running.completion, 240_000, "DSH headless turn timed out");
+    exit = await withTimeout(
+      running.completion,
+      timeoutMs,
+      Object.assign(new Error(`DSH_STAGE_TIMEOUT:${stageId}`), { code: "DSH_STAGE_TIMEOUT" }),
+    );
   } catch (error) {
     await terminateTurn(running);
     throw error;
   }
-  if (exit.code !== 0) throw new Error(`DSH_HEADLESS_FAILED: ${exit.stderr.slice(0, 500)}`);
+  if (exit.code !== 0) {
+    throw Object.assign(new Error(`DSH_HEADLESS_FAILED:${stageId}:${exit.stderr.slice(0, 500)}`), {
+      code: "DSH_HEADLESS_FAILED",
+    });
+  }
   return { ...running, exit };
 }
 
 async function terminateTurn(running) {
   if (running.child.exitCode !== null || running.child.signalCode !== null) return;
   try {
-    process.kill(-running.child.pid, "SIGTERM");
+    killProcessGroup(running.child.pid, "SIGTERM");
   } catch (error) {
     if (error.code !== "ESRCH") throw error;
   }
   await Promise.race([running.completion, delay(1_000)]);
   if (running.child.exitCode === null && running.child.signalCode === null) {
     try {
-      process.kill(-running.child.pid, "SIGKILL");
+      killProcessGroup(running.child.pid, "SIGKILL");
     } catch (error) {
       if (error.code !== "ESRCH") throw error;
     }
-    await withTimeout(running.completion, 5_000, "timed-out DSH process group did not terminate");
+    await withTimeout(running.completion, 5_000, new Error("timed-out DSH process group did not terminate"));
   }
+}
+
+function killProcessGroup(pid, signalName) {
+  process.kill(-pid, signalName);
+}
+
+async function terminateActiveTurns() {
+  let passed = true;
+  for (const running of [...activeTurns]) {
+    try {
+      await terminateTurn(running);
+    } catch {
+      passed = false;
+    }
+  }
+  return passed ? "passed" : "failed";
 }
 
 function boundedCollector(stream, maxBytes) {
@@ -695,6 +966,28 @@ async function currentTask(dataDirectory) {
   assert.notEqual(row, undefined, "Core task is absent");
   const snapshot = JSON.parse(Buffer.from(row.snapshot).toString("utf8"));
   return { task_id: row.task_id, origin_host: row.origin_host, current_node: row.current_node, revision: row.revision, ...snapshot };
+}
+
+async function taskProgressSnapshot(dataDirectory) {
+  const task = await currentTask(dataDirectory);
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(join(dataDirectory, "dev-flow.db"), { readOnly: true });
+  const eventCount = Number(db.prepare(
+    "SELECT COUNT(*) AS count FROM task_events WHERE task_id=?",
+  ).get(task.task_id).count);
+  db.close();
+  return {
+    task_id: task.task_id,
+    current_node: task.current_node,
+    revision: task.revision,
+    event_count: eventCount,
+    action_id: task.current_action?.action_id ?? null,
+    action_node: task.current_action?.current_node ?? null,
+    action_revision: task.current_action?.revision ?? null,
+    terminal_status: new Set(["DONE", "BLOCKED", "CANCELLED"]).has(task.current_node)
+      ? task.current_node
+      : null,
+  };
 }
 
 async function coreTaskCount(dataDirectory) {
@@ -832,7 +1125,14 @@ async function readServerInfoFromSessions(summaries) {
 
 function classifyCommands(calls) {
   const commands = calls.filter((call) => call.name === "bash").map((call) => JSON.parse(call.arguments).command);
-  return { testLike: commands.filter((command) => command.includes("node --test")), exact: commands.filter((command) => command === exactTestCommand) };
+  return {
+    testLike: commands.filter(isTestExecutionCommand),
+    exact: commands.filter((command) => command === exactTestCommand),
+  };
+}
+
+function isTestExecutionCommand(command) {
+  return /^node\s+--test(?:\s|$)/u.test(command.trim());
 }
 
 function exactDevFlowNames() {
@@ -845,7 +1145,7 @@ function exactDevFlowNames() {
 
 async function validateEvidence(evidence) {
   const schema = JSON.parse(await readFile(schemaPath, "utf8"));
-  assert.equal(schema.oneOf.length, 2);
+  assert.equal(schema.oneOf.length, 3);
   assertEvidenceShape(evidence);
   const encoded = JSON.stringify(evidence);
   for (const forbidden of [configuredPrivatePrefix(), repositoryRoot, homedir(), "DEEPSEEK_API_KEY", "BEGIN PRIVATE KEY"]) {
@@ -856,7 +1156,8 @@ async function validateEvidence(evidence) {
 function assertEvidenceShape(evidence) {
   assertClosedKeys(evidence, [
     "evidence_class", "status", "native_attempt", "source_commit", "artifact",
-    "embedded_core", "dsh", "runtime", "core_contract", "task", "outcomes", "release_effects",
+    "embedded_core", "dsh", "runtime", "core_contract", "task", "recovery",
+    "stages", "outcomes", "release_effects",
   ]);
   assert.equal(evidence.evidence_class, "final_native_graph_acceptance");
   assert.equal(evidence.status, "passed");
@@ -890,17 +1191,42 @@ function assertEvidenceShape(evidence) {
   assert.equal(evidence.core_contract.process_version, 1);
   assert.match(evidence.core_contract.process_definition_digest, /^[0-9a-f]{64}$/u);
   assert.deepEqual(evidence.core_contract.qualified_tools, [...exactDevFlowNames()]);
-  assertClosedKeys(evidence.task, ["task_id", "initial_revision", "resumed_revision", "terminal_revision", "terminal_state"]);
+  assertClosedKeys(evidence.task, [
+    "task_id", "initial_revision", "interrupted_revision", "recovered_revision",
+    "comprehension_revision", "terminal_revision", "terminal_state",
+  ]);
   assert.match(evidence.task.task_id, /^task-[0-9a-f]+$/u);
   assert.ok(evidence.task.initial_revision >= 1);
-  assert.ok(evidence.task.resumed_revision >= evidence.task.initial_revision);
-  assert.ok(evidence.task.terminal_revision >= evidence.task.resumed_revision);
+  assert.ok(evidence.task.interrupted_revision >= evidence.task.initial_revision);
+  assert.ok(evidence.task.recovered_revision >= evidence.task.interrupted_revision);
+  assert.ok(evidence.task.comprehension_revision > evidence.task.recovered_revision);
+  assert.ok(evidence.task.terminal_revision > evidence.task.comprehension_revision);
   assert.equal(evidence.task.terminal_state, "DONE");
+  assertClosedKeys(evidence.recovery, [
+    "interruption_classification", "read_sequence", "repeated_mutation_before_read",
+  ]);
+  assert.ok(new Set(["result_unanswered", "result_recorded_before_interrupt"])
+    .has(evidence.recovery.interruption_classification));
+  assert.deepEqual(evidence.recovery.read_sequence, [
+    "mcp__dev_flow__dev_flow_get_task",
+    "mcp__dev_flow__dev_flow_get_next_action",
+  ]);
+  assert.equal(evidence.recovery.repeated_mutation_before_read, false);
+  assert.equal(evidence.stages.length, recoveryStages.length);
+  assert.deepEqual(evidence.stages.map((candidate) => candidate.id), recoveryStages.map((candidate) => candidate.id));
+  for (const candidate of evidence.stages) {
+    assertClosedKeys(candidate, [
+      "id", "timeout_ms", "from_node", "to_node", "from_revision", "to_revision", "progress",
+    ]);
+    assert.ok(new Set([120_000, 180_000]).has(candidate.timeout_ms));
+    assert.ok(new Set(["read_before_retry_observed", "revision_advanced"]).has(candidate.progress));
+    assert.ok(candidate.to_revision >= candidate.from_revision);
+  }
   assertClosedKeys(evidence.outcomes, [
     "ordinary_zero_dispatch", "selector_guard", "six_tool_handshake", "graph_progression",
     "restart_resume", "uncertain_mutation_recovery", "comprehension", "refactor_retest",
     "core_done", "remove_readback", "data_retention", "repository_retention",
-    "codex_non_interference", "exact_reinstall", "same_task_reopen",
+    "codex_non_interference", "exact_reinstall", "same_task_reopen", "read_only_reopen",
   ]);
   assert.ok(Object.values(evidence.outcomes).every((value) => value === "passed"));
   assert.deepEqual(evidence.release_effects, {
@@ -917,7 +1243,7 @@ function configuredPrivatePrefix() {
   return process.env.DEV_FLOW_NATIVE_ROOT ?? "/private-path-not-configured";
 }
 
-function sanitizedFailure(error, config) {
+async function sanitizedFailure(error, config, processCleanup) {
   let message = error instanceof Error ? error.message : String(error);
   for (const path of [
     config.root, config.dshHome, config.data, config.workspace, config.artifact,
@@ -929,11 +1255,35 @@ function sanitizedFailure(error, config) {
     evidence_class: "native_deepseek_graph_journey",
     status: "failed",
     native_attempt: nativeAttempt,
-    failure_class: error instanceof assert.AssertionError ? "acceptance_assertion" : "native_runner_error",
+    failure_class: classifyRunnerFailure(error),
+    failed_stage: activeStage,
     bounded_diagnostic: message.slice(0, 500),
     artifact_sha256: config.artifactSha256,
+    final_task: await boundedFinalTaskState(config.data),
+    process_cleanup: processCleanup,
     publication_effects: false,
   };
+}
+
+function classifyRunnerFailure(error) {
+  if (error?.code === "DSH_STAGE_TIMEOUT") return "stage_timeout";
+  if (error?.code === "DSH_STAGE_NO_PROGRESS") return "stage_no_progress";
+  if (error?.code === "DSH_HEADLESS_FAILED") return "headless_failure";
+  return error instanceof assert.AssertionError ? "acceptance_assertion" : "native_runner_error";
+}
+
+async function boundedFinalTaskState(dataDirectory) {
+  try {
+    const task = await currentTask(dataDirectory);
+    return {
+      task_id: task.task_id,
+      current_node: task.current_node,
+      revision: task.revision,
+      origin_host: task.origin_host,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function dshEnvironment(config) {
@@ -998,4 +1348,6 @@ async function fileIdentity(path) { const bytes = await readFile(path); return {
 async function assertFile(path) { assert.equal((await stat(path)).isFile(), true, path); }
 async function exists(path) { try { await stat(path); return true; } catch (error) { if (error.code === "ENOENT") return false; throw error; } }
 function delay(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
-function withTimeout(promise, ms, message) { return Promise.race([promise, delay(ms).then(() => { throw new Error(message); })]); }
+function withTimeout(promise, ms, timeoutError) {
+  return Promise.race([promise, delay(ms).then(() => { throw timeoutError; })]);
+}

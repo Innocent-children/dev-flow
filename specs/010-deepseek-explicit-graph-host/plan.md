@@ -375,6 +375,50 @@ the exact retained artifact.
 - no repeated native retries without an explicit failure classification and amendment;
 - no test is repeated only to increase confidence after a pass.
 
+## Post-Freeze Amendment A1 Plan
+
+### Failure Classification
+
+Native attempt 2 did not expose a Core, Adapter, Skill, MCP bridge, or reconnect behavior defect.
+Its recovery session performed the required `get_task` then `get_next_action` reads before mutation,
+continued through implementation and the authorized test, and committed revisions 3–6. The 240
+second wall-clock limit expired because one recovery Turn owned several graph nodes plus repository
+work and test execution. Cleanup retained `COMPREHENSION_REVIEW` revision 6 without reaching the
+terminal or lifecycle gates.
+
+The two Ubuntu failures are test portability defects: one direct-result test selected the packaged
+Mach-O Core when a protocol-compatible temporary MCP fixture is sufficient, and one negative path
+preflight omitted its explicit `darwin-arm64` selection.
+
+### Corrective Design
+
+- Use a temporary Node MCP STDIO fixture through the real official DSH MCP client for portable
+  success, Core-domain-error, transport-error, result normalization, size-boundary, spill, and
+  retrieval assertions. Keep packaged-Core execution in the native macOS gate.
+- Make each negative runtime-selection case name `platform: "darwin"` and `arch: "arm64"`; execute
+  version checks only through a current-platform temporary executable fixture.
+- Replace the single broad recovery Turn with a closed ordered stage list. Every direct user Turn
+  that may invoke Dev Flow includes `/dev-flow`, has one terminal target, and is followed by a fresh
+  task/action readback.
+- Gate every stage on the same task identity plus an allowed node/revision outcome. A completed Turn
+  with no expected progress fails the attempt. A timed-out Turn terminates only its isolated process
+  group, performs one final bounded readback, writes sanitized failure evidence, and is not retried.
+- Preserve the real DSH session order as the read-before-retry proof. Runner-side read-only SQLite
+  probes control stage admission but do not substitute for Agent tool calls.
+- Use explicit per-stage timeouts. Narrow read/recovery stages use 120 seconds and bounded graph-work
+  stages use 180 seconds; increasing a timeout alone is not a recovery strategy.
+
+### Freeze and Attempt Boundary
+
+The corrected tests, runner, evidence schema, and A1 documents are committed and pushed before the
+new source is frozen. Ubuntu CI must pass for that exact commit. A new artifact is built from that
+commit into a new external path. Attempt 3 uses a fresh root, profile, data directory, repository,
+task, session, artifact filename, and evidence filename. No post-freeze runner/test/schema/Product
+Surface edit or automatic native retry is permitted.
+
+Attempt 1 and attempt 2 evidence remain immutable. Attempt 3 is the only A1 native authority;
+attempt 4 is prohibited.
+
 ## Documentation Changes
 
 Bounded current-authority changes are permitted:
