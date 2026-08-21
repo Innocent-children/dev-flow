@@ -6,7 +6,7 @@ import {
 } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { arch, homedir, platform, tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { zstdCompressSync, zstdDecompressSync } from "node:zlib";
@@ -15,16 +15,17 @@ const execFile = promisify(execFileCallback);
 const runnerPath = fileURLToPath(import.meta.url);
 const repositoryRoot = dirname(dirname(dirname(dirname(runnerPath))));
 const evidenceDirectory = join(repositoryRoot, "tests", "journeys", "deepseek", "evidence");
-const successEvidencePath = join(evidenceDirectory, "native-attempt-3.json");
+const successEvidencePath = join(evidenceDirectory, "native-attempt-4.json");
 const historicalFailureEvidencePaths = [
   join(evidenceDirectory, "native-attempt-1-failed.json"),
   join(evidenceDirectory, "native-attempt-2-failed.json"),
+  join(evidenceDirectory, "native-attempt-3-failed.json"),
 ];
-const failureEvidencePath = join(evidenceDirectory, "native-attempt-3-failed.json");
+const failureEvidencePath = join(evidenceDirectory, "native-attempt-4-failed.json");
 const schemaPath = join(repositoryRoot, "tests", "journeys", "deepseek", "evidence-schema.json");
 const exactTestCommand = "node --test test/proof-writer.test.mjs";
-const nativeAttempt = 3;
-const authorizedNativeAttempts = Object.freeze([3]);
+const nativeAttempt = 4;
+const authorizedNativeAttempts = Object.freeze([4]);
 const automaticNativeRetry = false;
 const dshIntegrity = "sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==";
 const dshSourceCommit = "141eb6fef83422698aef7a981029e843e8161534";
@@ -105,6 +106,7 @@ if (mode === "self-test") {
   } catch (error) {
     const processCleanup = await terminateActiveTurns();
     const failure = await sanitizedFailure(error, config, processCleanup);
+    await validateFailureEvidence(failure);
     await writeFile(failureEvidencePath, `${JSON.stringify(failure, null, 2)}\n`, { flag: "wx", mode: 0o600 });
     throw error;
   }
@@ -148,7 +150,7 @@ function loadConfig() {
     workspace: join(process.env.DEV_FLOW_NATIVE_ROOT, "workspace"),
     readback: join(process.env.DEV_FLOW_NATIVE_ROOT, "artifact-readback"),
     preflightMarker: join(process.env.DEV_FLOW_NATIVE_ROOT, "preflight.json"),
-    profile: "feature010-attempt3",
+    profile: "headless",
   };
 }
 
@@ -161,9 +163,9 @@ async function preflight(config) {
   for (const historicalPath of historicalFailureEvidencePaths) {
     assert.equal(await exists(historicalPath), true, `historical native failure is missing: ${basename(historicalPath)}`);
   }
-  assert.equal(await exists(failureEvidencePath), false, "native attempt 3 failure evidence already exists");
-  assert.equal(await exists(join(evidenceDirectory, "native-attempt-4.json")), false, "attempt 4 evidence is forbidden");
-  assert.equal(await exists(join(evidenceDirectory, "native-attempt-4-failed.json")), false, "attempt 4 failure evidence is forbidden");
+  assert.equal(await exists(failureEvidencePath), false, "native attempt 4 failure evidence already exists");
+  assert.equal(await exists(join(evidenceDirectory, "native-attempt-5.json")), false, "attempt 5 evidence is forbidden");
+  assert.equal(await exists(join(evidenceDirectory, "native-attempt-5-failed.json")), false, "attempt 5 failure evidence is forbidden");
   await assertFile(config.dshCli);
   await assertFile(config.credentials);
   await assertFile(config.settings);
@@ -171,12 +173,13 @@ async function preflight(config) {
   assert.match(config.sourceCommit, /^[0-9a-f]{40}$/u);
   assert.match(config.artifactSha256, /^[0-9a-f]{64}$/u);
   assert.match(config.coreSha256, /^[0-9a-f]{64}$/u);
-  assert.equal(basename(config.artifact), "dev-flow-deepseek-0.5.0-feature010-attempt3.tgz");
+  assert.equal(basename(config.artifact), "dev-flow-deepseek-0.5.0-feature010-attempt4.tgz");
   const credentialText = await readFile(config.credentials, "utf8");
   assert.equal(hasYamlKey(credentialText, "DEEPSEEK_API_KEY"), true, "DeepSeek credential is unavailable");
   const root = await realpath(config.root);
   assert.equal(root, config.root, "native root must be canonical");
   assert.equal((await readdir(root)).length, 0, "native root must start empty");
+  assert.equal(await exists(join(config.dshHome, "profiles", config.profile)), false, "headless profile must start absent");
   const artifact = await fileIdentity(await realpath(config.artifact));
   assert.equal(artifact.sha256, config.artifactSha256);
   assert.equal((await execFile(config.dshCli, ["--version"])).stdout.trim(), "0.1.0-rc.8");
@@ -197,14 +200,36 @@ async function preflight(config) {
   await chmod(join(config.dshHome, ".credentials.yaml"), 0o600);
   await chmod(join(config.dshHome, "settings.yaml"), 0o600);
   await initializeWorkspace(config.workspace);
+
+  const defaultDump = await runIsolatedDsh(config, ["--profile", config.profile, "--dump-default-config"], {
+    cwd: config.workspace, timeout: 30_000,
+  });
+  const profileBundles = await readProfileBundles(config);
+  const composition = assertHeadlessComposition(profileBundles, defaultDump.stdout);
+  assert.equal(defaultDump.stdout.includes("id: dev-flow-deepseek"), false, "preflight must run before Artifact installation");
+  const help = await runIsolatedDsh(config, ["--profile", config.profile, "--help"], {
+    cwd: config.workspace, timeout: 10_000,
+  });
+  assert.match(help.stdout, /Answer one task, print the final assistant message, and exit\./u);
+  assert.match(help.stdout, /dsh --profile headless/u);
+  assert.equal((await sessionFiles(join(config.dshHome, "sessions"))).length, 0, "headless help created a Session");
+  assert.equal(await coreTaskCount(config.data), 0, "headless help created a Core task");
   await execFile("tar", ["-xzf", config.artifact, "-C", config.readback]);
   const extractedCorePath = join(config.readback, "package", "runtime", "darwin-arm64", "dev-flow");
   const core = await fileIdentity(extractedCorePath);
   assert.equal(core.sha256, config.coreSha256);
   assert.ok((await stat(extractedCorePath)).mode & 0o111);
   assert.equal((await execFile(extractedCorePath, ["version"])).stdout.trim(), "dev-flow 0.5.0");
-  assert.equal(await exists(installedPackageRoot(config)), false, "attempt 3 artifact must not be installed before the start marker");
+  assert.equal(await exists(installedPackageRoot(config)), false, "attempt 4 artifact must not be installed before the start marker");
   const marker = {
+    profile: config.profile,
+    profile_root_isolated: true,
+    default_bundles: profileBundles,
+    headless_startup_present: composition.headlessStartupPresent,
+    headless_runner_present: composition.headlessRunnerPresent,
+    help_exit_code: 0,
+    session_count: 0,
+    core_task_count: 0,
     artifact_sha256: artifact.sha256,
     core_sha256: core.sha256,
     artifact_source_commit: config.sourceCommit,
@@ -213,7 +238,18 @@ async function preflight(config) {
     codex_identity_sha256: await treeDigest(join(repositoryRoot, "packages", "codex")),
   };
   await writeFile(config.preflightMarker, `${JSON.stringify(marker)}\n`, { flag: "wx", mode: 0o600 });
-  return { status: "ready", artifact_sha256: artifact.sha256, core_sha256: core.sha256 };
+  return {
+    status: "ready",
+    profile: config.profile,
+    default_bundles: profileBundles,
+    headless_startup_present: composition.headlessStartupPresent,
+    headless_runner_present: composition.headlessRunnerPresent,
+    help_exit_code: 0,
+    session_count: 0,
+    core_task_count: 0,
+    artifact_sha256: artifact.sha256,
+    core_sha256: core.sha256,
+  };
 }
 
 async function runNative(config) {
@@ -223,17 +259,25 @@ async function runNative(config) {
   assert.equal(marker.core_sha256, config.coreSha256);
   assert.equal(marker.artifact_source_commit, config.sourceCommit);
   assert.equal(marker.runner_repository_commit, config.sourceCommit);
+  assert.equal(marker.profile, "headless");
+  assert.equal(marker.profile_root_isolated, true);
+  assert.deepEqual(marker.default_bundles, ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"]);
+  assert.equal(marker.headless_startup_present, true);
+  assert.equal(marker.headless_runner_present, true);
+  assert.equal(marker.help_exit_code, 0);
+  assert.equal(marker.session_count, 0);
+  assert.equal(marker.core_task_count, 0);
   assert.equal(await exists(successEvidencePath), false);
   assert.equal(await exists(failureEvidencePath), false);
-  const env = dshEnvironment(config);
   const sessionRoot = join(config.dshHome, "sessions");
 
-  await runCommand(config.dshCli, ["plugin", "--profile", config.profile, "add", config.artifact], {
-    cwd: config.workspace, env, timeout: 120_000,
+  await runIsolatedDsh(config, ["plugin", "--profile", config.profile, "add", config.artifact], {
+    cwd: config.workspace, timeout: 120_000,
   });
-  const installedDump = await runCommand(config.dshCli, ["--profile", config.profile, "--dump-config"], {
-    cwd: config.workspace, env, timeout: 30_000,
+  const installedDump = await runIsolatedDsh(config, ["--profile", config.profile, "--dump-config"], {
+    cwd: config.workspace, timeout: 30_000,
   });
+  assertHeadlessComposition(await readProfileBundles(config, ["dev-flow-deepseek"]), installedDump.stdout);
   assert.equal(countOccurrences(installedDump.stdout, "id: dev-flow-deepseek"), 1);
   const installedCore = await fileIdentity(await realpath(join(
     installedPackageRoot(config), "runtime", "darwin-arm64", "dev-flow",
@@ -248,7 +292,6 @@ async function runNative(config) {
   activeStage = "ordinary-turn";
   const ordinary = await runTurn(
     config,
-    env,
     "Inspect this repository without changing files. Reply with one short sentence. Do not invoke Dev Flow.",
     { stageId: activeStage, timeoutMs: 120_000 },
   );
@@ -265,7 +308,7 @@ async function runNative(config) {
     "Follow fresh Core actions and payload schemas. At comprehension, wait for an explicit user verdict and never self-confirm.",
   ].join(" ");
   activeStage = "interruption";
-  const interrupted = await startTurn(config, env, initialPrompt);
+  const interrupted = await startTurn(config, initialPrompt);
   await waitForRevisionOrExit(config.data, interrupted.child, 2, 180_000);
   killProcessGroup(interrupted.child.pid, "SIGKILL");
   const interruptedExit = await interrupted.completion;
@@ -293,7 +336,6 @@ async function runNative(config) {
   for (const definition of recoveryStages) {
     const result = await runNativeStage(
       config,
-      env,
       sessionRoot,
       definition,
       progress,
@@ -327,34 +369,36 @@ async function runNative(config) {
 
   const beforeLifecycle = await retainedIdentity(config, task.task_id);
   assert.equal(beforeLifecycle.codex, marker.codex_identity_sha256);
-  await runCommand(config.dshCli, ["plugin", "--profile", config.profile, "remove", "dev-flow-deepseek"], {
-    cwd: config.workspace, env, timeout: 120_000,
+  await runIsolatedDsh(config, ["plugin", "--profile", config.profile, "remove", "dev-flow-deepseek"], {
+    cwd: config.workspace, timeout: 120_000,
   });
-  const removedDump = await runCommand(config.dshCli, ["--profile", config.profile, "--dump-config"], {
-    cwd: config.workspace, env, timeout: 30_000,
+  const removedDump = await runIsolatedDsh(config, ["--profile", config.profile, "--dump-config"], {
+    cwd: config.workspace, timeout: 30_000,
   });
+  assertHeadlessComposition(await readProfileBundles(config), removedDump.stdout);
   assert.equal(removedDump.stdout.includes("id: dev-flow-deepseek"), false);
   assert.equal(await exists(installedPackageRoot(config)), false);
-  const repeatedRemoval = await runCommandAllowFailure(
-    config.dshCli,
+  const repeatedRemoval = await runIsolatedDshAllowFailure(
+    config,
     ["plugin", "--profile", config.profile, "remove", "dev-flow-deepseek"],
-    { cwd: config.workspace, env, timeout: 120_000 },
+    { cwd: config.workspace, timeout: 120_000 },
   );
   assert.ok(Number.isInteger(repeatedRemoval.code));
   assert.deepEqual(await retainedIdentity(config, task.task_id), beforeLifecycle);
 
-  await runCommand(config.dshCli, ["plugin", "--profile", config.profile, "add", config.artifact], {
-    cwd: config.workspace, env, timeout: 120_000,
+  await runIsolatedDsh(config, ["plugin", "--profile", config.profile, "add", config.artifact], {
+    cwd: config.workspace, timeout: 120_000,
   });
-  const reinstalledDump = await runCommand(config.dshCli, ["--profile", config.profile, "--dump-config"], {
-    cwd: config.workspace, env, timeout: 30_000,
+  const reinstalledDump = await runIsolatedDsh(config, ["--profile", config.profile, "--dump-config"], {
+    cwd: config.workspace, timeout: 30_000,
   });
+  assertHeadlessComposition(await readProfileBundles(config, ["dev-flow-deepseek"]), reinstalledDump.stdout);
   assert.equal(countOccurrences(reinstalledDump.stdout, "id: dev-flow-deepseek"), 1);
   const reinstalledCore = await fileIdentity(await realpath(join(installedPackageRoot(config), "runtime", "darwin-arm64", "dev-flow")));
   assert.equal(reinstalledCore.sha256, config.coreSha256);
 
   activeStage = "read-only-reopen";
-  const reopen = await runTurn(config, env, [
+  const reopen = await runTurn(config, [
     "/dev-flow Reopen the compatible terminal task read-only after exact-artifact reinstall.",
     "Perform the server-info handshake and fresh task/action reads, report the existing Core DONE result, and do not mutate it.",
   ].join(" "), { stageId: activeStage, timeoutMs: 120_000 });
@@ -438,11 +482,11 @@ async function runNative(config) {
   };
 }
 
-async function runNativeStage(config, env, sessionRoot, definition, before, taskID) {
+async function runNativeStage(config, sessionRoot, definition, before, taskID) {
   activeStage = definition.id;
   assert.equal(before.task_id, taskID);
   assert.equal(before.current_node, definition.fromNode);
-  const turn = await runTurn(config, env, definition.prompt, {
+  const turn = await runTurn(config, definition.prompt, {
     stageId: definition.id,
     timeoutMs: definition.timeoutMs,
   });
@@ -743,11 +787,16 @@ async function importResolved(require, specifier) {
 }
 
 async function selfTest() {
-  assert.equal(nativeAttempt, 3);
-  assert.deepEqual(authorizedNativeAttempts, [3]);
+  assert.equal(nativeAttempt, 4);
+  assert.deepEqual(authorizedNativeAttempts, [4]);
   assert.equal(automaticNativeRetry, false);
-  assert.equal(basename(successEvidencePath), "native-attempt-3.json");
-  assert.equal(basename(failureEvidencePath), "native-attempt-3-failed.json");
+  assert.equal(basename(successEvidencePath), "native-attempt-4.json");
+  assert.equal(basename(failureEvidencePath), "native-attempt-4-failed.json");
+  assert.deepEqual(historicalFailureEvidencePaths.map((path) => basename(path)), [
+    "native-attempt-1-failed.json",
+    "native-attempt-2-failed.json",
+    "native-attempt-3-failed.json",
+  ]);
   assert.equal(recoveryStages.length, 10);
   assert.deepEqual(recoveryStages.map((definition) => definition.id), [
     "recovery-read", "design", "task-planning", "implementation", "test",
@@ -810,10 +859,7 @@ async function selfTest() {
 
   for (const [index, historicalPath] of historicalFailureEvidencePaths.entries()) {
     const historicalFailure = JSON.parse(await readFile(historicalPath, "utf8"));
-    assertClosedKeys(historicalFailure, [
-      "evidence_class", "status", "native_attempt", "failure_class",
-      "bounded_diagnostic", "artifact_sha256", "publication_effects",
-    ]);
+    await validateFailureEvidence(historicalFailure);
     assert.equal(historicalFailure.status, "failed");
     assert.equal(historicalFailure.native_attempt, index + 1);
     assert.match(historicalFailure.artifact_sha256, /^[0-9a-f]{64}$/u);
@@ -834,14 +880,53 @@ async function selfTest() {
   assert.ok(cleanupExit.signal === "SIGTERM" || cleanupExit.signal === "SIGKILL");
 
   const privateRoot = join(tmpdir(), "private-native-root");
+  const isolatedConfig = {
+    root: privateRoot,
+    dshHome: join(privateRoot, "dsh-home"),
+    isolatedHome: join(privateRoot, "home"),
+    temporaryDirectory: join(privateRoot, "tmp"),
+    data: join(privateRoot, "data"),
+    profile: "headless",
+  };
+  const isolatedEnv = isolatedDshEnvironment(isolatedConfig, ["--profile", "headless", "--help"]);
+  assert.equal(isolatedEnv.DSH_HOME, isolatedConfig.dshHome);
+  assert.equal(isolatedEnv.HOME, isolatedConfig.isolatedHome);
+  assert.equal(isolatedEnv.TMPDIR, isolatedConfig.temporaryDirectory);
+  assert.throws(() => isolatedDshEnvironment(
+    { ...isolatedConfig, profile: "feature010-attempt4" },
+    ["--profile", "feature010-attempt4", "--help"],
+  ), /headless/u);
+  const composition = assertHeadlessComposition(
+    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
+    [
+      "- id: headless-startup",
+      "  name: '@deepseek-ai/dsh-headless/startup'",
+      "- id: headless-runner",
+      "  name: '@deepseek-ai/dsh-headless'",
+      "  inject: [headlessStartup]",
+    ].join("\n"),
+  );
+  assert.deepEqual(composition, { headlessStartupPresent: true, headlessRunnerPresent: true });
+  assert.throws(() => assertHeadlessComposition(
+    ["@deepseek-ai/dsh-base"],
+    "- id: headless-startup\n- id: headless-runner",
+  ), /bundles/u);
+  const runnerSource = await readFile(runnerPath, "utf8");
+  assert.equal(runnerSource.includes("execFile(config.dshCli, [\"--profile\""), false);
+  assert.equal(runnerSource.includes("spawn(config.dshCli, [\"--profile\""), false);
+  for (const required of ["--dump-default-config", "--dump-config", "--help", "plugin"]) {
+    assert.equal(runnerSource.includes(required), true, `missing isolated DSH coverage for ${required}`);
+  }
+  assert.equal(runnerSource.includes("sessionFiles(join(config.dshHome, \"sessions\"))"), true);
+  assert.equal(runnerSource.includes("coreTaskCount(config.data)"), true);
+
   const failure = await sanitizedFailure(
     Object.assign(new Error(`DSH_STAGE_TIMEOUT:${privateRoot}`), { code: "DSH_STAGE_TIMEOUT" }),
     {
-      root: privateRoot,
-      dshHome: join(privateRoot, "dsh-home"),
+      ...isolatedConfig,
       data: join(privateRoot, "missing-data"),
       workspace: join(privateRoot, "workspace"),
-      artifact: join(privateRoot, "attempt3.tgz"),
+      artifact: join(privateRoot, "attempt4.tgz"),
       credentials: join(privateRoot, "credentials"),
       settings: join(privateRoot, "settings"),
       dshLockfile: join(privateRoot, "lockfile"),
@@ -849,20 +934,23 @@ async function selfTest() {
     },
     "passed",
   );
-  assert.equal(failure.native_attempt, 3);
+  await validateFailureEvidence(failure);
+  assert.equal(failure.native_attempt, 4);
   assert.equal(failure.failure_class, "stage_timeout");
   assert.equal(failure.process_cleanup, "passed");
   assert.equal(failure.final_task, null);
   assert.equal(JSON.stringify(failure).includes(privateRoot), false);
   assert.equal(JSON.stringify(failure).includes(homedir()), false);
-  assert.equal([successEvidencePath, failureEvidencePath].some((path) => path.includes("attempt-4")), false);
+  assert.equal([successEvidencePath, failureEvidencePath].every((path) => path.includes("attempt-4")), true);
+  assert.equal([successEvidencePath, failureEvidencePath].some((path) => path.includes("attempt-5")), false);
+  await assert.rejects(validateFailureEvidence({ ...failure, native_attempt: 5 }), /native attempt/u);
   assert.throws(() => assertEvidenceShape({}), /Expected values to be strictly deep-equal/u);
 }
 
-async function startTurn(config, env, prompt) {
+async function startTurn(config, prompt) {
   const beforeSessions = new Set(await sessionFiles(join(config.dshHome, "sessions")));
-  const child = spawn(config.dshCli, ["--profile", config.profile, prompt], {
-    cwd: config.workspace, env, detached: true, stdio: ["ignore", "pipe", "pipe"],
+  const child = spawnIsolatedDsh(config, ["--profile", config.profile, prompt], {
+    cwd: config.workspace, detached: true, stdio: ["ignore", "pipe", "pipe"],
   });
   const stdout = boundedCollector(child.stdout, 1_048_576);
   const stderr = boundedCollector(child.stderr, 1_048_576);
@@ -876,8 +964,8 @@ async function startTurn(config, env, prompt) {
   return running;
 }
 
-async function runTurn(config, env, prompt, { stageId, timeoutMs }) {
-  const running = await startTurn(config, env, prompt);
+async function runTurn(config, prompt, { stageId, timeoutMs }) {
+  const running = await startTurn(config, prompt);
   let exit;
   try {
     exit = await withTimeout(
@@ -1145,11 +1233,72 @@ function exactDevFlowNames() {
 
 async function validateEvidence(evidence) {
   const schema = JSON.parse(await readFile(schemaPath, "utf8"));
-  assert.equal(schema.oneOf.length, 3);
+  assert.equal(schema.oneOf.length, 4);
+  assert.equal(schema.$defs.success.properties.native_attempt.const, 4);
   assertEvidenceShape(evidence);
   const encoded = JSON.stringify(evidence);
   for (const forbidden of [configuredPrivatePrefix(), repositoryRoot, homedir(), "DEEPSEEK_API_KEY", "BEGIN PRIVATE KEY"]) {
     assert.equal(encoded.includes(forbidden), false, `evidence contains forbidden value ${forbidden}`);
+  }
+}
+
+async function validateFailureEvidence(evidence) {
+  const schema = JSON.parse(await readFile(schemaPath, "utf8"));
+  assert.deepEqual(schema.oneOf.map((branch) => branch.$ref), [
+    "#/$defs/success",
+    "#/$defs/historicalFailedAttempt",
+    "#/$defs/failedAttempt3",
+    "#/$defs/failedAttempt4",
+  ]);
+  if (new Set([1, 2]).has(evidence.native_attempt)) {
+    assert.ok(schema.$defs.historicalFailedAttempt.properties.native_attempt.enum.includes(evidence.native_attempt));
+  } else if (evidence.native_attempt === 3) {
+    assert.equal(schema.$defs.failedAttempt3.properties.native_attempt.const, 3);
+  } else if (evidence.native_attempt === 4) {
+    assert.equal(schema.$defs.failedAttempt4.properties.native_attempt.const, 4);
+  } else {
+    throw new Error(`unsupported native attempt ${evidence.native_attempt}`);
+  }
+  assertFailureEvidenceShape(evidence);
+}
+
+function assertFailureEvidenceShape(evidence) {
+  const commonKeys = [
+    "evidence_class", "status", "native_attempt", "failure_class",
+    "bounded_diagnostic", "artifact_sha256", "publication_effects",
+  ];
+  const simpleAttempt = new Set([1, 2]).has(evidence.native_attempt);
+  assertClosedKeys(evidence, simpleAttempt
+    ? commonKeys
+    : [...commonKeys, "failed_stage", "final_task", "process_cleanup"]);
+  assert.equal(evidence.evidence_class, "native_deepseek_graph_journey");
+  assert.equal(evidence.status, "failed");
+  assert.ok(new Set([1, 2, 3, 4]).has(evidence.native_attempt), "native attempt is outside the closed Schema");
+  assert.match(evidence.bounded_diagnostic, /\S/u);
+  assert.ok(evidence.bounded_diagnostic.length <= 500);
+  assert.match(evidence.artifact_sha256, /^[0-9a-f]{64}$/u);
+  assert.equal(evidence.publication_effects, false);
+  const encoded = JSON.stringify(evidence);
+  for (const forbidden of [configuredPrivatePrefix(), repositoryRoot, homedir(), "DEEPSEEK_API_KEY", "BEGIN PRIVATE KEY"]) {
+    assert.equal(encoded.includes(forbidden), false, `failure evidence contains forbidden value ${forbidden}`);
+  }
+  if (simpleAttempt) {
+    assert.ok(new Set(["acceptance_assertion", "native_runner_error"]).has(evidence.failure_class));
+    return;
+  }
+  assert.ok(new Set([
+    "acceptance_assertion", "native_runner_error", "stage_timeout",
+    "stage_no_progress", "headless_failure",
+  ]).has(evidence.failure_class));
+  assert.match(evidence.failed_stage, /\S/u);
+  assert.ok(evidence.failed_stage.length <= 80);
+  assert.ok(new Set(["passed", "failed"]).has(evidence.process_cleanup));
+  if (evidence.final_task !== null) {
+    assertClosedKeys(evidence.final_task, ["task_id", "current_node", "revision", "origin_host"]);
+    assert.match(evidence.final_task.task_id, /^task-[0-9a-f]+$/u);
+    assert.match(evidence.final_task.current_node, /\S/u);
+    assert.ok(evidence.final_task.revision >= 1);
+    assert.equal(evidence.final_task.origin_host, "deepseek");
   }
 }
 
@@ -1299,6 +1448,71 @@ function dshEnvironment(config) {
   };
 }
 
+function isolatedDshEnvironment(config, args) {
+  assert.equal(config.profile, "headless", "only the shipped headless Profile is authorized");
+  const profileIndex = args.indexOf("--profile");
+  assert.notEqual(profileIndex, -1, "isolated DSH command is missing --profile");
+  assert.equal(args.filter((argument) => argument === "--profile").length, 1, "isolated DSH command has ambiguous Profiles");
+  assert.equal(args[profileIndex + 1], config.profile, "isolated DSH command selected another Profile");
+  const env = dshEnvironment(config);
+  assert.equal(env.DSH_HOME, config.dshHome);
+  assert.equal(env.HOME, config.isolatedHome);
+  assert.equal(env.TMPDIR, config.temporaryDirectory);
+  for (const path of [config.dshHome, config.isolatedHome, config.temporaryDirectory]) {
+    assert.ok(path.startsWith(`${config.root}${sep}`), "isolated DSH path escapes the native root");
+  }
+  return env;
+}
+
+async function runIsolatedDsh(config, args, options) {
+  return await runCommand(config.dshCli, args, {
+    ...options,
+    env: isolatedDshEnvironment(config, args),
+  });
+}
+
+async function runIsolatedDshAllowFailure(config, args, options) {
+  try {
+    return { code: 0, ...await runIsolatedDsh(config, args, options) };
+  } catch (error) {
+    return {
+      code: Number.isInteger(error.code) ? error.code : 1,
+      stdout: error.stdout ?? "",
+      stderr: error.stderr ?? "",
+    };
+  }
+}
+
+function spawnIsolatedDsh(config, args, options) {
+  return spawn(config.dshCli, args, {
+    ...options,
+    env: isolatedDshEnvironment(config, args),
+  });
+}
+
+async function readProfileBundles(config, additional = []) {
+  const manifestPath = join(config.dshHome, "profiles", config.profile, "package.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  const bundles = manifest?.dsh?.profile?.bundles;
+  assert.deepEqual(bundles, ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless", ...additional]);
+  return bundles;
+}
+
+function assertHeadlessComposition(profileBundles, dump) {
+  assert.deepEqual(profileBundles.slice(0, 2), ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"], "headless bundles are incomplete");
+  assert.equal(countOccurrences(dump, "id: headless-startup"), 1, "headless-startup composition is not exact");
+  assert.equal(countOccurrences(dump, "id: headless-runner"), 1, "headless-runner composition is not exact");
+  assert.match(dump, /name:\s*['"]?@deepseek-ai\/dsh-headless\/startup['"]?/u);
+  assert.match(dump, /id:\s*headless-runner[\s\S]*?name:\s*['"]?@deepseek-ai\/dsh-headless['"]?[\s\S]*?inject:\s*\[headlessStartup\]/u);
+  for (const forbiddenRow of [
+    "web-startup", "webserver", "web-runtime", "api-gateway",
+    "cordis-host-runner", "cordis-client-runner",
+  ]) {
+    assert.equal(dump.includes(`id: ${forbiddenRow}`), false, `headless composition contains ${forbiddenRow}`);
+  }
+  return { headlessStartupPresent: true, headlessRunnerPresent: true };
+}
+
 async function initializeWorkspace(workspace) {
   const env = { ...process.env, GIT_CONFIG_NOSYSTEM: "1" };
   await execFile("git", ["init", "-q"], { cwd: workspace, env });
@@ -1327,18 +1541,6 @@ async function runCommand(command, args, options) {
   return await execFile(command, args, {
     ...options, encoding: "utf8", maxBuffer: 8 * 1024 * 1024,
   });
-}
-
-async function runCommandAllowFailure(command, args, options) {
-  try {
-    return { code: 0, ...await runCommand(command, args, options) };
-  } catch (error) {
-    return {
-      code: Number.isInteger(error.code) ? error.code : 1,
-      stdout: error.stdout ?? "",
-      stderr: error.stderr ?? "",
-    };
-  }
 }
 
 function hasYamlKey(text, key) { return text.split("\n").some((line) => line.includes(":" ) && line.split(":", 1)[0].trim() === key); }

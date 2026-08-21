@@ -216,6 +216,27 @@ Run:
 Do not create repeated native attempts simply to gain confidence after a pass. A failure is classified,
 retained, and either fixed before source freeze or escalated to amendment.
 
+## Decision 13 — Preserve the Shipped Headless Profile Composition
+
+Post-Freeze Amendment A2 uses the fixed Profile name `headless`. Attempt identity comes from the
+fresh isolated root, source binding, Artifact, Session, Task, and Evidence rather than from a custom
+Profile name.
+
+Official DSH initializes the shipped `headless` template with
+`@deepseek-ai/dsh-base` and `@deepseek-ai/dsh-headless`. An unknown custom Profile created through
+plugin add starts with `@deepseek-ai/dsh-base` only. Only the Headless bundle supplies
+`headless-startup`, which consumes the positional Prompt, and `headless-runner`, which creates the
+Agent, submits the Prompt, waits for idle, flushes the Session, prints the final reply, and requests
+process exit.
+
+The native Adapter Probe composes Cordis services manually and remains useful for the integration,
+selector, six-tool, and MCP connectivity checks. It is not Headless composition evidence. A
+non-model preflight must inspect the isolated Profile manifest and default config, run Headless
+`--help`, and prove zero Session and Core Task creation before Attempt 4.
+
+**Rejected**: another Attempt-numbered custom Profile. Isolation already comes from the Attempt root,
+and a custom name omits the Headless app composition.
+
 ## Source Observations That Drive Repository Improvements
 
 1. `packages/deepseek/` is only a two-file placeholder while its version was advanced with repository

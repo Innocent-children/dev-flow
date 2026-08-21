@@ -422,6 +422,48 @@ Surface edit or automatic native retry is permitted.
 Attempt 1 and attempt 2 evidence remain immutable. Attempt 3 is the only A1 native authority;
 attempt 4 is prohibited.
 
+## Post-Freeze Amendment A2 Plan
+
+### Failure Classification
+
+Attempt 3 is classified as `native_runner_profile_composition_regression`. Its custom
+`feature010-attempt3` Profile was initialized with `@deepseek-ai/dsh-base` only and therefore lacked
+the shipped `@deepseek-ai/dsh-headless` rows `headless-startup` and `headless-runner`. The positional
+Prompt had no app argument consumer, so no Agent, Session, Dev Flow dispatch, Core Task, Event, or
+Repository Claim was created before timeout. This classification changes no product contract.
+
+### Corrective Design
+
+- Use Profile name `headless` with a fresh isolated `DSH_HOME`, `HOME`, `TMPDIR`, Core data directory,
+  workspace, Session, Task, Artifact path, and Evidence path for Attempt 4.
+- Route every Profile dump, help, plugin add/remove, repeated remove, reinstall, and real Turn through
+  one isolated DSH invocation boundary that asserts all three host roots remain under the Attempt root.
+- Before Artifact installation or any model request, initialize the shipped Headless template with
+  `--dump-default-config`, read back the Profile manifest, and require exactly
+  `@deepseek-ai/dsh-base` plus `@deepseek-ai/dsh-headless`.
+- Require exactly one `headless-startup` and one `headless-runner`, with the runner supplied by
+  `@deepseek-ai/dsh-headless` and injected with `headlessStartup`; reject Web/HTTP/browser rows.
+- Run `dsh --profile headless --help` under the same isolation and require bounded exit code 0 with
+  zero Sessions, Agents, Core Tasks, and installed Dev Flow Artifact.
+- Preserve A1's ten recovery stages, 120/180-second limits, progress gates, read-before-retry proof,
+  exact test-command identity, process-group cleanup, and no automatic retry.
+
+### Freeze and Attempt Boundary
+
+The Runner, Evidence Schema, and A2 documents are committed and pushed before the new source is
+frozen. Ubuntu CI must pass for that exact commit, and the Frozen Product Surface must remain
+byte-identical to Attempt 3. A newly built external
+`dev-flow-deepseek-0.5.0-feature010-attempt4.tgz` is bound to the new frozen source. Attempt 4 may run
+once only after the composition preflight passes. A preflight failure does not consume Attempt 4; a
+failure after `NATIVE_ATTEMPT_4_START` is terminal for A2 and does not authorize Runner edits or
+Attempt 5.
+
+### Completion Boundary
+
+Only a complete Attempt 4 may unlock the one final Repository Validator, final analyze, final
+converge, evidence-backed T065–T075 completion, support-matrix update, and
+`FEATURE_010_COMPLETE`. A2 performs no publication, version, Tag, GitHub Release, or public promotion.
+
 ## Documentation Changes
 
 Bounded current-authority changes are permitted:

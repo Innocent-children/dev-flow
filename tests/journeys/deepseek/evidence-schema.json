@@ -4,7 +4,8 @@
   "oneOf": [
     { "$ref": "#/$defs/success" },
     { "$ref": "#/$defs/historicalFailedAttempt" },
-    { "$ref": "#/$defs/failedAttempt3" }
+    { "$ref": "#/$defs/failedAttempt3" },
+    { "$ref": "#/$defs/failedAttempt4" }
   ],
   "$defs": {
     "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
@@ -21,7 +22,7 @@
       "properties": {
         "evidence_class": { "const": "final_native_graph_acceptance" },
         "status": { "const": "passed" },
-        "native_attempt": { "const": 3 },
+        "native_attempt": { "const": 4 },
         "source_commit": { "$ref": "#/$defs/gitCommit" },
         "artifact": {
           "type": "object",
@@ -237,6 +238,51 @@
         "evidence_class": { "const": "native_deepseek_graph_journey" },
         "status": { "const": "failed" },
         "native_attempt": { "const": 3 },
+        "failure_class": {
+          "enum": [
+            "acceptance_assertion", "native_runner_error", "stage_timeout",
+            "stage_no_progress", "headless_failure"
+          ]
+        },
+        "failed_stage": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "bounded_diagnostic": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "pattern": "^(?!.*(?:/Users/|/home/|DEEPSEEK_API_KEY|BEGIN [A-Z ]*PRIVATE KEY)).*$"
+        },
+        "artifact_sha256": { "$ref": "#/$defs/sha256" },
+        "final_task": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["task_id", "current_node", "revision", "origin_host"],
+              "properties": {
+                "task_id": { "type": "string", "pattern": "^task-[0-9a-f]+$" },
+                "current_node": { "type": "string", "minLength": 1 },
+                "revision": { "type": "integer", "minimum": 1 },
+                "origin_host": { "const": "deepseek" }
+              }
+            }
+          ]
+        },
+        "process_cleanup": { "enum": ["passed", "failed"] },
+        "publication_effects": { "const": false }
+      }
+    },
+    "failedAttempt4": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_class", "status", "native_attempt", "failure_class", "failed_stage",
+        "bounded_diagnostic", "artifact_sha256", "final_task", "process_cleanup", "publication_effects"
+      ],
+      "properties": {
+        "evidence_class": { "const": "native_deepseek_graph_journey" },
+        "status": { "const": "failed" },
+        "native_attempt": { "const": 4 },
         "failure_class": {
           "enum": [
             "acceptance_assertion", "native_runner_error", "stage_timeout",

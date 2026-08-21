@@ -12,7 +12,7 @@
 - **DeepSeek Harness Compatibility Floor**: `@deepseek-ai/dsh >=0.1.0-rc.8 <0.2.0`
 - **Exact Planning Evidence**: `@deepseek-ai/dsh 0.1.0-rc.8`, npm integrity `sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==`, upstream tag `dsh-v0.1.0-rc.8` at `141eb6fef83422698aef7a981029e843e8161534`
 - **Release Authority**: Not authorized
-- **Current Checkpoint**: Post-Freeze Amendment A1 portability CI passed and new source was frozen, but the single authorized native attempt 3 timed out in the ordinary Turn before any Core task write; T065–T075 remain incomplete and attempt 4 is not authorized
+- **Current Checkpoint**: Post-Freeze Amendment A2 is authorized to restore the shipped `headless` Profile composition, add a non-model composition preflight, freeze one new CI-passing source, and execute native attempt 4 exactly once; T065–T075 remain incomplete until that gate succeeds
 
 ## Purpose
 
@@ -79,6 +79,44 @@ final analyze and converge; and evidence-backed completion of T065–T075.
   `tests/journeys/deepseek/evidence/native-attempt-3-failed.json`.
 - Attempt 3 was not retried. Attempt 4 is not authorized. The final Repository Validator, analyze,
   converge, lifecycle completion, Core `DONE`, and `FEATURE_010_COMPLETE` were not reached.
+
+## Post-Freeze Amendment A2 — 2026-08-21
+
+### Trigger
+
+- Attempt 3 timed out in `ordinary-turn` without a Session, Agent, Core Task, Core Event, Repository
+  Claim, or Dev Flow dispatch.
+- A1 changed the Runner from the shipped `headless` Profile to the custom
+  `feature010-attempt3` Profile. Official DSH profile initialization gives an unknown custom Profile
+  only `@deepseek-ai/dsh-base`, so it did not contain `headless-startup` or `headless-runner`.
+- Without the Headless app argument consumer, the ordinary positional Prompt was never submitted to
+  an Agent. The failure classification is `native_runner_profile_composition_regression`.
+- This is not a Core, Adapter, Skill, MCP reconnect, model-speed, DeepSeek API timeout, or ordinary
+  product Journey defect.
+
+### Authorized Scope
+
+A2 permits only restoring the shipped `headless` Profile in fresh isolated `DSH_HOME`, `HOME`, and
+`TMPDIR`; adding a non-model Headless Composition Preflight; updating Attempt 4 Runner and Evidence
+identities; freezing one new pushed Ubuntu-validated source; rebuilding one source-local unpublished
+Artifact; executing Attempt 4 once; and, only after native success, completing the existing final
+Feature gates. It does not authorize a new Feature or Attempt 5.
+
+### Product Contract Boundary
+
+A2 changes no package Artifact content, Adapter, Skill, Core, runtime, manifest, Schema, process,
+Codex behavior, public version, or release contract. The Adapter Probe remains bounded evidence for
+integration loading, selector guard, six-tool exposure, and Core connectivity; only the real shipped
+Headless composition may prove positional Prompt consumption, Agent creation, one-shot completion,
+and process exit.
+
+### Attempt Authority
+
+- Attempts 1, 2, and 3 remain immutable historical failures.
+- Attempt 4 is the only native attempt authorized by A2 and uses entirely fresh isolated state.
+- Attempt 4 is not automatically retried. Attempt 5 is prohibited.
+- A Headless Composition Preflight failure stops before Attempt 4. An Attempt 4 failure retains
+  schema-valid evidence and blocks Feature completion.
 
 ## Why This Is a New Feature
 

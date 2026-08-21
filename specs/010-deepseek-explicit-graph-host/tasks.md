@@ -176,6 +176,23 @@
   non-interference gates were not run. T065–T075 remain unchecked and `FEATURE_010_COMPLETE` is not
   recorded.
 
+### Post-Freeze Amendment A2 — 2026-08-21
+
+- Trigger: Attempt 3 timed out at `ordinary-turn` with no Session, Agent, Dev Flow dispatch, Core
+  Task, Event, or Repository Claim because A1 used custom Profile `feature010-attempt3`, whose
+  base-only composition omitted `headless-startup` and `headless-runner`.
+- Classification: `native_runner_profile_composition_regression`; no Core, Adapter, Skill, MCP
+  reconnect, model-speed, DeepSeek API timeout, or product Journey defect is authorized by this
+  classification.
+- Scope: restore the shipped `headless` Profile under fresh isolated roots; add a non-model manifest,
+  default-config, and Headless `--help` composition preflight; update Attempt 4 Runner/Evidence;
+  freeze one new pushed CI-passing source; rebuild one external Artifact; execute Attempt 4 once;
+  complete T065–T075 only after native success.
+- Product boundary: package Artifact contents, Adapter, Skill, Core, runtime, manifest, Schema,
+  process, Codex, VERSION, and release contracts remain unchanged.
+- Attempt authority: Attempts 1–3 remain immutable failures; Attempt 4 is the only authorized A2
+  attempt and has no automatic retry; Attempt 5 is prohibited.
+
 ## Deferred Release Work
 
 Not tasks in Feature 010:

@@ -166,7 +166,15 @@ message only.
   freeze and a newly built source-local artifact;
 - attempt 3 uses fresh isolated host, profile, data, repository, task, session, artifact-path, and
   evidence identities;
-- attempt 4 is not authorized;
+- Post-Freeze Amendment A2 retains attempt 3 as an immutable Profile-composition failure and
+  authorizes attempt 4 exactly once after a new pushed, Ubuntu-validated source freeze;
+- attempt 4 uses the shipped Profile name `headless` inside fresh isolated `DSH_HOME`, `HOME`, and
+  `TMPDIR`; its non-model preflight requires the `@deepseek-ai/dsh-base` and
+  `@deepseek-ai/dsh-headless` manifest layers plus exact `headless-startup` and `headless-runner`
+  composition before Artifact installation;
+- the preflight runs Headless `--help` with zero Session and Core Task creation and does not consume
+  attempt 4;
+- attempt 4 has no automatic retry, and attempt 5 is not authorized;
 - one official lifecycle against the same artifact;
 - no silent replacement of a failed record;
 - a failure blocks completion until classified and the source or contract is amended;
