@@ -12,9 +12,10 @@
 - **DeepSeek Harness Compatibility Floor**: `@deepseek-ai/dsh >=0.1.0-rc.8 <0.2.0`
 - **Exact Planning Evidence**: `@deepseek-ai/dsh 0.1.0-rc.8`, npm integrity `sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==`, upstream tag `dsh-v0.1.0-rc.8` at `141eb6fef83422698aef7a981029e843e8161534`
 - **Release Authority**: Not authorized
-- **Current Checkpoint**: `NATIVE_BOUNDARY_CORRECTED_AWAITING_FINAL_RERUN`; the retained failure was
-  classified as a Runner checkpoint conflict after Core reached `IMPLEMENT` revision 4; T065–T070,
-  T072, and T075 remain incomplete pending the correction commit's CI and one authorized final rerun
+- **Current Checkpoint**: `FINAL_NATIVE_ACCEPTANCE_BLOCKED`; Boundary Correction commit
+  `91df0a44f65fbad395d4e70c64a391b1d027f87b` passed CI and repeatable Preflight, while the one
+  authorized final rerun stopped at `work-to-comprehension` because DSH authentication failed;
+  T065–T068, T072, and T075 remain incomplete
 
 ## Purpose
 
@@ -72,8 +73,23 @@ natural control flow.
 Final acceptance now combines bounded design, task planning, implementation, and targeted test into
 `work-to-comprehension`, where Headless must exit naturally with a completed Turn at
 `COMPREHENSION_REVIEW` and wait for the developer's explicit verdict. The Product Surface and
-retained Artifact are unchanged. Current authority permits one final Native Acceptance rerun after
-the correction commit's CI and repeatable Preflight pass.
+retained Artifact are unchanged. The authorized final rerun was executed once after the correction
+commit's CI and repeatable Preflight passed.
+
+### Final Authorized Native Acceptance Rerun
+
+- Boundary Correction commit `91df0a44f65fbad395d4e70c64a391b1d027f87b` passed exact-commit
+  CI run `32461021178`.
+- Repeatable non-model Preflight passed with Session 0 and Core Task 0 before Artifact installation.
+- The Runner recorded `NATIVE_ACCEPTANCE_START` once and executed one final native run.
+- Initial interruption reached `DESIGN` revision 2, and read-only recovery completed for the same
+  Task.
+- `work-to-comprehension` stopped when DSH reported Provider authentication failure for the existing
+  credential; the bounded final Task remained at `DESIGN` revision 2.
+- Process cleanup passed, `native-acceptance-failed.json` contains the bounded final Task, and no
+  retry was started.
+- Product Source, Product Surface, retained Artifact, embedded Core, and publication state are
+  unchanged.
 
 ## Why This Is a New Feature
 

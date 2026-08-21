@@ -1,0 +1,13 @@
+{
+  "status": "failed",
+  "stage": "work-to-comprehension",
+  "diagnostic": "headless_failure:DSH_AUTHENTICATION_FAILED:work-to-comprehension",
+  "final_task": {
+    "task_id": "task-5f4e890580239b13555788517ecfcc76",
+    "current_node": "DESIGN",
+    "revision": 2,
+    "origin_host": "deepseek"
+  },
+  "process_cleanup": "passed",
+  "publication_effects": false
+}
