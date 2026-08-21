@@ -51,6 +51,8 @@ const nativeCheckpoints = Object.freeze([
   checkpoint("accept-and-deliver", "COMPREHENSION_REVIEW", "DONE", false, [
     "/dev-flow I explicitly confirm that I can explain and maintain the implementation, guard boundary, and targeted test.",
     "Use the fresh current action, complete delivery, follow only legal Core transitions, confirm Core DONE, then stop.",
+    "At DELIVERY, keep the payload top level to exactly transition_id, summary, reason, artifacts, method_evidence, and node_result.",
+    "Put acceptance, evidence IDs, record IDs, unverified_items, risks, and findings only inside node_result; do not duplicate them at the payload top level.",
   ]),
 ]);
 
@@ -572,6 +574,9 @@ async function selfTest() {
     "recovery-read", "work-to-comprehension", "accept-and-deliver",
   ]);
   assert.ok(nativeCheckpoints.every((definition) => definition.prompt.includes("/dev-flow")));
+  const deliveryPrompt = nativeCheckpoints.find((definition) => definition.id === "accept-and-deliver").prompt;
+  assert.match(deliveryPrompt, /payload top level to exactly transition_id, summary, reason, artifacts, method_evidence, and node_result/u);
+  assert.match(deliveryPrompt, /only inside node_result; do not duplicate them at the payload top level/u);
   assertCompletedTurn(summarizeEvents([
     { type: "turn/end", data: { reason: { kind: "completed" } } },
   ]));
