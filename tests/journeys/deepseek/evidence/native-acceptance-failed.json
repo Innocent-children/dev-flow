@@ -1,0 +1,13 @@
+{
+  "status": "failed",
+  "stage": "reject-refactor-retest",
+  "diagnostic": "stage_timeout:DSH_STAGE_TIMEOUT:reject-refactor-retest",
+  "final_task": {
+    "task_id": "task-300fe8988aaa26a8bd521651defd5757",
+    "current_node": "REFACTOR",
+    "revision": 7,
+    "origin_host": "deepseek"
+  },
+  "process_cleanup": "passed",
+  "publication_effects": false
+}

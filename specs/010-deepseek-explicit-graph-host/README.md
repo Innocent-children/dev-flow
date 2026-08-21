@@ -12,10 +12,10 @@
 - **DeepSeek Harness Compatibility Floor**: `@deepseek-ai/dsh >=0.1.0-rc.8 <0.2.0`
 - **Exact Planning Evidence**: `@deepseek-ai/dsh 0.1.0-rc.8`, npm integrity `sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==`, upstream tag `dsh-v0.1.0-rc.8` at `141eb6fef83422698aef7a981029e843e8161534`
 - **Release Authority**: Not authorized
-- **Current Checkpoint**: `CREDENTIAL_CORRECTED_NATIVE_RERUN_AUTHORIZED`; the credential-blocked
-  failure is frozen by commit `d281ae3b3fe216268c9115f83a48c46bfafd2e40` and successful CI run
-  `32461905889`; the user confirmed the DSH credential was corrected and authorized one new native
-  rerun, while T065–T070, T072, and T075 remain incomplete pending its Acceptance commit and gates
+- **Current Checkpoint**: `CREDENTIAL_CORRECTED_NATIVE_RERUN_BLOCKED`; Acceptance commit
+  `aa8ec9c6816fa7082cc437597cf09479943a12f7` passed CI and repeatable Preflight, while the one
+  credential-corrected rerun timed out in `reject-refactor-retest` after Core reached `REFACTOR`
+  revision 7; T065–T068, T072, and T075 remain incomplete
 
 ## Purpose
 
@@ -101,9 +101,25 @@ record.
 
 The user confirmed that the DSH credential was corrected. The credential file is verified only as an
 existing regular file with restrictive permissions; its content is not read or recorded. Current
-authority permits one credential-corrected Native Acceptance rerun after the new Acceptance commit's
-CI and one fresh repeatable Preflight pass. Product Source, Product Surface, Runner, Skill, retained
-Artifact, and embedded Core remain unchanged.
+authority permitted one credential-corrected Native Acceptance rerun after the new Acceptance
+commit's CI and one fresh repeatable Preflight pass. Product Source, Product Surface, Runner, Skill,
+retained Artifact, and embedded Core remain unchanged.
+
+### Credential-Corrected Native Acceptance Rerun Outcome
+
+- Acceptance commit `aa8ec9c6816fa7082cc437597cf09479943a12f7` passed exact-commit CI run
+  `32462487203` and one fresh repeatable non-model Preflight.
+- The Runner recorded `NATIVE_ACCEPTANCE_START` once and executed one credential-corrected native
+  run.
+- Task `task-300fe8988aaa26a8bd521651defd5757` advanced monotonically through
+  `COMPREHENSION_REVIEW` revision 6; `work-to-comprehension` ended with a completed Turn.
+- The explicit rejection committed `COMPREHENSION_REVIEW → REFACTOR` at revision 7. The
+  `reject-refactor-retest` Turn then reached its bounded timeout without a completed `turn/end` and
+  without an unanswered Dev Flow call.
+- Process cleanup passed, the Workspace retained one bounded target-file change, and the canonical
+  failure Evidence contains the bounded final Task at `REFACTOR` revision 7.
+- The credential-corrected rerun was not retried. Product Source, Product Surface, Runner, Skill,
+  retained Artifact, embedded Core, and publication state remain unchanged.
 
 ## Why This Is a New Feature
 
