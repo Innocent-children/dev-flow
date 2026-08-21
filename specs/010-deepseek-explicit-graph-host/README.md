@@ -3,7 +3,7 @@
 ## Status
 
 - **Feature**: `010-deepseek-explicit-graph-host`
-- **Status**: Implementing
+- **Status**: Blocked
 - **Change Type**: Product Feature
 - **Created**: 2026-08-20
 - **Baseline**: `main` at `70726d0ba59ead5496657e445b25494152e6d8f8`
@@ -12,9 +12,9 @@
 - **DeepSeek Harness Compatibility Floor**: `@deepseek-ai/dsh >=0.1.0-rc.8 <0.2.0`
 - **Exact Planning Evidence**: `@deepseek-ai/dsh 0.1.0-rc.8`, npm integrity `sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==`, upstream tag `dsh-v0.1.0-rc.8` at `141eb6fef83422698aef7a981029e843e8161534`
 - **Release Authority**: Not authorized
-- **Current Checkpoint**: Feature 010 Simplification Revision is implementing a repeatable Preflight,
-  one bounded Native Acceptance, minimal Evidence, exact-commit CI, and final convergence; T065–T075
-  remain incomplete until those gates succeed
+- **Current Checkpoint**: `SIMPLIFICATION_COMPLETE_NATIVE_BLOCKED`; exact-commit CI and repeatable
+  Preflight passed, while the single Native Acceptance timed out in `design-and-tasks` after Core
+  durably reached `IMPLEMENT` revision 4; T066–T068, T072, and T075 remain incomplete
 
 ## Purpose
 
@@ -51,6 +51,16 @@ Historical failures remain evidence only:
 Current success and failure records are `native-acceptance.json` and
 `native-acceptance-failed.json`. Attempt numbers, repeated freezes, and one-shot Preflight are not
 active acceptance controls.
+
+### Current Native Outcome
+
+- Acceptance commit: `225bbbf9a4b1ecb36adc41b755fcae035412fd80`; CI passed.
+- Repeatable Preflight passed with zero Session and zero Core Task before Artifact installation.
+- `NATIVE_ACCEPTANCE_START` was recorded once.
+- Native execution timed out in `design-and-tasks`; cleanup passed and
+  `native-acceptance-failed.json` is retained.
+- Core retained task `task-1af84eae7d3e1d04a5baac376fa1c7d5` at `IMPLEMENT` revision 4.
+- No automatic retry was started.
 
 ## Why This Is a New Feature
 
