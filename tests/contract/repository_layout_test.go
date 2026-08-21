@@ -21,6 +21,7 @@ const (
 	singleGoModuleContract  = "single root go.mod"
 	executableRootContract  = "only cmd/dev-flow may be an executable source root"
 	hostPackageContract     = "host packages contain only package.json and README.md"
+	deepseekPackageContract = "DeepSeek source package uses the reviewed exact allowlist"
 	codexFakeImportContract = "Codex production sources cannot import test fakes"
 	rootScriptContract      = "root scripts use the reviewed exact allowlist"
 )
@@ -29,6 +30,7 @@ var rootScriptFiles = []string{
 	"README.md",
 	"build-codex-local.sh",
 	"build-codex-release.sh",
+	"build-deepseek-runtime.sh",
 	"publish-codex-release.mjs",
 	"release-codex.mjs",
 	"run-codex-real-journey.sh",
@@ -72,9 +74,28 @@ var codexSourceFiles = []string{
 	"tests/skill-contract.test.mjs",
 }
 
-var deepseekSkeletonFiles = []string{
+var deepseekSourceFiles = []string{
 	"README.md",
+	"cordis.patch.yml",
+	"lib/authorization.mjs",
+	"lib/index.mjs",
+	"lib/paths.mjs",
+	"lib/runtime.mjs",
+	"lib/tool-names.mjs",
 	"package.json",
+	"runtime/darwin-arm64/dev-flow",
+	"skills/dev-flow/SKILL.md",
+	"skills/dev-flow/references/method-profiles.md",
+	"skills/dev-flow/references/node-payloads.md",
+	"tests/authorization.test.mjs",
+	"tests/build-artifact.mjs",
+	"tests/bundle-contract.test.mjs",
+	"tests/integration-plugin.test.mjs",
+	"tests/lifecycle.test.mjs",
+	"tests/mcp-result-gate.test.mjs",
+	"tests/package-contract.test.mjs",
+	"tests/paths.test.mjs",
+	"tests/skill-contract.test.mjs",
 }
 
 var requiredRootPaths = []string{
@@ -168,6 +189,33 @@ func TestCodexRepositoryLayoutRejectsUnreviewedFilesAndFakeImports(t *testing.T)
 	}
 }
 
+func TestDeepseekRepositoryLayoutRejectsUnreviewedFiles(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "packed artifact", path: "packages/deepseek/dev-flow-deepseek.tgz"},
+		{name: "second platform runtime", path: "packages/deepseek/runtime/linux-arm64/dev-flow"},
+		{name: "task database", path: "packages/deepseek/data/tasks.db"},
+		{name: "profile state", path: "packages/deepseek/DSH_HOME/profile.json"},
+		{name: "source map", path: "packages/deepseek/lib/index.mjs.map"},
+		{name: "unreviewed fixture", path: "packages/deepseek/tests/fixtures/fake-core.mjs"},
+		{name: "Codex product file", path: "packages/deepseek/plugin/.mcp.json"},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			root := newValidRepository(t)
+			writeFixtureFile(t, root, test.path, "unreviewed\n")
+			assertLayoutViolation(t, validateRepositoryLayout(root), test.path, deepseekPackageContract)
+		})
+	}
+}
+
 func TestCodexPublicPackageSourceBoundary(t *testing.T) {
 	t.Parallel()
 
@@ -252,7 +300,6 @@ func TestPullRequestCIContract(t *testing.T) {
 		"node-version: lts/*",
 		"version: 11",
 		"fetch-depth: 0",
-		"RELEASE_BASE_SHA: ${{ github.event.pull_request.base.sha }}",
 		"run: ./scripts/validate-repository.sh",
 	}
 	for _, fragment := range requiredFragments {
@@ -285,6 +332,7 @@ func TestPullRequestCIContract(t *testing.T) {
 		"npm config set",
 		"pnpm config set",
 		"git config",
+		"release_base_sha",
 		"$home",
 		"~/.config",
 	}
@@ -451,8 +499,8 @@ func validateRepositoryLayout(root string) []layoutViolation {
 		})
 	}
 
-	violations = append(violations, validateHostPackageLayout(root, "packages/codex", codexSourceFiles, true)...)
-	violations = append(violations, validateHostPackageLayout(root, "packages/deepseek", deepseekSkeletonFiles, false)...)
+	violations = append(violations, validateHostPackageLayout(root, "packages/codex", codexSourceFiles, hostPackageContract, true)...)
+	violations = append(violations, validateHostPackageLayout(root, "packages/deepseek", deepseekSourceFiles, deepseekPackageContract, false)...)
 	violations = append(violations, validateRootScriptLayout(root)...)
 
 	return violations
@@ -507,7 +555,7 @@ func validateRootScriptLayout(root string) []layoutViolation {
 	return violations
 }
 
-func validateHostPackageLayout(root, packagePath string, allowedFiles []string, scanProductionFakes bool) []layoutViolation {
+func validateHostPackageLayout(root, packagePath string, allowedFiles []string, packageContract string, scanProductionFakes bool) []layoutViolation {
 	packageRoot := filepath.Join(root, filepath.FromSlash(packagePath))
 	if _, err := os.Stat(packageRoot); err != nil {
 		return nil // Required-path validation owns a missing or unreadable package root.
@@ -543,7 +591,7 @@ func validateHostPackageLayout(root, packagePath string, allowedFiles []string, 
 		if _, ok := allowed[relative]; !ok {
 			violations = append(violations, layoutViolation{
 				path:     fullRelative,
-				contract: hostPackageContract,
+				contract: packageContract,
 				detail:   "unexpected host package source, test file, runtime, data, receipt, or artifact",
 			})
 			return nil
@@ -578,7 +626,7 @@ func validateHostPackageLayout(root, packagePath string, allowedFiles []string, 
 		if _, ok := seen[required]; !ok {
 			violations = append(violations, layoutViolation{
 				path:     packagePath + "/" + required,
-				contract: hostPackageContract,
+				contract: packageContract,
 				detail:   "required host package metadata is missing",
 			})
 		}

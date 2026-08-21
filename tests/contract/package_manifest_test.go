@@ -72,7 +72,6 @@ func TestProjectPackageManifests(t *testing.T) {
 	}{
 		{path: filepath.Join(repositoryRoot, "package.json"), kind: rootManifest},
 		{path: filepath.Join(repositoryRoot, "packages", "codex", "package.json"), kind: codexManifest},
-		{path: filepath.Join(repositoryRoot, "packages", "deepseek", "package.json"), kind: productManifest},
 	}
 
 	for _, test := range tests {
@@ -675,6 +674,18 @@ func sameStringSet(got, want []string) bool {
 	slices.Sort(got)
 	slices.Sort(want)
 	return slices.Equal(got, want)
+}
+
+func sameStringMap(got, want map[string]string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for key, value := range want {
+		if got[key] != value {
+			return false
+		}
+	}
+	return true
 }
 
 func cloneStringMap(source map[string]string) map[string]string {

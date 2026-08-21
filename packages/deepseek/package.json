@@ -2,6 +2,44 @@
   "name": "dev-flow-deepseek",
   "version": "0.5.0",
   "private": true,
-  "description": "Feature 001 engineering skeleton for the future DeepSeek product boundary.",
-  "license": "Apache-2.0"
+  "description": "Explicit DeepSeek Harness adapter for the Dev Flow process graph.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "lib/index.mjs",
+  "files": [
+    "LICENSE",
+    "README.md",
+    "cordis.patch.yml",
+    "lib/authorization.mjs",
+    "lib/index.mjs",
+    "lib/paths.mjs",
+    "lib/runtime.mjs",
+    "lib/tool-names.mjs",
+    "runtime/darwin-arm64/dev-flow",
+    "skills/dev-flow/SKILL.md",
+    "skills/dev-flow/references/method-profiles.md",
+    "skills/dev-flow/references/node-payloads.md"
+  ],
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "test:package": "node --test tests/package-contract.test.mjs",
+    "test:bundle": "node --test tests/bundle-contract.test.mjs",
+    "pack:dry": "pnpm pack --dry-run --json"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-mcp-client": ">=0.1.0-rc.8 <0.2.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.1 <5.0.0",
+    "@deepseek-ai/dsh-skill": ">=0.1.0-rc.8 <0.2.0",
+    "@deepseek-ai/dsh-tools": ">=0.1.0-rc.8 <0.2.0"
+  }
 }

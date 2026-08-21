@@ -9,10 +9,10 @@ Dev Flow 解决的是开发过程容易失去上下文的问题：开发者或 A
 通过后直接交付难以维护的实现，或在中断和不确定 mutation 后凭聊天记录猜测下一步。一个
 Core 读取即可回答“当前在哪里、需要完成什么、可以去哪里以及为什么”。
 
-当前产品版本是 `0.4.0`。Feature 009 选择已完成的 Feature 008 图运行时作为 Codex-only
-macOS arm64 Release；仓库历史上的 `0.3.0` Tag、npm 包、Release 和 Features 001–007 证据保持
-冻结。公开状态与精确制品摘要以 npm `dev-flow-codex@0.4.0` 和 GitHub Release `v0.4.0` 的发布
-记录为准。
+当前产品版本是 `0.5.0`，公开产品仍只有 Codex-only macOS arm64。Feature 009 的 `0.4.0`
+发布以及更早的 Tag、npm 包、Release 和 Features 001–008 证据保持冻结。当前公开状态与精确
+制品摘要以 npm `dev-flow-codex@0.5.0` 和 GitHub Release `v0.5.0` 的发布记录为准。Feature 010
+已完成 DeepSeek 的 source-local 实施与精确制品验收，但不构成公开 DeepSeek 版本或支持声明。
 
 ## 开发过程图
 
@@ -124,10 +124,10 @@ Codex Skill 只接受精确显式 selector：
 $dev-flow-codex:dev-flow
 ```
 
-Codex-only `0.4.0` 的标准安装入口是：
+Codex-only `0.5.0` 的标准安装入口是：
 
 ```bash
-npm install -g dev-flow-codex@0.4.0
+npm install -g dev-flow-codex@0.5.0
 dev-flow-codex setup
 ```
 
@@ -176,11 +176,14 @@ artifact 的 no-Codex deterministic acceptance 独立证明。
 | `internal/store/` | Fresh Schema 2、strict snapshot-v2、CAS、events 和 claims |
 | `internal/application/` | Core use-case orchestration |
 | `internal/mcp/` | Contract 0.2 六工具、closed JSON 和 typed envelope |
-| `packages/codex/` | explicit-only Codex Adapter、Skill、method renderer 和 local package |
+| `packages/codex/` | explicit-only Codex Adapter、Skill、method renderer 和 public package |
+| `packages/deepseek/` | Feature 010 已完成验收的 private source package；公开发布前不构成支持声明 |
 | `protocol/fixtures/` | 历史 0.1、当前 0.2、Host parity 和 Recovery fixtures |
 | `tests/contract/`, `tests/journeys/` | deterministic contract 与 process evidence |
 
 阅读顺序从 [Constitution](.specify/memory/constitution.md)、
 [Spec Kit Workflow](docs/SPEC-KIT-WORKFLOW.md) 开始。当前 Feature 的完整规格入口是
-[Feature 008](specs/008-refactor-to-development-process-graph/README.md)，稳定产品边界和实现结构
-分别见 [Product](docs/PRODUCT.md) 与 [Architecture](docs/ARCHITECTURE.md)。
+[已完成的 Feature 010](specs/010-deepseek-explicit-graph-host/README.md)；当前 Core 基线仍由
+[Feature 008](specs/008-refactor-to-development-process-graph/README.md) 定义。稳定产品边界、
+支持矩阵和实现结构分别见 [Product](docs/PRODUCT.md)、[Support Matrix](docs/SUPPORT-MATRIX.md)
+与 [Architecture](docs/ARCHITECTURE.md)。
