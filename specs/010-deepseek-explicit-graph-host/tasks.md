@@ -109,25 +109,26 @@
 
 ## Phase 7 — Final Native Acceptance and Closure
 
-- [ ] **T065** Record Product Source commit, Acceptance commit, retained Artifact/Core digests, DSH consumer identity, and platform identity. — Files: `tests/journeys/deepseek/evidence/`; Refs: FR-055, FR-057.
-- [ ] **T066** Run one successful non-duplicative real DSH macOS arm64 Native Acceptance after repeatable Preflight passes. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-055, SC-014.
-- [ ] **T067** Prove ordinary zero dispatch, explicit selector, six tools, one restart/resume recovery, one targeted test, explicit comprehension acceptance, and Core `DONE`; do not repeat deterministic rejection/refactor/retest branches. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: SC-001–SC-008, SC-014.
-- [ ] **T068** Prove one official remove/reinstall with the same Artifact, retained data/repository/Codex identities, and read-only terminal reopen; leave repeated removal to lifecycle tests. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: SC-009, SC-010, SC-014.
-- [ ] **T069** Write minimal sanitized `native-acceptance.json` or `native-acceptance-failed.json` Evidence. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-057, FR-058.
-- [ ] **T070** Use the exact acceptance commit's successful CI Validator result as repository-wide evidence. — Files: `.github/workflows/ci.yml`, `tests/journeys/deepseek/evidence/`; Refs: FR-056, SC-014.
+- [x] **T065** Record Product Source commit, Acceptance commit, retained Artifact/Core digests, DSH consumer identity, and platform identity. — Files: `tests/journeys/deepseek/evidence/`; Refs: FR-055, FR-057.
+- [x] **T066** Run one successful non-duplicative real DSH macOS arm64 Native Acceptance after repeatable Preflight passes. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-055, SC-014.
+- [x] **T067** Prove ordinary zero dispatch, explicit selector, six tools, one restart/resume recovery, one targeted test, explicit comprehension acceptance, and Core `DONE`; do not repeat deterministic rejection/refactor/retest branches. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: SC-001–SC-008, SC-014.
+- [x] **T068** Prove one official remove/reinstall with the same Artifact, retained data/repository/Codex identities, and read-only terminal reopen; leave repeated removal to lifecycle tests. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: SC-009, SC-010, SC-014.
+- [x] **T069** Write minimal sanitized `native-acceptance.json` or `native-acceptance-failed.json` Evidence. — Files: `tests/journeys/deepseek/native-runner.mjs`, `tests/journeys/deepseek/evidence/`; Refs: FR-057, FR-058.
+- [x] **T070** Use the exact acceptance commit's successful CI Validator result as repository-wide evidence. — Files: `.github/workflows/ci.yml`, `tests/journeys/deepseek/evidence/`; Refs: FR-056, SC-014.
 - [x] **T071** Run one `$speckit-analyze` consistency check for the Simplification Revision before implementation and resolve blocking findings. — Files: `spec.md`, `plan.md`, `tasks.md`; Refs: FR-001–FR-059, SC-001–SC-015.
-- [ ] **T072** Run the Constitution-required final `$speckit-converge`; append tasks only for a real uncovered Feature gap. — Files: `tasks.md`, `tests/journeys/deepseek/evidence/`; Refs: SC-001–SC-015.
+- [x] **T072** Run the Constitution-required final `$speckit-converge`; append tasks only for a real uncovered Feature gap. — Files: `tasks.md`, `tests/journeys/deepseek/evidence/`; Refs: SC-001–SC-015.
 - [x] **T073** Update Feature status/checkpoints and current product support matrix to the exact tested combination. — Files: `README.md`, `docs/SUPPORT-MATRIX.md`; Refs: FR-059, SC-012.
 - [x] **T074** Verify no npm publication, version bump, Tag, GitHub Release, or public promotion occurred. — Files: `VERSION`, `package.json`, `packages/deepseek/package.json`, `tests/journeys/deepseek/evidence/`; Refs: FR-005, FR-059, SC-015.
-- [ ] **T075** Record `FEATURE_010_COMPLETE` only when every success criterion is supported by retained Evidence. — Files: `README.md`, `tasks.md`, `tests/journeys/deepseek/evidence/`; Refs: SC-001–SC-015.
+- [x] **T075** Record `FEATURE_010_COMPLETE` only when every success criterion is supported by retained Evidence. — Files: `README.md`, `spec.md`, `tasks.md`, `tests/journeys/deepseek/evidence/`; Refs: SC-001–SC-015.
 
 ### Current Native Status — 2026-08-21
 
-- Git retains the previous bounded DELIVERY failure from Acceptance commit `be640f9`; the minimal
-  Payload correction is frozen by commit `ef4bc46` and CI run `32470257249`.
-- The user authorized one Native rerun using that correction, and the canonical failure path is
-  cleared for its result.
-- T065–T070, T072, and T075 remain open. T071 and T073–T074 remain complete.
+- `native-acceptance.json` records Acceptance commit `b2bfc1bda276b971071a02e6dee678d46e9b3069`,
+  CI run `32470405385`, the exact Artifact/Core/DSH identities, and Task
+  `task-21399522585986eb4fbc892e1b80ea10` at Core `DONE` revision 8.
+- All native semantic, lifecycle, retention, read-only reopen, cleanup, and publication-safety
+  outcomes passed. `$speckit-converge` found no remaining Feature gap and appended no tasks.
+- T001–T078 are complete. `FEATURE_010_COMPLETE` is recorded.
 - Product Source, Product Surface, Skill, retained Artifact, and embedded Core remain unchanged.
 
 ## Phase 8 — Acceptance Responsibility Simplification

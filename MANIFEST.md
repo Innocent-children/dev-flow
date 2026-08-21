@@ -44,13 +44,13 @@ Feature.
 | `007-close-open-task-contract` | Corrective/Product Feature | Historical | Complete open-task contract and published `0.3.0` evidence |
 | `008-refactor-to-development-process-graph` | Product Feature | Complete | Development process graph, composite source-local acceptance, final validation, and zero-gap convergence complete; publication remains separate |
 | `009-publish-codex-0.4.0` | Release Change | Complete | Published and verified Feature 008 graph as Codex `0.4.0` with one-command and frozen-source recovery evidence |
-| `010-deepseek-explicit-graph-host` | Host Product Feature | Ready | Current source-local DeepSeek implementation authority; no public support or release authority |
+| `010-deepseek-explicit-graph-host` | Host Product Feature | Complete | Source-local DeepSeek implementation and exact-artifact native acceptance complete; no public support or release authority |
 
 ## Current Source Authority
 
 `0.3.0`, `0.4.0`, and Features 001–009 remain historical truth. Feature 008 is the approved product
 specification for the current graph; Feature 009 is historical `0.4.0` release evidence. The current
-published Codex product is `0.5.0`. Feature 010 is the active DeepSeek source implementation
+published Codex product is `0.5.0`. Feature 010 is the completed DeepSeek source implementation
 authority and does not itself authorize a public DeepSeek version or release. Current version
 releases are governed by `.specify/memory/constitution.md`, `AGENTS.md`, `release/`, and the
 standalone release command. The source authority is distributed as follows:
@@ -70,7 +70,7 @@ standalone release command. The source authority is distributed as follows:
 | Feature scope, contracts and checkpoints | `specs/008-refactor-to-development-process-graph/` |
 | Current manifest and publication contract | `release/`, `scripts/release-codex.mjs` |
 | Historical `0.4.0` identity and release evidence | `specs/009-publish-codex-0.4.0/` |
-| Current DeepSeek source implementation scope and contracts | `specs/010-deepseek-explicit-graph-host/` |
+| Completed DeepSeek source implementation scope and contracts | `specs/010-deepseek-explicit-graph-host/` |
 | Current product support claims | `docs/SUPPORT-MATRIX.md` |
 
 Current source supports only fresh Schema 2 `standard-development@1` tasks. It contains no

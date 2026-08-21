@@ -24,7 +24,7 @@
 008-refactor-to-development-process-graph   [COMPLETE]
           │
           ▼
-010-deepseek-explicit-graph-host            [READY]
+010-deepseek-explicit-graph-host            [COMPLETE]
           │
           ▼
 standalone DeepSeek Release Change
@@ -74,7 +74,7 @@ Feature，也不得把 DeepSeek 发布重新塞回已完成的 006 或 009。
 | `006` | 完整 Spec Kit | 003/005 已合并；npm/GitHub 权限与包名预检通过 |
 | `008` | 完整 Spec Kit + graph implementation | 已完成并冻结 Core Contract 0.2 / Schema 2 |
 | `009` | 历史 Release Change | `dev-flow-codex@0.4.0` 发布证据；保持冻结 |
-| `010` | 完整 Spec Kit | **Ready**；只授权 source-local DeepSeek 实施，不授权发布 |
+| `010` | 完整 Spec Kit + source-local acceptance | **Complete**；不授权公开发布 |
 
 ## 并行与公共合同规则
 

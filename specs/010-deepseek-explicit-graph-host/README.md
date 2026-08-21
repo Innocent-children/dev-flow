@@ -3,7 +3,7 @@
 ## Status
 
 - **Feature**: `010-deepseek-explicit-graph-host`
-- **Status**: Blocked
+- **Status**: Complete
 - **Change Type**: Product Feature
 - **Created**: 2026-08-20
 - **Baseline**: `main` at `70726d0ba59ead5496657e445b25494152e6d8f8`
@@ -12,10 +12,9 @@
 - **DeepSeek Harness Compatibility Floor**: `@deepseek-ai/dsh >=0.1.0-rc.8 <0.2.0`
 - **Exact Planning Evidence**: `@deepseek-ai/dsh 0.1.0-rc.8`, npm integrity `sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==`, upstream tag `dsh-v0.1.0-rc.8` at `141eb6fef83422698aef7a981029e843e8161534`
 - **Release Authority**: Not authorized
-- **Current Checkpoint**: `DELIVERY_PAYLOAD_FIX_NATIVE_AUTHORIZED`; commit
-  `ef4bc46fee070cf2d9082fdb2d196220c84a0d7c` and CI run `32470257249` froze the minimal DELIVERY
-  Payload correction; the user authorized one Native rerun, while T065–T070, T072, and T075 remain
-  incomplete pending its Acceptance commit and gates
+- **Current Checkpoint**: `FEATURE_010_COMPLETE`; Acceptance commit
+  `b2bfc1bda276b971071a02e6dee678d46e9b3069` passed CI and one fresh Preflight; the exact retained
+  Artifact completed the simplified native graph and lifecycle Journey at Core `DONE` revision 8
 
 ## Purpose
 
@@ -34,9 +33,9 @@ The Product Contract and retained Artifact are unchanged. Product Source Identit
 entering the Artifact; the Runner, Evidence validation, Feature documents, and exact PR commit form
 Acceptance Harness Identity.
 
-The canonical `native-acceptance-failed.json` retains the latest bounded native failure at
-`REFACTOR` revision 7 with passed process cleanup. Git, PR, and Evidence history retain earlier
-failures, so active Feature documents do not repeat an attempt-by-attempt journal.
+The canonical `native-acceptance.json` retains the successful bounded native outcome at Core `DONE`
+revision 8. Git and PR history retain earlier failures, so active Feature documents do not repeat an
+attempt-by-attempt journal.
 
 The failure exposed duplicated acceptance responsibilities and a manufactured refactor that
 contradicted the Task's minimal design. Deterministic tests now own negative graph branches,
@@ -45,10 +44,13 @@ repeated removal and exhaustive retention. Native acceptance owns only ordinary 
 real six-tool handshake, one interrupted restart/resume, one smallest successful path through
 explicit comprehension acceptance to `DONE`, and one remove/reinstall terminal readback.
 
-Preflight validates credential-file metadata without parsing credential content. Git retains the
-previous bounded DELIVERY failure and its `INVALID_ARGUMENT` Evidence. The canonical path is cleared
-for the one authorized rerun using the corrected DELIVERY Prompt; Product Source and Artifact remain
-unchanged.
+Preflight validates credential-file metadata without parsing credential content. The final native
+Journey proved ordinary zero dispatch, the exact six-tool handshake, restart/recovery, one targeted
+test, explicit comprehension acceptance, Core `DONE`, one remove/reinstall, retained data/repository/
+Codex identities, and read-only terminal reopen. `native-acceptance.json` records the exact Product
+Source, Acceptance commit, Artifact/Core/DSH identities, Task revision lineage, semantic outcomes,
+and publication safety. Product Source and Artifact remain unchanged; public release remains a
+separate maintainer decision.
 
 ## Why This Is a New Feature
 

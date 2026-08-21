@@ -12,7 +12,7 @@ Core 读取即可回答“当前在哪里、需要完成什么、可以去哪里
 当前产品版本是 `0.5.0`，公开产品仍只有 Codex-only macOS arm64。Feature 009 的 `0.4.0`
 发布以及更早的 Tag、npm 包、Release 和 Features 001–008 证据保持冻结。当前公开状态与精确
 制品摘要以 npm `dev-flow-codex@0.5.0` 和 GitHub Release `v0.5.0` 的发布记录为准。Feature 010
-只授权 DeepSeek 的 source-local 实施与验收，不构成公开 DeepSeek 版本或支持声明。
+已完成 DeepSeek 的 source-local 实施与精确制品验收，但不构成公开 DeepSeek 版本或支持声明。
 
 ## 开发过程图
 
@@ -177,13 +177,13 @@ artifact 的 no-Codex deterministic acceptance 独立证明。
 | `internal/application/` | Core use-case orchestration |
 | `internal/mcp/` | Contract 0.2 六工具、closed JSON 和 typed envelope |
 | `packages/codex/` | explicit-only Codex Adapter、Skill、method renderer 和 public package |
-| `packages/deepseek/` | Feature 010 管理的 private source package；完成与发布前不构成支持声明 |
+| `packages/deepseek/` | Feature 010 已完成验收的 private source package；公开发布前不构成支持声明 |
 | `protocol/fixtures/` | 历史 0.1、当前 0.2、Host parity 和 Recovery fixtures |
 | `tests/contract/`, `tests/journeys/` | deterministic contract 与 process evidence |
 
 阅读顺序从 [Constitution](.specify/memory/constitution.md)、
 [Spec Kit Workflow](docs/SPEC-KIT-WORKFLOW.md) 开始。当前 Feature 的完整规格入口是
-[Feature 010](specs/010-deepseek-explicit-graph-host/README.md)；当前 Core 基线仍由
+[已完成的 Feature 010](specs/010-deepseek-explicit-graph-host/README.md)；当前 Core 基线仍由
 [Feature 008](specs/008-refactor-to-development-process-graph/README.md) 定义。稳定产品边界、
 支持矩阵和实现结构分别见 [Product](docs/PRODUCT.md)、[Support Matrix](docs/SUPPORT-MATRIX.md)
 与 [Architecture](docs/ARCHITECTURE.md)。

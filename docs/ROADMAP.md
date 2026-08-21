@@ -69,12 +69,12 @@ Feature 008 的 source-local acceptance artifact 继续作为冻结测试证据�
 当前公开 Codex 产品版本为 `0.5.0`；npm `dev-flow-codex@0.5.0`、Tag `v0.5.0` 和 GitHub
 Release `v0.5.0` 使用同一 source identity。Feature 009 仍只记录 `0.4.0` 历史发布，不被改写。
 
-## 当前活动：Feature 010 DeepSeek Explicit Graph Host
+## 已完成：Feature 010 DeepSeek Explicit Graph Host
 
 Feature 010 从当前 Core Contract 0.2、Schema 2 和 `standard-development@1` 基线实现独立的
 DeepSeek source-local 产品。它在正式实现前冻结 DSH rc.8、显式 `/dev-flow` 授权、六工具、
-生命周期、数据保留和证据合同。Feature 完成不选择公开 DeepSeek 版本，也不执行 npm、Tag 或
-GitHub Release 操作。
+生命周期、数据保留和证据合同，并已完成精确 Artifact 的 source-local Native Acceptance。
+Feature 完成不选择公开 DeepSeek 版本，也不执行 npm、Tag 或 GitHub Release 操作。
 
 ## 未来产品方向
 
@@ -84,7 +84,7 @@ GitHub Release 操作。
 - 只读 doctor 和任务检查；
 - 有明确用户授权的跨 Host handoff；
 - verification budget 或 shared contract 的下一次版本化修订；
-- DeepSeek 产品完成后的独立公开发布；
+- DeepSeek 产品的独立公开发布；
 - 供应链签名、notarization 或透明度证据。
 
 用户自定义 graph、workflow DSL、Web UI、remote MCP、generic shell、Core Git mutation、
