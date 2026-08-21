@@ -146,9 +146,11 @@
 
 - Trigger: attempt 2 exceeded the 240-second recovery Turn budget while making bounded progress, and
   Ubuntu run `32438075117` exposed two package-test portability defects.
-- Scope: correct only `mcp-result-gate.test.mjs` and `paths.test.mjs`; stage the native runner's
-  recovery Turns with progress gates; update matching evidence/schema/status; freeze one new pushed
-  CI-passing source; build one new local artifact; execute attempt 3 once.
+- Scope: correct `mcp-result-gate.test.mjs` and `paths.test.mjs`, plus the existing
+  `tests/journeys/deepseek/fake-core.mjs` helper required by the same Ubuntu portability boundary;
+  stage the native runner's recovery Turns with progress gates; update matching
+  evidence/schema/status; freeze one new pushed CI-passing source; build one new local artifact;
+  execute attempt 3 once.
 - Contract boundary: no Core, Adapter, Skill, package manifest, packaged runtime, Schema, process,
   Codex, VERSION, release, or Result Proxy change.
 - Attempt authority: attempts 1 and 2 remain immutable failures; attempt 3 is the only A1 native

@@ -388,7 +388,10 @@ terminal or lifecycle gates.
 
 The two Ubuntu failures are test portability defects: one direct-result test selected the packaged
 Mach-O Core when a protocol-compatible temporary MCP fixture is sufficient, and one negative path
-preflight omitted its explicit `darwin-arm64` selection.
+preflight omitted its explicit `darwin-arm64` selection. After those tests passed, the next Ubuntu
+run reached the deterministic graph journey and proved its existing fake-Core host also selected the
+Mach-O runtime; the authorized test-only helper builds the same Core source for the current CI
+platform while retaining the real official MCP client and real Core graph assertions.
 
 ### Corrective Design
 

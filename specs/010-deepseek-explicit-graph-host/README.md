@@ -40,8 +40,9 @@ or task persistence. Those remain authoritative in the shared Go Core.
 
 ### Authorized Scope
 
-A1 permits only the two package-test portability corrections, staged recovery Turns with bounded
-progress gates in the native runner, matching evidence/schema/status updates, one new pushed and
+A1 permits only the two package-test portability corrections and the existing deterministic
+fake-Core helper needed to execute them in Ubuntu CI, staged recovery Turns with bounded progress
+gates in the native runner, matching evidence/schema/status updates, one new pushed and
 Ubuntu-validated frozen source, one newly built source-local unpublished artifact, and native
 attempt 3 once. It does not authorize a new Feature.
 
