@@ -17,6 +17,13 @@ Product Source Identity covers only the files packed into the DeepSeek Artifact.
 Identity covers the Runner, Evidence validation, Feature documents, and current PR commit. Harness
 changes do not invalidate an Artifact whose Product Source bytes and recorded digests still match.
 
+Native acceptance proves only behavior that requires a real DSH Agent: ordinary zero dispatch, the
+exact six-tool handshake, one interrupted restart/resume, one smallest successful graph path with an
+explicit comprehension verdict, and one remove/reinstall readback. Deterministic journeys own
+negative graph branches, uncertain-mutation recovery variants, comprehension rejection, and
+refactor/retest. Lifecycle tests own repeated-removal and exhaustive retention cases. The native
+Journey does not repeat those lower-layer responsibilities.
+
 ## Problem Statement
 
 The repository already has a complete graph Core and a functioning Codex product. The DeepSeek
@@ -277,8 +284,12 @@ Core-owned Schema 2 data.
 - **FR-054**: Lifecycle tests MUST cover official add/restart/remove/restart/reinstall and data/Codex
   retention against isolated state.
 - **FR-055**: Final acceptance MUST run one bounded native DSH journey after a repeatable non-model
-  Preflight passes. A failed native Journey is retained without an automatic retry in the same
-  acceptance run.
+  Preflight passes. The native Journey MUST cover ordinary zero dispatch, the exact six-tool
+  handshake, one interrupted restart/resume, one smallest successful path through explicit
+  comprehension acceptance to Core `DONE`, and one remove/reinstall readback. It MUST NOT repeat
+  negative comprehension/refactor/retest, uncertain-mutation variants, repeated removal, or
+  exhaustive retention cases already owned by deterministic and lifecycle tests. A failed native
+  Journey is retained without an automatic retry in the same acceptance run.
 - **FR-056**: Repository-wide validation MUST run once in CI for the exact acceptance commit. The
   same Validator MUST NOT be repeated locally when that CI result is available.
 - **FR-057**: Evidence MUST record Product Source commit, Acceptance commit, package digest, embedded
@@ -323,8 +334,9 @@ Core-owned Schema 2 data.
 - **SC-011**: The direct MCP result compatibility gate passes without a proxy.
 - **SC-012**: All product claims are limited to the exact tested DSH artifact and macOS arm64.
 - **SC-013**: DeepSeek-specific source contains no task-state persistence or transition authority.
-- **SC-014**: One repeatable Preflight, one bounded native Journey, and one exact-commit CI validation
-  pass for the retained Product Artifact.
+- **SC-014**: One repeatable Preflight, one non-duplicative bounded native happy-path Journey, and one
+  exact-commit CI validation pass for the retained Product Artifact; negative graph-loop and
+  exhaustive lifecycle evidence remain separately labelled deterministic or lifecycle evidence.
 - **SC-015**: No publication or release mutation occurs.
 
 ## Assumptions

@@ -131,6 +131,8 @@ business Task, mutates no target repository, and does not consume the native Jou
 Preflight verifies:
 
 - darwin arm64 plus required Node and pnpm major versions;
+- the credential source is an existing regular file with no group or other permission bits; Preflight
+  does not parse the credential file or inspect whether a named key is present;
 - one external consumer installation whose manifest name/version/bin, CLI realpath/version, and
   lockfile package block/integrity identify `@deepseek-ai/dsh@0.1.0-rc.8`;
 - retained Artifact and embedded Core digests, Core executable mode, and reported version;
@@ -157,7 +159,7 @@ Node and pnpm versions
 OS and architecture
 task ID, initial/resumed/terminal revisions, and terminal state
 ordinary dispatch, selector guard, six-tool, restart/resume, read-before-retry,
-comprehension/refactor/retest, terminal, lifecycle, retention, and read-only reopen outcomes
+explicit comprehension acceptance, terminal, lifecycle, retention, and read-only reopen outcomes
 publication effects
 ```
 
@@ -192,11 +194,14 @@ message only.
 - Current success is written to `native-acceptance.json`.
 - Current failure is written to `native-acceptance-failed.json`.
 - Historical Attempt 1–3 files remain retained history and are outside current Runner control.
-- The Journey uses one ordinary control Turn and at most six `/dev-flow` Turns with one shared bounded
-  timeout.
+- The Journey uses one ordinary control Turn and at most five `/dev-flow` Turns, including terminal
+  reopen, with one shared bounded timeout policy.
 - Checkpoints verify stable Task identity, monotonic revision, progress after mutation checkpoints,
   read-only recovery ordering, required graph outcomes, and final Core `DONE`.
-- One official remove/reinstall lifecycle uses the same Artifact.
+- The native graph path uses explicit comprehension acceptance and does not force rejection,
+  refactor, or retest. Those negative branches remain deterministic evidence.
+- One official remove/reinstall lifecycle uses the same Artifact. Repeated removal and exhaustive
+  retention variants remain lifecycle-test evidence rather than native work.
 - A native failure writes sanitized failure evidence and ends the current run without automatic
   retry.
 - Product Source changes invalidate the Artifact; Harness-only changes retain a matching Artifact.

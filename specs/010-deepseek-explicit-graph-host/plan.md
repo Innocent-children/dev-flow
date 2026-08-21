@@ -345,24 +345,27 @@ The test may inspect DSH-owned profile metadata but never edits it directly.
 - real packaged Core where practical;
 - simulated DSH Agent/session/tool pipeline;
 - create/apply/restart/resume;
-- graph branches;
-- comprehension;
-- uncertain mutation;
+- negative graph branches;
+- comprehension rejection and refactor/retest;
+- uncertain-mutation variants;
 - DONE;
-- removal retention.
+- no claim of native evidence.
 
 ### Layer D — Official Profile Lifecycle
 
 - exact DSH package;
 - isolated profile;
 - add/restart/readback/remove/restart/reinstall;
+- repeated-removal behavior and exhaustive data/repository/Codex retention;
 - no public network publication;
 - no manual profile mutation.
 
 ### Layer E — One Native Journey
 
-One macOS arm64 real-host journey after repeatable Preflight. It is the only final native execution
-in the current acceptance run and uses the exact retained Artifact.
+One macOS arm64 real-host journey after repeatable Preflight. It proves only ordinary zero dispatch,
+the exact six-tool handshake, one interrupted restart/resume, one smallest successful graph path
+through explicit comprehension acceptance to `DONE`, and one remove/reinstall terminal readback. It
+does not repeat deterministic negative branches or exhaustive lifecycle cases.
 
 ### Test Budget
 
@@ -373,7 +376,8 @@ in the current acceptance run and uses the exact retained Artifact.
 - one exact-commit repository validation in CI;
 - a repeatable non-model Preflight after relevant input or Preflight changes;
 - no automatic native retry after failure in the current acceptance run;
-- no test is repeated only to increase confidence after a pass.
+- no test is repeated only to increase confidence after a pass;
+- deterministic, lifecycle, and native layers have disjoint primary responsibilities.
 
 ## Feature 010 Simplification Revision Plan
 
@@ -395,34 +399,29 @@ Isolation is limited to Runner-owned business paths.
 
 ### Minimal Native Journey
 
-Use one ordinary control Turn and at most five `/dev-flow` Turns with one 300-second timeout per
-Headless Turn:
+Use one ordinary control Turn and at most five `/dev-flow` Turns, including terminal reopen, with one
+300-second timeout per Headless Turn:
 
 1. start a task, commit the first graph state, and interrupt the Host;
 2. restart and perform read-only `server_info`, `get_task`, then `get_next_action` recovery;
 3. advance design and tasks, implement the target file, run the target test, and reach
    `COMPREHENSION_REVIEW`;
-4. reject comprehension, refactor, retest, and return to `COMPREHENSION_REVIEW`;
-5. accept, deliver, and reach Core `DONE`.
+4. accept comprehension explicitly, deliver, and reach Core `DONE`;
+5. after remove/reinstall, reopen the same terminal Task read-only.
 
 Checkpoint validation covers stable Task identity, monotonic revision, mutation progress, recovery
 read order, required semantic nodes, the target source boundary, and final test success. Official
 remove/reinstall then proves retention and read-only terminal reopen.
 
-### Native Acceptance Boundary Correction
+### Native Acceptance Responsibility
 
-The retained failure reached Core `IMPLEMENT` revision 4 without a completed Turn or Workspace
-change. The intermediate `DESIGN → IMPLEMENT` and `IMPLEMENT → COMPREHENSION_REVIEW` checkpoints
-are replaced by one `work-to-comprehension` checkpoint from `DESIGN` to
-`COMPREHENSION_REVIEW`. This aligns the Runner with the Skill's fresh-Action loop and preserves
-`COMPREHENSION_REVIEW` as the natural developer-verdict pause.
-
-The final checkpoint set is `recovery-read`, `work-to-comprehension`,
-`reject-refactor-retest`, and `accept-and-deliver`, plus the ordinary control and initial
-interruption Turns. Each Headless Turn must exit normally with a completed Session Turn at its target
-boundary. The unified Turn timeout is 300 seconds, with no automatic retry. Product Source, Product
-Surface, Skill, and the retained Artifact remain unchanged; one final Native Acceptance rerun is
-authorized after exact-commit CI and repeatable Preflight pass.
+The checkpoint set is `recovery-read`, `work-to-comprehension`, and `accept-and-deliver`, plus the
+ordinary control, initial interruption, and terminal reopen Turns. Each normal Headless Turn exits
+with a completed Session Turn at its target boundary. The native Journey does not manufacture a
+complexity rejection or require a refactor that contradicts the Task's simplest viable design.
+Negative comprehension/refactor/retest remains covered by the deterministic journey, while repeated
+removal and exhaustive retention remain covered by lifecycle tests. The unified Turn timeout remains
+300 seconds, with no automatic retry.
 
 ### Evidence and Final Gates
 

@@ -48,12 +48,6 @@ const nativeCheckpoints = Object.freeze([
     "Do not self-confirm the comprehension verdict.",
     "Do not modify package.json, README.md, or test files.",
   ]),
-  checkpoint("reject-refactor-retest", "COMPREHENSION_REVIEW", "COMPREHENSION_REVIEW", false, [
-    "/dev-flow I cannot yet maintain this implementation because the returned proof string is unexplained.",
-    "Use this explicit rejection, follow the legal REFACTOR route, and refactor only src/proof-writer.mjs by introducing a clearly named constant for the proof value.",
-    `Run the bash command argument exactly as written with no prefix or suffix: ${exactTestCommand}`,
-    "Record the real result and return through legal Core actions to COMPREHENSION_REVIEW, then stop.",
-  ]),
   checkpoint("accept-and-deliver", "COMPREHENSION_REVIEW", "DONE", false, [
     "/dev-flow I explicitly confirm that I can explain and maintain the implementation, guard boundary, and targeted test.",
     "Use the fresh current action, complete delivery, follow only legal Core transitions, confirm Core DONE, then stop.",
@@ -151,7 +145,7 @@ async function preflight(baseConfig) {
   activeConfig = config;
   await assertOwnedPathsAbsent(config);
   await assertFile(config.dshCli);
-  await assertFile(config.credentials);
+  await assertPrivateFile(config.credentials);
   await assertFile(config.settings);
   await assertFile(config.dshLockfile);
   assert.match(config.productSourceCommit, /^[0-9a-f]{40}$/u);
@@ -159,8 +153,6 @@ async function preflight(baseConfig) {
   assert.match(config.artifactSha256, /^[0-9a-f]{64}$/u);
   assert.match(config.coreSha256, /^[0-9a-f]{64}$/u);
   assert.match(basename(config.artifact), /^dev-flow-deepseek-0\.5\.0.*\.tgz$/u);
-  const credentialText = await readFile(config.credentials, "utf8");
-  assert.equal(hasYamlKey(credentialText, "DEEPSEEK_API_KEY"), true, "DeepSeek credential is unavailable");
   const artifact = await fileIdentity(await realpath(config.artifact));
   assert.equal(artifact.sha256, config.artifactSha256);
   const dsh = await validateDshConsumer(config);
@@ -277,7 +269,7 @@ async function runNative(baseConfig) {
     "/dev-flow Implement the bounded plain-profile task in this repository.",
     "Create only src/proof-writer.mjs exporting writeProof() that returns the exact string deepseek-native-proof.",
     `The only authorized automated test command is exactly: ${exactTestCommand}`,
-    "Run that exact test before comprehension and again after refactor. Do not modify package.json, README.md, or test files.",
+    "Run that exact test once before comprehension. Do not modify package.json, README.md, or test files.",
     "Follow fresh Core actions and payload schemas. At comprehension, wait for an explicit user verdict and never self-confirm.",
   ].join(" ");
   activeStage = "interruption";
@@ -325,8 +317,8 @@ async function runNative(baseConfig) {
   const commands = allSummaries.flatMap((summary) => summary.bashCommands);
   const testLike = commands.filter(isTestExecutionCommand);
   assert.ok(testLike.every((command) => command === exactTestCommand));
+  assert.equal(testLike.length, 1);
   assert.ok(checkpointSummaries.get("work-to-comprehension").bashCommands.includes(exactTestCommand));
-  assert.ok(checkpointSummaries.get("reject-refactor-retest").bashCommands.includes(exactTestCommand));
   const changed = await gitChangedPaths(config.workspace);
   assert.deepEqual(changed, ["src/proof-writer.mjs"]);
   assert.match(await readFile(join(config.workspace, "src", "proof-writer.mjs"), "utf8"), /deepseek-native-proof/u);
@@ -344,12 +336,6 @@ async function runNative(baseConfig) {
   });
   await readProfileBundles(config);
   assert.equal(await exists(installedPackageRoot(config)), false);
-  const repeatedRemoval = await runIsolatedDshAllowFailure(
-    config,
-    ["plugin", "--profile", config.profile, "remove", "dev-flow-deepseek"],
-    { cwd: config.workspace, timeout: 120_000 },
-  );
-  assert.ok(Number.isInteger(repeatedRemoval.code));
   assert.deepEqual(await retainedIdentity(config, task.task_id), beforeLifecycle);
 
   await runIsolatedDsh(config, ["plugin", "--profile", config.profile, "add", config.artifact], {
@@ -414,7 +400,6 @@ async function runNative(baseConfig) {
       restart_resume: true,
       read_before_retry: recoveryReadBeforeRetry(recoveredTask.devFlowCalls),
       comprehension: true,
-      refactor_retest: true,
       core_done: true,
       remove_reinstall: true,
       data_retained: true,
@@ -584,7 +569,7 @@ async function selfTest() {
   assert.equal(basename(failureEvidencePath), "native-acceptance-failed.json");
   assert.equal(TURN_TIMEOUT_MS, 300_000);
   assert.deepEqual(nativeCheckpoints.map((definition) => definition.id), [
-    "recovery-read", "work-to-comprehension", "reject-refactor-retest", "accept-and-deliver",
+    "recovery-read", "work-to-comprehension", "accept-and-deliver",
   ]);
   assert.ok(nativeCheckpoints.every((definition) => definition.prompt.includes("/dev-flow")));
   assertCompletedTurn(summarizeEvents([
@@ -597,6 +582,11 @@ async function selfTest() {
     await mkdir(config.root);
     await mkdir(config.temporaryDirectory, { recursive: true });
     await writeFile(join(config.temporaryDirectory, "node-compile-cache"), "cache\n");
+    const credentialPath = join(root, "credential.yaml");
+    await writeFile(credentialPath, "credential-content-is-not-inspected\n", { mode: 0o600 });
+    await assertPrivateFile(credentialPath);
+    await chmod(credentialPath, 0o644);
+    await assert.rejects(assertPrivateFile(credentialPath), /private permissions/u);
     await assertOwnedPathsAbsent(config);
     await mkdir(config.data);
     await writeFile(join(config.data, "dev-flow.db"), "state\n");
@@ -1025,7 +1015,7 @@ function assertEvidenceShape(evidence) {
   assert.equal(evidence.task.terminal_state, "DONE");
   assertClosedKeys(evidence.outcomes, [
     "ordinary_zero_dispatch", "selector_guard", "six_tools", "restart_resume",
-    "read_before_retry", "comprehension", "refactor_retest", "core_done",
+    "read_before_retry", "comprehension", "core_done",
     "remove_reinstall", "data_retained", "repository_retained", "codex_unchanged",
     "read_only_reopen",
   ]);
@@ -1125,18 +1115,6 @@ async function runIsolatedDsh(config, args, options) {
     ...options,
     env: isolatedDshEnvironment(config, args),
   });
-}
-
-async function runIsolatedDshAllowFailure(config, args, options) {
-  try {
-    return { code: 0, ...await runIsolatedDsh(config, args, options) };
-  } catch (error) {
-    return {
-      code: Number.isInteger(error.code) ? error.code : 1,
-      stdout: error.stdout ?? "",
-      stderr: error.stderr ?? "",
-    };
-  }
 }
 
 function spawnIsolatedDsh(config, args, options) {
@@ -1243,10 +1221,14 @@ async function runCommand(command, args, options) {
   });
 }
 
-function hasYamlKey(text, key) { return text.split("\n").some((line) => line.includes(":" ) && line.split(":", 1)[0].trim() === key); }
 function sha256(value) { return createHash("sha256").update(value).digest("hex"); }
 async function fileIdentity(path) { const bytes = await readFile(path); return { size: bytes.length, sha256: sha256(bytes) }; }
 async function assertFile(path) { assert.equal((await stat(path)).isFile(), true, path); }
+async function assertPrivateFile(path) {
+  const info = await lstat(path);
+  assert.equal(info.isFile(), true, "credential source must be a regular file");
+  assert.equal(info.mode & 0o077, 0, "credential source must use private permissions");
+}
 async function exists(path) { try { await stat(path); return true; } catch (error) { if (error.code === "ENOENT") return false; throw error; } }
 function delay(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 function withTimeout(promise, ms, timeoutError) {

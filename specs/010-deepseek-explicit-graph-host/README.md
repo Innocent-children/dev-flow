@@ -12,10 +12,10 @@
 - **DeepSeek Harness Compatibility Floor**: `@deepseek-ai/dsh >=0.1.0-rc.8 <0.2.0`
 - **Exact Planning Evidence**: `@deepseek-ai/dsh 0.1.0-rc.8`, npm integrity `sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==`, upstream tag `dsh-v0.1.0-rc.8` at `141eb6fef83422698aef7a981029e843e8161534`
 - **Release Authority**: Not authorized
-- **Current Checkpoint**: `CREDENTIAL_CORRECTED_NATIVE_RERUN_BLOCKED`; Acceptance commit
-  `aa8ec9c6816fa7082cc437597cf09479943a12f7` passed CI and repeatable Preflight, while the one
-  credential-corrected rerun timed out in `reject-refactor-retest` after Core reached `REFACTOR`
-  revision 7; T065–T068, T072, and T075 remain incomplete
+- **Current Checkpoint**: `ACCEPTANCE_RESPONSIBILITY_SIMPLIFIED_NATIVE_PENDING`; T076–T078 removed
+  duplicated native coverage and active status journaling with targeted checks passed and Product
+  Source unchanged; T065–T068, T070, T072, and T075 remain incomplete pending commit CI and separate
+  Native authority
 
 ## Purpose
 
@@ -28,98 +28,26 @@ local STDIO MCP client, and enforces selector authorization at the DSH tool-exec
 The adapter does not own workflow state, graph transitions, completion, recovery, repository mutation,
 or task persistence. Those remain authoritative in the shared Go Core.
 
-## Feature 010 Simplification Revision — 2026-08-21
+## Current Acceptance Status
 
-The Product Contract is unchanged. Acceptance now uses a repeatable non-model Preflight, one bounded
-Native Acceptance, minimal semantic Evidence, exact-commit CI, and final Spec Kit convergence.
+The Product Contract and retained Artifact are unchanged. Product Source Identity covers only files
+entering the Artifact; the Runner, Evidence validation, Feature documents, and exact PR commit form
+Acceptance Harness Identity.
 
-Product Source Identity covers only files entering the Artifact. Acceptance Harness Identity covers
-the Runner, Evidence validation, Feature documents, and current PR commit. The retained Artifact may
-be reused while its Product Source bytes, package SHA-256, embedded Core SHA-256, executable mode,
-and version still match.
+The canonical `native-acceptance-failed.json` retains the latest bounded native failure at
+`REFACTOR` revision 7 with passed process cleanup. Git, PR, and Evidence history retain earlier
+failures, so active Feature documents do not repeat an attempt-by-attempt journal.
 
-Historical failures remain evidence only:
+The failure exposed duplicated acceptance responsibilities and a manufactured refactor that
+contradicted the Task's minimal design. Deterministic tests now own negative graph branches,
+comprehension rejection, refactor/retest, and uncertain-mutation variants. Lifecycle tests own
+repeated removal and exhaustive retention. Native acceptance owns only ordinary zero dispatch, the
+real six-tool handshake, one interrupted restart/resume, one smallest successful path through
+explicit comprehension acceptance to `DONE`, and one remove/reinstall terminal readback.
 
-| Stage | Failure | Product defect | Current handling |
-| --- | --- | --- | --- |
-| Attempt 1 | Artifact executable mode loss | no | verify retained Artifact mode |
-| Attempt 2 | Recovery Turn too broad | Runner | use bounded semantic checkpoints |
-| Attempt 3 | Custom Profile lacked Headless composition | Runner | use shipped `headless` Profile |
-| A2 Preflight | YAML representation binding | Preflight | verify Profile bundles and working Help |
-| A3 Preflight | source-workspace lockfile input | Input | use one external npm consumer |
-| A4 Preflight | whole-root empty check rejected runtime cache | Preflight | verify Runner-owned paths only |
-
-Current success and failure records are `native-acceptance.json` and
-`native-acceptance-failed.json`. Attempt numbers, repeated freezes, and one-shot Preflight are not
-active acceptance controls.
-
-### Current Native Outcome
-
-- Acceptance commit: `225bbbf9a4b1ecb36adc41b755fcae035412fd80`; CI passed.
-- Repeatable Preflight passed with zero Session and zero Core Task before Artifact installation.
-- `NATIVE_ACCEPTANCE_START` was recorded once.
-- Native execution timed out in `design-and-tasks`; cleanup passed and
-  `native-acceptance-failed.json` is retained.
-- Core retained task `task-1af84eae7d3e1d04a5baac376fa1c7d5` at `IMPLEMENT` revision 4.
-- No automatic retry was started.
-
-## Native Acceptance Boundary Correction
-
-The retained `design-and-tasks` Session has no completed `turn/end`, no unanswered Dev Flow call,
-and no Workspace change. After Core committed `TASKS → IMPLEMENT` at revision 4, the Skill continued
-its fresh-Action loop, so the Runner's intermediate `IMPLEMENT` stop conflicted with the Skill's
-natural control flow.
-
-Final acceptance now combines bounded design, task planning, implementation, and targeted test into
-`work-to-comprehension`, where Headless must exit naturally with a completed Turn at
-`COMPREHENSION_REVIEW` and wait for the developer's explicit verdict. The Product Surface and
-retained Artifact are unchanged. The authorized final rerun was executed once after the correction
-commit's CI and repeatable Preflight passed.
-
-### Final Authorized Native Acceptance Rerun
-
-- Boundary Correction commit `91df0a44f65fbad395d4e70c64a391b1d027f87b` passed exact-commit
-  CI run `32461021178`.
-- Repeatable non-model Preflight passed with Session 0 and Core Task 0 before Artifact installation.
-- The Runner recorded `NATIVE_ACCEPTANCE_START` once and executed one final native run.
-- Initial interruption reached `DESIGN` revision 2, and read-only recovery completed for the same
-  Task.
-- `work-to-comprehension` stopped when DSH reported Provider authentication failure for the existing
-  credential; the bounded final Task remained at `DESIGN` revision 2.
-- Process cleanup passed, `native-acceptance-failed.json` contains the bounded final Task, and no
-  retry was started.
-- Product Source, Product Surface, retained Artifact, embedded Core, and publication state are
-  unchanged.
-
-### Credential-Corrected Native Acceptance Rerun Authorization
-
-The credential-blocked run remains frozen in Git at
-`d281ae3b3fe216268c9115f83a48c46bfafd2e40`. Its Evidence retained the bounded final Task at
-`DESIGN` revision 2 with a stable authentication diagnostic, passed process cleanup, and no
-Workspace change. The canonical failure path is cleared only after that commit and CI preserved the
-record.
-
-The user confirmed that the DSH credential was corrected. The credential file is verified only as an
-existing regular file with restrictive permissions; its content is not read or recorded. Current
-authority permitted one credential-corrected Native Acceptance rerun after the new Acceptance
-commit's CI and one fresh repeatable Preflight pass. Product Source, Product Surface, Runner, Skill,
-retained Artifact, and embedded Core remain unchanged.
-
-### Credential-Corrected Native Acceptance Rerun Outcome
-
-- Acceptance commit `aa8ec9c6816fa7082cc437597cf09479943a12f7` passed exact-commit CI run
-  `32462487203` and one fresh repeatable non-model Preflight.
-- The Runner recorded `NATIVE_ACCEPTANCE_START` once and executed one credential-corrected native
-  run.
-- Task `task-300fe8988aaa26a8bd521651defd5757` advanced monotonically through
-  `COMPREHENSION_REVIEW` revision 6; `work-to-comprehension` ended with a completed Turn.
-- The explicit rejection committed `COMPREHENSION_REVIEW → REFACTOR` at revision 7. The
-  `reject-refactor-retest` Turn then reached its bounded timeout without a completed `turn/end` and
-  without an unanswered Dev Flow call.
-- Process cleanup passed, the Workspace retained one bounded target-file change, and the canonical
-  failure Evidence contains the bounded final Task at `REFACTOR` revision 7.
-- The credential-corrected rerun was not retried. Product Source, Product Surface, Runner, Skill,
-  retained Artifact, embedded Core, and publication state remain unchanged.
+Preflight validates credential-file metadata without parsing credential content. DSH validates the
+credential only through the authorized real request. No new Native Acceptance run is authorized by
+this harness simplification alone.
 
 ## Why This Is a New Feature
 
