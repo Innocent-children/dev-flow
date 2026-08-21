@@ -227,6 +227,7 @@ async function preflight(config) {
     default_bundles: profileBundles,
     headless_startup_present: composition.headlessStartupPresent,
     headless_runner_present: composition.headlessRunnerPresent,
+    headless_runner_inject: composition.headlessRunnerInject,
     help_exit_code: 0,
     session_count: 0,
     core_task_count: 0,
@@ -244,6 +245,7 @@ async function preflight(config) {
     default_bundles: profileBundles,
     headless_startup_present: composition.headlessStartupPresent,
     headless_runner_present: composition.headlessRunnerPresent,
+    headless_runner_inject: composition.headlessRunnerInject,
     help_exit_code: 0,
     session_count: 0,
     core_task_count: 0,
@@ -896,17 +898,99 @@ async function selfTest() {
     { ...isolatedConfig, profile: "feature010-attempt4" },
     ["--profile", "feature010-attempt4", "--help"],
   ), /headless/u);
-  const composition = assertHeadlessComposition(
+  const expectedComposition = {
+    headlessStartupPresent: true,
+    headlessRunnerPresent: true,
+    headlessRunnerInject: ["headlessStartup"],
+  };
+  const compositionDump = (injectLines, additionalLines = []) => [
+    "# provenance: @deepseek-ai/dsh-headless",
+    "- id: headless-startup",
+    "  name: '@deepseek-ai/dsh-headless/startup'",
+    "- id: headless-runner",
+    "  name: '@deepseek-ai/dsh-headless'",
+    ...injectLines,
+    "  config:",
+    "    task: !!js ctx.headlessStartup.task",
+    ...additionalLines,
+  ].join("\n");
+  const validCompositionDumps = [
+    compositionDump(["  inject: [headlessStartup]"]),
+    compositionDump(["  inject:", "    - headlessStartup"]),
+    compositionDump(["  inject:", "    - 'headlessStartup'"]),
+    compositionDump(["  inject:", '    - "headlessStartup"']).replaceAll("\n", "\r\n"),
+  ];
+  for (const dump of validCompositionDumps) {
+    assert.deepEqual(assertHeadlessComposition(
+      ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
+      dump,
+    ), expectedComposition);
+  }
+  const startupBlock = [
+    "- id: headless-startup",
+    "  name: '@deepseek-ai/dsh-headless/startup'",
+  ].join("\n");
+  const runnerBlock = [
+    "- id: headless-runner",
+    "  name: '@deepseek-ai/dsh-headless'",
+    "  inject: [headlessStartup]",
+  ].join("\n");
+  assert.throws(() => assertHeadlessComposition(
     ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
-    [
-      "- id: headless-startup",
-      "  name: '@deepseek-ai/dsh-headless/startup'",
-      "- id: headless-runner",
-      "  name: '@deepseek-ai/dsh-headless'",
-      "  inject: [headlessStartup]",
-    ].join("\n"),
-  );
-  assert.deepEqual(composition, { headlessStartupPresent: true, headlessRunnerPresent: true });
+    runnerBlock,
+  ), /headless-startup composition/u);
+  assert.throws(() => assertHeadlessComposition(
+    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
+    startupBlock,
+  ), /headless-runner composition/u);
+  assert.throws(() => assertHeadlessComposition(
+    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
+    `${startupBlock}\n${runnerBlock}\n${startupBlock}`,
+  ), /headless-startup composition/u);
+  assert.throws(() => assertHeadlessComposition(
+    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
+    `${startupBlock}\n${runnerBlock}\n${runnerBlock}`,
+  ), /headless-runner composition/u);
+  assert.throws(() => assertHeadlessComposition(
+    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
+    compositionDump(["  inject: [headlessStartup]"]).replace("name: '@deepseek-ai/dsh-headless'", "name: wrong-runner"),
+  ), /headless-runner name/u);
+  assert.throws(() => assertHeadlessComposition(
+    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
+    compositionDump(["  inject: [headlessStartup]"]).replace("name: '@deepseek-ai/dsh-headless/startup'", "name: wrong-startup"),
+  ), /headless-startup name/u);
+  assert.throws(() => assertHeadlessComposition(
+    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
+    compositionDump([]),
+  ), /inject dependencies/u);
+  assert.throws(() => assertHeadlessComposition(
+    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
+    compositionDump(["  inject: headlessStartup"]),
+  ), /must be a sequence/u);
+  assert.throws(() => assertHeadlessComposition(
+    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
+    compositionDump(["  inject: [headlessStartup, anotherService]"]),
+  ), /inject dependencies/u);
+  assert.throws(() => assertHeadlessComposition(
+    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
+    compositionDump(["  inject:", "    - headlessStartup", "    - anotherService"]),
+  ), /inject dependencies/u);
+  assert.throws(() => assertHeadlessComposition(
+    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
+    `${compositionDump([])}\n- id: other-runner\n  inject: [headlessStartup]`,
+  ), /inject dependencies/u);
+  assert.throws(() => assertHeadlessComposition(
+    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
+    compositionDump(["  # inject: [headlessStartup]"]),
+  ), /inject dependencies/u);
+  assert.throws(() => assertHeadlessComposition(
+    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
+    compositionDump(["  config: headlessStartup"]),
+  ), /inject dependencies/u);
+  assert.throws(() => assertHeadlessComposition(
+    ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"],
+    compositionDump(["  inject: [headlessStartup]"], ["- id: web-runtime", "  name: web"]),
+  ), /web-runtime/u);
   assert.throws(() => assertHeadlessComposition(
     ["@deepseek-ai/dsh-base"],
     "- id: headless-startup\n- id: headless-runner",
@@ -1498,19 +1582,111 @@ async function readProfileBundles(config, additional = []) {
   return bundles;
 }
 
+function extractTopLevelEntryBlocks(dump) {
+  const lines = dump.replaceAll("\r\n", "\n").split("\n")
+    .filter((line) => !/^\s*#/u.test(line));
+  const blocks = [];
+  let current = [];
+  for (const line of lines) {
+    if (/^- id:\s*\S/u.test(line)) {
+      if (current.length > 0) blocks.push(current.join("\n"));
+      current = [line];
+    } else if (current.length > 0) {
+      current.push(line);
+    }
+  }
+  if (current.length > 0) blocks.push(current.join("\n"));
+  return blocks;
+}
+
+function parseSimpleYamlScalar(raw, label) {
+  const value = raw.trim();
+  assert.notEqual(value, "", `${label} scalar is empty`);
+  if ((value.startsWith("'") && value.endsWith("'")) || (value.startsWith('"') && value.endsWith('"'))) {
+    assert.ok(value.length >= 2, `${label} scalar is malformed`);
+    return value.slice(1, -1);
+  }
+  assert.match(value, /^[A-Za-z0-9_@./+-]+$/u, `${label} scalar is malformed`);
+  return value;
+}
+
+function entryId(block) {
+  const match = /^- id:\s*(\S(?:.*\S)?)\s*$/u.exec(block.split("\n", 1)[0]);
+  assert.ok(match, "top-level Loader Entry is missing an id");
+  return parseSimpleYamlScalar(match[1], "Loader Entry id");
+}
+
+function entryProperties(block) {
+  const candidates = block.split("\n").slice(1).flatMap((line, index) => {
+    const match = /^( +)([A-Za-z0-9_-]+):(?:\s*(.*))?$/u.exec(line);
+    return match ? [{ indent: match[1].length, key: match[2], raw: match[3] ?? "", line: index + 1 }] : [];
+  });
+  const indent = Math.min(...candidates.map((candidate) => candidate.indent));
+  return candidates.filter((candidate) => candidate.indent === indent);
+}
+
+function findExactEntry(blocks, id) {
+  const matches = blocks.filter((block) => entryId(block) === id);
+  assert.equal(matches.length, 1, `${id} composition is not exact`);
+  return matches[0];
+}
+
+function readEntryScalar(block, key) {
+  const matches = entryProperties(block).filter((property) => property.key === key);
+  assert.ok(matches.length <= 1, `${entryId(block)} has duplicate ${key} fields`);
+  if (matches.length === 0) return undefined;
+  return parseSimpleYamlScalar(matches[0].raw, `${entryId(block)}.${key}`);
+}
+
+function readEntrySequence(block, key) {
+  const properties = entryProperties(block);
+  const matches = properties.filter((property) => property.key === key);
+  assert.ok(matches.length <= 1, `${entryId(block)} has duplicate ${key} fields`);
+  if (matches.length === 0) return undefined;
+  const property = matches[0];
+  const inline = property.raw.trim();
+  if (inline !== "") {
+    const flow = /^\[(.*)\]$/u.exec(inline);
+    assert.ok(flow, `${entryId(block)}.${key} must be a sequence`);
+    if (flow[1].trim() === "") return [];
+    return flow[1].split(",").map((value) => parseSimpleYamlScalar(value, `${entryId(block)}.${key}`));
+  }
+
+  const values = [];
+  const lines = block.split("\n");
+  for (let index = property.line + 1; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (line.trim() === "" || /^\s*#/u.test(line)) continue;
+    const indentation = /^( *)/u.exec(line)[1].length;
+    if (indentation <= property.indent) break;
+    const item = /^\s+-\s+(.+?)\s*$/u.exec(line);
+    assert.ok(item, `${entryId(block)}.${key} block must contain only sequence items`);
+    values.push(parseSimpleYamlScalar(item[1], `${entryId(block)}.${key}`));
+  }
+  return values;
+}
+
 function assertHeadlessComposition(profileBundles, dump) {
   assert.deepEqual(profileBundles.slice(0, 2), ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"], "headless bundles are incomplete");
-  assert.equal(countOccurrences(dump, "id: headless-startup"), 1, "headless-startup composition is not exact");
-  assert.equal(countOccurrences(dump, "id: headless-runner"), 1, "headless-runner composition is not exact");
-  assert.match(dump, /name:\s*['"]?@deepseek-ai\/dsh-headless\/startup['"]?/u);
-  assert.match(dump, /id:\s*headless-runner[\s\S]*?name:\s*['"]?@deepseek-ai\/dsh-headless['"]?[\s\S]*?inject:\s*\[headlessStartup\]/u);
+  const blocks = extractTopLevelEntryBlocks(dump);
+  const ids = blocks.map(entryId);
+  const startup = findExactEntry(blocks, "headless-startup");
+  const runner = findExactEntry(blocks, "headless-runner");
+  assert.equal(readEntryScalar(startup, "name"), "@deepseek-ai/dsh-headless/startup", "headless-startup name is not exact");
+  assert.equal(readEntryScalar(runner, "name"), "@deepseek-ai/dsh-headless", "headless-runner name is not exact");
+  const runnerInject = readEntrySequence(runner, "inject");
+  assert.deepEqual(runnerInject, ["headlessStartup"], "headless-runner inject dependencies are not exact");
   for (const forbiddenRow of [
     "web-startup", "webserver", "web-runtime", "api-gateway",
     "cordis-host-runner", "cordis-client-runner",
   ]) {
-    assert.equal(dump.includes(`id: ${forbiddenRow}`), false, `headless composition contains ${forbiddenRow}`);
+    assert.equal(ids.includes(forbiddenRow), false, `headless composition contains ${forbiddenRow}`);
   }
-  return { headlessStartupPresent: true, headlessRunnerPresent: true };
+  return {
+    headlessStartupPresent: true,
+    headlessRunnerPresent: true,
+    headlessRunnerInject: runnerInject,
+  };
 }
 
 async function initializeWorkspace(workspace) {

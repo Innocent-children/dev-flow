@@ -12,7 +12,7 @@
 - **DeepSeek Harness Compatibility Floor**: `@deepseek-ai/dsh >=0.1.0-rc.8 <0.2.0`
 - **Exact Planning Evidence**: `@deepseek-ai/dsh 0.1.0-rc.8`, npm integrity `sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==`, upstream tag `dsh-v0.1.0-rc.8` at `141eb6fef83422698aef7a981029e843e8161534`
 - **Release Authority**: Not authorized
-- **Current Checkpoint**: Post-Freeze Amendment A2 is authorized to restore the shipped `headless` Profile composition, add a non-model composition preflight, freeze one new CI-passing source, and execute native attempt 4 exactly once; T065–T075 remain incomplete until that gate succeeds
+- **Current Checkpoint**: Post-Freeze Amendment A3 is authorized to correct the A2 Runner's YAML-serialization false negative, freeze one new CI-passing source, rebuild the Attempt 4 Artifact, rerun the formal Headless Composition Preflight once, and execute the still-unconsumed native attempt 4 exactly once after that Preflight passes; T065–T075 remain incomplete until the native gate succeeds
 
 ## Purpose
 
@@ -117,6 +117,41 @@ and process exit.
 - Attempt 4 is not automatically retried. Attempt 5 is prohibited.
 - A Headless Composition Preflight failure stops before Attempt 4. An Attempt 4 failure retains
   schema-valid evidence and blocks Feature completion.
+
+## Post-Freeze Amendment A3 — 2026-08-21
+
+### Trigger
+
+- The A2 isolated `headless` Profile manifest already contained `@deepseek-ai/dsh-base` and
+  `@deepseek-ai/dsh-headless`, and the rc.8 default composition already contained the exact
+  `headless-startup` and `headless-runner` Loader Entries.
+- The A2 Frozen Runner bound `headless-runner.inject` to the Flow Sequence spelling
+  `inject: [headlessStartup]`; rc.8 emitted the equivalent Block Sequence with one
+  `headlessStartup` item.
+- The Preflight stopped on that false negative before Headless `--help`, Artifact installation,
+  Agent or Session creation, Core Task creation, or `NATIVE_ATTEMPT_4_START`.
+- The classification is `native_runner_preflight_yaml_serialization_false_negative`.
+
+### Authorized Scope
+
+A3 permits only the Runner's bounded Loader Entry parser, Composition Self-Test, this Feature status,
+one new pushed Ubuntu-validated freeze, one newly rebuilt external Attempt 4 Artifact, one formal
+Preflight in a fresh isolated root, and the still-unconsumed native Attempt 4 once after Preflight
+passes. It does not authorize Attempt 5 or a new Feature.
+
+### Product Contract Boundary
+
+A3 changes no Adapter, Skill, Core, packaged runtime, package manifest, Artifact Product Bytes,
+process graph, Schema, Codex behavior, public version, or release contract.
+
+### Attempt Authority and Historical Freeze
+
+- Attempts 1, 2, and 3 remain immutable historical failures.
+- The A2 Preflight is not Attempt 4 evidence. Attempt 4's execution count remains zero and Attempt 4
+  remains authorized exactly once after the A3 formal Preflight passes.
+- Attempt 5 remains unauthorized.
+- `1602531a600676855ea14c5216230a8a60429b02` is the immutable A2 Preflight-blocked Runner Freeze; it
+  is neither successful nor failed Attempt 4 Source Evidence.
 
 ## Why This Is a New Feature
 

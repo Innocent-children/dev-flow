@@ -464,6 +464,45 @@ Only a complete Attempt 4 may unlock the one final Repository Validator, final a
 converge, evidence-backed T065–T075 completion, support-matrix update, and
 `FEATURE_010_COMPLETE`. A2 performs no publication, version, Tag, GitHub Release, or public promotion.
 
+## Post-Freeze Amendment A3 Plan
+
+### Failure Classification
+
+The A2 Preflight stop is classified as
+`native_runner_preflight_yaml_serialization_false_negative`. The shipped Headless composition was
+already correct, but the Frozen Runner required the Flow Sequence spelling
+`inject: [headlessStartup]` while rc.8 serialized the same one-item dependency as a Block Sequence.
+Headless `--help` and the native Journey did not start, so Attempt 4 remains unconsumed.
+
+### Corrective Design
+
+- Normalize line endings and split the config dump at exact top-level `- id:` Loader Entry
+  boundaries while ignoring provenance comments and nested lists.
+- Require exactly one `headless-startup` and one `headless-runner`, then read each Entry's immediate
+  `name` field so a later Entry cannot satisfy the assertion.
+- Read `headless-runner.inject` as either a Flow Sequence or Block Sequence and require the semantic
+  value to equal exactly `["headlessStartup"]`.
+- Retain the exact first two Profile bundles and reject the closed Web/HTTP/browser Loader Entry set.
+- Cover valid Flow/Block/quoted forms and missing, duplicate, cross-Entry, comment, config, scalar,
+  extra-dependency, wrong-name, forbidden-row, incomplete-manifest, and custom-Profile cases in the
+  non-model Runner Self-Test.
+
+### Freeze and Attempt Boundary
+
+The A3 Runner and documents are committed and pushed before a new source is frozen. Runner Self-Test,
+Node syntax, `git diff --check`, Frozen Product Surface equality, a clean worktree, and Ubuntu CI must
+pass for that exact commit. A new external Attempt 4 Artifact is built from that source. One formal
+Preflight uses a fresh isolated root and records the semantic inject dependency before Artifact
+installation. Only a passing formal Preflight may emit `NATIVE_ATTEMPT_4_START` and execute Attempt 4
+once. A Preflight failure does not consume Attempt 4; a later native failure does not authorize a
+retry or Attempt 5.
+
+### Product Boundary
+
+A3 changes only Runner composition parsing, its Self-Test, Feature status, freeze/artifact identity,
+and acceptance evidence. Adapter, Skill, Core, packaged runtime, package manifest, Artifact Product
+Bytes, Schema, process graph, Codex behavior, version, and release contracts remain unchanged.
+
 ## Documentation Changes
 
 Bounded current-authority changes are permitted:
