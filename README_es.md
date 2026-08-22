@@ -55,12 +55,13 @@ DeepSeek directamente.
 
 Los artefactos públicos actuales admiten macOS arm64 y Node.js `>=24`. Core `0.5.0` se incluye de forma
 independiente en los productos Host Codex `0.5.1` y DeepSeek `0.5.1`; los tres productos tienen versiones
-independientes.
+independientes. Las tablas de compatibilidad conservan las versiones verificadas exactas, mientras que los
+ejemplos de instalación usan el dist-tag npm `latest`.
 
 ### Codex
 
 ```bash
-npm install -g dev-flow-codex@0.5.1
+npm install -g dev-flow-codex@latest
 dev-flow-codex setup
 dev-flow-codex --version
 ```
@@ -76,15 +77,17 @@ instalación, eliminación, conservación de datos y límites de invocación.
 
 ### DeepSeek Harness
 
-Descarga el tarball oficial desde npm y proporciona su ruta absoluta a un perfil DSH:
+Obtén el package oficial indicado por npm `latest` y proporciona la ruta absoluta del tarball a un perfil DSH:
 
 ```bash
-npm pack dev-flow-deepseek@0.5.1
-dsh plugin --profile <profile> add "$PWD/dev-flow-deepseek-0.5.1.tgz"
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile <profile> add "$PWD/$TARBALL"
 ```
 
 Reinicia el perfil según el lifecycle de DSH y entra explícitamente en Dev Flow con `/dev-flow`. Consulta
 [DeepSeek package README](docs/DEEPSEEK_en.md) para instalación, reinicio, eliminación y límites de datos.
+El catálogo completo de comandos Codex, DeepSeek, Core, selectors y herramientas MCP está en la
+[Referencia de comandos](docs/COMMANDS_en.md).
 
 ## Modelo de ejecución
 
@@ -153,6 +156,9 @@ dev_flow_apply_action
 dev_flow_cancel_task
 ```
 
+Consulta la [Referencia de comandos](docs/COMMANDS_en.md) para la clasificación de lectura/escritura, el papel de
+las entradas y el comportamiento de cada herramienta.
+
 Core puede observar un repositorio Git existente de forma acotada y de solo lectura para establecer un
 repository binding y evaluar hechos de cambio. Un Host autorizado por el usuario realiza las mutation Git.
 Core no expone un shell genérico ni ejecuta checkout, commit, push, merge, rebase, tag o publicación.
@@ -189,6 +195,7 @@ La documentación técnica de referencia se mantiene actualmente en inglés y ch
 | Problemas, capacidades y límites del producto | [Product](docs/PRODUCT_en.md) |
 | Arquitectura de Core, Adapter, Store y Recovery | [Architecture](docs/ARCHITECTURE_en.md) |
 | Versiones y plataformas compatibles | [Support Matrix](docs/SUPPORT-MATRIX_en.md) |
+| Todos los comandos de usuario, comandos Core administrados y herramientas MCP | [Command Reference](docs/COMMANDS_en.md) |
 | Capacidades entregadas y dirección futura | [Roadmap](docs/ROADMAP_en.md) |
 | Versionado independiente de productos | [Versioning](docs/VERSIONING.md) |
 | Locales y reglas de sincronización | [I18n](docs/I18N_en.md) |
