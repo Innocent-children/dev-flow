@@ -547,8 +547,10 @@ function hasReusableFinalJourney(context, manifest, record) {
     || validation?.status === "passed"
     || support?.journey_result === "passed";
   if (!hasCompletedSignal) return false;
+  const recoverablePendingManifest = step?.status === "complete"
+    || (step?.status === "blocked" && step.error_code === "FINAL_JOURNEY_RECORD_CONFLICT");
   if (
-    step?.status === "complete"
+    recoverablePendingManifest
     && record.final_journey.status === "passed"
     && validation === undefined
     && support?.journey_result === "pending"
