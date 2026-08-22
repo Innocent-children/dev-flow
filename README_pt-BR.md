@@ -176,7 +176,7 @@ excluir o antigo fora de Core. Comandos lifecycle nunca executam essa limpeza au
 
 | Produto | Versão pública | Bundled Core | Ambiente verificado |
 | --- | --- | --- | --- |
-| `dev-flow-codex` | `0.5.2` | `0.5.0` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
+| `dev-flow-codex` | `0.5.3` | `0.5.1` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
 | `dev-flow-deepseek` | `0.5.1` | `0.5.0` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
 
 As versões atuais de ambos os produtos Host passaram por instalação via registry package, handshake real Host/Core, remoção,

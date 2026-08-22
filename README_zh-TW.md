@@ -166,7 +166,7 @@ Task 資料預設位於 Host 產品管理的本機資料目錄，也可以透過
 
 | 產品 | 公開版本 | Bundled Core | 已驗證環境 |
 | --- | --- | --- | --- |
-| `dev-flow-codex` | `0.5.2` | `0.5.0` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
+| `dev-flow-codex` | `0.5.3` | `0.5.1` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
 | `dev-flow-deepseek` | `0.5.1` | `0.5.0` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
 
 兩個 Host 產品的目前版本皆通過 registry package 安裝、真實 Host/Core handshake、移除、解除安裝與
