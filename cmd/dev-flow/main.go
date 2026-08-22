@@ -22,7 +22,7 @@ const (
 	databaseFileName           = "dev-flow.db"
 )
 
-const helpText = `dev-flow exposes the governed Core Contract 0.2 over local STDIO MCP.
+const helpText = `dev-flow exposes the governed Core over local STDIO MCP.
 
 Usage:
   dev-flow [help|-h|--help]
