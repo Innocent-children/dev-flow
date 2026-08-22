@@ -1,56 +1,48 @@
 # Dev Flow
 
-[中文](README.md) | [English](README_en.md)
+[简体中文](README.md) · [English](README_en.md) · [繁體中文](README_zh-TW.md) · [日本語](README_ja.md) · [한국어](README_ko.md) · [Español](README_es.md) · [Français](README_fr.md) · [Deutsch](README_de.md) · [Português (Brasil)](README_pt-BR.md)
 
-> 防止 AI 把“小改动”做成“大工程”。
+> 为 AI 编程任务提供显式范围、验证预算与可恢复状态。
 
 [![Codex npm](https://img.shields.io/npm/v/dev-flow-codex?label=dev-flow-codex)](https://www.npmjs.com/package/dev-flow-codex)
 [![DeepSeek npm](https://img.shields.io/npm/v/dev-flow-deepseek?label=dev-flow-deepseek)](https://www.npmjs.com/package/dev-flow-deepseek)
 [![CI](https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml/badge.svg)](https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-## 你可能已经遇到这些情况
+Dev Flow 是 AI 辅助软件开发的本地过程控制与恢复层。它将需求、设计、任务拆分、实现、测试、
+理解审查、重构和交付组织为由 Go Core 管理的状态图。Codex、DeepSeek Harness 等 Host Adapter
+负责修改仓库和运行工具；Core 保存 Task、当前节点、节点合同、验证预算、合法流转和恢复结论。
 
-- 只让 Agent 改一个接口，它却顺手重构相邻模块、抽象一套框架，再补一堆没有要求的文档。
-- 只需要一个定向测试，它开始跑全量回归、平台矩阵和边界测试，时间与 token 不断消耗。
-- 会话被压缩、Host 重启或任务隔天继续后，它忘了做到哪，重新扫描仓库，甚至重复执行已经完成的操作。
-- 测试虽然通过，但实现复杂得没人能解释，只能继续依赖 AI 才敢维护。
-- 一次写操作中断后，不知道它究竟有没有生效，只能冒险重试。
+## Agent 工作流的常见失效模式
 
-问题通常不是 Agent 不会写代码，而是缺少一条独立于聊天记录的开发边界：**当前只该做什么、
-做到什么算完成、验证到什么程度，以及什么时候应该停。**
-
-## Dev Flow 做什么
-
-Dev Flow 是 AI 开发的本地过程导航与恢复层。它把需求、设计、任务拆分、实现、测试、理解审查、
-重构和交付放进由 Go Core 管理的状态图，让 Codex、DeepSeek Harness 等 Host 每次只围绕当前
-节点工作，并始终知道完成条件、允许的副作用、所需证据、验证预算和合法下一步。
-
-| 程序员痛点 | Dev Flow 的约束 |
+| 失效模式 | 典型表现 |
 | --- | --- |
-| 小需求不断扩大 | 保存不可变的原始意图和当前需求、设计基线；范围发生实质变化时必须回到正确节点，并使下游旧证据失效 |
-| 方案越做越复杂 | 测试通过后仍要经过 `COMPREHENSION_REVIEW`；无法解释或维护的实现会回到 `DESIGN` 或 `REFACTOR` |
-| 测试越跑越多 | 每个 Task 携带验证预算；检查必须关联当前节点、改动表面或验收条件，完整套件和平台矩阵不是默认动作 |
-| 中断后上下文丢失 | 当前节点、基线、证据、阻塞原因和合法流转保存在本地 SQLite，而不是只存在于聊天记录 |
-| 写操作结果不确定 | 先读取权威状态，再按五分类 Recovery 决定恢复或重试，禁止盲目重复 mutation |
+| 范围漂移 | 局部修改扩展为相邻模块重构、通用抽象、额外文档或未要求的未来能力 |
+| 无界验证 | 定向检查扩展为全量回归、平台矩阵、压力测试或不断追加的边界用例 |
+| 过程状态丢失 | 会话压缩、Host 重启或跨天继续后，当前进度只能从聊天记录和工作区重新推断 |
+| 可维护性缺口 | 测试通过，但实现无法由开发者清楚解释、审查或接手维护 |
+| 不确定 mutation | 写操作响应丢失或中断后，无法判断操作是否已提交，只能冒险重放 |
 
-Dev Flow 不是新的大模型、通用编程 Agent 或另一套规格格式。Codex 和 DeepSeek 仍负责读代码、
-改代码和运行工具；Dev Flow 负责让它们**不丢进度、不偷换范围、不无限验证，也不把“测试通过”
-误当成“可以交付”。**
+这些问题不能仅靠在 Prompt 中反复增加“不要重构”“不要多测试”等限制稳定解决。开发过程需要
+独立于会话上下文的持久状态，以及对当前步骤、完成条件和合法下一步的闭合合同。
 
-它最适合需要跨越多个开发步骤、可能返工、或需要在多次会话之间继续推进的真实仓库任务。
-对于一次性问答、无需过程记录的单文件小改动，直接使用 Codex 或 DeepSeek 通常更简单。
+## 控制模型
 
-## 一次任务如何推进
+| 失效模式 | Dev Flow 机制 |
+| --- | --- |
+| 范围漂移 | `TaskIntent` 保存不可变原始意图；Action 暴露 completion conditions 与 `allowed_effects`；实质范围变化必须通过合法 transition 返回相应节点，并由 Core 失效下游旧 authority |
+| 无界验证 | 每个 Task 保存 verification budget；检查必须关联当前节点、改动表面、验收条件或已知恢复风险，完整套件和平台矩阵不是默认动作 |
+| 过程状态丢失 | 当前节点、requirements/design/task-plan baselines、证据、blocker 和合法流转持久化到本地 SQLite |
+| 可维护性缺口 | `TEST` 之后必须经过 `COMPREHENSION_REVIEW`；无法解释或维护的实现返回 `DESIGN`、`IMPLEMENT` 或 `REFACTOR`，仓库变化后重新经过 `TEST` |
+| 不确定 mutation | mutation 携带 revision、action identity、source cursor 和 repository binding；调用者必须 read-before-retry，并遵循五分类 Recovery |
 
-1. 开发者在当前 Git 仓库中用显式 selector 描述任务。
-2. Core 创建或恢复该仓库的 Task，返回当前节点、完成条件、允许副作用、证据要求、验证预算和全部合法流转。
-3. Host 只完成当前节点的工作；发现需求扩大、设计不成立或实现缺陷时，走状态图返回正确节点，而不是悄悄扩展范围。
-4. Core 校验精确的 `transition_id` 后推进任务；测试失败、理解失败或交付拒绝都会回到对应位置。
-5. 如果写操作响应不确定，Host 先读取权威状态，再按 Recovery 结论处理，而不是重新执行碰运气。
+Core 不会静态拦截 Host 对仓库的每一次修改。它提供权威 Action 合同并校验 Task 流转；Host
+Adapter 必须在当前节点的允许副作用和验证预算内执行工作。
 
-开发者始终可以看到：任务为什么停在这里、什么才算完成、已经验证到什么程度，以及下一步有哪些
-真实选择。
+## 适用范围
+
+Dev Flow 适合需要跨越多个开发节点、可能发生返工、需要保留验证证据，或必须跨会话恢复的真实
+仓库任务。一次性问答、无需状态保留的单文件机械修改，直接使用 Codex 或 DeepSeek 通常更简单。
 
 ## 快速开始
 
@@ -86,17 +78,25 @@ dsh plugin --profile <profile> add "$PWD/dev-flow-deepseek-0.5.1.tgz"
 按 DSH 的 profile 生命周期重启该 profile 后，通过 `/dev-flow` 显式进入 Dev Flow。安装、
 重启、移除和数据边界见 [DeepSeek package README](packages/deepseek/README.md)。
 
-## 它在工具链中的位置
+## 执行模型
 
-| 组件 | 负责什么 |
+1. 开发者在当前 Git 仓库中通过显式 selector 描述任务。
+2. Core 创建或恢复该仓库的 Task，返回当前节点、完成条件、允许副作用、证据要求、验证预算和全部合法流转。
+3. Host 执行当前 Action。需求、设计或实现发生实质变化时，Host 通过 Core 返回的 transition 报告，而不是在当前节点中隐式扩大范围。
+4. Core 校验 `transition_id`、guard、revision 和 payload 后推进 Task；测试失败、理解失败或交付拒绝返回相应节点。
+5. mutation 响应不确定时，Host 先读取 Task 与 Recovery assessment，再决定恢复、阻塞或安全重试。
+
+## 组件边界
+
+| 组件 | 职责 |
 | --- | --- |
-| Codex / DeepSeek Harness | 阅读仓库、修改代码、运行工具，并与开发者协作完成当前节点 |
-| Spec Kit / OpenSpec | 为需求、设计、任务等节点提供方法和制品 |
-| 测试与 CI | 产生行为是否正确的验证证据 |
-| Dev Flow | 保存唯一过程游标、完成条件、验证预算、合法流转、恢复结论和终态 |
+| Codex / DeepSeek Harness | 读取仓库、修改代码、运行工具，并提交当前节点结果与证据 |
+| Spec Kit / OpenSpec | 为 requirements、design、tasks 等节点提供方法与制品 |
+| 测试与 CI | 产生行为验证证据 |
+| Dev Flow Core | 保存唯一 process cursor、节点合同、verification budget、合法流转、Recovery 和终态 |
 
-这些工具可以一起使用，但只有 Go Core 保存任务当前位于哪里以及可以去哪里。Spec Kit、OpenSpec、
-checkbox 或一次命令成功都不能自行推进 Task。
+Spec Kit、OpenSpec、checkbox 或一次命令成功都不能自行推进 Task。只有一次有效的 Core action
+submission 能改变权威状态。
 
 ## 开发过程图
 
@@ -128,7 +128,7 @@ destination 由 Core 推导。
 每次读取当前 Action，调用者都能获得：
 
 - 当前 process、node、revision 和 action identity；
-- 节点目的、进入假设、完成条件、允许副作用、所需证据和验证预算；
+- 节点 purpose、entry assumptions、completion conditions、`allowed_effects`、`required_evidence` 和 verification budget；
 - 当前 method profile 对应的 semantic method steps；
 - 全部合法 transitions 及其 destination、guard、选择条件和 reason 规则。
 
@@ -169,15 +169,16 @@ Core 返回 `SCHEMA_UNSUPPORTED` 并保持零写入。用户可以选择新的�
 不变性门禁；DeepSeek 还完成显式触发、重启恢复、`DONE` 与 retained reopen 旅程。精确状态、
 制品摘要和证据入口见 [Support Matrix](docs/SUPPORT-MATRIX.md) 与对应 GitHub Release。
 
-## 从这里继续
+## 文档
 
-| 想了解什么 | 文档 |
+| 主题 | 文档 |
 | --- | --- |
-| 产品解决的问题、能力和非目标 | [Product](docs/PRODUCT.md) |
-| Core、Adapter、Store 与 Recovery 如何协作 | [Architecture](docs/ARCHITECTURE.md) |
+| 产品问题、能力与边界 | [Product](docs/PRODUCT.md) |
+| Core、Adapter、Store 与 Recovery 架构 | [Architecture](docs/ARCHITECTURE.md) |
 | 当前支持版本和平台 | [Support Matrix](docs/SUPPORT-MATRIX.md) |
 | 已交付能力与后续方向 | [Roadmap](docs/ROADMAP.md) |
-| 三个产品如何独立版本化 | [Versioning](docs/VERSIONING.md) |
+| 三个产品的独立版本治理 | [Versioning](docs/VERSIONING.md) |
+| 文档 locale 与同步规则 | [I18n](docs/I18N.md) |
 | 本地开发工具链 | [Toolchain Baselines](docs/TOOLCHAIN-BASELINES.md) |
 | Feature 开发规范 | [Spec Kit Workflow](docs/SPEC-KIT-WORKFLOW.md) |
 | 如何提交问题和 Pull Request | [Contributing](CONTRIBUTING.md) |
@@ -199,8 +200,8 @@ Release。目录职责见 [Architecture](docs/ARCHITECTURE.md)，脚本入口见
 ## 参与贡献
 
 欢迎提交可复现的缺陷、文档改进、有最终制品证据的平台支持，以及边界明确的产品提案。开始前
-请阅读 [贡献指南](CONTRIBUTING.md)；产品行为变更需要完整 Feature 规格，普通文档修正不需要。
-版本提升和公开发布由维护者在功能合并后通过独立流程完成。
+请阅读 [贡献指南](CONTRIBUTING.md)。产品功能变更必须同步更新根 README 的全部维护语言、
+`docs/PRODUCT*` 和受影响的技术文档；精确规则见 [I18n](docs/I18N.md)。
 
 ## License
 

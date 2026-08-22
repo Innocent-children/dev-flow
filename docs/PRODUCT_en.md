@@ -2,62 +2,68 @@
 
 [中文](PRODUCT.md) | [English](PRODUCT_en.md)
 
-## One-line definition
+## Positioning
 
-Dev Flow is the process-boundary and recovery layer for AI-assisted development. At every step, it
-makes clear what the agent may do now, what completes the step, how much verification is enough, and
-where the task may go next.
+Dev Flow is the process-control and recovery layer for AI-assisted software development. The Go Core
+retains the Task, current node, node contract, verification budget, legal transitions, Recovery, and
+terminal outcome. A host adapter reads repositories, modifies code, and runs tools under user
+authorization.
 
-## Intended users
+The product does not add execution capability to an agent. It places durable, verifiable process
+boundaries around execution capability that already exists.
 
-Dev Flow serves developers and teams that want AI to participate deeply in real repositories without
-accepting scope drift, over-design, excessive testing, or lost context as normal operating costs.
-Real tasks cross requirement clarification, design choices, implementation rework, failed tests,
-interrupted sessions, and delivery review. Chat history alone cannot reliably retain their scope,
-progress, and evidence.
+## Target scenarios
 
-## Problems it solves
+Dev Flow serves developers and teams that use AI deeply in real repositories while requiring control
+over scope, verification intensity, and delivery quality. Typical work crosses requirement
+clarification, design choices, implementation rework, failed tests, interrupted sessions, and
+delivery review. Chat history alone cannot act as authoritative process state.
 
-### Small requests expand while they are being implemented
+## Failure modes under control
 
-A host may turn a local change into neighboring-module refactoring, a generic abstraction, extra
-documentation, or a future capability. Dev Flow retains immutable original intent plus the current
-requirements, design, and task-plan authority. Every Action exposes allowed effects. A material scope
-change returns the Task to the appropriate node and explicitly invalidates stale downstream evidence.
+### Scope drift and implicit work
 
-### Verification has no stopping rule
+A host may expand a local change into neighboring-module refactoring, a generic abstraction, extra
+documentation, or an unrequested future capability. A Task retains immutable `TaskIntent` plus current
+requirements, design, and task-plan authority. The current Action exposes completion conditions,
+`allowed_effects`, and every legal transition. A material scope change must be reported through the
+graph, after which Core invalidates downstream authority that no longer applies.
 
-An agent may expand “confirm this change works” into a complete regression suite, platform matrix,
-stress testing, fuzzing, or a growing collection of edge cases. Dev Flow stores a verification budget
-for every Task. Checks must relate to the current node, changed surface, acceptance criteria, or a
-known recovery risk. Broader validation requires an explicit requirement or final checkpoint rather
-than being appended by default.
+### Unbounded verification
 
-### The process exists only in chat history
+Targeted validation may expand into a complete regression suite, platform matrix, stress testing,
+fuzzing, or a growing collection of edge cases. Every Task retains a verification budget. Checks must
+relate to the current node, changed surface, acceptance criteria, or a known recovery risk. Broader
+validation requires an explicit requirement or final checkpoint rather than being appended by
+default.
 
-After context compaction, a host restart, or a task that resumes the next day, an agent may forget the
-current node, rescan the repository, or repeat completed work. Dev Flow stores the Task, current node,
-baselines, evidence, blockers, and legal transitions in local SQLite. One authoritative read restores
-the actual progress.
+### Conversation context as the only state store
 
-### Replaying an interrupted mutation can duplicate effects
+After context compaction, a host restart, or work resumed in another session, an agent may rescan the
+repository, repeat completed work, or infer progress from partial output. Dev Flow persists the Task,
+current node, baselines, evidence, blockers, and legal transitions in local SQLite. One Core read
+restores authoritative state.
 
-When a mutation result is uncertain, Dev Flow reads the recorded operation, Task, and repository
-binding before deciding whether recovery is needed. Callers do not have to infer success from a
-partial output stream, and blind retry is not treated as the default recovery strategy.
+### Replay of an uncertain mutation
 
-### Passing tests does not mean the code is ready to deliver
+When a mutation response is missing, cancelled, truncated, or malformed, direct replay can duplicate
+side effects. Dev Flow identifies the operation through revision, action identity, source cursor,
+repository binding, and the original payload, and requires read-before-retry. Core returns a
+five-class Recovery assessment before recovery, blocking, or safe retry is selected.
 
-Tests verify behavior. Comprehension review verifies that a developer can explain and maintain the
-result. Dev Flow records both as separate evidence and provides formal `DESIGN` / `REFACTOR` loops for
-excess complexity. Repository-changing refactors must pass through `TEST` again.
+### Behavioral correctness and maintainability are not separated
 
-### Multiple tools create competing cursors
+Automated tests establish behavior; they do not establish that an implementation can be explained and
+maintained. `COMPREHENSION_REVIEW` is a separate delivery gate. A result that fails that gate can return
+to `REQUIREMENTS`, `DESIGN`, `IMPLEMENT`, `TEST`, or `REFACTOR`. Any refactor that changes the
+repository must pass through `TEST` again.
 
-Spec Kit, OpenSpec, Codex, and DeepSeek Harness can all assist development. Dev Flow treats them as
-method tools or host adapters. Go Core alone stores the process cursor, transition authority, and
-terminal outcome. A successful external command, checked box, or existing artifact may provide
-evidence, but does not advance the Task by itself.
+### Multiple process authorities across tools
+
+Spec Kit, OpenSpec, Codex, and DeepSeek Harness can assist development only as method tools or host
+adapters. Go Core alone retains the process cursor, transition authority, and terminal outcome. A
+successful external command, checked box, or existing artifact may provide evidence but cannot
+advance the Task by itself.
 
 ## Core capabilities
 
@@ -80,20 +86,19 @@ rework, failed testing, failed comprehension, refactoring, retesting, and reject
 Action returns every legal outgoing transition. The caller selects a `transition_id`; Core validates
 the guard and derives the destination.
 
-### Scope and verification boundaries
+### Node contracts, scope, and verification budget
 
-A Task retains immutable original intent and method profile, plus current requirements, design,
-task-plan, implementation, test, comprehension, and delivery authority. Every current Action also
-returns:
+Every current Action returns:
 
-- node purpose, entry assumptions, and completion conditions;
-- `allowed_effects` and `required_evidence`;
-- the current verification budget;
-- every legal transition and its selection condition.
+- process, node, revision, and action identity;
+- purpose, entry assumptions, and completion conditions;
+- `allowed_effects`, `required_evidence`, and the verification budget;
+- semantic method steps for the current method profile;
+- every legal transition, destination, guard, selection condition, and reason rule.
 
-A material upstream change explicitly invalidates stale downstream authority. A host cannot hide
-scope expansion, extra validation, or a future capability inside the current node and then use “tests
-passed” as a substitute for the correct process transition.
+Core validates Task transitions but does not statically intercept every file operation performed by a
+host. A host adapter must operate according to the current Action contract and report material scope
+changes through a legal transition.
 
 ### Three method profiles
 
@@ -101,8 +106,7 @@ passed” as a substitute for the correct process transition.
 - `spec-kit`: map Spec Kit capabilities to the current node;
 - `openspec`: map OpenSpec capabilities to the current node.
 
-All profiles use the same Core graph. External tools help complete the current node; they do not
-store a second process cursor.
+All profiles use the same Core graph. External tools do not retain a second process cursor.
 
 ### Five-class Recovery
 
@@ -116,8 +120,8 @@ partially_completed
 conflicting
 ```
 
-Core decides retry advice, recovery apply, or `BLOCKED`. Resolving a blocker returns the Task to
-its recorded resume node.
+Core decides retry advice, recovery apply, or `BLOCKED`. Resolving a blocker returns the Task to its
+recorded resume node.
 
 ### Local persistence and read-only Git observation
 
@@ -139,10 +143,10 @@ the two product version numbers do not have to match.
 ## Product guarantees
 
 - Current Task, node, legal transitions, recovery classification, and outcome have one Core authority.
-- A Task retains immutable original intent, and material requirement or design changes invalidate
+- A Task retains immutable original intent, and material requirements or design changes invalidate
   stale downstream authority.
 - Every Task carries a verification budget, and validation scope must directly relate to the current
-  node, changed surface, or acceptance criteria.
+  node, changed surface, acceptance criteria, or recovery risk.
 - Mutations carry revision, action identity, source cursor, and repository binding.
 - An uncertain mutation is read before another write action is selected.
 - A repository-changing refactor must return through `TEST`.
