@@ -31,6 +31,7 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { validateFinalJourneyEvidence } from "./write-deepseek-journey-evidence.mjs";
+import { versionAtLeast } from "./semver.mjs";
 
 const execFile = promisify(execFileCallback);
 
@@ -67,8 +68,8 @@ export const PUBLICATION_STEPS = Object.freeze([
   "github_finalize",
 ]);
 
-const DEEPSEEK_RANGE = ">=0.1.0-rc.8 <0.2.0";
-const TESTED_DSH_VERSION = "0.1.0-rc.8";
+const DEEPSEEK_RANGE = ">=0.1.0-rc.6";
+const MINIMUM_DSH_VERSION = "0.1.0-rc.6";
 const MAX_RECORD_BYTES = 2 * 1024 * 1024;
 const MAX_TEXT_FILE_BYTES = 2 * 1024 * 1024;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
@@ -185,7 +186,7 @@ export async function prepareRelease({
         {
           os: "darwin",
           arch: "arm64",
-          actual_dsh_version: TESTED_DSH_VERSION,
+          actual_dsh_version: MINIMUM_DSH_VERSION,
           compatible_dsh_range: DEEPSEEK_RANGE,
           package_sha256: tarballSHA256,
           core_sha256: coreSHA256,
@@ -510,7 +511,7 @@ export function validateManifest(manifest, { deepseekVersion, coreVersion, sourc
   if (!SHA256_PATTERN.test(support.package_sha256) || !SHA256_PATTERN.test(support.core_sha256)) throw new Error("support digests are invalid");
   if (support.journey_result === "pending" && support.journey_observed_at !== null) throw new Error("pending support must not claim an observation time");
   if (support.journey_result === "passed") {
-    if (support.actual_dsh_version !== TESTED_DSH_VERSION) {
+    if (!versionAtLeast(support.actual_dsh_version, MINIMUM_DSH_VERSION)) {
       throw new Error("passed support must contain the actual compatible DeepSeek version");
     }
     if (support.journey_observed_at === null || !Number.isFinite(Date.parse(support.journey_observed_at))) {
@@ -730,11 +731,11 @@ function validatePublicPackageManifest(manifest, version) {
       "LICENSE", "README.md", "cordis.patch.yml", "lib/authorization.mjs", "lib/index.mjs", "lib/paths.mjs", "lib/runtime.mjs", "lib/tool-names.mjs", "runtime/darwin-arm64/dev-flow", "skills/dev-flow/SKILL.md", "skills/dev-flow/references/method-profiles.md", "skills/dev-flow/references/node-payloads.md",
     ])
   ) throw new Error("packed package.json differs from the fixed public package contract");
-  if (stableJSON(manifest.dependencies) !== stableJSON({ "@deepseek-ai/dsh-mcp-client": ">=0.1.0-rc.8 <0.2.0" })) throw new Error("packed package dependencies differ from the reviewed DSH client range");
+  if (stableJSON(manifest.dependencies) !== stableJSON({ "@deepseek-ai/dsh-mcp-client": ">=0.1.0-rc.6" })) throw new Error("packed package dependencies differ from the reviewed DSH client range");
   if (stableJSON(manifest.peerDependencies) !== stableJSON({
     "@deepseek-ai/cordis": ">=4.0.1 <5.0.0",
-    "@deepseek-ai/dsh-skill": ">=0.1.0-rc.8 <0.2.0",
-    "@deepseek-ai/dsh-tools": ">=0.1.0-rc.8 <0.2.0",
+    "@deepseek-ai/dsh-skill": ">=0.1.0-rc.6",
+    "@deepseek-ai/dsh-tools": ">=0.1.0-rc.6",
   })) throw new Error("packed package peer dependencies differ from the reviewed DSH ranges");
   for (const field of ["optionalDependencies", "bundledDependencies", "bundleDependencies"]) if (field in manifest) throw new Error(`packed package contains forbidden ${field}`);
   for (const hook of ["preinstall", "install", "postinstall", "prepare", "preuninstall", "uninstall"]) if (hook in (manifest.scripts ?? {})) throw new Error(`packed package contains forbidden lifecycle hook ${hook}`);

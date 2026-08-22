@@ -30,7 +30,7 @@ import { DEV_FLOW_TOOLS, parseCodexJSONL } from "./validate-codex-journey-eviden
 const execFile = promisify(execFileCallback);
 const REPOSITORY_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 
-export const CODEX_COMPATIBILITY_RANGE = ">=0.147.0 <0.148.0";
+export const CODEX_COMPATIBILITY_RANGE = ">=0.147.0";
 export const EXPLICIT_SELECTOR = "$dev-flow-codex:dev-flow";
 export const FINAL_NATIVE_EVIDENCE_KIND = "registry-package-native-codex-journey";
 export const QUICK_NATIVE_EVIDENCE_KIND = "registry-package-quick-smoke";
@@ -2345,7 +2345,7 @@ export async function runFinalLocalJourney(options) {
     });
     await copyFinalCodexAuthentication(layout);
     const codexVersion = await inspectFinalCodexExecutable(codexExecutable, environment);
-    if (!versionSatisfiesFixedRange(codexVersion)) throw new Error("final local Codex version is outside the frozen compatibility range");
+    if (!versionSatisfiesFixedRange(codexVersion)) throw new Error("final local Codex version is below the supported minimum");
 
     const artifactInfo = await inspectFinalLocalArtifact(artifact, options);
     await installFinalLocalPackage(npmExecutable, artifact, layout, environment);
@@ -2799,7 +2799,7 @@ function versionSatisfiesFixedRange(value) {
   const match = /^(\d+)\.(\d+)\.(\d+)$/u.exec(value);
   if (!match) return false;
   const parts = match.slice(1).map(Number);
-  return parts[0] === 0 && parts[1] === 147;
+  return parts[0] > 0 || parts[1] > 147 || (parts[1] === 147 && parts[2] >= 0);
 }
 
 function assertFinalEvidenceIdentity(evidence, expected) {
@@ -3878,7 +3878,8 @@ async function isolatedEnvironment(layout, codexExecutable) {
 
 async function assertCodexExecutable(executable, environment) {
   const version = await execFile(executable, ["--version"], { env: environment, encoding: "utf8" });
-  if (version.stdout.trim() !== "codex-cli 0.147.0") throw new Error("development smoke requires Codex CLI 0.147.0");
+  const match = /^codex(?:-cli)? (\d+\.\d+\.\d+)$/u.exec(version.stdout.trim());
+  if (!match || !versionSatisfiesFixedRange(match[1])) throw new Error("development smoke requires Codex CLI >=0.147.0");
   const inspected = await execFile("file", [executable], { encoding: "utf8" });
   if (!/Mach-O 64-bit executable arm64/u.test(inspected.stdout)) throw new Error("development smoke Codex executable must be macOS arm64");
 }

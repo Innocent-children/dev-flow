@@ -25,6 +25,7 @@ import {
   validateFinalJourneyEvidenceShape,
   validateQuickJourneyEvidence,
 } from "./write-deepseek-journey-evidence.mjs";
+import { versionAtLeast } from "./semver.mjs";
 
 const execFile = promisify(execFileCallback);
 const OFFICIAL_REGISTRY = "https://registry.npmjs.org/";
@@ -153,7 +154,7 @@ export async function runPublisher({
     step.error_code = publicationError.code;
     step.summary = boundedMessage(publicationError);
     step.safe_next_action = publicationError.code === "DSH_VERSION_CONFLICT"
-      ? "Install exact DSH 0.1.0-rc.8 on PATH, then rerun the read-only preflight."
+      ? "Install DSH 0.1.0-rc.6 or newer on PATH, then rerun the read-only preflight."
       : publicationError.blocked
         ? "Resolve the conflicting immutable remote state manually, then rerun read-only preflight."
       : "Rerun the publisher; it will reread remote state before any further mutation.";
@@ -270,8 +271,8 @@ async function observeRemoteState(context, manifest, record) {
   const preflightStep = startStep(record, "preflight");
   const dshExecutable = await findExecutableInEnvironment("dsh", context.environment);
   const dshVersion = await runText(dshExecutable, ["--version"], context);
-  if (dshVersion !== "0.1.0-rc.8") {
-    throw new PublicationError("DSH_VERSION_CONFLICT", `DeepSeek release requires exact DSH 0.1.0-rc.8; found ${dshVersion}`, { blocked: true, step: "preflight" });
+  if (!versionAtLeast(dshVersion, "0.1.0-rc.6")) {
+    throw new PublicationError("DSH_VERSION_CONFLICT", `DeepSeek release requires DSH >=0.1.0-rc.6; found ${dshVersion}`, { blocked: true, step: "preflight" });
   }
   context.dshExecutable = dshExecutable;
   await runText("npm", ["--version"], context);
@@ -295,7 +296,7 @@ async function observeRemoteState(context, manifest, record) {
     "api", `repos/${REPOSITORY}`, "--jq", "{push:.permissions.push,maintain:.permissions.maintain,admin:.permissions.admin}",
   ], context));
   if (!permissions.push || (!permissions.maintain && !permissions.admin)) throw new PublicationError("GITHUB_PERMISSION_CONFLICT", "GitHub repository permissions are insufficient", { blocked: true });
-  record.steps[0].summary = "Exact DSH 0.1.0-rc.8, authenticated npm identity/ownership, and GitHub repository permissions were observed through bounded read-only commands.";
+  record.steps[0].summary = `Compatible DSH ${dshVersion}, authenticated npm identity/ownership, and GitHub repository permissions were observed through bounded read-only commands.`;
   record.last_observed_at = now();
   await checkpoint(context.recordPath, record, manifest, context);
 

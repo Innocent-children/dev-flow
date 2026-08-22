@@ -577,7 +577,7 @@ func releaseValidateManifest(document map[string]any) (releaseManifestFixture, e
 	if support.OS != "darwin" || support.Arch != "arm64" {
 		return manifest, fmt.Errorf("support entry must remain darwin-arm64")
 	}
-	if support.CompatibleCodexRange != ">=0.147.0 <0.148.0" {
+	if support.CompatibleCodexRange != ">=0.147.0" {
 		return manifest, fmt.Errorf("support entry has the wrong Codex compatibility range")
 	}
 	if support.PackageSHA256 != artifactDigests["npm_tarball"] {

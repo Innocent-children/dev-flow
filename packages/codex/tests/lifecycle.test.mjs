@@ -42,15 +42,15 @@ test("receipt validation uses the selected dynamic compatibility range", async (
   const root = await makeRoot(t);
   assert.equal(versionSatisfiesRange("0.147.0", CODEX_COMPATIBILITY_RANGE), true);
   assert.equal(versionSatisfiesRange("0.147.99", CODEX_COMPATIBILITY_RANGE), true);
-  assert.equal(versionSatisfiesRange("0.148.0", CODEX_COMPATIBILITY_RANGE), false);
+  assert.equal(versionSatisfiesRange("0.148.0", CODEX_COMPATIBILITY_RANGE), true);
   assert.equal(versionSatisfiesRange("0.146.9", CODEX_COMPATIBILITY_RANGE), false);
 
   const outsideRange = validReceipt(root);
-  outsideRange.host.version = "0.148.0";
+  outsideRange.host.version = "0.146.9";
   assert.throws(() => validateReceipt(outsideRange), /does not satisfy/);
 
   const staleRange = validReceipt(root);
-  staleRange.product.codex_compatibility = ">=0.146.0 <0.147.0";
+  staleRange.product.codex_compatibility = ">=0.146.0";
   assert.throws(() => validateReceipt(staleRange), /compatibility range/);
 });
 

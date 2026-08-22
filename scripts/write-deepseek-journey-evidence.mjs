@@ -1,3 +1,5 @@
+import { versionAtLeast } from "./semver.mjs";
+
 export const FINAL_NATIVE_EVIDENCE_KIND = "deepseek-registry-lifecycle-v1";
 export const QUICK_NATIVE_EVIDENCE_KIND = "deepseek-registry-smoke-v1";
 export const FINAL_FIXTURE_EVIDENCE_KIND = "deepseek-fixture-lifecycle-v1";
@@ -27,7 +29,7 @@ export function validateFinalJourneyEvidenceShape(value, { allowFixture = false,
   if (!allowedKinds.includes(value.evidence_kind)) throw new Error("DeepSeek journey evidence kind is invalid");
   if (value.package_name !== "dev-flow-deepseek" || !SEMVER_PATTERN.test(value.version)) throw new Error("DeepSeek journey package identity is invalid");
   if (value.registry !== "https://registry.npmjs.org/" || !SHA256_PATTERN.test(value.npm_tarball_sha256) || !SHA256_PATTERN.test(value.core_sha256)) throw new Error("DeepSeek journey artifact identity is invalid");
-  if (!SEMVER_PATTERN.test(value.core_version) || value.dsh_version !== "0.1.0-rc.8" || value.compatible_dsh_range !== ">=0.1.0-rc.8 <0.2.0") throw new Error("DeepSeek journey runtime identity is invalid");
+  if (!SEMVER_PATTERN.test(value.core_version) || !versionAtLeast(value.dsh_version, "0.1.0-rc.6") || value.compatible_dsh_range !== ">=0.1.0-rc.6") throw new Error("DeepSeek journey runtime identity is invalid");
   if (!/^[0-9a-f]{40}$/u.test(value.source_commit) || !Number.isFinite(Date.parse(value.observed_at))) throw new Error("DeepSeek journey source/time identity is invalid");
   if (!Array.isArray(value.gates) || value.gates.length < 3 || value.gates.some((gate) => typeof gate !== "string" || gate.length < 1 || gate.length > 128)) throw new Error("DeepSeek journey gates are invalid");
   const comparisons = [

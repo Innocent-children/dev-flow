@@ -122,7 +122,7 @@
       "os": "darwin",
       "arch": "arm64",
       "actual_codex_version": "0.147.0",
-      "compatible_codex_range": ">=0.147.0 <0.148.0",
+      "compatible_codex_range": ">=0.147.0",
       "package_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
       "core_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
       "journey_result": "pending",

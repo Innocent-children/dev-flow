@@ -7,7 +7,7 @@ output_directory=""
 final_artifact=false
 expected_source_commit=""
 report_path=""
-codex_compatibility='>=0.147.0 <0.148.0'
+codex_compatibility='>=0.147.0'
 
 usage() {
   printf '%s\n' 'usage: build-codex-local.sh --output ABSOLUTE_DIRECTORY [--final --source-commit GIT_SHA --report ABSOLUTE_FILE]' >&2

@@ -21,7 +21,7 @@ dev-flow-codex setup
 GitHub Release `v0.4.0` 与 registry 回读证据为准。
 
 当前公开支持 native macOS arm64、Node.js `>=24` 和 Codex
-`>=0.147.0 <0.148.0`。没有 Linux、Windows、Intel Mac、Rosetta 或 DeepSeek 产品支持声明。
+`>=0.147.0`。没有 Linux、Windows、Intel Mac、Rosetta 或 DeepSeek 产品支持声明。
 
 ## Closed package
 

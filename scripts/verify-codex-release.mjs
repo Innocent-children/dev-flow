@@ -68,7 +68,7 @@ export const PUBLICATION_STEPS = Object.freeze([
   "github_finalize",
 ]);
 
-const CODEX_RANGE = ">=0.147.0 <0.148.0";
+const CODEX_RANGE = ">=0.147.0";
 const MAX_RECORD_BYTES = 2 * 1024 * 1024;
 const MAX_TEXT_FILE_BYTES = 2 * 1024 * 1024;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/u;

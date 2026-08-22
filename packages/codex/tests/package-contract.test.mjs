@@ -109,7 +109,7 @@ test("source package declares one public macOS arm64 Codex product", async () =>
     directory: "packages/codex",
   });
   assert.deepEqual(manifest.engines, { node: ">=24" });
-  assert.equal(CODEX_COMPATIBILITY_RANGE, ">=0.147.0 <0.148.0");
+  assert.equal(CODEX_COMPATIBILITY_RANGE, ">=0.147.0");
   for (const field of [
     "dependencies",
     "optionalDependencies",

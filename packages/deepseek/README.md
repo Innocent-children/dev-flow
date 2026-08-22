@@ -9,9 +9,8 @@ maintained version; the adapter validates the actual executable, six-tool catalo
 server information, process definition, and behavior without comparing the two product versions.
 
 The package targets macOS arm64 with Node.js 24 or newer and declares compatibility with the DSH
-`>=0.1.0-rc.8 <0.2.0` service family. Feature acceptance is bound to the exact
-`@deepseek-ai/dsh 0.1.0-rc.8` artifact; the declared range is not a claim that later release
-candidates have passed native acceptance.
+`>=0.1.0-rc.6` service family. Compatibility uses this minimum version without an upper bound;
+release evidence records the actual DSH version used by the final registry lifecycle.
 
 ## Profile lifecycle
 

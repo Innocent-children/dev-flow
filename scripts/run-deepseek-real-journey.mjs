@@ -8,6 +8,7 @@ import { basename, join } from "node:path";
 import { promisify } from "node:util";
 
 import { FINAL_NATIVE_EVIDENCE_KIND, QUICK_NATIVE_EVIDENCE_KIND } from "./write-deepseek-journey-evidence.mjs";
+import { versionAtLeast } from "./semver.mjs";
 
 const execFile = promisify(execFileCallback);
 const options = parseArguments(process.argv.slice(2));
@@ -34,7 +35,7 @@ try {
   const environment = { ...process.env, DSH_HOME: dshHome, HOME: isolatedHome, TMPDIR: temporaryDirectory };
   const gates = ["registry-bytes", "core-identity", "dsh-version"];
   const dshVersion = (await execFile(options.dshExecutable, ["--version"], { encoding: "utf8", env: environment })).stdout.trim();
-  if (!dshVersion.includes("0.1.0-rc.8")) throw new Error("DeepSeek release requires exact DSH 0.1.0-rc.8");
+  if (!versionAtLeast(dshVersion, "0.1.0-rc.6")) throw new Error(`DeepSeek release requires DSH >=0.1.0-rc.6; found ${dshVersion}`);
   if (!quick) {
     await execFile(options.dshExecutable, ["plugin", "--profile", "headless", "add", tarball], { encoding: "utf8", env: environment, timeout: 120_000 });
     gates.push("plugin-install");
@@ -55,8 +56,8 @@ try {
     core_sha256: options.coreSHA256,
     core_version: coreVersion,
     source_commit: options.sourceCommit,
-    dsh_version: "0.1.0-rc.8",
-    compatible_dsh_range: ">=0.1.0-rc.8 <0.2.0",
+    dsh_version: dshVersion,
+    compatible_dsh_range: ">=0.1.0-rc.6",
     observed_at: new Date().toISOString(),
     gates,
   };

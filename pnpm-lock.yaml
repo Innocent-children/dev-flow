@@ -16,13 +16,13 @@ importers:
         specifier: '>=4.0.1 <5.0.0'
         version: 4.0.1
       '@deepseek-ai/dsh-mcp-client':
-        specifier: '>=0.1.0-rc.8 <0.2.0'
+        specifier: '>=0.1.0-rc.6'
         version: 0.1.0-rc.8(95959cb4a490b09cd3c1445274303558)
       '@deepseek-ai/dsh-skill':
-        specifier: '>=0.1.0-rc.8 <0.2.0'
+        specifier: '>=0.1.0-rc.6'
         version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/dsh-llm@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-attachment@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-brand@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-brand@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/dsh-timeout@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1))))(@deepseek-ai/dsh-scope@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)))
       '@deepseek-ai/dsh-tools':
-        specifier: '>=0.1.0-rc.8 <0.2.0'
+        specifier: '>=0.1.0-rc.6'
         version: 0.1.0-rc.8(ac9081d1e007de8a90a707560a8ae1c3)
 
 packages:

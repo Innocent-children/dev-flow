@@ -26,6 +26,6 @@ publication-record.json
 ```
 
 Confirmed publication creates or reuses matching Tag/npm/GitHub state, verifies registry bytes,
-runs the selected exact DSH `0.1.0-rc.8` registry lifecycle gate, uploads immutable assets, and
+runs the selected DSH `>=0.1.0-rc.6` registry lifecycle gate, uploads immutable assets, and
 finalizes the GitHub Release only after every prior step passes. Rerunning the exact command with the
 same output directory resumes from recorded and reread remote state.

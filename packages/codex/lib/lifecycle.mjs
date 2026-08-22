@@ -20,7 +20,7 @@ import { containedPath } from "./paths.mjs";
 
 const execFile = promisify(execFileCallback);
 
-export const CODEX_COMPATIBILITY_RANGE = ">=0.147.0 <0.148.0";
+export const CODEX_COMPATIBILITY_RANGE = ">=0.147.0";
 export const MARKETPLACE_NAME = "dev-flow-local";
 export const PLUGIN_NAME = "dev-flow-codex";
 export const PLUGIN_SELECTOR = `${PLUGIN_NAME}@${MARKETPLACE_NAME}`;
@@ -817,12 +817,11 @@ async function readJSON(path, label) {
 }
 
 export function versionSatisfiesRange(version, range = CODEX_COMPATIBILITY_RANGE) {
-  const match = /^>=(\S+)\s+<(\S+)$/.exec(range);
+  const match = /^>=(\S+)$/.exec(range);
   if (!match) throw new Error(`unsupported compatibility range ${JSON.stringify(range)}`);
   const candidate = parseSemver(version, "Codex version");
   const minimum = parseSemver(match[1], "compatibility minimum");
-  const maximum = parseSemver(match[2], "compatibility maximum");
-  return compareSemver(candidate, minimum) >= 0 && compareSemver(candidate, maximum) < 0;
+  return compareSemver(candidate, minimum) >= 0;
 }
 
 export function validateReceipt(receipt, { compatibilityRange = CODEX_COMPATIBILITY_RANGE } = {}) {
