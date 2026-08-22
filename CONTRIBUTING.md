@@ -40,11 +40,15 @@
 - Node.js `>=24`；
 - pnpm `>=11 <12`。
 
+先在 GitHub Fork 本仓库，再从自己的 Fork 创建分支：
+
 ```bash
-git clone https://github.com/Innocent-children/dev-flow.git
+git clone https://github.com/<your-account>/dev-flow.git
 cd dev-flow
+git remote add upstream https://github.com/Innocent-children/dev-flow.git
+git fetch upstream
+git checkout -b <type>/<short-description> upstream/main
 pnpm install --frozen-lockfile
-git checkout -b <type>/<short-description>
 ```
 
 开始修改前，请阅读 [`AGENTS.md`](AGENTS.md)、
