@@ -11,7 +11,6 @@ import (
 
 	"github.com/Innocent-children/dev-flow/internal/application"
 	coremcp "github.com/Innocent-children/dev-flow/internal/mcp"
-	"github.com/Innocent-children/dev-flow/internal/repository"
 	"github.com/Innocent-children/dev-flow/internal/store"
 	"github.com/Innocent-children/dev-flow/internal/version"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -179,78 +178,33 @@ func TestRunMCPRedactsDatabaseStartupFailure(t *testing.T) {
 		t.Fatal("database startup failure returned success")
 	}
 	if stdout.Len() != 0 || !strings.Contains(stderr.String(), "storage startup failed") ||
-		strings.Contains(stderr.String(), privateDatabasePath) {
-		t.Fatalf("database startup failure stdout/stderr = %q/%q", stdout.String(), stderr.String())
+		strings.Contains(stderr.String(), dataDirectory) || strings.Contains(stderr.String(), databaseFileName) {
+		t.Fatalf("database failure stdout/stderr = %q/%q", stdout.String(), stderr.String())
 	}
 }
 
-func TestRunMCPRedactsServerFailure(t *testing.T) {
+func TestRunRejectsEveryOtherCommandAndNetworkMode(t *testing.T) {
 	t.Parallel()
 
-	dataDirectory := t.TempDir()
-	serve := func(context.Context, *application.Service, string, *coremcp.Diagnostics, string) error {
-		return io.ErrUnexpectedEOF
+	tests := [][]string{
+		{"unknown"},
+		{"server"},
+		{"task"},
+		{"mcp"},
+		{"mcp", "--http"},
+		{"mcp", "--stdio", "extra"},
+		{"version", "extra"},
+		{"help", "extra"},
 	}
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	getenv := func(name string) string {
-		if name == dataDirectoryEnvironment {
-			return dataDirectory
+	for _, args := range tests {
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		if exitCode := run(args, bytes.NewReader(nil), &stdout, &stderr, emptyEnvironment, unexpectedServe(t)); exitCode == 0 {
+			t.Fatalf("run(%q) returned success", args)
 		}
-		return ""
-	}
-	if exitCode := run([]string{"mcp", "--stdio"}, bytes.NewReader(nil), &stdout, &stderr, getenv, serve); exitCode == 0 {
-		t.Fatal("server failure returned success")
-	}
-	if stdout.Len() != 0 || !strings.Contains(stderr.String(), "MCP STDIO session failed") {
-		t.Fatalf("server failure stdout/stderr = %q/%q", stdout.String(), stderr.String())
-	}
-}
-
-func TestRunInvalidArgumentsAreStable(t *testing.T) {
-	t.Parallel()
-
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	if exitCode := run([]string{"mcp"}, bytes.NewReader(nil), &stdout, &stderr, emptyEnvironment, unexpectedServe(t)); exitCode != 2 {
-		t.Fatalf("invalid command exit code = %d; stdout = %q stderr = %q", exitCode, stdout.String(), stderr.String())
-	}
-	if stdout.Len() != 0 || stderr.String() != "dev-flow: invalid arguments; use \"dev-flow help\"\n" {
-		t.Fatalf("invalid command stdout/stderr = %q/%q", stdout.String(), stderr.String())
-	}
-}
-
-func TestServeStandardIOUsesSDKTransport(t *testing.T) {
-	t.Parallel()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	dataDirectory := t.TempDir()
-	taskStore, err := store.Open(context.Background(), filepath.Join(dataDirectory, databaseFileName))
-	if err != nil {
-		t.Fatalf("open store: %v", err)
-	}
-	defer func() {
-		_ = taskStore.Close()
-	}()
-	service, err := application.NewService(taskStore, repository.NewGitObserver())
-	if err != nil {
-		t.Fatalf("create service: %v", err)
-	}
-	if err := serveStandardIO(ctx, service, mustCurrentVersion(t), coremcp.NewDiagnostics(io.Discard), "test instructions"); err == nil {
-		t.Fatal("cancelled context unexpectedly started STDIO server")
-	}
-}
-
-func emptyEnvironment(string) string {
-	return ""
-}
-
-func unexpectedServe(t *testing.T) mcpServeFunc {
-	t.Helper()
-	return func(context.Context, *application.Service, string, *coremcp.Diagnostics, string) error {
-		t.Fatal("unexpected MCP serve call")
-		return nil
+		if stdout.Len() != 0 || stderr.String() != "dev-flow: invalid arguments; use \"dev-flow help\"\n" {
+			t.Fatalf("run(%q) stdout/stderr = %q/%q", args, stdout.String(), stderr.String())
+		}
 	}
 }
 
@@ -258,24 +212,23 @@ type nopWriteCloser struct {
 	io.Writer
 }
 
-func (nopWriteCloser) Close() error {
-	return nil
-}
+func (nopWriteCloser) Close() error { return nil }
 
-func mustCurrentVersion(t *testing.T) string {
+func emptyEnvironment(string) string { return "" }
+
+func unexpectedServe(t *testing.T) mcpServeFunc {
 	t.Helper()
-	current, err := version.Current()
-	if err != nil {
-		t.Fatalf("read current version: %v", err)
+	return func(context.Context, *application.Service, string, *coremcp.Diagnostics, string) error {
+		t.Fatal("unexpected MCP server invocation")
+		return nil
 	}
-	return current
 }
 
-func assertContainsAll(t *testing.T, value string, expected ...string) {
+func assertContainsAll(t *testing.T, output string, fragments ...string) {
 	t.Helper()
-	for _, item := range expected {
-		if !strings.Contains(value, item) {
-			t.Errorf("value %q does not contain %q", value, item)
+	for _, fragment := range fragments {
+		if !strings.Contains(output, fragment) {
+			t.Errorf("output %q does not contain %q", output, fragment)
 		}
 	}
 }
