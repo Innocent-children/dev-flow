@@ -176,7 +176,7 @@ lifecycle 명령은 자동으로 정리하지 않습니다.
 | 제품 | 공개 버전 | Bundled Core | 검증된 환경 |
 | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.5.3` | `0.5.1` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
-| `dev-flow-deepseek` | `0.5.1` | `0.5.0` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
+| `dev-flow-deepseek` | `0.5.2` | `0.5.1` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
 
 두 Host 제품의 현재 릴리스 모두 registry package 설치, 실제 Host/Core handshake, 제거, 삭제,
 repository-unchanged gate를 통과했습니다. DeepSeek journey는 명시적 활성화, 재시작 복구, `DONE`,

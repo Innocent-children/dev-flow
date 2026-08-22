@@ -167,7 +167,7 @@ Core 返回 `SCHEMA_UNSUPPORTED` 并保持零写入。用户可以选择新的�
 | 产品 | 当前公开版本 | Bundled Core | 已验证环境 |
 | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.5.3` | `0.5.1` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
-| `dev-flow-deepseek` | `0.5.1` | `0.5.0` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
+| `dev-flow-deepseek` | `0.5.2` | `0.5.1` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
 
 两个 Host 产品的当前发布均通过 registry package 安装、真实 Host/Core handshake、移除、卸载和仓库
 不变性门禁；DeepSeek 还完成显式触发、重启恢复、`DONE` 与 retained reopen 旅程。精确状态、

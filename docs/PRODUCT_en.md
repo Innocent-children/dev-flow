@@ -135,7 +135,7 @@ continues to own Git mutations.
 | --- | --- | --- |
 | Core | State graph, Task, Store, Recovery, and MCP | `0.5.1` |
 | Codex | Codex Plugin, Skill, registration lifecycle, and bundled Core | `0.5.3` |
-| DeepSeek | DSH bundle, Skill, guard, MCP child, and bundled Core | `0.5.1` |
+| DeepSeek | DSH bundle, Skill, guard, MCP child, and bundled Core | `0.5.2` |
 
 The three products have independent versions. A host package records its actual bundled Core version;
 the two product version numbers do not have to match.
@@ -173,7 +173,7 @@ capability enters the roadmap only after its user value and independent specific
 ## Public status
 
 The current Codex version `0.5.3` is published to npm with the `codex-v0.5.3` GitHub Release.
-The current DeepSeek version `0.5.1` is published to npm with the `deepseek-v0.5.1` GitHub Release.
+The current DeepSeek version `0.5.2` is published to npm with the `deepseek-v0.5.2` GitHub Release.
 Each host product bundles the exact Core identity recorded in the support matrix and publicly supports
 macOS arm64 with Node.js `>=24`.
 

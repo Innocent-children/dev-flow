@@ -181,7 +181,7 @@ nettoyage automatiquement.
 | Produit | Version publique | Bundled Core | Environnement vérifié |
 | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.5.3` | `0.5.1` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
-| `dev-flow-deepseek` | `0.5.1` | `0.5.0` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
+| `dev-flow-deepseek` | `0.5.2` | `0.5.1` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
 
 Les versions actuelles des deux produits Host ont passé l'installation depuis le registry package, le handshake réel Host/Core, la
 suppression, la désinstallation et le repository-unchanged gate. Le journey DeepSeek couvre aussi l'activation
