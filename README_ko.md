@@ -52,11 +52,12 @@ Dev Flow는 여러 개발 노드를 거치고, 재작업 가능성이 있으며,
 
 현재 공개 아티팩트는 macOS arm64와 Node.js `>=24`를 지원합니다. Core `0.5.0`은 Codex `0.5.1`
 및 DeepSeek `0.5.1` Host 제품에 각각 독립적으로 번들되며 세 제품은 독립적으로 버전 관리됩니다.
+지원 표에는 검증된 정확한 버전을 유지하고 설치 예시는 npm `latest` dist-tag를 사용합니다.
 
 ### Codex
 
 ```bash
-npm install -g dev-flow-codex@0.5.1
+npm install -g dev-flow-codex@latest
 dev-flow-codex setup
 dev-flow-codex --version
 ```
@@ -72,15 +73,17 @@ $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 
 ### DeepSeek Harness
 
-npm에서 공식 tarball을 받은 뒤 절대 경로를 DSH profile에 전달합니다.
+npm `latest`가 가리키는 공식 package를 가져와 tarball 절대 경로를 DSH profile에 전달합니다.
 
 ```bash
-npm pack dev-flow-deepseek@0.5.1
-dsh plugin --profile <profile> add "$PWD/dev-flow-deepseek-0.5.1.tgz"
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile <profile> add "$PWD/$TARBALL"
 ```
 
 DSH profile lifecycle에 따라 profile을 재시작한 뒤 `/dev-flow`로 명시적으로 Dev Flow에 진입합니다.
 설치, 재시작, 제거, 데이터 경계는 [DeepSeek package README](docs/DEEPSEEK_en.md)를 참고하십시오.
+Codex, DeepSeek, Core, selector, MCP 도구의 전체 명령 목록은
+[Command Reference](docs/COMMANDS_en.md)에 있습니다.
 
 ## 실행 모델
 
@@ -150,6 +153,8 @@ dev_flow_apply_action
 dev_flow_cancel_task
 ```
 
+각 도구의 읽기/쓰기 분류, 입력 역할과 동작은 [Command Reference](docs/COMMANDS_en.md)를 참고하십시오.
+
 Core는 기존 Git 저장소 하나를 제한된 읽기 전용 방식으로 관찰하여 repository binding을 만들고
 변경 사실을 평가할 수 있습니다. Git mutation은 사용자 승인을 받은 Host가 수행합니다. Core는
 범용 shell을 노출하지 않으며 checkout, commit, push, merge, rebase, tag 또는 publish 작업을
@@ -187,6 +192,7 @@ retained reopen도 포함합니다. 정확한 아티팩트 identity와 증거는
 | 제품 문제, 기능, 경계 | [Product](docs/PRODUCT_en.md) |
 | Core, Adapter, Store, Recovery 아키텍처 | [Architecture](docs/ARCHITECTURE_en.md) |
 | 현재 지원 버전과 플랫폼 | [Support Matrix](docs/SUPPORT-MATRIX_en.md) |
+| 모든 사용자 명령, 관리되는 Core 명령 및 MCP 도구 | [Command Reference](docs/COMMANDS_en.md) |
 | 제공된 기능과 향후 방향 | [Roadmap](docs/ROADMAP_en.md) |
 | 독립 제품 버전 관리 | [Versioning](docs/VERSIONING.md) |
 | 문서 locale과 동기화 규칙 | [I18n](docs/I18N_en.md) |
