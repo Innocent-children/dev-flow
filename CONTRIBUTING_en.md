@@ -44,11 +44,15 @@ Repository development requires:
 - Node.js `>=24`;
 - pnpm `>=11 <12`.
 
+Fork the repository on GitHub, then create a branch from your fork:
+
 ```bash
-git clone https://github.com/Innocent-children/dev-flow.git
+git clone https://github.com/<your-account>/dev-flow.git
 cd dev-flow
+git remote add upstream https://github.com/Innocent-children/dev-flow.git
+git fetch upstream
+git checkout -b <type>/<short-description> upstream/main
 pnpm install --frozen-lockfile
-git checkout -b <type>/<short-description>
 ```
 
 Before editing, read [`AGENTS.md`](AGENTS.md), the
