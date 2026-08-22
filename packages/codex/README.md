@@ -1,103 +1,88 @@
 # dev-flow-codex
 
-`dev-flow-codex` 是 Codex CLI 的 explicit-only Dev Flow Adapter。package 包含一个 Codex
-Plugin、一个 `dev-flow` Skill、一份 local STDIO MCP 声明、method-profile reference 和一个
-`darwin-arm64` Core executable。它不保存 Task、process cursor、transition table 或 recovery
-classification。
+[中文](https://github.com/Innocent-children/dev-flow/blob/main/packages/codex/README.md) |
+[English](https://github.com/Innocent-children/dev-flow/blob/main/docs/CODEX_en.md)
 
-## 安装与发布身份
+`dev-flow-codex` 把 Dev Flow 的状态图带进 Codex CLI。安装包包含一个 Codex Plugin、一个显式
+Skill、local STDIO MCP 配置和 macOS arm64 Core executable；Task、节点、流转和 Recovery 仍由
+bundled Go Core 独自管理。
 
-当前 package、plugin 和 bundled Core 版本是 `0.4.0`。Feature 009 发布已完成的 Feature 008
-graph runtime；历史 `0.3.0` 包、Tag、Release 与证据保持冻结。
+## 支持范围
 
-标准安装和显式注册入口是：
+| 项目 | 当前支持 |
+| --- | --- |
+| Package | `dev-flow-codex@0.5.1` |
+| Bundled Core | `0.5.0` |
+| Platform | macOS arm64 |
+| Node.js | `>=24` |
+| Codex | `>=0.147.0` |
+| Release | [codex-v0.5.1](https://github.com/Innocent-children/dev-flow/releases/tag/codex-v0.5.1) |
+
+`0.5.1` 的 normal release 已通过 registry package 安装、package/Core identity、setup、Core
+handshake、remove、uninstall 和 repository-unchanged 门禁。
+
+## 安装
 
 ```bash
-npm install -g dev-flow-codex@0.4.0
+npm install -g dev-flow-codex@0.5.1
 dev-flow-codex setup
+dev-flow-codex --version
 ```
 
-精确 npm tarball、standalone Core、manifest、checksums、实际 Codex 版本和最终 Journey 结果以
-GitHub Release `v0.4.0` 与 registry 回读证据为准。
+`setup` 注册 Plugin、marketplace 与 MCP，并在写入后回读 ownership。npm 安装和 Codex 注册是
+两个独立步骤，因此安装 package 后需要显式运行一次 `setup`。
 
-当前公开支持 native macOS arm64、Node.js `>=24` 和 Codex
-`>=0.147.0`。没有 Linux、Windows、Intel Mac、Rosetta 或 DeepSeek 产品支持声明。
+如需机器可读结果：
 
-## Closed package
+```bash
+dev-flow-codex setup --json
+```
 
-生产 package 内容由 `package.json.files` 和本地 builder 共同关闭：
+## 开始一个任务
+
+在当前 Git 仓库中，用唯一的显式 selector 描述工作：
 
 ```text
-.agents/plugins/marketplace.json
-LICENSE
-README.md
-bin/dev-flow-codex.mjs
-lib/lifecycle.mjs
-lib/paths.mjs
-package.json
-plugin/.codex-plugin/plugin.json
-plugin/.mcp.json
-plugin/skills/dev-flow/SKILL.md
-plugin/skills/dev-flow/agents/openai.yaml
-plugin/skills/dev-flow/references/method-profiles.md
-plugin/skills/dev-flow/references/node-payloads.md
-runtime/darwin-arm64/dev-flow
+$dev-flow-codex:dev-flow 修复订单创建接口的幂等性问题，并运行定向测试。
 ```
 
-Artifact 不包含 tests、fixtures、specs、source tree、`.git`、`node_modules`、用户数据、构建日志
-或绝对路径。package 没有 production npm dependency 和 install/update/uninstall lifecycle hook；
-安装文件与显式 Codex 注册是两个操作。
+新 Task 从 `REQUIREMENTS` 开始，默认使用 `plain` profile。也可以在同一请求中明确选择
+`spec-kit` 或 `openspec`。Task 创建后 profile 保持不变。
 
-## Local package build
+Core 会持续返回：
 
-在干净、已提交的 source commit 上，把最终验收制品构建到仓库外的空目录：
+- 当前 node、purpose、entry/completion conditions；
+- 当前 revision、action identity 和 repository binding；
+- allowed effects、required evidence 和 verification budget；
+- method profile 对应的 semantic steps；
+- 全部合法 transitions、guard、destination 与 reason rule。
 
-```bash
-ARTIFACT_ROOT="${TMPDIR:-/tmp}/dev-flow-local-artifacts"
-mkdir -p "$ARTIFACT_ROOT"
-SOURCE_COMMIT="$(git rev-parse HEAD)"
-
-pnpm --dir packages/codex run build:local \
-  --output "$ARTIFACT_ROOT" \
-  --final \
-  --source-commit "$SOURCE_COMMIT" \
-  --report "$ARTIFACT_ROOT/artifact-evidence.json"
-```
-
-`--final` 表示 builder 的 clean-source/identity verification 模式；公开 Release 由 standalone
-一键发布命令产生。
-Builder 要求输出目录已经存在、没有 `.tgz`，source tree 干净且 HEAD 等于 `--source-commit`；
-它验证 package/Core/plugin version identity、platform、detached runtime executable 和 closed pack
-contents，并输出 SHA-256 evidence。制品与 evidence JSON 均保留在仓库外。
-
-本地构建只生成和检查制品，不执行 setup/remove、不修改真实 Codex 配置、不启动 native Journey。
+Codex 完成当前节点工作后，只提交 live Action 允许的 `transition_id` 和 closed payload。
 
 ## Explicit invocation boundary
 
-Skill metadata 设置 `policy.allow_implicit_invocation: false`。唯一精确 selector 是：
+Skill metadata 设置 `policy.allow_implicit_invocation: false`。
 
-```text
-$dev-flow-codex:dev-flow
-```
+Skill resource/base name 是 `dev-flow`。
 
-Skill resource/base name 是 `dev-flow`，installed Skill full name 是 `dev-flow-codex:dev-flow`，
-only exact explicit selector 是 `$dev-flow-codex:dev-flow`。bare `$dev-flow` is not an alias and
-does not select this Skill；wrong plugin namespace、wrong Skill base name 或 missing selector 也不会
-选择它。ordinary prompt 必须产生 zero Dev Flow calls。non-exact selectors must not complete a task-bearing operation；
-This does not disable ordinary Codex repository tools. The package does not make or claim selector-bound MCP visibility or authorization。
+installed Skill full name 是 `dev-flow-codex:dev-flow`。
 
-被接纳的请求必须只涉及一个现有 Git repository，并先调用 `dev_flow_server_info({})`。当前
-source-local current contract handshake 必须返回：
+only exact explicit selector 是 `$dev-flow-codex:dev-flow`。
 
-```text
-process = standard-development
-definition_digest = exact current process content
-method_profiles = plain, spec-kit, openspec
-exact six-tool catalog
-```
+bare `$dev-flow` is not an alias and does not select this Skill。
 
-不完整或不同顺序的 catalog、schema、process digest 会停止请求。Core 产品版本从实际 bundled
-executable 读取，不要求与 Codex package version 相等。公开工具为：
+wrong plugin namespace、wrong Skill base name 或 missing selector 也不会选择它。
+
+ordinary prompt 必须产生 zero Dev Flow calls。
+non-exact selectors must not complete a task-bearing operation。
+
+This boundary does not disable ordinary Codex repository tools.
+
+The package does not make or claim selector-bound MCP visibility or authorization；它只约束当前
+Skill 是否可以发起 Dev Flow 调用。
+
+通过 admission 后，`dev_flow_server_info({})` 必须是第一次 Dev Flow 调用。Host 验证
+`standard-development`、definition digest、method profiles、live schemas 与恰好六个工具：
 
 ```text
 dev_flow_server_info
@@ -108,89 +93,74 @@ dev_flow_apply_action
 dev_flow_cancel_task
 ```
 
-## Graph task 与 method profiles
+## 理解审查与 Recovery
 
-新任务从 `REQUIREMENTS` 开始，Core 返回完整 node contract、semantic method steps 和全部合法
-transitions。Codex 只提交 Core 返回的 `transition_id` 和 closed node payload；destination、guard、
-current node 和 completion 都由 Core 决定。
+`TEST` 通过后，任务进入 `COMPREHENSION_REVIEW`。Codex 解释当前行为、设计与维护风险，
+开发者给出明确 verdict。复杂实现进入 `REFACTOR`，仓库发生变化后必须重新回到 `TEST`。
 
-Task 创建时选择一个 immutable profile：
+每次 mutation 前，Adapter 保留 request/operation ID、source cursor、revision、action、
+repository binding 和原始 payload。结果缺失、取消、截断、损坏或 transport failure 时，Adapter
+先读取 Core，再遵循五分类 Recovery 和 advice；它不自行判断 retry safety 或 destination。
 
-```text
-plain
-spec-kit
-openspec
+## 数据目录
+
+默认数据目录由 package lifecycle 管理，也可以设置：
+
+```bash
+export DEV_FLOW_DATA_DIR="/absolute/path/to/existing-directory"
 ```
 
-三种 profile 使用同一状态图。Adapter 按当前 Action 渲染实际存在的 capability 和预期 artifact。
-capability unavailable 或 unknown 时，它明确报告缺失，并呈现合同定义的 plain-equivalent work；
-只有等价工作实际完成时才提交 `plain_fallback` method evidence。command、checkbox、sync、archive
-或 artifact 自身不会推进 Core。
+目录必须已经存在、可用且可 canonicalize。setup、remove 和 npm uninstall 都保留 Task data 与
+未知相邻文件，也不会修改目标 Git 仓库。
 
-`TEST` 成功后必须进入 `COMPREHENSION_REVIEW`。Codex 向开发者解释当前行为、复杂度和维护
-风险，并取得明确 verdict；AI/static evidence 不能替代用户确认。复杂代码进入 `REFACTOR`，
-repository-changing refactor 只能回到 `TEST`。
+当前 Core 只读取当前 SQLite Schema。检测到不兼容或 pre-graph data 时返回
+`SCHEMA_UNSUPPORTED` 并保持零写入。请选择新的数据目录，或在 Core 外部手工归档、改名或
+删除旧目录。
 
-## Read-before-retry
+## 移除
 
-每次 mutation 前，Adapter 保留完整 operation identity：request/operation ID、process、source
-cursor、revision、action、issuance binding 和原始 closed payload。结果缺失、取消、损坏、截断或
-transport failure 时不得盲目重试，也不得重建缺失的 probe。
+先删除 Codex 注册，再卸载 npm package：
 
-Adapter 使用 `dev_flow_get_task` 或 `dev_flow_get_next_action` 提交原 operation probe，并只遵循
-Core 返回的五分类 Assessment 和 advice。Probe 零写入；只有显式 recovery apply 可以完成一次
-Core-derived transition 或创建一次 blocker。Adapter 不判断 classification、retry safety、resume
-node 或 destination。
+```bash
+dev-flow-codex remove
+npm uninstall -g dev-flow-codex
+```
 
-## pre-graph data unsupported guidance
+如需机器可读结果：
 
-Graph package 只支持 current SQLite layout、strict current snapshot 和精确 `standard-development`。
-遇到 incompatible/pre-graph data 时 Core 返回 `SCHEMA_UNSUPPORTED`，且不 decode、migrate、rename、truncate、
-delete 或 reset 旧数据。不要重复启动或自动清理。
+```bash
+dev-flow-codex remove --json
+```
 
-用户必须明确选择一个新的绝对、canonical、usable `DEV_FLOW_DATA_DIR`，或在 Core 外部手工
-archive/rename/delete 旧目录，再启动 graph Core。错误信息不回显私有数据库路径。
+重新安装兼容 package 并再次运行 `setup` 后，可以从保留的当前数据目录继续任务。
 
-## Setup、remove 与 retained data
+## Package 内容
 
-`0.4.0` package 文件安装仍与 Codex 注册分离：只有 `dev-flow-codex setup` 可以创建经 ownership
-和 read-back 验证的注册，只有 `dev-flow-codex remove` 可以删除该产品拥有的注册。
+生产 package 由 `package.json.files` 关闭，只包含 Plugin、Skill、MCP 配置、lifecycle library、
+license 和一个 darwin-arm64 Core。它不包含 source tree、tests、fixtures、specs、`.git`、
+`node_modules`、用户数据、构建日志或绝对路径，也没有 install/uninstall hook。
 
-setup/update/remove/uninstall 均保留 Core task data 和未知相邻文件，不会修改目标 repository 或
-Git。remove 应先证明 plugin/marketplace absence，再单独执行 package-manager uninstall。重新安装
-兼容的 graph artifact 可以从同一 current SQLite format 数据目录恢复任务；没有任何 pre-graph data reader 或
-conversion path。
+## 维护者入口
 
-## Closed node payload construction
-
-打包 Skill 在每次普通 apply 前同时读取 live Action、`dev_flow_apply_action` `inputSchema` 和
-`plugin/skills/dev-flow/references/node-payloads.md` 的对应标记模板。该 reference 覆盖
-REQUIREMENTS、DESIGN、TASKS、IMPLEMENT、TEST、COMPREHENSION_REVIEW 的复杂度/通过分支、
-REFACTOR、DELIVERY 和 BLOCKED resolution，并由真实 MCP validator、workflow decoder 和 payload
-validator 提取验证。它只提供构造指引，不保存游标、复制 transition authority 或替代 Core。
-
-`required_evidence` 与 ArtifactReference role 不同；`repository_observation` 不得作为 artifact
-role。无真实 process artifact 时使用空 `artifacts`，同时保留完整 branch wrapper、当前 baseline/
-record/evidence identity 和精确 MethodEvidence。Core `INVALID_ARGUMENT` 会停止该 mutation，不会
-触发候选 payload 试探或自动重试。
-
-对于 apply/cancel，Result Envelope `request_id` 与 caller mutation `request_id` 相同，并与成功
-提交后的 `LastOperation.operation_id`/TaskEvent identity 对齐。没有 caller request ID 的 read/open/
-info 工具继续使用 Core 生成的本地 transport identity。
-
-## Deterministic validation
-
-完整 package-local 测试入口为：
+Package-local 验证：
 
 ```bash
 pnpm --dir packages/codex test
 ```
 
-它覆盖 package contract、Skill contract、lifecycle、journey harness、parser/evidence 以及已有
-launcher/runtime tests。fixture、simulated Harness 和 static contract 证据不属于 native Codex
-evidence，也不证明 package 已公开发布。
+Source-local 最终制品构建：
 
-Feature 008 的 source-local acceptance 已完成。Attempt 3 提供真实 native Codex graph-flow
-evidence；独立的 no-Codex deterministic lifecycle 使用同一精确 artifact 证明 setup、remove、
-npm uninstall、data retention、相同 artifact reinstall 和同一 lifecycle Task terminal reopen。
-两类 evidence 保持不同标签，且都不构成 registry package 或公开发布证明。
+```bash
+ARTIFACT_ROOT="${TMPDIR:-/tmp}/dev-flow-codex-artifacts"
+mkdir -p "$ARTIFACT_ROOT"
+SOURCE_COMMIT="$(git rev-parse HEAD)"
+
+pnpm --dir packages/codex run build:local \
+  --output "$ARTIFACT_ROOT" \
+  --final \
+  --source-commit "$SOURCE_COMMIT" \
+  --report "$ARTIFACT_ROOT/artifact-evidence.json"
+```
+
+构建输出必须位于仓库外。公开发布使用根目录的 standalone release command，见
+[`release/codex/README.md`](../../release/codex/README.md)。

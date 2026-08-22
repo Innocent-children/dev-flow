@@ -1,114 +1,136 @@
 # Dev Flow 产品定义
 
-## 用户问题
+[中文](PRODUCT.md) | [English](PRODUCT_en.md)
 
-Dev Flow 面向使用 AI 或普通工具完成真实软件开发的开发者。它处理以下容易反复出现的问题：
+## 一句话定位
 
-- 开发者忘记当前开发步骤、完成条件或允许的下一步；
-- AI 跳过需求、设计、任务拆分、测试或交付核对；
-- 测试已经通过，但代码过度设计，开发者无法解释和维护；
-- Spec Kit、OpenSpec 和 Host 自己维护流程状态，形成多个互相漂移的游标；
-- mutation 中断、结果不确定或 repository drift 后，调用者不知道是重试、读取还是恢复；
-- 需求、设计、任务计划和验证证据发生变化后，旧证据仍被误当作当前 authority。
+Dev Flow 是 AI 开发的过程导航与恢复层：它把一次开发任务放进由 Go Core 管理的状态图，
+持续给出当前节点、完成条件、证据要求和全部合法下一步。
 
-## 产品能力
+## 面向谁
 
-Dev Flow 以 Go Core 中唯一的 `standard-development` 状态图管理当前代任务。当前源码图有
-11 个节点和 29 条正常流转：
+Dev Flow 面向希望让 AI 深度参与真实代码库、同时保留过程控制权的开发者和团队。典型任务会
+经历需求澄清、设计选择、实现返工、测试失败、上下文切换和交付审查，单靠聊天记录很难稳定
+维护这些事实。
+
+## 解决什么问题
+
+### 过程容易失焦
+
+Host 可能跳过需求或设计，也可能在测试通过后直接交付难以维护的代码。Dev Flow 为每个节点
+提供明确的 purpose、entry assumptions、completion conditions、allowed effects 和 required evidence。
+
+### 多套工具容易产生多个游标
+
+Spec Kit、OpenSpec、Codex 和 DeepSeek Harness 都可以辅助开发。Dev Flow 把它们视为方法工具
+或 Host Adapter，由 Go Core 独自保存 process cursor、transition authority 和 terminal outcome。
+
+### 中断后的重复执行可能造成二次副作用
+
+mutation 结果不确定时，Dev Flow 先读取已记录的 operation、Task 和 repository binding，再
+判断是否需要恢复。调用者不需要从输出片段推测上一次操作是否成功。
+
+### 测试无法证明代码容易理解
+
+测试验证行为，理解审查验证开发者能否解释和维护结果。Dev Flow 把两者作为独立证据，并为
+过度复杂的实现提供正式的重构循环。
+
+## 核心能力
+
+### 可见的标准开发图
+
+当前产品只提供内建的 `standard-development`，包含 8 个工作节点、`DONE`，以及
+`BLOCKED`、`CANCELLED` 两个异常节点。
 
 ```text
-REQUIREMENTS
-→ DESIGN
-→ TASKS
-→ IMPLEMENT
-→ TEST
-→ COMPREHENSION_REVIEW
-→ DELIVERY
-→ DONE
-
-REFACTOR
-BLOCKED
-CANCELLED
+REQUIREMENTS → DESIGN → TASKS → IMPLEMENT → TEST
+                                         ↓
+                              COMPREHENSION_REVIEW
+                                  ↙           ↘
+                             REFACTOR       DELIVERY → DONE
+                                 └────→ TEST
 ```
 
-主路径之外，Core 提供受控的需求修订、重新设计、实现返工、测试失败、理解失败、重构、
-重新测试和交付拒绝循环。每个 Action 同时返回当前节点目的、进入/完成条件、允许副作用、所需
-证据、semantic method steps 和完整合法出边。调用者选择 `transition_id`，Core 校验 guard 并
+精确实现含 29 条流转，覆盖需求修订、重新设计、实现返工、测试失败、理解失败、重构、重新测试
+和交付拒绝。每个 Action 返回全部合法出边；调用者选择 `transition_id`，Core 校验 guard 并
 推导 destination。
 
-当前能力包括：
+### 当前权威基线
 
-- 单一开发过程图和当前节点导航；
-- 完整合法出边、稳定 transition identity 和受控回退；
-- immutable `TaskIntent` 以及 versioned requirements/design/task-plan baselines；
-- verification budget、current repository binding 和有界 evidence；
-- 独立的 developer comprehension gate；
-- repository-changing refactor 后强制 retest；
-- `plain`、`spec-kit`、`openspec` 三种 method profile；
-- 五分类 graph-native recovery、read-before-retry 和 Core-owned blocker/resume；
-- local SQLite persistence、CAS、restart/resume 和 terminal retained data；
-- local STDIO current Core contract，公开工具数量仍为六个；
-- read-only Git observation，不把 Git mutation 或通用 shell 放入 Core。
+Task 保留不可变的初始意图和 method profile，并维护当前 requirements、design、task-plan、
+implementation、test、comprehension 与 delivery authority。上游发生实质变化时，下游过期
+authority 会被明确失效。
 
-## 产品权威
+### 三种 method profile
 
-Go Core 唯一管理 Task、process/node/transition/guard/destination、baselines、evidence、recovery、
-blocker 和 terminal outcome。Codex Adapter 只负责显式 selector、capability admission、method
-operation rendering、用户呈现、closed payload forwarding 和不确定 mutation 的 read-before-
-retry。
+- `plain`：使用 Host 的通用开发能力完成节点语义；
+- `spec-kit`：把 Spec Kit 能力映射到当前节点；
+- `openspec`：把 OpenSpec 能力映射到当前节点。
 
-Spec Kit 与 OpenSpec 是 method tools，不是状态机。它们的文档、checkbox、command、sync 或
-archive 状态可以成为有界 evidence，但没有一个能在缺少有效 Core apply 时推进任务。工具
-不可用时允许诚实执行 Core 合同定义的 plain-equivalent work。
+三种 profile 使用同一张 Core 状态图。外部命令成功、checkbox 勾选或 artifact 存在可以形成
+证据，但不会自行推进任务。
 
-## 可理解性门禁
+### 五分类 Recovery
 
-`TEST` 成功只证明当前验证完成，不等于允许交付。Core 必须进入
-`COMPREHENSION_REVIEW`，由开发者明确确认能解释和维护当前设计与实现。理解审查可以把任务
-送回 `IMPLEMENT`、`REFACTOR`、`DESIGN`、`TEST` 或 `REQUIREMENTS`。只有 current test 和
-current user comprehension evidence 同时成立，任务才可进入 `DELIVERY`。
-
-## Recovery 与本地持久化
-
-不确定 mutation 使用 operation identity 和原始 source/action/payload 做 probe。Core 从当前
-Task、LastOperation 和一次只读 repository observation 得出 `not_started`、
-`completed_and_recorded`、`completed_but_unrecorded`、`partially_completed` 或 `conflicting`，
-并独自决定 retry advice、recovery apply 或 `BLOCKED`。Adapter 不做分类。
-
-当前代持久化只接受：
+不确定 mutation 由 Core 分类为：
 
 ```text
-current SQLite format
-Strict current snapshot
-standard-development
+not_started
+completed_and_recorded
+completed_but_unrecorded
+partially_completed
+conflicting
 ```
 
-Feature 008 不兼容历史 Task。pre-graph data/pre-graph 数据返回 `SCHEMA_UNSUPPORTED`，全程零写入；
-用户显式选择新数据目录或在 Core 外部手工 archive/rename/delete 旧目录。Core 和 package
-lifecycle 都不会自动迁移、reset 或删除旧数据。
+Core 决定 retry advice、recovery apply 或 `BLOCKED`。Blocker 解除后回到保存的 resume node。
 
-## 非目标
+### 本地持久化与只读 Git 观察
 
-当前产品不提供：
+任务、事件、证据和 repository claim 保存在本地 SQLite。Core 可以读取 canonical repository、
+branch、HEAD、index/worktree 和有界 changed paths；Git 修改仍由获得用户授权的 Host 负责。
 
-- 用户自定义图、workflow DSL、graph editor 或 plugin framework；
+## 产品组成
+
+| 产品 | 职责 | 当前版本 |
+| --- | --- | --- |
+| Core | 状态图、Task、Store、Recovery、MCP | `0.5.0` |
+| Codex | Codex Plugin、Skill、注册生命周期和 bundled Core | `0.5.1` |
+| DeepSeek | DSH bundle、Skill、guard、MCP child 和 bundled Core | `0.5.1` |
+
+三个产品独立版本化。Host 包会记录实际 bundled Core 版本，不要求两个产品使用同一版本号。
+
+## 产品保证
+
+- 当前 Task、节点、合法流转、恢复分类和终态只有一个 Core 权威；
+- mutation 使用 revision、action identity、source cursor 与 repository binding；
+- 不确定 mutation 先读取再决定后续动作；
+- repository-changing refactor 必须重新经过 `TEST`；
+- `DELIVERY` 需要当前测试证据和当前开发者理解证据；
+- Core 只读观察 Git，不提供 shell 或 Git mutation；
+- 不兼容 SQLite 数据在暴露写能力前被拒绝，并保持零写入；
+- Codex 和 DeepSeek 的公开支持分别由对应 registry package lifecycle 证据建立。
+
+## 当前产品边界
+
+当前版本聚焦一个本地 Host、一个现有 Git 仓库和每个 canonical repository root 一个活动任务。
+产品尚未提供：
+
+- 用户自定义 graph、workflow DSL、graph editor 或 plugin framework；
 - Web UI、remote MCP、HTTP/SSE、authentication 或 telemetry；
-- 通用 shell、自动 repository repair 或任何 Core Git history mutation；
-- 多仓库任务、并行节点、subtasks 或 cross-host takeover；
-- historical task compatibility、pre-graph data migration、legacy snapshot codec 或 legacy process；
-- Core 内运行、安装或解析 Spec Kit/OpenSpec；
-- DeepSeek 产品、真实 Journey 或公开支持声明；
-- 在普通 Product Feature 中进行 version、npm、Tag 或 GitHub Release 操作。
+- 通用 shell、自动 Git 修复、commit、push、merge、rebase 或发布；
+- 多仓库任务、并行节点、subtasks 或自动跨 Host takeover；
+- pre-graph task migration、legacy snapshot decoder 或兼容 runtime；
+- Core 内安装、执行或解析 Spec Kit/OpenSpec。
 
-## 当前发布
+这些边界让当前过程图保持确定、可解释和可验证。未来能力只有在真实用户价值和独立规格成立
+后进入路线图。
 
-已发布的 `0.3.0`、对应 Tag/npm/GitHub Release 和 Features 001–007 是冻结历史事实。
-Feature 009 将完成的 Feature 008 图运行时对齐为 `0.4.0`，公开产品限定为 macOS arm64 上的
-`dev-flow-codex`。
+## 当前公开状态
 
-标准安装入口是 `npm install -g dev-flow-codex@0.4.0` 后显式运行 `dev-flow-codex setup`。公开
-可用性、制品摘要、实际 Codex 版本和最终 Journey 结果以 npm 与 GitHub Release `v0.4.0` 的
-回读证据为准。DeepSeek 和其他平台没有公开支持声明。
+Codex `0.5.1` 与 DeepSeek `0.5.1` 均已发布到 npm，并分别使用
+`codex-v0.5.1`、`deepseek-v0.5.1` GitHub Release。两个 Host 产品都打包 Core `0.5.0`，
+公开支持 macOS arm64 与 Node.js `>=24`。
 
-精确产品行为由当前代码、机器可读 Schema 和可执行测试定义。发布操作说明见
-[`release/README.md`](../release/README.md)。
+精确平台、Host 版本、Journey 结论和 Release 入口见
+[Support Matrix](SUPPORT-MATRIX.md)。精确产品行为由当前代码、机器可读 Schema 和可执行测试
+定义。

@@ -1,12 +1,58 @@
 # Repository Scripts
 
-Repository-local development validation and source-package build helpers live here.
-`validate-repository.sh` runs the bounded checks shared by local development and pull-request CI.
-`build-deepseek-runtime.sh` builds the source-local darwin-arm64 Core used by DeepSeek package tests.
-`release-deepseek.mjs` is the DeepSeek one-command release entrypoint; its prepare, verifier,
-publisher and registry lifecycle runner mirror the Codex operator interface while retaining DSH-
-specific installation and validation.
+[中文](README.md) | [English](README_en.md)
 
-Development validation does not install Host products or publish anything. The explicitly confirmed
-release entrypoints are the only scripts authorized to build release assets, mutate Tag/npm/GitHub
-state, and run isolated final Host lifecycle gates.
+`scripts/` 保存本仓库的开发验证、source-package 构建和 standalone release 工具。开发入口与
+发布入口严格分离：普通验证不会安装真实 Host 产品，也不会创建 npm、Tag 或 GitHub Release。
+
+## 日常开发
+
+| 命令 | 用途 |
+| --- | --- |
+| `pnpm run validate` | 运行有界仓库验证 |
+| `pnpm run validate:contracts` | 只运行公共 contract tests |
+| `pnpm run versions:check` | 检查 Core、Codex、DeepSeek 版本权威与镜像 |
+| `pnpm --dir packages/codex test` | 运行 Codex package-local tests |
+| `pnpm --dir packages/deepseek test` | 运行 DeepSeek package-local tests |
+
+`validate-repository.sh` 检查工具链、冻结依赖安装、版本权威、whitespace、Go formatting、
+package contracts、Host Adapter tests、deterministic journeys 和 release tooling contracts。它不
+调用真实发布入口。
+
+## Source-local 构建
+
+- `build-codex-local.sh`：构建 Codex source-local tarball 与 darwin-arm64 Core；
+- `build-deepseek-runtime.sh`：构建 DeepSeek package tests 使用的 Core；
+- `build-codex-release.sh`、`build-deepseek-release.sh`：为 standalone release 准备确定性制品。
+
+最终制品和 evidence 必须写入仓库外、由操作者选择的目录。
+
+## 发布入口
+
+```bash
+pnpm run release:codex -- \
+  --mode quick|normal \
+  --version "<CODEX_VERSION>" \
+  --output "<ABSOLUTE_DIRECTORY>" \
+  --confirm "codex-v<CODEX_VERSION>" \
+  [--confirm-comprehension]
+```
+
+```bash
+pnpm run release:deepseek -- \
+  --mode quick|normal \
+  --version "<DEEPSEEK_VERSION>" \
+  --output "<ABSOLUTE_DIRECTORY>" \
+  --confirm "deepseek-v<DEEPSEEK_VERSION>" \
+  [--confirm-comprehension]
+```
+
+发布前必须先检查当前公开 Tag 后的 changed paths，由维护者明确选择 `quick` 或 `normal`。
+只有上述 exact-confirmation 入口可以修改产品版本、commit/push、Tag、npm、GitHub Release 与
+assets。
+
+Publisher 使用仓库外的 `release-manifest.json` 和 `publication-record.json` 保留 source、
+mode、版本、artifact digest、remote read-back 与恢复状态。中断后使用同一命令和同一 output
+directory 继续。
+
+精确操作合同见 [Release Ownership](../release/README.md)。

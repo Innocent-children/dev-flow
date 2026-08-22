@@ -1,89 +1,69 @@
-# Dev Flow 发展路线
+# Dev Flow 路线图
 
-路线图描述当前源码能力和真正的未来方向。历史实施材料保留在 Git 历史中，不在当前源码树
-维护文档合同副本。
+[中文](ROADMAP.md) | [English](ROADMAP_en.md)
 
-## 当前源码：Development Process Graph
+Dev Flow 的路线由用户价值和可验证结果推进。日期不是承诺；每一项产品能力都需要独立规格、
+明确边界和可复现证据。
 
-当前源码已经实现：
+## 当前：可靠的本地开发过程图
 
-- 内建 `standard-development`，11 个节点和 29 条正常流转；
-- `TaskIntent`、versioned requirements/design/task-plan baselines 和 authority invalidation；
-- TEST、COMPREHENSION_REVIEW、REFACTOR 与受控回退循环；
-- `plain`、`spec-kit`、`openspec` method profiles；
-- current Core contract 六工具与 closed graph payload；
-- Fresh current SQLite format、strict strict current snapshot 和无历史任务兼容的零写入拒绝；
-- 五分类 graph-native recovery、CAS、BLOCKED/resume、restart 和 retained data；
-- Codex explicit-only Adapter、Skill 和 method-profile renderer。
+已经交付：
 
-Feature 008 的准确状态为：
+- 由 Go Core 独占权威的 `standard-development`；
+- 8 个工作节点、`DONE` 和两个异常节点，共 29 条受控流转；
+- requirements/design/task-plan baselines 与下游 authority invalidation；
+- `TEST → COMPREHENSION_REVIEW → REFACTOR → TEST` 可理解性闭环；
+- `plain`、`spec-kit`、`openspec` 三种 method profile；
+- 六工具 local STDIO MCP 与 closed payload；
+- 本地 SQLite、revision CAS、restart/resume 与 retained terminal data；
+- 五分类 Recovery、read-before-retry 和 Core-owned blocker/resume；
+- 有界只读 Git observation；
+- Codex 与 DeepSeek 两个显式 Host Adapter。
 
-```text
-Feature 008: Complete
-Implementation: Complete
-Native graph-flow acceptance: Complete
-Exact-artifact lifecycle acceptance: Complete
-Composite local acceptance: Complete
-    Publication: dev-flow-codex@0.4.0 complete
-    Selected release: dev-flow-codex@0.4.0 / macOS arm64
-```
+## 当前公开产品
 
-最终 source-local 门禁使用同一精确 artifact 的两个互补证据组件：Attempt 3 的 native Codex
-graph-flow evidence，以及不启动 Codex 的 deterministic exact-artifact lifecycle evidence。前者
-保留 runner 在 native sessions 完成后的真实失败状态，后者独立证明 setup/remove/uninstall/
-reinstall/retained reopen。最终 repository validation 首次通过，analyze 无阻塞发现，converge
-为零 gap。
+| 产品 | 版本 | 状态 |
+| --- | --- | --- |
+| Core | `0.5.0` | 作为两个 Host package 的独立 bundled runtime |
+| Codex | `0.5.1` | npm 与 `codex-v0.5.1` 已发布，macOS arm64 registry lifecycle 通过 |
+| DeepSeek | `0.5.1` | npm 与 `deepseek-v0.5.1` 已发布，macOS arm64 native registry journey 通过 |
 
-Feature 完成不代表 released、published、ready for merge 或 production available from npm。
+公开支持的精确 Host 版本、制品 digest 和证据入口见
+[Support Matrix](SUPPORT-MATRIX.md)。
 
-## 已完成：Final Feature Gate
+## 下一阶段：降低日常使用成本
 
-1. Attempt 3 的四个真实 Codex session 离线重验通过，Core 到达 `DONE`；
-2. 同一精确 source-local artifact 的 deterministic lifecycle 完成同一 lifecycle Task 的
-   remove/uninstall/reinstall/terminal reopen；
-3. 唯一一次最终 `RELEASE_BASE_SHA=... pnpm run validate` 首次通过；
-4. 最终 Spec Kit analyze 无阻塞发现，converge 零 gap；
-5. T001–T112 和 SC-001–SC-025 全部完成。
+这些方向围绕当前图增强可见性和诊断能力：
 
-该门禁未执行 npm publication、Tag、GitHub Release 或 public installation claim。
+- 只读 doctor：解释安装、Core handshake、数据目录和 task 状态；
+- 更清晰的任务检查：快速展示当前节点、阻塞原因、剩余验证预算和可选流转；
+- 更直接的恢复提示：把五分类 Recovery 结论转换为简短、可执行的用户说明；
+- 新平台制品：在独立 final-artifact evidence 完成后扩展支持矩阵。
 
-## 已完成：Feature 009 Release Change
+每项工作都保留单一 Core 权威、只读 Git 和 read-before-retry 约束。
 
-Feature 009 已批准以下 Codex-only 发布工作：
+## 后续候选：受控协作
 
-- 使用版本 `0.4.0`；
-- 对齐 `VERSION`、package、plugin 和 bundled Core identity；
-- 从一个 reviewed clean source identity 构建 official artifact；
-- 执行 npm publication 和 registry read-back；
-- 创建精确 Git Tag 和 GitHub Release；
-- 上传、回读并验证 official assets；
-- 使用最终分发制品完成要求的 native Journey；
-- 形成与真实证据一致的 macOS arm64 Codex public installation claim；
-- 使用一条 exact-confirmation 命令编排完整发布并支持精确恢复。
+真实跨 Host 使用出现后，可以评估：
 
-Feature 008 的 source-local acceptance artifact 继续作为冻结测试证据；Feature 009 从新的干净
-`main` source identity 构建 official `0.4.0` artifact，不复用或改写该历史制品。
+- 用户显式授权的 Codex ↔ DeepSeek handoff；
+- 可验证的 task export reference 或 handoff receipt；
+- 针对团队审查场景的只读共享视图；
+- 更细粒度但仍有界的 verification budget。
 
-当前公开 Codex 产品版本为 `0.5.0`；npm `dev-flow-codex@0.5.0`、Tag `v0.5.0` 和 GitHub
-Release `v0.5.0` 使用同一 source identity。Feature 009 仍只记录 `0.4.0` 历史发布，不被改写。
+跨 Host 能力需要保证同一时刻只有一个 Task authority，不允许 Adapter 复制 process cursor。
 
-## 已完成：Feature 010 DeepSeek Explicit Graph Host
+## 研究方向
 
-Feature 010 从当前 current Core contract、current SQLite format 和 `standard-development` 基线实现独立的
-DeepSeek source-local 产品。它在正式实现前冻结 DSH rc.8、显式 `/dev-flow` 授权、六工具、
-生命周期、数据保留和证据合同，并已完成精确 Artifact 的 source-local Native Acceptance。
-Feature 完成不选择公开 DeepSeek 版本，也不执行 npm、Tag 或 GitHub Release 操作。
+长期研究项包括：
 
-## 未来产品方向
+- 新 OS/CPU 的可复现最终制品；
+- 供应链签名、notarization 与透明度证据；
+- 基于真实项目数据验证 comprehension gate 的效果；
+- 在不引入流程 DSL 的前提下改进内建图。
 
-只有真实使用证明价值并建立独立规格后，才考虑：
+## 持续边界
 
-- 新平台或架构的最终制品；
-- 只读 doctor 和任务检查；
-- 有明确用户授权的跨 Host handoff；
-- verification budget 或 shared contract 的下一次版本化修订；
-- DeepSeek 产品的独立公开发布；
-- 供应链签名、notarization 或透明度证据。
-
-用户自定义 graph、workflow DSL、Web UI、remote MCP、generic shell、Core Git mutation、
-multi-repository 和自动历史任务迁移不属于当前路线。
+当前路线不包含用户自定义 graph、workflow DSL、Web UI、remote MCP、generic shell、Core Git
+mutation、自动多仓库编排或历史任务自动迁移。任何改变这些边界的提议都需要独立产品规格和
+Constitution 审查。

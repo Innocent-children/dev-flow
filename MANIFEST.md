@@ -1,5 +1,7 @@
 # Dev Flow Source Authority
 
+[中文](MANIFEST.md) | [English](MANIFEST_en.md)
+
 Dev Flow 的当前行为权威是源码、机器可读 Schema、制品清单和可执行测试。历史设计与实施记录
 通过 Git 历史追溯，不在当前源码树维护完成后的 Feature 合同副本。
 
@@ -16,7 +18,7 @@ Dev Flow 的当前行为权威是源码、机器可读 Schema、制品清单和�
 | Codex product resources | `packages/codex/` |
 | DeepSeek product resources | `packages/deepseek/` |
 | Protocol fixtures | `protocol/fixtures/` |
-| Release schemas and implementation | `release/`, `scripts/release-codex.mjs` |
+| Release schemas and implementation | `release/`, `scripts/release-codex.mjs`, `scripts/release-deepseek.mjs` |
 | Product support claims | `docs/SUPPORT-MATRIX.md` |
 
 Human-readable documents may explain usage or decisions. Production code, build scripts, release
