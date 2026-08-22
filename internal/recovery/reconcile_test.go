@@ -93,24 +93,37 @@ func TestExactBindingRecoveryEffectAndNullPayloadConservatism(t *testing.T) {
 
 func TestRepositoryEffectDerivationRejectsUndeclaredAndArtifactProductMismatch(t *testing.T) {
 	base := testBinding(time.Date(2026, 8, 19, 11, 0, 0, 0, time.UTC), "a")
+	base.ChangedPaths = []string{"sql/existing.sql"}
 	artifact := domain.ArtifactReference{Role: domain.ArtifactRequirements, Path: "artifacts/requirements.json", Digest: digest("b"), Summary: "Requirements artifact"}
 	effect, err := DeriveRepositoryEffect(domain.NodeRequirements, workflow.StandardPayload{Artifacts: []domain.ArtifactReference{artifact}}, &workflow.RequirementsResult{})
 	if err != nil || effect.Kind != EffectProcessArtifactOnly {
 		t.Fatalf("effect=%+v err=%v", effect, err)
 	}
-	observed := changedBinding(base, []string{"artifacts/requirements.json"}, "c")
-	if !RepositoryEffectMatches(effect, RepositoryWorktreeOnlyChanged, observed) {
+	observed := changedBinding(base, []string{"artifacts/requirements.json", "sql/existing.sql"}, "c")
+	if !RepositoryEffectMatches(effect, RepositoryWorktreeOnlyChanged, base, observed) {
 		t.Fatal("declared artifact path did not match")
 	}
-	observed.ChangedPaths = []string{"internal/product.go"}
-	if RepositoryEffectMatches(effect, RepositoryWorktreeOnlyChanged, observed) {
+	observed.ChangedPaths = []string{"artifacts/requirements.json", "internal/extra.go", "sql/existing.sql"}
+	if RepositoryEffectMatches(effect, RepositoryWorktreeOnlyChanged, base, observed) {
 		t.Fatal("undeclared product path matched process artifact effect")
+	}
+	productEffect := RepositoryEffect{Kind: EffectProductFileChange, ChangedPaths: []string{"internal/product.go"}}
+	observed.ChangedPaths = []string{"internal/product.go", "sql/existing.sql"}
+	if !RepositoryEffectMatches(productEffect, RepositoryWorktreeOnlyChanged, base, observed) {
+		t.Fatal("declared product path did not match dirty baseline")
+	}
+	overlapEffect := RepositoryEffect{Kind: EffectProductFileChange, ChangedPaths: []string{"sql/existing.sql"}}
+	if RepositoryEffectMatches(overlapEffect, RepositoryWorktreeOnlyChanged, base, observed) {
+		t.Fatal("change overlapping the dirty baseline matched without path-level proof")
+	}
+	if RepositoryEffectMatches(productEffect, RepositoryForbiddenChange, base, observed) {
+		t.Fatal("forbidden repository identity change matched")
 	}
 	artifact.Role = domain.ArtifactImplementation
 	if _, err := DeriveRepositoryEffect(domain.NodeRequirements, workflow.StandardPayload{Artifacts: []domain.ArtifactReference{artifact}}, &workflow.RequirementsResult{}); err == nil {
 		t.Fatal("artifact/product role mismatch accepted")
 	}
-	if !RepositoryEffectMatches(RepositoryEffect{Kind: EffectExactBlockerRestoration, NoFileChanges: true}, RepositoryExact, base) {
+	if !RepositoryEffectMatches(RepositoryEffect{Kind: EffectExactBlockerRestoration, NoFileChanges: true}, RepositoryExact, base, base) {
 		t.Fatal("exact blocker restoration rejected")
 	}
 }

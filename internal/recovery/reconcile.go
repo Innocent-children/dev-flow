@@ -98,7 +98,7 @@ func Reconcile(input ReconcileInput) (RecoveryDecision, error) {
 		}
 		payloadDigest = &digest
 		if evidence != OperationEvidenceContradictory {
-			evidence = operationEvidenceFor(effect, relation, input.Observed)
+			evidence = operationEvidenceFor(effect, relation, input.Task.Repository, input.Observed)
 		}
 	}
 
@@ -130,12 +130,12 @@ func Reconcile(input ReconcileInput) (RecoveryDecision, error) {
 	return decision, nil
 }
 
-func operationEvidenceFor(effect RepositoryEffect, relation RepositoryRelation, observed domain.RepositoryBinding) OperationEvidenceState {
+func operationEvidenceFor(effect RepositoryEffect, relation RepositoryRelation, authoritative, observed domain.RepositoryBinding) OperationEvidenceState {
 	if relation == RepositoryExact && !effect.NoFileChanges &&
 		(effect.Kind == EffectProductFileChange || effect.Kind == EffectProcessArtifactOnly) {
 		return OperationEvidenceNone
 	}
-	if RepositoryEffectMatches(effect, relation, observed) {
+	if RepositoryEffectMatches(effect, relation, authoritative, observed) {
 		return OperationEvidenceComplete
 	}
 	return OperationEvidenceContradictory
@@ -161,7 +161,7 @@ func DeriveRepositoryEffect(source domain.NodeID, envelope workflow.StandardPayl
 	return RepositoryEffect{Kind: EffectProcessArtifactOnly, ChangedPaths: sortedPaths(paths)}, nil
 }
 
-func RepositoryEffectMatches(effect RepositoryEffect, relation RepositoryRelation, observed domain.RepositoryBinding) bool {
+func RepositoryEffectMatches(effect RepositoryEffect, relation RepositoryRelation, authoritative, observed domain.RepositoryBinding) bool {
 	if relation == RepositoryForbiddenChange {
 		return false
 	}
@@ -169,15 +169,33 @@ func RepositoryEffectMatches(effect RepositoryEffect, relation RepositoryRelatio
 	case EffectExactBinding, EffectExactBlockerRestoration:
 		return relation == RepositoryExact
 	case EffectProcessArtifactOnly:
-		return relation == RepositoryExact || relation == RepositoryWorktreeOnlyChanged && samePaths(effect.ChangedPaths, observed.ChangedPaths)
+		return relation == RepositoryExact || relation == RepositoryWorktreeOnlyChanged && matchesDeclaredDelta(authoritative.ChangedPaths, effect.ChangedPaths, observed.ChangedPaths)
 	case EffectProductFileChange:
 		if effect.NoFileChanges {
 			return relation == RepositoryExact && len(effect.ChangedPaths) == 0
 		}
-		return relation == RepositoryWorktreeOnlyChanged && len(effect.ChangedPaths) > 0 && samePaths(effect.ChangedPaths, observed.ChangedPaths)
+		return relation == RepositoryWorktreeOnlyChanged && len(effect.ChangedPaths) > 0 && matchesDeclaredDelta(authoritative.ChangedPaths, effect.ChangedPaths, observed.ChangedPaths)
 	default:
 		return false
 	}
+}
+
+func matchesDeclaredDelta(authoritative, declared, observed []string) bool {
+	expected := make(map[string]struct{}, len(authoritative)+len(declared))
+	for _, path := range authoritative {
+		expected[path] = struct{}{}
+	}
+	for _, path := range declared {
+		if _, exists := expected[path]; exists {
+			return false
+		}
+		expected[path] = struct{}{}
+	}
+	paths := make([]string, 0, len(expected))
+	for path := range expected {
+		paths = append(paths, path)
+	}
+	return samePaths(paths, observed)
 }
 
 func DecodeBlockerResolutionPayload(raw []byte) (BlockerResolutionPayload, json.RawMessage, error) {

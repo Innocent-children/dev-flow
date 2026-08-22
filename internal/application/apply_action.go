@@ -87,7 +87,7 @@ func (s *Service) ApplyAction(ctx context.Context, r ApplyActionRequest) (ApplyA
 	if err != nil {
 		return ApplyActionResult{}, domain.ErrInternal
 	}
-	if _, err := validatedRepositoryEffect(task.CurrentNode, r.Payload, relation, fresh); err != nil {
+	if _, err := validatedRepositoryEffect(task.CurrentNode, r.Payload, relation, task.Repository, fresh); err != nil {
 		return ApplyActionResult{}, domain.ErrRepositoryDrift
 	}
 	return s.applyStandardMutation(ctx, r, task, fresh, relation)
@@ -145,7 +145,7 @@ func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionReques
 		return ApplyActionResult{}, domain.ErrInvalidArgument
 	}
 	effect, err := recovery.DeriveRepositoryEffect(task.CurrentNode, envelope, result)
-	if err != nil || !recovery.RepositoryEffectMatches(effect, relation, fresh) {
+	if err != nil || !recovery.RepositoryEffectMatches(effect, relation, task.Repository, fresh) {
 		return ApplyActionResult{}, domain.ErrRepositoryDrift
 	}
 	canonicalPayload, err := workflow.CanonicalValidatedPayload(envelope, result)
@@ -225,13 +225,13 @@ func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionReques
 	return ApplyActionResult{Task: next}, nil
 }
 
-func validatedRepositoryEffect(source domain.NodeID, raw json.RawMessage, relation recovery.RepositoryRelation, fresh domain.RepositoryBinding) (recovery.RepositoryEffect, error) {
+func validatedRepositoryEffect(source domain.NodeID, raw json.RawMessage, relation recovery.RepositoryRelation, authoritative, fresh domain.RepositoryBinding) (recovery.RepositoryEffect, error) {
 	envelope, result, err := workflow.DecodeStandardPayload(source, raw)
 	if err != nil {
 		return recovery.RepositoryEffect{}, err
 	}
 	effect, err := recovery.DeriveRepositoryEffect(source, envelope, result)
-	if err != nil || !recovery.RepositoryEffectMatches(effect, relation, fresh) {
+	if err != nil || !recovery.RepositoryEffectMatches(effect, relation, authoritative, fresh) {
 		return recovery.RepositoryEffect{}, domain.ErrRepositoryDrift
 	}
 	return effect, nil

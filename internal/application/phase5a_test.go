@@ -143,6 +143,37 @@ func TestImplementationTransitionsRecordsRepositoryEffectsAndZeroWrites(t *testi
 		t.Fatal("worktree-only observation was not accepted as authority")
 	}
 
+	t.Run("dirty baseline accepts declared implementation delta", func(t *testing.T) {
+		s, _, observer := phase5Service(t)
+		observer.binding.ChangedPaths = []string{"sql/existing.sql"}
+		task := phase5TaskAtImplement(t, s)
+		changed := observer.binding.Clone()
+		changed.WorktreeFingerprint = digestOf("c")
+		changed.BindingDigest = digestOf("d")
+		changed.ChangedPaths = []string{"internal/file.go", "sql/existing.sql"}
+		observer.binding = changed
+		result := applyPhase5(t, s, task, "implementation_ready_for_test", "", implementationNodeResultWithPaths(1, []string{"work-a"}, []string{"internal/file.go"}, nil))
+		if result.Repository.BindingDigest != changed.BindingDigest || result.Implementation.RepositoryBindingDigest != changed.BindingDigest {
+			t.Fatal("dirty-baseline implementation did not adopt the fresh binding")
+		}
+	})
+
+	t.Run("dirty baseline rejects undeclared implementation path", func(t *testing.T) {
+		s, ms, observer := phase5Service(t)
+		observer.binding.ChangedPaths = []string{"sql/existing.sql"}
+		task := phase5TaskAtImplement(t, s)
+		changed := observer.binding.Clone()
+		changed.WorktreeFingerprint = digestOf("c")
+		changed.BindingDigest = digestOf("d")
+		changed.ChangedPaths = []string{"internal/extra.go", "internal/file.go", "sql/existing.sql"}
+		observer.binding = changed
+		before := ms.commits
+		assertApplyFails(t, s, task, "implementation_ready_for_test", "", implementationNodeResultWithPaths(1, []string{"work-a"}, []string{"internal/file.go"}, nil), domain.ErrRepositoryDrift)
+		if ms.commits != before {
+			t.Fatal("undeclared dirty-baseline path wrote state")
+		}
+	})
+
 	s, ms, observer = phase5Service(t)
 	task = phase5TaskAtImplement(t, s)
 	for name, mutate := range map[string]func(*domain.RepositoryBinding){
