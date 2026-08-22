@@ -1309,6 +1309,7 @@ export async function runFinalRegistryJourney(options) {
     let product = await inspectFinalInstalledProduct({
       npmExecutable,
       version: options.version,
+      coreVersion: options.coreVersion,
       layout,
       environment,
       repositoryRoot: REPOSITORY_ROOT,
@@ -1376,7 +1377,7 @@ export async function runFinalRegistryJourney(options) {
       terminalOutcome: null,
     };
     validateDevelopmentSessions(sessions, state, {
-      coreVersion: options.version,
+      coreVersion: options.coreVersion,
       graphContract: true,
       proofCommand: FINAL_PROOF_COMMAND,
       proofRenderedCommand: FINAL_PROOF_RENDERED_COMMAND,
@@ -1414,6 +1415,7 @@ export async function runFinalRegistryJourney(options) {
     product = await inspectFinalInstalledProduct({
       npmExecutable,
       version: options.version,
+      coreVersion: options.coreVersion,
       layout,
       environment,
       repositoryRoot: REPOSITORY_ROOT,
@@ -1525,6 +1527,7 @@ export async function runQuickRegistryJourney(options) {
     const product = await inspectFinalInstalledProduct({
       npmExecutable,
       version: options.version,
+      coreVersion: options.coreVersion,
       layout,
       environment,
       repositoryRoot: REPOSITORY_ROOT,
@@ -3613,13 +3616,14 @@ function assertQuickJourneyOptions(options) {
 
 function assertRegistryJourneyOptions(options, expectedMode, label) {
   assertExactFields(options, [
-    "mode", "packageName", "version", "registry", "tarballSHA256", "coreSHA256",
+    "mode", "packageName", "version", "registry", "tarballSHA256", "coreVersion", "coreSHA256",
     "sourceCommit", "codexExecutable", "workspace", "resultDirectory",
   ], `${label} options`);
   if (options.mode !== expectedMode) throw new Error(`${label} mode is invalid`);
   if (options.packageName !== "dev-flow-codex") throw new Error(`${label} package must equal dev-flow-codex`);
   if (options.registry !== OFFICIAL_NPM_REGISTRY) throw new Error(`${label} requires the official npm registry`);
   requireReleaseVersion(options.version);
+  requireReleaseVersion(options.coreVersion);
   requireDigest(options.tarballSHA256, "tarball-sha256");
   requireDigest(options.coreSHA256, "core-sha256");
   if (!/^[0-9a-f]{40}$/u.test(options.sourceCommit)) throw new Error(`${label} source commit is invalid`);
@@ -3763,6 +3767,7 @@ async function uninstallFinalRegistryPackage(npmExecutable, layout, environment)
 async function inspectFinalInstalledProduct({
   npmExecutable,
   version,
+  coreVersion,
   layout,
   environment,
   repositoryRoot,
@@ -3798,7 +3803,7 @@ async function inspectFinalInstalledProduct({
     env: environment,
     encoding: "utf8",
   });
-  if (productVersion.stdout !== `dev-flow-codex ${version} (core ${version})\n`) {
+  if (productVersion.stdout !== `dev-flow-codex ${version} (core ${coreVersion})\n`) {
     throw new Error("final registry journey product version read-back is invalid");
   }
   const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
@@ -3807,14 +3812,14 @@ async function inspectFinalInstalledProduct({
     env: environment,
     encoding: "utf8",
   });
-  if (runtimeVersion.stdout !== `dev-flow ${version}\n`) {
+  if (runtimeVersion.stdout !== `dev-flow ${coreVersion}\n`) {
     throw new Error("final registry journey bundled Core version is invalid");
   }
   return {
     packageRoot,
     packageCLI,
     runtimePath,
-    coreVersion: version,
+    coreVersion,
     coreSHA256: await digestFile(runtimePath),
   };
 }
@@ -4166,7 +4171,7 @@ export function parseCLI(argv) {
   }
   if (mode === "final-registry" || mode === "quick-registry") {
     const flags = [
-      "--package", "--version", "--registry", "--tarball-sha256", "--core-sha256",
+      "--package", "--version", "--registry", "--tarball-sha256", "--core-version", "--core-sha256",
       "--source-commit", "--codex-executable", "--workspace", "--result-directory",
     ];
     const values = {};
@@ -4187,6 +4192,7 @@ export function parseCLI(argv) {
       throw new Error("registry journey requires the official npm registry");
     }
     requireReleaseVersion(values["--version"]);
+    requireReleaseVersion(values["--core-version"]);
     requireDigest(values["--tarball-sha256"], "tarball-sha256");
     requireDigest(values["--core-sha256"], "core-sha256");
     if (!/^[0-9a-f]{40}$/u.test(values["--source-commit"])) {
@@ -4201,6 +4207,7 @@ export function parseCLI(argv) {
       version: values["--version"],
       registry: values["--registry"],
       tarballSHA256: values["--tarball-sha256"],
+      coreVersion: values["--core-version"],
       coreSHA256: values["--core-sha256"],
       sourceCommit: values["--source-commit"],
       codexExecutable: values["--codex-executable"],

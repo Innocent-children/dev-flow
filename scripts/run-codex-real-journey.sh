@@ -14,8 +14,8 @@ usage() {
     '   or: run-codex-real-journey.sh --acceptance --codex-executable ABS --workspace ABS' \
     '   or: run-codex-real-journey.sh --final-local-lifecycle --artifact ABS.tgz --artifact-sha256 SHA256 --artifact-size BYTES --core-sha256 SHA256 --source-commit COMMIT --native-result-directory ABS --workspace ABS --result-directory ABS' \
     '   or: run-codex-real-journey.sh --final-local --artifact ABS.tgz --artifact-sha256 SHA256 --artifact-size BYTES --source-commit COMMIT --codex-executable ABS --workspace ABS --result-directory ABS --native-attempt 3 --authorization explicit_user_authorization' \
-    '   or: run-codex-real-journey.sh --final-registry --package dev-flow-codex --version CODEX_VERSION --registry https://registry.npmjs.org/ --tarball-sha256 SHA256 --core-sha256 SHA256 --source-commit COMMIT --codex-executable ABS --workspace ABS --result-directory ABS' \
-    '   or: run-codex-real-journey.sh --quick-registry --package dev-flow-codex --version CODEX_VERSION --registry https://registry.npmjs.org/ --tarball-sha256 SHA256 --core-sha256 SHA256 --source-commit COMMIT --codex-executable ABS --workspace ABS --result-directory ABS' >&2
+    '   or: run-codex-real-journey.sh --final-registry --package dev-flow-codex --version CODEX_VERSION --registry https://registry.npmjs.org/ --tarball-sha256 SHA256 --core-version CORE_VERSION --core-sha256 SHA256 --source-commit COMMIT --codex-executable ABS --workspace ABS --result-directory ABS' \
+    '   or: run-codex-real-journey.sh --quick-registry --package dev-flow-codex --version CODEX_VERSION --registry https://registry.npmjs.org/ --tarball-sha256 SHA256 --core-version CORE_VERSION --core-sha256 SHA256 --source-commit COMMIT --codex-executable ABS --workspace ABS --result-directory ABS' >&2
 }
 
 if [ "$#" -eq 2 ] && [ "$1" = "--fixture" ]; then
@@ -48,7 +48,7 @@ if [ "$#" -eq 7 ] && [ "$1" = "--development-smoke" ]; then
   exec node "$script_dir/write-codex-journey-evidence.mjs" development-smoke "$@"
 fi
 
-if [ "$#" -eq 19 ] && { [ "$1" = "--final-registry" ] || [ "$1" = "--quick-registry" ]; }; then
+if [ "$#" -eq 21 ] && { [ "$1" = "--final-registry" ] || [ "$1" = "--quick-registry" ]; }; then
   mode=${1#--}
   shift
   exec node "$script_dir/write-codex-journey-evidence.mjs" "$mode" "$@"

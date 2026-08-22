@@ -207,6 +207,7 @@ async function runProductionRegistryJourney(context, manifest, { runnerMode, evi
       "--version", context.version,
       "--registry", OFFICIAL_REGISTRY,
       "--tarball-sha256", context.tarballSHA256,
+      "--core-version", manifest.release.core_version,
       "--core-sha256", coreArtifact.sha256,
       "--source-commit", context.sourceCommit,
       "--codex-executable", codexExecutable,
@@ -503,6 +504,7 @@ async function ensureFinalJourney(context, manifest, record) {
     tarballSHA256: context.tarballSHA256,
     npmIntegrity: record.npm.integrity,
     coreSHA256: coreArtifact?.sha256,
+    coreVersion: manifest.release.core_version,
     sourceCommit: context.sourceCommit,
   };
   let observed;
