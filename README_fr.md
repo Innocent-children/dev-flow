@@ -55,12 +55,13 @@ ou DeepSeek est généralement plus simple.
 
 Les artefacts publics actuels prennent en charge macOS arm64 et Node.js `>=24`. Core `0.5.0` est inclus
 indépendamment dans les produits Host Codex `0.5.1` et DeepSeek `0.5.1` ; les trois produits ont des versions
-indépendantes.
+indépendantes. Les tableaux de support conservent les versions exactes vérifiées, tandis que les exemples
+d'installation utilisent le dist-tag npm `latest`.
 
 ### Codex
 
 ```bash
-npm install -g dev-flow-codex@0.5.1
+npm install -g dev-flow-codex@latest
 dev-flow-codex setup
 dev-flow-codex --version
 ```
@@ -76,16 +77,18 @@ l'installation, la suppression, la conservation des données et les limites d'in
 
 ### DeepSeek Harness
 
-Téléchargez le tarball officiel depuis npm, puis fournissez son chemin absolu à un profil DSH :
+Récupérez le package officiel désigné par npm `latest`, puis fournissez le chemin absolu du tarball à un profil
+DSH :
 
 ```bash
-npm pack dev-flow-deepseek@0.5.1
-dsh plugin --profile <profile> add "$PWD/dev-flow-deepseek-0.5.1.tgz"
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile <profile> add "$PWD/$TARBALL"
 ```
 
 Redémarrez le profil selon le lifecycle DSH, puis entrez explicitement dans Dev Flow avec `/dev-flow`. Consultez
 [DeepSeek package README](docs/DEEPSEEK_en.md) pour l'installation, le redémarrage, la suppression et les limites
-de données.
+de données. Le catalogue complet des commandes Codex, DeepSeek, Core, selectors et outils MCP se trouve dans la
+[référence des commandes](docs/COMMANDS_en.md).
 
 ## Modèle d'exécution
 
@@ -155,6 +158,9 @@ dev_flow_apply_action
 dev_flow_cancel_task
 ```
 
+Consultez la [référence des commandes](docs/COMMANDS_en.md) pour la classification lecture/écriture, le rôle des
+entrées et le comportement de chaque outil.
+
 Core peut observer un dépôt Git existant de façon bornée et en lecture seule afin d'établir un repository binding
 et d'évaluer les faits de modification. Les mutation Git sont effectuées par un Host autorisé par l'utilisateur.
 Core n'expose pas de shell générique et n'exécute pas checkout, commit, push, merge, rebase, tag ou publication.
@@ -192,6 +198,7 @@ La documentation technique de référence est actuellement maintenue en anglais 
 | Problèmes, capacités et limites du produit | [Product](docs/PRODUCT_en.md) |
 | Architecture Core, Adapter, Store et Recovery | [Architecture](docs/ARCHITECTURE_en.md) |
 | Versions et plateformes prises en charge | [Support Matrix](docs/SUPPORT-MATRIX_en.md) |
+| Toutes les commandes utilisateur, commandes Core gérées et outils MCP | [Command Reference](docs/COMMANDS_en.md) |
 | Capacités livrées et orientations futures | [Roadmap](docs/ROADMAP_en.md) |
 | Versionnement indépendant des produits | [Versioning](docs/VERSIONING.md) |
 | Locales documentaires et règles de synchronisation | [I18n](docs/I18N_en.md) |
