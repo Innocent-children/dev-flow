@@ -2,83 +2,66 @@
 
 [中文](README.md) | [English](README_en.md)
 
-> Keep AI-assisted development grounded: know where the task is, what completes the current step, and where it may go next.
+> Keep a small AI coding task from turning into a sprawling project.
 
 [![Codex npm](https://img.shields.io/npm/v/dev-flow-codex?label=dev-flow-codex)](https://www.npmjs.com/package/dev-flow-codex)
 [![DeepSeek npm](https://img.shields.io/npm/v/dev-flow-deepseek?label=dev-flow-deepseek)](https://www.npmjs.com/package/dev-flow-deepseek)
 [![CI](https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml/badge.svg)](https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-Dev Flow is a local development-process manager driven by a Go Core. It organizes requirements,
-design, task planning, implementation, testing, comprehension review, refactoring, and delivery into
-a state graph that supports controlled backtracking, recovery, and evidence-based transitions.
-Codex, DeepSeek Harness, and future hosts share the same process authority.
+## You may have seen this already
 
-Its purpose is not to produce more code. It keeps a real development task answerable after rework,
-interruptions, and context switches:
+- You ask an agent to change one endpoint. It also refactors neighboring modules, invents an abstraction,
+  and adds documentation you never requested.
+- You need one targeted test. It starts a full regression suite, platform matrix, and extra edge-case work,
+  consuming time and tokens without a stopping rule.
+- Chat context is compacted, the host restarts, or the task resumes the next day. The agent no longer knows
+  where it stopped, rescans the repository, or repeats completed work.
+- Tests pass, but the implementation is too complex for a developer to explain or maintain without asking
+  another model.
+- A write operation is interrupted, and nobody knows whether it committed. Retrying becomes a gamble.
 
-- Which node is the task in?
-- What work and evidence complete this node?
-- Which transitions are currently legal?
-- If the last mutation is uncertain, should the host read, recover, or retry?
+The missing piece is usually not another model. It is a process boundary outside chat history that answers:
+**what may be done now, what completes the step, how much verification is enough, and when the agent should stop.**
 
-Dev Flow is most useful for real repository tasks that span several development steps, may require
-rework, or must continue across multiple sessions. For one-off questions or tiny single-file changes
-that need no retained process state, using Codex or DeepSeek directly is usually simpler.
+## What Dev Flow does
 
-## Where it fits
+Dev Flow is a local navigation and recovery layer for AI-assisted development. It places requirements,
+design, task planning, implementation, testing, comprehension review, refactoring, and delivery in a
+Go Core-managed state graph. Codex, DeepSeek Harness, and other hosts work against the current node with
+explicit completion conditions, allowed effects, required evidence, a verification budget, and legal next
+transitions.
 
-Dev Flow does not replace existing agents, specification tools, or test systems. It connects them to
-one recoverable development thread.
-
-| Component | Responsibility |
+| Developer pain | Dev Flow constraint |
 | --- | --- |
-| Codex / DeepSeek Harness | Read the repository, change code, run tools, and collaborate with the developer on the current node |
-| Spec Kit / OpenSpec | Provide methods and artifacts for requirements, design, task planning, and related nodes |
-| Tests and CI | Produce evidence that behavior is correct |
-| Dev Flow | Retain the single process cursor, completion conditions, legal transitions, recovery result, and outcome |
+| A small request keeps expanding | Retain immutable original intent plus current requirements and design baselines; material scope changes return to the appropriate node and invalidate stale downstream evidence |
+| The solution becomes increasingly elaborate | Passing tests still leads to `COMPREHENSION_REVIEW`; code that cannot be explained or maintained returns to `DESIGN` or `REFACTOR` |
+| Testing never seems to end | Every Task carries a verification budget; checks must relate to the current node, changed surface, or acceptance criteria, while full suites and platform matrices are not default work |
+| Context disappears after an interruption | The current node, baselines, evidence, blockers, and legal transitions live in local SQLite rather than only in chat history |
+| A write result is uncertain | Read authoritative state first, then use five-class Recovery to decide whether to recover or retry; blind mutation replay is prohibited |
 
-Dev Flow is therefore not a new model, a general-purpose coding agent, or another specification
-format. It is a local navigation and recovery layer underneath hosts and development methods.
+Dev Flow is not another model, a general-purpose coding agent, or a new specification format. Codex and
+DeepSeek still read code, modify repositories, and run tools. Dev Flow keeps that work from **losing its
+place, silently changing scope, validating without a limit, or treating “tests passed” as “ready to ship.”**
 
-## Why Dev Flow
-
-### A development thread that survives context loss
-
-Task state is stored in local SQLite. When chat context is compacted, a host restarts, or work is
-interrupted, Core retains the current node, requirements and design baselines, verification records,
-blockers, and legal transitions.
-
-### Comprehension is a delivery gate
-
-Dev Flow treats `COMPREHENSION_REVIEW` as a first-class delivery gate. Tests establish behavior;
-the developer confirms that the design and code can be explained and maintained. Excess complexity
-routes the task to `REFACTOR`, and repository-changing refactors return through `TEST`.
-
-### Recovery follows recorded facts
-
-When a mutation response is missing, cancelled, truncated, or malformed, the caller reads Core
-before taking another write action. Core classifies the operation as not started, completed and
-recorded, completed but unrecorded, partially completed, or conflicting, then returns the safe action.
-
-### Multiple methods, one process authority
-
-Each task selects `plain`, `spec-kit`, or `openspec`. These method tools help perform the current
-node's work. Go Core remains the sole authority for tasks, nodes, transitions, recovery, and outcomes.
+It is most useful for real repository tasks that span several development steps, may require rework, or
+must continue across multiple sessions. For one-off questions or tiny single-file changes that need no
+retained process state, using Codex or DeepSeek directly is usually simpler.
 
 ## How a task progresses
 
 1. The developer describes a task in the current Git repository with an explicit selector.
 2. Core opens or resumes that repository's Task and returns the current node, completion conditions,
-   evidence requirements, and every legal transition.
-3. The host performs only the work authorized by the current node and submits its results and evidence.
-4. Core validates the exact `transition_id` and advances the Task. Failed tests, failed comprehension,
-   or rejected delivery return it to the appropriate earlier node.
-5. If a mutation response is uncertain, the host reads authoritative state first and follows the
-   Recovery result instead of replaying the write blindly.
+   allowed effects, evidence requirements, verification budget, and every legal transition.
+3. The host performs only the current node's work. A larger requirement, invalid design, or implementation
+   defect follows the graph back to the appropriate node instead of being hidden inside the current step.
+4. Core validates the exact `transition_id` before advancing. Failed tests, failed comprehension, or rejected
+   delivery return the Task to the corresponding earlier node.
+5. If a mutation response is uncertain, the host reads authoritative state first and follows the Recovery
+   result instead of replaying the write blindly.
 
-The developer can always see why the task is here, what completes the node, and which next steps are
-actually available.
+The developer can always see why the task is here, what completes the node, how much verification remains,
+and which next steps are actually available.
 
 ## Quick start
 
@@ -117,6 +100,18 @@ Restart the profile according to the DSH profile lifecycle, then enter Dev Flow 
 `/dev-flow`. See the [DeepSeek package README](docs/DEEPSEEK_en.md) for installation,
 restart, removal, and data boundaries.
 
+## Where it fits
+
+| Component | Responsibility |
+| --- | --- |
+| Codex / DeepSeek Harness | Read the repository, change code, run tools, and collaborate with the developer on the current node |
+| Spec Kit / OpenSpec | Provide methods and artifacts for requirements, design, task planning, and related nodes |
+| Tests and CI | Produce evidence that behavior is correct |
+| Dev Flow | Retain the single process cursor, completion conditions, verification budget, legal transitions, recovery result, and outcome |
+
+These tools may work together, but only Go Core records where the Task is and where it may go. A Spec Kit
+artifact, OpenSpec checkbox, or successful command does not advance the Task by itself.
+
 ## Development graph
 
 Core provides one built-in process, `standard-development`: eight working nodes, the `DONE`
@@ -148,7 +143,8 @@ Core-returned `transition_id`; Core derives the destination.
 Every current Action exposes:
 
 - process, node, revision, and action identity;
-- node purpose, entry assumptions, completion conditions, allowed effects, and required evidence;
+- node purpose, entry assumptions, completion conditions, allowed effects, required evidence, and
+  verification budget;
 - semantic method steps for the selected method profile;
 - every legal transition with its destination, guard, selection condition, and reason rule.
 
