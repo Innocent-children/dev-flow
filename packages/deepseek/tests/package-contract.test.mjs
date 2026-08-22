@@ -42,23 +42,25 @@ const lifecycleHooks = [
   "postuninstall",
 ];
 
-test("manifest declares one unpublished ESM DeepSeek bundle", async () => {
+test("manifest declares one public macOS arm64 ESM DeepSeek bundle", async () => {
   const manifest = await readJSON(join(packageRoot, "package.json"));
 
   assert.equal(manifest.name, "dev-flow-deepseek");
-  assert.equal(manifest.version, "0.5.0");
-  assert.equal(manifest.private, true);
+  assert.match(manifest.version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u);
+  assert.equal(manifest.private, false);
   assert.equal(manifest.type, "module");
   assert.equal(manifest.main, "lib/index.mjs");
   assert.equal(manifest.license, "Apache-2.0");
   assert.deepEqual(manifest.engines, { node: ">=24" });
+  assert.deepEqual(manifest.os, ["darwin"]);
+  assert.deepEqual(manifest.cpu, ["arm64"]);
+  assert.deepEqual(manifest.publishConfig, { access: "public", registry: "https://registry.npmjs.org/" });
   assert.deepEqual(manifest.dsh, {
     bundle: {
       patch: "./cordis.patch.yml",
     },
   });
   assert.equal("bin" in manifest, false);
-  assert.equal("publishConfig" in manifest, false);
 });
 
 test("manifest closes package, dependency, and lifecycle surfaces", async () => {

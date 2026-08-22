@@ -1,6 +1,6 @@
 # Release Ownership
 
-`release/` contains the current Codex release schemas and operator guidance. Generated output stays
+`release/` contains current product release schemas and operator guidance. Generated output stays
 in an external operator-selected directory and is never committed.
 
 ## Current five-file output
@@ -38,3 +38,17 @@ verifies registry bytes, uploads exact assets, and finalizes only after the sele
 
 CI syntax-checks these components and runs fake-remote contracts; it never invokes the real release
 entrypoint or mutates Tag, npm, GitHub Release, assets, Codex registration, or task data.
+
+DeepSeek uses the same operator argument shape with an independent product identity:
+
+```bash
+pnpm run release:deepseek -- \
+  --mode quick|normal \
+  --version "<DEEPSEEK_VERSION>" \
+  --output "<ABSOLUTE_DIRECTORY>" \
+  --confirm "deepseek-v<DEEPSEEK_VERSION>" \
+  [--confirm-comprehension]
+```
+
+Its package, Tag, output directory, npm identity, GitHub state and DSH registry lifecycle evidence
+are independent from Codex. See [`deepseek/README.md`](deepseek/README.md).

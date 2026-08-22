@@ -22,6 +22,7 @@ const repositoryPaths = [
   "LICENSE",
   ...packagePaths
     .filter((path) => path !== "LICENSE")
+    .filter((path) => path !== "runtime/darwin-arm64/dev-flow")
     .map((path) => join("packages", "deepseek", path)),
 ];
 await execFile("git", ["cat-file", "-e", `${options.sourceCommit}^{commit}`], { cwd: repositoryRoot });

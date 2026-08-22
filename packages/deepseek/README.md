@@ -1,8 +1,8 @@
 # dev-flow-deepseek
 
-`dev-flow-deepseek` is the source package for the explicit DeepSeek Harness adapter to Dev Flow's
-current process graph. It is an unpublished developer-preview package and remains `private` during
-Feature 010.
+`dev-flow-deepseek` is the independently versioned DeepSeek Harness adapter to Dev Flow's current
+process graph. Its package metadata is public-release capable; actual support begins only after the
+selected release command and registry lifecycle gate complete.
 
 Its product version comes only from `package.json`. The packaged Core reports its own independently
 maintained version; the adapter validates the actual executable, six-tool catalog, live schemas,
@@ -40,9 +40,6 @@ The package contains one `dsh.bundle.patch` layer and is designed to contribute 
 Its final Feature 010 artifact will contain one user-invocable `dev-flow` Skill, a current-turn
 selector guard, the official local STDIO MCP client, and one packaged darwin-arm64 Core.
 
-Only source-level package contracts are established at the Phase 2 checkpoint. Runtime activation,
-Skill behavior, lifecycle acceptance, and native graph use require the later Feature 010 checkpoints
-and retained evidence. Until those checkpoints complete, this package is not a public support claim.
-
-Feature 010 does not authorize npm publication, a version change, a Git Tag, a GitHub Release, or a
-public support-matrix promotion.
+Source capability alone is not a public support claim. npm, `deepseek-v*`, GitHub Release assets and
+the registry-installed DSH lifecycle must all be verified by `pnpm run release:deepseek` before the
+support matrix is promoted.

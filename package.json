@@ -8,7 +8,11 @@
     "release:codex": "node ./scripts/release-codex.mjs",
     "release:codex:prepare": "./scripts/build-codex-release.sh",
     "release:codex:verify": "node ./scripts/verify-codex-release.mjs",
-    "release:codex:publish": "node ./scripts/publish-codex-release.mjs"
+    "release:codex:publish": "node ./scripts/publish-codex-release.mjs",
+    "release:deepseek": "node ./scripts/release-deepseek.mjs",
+    "release:deepseek:prepare": "./scripts/build-deepseek-release.sh",
+    "release:deepseek:verify": "node ./scripts/verify-deepseek-release.mjs",
+    "release:deepseek:publish": "node ./scripts/publish-deepseek-release.mjs"
   },
   "engines": {
     "node": ">=24",

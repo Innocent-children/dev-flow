@@ -28,13 +28,17 @@ var runtimeDependencyFields = []string{
 }
 
 var rootDevelopmentScripts = map[string]string{
-	"release:codex":         "node ./scripts/release-codex.mjs",
-	"release:codex:prepare": "./scripts/build-codex-release.sh",
-	"release:codex:publish": "node ./scripts/publish-codex-release.mjs",
-	"release:codex:verify":  "node ./scripts/verify-codex-release.mjs",
-	"validate":              "./scripts/validate-repository.sh",
-	"validate:contracts":    "go test ./tests/contract",
-	"versions:check":        "node ./scripts/check-versions.mjs",
+	"release:codex":            "node ./scripts/release-codex.mjs",
+	"release:codex:prepare":    "./scripts/build-codex-release.sh",
+	"release:codex:publish":    "node ./scripts/publish-codex-release.mjs",
+	"release:codex:verify":     "node ./scripts/verify-codex-release.mjs",
+	"release:deepseek":         "node ./scripts/release-deepseek.mjs",
+	"release:deepseek:prepare": "./scripts/build-deepseek-release.sh",
+	"release:deepseek:publish": "node ./scripts/publish-deepseek-release.mjs",
+	"release:deepseek:verify":  "node ./scripts/verify-deepseek-release.mjs",
+	"validate":                 "./scripts/validate-repository.sh",
+	"validate:contracts":       "go test ./tests/contract",
+	"versions:check":           "node ./scripts/check-versions.mjs",
 }
 
 var codexPackageFiles = []string{

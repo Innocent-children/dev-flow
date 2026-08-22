@@ -178,7 +178,7 @@ artifact 的 no-Codex deterministic acceptance 独立证明。
 | `internal/application/` | Core use-case orchestration |
 | `internal/mcp/` | current contract 六工具、closed JSON 和 typed envelope |
 | `packages/codex/` | explicit-only Codex Adapter、Skill、method renderer 和 public package |
-| `packages/deepseek/` | 已完成验收的 private source package；公开发布前不构成支持声明 |
+| `packages/deepseek/` | 已完成验收、具备独立发布入口的 Host package；发布门禁通过前不构成公开支持声明 |
 | `protocol/fixtures/` | 历史 0.1、当前 0.2、Host parity 和 Recovery fixtures |
 | `tests/contract/`, `tests/journeys/` | deterministic contract 与 process evidence |
 
