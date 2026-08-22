@@ -1640,7 +1640,7 @@ test("passed support matrix is derived only from matching native registry journe
     journey_observed_at: "2026-08-17T08:00:00.000Z",
     verification_mode: "normal",
     based_on_release: null,
-    notes: "Native registry-package Codex journey passed setup, zero-trigger, restart/resume, DONE, removal, uninstall, and retained reopen gates.",
+    notes: "Native registry-package Codex lifecycle smoke passed install, version/Core handshake, setup, removal, uninstall, and repository-unchanged gates.",
   }]);
   for (const [name, patch, pattern] of [
     ["package digest", { npm_tarball_sha256: "d".repeat(64) }, /npm_tarball_sha256/u],

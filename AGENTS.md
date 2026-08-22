@@ -180,8 +180,10 @@ The agent must not modify versions, commit a release bump, or publish until the 
 - Both modes first align the selected product authority and required mirror, create and push one
   version commit on clean `main`, and only then create Tag/npm/GitHub effects. A Codex release changes
   only the Codex package and plugin mirror and records the bundled Core version separately.
-- `quick` runs bounded targeted checks and a final registry-package smoke tied to the previous normal
-  release. `normal` runs the approved full validation and complete registry-package graph Journey.
+- `quick` runs bounded targeted checks and a final registry-package lifecycle smoke tied to the previous
+  normal release. `normal` runs the approved full validation and the same registry-package lifecycle
+  smoke. Complete graph, recovery, and terminal-state behavior is verified by deterministic Core and
+  integration tests rather than an LLM-driven release Journey.
 - Recovery always reuses the same mode, version, output directory, source identity, Tag, npm bytes,
   and publication record. The script must automatically handle reviewed tooling against a frozen
   source after immutable remote state exists.
@@ -194,8 +196,7 @@ Run only checks required by the active task and acceptance criteria.
 - Do not run the complete repository suite after each edit.
 - Run the final repository-wide validation at most once for `normal` unless the active Product
   Feature records a concrete reason for a retry. `quick` does not run the repository-wide suite.
-- Real-host journeys run only at the selected release mode's explicit final checkpoint: bounded smoke
-  for `quick`, complete graph Journey for `normal`.
+- Real-host registry lifecycle smoke runs only at the selected release mode's explicit final checkpoint.
 - Never promote fake, fixture, static, different-platform, or user-performed evidence into native
   automated evidence.
 - Report unavailable checks as unavailable; do not replace them with broader unrelated testing.

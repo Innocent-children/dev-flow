@@ -27,5 +27,8 @@ publication-record.json
 
 Confirmed publication creates or reuses matching Tag/npm/GitHub state, verifies registry bytes,
 runs the selected DSH `>=0.1.0-rc.6` registry lifecycle gate, uploads immutable assets, and
-finalizes the GitHub Release only after every prior step passes. Rerunning the exact command with the
-same output directory resumes from recorded and reread remote state.
+finalizes the GitHub Release only after every prior step passes. The lifecycle gate installs the exact
+registry package, verifies package/Core identity and the host handshake, then verifies removal,
+uninstall, and an unchanged repository. Complete graph, recovery, and terminal-state behavior remains
+covered by deterministic Core and integration tests. Rerunning the exact command with the same output
+directory resumes from recorded and reread remote state.

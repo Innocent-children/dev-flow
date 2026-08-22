@@ -27,4 +27,7 @@ publication-record.json
 
 Resume is bound to product `codex`, both product versions, Tag, source commit/tree, mode, previous
 Codex release, and artifact digests. Mismatched or old-format directories fail before remote
-mutation. DeepSeek publication and generic multi-product release machinery remain out of scope.
+mutation. The final registry gate installs the exact npm package, verifies package/Core identity,
+performs setup and the Core handshake, then verifies removal, uninstall, and an unchanged repository.
+Complete graph, recovery, and terminal-state behavior remains covered by deterministic Core and
+integration tests. DeepSeek publication and generic multi-product release machinery remain out of scope.

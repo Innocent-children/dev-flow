@@ -30,7 +30,7 @@ import {
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { validateFinalJourneyEvidence } from "./write-deepseek-journey-evidence.mjs";
+import { QUICK_NATIVE_EVIDENCE_KIND, validateFinalJourneyEvidence, validateQuickJourneyEvidence } from "./write-deepseek-journey-evidence.mjs";
 import { versionAtLeast } from "./semver.mjs";
 
 const execFile = promisify(execFileCallback);
@@ -540,7 +540,8 @@ export function buildSupportMatrixFromFinalJourney({ manifest, evidence }) {
   const packageArtifact = artifacts.get("npm_tarball");
   const coreArtifact = artifacts.get("core_binary");
   if (!packageArtifact || !coreArtifact) throw new Error("support generation requires exact package/Core artifacts");
-  const validated = validateFinalJourneyEvidence(evidence, {
+  const validateEvidence = evidence?.evidence_kind === QUICK_NATIVE_EVIDENCE_KIND ? validateQuickJourneyEvidence : validateFinalJourneyEvidence;
+  const validated = validateEvidence(evidence, {
     expected: {
       packageName: "dev-flow-deepseek",
       version: manifest.release.version,
@@ -566,7 +567,7 @@ export function buildSupportMatrixFromFinalJourney({ manifest, evidence }) {
     journey_observed_at: validated.observed_at,
     verification_mode: manifest.release.verification_mode,
     based_on_release: manifest.release.based_on_release,
-    notes: "Native registry-package DeepSeek journey passed setup, zero-trigger, restart/resume, DONE, removal, uninstall, and retained reopen gates.",
+    notes: "Native registry-package DeepSeek lifecycle smoke passed install, version/Core handshake, setup, removal, uninstall, and repository-unchanged gates.",
   }];
 }
 

@@ -173,11 +173,7 @@ function productionPublicationRuntime(mode) {
 }
 
 async function runProductionFinalJourney(context, manifest) {
-  return runProductionRegistryJourney(context, manifest, {
-    runnerMode: "--final-registry",
-    evidenceName: "final-journey-evidence.json",
-    validateEvidence: validateFinalJourneyEvidence,
-  });
+  return runProductionQuickJourney(context, manifest);
 }
 
 async function runProductionQuickJourney(context, manifest) {
@@ -517,7 +513,7 @@ async function ensureFinalJourney(context, manifest, record) {
   try {
     evidence = context.execution.allowFixtureJourney === true
       ? validateFinalJourneyEvidenceShape(observed, { allowFixture: true, expected })
-      : manifest.release.verification_mode === "quick"
+      : observed?.evidence_kind === QUICK_NATIVE_EVIDENCE_KIND
         ? validateQuickJourneyEvidence(observed, { expected })
         : validateFinalJourneyEvidence(observed, { expected });
   } catch (error) {
