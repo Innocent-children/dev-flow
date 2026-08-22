@@ -39,7 +39,7 @@ async function handleMessage(request) {
       result: {
         protocolVersion: request.params?.protocolVersion ?? "2025-06-18",
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "dev-flow-fake-core", version: "0.5.0" },
+        serverInfo: { name: "dev-flow-fake-core", version: "0.5.1" },
         instructions: "Test-only Core current Core contract fixture server.",
       },
     });
@@ -99,7 +99,7 @@ async function envelopeFor(tool, arguments_) {
   if (tool === "dev_flow_server_info") {
     return success(tool, {
       product: "dev-flow",
-      version: "0.5.0",
+      version: "0.5.1",
       transport: "stdio",
       health: "ready",
       supported_hosts: ["codex", "deepseek"],
