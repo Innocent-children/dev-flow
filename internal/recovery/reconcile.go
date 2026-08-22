@@ -169,26 +169,23 @@ func RepositoryEffectMatches(effect RepositoryEffect, relation RepositoryRelatio
 	case EffectExactBinding, EffectExactBlockerRestoration:
 		return relation == RepositoryExact
 	case EffectProcessArtifactOnly:
-		return relation == RepositoryExact || relation == RepositoryWorktreeOnlyChanged && matchesDeclaredDelta(authoritative.ChangedPaths, effect.ChangedPaths, observed.ChangedPaths)
+		return relation == RepositoryExact || relation == RepositoryWorktreeOnlyChanged && matchesDeclaredPaths(authoritative.ChangedPaths, effect.ChangedPaths, observed.ChangedPaths)
 	case EffectProductFileChange:
 		if effect.NoFileChanges {
 			return relation == RepositoryExact && len(effect.ChangedPaths) == 0
 		}
-		return relation == RepositoryWorktreeOnlyChanged && len(effect.ChangedPaths) > 0 && matchesDeclaredDelta(authoritative.ChangedPaths, effect.ChangedPaths, observed.ChangedPaths)
+		return relation == RepositoryWorktreeOnlyChanged && len(effect.ChangedPaths) > 0 && matchesDeclaredPaths(authoritative.ChangedPaths, effect.ChangedPaths, observed.ChangedPaths)
 	default:
 		return false
 	}
 }
 
-func matchesDeclaredDelta(authoritative, declared, observed []string) bool {
+func matchesDeclaredPaths(authoritative, declared, observed []string) bool {
 	expected := make(map[string]struct{}, len(authoritative)+len(declared))
 	for _, path := range authoritative {
 		expected[path] = struct{}{}
 	}
 	for _, path := range declared {
-		if _, exists := expected[path]; exists {
-			return false
-		}
 		expected[path] = struct{}{}
 	}
 	paths := make([]string, 0, len(expected))

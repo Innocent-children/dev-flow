@@ -113,8 +113,9 @@ func TestRepositoryEffectDerivationRejectsUndeclaredAndArtifactProductMismatch(t
 		t.Fatal("declared product path did not match dirty baseline")
 	}
 	overlapEffect := RepositoryEffect{Kind: EffectProductFileChange, ChangedPaths: []string{"sql/existing.sql"}}
-	if RepositoryEffectMatches(overlapEffect, RepositoryWorktreeOnlyChanged, base, observed) {
-		t.Fatal("change overlapping the dirty baseline matched without path-level proof")
+	observed.ChangedPaths = []string{"sql/existing.sql"}
+	if !RepositoryEffectMatches(overlapEffect, RepositoryWorktreeOnlyChanged, base, observed) {
+		t.Fatal("declared change overlapping the dirty baseline did not match")
 	}
 	if RepositoryEffectMatches(productEffect, RepositoryForbiddenChange, base, observed) {
 		t.Fatal("forbidden repository identity change matched")

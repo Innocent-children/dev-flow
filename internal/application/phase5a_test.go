@@ -174,6 +174,29 @@ func TestImplementationTransitionsRecordsRepositoryEffectsAndZeroWrites(t *testi
 		}
 	})
 
+	t.Run("implementation rework accepts a previously declared path", func(t *testing.T) {
+		s, _, observer := phase5Service(t)
+		task := phase5TaskAtImplement(t, s)
+		changed := observer.binding.Clone()
+		changed.WorktreeFingerprint = digestOf("c")
+		changed.BindingDigest = digestOf("d")
+		changed.ChangedPaths = []string{"internal/file.go"}
+		observer.binding = changed
+		task = applyPhase5(t, s, task, "implementation_ready_for_test", "", implementationNodeResultWithPaths(1, []string{"work-a"}, []string{"internal/file.go"}, nil))
+		task = applyPhase5(t, s, task, "tests_failed_implementation", "Targeted check failed.", testNodeResult(
+			[]map[string]any{evidenceCheck("automated", "failed", "targeted-check", 1, false)},
+			[]string{"implementation defect"}, nil, []string{"Implementation failure"},
+		))
+		reworked := observer.binding.Clone()
+		reworked.WorktreeFingerprint = digestOf("e")
+		reworked.BindingDigest = digestOf("f")
+		observer.binding = reworked
+		result := applyPhase5(t, s, task, "implementation_ready_for_test", "", implementationNodeResultWithPaths(1, []string{"work-a"}, []string{"internal/file.go"}, nil))
+		if result.Repository.BindingDigest != reworked.BindingDigest || result.Implementation.Revision != 2 {
+			t.Fatal("implementation rework did not adopt the repeated declared path")
+		}
+	})
+
 	s, ms, observer = phase5Service(t)
 	task = phase5TaskAtImplement(t, s)
 	for name, mutate := range map[string]func(*domain.RepositoryBinding){
