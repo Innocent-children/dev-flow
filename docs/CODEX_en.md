@@ -105,8 +105,13 @@ The naming and admission boundaries are:
 This boundary does not disable ordinary Codex repository tools and does not claim selector-bound MCP
 visibility or authorization. It controls whether this Skill may initiate Dev Flow calls.
 
-After admission, `dev_flow_server_info({})` must be the first Dev Flow call. The Host validates
-`standard-development`, definition digest, method profiles, live schemas, and exactly six tools:
+After admission, `dev_flow_server_info({})` must be the first Dev Flow call. Package contents, the
+bundled Core, Codex compatibility, and registration ownership are already validated by
+`dev-flow-codex setup`. Each Task startup silently confirms Core readiness, `standard-development`,
+the definition digest, method profiles, and the closed six-tool set, then immediately opens or
+resumes the Task. A successful startup does not enumerate versions, digests, profiles, or tools to
+the user; a failure reports the specific blocker and one actionable recovery step. Tool and method
+profile order does not affect compatibility.
 
 | MCP tool | Purpose |
 | --- | --- |

@@ -134,25 +134,25 @@ test("Skill admits only an exact current-turn selector with substantive or resum
   assert.match(admission, /user authority/i);
 });
 
-test("README distinguishes the Skill base name from the only installed selector", async () => {
+test("Chinese README distinguishes the Skill base name from the only installed selector", async () => {
   const readme = await readFile(readmePath, "utf8");
-  const invocation = section(readme, "Explicit invocation boundary");
+  const invocation = section(readme, "显式调用边界");
 
   assert.match(invocation, /Skill resource\/base name[^\n]*`dev-flow`/i);
-  assert.match(invocation, /installed Skill full name[^\n]*`dev-flow-codex:dev-flow`/i);
-  assert.match(invocation, /only exact explicit selector[^\n]*`\$dev-flow-codex:dev-flow`/i);
-  assert.match(invocation, /bare[^\n]*`\$dev-flow`[^\n]*(?:not an alias|does not select)/i);
-  assert.match(invocation, /wrong[^\n]*plugin namespace/i);
-  assert.match(invocation, /wrong[^\n]*Skill base name/i);
-  assert.match(invocation, /missing selector/i);
-  assert.match(invocation, /ordinary prompt[\s\S]*zero Dev Flow\s*calls/i);
-  assert.match(invocation, /non-exact selectors[\s\S]*must not complete a task-bearing operation/i);
-  assert.match(invocation, /does not[\s\S]*claim selector-bound MCP visibility or authorization/i);
-  assert.match(invocation, /does not disable ordinary Codex repository tools/i);
+  assert.match(invocation, /安装后的 Skill full name[^\n]*`dev-flow-codex:dev-flow`/i);
+  assert.match(invocation, /只有[\s\S]{0,100}精确 selector[\s\S]{0,100}\$dev-flow-codex:dev-flow/i);
+  assert.match(invocation, /`\$dev-flow`[^\n]*不是别名[^\n]*不会选择/i);
+  assert.match(invocation, /plugin namespace 错误/i);
+  assert.match(invocation, /Skill base name 错误/i);
+  assert.match(invocation, /缺少 selector/i);
+  assert.match(invocation, /普通提示词[^\n]*零次 Dev Flow 调用/i);
+  assert.match(invocation, /非精确 selector[^\n]*不得完成[^\n]*Task/i);
+  assert.match(invocation, /不声称 MCP[^\n]*selector 绑定/i);
+  assert.match(invocation, /不限制 Codex 的普通仓库工具/i);
   assert.match(invocation, /allow_implicit_invocation[^\n]*false/i);
 });
 
-test("Skill calls server-info first and admits only the exact six-tool Core contract", async () => {
+test("Skill silently calls server-info first and admits the exact unordered Core contract", async () => {
   const skill = await readFile(skillPath, "utf8");
   const handshakeIndex = skill.indexOf("## Compatibility handshake");
   assert.ok(handshakeIndex >= 0);
@@ -162,11 +162,13 @@ test("Skill calls server-info first and admits only the exact six-tool Core cont
   assert.match(skill.slice(handshakeIndex), /dev_flow_server_info\(\{\}\)/);
 
   const catalog = [...skill.matchAll(/^\d+\. `(dev_flow_[a-z_]+)`$/gm)].map((match) => match[1]);
-  assert.deepEqual(catalog, exactTools);
+  assert.deepEqual([...catalog].sort(), [...exactTools].sort());
 
   const handshake = skill.slice(handshakeIndex);
   for (const expectation of [
     /product[^\n]*`dev-flow`/i,
+    /Core version[^\n]*present[^\n]*canonical/i,
+    /independently versioned products/i,
     /transport[^\n]*`stdio`/i,
     /health[^\n]*`ready`/i,
     /supported host[\s\S]{0,80}`codex`/i,
@@ -174,12 +176,18 @@ test("Skill calls server-info first and admits only the exact six-tool Core cont
     /definition_digest/i,
     /new_task_supported[^\n]*`true`/i,
     /plain[^\n]*spec-kit[^\n]*openspec/i,
+    /regardless of order/i,
     /exactly[^\n]*six/i,
     /incomplete|truncated|malformed/i,
     /stop/i,
   ]) {
     assert.match(handshake, expectation);
   }
+  assert.doesNotMatch(handshake, /Core version[^\n]*(?:equals|matches)[^\n]*(?:package|packaged product) version/i);
+  assert.doesNotMatch(handshake, /reordered tool/i);
+  assert.match(handshake, /setup-time checks[\s\S]*`dev-flow-codex setup`/i);
+  assert.match(handshake, /On success[\s\S]*do not display[\s\S]*continue immediately/i);
+  assert.match(handshake, /On failure[\s\S]*specific blocking condition[\s\S]*actionable next step/i);
   assert.doesNotMatch(handshake, /(?:schema|Core Contract)[^\n]*`?0\.1`?/i);
   assert.match(handshake, /(?:do\s+not|never)[\s\S]*local source[\s\S]*second MCP server/i);
 
@@ -454,12 +462,14 @@ test("equivalent profile fixtures select one Core transition and destination fro
   assert.notDeepEqual(applies[1].payload.method_evidence, applies[2].payload.method_evidence);
 });
 
-test("Skill presents all Core transitions and reserves comprehension verdict for the user", async () => {
+test("Skill keeps normal Action internals quiet and reserves comprehension verdict for the user", async () => {
   const skill = await readFile(skillPath, "utf8");
   const loop = section(skill, "Governed action loop");
-  assert.match(loop, /present[\s\S]*all[\s\S]*`available_transitions`/i);
-  assert.match(loop, /(?:description|when|selection condition)[\s\S]*reason rule/i);
-  assert.match(loop, /(?:not|never)[\s\S]*one\s+recommended next step/i);
+  assert.match(loop, /validate[\s\S]*complete Action[\s\S]*internally/i);
+  assert.match(loop, /concise current-node\s+status/i);
+  assert.match(loop, /do not dump[\s\S]*all `available_transitions`/i);
+  assert.match(loop, /user decision[\s\S]*blocker/i);
+  assert.match(loop, /complete Action[\s\S]*transition selection[\s\S]*forwarding/i);
 
   const transition = section(skill, "Transition selection");
   assert.match(transition, /only[\s\S]*`fresh_action\.available_transitions`/i);

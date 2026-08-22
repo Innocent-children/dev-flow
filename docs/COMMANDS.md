@@ -52,8 +52,9 @@ $dev-flow-codex:dev-flow <任务描述>
 ```
 
 这不是 shell 命令，而是 Codex 用户消息中的精确 Skill selector。裸 `$dev-flow`、错误 namespace、
-缺少 selector 或普通对话都不会启动 Dev Flow。通过 admission 后，Host 必须先调用
-`dev_flow_server_info`。
+缺少 selector 或普通对话都不会启动 Dev Flow。通过 admission 后，Host 静默调用
+`dev_flow_server_info` 并立即打开或恢复 Task；成功检查不逐项展示，失败时只报告具体阻塞项和
+一个恢复步骤。
 
 ## DeepSeek Harness
 

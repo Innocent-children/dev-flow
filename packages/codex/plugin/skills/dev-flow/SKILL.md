@@ -7,8 +7,8 @@ description: "Explicit-only Dev Flow entry point for Codex. Use only when the cu
 
 This Skill is the current Core contract Codex adapter for the shared Dev Flow Core. Core owns task state,
 current node, legal transitions, destinations, recovery, blockers, and terminal outcomes. The Skill
-admits one explicit request, presents a complete Core Action, renders method work, and forwards one
-closed result without keeping adapter state.
+admits one explicit request, silently validates normal startup results, renders method work, and
+forwards one closed result without keeping adapter state.
 
 ## Admission gate
 
@@ -38,19 +38,23 @@ If admission fails, explain the missing precondition and stop before Skill-owned
 not complete a task-bearing call or create adapter state. Host-exposed read-only or Core-rejected
 calls are not activation and must be reported honestly.
 
+Successful admission is internal startup work. Do not narrate the selector, Git-root, repository,
+profile-default, or authorization checklist; continue directly to the compatibility handshake.
+
 ## Compatibility handshake
 
 Only after admission passes, call `dev_flow_server_info({})`; it must be the first Dev Flow tool
 call. Require one complete structured result proving:
 
-- product is exactly `dev-flow`, and Core version equals the packaged product version;
+- product is exactly `dev-flow`, and Core version is present and canonical. Core and the Codex
+  package are independently versioned products, so their versions are not required to be equal;
 - transport is exactly `stdio`, health is exactly `ready`, and the supported host set contains
   `codex`;
 - `supported_processes` contains exactly one closed `standard-development` entry:
-  `process_id` is `standard-development` is `1`, `definition_digest` is present
-  and canonical, and `new_task_supported` is exactly `true`;
-- `method_profiles` is exactly `plain`, `spec-kit`, `openspec` in that order;
-- the tool catalog contains exactly these six raw names, in this order:
+  `process_id` is `standard-development`, `definition_digest` is present and canonical, and
+  `new_task_supported` is exactly `true`;
+- `method_profiles` contains exactly `plain`, `spec-kit`, and `openspec`, regardless of order;
+- the tool catalog contains exactly these six raw names, regardless of order:
 
 1. `dev_flow_server_info`
 2. `dev_flow_open_task`
@@ -59,10 +63,17 @@ call. Require one complete structured result proving:
 5. `dev_flow_apply_action`
 6. `dev_flow_cancel_task`
 
-Any other schema, unsupported process version, absent process digest, false new-task support,
-incomplete method-profile set, missing/additional/reordered tool, or incomplete, truncated, malformed,
-or incompatible result fails the handshake. Stop without task discovery or undocumented probing. Do
-not inspect local source or an installed binary, and do not start a second MCP server to bypass a
+Package resources, the bundled Core executable and version, Codex compatibility, and registration
+ownership are setup-time checks owned by `dev-flow-codex setup`; do not repeat them by inspecting the
+installed package or executable during each Skill invocation.
+
+An unsupported process, absent process digest, false new-task support, incomplete method-profile set,
+missing or additional tool, or incomplete, truncated, malformed, or incompatible result fails the
+handshake. On success, do not display or explain the handshake checklist, versions, process digest,
+profiles, or tool catalog; continue immediately to task discovery. On failure, report only the
+specific blocking condition and one actionable next step. For installation or compatibility failures,
+direct the user to rerun `dev-flow-codex setup`. Stop without task discovery or undocumented probing.
+Do not inspect local source or an installed binary, and do not start a second MCP server to bypass a
 failed handshake.
 
 ## Task discovery
@@ -110,7 +121,9 @@ Use this exact `new_task` JSON shape, changing only values derived from the admi
 
 Ask before opening only when a material request, initial-bound, verification, or profile choice
 cannot be derived without changing user intent. Let Core decide whether a compatible intent creates
-or resumes a task. Report an ownership or contract conflict unchanged in meaning and stop.
+or resumes a task. Report an ownership or contract conflict unchanged in meaning and stop. After a
+successful open, give at most one concise status containing the Task identity, revision, and current
+node, then begin the node's substantive repository work without reciting startup checks.
 
 ## Governed action loop
 
@@ -129,11 +142,11 @@ For an active task, perform each iteration in this order:
    allowed effects, required evidence, method profile, method steps, available transitions, payload
    schema/contract, guidance, repository-binding digest, and issued time as one inseparable Core
    result. Stop if any field is absent, malformed, or truncated.
-3. Present the current node, purpose, entry and completion conditions, allowed effects, required
-   evidence, immutable method profile, every method step, and all `available_transitions`. For every
-   returned transition show its identifier, Core-returned destination for visibility, description or
-   `when` selection condition, guard identifier, and reason rule. Do not reduce this to one
-   recommended next step.
+3. Validate the complete Action internally. During normal work, give only a concise current-node
+   status and proceed; do not dump entry conditions, completion conditions, allowed effects, required
+   evidence, method steps, payload details, or all `available_transitions`. Surface a contract field
+   only when it requires a user decision, limits requested authority, or explains a blocker. Keep the
+   complete Action bound for transition selection and forwarding even when it is not displayed.
 4. Stop when the complete result reports a blocker or terminal outcome.
 5. Render and perform each current method operation under the allowed effects, repository
    instructions, verification budget, and current user authority.

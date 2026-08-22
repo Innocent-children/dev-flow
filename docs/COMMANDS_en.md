@@ -56,7 +56,9 @@ $dev-flow-codex:dev-flow <task description>
 
 This is not a shell command. It is the exact Skill selector in a Codex user message. Bare
 `$dev-flow`, a wrong namespace, a missing selector, or ordinary conversation does not activate Dev
-Flow. After admission, the host must call `dev_flow_server_info` first.
+Flow. After admission, the host silently calls `dev_flow_server_info` and immediately opens or
+resumes the Task. Successful checks are not enumerated; a failure reports only the specific blocker
+and one recovery step.
 
 ## DeepSeek Harness
 

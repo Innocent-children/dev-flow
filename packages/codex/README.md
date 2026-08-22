@@ -101,8 +101,11 @@ $dev-flow-codex:dev-flow
 这项边界不限制 Codex 的普通仓库工具，也不声称 MCP 的可见性或授权与 selector 绑定；它只约束
 当前 Skill 是否可以发起 Dev Flow 调用。
 
-通过 admission 后，`dev_flow_server_info({})` 必须是第一次 Dev Flow 调用。Host 验证
-`standard-development`、definition digest、method profiles、live schemas 与恰好六个工具：
+通过 admission 后，`dev_flow_server_info({})` 必须是第一次 Dev Flow 调用。安装内容、bundled
+Core、Codex 兼容性和注册 ownership 已由 `dev-flow-codex setup` 验证；每次 Task 启动只静默确认
+Core ready、`standard-development`、definition digest、method profiles 与六个工具的闭合集合，
+成功后立即打开或恢复 Task。正常启动不向用户逐项展示版本、摘要、profile 或工具目录；只有失败
+时才报告具体阻塞项和一个可执行的恢复步骤。工具和 method profile 的返回顺序不影响兼容性。
 
 | MCP 工具 | 作用 |
 | --- | --- |
