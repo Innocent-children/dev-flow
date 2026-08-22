@@ -2,73 +2,55 @@
 
 [中文](README.md) | [English](README_en.md)
 
-> 让 AI 开发始终知道：现在在哪一步、完成什么才算过关、下一步可以去哪里。
+> 防止 AI 把“小改动”做成“大工程”。
 
 [![Codex npm](https://img.shields.io/npm/v/dev-flow-codex?label=dev-flow-codex)](https://www.npmjs.com/package/dev-flow-codex)
 [![DeepSeek npm](https://img.shields.io/npm/v/dev-flow-deepseek?label=dev-flow-deepseek)](https://www.npmjs.com/package/dev-flow-deepseek)
 [![CI](https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml/badge.svg)](https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-Dev Flow 是一个由 Go Core 驱动的本地开发过程管理工具。它把需求、设计、任务拆分、实现、
-测试、理解审查、重构和交付组织成一张可回退、可恢复、可验证的状态图，让 Codex、DeepSeek
-Harness 等 Host 在执行工作时共享同一份过程事实。
+## 你可能已经遇到这些情况
 
-它关注的不是“替你写更多代码”，而是让一次真实开发任务在经历返工、中断和上下文切换后，
-仍然能够可靠回答四个问题：
+- 只让 Agent 改一个接口，它却顺手重构相邻模块、抽象一套框架，再补一堆没有要求的文档。
+- 只需要一个定向测试，它开始跑全量回归、平台矩阵和边界测试，时间与 token 不断消耗。
+- 会话被压缩、Host 重启或任务隔天继续后，它忘了做到哪，重新扫描仓库，甚至重复执行已经完成的操作。
+- 测试虽然通过，但实现复杂得没人能解释，只能继续依赖 AI 才敢维护。
+- 一次写操作中断后，不知道它究竟有没有生效，只能冒险重试。
 
-- 当前处于哪个节点？
-- 这个节点需要完成什么、留下什么证据？
-- 现在有哪些合法下一步？
-- 上一次写操作结果不确定时，应该读取、恢复还是重试？
+问题通常不是 Agent 不会写代码，而是缺少一条独立于聊天记录的开发边界：**当前只该做什么、
+做到什么算完成、验证到什么程度，以及什么时候应该停。**
 
-Dev Flow 最适合需要跨越多个开发步骤、可能发生返工、或需要在多次会话之间继续推进的真实
-仓库任务。对于一次性问答、无需过程记录的单文件小改动，直接使用 Codex 或 DeepSeek 通常更简单。
+## Dev Flow 做什么
 
-## 它在工具链中的位置
+Dev Flow 是 AI 开发的本地过程导航与恢复层。它把需求、设计、任务拆分、实现、测试、理解审查、
+重构和交付放进由 Go Core 管理的状态图，让 Codex、DeepSeek Harness 等 Host 每次只围绕当前
+节点工作，并始终知道完成条件、允许的副作用、所需证据、验证预算和合法下一步。
 
-Dev Flow 不替代现有 Agent、规格工具或测试系统，而是把它们放进同一条可恢复的开发主线。
-
-| 组件 | 负责什么 |
+| 程序员痛点 | Dev Flow 的约束 |
 | --- | --- |
-| Codex / DeepSeek Harness | 阅读仓库、修改代码、运行工具，并与开发者协作完成当前节点 |
-| Spec Kit / OpenSpec | 为需求、设计、任务等节点提供方法和制品 |
-| 测试与 CI | 产生行为是否正确的验证证据 |
-| Dev Flow | 保存唯一过程游标、完成条件、合法流转、恢复结论和终态 |
+| 小需求不断扩大 | 保存不可变的原始意图和当前需求、设计基线；范围发生实质变化时必须回到正确节点，并使下游旧证据失效 |
+| 方案越做越复杂 | 测试通过后仍要经过 `COMPREHENSION_REVIEW`；无法解释或维护的实现会回到 `DESIGN` 或 `REFACTOR` |
+| 测试越跑越多 | 每个 Task 携带验证预算；检查必须关联当前节点、改动表面或验收条件，完整套件和平台矩阵不是默认动作 |
+| 中断后上下文丢失 | 当前节点、基线、证据、阻塞原因和合法流转保存在本地 SQLite，而不是只存在于聊天记录 |
+| 写操作结果不确定 | 先读取权威状态，再按五分类 Recovery 决定恢复或重试，禁止盲目重复 mutation |
 
-因此，Dev Flow 不是新的大模型、通用编程 Agent 或另一套规格格式。它是位于 Host 与开发方法
-之下的本地过程导航与恢复层。
+Dev Flow 不是新的大模型、通用编程 Agent 或另一套规格格式。Codex 和 DeepSeek 仍负责读代码、
+改代码和运行工具；Dev Flow 负责让它们**不丢进度、不偷换范围、不无限验证，也不把“测试通过”
+误当成“可以交付”。**
 
-## 为什么值得用
-
-### 一条不会丢失的开发主线
-
-任务状态保存在本地 SQLite 中。聊天被压缩、Host 重启或开发中断后，Core 仍保留当前节点、
-需求与设计基线、验证记录、阻塞原因和合法流转。
-
-### 测试通过之后，还有“能否理解”这一关
-
-Dev Flow 把 `COMPREHENSION_REVIEW` 设为正式交付门禁。测试证明行为，开发者确认设计和代码
-可以解释、可以维护；复杂实现会进入 `REFACTOR`，并在修改仓库后重新回到 `TEST`。
-
-### 恢复基于事实，不靠重复执行碰运气
-
-当 mutation 响应缺失、取消、截断或损坏时，调用者先读取 Core 的权威状态。Core 会判断操作
-尚未开始、已经记录、完成但未记录、部分完成或发生冲突，再给出安全动作。
-
-### 方法可以切换，流程只有一个权威
-
-每个任务可选择 `plain`、`spec-kit` 或 `openspec`。这些方法工具帮助完成当前节点，Go Core
-始终独自管理任务、节点、流转、恢复和终态。
+它最适合需要跨越多个开发步骤、可能返工、或需要在多次会话之间继续推进的真实仓库任务。
+对于一次性问答、无需过程记录的单文件小改动，直接使用 Codex 或 DeepSeek 通常更简单。
 
 ## 一次任务如何推进
 
 1. 开发者在当前 Git 仓库中用显式 selector 描述任务。
-2. Core 创建或恢复该仓库的 Task，并返回当前节点、完成条件、证据要求和全部合法流转。
-3. Host 只执行当前节点授权的工作，把结果和证据提交给 Core。
-4. Core 校验精确的 `transition_id`，推进到下一节点；测试失败、理解失败或交付拒绝会回到正确位置。
-5. 如果写操作响应不确定，Host 先读取权威状态，再按 Recovery 结论恢复，而不是盲目重试。
+2. Core 创建或恢复该仓库的 Task，返回当前节点、完成条件、允许副作用、证据要求、验证预算和全部合法流转。
+3. Host 只完成当前节点的工作；发现需求扩大、设计不成立或实现缺陷时，走状态图返回正确节点，而不是悄悄扩展范围。
+4. Core 校验精确的 `transition_id` 后推进任务；测试失败、理解失败或交付拒绝都会回到对应位置。
+5. 如果写操作响应不确定，Host 先读取权威状态，再按 Recovery 结论处理，而不是重新执行碰运气。
 
-开发者始终可以看到任务为什么停在这里、什么才算完成，以及下一步有哪些真实选择。
+开发者始终可以看到：任务为什么停在这里、什么才算完成、已经验证到什么程度，以及下一步有哪些
+真实选择。
 
 ## 快速开始
 
@@ -104,6 +86,18 @@ dsh plugin --profile <profile> add "$PWD/dev-flow-deepseek-0.5.1.tgz"
 按 DSH 的 profile 生命周期重启该 profile 后，通过 `/dev-flow` 显式进入 Dev Flow。安装、
 重启、移除和数据边界见 [DeepSeek package README](packages/deepseek/README.md)。
 
+## 它在工具链中的位置
+
+| 组件 | 负责什么 |
+| --- | --- |
+| Codex / DeepSeek Harness | 阅读仓库、修改代码、运行工具，并与开发者协作完成当前节点 |
+| Spec Kit / OpenSpec | 为需求、设计、任务等节点提供方法和制品 |
+| 测试与 CI | 产生行为是否正确的验证证据 |
+| Dev Flow | 保存唯一过程游标、完成条件、验证预算、合法流转、恢复结论和终态 |
+
+这些工具可以一起使用，但只有 Go Core 保存任务当前位于哪里以及可以去哪里。Spec Kit、OpenSpec、
+checkbox 或一次命令成功都不能自行推进 Task。
+
 ## 开发过程图
 
 当前 Core 只提供内建的 `standard-development`：8 个工作节点、`DONE` 终态，以及
@@ -134,7 +128,7 @@ destination 由 Core 推导。
 每次读取当前 Action，调用者都能获得：
 
 - 当前 process、node、revision 和 action identity；
-- 节点目的、进入假设、完成条件、允许副作用和所需证据；
+- 节点目的、进入假设、完成条件、允许副作用、所需证据和验证预算；
 - 当前 method profile 对应的 semantic method steps；
 - 全部合法 transitions 及其 destination、guard、选择条件和 reason 规则。
 
