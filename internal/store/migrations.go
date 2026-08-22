@@ -6,7 +6,10 @@ import (
 	"strings"
 )
 
+const DatabaseSchemaVersion = "0.1.0"
+
 var currentSchemaStatements = []string{
+	`CREATE TABLE schema_metadata (version TEXT PRIMARY KEY)`,
 	`CREATE TABLE tasks (task_id TEXT PRIMARY KEY, origin_host TEXT NOT NULL, process_id TEXT NOT NULL, process_definition_digest TEXT NOT NULL, current_node TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision >= 1), repository_identity TEXT NOT NULL, snapshot BLOB NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
 	`CREATE INDEX tasks_node_idx ON tasks (current_node)`,
 	`CREATE INDEX tasks_origin_host_idx ON tasks (origin_host)`,
@@ -20,15 +23,17 @@ var currentSchemaObjects = []struct {
 	kind           string
 	statementIndex int
 }{
-	{"tasks", "table", 0},
-	{"tasks_node_idx", "index", 1},
-	{"tasks_origin_host_idx", "index", 2},
-	{"tasks_updated_at_idx", "index", 3},
-	{"task_events", "table", 4},
-	{"repository_claims", "table", 5},
+	{"schema_metadata", "table", 0},
+	{"tasks", "table", 1},
+	{"tasks_node_idx", "index", 2},
+	{"tasks_origin_host_idx", "index", 3},
+	{"tasks_updated_at_idx", "index", 4},
+	{"task_events", "table", 5},
+	{"repository_claims", "table", 6},
 }
 
 var currentColumns = map[string][]string{
+	"schema_metadata":   {"version"},
 	"tasks":             {"task_id", "origin_host", "process_id", "process_definition_digest", "current_node", "revision", "repository_identity", "snapshot", "created_at", "updated_at"},
 	"task_events":       {"event_id", "task_id", "revision", "event_type", "source_node", "destination_node", "transition_id", "transition_reason", "action_id", "request_id", "payload_digest", "created_at"},
 	"repository_claims": {"repository_identity", "task_id", "origin_host", "claimed_at"},
@@ -51,6 +56,9 @@ func bootstrapCurrentSchema(ctx context.Context, db *sql.DB) error {
 		if _, err := tx.ExecContext(ctx, statement); err != nil {
 			return ErrStorageUnavailable
 		}
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO schema_metadata(version) VALUES (?)`, DatabaseSchemaVersion); err != nil {
+		return ErrStorageUnavailable
 	}
 	if err := verifyCurrentSchema(ctx, tx); err != nil {
 		return err
@@ -117,6 +125,11 @@ func verifyCurrentSchema(ctx context.Context, q queryer) error {
 		if columnRows.Err() != nil || columnRows.Close() != nil || strings.Join(actual, "\x00") != strings.Join(expectedNames, "\x00") {
 			return ErrSchemaUnsupported
 		}
+	}
+	var version string
+	var versionRows int
+	if err := q.QueryRowContext(ctx, `SELECT COUNT(*),COALESCE(MIN(version),'') FROM schema_metadata`).Scan(&versionRows, &version); err != nil || versionRows != 1 || version != DatabaseSchemaVersion {
+		return ErrSchemaUnsupported
 	}
 	return nil
 }

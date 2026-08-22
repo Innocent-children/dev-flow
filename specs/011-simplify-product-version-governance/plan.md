@@ -44,7 +44,8 @@ writes or remote effects.
 **Primary Dependencies**: Existing standard library, MCP Go SDK, `modernc.org/sqlite`, Node built-ins;
 no new dependency
 
-**Storage**: One current exact SQLite layout; no storage-format version or migration table
+**Storage**: One current exact SQLite layout with database Schema version `0.1.0`; no migration
+framework
 
 **Transport/Public Surface**: Existing local STDIO MCP six-tool catalog; Codex/DeepSeek packages;
 Codex release command and current release-record JSON
@@ -119,8 +120,9 @@ publication side effect.
 Selected disposition: `reject-and-reset`.
 
 - Rename numbered storage helpers/files/DTO aliases to current-format names.
-- Fresh bootstrap creates the current tables and indexes in one serializable transaction, then
-  verifies their exact SQL, columns, indexes, and allowed object set. It creates no migrations table.
+- Fresh bootstrap creates `schema_metadata` with the single database Schema version `0.1.0`, plus
+  the current tables and indexes, in one serializable transaction; it then verifies the exact row,
+  SQL, columns, indexes, and allowed object set. It creates no migration framework.
 - Task rows omit `process_version` and `snapshot_version`; snapshots encode the current strict
   `ProcessTask` shape whose process reference has only ID and definition digest.
 - Existing database open first uses the current read-only connection and validates the exact current

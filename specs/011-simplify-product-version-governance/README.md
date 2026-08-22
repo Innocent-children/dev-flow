@@ -78,6 +78,8 @@ publication, GitHub Release, release asset upload, or invocation of the real one
 - `pnpm --dir packages/deepseek test`: 34 passed; two pre-existing opt-in DSH lifecycle/spill gates
   skipped because their exact external environments were not selected and are outside Feature 011.
 - `pnpm run validate`: passed on the single authorized repository-wide run.
+- `go test ./internal/store` and `node --test tests/version-governance.test.mjs`: passed after the
+  approved database Schema version `0.1.0` amendment; the repository-wide gate was not rerun.
 - Post-review targeted checks: SQLite sidecar zero-write rejection, frozen release resume after current
   Codex version advance, package/build contracts, and current-source version scan passed.
 - `$speckit-converge`: no remaining acceptance gap and no appended task.

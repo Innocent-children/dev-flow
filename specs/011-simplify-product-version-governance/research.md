@@ -37,14 +37,16 @@ Current neutralization also covers result-envelope, receipt, build-report, paylo
 domain, and production type/helper generation numbers. It is a mechanical identity change; the
 process graph and payload behavior remain unchanged.
 
-## Decision 3: Exact current SQLite structure with no migration metadata
+## Decision 3: Exact current SQLite structure with one database version
 
-**Decision**: Create one exact current SQLite layout directly and validate existing databases with a
-read-only exact object/column/row/snapshot preflight. Remove the migration table and numbered task
-columns/DTO names.
+**Decision**: Create one exact current SQLite layout directly, store database version `0.1.0` as the
+sole `schema_metadata` row, and validate existing databases with a read-only exact
+object/column/row/snapshot preflight. Keep migration machinery and numbered task columns/DTO names
+removed.
 
-**Rationale**: Exact structure and strict snapshot validation already provide stronger evidence than
-an integer. Feature 011 explicitly does not support old data.
+**Rationale**: The database version gives the persisted layout one explicit identity while exact
+structure and strict snapshot validation continue to prove compatibility. Feature 011 does not
+support old data.
 
 **Alternatives considered**: Preserve `schema_migrations`; replace its integer with a format name or
 digest row; migrate existing databases; retain old decoders.

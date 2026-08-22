@@ -251,10 +251,11 @@ existing content digest where runtime consistency requires it.
 
 - **FR-026**: Current code, current public contracts, current fixtures, release contracts, and current
   authoritative documentation MUST remove artificial fields or identities for result envelopes,
-  Core contract, Core limits, storage schema, snapshots, process definitions, payload contracts,
+  Core contract, Core limits, snapshots, process definitions, payload contracts,
   repository digest domains, lifecycle receipts, build reports, release records, numbered build
   profiles, and current production generation names.
-- **FR-027**: Removed internal version fields MUST NOT be replaced with another artificial format,
+- **FR-027**: Except for the database Schema version required by FR-059, removed internal version
+  fields MUST NOT be replaced with another artificial format,
   protocol, contract, generation, API-level, revision, or compatibility number.
 - **FR-028**: The process identity MUST be `standard-development`; its content digest MAY remain as
   content identity.
@@ -265,6 +266,8 @@ existing content digest where runtime consistency requires it.
   archive/rename/delete instruction.
 - **FR-031**: Current persistence MUST contain no migration framework, codec registry, historical
   decoder, compatibility matrix, or legacy runtime added for this change.
+- **FR-059**: Core persistence MUST store and validate exactly one database Schema version `0.1.0`;
+  missing, duplicate, or different values MUST fail before writable open with zero writes.
 - **FR-032**: Current release manifest and publication record formats MUST contain no internal schema
   version and MUST support only the current format.
 - **FR-033**: Historical Release, Tag, npm, artifact, and publication evidence MUST remain byte-for-byte

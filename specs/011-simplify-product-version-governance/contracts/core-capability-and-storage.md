@@ -69,6 +69,8 @@ changed schemas, or incompatible server info fail closed without a new compatibi
 
 ## Current SQLite format
 
+- Core owns one database Schema version, currently `0.1.0`, stored as the sole row in
+  `schema_metadata`.
 - Bootstrap creates the exact current object allowlist in one transaction.
 - Existing files are checked read-only before a writable open.
 - Task rows contain process ID and definition digest but no process/snapshot number.

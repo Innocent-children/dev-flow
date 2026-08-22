@@ -12,10 +12,10 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
-func TestFormerVersionMetadataSafeStops(t *testing.T) {
+func TestWrongDatabaseVersionSafeStops(t *testing.T) {
 	path := exactCurrentSchemaDatabase(t)
 	db := openRaw(t, path)
-	if _, err := db.Exec(`CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,applied_at TEXT,digest TEXT)`); err != nil {
+	if _, err := db.Exec(`UPDATE schema_metadata SET version='0.2.0'`); err != nil {
 		t.Fatal(err)
 	}
 	db.Close()
@@ -27,17 +27,18 @@ func TestPartialCurrentSchemaSafeStopMatrix(t *testing.T) {
 		name   string
 		change func([]string) []string
 	}{
-		{"missing tasks table", func(statements []string) []string { return withoutSchemaStatements(statements, 0, 1, 2, 3) }},
-		{"missing task_events table", func(statements []string) []string { return withoutSchemaStatements(statements, 4) }},
-		{"missing repository_claims table", func(statements []string) []string { return withoutSchemaStatements(statements, 5) }},
+		{"missing schema metadata", func(statements []string) []string { return withoutSchemaStatements(statements, 0) }},
+		{"missing tasks table", func(statements []string) []string { return withoutSchemaStatements(statements, 1, 2, 3, 4) }},
+		{"missing task_events table", func(statements []string) []string { return withoutSchemaStatements(statements, 5) }},
+		{"missing repository_claims table", func(statements []string) []string { return withoutSchemaStatements(statements, 6) }},
 		{"missing required column", func(statements []string) []string {
-			statements[0] = strings.Replace(statements[0], `origin_host TEXT NOT NULL, `, ``, 1)
-			return withoutSchemaStatements(statements, 2)
+			statements[1] = strings.Replace(statements[1], `origin_host TEXT NOT NULL, `, ``, 1)
+			return withoutSchemaStatements(statements, 3)
 		}},
-		{"wrong column type", replaceSchemaStatement(0, `origin_host TEXT NOT NULL`, `origin_host BLOB NOT NULL`)},
-		{"missing required index", func(statements []string) []string { return withoutSchemaStatements(statements, 3) }},
-		{"wrong revision constraint", replaceSchemaStatement(0, `CHECK (revision >= 1)`, `CHECK (revision >= 0)`)},
-		{"extra task column", replaceSchemaStatement(0, `updated_at TEXT NOT NULL)`, `updated_at TEXT NOT NULL, compatibility_state TEXT)`)},
+		{"wrong column type", replaceSchemaStatement(1, `origin_host TEXT NOT NULL`, `origin_host BLOB NOT NULL`)},
+		{"missing required index", func(statements []string) []string { return withoutSchemaStatements(statements, 4) }},
+		{"wrong revision constraint", replaceSchemaStatement(1, `CHECK (revision >= 1)`, `CHECK (revision >= 0)`)},
+		{"extra task column", replaceSchemaStatement(1, `updated_at TEXT NOT NULL)`, `updated_at TEXT NOT NULL, compatibility_state TEXT)`)},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -22,6 +22,9 @@
 - [x] T012 Verify all three product values remain `0.5.0`, frozen evidence is unchanged, and Tag/npm/GitHub Release state has no mutation per SC-016 and SC-018.
 - [x] T013 Update Feature 011 status/evidence in `README.md`, `spec.md`, and this file, then review the complete scoped diff per FR-058.
 - [x] T014 Commit and push `codex/011-simplify-product-version-governance`, create one unmerged Draft PR, and read back its remote HEAD/state per FR-058 and SC-019.
+- [x] T015 Amend Core SQLite persistence to store and validate the sole database Schema version
+  `0.1.0`, and update only its specification, contract, documentation, and targeted storage/version
+  tests per FR-059.
 
 ## Test Budget
 

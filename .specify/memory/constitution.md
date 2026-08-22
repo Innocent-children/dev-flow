@@ -1,7 +1,7 @@
 <!--
 Sync Impact Report
-- Constitution version: 3.0.0 → 4.0.0
-- Amendment date: 2026-08-21
+- Constitution version: 4.0.0 → 4.1.0
+- Amendment date: 2026-08-22
 - Reason for MAJOR:
   - Core、Codex、DeepSeek 改为三个独立产品版本，发布一个产品只改变该产品版本；
   - 删除内部协议、存储、快照、流程定义和发布记录的人工版本号治理；
@@ -25,6 +25,9 @@ Sync Impact Report
   - `AGENTS.md`
   - `docs/VERSIONING.md` and current product/release documentation
   - Core/Codex/DeepSeek version, build, fixture, and release contracts/tests
+- 4.1.0 amendment:
+  - retain one Core-owned SQLite database Schema version, initially `0.1.0`;
+  - no other removed internal version is restored.
 - Affected active features:
   - Feature 011 governs implementation; Features 001–010 remain frozen historical evidence.
 -->
@@ -312,7 +315,8 @@ unavailable external host.
   `packages/deepseek/package.json`. The Codex plugin manifest mirrors the Codex package version and
   is not a fourth authority. The repository root package is private tooling and has no product
   version.
-- Internal contracts, limits, storage formats, snapshots, process definitions, build profiles,
+- SQLite MUST maintain one Core-owned database Schema version and reject missing or different
+  versions before writable open. Internal contracts, limits, snapshots, process definitions, build profiles,
   release manifests, and publication records MUST NOT maintain independent artificial version
   numbers. Compatibility is established from identity, content digests, schemas, catalogs,
   capabilities, and runtime behavior.
@@ -454,4 +458,4 @@ preferences.
 - **Transition authority**: `specs/008-refactor-to-development-process-graph/` is the only approved
   breaking replacement specification from the linear runtime to the standard development graph.
 
-**Version**: 4.0.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-21
+**Version**: 4.1.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-22

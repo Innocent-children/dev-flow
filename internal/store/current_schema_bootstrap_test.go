@@ -17,6 +17,13 @@ func TestFreshCurrentSchemaBootstrapIsDirectAndExact(t *testing.T) {
 	if err := verifyCurrentSchema(context.Background(), db); err != nil {
 		t.Fatal(err)
 	}
+	var version string
+	if err := db.QueryRow(`SELECT version FROM schema_metadata`).Scan(&version); err != nil {
+		t.Fatal(err)
+	}
+	if version != DatabaseSchemaVersion {
+		t.Fatalf("database version=%q", version)
+	}
 }
 
 func TestBootstrapFailureLeavesNoPartialSchema(t *testing.T) {
