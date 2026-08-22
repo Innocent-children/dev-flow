@@ -54,11 +54,13 @@ ou DeepSeek diretamente.
 
 Os artefatos públicos atuais oferecem suporte a macOS arm64 e Node.js `>=24`. Core `0.5.0` é incluído de forma
 independente nos produtos Host Codex `0.5.1` e DeepSeek `0.5.1`; os três produtos possuem versões independentes.
+As tabelas de suporte preservam as versões verificadas exatas, enquanto os exemplos de instalação usam o
+dist-tag npm `latest`.
 
 ### Codex
 
 ```bash
-npm install -g dev-flow-codex@0.5.1
+npm install -g dev-flow-codex@latest
 dev-flow-codex setup
 dev-flow-codex --version
 ```
@@ -74,15 +76,17 @@ remoção, retenção de dados e limites de invocação.
 
 ### DeepSeek Harness
 
-Baixe o tarball oficial do npm e passe o caminho absoluto para um profile DSH:
+Obtenha o package oficial indicado por npm `latest` e passe o caminho absoluto do tarball para um profile DSH:
 
 ```bash
-npm pack dev-flow-deepseek@0.5.1
-dsh plugin --profile <profile> add "$PWD/dev-flow-deepseek-0.5.1.tgz"
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile <profile> add "$PWD/$TARBALL"
 ```
 
 Reinicie o profile conforme o lifecycle do DSH e entre explicitamente no Dev Flow com `/dev-flow`. Consulte
-[DeepSeek package README](docs/DEEPSEEK_en.md) para instalação, reinício, remoção e limites de dados.
+[DeepSeek package README](docs/DEEPSEEK_en.md) para instalação, reinício, remoção e limites de dados. O catálogo
+completo de comandos Codex, DeepSeek, Core, selectors e ferramentas MCP está na
+[Referência de comandos](docs/COMMANDS_en.md).
 
 ## Modelo de execução
 
@@ -151,6 +155,9 @@ dev_flow_apply_action
 dev_flow_cancel_task
 ```
 
+Consulte a [Referência de comandos](docs/COMMANDS_en.md) para a classificação de leitura/escrita, o papel das
+entradas e o comportamento de cada ferramenta.
+
 Core pode observar um repositório Git existente de forma limitada e somente leitura para estabelecer um
 repository binding e avaliar fatos de alteração. Um Host autorizado pelo usuário executa as mutations Git. Core
 não expõe shell genérico nem executa checkout, commit, push, merge, rebase, tag ou publicação.
@@ -186,6 +193,7 @@ A referência técnica é mantida atualmente em inglês e chinês simplificado.
 | Problemas, capacidades e limites do produto | [Product](docs/PRODUCT_en.md) |
 | Arquitetura de Core, Adapter, Store e Recovery | [Architecture](docs/ARCHITECTURE_en.md) |
 | Versões e plataformas suportadas | [Support Matrix](docs/SUPPORT-MATRIX_en.md) |
+| Todos os comandos de usuário, comandos Core gerenciados e ferramentas MCP | [Command Reference](docs/COMMANDS_en.md) |
 | Capacidades entregues e direção futura | [Roadmap](docs/ROADMAP_en.md) |
 | Versionamento independente de produtos | [Versioning](docs/VERSIONING.md) |
 | Locales de documentação e regras de sincronização | [I18n](docs/I18N_en.md) |
