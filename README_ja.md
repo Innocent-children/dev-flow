@@ -53,12 +53,13 @@ Dev Flow は、複数の開発ノードをまたぎ、手戻りが発生し得�
 
 現在の公開アーティファクトは macOS arm64 と Node.js `>=24` をサポートします。Core `0.5.0`
 は Codex `0.5.1` と DeepSeek `0.5.1` の各 Host 製品に独立してバンドルされ、3 製品は独立して
-バージョン管理されます。
+バージョン管理されます。サポート表は検証済みの正確なバージョンを保持し、インストール例では
+npm の `latest` dist-tag を使用します。
 
 ### Codex
 
 ```bash
-npm install -g dev-flow-codex@0.5.1
+npm install -g dev-flow-codex@latest
 dev-flow-codex setup
 dev-flow-codex --version
 ```
@@ -74,15 +75,17 @@ $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 
 ### DeepSeek Harness
 
-npm から公式 tarball を取得し、絶対パスを DSH profile に渡します。
+npm `latest` が指す公式 package を取得し、tarball の絶対パスを DSH profile に渡します。
 
 ```bash
-npm pack dev-flow-deepseek@0.5.1
-dsh plugin --profile <profile> add "$PWD/dev-flow-deepseek-0.5.1.tgz"
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile <profile> add "$PWD/$TARBALL"
 ```
 
 DSH profile lifecycle に従って profile を再起動し、`/dev-flow` で明示的に Dev Flow へ入ります。
 インストール、再起動、削除、データ境界は [DeepSeek package README](docs/DEEPSEEK_en.md) を参照してください。
+Codex、DeepSeek、Core、selector、MCP ツールの全コマンドは
+[Command Reference](docs/COMMANDS_en.md) にあります。
 
 ## 実行モデル
 
@@ -151,6 +154,9 @@ dev_flow_apply_action
 dev_flow_cancel_task
 ```
 
+各ツールの読み取り・書き込み分類、入力の役割、動作は
+[Command Reference](docs/COMMANDS_en.md) を参照してください。
+
 Core は既存の 1 つの Git リポジトリを制限付き・読み取り専用で観測し、repository binding と
 変更事実を評価できます。Git mutation はユーザーが承認した Host が実行します。Core は汎用
 shell を公開せず、checkout、commit、push、merge、rebase、tag、公開操作を行いません。
@@ -187,6 +193,7 @@ delete できます。lifecycle コマンドは自動削除しません。
 | 製品の問題、機能、境界 | [Product](docs/PRODUCT_en.md) |
 | Core、Adapter、Store、Recovery のアーキテクチャ | [Architecture](docs/ARCHITECTURE_en.md) |
 | 現在の対応バージョンとプラットフォーム | [Support Matrix](docs/SUPPORT-MATRIX_en.md) |
+| すべてのユーザーコマンド、管理対象 Core コマンド、MCP ツール | [Command Reference](docs/COMMANDS_en.md) |
 | 提供済み機能と今後の方向性 | [Roadmap](docs/ROADMAP_en.md) |
 | 独立した製品バージョン管理 | [Versioning](docs/VERSIONING.md) |
 | ドキュメント locale と同期ルール | [I18n](docs/I18N_en.md) |
