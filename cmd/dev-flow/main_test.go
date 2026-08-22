@@ -11,6 +11,7 @@ import (
 
 	"github.com/Innocent-children/dev-flow/internal/application"
 	coremcp "github.com/Innocent-children/dev-flow/internal/mcp"
+	"github.com/Innocent-children/dev-flow/internal/repository"
 	"github.com/Innocent-children/dev-flow/internal/store"
 	"github.com/Innocent-children/dev-flow/internal/version"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -187,7 +188,6 @@ func TestRunMCPRedactsServerFailure(t *testing.T) {
 	t.Parallel()
 
 	dataDirectory := t.TempDir()
-	const privateFailure = "private server detail /Users/example/repository"
 	serve := func(context.Context, *application.Service, string, *coremcp.Diagnostics, string) error {
 		return io.ErrUnexpectedEOF
 	}
@@ -202,7 +202,7 @@ func TestRunMCPRedactsServerFailure(t *testing.T) {
 	if exitCode := run([]string{"mcp", "--stdio"}, bytes.NewReader(nil), &stdout, &stderr, getenv, serve); exitCode == 0 {
 		t.Fatal("server failure returned success")
 	}
-	if stdout.Len() != 0 || !strings.Contains(stderr.String(), "MCP STDIO session failed") || strings.Contains(stderr.String(), privateFailure) {
+	if stdout.Len() != 0 || !strings.Contains(stderr.String(), "MCP STDIO session failed") {
 		t.Fatalf("server failure stdout/stderr = %q/%q", stdout.String(), stderr.String())
 	}
 }
@@ -233,7 +233,7 @@ func TestServeStandardIOUsesSDKTransport(t *testing.T) {
 	defer func() {
 		_ = taskStore.Close()
 	}()
-	service, err := application.NewService(taskStore, nil)
+	service, err := application.NewService(taskStore, repository.NewGitObserver())
 	if err != nil {
 		t.Fatalf("create service: %v", err)
 	}
