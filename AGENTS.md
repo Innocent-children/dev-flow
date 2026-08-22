@@ -54,14 +54,36 @@ request and in the same implementation checkpoint:
 1. update `README.md` and every maintained root README locale listed in `docs/I18N.md`;
 2. update both `docs/PRODUCT.md` and `docs/PRODUCT_en.md`;
 3. update each affected technical reference, including `docs/ARCHITECTURE*`,
-   `docs/SUPPORT-MATRIX*`, `docs/ROADMAP*`, host package READMEs, installation instructions, or
-   invocation documentation when the changed surface applies;
+   `docs/SUPPORT-MATRIX*`, `docs/COMMANDS*`, `docs/ROADMAP*`, host package READMEs, installation
+   instructions, or invocation documentation when the changed surface applies;
 4. list the exact documentation paths in the active `tasks.md` and in the pull-request validation
    summary.
 
 A version-only release that changes public versions, bundled Core identities, platform support, Host
 compatibility, installation commands, or release evidence MUST synchronize the same facts across all
-maintained root README locales and the affected support/package documentation before publication.
+maintained root README locales and the affected support, command, and package documentation before
+publication.
+
+Public end-user installation examples MUST select the current npm stable channel with
+`dev-flow-codex@latest` or `dev-flow-deepseek@latest`. Exact versions MUST remain in Support Matrix
+rows, npm version links, Release Tags, bundled Core identities, artifact digests, and final release
+evidence. Do not replace immutable evidence identities with `latest`, and do not leave a released
+version pinned indefinitely in ordinary installation instructions.
+
+Every documented command MUST be checked against its executable authority before merge:
+
+- npm package names, `bin` entries, and platform constraints from the relevant `package.json`;
+- Codex subcommands and argument forms from `packages/codex/bin/dev-flow-codex.mjs`;
+- DeepSeek DSH install, inspection, and removal forms from lifecycle tests and final-artifact journeys;
+- packaged Core commands from `cmd/dev-flow/main.go`;
+- MCP tool names, annotations, and purposes from the closed catalog under `internal/mcp/`.
+
+A change that adds, removes, or changes a CLI command, selector, environment variable, lifecycle
+command, or MCP tool MUST update `docs/COMMANDS.md`, `docs/COMMANDS_en.md`, every affected package
+README, and all root README locale command snippets in the same checkpoint. Do not document inferred
+`help`, `update`, `uninstall`, alias, or other command forms that the implementation does not accept.
+Clearly distinguish user shell commands, managed Host commands, conversational selectors, and MCP
+tools.
 
 - Do not update only one locale when a maintained document family has multiple locale files.
 - Do not leave placeholder translations, stale version numbers, untranslated new sections, or an
