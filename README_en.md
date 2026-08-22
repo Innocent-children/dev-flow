@@ -22,6 +22,25 @@ interruptions, and context switches:
 - Which transitions are currently legal?
 - If the last mutation is uncertain, should the host read, recover, or retry?
 
+Dev Flow is most useful for real repository tasks that span several development steps, may require
+rework, or must continue across multiple sessions. For one-off questions or tiny single-file changes
+that need no retained process state, using Codex or DeepSeek directly is usually simpler.
+
+## Where it fits
+
+Dev Flow does not replace existing agents, specification tools, or test systems. It connects them to
+one recoverable development thread.
+
+| Component | Responsibility |
+| --- | --- |
+| Codex / DeepSeek Harness | Read the repository, change code, run tools, and collaborate with the developer on the current node |
+| Spec Kit / OpenSpec | Provide methods and artifacts for requirements, design, task planning, and related nodes |
+| Tests and CI | Produce evidence that behavior is correct |
+| Dev Flow | Retain the single process cursor, completion conditions, legal transitions, recovery result, and outcome |
+
+Dev Flow is therefore not a new model, a general-purpose coding agent, or another specification
+format. It is a local navigation and recovery layer underneath hosts and development methods.
+
 ## Why Dev Flow
 
 ### A development thread that survives context loss
@@ -46,6 +65,20 @@ recorded, completed but unrecorded, partially completed, or conflicting, then re
 
 Each task selects `plain`, `spec-kit`, or `openspec`. These method tools help perform the current
 node's work. Go Core remains the sole authority for tasks, nodes, transitions, recovery, and outcomes.
+
+## How a task progresses
+
+1. The developer describes a task in the current Git repository with an explicit selector.
+2. Core opens or resumes that repository's Task and returns the current node, completion conditions,
+   evidence requirements, and every legal transition.
+3. The host performs only the work authorized by the current node and submits its results and evidence.
+4. Core validates the exact `transition_id` and advances the Task. Failed tests, failed comprehension,
+   or rejected delivery return it to the appropriate earlier node.
+5. If a mutation response is uncertain, the host reads authoritative state first and follows the
+   Recovery result instead of replaying the write blindly.
+
+The developer can always see why the task is here, what completes the node, and which next steps are
+actually available.
 
 ## Quick start
 
@@ -172,6 +205,7 @@ identities and evidence.
 | Independent product versioning | [Versioning](docs/VERSIONING.md) |
 | Local development toolchains | [Toolchain Baselines](docs/TOOLCHAIN-BASELINES.md) |
 | Feature development governance | [Spec Kit Workflow](docs/SPEC-KIT-WORKFLOW.md) |
+| How to report an issue or open a pull request | [Contributing](CONTRIBUTING_en.md) |
 | Maintainer release entrypoint | [Release](release/README.md) |
 
 ## Local development
@@ -186,6 +220,14 @@ pnpm run validate
 `pnpm run validate` performs bounded repository validation. It does not install real host products
 or publish npm packages, Tags, or GitHub Releases. See [Architecture](docs/ARCHITECTURE_en.md) for
 directory ownership and [Repository Scripts](scripts/README_en.md) for script entrypoints.
+
+## Contributing
+
+Reproducible bug reports, documentation improvements, platform support backed by final-artifact
+evidence, and bounded product proposals are welcome. Read the [contribution guide](CONTRIBUTING_en.md)
+before starting. Product-behavior changes require a complete Feature specification; ordinary
+documentation corrections do not. Version changes and public releases are performed separately by
+maintainers after product work is merged.
 
 ## License
 
