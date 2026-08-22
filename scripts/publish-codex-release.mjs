@@ -596,9 +596,9 @@ async function prepareFinalManifest(context, manifest, record, evidence) {
         core_sha256: evidence.core_sha256,
         journey_result: "passed",
         journey_observed_at: evidence.observed_at,
-        verification_mode: "quick",
+        verification_mode: manifest.release.verification_mode,
         based_on_release: manifest.release.based_on_release,
-        notes: `Quick registry-package smoke passed; complete graph support is based on ${manifest.release.based_on_release}.`,
+        notes: "Native registry-package Codex lifecycle smoke passed install, version/Core handshake, setup, removal, uninstall, and repository-unchanged gates.",
       }]
       : buildSupportMatrixFromFinalJourney({ manifest, evidence });
   const existingSupport = manifest.support[0];
@@ -623,7 +623,7 @@ async function prepareFinalManifest(context, manifest, record, evidence) {
       summary: evidence.evidence_kind === FINAL_FIXTURE_EVIDENCE_KIND
         ? "Fixture-simulated journey passed the isolated fake finalization gate."
         : evidence.evidence_kind === QUICK_NATIVE_EVIDENCE_KIND
-          ? "Quick registry-package smoke passed the bounded final-artifact gates."
+          ? "Registry-package lifecycle smoke passed the bounded final-artifact gates."
           : "Native registry-package journey passed every final lifecycle gate.",
     },
   ].sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
