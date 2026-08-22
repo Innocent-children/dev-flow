@@ -27,6 +27,8 @@
 - [ ] 变更基于最新 `main`，范围可独立审查。
 - [ ] Product Feature 已同步全部根 README locale、`docs/PRODUCT*` 和受影响的技术文档，或本项不适用。
 - [ ] 文档事实变更已同步该文档族的所有维护 locale，没有占位翻译或 stale version。
+- [ ] 面向用户的 npm 安装示例使用 `@latest`，Support Matrix 与 Release 证据继续保留精确版本。
+- [ ] 新增或修改的命令已对照 package manifest、CLI parser、DSH lifecycle、Core parser 或 MCP catalog，并同步 `docs/COMMANDS*`。
 - [ ] 验证强度与改动表面、验收条件或已知风险直接相关。
 - [ ] 没有扩大 Support Matrix 中的平台、Host 或制品声明。
 - [ ] 没有在普通功能或文档 PR 中提升版本、创建 Tag、发布 npm 或操作 GitHub Release。
