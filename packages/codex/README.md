@@ -59,27 +59,26 @@ Core 会持续返回：
 
 Codex 完成当前节点工作后，只提交 live Action 允许的 `transition_id` 和 closed payload。
 
-## Explicit invocation boundary
+## 显式调用边界
 
-Skill metadata 设置 `policy.allow_implicit_invocation: false`。
+Skill metadata 设置 `policy.allow_implicit_invocation: false`，因此只有下面这个精确 selector 可以
+进入 Dev Flow：
 
-Skill resource/base name 是 `dev-flow`。
+```text
+$dev-flow-codex:dev-flow
+```
 
-installed Skill full name 是 `dev-flow-codex:dev-flow`。
+相关名称与边界如下：
 
-only exact explicit selector 是 `$dev-flow-codex:dev-flow`。
+- Skill resource/base name 是 `dev-flow`；
+- 安装后的 Skill full name 是 `dev-flow-codex:dev-flow`；
+- `$dev-flow` 不是别名，不会选择该 Skill；
+- plugin namespace 错误、Skill base name 错误或缺少 selector 都不会选择该 Skill；
+- 普通提示词必须产生零次 Dev Flow 调用；
+- 非精确 selector 不得完成任何携带 Task 的操作。
 
-bare `$dev-flow` is not an alias and does not select this Skill。
-
-wrong plugin namespace、wrong Skill base name 或 missing selector 也不会选择它。
-
-ordinary prompt 必须产生 zero Dev Flow calls。
-non-exact selectors must not complete a task-bearing operation。
-
-This boundary does not disable ordinary Codex repository tools.
-
-The package does not make or claim selector-bound MCP visibility or authorization；它只约束当前
-Skill 是否可以发起 Dev Flow 调用。
+这项边界不限制 Codex 的普通仓库工具，也不声称 MCP 的可见性或授权与 selector 绑定；它只约束
+当前 Skill 是否可以发起 Dev Flow 调用。
 
 通过 admission 后，`dev_flow_server_info({})` 必须是第一次 Dev Flow 调用。Host 验证
 `standard-development`、definition digest、method profiles、live schemas 与恰好六个工具：
