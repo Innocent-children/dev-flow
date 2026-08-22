@@ -4111,7 +4111,7 @@ async function streamingCodexProcess(executable, args, {
       for (const line of lines) {
         if (
           !intentionalStop
-          && successfulApplyEvent(line)
+          && successfulNonterminalApplyEvent(line)
           && exactProofExists(stopAfterApplyPath, stopAfterApplyContent)
         ) {
           intentionalStop = true;
@@ -4137,15 +4137,25 @@ async function streamingCodexProcess(executable, args, {
   });
 }
 
-function successfulApplyEvent(line) {
+export function successfulNonterminalApplyEvent(line) {
   try {
     const event = JSON.parse(line);
     const item = event?.type === "item.completed" ? event.item : null;
-    return item?.type === "mcp_tool_call"
-      && item.server === "dev-flow"
-      && item.tool === "dev_flow_apply_action"
-      && item.status === "completed"
-      && item.result?.structured_content?.ok === true;
+    if (
+      item?.type !== "mcp_tool_call"
+      || item.server !== "dev-flow"
+      || item.tool !== "dev_flow_apply_action"
+      || item.status !== "completed"
+    ) return false;
+    const structured = item.result?.structured_content ?? item.result?.structuredContent;
+    const envelope = structured ?? JSON.parse(item.result?.content?.[0]?.text ?? "null");
+    const result = envelope?.result;
+    const task = isPlainObject(result?.task) ? result.task : result;
+    return envelope?.ok === true
+      && isPlainObject(task)
+      && typeof task.current_cursor === "string"
+      && task.current_cursor !== "DONE"
+      && task.outcome === null;
   } catch { return false; }
 }
 

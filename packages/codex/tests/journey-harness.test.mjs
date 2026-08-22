@@ -34,6 +34,7 @@ import {
   parseCLI,
   runDevelopmentSmoke,
   smokePrompt,
+  successfulNonterminalApplyEvent,
   validateAcceptanceReport,
   validateAttempt3NativeFlowEvidence,
   validateCompositeAcceptanceEvidence,
@@ -928,6 +929,28 @@ test("development smoke closes stdin before waiting for Codex JSONL", async () =
   const childProgram = "let ended=false;process.stdin.resume();process.stdin.once('end',()=>{ended=true;process.stdout.write('closed')});setTimeout(()=>process.exit(ended?0:7),100)";
   const result = await smokeRuntime.defaultRunProcess(process.execPath, ["-e", childProgram], { cwd: repositoryRoot });
   assert.deepEqual({ exitCode: result.exitCode, stdout: result.stdout }, { exitCode: 0, stdout: "closed" });
+});
+
+test("registry journey stop signal requires an authoritative nonterminal Core task", () => {
+  const task = { task_id: "task-stop", current_cursor: "TEST", outcome: null };
+  const event = coreSuccessEvent("dev_flow_apply_action", "stop", { task });
+  assert.equal(successfulNonterminalApplyEvent(JSON.stringify(event)), true);
+
+  const camelCase = structuredClone(event);
+  camelCase.item.result.structuredContent = camelCase.item.result.structured_content;
+  delete camelCase.item.result.structured_content;
+  assert.equal(successfulNonterminalApplyEvent(JSON.stringify(camelCase)), true);
+
+  const textOnly = structuredClone(event);
+  delete textOnly.item.result.structured_content;
+  assert.equal(successfulNonterminalApplyEvent(JSON.stringify(textOnly)), true);
+
+  const done = coreSuccessEvent("dev_flow_apply_action", "done", {
+    task: { ...task, current_cursor: "DONE", outcome: { status: "completed" } },
+  });
+  assert.equal(successfulNonterminalApplyEvent(JSON.stringify(done)), false);
+  assert.equal(successfulNonterminalApplyEvent(JSON.stringify(coreSuccessEvent("dev_flow_get_task", "read", { task }))), false);
+  assert.equal(successfulNonterminalApplyEvent("not-json"), false);
 });
 
 test("simulated current Core contract journey starts with handshake and presents the complete multi-edge node contract", async () => {
