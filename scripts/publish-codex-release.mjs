@@ -548,6 +548,12 @@ function hasReusableFinalJourney(context, manifest, record) {
     || support?.journey_result === "passed";
   if (!hasCompletedSignal) return false;
   if (
+    step?.status === "complete"
+    && record.final_journey.status === "passed"
+    && validation === undefined
+    && support?.journey_result === "pending"
+  ) return false;
+  if (
     step?.status !== "complete"
     || record.final_journey.status !== "passed"
     || validation?.status !== "passed"
