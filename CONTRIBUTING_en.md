@@ -55,9 +55,10 @@ pnpm install --frozen-lockfile
 ```
 
 Before editing, read [`AGENTS.md`](AGENTS.md), the
-[Constitution](.specify/memory/constitution.md), the [I18n policy](docs/I18N_en.md), and the documents
-directly related to the change. A product-behavior change must also select its exact Feature
-explicitly. Do not infer the active Feature from the branch name or the most recently edited directory.
+[Constitution](.specify/memory/constitution.md), the [I18n policy](docs/I18N_en.md), the
+[Command Reference](docs/COMMANDS_en.md), and the documents directly related to the change. A
+product-behavior change must also select its exact Feature explicitly. Do not infer the active Feature
+from the branch name or the most recently edited directory.
 
 ## Implementation principles
 
@@ -71,6 +72,10 @@ explicitly. Do not infer the active Feature from the branch name or the most rec
 - A Product Feature must synchronize every root README locale, `docs/PRODUCT*`, and affected technical
   documentation.
 - A documentation correction must synchronize every maintained language in that document family.
+- When adding or changing a command, verify it against the package manifest, CLI parser, DSH lifecycle,
+  Core parser, or MCP catalog and synchronize `docs/COMMANDS*`.
+- Public npm installation examples use `@latest`; exact versions remain in the Support Matrix,
+  Releases, and artifact evidence.
 - Do not edit generated files under `.agents/skills/` directly.
 - Do not bump versions or perform a release from an ordinary feature or documentation pull request.
 
@@ -82,6 +87,8 @@ At minimum, documentation changes should confirm that:
 - every file in the language navigation exists and links back to the other locales;
 - section structure, commands, versions, platforms, and support claims are aligned within a document
   family;
+- every ordinary installation example uses `@latest`, while evidence tables retain exact versions;
+- `docs/COMMANDS*` matches the executable command and tool catalog;
 - non-English files contain no placeholder translation or whole-section English fallback;
 - the change does not broaden claims in the current
   [Support Matrix](docs/SUPPORT-MATRIX_en.md).
@@ -105,7 +112,8 @@ Create the branch from current `main` and explain:
 3. the explicit non-goals;
 4. validation performed and its result;
 5. for a Product Feature, the applicable Feature, FR/SC, contract, or task references;
-6. the document families changed and locales synchronized.
+6. the document families changed and locales synchronized;
+7. the implementation source for each installation or command claim.
 
 Concise Conventional Commit-style messages are recommended, for example:
 
