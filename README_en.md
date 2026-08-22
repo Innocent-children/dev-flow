@@ -53,12 +53,13 @@ single-file edit with no retained process state is usually simpler with Codex or
 
 Current public artifacts support macOS arm64 and Node.js `>=24`. Core `0.5.0` is bundled
 independently in the Codex `0.5.1` and DeepSeek `0.5.1` host products; all three products have
-independent versions.
+independent versions. Support tables retain exact verified identities, while installation examples
+select npm's `latest` dist-tag.
 
 ### Codex
 
 ```bash
-npm install -g dev-flow-codex@0.5.1
+npm install -g dev-flow-codex@latest
 dev-flow-codex setup
 dev-flow-codex --version
 ```
@@ -75,16 +76,18 @@ boundaries.
 
 ### DeepSeek Harness
 
-Download the official tarball from npm, then give its absolute path to a DSH profile:
+Fetch the official package selected by npm `latest`, then give its absolute tarball path to a DSH
+profile:
 
 ```bash
-npm pack dev-flow-deepseek@0.5.1
-dsh plugin --profile <profile> add "$PWD/dev-flow-deepseek-0.5.1.tgz"
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile <profile> add "$PWD/$TARBALL"
 ```
 
 Restart the profile according to the DSH profile lifecycle, then enter Dev Flow explicitly with
 `/dev-flow`. See the [DeepSeek package README](docs/DEEPSEEK_en.md) for installation, restart,
-removal, and data boundaries.
+removal, and data boundaries. The complete Codex, DeepSeek, Core, selector, and MCP command catalogs
+are in the [Command Reference](docs/COMMANDS_en.md).
 
 ## Execution model
 
@@ -159,6 +162,9 @@ dev_flow_apply_action
 dev_flow_cancel_task
 ```
 
+See the [Command Reference](docs/COMMANDS_en.md) for each tool's read/write classification, input role,
+and behavior.
+
 Core may inspect one existing Git repository through bounded, read-only observation to establish a
 repository binding and evaluate change facts. A user-authorized host performs Git mutations. Core
 does not expose a generic shell or run checkout, commit, push, merge, rebase, tag, or publication
@@ -196,6 +202,7 @@ Technical reference documents are currently maintained in English and Simplified
 | Product problems, capabilities, and boundaries | [Product](docs/PRODUCT_en.md) |
 | Core, Adapter, Store, and Recovery architecture | [Architecture](docs/ARCHITECTURE_en.md) |
 | Current supported versions and platforms | [Support Matrix](docs/SUPPORT-MATRIX_en.md) |
+| Every user command, managed Core command, and MCP tool | [Command Reference](docs/COMMANDS_en.md) |
 | Delivered capabilities and future direction | [Roadmap](docs/ROADMAP_en.md) |
 | Independent product versioning | [Versioning](docs/VERSIONING.md) |
 | Documentation locales and synchronization rules | [I18n](docs/I18N_en.md) |
