@@ -55,11 +55,13 @@ einfacher.
 
 Aktuelle öffentliche Artefakte unterstützen macOS arm64 und Node.js `>=24`. Core `0.5.0` ist unabhängig in den
 Host-Produkten Codex `0.5.1` und DeepSeek `0.5.1` gebündelt; alle drei Produkte werden unabhängig versioniert.
+Supporttabellen behalten exakte verifizierte Versionen, während Installationsbeispiele den npm-dist-tag `latest`
+verwenden.
 
 ### Codex
 
 ```bash
-npm install -g dev-flow-codex@0.5.1
+npm install -g dev-flow-codex@latest
 dev-flow-codex setup
 dev-flow-codex --version
 ```
@@ -75,15 +77,18 @@ Entfernung, Datenaufbewahrung und Aufrufgrenzen.
 
 ### DeepSeek Harness
 
-Laden Sie das offizielle tarball von npm und übergeben Sie den absoluten Pfad an ein DSH profile:
+Holen Sie das offizielle, von npm `latest` ausgewählte Package und übergeben Sie den absoluten tarball-Pfad an
+ein DSH profile:
 
 ```bash
-npm pack dev-flow-deepseek@0.5.1
-dsh plugin --profile <profile> add "$PWD/dev-flow-deepseek-0.5.1.tgz"
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile <profile> add "$PWD/$TARBALL"
 ```
 
 Starten Sie das Profil gemäß DSH profile lifecycle neu und wechseln Sie mit `/dev-flow` explizit zu Dev Flow.
 Siehe [DeepSeek package README](docs/DEEPSEEK_en.md) für Installation, Neustart, Entfernung und Datengrenzen.
+Der vollständige Katalog für Codex-, DeepSeek-, Core-, selector- und MCP-Befehle steht in der
+[Command Reference](docs/COMMANDS_en.md).
 
 ## Ausführungsmodell
 
@@ -153,6 +158,9 @@ dev_flow_apply_action
 dev_flow_cancel_task
 ```
 
+Die Lese-/Schreibklassifikation, Eingaberolle und das Verhalten jedes Werkzeugs stehen in der
+[Command Reference](docs/COMMANDS_en.md).
+
 Core darf ein bestehendes Git-Repository begrenzt und schreibgeschützt beobachten, um ein repository binding
 herzustellen und Änderungsfakten auszuwerten. Git-Mutationen führt ein vom Benutzer autorisierter Host aus. Core
 stellt keine generische Shell bereit und führt weder checkout, commit, push, merge, rebase, tag noch Veröffentlichung
@@ -190,6 +198,7 @@ Technische Referenzdokumente werden derzeit auf Englisch und vereinfachtem Chine
 | Produktprobleme, Fähigkeiten und Grenzen | [Product](docs/PRODUCT_en.md) |
 | Architektur von Core, Adapter, Store und Recovery | [Architecture](docs/ARCHITECTURE_en.md) |
 | Unterstützte Versionen und Plattformen | [Support Matrix](docs/SUPPORT-MATRIX_en.md) |
+| Alle Benutzerbefehle, verwalteten Core-Befehle und MCP-Werkzeuge | [Command Reference](docs/COMMANDS_en.md) |
 | Gelieferte Fähigkeiten und zukünftige Richtung | [Roadmap](docs/ROADMAP_en.md) |
 | Unabhängige Produktversionierung | [Versioning](docs/VERSIONING.md) |
 | Dokumentations-locales und Synchronisationsregeln | [I18n](docs/I18N_en.md) |
