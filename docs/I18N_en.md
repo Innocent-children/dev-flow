@@ -47,7 +47,7 @@ first satisfy the complete-translation and ongoing-synchronization requirements.
 | Document family | Maintained coverage |
 | --- | --- |
 | Root `README*` | All nine locales above; structure and product facts must remain aligned |
-| `docs/PRODUCT*`, `docs/ARCHITECTURE*`, `docs/ROADMAP*`, `docs/SUPPORT-MATRIX*`, and `MANIFEST*` | Simplified Chinese and English |
+| `docs/PRODUCT*`, `docs/ARCHITECTURE*`, `docs/ROADMAP*`, `docs/SUPPORT-MATRIX*`, `docs/COMMANDS*`, and `MANIFEST*` | Simplified Chinese and English |
 | Codex / DeepSeek user and installation documentation | The currently paired Simplified Chinese and English files |
 | `CONTRIBUTING*` and the I18n policy | Simplified Chinese and English |
 | Constitution, `AGENTS.md`, Feature, release, and maintainer contracts | Maintained in their authoritative language; they are not copied into all nine locales unless an explicit pair already exists |
@@ -61,17 +61,45 @@ Every Product Feature that changes user-visible behavior must, in the same pull 
 
 1. update all nine root README files;
 2. update both `docs/PRODUCT.md` and `docs/PRODUCT_en.md`;
-3. update Architecture, Support Matrix, Roadmap, host-package README, installation, or invocation
-   documentation according to the affected surface;
+3. update Architecture, Support Matrix, Command Reference, Roadmap, host-package README,
+   installation, or invocation documentation according to the affected surface;
 4. list every documentation path in `tasks.md` and in the pull-request validation summary.
 
 A release that changes public versions, bundled Core identities, platforms, host compatibility,
 installation commands, or release evidence must also synchronize every root README plus the affected
-support and package documentation before publication.
+support, command, and package documentation before publication.
 
 A documentation-only correction must update every maintained locale containing the same incorrect
 statement. A Product Feature, documentation change, or release must not be reported as merge-ready,
 Complete, or ready to publish while a maintained translation remains stale.
+
+## Installation commands and version identities
+
+Public end-user installation examples select npm's `latest` dist-tag:
+
+```text
+dev-flow-codex@latest
+dev-flow-deepseek@latest
+```
+
+Exact versions remain mandatory in the Support Matrix, Release Tags, npm version links, bundled Core
+identities, artifact digests, and final-journey evidence. Do not replace those evidence identities with
+`latest`, and do not leave an old released version pinned indefinitely in ordinary installation
+examples.
+
+Installation and command documentation must be checked against executable implementation:
+
+- npm package names, `bin` entries, and platform constraints come from the relevant `package.json`;
+- Codex CLI subcommands and arguments come from the actual parser in
+  `packages/codex/bin/dev-flow-codex.mjs`;
+- DeepSeek installation and removal forms come from DSH lifecycle tests and the final-artifact journey;
+- packaged Core commands come from `cmd/dev-flow/main.go`;
+- MCP tool names, read/write properties, and purposes come from the closed catalog under
+  `internal/mcp/`.
+
+Do not document an unimplemented `help`, `update`, `uninstall`, alias, or other inferred command.
+Managed host commands, user shell commands, conversational selectors, and MCP tools must be clearly
+separated instead of being presented as one invocation surface.
 
 ## Translation invariants
 
@@ -96,5 +124,7 @@ A documentation or product pull request must at least confirm that:
 - every file in the language navigation exists and links back to the other locales;
 - added, removed, or moved sections are aligned across all root README files;
 - versions, commands, platforms, and Support Matrix claims have not drifted;
+- every public installation block uses `@latest`, while exact evidence tables retain verified versions;
+- `docs/COMMANDS*` matches the current CLI parsers, DSH lifecycle, Core parser, and MCP catalog;
 - non-English README files contain no placeholder text or whole-section English fallback;
 - paired Chinese and English technical references express the same facts.
