@@ -150,7 +150,7 @@ test("packaged Core native version and STDIO startup", {
     : "requires native darwin-arm64 execution",
 }, async (t) => {
   const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
-  const currentVersion = (await readFile(join(repositoryRoot, "VERSION"), "utf8")).trim();
+  const currentVersion = (await readFile(join(repositoryRoot, "CORE_VERSION"), "utf8")).trim();
   const dataDirectory = await mkdtemp(join(tmpdir(), "dev-flow-deepseek-core-"));
   t.after(async () => {
     const { rm } = await import("node:fs/promises");

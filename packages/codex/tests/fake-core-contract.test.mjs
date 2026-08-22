@@ -18,7 +18,7 @@ const exactTools = [
   "dev_flow_cancel_task",
 ];
 
-test("fake Core serves the Contract 0.2 six-tool catalog and complete structured results", async (t) => {
+test("fake Core serves the current six-tool catalog and complete structured results", async (t) => {
   const fixture = await makeFixture(t, "catalog");
   const client = await fixture.client();
   const tools = await client.listTools();
@@ -38,15 +38,12 @@ test("fake Core serves the Contract 0.2 six-tool catalog and complete structured
     "action_id",
     "action_kind",
     "process_id",
-    "process_version",
     "process_definition_digest",
     "source_cursor",
     "repository_binding_digest",
     "payload",
   ]);
   const info = await client.callTool("dev_flow_server_info", {});
-  assert.equal(info.result.schema_version, 2);
-  assert.equal(info.result.core_limits_version, "0.2");
   assert.deepEqual(info.result.method_profiles, ["plain", "spec-kit", "openspec"]);
   assert.deepEqual(info.result.tools, exactTools);
 });
@@ -110,7 +107,6 @@ test("lost and truncated graph mutations force exact reads before retry", async 
       const probe = {
         operation_id: requestId,
         process_id: action.process.process_id,
-        process_version: action.process.process_version,
         process_definition_digest: action.process.definition_digest,
         source_cursor: action.current_node,
         expected_revision: action.revision,
@@ -200,7 +196,6 @@ function applyArguments(action, requestId) {
     action_id: action.action_id,
     action_kind: action.kind,
     process_id: action.process.process_id,
-    process_version: action.process.process_version,
     process_definition_digest: action.process.definition_digest,
     source_cursor: action.current_node,
     repository_binding_digest: action.repository_binding_digest,

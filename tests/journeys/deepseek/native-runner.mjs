@@ -325,10 +325,7 @@ async function runNative(baseConfig) {
   assert.deepEqual(changed, ["src/proof-writer.mjs"]);
   assert.match(await readFile(join(config.workspace, "src", "proof-writer.mjs"), "utf8"), /deepseek-native-proof/u);
   const info = await readServerInfoFromSessions(allSummaries);
-  assert.equal(info.schema_version, 2);
-  assert.equal(info.core_limits_version, "0.2");
   assert.equal(info.process_id, "standard-development");
-  assert.equal(info.process_version, 1);
   assert.deepEqual(info.qualified_tools, [...exactDevFlowNames()]);
 
   const beforeLifecycle = await retainedIdentity(config, task.task_id);
@@ -490,14 +487,13 @@ function assertMutationIdentities(calls) {
     const args = JSON.parse(call.arguments);
     for (const field of [
       "request_id", "host", "task_id", "revision", "action_id", "action_kind",
-      "process_id", "process_version", "process_definition_digest", "source_cursor",
+      "process_id", "process_definition_digest", "source_cursor",
       "repository_binding_digest", "payload",
     ]) {
       assert.notEqual(args[field], undefined, `apply_action missing ${field}`);
     }
     assert.equal(args.host, "deepseek");
     assert.equal(args.process_id, "standard-development");
-    assert.equal(args.process_version, 1);
     assert.match(args.request_id, /\S/u);
     assert.match(args.action_id, /\S/u);
     assert.match(args.process_definition_digest, /^[0-9a-f]{64}$/u);
@@ -941,10 +937,7 @@ async function readServerInfoFromSessions(summaries) {
   assert.deepEqual(info.tools, rawTools);
   assert.deepEqual(info.method_profiles, ["plain", "spec-kit", "openspec"]);
   return {
-    schema_version: info.schema_version,
-    core_limits_version: info.core_limits_version,
     process_id: info.supported_processes[0].process_id,
-    process_version: info.supported_processes[0].process_version,
     process_definition_digest: info.supported_processes[0].definition_digest,
     qualified_tools: [...exactDevFlowNames()],
   };

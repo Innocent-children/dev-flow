@@ -2,7 +2,7 @@ package domain
 
 import "time"
 
-// Task is the frozen Contract 0.1 test-only snapshot used by rejection fixtures.
+// Task is the frozen frozen linear contract test-only snapshot used by rejection fixtures.
 // point for aggregate-wide invariants.
 type Task struct {
 	TaskID        ID                `json:"task_id"`

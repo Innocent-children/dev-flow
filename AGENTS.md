@@ -47,7 +47,7 @@ exact confirmation; it does not use a release Feature.
 Only the Go Core owns:
 
 - task and repository-claim identity;
-- process definition and version;
+- process definition and content digest;
 - current node and resume node;
 - node purpose, obligations, allowed effects, and required evidence;
 - legal outgoing transitions and transition guards;
@@ -60,7 +60,7 @@ They must not persist a second process cursor, add a transition, skip a node, in
 reinterpret a Core result.
 
 The target product direction is the development-process state graph defined by the active replacement
-feature. Feature 008 intentionally carries no Core Contract 0.1 task runtime, migration, v1 codec, or
+feature. Feature 008 intentionally carries no released linear Core contract task runtime, migration, v1 codec, or
 legacy process. Until the replacement completes, do not add new old-model phases, result values, or
 hidden fast paths.
 
@@ -119,7 +119,7 @@ Do not modify generated skills under `.agents/skills/`.
 
 When a feature changes process behavior, its artifacts must define all of the following before code:
 
-- affected process definition and version;
+- affected process definition and content digest;
 - affected nodes;
 - complete outgoing transitions for every affected node;
 - transition IDs, destinations, guards, and required reasons;
@@ -145,7 +145,7 @@ documentation to recognize it later.
 - Keep Core and host responsibilities separate.
 - Do not change public contracts from a host-only branch.
 - When a shared contract is insufficient, amend the shared feature first.
-- Do not add `legacy-linear`, snapshot-v1 decoding, dual task projections, or Schema 1 migration for Feature 008.
+- Do not add `legacy-linear`, legacy snapshot decoding, dual task projections, or pre-graph data migration for Feature 008.
 - Reject pre-graph databases with zero writes and require explicit user-controlled archive/rename/delete or a fresh data directory; never delete automatically.
 - No release operation belongs in an ordinary product feature.
 
@@ -173,8 +173,9 @@ The agent must not modify versions, commit a release bump, or publish until the 
   proven.
 - If the user explicitly requests `quick` for an ineligible diff, stop and report the exact blocking
   paths; never silently downgrade verification.
-- Both modes first align all current version authorities, create and push one version commit on clean
-  `main`, and only then create Tag/npm/GitHub effects.
+- Both modes first align the selected product authority and required mirror, create and push one
+  version commit on clean `main`, and only then create Tag/npm/GitHub effects. A Codex release changes
+  only the Codex package and plugin mirror and records the bundled Core version separately.
 - `quick` runs bounded targeted checks and a final registry-package smoke tied to the previous normal
   release. `normal` runs the approved full validation and complete registry-package graph Journey.
 - Recovery always reuses the same mode, version, output directory, source identity, Tag, npm bytes,

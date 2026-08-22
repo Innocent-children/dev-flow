@@ -2,9 +2,6 @@ package domain
 
 import "time"
 
-// CoreLimitsVersion identifies the fixed limits contract implemented by this package.
-const CoreLimitsVersion = "0.2"
-
 const (
 	MaxRepositoryPathBytes            = 4_096
 	MaxGoalBytes                      = 8_192

@@ -25,9 +25,18 @@ func Open(ctx context.Context, path string) (*SQLite, error) {
 	if err != nil {
 		return nil, ErrInvalidArgument
 	}
-	if info, err := os.Stat(absolute); err == nil && info.Size() > 0 {
-		if err := preflightExisting(ctx, absolute); err != nil {
-			return nil, err
+	if info, err := os.Stat(absolute); err == nil {
+		if !info.Mode().IsRegular() {
+			return nil, ErrStorageUnavailable
+		}
+		if info.Size() > 0 {
+			if err := preflightExisting(ctx, absolute); err != nil {
+				return nil, err
+			}
+		} else if found, err := hasSQLiteSidecar(absolute); err != nil {
+			return nil, ErrStorageUnavailable
+		} else if found {
+			return nil, ErrSchemaUnsupported
 		}
 	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, ErrStorageUnavailable
@@ -42,7 +51,7 @@ func Open(ctx context.Context, path string) (*SQLite, error) {
 		db.Close()
 		return nil, ErrStorageUnavailable
 	}
-	if err := bootstrapSchema2(ctx, db, time.Now()); err != nil {
+	if err := bootstrapCurrentSchema(ctx, db); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -64,6 +73,22 @@ func dataSource(path string, readOnly bool) string {
 	u.RawQuery = q.Encode()
 	return u.String()
 }
+
+func hasSQLiteSidecar(path string) (bool, error) {
+	for _, suffix := range []string{"-journal", "-shm", "-wal"} {
+		info, err := os.Lstat(path + suffix)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return false, err
+		}
+		if !info.Mode().IsRegular() || info.Size() > 0 {
+			return true, nil
+		}
+	}
+	return false, nil
+}
 func preflightExisting(ctx context.Context, path string) error {
 	db, err := sql.Open("sqlite", dataSource(path, true))
 	if err != nil {
@@ -74,13 +99,13 @@ func preflightExisting(ctx context.Context, path string) error {
 	if err := db.PingContext(ctx); err != nil {
 		return ErrSchemaUnsupported
 	}
-	if err := verifySchema2(ctx, db); err != nil {
+	if err := verifyCurrentSchema(ctx, db); err != nil {
 		return err
 	}
 	return preflightRows(ctx, db)
 }
 func preflightRows(ctx context.Context, db *sql.DB) error {
-	rows, err := db.QueryContext(ctx, `SELECT task_id,origin_host,process_id,process_version,process_definition_digest,snapshot_version,current_node,revision,repository_identity,snapshot,created_at,updated_at FROM tasks`)
+	rows, err := db.QueryContext(ctx, `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,repository_identity,snapshot,created_at,updated_at FROM tasks`)
 	if err != nil {
 		return ErrSchemaUnsupported
 	}
@@ -89,17 +114,13 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 	tasks := map[string]preflightTask{}
 	for rows.Next() {
 		var taskID, originHost, processID, digest, node, repositoryIdentity, createdAt, updatedAt string
-		var version, snapshotVersion int
 		var revision int64
 		var snapshot []byte
-		if err := rows.Scan(&taskID, &originHost, &processID, &version, &digest, &snapshotVersion, &node, &revision, &repositoryIdentity, &snapshot, &createdAt, &updatedAt); err != nil {
+		if err := rows.Scan(&taskID, &originHost, &processID, &digest, &node, &revision, &repositoryIdentity, &snapshot, &createdAt, &updatedAt); err != nil {
 			return ErrStorageUnavailable
 		}
-		if processID != string(standard.ID) || version != int(standard.Version) || digest != string(standard.DefinitionDigest) {
+		if processID != string(standard.ID) || digest != string(standard.DefinitionDigest) {
 			return ErrProcessUnsupported
-		}
-		if snapshotVersion != SnapshotVersion {
-			return ErrSchemaUnsupported
 		}
 		task, err := decodeTask(snapshot)
 		if err != nil {
@@ -166,20 +187,19 @@ func (s *SQLite) Close() error {
 	return nil
 }
 func (s *SQLite) LoadTask(ctx context.Context, id domain.ID) (domain.ProcessTask, error) {
-	return s.load(ctx, `SELECT task_id,origin_host,process_id,process_version,process_definition_digest,snapshot_version,current_node,revision,repository_identity,snapshot,created_at,updated_at FROM tasks WHERE task_id=?`, string(id))
+	return s.load(ctx, `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,repository_identity,snapshot,created_at,updated_at FROM tasks WHERE task_id=?`, string(id))
 }
 func (s *SQLite) LoadActiveTask(ctx context.Context, identity domain.Digest) (domain.ProcessTask, error) {
-	return s.load(ctx, `SELECT t.task_id,t.origin_host,t.process_id,t.process_version,t.process_definition_digest,t.snapshot_version,t.current_node,t.revision,t.repository_identity,t.snapshot,t.created_at,t.updated_at FROM repository_claims c JOIN tasks t ON t.task_id=c.task_id WHERE c.repository_identity=?`, string(identity))
+	return s.load(ctx, `SELECT t.task_id,t.origin_host,t.process_id,t.process_definition_digest,t.current_node,t.revision,t.repository_identity,t.snapshot,t.created_at,t.updated_at FROM repository_claims c JOIN tasks t ON t.task_id=c.task_id WHERE c.repository_identity=?`, string(identity))
 }
 func (s *SQLite) load(ctx context.Context, query, arg string) (domain.ProcessTask, error) {
 	if s == nil || s.db == nil {
 		return domain.ProcessTask{}, ErrStorageUnavailable
 	}
 	var taskID, host, processID, digest, node, identity, created, updated string
-	var version, snapshotVersion int
 	var revision int64
 	var snapshot []byte
-	err := s.db.QueryRowContext(ctx, query, arg).Scan(&taskID, &host, &processID, &version, &digest, &snapshotVersion, &node, &revision, &identity, &snapshot, &created, &updated)
+	err := s.db.QueryRowContext(ctx, query, arg).Scan(&taskID, &host, &processID, &digest, &node, &revision, &identity, &snapshot, &created, &updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return domain.ProcessTask{}, ErrTaskNotFound
 	}
@@ -190,7 +210,7 @@ func (s *SQLite) load(ctx context.Context, query, arg string) (domain.ProcessTas
 	if err != nil {
 		return domain.ProcessTask{}, err
 	}
-	if taskID != string(task.TaskID) || host != string(task.OriginHost) || processID != string(task.Process.ID) || version != int(task.Process.Version) || digest != string(task.Process.DefinitionDigest) || snapshotVersion != 2 || node != string(task.CurrentNode) || revision != int64(task.Revision) || identity != string(task.Repository.RepositoryIdentity) || created != formatTime(task.CreatedAt) || updated != formatTime(task.UpdatedAt) {
+	if taskID != string(task.TaskID) || host != string(task.OriginHost) || processID != string(task.Process.ID) || digest != string(task.Process.DefinitionDigest) || node != string(task.CurrentNode) || revision != int64(task.Revision) || identity != string(task.Repository.RepositoryIdentity) || created != formatTime(task.CreatedAt) || updated != formatTime(task.UpdatedAt) {
 		return domain.ProcessTask{}, ErrStorageUnavailable
 	}
 	return task, nil
@@ -209,9 +229,9 @@ func (s *SQLite) CommitTask(ctx context.Context, m TaskMutation) error {
 	}
 	defer tx.Rollback()
 	if m.ExpectedRevision == 0 {
-		_, err = tx.ExecContext(ctx, `INSERT INTO tasks(task_id,origin_host,process_id,process_version,process_definition_digest,snapshot_version,current_node,revision,repository_identity,snapshot,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, m.Task.TaskID, m.Task.OriginHost, m.Task.Process.ID, m.Task.Process.Version, m.Task.Process.DefinitionDigest, 2, m.Task.CurrentNode, m.Task.Revision, m.Task.Repository.RepositoryIdentity, snapshot, formatTime(m.Task.CreatedAt), formatTime(m.Task.UpdatedAt))
+		_, err = tx.ExecContext(ctx, `INSERT INTO tasks(task_id,origin_host,process_id,process_definition_digest,current_node,revision,repository_identity,snapshot,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)`, m.Task.TaskID, m.Task.OriginHost, m.Task.Process.ID, m.Task.Process.DefinitionDigest, m.Task.CurrentNode, m.Task.Revision, m.Task.Repository.RepositoryIdentity, snapshot, formatTime(m.Task.CreatedAt), formatTime(m.Task.UpdatedAt))
 	} else {
-		result, e := tx.ExecContext(ctx, `UPDATE tasks SET current_node=?,revision=?,snapshot=?,updated_at=? WHERE task_id=? AND revision=? AND process_id=? AND process_version=? AND process_definition_digest=? AND snapshot_version=2`, m.Task.CurrentNode, m.Task.Revision, snapshot, formatTime(m.Task.UpdatedAt), m.Task.TaskID, m.ExpectedRevision, m.Task.Process.ID, m.Task.Process.Version, m.Task.Process.DefinitionDigest)
+		result, e := tx.ExecContext(ctx, `UPDATE tasks SET current_node=?,revision=?,snapshot=?,updated_at=? WHERE task_id=? AND revision=? AND process_id=? AND process_definition_digest=?`, m.Task.CurrentNode, m.Task.Revision, snapshot, formatTime(m.Task.UpdatedAt), m.Task.TaskID, m.ExpectedRevision, m.Task.Process.ID, m.Task.Process.DefinitionDigest)
 		err = e
 		if err == nil {
 			n, _ := result.RowsAffected()

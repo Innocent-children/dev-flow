@@ -32,7 +32,7 @@ import {
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = dirname(dirname(packageRoot));
-const currentVersion = (await readFile(join(repositoryRoot, "VERSION"), "utf8")).trim();
+const currentVersion = (await readFile(join(repositoryRoot, "CORE_VERSION"), "utf8")).trim();
 
 test("resolves package root and runtime after the package is moved outside the checkout", async (t) => {
   const detachedRoot = await makeDirectory(t, "detached package with spaces-工具");
@@ -55,9 +55,7 @@ test("resolves package root and runtime after the package is moved outside the c
     runtimeKey: "darwin-arm64",
     runtimePath: join(detachedRoot, "runtime", "darwin-arm64", "dev-flow"),
   });
-  const preflight = await detachedRuntime.preflightPackagedCore(selection, {
-    expectedVersion: currentVersion,
-  });
+  const preflight = await detachedRuntime.preflightPackagedCore(selection);
   assert.equal(preflight.version, currentVersion);
 });
 
@@ -94,20 +92,20 @@ test("preflight rejects a missing, symlinked, non-regular, or non-executable run
   });
 
   await assert.rejects(
-    preflightPackagedCore(selection, { expectedVersion: currentVersion }),
+    preflightPackagedCore(selection),
     /packaged Core must be a regular executable file/,
   );
 
   await mkdir(runtimePath);
   await assert.rejects(
-    preflightPackagedCore(selection, { expectedVersion: currentVersion }),
+    preflightPackagedCore(selection),
     /packaged Core must be a regular executable file/,
   );
   await import("node:fs/promises").then(({ rm }) => rm(runtimePath, { recursive: true }));
 
   await writeFile(runtimePath, "not executable\n", { mode: 0o600 });
   await assert.rejects(
-    preflightPackagedCore(selection, { expectedVersion: currentVersion }),
+    preflightPackagedCore(selection),
     /packaged Core must have executable mode/,
   );
   await chmod(runtimePath, 0o755);
@@ -117,20 +115,17 @@ test("preflight rejects a missing, symlinked, non-regular, or non-executable run
   await rename(runtimePath, linkTarget);
   await symlink(linkTarget, runtimePath);
   await assert.rejects(
-    preflightPackagedCore(selection, { expectedVersion: currentVersion }),
+    preflightPackagedCore(selection),
     /packaged Core must be a regular executable file/,
   );
 
   await import("node:fs/promises").then(({ rm }) => rm(runtimePath));
   await writeRuntimeOutput(runtimePath, "dev-flow 9.9.9");
-  await assert.rejects(
-    preflightPackagedCore(selection, { expectedVersion: currentVersion }),
-    /packaged Core version 9\.9\.9 does not match expected/,
-  );
+  assert.equal((await preflightPackagedCore(selection)).version, "9.9.9");
 
   await writeRuntimeOutput(runtimePath, "not-a-dev-flow-version");
   await assert.rejects(
-    preflightPackagedCore(selection, { expectedVersion: currentVersion }),
+    preflightPackagedCore(selection),
     /packaged Core returned an invalid version line/,
   );
 });

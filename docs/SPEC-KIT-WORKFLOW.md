@@ -236,7 +236,8 @@ Consequences
 - 关闭未知字段；
 - 定义错误和零写入行为；
 - 给出合法与非法示例；
-- 标明版本和数据处置路线。
+- 仅在涉及产品发布身份时标明 Core/Codex/DeepSeek 产品版本，并标明数据处置路线；不得为
+  内部协议、Schema、Snapshot、Process 或记录格式增加版本号。
 
 不得让 README、Skill Prompt 或测试 fixture 成为唯一合同。
 
@@ -289,7 +290,7 @@ Checklist 检查“规格是否可实施和可验证”，不检查代码是否�
 
 任何改变开发过程的 Feature，在 `spec.md` 和 `contracts/` 中必须完整定义：
 
-1. Process ID、Version 和 definition digest 规则；
+1. Process ID 和 definition digest 规则；
 2. 受影响 Node ID；
 3. 每个节点的 purpose；
 4. entry assumptions；
@@ -491,8 +492,8 @@ Version Release：
 - 不创建新的 Feature 或 Release PR 规格包；
 - 发布已完成并合并的 Product Feature/corrective work；
 - 发布前 Agent 必须检查当前 Tag 后的 diff，建议 `quick` 或 `normal`，并等待用户明确选择；
-- 两种模式都先对齐 VERSION/package/runtime/current fixtures，提交并推送版本 commit，再执行
-  任何 Tag/npm/GitHub mutation；
+- 两种模式都只对齐待发布产品的版本权威和必要镜像，提交并推送版本 commit，再执行任何
+  Tag/npm/GitHub mutation；Codex 发布不得修改 Core 或 DeepSeek 版本；
 - `quick` 只允许无产品/runtime 合同变化的 diff，并运行定向检查与 registry-package smoke；
 - `normal` 用于所有产品表面变化，并运行完整 repository validation 与 registry graph Journey；
 - quick 不合格时必须报告阻塞路径并停止，不能静默降低验证强度；
@@ -518,11 +519,11 @@ Version Release：
 specs/008-refactor-to-development-process-graph/
 ```
 
-它用开发过程状态图替换现有 Core Contract 0.1 线性阶段模型，并明确不兼容任何历史任务数据。Feature 008 完成前：
+它用开发过程状态图替换现有 released linear Core contract 线性阶段模型，并明确不兼容任何历史任务数据。Feature 008 完成前：
 
 - 不向旧阶段表添加新阶段；
-- 不实现 `legacy-linear@1`、Schema 1 任务迁移、snapshot-v1 codec、双 Task projection 或旧任务续跑；
-- Schema 1/pre-graph 数据只允许零写入拒绝；Core 与包生命周期不得自动删除，用户显式选择新目录或自行归档/改名/删除；
+- 不实现 `legacy-linear@1`、pre-graph data 任务迁移、legacy snapshot codec、双 Task projection 或旧任务续跑；
+- pre-graph data/pre-graph 数据只允许零写入拒绝；Core 与包生命周期不得自动删除，用户显式选择新目录或自行归档/改名/删除；
 - 不在 Host Skill 中建立第二套状态；
 - 不启动 DeepSeek 产品实施；
 - 不把实现工作和下一次公开发布混合；

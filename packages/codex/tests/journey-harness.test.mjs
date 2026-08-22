@@ -50,7 +50,7 @@ import * as smokeRuntime from "../../../scripts/write-codex-journey-evidence.mjs
 
 const execFile = promisify(execFileCallback);
 const repositoryRoot = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
-const currentVersion = (await readFile(join(repositoryRoot, "VERSION"), "utf8")).trim();
+const currentVersion = (await readFile(join(repositoryRoot, "CORE_VERSION"), "utf8")).trim();
 const runner = join(repositoryRoot, "scripts", "run-codex-real-journey.sh");
 const writer = join(repositoryRoot, "scripts", "write-codex-journey-evidence.mjs");
 const validator = join(repositoryRoot, "scripts", "validate-codex-journey-evidence.mjs");
@@ -228,10 +228,8 @@ function fixtureAttempt3NativeFlowEvidence() {
     ordinary_zero_calls: true,
     distinct_real_codex_threads: 4,
     handshake_passed: true,
-    schema_version: 2,
-    core_limits_version: "0.2",
-    process_identity: "standard-development@1",
-    definition_digest: "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1",
+    process_identity: "standard-development",
+    definition_digest: "c3500d879c1652cb4f3944317c41c1fd2536bfb262b2fa82cd44a2d7e49c0b57",
     method_profiles: ["plain", "spec-kit", "openspec"],
     tool_order: [
       "dev_flow_server_info", "dev_flow_open_task", "dev_flow_get_task",
@@ -329,7 +327,7 @@ function fixtureExactArtifactLifecycleEvidence() {
 
 function coreSuccessEvent(tool, suffix, result) {
   const requestID = `request-${suffix}`;
-  const envelope = { schema_version: 1, ok: true, request_id: requestID, tool, result };
+  const envelope = { ok: true, request_id: requestID, tool, result };
   return {
     type: "item.completed",
     item: {
@@ -351,7 +349,6 @@ function coreSuccessEvent(tool, suffix, result) {
 function rejectedOpenTaskEvent(suffix) {
   const requestID = `request-${suffix}`;
   const envelope = {
-    schema_version: 1,
     ok: false,
     request_id: requestID,
     tool: "dev_flow_open_task",
@@ -394,7 +391,7 @@ function graphSuccessCall(tool, suffix, result) {
     arguments: { request_id: requestID },
     status: "completed",
     classification: "success",
-    core_result: { schema_version: 2, ok: true, request_id: requestID, tool, result },
+    core_result: { ok: true, request_id: requestID, tool, result },
     host_error: null,
     error: null,
     recovery: null,
@@ -439,48 +436,21 @@ test("thin native fixture tool emits the checked-in Codex 0.147 bytes without pr
   assert.match(source, /DEV_FLOW_CODEX_FIXTURE/u);
 });
 
-test("fixture smoke classifies the three host terminal shapes", async () => {
-  for (const [name, filename, shape] of fixtures) {
-    const { stdout, stderr } = await execFile(runner, ["--fixture", name], {
-      cwd: repositoryRoot,
-      encoding: "utf8",
-    });
-    assert.equal(stderr, "");
-    assert.deepEqual(JSON.parse(stdout), {
-      mode: "fixture",
-      host: "codex-0.147",
-      fixture: filename,
-      thread_started: true,
-      dev_flow_call_count: 1,
-      tool: name === "success" ? "dev_flow_server_info" : "dev_flow_apply_action",
-      terminal_shape: shape,
-      status: "pass",
-    });
+test("frozen numbered fixtures are rejected by the current-only parser", async () => {
+  for (const [name] of fixtures.slice(0, 2)) {
+    await assert.rejects(execFile(runner, ["--fixture", name], { cwd: repositoryRoot, encoding: "utf8" }), /unexpected field schema_version/u);
   }
 });
 
-test("development fixture smoke is repeatable and creates no persistent attempt or evidence state", async () => {
+test("frozen fixture rejection creates no persistent attempt or evidence state", async () => {
   const isolatedCwd = await mkdtemp(join(tmpdir(), "dev-flow-codex-repeatable-smoke-"));
   const before = await readdir(isolatedCwd);
-  const first = await execFile(runner, ["--fixture", "success"], {
-    cwd: isolatedCwd,
-    encoding: "utf8",
-  });
-  const second = await execFile(runner, ["--fixture", "success"], {
-    cwd: isolatedCwd,
-    encoding: "utf8",
-  });
-
-  assert.equal(first.stderr, "");
-  assert.equal(second.stderr, "");
-  assert.equal(first.stdout, second.stdout);
+  await assert.rejects(execFile(runner, ["--fixture", "success"], { cwd: isolatedCwd, encoding: "utf8" }), /unexpected field schema_version/u);
   assert.deepEqual(await readdir(isolatedCwd), before);
-  assert.equal("attempt" in JSON.parse(first.stdout), false);
-  assert.equal("evidence" in JSON.parse(first.stdout), false);
 });
 
 test("real smoke wiring uses exact selector and ephemeral in-memory sessions", async () => {
-  const successJSONL = await readFile(join(fixtureRoot, "success.jsonl"), "utf8");
+  const successJSONL = currentSuccessJSONL();
   const invocations = [];
   const runProcess = async (executable, args, options) => {
     invocations.push({ executable, args, options });
@@ -531,6 +501,35 @@ test("real smoke wiring uses exact selector and ephemeral in-memory sessions", a
     status: "pass",
   });
 });
+
+function currentSuccessJSONL() {
+  const envelope = {
+    ok: true,
+    request_id: "request-redacted-success",
+    tool: "dev_flow_server_info",
+    result: {
+      product: "dev-flow",
+      version: "0.1.0",
+      transport: "stdio",
+      health: "ready",
+      supported_hosts: ["codex", "deepseek"],
+      supported_processes: [{ process_id: "standard-development", definition_digest: "c3500d879c1652cb4f3944317c41c1fd2536bfb262b2fa82cd44a2d7e49c0b57", new_task_supported: true }],
+      method_profiles: ["plain", "spec-kit", "openspec"],
+      tools: DEV_FLOW_TOOLS,
+    },
+  };
+  const item = {
+    id: "item-redacted-success",
+    type: "mcp_tool_call",
+    server: "dev-flow",
+    tool: "dev_flow_server_info",
+    arguments: { request_id: envelope.request_id },
+    result: { content: [{ type: "text", text: JSON.stringify(envelope) }], structured_content: envelope },
+    error: null,
+    status: "completed",
+  };
+  return `${JSON.stringify({ type: "thread.started", thread_id: "thread-redacted-success" })}\n${JSON.stringify({ type: "item.completed", item })}\n`;
+}
 
 test("acceptance sessions request workspace-write without disabling repository rules", async () => {
   const invocations = [];
@@ -776,18 +775,15 @@ test("final registry task-bearing prompts require request binding and resume rea
   );
 });
 
-test("final registry session validation accepts Contract 0.2 graph cursors and handshake", () => {
+test("final registry session validation accepts current Core contract graph cursors and handshake", () => {
   const process = {
     process_id: "standard-development",
-    process_version: 1,
-    definition_digest: "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1",
+    definition_digest: "c3500d879c1652cb4f3944317c41c1fd2536bfb262b2fa82cd44a2d7e49c0b57",
     new_task_supported: true,
   };
   const serverInfo = {
     product: "dev-flow",
     version: currentVersion,
-    schema_version: 2,
-    core_limits_version: "0.2",
     transport: "stdio",
     health: "ready",
     supported_hosts: ["codex", "deepseek"],
@@ -934,7 +930,7 @@ test("development smoke closes stdin before waiting for Codex JSONL", async () =
   assert.deepEqual({ exitCode: result.exitCode, stdout: result.stdout }, { exitCode: 0, stdout: "closed" });
 });
 
-test("simulated Contract 0.2 journey starts with handshake and presents the complete multi-edge node contract", async () => {
+test("simulated current Core contract journey starts with handshake and presents the complete multi-edge node contract", async () => {
   const fixture = await readMethodProfileFixture();
   const scenario = fixture.scenarios.find(({ id }) => id === "comprehension-awaiting-user-verdict");
   const journey = simulateMethodAdapterJourney(fixture, scenario);
@@ -946,10 +942,8 @@ test("simulated Contract 0.2 journey starts with handshake and presents the comp
     "dev_flow_get_next_action",
   ]);
   assert.deepEqual(journey.handshake, {
-    schema_version: 2,
-    core_limits_version: "0.2",
-    process: "standard-development@1",
-    definition_digest: "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1",
+    process: "standard-development",
+    definition_digest: "c3500d879c1652cb4f3944317c41c1fd2536bfb262b2fa82cd44a2d7e49c0b57",
     new_task_supported: true,
     method_profiles: ["plain", "spec-kit", "openspec"],
     tools: [
@@ -1663,7 +1657,7 @@ test("simplified acceptance rejects incomplete or internally inconsistent FR-028
     ["invalid source identity", { source_commit: "not-a-commit" }, /source_commit/u],
     ["invalid artifact identity", { artifact_sha256: "not-a-digest" }, /artifact_sha256/u],
     ["missing host version", { codex_version: "" }, /codex_version/u],
-    ["package/Core mismatch", { core_version: "0.2.0" }, /package_version.*core_version/u],
+    ["invalid Core version", { core_version: "invalid" }, /release version/u],
     ["setup readback failed", { setup_readback_passed: false }, /setup_readback_passed/u],
     ["ordinary prompt called Core", { ordinary_prompt_core_call_count: 1 }, /ordinary_prompt_core_call_count/u],
     ["wrong selector", { explicit_selector: "$dev-flow" }, /explicit_selector/u],
@@ -1722,12 +1716,9 @@ async function readMethodProfileFixture() {
 function simulateMethodAdapterJourney(fixture, scenario) {
   const calls = [{ tool: "dev_flow_server_info", arguments: {} }];
   const info = fixture.server_info;
-  assert.equal(info.schema_version, 2);
-  assert.equal(info.core_limits_version, "0.2");
   assert.deepEqual(info.method_profiles, ["plain", "spec-kit", "openspec"]);
   assert.equal(info.supported_processes.length, 1);
   assert.equal(info.supported_processes[0].process_id, "standard-development");
-  assert.equal(info.supported_processes[0].process_version, 1);
   assert.equal(info.supported_processes[0].new_task_supported, true);
   assert.equal(info.tools.length, 6);
 
@@ -1754,9 +1745,7 @@ function simulateMethodAdapterJourney(fixture, scenario) {
   return {
     calls,
     handshake: {
-      schema_version: info.schema_version,
-      core_limits_version: info.core_limits_version,
-      process: `${info.supported_processes[0].process_id}@${info.supported_processes[0].process_version}`,
+      process: info.supported_processes[0].process_id,
       definition_digest: info.supported_processes[0].definition_digest,
       new_task_supported: info.supported_processes[0].new_task_supported,
       method_profiles: info.method_profiles,
@@ -1847,7 +1836,6 @@ function buildFixtureApplyRequest(fixture, action, scenario) {
     action_id: action.action_id,
     action_kind: action.action_kind,
     process_id: action.process_id,
-    process_version: action.process_version,
     process_definition_digest: action.process_definition_digest,
     source_cursor: action.current_node,
     repository_binding_digest: action.repository_binding_digest,
@@ -1866,7 +1854,6 @@ function handleUncertainFixtureResult(fixture, applyRequest) {
   const operationProbe = {
     operation_id: applyRequest.request_id,
     process_id: applyRequest.process_id,
-    process_version: applyRequest.process_version,
     process_definition_digest: applyRequest.process_definition_digest,
     source_cursor: applyRequest.source_cursor,
     expected_revision: applyRequest.revision,

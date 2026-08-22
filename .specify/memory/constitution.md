@@ -1,37 +1,35 @@
 <!--
 Sync Impact Report
-- Constitution version: 2.0.0 → 3.0.0
-- Amendment date: 2026-08-20
+- Constitution version: 4.0.0 → 4.1.0
+- Amendment date: 2026-08-22
 - Reason for MAJOR:
-  - 公开发布不再创建独立 Release Feature 或执行完整 Spec Kit Feature 生命周期；
-  - 发布改由轻量、可恢复的一键命令治理，并显式区分 `quick` 与 `normal`；
-  - 每次发布前，Host 必须建议模式并询问维护者选择，随后先提交版本对齐再发布。
+  - Core、Codex、DeepSeek 改为三个独立产品版本，发布一个产品只改变该产品版本；
+  - 删除内部协议、存储、快照、流程定义和发布记录的人工版本号治理；
+  - Codex 发布改用产品前缀 Tag，并分别冻结 Codex 与 bundled Core 身份。
 - Preserved invariants:
   - Go Core 仍是唯一任务与流转权威；
   - Git 仍只读；
   - mutation 仍使用 revision、action identity 与 read-before-retry；
-  - SQLite 当前代任务、repository claim、证据预算和稳定错误仍保持严格；
-  - `1.0.0` 前历史任务兼容改为显式 opt-in，Feature 008 明确不兼容任何 Core Contract 0.1 历史任务数据；
+  - SQLite 当前数据、repository claim、证据预算和稳定错误仍保持严格；
+  - `1.0.0` 前历史任务兼容仍为显式 opt-in，Feature 008 仍不兼容线性 Core 历史任务数据；
   - MCP 工具数量仍限制为六个；
   - Codex/DeepSeek 适配器仍不得复制 Core 语义。
 - Modified principles:
-  - X. Vertical-Slice Specifications and Release Separation → X. Vertical-Slice Specifications and Lightweight Release Execution
-- Breaking transition authority:
-  - `specs/008-refactor-to-development-process-graph/` 是用开发过程状态图替换 Core Contract 0.1
-    线性运行时的唯一批准规格。
-  - 已发布 `0.3.0`、Tag、npm 包、GitHub Release、制品摘要和历史 Feature 证据保持冻结。
-  - Feature 008 不提供历史任务迁移、读取、继续或转换；旧数据目录只允许安全拒绝并由用户显式
-    归档、改名或删除后重新开始。
-  - Feature 008 完成前，现有 Core Contract 0.1 可继续运行；不得再向旧线性阶段模型增加新能力。
+  - I. Developer-Visible Process Navigation（流程定义改用内容身份）
+  - II. Single Process Authority（移除人工 process version 所有权）
+  - X. Vertical-Slice Specifications and Lightweight Release Execution（独立产品发布身份）
+  - Product and Technology Constraints（三个产品版本权威）
+  - Development Workflow and Quality Gates（按产品对齐发布版本）
 - Required follow-up:
+  - `specs/011-simplify-product-version-governance/`
   - `AGENTS.md`
-  - `docs/SPEC-KIT-WORKFLOW.md` and Spec Kit templates/checklists
-  - `scripts/release-codex.mjs` and release contracts/tests
-  - `release/README.md` and current product/release documentation
-  - `.specify/templates/*.md`
-  - `MANIFEST.md`
+  - `docs/VERSIONING.md` and current product/release documentation
+  - Core/Codex/DeepSeek version, build, fixture, and release contracts/tests
+- 4.1.0 amendment:
+  - retain one Core-owned SQLite database Schema version, initially `0.1.0`;
+  - no other removed internal version is restored.
 - Affected active features:
-  - None; completed Feature 009 remains frozen historical evidence.
+  - Feature 011 governs implementation; Features 001–010 remain frozen historical evidence.
 -->
 # Dev Flow Constitution
 
@@ -42,7 +40,7 @@ Sync Impact Report
 Dev Flow MUST make the governed development process visible to the developer. Every active task MUST
 expose, through one authoritative Core read:
 
-- the current process definition and version;
+- the current process definition and content digest;
 - the current node;
 - the node's purpose, entry assumptions, completion conditions, allowed effects, and required evidence;
 - the closed set of legal outgoing transitions;
@@ -61,8 +59,8 @@ what must be completed, and where may I go next?”
 The Go Core MUST be the sole authority for:
 
 - task identity, immutable original intent, verification authority, and selected method profile;
-- versioned requirements, design, task-plan, verification, and comprehension baselines;
-- process definition identity and version;
+- immutable requirements, design, task-plan, verification, and comprehension baselines;
+- process definition identity and content digest;
 - current node and resume node;
 - node contract;
 - allowed transitions and transition guards;
@@ -104,7 +102,7 @@ failure, refactoring, regression testing, and delivery rejection. It MUST NOT co
 adapter-only fast path or permit arbitrary node skipping.
 
 Feature 008 intentionally removes the released linear runtime from the new Core contract. The
-implementation MUST NOT retain a compatibility process, v1 snapshot codec, dual task projection, or
+implementation MUST NOT retain a compatibility process, legacy snapshot codec, dual task projection, or
 historical-task continuation path. A pre-graph database is rejected with zero writes until the user
 explicitly selects a fresh data directory or archives/renames/deletes the old data outside Core.
 Core and package lifecycle commands MUST NOT erase it automatically.
@@ -249,7 +247,7 @@ maintainer explicitly invokes the release command with a target version, release
 confirmation.
 
 A version publication MUST NOT create a new Feature. Release intent is carried by the completed
-product work, the version-alignment commit, the selected `quick` or `normal` mode, the reviewed
+product work, the product-version commit, the selected `quick` or `normal` mode, the reviewed
 release contracts, the retained external publication record, and the public Tag/npm/GitHub Release.
 If a release requires new product behavior, that behavior MUST be specified and completed in a
 Product Feature before the release command runs.
@@ -261,8 +259,10 @@ distributed product/runtime contract or is limited to approved version metadata;
 MCP, Schema, process, persistence, Host Adapter, packaged Skill/library, package-layout, platform, or
 support changes.
 
-Both modes MUST first align all current version authorities, create and push one version commit on a
-clean `main`, and only then prepare or resume publication. Both modes retain exact confirmation,
+Both modes MUST first align the selected product's version authority and required mirrors, create and
+push one version commit on a clean `main`, and only then prepare or resume publication. Releasing
+Codex MUST change only the Codex package version and its plugin mirror; it MUST record the bundled
+Core version separately without changing Core or DeepSeek. Both modes retain exact confirmation,
 deterministic artifacts, registry and asset read-back, immutable Tag/npm rules, atomic publication
 state, and read-before-retry. `quick` may use a bounded final-artifact smoke only when its admission
 proof shows no product-contract change; `normal` requires the complete final registry-package
@@ -310,10 +310,22 @@ unavailable external host.
 - Before the first stable release, the project MUST NOT implement arbitrary process graphs,
   data import/export, multi-repository tasks, cross-host automatic takeover, Web UI, remote MCP,
   authentication, telemetry, agent orchestration, Git mutation, or a plugin framework.
-- Current product/package versions remain unchanged during ordinary feature implementation.
-  Version, package, embedded Core, Tag, and Release identity are aligned by the explicitly selected
-  release mode after product work is complete. The version-alignment commit precedes all remote
-  publication effects.
+- Dev Flow maintains exactly three independently evolving product versions: Core from
+  `CORE_VERSION`, Codex from `packages/codex/package.json`, and DeepSeek from
+  `packages/deepseek/package.json`. The Codex plugin manifest mirrors the Codex package version and
+  is not a fourth authority. The repository root package is private tooling and has no product
+  version.
+- SQLite MUST maintain one Core-owned database Schema version and reject missing or different
+  versions before writable open. Internal contracts, limits, snapshots, process definitions, build profiles,
+  release manifests, and publication records MUST NOT maintain independent artificial version
+  numbers. Compatibility is established from identity, content digests, schemas, catalogs,
+  capabilities, and runtime behavior.
+- Product versions remain unchanged during ordinary feature implementation. A later release changes
+  only the selected product's authority and required mirror. Codex and DeepSeek MAY bundle a
+  different Core version, which MUST be read from the actual Core executable and recorded as a
+  separate product identity. The product-version commit precedes all remote publication effects.
+- New public Tags use `core-vX.Y.Z`, `codex-vX.Y.Z`, or `deepseek-vX.Y.Z`. Historical unprefixed
+  Tags and release evidence remain frozen and MUST NOT be recreated under new names.
 - Every release starts from one user-owned mode decision: `quick` or `normal`. The Host MUST suggest
   and ask; it MUST NOT choose or publish before the maintainer answers.
 - Historical released or incident-frozen Tags, Drafts, Releases, artifact digests, publication
@@ -403,25 +415,26 @@ Before release:
 - the included product work is complete and merged;
 - the Host recommends a mode and the maintainer explicitly chooses `quick` or `normal`;
 - the release command proves the chosen mode is eligible before version mutation;
-- all current version authorities are aligned in one pushed version commit on clean `main`;
+- the selected product authority and required mirror are aligned in one pushed version commit on
+  clean `main`, while the other product versions remain unchanged;
 - every included product is built from that one source identity;
 - final distributed artifacts and the evidence required by the chosen mode are verified;
 - no release side effect occurs from ordinary feature or pull-request validation.
 
-## Transition Rule for Core Contract 0.1
+## Transition Rule for the Released Linear Core
 
-The published `0.3.0` Core Contract 0.1 implementation may remain operational while Feature 008 is
-planned and implemented. During this transition:
+The published linear Core implementation may remain operational while Feature 008 is planned and
+implemented. During this transition:
 
 - no new product feature may extend the old phase or result vocabulary;
 - bug fixes required to preserve existing `0.3.0` behavior remain permitted and must not pre-decide
   Feature 008 design;
-- Feature 008 deliberately provides no runtime compatibility for `0.3.0` task databases;
-- the graph Core creates only fresh Schema 2 data and rejects Schema 1 with zero writes;
+- Feature 008 deliberately provides no runtime compatibility for linear-runtime task databases;
+- the graph Core creates only current-format data and rejects linear-runtime data with zero writes;
 - users who wish to preserve old files must do so outside the active data root; before using the
   graph Core they explicitly select a fresh directory or archive/rename/delete the old directory;
 - Core, setup, update, remove, and uninstall must not perform that destructive reset automatically;
-- new state-graph tasks must not be created until the complete Core Contract 0.2 gate passes;
+- new state-graph tasks must not be created until the complete current Core contract gate passes;
 - public release remains a separate, later decision.
 
 ## Governance
@@ -445,4 +458,4 @@ preferences.
 - **Transition authority**: `specs/008-refactor-to-development-process-graph/` is the only approved
   breaking replacement specification from the linear runtime to the standard development graph.
 
-**Version**: 3.0.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-20
+**Version**: 4.1.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-22

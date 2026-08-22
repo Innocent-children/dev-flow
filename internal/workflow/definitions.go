@@ -51,11 +51,10 @@ func DefinitionDigest(definition domain.ProcessDefinition) (domain.Digest, error
 		})
 	}
 	projection := map[string]any{
-		"entry_node":      definition.EntryNode,
-		"nodes":           nodes,
-		"process_id":      definition.Reference.ID,
-		"process_version": definition.Reference.Version,
-		"transitions":     transitions,
+		"entry_node":  definition.EntryNode,
+		"nodes":       nodes,
+		"process_id":  definition.Reference.ID,
+		"transitions": transitions,
 	}
 	var buffer bytes.Buffer
 	encoder := json.NewEncoder(&buffer)

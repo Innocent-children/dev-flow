@@ -72,7 +72,6 @@ depend on unimplemented future stories.
 ### Process Definition
 
 - **Process ID**: [stable ID or N/A]
-- **Process Version**: [integer or N/A]
 - **Affected Nodes**: [closed list]
 - **Existing Data Disposition**: [reject-and-reset | migrate | retain-read-only | N/A]
 - **Historical Runtime Code**: [None by default; justify any explicitly supported route]

@@ -24,7 +24,7 @@ import { fileURLToPath } from "node:url";
 const execFile = promisify(execFileCallback);
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = join(packageRoot, "..", "..");
-const currentVersion = (await readFile(join(repositoryRoot, "VERSION"), "utf8")).trim();
+const currentVersion = (await readFile(join(repositoryRoot, "CORE_VERSION"), "utf8")).trim();
 const buildScript = join(repositoryRoot, "scripts", "build-codex-local.sh");
 const fakeCodexPath = join(packageRoot, "tests", "fixtures", "fake-codex.mjs");
 const supportedMachine = process.platform === "darwin" && process.arch === "arm64";
@@ -372,7 +372,7 @@ test("compatible package upgrade resumes the active task and a newer schema stop
   const buildA = await buildFixturePackage(fixtureRoot, artifactA);
   assert.equal(buildA.package_version, "0.1.0");
   await updateFixtureVersion(fixtureRoot, "0.1.1");
-  await execFile("git", ["add", "VERSION", "package.json", "packages/codex/package.json", "packages/codex/plugin/.codex-plugin/plugin.json", "packages/deepseek/package.json"], {
+  await execFile("git", ["add", "packages/codex/package.json", "packages/codex/plugin/.codex-plugin/plugin.json"], {
     cwd: fixtureRoot,
   });
   await execFile("git", ["commit", "-m", "fixture: compatible package B"], { cwd: fixtureRoot });
@@ -432,12 +432,12 @@ test("compatible package upgrade resumes the active task and a newer schema stop
   const installationB = await installedProduct(prefix);
   const runtimeDigestB = await sha256(readFile(join(installationB.packageRoot, "runtime", "darwin-arm64", "dev-flow")));
   assert.equal(installationB.packageRoot, installationA.packageRoot);
-  assert.notEqual(runtimeDigestB, runtimeDigestA);
+  assert.equal(runtimeDigestB, runtimeDigestA);
   assert.equal((await execFile(installationB.executable, ["--version"], {
     cwd: targetRepository,
     env: environment,
     encoding: "utf8",
-  })).stdout, "dev-flow-codex 0.1.1 (core 0.1.1)\n");
+  })).stdout, "dev-flow-codex 0.1.1 (core 0.5.0)\n");
   assert.equal(await readFile(receiptPath, "utf8"), receiptA);
   assert.equal(await readFile(fakeState, "utf8"), registrationA);
   assert.deepEqual(await directoryManifest(dataDirectory), dataBeforeNpmUpdate);
@@ -449,7 +449,7 @@ test("compatible package upgrade resumes the active task and a newer schema stop
   assert.equal(setupB.changed, true);
   const receiptB = JSON.parse(await readFile(receiptPath, "utf8"));
   assert.equal(receiptB.product.version, "0.1.1");
-  assert.equal(receiptB.product.core_version, "0.1.1");
+  assert.equal(receiptB.product.core_version, "0.5.0");
   assert.notDeepEqual(receiptB.resource_digests, JSON.parse(receiptA).resource_digests);
   const registrationB = JSON.parse(await readFile(fakeState, "utf8"));
   assert.equal(registrationB.marketplaces.length, 1);
@@ -501,9 +501,9 @@ test("compatible package upgrade resumes the active task and a newer schema stop
   await writeFile(unknownAdjacent, "preserve beside unsupported schema\n");
   const databasePath = join(dataDirectory, "dev-flow.db");
   const database = new DatabaseSync(databasePath);
-  database.prepare(
-    "INSERT INTO schema_migrations (version, applied_at, digest) VALUES (?, ?, ?)",
-  ).run(3, "2030-01-02T03:04:05Z", "future-schema-digest");
+  database.exec("CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT, digest TEXT)");
+  database.prepare("INSERT INTO schema_migrations (version, applied_at, digest) VALUES (?, ?, ?)")
+    .run(3, "2030-01-02T03:04:05Z", "future-schema-digest");
   database.close();
   const databaseBeforeRefusal = databaseSnapshot(databasePath);
   const dataBeforeRefusal = await directoryManifest(dataDirectory);
@@ -537,7 +537,7 @@ test("release preparation uses two clean worktrees and verifies one canonical fi
   const fixtureRoot = join(root, "source-fixture");
   const output = join(root, "release-output");
   await copyRepositoryFixture(fixtureRoot);
-  await updateFixtureVersion(fixtureRoot, "0.1.0");
+  await updateFixtureVersion(fixtureRoot, "1.2.4");
   await initializeMainFixture(fixtureRoot);
   await mkdir(output);
 
@@ -559,8 +559,8 @@ test("release preparation uses two clean worktrees and verifies one canonical fi
   assert.equal(typeof prepared.raw_tgz_equal, "boolean");
   assert.deepEqual(await readdir(output), [
     "SHA256SUMS",
-    "dev-flow-0.1.0-darwin-arm64",
-    "dev-flow-codex-0.1.0.tgz",
+    "dev-flow-codex-1.2.4.tgz",
+    "dev-flow-core-0.5.0-darwin-arm64",
     "publication-record.json",
     "release-manifest.json",
   ]);
@@ -850,9 +850,7 @@ function taskIdentity(task) {
   return {
     task_id: task.task_id,
     revision: task.revision,
-    snapshot_version: task.snapshot_version,
     process_id: task.process_id,
-    process_version: task.process_version,
     process_definition_digest: task.process_definition_digest,
     current_cursor: task.current_cursor,
     current_action: task.current_action === null ? null : {
@@ -887,13 +885,11 @@ async function buildFixturePackage(sourceRoot, outputDirectory) {
 }
 
 async function updateFixtureVersion(sourceRoot, version) {
-  const previousVersion = (await readFile(join(sourceRoot, "VERSION"), "utf8")).trim();
-  await writeFile(join(sourceRoot, "VERSION"), `${version}\n`);
+  const manifest = JSON.parse(await readFile(join(sourceRoot, "packages/codex/package.json"), "utf8"));
+  const previousVersion = manifest.version;
   for (const path of [
-    "package.json",
     "packages/codex/package.json",
     "packages/codex/plugin/.codex-plugin/plugin.json",
-    "packages/deepseek/package.json",
   ]) {
     const absolute = join(sourceRoot, path);
     const contents = await readFile(absolute, "utf8");
@@ -910,11 +906,8 @@ function databaseSnapshot(path) {
       schema: database.prepare(
         "SELECT type, name, tbl_name, sql FROM sqlite_schema ORDER BY type, name",
       ).all(),
-      migrations: database.prepare(
-        "SELECT version, applied_at, digest FROM schema_migrations ORDER BY version",
-      ).all(),
       tasks: database.prepare(
-        "SELECT task_id, origin_host, process_id, process_version, process_definition_digest, snapshot_version, current_node, revision, repository_identity, hex(snapshot) AS snapshot, created_at, updated_at FROM tasks ORDER BY task_id",
+        "SELECT task_id, origin_host, process_id, process_definition_digest, current_node, revision, repository_identity, hex(snapshot) AS snapshot, created_at, updated_at FROM tasks ORDER BY task_id",
       ).all(),
       events: database.prepare(
         "SELECT event_id, task_id, revision, event_type, source_node, destination_node, transition_id, transition_reason, action_id, request_id, payload_digest, created_at FROM task_events ORDER BY event_id",

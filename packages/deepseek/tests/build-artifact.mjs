@@ -59,9 +59,15 @@ try {
   });
   await writeFile(options.output, compressed, { flag: "wx", mode: 0o644 });
   const artifact = await fileIdentity(options.output);
-  const core = await fileIdentity(join(stageRoot, "runtime", "darwin-arm64", "dev-flow"));
+  const corePath = join(stageRoot, "runtime", "darwin-arm64", "dev-flow");
+  const core = await fileIdentity(corePath);
+  const { stdout: coreIdentity } = await execFile(corePath, ["version"], { encoding: "utf8" });
+  const coreVersion = /^dev-flow (\S+)\n?$/u.exec(coreIdentity)?.[1];
+  if (coreVersion === undefined) throw new Error("packaged Core returned an invalid version line");
   process.stdout.write(`${JSON.stringify({
     source_commit: options.sourceCommit,
+    package_version: manifest.version,
+    core_version: coreVersion,
     artifact: { path: options.output, ...artifact },
     core,
     package_files: copied.map((path) => path.slice("package/".length)),

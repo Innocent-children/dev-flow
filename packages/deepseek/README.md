@@ -4,6 +4,10 @@
 current process graph. It is an unpublished developer-preview package and remains `private` during
 Feature 010.
 
+Its product version comes only from `package.json`. The packaged Core reports its own independently
+maintained version; the adapter validates the actual executable, six-tool catalog, live schemas,
+server information, process definition, and behavior without comparing the two product versions.
+
 The package targets macOS arm64 with Node.js 24 or newer and declares compatibility with the DSH
 `>=0.1.0-rc.8 <0.2.0` service family. Feature acceptance is bound to the exact
 `@deepseek-ai/dsh 0.1.0-rc.8` artifact; the declared range is not a claim that later release

@@ -15,7 +15,7 @@ func TestStandardDefinitionIsStableAndComplete(t *testing.T) {
 	if err := ValidateDefinition(definition); err != nil {
 		t.Fatalf("ValidateDefinition: %v", err)
 	}
-	if got, want := definition.Reference.DefinitionDigest, domain.Digest("5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1"); got != want {
+	if got, want := definition.Reference.DefinitionDigest, domain.Digest("c3500d879c1652cb4f3944317c41c1fd2536bfb262b2fa82cd44a2d7e49c0b57"); got != want {
 		t.Fatalf("digest = %s, want %s", got, want)
 	}
 	wantNodes := []domain.NodeID{domain.NodeRequirements, domain.NodeDesign, domain.NodeTasks, domain.NodeImplement, domain.NodeTest, domain.NodeComprehensionReview, domain.NodeRefactor, domain.NodeDelivery, domain.NodeDone, domain.NodeBlocked, domain.NodeCancelled}
@@ -131,12 +131,12 @@ func TestDefinitionDigestIgnoresHumanWording(t *testing.T) {
 
 func TestDefinitionDigestChangesWithStableSemantics(t *testing.T) {
 	for name, mutate := range map[string]func(*domain.ProcessDefinition){
-		"node id":       func(d *domain.ProcessDefinition) { d.Nodes[0].NodeID = domain.NodeID("REQUIREMENTS_V2") },
-		"transition id": func(d *domain.ProcessDefinition) { d.Transitions[0].TransitionID = "requirements_ready_v2" },
-		"guard id":      func(d *domain.ProcessDefinition) { d.Transitions[0].Guard = "requirements_baseline_complete_v2" },
+		"node id":       func(d *domain.ProcessDefinition) { d.Nodes[0].NodeID = domain.NodeID("REQUIREMENTS_CHANGED") },
+		"transition id": func(d *domain.ProcessDefinition) { d.Transitions[0].TransitionID = "requirements_ready_changed" },
+		"guard id":      func(d *domain.ProcessDefinition) { d.Transitions[0].Guard = "requirements_baseline_complete_changed" },
 		"reason rule":   func(d *domain.ProcessDefinition) { d.Transitions[0].ReasonRequired = true },
 		"method step id": func(d *domain.ProcessDefinition) {
-			d.Nodes[0].SemanticMethodSteps[0].StepID = "requirements.capture_v2"
+			d.Nodes[0].SemanticMethodSteps[0].StepID = "requirements.capture_changed"
 		},
 		"method required": func(d *domain.ProcessDefinition) { d.Nodes[0].SemanticMethodSteps[0].Required = false },
 		"method order": func(d *domain.ProcessDefinition) {
@@ -218,7 +218,7 @@ func TestDefinitionRejectsUnknownDuplicateAndRuntimeAlternates(t *testing.T) {
 	}
 	standard := StandardProcess()
 	alternate := standard.Reference
-	alternate.Version = 2
+	alternate.DefinitionDigest = domain.Digest(strings.Repeat("f", 64))
 	if _, err := ResolveDefinition(alternate); err == nil {
 		t.Fatal("alternate process accepted")
 	}

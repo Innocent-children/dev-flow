@@ -167,12 +167,10 @@ test("Skill calls server-info first and admits only the exact six-tool Core cont
   const handshake = skill.slice(handshakeIndex);
   for (const expectation of [
     /product[^\n]*`dev-flow`/i,
-    /schema_version[^\n]*`2`/i,
-    /core_limits_version[^\n]*`0\.2`/i,
     /transport[^\n]*`stdio`/i,
     /health[^\n]*`ready`/i,
     /supported host[\s\S]{0,80}`codex`/i,
-    /standard-development@1/i,
+    /standard-development/i,
     /definition_digest/i,
     /new_task_supported[^\n]*`true`/i,
     /plain[^\n]*spec-kit[^\n]*openspec/i,
@@ -235,7 +233,7 @@ test("Skill follows fresh Core authority for create, resume, one mutation, and c
   assert.match(forwarding, /recovery_apply[\s\S]*(?:omit|null)/i);
 });
 
-test("Skill forwards the exact closed Core Contract 0.2 new_task contract", async () => {
+test("Skill forwards the exact closed Core current Core contract new_task contract", async () => {
   const discovery = section(await readFile(skillPath, "utf8"), "Task discovery");
   for (const member of [
     "request",
@@ -354,7 +352,7 @@ test("Skill selects one immutable profile and renders complete honest method evi
 
 test("method-profile fixtures close the three profiles and every Phase 6C capability scenario", async () => {
   const fixture = await readJSON(methodProfileFixturePath);
-  assert.equal(fixture.fixture_kind, "simulated_codex_adapter_contract_0_2");
+  assert.equal(fixture.fixture_kind, "simulated_codex_adapter_contract");
   assert.equal(fixture.evidence_class, "simulated_static_adapter_journey");
   assert.equal(fixture.scenarios.length, 11);
 
@@ -444,7 +442,6 @@ test("equivalent profile fixtures select one Core transition and destination fro
 
   for (const apply of applies) {
     assert.equal(apply.action.process_id, "standard-development");
-    assert.equal(apply.action.process_version, 1);
     assert.equal(apply.action.current_node, "REQUIREMENTS");
     assert.equal(apply.payload.transition_id, "requirements_ready");
     assert.equal(apply.core_destination, "DESIGN");
@@ -513,7 +510,6 @@ test("Skill uses payload_contract as the apply schema discriminator", async () =
   assert.match(forwarding, /`fresh_action\.(?:action_kind|kind)`[\s\S]*top-level `action_kind`/i);
   assert.match(forwarding, /`fresh_action\.revision`[\s\S]*top-level `revision`/i);
   assert.match(forwarding, /`fresh_action\.process_id`[\s\S]*top-level `process_id`/i);
-  assert.match(forwarding, /`fresh_action\.process_version`[\s\S]*top-level `process_version`/i);
   assert.match(forwarding, /`fresh_action\.process_definition_digest`[\s\S]*top-level `process_definition_digest`/i);
   assert.match(forwarding, /`fresh_action\.current_node`[\s\S]*top-level `source_cursor`/i);
   assert.match(forwarding, /caller-generated[\s\S]*top-level `request_id`/i);
@@ -571,7 +567,6 @@ test("Skill retains one exact apply probe across every uncertain result shape", 
     "request_id",
     "task_id",
     "process_id",
-    "process_version",
     "process_definition_digest",
     "source_cursor",
     "revision",
@@ -591,7 +586,6 @@ test("Skill retains one exact apply probe across every uncertain result shape", 
   assert.deepEqual(probe, {
     operation_id: "<original apply request_id>",
     process_id: "standard-development",
-    process_version: 1,
     process_definition_digest: "<original process definition digest>",
     source_cursor: "<original source cursor>",
     expected_revision: 3,

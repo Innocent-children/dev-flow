@@ -183,7 +183,6 @@ function applyArguments(task, transition, nodeResult, requestId, reason = "") {
     action_id: action.action_id,
     action_kind: action.action_kind,
     process_id: action.process_id,
-    process_version: action.process_version,
     process_definition_digest: action.process_definition_digest,
     source_cursor: action.current_node,
     repository_binding_digest: action.repository_binding_digest,
@@ -195,7 +194,6 @@ function operationProbe(args) {
   return {
     operation_id: args.request_id,
     process_id: args.process_id,
-    process_version: args.process_version,
     process_definition_digest: args.process_definition_digest,
     source_cursor: args.source_cursor,
     expected_revision: args.revision,
@@ -210,8 +208,7 @@ function assertCompleteAction(action, node) {
   assert.equal(action.current_node, node);
   assert.equal(action.method_profile, "plain");
   for (const field of [
-    "task_id", "revision", "action_id", "action_kind", "process_id", "process_version",
-    "process_definition_digest", "node_purpose", "entry_conditions", "completion_conditions",
+    "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "node_purpose", "entry_conditions", "completion_conditions",
     "allowed_effects", "required_evidence", "method_steps", "available_transitions",
     "payload_contract", "guidance", "repository_binding_digest", "issued_at",
   ]) assert.notEqual(action[field], undefined, field);

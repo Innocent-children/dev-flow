@@ -30,39 +30,48 @@ const fixtures = Object.freeze({
   },
 });
 
-test("Codex 0.147 completed MCP item preserves complete structured/text parity", async () => {
-  const parsed = await parseCodexFixtureFile(fixtures.success.path, fixtures.success.shape);
-  const [call] = parsed.calls;
+async function currentDomainJSONL() {
+  const events = parseJSONL(await readFile(fixtures.coreDomainError.path, "utf8"));
+  for (const event of events) {
+    const result = event?.item?.result;
+    if (!result) continue;
+    if (result.structured_content) delete result.structured_content.schema_version;
+    for (const block of result.content ?? []) {
+      if (block.type !== "text") continue;
+      const envelope = JSON.parse(block.text);
+      delete envelope.schema_version;
+      block.text = JSON.stringify(envelope);
+    }
+  }
+  return encodeJSONL(events);
+}
 
-  assert.equal(parsed.eventCount, 2);
-  assert.equal(call.status, "completed");
-  assert.equal(call.tool, "dev_flow_server_info");
-  assert.equal(call.resultPresent, true);
-  assert.equal(call.structuredContent.ok, true);
-  assert.deepEqual(call.structuredContent.result.tools, DEV_FLOW_TOOLS);
-  assert.deepEqual(summarizeCodexFixture(parsed, "success.jsonl"), {
-    mode: "fixture",
-    host: "codex-0.147",
-    fixture: "success.jsonl",
-    thread_started: true,
-    dev_flow_call_count: 1,
-    tool: "dev_flow_server_info",
-    terminal_shape: "success",
-    status: "pass",
-  });
+async function currentDomainEvents() {
+  return parseJSONL(await currentDomainJSONL());
+}
+
+async function currentSuccessEvents() {
+  const events = parseJSONL(await readFile(fixtures.success.path, "utf8"));
+  const result = events[1]?.item?.result;
+  delete result.structured_content.schema_version;
+  const envelope = JSON.parse(result.content[0].text);
+  delete envelope.schema_version;
+  result.content[0].text = JSON.stringify(envelope);
+  return events;
+}
+
+test("Codex 0.147 numbered success fixture is frozen and current-incompatible", async () => {
+  await assert.rejects(parseCodexFixtureFile(fixtures.success.path, fixtures.success.shape), /unexpected field schema_version/u);
 });
 
-test("Contract 0.2 native parser accepts one complete text-only Core result", () => {
+test("current Core contract native parser accepts one complete text-only Core result", () => {
   const envelope = {
-    schema_version: 2,
     ok: true,
     request_id: "request-contract-0-2-server-info",
     tool: "dev_flow_server_info",
     result: {
       product: "dev-flow",
       version: "0.3.0",
-      schema_version: 2,
-      core_limits_version: "0.2",
       tools: DEV_FLOW_TOOLS,
     },
   };
@@ -82,15 +91,13 @@ test("Contract 0.2 native parser accepts one complete text-only Core result", ()
       },
     }),
   ].join("\n"));
-  assert.equal(parsed.calls[0].structuredContent.schema_version, 2);
   assert.deepEqual(parsed.calls[0].arguments, {});
 });
 
-test("Contract 0.2 RequestBinding uses caller operation identity for success and domain error", () => {
+test("current Core contract RequestBinding uses caller operation identity for success and domain error", () => {
   const callerRequestID = "request-contract-0-2-apply";
   const arguments_ = { request_id: callerRequestID, task_id: "task-contract-0-2" };
   const successEnvelope = {
-    schema_version: 2,
     ok: true,
     request_id: callerRequestID,
     tool: "dev_flow_apply_action",
@@ -119,7 +126,6 @@ test("Contract 0.2 RequestBinding uses caller operation identity for success and
   assert.equal(success.calls[0].structuredContent.result.last_operation.operation_id, callerRequestID);
 
   const errorEnvelope = {
-    schema_version: 2,
     ok: false,
     request_id: callerRequestID,
     tool: "dev_flow_apply_action",
@@ -165,11 +171,8 @@ test("Contract 0.2 RequestBinding uses caller operation identity for success and
   assert.equal(transport.calls[0].requestId, callerRequestID);
 });
 
-test("Codex 0.147 failed MCP item with a complete Core result remains a domain error", async () => {
-  const parsed = await parseCodexFixtureFile(
-    fixtures.coreDomainError.path,
-    fixtures.coreDomainError.shape,
-  );
+test("current domain error preserves Core authority", async () => {
+  const parsed = parseCodexJSONL(await currentDomainJSONL());
   const [call] = parsed.calls;
 
   assert.equal(call.status, "failed");
@@ -187,7 +190,6 @@ test("Codex 0.147 failed MCP item with a complete Core result remains a domain e
 
 test("real acceptance Core rejection preserves a missing caller request binding diagnostic", async () => {
   const envelope = {
-    schema_version: 1,
     ok: false,
     request_id: "request-redacted-core",
     tool: "dev_flow_apply_action",
@@ -294,7 +296,7 @@ test("Codex 0.147 parser retains one bounded command fact for smoke verification
 
 test("HIGH-1 diagnostic precedence: the highest-authority session failure wins", async () => {
   assert.equal(typeof sessionRuntime.classifyCodexSessionResult, "function");
-  const domainEvents = parseJSONL(await readFile(fixtures.coreDomainError.path, "utf8"));
+  const domainEvents = await currentDomainEvents();
   domainEvents[1].item.error = { message: "Host also reported an MCP failure" };
   const cases = [
     {
@@ -329,7 +331,7 @@ test("HIGH-1 diagnostic precedence: the highest-authority session failure wins",
   }
 });
 test("P1-1 malformed transcript preserves an earlier Core failure without accepting corruption", async () => {
-  const domainJSONL = await readFile(fixtures.coreDomainError.path, "utf8");
+  const domainJSONL = await currentDomainJSONL();
   const cases = [
     {
       name: "complete Core failure remains primary before a malformed tail",
@@ -384,7 +386,7 @@ test("P1-A production path classifies a purely malformed transcript without a Ty
 });
 
 test("P1-A production path keeps a Core failure primary before a malformed tail", async () => {
-  const domainJSONL = await readFile(fixtures.coreDomainError.path, "utf8");
+  const domainJSONL = await currentDomainJSONL();
   const error = await captureSessionFailure({
     exitCode: 1,
     stdout: `${domainJSONL}{not-json}\n`,
@@ -402,9 +404,9 @@ test("P1-A production path keeps a Core failure primary before a malformed tail"
     message: "Read the authoritative task before another mutation.",
   });
 });
-test("HIGH-2 Core envelope closure: only a closed Core Contract 0.1 result is authoritative", async () => {
-  const success = parseJSONL(await readFile(fixtures.success.path, "utf8"));
-  const domainError = parseJSONL(await readFile(fixtures.coreDomainError.path, "utf8"));
+test("HIGH-2 Core envelope closure: only a closed Core frozen linear contract result is authoritative", async () => {
+  const success = await currentSuccessEvents();
+  const domainError = await currentDomainEvents();
   const cases = [
     ["text/structured mismatch", mutateEnvelope(success, (envelope) => {
       envelope.result.product = "not-the-text-result";
@@ -434,7 +436,7 @@ test("HIGH-2 Core envelope closure: only a closed Core Contract 0.1 result is au
   }
 });
 test("P1-2 Core error authority uses the closed code, recovery, and request identity contract", async () => {
-  const domainError = parseJSONL(await readFile(fixtures.coreDomainError.path, "utf8"));
+  const domainError = await currentDomainEvents();
   assert.doesNotThrow(() => parseCodexJSONL(encodeJSONL(domainError)));
   for (const requestID of ["request-1", "请求-一"]) {
     const candidate = mutateEnvelope(domainError, (envelope, item) => {
@@ -516,7 +518,7 @@ test("P1-2 Core error authority uses the closed code, recovery, and request iden
 });
 test("HIGH-3 failed event binding: authority remains attached to one session item", async () => {
   assert.equal(typeof sessionRuntime.summarizeCodexSession, "function");
-  const domainError = parseJSONL(await readFile(fixtures.coreDomainError.path, "utf8"));
+  const domainError = await currentDomainEvents();
   const parsed = parseCodexJSONL(encodeJSONL(domainError));
   const summary = sessionRuntime.summarizeCodexSession("substantive", parsed);
   assert.deepEqual(summary.dev_flow_calls[0], {
@@ -574,8 +576,8 @@ test("HIGH-3 failed event binding: authority remains attached to one session ite
 test("HIGH-4 aggregate parity: top-level MCP facts equal four session projections", async () => {
   assert.equal(typeof sessionRuntime.aggregateSessionFacts, "function");
   assert.equal(typeof sessionRuntime.validateSessionAggregate, "function");
-  const success = parseJSONL(await readFile(fixtures.success.path, "utf8"));
-  const domainError = parseJSONL(await readFile(fixtures.coreDomainError.path, "utf8"));
+  const success = await currentSuccessEvents();
+  const domainError = await currentDomainEvents();
   const emptySession = (role) => sessionRuntime.summarizeCodexSession(
     role,
     parseCodexJSONL(`{"type":"thread.started","thread_id":"thread-redacted-${role}"}\n`),

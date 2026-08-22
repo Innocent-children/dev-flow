@@ -2,7 +2,7 @@ package domain
 
 import "time"
 
-// Outcome is the frozen Contract 0.1 test-only terminal projection.
+// Outcome is the frozen frozen linear contract test-only terminal projection.
 type Outcome struct {
 	Status                       TerminalStatus     `json:"status"`
 	Acceptance                   []OutcomeCriterion `json:"acceptance"`

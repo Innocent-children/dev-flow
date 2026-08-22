@@ -11,7 +11,7 @@ const requirementsMethodEvidenceJSON = `[{"step_id":"requirements.capture","stat
 const requirementsMethodEvidenceReorderedJSON = `[{"summary":"Captured requirements.","capability":"","status":"plain_fallback","step_id":"requirements.capture"},{"summary":"Clarified requirements.","capability":"","status":"plain_fallback","step_id":"requirements.clarify"},{"summary":"Validated requirements.","capability":"","status":"plain_fallback","step_id":"requirements.validate"}]`
 const designMethodEvidenceJSON = `[{"step_id":"design.choose_approach","status":"plain_fallback","capability":"","summary":"Selected the approach."},{"step_id":"design.review_complexity","status":"plain_fallback","capability":"","summary":"Reviewed complexity."},{"step_id":"design.record_decisions","status":"plain_fallback","capability":"","summary":"Recorded decisions."}]`
 
-func TestV2PayloadDispatchIsClosedAndTransitionAware(t *testing.T) {
+func TestPayloadDispatchIsClosedAndTransitionAware(t *testing.T) {
 	valid := []byte(`{"transition_id":"requirements_ready","summary":"Requirements ready.","reason":"","artifacts":[],"method_evidence":` + requirementsMethodEvidenceJSON + `,"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
 	envelope, result, err := DecodeStandardPayload("REQUIREMENTS", valid)
 	if err != nil {
@@ -49,7 +49,7 @@ func TestMethodEvidenceChangesCanonicalPayloadDigest(t *testing.T) {
 	}
 	wantDifferent := sha256.Sum256(canonical)
 	for name, mutate := range map[string]func(*StandardPayload){
-		"step": func(value *StandardPayload) { value.MethodEvidence[0].StepID = "requirements.capture_v2" },
+		"step": func(value *StandardPayload) { value.MethodEvidence[0].StepID = "requirements.capture_changed" },
 		"status": func(value *StandardPayload) {
 			value.MethodEvidence[0].Status = domain.MethodStepPlainFallback
 			value.MethodEvidence[0].Capability = ""
@@ -69,7 +69,7 @@ func TestMethodEvidenceChangesCanonicalPayloadDigest(t *testing.T) {
 	}
 }
 
-func TestV2PayloadReasonRulesAndForbiddenTransitions(t *testing.T) {
+func TestPayloadReasonRulesAndForbiddenTransitions(t *testing.T) {
 	raw := []byte(`{"transition_id":"design_requires_requirements","summary":"Gap found.","reason":"","artifacts":[],"method_evidence":` + designMethodEvidenceJSON + `,"node_result":{"problem_class":"requirement_gap","baseline":null,"findings":["Acceptance is unclear"]}}`)
 	envelope, result, err := DecodeStandardPayload("DESIGN", raw)
 	if err != nil {

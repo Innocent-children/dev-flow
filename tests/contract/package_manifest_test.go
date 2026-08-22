@@ -34,6 +34,7 @@ var rootDevelopmentScripts = map[string]string{
 	"release:codex:verify":  "node ./scripts/verify-codex-release.mjs",
 	"validate":              "./scripts/validate-repository.sh",
 	"validate:contracts":    "go test ./tests/contract",
+	"versions:check":        "node ./scripts/check-versions.mjs",
 }
 
 var codexPackageFiles = []string{
@@ -95,12 +96,6 @@ func TestProjectManifestBootstrapMetadata(t *testing.T) {
 	t.Parallel()
 
 	root := manifestRepositoryRoot(t)
-	versionBytes, err := os.ReadFile(filepath.Join(root, "VERSION"))
-	if err != nil {
-		t.Fatalf("read root VERSION: %v", err)
-	}
-	wantVersion := strings.TrimSpace(string(versionBytes))
-
 	tests := []struct {
 		path             string
 		wantName         string
@@ -118,7 +113,16 @@ func TestProjectManifestBootstrapMetadata(t *testing.T) {
 
 			manifest := readManifestObject(t, test.path)
 			assertManifestString(t, test.path, manifest, "name", test.wantName)
-			assertManifestString(t, test.path, manifest, "version", wantVersion)
+			if test.wantRootMetadata {
+				if _, present := manifest["version"]; present {
+					t.Fatalf("manifest %s must not declare a repository version", test.path)
+				}
+			} else {
+				var version string
+				if err := json.Unmarshal(manifest["version"], &version); err != nil || version == "" {
+					t.Fatalf("manifest %s must declare its product version", test.path)
+				}
+			}
 
 			if !test.wantRootMetadata {
 				return
@@ -165,7 +169,6 @@ func TestPackageManifestAcceptsBootstrapManifests(t *testing.T) {
 			kind: rootManifest,
 			manifest: `{
 				"name": "dev-flow",
-				"version": "1.2.3",
 				"private": true,
 				"scripts": {"validate": "./scripts/validate-repository.sh"},
 				"devDependencies": {"example-development-tool": "1.0.0"}
@@ -550,6 +553,9 @@ func validatePackageManifest(path string, kind manifestKind) []error {
 
 	switch kind {
 	case rootManifest:
+		if _, present := manifest["version"]; present {
+			violations = append(violations, manifestViolation(path, "version", "repository product version is forbidden"))
+		}
 		if _, present := manifest["publishConfig"]; present {
 			violations = append(violations, manifestViolation(path, "publishConfig", "publication configuration is forbidden"))
 		}

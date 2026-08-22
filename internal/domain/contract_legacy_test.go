@@ -1,6 +1,6 @@
 package domain
 
-// Contract is the frozen Contract 0.1 test-only input authority.
+// Contract is the frozen frozen linear contract test-only input authority.
 type Contract struct {
 	goal               string
 	scope              []string

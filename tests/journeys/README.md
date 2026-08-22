@@ -13,7 +13,7 @@
 | `recovery_uncertainty_test.go` | graph operation probe、五分类、read-before-retry、blocker/recovery apply | in-process deterministic；real temporary Git/SQLite |
 | `process_graph_concurrency_test.go` | 两个 Store/Application handle 对同一 mutation 的 CAS 竞争与单次提交 | two-handle deterministic；real temporary Git/SQLite |
 | `process_graph_restart_test.go` | COMPREHENSION_REVIEW 跨进程关闭/重开、同一 task/action/baseline/test/profile/transition | subprocess；real temporary Git/SQLite |
-| `storage_generation_boundary_test.go` | direct Schema 2 bootstrap、Schema 1 zero-write rejection、显式新目录、restart | in-process deterministic；real temporary Git/SQLite |
+| `storage_generation_boundary_test.go` | direct current storage bootstrap、former storage zero-write rejection、显式新目录、restart | in-process deterministic；real temporary Git/SQLite |
 
 测试 helper 可以在 setup 阶段初始化并 commit 临时 repository。进入 Core Journey 后，Repository
 Observer 只执行有界只读 Git 观察；测试会比较预期 repository state，并关闭/丢弃旧 Store、DB
@@ -25,7 +25,7 @@ handle、observer 和 service 后再证明 restart。
 控制流、parser 和 evidence closure。它们属于 **simulated Codex adapter** evidence，不属于本目录
 Go Journey，也不能标记为 real/native Codex。
 
-Feature 003 历史 native evidence 仍是对应已发布合同的冻结事实。Feature 008 Contract 0.2 的
+Feature 003 历史 native evidence 仍是对应已发布合同的冻结事实。Feature 008 current Core contract 的
 native attempt 1 在第一条 REQUIREMENTS payload 上失败；explicitly authorized attempt 2 在
 `requirements_ready` 提交后因非法 DESIGN payload 失败。Attempt 3 的四个真实 Codex 会话完成
 graph workflow 并到达 Core `DONE`，随后 runner 在命令分类阶段误把只读 TEST 模板检查识别为

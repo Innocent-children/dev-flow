@@ -52,12 +52,12 @@ func TestClosedCanonicalVocabulary(t *testing.T) {
 			ActionReviewChange, ActionPrepareHandoff, ActionResolveBlocker,
 		}
 		for _, value := range kinds {
-			if !value.IsValid() {
+			if !legacyActionKindValid(value) {
 				t.Fatalf("canonical action kind %q is invalid", value)
 			}
 		}
 		for _, value := range []ActionKind{"", "assess_task", " REVIEW_CHANGE ", "REVIEW_TASK"} {
-			if value.IsValid() {
+			if legacyActionKindValid(value) {
 				t.Fatalf("non-canonical action kind %q is valid", value)
 			}
 		}

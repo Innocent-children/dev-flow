@@ -45,11 +45,11 @@ func TestMalformedGraphRecoveryInputStopsBeforeObservationWrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	process := workflow.StandardProcess().Reference
-	badProbe := &OperationProbe{OperationID: "original-operation", ProcessID: process.ID, ProcessVersion: process.Version, ProcessDefinitionDigest: process.DefinitionDigest, SourceCursor: domain.NodeRequirements, ExpectedRevision: 1, ActionID: "action", ActionKind: domain.ActionCompleteRequirements, RepositoryBindingDigest: digestOf("a")}
+	badProbe := &OperationProbe{OperationID: "original-operation", ProcessID: process.ID, ProcessDefinitionDigest: process.DefinitionDigest, SourceCursor: domain.NodeRequirements, ExpectedRevision: 1, ActionID: "action", ActionKind: domain.ActionCompleteRequirements, RepositoryBindingDigest: digestOf("a")}
 	if _, err := service.GetTask(context.Background(), GetTaskRequest{Host: domain.HostCodex, TaskID: "task", OperationProbe: badProbe}); err != domain.ErrInvalidArgument {
 		t.Fatalf("malformed probe error=%v", err)
 	}
-	request := ApplyActionRequest{RequestID: "original-operation", Host: domain.HostCodex, TaskID: "task", ExpectedRevision: 1, ActionID: "action", ActionKind: domain.ActionCompleteRequirements, ProcessID: process.ID, ProcessVersion: process.Version, ProcessDefinitionDigest: process.DefinitionDigest, SourceCursor: domain.NodeRequirements, RepositoryBindingDigest: digestOf("a"), Payload: json.RawMessage("null"), RecoveryApply: &RecoveryApplyInput{SourceCursor: domain.NodeRequirements}}
+	request := ApplyActionRequest{RequestID: "original-operation", Host: domain.HostCodex, TaskID: "task", ExpectedRevision: 1, ActionID: "action", ActionKind: domain.ActionCompleteRequirements, ProcessID: process.ID, ProcessDefinitionDigest: process.DefinitionDigest, SourceCursor: domain.NodeRequirements, RepositoryBindingDigest: digestOf("a"), Payload: json.RawMessage("null"), RecoveryApply: &RecoveryApplyInput{SourceCursor: domain.NodeRequirements}}
 	if _, err := service.ApplyAction(context.Background(), request); err != domain.ErrInvalidArgument {
 		t.Fatalf("malformed recovery apply error=%v", err)
 	}
@@ -114,7 +114,7 @@ func TestProblemClassMismatchIsTransitionNotAllowedAndZeroWrite(t *testing.T) {
 			}
 			action := task.CurrentAction
 			before := memory.commits
-			_, err = service.ApplyAction(context.Background(), ApplyActionRequest{RequestID: "problem-class-mismatch", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: task.Process.ID, ProcessVersion: task.Process.Version, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: raw})
+			_, err = service.ApplyAction(context.Background(), ApplyActionRequest{RequestID: "problem-class-mismatch", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: raw})
 			if err != domain.ErrTransitionNotAllowed || memory.commits != before {
 				t.Fatalf("error=%v writes=%d", err, memory.commits-before)
 			}

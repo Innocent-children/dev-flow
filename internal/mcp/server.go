@@ -34,7 +34,7 @@ func NewServer(service *application.Service, version string, options *ServerOpti
 		newID = options.NewRequestID
 	}
 	s := &Server{application: service, version: version, newRequestID: newID}
-	s.sdk = sdk.NewServer(&sdk.Implementation{Name: "dev-flow", Title: "Dev Flow Core", Description: "Local STDIO Core Contract 0.2", Version: version}, &sdk.ServerOptions{})
+	s.sdk = sdk.NewServer(&sdk.Implementation{Name: "dev-flow", Title: "Dev Flow Core", Description: "Local STDIO Dev Flow Core", Version: version}, &sdk.ServerOptions{})
 	for _, d := range catalog {
 		d := d
 		destructive, openWorld := d.Annotations.Destructive, d.Annotations.OpenWorld
@@ -63,8 +63,8 @@ func (s *Server) dispatch(ctx context.Context, tool string, id domain.ID, raw []
 	switch tool {
 	case ToolServerInfo:
 		d := workflow.StandardProcess()
-		process := SupportedProcessResult{ProcessID: d.Reference.ID, ProcessVersion: d.Reference.Version, DefinitionDigest: d.Reference.DefinitionDigest, NewTaskSupported: true}
-		return EncodeSuccess(string(resultID), tool, ServerInfoResult{Product: "dev-flow", Version: s.version, SchemaVersion: 2, CoreLimitsVersion: domain.CoreLimitsVersion, Transport: "stdio", Health: "ready", SupportedProcesses: []SupportedProcessResult{process}, SupportedHosts: []string{"codex", "deepseek"}, MethodProfiles: []domain.MethodProfile{domain.MethodPlain, domain.MethodSpecKit, domain.MethodOpenSpec}, Tools: ToolNames()})
+		process := SupportedProcessResult{ProcessID: d.Reference.ID, DefinitionDigest: d.Reference.DefinitionDigest, NewTaskSupported: true}
+		return EncodeSuccess(string(resultID), tool, ServerInfoResult{Product: "dev-flow", Version: s.version, Transport: "stdio", Health: "ready", SupportedProcesses: []SupportedProcessResult{process}, SupportedHosts: []string{"codex", "deepseek"}, MethodProfiles: []domain.MethodProfile{domain.MethodPlain, domain.MethodSpecKit, domain.MethodOpenSpec}, Tools: ToolNames()})
 	case ToolOpenTask:
 		var w openWire
 		_ = decodeClosed(raw, &w)
@@ -92,7 +92,7 @@ func (s *Server) dispatch(ctx context.Context, tool string, id domain.ID, raw []
 	case ToolApplyAction:
 		var w applyWire
 		_ = decodeClosed(raw, &w)
-		r, err := s.application.ApplyAction(ctx, application.ApplyActionRequest{RequestID: w.RequestID, Host: w.Host, TaskID: w.TaskID, ExpectedRevision: w.Revision, ActionID: w.ActionID, ActionKind: w.ActionKind, ProcessID: w.ProcessID, ProcessVersion: w.ProcessVersion, ProcessDefinitionDigest: w.ProcessDefinitionDigest, SourceCursor: w.SourceCursor, RepositoryBindingDigest: w.RepositoryBindingDigest, Payload: w.Payload, RecoveryApply: toRecoveryApply(w.RecoveryApply)})
+		r, err := s.application.ApplyAction(ctx, application.ApplyActionRequest{RequestID: w.RequestID, Host: w.Host, TaskID: w.TaskID, ExpectedRevision: w.Revision, ActionID: w.ActionID, ActionKind: w.ActionKind, ProcessID: w.ProcessID, ProcessDefinitionDigest: w.ProcessDefinitionDigest, SourceCursor: w.SourceCursor, RepositoryBindingDigest: w.RepositoryBindingDigest, Payload: w.Payload, RecoveryApply: toRecoveryApply(w.RecoveryApply)})
 		if err != nil {
 			return EncodeError(string(resultID), tool, err)
 		}

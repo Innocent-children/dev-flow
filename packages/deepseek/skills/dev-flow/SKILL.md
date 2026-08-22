@@ -1,6 +1,6 @@
 # Dev Flow
 
-This Skill is the Contract 0.2 DeepSeek Harness adapter for the shared Dev Flow Core. Core owns task state,
+This Skill is the current Core contract DeepSeek Harness adapter for the shared Dev Flow Core. Core owns task state,
 current node, legal transitions, destinations, recovery, blockers, and terminal outcomes. The Skill
 admits one explicit request, presents a complete Core Action, renders method work, and forwards one
 closed result without keeping adapter state.
@@ -36,11 +36,10 @@ Only after admission passes, call `mcp__dev_flow__dev_flow_server_info({})`; it 
 call. Require one complete structured result proving:
 
 - product is exactly `dev-flow`, and Core version equals the packaged product version;
-- `schema_version` is exactly `2` and `core_limits_version` is exactly `0.2`;
 - transport is exactly `stdio`, health is exactly `ready`, and the supported host set contains
   `deepseek`;
-- `supported_processes` contains exactly one closed `standard-development@1` entry:
-  `process_id` is `standard-development`, `process_version` is `1`, `definition_digest` is present
+- `supported_processes` contains exactly one closed `standard-development` entry:
+  `process_id` is `standard-development` is `1`, `definition_digest` is present
   and canonical, and `new_task_supported` is exactly `true`;
 - `method_profiles` is exactly `plain`, `spec-kit`, `openspec` in that order;
 - the tool catalog contains exactly these six raw names, in this order:
@@ -108,7 +107,7 @@ or resumes a task. Report an ownership or contract conflict unchanged in meaning
 ## Governed action loop
 
 The inseparable Action fields are exactly `task_id`, `revision`, `action_id`, `action_kind`,
-`process_id`, `process_version`, `process_definition_digest`, `current_node`, `node_purpose`,
+`process_id`, `process_definition_digest`, `current_node`, `node_purpose`,
 `entry_conditions`, `completion_conditions`, `allowed_effects`, `required_evidence`,
 `method_profile`, `method_steps`, `available_transitions`, `payload_contract`, `guidance`,
 `repository_binding_digest`, and `issued_at`.
@@ -239,7 +238,6 @@ Map every mutation top-level field from the same fresh Action:
 - `fresh_action.action_id` -> top-level `action_id`;
 - `fresh_action.action_kind` -> top-level `action_kind`;
 - `fresh_action.process_id` -> top-level `process_id`;
-- `fresh_action.process_version` -> top-level `process_version`;
 - `fresh_action.process_definition_digest` -> top-level `process_definition_digest`;
 - `fresh_action.current_node` -> top-level `source_cursor`;
 - `fresh_action.repository_binding_digest` -> top-level `repository_binding_digest`;
@@ -254,7 +252,6 @@ apply_arguments = {
   "action_id": fresh_action.action_id,
   "action_kind": fresh_action.action_kind,
   "process_id": fresh_action.process_id,
-  "process_version": fresh_action.process_version,
   "process_definition_digest": fresh_action.process_definition_digest,
   "source_cursor": fresh_action.current_node,
   "repository_binding_digest": fresh_action.repository_binding_digest,
@@ -313,7 +310,7 @@ transport-failed instead of returning one complete structured result. Do not imm
 `mcp__dev_flow__dev_flow_apply_action` and do not infer the result from repository state or worktree contents.
 
 Before calling `mcp__dev_flow__dev_flow_apply_action`, retain the original `request_id`, `task_id`, `process_id`,
-`process_version`, `process_definition_digest`, `source_cursor`, `revision`, `action_id`,
+`process_definition_digest`, `source_cursor`, `revision`, `action_id`,
 `action_kind`, `repository_binding_digest`, and exact closed `payload` from the same fresh action and
 the same apply dispatch. Never derive or reconstruct them from an incomplete response or partial
 output.
@@ -325,7 +322,6 @@ When all required original identity values are retained, construct exactly this 
 {
   "operation_id": "<original apply request_id>",
   "process_id": "standard-development",
-  "process_version": 1,
   "process_definition_digest": "<original process definition digest>",
   "source_cursor": "<original source cursor>",
   "expected_revision": 3,

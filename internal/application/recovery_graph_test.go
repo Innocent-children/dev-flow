@@ -99,7 +99,7 @@ func TestGraphRecoveryPartialCreatesOneBlockerAndResolvesExactResume(t *testing.
 	}
 
 	badPayload, _ := json.Marshal(map[string]any{"blocker_id": "wrong-blocker", "condition": blocked.Task.Blocker.Condition, "observed_binding_digest": observer.binding.BindingDigest})
-	badResolve := ApplyActionRequest{RequestID: "bad-resolve", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: blocked.Task.Revision, ActionID: blocked.Task.CurrentAction.ActionID, ActionKind: domain.ActionResolveBlocker, ProcessID: blocked.Task.Process.ID, ProcessVersion: blocked.Task.Process.Version, ProcessDefinitionDigest: blocked.Task.Process.DefinitionDigest, SourceCursor: domain.NodeBlocked, RepositoryBindingDigest: blocked.Task.Repository.BindingDigest, Payload: badPayload}
+	badResolve := ApplyActionRequest{RequestID: "bad-resolve", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: blocked.Task.Revision, ActionID: blocked.Task.CurrentAction.ActionID, ActionKind: domain.ActionResolveBlocker, ProcessID: blocked.Task.Process.ID, ProcessDefinitionDigest: blocked.Task.Process.DefinitionDigest, SourceCursor: domain.NodeBlocked, RepositoryBindingDigest: blocked.Task.Repository.BindingDigest, Payload: badPayload}
 	commits = memory.commits
 	if _, err := service.ApplyAction(context.Background(), badResolve); err != domain.ErrRepositoryDrift || memory.commits != commits {
 		t.Fatalf("unrestored repository err=%v commits=%d", err, memory.commits-commits)
@@ -110,7 +110,7 @@ func TestGraphRecoveryPartialCreatesOneBlockerAndResolvesExactResume(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	resolve := ApplyActionRequest{RequestID: "resolve-operation", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: blocked.Task.Revision, ActionID: blocked.Task.CurrentAction.ActionID, ActionKind: domain.ActionResolveBlocker, ProcessID: blocked.Task.Process.ID, ProcessVersion: blocked.Task.Process.Version, ProcessDefinitionDigest: blocked.Task.Process.DefinitionDigest, SourceCursor: domain.NodeBlocked, RepositoryBindingDigest: blocked.Task.Repository.BindingDigest, Payload: resolutionPayload}
+	resolve := ApplyActionRequest{RequestID: "resolve-operation", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: blocked.Task.Revision, ActionID: blocked.Task.CurrentAction.ActionID, ActionKind: domain.ActionResolveBlocker, ProcessID: blocked.Task.Process.ID, ProcessDefinitionDigest: blocked.Task.Process.DefinitionDigest, SourceCursor: domain.NodeBlocked, RepositoryBindingDigest: blocked.Task.Repository.BindingDigest, Payload: resolutionPayload}
 	badResolve = resolve
 	badResolve.RequestID = "wrong-blocker-resolve"
 	badResolve.Payload, _ = json.Marshal(map[string]any{"blocker_id": "wrong-blocker", "condition": blocked.Task.Blocker.Condition, "observed_binding_digest": task.Repository.BindingDigest})
@@ -189,12 +189,12 @@ func TestGraphRecoveryAdoptsDeclaredProcessArtifactOnlyEffect(t *testing.T) {
 
 func graphProbe(task domain.ProcessTask, operationID domain.ID, payload json.RawMessage) OperationProbe {
 	action := task.CurrentAction
-	return OperationProbe{OperationID: operationID, ProcessID: task.Process.ID, ProcessVersion: task.Process.Version, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: payload}
+	return OperationProbe{OperationID: operationID, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: payload}
 }
 
 func graphRecoveryApply(task domain.ProcessTask, operationID domain.ID, payload json.RawMessage) ApplyActionRequest {
 	action := task.CurrentAction
-	return ApplyActionRequest{RequestID: operationID, Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: task.Process.ID, ProcessVersion: task.Process.Version, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: payload, RecoveryApply: &RecoveryApplyInput{OperationID: operationID, SourceCursor: task.CurrentNode}}
+	return ApplyActionRequest{RequestID: operationID, Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: payload, RecoveryApply: &RecoveryApplyInput{OperationID: operationID, SourceCursor: task.CurrentNode}}
 }
 
 func graphChangedBinding(base domain.RepositoryBinding, paths []string, seed string) domain.RepositoryBinding {

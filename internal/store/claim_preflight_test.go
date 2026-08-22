@@ -73,7 +73,7 @@ func TestClaimSchemaPreventsDuplicateTaskOwnership(t *testing.T) {
 	defer db.Close()
 	_, err := db.Exec(`INSERT INTO repository_claims(repository_identity,task_id,origin_host,claimed_at) VALUES(?,?,?,?)`, domain.Digest("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"), task.TaskID, task.OriginHost, formatTime(task.CreatedAt))
 	if err == nil {
-		t.Fatal("exact Schema 2 accepted duplicate task ownership")
+		t.Fatal("exact current storage accepted duplicate task ownership")
 	}
 }
 

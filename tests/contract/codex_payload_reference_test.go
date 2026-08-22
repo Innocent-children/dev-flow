@@ -82,7 +82,6 @@ func codexTemplateApplyInput(t *testing.T, contract codexPayloadTemplateContract
 		"action_id":                 "action-node-payload-template",
 		"action_kind":               contract.ActionKind,
 		"process_id":                "standard-development",
-		"process_version":           1,
 		"process_definition_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		"source_cursor":             contract.Node,
 		"repository_binding_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -120,7 +119,7 @@ func TestCodexNodePayloadReferenceDocumentsOperationalBoundaries(t *testing.T) {
 	}
 }
 
-func TestContract02MutationRequestBindingIsExplicit(t *testing.T) {
+func TestCurrentContractMutationRequestBindingIsExplicit(t *testing.T) {
 	t.Parallel()
 	path := filepath.Join(markdownRepositoryRoot(t), "specs", "008-refactor-to-development-process-graph", "contracts", "mcp-tools-0.2.md")
 	raw, err := os.ReadFile(path)
@@ -135,7 +134,7 @@ func TestContract02MutationRequestBindingIsExplicit(t *testing.T) {
 		"mismatch is a contract failure and must not be silently ignored",
 	} {
 		if !regexp.MustCompile(regexp.QuoteMeta(required)).MatchString(text) {
-			t.Errorf("Contract 0.2 missing request-binding rule %q", required)
+			t.Errorf("current Core contract missing request-binding rule %q", required)
 		}
 	}
 }

@@ -45,12 +45,11 @@ func (id TransitionGuardID) IsValid() bool { return validSemanticID(string(id)) 
 
 type ProcessReference struct {
 	ID               ProcessID `json:"process_id"`
-	Version          uint32    `json:"process_version"`
 	DefinitionDigest Digest    `json:"process_definition_digest"`
 }
 
 func (r ProcessReference) Validate() error {
-	if !r.ID.IsValid() || r.Version != 1 || !r.DefinitionDigest.IsValid() {
+	if !r.ID.IsValid() || !r.DefinitionDigest.IsValid() {
 		return ErrInvalidArgument
 	}
 	return nil
@@ -157,7 +156,7 @@ func nodeDefinitionInvalid(node NodeDefinition) bool {
 		len(node.EntryConditionIDs) == 0 || len(node.CompletionConditionIDs) == 0 ||
 		len(node.EntryAssumptions) == 0 || len(node.CompletionConditions) == 0 ||
 		len(node.AllowedEffects) == 0 || len(node.RequiredEvidence) == 0 ||
-		len(node.SemanticMethodSteps) == 0 || !node.ActionKind.IsValidV2() ||
+		len(node.SemanticMethodSteps) == 0 || !node.ActionKind.IsValid() ||
 		!validSemanticID(node.PayloadContract) {
 		return true
 	}
@@ -166,14 +165,14 @@ func nodeDefinitionInvalid(node NodeDefinition) bool {
 	}
 	effects := map[AllowedEffect]bool{}
 	for _, effect := range node.AllowedEffects {
-		if !effect.IsValidV2() || effects[effect] {
+		if !effect.IsValid() || effects[effect] {
 			return true
 		}
 		effects[effect] = true
 	}
 	evidence := map[EvidenceRequirementKind]bool{}
 	for _, item := range node.RequiredEvidence {
-		if item.ValidateV2() != nil || evidence[item.Kind] {
+		if item.Validate() != nil || evidence[item.Kind] {
 			return true
 		}
 		evidence[item.Kind] = true
@@ -204,7 +203,7 @@ func validSemanticID(value string) bool {
 		return false
 	}
 	for _, r := range value {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' || r == '.' || r == '@' {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' || r == '.' {
 			continue
 		}
 		return false

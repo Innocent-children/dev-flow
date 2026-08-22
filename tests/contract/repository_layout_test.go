@@ -31,6 +31,7 @@ var rootScriptFiles = []string{
 	"build-codex-local.sh",
 	"build-codex-release.sh",
 	"build-deepseek-runtime.sh",
+	"check-versions.mjs",
 	"publish-codex-release.mjs",
 	"release-codex.mjs",
 	"run-codex-real-journey.sh",

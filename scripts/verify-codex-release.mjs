@@ -34,9 +34,9 @@ import { validateFinalJourneyEvidence } from "./write-codex-journey-evidence.mjs
 
 const execFile = promisify(execFileCallback);
 
-export function releaseOutputNames(version) {
-  if (!SEMVER_PATTERN.test(version)) throw new Error("release output version must be strict MAJOR.MINOR.PATCH");
-  return ["SHA256SUMS", `dev-flow-${version}-darwin-arm64`, `dev-flow-codex-${version}.tgz`, "publication-record.json", "release-manifest.json"].sort();
+export function releaseOutputNames(codexVersion, coreVersion) {
+  if (![codexVersion, coreVersion].every((value) => SEMVER_PATTERN.test(value))) throw new Error("release output versions must be strict MAJOR.MINOR.PATCH");
+  return ["SHA256SUMS", `dev-flow-core-${coreVersion}-darwin-arm64`, `dev-flow-codex-${codexVersion}.tgz`, "publication-record.json", "release-manifest.json"].sort();
 }
 
 export const PACKAGE_FILE_PATHS = Object.freeze([
@@ -68,13 +68,6 @@ export const PUBLICATION_STEPS = Object.freeze([
   "github_finalize",
 ]);
 
-const FEATURE_008_COMMIT = "872cdcfc2d40dd06fa7e85109d5f69e08de4ceda";
-const CORE_CONTRACT_VERSION = "0.2";
-const STORAGE_SCHEMA_VERSION = 2;
-const SNAPSHOT_VERSION = 2;
-const PROCESS_ID = "standard-development";
-const PROCESS_VERSION = 1;
-const PROCESS_DEFINITION_DIGEST = "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1";
 const CODEX_RANGE = ">=0.147.0 <0.148.0";
 const MAX_RECORD_BYTES = 2 * 1024 * 1024;
 const MAX_TEXT_FILE_BYTES = 2 * 1024 * 1024;
@@ -105,16 +98,15 @@ export async function prepareRelease({
   if (!Number.isFinite(Date.parse(createdAt))) {
     throw new Error("preparation time must be an RFC 3339 date-time");
   }
-  const version = (await readBoundedFile(join(root, "VERSION"), 128)).toString("utf8").trim();
-  if (!SEMVER_PATTERN.test(version)) throw new Error("root VERSION must be strict MAJOR.MINOR.PATCH");
-  validateReleaseMode(verificationMode, basedOnRelease, version);
-  const expectedTarballName = `dev-flow-codex-${version}.tgz`;
-  const expectedCoreName = `dev-flow-${version}-darwin-arm64`;
+  const { codexVersion, coreVersion } = await readSourceVersions(root);
+  validateReleaseMode(verificationMode, basedOnRelease, codexVersion);
+  const expectedTarballName = `dev-flow-codex-${codexVersion}.tgz`;
+  const expectedCoreName = `dev-flow-core-${coreVersion}-darwin-arm64`;
 
   const preparationRoot = await mkdtemp(join(dirname(output), ".dev-flow-release-stage-"));
   try {
-    const first = await inspectPackageTarball(firstTarball, { repositoryRoot: root, version });
-    const second = await inspectPackageTarball(secondTarball, { repositoryRoot: root, version });
+    const first = await inspectPackageTarball(firstTarball, { repositoryRoot: root, version: codexVersion });
+    const second = await inspectPackageTarball(secondTarball, { repositoryRoot: root, version: codexVersion });
     if (stableJSON(first.files) !== stableJSON(second.files)) {
       throw new Error("two clean builds produced different normalized package trees");
     }
@@ -128,6 +120,8 @@ export async function prepareRelease({
     await copyFile(first.tarballPath, canonicalTarball);
     await writeFile(standaloneCore, first.coreBytes, { mode: 0o755, flag: "wx" });
     await chmod(standaloneCore, 0o755);
+    const reportedCoreVersion = await runText(standaloneCore, ["version"], { cwd: preparationRoot, timeout: 10_000, maxBuffer: 64 * 1024 });
+    if (reportedCoreVersion !== `dev-flow ${coreVersion}`) throw new Error("bundled Core version differs from CORE_VERSION");
 
     const tarballInfo = await stat(canonicalTarball);
     const coreInfo = await stat(standaloneCore);
@@ -152,22 +146,15 @@ export async function prepareRelease({
       },
     ];
     const manifest = {
-      schema_version: 2,
       release: {
-        version,
-        tag: `v${version}`,
+        product: "codex",
+        version: codexVersion,
+        core_version: coreVersion,
+        tag: `codex-v${codexVersion}`,
         source_commit: sourceCommit,
         source_tree: sourceTree,
-        feature_008_commit: FEATURE_008_COMMIT,
-        core_contract_version: CORE_CONTRACT_VERSION,
-        storage_schema_version: STORAGE_SCHEMA_VERSION,
-        snapshot_version: SNAPSHOT_VERSION,
-        process_id: PROCESS_ID,
-        process_version: PROCESS_VERSION,
-        process_definition_digest: PROCESS_DEFINITION_DIGEST,
         verification_mode: verificationMode,
         based_on_release: basedOnRelease,
-        build_profile: "codex-darwin-arm64-v1",
         created_at: createdAt,
       },
       toolchains,
@@ -181,7 +168,6 @@ export async function prepareRelease({
           mode: "0755",
           npm_integrity: null,
           source_commit: sourceCommit,
-          core_version: version,
         },
         {
           name: expectedTarballName,
@@ -192,9 +178,8 @@ export async function prepareRelease({
           mode: "0644",
           npm_integrity: null,
           source_commit: sourceCommit,
-          core_version: version,
         },
-      ],
+      ].sort((left, right) => left.name.localeCompare(right.name)),
       package_files: first.files,
       support: [
         {
@@ -213,7 +198,7 @@ export async function prepareRelease({
       ],
       validations,
     };
-    validateManifest(manifest, { version, sourceCommit, sourceTree });
+    validateManifest(manifest, { codexVersion, coreVersion, sourceCommit, sourceTree });
     scanStructuredContent(manifest, { repositoryRoot: root });
 
     const manifestPath = join(preparationRoot, "release-manifest.json");
@@ -231,7 +216,10 @@ export async function prepareRelease({
     );
 
     const publication = initialPublicationRecord({
-      version,
+      codexVersion,
+      coreVersion,
+      verificationMode,
+      basedOnRelease,
       sourceCommit,
       sourceTree,
       manifestSHA256,
@@ -239,7 +227,10 @@ export async function prepareRelease({
       observedAt: createdAt,
     });
     validatePublicationRecord(publication, {
-      version,
+      codexVersion,
+      coreVersion,
+      verificationMode,
+      basedOnRelease,
       sourceCommit,
       sourceTree,
       manifestSHA256,
@@ -254,7 +245,7 @@ export async function prepareRelease({
       requirePrepared: true,
     });
     const stagedNames = (await readdir(preparationRoot)).sort();
-    if (!arraysEqual(stagedNames, releaseOutputNames(version))) {
+    if (!arraysEqual(stagedNames, releaseOutputNames(codexVersion, coreVersion))) {
       throw new Error("prepared staging directory does not contain the exact five-file output set");
     }
     for (const name of stagedNames) {
@@ -263,14 +254,15 @@ export async function prepareRelease({
     await verifyReleaseDirectory({ directory: output, repositoryRoot: root, requirePrepared: true });
     return {
       status: "prepared",
-      version,
+      version: codexVersion,
+      core_version: coreVersion,
       source_commit: sourceCommit,
       source_tree: sourceTree,
       runtime_sha256: coreSHA256,
       normalized_package_sha256: normalizedInventoryDigest(first.files),
       raw_tgz_equal: rawTarballEqual,
       build_count: 2,
-      output_files: releaseOutputNames(version),
+      output_files: releaseOutputNames(codexVersion, coreVersion),
     };
   } finally {
     await rm(preparationRoot, { recursive: true, force: true });
@@ -289,13 +281,8 @@ export async function verifyReleaseDirectory({
   });
   assertOutsideRoot(root, releaseDirectory, "release directory");
 
-  const version = (await readBoundedFile(join(root, "VERSION"), 128)).toString("utf8").trim();
-  const expectedNames = releaseOutputNames(version);
   const entries = await readdir(releaseDirectory, { withFileTypes: true });
   const names = entries.map((entry) => entry.name).sort();
-  if (!arraysEqual(names, expectedNames)) {
-    throw new Error(`release directory files do not match the approved five-file set`);
-  }
   for (const entry of entries) {
     if (!entry.isFile() || !isSafeRelativePath(entry.name)) {
       throw new Error(`release output ${entry.name} must be a safe regular file`);
@@ -310,12 +297,23 @@ export async function verifyReleaseDirectory({
   const publicationPath = join(releaseDirectory, "publication-record.json");
   const manifest = await readJSONBounded(manifestPath);
   const publication = await readJSONBounded(publicationPath);
+  const codexVersion = manifest?.release?.version;
+  const coreVersion = manifest?.release?.core_version;
+  const expectedNames = releaseOutputNames(codexVersion, coreVersion);
+  if (!arraysEqual(names, expectedNames)) throw new Error("release directory files do not match the approved five-file set");
+  const sourceVersions = await readSourceVersions(root);
+  if (sourceVersions.codexVersion !== codexVersion || sourceVersions.coreVersion !== coreVersion) {
+    throw new Error("release source product versions differ from the frozen manifest");
+  }
   const sourceCommit = await gitRead(root, ["rev-parse", "HEAD"]);
   const sourceTree = await gitRead(root, ["rev-parse", "HEAD^{tree}"]);
-  validateManifest(manifest, { version, sourceCommit, sourceTree });
+  validateManifest(manifest, { codexVersion, coreVersion, sourceCommit, sourceTree });
   const manifestSHA256 = await sha256File(manifestPath);
   validatePublicationRecord(publication, {
-    version,
+    codexVersion,
+    coreVersion,
+    verificationMode: manifest.release.verification_mode,
+    basedOnRelease: manifest.release.based_on_release,
     sourceCommit,
     sourceTree,
     manifestSHA256,
@@ -324,11 +322,11 @@ export async function verifyReleaseDirectory({
   scanStructuredContent(manifest, { repositoryRoot: root });
   scanStructuredContent(publication, { repositoryRoot: root });
 
-  const tarballName = `dev-flow-codex-${version}.tgz`;
-  const coreName = `dev-flow-${version}-darwin-arm64`;
+  const tarballName = `dev-flow-codex-${codexVersion}.tgz`;
+  const coreName = `dev-flow-core-${coreVersion}-darwin-arm64`;
   const tarballPath = join(releaseDirectory, tarballName);
   const corePath = join(releaseDirectory, coreName);
-  const inspected = await inspectPackageTarball(tarballPath, { repositoryRoot: root, version });
+  const inspected = await inspectPackageTarball(tarballPath, { repositoryRoot: root, version: codexVersion });
   if (stableJSON(inspected.files) !== stableJSON(manifest.package_files)) {
     throw new Error("manifest package_files do not match the normalized tarball tree");
   }
@@ -365,16 +363,17 @@ export async function verifyReleaseDirectory({
     [tarballName]: tarballSHA256,
     "release-manifest.json": manifestSHA256,
   });
-  const coreVersion = await runText(corePath, ["version"], {
+  const coreVersionLine = await runText(corePath, ["version"], {
     cwd: releaseDirectory,
     timeout: 10_000,
     maxBuffer: 64 * 1024,
   });
-  if (coreVersion !== `dev-flow ${version}`) throw new Error("standalone Core version differs from root VERSION");
+  if (coreVersionLine !== `dev-flow ${coreVersion}`) throw new Error("standalone Core version differs from release.core_version");
 
   return {
     status: "verified",
-    version,
+    version: codexVersion,
+    core_version: coreVersion,
     source_commit: sourceCommit,
     source_tree: sourceTree,
     tarball_sha256: tarballSHA256,
@@ -460,32 +459,24 @@ export async function inspectPackageTarball(tarballPath, { repositoryRoot, versi
   }
 }
 
-export function validateManifest(manifest, { version, sourceCommit, sourceTree }) {
-  assertExactKeys(manifest, ["schema_version", "release", "toolchains", "artifacts", "package_files", "support", "validations"], "release manifest");
-  if (manifest.schema_version !== 2) throw new Error("release manifest schema_version must equal 2");
+export function validateManifest(manifest, { codexVersion, coreVersion, sourceCommit, sourceTree }) {
+  assertExactKeys(manifest, ["release", "toolchains", "artifacts", "package_files", "support", "validations"], "release manifest");
   assertExactKeys(manifest.release, [
-    "version", "tag", "source_commit", "source_tree", "feature_008_commit", "core_contract_version",
-    "storage_schema_version", "snapshot_version", "process_id", "process_version",
-    "process_definition_digest", "verification_mode", "based_on_release", "build_profile", "created_at",
+    "product", "version", "core_version", "tag", "source_commit", "source_tree",
+    "verification_mode", "based_on_release", "created_at",
   ], "release identity");
   if (
-    manifest.release.version !== version ||
-    manifest.release.tag !== `v${version}` ||
+    manifest.release.product !== "codex" ||
+    manifest.release.version !== codexVersion ||
+    manifest.release.core_version !== coreVersion ||
+    manifest.release.tag !== `codex-v${codexVersion}` ||
     manifest.release.source_commit !== sourceCommit ||
     manifest.release.source_tree !== sourceTree ||
-    manifest.release.feature_008_commit !== FEATURE_008_COMMIT ||
-    manifest.release.core_contract_version !== CORE_CONTRACT_VERSION ||
-    manifest.release.storage_schema_version !== STORAGE_SCHEMA_VERSION ||
-    manifest.release.snapshot_version !== SNAPSHOT_VERSION ||
-    manifest.release.process_id !== PROCESS_ID ||
-    manifest.release.process_version !== PROCESS_VERSION ||
-    manifest.release.process_definition_digest !== PROCESS_DEFINITION_DIGEST ||
-    manifest.release.build_profile !== "codex-darwin-arm64-v1" ||
     !Number.isFinite(Date.parse(manifest.release.created_at))
   ) {
     throw new Error("release manifest identity differs from the approved source/version baseline");
   }
-  validateReleaseMode(manifest.release.verification_mode, manifest.release.based_on_release, version);
+  validateReleaseMode(manifest.release.verification_mode, manifest.release.based_on_release, codexVersion);
   assertExactKeys(manifest.toolchains, ["go", "node", "pnpm", "npm", "git", "gh"], "release toolchains");
   for (const [name, value] of Object.entries(manifest.toolchains)) {
     if (typeof value !== "string" || value.length < 1 || value.length > 128) throw new Error(`toolchain ${name} is not bounded`);
@@ -494,12 +485,12 @@ export function validateManifest(manifest, { version, sourceCommit, sourceTree }
   requireSortedUnique(manifest.artifacts, (artifact) => artifact.name, "artifacts");
   const kinds = new Set();
   for (const artifact of manifest.artifacts) {
-    assertExactKeys(artifact, ["name", "kind", "relative_path", "size_bytes", "sha256", "mode", "npm_integrity", "source_commit", "core_version"], "artifact");
+    assertExactKeys(artifact, ["name", "kind", "relative_path", "size_bytes", "sha256", "mode", "npm_integrity", "source_commit"], "artifact");
     if (!["npm_tarball", "core_binary"].includes(artifact.kind) || kinds.has(artifact.kind)) throw new Error("release artifact kinds must be unique npm_tarball/core_binary");
     kinds.add(artifact.kind);
     if (!isSafeRelativePath(artifact.relative_path) || !SHA256_PATTERN.test(artifact.sha256)) throw new Error("release artifact path or digest is invalid");
     if (!Number.isSafeInteger(artifact.size_bytes) || artifact.size_bytes < 0) throw new Error("release artifact size is invalid");
-    if (!['0644', '0755'].includes(artifact.mode) || artifact.source_commit !== sourceCommit || artifact.core_version !== version) throw new Error("release artifact identity/mode differs from the release");
+    if (!['0644', '0755'].includes(artifact.mode) || artifact.source_commit !== sourceCommit) throw new Error("release artifact identity/mode differs from the release");
     if (artifact.npm_integrity !== null && (typeof artifact.npm_integrity !== "string" || artifact.npm_integrity.length > 256)) throw new Error("artifact npm integrity is invalid");
   }
   if (!Array.isArray(manifest.package_files) || manifest.package_files.length !== PACKAGE_FILE_PATHS.length) throw new Error("manifest package_files must contain the exact package inventory");
@@ -534,6 +525,7 @@ export function validateManifest(manifest, { version, sourceCommit, sourceTree }
     if (typeof validation.name !== "string" || validation.name.length < 1 || validation.name.length > 128 || !["passed", "failed", "blocked"].includes(validation.status) || typeof validation.summary !== "string" || validation.summary.length > 1000) throw new Error("validation summary is invalid or unbounded");
   }
   const artifactByKind = new Map(manifest.artifacts.map((artifact) => [artifact.kind, artifact]));
+  if (artifactByKind.get("core_binary")?.name !== `dev-flow-core-${coreVersion}-darwin-arm64` || artifactByKind.get("npm_tarball")?.name !== `dev-flow-codex-${codexVersion}.tgz`) throw new Error("release artifact names differ from product versions");
   const runtimeFile = manifest.package_files.find((file) => file.path === "runtime/darwin-arm64/dev-flow");
   if (runtimeFile.sha256 !== artifactByKind.get("core_binary").sha256 || support.core_sha256 !== runtimeFile.sha256 || support.package_sha256 !== artifactByKind.get("npm_tarball").sha256) throw new Error("release Core/package digests are not cross-consistent");
   return manifest;
@@ -551,6 +543,7 @@ export function buildSupportMatrixFromFinalJourney({ manifest, evidence }) {
     expected: {
       packageName: "dev-flow-codex",
       version: manifest.release.version,
+      coreVersion: manifest.release.core_version,
       registry: "https://registry.npmjs.org/",
       tarballSHA256: packageArtifact.sha256,
       coreSHA256: coreArtifact.sha256,
@@ -577,16 +570,18 @@ export function buildSupportMatrixFromFinalJourney({ manifest, evidence }) {
 }
 
 export function validatePublicationRecord(record, {
-  version,
+  codexVersion,
+  coreVersion,
+  verificationMode,
+  basedOnRelease,
   sourceCommit,
   sourceTree,
   manifestSHA256,
   requirePrepared = false,
 }) {
-  assertExactKeys(record, ["schema_version", "release", "overall_status", "manifest_sha256", "steps", "npm", "github", "final_journey", "last_observed_at", "safe_next_action"], "publication record");
-  if (record.schema_version !== 1) throw new Error("publication record schema_version must equal 1");
-  assertExactKeys(record.release, ["version", "tag", "source_commit", "source_tree"], "publication release identity");
-  if (record.release.version !== version || record.release.tag !== `v${version}` || record.release.source_commit !== sourceCommit || record.release.source_tree !== sourceTree) throw new Error("publication record release identity differs from the manifest/source");
+  assertExactKeys(record, ["release", "overall_status", "manifest_sha256", "steps", "npm", "github", "final_journey", "last_observed_at", "safe_next_action"], "publication record");
+  assertExactKeys(record.release, ["product", "version", "core_version", "tag", "source_commit", "source_tree", "verification_mode", "based_on_release"], "publication release identity");
+  if (record.release.product !== "codex" || record.release.version !== codexVersion || record.release.core_version !== coreVersion || record.release.tag !== `codex-v${codexVersion}` || record.release.source_commit !== sourceCommit || record.release.source_tree !== sourceTree || record.release.verification_mode !== verificationMode || record.release.based_on_release !== basedOnRelease) throw new Error("publication record release identity differs from the manifest/source");
   const overallStatuses = ["prepared", "remote_initialized", "npm_published", "npm_verified", "journey_passed", "assets_uploaded", "assets_verified", "release_published", "complete", "failed", "blocked"];
   if (!overallStatuses.includes(record.overall_status) || record.manifest_sha256 !== manifestSHA256) throw new Error("publication record status or manifest digest is invalid");
   if (!Array.isArray(record.steps) || record.steps.length !== PUBLICATION_STEPS.length) throw new Error("publication record must contain exactly nine steps");
@@ -601,11 +596,11 @@ export function validatePublicationRecord(record, {
     if (typeof step.summary !== "string" || step.summary.length > 1000 || typeof step.safe_next_action !== "string" || step.safe_next_action.length > 1000) throw new Error(`publication step ${step.name} summary/action is unbounded`);
   }
   assertExactKeys(record.npm, ["name", "version", "published", "integrity", "tarball_sha256", "verified"], "publication npm state");
-  if (record.npm.name !== "dev-flow-codex" || record.npm.version !== version || typeof record.npm.published !== "boolean" || typeof record.npm.verified !== "boolean") throw new Error("publication npm identity/state is invalid");
+  if (record.npm.name !== "dev-flow-codex" || record.npm.version !== codexVersion || typeof record.npm.published !== "boolean" || typeof record.npm.verified !== "boolean") throw new Error("publication npm identity/state is invalid");
   if (record.npm.integrity !== null && (typeof record.npm.integrity !== "string" || record.npm.integrity.length > 256)) throw new Error("publication npm integrity is invalid");
   if (record.npm.tarball_sha256 !== null && !SHA256_PATTERN.test(record.npm.tarball_sha256)) throw new Error("publication npm tarball digest is invalid");
   assertExactKeys(record.github, ["tag", "tag_target", "release_id", "draft", "published", "assets"], "publication GitHub state");
-  if (record.github.tag !== `v${version}` || (record.github.tag_target !== null && !GIT_SHA_PATTERN.test(record.github.tag_target)) || (record.github.release_id !== null && (!Number.isSafeInteger(record.github.release_id) || record.github.release_id < 1)) || typeof record.github.draft !== "boolean" || typeof record.github.published !== "boolean" || !Array.isArray(record.github.assets)) throw new Error("publication GitHub state is invalid");
+  if (record.github.tag !== `codex-v${codexVersion}` || (record.github.tag_target !== null && !GIT_SHA_PATTERN.test(record.github.tag_target)) || (record.github.release_id !== null && (!Number.isSafeInteger(record.github.release_id) || record.github.release_id < 1)) || typeof record.github.draft !== "boolean" || typeof record.github.published !== "boolean" || !Array.isArray(record.github.assets)) throw new Error("publication GitHub state is invalid");
   requireSortedUnique(record.github.assets, (asset) => asset.name, "GitHub assets");
   for (const asset of record.github.assets) {
     assertExactKeys(asset, ["name", "asset_id", "sha256", "verified"], "GitHub asset");
@@ -651,8 +646,8 @@ export async function writeJSONAtomic(path, value, mode = 0o600) {
   }
 }
 
-export async function rewriteChecksums(directory, version) {
-  const names = [`dev-flow-${version}-darwin-arm64`, `dev-flow-codex-${version}.tgz`, "release-manifest.json"].sort();
+export async function rewriteChecksums(directory, codexVersion, coreVersion) {
+  const names = [`dev-flow-core-${coreVersion}-darwin-arm64`, `dev-flow-codex-${codexVersion}.tgz`, "release-manifest.json"].sort();
   const lines = [];
   for (const name of names) lines.push(`${await sha256File(join(directory, name))}  ${name}\n`);
   const target = join(directory, "SHA256SUMS");
@@ -693,7 +688,7 @@ export function scanTextContent(text, { repositoryRoot, record, field = "" } = {
   if (record && typeof text === "string" && text.length > 1000 && ["summary", "notes", "safe_next_action"].includes(field)) throw new Error(`release field ${field} is unbounded`);
 }
 
-export function initialPublicationRecord({ version, sourceCommit, sourceTree, manifestSHA256, tarballSHA256, observedAt }) {
+export function initialPublicationRecord({ codexVersion, coreVersion, verificationMode, basedOnRelease, sourceCommit, sourceTree, manifestSHA256, tarballSHA256, observedAt }) {
   const steps = PUBLICATION_STEPS.map((name, index) => ({
     name,
     status: index === 0 ? "complete" : "pending",
@@ -707,13 +702,12 @@ export function initialPublicationRecord({ version, sourceCommit, sourceTree, ma
     safe_next_action: index === 0 ? "Review the prepared release and run publisher preflight without confirmation." : "Complete preceding release steps first.",
   }));
   return {
-    schema_version: 1,
-    release: { version, tag: `v${version}`, source_commit: sourceCommit, source_tree: sourceTree },
+    release: { product: "codex", version: codexVersion, core_version: coreVersion, tag: `codex-v${codexVersion}`, source_commit: sourceCommit, source_tree: sourceTree, verification_mode: verificationMode, based_on_release: basedOnRelease },
     overall_status: "prepared",
     manifest_sha256: manifestSHA256,
     steps,
-    npm: { name: "dev-flow-codex", version, published: false, integrity: null, tarball_sha256: null, verified: false },
-    github: { tag: `v${version}`, tag_target: null, release_id: null, draft: false, published: false, assets: [] },
+    npm: { name: "dev-flow-codex", version: codexVersion, published: false, integrity: null, tarball_sha256: null, verified: false },
+    github: { tag: `codex-v${codexVersion}`, tag_target: null, release_id: null, draft: false, published: false, assets: [] },
     final_journey: { status: "pending", actual_codex_version: null, observed_at: null, summary: "Final registry-package journey has not run." },
     last_observed_at: observedAt,
     safe_next_action: "Await review and exact confirmation before any remote mutation.",
@@ -877,14 +871,22 @@ function arraysEqual(left, right) {
 
 function validateReleaseMode(mode, basedOnRelease, version) {
   if (!['quick', 'normal'].includes(mode)) throw new Error("release verification_mode must equal quick or normal");
-  if (mode === "normal" && basedOnRelease !== null) throw new Error("normal release must not declare based_on_release");
-  if (mode === "quick") {
-    if (!SEMVER_PATTERN.test(basedOnRelease ?? "")) throw new Error("quick release requires one strict based_on_release version");
-    const current = version.split(".").map(Number);
-    const previous = basedOnRelease.split(".").map(Number);
-    const older = previous.some((value, index) => value < current[index] && previous.slice(0, index).every((entry, prior) => entry === current[prior]));
-    if (!older) throw new Error("quick based_on_release must be lower than the release version");
+  const match = /^(?:v|codex-v)((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))$/u.exec(basedOnRelease ?? "");
+  if (!match) throw new Error("release requires a previous Codex release Tag");
+  const current = version.split(".").map(Number);
+  const previous = match[1].split(".").map(Number);
+  const older = previous.some((value, index) => value < current[index] && previous.slice(0, index).every((entry, prior) => entry === current[prior]));
+  if (!older) throw new Error("based_on_release must be lower than the Codex version");
+}
+
+async function readSourceVersions(root) {
+  const coreVersion = (await readBoundedFile(join(root, "CORE_VERSION"), 128)).toString("utf8").trim();
+  const manifest = JSON.parse((await readBoundedFile(join(root, "packages", "codex", "package.json"), MAX_TEXT_FILE_BYTES)).toString("utf8"));
+  const codexVersion = manifest?.version;
+  if (manifest?.name !== "dev-flow-codex" || ![coreVersion, codexVersion].every((value) => SEMVER_PATTERN.test(value))) {
+    throw new Error("Codex or Core source version is invalid");
   }
+  return { codexVersion, coreVersion };
 }
 
 function codexVersionSatisfiesRange(version) {
@@ -936,7 +938,7 @@ if (isMainModule()) {
   try {
     const directory = parseVerifyArguments(process.argv.slice(2));
     const result = await verifyReleaseDirectory({ directory, requirePrepared: true });
-    process.stdout.write(`${JSON.stringify({ status: result.status, version: result.version, source_commit: result.source_commit, output_files: releaseOutputNames(result.version) })}\n`);
+    process.stdout.write(`${JSON.stringify({ status: result.status, version: result.version, core_version: result.core_version, source_commit: result.source_commit, output_files: releaseOutputNames(result.version, result.core_version) })}\n`);
   } catch (error) {
     process.stderr.write(`verify-codex-release: ${boundedError(error)}\n`);
     process.exitCode = 1;

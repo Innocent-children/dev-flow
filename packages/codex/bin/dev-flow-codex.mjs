@@ -58,9 +58,6 @@ export async function runCLI(arguments_, dependencies = {}) {
         environment,
         currentDirectory: paths.packageRoot,
       });
-      if (coreVersion !== packageVersion) {
-        throw new Error(`package version ${packageVersion} does not match Core version ${coreVersion}`);
-      }
       stdout.write(`dev-flow-codex ${packageVersion} (core ${coreVersion})\n`);
       return { code: 0, signal: null };
     }

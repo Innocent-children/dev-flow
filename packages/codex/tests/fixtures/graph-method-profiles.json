@@ -1,11 +1,9 @@
 {
-  "fixture_kind": "simulated_codex_adapter_contract_0_2",
+  "fixture_kind": "simulated_codex_adapter_contract",
   "evidence_class": "simulated_static_adapter_journey",
   "server_info": {
     "product": "dev-flow",
     "version": "0.5.0",
-    "schema_version": 2,
-    "core_limits_version": "0.2",
     "transport": "stdio",
     "health": "ready",
     "supported_hosts": [
@@ -15,8 +13,7 @@
     "supported_processes": [
       {
         "process_id": "standard-development",
-        "process_version": 1,
-        "definition_digest": "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1",
+        "definition_digest": "c3500d879c1652cb4f3944317c41c1fd2536bfb262b2fa82cd44a2d7e49c0b57",
         "new_task_supported": true
       }
     ],
@@ -41,8 +38,7 @@
       "action_id": "action-requirements-fixture",
       "action_kind": "COMPLETE_REQUIREMENTS",
       "process_id": "standard-development",
-      "process_version": 1,
-      "process_definition_digest": "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1",
+      "process_definition_digest": "c3500d879c1652cb4f3944317c41c1fd2536bfb262b2fa82cd44a2d7e49c0b57",
       "current_node": "REQUIREMENTS",
       "node_purpose": "Transform the immutable initial intent into the current requirements authority.",
       "entry_conditions": [
@@ -88,7 +84,7 @@
           "reason_required": false
         }
       ],
-      "payload_contract": "requirements-result@1",
+      "payload_contract": "requirements-result",
       "guidance": "Complete the REQUIREMENTS contract and select one returned transition.",
       "repository_binding_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "issued_at": "2026-08-19T00:00:00Z"
@@ -99,8 +95,7 @@
       "action_id": "action-test-fixture",
       "action_kind": "COMPLETE_TEST",
       "process_id": "standard-development",
-      "process_version": 1,
-      "process_definition_digest": "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1",
+      "process_definition_digest": "c3500d879c1652cb4f3944317c41c1fd2536bfb262b2fa82cd44a2d7e49c0b57",
       "current_node": "TEST",
       "node_purpose": "Verify current repository behavior within the immutable verification budget.",
       "entry_conditions": [
@@ -165,7 +160,7 @@
           "reason_required": true
         }
       ],
-      "payload_contract": "test-result@1",
+      "payload_contract": "test-result",
       "guidance": "Complete the TEST contract and select one returned transition.",
       "repository_binding_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       "issued_at": "2026-08-19T00:05:00Z"
@@ -176,8 +171,7 @@
       "action_id": "action-comprehension-fixture",
       "action_kind": "COMPLETE_COMPREHENSION_REVIEW",
       "process_id": "standard-development",
-      "process_version": 1,
-      "process_definition_digest": "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1",
+      "process_definition_digest": "c3500d879c1652cb4f3944317c41c1fd2536bfb262b2fa82cd44a2d7e49c0b57",
       "current_node": "COMPREHENSION_REVIEW",
       "node_purpose": "Verify that the developer can explain and maintain the current result.",
       "entry_conditions": [
@@ -257,7 +251,7 @@
           "reason_required": true
         }
       ],
-      "payload_contract": "comprehension-result@1",
+      "payload_contract": "comprehension-result",
       "guidance": "Present the review and wait for the developer's explicit verdict.",
       "repository_binding_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       "issued_at": "2026-08-19T00:06:00Z"

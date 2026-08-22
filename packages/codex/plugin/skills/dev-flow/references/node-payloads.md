@@ -1,4 +1,4 @@
-# Core Contract 0.2 Node Payload Construction
+# current Core contract Node Payload Construction
 
 This reference helps the Codex Adapter construct the one closed payload branch returned by the
 current Core Action. It is not a process definition, transition table, cursor, or authority. The

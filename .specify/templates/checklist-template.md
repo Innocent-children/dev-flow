@@ -33,7 +33,7 @@ does not mean code exists or a test passed.
 
 ## State Graph *(required for process changes; otherwise mark N/A with reason)*
 
-- [ ] CHK011 Process ID, version, and definition-digest rule are explicit.
+- [ ] CHK011 Process ID and definition-digest rule are explicit.
 - [ ] CHK012 Every affected node has purpose, entry assumptions, completion conditions, allowed
   effects, required evidence, and semantic method steps.
 - [ ] CHK013 Every affected node lists its complete outgoing transition set.

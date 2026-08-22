@@ -124,9 +124,9 @@ func setAuthorityMatrixAction(task *ProcessTask, node NodeID) {
 		NodeRefactor: ActionCompleteRefactor, NodeDelivery: ActionCompleteDelivery, NodeBlocked: ActionResolveBlocker,
 	}
 	payloads := map[NodeID]string{
-		NodeRequirements: "requirements-result@1", NodeDesign: "design-result@1", NodeTasks: "tasks-result@1",
-		NodeImplement: "implementation-result@1", NodeTest: "test-result@1", NodeComprehensionReview: "comprehension-result@1",
-		NodeRefactor: "refactor-result@1", NodeDelivery: "delivery-result@1", NodeBlocked: "blocker-resolution@1",
+		NodeRequirements: "requirements-result", NodeDesign: "design-result", NodeTasks: "tasks-result",
+		NodeImplement: "implementation-result", NodeTest: "test-result", NodeComprehensionReview: "comprehension-result",
+		NodeRefactor: "refactor-result", NodeDelivery: "delivery-result", NodeBlocked: "blocker-resolution",
 	}
 	action := *task.CurrentAction
 	action.Kind, action.NodeID, action.PayloadContract = kinds[node], node, payloads[node]

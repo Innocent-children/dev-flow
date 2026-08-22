@@ -36,32 +36,34 @@ Feature.
 | Feature | Type | Status | Product Role |
 | --- | --- | --- | --- |
 | `001-bootstrap-monorepo` | Product foundation | Historical | Root project, module/workspace, governance, bounded CI |
-| `002-govern-and-resume-single-repository-task` | Product Feature | Historical | Core Contract 0.1, SQLite, six MCP tools, released linear workflow |
+| `002-govern-and-resume-single-repository-task` | Product Feature | Historical | released linear Core contract, SQLite, six MCP tools, released linear workflow |
 | `003-codex-explicit-dev-flow` | Host Product Feature | Historical | Explicit Codex Plugin/Skill/MCP product and native acceptance |
-| `004-deepseek-explicit-dev-flow` | Host Product Feature | Superseded | Historical Contract 0.1 DeepSeek planning; implementation authority moved to Feature 010 |
+| `004-deepseek-explicit-dev-flow` | Host Product Feature | Superseded | Historical released linear contract DeepSeek planning; implementation authority moved to Feature 010 |
 | `005-recover-uncertain-actions-and-drift` | Product Feature | Historical | Read-before-retry and repository-drift recovery hardening |
 | `006-publish-codex-installable-product` | Release Feature | Historical | Deterministic/public Codex release machinery and first release evidence |
 | `007-close-open-task-contract` | Corrective/Product Feature | Historical | Complete open-task contract and published `0.3.0` evidence |
 | `008-refactor-to-development-process-graph` | Product Feature | Complete | Development process graph, composite source-local acceptance, final validation, and zero-gap convergence complete; publication remains separate |
 | `009-publish-codex-0.4.0` | Release Change | Complete | Published and verified Feature 008 graph as Codex `0.4.0` with one-command and frozen-source recovery evidence |
 | `010-deepseek-explicit-graph-host` | Host Product Feature | Complete | Source-local DeepSeek implementation and exact-artifact native acceptance complete; no public support or release authority |
+| `011-simplify-product-version-governance` | Product Feature | Complete | Three independent product versions, current-only internal contracts, and Codex/Core release identity separation |
 
 ## Current Source Authority
 
 `0.3.0`, `0.4.0`, and Features 001–009 remain historical truth. Feature 008 is the approved product
 specification for the current graph; Feature 009 is historical `0.4.0` release evidence. The current
 published Codex product is `0.5.0`. Feature 010 is the completed DeepSeek source implementation
-authority and does not itself authorize a public DeepSeek version or release. Current version
+authority and does not itself authorize a public DeepSeek version or release. Feature 011 governs
+the independent Core/Codex/DeepSeek authorities and removal of internal versions. Current version
 releases are governed by `.specify/memory/constitution.md`, `AGENTS.md`, `release/`, and the
 standalone release command. The source authority is distributed as follows:
 
 | Responsibility | Authority |
 | --- | --- |
-| `standard-development@1` nodes, 29 edges, guards and digest | `internal/workflow/standard_process.go`, `internal/workflow/definitions.go` |
-| ProcessTask, TaskIntent and versioned baselines | `internal/domain/task_v2.go`, `internal/domain/baselines.go` |
-| Schema 2 bootstrap, strict snapshot-v2 codec and Store preflight | `internal/store/migrations.go`, `internal/store/codec.go`, `internal/store/sqlite.go` |
+| `standard-development` nodes, 29 edges, guards and digest | `internal/workflow/standard_process.go`, `internal/workflow/definitions.go` |
+| ProcessTask, TaskIntent and revisioned baselines | `internal/domain/task.go`, `internal/domain/baselines.go` |
+| Current SQLite bootstrap, strict snapshot codec and Store preflight | `internal/store/migrations.go`, `internal/store/codec.go`, `internal/store/sqlite.go` |
 | Five-class graph Recovery and blocker reconciliation | `internal/recovery/`, `internal/application/` |
-| Core Contract 0.2 six-tool schemas and projections | `internal/mcp/` |
+| current Core contract six-tool schemas and projections | `internal/mcp/` |
 | Explicit Codex Adapter and current Skill | `packages/codex/plugin/skills/dev-flow/SKILL.md` |
 | Method-profile rendering reference | `packages/codex/plugin/skills/dev-flow/references/method-profiles.md` |
 | Schema-bound Codex node-payload construction reference | `packages/codex/plugin/skills/dev-flow/references/node-payloads.md` |
@@ -71,10 +73,11 @@ standalone release command. The source authority is distributed as follows:
 | Current manifest and publication contract | `release/`, `scripts/release-codex.mjs` |
 | Historical `0.4.0` identity and release evidence | `specs/009-publish-codex-0.4.0/` |
 | Completed DeepSeek source implementation scope and contracts | `specs/010-deepseek-explicit-graph-host/` |
+| Current product version governance and release identity | `specs/011-simplify-product-version-governance/`, `docs/VERSIONING.md` |
 | Current product support claims | `docs/SUPPORT-MATRIX.md` |
 
-Current source supports only fresh Schema 2 `standard-development@1` tasks. It contains no
-historical-task runtime, migration, snapshot-v1 decoder or legacy process. Feature 008 completed
+Current source supports only fresh current SQLite format `standard-development` tasks. It contains no
+historical-task runtime, migration, legacy snapshot decoder or legacy process. Feature 008 completed
 source-local acceptance by combining Attempt 3 native graph-flow evidence with no-Codex deterministic
 lifecycle evidence bound to the same exact unpublished artifact. Final repository validation and
 zero-gap analyze/converge passed.

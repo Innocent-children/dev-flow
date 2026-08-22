@@ -35,7 +35,6 @@ export async function activateDeepSeekIntegration(ctx, {
     await ensureDefaultDataDirectory(dataSelection);
   }
   const runtime = await preflightPackagedCore(runtimeSelection, {
-    expectedVersion: manifest.version,
     environment,
   });
 
@@ -108,7 +107,7 @@ function verifyCurrentCatalog(ctx, options) {
 
 async function readPackageManifest(packageRoot) {
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
-  if (manifest.name !== name || typeof manifest.version !== "string") {
+  if (manifest.name !== name || !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u.test(manifest.version ?? "")) {
     throw new Error("DeepSeek package manifest identity is invalid");
   }
   return manifest;

@@ -78,7 +78,7 @@ const FINAL_PROOF_GIT_HASH = createHash("sha1")
 const FINAL_LOCAL_PROOF_CONTENT = "Dev Flow Feature 008 native journey passed.\n";
 const FINAL_LOCAL_TEST_COMMAND = "node --test test/proof-writer.test.mjs";
 const FINAL_LOCAL_RENDERED_TEST_COMMAND = "/bin/zsh -lc 'node --test test/proof-writer.test.mjs'";
-const FINAL_LOCAL_DEFINITION_DIGEST = "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1";
+const FINAL_LOCAL_DEFINITION_DIGEST = "c3500d879c1652cb4f3944317c41c1fd2536bfb262b2fa82cd44a2d7e49c0b57";
 const FINAL_LOCAL_PACKAGE_FILES = Object.freeze([
   ".agents/plugins/marketplace.json",
   "LICENSE",
@@ -134,8 +134,7 @@ const ATTEMPT_3_NATIVE_EVIDENCE_FIELDS = Object.freeze([
   "artifact_filename", "artifact_sha256", "artifact_size", "artifact_source_commit",
   "package_name", "package_version", "core_version", "core_sha256", "platform",
   "source_transcripts", "source_artifact_marker", "original_failed_marker",
-  "ordinary_zero_calls", "distinct_real_codex_threads", "handshake_passed", "schema_version",
-  "core_limits_version", "process_identity", "definition_digest", "method_profiles", "tool_order",
+  "ordinary_zero_calls", "distinct_real_codex_threads", "handshake_passed", "process_identity", "definition_digest", "method_profiles", "tool_order",
   "transition_sequence", "successful_mutation_count", "request_binding_passed", "revision_start",
   "revision_end", "revision_increment_exact", "last_operation_binding_passed",
   "duplicate_mutation_identities", "duplicate_evidence_ids", "restart_identity_passed",
@@ -441,7 +440,7 @@ export function validateFinalJourneyEvidenceShape(evidence, { allowFixture = fal
   if (evidence.package_root_location !== "isolated-npm-prefix") {
     throw new Error("final journey package_root_location must identify the isolated npm prefix");
   }
-  if (evidence.core_version !== evidence.package_version) throw new Error("final journey package/Core versions differ");
+  requireReleaseVersion(evidence.core_version);
   requireDigest(evidence.core_sha256, "core_sha256");
   if (!/^[0-9a-f]{40}$/u.test(evidence.source_commit)) throw new Error("final journey source_commit is invalid");
   requireReleaseVersion(evidence.codex_version);
@@ -498,7 +497,7 @@ export function validateQuickJourneyEvidence(evidence, { expected = null } = {})
   if (typeof evidence.npm_integrity !== "string" || !/^sha512-[A-Za-z0-9+/]+={0,2}$/u.test(evidence.npm_integrity)) {
     throw new Error("quick journey npm_integrity is invalid");
   }
-  if (evidence.core_version !== evidence.package_version) throw new Error("quick journey package/Core versions differ");
+  requireReleaseVersion(evidence.core_version);
   requireDigest(evidence.core_sha256, "core_sha256");
   if (!/^[0-9a-f]{40}$/u.test(evidence.source_commit)) throw new Error("quick journey source_commit is invalid");
   requireReleaseVersion(evidence.codex_version);
@@ -518,9 +517,11 @@ export function validateFinalLocalJourneyEvidence(evidence, expected = null) {
   if (evidence.evidence_kind !== FINAL_LOCAL_NATIVE_EVIDENCE_KIND || evidence.status !== "passed") {
     throw new Error("final local evidence must be passed source-local native evidence");
   }
-  if (evidence.package_name !== "dev-flow-codex" || evidence.package_version !== evidence.core_version) {
-    throw new Error("final local package/Core identity is invalid");
+  if (evidence.package_name !== "dev-flow-codex") {
+	throw new Error("final local package identity is invalid");
   }
+  requireReleaseVersion(evidence.package_version);
+  requireReleaseVersion(evidence.core_version);
   if (evidence.artifact_filename !== `dev-flow-codex-${evidence.package_version}.tgz`) {
     throw new Error("final local artifact filename is invalid");
   }
@@ -671,9 +672,7 @@ export function validateAttempt3NativeFlowEvidence(evidence, expected = null) {
   ];
   if (
     evidence.distinct_real_codex_threads !== 4
-    || evidence.schema_version !== 2
-    || evidence.core_limits_version !== "0.2"
-    || evidence.process_identity !== "standard-development@1"
+    || evidence.process_identity !== "standard-development"
     || evidence.definition_digest !== FINAL_LOCAL_DEFINITION_DIGEST
     || !isDeepStrictEqual(evidence.method_profiles, ["plain", "spec-kit", "openspec"])
     || !isDeepStrictEqual(evidence.tool_order, DEV_FLOW_TOOLS)
@@ -1744,9 +1743,7 @@ export async function validateRetainedAttempt3NativeFlow(options) {
     ordinary_zero_calls: true,
     distinct_real_codex_threads: 4,
     handshake_passed: true,
-    schema_version: info.schema_version,
-    core_limits_version: info.core_limits_version,
-    process_identity: `${info.supported_processes[0].process_id}@${info.supported_processes[0].process_version}`,
+    process_identity: info.supported_processes[0].process_id,
     definition_digest: info.supported_processes[0].definition_digest,
     method_profiles: info.method_profiles,
     tool_order: info.tools,
@@ -1965,7 +1962,6 @@ async function applyLifecyclePayload(product, layout, environment, task, payload
     action_id: action.action_id,
     action_kind: action.action_kind,
     process_id: task.process_id,
-    process_version: task.process_version,
     process_definition_digest: task.process_definition_digest,
     source_cursor: task.current_cursor,
     repository_binding_digest: action.repository_binding_digest,
@@ -2731,9 +2727,8 @@ export function validateAcceptanceReport(report) {
       throw new Error(`acceptance report ${field} must be a nonempty string`);
     }
   }
-  if (report.package_version !== report.core_version) {
-    throw new Error("acceptance report package_version must equal core_version");
-  }
+  requireReleaseVersion(report.package_version);
+  requireReleaseVersion(report.core_version);
   requireTrue(report, "setup_readback_passed");
   if (!Number.isInteger(report.ordinary_prompt_core_call_count) || report.ordinary_prompt_core_call_count !== 0) {
     throw new Error("acceptance report ordinary_prompt_core_call_count must equal 0");
@@ -2811,6 +2806,7 @@ function assertFinalEvidenceIdentity(evidence, expected) {
   const identities = [
     ["package_name", expected.packageName],
     ["package_version", expected.version],
+    ["core_version", expected.coreVersion],
     ["registry", expected.registry],
     ["npm_tarball_sha256", expected.tarballSHA256],
     ["npm_integrity", expected.npmIntegrity],
@@ -3103,7 +3099,6 @@ function assertHandshake(session, coreVersion = "0.1.0") {
     classification: call?.classification === "success",
     product: info?.product === "dev-flow",
     version: info?.version === coreVersion,
-    schema: info?.schema_version === 1,
     transport: info?.transport === "stdio",
     health: info?.health === "ready",
     host: info?.supported_hosts?.includes("codex") === true,
@@ -3292,21 +3287,17 @@ async function readPackagedServerInfo(runtimePath, dataDirectory, repository, en
 function assertFinalLocalServerInfo(envelope, coreVersion) {
   const info = envelope?.result;
   if (
-    envelope?.schema_version !== 2
-    || envelope?.ok !== true
+    envelope?.ok !== true
     || info?.product !== "dev-flow"
     || info?.version !== coreVersion
-    || info?.schema_version !== 2
-    || info?.core_limits_version !== "0.2"
     || info?.transport !== "stdio"
     || info?.health !== "ready"
     || !isDeepStrictEqual(info?.method_profiles, ["plain", "spec-kit", "openspec"])
     || !isDeepStrictEqual(info?.tools, DEV_FLOW_TOOLS)
     || info?.supported_processes?.length !== 1
     || info.supported_processes[0]?.process_id !== "standard-development"
-    || info.supported_processes[0]?.process_version !== 1
     || info.supported_processes[0]?.definition_digest !== FINAL_LOCAL_DEFINITION_DIGEST
-  ) throw new Error("final local packaged Core Contract 0.2 handshake is invalid");
+  ) throw new Error("final local packaged Core handshake is invalid");
 }
 
 async function initializeFinalLocalRepository(path, environment) {
@@ -3337,8 +3328,8 @@ async function readGraphCoreRows(databasePath) {
   if (!existsSync(databasePath)) return { tasks: [], task_events: [], repository_claims: [] };
   const database = new DatabaseSync(databasePath, { readOnly: true });
   try {
-    const tasks = database.prepare("SELECT task_id, origin_host, process_id, process_version, process_definition_digest, snapshot_version, current_node, revision, repository_identity, hex(snapshot) AS snapshot_hex FROM tasks ORDER BY task_id").all()
-      .map((row) => ({ ...row, process_version: Number(row.process_version), snapshot_version: Number(row.snapshot_version), revision: Number(row.revision), snapshot: JSON.parse(Buffer.from(row.snapshot_hex, "hex").toString("utf8")), snapshot_hex: undefined }));
+    const tasks = database.prepare("SELECT task_id, origin_host, process_id, process_definition_digest, current_node, revision, repository_identity, hex(snapshot) AS snapshot_hex FROM tasks ORDER BY task_id").all()
+      .map((row) => ({ ...row, revision: Number(row.revision), snapshot: JSON.parse(Buffer.from(row.snapshot_hex, "hex").toString("utf8")), snapshot_hex: undefined }));
     const taskEvents = database.prepare("SELECT event_id, task_id, revision, event_type, source_node, destination_node, transition_id, transition_reason, action_id, request_id, payload_digest FROM task_events ORDER BY revision").all()
       .map((row) => ({ ...row, revision: Number(row.revision) }));
     const claims = database.prepare("SELECT repository_identity, task_id, origin_host FROM repository_claims ORDER BY repository_identity").all().map((row) => ({ ...row }));
@@ -3379,7 +3370,6 @@ function finalLocalRestartIdentity(task) {
     revision: task.revision,
     current_action: task.current_action,
     process_id: task.process_id,
-    process_version: task.process_version,
     process_definition_digest: task.process_definition_digest,
     current_cursor: task.current_cursor,
     repository: task.repository,
@@ -3585,7 +3575,6 @@ async function directoryManifest(root) {
 
 function finalLocalTaskManifest(finalCoreState, finalTask, dataManifest) {
   return {
-    schema_version: 2,
     task_id: finalTask.task_id,
     final_revision: finalTask.revision,
     current_cursor: finalTask.current_cursor,

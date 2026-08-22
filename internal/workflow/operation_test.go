@@ -15,7 +15,6 @@ func TestGraphOperationReferenceRejectsProcessSourceAndActionMismatch(t *testing
 	}
 	for name, mutate := range map[string]func(*domain.OperationReference){
 		"process id": func(v *domain.OperationReference) { v.Process.ID = "alternate" },
-		"version":    func(v *domain.OperationReference) { v.Process.Version++ },
 		"digest": func(v *domain.OperationReference) {
 			v.Process.DefinitionDigest = domain.Digest("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 		},

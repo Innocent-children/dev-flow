@@ -201,7 +201,7 @@ func invalidationMatrixTask(t *testing.T) ProcessTask {
 	task.CurrentNode = NodeDelivery
 	task.CurrentAction.Kind = ActionCompleteDelivery
 	task.CurrentAction.NodeID = NodeDelivery
-	task.CurrentAction.PayloadContract = "delivery-result@1"
+	task.CurrentAction.PayloadContract = "delivery-result"
 	task.CurrentAction.NodeContract = NodeContractProjection{Purpose: "Reconcile delivery.", EntryConditions: []string{"authorities current"}, CompletionConditions: []string{"delivery complete"}}
 	task.CurrentAction.SemanticMethodSteps = []SemanticMethodStep{{StepID: "delivery.reconcile_acceptance", Purpose: "Reconcile acceptance.", Required: true}}
 	task.CurrentAction.AvailableTransitions = nil

@@ -9,14 +9,15 @@ Dev Flow 解决的是开发过程容易失去上下文的问题：开发者或 A
 通过后直接交付难以维护的实现，或在中断和不确定 mutation 后凭聊天记录猜测下一步。一个
 Core 读取即可回答“当前在哪里、需要完成什么、可以去哪里以及为什么”。
 
-当前产品版本是 `0.5.0`，公开产品仍只有 Codex-only macOS arm64。Feature 009 的 `0.4.0`
+Core、Codex、DeepSeek 当前各自版本均为 `0.5.0`，但三者独立演进；权威见
+[`docs/VERSIONING.md`](docs/VERSIONING.md)。公开产品仍只有 Codex-only macOS arm64。Feature 009 的 `0.4.0`
 发布以及更早的 Tag、npm 包、Release 和 Features 001–008 证据保持冻结。当前公开状态与精确
 制品摘要以 npm `dev-flow-codex@0.5.0` 和 GitHub Release `v0.5.0` 的发布记录为准。Feature 010
 已完成 DeepSeek 的 source-local 实施与精确制品验收，但不构成公开 DeepSeek 版本或支持声明。
 
 ## 开发过程图
 
-当前源码只包含内建的 `standard-development@1`，共有 9 个正常工作节点、`DONE` 终态以及
+当前源码只包含内建的 `standard-development`，共有 9 个正常工作节点、`DONE` 终态以及
 `BLOCKED`、`CANCELLED` 两个异常节点，合计 11 个节点和 29 条正常流转。
 
 ```mermaid
@@ -105,12 +106,12 @@ resume node。详细合同见 [MCP Tools 0.2](specs/008-refactor-to-development-
 当前图源码使用：
 
 ```text
-SQLite Schema 2
-Snapshot Version 2
-standard-development@1
+SQLite current SQLite format
+Strict current snapshot
+standard-development
 ```
 
-Feature 008 不兼容任何历史 Task。检测到 Schema 1 或其他 pre-graph 数据时，Core 返回
+Feature 008 不兼容任何历史 Task。检测到 pre-graph data 或其他 pre-graph 数据时，Core 返回
 `SCHEMA_UNSUPPORTED`，并且不修改、不迁移、不删除也不自动 reset 旧数据。用户必须显式使用
 新的 `DEV_FLOW_DATA_DIR`，或在 Core 外部手工 archive、rename 或 delete 旧目录。setup、update、
 remove 和 uninstall 同样不会自动清除任务数据。完整边界见
@@ -170,12 +171,12 @@ artifact 的 no-Codex deterministic acceptance 独立证明。
 | --- | --- |
 | `cmd/dev-flow/` | CLI、version 和 local STDIO server |
 | `internal/domain/` | ProcessTask、TaskIntent、baselines、evidence、outcome 和 limits |
-| `internal/workflow/` | `standard-development@1`、node/transition 和 payload authority |
+| `internal/workflow/` | `standard-development`、node/transition 和 payload authority |
 | `internal/recovery/` | 五类 reconciliation、blocker 和 read-before-retry authority |
 | `internal/repository/` | 只读 Git observation 和 binding digest |
-| `internal/store/` | Fresh Schema 2、strict snapshot-v2、CAS、events 和 claims |
+| `internal/store/` | Current SQLite layout、strict snapshot、CAS、events 和 claims |
 | `internal/application/` | Core use-case orchestration |
-| `internal/mcp/` | Contract 0.2 六工具、closed JSON 和 typed envelope |
+| `internal/mcp/` | current contract 六工具、closed JSON 和 typed envelope |
 | `packages/codex/` | explicit-only Codex Adapter、Skill、method renderer 和 public package |
 | `packages/deepseek/` | Feature 010 已完成验收的 private source package；公开发布前不构成支持声明 |
 | `protocol/fixtures/` | 历史 0.1、当前 0.2、Host parity 和 Recovery fixtures |

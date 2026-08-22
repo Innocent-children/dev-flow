@@ -6,15 +6,15 @@ Release evidence。
 
 ## 覆盖范围
 
-- `mcp_contract_test.go`：Core Contract 0.2 exact six-tool catalog、closed input schemas、nullable
+- `mcp_contract_test.go`：Core current Core contract exact six-tool catalog、closed input schemas、nullable
   Recovery fields、ServerInfo DTO、process/method/storage identity；
 - `result_envelope_test.go`：typed Result Envelope、stable public errors、closed/redacted output；
-- `graph_contract_test.go`：`standard-development@1` 节点、29 transitions、guard/reason/problem
+- `graph_contract_test.go`：`standard-development` 节点、29 transitions、guard/reason/problem
   class 和 method-profile public semantics；
-- `storage_generation_2_test.go`：Fresh Schema 2、snapshot-v2、no-legacy source、unsupported/future
+- `storage_generation_2_test.go`：Fresh current storage、strict snapshot、no-legacy source、unsupported/future
   safe-stop、lifecycle non-deletion 和 private-path redaction；
-- `fixture_contract_test.go`：Contract 0.2 graph fixtures、Host parity、Recovery fixtures 与冻结
-  Contract 0.1 inventory/parity；
+- `fixture_contract_test.go`：current Core contract graph fixtures、Host parity、Recovery fixtures 与冻结
+  frozen linear contract inventory/parity；
 - `package_manifest_test.go`：root/Codex package closed manifest、scripts、allowlist 和 platform；
 - `repository_layout_test.go`：repository layout、single module/Spec Kit root、host source allowlist
   和 root script allowlist；
@@ -27,7 +27,7 @@ Release evidence。
 - **static evidence**：checked-in Markdown、manifest、schema 和 JSON fixture；
 - **deterministic contract evidence**：Go tests 对闭合 schema、ordering、allowlist、zero-write 和
   redaction 的实际执行结果；
-- **historical freeze evidence**：Contract 0.1、已发布 `0.3.0` 和既有 release fixtures，仅证明
+- **historical freeze evidence**：frozen linear contract、已发布 `0.3.0` 和既有 release fixtures，仅证明
   已发生历史，不定义当前 graph runtime。
 
 Host parity fixture 证明 Core identity parity，不证明 DeepSeek 产品。Package/layout contract

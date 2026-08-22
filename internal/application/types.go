@@ -27,7 +27,6 @@ type OpenTaskResult struct {
 type OperationProbe struct {
 	OperationID             domain.ID
 	ProcessID               domain.ProcessID
-	ProcessVersion          uint32
 	ProcessDefinitionDigest domain.Digest
 	SourceCursor            domain.NodeID
 	ExpectedRevision        uint64
@@ -38,7 +37,7 @@ type OperationProbe struct {
 }
 
 func (p OperationProbe) Reference() domain.OperationReference {
-	return domain.OperationReference{OperationID: p.OperationID, Process: domain.ProcessReference{ID: p.ProcessID, Version: p.ProcessVersion, DefinitionDigest: p.ProcessDefinitionDigest}, SourceCursor: p.SourceCursor, ExpectedRevision: p.ExpectedRevision, ActionID: p.ActionID, ActionKind: p.ActionKind, RepositoryBindingDigest: p.RepositoryBindingDigest}
+	return domain.OperationReference{OperationID: p.OperationID, Process: domain.ProcessReference{ID: p.ProcessID, DefinitionDigest: p.ProcessDefinitionDigest}, SourceCursor: p.SourceCursor, ExpectedRevision: p.ExpectedRevision, ActionID: p.ActionID, ActionKind: p.ActionKind, RepositoryBindingDigest: p.RepositoryBindingDigest}
 }
 
 type RecoveryApplyInput struct {
@@ -65,7 +64,7 @@ type NextActionResult struct {
 	CurrentNode        domain.NodeID
 	Revision           uint64
 	MethodProfile      domain.MethodProfile
-	Action             *domain.ProcessActionV2
+	Action             *domain.ProcessAction
 	Outcome            *domain.ProcessOutcome
 	Blocker            *domain.ProcessBlocker
 	RecoveryAssessment *recovery.RecoveryAssessment
@@ -78,7 +77,6 @@ type ApplyActionRequest struct {
 	ActionID                domain.ID
 	ActionKind              domain.ActionKind
 	ProcessID               domain.ProcessID
-	ProcessVersion          uint32
 	ProcessDefinitionDigest domain.Digest
 	SourceCursor            domain.NodeID
 	RepositoryBindingDigest domain.Digest

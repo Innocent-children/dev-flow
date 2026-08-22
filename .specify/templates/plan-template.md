@@ -28,7 +28,7 @@ Describe the exact current behavior and authoritative files before proposing cha
 
 **Primary Dependencies**: [existing dependencies; mark new dependency explicitly]
 
-**Storage**: [SQLite schema/version or N/A]
+**Storage**: [Current SQLite layout or N/A]
 
 **Transport/Public Surface**: [MCP/CLI/package or N/A]
 
@@ -69,11 +69,11 @@ Any FAIL blocks tasks and implementation.
 
 ### Public Contract
 
-[Tool count, schema version, new/changed fields, errors, forbidden input, result envelope.]
+[Tool count, current schema fields, errors, forbidden input, result envelope.]
 
 ### Persistence Transition
 
-[Schema/bootstrap version, selected existing-data disposition, current-generation task behavior,
+[Current bootstrap/layout, selected existing-data disposition, current task behavior,
 unsupported/future data behavior, reset authority, zero-write proof, and transaction boundary.]
 
 ### Recovery and Concurrency

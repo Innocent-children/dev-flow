@@ -9,16 +9,13 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/recovery"
 )
 
-const resultSchemaVersion = 2
-
 type Envelope struct {
-	SchemaVersion int               `json:"schema_version"`
-	OK            bool              `json:"ok"`
-	RequestID     string            `json:"request_id"`
-	Tool          string            `json:"tool"`
-	Result        any               `json:"result,omitempty"`
-	Error         *ErrorResult      `json:"error,omitempty"`
-	Recovery      *RecoveryGuidance `json:"recovery,omitempty"`
+	OK        bool              `json:"ok"`
+	RequestID string            `json:"request_id"`
+	Tool      string            `json:"tool"`
+	Result    any               `json:"result,omitempty"`
+	Error     *ErrorResult      `json:"error,omitempty"`
+	Recovery  *RecoveryGuidance `json:"recovery,omitempty"`
 }
 type ErrorResult struct {
 	Code    domain.ErrorCode `json:"code"`
@@ -34,13 +31,13 @@ type EncodedResult struct {
 	IsError bool
 }
 
-var fallbackBytes = mustEncode(Envelope{SchemaVersion: 2, OK: false, RequestID: "request-unavailable", Tool: ToolServerInfo, Error: &ErrorResult{Code: domain.ErrorInternal, Message: "The Core could not complete the operation."}, Recovery: &RecoveryGuidance{RetrySafe: false, Action: "report_internal_error", Message: "Report the bounded failure and stop this operation."}})
+var fallbackBytes = mustEncode(Envelope{OK: false, RequestID: "request-unavailable", Tool: ToolServerInfo, Error: &ErrorResult{Code: domain.ErrorInternal, Message: "The Core could not complete the operation."}, Recovery: &RecoveryGuidance{RetrySafe: false, Action: "report_internal_error", Message: "Report the bounded failure and stop this operation."}})
 
 func EncodeSuccess(id, tool string, result any) EncodedResult {
 	if !domain.ID(id).IsValid() || !isToolName(tool) {
 		return fixedFallback()
 	}
-	raw, err := encodeEnvelope(Envelope{SchemaVersion: 2, OK: true, RequestID: id, Tool: tool, Result: result})
+	raw, err := encodeEnvelope(Envelope{OK: true, RequestID: id, Tool: tool, Result: result})
 	if err != nil || !WithinResultEnvelopeLimit(raw) {
 		return fixedFallback()
 	}
@@ -56,7 +53,7 @@ func EncodeError(id, tool string, err error) EncodedResult {
 		code = typed.Code
 	}
 	message, action, recovery := publicFailure(code)
-	raw, encodeErr := encodeEnvelope(Envelope{SchemaVersion: 2, OK: false, RequestID: id, Tool: tool, Error: &ErrorResult{Code: code, Message: message}, Recovery: &RecoveryGuidance{RetrySafe: false, Action: action, Message: recovery}})
+	raw, encodeErr := encodeEnvelope(Envelope{OK: false, RequestID: id, Tool: tool, Error: &ErrorResult{Code: code, Message: message}, Recovery: &RecoveryGuidance{RetrySafe: false, Action: action, Message: recovery}})
 	if encodeErr != nil || !WithinResultEnvelopeLimit(raw) {
 		return fixedFallback()
 	}
@@ -93,8 +90,6 @@ func publicFailure(code domain.ErrorCode) (string, string, string) {
 type ServerInfoResult struct {
 	Product            string                   `json:"product"`
 	Version            string                   `json:"version"`
-	SchemaVersion      int                      `json:"schema_version"`
-	CoreLimitsVersion  string                   `json:"core_limits_version"`
 	Transport          string                   `json:"transport"`
 	Health             string                   `json:"health"`
 	SupportedHosts     []string                 `json:"supported_hosts"`
@@ -104,22 +99,21 @@ type ServerInfoResult struct {
 }
 type SupportedProcessResult struct {
 	ProcessID        domain.ProcessID `json:"process_id"`
-	ProcessVersion   uint32           `json:"process_version"`
 	DefinitionDigest domain.Digest    `json:"definition_digest"`
 	NewTaskSupported bool             `json:"new_task_supported"`
 }
 
-func projectAction(a *domain.ProcessActionV2) any {
+func projectAction(a *domain.ProcessAction) any {
 	if a == nil {
 		return nil
 	}
-	return map[string]any{"task_id": a.TaskID, "revision": a.Revision, "action_id": a.ActionID, "action_kind": a.Kind, "process_id": a.Process.ID, "process_version": a.Process.Version, "process_definition_digest": a.Process.DefinitionDigest, "current_node": a.NodeID, "node_purpose": a.NodeContract.Purpose, "entry_conditions": a.NodeContract.EntryConditions, "completion_conditions": a.NodeContract.CompletionConditions, "allowed_effects": a.AllowedEffects, "required_evidence": a.RequiredEvidence, "method_profile": a.MethodProfile, "method_steps": a.SemanticMethodSteps, "available_transitions": a.AvailableTransitions, "payload_contract": a.PayloadContract, "guidance": a.Guidance, "repository_binding_digest": a.RepositoryBindingDigest, "issued_at": a.IssuedAt}
+	return map[string]any{"task_id": a.TaskID, "revision": a.Revision, "action_id": a.ActionID, "action_kind": a.Kind, "process_id": a.Process.ID, "process_definition_digest": a.Process.DefinitionDigest, "current_node": a.NodeID, "node_purpose": a.NodeContract.Purpose, "entry_conditions": a.NodeContract.EntryConditions, "completion_conditions": a.NodeContract.CompletionConditions, "allowed_effects": a.AllowedEffects, "required_evidence": a.RequiredEvidence, "method_profile": a.MethodProfile, "method_steps": a.SemanticMethodSteps, "available_transitions": a.AvailableTransitions, "payload_contract": a.PayloadContract, "guidance": a.Guidance, "repository_binding_digest": a.RepositoryBindingDigest, "issued_at": a.IssuedAt}
 }
 func projectTask(t domain.ProcessTask) any {
-	return map[string]any{"task_id": t.TaskID, "origin_host": t.OriginHost, "snapshot_version": 2, "process_id": t.Process.ID, "process_version": t.Process.Version, "process_definition_digest": t.Process.DefinitionDigest, "intent": t.Intent, "current_cursor": t.CurrentNode, "resume_cursor": t.ResumeNode, "repository": map[string]any{"repository_identity": t.Repository.RepositoryIdentity, "branch": t.Repository.Branch, "detached": t.Repository.Detached, "head": t.Repository.Head, "unborn": t.Repository.Unborn, "worktree_fingerprint": t.Repository.WorktreeFingerprint, "observed_at": t.Repository.ObservedAt, "binding_digest": t.Repository.BindingDigest}, "baselines": map[string]any{"requirements": t.Requirements, "design": t.Design, "task_plan": t.TaskPlan, "history": t.BaselineHistory}, "implementation": t.Implementation, "test": t.Test, "comprehension": t.Comprehension, "current_action": projectAction(t.CurrentAction), "blocker": t.Blocker, "last_operation": t.LastOperation, "evidence": t.Evidence, "outcome": t.Outcome, "revision": t.Revision, "created_at": t.CreatedAt, "updated_at": t.UpdatedAt, "completed_at": t.CompletedAt}
+	return map[string]any{"task_id": t.TaskID, "origin_host": t.OriginHost, "process_id": t.Process.ID, "process_definition_digest": t.Process.DefinitionDigest, "intent": t.Intent, "current_cursor": t.CurrentNode, "resume_cursor": t.ResumeNode, "repository": map[string]any{"repository_identity": t.Repository.RepositoryIdentity, "branch": t.Repository.Branch, "detached": t.Repository.Detached, "head": t.Repository.Head, "unborn": t.Repository.Unborn, "worktree_fingerprint": t.Repository.WorktreeFingerprint, "observed_at": t.Repository.ObservedAt, "binding_digest": t.Repository.BindingDigest}, "baselines": map[string]any{"requirements": t.Requirements, "design": t.Design, "task_plan": t.TaskPlan, "history": t.BaselineHistory}, "implementation": t.Implementation, "test": t.Test, "comprehension": t.Comprehension, "current_action": projectAction(t.CurrentAction), "blocker": t.Blocker, "last_operation": t.LastOperation, "evidence": t.Evidence, "outcome": t.Outcome, "revision": t.Revision, "created_at": t.CreatedAt, "updated_at": t.UpdatedAt, "completed_at": t.CompletedAt}
 }
 func projectNextAction(result application.NextActionResult) any {
-	return map[string]any{"task_id": result.TaskID, "snapshot_version": 2, "process": result.Process, "current_cursor": result.CurrentNode, "revision": result.Revision, "method_profile": result.MethodProfile, "blocker": result.Blocker, "action": projectAction(result.Action), "outcome": result.Outcome, "recovery_assessment": projectRecoveryAssessment(result.RecoveryAssessment)}
+	return map[string]any{"task_id": result.TaskID, "process": result.Process, "current_cursor": result.CurrentNode, "revision": result.Revision, "method_profile": result.MethodProfile, "blocker": result.Blocker, "action": projectAction(result.Action), "outcome": result.Outcome, "recovery_assessment": projectRecoveryAssessment(result.RecoveryAssessment)}
 }
 
 func projectRecoveryAssessment(assessment *recovery.RecoveryAssessment) any {
@@ -129,7 +123,7 @@ func projectRecoveryAssessment(assessment *recovery.RecoveryAssessment) any {
 	operation := assessment.Operation
 	return map[string]any{
 		"classification":               assessment.Classification,
-		"operation":                    map[string]any{"operation_id": operation.OperationID, "process_id": operation.Process.ID, "process_version": operation.Process.Version, "process_definition_digest": operation.Process.DefinitionDigest, "source_cursor": operation.SourceCursor, "expected_revision": operation.ExpectedRevision, "action_id": operation.ActionID, "action_kind": operation.ActionKind},
+		"operation":                    map[string]any{"operation_id": operation.OperationID, "process_id": operation.Process.ID, "process_definition_digest": operation.Process.DefinitionDigest, "source_cursor": operation.SourceCursor, "expected_revision": operation.ExpectedRevision, "action_id": operation.ActionID, "action_kind": operation.ActionKind},
 		"task_revision":                assessment.TaskRevision,
 		"current_action_id":            assessment.CurrentActionID,
 		"issuance_binding_digest":      assessment.IssuanceBindingDigest,

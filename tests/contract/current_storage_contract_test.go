@@ -13,8 +13,8 @@ import (
 	"testing"
 )
 
-func TestStorageGeneration2ProductionHasNoHistoricalTaskRuntime(t *testing.T) {
-	root := storageGenerationRepositoryRoot(t)
+func TestCurrentStorageProductionHasNoHistoricalTaskRuntime(t *testing.T) {
+	root := currentStorageRepositoryRoot(t)
 	roots := []string{
 		"internal",
 		"cmd",
@@ -23,7 +23,7 @@ func TestStorageGeneration2ProductionHasNoHistoricalTaskRuntime(t *testing.T) {
 		"packages/codex/plugin",
 		"scripts",
 	}
-	files := storageGenerationProductionFiles(t, root, roots)
+	files := currentStorageProductionFiles(t, root, roots)
 
 	forbiddenText := []*regexp.Regexp{
 		regexp.MustCompile(`(?i)legacy[-_]linear`),
@@ -73,12 +73,12 @@ func TestStorageGeneration2ProductionHasNoHistoricalTaskRuntime(t *testing.T) {
 	}
 
 	// Historical specifications, protocol fixtures, tests, and release evidence are deliberately
-	// outside this allowlist. They may describe or construct Contract 0.1 only as frozen evidence.
+	// outside this allowlist. They may describe or construct linear contract only as frozen evidence.
 	t.Logf("scanned %d production files under %s", len(files), strings.Join(roots, ", "))
 }
 
-func TestStorageGeneration2HasOneSchemaCodecProcessAndProjection(t *testing.T) {
-	root := storageGenerationRepositoryRoot(t)
+func TestCurrentStorageHasOneSchemaCodecProcessAndProjection(t *testing.T) {
+	root := currentStorageRepositoryRoot(t)
 	read := func(path string) string {
 		t.Helper()
 		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
@@ -90,40 +90,39 @@ func TestStorageGeneration2HasOneSchemaCodecProcessAndProjection(t *testing.T) {
 
 	migrations := read("internal/store/migrations.go")
 	for _, required := range []string{
-		"const SchemaVersion = 2",
-		"const SnapshotVersion = 2",
-		"schema2Statements",
-		"INSERT INTO schema_migrations(version,applied_at,digest) VALUES(2,?,?)",
+		"currentSchemaStatements",
+		"func bootstrapCurrentSchema",
+		"func verifyCurrentSchema",
 	} {
 		if !strings.Contains(migrations, required) {
-			t.Errorf("Schema 2 bootstrap missing %q", required)
+			t.Errorf("current storage bootstrap missing %q", required)
 		}
 	}
-	if regexp.MustCompile(`(?i)ALTER\s+TABLE|VALUES\s*\(\s*1\s*,`).MatchString(migrations) {
-		t.Fatal("Schema 2 bootstrap contains a Schema 1 or ALTER TABLE migration path")
+	if regexp.MustCompile(`(?i)ALTER\s+TABLE|schema_migrations|process_version|snapshot_version`).MatchString(migrations) {
+		t.Fatal("current storage bootstrap contains version metadata or a migration path")
 	}
 
 	codec := read("internal/store/codec.go")
 	for _, required := range []string{
-		"type persistedTaskV2 domain.ProcessTask",
+		"type persistedTask domain.ProcessTask",
 		"func encodeTask(task domain.ProcessTask)",
 		"func decodeTask(raw []byte) (domain.ProcessTask, error)",
 	} {
 		if strings.Count(codec, required) != 1 {
-			t.Errorf("strict v2 codec must contain exactly one %q", required)
+			t.Errorf("strict codec must contain exactly one %q", required)
 		}
 	}
 	if strings.Count(codec, "workflow.ValidateProcessTask(task)") != 2 {
-		t.Error("strict v2 codec must validate the ProcessTask on both encode and decode")
+		t.Error("strict codec must validate the ProcessTask on both encode and decode")
 	}
-	if regexp.MustCompile(`(?i)(snapshot.*switch|switch.*snapshot|persistedTaskV[013-9]|decodeTaskV|encodeTaskV)`).MatchString(codec) {
-		t.Fatal("task codec contains a version-selected or non-v2 branch")
+	if regexp.MustCompile(`(?i)(snapshot.*switch|switch.*snapshot|persistedTaskV[0-9]|decodeTaskV|encodeTaskV)`).MatchString(codec) {
+		t.Fatal("task codec contains a version-selected branch")
 	}
 
 	process := read("internal/workflow/standard_process.go")
 	if strings.Count(process, "func StandardProcess() domain.ProcessDefinition") != 1 ||
 		!strings.Contains(process, "domain.ProcessStandardDevelopment") {
-		t.Fatal("standard-development@1 is not the single code-owned process entrypoint")
+		t.Fatal("standard-development is not the single code-owned process entrypoint")
 	}
 	projection := read("internal/mcp/results.go")
 	if strings.Count(projection, "func projectTask(t domain.ProcessTask) any") != 1 || strings.Contains(projection, "domain.Task") {
@@ -135,8 +134,8 @@ func TestStorageGeneration2HasOneSchemaCodecProcessAndProjection(t *testing.T) {
 	}
 }
 
-func TestStorageGeneration2LifecycleHasNoTaskDataResetCapability(t *testing.T) {
-	root := storageGenerationRepositoryRoot(t)
+func TestCurrentStorageLifecycleHasNoTaskDataResetCapability(t *testing.T) {
+	root := currentStorageRepositoryRoot(t)
 	lifecyclePaths := []string{
 		"packages/codex/lib/lifecycle.mjs",
 		"packages/codex/lib/paths.mjs",
@@ -170,7 +169,7 @@ func TestStorageGeneration2LifecycleHasNoTaskDataResetCapability(t *testing.T) {
 	}
 }
 
-func storageGenerationProductionFiles(t *testing.T, root string, roots []string) []string {
+func currentStorageProductionFiles(t *testing.T, root string, roots []string) []string {
 	t.Helper()
 	extensions := map[string]bool{".go": true, ".mjs": true, ".js": true, ".json": true, ".md": true, ".sh": true}
 	var files []string
@@ -206,7 +205,7 @@ func storageGenerationProductionFiles(t *testing.T, root string, roots []string)
 	return files
 }
 
-func storageGenerationRepositoryRoot(t *testing.T) string {
+func currentStorageRepositoryRoot(t *testing.T) string {
 	t.Helper()
 	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {

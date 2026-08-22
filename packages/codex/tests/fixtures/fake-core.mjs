@@ -40,7 +40,7 @@ async function handleMessage(request) {
         protocolVersion: request.params?.protocolVersion ?? "2025-06-18",
         capabilities: { tools: { listChanged: false } },
         serverInfo: { name: "dev-flow-fake-core", version: "0.5.0" },
-        instructions: "Test-only Core Contract 0.2 fixture server.",
+        instructions: "Test-only Core current Core contract fixture server.",
       },
     });
     return;
@@ -87,7 +87,7 @@ async function handleApply(id, arguments_) {
     writeMessage({
       jsonrpc: "2.0",
       id,
-      result: { content: [{ type: "text", text: '{"schema_version":2,"ok":true' }], isError: false },
+      result: { content: [{ type: "text", text: '{"ok":true' }], isError: false },
     });
     return;
   }
@@ -100,12 +100,10 @@ async function envelopeFor(tool, arguments_) {
     return success(tool, {
       product: "dev-flow",
       version: "0.5.0",
-      schema_version: 2,
-      core_limits_version: "0.2",
       transport: "stdio",
       health: "ready",
       supported_hosts: ["codex", "deepseek"],
-      supported_processes: [{ process_id: "standard-development", process_version: 1, definition_digest: digest(), new_task_supported: true }],
+      supported_processes: [{ process_id: "standard-development", definition_digest: digest(), new_task_supported: true }],
       method_profiles: ["plain", "spec-kit", "openspec"],
       tools: tools.map((toolDefinition) => toolDefinition.name),
     });
@@ -125,7 +123,6 @@ async function envelopeFor(tool, arguments_) {
     const task = currentTask();
     return success(tool, {
       task_id: task.task_id,
-      snapshot_version: 2,
       process: processReference(),
       current_cursor: task.current_cursor,
       revision: task.revision,
@@ -159,9 +156,7 @@ function currentTask() {
   return {
     task_id: "task-graph-0001",
     origin_host: "codex",
-    snapshot_version: 2,
     process_id: "standard-development",
-    process_version: 1,
     process_definition_digest: digest(),
     intent: {
       request: "Define one bounded graph requirement.",
@@ -188,20 +183,20 @@ function currentTask() {
 }
 
 function requirementsAction(revision) {
-  return action(revision, "COMPLETE_REQUIREMENTS", "REQUIREMENTS", "requirements-result@1", [
+  return action(revision, "COMPLETE_REQUIREMENTS", "REQUIREMENTS", "requirements-result", [
     transition("requirements_ready", "DESIGN", false),
   ]);
 }
 
 function designAction(revision) {
-  return action(revision, "COMPLETE_DESIGN", "DESIGN", "design-result@1", [
+  return action(revision, "COMPLETE_DESIGN", "DESIGN", "design-result", [
     transition("design_ready", "TASKS", false),
     transition("design_requires_requirements", "REQUIREMENTS", true),
   ]);
 }
 
 function blockerAction(revision) {
-  return action(revision, "RESOLVE_BLOCKER", "BLOCKED", "blocker-resolution@1", []);
+  return action(revision, "RESOLVE_BLOCKER", "BLOCKED", "blocker-resolution", []);
 }
 
 function action(revision, kind, node, payloadContract, availableTransitions) {
@@ -230,7 +225,6 @@ function recoveryAssessment() {
     operation: {
       operation_id: state.operationId,
       process_id: "standard-development",
-      process_version: 1,
       process_definition_digest: digest(),
       source_cursor: "REQUIREMENTS",
       expected_revision: 1,
@@ -244,21 +238,20 @@ function recoveryAssessment() {
 }
 
 function processReference() {
-  return { process_id: "standard-development", process_version: 1, definition_digest: digest() };
+  return { process_id: "standard-development", definition_digest: digest() };
 }
 
 function success(tool, result, requestId = null) {
-  return { schema_version: 2, ok: true, tool, request_id: requestId, result, error: null };
+  return { ok: true, tool, request_id: requestId, result };
 }
 
 function failure(tool, code, requestId = null) {
   return {
-    schema_version: 2,
     ok: false,
     tool,
     request_id: requestId,
-    result: null,
-    error: { code, message: code, recovery: { retry_safe: false, action: "read_task", message: "Read Core authority." } },
+    error: { code, message: code },
+    recovery: { retry_safe: false, action: "read_task", message: "Read Core authority." },
   };
 }
 
@@ -280,13 +273,13 @@ function toolDefinitions() {
     ["dev_flow_open_task", ["host", "repository_path"], ["host", "repository_path", "new_task"], false, false, false],
     ["dev_flow_get_task", ["host", "task_id"], ["host", "task_id", "operation_probe"], true, false, true],
     ["dev_flow_get_next_action", ["host", "task_id"], ["host", "task_id", "operation_probe"], true, false, true],
-    ["dev_flow_apply_action", ["request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_version", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload"], ["request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_version", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload", "recovery_apply"], false, false, false],
+    ["dev_flow_apply_action", ["request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload"], ["request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload", "recovery_apply"], false, false, false],
     ["dev_flow_cancel_task", ["request_id", "host", "task_id", "revision", "reason"], ["request_id", "host", "task_id", "revision", "reason"], false, true, false],
   ];
   return metadata.map(([name, required, properties, readOnlyHint, destructiveHint, idempotentHint]) => ({
     name,
     title: name,
-    description: `${name} Core Contract 0.2 fixture definition.`,
+    description: `${name} current Core fixture definition.`,
     inputSchema: closedSchema(required, properties),
     annotations: { title: name, readOnlyHint, destructiveHint, idempotentHint, openWorldHint: false },
   }));

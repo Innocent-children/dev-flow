@@ -74,10 +74,10 @@ func rootVersion(t *testing.T) string {
 	if !ok {
 		t.Fatal("runtime.Caller did not return the test source path")
 	}
-	versionPath := filepath.Clean(filepath.Join(filepath.Dir(testFile), "..", "..", "VERSION"))
+	versionPath := filepath.Clean(filepath.Join(filepath.Dir(testFile), "..", "..", "CORE_VERSION"))
 	contents, err := os.ReadFile(versionPath)
 	if err != nil {
-		t.Fatalf("read current root VERSION %q: %v", versionPath, err)
+		t.Fatalf("read current root CORE_VERSION %q: %v", versionPath, err)
 	}
 	return strings.TrimSpace(string(contents))
 }
@@ -93,7 +93,7 @@ func TestCurrentReadsRootVersion(t *testing.T) {
 		t.Fatalf("Current() returned error: %v", err)
 	}
 	if got != want {
-		t.Fatalf("Current() = %q, want current root VERSION %q", got, want)
+		t.Fatalf("Current() = %q, want current root CORE_VERSION %q", got, want)
 	}
 	if err := validateSemVer(got); err != nil {
 		t.Fatalf("Current() returned invalid SemVer %q: %v", got, err)
@@ -173,14 +173,14 @@ func mustTestFileDirectory(t *testing.T) string {
 func TestReadReportsPathAndValidationReason(t *testing.T) {
 	t.Parallel()
 
-	versionPath := filepath.Join(t.TempDir(), "VERSION")
+	versionPath := filepath.Join(t.TempDir(), "CORE_VERSION")
 	if err := os.WriteFile(versionPath, []byte("01.2.3\n"), 0o600); err != nil {
-		t.Fatalf("write invalid VERSION fixture: %v", err)
+		t.Fatalf("write invalid CORE_VERSION fixture: %v", err)
 	}
 
 	_, err := read(versionPath)
 	if err == nil {
-		t.Fatal("read() unexpectedly accepted an invalid VERSION")
+		t.Fatal("read() unexpectedly accepted an invalid CORE_VERSION")
 	}
 	if !strings.Contains(err.Error(), versionPath) {
 		t.Fatalf("read() error %q does not contain path %q", err, versionPath)
