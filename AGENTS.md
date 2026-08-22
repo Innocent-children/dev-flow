@@ -42,6 +42,37 @@ exact confirmation; it does not use a release Feature.
 - Completed historical feature packages are evidence. Do not rewrite them to match current
   templates or terminology.
 
+## Documentation and Internationalization
+
+Human-readable documentation mirrors delivered product behavior; it is not runtime, build, release,
+or test authority. The maintained locale set and document-family coverage are defined by
+`docs/I18N.md` and `docs/I18N_en.md`.
+
+Every Product Feature that changes user-visible behavior MUST update documentation in the same pull
+request and in the same implementation checkpoint:
+
+1. update `README.md` and every maintained root README locale listed in `docs/I18N.md`;
+2. update both `docs/PRODUCT.md` and `docs/PRODUCT_en.md`;
+3. update each affected technical reference, including `docs/ARCHITECTURE*`,
+   `docs/SUPPORT-MATRIX*`, `docs/ROADMAP*`, host package READMEs, installation instructions, or
+   invocation documentation when the changed surface applies;
+4. list the exact documentation paths in the active `tasks.md` and in the pull-request validation
+   summary.
+
+A version-only release that changes public versions, bundled Core identities, platform support, Host
+compatibility, installation commands, or release evidence MUST synchronize the same facts across all
+maintained root README locales and the affected support/package documentation before publication.
+
+- Do not update only one locale when a maintained document family has multiple locale files.
+- Do not leave placeholder translations, stale version numbers, untranslated new sections, or an
+  English fallback copied into another locale file.
+- Preserve commands, identifiers, paths, versions, digests, code blocks, tables, Mermaid graphs, and
+  support claims exactly across translations; translate prose, not product facts.
+- If synchronized translation cannot be completed, the Product Feature or release documentation is
+  incomplete and must not be reported as ready for merge or publication.
+- A documentation-only correction must update every maintained locale file containing the corrected
+  statement.
+
 ## Product Boundary
 
 Only the Go Core owns:
