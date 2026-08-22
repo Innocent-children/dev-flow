@@ -313,7 +313,7 @@ test("remove reports deregistration before a separate npm-uninstall handoff", as
     status: "removed",
     changed: true,
     receipt_path: paths.receiptPath,
-    next_step: "Run npm uninstall dev-flow-codex separately after deregistration.",
+    next_step: "Run npm uninstall -g dev-flow-codex separately after deregistration.",
   });
   assert.equal(stderr.text, "");
 
@@ -326,7 +326,7 @@ test("remove reports deregistration before a separate npm-uninstall handoff", as
     removeRegistration: async () => ({ status: "already-absent", changed: false }),
   }), { code: 0, signal: null });
   assert.match(humanOutput.text, /remove: already-absent/);
-  assert.match(humanOutput.text, /npm uninstall dev-flow-codex.*separately/i);
+  assert.match(humanOutput.text, /npm uninstall -g dev-flow-codex.*separately/i);
 
   const failedOutput = captureStream();
   const failedError = captureStream();

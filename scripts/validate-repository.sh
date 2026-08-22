@@ -113,6 +113,7 @@ run_step "DeepSeek registry Journey syntax" node --check scripts/run-deepseek-re
 run_step "Fake release npm syntax" node --check packages/codex/tests/fixtures/fake-release-npm.mjs
 run_step "Fake release GitHub syntax" node --check packages/codex/tests/fixtures/fake-release-gh.mjs
 run_step "Codex public package contract" node --test packages/codex/tests/package-contract.test.mjs
+run_step "Codex launcher command contract" node --test packages/codex/tests/launcher.test.mjs
 run_step "DeepSeek package and adapter contracts" \
   node --test \
     packages/deepseek/tests/package-contract.test.mjs \

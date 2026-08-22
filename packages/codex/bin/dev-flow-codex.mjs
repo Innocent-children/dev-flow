@@ -16,7 +16,7 @@ import {
 } from "../lib/paths.mjs";
 
 const FORWARDED_SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"];
-const NPM_UNINSTALL_HANDOFF = "Run npm uninstall dev-flow-codex separately after deregistration.";
+const NPM_UNINSTALL_HANDOFF = "Run npm uninstall -g dev-flow-codex separately after deregistration.";
 const CODEX_MCP_INSTRUCTIONS_ENVIRONMENT = "DEV_FLOW_CODEX_MCP_INSTRUCTIONS";
 const CODEX_MCP_INSTRUCTIONS = [
   "Dev Flow for Codex is explicit-only.",
