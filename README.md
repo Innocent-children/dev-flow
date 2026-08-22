@@ -21,7 +21,7 @@ Dev Flow 是 AI 辅助软件开发的本地过程控制与恢复层。它将需�
 | 无界验证 | 定向检查扩展为全量回归、平台矩阵、压力测试或不断追加的边界用例 |
 | 过程状态丢失 | 会话压缩、Host 重启或跨天继续后，当前进度只能从聊天记录和工作区重新推断 |
 | 可维护性缺口 | 测试通过，但实现无法由开发者清楚解释、审查或接手维护 |
-| 不确定 mutation | 写操作响应丢失或中断后，无法判断操作是否已提交，只能冒险重放 |
+| 不确定 mutation | 写操作响应丢失或中断后，无法确认操作是否已提交，重放可能造成重复副作用 |
 
 这些问题不能仅靠在 Prompt 中反复增加“不要重构”“不要多测试”等限制稳定解决。开发过程需要
 独立于会话上下文的持久状态，以及对当前步骤、完成条件和合法下一步的闭合合同。
@@ -30,7 +30,7 @@ Dev Flow 是 AI 辅助软件开发的本地过程控制与恢复层。它将需�
 
 | 失效模式 | Dev Flow 机制 |
 | --- | --- |
-| 范围漂移 | `TaskIntent` 保存不可变原始意图；Action 暴露 completion conditions 与 `allowed_effects`；实质范围变化必须通过合法 transition 返回相应节点，并由 Core 失效下游旧 authority |
+| 范围漂移 | `TaskIntent` 保存不可变原始意图；Action 暴露 completion conditions 与 `allowed_effects`；实质范围变化必须通过合法 transition 返回相应节点，并由 Core 使下游旧 authority 失效 |
 | 无界验证 | 每个 Task 保存 verification budget；检查必须关联当前节点、改动表面、验收条件或已知恢复风险，完整套件和平台矩阵不是默认动作 |
 | 过程状态丢失 | 当前节点、requirements/design/task-plan baselines、证据、blocker 和合法流转持久化到本地 SQLite |
 | 可维护性缺口 | `TEST` 之后必须经过 `COMPREHENSION_REVIEW`；无法解释或维护的实现返回 `DESIGN`、`IMPLEMENT` 或 `REFACTOR`，仓库变化后重新经过 `TEST` |
@@ -60,7 +60,7 @@ dev-flow-codex --version
 在 Codex 中使用唯一显式 selector 发起任务：
 
 ```text
-$dev-flow-codex:dev-flow 为当前仓库实现用户登录失败次数限制。
+$dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 ```
 
 普通对话不会自动启动 Dev Flow。完整的安装、移除、数据保留和调用边界见
@@ -115,10 +115,10 @@ flowchart LR
     I --> F[REFACTOR]
     C --> F
     F --> V
-    V -. 缺口分类 .-> I
-    V -. 设计或需求问题 .-> D
-    C -. 理解或证据问题 .-> R
-    L -. 交付缺口 .-> I
+    V -. classified gap .-> I
+    V -. design or requirement issue .-> D
+    C -. comprehension or evidence gap .-> R
+    L -. delivery gap .-> I
 ```
 
 虚线用于概括多条受控回退。精确节点、29 条流转、guard 和 reason 规则由

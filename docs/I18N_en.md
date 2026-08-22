@@ -27,6 +27,21 @@ The root README family maintains these nine locales:
 A new locale requires a complete initial translation, a language-navigation entry, and an ongoing
 maintenance commitment. Do not add empty files, placeholder links, or title-only translations.
 
+## Selection principles
+
+The maintained set places a fixed boundary between reach and long-term synchronization cost:
+
+- `zh-CN` and `en` are the primary languages for product and technical documentation;
+- `zh-TW`, `ja`, and `ko` cover major East Asian developer communities;
+- `es`, `fr`, `de`, and `pt-BR` cover commonly maintained large open-source developer locales;
+- the root README receives broader localization, while precise technical references remain focused on
+  Simplified Chinese and English;
+- a locale without clear maintenance ownership is not added, to prevent version, installation, and
+  support claims from drifting over time.
+
+This set is not a runtime language catalog and does not exclude future translations. A new locale must
+first satisfy the complete-translation and ongoing-synchronization requirements.
+
 ## Documentation coverage matrix
 
 | Document family | Maintained coverage |
@@ -65,12 +80,14 @@ Every locale must preserve:
 - commands, selectors, tool names, environment variables, paths, and filenames;
 - product versions, bundled Core identities, platforms, and host compatibility;
 - nodes, transitions, error codes, schemas, Recovery classifications, and technical identifiers;
-- table rows, code blocks, Mermaid graphs, link targets, and support claims;
+- table-row correspondence and factual values;
+- command code blocks, Mermaid topology, node IDs, and support claims;
 - the meaning of capabilities, non-goals, limitations, and verification evidence.
 
-Translate narrative prose only. Keep identifiers in English when no stable localized term exists, and
-do not invent locale-specific product terminology or additional promises. A translation may change
-word order and sentence structure, but it must not broaden, narrow, or reinterpret product behavior.
+Narrative prose, headings, and diagram annotations may be adapted to the target language. Links must
+preserve the same meaning and may point to the corresponding localized file. Keep identifiers in
+English when no stable localized term exists, and do not invent locale-specific product terminology or
+additional promises. A translation must not broaden, narrow, or reinterpret product behavior.
 
 ## Review requirements
 
