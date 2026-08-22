@@ -52,8 +52,9 @@ pnpm install --frozen-lockfile
 ```
 
 开始修改前，请阅读 [`AGENTS.md`](AGENTS.md)、
-[Constitution](.specify/memory/constitution.md)、[I18n 策略](docs/I18N.md) 和与变更直接相关的文档。
-产品行为变更还必须显式选择对应 Feature；不要根据分支名称或最近编辑的目录推断活动 Feature。
+[Constitution](.specify/memory/constitution.md)、[I18n 策略](docs/I18N.md)、
+[命令参考](docs/COMMANDS.md) 和与变更直接相关的文档。产品行为变更还必须显式选择对应 Feature；
+不要根据分支名称或最近编辑的目录推断活动 Feature。
 
 ## 实施原则
 
@@ -63,6 +64,8 @@ pnpm install --frozen-lockfile
 - 只运行与改动表面、验收条件或已知风险直接相关的验证；
 - Product Feature 必须同步更新全部根 README locale、`docs/PRODUCT*` 和受影响的技术文档；
 - 文档修正必须同步该文档族的所有维护语言；
+- 新增或修改命令时，对照 package manifest、CLI parser、DSH lifecycle、Core parser 或 MCP catalog，并同步 `docs/COMMANDS*`；
+- 面向用户的 npm 安装示例使用 `@latest`，精确版本只用于 Support Matrix、Release 与制品证据；
 - 不直接修改 `.agents/skills/` 下的生成文件；
 - 不在普通功能或文档 Pull Request 中提升版本或执行发布。
 
@@ -73,6 +76,8 @@ pnpm install --frozen-lockfile
 - Markdown、表格、代码块和 Mermaid 在 GitHub 上正常渲染；
 - 语言导航中的所有文件存在且互相可达；
 - 同一文档族的章节结构、命令、版本、平台和支持声明一致；
+- 所有普通安装示例使用 `@latest`，所有证据表仍保留精确版本；
+- `docs/COMMANDS*` 与实际可执行 command/tool catalog 一致；
 - 非英文文件没有占位翻译或整段英文 fallback；
 - 没有扩大当前 [支持矩阵](docs/SUPPORT-MATRIX.md) 的声明。
 
@@ -95,7 +100,8 @@ pnpm run validate
 3. 明确未修改的范围；
 4. 执行过的验证及结果；
 5. Product Feature 对应的 Feature、FR/SC、合同或任务引用；
-6. 修改的文档族和已同步的 locale。
+6. 修改的文档族和已同步的 locale；
+7. 命令或安装文档所对应的实现来源。
 
 建议使用简洁的 Conventional Commit 风格，例如：
 
