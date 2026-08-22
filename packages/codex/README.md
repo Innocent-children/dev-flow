@@ -3,9 +3,9 @@
 [中文](https://github.com/Innocent-children/dev-flow/blob/main/packages/codex/README.md) |
 [English](https://github.com/Innocent-children/dev-flow/blob/main/docs/CODEX_en.md)
 
-`dev-flow-codex` 把 Dev Flow 的状态图带进 Codex CLI。安装包包含一个 Codex Plugin、一个显式
-Skill、local STDIO MCP 配置和 macOS arm64 Core executable；Task、节点、流转和 Recovery 仍由
-bundled Go Core 独自管理。
+`dev-flow-codex` 把 Dev Flow 状态图接入 Codex CLI。package 包含 Codex Plugin、显式 Skill、
+local STDIO MCP 配置和 macOS arm64 Core executable；Task、节点、流转和 Recovery 仍由 bundled
+Go Core 独自管理。
 
 ## 支持范围
 
@@ -19,41 +19,62 @@ bundled Go Core 独自管理。
 | Release | [codex-v0.5.1](https://github.com/Innocent-children/dev-flow/releases/tag/codex-v0.5.1) |
 
 `0.5.1` 的 normal release 已通过 registry package 安装、package/Core identity、setup、Core
-handshake、remove、uninstall 和 repository-unchanged 门禁。
+handshake、remove、uninstall 和 repository-unchanged 门禁。上表记录已经验证的精确公开版本；
+下面的安装命令使用 npm `latest` dist-tag 获取当前最新稳定 package。
 
 ## 安装
 
 ```bash
-npm install -g dev-flow-codex@0.5.1
+npm install -g dev-flow-codex@latest
 dev-flow-codex setup
 dev-flow-codex --version
 ```
 
-`setup` 注册 Plugin、marketplace 与 MCP，并在写入后回读 ownership。npm 安装和 Codex 注册是
-两个独立步骤，因此安装 package 后需要显式运行一次 `setup`。
+npm 全局安装只负责把 package 和 `dev-flow-codex` launcher 放到 `PATH`。`setup` 是独立步骤：
+它验证平台、package 内容、bundled Core 与 Codex 兼容版本，然后注册 Plugin、marketplace 与 MCP，
+并在写入后回读 ownership。`--version` 同时输出实际 package 和 bundled Core 版本。
 
-如需机器可读结果：
+## 命令参考
+
+`dev-flow-codex` 的生产 CLI 只接受下表中的命令；未知参数会在执行任何注册操作前失败。
+
+| 命令 | 说明 |
+| --- | --- |
+| `npm install -g dev-flow-codex@latest` | 安装 npm `latest` 指向的 package，并把 launcher 全局加入 `PATH`；不会自动注册 Codex Plugin。 |
+| `dev-flow-codex setup` | 校验 package、Core 和 Codex 版本，注册 marketplace、Plugin 与 MCP，并回读最终状态。重复执行会验证现有 ownership，兼容 package 升级也通过该命令完成。 |
+| `dev-flow-codex setup --json` | 与 `setup` 行为相同，但只输出机器可读 JSON：`operation`、`status`、`changed` 和 `receipt_path`。 |
+| `dev-flow-codex --version` | 输出 `dev-flow-codex <package-version> (core <core-version>)`，用于确认实际安装身份。 |
+| `dev-flow-codex remove` | 删除该 package 拥有的 Plugin、marketplace 注册和 receipt；保留 Task data、未知相邻文件和目标 Git 仓库。 |
+| `dev-flow-codex remove --json` | 与 `remove` 行为相同，并输出机器可读 JSON；`next_step` 提示随后执行全局 npm 卸载。 |
+| `npm uninstall -g dev-flow-codex` | 在 `remove` 完成后卸载全局 package。单独执行不会先清理 Codex 注册。 |
+| `dev-flow-codex mcp` | **内部 Host 命令。** Plugin 的 MCP 配置调用它来设置数据目录和 admission instructions，再启动 packaged Core 的 `mcp --stdio`；正常用户不应手工运行。 |
+
+当前 CLI 不提供 `help`、`update`、`uninstall` 或其他隐式子命令。更新到当前最新版本时执行：
 
 ```bash
-dev-flow-codex setup --json
+npm install -g dev-flow-codex@latest
+dev-flow-codex setup
 ```
 
-## 开始一个任务
+完整的 Codex、DeepSeek、Core 和 MCP 命令目录见
+[命令参考](../../docs/COMMANDS.md)。
 
-在当前 Git 仓库中，用唯一的显式 selector 描述工作：
+## 开始一个 Task
+
+在当前 Git 仓库中，用唯一的精确 selector 描述工作：
 
 ```text
-$dev-flow-codex:dev-flow 修复订单创建接口的幂等性问题，并运行定向测试。
+$dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
 ```
 
-新 Task 从 `REQUIREMENTS` 开始，默认使用 `plain` profile。也可以在同一请求中明确选择
-`spec-kit` 或 `openspec`。Task 创建后 profile 保持不变。
+这不是 shell 命令。新 Task 从 `REQUIREMENTS` 开始，默认使用 `plain` profile；也可以在同一请求
+中明确选择 `spec-kit` 或 `openspec`。Task 创建后 profile 保持不变。
 
 Core 会持续返回：
 
 - 当前 node、purpose、entry/completion conditions；
 - 当前 revision、action identity 和 repository binding；
-- allowed effects、required evidence 和 verification budget；
+- `allowed_effects`、`required_evidence` 和 verification budget；
 - method profile 对应的 semantic steps；
 - 全部合法 transitions、guard、destination 与 reason rule。
 
@@ -83,19 +104,19 @@ $dev-flow-codex:dev-flow
 通过 admission 后，`dev_flow_server_info({})` 必须是第一次 Dev Flow 调用。Host 验证
 `standard-development`、definition digest、method profiles、live schemas 与恰好六个工具：
 
-```text
-dev_flow_server_info
-dev_flow_open_task
-dev_flow_get_task
-dev_flow_get_next_action
-dev_flow_apply_action
-dev_flow_cancel_task
-```
+| MCP 工具 | 作用 |
+| --- | --- |
+| `dev_flow_server_info` | 读取 Core identity、能力、process、method profile 和工具目录；有效 admission 后必须首先调用。 |
+| `dev_flow_open_task` | 为当前 canonical repository 创建新 Task，或恢复其现有 Task。 |
+| `dev_flow_get_task` | 读取持久化 Task；可附带 operation probe 获取 Recovery assessment。 |
+| `dev_flow_get_next_action` | 读取当前节点的权威 Action、验证预算、method steps 和全部合法 transition。 |
+| `dev_flow_apply_action` | 使用当前 revision、Action identity、repository binding 和 closed payload 应用一次 Core 声明的 transition。 |
+| `dev_flow_cancel_task` | 使用当前 revision 和明确 reason 取消一个非终态 Task。 |
 
 ## 理解审查与 Recovery
 
-`TEST` 通过后，任务进入 `COMPREHENSION_REVIEW`。Codex 解释当前行为、设计与维护风险，
-开发者给出明确 verdict。复杂实现进入 `REFACTOR`，仓库发生变化后必须重新回到 `TEST`。
+`TEST` 通过后，Task 进入 `COMPREHENSION_REVIEW`。Codex 解释当前行为、设计与维护风险，开发者
+给出明确 verdict。复杂实现进入 `REFACTOR`；仓库发生变化后必须重新回到 `TEST`。
 
 每次 mutation 前，Adapter 保留 request/operation ID、source cursor、revision、action、
 repository binding 和原始 payload。结果缺失、取消、截断、损坏或 transport failure 时，Adapter
@@ -109,29 +130,29 @@ repository binding 和原始 payload。结果缺失、取消、截断、损坏�
 export DEV_FLOW_DATA_DIR="/absolute/path/to/existing-directory"
 ```
 
-目录必须已经存在、可用且可 canonicalize。setup、remove 和 npm uninstall 都保留 Task data 与
-未知相邻文件，也不会修改目标 Git 仓库。
+显式目录必须已经存在、可用且可 canonicalize。setup、remove 和 npm uninstall 都保留 Task data
+与未知相邻文件，也不会修改目标 Git 仓库。
 
 当前 Core 只读取当前 SQLite Schema。检测到不兼容或 pre-graph data 时返回
-`SCHEMA_UNSUPPORTED` 并保持零写入。请选择新的数据目录，或在 Core 外部手工归档、改名或
-删除旧目录。
+`SCHEMA_UNSUPPORTED` 并保持零写入。请选择新的数据目录，或在 Core 外部手工归档、改名或删除
+旧目录。
 
 ## 移除
 
-先删除 Codex 注册，再卸载 npm package：
+先删除 Codex 注册，再卸载全局 npm package：
 
 ```bash
 dev-flow-codex remove
 npm uninstall -g dev-flow-codex
 ```
 
-如需机器可读结果：
+需要机器可读结果时使用：
 
 ```bash
 dev-flow-codex remove --json
 ```
 
-重新安装兼容 package 并再次运行 `setup` 后，可以从保留的当前数据目录继续任务。
+重新安装兼容 package 并再次运行 `setup` 后，可以从保留的当前数据目录继续 Task。
 
 ## Package 内容
 
