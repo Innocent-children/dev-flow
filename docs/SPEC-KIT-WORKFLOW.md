@@ -9,8 +9,8 @@
 3. 每份文档分别负责什么，哪些内容不得重复；
 4. Feature 如何从问题定义走到实施、验收和后续发布。
 
-本规范适用于仓库根 `.specify/` 项目和 `specs/` 下的新 Feature。已经完成的历史 Feature
-是交付证据，不因模板升级而批量重写。
+本规范只指导未来临时 Feature 的生成与执行。完成后的 Feature 文档不作为生产、构建、发布
+或测试输入；历史材料可由 Git 历史追溯。
 
 规范优先级：
 
@@ -314,7 +314,7 @@ Git 分支和 Spec Kit Feature selection 是两件事。对已经准备好的 Fe
 
 ```bash
 export SPECIFY_INIT_DIR="$PWD"
-export SPECIFY_FEATURE_DIRECTORY="$PWD/specs/008-refactor-to-development-process-graph"
+export SPECIFY_FEATURE_DIRECTORY="$PWD/specs/012-example-feature"
 ```
 
 每个 worktree、终端进程和 Agent 会话都要显式选择。不要根据 branch name 推断。
@@ -511,20 +511,7 @@ Version Release：
 4. 更新模板后，用一个临时示例验证生成结构；
 5. 不修改 `.agents/skills/speckit-*` 生成资产，除非由受控 Spec Kit 升级重新生成。
 
-## 16. 当前替换入口
+## 16. 文档依赖边界
 
-当前下一项 Product Feature 是：
-
-```text
-specs/008-refactor-to-development-process-graph/
-```
-
-它用开发过程状态图替换现有 released linear Core contract 线性阶段模型，并明确不兼容任何历史任务数据。Feature 008 完成前：
-
-- 不向旧阶段表添加新阶段；
-- 不实现 `legacy-linear@1`、pre-graph data 任务迁移、legacy snapshot codec、双 Task projection 或旧任务续跑；
-- pre-graph data/pre-graph 数据只允许零写入拒绝；Core 与包生命周期不得自动删除，用户显式选择新目录或自行归档/改名/删除；
-- 不在 Host Skill 中建立第二套状态；
-- 不启动 DeepSeek 产品实施；
-- 不把实现工作和下一次公开发布混合；
-- 只按 Feature 008 的 staged checkpoint 推进。
+完成后的 Feature 可以从当前源码树清理。任何生产代码、构建脚本、发布脚本或自动化测试都
+不得读取 Feature Markdown 来决定版本、能力、Schema、发布参数或运行行为。

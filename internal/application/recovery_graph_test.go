@@ -166,9 +166,9 @@ func TestGraphRecoveryAdoptsDeclaredProcessArtifactOnlyEffect(t *testing.T) {
 	if err := json.Unmarshal(payload, &document); err != nil {
 		t.Fatal(err)
 	}
-	document["artifacts"] = []map[string]any{{"role": "requirements", "path": "specs/008/spec.md", "digest": digestOf("e"), "summary": "Requirements artifact"}}
+	document["artifacts"] = []map[string]any{{"role": "requirements", "path": "artifacts/requirements.json", "digest": digestOf("e"), "summary": "Requirements artifact"}}
 	payload, _ = json.Marshal(document)
-	observer.binding = graphChangedBinding(task.Repository, []string{"specs/008/spec.md"}, "f")
+	observer.binding = graphChangedBinding(task.Repository, []string{"artifacts/requirements.json"}, "f")
 	probe := graphProbe(task, "artifact-operation", payload)
 	read, err := service.GetTask(context.Background(), GetTaskRequest{Host: domain.HostCodex, TaskID: task.TaskID, OperationProbe: &probe})
 	if err != nil {

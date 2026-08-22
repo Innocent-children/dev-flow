@@ -85,7 +85,7 @@ const reviewedSourceAllowlist = new Set([
 ]);
 
 test("source package declares one public macOS arm64 Codex product", async () => {
-  const [version, manifest, plugin, marketplace, mcp] = await Promise.all([
+  const [coreVersion, manifest, plugin, marketplace, mcp] = await Promise.all([
     readFile(join(repositoryRoot, "CORE_VERSION"), "utf8").then((value) => value.trim()),
     readJSON(join(packageRoot, "package.json")),
     readJSON(join(pluginRoot, ".codex-plugin", "plugin.json")),
@@ -94,7 +94,7 @@ test("source package declares one public macOS arm64 Codex product", async () =>
   ]);
 
   assert.equal(manifest.name, "dev-flow-codex");
-  assert.equal(manifest.version, version);
+  assert.match(coreVersion, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u);
   assert.equal(manifest.private, false);
   assert.equal(manifest.license, "Apache-2.0");
   assert.deepEqual(manifest.os, ["darwin"]);
@@ -121,7 +121,7 @@ test("source package declares one public macOS arm64 Codex product", async () =>
   }
 
   assert.equal(plugin.name, "dev-flow-codex");
-  assert.equal(plugin.version, version);
+  assert.equal(plugin.version, manifest.version);
   assert.equal(plugin.skills, "./skills/");
   assert.equal(plugin.mcpServers, "./.mcp.json");
   assert.equal("hooks" in plugin, false);

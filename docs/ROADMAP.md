@@ -1,13 +1,11 @@
 # Dev Flow 发展路线
 
-路线图描述当前源码能力、活动 Feature 门禁和真正的未来方向。已经完成的 Features 001–009
-与公开 `0.3.0`、`0.4.0` 保留为历史证据，不在这里重述实施流水账。
+路线图描述当前源码能力和真正的未来方向。历史实施材料保留在 Git 历史中，不在当前源码树
+维护文档合同副本。
 
 ## 当前源码：Development Process Graph
 
-**规格**：[`008-refactor-to-development-process-graph`](../specs/008-refactor-to-development-process-graph/README.md)
-
-Feature 008 当前源码已经实现：
+当前源码已经实现：
 
 - 内建 `standard-development`，11 个节点和 29 条正常流转；
 - `TaskIntent`、versioned requirements/design/task-plan baselines 和 authority invalidation；

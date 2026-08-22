@@ -2,35 +2,15 @@ package contract_test
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	core "github.com/Innocent-children/dev-flow/internal/mcp"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 )
 
-func TestFeature005HistoricalEvidenceFreeze(t *testing.T) {
-	root := markdownRepositoryRoot(t)
-	raw, err := os.ReadFile(filepath.Join(root, "protocol", "fixtures", "server-info.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got, want := fmt.Sprintf("%x", sha256.Sum256(raw)), "e9f10918a6c9e8547bdb9c249f54ee9a12bc830ea9c80ee7e06bc04bd09caee7"; got != want {
-		t.Fatalf("frozen 0.1 fixture digest=%s", got)
-	}
-	contract, err := os.ReadFile(filepath.Join(root, "specs", "002-govern-and-resume-single-repository-task", "plan.md"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Contains(contract, []byte("SQLite Schema 1/CAS foundations")) {
-		t.Fatal("historical former storage evidence changed")
-	}
-}
 func TestMCPToolCatalogIsExactStableAndConservative(t *testing.T) {
 	want := []string{core.ToolServerInfo, core.ToolOpenTask, core.ToolGetTask, core.ToolGetNextAction, core.ToolApplyAction, core.ToolCancelTask}
 	if !slices.Equal(core.ToolNames(), want) {

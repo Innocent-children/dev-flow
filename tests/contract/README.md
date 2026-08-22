@@ -11,20 +11,16 @@ Release evidence。
 - `result_envelope_test.go`：typed Result Envelope、stable public errors、closed/redacted output；
 - `graph_contract_test.go`：`standard-development` 节点、29 transitions、guard/reason/problem
   class 和 method-profile public semantics；
-- `storage_generation_2_test.go`：Fresh current storage、strict snapshot、no-legacy source、unsupported/future
+- `current_storage_contract_test.go`：Fresh current storage、strict snapshot、no-legacy source、unsupported/future
   safe-stop、lifecycle non-deletion 和 private-path redaction；
 - `fixture_contract_test.go`：current Core contract graph fixtures、Host parity、Recovery fixtures 与冻结
   frozen linear contract inventory/parity；
 - `package_manifest_test.go`：root/Codex package closed manifest、scripts、allowlist 和 platform；
-- `repository_layout_test.go`：repository layout、single module/Spec Kit root、host source allowlist
-  和 root script allowlist；
-- `markdown_links_test.go`、`spec_008_document_test.go`：Markdown 相对链接、Feature 008 完整包、
-  identifier/transition/task inventory 和 template-marker absence；
 - `release_contract_test.go`：历史 release schema/fixture/tooling freeze，不能作为当前发布动作。
 
 ## 证据类型
 
-- **static evidence**：checked-in Markdown、manifest、schema 和 JSON fixture；
+- **static evidence**：checked-in manifest、schema 和 JSON fixture；
 - **deterministic contract evidence**：Go tests 对闭合 schema、ordering、allowlist、zero-write 和
   redaction 的实际执行结果；
 - **historical freeze evidence**：frozen linear contract、已发布 `0.3.0` 和既有 release fixtures，仅证明

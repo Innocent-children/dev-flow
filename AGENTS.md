@@ -77,6 +77,10 @@ hidden fast paths.
 
 ## Spec Kit Package Discipline
 
+Feature 文档只服务于实施阶段，不是产品、构建、发布或测试权威。生产代码、脚本和测试不得读取
+Feature Markdown 来决定版本、Schema、能力或运行行为；完成后的 Feature 可以从当前源码树清理，
+历史通过 Git 追溯。
+
 A public-behavior, process, shared-contract, persistence, or adapter-contract change requires this
 complete package:
 

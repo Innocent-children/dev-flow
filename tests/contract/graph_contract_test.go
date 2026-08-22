@@ -16,7 +16,7 @@ func TestGraphContractCatalogAndFixtures(t *testing.T) {
 	if len(coremcp.ToolNames()) != 6 {
 		t.Fatal("tool catalog changed")
 	}
-	root := markdownRepositoryRoot(t)
+	root := contractRepositoryRoot(t)
 	for _, name := range []string{"graph-server-info.json", "graph-open-requirements.json", "graph-design-action.json", "graph-invalid-edge.json"} {
 		raw, err := os.ReadFile(filepath.Join(root, "protocol", "fixtures", name))
 		if err != nil {

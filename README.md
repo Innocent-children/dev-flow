@@ -36,8 +36,8 @@ flowchart LR
     L -. 交付缺口 .-> I
 ```
 
-图中的虚线只概括受控回退。精确的 29 条边、guard、问题分类和 reason 规则见
-[Development Process Graph Contract](specs/008-refactor-to-development-process-graph/contracts/process-graph.md)。
+图中的虚线只概括受控回退。精确的 29 条边、guard、问题分类和 reason 规则由
+`internal/workflow/standard_process.go` 与 `internal/workflow/definitions.go` 定义。
 调用者只提交 Core 返回的 `transition_id`；目标节点由 Core 推导，Adapter 不能提供或发明
 destination。
 
@@ -99,7 +99,7 @@ conflicting
 ```
 
 只有 Core 能决定安全重试、recovery apply 或进入 `BLOCKED`。阻塞解除后，任务只返回保存的
-resume node。详细合同见 [MCP Tools 0.2](specs/008-refactor-to-development-process-graph/contracts/mcp-tools-0.2.md)。
+resume node。MCP 输入、输出与错误边界由 `internal/mcp/` 的 Schema 和实现定义。
 
 ## 存储边界
 
@@ -111,11 +111,11 @@ Strict current snapshot
 standard-development
 ```
 
-Feature 008 不兼容任何历史 Task。检测到 pre-graph data 或其他 pre-graph 数据时，Core 返回
+当前 Core 不兼容任何历史 Task。检测到 pre-graph data 或其他 pre-graph 数据时，Core 返回
 `SCHEMA_UNSUPPORTED`，并且不修改、不迁移、不删除也不自动 reset 旧数据。用户必须显式使用
 新的 `DEV_FLOW_DATA_DIR`，或在 Core 外部手工 archive、rename 或 delete 旧目录。setup、update、
-remove 和 uninstall 同样不会自动清除任务数据。完整边界见
-[Storage Generation 2 Contract](specs/008-refactor-to-development-process-graph/contracts/storage-generation-2.md)。
+remove 和 uninstall 同样不会自动清除任务数据。存储边界由 `internal/store/` 的 Schema、codec
+与只读 preflight 实现定义。
 
 ## 使用入口与发布边界
 
@@ -178,13 +178,10 @@ artifact 的 no-Codex deterministic acceptance 独立证明。
 | `internal/application/` | Core use-case orchestration |
 | `internal/mcp/` | current contract 六工具、closed JSON 和 typed envelope |
 | `packages/codex/` | explicit-only Codex Adapter、Skill、method renderer 和 public package |
-| `packages/deepseek/` | Feature 010 已完成验收的 private source package；公开发布前不构成支持声明 |
+| `packages/deepseek/` | 已完成验收的 private source package；公开发布前不构成支持声明 |
 | `protocol/fixtures/` | 历史 0.1、当前 0.2、Host parity 和 Recovery fixtures |
 | `tests/contract/`, `tests/journeys/` | deterministic contract 与 process evidence |
 
-阅读顺序从 [Constitution](.specify/memory/constitution.md)、
-[Spec Kit Workflow](docs/SPEC-KIT-WORKFLOW.md) 开始。当前 Feature 的完整规格入口是
-[已完成的 Feature 010](specs/010-deepseek-explicit-graph-host/README.md)；当前 Core 基线仍由
-[Feature 008](specs/008-refactor-to-development-process-graph/README.md) 定义。稳定产品边界、
-支持矩阵和实现结构分别见 [Product](docs/PRODUCT.md)、[Support Matrix](docs/SUPPORT-MATRIX.md)
-与 [Architecture](docs/ARCHITECTURE.md)。
+当前行为权威是代码、机器可读 Schema 与可执行测试；说明文档不作为构建、发布或运行输入。
+产品边界、支持矩阵和实现结构分别见 [Product](docs/PRODUCT.md)、
+[Support Matrix](docs/SUPPORT-MATRIX.md) 与 [Architecture](docs/ARCHITECTURE.md)。

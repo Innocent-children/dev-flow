@@ -179,7 +179,7 @@ type releaseNegativeCase struct {
 func TestCurrentReleaseSchemasRemainClosed(t *testing.T) {
 	t.Parallel()
 
-	root := markdownRepositoryRoot(t)
+	root := contractRepositoryRoot(t)
 	tests := []struct {
 		name           string
 		implementation string
@@ -266,7 +266,7 @@ func TestCurrentReleaseSchemasRemainClosed(t *testing.T) {
 func TestReleaseFixturesCrossIdentityAndDeterministicCollections(t *testing.T) {
 	t.Parallel()
 
-	root := markdownRepositoryRoot(t)
+	root := contractRepositoryRoot(t)
 	manifestObject := releaseReadObject(t, root, "release/testdata/valid-release-manifest.json")
 	publicationObject := releaseReadObject(t, root, "release/testdata/valid-publication-record.json")
 	manifest, err := releaseValidateManifest(manifestObject)
@@ -292,7 +292,7 @@ func TestReleaseFixturesCrossIdentityAndDeterministicCollections(t *testing.T) {
 func TestReleaseChecksumsAndInitialPublicationStateAreNonCircular(t *testing.T) {
 	t.Parallel()
 
-	root := markdownRepositoryRoot(t)
+	root := contractRepositoryRoot(t)
 	manifestBytes := releaseReadFile(t, root, "release/testdata/valid-release-manifest.json")
 	manifest := releaseReadObject(t, root, "release/testdata/valid-release-manifest.json")
 	publicationObject := releaseReadObject(t, root, "release/testdata/valid-publication-record.json")
@@ -369,7 +369,7 @@ func TestReleaseChecksumsAndInitialPublicationStateAreNonCircular(t *testing.T) 
 func TestReleaseNegativeFixturesRejectUnsafeContentAndIdentityDrift(t *testing.T) {
 	t.Parallel()
 
-	root := markdownRepositoryRoot(t)
+	root := contractRepositoryRoot(t)
 	baseManifest := releaseReadObject(t, root, "release/testdata/valid-release-manifest.json")
 	basePublication := releaseReadObject(t, root, "release/testdata/valid-publication-record.json")
 	var suite releaseNegativeSuite
@@ -408,7 +408,7 @@ func TestReleaseNegativeFixturesRejectUnsafeContentAndIdentityDrift(t *testing.T
 func TestReleaseValidationEntrypointsRemainPreparationSafe(t *testing.T) {
 	t.Parallel()
 
-	root := markdownRepositoryRoot(t)
+	root := contractRepositoryRoot(t)
 	rootManifest := releaseReadObject(t, root, "package.json")
 	scripts, ok := rootManifest["scripts"].(map[string]any)
 	if !ok {
@@ -472,7 +472,7 @@ func TestReleaseValidationEntrypointsRemainPreparationSafe(t *testing.T) {
 			t.Errorf("release prepare invokes forbidden remote/host operation %q", forbidden)
 		}
 	}
-	for _, forbidden := range []string{"runText(\"gh\"", "npm publish", "npm whoami", "npm view", "git tag", "git push"} {
+	for _, forbidden := range []string{"gh release", "gh api", "gh auth", "npm publish", "npm whoami", "npm view", "git tag", "git push"} {
 		if strings.Contains(verifier, forbidden) {
 			t.Errorf("release verifier invokes forbidden remote operation %q", forbidden)
 		}

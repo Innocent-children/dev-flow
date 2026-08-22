@@ -145,7 +145,7 @@ func TestFinalLocalJourneyPayloadMatrixRejectsAttemptTwoDrift(t *testing.T) {
 
 func readFinalLocalPayloadMatrix(t *testing.T) finalLocalPayloadMatrix {
 	t.Helper()
-	path := filepath.Join(markdownRepositoryRoot(t), "tests", "contract", "testdata", "final-local-payloads.json")
+	path := filepath.Join(contractRepositoryRoot(t), "tests", "contract", "testdata", "final-local-payloads.json")
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)

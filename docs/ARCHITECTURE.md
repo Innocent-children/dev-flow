@@ -44,8 +44,8 @@ Core 唯一管理：
 - terminal `DONE`/`CANCELLED` outcome。
 
 `internal/workflow/standard_process.go` 定义唯一的 `standard-development`。它有 11 个节点、
-29 条正常流转，无 runtime graph parser、registry、DSL 或 compatibility process。精确合同见
-[process-graph.md](../specs/008-refactor-to-development-process-graph/contracts/process-graph.md)。
+29 条正常流转，无 runtime graph parser、registry、DSL 或 compatibility process。精确行为由
+`internal/workflow/standard_process.go` 和相关 Go 类型定义。
 
 ## Adapter 权威
 
@@ -84,8 +84,8 @@ ProcessOutcome
 revision 的当前 authority。新 requirements 会使 design 及下游失效，新 design 会使 task plan
 及下游失效，repository-changing implementation/refactor 会使 test、comprehension 和 delivery
 readiness 失效。`TEST` 创建 current `TestRecord`，用户确认后才创建 current
-`ComprehensionAssessment`。完整字段和 current-node authority matrix 见
-[data-model.md](../specs/008-refactor-to-development-process-graph/data-model.md)。
+`ComprehensionAssessment`。完整字段和 current-node authority matrix 由 `internal/domain/` 中的
+当前聚合类型与校验实现定义。
 
 ## Storage
 

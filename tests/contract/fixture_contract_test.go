@@ -18,7 +18,7 @@ const sharedFixtureAggregateSHA256 = "8c27bcf6be0e4e5a4bf294c67cbda8cdf281b1b2b2
 func sha256Hex(raw []byte) string { sum := sha256.Sum256(raw); return hex.EncodeToString(sum[:]) }
 
 func TestFixtureContractInventory(t *testing.T) {
-	root := markdownRepositoryRoot(t)
+	root := contractRepositoryRoot(t)
 	readme, err := os.ReadFile(filepath.Join(root, "protocol", "fixtures", "README.md"))
 	if err != nil {
 		t.Fatal(err)
@@ -82,7 +82,7 @@ type hostParityErrorShape struct {
 }
 
 func TestCurrentHostParityInventory(t *testing.T) {
-	root := markdownRepositoryRoot(t)
+	root := contractRepositoryRoot(t)
 	readme, err := os.ReadFile(filepath.Join(root, "protocol", "fixtures", "README.md"))
 	if err != nil {
 		t.Fatal(err)
@@ -110,7 +110,7 @@ func TestCurrentHostParityInventory(t *testing.T) {
 }
 
 func TestCurrentHostParityFixtures(t *testing.T) {
-	root := markdownRepositoryRoot(t)
+	root := contractRepositoryRoot(t)
 	codex, codexRaw := readHostParityFixture(t, filepath.Join(root, "protocol", "fixtures", "graph-host-parity-codex.json"))
 	deepseek, deepseekRaw := readHostParityFixture(t, filepath.Join(root, "protocol", "fixtures", "graph-host-parity-deepseek.json"))
 
@@ -196,7 +196,7 @@ func readHostParityFixture(t *testing.T, path string) (hostParityFixture, []byte
 }
 
 func TestGraphServerInfoFixtureContainsCompletePublicDTO(t *testing.T) {
-	path := filepath.Join(markdownRepositoryRoot(t), "protocol", "fixtures", "graph-server-info.json")
+	path := filepath.Join(contractRepositoryRoot(t), "protocol", "fixtures", "graph-server-info.json")
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)

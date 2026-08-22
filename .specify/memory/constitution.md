@@ -21,15 +21,13 @@ Sync Impact Report
   - Product and Technology Constraints（三个产品版本权威）
   - Development Workflow and Quality Gates（按产品对齐发布版本）
 - Required follow-up:
-  - `specs/011-simplify-product-version-governance/`
   - `AGENTS.md`
-  - `docs/VERSIONING.md` and current product/release documentation
-  - Core/Codex/DeepSeek version, build, fixture, and release contracts/tests
+  - current product/release documentation
+  - Core/Codex/DeepSeek version, build, fixture, and executable tests
 - 4.1.0 amendment:
   - retain one Core-owned SQLite database Schema version, initially `0.1.0`;
   - no other removed internal version is restored.
-- Affected active features:
-  - Feature 011 governs implementation; Features 001–010 remain frozen historical evidence.
+- Completed Feature documents are retained through Git history and are not runtime authority.
 -->
 # Dev Flow Constitution
 
@@ -452,10 +450,11 @@ preferences.
 - **Compliance review**: Every feature plan MUST include a Constitution Check. Every review MUST
   identify any complexity-budget exception. Every release MUST record mode eligibility and the
   maintainer's explicit selection before the version commit.
-- **Specification locality**: Only this Constitution, active Product Feature artifacts, and the
-  user's current explicit instruction authorize product work. Version-only release authority comes
-  from the completed product work plus the exact release invocation; no release Feature is created.
-- **Transition authority**: `specs/008-refactor-to-development-process-graph/` is the only approved
-  breaking replacement specification from the linear runtime to the standard development graph.
+- **Specification locality**: Current source code, machine-readable schemas, executable tests, this
+  Constitution, and the user's explicit instruction define current product work. Human-readable
+  documents may guide implementation but MUST NOT be parsed by production, build, release, or test
+  code as behavioral authority.
+- **Transition authority**: `internal/workflow/` is the executable authority for the standard
+  development graph; its machine-checked definitions and digest replace historical document contracts.
 
 **Version**: 4.1.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-22

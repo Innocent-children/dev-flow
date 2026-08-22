@@ -93,12 +93,12 @@ func TestExactBindingRecoveryEffectAndNullPayloadConservatism(t *testing.T) {
 
 func TestRepositoryEffectDerivationRejectsUndeclaredAndArtifactProductMismatch(t *testing.T) {
 	base := testBinding(time.Date(2026, 8, 19, 11, 0, 0, 0, time.UTC), "a")
-	artifact := domain.ArtifactReference{Role: domain.ArtifactRequirements, Path: "specs/008/spec.md", Digest: digest("b"), Summary: "Requirements artifact"}
+	artifact := domain.ArtifactReference{Role: domain.ArtifactRequirements, Path: "artifacts/requirements.json", Digest: digest("b"), Summary: "Requirements artifact"}
 	effect, err := DeriveRepositoryEffect(domain.NodeRequirements, workflow.StandardPayload{Artifacts: []domain.ArtifactReference{artifact}}, &workflow.RequirementsResult{})
 	if err != nil || effect.Kind != EffectProcessArtifactOnly {
 		t.Fatalf("effect=%+v err=%v", effect, err)
 	}
-	observed := changedBinding(base, []string{"specs/008/spec.md"}, "c")
+	observed := changedBinding(base, []string{"artifacts/requirements.json"}, "c")
 	if !RepositoryEffectMatches(effect, RepositoryWorktreeOnlyChanged, observed) {
 		t.Fatal("declared artifact path did not match")
 	}

@@ -32,10 +32,6 @@ test("current product surfaces contain no internal version system except the dat
     await walk(new URL(`${path}/`, root), files);
   }
   for (const path of [
-    "README.md", "AGENTS.md", "MANIFEST.md", "docs/VERSIONING.md", "docs/PRODUCT.md",
-    "docs/ARCHITECTURE.md", "docs/RELEASE-STRATEGY.md", "docs/SUPPORT-MATRIX.md",
-    "docs/SPEC-KIT-WORKFLOW.md", "release/README.md", "release/codex/README.md",
-    "packages/codex/README.md", "packages/deepseek/README.md",
     "protocol/fixtures/graph-server-info.json", "protocol/fixtures/graph-host-parity-codex.json",
     "protocol/fixtures/graph-host-parity-deepseek.json",
   ]) files.push(new URL(path, root));
@@ -45,6 +41,24 @@ test("current product surfaces contain no internal version system except the dat
   for (const file of files) {
     const path = fileURLPath(file);
     if (path.endsWith("_test.go") || path.includes("/testdata/") || path.includes("/tests/")) continue;
+    if (forbidden.test(await readFile(file, "utf8"))) violations.push(path);
+  }
+  assert.deepEqual(violations, []);
+});
+
+test("production and release code do not depend on repository documentation", async () => {
+  const root = new URL("../", import.meta.url);
+  const files = [];
+  for (const path of [
+    "cmd", "internal", "scripts", "release",
+    "packages/codex/bin", "packages/codex/lib", "packages/deepseek/lib",
+  ]) await walk(new URL(`${path}/`, root), files);
+
+  const forbidden = /(?:^|["'`/])(?:docs|specs)\//u;
+  const violations = [];
+  for (const file of files) {
+    const path = fileURLPath(file);
+    if (path.includes("/testdata/") || path.includes("/tests/")) continue;
     if (forbidden.test(await readFile(file, "utf8"))) violations.push(path);
   }
   assert.deepEqual(violations, []);
@@ -69,7 +83,7 @@ async function walk(directory, files) {
     if (["node_modules", "testdata", "tests"].includes(entry.name)) continue;
     const child = new URL(`${entry.name}${entry.isDirectory() ? "/" : ""}`, directory);
     if (entry.isDirectory()) await walk(child, files);
-    else if (/\.(?:go|mjs|js|json|md|sh)$/u.test(entry.name)) files.push(child);
+    else if (/\.(?:go|mjs|js|json|sh)$/u.test(entry.name)) files.push(child);
   }
 }
 

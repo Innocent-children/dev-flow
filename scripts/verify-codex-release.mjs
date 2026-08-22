@@ -735,16 +735,13 @@ function validatePublicPackageManifest(manifest, version) {
 }
 
 async function collectPreparationToolchains(repositoryRoot) {
-  const research = (await readFile(join(repositoryRoot, "specs", "006-publish-codex-installable-product", "research.md"), "utf8"));
-  const ghBaseline = /\| GitHub CLI \| `([^`]+)` \|/u.exec(research)?.[1];
-  if (!ghBaseline) throw new Error("Feature 006 research does not contain the bounded GitHub CLI baseline");
   return {
     go: await runText("go", ["version"], { timeout: 5_000, maxBuffer: 64 * 1024 }),
     node: process.version,
     pnpm: await runText("pnpm", ["--version"], { timeout: 5_000, maxBuffer: 64 * 1024 }),
     npm: await runText("npm", ["--version"], { timeout: 5_000, maxBuffer: 64 * 1024 }),
     git: await runText("git", ["--version"], { timeout: 5_000, maxBuffer: 64 * 1024 }),
-    gh: `${ghBaseline} (T001 read-only baseline; not invoked during preparation)`,
+    gh: await runText("gh", ["--version"], { timeout: 5_000, maxBuffer: 64 * 1024 }),
   };
 }
 
