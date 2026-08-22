@@ -53,7 +53,7 @@ DeepSeek `0.5.1` Host 產品中；三個產品各自獨立版本化。
 ### Codex
 
 ```bash
-npm install -g dev-flow-codex@0.5.1
+npm install -g dev-flow-codex@latest
 dev-flow-codex setup
 dev-flow-codex --version
 ```
@@ -69,15 +69,16 @@ $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 
 ### DeepSeek Harness
 
-先從 npm 取得官方 tarball，再將絕對路徑交給 DSH profile：
+從 npm 取得 `latest` 官方 tarball，再將絕對路徑交給 DSH profile：
 
 ```bash
-npm pack dev-flow-deepseek@0.5.1
-dsh plugin --profile <profile> add "$PWD/dev-flow-deepseek-0.5.1.tgz"
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile <profile> add "$PWD/$TARBALL"
 ```
 
 依照 DSH profile lifecycle 重新啟動該 profile，然後使用 `/dev-flow` 明確進入 Dev Flow。
-安裝、重啟、移除與資料邊界請參閱 [DeepSeek package README](docs/DEEPSEEK_en.md)。
+安裝、重啟、移除與資料邊界請參閱 [DeepSeek package README](docs/DEEPSEEK_en.md)。完整 CLI、
+selector、Core 命令與 MCP 工具說明請參閱 [命令參考](docs/COMMANDS.md)。
 
 ## 執行模型
 
@@ -146,6 +147,8 @@ dev_flow_apply_action
 dev_flow_cancel_task
 ```
 
+每個工具的讀寫性質、參數用途與行為說明見 [命令參考](docs/COMMANDS.md)。
+
 Core 可以有界、唯讀地觀察一個既有 Git 儲存庫，用於建立 repository binding 與判斷變更事實。
 Git 修改由獲得使用者授權的 Host 執行；Core 不提供通用 shell，也不執行 checkout、commit、
 push、merge、rebase、tag 或發布操作。
@@ -179,6 +182,7 @@ reopen。精確製品身分與證據請參閱 [Support Matrix](docs/SUPPORT-MATR
 | 產品問題、能力與邊界 | [Product](docs/PRODUCT.md) |
 | Core、Adapter、Store 與 Recovery 架構 | [Architecture](docs/ARCHITECTURE.md) |
 | 目前支援版本與平台 | [Support Matrix](docs/SUPPORT-MATRIX.md) |
+| 所有使用者命令、內部 Core 命令與 MCP 工具 | [Command Reference](docs/COMMANDS.md) |
 | 已交付能力與後續方向 | [Roadmap](docs/ROADMAP.md) |
 | 獨立產品版本治理 | [Versioning](docs/VERSIONING.md) |
 | 文件 locale 與同步規則 | [I18n](docs/I18N.md) |
