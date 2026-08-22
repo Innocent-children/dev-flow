@@ -21,6 +21,23 @@ Harness 等 Host 在执行工作时共享同一份过程事实。
 - 现在有哪些合法下一步？
 - 上一次写操作结果不确定时，应该读取、恢复还是重试？
 
+Dev Flow 最适合需要跨越多个开发步骤、可能发生返工、或需要在多次会话之间继续推进的真实
+仓库任务。对于一次性问答、无需过程记录的单文件小改动，直接使用 Codex 或 DeepSeek 通常更简单。
+
+## 它在工具链中的位置
+
+Dev Flow 不替代现有 Agent、规格工具或测试系统，而是把它们放进同一条可恢复的开发主线。
+
+| 组件 | 负责什么 |
+| --- | --- |
+| Codex / DeepSeek Harness | 阅读仓库、修改代码、运行工具，并与开发者协作完成当前节点 |
+| Spec Kit / OpenSpec | 为需求、设计、任务等节点提供方法和制品 |
+| 测试与 CI | 产生行为是否正确的验证证据 |
+| Dev Flow | 保存唯一过程游标、完成条件、合法流转、恢复结论和终态 |
+
+因此，Dev Flow 不是新的大模型、通用编程 Agent 或另一套规格格式。它是位于 Host 与开发方法
+之下的本地过程导航与恢复层。
+
 ## 为什么值得用
 
 ### 一条不会丢失的开发主线
@@ -42,6 +59,16 @@ Dev Flow 把 `COMPREHENSION_REVIEW` 设为正式交付门禁。测试证明行�
 
 每个任务可选择 `plain`、`spec-kit` 或 `openspec`。这些方法工具帮助完成当前节点，Go Core
 始终独自管理任务、节点、流转、恢复和终态。
+
+## 一次任务如何推进
+
+1. 开发者在当前 Git 仓库中用显式 selector 描述任务。
+2. Core 创建或恢复该仓库的 Task，并返回当前节点、完成条件、证据要求和全部合法流转。
+3. Host 只执行当前节点授权的工作，把结果和证据提交给 Core。
+4. Core 校验精确的 `transition_id`，推进到下一节点；测试失败、理解失败或交付拒绝会回到正确位置。
+5. 如果写操作响应不确定，Host 先读取权威状态，再按 Recovery 结论恢复，而不是盲目重试。
+
+开发者始终可以看到任务为什么停在这里、什么才算完成，以及下一步有哪些真实选择。
 
 ## 快速开始
 
@@ -159,6 +186,7 @@ Core 返回 `SCHEMA_UNSUPPORTED` 并保持零写入。用户可以选择新的�
 | 三个产品如何独立版本化 | [Versioning](docs/VERSIONING.md) |
 | 本地开发工具链 | [Toolchain Baselines](docs/TOOLCHAIN-BASELINES.md) |
 | Feature 开发规范 | [Spec Kit Workflow](docs/SPEC-KIT-WORKFLOW.md) |
+| 如何提交问题和 Pull Request | [Contributing](CONTRIBUTING.md) |
 | 维护者发布入口 | [Release](release/README.md) |
 
 ## 本地开发
@@ -173,6 +201,12 @@ pnpm run validate
 `pnpm run validate` 运行仓库的有界验证，不安装真实 Host 产品，也不发布 npm、Tag 或 GitHub
 Release。目录职责见 [Architecture](docs/ARCHITECTURE.md)，脚本入口见
 [Repository Scripts](scripts/README.md)。
+
+## 参与贡献
+
+欢迎提交可复现的缺陷、文档改进、有最终制品证据的平台支持，以及边界明确的产品提案。开始前
+请阅读 [贡献指南](CONTRIBUTING.md)；产品行为变更需要完整 Feature 规格，普通文档修正不需要。
+版本提升和公开发布由维护者在功能合并后通过独立流程完成。
 
 ## License
 
