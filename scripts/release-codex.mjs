@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import { releaseOutputNames } from "./verify-codex-release.mjs";
+import { PUBLIC_RELEASE_DOCUMENT_PATHS, syncPublicReleaseDocs } from "./sync-public-release-docs.mjs";
 
 const execFile = promisify(execFileCallback);
 const SEMVER_PATTERN = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/u;
@@ -16,6 +17,8 @@ const RELEASE_MODES = Object.freeze(["quick", "normal"]);
 const VERSION_AUTHORITY_PATHS = Object.freeze([
   "packages/codex/package.json",
   "packages/codex/plugin/.codex-plugin/plugin.json",
+  "release/public-versions.json",
+  ...PUBLIC_RELEASE_DOCUMENT_PATHS,
 ]);
 const QUICK_BLOCKED_PATHS = Object.freeze([
   "CORE_VERSION",
@@ -107,6 +110,7 @@ export async function runReleaseCommand({
         if (blocked.length !== 0) throw new Error(`quick mode is not eligible; product-affecting paths: ${blocked.join(", ")}`);
       }
       await updateCodexVersion(root, currentVersion, targetVersion);
+      await syncPublicReleaseDocs(root, { product: "codex", version: targetVersion, coreVersion });
       currentVersion = await validateCodexAuthorities(root);
       await commitAndPushVersion(root, targetVersion);
       source = await validateSource(root);

@@ -120,7 +120,7 @@ branch、HEAD、index/worktree 和有界 changed paths；Git 修改仍由获得�
 | 产品 | 职责 | 当前版本 |
 | --- | --- | --- |
 | Core | 状态图、Task、Store、Recovery、MCP | `0.5.0` |
-| Codex | Codex Plugin、Skill、注册生命周期和 bundled Core | `0.5.1` |
+| Codex | Codex Plugin、Skill、注册生命周期和 bundled Core | `0.5.2` |
 | DeepSeek | DSH bundle、Skill、guard、MCP child 和 bundled Core | `0.5.1` |
 
 三个产品独立版本化。Host 包记录实际 bundled Core 版本，不要求两个产品使用同一版本号。
@@ -155,9 +155,9 @@ branch、HEAD、index/worktree 和有界 changed paths；Git 修改仍由获得�
 
 ## 当前公开状态
 
-Codex `0.5.1` 与 DeepSeek `0.5.1` 均已发布到 npm，并分别使用
-`codex-v0.5.1`、`deepseek-v0.5.1` GitHub Release。两个 Host 产品都打包 Core `0.5.0`，
-公开支持 macOS arm64 与 Node.js `>=24`。
+Codex 当前版本 `0.5.2` 已发布到 npm，并使用 `codex-v0.5.2` GitHub Release。
+DeepSeek 当前版本 `0.5.1` 已发布到 npm，并使用 `deepseek-v0.5.1` GitHub Release。
+两个 Host 产品分别打包支持表记录的 Core 精确身份，公开支持 macOS arm64 与 Node.js `>=24`。
 
 精确平台、Host 版本、Journey 结论和 Release 入口见
 [Support Matrix](SUPPORT-MATRIX.md)。精确产品行为由当前代码、机器可读 Schema 和可执行测试

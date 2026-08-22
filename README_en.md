@@ -51,8 +51,8 @@ single-file edit with no retained process state is usually simpler with Codex or
 
 ## Quick start
 
-Current public artifacts support macOS arm64 and Node.js `>=24`. Core `0.5.0` is bundled
-independently in the Codex `0.5.1` and DeepSeek `0.5.1` host products; all three products have
+Current public artifacts support macOS arm64 and Node.js `>=24`. Core is bundled independently in
+the Codex and DeepSeek host products; all three products have
 independent versions. Support tables retain exact verified identities, while installation examples
 select npm's `latest` dist-tag.
 
@@ -184,10 +184,10 @@ perform this cleanup automatically.
 
 | Product | Public version | Bundled Core | Verified environment |
 | --- | --- | --- | --- |
-| `dev-flow-codex` | `0.5.1` | `0.5.0` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
+| `dev-flow-codex` | `0.5.2` | `0.5.0` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
 | `dev-flow-deepseek` | `0.5.1` | `0.5.0` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
 
-Both `0.5.1` releases passed registry-package installation, real host/Core handshake, removal,
+The current releases of both host products passed registry-package installation, real host/Core handshake, removal,
 uninstallation, and repository-unchanged gates. The DeepSeek journey also covered explicit
 activation, restart recovery, `DONE`, and retained reopen. See the
 [Support Matrix](docs/SUPPORT-MATRIX_en.md) and the corresponding GitHub Releases for exact artifact

@@ -50,6 +50,11 @@ pnpm run release:deepseek -- \
   [--confirm-comprehension]
 ```
 
+Both one-command release flows invoke `sync-public-release-docs.mjs` in their version commit. The
+synchronizer gets version facts only from `CORE_VERSION`, product package manifests, and
+`release/public-versions.json`, then updates every maintained root README, product guide, Roadmap,
+Support Matrix, and Host package README. Markdown never decides a version.
+
 Before a release, inspect paths changed since the current public Tag. The maintainer explicitly
 selects `quick` or `normal`. Only these exact-confirmation entrypoints may change a product
 version, commit and push, create a Tag, publish npm, or mutate GitHub Release assets.

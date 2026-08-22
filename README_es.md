@@ -53,8 +53,8 @@ DeepSeek directamente.
 
 ## Inicio rápido
 
-Los artefactos públicos actuales admiten macOS arm64 y Node.js `>=24`. Core `0.5.0` se incluye de forma
-independiente en los productos Host Codex `0.5.1` y DeepSeek `0.5.1`; los tres productos tienen versiones
+Los artefactos públicos actuales admiten macOS arm64 y Node.js `>=24`. Core se incluye de forma
+independiente en los productos Host Codex y DeepSeek; los tres productos tienen versiones
 independientes. Las tablas de compatibilidad conservan las versiones verificadas exactas, mientras que los
 ejemplos de instalación usan el dist-tag npm `latest`.
 
@@ -178,10 +178,10 @@ limpieza automáticamente.
 
 | Producto | Versión pública | Bundled Core | Entorno verificado |
 | --- | --- | --- | --- |
-| `dev-flow-codex` | `0.5.1` | `0.5.0` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
+| `dev-flow-codex` | `0.5.2` | `0.5.0` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
 | `dev-flow-deepseek` | `0.5.1` | `0.5.0` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
 
-Ambas versiones `0.5.1` superaron instalación desde registry package, handshake real Host/Core, eliminación,
+Las versiones actuales de ambos productos Host superaron instalación desde registry package, handshake real Host/Core, eliminación,
 desinstalación y repository-unchanged gate. El journey de DeepSeek también cubrió activación explícita,
 recuperación tras reinicio, `DONE` y retained reopen. Consulta [Support Matrix](docs/SUPPORT-MATRIX_en.md) y
 las GitHub Releases correspondientes para identidades y evidencia exactas.

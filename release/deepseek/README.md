@@ -11,7 +11,8 @@ pnpm run release:deepseek -- \
   [--confirm-comprehension]
 ```
 
-The command updates only `packages/deepseek/package.json`, commits
+The command updates `packages/deepseek/package.json`, synchronizes the maintained public
+release-version descriptions from executable version authorities, commits
 `release(deepseek): v<DEEPSEEK_VERSION>`, and uses Tag `deepseek-v<DEEPSEEK_VERSION>`. The packaged
 Core version comes from `CORE_VERSION` and is recorded independently.
 

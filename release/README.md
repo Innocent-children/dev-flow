@@ -28,9 +28,11 @@ pnpm run release:codex -- \
   [--confirm-comprehension]
 ```
 
-The command updates only the Codex package and plugin mirror. It records the Core version read from
-`CORE_VERSION` and the built executable. It then performs the selected validation, deterministic
-preparation, verification, and resumable publisher flow.
+The command updates the Codex package and plugin mirror and synchronizes maintained public
+release-version descriptions from `CORE_VERSION`, package manifests, and
+`release/public-versions.json`. It records the Core version read from `CORE_VERSION` and the built
+executable, then performs the selected validation, deterministic preparation, verification, and
+resumable publisher flow.
 
 Without confirmation, the publisher performs read-only npm/GitHub/Tag preflight. With exact
 confirmation, it creates or reuses only matching immutable state, publishes npm at most once,
@@ -51,4 +53,5 @@ pnpm run release:deepseek -- \
 ```
 
 Its package, Tag, output directory, npm identity, GitHub state and DSH registry lifecycle evidence
-are independent from Codex. See [`deepseek/README.md`](deepseek/README.md).
+are independent from Codex. Its version commit applies the same public-document synchronization
+using the DeepSeek package and bundled Core identities. See [`deepseek/README.md`](deepseek/README.md).

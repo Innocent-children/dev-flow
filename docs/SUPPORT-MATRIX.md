@@ -7,12 +7,12 @@
 
 | 产品 | 公开版本 | Bundled Core | 平台 | Host 兼容范围 | 状态与证据 |
 | --- | --- | --- | --- | --- | --- |
-| `dev-flow-codex` | `0.5.1` | `0.5.0` | macOS arm64、Node.js `>=24` | Codex `>=0.147.0`；最终 Journey 使用 `0.147.0` | [npm](https://www.npmjs.com/package/dev-flow-codex/v/0.5.1) · [codex-v0.5.1](https://github.com/Innocent-children/dev-flow/releases/tag/codex-v0.5.1) · registry lifecycle passed |
+| `dev-flow-codex` | `0.5.2` | `0.5.0` | macOS arm64、Node.js `>=24` | Codex `>=0.147.0`；最终 Journey 使用 `0.147.0` | [npm](https://www.npmjs.com/package/dev-flow-codex/v/0.5.2) · [codex-v0.5.2](https://github.com/Innocent-children/dev-flow/releases/tag/codex-v0.5.2) · registry lifecycle passed |
 | `dev-flow-deepseek` | `0.5.1` | `0.5.0` | macOS arm64、Node.js `>=24` | DSH `>=0.1.0-rc.6`；最终 Journey 使用 `0.1.0-rc.6` | [npm](https://www.npmjs.com/package/dev-flow-deepseek/v/0.5.1) · [deepseek-v0.5.1](https://github.com/Innocent-children/dev-flow/releases/tag/deepseek-v0.5.1) · native registry journey passed |
 
 ## 证据说明
 
-两个 `0.5.1` Release manifest 都记录 `normal` 验证、double-build、closed package、
+两个 Host 产品的当前 Release manifest 都记录 `normal` 验证、double-build、closed package、
 forbidden-content scan 和 final registry-package Journey。Codex 证据覆盖安装、版本/Core
 handshake、setup、remove、uninstall 与 repository unchanged；DeepSeek 证据覆盖安装、显式触发、
 restart/resume、`DONE`、remove、uninstall 与 retained reopen。

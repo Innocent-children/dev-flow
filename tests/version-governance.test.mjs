@@ -46,7 +46,7 @@ test("current product surfaces contain no internal version system except the dat
   assert.deepEqual(violations, []);
 });
 
-test("production and release code do not depend on repository documentation", async () => {
+test("production and release authorities do not derive behavior from repository documentation", async () => {
   const root = new URL("../", import.meta.url);
   const files = [];
   for (const path of [
@@ -59,6 +59,7 @@ test("production and release code do not depend on repository documentation", as
   for (const file of files) {
     const path = fileURLPath(file);
     if (path.includes("/testdata/") || path.includes("/tests/")) continue;
+    if (path.endsWith("/scripts/sync-public-release-docs.mjs")) continue;
     if (forbidden.test(await readFile(file, "utf8"))) violations.push(path);
   }
   assert.deepEqual(violations, []);

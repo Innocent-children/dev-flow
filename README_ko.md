@@ -50,8 +50,8 @@ Dev Flow는 여러 개발 노드를 거치고, 재작업 가능성이 있으며,
 
 ## 빠른 시작
 
-현재 공개 아티팩트는 macOS arm64와 Node.js `>=24`를 지원합니다. Core `0.5.0`은 Codex `0.5.1`
-및 DeepSeek `0.5.1` Host 제품에 각각 독립적으로 번들되며 세 제품은 독립적으로 버전 관리됩니다.
+현재 공개 아티팩트는 macOS arm64와 Node.js `>=24`를 지원합니다. Core는 Codex 및 DeepSeek
+Host 제품에 각각 독립적으로 번들되며 세 제품은 독립적으로 버전 관리됩니다.
 지원 표에는 검증된 정확한 버전을 유지하고 설치 예시는 npm `latest` dist-tag를 사용합니다.
 
 ### Codex
@@ -175,10 +175,10 @@ lifecycle 명령은 자동으로 정리하지 않습니다.
 
 | 제품 | 공개 버전 | Bundled Core | 검증된 환경 |
 | --- | --- | --- | --- |
-| `dev-flow-codex` | `0.5.1` | `0.5.0` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
+| `dev-flow-codex` | `0.5.2` | `0.5.0` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
 | `dev-flow-deepseek` | `0.5.1` | `0.5.0` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
 
-두 `0.5.1` 릴리스 모두 registry package 설치, 실제 Host/Core handshake, 제거, 삭제,
+두 Host 제품의 현재 릴리스 모두 registry package 설치, 실제 Host/Core handshake, 제거, 삭제,
 repository-unchanged gate를 통과했습니다. DeepSeek journey는 명시적 활성화, 재시작 복구, `DONE`,
 retained reopen도 포함합니다. 정확한 아티팩트 identity와 증거는
 [Support Matrix](docs/SUPPORT-MATRIX_en.md) 및 해당 GitHub Release를 참고하십시오.

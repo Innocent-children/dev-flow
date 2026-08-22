@@ -12,7 +12,8 @@ pnpm run release:codex -- \
   [--confirm-comprehension]
 ```
 
-The Codex version commit changes exactly the package and plugin manifests and uses
+The Codex version commit changes the package and plugin manifests, synchronizes the maintained
+public release-version descriptions from executable version authorities, and uses
 `release(codex): v<CODEX_VERSION>`. The Tag is `codex-v<CODEX_VERSION>`.
 
 Preparation creates:

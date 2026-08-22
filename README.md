@@ -46,8 +46,8 @@ Dev Flow 适合需要跨越多个开发节点、可能发生返工、需要保�
 
 ## 快速开始
 
-当前公开制品支持 macOS arm64、Node.js `>=24`。Core `0.5.0` 独立打包在 Codex `0.5.1` 和
-DeepSeek `0.5.1` Host 产品中；三个产品版本分别演进。支持表中的版本是已验证的精确身份，安装
+当前公开制品支持 macOS arm64、Node.js `>=24`。Core 分别独立打包在 Codex 和 DeepSeek Host
+产品中；三个产品版本分别演进。支持表中的版本是已验证的精确身份，安装
 示例使用 npm `latest` dist-tag 获取当前最新稳定 package。
 
 ### Codex
@@ -166,10 +166,10 @@ Core 返回 `SCHEMA_UNSUPPORTED` 并保持零写入。用户可以选择新的�
 
 | 产品 | 当前公开版本 | Bundled Core | 已验证环境 |
 | --- | --- | --- | --- |
-| `dev-flow-codex` | `0.5.1` | `0.5.0` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
+| `dev-flow-codex` | `0.5.2` | `0.5.0` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
 | `dev-flow-deepseek` | `0.5.1` | `0.5.0` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
 
-两次 `0.5.1` 发布均通过 registry package 安装、真实 Host/Core handshake、移除、卸载和仓库
+两个 Host 产品的当前发布均通过 registry package 安装、真实 Host/Core handshake、移除、卸载和仓库
 不变性门禁；DeepSeek 还完成显式触发、重启恢复、`DONE` 与 retained reopen 旅程。精确状态、
 制品摘要和证据入口见 [Support Matrix](docs/SUPPORT-MATRIX.md) 与对应 GitHub Release。
 

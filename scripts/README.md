@@ -47,6 +47,11 @@ pnpm run release:deepseek -- \
   [--confirm-comprehension]
 ```
 
+两个一键发布命令在各自 version commit 中调用 `sync-public-release-docs.mjs`。同步器只从
+`CORE_VERSION`、产品 package manifest 和 `release/public-versions.json` 获取版本事实，并更新
+全部维护中的根 README、产品说明、Roadmap、Support Matrix 与 Host package README；Markdown
+不参与版本决策。
+
 发布前必须先检查当前公开 Tag 后的 changed paths，由维护者明确选择 `quick` 或 `normal`。
 只有上述 exact-confirmation 入口可以修改产品版本、commit/push、Tag、npm、GitHub Release 与
 assets。

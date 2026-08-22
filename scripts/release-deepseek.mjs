@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import { releaseOutputNames } from "./verify-deepseek-release.mjs";
+import { PUBLIC_RELEASE_DOCUMENT_PATHS, syncPublicReleaseDocs } from "./sync-public-release-docs.mjs";
 
 const execFile = promisify(execFileCallback);
 const SEMVER_PATTERN = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/u;
@@ -15,6 +16,8 @@ const GIT_SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const RELEASE_MODES = Object.freeze(["quick", "normal"]);
 const VERSION_AUTHORITY_PATHS = Object.freeze([
   "packages/deepseek/package.json",
+  "release/public-versions.json",
+  ...PUBLIC_RELEASE_DOCUMENT_PATHS,
 ]);
 const QUICK_BLOCKED_PATHS = Object.freeze([
   "CORE_VERSION",
@@ -105,6 +108,7 @@ export async function runReleaseCommand({
         if (blocked.length !== 0) throw new Error(`quick mode is not eligible; product-affecting paths: ${blocked.join(", ")}`);
       }
       await updateDeepSeekVersion(root, currentVersion, targetVersion);
+      await syncPublicReleaseDocs(root, { product: "deepseek", version: targetVersion, coreVersion });
       currentVersion = await validateDeepSeekAuthorities(root);
       await commitAndPushVersion(root, targetVersion);
       source = await validateSource(root);

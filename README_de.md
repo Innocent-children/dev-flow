@@ -53,8 +53,8 @@ einfacher.
 
 ## Schnellstart
 
-Aktuelle öffentliche Artefakte unterstützen macOS arm64 und Node.js `>=24`. Core `0.5.0` ist unabhängig in den
-Host-Produkten Codex `0.5.1` und DeepSeek `0.5.1` gebündelt; alle drei Produkte werden unabhängig versioniert.
+Aktuelle öffentliche Artefakte unterstützen macOS arm64 und Node.js `>=24`. Core ist unabhängig in den
+Host-Produkten Codex und DeepSeek gebündelt; alle drei Produkte werden unabhängig versioniert.
 Supporttabellen behalten exakte verifizierte Versionen, während Installationsbeispiele den npm-dist-tag `latest`
 verwenden.
 
@@ -181,10 +181,10 @@ Bereinigung niemals automatisch aus.
 
 | Produkt | Öffentliche Version | Bundled Core | Verifizierte Umgebung |
 | --- | --- | --- | --- |
-| `dev-flow-codex` | `0.5.1` | `0.5.0` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
+| `dev-flow-codex` | `0.5.2` | `0.5.0` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
 | `dev-flow-deepseek` | `0.5.1` | `0.5.0` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
 
-Beide `0.5.1` Releases bestanden Installation aus dem registry package, realen Host/Core handshake, Entfernung,
+Die aktuellen Releases beider Host-Produkte bestanden Installation aus dem registry package, realen Host/Core handshake, Entfernung,
 Deinstallation und repository-unchanged gate. Der DeepSeek journey umfasste zusätzlich explizite Aktivierung,
 Recovery nach Neustart, `DONE` und retained reopen. Exakte Artefaktidentitäten und Evidenz stehen in der
 [Support Matrix](docs/SUPPORT-MATRIX_en.md) und den zugehörigen GitHub Releases.

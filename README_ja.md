@@ -51,8 +51,8 @@ Dev Flow は、複数の開発ノードをまたぎ、手戻りが発生し得�
 
 ## クイックスタート
 
-現在の公開アーティファクトは macOS arm64 と Node.js `>=24` をサポートします。Core `0.5.0`
-は Codex `0.5.1` と DeepSeek `0.5.1` の各 Host 製品に独立してバンドルされ、3 製品は独立して
+現在の公開アーティファクトは macOS arm64 と Node.js `>=24` をサポートします。Core
+は Codex と DeepSeek の各 Host 製品に独立してバンドルされ、3 製品は独立して
 バージョン管理されます。サポート表は検証済みの正確なバージョンを保持し、インストール例では
 npm の `latest` dist-tag を使用します。
 
@@ -176,10 +176,10 @@ delete できます。lifecycle コマンドは自動削除しません。
 
 | 製品 | 公開バージョン | Bundled Core | 検証済み環境 |
 | --- | --- | --- | --- |
-| `dev-flow-codex` | `0.5.1` | `0.5.0` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
+| `dev-flow-codex` | `0.5.2` | `0.5.0` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
 | `dev-flow-deepseek` | `0.5.1` | `0.5.0` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
 
-両方の `0.5.1` リリースは registry package のインストール、実 Host/Core handshake、削除、
+両 Host 製品の現在のリリースは registry package のインストール、実 Host/Core handshake、削除、
 アンインストール、repository-unchanged gate を通過しました。DeepSeek journey は明示的起動、
 再起動復旧、`DONE`、retained reopen も対象にしています。正確なアーティファクト identity と
 証拠は [Support Matrix](docs/SUPPORT-MATRIX_en.md) および対応する GitHub Release を参照してください。
