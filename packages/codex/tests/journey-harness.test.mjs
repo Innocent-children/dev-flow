@@ -945,6 +945,11 @@ test("registry journey stop signal requires an authoritative nonterminal Core ta
   delete textOnly.item.result.structured_content;
   assert.equal(successfulNonterminalApplyEvent(JSON.stringify(textOnly)), true);
 
+  const omittedPendingOutcome = coreSuccessEvent("dev_flow_apply_action", "omitted-outcome", {
+    task: { task_id: "task-stop", current_cursor: "TEST" },
+  });
+  assert.equal(successfulNonterminalApplyEvent(JSON.stringify(omittedPendingOutcome)), true);
+
   const done = coreSuccessEvent("dev_flow_apply_action", "done", {
     task: { ...task, current_cursor: "DONE", outcome: { status: "completed" } },
   });

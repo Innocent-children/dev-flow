@@ -4155,7 +4155,7 @@ export function successfulNonterminalApplyEvent(line) {
       && isPlainObject(task)
       && typeof task.current_cursor === "string"
       && task.current_cursor !== "DONE"
-      && task.outcome === null;
+      && (task.outcome === null || task.outcome === undefined);
   } catch { return false; }
 }
 
