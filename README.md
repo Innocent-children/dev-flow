@@ -47,12 +47,13 @@ Dev Flow 适合需要跨越多个开发节点、可能发生返工、需要保�
 ## 快速开始
 
 当前公开制品支持 macOS arm64、Node.js `>=24`。Core `0.5.0` 独立打包在 Codex `0.5.1` 和
-DeepSeek `0.5.1` Host 产品中；三个产品版本分别演进。
+DeepSeek `0.5.1` Host 产品中；三个产品版本分别演进。支持表中的版本是已验证的精确身份，安装
+示例使用 npm `latest` dist-tag 获取当前最新稳定 package。
 
 ### Codex
 
 ```bash
-npm install -g dev-flow-codex@0.5.1
+npm install -g dev-flow-codex@latest
 dev-flow-codex setup
 dev-flow-codex --version
 ```
@@ -68,15 +69,16 @@ $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 
 ### DeepSeek Harness
 
-先从 npm 获取官方 tarball，再把绝对路径交给 DSH profile：
+从 npm 获取 `latest` 官方 tarball，再把绝对路径交给 DSH profile：
 
 ```bash
-npm pack dev-flow-deepseek@0.5.1
-dsh plugin --profile <profile> add "$PWD/dev-flow-deepseek-0.5.1.tgz"
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile <profile> add "$PWD/$TARBALL"
 ```
 
-按 DSH 的 profile 生命周期重启该 profile 后，通过 `/dev-flow` 显式进入 Dev Flow。安装、
-重启、移除和数据边界见 [DeepSeek package README](packages/deepseek/README.md)。
+按 DSH profile lifecycle 重启该 profile 后，通过 `/dev-flow` 显式进入 Dev Flow。安装、重启、
+移除和数据边界见 [DeepSeek package README](packages/deepseek/README.md)。所有 Codex、DeepSeek、
+Core 命令、selector 与 MCP 工具的完整说明见 [命令参考](docs/COMMANDS.md)。
 
 ## 执行模型
 
@@ -145,14 +147,16 @@ dev_flow_apply_action
 dev_flow_cancel_task
 ```
 
+每个工具的读写性质、输入用途和行为解释见 [命令参考](docs/COMMANDS.md)。
+
 Core 可以有界、只读地观察一个现有 Git 仓库，用于建立 repository binding 和判断变更事实。
 Git 修改由获得用户授权的 Host 执行；Core 不提供通用 shell，也不执行 checkout、commit、push、
 merge、rebase、tag 或发布操作。
 
 ## 数据与恢复
 
-默认任务数据位于 Host 产品管理的本地数据目录，也可以通过 `DEV_FLOW_DATA_DIR` 指向一个已存在、
-可用的绝对目录。卸载或移除 Host 集成会保留任务数据。
+默认 Task 数据位于 Host 产品管理的本地数据目录，也可以通过 `DEV_FLOW_DATA_DIR` 指向一个已存在、
+可用的绝对目录。卸载或移除 Host 集成会保留 Task 数据。
 
 当前图运行时只接受当前 SQLite Schema 和严格 snapshot。检测到不兼容或 pre-graph 数据时，
 Core 返回 `SCHEMA_UNSUPPORTED` 并保持零写入。用户可以选择新的数据目录，或在 Core 外部手工
@@ -176,6 +180,7 @@ Core 返回 `SCHEMA_UNSUPPORTED` 并保持零写入。用户可以选择新的�
 | 产品问题、能力与边界 | [Product](docs/PRODUCT.md) |
 | Core、Adapter、Store 与 Recovery 架构 | [Architecture](docs/ARCHITECTURE.md) |
 | 当前支持版本和平台 | [Support Matrix](docs/SUPPORT-MATRIX.md) |
+| 所有用户命令、内部 Core 命令与 MCP 工具 | [Command Reference](docs/COMMANDS.md) |
 | 已交付能力与后续方向 | [Roadmap](docs/ROADMAP.md) |
 | 三个产品的独立版本治理 | [Versioning](docs/VERSIONING.md) |
 | 文档 locale 与同步规则 | [I18n](docs/I18N.md) |
