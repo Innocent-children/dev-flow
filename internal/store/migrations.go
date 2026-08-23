@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-const DatabaseSchemaVersion = "0.1.0"
+const DatabaseSchemaVersion = "0.2.0"
 
 var currentSchemaStatements = []string{
 	`CREATE TABLE schema_metadata (version TEXT PRIMARY KEY)`,
@@ -15,7 +15,8 @@ var currentSchemaStatements = []string{
 	`CREATE INDEX tasks_origin_host_idx ON tasks (origin_host)`,
 	`CREATE INDEX tasks_updated_at_idx ON tasks (updated_at)`,
 	`CREATE TABLE task_events (event_id TEXT PRIMARY KEY, task_id TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision >= 1), event_type TEXT NOT NULL, source_node TEXT NOT NULL, destination_node TEXT NOT NULL, transition_id TEXT, transition_reason TEXT, action_id TEXT, request_id TEXT NOT NULL, payload_digest TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE (task_id, revision), FOREIGN KEY (task_id) REFERENCES tasks (task_id) ON DELETE RESTRICT)`,
-	`CREATE TABLE repository_claims (repository_identity TEXT PRIMARY KEY, task_id TEXT NOT NULL UNIQUE, origin_host TEXT NOT NULL, claimed_at TEXT NOT NULL, FOREIGN KEY (task_id) REFERENCES tasks (task_id) ON DELETE RESTRICT)`,
+	`CREATE TABLE repository_claims (repository_identity TEXT PRIMARY KEY, task_id TEXT NOT NULL, origin_host TEXT NOT NULL, claimed_at TEXT NOT NULL, FOREIGN KEY (task_id) REFERENCES tasks (task_id) ON DELETE RESTRICT)`,
+	`CREATE INDEX repository_claims_task_idx ON repository_claims (task_id)`,
 }
 
 var currentSchemaObjects = []struct {
@@ -30,6 +31,7 @@ var currentSchemaObjects = []struct {
 	{"tasks_updated_at_idx", "index", 4},
 	{"task_events", "table", 5},
 	{"repository_claims", "table", 6},
+	{"repository_claims_task_idx", "index", 7},
 }
 
 var currentColumns = map[string][]string{

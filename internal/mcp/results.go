@@ -9,6 +9,7 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/recovery"
 	"github.com/Innocent-children/dev-flow/internal/userconfig"
 	"sort"
+	"strings"
 )
 
 type Envelope struct {
@@ -55,11 +56,28 @@ func EncodeError(id, tool string, err error) EncodedResult {
 		code = typed.Code
 	}
 	message, action, recovery := publicFailure(code)
+	if code == domain.ErrorRepositoryDrift && typed != nil && validRepositoryDriftMessage(typed.Message) {
+		message = typed.Message
+	}
 	raw, encodeErr := encodeEnvelope(Envelope{OK: false, RequestID: id, Tool: tool, Error: &ErrorResult{Code: code, Message: message}, Recovery: &RecoveryGuidance{RetrySafe: false, Action: action, Message: recovery}})
 	if encodeErr != nil || !WithinResultEnvelopeLimit(raw) {
 		return fixedFallback()
 	}
 	return EncodedResult{JSON: raw, IsError: true}
+}
+
+func validRepositoryDriftMessage(message string) bool {
+	const prefix = `Repository "`
+	const middle = `" has repository drift: `
+	if !strings.HasPrefix(message, prefix) || !strings.HasSuffix(message, ".") {
+		return false
+	}
+	remainder := strings.TrimSuffix(strings.TrimPrefix(message, prefix), ".")
+	parts := strings.Split(remainder, middle)
+	if len(parts) != 2 {
+		return false
+	}
+	return domain.RepositoryKey(parts[0]).IsValid() && recovery.RepositoryReason(parts[1]).IsValid()
 }
 func fixedFallback() EncodedResult {
 	return EncodedResult{JSON: append([]byte(nil), fallbackBytes...), IsError: true}
@@ -137,7 +155,7 @@ func projectRecoveryAssessment(assessment *recovery.RecoveryAssessment) any {
 		return nil
 	}
 	operation := assessment.Operation
-	return map[string]any{
+	result := map[string]any{
 		"classification":               assessment.Classification,
 		"operation":                    map[string]any{"operation_id": operation.OperationID, "process_id": operation.Process.ID, "process_definition_digest": operation.Process.DefinitionDigest, "source_cursor": operation.SourceCursor, "expected_revision": operation.ExpectedRevision, "action_id": operation.ActionID, "action_kind": operation.ActionKind},
 		"task_revision":                assessment.TaskRevision,
@@ -155,6 +173,16 @@ func projectRecoveryAssessment(assessment *recovery.RecoveryAssessment) any {
 		"unblock_condition":            assessment.UnblockCondition,
 		"observed_at":                  assessment.ObservedAt,
 	}
+	if len(assessment.Repositories) != 0 {
+		repositories := append([]recovery.RepositoryFact(nil), assessment.Repositories...)
+		sort.Slice(repositories, func(i, j int) bool { return repositories[i].RepositoryKey < repositories[j].RepositoryKey })
+		projected := make([]map[string]any, len(repositories))
+		for i, repository := range repositories {
+			projected[i] = map[string]any{"key": repository.RepositoryKey, "relation": repository.Relation, "reason": repository.Reason}
+		}
+		result["repositories"] = projected
+	}
+	return result
 }
 
 func WithinResultEnvelopeLimit(raw []byte) bool { return len(raw) <= domain.MaxResultEnvelopeBytes }

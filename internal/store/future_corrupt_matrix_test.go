@@ -15,7 +15,7 @@ import (
 func TestWrongDatabaseVersionSafeStops(t *testing.T) {
 	path := exactCurrentSchemaDatabase(t)
 	db := openRaw(t, path)
-	if _, err := db.Exec(`UPDATE schema_metadata SET version='0.2.0'`); err != nil {
+	if _, err := db.Exec(`UPDATE schema_metadata SET version='0.3.0'`); err != nil {
 		t.Fatal(err)
 	}
 	db.Close()
@@ -30,7 +30,7 @@ func TestPartialCurrentSchemaSafeStopMatrix(t *testing.T) {
 		{"missing schema metadata", func(statements []string) []string { return withoutSchemaStatements(statements, 0) }},
 		{"missing tasks table", func(statements []string) []string { return withoutSchemaStatements(statements, 1, 2, 3, 4) }},
 		{"missing task_events table", func(statements []string) []string { return withoutSchemaStatements(statements, 5) }},
-		{"missing repository_claims table", func(statements []string) []string { return withoutSchemaStatements(statements, 6) }},
+		{"missing repository_claims table", func(statements []string) []string { return withoutSchemaStatements(statements, 6, 7) }},
 		{"missing required column", func(statements []string) []string {
 			statements[1] = strings.Replace(statements[1], `origin_host TEXT NOT NULL, `, ``, 1)
 			return withoutSchemaStatements(statements, 3)

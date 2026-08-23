@@ -19,6 +19,50 @@ func (r RepositoryRelation) IsValid() bool {
 	return r == RepositoryExact || r == RepositoryWorktreeOnlyChanged || r == RepositoryForbiddenChange
 }
 
+type RepositoryReason string
+
+const (
+	RepositoryReasonExact           RepositoryReason = "exact"
+	RepositoryReasonWorktreeChanged RepositoryReason = "worktree_changed"
+	RepositoryReasonCanonicalRoot   RepositoryReason = "canonical_root_changed"
+	RepositoryReasonGitCommonDir    RepositoryReason = "git_common_dir_changed"
+	RepositoryReasonIdentity        RepositoryReason = "repository_identity_changed"
+	RepositoryReasonBranch          RepositoryReason = "branch_changed"
+	RepositoryReasonHead            RepositoryReason = "head_changed"
+	RepositoryReasonDetached        RepositoryReason = "detached_changed"
+	RepositoryReasonUnborn          RepositoryReason = "unborn_changed"
+	RepositoryReasonBinding         RepositoryReason = "binding_changed"
+)
+
+func (r RepositoryReason) IsValid() bool {
+	switch r {
+	case RepositoryReasonExact, RepositoryReasonWorktreeChanged, RepositoryReasonCanonicalRoot,
+		RepositoryReasonGitCommonDir, RepositoryReasonIdentity, RepositoryReasonBranch,
+		RepositoryReasonHead, RepositoryReasonDetached, RepositoryReasonUnborn, RepositoryReasonBinding:
+		return true
+	default:
+		return false
+	}
+}
+
+type RepositoryFact struct {
+	RepositoryKey domain.RepositoryKey `json:"repository_key"`
+	Relation      RepositoryRelation   `json:"relation"`
+	Reason        RepositoryReason     `json:"reason"`
+}
+
+type RepositoryScopeObservation struct {
+	Primary    domain.RepositoryBinding
+	Additional []domain.RepositoryScopeEntry
+}
+
+type RepositoryScopeComparison struct {
+	Relation       RepositoryRelation
+	Repositories   []RepositoryFact
+	ObservedDigest domain.Digest
+	ObservedAt     time.Time
+}
+
 type RepositoryEffectKind string
 
 const (
@@ -51,11 +95,12 @@ type OperationEvidenceState string
 const (
 	OperationEvidenceNone          OperationEvidenceState = "none"
 	OperationEvidenceComplete      OperationEvidenceState = "complete"
+	OperationEvidencePartial       OperationEvidenceState = "partial"
 	OperationEvidenceContradictory OperationEvidenceState = "contradictory"
 )
 
 func (s OperationEvidenceState) IsValid() bool {
-	return s == OperationEvidenceNone || s == OperationEvidenceComplete || s == OperationEvidenceContradictory
+	return s == OperationEvidenceNone || s == OperationEvidenceComplete || s == OperationEvidencePartial || s == OperationEvidenceContradictory
 }
 
 type RecoveryAdvice string
@@ -105,6 +150,7 @@ type RecoveryAssessment struct {
 	AuthoritativeBindingDigest domain.Digest                 `json:"authoritative_binding_digest"`
 	ObservedBindingDigest      domain.Digest                 `json:"observed_binding_digest"`
 	RepositoryRelation         RepositoryRelation            `json:"repository_relation"`
+	Repositories               []RepositoryFact              `json:"repositories,omitempty"`
 	LastOperationRelation      LastOperationRelation         `json:"last_operation_relation"`
 	OperationEvidence          OperationEvidenceState        `json:"operation_evidence"`
 	OperationPayloadDigest     *domain.Digest                `json:"operation_payload_digest"`
@@ -127,11 +173,12 @@ const (
 )
 
 type ReconcileInput struct {
-	Host      domain.Host
-	Task      domain.ProcessTask
-	Operation domain.OperationReference
-	Payload   json.RawMessage
-	Observed  domain.RepositoryBinding
+	Host          domain.Host
+	Task          domain.ProcessTask
+	Operation     domain.OperationReference
+	Payload       json.RawMessage
+	Observed      domain.RepositoryBinding
+	ObservedScope *RepositoryScopeObservation
 }
 
 type RecoveryDecision struct {

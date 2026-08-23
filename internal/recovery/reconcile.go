@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"sort"
+	"strings"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
@@ -17,8 +18,13 @@ type BlockerResolutionPayload struct {
 }
 
 func CompareRepositoryBindings(authoritative, fresh domain.RepositoryBinding) (RepositoryRelation, error) {
+	relation, _, err := compareRepositoryBindings(authoritative, fresh)
+	return relation, err
+}
+
+func compareRepositoryBindings(authoritative, fresh domain.RepositoryBinding) (RepositoryRelation, RepositoryReason, error) {
 	if authoritative.Validate() != nil || fresh.Validate() != nil {
-		return "", domain.ErrInvalidArgument
+		return "", "", domain.ErrInvalidArgument
 	}
 	identity := authoritative.CanonicalRoot == fresh.CanonicalRoot &&
 		authoritative.GitCommonDirDigest == fresh.GitCommonDirDigest &&
@@ -26,12 +32,84 @@ func CompareRepositoryBindings(authoritative, fresh domain.RepositoryBinding) (R
 		sameText(authoritative.Branch, fresh.Branch) && authoritative.Detached == fresh.Detached &&
 		sameText(authoritative.Head, fresh.Head) && authoritative.Unborn == fresh.Unborn
 	if identity && authoritative.WorktreeFingerprint == fresh.WorktreeFingerprint && authoritative.BindingDigest == fresh.BindingDigest {
-		return RepositoryExact, nil
+		return RepositoryExact, RepositoryReasonExact, nil
 	}
 	if identity && authoritative.WorktreeFingerprint != fresh.WorktreeFingerprint && authoritative.BindingDigest != fresh.BindingDigest {
-		return RepositoryWorktreeOnlyChanged, nil
+		return RepositoryWorktreeOnlyChanged, RepositoryReasonWorktreeChanged, nil
 	}
-	return RepositoryForbiddenChange, nil
+	reason := RepositoryReasonBinding
+	switch {
+	case authoritative.CanonicalRoot != fresh.CanonicalRoot:
+		reason = RepositoryReasonCanonicalRoot
+	case authoritative.GitCommonDirDigest != fresh.GitCommonDirDigest:
+		reason = RepositoryReasonGitCommonDir
+	case authoritative.RepositoryIdentity != fresh.RepositoryIdentity:
+		reason = RepositoryReasonIdentity
+	case !sameText(authoritative.Branch, fresh.Branch):
+		reason = RepositoryReasonBranch
+	case !sameText(authoritative.Head, fresh.Head):
+		reason = RepositoryReasonHead
+	case authoritative.Detached != fresh.Detached:
+		reason = RepositoryReasonDetached
+	case authoritative.Unborn != fresh.Unborn:
+		reason = RepositoryReasonUnborn
+	}
+	return RepositoryForbiddenChange, reason, nil
+}
+
+func CompareRepositoryScope(task domain.ProcessTask, observed RepositoryScopeObservation) (RepositoryScopeComparison, error) {
+	if workflow.ValidateProcessTask(task) != nil || observed.Primary.Validate() != nil || len(observed.Additional) != len(task.AdditionalRepositories) {
+		return RepositoryScopeComparison{}, domain.ErrInvalidArgument
+	}
+	facts := make([]RepositoryFact, 0, len(task.AdditionalRepositories)+1)
+	relation := RepositoryExact
+	observedAt := observed.Primary.ObservedAt
+	appendFact := func(key domain.RepositoryKey, authoritative, fresh domain.RepositoryBinding) error {
+		entryRelation, reason, err := compareRepositoryBindings(authoritative, fresh)
+		if err != nil {
+			return err
+		}
+		facts = append(facts, RepositoryFact{RepositoryKey: key, Relation: entryRelation, Reason: reason})
+		if entryRelation == RepositoryForbiddenChange {
+			relation = RepositoryForbiddenChange
+		} else if entryRelation == RepositoryWorktreeOnlyChanged && relation == RepositoryExact {
+			relation = RepositoryWorktreeOnlyChanged
+		}
+		return nil
+	}
+	if err := appendFact(task.EffectivePrimaryRepositoryKey(), task.Repository, observed.Primary); err != nil {
+		return RepositoryScopeComparison{}, err
+	}
+	for i, entry := range task.AdditionalRepositories {
+		fresh := observed.Additional[i]
+		if fresh.Key != entry.Key || fresh.Binding.Validate() != nil {
+			return RepositoryScopeComparison{}, domain.ErrInvalidArgument
+		}
+		if err := appendFact(entry.Key, entry.Binding, fresh.Binding); err != nil {
+			return RepositoryScopeComparison{}, err
+		}
+		observedAt = fresh.Binding.ObservedAt
+	}
+	sort.Slice(facts, func(i, j int) bool { return facts[i].RepositoryKey < facts[j].RepositoryKey })
+	digestTask := task
+	digestTask.Repository = observedDigestBinding(task.Repository, observed.Primary)
+	digestTask.AdditionalRepositories = make([]domain.RepositoryScopeEntry, len(task.AdditionalRepositories))
+	for i, entry := range task.AdditionalRepositories {
+		digestTask.AdditionalRepositories[i] = domain.RepositoryScopeEntry{Key: entry.Key, Binding: observedDigestBinding(entry.Binding, observed.Additional[i].Binding)}
+	}
+	digest, err := digestTask.EffectiveRepositoryBindingDigest()
+	if err != nil {
+		return RepositoryScopeComparison{}, domain.ErrInvalidArgument
+	}
+	return RepositoryScopeComparison{Relation: relation, Repositories: facts, ObservedDigest: digest, ObservedAt: observedAt}, nil
+}
+
+func observedDigestBinding(authoritative, observed domain.RepositoryBinding) domain.RepositoryBinding {
+	binding := observed.Clone()
+	binding.CanonicalRoot = authoritative.CanonicalRoot
+	binding.GitCommonDirDigest = authoritative.GitCommonDirDigest
+	binding.RepositoryIdentity = authoritative.RepositoryIdentity
+	return binding
 }
 
 func BindingAcceptedForAction(action domain.ActionKind, relation RepositoryRelation) (bool, error) {
@@ -48,14 +126,19 @@ func BindingAcceptedForAction(action domain.ActionKind, relation RepositoryRelat
 
 func Reconcile(input ReconcileInput) (RecoveryDecision, error) {
 	if !input.Host.IsValid() || workflow.ValidateProcessTask(input.Task) != nil ||
-		workflow.ValidateOperationReference(input.Operation) != nil || input.Observed.Validate() != nil ||
+		workflow.ValidateOperationReference(input.Operation) != nil ||
 		input.Task.OriginHost != input.Host || input.Task.Process != input.Operation.Process || len(input.Payload) == 0 {
 		return RecoveryDecision{}, domain.ErrInvalidArgument
 	}
-	relation, err := CompareRepositoryBindings(input.Task.Repository, input.Observed)
+	observation, err := reconcileObservation(input)
 	if err != nil {
 		return RecoveryDecision{}, err
 	}
+	comparison, err := CompareRepositoryScope(input.Task, observation)
+	if err != nil {
+		return RecoveryDecision{}, err
+	}
+	relation := comparison.Relation
 
 	payloadRetained := !bytes.Equal(bytes.TrimSpace(input.Payload), []byte("null"))
 	var canonical json.RawMessage
@@ -71,7 +154,7 @@ func Reconcile(input ReconcileInput) (RecoveryDecision, error) {
 			canonical = raw
 			effect = RepositoryEffect{Kind: EffectExactBlockerRestoration, NoFileChanges: true}
 			if input.Task.Blocker == nil || payload.BlockerID != input.Task.Blocker.BlockerID ||
-				payload.Condition != input.Task.Blocker.Condition || payload.ObservedBindingDigest != input.Observed.BindingDigest {
+				payload.Condition != input.Task.Blocker.Condition || payload.ObservedBindingDigest != comparison.ObservedDigest {
 				evidence = OperationEvidenceContradictory
 			}
 		} else {
@@ -98,29 +181,38 @@ func Reconcile(input ReconcileInput) (RecoveryDecision, error) {
 		}
 		payloadDigest = &digest
 		if evidence != OperationEvidenceContradictory {
-			evidence = operationEvidenceFor(effect, relation, input.Task.Repository, input.Observed)
+			evidence = RepositoryScopeEffectEvidence(input.Task, observation, comparison, effect)
 		}
 	}
 
 	lastRelation, proof := compareLastOperation(input.Task.LastOperation, input.Operation, payloadDigest, input.Task.Revision)
+	authoritativeDigest, err := input.Task.EffectiveRepositoryBindingDigest()
+	if err != nil {
+		return RecoveryDecision{}, domain.ErrInvalidArgument
+	}
+	repositoryFacts := comparison.Repositories
+	if len(input.Task.AdditionalRepositories) == 0 {
+		repositoryFacts = nil
+	}
 	facts := ClassificationFacts{
 		Operation:                    input.Operation,
 		TaskRevision:                 input.Task.Revision,
 		CurrentNode:                  input.Task.CurrentNode,
 		CurrentActionID:              currentActionID(input.Task.CurrentAction),
 		IssuanceBindingDigest:        input.Operation.RepositoryBindingDigest,
-		AuthoritativeBindingDigest:   input.Task.Repository.BindingDigest,
-		ObservedBindingDigest:        input.Observed.BindingDigest,
+		AuthoritativeBindingDigest:   authoritativeDigest,
+		ObservedBindingDigest:        comparison.ObservedDigest,
 		RepositoryRelation:           relation,
+		Repositories:                 repositoryFacts,
 		LastOperationRelation:        lastRelation,
 		OperationEvidence:            evidence,
 		OperationPayloadDigest:       payloadDigest,
 		CommittedProof:               proof,
-		SourceCurrent:                sourceCurrent(input.Task, input.Operation),
+		SourceCurrent:                sourceCurrent(input.Task, input.Operation, authoritativeDigest),
 		PayloadRetained:              payloadRetained,
-		MayHavePartialRepositoryWork: mayHavePartialRepositoryWork(input.Operation, relation, input.Observed),
+		MayHavePartialRepositoryWork: mayHavePartialRepositoryWork(input.Operation, relation, observation),
 		ExistingBlocker:              input.Task.Blocker,
-		ObservedAt:                   input.Observed.ObservedAt,
+		ObservedAt:                   comparison.ObservedAt,
 	}
 	decision, err := Classify(facts)
 	if err != nil {
@@ -128,6 +220,19 @@ func Reconcile(input ReconcileInput) (RecoveryDecision, error) {
 	}
 	decision.CanonicalPayload = canonical
 	return decision, nil
+}
+
+func reconcileObservation(input ReconcileInput) (RepositoryScopeObservation, error) {
+	if input.ObservedScope != nil {
+		if input.Observed.CanonicalRoot != "" {
+			return RepositoryScopeObservation{}, domain.ErrInvalidArgument
+		}
+		return *input.ObservedScope, nil
+	}
+	if input.Observed.Validate() != nil || len(input.Task.AdditionalRepositories) != 0 {
+		return RepositoryScopeObservation{}, domain.ErrInvalidArgument
+	}
+	return RepositoryScopeObservation{Primary: input.Observed}, nil
 }
 
 func operationEvidenceFor(effect RepositoryEffect, relation RepositoryRelation, authoritative, observed domain.RepositoryBinding) OperationEvidenceState {
@@ -139,6 +244,67 @@ func operationEvidenceFor(effect RepositoryEffect, relation RepositoryRelation, 
 		return OperationEvidenceComplete
 	}
 	return OperationEvidenceContradictory
+}
+
+func RepositoryScopeEffectEvidence(task domain.ProcessTask, observed RepositoryScopeObservation, comparison RepositoryScopeComparison, effect RepositoryEffect) OperationEvidenceState {
+	if len(task.AdditionalRepositories) == 0 {
+		return operationEvidenceFor(effect, comparison.Relation, task.Repository, observed.Primary)
+	}
+	authoritative := map[domain.RepositoryKey]domain.RepositoryBinding{task.EffectivePrimaryRepositoryKey(): task.Repository}
+	fresh := map[domain.RepositoryKey]domain.RepositoryBinding{task.EffectivePrimaryRepositoryKey(): observed.Primary}
+	relations := map[domain.RepositoryKey]RepositoryRelation{}
+	for _, fact := range comparison.Repositories {
+		relations[fact.RepositoryKey] = fact.Relation
+	}
+	for i, entry := range task.AdditionalRepositories {
+		authoritative[entry.Key] = entry.Binding
+		fresh[entry.Key] = observed.Additional[i].Binding
+	}
+	if effect.NoFileChanges && len(effect.ChangedPaths) == 0 {
+		if comparison.Relation == RepositoryExact {
+			return OperationEvidenceComplete
+		}
+		return OperationEvidenceContradictory
+	}
+	declared := map[domain.RepositoryKey][]string{}
+	for _, scopedPath := range effect.ChangedPaths {
+		keyText, path, ok := strings.Cut(scopedPath, "::")
+		key := domain.RepositoryKey(keyText)
+		if !ok || path == "" || authoritative[key].Validate() != nil {
+			return OperationEvidenceContradictory
+		}
+		declared[key] = append(declared[key], path)
+	}
+	if len(declared) == 0 {
+		return OperationEvidenceContradictory
+	}
+	completed := 0
+	for key, binding := range authoritative {
+		paths := declared[key]
+		if len(paths) == 0 {
+			if relations[key] != RepositoryExact {
+				return OperationEvidenceContradictory
+			}
+			continue
+		}
+		componentEffect := effect
+		componentEffect.ChangedPaths = paths
+		componentEffect.NoFileChanges = false
+		if RepositoryEffectMatches(componentEffect, relations[key], binding, fresh[key]) {
+			completed++
+			continue
+		}
+		if relations[key] != RepositoryExact {
+			return OperationEvidenceContradictory
+		}
+	}
+	if completed == len(declared) {
+		return OperationEvidenceComplete
+	}
+	if completed > 0 {
+		return OperationEvidencePartial
+	}
+	return OperationEvidenceNone
 }
 
 func DeriveRepositoryEffect(source domain.NodeID, envelope workflow.StandardPayload, result any) (RepositoryEffect, error) {
@@ -232,17 +398,21 @@ func compareLastOperation(last *domain.LastOperation, operation domain.Operation
 	return LastOperationUnrelated, nil
 }
 
-func sourceCurrent(task domain.ProcessTask, operation domain.OperationReference) bool {
+func sourceCurrent(task domain.ProcessTask, operation domain.OperationReference, authoritativeDigest domain.Digest) bool {
 	return task.Revision == operation.ExpectedRevision && task.CurrentNode == operation.SourceCursor &&
 		task.CurrentAction != nil && task.CurrentAction.ActionID == operation.ActionID &&
 		task.CurrentAction.Kind == operation.ActionKind && task.CurrentAction.Process == operation.Process &&
 		task.CurrentAction.NodeID == operation.SourceCursor &&
 		task.CurrentAction.RepositoryBindingDigest == operation.RepositoryBindingDigest &&
-		task.Repository.BindingDigest == operation.RepositoryBindingDigest
+		authoritativeDigest == operation.RepositoryBindingDigest
 }
 
-func mayHavePartialRepositoryWork(operation domain.OperationReference, relation RepositoryRelation, observed domain.RepositoryBinding) bool {
-	return relation == RepositoryWorktreeOnlyChanged && len(observed.ChangedPaths) > 0 &&
+func mayHavePartialRepositoryWork(operation domain.OperationReference, relation RepositoryRelation, observed RepositoryScopeObservation) bool {
+	changed := len(observed.Primary.ChangedPaths) > 0
+	for _, entry := range observed.Additional {
+		changed = changed || len(entry.Binding.ChangedPaths) > 0
+	}
+	return relation == RepositoryWorktreeOnlyChanged && changed &&
 		(operation.ActionKind == domain.ActionCompleteImplementation || operation.ActionKind == domain.ActionCompleteRefactor)
 }
 

@@ -6,6 +6,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/dev-flow/internal/recovery"
 	"github.com/Innocent-children/dev-flow/internal/store"
 )
 
@@ -26,6 +27,17 @@ func (s *Service) CancelTask(ctx context.Context, r CancelTaskRequest) (CancelTa
 	if !utf8.ValidString(r.Reason) || strings.TrimSpace(r.Reason) == "" || r.Reason != strings.TrimSpace(r.Reason) || len(r.Reason) > domain.MaxReasonBytes {
 		return CancelTaskResult{}, domain.ErrInvalidArgument
 	}
+	fresh, err := s.observeTaskRepositories(ctx, task)
+	if err != nil {
+		return CancelTaskResult{}, err
+	}
+	comparison, err := recovery.CompareRepositoryScope(task, fresh)
+	if err != nil {
+		return CancelTaskResult{}, domain.ErrInternal
+	}
+	if comparison.Relation == recovery.RepositoryForbiddenChange {
+		return CancelTaskResult{}, repositoryDriftError(comparison)
+	}
 	source := task.CurrentNode
 	next, err := cloneProcessTask(task)
 	if err != nil {
@@ -39,11 +51,16 @@ func (s *Service) CancelTask(ctx context.Context, r CancelTaskRequest) (CancelTa
 	next.Revision++
 	next.UpdatedAt = now
 	next.CompletedAt = &now
+	rebindProcessAuthorities(&next, fresh)
 	rev := uint32(0)
 	if next.Requirements != nil {
 		rev = next.Requirements.Revision
 	}
-	next.Outcome = &domain.ProcessOutcome{Status: domain.TerminalCancelled, Summary: r.Reason, RequirementsRevision: rev, FinalRepositoryDigest: next.Repository.BindingDigest, CompletedAt: now}
+	effectiveDigest, err := next.EffectiveRepositoryBindingDigest()
+	if err != nil {
+		return CancelTaskResult{}, domain.ErrInternal
+	}
+	next.Outcome = &domain.ProcessOutcome{Status: domain.TerminalCancelled, Summary: r.Reason, RequirementsRevision: rev, FinalRepositoryDigest: effectiveDigest, CompletedAt: now}
 	digest, err := digestCanonical(r)
 	if err != nil {
 		return CancelTaskResult{}, domain.ErrInternal

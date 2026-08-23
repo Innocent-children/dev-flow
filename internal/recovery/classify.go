@@ -15,6 +15,7 @@ type ClassificationFacts struct {
 	AuthoritativeBindingDigest   domain.Digest
 	ObservedBindingDigest        domain.Digest
 	RepositoryRelation           RepositoryRelation
+	Repositories                 []RepositoryFact
 	LastOperationRelation        LastOperationRelation
 	OperationEvidence            OperationEvidenceState
 	OperationPayloadDigest       *domain.Digest
@@ -41,6 +42,8 @@ func Classify(facts ClassificationFacts) (RecoveryDecision, error) {
 		classification, directive = domain.RecoveryConflicting, conflictDirective(facts)
 	case facts.OperationEvidence == OperationEvidenceContradictory || facts.RepositoryRelation == RepositoryForbiddenChange:
 		classification, directive = domain.RecoveryConflicting, DirectiveCreateBlocker
+	case facts.OperationEvidence == OperationEvidencePartial:
+		classification, directive = domain.RecoveryPartiallyCompleted, DirectiveCreateBlocker
 	case facts.OperationEvidence == OperationEvidenceNone && facts.RepositoryRelation == RepositoryWorktreeOnlyChanged && facts.MayHavePartialRepositoryWork:
 		classification, directive = domain.RecoveryPartiallyCompleted, DirectiveCreateBlocker
 	case facts.OperationEvidence == OperationEvidenceComplete:
@@ -59,6 +62,7 @@ func Classify(facts ClassificationFacts) (RecoveryDecision, error) {
 		AuthoritativeBindingDigest: facts.AuthoritativeBindingDigest,
 		ObservedBindingDigest:      facts.ObservedBindingDigest,
 		RepositoryRelation:         facts.RepositoryRelation,
+		Repositories:               append([]RepositoryFact(nil), facts.Repositories...),
 		LastOperationRelation:      facts.LastOperationRelation,
 		OperationEvidence:          facts.OperationEvidence,
 		OperationPayloadDigest:     facts.OperationPayloadDigest,
@@ -99,6 +103,13 @@ func (facts ClassificationFacts) validate() error {
 		}
 	} else if facts.CommittedProof != nil {
 		return domain.ErrInvalidArgument
+	}
+	previous := domain.RepositoryKey("")
+	for _, fact := range facts.Repositories {
+		if !fact.RepositoryKey.IsValid() || !fact.Relation.IsValid() || !fact.Reason.IsValid() || previous != "" && fact.RepositoryKey <= previous {
+			return domain.ErrInvalidArgument
+		}
+		previous = fact.RepositoryKey
 	}
 	return nil
 }

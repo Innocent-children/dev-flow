@@ -57,21 +57,32 @@ func TestRecoveryAssessmentProjectionIsClosedAndRedacted(t *testing.T) {
 	process := workflow.StandardProcess().Reference
 	digest := domain.Digest(strings.Repeat("a", 64))
 	actionID := domain.ID("action")
-	assessment := &recovery.RecoveryAssessment{Classification: domain.RecoveryPartiallyCompleted, Operation: domain.OperationReference{OperationID: "operation", Process: process, SourceCursor: domain.NodeRefactor, ExpectedRevision: 3, ActionID: actionID, ActionKind: domain.ActionCompleteRefactor, RepositoryBindingDigest: digest}, TaskRevision: 3, CurrentActionID: &actionID, IssuanceBindingDigest: digest, AuthoritativeBindingDigest: digest, ObservedBindingDigest: domain.Digest(strings.Repeat("b", 64)), RepositoryRelation: recovery.RepositoryWorktreeOnlyChanged, LastOperationRelation: recovery.LastOperationUnrelated, OperationEvidence: recovery.OperationEvidenceNone, ActionRetrySafe: false, NextAdvice: recovery.AdviceSubmitRecoveryApply, UnblockCondition: &domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: digest}, ObservedAt: time.Date(2026, 8, 19, 10, 0, 0, 0, time.UTC)}
+	assessment := &recovery.RecoveryAssessment{Classification: domain.RecoveryPartiallyCompleted, Operation: domain.OperationReference{OperationID: "operation", Process: process, SourceCursor: domain.NodeRefactor, ExpectedRevision: 3, ActionID: actionID, ActionKind: domain.ActionCompleteRefactor, RepositoryBindingDigest: digest}, TaskRevision: 3, CurrentActionID: &actionID, IssuanceBindingDigest: digest, AuthoritativeBindingDigest: digest, ObservedBindingDigest: domain.Digest(strings.Repeat("b", 64)), RepositoryRelation: recovery.RepositoryWorktreeOnlyChanged, Repositories: []recovery.RepositoryFact{{RepositoryKey: "docs", Relation: recovery.RepositoryForbiddenChange, Reason: recovery.RepositoryReasonHead}, {RepositoryKey: "core", Relation: recovery.RepositoryExact, Reason: recovery.RepositoryReasonExact}}, LastOperationRelation: recovery.LastOperationUnrelated, OperationEvidence: recovery.OperationEvidencePartial, ActionRetrySafe: false, NextAdvice: recovery.AdviceSubmitRecoveryApply, UnblockCondition: &domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: digest}, ObservedAt: time.Date(2026, 8, 19, 10, 0, 0, 0, time.UTC)}
 	raw, err := json.Marshal(projectRecoveryAssessment(assessment))
 	if err != nil {
 		t.Fatal(err)
 	}
 	text := string(raw)
-	for _, required := range []string{"\"classification\":\"partially_completed\"", "\"source_cursor\":\"REFACTOR\"", "\"next_advice\":\"submit_recovery_apply\""} {
+	for _, required := range []string{"\"classification\":\"partially_completed\"", "\"source_cursor\":\"REFACTOR\"", "\"next_advice\":\"submit_recovery_apply\"", `"repositories":[{"key":"core","reason":"exact","relation":"exact"},{"key":"docs","reason":"head_changed","relation":"forbidden_change"}]`} {
 		if !strings.Contains(text, required) {
 			t.Fatalf("projection missing %s: %s", required, text)
 		}
 	}
-	for _, forbidden := range []string{"directive", "canonical_root", "raw_payload", "database"} {
+	for _, forbidden := range []string{"directive", "canonical_root", "raw_payload", "database", "/Users/", "git status", "stderr"} {
 		if strings.Contains(text, forbidden) {
 			t.Fatalf("projection leaked %s: %s", forbidden, text)
 		}
+	}
+}
+
+func TestRepositoryDriftErrorProjectsOnlyValidatedKeyAndClosedReason(t *testing.T) {
+	safe := EncodeError("drift-safe", ToolApplyAction, domain.NewError(domain.ErrorRepositoryDrift, `Repository "docs" has repository drift: head_changed.`))
+	if safe.IsError == false || !strings.Contains(string(safe.JSON), `"message":"Repository \"docs\" has repository drift: head_changed."`) {
+		t.Fatalf("safe drift result=%s", safe.JSON)
+	}
+	unsafe := EncodeError("drift-unsafe", ToolApplyAction, domain.NewError(domain.ErrorRepositoryDrift, `Repository "/Users/private" has repository drift: git status.`))
+	if strings.Contains(string(unsafe.JSON), "/Users/private") || strings.Contains(string(unsafe.JSON), "git status") {
+		t.Fatalf("unsafe drift result=%s", unsafe.JSON)
 	}
 }
 

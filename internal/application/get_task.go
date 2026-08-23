@@ -3,6 +3,7 @@ package application
 import (
 	"bytes"
 	"context"
+
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/recovery"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
@@ -20,11 +21,11 @@ func (s *Service) GetTask(ctx context.Context, r GetTaskRequest) (GetTaskResult,
 		if err != nil {
 			return GetTaskResult{}, err
 		}
-		fresh, err := s.repositoryObserver.Observe(ctx, task.Repository.CanonicalRoot)
-		if err != nil || fresh.Validate() != nil {
-			return GetTaskResult{}, domain.ErrInternal
+		fresh, err := s.observeTaskRepositories(ctx, task)
+		if err != nil {
+			return GetTaskResult{}, err
 		}
-		decision, err := recovery.Reconcile(recovery.ReconcileInput{Host: r.Host, Task: task, Operation: r.OperationProbe.Reference(), Payload: r.OperationProbe.Payload, Observed: fresh})
+		decision, err := recovery.Reconcile(recovery.ReconcileInput{Host: r.Host, Task: task, Operation: r.OperationProbe.Reference(), Payload: r.OperationProbe.Payload, ObservedScope: &fresh})
 		if err != nil {
 			return GetTaskResult{}, err
 		}

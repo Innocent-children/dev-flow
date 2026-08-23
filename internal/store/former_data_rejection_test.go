@@ -3,19 +3,30 @@ package store
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 )
 
-func TestFormerSchemaIsRejectedBeforeDecodeWithZeroWrites(t *testing.T) {
+func TestSchemaVersionZeroPointOneIsRejectedBeforeDecodeWithZeroWrites(t *testing.T) {
 	path := dbPath(t)
 	db := openRaw(t, path)
-	_, err := db.Exec(`CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,applied_at TEXT NOT NULL,digest TEXT NOT NULL);INSERT INTO schema_migrations VALUES(1,'old','old');CREATE TABLE tasks(task_id TEXT PRIMARY KEY,snapshot BLOB);INSERT INTO tasks VALUES('old-task',X'7B227068617365223A22494E54414B45227D');CREATE TABLE task_events(event_id TEXT PRIMARY KEY,task_id TEXT);INSERT INTO task_events VALUES('old-event','old-task');CREATE TABLE repository_claims(repository_identity TEXT PRIMARY KEY,task_id TEXT);INSERT INTO repository_claims VALUES('old-repository','old-task')`)
-	if err != nil {
+	for index, statement := range currentSchemaStatements {
+		if index == 7 {
+			continue
+		}
+		if index == 6 {
+			statement = strings.Replace(statement, "task_id TEXT NOT NULL", "task_id TEXT NOT NULL UNIQUE", 1)
+		}
+		if _, err := db.Exec(statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(`INSERT INTO schema_metadata(version) VALUES ('0.1.0')`); err != nil {
 		t.Fatal(err)
 	}
 	db.Close()
 	before := databaseManifest(t, path)
-	_, err = Open(context.Background(), path)
+	_, err := Open(context.Background(), path)
 	if !errors.Is(err, ErrSchemaUnsupported) {
 		t.Fatalf("error=%v", err)
 	}
@@ -23,7 +34,7 @@ func TestFormerSchemaIsRejectedBeforeDecodeWithZeroWrites(t *testing.T) {
 	db = openRaw(t, path)
 	defer db.Close()
 	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&count); err != nil || count != 1 {
-		t.Fatal("history changed")
+	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_metadata WHERE version='0.1.0'`).Scan(&count); err != nil || count != 1 {
+		t.Fatal("former schema identity changed")
 	}
 }

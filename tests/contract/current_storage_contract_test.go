@@ -90,13 +90,18 @@ func TestCurrentStorageHasOneSchemaCodecProcessAndProjection(t *testing.T) {
 
 	migrations := read("internal/store/migrations.go")
 	for _, required := range []string{
+		`const DatabaseSchemaVersion = "0.2.0"`,
 		"currentSchemaStatements",
 		"func bootstrapCurrentSchema",
 		"func verifyCurrentSchema",
+		"CREATE INDEX repository_claims_task_idx ON repository_claims (task_id)",
 	} {
 		if !strings.Contains(migrations, required) {
 			t.Errorf("current storage bootstrap missing %q", required)
 		}
+	}
+	if strings.Contains(migrations, "task_id TEXT NOT NULL UNIQUE") {
+		t.Fatal("repository claims still restrict one claim per task")
 	}
 	if regexp.MustCompile(`(?i)ALTER\s+TABLE|schema_migrations|process_version|snapshot_version`).MatchString(migrations) {
 		t.Fatal("current storage bootstrap contains version metadata or a migration path")

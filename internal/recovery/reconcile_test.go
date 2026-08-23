@@ -91,6 +91,45 @@ func TestExactBindingRecoveryEffectAndNullPayloadConservatism(t *testing.T) {
 	}
 }
 
+func TestMultiRepositoryRecoveryAggregatesPartialAndConflictingFacts(t *testing.T) {
+	task, operation, payload := multiRepositoryRecoveryFixture(t)
+	primaryChanged := changedBinding(task.Repository, []string{"internal/order.go"}, "c")
+	partialObservation := RepositoryScopeObservation{Primary: primaryChanged, Additional: []domain.RepositoryScopeEntry{{Key: "docs", Binding: task.AdditionalRepositories[0].Binding}}}
+	partial, err := Reconcile(ReconcileInput{Host: domain.HostCodex, Task: task, Operation: operation, Payload: payload, ObservedScope: &partialObservation})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if partial.Assessment.Classification != domain.RecoveryPartiallyCompleted || partial.Assessment.OperationEvidence != OperationEvidencePartial || partial.Directive != DirectiveCreateBlocker {
+		t.Fatalf("partial decision=%+v", partial)
+	}
+	if len(partial.Assessment.Repositories) != 2 || partial.Assessment.Repositories[0].RepositoryKey != "core" || partial.Assessment.Repositories[1].RepositoryKey != "docs" {
+		t.Fatalf("repository facts=%+v", partial.Assessment.Repositories)
+	}
+
+	forbiddenDocs := task.AdditionalRepositories[0].Binding.Clone()
+	forbiddenHead := strings.Repeat("9", 40)
+	forbiddenDocs.Head = &forbiddenHead
+	forbiddenDocs.ObservedAt = forbiddenDocs.ObservedAt.Add(time.Second)
+	conflictingObservation := RepositoryScopeObservation{Primary: task.Repository, Additional: []domain.RepositoryScopeEntry{{Key: "docs", Binding: forbiddenDocs}}}
+	conflicting, err := Reconcile(ReconcileInput{Host: domain.HostCodex, Task: task, Operation: operation, Payload: payload, ObservedScope: &conflictingObservation})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if conflicting.Assessment.Classification != domain.RecoveryConflicting || conflicting.Assessment.RepositoryRelation != RepositoryForbiddenChange || conflicting.Assessment.Repositories[1].Reason != RepositoryReasonHead {
+		t.Fatalf("conflicting decision=%+v", conflicting)
+	}
+
+	undeclaredDocs := changedBinding(task.AdditionalRepositories[0].Binding, []string{"docs/unexpected.md"}, "8")
+	undeclaredObservation := RepositoryScopeObservation{Primary: task.Repository, Additional: []domain.RepositoryScopeEntry{{Key: "docs", Binding: undeclaredDocs}}}
+	undeclared, err := Reconcile(ReconcileInput{Host: domain.HostCodex, Task: task, Operation: operation, Payload: payload, ObservedScope: &undeclaredObservation})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if undeclared.Assessment.Classification != domain.RecoveryConflicting || undeclared.Assessment.OperationEvidence != OperationEvidenceContradictory {
+		t.Fatalf("undeclared decision=%+v", undeclared)
+	}
+}
+
 func TestRepositoryEffectDerivationRejectsUndeclaredAndArtifactProductMismatch(t *testing.T) {
 	base := testBinding(time.Date(2026, 8, 19, 11, 0, 0, 0, time.UTC), "a")
 	base.ChangedPaths = []string{"sql/existing.sql"}
@@ -176,8 +215,38 @@ func recoveryRequirementsFixture(t *testing.T) (domain.ProcessTask, domain.Opera
 	return task, operation, nil
 }
 
+func multiRepositoryRecoveryFixture(t *testing.T) (domain.ProcessTask, domain.OperationReference, json.RawMessage) {
+	t.Helper()
+	task, _, _ := recoveryRefactorFixture(t)
+	docs := testBinding(task.CreatedAt, "d")
+	docs.CanonicalRoot = "/docs"
+	docs.GitCommonDirDigest = digest("e")
+	docs.RepositoryIdentity = digest("f")
+	docs.WorktreeFingerprint = digest("7")
+	docs.BindingDigest = digest("7")
+	task.PrimaryRepositoryKey = "core"
+	task.AdditionalRepositories = []domain.RepositoryScopeEntry{{Key: "docs", Binding: docs}}
+	task.TaskPlan.WorkItems[0].ExpectedPaths = []string{"core::internal/order.go", "docs::docs/guide.md"}
+	effectiveDigest, err := task.EffectiveRepositoryBindingDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	task.CurrentAction.RepositoryBindingDigest = effectiveDigest
+	task.Implementation.RepositoryBindingDigest = effectiveDigest
+	operation := domain.OperationReference{OperationID: "multi-repository-recovery", Process: task.Process, SourceCursor: task.CurrentNode, ExpectedRevision: task.Revision, ActionID: task.CurrentAction.ActionID, ActionKind: task.CurrentAction.Kind, RepositoryBindingDigest: effectiveDigest}
+	payload := refactorPayloadPaths(t, task.CurrentAction.SemanticMethodSteps, []string{"core::internal/order.go", "docs::docs/guide.md"})
+	if workflow.ValidateProcessTask(task) != nil {
+		t.Fatal("invalid multi-repository recovery fixture")
+	}
+	return task, operation, payload
+}
+
 func refactorPayload(t *testing.T, steps []domain.SemanticMethodStep) json.RawMessage {
-	return payloadFor(t, steps, "refactor_ready_for_test", map[string]any{"problem_class": "none", "changed_paths": []string{"internal/order.go"}, "no_file_changes": false, "simplifications": []string{"Removed indirection"}, "behavior_change_intended": false, "findings": []string{}})
+	return refactorPayloadPaths(t, steps, []string{"internal/order.go"})
+}
+
+func refactorPayloadPaths(t *testing.T, steps []domain.SemanticMethodStep, paths []string) json.RawMessage {
+	return payloadFor(t, steps, "refactor_ready_for_test", map[string]any{"problem_class": "none", "changed_paths": paths, "no_file_changes": false, "simplifications": []string{"Removed indirection"}, "behavior_change_intended": false, "findings": []string{}})
 }
 
 func requirementsPayload(t *testing.T, steps []domain.SemanticMethodStep) json.RawMessage {

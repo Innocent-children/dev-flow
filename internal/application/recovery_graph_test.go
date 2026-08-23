@@ -3,8 +3,10 @@ package application
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/recovery"
@@ -187,14 +189,50 @@ func TestGraphRecoveryAdoptsDeclaredProcessArtifactOnlyEffect(t *testing.T) {
 	}
 }
 
+func TestMultiRepositoryRecoveryRejectsUndeclaredAdditionalDriftWithoutWrite(t *testing.T) {
+	now := time.Date(2026, 8, 23, 7, 0, 0, 0, time.UTC)
+	primary := multiRepositoryBinding(now, "/core", 'a')
+	docs := multiRepositoryBinding(now, "/docs", 'b')
+	service, taskStore, observer := multiRepositoryService(t, now, map[string]domain.RepositoryBinding{"/core": primary, "/docs": docs})
+	request := multiRepositoryOpenRequest("open-recovery-multi", "/core")
+	request.PrimaryRepositoryKey = "core"
+	request.AdditionalRepositories = []AdditionalRepositoryInput{{Key: "docs", RepositoryPath: "/docs"}}
+	opened, err := service.OpenTask(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := phase5Payload(t, opened.Task, "requirements_ready", "", requirementsNodeResult("Goal", []string{"Works"}))
+	docsChanged := graphChangedBinding(docs, []string{"docs/unexpected.md"}, "c")
+	observer.bindings["/docs"] = docsChanged
+	apply := graphRecoveryApply(opened.Task, "multi-drift-apply", payload)
+	apply.RecoveryApply = nil
+	commits := taskStore.commits
+	if _, err := service.ApplyAction(context.Background(), apply); !errors.Is(err, domain.ErrRepositoryDrift) {
+		t.Fatalf("error=%v", err)
+	}
+	if taskStore.commits != commits || taskStore.task.Revision != opened.Task.Revision {
+		t.Fatalf("drift wrote task: commits=%d revision=%d", taskStore.commits-commits, taskStore.task.Revision)
+	}
+	probe := graphProbe(opened.Task, "multi-drift-probe", payload)
+	read, err := service.GetTask(context.Background(), GetTaskRequest{Host: domain.HostCodex, TaskID: opened.Task.TaskID, OperationProbe: &probe})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if read.RecoveryAssessment.Classification != domain.RecoveryConflicting || len(read.RecoveryAssessment.Repositories) != 2 || read.RecoveryAssessment.Repositories[1].RepositoryKey != "docs" {
+		t.Fatalf("assessment=%+v", read.RecoveryAssessment)
+	}
+}
+
 func graphProbe(task domain.ProcessTask, operationID domain.ID, payload json.RawMessage) OperationProbe {
 	action := task.CurrentAction
-	return OperationProbe{OperationID: operationID, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: payload}
+	digest, _ := task.EffectiveRepositoryBindingDigest()
+	return OperationProbe{OperationID: operationID, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, RepositoryBindingDigest: digest, Payload: payload}
 }
 
 func graphRecoveryApply(task domain.ProcessTask, operationID domain.ID, payload json.RawMessage) ApplyActionRequest {
 	action := task.CurrentAction
-	return ApplyActionRequest{RequestID: operationID, Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: payload, RecoveryApply: &RecoveryApplyInput{OperationID: operationID, SourceCursor: task.CurrentNode}}
+	digest, _ := task.EffectiveRepositoryBindingDigest()
+	return ApplyActionRequest{RequestID: operationID, Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: digest, Payload: payload, RecoveryApply: &RecoveryApplyInput{OperationID: operationID, SourceCursor: task.CurrentNode}}
 }
 
 func graphChangedBinding(base domain.RepositoryBinding, paths []string, seed string) domain.RepositoryBinding {
