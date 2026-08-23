@@ -22,7 +22,7 @@ The `0.5.3` normal release passed registry-package installation, package/Core id
 handshake, removal, uninstallation, and repository-unchanged gates. The table records the exact
 verified public version; the installation commands below select npm's `latest` dist-tag.
 
-## Install
+## Install and verify
 
 ```bash
 npm install -g dev-flow-codex@latest
@@ -57,6 +57,7 @@ latest package, reinstall globally and rerun `setup`:
 ```bash
 npm install -g dev-flow-codex@latest
 dev-flow-codex setup
+dev-flow-codex --version
 ```
 
 See the repository-wide [Command Reference](COMMANDS_en.md) for the Codex, DeepSeek, Core, and MCP
@@ -149,7 +150,7 @@ Core accepts only the current SQLite Schema. Incompatible or pre-graph data retu
 `SCHEMA_UNSUPPORTED` with zero writes. Select a new data directory or archive, rename, or delete the
 old directory outside Core.
 
-## Remove
+## Uninstall and permanently clean up
 
 Remove Codex registration before uninstalling the global npm package:
 
@@ -166,6 +167,18 @@ dev-flow-codex remove --json
 
 Installing a compatible package and running `setup` again can resume Tasks from the retained current
 data directory.
+
+Only after removing the DeepSeek Adapter as well and confirming that no Task is needed, delete the
+shared default Dev Flow data and any remaining registration receipt:
+
+```bash
+rm -rf "$HOME/Library/Application Support/dev-flow"
+```
+
+This cannot be undone. If `DEV_FLOW_DATA_DIR` was used, verify the exact absolute directory selected
+for it and delete that directory separately. `remove`, npm uninstall, and Dev Flow Core never delete
+it automatically. Use `dev-flow-codex remove` instead of editing Codex configuration manually: the
+command follows the ownership receipt and preserves adjacent configuration.
 
 ## Package contents
 

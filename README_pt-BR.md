@@ -50,14 +50,15 @@ retrabalho, precisa preservar evidências de verificação ou deve ser retomado 
 pontual ou uma edição mecânica de um único arquivo sem estado persistente, normalmente é mais simples usar Codex
 ou DeepSeek diretamente.
 
-## Início rápido
+## Instalação, atualização e desinstalação
 
-Os artefatos públicos atuais oferecem suporte a macOS arm64 e Node.js `>=24`. Core é incluído de forma
-independente nos produtos Host Codex e DeepSeek; os três produtos possuem versões independentes.
-As tabelas de suporte preservam as versões verificadas exatas, enquanto os exemplos de instalação usam o
-dist-tag npm `latest`.
+Os artefatos públicos oferecem suporte a macOS arm64 e Node.js `>=24`; os exemplos usam npm `latest`.
+Codex e DeepSeek compartilham os dados Task padrão em
+`$HOME/Library/Application Support/dev-flow/data`.
 
 ### Codex
+
+#### Instalação e verificação
 
 ```bash
 npm install -g dev-flow-codex@latest
@@ -65,27 +66,86 @@ dev-flow-codex setup
 dev-flow-codex --version
 ```
 
-Inicie um Task no Codex com o único selector explícito:
+`setup` registra ou atualiza marketplace, Plugin e MCP do Codex. Em um repositório Git, use o único selector:
 
 ```text
 $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 ```
 
-Uma conversa comum não ativa o Dev Flow. Consulte o [Codex package README](docs/CODEX_en.md) para instalação,
-remoção, retenção de dados e limites de invocação.
+#### Atualização
+
+```bash
+npm install -g dev-flow-codex@latest
+dev-flow-codex setup
+dev-flow-codex --version
+```
+
+#### Desinstalação preservando dados Task
+
+```bash
+dev-flow-codex remove
+npm uninstall -g dev-flow-codex
+```
+
+Execute `remove` primeiro. Uma instalação compatível seguida de `setup` pode retomar os dados.
 
 ### DeepSeek Harness
 
-Obtenha o package oficial indicado por npm `latest` e passe o caminho absoluto do tarball para um profile DSH:
+#### Instalação e verificação
+
+Instale primeiro o DSH e adicione Dev Flow a um profile real. O exemplo usa `web`; altere `PROFILE` para
+outro profile e não digite `<profile>` literalmente no shell.
 
 ```bash
+npm install -g @deepseek-ai/dsh@latest
+dsh --version
+PROFILE=web
 TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile <profile> add "$PWD/$TARBALL"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
 ```
 
-Reinicie o profile conforme o lifecycle do DSH e entre explicitamente no Dev Flow com `/dev-flow`. Consulte
-[DeepSeek package README](docs/DEEPSEEK_en.md) para instalação, reinício, remoção e limites de dados. O catálogo
-completo de comandos Codex, DeepSeek, Core, selectors e ferramentas MCP está na
+Reinicie o profile; para `web`, use `dsh web`. Na conversa, use `/dev-flow <descrição>`.
+
+#### Atualização
+
+Pare o profile e execute:
+
+```bash
+PROFILE=web
+dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
+```
+
+Reinicie o profile. Atualize o DSH com `npm install -g @deepseek-ai/dsh@latest`.
+
+#### Desinstalação preservando dados Task
+
+Execute em cada profile que contenha Dev Flow:
+
+```bash
+PROFILE=web
+dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
+dsh --profile "$PROFILE" --dump-config
+```
+
+Se DSH não for mais necessário, use `npm uninstall -g @deepseek-ai/dsh`; `$HOME/.dsh` é preservado.
+
+### Exclusão permanente dos dados
+
+Após remover Dev Flow do Codex e de todos os profiles DSH e confirmar que nenhum Task é necessário:
+
+```bash
+rm -rf "$HOME/Library/Application Support/dev-flow"
+```
+
+Esta operação é irreversível. Se `DEV_FLOW_DATA_DIR` foi usado, verifique e exclua separadamente seu diretório
+absoluto. Excluir `$HOME/.dsh` também remove todos os profiles, sessões e outros plugins DSH. Consulte
+[Codex package README](docs/CODEX_en.md), [DeepSeek package README](docs/DEEPSEEK_en.md) e
 [Referência de comandos](docs/COMMANDS_en.md).
 
 ## Modelo de execução

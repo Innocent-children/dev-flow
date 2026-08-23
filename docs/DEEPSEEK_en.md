@@ -23,14 +23,19 @@ restart/resume, `DONE`, removal, uninstallation, retained reopen, and repository
 table records the exact verified public version; the installation commands below select npm's
 `latest` dist-tag.
 
-## Install into a DSH profile
+## Install and verify
 
-Run these commands in a writable directory:
+Install DSH first, then add Dev Flow to a real profile from a writable directory. The example uses
+`web`; change the value of `PROFILE` for another profile and do not enter `<profile>` literally.
 
 ```bash
+npm install -g @deepseek-ai/dsh@latest
 dsh --version
+PROFILE=web
 TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile <profile> add "$PWD/$TARBALL"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
 ```
 
 `npm pack` downloads the official package selected by `latest` into the current directory and stores
@@ -48,12 +53,23 @@ then confirm that the bundle is active.
 | --- | --- |
 | `dsh --version` | Print the current DSH version and confirm it satisfies the minimum compatibility version in the Support Matrix. |
 | `TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"` | Fetch the package selected by npm `latest` and save the generated tarball filename in a shell variable. |
-| `dsh plugin --profile <profile> add "$PWD/$TARBALL"` | Install the absolute tarball path into the selected DSH profile. This exact command form is exercised by the final registry journey. |
-| `dsh --profile <profile> --dump-config` | Print the effective profile configuration to inspect whether the `dev-flow-deepseek` bundle contribution is present. It does not mutate a Dev Flow Task. |
-| `dsh plugin --profile <profile> remove dev-flow-deepseek` | Remove the package and bundle contribution from the selected profile while retaining Task data, the target Git repository, and Codex-owned state. |
+| `dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"` | Install the absolute tarball path into the DSH profile selected by `PROFILE`. This exact command form is exercised by the final registry journey. |
+| `dsh --profile "$PROFILE" --dump-config` | Print the effective profile configuration to inspect whether the `dev-flow-deepseek` bundle contribution is present. It does not mutate a Dev Flow Task. |
+| `dsh plugin --profile "$PROFILE" remove dev-flow-deepseek` | Remove the package and bundle contribution from the selected profile while retaining Task data, the target Git repository, and Codex-owned state. |
 
-For an update or reinstall, stop use of the profile according to its lifecycle, run remove, obtain a
-fresh `@latest` tarball, and add it again. Do not reuse an unreviewed tarball of unknown origin.
+For an update or reinstall, stop the profile and run:
+
+```bash
+PROFILE=web
+dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
+```
+
+Restart the profile afterward. Update DSH itself with
+`npm install -g @deepseek-ai/dsh@latest`.
 
 See the repository-wide [Command Reference](COMMANDS_en.md) for the Codex, DeepSeek, Core, and MCP
 command catalogs.
@@ -106,16 +122,31 @@ Core accepts only the current SQLite Schema. Incompatible or pre-graph data retu
 `SCHEMA_UNSUPPORTED` with zero writes. The user may select a fresh data directory or handle the old
 directory manually outside Core.
 
-## Remove
+## Uninstall and permanently clean up
 
 ```bash
-dsh plugin --profile <profile> remove dev-flow-deepseek
-dsh --profile <profile> --dump-config
+PROFILE=web
+dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
+dsh --profile "$PROFILE" --dump-config
 ```
 
 Restart the profile according to the DSH lifecycle and use the effective configuration to confirm
 that the bundle contribution is absent. Reinstallation uses a fresh npm `@latest` pack and the DSH
 add command.
+
+Repeat this for every profile containing Dev Flow. If DSH is no longer needed, run
+`npm uninstall -g @deepseek-ai/dsh` separately; profile, session, and unrelated plugin data under
+`$HOME/.dsh` is retained.
+
+After the Codex Adapter is also removed and no Task is needed, delete the shared default data:
+
+```bash
+rm -rf "$HOME/Library/Application Support/dev-flow"
+```
+
+This cannot be undone. If `DEV_FLOW_DATA_DIR` was used, verify and delete its exact absolute path
+separately. Delete `$HOME/.dsh` after uninstalling DSH only when every DSH profile, session, and
+unrelated plugin should also be removed; it is not a Dev Flow-only directory.
 
 ## Package contents
 

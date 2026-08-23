@@ -48,13 +48,15 @@ Dev Flow는 여러 개발 노드를 거치고, 재작업 가능성이 있으며,
 세션에 걸쳐 재개해야 하는 실제 저장소 작업에 적합합니다. 상태 보존이 필요 없는 일회성 질문이나
 기계적인 단일 파일 수정은 Codex 또는 DeepSeek를 직접 사용하는 편이 일반적으로 더 단순합니다.
 
-## 빠른 시작
+## 설치, 업데이트 및 제거
 
-현재 공개 아티팩트는 macOS arm64와 Node.js `>=24`를 지원합니다. Core는 Codex 및 DeepSeek
-Host 제품에 각각 독립적으로 번들되며 세 제품은 독립적으로 버전 관리됩니다.
-지원 표에는 검증된 정확한 버전을 유지하고 설치 예시는 npm `latest` dist-tag를 사용합니다.
+공개 아티팩트는 macOS arm64와 Node.js `>=24`를 지원하며 설치 예시는 npm `latest`를 사용합니다.
+Codex와 DeepSeek는 기본 Task 데이터 디렉터리
+`$HOME/Library/Application Support/dev-flow/data`를 공유합니다.
 
 ### Codex
+
+#### 설치 및 확인
 
 ```bash
 npm install -g dev-flow-codex@latest
@@ -62,28 +64,88 @@ dev-flow-codex setup
 dev-flow-codex --version
 ```
 
-Codex에서 유일한 명시적 selector로 Task를 시작합니다.
+`setup`은 Codex marketplace, Plugin, MCP를 등록하거나 업데이트합니다. Git 저장소에서 유일한
+명시적 selector를 사용합니다.
 
 ```text
 $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 ```
 
-일반 대화는 Dev Flow를 활성화하지 않습니다. 설치, 제거, 데이터 보존, 호출 경계는
-[Codex package README](docs/CODEX_en.md)를 참고하십시오.
+#### 업데이트
+
+```bash
+npm install -g dev-flow-codex@latest
+dev-flow-codex setup
+dev-flow-codex --version
+```
+
+#### Task 데이터를 보존한 제거
+
+```bash
+dev-flow-codex remove
+npm uninstall -g dev-flow-codex
+```
+
+항상 `remove`를 먼저 실행합니다. 호환 package를 다시 설치하고 `setup`을 실행하면 재개할 수 있습니다.
 
 ### DeepSeek Harness
 
-npm `latest`가 가리키는 공식 package를 가져와 tarball 절대 경로를 DSH profile에 전달합니다.
+#### 설치 및 확인
+
+DSH를 먼저 설치한 뒤 실제 profile에 추가합니다. 예시는 `web`입니다. 다른 profile은 `PROFILE` 값을
+바꾸고 `<profile>`을 shell에 그대로 입력하지 마십시오.
 
 ```bash
+npm install -g @deepseek-ai/dsh@latest
+dsh --version
+PROFILE=web
 TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile <profile> add "$PWD/$TARBALL"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
 ```
 
-DSH profile lifecycle에 따라 profile을 재시작한 뒤 `/dev-flow`로 명시적으로 Dev Flow에 진입합니다.
-설치, 재시작, 제거, 데이터 경계는 [DeepSeek package README](docs/DEEPSEEK_en.md)를 참고하십시오.
-Codex, DeepSeek, Core, selector, MCP 도구의 전체 명령 목록은
-[Command Reference](docs/COMMANDS_en.md)에 있습니다.
+profile을 재시작합니다. `web`은 `dsh web`을 실행하고 대화에서 `/dev-flow <작업 설명>`을 입력합니다.
+
+#### 업데이트
+
+profile을 중지한 뒤 실행합니다.
+
+```bash
+PROFILE=web
+dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
+```
+
+profile을 재시작합니다. DSH 자체는 `npm install -g @deepseek-ai/dsh@latest`로 업데이트할 수 있습니다.
+
+#### Task 데이터를 보존한 제거
+
+Dev Flow가 설치된 각 profile에서 실행합니다.
+
+```bash
+PROFILE=web
+dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
+dsh --profile "$PROFILE" --dump-config
+```
+
+DSH가 필요 없으면 `npm uninstall -g @deepseek-ai/dsh`를 실행할 수 있으며 `$HOME/.dsh`는 보존됩니다.
+
+### 데이터 영구 삭제
+
+Codex와 모든 DSH profile에서 Dev Flow를 제거하고 Task가 필요 없음을 확인한 뒤 실행합니다.
+
+```bash
+rm -rf "$HOME/Library/Application Support/dev-flow"
+```
+
+이 작업은 복구할 수 없습니다. `DEV_FLOW_DATA_DIR`을 사용했다면 정확한 절대 디렉터리를 별도로 확인해
+삭제하십시오. `$HOME/.dsh`를 삭제하면 모든 DSH profile, 세션, 기타 plugin도 삭제됩니다. 자세한 내용은
+[Codex package README](docs/CODEX_en.md), [DeepSeek package README](docs/DEEPSEEK_en.md),
+[Command Reference](docs/COMMANDS_en.md)를 참고하십시오.
 
 ## 실행 모델
 

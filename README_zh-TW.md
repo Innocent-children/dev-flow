@@ -45,12 +45,14 @@ Dev Flow 適合需要跨越多個開發節點、可能返工、需要保留驗�
 儲存庫任務。一次性問答或不需要保存流程狀態的單檔機械修改，通常直接使用 Codex 或 DeepSeek
 更簡單。
 
-## 快速開始
+## 安裝、升級與解除安裝
 
-目前公開製品支援 macOS arm64、Node.js `>=24`。Core 分別打包在 Codex 與 DeepSeek Host
-產品中；三個產品各自獨立版本化。
+目前公開製品支援 macOS arm64 與 Node.js `>=24`。安裝範例使用 npm `latest`；Codex 與 DeepSeek
+共用預設 Task 資料目錄 `$HOME/Library/Application Support/dev-flow/data`。
 
 ### Codex
+
+#### 安裝與驗證
 
 ```bash
 npm install -g dev-flow-codex@latest
@@ -58,27 +60,88 @@ dev-flow-codex setup
 dev-flow-codex --version
 ```
 
-在 Codex 中使用唯一的明確 selector 啟動任務：
+`setup` 註冊或更新 Codex marketplace、Plugin 與 MCP。從 Git 儲存庫中使用唯一明確 selector：
 
 ```text
 $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 ```
 
-一般對話不會啟動 Dev Flow。安裝、移除、資料保留與呼叫邊界請參閱
-[Codex package README](docs/CODEX_en.md)。
+#### 升級
+
+```bash
+npm install -g dev-flow-codex@latest
+dev-flow-codex setup
+dev-flow-codex --version
+```
+
+#### 解除安裝並保留 Task 資料
+
+保留 Task 資料的解除安裝：
+
+```bash
+dev-flow-codex remove
+npm uninstall -g dev-flow-codex
+```
+
+必須先執行 `remove`，再解除安裝 npm package；重新安裝並執行 `setup` 可繼續使用相容資料。
 
 ### DeepSeek Harness
 
-從 npm 取得 `latest` 官方 tarball，再將絕對路徑交給 DSH profile：
+#### 安裝與驗證
+
+先安裝 DSH，再安裝到真實 profile。下例使用 `web`；如需其他 profile，修改 `PROFILE`，不要將
+`<profile>` 原樣輸入 shell。
 
 ```bash
+npm install -g @deepseek-ai/dsh@latest
+dsh --version
+PROFILE=web
 TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile <profile> add "$PWD/$TARBALL"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
 ```
 
-依照 DSH profile lifecycle 重新啟動該 profile，然後使用 `/dev-flow` 明確進入 Dev Flow。
-安裝、重啟、移除與資料邊界請參閱 [DeepSeek package README](docs/DEEPSEEK_en.md)。完整 CLI、
-selector、Core 命令與 MCP 工具說明請參閱 [命令參考](docs/COMMANDS.md)。
+重新啟動 profile；`web` 使用 `dsh web`。在 DeepSeek 對話中輸入 `/dev-flow <任務描述>`。
+
+#### 升級
+
+停止 profile 後執行：
+
+```bash
+PROFILE=web
+dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
+```
+
+重新啟動 profile。DSH 本身可用 `npm install -g @deepseek-ai/dsh@latest` 升級。
+
+#### 解除安裝並保留 Task 資料
+
+需對每個安裝過 Dev Flow 的 profile 執行：
+
+```bash
+PROFILE=web
+dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
+dsh --profile "$PROFILE" --dump-config
+```
+
+不再使用 DSH 時，可另行執行 `npm uninstall -g @deepseek-ai/dsh`；`$HOME/.dsh` 仍會保留。
+
+### 永久清除資料
+
+先從 Codex 與所有 DSH profile 移除 Dev Flow。確認不再需要任何 Task 後，執行以下不可恢復操作：
+
+```bash
+rm -rf "$HOME/Library/Application Support/dev-flow"
+```
+
+若設定過 `DEV_FLOW_DATA_DIR`，請核對並單獨刪除其準確絕對目錄。刪除 `$HOME/.dsh` 會同時刪除
+全部 DSH profile、工作階段與其他外掛。完整說明見 [Codex package README](docs/CODEX_en.md)、
+[DeepSeek package README](docs/DEEPSEEK_en.md) 與 [命令參考](docs/COMMANDS.md)。
 
 ## 執行模型
 

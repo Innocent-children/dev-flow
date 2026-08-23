@@ -51,14 +51,15 @@ kann, Verifikationsevidenz bewahren muss oder sitzungsübergreifend fortgesetzt 
 eine mechanische Einzeldateiänderung ohne persistenten Prozesszustand ist Codex oder DeepSeek direkt meist
 einfacher.
 
-## Schnellstart
+## Installation, Aktualisierung und Deinstallation
 
-Aktuelle öffentliche Artefakte unterstützen macOS arm64 und Node.js `>=24`. Core ist unabhängig in den
-Host-Produkten Codex und DeepSeek gebündelt; alle drei Produkte werden unabhängig versioniert.
-Supporttabellen behalten exakte verifizierte Versionen, während Installationsbeispiele den npm-dist-tag `latest`
-verwenden.
+Öffentliche Artefakte unterstützen macOS arm64 und Node.js `>=24`; die Beispiele verwenden npm `latest`.
+Codex und DeepSeek teilen die Standard-Task-Daten unter
+`$HOME/Library/Application Support/dev-flow/data`.
 
 ### Codex
+
+#### Installation und Prüfung
 
 ```bash
 npm install -g dev-flow-codex@latest
@@ -66,28 +67,87 @@ dev-flow-codex setup
 dev-flow-codex --version
 ```
 
-Starten Sie einen Task in Codex mit dem einzigen expliziten selector:
+`setup` registriert oder aktualisiert Codex marketplace, Plugin und MCP. Verwenden Sie im Git-Repository den
+einzigen expliziten selector:
 
 ```text
 $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 ```
 
-Normale Konversation aktiviert Dev Flow nicht. Siehe [Codex package README](docs/CODEX_en.md) für Installation,
-Entfernung, Datenaufbewahrung und Aufrufgrenzen.
+#### Aktualisierung
+
+```bash
+npm install -g dev-flow-codex@latest
+dev-flow-codex setup
+dev-flow-codex --version
+```
+
+#### Deinstallation mit Aufbewahrung der Task-Daten
+
+```bash
+dev-flow-codex remove
+npm uninstall -g dev-flow-codex
+```
+
+Führen Sie `remove` immer zuerst aus. Eine kompatible Installation mit `setup` kann die Daten fortsetzen.
 
 ### DeepSeek Harness
 
-Holen Sie das offizielle, von npm `latest` ausgewählte Package und übergeben Sie den absoluten tarball-Pfad an
-ein DSH profile:
+#### Installation und Prüfung
+
+Installieren Sie zuerst DSH und fügen Sie Dev Flow dann einem echten Profil hinzu. Das Beispiel nutzt `web`;
+ändern Sie `PROFILE` für ein anderes Profil und geben Sie `<profile>` nicht wörtlich in die Shell ein.
 
 ```bash
+npm install -g @deepseek-ai/dsh@latest
+dsh --version
+PROFILE=web
 TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile <profile> add "$PWD/$TARBALL"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
 ```
 
-Starten Sie das Profil gemäß DSH profile lifecycle neu und wechseln Sie mit `/dev-flow` explizit zu Dev Flow.
-Siehe [DeepSeek package README](docs/DEEPSEEK_en.md) für Installation, Neustart, Entfernung und Datengrenzen.
-Der vollständige Katalog für Codex-, DeepSeek-, Core-, selector- und MCP-Befehle steht in der
+Starten Sie das Profil neu; für `web` mit `dsh web`. Nutzen Sie im Gespräch `/dev-flow <Aufgabe>`.
+
+#### Aktualisierung
+
+Stoppen Sie das Profil und führen Sie aus:
+
+```bash
+PROFILE=web
+dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
+```
+
+Starten Sie das Profil neu. DSH selbst wird mit `npm install -g @deepseek-ai/dsh@latest` aktualisiert.
+
+#### Deinstallation mit Aufbewahrung der Task-Daten
+
+Führen Sie dies in jedem betroffenen Profil aus:
+
+```bash
+PROFILE=web
+dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
+dsh --profile "$PROFILE" --dump-config
+```
+
+Wenn DSH nicht mehr benötigt wird: `npm uninstall -g @deepseek-ai/dsh`; `$HOME/.dsh` bleibt erhalten.
+
+### Daten dauerhaft löschen
+
+Entfernen Sie Dev Flow zuerst aus Codex und allen DSH-Profilen und bestätigen Sie, dass kein Task benötigt wird:
+
+```bash
+rm -rf "$HOME/Library/Application Support/dev-flow"
+```
+
+Dies ist nicht rückgängig zu machen. Bei `DEV_FLOW_DATA_DIR` prüfen und löschen Sie das genaue absolute
+Verzeichnis separat. Das Löschen von `$HOME/.dsh` entfernt auch alle DSH-Profile, Sitzungen und anderen Plugins.
+Details: [Codex package README](docs/CODEX_en.md), [DeepSeek package README](docs/DEEPSEEK_en.md) und
 [Command Reference](docs/COMMANDS_en.md).
 
 ## Ausführungsmodell

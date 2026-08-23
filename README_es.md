@@ -51,14 +51,15 @@ retrabajo, debe conservar evidencia de verificación o necesita reanudarse entre
 puntual o una edición mecánica de un solo archivo sin estado persistente, suele ser más sencillo usar Codex o
 DeepSeek directamente.
 
-## Inicio rápido
+## Instalación, actualización y desinstalación
 
-Los artefactos públicos actuales admiten macOS arm64 y Node.js `>=24`. Core se incluye de forma
-independiente en los productos Host Codex y DeepSeek; los tres productos tienen versiones
-independientes. Las tablas de compatibilidad conservan las versiones verificadas exactas, mientras que los
-ejemplos de instalación usan el dist-tag npm `latest`.
+Los artefactos públicos admiten macOS arm64 y Node.js `>=24`; los ejemplos usan npm `latest`. Codex y
+DeepSeek comparten los datos Task predeterminados en
+`$HOME/Library/Application Support/dev-flow/data`.
 
 ### Codex
+
+#### Instalación y verificación
 
 ```bash
 npm install -g dev-flow-codex@latest
@@ -66,27 +67,86 @@ dev-flow-codex setup
 dev-flow-codex --version
 ```
 
-Inicia un Task en Codex con el único selector explícito:
+`setup` registra o actualiza marketplace, Plugin y MCP de Codex. Desde un repositorio Git usa el único selector:
 
 ```text
 $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 ```
 
-La conversación normal no activa Dev Flow. Consulta el [Codex package README](docs/CODEX_en.md) para la
-instalación, eliminación, conservación de datos y límites de invocación.
+#### Actualización
+
+```bash
+npm install -g dev-flow-codex@latest
+dev-flow-codex setup
+dev-flow-codex --version
+```
+
+#### Desinstalación conservando los datos Task
+
+```bash
+dev-flow-codex remove
+npm uninstall -g dev-flow-codex
+```
+
+Ejecuta siempre `remove` primero. Una instalación compatible seguida de `setup` puede reanudar los datos.
 
 ### DeepSeek Harness
 
-Obtén el package oficial indicado por npm `latest` y proporciona la ruta absoluta del tarball a un perfil DSH:
+#### Instalación y verificación
+
+Instala primero DSH y después añade Dev Flow a un perfil real. El ejemplo usa `web`; cambia `PROFILE` para
+otro perfil y no escribas `<profile>` literalmente en el shell.
 
 ```bash
+npm install -g @deepseek-ai/dsh@latest
+dsh --version
+PROFILE=web
 TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile <profile> add "$PWD/$TARBALL"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
 ```
 
-Reinicia el perfil según el lifecycle de DSH y entra explícitamente en Dev Flow con `/dev-flow`. Consulta
-[DeepSeek package README](docs/DEEPSEEK_en.md) para instalación, reinicio, eliminación y límites de datos.
-El catálogo completo de comandos Codex, DeepSeek, Core, selectors y herramientas MCP está en la
+Reinicia el perfil; para `web`, ejecuta `dsh web`. En la conversación usa `/dev-flow <descripción>`.
+
+#### Actualización
+
+Detén el perfil y ejecuta:
+
+```bash
+PROFILE=web
+dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
+```
+
+Reinicia el perfil. Actualiza DSH con `npm install -g @deepseek-ai/dsh@latest`.
+
+#### Desinstalación conservando los datos Task
+
+Ejecuta en cada perfil que contenga Dev Flow:
+
+```bash
+PROFILE=web
+dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
+dsh --profile "$PROFILE" --dump-config
+```
+
+Si DSH ya no se necesita, usa `npm uninstall -g @deepseek-ai/dsh`; `$HOME/.dsh` se conserva.
+
+### Eliminación permanente de datos
+
+Después de retirar Dev Flow de Codex y de todos los perfiles DSH y confirmar que ningún Task es necesario:
+
+```bash
+rm -rf "$HOME/Library/Application Support/dev-flow"
+```
+
+No se puede deshacer. Si se usó `DEV_FLOW_DATA_DIR`, verifica y elimina por separado su directorio absoluto.
+Eliminar `$HOME/.dsh` también borra todos los perfiles, sesiones y plugins de DSH. Consulta
+[Codex package README](docs/CODEX_en.md), [DeepSeek package README](docs/DEEPSEEK_en.md) y
 [Referencia de comandos](docs/COMMANDS_en.md).
 
 ## Modelo de ejecución

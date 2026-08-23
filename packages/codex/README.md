@@ -22,7 +22,7 @@ Go Core 独自管理。
 handshake、remove、uninstall 和 repository-unchanged 门禁。上表记录已经验证的精确公开版本；
 下面的安装命令使用 npm `latest` dist-tag 获取当前最新稳定 package。
 
-## 安装
+## 安装与验证
 
 ```bash
 npm install -g dev-flow-codex@latest
@@ -54,6 +54,7 @@ npm 全局安装只负责把 package 和 `dev-flow-codex` launcher 放到 `PATH`
 ```bash
 npm install -g dev-flow-codex@latest
 dev-flow-codex setup
+dev-flow-codex --version
 ```
 
 完整的 Codex、DeepSeek、Core 和 MCP 命令目录见
@@ -140,7 +141,7 @@ export DEV_FLOW_DATA_DIR="/absolute/path/to/existing-directory"
 `SCHEMA_UNSUPPORTED` 并保持零写入。请选择新的数据目录，或在 Core 外部手工归档、改名或删除
 旧目录。
 
-## 移除
+## 卸载与彻底清理
 
 先删除 Codex 注册，再卸载全局 npm package：
 
@@ -156,6 +157,17 @@ dev-flow-codex remove --json
 ```
 
 重新安装兼容 package 并再次运行 `setup` 后，可以从保留的当前数据目录继续 Task。
+
+确认不再使用 DeepSeek Adapter，也不再需要任何 Task 后，才可以删除 Codex 与 DeepSeek 共享的
+默认 Dev Flow 数据和残留 registration receipt：
+
+```bash
+rm -rf "$HOME/Library/Application Support/dev-flow"
+```
+
+这是不可恢复操作。如果使用过 `DEV_FLOW_DATA_DIR`，请确认该变量对应的准确绝对目录后单独删除；
+`remove`、npm uninstall 和 Dev Flow Core 都不会自动删除它。不要通过手工修改 Codex 配置代替
+`dev-flow-codex remove`，因为 `remove` 会按 ownership receipt 清理 package 拥有的注册并保留相邻配置。
 
 ## Package 内容
 

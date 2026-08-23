@@ -44,13 +44,15 @@ Adapter 必须在当前节点的允许副作用和验证预算内执行工作。
 Dev Flow 适合需要跨越多个开发节点、可能发生返工、需要保留验证证据，或必须跨会话恢复的真实
 仓库任务。一次性问答、无需状态保留的单文件机械修改，直接使用 Codex 或 DeepSeek 通常更简单。
 
-## 快速开始
+## 安装、升级与卸载
 
-当前公开制品支持 macOS arm64、Node.js `>=24`。Core 分别独立打包在 Codex 和 DeepSeek Host
-产品中；三个产品版本分别演进。支持表中的版本是已验证的精确身份，安装
-示例使用 npm `latest` dist-tag 获取当前最新稳定 package。
+当前公开制品支持 macOS arm64 和 Node.js `>=24`。安装示例使用 npm `latest` dist-tag；支持表继续
+记录经过验证的精确版本。Codex 与 DeepSeek 共享默认 Task 数据目录：
+`$HOME/Library/Application Support/dev-flow/data`。
 
 ### Codex
+
+#### 安装与验证
 
 ```bash
 npm install -g dev-flow-codex@latest
@@ -58,27 +60,99 @@ dev-flow-codex setup
 dev-flow-codex --version
 ```
 
-在 Codex 中使用唯一显式 selector 发起任务：
+全局 npm 安装提供 `dev-flow-codex` 命令；`setup` 注册 Codex marketplace、Plugin 和 MCP。进入一个
+Git 仓库后，在 Codex 对话中使用唯一显式 selector：
 
 ```text
 $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 ```
 
-普通对话不会自动启动 Dev Flow。完整的安装、移除、数据保留和调用边界见
-[Codex package README](packages/codex/README.md)。
+#### 升级
+
+```bash
+npm install -g dev-flow-codex@latest
+dev-flow-codex setup
+dev-flow-codex --version
+```
+
+再次运行 `setup` 会校验并更新由该 package 管理的注册。兼容的已有 Task 数据会保留。
+
+#### 卸载并保留 Task 数据
+
+```bash
+dev-flow-codex remove
+npm uninstall -g dev-flow-codex
+```
+
+必须先运行 `remove`，再卸载 npm package；单独执行 npm 卸载不会清理 Codex 注册。以上命令保留
+Task 数据和目标 Git 仓库，之后重新安装并运行 `setup` 可以继续使用兼容数据。
 
 ### DeepSeek Harness
 
-从 npm 获取 `latest` 官方 tarball，再把绝对路径交给 DSH profile：
+#### 安装与验证
+
+先安装 DSH，再把 Dev Flow 安装到一个真实 profile。下面使用可直接运行的 `web` profile；如需
+其他 profile，请修改 `PROFILE` 的值，不要把 `<profile>` 原样输入 shell。
 
 ```bash
+npm install -g @deepseek-ai/dsh@latest
+dsh --version
+
+PROFILE=web
 TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile <profile> add "$PWD/$TARBALL"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
 ```
 
-按 DSH profile lifecycle 重启该 profile 后，通过 `/dev-flow` 显式进入 Dev Flow。安装、重启、
-移除和数据边界见 [DeepSeek package README](packages/deepseek/README.md)。所有 Codex、DeepSeek、
-Core 命令、selector 与 MCP 工具的完整说明见 [命令参考](docs/COMMANDS.md)。
+重启该 profile。对于上面的 `web` profile，运行 `dsh web`。然后在 DeepSeek 对话中显式输入：
+
+```text
+/dev-flow Add a failed-login attempt limit to this repository.
+```
+
+#### 升级
+
+停止正在运行的 profile，再执行：
+
+```bash
+PROFILE=web
+dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
+```
+
+随后重启 profile。更新 DSH 本身可执行 `npm install -g @deepseek-ai/dsh@latest`。
+
+#### 卸载并保留 Task 数据
+
+```bash
+PROFILE=web
+dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
+dsh --profile "$PROFILE" --dump-config
+```
+
+对每个安装过 Dev Flow 的 profile 分别执行一次。该操作保留共享 Task 数据、DSH profile 中的其他
+插件、目标 Git 仓库和 Codex 配置。不再使用 DSH 时，可另行执行
+`npm uninstall -g @deepseek-ai/dsh`；这不会删除 `$HOME/.dsh` 中的 profile 数据。
+
+### 彻底清除 Dev Flow 数据
+
+这是不可恢复操作。先按上文从所有 Codex 和 DSH profile 中移除 Dev Flow 并卸载相应 npm
+package，确认不再需要任何 Task 后，再删除共享默认数据和残留 registration receipt：
+
+```bash
+rm -rf "$HOME/Library/Application Support/dev-flow"
+```
+
+如果曾设置 `DEV_FLOW_DATA_DIR`，默认目录之外的数据位于你为该变量选择的绝对目录；请确认准确
+路径后单独删除。Dev Flow 不会自动删除该目录。若还要删除 DSH 自身的全部 profile、会话和其他
+插件，可在卸载 DSH 后删除 `$HOME/.dsh`；该目录属于整个 DSH，而不是仅属于 Dev Flow。
+
+完整的 Host 生命周期、数据边界和命令合同见 [Codex package README](packages/codex/README.md)、
+[DeepSeek package README](packages/deepseek/README.md) 与 [命令参考](docs/COMMANDS.md)。
 
 ## 执行模型
 

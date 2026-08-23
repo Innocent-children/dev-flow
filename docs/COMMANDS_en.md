@@ -46,7 +46,13 @@ subcommand. To update to the current `latest`, reinstall globally and rerun `set
 ```bash
 npm install -g dev-flow-codex@latest
 dev-flow-codex setup
+dev-flow-codex --version
 ```
+
+To uninstall while retaining Task data, run `dev-flow-codex remove` and then
+`npm uninstall -g dev-flow-codex`. Delete the shared default data directory at
+`$HOME/Library/Application Support/dev-flow` only after both the Codex and DeepSeek Adapters are
+removed and no Task is needed.
 
 ### Codex explicit selector
 
@@ -67,12 +73,17 @@ and one recovery step.
 
 ### Install
 
-Run these commands in a writable directory:
+Install DSH first, then add Dev Flow to a real profile from a writable directory. This example uses
+`web`; change `PROFILE` for another profile and do not enter `<profile>` literally:
 
 ```bash
+npm install -g @deepseek-ai/dsh@latest
 dsh --version
+PROFILE=web
 TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile <profile> add "$PWD/$TARBALL"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
 ```
 
 `npm pack` downloads the official package selected by `latest` and writes its tarball into the
@@ -87,12 +98,19 @@ lifecycle.
 | --- | --- |
 | `dsh --version` | Print the current DSH version. Public Dev Flow support requires the minimum version recorded in the Support Matrix. |
 | `TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"` | Fetch the package selected by npm `latest` and save the generated tarball filename in a shell variable. |
-| `dsh plugin --profile <profile> add "$PWD/$TARBALL"` | Install the absolute tarball path into the selected DSH profile. This is the command form exercised by the final-artifact journey. |
-| `dsh --profile <profile> --dump-config` | Print the effective profile configuration to verify whether the `dev-flow-deepseek` bundle contribution is present or absent. It does not mutate a Dev Flow Task. |
-| `dsh plugin --profile <profile> remove dev-flow-deepseek` | Remove the package and bundle contribution from the selected profile. Task data, the target Git repository, and Codex-owned state are retained. |
+| `dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"` | Install the absolute tarball path into the DSH profile selected by `PROFILE`. This is the command form exercised by the final-artifact journey. |
+| `dsh --profile "$PROFILE" --dump-config` | Print the effective profile configuration to verify whether the `dev-flow-deepseek` bundle contribution is present or absent. It does not mutate a Dev Flow Task. |
+| `dsh plugin --profile "$PROFILE" remove dev-flow-deepseek` | Remove the package and bundle contribution from the selected profile. Task data, the target Git repository, and Codex-owned state are retained. |
 
-For an update or reinstall, stop use of the profile according to its lifecycle, run remove, obtain a
-fresh `@latest` tarball, and add it again. Do not reuse an unreviewed tarball of unknown origin.
+For an update or reinstall, stop the profile, remove the package, fetch a fresh `@latest` tarball,
+add it, delete the temporary tarball, and restart the profile. Repeat removal for every profile that
+contains Dev Flow. If DSH is no longer needed, uninstall it separately with
+`npm uninstall -g @deepseek-ai/dsh`; profile data under `$HOME/.dsh` is retained.
+
+For permanent Task-data cleanup, first remove both Host Adapters, then delete
+`$HOME/Library/Application Support/dev-flow`. If `DEV_FLOW_DATA_DIR` was set, verify and delete its
+exact absolute directory separately. Deleting `$HOME/.dsh` also deletes every DSH profile, session,
+and unrelated plugin.
 
 ### DeepSeek explicit selector
 

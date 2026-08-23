@@ -43,7 +43,12 @@ package、bundled Core 和 Codex 版本，然后注册本地 marketplace、Plugi
 ```bash
 npm install -g dev-flow-codex@latest
 dev-flow-codex setup
+dev-flow-codex --version
 ```
+
+保留 Task 数据的卸载顺序是 `dev-flow-codex remove`，然后
+`npm uninstall -g dev-flow-codex`。只有在 Codex 和 DeepSeek Adapter 都已移除且不再需要任何
+Task 时，才删除共享默认数据目录 `$HOME/Library/Application Support/dev-flow`。
 
 ### Codex 显式 selector
 
@@ -63,12 +68,17 @@ $dev-flow-codex:dev-flow <任务描述>
 
 ### 安装
 
-在一个可写目录中运行：
+先安装 DSH，再在可写目录中把 Dev Flow 安装到一个真实 profile。下面使用 `web`；需要其他
+profile 时修改 `PROFILE`，不要把 `<profile>` 原样输入 shell：
 
 ```bash
+npm install -g @deepseek-ai/dsh@latest
 dsh --version
+PROFILE=web
 TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile <profile> add "$PWD/$TARBALL"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
 ```
 
 `npm pack` 下载 `latest` 指向的官方 package，并把 tarball 写入当前目录；命令替换保存实际文件名。
@@ -81,12 +91,17 @@ DSH `plugin add` 接收该 tarball 的绝对路径，将 package、bundle layer�
 | --- | --- |
 | `dsh --version` | 输出当前 DSH 版本。Dev Flow 的公开支持范围要求 DSH 满足 Support Matrix 中的最低版本。 |
 | `TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"` | 从 npm 获取当前 `latest` package，并把生成的 tarball 文件名保存到 shell 变量。 |
-| `dsh plugin --profile <profile> add "$PWD/$TARBALL"` | 把绝对 tarball 路径安装到指定 DSH profile。最终制品 Journey 使用的就是这一命令形态。 |
-| `dsh --profile <profile> --dump-config` | 输出该 profile 的有效配置，可用于确认 `dev-flow-deepseek` bundle contribution 已存在或已移除。它是 DSH 的检查入口，不修改 Dev Flow Task。 |
-| `dsh plugin --profile <profile> remove dev-flow-deepseek` | 从指定 profile 移除 bundle contribution 与 package。Task data、目标 Git 仓库和 Codex 状态保持不变。 |
+| `dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"` | 把绝对 tarball 路径安装到 `PROFILE` 指定的 DSH profile。最终制品 Journey 使用的就是这一命令形态。 |
+| `dsh --profile "$PROFILE" --dump-config` | 输出该 profile 的有效配置，可用于确认 `dev-flow-deepseek` bundle contribution 已存在或已移除。它是 DSH 的检查入口，不修改 Dev Flow Task。 |
+| `dsh plugin --profile "$PROFILE" remove dev-flow-deepseek` | 从指定 profile 移除 bundle contribution 与 package。Task data、目标 Git 仓库和 Codex 状态保持不变。 |
 
-更新或重新安装时，先按 profile lifecycle 停止使用该 profile，再执行 remove，并重新获取
-`@latest` tarball 后 add；不要复用来源不明的旧 tarball。
+更新或重新安装时，先停止 profile，再执行 remove、重新获取 `@latest` tarball、add、删除临时
+tarball 并重启 profile。对每个安装过 Dev Flow 的 profile 分别执行 remove。不再使用 DSH 时，
+可另行执行 `npm uninstall -g @deepseek-ai/dsh`；`$HOME/.dsh` 中的 profile 数据会保留。
+
+彻底清除 Task 数据时，先移除两个 Host Adapter，再删除
+`$HOME/Library/Application Support/dev-flow`。若设置过 `DEV_FLOW_DATA_DIR`，还需核对并单独删除
+该变量对应的绝对目录。删除 `$HOME/.dsh` 会同时删除所有 DSH profile、会话和其他插件。
 
 ### DeepSeek 显式 selector
 

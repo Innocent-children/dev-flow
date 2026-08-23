@@ -49,14 +49,15 @@ Dev Flow fits real repository work that crosses multiple development nodes, may 
 retain verification evidence, or needs to resume across sessions. A one-off question or mechanical
 single-file edit with no retained process state is usually simpler with Codex or DeepSeek directly.
 
-## Quick start
+## Install, update, and remove
 
-Current public artifacts support macOS arm64 and Node.js `>=24`. Core is bundled independently in
-the Codex and DeepSeek host products; all three products have
-independent versions. Support tables retain exact verified identities, while installation examples
-select npm's `latest` dist-tag.
+Current public artifacts support macOS arm64 and Node.js `>=24`. Installation examples select npm's
+`latest` dist-tag; support tables retain exact verified versions. Codex and DeepSeek share the
+default Task data directory at `$HOME/Library/Application Support/dev-flow/data`.
 
 ### Codex
+
+#### Install and verify
 
 ```bash
 npm install -g dev-flow-codex@latest
@@ -64,30 +65,109 @@ dev-flow-codex setup
 dev-flow-codex --version
 ```
 
-Start a task in Codex with the only explicit selector:
+The global npm install provides the `dev-flow-codex` command. `setup` registers the Codex
+marketplace, Plugin, and MCP integration. From a Git repository, start a task in Codex with the only
+explicit selector:
 
 ```text
 $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 ```
 
-Ordinary conversation does not activate Dev Flow. See the
-[Codex package README](docs/CODEX_en.md) for installation, removal, retained data, and invocation
-boundaries.
+#### Update
+
+```bash
+npm install -g dev-flow-codex@latest
+dev-flow-codex setup
+dev-flow-codex --version
+```
+
+Running `setup` again validates and updates the package-owned registration. Compatible existing Task
+data is retained.
+
+#### Uninstall while retaining Task data
+
+```bash
+dev-flow-codex remove
+npm uninstall -g dev-flow-codex
+```
+
+Run `remove` before uninstalling the npm package; npm uninstall alone does not remove the Codex
+registration. These commands retain Task data and the target Git repository, so a compatible
+installation can resume the data after `setup`.
 
 ### DeepSeek Harness
 
-Fetch the official package selected by npm `latest`, then give its absolute tarball path to a DSH
-profile:
+#### Install and verify
+
+Install DSH first, then add Dev Flow to a real profile. This directly runnable example uses the
+`web` profile. Change the value of `PROFILE` for another profile; do not enter `<profile>` literally
+in a shell.
 
 ```bash
+npm install -g @deepseek-ai/dsh@latest
+dsh --version
+
+PROFILE=web
 TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile <profile> add "$PWD/$TARBALL"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
 ```
 
-Restart the profile according to the DSH profile lifecycle, then enter Dev Flow explicitly with
-`/dev-flow`. See the [DeepSeek package README](docs/DEEPSEEK_en.md) for installation, restart,
-removal, and data boundaries. The complete Codex, DeepSeek, Core, selector, and MCP command catalogs
-are in the [Command Reference](docs/COMMANDS_en.md).
+Restart the profile. For the `web` profile above, run `dsh web`. Then enter Dev Flow explicitly in a
+DeepSeek conversation:
+
+```text
+/dev-flow Add a failed-login attempt limit to this repository.
+```
+
+#### Update
+
+Stop the running profile, then run:
+
+```bash
+PROFILE=web
+dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
+```
+
+Restart the profile afterward. Update DSH itself with
+`npm install -g @deepseek-ai/dsh@latest`.
+
+#### Uninstall while retaining Task data
+
+```bash
+PROFILE=web
+dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
+dsh --profile "$PROFILE" --dump-config
+```
+
+Repeat this for every profile that contains Dev Flow. It retains shared Task data, other plugins in
+the DSH profile, the target Git repository, and Codex configuration. If DSH is no longer needed,
+uninstall it separately with `npm uninstall -g @deepseek-ai/dsh`; this does not remove profile data
+under `$HOME/.dsh`.
+
+### Permanently delete Dev Flow data
+
+This operation cannot be undone. First remove Dev Flow from Codex and every DSH profile and uninstall
+the related npm packages. After confirming that no Task is needed, delete the shared default data
+and any remaining registration receipt:
+
+```bash
+rm -rf "$HOME/Library/Application Support/dev-flow"
+```
+
+If `DEV_FLOW_DATA_DIR` was set, data outside the default directory lives at the exact absolute path
+chosen for that variable; verify and delete that directory separately. Dev Flow never deletes it
+automatically. To delete every DSH profile, session, and unrelated plugin as well, remove
+`$HOME/.dsh` after uninstalling DSH; that directory belongs to DSH as a whole, not only to Dev Flow.
+
+See the [Codex package README](docs/CODEX_en.md),
+[DeepSeek package README](docs/DEEPSEEK_en.md), and
+[Command Reference](docs/COMMANDS_en.md) for the complete lifecycle and command contracts.
 
 ## Execution model
 

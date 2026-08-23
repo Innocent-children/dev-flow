@@ -22,14 +22,19 @@ macOS arm64 Core executable。
 restart/resume、`DONE`、remove、uninstall、retained reopen 和 repository-unchanged 门禁。上表
 记录已验证的精确公开版本；下面的安装命令使用 npm `latest` dist-tag 获取当前最新稳定 package。
 
-## 安装到 DSH profile
+## 安装与验证
 
-在一个可写目录中运行：
+先安装 DSH，再在一个可写目录中把 Dev Flow 安装到真实 profile。下面使用 `web`；需要其他
+profile 时修改 `PROFILE` 的值，不要把 `<profile>` 原样输入 shell。
 
 ```bash
+npm install -g @deepseek-ai/dsh@latest
 dsh --version
+PROFILE=web
 TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile <profile> add "$PWD/$TARBALL"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
 ```
 
 `npm pack` 把 `latest` 指向的官方 package 下载为当前目录中的 tarball，并将实际文件名保存到
@@ -46,12 +51,22 @@ process、Skill、guard 和 MCP child 合成到指定 profile。安装后按照 
 | --- | --- |
 | `dsh --version` | 输出当前 DSH 版本，用于确认满足 Support Matrix 中的最低兼容版本。 |
 | `TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"` | 从 npm 获取 `latest` package，并把生成的 tarball 文件名保存到 shell 变量。 |
-| `dsh plugin --profile <profile> add "$PWD/$TARBALL"` | 将绝对 tarball 路径安装到指定 DSH profile。最终 registry Journey 使用的就是这一命令形态。 |
-| `dsh --profile <profile> --dump-config` | 输出 profile 的有效配置，用于检查 `dev-flow-deepseek` bundle contribution 是否存在；不会修改 Dev Flow Task。 |
-| `dsh plugin --profile <profile> remove dev-flow-deepseek` | 从指定 profile 移除 package 与 bundle contribution；保留 Task data、目标 Git 仓库和 Codex-owned state。 |
+| `dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"` | 将绝对 tarball 路径安装到 `PROFILE` 指定的 DSH profile。最终 registry Journey 使用的就是这一命令形态。 |
+| `dsh --profile "$PROFILE" --dump-config` | 输出 profile 的有效配置，用于检查 `dev-flow-deepseek` bundle contribution 是否存在；不会修改 Dev Flow Task。 |
+| `dsh plugin --profile "$PROFILE" remove dev-flow-deepseek` | 从指定 profile 移除 package 与 bundle contribution；保留 Task data、目标 Git 仓库和 Codex-owned state。 |
 
-更新或重新安装时，按照 profile lifecycle 停止使用该 profile，执行 remove，然后重新获取
-`@latest` tarball 并 add。不要复用来源不明或未审查的旧 tarball。
+更新或重新安装时，按照 profile lifecycle 停止使用该 profile，然后执行：
+
+```bash
+PROFILE=web
+dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
+```
+
+随后重启 profile。更新 DSH 本身可执行 `npm install -g @deepseek-ai/dsh@latest`。
 
 完整的 Codex、DeepSeek、Core 和 MCP 命令目录见
 [命令参考](../../docs/COMMANDS.md)。
@@ -99,15 +114,29 @@ Recovery 结论，再决定恢复动作。它不盲目重试，也不自行选�
 当前 Core 只接受当前 SQLite Schema。不兼容或 pre-graph data 会返回
 `SCHEMA_UNSUPPORTED` 并保持零写入；用户可以选择新的数据目录，或在 Core 外部手工处理旧目录。
 
-## 移除
+## 卸载与彻底清理
 
 ```bash
-dsh plugin --profile <profile> remove dev-flow-deepseek
-dsh --profile <profile> --dump-config
+PROFILE=web
+dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
+dsh --profile "$PROFILE" --dump-config
 ```
 
 移除后按照 DSH profile lifecycle 重启，再通过有效配置确认 bundle contribution 已消失。重新安装
 时重新执行 npm `@latest` pack 和 DSH add 命令。
+
+对每个安装过 Dev Flow 的 profile 分别执行一次。不再使用 DSH 时，可另行运行
+`npm uninstall -g @deepseek-ai/dsh`；这会保留 `$HOME/.dsh` 中的 profile、会话和其他插件。
+
+确认 Codex Adapter 也已移除，并且不再需要任何 Task 后，可以删除两个 Host 共享的默认数据：
+
+```bash
+rm -rf "$HOME/Library/Application Support/dev-flow"
+```
+
+这是不可恢复操作。使用过 `DEV_FLOW_DATA_DIR` 时，请确认准确绝对路径后单独删除。只有在还要
+删除全部 DSH profile、会话和其他插件时，才在卸载 DSH 后删除 `$HOME/.dsh`；它不是 Dev Flow
+专用目录。
 
 ## Package 内容
 
