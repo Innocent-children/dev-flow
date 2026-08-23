@@ -46,6 +46,7 @@ const MULTI_REPOSITORY_SUCCESS_FIELDS = Object.freeze([
   "runner_mode",
   "journey_budget",
   "setup_readback_passed",
+  "codex_session_count",
   "task_id",
   "primary_repository_key",
   "additional_repository_keys",
@@ -101,10 +102,15 @@ export const developmentInvalidPrompt =
   `${EXPLICIT_SELECTOR} Reject this bounded request because the current directory is not a Git repository. Make no Dev Flow tool call and create no task.`;
 export const developmentSubstantivePrompt = `${EXPLICIT_SELECTOR} Work only in the current repository. Open one host=codex task to create native-proof.txt with the exact UTF-8 bytes "Dev Flow Codex development smoke passed.\\n". Complete the Core-required current-node work and select only returned transitions; read-only prerequisite commits do not satisfy the stop condition. Create the file only when the current Core action permits repository edits. The verification budget is one targeted command, full suites are forbidden, and verification is reserved for the restart session. Stop only after the file exists and the first successful dev_flow_apply_action after creating it commits, while the Core task is nonterminal.`;
 export const developmentResumePrompt = `${EXPLICIT_SELECTOR} Resume the existing compatible host=codex task. After dev_flow_open_task, call dev_flow_get_task and then dev_flow_get_next_action before any new dev_flow_apply_action. Preserve the same task, run only "git hash-object native-proof.txt" as the single targeted verification command, and continue until Core reports current_cursor DONE with outcome completed.`;
-export function multiRepositoryPrompt(primaryRepository, additionalRepository) {
+export function multiRepositorySubstantivePrompt(primaryRepository, additionalRepository) {
   requireAbsolute(primaryRepository, "primary repository");
   requireAbsolute(additionalRepository, "additional repository");
-  return `${EXPLICIT_SELECTOR} Create exactly one host=codex Task with repository_path=${JSON.stringify(primaryRepository)}, primary_repository_key=core, and additional_repositories=[{\"key\":\"docs\",\"repository_path\":${JSON.stringify(additionalRepository)}}]. These are the only user-declared repositories; do not discover or add any other repository. Use method_profile=plain and one targeted verification command. Immediately after the create call succeeds, the very next Dev Flow tool call MUST be dev_flow_open_task with host=codex, repository_path=${JSON.stringify(additionalRepository)}, new_task=null, and no Scope creation fields. Do not call dev_flow_get_task, dev_flow_get_next_action, or dev_flow_apply_action between the create and resume calls. Prove the resume returns the same Task, revision, current Action, primary repository, and ordered Scope; if it does not, stop. After that resume succeeds, advance only from complete Core Actions and returned transitions. When repository edits are allowed, create core-proof.txt in repository key core with exact UTF-8 bytes "core proof\\n" and docs-proof.txt in repository key docs with exact UTF-8 bytes "docs proof\\n". Use core::core-proof.txt and docs::docs-proof.txt in all multi-repository expected_paths, Artifact paths, Implementation changed_paths, and Refactor changed_paths. Stop after the first successful apply that records both changes; do not create another Task.`;
+  return `${EXPLICIT_SELECTOR} Create exactly one host=codex Task with repository_path=${JSON.stringify(primaryRepository)}, primary_repository_key=core, and additional_repositories=[{\"key\":\"docs\",\"repository_path\":${JSON.stringify(additionalRepository)}}]. These are the only user-declared repositories; do not discover or add any other repository. Use method_profile=plain and one targeted verification command. Advance only from complete Core Actions and returned transitions. When repository edits are allowed, create core-proof.txt in repository key core with exact UTF-8 bytes "core proof\\n" and docs-proof.txt in repository key docs with exact UTF-8 bytes "docs proof\\n". Use core::core-proof.txt and docs::docs-proof.txt in all multi-repository expected_paths, Artifact paths, Implementation changed_paths, and Refactor changed_paths. Stop after the first successful apply that records both changes while the Core Task remains nonterminal; do not resume or create another Task.`;
+}
+
+export function multiRepositoryResumePrompt(additionalRepository) {
+  requireAbsolute(additionalRepository, "additional repository");
+  return `${EXPLICIT_SELECTOR} Resume the existing host=codex Task by calling dev_flow_open_task with repository_path=${JSON.stringify(additionalRepository)}, new_task=null, and no Scope creation fields. Do not create or modify files. Do not call dev_flow_apply_action or create another Task. After open succeeds, stop; the runner will verify that this fresh Codex session returned the same post-mutation Task, revision, current Action, primary repository, and ordered Scope.`;
 }
 const FINAL_REGISTRY_REQUEST_BINDING_RULE = `For every dev_flow_apply_action, generate a new nonempty opaque caller request ID and include it exactly as the top-level request_id member of that tool call; never omit it, reuse a read request ID, or place it inside payload.`;
 const FINAL_REGISTRY_PAYLOAD_RULES = `Before every apply, bind the latest complete Action and read action_kind, payload_contract, method_steps, available_transitions, and the current dev_flow_apply_action inputSchema branch. The payload must have exactly transition_id, summary, reason, artifacts, method_evidence, and node_result. Use artifacts=[] because this journey creates no process artifact; required_evidence is not an ArtifactReference role and repository_observation must never appear in artifacts. Preserve the complete node_result wrapper, arrays as arrays, and exactly one plain_fallback/capability-empty MethodEvidence item for every current method step in Action order. Never submit destination, next_node, next_cursor, unknown fields, or a guessed transition. If any call returns INVALID_ARGUMENT, stop immediately without trying another payload. The success wrappers are: REQUIREMENTS={problem_class,baseline,unresolved_questions}; DESIGN/TASKS={problem_class,baseline,findings}; IMPLEMENT={problem_class,task_plan_revision,completed_work_item_ids,changed_paths,no_file_changes,deviations,findings}; TEST={problem_class,checks,failed_items,unverified_items,manual_handoff_items,findings}; COMPREHENSION_REVIEW={problem_class,explained_components,unresolved_questions,unnecessary_abstractions,maintenance_risks,user_confirmation,findings}; REFACTOR={problem_class,changed_paths,no_file_changes,simplifications,behavior_change_intended,findings}; DELIVERY={problem_class,acceptance,automated_evidence_ids,manual_evidence_ids,test_record_id,comprehension_record_id,unverified_items,risks,findings}, with all delivery IDs read dynamically from the current Core task.`;
@@ -4496,6 +4502,7 @@ function buildMultiRepositoryFailureEvidence({
   error,
   processResult,
   setupReadbackPassed,
+  sessionRole,
 }) {
   const classification = multiRepositoryFailureClassification(error, processResult);
   const exitCode = Number.isInteger(processResult?.exitCode)
@@ -4511,7 +4518,7 @@ function buildMultiRepositoryFailureEvidence({
     journey_budget: "1/1",
     failure_stage: classification === "post-session-validation" ? "evidence-validation" : "codex-session",
     failure_classification: classification,
-    session_role: "multi-repository",
+    session_role: error?.role ?? sessionRole,
     exit_code: exitCode,
     stdout_sha256: digestText(processResult?.stdout ?? error?.stdout),
     stderr_sha256: digestText(processResult?.stderr ?? error?.stderr),
@@ -4543,6 +4550,7 @@ export async function runMultiRepositoryJourney(options) {
   let invocationStarted = false;
   let processResult = null;
   let setupReadbackPassed = false;
+  let currentRole = null;
   try {
     const layout = createMultiRepositoryJourneyLayout(root);
     await Promise.all(Object.entries(layout)
@@ -4580,11 +4588,12 @@ export async function runMultiRepositoryJourney(options) {
       return processResult;
     };
 
-    const session = await runCodexSession({
+    currentRole = "multi-repository-substantive";
+    const substantive = await runCodexSession({
       codexExecutable: options.codexExecutable,
       workspace: layout.primaryRepository,
-      role: "multi-repository",
-      prompt: multiRepositoryPrompt(layout.primaryRepository, layout.additionalRepository),
+      role: currentRole,
+      prompt: multiRepositorySubstantivePrompt(layout.primaryRepository, layout.additionalRepository),
       runProcess: budgetedRunProcess,
       includeCallFacts: true,
       environment,
@@ -4593,16 +4602,31 @@ export async function runMultiRepositoryJourney(options) {
       workspaceWrite: true,
       additionalWritableRoots: [layout.additionalRepository],
     });
+    currentRole = "multi-repository-resume";
+    const resume = await runCodexSession({
+      codexExecutable: options.codexExecutable,
+      workspace: layout.additionalRepository,
+      role: currentRole,
+      prompt: multiRepositoryResumePrompt(layout.additionalRepository),
+      runProcess: budgetedRunProcess,
+      includeCallFacts: true,
+      environment,
+      ephemeral: true,
+      ignoreRules: false,
+      workspaceWrite: true,
+      additionalWritableRoots: [layout.primaryRepository],
+    });
     if (await pathExists(join(layout.home, ".dev-flow", "config.json"))) {
       throw new Error("multi-repository journey created a Dev Flow user configuration file");
     }
     const evidence = await buildMultiRepositoryEvidence(
-      session,
+      [substantive, resume],
       layout,
       options.sourceCommit,
       setupReadbackPassed,
     );
     await writeFile(options.resultFile, `${JSON.stringify(evidence, null, 2)}\n`, { mode: 0o600, flag: "wx" });
+    currentRole = null;
     return evidence;
   } catch (error) {
     if (invocationStarted) {
@@ -4611,6 +4635,7 @@ export async function runMultiRepositoryJourney(options) {
         error,
         processResult,
         setupReadbackPassed,
+        sessionRole: currentRole,
       });
       await writeFile(options.resultFile, `${JSON.stringify(evidence, null, 2)}\n`, { mode: 0o600, flag: "wx" });
     }
@@ -4639,7 +4664,7 @@ function multiRepositoryActionIdentity(task, label) {
 }
 
 export async function buildMultiRepositoryEvidence(
-  session,
+  sessions,
   layout,
   sourceCommit,
   setupReadbackPassed,
@@ -4648,24 +4673,55 @@ export async function buildMultiRepositoryEvidence(
   if (setupReadbackPassed !== true) {
     throw new Error("multi-repository success evidence requires setup readback");
   }
-  const calls = session.dev_flow_calls;
-  if (calls[0]?.tool !== "dev_flow_server_info" || calls[0]?.classification !== "success") {
-    throw new Error("multi-repository journey requires server-info as the first Dev Flow call");
-  }
-  const info = calls[0].core_result?.result;
   if (
-    !isDeepStrictEqual(info?.tools, DEV_FLOW_TOOLS)
-    || info?.host_preferences?.codex?.codebase_memory !== false
-    || info?.host_preferences?.deepseek?.codebase_memory !== false
+    !Array.isArray(sessions)
+    || sessions.length !== 2
+    || sessions[0]?.role !== "multi-repository-substantive"
+    || sessions[1]?.role !== "multi-repository-resume"
   ) {
-    throw new Error("multi-repository journey server-info contract is incomplete");
+    throw new Error("multi-repository journey requires substantive and resume Codex sessions");
   }
-  if (!Array.isArray(session.mcp_calls) || session.mcp_calls.some((call) => call.server !== "dev-flow")) {
-    throw new Error("multi-repository journey must not call non-Dev-Flow MCP servers");
+  const [substantive, resume] = sessions;
+  if (
+    typeof substantive.thread_id !== "string"
+    || typeof resume.thread_id !== "string"
+    || substantive.thread_id === resume.thread_id
+  ) {
+    throw new Error("multi-repository journey requires two distinct Codex sessions");
   }
-  const opens = calls.filter((call) => call.tool === "dev_flow_open_task" && call.classification === "success");
-  const created = opens.find((call) => call.arguments?.new_task !== null && call.arguments?.new_task !== undefined);
-  const resumed = opens.find((call) => call.arguments?.new_task === null && call.arguments?.repository_path === layout.additionalRepository);
+  for (const session of sessions) {
+    if (
+      session.dev_flow_calls?.[0]?.tool !== "dev_flow_server_info"
+      || session.dev_flow_calls[0].classification !== "success"
+    ) {
+      throw new Error("multi-repository journey requires server-info as the first Dev Flow call in each session");
+    }
+    const sessionInfo = session.dev_flow_calls[0].core_result?.result;
+    if (
+      !isDeepStrictEqual(sessionInfo?.tools, DEV_FLOW_TOOLS)
+      || sessionInfo?.host_preferences?.codex?.codebase_memory !== false
+      || sessionInfo?.host_preferences?.deepseek?.codebase_memory !== false
+    ) {
+      throw new Error("multi-repository journey server-info contract is incomplete");
+    }
+    if (!Array.isArray(session.mcp_calls) || session.mcp_calls.some((call) => call.server !== "dev-flow")) {
+      throw new Error("multi-repository journey must not call non-Dev-Flow MCP servers");
+    }
+  }
+
+  const substantiveCalls = substantive.dev_flow_calls;
+  const resumeCalls = resume.dev_flow_calls;
+  const substantiveOpens = substantiveCalls.filter((call) => (
+    call.tool === "dev_flow_open_task" && call.classification === "success"
+  ));
+  const resumeOpens = resumeCalls.filter((call) => (
+    call.tool === "dev_flow_open_task" && call.classification === "success"
+  ));
+  if (substantiveOpens.length !== 1 || resumeOpens.length !== 1) {
+    throw new Error("multi-repository journey requires exactly one create and one resume");
+  }
+  const [created] = substantiveOpens;
+  const [resumed] = resumeOpens;
   const createdTask = taskFromCall(created);
   const resumedTask = taskFromCall(resumed);
   if (
@@ -4677,54 +4733,72 @@ export async function buildMultiRepositoryEvidence(
     || resumed?.arguments?.primary_repository_key !== undefined
     || resumed?.arguments?.additional_repositories !== undefined
   ) throw new Error("multi-repository journey open-task Scope arguments are invalid");
-  if (!createdTask || !resumedTask || createdTask.task_id !== resumedTask.task_id) {
-    throw new Error("multi-repository journey did not resume the same Task from the additional repository");
-  }
-  const createdCallIndex = calls.indexOf(created);
-  const resumedCallIndex = calls.indexOf(resumed);
-  if (createdCallIndex < 0 || resumedCallIndex !== createdCallIndex + 1) {
-    throw new Error("multi-repository journey must resume from the additional repository immediately after Task creation");
+  if (
+    created?.arguments?.new_task === null
+    || created?.arguments?.new_task === undefined
+    || resumed?.arguments?.new_task !== null
+    || resumed?.arguments?.repository_path !== layout.additionalRepository
+  ) {
+    throw new Error("multi-repository journey create/resume roles are invalid");
   }
   if (
-    createdTask.primary_repository_key !== "core"
+    !createdTask
+    || createdTask.primary_repository_key !== "core"
     || !isDeepStrictEqual(createdTask.additional_repositories?.map(({ key }) => key), ["docs"])
     || Object.hasOwn(createdTask, "repository_scope_digest")
   ) throw new Error("multi-repository journey Task projection is invalid");
 
-  const taskIDs = new Set(calls.map(taskFromCall).filter(Boolean).map((task) => task.task_id));
-  if (taskIDs.size !== 1) throw new Error("multi-repository journey created more than one Core Task");
-  const successfulApplies = calls.filter((call, index) => (
-    index > resumedCallIndex
-    && call.tool === "dev_flow_apply_action"
-    && call.classification === "success"
+  if (resumeCalls.some((call) => call.tool === "dev_flow_apply_action")) {
+    throw new Error("multi-repository resume session must not mutate the Task");
+  }
+  const successfulApplies = substantiveCalls.filter((call) => (
+    call.tool === "dev_flow_apply_action" && call.classification === "success"
   ));
   if (successfulApplies.length < 1) throw new Error("multi-repository journey recorded no Action mutation");
-  const beforeResumeTask = createdTask;
-  if (!beforeResumeTask || !Number.isInteger(beforeResumeTask.revision) || !Number.isInteger(resumedTask.revision)) {
+  const beforeResumeTask = lastTask(successfulApplies);
+  const taskIDs = new Set(
+    [...substantiveCalls, ...resumeCalls].map(taskFromCall).filter(Boolean).map((task) => task.task_id),
+  );
+  if (taskIDs.size !== 1) throw new Error("multi-repository journey created more than one Core Task");
+  if (
+    !createdTask
+    || !beforeResumeTask
+    || !resumedTask
+    || createdTask.task_id !== beforeResumeTask.task_id
+    || beforeResumeTask.task_id !== resumedTask.task_id
+  ) {
+    throw new Error("multi-repository journey did not resume the post-mutation Task from the additional repository");
+  }
+  if (!Number.isInteger(beforeResumeTask.revision) || !Number.isInteger(resumedTask.revision)) {
     throw new Error("multi-repository journey resume revision is invalid");
   }
-  const beforeAction = multiRepositoryActionIdentity(beforeResumeTask, "pre-resume Task");
+  const beforeAction = multiRepositoryActionIdentity(beforeResumeTask, "post-mutation Task");
   const afterAction = multiRepositoryActionIdentity(resumedTask, "resumed Task");
   if (beforeResumeTask.task_id !== resumedTask.task_id) {
-    throw new Error("multi-repository journey resume task identity differs from the created Task");
+    throw new Error("multi-repository journey resume task identity differs from the last successful apply");
   }
   if (beforeResumeTask.revision !== resumedTask.revision) {
-    throw new Error("multi-repository journey resume revision differs from the created Task");
+    throw new Error("multi-repository journey resume revision differs from the last successful apply");
   }
   if (beforeAction.actionID !== afterAction.actionID) {
-    throw new Error("multi-repository journey resume Action identity differs from the created Task");
+    throw new Error("multi-repository journey resume Action identity differs from the last successful apply");
   }
   if (beforeAction.digest !== afterAction.digest) {
-    throw new Error("multi-repository journey resume Action digest differs from the created Task");
+    throw new Error("multi-repository journey resume Action digest differs from the last successful apply");
   }
   if (
-    beforeResumeTask.primary_repository_key !== resumedTask.primary_repository_key
+    createdTask.primary_repository_key !== beforeResumeTask.primary_repository_key
+    || beforeResumeTask.primary_repository_key !== resumedTask.primary_repository_key
+    || !isDeepStrictEqual(
+      createdTask.additional_repositories?.map(({ key }) => key),
+      beforeResumeTask.additional_repositories?.map(({ key }) => key),
+    )
     || !isDeepStrictEqual(
       beforeResumeTask.additional_repositories?.map(({ key }) => key),
       resumedTask.additional_repositories?.map(({ key }) => key),
     )
   ) {
-    throw new Error("multi-repository journey resume Repository Scope differs from the created Task");
+    throw new Error("multi-repository journey resume Repository Scope differs from the last successful apply");
   }
   if ((await readFile(join(layout.primaryRepository, "core-proof.txt"), "utf8")) !== "core proof\n"
     || (await readFile(join(layout.additionalRepository, "docs-proof.txt"), "utf8")) !== "docs proof\n") {
@@ -4739,6 +4813,7 @@ export async function buildMultiRepositoryEvidence(
     runner_mode: "multi-repository",
     journey_budget: "1/1",
     setup_readback_passed: true,
+    codex_session_count: 2,
     task_id: beforeResumeTask.task_id,
     primary_repository_key: "core",
     additional_repository_keys: ["docs"],
@@ -4753,7 +4828,7 @@ export async function buildMultiRepositoryEvidence(
     one_core_task: true,
     scoped_paths: ["core::core-proof.txt", "docs::docs-proof.txt"],
     successful_action_count: successfulApplies.length,
-    tool_catalog_size: info.tools.length,
+    tool_catalog_size: substantiveCalls[0].core_result.result.tools.length,
     codebase_memory_preference: false,
     observed_at: new Date().toISOString(),
   };

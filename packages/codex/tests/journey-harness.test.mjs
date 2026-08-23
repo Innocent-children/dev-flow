@@ -497,35 +497,33 @@ function multiRepositoryTask({ revision = 2, actionID = "action-multi-0002", dig
   };
 }
 
-function multiRepositorySuccessJSONL(layout, resumeOverrides = {}) {
+function multiRepositoryServerInfoEvent(itemID) {
+  return coreSuccessEvent("dev_flow_server_info", itemID, {
+    product: "dev-flow",
+    version: "0.1.0",
+    transport: "stdio",
+    health: "ready",
+    supported_hosts: ["codex", "deepseek"],
+    supported_processes: [],
+    method_profiles: ["plain", "spec-kit", "openspec"],
+    tools: DEV_FLOW_TOOLS,
+    host_preferences: {
+      codex: { codebase_memory: false },
+      deepseek: { codebase_memory: false },
+    },
+  });
+}
+
+function multiRepositorySubstantiveJSONL(layout) {
   const createdTask = multiRepositoryTask({
     revision: 1,
     actionID: "action-multi-0001",
     digest: "c".repeat(64),
   });
   const appliedTask = multiRepositoryTask();
-  const resumedTask = multiRepositoryTask({
-    revision: 1,
-    actionID: "action-multi-0001",
-    digest: "c".repeat(64),
-    ...resumeOverrides,
-  });
   const events = [
-    { type: "thread.started", thread_id: "thread-multi-repository" },
-    coreSuccessEvent("dev_flow_server_info", "multi-info", {
-      product: "dev-flow",
-      version: "0.1.0",
-      transport: "stdio",
-      health: "ready",
-      supported_hosts: ["codex", "deepseek"],
-      supported_processes: [],
-      method_profiles: ["plain", "spec-kit", "openspec"],
-      tools: DEV_FLOW_TOOLS,
-      host_preferences: {
-        codex: { codebase_memory: false },
-        deepseek: { codebase_memory: false },
-      },
-    }),
+    { type: "thread.started", thread_id: "thread-multi-repository-substantive" },
+    multiRepositoryServerInfoEvent("multi-info-substantive"),
     coreSuccessEvent("dev_flow_open_task", "multi-create", { task: createdTask }, {
       host: "codex",
       repository_path: layout.primaryRepository,
@@ -535,11 +533,6 @@ function multiRepositorySuccessJSONL(layout, resumeOverrides = {}) {
       ],
       new_task: { request: "bounded two-repository proof" },
     }),
-    coreSuccessEvent("dev_flow_open_task", "multi-resume", { task: resumedTask }, {
-      host: "codex",
-      repository_path: layout.additionalRepository,
-      new_task: null,
-    }),
     coreSuccessEvent("dev_flow_apply_action", "multi-apply", { task: appliedTask }, {
       host: "codex",
       task_id: appliedTask.task_id,
@@ -548,14 +541,17 @@ function multiRepositorySuccessJSONL(layout, resumeOverrides = {}) {
   return `${events.map(JSON.stringify).join("\n")}\n`;
 }
 
-function multiRepositoryDelayedResumeJSONL(layout) {
-  const events = multiRepositorySuccessJSONL(layout).trim().split("\n").map(JSON.parse);
-  const resumeIndex = events.findIndex((event) => (
-    event.item?.tool === "dev_flow_open_task"
-    && event.item?.arguments?.new_task === null
-  ));
-  const applyIndex = events.findIndex((event) => event.item?.tool === "dev_flow_apply_action");
-  [events[resumeIndex], events[applyIndex]] = [events[applyIndex], events[resumeIndex]];
+function multiRepositoryResumeJSONL(layout, resumeOverrides = {}, threadID = "thread-multi-repository-resume") {
+  const resumedTask = multiRepositoryTask(resumeOverrides);
+  const events = [
+    { type: "thread.started", thread_id: threadID },
+    multiRepositoryServerInfoEvent("multi-info-resume"),
+    coreSuccessEvent("dev_flow_open_task", "multi-resume", { task: resumedTask }, {
+      host: "codex",
+      repository_path: layout.additionalRepository,
+      new_task: null,
+    }),
+  ];
   return `${events.map(JSON.stringify).join("\n")}\n`;
 }
 
@@ -681,16 +677,23 @@ test("Feature-only multi-repository CLI and layout are closed over source identi
     npmCache: "/tmp/feature-001-run/npm-cache",
     artifactDirectory: "/tmp/feature-001-run/artifact",
   });
-  const prompt = smokeRuntime.multiRepositoryPrompt(layout.primaryRepository, layout.additionalRepository);
-  assert.equal(prompt.startsWith(`${EXPLICIT_SELECTOR} `), true);
-  assert.match(prompt, /exactly one host=codex Task/u);
-  assert.match(prompt, /primary_repository_key=core/u);
-  assert.match(prompt, /additional_repositories/u);
-  assert.match(prompt, /core::core-proof\.txt[\s\S]*docs::docs-proof\.txt/u);
-  assert.match(prompt, /very next Dev Flow tool call MUST be dev_flow_open_task/u);
-  assert.match(prompt, /repository_path=.*docs[\s\S]*new_task=null[\s\S]*no Scope creation fields/u);
-  assert.match(prompt, /Do not call dev_flow_get_task, dev_flow_get_next_action, or dev_flow_apply_action between the create and resume calls/u);
-  assert.match(prompt, /After that resume succeeds[\s\S]*Stop after the first successful apply that records both changes/u);
+  const substantivePrompt = smokeRuntime.multiRepositorySubstantivePrompt(
+    layout.primaryRepository,
+    layout.additionalRepository,
+  );
+  assert.equal(substantivePrompt.startsWith(`${EXPLICIT_SELECTOR} `), true);
+  assert.match(substantivePrompt, /exactly one host=codex Task/u);
+  assert.match(substantivePrompt, /primary_repository_key=core/u);
+  assert.match(substantivePrompt, /additional_repositories/u);
+  assert.match(substantivePrompt, /core::core-proof\.txt[\s\S]*docs::docs-proof\.txt/u);
+  assert.doesNotMatch(substantivePrompt, /new_task=null/u);
+  assert.match(substantivePrompt, /Stop after the first successful apply that records both changes/u);
+
+  const resumePrompt = smokeRuntime.multiRepositoryResumePrompt(layout.additionalRepository);
+  assert.equal(resumePrompt.startsWith(`${EXPLICIT_SELECTOR} `), true);
+  assert.match(resumePrompt, /existing host=codex Task/u);
+  assert.match(resumePrompt, /repository_path=.*docs[\s\S]*new_task=null[\s\S]*no Scope creation fields/u);
+  assert.match(resumePrompt, /Do not call dev_flow_apply_action/u);
 
   const runnerSource = await readFile(runner, "utf8");
   assert.match(runnerSource, /--multi-repository --codex-executable ABS --result-file ABS\.json --source-commit COMMIT/u);
@@ -714,14 +717,19 @@ test("Feature-only multi-repository runner binds build, install, setup, readback
     invocations.push({ executable, args, options });
     copiedAuthentication = await readFile(join(options.env.CODEX_HOME, "auth.json"), "utf8");
     const additionalFlag = args.indexOf("--add-dir");
-    await writeFile(join(options.cwd, "core-proof.txt"), "core proof\n");
-    await writeFile(join(args[additionalFlag + 1], "docs-proof.txt"), "docs proof\n");
+    const otherRepository = args[additionalFlag + 1];
+    const layout = invocations.length === 1
+      ? { primaryRepository: options.cwd, additionalRepository: otherRepository }
+      : { primaryRepository: otherRepository, additionalRepository: options.cwd };
+    if (invocations.length === 1) {
+      await writeFile(join(layout.primaryRepository, "core-proof.txt"), "core proof\n");
+      await writeFile(join(layout.additionalRepository, "docs-proof.txt"), "docs proof\n");
+    }
     return {
       exitCode: 0,
-      stdout: multiRepositorySuccessJSONL({
-        primaryRepository: options.cwd,
-        additionalRepository: args[additionalFlag + 1],
-      }),
+      stdout: invocations.length === 1
+        ? multiRepositorySubstantiveJSONL(layout)
+        : multiRepositoryResumeJSONL(layout),
       stderr: "",
     };
   };
@@ -739,36 +747,45 @@ test("Feature-only multi-repository runner binds build, install, setup, readback
     },
   });
 
-  assert.deepEqual(callOrder, ["build", "install", "setup", "verify", "run"]);
-  assert.equal(invocations.length, 1);
-  const [{ executable, args, options }] = invocations;
-  assert.equal(executable, "/fixture/codex");
-  assert.notEqual(options.env.HOME, "/fixture/real-home");
-  assert.equal(dirname(options.env.HOME), dirname(options.env.TMPDIR));
-  assert.equal(dirname(options.env.HOME), dirname(options.env.DEV_FLOW_DATA_DIR));
-  assert.equal(options.env.HOME, join(dirname(options.env.HOME), "home"));
-  assert.equal(options.env.TMPDIR, join(dirname(options.env.HOME), "tmp"));
-  assert.equal(options.env.DEV_FLOW_DATA_DIR, join(dirname(options.env.HOME), "data"));
-  assert.equal(options.env.CODEX_HOME, join(dirname(options.env.HOME), "codex-home"));
-  assert.equal(options.env.npm_config_prefix, join(dirname(options.env.HOME), "npm-prefix"));
-  assert.equal(options.env.npm_config_cache, join(dirname(options.env.HOME), "npm-cache"));
+  assert.deepEqual(callOrder, ["build", "install", "setup", "verify", "run", "run"]);
+  assert.equal(invocations.length, 2);
+  const [substantive, resume] = invocations;
+  assert.equal(substantive.executable, "/fixture/codex");
+  assert.equal(resume.executable, "/fixture/codex");
+  assert.notEqual(substantive.options.env.HOME, "/fixture/real-home");
+  assert.equal(dirname(substantive.options.env.HOME), dirname(substantive.options.env.TMPDIR));
+  assert.equal(dirname(substantive.options.env.HOME), dirname(substantive.options.env.DEV_FLOW_DATA_DIR));
+  assert.equal(substantive.options.env.HOME, join(dirname(substantive.options.env.HOME), "home"));
+  assert.equal(substantive.options.env.TMPDIR, join(dirname(substantive.options.env.HOME), "tmp"));
+  assert.equal(substantive.options.env.DEV_FLOW_DATA_DIR, join(dirname(substantive.options.env.HOME), "data"));
+  assert.equal(substantive.options.env.CODEX_HOME, join(dirname(substantive.options.env.HOME), "codex-home"));
+  assert.equal(substantive.options.env.npm_config_prefix, join(dirname(substantive.options.env.HOME), "npm-prefix"));
+  assert.equal(substantive.options.env.npm_config_cache, join(dirname(substantive.options.env.HOME), "npm-cache"));
   assert.equal(copiedAuthentication, "fixture-auth-secret\n");
   assert.deepEqual(await readdir(userCodexHome), userCodexEntriesBefore);
   assert.equal(await readFile(join(userCodexHome, "auth.json"), "utf8"), "fixture-auth-secret\n");
-  assert.equal(options.env.GIT_CONFIG_GLOBAL, "/dev/null");
-  assert.equal(options.env.GIT_CONFIG_NOSYSTEM, "1");
-  assert.equal(options.env.NO_COLOR, "1");
-  assert.equal(args.includes("--ephemeral"), true);
-  assert.deepEqual(args.slice(args.indexOf("--sandbox"), args.indexOf("--sandbox") + 2), [
-    "--sandbox", "workspace-write",
-  ]);
-  assert.deepEqual(args.slice(args.indexOf("--cd"), args.indexOf("--cd") + 2), ["--cd", options.cwd]);
-  assert.equal(args.includes("--add-dir"), true);
-  assert.equal(args.includes("--ignore-rules"), false);
-  assert.equal(args.includes("--skip-git-repo-check"), false);
-  assert.equal(args.includes("danger-full-access"), false);
-  assert.equal(args.at(-1).startsWith(`${EXPLICIT_SELECTOR} `), true);
-  assert.equal(args.filter((value) => value === args.at(-1)).length, 1);
+  for (const invocation of invocations) {
+    const { args, options } = invocation;
+    assert.equal(options.env.GIT_CONFIG_GLOBAL, "/dev/null");
+    assert.equal(options.env.GIT_CONFIG_NOSYSTEM, "1");
+    assert.equal(options.env.NO_COLOR, "1");
+    assert.equal(args.includes("--ephemeral"), true);
+    assert.deepEqual(args.slice(args.indexOf("--sandbox"), args.indexOf("--sandbox") + 2), [
+      "--sandbox", "workspace-write",
+    ]);
+    assert.deepEqual(args.slice(args.indexOf("--cd"), args.indexOf("--cd") + 2), ["--cd", options.cwd]);
+    assert.equal(args.includes("--add-dir"), true);
+    assert.equal(args.includes("--ignore-rules"), false);
+    assert.equal(args.includes("--skip-git-repo-check"), false);
+    assert.equal(args.includes("danger-full-access"), false);
+    assert.equal(args.at(-1).startsWith(`${EXPLICIT_SELECTOR} `), true);
+    assert.equal(args.filter((value) => value === args.at(-1)).length, 1);
+  }
+  assert.equal(substantive.options.cwd.endsWith("/core"), true);
+  assert.equal(resume.options.cwd.endsWith("/docs"), true);
+  assert.deepEqual(substantive.args.slice(substantive.args.indexOf("--add-dir") + 1, substantive.args.indexOf("--add-dir") + 2), [resume.options.cwd]);
+  assert.deepEqual(resume.args.slice(resume.args.indexOf("--add-dir") + 1, resume.args.indexOf("--add-dir") + 2), [substantive.options.cwd]);
+  assert.equal(evidence.codex_session_count, 2);
   assert.equal(evidence.setup_readback_passed, true);
   assert.equal(JSON.stringify(evidence).includes(userCodexHome), false);
   assert.equal(JSON.stringify(evidence).includes("fixture-auth-secret"), false);
@@ -847,7 +864,7 @@ test("multi-repository setup readback binds the isolated registration, CLI, and 
   }), /does not bind the isolated source package/u);
 });
 
-test("multi-repository success evidence is closed and binds exact pre-apply resume identity", async (t) => {
+test("multi-repository success evidence binds post-mutation identity across fresh Codex sessions", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "feature-001-evidence-fixture-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const layout = smokeRuntime.createMultiRepositoryJourneyLayout(root);
@@ -859,12 +876,18 @@ test("multi-repository success evidence is closed and binds exact pre-apply resu
     writeFile(join(layout.primaryRepository, "core-proof.txt"), "core proof\n"),
     writeFile(join(layout.additionalRepository, "docs-proof.txt"), "docs proof\n"),
   ]);
-  const session = smokeRuntime.summarizeCodexSession(
-    "multi-repository",
-    parseCodexJSONL(multiRepositorySuccessJSONL(layout)),
-  );
+  const sessions = [
+    smokeRuntime.summarizeCodexSession(
+      "multi-repository-substantive",
+      parseCodexJSONL(multiRepositorySubstantiveJSONL(layout)),
+    ),
+    smokeRuntime.summarizeCodexSession(
+      "multi-repository-resume",
+      parseCodexJSONL(multiRepositoryResumeJSONL(layout)),
+    ),
+  ];
   const evidence = await smokeRuntime.buildMultiRepositoryEvidence(
-    session,
+    sessions,
     layout,
     MULTI_REPOSITORY_SOURCE_COMMIT,
     true,
@@ -872,7 +895,7 @@ test("multi-repository success evidence is closed and binds exact pre-apply resu
 
   assert.deepEqual(Object.keys(evidence), [
     "evidence_kind", "status", "source_commit", "host", "runner_mode", "journey_budget",
-    "setup_readback_passed",
+    "setup_readback_passed", "codex_session_count",
     "task_id", "primary_repository_key", "additional_repository_keys", "repository_count",
     "revision_before_resume", "revision_after_resume", "action_id_before_resume",
     "action_id_after_resume", "repository_binding_digest_before_resume",
@@ -884,6 +907,7 @@ test("multi-repository success evidence is closed and binds exact pre-apply resu
   assert.equal(evidence.host, "codex");
   assert.equal(evidence.runner_mode, "multi-repository");
   assert.equal(evidence.journey_budget, "1/1");
+  assert.equal(evidence.codex_session_count, 2);
   assert.equal(evidence.revision_before_resume, evidence.revision_after_resume);
   assert.equal(evidence.action_id_before_resume, evidence.action_id_after_resume);
   assert.equal(
@@ -898,10 +922,13 @@ test("multi-repository success evidence is closed and binds exact pre-apply resu
     ["Action", { actionID: "action-multi-other" }, /resume Action identity differs/u],
     ["digest", { digest: "d".repeat(64) }, /resume Action digest differs/u],
   ]) {
-    const mismatched = smokeRuntime.summarizeCodexSession(
-      "multi-repository",
-      parseCodexJSONL(multiRepositorySuccessJSONL(layout, overrides)),
-    );
+    const mismatched = [
+      sessions[0],
+      smokeRuntime.summarizeCodexSession(
+        "multi-repository-resume",
+        parseCodexJSONL(multiRepositoryResumeJSONL(layout, overrides)),
+      ),
+    ];
     await assert.rejects(
       smokeRuntime.buildMultiRepositoryEvidence(mismatched, layout, MULTI_REPOSITORY_SOURCE_COMMIT, true),
       pattern,
@@ -910,8 +937,8 @@ test("multi-repository success evidence is closed and binds exact pre-apply resu
   }
 });
 
-test("multi-repository evidence rejects the Attempt 2 delayed-resume call sequence", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "feature-001-delayed-resume-fixture-"));
+test("multi-repository evidence rejects reuse of the substantive Codex thread", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "feature-001-same-thread-fixture-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const layout = smokeRuntime.createMultiRepositoryJourneyLayout(root);
   await Promise.all([
@@ -922,13 +949,21 @@ test("multi-repository evidence rejects the Attempt 2 delayed-resume call sequen
     writeFile(join(layout.primaryRepository, "core-proof.txt"), "core proof\n"),
     writeFile(join(layout.additionalRepository, "docs-proof.txt"), "docs proof\n"),
   ]);
-  const session = smokeRuntime.summarizeCodexSession(
-    "multi-repository",
-    parseCodexJSONL(multiRepositoryDelayedResumeJSONL(layout)),
+  const substantive = smokeRuntime.summarizeCodexSession(
+    "multi-repository-substantive",
+    parseCodexJSONL(multiRepositorySubstantiveJSONL(layout)),
+  );
+  const resume = smokeRuntime.summarizeCodexSession(
+    "multi-repository-resume",
+    parseCodexJSONL(multiRepositoryResumeJSONL(
+      layout,
+      {},
+      substantive.thread_id,
+    )),
   );
   await assert.rejects(
-    smokeRuntime.buildMultiRepositoryEvidence(session, layout, MULTI_REPOSITORY_SOURCE_COMMIT, true),
-    /must resume from the additional repository immediately after Task creation/u,
+    smokeRuntime.buildMultiRepositoryEvidence([substantive, resume], layout, MULTI_REPOSITORY_SOURCE_COMMIT, true),
+    /requires two distinct Codex sessions/u,
   );
 });
 
@@ -942,8 +977,19 @@ test("multi-repository post-launch failure writes one sanitized consumed-budget 
     codexExecutable: "/fixture/codex",
     resultFile,
     sourceCommit: MULTI_REPOSITORY_SOURCE_COMMIT,
-    runProcess: async () => {
+    runProcess: async (_executable, args, options) => {
       invocationCount += 1;
+      if (invocationCount === 1) {
+        const additionalFlag = args.indexOf("--add-dir");
+        return {
+          exitCode: 0,
+          stdout: multiRepositorySubstantiveJSONL({
+            primaryRepository: options.cwd,
+            additionalRepository: args[additionalFlag + 1],
+          }),
+          stderr: "",
+        };
+      }
       return {
         exitCode: 9,
         stdout: "private stdout /Users/example/.codex/auth.json token",
@@ -955,7 +1001,7 @@ test("multi-repository post-launch failure writes one sanitized consumed-budget 
     baseEnvironment: { ...process.env, HOME: "/fixture/real-home", CODEX_HOME: "/fixture/codex-home" },
   }), /session exited with 9/u);
 
-  assert.equal(invocationCount, 1);
+  assert.equal(invocationCount, 2);
   const evidence = JSON.parse(await readFile(resultFile, "utf8"));
   assert.deepEqual(Object.keys(evidence), [
     "evidence_kind", "status", "source_commit", "host", "runner_mode", "journey_budget",
@@ -966,6 +1012,7 @@ test("multi-repository post-launch failure writes one sanitized consumed-budget 
   ]);
   assert.equal(evidence.status, "failed");
   assert.equal(evidence.journey_budget, "1/1");
+  assert.equal(evidence.session_role, "multi-repository-resume");
   assert.equal(evidence.exit_code, 9);
   assert.equal(evidence.stdout_sha256, sha256("private stdout /Users/example/.codex/auth.json token"));
   assert.equal(evidence.stderr_sha256, sha256("HOME=/Users/example secret"));

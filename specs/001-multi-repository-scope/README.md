@@ -1,6 +1,6 @@
 # 001 — 多仓库任务范围与用户配置
 
-**Status**: Implementing
+**Status**: Ready
 **Created**: 2026-08-23
 
 本 Feature 为一个 Dev Flow Task 增加显式、有界且创建后不可变的 Repository Scope：一个主仓库和
@@ -25,12 +25,12 @@
 - [Implementation tasks](tasks.md)
 
 Codex T034 Attempt 1 和 Attempt 2 均已消费并失败。Attempt 2 证明 source-bound
-build、install、setup 与 readback 有效，同时暴露附加仓恢复调用排在多节点 apply 之后的
-runner prompt 缺陷。该步骤已修复为创建 Task 后的下一次 Dev Flow 调用，定向验证
-为 47/47 和 87/87 通过。最终 Attempt 3 已基于
-`eee0950d24315aaee6562d112b7717303c946059` 通过，证明创建后立即从附加仓恢复
-同一 Task。T034 已完成，当前 Feature 状态为 `Implementing`，并停在 T035 前的
-Phase 4 checkpoint。本 Feature 不授权版本修改、npm 发布、Tag、GitHub Release 或其他发布操作。
+build、install、setup 与 readback 有效，同时暴露长 Prompt 末尾的恢复步骤可能被遗漏。
+Attempt 3 通过了创建后立即恢复，但未证明双仓 mutation 后由新的附加仓 Host session 恢复。
+runner 现拆成同一 Journey 内两个独立 Codex session：主仓 session 完成 mutation，附加仓
+session 只恢复，并将返回身份与最后一次成功 apply 对比；定向 harness 为 47/47。最终
+Attempt 4 已授权且尚未启动，Feature 状态为 `Ready`。本 Feature 不授权版本修改、npm
+发布、Tag、GitHub Release 或其他发布操作。
 
 ## Fixed boundaries
 
@@ -38,7 +38,7 @@ Phase 4 checkpoint。本 Feature 不授权版本修改、npm 发布、Tag、GitH
 - 保留 `ProcessTask.Repository` 作为主仓库和现有 `repository_binding_digest` 合同字段；
 - 不增加 Workspace、Provider、registry、DSL、Orchestrator、父子 Task 或第二套状态机；
 - SQLite 不兼容数据使用零写入 reject-and-reset，不迁移或自动清理；
-- T034 Codex Journey 总预算最多三次：Attempt 1 和 Attempt 2 失败，Attempt 3 通过，当前为 3/3 consumed；
+- T034 Codex Journey 总预算最多四次：Attempts 1～3 已消费，只有 Attempt 4 尚未启动；
 - T035 DeepSeek Journey 和 T040 `pnpm run validate` 仍各最多一次，当前均为 0/1；
-- 禁止第四次 Codex Journey；
+- Attempt 4 启动后禁止第五次 Codex Journey；
 - Product Feature 与版本发布严格分离。
