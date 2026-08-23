@@ -45,6 +45,7 @@ const MULTI_REPOSITORY_SUCCESS_FIELDS = Object.freeze([
   "host",
   "runner_mode",
   "journey_budget",
+  "setup_readback_passed",
   "task_id",
   "primary_repository_key",
   "additional_repository_keys",
@@ -76,8 +77,16 @@ const MULTI_REPOSITORY_FAILURE_FIELDS = Object.freeze([
   "exit_code",
   "stdout_sha256",
   "stderr_sha256",
+  "setup_readback_passed",
+  "thread_started",
+  "dev_flow_call_count",
+  "first_dev_flow_tool",
+  "first_dev_flow_classification",
+  "first_dev_flow_error_code",
+  "dev_flow_tool_sequence",
   "observed_at",
 ]);
+const MULTI_REPOSITORY_CALL_SUMMARY_LIMIT = 64;
 export const ordinaryPrompt =
   "Reply with one short sentence describing this repository. Do not invoke Dev Flow.";
 export const invalidPrompt =
@@ -4240,26 +4249,195 @@ export function createMultiRepositoryJourneyLayout(root) {
   return Object.freeze({
     root,
     home: join(root, "home"),
+    codexHome: join(root, "codex-home"),
     temporaryDirectory: join(root, "tmp"),
     primaryRepository: join(root, "core"),
     additionalRepository: join(root, "docs"),
     dataDirectory: join(root, "data"),
+    installPrefix: join(root, "npm-prefix"),
+    npmCache: join(root, "npm-cache"),
+    artifactDirectory: join(root, "artifact"),
   });
 }
 
-function buildMultiRepositoryEnvironment(layout, baseEnvironment = process.env) {
-  const originalHome = baseEnvironment.HOME ?? homedir();
-  const existingCodexHome = resolve(baseEnvironment.CODEX_HOME ?? join(originalHome, ".codex"));
-  return {
-    ...baseEnvironment,
+export async function prepareMultiRepositoryEnvironment(
+  layout,
+  codexExecutable,
+  baseEnvironment = process.env,
+) {
+  requireAbsolute(codexExecutable, "Codex executable");
+  const originalHome = resolve(baseEnvironment.HOME ?? homedir());
+  const authenticationRoot = resolve(baseEnvironment.CODEX_HOME ?? join(originalHome, ".codex"));
+  const authenticationSource = join(authenticationRoot, "auth.json");
+  const authenticationInfo = await lstat(authenticationSource);
+  if (
+    !authenticationInfo.isFile()
+    || authenticationInfo.isSymbolicLink()
+    || (authenticationInfo.mode & 0o077) !== 0
+  ) {
+    throw new Error("multi-repository journey Codex authentication source is unavailable");
+  }
+  const authenticationDestination = join(layout.codexHome, "auth.json");
+  await copyFile(authenticationSource, authenticationDestination);
+  await chmod(authenticationDestination, 0o600);
+
+  const environment = { ...baseEnvironment };
+  for (const name of Object.keys(environment)) {
+    if (/(?:TOKEN|SECRET|PASSWORD|PASSWD|API_KEY|ACCESS_KEY|PRIVATE_KEY|AUTH)/iu.test(name)) {
+      delete environment[name];
+    }
+  }
+  for (const name of ["CODEX_SESSION_ID", "CODEX_THREAD_ID", "CODEX_INTERNAL_ORIGINATOR_OVERRIDE", "CODEX_SHELL"]) {
+    delete environment[name];
+  }
+  Object.assign(environment, {
     HOME: layout.home,
-    CODEX_HOME: existingCodexHome,
+    CODEX_HOME: layout.codexHome,
     TMPDIR: layout.temporaryDirectory,
     DEV_FLOW_DATA_DIR: layout.dataDirectory,
+    npm_config_prefix: layout.installPrefix,
+    npm_config_cache: layout.npmCache,
     GIT_CONFIG_GLOBAL: "/dev/null",
     GIT_CONFIG_NOSYSTEM: "1",
     NO_COLOR: "1",
-  };
+    PATH: [
+      join(layout.installPrefix, "node_modules", ".bin"),
+      dirname(codexExecutable),
+      baseEnvironment.PATH ?? "/usr/bin:/bin",
+    ].join(delimiter),
+  });
+  return environment;
+}
+
+function assertMultiRepositoryBuildIdentity(build, layout, sourceCommit) {
+  if (
+    !isPlainObject(build)
+    || build.source_commit !== sourceCommit
+    || typeof build.artifact_path !== "string"
+    || !isAbsolute(build.artifact_path)
+    || !pathWithin(layout.artifactDirectory, build.artifact_path)
+    || typeof build.package_version !== "string"
+    || typeof build.core_version !== "string"
+    || build.source_dirty !== false
+    || build.platform !== "darwin-arm64"
+  ) {
+    throw new Error("multi-repository source package identity does not match the requested source commit");
+  }
+}
+
+export async function buildMultiRepositorySourcePackage({ layout }) {
+  return execJSON(
+    join(REPOSITORY_ROOT, "scripts", "build-codex-local.sh"),
+    ["--output", layout.artifactDirectory],
+    { cwd: REPOSITORY_ROOT },
+  );
+}
+
+export async function installMultiRepositorySourcePackage({ layout, build, environment }) {
+  await execFile("npm", [
+    "install", "--ignore-scripts", "--no-audit", "--no-fund",
+    "--prefix", layout.installPrefix, build.artifact_path,
+  ], {
+    cwd: layout.root,
+    env: environment,
+    encoding: "utf8",
+    maxBuffer: 20 * 1024 * 1024,
+  });
+  const packageRoot = await realpath(join(layout.installPrefix, "node_modules", "dev-flow-codex"));
+  const packageCLI = join(layout.installPrefix, "node_modules", ".bin", "dev-flow-codex");
+  const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
+  if (!pathWithin(layout.installPrefix, packageRoot) || pathWithin(REPOSITORY_ROOT, packageRoot)) {
+    throw new Error("multi-repository installed package is outside the isolated npm prefix");
+  }
+  return Object.freeze({ packageRoot, packageCLI, runtimePath, sourceCommit: build.source_commit });
+}
+
+export async function setupMultiRepositorySourcePackage({ layout, product, environment }) {
+  return execJSON(product.packageCLI, ["setup", "--json"], {
+    cwd: layout.primaryRepository,
+    env: environment,
+  });
+}
+
+async function executableOnEnvironmentPath(name, environment) {
+  for (const directory of (environment.PATH ?? "").split(delimiter).filter(Boolean)) {
+    const candidate = resolve(directory, name);
+    try {
+      const info = await stat(candidate);
+      if (info.isFile() && (info.mode & 0o111) !== 0) return realpath(candidate);
+    } catch (error) {
+      if (error?.code !== "ENOENT" && error?.code !== "ENOTDIR") throw error;
+    }
+  }
+  throw new Error(`multi-repository setup cannot resolve ${name} from the isolated environment`);
+}
+
+export async function verifyMultiRepositorySetupReadback({
+  layout,
+  build,
+  product,
+  setup,
+  environment,
+}) {
+  if (setup?.operation !== "setup" || !["installed", "already-installed"].includes(setup.status)) {
+    throw new Error("multi-repository local package setup failed");
+  }
+  if (
+    environment.HOME !== layout.home
+    || environment.CODEX_HOME !== layout.codexHome
+    || environment.npm_config_prefix !== layout.installPrefix
+    || environment.npm_config_cache !== layout.npmCache
+  ) {
+    throw new Error("multi-repository setup environment is not isolated");
+  }
+
+  const receiptPath = join(
+    layout.home,
+    "Library", "Application Support", "dev-flow", "registrations", "codex.json",
+  );
+  const receipt = JSON.parse(await readFile(receiptPath, "utf8"));
+  const configurationPath = join(layout.codexHome, "config.toml");
+  const configurationInfo = await lstat(configurationPath);
+  const mcp = JSON.parse(await readFile(join(product.packageRoot, "plugin", ".mcp.json"), "utf8"));
+  const resolvedCLI = await executableOnEnvironmentPath("dev-flow-codex", environment);
+  const packageCLI = await realpath(product.packageCLI);
+  const runtimeInfo = await stat(product.runtimePath);
+  if (
+    setup.receipt_path !== receiptPath
+    || receipt?.paths?.receipt_path !== receiptPath
+    || receipt?.paths?.package_root !== product.packageRoot
+    || receipt?.paths?.runtime_path !== product.runtimePath
+    || receipt?.paths?.data_dir !== layout.dataDirectory
+    || receipt?.registration?.marketplace_root !== product.packageRoot
+    || receipt?.registration?.plugin_root !== join(product.packageRoot, "plugin")
+    || !configurationInfo.isFile()
+    || configurationInfo.isSymbolicLink()
+    || !runtimeInfo.isFile()
+    || (runtimeInfo.mode & 0o111) === 0
+    || resolvedCLI !== packageCLI
+    || mcp?.mcpServers?.["dev-flow"]?.command !== "dev-flow-codex"
+    || !isDeepStrictEqual(mcp?.mcpServers?.["dev-flow"]?.args, ["mcp"])
+    || product.sourceCommit !== build.source_commit
+  ) {
+    throw new Error("multi-repository setup readback does not bind the isolated source package");
+  }
+  const packageVersion = await execFile(product.packageCLI, ["--version"], {
+    cwd: layout.root,
+    env: environment,
+    encoding: "utf8",
+  });
+  const coreVersion = await execFile(product.runtimePath, ["version"], {
+    cwd: layout.root,
+    env: environment,
+    encoding: "utf8",
+  });
+  if (
+    packageVersion.stdout !== `dev-flow-codex ${build.package_version} (core ${build.core_version})\n`
+    || coreVersion.stdout !== `dev-flow ${build.core_version}\n`
+  ) {
+    throw new Error("multi-repository installed package or bundled Core identity differs from the build");
+  }
+  return Object.freeze({ setupReadbackPassed: true, sourceCommit: product.sourceCommit });
 }
 
 function digestText(value) {
@@ -4283,11 +4461,47 @@ function multiRepositoryFailureClassification(error, processResult) {
   return processResult === null ? "process-error" : "post-session-validation";
 }
 
-function buildMultiRepositoryFailureEvidence({ sourceCommit, error, processResult }) {
+function summarizeMultiRepositoryCalls(processResult) {
+  const empty = {
+    threadStarted: false,
+    callCount: 0,
+    firstTool: null,
+    firstClassification: null,
+    firstErrorCode: null,
+    toolSequence: [],
+  };
+  if (typeof processResult?.stdout !== "string") return empty;
+  let parsed;
+  try {
+    parsed = parseCodexJSONL(processResult.stdout);
+  } catch {
+    return empty;
+  }
+  const calls = parsed.calls.slice(0, MULTI_REPOSITORY_CALL_SUMMARY_LIMIT);
+  const first = calls[0] ?? null;
+  return {
+    threadStarted: typeof parsed.threadId === "string" && parsed.threadId.length > 0,
+    callCount: Math.min(parsed.calls.length, MULTI_REPOSITORY_CALL_SUMMARY_LIMIT),
+    firstTool: first?.tool ?? null,
+    firstClassification: first === null ? null : displayShape(first.shape),
+    firstErrorCode: first?.shape === "core_domain_error"
+      ? first.structuredContent?.error?.code ?? null
+      : null,
+    toolSequence: calls.map((call) => call.tool),
+  };
+}
+
+function buildMultiRepositoryFailureEvidence({
+  sourceCommit,
+  error,
+  processResult,
+  setupReadbackPassed,
+}) {
   const classification = multiRepositoryFailureClassification(error, processResult);
   const exitCode = Number.isInteger(processResult?.exitCode)
     ? processResult.exitCode
     : Number.isInteger(error?.exitCode) ? error.exitCode : null;
+  const calls = summarizeMultiRepositoryCalls(processResult);
   const evidence = {
     evidence_kind: MULTI_REPOSITORY_EVIDENCE_KIND,
     status: "failed",
@@ -4301,6 +4515,13 @@ function buildMultiRepositoryFailureEvidence({ sourceCommit, error, processResul
     exit_code: exitCode,
     stdout_sha256: digestText(processResult?.stdout ?? error?.stdout),
     stderr_sha256: digestText(processResult?.stderr ?? error?.stderr),
+    setup_readback_passed: setupReadbackPassed === true,
+    thread_started: calls.threadStarted,
+    dev_flow_call_count: calls.callCount,
+    first_dev_flow_tool: calls.firstTool,
+    first_dev_flow_classification: calls.firstClassification,
+    first_dev_flow_error_code: calls.firstErrorCode,
+    dev_flow_tool_sequence: calls.toolSequence,
     observed_at: new Date().toISOString(),
   };
   assertMultiRepositoryEvidenceSanitized(
@@ -4321,20 +4542,36 @@ export async function runMultiRepositoryJourney(options) {
   const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-multi-repository-")));
   let invocationStarted = false;
   let processResult = null;
+  let setupReadbackPassed = false;
   try {
     const layout = createMultiRepositoryJourneyLayout(root);
-    await Promise.all([
-      mkdir(layout.home, { mode: 0o700 }),
-      mkdir(layout.temporaryDirectory, { mode: 0o700 }),
-      mkdir(layout.primaryRepository, { mode: 0o700 }),
-      mkdir(layout.additionalRepository, { mode: 0o700 }),
-      mkdir(layout.dataDirectory, { mode: 0o700 }),
-    ]);
-    const environment = buildMultiRepositoryEnvironment(layout, options.baseEnvironment ?? process.env);
+    await Promise.all(Object.entries(layout)
+      .filter(([name]) => name !== "root")
+      .map(([, path]) => mkdir(path, { recursive: true, mode: 0o700 })));
+    const prepareEnvironment = options.prepareEnvironment ?? prepareMultiRepositoryEnvironment;
+    const environment = await prepareEnvironment(
+      layout,
+      options.codexExecutable,
+      options.baseEnvironment ?? process.env,
+    );
     await Promise.all([
       initializeSmokeRepository(layout.primaryRepository, environment),
       initializeSmokeRepository(layout.additionalRepository, environment),
     ]);
+
+    const buildPackage = options.buildPackage ?? buildMultiRepositorySourcePackage;
+    const installPackage = options.installPackage ?? installMultiRepositorySourcePackage;
+    const setupPackage = options.setupPackage ?? setupMultiRepositorySourcePackage;
+    const verifySetup = options.verifySetup ?? verifyMultiRepositorySetupReadback;
+    const build = await buildPackage({ layout, sourceCommit: options.sourceCommit, environment });
+    assertMultiRepositoryBuildIdentity(build, layout, options.sourceCommit);
+    const product = await installPackage({ layout, build, environment });
+    const setup = await setupPackage({ layout, build, product, environment });
+    const readback = await verifySetup({ layout, build, product, setup, environment });
+    if (readback?.setupReadbackPassed !== true || readback.sourceCommit !== options.sourceCommit) {
+      throw new Error("multi-repository setup readback source identity differs from the requested commit");
+    }
+    setupReadbackPassed = true;
 
     const actualRunProcess = options.runProcess ?? defaultRunProcess;
     const budgetedRunProcess = async (...args) => {
@@ -4359,7 +4596,12 @@ export async function runMultiRepositoryJourney(options) {
     if (await pathExists(join(layout.home, ".dev-flow", "config.json"))) {
       throw new Error("multi-repository journey created a Dev Flow user configuration file");
     }
-    const evidence = await buildMultiRepositoryEvidence(session, layout, options.sourceCommit);
+    const evidence = await buildMultiRepositoryEvidence(
+      session,
+      layout,
+      options.sourceCommit,
+      setupReadbackPassed,
+    );
     await writeFile(options.resultFile, `${JSON.stringify(evidence, null, 2)}\n`, { mode: 0o600, flag: "wx" });
     return evidence;
   } catch (error) {
@@ -4368,6 +4610,7 @@ export async function runMultiRepositoryJourney(options) {
         sourceCommit: options.sourceCommit,
         error,
         processResult,
+        setupReadbackPassed,
       });
       await writeFile(options.resultFile, `${JSON.stringify(evidence, null, 2)}\n`, { mode: 0o600, flag: "wx" });
     }
@@ -4395,8 +4638,16 @@ function multiRepositoryActionIdentity(task, label) {
   };
 }
 
-export async function buildMultiRepositoryEvidence(session, layout, sourceCommit) {
+export async function buildMultiRepositoryEvidence(
+  session,
+  layout,
+  sourceCommit,
+  setupReadbackPassed,
+) {
   requireSourceCommit(sourceCommit, "multi-repository source commit");
+  if (setupReadbackPassed !== true) {
+    throw new Error("multi-repository success evidence requires setup readback");
+  }
   const calls = session.dev_flow_calls;
   if (calls[0]?.tool !== "dev_flow_server_info" || calls[0]?.classification !== "success") {
     throw new Error("multi-repository journey requires server-info as the first Dev Flow call");
@@ -4478,6 +4729,7 @@ export async function buildMultiRepositoryEvidence(session, layout, sourceCommit
     host: "codex",
     runner_mode: "multi-repository",
     journey_budget: "1/1",
+    setup_readback_passed: true,
     task_id: beforeResumeTask.task_id,
     primary_repository_key: "core",
     additional_repository_keys: ["docs"],

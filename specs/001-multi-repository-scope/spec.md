@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-23
 
-**Status**: Ready
+**Status**: Blocked
 
 **Input**: User description: "为 Dev Flow 增加多仓库任务范围与用户配置，在保持单一 Core 流程权威和现有单仓库行为的前提下，让一个 Task 显式绑定一个主仓库和若干附加仓库。"
 

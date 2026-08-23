@@ -1,6 +1,6 @@
 # 001 — 多仓库任务范围与用户配置
 
-**Status**: Ready
+**Status**: Blocked
 **Created**: 2026-08-23
 
 本 Feature 为一个 Dev Flow Task 增加显式、有界且创建后不可变的 Repository Scope：一个主仓库和
@@ -25,7 +25,7 @@
 - [Implementation tasks](tasks.md)
 
 `spec.md`、`plan.md`、contracts 和 `tasks.md` 已生成，`$speckit-analyze` 门禁已通过。当前
-Feature 状态为 `Ready`，实施必须遵循 `tasks.md` 的阶段、任务和 checkpoint。本 Feature
+Feature 状态为 `Blocked`，实施必须遵循 `tasks.md` 的阶段、任务和 checkpoint。本 Feature
 不授权版本修改、npm 发布、Tag、GitHub Release 或其他发布操作。
 
 ## Fixed boundaries
