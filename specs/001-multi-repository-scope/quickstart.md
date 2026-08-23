@@ -178,17 +178,17 @@ Action 只有一个 aggregate `repository_binding_digest`。
 实现任务应在现有 journey harness 中增加一个明确的 `multi-repository` 入口，并在执行前一次性确认
 参数、临时目录和证据输出。
 
-T034 Codex Journey 总预算最多五次。Attempts 1、2、4 已失败，Attempt 3 已通过但只证明
-mutation 前恢复；当前为 `4/5 consumed` 与 `1/5 remaining, not started`，T034 等待最终
-双 session Attempt 5。
+T034 Codex Journey 总预算最多五次。Attempts 1、2、4、5 已失败，Attempt 3 已通过但只证明
+mutation 前恢复；当前为 `5/5 consumed`，T034 未完成且 Feature 为 `Blocked`。
 Attempt 2 的 source-local build、isolated install、setup 与
 registration/Core readback 通过，真实 Codex thread 已启动，但 post-session evidence
 validation 未能证明从附加仓库恢复同一 Task。Attempt 3 已基于 source commit
 `eee0950d24315aaee6562d112b7717303c946059` 证明创建后立即恢复。最终 runner 使用两个独立
 Codex session：主仓 session 完成 mutation，附加仓 session 随后恢复并与最后一次成功 apply
 对比。Attempt 4 的 setup/readback、server-info 与 Task 创建通过，但首次 apply 缺少顶层
-`request_id`；通用 apply request-binding 规则现由相关 Prompt 共享，定向 harness 为 47/47。
-Attempt 5 启动后禁止第六次 Codex Journey。
+`request_id`；通用 apply request-binding 规则现由相关 Prompt 共享。Attempt 5 不再报告 binding
+缺失，但后续 apply 返回另一个 `INVALID_ARGUMENT`。multi-repository 现也共享既有完整 apply
+payload 规则，failure evidence 增加安全诊断字段，定向 harness 为 47/47；禁止第六次 Codex Journey。
 
 T035 DeepSeek Journey 和第 7 节 T040 最终仓库级验证仍各最多调用一次，当前均为 0/1。调用前必须
 完成对应的定向检查，且不增加其他测试预算。
@@ -203,7 +203,7 @@ T035 DeepSeek Journey 和第 7 节 T040 最终仓库级验证仍各最多调用�
 - 第二段使用 `--cd <additional> --add-dir <primary>`，只从附加仓库恢复，不修改文件或 apply；
 - evidence 对比最后一次成功 apply 与恢复结果，并证明不同 Codex thread、同一 Core Task、
   revision、Action、digest 和 Scope；
-- Attempt 5 使用独立 evidence
+- Attempt 5 失败 evidence 保留在
   `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-5.json`；
 - Attempt 4 失败 evidence 保留在
   `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-4.json`；
@@ -213,7 +213,7 @@ T035 DeepSeek Journey 和第 7 节 T040 最终仓库级验证仍各最多调用�
   `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-2.json`；
 - 永久保留 Attempt 1 evidence
   `tests/journeys/codex/evidence/feature-001-multi-repository.json`；
-- 未授权目录拒绝由第 3 节确定性测试证明，不增加 Attempt 5 之外的真实 Journey。
+- 未授权目录拒绝由第 3 节确定性测试证明，不再增加真实 Journey。
 
 ### DeepSeek
 

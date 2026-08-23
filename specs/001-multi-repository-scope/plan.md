@@ -194,8 +194,8 @@ Release、`.agents/skills/` 或 `.specify/templates/`。
 3. Store/MCP/Config：多 claim 原子事务、preflight 与旧 schema 零写拒绝、closed open input、
    server-info 有效偏好、配置 missing/valid/invalid。
 4. Host：Codex 和 DeepSeek 的 Skill/guard/launcher 定向合同；未授权目录由确定性测试证明。
-5. Journey：T034 Codex 真实两仓库 Journey 总预算封顶为五次；Attempts 1～4 已消费，
-   只剩验证共享 request-binding 修复的 Attempt 5。DeepSeek 真实两仓库 Journey 仍最多调用一次。
+5. Journey：T034 Codex 真实两仓库 Journey 总预算封顶为五次；Attempts 1～5 已消费且没有取得
+   最终双 session 通过结果。DeepSeek 真实两仓库 Journey 仍最多调用一次。
 6. 完成全部定向检查后，最终 `pnpm run validate` 最多调用一次。
 
 Attempt 1 source commit 为 `1176809054e814d7d163ef7eef0243b1538a71a3`，状态为 failed，原始
@@ -217,8 +217,11 @@ apply 对比；直接 harness 47/47 通过。Attempt 4 基于
 `4ce6be92fd2d664ccb77ecbcb72b5386606642d6` 启动，在第一段首次 apply 因缺少顶层
 `request_id` 失败，evidence 为
 `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-4.json`。通用 apply
-request-binding 规则现由 multi-repository 与 final-registry Prompt 共享；Attempt 5 已授权且尚未
-启动，使用 `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-5.json`，启动后禁止第六次执行。
+request-binding 规则现由 multi-repository 与 final-registry Prompt 共享。Attempt 5 启动后
+request binding 不再报错，但后续 apply 返回 `INVALID_ARGUMENT`；旧 failure evidence 没有保留
+失败调用详情。multi-repository 现也共享既有完整 apply payload 规则，failure evidence 增加安全的
+失败工具、错误码与 binding 状态，直接 harness 47/47 通过。Attempt 5 evidence 为
+`tests/journeys/codex/evidence/feature-001-multi-repository-attempt-5.json`；T034 保持未完成并禁止第六次执行。
 T035 与 T040 仍分别为 0/1，且不增加其他测试预算。
 
 明确不建立 3～8 仓库、节点、平台或配置排列组合；不做压力、性能、fuzz、版本矩阵；不安装或

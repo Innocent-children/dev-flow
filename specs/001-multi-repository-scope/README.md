@@ -1,6 +1,6 @@
 # 001 — 多仓库任务范围与用户配置
 
-**Status**: Ready
+**Status**: Blocked
 **Created**: 2026-08-23
 
 本 Feature 为一个 Dev Flow Task 增加显式、有界且创建后不可变的 Repository Scope：一个主仓库和
@@ -29,8 +29,10 @@ build、install、setup 与 readback 有效，同时暴露长 Prompt 末尾的�
 Attempt 3 通过了创建后立即恢复，但未证明双仓 mutation 后由新的附加仓 Host session 恢复。
 runner 现拆成同一 Journey 内两个独立 Codex session：主仓 session 完成 mutation，附加仓
 session 只恢复，并将返回身份与最后一次成功 apply 对比。Attempt 4 验证该结构时暴露 substantive
-Prompt 未复用 apply request-binding 规则；失败 evidence 已保留。共享规则修复的定向 harness
-为 47/47，最终 Attempt 5 已授权且尚未启动，Feature 状态为 `Ready`。本 Feature 不授权版本修改、npm
+Prompt 未复用 apply request-binding 规则；Attempt 5 确认 binding 已修复，但后续 apply 仍返回
+`INVALID_ARGUMENT`，旧 failure evidence 未保留失败调用详情。multi-repository 现进一步复用
+既有完整 apply payload 规则，failure evidence 也记录安全的失败工具、错误码与 binding 状态；
+定向 harness 为 47/47。真实预算已消费完，T034 保持未完成，Feature 状态为 `Blocked`。本 Feature 不授权版本修改、npm
 发布、Tag、GitHub Release 或其他发布操作。
 
 ## Fixed boundaries
@@ -39,7 +41,7 @@ Prompt 未复用 apply request-binding 规则；失败 evidence 已保留。共�
 - 保留 `ProcessTask.Repository` 作为主仓库和现有 `repository_binding_digest` 合同字段；
 - 不增加 Workspace、Provider、registry、DSL、Orchestrator、父子 Task 或第二套状态机；
 - SQLite 不兼容数据使用零写入 reject-and-reset，不迁移或自动清理；
-- T034 Codex Journey 总预算最多五次：Attempts 1～4 已消费，只有 Attempt 5 尚未启动；
+- T034 Codex Journey 总预算最多五次：Attempts 1～5 已消费，T034 未完成；
 - T035 DeepSeek Journey 和 T040 `pnpm run validate` 仍各最多一次，当前均为 0/1；
-- Attempt 5 启动后禁止第六次 Codex Journey；
+- 禁止第六次 Codex Journey；
 - Product Feature 与版本发布严格分离。

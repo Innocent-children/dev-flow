@@ -687,6 +687,8 @@ test("Feature-only multi-repository CLI and layout are closed over source identi
   assert.match(substantivePrompt, /additional_repositories/u);
   assert.match(substantivePrompt, /core::core-proof\.txt[\s\S]*docs::docs-proof\.txt/u);
   assert.match(substantivePrompt, /new nonempty opaque caller request ID[\s\S]*top-level request_id/u);
+  assert.match(substantivePrompt, /payload must have exactly transition_id, summary, reason, artifacts, method_evidence, and node_result/u);
+  assert.match(substantivePrompt, /The success wrappers are: REQUIREMENTS=/u);
   assert.doesNotMatch(substantivePrompt, /new_task=null/u);
   assert.match(substantivePrompt, /Stop after the first successful apply that records both changes/u);
 
@@ -1009,7 +1011,8 @@ test("multi-repository post-launch failure writes one sanitized consumed-budget 
     "failure_stage", "failure_classification", "session_role", "exit_code", "stdout_sha256",
     "stderr_sha256", "setup_readback_passed", "thread_started", "dev_flow_call_count",
     "first_dev_flow_tool", "first_dev_flow_classification", "first_dev_flow_error_code",
-    "dev_flow_tool_sequence", "observed_at",
+    "dev_flow_tool_sequence", "failed_dev_flow_tool", "failed_dev_flow_error_code",
+    "failed_request_binding", "observed_at",
   ]);
   assert.equal(evidence.status, "failed");
   assert.equal(evidence.journey_budget, "1/1");
@@ -1022,6 +1025,9 @@ test("multi-repository post-launch failure writes one sanitized consumed-budget 
   assert.equal(evidence.dev_flow_call_count, 0);
   assert.equal(evidence.first_dev_flow_tool, null);
   assert.deepEqual(evidence.dev_flow_tool_sequence, []);
+  assert.equal(evidence.failed_dev_flow_tool, null);
+  assert.equal(evidence.failed_dev_flow_error_code, null);
+  assert.equal(evidence.failed_request_binding, null);
   assert.doesNotMatch(JSON.stringify(evidence), /private stdout|HOME=|\/Users\/|auth\.json|secret/u);
 });
 
@@ -1097,6 +1103,21 @@ test("multi-repository failure evidence distinguishes zero calls, wrong order, a
     assert.equal(evidence.first_dev_flow_classification, diagnostic.expected.classification, diagnostic.name);
     assert.equal(evidence.first_dev_flow_error_code, diagnostic.expected.code, diagnostic.name);
     assert.deepEqual(evidence.dev_flow_tool_sequence, diagnostic.expected.sequence, diagnostic.name);
+    assert.equal(
+      evidence.failed_dev_flow_tool,
+      diagnostic.name === "server-info-error" ? "dev_flow_server_info" : null,
+      diagnostic.name,
+    );
+    assert.equal(
+      evidence.failed_dev_flow_error_code,
+      diagnostic.name === "server-info-error" ? "INTERNAL_ERROR" : null,
+      diagnostic.name,
+    );
+    assert.equal(
+      evidence.failed_request_binding,
+      null,
+      diagnostic.name,
+    );
     assert.doesNotMatch(JSON.stringify(evidence), /private_argument|private stderr|\/Users\/|secret/u);
   }
 });

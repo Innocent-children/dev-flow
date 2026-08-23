@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-23
 
-**Status**: Ready
+**Status**: Blocked
 
 **Input**: User description: "为 Dev Flow 增加多仓库任务范围与用户配置，在保持单一 Core 流程权威和现有单仓库行为的前提下，让一个 Task 显式绑定一个主仓库和若干附加仓库。"
 
@@ -286,17 +286,20 @@ T034 Codex 真实 Journey 的总预算精确为最多五次，仅适用于 Featu
   `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-4.json`；
 - Attempt 4 的 source-bound setup/readback、server-info 和 Task 创建均成功，第一段首次 apply
   因 substantive Prompt 没有复用通用 caller request-binding 规则而返回 `INVALID_ARGUMENT`；
-- 通用 apply request-binding 规则现在由 multi-repository 与 final-registry Prompt 共享，并由
-  直接 harness 验证；Attempt 5 已授权且尚未启动，独立 evidence 为
-  `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-5.json`；
+- 通用 apply request-binding 规则现在由 multi-repository 与 final-registry Prompt 共享；
+  Attempt 5 已基于 source commit `18d1208fff1d24ff73f2c1f51af06f6c44b1102b` 启动并失败，
+  独立 evidence 为 `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-5.json`；
+- Attempt 5 不再报告 request binding 缺失，但在连续 apply 中返回另一个 `INVALID_ARGUMENT`；
+  旧 failure evidence 没有保留失败调用详情，因此不能断言具体 payload 字段；
+- multi-repository substantive Prompt 现进一步复用既有完整 apply payload 规则，failure evidence
+  也记录失败工具、错误码与 request-binding 状态；直接 harness 为 47/47；
 - build、install、setup、registration/Core readback 在 Codex executable 启动前失败时不消费剩余
-  预算；一旦 Attempt 5 的第一段真实 Codex executable 启动，无论任一阶段成功、失败、中断或
-  超时均消费剩余预算；
-- Attempt 5 启动后禁止第六次 Codex Journey。
+  预算；Attempt 5 的第一段真实 Codex executable 已启动并消费剩余预算；
+- T034 未完成，禁止第六次 Codex Journey。
 
 T035 DeepSeek Journey 和 T040 最终 `pnpm run validate` 仍各最多调用一次，当前均为 0/1。除 T034
 上述一次性修订外，不增加其他测试预算。调用任何最终检查前必须先完成其定向前置检查。
-当前 T034 等待最终双 session Attempt 5，Feature 状态为 `Ready`。
+当前 T034 未完成，Feature 状态为 `Blocked`。
 
 ## Success Criteria *(mandatory)*
 
