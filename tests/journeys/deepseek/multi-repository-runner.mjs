@@ -25,6 +25,7 @@ const APPLY_RULES = [
   "Use artifacts=[] and one plain_fallback MethodEvidence item with capability empty for every current method step in Action order.",
   "For a forward ready, passed, or completed transition use problem_class=none and findings=[].",
   "Use a non-none problem_class and nonempty findings only for the exact corrective transition whose condition they establish.",
+  "For REQUIREMENTS, node_result contains exactly problem_class, baseline, and unresolved_questions; unresolved_questions is a sibling of baseline and baseline contains exactly goal, scope, out_of_scope, acceptance_criteria, constraints, and assumptions.",
   "If any apply returns an error, stop immediately without retrying.",
 ].join(" ");
 
@@ -148,7 +149,7 @@ async function validatePreflight(options) {
   assert.ok((await stat(options.dshExecutable)).mode & 0o111);
   assert.ok((await stat(options.credentials)).mode & 0o600);
   assert.equal(await exists(options.resultFile), false, "T035 evidence already exists");
-  for (const id of ["create-to-design", "implement-to-test", "additional-resume-to-comprehension", "accept-to-delivery", "deliver-to-done"]) {
+  for (const id of ["create-task", "requirements-to-design", "implement-to-test", "additional-resume-to-comprehension", "accept-to-delivery", "deliver-to-done"]) {
     assert.equal(await exists(rawSessionPath(options.resultFile, id)), false, "T035 raw transcript already exists");
   }
   assert.equal((await execFile("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8" })).stdout.trim(), options.sourceCommit);
@@ -293,12 +294,18 @@ function checkpoints(config) {
   const additionalResume = "Resume the existing host=deepseek Task from the additional repository with repository_path="
     + JSON.stringify(config.additionalRepository) + ", new_task=null, and no Scope creation fields.";
   return [
-    checkpoint("create-to-design", "DESIGN", [
-      "/dev-flow Create exactly one bounded multi-repository Task and complete only its REQUIREMENTS action.",
+    checkpoint("create-task", "REQUIREMENTS", [
+      "/dev-flow Create exactly one bounded multi-repository Task.",
       createInput,
       "Use method_profile=plain and verification_budget level=targeted, max_automatic_commands=1, allow_full_suite=false, allow_manual_handoff=true.",
       "The complete task is to create core::core-proof.txt with exact UTF-8 bytes core proof followed by one newline and docs::docs-proof.txt with exact UTF-8 bytes docs proof followed by one newline.",
-      "Use those two scoped paths as the complete expected path set.", APPLY_RULES,
+      "Use those two scoped paths as the complete expected path set.",
+      "Stop immediately after Core creates the Task at REQUIREMENTS. Do not apply the current Action or edit files.",
+    ]),
+    checkpoint("requirements-to-design", "DESIGN", [
+      "/dev-flow Complete only the REQUIREMENTS action for the active bounded multi-repository Task.", primaryResume,
+      "Perform the server-info handshake and fresh Task and Action reads.", APPLY_RULES,
+      "Use both scoped paths, no unresolved questions, and the exact closed REQUIREMENTS node_result shape stated above.",
       "Stop immediately when Core reports DESIGN. Do not edit files or advance DESIGN.",
     ]),
     checkpoint("implement-to-test", "TEST", [
@@ -499,7 +506,7 @@ function toolResultEnvelope(events, callId) {
 }
 
 async function buildEvidence(config, product, sessions, beforeAdditionalResume) {
-  assert.equal(sessions.length, 5);
+  assert.equal(sessions.length, 6);
   assert.notEqual(beforeAdditionalResume, null);
   const callSets = new Map(sessions.map((session) => [session.id, callsFromSession(session)]));
   for (const [stageId, calls] of callSets) {
@@ -509,7 +516,7 @@ async function buildEvidence(config, product, sessions, beforeAdditionalResume) 
     assert.equal(serverInfo?.envelope?.ok, true);
     assert.equal(serverInfo?.envelope?.result?.tools?.length, 6);
   }
-  const createCalls = callSets.get("create-to-design");
+  const createCalls = callSets.get("create-task");
   const create = createCalls.find((call) => call.name === "mcp__dev_flow__dev_flow_open_task");
   const resumeCalls = callSets.get("additional-resume-to-comprehension");
   const resume = resumeCalls.find((call) => call.name === "mcp__dev_flow__dev_flow_open_task");
@@ -562,7 +569,7 @@ async function buildEvidence(config, product, sessions, beforeAdditionalResume) 
     dsh_version: product.dshVersion,
     setup_readback_passed: true,
     workspace_root_non_git: true,
-    dsh_session_count: 5,
+    dsh_session_count: 6,
     task_id: finalTask.task_id,
     primary_repository_key: "core",
     additional_repository_keys: ["docs"],
@@ -581,7 +588,7 @@ async function buildEvidence(config, product, sessions, beforeAdditionalResume) 
     successful_action_count: successfulApplies.length,
     verification_command_count: 1,
     tool_catalog_size: 6,
-    codebase_memory_preference: callSets.get("create-to-design")
+    codebase_memory_preference: callSets.get("create-task")
       .find((call) => call.name === "mcp__dev_flow__dev_flow_server_info")
       .envelope.result.host_preferences.deepseek.codebase_memory,
     observed_at: new Date().toISOString(),
@@ -645,6 +652,7 @@ function selfTest() {
   assert.equal(versionAtLeast("0.1.1-rc.2", "0.1.0-rc.6"), true);
   assert.equal(versionAtLeast("0.1.0-rc.5", "0.1.0-rc.6"), false);
   assert.match(APPLY_RULES, /problem_class=none and findings=\[\]/u);
+  assert.match(APPLY_RULES, /unresolved_questions is a sibling of baseline/u);
   assert.match(APPLY_RULES, /If any apply returns an error, stop immediately/u);
   const parsed = parseArguments([
     "--dsh-executable", "/opt/dsh",
@@ -657,10 +665,11 @@ function selfTest() {
   assert.equal(parsed.sourceCommit, "a".repeat(40));
   assert.equal(parsed.journeyBudget, "2/2");
   const definitions = checkpoints({ primaryRepository: "/tmp/core", additionalRepository: "/tmp/docs" });
-  assert.deepEqual(definitions.map((item) => item.toNode), ["DESIGN", "TEST", "COMPREHENSION_REVIEW", "DELIVERY", "DONE"]);
-  assert.match(definitions[2].prompt, /additional repository/u);
-  assert.match(definitions[3].prompt, /explicitly confirm/u);
-  assert.match(definitions[4].prompt, /delivery_completed/u);
+  assert.deepEqual(definitions.map((item) => item.toNode), ["REQUIREMENTS", "DESIGN", "TEST", "COMPREHENSION_REVIEW", "DELIVERY", "DONE"]);
+  assert.match(definitions[1].prompt, /exact closed REQUIREMENTS node_result shape/u);
+  assert.match(definitions[3].prompt, /additional repository/u);
+  assert.match(definitions[4].prompt, /explicitly confirm/u);
+  assert.match(definitions[5].prompt, /delivery_completed/u);
   assert.throws(() => assertSafeEvidence({ path: "/private/secret" }));
 }
 

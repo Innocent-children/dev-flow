@@ -44,8 +44,10 @@ evidence 只证明 Task 停在 `REQUIREMENTS`、revision 1，未证明双仓修�
 原始预算 1/1 已消费且任务未完成。用户随后授权按 Codex 相同的 evidence-driven repair loop 继续：
 Attempt 2 的前四段成功证明双仓修改、附加仓恢复、唯一验证命令和理解确认；最后一段在 Task 已到
 `DELIVERY`、revision 7 后超时。runner 现进一步将理解确认与交付拆成两个单节点 checkpoint，并在
-超时清理前也保存当前 raw transcript。总预算修订为 2/3 consumed，Attempt 3 尚未启动；Feature
-状态为 `Ready`。
+超时清理前也保存当前 raw transcript。Attempt 3 的 REQUIREMENTS apply 将
+`unresolved_questions` 错放进闭合 `baseline` 对象，Core 返回 `INVALID_ARGUMENT`。同步 Host
+reference 现明确该字段必须与 `baseline` 同级，创建 Task 与完成 REQUIREMENTS 也拆成独立
+checkpoint。总预算修订为 3/4 consumed，Attempt 4 尚未启动；Feature 状态为 `Ready`。
 本 Feature 不授权版本修改、npm
 发布、Tag、GitHub Release 或其他发布操作。
 
@@ -56,7 +58,7 @@ Attempt 2 的前四段成功证明双仓修改、附加仓恢复、唯一验证�
 - 不增加 Workspace、Provider、registry、DSL、Orchestrator、父子 Task 或第二套状态机；
 - SQLite 不兼容数据使用零写入 reject-and-reset，不迁移或自动清理；
 - T034 Attempts 1～6 保留为不可覆盖的历史证据，Attempt 7 为首次满足最终双 session 合同的通过结果；
-- T035 Attempts 1、2 失败 evidence 必须保留；修订后总预算为 2/3 consumed，Attempt 3 尚未启动；
+- T035 Attempts 1～3 失败 evidence 必须保留；修订后总预算为 3/4 consumed，Attempt 4 尚未启动；
 - T040 `pnpm run validate` 仍为 0/1，T035 完成前不得执行；
 - T034 repair loop 不授权 T035、T040 或任何无关真实测试；
 - Product Feature 与版本发布严格分离。

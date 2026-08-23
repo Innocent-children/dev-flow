@@ -65,6 +65,8 @@ Before every ordinary apply:
 
 Never use `repository_observation` as an artifact role, place goal/scope beside `node_result`, or
 omit `problem_class`, `baseline`, or `unresolved_questions`.
+`unresolved_questions` is a sibling of `baseline` inside `node_result`; it is never a member of the
+closed `baseline` object.
 
 <!-- node-payload-template:design:start -->
 ```json

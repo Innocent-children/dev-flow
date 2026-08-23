@@ -232,7 +232,9 @@ DeepSeek Journey。DSH exit code 为 0，但 post-session evidence validation �
 evidence-driven repair loop。Attempt 2 已证明 create-to-DESIGN、implement-to-TEST、附加仓恢复到
 COMPREHENSION_REVIEW 均通过，Task 在最后一段推进到 DELIVERY revision 7 后超时。runner 现将
 accept-to-DELIVERY 与 deliver-to-DONE 分成单节点 checkpoint，并在超时清理前保存当前 raw session。
-T035 总预算为 2/3 consumed，Attempt 3 尚未启动；T040 仍为 0/1 且不得提前执行。
+Attempt 3 暴露 REQUIREMENTS `unresolved_questions` 被模型错误嵌入 `baseline`；同步 Host reference 已
+明确 sibling 关系，runner 再将创建与 REQUIREMENTS apply 拆开。T035 总预算为 3/4 consumed，
+Attempt 4 尚未启动；T040 仍为 0/1 且不得提前执行。
 
 明确不建立 3～8 仓库、节点、平台或配置排列组合；不做压力、性能、fuzz、版本矩阵；不安装或
 测试真实 codebase-memory；T034 之外的真实 Host Journey 不得扩大既定预算。

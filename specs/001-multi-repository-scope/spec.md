@@ -323,10 +323,16 @@ Codex 相同的 evidence-driven repair loop 修复根因。Attempt 2 基于 sour
 完成双仓修改、从附加仓恢复、执行唯一 `node verify.mjs` 并进入 `COMPREHENSION_REVIEW`。最后一段
 已将 Task 推进到 `DELIVERY`、revision 7，但在完成交付前触发 `DSH_STAGE_TIMEOUT`。独立 evidence
 为 `tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-2.json`。runner 现将理解确认
-与交付拆成两个单节点 checkpoint，并在超时清理前保存当前 session。T035 总预算修订为 2/3
-consumed；Attempt 3 已授权，必须绑定新的 source commit 与独立 evidence，且尚未启动。
+与交付拆成两个单节点 checkpoint，并在超时清理前保存当前 session。Attempt 3 基于 source commit
+`cb6b8b26c4b3c14190cfa624d42b6fbb6deeb5b8` 执行并失败；raw transcript 证明 REQUIREMENTS
+`node_result` 将 `unresolved_questions` 错放进闭合 `baseline` 对象，Core 正确返回
+`INVALID_ARGUMENT`。独立 evidence 为
+`tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-3.json`。同步 Host reference 现
+明确 `unresolved_questions` 必须与 `baseline` 同级，runner 也将 Task 创建与 REQUIREMENTS apply
+拆成两个 checkpoint。T035 总预算修订为 3/4 consumed；Attempt 4 已授权，必须绑定新的 source
+commit 与独立 evidence，且尚未启动。
 
-T040 最终 `pnpm run validate` 仍为 0/1。当前 T034 已完成，T035 Attempt 3 已授权但未执行，Feature
+T040 最终 `pnpm run validate` 仍为 0/1。当前 T034 已完成，T035 Attempt 4 已授权但未执行，Feature
 状态为 `Ready`；T035 完成前不得执行 T040。
 
 ## Success Criteria *(mandatory)*
