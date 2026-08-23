@@ -195,7 +195,7 @@ Release、`.agents/skills/` 或 `.specify/templates/`。
    server-info 有效偏好、配置 missing/valid/invalid。
 4. Host：Codex 和 DeepSeek 的 Skill/guard/launcher 定向合同；未授权目录由确定性测试证明。
 5. Journey：T034 Codex 真实两仓库 Journey 总预算封顶为三次；Attempt 1 和 Attempt 2
-   均已消费并失败，只剩已批准的 Attempt 3。DeepSeek 真实两仓库 Journey 仍最多调用一次。
+   均已消费并失败，Attempt 3 已通过。DeepSeek 真实两仓库 Journey 仍最多调用一次。
 6. 完成全部定向检查后，最终 `pnpm run validate` 最多调用一次。
 
 Attempt 1 source commit 为 `1176809054e814d7d163ef7eef0243b1538a71a3`，状态为 failed，原始
@@ -209,9 +209,10 @@ Attempt 2 已基于 `c150f281beae12dba222e8758be5cb3ec80d2a44` 启动并消费�
 `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-2.json`。source-bound build、install、
 setup 与 readback 通过，但 post-session evidence validation 未能证明从附加仓库恢复
 同一 Task，runner 返回 1。恢复步骤已移到创建 Task 后的下一次 Dev Flow 调用，并由
-47/47 直接 harness 与 87/87 Codex T033 定向合同验证。Attempt 3 已批准且尚未启动，
-使用 `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-3.json`。它是最后一次
-调用；失败后 Feature 保持 `Blocked`，禁止第四次执行。
+47/47 直接 harness 与 87/87 Codex T033 定向合同验证。Attempt 3 已基于
+`eee0950d24315aaee6562d112b7717303c946059` 启动并通过，独立 evidence 为
+`tests/journeys/codex/evidence/feature-001-multi-repository-attempt-3.json`。T034 已完成且预算
+为 3/3 consumed；禁止第四次执行。
 T035 与 T040 仍分别为 0/1，且不增加其他测试预算。
 
 明确不建立 3～8 仓库、节点、平台或配置排列组合；不做压力、性能、fuzz、版本矩阵；不安装或

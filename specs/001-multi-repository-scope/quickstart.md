@@ -179,12 +179,12 @@ Action 只有一个 aggregate `repository_binding_digest`。
 参数、临时目录和证据输出。
 
 T034 Codex Journey 总预算最多三次。Attempt 1 和 Attempt 2 均已消费并失败；Attempt 3
-已批准且尚未启动，当前为 `2/3 consumed, failed` 与 `1/3 remaining, not started`。
+已通过，当前为 `3/3 consumed`，T034 已完成。
 Attempt 2 的 source-local build、isolated install、setup 与
 registration/Core readback 通过，真实 Codex thread 已启动，但 post-session evidence
 validation 未能证明从附加仓库恢复同一 Task。runner 已改为创建后立即恢复，
-且恢复成功前禁止 get/apply；定向验证为 47/47 和 87/87。Attempt 3 失败后禁止
-第四次 Codex Journey。
+且恢复成功前禁止 get/apply；定向验证为 47/47 和 87/87。Attempt 3 已基于 source commit
+`eee0950d24315aaee6562d112b7717303c946059` 证明从附加仓恢复同一 Task，禁止第四次 Codex Journey。
 
 T035 DeepSeek Journey 和第 7 节 T040 最终仓库级验证仍各最多调用一次，当前均为 0/1。调用前必须
 完成对应的定向检查，且不增加其他测试预算。
