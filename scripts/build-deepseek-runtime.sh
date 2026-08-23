@@ -6,7 +6,7 @@ repository_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 runtime_directory="$repository_root/packages/deepseek/runtime/darwin-arm64"
 runtime_path="$runtime_directory/dev-flow"
 core_version=$(sed -n '1p' "$repository_root/CORE_VERSION")
-deepseek_version=$(node -e 'const m=require(process.argv[1]); if(m.name!=="dev-flow-deepseek" || !/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(m.version??"")) throw new Error("DeepSeek package version is invalid"); process.stdout.write(m.version)' "$repository_root/packages/deepseek/package.json")
+deepseek_version=$(node -e 'const m=require(process.argv[1]); if(m.name!=="dev-flow-deepseek" || !/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-beta\.(0|[1-9][0-9]*))?$/.test(m.version??"")) throw new Error("DeepSeek package version is invalid"); process.stdout.write(m.version)' "$repository_root/packages/deepseek/package.json")
 
 [ -n "$core_version" ] && [ -n "$deepseek_version" ] || {
   printf '%s\n' 'build-deepseek-runtime: Core or DeepSeek version is empty' >&2

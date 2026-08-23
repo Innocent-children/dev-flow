@@ -8,10 +8,16 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import { releaseOutputNames } from "./verify-deepseek-release.mjs";
+import {
+  compareReleaseVersions,
+  isReleaseVersion,
+  releaseChannel,
+  validateChannelVersion,
+} from "./release-channel.mjs";
 import { PUBLIC_RELEASE_DOCUMENT_PATHS, syncPublicReleaseDocs } from "./sync-public-release-docs.mjs";
 
 const execFile = promisify(execFileCallback);
-const SEMVER_PATTERN = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/u;
+const CORE_VERSION_PATTERN = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/u;
 const GIT_SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const RELEASE_MODES = Object.freeze(["quick", "normal"]);
 const VERSION_AUTHORITY_PATHS = Object.freeze([
@@ -44,7 +50,7 @@ export function parseReleaseArguments(arguments_) {
       comprehensionConfirmed = true;
       continue;
     }
-    if (!["--mode", "--version", "--output", "--confirm"].includes(argument)) {
+    if (!["--channel", "--mode", "--version", "--output", "--confirm"].includes(argument)) {
       throw new Error(`unknown argument ${argument}`);
     }
     if (values.has(argument)) throw new Error(`${argument} may be supplied only once`);
@@ -53,9 +59,10 @@ export function parseReleaseArguments(arguments_) {
     index += 1;
   }
   if (!["--mode", "--version", "--confirm"].every((flag) => values.has(flag))) {
-    throw new Error("usage: release-deepseek.mjs --mode quick|normal --version DEEPSEEK_VERSION [--output ABSOLUTE_DIRECTORY] --confirm deepseek-vDEEPSEEK_VERSION [--confirm-comprehension]");
+    throw new Error("usage: release-deepseek.mjs [--channel stable|beta] --mode quick|normal --version DEEPSEEK_VERSION [--output ABSOLUTE_DIRECTORY] --confirm deepseek-vDEEPSEEK_VERSION [--confirm-comprehension]");
   }
   return {
+    channel: values.get("--channel") ?? "stable",
     mode: values.get("--mode"),
     targetVersion: values.get("--version"),
     outputDirectory: values.get("--output") ?? null,
@@ -73,6 +80,7 @@ export function quickModeBlockingPaths(changedPaths) {
 }
 
 export async function runReleaseCommand({
+  channel = "stable",
   mode,
   targetVersion,
   outputDirectory = null,
@@ -85,10 +93,10 @@ export async function runReleaseCommand({
   runProcess = spawnProcess,
 } = {}) {
   const root = await canonicalDirectory(repositoryRoot, "repository root");
-  validateReleaseSelection({ mode, targetVersion, confirmation, comprehensionConfirmed });
+  validateReleaseSelection({ channel, mode, targetVersion, confirmation, comprehensionConfirmed });
   if (platform !== "darwin" || architecture !== "arm64") throw new Error("release command requires darwin-arm64");
 
-  let source = await validateSource(root);
+  let source = await validateSource(root, channel);
   const output = await resolveOutputDirectory(root, outputDirectory ?? defaultOutputDirectory(targetVersion));
   const initialNames = await releaseDirectoryNames(output);
   let coreVersion;
@@ -99,7 +107,7 @@ export async function runReleaseCommand({
     coreVersion = await readCoreVersion(root);
     basedOnRelease = await previousDeepSeekRelease(root, targetVersion);
     if (currentVersion !== targetVersion) {
-      if (compareSemVer(targetVersion, currentVersion) <= 0) {
+      if (compareReleaseVersions(targetVersion, currentVersion) <= 0) {
         throw new Error(`target version ${targetVersion} must be greater than current version ${currentVersion}`);
       }
       const changedPaths = await changedPathsSinceTag(root, basedOnRelease);
@@ -108,10 +116,12 @@ export async function runReleaseCommand({
         if (blocked.length !== 0) throw new Error(`quick mode is not eligible; product-affecting paths: ${blocked.join(", ")}`);
       }
       await updateDeepSeekVersion(root, currentVersion, targetVersion);
-      await syncPublicReleaseDocs(root, { product: "deepseek", version: targetVersion, coreVersion });
+      if (channel === "stable") {
+        await syncPublicReleaseDocs(root, { product: "deepseek", version: targetVersion, coreVersion });
+      }
       currentVersion = await validateDeepSeekAuthorities(root);
-      await commitAndPushVersion(root, targetVersion);
-      source = await validateSource(root);
+      await commitAndPushVersion(root, targetVersion, channel, source.branch);
+      source = await validateSource(root, channel, { requireRemoteMatch: channel === "beta" });
     }
   } else {
     prepared = await requireMatchingPreparedMode(output, { mode, targetVersion });
@@ -122,6 +132,7 @@ export async function runReleaseCommand({
   const releaseEnvironment = {
     ...environment,
     DEV_FLOW_RELEASE_MODE: mode,
+    DEV_FLOW_RELEASE_CHANNEL: channel,
     DEV_FLOW_BASED_ON_RELEASE: basedOnRelease ?? "",
     DEV_FLOW_RELEASE_COMPREHENSION_CONFIRMED: comprehensionConfirmed ? "true" : "false",
   };
@@ -160,6 +171,7 @@ export async function runReleaseCommand({
     status: "complete",
     mode: executionMode,
     verification_mode: mode,
+    release_channel: channel,
     based_on_release: basedOnRelease,
     version: targetVersion,
     core_version: coreVersion,
@@ -182,9 +194,9 @@ async function runModeValidation(root, mode, environment, runProcess) {
   });
 }
 
-function validateReleaseSelection({ mode, targetVersion, confirmation, comprehensionConfirmed }) {
+function validateReleaseSelection({ channel, mode, targetVersion, confirmation, comprehensionConfirmed }) {
   if (!RELEASE_MODES.includes(mode)) throw new Error("release mode must equal quick or normal");
-  if (!SEMVER_PATTERN.test(targetVersion ?? "")) throw new Error("target version must be strict MAJOR.MINOR.PATCH");
+  validateChannelVersion(channel, targetVersion);
   if (confirmation !== `deepseek-v${targetVersion}`) throw new Error(`confirmation must equal deepseek-v${targetVersion}`);
   if (mode === "normal" && comprehensionConfirmed !== true) {
     throw new Error("normal mode requires --confirm-comprehension");
@@ -194,13 +206,13 @@ function validateReleaseSelection({ mode, targetVersion, confirmation, comprehen
 async function validateDeepSeekAuthorities(root) {
   const manifest = await readJSON(join(root, "packages", "deepseek", "package.json"));
   const version = manifest?.version;
-  if (!SEMVER_PATTERN.test(version ?? "") || manifest.name !== "dev-flow-deepseek") throw new Error("DeepSeek package version authority is invalid");
+  if (!isReleaseVersion(version) || manifest.name !== "dev-flow-deepseek") throw new Error("DeepSeek package version authority is invalid");
   return version;
 }
 
 async function readCoreVersion(root) {
   const version = (await readFile(join(root, "CORE_VERSION"), "utf8")).trim();
-  if (!SEMVER_PATTERN.test(version)) throw new Error("CORE_VERSION must be strict MAJOR.MINOR.PATCH");
+  if (!CORE_VERSION_PATTERN.test(version)) throw new Error("CORE_VERSION must be strict MAJOR.MINOR.PATCH");
   return version;
 }
 
@@ -214,11 +226,13 @@ async function updateDeepSeekVersion(root, currentVersion, targetVersion) {
   }
 }
 
-async function commitAndPushVersion(root, version) {
-  await runText("git", ["add", "--", ...VERSION_AUTHORITY_PATHS], { cwd: root });
+async function commitAndPushVersion(root, version, channel, branch) {
+  const authorityPaths = channel === "stable" ? VERSION_AUTHORITY_PATHS : ["packages/deepseek/package.json"];
+  await runText("git", ["add", "--", ...authorityPaths], { cwd: root });
   await runText("git", ["diff", "--cached", "--check"], { cwd: root });
   await runText("git", ["commit", "-m", `release(deepseek): v${version}`], { cwd: root });
-  await runText("git", ["push", "origin", "main"], { cwd: root, timeout: 120_000 });
+  const destination = channel === "stable" ? "main" : `HEAD:refs/heads/${branch}`;
+  await runText("git", ["push", "origin", destination], { cwd: root, timeout: 120_000 });
 }
 
 async function changedPathsSinceTag(root, tag) {
@@ -231,29 +245,37 @@ async function previousDeepSeekRelease(root, targetVersion) {
   const output = await runText("git", ["tag", "--list", "deepseek-v*", "--sort=-version:refname"], { cwd: root });
   const tag = output.split("\n").find((candidate) => {
     const version = candidate.replace(/^deepseek-v/u, "");
-    return SEMVER_PATTERN.test(version) && compareSemVer(version, targetVersion) < 0;
+    return isReleaseVersion(version) && compareReleaseVersions(version, targetVersion) < 0;
   });
   if (tag) return tag;
   await runText("git", ["rev-parse", "--verify", "refs/tags/v0.5.0"], { cwd: root });
-  if (compareSemVer("0.5.0", targetVersion) >= 0) throw new Error(`cannot find a previous DeepSeek release before ${targetVersion}`);
+  if (compareReleaseVersions("0.5.0", targetVersion) >= 0) throw new Error(`cannot find a previous DeepSeek release before ${targetVersion}`);
   return "v0.5.0";
 }
 
-async function validateSource(root) {
+async function validateSource(root, channel, { requireRemoteMatch = false } = {}) {
   const branch = await runText("git", ["symbolic-ref", "--short", "HEAD"], { cwd: root });
-  if (branch !== "main") throw new Error("release command requires branch main");
+  if (channel === "stable" && branch !== "main") throw new Error("stable release command requires branch main");
   const status = await runText("git", ["status", "--porcelain"], { cwd: root });
   if (status !== "") throw new Error("release command requires a clean source checkout");
-  const [commit, tree, remoteCommit] = await Promise.all([
+  const [commit, tree] = await Promise.all([
     runText("git", ["rev-parse", "HEAD"], { cwd: root }),
     runText("git", ["rev-parse", "HEAD^{tree}"], { cwd: root }),
-    runText("git", ["rev-parse", "origin/main"], { cwd: root }),
   ]);
-  if (![commit, tree, remoteCommit].every((value) => GIT_SHA_PATTERN.test(value))) {
+  if (![commit, tree].every((value) => GIT_SHA_PATTERN.test(value))) {
     throw new Error("release source identities must be complete lowercase Git SHAs");
   }
-  if (commit !== remoteCommit) throw new Error("release command HEAD must equal origin/main");
-  return { commit, tree };
+  if (channel === "stable") {
+    const remoteCommit = await runText("git", ["rev-parse", "origin/main"], { cwd: root });
+    if (!GIT_SHA_PATTERN.test(remoteCommit) || commit !== remoteCommit) throw new Error("stable release command HEAD must equal origin/main");
+  } else if (requireRemoteMatch) {
+    const output = await runText("git", ["ls-remote", "--heads", "origin", `refs/heads/${branch}`], { cwd: root });
+    const [remoteCommit, remoteRef, extra] = output.split(/\s+/u);
+    if (extra !== undefined || remoteCommit !== commit || remoteRef !== `refs/heads/${branch}`) {
+      throw new Error("beta release command HEAD must equal the pushed source branch");
+    }
+  }
+  return { branch, commit, tree };
 }
 
 async function resolveOutputDirectory(root, outputDirectory) {
@@ -283,7 +305,8 @@ async function requireMatchingPreparedMode(directory, expected) {
     release.product !== "deepseek"
     || release.version !== expected.targetVersion
     || release.tag !== `deepseek-v${expected.targetVersion}`
-    || !SEMVER_PATTERN.test(release.core_version ?? "")
+    || !CORE_VERSION_PATTERN.test(release.core_version ?? "")
+    || releaseChannel(release.version) !== releaseChannel(expected.targetVersion)
     || release.verification_mode !== expected.mode
     || (expected.basedOnRelease !== undefined && release.based_on_release !== expected.basedOnRelease)
   ) throw new Error("prepared release mode/version differs from the requested resume");
@@ -325,15 +348,6 @@ async function requireExactReleaseFiles(directory, expectedNames) {
       throw new Error(`release output ${entry.name} must be a regular file`);
     }
   }
-}
-
-function compareSemVer(left, right) {
-  const a = left.split(".").map(Number);
-  const b = right.split(".").map(Number);
-  for (let index = 0; index < 3; index += 1) {
-    if (a[index] !== b[index]) return a[index] - b[index];
-  }
-  return 0;
 }
 
 function defaultOutputDirectory(version) {

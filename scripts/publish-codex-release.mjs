@@ -25,6 +25,7 @@ import {
   validateFinalJourneyEvidenceShape,
   validateQuickJourneyEvidence,
 } from "./write-codex-journey-evidence.mjs";
+import { isBetaVersion, npmDistTag } from "./release-channel.mjs";
 
 const execFile = promisify(execFileCallback);
 const OFFICIAL_REGISTRY = "https://registry.npmjs.org/";
@@ -81,6 +82,8 @@ export async function runPublisher({
     version: verified.version,
     coreVersion: verified.core_version,
     tag: verified.manifest.release.tag,
+    prerelease: isBetaVersion(verified.version),
+    npmTag: npmDistTag(verified.version),
     sourceCommit: verified.source_commit,
     sourceTree: verified.source_tree,
     tarballPath: join(releaseDirectory, `dev-flow-codex-${verified.version}.tgz`),
@@ -252,7 +255,7 @@ async function findExecutableInEnvironment(name, environment) {
 
 async function validateCurrentSource(context) {
   const branch = await runText("git", ["symbolic-ref", "--short", "HEAD"], context, { cwd: context.root });
-  if (branch !== "main") throw new PublicationError("SOURCE_BRANCH_CONFLICT", "publisher requires branch main", { blocked: true });
+  if (!context.prerelease && branch !== "main") throw new PublicationError("SOURCE_BRANCH_CONFLICT", "stable publisher requires branch main", { blocked: true });
   const status = await runText("git", ["status", "--porcelain"], context, { cwd: context.root });
   if (status !== "") throw new PublicationError("SOURCE_DIRTY", "publisher requires a clean source checkout", { blocked: true });
   const commit = await runText("git", ["rev-parse", "HEAD"], context, { cwd: context.root });
@@ -314,6 +317,7 @@ async function observeRemoteState(context, manifest, record) {
 
   const exactNPM = await observeExactNPM(context, { delayed: false });
   const npmReadback = exactNPM === null ? null : await verifyRegistryTarball(context, exactNPM, manifest);
+  if (exactNPM !== null) await verifyNPMChannelTag(context);
   if (exactNPM !== null && (tagTarget === null || release === null)) {
     throw new PublicationError("REMOTE_SEQUENCE_CONFLICT", "existing npm version lacks the required exact Tag or GitHub draft provenance", { blocked: true, step: "preflight" });
   }
@@ -372,14 +376,16 @@ async function ensureExactDraft(context, record) {
   validateObservedRelease(context, release);
   await checkpoint(context.recordPath, record, await readManifest(context.manifestPath), context);
   if (release === null) {
-    await runText("gh", [
+    const arguments_ = [
       "release", "create", context.tag,
       "--repo", REPOSITORY,
       "--draft",
       "--title", `Dev Flow ${context.tag}`,
       "--notes", "Prepared release; final registry-package journey remains pending.",
       "--target", context.sourceCommit,
-    ], context);
+    ];
+    if (context.prerelease) arguments_.push("--prerelease");
+    await runText("gh", arguments_, context);
     context.remoteMutated = true;
     release = await observeRelease(context);
   }
@@ -401,11 +407,13 @@ async function ensurePublishedNPM(context, record, manifest) {
   let observed = await observeExactNPM(context, { delayed: false });
   await checkpoint(context.recordPath, record, manifest, context);
   if (observed === null && !record.npm.published) {
-    await runText("npm", [
+    const arguments_ = [
       "publish", context.tarballPath,
       "--access", "public",
       `--registry=${OFFICIAL_REGISTRY}`,
-    ], context);
+    ];
+    if (context.prerelease) arguments_.push("--tag", context.npmTag);
+    await runText("npm", arguments_, context);
     context.remoteMutated = true;
     record.npm.published = true;
     completeStep(publishStep, {
@@ -448,6 +456,7 @@ async function ensurePublishedNPM(context, record, manifest) {
   }
   if (observed === null) throw new PublicationError("NPM_READBACK_TIMEOUT", "registry version was not visible within the bounded read-back window", { step: "npm_readback" });
   const readback = await verifyRegistryTarball(context, observed, manifest);
+  await verifyNPMChannelTag(context);
   record.npm.published = true;
   record.npm.verified = true;
   record.npm.integrity = observed.integrity;
@@ -842,6 +851,22 @@ async function observeExactNPM(context, { delayed }) {
   }
 }
 
+async function verifyNPMChannelTag(context) {
+  const output = await runText("npm", [
+    "view", "dev-flow-codex", "dist-tags", "--json", `--registry=${OFFICIAL_REGISTRY}`,
+  ], context);
+  let parsed;
+  try {
+    parsed = JSON.parse(output);
+  } catch {
+    throw new PublicationError("NPM_DIST_TAG_INVALID", "npm dist-tag metadata was not bounded JSON", { blocked: true, step: "npm_readback" });
+  }
+  const tags = parsed?.["dist-tags"] ?? parsed;
+  if (tags?.[context.npmTag] !== context.version || (context.prerelease && tags?.latest === context.version)) {
+    throw new PublicationError("NPM_DIST_TAG_CONFLICT", "npm dist-tag does not match the selected stable/beta channel", { blocked: true, step: "npm_readback" });
+  }
+}
+
 async function observeTagTarget(context) {
   const output = await runText("git", ["ls-remote", "--tags", "origin", `refs/tags/${context.tag}`], context, { cwd: context.root });
   if (output === "") return null;
@@ -892,7 +917,7 @@ function validateObservedRelease(context, release, { required = false, draft = n
     release.tagName !== context.tag ||
     release.targetCommitish !== context.sourceCommit ||
     typeof release.isDraft !== "boolean" ||
-    release.isPrerelease !== false ||
+    release.isPrerelease !== context.prerelease ||
     !Number.isSafeInteger(release.id) || release.id < 1 ||
     !Array.isArray(release.assets)
   ) throw new PublicationError("GITHUB_DRAFT_CONFLICT", "GitHub Release conflicts with the exact draft/source identity", { blocked: true, step: "github_draft" });

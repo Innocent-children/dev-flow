@@ -32,11 +32,12 @@ import { promisify } from "node:util";
 
 import { QUICK_NATIVE_EVIDENCE_KIND, validateFinalJourneyEvidence, validateQuickJourneyEvidence } from "./write-deepseek-journey-evidence.mjs";
 import { versionAtLeast } from "./semver.mjs";
+import { compareReleaseVersions, isReleaseVersion } from "./release-channel.mjs";
 
 const execFile = promisify(execFileCallback);
 
 export function releaseOutputNames(deepseekVersion, coreVersion) {
-  if (![deepseekVersion, coreVersion].every((value) => SEMVER_PATTERN.test(value))) throw new Error("release output versions must be strict MAJOR.MINOR.PATCH");
+  if (!isReleaseVersion(deepseekVersion) || !SEMVER_PATTERN.test(coreVersion)) throw new Error("release output requires a stable or beta DeepSeek version and a stable Core version");
   return ["SHA256SUMS", `dev-flow-core-${coreVersion}-darwin-arm64`, `dev-flow-deepseek-${deepseekVersion}.tgz`, "publication-record.json", "release-manifest.json"].sort();
 }
 
@@ -876,19 +877,16 @@ function arraysEqual(left, right) {
 
 function validateReleaseMode(mode, basedOnRelease, version) {
   if (!['quick', 'normal'].includes(mode)) throw new Error("release verification_mode must equal quick or normal");
-  const match = /^(?:v|deepseek-v)((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))$/u.exec(basedOnRelease ?? "");
+  const match = /^(?:v|deepseek-v)((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-beta\.(?:0|[1-9][0-9]*))?)$/u.exec(basedOnRelease ?? "");
   if (!match) throw new Error("release requires a previous DeepSeek release Tag");
-  const current = version.split(".").map(Number);
-  const previous = match[1].split(".").map(Number);
-  const older = previous.some((value, index) => value < current[index] && previous.slice(0, index).every((entry, prior) => entry === current[prior]));
-  if (!older) throw new Error("based_on_release must be lower than the DeepSeek version");
+  if (!isReleaseVersion(version) || compareReleaseVersions(match[1], version) >= 0) throw new Error("based_on_release must be lower than the DeepSeek version");
 }
 
 async function readSourceVersions(root) {
   const coreVersion = (await readBoundedFile(join(root, "CORE_VERSION"), 128)).toString("utf8").trim();
   const manifest = JSON.parse((await readBoundedFile(join(root, "packages", "deepseek", "package.json"), MAX_TEXT_FILE_BYTES)).toString("utf8"));
   const deepseekVersion = manifest?.version;
-  if (manifest?.name !== "dev-flow-deepseek" || ![coreVersion, deepseekVersion].every((value) => SEMVER_PATTERN.test(value))) {
+  if (manifest?.name !== "dev-flow-deepseek" || !SEMVER_PATTERN.test(coreVersion) || !isReleaseVersion(deepseekVersion)) {
     throw new Error("DeepSeek or Core source version is invalid");
   }
   return { deepseekVersion, coreVersion };

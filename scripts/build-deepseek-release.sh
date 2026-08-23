@@ -46,7 +46,14 @@ case "$output_directory/" in
   "$repository_root/"*) fail "output directory must be outside the source repository" ;;
 esac
 
-[ "$(git -C "$repository_root" symbolic-ref --short HEAD 2>/dev/null || true)" = "main" ] || fail "release preparation requires branch main"
+release_channel=${DEV_FLOW_RELEASE_CHANNEL:-stable}
+source_branch=$(git -C "$repository_root" symbolic-ref --short HEAD 2>/dev/null || true)
+[ -n "$source_branch" ] || fail "release preparation requires a named branch"
+case "$release_channel" in
+  stable) [ "$source_branch" = "main" ] || fail "stable release preparation requires branch main" ;;
+  beta) ;;
+  *) fail "release channel must equal stable or beta" ;;
+esac
 [ -z "$(git -C "$repository_root" status --porcelain)" ] || fail "release preparation requires a clean checkout"
 [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ] || fail "release preparation requires darwin-arm64"
 
@@ -60,13 +67,14 @@ esac
 
 core_version=$(sed -n '1p' "$repository_root/CORE_VERSION")
 deepseek_version=$(node -p 'require(process.argv[1]).version' "$repository_root/packages/deepseek/package.json")
-node - "$repository_root" "$deepseek_version" "$core_version" <<'NODE'
+DEV_FLOW_RELEASE_CHANNEL="$release_channel" node - "$repository_root" "$deepseek_version" "$core_version" <<'NODE'
 const fs = require("node:fs");
 const path = require("node:path");
 const [root, deepseekVersion, coreVersion] = process.argv.slice(2);
-if (![deepseekVersion, coreVersion].every((value) => /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(value))) {
-  throw new Error("DeepSeek and Core versions must be strict MAJOR.MINOR.PATCH");
-}
+const stable = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
+const beta = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-beta\.(0|[1-9][0-9]*)$/;
+const expected = process.env.DEV_FLOW_RELEASE_CHANNEL === "beta" ? beta : stable;
+if (!expected.test(deepseekVersion) || !stable.test(coreVersion)) throw new Error("DeepSeek version must match the release channel and Core must be MAJOR.MINOR.PATCH");
 const packageManifest = JSON.parse(fs.readFileSync(path.join(root, "packages/deepseek/package.json"), "utf8"));
 const privateContract = !Object.hasOwn(packageManifest, "private") || packageManifest.private === false;
 if (

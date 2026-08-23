@@ -31,11 +31,12 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { QUICK_NATIVE_EVIDENCE_KIND, validateFinalJourneyEvidence, validateQuickJourneyEvidence } from "./write-codex-journey-evidence.mjs";
+import { compareReleaseVersions, isReleaseVersion } from "./release-channel.mjs";
 
 const execFile = promisify(execFileCallback);
 
 export function releaseOutputNames(codexVersion, coreVersion) {
-  if (![codexVersion, coreVersion].every((value) => SEMVER_PATTERN.test(value))) throw new Error("release output versions must be strict MAJOR.MINOR.PATCH");
+  if (!isReleaseVersion(codexVersion) || !SEMVER_PATTERN.test(coreVersion)) throw new Error("release output requires a stable or beta Codex version and a stable Core version");
   return ["SHA256SUMS", `dev-flow-core-${coreVersion}-darwin-arm64`, `dev-flow-codex-${codexVersion}.tgz`, "publication-record.json", "release-manifest.json"].sort();
 }
 
@@ -869,19 +870,16 @@ function arraysEqual(left, right) {
 
 function validateReleaseMode(mode, basedOnRelease, version) {
   if (!['quick', 'normal'].includes(mode)) throw new Error("release verification_mode must equal quick or normal");
-  const match = /^(?:v|codex-v)((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))$/u.exec(basedOnRelease ?? "");
+  const match = /^(?:v|codex-v)((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-beta\.(?:0|[1-9][0-9]*))?)$/u.exec(basedOnRelease ?? "");
   if (!match) throw new Error("release requires a previous Codex release Tag");
-  const current = version.split(".").map(Number);
-  const previous = match[1].split(".").map(Number);
-  const older = previous.some((value, index) => value < current[index] && previous.slice(0, index).every((entry, prior) => entry === current[prior]));
-  if (!older) throw new Error("based_on_release must be lower than the Codex version");
+  if (!isReleaseVersion(version) || compareReleaseVersions(match[1], version) >= 0) throw new Error("based_on_release must be lower than the Codex version");
 }
 
 async function readSourceVersions(root) {
   const coreVersion = (await readBoundedFile(join(root, "CORE_VERSION"), 128)).toString("utf8").trim();
   const manifest = JSON.parse((await readBoundedFile(join(root, "packages", "codex", "package.json"), MAX_TEXT_FILE_BYTES)).toString("utf8"));
   const codexVersion = manifest?.version;
-  if (manifest?.name !== "dev-flow-codex" || ![coreVersion, codexVersion].every((value) => SEMVER_PATTERN.test(value))) {
+  if (manifest?.name !== "dev-flow-codex" || !SEMVER_PATTERN.test(coreVersion) || !isReleaseVersion(codexVersion)) {
     throw new Error("Codex or Core source version is invalid");
   }
   return { codexVersion, coreVersion };

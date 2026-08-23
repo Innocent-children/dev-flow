@@ -7,11 +7,13 @@ import { promisify } from "node:util";
 import test from "node:test";
 
 import { parseReleaseArguments, quickModeBlockingPaths, runReleaseCommand } from "../../../scripts/release-codex.mjs";
+import { compareReleaseVersions, npmDistTag } from "../../../scripts/release-channel.mjs";
 import { PUBLIC_RELEASE_DOCUMENT_PATHS } from "../../../scripts/sync-public-release-docs.mjs";
 
 const execFile = promisify(execFileCallback);
 const baseVersion = "1.2.3";
 const targetVersion = "1.2.4";
+const betaVersion = "1.3.0-beta.1";
 const coreVersion = "0.5.0";
 const deepseekVersion = "3.4.5";
 
@@ -21,6 +23,7 @@ test("release command requires mode/version/confirmation and explicit normal com
     "--output", "/tmp/dev-flow-release-v1.2.4",
     "--confirm", `codex-v${targetVersion}`, "--confirm-comprehension",
   ]), {
+    channel: "stable",
     mode: "normal",
     targetVersion,
     outputDirectory: "/tmp/dev-flow-release-v1.2.4",
@@ -30,11 +33,44 @@ test("release command requires mode/version/confirmation and explicit normal com
   assert.deepEqual(parseReleaseArguments([
     "--mode", "quick", "--version", targetVersion, "--confirm", `codex-v${targetVersion}`,
   ]).mode, "quick");
+  assert.equal(parseReleaseArguments([
+    "--channel", "beta", "--mode", "normal", "--version", betaVersion,
+    "--confirm", `codex-v${betaVersion}`, "--confirm-comprehension",
+  ]).channel, "beta");
+  assert.equal(compareReleaseVersions(betaVersion, baseVersion) > 0, true);
+  assert.equal(npmDistTag(betaVersion), "beta");
   for (const arguments_ of [
     [],
     ["--mode", "normal", "--version", targetVersion],
     ["--mode", "quick", "--version", targetVersion, "--confirm", `codex-v${targetVersion}`, "--unknown"],
   ]) assert.throws(() => parseReleaseArguments(arguments_), /usage|unknown argument/u);
+});
+
+test("beta channel releases a prerelease from an arbitrary clean branch without changing stable public versions", async (t) => {
+  const scenario = await createScenario(t, { changedPath: "docs/change.md" });
+  await git(scenario.repository, ["checkout", "-b", "preview/multi-repository"]);
+  const output = join(scenario.root, `codex-v${betaVersion}`);
+  const calls = [];
+  const result = await runReleaseCommand({
+    channel: "beta",
+    mode: "normal",
+    targetVersion: betaVersion,
+    outputDirectory: output,
+    confirmation: `codex-v${betaVersion}`,
+    comprehensionConfirmed: true,
+    repositoryRoot: scenario.repository,
+    platform: "darwin",
+    architecture: "arm64",
+    runProcess: recordingRunner(calls, { prepareOutput: output, version: betaVersion, mode: "normal" }),
+  });
+
+  assert.equal(result.release_channel, "beta");
+  assert.equal(JSON.parse(await readFile(join(scenario.repository, "packages/codex/package.json"), "utf8")).version, betaVersion);
+  assert.equal(JSON.parse(await readFile(join(scenario.repository, "release/public-versions.json"), "utf8")).codex.version, baseVersion);
+  assert.equal(calls[0].options.env.DEV_FLOW_RELEASE_CHANNEL, "beta");
+  const head = (await git(scenario.repository, ["rev-parse", "HEAD"])).trim();
+  const remote = (await git(scenario.repository, ["ls-remote", "--heads", "origin", "refs/heads/preview/multi-repository"])).trim().split(/\s+/u)[0];
+  assert.equal(remote, head);
 });
 
 test("quick eligibility rejects product surfaces and accepts release-only paths", () => {

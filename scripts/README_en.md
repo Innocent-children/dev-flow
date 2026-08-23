@@ -34,6 +34,7 @@ repository.
 
 ```bash
 pnpm run release:codex -- \
+  [--channel stable|beta] \
   --mode quick|normal \
   --version "<CODEX_VERSION>" \
   --output "<ABSOLUTE_DIRECTORY>" \
@@ -43,6 +44,7 @@ pnpm run release:codex -- \
 
 ```bash
 pnpm run release:deepseek -- \
+  [--channel stable|beta] \
   --mode quick|normal \
   --version "<DEEPSEEK_VERSION>" \
   --output "<ABSOLUTE_DIRECTORY>" \
@@ -50,7 +52,12 @@ pnpm run release:deepseek -- \
   [--confirm-comprehension]
 ```
 
-Both one-command release flows invoke `sync-public-release-docs.mjs` in their version commit. The
+`stable` is the default channel. It accepts stable SemVer and requires `main` to equal
+`origin/main`. `beta` accepts only `MAJOR.MINOR.PATCH-beta.N`, may use any clean named branch, and
+pushes the version commit back to that branch. It always uses npm dist-tag `beta`, marks the GitHub
+Release as a prerelease, and preserves stable `latest` and public-version documentation.
+
+Both one-command release flows invoke `sync-public-release-docs.mjs` only in stable version commits. The
 synchronizer gets version facts only from `CORE_VERSION`, product package manifests, and
 `release/public-versions.json`, then updates every maintained root README, product guide, Roadmap,
 Support Matrix, and Host package README. Markdown never decides a version.
@@ -59,7 +66,7 @@ Before a release, inspect paths changed since the current public Tag. The mainta
 selects `quick` or `normal`. Only these exact-confirmation entrypoints may change a product
 version, commit and push, create a Tag, publish npm, or mutate GitHub Release assets.
 
-The Publisher uses external `release-manifest.json` and `publication-record.json` files to retain
+Both channels share the same Publisher. It uses external `release-manifest.json` and `publication-record.json` files to retain
 source, mode, versions, artifact digests, remote read-back, and recovery state. Resume with the same
 command and output directory after an interruption.
 

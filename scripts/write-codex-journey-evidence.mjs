@@ -2864,8 +2864,8 @@ function assertExactFields(value, fields, label) {
 }
 
 function requireReleaseVersion(value) {
-  if (typeof value !== "string" || !/^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$/u.test(value)) {
-    throw new Error("release version must be a stable SemVer string");
+  if (typeof value !== "string" || !/^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-beta\.(?:0|[1-9][0-9]*))?$/u.test(value)) {
+    throw new Error("release version must be a stable or beta SemVer string");
   }
 }
 
