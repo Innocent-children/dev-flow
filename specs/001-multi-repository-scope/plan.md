@@ -226,7 +226,10 @@ transcript，并授权由失败证据驱动的 source-bound repair loop 继续�
 确认失败 payload 在正常 `implementation_ready_for_test` 分支错误携带非空 `findings`；共享规则
 现统一 `problem_class`/`findings` 的分支语义，并将 TEST 验证留给后续 session。Attempt 7 基于
 `6279ac8ffaf2a5e5c26a2dc457d2b31096399a78` 通过最终双 session 合同，T034 已完成。
-T035 与 T040 仍分别为 0/1，且不增加其他测试预算。
+T035 已基于 source commit `14b8669bc331b88a6ccef3888d8c553a54c2bcc5` 执行唯一一次真实
+DeepSeek Journey。DSH exit code 为 0，但 post-session evidence validation 失败，Task 仅停在
+`REQUIREMENTS`、revision 1，未证明双仓修改、附加仓恢复或终态；预算 1/1 已消费，Feature 为
+`Blocked`，不得自动修复重跑。T040 仍为 0/1 且不得执行。
 
 明确不建立 3～8 仓库、节点、平台或配置排列组合；不做压力、性能、fuzz、版本矩阵；不安装或
 测试真实 codebase-memory；T034 之外的真实 Host Journey 不得扩大既定预算。

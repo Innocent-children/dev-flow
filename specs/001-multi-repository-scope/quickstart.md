@@ -199,8 +199,12 @@ substantive session 不提前运行 TEST 节点的验证命令。
 Attempt 7 证明 source-bound setup/readback、两个独立 Codex thread、一个 Core Task、两个仓库、
 双仓 mutation 后从附加仓恢复，以及恢复前后 revision、Action ID、binding digest 与 Scope 一致。
 
-T035 DeepSeek Journey 和第 7 节 T040 最终仓库级验证仍各最多调用一次，当前均为 0/1。调用前必须
-完成对应的定向检查，且不增加其他测试预算。
+T035 DeepSeek Journey 已基于 source commit
+`14b8669bc331b88a6ccef3888d8c553a54c2bcc5` 调用一次并失败，预算 1/1 已消费。DSH exit code
+为 0，但 evidence validation 发现会话首个调用为 `bash` 而不是 runner 假定的 server-info；闭合
+evidence 中 Task 停在 `REQUIREMENTS`、revision 1，未证明双仓修改、附加仓恢复或终态。失败
+evidence 保留在 `tests/journeys/deepseek/evidence/feature-001-multi-repository.json`。不得自动修复
+重跑，Feature 为 `Blocked`。第 7 节 T040 仍为 0/1 且不得执行。
 
 ### Codex
 
@@ -231,12 +235,15 @@ T035 DeepSeek Journey 和第 7 节 T040 最终仓库级验证仍各最多调用�
 ### DeepSeek
 
 - 一个非 Git 临时 Workspace Root，其下初始化主/附加两个 Git 仓库；
-- 一个 DSH 运行完成创建、双仓修改、从附加仓库恢复和同一 Task 终态；
+- 唯一一次 DSH 运行已失败并消费 1/1；T035 保持未完成；
+- 失败 evidence 只证明一个 DeepSeek Task 创建后停在 `REQUIREMENTS`、revision 1，不满足双仓修改、
+  从附加仓库恢复和同一 Task 终态条件；
 - root 外拒绝由第 3 节 guard 测试证明，不再运行第二次真实 Journey。
 
 ## 7. 最终全仓门禁（最多一次）
 
-所有定向检查、文档同步和两个 Host Journey 完成后，最多执行一次：
+所有定向检查、文档同步和两个 Host Journey 完成后，最多执行一次。当前 T035 未完成且 Feature 为
+`Blocked`，因此不得执行：
 
 ```bash
 pnpm run validate

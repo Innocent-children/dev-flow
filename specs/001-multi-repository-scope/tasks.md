@@ -155,8 +155,15 @@ description: "Implementation tasks for bounded multi-repository Task scope and r
     - result: source-bound setup/readback passed；2 Codex sessions；1 Core Task；2 repositories；revision 5 before/after resume；Action ID、binding digest 与 ordered Scope 相同
     - raw transcripts: evidence 旁的 `.substantive.raw.jsonl` 与 `.resume.raw.jsonl`，权限 `0600`，仅本地诊断且由 `.gitignore` 排除
 - [ ] T035 [US3] 在 T033 的 DeepSeek 定向检查通过后，新增 `tests/journeys/deepseek/multi-repository-runner.mjs` 并最多调用一次 DeepSeek 真实两仓库 Journey，以非 Git Workspace Root 下两个临时 Git 仓库完成同一 Core Task 的创建、双仓工作和附加仓恢复，并将 sanitized 结果写入 `tests/journeys/deepseek/evidence/feature-001-multi-repository.json`。调用一旦实际启动即消耗预算，无论成功、失败、中断或超时；失败时必须停止并将 Feature 标记为 `Blocked`，不得在同一任务中自动修复后重跑。第二次执行必须先获得用户明确批准，并同步修订 `spec.md`、`plan.md`、`quickstart.md` 和 `tasks.md` 中的验证预算（FR-017、FR-018；SC-008；`quickstart.md`「DeepSeek」）。
+  - source commit: `14b8669bc331b88a6ccef3888d8c553a54c2bcc5`
+  - status: failed；runner exit code 1；budget 1/1 consumed
+  - preflight: source-local build、isolated DSH install、installed Core digest readback passed；session 0；Core Task 0
+  - session: DSH 已真实启动并 exit 0；闭合 evidence 中只有一个 DeepSeek Task，停在 `REQUIREMENTS`、revision 1
+  - failure: post-session evidence validation 期望每个 session 首个调用为 `mcp__dev_flow__dev_flow_server_info`，实际观察到 `bash`；该运行未证明双仓修改、附加仓恢复或终态
+  - evidence: `tests/journeys/deepseek/evidence/feature-001-multi-repository.json`，权限 `0600`，必须保留
+  - retry: forbidden；不得自动修复重跑；第二次执行需用户明确批准并先修订验证预算
 
-**Checkpoint**: T034 已完成；本轮停止于此，T035 尚未执行。
+**Checkpoint — BLOCKED**: T034 已完成；T035 已失败并消费唯一预算，保持未完成；Feature 为 `Blocked`。停止，不执行 T036～T040。
 
 ---
 

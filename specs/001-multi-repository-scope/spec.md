@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-23
 
-**Status**: Ready
+**Status**: Blocked
 
 **Input**: User description: "为 Dev Flow 增加多仓库任务范围与用户配置，在保持单一 Core 流程权威和现有单仓库行为的前提下，让一个 Task 显式绑定一个主仓库和若干附加仓库。"
 
@@ -312,9 +312,16 @@ runner 本地保留并读取两个 session 的 raw JSONL，且授权按“保留
   Journey；Codex executable 启动后的失败必须保留 evidence 与 raw transcript；
 - T034 已由 Attempt 7 首次通过结果完成，不再运行 Codex repair Journey。
 
-T035 DeepSeek Journey 和 T040 最终 `pnpm run validate` 仍各最多调用一次，当前均为 0/1。除 T034
-repair loop 外，不增加其他测试预算。调用任何最终检查前必须先完成其定向前置检查。
-当前 T034 已完成，Feature 状态为 `Ready`；T035 和 T040 尚未执行。
+T035 DeepSeek Journey 已基于 source commit
+`14b8669bc331b88a6ccef3888d8c553a54c2bcc5` 调用一次并失败，预算为 1/1 consumed。DSH 进程
+exit code 为 0，但 post-session evidence validation 发现首次调用为 `bash` 而不是 runner 假定的
+`dev_flow_server_info`；闭合 evidence 只记录到 `REQUIREMENTS`、revision 1，未证明双仓修改、附加仓
+恢复或终态。失败 evidence 为
+`tests/journeys/deepseek/evidence/feature-001-multi-repository.json`，必须保留；T035 保持未完成，不得
+自动修复重跑。第二次执行必须先获得用户明确批准，并同步修订本 Feature 的验证预算。
+
+T040 最终 `pnpm run validate` 仍为 0/1。当前 T034 已完成，T035 已失败，Feature 状态为
+`Blocked`；T040 不得执行。
 
 ## Success Criteria *(mandatory)*
 
