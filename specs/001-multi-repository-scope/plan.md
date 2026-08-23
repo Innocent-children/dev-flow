@@ -224,7 +224,8 @@ resume session 的本地 raw JSONL；闭合 failure evidence 仍为最小可提�
 `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-5.json`。用户已授权读取和存储 raw
 transcript，并授权由失败证据驱动的 source-bound repair loop 继续到首次通过。Attempt 6 evidence
 确认失败 payload 在正常 `implementation_ready_for_test` 分支错误携带非空 `findings`；共享规则
-现统一 `problem_class`/`findings` 的分支语义，并将 TEST 验证留给后续 session。T034 当前未完成。
+现统一 `problem_class`/`findings` 的分支语义，并将 TEST 验证留给后续 session。Attempt 7 基于
+`6279ac8ffaf2a5e5c26a2dc457d2b31096399a78` 通过最终双 session 合同，T034 已完成。
 T035 与 T040 仍分别为 0/1，且不增加其他测试预算。
 
 明确不建立 3～8 仓库、节点、平台或配置排列组合；不做压力、性能、fuzz、版本矩阵；不安装或

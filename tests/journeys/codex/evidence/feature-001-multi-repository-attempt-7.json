@@ -1,0 +1,32 @@
+{
+  "evidence_kind": "feature-001-multi-repository-codex-journey",
+  "status": "passed",
+  "source_commit": "6279ac8ffaf2a5e5c26a2dc457d2b31096399a78",
+  "host": "codex",
+  "runner_mode": "multi-repository",
+  "journey_budget": "1/1",
+  "setup_readback_passed": true,
+  "codex_session_count": 2,
+  "task_id": "task-28e372a3d39214e8cc5ed2de43b39f3a",
+  "primary_repository_key": "core",
+  "additional_repository_keys": [
+    "docs"
+  ],
+  "repository_count": 2,
+  "revision_before_resume": 5,
+  "revision_after_resume": 5,
+  "action_id_before_resume": "action-a340ed41cf21bfb003eb2a05bf003e11",
+  "action_id_after_resume": "action-a340ed41cf21bfb003eb2a05bf003e11",
+  "repository_binding_digest_before_resume": "1941c28d6ae333678b8600021a27472b60c3c12a54f68d769e8a53653f765ffd",
+  "repository_binding_digest_after_resume": "1941c28d6ae333678b8600021a27472b60c3c12a54f68d769e8a53653f765ffd",
+  "resumed_from_additional_repository": true,
+  "one_core_task": true,
+  "scoped_paths": [
+    "core::core-proof.txt",
+    "docs::docs-proof.txt"
+  ],
+  "successful_action_count": 4,
+  "tool_catalog_size": 6,
+  "codebase_memory_preference": false,
+  "observed_at": "2026-08-23T13:15:27.580Z"
+}

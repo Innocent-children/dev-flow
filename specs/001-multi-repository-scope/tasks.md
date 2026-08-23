@@ -94,7 +94,7 @@ description: "Implementation tasks for bounded multi-repository Task scope and r
 - [X] T031 [P] [US3] 在 `packages/deepseek/lib/authorization.mjs` 扩展现有 `dev_flow_open_task` guard，以启动时 canonical `process.cwd()` 为 Workspace Root，在 task-bearing dispatch 前拒绝 root 外主/附加路径和 symlink escape，保持 selector 与六工具 guard 不变（FR-017、FR-018、FR-030；SC-008、SC-010；`contracts/host-configuration.md`「DeepSeek 权限合同」）。
 - [X] T032 [US3] 在 `packages/deepseek/tests/authorization.test.mjs`、`packages/deepseek/tests/skill-contract.test.mjs`、`tests/journeys/deepseek/fake-core.mjs`、`tests/journeys/deepseek/simulated-graph-journey.test.mjs` 验证非 Git Root 内两仓允许、Root 外/escape 零 dispatch、同一 Core Task/Action/digest，以及 [US4] 的 false/true-unavailable 一次提示回退，不增加平台或索引集成矩阵（FR-017、FR-018、FR-021～FR-025、FR-030；SC-007、SC-008、SC-009、SC-010；`contracts/host-configuration.md`「DeepSeek 权限合同」「codebase-memory 行为」）。
 - [X] T033 运行 `node --test packages/codex/tests/launcher.test.mjs packages/codex/tests/fake-core-contract.test.mjs packages/codex/tests/skill-contract.test.mjs packages/codex/tests/journey-harness.test.mjs` 和 `node --test packages/deepseek/tests/authorization.test.mjs packages/deepseek/tests/skill-contract.test.mjs tests/journeys/deepseek/simulated-graph-journey.test.mjs`，只判定本阶段 deterministic Adapter 合同，不执行真实 Host 或真实 codebase-memory（FR-014～FR-025、FR-030；SC-007、SC-008、SC-009、SC-010）。
-- [ ] T034 [US3] 在 T033 的 Codex 定向检查通过后，通过 `scripts/run-codex-real-journey.sh` 的 Feature-only `multi-repository` mode 取得一个通过结果。Attempts 1～5 作为不可覆盖的历史证据保留；用户已授权读取和本地存储 raw JSONL，并授权按“上一份 raw failure → 精确代码修复 → 新 source commit 的一次验证”的 repair loop 继续到首次通过。没有代码修复时不得重复运行，且该授权不包含 T035 或 T040（FR-014～FR-016；SC-008；`quickstart.md`「Codex」）。
+- [X] T034 [US3] 在 T033 的 Codex 定向检查通过后，通过 `scripts/run-codex-real-journey.sh` 的 Feature-only `multi-repository` mode 取得一个通过结果。Attempts 1～6 作为不可覆盖的历史证据保留；Attempt 7 是首次满足最终双 session 合同的通过结果。该运行基于 source commit `6279ac8ffaf2a5e5c26a2dc457d2b31096399a78`，证明 source-bound setup/readback、两个不同 Codex thread、一个 Core Task、双仓 mutation 后附加仓恢复，以及恢复前后 revision、Action ID、repository binding digest 与 Scope 一致（FR-014～FR-016；SC-008；`quickstart.md`「Codex」）。
   - **Attempt 1**
     - source commit: `1176809054e814d7d163ef7eef0243b1538a71a3`
     - status: failed
@@ -148,14 +148,15 @@ description: "Implementation tasks for bounded multi-repository Task scope and r
     - evidence: `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-6.json`
     - raw transcripts: evidence 旁的 `.substantive.raw.jsonl` 与 `.resume.raw.jsonl`，权限 `0600`，仅本地诊断且由 `.gitignore` 排除
     - root fix: 共享 apply 规则将 `problem_class`/`findings` 绑定图分支语义，正常 ready/passed/completed 分支强制空 findings；substantive session 不提前运行 TEST 验证
-  - **Next repair verification**
-    - status: authorized, not started
-    - source commit: 提交 Attempt 6 根因修复后确定
+  - **Attempt 7**
+    - status: passed；runner exit code 0
+    - source commit: `6279ac8ffaf2a5e5c26a2dc457d2b31096399a78`
     - evidence: `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-7.json`
-    - rule: 通过则立即完成 T034；失败则继续以独立 evidence 与 raw transcript 驱动精确修复
+    - result: source-bound setup/readback passed；2 Codex sessions；1 Core Task；2 repositories；revision 5 before/after resume；Action ID、binding digest 与 ordered Scope 相同
+    - raw transcripts: evidence 旁的 `.substantive.raw.jsonl` 与 `.resume.raw.jsonl`，权限 `0600`，仅本地诊断且由 `.gitignore` 排除
 - [ ] T035 [US3] 在 T033 的 DeepSeek 定向检查通过后，新增 `tests/journeys/deepseek/multi-repository-runner.mjs` 并最多调用一次 DeepSeek 真实两仓库 Journey，以非 Git Workspace Root 下两个临时 Git 仓库完成同一 Core Task 的创建、双仓工作和附加仓恢复，并将 sanitized 结果写入 `tests/journeys/deepseek/evidence/feature-001-multi-repository.json`。调用一旦实际启动即消耗预算，无论成功、失败、中断或超时；失败时必须停止并将 Feature 标记为 `Blocked`，不得在同一任务中自动修复后重跑。第二次执行必须先获得用户明确批准，并同步修订 `spec.md`、`plan.md`、`quickstart.md` 和 `tasks.md` 中的验证预算（FR-017、FR-018；SC-008；`quickstart.md`「DeepSeek」）。
 
-**Checkpoint**: 继续 T034 的 evidence-driven repair loop，直到首次通过；期间不得执行 T035。
+**Checkpoint**: T034 已完成；本轮停止于此，T035 尚未执行。
 
 ---
 
@@ -230,7 +231,7 @@ Join: T006
 Parallel task A: T024 -> T025 -> T026 -> T027 -> T028 (Codex)
 Parallel task B: T029 -> T030 and T031 -> T032 (DeepSeek)
 Join: T033
-Sequential evidence: complete T034's evidence-driven repair loop first; T035 remains 0/1 and blocked
+Sequential evidence: T034 passed on Attempt 7; T035 remains 0/1 and is next
 ```
 
 ## Implementation Strategy
@@ -254,6 +255,6 @@ The smallest reviewable MVP is Phase 1 plus Phase 2: it delivers US1's bounded R
 - Do not add 3～8 repository, platform, node, configuration or Recovery combination matrices.
 - Do not add stress, performance, fuzz, coverage expansion or real codebase-memory installation/integration work.
 - Do not modify `CORE_VERSION`, `packages/codex/package.json`, `packages/deepseek/package.json`, release contracts/scripts/evidence, npm state, Tags or GitHub Releases.
-- T034 Attempts 1～5 为不可覆盖的历史证据；后续每次真实运行必须由上一份 raw failure 支持精确代码修复，并在首次通过后停止。
+- T034 Attempts 1～6 为不可覆盖的失败历史证据，Attempt 7 为最终通过证据；不得再次运行 Codex repair Journey。
 - DeepSeek Journey 或 `pnpm run validate` 一旦启动即消费各自唯一的 0/1 预算，无论成功、失败、中断或超时。
 - T034 repair loop 不得带出 T035 或 T040；不得第二次执行 DeepSeek Journey 或 `pnpm run validate`。

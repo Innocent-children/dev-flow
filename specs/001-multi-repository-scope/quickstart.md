@@ -178,8 +178,8 @@ Action 只有一个 aggregate `repository_binding_digest`。
 实现任务应在现有 journey harness 中增加一个明确的 `multi-repository` 入口，并在执行前一次性确认
 参数、临时目录和证据输出。
 
-T034 Attempts 1～5 保留为不可覆盖的历史证据。Attempts 1、2、4、5 已失败，Attempt 3 已通过但只证明
-mutation 前恢复；T034 未完成且 Feature 为 `Ready`。用户已授权 runner 将 substantive 与 resume
+T034 Attempts 1～6 保留为不可覆盖的历史证据。Attempts 1、2、4、5、6 已失败，Attempt 3 已通过但只证明
+mutation 前恢复；Attempt 7 已通过最终双 session 合同，T034 已完成且 Feature 为 `Ready`。用户已授权 runner 将 substantive 与 resume
 session 的 raw JSONL 以 `0600` sidecar 保存在独立 evidence 旁，并授权读取其中的完整 MCP 调用。
 后续每次真实运行必须绑定新的 source commit，只验证上一份 raw failure 直接支持的精确修复；首次
 通过后立即停止，失败时必须先读取 raw transcript 并修改根因，不允许无代码变化重跑。
@@ -196,6 +196,8 @@ Attempt 6 raw transcript 显示 `implementation_ready_for_test` 的 Action 和 t
 分支 payload 将验证描述放进了非空 `findings`，Core 按合同返回 `TRANSITION_NOT_ALLOWED`。共享
 apply 规则现要求所有正常 ready/passed/completed 分支使用 `problem_class=none`、`findings=[]`，并且
 substantive session 不提前运行 TEST 节点的验证命令。
+Attempt 7 证明 source-bound setup/readback、两个独立 Codex thread、一个 Core Task、两个仓库、
+双仓 mutation 后从附加仓恢复，以及恢复前后 revision、Action ID、binding digest 与 Scope 一致。
 
 T035 DeepSeek Journey 和第 7 节 T040 最终仓库级验证仍各最多调用一次，当前均为 0/1。调用前必须
 完成对应的定向检查，且不增加其他测试预算。
@@ -210,6 +212,8 @@ T035 DeepSeek Journey 和第 7 节 T040 最终仓库级验证仍各最多调用�
 - 第二段使用 `--cd <additional> --add-dir <primary>`，只从附加仓库恢复，不修改文件或 apply；
 - evidence 对比最后一次成功 apply 与恢复结果，并证明不同 Codex thread、同一 Core Task、
   revision、Action、digest 和 Scope；
+- Attempt 7 通过 evidence 保留在
+  `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-7.json`，对应 raw sidecar 仅本地保存；
 - Attempt 6 失败 evidence 保留在
   `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-6.json`，对应 raw sidecar 仅本地保存；
 - Attempt 5 失败 evidence 保留在

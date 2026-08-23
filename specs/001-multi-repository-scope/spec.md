@@ -304,14 +304,17 @@ runner 本地保留并读取两个 session 的 raw JSONL，且授权按“保留
 - 共享 apply 规则现规定前进的 ready/passed/completed 分支使用 `problem_class=none` 与
   `findings=[]`，普通观察进入节点语义字段；substantive session 只完成 IMPLEMENT apply，TEST
   验证命令保留给后续 session；
+- Attempt 7 已基于 source commit `6279ac8ffaf2a5e5c26a2dc457d2b31096399a78` 通过，
+  evidence 为 `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-7.json`；source-bound
+  setup/readback 通过，两个不同 Codex thread 共同使用一个 Core Task，双仓 mutation 后从附加仓
+  恢复前后的 revision=5、Action ID、repository binding digest 与有序 Scope 完全一致；
 - build、install、setup、registration/Core readback 在 Codex executable 启动前失败时不构成真实
   Journey；Codex executable 启动后的失败必须保留 evidence 与 raw transcript；
-- T034 未完成；下一次运行只用于验证当前精确修复，成功后立即闭合 T034，失败则先读取 raw
-  transcript 并修复具体根因，禁止无代码变化重跑。
+- T034 已由 Attempt 7 首次通过结果完成，不再运行 Codex repair Journey。
 
 T035 DeepSeek Journey 和 T040 最终 `pnpm run validate` 仍各最多调用一次，当前均为 0/1。除 T034
 repair loop 外，不增加其他测试预算。调用任何最终检查前必须先完成其定向前置检查。
-当前 T034 未完成，Feature 状态为 `Ready`。
+当前 T034 已完成，Feature 状态为 `Ready`；T035 和 T040 尚未执行。
 
 ## Success Criteria *(mandatory)*
 
