@@ -37,7 +37,7 @@ import { compareReleaseVersions, isReleaseVersion } from "./release-channel.mjs"
 const execFile = promisify(execFileCallback);
 
 export function releaseOutputNames(deepseekVersion, coreVersion) {
-  if (!isReleaseVersion(deepseekVersion) || !SEMVER_PATTERN.test(coreVersion)) throw new Error("release output requires a stable or beta DeepSeek version and a stable Core version");
+  if (!isReleaseVersion(deepseekVersion) || !SEMVER_PATTERN.test(coreVersion)) throw new Error("release output versions must use strict MAJOR.MINOR.PATCH, with optional -beta.N for DeepSeek only");
   return ["SHA256SUMS", `dev-flow-core-${coreVersion}-darwin-arm64`, `dev-flow-deepseek-${deepseekVersion}.tgz`, "publication-record.json", "release-manifest.json"].sort();
 }
 
