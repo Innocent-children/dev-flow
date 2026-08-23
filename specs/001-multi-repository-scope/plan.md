@@ -194,9 +194,8 @@ Release、`.agents/skills/` 或 `.specify/templates/`。
 3. Store/MCP/Config：多 claim 原子事务、preflight 与旧 schema 零写拒绝、closed open input、
    server-info 有效偏好、配置 missing/valid/invalid。
 4. Host：Codex 和 DeepSeek 的 Skill/guard/launcher 定向合同；未授权目录由确定性测试证明。
-5. Journey：完成对应 Host 定向检查后，T034 Codex 真实两仓库 Journey 总预算最多调用两次；
-   Attempt 1 已消费并失败，用户仅批准最后一次 Attempt 2。DeepSeek 真实两仓库 Journey 仍最多
-   调用一次。
+5. Journey：T034 Codex 真实两仓库 Journey 总预算封顶为两次；Attempt 1 和 Attempt 2
+   均已消费并失败，不得第三次执行。DeepSeek 真实两仓库 Journey 仍最多调用一次。
 6. 完成全部定向检查后，最终 `pnpm run validate` 最多调用一次。
 
 Attempt 1 source commit 为 `1176809054e814d7d163ef7eef0243b1538a71a3`，状态为 failed，原始
@@ -205,10 +204,11 @@ evidence `tests/journeys/codex/evidence/feature-001-multi-repository.json` 不�
 该 source commit。source-bound runner 已修复为 source-local build → isolated install → setup →
 registration/Core readback → Codex，确定性测试 46/46 通过。
 
-Attempt 2 已由用户明确批准但尚未启动，使用独立 evidence
-`tests/journeys/codex/evidence/feature-001-multi-repository-attempt-2.json`。其 build、install、setup
-或 readback 在真实 Codex executable 启动前失败时不消费剩余预算；一旦 Codex 启动，无论成功、
-失败、中断或超时均消费最后一次预算。Attempt 2 失败后 Feature 保持 `Blocked`，禁止第三次执行。
+Attempt 2 已基于 `c150f281beae12dba222e8758be5cb3ec80d2a44` 启动并消费最后
+一次预算，独立 evidence 为
+`tests/journeys/codex/evidence/feature-001-multi-repository-attempt-2.json`。source-bound build、install、
+setup 与 readback 通过，但 post-session evidence validation 未能证明从附加仓库恢复
+同一 Task，runner 返回 1。Feature 保持 `Blocked`，T034 未完成，禁止第三次执行。
 T035 与 T040 仍分别为 0/1，且不增加其他测试预算。
 
 明确不建立 3～8 仓库、节点、平台或配置排列组合；不做压力、性能、fuzz、版本矩阵；不安装或

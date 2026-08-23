@@ -178,11 +178,11 @@ Action 只有一个 aggregate `repository_binding_digest`。
 实现任务应在现有 journey harness 中增加一个明确的 `multi-repository` 入口，并在执行前一次性确认
 参数、临时目录和证据输出。
 
-T034 Codex Journey 总预算最多两次。Attempt 1 已消费并失败；用户已批准最后一次 Attempt 2，当前
-为 `1/2 remaining, not started`。Attempt 2 启动前必须使用新的、已推送 source commit，并完成
-source-local build、isolated install、setup 与 registration/Core readback。上述启动前步骤失败不消费
-剩余预算；真实 Codex executable 一旦启动，无论成功、失败、中断或超时均消费剩余预算。Attempt 2
-失败后禁止第三次 Codex Journey。
+T034 Codex Journey 总预算最多两次。Attempt 1 和 Attempt 2 均已消费并失败，当前为
+`2/2 consumed, failed`。Attempt 2 的 source-local build、isolated install、setup 与
+registration/Core readback 通过，真实 Codex thread 已启动，但 post-session evidence
+validation 未能证明从附加仓库恢复同一 Task。T034 未完成，Feature 保持 `Blocked`，
+禁止第三次 Codex Journey。
 
 T035 DeepSeek Journey 和第 7 节 T040 最终仓库级验证仍各最多调用一次，当前均为 0/1。调用前必须
 完成对应的定向检查，且不增加其他测试预算。
@@ -190,10 +190,10 @@ T035 DeepSeek Journey 和第 7 节 T040 最终仓库级验证仍各最多调用�
 ### Codex
 
 - 一个临时主 Git 仓库和一个临时附加 Git 仓库；
-- Attempt 2 使用一个 Codex 运行，使用 `--cd <primary>`、`--add-dir <additional>` 和
+- Attempt 2 已使用一个 Codex 运行，使用 `--cd <primary>`、`--add-dir <additional>` 和
   `--sandbox workspace-write`；
 - 创建两仓库 Task、在两个仓库完成一个有界修改、从附加仓库恢复并完成同一 Task；
-- 记录一个 Task、一套 Action/revision/Outcome 和两个 claim 的证据到
+- 失败 evidence 已记录到
   `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-2.json`；
 - 永久保留 Attempt 1 evidence
   `tests/journeys/codex/evidence/feature-001-multi-repository.json`；

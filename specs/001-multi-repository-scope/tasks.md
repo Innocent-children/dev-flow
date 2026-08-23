@@ -102,14 +102,18 @@ description: "Implementation tasks for bounded multi-repository Task scope and r
     - failure: no successful first `dev_flow_server_info` call was observed
     - retry: forbidden under the original budget
   - **Attempt 2**
-    - status: authorized, not started
-    - budget: one remaining invocation
-    - prerequisite: source-bound runner and deterministic validation complete；使用新的、已推送 source commit
-    - evidence target: `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-2.json`
+    - source commit: `c150f281beae12dba222e8758be5cb3ec80d2a44`
+    - status: failed
+    - budget: consumed（修订后的 T034 总预算为 2/2 consumed）
+    - evidence: `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-2.json`
+    - preflight: source-bound build/install/setup/registration/Core readback passed
+    - session: Codex thread started；first `dev_flow_server_info` succeeded；Codex process exit code 0
+    - failure: post-session evidence validation did not prove resume of the same Task from the additional repository；runner exit code 1
+    - retry: forbidden；no third Codex Journey
     - preservation: MUST NOT overwrite or modify Attempt 1 evidence
 - [ ] T035 [US3] 在 T033 的 DeepSeek 定向检查通过后，新增 `tests/journeys/deepseek/multi-repository-runner.mjs` 并最多调用一次 DeepSeek 真实两仓库 Journey，以非 Git Workspace Root 下两个临时 Git 仓库完成同一 Core Task 的创建、双仓工作和附加仓恢复，并将 sanitized 结果写入 `tests/journeys/deepseek/evidence/feature-001-multi-repository.json`。调用一旦实际启动即消耗预算，无论成功、失败、中断或超时；失败时必须停止并将 Feature 标记为 `Blocked`，不得在同一任务中自动修复后重跑。第二次执行必须先获得用户明确批准，并同步修订 `spec.md`、`plan.md`、`quickstart.md` 和 `tasks.md` 中的验证预算（FR-017、FR-018；SC-008；`quickstart.md`「DeepSeek」）。
 
-**Checkpoint — STOP REQUIRED**: T033 必须通过；T034 在总计最多两次的修订预算内取得明确结果，T035 仍最多消费一次真实 Journey 预算。Codex MUST 在此停止并等待用户授权；不得继续 Phase 5。
+**Checkpoint — STOP REQUIRED**: T034 Attempt 1 和 Attempt 2 均已失败，2/2 预算已消费，T034 保持未完成且 Feature 为 `Blocked`。禁止第三次 Codex Journey；T035 仍为 0/1。Codex MUST 在此停止并等待用户授权；不得继续 Phase 5。
 
 ---
 
@@ -184,7 +188,7 @@ Join: T006
 Parallel task A: T024 -> T025 -> T026 -> T027 -> T028 (Codex)
 Parallel task B: T029 -> T030 and T031 -> T032 (DeepSeek)
 Join: T033
-Sequential budgeted evidence: T034 at most twice with Attempt 1 consumed and only Attempt 2 remaining; T035 once
+Sequential budgeted evidence: T034 at most twice with Attempt 1 and Attempt 2 both consumed and failed; T035 remains 0/1
 ```
 
 ## Implementation Strategy
@@ -198,7 +202,7 @@ The smallest reviewable MVP is Phase 1 plus Phase 2: it delivers US1's bounded R
 1. Complete Phase 1, run only T006, stop.
 2. Complete Phase 2, run only T013, stop and review the MVP.
 3. Complete Phase 3, run only T023, stop and review persistence/Recovery.
-4. Complete Phase 4 deterministic tests, execute only the authorized final T034 Attempt 2, then T035 once, stop.
+4. Phase 4 stopped after the authorized final T034 Attempt 2 failed; do not proceed to T035 while the Feature is `Blocked`.
 5. Complete synchronized docs and consume the single T040 full validation, then final stop.
 
 ## Scope and Budget Guardrails
@@ -208,6 +212,6 @@ The smallest reviewable MVP is Phase 1 plus Phase 2: it delivers US1's bounded R
 - Do not add 3～8 repository, platform, node, configuration or Recovery combination matrices.
 - Do not add stress, performance, fuzz, coverage expansion or real codebase-memory installation/integration work.
 - Do not modify `CORE_VERSION`, `packages/codex/package.json`, `packages/deepseek/package.json`, release contracts/scripts/evidence, npm state, Tags or GitHub Releases.
-- T034 Attempt 1 已消费；只有已批准且尚未启动的 Attempt 2 剩余。真实 Codex executable 一旦启动即消费该预算，无论成功、失败、中断或超时；启动前 build/install/setup/readback 失败不消费。
+- T034 Attempt 1 和 Attempt 2 均已消费并失败，2/2 预算已用尽；禁止再次启动 Codex Journey。
 - DeepSeek Journey 或 `pnpm run validate` 一旦启动即消费各自唯一的 0/1 预算，无论成功、失败、中断或超时。
 - 禁止第三次 Codex Journey；不得第二次执行 DeepSeek Journey 或 `pnpm run validate`。

@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-23
 
-**Status**: Ready
+**Status**: Blocked
 
 **Input**: User description: "为 Dev Flow 增加多仓库任务范围与用户配置，在保持单一 Core 流程权威和现有单仓库行为的前提下，让一个 Task 显式绑定一个主仓库和若干附加仓库。"
 
@@ -263,17 +263,19 @@ T034 Codex 真实 Journey 的总预算精确为最多两次，仅适用于 Featu
   确认的 runner 缺陷是实际 Dev Flow 产品未绑定 evidence 中的 `source_commit`；
 - source-bound runner 已修复为 source-local build、isolated install、setup、registration/Core
   readback 后才进入 Codex，相关确定性测试 46/46 通过；
-- 用户已明确批准 Attempt 2，当前状态为 `1/2 consumed, failed` 与 `1/2 remaining, not started`；
-  Attempt 2 使用独立 evidence
+- Attempt 2 已基于 source commit `c150f281beae12dba222e8758be5cb3ec80d2a44` 真实
+  启动并消费最后一次预算，结果为 `failed`；独立 evidence 为
   `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-2.json`；
+- Attempt 2 的 source-bound build、install、setup 与 registration/Core readback 已通过，
+  Codex thread 已启动且首个 `dev_flow_server_info` 成功；Codex 进程 exit code 为 0，
+  runner 因 post-session evidence validation 未能证明从附加仓库恢复同一 Task 而返回 1；
 - build、install、setup、registration/Core readback 在 Codex executable 启动前失败时不消费剩余
   预算；一旦 Attempt 2 真实 Codex executable 启动，无论成功、失败、中断或超时均消费剩余预算；
 - Attempt 2 失败后 Feature 保持 `Blocked`，禁止第三次 Codex Journey。
 
 T035 DeepSeek Journey 和 T040 最终 `pnpm run validate` 仍各最多调用一次，当前均为 0/1。除 T034
 上述一次性修订外，不增加其他测试预算。调用任何最终检查前必须先完成其定向前置检查。
-当前 `Ready` 表示 Attempt 1 已消费并失败、runner 缺陷已完成确定性修复、用户已批准且尚未
-启动最后一次 Attempt 2；T034 仍未完成。
+当前 T034 总预算为 `2/2 consumed, failed`；T034 仍未完成，Feature 状态为 `Blocked`。
 
 ## Success Criteria *(mandatory)*
 
