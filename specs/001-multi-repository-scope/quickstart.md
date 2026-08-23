@@ -203,8 +203,11 @@ T035 DeepSeek Journey 已基于 source commit
 `14b8669bc331b88a6ccef3888d8c553a54c2bcc5` 调用一次并失败，预算 1/1 已消费。DSH exit code
 为 0，但 evidence validation 发现会话首个调用为 `bash` 而不是 runner 假定的 server-info；闭合
 evidence 中 Task 停在 `REQUIREMENTS`、revision 1，未证明双仓修改、附加仓恢复或终态。失败
-evidence 保留在 `tests/journeys/deepseek/evidence/feature-001-multi-repository.json`。不得自动修复
-重跑，Feature 为 `Blocked`。第 7 节 T040 仍为 0/1 且不得执行。
+evidence 保留在 `tests/journeys/deepseek/evidence/feature-001-multi-repository.json`。用户已授权按
+Codex 相同的 evidence-driven repair loop 执行 Attempt 2：runner 按四个 Core checkpoint 分段，
+每段结束检查同一 Task 的目标 node/revision，并在临时目录清理前保存 `0600` raw transcript。
+T035 总预算为 1/2 consumed，Attempt 2 尚未启动且必须使用独立 evidence。第 7 节 T040 仍为 0/1，
+T035 完成前不得执行。
 
 ### Codex
 
@@ -235,15 +238,17 @@ evidence 保留在 `tests/journeys/deepseek/evidence/feature-001-multi-repositor
 ### DeepSeek
 
 - 一个非 Git 临时 Workspace Root，其下初始化主/附加两个 Git 仓库；
-- 唯一一次 DSH 运行已失败并消费 1/1；T035 保持未完成；
+- Attempt 1 已失败；修订后的总预算为 1/2 consumed，Attempt 2 已授权但尚未启动；
 - 失败 evidence 只证明一个 DeepSeek Task 创建后停在 `REQUIREMENTS`、revision 1，不满足双仓修改、
   从附加仓库恢复和同一 Task 终态条件；
-- root 外拒绝由第 3 节 guard 测试证明，不再运行第二次真实 Journey。
+- Attempt 2 使用 create-to-DESIGN、implement-to-TEST、additional-resume-to-COMPREHENSION_REVIEW、
+  accept-and-deliver-to-DONE 四段 checkpoint，并保留独立闭合 evidence 与本地 raw transcript；
+- root 外拒绝由第 3 节 guard 测试证明，不增加其他真实 Journey。
 
 ## 7. 最终全仓门禁（最多一次）
 
-所有定向检查、文档同步和两个 Host Journey 完成后，最多执行一次。当前 T035 未完成且 Feature 为
-`Blocked`，因此不得执行：
+所有定向检查、文档同步和两个 Host Journey 完成后，最多执行一次。当前 T035 Attempt 2 尚未执行，
+因此不得执行：
 
 ```bash
 pnpm run validate

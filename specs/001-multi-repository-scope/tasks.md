@@ -161,9 +161,10 @@ description: "Implementation tasks for bounded multi-repository Task scope and r
   - session: DSH 已真实启动并 exit 0；闭合 evidence 中只有一个 DeepSeek Task，停在 `REQUIREMENTS`、revision 1
   - failure: post-session evidence validation 期望每个 session 首个调用为 `mcp__dev_flow__dev_flow_server_info`，实际观察到 `bash`；该运行未证明双仓修改、附加仓恢复或终态
   - evidence: `tests/journeys/deepseek/evidence/feature-001-multi-repository.json`，权限 `0600`，必须保留
-  - retry: forbidden；不得自动修复重跑；第二次执行需用户明确批准并先修订验证预算
+  - root fix: runner 使用四段 Core checkpoint，以同一 Task 的目标 node/revision 判定进度；每段 raw session 在临时环境清理前以 `0600` 保存；证据寻找首个 Dev Flow 调用而不假定它是会话的首个任意工具调用
+  - Attempt 2: 用户已明确授权；修订后总预算为 1/2 consumed；必须绑定新的 source commit 和独立 `tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-2.json`；尚未启动
 
-**Checkpoint — BLOCKED**: T034 已完成；T035 已失败并消费唯一预算，保持未完成；Feature 为 `Blocked`。停止，不执行 T036～T040。
+**Checkpoint**: T034 已完成；T035 Attempt 1 失败 evidence 已保留，Attempt 2 已授权但尚未执行；Feature 为 `Ready`。T035 完成前不执行 T036～T040。
 
 ---
 

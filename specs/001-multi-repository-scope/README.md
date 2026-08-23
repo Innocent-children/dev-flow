@@ -1,6 +1,6 @@
 # 001 — 多仓库任务范围与用户配置
 
-**Status**: Blocked
+**Status**: Ready
 **Created**: 2026-08-23
 
 本 Feature 为一个 Dev Flow Task 增加显式、有界且创建后不可变的 Repository Scope：一个主仓库和
@@ -41,7 +41,10 @@ session 在双仓 mutation 后恢复同一个 Core Task，revision、Action ID�
 `14b8669bc331b88a6ccef3888d8c553a54c2bcc5` 启动了唯一一次 DeepSeek Journey，DSH 退出 0，
 但 evidence validation 发现会话先执行 `bash` 而不是 runner 假定的首个 server-info 调用；闭合失败
 evidence 只证明 Task 停在 `REQUIREMENTS`、revision 1，未证明双仓修改、附加仓恢复或终态。T035
-预算 1/1 已消费且任务未完成，Feature 状态为 `Blocked`，不得自动修复重跑。
+原始预算 1/1 已消费且任务未完成。用户随后授权按 Codex 相同的 evidence-driven repair loop 继续：
+runner 现按四个 Core checkpoint 分段执行，以每段后的 Task identity、node 与 revision 为进度权威，
+并在临时环境清理前保存每段 `0600` raw transcript。Attempt 2 总预算修订为 1/2 consumed，尚未
+启动；Feature 状态为 `Ready`。
 本 Feature 不授权版本修改、npm
 发布、Tag、GitHub Release 或其他发布操作。
 
@@ -52,7 +55,7 @@ evidence 只证明 Task 停在 `REQUIREMENTS`、revision 1，未证明双仓修�
 - 不增加 Workspace、Provider、registry、DSL、Orchestrator、父子 Task 或第二套状态机；
 - SQLite 不兼容数据使用零写入 reject-and-reset，不迁移或自动清理；
 - T034 Attempts 1～6 保留为不可覆盖的历史证据，Attempt 7 为首次满足最终双 session 合同的通过结果；
-- T035 DeepSeek Journey 已失败并消费 1/1；失败 evidence 必须保留，未经规格与预算修订不得重跑；
-- T040 `pnpm run validate` 仍为 0/1，Feature Blocked 时不得执行；
+- T035 Attempt 1 失败 evidence 必须保留；修订后总预算为 1/2 consumed，Attempt 2 尚未启动；
+- T040 `pnpm run validate` 仍为 0/1，T035 完成前不得执行；
 - T034 repair loop 不授权 T035、T040 或任何无关真实测试；
 - Product Feature 与版本发布严格分离。

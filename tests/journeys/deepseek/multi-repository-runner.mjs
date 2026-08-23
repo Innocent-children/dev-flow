@@ -36,7 +36,7 @@ if (mode === "self-test") {
   const options = parseArguments(process.argv.slice(3));
   await execute(mode, options);
 } else {
-  throw new Error("usage: multi-repository-runner.mjs self-test|preflight|run --dsh-executable ABS --source-commit SHA --result-file ABS.json --credentials ABS --settings ABS");
+  throw new Error("usage: multi-repository-runner.mjs self-test|preflight|run --dsh-executable ABS --source-commit SHA --result-file ABS.json --credentials ABS --settings ABS --journey-budget N/N");
 }
 
 async function execute(selectedMode, options) {
@@ -44,6 +44,7 @@ async function execute(selectedMode, options) {
   let stage = "preflight";
   let dshStarted = false;
   let lastExit = null;
+  const observedSessions = [];
   try {
     await validatePreflight(options);
     root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-deepseek-multi-repository-")));
@@ -69,25 +70,29 @@ async function execute(selectedMode, options) {
     await initializeWorkspace(config);
     const sessionRoot = join(config.dshHome, "sessions");
 
-    stage = "substantive-session";
-    dshStarted = true;
-    const first = await runTurn(config, substantivePrompt(config), stage);
-    lastExit = first.exit;
-    const firstSession = await readNewSession(sessionRoot, first.beforeSessions);
-
-    stage = "resume-session";
-    const second = await runTurn(config, resumePrompt(config), stage);
-    lastExit = second.exit;
-    const secondSession = await readNewSession(sessionRoot, second.beforeSessions);
+    let previousTask = null;
+    let beforeAdditionalResume = null;
+    for (const checkpoint of checkpoints(config)) {
+      stage = checkpoint.id;
+      dshStarted = true;
+      const turn = await runTurn(config, checkpoint.prompt, stage);
+      lastExit = turn.exit;
+      const session = await readNewSession(sessionRoot, turn.beforeSessions);
+      await persistRawSession(options.resultFile, checkpoint.id, session.rows);
+      observedSessions.push({ id: checkpoint.id, ...session });
+      const task = await assertCheckpoint(config, checkpoint, previousTask);
+      previousTask = task;
+      if (checkpoint.id === "implement-to-test") beforeAdditionalResume = task;
+    }
 
     stage = "evidence-validation";
-    const evidence = await buildEvidence(config, product, [firstSession, secondSession]);
+    const evidence = await buildEvidence(config, product, observedSessions, beforeAdditionalResume);
     assertSafeEvidence(evidence);
     await writeFile(options.resultFile, JSON.stringify(evidence, null, 2) + "\n", { mode: 0o600, flag: "wx" });
     process.stdout.write(JSON.stringify(evidence) + "\n");
   } catch (error) {
     if (selectedMode === "run" && !(await exists(options.resultFile))) {
-      const failure = await failureEvidence(options, root, stage, dshStarted, lastExit, error);
+      const failure = await failureEvidence(options, root, stage, dshStarted, lastExit, error, observedSessions);
       assertSafeEvidence(failure);
       await mkdir(dirname(options.resultFile), { recursive: true, mode: 0o700 });
       await writeFile(options.resultFile, JSON.stringify(failure, null, 2) + "\n", { mode: 0o600, flag: "wx" });
@@ -109,9 +114,10 @@ function parseArguments(args) {
     else if (key === "--result-file") values.resultFile = value;
     else if (key === "--credentials") values.credentials = value;
     else if (key === "--settings") values.settings = value;
+    else if (key === "--journey-budget") values.journeyBudget = value;
     else throw new Error("unknown argument " + key);
   }
-  for (const key of ["dshExecutable", "sourceCommit", "resultFile", "credentials", "settings"]) {
+  for (const key of ["dshExecutable", "sourceCommit", "resultFile", "credentials", "settings", "journeyBudget"]) {
     if (!values[key]) throw new Error("missing DeepSeek multi-repository option " + key);
   }
   for (const key of ["dshExecutable", "resultFile", "credentials", "settings"]) {
@@ -119,6 +125,7 @@ function parseArguments(args) {
   }
   if (!/^[0-9a-f]{40}$/u.test(values.sourceCommit)) throw new Error("sourceCommit must be a full Git SHA");
   if (!values.resultFile.endsWith(".json")) throw new Error("resultFile must end in .json");
+  if (!/^\d+\/\d+$/u.test(values.journeyBudget)) throw new Error("journeyBudget must use N/N form");
   return Object.freeze(values);
 }
 
@@ -133,6 +140,9 @@ async function validatePreflight(options) {
   assert.ok((await stat(options.dshExecutable)).mode & 0o111);
   assert.ok((await stat(options.credentials)).mode & 0o600);
   assert.equal(await exists(options.resultFile), false, "T035 evidence already exists");
+  for (const id of ["create-to-design", "implement-to-test", "additional-resume-to-comprehension", "accept-and-deliver"]) {
+    assert.equal(await exists(rawSessionPath(options.resultFile, id)), false, "T035 raw transcript already exists");
+  }
   assert.equal((await execFile("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8" })).stdout.trim(), options.sourceCommit);
   assert.equal((await execFile("git", ["status", "--short"], { cwd: repositoryRoot, encoding: "utf8" })).stdout, "");
   const dshVersion = (await execFile(options.dshExecutable, ["--version"], { encoding: "utf8" })).stdout.trim();
@@ -266,30 +276,49 @@ async function initializeWorkspace(config) {
   assert.equal(rootGit, false, "Workspace Root must not be a Git repository");
 }
 
-function substantivePrompt(config) {
+function checkpoints(config) {
+  const createInput = "Use repository_path=" + JSON.stringify(config.primaryRepository)
+    + ", primary_repository_key=core, and additional_repositories=[{\"key\":\"docs\",\"repository_path\":"
+    + JSON.stringify(config.additionalRepository) + "}].";
+  const primaryResume = "Resume the existing host=deepseek Task with repository_path="
+    + JSON.stringify(config.primaryRepository) + ", new_task=null, and no Scope creation fields.";
+  const additionalResume = "Resume the existing host=deepseek Task from the additional repository with repository_path="
+    + JSON.stringify(config.additionalRepository) + ", new_task=null, and no Scope creation fields.";
   return [
-    "/dev-flow", APPLY_RULES,
-    "Create exactly one host=deepseek Task.",
-    "Use repository_path=" + JSON.stringify(config.primaryRepository) + ", primary_repository_key=core, and additional_repositories=[{\"key\":\"docs\",\"repository_path\":" + JSON.stringify(config.additionalRepository) + "}].",
-    "Use method_profile=plain and verification_budget level=targeted, max_automatic_commands=1, allow_full_suite=false, allow_manual_handoff=true.",
-    "The task is to create core::core-proof.txt with exact UTF-8 bytes core proof followed by one newline and docs::docs-proof.txt with exact UTF-8 bytes docs proof followed by one newline.",
-    "Use those two scoped paths in every multi-repository expected_paths and changed_paths field.",
-    "Advance through REQUIREMENTS, DESIGN, and TASKS from complete returned Actions.",
-    "At IMPLEMENT create only those two files, submit implementation_ready_for_test with problem_class=none and findings=[], then stop while the Task remains at TEST.",
-    "Do not run a verification command, resume the Task, or create another Task in this session.",
-  ].join(" ");
+    checkpoint("create-to-design", "DESIGN", [
+      "/dev-flow Create exactly one bounded multi-repository Task and complete only its REQUIREMENTS action.",
+      createInput,
+      "Use method_profile=plain and verification_budget level=targeted, max_automatic_commands=1, allow_full_suite=false, allow_manual_handoff=true.",
+      "The complete task is to create core::core-proof.txt with exact UTF-8 bytes core proof followed by one newline and docs::docs-proof.txt with exact UTF-8 bytes docs proof followed by one newline.",
+      "Use those two scoped paths as the complete expected path set.", APPLY_RULES,
+      "Stop immediately when Core reports DESIGN. Do not edit files or advance DESIGN.",
+    ]),
+    checkpoint("implement-to-test", "TEST", [
+      "/dev-flow Continue the active bounded multi-repository Task from fresh Core authority.", primaryResume,
+      "Perform the server-info handshake, then read the Task and current Action.",
+      "Complete DESIGN and TASKS using both scoped paths. At IMPLEMENT create only core/core-proof.txt and docs/docs-proof.txt with their requested exact bytes.",
+      "Use core::core-proof.txt and docs::docs-proof.txt as every multi-repository expected_paths and changed_paths set.", APPLY_RULES,
+      "Submit implementation_ready_for_test and stop immediately when Core reports TEST. Do not run any verification command.",
+    ]),
+    checkpoint("additional-resume-to-comprehension", "COMPREHENSION_REVIEW", [
+      "/dev-flow Resume the post-mutation Task from its additional repository and perform the targeted test.", additionalResume,
+      "After open succeeds call get_task and get_next_action before any apply, preserving the returned Task identity, revision, Action, digest, primary repository, and ordered Scope.",
+      "Run exactly one verification command: node verify.mjs.", APPLY_RULES,
+      "Submit tests_passed and stop immediately when Core reports COMPREHENSION_REVIEW. Ask for the user's explicit verdict and do not self-confirm it.",
+      "Do not modify files or create another Task.",
+    ]),
+    checkpoint("accept-and-deliver", "DONE", [
+      "/dev-flow I explicitly confirm that I can explain and maintain this bounded two-file implementation and its verification path.",
+      additionalResume,
+      "Perform the server-info handshake and fresh Task and Action reads.", APPLY_RULES,
+      "Submit comprehension_passed using my explicit verdict, complete DELIVERY using only current Core identities, and stop only when Core reports DONE with outcome completed.",
+      "Do not modify files, run commands, or create another Task.",
+    ]),
+  ];
 }
 
-function resumePrompt(config) {
-  return [
-    "/dev-flow", APPLY_RULES,
-    "I explicitly confirm that I can explain and maintain this bounded two-file implementation and its verification path.",
-    "Resume the existing host=deepseek Task by calling open_task with repository_path=" + JSON.stringify(config.additionalRepository) + ", new_task=null, and no Scope creation fields.",
-    "After open succeeds call get_task and get_next_action before any apply, and preserve the returned Task, revision, Action, digest, primary repository, and ordered Scope.",
-    "Run exactly one verification command at TEST: node verify.mjs.",
-    "Submit tests_passed, use my explicit confirmation for comprehension_passed, then complete DELIVERY using only IDs read from the current Task.",
-    "Stop only when Core reports DONE with outcome completed. Do not modify files or create another Task.",
-  ].join(" ");
+function checkpoint(id, toNode, promptParts) {
+  return Object.freeze({ id, toNode, prompt: promptParts.join(" ") });
 }
 
 async function runTurn(config, prompt, stage) {
@@ -347,6 +376,29 @@ async function readNewSession(root, before) {
     await delay(20);
   }
   throw new Error("DSH session artifact was not materialized");
+}
+
+async function persistRawSession(resultFile, stageId, rows) {
+  const path = rawSessionPath(resultFile, stageId);
+  await writeFile(path, rows.map((row) => JSON.stringify(row)).join("\n") + "\n", { mode: 0o600, flag: "wx" });
+  await chmod(path, 0o600);
+}
+
+function rawSessionPath(resultFile, stageId) {
+  return resultFile.replace(/\.json$/u, "." + stageId + ".raw.jsonl");
+}
+
+async function assertCheckpoint(config, checkpointDefinition, previousTask) {
+  assert.equal(await coreTaskCount(config.dataDirectory), 1, checkpointDefinition.id + " must retain one Core Task");
+  const task = await currentTask(config.dataDirectory);
+  assert.equal(task.origin_host, "deepseek");
+  assert.equal(task.current_node, checkpointDefinition.toNode, checkpointDefinition.id + " did not reach " + checkpointDefinition.toNode);
+  if (previousTask !== null) {
+    assert.equal(task.task_id, previousTask.task_id, checkpointDefinition.id + " changed Task identity");
+    assert.ok(task.revision > previousTask.revision, checkpointDefinition.id + " did not advance revision");
+  }
+  if (checkpointDefinition.toNode === "DONE") assert.equal(task.outcome?.status, "completed");
+  return task;
 }
 
 async function sessionFiles(root) {
@@ -430,18 +482,21 @@ function toolResultEnvelope(events, callId) {
   try { return JSON.parse(text.slice(start)); } catch { return null; }
 }
 
-async function buildEvidence(config, product, sessions) {
-  assert.equal(sessions.length, 2);
-  const callSets = sessions.map(callsFromSession);
-  for (const calls of callSets) {
-    assert.equal(calls[0]?.name, "mcp__dev_flow__dev_flow_server_info");
-    assert.equal(calls[0]?.envelope?.ok, true);
-    assert.equal(calls[0]?.envelope?.result?.tools?.length, 6);
+async function buildEvidence(config, product, sessions, beforeAdditionalResume) {
+  assert.equal(sessions.length, 4);
+  assert.notEqual(beforeAdditionalResume, null);
+  const callSets = new Map(sessions.map((session) => [session.id, callsFromSession(session)]));
+  for (const [stageId, calls] of callSets) {
+    const devFlowCalls = calls.filter((call) => call.name.startsWith("mcp__dev_flow__"));
+    const serverInfo = devFlowCalls[0];
+    assert.equal(serverInfo?.name, "mcp__dev_flow__dev_flow_server_info", stageId + " must start Dev Flow with server-info");
+    assert.equal(serverInfo?.envelope?.ok, true);
+    assert.equal(serverInfo?.envelope?.result?.tools?.length, 6);
   }
-  const opens = callSets.flatMap((calls) => calls.filter((call) => call.name === "mcp__dev_flow__dev_flow_open_task"));
-  assert.equal(opens.length, 2);
-  const create = opens.find((call) => call.arguments.new_task !== null && call.arguments.new_task !== undefined);
-  const resume = opens.find((call) => call.arguments.new_task === null || call.arguments.new_task === undefined);
+  const createCalls = callSets.get("create-to-design");
+  const create = createCalls.find((call) => call.name === "mcp__dev_flow__dev_flow_open_task");
+  const resumeCalls = callSets.get("additional-resume-to-comprehension");
+  const resume = resumeCalls.find((call) => call.name === "mcp__dev_flow__dev_flow_open_task");
   assert.notEqual(create, undefined);
   assert.notEqual(resume, undefined);
   assert.equal(create.arguments.host, "deepseek");
@@ -452,13 +507,12 @@ async function buildEvidence(config, product, sessions) {
   assert.equal(resume.arguments.repository_path, config.additionalRepository);
   assert.equal("primary_repository_key" in resume.arguments, false);
   assert.equal("additional_repositories" in resume.arguments, false);
-  const successfulApplies = callSets.flatMap((calls) => calls.filter((call) =>
+  const successfulApplies = [...callSets.values()].flatMap((calls) => calls.filter((call) =>
     call.name === "mcp__dev_flow__dev_flow_apply_action" && call.envelope?.ok === true
   ));
-  assert.ok(successfulApplies.length >= 4);
-  const before = successfulApplies.filter((call) => callSets[0].includes(call)).at(-1)?.envelope?.result;
+  assert.ok(successfulApplies.length >= 7);
+  const before = beforeAdditionalResume;
   const resumed = resume.envelope?.result?.task;
-  assert.notEqual(before, undefined);
   assert.notEqual(resumed, undefined);
   assert.equal(before.task_id, resumed.task_id);
   assert.equal(before.revision, resumed.revision);
@@ -488,11 +542,11 @@ async function buildEvidence(config, product, sessions) {
     source_commit: config.sourceCommit,
     host: "deepseek",
     runner_mode: "multi-repository",
-    journey_budget: "1/1",
+    journey_budget: config.journeyBudget,
     dsh_version: product.dshVersion,
     setup_readback_passed: true,
     workspace_root_non_git: true,
-    dsh_session_count: 2,
+    dsh_session_count: 4,
     task_id: finalTask.task_id,
     primary_repository_key: "core",
     additional_repository_keys: ["docs"],
@@ -511,7 +565,9 @@ async function buildEvidence(config, product, sessions) {
     successful_action_count: successfulApplies.length,
     verification_command_count: 1,
     tool_catalog_size: 6,
-    codebase_memory_preference: callSets[0][0].envelope.result.host_preferences.deepseek.codebase_memory,
+    codebase_memory_preference: callSets.get("create-to-design")
+      .find((call) => call.name === "mcp__dev_flow__dev_flow_server_info")
+      .envelope.result.host_preferences.deepseek.codebase_memory,
     observed_at: new Date().toISOString(),
   };
 }
@@ -535,7 +591,7 @@ async function coreTaskCount(dataDirectory) {
   return count;
 }
 
-async function failureEvidence(options, root, stage, dshStarted, exit, error) {
+async function failureEvidence(options, root, stage, dshStarted, exit, error, observedSessions) {
   let finalTask = null;
   if (root !== undefined) {
     try {
@@ -549,13 +605,14 @@ async function failureEvidence(options, root, stage, dshStarted, exit, error) {
     source_commit: options.sourceCommit,
     host: "deepseek",
     runner_mode: "multi-repository",
-    journey_budget: "1/1",
+    journey_budget: options.journeyBudget,
     failure_stage: stage,
     failure_classification: error?.code ?? (error instanceof assert.AssertionError ? "acceptance_assertion" : "runner_error"),
     dsh_started: dshStarted,
     exit_code: exit?.code ?? error?.exit?.code ?? null,
     stdout_sha256: sha256(exit?.stdout ?? error?.exit?.stdout ?? ""),
     stderr_sha256: sha256(exit?.stderr ?? error?.exit?.stderr ?? ""),
+    raw_transcript_stages: observedSessions.map((session) => session.id),
     final_task: finalTask,
     observed_at: new Date().toISOString(),
   };
@@ -579,8 +636,14 @@ function selfTest() {
     "--result-file", "/tmp/evidence.json",
     "--credentials", "/tmp/credentials",
     "--settings", "/tmp/settings",
+    "--journey-budget", "2/2",
   ]);
   assert.equal(parsed.sourceCommit, "a".repeat(40));
+  assert.equal(parsed.journeyBudget, "2/2");
+  const definitions = checkpoints({ primaryRepository: "/tmp/core", additionalRepository: "/tmp/docs" });
+  assert.deepEqual(definitions.map((item) => item.toNode), ["DESIGN", "TEST", "COMPREHENSION_REVIEW", "DONE"]);
+  assert.match(definitions[2].prompt, /additional repository/u);
+  assert.match(definitions[3].prompt, /explicitly confirm/u);
   assert.throws(() => assertSafeEvidence({ path: "/private/secret" }));
 }
 
