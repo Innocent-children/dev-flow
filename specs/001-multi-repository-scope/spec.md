@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-23
 
-**Status**: Blocked
+**Status**: Ready
 
 **Input**: User description: "为 Dev Flow 增加多仓库任务范围与用户配置，在保持单一 Core 流程权威和现有单仓库行为的前提下，让一个 Task 显式绑定一个主仓库和若干附加仓库。"
 
@@ -247,14 +247,14 @@ Recovery 或流程流转。
 4. 一个未声明仓库漂移；
 5. 一个部分完成的 Recovery 场景；
 6. 配置文件不存在、合法和非法三种情况；
-7. Codex 一个通过的有界两仓库 Journey；T034 因已确认的 Attempt 1 runner 缺陷具有最多两次真实
-   Codex invocation 的封顶预算；
+7. Codex 一个通过的有界两仓库 Journey；T034 因 Attempt 1 的 source identity 缺陷和
+   Attempt 2 的恢复调用顺序缺陷，具有最多三次真实 Codex invocation 的封顶预算；
 8. DeepSeek 一个有界两仓库 Journey。
 
 验收 MUST NOT 默认扩展到 3～8 个仓库的组合矩阵、平台矩阵、压力或性能测试、fuzz、真实
 codebase-memory 安装或版本矩阵、每个节点的多仓库 Journey，或重复全仓验证。
 
-T034 Codex 真实 Journey 的总预算精确为最多两次，仅适用于 Feature 001：
+T034 Codex 真实 Journey 的总预算精确为最多三次，仅适用于 Feature 001：
 
 - Attempt 1 已真实启动并消费预算，结果为 `failed`，source commit 为
   `1176809054e814d7d163ef7eef0243b1538a71a3`；原始 evidence
@@ -269,13 +269,19 @@ T034 Codex 真实 Journey 的总预算精确为最多两次，仅适用于 Featu
 - Attempt 2 的 source-bound build、install、setup 与 registration/Core readback 已通过，
   Codex thread 已启动且首个 `dev_flow_server_info` 成功；Codex 进程 exit code 为 0，
   runner 因 post-session evidence validation 未能证明从附加仓库恢复同一 Task 而返回 1；
+- Attempt 2 的完整调用序列证明恢复调用被放在复杂 apply 流程之后，导致 Codex 未执行该
+  步骤；runner 已改为创建 Task 成功后立即从附加仓恢复，且在恢复成功前禁止 get/apply，
+  直接 harness 为 47/47、Codex T033 定向合同为 87/87 通过；
+- 用户已明确批准一次最终 Attempt 3，当前为 `2/3 consumed, failed` 与
+  `1/3 remaining, not started`；Attempt 3 使用独立 evidence
+  `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-3.json`；
 - build、install、setup、registration/Core readback 在 Codex executable 启动前失败时不消费剩余
-  预算；一旦 Attempt 2 真实 Codex executable 启动，无论成功、失败、中断或超时均消费剩余预算；
-- Attempt 2 失败后 Feature 保持 `Blocked`，禁止第三次 Codex Journey。
+  预算；一旦 Attempt 3 真实 Codex executable 启动，无论成功、失败、中断或超时均消费剩余预算；
+- Attempt 3 失败后 Feature 保持 `Blocked`，禁止第四次 Codex Journey。
 
 T035 DeepSeek Journey 和 T040 最终 `pnpm run validate` 仍各最多调用一次，当前均为 0/1。除 T034
 上述一次性修订外，不增加其他测试预算。调用任何最终检查前必须先完成其定向前置检查。
-当前 T034 总预算为 `2/2 consumed, failed`；T034 仍未完成，Feature 状态为 `Blocked`。
+当前 T034 仍未完成；预算修订分析已通过，Feature 状态为 `Ready`，等待最终 Attempt 3。
 
 ## Success Criteria *(mandatory)*
 
@@ -292,7 +298,7 @@ T035 DeepSeek Journey 和 T040 最终 `pnpm run validate` 仍各最多调用一�
   `partially_completed`，对存在不兼容仓库状态返回 `conflicting`，且不产生第二套流程状态。
 - **SC-007**: 配置不存在、合法、非法三类验收场景全部产生规定结果；索引能力不可用时，多仓库
   Task 的阻塞次数为 0，同一 Host 会话的不可用提示不超过 1 次。
-- **SC-008**: Codex 在已批准且封顶为两次 invocation 的 T034 预算内通过一个有界两仓库 Journey，
+- **SC-008**: Codex 在已批准且封顶为三次 invocation 的 T034 预算内通过一个有界两仓库 Journey，
   DeepSeek 在一次 T035 invocation 内通过一个有界两仓库 Journey，分别证明其目录权限边界和同一
   Core Task 语义。
 - **SC-009**: 用户在不安装 codebase-memory 的环境中能够完成全部必需多仓库核心验收场景。

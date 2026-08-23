@@ -504,7 +504,12 @@ function multiRepositorySuccessJSONL(layout, resumeOverrides = {}) {
     digest: "c".repeat(64),
   });
   const appliedTask = multiRepositoryTask();
-  const resumedTask = multiRepositoryTask(resumeOverrides);
+  const resumedTask = multiRepositoryTask({
+    revision: 1,
+    actionID: "action-multi-0001",
+    digest: "c".repeat(64),
+    ...resumeOverrides,
+  });
   const events = [
     { type: "thread.started", thread_id: "thread-multi-repository" },
     coreSuccessEvent("dev_flow_server_info", "multi-info", {
@@ -530,16 +535,27 @@ function multiRepositorySuccessJSONL(layout, resumeOverrides = {}) {
       ],
       new_task: { request: "bounded two-repository proof" },
     }),
-    coreSuccessEvent("dev_flow_apply_action", "multi-apply", { task: appliedTask }, {
-      host: "codex",
-      task_id: appliedTask.task_id,
-    }),
     coreSuccessEvent("dev_flow_open_task", "multi-resume", { task: resumedTask }, {
       host: "codex",
       repository_path: layout.additionalRepository,
       new_task: null,
     }),
+    coreSuccessEvent("dev_flow_apply_action", "multi-apply", { task: appliedTask }, {
+      host: "codex",
+      task_id: appliedTask.task_id,
+    }),
   ];
+  return `${events.map(JSON.stringify).join("\n")}\n`;
+}
+
+function multiRepositoryDelayedResumeJSONL(layout) {
+  const events = multiRepositorySuccessJSONL(layout).trim().split("\n").map(JSON.parse);
+  const resumeIndex = events.findIndex((event) => (
+    event.item?.tool === "dev_flow_open_task"
+    && event.item?.arguments?.new_task === null
+  ));
+  const applyIndex = events.findIndex((event) => event.item?.tool === "dev_flow_apply_action");
+  [events[resumeIndex], events[applyIndex]] = [events[applyIndex], events[resumeIndex]];
   return `${events.map(JSON.stringify).join("\n")}\n`;
 }
 
@@ -671,7 +687,10 @@ test("Feature-only multi-repository CLI and layout are closed over source identi
   assert.match(prompt, /primary_repository_key=core/u);
   assert.match(prompt, /additional_repositories/u);
   assert.match(prompt, /core::core-proof\.txt[\s\S]*docs::docs-proof\.txt/u);
+  assert.match(prompt, /very next Dev Flow tool call MUST be dev_flow_open_task/u);
   assert.match(prompt, /repository_path=.*docs[\s\S]*new_task=null[\s\S]*no Scope creation fields/u);
+  assert.match(prompt, /Do not call dev_flow_get_task, dev_flow_get_next_action, or dev_flow_apply_action between the create and resume calls/u);
+  assert.match(prompt, /After that resume succeeds[\s\S]*Stop after the first successful apply that records both changes/u);
 
   const runnerSource = await readFile(runner, "utf8");
   assert.match(runnerSource, /--multi-repository --codex-executable ABS --result-file ABS\.json --source-commit COMMIT/u);
@@ -828,7 +847,7 @@ test("multi-repository setup readback binds the isolated registration, CLI, and 
   }), /does not bind the isolated source package/u);
 });
 
-test("multi-repository success evidence is closed and binds exact post-apply resume identity", async (t) => {
+test("multi-repository success evidence is closed and binds exact pre-apply resume identity", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "feature-001-evidence-fixture-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const layout = smokeRuntime.createMultiRepositoryJourneyLayout(root);
@@ -889,6 +908,28 @@ test("multi-repository success evidence is closed and binds exact post-apply res
       name,
     );
   }
+});
+
+test("multi-repository evidence rejects the Attempt 2 delayed-resume call sequence", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "feature-001-delayed-resume-fixture-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const layout = smokeRuntime.createMultiRepositoryJourneyLayout(root);
+  await Promise.all([
+    mkdir(layout.primaryRepository),
+    mkdir(layout.additionalRepository),
+  ]);
+  await Promise.all([
+    writeFile(join(layout.primaryRepository, "core-proof.txt"), "core proof\n"),
+    writeFile(join(layout.additionalRepository, "docs-proof.txt"), "docs proof\n"),
+  ]);
+  const session = smokeRuntime.summarizeCodexSession(
+    "multi-repository",
+    parseCodexJSONL(multiRepositoryDelayedResumeJSONL(layout)),
+  );
+  await assert.rejects(
+    smokeRuntime.buildMultiRepositoryEvidence(session, layout, MULTI_REPOSITORY_SOURCE_COMMIT, true),
+    /must resume from the additional repository immediately after Task creation/u,
+  );
 });
 
 test("multi-repository post-launch failure writes one sanitized consumed-budget evidence", async (t) => {

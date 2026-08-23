@@ -1,6 +1,6 @@
 # 001 — 多仓库任务范围与用户配置
 
-**Status**: Blocked
+**Status**: Ready
 **Created**: 2026-08-23
 
 本 Feature 为一个 Dev Flow Task 增加显式、有界且创建后不可变的 Repository Scope：一个主仓库和
@@ -24,11 +24,12 @@
 - [Validation quickstart](quickstart.md)
 - [Implementation tasks](tasks.md)
 
-Codex T034 Attempt 1 和最后一次 Attempt 2 均已消费并失败。Attempt 2 的 source-bound
-build、install、setup 与 readback 已通过，真实 Codex 线程已启动，但 post-session
-evidence validation 未能证明从附加仓库恢复同一 Task。T034 保持未完成，且禁止
-第三次 Codex Journey；当前 Feature 状态为 `Blocked`。本 Feature 不授权版本修改、npm
-发布、Tag、GitHub Release 或其他发布操作。
+Codex T034 Attempt 1 和 Attempt 2 均已消费并失败。Attempt 2 证明 source-bound
+build、install、setup 与 readback 有效，同时暴露附加仓恢复调用排在多节点 apply 之后的
+runner prompt 缺陷。该步骤已修复为创建 Task 后的下一次 Dev Flow 调用，定向验证
+为 47/47 和 87/87 通过。用户已批准一次最终 Attempt 3，预算修订重新分析已通过，
+当前 Feature 状态为 `Ready`。本 Feature 不授权版本修改、npm 发布、Tag、GitHub Release
+或其他发布操作。
 
 ## Fixed boundaries
 
@@ -36,7 +37,7 @@ evidence validation 未能证明从附加仓库恢复同一 Task。T034 保持�
 - 保留 `ProcessTask.Repository` 作为主仓库和现有 `repository_binding_digest` 合同字段；
 - 不增加 Workspace、Provider、registry、DSL、Orchestrator、父子 Task 或第二套状态机；
 - SQLite 不兼容数据使用零写入 reject-and-reset，不迁移或自动清理；
-- T034 Codex Journey 总预算最多两次：Attempt 1 和 Attempt 2 均已消费并失败，当前为 2/2；
+- T034 Codex Journey 总预算最多三次：Attempt 1 和 Attempt 2 均已消费并失败，Attempt 3 已批准且尚未启动；
 - T035 DeepSeek Journey 和 T040 `pnpm run validate` 仍各最多一次，当前均为 0/1；
-- Attempt 2 失败后禁止第三次 Codex Journey；
+- Attempt 3 失败后禁止第四次 Codex Journey；
 - Product Feature 与版本发布严格分离。

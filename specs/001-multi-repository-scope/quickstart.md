@@ -172,17 +172,19 @@ Action 只有一个 aggregate `repository_binding_digest`。
 
 不得在开发者真实 HOME 中覆盖配置，也不得用配置测试启动安装器。
 
-## 6. 真实 Host Journey（T034 最多两次，T035 最多一次）
+## 6. 真实 Host Journey（T034 最多三次，T035 最多一次）
 
 真实 Journey 必须是本 Feature 独立的两仓库验收模式，不复用或改写历史 Feature/release evidence。
 实现任务应在现有 journey harness 中增加一个明确的 `multi-repository` 入口，并在执行前一次性确认
 参数、临时目录和证据输出。
 
-T034 Codex Journey 总预算最多两次。Attempt 1 和 Attempt 2 均已消费并失败，当前为
-`2/2 consumed, failed`。Attempt 2 的 source-local build、isolated install、setup 与
+T034 Codex Journey 总预算最多三次。Attempt 1 和 Attempt 2 均已消费并失败；Attempt 3
+已批准且尚未启动，当前为 `2/3 consumed, failed` 与 `1/3 remaining, not started`。
+Attempt 2 的 source-local build、isolated install、setup 与
 registration/Core readback 通过，真实 Codex thread 已启动，但 post-session evidence
-validation 未能证明从附加仓库恢复同一 Task。T034 未完成，Feature 保持 `Blocked`，
-禁止第三次 Codex Journey。
+validation 未能证明从附加仓库恢复同一 Task。runner 已改为创建后立即恢复，
+且恢复成功前禁止 get/apply；定向验证为 47/47 和 87/87。Attempt 3 失败后禁止
+第四次 Codex Journey。
 
 T035 DeepSeek Journey 和第 7 节 T040 最终仓库级验证仍各最多调用一次，当前均为 0/1。调用前必须
 完成对应的定向检查，且不增加其他测试预算。
@@ -190,14 +192,16 @@ T035 DeepSeek Journey 和第 7 节 T040 最终仓库级验证仍各最多调用�
 ### Codex
 
 - 一个临时主 Git 仓库和一个临时附加 Git 仓库；
-- Attempt 2 已使用一个 Codex 运行，使用 `--cd <primary>`、`--add-dir <additional>` 和
+- Attempt 3 使用一个 Codex 运行，使用 `--cd <primary>`、`--add-dir <additional>` 和
   `--sandbox workspace-write`；
 - 创建两仓库 Task、在两个仓库完成一个有界修改、从附加仓库恢复并完成同一 Task；
-- 失败 evidence 已记录到
+- Attempt 3 使用独立 evidence
+  `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-3.json`；
+- Attempt 2 失败 evidence 保留在
   `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-2.json`；
 - 永久保留 Attempt 1 evidence
   `tests/journeys/codex/evidence/feature-001-multi-repository.json`；
-- 未授权目录拒绝由第 3 节确定性测试证明，不增加 Attempt 2 之外的真实 Journey。
+- 未授权目录拒绝由第 3 节确定性测试证明，不增加 Attempt 3 之外的真实 Journey。
 
 ### DeepSeek
 
