@@ -1,4 +1,8 @@
+import { realpathSync } from "node:fs";
+import { isAbsolute, relative } from "node:path";
+
 import {
+  DEV_FLOW_QUALIFIED_TOOL_NAMES,
   isDevFlowNamespaceTool,
   isExpectedDevFlowTool,
 } from "./tool-names.mjs";
@@ -8,6 +12,8 @@ export const DENIAL_CODES = Object.freeze({
   UNEXPECTED_TOOL: "DEV_FLOW_UNEXPECTED_TOOL",
   NO_AGENT: "DEV_FLOW_NO_AGENT",
   NO_OPEN_TURN: "DEV_FLOW_NO_OPEN_TURN",
+  REPOSITORY_PATH_INVALID: "DEV_FLOW_REPOSITORY_PATH_INVALID",
+  REPOSITORY_OUTSIDE_WORKSPACE: "DEV_FLOW_REPOSITORY_OUTSIDE_WORKSPACE",
 });
 
 const selectorPattern = /(^|\s)\/dev-flow(?=\s|$)/u;
@@ -42,7 +48,10 @@ export function deriveCurrentTurn(execution) {
   }
 }
 
-export function authorizeDevFlowExecution(execution) {
+export function authorizeDevFlowExecution(execution, {
+  workspaceRoot = process.cwd(),
+  realpathImpl = realpathSync,
+} = {}) {
   if (!isDevFlowNamespaceTool(execution?.name)) return undefined;
   if (!isExpectedDevFlowTool(execution.name)) {
     return `${DENIAL_CODES.UNEXPECTED_TOOL}: the Dev Flow namespace permits only the six contracted tools.`;
@@ -58,11 +67,76 @@ export function authorizeDevFlowExecution(execution) {
   if (!turn.selectorPresent) {
     return `${DENIAL_CODES.SELECTOR_REQUIRED}: ${selectorInstruction}.`;
   }
+  if (execution.name === DEV_FLOW_QUALIFIED_TOOL_NAMES[1]) {
+    return authorizeRepositoryScope(execution.arguments, { workspaceRoot, realpathImpl });
+  }
   return undefined;
 }
 
-export function registerDevFlowGuard(ctx) {
-  return ctx.tools.guard(authorizeDevFlowExecution);
+export function registerDevFlowGuard(ctx, {
+  workspaceRoot = process.cwd(),
+  realpathImpl = realpathSync,
+} = {}) {
+  let canonicalWorkspaceRoot;
+  try {
+    canonicalWorkspaceRoot = realpathImpl(workspaceRoot);
+  } catch {
+    canonicalWorkspaceRoot = null;
+  }
+  return ctx.tools.guard((execution) => authorizeDevFlowExecution(execution, {
+    workspaceRoot: canonicalWorkspaceRoot ?? workspaceRoot,
+    realpathImpl,
+  }));
+}
+
+function authorizeRepositoryScope(arguments_, { workspaceRoot, realpathImpl }) {
+  if (!isPlainObject(arguments_)) {
+    return `${DENIAL_CODES.REPOSITORY_PATH_INVALID}: open-task arguments must be an object.`;
+  }
+  let canonicalRoot;
+  try {
+    canonicalRoot = realpathImpl(workspaceRoot);
+  } catch {
+    return `${DENIAL_CODES.REPOSITORY_PATH_INVALID}: Workspace Root is not accessible.`;
+  }
+
+  const declared = [{ key: arguments_.primary_repository_key ?? "primary", path: arguments_.repository_path }];
+  if (arguments_.additional_repositories !== undefined) {
+    if (!Array.isArray(arguments_.additional_repositories)) {
+      return `${DENIAL_CODES.REPOSITORY_PATH_INVALID}: additional_repositories must be an array.`;
+    }
+    for (const entry of arguments_.additional_repositories) {
+      if (!isPlainObject(entry)) {
+        return `${DENIAL_CODES.REPOSITORY_PATH_INVALID}: an additional repository declaration is invalid.`;
+      }
+      declared.push({ key: entry.key, path: entry.repository_path });
+    }
+  }
+
+  for (const repository of declared) {
+    if (typeof repository.key !== "string" || repository.key.length === 0 || typeof repository.path !== "string" || !isAbsolute(repository.path)) {
+      return `${DENIAL_CODES.REPOSITORY_PATH_INVALID}: repository "${safeRepositoryKey(repository.key)}" requires an absolute path.`;
+    }
+    let canonicalPath;
+    try {
+      canonicalPath = realpathImpl(repository.path);
+    } catch {
+      return `${DENIAL_CODES.REPOSITORY_PATH_INVALID}: repository "${safeRepositoryKey(repository.key)}" is not accessible.`;
+    }
+    const fromRoot = relative(canonicalRoot, canonicalPath);
+    if (fromRoot === ".." || fromRoot.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) || isAbsolute(fromRoot)) {
+      return `${DENIAL_CODES.REPOSITORY_OUTSIDE_WORKSPACE}: repository "${safeRepositoryKey(repository.key)}" is outside the Workspace Root.`;
+    }
+  }
+  return undefined;
+}
+
+function safeRepositoryKey(value) {
+  return typeof value === "string" && /^[a-z0-9][a-z0-9._-]{0,127}$/u.test(value) ? value : "unknown";
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function deriveDurableCallTurn(execution, events, matchingCall) {

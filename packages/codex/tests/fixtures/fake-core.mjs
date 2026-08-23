@@ -105,6 +105,10 @@ async function envelopeFor(tool, arguments_) {
       supported_hosts: ["codex", "deepseek"],
       supported_processes: [{ process_id: "standard-development", definition_digest: digest(), new_task_supported: true }],
       method_profiles: ["plain", "spec-kit", "openspec"],
+      host_preferences: {
+        codex: { codebase_memory: false },
+        deepseek: { codebase_memory: true },
+      },
       tools: tools.map((toolDefinition) => toolDefinition.name),
     });
   }
@@ -112,6 +116,14 @@ async function envelopeFor(tool, arguments_) {
     if (selectedCase === "conflict") return failure(tool, "ACTIVE_TASK_CONFLICT");
     if (selectedCase === "host-conflict") return failure(tool, "HOST_OWNERSHIP_CONFLICT");
     const created = state.opened !== true;
+    if (created && arguments_.new_task !== null && arguments_.new_task !== undefined) {
+      state.scope = {
+        primary_repository_key: arguments_.primary_repository_key ?? "primary",
+        repository_path: arguments_.repository_path,
+        additional_repositories: [...(arguments_.additional_repositories ?? [])]
+          .sort((left, right) => left.key.localeCompare(right.key)),
+      };
+    }
     state.opened = true;
     await writeState();
     return success(tool, { created, task: currentTask(), recovery_assessment: null });
@@ -168,7 +180,12 @@ function currentTask() {
     },
     current_cursor: currentCursor,
     resume_cursor: state.blocked ? "REQUIREMENTS" : null,
-    repository: { digest: digest() },
+    primary_repository_key: state.scope?.primary_repository_key ?? "primary",
+    repository: repositoryProjection(state.scope?.repository_path ?? "/workspace/example", "primary"),
+    additional_repositories: (state.scope?.additional_repositories ?? []).map((entry) => ({
+      key: entry.key,
+      repository: repositoryProjection(entry.repository_path, entry.key),
+    })),
     baselines: { requirements: state.applyCount > 0 ? { revision: 1, digest: digest() } : null, design: null, task_plan: null, history: [] },
     implementation: null,
     test: null,
@@ -179,6 +196,20 @@ function currentTask() {
     evidence: [],
     outcome: state.cancelled ? { status: "cancelled", summary: "Cancelled by the user." } : state.done ? { status: "completed", summary: "Completed by the fixture." } : null,
     revision,
+  };
+}
+
+function repositoryProjection(canonicalRoot, key) {
+  return {
+    canonical_root: canonicalRoot,
+    repository_identity: `fixture-${key}-identity`,
+    branch: "main",
+    detached: false,
+    head: digest(),
+    unborn: false,
+    worktree_fingerprint: digest(),
+    observed_at: "2026-08-23T00:00:00Z",
+    binding_digest: digest(),
   };
 }
 
@@ -270,19 +301,38 @@ function writeToolResult(id, envelope) {
 function toolDefinitions() {
   const metadata = [
     ["dev_flow_server_info", [], [] , true, false, true],
-    ["dev_flow_open_task", ["host", "repository_path"], ["host", "repository_path", "new_task"], false, false, false],
+    ["dev_flow_open_task", ["host", "repository_path"], ["host", "repository_path", "primary_repository_key", "additional_repositories", "new_task"], false, false, false],
     ["dev_flow_get_task", ["host", "task_id"], ["host", "task_id", "operation_probe"], true, false, true],
     ["dev_flow_get_next_action", ["host", "task_id"], ["host", "task_id", "operation_probe"], true, false, true],
     ["dev_flow_apply_action", ["request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload"], ["request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload", "recovery_apply"], false, false, false],
     ["dev_flow_cancel_task", ["request_id", "host", "task_id", "revision", "reason"], ["request_id", "host", "task_id", "revision", "reason"], false, true, false],
   ];
-  return metadata.map(([name, required, properties, readOnlyHint, destructiveHint, idempotentHint]) => ({
-    name,
-    title: name,
-    description: `${name} current Core fixture definition.`,
-    inputSchema: closedSchema(required, properties),
-    annotations: { title: name, readOnlyHint, destructiveHint, idempotentHint, openWorldHint: false },
-  }));
+  return metadata.map(([name, required, properties, readOnlyHint, destructiveHint, idempotentHint]) => {
+    const inputSchema = closedSchema(required, properties);
+    if (name === "dev_flow_open_task") {
+      inputSchema.properties.primary_repository_key = {
+        type: "string",
+        pattern: "^[a-z0-9][a-z0-9._-]{0,127}$",
+      };
+      inputSchema.properties.additional_repositories = {
+        type: "array",
+        maxItems: 7,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["key", "repository_path"],
+          properties: { key: { type: "string" }, repository_path: { type: "string" } },
+        },
+      };
+    }
+    return {
+      name,
+      title: name,
+      description: `${name} current Core fixture definition.`,
+      inputSchema,
+      annotations: { title: name, readOnlyHint, destructiveHint, idempotentHint, openWorldHint: false },
+    };
+  });
 }
 
 function closedSchema(required, properties) {
@@ -306,7 +356,7 @@ async function readState() {
     return JSON.parse(await readFile(statePath, "utf8"));
   } catch (error) {
     if (error?.code !== "ENOENT") throw error;
-    return { calls: [], opened: false, applyCount: 0, responseLost: false, blocked: false, done: false, cancelled: false, operationId: null, actionId: null };
+    return { calls: [], opened: false, scope: null, applyCount: 0, responseLost: false, blocked: false, done: false, cancelled: false, operationId: null, actionId: null };
   }
 }
 

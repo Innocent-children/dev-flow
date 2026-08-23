@@ -50,8 +50,11 @@ test("Skill is explicit-only and performs the qualified server-info handshake fi
   assert.match(admission, /earlier turns, model text, plugin or Skill injection, task state/u);
   assert.match(admission, /substantive bounded request/u);
   assert.match(admission, /empty or\s+conversational/u);
-  assert.match(admission, /one current Git worktree/u);
-  assert.match(admission, /another repository, multiple repositories/u);
+  assert.match(admission, /Workspace Root may be a non-Git common parent/u);
+  assert.match(admission, /explicitly declared primary Git worktree/u);
+  assert.match(admission, /zero to seven additional Git repositories/u);
+  assert.match(admission, /including after symlink\s+resolution/u);
+  assert.match(admission, /Do not scan parent or sibling directories/u);
   assert.match(admission, /repository instructions and current user authority/u);
 
   assert.equal(firstQualifiedTool(handshake), qualifiedTools[0]);
@@ -68,6 +71,10 @@ test("Skill opens or resumes one deepseek task and follows one complete fresh Ac
   const discovery = section(skill, "Task discovery");
   assert.match(discovery, new RegExp(escapeRegExp(qualifiedTools[1]), "u"));
   assert.match(discovery, /host=deepseek/u);
+  assert.match(discovery, /`repository_path`[\s\S]*explicitly declared primary repository/u);
+  assert.match(discovery, /`primary_repository_key`[\s\S]*`additional_repositories`/u);
+  assert.match(discovery, /single-repository request[\s\S]*ordinary repository-relative paths/u);
+  assert.match(discovery, /resume from any participating repository[\s\S]*omit\s+the Scope creation fields/u);
   assert.match(discovery, /resume[\s\S]*omit `new_task`|`new_task=null`/u);
   assert.match(discovery, /immutable profile/u);
   assert.match(discovery, /`plain`[\s\S]*`spec-kit`[\s\S]*`openspec`/u);
@@ -90,6 +97,21 @@ test("Skill opens or resumes one deepseek task and follows one complete fresh Ac
   }
   assert.match(loop, /all `available_transitions`[\s\S]*identifier[\s\S]*destination[\s\S]*guard identifier[\s\S]*reason rule/u);
   assert.match(loop, /exactly one `mcp__dev_flow__dev_flow_apply_action` mutation/u);
+});
+
+test("Skill keeps Workspace Root and optional codebase-memory subordinate to Core", async () => {
+  const skill = await readFile(skillPath, "utf8");
+  const discovery = section(skill, "Optional code discovery");
+  const loop = section(skill, "Governed action loop");
+
+  assert.match(discovery, /preference is `false`[\s\S]*do not call any codebase-memory tool/u);
+  assert.match(discovery, /preference is `true`[\s\S]*already visible and usable[\s\S]*cross-repository/u);
+  assert.match(discovery, /Workspace Root remains the permission\s+boundary/u);
+  assert.match(discovery, /at most once in the current Dev Flow session[\s\S]*fall back/u);
+  assert.match(discovery, /Never install, configure, upgrade, start, repair, or remove codebase-memory/u);
+  assert.match(discovery, /not authority for repository permissions, repository bindings, changed paths/u);
+  assert.match(loop, /Before actual repository modification[\s\S]*startup Workspace Root/u);
+  assert.match(loop, /failed or escaping path[\s\S]*declared repository key[\s\S]*do not shrink the Core Scope/u);
 });
 
 test("Skill keeps payload, transition, method, evidence, and terminal authority in Core", async () => {

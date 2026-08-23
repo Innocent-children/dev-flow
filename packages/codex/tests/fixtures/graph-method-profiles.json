@@ -22,6 +22,14 @@
       "spec-kit",
       "openspec"
     ],
+    "host_preferences": {
+      "codex": {
+        "codebase_memory": false
+      },
+      "deepseek": {
+        "codebase_memory": true
+      }
+    },
     "tools": [
       "dev_flow_server_info",
       "dev_flow_open_task",

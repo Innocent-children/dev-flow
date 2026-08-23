@@ -24,11 +24,13 @@ export class CoreEnvelopeError extends Error {
 }
 
 export class DeterministicCoreHost {
-  constructor({ runtimePath, dataDirectory, packageRoot }) {
+  constructor({ runtimePath, dataDirectory, packageRoot, useSourceRuntime = false }) {
     this.runtimePath = runtimePath;
     this.dataDirectory = dataDirectory;
     this.packageRoot = packageRoot;
+    this.useSourceRuntime = useSourceRuntime;
     this.calls = [];
+    this.callArguments = [];
     this.sessions = [];
     this.currentSessionCalls = [];
   }
@@ -68,7 +70,7 @@ export class DeterministicCoreHost {
   }
 
   async resolveRuntimePath() {
-    if (platform() === "darwin" && arch() === "arm64") return this.runtimePath;
+    if (!this.useSourceRuntime && platform() === "darwin" && arch() === "arm64") return this.runtimePath;
     if (this.portableRuntimePath !== undefined) return this.portableRuntimePath;
 
     const runtimeDirectory = join(dirname(this.dataDirectory), "current-platform-runtime");
@@ -109,6 +111,7 @@ export class DeterministicCoreHost {
   async call(name, argumentsValue) {
     assert.notEqual(this.ctx, undefined, "Core Host session is not active");
     this.calls.push(name);
+    this.callArguments.push({ name, arguments: structuredClone(argumentsValue) });
     this.currentSessionCalls.push(name);
     const result = await this.ctx.tools.execute({
       callId: `deepseek-journey-${this.calls.length}`,

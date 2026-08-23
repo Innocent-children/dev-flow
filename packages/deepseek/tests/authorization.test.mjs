@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdir, mkdtemp, realpath, rm, symlink } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import {
@@ -14,6 +17,7 @@ import {
 } from "../lib/tool-names.mjs";
 
 const expectedTool = DEV_FLOW_QUALIFIED_TOOL_NAMES[0];
+const openTool = DEV_FLOW_QUALIFIED_TOOL_NAMES[1];
 
 test("selector matcher accepts only the whitespace-bounded token", () => {
   for (const text of [
@@ -160,6 +164,59 @@ test("plain-context guard denies before dispatch with zero Core writes", () => {
   assert.equal(guards.length, 0);
 });
 
+test("open-task guard allows two repositories inside a non-Git Workspace Root", async (t) => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-deepseek-auth-")));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const primary = join(root, "primary");
+  const additional = join(root, "docs");
+  await Promise.all([mkdir(primary), mkdir(additional)]);
+  const execution = makeExecution({
+    name: openTool,
+    callId: "scope-inside",
+    events: openSelectedTurn("scope-inside", openTool),
+    argumentsValue: {
+      host: "deepseek",
+      repository_path: primary,
+      primary_repository_key: "core",
+      additional_repositories: [{ key: "docs", repository_path: additional }],
+      new_task: null,
+    },
+  });
+  assert.equal(authorizeDevFlowExecution(execution, { workspaceRoot: root }), undefined);
+});
+
+test("open-task guard rejects root-external and symlink-escaping repositories before dispatch", async (t) => {
+  const base = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-deepseek-auth-")));
+  t.after(() => rm(base, { recursive: true, force: true }));
+  const root = join(base, "workspace");
+  const primary = join(root, "primary");
+  const outside = join(base, "outside");
+  const escape = join(root, "escape");
+  await Promise.all([mkdir(primary, { recursive: true }), mkdir(outside)]);
+  await symlink(outside, escape);
+
+  for (const [name, repositoryPath] of [["outside", outside], ["escape", escape]]) {
+    let dispatches = 0;
+    const execution = makeExecution({
+      name: openTool,
+      callId: `scope-${name}`,
+      events: openSelectedTurn(`scope-${name}`, openTool),
+      argumentsValue: {
+        host: "deepseek",
+        repository_path: primary,
+        primary_repository_key: "core",
+        additional_repositories: [{ key: "docs", repository_path: repositoryPath }],
+        new_task: null,
+      },
+    });
+    const denial = authorizeDevFlowExecution(execution, { workspaceRoot: root });
+    if (denial === undefined) dispatches += 1;
+    assert.match(denial, new RegExp(DENIAL_CODES.REPOSITORY_OUTSIDE_WORKSPACE), name);
+    assert.match(denial, /repository "docs"/u, name);
+    assert.equal(dispatches, 0, name);
+  }
+});
+
 function openSelectedTurn(callId, name) {
   return [
     event(0, "turn/start", { turn: 1 }),
@@ -168,12 +225,12 @@ function openSelectedTurn(callId, name) {
   ];
 }
 
-function makeExecution({ events, callId, name = expectedTool, parent, status = "running" }) {
+function makeExecution({ events, callId, name = expectedTool, parent, status = "running", argumentsValue = {} }) {
   return Object.freeze({
     callId,
     rootCallId: callId,
     name,
-    arguments: {},
+    arguments: argumentsValue,
     signal: new AbortController().signal,
     token: Symbol("execution"),
     ...(parent === undefined ? {} : { parent }),

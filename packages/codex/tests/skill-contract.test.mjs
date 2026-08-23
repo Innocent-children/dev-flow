@@ -127,9 +127,12 @@ test("Skill admits only an exact current-turn selector with substantive or resum
   assert.match(admission, /implicit/i);
 
   assert.match(admission, /read-only Git/i);
-  assert.match(admission, /one current Git worktree/i);
+  assert.match(admission, /current Git worktree/i);
   assert.match(admission, /canonical/i);
-  assert.match(admission, /another repository|multiple repositories|more than one repository/i);
+  assert.match(admission, /explicitly[\s\S]*repository key and path/i);
+  assert.match(admission, /additional writable root/i);
+  assert.match(admission, /Do not scan parent or sibling directories/i);
+  assert.match(admission, /imports, remotes,\s+submodules, codebase-memory/i);
   assert.match(admission, /repository instructions/i);
   assert.match(admission, /user authority/i);
 });
@@ -202,6 +205,10 @@ test("Skill follows fresh Core authority for create, resume, one mutation, and c
   }
   const discovery = section(skill, "Task discovery");
   assert.match(discovery, /host=codex|host=`codex`|`host=codex`/i);
+  assert.match(discovery, /`repository_path`[\s\S]*canonical current worktree/i);
+  assert.match(discovery, /`primary_repository_key`[\s\S]*`additional_repositories`/i);
+  assert.match(discovery, /single-repository[\s\S]*omit both optional Scope\s+fields/i);
+  assert.match(discovery, /resume from the primary or an additional repository[\s\S]*omit the Scope creation fields/i);
   assert.match(discovery, /resume[\s\S]*omit[\s\S]*`new_task`/i);
   assert.match(discovery, /new[\s\S]*contract[\s\S]*user/i);
   assert.match(discovery, /ownership|contract conflict/i);
@@ -285,7 +292,8 @@ test("method-profile reference closes all 24 rendering steps without owning Core
   assert.match(reference, /`plain_fallback`[\s\S]*`capability`[\s\S]*empty/i);
   assert.match(reference, /exactly one `MethodEvidence`[\s\S]*Action order/i);
   assert.match(reference, /`unavailable`[\s\S]*`not_run`[\s\S]*(?:do not|cannot)[\s\S]*required/i);
-  assert.match(reference, /`role`[\s\S]*repository-relative `path`[\s\S]*`digest`[\s\S]*`summary`/i);
+  assert.match(reference, /`role`[\s\S]*contract `path`[\s\S]*`digest`[\s\S]*`summary`/i);
+  assert.match(reference, /multi-repository Task[\s\S]*`<repository-key>::<repository-relative-path>`/i);
   assert.match(reference, /explicit[\s\S]*user[\s\S]*(?:verdict|confirmation)/i);
   assert.match(reference, /(?:does not|must not|never)[\s\S]*(?:derive|select)[\s\S]*(?:transition|destination)/i);
   assert.match(reference, /(?:checkbox|archive|capability)[\s\S]*(?:does not|cannot|must not)[\s\S]*(?:advance|mutate)[\s\S]*Core/i);
@@ -318,6 +326,8 @@ test("node-payload reference makes every closed branch operational without ownin
   }
   assert.match(reference, /`repository_observation` is a Core evidence requirement, not an ArtifactReference role/u);
   assert.match(reference, /Allowed ArtifactReference roles are only/u);
+  assert.match(reference, /work-item `expected_paths`[\s\S]*Implementation `changed_paths`[\s\S]*Refactor `changed_paths`/u);
+  assert.match(reference, /`<repository-key>::<repository-relative-path>`[\s\S]*multi-repository Task/u);
   assert.match(reference, /exactly the six common/u);
   assert.match(reference, /Never submit `destination`, `next_node`/u);
   assert.match(reference, /INVALID_ARGUMENT[\s\S]*stop/u);
@@ -332,6 +342,24 @@ test("node-payload reference makes every closed branch operational without ownin
   assert.match(forwarding, /MethodEvidence exactly matches current Action steps/u);
   assert.match(forwarding, /`destination`, `next_node`, `next_cursor`/u);
   assert.match(forwarding, /Core returns `INVALID_ARGUMENT`[\s\S]*do not[\s\S]*second candidate payload/u);
+});
+
+test("Skill honors Codex writable roots and optional codebase-memory without changing authority", async () => {
+  const skill = await readFile(skillPath, "utf8");
+  const admission = section(skill, "Admission gate");
+  const discovery = section(skill, "Optional code discovery");
+  const loop = section(skill, "Governed action loop");
+
+  assert.match(admission, /additional writable root authorized for the current Codex session/u);
+  assert.match(admission, /do not read or parse global\s+Codex configuration/u);
+  assert.match(discovery, /preference is `false`[\s\S]*do not call any codebase-memory tool/u);
+  assert.match(discovery, /preference is `true`[\s\S]*already visible and usable[\s\S]*cross-repository/u);
+  assert.match(discovery, /at most once in the current Dev Flow session[\s\S]*fall back/u);
+  assert.match(discovery, /Never install, configure, upgrade, start, repair, or remove codebase-memory/u);
+  assert.match(discovery, /never call plugin\s+management to install it/u);
+  assert.match(discovery, /not authority for repository bindings, changed paths, Git facts, Recovery/u);
+  assert.match(loop, /Before any actual repository modification[\s\S]*declared repository[\s\S]*permission failure/u);
+  assert.match(loop, /Do not[\s\S]*change sandbox mode[\s\S]*danger-full-access[\s\S]*shrink the Scope/u);
 });
 
 test("Skill selects one immutable profile and renders complete honest method evidence", async () => {
@@ -362,6 +390,10 @@ test("method-profile fixtures close the three profiles and every Phase 6C capabi
   const fixture = await readJSON(methodProfileFixturePath);
   assert.equal(fixture.fixture_kind, "simulated_codex_adapter_contract");
   assert.equal(fixture.evidence_class, "simulated_static_adapter_journey");
+  assert.deepEqual(fixture.server_info.host_preferences, {
+    codex: { codebase_memory: false },
+    deepseek: { codebase_memory: true },
+  });
   assert.equal(fixture.scenarios.length, 11);
 
   const scenarios = new Map(fixture.scenarios.map((scenario) => [scenario.id, scenario]));

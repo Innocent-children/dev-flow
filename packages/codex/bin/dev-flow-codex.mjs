@@ -23,7 +23,9 @@ const CODEX_MCP_INSTRUCTIONS = [
   "Do not call tools from this server unless the current user turn contains the exact selector `$dev-flow-codex:dev-flow`.",
   "Bare `$dev-flow`, wrong or missing selectors, and implicit matches are not activation.",
   "After valid selection, `dev_flow_server_info` must be the first Dev Flow call.",
+  "Read `host_preferences.codex.codebase_memory` from that handshake without installing or configuring codebase-memory.",
   "Call `dev_flow_open_task` only after exact `$dev-flow-codex:dev-flow` selection and a successful `dev_flow_server_info` handshake.",
+  "Use the current Git worktree as primary and only user-declared additional repositories already authorized as writable roots; never scan repositories or change Codex sandbox permissions.",
 ].join(" ");
 
 export async function runCLI(arguments_, dependencies = {}) {

@@ -30,6 +30,9 @@ test("fake Core serves the current six-tool catalog and complete structured resu
   }
   assert.deepEqual(tools[0].inputSchema.required, []);
   assert.deepEqual(tools[1].inputSchema.required, ["host", "repository_path"]);
+  assert.equal(tools[1].inputSchema.properties.additional_repositories.maxItems, 7);
+  assert.equal(tools[1].inputSchema.properties.additional_repositories.items.additionalProperties, false);
+  assert.deepEqual(tools[1].inputSchema.properties.additional_repositories.items.required, ["key", "repository_path"]);
   assert.deepEqual(tools[4].inputSchema.required, [
     "request_id",
     "host",
@@ -45,7 +48,35 @@ test("fake Core serves the current six-tool catalog and complete structured resu
   ]);
   const info = await client.callTool("dev_flow_server_info", {});
   assert.deepEqual(info.result.method_profiles, ["plain", "spec-kit", "openspec"]);
+  assert.deepEqual(info.result.host_preferences, {
+    codex: { codebase_memory: false },
+    deepseek: { codebase_memory: true },
+  });
   assert.deepEqual(info.result.tools, exactTools);
+});
+
+test("fake Core projects one multi-repository task, Action, revision, and digest", async (t) => {
+  const fixture = await makeFixture(t, "multi-repository");
+  const client = await fixture.client();
+  const opened = await client.callTool("dev_flow_open_task", {
+    ...openArguments(),
+    repository_path: "/workspace/core",
+    primary_repository_key: "core",
+    additional_repositories: [{ key: "docs", repository_path: "/workspace/docs" }],
+  });
+  assert.equal(opened.result.task.primary_repository_key, "core");
+  assert.equal(opened.result.task.repository.canonical_root, "/workspace/core");
+  assert.deepEqual(opened.result.task.additional_repositories.map(({ key, repository }) => ({
+    key, root: repository.canonical_root,
+  })), [{ key: "docs", root: "/workspace/docs" }]);
+  assert.equal(opened.result.task.revision, 1);
+  assert.equal(typeof opened.result.task.current_action.repository_binding_digest, "string");
+  assert.equal(Object.hasOwn(opened.result.task.current_action, "repository_scope_digest"), false);
+
+  const calls = await fixture.toolCalls();
+  assert.deepEqual(calls.find((call) => call.name === "dev_flow_open_task").arguments.additional_repositories, [
+    { key: "docs", repository_path: "/workspace/docs" },
+  ]);
 });
 
 test("driver creates and resumes one graph task while surfacing Core conflicts", async (t) => {
@@ -54,6 +85,8 @@ test("driver creates and resumes one graph task while surfacing Core conflicts",
   const opened = await first.callTool("dev_flow_open_task", openArguments());
   assert.equal(opened.result.created, true);
   assert.equal(opened.result.task.current_cursor, "REQUIREMENTS");
+  assert.equal(opened.result.task.primary_repository_key, "primary");
+  assert.deepEqual(opened.result.task.additional_repositories, []);
   const taskId = opened.result.task.task_id;
   await first.close();
 

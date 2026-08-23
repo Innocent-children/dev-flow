@@ -19,13 +19,16 @@ const [serverInfoTool, openTool, getTaskTool, getNextTool, applyTool] = DEV_FLOW
 
 test("deterministic DeepSeek Host follows the real Core graph through restart, recovery, refactor, and DONE", async (t) => {
   const root = await temporaryRoot(t);
-  const repository = join(root, "repository");
+  const repository = join(root, "core");
+  const additionalRepository = join(root, "docs");
   const dataDirectory = join(root, "data");
   await mkdir(repository);
+  await mkdir(additionalRepository);
   await mkdir(dataDirectory, { mode: 0o700 });
   await initializeGit(repository);
+  await initializeGit(additionalRepository);
 
-  const core = new DeterministicCoreHost({ runtimePath, dataDirectory, packageRoot });
+  const core = new DeterministicCoreHost({ runtimePath, dataDirectory, packageRoot, useSourceRuntime: true });
   t.after(() => core.stop());
   await core.start();
 
@@ -45,10 +48,13 @@ test("deterministic DeepSeek Host follows the real Core graph through restart, r
     "dev_flow_get_next_action", "dev_flow_apply_action", "dev_flow_cancel_task",
   ]);
   assert.deepEqual(info.result.method_profiles, ["plain", "spec-kit", "openspec"]);
+  assert.equal(typeof info.result.host_preferences.deepseek.codebase_memory, "boolean");
 
   const opened = await core.call(openTool, {
     host: "deepseek",
     repository_path: repository,
+    primary_repository_key: "core",
+    additional_repositories: [{ key: "docs", repository_path: additionalRepository }],
     new_task: {
       request: "Prove the deterministic DeepSeek graph loop.",
       initial_scope: ["Exercise the current graph"],
@@ -66,8 +72,14 @@ test("deterministic DeepSeek Host follows the real Core graph through restart, r
   let task = opened.result.task;
   assert.equal(opened.result.created, true);
   assert.equal(task.origin_host, "deepseek");
+  assert.equal(task.primary_repository_key, "core");
+  assert.deepEqual(task.additional_repositories.map(({ key }) => key), ["docs"]);
   assert.equal(task.revision, 1);
   assertCompleteAction(task.current_action, "REQUIREMENTS");
+  assert.equal(Object.hasOwn(task.current_action, "repository_scope_digest"), false);
+  const repositoryBindingDigest = task.current_action.repository_binding_digest;
+  assert.equal(typeof repositoryBindingDigest, "string");
+  assert.equal(core.callArguments.filter(({ name }) => name === openTool).length, 1);
 
   const uncertainArgs = applyArguments(task, "requirements_ready", requirementsResult(), "journey-requirements");
   await core.call(applyTool, uncertainArgs);
@@ -96,8 +108,16 @@ test("deterministic DeepSeek Host follows the real Core graph through restart, r
   const restartedInfo = await core.call(serverInfoTool, {});
   assert.equal(restartedInfo.result.product, "dev-flow");
   assert.equal(core.sessions[1][0], serverInfoTool);
+  const resumedOpen = await core.call(openTool, {
+    host: "deepseek",
+    repository_path: additionalRepository,
+    new_task: null,
+  });
   const resumed = await core.call(getTaskTool, { host: "deepseek", task_id: task.task_id });
   const resumedAction = await core.call(getNextTool, { host: "deepseek", task_id: task.task_id });
+  assert.equal(resumedOpen.result.created, false);
+  assert.equal(resumedOpen.result.task.task_id, task.task_id);
+  assert.equal(resumedOpen.result.task.primary_repository_key, "core");
   assert.equal(resumed.result.task.task_id, task.task_id);
   assert.equal(resumed.result.task.revision, task.revision);
   assert.equal(resumedAction.result.action.action_id, task.current_action.action_id);
@@ -105,12 +125,14 @@ test("deterministic DeepSeek Host follows the real Core graph through restart, r
 
   task = await apply(core, task, "tasks_ready", tasksResult(task.baselines.design.revision));
   await writeFile(join(repository, "feature.txt"), "implementation one\n");
+  await writeFile(join(additionalRepository, "feature.txt"), "documentation one\n");
   task = await apply(core, task, "implementation_ready_for_test", implementationResult(task.baselines.task_plan.revision));
   task = await apply(core, task, "tests_failed_implementation", failedTestResult(), "The first targeted check failed.");
   assert.equal(task.current_cursor, "IMPLEMENT");
   assert.equal(task.test, null);
 
   await writeFile(join(repository, "feature.txt"), "implementation fixed\n");
+  await writeFile(join(additionalRepository, "feature.txt"), "documentation fixed\n");
   task = await apply(core, task, "implementation_ready_for_test", implementationResult(task.baselines.task_plan.revision));
   task = await apply(core, task, "tests_passed", passedTestResult());
   const firstTestRecord = task.test.record_id;
@@ -144,6 +166,7 @@ test("deterministic DeepSeek Host follows the real Core graph through restart, r
   assert.equal(task.outcome.status, "completed");
   assert.equal(task.revision, 13);
   assert.equal(core.calls.filter((name) => name === applyTool).length, 12);
+  assert.equal(task.outcome.final_repository_digest.length, repositoryBindingDigest.length);
 });
 
 async function apply(core, task, transition, nodeResult, reason = "") {
@@ -245,7 +268,7 @@ function tasksResult(designRevision) {
     baseline: {
       design_revision: designRevision,
       work_items: [{
-        work_item_id: "work", summary: "Exercise the graph", expected_paths: ["feature.txt"],
+        work_item_id: "work", summary: "Exercise the graph", expected_paths: ["core::feature.txt", "docs::feature.txt"],
         acceptance_indexes: [0, 1], verification_steps: ["Run targeted checks"], dependencies: [],
       }],
     }, findings: [],
@@ -255,7 +278,7 @@ function tasksResult(designRevision) {
 function implementationResult(taskPlanRevision) {
   return {
     task_plan_revision: taskPlanRevision,
-    completed_work_item_ids: ["work"], changed_paths: ["feature.txt"], no_file_changes: false,
+    completed_work_item_ids: ["work"], changed_paths: ["core::feature.txt", "docs::feature.txt"], no_file_changes: false,
     deviations: [], findings: [],
   };
 }
@@ -290,7 +313,7 @@ function comprehensionResult({ abstractions = [], findings = [], userPassed = fa
 
 function refactorResult() {
   return {
-    changed_paths: ["feature.txt"], no_file_changes: false,
+    changed_paths: ["core::feature.txt"], no_file_changes: false,
     simplifications: ["Removed the factory layer"], behavior_change_intended: false, findings: [],
   };
 }

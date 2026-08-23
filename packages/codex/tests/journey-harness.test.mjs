@@ -503,6 +503,51 @@ test("real smoke wiring uses exact selector and ephemeral in-memory sessions", a
   });
 });
 
+test("Feature-only multi-repository runner uses one explicit bounded Codex invocation", async () => {
+  assert.deepEqual(parseCLI([
+    "multi-repository",
+    "--codex-executable", "/opt/codex/bin/codex",
+    "--result-file", "/tmp/feature-001-evidence.json",
+  ]), {
+    mode: "multi-repository",
+    codexExecutable: "/opt/codex/bin/codex",
+    resultFile: "/tmp/feature-001-evidence.json",
+  });
+  assert.throws(() => parseCLI([
+    "multi-repository", "--codex-executable", "/opt/codex/bin/codex",
+  ]), /requires --codex-executable ABS --result-file ABS\.json/u);
+
+  const layout = smokeRuntime.createMultiRepositoryJourneyLayout("/tmp/feature-001-run");
+  assert.deepEqual(layout, {
+    root: "/tmp/feature-001-run",
+    primaryRepository: "/tmp/feature-001-run/core",
+    additionalRepository: "/tmp/feature-001-run/docs",
+    dataDirectory: "/tmp/feature-001-run/data",
+  });
+  const prompt = smokeRuntime.multiRepositoryPrompt(layout.primaryRepository, layout.additionalRepository);
+  assert.equal(prompt.startsWith(`${EXPLICIT_SELECTOR} `), true);
+  assert.match(prompt, /exactly one host=codex Task/u);
+  assert.match(prompt, /primary_repository_key=core/u);
+  assert.match(prompt, /additional_repositories/u);
+  assert.match(prompt, /core::core-proof\.txt[\s\S]*docs::docs-proof\.txt/u);
+  assert.match(prompt, /repository_path=.*docs[\s\S]*new_task=null[\s\S]*no Scope creation fields/u);
+
+  const args = buildCodexExecArgs(prompt, {
+    workspace: layout.primaryRepository,
+    workspaceWrite: true,
+    additionalWritableRoots: [layout.additionalRepository],
+  });
+  assert.deepEqual(args.slice(0, 8), [
+    "exec", "--json", "--sandbox", "workspace-write", "--cd", layout.primaryRepository,
+    "--add-dir", layout.additionalRepository,
+  ]);
+  assert.equal(args.at(-1), prompt);
+
+  const runnerSource = await readFile(runner, "utf8");
+  assert.match(runnerSource, /--multi-repository --codex-executable ABS --result-file ABS\.json/u);
+  assert.match(runnerSource, /write-codex-journey-evidence\.mjs" multi-repository/u);
+});
+
 function currentSuccessJSONL() {
   const envelope = {
     ok: true,
