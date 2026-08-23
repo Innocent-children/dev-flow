@@ -222,11 +222,13 @@ request binding 不再报错，但后续 apply 返回 `INVALID_ARGUMENT`；旧 f
 失败调用详情。multi-repository 现也共享既有完整 apply payload 规则，并分别保留 substantive 与
 resume session 的本地 raw JSONL；闭合 failure evidence 仍为最小可提交字段。Attempt 5 evidence 为
 `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-5.json`。用户已授权读取和存储 raw
-transcript，并授权由失败证据驱动的 source-bound repair loop 继续到首次通过；T034 当前未完成。
+transcript，并授权由失败证据驱动的 source-bound repair loop 继续到首次通过。Attempt 6 evidence
+确认失败 payload 在正常 `implementation_ready_for_test` 分支错误携带非空 `findings`；共享规则
+现统一 `problem_class`/`findings` 的分支语义，并将 TEST 验证留给后续 session。T034 当前未完成。
 T035 与 T040 仍分别为 0/1，且不增加其他测试预算。
 
 明确不建立 3～8 仓库、节点、平台或配置排列组合；不做压力、性能、fuzz、版本矩阵；不安装或
-测试真实 codebase-memory；真实 Host Journey 不得超过上述修订后的封顶预算。
+测试真实 codebase-memory；T034 之外的真实 Host Journey 不得扩大既定预算。
 
 ## Documentation Scope
 

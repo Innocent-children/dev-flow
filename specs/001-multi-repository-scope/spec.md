@@ -297,6 +297,13 @@ runner 本地保留并读取两个 session 的 raw JSONL，且授权按“保留
 - multi-repository substantive Prompt 现进一步复用既有完整 apply payload 规则；runner 为 substantive
   和 resume session 分别写入权限为 `0600` 的 raw JSONL sidecar，闭合 failure evidence 继续只记录
   最小诊断字段；
+- Attempt 6 已基于 source commit `748b4570982ff50d3c71942b95211557d860e602` 启动并失败，
+  evidence 为 `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-6.json`；raw transcript
+  证明 `implementation_ready_for_test` 使用了 `problem_class=none` 但错误携带验证描述作为非空
+  `findings`，Core 因此返回 `TRANSITION_NOT_ALLOWED`；
+- 共享 apply 规则现规定前进的 ready/passed/completed 分支使用 `problem_class=none` 与
+  `findings=[]`，普通观察进入节点语义字段；substantive session 只完成 IMPLEMENT apply，TEST
+  验证命令保留给后续 session；
 - build、install、setup、registration/Core readback 在 Codex executable 启动前失败时不构成真实
   Journey；Codex executable 启动后的失败必须保留 evidence 与 raw transcript；
 - T034 未完成；下一次运行只用于验证当前精确修复，成功后立即闭合 T034，失败则先读取 raw

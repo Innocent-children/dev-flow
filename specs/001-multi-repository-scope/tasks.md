@@ -140,12 +140,19 @@ description: "Implementation tasks for bounded multi-repository Task scope and r
     - evidence: `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-5.json`
     - preservation: MUST NOT overwrite or modify Attempts 1～4 evidence
     - retry: 后续运行必须使用独立 evidence，并由 raw failure 支持精确代码修复
-  - **Next repair verification**
-    - status: authorized, not started
-    - source commit: 提交 raw transcript 保留与当前 apply payload 修复后确定
+  - **Attempt 6**
+    - status: failed
+    - source commit: `748b4570982ff50d3c71942b95211557d860e602`
+    - preflight: source-bound build/install/setup/registration/Core readback passed
+    - failure: normal `implementation_ready_for_test` payload used `problem_class=none` with a nonempty verification `findings` entry；Core returned `TRANSITION_NOT_ALLOWED`
     - evidence: `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-6.json`
     - raw transcripts: evidence 旁的 `.substantive.raw.jsonl` 与 `.resume.raw.jsonl`，权限 `0600`，仅本地诊断且由 `.gitignore` 排除
-    - rule: 通过则立即完成 T034；失败则保留 evidence 与 raw transcript，读取精确失败调用并修复后才允许下一次 source-bound 验证
+    - root fix: 共享 apply 规则将 `problem_class`/`findings` 绑定图分支语义，正常 ready/passed/completed 分支强制空 findings；substantive session 不提前运行 TEST 验证
+  - **Next repair verification**
+    - status: authorized, not started
+    - source commit: 提交 Attempt 6 根因修复后确定
+    - evidence: `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-7.json`
+    - rule: 通过则立即完成 T034；失败则继续以独立 evidence 与 raw transcript 驱动精确修复
 - [ ] T035 [US3] 在 T033 的 DeepSeek 定向检查通过后，新增 `tests/journeys/deepseek/multi-repository-runner.mjs` 并最多调用一次 DeepSeek 真实两仓库 Journey，以非 Git Workspace Root 下两个临时 Git 仓库完成同一 Core Task 的创建、双仓工作和附加仓恢复，并将 sanitized 结果写入 `tests/journeys/deepseek/evidence/feature-001-multi-repository.json`。调用一旦实际启动即消耗预算，无论成功、失败、中断或超时；失败时必须停止并将 Feature 标记为 `Blocked`，不得在同一任务中自动修复后重跑。第二次执行必须先获得用户明确批准，并同步修订 `spec.md`、`plan.md`、`quickstart.md` 和 `tasks.md` 中的验证预算（FR-017、FR-018；SC-008；`quickstart.md`「DeepSeek」）。
 
 **Checkpoint**: 继续 T034 的 evidence-driven repair loop，直到首次通过；期间不得执行 T035。

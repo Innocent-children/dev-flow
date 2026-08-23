@@ -32,7 +32,9 @@ session 只恢复，并将返回身份与最后一次成功 apply 对比。Attem
 Prompt 未复用 apply request-binding 规则；Attempt 5 确认 binding 已修复，但后续 apply 仍返回
 `INVALID_ARGUMENT`，旧 failure evidence 未保留失败调用详情。multi-repository 现进一步复用
 既有完整 apply payload 规则，并为两个真实 Codex session 分别保留本地 raw JSONL；闭合 evidence
-仍保持可提交的最小字段。用户已授权读取和本地存储 raw transcript，并授权按“失败证据 → 精确修复
+仍保持可提交的最小字段。Attempt 6 的 raw transcript 进一步确认失败不是 transition 缺失，而是
+正常 `implementation_ready_for_test` 分支错误携带了非空 `findings`。共享 apply 规则现将
+`problem_class`/`findings` 明确定义为分支选择语义，并将 TEST 验证留给后续 session。用户已授权读取和本地存储 raw transcript，并授权按“失败证据 → 精确修复
 → 下一次 source-bound 验证”的顺序继续到首次通过。T034 保持未完成，Feature 状态为 `Ready`。
 本 Feature 不授权版本修改、npm
 发布、Tag、GitHub Release 或其他发布操作。

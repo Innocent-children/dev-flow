@@ -688,6 +688,8 @@ test("Feature-only multi-repository CLI and layout are closed over source identi
   assert.match(substantivePrompt, /core::core-proof\.txt[\s\S]*docs::docs-proof\.txt/u);
   assert.match(substantivePrompt, /new nonempty opaque caller request ID[\s\S]*top-level request_id/u);
   assert.match(substantivePrompt, /payload must have exactly transition_id, summary, reason, artifacts, method_evidence, and node_result/u);
+  assert.match(substantivePrompt, /forward ready, passed, or completed transition use problem_class=none and findings=\[\]/u);
+  assert.match(substantivePrompt, /do not run that command in this substantive session because it stops at the successful IMPLEMENT apply before TEST/u);
   assert.match(substantivePrompt, /The success wrappers are: REQUIREMENTS=/u);
   assert.doesNotMatch(substantivePrompt, /new_task=null/u);
   assert.match(substantivePrompt, /Stop after the first successful apply that records both changes/u);
@@ -2091,7 +2093,8 @@ test("final local payload fixtures and prompts preserve every closed graph branc
     assert.match(prompt, /artifacts=\[\]/u);
     assert.match(prompt, /required_evidence is not an ArtifactReference role/u);
     assert.match(prompt, /complete node_result wrapper/u);
-    assert.match(prompt, /INVALID_ARGUMENT, stop immediately/u);
+    assert.match(prompt, /If any apply returns an error, stop immediately/u);
+    assert.match(prompt, /problem_class=none and findings=\[\]/u);
     assert.match(prompt, /Never submit destination, next_node, next_cursor/u);
   }
 });

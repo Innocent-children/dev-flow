@@ -192,6 +192,10 @@ Codex session：主仓 session 完成 mutation，附加仓 session 随后恢复�
 `request_id`；通用 apply request-binding 规则现由相关 Prompt 共享。Attempt 5 不再报告 binding
 缺失，但后续 apply 返回另一个 `INVALID_ARGUMENT`。multi-repository 现也共享既有完整 apply
 payload 规则；闭合 failure evidence 保持最小字段，raw sidecar 保留完整诊断。
+Attempt 6 raw transcript 显示 `implementation_ready_for_test` 的 Action 和 transition 均正确，但正常
+分支 payload 将验证描述放进了非空 `findings`，Core 按合同返回 `TRANSITION_NOT_ALLOWED`。共享
+apply 规则现要求所有正常 ready/passed/completed 分支使用 `problem_class=none`、`findings=[]`，并且
+substantive session 不提前运行 TEST 节点的验证命令。
 
 T035 DeepSeek Journey 和第 7 节 T040 最终仓库级验证仍各最多调用一次，当前均为 0/1。调用前必须
 完成对应的定向检查，且不增加其他测试预算。
@@ -206,6 +210,8 @@ T035 DeepSeek Journey 和第 7 节 T040 最终仓库级验证仍各最多调用�
 - 第二段使用 `--cd <additional> --add-dir <primary>`，只从附加仓库恢复，不修改文件或 apply；
 - evidence 对比最后一次成功 apply 与恢复结果，并证明不同 Codex thread、同一 Core Task、
   revision、Action、digest 和 Scope；
+- Attempt 6 失败 evidence 保留在
+  `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-6.json`，对应 raw sidecar 仅本地保存；
 - Attempt 5 失败 evidence 保留在
   `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-5.json`；
 - Attempt 4 失败 evidence 保留在
