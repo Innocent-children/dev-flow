@@ -209,9 +209,10 @@ Codex 相同的 evidence-driven repair loop 继续。Attempt 2 基于 source com
 随后在 Task 到达 `DELIVERY`、revision 7 后超时。runner 现将理解确认与交付拆成两个单节点
 checkpoint，并在超时清理前保存当前 `0600` raw transcript。Attempt 3 的 raw transcript 证明
 REQUIREMENTS `unresolved_questions` 被错误放入闭合 `baseline`，Core 返回 `INVALID_ARGUMENT`。
-同步 Host reference 已明确 sibling 关系，Task 创建与 REQUIREMENTS apply 也拆开。T035 总预算为
-3/4 consumed，Attempt 4 已授权但尚未启动，必须使用独立 evidence。第 7 节 T040 仍为 0/1，
-T035 完成前不得执行。
+同步 Host reference 已明确 sibling 关系，Task 创建与 REQUIREMENTS apply 也拆开。Attempt 4 前五段
+通过，最后 DELIVERY apply 因 `reason_required=false` 却提交非空 reason 被 Core 拒绝。同步 Host
+reference 与 runner 现要求 reason 完全服从当前 transition。T035 总预算为 4/5 consumed，Attempt 5
+已授权但尚未启动，必须使用独立 evidence。第 7 节 T040 仍为 0/1，T035 完成前不得执行。
 
 ### Codex
 
@@ -242,7 +243,7 @@ T035 完成前不得执行。
 ### DeepSeek
 
 - 一个非 Git 临时 Workspace Root，其下初始化主/附加两个 Git 仓库；
-- Attempts 1～3 已失败；修订后的总预算为 3/4 consumed，Attempt 4 已授权但尚未启动；
+- Attempts 1～4 已失败；修订后的总预算为 4/5 consumed，Attempt 5 已授权但尚未启动；
 - 失败 evidence 只证明一个 DeepSeek Task 创建后停在 `REQUIREMENTS`、revision 1，不满足双仓修改、
   从附加仓库恢复和同一 Task 终态条件；
 - Attempt 2 已证明 create-to-DESIGN、implement-to-TEST、additional-resume-to-COMPREHENSION_REVIEW，
@@ -251,11 +252,14 @@ T035 完成前不得执行。
   raw transcript 已保留；
 - Attempt 4 使用 create-only、requirements-to-DESIGN，以及后续全部单一职责 checkpoint；同步
   payload reference 明确 `unresolved_questions` 与 `baseline` 同级；
+- Attempt 4 六段均实际运行，最后 DELIVERY payload 的非空 reason 与 `reason_required=false` 冲突；
+  独立 evidence 与六段 raw transcript 已保留；
+- Attempt 5 的同步 payload reference 和 runner 明确 reason 必须服从当前 transition；
 - root 外拒绝由第 3 节 guard 测试证明，不增加其他真实 Journey。
 
 ## 7. 最终全仓门禁（最多一次）
 
-所有定向检查、文档同步和两个 Host Journey 完成后，最多执行一次。当前 T035 Attempt 4 尚未执行，
+所有定向检查、文档同步和两个 Host Journey 完成后，最多执行一次。当前 T035 Attempt 5 尚未执行，
 因此不得执行：
 
 ```bash

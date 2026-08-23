@@ -329,10 +329,15 @@ Codex 相同的 evidence-driven repair loop 修复根因。Attempt 2 基于 sour
 `INVALID_ARGUMENT`。独立 evidence 为
 `tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-3.json`。同步 Host reference 现
 明确 `unresolved_questions` 必须与 `baseline` 同级，runner 也将 Task 创建与 REQUIREMENTS apply
-拆成两个 checkpoint。T035 总预算修订为 3/4 consumed；Attempt 4 已授权，必须绑定新的 source
-commit 与独立 evidence，且尚未启动。
+拆成两个 checkpoint。Attempt 4 基于 source commit
+`db8f57cbbf11182127eb2f4d11d14a91debc9809` 执行并失败；六段 raw transcript 证明 Task 完成双仓
+修改、附加仓恢复、测试和理解确认，最后 DELIVERY apply 在 transition `reason_required=false` 时
+错误提交非空 `reason`，Core 返回 `INVALID_ARGUMENT`。独立 evidence 为
+`tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-4.json`。同步 Host reference 与
+runner 现要求 reason 完全服从当前 transition。T035 总预算修订为 4/5 consumed；Attempt 5 已授权，
+必须绑定新的 source commit 与独立 evidence，且尚未启动。
 
-T040 最终 `pnpm run validate` 仍为 0/1。当前 T034 已完成，T035 Attempt 4 已授权但未执行，Feature
+T040 最终 `pnpm run validate` 仍为 0/1。当前 T034 已完成，T035 Attempt 5 已授权但未执行，Feature
 状态为 `Ready`；T035 完成前不得执行 T040。
 
 ## Success Criteria *(mandatory)*

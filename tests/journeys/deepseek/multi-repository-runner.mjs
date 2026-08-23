@@ -22,6 +22,7 @@ const APPLY_RULES = [
   "Before every apply, bind the latest complete Core Action and its current input schema.",
   "Use exactly the returned transition_id, current revision, action identity, process identity, and repository binding digest.",
   "The payload top level must contain exactly transition_id, summary, reason, artifacts, method_evidence, and node_result.",
+  "Set reason to the empty string whenever the selected transition has reason_required=false; use a nonempty reason only when reason_required=true.",
   "Use artifacts=[] and one plain_fallback MethodEvidence item with capability empty for every current method step in Action order.",
   "For a forward ready, passed, or completed transition use problem_class=none and findings=[].",
   "Use a non-none problem_class and nonempty findings only for the exact corrective transition whose condition they establish.",
@@ -652,6 +653,7 @@ function selfTest() {
   assert.equal(versionAtLeast("0.1.1-rc.2", "0.1.0-rc.6"), true);
   assert.equal(versionAtLeast("0.1.0-rc.5", "0.1.0-rc.6"), false);
   assert.match(APPLY_RULES, /problem_class=none and findings=\[\]/u);
+  assert.match(APPLY_RULES, /reason_required=false/u);
   assert.match(APPLY_RULES, /unresolved_questions is a sibling of baseline/u);
   assert.match(APPLY_RULES, /If any apply returns an error, stop immediately/u);
   const parsed = parseArguments([

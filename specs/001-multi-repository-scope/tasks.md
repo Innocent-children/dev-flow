@@ -168,9 +168,12 @@ description: "Implementation tasks for bounded multi-repository Task scope and r
   - Attempt 3: source commit `cb6b8b26c4b3c14190cfa624d42b6fbb6deeb5b8`；failed；runner exit code 1；budget 3/3 consumed；REQUIREMENTS apply 将 `unresolved_questions` 错放进闭合 `baseline` 对象，Core 返回 `INVALID_ARGUMENT`，Task 保持 revision 1
   - Attempt 3 evidence: `tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-3.json`；`.create-to-design.raw.jsonl` 权限 `0600` 且由 `.gitignore` 排除
   - root fix after Attempt 3: Codex/DeepSeek 同步 `node-payloads.md` 明确 `unresolved_questions` 与 `baseline` 同级；runner 将 create-only 与 requirements-to-DESIGN 拆成独立 checkpoint；Skill 合同测试 27/27 通过
-  - Attempt 4: 用户已明确授权继续到首次通过；修订后总预算为 3/4 consumed；必须绑定新的 source commit 和独立 `tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-4.json`；尚未启动
+  - Attempt 4: source commit `db8f57cbbf11182127eb2f4d11d14a91debc9809`；failed；runner exit code 1；budget 4/4 consumed；前五个 checkpoint 通过，最后 DELIVERY apply 在 `reason_required=false` 时提交非空 reason，Core 返回 `INVALID_ARGUMENT`，Task 保持 DELIVERY revision 7
+  - Attempt 4 evidence: `tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-4.json`；六段 `.raw.jsonl` 权限 `0600` 且由 `.gitignore` 排除
+  - root fix after Attempt 4: Codex/DeepSeek 同步 `node-payloads.md` 与 runner 规定 `reason_required=false` 必须 `reason=""`，只有 true 才使用非空 reason；Skill 合同测试 27/27 通过
+  - Attempt 5: 用户已明确授权继续到首次通过；修订后总预算为 4/5 consumed；必须绑定新的 source commit 和独立 `tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-5.json`；尚未启动
 
-**Checkpoint**: T034 已完成；T035 Attempts 1～3 失败 evidence 已保留，Attempt 4 已授权但尚未执行；Feature 为 `Ready`。T035 完成前不执行 T036～T040。
+**Checkpoint**: T034 已完成；T035 Attempts 1～4 失败 evidence 已保留，Attempt 5 已授权但尚未执行；Feature 为 `Ready`。T035 完成前不执行 T036～T040。
 
 ---
 

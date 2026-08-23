@@ -15,6 +15,8 @@ Before every ordinary apply:
 3. Select the matching `dev_flow_apply_action` `inputSchema` branch and use exactly the six common
    payload members: `transition_id`, `summary`, `reason`, `artifacts`, `method_evidence`, and
    `node_result`.
+   Set `reason=""` whenever the selected transition has `reason_required=false`; provide a nonempty
+   reason only when the selected transition has `reason_required=true`.
 4. `required_evidence` and `artifacts` are different concepts. `repository_observation` is a Core evidence requirement, not an ArtifactReference role. When no real repository-relative process
    artifact exists, submit `"artifacts": []`.
 5. Allowed ArtifactReference roles are only `requirements`, `design`, `task_plan`,
