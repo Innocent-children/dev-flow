@@ -229,9 +229,10 @@ transcript，并授权由失败证据驱动的 source-bound repair loop 继续�
 T035 已基于 source commit `14b8669bc331b88a6ccef3888d8c553a54c2bcc5` 执行唯一一次真实
 DeepSeek Journey。DSH exit code 为 0，但 post-session evidence validation 失败，Task 仅停在
 `REQUIREMENTS`、revision 1，未证明双仓修改、附加仓恢复或终态。用户已授权与 Codex 相同的
-evidence-driven repair loop：runner 改为 create-to-DESIGN、implement-to-TEST、附加仓恢复到
-COMPREHENSION_REVIEW、确认并交付到 DONE 四段，每段以 Core 状态判定进度并立即保存 raw transcript。
-T035 总预算为 1/2 consumed，Attempt 2 尚未启动；T040 仍为 0/1 且不得提前执行。
+evidence-driven repair loop。Attempt 2 已证明 create-to-DESIGN、implement-to-TEST、附加仓恢复到
+COMPREHENSION_REVIEW 均通过，Task 在最后一段推进到 DELIVERY revision 7 后超时。runner 现将
+accept-to-DELIVERY 与 deliver-to-DONE 分成单节点 checkpoint，并在超时清理前保存当前 raw session。
+T035 总预算为 2/3 consumed，Attempt 3 尚未启动；T040 仍为 0/1 且不得提前执行。
 
 明确不建立 3～8 仓库、节点、平台或配置排列组合；不做压力、性能、fuzz、版本矩阵；不安装或
 测试真实 codebase-memory；T034 之外的真实 Host Journey 不得扩大既定预算。

@@ -318,12 +318,15 @@ exit code 为 0，但 post-session evidence validation 发现首次调用为 `ba
 `dev_flow_server_info`；闭合 evidence 只记录到 `REQUIREMENTS`、revision 1，未证明双仓修改、附加仓
 恢复或终态。失败 evidence 为
 `tests/journeys/deepseek/evidence/feature-001-multi-repository.json`，必须保留。用户已明确授权按
-Codex 相同的 evidence-driven repair loop 修复根因并执行 Attempt 2；T035 总预算修订为 1/2
-consumed。runner 必须按 Core checkpoint 分段推进、在附加仓恢复前后比较同一 Task identity，并在
-临时目录清理前保存每段 raw transcript。Attempt 2 必须绑定新的 source commit 和独立 evidence，
-且尚未启动。
+Codex 相同的 evidence-driven repair loop 修复根因。Attempt 2 基于 source commit
+`af646d316e9d935852773841c5ef10eaa8a91295` 执行并失败；前三段闭合 raw transcript 证明同一 Task
+完成双仓修改、从附加仓恢复、执行唯一 `node verify.mjs` 并进入 `COMPREHENSION_REVIEW`。最后一段
+已将 Task 推进到 `DELIVERY`、revision 7，但在完成交付前触发 `DSH_STAGE_TIMEOUT`。独立 evidence
+为 `tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-2.json`。runner 现将理解确认
+与交付拆成两个单节点 checkpoint，并在超时清理前保存当前 session。T035 总预算修订为 2/3
+consumed；Attempt 3 已授权，必须绑定新的 source commit 与独立 evidence，且尚未启动。
 
-T040 最终 `pnpm run validate` 仍为 0/1。当前 T034 已完成，T035 Attempt 2 已授权但未执行，Feature
+T040 最终 `pnpm run validate` 仍为 0/1。当前 T034 已完成，T035 Attempt 3 已授权但未执行，Feature
 状态为 `Ready`；T035 完成前不得执行 T040。
 
 ## Success Criteria *(mandatory)*

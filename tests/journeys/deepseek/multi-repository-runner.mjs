@@ -91,6 +91,14 @@ async function execute(selectedMode, options) {
     await writeFile(options.resultFile, JSON.stringify(evidence, null, 2) + "\n", { mode: 0o600, flag: "wx" });
     process.stdout.write(JSON.stringify(evidence) + "\n");
   } catch (error) {
+    if (selectedMode === "run" && root !== undefined && error?.beforeSessions !== undefined
+      && !observedSessions.some((session) => session.id === stage)) {
+      try {
+        const session = await readNewSession(join(root, "dsh-home", "sessions"), error.beforeSessions);
+        await persistRawSession(options.resultFile, stage, session.rows);
+        observedSessions.push({ id: stage, ...session });
+      } catch {}
+    }
     if (selectedMode === "run" && !(await exists(options.resultFile))) {
       const failure = await failureEvidence(options, root, stage, dshStarted, lastExit, error, observedSessions);
       assertSafeEvidence(failure);
@@ -140,7 +148,7 @@ async function validatePreflight(options) {
   assert.ok((await stat(options.dshExecutable)).mode & 0o111);
   assert.ok((await stat(options.credentials)).mode & 0o600);
   assert.equal(await exists(options.resultFile), false, "T035 evidence already exists");
-  for (const id of ["create-to-design", "implement-to-test", "additional-resume-to-comprehension", "accept-and-deliver"]) {
+  for (const id of ["create-to-design", "implement-to-test", "additional-resume-to-comprehension", "accept-to-delivery", "deliver-to-done"]) {
     assert.equal(await exists(rawSessionPath(options.resultFile, id)), false, "T035 raw transcript already exists");
   }
   assert.equal((await execFile("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8" })).stdout.trim(), options.sourceCommit);
@@ -307,11 +315,17 @@ function checkpoints(config) {
       "Submit tests_passed and stop immediately when Core reports COMPREHENSION_REVIEW. Ask for the user's explicit verdict and do not self-confirm it.",
       "Do not modify files or create another Task.",
     ]),
-    checkpoint("accept-and-deliver", "DONE", [
+    checkpoint("accept-to-delivery", "DELIVERY", [
       "/dev-flow I explicitly confirm that I can explain and maintain this bounded two-file implementation and its verification path.",
       additionalResume,
       "Perform the server-info handshake and fresh Task and Action reads.", APPLY_RULES,
-      "Submit comprehension_passed using my explicit verdict, complete DELIVERY using only current Core identities, and stop only when Core reports DONE with outcome completed.",
+      "Submit comprehension_passed using my explicit verdict and stop immediately when Core reports DELIVERY.",
+      "Do not modify files, run commands, or create another Task.",
+    ]),
+    checkpoint("deliver-to-done", "DONE", [
+      "/dev-flow Complete only the DELIVERY action for the active bounded multi-repository Task.", additionalResume,
+      "Perform the server-info handshake and fresh Task and Action reads.", APPLY_RULES,
+      "Use only current Core identities, submit delivery_completed, confirm Core reports DONE with outcome completed, and stop.",
       "Do not modify files, run commands, or create another Task.",
     ]),
   ];
@@ -346,6 +360,8 @@ async function runTurn(config, prompt, stage) {
       try { process.kill(-child.pid, "SIGKILL"); } catch {}
       await completion;
     }
+    error.beforeSessions = beforeSessions;
+    error.exit = await completion;
     throw error;
   }
   if (exit.code !== 0) {
@@ -483,7 +499,7 @@ function toolResultEnvelope(events, callId) {
 }
 
 async function buildEvidence(config, product, sessions, beforeAdditionalResume) {
-  assert.equal(sessions.length, 4);
+  assert.equal(sessions.length, 5);
   assert.notEqual(beforeAdditionalResume, null);
   const callSets = new Map(sessions.map((session) => [session.id, callsFromSession(session)]));
   for (const [stageId, calls] of callSets) {
@@ -546,7 +562,7 @@ async function buildEvidence(config, product, sessions, beforeAdditionalResume) 
     dsh_version: product.dshVersion,
     setup_readback_passed: true,
     workspace_root_non_git: true,
-    dsh_session_count: 4,
+    dsh_session_count: 5,
     task_id: finalTask.task_id,
     primary_repository_key: "core",
     additional_repository_keys: ["docs"],
@@ -641,9 +657,10 @@ function selfTest() {
   assert.equal(parsed.sourceCommit, "a".repeat(40));
   assert.equal(parsed.journeyBudget, "2/2");
   const definitions = checkpoints({ primaryRepository: "/tmp/core", additionalRepository: "/tmp/docs" });
-  assert.deepEqual(definitions.map((item) => item.toNode), ["DESIGN", "TEST", "COMPREHENSION_REVIEW", "DONE"]);
+  assert.deepEqual(definitions.map((item) => item.toNode), ["DESIGN", "TEST", "COMPREHENSION_REVIEW", "DELIVERY", "DONE"]);
   assert.match(definitions[2].prompt, /additional repository/u);
   assert.match(definitions[3].prompt, /explicitly confirm/u);
+  assert.match(definitions[4].prompt, /delivery_completed/u);
   assert.throws(() => assertSafeEvidence({ path: "/private/secret" }));
 }
 

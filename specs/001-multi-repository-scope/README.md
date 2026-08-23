@@ -42,9 +42,10 @@ session 在双仓 mutation 后恢复同一个 Core Task，revision、Action ID�
 但 evidence validation 发现会话先执行 `bash` 而不是 runner 假定的首个 server-info 调用；闭合失败
 evidence 只证明 Task 停在 `REQUIREMENTS`、revision 1，未证明双仓修改、附加仓恢复或终态。T035
 原始预算 1/1 已消费且任务未完成。用户随后授权按 Codex 相同的 evidence-driven repair loop 继续：
-runner 现按四个 Core checkpoint 分段执行，以每段后的 Task identity、node 与 revision 为进度权威，
-并在临时环境清理前保存每段 `0600` raw transcript。Attempt 2 总预算修订为 1/2 consumed，尚未
-启动；Feature 状态为 `Ready`。
+Attempt 2 的前四段成功证明双仓修改、附加仓恢复、唯一验证命令和理解确认；最后一段在 Task 已到
+`DELIVERY`、revision 7 后超时。runner 现进一步将理解确认与交付拆成两个单节点 checkpoint，并在
+超时清理前也保存当前 raw transcript。总预算修订为 2/3 consumed，Attempt 3 尚未启动；Feature
+状态为 `Ready`。
 本 Feature 不授权版本修改、npm
 发布、Tag、GitHub Release 或其他发布操作。
 
@@ -55,7 +56,7 @@ runner 现按四个 Core checkpoint 分段执行，以每段后的 Task identity
 - 不增加 Workspace、Provider、registry、DSL、Orchestrator、父子 Task 或第二套状态机；
 - SQLite 不兼容数据使用零写入 reject-and-reset，不迁移或自动清理；
 - T034 Attempts 1～6 保留为不可覆盖的历史证据，Attempt 7 为首次满足最终双 session 合同的通过结果；
-- T035 Attempt 1 失败 evidence 必须保留；修订后总预算为 1/2 consumed，Attempt 2 尚未启动；
+- T035 Attempts 1、2 失败 evidence 必须保留；修订后总预算为 2/3 consumed，Attempt 3 尚未启动；
 - T040 `pnpm run validate` 仍为 0/1，T035 完成前不得执行；
 - T034 repair loop 不授权 T035、T040 或任何无关真实测试；
 - Product Feature 与版本发布严格分离。

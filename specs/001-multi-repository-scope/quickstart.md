@@ -204,10 +204,11 @@ T035 DeepSeek Journey 已基于 source commit
 为 0，但 evidence validation 发现会话首个调用为 `bash` 而不是 runner 假定的 server-info；闭合
 evidence 中 Task 停在 `REQUIREMENTS`、revision 1，未证明双仓修改、附加仓恢复或终态。失败
 evidence 保留在 `tests/journeys/deepseek/evidence/feature-001-multi-repository.json`。用户已授权按
-Codex 相同的 evidence-driven repair loop 执行 Attempt 2：runner 按四个 Core checkpoint 分段，
-每段结束检查同一 Task 的目标 node/revision，并在临时目录清理前保存 `0600` raw transcript。
-T035 总预算为 1/2 consumed，Attempt 2 尚未启动且必须使用独立 evidence。第 7 节 T040 仍为 0/1，
-T035 完成前不得执行。
+Codex 相同的 evidence-driven repair loop 继续。Attempt 2 基于 source commit
+`af646d316e9d935852773841c5ef10eaa8a91295` 完成双仓修改、附加仓恢复、唯一验证命令和理解确认，
+随后在 Task 到达 `DELIVERY`、revision 7 后超时。runner 现将理解确认与交付拆成两个单节点
+checkpoint，并在超时清理前保存当前 `0600` raw transcript。T035 总预算为 2/3 consumed，Attempt 3
+已授权但尚未启动，必须使用独立 evidence。第 7 节 T040 仍为 0/1，T035 完成前不得执行。
 
 ### Codex
 
@@ -238,16 +239,18 @@ T035 完成前不得执行。
 ### DeepSeek
 
 - 一个非 Git 临时 Workspace Root，其下初始化主/附加两个 Git 仓库；
-- Attempt 1 已失败；修订后的总预算为 1/2 consumed，Attempt 2 已授权但尚未启动；
+- Attempts 1、2 已失败；修订后的总预算为 2/3 consumed，Attempt 3 已授权但尚未启动；
 - 失败 evidence 只证明一个 DeepSeek Task 创建后停在 `REQUIREMENTS`、revision 1，不满足双仓修改、
   从附加仓库恢复和同一 Task 终态条件；
-- Attempt 2 使用 create-to-DESIGN、implement-to-TEST、additional-resume-to-COMPREHENSION_REVIEW、
-  accept-and-deliver-to-DONE 四段 checkpoint，并保留独立闭合 evidence 与本地 raw transcript；
+- Attempt 2 已证明 create-to-DESIGN、implement-to-TEST、additional-resume-to-COMPREHENSION_REVIEW，
+  并在 Task 到达 DELIVERY 后超时；独立 evidence 与前三段 raw transcript 已保留；
+- Attempt 3 增加 accept-to-DELIVERY 与 deliver-to-DONE 两个单节点 checkpoint，超时 session 也在
+  临时环境清理前保留；
 - root 外拒绝由第 3 节 guard 测试证明，不增加其他真实 Journey。
 
 ## 7. 最终全仓门禁（最多一次）
 
-所有定向检查、文档同步和两个 Host Journey 完成后，最多执行一次。当前 T035 Attempt 2 尚未执行，
+所有定向检查、文档同步和两个 Host Journey 完成后，最多执行一次。当前 T035 Attempt 3 尚未执行，
 因此不得执行：
 
 ```bash
