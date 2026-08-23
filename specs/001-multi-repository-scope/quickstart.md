@@ -172,14 +172,17 @@ Action 只有一个 aggregate `repository_binding_digest`。
 
 不得在开发者真实 HOME 中覆盖配置，也不得用配置测试启动安装器。
 
-## 6. 真实 Host Journey（T034 最多五次，T035 最多一次）
+## 6. 真实 Host Journey（T034 evidence-driven repair loop，T035 最多一次）
 
 真实 Journey 必须是本 Feature 独立的两仓库验收模式，不复用或改写历史 Feature/release evidence。
 实现任务应在现有 journey harness 中增加一个明确的 `multi-repository` 入口，并在执行前一次性确认
 参数、临时目录和证据输出。
 
-T034 Codex Journey 总预算最多五次。Attempts 1、2、4、5 已失败，Attempt 3 已通过但只证明
-mutation 前恢复；当前为 `5/5 consumed`，T034 未完成且 Feature 为 `Blocked`。
+T034 Attempts 1～5 保留为不可覆盖的历史证据。Attempts 1、2、4、5 已失败，Attempt 3 已通过但只证明
+mutation 前恢复；T034 未完成且 Feature 为 `Ready`。用户已授权 runner 将 substantive 与 resume
+session 的 raw JSONL 以 `0600` sidecar 保存在独立 evidence 旁，并授权读取其中的完整 MCP 调用。
+后续每次真实运行必须绑定新的 source commit，只验证上一份 raw failure 直接支持的精确修复；首次
+通过后立即停止，失败时必须先读取 raw transcript 并修改根因，不允许无代码变化重跑。
 Attempt 2 的 source-local build、isolated install、setup 与
 registration/Core readback 通过，真实 Codex thread 已启动，但 post-session evidence
 validation 未能证明从附加仓库恢复同一 Task。Attempt 3 已基于 source commit
@@ -188,7 +191,7 @@ Codex session：主仓 session 完成 mutation，附加仓 session 随后恢复�
 对比。Attempt 4 的 setup/readback、server-info 与 Task 创建通过，但首次 apply 缺少顶层
 `request_id`；通用 apply request-binding 规则现由相关 Prompt 共享。Attempt 5 不再报告 binding
 缺失，但后续 apply 返回另一个 `INVALID_ARGUMENT`。multi-repository 现也共享既有完整 apply
-payload 规则，failure evidence 增加安全诊断字段，定向 harness 为 47/47；禁止第六次 Codex Journey。
+payload 规则；闭合 failure evidence 保持最小字段，raw sidecar 保留完整诊断。
 
 T035 DeepSeek Journey 和第 7 节 T040 最终仓库级验证仍各最多调用一次，当前均为 0/1。调用前必须
 完成对应的定向检查，且不增加其他测试预算。
@@ -196,7 +199,7 @@ T035 DeepSeek Journey 和第 7 节 T040 最终仓库级验证仍各最多调用�
 ### Codex
 
 - 一个临时主 Git 仓库和一个临时附加 Git 仓库；
-- Attempt 5 在一个 runner Journey 内启动两个独立 Codex session，均使用
+- runner 在一个 Journey 内启动两个独立 Codex session，均使用
   `--sandbox workspace-write`；
 - 第一段使用 `--cd <primary> --add-dir <additional>` 创建两仓库 Task、完成两个仓库的
   有界修改并成功 apply；

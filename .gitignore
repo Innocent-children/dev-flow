@@ -13,6 +13,7 @@ Thumbs.db
 !.env.example
 *.log
 *.tmp
+tests/journeys/codex/evidence/*.raw.jsonl
 
 # Go build and test artifacts
 *.exe

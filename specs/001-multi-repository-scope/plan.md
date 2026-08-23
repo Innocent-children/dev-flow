@@ -48,7 +48,7 @@ Task、Action、摘要、Recovery 或流程流转。
 | Core 只读观察 Git，Host 执行授权修改 | PASS | PASS | 复用现有只读 `RepositoryObserver`；Codex/DeepSeek 在调用 Core 前校验自身目录权限。 |
 | 基于现有架构增量开发 | PASS | PASS | 复用 `ProcessTask.Repository`、Application Service、SQLite mutation、Recovery classifier 和六工具 catalog。 |
 | 可选外部索引与诚实回退 | PASS | PASS | 不安装或管理 codebase-memory；缺失时最多提示一次并回退 Host 内置检索。 |
-| 测试直接对应验收且有界 | PASS | PASS | 定向 package/contract 测试；T034 Codex 总预算最多五次且禁止第六次，T035 DeepSeek 与全仓验证仍各最多一次。 |
+| 测试直接对应验收且有界 | PASS | PASS | 定向 package/contract 测试；T034 Codex 仅按 raw failure 驱动的单步 repair loop 运行并在首次通过后停止，T035 DeepSeek 与全仓验证仍各最多一次。 |
 | Product Feature 与发布分离 | PASS | PASS | 不修改公开版本、npm、Tag、GitHub Release 或发布证据。 |
 | 公共合同和持久化先有 Feature | PASS | PASS | 当前 Feature 明确公共输入/结果、旧数据处置、非目标和测试预算。 |
 
@@ -194,8 +194,8 @@ Release、`.agents/skills/` 或 `.specify/templates/`。
 3. Store/MCP/Config：多 claim 原子事务、preflight 与旧 schema 零写拒绝、closed open input、
    server-info 有效偏好、配置 missing/valid/invalid。
 4. Host：Codex 和 DeepSeek 的 Skill/guard/launcher 定向合同；未授权目录由确定性测试证明。
-5. Journey：T034 Codex 真实两仓库 Journey 总预算封顶为五次；Attempts 1～5 已消费且没有取得
-   最终双 session 通过结果。DeepSeek 真实两仓库 Journey 仍最多调用一次。
+5. Journey：T034 Attempts 1～5 作为不可覆盖的历史证据保留；后续采用单步 repair loop，每次只验证
+   上一份 raw failure 直接支持的精确修复，首次通过后停止。DeepSeek 真实两仓库 Journey 仍最多调用一次。
 6. 完成全部定向检查后，最终 `pnpm run validate` 最多调用一次。
 
 Attempt 1 source commit 为 `1176809054e814d7d163ef7eef0243b1538a71a3`，状态为 failed，原始
@@ -219,9 +219,10 @@ apply 对比；直接 harness 47/47 通过。Attempt 4 基于
 `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-4.json`。通用 apply
 request-binding 规则现由 multi-repository 与 final-registry Prompt 共享。Attempt 5 启动后
 request binding 不再报错，但后续 apply 返回 `INVALID_ARGUMENT`；旧 failure evidence 没有保留
-失败调用详情。multi-repository 现也共享既有完整 apply payload 规则，failure evidence 增加安全的
-失败工具、错误码与 binding 状态，直接 harness 47/47 通过。Attempt 5 evidence 为
-`tests/journeys/codex/evidence/feature-001-multi-repository-attempt-5.json`；T034 保持未完成并禁止第六次执行。
+失败调用详情。multi-repository 现也共享既有完整 apply payload 规则，并分别保留 substantive 与
+resume session 的本地 raw JSONL；闭合 failure evidence 仍为最小可提交字段。Attempt 5 evidence 为
+`tests/journeys/codex/evidence/feature-001-multi-repository-attempt-5.json`。用户已授权读取和存储 raw
+transcript，并授权由失败证据驱动的 source-bound repair loop 继续到首次通过；T034 当前未完成。
 T035 与 T040 仍分别为 0/1，且不增加其他测试预算。
 
 明确不建立 3～8 仓库、节点、平台或配置排列组合；不做压力、性能、fuzz、版本矩阵；不安装或

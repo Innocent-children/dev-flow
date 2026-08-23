@@ -793,6 +793,20 @@ test("Feature-only multi-repository runner binds build, install, setup, readback
   assert.equal(JSON.stringify(evidence).includes(userCodexHome), false);
   assert.equal(JSON.stringify(evidence).includes("fixture-auth-secret"), false);
   assert.deepEqual(JSON.parse(await readFile(resultFile, "utf8")), evidence);
+  assert.equal(
+    await readFile(`${resultFile}.substantive.raw.jsonl`, "utf8"),
+    multiRepositorySubstantiveJSONL({
+      primaryRepository: substantive.options.cwd,
+      additionalRepository: resume.options.cwd,
+    }),
+  );
+  assert.equal(
+    await readFile(`${resultFile}.resume.raw.jsonl`, "utf8"),
+    multiRepositoryResumeJSONL({
+      primaryRepository: substantive.options.cwd,
+      additionalRepository: resume.options.cwd,
+    }),
+  );
 });
 
 test("multi-repository setup readback binds the isolated registration, CLI, and bundled Core", async (t) => {
@@ -1119,6 +1133,10 @@ test("multi-repository failure evidence distinguishes zero calls, wrong order, a
       diagnostic.name,
     );
     assert.doesNotMatch(JSON.stringify(evidence), /private_argument|private stderr|\/Users\/|secret/u);
+    const rawTranscript = await readFile(`${resultFile}.substantive.raw.jsonl`, "utf8");
+    if (diagnostic.name === "server-info-error") {
+      assert.match(rawTranscript, /private_argument|\/Users\/private\/secret/u);
+    }
   }
 });
 

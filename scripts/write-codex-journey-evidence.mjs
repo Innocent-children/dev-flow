@@ -4559,6 +4559,15 @@ export async function runMultiRepositoryJourney(options) {
   requireSourceCommit(options.sourceCommit, "multi-repository source commit");
   if (await pathExists(options.resultFile)) throw new Error("multi-repository evidence file already exists");
   await mkdir(dirname(options.resultFile), { recursive: true, mode: 0o700 });
+  const transcriptPaths = Object.freeze({
+    substantive: `${options.resultFile}.substantive.raw.jsonl`,
+    resume: `${options.resultFile}.resume.raw.jsonl`,
+  });
+  for (const transcriptPath of Object.values(transcriptPaths)) {
+    if (await pathExists(transcriptPath)) {
+      throw new Error(`multi-repository raw transcript already exists: ${basename(transcriptPath)}`);
+    }
+  }
 
   const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-multi-repository-")));
   let invocationStarted = false;
@@ -4614,6 +4623,7 @@ export async function runMultiRepositoryJourney(options) {
       ephemeral: true,
       ignoreRules: false,
       workspaceWrite: true,
+      transcriptPath: transcriptPaths.substantive,
       additionalWritableRoots: [layout.additionalRepository],
     });
     currentRole = "multi-repository-resume";
@@ -4628,6 +4638,7 @@ export async function runMultiRepositoryJourney(options) {
       ephemeral: true,
       ignoreRules: false,
       workspaceWrite: true,
+      transcriptPath: transcriptPaths.resume,
       additionalWritableRoots: [layout.primaryRepository],
     });
     if (await pathExists(join(layout.home, ".dev-flow", "config.json"))) {
