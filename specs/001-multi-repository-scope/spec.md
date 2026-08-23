@@ -334,11 +334,16 @@ Codex 相同的 evidence-driven repair loop 修复根因。Attempt 2 基于 sour
 修改、附加仓恢复、测试和理解确认，最后 DELIVERY apply 在 transition `reason_required=false` 时
 错误提交非空 `reason`，Core 返回 `INVALID_ARGUMENT`。独立 evidence 为
 `tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-4.json`。同步 Host reference 与
-runner 现要求 reason 完全服从当前 transition。T035 总预算修订为 4/5 consumed；Attempt 5 已授权，
-必须绑定新的 source commit 与独立 evidence，且尚未启动。
+runner 现要求 reason 完全服从当前 transition。Attempt 5 基于 source commit
+`b884e8d8eacaf055bfc5d938612258feb5c7cb4d` 首次通过，独立 evidence 为
+`tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-5.json`。它证明 source-bound
+build/install/readback、非 Git Workspace Root、六个 DeepSeek session、一个 Core Task、两个仓库、
+双仓 mutation 后附加仓恢复，以及恢复前后 revision=5、Action ID、repository binding digest 与有序
+Scope 一致；唯一验证命令执行一次，最终 DONE revision 8。T035 已完成，不再运行 DeepSeek repair
+Journey。
 
-T040 最终 `pnpm run validate` 仍为 0/1。当前 T034 已完成，T035 Attempt 5 已授权但未执行，Feature
-状态为 `Ready`；T035 完成前不得执行 T040。
+T040 最终 `pnpm run validate` 仍为 0/1。当前 T034、T035 已完成，Feature 状态为 `Ready`；T040
+仍须等待 T036～T039 完成。
 
 ## Success Criteria *(mandatory)*
 

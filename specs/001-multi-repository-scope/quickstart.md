@@ -211,8 +211,10 @@ checkpoint，并在超时清理前保存当前 `0600` raw transcript。Attempt 3
 REQUIREMENTS `unresolved_questions` 被错误放入闭合 `baseline`，Core 返回 `INVALID_ARGUMENT`。
 同步 Host reference 已明确 sibling 关系，Task 创建与 REQUIREMENTS apply 也拆开。Attempt 4 前五段
 通过，最后 DELIVERY apply 因 `reason_required=false` 却提交非空 reason 被 Core 拒绝。同步 Host
-reference 与 runner 现要求 reason 完全服从当前 transition。T035 总预算为 4/5 consumed，Attempt 5
-已授权但尚未启动，必须使用独立 evidence。第 7 节 T040 仍为 0/1，T035 完成前不得执行。
+reference 与 runner 现要求 reason 完全服从当前 transition。Attempt 5 基于 source commit
+`b884e8d8eacaf055bfc5d938612258feb5c7cb4d` 首次完整通过，证明六个 checkpoint、一个 Core Task、
+双仓 mutation 后附加仓恢复、唯一验证命令和 DONE revision 8。T035 已完成，不再运行 DeepSeek
+repair Journey。第 7 节 T040 仍为 0/1，等待 T036～T039 完成。
 
 ### Codex
 
@@ -243,7 +245,7 @@ reference 与 runner 现要求 reason 完全服从当前 transition。T035 总�
 ### DeepSeek
 
 - 一个非 Git 临时 Workspace Root，其下初始化主/附加两个 Git 仓库；
-- Attempts 1～4 已失败；修订后的总预算为 4/5 consumed，Attempt 5 已授权但尚未启动；
+- Attempts 1～4 已失败并保留，Attempt 5 是首次完整通过结果；
 - 失败 evidence 只证明一个 DeepSeek Task 创建后停在 `REQUIREMENTS`、revision 1，不满足双仓修改、
   从附加仓库恢复和同一 Task 终态条件；
 - Attempt 2 已证明 create-to-DESIGN、implement-to-TEST、additional-resume-to-COMPREHENSION_REVIEW，
@@ -255,12 +257,15 @@ reference 与 runner 现要求 reason 完全服从当前 transition。T035 总�
 - Attempt 4 六段均实际运行，最后 DELIVERY payload 的非空 reason 与 `reason_required=false` 冲突；
   独立 evidence 与六段 raw transcript 已保留；
 - Attempt 5 的同步 payload reference 和 runner 明确 reason 必须服从当前 transition；
+- Attempt 5 通过 evidence 保留在
+  `tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-5.json`，六段 raw transcript
+  权限为 `0600` 且仅本地保存；
 - root 外拒绝由第 3 节 guard 测试证明，不增加其他真实 Journey。
 
 ## 7. 最终全仓门禁（最多一次）
 
-所有定向检查、文档同步和两个 Host Journey 完成后，最多执行一次。当前 T035 Attempt 5 尚未执行，
-因此不得执行：
+所有定向检查、文档同步和两个 Host Journey 完成后，最多执行一次。当前两个 Host Journey 已完成，
+但 T036～T039 尚未完成，因此不得执行：
 
 ```bash
 pnpm run validate

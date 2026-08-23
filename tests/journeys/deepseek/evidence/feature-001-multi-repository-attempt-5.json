@@ -1,0 +1,37 @@
+{
+  "evidence_kind": "feature-001-multi-repository-deepseek-journey",
+  "status": "passed",
+  "source_commit": "b884e8d8eacaf055bfc5d938612258feb5c7cb4d",
+  "host": "deepseek",
+  "runner_mode": "multi-repository",
+  "journey_budget": "5/5",
+  "dsh_version": "0.1.1-rc.2",
+  "setup_readback_passed": true,
+  "workspace_root_non_git": true,
+  "dsh_session_count": 6,
+  "task_id": "task-699adb7903c70b8782f1207f997d5b79",
+  "primary_repository_key": "core",
+  "additional_repository_keys": [
+    "docs"
+  ],
+  "repository_count": 2,
+  "revision_before_resume": 5,
+  "revision_after_resume": 5,
+  "action_id_before_resume": "action-348d3848781aa96f6fee05d80b7cb259",
+  "action_id_after_resume": "action-348d3848781aa96f6fee05d80b7cb259",
+  "repository_binding_digest_before_resume": "6d511bad3e943d5e2b7b8191b1e2477300eac145ed40bc3d5854106e02e02089",
+  "repository_binding_digest_after_resume": "6d511bad3e943d5e2b7b8191b1e2477300eac145ed40bc3d5854106e02e02089",
+  "resumed_from_additional_repository": true,
+  "one_core_task": true,
+  "terminal_state": "DONE",
+  "terminal_revision": 8,
+  "scoped_paths": [
+    "core::core-proof.txt",
+    "docs::docs-proof.txt"
+  ],
+  "successful_action_count": 7,
+  "verification_command_count": 1,
+  "tool_catalog_size": 6,
+  "codebase_memory_preference": false,
+  "observed_at": "2026-08-23T15:30:59.321Z"
+}

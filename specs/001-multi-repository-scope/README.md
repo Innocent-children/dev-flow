@@ -49,7 +49,9 @@ Attempt 2 的前四段成功证明双仓修改、附加仓恢复、唯一验证�
 reference 现明确该字段必须与 `baseline` 同级，创建 Task 与完成 REQUIREMENTS 也拆成独立
 checkpoint。Attempt 4 的前五段均通过，最后 DELIVERY apply 因 `reason_required=false` 却携带非空
 `reason` 被 Core 拒绝。同步 Host reference 与 runner 现将 `reason` 直接绑定当前 transition 合同。
-总预算修订为 4/5 consumed，Attempt 5 尚未启动；Feature 状态为 `Ready`。
+Attempt 5 基于 source commit `b884e8d8eacaf055bfc5d938612258feb5c7cb4d` 首次通过：六个 DeepSeek
+session 使用一个 Core Task，完成双仓修改、附加仓恢复、唯一验证命令、理解确认和 DONE。T035 已
+完成，Feature 状态为 `Ready`。
 本 Feature 不授权版本修改、npm
 发布、Tag、GitHub Release 或其他发布操作。
 
@@ -60,7 +62,7 @@ checkpoint。Attempt 4 的前五段均通过，最后 DELIVERY apply 因 `reason
 - 不增加 Workspace、Provider、registry、DSL、Orchestrator、父子 Task 或第二套状态机；
 - SQLite 不兼容数据使用零写入 reject-and-reset，不迁移或自动清理；
 - T034 Attempts 1～6 保留为不可覆盖的历史证据，Attempt 7 为首次满足最终双 session 合同的通过结果；
-- T035 Attempts 1～4 失败 evidence 必须保留；修订后总预算为 4/5 consumed，Attempt 5 尚未启动；
+- T035 Attempts 1～4 失败 evidence 必须保留，Attempt 5 是首次完整通过结果；不再运行 DeepSeek repair Journey；
 - T040 `pnpm run validate` 仍为 0/1，T035 完成前不得执行；
 - T034 repair loop 不授权 T035、T040 或任何无关真实测试；
 - Product Feature 与版本发布严格分离。

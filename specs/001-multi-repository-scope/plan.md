@@ -235,8 +235,9 @@ accept-to-DELIVERY 与 deliver-to-DONE 分成单节点 checkpoint，并在超时
 Attempt 3 暴露 REQUIREMENTS `unresolved_questions` 被模型错误嵌入 `baseline`；同步 Host reference 已
 明确 sibling 关系，runner 再将创建与 REQUIREMENTS apply 拆开。Attempt 4 前五段通过，最后
 DELIVERY apply 因 `reason_required=false` 时携带非空 reason 被 Core 拒绝；同步 Host reference 与
-runner 已将 reason 绑定当前 transition。T035 总预算为 4/5 consumed，Attempt 5 尚未启动；T040
-仍为 0/1 且不得提前执行。
+runner 已将 reason 绑定当前 transition。Attempt 5 基于
+`b884e8d8eacaf055bfc5d938612258feb5c7cb4d` 通过：六个 checkpoint、一个 Core Task、双仓 mutation
+后附加仓恢复、一次验证命令和 DONE revision 8。T035 已完成；T040 仍为 0/1，等待文档任务完成。
 
 明确不建立 3～8 仓库、节点、平台或配置排列组合；不做压力、性能、fuzz、版本矩阵；不安装或
 测试真实 codebase-memory；T034 之外的真实 Host Journey 不得扩大既定预算。
