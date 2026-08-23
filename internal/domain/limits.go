@@ -4,6 +4,9 @@ import "time"
 
 const (
 	MaxRepositoryPathBytes            = 4_096
+	MaxRepositoryKeyBytes             = 128
+	MaxAdditionalRepositories         = 7
+	MaxRepositoryScopeEntries         = 1 + MaxAdditionalRepositories
 	MaxGoalBytes                      = 8_192
 	MaxScopeItems                     = 64
 	MaxScopeItemBytes                 = 1_024

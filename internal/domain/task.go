@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 type TaskIntent struct {
 	Request                 string             `json:"request"`
@@ -129,33 +132,39 @@ func (o ProcessOutcome) Validate() error {
 }
 
 type ProcessTask struct {
-	TaskID          ID                       `json:"task_id"`
-	OriginHost      Host                     `json:"origin_host"`
-	Intent          TaskIntent               `json:"intent"`
-	Process         ProcessReference         `json:"process"`
-	CurrentNode     NodeID                   `json:"current_node"`
-	ResumeNode      *NodeID                  `json:"resume_node"`
-	CurrentAction   *ProcessAction           `json:"current_action"`
-	Blocker         *ProcessBlocker          `json:"blocker"`
-	LastOperation   *LastOperation           `json:"last_operation"`
-	Repository      RepositoryBinding        `json:"repository"`
-	Requirements    *RequirementsBaseline    `json:"requirements"`
-	Design          *DesignBaseline          `json:"design"`
-	TaskPlan        *TaskPlanBaseline        `json:"task_plan"`
-	Implementation  *ImplementationRecord    `json:"implementation"`
-	Test            *TestRecord              `json:"test"`
-	Comprehension   *ComprehensionAssessment `json:"comprehension"`
-	BaselineHistory []BaselineReference      `json:"baseline_history"`
-	Evidence        []EvidenceSummary        `json:"evidence"`
-	Outcome         *ProcessOutcome          `json:"outcome"`
-	Revision        uint64                   `json:"revision"`
-	CreatedAt       time.Time                `json:"created_at"`
-	UpdatedAt       time.Time                `json:"updated_at"`
-	CompletedAt     *time.Time               `json:"completed_at"`
+	TaskID                 ID                       `json:"task_id"`
+	OriginHost             Host                     `json:"origin_host"`
+	Intent                 TaskIntent               `json:"intent"`
+	Process                ProcessReference         `json:"process"`
+	CurrentNode            NodeID                   `json:"current_node"`
+	ResumeNode             *NodeID                  `json:"resume_node"`
+	CurrentAction          *ProcessAction           `json:"current_action"`
+	Blocker                *ProcessBlocker          `json:"blocker"`
+	LastOperation          *LastOperation           `json:"last_operation"`
+	PrimaryRepositoryKey   RepositoryKey            `json:"primary_repository_key"`
+	Repository             RepositoryBinding        `json:"repository"`
+	AdditionalRepositories []RepositoryScopeEntry   `json:"additional_repositories"`
+	Requirements           *RequirementsBaseline    `json:"requirements"`
+	Design                 *DesignBaseline          `json:"design"`
+	TaskPlan               *TaskPlanBaseline        `json:"task_plan"`
+	Implementation         *ImplementationRecord    `json:"implementation"`
+	Test                   *TestRecord              `json:"test"`
+	Comprehension          *ComprehensionAssessment `json:"comprehension"`
+	BaselineHistory        []BaselineReference      `json:"baseline_history"`
+	Evidence               []EvidenceSummary        `json:"evidence"`
+	Outcome                *ProcessOutcome          `json:"outcome"`
+	Revision               uint64                   `json:"revision"`
+	CreatedAt              time.Time                `json:"created_at"`
+	UpdatedAt              time.Time                `json:"updated_at"`
+	CompletedAt            *time.Time               `json:"completed_at"`
 }
 
 func (t ProcessTask) Validate() error {
-	if validateID(t.TaskID) != nil || !t.OriginHost.IsValid() || t.Intent.Validate() != nil || t.Process.Validate() != nil || !t.CurrentNode.IsValid() || t.Repository.Validate() != nil || t.Revision == 0 || validateUTC(t.CreatedAt) != nil || validateUTC(t.UpdatedAt) != nil || t.UpdatedAt.Before(t.CreatedAt) || len(t.BaselineHistory) > MaxRetainedBaselineReferences || len(t.Evidence) > MaxRetainedEvidenceItems {
+	effectiveRepositoryDigest, err := t.EffectiveRepositoryBindingDigest()
+	if err != nil || t.validateRepositoryPaths() != nil {
+		return ErrInvalidArgument
+	}
+	if validateID(t.TaskID) != nil || !t.OriginHost.IsValid() || t.Intent.Validate() != nil || t.Process.Validate() != nil || !t.CurrentNode.IsValid() || t.Revision == 0 || validateUTC(t.CreatedAt) != nil || validateUTC(t.UpdatedAt) != nil || t.UpdatedAt.Before(t.CreatedAt) || len(t.BaselineHistory) > MaxRetainedBaselineReferences || len(t.Evidence) > MaxRetainedEvidenceItems {
 		return ErrInvalidArgument
 	}
 	if t.Requirements != nil && t.Requirements.Validate() != nil {
@@ -167,7 +176,7 @@ func (t ProcessTask) Validate() error {
 	if t.TaskPlan != nil && (t.TaskPlan.Validate() != nil || t.Design == nil || t.TaskPlan.DesignRevision != t.Design.Revision) {
 		return ErrInvalidArgument
 	}
-	if t.Implementation != nil && (t.Implementation.Validate() != nil || t.TaskPlan == nil || t.Implementation.TaskPlanRevision != t.TaskPlan.Revision || t.Implementation.RepositoryBindingDigest != t.Repository.BindingDigest) {
+	if t.Implementation != nil && (t.Implementation.Validate() != nil || t.TaskPlan == nil || t.Implementation.TaskPlanRevision != t.TaskPlan.Revision || t.Implementation.RepositoryBindingDigest != effectiveRepositoryDigest) {
 		return ErrInvalidArgument
 	}
 	if t.CurrentNode.Terminal() {
@@ -179,14 +188,14 @@ func (t ProcessTask) Validate() error {
 		}
 	} else if t.CurrentNode == NodeBlocked {
 		if t.Blocker == nil || t.Blocker.Validate() != nil || t.ResumeNode == nil || !t.ResumeNode.Normal() ||
-			t.Blocker.ResumeNode != *t.ResumeNode || t.Blocker.Condition.ExpectedBindingDigest != t.Repository.BindingDigest ||
+			t.Blocker.ResumeNode != *t.ResumeNode || t.Blocker.Condition.ExpectedBindingDigest != effectiveRepositoryDigest ||
 			t.CurrentAction == nil || t.CurrentAction.Kind != ActionResolveBlocker {
 			return ErrInvalidArgument
 		}
 	} else if !t.CurrentNode.Normal() || t.CurrentAction == nil || t.Blocker != nil || t.ResumeNode != nil || t.Outcome != nil || t.CompletedAt != nil {
 		return ErrInvalidArgument
 	}
-	if t.CurrentAction != nil && (t.CurrentAction.Validate() != nil || t.CurrentAction.TaskID != t.TaskID || t.CurrentAction.Revision != t.Revision || t.CurrentAction.Process != t.Process || t.CurrentAction.NodeID != t.CurrentNode || t.CurrentAction.RepositoryBindingDigest != t.Repository.BindingDigest || t.CurrentAction.MethodProfile != t.Intent.MethodProfile) {
+	if t.CurrentAction != nil && (t.CurrentAction.Validate() != nil || t.CurrentAction.TaskID != t.TaskID || t.CurrentAction.Revision != t.Revision || t.CurrentAction.Process != t.Process || t.CurrentAction.NodeID != t.CurrentNode || t.CurrentAction.RepositoryBindingDigest != effectiveRepositoryDigest || t.CurrentAction.MethodProfile != t.Intent.MethodProfile) {
 		return ErrInvalidArgument
 	}
 	if !authorityMatchesCurrentNode(t) {
@@ -204,7 +213,7 @@ func (t ProcessTask) Validate() error {
 		evidenceIDs[item.EvidenceID] = true
 		evidenceByID[item.EvidenceID] = item
 	}
-	if t.Test != nil && (t.Test.Validate() != nil || t.Requirements == nil || t.Design == nil || t.TaskPlan == nil || t.Test.RequirementsRevision != t.Requirements.Revision || t.Test.DesignRevision != t.Design.Revision || t.Test.TaskPlanRevision != t.TaskPlan.Revision || t.Test.RepositoryBindingDigest != t.Repository.BindingDigest) {
+	if t.Test != nil && (t.Test.Validate() != nil || t.Requirements == nil || t.Design == nil || t.TaskPlan == nil || t.Test.RequirementsRevision != t.Requirements.Revision || t.Test.DesignRevision != t.Design.Revision || t.Test.TaskPlanRevision != t.TaskPlan.Revision || t.Test.RepositoryBindingDigest != effectiveRepositoryDigest) {
 		return ErrInvalidArgument
 	}
 	if t.Test != nil {
@@ -255,6 +264,111 @@ func (t ProcessTask) Validate() error {
 		return ErrInvalidArgument
 	}
 	return nil
+}
+
+func (t ProcessTask) EffectivePrimaryRepositoryKey() RepositoryKey {
+	if t.PrimaryRepositoryKey == "" {
+		return DefaultPrimaryRepositoryKey
+	}
+	return t.PrimaryRepositoryKey
+}
+
+func (t ProcessTask) EffectiveRepositoryBindingDigest() (Digest, error) {
+	return effectiveRepositoryBindingDigest(t.EffectivePrimaryRepositoryKey(), t.Repository, t.AdditionalRepositories)
+}
+
+func RepositoryScopeMembershipEqual(left, right ProcessTask) bool {
+	if _, err := left.EffectiveRepositoryBindingDigest(); err != nil {
+		return false
+	}
+	if _, err := right.EffectiveRepositoryBindingDigest(); err != nil {
+		return false
+	}
+	if left.EffectivePrimaryRepositoryKey() != right.EffectivePrimaryRepositoryKey() ||
+		left.Repository.CanonicalRoot != right.Repository.CanonicalRoot ||
+		left.Repository.RepositoryIdentity != right.Repository.RepositoryIdentity ||
+		len(left.AdditionalRepositories) != len(right.AdditionalRepositories) {
+		return false
+	}
+	for i := range left.AdditionalRepositories {
+		leftEntry, rightEntry := left.AdditionalRepositories[i], right.AdditionalRepositories[i]
+		if leftEntry.Key != rightEntry.Key || leftEntry.Binding.CanonicalRoot != rightEntry.Binding.CanonicalRoot || leftEntry.Binding.RepositoryIdentity != rightEntry.Binding.RepositoryIdentity {
+			return false
+		}
+	}
+	return true
+}
+
+func (t ProcessTask) ValidateRepositoryPath(value string) error {
+	if len(t.AdditionalRepositories) == 0 {
+		if strings.Contains(value, repositoryPathSeparator) {
+			return ErrInvalidArgument
+		}
+		return validateRepositoryRelativePath(value)
+	}
+	key, relative, ok := strings.Cut(value, repositoryPathSeparator)
+	if !ok || !RepositoryKey(key).IsValid() || validateRepositoryRelativePath(relative) != nil {
+		return ErrInvalidArgument
+	}
+	if RepositoryKey(key) == t.EffectivePrimaryRepositoryKey() {
+		return nil
+	}
+	for _, entry := range t.AdditionalRepositories {
+		if entry.Key == RepositoryKey(key) {
+			return nil
+		}
+	}
+	return ErrInvalidArgument
+}
+
+func (t ProcessTask) validateRepositoryPaths() error {
+	for _, artifacts := range [][]ArtifactReference{
+		artifactReferences(t.Requirements), designArtifactReferences(t.Design), taskPlanArtifactReferences(t.TaskPlan),
+	} {
+		for _, artifact := range artifacts {
+			if t.ValidateRepositoryPath(artifact.Path) != nil {
+				return ErrInvalidArgument
+			}
+		}
+	}
+	if t.TaskPlan != nil {
+		for _, item := range t.TaskPlan.WorkItems {
+			for _, path := range item.ExpectedPaths {
+				if t.ValidateRepositoryPath(path) != nil {
+					return ErrInvalidArgument
+				}
+			}
+		}
+	}
+	if t.Implementation != nil {
+		for _, path := range t.Implementation.ChangedPaths {
+			if t.ValidateRepositoryPath(path) != nil {
+				return ErrInvalidArgument
+			}
+		}
+	}
+	return nil
+}
+
+func artifactReferences(value *RequirementsBaseline) []ArtifactReference {
+	if value == nil {
+		return nil
+	}
+	return value.ArtifactRefs
+}
+
+func taskPlanArtifactReferences(value *TaskPlanBaseline) []ArtifactReference {
+	if value == nil {
+		return nil
+	}
+	return value.ArtifactRefs
+}
+
+func designArtifactReferences(value *DesignBaseline) []ArtifactReference {
+	if value == nil {
+		return nil
+	}
+	return value.ArtifactRefs
 }
 
 func authorityMatchesCurrentNode(t ProcessTask) bool {
@@ -349,7 +463,7 @@ func baselineRevisionChainsValid(t ProcessTask, history map[BaselineKind]map[uin
 func completedOutcomeMatchesTask(t ProcessTask, evidence map[ID]EvidenceSummary) bool {
 	if t.Requirements == nil || t.Design == nil || t.TaskPlan == nil || t.Implementation == nil || t.Test == nil || t.Comprehension == nil ||
 		t.Outcome.RequirementsRevision != t.Requirements.Revision || t.Outcome.TestRecordID != t.Test.RecordID ||
-		t.Outcome.ComprehensionRecordID != t.Comprehension.RecordID || t.Outcome.FinalRepositoryDigest != t.Repository.BindingDigest ||
+		t.Outcome.ComprehensionRecordID != t.Comprehension.RecordID || !outcomeRepositoryDigestMatches(t) ||
 		len(t.Test.UnverifiedItems) != 0 || len(t.Test.ManualHandoffItems) != 0 || len(t.Outcome.Acceptance) != len(t.Requirements.AcceptanceCriteria) {
 		return false
 	}
@@ -381,6 +495,11 @@ func completedOutcomeMatchesTask(t ProcessTask, evidence map[ID]EvidenceSummary)
 	}
 	expectedManual = append(expectedManual, t.Comprehension.UserEvidenceID)
 	return sameIDs(t.Outcome.AutomatedEvidenceIDs, expectedAutomated) && sameIDs(t.Outcome.ManualEvidenceIDs, expectedManual)
+}
+
+func outcomeRepositoryDigestMatches(t ProcessTask) bool {
+	digest, err := t.EffectiveRepositoryBindingDigest()
+	return err == nil && t.Outcome.FinalRepositoryDigest == digest
 }
 
 func sameIDs(actual, expected []ID) bool {

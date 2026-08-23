@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/dev-flow/internal/userconfig"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
@@ -28,6 +29,7 @@ func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 		{"open omitted", ToolOpenTask, `{"host":"codex","repository_path":"/repo"}`},
 		{"open null", ToolOpenTask, `{"host":"codex","repository_path":"/repo","new_task":null}`},
 		{"open nonnull", ToolOpenTask, `{"host":"codex","repository_path":"/repo","new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}}`},
+		{"open multi repository", ToolOpenTask, `{"host":"codex","repository_path":"/core","primary_repository_key":"core","additional_repositories":[{"key":"docs","repository_path":"/docs"}],"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}}`},
 		{"read omitted", ToolGetTask, `{"host":"codex","task_id":"task"}`},
 		{"read null", ToolGetTask, `{"host":"codex","task_id":"task","operation_probe":null}`},
 		{"next omitted", ToolGetNextAction, `{"host":"codex","task_id":"task"}`},
@@ -52,6 +54,11 @@ func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 		raw  string
 	}{
 		{"open unknown", ToolOpenTask, `{"host":"codex","repository_path":"/repo","unknown":true}`},
+		{"open additional unknown", ToolOpenTask, `{"host":"codex","repository_path":"/core","additional_repositories":[{"key":"docs","repository_path":"/docs","unknown":true}],"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}}`},
+		{"open null primary key", ToolOpenTask, `{"host":"codex","repository_path":"/core","primary_repository_key":null,"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}}`},
+		{"open null additions", ToolOpenTask, `{"host":"codex","repository_path":"/core","additional_repositories":null,"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}}`},
+		{"open scope during resume", ToolOpenTask, `{"host":"codex","repository_path":"/core","primary_repository_key":"core","new_task":null}`},
+		{"open eighth additional", ToolOpenTask, `{"host":"codex","repository_path":"/core","additional_repositories":[{"key":"a","repository_path":"/a"},{"key":"b","repository_path":"/b"},{"key":"c","repository_path":"/c"},{"key":"d","repository_path":"/d"},{"key":"e","repository_path":"/e"},{"key":"f","repository_path":"/f"},{"key":"g","repository_path":"/g"},{"key":"h","repository_path":"/h"}],"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}}`},
 		{"read duplicate", ToolGetTask, `{"host":"codex","task_id":"task","operation_probe":null,"operation_probe":null}`},
 		{"probe incomplete", ToolGetTask, `{"host":"codex","task_id":"task","operation_probe":{"operation_id":"original"}}`},
 		{"recovery unknown", ToolApplyAction, fmt.Sprintf("{"+applyBase+`,"recovery_apply":{"operation_id":"original","source_cursor":"REQUIREMENTS","unknown":true}}`, digest, binding, payload)},
@@ -66,6 +73,25 @@ func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 	}
 	if err := ValidateToolInput(ToolApplyAction, []byte(fmt.Sprintf("{"+applyBase+"}", digest, binding, emptyMethodPayload))); err != domain.ErrTransitionNotAllowed {
 		t.Fatalf("empty method evidence error=%v", err)
+	}
+}
+
+func TestServerInfoProjectsHostPreferenceSnapshot(t *testing.T) {
+	server := &Server{
+		version: "test",
+		hostPreferences: userconfig.Preferences{
+			Codex:    userconfig.HostPreferences{CodebaseMemory: true},
+			DeepSeek: userconfig.HostPreferences{CodebaseMemory: false},
+		},
+	}
+	encoded := server.dispatch(context.Background(), ToolServerInfo, "server-info-preferences", []byte(`{}`))
+	if encoded.IsError || !bytes.Contains(encoded.JSON, []byte(`"host_preferences":{"codex":{"codebase_memory":true},"deepseek":{"codebase_memory":false}}`)) {
+		t.Fatal(string(encoded.JSON))
+	}
+	for _, forbidden := range []string{"installed", "healthy", "available"} {
+		if bytes.Contains(encoded.JSON, []byte(forbidden)) {
+			t.Fatalf("preference projection implied capability %q", forbidden)
+		}
 	}
 }
 

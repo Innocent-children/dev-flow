@@ -57,7 +57,11 @@ func ValidateProcessTask(task domain.ProcessTask) error {
 	if task.CurrentAction == nil {
 		return nil
 	}
-	expected, err := BuildProcessAction(definition, task.CurrentNode, task.TaskID, task.Revision, task.Repository.BindingDigest, task.Intent.MethodProfile, task.CurrentAction.ActionID, task.CurrentAction.IssuedAt)
+	bindingDigest, err := task.EffectiveRepositoryBindingDigest()
+	if err != nil {
+		return err
+	}
+	expected, err := BuildProcessAction(definition, task.CurrentNode, task.TaskID, task.Revision, bindingDigest, task.Intent.MethodProfile, task.CurrentAction.ActionID, task.CurrentAction.IssuedAt)
 	if err != nil || !sameAction(expected, *task.CurrentAction) {
 		return domain.ErrInvalidArgument
 	}

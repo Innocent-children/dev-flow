@@ -401,6 +401,29 @@ func TestRepositoryBindingInvariants(t *testing.T) {
 	}
 }
 
+func TestRepositoryKeyAndContractPathSyntax(t *testing.T) {
+	for _, key := range []RepositoryKey{"primary", "docs.v1", "repo_name", "repo-name", RepositoryKey("a" + strings.Repeat("b", MaxRepositoryKeyBytes-1))} {
+		if !key.IsValid() {
+			t.Fatalf("valid repository key %q was rejected", key)
+		}
+	}
+	for _, key := range []RepositoryKey{"", "Primary", ".docs", "docs/key", "docs::api", "docs key", RepositoryKey(strings.Repeat("a", MaxRepositoryKeyBytes+1))} {
+		if key.IsValid() {
+			t.Fatalf("invalid repository key %q was accepted", key)
+		}
+	}
+	for _, path := range []string{"internal/domain/task.go", "core::internal/domain/task.go"} {
+		if err := ValidateRepositoryContractPath(path); err != nil {
+			t.Fatalf("valid contract path %q: %v", path, err)
+		}
+	}
+	for _, path := range []string{"", "/absolute", "../escape", "Core::README.md", "core::", "core::../escape", "core::nested::file"} {
+		if err := ValidateRepositoryContractPath(path); err == nil {
+			t.Fatalf("invalid contract path %q was accepted", path)
+		}
+	}
+}
+
 func TestActionInvariantsAndCopies(t *testing.T) {
 	action := validAction()
 	if err := action.Validate(); err != nil {

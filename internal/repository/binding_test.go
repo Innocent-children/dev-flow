@@ -139,6 +139,14 @@ func TestVerifyBindingDigests(t *testing.T) {
 	})
 }
 
+func TestRepositoryBindingChangedPathsRemainComponentRelative(t *testing.T) {
+	binding := selfConsistentBinding()
+	binding.ChangedPaths = []string{"docs::README.md"}
+	if err := binding.Validate(); err == nil {
+		t.Fatal("repository binding accepted a Scope-qualified changed path")
+	}
+}
+
 func selfConsistentBinding() domain.RepositoryBinding {
 	branch := "main"
 	head := strings.Repeat("1", 40)

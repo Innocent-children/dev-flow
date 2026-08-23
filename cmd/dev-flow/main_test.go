@@ -12,6 +12,7 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/application"
 	coremcp "github.com/Innocent-children/dev-flow/internal/mcp"
 	"github.com/Innocent-children/dev-flow/internal/store"
+	"github.com/Innocent-children/dev-flow/internal/userconfig"
 	"github.com/Innocent-children/dev-flow/internal/version"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -68,11 +69,19 @@ func TestRunVersionUsesCurrentRepositoryVersion(t *testing.T) {
 func TestRunMCPStdioStartsAndStopsCleanlyOnEOF(t *testing.T) {
 	const instructions = "test host-specific MCP presentation"
 	dataDirectory := t.TempDir()
+	homeDirectory := t.TempDir()
+	configDirectory := filepath.Join(homeDirectory, ".dev-flow")
+	if err := os.Mkdir(configDirectory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDirectory, "config.json"), []byte(`{"codex":{"codebase_memory":false},"deepseek":{"codebase_memory":true}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	stdin := bytes.NewReader(nil)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	serveCalls := 0
-	serve := func(ctx context.Context, service *application.Service, currentVersion string, diagnostics *coremcp.Diagnostics, actualInstructions string) error {
+	serve := func(ctx context.Context, service *application.Service, currentVersion string, diagnostics *coremcp.Diagnostics, actualInstructions string, preferences userconfig.Preferences) error {
 		serveCalls++
 		if service == nil || currentVersion == "" || diagnostics == nil {
 			t.Fatal("MCP serve dependencies are incomplete")
@@ -80,9 +89,13 @@ func TestRunMCPStdioStartsAndStopsCleanlyOnEOF(t *testing.T) {
 		if actualInstructions != instructions {
 			t.Fatalf("MCP instructions = %q, want %q", actualInstructions, instructions)
 		}
+		if preferences.Codex.CodebaseMemory || !preferences.DeepSeek.CodebaseMemory {
+			t.Fatalf("MCP preferences = %#v", preferences)
+		}
 		server, err := coremcp.NewServer(service, currentVersion, &coremcp.ServerOptions{
-			Diagnostics:  diagnostics,
-			Instructions: actualInstructions,
+			Diagnostics:     diagnostics,
+			Instructions:    actualInstructions,
+			HostPreferences: preferences,
 		})
 		if err != nil {
 			t.Fatalf("construct MCP server: %v", err)
@@ -99,6 +112,9 @@ func TestRunMCPStdioStartsAndStopsCleanlyOnEOF(t *testing.T) {
 		}
 		if name == mcpInstructionsEnvironment {
 			return instructions
+		}
+		if name == "HOME" {
+			return homeDirectory
 		}
 		return ""
 	}
@@ -162,6 +178,7 @@ func TestRunMCPRedactsDatabaseStartupFailure(t *testing.T) {
 	t.Parallel()
 
 	dataDirectory := t.TempDir()
+	homeDirectory := t.TempDir()
 	privateDatabasePath := filepath.Join(dataDirectory, databaseFileName)
 	if err := os.Mkdir(privateDatabasePath, 0o700); err != nil {
 		t.Fatalf("create invalid database path: %v", err)
@@ -169,6 +186,9 @@ func TestRunMCPRedactsDatabaseStartupFailure(t *testing.T) {
 	getenv := func(name string) string {
 		if name == dataDirectoryEnvironment {
 			return dataDirectory
+		}
+		if name == "HOME" {
+			return homeDirectory
 		}
 		return ""
 	}
@@ -180,6 +200,39 @@ func TestRunMCPRedactsDatabaseStartupFailure(t *testing.T) {
 	if stdout.Len() != 0 || !strings.Contains(stderr.String(), "storage startup failed") ||
 		strings.Contains(stderr.String(), dataDirectory) || strings.Contains(stderr.String(), databaseFileName) {
 		t.Fatalf("database failure stdout/stderr = %q/%q", stdout.String(), stderr.String())
+	}
+}
+
+func TestRunMCPRejectsInvalidConfigurationBeforeStorageAndServe(t *testing.T) {
+	dataDirectory := t.TempDir()
+	homeDirectory := t.TempDir()
+	configDirectory := filepath.Join(homeDirectory, ".dev-flow")
+	if err := os.Mkdir(configDirectory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDirectory, "config.json"), []byte(`{"codex":{"unknown":true}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	getenv := func(name string) string {
+		switch name {
+		case dataDirectoryEnvironment:
+			return dataDirectory
+		case "HOME":
+			return homeDirectory
+		default:
+			return ""
+		}
+	}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if exitCode := run([]string{"mcp", "--stdio"}, bytes.NewReader(nil), &stdout, &stderr, getenv, unexpectedServe(t)); exitCode == 0 {
+		t.Fatal("invalid configuration returned success")
+	}
+	if stdout.Len() != 0 || !strings.Contains(stderr.String(), "codex.unknown") || !strings.Contains(stderr.String(), "config.json") {
+		t.Fatalf("invalid configuration stdout/stderr = %q/%q", stdout.String(), stderr.String())
+	}
+	if _, err := os.Stat(filepath.Join(dataDirectory, databaseFileName)); !os.IsNotExist(err) {
+		t.Fatalf("storage was opened before configuration rejection: %v", err)
 	}
 }
 
@@ -218,7 +271,7 @@ func emptyEnvironment(string) string { return "" }
 
 func unexpectedServe(t *testing.T) mcpServeFunc {
 	t.Helper()
-	return func(context.Context, *application.Service, string, *coremcp.Diagnostics, string) error {
+	return func(context.Context, *application.Service, string, *coremcp.Diagnostics, string, userconfig.Preferences) error {
 		t.Fatal("unexpected MCP server invocation")
 		return nil
 	}
