@@ -1,6 +1,6 @@
 # 001 — 多仓库任务范围与用户配置
 
-**Status**: Blocked
+**Status**: Ready
 **Created**: 2026-08-23
 
 本 Feature 为一个 Dev Flow Task 增加显式、有界且创建后不可变的 Repository Scope：一个主仓库和
@@ -24,8 +24,9 @@
 - [Validation quickstart](quickstart.md)
 - [Implementation tasks](tasks.md)
 
-`spec.md`、`plan.md`、contracts 和 `tasks.md` 已生成，`$speckit-analyze` 门禁已通过。当前
-Feature 状态为 `Blocked`，实施必须遵循 `tasks.md` 的阶段、任务和 checkpoint。本 Feature
+`spec.md`、`plan.md`、contracts 和 `tasks.md` 已生成。Codex T034 Attempt 1 已消费并失败；
+source-bound runner 的确定性修复已完成，用户已批准最后一次 Attempt 2，且
+Attempt 2 尚未启动。预算修订重新分析已通过，当前 Feature 状态为 `Ready`。本 Feature
 不授权版本修改、npm 发布、Tag、GitHub Release 或其他发布操作。
 
 ## Fixed boundaries
@@ -34,5 +35,7 @@ Feature 状态为 `Blocked`，实施必须遵循 `tasks.md` 的阶段、任务�
 - 保留 `ProcessTask.Repository` 作为主仓库和现有 `repository_binding_digest` 合同字段；
 - 不增加 Workspace、Provider、registry、DSL、Orchestrator、父子 Task 或第二套状态机；
 - SQLite 不兼容数据使用零写入 reject-and-reset，不迁移或自动清理；
-- 每个真实 Host 两仓库 Journey 最多一次，最终 `pnpm run validate` 最多一次；
+- T034 Codex Journey 总预算最多两次：Attempt 1 已消费并失败，Attempt 2 已批准且尚未启动；
+- T035 DeepSeek Journey 和 T040 `pnpm run validate` 仍各最多一次，当前均为 0/1；
+- Attempt 2 失败后禁止第三次 Codex Journey；
 - Product Feature 与版本发布严格分离。

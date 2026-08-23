@@ -10,7 +10,7 @@ Journey，也不安装 codebase-memory。
 - Node.js >=24，pnpm >=11 <12；
 - 依赖已按项目现有开发流程安装；
 - 真实 Host Journey 使用临时 HOME、临时 Dev Flow data directory 和临时 Git 仓库；
-- 开始前记录真实 Journey 与最终全仓门禁尚未执行，避免超过预算。
+- 开始前记录 T034 Attempt 状态以及 T035/T040 是否已执行，避免超过各自预算。
 
 不需要真实 codebase-memory。配置为 true 的“能力缺失”场景必须由 Host capability fixture 或不可用
 状态证明，不能自动安装工具。
@@ -172,28 +172,32 @@ Action 只有一个 aggregate `repository_binding_digest`。
 
 不得在开发者真实 HOME 中覆盖配置，也不得用配置测试启动安装器。
 
-## 6. 真实 Host Journey（各最多一次）
+## 6. 真实 Host Journey（T034 最多两次，T035 最多一次）
 
 真实 Journey 必须是本 Feature 独立的两仓库验收模式，不复用或改写历史 Feature/release evidence。
 实现任务应在现有 journey harness 中增加一个明确的 `multi-repository` 入口，并在执行前一次性确认
 参数、临时目录和证据输出。
 
-本节的 Codex 和 DeepSeek 真实 Host Journey 以及第 7 节的最终仓库级验证各最多调用一次。
-调用前必须先完成对应的定向检查；每次实际启动均消耗对应预算，无论结果为成功、失败、中断或
-超时。若任一最终检查失败，Feature 进入 `Blocked`，不得直接重跑；修复阶段只允许运行与失败原因
-直接相关的定向检查。
+T034 Codex Journey 总预算最多两次。Attempt 1 已消费并失败；用户已批准最后一次 Attempt 2，当前
+为 `1/2 remaining, not started`。Attempt 2 启动前必须使用新的、已推送 source commit，并完成
+source-local build、isolated install、setup 与 registration/Core readback。上述启动前步骤失败不消费
+剩余预算；真实 Codex executable 一旦启动，无论成功、失败、中断或超时均消费剩余预算。Attempt 2
+失败后禁止第三次 Codex Journey。
 
-若确实需要第二次执行，必须先获得用户明确批准，并同步修订 `spec.md`、`plan.md`、
-`quickstart.md` 和 `tasks.md` 中的验证预算。预算修订完成前不得执行第二次。
+T035 DeepSeek Journey 和第 7 节 T040 最终仓库级验证仍各最多调用一次，当前均为 0/1。调用前必须
+完成对应的定向检查，且不增加其他测试预算。
 
 ### Codex
 
 - 一个临时主 Git 仓库和一个临时附加 Git 仓库；
-- 一个 Codex 运行，使用 `--cd <primary>`、`--add-dir <additional>` 和
+- Attempt 2 使用一个 Codex 运行，使用 `--cd <primary>`、`--add-dir <additional>` 和
   `--sandbox workspace-write`；
 - 创建两仓库 Task、在两个仓库完成一个有界修改、从附加仓库恢复并完成同一 Task；
-- 记录一个 Task、一套 Action/revision/Outcome 和两个 claim 的证据；
-- 未授权目录拒绝由第 3 节确定性测试证明，不再为此运行第二次真实 Journey。
+- 记录一个 Task、一套 Action/revision/Outcome 和两个 claim 的证据到
+  `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-2.json`；
+- 永久保留 Attempt 1 evidence
+  `tests/journeys/codex/evidence/feature-001-multi-repository.json`；
+- 未授权目录拒绝由第 3 节确定性测试证明，不增加 Attempt 2 之外的真实 Journey。
 
 ### DeepSeek
 

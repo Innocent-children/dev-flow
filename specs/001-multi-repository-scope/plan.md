@@ -48,7 +48,7 @@ Task、Action、摘要、Recovery 或流程流转。
 | Core 只读观察 Git，Host 执行授权修改 | PASS | PASS | 复用现有只读 `RepositoryObserver`；Codex/DeepSeek 在调用 Core 前校验自身目录权限。 |
 | 基于现有架构增量开发 | PASS | PASS | 复用 `ProcessTask.Repository`、Application Service、SQLite mutation、Recovery classifier 和六工具 catalog。 |
 | 可选外部索引与诚实回退 | PASS | PASS | 不安装或管理 codebase-memory；缺失时最多提示一次并回退 Host 内置检索。 |
-| 测试直接对应验收且有界 | PASS | PASS | 定向 package/contract 测试、每个 Host 最多一次两仓 Journey、全仓验证最多一次。 |
+| 测试直接对应验收且有界 | PASS | PASS | 定向 package/contract 测试；T034 Codex 总预算最多两次且禁止第三次，T035 DeepSeek 与全仓验证仍各最多一次。 |
 | Product Feature 与发布分离 | PASS | PASS | 不修改公开版本、npm、Tag、GitHub Release 或发布证据。 |
 | 公共合同和持久化先有 Feature | PASS | PASS | 当前 Feature 明确公共输入/结果、旧数据处置、非目标和测试预算。 |
 
@@ -194,19 +194,25 @@ Release、`.agents/skills/` 或 `.specify/templates/`。
 3. Store/MCP/Config：多 claim 原子事务、preflight 与旧 schema 零写拒绝、closed open input、
    server-info 有效偏好、配置 missing/valid/invalid。
 4. Host：Codex 和 DeepSeek 的 Skill/guard/launcher 定向合同；未授权目录由确定性测试证明。
-5. Journey：完成对应 Host 定向检查后，Codex 真实两仓库 Journey 最多调用一次；DeepSeek
-   真实两仓库 Journey 最多调用一次。
+5. Journey：完成对应 Host 定向检查后，T034 Codex 真实两仓库 Journey 总预算最多调用两次；
+   Attempt 1 已消费并失败，用户仅批准最后一次 Attempt 2。DeepSeek 真实两仓库 Journey 仍最多
+   调用一次。
 6. 完成全部定向检查后，最终 `pnpm run validate` 最多调用一次。
 
-上述三项最终检查每次实际启动均消耗对应预算，无论结果为成功、失败、中断或超时。若最终
-验证或真实 Host Journey 失败，Feature 进入 `Blocked`，不得直接重跑；修复阶段只允许运行与失败
-原因直接相关的定向检查。
+Attempt 1 source commit 为 `1176809054e814d7d163ef7eef0243b1538a71a3`，状态为 failed，原始
+evidence `tests/journeys/codex/evidence/feature-001-multi-repository.json` 不得修改、覆盖或删除。
+原始输出未保留，不能断言唯一运行时原因；静态确认的 runner 缺陷是实际 Dev Flow 产品没有绑定
+该 source commit。source-bound runner 已修复为 source-local build → isolated install → setup →
+registration/Core readback → Codex，确定性测试 46/46 通过。
 
-若确实需要第二次执行，必须先获得用户明确批准，并同步修订 `spec.md`、`plan.md`、
-`quickstart.md` 和 `tasks.md` 中的验证预算。预算修订完成前不得执行第二次。
+Attempt 2 已由用户明确批准但尚未启动，使用独立 evidence
+`tests/journeys/codex/evidence/feature-001-multi-repository-attempt-2.json`。其 build、install、setup
+或 readback 在真实 Codex executable 启动前失败时不消费剩余预算；一旦 Codex 启动，无论成功、
+失败、中断或超时均消费最后一次预算。Attempt 2 失败后 Feature 保持 `Blocked`，禁止第三次执行。
+T035 与 T040 仍分别为 0/1，且不增加其他测试预算。
 
 明确不建立 3～8 仓库、节点、平台或配置排列组合；不做压力、性能、fuzz、版本矩阵；不安装或
-测试真实 codebase-memory；不重复真实 Host Journey。
+测试真实 codebase-memory；真实 Host Journey 不得超过上述修订后的封顶预算。
 
 ## Documentation Scope
 
