@@ -248,13 +248,13 @@ Recovery 或流程流转。
 5. 一个部分完成的 Recovery 场景；
 6. 配置文件不存在、合法和非法三种情况；
 7. Codex 一个通过的有界两仓库 Journey；T034 因前三次暴露的 source identity、长 Prompt
-   恢复遗漏和验收顺序缺陷，具有最多四次真实 Codex Journey 的封顶预算；
+   恢复遗漏、验收顺序和 request-binding 缺陷，具有最多五次真实 Codex Journey 的封顶预算；
 8. DeepSeek 一个有界两仓库 Journey。
 
 验收 MUST NOT 默认扩展到 3～8 个仓库的组合矩阵、平台矩阵、压力或性能测试、fuzz、真实
 codebase-memory 安装或版本矩阵、每个节点的多仓库 Journey，或重复全仓验证。
 
-T034 Codex 真实 Journey 的总预算精确为最多四次，仅适用于 Feature 001：
+T034 Codex 真实 Journey 的总预算精确为最多五次，仅适用于 Feature 001：
 
 - Attempt 1 已真实启动并消费预算，结果为 `failed`，source commit 为
   `1176809054e814d7d163ef7eef0243b1538a71a3`；原始 evidence
@@ -281,16 +281,22 @@ T034 Codex 真实 Journey 的总预算精确为最多四次，仅适用于 Featu
   从主仓创建、修改并 apply，第二段以附加仓为 `--cd`、主仓为 `--add-dir`，只执行恢复；
 - evidence 必须比较第一段最后一次成功 apply 与第二段 open 返回的 Task ID、revision、当前
   Action、repository binding digest 和 Scope，并证明两个不同 Codex thread、一个 Core Task；
-- 双 session runner 的直接 harness 为 47/47 通过；Attempt 4 已授权且尚未启动，独立 evidence
-  为 `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-4.json`；
+- 双 session runner 的直接 harness 为 47/47 通过；Attempt 4 已基于 source commit
+  `4ce6be92fd2d664ccb77ecbcb72b5386606642d6` 启动并失败，独立 evidence 为
+  `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-4.json`；
+- Attempt 4 的 source-bound setup/readback、server-info 和 Task 创建均成功，第一段首次 apply
+  因 substantive Prompt 没有复用通用 caller request-binding 规则而返回 `INVALID_ARGUMENT`；
+- 通用 apply request-binding 规则现在由 multi-repository 与 final-registry Prompt 共享，并由
+  直接 harness 验证；Attempt 5 已授权且尚未启动，独立 evidence 为
+  `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-5.json`；
 - build、install、setup、registration/Core readback 在 Codex executable 启动前失败时不消费剩余
-  预算；一旦 Attempt 4 的第一段真实 Codex executable 启动，无论任一阶段成功、失败、中断或
+  预算；一旦 Attempt 5 的第一段真实 Codex executable 启动，无论任一阶段成功、失败、中断或
   超时均消费剩余预算；
-- Attempt 4 启动后禁止第五次 Codex Journey。
+- Attempt 5 启动后禁止第六次 Codex Journey。
 
 T035 DeepSeek Journey 和 T040 最终 `pnpm run validate` 仍各最多调用一次，当前均为 0/1。除 T034
 上述一次性修订外，不增加其他测试预算。调用任何最终检查前必须先完成其定向前置检查。
-当前 T034 重新等待最终双 session Attempt 4，Feature 状态为 `Ready`。
+当前 T034 等待最终双 session Attempt 5，Feature 状态为 `Ready`。
 
 ## Success Criteria *(mandatory)*
 
@@ -307,7 +313,7 @@ T035 DeepSeek Journey 和 T040 最终 `pnpm run validate` 仍各最多调用一�
   `partially_completed`，对存在不兼容仓库状态返回 `conflicting`，且不产生第二套流程状态。
 - **SC-007**: 配置不存在、合法、非法三类验收场景全部产生规定结果；索引能力不可用时，多仓库
   Task 的阻塞次数为 0，同一 Host 会话的不可用提示不超过 1 次。
-- **SC-008**: Codex 在已批准且封顶为四次 Journey 的 T034 预算内通过一个有界两仓库 Journey，
+- **SC-008**: Codex 在已批准且封顶为五次 Journey 的 T034 预算内通过一个有界两仓库 Journey，
   DeepSeek 在一次 T035 invocation 内通过一个有界两仓库 Journey，分别证明其目录权限边界和同一
   Core Task 语义。
 - **SC-009**: 用户在不安装 codebase-memory 的环境中能够完成全部必需多仓库核心验收场景。

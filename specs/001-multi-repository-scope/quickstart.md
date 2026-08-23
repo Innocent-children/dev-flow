@@ -172,21 +172,23 @@ Action 只有一个 aggregate `repository_binding_digest`。
 
 不得在开发者真实 HOME 中覆盖配置，也不得用配置测试启动安装器。
 
-## 6. 真实 Host Journey（T034 最多四次，T035 最多一次）
+## 6. 真实 Host Journey（T034 最多五次，T035 最多一次）
 
 真实 Journey 必须是本 Feature 独立的两仓库验收模式，不复用或改写历史 Feature/release evidence。
 实现任务应在现有 journey harness 中增加一个明确的 `multi-repository` 入口，并在执行前一次性确认
 参数、临时目录和证据输出。
 
-T034 Codex Journey 总预算最多四次。Attempt 1 和 Attempt 2 已失败，Attempt 3 已通过但只
-证明 mutation 前恢复；当前为 `3/4 consumed` 与 `1/4 remaining, not started`，T034 等待
-最终双 session Attempt 4。
+T034 Codex Journey 总预算最多五次。Attempts 1、2、4 已失败，Attempt 3 已通过但只证明
+mutation 前恢复；当前为 `4/5 consumed` 与 `1/5 remaining, not started`，T034 等待最终
+双 session Attempt 5。
 Attempt 2 的 source-local build、isolated install、setup 与
 registration/Core readback 通过，真实 Codex thread 已启动，但 post-session evidence
 validation 未能证明从附加仓库恢复同一 Task。Attempt 3 已基于 source commit
 `eee0950d24315aaee6562d112b7717303c946059` 证明创建后立即恢复。最终 runner 使用两个独立
 Codex session：主仓 session 完成 mutation，附加仓 session 随后恢复并与最后一次成功 apply
-对比；定向 harness 为 47/47。Attempt 4 启动后禁止第五次 Codex Journey。
+对比。Attempt 4 的 setup/readback、server-info 与 Task 创建通过，但首次 apply 缺少顶层
+`request_id`；通用 apply request-binding 规则现由相关 Prompt 共享，定向 harness 为 47/47。
+Attempt 5 启动后禁止第六次 Codex Journey。
 
 T035 DeepSeek Journey 和第 7 节 T040 最终仓库级验证仍各最多调用一次，当前均为 0/1。调用前必须
 完成对应的定向检查，且不增加其他测试预算。
@@ -194,14 +196,16 @@ T035 DeepSeek Journey 和第 7 节 T040 最终仓库级验证仍各最多调用�
 ### Codex
 
 - 一个临时主 Git 仓库和一个临时附加 Git 仓库；
-- Attempt 4 在一个 runner Journey 内启动两个独立 Codex session，均使用
+- Attempt 5 在一个 runner Journey 内启动两个独立 Codex session，均使用
   `--sandbox workspace-write`；
 - 第一段使用 `--cd <primary> --add-dir <additional>` 创建两仓库 Task、完成两个仓库的
   有界修改并成功 apply；
 - 第二段使用 `--cd <additional> --add-dir <primary>`，只从附加仓库恢复，不修改文件或 apply；
 - evidence 对比最后一次成功 apply 与恢复结果，并证明不同 Codex thread、同一 Core Task、
   revision、Action、digest 和 Scope；
-- Attempt 4 使用独立 evidence
+- Attempt 5 使用独立 evidence
+  `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-5.json`；
+- Attempt 4 失败 evidence 保留在
   `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-4.json`；
 - Attempt 3 evidence 保留在
   `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-3.json`；
@@ -209,7 +213,7 @@ T035 DeepSeek Journey 和第 7 节 T040 最终仓库级验证仍各最多调用�
   `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-2.json`；
 - 永久保留 Attempt 1 evidence
   `tests/journeys/codex/evidence/feature-001-multi-repository.json`；
-- 未授权目录拒绝由第 3 节确定性测试证明，不增加 Attempt 4 之外的真实 Journey。
+- 未授权目录拒绝由第 3 节确定性测试证明，不增加 Attempt 5 之外的真实 Journey。
 
 ### DeepSeek
 

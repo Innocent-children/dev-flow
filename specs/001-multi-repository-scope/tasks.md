@@ -81,20 +81,20 @@ description: "Implementation tasks for bounded multi-repository Task scope and r
 
 **Purpose**: 两个 Host 消费同一 Core Scope/Action/digest 合同，同时分别执行已授权 writable roots 与 Workspace Root 边界，并诚实处理可选 codebase-memory 偏好。
 
-**Independent Test**: 确定性 Host tests 证明 Codex 未授权附加目录和 DeepSeek Root 外路径在 task-bearing Core call 前被拒绝；偏好 false 不调用索引，true 但能力缺失只提示一次并回退；T034 在封顶四次 Journey 的修订预算内取得一个通过结果，T035 仍仅执行一次真实两仓 Journey。
+**Independent Test**: 确定性 Host tests 证明 Codex 未授权附加目录和 DeepSeek Root 外路径在 task-bearing Core call 前被拒绝；偏好 false 不调用索引，true 但能力缺失只提示一次并回退；T034 在封顶五次 Journey 的修订预算内取得一个通过结果，T035 仍仅执行一次真实两仓 Journey。
 
 - [X] T024 [P] [US3] 在 `packages/codex/plugin/skills/dev-flow/SKILL.md`、`packages/codex/plugin/skills/dev-flow/references/method-profiles.md`、`packages/codex/plugin/skills/dev-flow/references/node-payloads.md` 将单仓 admission 改为当前 Git 主仓+用户已授权 additional writable roots，使用新 open 输入和多仓 scoped paths，并在 Action 前权限失效时停止修改且不改变 sandbox（FR-014、FR-015、FR-016；SC-008；`contracts/host-configuration.md`「Codex 权限合同」）。
 - [X] T025 [US4] 在 `packages/codex/plugin/skills/dev-flow/SKILL.md` 编码 `server_info.host_preferences.codex.codebase_memory` 的 false 内置检索、true 且已可用时可优先、不可用时本会话最多提示一次并回退的行为，不安装工具且不把偏好/能力写入 Core 状态（FR-021～FR-025；SC-007、SC-009；`contracts/host-configuration.md`「codebase-memory 行为」）。
 - [X] T026 [US3] 在 `packages/codex/bin/dev-flow-codex.mjs`、`packages/codex/tests/fixtures/fake-core.mjs`、`packages/codex/tests/fixtures/graph-method-profiles.json` 同步多仓 selector/handshake/open 说明和有效 host preferences fixture，保持 launcher 只启动 packaged Core、不拥有或扩大仓库授权（FR-014、FR-015、FR-019、FR-030；SC-008；`contracts/mcp-tools.md`「dev_flow_server_info」和 `contracts/host-configuration.md`「Codex 权限合同」）。
 - [X] T027 [US3] 在 `packages/codex/tests/launcher.test.mjs`、`packages/codex/tests/fake-core-contract.test.mjs`、`packages/codex/tests/skill-contract.test.mjs` 验证 Codex 新 Scope 输入、六工具、单 digest、已授权目录、权限失效停止，以及 [US4] 的 false/true-unavailable 一次提示回退，不增加真实 codebase-memory（FR-014～FR-016、FR-021～FR-025、FR-030；SC-007、SC-008、SC-009；`contracts/host-configuration.md`「Codex 权限合同」「codebase-memory 行为」）。
 - [X] T028 [US3] 在 `scripts/run-codex-real-journey.sh`、`scripts/write-codex-journey-evidence.mjs`、`packages/codex/tests/journey-harness.test.mjs` 增加一个 Feature-only `multi-repository` runner contract，固定使用 `--sandbox workspace-write --cd <primary> --add-dir <additional>`、两个临时 Git 仓库和一个 Core Task，且不触碰历史/release evidence modes；该 mode 使用临时 HOME/TMPDIR/data、保留启动前 CODEX_HOME、实际调用不带 `--ignore-rules`，并将闭合成功/失败 evidence 绑定 source commit 与 Attempt 1 原始 1/1 预算；随后修复为 source-local build、isolated install、setup、registration/Core readback 后才进入 Codex，确定性测试 46/46 通过（FR-014～FR-016、FR-032；SC-008；`quickstart.md`「Codex」）。
-  - Attempt 2 暴露长 Prompt 末尾恢复可能被遗漏，Attempt 3 的提前恢复又没有证明 post-mutation resume；runner 现使用两个独立 Codex session，第一段从主仓创建、完成双仓 mutation 并 apply，第二段以附加仓为 `--cd`、主仓为 `--add-dir` 只恢复，evidence 对比最后一次成功 apply 与恢复结果；直接 harness 47/47 通过。
+  - Attempt 2 暴露长 Prompt 末尾恢复可能被遗漏，Attempt 3 的提前恢复又没有证明 post-mutation resume；runner 现使用两个独立 Codex session，第一段从主仓创建、完成双仓 mutation 并 apply，第二段以附加仓为 `--cd`、主仓为 `--add-dir` 只恢复，evidence 对比最后一次成功 apply 与恢复结果；Attempt 4 暴露 substantive Prompt 未复用 apply request-binding 规则，现已共享该规则；直接 harness 47/47 通过。
 - [X] T029 [P] [US3] 在 `packages/deepseek/skills/dev-flow/SKILL.md`、`packages/deepseek/skills/dev-flow/references/method-profiles.md`、`packages/deepseek/skills/dev-flow/references/node-payloads.md` 将单仓 admission 改为同一非 Git Workspace Root 下显式主/附加 Git 仓库，使用新 open 输入和多仓 scoped paths，并保持与 Codex 两套 references 的既有同步合同（FR-017、FR-018、FR-030；SC-008；`contracts/host-configuration.md`「DeepSeek 权限合同」）。
 - [X] T030 [US4] 在 `packages/deepseek/skills/dev-flow/SKILL.md` 编码 `server_info.host_preferences.deepseek.codebase_memory` 的 false 内置检索、true 且已可用时可优先、不可用时本会话最多提示一次并回退的行为，索引结果不得放宽 Workspace Root 或改变 Task（FR-021～FR-025；SC-007、SC-009；`contracts/host-configuration.md`「codebase-memory 行为」「DeepSeek 权限合同」）。
 - [X] T031 [P] [US3] 在 `packages/deepseek/lib/authorization.mjs` 扩展现有 `dev_flow_open_task` guard，以启动时 canonical `process.cwd()` 为 Workspace Root，在 task-bearing dispatch 前拒绝 root 外主/附加路径和 symlink escape，保持 selector 与六工具 guard 不变（FR-017、FR-018、FR-030；SC-008、SC-010；`contracts/host-configuration.md`「DeepSeek 权限合同」）。
 - [X] T032 [US3] 在 `packages/deepseek/tests/authorization.test.mjs`、`packages/deepseek/tests/skill-contract.test.mjs`、`tests/journeys/deepseek/fake-core.mjs`、`tests/journeys/deepseek/simulated-graph-journey.test.mjs` 验证非 Git Root 内两仓允许、Root 外/escape 零 dispatch、同一 Core Task/Action/digest，以及 [US4] 的 false/true-unavailable 一次提示回退，不增加平台或索引集成矩阵（FR-017、FR-018、FR-021～FR-025、FR-030；SC-007、SC-008、SC-009、SC-010；`contracts/host-configuration.md`「DeepSeek 权限合同」「codebase-memory 行为」）。
 - [X] T033 运行 `node --test packages/codex/tests/launcher.test.mjs packages/codex/tests/fake-core-contract.test.mjs packages/codex/tests/skill-contract.test.mjs packages/codex/tests/journey-harness.test.mjs` 和 `node --test packages/deepseek/tests/authorization.test.mjs packages/deepseek/tests/skill-contract.test.mjs tests/journeys/deepseek/simulated-graph-journey.test.mjs`，只判定本阶段 deterministic Adapter 合同，不执行真实 Host 或真实 codebase-memory（FR-014～FR-025、FR-030；SC-007、SC-008、SC-009、SC-010）。
-- [ ] T034 [US3] 在 T033 的 Codex 定向检查通过后，通过 `scripts/run-codex-real-journey.sh` 的 Feature-only `multi-repository` mode 在总计最多四次、且仅适用于 Feature 001 T034 的修订预算内取得一个通过结果。最终 Attempt 4 必须使用双 session runner 证明 post-mutation additional-repository resume；第一段 Codex executable 启动即消费最后一次预算，失败后禁止第五次执行（FR-014～FR-016；SC-008；`quickstart.md`「Codex」）。
+- [ ] T034 [US3] 在 T033 的 Codex 定向检查通过后，通过 `scripts/run-codex-real-journey.sh` 的 Feature-only `multi-repository` mode 在总计最多五次、且仅适用于 Feature 001 T034 的修订预算内取得一个通过结果。最终 Attempt 5 必须使用含共享 request-binding 规则的双 session runner 证明 post-mutation additional-repository resume；第一段 Codex executable 启动即消费最后一次预算，失败后禁止第六次执行（FR-014～FR-016；SC-008；`quickstart.md`「Codex」）。
   - **Attempt 1**
     - source commit: `1176809054e814d7d163ef7eef0243b1538a71a3`
     - status: failed
@@ -105,7 +105,7 @@ description: "Implementation tasks for bounded multi-repository Task scope and r
   - **Attempt 2**
     - source commit: `c150f281beae12dba222e8758be5cb3ec80d2a44`
     - status: failed
-    - budget: consumed（Attempt 2 启动时为 2/2；当前修订后的 T034 总状态为 2/4 consumed）
+    - budget: consumed（Attempt 2 启动时为 2/2；当前修订后的 T034 总状态为 2/5 consumed）
     - evidence: `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-2.json`
     - preflight: source-bound build/install/setup/registration/Core readback passed
     - session: Codex thread started；first `dev_flow_server_info` succeeded；Codex process exit code 0
@@ -115,22 +115,31 @@ description: "Implementation tasks for bounded multi-repository Task scope and r
   - **Attempt 3**
     - source commit: `eee0950d24315aaee6562d112b7717303c946059`
     - status: passed
-    - budget: consumed（修订后的 T034 总状态为 3/4 consumed）
+    - budget: consumed（修订后的 T034 总状态为 3/5 consumed）
     - preflight: source-bound build/install/setup/registration/Core readback passed
     - session: Codex thread started；从附加仓库恢复同一 Task；runner exit code 0
     - evidence: `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-3.json`
     - limitation: resume occurred before the recorded Action mutations；不满足最终 post-mutation 双 session runner 结构
     - preservation: MUST NOT overwrite or modify Attempt 1 or Attempt 2 evidence
   - **Attempt 4**
-    - status: authorized, not started
-    - budget: one remaining Journey（T034 总预算为 4）
-    - prerequisite: two-session runner and direct harness 47/47 complete；使用新的已提交 source commit
-    - evidence target: `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-4.json`
+    - source commit: `4ce6be92fd2d664ccb77ecbcb72b5386606642d6`
+    - status: failed
+    - budget: consumed（修订后的 T034 总状态为 4/5 consumed）
+    - preflight: source-bound build/install/setup/registration/Core readback passed
+    - session: substantive Codex thread started；server-info and Task creation succeeded；Codex process exit code 0
+    - failure: first apply omitted top-level `request_id` and Core returned `INVALID_ARGUMENT`；runner exit code 1
+    - evidence: `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-4.json`
     - preservation: MUST NOT overwrite or modify Attempts 1～3 evidence
-    - retry: forbidden after first Codex session starts；no fifth Codex Journey
+  - **Attempt 5**
+    - status: authorized, not started
+    - budget: one remaining Journey（T034 总预算为 5）
+    - prerequisite: shared apply request-binding rule and direct harness 47/47 complete；使用新的已提交 source commit
+    - evidence target: `tests/journeys/codex/evidence/feature-001-multi-repository-attempt-5.json`
+    - preservation: MUST NOT overwrite or modify Attempts 1～4 evidence
+    - retry: forbidden after first Codex session starts；no sixth Codex Journey
 - [ ] T035 [US3] 在 T033 的 DeepSeek 定向检查通过后，新增 `tests/journeys/deepseek/multi-repository-runner.mjs` 并最多调用一次 DeepSeek 真实两仓库 Journey，以非 Git Workspace Root 下两个临时 Git 仓库完成同一 Core Task 的创建、双仓工作和附加仓恢复，并将 sanitized 结果写入 `tests/journeys/deepseek/evidence/feature-001-multi-repository.json`。调用一旦实际启动即消耗预算，无论成功、失败、中断或超时；失败时必须停止并将 Feature 标记为 `Blocked`，不得在同一任务中自动修复后重跑。第二次执行必须先获得用户明确批准，并同步修订 `spec.md`、`plan.md`、`quickstart.md` 和 `tasks.md` 中的验证预算（FR-017、FR-018；SC-008；`quickstart.md`「DeepSeek」）。
 
-**Checkpoint — STOP REQUIRED**: T034 Attempts 1～3 已消费，最终双 session Attempt 4 已授权但尚未启动。Attempt 4 通过前不得执行 T035；失败后 Feature 为 `Blocked` 且禁止第五次 Codex Journey。
+**Checkpoint — STOP REQUIRED**: T034 Attempts 1～4 已消费，最终双 session Attempt 5 已授权但尚未启动。Attempt 5 通过前不得执行 T035；失败后 Feature 为 `Blocked` 且禁止第六次 Codex Journey。
 
 ---
 
@@ -205,7 +214,7 @@ Join: T006
 Parallel task A: T024 -> T025 -> T026 -> T027 -> T028 (Codex)
 Parallel task B: T029 -> T030 and T031 -> T032 (DeepSeek)
 Join: T033
-Sequential budgeted evidence: T034 has 3/4 consumed and only the two-session Attempt 4 remaining; T035 remains 0/1
+Sequential budgeted evidence: T034 has 4/5 consumed and only the request-bound two-session Attempt 5 remaining; T035 remains 0/1
 ```
 
 ## Implementation Strategy
@@ -219,7 +228,7 @@ The smallest reviewable MVP is Phase 1 plus Phase 2: it delivers US1's bounded R
 1. Complete Phase 1, run only T006, stop.
 2. Complete Phase 2, run only T013, stop and review the MVP.
 3. Complete Phase 3, run only T023, stop and review persistence/Recovery.
-4. Complete the two-session post-mutation resume correction, execute only T034 Attempt 4, then stop before T035.
+4. Complete the request-bound two-session post-mutation resume correction, execute only T034 Attempt 5, then stop before T035.
 5. Complete synchronized docs and consume the single T040 full validation, then final stop.
 
 ## Scope and Budget Guardrails
@@ -229,6 +238,6 @@ The smallest reviewable MVP is Phase 1 plus Phase 2: it delivers US1's bounded R
 - Do not add 3～8 repository, platform, node, configuration or Recovery combination matrices.
 - Do not add stress, performance, fuzz, coverage expansion or real codebase-memory installation/integration work.
 - Do not modify `CORE_VERSION`, `packages/codex/package.json`, `packages/deepseek/package.json`, release contracts/scripts/evidence, npm state, Tags or GitHub Releases.
-- T034 Attempts 1～3 已消费；只剩双 session Attempt 4，第一段 Codex 启动后即消费预算并禁止第五次 Codex Journey。
+- T034 Attempts 1～4 已消费；只剩双 session Attempt 5，第一段 Codex 启动后即消费预算并禁止第六次 Codex Journey。
 - DeepSeek Journey 或 `pnpm run validate` 一旦启动即消费各自唯一的 0/1 预算，无论成功、失败、中断或超时。
-- 禁止第五次 Codex Journey；不得第二次执行 DeepSeek Journey 或 `pnpm run validate`。
+- 禁止第六次 Codex Journey；不得第二次执行 DeepSeek Journey 或 `pnpm run validate`。

@@ -686,6 +686,7 @@ test("Feature-only multi-repository CLI and layout are closed over source identi
   assert.match(substantivePrompt, /primary_repository_key=core/u);
   assert.match(substantivePrompt, /additional_repositories/u);
   assert.match(substantivePrompt, /core::core-proof\.txt[\s\S]*docs::docs-proof\.txt/u);
+  assert.match(substantivePrompt, /new nonempty opaque caller request ID[\s\S]*top-level request_id/u);
   assert.doesNotMatch(substantivePrompt, /new_task=null/u);
   assert.match(substantivePrompt, /Stop after the first successful apply that records both changes/u);
 
