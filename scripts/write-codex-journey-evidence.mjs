@@ -38,6 +38,46 @@ export const FINAL_FIXTURE_EVIDENCE_KIND = "fixture-simulated-registry-package-j
 export const FINAL_LOCAL_NATIVE_EVIDENCE_KIND = "source-local-package-native-codex-journey";
 export const OFFICIAL_NPM_REGISTRY = "https://registry.npmjs.org/";
 export const MULTI_REPOSITORY_EVIDENCE_KIND = "feature-001-multi-repository-codex-journey";
+const MULTI_REPOSITORY_SUCCESS_FIELDS = Object.freeze([
+  "evidence_kind",
+  "status",
+  "source_commit",
+  "host",
+  "runner_mode",
+  "journey_budget",
+  "task_id",
+  "primary_repository_key",
+  "additional_repository_keys",
+  "repository_count",
+  "revision_before_resume",
+  "revision_after_resume",
+  "action_id_before_resume",
+  "action_id_after_resume",
+  "repository_binding_digest_before_resume",
+  "repository_binding_digest_after_resume",
+  "resumed_from_additional_repository",
+  "one_core_task",
+  "scoped_paths",
+  "successful_action_count",
+  "tool_catalog_size",
+  "codebase_memory_preference",
+  "observed_at",
+]);
+const MULTI_REPOSITORY_FAILURE_FIELDS = Object.freeze([
+  "evidence_kind",
+  "status",
+  "source_commit",
+  "host",
+  "runner_mode",
+  "journey_budget",
+  "failure_stage",
+  "failure_classification",
+  "session_role",
+  "exit_code",
+  "stdout_sha256",
+  "stderr_sha256",
+  "observed_at",
+]);
 export const ordinaryPrompt =
   "Reply with one short sentence describing this repository. Do not invoke Dev Flow.";
 export const invalidPrompt =
@@ -875,6 +915,7 @@ export function validateCompositeAcceptanceEvidence(evidence, nativeEvidence, li
 
 export function buildCodexExecArgs(prompt, {
   ephemeral = false,
+  ignoreRules = ephemeral,
   skipGitRepoCheck = false,
   workspace = null,
   workspaceWrite = false,
@@ -884,7 +925,9 @@ export function buildCodexExecArgs(prompt, {
     throw new TypeError("Codex prompt must be nonempty");
   }
   const args = ["exec", "--json"];
-  if (ephemeral) args.push("--ephemeral", "--ignore-rules", "--color", "never");
+  if (ephemeral) args.push("--ephemeral");
+  if (ignoreRules) args.push("--ignore-rules");
+  if (ephemeral) args.push("--color", "never");
   if (ephemeral || workspaceWrite) args.push("--sandbox", "workspace-write");
   if (skipGitRepoCheck) args.push("--skip-git-repo-check");
   if (workspace !== null) args.push("--cd", workspace);
@@ -906,6 +949,7 @@ export async function runCodexSession({
   includeCallFacts = false,
   environment,
   ephemeral = false,
+  ignoreRules = ephemeral,
   skipGitRepoCheck = false,
   workspaceWrite = false,
   stopAfterApplyPath = null,
@@ -927,6 +971,7 @@ export async function runCodexSession({
   }
   const result = await runProcess(codexExecutable, buildCodexExecArgs(prompt, {
     ephemeral,
+    ignoreRules,
     skipGitRepoCheck,
     workspaceWrite,
     workspace: ephemeral ? workspace : null,
@@ -4184,64 +4229,188 @@ function requireAbsolute(value, label) {
   }
 }
 
+function requireSourceCommit(value, label = "source commit") {
+  if (typeof value !== "string" || !/^[0-9a-f]{40}$/u.test(value)) {
+    throw new Error(`${label} must be a 40-character lowercase Git SHA`);
+  }
+}
+
 export function createMultiRepositoryJourneyLayout(root) {
   requireAbsolute(root, "multi-repository journey root");
   return Object.freeze({
     root,
+    home: join(root, "home"),
+    temporaryDirectory: join(root, "tmp"),
     primaryRepository: join(root, "core"),
     additionalRepository: join(root, "docs"),
     dataDirectory: join(root, "data"),
   });
 }
 
+function buildMultiRepositoryEnvironment(layout, baseEnvironment = process.env) {
+  const originalHome = baseEnvironment.HOME ?? homedir();
+  const existingCodexHome = resolve(baseEnvironment.CODEX_HOME ?? join(originalHome, ".codex"));
+  return {
+    ...baseEnvironment,
+    HOME: layout.home,
+    CODEX_HOME: existingCodexHome,
+    TMPDIR: layout.temporaryDirectory,
+    DEV_FLOW_DATA_DIR: layout.dataDirectory,
+    GIT_CONFIG_GLOBAL: "/dev/null",
+    GIT_CONFIG_NOSYSTEM: "1",
+    NO_COLOR: "1",
+  };
+}
+
+function digestText(value) {
+  return createHash("sha256").update(typeof value === "string" ? value : "").digest("hex");
+}
+
+function assertMultiRepositoryEvidenceSanitized(evidence, fields, label) {
+  assertExactFields(evidence, fields, label);
+  const serialized = JSON.stringify(evidence);
+  if (
+    /(?:\/Users\/|\/home\/|[A-Za-z]:\\\\|auth\.json|CODEX_HOME|HOME=|"(?:prompt|stdout|stderr|environment|token|secret|auth)"\s*:)/u
+      .test(serialized)
+  ) {
+    throw new Error(`${label} contains private path, raw session data, or authentication material`);
+  }
+}
+
+function multiRepositoryFailureClassification(error, processResult) {
+  const known = new Set(["core-domain-error", "transport-error", "session-error", "parser-error"]);
+  if (known.has(error?.classification)) return error.classification;
+  return processResult === null ? "process-error" : "post-session-validation";
+}
+
+function buildMultiRepositoryFailureEvidence({ sourceCommit, error, processResult }) {
+  const classification = multiRepositoryFailureClassification(error, processResult);
+  const exitCode = Number.isInteger(processResult?.exitCode)
+    ? processResult.exitCode
+    : Number.isInteger(error?.exitCode) ? error.exitCode : null;
+  const evidence = {
+    evidence_kind: MULTI_REPOSITORY_EVIDENCE_KIND,
+    status: "failed",
+    source_commit: sourceCommit,
+    host: "codex",
+    runner_mode: "multi-repository",
+    journey_budget: "1/1",
+    failure_stage: classification === "post-session-validation" ? "evidence-validation" : "codex-session",
+    failure_classification: classification,
+    session_role: "multi-repository",
+    exit_code: exitCode,
+    stdout_sha256: digestText(processResult?.stdout ?? error?.stdout),
+    stderr_sha256: digestText(processResult?.stderr ?? error?.stderr),
+    observed_at: new Date().toISOString(),
+  };
+  assertMultiRepositoryEvidenceSanitized(
+    evidence,
+    MULTI_REPOSITORY_FAILURE_FIELDS,
+    "multi-repository failure evidence",
+  );
+  return Object.freeze(evidence);
+}
+
 export async function runMultiRepositoryJourney(options) {
   requireAbsolute(options.codexExecutable, "Codex executable");
   requireAbsolute(options.resultFile, "multi-repository evidence file");
+  requireSourceCommit(options.sourceCommit, "multi-repository source commit");
   if (await pathExists(options.resultFile)) throw new Error("multi-repository evidence file already exists");
+  await mkdir(dirname(options.resultFile), { recursive: true, mode: 0o700 });
 
   const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-multi-repository-")));
+  let invocationStarted = false;
+  let processResult = null;
   try {
     const layout = createMultiRepositoryJourneyLayout(root);
     await Promise.all([
+      mkdir(layout.home, { mode: 0o700 }),
+      mkdir(layout.temporaryDirectory, { mode: 0o700 }),
       mkdir(layout.primaryRepository, { mode: 0o700 }),
       mkdir(layout.additionalRepository, { mode: 0o700 }),
       mkdir(layout.dataDirectory, { mode: 0o700 }),
     ]);
-    const environment = { ...process.env, DEV_FLOW_DATA_DIR: layout.dataDirectory };
+    const environment = buildMultiRepositoryEnvironment(layout, options.baseEnvironment ?? process.env);
     await Promise.all([
       initializeSmokeRepository(layout.primaryRepository, environment),
       initializeSmokeRepository(layout.additionalRepository, environment),
     ]);
+
+    const actualRunProcess = options.runProcess ?? defaultRunProcess;
+    const budgetedRunProcess = async (...args) => {
+      invocationStarted = true;
+      processResult = await actualRunProcess(...args);
+      return processResult;
+    };
 
     const session = await runCodexSession({
       codexExecutable: options.codexExecutable,
       workspace: layout.primaryRepository,
       role: "multi-repository",
       prompt: multiRepositoryPrompt(layout.primaryRepository, layout.additionalRepository),
-      runProcess: options.runProcess ?? defaultRunProcess,
+      runProcess: budgetedRunProcess,
       includeCallFacts: true,
       environment,
       ephemeral: true,
+      ignoreRules: false,
       workspaceWrite: true,
       additionalWritableRoots: [layout.additionalRepository],
     });
-    const evidence = await buildMultiRepositoryEvidence(session, layout);
-    await mkdir(dirname(options.resultFile), { recursive: true, mode: 0o700 });
+    if (await pathExists(join(layout.home, ".dev-flow", "config.json"))) {
+      throw new Error("multi-repository journey created a Dev Flow user configuration file");
+    }
+    const evidence = await buildMultiRepositoryEvidence(session, layout, options.sourceCommit);
     await writeFile(options.resultFile, `${JSON.stringify(evidence, null, 2)}\n`, { mode: 0o600, flag: "wx" });
     return evidence;
+  } catch (error) {
+    if (invocationStarted) {
+      const evidence = buildMultiRepositoryFailureEvidence({
+        sourceCommit: options.sourceCommit,
+        error,
+        processResult,
+      });
+      await writeFile(options.resultFile, `${JSON.stringify(evidence, null, 2)}\n`, { mode: 0o600, flag: "wx" });
+    }
+    throw error;
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 }
 
-export async function buildMultiRepositoryEvidence(session, layout) {
+function multiRepositoryActionIdentity(task, label) {
+  if (task?.current_action === null) return { actionID: null, digest: null };
+  if (
+    !isPlainObject(task?.current_action)
+    || typeof task.current_action.action_id !== "string"
+    || task.current_action.action_id.length === 0
+    || typeof task.current_action.repository_binding_digest !== "string"
+    || task.current_action.repository_binding_digest.length === 0
+    || Object.hasOwn(task.current_action, "repository_scope_digest")
+  ) {
+    throw new Error(`${label} current Action identity is invalid`);
+  }
+  return {
+    actionID: task.current_action.action_id,
+    digest: task.current_action.repository_binding_digest,
+  };
+}
+
+export async function buildMultiRepositoryEvidence(session, layout, sourceCommit) {
+  requireSourceCommit(sourceCommit, "multi-repository source commit");
   const calls = session.dev_flow_calls;
   if (calls[0]?.tool !== "dev_flow_server_info" || calls[0]?.classification !== "success") {
     throw new Error("multi-repository journey requires server-info as the first Dev Flow call");
   }
   const info = calls[0].core_result?.result;
-  if (!isDeepStrictEqual(info?.tools, DEV_FLOW_TOOLS) || typeof info?.host_preferences?.codex?.codebase_memory !== "boolean") {
+  if (
+    !isDeepStrictEqual(info?.tools, DEV_FLOW_TOOLS)
+    || info?.host_preferences?.codex?.codebase_memory !== false
+    || info?.host_preferences?.deepseek?.codebase_memory !== false
+  ) {
     throw new Error("multi-repository journey server-info contract is incomplete");
+  }
+  if (!Array.isArray(session.mcp_calls) || session.mcp_calls.some((call) => call.server !== "dev-flow")) {
+    throw new Error("multi-repository journey must not call non-Dev-Flow MCP servers");
   }
   const opens = calls.filter((call) => call.tool === "dev_flow_open_task" && call.classification === "success");
   const created = opens.find((call) => call.arguments?.new_task !== null && call.arguments?.new_task !== undefined);
@@ -4270,31 +4439,69 @@ export async function buildMultiRepositoryEvidence(session, layout) {
   if (taskIDs.size !== 1) throw new Error("multi-repository journey created more than one Core Task");
   const successfulApplies = calls.filter((call) => call.tool === "dev_flow_apply_action" && call.classification === "success");
   if (successfulApplies.length < 1) throw new Error("multi-repository journey recorded no Action mutation");
-  const actions = calls.map(taskFromCall).filter(Boolean).map((task) => task.current_action).filter(Boolean);
-  const action = actions.at(-1);
-  if (!action || typeof action.repository_binding_digest !== "string" || Object.hasOwn(action, "repository_scope_digest")) {
-    throw new Error("multi-repository journey Action digest contract is invalid");
+  const beforeResumeTask = lastTask(successfulApplies);
+  if (!beforeResumeTask || !Number.isInteger(beforeResumeTask.revision) || !Number.isInteger(resumedTask.revision)) {
+    throw new Error("multi-repository journey resume revision is invalid");
+  }
+  const beforeAction = multiRepositoryActionIdentity(beforeResumeTask, "pre-resume Task");
+  const afterAction = multiRepositoryActionIdentity(resumedTask, "resumed Task");
+  if (beforeResumeTask.task_id !== resumedTask.task_id) {
+    throw new Error("multi-repository journey resume task identity differs from the last successful apply");
+  }
+  if (beforeResumeTask.revision !== resumedTask.revision) {
+    throw new Error("multi-repository journey resume revision differs from the last successful apply");
+  }
+  if (beforeAction.actionID !== afterAction.actionID) {
+    throw new Error("multi-repository journey resume Action identity differs from the last successful apply");
+  }
+  if (beforeAction.digest !== afterAction.digest) {
+    throw new Error("multi-repository journey resume Action digest differs from the last successful apply");
+  }
+  if (
+    beforeResumeTask.primary_repository_key !== resumedTask.primary_repository_key
+    || !isDeepStrictEqual(
+      beforeResumeTask.additional_repositories?.map(({ key }) => key),
+      resumedTask.additional_repositories?.map(({ key }) => key),
+    )
+  ) {
+    throw new Error("multi-repository journey resume Repository Scope differs from the last successful apply");
   }
   if ((await readFile(join(layout.primaryRepository, "core-proof.txt"), "utf8")) !== "core proof\n"
     || (await readFile(join(layout.additionalRepository, "docs-proof.txt"), "utf8")) !== "docs proof\n") {
     throw new Error("multi-repository journey proof bytes differ");
   }
 
-  return Object.freeze({
+  const evidence = {
     evidence_kind: MULTI_REPOSITORY_EVIDENCE_KIND,
     status: "passed",
-    task_id: createdTask.task_id,
+    source_commit: sourceCommit,
+    host: "codex",
+    runner_mode: "multi-repository",
+    journey_budget: "1/1",
+    task_id: beforeResumeTask.task_id,
     primary_repository_key: "core",
     additional_repository_keys: ["docs"],
     repository_count: 2,
-    successful_action_count: successfulApplies.length,
+    revision_before_resume: beforeResumeTask.revision,
+    revision_after_resume: resumedTask.revision,
+    action_id_before_resume: beforeAction.actionID,
+    action_id_after_resume: afterAction.actionID,
+    repository_binding_digest_before_resume: beforeAction.digest,
+    repository_binding_digest_after_resume: afterAction.digest,
     resumed_from_additional_repository: true,
-    one_repository_binding_digest_per_action: true,
+    one_core_task: true,
     scoped_paths: ["core::core-proof.txt", "docs::docs-proof.txt"],
+    successful_action_count: successfulApplies.length,
     tool_catalog_size: info.tools.length,
-    codebase_memory_preference: info.host_preferences.codex.codebase_memory,
+    codebase_memory_preference: false,
     observed_at: new Date().toISOString(),
-  });
+  };
+  assertMultiRepositoryEvidenceSanitized(
+    evidence,
+    MULTI_REPOSITORY_SUCCESS_FIELDS,
+    "multi-repository success evidence",
+  );
+  return Object.freeze(evidence);
 }
 
 export function parseCLI(argv) {
@@ -4303,17 +4510,27 @@ export function parseCLI(argv) {
     const values = {};
     while (argv.length > 0) {
       const flag = argv.shift();
-      if (!["--codex-executable", "--result-file"].includes(flag) || Object.hasOwn(values, flag) || argv.length === 0) {
+      if (
+        !["--codex-executable", "--result-file", "--source-commit"].includes(flag)
+        || Object.hasOwn(values, flag)
+        || argv.length === 0
+      ) {
         throw new Error("multi-repository journey requires each exact flag once");
       }
       values[flag] = argv.shift();
     }
-    if (!values["--codex-executable"] || !values["--result-file"]) {
-      throw new Error("multi-repository journey requires --codex-executable ABS --result-file ABS.json");
+    if (!values["--codex-executable"] || !values["--result-file"] || !values["--source-commit"]) {
+      throw new Error("multi-repository journey requires --codex-executable ABS --result-file ABS.json --source-commit COMMIT");
     }
     requireAbsolute(values["--codex-executable"], "Codex executable");
     requireAbsolute(values["--result-file"], "multi-repository evidence file");
-    return { mode, codexExecutable: values["--codex-executable"], resultFile: values["--result-file"] };
+    requireSourceCommit(values["--source-commit"], "multi-repository source commit");
+    return {
+      mode,
+      codexExecutable: values["--codex-executable"],
+      resultFile: values["--result-file"],
+      sourceCommit: values["--source-commit"],
+    };
   }
   if (mode === "acceptance-report") {
     if (argv.length !== 2 || argv[0] !== "--report") {

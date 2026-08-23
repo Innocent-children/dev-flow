@@ -9,7 +9,7 @@ fixture_root="$repository_root/tests/contract/testdata/codex-0.147"
 usage() {
   printf '%s\n' \
     'usage: run-codex-real-journey.sh --fixture success|core-domain-error|transport-error' \
-    '   or: run-codex-real-journey.sh --multi-repository --codex-executable ABS --result-file ABS.json' \
+    '   or: run-codex-real-journey.sh --multi-repository --codex-executable ABS --result-file ABS.json --source-commit COMMIT' \
     '   or: run-codex-real-journey.sh --smoke --codex-executable ABS --workspace ABS' \
     '   or: run-codex-real-journey.sh --development-smoke --run-label A|B|C|D --codex-executable ABS --result-directory ABS' \
     '   or: run-codex-real-journey.sh --acceptance --codex-executable ABS --workspace ABS' \
@@ -38,7 +38,7 @@ if [ "$#" -eq 2 ] && [ "$1" = "--fixture" ]; then
   exec node "$script_dir/validate-codex-journey-evidence.mjs" "$fixture"
 fi
 
-if [ "$#" -eq 5 ] && [ "$1" = "--multi-repository" ]; then
+if [ "$#" -eq 7 ] && [ "$1" = "--multi-repository" ]; then
   shift
   exec node "$script_dir/write-codex-journey-evidence.mjs" multi-repository "$@"
 fi
