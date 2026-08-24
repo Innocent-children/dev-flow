@@ -45,6 +45,7 @@ export const PACKAGE_FILE_PATHS = Object.freeze([
   "LICENSE",
   "README.md",
   "bin/dev-flow-codex.mjs",
+  "lib/install-experience.mjs",
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
   "package.json",
@@ -406,7 +407,7 @@ export async function inspectPackageTarball(tarballPath, { repositoryRoot, versi
   }
   const relativeFiles = packagePaths.map((path) => path.slice("package/".length)).sort();
   if (!arraysEqual(relativeFiles, [...PACKAGE_FILE_PATHS].sort())) {
-    throw new Error("npm tarball does not contain the exact approved 12-file package layout");
+    throw new Error("npm tarball does not contain the exact approved package layout");
   }
 
   const extractionRoot = await mkdtemp(join(tmpdir(), "dev-flow-release-verify-"));
@@ -729,7 +730,7 @@ function validatePublicPackageManifest(manifest, version) {
     manifest.publishConfig?.registry !== "https://registry.npmjs.org/" ||
     stableJSON(manifest.engines) !== stableJSON({ node: ">=24" }) ||
     stableJSON(manifest.files) !== stableJSON([
-      ".agents/plugins/marketplace.json", "LICENSE", "bin/dev-flow-codex.mjs", "lib/lifecycle.mjs", "lib/paths.mjs", "plugin/.codex-plugin/plugin.json", "plugin/.mcp.json", "plugin/skills/dev-flow/SKILL.md", "plugin/skills/dev-flow/agents/openai.yaml", "plugin/skills/dev-flow/references/method-profiles.md", "plugin/skills/dev-flow/references/node-payloads.md", "runtime/darwin-arm64/dev-flow",
+      ".agents/plugins/marketplace.json", "LICENSE", "bin/dev-flow-codex.mjs", "lib/install-experience.mjs", "lib/lifecycle.mjs", "lib/paths.mjs", "plugin/.codex-plugin/plugin.json", "plugin/.mcp.json", "plugin/skills/dev-flow/SKILL.md", "plugin/skills/dev-flow/agents/openai.yaml", "plugin/skills/dev-flow/references/method-profiles.md", "plugin/skills/dev-flow/references/node-payloads.md", "runtime/darwin-arm64/dev-flow",
     ])
   ) throw new Error("packed package.json differs from the fixed public package contract");
   for (const field of ["dependencies", "optionalDependencies", "peerDependencies", "bundledDependencies", "bundleDependencies"]) if (field in manifest) throw new Error(`packed package contains forbidden ${field}`);
