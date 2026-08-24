@@ -2,297 +2,189 @@
 
 [简体中文](README.md) · [English](README_en.md) · [繁體中文](README_zh-TW.md) · [日本語](README_ja.md) · [한국어](README_ko.md) · [Español](README_es.md) · [Français](README_fr.md) · [Deutsch](README_de.md) · [Português (Brasil)](README_pt-BR.md)
 
-> 为 AI 编程任务提供显式范围、验证预算与可恢复状态。
+> 让 Codex 和 DeepSeek 在长任务中守住范围、控制验证，并在中断后继续。
 
 [![Codex npm](https://img.shields.io/npm/v/dev-flow-codex?label=dev-flow-codex)](https://www.npmjs.com/package/dev-flow-codex)
 [![DeepSeek npm](https://img.shields.io/npm/v/dev-flow-deepseek?label=dev-flow-deepseek)](https://www.npmjs.com/package/dev-flow-deepseek)
 [![CI](https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml/badge.svg)](https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-Dev Flow 是 AI 辅助软件开发的本地过程控制与恢复层。它将需求、设计、任务拆分、实现、测试、
-理解审查、重构和交付组织为由 Go Core 管理的状态图。Codex、DeepSeek Harness 等 Host Adapter
-负责修改仓库和运行工具；Core 保存 Task、当前节点、节点合同、验证预算、合法流转和恢复结论。
+Dev Flow 为 AI 编程任务提供一份**独立于聊天记录的本地任务状态**。它记住：
 
-## Agent 工作流的常见失效模式
+- 这次任务允许改什么，不允许扩展到什么；
+- 当前进行到需求、设计、实现、测试还是交付；
+- 约定了多少验证，哪些证据已经完成；
+- 会话中断或写入结果不确定时，应该恢复、阻塞还是安全重试。
 
-| 失效模式 | 典型表现 |
+**它不是另一个编程 Agent，也不是任务编排器。** Codex 和 DeepSeek 仍负责读代码、改代码和运行
+命令；Dev Flow 只管理一个开发任务的范围、阶段、验证强度、证据和恢复。
+
+**从这里开始：** [两分钟看懂一次完整任务](docs/DEMO.md) ·
+[查看当前版本与真实证据](docs/PROJECT-STATUS.md) · [安装稳定版](#安装稳定版)
+
+> 本 README 介绍当前 `main` 的能力。npm `@latest` 是经过最终制品验证的稳定版，可能晚于
+> `main`；稳定版、beta 和源码的准确差异见[项目状态页](docs/PROJECT-STATUS.md)。
+
+## 30 秒理解
+
+| 直接使用 Agent 时 | Dev Flow 增加的能力 |
 | --- | --- |
-| 范围漂移 | 局部修改扩展为相邻模块重构、通用抽象、额外文档或未要求的未来能力 |
-| 无界验证 | 定向检查扩展为全量回归、平台矩阵、压力测试或不断追加的边界用例 |
-| 过程状态丢失 | 会话压缩、Host 重启或跨天继续后，当前进度只能从聊天记录和工作区重新推断 |
-| 可维护性缺口 | 测试通过，但实现无法由开发者清楚解释、审查或接手维护 |
-| 不确定 mutation | 写操作响应丢失或中断后，无法确认操作是否已提交，重放可能造成重复副作用 |
+| Prompt 反复强调“不要扩大范围” | Task 保存原始意图，每一步明确允许做什么 |
+| 会话重启后重新扫描仓库、猜测进度 | 当前阶段、证据和阻塞原因保存在本地，可直接恢复 |
+| 定向检查逐渐扩成全量回归或平台矩阵 | 每个 Task 都有明确的 verification budget |
+| 测试通过，但实现仍难以解释和接手 | 交付前经过 `COMPREHENSION_REVIEW` |
+| 写操作响应丢失后直接重试，可能重复副作用 | 先读取权威状态，再依据 Recovery 结论行动 |
 
-这些问题不能仅靠在 Prompt 中反复增加“不要重构”“不要多测试”等限制稳定解决。开发过程需要
-独立于会话上下文的持久状态，以及对当前步骤、完成条件和合法下一步的闭合合同。
-
-## 控制模型
-
-| 失效模式 | Dev Flow 机制 |
-| --- | --- |
-| 范围漂移 | `TaskIntent` 保存不可变原始意图；Action 暴露 completion conditions 与 `allowed_effects`；实质范围变化必须通过合法 transition 返回相应节点，并由 Core 使下游旧 authority 失效 |
-| 无界验证 | 每个 Task 保存 verification budget；检查必须关联当前节点、改动表面、验收条件或已知恢复风险，完整套件和平台矩阵不是默认动作 |
-| 过程状态丢失 | 当前节点、requirements/design/task-plan baselines、证据、blocker 和合法流转持久化到本地 SQLite |
-| 可维护性缺口 | `TEST` 之后必须经过 `COMPREHENSION_REVIEW`；无法解释或维护的实现返回 `DESIGN`、`IMPLEMENT` 或 `REFACTOR`，仓库变化后重新经过 `TEST` |
-| 不确定 mutation | mutation 携带 revision、action identity、source cursor 和 repository binding；调用者必须 read-before-retry，并遵循五分类 Recovery |
-
-Core 不会静态拦截 Host 对仓库的每一次修改。它提供权威 Action 合同并校验 Task 流转；Host
-Adapter 必须在当前节点的允许副作用和验证预算内执行工作。
-
-## 适用范围
-
-Dev Flow 适合需要跨越多个开发节点、可能发生返工、需要保留验证证据，或必须跨会话恢复的真实
-仓库任务。一次性问答、无需状态保留的单文件机械修改，直接使用 Codex 或 DeepSeek 通常更简单。
-
-## 多仓库 Task 与可选代码索引
-
-一个 Task 可以显式声明当前 Git 仓库作为主仓库，并加入零至七个附加仓库；全部仓库始终共享一个
-current node、Action、revision、verification budget、Recovery、Blocker 和 Outcome。系统不会扫描
-父目录、相邻目录、依赖或代码索引来扩大范围。单仓库调用与普通相对路径保持兼容；多仓库路径使用
-`<repository-key>::<repository-relative-path>` 明确归属。
-
-可选代码索引偏好来自只读的 `$HOME/.dev-flow/config.json`：
-
-```json
-{
-  "codex": { "codebase_memory": false },
-  "deepseek": { "codebase_memory": true }
-}
-```
-
-目录或文件不存在时两个值都默认为 `false`；`dev-flow-codex setup` 会创建完整默认配置，DeepSeek
-保持只读缺省。已有配置不会被 setup 改写。偏好为 `true` 时，
-Host 只会使用已经安装且可用的 codebase-memory；能力缺失或中途不可用时，每个会话最多提示一次并
-回退到内置检索，不阻塞 Task。Codex 的附加仓库必须是会话启动时已授权的 writable root，Dev Flow
-不会修改 sandbox；DeepSeek 的全部仓库必须位于当前 Workspace Root 下，该 Root 可以是非 Git 的
-共同父目录。
-
-## 安装、升级与卸载
-
-当前公开制品支持 macOS arm64 和 Node.js `>=24`。安装示例使用 npm `latest` dist-tag；支持表继续
-记录经过验证的精确版本。Codex 与 DeepSeek 共享默认 Task 数据目录：
-`$HOME/Library/Application Support/dev-flow/data`。
-
-### Codex
-
-#### 安装与验证
-
-```bash
-npm install -g dev-flow-codex@latest
-dev-flow-codex setup
-dev-flow-codex --version
-```
-
-`setup` 缺少配置时创建 `$HOME/.dev-flow/config.json`，并展示本次实际创建或更新的配置与 registration
-receipt、就绪状态和唯一下一步。交互结果跟随简体中文/英文环境；非交互或 `NO_COLOR` 使用纯文本，
-`setup --json` 输出无装饰的机器事实。
-
-全局 npm 安装提供 `dev-flow-codex` 命令；`setup` 注册 Codex marketplace、Plugin 和 MCP。进入一个
-Git 仓库后，可直接描述边界明确的实现、缺陷修复、重构、定向测试或开发交付任务，Codex 会智能
-选择 Dev Flow；也可以使用精确 selector 强制进入：
-
-```text
-$dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
-```
-
-仅解释、仅状态查询、方案讨论、普通问答和含糊请求不会自动创建 Dev Flow Task。显式选择也不会
-绕过仓库权限、Core Action、Git 变更授权或发布确认。
-
-#### 升级
-
-```bash
-npm install -g dev-flow-codex@latest
-dev-flow-codex setup
-dev-flow-codex --version
-```
-
-再次运行 `setup` 会校验并更新由该 package 管理的注册。兼容的已有 Task 数据会保留。
-
-#### 卸载并保留 Task 数据
-
-```bash
-dev-flow-codex remove
-npm uninstall -g dev-flow-codex
-```
-
-必须先运行 `remove`，再卸载 npm package；单独执行 npm 卸载不会清理 Codex 注册。以上命令保留
-Task 数据和目标 Git 仓库，之后重新安装并运行 `setup` 可以继续使用兼容数据。
-
-### DeepSeek Harness
-
-#### 安装与验证
-
-先安装 DSH，再把 Dev Flow 安装到一个真实 profile。下面使用可直接运行的 `web` profile；如需
-其他 profile，请修改 `PROFILE` 的值，不要把 `<profile>` 原样输入 shell。
-
-```bash
-npm install -g @deepseek-ai/dsh@latest
-dsh --version
-
-PROFILE=web
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
-rm -f "$PWD/$TARBALL"
-dsh --profile "$PROFILE" --dump-config
-```
-
-重启该 profile。对于上面的 `web` profile，运行 `dsh web`。然后在 DeepSeek 对话中显式输入：
-
-```text
-/dev-flow Add a failed-login attempt limit to this repository.
-```
-
-#### 升级
-
-停止正在运行的 profile，再执行：
-
-```bash
-PROFILE=web
-dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
-rm -f "$PWD/$TARBALL"
-dsh --profile "$PROFILE" --dump-config
-```
-
-随后重启 profile。更新 DSH 本身可执行 `npm install -g @deepseek-ai/dsh@latest`。
-
-#### 卸载并保留 Task 数据
-
-```bash
-PROFILE=web
-dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
-dsh --profile "$PROFILE" --dump-config
-```
-
-对每个安装过 Dev Flow 的 profile 分别执行一次。该操作保留共享 Task 数据、DSH profile 中的其他
-插件、目标 Git 仓库和 Codex 配置。不再使用 DSH 时，可另行执行
-`npm uninstall -g @deepseek-ai/dsh`；这不会删除 `$HOME/.dsh` 中的 profile 数据。
-
-### 彻底清除 Dev Flow 数据
-
-这是不可恢复操作。先按上文从所有 Codex 和 DSH profile 中移除 Dev Flow 并卸载相应 npm
-package，确认不再需要任何 Task 后，再删除共享默认数据和残留 registration receipt：
-
-```bash
-rm -rf "$HOME/Library/Application Support/dev-flow"
-```
-
-如果曾设置 `DEV_FLOW_DATA_DIR`，默认目录之外的数据位于你为该变量选择的绝对目录；请确认准确
-路径后单独删除。Dev Flow 不会自动删除该目录。若还要删除 DSH 自身的全部 profile、会话和其他
-插件，可在卸载 DSH 后删除 `$HOME/.dsh`；该目录属于整个 DSH，而不是仅属于 Dev Flow。
-
-完整的 Host 生命周期、数据边界和命令合同见 [Codex package README](packages/codex/README.md)、
-[DeepSeek package README](packages/deepseek/README.md) 与 [命令参考](docs/COMMANDS.md)。
-
-## 执行模型
-
-1. 开发者在当前 Git 仓库中直接描述明确开发任务，或通过精确 selector 强制选择 Dev Flow。
-2. Core 创建或恢复该仓库的 Task，返回当前节点、完成条件、允许副作用、证据要求、验证预算和全部合法流转。
-3. Host 执行当前 Action。需求、设计或实现发生实质变化时，Host 通过 Core 返回的 transition 报告，而不是在当前节点中隐式扩大范围。
-4. Core 校验 `transition_id`、guard、revision 和 payload 后推进 Task；测试失败、理解失败或交付拒绝返回相应节点。
-5. mutation 响应不确定时，Host 先读取 Task 与 Recovery assessment，再决定恢复、阻塞或安全重试。
-
-## 组件边界
-
-| 组件 | 职责 |
-| --- | --- |
-| Codex / DeepSeek Harness | 读取仓库、修改代码、运行工具，并提交当前节点结果与证据 |
-| Spec Kit / OpenSpec | 为 requirements、design、tasks 等节点提供方法与制品 |
-| 测试与 CI | 产生行为验证证据 |
-| Dev Flow Core | 保存唯一 process cursor、节点合同、verification budget、合法流转、Recovery 和终态 |
-
-Spec Kit、OpenSpec、checkbox 或一次命令成功都不能自行推进 Task。只有一次有效的 Core action
-submission 能改变权威状态。
-
-## 开发过程图
-
-当前 Core 只提供内建的 `standard-development`：8 个工作节点、`DONE` 终态，以及
-`BLOCKED`、`CANCELLED` 两个异常节点。29 条流转覆盖正常推进与真实返工。
+## 看一次任务如何运行
 
 ```mermaid
 flowchart LR
-    R[REQUIREMENTS] --> D[DESIGN]
-    D --> T[TASKS]
-    T --> I[IMPLEMENT]
-    I --> V[TEST]
-    V --> C[COMPREHENSION_REVIEW]
-    C --> L[DELIVERY]
-    L --> O[DONE]
-    I --> F[REFACTOR]
-    C --> F
-    F --> V
-    V -. classified gap .-> I
-    V -. design or requirement issue .-> D
-    C -. comprehension or evidence gap .-> R
-    L -. delivery gap .-> I
+    A["描述任务与边界"] --> B["需求与设计"]
+    B --> C["实现"]
+    C --> D["定向测试"]
+    D --> E["理解审查"]
+    E --> F["交付"]
+    F --> G["DONE"]
+    D -. 发现实现问题 .-> C
+    E -. 过度复杂 .-> H["重构"]
+    H --> D
 ```
 
-虚线用于概括多条受控回退。精确节点、29 条流转、guard 和 reason 规则由
-[`internal/workflow/`](internal/workflow/) 定义。Host 只提交 Core 返回的 `transition_id`，
-destination 由 Core 推导。
+如果 Host 在实现后重启，新会话读取同一个 Task，仍能得到当前阶段、已完成证据、剩余验证预算和
+合法下一步，而不是从聊天记录重新推断。仓库中保留了真实 Codex 与 DeepSeek Journey 的结构化证据；
+详见[两分钟演示](docs/DEMO.md)。
 
-每次读取当前 Action，调用者都能获得：
+## 它在工具链中的位置
 
-- 当前 process、node、revision 和 action identity；
-- 节点 purpose、entry assumptions、completion conditions、`allowed_effects`、`required_evidence` 和 verification budget；
-- 当前 method profile 对应的 semantic method steps；
-- 全部合法 transitions 及其 destination、guard、选择条件和 reason 规则。
+| 工具 | 负责什么 |
+| --- | --- |
+| Codex / DeepSeek Harness | 读取仓库、修改代码、运行命令 |
+| Spec Kit / OpenSpec | 提供需求、设计和任务拆分方法 |
+| Dev Flow | 保存一个任务的范围、阶段、验证预算、返工路径和恢复状态 |
 
-## 运行边界
+一个 Spec Kit 文档、OpenSpec checkbox 或成功的测试命令都不会自行推进 Task；状态只由 Go Core
+在校验当前 Action 后更新。
 
-Core 通过 local STDIO MCP 暴露恰好六个工具：
+## 安装稳定版
+
+当前稳定制品支持 **macOS arm64** 和 **Node.js `>=24`**。精确版本与 Host 兼容范围见
+[Support Matrix](docs/SUPPORT-MATRIX.md)。
+
+### Codex
+
+```bash
+npm install -g dev-flow-codex@latest
+dev-flow-codex setup
+dev-flow-codex --version
+```
+
+进入 Git 仓库后，使用精确 selector 启动 Dev Flow：
 
 ```text
-dev_flow_server_info
-dev_flow_open_task
-dev_flow_get_task
-dev_flow_get_next_action
-dev_flow_apply_action
-dev_flow_cancel_task
+$dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
 ```
 
-每个工具的读写性质、输入用途和行为解释见 [命令参考](docs/COMMANDS.md)。
+完整安装、升级和移除方式见 [Codex 使用说明](packages/codex/README.md)。
 
-Core 可以按固定顺序有界、只读地观察一个 Task 显式声明的一至八个现有 Git 仓库，用于建立
-repository bindings 和判断变更事实。Git 修改由获得用户授权的 Host 执行；Core 不提供通用 shell，
-也不执行 checkout、commit、push、merge、rebase、tag 或发布操作。
+### DeepSeek Harness
 
-## 数据与恢复
+```bash
+npm install -g @deepseek-ai/dsh@latest
+PROFILE=web
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
+```
 
-默认 Task 数据位于 Host 产品管理的本地数据目录，也可以通过 `DEV_FLOW_DATA_DIR` 指向一个已存在、
-可用的绝对目录。卸载或移除 Host 集成会保留 Task 数据。
+重启 profile 后，在对话中输入：
 
-当前图运行时只接受当前 SQLite Schema 和严格 snapshot。检测到不兼容或 pre-graph 数据时，
-Core 返回 `SCHEMA_UNSUPPORTED` 并保持零写入。用户可以选择新的数据目录，或在 Core 外部手工
-归档、改名或删除旧目录；任何 lifecycle 命令都不会自动清理它。
+```text
+/dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
+```
 
-## 当前支持
+完整说明见 [DeepSeek 使用说明](packages/deepseek/README.md)。
 
-| 产品 | 当前公开版本 | Bundled Core | 已验证环境 |
+## 适合什么任务
+
+Dev Flow 适合：
+
+- 需要经历需求、设计、实现、测试和交付多个阶段的真实仓库任务；
+- 可能返工，并需要保留验证证据的修改；
+- 会跨会话、跨天或在 Host 重启后继续的工作；
+- 需要明确限制测试强度，或要求开发者在交付前真正理解实现的任务；
+- 由一个主仓库和少量显式附加仓库共同完成的有界任务。
+
+一次性问答、无需保留状态的机械性单文件修改，直接使用 Codex 或 DeepSeek 通常更简单。
+
+## 核心能力
+
+### 显式范围
+
+`TaskIntent` 保存最初请求、验收条件和范围外事项。实质性需求或设计变化必须通过受控流转返回相应
+阶段，不能悄悄扩大当前步骤的权限。
+
+### 有界验证
+
+每个 Task 都保存 verification budget。检查应直接关联当前阶段、变更范围、验收条件或已知恢复风险；
+完整回归、平台矩阵和压力测试不是默认动作。
+
+### 跨会话恢复
+
+当前阶段、需求/设计/任务基线、证据、阻塞原因和合法下一步保存在本地 SQLite。卸载 Host 集成时，
+Task 数据默认保留。
+
+### 理解审查
+
+测试通过后仍需经过 `COMPREHENSION_REVIEW`。无法清楚解释或维护的实现可以回到设计、实现或重构，
+任何仓库变更都必须重新通过测试。
+
+### 不确定写入恢复
+
+写操作携带 revision、Action identity、source cursor 和 repository binding。响应丢失或中断时，
+调用者先读取 Core 的五分类 Recovery 结论，再决定恢复、阻塞或安全重试。
+
+### 有界多仓库范围
+
+当前源码允许一个 Task 显式声明一个主仓库和最多七个附加仓库。所有仓库共享同一个阶段、Action、
+revision、验证预算和结果；系统不会扫描相邻目录、依赖或代码索引来自动扩大范围。该能力是否已进入
+稳定版，请以[项目状态页](docs/PROJECT-STATUS.md)为准。
+
+## 边界
+
+- Core 只对 Git 做有界、只读观察；不会执行 commit、push、merge、rebase、tag 或发布。
+- 真正的文件修改和命令执行仍由用户授权的 Host 完成。
+- Dev Flow 不会拦截 Host 的每一次文件读写，也不是通用安全沙箱。
+- 当前没有 Web UI、远程 MCP、遥测、用户自定义流程图或自动历史数据迁移。
+- 可选代码索引只提供检索结果，不能决定仓库范围、权限、Recovery 或流程状态。
+
+安全边界见 [Security Policy](SECURITY.md) 和 [Threat Model](docs/THREAT-MODEL.md)。
+
+## 当前稳定支持
+
+| 产品 | 稳定版本 | Bundled Core | 已验证环境 |
 | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.5.3` | `0.5.1` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
 | `dev-flow-deepseek` | `0.5.2` | `0.5.1` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
 
-两个 Host 产品的当前发布均通过 registry package 安装、真实 Host/Core handshake、移除、卸载和仓库
-不变性门禁；DeepSeek 还完成显式触发、重启恢复、`DONE` 与 retained reopen 旅程。精确状态、
-制品摘要和证据入口见 [Support Matrix](docs/SUPPORT-MATRIX.md) 与对应 GitHub Release。
+这些声明来自公开制品和最终 Host Journey，而不是只来自“源码可构建”或“测试通过”。完整证据与
+beta/source 状态见 [Project Status](docs/PROJECT-STATUS.md) 和
+[Support Matrix](docs/SUPPORT-MATRIX.md)。
 
 ## 文档
 
-| 主题 | 文档 |
+| 想了解什么 | 入口 |
 | --- | --- |
-| 产品问题、能力与边界 | [Product](docs/PRODUCT.md) |
-| Core、Adapter、Store 与 Recovery 架构 | [Architecture](docs/ARCHITECTURE.md) |
-| 当前支持版本和平台 | [Support Matrix](docs/SUPPORT-MATRIX.md) |
-| 所有用户命令、内部 Core 命令与 MCP 工具 | [Command Reference](docs/COMMANDS.md) |
-| 已交付能力与后续方向 | [Roadmap](docs/ROADMAP.md) |
-| 三个产品的独立版本治理 | [Versioning](docs/VERSIONING.md) |
-| 文档 locale 与同步规则 | [I18n](docs/I18N.md) |
-| 本地开发工具链 | [Toolchain Baselines](docs/TOOLCHAIN-BASELINES.md) |
-| Feature 开发规范 | [Spec Kit Workflow](docs/SPEC-KIT-WORKFLOW.md) |
-| 如何提交问题和 Pull Request | [Contributing](CONTRIBUTING.md) |
-| 维护者发布入口 | [Release](release/README.md) |
+| 两分钟理解真实流程 | [Demo](docs/DEMO.md) |
+| 当前稳定版、beta、源码和证据 | [Project Status](docs/PROJECT-STATUS.md) |
+| 产品能力与边界 | [Product](docs/PRODUCT.md) |
+| Core、Adapter、Store 与 Recovery | [Architecture](docs/ARCHITECTURE.md) |
+| 支持版本和平台 | [Support Matrix](docs/SUPPORT-MATRIX.md) |
+| 用户命令与 MCP 工具 | [Command Reference](docs/COMMANDS.md) |
+| 后续方向 | [Roadmap](docs/ROADMAP.md) |
+| 安全报告与威胁模型 | [Security](SECURITY.md) · [Threat Model](docs/THREAT-MODEL.md) |
+| 提交 Issue 或 Pull Request | [Contributing](CONTRIBUTING.md) |
+| 维护者发布流程 | [Release](release/README.md) |
 
 ## 本地开发
 
@@ -302,16 +194,6 @@ Core 返回 `SCHEMA_UNSUPPORTED` 并保持零写入。用户可以选择新的�
 pnpm install --frozen-lockfile
 pnpm run validate
 ```
-
-`pnpm run validate` 运行仓库的有界验证，不安装真实 Host 产品，也不发布 npm、Tag 或 GitHub
-Release。目录职责见 [Architecture](docs/ARCHITECTURE.md)，脚本入口见
-[Repository Scripts](scripts/README.md)。
-
-## 参与贡献
-
-欢迎提交可复现的缺陷、文档改进、有最终制品证据的平台支持，以及边界明确的产品提案。开始前
-请阅读 [贡献指南](CONTRIBUTING.md)。产品功能变更必须同步更新根 README 的全部维护语言、
-`docs/PRODUCT*` 和受影响的技术文档；精确规则见 [I18n](docs/I18N.md)。
 
 ## License
 

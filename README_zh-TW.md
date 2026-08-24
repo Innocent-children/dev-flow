@@ -2,307 +2,158 @@
 
 [简体中文](README.md) · [English](README_en.md) · [繁體中文](README_zh-TW.md) · [日本語](README_ja.md) · [한국어](README_ko.md) · [Español](README_es.md) · [Français](README_fr.md) · [Deutsch](README_de.md) · [Português (Brasil)](README_pt-BR.md)
 
-> 為 AI 輔助程式設計任務提供明確範圍、驗證預算與可恢復狀態。
+> 讓 Codex 與 DeepSeek 在長任務中守住範圍、控制驗證，並在中斷後繼續。
 
 [![Codex npm](https://img.shields.io/npm/v/dev-flow-codex?label=dev-flow-codex)](https://www.npmjs.com/package/dev-flow-codex)
 [![DeepSeek npm](https://img.shields.io/npm/v/dev-flow-deepseek?label=dev-flow-deepseek)](https://www.npmjs.com/package/dev-flow-deepseek)
 [![CI](https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml/badge.svg)](https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-Dev Flow 是 AI 輔助軟體開發的本機流程控制與恢復層。它把需求、設計、任務拆分、實作、測試、
-理解審查、重構與交付組織成由 Go Core 管理的狀態圖。Codex、DeepSeek Harness 等 Host Adapter
-負責修改儲存庫與執行工具；Core 保存 Task、目前節點、節點合約、驗證預算、合法流轉與恢復結果。
+Dev Flow 為 AI 程式設計任務提供一份**獨立於聊天記錄的本機持久狀態**。它會記住：
 
-## Agent 工作流程的常見失效模式
+- 這次任務允許修改什麼，以及明確排除哪些工作；
+- 目前處於需求、設計、實作、測試或交付階段；
+- 已約定多少驗證，以及哪些證據已完成；
+- 會話中斷或寫入結果不確定時，應恢復、阻塞或安全重試。
 
-| 失效模式 | 典型表現 |
+**它不是另一個程式設計 Agent，也不是任務編排器。** Codex 與 DeepSeek 仍負責讀取儲存庫、
+修改程式碼和執行命令；Dev Flow 只管理單一開發任務的範圍、階段、驗證強度、證據與恢復。
+
+**快速入口：** [兩分鐘看懂完整任務](docs/DEMO.md) ·
+[查看目前版本與真實證據](docs/PROJECT-STATUS.md) · [安裝穩定版](#安裝穩定版)
+
+> 本 README 說明目前 `main` 的能力。npm `@latest` 是通過最終製品驗證的穩定版，可能落後於
+> `main`；穩定版、beta 與原始碼的精確差異請見[專案狀態頁](docs/PROJECT-STATUS.md)。
+
+## 30 秒理解
+
+| 直接使用 Agent 時 | Dev Flow 增加的能力 |
 | --- | --- |
-| 範圍漂移 | 區域修改擴大為相鄰模組重構、通用抽象、額外文件或未要求的未來能力 |
-| 無界驗證 | 定向檢查擴大為完整回歸、平台矩陣、壓力測試或持續增加的邊界案例 |
-| 流程狀態遺失 | 對話壓縮、Host 重啟或跨日繼續後，只能從聊天記錄與工作區重新推斷進度 |
-| 可維護性缺口 | 測試通過，但開發者無法清楚解釋、審查或接手維護實作 |
-| 不確定 mutation | 寫入回應遺失或中斷後，無法判斷操作是否已提交，重放具有風險 |
+| Prompt 反覆強調「不要擴大範圍」 | Task 保存原始意圖，每一步明確允許做什麼 |
+| 會話重啟後重新掃描儲存庫並猜測進度 | 目前階段、證據與阻塞原因保存在本機，可直接恢復 |
+| 定向檢查逐漸擴成完整回歸或平台矩陣 | 每個 Task 都有明確的 verification budget |
+| 測試通過，但結果仍難以解釋或接手 | 交付前經過 `COMPREHENSION_REVIEW` |
+| 寫入回應遺失後直接重試，可能重複副作用 | 先讀取權威狀態，再依 Recovery 結論行動 |
 
-這些問題無法只靠在 Prompt 中反覆加入「不要重構」或「不要多跑測試」而穩定解決。開發流程需要
-獨立於對話上下文的持久狀態，以及針對目前步驟、完成條件與合法下一步的閉合合約。
-
-## 控制模型
-
-| 失效模式 | Dev Flow 機制 |
-| --- | --- |
-| 範圍漂移 | `TaskIntent` 保存不可變原始意圖；Action 暴露 completion conditions 與 `allowed_effects`；實質範圍變更必須透過合法 transition 返回相應節點，由 Core 使下游舊 authority 失效 |
-| 無界驗證 | 每個 Task 保存 verification budget；檢查必須關聯目前節點、變更表面、驗收條件或已知恢復風險，完整套件與平台矩陣不是預設工作 |
-| 流程狀態遺失 | 目前節點、requirements/design/task-plan baselines、證據、blocker 與合法流轉持久化到本機 SQLite |
-| 可維護性缺口 | `TEST` 後必須進入 `COMPREHENSION_REVIEW`；無法解釋或維護的實作返回 `DESIGN`、`IMPLEMENT` 或 `REFACTOR`，儲存庫變更後重新經過 `TEST` |
-| 不確定 mutation | mutation 攜帶 revision、action identity、source cursor 與 repository binding；呼叫端必須 read-before-retry，並遵循五分類 Recovery |
-
-Core 不會靜態攔截 Host 對儲存庫的每一次修改。它提供權威 Action 合約並驗證 Task 流轉；Host
-Adapter 必須在目前節點的允許副作用與驗證預算內執行工作。
-
-## 適用範圍
-
-Dev Flow 適合需要跨越多個開發節點、可能返工、需要保留驗證證據，或必須跨對話恢復的真實
-儲存庫任務。一次性問答或不需要保存流程狀態的單檔機械修改，通常直接使用 Codex 或 DeepSeek
-更簡單。
-
-## 多儲存庫 Task 與可選程式碼索引
-
-一個 Task 可以明確使用目前 Git 儲存庫作為主要儲存庫，並加入零至七個附加儲存庫；全部儲存庫
-始終共用一個 current node、Action、revision、verification budget、Recovery、Blocker 與 Outcome。
-系統不會掃描父目錄、相鄰目錄、相依關係或程式碼索引來擴大範圍。單儲存庫呼叫與一般相對路徑保持
-相容；多儲存庫路徑使用 `<repository-key>::<repository-relative-path>` 明確歸屬。
-
-可選程式碼索引偏好來自唯讀的 `$HOME/.dev-flow/config.json`：
-
-```json
-{
-  "codex": { "codebase_memory": false },
-  "deepseek": { "codebase_memory": true }
-}
-```
-
-目錄或檔案不存在時兩個值都預設為 `false`；`dev-flow-codex setup` 會建立完整預設設定，DeepSeek
-維持唯讀預設值。setup 不會改寫既有設定。偏好為 `true` 時，
-Host 只使用已安裝且可用的 codebase-memory；能力缺少或中途不可用時，每個工作階段最多提示一次並
-退回內建搜尋，不會阻塞 Task。Codex 的附加儲存庫必須是工作階段啟動時已授權的 writable root，
-Dev Flow 不會修改 sandbox；DeepSeek 的全部儲存庫必須位於目前 Workspace Root 下，該 Root 可以是
-非 Git 的共同父目錄。
-
-## 安裝、升級與解除安裝
-
-目前公開製品支援 macOS arm64 與 Node.js `>=24`。安裝範例使用 npm `latest`；Codex 與 DeepSeek
-共用預設 Task 資料目錄 `$HOME/Library/Application Support/dev-flow/data`。
-
-### Codex
-
-#### 安裝與驗證
-
-```bash
-npm install -g dev-flow-codex@latest
-dev-flow-codex setup
-dev-flow-codex --version
-```
-
-設定缺少時，`setup` 建立 `$HOME/.dev-flow/config.json`，並顯示實際建立或更新的設定與 registration
-receipt、就緒狀態和唯一下一步。互動輸出依簡體中文或英文環境顯示；非互動與 `NO_COLOR` 使用純文字，
-`setup --json` 輸出無裝飾的機器事實。
-
-`setup` 註冊或更新 Codex marketplace、Plugin 與 MCP。在 Git 儲存庫中可直接描述範圍明確的實作、
-缺陷修復、重構、定向測試或開發交付工作，Codex 會智慧選擇 Dev Flow；需要強制選擇時使用精確 selector：
-
-```text
-$dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
-```
-
-僅解釋、僅狀態查詢、方案討論、一般問答和含糊請求不會自動建立 Dev Flow Task。明確選擇也不會
-略過儲存庫權限、Core Action、Git 變更授權或發布確認。
-
-#### 升級
-
-```bash
-npm install -g dev-flow-codex@latest
-dev-flow-codex setup
-dev-flow-codex --version
-```
-
-#### 解除安裝並保留 Task 資料
-
-保留 Task 資料的解除安裝：
-
-```bash
-dev-flow-codex remove
-npm uninstall -g dev-flow-codex
-```
-
-必須先執行 `remove`，再解除安裝 npm package；重新安裝並執行 `setup` 可繼續使用相容資料。
-
-### DeepSeek Harness
-
-#### 安裝與驗證
-
-先安裝 DSH，再安裝到真實 profile。下例使用 `web`；如需其他 profile，修改 `PROFILE`，不要將
-`<profile>` 原樣輸入 shell。
-
-```bash
-npm install -g @deepseek-ai/dsh@latest
-dsh --version
-PROFILE=web
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
-rm -f "$PWD/$TARBALL"
-dsh --profile "$PROFILE" --dump-config
-```
-
-重新啟動 profile；`web` 使用 `dsh web`。在 DeepSeek 對話中輸入 `/dev-flow <任務描述>`。
-
-#### 升級
-
-停止 profile 後執行：
-
-```bash
-PROFILE=web
-dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
-rm -f "$PWD/$TARBALL"
-dsh --profile "$PROFILE" --dump-config
-```
-
-重新啟動 profile。DSH 本身可用 `npm install -g @deepseek-ai/dsh@latest` 升級。
-
-#### 解除安裝並保留 Task 資料
-
-需對每個安裝過 Dev Flow 的 profile 執行：
-
-```bash
-PROFILE=web
-dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
-dsh --profile "$PROFILE" --dump-config
-```
-
-不再使用 DSH 時，可另行執行 `npm uninstall -g @deepseek-ai/dsh`；`$HOME/.dsh` 仍會保留。
-
-### 永久清除資料
-
-先從 Codex 與所有 DSH profile 移除 Dev Flow。確認不再需要任何 Task 後，執行以下不可恢復操作：
-
-```bash
-rm -rf "$HOME/Library/Application Support/dev-flow"
-```
-
-若設定過 `DEV_FLOW_DATA_DIR`，請核對並單獨刪除其準確絕對目錄。刪除 `$HOME/.dsh` 會同時刪除
-全部 DSH profile、工作階段與其他外掛。完整說明見 [Codex package README](docs/CODEX_en.md)、
-[DeepSeek package README](docs/DEEPSEEK_en.md) 與 [命令參考](docs/COMMANDS.md)。
-
-## 執行模型
-
-1. 開發者直接描述明確開發任務，或透過精確 selector 強制選擇 Dev Flow。
-2. Core 建立或恢復該儲存庫的 Task，返回目前節點、完成條件、允許副作用、證據要求、驗證預算與全部合法流轉。
-3. Host 執行目前 Action。需求、設計或實作發生實質變更時，Host 透過 Core 返回的 transition 回報，而不是在目前節點中隱式擴大範圍。
-4. Core 驗證 `transition_id`、guard、revision 與 payload 後推進 Task；測試失敗、理解審查失敗或交付被拒絕時返回對應節點。
-5. mutation 回應不確定時，Host 先讀取 Task 與 Recovery assessment，再決定恢復、阻塞或安全重試。
-
-## 元件邊界
-
-| 元件 | 職責 |
-| --- | --- |
-| Codex / DeepSeek Harness | 讀取儲存庫、修改程式碼、執行工具，並提交目前節點的結果與證據 |
-| Spec Kit / OpenSpec | 為 requirements、design、tasks 等節點提供方法與製品 |
-| 測試與 CI | 產生行為驗證證據 |
-| Dev Flow Core | 保存唯一 process cursor、節點合約、verification budget、合法流轉、Recovery 與終態 |
-
-Spec Kit 製品、OpenSpec checkbox 或一次成功命令都不能自行推進 Task。只有有效的 Core action
-submission 能改變權威狀態。
-
-## 開發流程圖
-
-目前 Core 只提供內建的 `standard-development`：8 個工作節點、`DONE` 終態，以及
-`BLOCKED`、`CANCELLED` 兩個例外節點。29 條流轉涵蓋正常推進與真實返工。
+## 看一次任務如何執行
 
 ```mermaid
 flowchart LR
-    R[REQUIREMENTS] --> D[DESIGN]
-    D --> T[TASKS]
-    T --> I[IMPLEMENT]
-    I --> V[TEST]
-    V --> C[COMPREHENSION_REVIEW]
-    C --> L[DELIVERY]
-    L --> O[DONE]
-    I --> F[REFACTOR]
-    C --> F
-    F --> V
-    V -. classified gap .-> I
-    V -. design or requirement issue .-> D
-    C -. comprehension or evidence gap .-> R
-    L -. delivery gap .-> I
+    A["描述任務與邊界"] --> B["需求與設計"]
+    B --> C["實作"]
+    C --> D["定向測試"]
+    D --> E["理解審查"]
+    E --> F["交付"]
+    F --> G["DONE"]
+    D -. 實作問題 .-> C
+    E -. 過度複雜 .-> H["重構"]
+    H --> D
 ```
 
-虛線概括多條受控回退。精確節點、全部 29 條流轉、guard 與 reason 規則由
-[`internal/workflow/`](internal/workflow/) 定義。Host 只提交 Core 返回的 `transition_id`，
-destination 由 Core 推導。
+Host 在實作後重新啟動時，新會話會讀取同一個 Task，取得目前階段、已完成證據、剩餘驗證預算
+與合法下一步，而不是從聊天記錄重新推測。詳見[兩分鐘演示](docs/DEMO.md)。
 
-每次讀取目前 Action，呼叫端都能取得：
+## 在工具鏈中的位置
 
-- process、node、revision 與 action identity；
-- 節點 purpose、entry assumptions、completion conditions、`allowed_effects`、`required_evidence` 與 verification budget；
-- 所選 method profile 的 semantic method steps；
-- 全部合法 transitions 及其 destination、guard、選擇條件與 reason 規則。
+| 工具 | 負責什麼 |
+| --- | --- |
+| Codex / DeepSeek Harness | 讀取儲存庫、修改程式碼、執行命令 |
+| Spec Kit / OpenSpec | 提供需求、設計與任務拆分方法 |
+| Dev Flow | 保存單一任務的範圍、階段、驗證預算、返工路徑與恢復狀態 |
 
-## 執行邊界
+## 安裝穩定版
 
-Core 透過 local STDIO MCP 暴露恰好六個工具：
+目前穩定製品支援 **macOS arm64** 與 **Node.js `>=24`**。精確版本與 Host 相容範圍請見
+[Support Matrix](docs/SUPPORT-MATRIX.md)。
+
+### Codex
+
+```bash
+npm install -g dev-flow-codex@latest
+dev-flow-codex setup
+dev-flow-codex --version
+```
+
+需要強制選擇 Dev Flow 時：
 
 ```text
-dev_flow_server_info
-dev_flow_open_task
-dev_flow_get_task
-dev_flow_get_next_action
-dev_flow_apply_action
-dev_flow_cancel_task
+$dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
 ```
 
-每個工具的讀寫性質、參數用途與行為說明見 [命令參考](docs/COMMANDS.md)。
+完整說明見 [Codex 使用指南](docs/CODEX_en.md)。
 
-Core 可以按照固定順序，有界且唯讀地觀察一個 Task 明確宣告的一至八個既有 Git 儲存庫，用於建立
-repository bindings 與判斷變更事實。Git 修改由獲得使用者授權的 Host 執行；Core 不提供通用
-shell，也不執行 checkout、commit、push、merge、rebase、tag 或發布操作。
+### DeepSeek Harness
 
-## 資料與恢復
+```bash
+npm install -g @deepseek-ai/dsh@latest
+PROFILE=web
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
+```
 
-Task 資料預設位於 Host 產品管理的本機資料目錄，也可以透過 `DEV_FLOW_DATA_DIR` 指向一個已存在、
-可用的絕對目錄。移除或解除安裝 Host 整合會保留 Task 資料。
+重新啟動 profile 後輸入：
 
-圖形 runtime 只接受目前 SQLite Schema 與嚴格 snapshot。不相容或 pre-graph 資料會返回
-`SCHEMA_UNSUPPORTED` 並保持零寫入。使用者可以選擇新的資料目錄，或在 Core 外部手動封存、
-重新命名或刪除舊目錄；lifecycle 命令不會自動執行清理。
+```text
+/dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
+```
 
-## 目前支援
+完整說明見 [DeepSeek 使用指南](docs/DEEPSEEK_en.md)。
 
-| 產品 | 公開版本 | Bundled Core | 已驗證環境 |
+## 適合什麼任務
+
+- 跨越需求、設計、實作、測試與交付多個階段的真實儲存庫工作；
+- 可能返工，並需要保留驗證證據的修改；
+- 跨會話、跨日或 Host 重新啟動後繼續的工作；
+- 需要明確限制驗證強度，或要求開發者在交付前真正理解實作的任務；
+- 一個主儲存庫與少量明確附加儲存庫共同完成的有界工作。
+
+一次性問答或不需要保存狀態的機械式單檔修改，通常直接使用 Codex 或 DeepSeek 更簡單。
+
+## 核心能力
+
+- **明確範圍：** `TaskIntent` 保存原始請求、驗收條件與範圍外事項。
+- **有界驗證：** 每個 Task 都保存 verification budget；完整回歸與平台矩陣不是預設工作。
+- **跨會話恢復：** 目前階段、證據、阻塞原因與合法下一步保存在本機 SQLite。
+- **理解審查：** 測試通過後仍需 `COMPREHENSION_REVIEW`，無法維護的結果可返回重構。
+- **不確定寫入恢復：** 回應遺失時先讀取 Core 的 Recovery 結論，再決定是否重試。
+- **有界多儲存庫：** 目前原始碼允許一個主儲存庫與最多七個附加儲存庫，共用同一流程狀態。
+
+多儲存庫能力是否已進入穩定版，請以[專案狀態頁](docs/PROJECT-STATUS.md)為準。
+
+## 邊界
+
+- Core 只對 Git 進行有界、唯讀觀察，不執行 commit、push、merge、rebase、tag 或發布。
+- 檔案修改與命令執行仍由使用者授權的 Host 負責。
+- Dev Flow 不會攔截 Host 的每一次檔案操作，也不是通用安全沙箱。
+- 目前沒有 Web UI、remote MCP、telemetry、使用者自訂流程圖或自動歷史資料遷移。
+- 可選程式碼索引只能協助檢索，不能決定範圍、權限、Recovery 或流程狀態。
+
+安全邊界見 [Security Policy](SECURITY.md) 與 [Threat Model](docs/THREAT-MODEL.md)。
+
+## 目前穩定支援
+
+| 產品 | 穩定版本 | Bundled Core | 已驗證環境 |
 | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.5.3` | `0.5.1` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
 | `dev-flow-deepseek` | `0.5.2` | `0.5.1` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
 
-兩個 Host 產品的目前版本皆通過 registry package 安裝、真實 Host/Core handshake、移除、解除安裝與
-repository-unchanged gate。DeepSeek journey 另外涵蓋明確啟動、重啟恢復、`DONE` 與 retained
-reopen。精確製品身分與證據請參閱 [Support Matrix](docs/SUPPORT-MATRIX_en.md) 及對應 GitHub Release。
+完整證據與 beta/source 狀態見 [Project Status](docs/PROJECT-STATUS.md) 與
+[Support Matrix](docs/SUPPORT-MATRIX.md)。
 
 ## 文件
 
-技術參考文件目前維護英文與簡體中文版本。
-
-| 主題 | 文件 |
+| 想了解什麼 | 入口 |
 | --- | --- |
-| 產品問題、能力與邊界 | [Product](docs/PRODUCT.md) |
-| Core、Adapter、Store 與 Recovery 架構 | [Architecture](docs/ARCHITECTURE.md) |
-| 目前支援版本與平台 | [Support Matrix](docs/SUPPORT-MATRIX.md) |
-| 所有使用者命令、內部 Core 命令與 MCP 工具 | [Command Reference](docs/COMMANDS.md) |
-| 已交付能力與後續方向 | [Roadmap](docs/ROADMAP.md) |
-| 獨立產品版本治理 | [Versioning](docs/VERSIONING.md) |
-| 文件 locale 與同步規則 | [I18n](docs/I18N.md) |
-| 本機開發工具鏈 | [Toolchain Baselines](docs/TOOLCHAIN-BASELINES.md) |
-| Feature 開發治理 | [Spec Kit Workflow](docs/SPEC-KIT-WORKFLOW.md) |
-| 提交 Issue 或 Pull Request | [Contributing](CONTRIBUTING.md) |
-| 維護者發布入口 | [Release](release/README.md) |
-
-## 本機開發
-
-Dev Flow 需要 Go `>=1.26`、Node.js `>=24` 與 pnpm `>=11 <12`：
-
-```bash
-pnpm install --frozen-lockfile
-pnpm run validate
-```
-
-`pnpm run validate` 執行有界儲存庫驗證，不會安裝真實 Host 產品，也不會發布 npm、Tag 或
-GitHub Release。目錄責任請參閱 [Architecture](docs/ARCHITECTURE_en.md)，腳本入口請參閱
-[Repository Scripts](scripts/README_en.md)。
-
-## 參與貢獻
-
-歡迎可重現的缺陷、文件改進、有最終製品證據的平台支援，以及範圍明確的產品提案。開始前請閱讀
-[貢獻指南](CONTRIBUTING.md)。產品功能變更必須同步所有維護中的根 README locale、
-`docs/PRODUCT*` 與受影響的技術文件；精確規則請參閱 [I18n](docs/I18N.md)。
+| 兩分鐘理解真實流程 | [Demo](docs/DEMO.md) |
+| 穩定版、beta、原始碼與證據 | [Project Status](docs/PROJECT-STATUS.md) |
+| 產品能力與邊界 | [Product](docs/PRODUCT.md) |
+| 架構 | [Architecture](docs/ARCHITECTURE.md) |
+| 支援版本與平台 | [Support Matrix](docs/SUPPORT-MATRIX.md) |
+| 命令與 MCP 工具 | [Command Reference](docs/COMMANDS.md) |
+| 安全報告與威脅模型 | [Security](SECURITY.md) · [Threat Model](docs/THREAT-MODEL.md) |
+| 參與貢獻 | [Contributing](CONTRIBUTING.md) |
 
 ## License
 
