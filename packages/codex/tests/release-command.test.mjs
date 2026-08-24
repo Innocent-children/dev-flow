@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 import test from "node:test";
 
 import { parseReleaseArguments, quickModeBlockingPaths, runReleaseCommand } from "../../../scripts/release-codex.mjs";
-import { compareReleaseVersions, npmDistTag } from "../../../scripts/release-channel.mjs";
+import { compareReleaseVersions, isRemoteStateMissing, npmDistTag } from "../../../scripts/release-channel.mjs";
 import { PUBLIC_RELEASE_DOCUMENT_PATHS } from "../../../scripts/sync-public-release-docs.mjs";
 
 const execFile = promisify(execFileCallback);
@@ -39,6 +39,7 @@ test("release command requires mode/version/confirmation and explicit normal com
   ]).channel, "beta");
   assert.equal(compareReleaseVersions(betaVersion, baseVersion) > 0, true);
   assert.equal(npmDistTag(betaVersion), "beta");
+  assert.equal(isRemoteStateMissing({ stderr: "npm error code ETARGET\nnpm error notarget No matching version found" }), true);
   for (const arguments_ of [
     [],
     ["--mode", "normal", "--version", targetVersion],

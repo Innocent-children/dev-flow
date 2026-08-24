@@ -32,6 +32,10 @@ export function npmDistTag(version) {
   return isBetaVersion(version) ? "beta" : "latest";
 }
 
+export function isRemoteStateMissing(result) {
+  return /E404|404 Not Found|ETARGET|No matching version|not found|release not found/iu.test(`${result?.stdout ?? ""}\n${result?.stderr ?? ""}`);
+}
+
 export function compareReleaseVersions(left, right) {
   const a = parseReleaseVersion(left);
   const b = parseReleaseVersion(right);

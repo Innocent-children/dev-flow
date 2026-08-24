@@ -25,7 +25,7 @@ import {
   validateFinalJourneyEvidenceShape,
   validateQuickJourneyEvidence,
 } from "./write-codex-journey-evidence.mjs";
-import { isBetaVersion, npmDistTag } from "./release-channel.mjs";
+import { isBetaVersion, isRemoteStateMissing, npmDistTag } from "./release-channel.mjs";
 
 const execFile = promisify(execFileCallback);
 const OFFICIAL_REGISTRY = "https://registry.npmjs.org/";
@@ -1044,7 +1044,7 @@ function currentStepFromArguments(command, arguments_) {
 }
 
 function isNotFound(result) {
-  return /E404|404 Not Found|not found|release not found/iu.test(`${result.stdout}\n${result.stderr}`);
+  return isRemoteStateMissing(result);
 }
 
 async function readManifest(path) {
