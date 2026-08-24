@@ -2,327 +2,165 @@
 
 [简体中文](README.md) · [English](README_en.md) · [繁體中文](README_zh-TW.md) · [日本語](README_ja.md) · [한국어](README_ko.md) · [Español](README_es.md) · [Français](README_fr.md) · [Deutsch](README_de.md) · [Português (Brasil)](README_pt-BR.md)
 
-> Alcance explícito, presupuesto de verificación y estado recuperable para tareas de programación asistidas por IA.
+> Mantiene a Codex y DeepSeek dentro del alcance, limita la verificación y permite reanudar tareas interrumpidas.
 
 [![Codex npm](https://img.shields.io/npm/v/dev-flow-codex?label=dev-flow-codex)](https://www.npmjs.com/package/dev-flow-codex)
 [![DeepSeek npm](https://img.shields.io/npm/v/dev-flow-deepseek?label=dev-flow-deepseek)](https://www.npmjs.com/package/dev-flow-deepseek)
 [![CI](https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml/badge.svg)](https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-Dev Flow es una capa local de control de proceso y recuperación para el desarrollo de software asistido
-por IA. Organiza requisitos, diseño, planificación de tareas, implementación, pruebas, revisión de
-comprensión, refactorización y entrega como un grafo de estados administrado por un Go Core. Codex,
-DeepSeek Harness y otros Host Adapter modifican repositorios y ejecutan herramientas; Core conserva el
-Task, el nodo actual, el contrato del nodo, el presupuesto de verificación, las transiciones legales y
-el resultado de Recovery.
+Dev Flow añade a las tareas de programación con IA un **estado local y duradero, independiente del chat**.
+Conserva:
 
-## Modos de fallo frecuentes en flujos de Agent
+- qué puede modificar la tarea y qué queda explícitamente fuera de alcance;
+- si el trabajo está en requisitos, diseño, implementación, pruebas o entrega;
+- cuánta verificación se acordó y qué evidencia ya existe;
+- si una escritura interrumpida o incierta debe recuperarse, bloquearse o reintentarse de forma segura.
 
-| Modo de fallo | Comportamiento típico |
+**No es otro Agent de programación ni un orquestador de tareas.** Codex y DeepSeek siguen leyendo
+repositorios, modificando código y ejecutando comandos. Dev Flow administra el alcance, la etapa, el
+esfuerzo de verificación, la evidencia y la recuperación de una tarea de desarrollo.
+
+**Empieza aquí:** [recorrido de dos minutos](docs/DEMO_en.md) ·
+[versiones actuales y evidencia real](docs/PROJECT-STATUS_en.md) ·
+[instalar la versión estable](#instalar-la-versión-estable)
+
+> Este README describe las capacidades de `main`. npm `@latest` es la versión estable verificada con
+> el artefacto final y puede ir por detrás de `main`. Consulta
+> [Project Status](docs/PROJECT-STATUS_en.md) para distinguir stable, beta y source.
+
+## Entenderlo en 30 segundos
+
+| Sin Dev Flow | Lo que añade Dev Flow |
 | --- | --- |
-| Deriva de alcance | Un cambio local se amplía a refactorizaciones de módulos vecinos, abstracciones genéricas, documentación adicional o capacidades futuras no solicitadas |
-| Verificación sin límites | Una comprobación dirigida se amplía a regresión completa, matriz de plataformas, pruebas de carga o una lista creciente de casos límite |
-| Pérdida del estado del proceso | Tras compactar el contexto, reiniciar el Host o continuar en otra sesión, el progreso debe reconstruirse a partir del historial y el worktree |
-| Brecha de mantenibilidad | Las pruebas pasan, pero un desarrollador no puede explicar, revisar o asumir claramente la implementación |
-| Mutation incierta | Una respuesta de escritura perdida o interrumpida impide saber si la operación se confirmó y hace peligroso repetirla |
+| El Prompt repite «no amplíes el alcance» | El Task conserva la intención original y cada etapa declara qué puede cambiar |
+| Una sesión reiniciada vuelve a explorar el repositorio y adivina el progreso | La etapa actual, la evidencia y los blockers se guardan localmente |
+| Una prueba dirigida crece hasta una suite completa o matriz de plataformas | Cada Task tiene un verification budget explícito |
+| Las pruebas pasan, pero el resultado sigue siendo difícil de explicar o mantener | Antes de entregar se ejecuta `COMPREHENSION_REVIEW` |
+| Se repite una escritura cuya respuesta se perdió | Se lee el estado autoritativo antes de decidir si el retry es seguro |
 
-Estos problemas no se resuelven de forma fiable añadiendo más cláusulas como “no refactorizar” o “no ejecutar
-pruebas adicionales” al Prompt. El proceso de desarrollo necesita estado duradero fuera de la conversación y
-un contrato cerrado para el paso actual, sus condiciones de finalización y sus siguientes transiciones legales.
-
-## Modelo de control
-
-| Modo de fallo | Mecanismo de Dev Flow |
-| --- | --- |
-| Deriva de alcance | `TaskIntent` conserva la intención original inmutable; cada Action expone completion conditions y `allowed_effects`; un cambio material de alcance debe usar una transition legal hacia el nodo correspondiente, donde Core invalida authority downstream obsoleta |
-| Verificación sin límites | Cada Task conserva un verification budget; las comprobaciones deben relacionarse con el nodo actual, la superficie modificada, los criterios de aceptación o un riesgo de recuperación conocido; las suites completas y matrices de plataforma no son trabajo predeterminado |
-| Pérdida del estado del proceso | El nodo actual, los baselines de requirements/design/task-plan, la evidencia, los blocker y las transiciones legales se guardan en SQLite local |
-| Brecha de mantenibilidad | Después de `TEST` se exige `COMPREHENSION_REVIEW`; una implementación que no puede explicarse o mantenerse vuelve a `DESIGN`, `IMPLEMENT` o `REFACTOR`, y cualquier cambio del repositorio pasa de nuevo por `TEST` |
-| Mutation incierta | Las mutation incluyen revision, action identity, source cursor y repository binding; el llamador debe aplicar read-before-retry y seguir el resultado de Recovery de cinco clases |
-
-Core no intercepta estáticamente cada cambio de repositorio realizado por un Host. Expone el contrato Action
-autoritativo y valida las transiciones del Task. Los Host Adapter deben operar dentro de los `allowed_effects`
-y el verification budget del nodo actual.
-
-## Cuándo utilizarlo
-
-Dev Flow es adecuado para trabajo real en repositorios que atraviesa varios nodos de desarrollo, puede requerir
-retrabajo, debe conservar evidencia de verificación o necesita reanudarse entre sesiones. Para una pregunta
-puntual o una edición mecánica de un solo archivo sin estado persistente, suele ser más sencillo usar Codex o
-DeepSeek directamente.
-
-## Tasks multirrepositorio e indexación de código opcional
-
-Un Task puede declarar explícitamente el repositorio Git actual como principal y añadir de cero a
-siete repositorios adicionales. Todos comparten un único current node, Action, revision,
-verification budget, Recovery, Blocker y Outcome. Dev Flow no examina directorios superiores o
-vecinos, dependencias ni índices de código para ampliar el alcance. Las llamadas de un solo
-repositorio y las rutas relativas normales siguen siendo compatibles; las rutas multirrepositorio
-usan `<repository-key>::<repository-relative-path>` para indicar su pertenencia.
-
-Las preferencias opcionales de indexación proceden del archivo de solo lectura
-`$HOME/.dev-flow/config.json`:
-
-```json
-{
-  "codex": { "codebase_memory": false },
-  "deepseek": { "codebase_memory": true }
-}
-```
-
-Si el directorio o el archivo no existe, ambos valores son `false`. `dev-flow-codex setup` crea la
-configuración predeterminada completa; DeepSeek conserva el valor predeterminado de solo lectura.
-Setup nunca reescribe una configuración existente. Con `true`, el Host solo usa codebase-memory si ya está instalado y disponible. Si falta
-o deja de estar disponible, avisa como máximo una vez por sesión y vuelve a la búsqueda integrada
-sin bloquear el Task. Los repositorios adicionales de Codex deben ser writable roots ya autorizados
-al iniciar la sesión; Dev Flow no cambia el sandbox. Todos los repositorios de DeepSeek deben estar
-dentro del Workspace Root actual, que puede ser un padre común que no sea un repositorio Git.
-
-## Instalación, actualización y desinstalación
-
-Los artefactos públicos admiten macOS arm64 y Node.js `>=24`; los ejemplos usan npm `latest`. Codex y
-DeepSeek comparten los datos Task predeterminados en
-`$HOME/Library/Application Support/dev-flow/data`.
-
-### Codex
-
-#### Instalación y verificación
-
-```bash
-npm install -g dev-flow-codex@latest
-dev-flow-codex setup
-dev-flow-codex --version
-```
-
-Si falta la configuración, `setup` crea `$HOME/.dev-flow/config.json` y muestra los archivos de
-configuración y receipt realmente creados o actualizados, el estado y un único paso siguiente. La
-salida interactiva usa chino simplificado o inglés; la salida no interactiva y `NO_COLOR` es texto
-plano, y `setup --json` emite hechos de máquina sin decoración.
-
-`setup` registra o actualiza marketplace, Plugin y MCP de Codex. En un repositorio Git puedes describir
-directamente una implementación, corrección, refactorización, prueba dirigida o entrega de desarrollo
-con límites claros, y Codex puede seleccionar Dev Flow automáticamente. Usa el selector exacto para forzarlo:
-
-```text
-$dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
-```
-
-Las solicitudes solo de explicación, estado, discusión de diseño, preguntas normales o ambiguas no crean
-automáticamente un Dev Flow Task. La selección explícita tampoco omite permisos, Core Actions, autorización
-de cambios Git ni confirmación de publicación.
-
-#### Actualización
-
-```bash
-npm install -g dev-flow-codex@latest
-dev-flow-codex setup
-dev-flow-codex --version
-```
-
-#### Desinstalación conservando los datos Task
-
-```bash
-dev-flow-codex remove
-npm uninstall -g dev-flow-codex
-```
-
-Ejecuta siempre `remove` primero. Una instalación compatible seguida de `setup` puede reanudar los datos.
-
-### DeepSeek Harness
-
-#### Instalación y verificación
-
-Instala primero DSH y después añade Dev Flow a un perfil real. El ejemplo usa `web`; cambia `PROFILE` para
-otro perfil y no escribas `<profile>` literalmente en el shell.
-
-```bash
-npm install -g @deepseek-ai/dsh@latest
-dsh --version
-PROFILE=web
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
-rm -f "$PWD/$TARBALL"
-dsh --profile "$PROFILE" --dump-config
-```
-
-Reinicia el perfil; para `web`, ejecuta `dsh web`. En la conversación usa `/dev-flow <descripción>`.
-
-#### Actualización
-
-Detén el perfil y ejecuta:
-
-```bash
-PROFILE=web
-dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
-rm -f "$PWD/$TARBALL"
-dsh --profile "$PROFILE" --dump-config
-```
-
-Reinicia el perfil. Actualiza DSH con `npm install -g @deepseek-ai/dsh@latest`.
-
-#### Desinstalación conservando los datos Task
-
-Ejecuta en cada perfil que contenga Dev Flow:
-
-```bash
-PROFILE=web
-dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
-dsh --profile "$PROFILE" --dump-config
-```
-
-Si DSH ya no se necesita, usa `npm uninstall -g @deepseek-ai/dsh`; `$HOME/.dsh` se conserva.
-
-### Eliminación permanente de datos
-
-Después de retirar Dev Flow de Codex y de todos los perfiles DSH y confirmar que ningún Task es necesario:
-
-```bash
-rm -rf "$HOME/Library/Application Support/dev-flow"
-```
-
-No se puede deshacer. Si se usó `DEV_FLOW_DATA_DIR`, verifica y elimina por separado su directorio absoluto.
-Eliminar `$HOME/.dsh` también borra todos los perfiles, sesiones y plugins de DSH. Consulta
-[Codex package README](docs/CODEX_en.md), [DeepSeek package README](docs/DEEPSEEK_en.md) y
-[Referencia de comandos](docs/COMMANDS_en.md).
-
-## Modelo de ejecución
-
-1. El desarrollador describe directamente un Task claro o fuerza Dev Flow con el selector exacto.
-2. Core abre o reanuda el Task de ese repositorio y devuelve el nodo actual, condiciones de finalización, `allowed_effects`, requisitos de evidencia, verification budget y todas las transiciones legales.
-3. El Host ejecuta la Action actual. Un cambio material de requisitos, diseño o implementación se informa mediante una transition devuelta por Core, en lugar de ocultarse dentro del nodo actual.
-4. Core valida `transition_id`, guard, revision y payload antes de avanzar el Task. Las pruebas fallidas, la comprensión insuficiente o la entrega rechazada vuelven al nodo correspondiente.
-5. Si una respuesta de mutation es incierta, el Host lee primero el Task y el Recovery assessment antes de decidir si recuperar, bloquear o reintentar de forma segura.
-
-## Límites de componentes
-
-| Componente | Responsabilidad |
-| --- | --- |
-| Codex / DeepSeek Harness | Leer el repositorio, modificar código, ejecutar herramientas y enviar resultados y evidencia del nodo actual |
-| Spec Kit / OpenSpec | Proporcionar métodos y artefactos para requirements, design, tasks y otros nodos |
-| Tests / CI | Producir evidencia de verificación del comportamiento |
-| Dev Flow Core | Conservar el único process cursor, contrato del nodo, verification budget, transiciones legales, Recovery y resultado terminal |
-
-Un artefacto de Spec Kit, un checkbox de OpenSpec o un comando correcto no pueden avanzar un Task por sí solos.
-Solo una Core action submission válida cambia el estado autoritativo.
-
-## Grafo de desarrollo
-
-Core ofrece un único proceso integrado, `standard-development`: ocho nodos de trabajo, el nodo terminal `DONE`
-y los nodos excepcionales `BLOCKED` y `CANCELLED`. Veintinueve transiciones cubren el avance y el retrabajo real.
+## Cómo avanza una tarea
 
 ```mermaid
 flowchart LR
-    R[REQUIREMENTS] --> D[DESIGN]
-    D --> T[TASKS]
-    T --> I[IMPLEMENT]
-    I --> V[TEST]
-    V --> C[COMPREHENSION_REVIEW]
-    C --> L[DELIVERY]
-    L --> O[DONE]
-    I --> F[REFACTOR]
-    C --> F
-    F --> V
-    V -. classified gap .-> I
-    V -. design or requirement issue .-> D
-    C -. comprehension or evidence gap .-> R
-    L -. delivery gap .-> I
+    A["Describir tarea y límites"] --> B["Requisitos y diseño"]
+    B --> C["Implementación"]
+    C --> D["Pruebas dirigidas"]
+    D --> E["Revisión de comprensión"]
+    E --> F["Entrega"]
+    F --> G["DONE"]
+    D -. problema de implementación .-> C
+    E -. complejidad excesiva .-> H["Refactorización"]
+    H --> D
 ```
 
-Las líneas discontinuas resumen varios retrocesos controlados. Los nodos exactos, las 29 transiciones, guards y
-reason rules están definidos en [`internal/workflow/`](internal/workflow/). Un Host solo envía un
-`transition_id` devuelto por Core; Core deriva el destination.
+Si el Host se reinicia después de implementar, la nueva sesión lee el mismo Task y recibe la etapa
+actual, la evidencia terminada, el presupuesto restante y los siguientes pasos legales. No reconstruye
+el proceso desde el historial del chat. Consulta la [demostración](docs/DEMO_en.md).
 
-Cada Action actual expone:
+## Papel en la cadena de herramientas
 
-- process, node, revision y action identity;
-- purpose, entry assumptions, completion conditions, `allowed_effects`, `required_evidence` y verification budget;
-- semantic method steps del method profile seleccionado;
-- todas las transitions legales con destination, guard, condición de selección y reason rule.
+| Herramienta | Responsabilidad |
+| --- | --- |
+| Codex / DeepSeek Harness | Leer repositorios, modificar código y ejecutar comandos |
+| Spec Kit / OpenSpec | Proporcionar métodos para requisitos, diseño y planificación |
+| Dev Flow | Conservar alcance, etapa, presupuesto, rutas de retrabajo y recuperación de una tarea |
 
-## Límite de runtime
+## Instalar la versión estable
 
-Core expone exactamente seis herramientas mediante MCP STDIO local:
+Los artefactos estables actuales admiten **macOS arm64** y **Node.js `>=24`**. Consulta
+[Support Matrix](docs/SUPPORT-MATRIX_en.md) para versiones y compatibilidad exactas.
+
+### Codex
+
+```bash
+npm install -g dev-flow-codex@latest
+dev-flow-codex setup
+dev-flow-codex --version
+```
+
+Para forzar Dev Flow:
 
 ```text
-dev_flow_server_info
-dev_flow_open_task
-dev_flow_get_task
-dev_flow_get_next_action
-dev_flow_apply_action
-dev_flow_cancel_task
+$dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
 ```
 
-Consulta la [Referencia de comandos](docs/COMMANDS_en.md) para la clasificación de lectura/escritura, el papel de
-las entradas y el comportamiento de cada herramienta.
+Más detalles en [Codex guide](docs/CODEX_en.md).
 
-Core puede observar, de forma acotada, ordenada y de solo lectura, entre uno y ocho repositorios Git existentes
-declarados explícitamente por un Task para establecer repository bindings y evaluar hechos de cambio. Un Host
-autorizado por el usuario realiza las mutation Git. Core no expone un shell genérico ni ejecuta checkout,
-commit, push, merge, rebase, tag o publicación.
+### DeepSeek Harness
 
-## Datos y recuperación
+```bash
+npm install -g @deepseek-ai/dsh@latest
+PROFILE=web
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
+```
 
-Los datos de Task se almacenan por defecto en un directorio local administrado por el producto Host.
-`DEV_FLOW_DATA_DIR` puede apuntar a un directorio absoluto existente y utilizable. Eliminar o desinstalar una
-integración Host conserva los datos de Task.
+Reinicia el profile y escribe:
 
-El runtime del grafo solo acepta el SQLite Schema actual y un snapshot estricto. Los datos incompatibles o
-pre-graph devuelven `SCHEMA_UNSUPPORTED` sin escrituras. El usuario puede seleccionar un directorio nuevo o
-archivar, renombrar o eliminar el directorio antiguo fuera de Core. Los comandos lifecycle nunca realizan esta
-limpieza automáticamente.
+```text
+/dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
+```
 
-## Compatibilidad actual
+Más detalles en [DeepSeek guide](docs/DEEPSEEK_en.md).
 
-| Producto | Versión pública | Bundled Core | Entorno verificado |
+## Cuándo usarlo
+
+- trabajo real que cruza requisitos, diseño, implementación, pruebas y entrega;
+- cambios que pueden requerir retrabajo y deben conservar evidencia;
+- tareas que continúan entre sesiones, días, compactación de contexto o reinicios;
+- trabajo que necesita un límite de verificación o una revisión explícita de comprensión;
+- tareas acotadas entre un repositorio principal y pocos repositorios adicionales explícitos.
+
+Para una pregunta puntual o una edición mecánica de un solo archivo sin estado duradero, suele ser más
+sencillo usar Codex o DeepSeek directamente.
+
+## Capacidades principales
+
+- **Alcance explícito:** `TaskIntent` conserva la solicitud, los criterios y lo que queda fuera.
+- **Verificación acotada:** cada Task conserva un verification budget; las matrices completas no son predeterminadas.
+- **Recuperación entre sesiones:** etapa, evidencia, blockers y siguientes pasos se guardan en SQLite local.
+- **Revisión de comprensión:** después de las pruebas se exige `COMPREHENSION_REVIEW`.
+- **Recuperación de escrituras inciertas:** se lee el resultado Recovery de Core antes de reintentar.
+- **Alcance multirrepositorio acotado:** el source actual admite un principal y hasta siete adicionales con un único estado.
+
+Consulta [Project Status](docs/PROJECT-STATUS_en.md) para saber si el soporte multirrepositorio ya está
+incluido en la versión estable.
+
+## Límites
+
+- Core observa Git de forma acotada y de solo lectura; no hace commit, push, merge, rebase, tag ni publish.
+- Los cambios de archivos y comandos siguen siendo responsabilidad del Host autorizado por el usuario.
+- Dev Flow no intercepta cada operación del Host y no es un sandbox de seguridad general.
+- No hay Web UI, remote MCP, telemetry, graph definido por el usuario ni migración histórica automática.
+- Un índice opcional solo ayuda a buscar; no decide alcance, permisos, Recovery ni estado.
+
+Consulta [Security Policy](SECURITY.md) y [Threat Model](docs/THREAT-MODEL_en.md).
+
+## Soporte estable actual
+
+| Producto | Versión estable | Bundled Core | Entorno verificado |
 | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.5.3` | `0.5.1` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
 | `dev-flow-deepseek` | `0.5.2` | `0.5.1` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
 
-Las versiones actuales de ambos productos Host superaron instalación desde registry package, handshake real Host/Core, eliminación,
-desinstalación y repository-unchanged gate. El journey de DeepSeek también cubrió activación explícita,
-recuperación tras reinicio, `DONE` y retained reopen. Consulta [Support Matrix](docs/SUPPORT-MATRIX_en.md) y
-las GitHub Releases correspondientes para identidades y evidencia exactas.
+Consulta [Project Status](docs/PROJECT-STATUS_en.md) y
+[Support Matrix](docs/SUPPORT-MATRIX_en.md) para evidencia exacta y estado beta/source.
 
 ## Documentación
 
-La documentación técnica de referencia se mantiene actualmente en inglés y chino simplificado.
-
-| Tema | Documento |
+| Necesidad | Entrada |
 | --- | --- |
-| Problemas, capacidades y límites del producto | [Product](docs/PRODUCT_en.md) |
-| Arquitectura de Core, Adapter, Store y Recovery | [Architecture](docs/ARCHITECTURE_en.md) |
-| Versiones y plataformas compatibles | [Support Matrix](docs/SUPPORT-MATRIX_en.md) |
-| Todos los comandos de usuario, comandos Core administrados y herramientas MCP | [Command Reference](docs/COMMANDS_en.md) |
-| Capacidades entregadas y dirección futura | [Roadmap](docs/ROADMAP_en.md) |
-| Versionado independiente de productos | [Versioning](docs/VERSIONING.md) |
-| Locales y reglas de sincronización | [I18n](docs/I18N_en.md) |
-| Toolchains de desarrollo local | [Toolchain Baselines](docs/TOOLCHAIN-BASELINES.md) |
-| Gobernanza de Product Feature | [Spec Kit Workflow](docs/SPEC-KIT-WORKFLOW.md) |
-| Informar un Issue o abrir un Pull Request | [Contributing](CONTRIBUTING_en.md) |
-| Entrada de release para mantenedores | [Release](release/README.md) |
-
-## Desarrollo local
-
-Dev Flow requiere Go `>=1.26`, Node.js `>=24` y pnpm `>=11 <12`:
-
-```bash
-pnpm install --frozen-lockfile
-pnpm run validate
-```
-
-`pnpm run validate` ejecuta una validación acotada del repositorio. No instala productos Host reales ni publica
-paquetes npm, Tags o GitHub Releases. Consulta [Architecture](docs/ARCHITECTURE_en.md) para responsabilidades de
-directorio y [Repository Scripts](scripts/README_en.md) para puntos de entrada de scripts.
-
-## Contribuciones
-
-Se aceptan defectos reproducibles, mejoras de documentación, compatibilidad de plataformas respaldada por
-evidencia de artefacto final y propuestas de producto con alcance acotado. Lee la
-[guía de contribución](CONTRIBUTING_en.md) antes de comenzar. Los cambios de Product Feature deben sincronizar
-todos los locales mantenidos del root README, `docs/PRODUCT*` y las referencias técnicas afectadas; consulta
-[I18n](docs/I18N_en.md) para la regla exacta.
+| Entender una tarea real en dos minutos | [Demo](docs/DEMO_en.md) |
+| Estado stable, beta, source y evidencia | [Project Status](docs/PROJECT-STATUS_en.md) |
+| Capacidades y límites | [Product](docs/PRODUCT_en.md) |
+| Arquitectura | [Architecture](docs/ARCHITECTURE_en.md) |
+| Versiones y plataformas | [Support Matrix](docs/SUPPORT-MATRIX_en.md) |
+| Comandos y herramientas MCP | [Command Reference](docs/COMMANDS_en.md) |
+| Seguridad | [Security](SECURITY.md) · [Threat Model](docs/THREAT-MODEL_en.md) |
+| Contribuir | [Contributing](CONTRIBUTING_en.md) |
 
 ## License
 

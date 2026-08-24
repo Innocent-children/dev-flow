@@ -2,22 +2,35 @@
 
 [中文](SUPPORT-MATRIX.md) | [English](SUPPORT-MATRIX_en.md)
 
-本文件只记录已经由公开制品和最终 Host lifecycle evidence 建立的支持声明。源码可构建、包已
-上传或 fixture 测试通过，均不能单独扩大支持范围。
+本页只回答一个问题：**哪个公开 package 已经在哪个环境完成验证？**
 
-| 产品 | 公开版本 | Bundled Core | 平台 | Host 兼容范围 | 状态与证据 |
+源码可以构建、测试通过或 beta package 已经发布，都不能单独扩大稳定支持声明。
+
+## 稳定支持
+
+npm `@latest` 当前选择以下 package：
+
+| 产品 | 公开版本 | Bundled Core | 平台 | Host 兼容范围 | 证据 |
 | --- | --- | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.5.3` | `0.5.1` | macOS arm64、Node.js `>=24` | Codex `>=0.147.0`；最终 Journey 使用 `0.147.0` | [npm](https://www.npmjs.com/package/dev-flow-codex/v/0.5.3) · [codex-v0.5.3](https://github.com/Innocent-children/dev-flow/releases/tag/codex-v0.5.3) · registry lifecycle passed |
 | `dev-flow-deepseek` | `0.5.2` | `0.5.1` | macOS arm64、Node.js `>=24` | DSH `>=0.1.0-rc.6`；最终 Journey 使用 `0.1.0-rc.6` | [npm](https://www.npmjs.com/package/dev-flow-deepseek/v/0.5.2) · [deepseek-v0.5.2](https://github.com/Innocent-children/dev-flow/releases/tag/deepseek-v0.5.2) · native registry journey passed |
 
-## 证据说明
+Codex lifecycle evidence 覆盖 package/Core identity、安装、setup、Core handshake、remove、uninstall
+与 repository unchanged。DeepSeek 还覆盖显式触发、restart/resume、`DONE` 和 retained reopen。
 
-两个 Host 产品的当前 Release manifest 都记录 `normal` 验证、double-build、closed package、
-forbidden-content scan 和 final registry-package Journey。Codex 证据覆盖安装、版本/Core
-handshake、setup、remove、uninstall 与 repository unchanged；DeepSeek 证据覆盖安装、显式触发、
-restart/resume、`DONE`、remove、uninstall 与 retained reopen。
+## 预览与源码
 
-Core、Codex 和 DeepSeek 是独立产品身份。Host package 版本与 bundled Core 版本可以不同，
-兼容性由实际 executable、closed schemas/catalog、artifact digest 和 runtime evidence 建立。
+| 产品 | npm `beta` | `main` package 版本 | 状态 |
+| --- | --- | --- | --- |
+| `dev-flow-codex` | `0.6.0-beta.2` | `0.6.0-beta.2` | 可公开评估；不是稳定支持声明 |
+| `dev-flow-deepseek` | `0.6.0-beta.1` | `0.6.0-beta.1` | 可公开评估；不是稳定支持声明 |
+
+稳定支持只能通过独立发布流程、registry bytes 回读和最终 Host Journey 建立，而不是简单移动 npm
+dist-tag。
+
+## 尚未声明支持
 
 当前没有 Linux、Windows、Intel Mac、Rosetta 或 remote MCP 支持声明。
+
+若需要了解 beta 中包含的能力、真实 Journey 入口和项目采用状态，请阅读
+[项目状态页](PROJECT-STATUS.md)。

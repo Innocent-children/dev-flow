@@ -2,25 +2,37 @@
 
 [中文](SUPPORT-MATRIX.md) | [English](SUPPORT-MATRIX_en.md)
 
-This file records support established by public artifacts and final Host lifecycle evidence. A
-buildable source tree, uploaded package, or passing fixture test does not independently expand the
-support claim.
+This page answers a narrow question: **which public package has been verified in which environment?**
 
-| Product | Public version | Bundled Core | Platform | Host compatibility | Status and evidence |
+A buildable source tree, a passing test, or a published beta package does not by itself expand the
+stable support claim.
+
+## Stable support
+
+npm `@latest` currently selects these packages:
+
+| Product | Public version | Bundled Core | Platform | Host compatibility | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.5.3` | `0.5.1` | macOS arm64, Node.js `>=24` | Codex `>=0.147.0`; final Journey used `0.147.0` | [npm](https://www.npmjs.com/package/dev-flow-codex/v/0.5.3) · [codex-v0.5.3](https://github.com/Innocent-children/dev-flow/releases/tag/codex-v0.5.3) · registry lifecycle passed |
 | `dev-flow-deepseek` | `0.5.2` | `0.5.1` | macOS arm64, Node.js `>=24` | DSH `>=0.1.0-rc.6`; final Journey used `0.1.0-rc.6` | [npm](https://www.npmjs.com/package/dev-flow-deepseek/v/0.5.2) · [deepseek-v0.5.2](https://github.com/Innocent-children/dev-flow/releases/tag/deepseek-v0.5.2) · native registry journey passed |
 
-## Evidence notes
+Codex lifecycle evidence covers package/Core identity, installation, setup, Core handshake, removal,
+uninstallation, and an unchanged repository. DeepSeek additionally covers explicit activation,
+restart/resume, `DONE`, and retained reopen.
 
-Both current Host-product Release manifests record `normal` verification, double-build, closed-package,
-forbidden-content scan, and final registry-package Journey evidence. Codex evidence covers
-installation, package/Core identity, setup, Core handshake, removal, uninstallation, and an
-unchanged repository. DeepSeek evidence covers installation, explicit activation, restart/resume,
-`DONE`, removal, uninstallation, and retained reopen.
+## Preview and source
 
-Core, Codex, and DeepSeek are independent product identities. A Host package version may differ from
-its bundled Core version. Compatibility is established through the actual executable, closed
-schemas and catalogs, artifact digests, and runtime evidence.
+| Product | npm `beta` | Package version on `main` | Status |
+| --- | --- | --- | --- |
+| `dev-flow-codex` | `0.6.0-beta.2` | `0.6.0-beta.2` | Publicly evaluable; not a stable support claim |
+| `dev-flow-deepseek` | `0.6.0-beta.1` | `0.6.0-beta.1` | Publicly evaluable; not a stable support claim |
 
-There is currently no public support claim for Linux, Windows, Intel Mac, Rosetta, or remote MCP.
+Stable support requires the independent release flow, registry-byte read-back, and the final Host
+journey. It is not established by moving an npm dist-tag alone.
+
+## Not currently supported
+
+There is no public support claim for Linux, Windows, Intel Mac, Rosetta, or remote MCP.
+
+For the capabilities present in beta, real journey entry points, and adoption status, read
+[Project Status](PROJECT-STATUS_en.md).

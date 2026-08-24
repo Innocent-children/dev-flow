@@ -2,331 +2,202 @@
 
 [简体中文](README.md) · [English](README_en.md) · [繁體中文](README_zh-TW.md) · [日本語](README_ja.md) · [한국어](README_ko.md) · [Español](README_es.md) · [Français](README_fr.md) · [Deutsch](README_de.md) · [Português (Brasil)](README_pt-BR.md)
 
-> Explicit scope, verification budgets, and recoverable state for AI-assisted coding tasks.
+> Keep Codex and DeepSeek in scope, bound verification, and resume after interruptions.
 
 [![Codex npm](https://img.shields.io/npm/v/dev-flow-codex?label=dev-flow-codex)](https://www.npmjs.com/package/dev-flow-codex)
 [![DeepSeek npm](https://img.shields.io/npm/v/dev-flow-deepseek?label=dev-flow-deepseek)](https://www.npmjs.com/package/dev-flow-deepseek)
 [![CI](https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml/badge.svg)](https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-Dev Flow is a local process-control and recovery layer for AI-assisted software development. It
-organizes requirements, design, task planning, implementation, testing, comprehension review,
-refactoring, and delivery as a state graph managed by a Go Core. Codex, DeepSeek Harness, and other
-host adapters modify repositories and run tools; Core retains the Task, current node, node contract,
-verification budget, legal transitions, and recovery result.
+Dev Flow gives AI coding tasks a **local, durable state outside the chat**. It remembers:
 
-## Common failure modes in agent workflows
+- what this task may change and what is explicitly out of scope;
+- whether the work is in requirements, design, implementation, testing, or delivery;
+- how much verification was agreed and which evidence already exists;
+- whether an interrupted or uncertain write should be recovered, blocked, or retried safely.
 
-| Failure mode | Typical behavior |
+**It is not another coding agent or a task orchestrator.** Codex and DeepSeek still read repositories,
+edit code, and run commands. Dev Flow manages one development task's scope, stage, verification
+effort, evidence, and recovery.
+
+**Start here:** [See a complete task in two minutes](docs/DEMO_en.md) ·
+[Check current versions and real evidence](docs/PROJECT-STATUS_en.md) ·
+[Install the stable release](#install-the-stable-release)
+
+> This README describes capabilities on `main`. npm `@latest` is the final-artifact-verified stable
+> release and may lag behind `main`; see [Project Status](docs/PROJECT-STATUS_en.md) for the exact
+> stable, beta, and source distinction.
+
+## Understand it in 30 seconds
+
+| Without Dev Flow | What Dev Flow adds |
 | --- | --- |
-| Scope drift | A local change expands into neighboring-module refactoring, a generic abstraction, extra documentation, or an unrequested future capability |
-| Unbounded verification | A targeted check expands into a full regression suite, platform matrix, stress testing, or a growing set of edge cases |
-| Lost process state | After context compaction, a host restart, or a later session, progress must be reconstructed from chat history and the worktree |
-| Maintainability gap | Tests pass, but a developer cannot clearly explain, review, or take ownership of the implementation |
-| Uncertain mutation | A missing or interrupted write response leaves the caller unable to determine whether the operation committed, making replay risky |
+| Prompts repeatedly say “do not expand the scope” | The Task retains original intent and each step states what may change |
+| A restarted session rescans the repository and guesses progress | The current stage, evidence, and blockers persist locally |
+| A targeted check grows into a full suite or platform matrix | Every Task has an explicit verification budget |
+| Tests pass, but the result is still difficult to explain or own | Delivery is preceded by `COMPREHENSION_REVIEW` |
+| A lost write response is replayed and may duplicate effects | The caller reads authoritative state before deciding whether retry is safe |
 
-These problems are not reliably solved by adding more “do not refactor” or “do not run extra tests”
-clauses to a prompt. The development process needs durable state outside the conversation plus a
-closed contract for the current step, its completion conditions, and its legal next transitions.
-
-## Control model
-
-| Failure mode | Dev Flow mechanism |
-| --- | --- |
-| Scope drift | `TaskIntent` retains immutable original intent; each Action exposes completion conditions and `allowed_effects`; a material scope change must use a legal transition to the relevant node, where Core invalidates stale downstream authority |
-| Unbounded verification | Every Task carries a verification budget; checks must relate to the current node, changed surface, acceptance criteria, or a known recovery risk, while full suites and platform matrices are not default work |
-| Lost process state | The current node, requirements/design/task-plan baselines, evidence, blockers, and legal transitions are persisted in local SQLite |
-| Maintainability gap | `TEST` is followed by `COMPREHENSION_REVIEW`; an implementation that cannot be explained or maintained returns to `DESIGN`, `IMPLEMENT`, or `REFACTOR`, and repository-changing work passes through `TEST` again |
-| Uncertain mutation | Mutations carry revision, action identity, source cursor, and repository binding; callers must read before retry and follow the five-class Recovery result |
-
-Core does not statically intercept every repository change made by a host. It exposes the
-authoritative Action contract and validates Task transitions. Host adapters are required to operate
-within the current node's allowed effects and verification budget.
-
-## When to use it
-
-Dev Flow fits real repository work that crosses multiple development nodes, may require rework, must
-retain verification evidence, or needs to resume across sessions. A one-off question or mechanical
-single-file edit with no retained process state is usually simpler with Codex or DeepSeek directly.
-
-## Multi-repository Tasks and optional code indexing
-
-A Task can explicitly use the current Git repository as its primary repository and add zero to seven
-additional repositories. All repositories share one current node, Action, revision, verification
-budget, Recovery, Blocker, and Outcome. Dev Flow never scans parent or neighboring directories,
-dependencies, or a code index to expand the scope. Single-repository calls and ordinary relative
-paths remain compatible; multi-repository paths use
-`<repository-key>::<repository-relative-path>` to identify ownership.
-
-Optional code-index preferences come from the read-only `$HOME/.dev-flow/config.json` file:
-
-```json
-{
-  "codex": { "codebase_memory": false },
-  "deepseek": { "codebase_memory": true }
-}
-```
-
-Both values default to `false` when the directory or file is absent. `dev-flow-codex setup` creates
-the complete default configuration; DeepSeek retains the read-only default. Setup never rewrites an
-existing configuration. When a preference is `true`, the host uses codebase-memory only if it is already
-installed and available. If it is missing or becomes unavailable, the host reports that once per
-session at most and falls back to built-in search without blocking the Task. Codex additional
-repositories must already be authorized writable roots when the session starts; Dev Flow does not
-change the sandbox. Every DeepSeek repository must be inside the current Workspace Root, which may
-be a non-Git common parent.
-
-## Install, update, and remove
-
-Current public artifacts support macOS arm64 and Node.js `>=24`. Installation examples select npm's
-`latest` dist-tag; support tables retain exact verified versions. Codex and DeepSeek share the
-default Task data directory at `$HOME/Library/Application Support/dev-flow/data`.
-
-### Codex
-
-#### Install and verify
-
-```bash
-npm install -g dev-flow-codex@latest
-dev-flow-codex setup
-dev-flow-codex --version
-```
-
-When configuration is absent, `setup` creates `$HOME/.dev-flow/config.json` and reports the actual
-configuration and registration-receipt files created or updated, readiness, and one next step.
-Interactive output follows Simplified Chinese or English; non-interactive and `NO_COLOR` output is
-plain, while `setup --json` emits undecorated machine facts.
-
-The global npm install provides the `dev-flow-codex` command. `setup` registers the Codex
-marketplace, Plugin, and MCP integration. From a Git repository, describe a bounded implementation,
-bug fix, refactoring, targeted-testing, or development-delivery task directly and Codex can select
-Dev Flow automatically. Use the exact selector when you want to force selection:
-
-```text
-$dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
-```
-
-Explanation-only, status-only, design-discussion, ordinary-question, and ambiguous requests do not
-automatically create a Dev Flow Task. Explicit selection does not bypass repository permissions,
-Core Actions, Git-mutation authority, or release confirmation.
-
-#### Update
-
-```bash
-npm install -g dev-flow-codex@latest
-dev-flow-codex setup
-dev-flow-codex --version
-```
-
-Running `setup` again validates and updates the package-owned registration. Compatible existing Task
-data is retained.
-
-#### Uninstall while retaining Task data
-
-```bash
-dev-flow-codex remove
-npm uninstall -g dev-flow-codex
-```
-
-Run `remove` before uninstalling the npm package; npm uninstall alone does not remove the Codex
-registration. These commands retain Task data and the target Git repository, so a compatible
-installation can resume the data after `setup`.
-
-### DeepSeek Harness
-
-#### Install and verify
-
-Install DSH first, then add Dev Flow to a real profile. This directly runnable example uses the
-`web` profile. Change the value of `PROFILE` for another profile; do not enter `<profile>` literally
-in a shell.
-
-```bash
-npm install -g @deepseek-ai/dsh@latest
-dsh --version
-
-PROFILE=web
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
-rm -f "$PWD/$TARBALL"
-dsh --profile "$PROFILE" --dump-config
-```
-
-Restart the profile. For the `web` profile above, run `dsh web`. Then enter Dev Flow explicitly in a
-DeepSeek conversation:
-
-```text
-/dev-flow Add a failed-login attempt limit to this repository.
-```
-
-#### Update
-
-Stop the running profile, then run:
-
-```bash
-PROFILE=web
-dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
-rm -f "$PWD/$TARBALL"
-dsh --profile "$PROFILE" --dump-config
-```
-
-Restart the profile afterward. Update DSH itself with
-`npm install -g @deepseek-ai/dsh@latest`.
-
-#### Uninstall while retaining Task data
-
-```bash
-PROFILE=web
-dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
-dsh --profile "$PROFILE" --dump-config
-```
-
-Repeat this for every profile that contains Dev Flow. It retains shared Task data, other plugins in
-the DSH profile, the target Git repository, and Codex configuration. If DSH is no longer needed,
-uninstall it separately with `npm uninstall -g @deepseek-ai/dsh`; this does not remove profile data
-under `$HOME/.dsh`.
-
-### Permanently delete Dev Flow data
-
-This operation cannot be undone. First remove Dev Flow from Codex and every DSH profile and uninstall
-the related npm packages. After confirming that no Task is needed, delete the shared default data
-and any remaining registration receipt:
-
-```bash
-rm -rf "$HOME/Library/Application Support/dev-flow"
-```
-
-If `DEV_FLOW_DATA_DIR` was set, data outside the default directory lives at the exact absolute path
-chosen for that variable; verify and delete that directory separately. Dev Flow never deletes it
-automatically. To delete every DSH profile, session, and unrelated plugin as well, remove
-`$HOME/.dsh` after uninstalling DSH; that directory belongs to DSH as a whole, not only to Dev Flow.
-
-See the [Codex package README](docs/CODEX_en.md),
-[DeepSeek package README](docs/DEEPSEEK_en.md), and
-[Command Reference](docs/COMMANDS_en.md) for the complete lifecycle and command contracts.
-
-## Execution model
-
-1. The developer describes a clear development task directly or force-selects Dev Flow with the exact selector.
-2. Core opens or resumes that repository's Task and returns the current node, completion conditions,
-   allowed effects, evidence requirements, verification budget, and every legal transition.
-3. The host executes the current Action. A material requirement, design, or implementation change is
-   reported through a Core-returned transition instead of being hidden inside the current node.
-4. Core validates the `transition_id`, guard, revision, and payload before advancing the Task. Failed
-   tests, failed comprehension, or rejected delivery return to the corresponding node.
-5. If a mutation response is uncertain, the host reads the Task and Recovery assessment before
-   deciding whether to recover, block, or retry safely.
-
-## Component boundaries
-
-| Component | Responsibility |
-| --- | --- |
-| Codex / DeepSeek Harness | Read the repository, modify code, run tools, and submit the current node's results and evidence |
-| Spec Kit / OpenSpec | Provide methods and artifacts for requirements, design, task planning, and related nodes |
-| Tests and CI | Produce behavioral verification evidence |
-| Dev Flow Core | Retain the single process cursor, node contract, verification budget, legal transitions, Recovery, and terminal outcome |
-
-A Spec Kit artifact, OpenSpec checkbox, or successful command cannot advance a Task by itself. Only a
-valid Core action submission changes authoritative state.
-
-## Development graph
-
-Core provides one built-in process, `standard-development`: eight working nodes, the `DONE`
-terminal node, and the exceptional `BLOCKED` and `CANCELLED` nodes. Twenty-nine transitions cover
-forward progress and real rework.
+## See one task run
 
 ```mermaid
 flowchart LR
-    R[REQUIREMENTS] --> D[DESIGN]
-    D --> T[TASKS]
-    T --> I[IMPLEMENT]
-    I --> V[TEST]
-    V --> C[COMPREHENSION_REVIEW]
-    C --> L[DELIVERY]
-    L --> O[DONE]
-    I --> F[REFACTOR]
-    C --> F
-    F --> V
-    V -. classified gap .-> I
-    V -. design or requirement issue .-> D
-    C -. comprehension or evidence gap .-> R
-    L -. delivery gap .-> I
+    A["Describe task and boundaries"] --> B["Requirements and design"]
+    B --> C["Implementation"]
+    C --> D["Targeted tests"]
+    D --> E["Comprehension review"]
+    E --> F["Delivery"]
+    F --> G["DONE"]
+    D -. implementation gap .-> C
+    E -. excessive complexity .-> H["Refactor"]
+    H --> D
 ```
 
-The dotted lines summarize multiple controlled backtracks. Exact nodes, all 29 transitions, guards,
-and reason rules are defined by [`internal/workflow/`](internal/workflow/). A host submits only a
-Core-returned `transition_id`; Core derives the destination.
+When a Host restarts after implementation, the next session reads the same Task and receives the
+current stage, completed evidence, remaining verification budget, and legal next steps instead of
+reconstructing them from chat history. The repository contains structured evidence from real Codex
+and DeepSeek journeys; see the [two-minute walkthrough](docs/DEMO_en.md).
 
-Every current Action exposes:
+## Where it fits
 
-- process, node, revision, and action identity;
-- node purpose, entry assumptions, completion conditions, `allowed_effects`, `required_evidence`, and
-  verification budget;
-- semantic method steps for the selected method profile;
-- every legal transition with its destination, guard, selection condition, and reason rule.
+| Tool | Responsibility |
+| --- | --- |
+| Codex / DeepSeek Harness | Read repositories, change code, and run commands |
+| Spec Kit / OpenSpec | Provide methods for requirements, design, and task planning |
+| Dev Flow | Retain one task's scope, stage, verification budget, rework paths, and recovery state |
 
-## Runtime boundary
+A Spec Kit artifact, OpenSpec checkbox, or successful test command does not advance the Task by
+itself. The Go Core updates state only after validating the current Action.
 
-Core exposes exactly six tools over local STDIO MCP:
+## Install the stable release
+
+Current stable artifacts support **macOS arm64** and **Node.js `>=24`**. See the
+[Support Matrix](docs/SUPPORT-MATRIX_en.md) for exact versions and Host compatibility.
+
+### Codex
+
+```bash
+npm install -g dev-flow-codex@latest
+dev-flow-codex setup
+dev-flow-codex --version
+```
+
+From a Git repository, start Dev Flow with the exact selector:
 
 ```text
-dev_flow_server_info
-dev_flow_open_task
-dev_flow_get_task
-dev_flow_get_next_action
-dev_flow_apply_action
-dev_flow_cancel_task
+$dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
 ```
 
-See the [Command Reference](docs/COMMANDS_en.md) for each tool's read/write classification, input role,
-and behavior.
+See the [Codex guide](docs/CODEX_en.md) for installation, updates, and removal.
 
-Core may inspect the one to eight existing Git repositories explicitly declared by a Task through
-bounded, ordered, read-only observation to establish repository bindings and evaluate change facts.
-A user-authorized host performs Git mutations. Core does not expose a generic shell or run checkout,
-commit, push, merge, rebase, tag, or publication operations.
+### DeepSeek Harness
 
-## Data and recovery
+```bash
+npm install -g @deepseek-ai/dsh@latest
+PROFILE=web
+TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
+rm -f "$PWD/$TARBALL"
+dsh --profile "$PROFILE" --dump-config
+```
 
-Task data lives in a host-managed local data directory by default. `DEV_FLOW_DATA_DIR` may point to
-an existing, usable absolute directory. Removing or uninstalling a host integration retains Task data.
+Restart the profile, then enter:
 
-The graph runtime accepts only the current SQLite Schema and strict snapshot. Incompatible or
-pre-graph data returns `SCHEMA_UNSUPPORTED` with zero writes. The user may select a fresh data
-directory or archive, rename, or delete the old directory outside Core. Lifecycle commands never
-perform this cleanup automatically.
+```text
+/dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
+```
 
-## Current support
+See the [DeepSeek guide](docs/DEEPSEEK_en.md).
 
-| Product | Public version | Bundled Core | Verified environment |
+## When to use it
+
+Dev Flow fits:
+
+- real repository work that crosses requirements, design, implementation, testing, and delivery;
+- changes that may require rework and must retain verification evidence;
+- work resumed across sessions, days, context compaction, or Host restarts;
+- tasks that need an explicit verification limit or a developer comprehension gate;
+- bounded work across one primary repository and a small number of explicit additional repositories.
+
+A one-off question or mechanical single-file edit with no retained state is usually simpler with
+Codex or DeepSeek directly.
+
+## Core capabilities
+
+### Explicit scope
+
+`TaskIntent` retains the original request, acceptance criteria, and out-of-scope work. Material
+requirement or design changes use controlled transitions back to the relevant stage instead of
+silently expanding the current step's authority.
+
+### Bounded verification
+
+Every Task retains a verification budget. Checks should relate directly to the current stage, changed
+surface, acceptance criteria, or a known recovery risk. Full regressions, platform matrices, and
+stress tests are not default work.
+
+### Cross-session recovery
+
+The current stage, requirements/design/task baselines, evidence, blockers, and legal next steps are
+stored in local SQLite. Removing a Host integration retains Task data by default.
+
+### Comprehension review
+
+Passing tests is not the final gate. `COMPREHENSION_REVIEW` asks the developer to confirm that the
+result can be explained and maintained. A failed review may return to design, implementation, or
+refactoring, and repository changes pass through testing again.
+
+### Uncertain-write recovery
+
+Writes carry the revision, Action identity, source cursor, and repository binding. When a response is
+lost or interrupted, the caller reads Core's five-class Recovery result before choosing recovery,
+blocking, or safe retry.
+
+### Bounded multi-repository scope
+
+Current source lets one Task declare one primary repository and up to seven additional repositories.
+All repositories share one stage, Action, revision, verification budget, and outcome. Neighboring
+directories, dependencies, and indexes cannot expand scope automatically. Check
+[Project Status](docs/PROJECT-STATUS_en.md) to see whether this capability is in the stable release.
+
+## Boundaries
+
+- Core observes Git through bounded, read-only operations; it does not commit, push, merge, rebase,
+  tag, or publish.
+- File changes and command execution remain the responsibility of the user-authorized Host.
+- Dev Flow does not intercept every Host file operation and is not a general security sandbox.
+- There is currently no Web UI, remote MCP, telemetry, user-defined graph, or automatic historical
+  data migration.
+- An optional code index may assist retrieval but cannot decide repository scope, permission,
+  Recovery, or process state.
+
+See the [Security Policy](SECURITY.md) and [Threat Model](docs/THREAT-MODEL_en.md).
+
+## Current stable support
+
+| Product | Stable version | Bundled Core | Verified environment |
 | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.5.3` | `0.5.1` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
 | `dev-flow-deepseek` | `0.5.2` | `0.5.1` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
 
-The current releases of both host products passed registry-package installation, real host/Core handshake, removal,
-uninstallation, and repository-unchanged gates. The DeepSeek journey also covered explicit
-activation, restart recovery, `DONE`, and retained reopen. See the
-[Support Matrix](docs/SUPPORT-MATRIX_en.md) and the corresponding GitHub Releases for exact artifact
-identities and evidence.
+These claims come from public artifacts and final Host journeys, not merely from buildable source or
+passing tests. See [Project Status](docs/PROJECT-STATUS_en.md) and the
+[Support Matrix](docs/SUPPORT-MATRIX_en.md) for exact evidence and beta/source status.
 
 ## Documentation
 
-Technical reference documents are currently maintained in English and Simplified Chinese.
-
-| Topic | Document |
+| What you need | Start here |
 | --- | --- |
-| Product problems, capabilities, and boundaries | [Product](docs/PRODUCT_en.md) |
-| Core, Adapter, Store, and Recovery architecture | [Architecture](docs/ARCHITECTURE_en.md) |
-| Current supported versions and platforms | [Support Matrix](docs/SUPPORT-MATRIX_en.md) |
-| Every user command, managed Core command, and MCP tool | [Command Reference](docs/COMMANDS_en.md) |
-| Delivered capabilities and future direction | [Roadmap](docs/ROADMAP_en.md) |
-| Independent product versioning | [Versioning](docs/VERSIONING.md) |
-| Documentation locales and synchronization rules | [I18n](docs/I18N_en.md) |
-| Local development toolchains | [Toolchain Baselines](docs/TOOLCHAIN-BASELINES.md) |
-| Feature development governance | [Spec Kit Workflow](docs/SPEC-KIT-WORKFLOW.md) |
-| How to report an issue or open a pull request | [Contributing](CONTRIBUTING_en.md) |
-| Maintainer release entrypoint | [Release](release/README.md) |
+| Understand a real task in two minutes | [Demo](docs/DEMO_en.md) |
+| Stable, beta, source, and evidence status | [Project Status](docs/PROJECT-STATUS_en.md) |
+| Product capabilities and boundaries | [Product](docs/PRODUCT_en.md) |
+| Core, Adapter, Store, and Recovery | [Architecture](docs/ARCHITECTURE_en.md) |
+| Supported versions and platforms | [Support Matrix](docs/SUPPORT-MATRIX_en.md) |
+| User commands and MCP tools | [Command Reference](docs/COMMANDS_en.md) |
+| Future direction | [Roadmap](docs/ROADMAP_en.md) |
+| Security reporting and threat model | [Security](SECURITY.md) · [Threat Model](docs/THREAT-MODEL_en.md) |
+| Report an issue or open a pull request | [Contributing](CONTRIBUTING_en.md) |
+| Maintainer release flow | [Release](release/README.md) |
 
 ## Local development
 
@@ -336,17 +207,6 @@ Dev Flow requires Go `>=1.26`, Node.js `>=24`, and pnpm `>=11 <12`:
 pnpm install --frozen-lockfile
 pnpm run validate
 ```
-
-`pnpm run validate` performs bounded repository validation. It does not install real host products
-or publish npm packages, Tags, or GitHub Releases. See [Architecture](docs/ARCHITECTURE_en.md) for
-directory ownership and [Repository Scripts](scripts/README_en.md) for script entrypoints.
-
-## Contributing
-
-Reproducible bug reports, documentation improvements, platform support backed by final-artifact
-evidence, and bounded product proposals are welcome. Read the [contribution guide](CONTRIBUTING_en.md)
-before starting. Product-feature changes must synchronize every maintained root README locale,
-`docs/PRODUCT*`, and the affected technical references; see [I18n](docs/I18N_en.md) for the exact rule.
 
 ## License
 

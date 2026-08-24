@@ -1,0 +1,65 @@
+# Dev Flow Project Status
+
+[中文](PROJECT-STATUS.md) | [English](PROJECT-STATUS_en.md)
+
+_Last reviewed: August 24, 2026._
+
+Dev Flow is an early open-source project with real published packages and real Host journeys. This
+page separates three different kinds of evidence:
+
+1. **stable product evidence** — a registry package completed the release and Host lifecycle gates;
+2. **preview/source evidence** — newer behavior exists in npm `beta` or on `main`;
+3. **adoption evidence** — external users, contributors, and dependent projects.
+
+The first two exist today. External adoption is still early and is not overstated here.
+
+## Stable releases
+
+`@latest` selects the stable packages below.
+
+| Product | Stable version | Bundled Core | Verified environment |
+| --- | --- | --- | --- |
+| `dev-flow-codex` | `0.5.3` | `0.5.1` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
+| `dev-flow-deepseek` | `0.5.2` | `0.5.1` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
+
+Stable claims come from registry-package installation, Host/Core handshake, removal, uninstallation,
+and repository-unchanged gates. The DeepSeek stable journey also covers explicit activation,
+restart recovery, `DONE`, and retained reopen. See the [Support Matrix](SUPPORT-MATRIX_en.md) for
+exact Releases and artifact identities.
+
+## Preview and current source
+
+| Product | npm `beta` | Package version on `main` | Newer behavior present |
+| --- | --- | --- | --- |
+| `dev-flow-codex` | `0.6.0-beta.2` | `0.6.0-beta.2` | smart selection, improved setup, multi-repository Task Scope |
+| `dev-flow-deepseek` | `0.6.0-beta.1` | `0.6.0-beta.1` | multi-repository Task Scope |
+
+A beta package is publicly installable, but it is not a stable support claim. Buildable source, a
+passing Feature journey, or a published beta does not mean the capability is already in npm
+`@latest`.
+
+## Evidence map
+
+| Entry point | Question it can answer |
+| --- | --- |
+| [Codex multi-repository Attempt 7](../tests/journeys/codex/evidence/feature-001-multi-repository-attempt-7.json) | Can two independent Codex sessions resume the same Task from an additional repository? |
+| [DeepSeek multi-repository Attempt 5](../tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-5.json) | Did a real DSH journey complete multi-repository work, restart recovery, targeted verification, comprehension, and `DONE`? |
+| [PR #8](https://github.com/Innocent-children/dev-flow/pull/8) | Did a real Codex graph journey cover refactoring, retesting, comprehension acceptance, and delivery? |
+| [Support Matrix](SUPPORT-MATRIX_en.md) | Which public stable packages and Host environments have final-artifact evidence? |
+| [Release directory](../release/README.md) | How do maintainers build, read back, and publish immutable artifacts? |
+
+## Current limitations
+
+- Stable support is macOS arm64 only; there is no Linux, Windows, Intel Mac, Rosetta, or remote MCP
+  claim.
+- The project is young, so external Issues, pull requests, dependent projects, and long-term adoption
+  evidence remain limited.
+- Core is not a Host sandbox and does not intercept every Host file operation or shell command.
+- There is currently no Web UI, telemetry, user-defined graph, or automatic historical Task migration.
+
+## How to evaluate the project
+
+1. Read the [two-minute walkthrough](DEMO_en.md) to understand the problem and user experience.
+2. Read the [Support Matrix](SUPPORT-MATRIX_en.md) to separate stable support from preview behavior.
+3. Open the journey evidence above to inspect the exact real-Host claims.
+4. Read the [Security Policy](../SECURITY.md) and [Threat Model](THREAT-MODEL_en.md) for residual risk.
