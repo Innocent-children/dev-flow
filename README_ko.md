@@ -93,12 +93,16 @@ dev-flow-codex --version
 receipt, 준비 상태, 하나의 다음 단계를 표시합니다. 대화형 출력은 중국어 간체 또는 영어를 따르며,
 비대화형과 `NO_COLOR`는 일반 텍스트, `setup --json`은 장식 없는 기계용 사실을 출력합니다.
 
-`setup`은 Codex marketplace, Plugin, MCP를 등록하거나 업데이트합니다. Git 저장소에서 유일한
-명시적 selector를 사용합니다.
+`setup`은 Codex marketplace, Plugin, MCP를 등록하거나 업데이트합니다. Git 저장소에서 범위가 명확한
+구현, 버그 수정, 리팩터링, 대상 테스트 또는 개발 전달 작업을 직접 설명하면 Codex가 Dev Flow를 자동으로
+선택할 수 있습니다. 강제 선택이 필요하면 정확한 selector를 사용합니다.
 
 ```text
 $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 ```
+
+설명 전용, 상태 조회 전용, 설계 토론, 일반 질문 및 모호한 요청은 Dev Flow Task를 자동 생성하지
+않습니다. 명시적 선택도 저장소 권한, Core Action, Git 변경 권한 또는 릴리스 확인을 우회하지 않습니다.
 
 #### 업데이트
 
@@ -178,7 +182,7 @@ rm -rf "$HOME/Library/Application Support/dev-flow"
 
 ## 실행 모델
 
-1. 개발자가 현재 Git 저장소에서 명시적 selector로 Task를 설명합니다.
+1. 개발자가 명확한 개발 Task를 직접 설명하거나 정확한 selector로 Dev Flow를 강제 선택합니다.
 2. Core는 해당 저장소의 Task를 열거나 재개하고 현재 노드, 완료 조건, allowed effects, 증거 요구사항, verification budget, 모든 합법적 전이를 반환합니다.
 3. Host는 현재 Action을 실행합니다. 요구사항, 설계 또는 구현에 실질적인 변경이 있으면 현재 노드 안에서 암묵적으로 범위를 넓히지 않고 Core가 반환한 transition으로 보고합니다.
 4. Core는 `transition_id`, guard, revision, payload를 검증한 후 Task를 진행합니다. 테스트 실패, 이해도 검토 실패, 전달 거부는 해당 노드로 돌아갑니다.

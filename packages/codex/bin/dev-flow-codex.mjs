@@ -6,6 +6,7 @@ import { access, readFile, stat } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
 import {
+  CODEX_MCP_INSTRUCTIONS,
   inspectCoreVersion,
   removeRegistration,
   setupRegistration,
@@ -26,15 +27,6 @@ import {
 const FORWARDED_SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"];
 const NPM_UNINSTALL_HANDOFF = "Run npm uninstall -g dev-flow-codex separately after deregistration.";
 const CODEX_MCP_INSTRUCTIONS_ENVIRONMENT = "DEV_FLOW_CODEX_MCP_INSTRUCTIONS";
-const CODEX_MCP_INSTRUCTIONS = [
-  "Dev Flow for Codex is explicit-only.",
-  "Do not call tools from this server unless the current user turn contains the exact selector `$dev-flow-codex:dev-flow`.",
-  "Bare `$dev-flow`, wrong or missing selectors, and implicit matches are not activation.",
-  "After valid selection, `dev_flow_server_info` must be the first Dev Flow call.",
-  "Read `host_preferences.codex.codebase_memory` from that handshake without installing or configuring codebase-memory.",
-  "Call `dev_flow_open_task` only after exact `$dev-flow-codex:dev-flow` selection and a successful `dev_flow_server_info` handshake.",
-  "Use the current Git worktree as primary and only user-declared additional repositories already authorized as writable roots; never scan repositories or change Codex sandbox permissions.",
-].join(" ");
 
 export async function runCLI(arguments_, dependencies = {}) {
   const stdout = dependencies.stdout ?? process.stdout;

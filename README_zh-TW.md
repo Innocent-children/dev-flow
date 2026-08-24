@@ -87,11 +87,15 @@ dev-flow-codex --version
 receipt、就緒狀態和唯一下一步。互動輸出依簡體中文或英文環境顯示；非互動與 `NO_COLOR` 使用純文字，
 `setup --json` 輸出無裝飾的機器事實。
 
-`setup` 註冊或更新 Codex marketplace、Plugin 與 MCP。從 Git 儲存庫中使用唯一明確 selector：
+`setup` 註冊或更新 Codex marketplace、Plugin 與 MCP。在 Git 儲存庫中可直接描述範圍明確的實作、
+缺陷修復、重構、定向測試或開發交付工作，Codex 會智慧選擇 Dev Flow；需要強制選擇時使用精確 selector：
 
 ```text
 $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 ```
+
+僅解釋、僅狀態查詢、方案討論、一般問答和含糊請求不會自動建立 Dev Flow Task。明確選擇也不會
+略過儲存庫權限、Core Action、Git 變更授權或發布確認。
 
 #### 升級
 
@@ -172,7 +176,7 @@ rm -rf "$HOME/Library/Application Support/dev-flow"
 
 ## 執行模型
 
-1. 開發者在目前 Git 儲存庫中透過明確 selector 描述任務。
+1. 開發者直接描述明確開發任務，或透過精確 selector 強制選擇 Dev Flow。
 2. Core 建立或恢復該儲存庫的 Task，返回目前節點、完成條件、允許副作用、證據要求、驗證預算與全部合法流轉。
 3. Host 執行目前 Action。需求、設計或實作發生實質變更時，Host 透過 Core 返回的 transition 回報，而不是在目前節點中隱式擴大範圍。
 4. Core 驗證 `transition_id`、guard、revision 與 payload 後推進 Task；測試失敗、理解審查失敗或交付被拒絕時返回對應節點。

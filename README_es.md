@@ -99,11 +99,17 @@ configuración y receipt realmente creados o actualizados, el estado y un único
 salida interactiva usa chino simplificado o inglés; la salida no interactiva y `NO_COLOR` es texto
 plano, y `setup --json` emite hechos de máquina sin decoración.
 
-`setup` registra o actualiza marketplace, Plugin y MCP de Codex. Desde un repositorio Git usa el único selector:
+`setup` registra o actualiza marketplace, Plugin y MCP de Codex. En un repositorio Git puedes describir
+directamente una implementación, corrección, refactorización, prueba dirigida o entrega de desarrollo
+con límites claros, y Codex puede seleccionar Dev Flow automáticamente. Usa el selector exacto para forzarlo:
 
 ```text
 $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 ```
+
+Las solicitudes solo de explicación, estado, discusión de diseño, preguntas normales o ambiguas no crean
+automáticamente un Dev Flow Task. La selección explícita tampoco omite permisos, Core Actions, autorización
+de cambios Git ni confirmación de publicación.
 
 #### Actualización
 
@@ -183,7 +189,7 @@ Eliminar `$HOME/.dsh` también borra todos los perfiles, sesiones y plugins de D
 
 ## Modelo de ejecución
 
-1. El desarrollador describe un Task en el repositorio Git actual mediante un selector explícito.
+1. El desarrollador describe directamente un Task claro o fuerza Dev Flow con el selector exacto.
 2. Core abre o reanuda el Task de ese repositorio y devuelve el nodo actual, condiciones de finalización, `allowed_effects`, requisitos de evidencia, verification budget y todas las transiciones legales.
 3. El Host ejecuta la Action actual. Un cambio material de requisitos, diseño o implementación se informa mediante una transition devuelta por Core, en lugar de ocultarse dentro del nodo actual.
 4. Core valida `transition_id`, guard, revision y payload antes de avanzar el Task. Las pruebas fallidas, la comprensión insuficiente o la entrega rechazada vuelven al nodo correspondiente.

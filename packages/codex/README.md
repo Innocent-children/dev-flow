@@ -3,7 +3,7 @@
 [中文](https://github.com/Innocent-children/dev-flow/blob/main/packages/codex/README.md) |
 [English](https://github.com/Innocent-children/dev-flow/blob/main/docs/CODEX_en.md)
 
-`dev-flow-codex` 把 Dev Flow 状态图接入 Codex CLI。package 包含 Codex Plugin、显式 Skill、
+`dev-flow-codex` 把 Dev Flow 状态图接入 Codex CLI。package 包含 Codex Plugin、智能/显式 Skill、
 local STDIO MCP 配置和 macOS arm64 Core executable；Task、节点、流转和 Recovery 仍由 bundled
 Go Core 独自管理。
 
@@ -64,7 +64,8 @@ dev-flow-codex --version
 
 ## 开始一个 Task
 
-在当前 Git 仓库中，用唯一的精确 selector 描述工作：
+在当前 Git 仓库中，可以直接描述边界明确的实现、缺陷修复、重构、定向测试或开发交付工作，
+Codex 会根据 Skill description 智能选择 Dev Flow。需要确定进入时仍可使用精确 selector：
 
 ```text
 $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
@@ -113,10 +114,10 @@ Codex 与 DeepSeek 共用同一 Repository Scope、scoped path、Action 和唯�
 Codex 每个 Dev Flow 会话最多提示一次并立即回退到内置 Git、文件和文本检索，不阻塞 Task，也不
 安装、配置或启动索引能力。索引结果不能扩大 Scope、证明写权限或决定 Recovery 与流程流转。
 
-## 显式调用边界
+## 智能启用与显式入口
 
-Skill metadata 设置 `policy.allow_implicit_invocation: false`，因此只有下面这个精确 selector 可以
-进入 Dev Flow：
+Skill metadata 设置 `policy.allow_implicit_invocation: true`。实现、缺陷修复、重构、定向测试和开发
+交付这五类边界明确的请求可以由 Host 隐式选择 Dev Flow；下面的精确 selector 继续作为强制入口：
 
 ```text
 $dev-flow-codex:dev-flow
@@ -127,12 +128,14 @@ $dev-flow-codex:dev-flow
 - Skill resource/base name 是 `dev-flow`；
 - 安装后的 Skill full name 是 `dev-flow-codex:dev-flow`；
 - `$dev-flow` 不是别名，不会选择该 Skill；
-- plugin namespace 错误、Skill base name 错误或缺少 selector 都不会选择该 Skill；
-- 普通提示词必须产生零次 Dev Flow 调用；
-- 非精确 selector 不得完成任何携带 Task 的操作。
+- plugin namespace 错误不会成为显式选择；
+- Skill base name 错误不会成为显式选择；
+- 缺少 selector 时，只有 Host 已为任务型开发请求隐式选择该 Skill 才能进入；
+- 仅解释、仅状态查询、方案讨论、普通问答和含糊请求不自动创建或恢复 Dev Flow Task；
+- 显式强制选择不会绕过实质请求、仓库权限、Core Action、Git 变更授权或发布确认。
 
-这项边界不限制 Codex 的普通仓库工具，也不声称 MCP 的可见性或授权与 selector 绑定；它只约束
-当前 Skill 是否可以发起 Dev Flow 调用。
+两种选择方式进入同一 admission、兼容握手、Task discovery 和 Action loop。这项边界不限制 Codex
+的普通仓库工具，也不声称 MCP 的可见性或授权与 selector 绑定。
 
 通过 admission 后，`dev_flow_server_info({})` 必须是第一次 Dev Flow 调用。安装内容、bundled
 Core、Codex 兼容性和注册 ownership 已由 `dev-flow-codex setup` 验证；每次 Task 启动只静默确认

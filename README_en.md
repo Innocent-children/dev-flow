@@ -98,12 +98,17 @@ Interactive output follows Simplified Chinese or English; non-interactive and `N
 plain, while `setup --json` emits undecorated machine facts.
 
 The global npm install provides the `dev-flow-codex` command. `setup` registers the Codex
-marketplace, Plugin, and MCP integration. From a Git repository, start a task in Codex with the only
-explicit selector:
+marketplace, Plugin, and MCP integration. From a Git repository, describe a bounded implementation,
+bug fix, refactoring, targeted-testing, or development-delivery task directly and Codex can select
+Dev Flow automatically. Use the exact selector when you want to force selection:
 
 ```text
 $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 ```
+
+Explanation-only, status-only, design-discussion, ordinary-question, and ambiguous requests do not
+automatically create a Dev Flow Task. Explicit selection does not bypass repository permissions,
+Core Actions, Git-mutation authority, or release confirmation.
 
 #### Update
 
@@ -203,7 +208,7 @@ See the [Codex package README](docs/CODEX_en.md),
 
 ## Execution model
 
-1. The developer describes a task in the current Git repository through an explicit selector.
+1. The developer describes a clear development task directly or force-selects Dev Flow with the exact selector.
 2. Core opens or resumes that repository's Task and returns the current node, completion conditions,
    allowed effects, evidence requirements, verification budget, and every legal transition.
 3. The host executes the current Action. A material requirement, design, or implementation change is

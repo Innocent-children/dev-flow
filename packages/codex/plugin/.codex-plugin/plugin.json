@@ -1,7 +1,7 @@
 {
   "name": "dev-flow-codex",
   "version": "0.6.0-beta.1",
-  "description": "Explicit-only Dev Flow integration for Codex CLI.",
+  "description": "Smart and explicit Dev Flow integration for Codex CLI.",
   "author": {
     "name": "Dev Flow"
   },
@@ -10,8 +10,8 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Dev Flow for Codex",
-    "shortDescription": "Explicit Dev Flow workflow for Codex",
-    "longDescription": "Start or resume one Core-governed repository task only through an explicit $dev-flow-codex:dev-flow invocation.",
+    "shortDescription": "Smart Dev Flow workflow for Codex",
+    "longDescription": "Automatically select Dev Flow for bounded development tasks, or force entry with $dev-flow-codex:dev-flow; non-task requests do not create Tasks.",
     "developerName": "Dev Flow",
     "category": "Productivity",
     "capabilities": [

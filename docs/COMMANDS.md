@@ -51,16 +51,17 @@ dev-flow-codex --version
 `npm uninstall -g dev-flow-codex`。只有在 Codex 和 DeepSeek Adapter 都已移除且不再需要任何
 Task 时，才删除共享默认数据目录 `$HOME/Library/Application Support/dev-flow`。
 
-### Codex 显式 selector
+### Codex 智能启用与显式 selector
 
 ```text
 $dev-flow-codex:dev-flow <任务描述>
 ```
 
-这不是 shell 命令，而是 Codex 用户消息中的精确 Skill selector。裸 `$dev-flow`、错误 namespace、
-缺少 selector 或普通对话都不会启动 Dev Flow。通过 admission 后，Host 静默调用
-`dev_flow_server_info` 并立即打开或恢复 Task；成功检查不逐项展示，失败时只报告具体阻塞项和
-一个恢复步骤。
+这不是 shell 命令，而是 Codex 用户消息中的精确 Skill selector，用于强制选择 Dev Flow。边界明确
+的实现、缺陷修复、重构、定向测试和开发交付请求也可以由 Host 隐式选择 Skill；裸 `$dev-flow` 和
+错误 namespace 仍不是显式 selector。仅解释、仅状态查询、方案讨论、普通问答和含糊请求不自动
+创建或恢复 Task。两种选择方式通过同一 admission 后，Host 静默调用 `dev_flow_server_info` 并立即
+打开或恢复 Task；显式选择不会绕过权限、Core Action、Git 变更授权或发布确认。
 
 ## DeepSeek Harness
 
@@ -144,7 +145,7 @@ Core 不支持 remote transport、HTTP/SSE、通用 shell 或 Git mutation 命�
 | `dev_flow_apply_action` | mutation | 使用当前 revision、Action identity、process identity、repository binding 与闭合 payload 应用一次 Core 声明的 transition；也承担显式 recovery apply。 |
 | `dev_flow_cancel_task` | destructive mutation | 使用当前 revision 和非空 reason 将非终态 Task 转为 `CANCELLED`。 |
 
-未知 CLI 参数、未列出的 MCP 工具或未满足 selector admission 的调用不属于受支持入口。
+未知 CLI 参数、未列出的 MCP 工具或未满足隐式/显式统一 admission 的调用不属于受支持入口。
 
 ### Repository Scope 与 Host 偏好字段
 

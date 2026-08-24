@@ -201,3 +201,11 @@ macOS arm64 with Node.js `>=24`.
 See the [Support Matrix](SUPPORT-MATRIX_en.md) for exact platform, host version, Journey outcome, and
 Release evidence. Current source code, machine-readable schemas, and executable tests define exact
 product behavior.
+
+## Codex smart activation
+
+The Codex Plugin lets the Host select Dev Flow implicitly for bounded implementation, bug-fix,
+refactoring, targeted-testing, and development-delivery requests. `$dev-flow-codex:dev-flow` remains
+the exact force-entry selector. Explanation-only, status-only, design-discussion, ordinary-question,
+and ambiguous requests do not automatically create or resume a Task. Both paths share the same
+admission, Core Action, and authority boundaries and do not authorize Git mutations or releases.

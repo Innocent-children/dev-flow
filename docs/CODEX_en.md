@@ -4,7 +4,7 @@
 [English](https://github.com/Innocent-children/dev-flow/blob/main/docs/CODEX_en.md)
 
 `dev-flow-codex` brings the Dev Flow state graph to Codex CLI. The package contains a Codex Plugin,
-an explicit Skill, local STDIO MCP configuration, and a macOS arm64 Core executable. The bundled Go
+a smart/explicit Skill, local STDIO MCP configuration, and a macOS arm64 Core executable. The bundled Go
 Core remains the sole authority for Tasks, nodes, transitions, and Recovery.
 
 ## Support
@@ -68,7 +68,9 @@ command catalogs.
 
 ## Start a Task
 
-In the current Git repository, describe the work with the only exact selector:
+In the current Git repository, describe a bounded implementation, bug fix, refactoring, targeted-testing,
+or development-delivery task directly and Codex can select Dev Flow from the Skill description. The exact
+selector remains available when you want to force selection:
 
 ```text
 $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
@@ -123,10 +125,11 @@ once per Dev Flow session and immediately falls back to built-in Git, file, and 
 blocking the Task. It never installs, configures, or starts the index. Index results cannot expand
 the Scope, prove write permission, or determine Recovery and process transitions.
 
-## Explicit invocation boundary
+## Smart activation and explicit force-entry
 
-Skill metadata sets `policy.allow_implicit_invocation: false`, so only this exact selector enters Dev
-Flow:
+Skill metadata sets `policy.allow_implicit_invocation: true`. Bounded implementation, bug-fix,
+refactoring, targeted-testing, and development-delivery requests may select Dev Flow implicitly. The exact
+selector remains the force-entry path:
 
 ```text
 $dev-flow-codex:dev-flow
@@ -137,12 +140,16 @@ The naming and admission boundaries are:
 - the Skill resource/base name is `dev-flow`;
 - the installed Skill full name is `dev-flow-codex:dev-flow`;
 - bare `$dev-flow` is not an alias and does not select the Skill;
-- a wrong plugin namespace, wrong Skill base name, or missing selector does not select the Skill;
-- an ordinary prompt must produce zero Dev Flow calls;
-- a non-exact selector must not complete a task-bearing operation.
+- a wrong plugin namespace or wrong Skill base name is not explicit selection;
+- without a selector, entry requires Host implicit selection for a task-bearing development request;
+- explanation-only, status-only, design-discussion, ordinary-question, and ambiguous requests do not
+  automatically create or resume a Dev Flow Task;
+- explicit force-selection does not bypass a substantive request, repository permissions, Core Actions,
+  Git-mutation authority, or release confirmation.
 
+Both selection paths enter the same admission, compatibility handshake, Task discovery, and Action loop.
 This boundary does not disable ordinary Codex repository tools and does not claim selector-bound MCP
-visibility or authorization. It controls whether this Skill may initiate Dev Flow calls.
+visibility or authorization.
 
 After admission, `dev_flow_server_info({})` must be the first Dev Flow call. Package contents, the
 bundled Core, Codex compatibility, and registration ownership are already validated by

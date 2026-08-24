@@ -100,12 +100,17 @@ erstellten oder aktualisierten Konfigurations- und Receipt-Dateien, den Bereitsc
 einen nächsten Schritt. Interaktive Ausgabe folgt vereinfachtem Chinesisch oder Englisch; nicht
 interaktive Ausgabe und `NO_COLOR` sind Klartext, `setup --json` liefert undekorierte Maschinendaten.
 
-`setup` registriert oder aktualisiert Codex marketplace, Plugin und MCP. Verwenden Sie im Git-Repository den
-einzigen expliziten selector:
+`setup` registriert oder aktualisiert Codex marketplace, Plugin und MCP. Beschreiben Sie im Git-Repository eine
+klar abgegrenzte Implementierung, Fehlerbehebung, Refaktorierung, gezielte Prüfung oder Entwicklungsübergabe
+direkt; Codex kann Dev Flow automatisch auswählen. Zur erzwungenen Auswahl dient der exakte selector:
 
 ```text
 $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 ```
+
+Reine Erklärungen, Statusabfragen, Design-Diskussionen, gewöhnliche Fragen und mehrdeutige Anfragen erstellen
+nicht automatisch einen Dev Flow Task. Explizite Auswahl umgeht weder Berechtigungen noch Core Actions,
+Git-Änderungsfreigaben oder Release-Bestätigungen.
 
 #### Aktualisierung
 
@@ -185,7 +190,7 @@ Details: [Codex package README](docs/CODEX_en.md), [DeepSeek package README](doc
 
 ## Ausführungsmodell
 
-1. Der Entwickler beschreibt einen Task im aktuellen Git-Repository über einen expliziten selector.
+1. Der Entwickler beschreibt einen klaren Entwicklungs-Task direkt oder erzwingt Dev Flow mit dem exakten selector.
 2. Core öffnet oder setzt den Task des Repositories fort und liefert aktuellen Knoten, Abschlussbedingungen, `allowed_effects`, Evidenzanforderungen, verification budget und alle zulässigen Transitionen.
 3. Der Host führt die aktuelle Action aus. Eine materielle Änderung von Anforderungen, Design oder Implementierung wird über eine von Core gelieferte Transition gemeldet statt im aktuellen Knoten verborgen.
 4. Core validiert `transition_id`, guard, revision und payload, bevor der Task fortgesetzt wird. Fehlgeschlagene Tests, fehlende Verständlichkeit oder abgelehnte Auslieferung führen zum entsprechenden Knoten zurück.

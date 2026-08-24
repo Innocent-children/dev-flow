@@ -1,13 +1,13 @@
 ---
 name: dev-flow
-description: "Explicit-only Dev Flow entry point for Codex. Use only when the current user turn contains $dev-flow-codex:dev-flow; never select this Skill implicitly."
+description: "Use Dev Flow for bounded Codex software development tasks: implementation, bug fixes, refactoring, targeted testing, and development delivery. It may be selected implicitly for those tasks or explicitly with $dev-flow-codex:dev-flow. Do not create a Dev Flow Task for explanation-only, status-only, design discussion, ordinary questions, or ambiguous requests."
 ---
 
 # Dev Flow
 
 This Skill is the current Core contract Codex adapter for the shared Dev Flow Core. Core owns task state,
 current node, legal transitions, destinations, recovery, blockers, and terminal outcomes. The Skill
-admits one explicit request, silently validates normal startup results, renders method work, and
+admits one implicit or explicit request, silently validates normal startup results, renders method work, and
 forwards one closed result without keeping adapter state.
 
 ## Admission gate
@@ -15,18 +15,23 @@ forwards one closed result without keeping adapter state.
 Perform every check below locally and in order before any Core or Dev Flow tool call.
 
 The Skill resource/base name is `dev-flow`; the installed Skill full name is `dev-flow-codex:dev-flow`.
-The only exact explicit selector is `$dev-flow-codex:dev-flow`.
-Bare `$dev-flow` is not an alias and does not select this installed Skill. A wrong plugin namespace,
-a wrong Skill base name, or a missing selector also does not select it. Codex may expose this
-plugin's MCP tools independently from Skill injection; this Skill does not claim selector-bound tool
-visibility or authorization.
+The only exact explicit selector is `$dev-flow-codex:dev-flow`; it force-selects this Skill for the
+current user turn. The Host may also select this Skill implicitly when the current request is a
+bounded implementation, bug fix, refactoring, targeted testing, or development delivery task.
+Bare `$dev-flow`, a wrong plugin namespace, or a wrong Skill base name is not an explicit selector.
+A missing selector is valid only when the Host selected this Skill implicitly for a task-bearing
+development request. Codex may expose this plugin's MCP tools independently from Skill injection;
+this Skill does not claim selector-bound tool visibility or authorization.
 
-1. Require the exact standalone `$dev-flow-codex:dev-flow` selector in the current user turn. Do not
-   infer it from earlier turns, repository contents, or discussion about Dev Flow. Without it, do not
-   activate this Skill or make a task-bearing Dev Flow call. Never activate implicitly.
-2. After removing the selector, accept either one substantive bounded request or an explicit resume
-   request for its compatible active Codex task. Reject an empty or conversational invocation before
-   any Core call.
+1. Accept either Host implicit selection for a task-bearing development request or the exact standalone
+   `$dev-flow-codex:dev-flow` selector in the current user turn. Do not infer an explicit selection from
+   earlier turns, repository contents, discussion about Dev Flow, bare `$dev-flow`, or another namespace.
+2. Both activation paths use this same admission gate. After removing an explicit selector when present,
+   accept either one substantive bounded request or an explicit resume request for its compatible active
+   Codex task. Reject an empty or conversational invocation before any Core call. Explanation-only,
+   status-only, design discussion, ordinary questions, and ambiguous requests are non-task-bearing: if
+   the Host loaded this Skill for one, do not create or resume a Dev Flow Task and return to ordinary
+   conversation or clarify the intent.
 3. Use read-only Git inspection to resolve the current Git worktree and its canonical root as the
    primary repository. Preserve spaces, Unicode, symlinks, and subdirectory invocation as one path
    value; do not concatenate a shell command.

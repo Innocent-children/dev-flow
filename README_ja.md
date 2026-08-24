@@ -94,12 +94,16 @@ dev-flow-codex --version
 registration receipt、準備状態、唯一の次の手順を表示します。対話出力は簡体字中国語または英語、
 非対話と `NO_COLOR` はプレーンテキスト、`setup --json` は装飾なしの機械用情報です。
 
-`setup` は Codex marketplace、Plugin、MCP を登録または更新します。Git リポジトリから唯一の
-明示的 selector を使用します。
+`setup` は Codex marketplace、Plugin、MCP を登録または更新します。Git リポジトリで範囲の明確な
+実装、バグ修正、リファクタリング、対象テスト、開発デリバリーを直接記述すると、Codex が Dev Flow
+を自動選択できます。強制的に選択する場合は正確な selector を使用します。
 
 ```text
 $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 ```
+
+説明のみ、状態照会のみ、設計議論、一般的な質問、曖昧な依頼では Dev Flow Task を自動作成しません。
+明示的選択もリポジトリ権限、Core Action、Git 変更権限、リリース確認を迂回しません。
 
 #### 更新
 
@@ -179,7 +183,7 @@ rm -rf "$HOME/Library/Application Support/dev-flow"
 
 ## 実行モデル
 
-1. 開発者が現在の Git リポジトリで明示的 selector を使い Task を記述します。
+1. 開発者が明確な開発 Task を直接記述するか、正確な selector で Dev Flow を強制選択します。
 2. Core はそのリポジトリの Task を作成または再開し、現在ノード、完了条件、allowed effects、証拠要件、verification budget、すべての合法な遷移を返します。
 3. Host は現在の Action を実行します。要件、設計、実装に実質的な変更がある場合、現在ノード内で暗黙に拡大せず、Core が返した transition で報告します。
 4. Core は `transition_id`、guard、revision、payload を検証してから Task を進めます。テスト失敗、理解度レビュー失敗、デリバリー拒否は対応するノードへ戻ります。

@@ -78,3 +78,8 @@ generic shell, Core Git mutation, automatic discovery or dynamic expansion of Re
 automatic multi-repository orchestration, repository-level process state, or automatic historical
 Task migration. A proposal that changes these boundaries requires an independent product
 specification and Constitution review.
+
+The current Codex direction uses native Skill smart activation: clear task-bearing development requests
+may select Dev Flow implicitly, the exact selector remains a force-entry path, and non-task requests do
+not automatically create Tasks. A custom classifier, activation-mode configuration, duplicate Skill, and
+persistent activation state are outside the current roadmap.

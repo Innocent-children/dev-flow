@@ -178,3 +178,10 @@ DeepSeek 当前版本 `0.5.2` 已发布到 npm，并使用 `deepseek-v0.5.2` Git
 精确平台、Host 版本、Journey 结论和 Release 入口见
 [Support Matrix](SUPPORT-MATRIX.md)。精确产品行为由当前代码、机器可读 Schema 和可执行测试
 定义。
+
+## Codex 智能启用
+
+Codex Plugin 允许 Host 为边界明确的实现、缺陷修复、重构、定向测试和开发交付请求隐式选择
+Dev Flow；`$dev-flow-codex:dev-flow` 保留为精确强制入口。仅解释、仅状态查询、方案讨论、普通问答
+和含糊请求不自动创建或恢复 Task。两种入口共用同一 admission、Core Action 和授权边界，均不自动
+授权 Git 变更或发布。

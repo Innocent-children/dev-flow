@@ -71,7 +71,7 @@ const openSpecCapabilities = [
   "openspec-validate",
 ];
 
-test("plugin exposes exactly one explicitly selected dev-flow Skill", async () => {
+test("plugin exposes one implicitly enabled Skill with an exact explicit selector", async () => {
   const skillFiles = (await walkFiles(join(pluginRoot, "skills"))).filter((path) => path.endsWith("SKILL.md"));
   assert.deepEqual(skillFiles, ["dev-flow/SKILL.md"]);
 
@@ -80,17 +80,27 @@ test("plugin exposes exactly one explicitly selected dev-flow Skill", async () =
   const frontmatter = parseFrontmatter(skill);
   assert.equal(frontmatter.name, skillBaseName);
   assert.equal(`${manifest.name}:${frontmatter.name}`, installedSkillName);
-  assert.match(frontmatter.description, /explicit/i);
+  for (const positive of ["implementation", "bug fixes", "refactoring", "targeted testing", "development delivery"]) {
+    assert.match(frontmatter.description, new RegExp(escapeRegExp(positive), "i"));
+  }
+  for (const negative of ["explanation-only", "status-only", "design discussion", "ordinary questions", "ambiguous requests"]) {
+    assert.match(frontmatter.description, new RegExp(escapeRegExp(negative), "i"));
+  }
+  assert.match(frontmatter.description, /selected implicitly/i);
   assert.match(frontmatter.description, new RegExp(escapeRegExp(explicitSelector)));
-  assert.match(frontmatter.description, /never.*implicit/i);
+  assert.match(frontmatter.description, /Do not create a Dev Flow Task/i);
   assert.equal("allow_implicit_invocation" in frontmatter, false);
 
   const metadata = await readFile(skillMetadataPath, "utf8");
-  assert.equal(metadata, "policy:\n  allow_implicit_invocation: false\n");
+  assert.equal(metadata, "policy:\n  allow_implicit_invocation: true\n");
 });
 
 test("plugin user-facing metadata emits only the installed full Skill selector", async () => {
   const plugin = JSON.parse(await readFile(join(pluginRoot, ".codex-plugin", "plugin.json"), "utf8"));
+  assert.match(plugin.description, /Smart and explicit/i);
+  assert.match(plugin.interface.shortDescription, /Smart Dev Flow/i);
+  assert.match(plugin.interface.longDescription, /Automatically select Dev Flow/i);
+  assert.match(plugin.interface.longDescription, /non-task requests do not create Tasks/i);
   assert.match(plugin.interface.longDescription, new RegExp(escapeRegExp(explicitSelector)));
   assert.deepEqual(plugin.interface.defaultPrompt, [
     `${explicitSelector} implement the requested change in this repository.`,
@@ -102,7 +112,7 @@ test("plugin user-facing metadata emits only the installed full Skill selector",
   );
 });
 
-test("Skill admits only an exact current-turn selector with substantive or resume intent", async () => {
+test("Skill converges implicit and exact explicit selection on one substantive admission", async () => {
   const skill = await readFile(skillPath, "utf8");
   const admissionIndex = skill.indexOf("## Admission gate");
   const handshakeIndex = skill.indexOf("## Compatibility handshake");
@@ -114,17 +124,25 @@ test("Skill admits only an exact current-turn selector with substantive or resum
   assert.match(admission, /Skill resource\/base name[^\n]*`dev-flow`/i);
   assert.match(admission, /installed Skill full name[^\n]*`dev-flow-codex:dev-flow`/i);
   assert.match(admission, /only exact explicit selector[^\n]*`\$dev-flow-codex:dev-flow`/i);
-  assert.match(admission, /bare[^\n]*`\$dev-flow`[^\n]*(?:not an alias|does not select)/i);
+  assert.match(admission, /bare[^\n]*`\$dev-flow`[^\n]*(?:not an alias|does not select|not an explicit selector)/i);
   assert.match(admission, /wrong[^\n]*plugin namespace/i);
   assert.match(admission, /wrong[^\n]*Skill base name/i);
-  assert.match(admission, /missing selector/i);
+  assert.match(admission, /missing selector[^\n]*valid only[^\n]*implicitly/i);
+  assert.match(admission, /Both activation paths use this same admission gate/i);
+  for (const positive of ["implementation", "bug fix", "refactoring", "targeted testing", "development delivery"]) {
+    assert.match(admission, new RegExp(escapeRegExp(positive), "i"));
+  }
+  for (const negative of ["Explanation-only", "status-only", "design discussion", "ordinary questions", "ambiguous requests"]) {
+    assert.match(admission, new RegExp(escapeRegExp(negative), "i"));
+  }
+  assert.match(admission, /do not create or resume a Dev Flow Task/i);
   assert.match(admission, /substantive[^\n]*(?:requirement|request)/i);
   assert.match(admission, /explicit[^\n]*resume/i);
   assert.match(admission, /empty|conversational/i);
   assert.match(admission, /stop before Skill-owned task/i);
   assert.match(admission, /do\s+not complete a task-bearing call/i);
   assert.match(admission, /Core-rejected\s+calls[\s\S]*reported honestly/i);
-  assert.match(admission, /implicit/i);
+  assert.match(admission, /Host implicit selection/i);
 
   assert.match(admission, /read-only Git/i);
   assert.match(admission, /current Git worktree/i);
@@ -137,22 +155,22 @@ test("Skill admits only an exact current-turn selector with substantive or resum
   assert.match(admission, /user authority/i);
 });
 
-test("Chinese README distinguishes the Skill base name from the only installed selector", async () => {
+test("Chinese README documents smart implicit activation and the explicit force-entry selector", async () => {
   const readme = await readFile(readmePath, "utf8");
-  const invocation = section(readme, "显式调用边界");
+  const invocation = section(readme, "智能启用与显式入口");
 
   assert.match(invocation, /Skill resource\/base name[^\n]*`dev-flow`/i);
   assert.match(invocation, /安装后的 Skill full name[^\n]*`dev-flow-codex:dev-flow`/i);
-  assert.match(invocation, /只有[\s\S]{0,100}精确 selector[\s\S]{0,100}\$dev-flow-codex:dev-flow/i);
+  assert.match(invocation, /精确 selector[\s\S]{0,100}\$dev-flow-codex:dev-flow/i);
   assert.match(invocation, /`\$dev-flow`[^\n]*不是别名[^\n]*不会选择/i);
   assert.match(invocation, /plugin namespace 错误/i);
   assert.match(invocation, /Skill base name 错误/i);
-  assert.match(invocation, /缺少 selector/i);
-  assert.match(invocation, /普通提示词[^\n]*零次 Dev Flow 调用/i);
-  assert.match(invocation, /非精确 selector[^\n]*不得完成[^\n]*Task/i);
+  assert.match(invocation, /实现、缺陷修复、重构、定向测试和开发\s*交付/i);
+  assert.match(invocation, /仅?解释、仅?状态查询、方案讨论、普通问答和含糊请求[^\n]*不自动创建/i);
+  assert.match(invocation, /显式[^\n]*不会绕过/i);
   assert.match(invocation, /不声称 MCP[^\n]*selector 绑定/i);
-  assert.match(invocation, /不限制 Codex 的普通仓库工具/i);
-  assert.match(invocation, /allow_implicit_invocation[^\n]*false/i);
+  assert.match(invocation, /不限制 Codex\s*的普通仓库工具/i);
+  assert.match(invocation, /allow_implicit_invocation[^\n]*true/i);
 });
 
 test("Skill silently calls server-info first and admits the exact unordered Core contract", async () => {

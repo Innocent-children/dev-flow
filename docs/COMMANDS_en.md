@@ -56,17 +56,19 @@ To uninstall while retaining Task data, run `dev-flow-codex remove` and then
 `$HOME/Library/Application Support/dev-flow` only after both the Codex and DeepSeek Adapters are
 removed and no Task is needed.
 
-### Codex explicit selector
+### Codex smart activation and explicit selector
 
 ```text
 $dev-flow-codex:dev-flow <task description>
 ```
 
-This is not a shell command. It is the exact Skill selector in a Codex user message. Bare
-`$dev-flow`, a wrong namespace, a missing selector, or ordinary conversation does not activate Dev
-Flow. After admission, the host silently calls `dev_flow_server_info` and immediately opens or
-resumes the Task. Successful checks are not enumerated; a failure reports only the specific blocker
-and one recovery step.
+This is not a shell command. It is the exact Skill selector in a Codex user message and force-selects
+Dev Flow. The Host may also select the Skill implicitly for a bounded implementation, bug fix,
+refactoring, targeted-testing, or development-delivery request; bare `$dev-flow` and a wrong namespace
+remain invalid explicit selectors. Explanation-only, status-only, design-discussion, ordinary-question,
+and ambiguous requests do not automatically create or resume a Task. Both paths use the same admission,
+then the host silently calls `dev_flow_server_info`; explicit selection does not bypass permissions,
+Core Actions, Git-mutation authority, or release confirmation.
 
 ## DeepSeek Harness
 
@@ -156,7 +158,7 @@ terminal shell commands.
 | `dev_flow_apply_action` | Mutation | Apply one Core-declared transition using the current revision, Action identity, process identity, repository binding, and closed payload; it also carries explicit recovery apply. |
 | `dev_flow_cancel_task` | Destructive mutation | Move a nonterminal Task to `CANCELLED` using the current revision and a non-empty reason. |
 
-Unknown CLI arguments, tools outside this catalog, and calls that do not satisfy selector admission
+Unknown CLI arguments, tools outside this catalog, and calls that do not satisfy shared implicit/explicit admission
 are not supported entrypoints.
 
 ### Repository Scope and host-preference fields

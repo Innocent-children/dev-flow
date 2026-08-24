@@ -100,11 +100,17 @@ configuration et de receipt réellement créés ou mis à jour, l'état et une s
 sortie interactive suit le chinois simplifié ou l'anglais ; la sortie non interactive et `NO_COLOR`
 est en texte brut, et `setup --json` émet des faits machine sans décoration.
 
-`setup` enregistre ou met à jour marketplace, Plugin et MCP dans Codex. Depuis un dépôt Git, utilisez l'unique selector :
+`setup` enregistre ou met à jour marketplace, Plugin et MCP dans Codex. Dans un dépôt Git, décrivez directement
+une implémentation, correction, refactorisation, vérification ciblée ou livraison de développement bien délimitée ;
+Codex peut sélectionner Dev Flow automatiquement. Utilisez le selector exact pour forcer la sélection :
 
 ```text
 $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 ```
+
+Les demandes limitées à une explication, un état, une discussion de conception, une question ordinaire ou une
+intention ambiguë ne créent pas automatiquement de Dev Flow Task. La sélection explicite ne contourne pas les
+permissions, Core Actions, autorisations Git ni confirmations de publication.
 
 #### Mise à jour
 
@@ -185,7 +191,7 @@ répertoire absolu. Supprimer `$HOME/.dsh` efface aussi tous les profils, sessio
 
 ## Modèle d'exécution
 
-1. Le développeur décrit un Task dans le dépôt Git courant au moyen d'un selector explicite.
+1. Le développeur décrit directement un Task clair ou force Dev Flow avec le selector exact.
 2. Core ouvre ou reprend le Task du dépôt et retourne le nœud courant, les conditions de fin, les `allowed_effects`, les preuves requises, le verification budget et toutes les transitions légales.
 3. Le Host exécute l'Action courante. Une modification matérielle des exigences, de la conception ou de l'implémentation est déclarée par une transition retournée par Core, plutôt que masquée dans le nœud courant.
 4. Core valide `transition_id`, guard, revision et payload avant d'avancer le Task. Échec des tests, échec de compréhension ou livraison refusée retournent vers le nœud correspondant.

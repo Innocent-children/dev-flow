@@ -140,7 +140,7 @@ test("source package declares one public macOS arm64 Codex product", async () =>
   });
   assert.equal(
     await readFile(join(pluginRoot, "skills", "dev-flow", "agents", "openai.yaml"), "utf8"),
-    "policy:\n  allow_implicit_invocation: false\n",
+    "policy:\n  allow_implicit_invocation: true\n",
   );
 });
 

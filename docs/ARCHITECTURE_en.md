@@ -249,3 +249,12 @@ external release directory, and a recoverable publication record.
 
 Source code, machine-readable schemas, and executable tests define current behavior. Documentation
 helps readers understand the system and is not used as runtime, build, or release input.
+
+## Codex Skill activation boundary
+
+`packages/codex/plugin/skills/dev-flow/agents/openai.yaml` permits Host implicit selection, while the
+`SKILL.md` description supplies positive task-bearing uses and negative non-task boundaries. The exact
+`$dev-flow-codex:dev-flow` selector and implicit selection converge on one admission path. The launcher
+reuses the MCP instructions exported by `packages/codex/lib/lifecycle.mjs`, and setup validates metadata,
+Skill, and instruction consistency. Activation source is not stored in Core, Task, SQLite, receipts, or
+user configuration.

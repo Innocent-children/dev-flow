@@ -61,12 +61,12 @@ test("mcp selects only the package-local Core and inherits protocol stdio", asyn
   assert.equal(calls[0].options.env.SAFE_PARENT_VALUE, "preserved");
   assert.equal(
     calls[0].options.env.DEV_FLOW_CODEX_MCP_INSTRUCTIONS,
-    "Dev Flow for Codex is explicit-only. " +
-      "Do not call tools from this server unless the current user turn contains the exact selector `$dev-flow-codex:dev-flow`. " +
-      "Bare `$dev-flow`, wrong or missing selectors, and implicit matches are not activation. " +
-      "After valid selection, `dev_flow_server_info` must be the first Dev Flow call. " +
+    "Dev Flow for Codex supports implicit selection for bounded implementation, bug-fix, refactoring, targeted-testing, and development-delivery tasks, plus explicit selection with `$dev-flow-codex:dev-flow`. " +
+      "Explanation-only, status-only, design-discussion, ordinary-question, and ambiguous requests must not create or resume a Dev Flow Task. " +
+      "The exact selector force-selects the Skill; bare `$dev-flow` and wrong plugin or Skill names are not explicit selection. " +
+      "After either valid activation path, `dev_flow_server_info` must be the first Dev Flow call. " +
       "Read `host_preferences.codex.codebase_memory` from that handshake without installing or configuring codebase-memory. " +
-      "Call `dev_flow_open_task` only after exact `$dev-flow-codex:dev-flow` selection and a successful `dev_flow_server_info` handshake. " +
+      "Call `dev_flow_open_task` only for a substantive bounded request or explicit resume after a successful `dev_flow_server_info` handshake. " +
       "Use the current Git worktree as primary and only user-declared additional repositories already authorized as writable roots; never scan repositories or change Codex sandbox permissions.",
   );
   assert.equal(calls[0].arguments_.includes("--add-dir"), false);

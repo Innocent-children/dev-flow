@@ -88,11 +88,15 @@ receipt、就绪状态和唯一下一步。交互结果跟随简体中文/英文
 `setup --json` 输出无装饰的机器事实。
 
 全局 npm 安装提供 `dev-flow-codex` 命令；`setup` 注册 Codex marketplace、Plugin 和 MCP。进入一个
-Git 仓库后，在 Codex 对话中使用唯一显式 selector：
+Git 仓库后，可直接描述边界明确的实现、缺陷修复、重构、定向测试或开发交付任务，Codex 会智能
+选择 Dev Flow；也可以使用精确 selector 强制进入：
 
 ```text
 $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 ```
+
+仅解释、仅状态查询、方案讨论、普通问答和含糊请求不会自动创建 Dev Flow Task。显式选择也不会
+绕过仓库权限、Core Action、Git 变更授权或发布确认。
 
 #### 升级
 
@@ -183,7 +187,7 @@ rm -rf "$HOME/Library/Application Support/dev-flow"
 
 ## 执行模型
 
-1. 开发者在当前 Git 仓库中通过显式 selector 描述任务。
+1. 开发者在当前 Git 仓库中直接描述明确开发任务，或通过精确 selector 强制选择 Dev Flow。
 2. Core 创建或恢复该仓库的 Task，返回当前节点、完成条件、允许副作用、证据要求、验证预算和全部合法流转。
 3. Host 执行当前 Action。需求、设计或实现发生实质变化时，Host 通过 Core 返回的 transition 报告，而不是在当前节点中隐式扩大范围。
 4. Core 校验 `transition_id`、guard、revision 和 payload 后推进 Task；测试失败、理解失败或交付拒绝返回相应节点。
