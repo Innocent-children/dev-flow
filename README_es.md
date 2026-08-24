@@ -51,6 +51,32 @@ retrabajo, debe conservar evidencia de verificación o necesita reanudarse entre
 puntual o una edición mecánica de un solo archivo sin estado persistente, suele ser más sencillo usar Codex o
 DeepSeek directamente.
 
+## Tasks multirrepositorio e indexación de código opcional
+
+Un Task puede declarar explícitamente el repositorio Git actual como principal y añadir de cero a
+siete repositorios adicionales. Todos comparten un único current node, Action, revision,
+verification budget, Recovery, Blocker y Outcome. Dev Flow no examina directorios superiores o
+vecinos, dependencias ni índices de código para ampliar el alcance. Las llamadas de un solo
+repositorio y las rutas relativas normales siguen siendo compatibles; las rutas multirrepositorio
+usan `<repository-key>::<repository-relative-path>` para indicar su pertenencia.
+
+Las preferencias opcionales de indexación proceden del archivo de solo lectura
+`$HOME/.dev-flow/config.json`:
+
+```json
+{
+  "codex": { "codebase_memory": false },
+  "deepseek": { "codebase_memory": true }
+}
+```
+
+Si el directorio o el archivo no existe, ambos valores son `false` y Dev Flow no crea ni modifica
+el archivo. Con `true`, el Host solo usa codebase-memory si ya está instalado y disponible. Si falta
+o deja de estar disponible, avisa como máximo una vez por sesión y vuelve a la búsqueda integrada
+sin bloquear el Task. Los repositorios adicionales de Codex deben ser writable roots ya autorizados
+al iniciar la sesión; Dev Flow no cambia el sandbox. Todos los repositorios de DeepSeek deben estar
+dentro del Workspace Root actual, que puede ser un padre común que no sea un repositorio Git.
+
 ## Instalación, actualización y desinstalación
 
 Los artefactos públicos admiten macOS arm64 y Node.js `>=24`; los ejemplos usan npm `latest`. Codex y
@@ -219,9 +245,10 @@ dev_flow_cancel_task
 Consulta la [Referencia de comandos](docs/COMMANDS_en.md) para la clasificación de lectura/escritura, el papel de
 las entradas y el comportamiento de cada herramienta.
 
-Core puede observar un repositorio Git existente de forma acotada y de solo lectura para establecer un
-repository binding y evaluar hechos de cambio. Un Host autorizado por el usuario realiza las mutation Git.
-Core no expone un shell genérico ni ejecuta checkout, commit, push, merge, rebase, tag o publicación.
+Core puede observar, de forma acotada, ordenada y de solo lectura, entre uno y ocho repositorios Git existentes
+declarados explícitamente por un Task para establecer repository bindings y evaluar hechos de cambio. Un Host
+autorizado por el usuario realiza las mutation Git. Core no expone un shell genérico ni ejecuta checkout,
+commit, push, merge, rebase, tag o publicación.
 
 ## Datos y recuperación
 

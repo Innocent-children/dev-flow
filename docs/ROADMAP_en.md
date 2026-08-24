@@ -19,6 +19,10 @@ Delivered capabilities:
 - local SQLite, revision CAS, restart/resume, and retained terminal data;
 - five-class Recovery, read-before-retry, and Core-owned blocker/resume;
 - bounded read-only Git observation;
+- an immutable Repository Scope with one primary and up to seven explicit additional repositories,
+  all sharing one Task authority;
+- host-specific optional code-index preferences from fixed read-only user configuration, with
+  built-in search fallback when the index is unavailable;
 - explicit Codex and DeepSeek Host Adapters.
 
 ## Current public products
@@ -68,6 +72,7 @@ Longer-term research includes:
 ## Continuing boundary
 
 The current roadmap does not include user-defined graphs, a workflow DSL, Web UI, remote MCP,
-generic shell, Core Git mutation, automatic multi-repository orchestration, or automatic historical
+generic shell, Core Git mutation, automatic discovery or dynamic expansion of Repository Scope,
+automatic multi-repository orchestration, repository-level process state, or automatic historical
 Task migration. A proposal that changes these boundaries requires an independent product
 specification and Constitution review.

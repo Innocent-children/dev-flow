@@ -51,6 +51,33 @@ kann, Verifikationsevidenz bewahren muss oder sitzungsübergreifend fortgesetzt 
 eine mechanische Einzeldateiänderung ohne persistenten Prozesszustand ist Codex oder DeepSeek direkt meist
 einfacher.
 
+## Multi-Repository-Tasks und optionale Code-Indizierung
+
+Ein Task kann das aktuelle Git-Repository ausdrücklich als primäres Repository verwenden und null
+bis sieben zusätzliche Repositories aufnehmen. Alle Repositories teilen genau einen current node,
+eine Action, revision, verification budget, Recovery, Blocker und Outcome. Dev Flow durchsucht keine
+übergeordneten oder benachbarten Verzeichnisse, Abhängigkeiten oder Code-Indizes, um den Umfang zu
+erweitern. Aufrufe für ein einzelnes Repository und normale relative Pfade bleiben kompatibel;
+Multi-Repository-Pfade verwenden `<repository-key>::<repository-relative-path>` zur Zuordnung.
+
+Optionale Präferenzen für die Code-Indizierung stammen aus der schreibgeschützten Datei
+`$HOME/.dev-flow/config.json`:
+
+```json
+{
+  "codex": { "codebase_memory": false },
+  "deepseek": { "codebase_memory": true }
+}
+```
+
+Fehlt das Verzeichnis oder die Datei, sind beide Werte `false`; Dev Flow erstellt oder ändert die
+Datei nicht. Bei `true` verwendet der Host codebase-memory nur, wenn es bereits installiert und
+verfügbar ist. Fehlt es oder fällt es aus, meldet der Host dies höchstens einmal pro Sitzung und
+wechselt zur integrierten Suche, ohne den Task zu blockieren. Zusätzliche Codex-Repositories müssen
+beim Sitzungsstart bereits autorisierte writable roots sein; Dev Flow ändert die Sandbox nicht. Alle
+DeepSeek-Repositories müssen innerhalb des aktuellen Workspace Root liegen, das ein gemeinsames
+Nicht-Git-Elternverzeichnis sein darf.
+
 ## Installation, Aktualisierung und Deinstallation
 
 Öffentliche Artefakte unterstützen macOS arm64 und Node.js `>=24`; die Beispiele verwenden npm `latest`.
@@ -221,10 +248,10 @@ dev_flow_cancel_task
 Die Lese-/Schreibklassifikation, Eingaberolle und das Verhalten jedes Werkzeugs stehen in der
 [Command Reference](docs/COMMANDS_en.md).
 
-Core darf ein bestehendes Git-Repository begrenzt und schreibgeschützt beobachten, um ein repository binding
-herzustellen und Änderungsfakten auszuwerten. Git-Mutationen führt ein vom Benutzer autorisierter Host aus. Core
-stellt keine generische Shell bereit und führt weder checkout, commit, push, merge, rebase, tag noch Veröffentlichung
-aus.
+Core darf die ein bis acht von einem Task ausdrücklich deklarierten bestehenden Git-Repositories in fester
+Reihenfolge begrenzt und schreibgeschützt beobachten, um repository bindings herzustellen und Änderungsfakten
+auszuwerten. Git-Mutationen führt ein vom Benutzer autorisierter Host aus. Core stellt keine generische Shell bereit
+und führt weder checkout, commit, push, merge, rebase, tag noch Veröffentlichung aus.
 
 ## Daten und Recovery
 

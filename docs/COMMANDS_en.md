@@ -147,8 +147,8 @@ terminal shell commands.
 
 | Tool | Type | Purpose |
 | --- | --- | --- |
-| `dev_flow_server_info` | Read-only | Read Core product version, transport, health, supported process, hosts, method profiles, and tool catalog. It must be the first call after valid host admission. |
-| `dev_flow_open_task` | Read or create | Create a Task for a canonical repository, or resume the current Task when the repository already has one and `new_task` is null. |
+| `dev_flow_server_info` | Read-only | Read Core product version, transport, health, supported process, hosts, method profiles, tool catalog, and effective host code-index preferences. It must be the first call after valid host admission. |
+| `dev_flow_open_task` | Read or create | Create a Task for one explicit Repository Scope, or resume the same Task from any participating repository when `new_task` is null. |
 | `dev_flow_get_task` | Read-only | Read a persisted Task by ID; an optional operation probe can request the Recovery assessment for an uncertain mutation. |
 | `dev_flow_get_next_action` | Read-only | Read the authoritative current Action, including completion conditions, allowed effects, required evidence, verification budget, method steps, and every legal transition. |
 | `dev_flow_apply_action` | Mutation | Apply one Core-declared transition using the current revision, Action identity, process identity, repository binding, and closed payload; it also carries explicit recovery apply. |
@@ -156,3 +156,62 @@ terminal shell commands.
 
 Unknown CLI arguments, tools outside this catalog, and calls that do not satisfy selector admission
 are not supported entrypoints.
+
+### Repository Scope and host-preference fields
+
+When creating a multi-repository Task, `repository_path` identifies the primary repository. The call
+may add one primary key and up to seven explicit additional repositories:
+
+```json
+{
+  "host": "codex",
+  "repository_path": "/workspace/core",
+  "primary_repository_key": "core",
+  "additional_repositories": [
+    { "key": "docs", "repository_path": "/workspace/docs" }
+  ],
+  "new_task": {
+    "request": "Synchronize interface documentation across the Core and docs repositories",
+    "initial_scope": [],
+    "initial_out_of_scope": [],
+    "known_acceptance_criteria": [],
+    "verification_budget": {
+      "level": "targeted",
+      "max_automatic_commands": 1,
+      "allow_full_suite": false,
+      "allow_manual_handoff": false
+    },
+    "method_profile": "plain"
+  }
+}
+```
+
+This example shows the closed MCP input shape; it is not a shell command. Creation uses the existing
+non-null Task intent in `new_task`. Resume omits it or sets it to `null`, may point
+`repository_path` at any participating repository, and omits the Scope-creation fields. A Scope
+contains one to eight repositories, additions are sorted by key, and membership is immutable after
+creation. Single-repository calls require no new fields and retain ordinary relative paths.
+Multi-repository payload paths use `<repository-key>::<repository-relative-path>`.
+
+The Task result retains the primary `repository` and adds `primary_repository_key` plus sorted
+`additional_repositories`. The current Action's single `repository_binding_digest` remains the
+primary binding digest for a single-repository Task and becomes the complete Scope aggregate for a
+multi-repository Task. Every active Task's `repository_claims` are acquired, retained, or released
+in the same SQLite transaction as the snapshot and event. An incompatible old Schema follows
+`reject-and-reset`: reject with zero writes before writable open and never migrate, delete, rename,
+or overwrite the data.
+
+The `dev_flow_server_info({})` result includes:
+
+```json
+{
+  "host_preferences": {
+    "codex": { "codebase_memory": false },
+    "deepseek": { "codebase_memory": false }
+  }
+}
+```
+
+These values come from the process-start snapshot of the read-only
+`$HOME/.dev-flow/config.json` file. They express preference, not installed or available index
+capability. Both are false when the file is absent, and Dev Flow does not create or modify it.

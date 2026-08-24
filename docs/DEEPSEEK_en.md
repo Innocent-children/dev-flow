@@ -94,6 +94,41 @@ A Task selects `plain`, `spec-kit`, or `openspec`. Core manages the current node
 destination, Recovery, blocker, and terminal outcome. The Adapter performs current-node work,
 presents the complete Action, and forwards a closed payload.
 
+## Two-repository declaration, Workspace Root, and optional indexing
+
+The canonical `Workspace Root` established when DSH starts is the complete permission boundary. It
+may be a non-Git common parent of two Git repositories. The primary repository, every additional
+repository, and their resolved symlink targets must remain inside that Root. With `/workspace` as
+the Root and `/workspace/core` plus `/workspace/docs` as repositories, send:
+
+```text
+/dev-flow Use /workspace/core as primary repository key core and add repository key docs at /workspace/docs. Update core::internal/api.go and docs::reference/api.md, then run only the targeted checks.
+```
+
+Replace the paths with real absolute paths. A Scope contains one to eight repositories and is
+immutable after creation. The Adapter rejects root-external paths and symlink escapes before a
+task-bearing open call. Dev Flow does not scan parent or neighboring directories, dependencies, or
+index results to discover repositories. A single-repository request needs no key and retains
+ordinary relative paths. Resume from any participating repository returns the same Task.
+DeepSeek and Codex share one Core contract for Repository Scope, scoped paths, Action, and the single
+`repository_binding_digest`. Host permission checks do not create a second process state.
+
+Optional code indexing is selected through the read-only configuration:
+
+```json
+{
+  "codex": { "codebase_memory": false },
+  "deepseek": { "codebase_memory": true }
+}
+```
+
+The fixed path is `$HOME/.dev-flow/config.json`. A missing file means false, and Dev Flow does not
+create or modify it. True permits only codebase-memory that is already visible and usable in the
+current DSH session. If it is missing, incomplete, or becomes unavailable, DeepSeek reports that at
+most once per Dev Flow session and immediately falls back to built-in search without blocking the
+Task. It never installs, configures, or starts the index. Index coverage cannot broaden Workspace
+Root or determine Scope, permission, Recovery, or process transitions.
+
 ## MCP tools
 
 The DeepSeek Adapter exposes the same six-tool Core catalog as Codex. DSH presents qualified tool
@@ -101,8 +136,8 @@ names, but the Core tool identities remain unchanged.
 
 | MCP tool | Purpose |
 | --- | --- |
-| `dev_flow_server_info` | Read Core identity, capabilities, process, method profiles, and the tool catalog. It must be called first after valid admission. |
-| `dev_flow_open_task` | Create a Task for the current canonical repository or resume its existing Task. |
+| `dev_flow_server_info` | Read Core identity, capabilities, process, method profiles, tool catalog, and effective DeepSeek index preference. It must be called first after valid admission. |
+| `dev_flow_open_task` | Create one Task for explicitly declared primary and additional repositories inside Workspace Root, or resume that Task from any participating repository. |
 | `dev_flow_get_task` | Read the persisted Task and optionally attach an operation probe for a Recovery assessment. |
 | `dev_flow_get_next_action` | Read the authoritative current Action, verification budget, method steps, and every legal transition. |
 | `dev_flow_apply_action` | Apply one Core-declared transition with the current revision, Action identity, repository binding, and closed payload. |

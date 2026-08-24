@@ -112,8 +112,13 @@ Core 决定 retry advice、recovery apply 或 `BLOCKED`。Blocker 解除后回�
 
 ### 本地持久化与只读 Git 观察
 
-任务、事件、证据和 repository claim 保存在本地 SQLite。Core 可以读取 canonical repository、
-branch、HEAD、index/worktree 和有界 changed paths；Git 修改仍由获得用户授权的 Host 负责。
+任务、事件、证据和 repository claim 保存在本地 SQLite。一个 Task 可以拥有一个主仓库和最多七个
+显式附加仓库；Scope 创建后不可变，全部仓库共享同一流程状态。Core 按主仓优先、附加仓库 key
+排序的顺序读取各仓库的 canonical identity、branch、HEAD、index/worktree 和有界 changed paths；
+Git 修改仍由获得用户授权的 Host 负责。
+
+`$HOME/.dev-flow/config.json` 只读提供 Codex 与 DeepSeek 各自的 `codebase_memory` 布尔偏好。
+配置不存在时默认关闭；配置和索引能力不进入 Task、repository binding、Recovery 或流程权威。
 
 ## 产品组成
 
@@ -131,6 +136,8 @@ branch、HEAD、index/worktree 和有界 changed paths；Git 修改仍由获得�
 - Task 保存不可变原始意图，实质 requirements 或 design 变化会失效下游旧 authority；
 - 每个 Task 携带 verification budget，验证范围必须与当前节点、改动、验收条件或恢复风险直接相关；
 - mutation 使用 revision、action identity、source cursor 与 repository binding；
+- 一个 Task 的一至八个显式仓库共享同一 Action、revision、verification budget、Recovery、Blocker
+  和 Outcome；
 - 不确定 mutation 必须先读取，再选择恢复或重试；
 - repository-changing refactor 必须重新经过 `TEST`；
 - `DELIVERY` 需要当前测试证据和当前开发者理解证据；
@@ -140,13 +147,15 @@ branch、HEAD、index/worktree 和有界 changed paths；Git 修改仍由获得�
 
 ## 当前产品边界
 
-当前版本聚焦一个本地 Host、一个现有 Git 仓库和每个 canonical repository root 一个活动 Task。
-产品尚未提供：
+当前产品聚焦一个本地 Host，以及由一个主仓库和零至七个显式附加仓库组成的有界 Repository
+Scope。每个参与仓库最多被一个活动 Task claim；单仓库调用继续使用普通相对路径，多仓库路径使用
+`<repository-key>::<repository-relative-path>`。产品尚未提供：
 
 - 用户自定义 graph、workflow DSL、graph editor 或 plugin framework；
 - Web UI、remote MCP、HTTP/SSE、authentication 或 telemetry；
 - 通用 shell、自动 Git 修复、commit、push、merge、rebase 或发布；
-- 多仓库 Task、并行节点、subtasks 或自动跨 Host takeover；
+- 自动发现或动态修改 Repository Scope、多仓库并行节点、subtasks 或自动跨 Host takeover；
+- 自动多仓库编排、跨仓库 Git 事务或仓库级独立流程状态；
 - pre-graph Task migration、legacy snapshot decoder 或兼容 runtime；
 - Core 内安装、执行或解析 Spec Kit/OpenSpec。
 

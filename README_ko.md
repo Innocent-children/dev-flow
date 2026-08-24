@@ -48,6 +48,30 @@ Dev Flow는 여러 개발 노드를 거치고, 재작업 가능성이 있으며,
 세션에 걸쳐 재개해야 하는 실제 저장소 작업에 적합합니다. 상태 보존이 필요 없는 일회성 질문이나
 기계적인 단일 파일 수정은 Codex 또는 DeepSeek를 직접 사용하는 편이 일반적으로 더 단순합니다.
 
+## 다중 저장소 Task와 선택적 코드 인덱싱
+
+하나의 Task는 현재 Git 저장소를 주 저장소로 명시하고 0~7개의 추가 저장소를 포함할 수 있습니다.
+모든 저장소는 하나의 current node, Action, revision, verification budget, Recovery, Blocker,
+Outcome을 공유합니다. 상위·인접 디렉터리, 종속성 또는 코드 인덱스를 탐색해 범위를 확장하지
+않습니다. 단일 저장소 호출과 일반 상대 경로는 호환되며, 다중 저장소 경로는
+`<repository-key>::<repository-relative-path>`로 소속을 표시합니다.
+
+선택적 코드 인덱스 기본 설정은 읽기 전용 `$HOME/.dev-flow/config.json`에서 가져옵니다.
+
+```json
+{
+  "codex": { "codebase_memory": false },
+  "deepseek": { "codebase_memory": true }
+}
+```
+
+디렉터리나 파일이 없으면 두 값은 모두 `false`이며 Dev Flow는 파일을 만들거나 수정하지 않습니다.
+값이 `true`여도 Host는 이미 설치되어 사용 가능한 codebase-memory만 사용합니다. 사용할 수 없으면
+세션당 최대 한 번 알리고 기본 검색으로 전환하며 Task를 차단하지 않습니다. Codex 추가 저장소는
+세션 시작 시 이미 허용된 writable root여야 하고 Dev Flow는 sandbox를 바꾸지 않습니다. DeepSeek의
+모든 저장소는 현재 Workspace Root 안에 있어야 하며, Root는 Git 저장소가 아닌 공통 상위 디렉터리일
+수 있습니다.
+
 ## 설치, 업데이트 및 제거
 
 공개 아티팩트는 macOS arm64와 Node.js `>=24`를 지원하며 설치 예시는 npm `latest`를 사용합니다.
@@ -217,10 +241,10 @@ dev_flow_cancel_task
 
 각 도구의 읽기/쓰기 분류, 입력 역할과 동작은 [Command Reference](docs/COMMANDS_en.md)를 참고하십시오.
 
-Core는 기존 Git 저장소 하나를 제한된 읽기 전용 방식으로 관찰하여 repository binding을 만들고
-변경 사실을 평가할 수 있습니다. Git mutation은 사용자 승인을 받은 Host가 수행합니다. Core는
-범용 shell을 노출하지 않으며 checkout, commit, push, merge, rebase, tag 또는 publish 작업을
-수행하지 않습니다.
+Core는 Task가 명시한 1~8개의 기존 Git 저장소를 고정 순서로 제한된 읽기 전용 방식으로 관찰하여
+repository bindings를 만들고 변경 사실을 평가할 수 있습니다. Git mutation은 사용자 승인을 받은
+Host가 수행합니다. Core는 범용 shell을 노출하지 않으며 checkout, commit, push, merge, rebase,
+tag 또는 publish 작업을 수행하지 않습니다.
 
 ## 데이터와 복구
 

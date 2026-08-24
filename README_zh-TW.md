@@ -45,6 +45,28 @@ Dev Flow 適合需要跨越多個開發節點、可能返工、需要保留驗�
 儲存庫任務。一次性問答或不需要保存流程狀態的單檔機械修改，通常直接使用 Codex 或 DeepSeek
 更簡單。
 
+## 多儲存庫 Task 與可選程式碼索引
+
+一個 Task 可以明確使用目前 Git 儲存庫作為主要儲存庫，並加入零至七個附加儲存庫；全部儲存庫
+始終共用一個 current node、Action、revision、verification budget、Recovery、Blocker 與 Outcome。
+系統不會掃描父目錄、相鄰目錄、相依關係或程式碼索引來擴大範圍。單儲存庫呼叫與一般相對路徑保持
+相容；多儲存庫路徑使用 `<repository-key>::<repository-relative-path>` 明確歸屬。
+
+可選程式碼索引偏好來自唯讀的 `$HOME/.dev-flow/config.json`：
+
+```json
+{
+  "codex": { "codebase_memory": false },
+  "deepseek": { "codebase_memory": true }
+}
+```
+
+目錄或檔案不存在時兩個值都預設為 `false`，Dev Flow 不會建立或修改該檔案。偏好為 `true` 時，
+Host 只使用已安裝且可用的 codebase-memory；能力缺少或中途不可用時，每個工作階段最多提示一次並
+退回內建搜尋，不會阻塞 Task。Codex 的附加儲存庫必須是工作階段啟動時已授權的 writable root，
+Dev Flow 不會修改 sandbox；DeepSeek 的全部儲存庫必須位於目前 Workspace Root 下，該 Root 可以是
+非 Git 的共同父目錄。
+
 ## 安裝、升級與解除安裝
 
 目前公開製品支援 macOS arm64 與 Node.js `>=24`。安裝範例使用 npm `latest`；Codex 與 DeepSeek
@@ -212,9 +234,9 @@ dev_flow_cancel_task
 
 每個工具的讀寫性質、參數用途與行為說明見 [命令參考](docs/COMMANDS.md)。
 
-Core 可以有界、唯讀地觀察一個既有 Git 儲存庫，用於建立 repository binding 與判斷變更事實。
-Git 修改由獲得使用者授權的 Host 執行；Core 不提供通用 shell，也不執行 checkout、commit、
-push、merge、rebase、tag 或發布操作。
+Core 可以按照固定順序，有界且唯讀地觀察一個 Task 明確宣告的一至八個既有 Git 儲存庫，用於建立
+repository bindings 與判斷變更事實。Git 修改由獲得使用者授權的 Host 執行；Core 不提供通用
+shell，也不執行 checkout、commit、push、merge、rebase、tag 或發布操作。
 
 ## 資料與恢復
 

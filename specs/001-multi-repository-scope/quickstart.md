@@ -179,7 +179,7 @@ Action 只有一个 aggregate `repository_binding_digest`。
 参数、临时目录和证据输出。
 
 T034 Attempts 1～6 保留为不可覆盖的历史证据。Attempts 1、2、4、5、6 已失败，Attempt 3 已通过但只证明
-mutation 前恢复；Attempt 7 已通过最终双 session 合同，T034 已完成且 Feature 为 `Ready`。用户已授权 runner 将 substantive 与 resume
+mutation 前恢复；Attempt 7 已通过最终双 session 合同，T034 已完成。用户已授权 runner 将 substantive 与 resume
 session 的 raw JSONL 以 `0600` sidecar 保存在独立 evidence 旁，并授权读取其中的完整 MCP 调用。
 后续每次真实运行必须绑定新的 source commit，只验证上一份 raw failure 直接支持的精确修复；首次
 通过后立即停止，失败时必须先读取 raw transcript 并修改根因，不允许无代码变化重跑。
@@ -214,7 +214,8 @@ REQUIREMENTS `unresolved_questions` 被错误放入闭合 `baseline`，Core 返�
 reference 与 runner 现要求 reason 完全服从当前 transition。Attempt 5 基于 source commit
 `b884e8d8eacaf055bfc5d938612258feb5c7cb4d` 首次完整通过，证明六个 checkpoint、一个 Core Task、
 双仓 mutation 后附加仓恢复、唯一验证命令和 DONE revision 8。T035 已完成，不再运行 DeepSeek
-repair Journey。第 7 节 T040 仍为 0/1，等待 T036～T039 完成。
+repair Journey。T036～T039 已完成；第 7 节 T040 已唯一执行一次并通过，预算 1/1 consumed，
+Feature 为 `Complete`。
 
 ### Codex
 

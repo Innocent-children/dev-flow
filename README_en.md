@@ -49,6 +49,32 @@ Dev Flow fits real repository work that crosses multiple development nodes, may 
 retain verification evidence, or needs to resume across sessions. A one-off question or mechanical
 single-file edit with no retained process state is usually simpler with Codex or DeepSeek directly.
 
+## Multi-repository Tasks and optional code indexing
+
+A Task can explicitly use the current Git repository as its primary repository and add zero to seven
+additional repositories. All repositories share one current node, Action, revision, verification
+budget, Recovery, Blocker, and Outcome. Dev Flow never scans parent or neighboring directories,
+dependencies, or a code index to expand the scope. Single-repository calls and ordinary relative
+paths remain compatible; multi-repository paths use
+`<repository-key>::<repository-relative-path>` to identify ownership.
+
+Optional code-index preferences come from the read-only `$HOME/.dev-flow/config.json` file:
+
+```json
+{
+  "codex": { "codebase_memory": false },
+  "deepseek": { "codebase_memory": true }
+}
+```
+
+Both values default to `false` when the directory or file is absent, and Dev Flow does not create or
+modify the file. When a preference is `true`, the host uses codebase-memory only if it is already
+installed and available. If it is missing or becomes unavailable, the host reports that once per
+session at most and falls back to built-in search without blocking the Task. Codex additional
+repositories must already be authorized writable roots when the session starts; Dev Flow does not
+change the sandbox. Every DeepSeek repository must be inside the current Workspace Root, which may
+be a non-Git common parent.
+
 ## Install, update, and remove
 
 Current public artifacts support macOS arm64 and Node.js `>=24`. Installation examples select npm's
@@ -245,10 +271,10 @@ dev_flow_cancel_task
 See the [Command Reference](docs/COMMANDS_en.md) for each tool's read/write classification, input role,
 and behavior.
 
-Core may inspect one existing Git repository through bounded, read-only observation to establish a
-repository binding and evaluate change facts. A user-authorized host performs Git mutations. Core
-does not expose a generic shell or run checkout, commit, push, merge, rebase, tag, or publication
-operations.
+Core may inspect the one to eight existing Git repositories explicitly declared by a Task through
+bounded, ordered, read-only observation to establish repository bindings and evaluate change facts.
+A user-authorized host performs Git mutations. Core does not expose a generic shell or run checkout,
+commit, push, merge, rebase, tag, or publication operations.
 
 ## Data and recovery
 

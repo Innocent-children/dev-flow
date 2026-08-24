@@ -81,6 +81,36 @@ Core 会持续返回：
 
 Codex 完成当前节点工作后，只提交 live Action 允许的 `transition_id` 和 closed payload。
 
+## 两仓声明、权限与可选索引
+
+启动 Codex 会话时，当前 Git 仓库自动成为主仓库。附加仓库必须先通过 Codex 的 `--add-dir` 成为
+当前会话已授权的 writable root；Dev Flow 不修改 sandbox，也不读取全局 Codex 配置来推断授权。
+授权完成后，可以直接发送：
+
+```text
+$dev-flow-codex:dev-flow Use the current Git repository as primary key core and add repository key docs at /absolute/path/to/docs. Update core::internal/api.go and docs::reference/api.md, then run only the targeted checks.
+```
+
+路径必须替换为真实绝对路径。Scope 总数为一至八，创建后不可增加、删除、重命名或替换；系统不
+扫描父目录、相邻目录、依赖或索引结果来发现仓库。单仓库请求不需要 key，继续使用普通相对路径。
+从附加仓库恢复时，Codex 仍返回原主仓库、ordered Scope、revision 和当前 Action。
+Codex 与 DeepSeek 共用同一 Repository Scope、scoped path、Action 和唯一
+`repository_binding_digest` Core 合同；Host 权限检查不创建第二套流程状态。
+
+可选代码索引偏好来自只读配置：
+
+```json
+{
+  "codex": { "codebase_memory": true },
+  "deepseek": { "codebase_memory": false }
+}
+```
+
+文件路径固定为 `$HOME/.dev-flow/config.json`。文件不存在时偏好为 false，Dev Flow 不创建或修改
+它。true 只允许使用当前会话中已经可见且可用的 codebase-memory；缺失、不完整或中途不可用时，
+Codex 每个 Dev Flow 会话最多提示一次并立即回退到内置 Git、文件和文本检索，不阻塞 Task，也不
+安装、配置或启动索引能力。索引结果不能扩大 Scope、证明写权限或决定 Recovery 与流程流转。
+
 ## 显式调用边界
 
 Skill metadata 设置 `policy.allow_implicit_invocation: false`，因此只有下面这个精确 selector 可以
@@ -110,8 +140,8 @@ Core ready、`standard-development`、definition digest、method profiles 与六
 
 | MCP 工具 | 作用 |
 | --- | --- |
-| `dev_flow_server_info` | 读取 Core identity、能力、process、method profile 和工具目录；有效 admission 后必须首先调用。 |
-| `dev_flow_open_task` | 为当前 canonical repository 创建新 Task，或恢复其现有 Task。 |
+| `dev_flow_server_info` | 读取 Core identity、能力、process、method profile、工具目录和 Codex 有效索引偏好；有效 admission 后必须首先调用。 |
+| `dev_flow_open_task` | 为当前主仓库和显式附加仓库创建一个 Task，或从任一参与仓库恢复同一 Task。 |
 | `dev_flow_get_task` | 读取持久化 Task；可附带 operation probe 获取 Recovery assessment。 |
 | `dev_flow_get_next_action` | 读取当前节点的权威 Action、验证预算、method steps 和全部合法 transition。 |
 | `dev_flow_apply_action` | 使用当前 revision、Action identity、repository binding 和 closed payload 应用一次 Core 声明的 transition。 |

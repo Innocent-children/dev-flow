@@ -237,7 +237,8 @@ Attempt 3 暴露 REQUIREMENTS `unresolved_questions` 被模型错误嵌入 `base
 DELIVERY apply 因 `reason_required=false` 时携带非空 reason 被 Core 拒绝；同步 Host reference 与
 runner 已将 reason 绑定当前 transition。Attempt 5 基于
 `b884e8d8eacaf055bfc5d938612258feb5c7cb4d` 通过：六个 checkpoint、一个 Core Task、双仓 mutation
-后附加仓恢复、一次验证命令和 DONE revision 8。T035 已完成；T040 仍为 0/1，等待文档任务完成。
+后附加仓恢复、一次验证命令和 DONE revision 8。T035 已完成；T036～T039 文档同步完成后，T040
+唯一一次 `pnpm run validate` 已通过，预算 1/1 consumed。
 
 明确不建立 3～8 仓库、节点、平台或配置排列组合；不做压力、性能、fuzz、版本矩阵；不安装或
 测试真实 codebase-memory；T034 之外的真实 Host Journey 不得扩大既定预算。

@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-23
 
-**Status**: Ready
+**Status**: Complete
 
 **Input**: User description: "为 Dev Flow 增加多仓库任务范围与用户配置，在保持单一 Core 流程权威和现有单仓库行为的前提下，让一个 Task 显式绑定一个主仓库和若干附加仓库。"
 
@@ -342,8 +342,8 @@ build/install/readback、非 Git Workspace Root、六个 DeepSeek session、一�
 Scope 一致；唯一验证命令执行一次，最终 DONE revision 8。T035 已完成，不再运行 DeepSeek repair
 Journey。
 
-T040 最终 `pnpm run validate` 仍为 0/1。当前 T034、T035 已完成，Feature 状态为 `Ready`；T040
-仍须等待 T036～T039 完成。
+T040 最终 `pnpm run validate` 已在 T036～T039 完成后唯一执行一次并通过，预算 1/1 consumed。
+T034、T035 及全部文档任务均已完成，Feature 状态为 `Complete`。
 
 ## Success Criteria *(mandatory)*
 

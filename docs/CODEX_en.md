@@ -85,6 +85,41 @@ Core continuously returns:
 
 After performing current-node work, Codex submits only a live Action transition and a closed payload.
 
+## Two-repository declaration, permission, and optional indexing
+
+When a Codex session starts, the current Git repository becomes the primary repository. Every
+additional repository must first be authorized as a writable root for that session through Codex
+`--add-dir`. Dev Flow does not change the sandbox or inspect global Codex configuration to infer
+authorization. After granting access, send:
+
+```text
+$dev-flow-codex:dev-flow Use the current Git repository as primary key core and add repository key docs at /absolute/path/to/docs. Update core::internal/api.go and docs::reference/api.md, then run only the targeted checks.
+```
+
+Replace the path with the real absolute path. A Scope contains one to eight repositories and cannot
+add, remove, rename, or replace members after creation. Dev Flow does not scan parent or neighboring
+directories, dependencies, or index results to discover repositories. A single-repository request
+needs no key and retains ordinary relative paths. Resume from an additional repository returns the
+original primary repository, ordered Scope, revision, and current Action.
+Codex and DeepSeek share one Core contract for Repository Scope, scoped paths, Action, and the single
+`repository_binding_digest`. Host permission checks do not create a second process state.
+
+Optional code indexing is selected through the read-only configuration:
+
+```json
+{
+  "codex": { "codebase_memory": true },
+  "deepseek": { "codebase_memory": false }
+}
+```
+
+The fixed path is `$HOME/.dev-flow/config.json`. A missing file means false, and Dev Flow does not
+create or modify it. True permits only codebase-memory that is already visible and usable in the
+current session. If it is missing, incomplete, or becomes unavailable, Codex reports that at most
+once per Dev Flow session and immediately falls back to built-in Git, file, and text search without
+blocking the Task. It never installs, configures, or starts the index. Index results cannot expand
+the Scope, prove write permission, or determine Recovery and process transitions.
+
 ## Explicit invocation boundary
 
 Skill metadata sets `policy.allow_implicit_invocation: false`, so only this exact selector enters Dev
@@ -116,8 +151,8 @@ profile order does not affect compatibility.
 
 | MCP tool | Purpose |
 | --- | --- |
-| `dev_flow_server_info` | Read Core identity, capabilities, process, method profiles, and the tool catalog. It must be called first after valid admission. |
-| `dev_flow_open_task` | Create a Task for the current canonical repository or resume its existing Task. |
+| `dev_flow_server_info` | Read Core identity, capabilities, process, method profiles, tool catalog, and effective Codex index preference. It must be called first after valid admission. |
+| `dev_flow_open_task` | Create one Task for the current primary and explicit additional repositories, or resume that Task from any participating repository. |
 | `dev_flow_get_task` | Read the persisted Task and optionally attach an operation probe for a Recovery assessment. |
 | `dev_flow_get_next_action` | Read the authoritative current Action, verification budget, method steps, and every legal transition. |
 | `dev_flow_apply_action` | Apply one Core-declared transition with the current revision, Action identity, repository binding, and closed payload. |

@@ -44,6 +44,28 @@ Adapter 必须在当前节点的允许副作用和验证预算内执行工作。
 Dev Flow 适合需要跨越多个开发节点、可能发生返工、需要保留验证证据，或必须跨会话恢复的真实
 仓库任务。一次性问答、无需状态保留的单文件机械修改，直接使用 Codex 或 DeepSeek 通常更简单。
 
+## 多仓库 Task 与可选代码索引
+
+一个 Task 可以显式声明当前 Git 仓库作为主仓库，并加入零至七个附加仓库；全部仓库始终共享一个
+current node、Action、revision、verification budget、Recovery、Blocker 和 Outcome。系统不会扫描
+父目录、相邻目录、依赖或代码索引来扩大范围。单仓库调用与普通相对路径保持兼容；多仓库路径使用
+`<repository-key>::<repository-relative-path>` 明确归属。
+
+可选代码索引偏好来自只读的 `$HOME/.dev-flow/config.json`：
+
+```json
+{
+  "codex": { "codebase_memory": false },
+  "deepseek": { "codebase_memory": true }
+}
+```
+
+目录或文件不存在时两个值都默认为 `false`，Dev Flow 不会创建或修改该文件。偏好为 `true` 时，
+Host 只会使用已经安装且可用的 codebase-memory；能力缺失或中途不可用时，每个会话最多提示一次并
+回退到内置检索，不阻塞 Task。Codex 的附加仓库必须是会话启动时已授权的 writable root，Dev Flow
+不会修改 sandbox；DeepSeek 的全部仓库必须位于当前 Workspace Root 下，该 Root 可以是非 Git 的
+共同父目录。
+
 ## 安装、升级与卸载
 
 当前公开制品支持 macOS arm64 和 Node.js `>=24`。安装示例使用 npm `latest` dist-tag；支持表继续
@@ -223,9 +245,9 @@ dev_flow_cancel_task
 
 每个工具的读写性质、输入用途和行为解释见 [命令参考](docs/COMMANDS.md)。
 
-Core 可以有界、只读地观察一个现有 Git 仓库，用于建立 repository binding 和判断变更事实。
-Git 修改由获得用户授权的 Host 执行；Core 不提供通用 shell，也不执行 checkout、commit、push、
-merge、rebase、tag 或发布操作。
+Core 可以按固定顺序有界、只读地观察一个 Task 显式声明的一至八个现有 Git 仓库，用于建立
+repository bindings 和判断变更事实。Git 修改由获得用户授权的 Host 执行；Core 不提供通用 shell，
+也不执行 checkout、commit、push、merge、rebase、tag 或发布操作。
 
 ## 数据与恢复
 

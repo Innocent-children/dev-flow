@@ -51,6 +51,33 @@ des reprises, doivent conserver des preuves de vérification ou reprendre entre 
 question ponctuelle ou une modification mécanique d'un seul fichier sans état durable, utiliser directement Codex
 ou DeepSeek est généralement plus simple.
 
+## Tasks multi-dépôts et indexation de code facultative
+
+Un Task peut déclarer explicitement le dépôt Git actuel comme dépôt principal et ajouter de zéro à
+sept dépôts supplémentaires. Tous partagent un seul current node, Action, revision, verification
+budget, Recovery, Blocker et Outcome. Dev Flow n'analyse pas les répertoires parents ou voisins, les
+dépendances ni un index de code pour étendre la portée. Les appels mono-dépôt et les chemins relatifs
+ordinaires restent compatibles ; les chemins multi-dépôts utilisent
+`<repository-key>::<repository-relative-path>` pour indiquer leur appartenance.
+
+Les préférences d'indexation facultatives proviennent du fichier en lecture seule
+`$HOME/.dev-flow/config.json` :
+
+```json
+{
+  "codex": { "codebase_memory": false },
+  "deepseek": { "codebase_memory": true }
+}
+```
+
+Si le répertoire ou le fichier est absent, les deux valeurs sont `false` et Dev Flow ne crée ni ne
+modifie ce fichier. Avec `true`, le Host utilise codebase-memory uniquement s'il est déjà installé
+et disponible. S'il manque ou devient indisponible, le Host le signale au plus une fois par session
+et revient à la recherche intégrée sans bloquer le Task. Les dépôts supplémentaires de Codex doivent
+être des writable roots déjà autorisés au démarrage de la session ; Dev Flow ne modifie pas le
+sandbox. Tous les dépôts DeepSeek doivent se trouver sous le Workspace Root actuel, qui peut être un
+parent commun non Git.
+
 ## Installation, mise à jour et désinstallation
 
 Les artefacts publics prennent en charge macOS arm64 et Node.js `>=24` ; les exemples utilisent npm `latest`.
@@ -221,9 +248,10 @@ dev_flow_cancel_task
 Consultez la [référence des commandes](docs/COMMANDS_en.md) pour la classification lecture/écriture, le rôle des
 entrées et le comportement de chaque outil.
 
-Core peut observer un dépôt Git existant de façon bornée et en lecture seule afin d'établir un repository binding
-et d'évaluer les faits de modification. Les mutation Git sont effectuées par un Host autorisé par l'utilisateur.
-Core n'expose pas de shell générique et n'exécute pas checkout, commit, push, merge, rebase, tag ou publication.
+Core peut observer, de façon bornée, ordonnée et en lecture seule, les un à huit dépôts Git existants déclarés
+explicitement par un Task afin d'établir des repository bindings et d'évaluer les faits de modification. Les
+mutation Git sont effectuées par un Host autorisé par l'utilisateur. Core n'expose pas de shell générique et
+n'exécute pas checkout, commit, push, merge, rebase, tag ou publication.
 
 ## Données et récupération
 

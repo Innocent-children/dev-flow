@@ -1,6 +1,6 @@
 # 001 — 多仓库任务范围与用户配置
 
-**Status**: Ready
+**Status**: Complete
 **Created**: 2026-08-23
 
 本 Feature 为一个 Dev Flow Task 增加显式、有界且创建后不可变的 Repository Scope：一个主仓库和
@@ -51,7 +51,8 @@ checkpoint。Attempt 4 的前五段均通过，最后 DELIVERY apply 因 `reason
 `reason` 被 Core 拒绝。同步 Host reference 与 runner 现将 `reason` 直接绑定当前 transition 合同。
 Attempt 5 基于 source commit `b884e8d8eacaf055bfc5d938612258feb5c7cb4d` 首次通过：六个 DeepSeek
 session 使用一个 Core Task，完成双仓修改、附加仓恢复、唯一验证命令、理解确认和 DONE。T035 已
-完成，Feature 状态为 `Ready`。
+完成。T036～T039 已同步全部维护文档族；T040 唯一一次 `pnpm run validate` 已通过，Feature 状态为
+`Complete`。
 本 Feature 不授权版本修改、npm
 发布、Tag、GitHub Release 或其他发布操作。
 
@@ -63,6 +64,6 @@ session 使用一个 Core Task，完成双仓修改、附加仓恢复、唯一�
 - SQLite 不兼容数据使用零写入 reject-and-reset，不迁移或自动清理；
 - T034 Attempts 1～6 保留为不可覆盖的历史证据，Attempt 7 为首次满足最终双 session 合同的通过结果；
 - T035 Attempts 1～4 失败 evidence 必须保留，Attempt 5 是首次完整通过结果；不再运行 DeepSeek repair Journey；
-- T040 `pnpm run validate` 仍为 0/1，T035 完成前不得执行；
+- T040 `pnpm run validate` 已通过，预算 1/1 consumed，不得再次执行；
 - T034 repair loop 不授权 T035、T040 或任何无关真实测试；
 - Product Feature 与版本发布严格分离。

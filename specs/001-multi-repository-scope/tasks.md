@@ -175,7 +175,7 @@ description: "Implementation tasks for bounded multi-repository Task scope and r
   - Attempt 5 result: source-bound setup/readback passed；6 DeepSeek sessions；1 Core Task；2 repositories；revision 5 before/after additional-repository resume；Action ID、binding digest 与 ordered Scope 相同；7 successful Actions；1 verification command；DONE revision 8
   - Attempt 5 raw transcripts: evidence 旁六个 `.raw.jsonl`，权限 `0600`，仅本地诊断且由 `.gitignore` 排除
 
-**Checkpoint**: T034、T035 已完成；Codex Attempt 7 与 DeepSeek Attempt 5 分别为首次满足最终合同的通过结果；Feature 为 `Ready`。停止，不执行 T036～T040。
+**Checkpoint**: T034、T035 已完成；Codex Attempt 7 与 DeepSeek Attempt 5 分别为首次满足最终合同的通过结果。此处曾按 Phase 4 硬停点停止；用户随后明确授权执行 T036～T040。
 
 ---
 
@@ -185,11 +185,17 @@ description: "Implementation tasks for bounded multi-repository Task scope and r
 
 **Independent Test**: 所有 locale 表达相同的 Scope、配置、权限、scoped path、fallback、reject-and-reset 和单仓兼容事实；一次 `pnpm run validate` 通过且没有版本或发布变更。
 
-- [ ] T036 更新 `README.md`、`README_en.md`、`README_zh-TW.md`、`README_ja.md`、`README_ko.md`、`README_es.md`、`README_fr.md`、`README_de.md`、`README_pt-BR.md`，同步一个主仓+最多七个附加仓库、单仓兼容、配置样例、两 Host 权限与索引缺失回退，不修改安装版本或发布声明（FR-011、FR-031、FR-032；SC-001、SC-007、SC-009；`plan.md`「Documentation Scope」）。
-- [ ] T037 [P] 更新 `docs/PRODUCT.md`、`docs/PRODUCT_en.md`、`docs/ROADMAP.md`、`docs/ROADMAP_en.md`，将旧绝对单仓边界改为本 Feature 的显式有界 Scope，同时继续排除自动多仓编排、未来 Provider/Orchestrator 和发布能力（FR-003、FR-013、FR-030、FR-031、FR-032；SC-002；`research.md`「Decision 13」）。
-- [ ] T038 [P] 更新 `docs/ARCHITECTURE.md`、`docs/ARCHITECTURE_en.md`、`docs/COMMANDS.md`、`docs/COMMANDS_en.md`，准确记录 `ProcessTask.Repository` 主仓、sorted additions、唯一 aggregate digest、顺序 Observer、claim 事务、scoped path、open/server-info 输入结果和 reject-and-reset（FR-001～FR-013、FR-019、FR-028～FR-031；SC-002～SC-006、SC-010；`contracts/repository-scope.md`、`contracts/mcp-tools.md`、`contracts/persistence-recovery.md`）。
-- [ ] T039 [P] 更新 `packages/codex/README.md`、`docs/CODEX_en.md`、`packages/deepseek/README.md`、`docs/DEEPSEEK_en.md`，分别提供可执行两仓声明、Codex additional writable roots、DeepSeek Workspace Root、配置样例和 codebase-memory 诚实回退，并保持两个 Host 共用一个 Core 合同（FR-014～FR-025、FR-031；SC-007、SC-008、SC-009；`contracts/host-configuration.md` 全部条款）。
-- [ ] T040 在所有定向测试、T034 取得首次通过结果、T035 完成一次真实 Journey，且 T036～T039 文档同步完成后，依据 `package.json` 与 `scripts/validate-repository.sh` 最多调用一次 `pnpm run validate`，将结果记录在 `specs/001-multi-repository-scope/tasks.md` 的本任务状态。调用一旦实际启动即消耗预算，无论成功、失败、中断或超时；失败时必须停止并将 Feature 标记为 `Blocked`，不得在同一任务中自动修复后重跑。第二次执行必须先获得用户明确批准，并同步修订 `spec.md`、`plan.md`、`quickstart.md` 和 `tasks.md` 中的验证预算。不得追加平台/仓库/节点/配置/Recovery 矩阵、压力/性能/fuzz、真实 codebase-memory 或任何 release command（FR-030、FR-031、FR-032；SC-001～SC-010；`quickstart.md`「最终全仓门禁（最多一次）」）。
+- [X] T036 更新 `README.md`、`README_en.md`、`README_zh-TW.md`、`README_ja.md`、`README_ko.md`、`README_es.md`、`README_fr.md`、`README_de.md`、`README_pt-BR.md`，同步一个主仓+最多七个附加仓库、单仓兼容、配置样例、两 Host 权限与索引缺失回退，不修改安装版本或发布声明（FR-011、FR-031、FR-032；SC-001、SC-007、SC-009；`plan.md`「Documentation Scope」）。
+- [X] T037 [P] 更新 `docs/PRODUCT.md`、`docs/PRODUCT_en.md`、`docs/ROADMAP.md`、`docs/ROADMAP_en.md`，将旧绝对单仓边界改为本 Feature 的显式有界 Scope，同时继续排除自动多仓编排、未来 Provider/Orchestrator 和发布能力（FR-003、FR-013、FR-030、FR-031、FR-032；SC-002；`research.md`「Decision 13」）。
+- [X] T038 [P] 更新 `docs/ARCHITECTURE.md`、`docs/ARCHITECTURE_en.md`、`docs/COMMANDS.md`、`docs/COMMANDS_en.md`，准确记录 `ProcessTask.Repository` 主仓、sorted additions、唯一 aggregate digest、顺序 Observer、claim 事务、scoped path、open/server-info 输入结果和 reject-and-reset（FR-001～FR-013、FR-019、FR-028～FR-031；SC-002～SC-006、SC-010；`contracts/repository-scope.md`、`contracts/mcp-tools.md`、`contracts/persistence-recovery.md`）。
+- [X] T039 [P] 更新 `packages/codex/README.md`、`docs/CODEX_en.md`、`packages/deepseek/README.md`、`docs/DEEPSEEK_en.md`，分别提供可执行两仓声明、Codex additional writable roots、DeepSeek Workspace Root、配置样例和 codebase-memory 诚实回退，并保持两个 Host 共用一个 Core 合同（FR-014～FR-025、FR-031；SC-007、SC-008、SC-009；`contracts/host-configuration.md` 全部条款）。
+- [X] T040 在所有定向测试、T034 取得首次通过结果、T035 完成一次真实 Journey，且 T036～T039 文档同步完成后，依据 `package.json` 与 `scripts/validate-repository.sh` 最多调用一次 `pnpm run validate`，将结果记录在 `specs/001-multi-repository-scope/tasks.md` 的本任务状态。调用一旦实际启动即消耗预算，无论成功、失败、中断或超时；失败时必须停止并将 Feature 标记为 `Blocked`，不得在同一任务中自动修复后重跑。第二次执行必须先获得用户明确批准，并同步修订 `spec.md`、`plan.md`、`quickstart.md` 和 `tasks.md` 中的验证预算。不得追加平台/仓库/节点/配置/Recovery 矩阵、压力/性能/fuzz、真实 codebase-memory 或任何 release command（FR-030、FR-031、FR-032；SC-001～SC-010；`quickstart.md`「最终全仓门禁（最多一次）」）。
+  - attempt: 1/1 consumed
+  - command: `pnpm run validate`
+  - result: passed；exit code 0；`Repository validation passed.`
+  - toolchains: Go `1.26.6`、Node.js `24.18.0`、pnpm `11.21.0`
+  - coverage: frozen workspace install、version authorities、whitespace、Go formatting、release syntax、Codex/DeepSeek deterministic contracts、DeepSeek simulated graph Journey、Go inventory/vet/tests、workspace inventory、Codex dry-pack
+  - skipped: DeepSeek exact rc.8 spill gate 1 项因未设置其专用可选环境变量而按脚本条件跳过；未重跑任何真实 Host Journey，未运行真实 codebase-memory、平台/压力/性能/fuzz 矩阵或 release command
 
 **Checkpoint — FINAL STOP REQUIRED**: 完成 T040 后 Codex MUST 停止并报告各阶段定向检查、两个一次性真实 Journey、唯一全仓门禁和明确未执行项；不得创建版本修改、npm、Tag、GitHub Release 或其他发布工作。
 
@@ -250,7 +256,7 @@ Join: T006
 Parallel task A: T024 -> T025 -> T026 -> T027 -> T028 (Codex)
 Parallel task B: T029 -> T030 and T031 -> T032 (DeepSeek)
 Join: T033
-Sequential evidence: T034 passed on Attempt 7; T035 remains 0/1 and is next
+Sequential evidence: T034 passed on Attempt 7; T035 passed on Attempt 5; T040 later passed once after T036～T039
 ```
 
 ## Implementation Strategy
@@ -275,5 +281,5 @@ The smallest reviewable MVP is Phase 1 plus Phase 2: it delivers US1's bounded R
 - Do not add stress, performance, fuzz, coverage expansion or real codebase-memory installation/integration work.
 - Do not modify `CORE_VERSION`, `packages/codex/package.json`, `packages/deepseek/package.json`, release contracts/scripts/evidence, npm state, Tags or GitHub Releases.
 - T034 Attempts 1～6 为不可覆盖的失败历史证据，Attempt 7 为最终通过证据；不得再次运行 Codex repair Journey。
-- DeepSeek Journey 或 `pnpm run validate` 一旦启动即消费各自唯一的 0/1 预算，无论成功、失败、中断或超时。
+- DeepSeek Journey 与 `pnpm run validate` 的唯一预算均已消费并通过；不得再次执行。
 - T034 repair loop 不得带出 T035 或 T040；不得第二次执行 DeepSeek Journey 或 `pnpm run validate`。

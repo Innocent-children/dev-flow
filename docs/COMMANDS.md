@@ -136,11 +136,65 @@ Core 不支持 remote transport、HTTP/SSE、通用 shell 或 Git mutation 命�
 
 | 工具 | 类型 | 作用 |
 | --- | --- | --- |
-| `dev_flow_server_info` | 只读 | 读取 Core 产品版本、transport、健康状态、支持的 process、Host、method profile 和工具目录。每次有效 Host admission 后必须首先调用。 |
-| `dev_flow_open_task` | 读取或创建 | 为 canonical repository 创建新 Task，或在提供现有仓库且 `new_task` 为空时恢复当前 Task。 |
+| `dev_flow_server_info` | 只读 | 读取 Core 产品版本、transport、健康状态、支持的 process、Host、method profile、工具目录和有效 Host 代码索引偏好。每次有效 Host admission 后必须首先调用。 |
+| `dev_flow_open_task` | 读取或创建 | 为一个显式 Repository Scope 创建新 Task，或在 `new_task` 为空时从任一参与仓库恢复同一 Task。 |
 | `dev_flow_get_task` | 只读 | 按 Task ID 读取持久化 Task；可附带 operation probe，以获取不确定 mutation 的 Recovery assessment。 |
 | `dev_flow_get_next_action` | 只读 | 读取当前节点的权威 Action，包括完成条件、允许副作用、所需证据、验证预算、method steps 和全部合法 transition。 |
 | `dev_flow_apply_action` | mutation | 使用当前 revision、Action identity、process identity、repository binding 与闭合 payload 应用一次 Core 声明的 transition；也承担显式 recovery apply。 |
 | `dev_flow_cancel_task` | destructive mutation | 使用当前 revision 和非空 reason 将非终态 Task 转为 `CANCELLED`。 |
 
 未知 CLI 参数、未列出的 MCP 工具或未满足 selector admission 的调用不属于受支持入口。
+
+### Repository Scope 与 Host 偏好字段
+
+创建多仓库 Task 时，`repository_path` 是主仓库；调用可以增加一个主 key 和最多七个显式附加仓库：
+
+```json
+{
+  "host": "codex",
+  "repository_path": "/workspace/core",
+  "primary_repository_key": "core",
+  "additional_repositories": [
+    { "key": "docs", "repository_path": "/workspace/docs" }
+  ],
+  "new_task": {
+    "request": "同步 Core 与文档仓库中的接口说明",
+    "initial_scope": [],
+    "initial_out_of_scope": [],
+    "known_acceptance_criteria": [],
+    "verification_budget": {
+      "level": "targeted",
+      "max_automatic_commands": 1,
+      "allow_full_suite": false,
+      "allow_manual_handoff": false
+    },
+    "method_profile": "plain"
+  }
+}
+```
+
+该示例只说明 closed MCP 输入形状，不是 shell 命令。创建时 `new_task` 使用既有非空 Task intent；
+恢复时将其省略或设为 `null`，`repository_path` 可以指向任一参与仓库，并省略 Scope 创建字段。
+总仓库数为一至八；附加仓库按 key 排序，Scope 创建后不可变。单仓库调用无需新字段，继续使用普通
+相对路径；多仓库 payload 路径使用 `<repository-key>::<repository-relative-path>`。
+
+Task result 保留主 `repository`，增加 `primary_repository_key` 与 sorted
+`additional_repositories`。当前 Action 中唯一的 `repository_binding_digest` 在单仓库 Task 中仍是
+主 binding digest，在多仓库 Task 中是完整 Scope aggregate。活动 Task 的全部
+`repository_claims` 与 snapshot/event 在同一 SQLite transaction 中 Acquire、Retain 或 Release；
+不兼容旧 Schema 采用 `reject-and-reset`，在 writable open 前零写入拒绝，不自动迁移、删除、改名
+或覆盖数据。
+
+`dev_flow_server_info({})` 的结果包含：
+
+```json
+{
+  "host_preferences": {
+    "codex": { "codebase_memory": false },
+    "deepseek": { "codebase_memory": false }
+  }
+}
+```
+
+这些值来自只读 `$HOME/.dev-flow/config.json` 的进程启动快照，仅表示偏好，不表示索引能力已经安装
+或可用。文件不存在时两者都为 false；Dev Flow 不创建或修改配置文件。

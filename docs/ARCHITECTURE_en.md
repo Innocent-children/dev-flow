@@ -140,6 +140,45 @@ A probe always performs zero writes. An explicit recovery apply may commit the o
 at most once or create `BLOCKED` for a partial or conflicting result. The blocker records the
 source node, and resolution returns only to that resume node.
 
+## Repository Scope, configuration, and persistence boundary
+
+`ProcessTask.Repository` continues to store the primary repository binding.
+`PrimaryRepositoryKey` defaults to `primary`, and `AdditionalRepositories` stores zero to seven
+additional bindings in strict key order. Scope membership, roles, and keys are immutable after
+creation. A single-repository Task keeps its primary binding digest as the effective
+`repository_binding_digest`. A multi-repository Task derives the one effective digest with a
+length-prefixed SHA-256 aggregate over a fixed domain, entry count, primary role/key/component
+digest, and sorted additions. Action, operation, Recovery, Blocker, and Outcome continue to use this
+existing field; there is no second Scope digest.
+
+When opening a Task, Application observes the primary repository first and each additional
+repository in key order. It constructs one Store mutation only after every observation succeeds and
+every identity is unique. A Task can be resumed through the claim of any participating repository
+without changing its primary repository, keys, or ordering. Public multi-repository paths use
+`<repository-key>::<repository-relative-path>` and Application dispatches them as ordinary
+repository-relative paths to each Observer. Single-repository path syntax is unchanged.
+
+SQLite continues to store the whole process aggregate as one Task row with one revision CAS. An
+active Task holds one `repository_claims` row for every identity in its Scope. Acquire, Retain, and
+Release process the complete ordered claim set in the same transaction as the Task snapshot and
+event. A conflict or set mismatch rolls back or safe-stops; it cannot leave a partial claim set,
+repository-level revision, or second state machine.
+
+Alongside the existing `host`, `repository_path`, and `new_task` fields, `dev_flow_open_task` adds
+only optional `primary_repository_key` and at most seven closed
+`additional_repositories[{key,repository_path}]` entries. The Task result retains the primary
+`repository` and adds the primary key plus sorted `additional_repositories`.
+`dev_flow_server_info({})` returns
+`host_preferences.codex.codebase_memory` and
+`host_preferences.deepseek.codebase_memory` from the read-only
+`$HOME/.dev-flow/config.json` snapshot loaded at process startup. Missing configuration yields false
+for both values. Configuration and index availability never enter the Task or process digest.
+
+Before opening a writable connection, Store uses an immutable read-only preflight to verify the
+current exact Schema, closed snapshots, and complete claim sets. Old or unknown Schemas follow
+`reject-and-reset`: reject with zero writes and never migrate, delete, rename, or overwrite data.
+The user can select a new `DEV_FLOW_DATA_DIR` or archive the old directory outside Core.
+
 ## Task interaction
 
 ```mermaid
