@@ -14,7 +14,7 @@ npm `@latest` currently selects these packages:
 | Product | Public version | Bundled Core | Platform | Host compatibility | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.6.0` | `0.5.1` | macOS arm64, Node.js `>=24` | Codex `>=0.147.0`; final Journey used `0.147.0` | [npm](https://www.npmjs.com/package/dev-flow-codex/v/0.6.0) · [codex-v0.6.0](https://github.com/Innocent-children/dev-flow/releases/tag/codex-v0.6.0) · registry lifecycle passed |
-| `dev-flow-deepseek` | `0.5.2` | `0.5.1` | macOS arm64, Node.js `>=24` | DSH `>=0.1.0-rc.6`; final Journey used `0.1.0-rc.6` | [npm](https://www.npmjs.com/package/dev-flow-deepseek/v/0.5.2) · [deepseek-v0.5.2](https://github.com/Innocent-children/dev-flow/releases/tag/deepseek-v0.5.2) · native registry journey passed |
+| `dev-flow-deepseek` | `0.6.0` | `0.5.1` | macOS arm64, Node.js `>=24` | DSH `>=0.1.0-rc.6`; final Journey used `0.1.0-rc.6` | [npm](https://www.npmjs.com/package/dev-flow-deepseek/v/0.6.0) · [deepseek-v0.6.0](https://github.com/Innocent-children/dev-flow/releases/tag/deepseek-v0.6.0) · native registry journey passed |
 
 Codex lifecycle evidence covers package/Core identity, installation, setup, Core handshake, removal,
 uninstallation, and an unchanged repository. DeepSeek additionally covers explicit activation,

@@ -142,7 +142,7 @@ profile을 재시작한 뒤 입력합니다.
 | 제품 | 안정 버전 | Bundled Core | 검증된 환경 |
 | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.6.0` | `0.5.1` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
-| `dev-flow-deepseek` | `0.5.2` | `0.5.1` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
+| `dev-flow-deepseek` | `0.6.0` | `0.5.1` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
 
 정확한 증거와 beta/source 상태는 [Project Status](docs/PROJECT-STATUS_en.md)와
 [Support Matrix](docs/SUPPORT-MATRIX_en.md)를 참고하십시오.
