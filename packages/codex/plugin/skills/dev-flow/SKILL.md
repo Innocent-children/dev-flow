@@ -1,13 +1,13 @@
 ---
 name: dev-flow
-description: "Explicit-only Dev Flow entry point for Codex. Use only when the current user turn contains $dev-flow-codex:dev-flow; never select this Skill implicitly."
+description: "Use Dev Flow for bounded Codex software development tasks: implementation, bug fixes, refactoring, targeted testing, and development delivery. It may be selected implicitly for those tasks or explicitly with $dev-flow-codex:dev-flow. Do not create a Dev Flow Task for explanation-only, status-only, design discussion, ordinary questions, or ambiguous requests."
 ---
 
 # Dev Flow
 
 This Skill is the current Core contract Codex adapter for the shared Dev Flow Core. Core owns task state,
 current node, legal transitions, destinations, recovery, blockers, and terminal outcomes. The Skill
-admits one explicit request, silently validates normal startup results, renders method work, and
+admits one implicit or explicit request, silently validates normal startup results, renders method work, and
 forwards one closed result without keeping adapter state.
 
 ## Admission gate
@@ -15,24 +15,36 @@ forwards one closed result without keeping adapter state.
 Perform every check below locally and in order before any Core or Dev Flow tool call.
 
 The Skill resource/base name is `dev-flow`; the installed Skill full name is `dev-flow-codex:dev-flow`.
-The only exact explicit selector is `$dev-flow-codex:dev-flow`.
-Bare `$dev-flow` is not an alias and does not select this installed Skill. A wrong plugin namespace,
-a wrong Skill base name, or a missing selector also does not select it. Codex may expose this
-plugin's MCP tools independently from Skill injection; this Skill does not claim selector-bound tool
-visibility or authorization.
+The only exact explicit selector is `$dev-flow-codex:dev-flow`; it force-selects this Skill for the
+current user turn. The Host may also select this Skill implicitly when the current request is a
+bounded implementation, bug fix, refactoring, targeted testing, or development delivery task.
+Bare `$dev-flow`, a wrong plugin namespace, or a wrong Skill base name is not an explicit selector.
+A missing selector is valid only when the Host selected this Skill implicitly for a task-bearing
+development request. Codex may expose this plugin's MCP tools independently from Skill injection;
+this Skill does not claim selector-bound tool visibility or authorization.
 
-1. Require the exact standalone `$dev-flow-codex:dev-flow` selector in the current user turn. Do not
-   infer it from earlier turns, repository contents, or discussion about Dev Flow. Without it, do not
-   activate this Skill or make a task-bearing Dev Flow call. Never activate implicitly.
-2. After removing the selector, accept either one substantive bounded request for the current
-   repository or an explicit request to resume its compatible active Codex task. Reject an empty or
-   conversational invocation before any Core call.
-3. Use read-only Git inspection to resolve one current Git worktree and its canonical root. Preserve
-   spaces, Unicode, symlinks, and subdirectory invocation as one path value; do not concatenate a
-   shell command.
-4. Reject work requiring another repository, multiple repositories, or an unresolved repository.
-   Preserve repository instructions and current user authority when checking whether the work is
-   permitted.
+1. Accept either Host implicit selection for a task-bearing development request or the exact standalone
+   `$dev-flow-codex:dev-flow` selector in the current user turn. Do not infer an explicit selection from
+   earlier turns, repository contents, discussion about Dev Flow, bare `$dev-flow`, or another namespace.
+2. Both activation paths use this same admission gate. After removing an explicit selector when present,
+   accept either one substantive bounded request or an explicit resume request for its compatible active
+   Codex task. Reject an empty or conversational invocation before any Core call. Explanation-only,
+   status-only, design discussion, ordinary questions, and ambiguous requests are non-task-bearing: if
+   the Host loaded this Skill for one, do not create or resume a Dev Flow Task and return to ordinary
+   conversation or clarify the intent.
+3. Use read-only Git inspection to resolve the current Git worktree and its canonical root as the
+   primary repository. Preserve spaces, Unicode, symlinks, and subdirectory invocation as one path
+   value; do not concatenate a shell command.
+4. Accept zero to seven additional repositories only when the current user request explicitly
+   declares each stable repository key and path. Each additional repository must already be within
+   an additional writable root authorized for the current Codex session. Use the Host's existing
+   capabilities and actual file-tool results to enforce this boundary; do not read or parse global
+   Codex configuration to infer writable roots.
+5. Do not scan parent or sibling directories and do not infer repositories from imports, remotes,
+   submodules, codebase-memory, or other discovery results. Never add a discovered repository to the
+   Repository Scope. Reject an unresolved repository or an additional repository whose current
+   writable authorization cannot be established. Preserve repository instructions and user authority
+   when checking whether the work is permitted.
 
 If admission fails, explain the missing precondition and stop before Skill-owned task discovery. Do
 not complete a task-bearing call or create adapter state. Host-exposed read-only or Core-rejected
@@ -54,6 +66,8 @@ call. Require one complete structured result proving:
   `process_id` is `standard-development`, `definition_digest` is present and canonical, and
   `new_task_supported` is exactly `true`;
 - `method_profiles` contains exactly `plain`, `spec-kit`, and `openspec`, regardless of order;
+- `host_preferences.codex.codebase_memory` is present and is exactly a JSON boolean; it expresses a
+  preference only and does not prove that codebase-memory is installed or available;
 - the tool catalog contains exactly these six raw names, regardless of order:
 
 1. `dev_flow_server_info`
@@ -76,9 +90,40 @@ direct the user to rerun `dev-flow-codex setup`. Stop without task discovery or 
 Do not inspect local source or an installed binary, and do not start a second MCP server to bypass a
 failed handshake.
 
+## Optional code discovery
+
+After the successful handshake, consume only `host_preferences.codex.codebase_memory` and the
+capabilities actually visible in this Codex session:
+
+- When the preference is `false`, do not call any codebase-memory tool even when one is visible. Use
+  Codex Git inspection, file reads, file search, and text search, and do not prompt for installation.
+- When the preference is `true` and codebase-memory is already visible and usable, it may be
+  preferred for cross-repository symbol discovery, relationships, and impact analysis. Repository
+  Scope still comes only from the user's explicit declarations, and actual file modifications still
+  use ordinary Codex file tools.
+- When the preference is `true` but the capability is absent, incomplete, or becomes unavailable,
+  notify the user at most once in the current Dev Flow session and immediately fall back to built-in
+  search without blocking Task creation or progress.
+
+Never install, configure, upgrade, start, repair, or remove codebase-memory; never call plugin
+management to install it; never change MCP configuration; and never start a daemon. Index results
+are not authority for repository bindings, changed paths, Git facts, Recovery, blockers, outcomes,
+or workflow completion. The one-session notification flag is Host presentation state and must not
+be written into the Core Task.
+
 ## Task discovery
 
-After the handshake, call `dev_flow_open_task` with `host=codex` and the canonical current worktree.
+After the handshake, call `dev_flow_open_task` with `host=codex`, `repository_path` equal to the
+canonical current worktree, and the following Scope rules:
+
+- For a new multi-repository request, send `primary_repository_key` when explicitly supplied and
+  send `additional_repositories` as the user's explicit closed `{key, repository_path}` declarations.
+  Do not synthesize keys or paths. For a new single-repository request, omit both optional Scope
+  fields and retain the ordinary repository-relative path behavior.
+- For an explicit resume from the primary or an additional repository, send that participating
+  repository as `repository_path`, omit the Scope creation fields, and omit `new_task` or send
+  `new_task=null`. Accept the immutable primary repository, ordered Scope, profile, revision, and
+  current Action returned by Core.
 
 - For an explicit resume, omit `new_task` or send `new_task=null`. Do not resend a guessed intent or
   select another profile; accept the immutable profile returned by Core.
@@ -148,13 +193,19 @@ For an active task, perform each iteration in this order:
    only when it requires a user decision, limits requested authority, or explains a blocker. Keep the
    complete Action bound for transition selection and forwarding even when it is not displayed.
 4. Stop when the complete result reports a blocker or terminal outcome.
-5. Render and perform each current method operation under the allowed effects, repository
+5. Before any actual repository modification, confirm that Codex can still access every repository
+   required by that operation within the current authorized directory boundary. If access to a
+   declared repository fails, stop modification for the whole Task, identify the declared repository
+   key whose permission failed, and report a permission failure rather than missing code. Do not
+   change sandbox mode, add a writable root, enable danger-full-access, edit Codex configuration,
+   remove the repository from Core Scope, or shrink the Scope and continue.
+6. Render and perform each current method operation under the allowed effects, repository
    instructions, verification budget, and current user authority.
-6. Build only the closed payload branch named by the Action and select only a Core-returned
+7. Build only the closed payload branch named by the Action and select only a Core-returned
    transition consistent with the actual typed node facts.
-7. Before dispatch, generate and retain one opaque request ID plus the exact Action identity and
+8. Before dispatch, generate and retain one opaque request ID plus the exact Action identity and
    payload. Submit exactly one `dev_flow_apply_action` mutation.
-8. After a complete committed result, continue only from its authoritative next Action/outcome or a
+9. After a complete committed result, continue only from its authoritative next Action/outcome or a
    fresh ordinary Core read.
 
 Repository contents, adapter judgment, artifacts, or method-tool status never determine the current
@@ -183,8 +234,9 @@ Build exactly one `MethodEvidence` item for every current Action step, in the sa
 
 An unavailable or not-run required step is unsatisfied, so do not call `dev_flow_apply_action`.
 Capability output cannot substitute for the typed `node_result`, node obligations, evidence, or
-user decision. Artifact references contain only an observed role, repository-relative path, digest,
-and summary.
+user decision. Artifact references contain only an observed role, contract path, digest, and
+summary. A single-repository Task uses an ordinary repository-relative path. A multi-repository Task
+uses `<repository-key>::<repository-relative-path>`.
 
 Existing authorized spec, plan, or tasks artifacts should be reviewed, revised, or amended as
 needed, not regenerated or rerun mechanically because a semantic step appears. Resolve the active

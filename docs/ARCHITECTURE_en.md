@@ -40,6 +40,11 @@ flowchart TB
 An Adapter does not store the Task, current node, transition table, baseline, repository claim, or
 recovery classification. It does not infer completion or destination.
 
+The Codex Adapter `setup` lifecycle creates or validates fixed user configuration before any
+registration mutation, then constructs the setup result from actual configuration and receipt writes
+after registration read-back. Rich, plain, and JSON are presentations of that result. MCP STDIO,
+Core, and the DeepSeek Adapter do not participate in this display.
+
 ### MCP Contract
 
 `internal/mcp/` exposes six tools over local STDIO:
@@ -140,6 +145,45 @@ A probe always performs zero writes. An explicit recovery apply may commit the o
 at most once or create `BLOCKED` for a partial or conflicting result. The blocker records the
 source node, and resolution returns only to that resume node.
 
+## Repository Scope, configuration, and persistence boundary
+
+`ProcessTask.Repository` continues to store the primary repository binding.
+`PrimaryRepositoryKey` defaults to `primary`, and `AdditionalRepositories` stores zero to seven
+additional bindings in strict key order. Scope membership, roles, and keys are immutable after
+creation. A single-repository Task keeps its primary binding digest as the effective
+`repository_binding_digest`. A multi-repository Task derives the one effective digest with a
+length-prefixed SHA-256 aggregate over a fixed domain, entry count, primary role/key/component
+digest, and sorted additions. Action, operation, Recovery, Blocker, and Outcome continue to use this
+existing field; there is no second Scope digest.
+
+When opening a Task, Application observes the primary repository first and each additional
+repository in key order. It constructs one Store mutation only after every observation succeeds and
+every identity is unique. A Task can be resumed through the claim of any participating repository
+without changing its primary repository, keys, or ordering. Public multi-repository paths use
+`<repository-key>::<repository-relative-path>` and Application dispatches them as ordinary
+repository-relative paths to each Observer. Single-repository path syntax is unchanged.
+
+SQLite continues to store the whole process aggregate as one Task row with one revision CAS. An
+active Task holds one `repository_claims` row for every identity in its Scope. Acquire, Retain, and
+Release process the complete ordered claim set in the same transaction as the Task snapshot and
+event. A conflict or set mismatch rolls back or safe-stops; it cannot leave a partial claim set,
+repository-level revision, or second state machine.
+
+Alongside the existing `host`, `repository_path`, and `new_task` fields, `dev_flow_open_task` adds
+only optional `primary_repository_key` and at most seven closed
+`additional_repositories[{key,repository_path}]` entries. The Task result retains the primary
+`repository` and adds the primary key plus sorted `additional_repositories`.
+`dev_flow_server_info({})` returns
+`host_preferences.codex.codebase_memory` and
+`host_preferences.deepseek.codebase_memory` from the read-only
+`$HOME/.dev-flow/config.json` snapshot loaded at process startup. Missing configuration yields false
+for both values. Configuration and index availability never enter the Task or process digest.
+
+Before opening a writable connection, Store uses an immutable read-only preflight to verify the
+current exact Schema, closed snapshots, and complete claim sets. Old or unknown Schemas follow
+`reject-and-reset`: reject with zero writes and never migrate, delete, rename, or overwrite data.
+The user can select a new `DEV_FLOW_DATA_DIR` or archive the old directory outside Core.
+
 ## Task interaction
 
 ```mermaid
@@ -205,3 +249,12 @@ external release directory, and a recoverable publication record.
 
 Source code, machine-readable schemas, and executable tests define current behavior. Documentation
 helps readers understand the system and is not used as runtime, build, or release input.
+
+## Codex Skill activation boundary
+
+`packages/codex/plugin/skills/dev-flow/agents/openai.yaml` permits Host implicit selection, while the
+`SKILL.md` description supplies positive task-bearing uses and negative non-task boundaries. The exact
+`$dev-flow-codex:dev-flow` selector and implicit selection converge on one admission path. The launcher
+reuses the MCP instructions exported by `packages/codex/lib/lifecycle.mjs`, and setup validates metadata,
+Skill, and instruction consistency. Activation source is not stored in Core, Task, SQLite, receipts, or
+user configuration.

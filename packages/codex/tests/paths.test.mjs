@@ -27,6 +27,8 @@ test("resolves the runtime and resources relative to the installed package", asy
   assert.equal(paths.runtimePath, join(root, "runtime", "darwin-arm64", "dev-flow"));
   assert.equal(paths.pluginRoot, join(root, "plugin"));
   assert.equal(paths.marketplaceRoot, root);
+  assert.equal(paths.configurationDirectory, join(home, ".dev-flow"));
+  assert.equal(paths.configurationPath, join(home, ".dev-flow", "config.json"));
   assert.equal(paths.usesDefaultDataDirectory, true);
 });
 

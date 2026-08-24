@@ -49,6 +49,31 @@ Dev Flow は、複数の開発ノードをまたぎ、手戻りが発生し得�
 または複数セッションにわたって再開する実リポジトリ作業に適しています。状態保持を必要としない
 単発の質問や機械的な単一ファイル変更では、Codex または DeepSeek を直接使う方が簡単です。
 
+## 複数リポジトリ Task と任意のコード索引
+
+1 つの Task は現在の Git リポジトリを主リポジトリとして明示し、0～7 個の追加リポジトリを
+指定できます。すべてのリポジトリは 1 つの current node、Action、revision、verification budget、
+Recovery、Blocker、Outcome を共有します。親・隣接ディレクトリ、依存関係、コード索引を走査して
+範囲を拡大することはありません。単一リポジトリの呼び出しと通常の相対パスは互換性を保ち、
+複数リポジトリのパスは `<repository-key>::<repository-relative-path>` で所属を示します。
+
+任意のコード索引設定は読み取り専用の `$HOME/.dev-flow/config.json` から取得します。
+
+```json
+{
+  "codex": { "codebase_memory": false },
+  "deepseek": { "codebase_memory": true }
+}
+```
+
+ディレクトリまたはファイルがない場合は両方とも `false` です。`dev-flow-codex setup` は完全な
+既定設定を作成し、DeepSeek は読み取り専用の既定値を維持します。setup は既存設定を書き換えません。
+`true` の場合も、Host は既にインストール済みで利用可能な codebase-memory だけを
+使用します。利用できない場合はセッションごとに最大 1 回通知して組み込み検索へフォールバックし、
+Task をブロックしません。Codex の追加リポジトリはセッション開始時に許可済みの writable root
+である必要があり、Dev Flow は sandbox を変更しません。DeepSeek の全リポジトリは現在の
+Workspace Root 内に置く必要があり、その Root は非 Git の共通親でも構いません。
+
 ## インストール、更新、アンインストール
 
 公開アーティファクトは macOS arm64 と Node.js `>=24` をサポートします。例では npm `latest`
@@ -65,12 +90,20 @@ dev-flow-codex setup
 dev-flow-codex --version
 ```
 
-`setup` は Codex marketplace、Plugin、MCP を登録または更新します。Git リポジトリから唯一の
-明示的 selector を使用します。
+設定がない場合、`setup` は `$HOME/.dev-flow/config.json` を作成し、実際に作成・更新した設定と
+registration receipt、準備状態、唯一の次の手順を表示します。対話出力は簡体字中国語または英語、
+非対話と `NO_COLOR` はプレーンテキスト、`setup --json` は装飾なしの機械用情報です。
+
+`setup` は Codex marketplace、Plugin、MCP を登録または更新します。Git リポジトリで範囲の明確な
+実装、バグ修正、リファクタリング、対象テスト、開発デリバリーを直接記述すると、Codex が Dev Flow
+を自動選択できます。強制的に選択する場合は正確な selector を使用します。
 
 ```text
 $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 ```
+
+説明のみ、状態照会のみ、設計議論、一般的な質問、曖昧な依頼では Dev Flow Task を自動作成しません。
+明示的選択もリポジトリ権限、Core Action、Git 変更権限、リリース確認を迂回しません。
 
 #### 更新
 
@@ -150,7 +183,7 @@ rm -rf "$HOME/Library/Application Support/dev-flow"
 
 ## 実行モデル
 
-1. 開発者が現在の Git リポジトリで明示的 selector を使い Task を記述します。
+1. 開発者が明確な開発 Task を直接記述するか、正確な selector で Dev Flow を強制選択します。
 2. Core はそのリポジトリの Task を作成または再開し、現在ノード、完了条件、allowed effects、証拠要件、verification budget、すべての合法な遷移を返します。
 3. Host は現在の Action を実行します。要件、設計、実装に実質的な変更がある場合、現在ノード内で暗黙に拡大せず、Core が返した transition で報告します。
 4. Core は `transition_id`、guard、revision、payload を検証してから Task を進めます。テスト失敗、理解度レビュー失敗、デリバリー拒否は対応するノードへ戻ります。
@@ -218,9 +251,10 @@ dev_flow_cancel_task
 各ツールの読み取り・書き込み分類、入力の役割、動作は
 [Command Reference](docs/COMMANDS_en.md) を参照してください。
 
-Core は既存の 1 つの Git リポジトリを制限付き・読み取り専用で観測し、repository binding と
-変更事実を評価できます。Git mutation はユーザーが承認した Host が実行します。Core は汎用
-shell を公開せず、checkout、commit、push、merge、rebase、tag、公開操作を行いません。
+Core は Task が明示した 1～8 個の既存 Git リポジトリを固定順序で制限付き・読み取り専用で観測し、
+repository bindings と変更事実を評価できます。Git mutation はユーザーが承認した Host が実行
+します。Core は汎用 shell を公開せず、checkout、commit、push、merge、rebase、tag、公開操作を
+行いません。
 
 ## データと復旧
 

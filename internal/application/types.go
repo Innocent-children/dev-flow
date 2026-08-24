@@ -14,11 +14,17 @@ type NewTaskInput struct {
 	VerificationBudget      domain.VerificationBudget
 	MethodProfile           domain.MethodProfile
 }
+type AdditionalRepositoryInput struct {
+	Key            domain.RepositoryKey `json:"key"`
+	RepositoryPath string               `json:"repository_path"`
+}
 type OpenTaskRequest struct {
-	RequestID      domain.ID
-	Host           domain.Host
-	RepositoryPath string
-	NewTask        *NewTaskInput
+	RequestID              domain.ID
+	Host                   domain.Host
+	RepositoryPath         string
+	PrimaryRepositoryKey   domain.RepositoryKey
+	AdditionalRepositories []AdditionalRepositoryInput
+	NewTask                *NewTaskInput
 }
 type OpenTaskResult struct {
 	Created bool

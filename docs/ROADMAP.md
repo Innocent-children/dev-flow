@@ -18,6 +18,9 @@ Dev Flow 的路线由用户价值和可验证结果推进。日期不是承诺�
 - 本地 SQLite、revision CAS、restart/resume 与 retained terminal data；
 - 五分类 Recovery、read-before-retry 和 Core-owned blocker/resume；
 - 有界只读 Git observation；
+- 一个主仓库加最多七个显式附加仓库的不可变 Repository Scope，全部仓库共享一个 Task 权威；
+- 固定只读用户配置中的 Host 级可选代码索引偏好，以及索引不可用时的内置检索回退；
+- Codex setup 缺失配置创建、真实配置/receipt 文件摘要和简中/英文可降级安装首屏；
 - Codex 与 DeepSeek 两个显式 Host Adapter。
 
 ## 当前公开产品
@@ -65,5 +68,9 @@ Dev Flow 的路线由用户价值和可验证结果推进。日期不是承诺�
 ## 持续边界
 
 当前路线不包含用户自定义 graph、workflow DSL、Web UI、remote MCP、generic shell、Core Git
-mutation、自动多仓库编排或历史任务自动迁移。任何改变这些边界的提议都需要独立产品规格和
-Constitution 审查。
+mutation、自动发现或动态扩展 Repository Scope、自动多仓库编排、仓库级独立流程状态或历史任务
+自动迁移。任何改变这些边界的提议都需要独立产品规格和 Constitution 审查。
+
+Codex 当前路线采用原生 Skill 智能启用：明确开发执行请求可隐式选择 Dev Flow，精确 selector 保留
+为强制入口，非任务请求不自动创建 Task。自定义分类器、激活模式配置、第二份 Skill 和激活状态持久化
+不在当前路线中。

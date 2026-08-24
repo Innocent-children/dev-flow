@@ -50,6 +50,33 @@ retrabalho, precisa preservar evidências de verificação ou deve ser retomado 
 pontual ou uma edição mecânica de um único arquivo sem estado persistente, normalmente é mais simples usar Codex
 ou DeepSeek diretamente.
 
+## Tasks com vários repositórios e indexação de código opcional
+
+Um Task pode declarar explicitamente o repositório Git atual como principal e adicionar de zero a
+sete repositórios. Todos compartilham um único current node, Action, revision, verification budget,
+Recovery, Blocker e Outcome. O Dev Flow não examina diretórios pais ou vizinhos, dependências nem
+índices de código para ampliar o escopo. Chamadas de um único repositório e caminhos relativos comuns
+continuam compatíveis; caminhos de vários repositórios usam
+`<repository-key>::<repository-relative-path>` para indicar a qual repositório pertencem.
+
+As preferências opcionais de indexação vêm do arquivo somente leitura
+`$HOME/.dev-flow/config.json`:
+
+```json
+{
+  "codex": { "codebase_memory": false },
+  "deepseek": { "codebase_memory": true }
+}
+```
+
+Se o diretório ou o arquivo não existir, os dois valores serão `false`. `dev-flow-codex setup` cria a
+configuração padrão completa; o DeepSeek mantém o padrão somente leitura. Setup nunca reescreve uma
+configuração existente. Com `true`, o Host só usa codebase-memory quando ele já está instalado e
+disponível. Se estiver ausente ou ficar indisponível, o Host avisa no máximo uma vez por sessão e
+volta à busca integrada sem bloquear o Task. Os repositórios adicionais do Codex devem ser writable
+roots já autorizados no início da sessão; o Dev Flow não altera o sandbox. Todos os repositórios do
+DeepSeek devem estar dentro do Workspace Root atual, que pode ser um pai comum que não seja Git.
+
 ## Instalação, atualização e desinstalação
 
 Os artefatos públicos oferecem suporte a macOS arm64 e Node.js `>=24`; os exemplos usam npm `latest`.
@@ -66,11 +93,22 @@ dev-flow-codex setup
 dev-flow-codex --version
 ```
 
-`setup` registra ou atualiza marketplace, Plugin e MCP do Codex. Em um repositório Git, use o único selector:
+Se a configuração estiver ausente, `setup` cria `$HOME/.dev-flow/config.json` e mostra os arquivos
+de configuração e receipt realmente criados ou atualizados, o estado e uma única próxima etapa. A
+saída interativa segue chinês simplificado ou inglês; saída não interativa e `NO_COLOR` usam texto
+simples, e `setup --json` emite fatos de máquina sem decoração.
+
+`setup` registra ou atualiza marketplace, Plugin e MCP do Codex. Em um repositório Git, descreva diretamente
+uma implementação, correção, refatoração, teste direcionado ou entrega de desenvolvimento com limites claros;
+o Codex pode selecionar Dev Flow automaticamente. Use o selector exato para forçar a seleção:
 
 ```text
 $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 ```
+
+Solicitações apenas de explicação, status, discussão de design, perguntas comuns ou ambíguas não criam
+automaticamente um Dev Flow Task. A seleção explícita também não ignora permissões, Core Actions, autorização
+de mutações Git ou confirmação de release.
 
 #### Atualização
 
@@ -150,7 +188,7 @@ absoluto. Excluir `$HOME/.dsh` também remove todos os profiles, sessões e outr
 
 ## Modelo de execução
 
-1. O desenvolvedor descreve um Task no repositório Git atual por meio de um selector explícito.
+1. O desenvolvedor descreve diretamente um Task claro ou força Dev Flow com o selector exato.
 2. Core abre ou retoma o Task desse repositório e retorna o nó atual, condições de conclusão, `allowed_effects`, requisitos de evidência, verification budget e todas as transições legais.
 3. O Host executa a Action atual. Uma alteração material de requisito, design ou implementação é reportada por uma transition retornada por Core, em vez de ficar oculta dentro do nó atual.
 4. Core valida `transition_id`, guard, revision e payload antes de avançar o Task. Falha de teste, falha de compreensão ou entrega rejeitada retornam ao nó correspondente.
@@ -218,9 +256,10 @@ dev_flow_cancel_task
 Consulte a [Referência de comandos](docs/COMMANDS_en.md) para a classificação de leitura/escrita, o papel das
 entradas e o comportamento de cada ferramenta.
 
-Core pode observar um repositório Git existente de forma limitada e somente leitura para estabelecer um
-repository binding e avaliar fatos de alteração. Um Host autorizado pelo usuário executa as mutations Git. Core
-não expõe shell genérico nem executa checkout, commit, push, merge, rebase, tag ou publicação.
+Core pode observar, de forma limitada, ordenada e somente leitura, de um a oito repositórios Git existentes
+declarados explicitamente por um Task para estabelecer repository bindings e avaliar fatos de alteração. Um Host
+autorizado pelo usuário executa as mutations Git. Core não expõe shell genérico nem executa checkout, commit,
+push, merge, rebase, tag ou publicação.
 
 ## Dados e recuperação
 

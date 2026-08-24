@@ -26,6 +26,7 @@ func TestFixtureContractInventory(t *testing.T) {
 	text := string(readme)
 	for _, name := range []string{
 		"graph-server-info.json",
+		"graph-multi-repository-open.json",
 		"graph-open-requirements.json",
 		"graph-design-action.json",
 		"graph-invalid-edge.json",
@@ -202,10 +203,10 @@ func TestGraphServerInfoFixtureContainsCompletePublicDTO(t *testing.T) {
 		t.Fatal(err)
 	}
 	var value map[string]any
-	if json.Unmarshal(raw, &value) != nil || len(value) != 8 {
+	if json.Unmarshal(raw, &value) != nil || len(value) != 9 {
 		t.Fatalf("incomplete top-level fixture: %s", raw)
 	}
-	for _, key := range []string{"product", "version", "transport", "health", "supported_hosts", "supported_processes", "method_profiles", "tools"} {
+	for _, key := range []string{"product", "version", "transport", "health", "supported_hosts", "supported_processes", "method_profiles", "tools", "host_preferences"} {
 		if _, ok := value[key]; !ok {
 			t.Fatalf("missing %s", key)
 		}
@@ -222,12 +223,89 @@ func TestGraphServerInfoFixtureContainsCompletePublicDTO(t *testing.T) {
 	if !ok || len(tools) != 6 {
 		t.Fatalf("tools=%#v", tools)
 	}
+	preferences, ok := value["host_preferences"].(map[string]any)
+	if !ok || len(preferences) != 2 || preferences["codex"].(map[string]any)["codebase_memory"] != false || preferences["deepseek"].(map[string]any)["codebase_memory"] != false {
+		t.Fatalf("host_preferences=%#v", value["host_preferences"])
+	}
 	previous := -1
-	for _, key := range []string{`"product"`, `"version"`, `"transport"`, `"health"`, `"supported_hosts"`, `"supported_processes"`, `"method_profiles"`, `"tools"`} {
+	for _, key := range []string{`"product"`, `"version"`, `"transport"`, `"health"`, `"supported_hosts"`, `"supported_processes"`, `"method_profiles"`, `"tools"`, `"host_preferences"`} {
 		index := strings.Index(string(raw), key)
 		if index <= previous {
 			t.Fatalf("field order drift at %s", key)
 		}
 		previous = index
+	}
+}
+
+type multiRepositoryOpenFixture struct {
+	FixtureKind string                     `json:"fixture_kind"`
+	Created     bool                       `json:"created"`
+	Task        multiRepositoryFixtureTask `json:"task"`
+}
+
+type multiRepositoryFixtureTask struct {
+	TaskID                 string                             `json:"task_id"`
+	OriginHost             string                             `json:"origin_host"`
+	ProcessID              string                             `json:"process_id"`
+	CurrentCursor          string                             `json:"current_cursor"`
+	Revision               uint64                             `json:"revision"`
+	PrimaryRepositoryKey   string                             `json:"primary_repository_key"`
+	Repository             multiRepositoryFixtureRepository   `json:"repository"`
+	AdditionalRepositories []multiRepositoryFixtureAdditional `json:"additional_repositories"`
+	CurrentAction          multiRepositoryFixtureAction       `json:"current_action"`
+}
+
+type multiRepositoryFixtureAdditional struct {
+	Key        string                           `json:"key"`
+	Repository multiRepositoryFixtureRepository `json:"repository"`
+}
+
+type multiRepositoryFixtureRepository struct {
+	CanonicalRoot       string  `json:"canonical_root"`
+	RepositoryIdentity  string  `json:"repository_identity"`
+	Branch              *string `json:"branch"`
+	Detached            bool    `json:"detached"`
+	Head                *string `json:"head"`
+	Unborn              bool    `json:"unborn"`
+	WorktreeFingerprint string  `json:"worktree_fingerprint"`
+	ObservedAt          string  `json:"observed_at"`
+	BindingDigest       string  `json:"binding_digest"`
+}
+
+type multiRepositoryFixtureAction struct {
+	TaskID                  string `json:"task_id"`
+	Revision                uint64 `json:"revision"`
+	ActionID                string `json:"action_id"`
+	ActionKind              string `json:"action_kind"`
+	RepositoryBindingDigest string `json:"repository_binding_digest"`
+}
+
+func TestGraphMultiRepositoryOpenFixtureUsesOneTaskActionAndDigest(t *testing.T) {
+	path := filepath.Join(contractRepositoryRoot(t), "protocol", "fixtures", "graph-multi-repository-open.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	var fixture multiRepositoryOpenFixture
+	if err := decoder.Decode(&fixture); err != nil {
+		t.Fatal(err)
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		t.Fatal("multi repository fixture has trailing JSON")
+	}
+	const effectiveDigest = "dc9caf7d75b1019fd583d7fb7632b4c5f6ad4431bb34d6c0182fc506d70c0e13"
+	if fixture.FixtureKind != "multi_repository_open" || !fixture.Created || fixture.Task.TaskID == "" || fixture.Task.Revision != 1 || fixture.Task.CurrentAction.TaskID != fixture.Task.TaskID || fixture.Task.CurrentAction.Revision != fixture.Task.Revision {
+		t.Fatalf("task/action identity=%#v", fixture)
+	}
+	if fixture.Task.PrimaryRepositoryKey != "core" || fixture.Task.Repository.CanonicalRoot != "/workspace/core" || len(fixture.Task.AdditionalRepositories) != 1 || fixture.Task.AdditionalRepositories[0].Key != "docs" || fixture.Task.AdditionalRepositories[0].Repository.CanonicalRoot != "/workspace/docs" {
+		t.Fatalf("repository scope=%#v", fixture.Task)
+	}
+	if fixture.Task.CurrentAction.RepositoryBindingDigest != effectiveDigest || fixture.Task.CurrentAction.RepositoryBindingDigest == fixture.Task.Repository.BindingDigest || fixture.Task.CurrentAction.RepositoryBindingDigest == fixture.Task.AdditionalRepositories[0].Repository.BindingDigest {
+		t.Fatalf("effective digest=%#v", fixture.Task.CurrentAction)
+	}
+	if bytes.Count(raw, []byte(`"repository_binding_digest"`)) != 1 || bytes.Contains(raw, []byte("repository_scope_digest")) {
+		t.Fatalf("digest fields=%s", raw)
 	}
 }

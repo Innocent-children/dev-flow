@@ -26,7 +26,17 @@ export const PLUGIN_NAME = "dev-flow-codex";
 export const PLUGIN_SELECTOR = `${PLUGIN_NAME}@${MARKETPLACE_NAME}`;
 
 const MCP_SCHEMA_URI = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json";
-const EXPLICIT_SKILL_POLICY = "policy:\n  allow_implicit_invocation: false";
+const IMPLICIT_SKILL_POLICY = "policy:\n  allow_implicit_invocation: true";
+
+export const CODEX_MCP_INSTRUCTIONS = [
+  "Dev Flow for Codex supports implicit selection for bounded implementation, bug-fix, refactoring, targeted-testing, and development-delivery tasks, plus explicit selection with `$dev-flow-codex:dev-flow`.",
+  "Explanation-only, status-only, design-discussion, ordinary-question, and ambiguous requests must not create or resume a Dev Flow Task.",
+  "The exact selector force-selects the Skill; bare `$dev-flow` and wrong plugin or Skill names are not explicit selection.",
+  "After either valid activation path, `dev_flow_server_info` must be the first Dev Flow call.",
+  "Read `host_preferences.codex.codebase_memory` from that handshake without installing or configuring codebase-memory.",
+  "Call `dev_flow_open_task` only for a substantive bounded request or explicit resume after a successful `dev_flow_server_info` handshake.",
+  "Use the current Git worktree as primary and only user-declared additional repositories already authorized as writable roots; never scan repositories or change Codex sandbox permissions.",
+].join(" ");
 
 const semverPattern = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
 const digestPattern = /^[0-9a-f]{64}$/;
@@ -130,6 +140,7 @@ export async function setupRegistration({
         status: "already-installed",
         changed: false,
         receipt: existingReceipt,
+        fileChanges: [],
       };
     }
 
@@ -163,6 +174,7 @@ export async function setupRegistration({
       status: "installed",
       changed: true,
       receipt: expectedReceipt,
+      fileChanges: [{ path: paths.receiptPath, change: "updated" }],
     };
   }
 
@@ -189,6 +201,7 @@ export async function setupRegistration({
       status: "installed",
       changed: true,
       receipt: expectedReceipt,
+      fileChanges: [{ path: paths.receiptPath, change: "created" }],
     };
   } catch (error) {
     if (marketplaceCreated) {
@@ -406,8 +419,23 @@ async function assertPackageResources(paths, packageVersion) {
     throw new Error("Dev Flow Skill is unavailable", { cause: error });
   }
   if (skill.trim() === "") throw new Error("Dev Flow Skill must be non-empty");
-  if (/^allow_implicit_invocation\s*:/m.test(skill.match(/^---\n([\s\S]*?)\n---\n/)?.[1] ?? "")) {
+  const skillFrontmatter = skill.match(/^---\n([\s\S]*?)\n---\n/)?.[1] ?? "";
+  if (/^allow_implicit_invocation\s*:/m.test(skillFrontmatter)) {
     throw new Error("Dev Flow Skill frontmatter must not carry Codex invocation policy");
+  }
+  const skillDescription = skillFrontmatter.match(/^description:\s*"([^"]+)"$/m)?.[1] ?? "";
+  for (const required of [
+    "implementation", "bug fixes", "refactoring", "targeted testing", "development delivery",
+    "selected implicitly", "$dev-flow-codex:dev-flow", "explanation-only", "status-only",
+    "design discussion", "ordinary questions", "ambiguous requests",
+  ]) {
+    if (!skillDescription.toLowerCase().includes(required.toLowerCase())) {
+      throw new Error(`Dev Flow Skill description is missing activation boundary: ${required}`);
+    }
+  }
+  if (!skill.includes("Both activation paths use this same admission gate") ||
+      !skill.includes("do not create or resume a Dev Flow Task")) {
+    throw new Error("Dev Flow Skill admission does not unify implicit and explicit activation");
   }
 
   let skillMetadata;
@@ -417,10 +445,19 @@ async function assertPackageResources(paths, packageVersion) {
       "utf8",
     );
   } catch (error) {
-    throw new Error("Dev Flow explicit-only Skill policy is unavailable", { cause: error });
+    throw new Error("Dev Flow implicit Skill policy is unavailable", { cause: error });
   }
-  if (skillMetadata.trim() !== EXPLICIT_SKILL_POLICY) {
-    throw new Error("Dev Flow explicit-only Skill policy must disable implicit invocation");
+  if (skillMetadata.trim() !== IMPLICIT_SKILL_POLICY) {
+    throw new Error("Dev Flow implicit Skill policy must enable implicit invocation");
+  }
+  for (const required of [
+    "implicit selection", "$dev-flow-codex:dev-flow", "Explanation-only", "status-only",
+    "design-discussion", "ordinary-question", "ambiguous requests", "must not create or resume",
+    "either valid activation path", "substantive bounded request or explicit resume",
+  ]) {
+    if (!CODEX_MCP_INSTRUCTIONS.includes(required)) {
+      throw new Error(`Dev Flow MCP admission is missing activation boundary: ${required}`);
+    }
   }
 }
 

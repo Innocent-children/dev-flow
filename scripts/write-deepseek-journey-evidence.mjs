@@ -6,6 +6,7 @@ export const FINAL_FIXTURE_EVIDENCE_KIND = "deepseek-fixture-lifecycle-v1";
 
 const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
 const SEMVER_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u;
+const RELEASE_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-beta\.(0|[1-9]\d*))?$/u;
 
 export function validateFinalJourneyEvidence(value, options = {}) {
   return validateFinalJourneyEvidenceShape(value, { ...options, expectedKind: FINAL_NATIVE_EVIDENCE_KIND });
@@ -27,7 +28,7 @@ export function validateFinalJourneyEvidenceShape(value, { allowFixture = false,
     ? [FINAL_NATIVE_EVIDENCE_KIND, QUICK_NATIVE_EVIDENCE_KIND, FINAL_FIXTURE_EVIDENCE_KIND]
     : [expectedKind ?? FINAL_NATIVE_EVIDENCE_KIND];
   if (!allowedKinds.includes(value.evidence_kind)) throw new Error("DeepSeek journey evidence kind is invalid");
-  if (value.package_name !== "dev-flow-deepseek" || !SEMVER_PATTERN.test(value.version)) throw new Error("DeepSeek journey package identity is invalid");
+  if (value.package_name !== "dev-flow-deepseek" || !RELEASE_VERSION_PATTERN.test(value.version)) throw new Error("DeepSeek journey package identity is invalid");
   if (value.registry !== "https://registry.npmjs.org/" || !SHA256_PATTERN.test(value.npm_tarball_sha256) || !SHA256_PATTERN.test(value.core_sha256)) throw new Error("DeepSeek journey artifact identity is invalid");
   if (!SEMVER_PATTERN.test(value.core_version) || !versionAtLeast(value.dsh_version, "0.1.0-rc.6") || value.compatible_dsh_range !== ">=0.1.0-rc.6") throw new Error("DeepSeek journey runtime identity is invalid");
   if (!/^[0-9a-f]{40}$/u.test(value.source_commit) || !Number.isFinite(Date.parse(value.observed_at))) throw new Error("DeepSeek journey source/time identity is invalid");

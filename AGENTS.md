@@ -39,8 +39,8 @@ exact confirmation; it does not use a release Feature.
 - Do not broaden an implementation because a nearby abstraction appears useful.
 - When the active package is incomplete or contradictory, stop implementation and amend the
   specification first.
-- Completed historical feature packages are evidence. Do not rewrite them to match current
-  templates or terminology.
+- Deleted Feature documents MUST NOT be recreated or cited as current authority; use Git history
+  when historical evidence is needed.
 
 ## Documentation and Internationalization
 
@@ -102,20 +102,15 @@ Only the Go Core owns:
 - task and repository-claim identity;
 - process definition and content digest;
 - current node and resume node;
+- action identity and revision;
 - node purpose, obligations, allowed effects, and required evidence;
 - legal outgoing transitions and transition guards;
-- next-action identity;
 - blocker and recovery classification;
 - terminal outcome.
 
 Codex, DeepSeek, Spec Kit, OpenSpec, CLI, MCP, and package scripts are adapters or execution aids.
 They must not persist a second process cursor, add a transition, skip a node, infer completion, or
 reinterpret a Core result.
-
-The target product direction is the development-process state graph defined by the active replacement
-feature. Feature 008 intentionally carries no released linear Core contract task runtime, migration, v1 codec, or
-legacy process. Until the replacement completes, do not add new old-model phases, result values, or
-hidden fast paths.
 
 ## Method-Tool Boundary
 
@@ -127,6 +122,9 @@ hidden fast paths.
 - Spec Kit/OpenSpec artifacts may provide evidence, but their local status does not mutate Core
   state without an exact Core action submission.
 - Do not make Spec Kit or OpenSpec a production dependency of the Go Core.
+- External code indexes, including codebase-memory, are optional and MUST NOT be installed
+  automatically. When unavailable or incomplete, use Host-provided file and text search and report
+  the limitation honestly.
 
 ## Spec Kit Package Discipline
 
@@ -184,7 +182,7 @@ When a feature changes process behavior, its artifacts must define all of the fo
 - allowed effects and required evidence;
 - method-profile operations;
 - payload and MCP projections;
-- exact persisted-data disposition; before `1.0.0`, do not invent historical-task compatibility unless the user explicitly requires it;
+- exact persisted-data disposition;
 - forbidden transitions and non-goals.
 
 Do not implement a node without its full edge set. Do not add a destination in code and ask the
@@ -196,14 +194,15 @@ documentation to recognize it later.
 - Implement version-only release work only through the standalone release contracts after the user
   selects a release mode; do not create or reopen a Feature for publication.
 - Stop at the requested phase, user story, or checkpoint.
-- Prefer direct readable code over frameworks, registries, builders, and wrappers.
-- Do not create a generic graph DSL, user-configurable process, plugin framework, HTTP transport,
-  Web UI, multi-repository flow, or unspecified compatibility layer.
+- Extend the existing architecture with the smallest direct change that satisfies the approved
+  requirements, and prefer readable code over new abstractions.
+- Do not add unrelated refactoring, frameworks, registries, DSLs, provider systems, a second state
+  machine, or other speculative future capability.
+- Multi-repository capability MUST be implemented only through an explicit, bounded Spec Kit Product
+  Feature. Other work MUST NOT add it incidentally.
 - Keep Core and host responsibilities separate.
 - Do not change public contracts from a host-only branch.
 - When a shared contract is insufficient, amend the shared feature first.
-- Do not add `legacy-linear`, legacy snapshot decoding, dual task projections, or pre-graph data migration for Feature 008.
-- Reject pre-graph databases with zero writes and require explicit user-controlled archive/rename/delete or a fresh data directory; never delete automatically.
 - No release operation belongs in an ordinary product feature.
 
 ## Git Boundary
@@ -243,10 +242,13 @@ The agent must not modify versions, commit a release bump, or publish until the 
 
 ## Test Budget
 
-Run only checks required by the active task and acceptance criteria.
+Every check MUST trace directly to an active acceptance criterion, contract, or documented
+regression. Run only checks required by that scope.
 
 - Prefer package-local, node-local, storage-boundary-local, or user-story-local checks.
 - Do not run the complete repository suite after each edit.
+- Full matrices, stress tests, platform matrices, and real-host Journeys require an explicit Feature
+  test budget or release contract.
 - Run the final repository-wide validation at most once for `normal` unless the active Product
   Feature records a concrete reason for a retry. `quick` does not run the repository-wide suite.
 - Real-host registry lifecycle smoke runs only at the selected release mode's explicit final checkpoint.

@@ -46,7 +46,7 @@ test("manifest declares one public macOS arm64 ESM DeepSeek bundle", async () =>
   const manifest = await readJSON(join(packageRoot, "package.json"));
 
   assert.equal(manifest.name, "dev-flow-deepseek");
-  assert.match(manifest.version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u);
+  assert.match(manifest.version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-beta\.(0|[1-9]\d*))?$/u);
   assert.equal(manifest.private, false);
   assert.equal(manifest.type, "module");
   assert.equal(manifest.main, "lib/index.mjs");

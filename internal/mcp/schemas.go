@@ -82,7 +82,15 @@ func buildCatalog() []ToolDefinition {
 			map[string]any{"properties": map[string]any{"recovery_apply": map[string]any{"type": "null"}, "payload": standardPayload}},
 		}},
 	}
-	open := obj([]string{"host", "repository_path"}, map[string]any{"host": map[string]any{"enum": []string{"codex", "deepseek"}}, "repository_path": str(), "new_task": map[string]any{"anyOf": []any{newTask, map[string]any{"type": "null"}}}})
+	repositoryKey := map[string]any{"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"}
+	additionalRepository := obj([]string{"key", "repository_path"}, map[string]any{"key": repositoryKey, "repository_path": str()})
+	open := obj([]string{"host", "repository_path"}, map[string]any{
+		"host":                    map[string]any{"enum": []string{"codex", "deepseek"}},
+		"repository_path":         str(),
+		"primary_repository_key":  repositoryKey,
+		"additional_repositories": map[string]any{"type": "array", "maxItems": 7, "items": additionalRepository},
+		"new_task":                map[string]any{"anyOf": []any{newTask, map[string]any{"type": "null"}}},
+	})
 	cancel := obj([]string{"request_id", "host", "task_id", "revision", "reason"}, map[string]any{"request_id": id(), "host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "revision": map[string]any{"type": "integer", "minimum": 1}, "reason": str()})
 	defs := map[string]any{"newTask": newTask, "verificationBudget": budget}
 	open["$defs"] = defs

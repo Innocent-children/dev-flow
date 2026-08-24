@@ -71,6 +71,7 @@ const codexFinalStagingFiles = [
   "LICENSE",
   "README.md",
   "bin/dev-flow-codex.mjs",
+  "lib/install-experience.mjs",
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
   "package.json",

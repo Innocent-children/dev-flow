@@ -24,7 +24,9 @@ dev-flow-codex --version
 
 The global npm installation only places the `dev-flow-codex` launcher on `PATH`. `setup` is a
 separate operation: it verifies the platform, package, bundled Core, and Codex version; registers the
-local marketplace, Plugin, and MCP configuration; and reads back the resulting ownership. `--version`
+local marketplace, Plugin, and MCP configuration; and reads back the resulting ownership. When
+configuration is absent, setup first creates `$HOME/.dev-flow/config.json`; success then reports
+actual configuration/receipt file changes and one next step. `--version`
 reports both the host package and bundled Core identities.
 
 ### Supported Codex commands
@@ -32,8 +34,8 @@ reports both the host package and bundled Core identities.
 | Command | Purpose |
 | --- | --- |
 | `npm install -g dev-flow-codex@latest` | Install the package selected by the npm `latest` dist-tag and place `dev-flow-codex` globally on `PATH`. It does not register the Codex Plugin automatically. |
-| `dev-flow-codex setup` | Validate the installation and Codex compatibility, register the marketplace, Plugin, and MCP configuration, then write an ownership receipt after successful read-back. Repeated execution verifies the existing registration. |
-| `dev-flow-codex setup --json` | Perform the same operation as `setup`, but emit only machine-readable JSON containing operation, status, changed, and receipt path. |
+| `dev-flow-codex setup` | Create or validate fixed user configuration, validate the installation and Codex compatibility, register the marketplace, Plugin, and MCP configuration, then report actual configuration/receipt changes, readiness, and one next step. Repeated execution verifies the existing registration. |
+| `dev-flow-codex setup --json` | Perform the same operation as `setup`, but emit one machine-readable JSON line retaining operation, status, changed, and receipt_path while adding configuration_path, file_changes, and next_step. |
 | `dev-flow-codex --version` | Print `dev-flow-codex <package-version> (core <core-version>)` to identify the actual installed package and bundled Core. |
 | `dev-flow-codex remove` | Remove the package-owned Codex Plugin, marketplace registration, and receipt. Task data and the target Git repository are retained. |
 | `dev-flow-codex remove --json` | Perform the same operation as `remove` and emit machine-readable JSON. Its `next_step` points to the separate global npm uninstall. |
@@ -54,17 +56,19 @@ To uninstall while retaining Task data, run `dev-flow-codex remove` and then
 `$HOME/Library/Application Support/dev-flow` only after both the Codex and DeepSeek Adapters are
 removed and no Task is needed.
 
-### Codex explicit selector
+### Codex smart activation and explicit selector
 
 ```text
 $dev-flow-codex:dev-flow <task description>
 ```
 
-This is not a shell command. It is the exact Skill selector in a Codex user message. Bare
-`$dev-flow`, a wrong namespace, a missing selector, or ordinary conversation does not activate Dev
-Flow. After admission, the host silently calls `dev_flow_server_info` and immediately opens or
-resumes the Task. Successful checks are not enumerated; a failure reports only the specific blocker
-and one recovery step.
+This is not a shell command. It is the exact Skill selector in a Codex user message and force-selects
+Dev Flow. The Host may also select the Skill implicitly for a bounded implementation, bug fix,
+refactoring, targeted-testing, or development-delivery request; bare `$dev-flow` and a wrong namespace
+remain invalid explicit selectors. Explanation-only, status-only, design-discussion, ordinary-question,
+and ambiguous requests do not automatically create or resume a Task. Both paths use the same admission,
+then the host silently calls `dev_flow_server_info`; explicit selection does not bypass permissions,
+Core Actions, Git-mutation authority, or release confirmation.
 
 ## DeepSeek Harness
 
@@ -147,12 +151,71 @@ terminal shell commands.
 
 | Tool | Type | Purpose |
 | --- | --- | --- |
-| `dev_flow_server_info` | Read-only | Read Core product version, transport, health, supported process, hosts, method profiles, and tool catalog. It must be the first call after valid host admission. |
-| `dev_flow_open_task` | Read or create | Create a Task for a canonical repository, or resume the current Task when the repository already has one and `new_task` is null. |
+| `dev_flow_server_info` | Read-only | Read Core product version, transport, health, supported process, hosts, method profiles, tool catalog, and effective host code-index preferences. It must be the first call after valid host admission. |
+| `dev_flow_open_task` | Read or create | Create a Task for one explicit Repository Scope, or resume the same Task from any participating repository when `new_task` is null. |
 | `dev_flow_get_task` | Read-only | Read a persisted Task by ID; an optional operation probe can request the Recovery assessment for an uncertain mutation. |
 | `dev_flow_get_next_action` | Read-only | Read the authoritative current Action, including completion conditions, allowed effects, required evidence, verification budget, method steps, and every legal transition. |
 | `dev_flow_apply_action` | Mutation | Apply one Core-declared transition using the current revision, Action identity, process identity, repository binding, and closed payload; it also carries explicit recovery apply. |
 | `dev_flow_cancel_task` | Destructive mutation | Move a nonterminal Task to `CANCELLED` using the current revision and a non-empty reason. |
 
-Unknown CLI arguments, tools outside this catalog, and calls that do not satisfy selector admission
+Unknown CLI arguments, tools outside this catalog, and calls that do not satisfy shared implicit/explicit admission
 are not supported entrypoints.
+
+### Repository Scope and host-preference fields
+
+When creating a multi-repository Task, `repository_path` identifies the primary repository. The call
+may add one primary key and up to seven explicit additional repositories:
+
+```json
+{
+  "host": "codex",
+  "repository_path": "/workspace/core",
+  "primary_repository_key": "core",
+  "additional_repositories": [
+    { "key": "docs", "repository_path": "/workspace/docs" }
+  ],
+  "new_task": {
+    "request": "Synchronize interface documentation across the Core and docs repositories",
+    "initial_scope": [],
+    "initial_out_of_scope": [],
+    "known_acceptance_criteria": [],
+    "verification_budget": {
+      "level": "targeted",
+      "max_automatic_commands": 1,
+      "allow_full_suite": false,
+      "allow_manual_handoff": false
+    },
+    "method_profile": "plain"
+  }
+}
+```
+
+This example shows the closed MCP input shape; it is not a shell command. Creation uses the existing
+non-null Task intent in `new_task`. Resume omits it or sets it to `null`, may point
+`repository_path` at any participating repository, and omits the Scope-creation fields. A Scope
+contains one to eight repositories, additions are sorted by key, and membership is immutable after
+creation. Single-repository calls require no new fields and retain ordinary relative paths.
+Multi-repository payload paths use `<repository-key>::<repository-relative-path>`.
+
+The Task result retains the primary `repository` and adds `primary_repository_key` plus sorted
+`additional_repositories`. The current Action's single `repository_binding_digest` remains the
+primary binding digest for a single-repository Task and becomes the complete Scope aggregate for a
+multi-repository Task. Every active Task's `repository_claims` are acquired, retained, or released
+in the same SQLite transaction as the snapshot and event. An incompatible old Schema follows
+`reject-and-reset`: reject with zero writes before writable open and never migrate, delete, rename,
+or overwrite the data.
+
+The `dev_flow_server_info({})` result includes:
+
+```json
+{
+  "host_preferences": {
+    "codex": { "codebase_memory": false },
+    "deepseek": { "codebase_memory": false }
+  }
+}
+```
+
+These values come from the process-start snapshot of the read-only
+`$HOME/.dev-flow/config.json` file. They express preference, not installed or available index
+capability. Both are false when the file is absent, and Dev Flow does not create or modify it.

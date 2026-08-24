@@ -22,15 +22,16 @@ dev-flow-codex --version
 
 npm 全局安装只把 `dev-flow-codex` launcher 放到 `PATH`。`setup` 是独立步骤，它验证平台、
 package、bundled Core 和 Codex 版本，然后注册本地 marketplace、Plugin 与 MCP 配置，并回读
-注册结果。`--version` 同时报告 Host package 与 bundled Core 版本。
+注册结果。配置缺失时，`setup` 先创建 `$HOME/.dev-flow/config.json`；成功后显示配置/receipt 的
+实际文件变化和一个下一步。`--version` 同时报告 Host package 与 bundled Core 版本。
 
 ### 支持的 Codex 命令
 
 | 命令 | 作用 |
 | --- | --- |
 | `npm install -g dev-flow-codex@latest` | 从 npm 安装 `latest` 指向的 Codex package，并把 `dev-flow-codex` 全局加入 `PATH`。它不会自动注册 Codex Plugin。 |
-| `dev-flow-codex setup` | 验证安装内容和 Codex 兼容版本，注册 marketplace、Plugin 与 MCP，并在成功后写入 ownership receipt。重复执行时会读取并校验现有注册。 |
-| `dev-flow-codex setup --json` | 执行与 `setup` 相同的操作，但只输出机器可读 JSON，包含 operation、status、changed 与 receipt path。 |
+| `dev-flow-codex setup` | 创建或验证固定用户配置，验证安装内容和 Codex 兼容版本，注册 marketplace、Plugin 与 MCP，并在成功后显示实际配置/receipt 文件变化、就绪状态和一个下一步。重复执行时会读取并校验现有注册。 |
+| `dev-flow-codex setup --json` | 执行与 `setup` 相同的操作，但只输出一行机器可读 JSON，保留 operation、status、changed、receipt_path，并增加 configuration_path、file_changes 与 next_step。 |
 | `dev-flow-codex --version` | 输出 `dev-flow-codex <package-version> (core <core-version>)`，用于确认实际安装的 package 与 bundled Core 身份。 |
 | `dev-flow-codex remove` | 删除由该 package 拥有的 Codex Plugin、marketplace 注册与 receipt。Task data 和目标 Git 仓库保持不变。 |
 | `dev-flow-codex remove --json` | 执行与 `remove` 相同的操作，并输出机器可读 JSON；返回的 `next_step` 指向单独的全局 npm 卸载。 |
@@ -50,16 +51,17 @@ dev-flow-codex --version
 `npm uninstall -g dev-flow-codex`。只有在 Codex 和 DeepSeek Adapter 都已移除且不再需要任何
 Task 时，才删除共享默认数据目录 `$HOME/Library/Application Support/dev-flow`。
 
-### Codex 显式 selector
+### Codex 智能启用与显式 selector
 
 ```text
 $dev-flow-codex:dev-flow <任务描述>
 ```
 
-这不是 shell 命令，而是 Codex 用户消息中的精确 Skill selector。裸 `$dev-flow`、错误 namespace、
-缺少 selector 或普通对话都不会启动 Dev Flow。通过 admission 后，Host 静默调用
-`dev_flow_server_info` 并立即打开或恢复 Task；成功检查不逐项展示，失败时只报告具体阻塞项和
-一个恢复步骤。
+这不是 shell 命令，而是 Codex 用户消息中的精确 Skill selector，用于强制选择 Dev Flow。边界明确
+的实现、缺陷修复、重构、定向测试和开发交付请求也可以由 Host 隐式选择 Skill；裸 `$dev-flow` 和
+错误 namespace 仍不是显式 selector。仅解释、仅状态查询、方案讨论、普通问答和含糊请求不自动
+创建或恢复 Task。两种选择方式通过同一 admission 后，Host 静默调用 `dev_flow_server_info` 并立即
+打开或恢复 Task；显式选择不会绕过权限、Core Action、Git 变更授权或发布确认。
 
 ## DeepSeek Harness
 
@@ -136,11 +138,65 @@ Core 不支持 remote transport、HTTP/SSE、通用 shell 或 Git mutation 命�
 
 | 工具 | 类型 | 作用 |
 | --- | --- | --- |
-| `dev_flow_server_info` | 只读 | 读取 Core 产品版本、transport、健康状态、支持的 process、Host、method profile 和工具目录。每次有效 Host admission 后必须首先调用。 |
-| `dev_flow_open_task` | 读取或创建 | 为 canonical repository 创建新 Task，或在提供现有仓库且 `new_task` 为空时恢复当前 Task。 |
+| `dev_flow_server_info` | 只读 | 读取 Core 产品版本、transport、健康状态、支持的 process、Host、method profile、工具目录和有效 Host 代码索引偏好。每次有效 Host admission 后必须首先调用。 |
+| `dev_flow_open_task` | 读取或创建 | 为一个显式 Repository Scope 创建新 Task，或在 `new_task` 为空时从任一参与仓库恢复同一 Task。 |
 | `dev_flow_get_task` | 只读 | 按 Task ID 读取持久化 Task；可附带 operation probe，以获取不确定 mutation 的 Recovery assessment。 |
 | `dev_flow_get_next_action` | 只读 | 读取当前节点的权威 Action，包括完成条件、允许副作用、所需证据、验证预算、method steps 和全部合法 transition。 |
 | `dev_flow_apply_action` | mutation | 使用当前 revision、Action identity、process identity、repository binding 与闭合 payload 应用一次 Core 声明的 transition；也承担显式 recovery apply。 |
 | `dev_flow_cancel_task` | destructive mutation | 使用当前 revision 和非空 reason 将非终态 Task 转为 `CANCELLED`。 |
 
-未知 CLI 参数、未列出的 MCP 工具或未满足 selector admission 的调用不属于受支持入口。
+未知 CLI 参数、未列出的 MCP 工具或未满足隐式/显式统一 admission 的调用不属于受支持入口。
+
+### Repository Scope 与 Host 偏好字段
+
+创建多仓库 Task 时，`repository_path` 是主仓库；调用可以增加一个主 key 和最多七个显式附加仓库：
+
+```json
+{
+  "host": "codex",
+  "repository_path": "/workspace/core",
+  "primary_repository_key": "core",
+  "additional_repositories": [
+    { "key": "docs", "repository_path": "/workspace/docs" }
+  ],
+  "new_task": {
+    "request": "同步 Core 与文档仓库中的接口说明",
+    "initial_scope": [],
+    "initial_out_of_scope": [],
+    "known_acceptance_criteria": [],
+    "verification_budget": {
+      "level": "targeted",
+      "max_automatic_commands": 1,
+      "allow_full_suite": false,
+      "allow_manual_handoff": false
+    },
+    "method_profile": "plain"
+  }
+}
+```
+
+该示例只说明 closed MCP 输入形状，不是 shell 命令。创建时 `new_task` 使用既有非空 Task intent；
+恢复时将其省略或设为 `null`，`repository_path` 可以指向任一参与仓库，并省略 Scope 创建字段。
+总仓库数为一至八；附加仓库按 key 排序，Scope 创建后不可变。单仓库调用无需新字段，继续使用普通
+相对路径；多仓库 payload 路径使用 `<repository-key>::<repository-relative-path>`。
+
+Task result 保留主 `repository`，增加 `primary_repository_key` 与 sorted
+`additional_repositories`。当前 Action 中唯一的 `repository_binding_digest` 在单仓库 Task 中仍是
+主 binding digest，在多仓库 Task 中是完整 Scope aggregate。活动 Task 的全部
+`repository_claims` 与 snapshot/event 在同一 SQLite transaction 中 Acquire、Retain 或 Release；
+不兼容旧 Schema 采用 `reject-and-reset`，在 writable open 前零写入拒绝，不自动迁移、删除、改名
+或覆盖数据。
+
+`dev_flow_server_info({})` 的结果包含：
+
+```json
+{
+  "host_preferences": {
+    "codex": { "codebase_memory": false },
+    "deepseek": { "codebase_memory": false }
+  }
+}
+```
+
+这些值来自只读 `$HOME/.dev-flow/config.json` 的进程启动快照，仅表示偏好，不表示索引能力已经安装
+或可用。文件不存在时两者都为 false；Dev Flow 不创建或修改配置文件。

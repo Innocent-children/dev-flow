@@ -10,7 +10,7 @@ import (
 )
 
 func TestStrictCodecAndRestart(t *testing.T) {
-	task := testGraphTask(t)
+	task := multiRepositoryGraphTask(t)
 	task.Requirements = &domain.RequirementsBaseline{Revision: 1, Digest: task.Process.DefinitionDigest, Goal: "Graph storage", AcceptanceCriteria: []string{"Restart exactly"}, CreatedAt: task.CreatedAt}
 	raw, err := encodeTask(task)
 	if err != nil {
@@ -57,5 +57,13 @@ func TestStrictCodecAndRestart(t *testing.T) {
 	}
 	if !reflect.DeepEqual(mutation.Task, reopened) {
 		t.Fatal("restart changed task/action")
+	}
+	beforeDigest, err := mutation.Task.EffectiveRepositoryBindingDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	afterDigest, err := reopened.EffectiveRepositoryBindingDigest()
+	if err != nil || beforeDigest != afterDigest || len(reopened.AdditionalRepositories) != 1 {
+		t.Fatalf("scope restart digest=%s want=%s additions=%d err=%v", afterDigest, beforeDigest, len(reopened.AdditionalRepositories), err)
 	}
 }

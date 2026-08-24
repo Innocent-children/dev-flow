@@ -128,8 +128,10 @@ if (
 if (packageManifest.version !== codexVersion || pluginManifest.version !== codexVersion) {
   throw new Error("Codex package and plugin versions must match");
 }
-if (![codexVersion, coreVersion].every((value) => /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(value))) {
-  throw new Error("Codex and Core versions must be strict MAJOR.MINOR.PATCH");
+const productVersion = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-beta\.(0|[1-9][0-9]*))?$/;
+const coreVersionPattern = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
+if (!productVersion.test(codexVersion) || !coreVersionPattern.test(coreVersion)) {
+  throw new Error("Codex version must be stable or beta and Core must be MAJOR.MINOR.PATCH");
 }
 if (!lifecycleSource.includes(`CODEX_COMPATIBILITY_RANGE = "${codexCompatibility}"`)) {
   throw new Error("Codex compatibility metadata does not match the selected range");
@@ -145,6 +147,7 @@ production_files='package.json
 README.md
 .agents/plugins/marketplace.json
 bin/dev-flow-codex.mjs
+lib/install-experience.mjs
 lib/lifecycle.mjs
 lib/paths.mjs
 plugin/.codex-plugin/plugin.json
@@ -198,6 +201,7 @@ const expected = [
   "LICENSE",
   "README.md",
   "bin/dev-flow-codex.mjs",
+  "lib/install-experience.mjs",
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
   "package.json",

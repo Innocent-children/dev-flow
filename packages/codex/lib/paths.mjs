@@ -31,6 +31,17 @@ export async function resolveProductPaths({
     "dev-flow",
   );
   await assertNoSymlinkComponents(canonicalHome, productSupportRoot);
+  const configurationDirectory = containedPath(
+    canonicalHome,
+    join(canonicalHome, ".dev-flow"),
+    "user configuration directory",
+  );
+  const configurationPath = containedPath(
+    configurationDirectory,
+    join(configurationDirectory, "config.json"),
+    "user configuration",
+  );
+  await assertNoSymlinkComponents(canonicalHome, configurationPath);
 
   const runtimePath = containedPath(
     canonicalPackageRoot,
@@ -96,6 +107,8 @@ export async function resolveProductPaths({
     productSupportRoot,
     registrationsDirectory,
     receiptPath,
+    configurationDirectory,
+    configurationPath,
     dataDirectory,
     usesDefaultDataDirectory,
     runtimeKey,

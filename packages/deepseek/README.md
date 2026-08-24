@@ -89,6 +89,36 @@ Task 可选择 `plain`、`spec-kit` 或 `openspec` profile。Core 管理 current
 destination、Recovery、blocker 和 terminal outcome；Adapter 负责执行当前节点工作、呈现完整 Action
 并转发 closed payload。
 
+## 两仓声明、Workspace Root 与可选索引
+
+启动 DSH 时的 canonical `Workspace Root` 是完整权限边界，可以是两个 Git 仓库的非 Git 共同父
+目录。主仓库、附加仓库和 symlink 解析结果都必须位于该 Root 内。以 `/workspace` 为 Root、
+`/workspace/core` 和 `/workspace/docs` 为两个仓库时，可以发送：
+
+```text
+/dev-flow Use /workspace/core as primary repository key core and add repository key docs at /workspace/docs. Update core::internal/api.go and docs::reference/api.md, then run only the targeted checks.
+```
+
+路径必须替换为真实绝对路径。Scope 总数为一至八，创建后不可变；Adapter 在 task-bearing open 前
+拒绝 Root 外路径和 symlink escape。系统不扫描父目录、相邻目录、依赖或索引结果来发现仓库。
+单仓库请求不需要 key，继续使用普通相对路径；从任一参与仓库恢复仍返回同一 Task。
+DeepSeek 与 Codex 共用同一 Repository Scope、scoped path、Action 和唯一
+`repository_binding_digest` Core 合同；Host 权限检查不创建第二套流程状态。
+
+可选代码索引偏好来自只读配置：
+
+```json
+{
+  "codex": { "codebase_memory": false },
+  "deepseek": { "codebase_memory": true }
+}
+```
+
+文件路径固定为 `$HOME/.dev-flow/config.json`。文件不存在时偏好为 false，Dev Flow 不创建或修改
+它。true 只允许使用当前 DSH 会话中已经可见且可用的 codebase-memory；缺失、不完整或中途不可用
+时，DeepSeek 每个 Dev Flow 会话最多提示一次并立即回退到内置检索，不阻塞 Task，也不安装、配置
+或启动索引能力。索引覆盖不能放宽 Workspace Root，也不能决定 Scope、权限、Recovery 或流程流转。
+
 ## MCP 工具
 
 DeepSeek Adapter 暴露与 Codex 相同的六工具 Core catalog；在 DSH 中会使用限定后的 tool name，
@@ -96,8 +126,8 @@ DeepSeek Adapter 暴露与 Codex 相同的六工具 Core catalog；在 DSH 中�
 
 | MCP 工具 | 作用 |
 | --- | --- |
-| `dev_flow_server_info` | 读取 Core identity、能力、process、method profile 和工具目录；有效 admission 后必须首先调用。 |
-| `dev_flow_open_task` | 为当前 canonical repository 创建新 Task，或恢复其现有 Task。 |
+| `dev_flow_server_info` | 读取 Core identity、能力、process、method profile、工具目录和 DeepSeek 有效索引偏好；有效 admission 后必须首先调用。 |
+| `dev_flow_open_task` | 为 Workspace Root 内显式声明的主/附加仓库创建一个 Task，或从任一参与仓库恢复同一 Task。 |
 | `dev_flow_get_task` | 读取持久化 Task；可附带 operation probe 获取 Recovery assessment。 |
 | `dev_flow_get_next_action` | 读取当前节点的权威 Action、验证预算、method steps 和全部合法 transition。 |
 | `dev_flow_apply_action` | 使用当前 revision、Action identity、repository binding 和 closed payload 应用一次 Core 声明的 transition。 |

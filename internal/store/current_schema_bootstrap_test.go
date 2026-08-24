@@ -24,6 +24,13 @@ func TestFreshCurrentSchemaBootstrapIsDirectAndExact(t *testing.T) {
 	if version != DatabaseSchemaVersion {
 		t.Fatalf("database version=%q", version)
 	}
+	if version != "0.2.0" {
+		t.Fatalf("database schema identity=%q", version)
+	}
+	var claimIndexes int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='repository_claims_task_idx'`).Scan(&claimIndexes); err != nil || claimIndexes != 1 {
+		t.Fatalf("claim task index count=%d err=%v", claimIndexes, err)
+	}
 }
 
 func TestBootstrapFailureLeavesNoPartialSchema(t *testing.T) {

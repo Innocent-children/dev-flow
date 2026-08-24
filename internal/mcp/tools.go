@@ -15,9 +15,11 @@ import (
 )
 
 type openWire struct {
-	Host           domain.Host `json:"host"`
-	RepositoryPath string      `json:"repository_path"`
-	NewTask        *struct {
+	Host                   domain.Host                `json:"host"`
+	RepositoryPath         string                     `json:"repository_path"`
+	PrimaryRepositoryKey   domain.RepositoryKey       `json:"primary_repository_key"`
+	AdditionalRepositories []additionalRepositoryWire `json:"additional_repositories"`
+	NewTask                *struct {
 		Request                 string                    `json:"request"`
 		InitialScope            []string                  `json:"initial_scope"`
 		InitialOutOfScope       []string                  `json:"initial_out_of_scope"`
@@ -25,6 +27,10 @@ type openWire struct {
 		VerificationBudget      domain.VerificationBudget `json:"verification_budget"`
 		MethodProfile           domain.MethodProfile      `json:"method_profile"`
 	} `json:"new_task"`
+}
+type additionalRepositoryWire struct {
+	Key            domain.RepositoryKey `json:"key"`
+	RepositoryPath string               `json:"repository_path"`
 }
 type readWire struct {
 	Host           domain.Host         `json:"host"`
@@ -137,7 +143,27 @@ func ValidateToolInput(tool string, raw []byte) error {
 			return domain.ErrInvalidArgument
 		}
 		var v openWire
-		if decodeClosed(raw, &v) != nil || !v.Host.IsValid() || v.RepositoryPath == "" {
+		if decodeClosed(raw, &v) != nil || !v.Host.IsValid() || !validRepositoryPath(v.RepositoryPath) || len(v.AdditionalRepositories) > domain.MaxAdditionalRepositories {
+			return domain.ErrInvalidArgument
+		}
+		if nullField(raw, "primary_repository_key") || nullField(raw, "additional_repositories") {
+			return domain.ErrInvalidArgument
+		}
+		primaryKey := v.PrimaryRepositoryKey
+		if primaryKey == "" {
+			primaryKey = domain.DefaultPrimaryRepositoryKey
+		}
+		if !primaryKey.IsValid() {
+			return domain.ErrInvalidArgument
+		}
+		keys := map[domain.RepositoryKey]bool{primaryKey: true}
+		for _, repository := range v.AdditionalRepositories {
+			if !repository.Key.IsValid() || keys[repository.Key] || !validRepositoryPath(repository.RepositoryPath) {
+				return domain.ErrInvalidArgument
+			}
+			keys[repository.Key] = true
+		}
+		if v.NewTask == nil && (v.PrimaryRepositoryKey != "" || len(v.AdditionalRepositories) != 0) {
 			return domain.ErrInvalidArgument
 		}
 		if v.NewTask != nil {
@@ -224,12 +250,29 @@ func hasKeys(raw []byte, keys ...string) bool {
 	}
 	return true
 }
+func nullField(raw []byte, key string) bool {
+	var value map[string]json.RawMessage
+	if json.Unmarshal(raw, &value) != nil {
+		return false
+	}
+	field, ok := value[key]
+	return ok && bytes.Equal(bytes.TrimSpace(field), []byte("null"))
+}
 func toOpen(w openWire, id domain.ID) application.OpenTaskRequest {
-	r := application.OpenTaskRequest{RequestID: id, Host: w.Host, RepositoryPath: w.RepositoryPath}
+	r := application.OpenTaskRequest{RequestID: id, Host: w.Host, RepositoryPath: w.RepositoryPath, PrimaryRepositoryKey: w.PrimaryRepositoryKey}
+	if len(w.AdditionalRepositories) != 0 {
+		r.AdditionalRepositories = make([]application.AdditionalRepositoryInput, len(w.AdditionalRepositories))
+		for i, repository := range w.AdditionalRepositories {
+			r.AdditionalRepositories[i] = application.AdditionalRepositoryInput{Key: repository.Key, RepositoryPath: repository.RepositoryPath}
+		}
+	}
 	if w.NewTask != nil {
 		r.NewTask = &application.NewTaskInput{Request: w.NewTask.Request, InitialScope: w.NewTask.InitialScope, InitialOutOfScope: w.NewTask.InitialOutOfScope, KnownAcceptanceCriteria: w.NewTask.KnownAcceptanceCriteria, VerificationBudget: w.NewTask.VerificationBudget, MethodProfile: w.NewTask.MethodProfile}
 	}
 	return r
+}
+func validRepositoryPath(path string) bool {
+	return path != "" && len(path) <= domain.MaxRepositoryPathBytes && utf8.ValidString(path)
 }
 func toProbe(w *operationProbeWire) *application.OperationProbe {
 	if w == nil {

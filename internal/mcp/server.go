@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"github.com/Innocent-children/dev-flow/internal/application"
 	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/dev-flow/internal/userconfig"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"strings"
@@ -14,15 +15,17 @@ import (
 
 type RequestIDGenerator func() (domain.ID, error)
 type ServerOptions struct {
-	Diagnostics  *Diagnostics
-	NewRequestID RequestIDGenerator
-	Instructions string
+	Diagnostics     *Diagnostics
+	NewRequestID    RequestIDGenerator
+	Instructions    string
+	HostPreferences userconfig.Preferences
 }
 type Server struct {
-	application  *application.Service
-	version      string
-	sdk          *sdk.Server
-	newRequestID RequestIDGenerator
+	application     *application.Service
+	version         string
+	sdk             *sdk.Server
+	newRequestID    RequestIDGenerator
+	hostPreferences userconfig.Preferences
 }
 
 func NewServer(service *application.Service, version string, options *ServerOptions) (*Server, error) {
@@ -33,7 +36,11 @@ func NewServer(service *application.Service, version string, options *ServerOpti
 	if options != nil && options.NewRequestID != nil {
 		newID = options.NewRequestID
 	}
-	s := &Server{application: service, version: version, newRequestID: newID}
+	preferences := userconfig.Preferences{}
+	if options != nil {
+		preferences = options.HostPreferences
+	}
+	s := &Server{application: service, version: version, newRequestID: newID, hostPreferences: preferences}
 	s.sdk = sdk.NewServer(&sdk.Implementation{Name: "dev-flow", Title: "Dev Flow Core", Description: "Local STDIO Dev Flow Core", Version: version}, &sdk.ServerOptions{})
 	for _, d := range catalog {
 		d := d
@@ -64,7 +71,7 @@ func (s *Server) dispatch(ctx context.Context, tool string, id domain.ID, raw []
 	case ToolServerInfo:
 		d := workflow.StandardProcess()
 		process := SupportedProcessResult{ProcessID: d.Reference.ID, DefinitionDigest: d.Reference.DefinitionDigest, NewTaskSupported: true}
-		return EncodeSuccess(string(resultID), tool, ServerInfoResult{Product: "dev-flow", Version: s.version, Transport: "stdio", Health: "ready", SupportedProcesses: []SupportedProcessResult{process}, SupportedHosts: []string{"codex", "deepseek"}, MethodProfiles: []domain.MethodProfile{domain.MethodPlain, domain.MethodSpecKit, domain.MethodOpenSpec}, Tools: ToolNames()})
+		return EncodeSuccess(string(resultID), tool, ServerInfoResult{Product: "dev-flow", Version: s.version, Transport: "stdio", Health: "ready", SupportedProcesses: []SupportedProcessResult{process}, SupportedHosts: []string{"codex", "deepseek"}, MethodProfiles: []domain.MethodProfile{domain.MethodPlain, domain.MethodSpecKit, domain.MethodOpenSpec}, Tools: ToolNames(), HostPreferences: s.hostPreferences})
 	case ToolOpenTask:
 		var w openWire
 		_ = decodeClosed(raw, &w)

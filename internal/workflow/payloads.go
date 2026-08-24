@@ -276,10 +276,12 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 	if !validText(envelope.Summary, domain.MaxEvidenceSummaryBytes) || !validReason(envelope.Reason, transition.ReasonRequired) || len(envelope.Artifacts) > domain.MaxArtifactReferencesPerAction || len(envelope.MethodEvidence) > domain.MaxMethodEvidencePerAction {
 		return domain.ErrInvalidArgument
 	}
+	artifactPaths := map[string]bool{}
 	for _, item := range envelope.Artifacts {
-		if item.Validate() != nil {
+		if item.Validate() != nil || artifactPaths[item.Path] {
 			return domain.ErrInvalidArgument
 		}
+		artifactPaths[item.Path] = true
 	}
 	if err := domain.ValidateMethodEvidence(envelope.MethodEvidence, steps); err != nil {
 		return err
@@ -294,11 +296,11 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 			return domain.ErrInvalidArgument
 		}
 	case *TasksResult:
-		if source != domain.NodeTasks || ((envelope.TransitionID == "tasks_ready") != (value.Baseline != nil)) || !validStringLists(value.Findings) {
+		if source != domain.NodeTasks || ((envelope.TransitionID == "tasks_ready") != (value.Baseline != nil)) || !validStringLists(value.Findings) || value.Baseline != nil && !validWorkItemPaths(value.Baseline.WorkItems) {
 			return domain.ErrInvalidArgument
 		}
 	case *ImplementationResult:
-		if source != domain.NodeImplement || (len(value.ChangedPaths) > 0) == value.NoFileChanges || !validStringLists(value.Deviations, value.Findings) {
+		if source != domain.NodeImplement || (len(value.ChangedPaths) > 0) == value.NoFileChanges || !validRepositoryContractPaths(value.ChangedPaths) || !validStringLists(value.Deviations, value.Findings) {
 			return domain.ErrInvalidArgument
 		}
 	case *TestResult:
@@ -322,7 +324,7 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 			}
 		}
 	case *RefactorResult:
-		if source != domain.NodeRefactor || (len(value.ChangedPaths) > 0) == value.NoFileChanges || !validStringLists(value.Simplifications, value.Findings) {
+		if source != domain.NodeRefactor || (len(value.ChangedPaths) > 0) == value.NoFileChanges || !validRepositoryContractPaths(value.ChangedPaths) || !validStringLists(value.Simplifications, value.Findings) {
 			return domain.ErrInvalidArgument
 		}
 	case *DeliveryResult:
@@ -351,6 +353,26 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 		return domain.ErrInvalidArgument
 	}
 	return nil
+}
+
+func validWorkItemPaths(items []domain.WorkItem) bool {
+	for _, item := range items {
+		if !validRepositoryContractPaths(item.ExpectedPaths) {
+			return false
+		}
+	}
+	return true
+}
+
+func validRepositoryContractPaths(paths []string) bool {
+	seen := map[string]bool{}
+	for _, path := range paths {
+		if domain.ValidateRepositoryContractPath(path) != nil || seen[path] {
+			return false
+		}
+		seen[path] = true
+	}
+	return true
 }
 func validateProblemClass(source domain.NodeID, transition domain.TransitionID, result any) error {
 	class, findings, ok := resultProblemClass(result)

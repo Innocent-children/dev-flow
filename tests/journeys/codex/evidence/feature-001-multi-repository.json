@@ -1,0 +1,15 @@
+{
+  "evidence_kind": "feature-001-multi-repository-codex-journey",
+  "status": "failed",
+  "source_commit": "1176809054e814d7d163ef7eef0243b1538a71a3",
+  "host": "codex",
+  "runner_mode": "multi-repository",
+  "journey_budget": "1/1",
+  "failure_stage": "evidence-validation",
+  "failure_classification": "post-session-validation",
+  "session_role": "multi-repository",
+  "exit_code": 0,
+  "stdout_sha256": "3d46fa342cd0ed912137010eb9cc6b6c55215be2c497cbfeba24d2b897717171",
+  "stderr_sha256": "1e68fbdd22d37c0c6503cf8e5a06e4f5594c0e697298680218dab3b5294aa837",
+  "observed_at": "2026-08-23T10:14:22.506Z"
+}

@@ -26,6 +26,16 @@ type TaskMutation struct {
 	Event            TaskEvent
 	Claim            ClaimOperation
 }
+
+func repositoryClaimIdentities(task domain.ProcessTask) []domain.Digest {
+	identities := make([]domain.Digest, 0, len(task.AdditionalRepositories)+1)
+	identities = append(identities, task.Repository.RepositoryIdentity)
+	for _, entry := range task.AdditionalRepositories {
+		identities = append(identities, entry.Binding.RepositoryIdentity)
+	}
+	return identities
+}
+
 type TaskEvent struct {
 	EventID          domain.ID
 	TaskID           domain.ID

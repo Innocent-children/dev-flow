@@ -125,9 +125,23 @@ recorded resume node.
 
 ### Local persistence and read-only Git observation
 
-Tasks, events, evidence, and repository claims are stored in local SQLite. Core may read the
-canonical repository, branch, HEAD, index/worktree, and bounded changed paths. A user-authorized host
-continues to own Git mutations.
+Tasks, events, evidence, and repository claims are stored in local SQLite. A Task may contain one
+primary repository and up to seven explicit additional repositories. The scope is immutable after
+creation, and every repository shares the same process state. Core reads each repository's canonical
+identity, branch, HEAD, index/worktree, and bounded changed paths in primary-first, additional-key
+order. A user-authorized host continues to own Git mutations.
+
+The read-only `$HOME/.dev-flow/config.json` file provides independent `codebase_memory` boolean
+preferences for Codex and DeepSeek. Missing configuration defaults to disabled. Configuration and
+index availability never enter the Task, repository binding, Recovery, or process authority.
+
+### Codex setup out-of-box experience
+
+When configuration is absent, `dev-flow-codex setup` creates a safe complete default, preserves any
+existing configuration, and reports the configuration and registration receipt files it directly
+created or updated. Interactive results use a Dev Flow-owned Simplified Chinese or English welcome
+screen; non-interactive output is plain text, and `setup --json` exposes the same file facts. This is
+Codex Host lifecycle behavior and does not change Core, Tasks, or DeepSeek.
 
 ## Products
 
@@ -148,6 +162,8 @@ the two product version numbers do not have to match.
 - Every Task carries a verification budget, and validation scope must directly relate to the current
   node, changed surface, acceptance criteria, or recovery risk.
 - Mutations carry revision, action identity, source cursor, and repository binding.
+- A Task's one to eight explicit repositories share one Action, revision, verification budget,
+  Recovery, Blocker, and Outcome.
 - An uncertain mutation is read before another write action is selected.
 - A repository-changing refactor must return through `TEST`.
 - `DELIVERY` requires current test evidence and current developer comprehension evidence.
@@ -157,13 +173,18 @@ the two product version numbers do not have to match.
 
 ## Current product boundary
 
-The current release focuses on one local host, one existing Git repository, and one active Task per
-canonical repository root. It does not provide:
+The current product focuses on one local host and a bounded Repository Scope made of one primary
+repository plus zero to seven explicit additional repositories. Each participating repository can
+be claimed by at most one active Task. Single-repository calls retain ordinary relative paths;
+multi-repository paths use `<repository-key>::<repository-relative-path>`. It does not provide:
 
 - user-defined graphs, a workflow DSL, graph editor, or plugin framework;
 - a Web UI, remote MCP, HTTP/SSE, authentication, or telemetry;
 - a generic shell, automatic Git repair, commit, push, merge, rebase, or publication;
-- multi-repository Tasks, parallel nodes, subtasks, or automatic cross-host takeover;
+- automatic discovery or dynamic mutation of Repository Scope, parallel repository nodes, subtasks,
+  or automatic cross-host takeover;
+- automatic multi-repository orchestration, cross-repository Git transactions, or repository-level
+  process state;
 - pre-graph Task migration, a legacy snapshot decoder, or a compatibility runtime;
 - Spec Kit or OpenSpec installation, execution, or document parsing inside Core.
 
@@ -180,3 +201,11 @@ macOS arm64 with Node.js `>=24`.
 See the [Support Matrix](SUPPORT-MATRIX_en.md) for exact platform, host version, Journey outcome, and
 Release evidence. Current source code, machine-readable schemas, and executable tests define exact
 product behavior.
+
+## Codex smart activation
+
+The Codex Plugin lets the Host select Dev Flow implicitly for bounded implementation, bug-fix,
+refactoring, targeted-testing, and development-delivery requests. `$dev-flow-codex:dev-flow` remains
+the exact force-entry selector. Explanation-only, status-only, design-discussion, ordinary-question,
+and ambiguous requests do not automatically create or resume a Task. Both paths share the same
+admission, Core Action, and authority boundaries and do not authorize Git mutations or releases.

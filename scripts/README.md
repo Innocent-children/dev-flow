@@ -31,6 +31,7 @@ package contracts、Host Adapter tests、deterministic journeys 和 release tool
 
 ```bash
 pnpm run release:codex -- \
+  [--channel stable|beta] \
   --mode quick|normal \
   --version "<CODEX_VERSION>" \
   --output "<ABSOLUTE_DIRECTORY>" \
@@ -40,6 +41,7 @@ pnpm run release:codex -- \
 
 ```bash
 pnpm run release:deepseek -- \
+  [--channel stable|beta] \
   --mode quick|normal \
   --version "<DEEPSEEK_VERSION>" \
   --output "<ABSOLUTE_DIRECTORY>" \
@@ -47,7 +49,11 @@ pnpm run release:deepseek -- \
   [--confirm-comprehension]
 ```
 
-两个一键发布命令在各自 version commit 中调用 `sync-public-release-docs.mjs`。同步器只从
+`stable` 为默认 channel，只接受稳定 SemVer，并要求 `main` 与 `origin/main` 一致。`beta` 只接受
+`MAJOR.MINOR.PATCH-beta.N`，允许任意干净的命名分支，version commit 推回当前分支；npm 固定使用
+`beta` dist-tag，GitHub Release 固定为 prerelease，稳定版 `latest` 和公开版本文档保持不变。
+
+两个一键发布命令仅在 stable version commit 中调用 `sync-public-release-docs.mjs`。同步器只从
 `CORE_VERSION`、产品 package manifest 和 `release/public-versions.json` 获取版本事实，并更新
 全部维护中的根 README、产品说明、Roadmap、Support Matrix 与 Host package README；Markdown
 不参与版本决策。
@@ -56,7 +62,7 @@ pnpm run release:deepseek -- \
 只有上述 exact-confirmation 入口可以修改产品版本、commit/push、Tag、npm、GitHub Release 与
 assets。
 
-Publisher 使用仓库外的 `release-manifest.json` 和 `publication-record.json` 保留 source、
+两个 channel 共用同一个 Publisher。Publisher 使用仓库外的 `release-manifest.json` 和 `publication-record.json` 保留 source、
 mode、版本、artifact digest、remote read-back 与恢复状态。中断后使用同一命令和同一 output
 directory 继续。
 

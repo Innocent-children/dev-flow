@@ -62,6 +62,23 @@ func TestMCPCurrentContractRequiredShapes(t *testing.T) {
 	requireNames(core.ToolGetNextAction, []string{"host", "task_id"})
 	requireNames(core.ToolApplyAction, []string{"request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload"})
 	requireNames(core.ToolCancelTask, []string{"request_id", "host", "task_id", "revision", "reason"})
+	openProperties := schemas[core.ToolOpenTask]["properties"].(map[string]any)
+	additional := openProperties["additional_repositories"].(map[string]any)
+	if additional["maxItems"] != float64(domain.MaxAdditionalRepositories) || additional["items"].(map[string]any)["additionalProperties"] != false {
+		t.Fatalf("additional_repositories schema=%#v", additional)
+	}
+	if openProperties["primary_repository_key"].(map[string]any)["pattern"] != "^[a-z0-9][a-z0-9._-]{0,127}$" {
+		t.Fatal("primary_repository_key pattern changed")
+	}
+	for _, tool := range []string{core.ToolServerInfo, core.ToolGetTask, core.ToolGetNextAction, core.ToolApplyAction, core.ToolCancelTask} {
+		properties, _ := schemas[tool]["properties"].(map[string]any)
+		if _, exists := properties["primary_repository_key"]; exists {
+			t.Fatalf("%s input gained repository scope", tool)
+		}
+		if _, exists := properties["additional_repositories"]; exists {
+			t.Fatalf("%s input gained additional repositories", tool)
+		}
+	}
 }
 func stringsOf(v any) []string {
 	items, _ := v.([]any)
@@ -79,6 +96,34 @@ func TestMCPStrictInputBoundaryAndDuplicateMembers(t *testing.T) {
 	for _, raw := range [][]byte{[]byte(`{"host":"codex","task_id":"a","task_id":"b","operation_probe":null}`), []byte(`{"host":"codex","repository_path":"/repo","new_task":{"request":"x","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain","method_profile":"spec-kit"}}`)} {
 		if err := core.ValidateToolInput(core.ToolGetTask, raw); err == nil {
 			t.Fatal("duplicate accepted")
+		}
+	}
+}
+
+func TestMCPOpenTaskSingleAndMultiRepositoryInputBoundary(t *testing.T) {
+	newTask := `"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}`
+	for _, raw := range []string{
+		`{"host":"codex","repository_path":"/repo"}`,
+		`{"host":"codex","repository_path":"/core","primary_repository_key":"core","additional_repositories":[{"key":"docs","repository_path":"/docs"}],` + newTask + `}`,
+	} {
+		if err := core.ValidateToolInput(core.ToolOpenTask, []byte(raw)); err != nil {
+			t.Fatalf("valid open input rejected: %v %s", err, raw)
+		}
+	}
+	additional := make([]map[string]string, domain.MaxAdditionalRepositories+1)
+	for i := range additional {
+		additional[i] = map[string]string{"key": fmt.Sprintf("repo%d", i), "repository_path": fmt.Sprintf("/repo%d", i)}
+	}
+	tooMany, err := json.Marshal(map[string]any{"host": "codex", "repository_path": "/core", "additional_repositories": additional, "new_task": map[string]any{"request": "Build feature", "initial_scope": []string{}, "initial_out_of_scope": []string{}, "known_acceptance_criteria": []string{}, "verification_budget": map[string]any{"level": "targeted", "max_automatic_commands": 1, "allow_full_suite": false, "allow_manual_handoff": false}, "method_profile": "plain"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, raw := range [][]byte{
+		[]byte(`{"host":"codex","repository_path":"/core","additional_repositories":[{"key":"docs","repository_path":"/docs","unknown":true}],` + newTask + `}`),
+		tooMany,
+	} {
+		if err := core.ValidateToolInput(core.ToolOpenTask, raw); err != domain.ErrInvalidArgument {
+			t.Fatalf("invalid multi repository input error=%v raw=%s", err, raw)
 		}
 	}
 }

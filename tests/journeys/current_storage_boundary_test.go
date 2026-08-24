@@ -161,7 +161,7 @@ func assertFreshCurrentSchema(t *testing.T, dbPath string) {
 	t.Helper()
 	db := openImmutableDatabase(t, dbPath)
 	defer db.Close()
-	want := []string{"index:tasks_node_idx", "index:tasks_origin_host_idx", "index:tasks_updated_at_idx", "table:repository_claims", "table:schema_metadata", "table:task_events", "table:tasks"}
+	want := []string{"index:repository_claims_task_idx", "index:tasks_node_idx", "index:tasks_origin_host_idx", "index:tasks_updated_at_idx", "table:repository_claims", "table:schema_metadata", "table:task_events", "table:tasks"}
 	rows, err := db.Query(`SELECT type||':'||name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name`)
 	if err != nil {
 		t.Fatal(err)

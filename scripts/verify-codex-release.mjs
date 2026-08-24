@@ -31,11 +31,12 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { QUICK_NATIVE_EVIDENCE_KIND, validateFinalJourneyEvidence, validateQuickJourneyEvidence } from "./write-codex-journey-evidence.mjs";
+import { compareReleaseVersions, isReleaseVersion } from "./release-channel.mjs";
 
 const execFile = promisify(execFileCallback);
 
 export function releaseOutputNames(codexVersion, coreVersion) {
-  if (![codexVersion, coreVersion].every((value) => SEMVER_PATTERN.test(value))) throw new Error("release output versions must be strict MAJOR.MINOR.PATCH");
+  if (!isReleaseVersion(codexVersion) || !SEMVER_PATTERN.test(coreVersion)) throw new Error("release output versions must use strict MAJOR.MINOR.PATCH, with optional -beta.N for Codex only");
   return ["SHA256SUMS", `dev-flow-core-${coreVersion}-darwin-arm64`, `dev-flow-codex-${codexVersion}.tgz`, "publication-record.json", "release-manifest.json"].sort();
 }
 
@@ -44,6 +45,7 @@ export const PACKAGE_FILE_PATHS = Object.freeze([
   "LICENSE",
   "README.md",
   "bin/dev-flow-codex.mjs",
+  "lib/install-experience.mjs",
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
   "package.json",
@@ -405,7 +407,7 @@ export async function inspectPackageTarball(tarballPath, { repositoryRoot, versi
   }
   const relativeFiles = packagePaths.map((path) => path.slice("package/".length)).sort();
   if (!arraysEqual(relativeFiles, [...PACKAGE_FILE_PATHS].sort())) {
-    throw new Error("npm tarball does not contain the exact approved 12-file package layout");
+    throw new Error("npm tarball does not contain the exact approved package layout");
   }
 
   const extractionRoot = await mkdtemp(join(tmpdir(), "dev-flow-release-verify-"));
@@ -728,7 +730,7 @@ function validatePublicPackageManifest(manifest, version) {
     manifest.publishConfig?.registry !== "https://registry.npmjs.org/" ||
     stableJSON(manifest.engines) !== stableJSON({ node: ">=24" }) ||
     stableJSON(manifest.files) !== stableJSON([
-      ".agents/plugins/marketplace.json", "LICENSE", "bin/dev-flow-codex.mjs", "lib/lifecycle.mjs", "lib/paths.mjs", "plugin/.codex-plugin/plugin.json", "plugin/.mcp.json", "plugin/skills/dev-flow/SKILL.md", "plugin/skills/dev-flow/agents/openai.yaml", "plugin/skills/dev-flow/references/method-profiles.md", "plugin/skills/dev-flow/references/node-payloads.md", "runtime/darwin-arm64/dev-flow",
+      ".agents/plugins/marketplace.json", "LICENSE", "bin/dev-flow-codex.mjs", "lib/install-experience.mjs", "lib/lifecycle.mjs", "lib/paths.mjs", "plugin/.codex-plugin/plugin.json", "plugin/.mcp.json", "plugin/skills/dev-flow/SKILL.md", "plugin/skills/dev-flow/agents/openai.yaml", "plugin/skills/dev-flow/references/method-profiles.md", "plugin/skills/dev-flow/references/node-payloads.md", "runtime/darwin-arm64/dev-flow",
     ])
   ) throw new Error("packed package.json differs from the fixed public package contract");
   for (const field of ["dependencies", "optionalDependencies", "peerDependencies", "bundledDependencies", "bundleDependencies"]) if (field in manifest) throw new Error(`packed package contains forbidden ${field}`);
@@ -869,19 +871,16 @@ function arraysEqual(left, right) {
 
 function validateReleaseMode(mode, basedOnRelease, version) {
   if (!['quick', 'normal'].includes(mode)) throw new Error("release verification_mode must equal quick or normal");
-  const match = /^(?:v|codex-v)((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))$/u.exec(basedOnRelease ?? "");
+  const match = /^(?:v|codex-v)((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-beta\.(?:0|[1-9][0-9]*))?)$/u.exec(basedOnRelease ?? "");
   if (!match) throw new Error("release requires a previous Codex release Tag");
-  const current = version.split(".").map(Number);
-  const previous = match[1].split(".").map(Number);
-  const older = previous.some((value, index) => value < current[index] && previous.slice(0, index).every((entry, prior) => entry === current[prior]));
-  if (!older) throw new Error("based_on_release must be lower than the Codex version");
+  if (!isReleaseVersion(version) || compareReleaseVersions(match[1], version) >= 0) throw new Error("based_on_release must be lower than the Codex version");
 }
 
 async function readSourceVersions(root) {
   const coreVersion = (await readBoundedFile(join(root, "CORE_VERSION"), 128)).toString("utf8").trim();
   const manifest = JSON.parse((await readBoundedFile(join(root, "packages", "codex", "package.json"), MAX_TEXT_FILE_BYTES)).toString("utf8"));
   const codexVersion = manifest?.version;
-  if (manifest?.name !== "dev-flow-codex" || ![coreVersion, codexVersion].every((value) => SEMVER_PATTERN.test(value))) {
+  if (manifest?.name !== "dev-flow-codex" || !SEMVER_PATTERN.test(coreVersion) || !isReleaseVersion(codexVersion)) {
     throw new Error("Codex or Core source version is invalid");
   }
   return { codexVersion, coreVersion };

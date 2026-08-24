@@ -7,6 +7,8 @@ import (
 	"unicode/utf8"
 )
 
+const repositoryPathSeparator = "::"
+
 type BaselineKind string
 
 const (
@@ -49,7 +51,7 @@ type ArtifactReference struct {
 }
 
 func (r ArtifactReference) Validate() error {
-	if !r.Role.IsValid() || validateRepositoryRelativePath(r.Path) != nil || !r.Digest.IsValid() || requireNormalizedText(r.Summary, MaxEvidenceSummaryBytes, true) != nil {
+	if !r.Role.IsValid() || ValidateRepositoryContractPath(r.Path) != nil || !r.Digest.IsValid() || requireNormalizedText(r.Summary, MaxEvidenceSummaryBytes, true) != nil {
 		return ErrInvalidArgument
 	}
 	return nil
@@ -135,7 +137,7 @@ func (b TaskPlanBaseline) Validate() error {
 		known[item.WorkItemID] = true
 		paths := map[string]bool{}
 		for _, p := range item.ExpectedPaths {
-			if validateRepositoryRelativePath(p) != nil || paths[p] {
+			if ValidateRepositoryContractPath(p) != nil || paths[p] {
 				return ErrInvalidArgument
 			}
 			paths[p] = true
@@ -172,7 +174,18 @@ func (b TaskPlanBaseline) Validate() error {
 }
 
 func validateRepositoryRelativePath(value string) error {
-	if !utf8.ValidString(value) || value == "" || filepath.IsAbs(value) || filepath.Clean(value) != value || value == ".." || strings.HasPrefix(value, ".."+string(filepath.Separator)) {
+	if !utf8.ValidString(value) || value == "" || strings.Contains(value, repositoryPathSeparator) || filepath.IsAbs(value) || filepath.Clean(value) != value || value == ".." || strings.HasPrefix(value, ".."+string(filepath.Separator)) {
+		return ErrInvalidArgument
+	}
+	return nil
+}
+
+func ValidateRepositoryContractPath(value string) error {
+	key, relative, scoped := strings.Cut(value, repositoryPathSeparator)
+	if !scoped {
+		return validateRepositoryRelativePath(value)
+	}
+	if !RepositoryKey(key).IsValid() || validateRepositoryRelativePath(relative) != nil {
 		return ErrInvalidArgument
 	}
 	return nil
@@ -216,10 +229,12 @@ func (r ImplementationRecord) Validate() error {
 		}
 		seen[id] = true
 	}
+	paths := map[string]bool{}
 	for _, path := range r.ChangedPaths {
-		if validateRepositoryRelativePath(path) != nil {
+		if ValidateRepositoryContractPath(path) != nil || paths[path] {
 			return ErrInvalidArgument
 		}
+		paths[path] = true
 	}
 	return nil
 }
@@ -276,14 +291,10 @@ func validateArtifacts(items []ArtifactReference) error {
 	}
 	seen := map[string]bool{}
 	for _, item := range items {
-		if item.Validate() != nil {
+		if item.Validate() != nil || seen[item.Path] {
 			return ErrInvalidArgument
 		}
-		key := string(item.Role) + "\x00" + item.Path + "\x00" + string(item.Digest)
-		if seen[key] {
-			return ErrInvalidArgument
-		}
-		seen[key] = true
+		seen[item.Path] = true
 	}
 	return nil
 }

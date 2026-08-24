@@ -1,0 +1,26 @@
+{
+  "evidence_kind": "feature-001-multi-repository-deepseek-journey",
+  "status": "failed",
+  "source_commit": "af646d316e9d935852773841c5ef10eaa8a91295",
+  "host": "deepseek",
+  "runner_mode": "multi-repository",
+  "journey_budget": "2/2",
+  "failure_stage": "accept-and-deliver",
+  "failure_classification": "DSH_STAGE_TIMEOUT",
+  "dsh_started": true,
+  "exit_code": 0,
+  "stdout_sha256": "f069cec13f96e0ce5dcfdb747abe159aae9c5f8b88262828ddd0472914b878a1",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "raw_transcript_stages": [
+    "create-to-design",
+    "implement-to-test",
+    "additional-resume-to-comprehension"
+  ],
+  "final_task": {
+    "task_id": "task-14a9fe6efb5f3b8a4d4db5d0416afcdf",
+    "current_node": "DELIVERY",
+    "revision": 7,
+    "origin_host": "deepseek"
+  },
+  "observed_at": "2026-08-23T14:49:29.229Z"
+}

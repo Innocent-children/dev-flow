@@ -32,11 +32,11 @@ func (s *Service) ApplyAction(ctx context.Context, r ApplyActionRequest) (ApplyA
 		if err != nil {
 			return ApplyActionResult{}, err
 		}
-		fresh, err := s.observeTaskRepository(ctx, task)
+		fresh, err := s.observeTaskRepositories(ctx, task)
 		if err != nil {
 			return ApplyActionResult{}, err
 		}
-		decision, err := recovery.Reconcile(recovery.ReconcileInput{Host: r.Host, Task: task, Operation: operation, Payload: r.Payload, Observed: fresh})
+		decision, err := recovery.Reconcile(recovery.ReconcileInput{Host: r.Host, Task: task, Operation: operation, Payload: r.Payload, ObservedScope: &fresh})
 		if err != nil {
 			return ApplyActionResult{}, err
 		}
@@ -51,8 +51,11 @@ func (s *Service) ApplyAction(ctx context.Context, r ApplyActionRequest) (ApplyA
 				}
 				return s.resolveBlockerMutation(ctx, r, task, fresh, payload, canonical)
 			}
-			relation, _ := recovery.CompareRepositoryBindings(task.Repository, fresh)
-			return s.applyStandardMutation(ctx, r, task, fresh, relation)
+			comparison, comparisonErr := recovery.CompareRepositoryScope(task, fresh)
+			if comparisonErr != nil {
+				return ApplyActionResult{}, domain.ErrInternal
+			}
+			return s.applyStandardMutation(ctx, r, task, fresh, comparison)
 		case recovery.DirectiveCreateBlocker:
 			return s.createRecoveryBlocker(ctx, r, task, fresh, decision)
 		case recovery.DirectiveRevisionConflict:
@@ -79,18 +82,18 @@ func (s *Service) ApplyAction(ctx context.Context, r ApplyActionRequest) (ApplyA
 	if err := validateStandardRequestAgainstTask(r, task); err != nil {
 		return ApplyActionResult{}, err
 	}
-	fresh, err := s.observeTaskRepository(ctx, task)
+	fresh, err := s.observeTaskRepositories(ctx, task)
 	if err != nil {
 		return ApplyActionResult{}, err
 	}
-	relation, err := recovery.CompareRepositoryBindings(task.Repository, fresh)
+	comparison, err := recovery.CompareRepositoryScope(task, fresh)
 	if err != nil {
 		return ApplyActionResult{}, domain.ErrInternal
 	}
-	if _, err := validatedRepositoryEffect(task.CurrentNode, r.Payload, relation, task.Repository, fresh); err != nil {
-		return ApplyActionResult{}, domain.ErrRepositoryDrift
+	if _, err := validatedRepositoryEffect(task, r.Payload, fresh, comparison); err != nil {
+		return ApplyActionResult{}, repositoryDriftError(comparison)
 	}
-	return s.applyStandardMutation(ctx, r, task, fresh, relation)
+	return s.applyStandardMutation(ctx, r, task, fresh, comparison)
 }
 
 func validateStandardRequestAgainstTask(r ApplyActionRequest, task domain.ProcessTask) error {
@@ -100,7 +103,11 @@ func validateStandardRequestAgainstTask(r ApplyActionRequest, task domain.Proces
 	if r.ProcessID != task.Process.ID || r.ProcessDefinitionDigest != task.Process.DefinitionDigest {
 		return domain.ErrProcessUnsupported
 	}
-	if r.SourceCursor != task.CurrentNode || task.CurrentAction.ActionID != r.ActionID || task.CurrentAction.Kind != r.ActionKind || task.Repository.BindingDigest != r.RepositoryBindingDigest {
+	effectiveDigest, err := task.EffectiveRepositoryBindingDigest()
+	if err != nil {
+		return domain.ErrInternal
+	}
+	if r.SourceCursor != task.CurrentNode || task.CurrentAction.ActionID != r.ActionID || task.CurrentAction.Kind != r.ActionKind || effectiveDigest != r.RepositoryBindingDigest {
 		return domain.ErrActionStale
 	}
 	envelope, result, err := workflow.DecodeStandardPayload(task.CurrentNode, r.Payload)
@@ -119,14 +126,18 @@ func validateStandardRequestAgainstTask(r ApplyActionRequest, task domain.Proces
 	return nil
 }
 
-func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionRequest, task domain.ProcessTask, fresh domain.RepositoryBinding, relation recovery.RepositoryRelation) (ApplyActionResult, error) {
+func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionRequest, task domain.ProcessTask, fresh recovery.RepositoryScopeObservation, comparison recovery.RepositoryScopeComparison) (ApplyActionResult, error) {
 	if task.CurrentAction == nil || task.Revision != r.ExpectedRevision {
 		return ApplyActionResult{}, domain.ErrRevisionConflict
 	}
 	if r.ProcessID != task.Process.ID || r.ProcessDefinitionDigest != task.Process.DefinitionDigest {
 		return ApplyActionResult{}, domain.ErrProcessUnsupported
 	}
-	if r.SourceCursor != task.CurrentNode || task.CurrentAction.ActionID != r.ActionID || task.CurrentAction.Kind != r.ActionKind || task.Repository.BindingDigest != r.RepositoryBindingDigest {
+	effectiveDigest, err := task.EffectiveRepositoryBindingDigest()
+	if err != nil {
+		return ApplyActionResult{}, domain.ErrInternal
+	}
+	if r.SourceCursor != task.CurrentNode || task.CurrentAction.ActionID != r.ActionID || task.CurrentAction.Kind != r.ActionKind || effectiveDigest != r.RepositoryBindingDigest {
 		return ApplyActionResult{}, domain.ErrActionStale
 	}
 	envelope, result, err := workflow.DecodeStandardPayload(task.CurrentNode, r.Payload)
@@ -145,8 +156,8 @@ func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionReques
 		return ApplyActionResult{}, domain.ErrInvalidArgument
 	}
 	effect, err := recovery.DeriveRepositoryEffect(task.CurrentNode, envelope, result)
-	if err != nil || !recovery.RepositoryEffectMatches(effect, relation, task.Repository, fresh) {
-		return ApplyActionResult{}, domain.ErrRepositoryDrift
+	if err != nil || recovery.RepositoryScopeEffectEvidence(task, fresh, comparison, effect) != recovery.OperationEvidenceComplete {
+		return ApplyActionResult{}, repositoryDriftError(comparison)
 	}
 	canonicalPayload, err := workflow.CanonicalValidatedPayload(envelope, result)
 	if err != nil {
@@ -161,7 +172,7 @@ func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionReques
 		return ApplyActionResult{}, domain.ErrInternal
 	}
 	now := s.now().UTC()
-	if effect.Kind == recovery.EffectProcessArtifactOnly && relation == recovery.RepositoryWorktreeOnlyChanged {
+	if effect.Kind == recovery.EffectProcessArtifactOnly && comparison.Relation == recovery.RepositoryWorktreeOnlyChanged {
 		rebindProcessAuthorities(&next, fresh)
 	}
 	switch value := result.(type) {
@@ -172,13 +183,13 @@ func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionReques
 	case *workflow.TasksResult:
 		err = applyTaskPlanResult(&next, transition, envelope, value, now)
 	case *workflow.ImplementationResult:
-		err = applyImplementationResult(&next, transition, envelope, value, fresh, relation, now)
+		err = applyImplementationResult(&next, transition, envelope, value, fresh, comparison.Relation, now)
 	case *workflow.TestResult:
 		err = s.applyTestResult(&next, transition, value, now)
 	case *workflow.ComprehensionResult:
 		err = s.applyComprehensionResult(&next, transition, value, now)
 	case *workflow.RefactorResult:
-		err = applyRefactorResult(&next, transition, envelope, value, fresh, relation, now)
+		err = applyRefactorResult(&next, transition, envelope, value, fresh, comparison.Relation, now)
 	case *workflow.DeliveryResult:
 		err = applyDeliveryResult(&next, transition, envelope, value, now)
 	default:
@@ -202,7 +213,11 @@ func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionReques
 		if err != nil {
 			return ApplyActionResult{}, err
 		}
-		action, err := workflow.BuildProcessAction(definition, next.CurrentNode, next.TaskID, next.Revision, next.Repository.BindingDigest, next.Intent.MethodProfile, nextID, now)
+		nextDigest, digestErr := next.EffectiveRepositoryBindingDigest()
+		if digestErr != nil {
+			return ApplyActionResult{}, domain.ErrInternal
+		}
+		action, err := workflow.BuildProcessAction(definition, next.CurrentNode, next.TaskID, next.Revision, nextDigest, next.Intent.MethodProfile, nextID, now)
 		if err != nil {
 			return ApplyActionResult{}, domain.ErrInternal
 		}
@@ -225,32 +240,44 @@ func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionReques
 	return ApplyActionResult{Task: next}, nil
 }
 
-func validatedRepositoryEffect(source domain.NodeID, raw json.RawMessage, relation recovery.RepositoryRelation, authoritative, fresh domain.RepositoryBinding) (recovery.RepositoryEffect, error) {
-	envelope, result, err := workflow.DecodeStandardPayload(source, raw)
+func validatedRepositoryEffect(task domain.ProcessTask, raw json.RawMessage, fresh recovery.RepositoryScopeObservation, comparison recovery.RepositoryScopeComparison) (recovery.RepositoryEffect, error) {
+	envelope, result, err := workflow.DecodeStandardPayload(task.CurrentNode, raw)
 	if err != nil {
 		return recovery.RepositoryEffect{}, err
 	}
-	effect, err := recovery.DeriveRepositoryEffect(source, envelope, result)
-	if err != nil || !recovery.RepositoryEffectMatches(effect, relation, authoritative, fresh) {
+	effect, err := recovery.DeriveRepositoryEffect(task.CurrentNode, envelope, result)
+	if err != nil || recovery.RepositoryScopeEffectEvidence(task, fresh, comparison, effect) != recovery.OperationEvidenceComplete {
 		return recovery.RepositoryEffect{}, domain.ErrRepositoryDrift
 	}
 	return effect, nil
 }
 
-func rebindProcessAuthorities(task *domain.ProcessTask, fresh domain.RepositoryBinding) {
-	task.Repository = fresh
+func rebindProcessAuthorities(task *domain.ProcessTask, fresh recovery.RepositoryScopeObservation) {
+	rebindTaskRepositories(task, fresh)
+	digest, err := task.EffectiveRepositoryBindingDigest()
+	if err != nil {
+		return
+	}
 	if task.Implementation != nil {
-		task.Implementation.RepositoryBindingDigest = fresh.BindingDigest
+		task.Implementation.RepositoryBindingDigest = digest
 	}
 	if task.Test != nil {
-		task.Test.RepositoryBindingDigest = fresh.BindingDigest
+		task.Test.RepositoryBindingDigest = digest
 	}
 	if task.Comprehension != nil {
-		task.Comprehension.RepositoryBindingDigest = fresh.BindingDigest
+		task.Comprehension.RepositoryBindingDigest = digest
 	}
 }
 
-func (s *Service) createRecoveryBlocker(ctx context.Context, r ApplyActionRequest, task domain.ProcessTask, fresh domain.RepositoryBinding, decision recovery.RecoveryDecision) (ApplyActionResult, error) {
+func rebindTaskRepositories(task *domain.ProcessTask, fresh recovery.RepositoryScopeObservation) {
+	task.Repository = fresh.Primary
+	task.AdditionalRepositories = make([]domain.RepositoryScopeEntry, len(fresh.Additional))
+	for i, entry := range fresh.Additional {
+		task.AdditionalRepositories[i] = entry.Clone()
+	}
+}
+
+func (s *Service) createRecoveryBlocker(ctx context.Context, r ApplyActionRequest, task domain.ProcessTask, fresh recovery.RepositoryScopeObservation, decision recovery.RecoveryDecision) (ApplyActionResult, error) {
 	if task.CurrentAction == nil || task.CurrentNode != r.SourceCursor || task.Revision != r.ExpectedRevision || decision.Assessment.UnblockCondition == nil {
 		return ApplyActionResult{}, domain.ErrActionStale
 	}
@@ -276,8 +303,12 @@ func (s *Service) createRecoveryBlocker(ctx context.Context, r ApplyActionReques
 	next.ResumeNode = &resume
 	next.Revision++
 	next.UpdatedAt = now
-	next.Blocker = &domain.ProcessBlocker{BlockerID: blockerID, Code: domain.ErrorTaskBlocked, Cause: decision.Assessment.Classification, Message: "The uncertain graph mutation requires exact repository restoration before work can continue.", ResumeNode: resume, ObservedBindingDigest: fresh.BindingDigest, Condition: *decision.Assessment.UnblockCondition, RequiredResolution: "Restore the exact repository binding recorded when the original action was issued.", CreatedAt: now}
-	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), domain.NodeBlocked, next.TaskID, next.Revision, next.Repository.BindingDigest, next.Intent.MethodProfile, actionID, now)
+	next.Blocker = &domain.ProcessBlocker{BlockerID: blockerID, Code: domain.ErrorTaskBlocked, Cause: decision.Assessment.Classification, Message: "The uncertain graph mutation requires exact repository restoration before work can continue.", ResumeNode: resume, ObservedBindingDigest: decision.Assessment.ObservedBindingDigest, Condition: *decision.Assessment.UnblockCondition, RequiredResolution: "Restore the exact repository binding recorded when the original action was issued.", CreatedAt: now}
+	effectiveDigest, err := next.EffectiveRepositoryBindingDigest()
+	if err != nil {
+		return ApplyActionResult{}, domain.ErrInternal
+	}
+	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), domain.NodeBlocked, next.TaskID, next.Revision, effectiveDigest, next.Intent.MethodProfile, actionID, now)
 	if err != nil {
 		return ApplyActionResult{}, domain.ErrInternal
 	}
@@ -302,28 +333,31 @@ func (s *Service) createRecoveryBlocker(ctx context.Context, r ApplyActionReques
 func (s *Service) resolveBlocker(ctx context.Context, r ApplyActionRequest, task domain.ProcessTask) (ApplyActionResult, error) {
 	if task.Blocker == nil || task.ResumeNode == nil || task.CurrentAction == nil || r.SourceCursor != domain.NodeBlocked ||
 		task.Revision != r.ExpectedRevision || task.CurrentAction.ActionID != r.ActionID || r.ActionKind != domain.ActionResolveBlocker ||
-		r.ProcessID != task.Process.ID || r.ProcessDefinitionDigest != task.Process.DefinitionDigest ||
-		r.RepositoryBindingDigest != task.Repository.BindingDigest {
+		r.ProcessID != task.Process.ID || r.ProcessDefinitionDigest != task.Process.DefinitionDigest {
+		return ApplyActionResult{}, domain.ErrActionStale
+	}
+	effectiveDigest, err := task.EffectiveRepositoryBindingDigest()
+	if err != nil || r.RepositoryBindingDigest != effectiveDigest {
 		return ApplyActionResult{}, domain.ErrActionStale
 	}
 	payload, canonical, err := recovery.DecodeBlockerResolutionPayload(r.Payload)
 	if err != nil {
 		return ApplyActionResult{}, err
 	}
-	fresh, err := s.observeTaskRepository(ctx, task)
+	fresh, err := s.observeTaskRepositories(ctx, task)
 	if err != nil {
 		return ApplyActionResult{}, err
 	}
 	return s.resolveBlockerMutation(ctx, r, task, fresh, payload, canonical)
 }
 
-func (s *Service) resolveBlockerMutation(ctx context.Context, r ApplyActionRequest, task domain.ProcessTask, fresh domain.RepositoryBinding, payload recovery.BlockerResolutionPayload, canonical json.RawMessage) (ApplyActionResult, error) {
-	relation, err := recovery.CompareRepositoryBindings(task.Repository, fresh)
-	if err != nil || relation != recovery.RepositoryExact {
-		return ApplyActionResult{}, domain.ErrRepositoryDrift
+func (s *Service) resolveBlockerMutation(ctx context.Context, r ApplyActionRequest, task domain.ProcessTask, fresh recovery.RepositoryScopeObservation, payload recovery.BlockerResolutionPayload, canonical json.RawMessage) (ApplyActionResult, error) {
+	comparison, err := recovery.CompareRepositoryScope(task, fresh)
+	if err != nil || comparison.Relation != recovery.RepositoryExact {
+		return ApplyActionResult{}, repositoryDriftError(comparison)
 	}
 	if payload.BlockerID != task.Blocker.BlockerID || payload.Condition != task.Blocker.Condition ||
-		payload.Condition.ExpectedBindingDigest != task.Repository.BindingDigest || payload.ObservedBindingDigest != fresh.BindingDigest {
+		payload.Condition.ExpectedBindingDigest != task.Blocker.Condition.ExpectedBindingDigest || payload.ObservedBindingDigest != comparison.ObservedDigest {
 		return ApplyActionResult{}, domain.ErrInvalidArgument
 	}
 	next, err := cloneProcessTask(task)
@@ -339,7 +373,11 @@ func (s *Service) resolveBlockerMutation(ctx context.Context, r ApplyActionReque
 	if err != nil {
 		return ApplyActionResult{}, err
 	}
-	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), destination, next.TaskID, next.Revision, next.Repository.BindingDigest, next.Intent.MethodProfile, nextActionID, now)
+	effectiveDigest, err := next.EffectiveRepositoryBindingDigest()
+	if err != nil {
+		return ApplyActionResult{}, domain.ErrInternal
+	}
+	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), destination, next.TaskID, next.Revision, effectiveDigest, next.Intent.MethodProfile, nextActionID, now)
 	if err != nil {
 		return ApplyActionResult{}, domain.ErrInternal
 	}
@@ -361,12 +399,32 @@ func (s *Service) resolveBlockerMutation(ctx context.Context, r ApplyActionReque
 	return ApplyActionResult{Task: next}, nil
 }
 
-func (s *Service) observeTaskRepository(ctx context.Context, task domain.ProcessTask) (domain.RepositoryBinding, error) {
-	fresh, err := s.repositoryObserver.Observe(ctx, task.Repository.CanonicalRoot)
-	if err != nil || fresh.Validate() != nil {
-		return domain.RepositoryBinding{}, domain.ErrInternal
+func repositoryDriftError(comparison recovery.RepositoryScopeComparison) error {
+	if len(comparison.Repositories) <= 1 {
+		return domain.ErrRepositoryDrift
 	}
-	return fresh, nil
+	for _, fact := range comparison.Repositories {
+		if fact.Relation != recovery.RepositoryExact {
+			return domain.NewError(domain.ErrorRepositoryDrift, `Repository "`+string(fact.RepositoryKey)+`" has repository drift: `+string(fact.Reason)+`.`)
+		}
+	}
+	return domain.ErrRepositoryDrift
+}
+
+func (s *Service) observeTaskRepositories(ctx context.Context, task domain.ProcessTask) (recovery.RepositoryScopeObservation, error) {
+	primary, err := s.repositoryObserver.Observe(ctx, task.Repository.CanonicalRoot)
+	if err != nil || primary.Validate() != nil {
+		return recovery.RepositoryScopeObservation{}, domain.ErrInternal
+	}
+	additional := make([]domain.RepositoryScopeEntry, len(task.AdditionalRepositories))
+	for i, entry := range task.AdditionalRepositories {
+		binding, observeErr := s.repositoryObserver.Observe(ctx, entry.Binding.CanonicalRoot)
+		if observeErr != nil || binding.Validate() != nil {
+			return recovery.RepositoryScopeObservation{}, domain.ErrInternal
+		}
+		additional[i] = domain.RepositoryScopeEntry{Key: entry.Key, Binding: binding}
+	}
+	return recovery.RepositoryScopeObservation{Primary: primary, Additional: additional}, nil
 }
 
 func validateRecoveryPayload(source domain.NodeID, payload json.RawMessage) error {

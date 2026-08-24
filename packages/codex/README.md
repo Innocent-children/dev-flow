@@ -3,7 +3,7 @@
 [中文](https://github.com/Innocent-children/dev-flow/blob/main/packages/codex/README.md) |
 [English](https://github.com/Innocent-children/dev-flow/blob/main/docs/CODEX_en.md)
 
-`dev-flow-codex` 把 Dev Flow 状态图接入 Codex CLI。package 包含 Codex Plugin、显式 Skill、
+`dev-flow-codex` 把 Dev Flow 状态图接入 Codex CLI。package 包含 Codex Plugin、智能/显式 Skill、
 local STDIO MCP 配置和 macOS arm64 Core executable；Task、节点、流转和 Recovery 仍由 bundled
 Go Core 独自管理。
 
@@ -32,7 +32,9 @@ dev-flow-codex --version
 
 npm 全局安装只负责把 package 和 `dev-flow-codex` launcher 放到 `PATH`。`setup` 是独立步骤：
 它验证平台、package 内容、bundled Core 与 Codex 兼容版本，然后注册 Plugin、marketplace 与 MCP，
-并在写入后回读 ownership。`--version` 同时输出实际 package 和 bundled Core 版本。
+并在写入后回读 ownership。配置缺失时 setup 创建 `$HOME/.dev-flow/config.json`；成功后以简中/英文
+品牌首屏或纯文本展示实际配置/receipt 文件变化和一个下一步。`--version` 同时输出实际 package 和
+bundled Core 版本。
 
 ## 命令参考
 
@@ -41,8 +43,8 @@ npm 全局安装只负责把 package 和 `dev-flow-codex` launcher 放到 `PATH`
 | 命令 | 说明 |
 | --- | --- |
 | `npm install -g dev-flow-codex@latest` | 安装 npm `latest` 指向的 package，并把 launcher 全局加入 `PATH`；不会自动注册 Codex Plugin。 |
-| `dev-flow-codex setup` | 校验 package、Core 和 Codex 版本，注册 marketplace、Plugin 与 MCP，并回读最终状态。重复执行会验证现有 ownership，兼容 package 升级也通过该命令完成。 |
-| `dev-flow-codex setup --json` | 与 `setup` 行为相同，但只输出机器可读 JSON：`operation`、`status`、`changed` 和 `receipt_path`。 |
+| `dev-flow-codex setup` | 创建或验证固定用户配置，校验 package、Core 和 Codex 版本，注册 marketplace、Plugin 与 MCP，并显示实际配置/receipt 文件变化、ready 和一个下一步。重复执行显示零变化，兼容升级通过同一命令完成。 |
+| `dev-flow-codex setup --json` | 与 `setup` 行为相同，但只输出一行无装饰 JSON：保留 `operation`、`status`、`changed`、`receipt_path`，增加 `configuration_path`、`file_changes`、`next_step`。 |
 | `dev-flow-codex --version` | 输出 `dev-flow-codex <package-version> (core <core-version>)`，用于确认实际安装身份。 |
 | `dev-flow-codex remove` | 删除该 package 拥有的 Plugin、marketplace 注册和 receipt；保留 Task data、未知相邻文件和目标 Git 仓库。 |
 | `dev-flow-codex remove --json` | 与 `remove` 行为相同，并输出机器可读 JSON；`next_step` 提示随后执行全局 npm 卸载。 |
@@ -62,7 +64,8 @@ dev-flow-codex --version
 
 ## 开始一个 Task
 
-在当前 Git 仓库中，用唯一的精确 selector 描述工作：
+在当前 Git 仓库中，可以直接描述边界明确的实现、缺陷修复、重构、定向测试或开发交付工作，
+Codex 会根据 Skill description 智能选择 Dev Flow。需要确定进入时仍可使用精确 selector：
 
 ```text
 $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
@@ -81,10 +84,40 @@ Core 会持续返回：
 
 Codex 完成当前节点工作后，只提交 live Action 允许的 `transition_id` 和 closed payload。
 
-## 显式调用边界
+## 两仓声明、权限与可选索引
 
-Skill metadata 设置 `policy.allow_implicit_invocation: false`，因此只有下面这个精确 selector 可以
-进入 Dev Flow：
+启动 Codex 会话时，当前 Git 仓库自动成为主仓库。附加仓库必须先通过 Codex 的 `--add-dir` 成为
+当前会话已授权的 writable root；Dev Flow 不修改 sandbox，也不读取全局 Codex 配置来推断授权。
+授权完成后，可以直接发送：
+
+```text
+$dev-flow-codex:dev-flow Use the current Git repository as primary key core and add repository key docs at /absolute/path/to/docs. Update core::internal/api.go and docs::reference/api.md, then run only the targeted checks.
+```
+
+路径必须替换为真实绝对路径。Scope 总数为一至八，创建后不可增加、删除、重命名或替换；系统不
+扫描父目录、相邻目录、依赖或索引结果来发现仓库。单仓库请求不需要 key，继续使用普通相对路径。
+从附加仓库恢复时，Codex 仍返回原主仓库、ordered Scope、revision 和当前 Action。
+Codex 与 DeepSeek 共用同一 Repository Scope、scoped path、Action 和唯一
+`repository_binding_digest` Core 合同；Host 权限检查不创建第二套流程状态。
+
+可选代码索引偏好来自只读配置：
+
+```json
+{
+  "codex": { "codebase_memory": true },
+  "deepseek": { "codebase_memory": false }
+}
+```
+
+文件路径固定为 `$HOME/.dev-flow/config.json`。文件不存在时偏好为 false，Dev Flow 不创建或修改
+它。true 只允许使用当前会话中已经可见且可用的 codebase-memory；缺失、不完整或中途不可用时，
+Codex 每个 Dev Flow 会话最多提示一次并立即回退到内置 Git、文件和文本检索，不阻塞 Task，也不
+安装、配置或启动索引能力。索引结果不能扩大 Scope、证明写权限或决定 Recovery 与流程流转。
+
+## 智能启用与显式入口
+
+Skill metadata 设置 `policy.allow_implicit_invocation: true`。实现、缺陷修复、重构、定向测试和开发
+交付这五类边界明确的请求可以由 Host 隐式选择 Dev Flow；下面的精确 selector 继续作为强制入口：
 
 ```text
 $dev-flow-codex:dev-flow
@@ -95,12 +128,14 @@ $dev-flow-codex:dev-flow
 - Skill resource/base name 是 `dev-flow`；
 - 安装后的 Skill full name 是 `dev-flow-codex:dev-flow`；
 - `$dev-flow` 不是别名，不会选择该 Skill；
-- plugin namespace 错误、Skill base name 错误或缺少 selector 都不会选择该 Skill；
-- 普通提示词必须产生零次 Dev Flow 调用；
-- 非精确 selector 不得完成任何携带 Task 的操作。
+- plugin namespace 错误不会成为显式选择；
+- Skill base name 错误不会成为显式选择；
+- 缺少 selector 时，只有 Host 已为任务型开发请求隐式选择该 Skill 才能进入；
+- 仅解释、仅状态查询、方案讨论、普通问答和含糊请求不自动创建或恢复 Dev Flow Task；
+- 显式强制选择不会绕过实质请求、仓库权限、Core Action、Git 变更授权或发布确认。
 
-这项边界不限制 Codex 的普通仓库工具，也不声称 MCP 的可见性或授权与 selector 绑定；它只约束
-当前 Skill 是否可以发起 Dev Flow 调用。
+两种选择方式进入同一 admission、兼容握手、Task discovery 和 Action loop。这项边界不限制 Codex
+的普通仓库工具，也不声称 MCP 的可见性或授权与 selector 绑定。
 
 通过 admission 后，`dev_flow_server_info({})` 必须是第一次 Dev Flow 调用。安装内容、bundled
 Core、Codex 兼容性和注册 ownership 已由 `dev-flow-codex setup` 验证；每次 Task 启动只静默确认
@@ -110,8 +145,8 @@ Core ready、`standard-development`、definition digest、method profiles 与六
 
 | MCP 工具 | 作用 |
 | --- | --- |
-| `dev_flow_server_info` | 读取 Core identity、能力、process、method profile 和工具目录；有效 admission 后必须首先调用。 |
-| `dev_flow_open_task` | 为当前 canonical repository 创建新 Task，或恢复其现有 Task。 |
+| `dev_flow_server_info` | 读取 Core identity、能力、process、method profile、工具目录和 Codex 有效索引偏好；有效 admission 后必须首先调用。 |
+| `dev_flow_open_task` | 为当前主仓库和显式附加仓库创建一个 Task，或从任一参与仓库恢复同一 Task。 |
 | `dev_flow_get_task` | 读取持久化 Task；可附带 operation probe 获取 Recovery assessment。 |
 | `dev_flow_get_next_action` | 读取当前节点的权威 Action、验证预算、method steps 和全部合法 transition。 |
 | `dev_flow_apply_action` | 使用当前 revision、Action identity、repository binding 和 closed payload 应用一次 Core 声明的 transition。 |

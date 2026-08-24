@@ -15,10 +15,16 @@ Before every ordinary apply:
 3. Select the matching `dev_flow_apply_action` `inputSchema` branch and use exactly the six common
    payload members: `transition_id`, `summary`, `reason`, `artifacts`, `method_evidence`, and
    `node_result`.
+   Set `reason=""` whenever the selected transition has `reason_required=false`; provide a nonempty
+   reason only when the selected transition has `reason_required=true`.
 4. `required_evidence` and `artifacts` are different concepts. `repository_observation` is a Core evidence requirement, not an ArtifactReference role. When no real repository-relative process
    artifact exists, submit `"artifacts": []`.
 5. Allowed ArtifactReference roles are only `requirements`, `design`, `task_plan`,
    `implementation`, `test`, `comprehension`, `refactor`, `delivery`, and `other_process`.
+   For every ArtifactReference path, work-item `expected_paths`, Implementation `changed_paths`, and
+   Refactor `changed_paths`, use an ordinary repository-relative path for a single-repository Task
+   and `<repository-key>::<repository-relative-path>` for a multi-repository Task. The key must
+   already belong to the immutable Core Scope. Do not add a payload field or a second digest.
 6. Preserve the complete `node_result` branch wrapper. Never flatten baseline fields or encode an
    array as prose.
 7. Submit exactly one MethodEvidence item for every current Action method step, in Action order.
@@ -61,6 +67,8 @@ Before every ordinary apply:
 
 Never use `repository_observation` as an artifact role, place goal/scope beside `node_result`, or
 omit `problem_class`, `baseline`, or `unresolved_questions`.
+`unresolved_questions` is a sibling of `baseline` inside `node_result`; it is never a member of the
+closed `baseline` object.
 
 <!-- node-payload-template:design:start -->
 ```json

@@ -4,7 +4,7 @@
 [English](https://github.com/Innocent-children/dev-flow/blob/main/docs/CODEX_en.md)
 
 `dev-flow-codex` brings the Dev Flow state graph to Codex CLI. The package contains a Codex Plugin,
-an explicit Skill, local STDIO MCP configuration, and a macOS arm64 Core executable. The bundled Go
+a smart/explicit Skill, local STDIO MCP configuration, and a macOS arm64 Core executable. The bundled Go
 Core remains the sole authority for Tasks, nodes, transitions, and Recovery.
 
 ## Support
@@ -33,6 +33,9 @@ dev-flow-codex --version
 The global npm operation only installs the package and places the `dev-flow-codex` launcher on
 `PATH`. `setup` is separate: it validates the platform, package contents, bundled Core, and Codex
 compatibility; registers the Plugin, marketplace, and MCP configuration; and reads back ownership.
+When configuration is absent, setup creates `$HOME/.dev-flow/config.json`, then reports actual
+configuration/receipt changes, readiness, and one next step through a Simplified Chinese or English
+brand screen or plain fallback.
 `--version` reports the actual package and bundled Core identities.
 
 ## Command reference
@@ -43,8 +46,8 @@ any registration operation is dispatched.
 | Command | Description |
 | --- | --- |
 | `npm install -g dev-flow-codex@latest` | Install the package selected by npm `latest` and place the launcher globally on `PATH`. It does not register the Codex Plugin automatically. |
-| `dev-flow-codex setup` | Validate the package, Core, and Codex version; register the marketplace, Plugin, and MCP configuration; and read back the final state. Repeated execution verifies existing ownership, and compatible package upgrades use the same command. |
-| `dev-flow-codex setup --json` | Perform the same operation as `setup`, but emit machine-readable JSON containing `operation`, `status`, `changed`, and `receipt_path`. |
+| `dev-flow-codex setup` | Create or validate fixed user configuration; validate package, Core, and Codex; register marketplace, Plugin, and MCP; then report actual configuration/receipt changes, readiness, and one next step. Repeated execution reports zero changes. |
+| `dev-flow-codex setup --json` | Perform the same operation but emit one undecorated JSON line retaining `operation`, `status`, `changed`, and `receipt_path`, and adding `configuration_path`, `file_changes`, and `next_step`. |
 | `dev-flow-codex --version` | Print `dev-flow-codex <package-version> (core <core-version>)` to identify the installed package and bundled Core. |
 | `dev-flow-codex remove` | Remove the package-owned Plugin, marketplace registration, and receipt while retaining Task data, unknown neighboring files, and the target Git repository. |
 | `dev-flow-codex remove --json` | Perform the same operation as `remove` and emit machine-readable JSON. `next_step` identifies the separate global npm uninstall. |
@@ -65,7 +68,9 @@ command catalogs.
 
 ## Start a Task
 
-In the current Git repository, describe the work with the only exact selector:
+In the current Git repository, describe a bounded implementation, bug fix, refactoring, targeted-testing,
+or development-delivery task directly and Codex can select Dev Flow from the Skill description. The exact
+selector remains available when you want to force selection:
 
 ```text
 $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
@@ -85,10 +90,46 @@ Core continuously returns:
 
 After performing current-node work, Codex submits only a live Action transition and a closed payload.
 
-## Explicit invocation boundary
+## Two-repository declaration, permission, and optional indexing
 
-Skill metadata sets `policy.allow_implicit_invocation: false`, so only this exact selector enters Dev
-Flow:
+When a Codex session starts, the current Git repository becomes the primary repository. Every
+additional repository must first be authorized as a writable root for that session through Codex
+`--add-dir`. Dev Flow does not change the sandbox or inspect global Codex configuration to infer
+authorization. After granting access, send:
+
+```text
+$dev-flow-codex:dev-flow Use the current Git repository as primary key core and add repository key docs at /absolute/path/to/docs. Update core::internal/api.go and docs::reference/api.md, then run only the targeted checks.
+```
+
+Replace the path with the real absolute path. A Scope contains one to eight repositories and cannot
+add, remove, rename, or replace members after creation. Dev Flow does not scan parent or neighboring
+directories, dependencies, or index results to discover repositories. A single-repository request
+needs no key and retains ordinary relative paths. Resume from an additional repository returns the
+original primary repository, ordered Scope, revision, and current Action.
+Codex and DeepSeek share one Core contract for Repository Scope, scoped paths, Action, and the single
+`repository_binding_digest`. Host permission checks do not create a second process state.
+
+Optional code indexing is selected through the read-only configuration:
+
+```json
+{
+  "codex": { "codebase_memory": true },
+  "deepseek": { "codebase_memory": false }
+}
+```
+
+The fixed path is `$HOME/.dev-flow/config.json`. A missing file means false, and Dev Flow does not
+create or modify it. True permits only codebase-memory that is already visible and usable in the
+current session. If it is missing, incomplete, or becomes unavailable, Codex reports that at most
+once per Dev Flow session and immediately falls back to built-in Git, file, and text search without
+blocking the Task. It never installs, configures, or starts the index. Index results cannot expand
+the Scope, prove write permission, or determine Recovery and process transitions.
+
+## Smart activation and explicit force-entry
+
+Skill metadata sets `policy.allow_implicit_invocation: true`. Bounded implementation, bug-fix,
+refactoring, targeted-testing, and development-delivery requests may select Dev Flow implicitly. The exact
+selector remains the force-entry path:
 
 ```text
 $dev-flow-codex:dev-flow
@@ -99,12 +140,16 @@ The naming and admission boundaries are:
 - the Skill resource/base name is `dev-flow`;
 - the installed Skill full name is `dev-flow-codex:dev-flow`;
 - bare `$dev-flow` is not an alias and does not select the Skill;
-- a wrong plugin namespace, wrong Skill base name, or missing selector does not select the Skill;
-- an ordinary prompt must produce zero Dev Flow calls;
-- a non-exact selector must not complete a task-bearing operation.
+- a wrong plugin namespace or wrong Skill base name is not explicit selection;
+- without a selector, entry requires Host implicit selection for a task-bearing development request;
+- explanation-only, status-only, design-discussion, ordinary-question, and ambiguous requests do not
+  automatically create or resume a Dev Flow Task;
+- explicit force-selection does not bypass a substantive request, repository permissions, Core Actions,
+  Git-mutation authority, or release confirmation.
 
+Both selection paths enter the same admission, compatibility handshake, Task discovery, and Action loop.
 This boundary does not disable ordinary Codex repository tools and does not claim selector-bound MCP
-visibility or authorization. It controls whether this Skill may initiate Dev Flow calls.
+visibility or authorization.
 
 After admission, `dev_flow_server_info({})` must be the first Dev Flow call. Package contents, the
 bundled Core, Codex compatibility, and registration ownership are already validated by
@@ -116,8 +161,8 @@ profile order does not affect compatibility.
 
 | MCP tool | Purpose |
 | --- | --- |
-| `dev_flow_server_info` | Read Core identity, capabilities, process, method profiles, and the tool catalog. It must be called first after valid admission. |
-| `dev_flow_open_task` | Create a Task for the current canonical repository or resume its existing Task. |
+| `dev_flow_server_info` | Read Core identity, capabilities, process, method profiles, tool catalog, and effective Codex index preference. It must be called first after valid admission. |
+| `dev_flow_open_task` | Create one Task for the current primary and explicit additional repositories, or resume that Task from any participating repository. |
 | `dev_flow_get_task` | Read the persisted Task and optionally attach an operation probe for a Recovery assessment. |
 | `dev_flow_get_next_action` | Read the authoritative current Action, verification budget, method steps, and every legal transition. |
 | `dev_flow_apply_action` | Apply one Core-declared transition with the current revision, Action identity, repository binding, and closed payload. |

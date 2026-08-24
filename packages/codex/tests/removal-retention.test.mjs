@@ -82,6 +82,9 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
     now: () => new Date("2026-08-15T00:00:00.000Z"),
   });
   assert.equal(setup.status, "installed");
+  await mkdir(paths.configurationDirectory, { recursive: true, mode: 0o700 });
+  await writeFile(paths.configurationPath, '{"codex":{"codebase_memory":true}}\n', { mode: 0o600 });
+  const configurationBefore = await readFile(paths.configurationPath, "utf8");
   const adjacentFile = join(dirname(paths.receiptPath), "user-owned-adjacent.txt");
   const codexAdjacentFile = join(dirname(fakeState), "user-owned-codex-state.txt");
   const unrelatedMarketplaceRoot = join(root, "unrelated host marketplace");
@@ -159,6 +162,7 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   assert.equal(await readFile(codexAdjacentFile, "utf8"), "preserve Codex-adjacent data\n");
   assert.equal(await readFile(unrelatedConfig, "utf8"), "model = \"unrelated-user-choice\"\n");
   assert.equal(await readFile(unrelatedReceipt, "utf8"), "{\"owner\":\"other-product\"}\n");
+  assert.equal(await readFile(paths.configurationPath, "utf8"), configurationBefore);
   assert.deepEqual(await directoryManifest(unrelatedMarketplaceRoot), unrelatedMarketplaceBefore);
   assert.deepEqual(JSON.parse(await readFile(fakeState, "utf8")), {
     marketplaces: [unrelatedMarketplace],
@@ -193,6 +197,7 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   assert.equal(await readFile(codexAdjacentFile, "utf8"), "preserve Codex-adjacent data\n");
   assert.equal(await readFile(unrelatedConfig, "utf8"), "model = \"unrelated-user-choice\"\n");
   assert.equal(await readFile(unrelatedReceipt, "utf8"), "{\"owner\":\"other-product\"}\n");
+  assert.equal(await readFile(paths.configurationPath, "utf8"), configurationBefore);
   assert.deepEqual(await directoryManifest(unrelatedMarketplaceRoot), unrelatedMarketplaceBefore);
   assert.deepEqual(JSON.parse(await readFile(fakeState, "utf8")), {
     marketplaces: [unrelatedMarketplace],
@@ -392,6 +397,8 @@ function productPaths(installedPackage, isolatedHome, dataDirectory) {
     productSupportRoot,
     registrationsDirectory: join(productSupportRoot, "registrations"),
     receiptPath: join(productSupportRoot, "registrations", "codex.json"),
+    configurationDirectory: join(isolatedHome, ".dev-flow"),
+    configurationPath: join(isolatedHome, ".dev-flow", "config.json"),
     dataDirectory,
     usesDefaultDataDirectory: false,
     runtimeKey: "darwin-arm64",

@@ -1,0 +1,46 @@
+{
+  "fixture_kind": "multi_repository_open",
+  "created": true,
+  "task": {
+    "task_id": "task-multi-repository",
+    "origin_host": "codex",
+    "process_id": "standard-development",
+    "current_cursor": "REQUIREMENTS",
+    "revision": 1,
+    "primary_repository_key": "core",
+    "repository": {
+      "canonical_root": "/workspace/core",
+      "repository_identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "branch": "main",
+      "detached": false,
+      "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "unborn": false,
+      "worktree_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "observed_at": "2026-08-23T00:00:00Z",
+      "binding_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "additional_repositories": [
+      {
+        "key": "docs",
+        "repository": {
+          "canonical_root": "/workspace/docs",
+          "repository_identity": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "branch": "main",
+          "detached": false,
+          "head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "unborn": false,
+          "worktree_fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "observed_at": "2026-08-23T00:00:00Z",
+          "binding_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      }
+    ],
+    "current_action": {
+      "task_id": "task-multi-repository",
+      "revision": 1,
+      "action_id": "action-multi-repository",
+      "action_kind": "COMPLETE_REQUIREMENTS",
+      "repository_binding_digest": "dc9caf7d75b1019fd583d7fb7632b4c5f6ad4431bb34d6c0182fc506d70c0e13"
+    }
+  }
+}

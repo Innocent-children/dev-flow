@@ -21,6 +21,7 @@ rejects an old publication directory before remote mutation.
 
 ```bash
 pnpm run release:codex -- \
+  [--channel stable|beta] \
   --mode quick|normal \
   --version "<CODEX_VERSION>" \
   --output "<ABSOLUTE_DIRECTORY>" \
@@ -28,11 +29,14 @@ pnpm run release:codex -- \
   [--confirm-comprehension]
 ```
 
-The command updates the Codex package and plugin mirror and synchronizes maintained public
-release-version descriptions from `CORE_VERSION`, package manifests, and
-`release/public-versions.json`. It records the Core version read from `CORE_VERSION` and the built
-executable, then performs the selected validation, deterministic preparation, verification, and
-resumable publisher flow.
+`stable` is the default channel. It accepts `MAJOR.MINOR.PATCH`, requires clean `main` equal to
+`origin/main`, and synchronizes maintained public release-version descriptions from `CORE_VERSION`,
+package manifests, and `release/public-versions.json`.
+
+`beta` accepts only `MAJOR.MINOR.PATCH-beta.N`. It may run from any clean named branch, pushes its
+version commit back to that branch, leaves stable public-version descriptions unchanged, publishes
+with npm dist-tag `beta`, and creates a GitHub prerelease. The publisher still uses the same
+validation, deterministic preparation, exact confirmation, read-back, Journey, and recovery gates.
 
 Without confirmation, the publisher performs read-only npm/GitHub/Tag preflight. With exact
 confirmation, it creates or reuses only matching immutable state, publishes npm at most once,
@@ -45,6 +49,7 @@ DeepSeek uses the same operator argument shape with an independent product ident
 
 ```bash
 pnpm run release:deepseek -- \
+  [--channel stable|beta] \
   --mode quick|normal \
   --version "<DEEPSEEK_VERSION>" \
   --output "<ABSOLUTE_DIRECTORY>" \
@@ -53,5 +58,6 @@ pnpm run release:deepseek -- \
 ```
 
 Its package, Tag, output directory, npm identity, GitHub state and DSH registry lifecycle evidence
-are independent from Codex. Its version commit applies the same public-document synchronization
-using the DeepSeek package and bundled Core identities. See [`deepseek/README.md`](deepseek/README.md).
+are independent from Codex. Stable releases apply the same public-document synchronization; beta
+releases preserve stable public identities and use the isolated `beta`/prerelease channel. See
+[`deepseek/README.md`](deepseek/README.md).

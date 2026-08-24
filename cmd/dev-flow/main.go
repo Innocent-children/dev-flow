@@ -12,6 +12,7 @@ import (
 	coremcp "github.com/Innocent-children/dev-flow/internal/mcp"
 	"github.com/Innocent-children/dev-flow/internal/repository"
 	"github.com/Innocent-children/dev-flow/internal/store"
+	"github.com/Innocent-children/dev-flow/internal/userconfig"
 	"github.com/Innocent-children/dev-flow/internal/version"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -33,7 +34,7 @@ Set DEV_FLOW_DATA_DIR to an existing local data directory before starting MCP.
 Host product integration, installation, publication, and remote transports are not included.
 `
 
-type mcpServeFunc func(context.Context, *application.Service, string, *coremcp.Diagnostics, string) error
+type mcpServeFunc func(context.Context, *application.Service, string, *coremcp.Diagnostics, string, userconfig.Preferences) error
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr, os.Getenv, serveStandardIO))
@@ -91,6 +92,11 @@ func runMCP(
 		_, _ = io.WriteString(stderr, "dev-flow: DEV_FLOW_DATA_DIR must name an existing usable directory\n")
 		return 1
 	}
+	preferences, err := userconfig.Load(getenv("HOME"))
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "dev-flow: %v\n", err)
+		return 1
+	}
 
 	ctx := context.Background()
 	taskStore, err := store.Open(ctx, filepath.Join(dataDirectory, databaseFileName))
@@ -116,7 +122,7 @@ func runMCP(
 		return 1
 	}
 	diagnostics := coremcp.NewDiagnostics(stderr)
-	serveErr := serve(ctx, service, currentVersion, diagnostics, getenv(mcpInstructionsEnvironment))
+	serveErr := serve(ctx, service, currentVersion, diagnostics, getenv(mcpInstructionsEnvironment), preferences)
 	closeErr := taskStore.Close()
 	closed = true
 	if serveErr != nil && !errors.Is(serveErr, io.EOF) {
@@ -136,10 +142,12 @@ func serveStandardIO(
 	currentVersion string,
 	diagnostics *coremcp.Diagnostics,
 	instructions string,
+	preferences userconfig.Preferences,
 ) error {
 	server, err := coremcp.NewServer(service, currentVersion, &coremcp.ServerOptions{
-		Diagnostics:  diagnostics,
-		Instructions: instructions,
+		Diagnostics:     diagnostics,
+		Instructions:    instructions,
+		HostPreferences: preferences,
 	})
 	if err != nil {
 		return err

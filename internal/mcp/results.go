@@ -7,6 +7,9 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/application"
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/recovery"
+	"github.com/Innocent-children/dev-flow/internal/userconfig"
+	"sort"
+	"strings"
 )
 
 type Envelope struct {
@@ -53,11 +56,28 @@ func EncodeError(id, tool string, err error) EncodedResult {
 		code = typed.Code
 	}
 	message, action, recovery := publicFailure(code)
+	if code == domain.ErrorRepositoryDrift && typed != nil && validRepositoryDriftMessage(typed.Message) {
+		message = typed.Message
+	}
 	raw, encodeErr := encodeEnvelope(Envelope{OK: false, RequestID: id, Tool: tool, Error: &ErrorResult{Code: code, Message: message}, Recovery: &RecoveryGuidance{RetrySafe: false, Action: action, Message: recovery}})
 	if encodeErr != nil || !WithinResultEnvelopeLimit(raw) {
 		return fixedFallback()
 	}
 	return EncodedResult{JSON: raw, IsError: true}
+}
+
+func validRepositoryDriftMessage(message string) bool {
+	const prefix = `Repository "`
+	const middle = `" has repository drift: `
+	if !strings.HasPrefix(message, prefix) || !strings.HasSuffix(message, ".") {
+		return false
+	}
+	remainder := strings.TrimSuffix(strings.TrimPrefix(message, prefix), ".")
+	parts := strings.Split(remainder, middle)
+	if len(parts) != 2 {
+		return false
+	}
+	return domain.RepositoryKey(parts[0]).IsValid() && recovery.RepositoryReason(parts[1]).IsValid()
 }
 func fixedFallback() EncodedResult {
 	return EncodedResult{JSON: append([]byte(nil), fallbackBytes...), IsError: true}
@@ -96,6 +116,7 @@ type ServerInfoResult struct {
 	SupportedProcesses []SupportedProcessResult `json:"supported_processes"`
 	MethodProfiles     []domain.MethodProfile   `json:"method_profiles"`
 	Tools              []string                 `json:"tools"`
+	HostPreferences    userconfig.Preferences   `json:"host_preferences"`
 }
 type SupportedProcessResult struct {
 	ProcessID        domain.ProcessID `json:"process_id"`
@@ -110,7 +131,20 @@ func projectAction(a *domain.ProcessAction) any {
 	return map[string]any{"task_id": a.TaskID, "revision": a.Revision, "action_id": a.ActionID, "action_kind": a.Kind, "process_id": a.Process.ID, "process_definition_digest": a.Process.DefinitionDigest, "current_node": a.NodeID, "node_purpose": a.NodeContract.Purpose, "entry_conditions": a.NodeContract.EntryConditions, "completion_conditions": a.NodeContract.CompletionConditions, "allowed_effects": a.AllowedEffects, "required_evidence": a.RequiredEvidence, "method_profile": a.MethodProfile, "method_steps": a.SemanticMethodSteps, "available_transitions": a.AvailableTransitions, "payload_contract": a.PayloadContract, "guidance": a.Guidance, "repository_binding_digest": a.RepositoryBindingDigest, "issued_at": a.IssuedAt}
 }
 func projectTask(t domain.ProcessTask) any {
-	return map[string]any{"task_id": t.TaskID, "origin_host": t.OriginHost, "process_id": t.Process.ID, "process_definition_digest": t.Process.DefinitionDigest, "intent": t.Intent, "current_cursor": t.CurrentNode, "resume_cursor": t.ResumeNode, "repository": map[string]any{"repository_identity": t.Repository.RepositoryIdentity, "branch": t.Repository.Branch, "detached": t.Repository.Detached, "head": t.Repository.Head, "unborn": t.Repository.Unborn, "worktree_fingerprint": t.Repository.WorktreeFingerprint, "observed_at": t.Repository.ObservedAt, "binding_digest": t.Repository.BindingDigest}, "baselines": map[string]any{"requirements": t.Requirements, "design": t.Design, "task_plan": t.TaskPlan, "history": t.BaselineHistory}, "implementation": t.Implementation, "test": t.Test, "comprehension": t.Comprehension, "current_action": projectAction(t.CurrentAction), "blocker": t.Blocker, "last_operation": t.LastOperation, "evidence": t.Evidence, "outcome": t.Outcome, "revision": t.Revision, "created_at": t.CreatedAt, "updated_at": t.UpdatedAt, "completed_at": t.CompletedAt}
+	result := map[string]any{"task_id": t.TaskID, "origin_host": t.OriginHost, "process_id": t.Process.ID, "process_definition_digest": t.Process.DefinitionDigest, "intent": t.Intent, "current_cursor": t.CurrentNode, "resume_cursor": t.ResumeNode, "primary_repository_key": t.EffectivePrimaryRepositoryKey(), "repository": projectRepository(t.Repository), "baselines": map[string]any{"requirements": t.Requirements, "design": t.Design, "task_plan": t.TaskPlan, "history": t.BaselineHistory}, "implementation": t.Implementation, "test": t.Test, "comprehension": t.Comprehension, "current_action": projectAction(t.CurrentAction), "blocker": t.Blocker, "last_operation": t.LastOperation, "evidence": t.Evidence, "outcome": t.Outcome, "revision": t.Revision, "created_at": t.CreatedAt, "updated_at": t.UpdatedAt, "completed_at": t.CompletedAt}
+	if len(t.AdditionalRepositories) != 0 {
+		entries := append([]domain.RepositoryScopeEntry(nil), t.AdditionalRepositories...)
+		sort.Slice(entries, func(i, j int) bool { return entries[i].Key < entries[j].Key })
+		additional := make([]map[string]any, len(entries))
+		for i, entry := range entries {
+			additional[i] = map[string]any{"key": entry.Key, "repository": projectRepository(entry.Binding)}
+		}
+		result["additional_repositories"] = additional
+	}
+	return result
+}
+func projectRepository(repository domain.RepositoryBinding) map[string]any {
+	return map[string]any{"canonical_root": repository.CanonicalRoot, "repository_identity": repository.RepositoryIdentity, "branch": repository.Branch, "detached": repository.Detached, "head": repository.Head, "unborn": repository.Unborn, "worktree_fingerprint": repository.WorktreeFingerprint, "observed_at": repository.ObservedAt, "binding_digest": repository.BindingDigest}
 }
 func projectNextAction(result application.NextActionResult) any {
 	return map[string]any{"task_id": result.TaskID, "process": result.Process, "current_cursor": result.CurrentNode, "revision": result.Revision, "method_profile": result.MethodProfile, "blocker": result.Blocker, "action": projectAction(result.Action), "outcome": result.Outcome, "recovery_assessment": projectRecoveryAssessment(result.RecoveryAssessment)}
@@ -121,7 +155,7 @@ func projectRecoveryAssessment(assessment *recovery.RecoveryAssessment) any {
 		return nil
 	}
 	operation := assessment.Operation
-	return map[string]any{
+	result := map[string]any{
 		"classification":               assessment.Classification,
 		"operation":                    map[string]any{"operation_id": operation.OperationID, "process_id": operation.Process.ID, "process_definition_digest": operation.Process.DefinitionDigest, "source_cursor": operation.SourceCursor, "expected_revision": operation.ExpectedRevision, "action_id": operation.ActionID, "action_kind": operation.ActionKind},
 		"task_revision":                assessment.TaskRevision,
@@ -139,6 +173,16 @@ func projectRecoveryAssessment(assessment *recovery.RecoveryAssessment) any {
 		"unblock_condition":            assessment.UnblockCondition,
 		"observed_at":                  assessment.ObservedAt,
 	}
+	if len(assessment.Repositories) != 0 {
+		repositories := append([]recovery.RepositoryFact(nil), assessment.Repositories...)
+		sort.Slice(repositories, func(i, j int) bool { return repositories[i].RepositoryKey < repositories[j].RepositoryKey })
+		projected := make([]map[string]any, len(repositories))
+		for i, repository := range repositories {
+			projected[i] = map[string]any{"key": repository.RepositoryKey, "relation": repository.Relation, "reason": repository.Reason}
+		}
+		result["repositories"] = projected
+	}
+	return result
 }
 
 func WithinResultEnvelopeLimit(raw []byte) bool { return len(raw) <= domain.MaxResultEnvelopeBytes }

@@ -48,6 +48,31 @@ Dev Flow는 여러 개발 노드를 거치고, 재작업 가능성이 있으며,
 세션에 걸쳐 재개해야 하는 실제 저장소 작업에 적합합니다. 상태 보존이 필요 없는 일회성 질문이나
 기계적인 단일 파일 수정은 Codex 또는 DeepSeek를 직접 사용하는 편이 일반적으로 더 단순합니다.
 
+## 다중 저장소 Task와 선택적 코드 인덱싱
+
+하나의 Task는 현재 Git 저장소를 주 저장소로 명시하고 0~7개의 추가 저장소를 포함할 수 있습니다.
+모든 저장소는 하나의 current node, Action, revision, verification budget, Recovery, Blocker,
+Outcome을 공유합니다. 상위·인접 디렉터리, 종속성 또는 코드 인덱스를 탐색해 범위를 확장하지
+않습니다. 단일 저장소 호출과 일반 상대 경로는 호환되며, 다중 저장소 경로는
+`<repository-key>::<repository-relative-path>`로 소속을 표시합니다.
+
+선택적 코드 인덱스 기본 설정은 읽기 전용 `$HOME/.dev-flow/config.json`에서 가져옵니다.
+
+```json
+{
+  "codex": { "codebase_memory": false },
+  "deepseek": { "codebase_memory": true }
+}
+```
+
+디렉터리나 파일이 없으면 두 값은 모두 `false`입니다. `dev-flow-codex setup`은 완전한 기본 구성을
+만들고 DeepSeek는 읽기 전용 기본값을 유지합니다. setup은 기존 구성을 다시 쓰지 않습니다.
+값이 `true`여도 Host는 이미 설치되어 사용 가능한 codebase-memory만 사용합니다. 사용할 수 없으면
+세션당 최대 한 번 알리고 기본 검색으로 전환하며 Task를 차단하지 않습니다. Codex 추가 저장소는
+세션 시작 시 이미 허용된 writable root여야 하고 Dev Flow는 sandbox를 바꾸지 않습니다. DeepSeek의
+모든 저장소는 현재 Workspace Root 안에 있어야 하며, Root는 Git 저장소가 아닌 공통 상위 디렉터리일
+수 있습니다.
+
 ## 설치, 업데이트 및 제거
 
 공개 아티팩트는 macOS arm64와 Node.js `>=24`를 지원하며 설치 예시는 npm `latest`를 사용합니다.
@@ -64,12 +89,20 @@ dev-flow-codex setup
 dev-flow-codex --version
 ```
 
-`setup`은 Codex marketplace, Plugin, MCP를 등록하거나 업데이트합니다. Git 저장소에서 유일한
-명시적 selector를 사용합니다.
+구성이 없으면 `setup`이 `$HOME/.dev-flow/config.json`을 만들고 실제로 생성·수정한 구성과 registration
+receipt, 준비 상태, 하나의 다음 단계를 표시합니다. 대화형 출력은 중국어 간체 또는 영어를 따르며,
+비대화형과 `NO_COLOR`는 일반 텍스트, `setup --json`은 장식 없는 기계용 사실을 출력합니다.
+
+`setup`은 Codex marketplace, Plugin, MCP를 등록하거나 업데이트합니다. Git 저장소에서 범위가 명확한
+구현, 버그 수정, 리팩터링, 대상 테스트 또는 개발 전달 작업을 직접 설명하면 Codex가 Dev Flow를 자동으로
+선택할 수 있습니다. 강제 선택이 필요하면 정확한 selector를 사용합니다.
 
 ```text
 $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 ```
+
+설명 전용, 상태 조회 전용, 설계 토론, 일반 질문 및 모호한 요청은 Dev Flow Task를 자동 생성하지
+않습니다. 명시적 선택도 저장소 권한, Core Action, Git 변경 권한 또는 릴리스 확인을 우회하지 않습니다.
 
 #### 업데이트
 
@@ -149,7 +182,7 @@ rm -rf "$HOME/Library/Application Support/dev-flow"
 
 ## 실행 모델
 
-1. 개발자가 현재 Git 저장소에서 명시적 selector로 Task를 설명합니다.
+1. 개발자가 명확한 개발 Task를 직접 설명하거나 정확한 selector로 Dev Flow를 강제 선택합니다.
 2. Core는 해당 저장소의 Task를 열거나 재개하고 현재 노드, 완료 조건, allowed effects, 증거 요구사항, verification budget, 모든 합법적 전이를 반환합니다.
 3. Host는 현재 Action을 실행합니다. 요구사항, 설계 또는 구현에 실질적인 변경이 있으면 현재 노드 안에서 암묵적으로 범위를 넓히지 않고 Core가 반환한 transition으로 보고합니다.
 4. Core는 `transition_id`, guard, revision, payload를 검증한 후 Task를 진행합니다. 테스트 실패, 이해도 검토 실패, 전달 거부는 해당 노드로 돌아갑니다.
@@ -217,10 +250,10 @@ dev_flow_cancel_task
 
 각 도구의 읽기/쓰기 분류, 입력 역할과 동작은 [Command Reference](docs/COMMANDS_en.md)를 참고하십시오.
 
-Core는 기존 Git 저장소 하나를 제한된 읽기 전용 방식으로 관찰하여 repository binding을 만들고
-변경 사실을 평가할 수 있습니다. Git mutation은 사용자 승인을 받은 Host가 수행합니다. Core는
-범용 shell을 노출하지 않으며 checkout, commit, push, merge, rebase, tag 또는 publish 작업을
-수행하지 않습니다.
+Core는 Task가 명시한 1~8개의 기존 Git 저장소를 고정 순서로 제한된 읽기 전용 방식으로 관찰하여
+repository bindings를 만들고 변경 사실을 평가할 수 있습니다. Git mutation은 사용자 승인을 받은
+Host가 수행합니다. Core는 범용 shell을 노출하지 않으며 checkout, commit, push, merge, rebase,
+tag 또는 publish 작업을 수행하지 않습니다.
 
 ## 데이터와 복구
 

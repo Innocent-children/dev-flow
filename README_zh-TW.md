@@ -45,6 +45,29 @@ Dev Flow 適合需要跨越多個開發節點、可能返工、需要保留驗�
 儲存庫任務。一次性問答或不需要保存流程狀態的單檔機械修改，通常直接使用 Codex 或 DeepSeek
 更簡單。
 
+## 多儲存庫 Task 與可選程式碼索引
+
+一個 Task 可以明確使用目前 Git 儲存庫作為主要儲存庫，並加入零至七個附加儲存庫；全部儲存庫
+始終共用一個 current node、Action、revision、verification budget、Recovery、Blocker 與 Outcome。
+系統不會掃描父目錄、相鄰目錄、相依關係或程式碼索引來擴大範圍。單儲存庫呼叫與一般相對路徑保持
+相容；多儲存庫路徑使用 `<repository-key>::<repository-relative-path>` 明確歸屬。
+
+可選程式碼索引偏好來自唯讀的 `$HOME/.dev-flow/config.json`：
+
+```json
+{
+  "codex": { "codebase_memory": false },
+  "deepseek": { "codebase_memory": true }
+}
+```
+
+目錄或檔案不存在時兩個值都預設為 `false`；`dev-flow-codex setup` 會建立完整預設設定，DeepSeek
+維持唯讀預設值。setup 不會改寫既有設定。偏好為 `true` 時，
+Host 只使用已安裝且可用的 codebase-memory；能力缺少或中途不可用時，每個工作階段最多提示一次並
+退回內建搜尋，不會阻塞 Task。Codex 的附加儲存庫必須是工作階段啟動時已授權的 writable root，
+Dev Flow 不會修改 sandbox；DeepSeek 的全部儲存庫必須位於目前 Workspace Root 下，該 Root 可以是
+非 Git 的共同父目錄。
+
 ## 安裝、升級與解除安裝
 
 目前公開製品支援 macOS arm64 與 Node.js `>=24`。安裝範例使用 npm `latest`；Codex 與 DeepSeek
@@ -60,11 +83,19 @@ dev-flow-codex setup
 dev-flow-codex --version
 ```
 
-`setup` 註冊或更新 Codex marketplace、Plugin 與 MCP。從 Git 儲存庫中使用唯一明確 selector：
+設定缺少時，`setup` 建立 `$HOME/.dev-flow/config.json`，並顯示實際建立或更新的設定與 registration
+receipt、就緒狀態和唯一下一步。互動輸出依簡體中文或英文環境顯示；非互動與 `NO_COLOR` 使用純文字，
+`setup --json` 輸出無裝飾的機器事實。
+
+`setup` 註冊或更新 Codex marketplace、Plugin 與 MCP。在 Git 儲存庫中可直接描述範圍明確的實作、
+缺陷修復、重構、定向測試或開發交付工作，Codex 會智慧選擇 Dev Flow；需要強制選擇時使用精確 selector：
 
 ```text
 $dev-flow-codex:dev-flow Add a failed-login attempt limit to this repository.
 ```
+
+僅解釋、僅狀態查詢、方案討論、一般問答和含糊請求不會自動建立 Dev Flow Task。明確選擇也不會
+略過儲存庫權限、Core Action、Git 變更授權或發布確認。
 
 #### 升級
 
@@ -145,7 +176,7 @@ rm -rf "$HOME/Library/Application Support/dev-flow"
 
 ## 執行模型
 
-1. 開發者在目前 Git 儲存庫中透過明確 selector 描述任務。
+1. 開發者直接描述明確開發任務，或透過精確 selector 強制選擇 Dev Flow。
 2. Core 建立或恢復該儲存庫的 Task，返回目前節點、完成條件、允許副作用、證據要求、驗證預算與全部合法流轉。
 3. Host 執行目前 Action。需求、設計或實作發生實質變更時，Host 透過 Core 返回的 transition 回報，而不是在目前節點中隱式擴大範圍。
 4. Core 驗證 `transition_id`、guard、revision 與 payload 後推進 Task；測試失敗、理解審查失敗或交付被拒絕時返回對應節點。
@@ -212,9 +243,9 @@ dev_flow_cancel_task
 
 每個工具的讀寫性質、參數用途與行為說明見 [命令參考](docs/COMMANDS.md)。
 
-Core 可以有界、唯讀地觀察一個既有 Git 儲存庫，用於建立 repository binding 與判斷變更事實。
-Git 修改由獲得使用者授權的 Host 執行；Core 不提供通用 shell，也不執行 checkout、commit、
-push、merge、rebase、tag 或發布操作。
+Core 可以按照固定順序，有界且唯讀地觀察一個 Task 明確宣告的一至八個既有 Git 儲存庫，用於建立
+repository bindings 與判斷變更事實。Git 修改由獲得使用者授權的 Host 執行；Core 不提供通用
+shell，也不執行 checkout、commit、push、merge、rebase、tag 或發布操作。
 
 ## 資料與恢復
 

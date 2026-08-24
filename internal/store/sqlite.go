@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"time"
 
@@ -132,7 +133,11 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 		if _, exists := tasks[taskID]; exists {
 			return ErrStorageUnavailable
 		}
-		tasks[taskID] = preflightTask{repositoryIdentity: repositoryIdentity, originHost: originHost, terminal: task.CurrentNode.Terminal()}
+		expectedClaims := map[string]bool{}
+		for _, identity := range repositoryClaimIdentities(task) {
+			expectedClaims[string(identity)] = true
+		}
+		tasks[taskID] = preflightTask{originHost: originHost, terminal: task.CurrentNode.Terminal(), expectedClaims: expectedClaims}
 	}
 	if rows.Err() != nil || rows.Close() != nil {
 		return ErrStorageUnavailable
@@ -150,12 +155,12 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 			return ErrStorageUnavailable
 		}
 		task, exists := tasks[taskID]
-		if !exists || task.terminal || task.repositoryIdentity != repositoryIdentity || task.originHost != originHost {
+		if !exists || task.terminal || !task.expectedClaims[repositoryIdentity] || task.originHost != originHost {
 			claims.Close()
 			return ErrStorageUnavailable
 		}
 		claimCount[taskID]++
-		if claimCount[taskID] != 1 {
+		if claimCount[taskID] > len(task.expectedClaims) {
 			claims.Close()
 			return ErrStorageUnavailable
 		}
@@ -164,7 +169,7 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 		return ErrStorageUnavailable
 	}
 	for taskID, task := range tasks {
-		if task.terminal && claimCount[taskID] != 0 || !task.terminal && claimCount[taskID] != 1 {
+		if task.terminal && claimCount[taskID] != 0 || !task.terminal && claimCount[taskID] != len(task.expectedClaims) {
 			return ErrStorageUnavailable
 		}
 	}
@@ -172,9 +177,9 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 }
 
 type preflightTask struct {
-	repositoryIdentity string
-	originHost         string
-	terminal           bool
+	originHost     string
+	terminal       bool
+	expectedClaims map[string]bool
 }
 
 func (s *SQLite) Close() error {
@@ -272,28 +277,62 @@ func insertEvent(ctx context.Context, tx *sql.Tx, e TaskEvent) error {
 	return nil
 }
 func applyClaim(ctx context.Context, tx *sql.Tx, m TaskMutation) error {
+	identities := repositoryClaimIdentities(m.Task)
 	switch m.Claim {
 	case ClaimAcquire:
-		_, err := tx.ExecContext(ctx, `INSERT INTO repository_claims(repository_identity,task_id,origin_host,claimed_at) VALUES(?,?,?,?)`, m.Task.Repository.RepositoryIdentity, m.Task.TaskID, m.Task.OriginHost, formatTime(m.Event.CreatedAt))
-		if err != nil {
-			return ErrActiveTaskConflict
+		for _, identity := range identities {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO repository_claims(repository_identity,task_id,origin_host,claimed_at) VALUES(?,?,?,?)`, identity, m.Task.TaskID, m.Task.OriginHost, formatTime(m.Event.CreatedAt)); err != nil {
+				return ErrActiveTaskConflict
+			}
 		}
 	case ClaimRetain:
-		var n int
-		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM repository_claims WHERE repository_identity=? AND task_id=?`, m.Task.Repository.RepositoryIdentity, m.Task.TaskID).Scan(&n); err != nil || n != 1 {
+		if err := validateClaimSet(ctx, tx, m.Task, identities); err != nil {
 			return ErrStorageUnavailable
 		}
 	case ClaimRelease:
-		result, err := tx.ExecContext(ctx, `DELETE FROM repository_claims WHERE repository_identity=? AND task_id=?`, m.Task.Repository.RepositoryIdentity, m.Task.TaskID)
+		if err := validateClaimSet(ctx, tx, m.Task, identities); err != nil {
+			return ErrStorageUnavailable
+		}
+		result, err := tx.ExecContext(ctx, `DELETE FROM repository_claims WHERE task_id=?`, m.Task.TaskID)
 		if err != nil {
 			return ErrStorageUnavailable
 		}
 		n, _ := result.RowsAffected()
-		if n != 1 {
+		if n != int64(len(identities)) {
 			return ErrStorageUnavailable
 		}
 	default:
 		return ErrInvalidArgument
+	}
+	return nil
+}
+
+func validateClaimSet(ctx context.Context, tx *sql.Tx, task domain.ProcessTask, expected []domain.Digest) error {
+	rows, err := tx.QueryContext(ctx, `SELECT repository_identity,origin_host FROM repository_claims WHERE task_id=? ORDER BY repository_identity`, task.TaskID)
+	if err != nil {
+		return ErrStorageUnavailable
+	}
+	defer rows.Close()
+	actual := make([]string, 0, len(expected))
+	for rows.Next() {
+		var identity, host string
+		if rows.Scan(&identity, &host) != nil || host != string(task.OriginHost) {
+			return ErrStorageUnavailable
+		}
+		actual = append(actual, identity)
+	}
+	if rows.Err() != nil || rows.Close() != nil || len(actual) != len(expected) {
+		return ErrStorageUnavailable
+	}
+	want := make([]string, len(expected))
+	for i, identity := range expected {
+		want[i] = string(identity)
+	}
+	sort.Strings(want)
+	for i := range want {
+		if want[i] != actual[i] {
+			return ErrStorageUnavailable
+		}
 	}
 	return nil
 }

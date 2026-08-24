@@ -39,6 +39,10 @@ flowchart TB
 Adapter 不保存 Task、current node、transition table、baseline、repository claim 或 recovery
 classification，也不推断 completion 或 destination。
 
+Codex Adapter 的 `setup` lifecycle 在任何 registration mutation 前创建或验证固定用户配置，并在
+registration readback 后从配置与 receipt 的实际写入事实构造 setup result。rich/plain/JSON 只是该
+结果的表现层；`mcp` STDIO、Core 和 DeepSeek Adapter 不参与该展示。
+
 ### MCP Contract
 
 `internal/mcp/` 通过 local STDIO 暴露六个工具：
@@ -134,6 +138,36 @@ conflicting
 Probe 始终零写入。显式 recovery apply 可以最多一次完成原 transition，或为 partial/conflicting
 创建 `BLOCKED`。Blocker 保存原 source node，解除后只回到该 resume node。
 
+## Repository Scope、配置与持久化边界
+
+`ProcessTask.Repository` 继续保存主仓库 binding；`PrimaryRepositoryKey` 缺省为 `primary`，
+`AdditionalRepositories` 保存零至七个按 key 严格升序排列的附加 binding。Scope 的成员、角色和 key
+创建后不可变。单仓库的有效 `repository_binding_digest` 仍等于主 binding digest；多仓库的唯一
+有效摘要按固定 domain、entry 数、主仓角色/key/component digest 和 sorted additions 进行长度前缀
+SHA-256 聚合。Action、operation、Recovery、Blocker 与 Outcome 继续共用这个既有字段，不增加第二
+Scope digest。
+
+Application 创建 Task 时先观察主仓库，再按 key 顺序观察附加仓库；全部 identity 唯一且观察成功后
+才构造一次 Store mutation。恢复可以从任一参与仓库的 claim 找到同一 Task，但不会改变主仓、key
+或顺序。多仓库公共路径使用 `<repository-key>::<repository-relative-path>`，Application 将其分派为
+各 Observer 使用的普通仓库相对路径；单仓库路径语法保持不变。
+
+SQLite 继续以一行 Task 和一个 revision CAS 保存整个流程聚合。活动 Task 为 Scope 中每个 identity
+持有一条 `repository_claims` 记录；Acquire、Retain 和 Release 都在 Task snapshot/event 的同一事务
+中处理完整、有序的 claim 集。任一冲突或集合不一致都会回滚或 safe-stop，不产生部分 claim、仓库级
+revision 或第二状态机。
+
+`dev_flow_open_task` 在现有 `host`、`repository_path` 与 `new_task` 旁仅增加可选
+`primary_repository_key` 和最多七项的 closed `additional_repositories[{key,repository_path}]`。
+Task result 保留主 `repository`，并返回主 key 与 sorted `additional_repositories`。
+`dev_flow_server_info({})` 返回进程启动时从只读 `$HOME/.dev-flow/config.json` 得到的
+`host_preferences.codex.codebase_memory` 与 `host_preferences.deepseek.codebase_memory`。配置不存在时
+均为 false；配置或索引状态不进入 Task 或流程摘要。
+
+Store 在开放 writable connection 前以 immutable read-only preflight 校验当前精确 Schema、closed
+snapshot 和完整 claim 集。旧或未知 Schema 使用 `reject-and-reset`：零写入拒绝，不迁移、不自动
+删除、改名或覆盖。用户可以选择新的 `DEV_FLOW_DATA_DIR`，或在 Core 外手工归档旧目录。
+
 ## 一次任务如何流动
 
 ```mermaid
@@ -198,3 +232,11 @@ record。
 
 当前行为权威是代码、机器可读 Schema 与可执行测试。文档帮助读者理解系统，不作为运行、
 构建或发布输入。
+
+## Codex Skill 激活边界
+
+`packages/codex/plugin/skills/dev-flow/agents/openai.yaml` 允许 Host 隐式选择 Skill，`SKILL.md` 的
+description 提供任务型正向用途和非任务型排除边界。精确 `$dev-flow-codex:dev-flow` selector 与隐式
+选择汇合到同一 admission；launcher 从 `packages/codex/lib/lifecycle.mjs` 复用同一 MCP instructions，
+setup validator 校验 metadata、Skill 和 instructions 自洽。激活来源不进入 Core、Task、SQLite、
+receipt 或用户配置。

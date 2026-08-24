@@ -12,6 +12,11 @@ validity, recovery, blockers, and terminal outcome. The Adapter owns capability 
 rendered instructions, expected artifact descriptions, plain-equivalent work, and honest bounded
 method evidence.
 
+Code discovery may span only repositories already present in the immutable Core Repository Scope.
+For a multi-repository Task, keep the repository key attached to every discovered symbol, artifact,
+expected path, and changed surface. Discovery results never add repositories, change permissions,
+or establish Core progress.
+
 The Adapter must not derive or select a transition or destination outside the complete current
 Action. A command result, artifact checkbox, proposal status, verification status, or archive status
 does not advance or mutate Core. Only a valid Core apply using one returned transition can do that.
@@ -129,7 +134,9 @@ in Action order. Each item contains only `step_id`, `status`, `capability`, and 
 
 ## Artifact references
 
-Submit artifact evidence only as `role`, repository-relative `path`, `digest`, and `summary`. Refer
+Submit artifact evidence only as `role`, contract `path`, `digest`, and `summary`. A single-repository
+Task uses an ordinary repository-relative path; a multi-repository Task uses
+`<repository-key>::<repository-relative-path>`. Refer
 only to a file actually observed by the Host. Never submit full contents, command output, prompts,
 token data, runtime configuration, or private locations. An artifact digest does not replace the
 repository binding. File existence, checkboxes, validation, sync, or archive status never advances

@@ -10,7 +10,7 @@ import (
 )
 
 func TestCurrentResultEnvelopeContract(t *testing.T) {
-	success := core.EncodeSuccess("request-success", core.ToolServerInfo, map[string]any{"product": "dev-flow"})
+	success := core.EncodeSuccess("request-success", core.ToolOpenTask, map[string]any{"created": true, "task": map[string]any{"task_id": "task", "primary_repository_key": "core", "additional_repositories": []any{map[string]any{"key": "docs"}}, "current_action": map[string]any{"repository_binding_digest": strings.Repeat("a", 64)}}})
 	assertEnvelope(t, success, false)
 	failure := core.EncodeError("request-error", core.ToolGetTask, domain.ErrStorageUnavailable)
 	assertEnvelope(t, failure, true)
