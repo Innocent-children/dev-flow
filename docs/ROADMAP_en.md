@@ -23,6 +23,8 @@ Delivered capabilities:
   all sharing one Task authority;
 - host-specific optional code-index preferences from fixed read-only user configuration, with
   built-in search fallback when the index is unavailable;
+- Codex setup configuration creation, exact configuration/receipt change summaries, and a
+  degradable Simplified Chinese or English installation screen;
 - explicit Codex and DeepSeek Host Adapters.
 
 ## Current public products

@@ -70,8 +70,9 @@ Les préférences d'indexation facultatives proviennent du fichier en lecture se
 }
 ```
 
-Si le répertoire ou le fichier est absent, les deux valeurs sont `false` et Dev Flow ne crée ni ne
-modifie ce fichier. Avec `true`, le Host utilise codebase-memory uniquement s'il est déjà installé
+Si le répertoire ou le fichier est absent, les deux valeurs sont `false`. `dev-flow-codex setup`
+crée la configuration par défaut complète ; DeepSeek conserve la valeur par défaut en lecture seule.
+Setup ne réécrit jamais une configuration existante. Avec `true`, le Host utilise codebase-memory uniquement s'il est déjà installé
 et disponible. S'il manque ou devient indisponible, le Host le signale au plus une fois par session
 et revient à la recherche intégrée sans bloquer le Task. Les dépôts supplémentaires de Codex doivent
 être des writable roots déjà autorisés au démarrage de la session ; Dev Flow ne modifie pas le
@@ -93,6 +94,11 @@ npm install -g dev-flow-codex@latest
 dev-flow-codex setup
 dev-flow-codex --version
 ```
+
+Si la configuration manque, `setup` crée `$HOME/.dev-flow/config.json` et affiche les fichiers de
+configuration et de receipt réellement créés ou mis à jour, l'état et une seule étape suivante. La
+sortie interactive suit le chinois simplifié ou l'anglais ; la sortie non interactive et `NO_COLOR`
+est en texte brut, et `setup --json` émet des faits machine sans décoration.
 
 `setup` enregistre ou met à jour marketplace, Plugin et MCP dans Codex. Depuis un dépôt Git, utilisez l'unique selector :
 

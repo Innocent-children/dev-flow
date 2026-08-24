@@ -67,8 +67,9 @@ Optional code-index preferences come from the read-only `$HOME/.dev-flow/config.
 }
 ```
 
-Both values default to `false` when the directory or file is absent, and Dev Flow does not create or
-modify the file. When a preference is `true`, the host uses codebase-memory only if it is already
+Both values default to `false` when the directory or file is absent. `dev-flow-codex setup` creates
+the complete default configuration; DeepSeek retains the read-only default. Setup never rewrites an
+existing configuration. When a preference is `true`, the host uses codebase-memory only if it is already
 installed and available. If it is missing or becomes unavailable, the host reports that once per
 session at most and falls back to built-in search without blocking the Task. Codex additional
 repositories must already be authorized writable roots when the session starts; Dev Flow does not
@@ -90,6 +91,11 @@ npm install -g dev-flow-codex@latest
 dev-flow-codex setup
 dev-flow-codex --version
 ```
+
+When configuration is absent, `setup` creates `$HOME/.dev-flow/config.json` and reports the actual
+configuration and registration-receipt files created or updated, readiness, and one next step.
+Interactive output follows Simplified Chinese or English; non-interactive and `NO_COLOR` output is
+plain, while `setup --json` emits undecorated machine facts.
 
 The global npm install provides the `dev-flow-codex` command. `setup` registers the Codex
 marketplace, Plugin, and MCP integration. From a Git repository, start a task in Codex with the only

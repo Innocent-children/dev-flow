@@ -11,6 +11,14 @@ import {
   setupRegistration,
 } from "../lib/lifecycle.mjs";
 import {
+  buildSetupSuccessResult,
+  ensureUserConfiguration,
+  renderSetup,
+  renderSetupPlain,
+  resolveSetupLanguage,
+  selectSetupPresentationMode,
+} from "../lib/install-experience.mjs";
+import {
   ensureDefaultDataDirectory,
   resolveProductPaths,
 } from "../lib/paths.mjs";
@@ -37,6 +45,10 @@ export async function runCLI(arguments_, dependencies = {}) {
   const inspectVersion = dependencies.inspectCoreVersion ?? inspectCoreVersion;
   const ensureDataDirectory = dependencies.ensureDefaultDataDirectory ?? ensureDefaultDataDirectory;
   const setup = dependencies.setupRegistration ?? setupRegistration;
+  const ensureConfiguration = dependencies.ensureUserConfiguration ?? ensureUserConfiguration;
+  const renderSetupResult = dependencies.renderSetup ?? renderSetup;
+  let completedSetupChanges = [];
+  let setupAttempted = false;
 
   if (!isProductionCommand(arguments_)) {
     stderr.write("dev-flow-codex: invalid arguments; expected setup [--json], remove [--json], mcp, or --version\n");
@@ -66,6 +78,9 @@ export async function runCLI(arguments_, dependencies = {}) {
 
     const json = arguments_.at(-1) === "--json";
     if (arguments_[0] === "setup") {
+      setupAttempted = true;
+      const configuration = await ensureConfiguration(paths);
+      if (configuration.fileChange) completedSetupChanges = [configuration.fileChange];
       const result = await setup({
         paths,
         packageVersion,
@@ -73,7 +88,11 @@ export async function runCLI(arguments_, dependencies = {}) {
         environment,
         now: dependencies.now,
       });
-      writeLifecycleSuccess(stdout, "setup", result, paths.receiptPath, json);
+      const setupResult = buildSetupSuccessResult(result, configuration, paths.receiptPath);
+      writeSetupSuccess(stdout, setupResult, json, {
+        environment,
+        renderSetupResult,
+      });
       return { code: 0, signal: null };
     }
 
@@ -87,7 +106,14 @@ export async function runCLI(arguments_, dependencies = {}) {
     writeLifecycleSuccess(stdout, "remove", result, paths.receiptPath, json);
     return { code: 0, signal: null };
   } catch (error) {
-    stderr.write(`dev-flow-codex: ${error.message}\n`);
+    if (setupAttempted && completedSetupChanges.length > 0) {
+      stderr.write(
+        `dev-flow-codex: ${error.message}; created ${completedSetupChanges[0].path}; ` +
+        "Codex registration is incomplete; run dev-flow-codex setup again\n",
+      );
+    } else {
+      stderr.write(`dev-flow-codex: ${error.message}\n`);
+    }
     return { code: 1, signal: null };
   }
 }
@@ -181,6 +207,20 @@ function writeLifecycleSuccess(stdout, operation, result, receiptPath, json) {
   }
   stdout.write(`dev-flow-codex ${operation}: ${result.status}\n`);
   if (operation === "remove") stdout.write(`${NPM_UNINSTALL_HANDOFF}\n`);
+}
+
+function writeSetupSuccess(stdout, result, json, { environment, renderSetupResult }) {
+  if (json) {
+    stdout.write(`${JSON.stringify(result)}\n`);
+    return;
+  }
+  const language = resolveSetupLanguage(environment);
+  const mode = selectSetupPresentationMode(stdout, environment);
+  try {
+    stdout.write(renderSetupResult(result, { language, mode }));
+  } catch {
+    stdout.write(renderSetupPlain(result, language));
+  }
 }
 
 function isProductionCommand(arguments_) {

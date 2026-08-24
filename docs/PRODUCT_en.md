@@ -135,6 +135,14 @@ The read-only `$HOME/.dev-flow/config.json` file provides independent `codebase_
 preferences for Codex and DeepSeek. Missing configuration defaults to disabled. Configuration and
 index availability never enter the Task, repository binding, Recovery, or process authority.
 
+### Codex setup out-of-box experience
+
+When configuration is absent, `dev-flow-codex setup` creates a safe complete default, preserves any
+existing configuration, and reports the configuration and registration receipt files it directly
+created or updated. Interactive results use a Dev Flow-owned Simplified Chinese or English welcome
+screen; non-interactive output is plain text, and `setup --json` exposes the same file facts. This is
+Codex Host lifecycle behavior and does not change Core, Tasks, or DeepSeek.
+
 ## Products
 
 | Product | Responsibility | Current version |

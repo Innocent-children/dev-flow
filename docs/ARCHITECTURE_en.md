@@ -40,6 +40,11 @@ flowchart TB
 An Adapter does not store the Task, current node, transition table, baseline, repository claim, or
 recovery classification. It does not infer completion or destination.
 
+The Codex Adapter `setup` lifecycle creates or validates fixed user configuration before any
+registration mutation, then constructs the setup result from actual configuration and receipt writes
+after registration read-back. Rich, plain, and JSON are presentations of that result. MCP STDIO,
+Core, and the DeepSeek Adapter do not participate in this display.
+
 ### MCP Contract
 
 `internal/mcp/` exposes six tools over local STDIO:

@@ -39,6 +39,10 @@ flowchart TB
 Adapter 不保存 Task、current node、transition table、baseline、repository claim 或 recovery
 classification，也不推断 completion 或 destination。
 
+Codex Adapter 的 `setup` lifecycle 在任何 registration mutation 前创建或验证固定用户配置，并在
+registration readback 后从配置与 receipt 的实际写入事实构造 setup result。rich/plain/JSON 只是该
+结果的表现层；`mcp` STDIO、Core 和 DeepSeek Adapter 不参与该展示。
+
 ### MCP Contract
 
 `internal/mcp/` 通过 local STDIO 暴露六个工具：

@@ -20,6 +20,7 @@ Dev Flow 的路线由用户价值和可验证结果推进。日期不是承诺�
 - 有界只读 Git observation；
 - 一个主仓库加最多七个显式附加仓库的不可变 Repository Scope，全部仓库共享一个 Task 权威；
 - 固定只读用户配置中的 Host 级可选代码索引偏好，以及索引不可用时的内置检索回退；
+- Codex setup 缺失配置创建、真实配置/receipt 文件摘要和简中/英文可降级安装首屏；
 - Codex 与 DeepSeek 两个显式 Host Adapter。
 
 ## 当前公开产品

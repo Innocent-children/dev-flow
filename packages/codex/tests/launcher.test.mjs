@@ -275,6 +275,9 @@ test("setup emits success only after verified lifecycle completion and fails on 
     status: "installed",
     changed: true,
     receipt_path: paths.receiptPath,
+    configuration_path: paths.configurationPath,
+    file_changes: [{ path: paths.configurationPath, change: "created" }],
+    next_step: "$dev-flow-codex:dev-flow <task description>",
   });
   assert.equal(stderr.text, "");
 
@@ -285,6 +288,10 @@ test("setup emits success only after verified lifecycle completion and fails on 
     stderr: failedError,
     resolvePaths: async () => paths,
     readPackageVersion: async () => "0.1.0",
+    ensureUserConfiguration: async () => ({
+      configurationPath: paths.configurationPath,
+      fileChange: null,
+    }),
     setupRegistration: async () => {
       throw new Error("readback mismatch");
     },
@@ -292,6 +299,99 @@ test("setup emits success only after verified lifecycle completion and fails on 
   assert.deepEqual(failed, { code: 1, signal: null });
   assert.equal(failedOutput.text, "");
   assert.equal(failedError.text, "dev-flow-codex: readback mismatch\n");
+});
+
+test("setup prepares configuration before registration and reports completed configuration on later failure", async (t) => {
+  const paths = await makePaths(t);
+  paths.receiptPath = join(paths.packageRoot, "registrations", "codex.json");
+  let registrationCalls = 0;
+  const invalidError = captureStream();
+  const invalid = await runCLI(["setup"], {
+    stdout: captureStream(),
+    stderr: invalidError,
+    resolvePaths: async () => paths,
+    readPackageVersion: async () => "0.1.0",
+    ensureUserConfiguration: async () => {
+      throw new Error("user configuration is invalid");
+    },
+    setupRegistration: async () => { registrationCalls += 1; },
+  });
+  assert.deepEqual(invalid, { code: 1, signal: null });
+  assert.equal(registrationCalls, 0);
+  assert.equal(invalidError.text, "dev-flow-codex: user configuration is invalid\n");
+
+  const partialError = captureStream();
+  const partial = await runCLI(["setup"], {
+    stdout: captureStream(),
+    stderr: partialError,
+    resolvePaths: async () => paths,
+    readPackageVersion: async () => "0.1.0",
+    ensureUserConfiguration: async () => ({
+      configurationPath: paths.configurationPath,
+      fileChange: { path: paths.configurationPath, change: "created" },
+    }),
+    setupRegistration: async () => {
+      registrationCalls += 1;
+      throw new Error("registration readback failed");
+    },
+  });
+  assert.deepEqual(partial, { code: 1, signal: null });
+  assert.equal(registrationCalls, 1);
+  assert.match(partialError.text, /created .*config\.json/);
+  assert.match(partialError.text, /registration is incomplete/);
+  assert.match(partialError.text, /run dev-flow-codex setup again/);
+});
+
+test("interactive setup selects rich localized output, repeats compactly, and degrades renderer failures", async (t) => {
+  const paths = await makePaths(t);
+  paths.receiptPath = join(paths.packageRoot, "registrations", "codex.json");
+  const configuration = {
+    configurationPath: paths.configurationPath,
+    fileChange: { path: paths.configurationPath, change: "created" },
+  };
+  const richOutput = captureStream({ isTTY: true, columns: 100 });
+  assert.deepEqual(await runCLI(["setup"], {
+    stdout: richOutput,
+    stderr: captureStream(),
+    environment: { TERM: "xterm-256color", LANG: "zh_CN.UTF-8" },
+    resolvePaths: async () => paths,
+    readPackageVersion: async () => "0.1.0",
+    ensureUserConfiguration: async () => configuration,
+    setupRegistration: async () => ({
+      status: "installed",
+      changed: true,
+      fileChanges: [{ path: paths.receiptPath, change: "created" }],
+    }),
+  }), { code: 0, signal: null });
+  assert.match(richOutput.text, /DEV FLOW · CODEX/);
+  assert.match(richOutput.text, /设置完成/);
+
+  const repeatedOutput = captureStream({ isTTY: true, columns: 100 });
+  assert.deepEqual(await runCLI(["setup"], {
+    stdout: repeatedOutput,
+    stderr: captureStream(),
+    environment: { TERM: "xterm", LANG: "en_US.UTF-8" },
+    resolvePaths: async () => paths,
+    readPackageVersion: async () => "0.1.0",
+    ensureUserConfiguration: async () => ({ configurationPath: paths.configurationPath, fileChange: null }),
+    setupRegistration: async () => ({ status: "already-installed", changed: false, fileChanges: [] }),
+  }), { code: 0, signal: null });
+  assert.match(repeatedOutput.text, /file changes: none/);
+  assert.doesNotMatch(repeatedOutput.text, /╭/u);
+
+  const fallbackOutput = captureStream({ isTTY: true, columns: 100 });
+  assert.deepEqual(await runCLI(["setup"], {
+    stdout: fallbackOutput,
+    stderr: captureStream(),
+    environment: { TERM: "xterm", LANG: "en_US.UTF-8" },
+    resolvePaths: async () => paths,
+    readPackageVersion: async () => "0.1.0",
+    ensureUserConfiguration: async () => configuration,
+    setupRegistration: async () => ({ status: "installed", changed: true, fileChanges: [] }),
+    renderSetup: () => { throw new Error("terminal rendering unavailable"); },
+  }), { code: 0, signal: null });
+  assert.match(fallbackOutput.text, /dev-flow-codex setup: installed/);
+  assert.doesNotMatch(fallbackOutput.text, /\u001b\[|╭/u);
 });
 
 test("remove reports deregistration before a separate npm-uninstall handoff", async (t) => {
@@ -399,8 +499,11 @@ async function makePaths(t, { usesDefaultDataDirectory = false, executable = tru
   const root = await mkdtemp(join(tmpdir(), "dev-flow-codex-launcher-"));
   const runtimePath = join(root, "runtime", "darwin-arm64", "dev-flow");
   const dataDirectory = join(root, "data");
+  const homeDirectory = join(root, "home");
+  const configurationDirectory = join(homeDirectory, ".dev-flow");
   await mkdir(join(runtimePath, ".."), { recursive: true });
   await mkdir(dataDirectory, { recursive: true });
+  await mkdir(homeDirectory, { recursive: true });
   await writeFile(runtimePath, "fixture\n", { mode: executable ? 0o700 : 0o600 });
   assert.equal((await stat(runtimePath)).isFile(), true);
   return {
@@ -408,6 +511,9 @@ async function makePaths(t, { usesDefaultDataDirectory = false, executable = tru
     runtimePath,
     dataDirectory,
     usesDefaultDataDirectory,
+    homeDirectory,
+    configurationDirectory,
+    configurationPath: join(configurationDirectory, "config.json"),
   };
 }
 
@@ -420,9 +526,11 @@ function successfulSpawn() {
   };
 }
 
-function captureStream() {
+function captureStream({ isTTY = false, columns } = {}) {
   return {
     text: "",
+    isTTY,
+    columns,
     write(chunk) {
       this.text += String(chunk);
       return true;

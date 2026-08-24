@@ -130,6 +130,7 @@ export async function setupRegistration({
         status: "already-installed",
         changed: false,
         receipt: existingReceipt,
+        fileChanges: [],
       };
     }
 
@@ -163,6 +164,7 @@ export async function setupRegistration({
       status: "installed",
       changed: true,
       receipt: expectedReceipt,
+      fileChanges: [{ path: paths.receiptPath, change: "updated" }],
     };
   }
 
@@ -189,6 +191,7 @@ export async function setupRegistration({
       status: "installed",
       changed: true,
       receipt: expectedReceipt,
+      fileChanges: [{ path: paths.receiptPath, change: "created" }],
     };
   } catch (error) {
     if (marketplaceCreated) {

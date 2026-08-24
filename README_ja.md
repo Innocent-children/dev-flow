@@ -66,8 +66,9 @@ Recovery、Blocker、Outcome を共有します。親・隣接ディレクトリ
 }
 ```
 
-ディレクトリまたはファイルがない場合は両方とも `false` となり、Dev Flow はそのファイルを作成・
-変更しません。`true` の場合も、Host は既にインストール済みで利用可能な codebase-memory だけを
+ディレクトリまたはファイルがない場合は両方とも `false` です。`dev-flow-codex setup` は完全な
+既定設定を作成し、DeepSeek は読み取り専用の既定値を維持します。setup は既存設定を書き換えません。
+`true` の場合も、Host は既にインストール済みで利用可能な codebase-memory だけを
 使用します。利用できない場合はセッションごとに最大 1 回通知して組み込み検索へフォールバックし、
 Task をブロックしません。Codex の追加リポジトリはセッション開始時に許可済みの writable root
 である必要があり、Dev Flow は sandbox を変更しません。DeepSeek の全リポジトリは現在の
@@ -88,6 +89,10 @@ npm install -g dev-flow-codex@latest
 dev-flow-codex setup
 dev-flow-codex --version
 ```
+
+設定がない場合、`setup` は `$HOME/.dev-flow/config.json` を作成し、実際に作成・更新した設定と
+registration receipt、準備状態、唯一の次の手順を表示します。対話出力は簡体字中国語または英語、
+非対話と `NO_COLOR` はプレーンテキスト、`setup --json` は装飾なしの機械用情報です。
 
 `setup` は Codex marketplace、Plugin、MCP を登録または更新します。Git リポジトリから唯一の
 明示的 selector を使用します。

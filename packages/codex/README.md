@@ -32,7 +32,9 @@ dev-flow-codex --version
 
 npm 全局安装只负责把 package 和 `dev-flow-codex` launcher 放到 `PATH`。`setup` 是独立步骤：
 它验证平台、package 内容、bundled Core 与 Codex 兼容版本，然后注册 Plugin、marketplace 与 MCP，
-并在写入后回读 ownership。`--version` 同时输出实际 package 和 bundled Core 版本。
+并在写入后回读 ownership。配置缺失时 setup 创建 `$HOME/.dev-flow/config.json`；成功后以简中/英文
+品牌首屏或纯文本展示实际配置/receipt 文件变化和一个下一步。`--version` 同时输出实际 package 和
+bundled Core 版本。
 
 ## 命令参考
 
@@ -41,8 +43,8 @@ npm 全局安装只负责把 package 和 `dev-flow-codex` launcher 放到 `PATH`
 | 命令 | 说明 |
 | --- | --- |
 | `npm install -g dev-flow-codex@latest` | 安装 npm `latest` 指向的 package，并把 launcher 全局加入 `PATH`；不会自动注册 Codex Plugin。 |
-| `dev-flow-codex setup` | 校验 package、Core 和 Codex 版本，注册 marketplace、Plugin 与 MCP，并回读最终状态。重复执行会验证现有 ownership，兼容 package 升级也通过该命令完成。 |
-| `dev-flow-codex setup --json` | 与 `setup` 行为相同，但只输出机器可读 JSON：`operation`、`status`、`changed` 和 `receipt_path`。 |
+| `dev-flow-codex setup` | 创建或验证固定用户配置，校验 package、Core 和 Codex 版本，注册 marketplace、Plugin 与 MCP，并显示实际配置/receipt 文件变化、ready 和一个下一步。重复执行显示零变化，兼容升级通过同一命令完成。 |
+| `dev-flow-codex setup --json` | 与 `setup` 行为相同，但只输出一行无装饰 JSON：保留 `operation`、`status`、`changed`、`receipt_path`，增加 `configuration_path`、`file_changes`、`next_step`。 |
 | `dev-flow-codex --version` | 输出 `dev-flow-codex <package-version> (core <core-version>)`，用于确认实际安装身份。 |
 | `dev-flow-codex remove` | 删除该 package 拥有的 Plugin、marketplace 注册和 receipt；保留 Task data、未知相邻文件和目标 Git 仓库。 |
 | `dev-flow-codex remove --json` | 与 `remove` 行为相同，并输出机器可读 JSON；`next_step` 提示随后执行全局 npm 卸载。 |

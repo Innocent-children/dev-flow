@@ -60,7 +60,8 @@ current node、Action、revision、verification budget、Recovery、Blocker 和 
 }
 ```
 
-目录或文件不存在时两个值都默认为 `false`，Dev Flow 不会创建或修改该文件。偏好为 `true` 时，
+目录或文件不存在时两个值都默认为 `false`；`dev-flow-codex setup` 会创建完整默认配置，DeepSeek
+保持只读缺省。已有配置不会被 setup 改写。偏好为 `true` 时，
 Host 只会使用已经安装且可用的 codebase-memory；能力缺失或中途不可用时，每个会话最多提示一次并
 回退到内置检索，不阻塞 Task。Codex 的附加仓库必须是会话启动时已授权的 writable root，Dev Flow
 不会修改 sandbox；DeepSeek 的全部仓库必须位于当前 Workspace Root 下，该 Root 可以是非 Git 的
@@ -81,6 +82,10 @@ npm install -g dev-flow-codex@latest
 dev-flow-codex setup
 dev-flow-codex --version
 ```
+
+`setup` 缺少配置时创建 `$HOME/.dev-flow/config.json`，并展示本次实际创建或更新的配置与 registration
+receipt、就绪状态和唯一下一步。交互结果跟随简体中文/英文环境；非交互或 `NO_COLOR` 使用纯文本，
+`setup --json` 输出无装饰的机器事实。
 
 全局 npm 安装提供 `dev-flow-codex` 命令；`setup` 注册 Codex marketplace、Plugin 和 MCP。进入一个
 Git 仓库后，在 Codex 对话中使用唯一显式 selector：

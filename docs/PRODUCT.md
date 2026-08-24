@@ -120,6 +120,13 @@ Git 修改仍由获得用户授权的 Host 负责。
 `$HOME/.dev-flow/config.json` 只读提供 Codex 与 DeepSeek 各自的 `codebase_memory` 布尔偏好。
 配置不存在时默认关闭；配置和索引能力不进入 Task、repository binding、Recovery 或流程权威。
 
+### Codex Setup 开箱体验
+
+`dev-flow-codex setup` 在配置缺失时创建安全的完整默认配置，保留既有配置，并展示本次直接创建或
+更新的配置与 registration receipt。交互式结果使用 Dev Flow 自有简中/英文品牌首屏；非交互输出
+使用纯文本，`setup --json` 提供同一文件事实。该体验属于 Codex Host lifecycle，不改变 Core、Task
+或 DeepSeek。
+
 ## 产品组成
 
 | 产品 | 职责 | 当前版本 |

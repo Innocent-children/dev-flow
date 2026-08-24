@@ -61,7 +61,8 @@ Dev Flow 適合需要跨越多個開發節點、可能返工、需要保留驗�
 }
 ```
 
-目錄或檔案不存在時兩個值都預設為 `false`，Dev Flow 不會建立或修改該檔案。偏好為 `true` 時，
+目錄或檔案不存在時兩個值都預設為 `false`；`dev-flow-codex setup` 會建立完整預設設定，DeepSeek
+維持唯讀預設值。setup 不會改寫既有設定。偏好為 `true` 時，
 Host 只使用已安裝且可用的 codebase-memory；能力缺少或中途不可用時，每個工作階段最多提示一次並
 退回內建搜尋，不會阻塞 Task。Codex 的附加儲存庫必須是工作階段啟動時已授權的 writable root，
 Dev Flow 不會修改 sandbox；DeepSeek 的全部儲存庫必須位於目前 Workspace Root 下，該 Root 可以是
@@ -81,6 +82,10 @@ npm install -g dev-flow-codex@latest
 dev-flow-codex setup
 dev-flow-codex --version
 ```
+
+設定缺少時，`setup` 建立 `$HOME/.dev-flow/config.json`，並顯示實際建立或更新的設定與 registration
+receipt、就緒狀態和唯一下一步。互動輸出依簡體中文或英文環境顯示；非互動與 `NO_COLOR` 使用純文字，
+`setup --json` 輸出無裝飾的機器事實。
 
 `setup` 註冊或更新 Codex marketplace、Plugin 與 MCP。從 Git 儲存庫中使用唯一明確 selector：
 

@@ -147,6 +147,7 @@ production_files='package.json
 README.md
 .agents/plugins/marketplace.json
 bin/dev-flow-codex.mjs
+lib/install-experience.mjs
 lib/lifecycle.mjs
 lib/paths.mjs
 plugin/.codex-plugin/plugin.json
@@ -200,6 +201,7 @@ const expected = [
   "LICENSE",
   "README.md",
   "bin/dev-flow-codex.mjs",
+  "lib/install-experience.mjs",
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
   "package.json",

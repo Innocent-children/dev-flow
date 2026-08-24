@@ -33,6 +33,9 @@ dev-flow-codex --version
 The global npm operation only installs the package and places the `dev-flow-codex` launcher on
 `PATH`. `setup` is separate: it validates the platform, package contents, bundled Core, and Codex
 compatibility; registers the Plugin, marketplace, and MCP configuration; and reads back ownership.
+When configuration is absent, setup creates `$HOME/.dev-flow/config.json`, then reports actual
+configuration/receipt changes, readiness, and one next step through a Simplified Chinese or English
+brand screen or plain fallback.
 `--version` reports the actual package and bundled Core identities.
 
 ## Command reference
@@ -43,8 +46,8 @@ any registration operation is dispatched.
 | Command | Description |
 | --- | --- |
 | `npm install -g dev-flow-codex@latest` | Install the package selected by npm `latest` and place the launcher globally on `PATH`. It does not register the Codex Plugin automatically. |
-| `dev-flow-codex setup` | Validate the package, Core, and Codex version; register the marketplace, Plugin, and MCP configuration; and read back the final state. Repeated execution verifies existing ownership, and compatible package upgrades use the same command. |
-| `dev-flow-codex setup --json` | Perform the same operation as `setup`, but emit machine-readable JSON containing `operation`, `status`, `changed`, and `receipt_path`. |
+| `dev-flow-codex setup` | Create or validate fixed user configuration; validate package, Core, and Codex; register marketplace, Plugin, and MCP; then report actual configuration/receipt changes, readiness, and one next step. Repeated execution reports zero changes. |
+| `dev-flow-codex setup --json` | Perform the same operation but emit one undecorated JSON line retaining `operation`, `status`, `changed`, and `receipt_path`, and adding `configuration_path`, `file_changes`, and `next_step`. |
 | `dev-flow-codex --version` | Print `dev-flow-codex <package-version> (core <core-version>)` to identify the installed package and bundled Core. |
 | `dev-flow-codex remove` | Remove the package-owned Plugin, marketplace registration, and receipt while retaining Task data, unknown neighboring files, and the target Git repository. |
 | `dev-flow-codex remove --json` | Perform the same operation as `remove` and emit machine-readable JSON. `next_step` identifies the separate global npm uninstall. |

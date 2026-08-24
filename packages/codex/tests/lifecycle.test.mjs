@@ -272,6 +272,9 @@ test("setup registers through exact JSON commands, verifies readback, and writes
   const result = await setupRegistration(fixture.options);
   assert.equal(result.status, "installed");
   assert.equal(result.changed, true);
+  assert.deepEqual(result.fileChanges, [
+    { path: fixture.paths.receiptPath, change: "created" },
+  ]);
   assert.equal(result.receipt.paths.receipt_path, fixture.paths.receiptPath);
   assert.equal(await directoryFingerprint(repository), before);
 
@@ -314,6 +317,7 @@ test("matching repeated setup is a no-op while receipt or readback conflicts fai
   const repeated = await setupRegistration(fixture.options);
   assert.equal(repeated.status, "already-installed");
   assert.equal(repeated.changed, false);
+  assert.deepEqual(repeated.fileChanges, []);
   assert.equal(await readFile(fixture.paths.receiptPath, "utf8"), receiptBefore);
   assert.equal(await readFile(fixture.statePath, "utf8"), stateBefore);
 
@@ -362,6 +366,9 @@ test("setup upgrades only an exactly owned registration and rejects package down
   const upgraded = await setupRegistration(fixture.options);
   assert.equal(upgraded.status, "installed");
   assert.equal(upgraded.changed, true);
+  assert.deepEqual(upgraded.fileChanges, [
+    { path: fixture.paths.receiptPath, change: "updated" },
+  ]);
   assert.equal(upgraded.receipt.product.version, "0.1.1");
   assert.equal(upgraded.receipt.product.core_version, "0.1.1");
   const stateB = JSON.parse(await readFile(fixture.statePath, "utf8"));

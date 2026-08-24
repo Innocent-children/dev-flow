@@ -70,8 +70,9 @@ Optionale Präferenzen für die Code-Indizierung stammen aus der schreibgeschüt
 }
 ```
 
-Fehlt das Verzeichnis oder die Datei, sind beide Werte `false`; Dev Flow erstellt oder ändert die
-Datei nicht. Bei `true` verwendet der Host codebase-memory nur, wenn es bereits installiert und
+Fehlt das Verzeichnis oder die Datei, sind beide Werte `false`. `dev-flow-codex setup` erstellt die
+vollständige Standardkonfiguration; DeepSeek behält den schreibgeschützten Standardwert bei. Setup
+schreibt eine vorhandene Konfiguration nie um. Bei `true` verwendet der Host codebase-memory nur, wenn es bereits installiert und
 verfügbar ist. Fehlt es oder fällt es aus, meldet der Host dies höchstens einmal pro Sitzung und
 wechselt zur integrierten Suche, ohne den Task zu blockieren. Zusätzliche Codex-Repositories müssen
 beim Sitzungsstart bereits autorisierte writable roots sein; Dev Flow ändert die Sandbox nicht. Alle
@@ -93,6 +94,11 @@ npm install -g dev-flow-codex@latest
 dev-flow-codex setup
 dev-flow-codex --version
 ```
+
+Fehlt die Konfiguration, erstellt `setup` `$HOME/.dev-flow/config.json` und zeigt die tatsächlich
+erstellten oder aktualisierten Konfigurations- und Receipt-Dateien, den Bereitschaftsstatus und genau
+einen nächsten Schritt. Interaktive Ausgabe folgt vereinfachtem Chinesisch oder Englisch; nicht
+interaktive Ausgabe und `NO_COLOR` sind Klartext, `setup --json` liefert undekorierte Maschinendaten.
 
 `setup` registriert oder aktualisiert Codex marketplace, Plugin und MCP. Verwenden Sie im Git-Repository den
 einzigen expliziten selector:

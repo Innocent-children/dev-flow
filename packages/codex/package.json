@@ -30,6 +30,7 @@
     ".agents/plugins/marketplace.json",
     "LICENSE",
     "bin/dev-flow-codex.mjs",
+    "lib/install-experience.mjs",
     "lib/lifecycle.mjs",
     "lib/paths.mjs",
     "plugin/.codex-plugin/plugin.json",

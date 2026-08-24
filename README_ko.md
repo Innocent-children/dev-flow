@@ -65,7 +65,8 @@ Outcome을 공유합니다. 상위·인접 디렉터리, 종속성 또는 코드
 }
 ```
 
-디렉터리나 파일이 없으면 두 값은 모두 `false`이며 Dev Flow는 파일을 만들거나 수정하지 않습니다.
+디렉터리나 파일이 없으면 두 값은 모두 `false`입니다. `dev-flow-codex setup`은 완전한 기본 구성을
+만들고 DeepSeek는 읽기 전용 기본값을 유지합니다. setup은 기존 구성을 다시 쓰지 않습니다.
 값이 `true`여도 Host는 이미 설치되어 사용 가능한 codebase-memory만 사용합니다. 사용할 수 없으면
 세션당 최대 한 번 알리고 기본 검색으로 전환하며 Task를 차단하지 않습니다. Codex 추가 저장소는
 세션 시작 시 이미 허용된 writable root여야 하고 Dev Flow는 sandbox를 바꾸지 않습니다. DeepSeek의
@@ -87,6 +88,10 @@ npm install -g dev-flow-codex@latest
 dev-flow-codex setup
 dev-flow-codex --version
 ```
+
+구성이 없으면 `setup`이 `$HOME/.dev-flow/config.json`을 만들고 실제로 생성·수정한 구성과 registration
+receipt, 준비 상태, 하나의 다음 단계를 표시합니다. 대화형 출력은 중국어 간체 또는 영어를 따르며,
+비대화형과 `NO_COLOR`는 일반 텍스트, `setup --json`은 장식 없는 기계용 사실을 출력합니다.
 
 `setup`은 Codex marketplace, Plugin, MCP를 등록하거나 업데이트합니다. Git 저장소에서 유일한
 명시적 selector를 사용합니다.
