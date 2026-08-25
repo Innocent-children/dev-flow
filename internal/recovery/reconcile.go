@@ -174,6 +174,9 @@ func Reconcile(input ReconcileInput) (RecoveryDecision, error) {
 			if err != nil {
 				return RecoveryDecision{}, err
 			}
+			if !RepositoryEffectAllowed(node.AllowedEffects, effect) {
+				return RecoveryDecision{}, domain.ErrRepositoryDrift
+			}
 		}
 		digest, digestErr := workflow.GraphOperationDigest(input.Host, input.Task.TaskID, input.Operation, canonical)
 		if digestErr != nil {
@@ -308,23 +311,61 @@ func RepositoryScopeEffectEvidence(task domain.ProcessTask, observed RepositoryS
 }
 
 func DeriveRepositoryEffect(source domain.NodeID, envelope workflow.StandardPayload, result any) (RepositoryEffect, error) {
-	switch value := result.(type) {
-	case *workflow.ImplementationResult:
-		return RepositoryEffect{Kind: EffectProductFileChange, ChangedPaths: sortedPaths(value.ChangedPaths), NoFileChanges: value.NoFileChanges}, nil
-	case *workflow.RefactorResult:
-		return RepositoryEffect{Kind: EffectProductFileChange, ChangedPaths: sortedPaths(value.ChangedPaths), NoFileChanges: value.NoFileChanges}, nil
-	}
-	paths := make([]string, 0, len(envelope.Artifacts))
 	for _, artifact := range envelope.Artifacts {
 		if !artifactRoleAllowed(source, artifact.Role) {
 			return RepositoryEffect{}, domain.ErrInvalidArgument
 		}
-		paths = append(paths, artifact.Path)
 	}
-	if len(paths) == 0 {
-		return RepositoryEffect{Kind: EffectExactBinding, NoFileChanges: true}, nil
+	switch value := result.(type) {
+	case *workflow.RequirementsResult:
+		return processArtifactEffect(value.ChangedPaths, value.NoFileChanges), nil
+	case *workflow.DesignResult:
+		return processArtifactEffect(value.ChangedPaths, value.NoFileChanges), nil
+	case *workflow.TasksResult:
+		return processArtifactEffect(value.ChangedPaths, value.NoFileChanges), nil
+	case *workflow.ImplementationResult:
+		return RepositoryEffect{Kind: EffectProductFileChange, ChangedPaths: sortedPaths(value.ChangedPaths), NoFileChanges: value.NoFileChanges}, nil
+	case *workflow.TestResult:
+		return processArtifactEffect(value.ChangedPaths, value.NoFileChanges), nil
+	case *workflow.ComprehensionResult:
+		return processArtifactEffect(value.ChangedPaths, value.NoFileChanges), nil
+	case *workflow.RefactorResult:
+		return RepositoryEffect{Kind: EffectProductFileChange, ChangedPaths: sortedPaths(value.ChangedPaths), NoFileChanges: value.NoFileChanges}, nil
+	case *workflow.DeliveryResult:
+		return processArtifactEffect(value.ChangedPaths, value.NoFileChanges), nil
+	default:
+		return RepositoryEffect{}, domain.ErrInvalidArgument
 	}
-	return RepositoryEffect{Kind: EffectProcessArtifactOnly, ChangedPaths: sortedPaths(paths)}, nil
+}
+
+func processArtifactEffect(paths []string, noFileChanges bool) RepositoryEffect {
+	if noFileChanges {
+		return RepositoryEffect{Kind: EffectExactBinding, NoFileChanges: true}
+	}
+	return RepositoryEffect{Kind: EffectProcessArtifactOnly, ChangedPaths: sortedPaths(paths)}
+}
+
+func RepositoryEffectAllowed(allowed []domain.AllowedEffect, effect RepositoryEffect) bool {
+	var wanted domain.AllowedEffect
+	switch effect.Kind {
+	case EffectExactBinding, EffectExactBlockerRestoration:
+		return effect.NoFileChanges && len(effect.ChangedPaths) == 0
+	case EffectProcessArtifactOnly:
+		wanted = domain.EffectEditProcessArtifacts
+	case EffectProductFileChange:
+		wanted = domain.EffectEditProductFiles
+	default:
+		return false
+	}
+	if effect.NoFileChanges || len(effect.ChangedPaths) == 0 {
+		return false
+	}
+	for _, candidate := range allowed {
+		if candidate == wanted {
+			return true
+		}
+	}
+	return false
 }
 
 func RepositoryEffectMatches(effect RepositoryEffect, relation RepositoryRelation, authoritative, observed domain.RepositoryBinding) bool {

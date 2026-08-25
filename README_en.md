@@ -153,6 +153,11 @@ Writes carry the revision, Action identity, source cursor, and repository bindin
 lost or interrupted, the caller reads Core's five-class Recovery result before choosing recovery,
 blocking, or safe retry.
 
+A write-enabled Action reports exact `changed_paths` or `no_file_changes` in its result. Core validates
+them against the issuance baseline, current `allowed_effects`, and a fresh Git observation. Authorized
+worktree results complete with the original Action; branch, HEAD, repository identity, or undeclared path
+changes still return `REPOSITORY_DRIFT`.
+
 ### Bounded multi-repository scope
 
 Current source lets one Task declare one primary repository and up to seven additional repositories.

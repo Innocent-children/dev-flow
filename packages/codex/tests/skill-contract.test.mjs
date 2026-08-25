@@ -340,11 +340,16 @@ test("node-payload reference makes every closed branch operational without ownin
     const pattern = new RegExp(`<!-- node-payload-template:${name}:start -->\\n\`\`\`json\\n([\\s\\S]*?)\\n\`\`\`\\n<!-- node-payload-template:${name}:end -->`, "u");
     const template = pattern.exec(reference);
     assert.notEqual(template, null, name);
-    assert.doesNotThrow(() => JSON.parse(template[1]), name);
+    const payload = JSON.parse(template[1]);
+    if (name !== "blocked") {
+      assert.deepEqual(Object.hasOwn(payload.node_result, "changed_paths"), true, name);
+      assert.deepEqual(Object.hasOwn(payload.node_result, "no_file_changes"), true, name);
+    }
   }
   assert.match(reference, /`repository_observation` is a Core evidence requirement, not an ArtifactReference role/u);
   assert.match(reference, /Allowed ArtifactReference roles are only/u);
-  assert.match(reference, /work-item `expected_paths`[\s\S]*Implementation `changed_paths`[\s\S]*Refactor `changed_paths`/u);
+  assert.match(reference, /work-item `expected_paths`[\s\S]*node-result `changed_paths`/u);
+  assert.match(reference, /Artifact references remain evidence[\s\S]*do\s+not replace this mutation envelope/u);
   assert.match(reference, /`<repository-key>::<repository-relative-path>`[\s\S]*multi-repository Task/u);
   assert.match(reference, /exactly the six common/u);
   assert.match(reference, /Never submit `destination`, `next_node`/u);

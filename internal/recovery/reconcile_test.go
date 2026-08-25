@@ -118,6 +118,16 @@ func TestMultiRepositoryRecoveryAggregatesPartialAndConflictingFacts(t *testing.
 	if conflicting.Assessment.Classification != domain.RecoveryConflicting || conflicting.Assessment.RepositoryRelation != RepositoryForbiddenChange || conflicting.Assessment.Repositories[1].Reason != RepositoryReasonHead {
 		t.Fatalf("conflicting decision=%+v", conflicting)
 	}
+	forbiddenIdentity := task.AdditionalRepositories[0].Binding.Clone()
+	forbiddenIdentity.RepositoryIdentity = digest("6")
+	identityObservation := RepositoryScopeObservation{Primary: task.Repository, Additional: []domain.RepositoryScopeEntry{{Key: "docs", Binding: forbiddenIdentity}}}
+	identityDecision, err := Reconcile(ReconcileInput{Host: domain.HostCodex, Task: task, Operation: operation, Payload: payload, ObservedScope: &identityObservation})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if identityDecision.Assessment.Classification != domain.RecoveryConflicting || identityDecision.Assessment.Repositories[1].Reason != RepositoryReasonIdentity {
+		t.Fatalf("identity decision=%+v", identityDecision)
+	}
 
 	undeclaredDocs := changedBinding(task.AdditionalRepositories[0].Binding, []string{"docs/unexpected.md"}, "8")
 	undeclaredObservation := RepositoryScopeObservation{Primary: task.Repository, Additional: []domain.RepositoryScopeEntry{{Key: "docs", Binding: undeclaredDocs}}}
@@ -130,19 +140,36 @@ func TestMultiRepositoryRecoveryAggregatesPartialAndConflictingFacts(t *testing.
 	}
 }
 
+func TestRepositoryEffectRequiresCurrentActionWriteAuthority(t *testing.T) {
+	processEffect := RepositoryEffect{Kind: EffectProcessArtifactOnly, ChangedPaths: []string{"spec.md"}}
+	if RepositoryEffectAllowed([]domain.AllowedEffect{domain.EffectReadRepository}, processEffect) {
+		t.Fatal("read-only Action accepted a process-artifact mutation")
+	}
+	if !RepositoryEffectAllowed([]domain.AllowedEffect{domain.EffectReadRepository, domain.EffectEditProcessArtifacts}, processEffect) {
+		t.Fatal("process-artifact write authority was rejected")
+	}
+	productEffect := RepositoryEffect{Kind: EffectProductFileChange, ChangedPaths: []string{"internal/file.go"}}
+	if RepositoryEffectAllowed([]domain.AllowedEffect{domain.EffectEditProcessArtifacts}, productEffect) {
+		t.Fatal("process-artifact authority accepted a product-file mutation")
+	}
+	if RepositoryEffectAllowed([]domain.AllowedEffect{domain.EffectEditProcessArtifacts}, RepositoryEffect{Kind: "unknown", ChangedPaths: []string{"spec.md"}}) {
+		t.Fatal("unknown repository effect used process-artifact authority")
+	}
+}
+
 func TestRepositoryEffectDerivationRejectsUndeclaredAndArtifactProductMismatch(t *testing.T) {
 	base := testBinding(time.Date(2026, 8, 19, 11, 0, 0, 0, time.UTC), "a")
 	base.ChangedPaths = []string{"sql/existing.sql"}
 	artifact := domain.ArtifactReference{Role: domain.ArtifactRequirements, Path: "artifacts/requirements.json", Digest: digest("b"), Summary: "Requirements artifact"}
-	effect, err := DeriveRepositoryEffect(domain.NodeRequirements, workflow.StandardPayload{Artifacts: []domain.ArtifactReference{artifact}}, &workflow.RequirementsResult{})
+	effect, err := DeriveRepositoryEffect(domain.NodeRequirements, workflow.StandardPayload{Artifacts: []domain.ArtifactReference{artifact}}, &workflow.RequirementsResult{ChangedPaths: []string{"specs/feature/spec.md"}})
 	if err != nil || effect.Kind != EffectProcessArtifactOnly {
 		t.Fatalf("effect=%+v err=%v", effect, err)
 	}
-	observed := changedBinding(base, []string{"artifacts/requirements.json", "sql/existing.sql"}, "c")
+	observed := changedBinding(base, []string{"specs/feature/spec.md", "sql/existing.sql"}, "c")
 	if !RepositoryEffectMatches(effect, RepositoryWorktreeOnlyChanged, base, observed) {
-		t.Fatal("declared artifact path did not match")
+		t.Fatal("declared mutation path did not match independently of artifact evidence")
 	}
-	observed.ChangedPaths = []string{"artifacts/requirements.json", "internal/extra.go", "sql/existing.sql"}
+	observed.ChangedPaths = []string{"internal/extra.go", "specs/feature/spec.md", "sql/existing.sql"}
 	if RepositoryEffectMatches(effect, RepositoryWorktreeOnlyChanged, base, observed) {
 		t.Fatal("undeclared product path matched process artifact effect")
 	}
@@ -160,7 +187,7 @@ func TestRepositoryEffectDerivationRejectsUndeclaredAndArtifactProductMismatch(t
 		t.Fatal("forbidden repository identity change matched")
 	}
 	artifact.Role = domain.ArtifactImplementation
-	if _, err := DeriveRepositoryEffect(domain.NodeRequirements, workflow.StandardPayload{Artifacts: []domain.ArtifactReference{artifact}}, &workflow.RequirementsResult{}); err == nil {
+	if _, err := DeriveRepositoryEffect(domain.NodeRequirements, workflow.StandardPayload{Artifacts: []domain.ArtifactReference{artifact}}, &workflow.RequirementsResult{NoFileChanges: true}); err == nil {
 		t.Fatal("artifact/product role mismatch accepted")
 	}
 	if !RepositoryEffectMatches(RepositoryEffect{Kind: EffectExactBlockerRestoration, NoFileChanges: true}, RepositoryExact, base, base) {
@@ -250,7 +277,7 @@ func refactorPayloadPaths(t *testing.T, steps []domain.SemanticMethodStep, paths
 }
 
 func requirementsPayload(t *testing.T, steps []domain.SemanticMethodStep) json.RawMessage {
-	return payloadFor(t, steps, "requirements_ready", map[string]any{"problem_class": "none", "baseline": map[string]any{"goal": "Goal", "scope": []string{}, "out_of_scope": []string{}, "acceptance_criteria": []string{"Works"}, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}})
+	return payloadFor(t, steps, "requirements_ready", map[string]any{"problem_class": "none", "baseline": map[string]any{"goal": "Goal", "scope": []string{}, "out_of_scope": []string{}, "acceptance_criteria": []string{"Works"}, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}, "changed_paths": []string{}, "no_file_changes": true})
 }
 
 func payloadFor(t *testing.T, steps []domain.SemanticMethodStep, transition string, result any) json.RawMessage {

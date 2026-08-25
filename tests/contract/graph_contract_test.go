@@ -32,7 +32,7 @@ func TestGraphContractMethodEvidenceSemantics(t *testing.T) {
 	digest := workflow.StandardProcess().Reference.DefinitionDigest
 	binding := strings.Repeat("a", 64)
 	evidence := `[{"step_id":"requirements.capture","status":"plain_fallback","capability":"","summary":"Captured requirements."},{"step_id":"requirements.clarify","status":"plain_fallback","capability":"","summary":"Clarified requirements."},{"step_id":"requirements.validate","status":"plain_fallback","capability":"","summary":"Validated requirements."}]`
-	payload := `{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":` + evidence + `,"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`
+	payload := `{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":` + evidence + `,"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[],"changed_paths":[],"no_file_changes":true}}`
 	request := func(value string) []byte {
 		return []byte(fmt.Sprintf(`{"request_id":"request","host":"codex","task_id":"task","revision":1,"action_id":"action","action_kind":"COMPLETE_REQUIREMENTS","process_id":"standard-development","process_definition_digest":"%s","source_cursor":"REQUIREMENTS","repository_binding_digest":"%s","payload":%s}`, digest, binding, value))
 	}

@@ -136,6 +136,7 @@ na versão estável.
 - Dev Flow não intercepta cada operação do Host e não é um sandbox geral de segurança.
 - Não há Web UI, remote MCP, telemetry, graph definido pelo usuário nem migração histórica automática.
 - Um índice opcional apenas ajuda na busca; não decide escopo, permissões, Recovery ou estado.
+- Uma Action com escrita permitida informa `changed_paths` exatos ou `no_file_changes`. Core valida esses dados contra a linha de base de emissão e uma fresh Git observation; alterações autorizadas concluem com a Action original, enquanto mudanças de branch, HEAD, repository identity ou caminhos não declarados continuam retornando `REPOSITORY_DRIFT`.
 
 Consulte [Security Policy](SECURITY.md) e [Threat Model](docs/THREAT-MODEL_en.md).
 

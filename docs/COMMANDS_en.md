@@ -155,7 +155,7 @@ terminal shell commands.
 | `dev_flow_open_task` | Read or create | Create a Task for one explicit Repository Scope, or resume the same Task from any participating repository when `new_task` is null. |
 | `dev_flow_get_task` | Read-only | Read a persisted Task by ID; an optional operation probe can request the Recovery assessment for an uncertain mutation. |
 | `dev_flow_get_next_action` | Read-only | Read the authoritative current Action, including completion conditions, allowed effects, required evidence, verification budget, method steps, and every legal transition. |
-| `dev_flow_apply_action` | Mutation | Apply one Core-declared transition using the current revision, Action identity, process identity, repository binding, and closed payload; it also carries explicit recovery apply. |
+| `dev_flow_apply_action` | Mutation | Apply one Core-declared transition using the current revision, Action identity, process identity, repository binding, and closed payload; write-enabled node results must report exact `changed_paths` or `no_file_changes`, and explicit recovery apply uses the same mutation envelope. |
 | `dev_flow_cancel_task` | Destructive mutation | Move a nonterminal Task to `CANCELLED` using the current revision and a non-empty reason. |
 
 Unknown CLI arguments, tools outside this catalog, and calls that do not satisfy shared implicit/explicit admission

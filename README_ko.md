@@ -134,6 +134,7 @@ profile을 재시작한 뒤 입력합니다.
 - Dev Flow는 Host의 모든 파일 작업을 차단하지 않으며 일반 보안 sandbox가 아닙니다.
 - 현재 Web UI, remote MCP, telemetry, 사용자 정의 graph, 자동 과거 데이터 마이그레이션은 없습니다.
 - 선택적 코드 index는 검색만 보조하며 범위, 권한, Recovery, 상태를 결정할 수 없습니다.
+- 쓰기가 허용된 Action은 정확한 `changed_paths` 또는 `no_file_changes`를 결과로 제출합니다. Core는 발급 시 기준과 fresh Git observation으로 이를 검증하며, 허가된 변경은 원래 Action으로 완료할 수 있지만 branch, HEAD, repository identity 또는 선언되지 않은 경로 변경은 계속 `REPOSITORY_DRIFT`를 반환합니다.
 
 보안 경계는 [Security Policy](SECURITY.md)와 [Threat Model](docs/THREAT-MODEL_en.md)을 참고하십시오.
 

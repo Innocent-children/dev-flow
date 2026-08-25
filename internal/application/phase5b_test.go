@@ -354,7 +354,7 @@ func testNodeResult(checks []map[string]any, failed, unverified, findings []stri
 	if findings == nil {
 		findings = []string{}
 	}
-	return map[string]any{"checks": checks, "failed_items": failed, "unverified_items": unverified, "manual_handoff_items": []string{}, "findings": findings}
+	return map[string]any{"checks": checks, "failed_items": failed, "unverified_items": unverified, "manual_handoff_items": []string{}, "findings": findings, "changed_paths": []string{}, "no_file_changes": true}
 }
 func comprehensionNodeResult(explained, unresolved, abstractions []string, source, status string, findings []string) map[string]any {
 	if explained == nil {
@@ -373,7 +373,7 @@ func comprehensionNodeResult(explained, unresolved, abstractions []string, sourc
 	if source != "" {
 		confirmation = map[string]any{"source": source, "status": status, "summary": "Developer confirmed."}
 	}
-	return map[string]any{"explained_components": explained, "unresolved_questions": unresolved, "unnecessary_abstractions": abstractions, "maintenance_risks": []string{}, "user_confirmation": confirmation, "findings": findings}
+	return map[string]any{"explained_components": explained, "unresolved_questions": unresolved, "unnecessary_abstractions": abstractions, "maintenance_risks": []string{}, "user_confirmation": confirmation, "findings": findings, "changed_paths": []string{}, "no_file_changes": true}
 }
 func refactorNodeResult(paths []string, noChanges bool, simplifications []string, behavior bool, findings []string) map[string]any {
 	if paths == nil {
@@ -388,10 +388,10 @@ func refactorNodeResult(paths []string, noChanges bool, simplifications []string
 	return map[string]any{"changed_paths": paths, "no_file_changes": noChanges, "simplifications": simplifications, "behavior_change_intended": behavior, "findings": findings}
 }
 func deliveryCompleteNodeResult(task domain.ProcessTask) map[string]any {
-	return map[string]any{"acceptance": []map[string]any{{"criterion": task.Requirements.AcceptanceCriteria[0], "status": "satisfied"}}, "automated_evidence_ids": []string{string(task.Test.EvidenceIDs[0])}, "manual_evidence_ids": []string{string(task.Comprehension.UserEvidenceID)}, "test_record_id": task.Test.RecordID, "comprehension_record_id": task.Comprehension.RecordID, "unverified_items": []string{}, "risks": []string{}, "findings": []string{}}
+	return map[string]any{"acceptance": []map[string]any{{"criterion": task.Requirements.AcceptanceCriteria[0], "status": "satisfied"}}, "automated_evidence_ids": []string{string(task.Test.EvidenceIDs[0])}, "manual_evidence_ids": []string{string(task.Comprehension.UserEvidenceID)}, "test_record_id": task.Test.RecordID, "comprehension_record_id": task.Comprehension.RecordID, "unverified_items": []string{}, "risks": []string{}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
 }
 func deliveryRemediationNodeResult() map[string]any {
-	return map[string]any{"acceptance": []any{}, "automated_evidence_ids": []string{}, "manual_evidence_ids": []string{}, "test_record_id": "", "comprehension_record_id": "", "unverified_items": []string{}, "risks": []string{}, "findings": []string{"gap"}}
+	return map[string]any{"acceptance": []any{}, "automated_evidence_ids": []string{}, "manual_evidence_ids": []string{}, "test_record_id": "", "comprehension_record_id": "", "unverified_items": []string{}, "risks": []string{}, "findings": []string{"gap"}, "changed_paths": []string{}, "no_file_changes": true}
 }
 func evidenceByID(task domain.ProcessTask, id domain.ID) *domain.EvidenceSummary {
 	for i := range task.Evidence {

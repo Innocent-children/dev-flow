@@ -149,7 +149,7 @@ Core ready、`standard-development`、definition digest、method profiles 与六
 | `dev_flow_open_task` | 为当前主仓库和显式附加仓库创建一个 Task，或从任一参与仓库恢复同一 Task。 |
 | `dev_flow_get_task` | 读取持久化 Task；可附带 operation probe 获取 Recovery assessment。 |
 | `dev_flow_get_next_action` | 读取当前节点的权威 Action、验证预算、method steps 和全部合法 transition。 |
-| `dev_flow_apply_action` | 使用当前 revision、Action identity、repository binding 和 closed payload 应用一次 Core 声明的 transition。 |
+| `dev_flow_apply_action` | 使用当前 revision、Action identity、repository binding 和 closed payload 应用一次 Core 声明的 transition；允许写入的 node result 提交精确 `changed_paths` 或 `no_file_changes`，artifact references 只作为证据。 |
 | `dev_flow_cancel_task` | 使用当前 revision 和明确 reason 取消一个非终态 Task。 |
 
 ## 理解审查与 Recovery

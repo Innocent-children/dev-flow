@@ -21,12 +21,14 @@ Before every ordinary apply:
    artifact exists, submit `"artifacts": []`.
 5. Allowed ArtifactReference roles are only `requirements`, `design`, `task_plan`,
    `implementation`, `test`, `comprehension`, `refactor`, `delivery`, and `other_process`.
-   For every ArtifactReference path, work-item `expected_paths`, Implementation `changed_paths`, and
-   Refactor `changed_paths`, use an ordinary repository-relative path for a single-repository Task
+   For every ArtifactReference path, work-item `expected_paths`, and node-result `changed_paths`, use
+   an ordinary repository-relative path for a single-repository Task
    and `<repository-key>::<repository-relative-path>` for a multi-repository Task. The key must
    already belong to the immutable Core Scope. Do not add a payload field or a second digest.
-6. Preserve the complete `node_result` branch wrapper. Never flatten baseline fields or encode an
-   array as prose.
+6. Preserve the complete `node_result` branch wrapper. Every standard node result reports exact
+   `changed_paths` or `no_file_changes`; exactly one of a nonempty path list or
+   `no_file_changes=true` describes the current effect. Artifact references remain evidence and do
+   not replace this mutation envelope. Never flatten baseline fields or encode an array as prose.
 7. Submit exactly one MethodEvidence item for every current Action method step, in Action order.
    For completed `plain` work use `"status": "plain_fallback"` and `"capability": ""`.
 8. Replace every value beginning `placeholder-` and every exemplar revision/ID with the current
@@ -59,7 +61,9 @@ Before every ordinary apply:
       "constraints": ["placeholder-constraint"],
       "assumptions": []
     },
-    "unresolved_questions": []
+    "unresolved_questions": [],
+    "changed_paths": ["specs/placeholder-feature/spec.md"],
+    "no_file_changes": false
   }
 }
 ```
@@ -93,7 +97,9 @@ closed `baseline` object.
       "complexity_justification": [],
       "risks": []
     },
-    "findings": []
+    "findings": [],
+    "changed_paths": ["specs/placeholder-feature/plan.md"],
+    "no_file_changes": false
   }
 }
 ```
@@ -129,7 +135,9 @@ Use the current requirements revision. The field `complexity` is forbidden; the 
         }
       ]
     },
-    "findings": []
+    "findings": [],
+    "changed_paths": ["specs/placeholder-feature/tasks.md"],
+    "no_file_changes": false
   }
 }
 ```
@@ -183,7 +191,9 @@ implementation result.
     "failed_items": [],
     "unverified_items": [],
     "manual_handoff_items": [],
-    "findings": []
+    "findings": [],
+    "changed_paths": [],
+    "no_file_changes": true
   }
 }
 ```
@@ -208,7 +218,9 @@ implementation result.
     "unnecessary_abstractions": ["placeholder-unnecessary-abstraction"],
     "maintenance_risks": [],
     "user_confirmation": null,
-    "findings": ["placeholder-matching-complexity-fact"]
+    "findings": ["placeholder-matching-complexity-fact"],
+    "changed_paths": [],
+    "no_file_changes": true
   }
 }
 ```
@@ -233,7 +245,9 @@ implementation result.
     "unnecessary_abstractions": [],
     "maintenance_risks": [],
     "user_confirmation": {"source": "user", "status": "passed", "summary": "placeholder-explicit-user-verdict-summary"},
-    "findings": []
+    "findings": [],
+    "changed_paths": [],
+    "no_file_changes": true
   }
 }
 ```
@@ -286,7 +300,9 @@ No AI or method capability may create the passing user confirmation.
     "comprehension_record_id": "placeholder-current-comprehension-record-id",
     "unverified_items": [],
     "risks": [],
-    "findings": []
+    "findings": [],
+    "changed_paths": [],
+    "no_file_changes": true
   }
 }
 ```

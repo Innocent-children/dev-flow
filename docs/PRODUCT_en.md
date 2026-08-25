@@ -162,6 +162,9 @@ the two product version numbers do not have to match.
 - Every Task carries a verification budget, and validation scope must directly relate to the current
   node, changed surface, acceptance criteria, or recovery risk.
 - Mutations carry revision, action identity, source cursor, and repository binding.
+- A write-enabled Action result reports exact `changed_paths` or `no_file_changes`; Core validates the
+  issuance baseline, `allowed_effects`, and fresh observation, while artifact references do not replace
+  the mutation envelope.
 - A Task's one to eight explicit repositories share one Action, revision, verification budget,
   Recovery, Blocker, and Outcome.
 - An uncertain mutation is read before another write action is selected.

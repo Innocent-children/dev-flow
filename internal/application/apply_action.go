@@ -156,7 +156,8 @@ func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionReques
 		return ApplyActionResult{}, domain.ErrInvalidArgument
 	}
 	effect, err := recovery.DeriveRepositoryEffect(task.CurrentNode, envelope, result)
-	if err != nil || recovery.RepositoryScopeEffectEvidence(task, fresh, comparison, effect) != recovery.OperationEvidenceComplete {
+	if err != nil || task.CurrentAction == nil || !recovery.RepositoryEffectAllowed(task.CurrentAction.AllowedEffects, effect) ||
+		recovery.RepositoryScopeEffectEvidence(task, fresh, comparison, effect) != recovery.OperationEvidenceComplete {
 		return ApplyActionResult{}, repositoryDriftError(comparison)
 	}
 	canonicalPayload, err := workflow.CanonicalValidatedPayload(envelope, result)
@@ -246,7 +247,8 @@ func validatedRepositoryEffect(task domain.ProcessTask, raw json.RawMessage, fre
 		return recovery.RepositoryEffect{}, err
 	}
 	effect, err := recovery.DeriveRepositoryEffect(task.CurrentNode, envelope, result)
-	if err != nil || recovery.RepositoryScopeEffectEvidence(task, fresh, comparison, effect) != recovery.OperationEvidenceComplete {
+	if err != nil || task.CurrentAction == nil || !recovery.RepositoryEffectAllowed(task.CurrentAction.AllowedEffects, effect) ||
+		recovery.RepositoryScopeEffectEvidence(task, fresh, comparison, effect) != recovery.OperationEvidenceComplete {
 		return recovery.RepositoryEffect{}, domain.ErrRepositoryDrift
 	}
 	return effect, nil

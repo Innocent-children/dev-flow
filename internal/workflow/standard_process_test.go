@@ -346,17 +346,17 @@ func mustApplyStandard(t *testing.T, service *application.Service, task domain.P
 func validNodeResult(task domain.ProcessTask, transition domain.TransitionID) any {
 	switch task.CurrentNode {
 	case domain.NodeRequirements:
-		return map[string]any{"baseline": map[string]any{"goal": "Prove the process.", "scope": []string{"process"}, "out_of_scope": []string{}, "acceptance_criteria": []string{"the process is proven"}, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}}
+		return map[string]any{"baseline": map[string]any{"goal": "Prove the process.", "scope": []string{"process"}, "out_of_scope": []string{}, "acceptance_criteria": []string{"the process is proven"}, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}, "changed_paths": []string{}, "no_file_changes": true}
 	case domain.NodeDesign:
 		if transition != "design_ready" {
-			return map[string]any{"baseline": nil, "findings": []string{"A material requirement gap exists."}}
+			return map[string]any{"baseline": nil, "findings": []string{"A material requirement gap exists."}, "changed_paths": []string{}, "no_file_changes": true}
 		}
-		return map[string]any{"baseline": map[string]any{"requirements_revision": task.Requirements.Revision, "approach": "Use the direct process.", "components": []string{"process"}, "decisions": []string{"Keep one definition."}, "rejected_alternatives": []string{}, "complexity_justification": []string{}, "risks": []string{}}, "findings": []string{}}
+		return map[string]any{"baseline": map[string]any{"requirements_revision": task.Requirements.Revision, "approach": "Use the direct process.", "components": []string{"process"}, "decisions": []string{"Keep one definition."}, "rejected_alternatives": []string{}, "complexity_justification": []string{}, "risks": []string{}}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
 	case domain.NodeTasks:
 		if transition != "tasks_ready" {
-			return map[string]any{"baseline": nil, "findings": []string{"Upstream correction is required."}}
+			return map[string]any{"baseline": nil, "findings": []string{"Upstream correction is required."}, "changed_paths": []string{}, "no_file_changes": true}
 		}
-		return map[string]any{"baseline": map[string]any{"design_revision": task.Design.Revision, "work_items": []map[string]any{{"work_item_id": "work", "summary": "Implement the process.", "expected_paths": []string{"internal/process.go"}, "acceptance_indexes": []uint32{0}, "verification_steps": []string{"Run the process test."}, "dependencies": []string{}}}}, "findings": []string{}}
+		return map[string]any{"baseline": map[string]any{"design_revision": task.Design.Revision, "work_items": []map[string]any{{"work_item_id": "work", "summary": "Implement the process.", "expected_paths": []string{"internal/process.go"}, "acceptance_indexes": []uint32{0}, "verification_steps": []string{"Run the process test."}, "dependencies": []string{}}}}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
 	case domain.NodeImplement:
 		findings := []string{}
 		if transition != "implementation_ready_for_test" {
@@ -365,14 +365,14 @@ func validNodeResult(task domain.ProcessTask, transition domain.TransitionID) an
 		return map[string]any{"task_plan_revision": task.TaskPlan.Revision, "completed_work_item_ids": []string{"work"}, "changed_paths": []string{}, "no_file_changes": true, "deviations": []string{}, "findings": findings}
 	case domain.NodeTest:
 		if transition == "tests_passed" {
-			return map[string]any{"checks": []map[string]any{{"source": "automated", "name": "targeted-process-test", "status": "passed", "summary": "The process passed.", "command_count": 1, "full_suite": false}}, "failed_items": []string{}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}}
+			return map[string]any{"checks": []map[string]any{{"source": "automated", "name": "targeted-process-test", "status": "passed", "summary": "The process passed.", "command_count": 1, "full_suite": false}}, "failed_items": []string{}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
 		}
-		return map[string]any{"checks": []map[string]any{{"source": "automated", "name": "targeted-process-test", "status": "failed", "summary": "The classified failure occurred.", "command_count": 1, "full_suite": false}}, "failed_items": []string{"classified failure"}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{"The selected problem class is present."}}
+		return map[string]any{"checks": []map[string]any{{"source": "automated", "name": "targeted-process-test", "status": "failed", "summary": "The classified failure occurred.", "command_count": 1, "full_suite": false}}, "failed_items": []string{"classified failure"}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{"The selected problem class is present."}, "changed_paths": []string{}, "no_file_changes": true}
 	case domain.NodeComprehensionReview:
 		if transition == "comprehension_passed" {
-			return map[string]any{"explained_components": []string{"process"}, "unresolved_questions": []string{}, "unnecessary_abstractions": []string{}, "maintenance_risks": []string{}, "user_confirmation": map[string]any{"source": "user", "status": "passed", "summary": "The developer confirmed understanding."}, "findings": []string{}}
+			return map[string]any{"explained_components": []string{"process"}, "unresolved_questions": []string{}, "unnecessary_abstractions": []string{}, "maintenance_risks": []string{}, "user_confirmation": map[string]any{"source": "user", "status": "passed", "summary": "The developer confirmed understanding."}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
 		}
-		result := map[string]any{"explained_components": []string{}, "unresolved_questions": []string{}, "unnecessary_abstractions": []string{}, "maintenance_risks": []string{}, "user_confirmation": nil, "findings": []string{}}
+		result := map[string]any{"explained_components": []string{}, "unresolved_questions": []string{}, "unnecessary_abstractions": []string{}, "maintenance_risks": []string{}, "user_confirmation": nil, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
 		switch transition {
 		case "code_too_complex", "design_too_complex":
 			result["unnecessary_abstractions"] = []string{"unnecessary layer"}
@@ -392,9 +392,9 @@ func validNodeResult(task domain.ProcessTask, transition domain.TransitionID) an
 		return map[string]any{"changed_paths": []string{}, "no_file_changes": true, "simplifications": []string{}, "behavior_change_intended": true, "findings": []string{"Upstream correction is required."}}
 	case domain.NodeDelivery:
 		if transition == "delivery_complete" {
-			return map[string]any{"acceptance": []map[string]any{{"criterion": task.Requirements.AcceptanceCriteria[0], "status": "satisfied"}}, "automated_evidence_ids": []string{string(task.Test.EvidenceIDs[0])}, "manual_evidence_ids": []string{string(task.Comprehension.UserEvidenceID)}, "test_record_id": task.Test.RecordID, "comprehension_record_id": task.Comprehension.RecordID, "unverified_items": []string{}, "risks": []string{}, "findings": []string{}}
+			return map[string]any{"acceptance": []map[string]any{{"criterion": task.Requirements.AcceptanceCriteria[0], "status": "satisfied"}}, "automated_evidence_ids": []string{string(task.Test.EvidenceIDs[0])}, "manual_evidence_ids": []string{string(task.Comprehension.UserEvidenceID)}, "test_record_id": task.Test.RecordID, "comprehension_record_id": task.Comprehension.RecordID, "unverified_items": []string{}, "risks": []string{}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
 		}
-		return map[string]any{"acceptance": []any{}, "automated_evidence_ids": []string{}, "manual_evidence_ids": []string{}, "test_record_id": "", "comprehension_record_id": "", "unverified_items": []string{}, "risks": []string{}, "findings": []string{"Delivery remediation is required."}}
+		return map[string]any{"acceptance": []any{}, "automated_evidence_ids": []string{}, "manual_evidence_ids": []string{}, "test_record_id": "", "comprehension_record_id": "", "unverified_items": []string{}, "risks": []string{}, "findings": []string{"Delivery remediation is required."}, "changed_paths": []string{}, "no_file_changes": true}
 	}
 	return map[string]any{}
 }

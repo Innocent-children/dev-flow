@@ -91,17 +91,17 @@ func TestProblemClassMismatchIsTransitionNotAllowedAndZeroWrite(t *testing.T) {
 		{
 			name: "implementation failure cannot choose design issue", prepare: phase5TaskAtTest,
 			transition: "tests_expose_design_issue",
-			result:     map[string]any{"problem_class": "implementation_failure", "checks": []map[string]any{evidenceCheck("automated", "failed", "test", 1, false)}, "failed_items": []string{"failure"}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{"Implementation failure"}},
+			result:     map[string]any{"problem_class": "implementation_failure", "checks": []map[string]any{evidenceCheck("automated", "failed", "test", 1, false)}, "failed_items": []string{"failure"}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{"Implementation failure"}, "changed_paths": []string{}, "no_file_changes": true},
 		},
 		{
 			name: "code complexity cannot choose design complexity", prepare: phase5TaskAtComprehension,
 			transition: "design_too_complex",
-			result:     map[string]any{"problem_class": "code_complexity", "explained_components": []string{}, "unresolved_questions": []string{}, "unnecessary_abstractions": []string{"factory"}, "maintenance_risks": []string{}, "user_confirmation": nil, "findings": []string{"Code complexity"}},
+			result:     map[string]any{"problem_class": "code_complexity", "explained_components": []string{}, "unresolved_questions": []string{}, "unnecessary_abstractions": []string{"factory"}, "maintenance_risks": []string{}, "user_confirmation": nil, "findings": []string{"Code complexity"}, "changed_paths": []string{}, "no_file_changes": true},
 		},
 		{
 			name: "delivery test gap cannot choose requirements", prepare: phase5TaskAtDelivery,
 			transition: "delivery_needs_requirements",
-			result:     map[string]any{"problem_class": "test_gap", "acceptance": []any{}, "automated_evidence_ids": []string{}, "manual_evidence_ids": []string{}, "test_record_id": "", "comprehension_record_id": "", "unverified_items": []string{}, "risks": []string{}, "findings": []string{"Test gap"}},
+			result:     map[string]any{"problem_class": "test_gap", "acceptance": []any{}, "automated_evidence_ids": []string{}, "manual_evidence_ids": []string{}, "test_record_id": "", "comprehension_record_id": "", "unverified_items": []string{}, "risks": []string{}, "findings": []string{"Test gap"}, "changed_paths": []string{}, "no_file_changes": true},
 		},
 	}
 	for _, tc := range tests {
@@ -209,7 +209,7 @@ func TestDeliveryEvidenceRequiresExactCurrentSets(t *testing.T) {
 			"automated_evidence_ids": []string{string(task.Test.EvidenceIDs[0])},
 			"manual_evidence_ids":    []string{string(task.Test.EvidenceIDs[1]), string(task.Comprehension.UserEvidenceID)},
 			"test_record_id":         task.Test.RecordID, "comprehension_record_id": task.Comprehension.RecordID,
-			"unverified_items": []string{}, "risks": []string{}, "findings": []string{},
+			"unverified_items": []string{}, "risks": []string{}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true,
 		}
 	}
 	tests := map[string]func(map[string]any){

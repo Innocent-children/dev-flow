@@ -284,7 +284,9 @@
       ],
       "assumptions": []
     },
-    "unresolved_questions": []
+    "unresolved_questions": [],
+    "changed_paths": [],
+    "no_file_changes": true
   },
   "scenarios": [
     {
@@ -613,7 +615,9 @@
           "source": "user",
           "status": "passed",
           "summary": "The developer explicitly confirmed understanding."
-        }
+        },
+        "changed_paths": [],
+        "no_file_changes": true
       },
       "transition_id": "comprehension_passed",
       "should_apply": true
@@ -662,7 +666,9 @@
         "user_confirmation": null,
         "findings": [
           "The current code path is unnecessarily complex."
-        ]
+        ],
+        "changed_paths": [],
+        "no_file_changes": true
       },
       "transition_id": "code_too_complex",
       "reason": "The developer cannot maintain the unnecessary rendering wrapper.",

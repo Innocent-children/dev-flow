@@ -42,6 +42,8 @@ type RequirementsResult struct {
 	ProblemClass        ProblemClass               `json:"problem_class"`
 	Baseline            *RequirementsBaselineInput `json:"baseline"`
 	UnresolvedQuestions []string                   `json:"unresolved_questions"`
+	ChangedPaths        []string                   `json:"changed_paths"`
+	NoFileChanges       bool                       `json:"no_file_changes"`
 }
 type RequirementsBaselineInput struct {
 	Goal               string   `json:"goal"`
@@ -52,9 +54,11 @@ type RequirementsBaselineInput struct {
 	Assumptions        []string `json:"assumptions"`
 }
 type DesignResult struct {
-	ProblemClass ProblemClass         `json:"problem_class"`
-	Baseline     *DesignBaselineInput `json:"baseline"`
-	Findings     []string             `json:"findings"`
+	ProblemClass  ProblemClass         `json:"problem_class"`
+	Baseline      *DesignBaselineInput `json:"baseline"`
+	Findings      []string             `json:"findings"`
+	ChangedPaths  []string             `json:"changed_paths"`
+	NoFileChanges bool                 `json:"no_file_changes"`
 }
 type DesignBaselineInput struct {
 	RequirementsRevision    uint32   `json:"requirements_revision"`
@@ -66,9 +70,11 @@ type DesignBaselineInput struct {
 	Risks                   []string `json:"risks"`
 }
 type TasksResult struct {
-	ProblemClass ProblemClass        `json:"problem_class"`
-	Baseline     *TasksBaselineInput `json:"baseline"`
-	Findings     []string            `json:"findings"`
+	ProblemClass  ProblemClass        `json:"problem_class"`
+	Baseline      *TasksBaselineInput `json:"baseline"`
+	Findings      []string            `json:"findings"`
+	ChangedPaths  []string            `json:"changed_paths"`
+	NoFileChanges bool                `json:"no_file_changes"`
 }
 type TasksBaselineInput struct {
 	DesignRevision uint32            `json:"design_revision"`
@@ -90,6 +96,8 @@ type TestResult struct {
 	UnverifiedItems    []string        `json:"unverified_items"`
 	ManualHandoffItems []string        `json:"manual_handoff_items"`
 	Findings           []string        `json:"findings"`
+	ChangedPaths       []string        `json:"changed_paths"`
+	NoFileChanges      bool            `json:"no_file_changes"`
 }
 type EvidenceInput struct {
 	Source       domain.EvidenceSource `json:"source"`
@@ -107,6 +115,8 @@ type ComprehensionResult struct {
 	MaintenanceRisks        []string          `json:"maintenance_risks"`
 	UserConfirmation        *UserConfirmation `json:"user_confirmation"`
 	Findings                []string          `json:"findings,omitempty"`
+	ChangedPaths            []string          `json:"changed_paths"`
+	NoFileChanges           bool              `json:"no_file_changes"`
 }
 type UserConfirmation struct {
 	Source  domain.EvidenceSource `json:"source"`
@@ -131,6 +141,8 @@ type DeliveryResult struct {
 	UnverifiedItems       []string                  `json:"unverified_items"`
 	Risks                 []string                  `json:"risks"`
 	Findings              []string                  `json:"findings"`
+	ChangedPaths          []string                  `json:"changed_paths"`
+	NoFileChanges         bool                      `json:"no_file_changes"`
 }
 
 func DecodeStandardPayload(node domain.NodeID, raw []byte) (StandardPayload, any, error) {
@@ -189,13 +201,13 @@ func ValidateRetainedPayload(node domain.NodeID, raw []byte) error {
 func nodeResultHasRequiredMembers(node domain.NodeID, raw []byte) bool {
 	switch node {
 	case domain.NodeRequirements:
-		return hasJSONMembers(raw, "problem_class", "baseline", "unresolved_questions") &&
+		return hasJSONMembers(raw, "problem_class", "baseline", "unresolved_questions", "changed_paths", "no_file_changes") &&
 			objectFieldHasMembers(raw, "baseline", false, "goal", "scope", "out_of_scope", "acceptance_criteria", "constraints", "assumptions")
 	case domain.NodeDesign:
-		return hasJSONMembers(raw, "problem_class", "baseline", "findings") &&
+		return hasJSONMembers(raw, "problem_class", "baseline", "findings", "changed_paths", "no_file_changes") &&
 			objectFieldHasMembers(raw, "baseline", true, "requirements_revision", "approach", "components", "decisions", "rejected_alternatives", "complexity_justification", "risks")
 	case domain.NodeTasks:
-		if !hasJSONMembers(raw, "problem_class", "baseline", "findings") || !objectFieldHasMembers(raw, "baseline", true, "design_revision", "work_items") {
+		if !hasJSONMembers(raw, "problem_class", "baseline", "findings", "changed_paths", "no_file_changes") || !objectFieldHasMembers(raw, "baseline", true, "design_revision", "work_items") {
 			return false
 		}
 		baseline, ok := rawObjectField(raw, "baseline")
@@ -203,15 +215,15 @@ func nodeResultHasRequiredMembers(node domain.NodeID, raw []byte) bool {
 	case domain.NodeImplement:
 		return hasJSONMembers(raw, "problem_class", "task_plan_revision", "completed_work_item_ids", "changed_paths", "no_file_changes", "deviations", "findings")
 	case domain.NodeTest:
-		return hasJSONMembers(raw, "problem_class", "checks", "failed_items", "unverified_items", "manual_handoff_items", "findings") &&
+		return hasJSONMembers(raw, "problem_class", "checks", "failed_items", "unverified_items", "manual_handoff_items", "findings", "changed_paths", "no_file_changes") &&
 			arrayItemsHaveMembers(raw, "checks", "source", "name", "status", "summary", "command_count", "full_suite")
 	case domain.NodeComprehensionReview:
-		return hasJSONMembers(raw, "problem_class", "explained_components", "unresolved_questions", "unnecessary_abstractions", "maintenance_risks", "user_confirmation", "findings") &&
+		return hasJSONMembers(raw, "problem_class", "explained_components", "unresolved_questions", "unnecessary_abstractions", "maintenance_risks", "user_confirmation", "findings", "changed_paths", "no_file_changes") &&
 			objectFieldHasMembers(raw, "user_confirmation", true, "source", "status", "summary")
 	case domain.NodeRefactor:
 		return hasJSONMembers(raw, "problem_class", "changed_paths", "no_file_changes", "simplifications", "behavior_change_intended", "findings")
 	case domain.NodeDelivery:
-		return hasJSONMembers(raw, "problem_class", "acceptance", "automated_evidence_ids", "manual_evidence_ids", "test_record_id", "comprehension_record_id", "unverified_items", "risks", "findings") &&
+		return hasJSONMembers(raw, "problem_class", "acceptance", "automated_evidence_ids", "manual_evidence_ids", "test_record_id", "comprehension_record_id", "unverified_items", "risks", "findings", "changed_paths", "no_file_changes") &&
 			arrayItemsHaveMembers(raw, "acceptance", "criterion", "status")
 	default:
 		return false
@@ -288,23 +300,23 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 	}
 	switch value := result.(type) {
 	case *RequirementsResult:
-		if source != domain.NodeRequirements || value.Baseline == nil || len(value.Baseline.AcceptanceCriteria) == 0 || len(value.UnresolvedQuestions) != 0 || !validStringLists(value.Baseline.Scope, value.Baseline.OutOfScope, value.Baseline.AcceptanceCriteria, value.Baseline.Constraints, value.Baseline.Assumptions) {
+		if source != domain.NodeRequirements || value.Baseline == nil || len(value.Baseline.AcceptanceCriteria) == 0 || len(value.UnresolvedQuestions) != 0 || !validRepositoryMutation(value.ChangedPaths, value.NoFileChanges) || !validStringLists(value.Baseline.Scope, value.Baseline.OutOfScope, value.Baseline.AcceptanceCriteria, value.Baseline.Constraints, value.Baseline.Assumptions) {
 			return domain.ErrInvalidArgument
 		}
 	case *DesignResult:
-		if source != domain.NodeDesign || ((envelope.TransitionID == "design_ready") != (value.Baseline != nil)) || !validStringLists(value.Findings) {
+		if source != domain.NodeDesign || ((envelope.TransitionID == "design_ready") != (value.Baseline != nil)) || !validRepositoryMutation(value.ChangedPaths, value.NoFileChanges) || !validStringLists(value.Findings) {
 			return domain.ErrInvalidArgument
 		}
 	case *TasksResult:
-		if source != domain.NodeTasks || ((envelope.TransitionID == "tasks_ready") != (value.Baseline != nil)) || !validStringLists(value.Findings) || value.Baseline != nil && !validWorkItemPaths(value.Baseline.WorkItems) {
+		if source != domain.NodeTasks || ((envelope.TransitionID == "tasks_ready") != (value.Baseline != nil)) || !validRepositoryMutation(value.ChangedPaths, value.NoFileChanges) || !validStringLists(value.Findings) || value.Baseline != nil && !validWorkItemPaths(value.Baseline.WorkItems) {
 			return domain.ErrInvalidArgument
 		}
 	case *ImplementationResult:
-		if source != domain.NodeImplement || (len(value.ChangedPaths) > 0) == value.NoFileChanges || !validRepositoryContractPaths(value.ChangedPaths) || !validStringLists(value.Deviations, value.Findings) {
+		if source != domain.NodeImplement || !validRepositoryMutation(value.ChangedPaths, value.NoFileChanges) || !validStringLists(value.Deviations, value.Findings) {
 			return domain.ErrInvalidArgument
 		}
 	case *TestResult:
-		if source != domain.NodeTest || !validStringLists(value.FailedItems, value.UnverifiedItems, value.ManualHandoffItems, value.Findings) {
+		if source != domain.NodeTest || !validRepositoryMutation(value.ChangedPaths, value.NoFileChanges) || !validStringLists(value.FailedItems, value.UnverifiedItems, value.ManualHandoffItems, value.Findings) {
 			return domain.ErrInvalidArgument
 		}
 		seen := map[string]bool{}
@@ -315,7 +327,7 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 			seen[check.Name] = true
 		}
 	case *ComprehensionResult:
-		if source != domain.NodeComprehensionReview || !validStringLists(value.ExplainedComponents, value.UnresolvedQuestions, value.UnnecessaryAbstractions, value.MaintenanceRisks, value.Findings) {
+		if source != domain.NodeComprehensionReview || !validRepositoryMutation(value.ChangedPaths, value.NoFileChanges) || !validStringLists(value.ExplainedComponents, value.UnresolvedQuestions, value.UnnecessaryAbstractions, value.MaintenanceRisks, value.Findings) {
 			return domain.ErrInvalidArgument
 		}
 		if value.UserConfirmation != nil {
@@ -324,11 +336,11 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 			}
 		}
 	case *RefactorResult:
-		if source != domain.NodeRefactor || (len(value.ChangedPaths) > 0) == value.NoFileChanges || !validRepositoryContractPaths(value.ChangedPaths) || !validStringLists(value.Simplifications, value.Findings) {
+		if source != domain.NodeRefactor || !validRepositoryMutation(value.ChangedPaths, value.NoFileChanges) || !validStringLists(value.Simplifications, value.Findings) {
 			return domain.ErrInvalidArgument
 		}
 	case *DeliveryResult:
-		if source != domain.NodeDelivery || !validStringLists(value.UnverifiedItems, value.Risks, value.Findings) {
+		if source != domain.NodeDelivery || !validRepositoryMutation(value.ChangedPaths, value.NoFileChanges) || !validStringLists(value.UnverifiedItems, value.Risks, value.Findings) {
 			return domain.ErrInvalidArgument
 		}
 		for _, criterion := range value.Acceptance {
@@ -374,6 +386,11 @@ func validRepositoryContractPaths(paths []string) bool {
 	}
 	return true
 }
+
+func validRepositoryMutation(paths []string, noFileChanges bool) bool {
+	return noFileChanges == (len(paths) == 0) && validRepositoryContractPaths(paths)
+}
+
 func validateProblemClass(source domain.NodeID, transition domain.TransitionID, result any) error {
 	class, findings, ok := resultProblemClass(result)
 	if !ok || !problemClassValidForNode(source, class) {

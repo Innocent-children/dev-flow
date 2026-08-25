@@ -253,6 +253,8 @@ function applyArguments(action, requestId) {
           assumptions: [],
         },
         unresolved_questions: [],
+        changed_paths: [],
+        no_file_changes: true,
       },
     },
   };

@@ -129,6 +129,7 @@ dsh --profile "$PROFILE" --dump-config
 - Dev Flow 不會攔截 Host 的每一次檔案操作，也不是通用安全沙箱。
 - 目前沒有 Web UI、remote MCP、telemetry、使用者自訂流程圖或自動歷史資料遷移。
 - 可選程式碼索引只能協助檢索，不能決定範圍、權限、Recovery 或流程狀態。
+- 允許寫入的 Action 以精確 `changed_paths` 或 `no_file_changes` 回報結果；Core 依簽發基線與 fresh Git observation 驗證，合法修改可用原 Action 完成，branch、HEAD、repository identity 或未宣告路徑變更仍回傳 `REPOSITORY_DRIFT`。
 
 安全邊界見 [Security Policy](SECURITY.md) 與 [Threat Model](docs/THREAT-MODEL.md)。
 

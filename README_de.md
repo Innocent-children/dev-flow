@@ -134,6 +134,7 @@ Ob Multi-Repository bereits stabil ist, steht unter [Project Status](docs/PROJEC
 - Dev Flow fängt nicht jede Host-Operation ab und ist keine allgemeine Sicherheits-Sandbox.
 - Es gibt derzeit keine Web UI, remote MCP, telemetry, benutzerdefinierten Graphen oder automatische Alt-Datenmigration.
 - Ein optionaler Code-Index unterstützt nur die Suche und entscheidet nicht Umfang, Berechtigung, Recovery oder Zustand.
+- Eine schreibberechtigte Action meldet exakte `changed_paths` oder `no_file_changes`. Core prüft sie gegen die Ausgabebaseline und eine fresh Git observation; autorisierte Änderungen können mit der ursprünglichen Action abgeschlossen werden, während Änderungen an branch, HEAD, repository identity oder nicht deklarierte Pfade weiterhin `REPOSITORY_DRIFT` ergeben.
 
 Siehe [Security Policy](SECURITY.md) und [Threat Model](docs/THREAT-MODEL_en.md).
 

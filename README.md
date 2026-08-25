@@ -144,6 +144,10 @@ Task 数据默认保留。
 写操作携带 revision、Action identity、source cursor 和 repository binding。响应丢失或中断时，
 调用者先读取 Core 的五分类 Recovery 结论，再决定恢复、阻塞或安全重试。
 
+允许写入的 Action 在结果中提交精确 `changed_paths` 或 `no_file_changes`。Core 以签发基线、当前
+`allowed_effects` 和 fresh Git observation 验证；合法 worktree 结果可由原 Action 提交，branch、
+HEAD、repository identity 或未声明路径变化仍返回 `REPOSITORY_DRIFT`。
+
 ### 有界多仓库范围
 
 当前源码允许一个 Task 显式声明一个主仓库和最多七个附加仓库。所有仓库共享同一个阶段、Action、

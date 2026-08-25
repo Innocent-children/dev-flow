@@ -143,6 +143,8 @@ Git 修改仍由获得用户授权的 Host 负责。
 - Task 保存不可变原始意图，实质 requirements 或 design 变化会失效下游旧 authority；
 - 每个 Task 携带 verification budget，验证范围必须与当前节点、改动、验收条件或恢复风险直接相关；
 - mutation 使用 revision、action identity、source cursor 与 repository binding；
+- 允许写入的 Action result 提交精确 `changed_paths` 或 `no_file_changes`；Core 验证签发基线、
+  `allowed_effects` 和 fresh observation，artifact references 不代替 mutation envelope；
 - 一个 Task 的一至八个显式仓库共享同一 Action、revision、verification budget、Recovery、Blocker
   和 Outcome；
 - 不确定 mutation 必须先读取，再选择恢复或重试；

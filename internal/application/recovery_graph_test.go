@@ -169,6 +169,9 @@ func TestGraphRecoveryAdoptsDeclaredProcessArtifactOnlyEffect(t *testing.T) {
 		t.Fatal(err)
 	}
 	document["artifacts"] = []map[string]any{{"role": "requirements", "path": "artifacts/requirements.json", "digest": digestOf("e"), "summary": "Requirements artifact"}}
+	nodeResult := document["node_result"].(map[string]any)
+	nodeResult["changed_paths"] = []string{"artifacts/requirements.json"}
+	nodeResult["no_file_changes"] = false
 	payload, _ = json.Marshal(document)
 	observer.binding = graphChangedBinding(task.Repository, []string{"artifacts/requirements.json"}, "f")
 	probe := graphProbe(task, "artifact-operation", payload)

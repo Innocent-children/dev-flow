@@ -605,15 +605,15 @@ func journeyProblemClass(transition domain.TransitionID) string {
 }
 
 func requirementsJourneyResult(goal string) map[string]any {
-	return map[string]any{"baseline": map[string]any{"goal": goal, "scope": []string{"iterative loop"}, "out_of_scope": []string{}, "acceptance_criteria": []string{"first acceptance", "second acceptance"}, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}}
+	return map[string]any{"baseline": map[string]any{"goal": goal, "scope": []string{"iterative loop"}, "out_of_scope": []string{}, "acceptance_criteria": []string{"first acceptance", "second acceptance"}, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}, "changed_paths": []string{}, "no_file_changes": true}
 }
 
 func designJourneyResult(requirementsRevision uint32, approach string) map[string]any {
-	return map[string]any{"baseline": map[string]any{"requirements_revision": requirementsRevision, "approach": approach, "components": []string{"process"}, "decisions": []string{"Use the direct flow"}, "rejected_alternatives": []string{}, "complexity_justification": []string{}, "risks": []string{}}, "findings": []string{}}
+	return map[string]any{"baseline": map[string]any{"requirements_revision": requirementsRevision, "approach": approach, "components": []string{"process"}, "decisions": []string{"Use the direct flow"}, "rejected_alternatives": []string{}, "complexity_justification": []string{}, "risks": []string{}}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
 }
 
 func tasksJourneyResult(designRevision uint32) map[string]any {
-	return map[string]any{"baseline": map[string]any{"design_revision": designRevision, "work_items": []map[string]any{{"work_item_id": "work", "summary": "Implement the flow", "expected_paths": []string{"feature.txt"}, "acceptance_indexes": []uint32{0, 1}, "verification_steps": []string{"Run targeted tests"}, "dependencies": []string{}}}}, "findings": []string{}}
+	return map[string]any{"baseline": map[string]any{"design_revision": designRevision, "work_items": []map[string]any{{"work_item_id": "work", "summary": "Implement the flow", "expected_paths": []string{"feature.txt"}, "acceptance_indexes": []uint32{0, 1}, "verification_steps": []string{"Run targeted tests"}, "dependencies": []string{}}}}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
 }
 
 func implementationJourneyResult(planRevision uint32, changedPaths, findings []string) map[string]any {
@@ -628,11 +628,11 @@ func passedTestJourneyResult() map[string]any {
 		{"source": "automated", "name": "targeted-test", "status": "passed", "summary": "The targeted test passed.", "command_count": 1, "full_suite": false},
 		{"source": "static", "name": "static-review", "status": "passed", "summary": "Static review completed.", "command_count": 0, "full_suite": false},
 		{"source": "host_observed", "name": "host-observation", "status": "passed", "summary": "The host observed the result.", "command_count": 0, "full_suite": false},
-	}, "failed_items": []string{}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}}
+	}, "failed_items": []string{}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
 }
 
 func failedTestJourneyResult(finding string) map[string]any {
-	return map[string]any{"checks": []map[string]any{{"source": "automated", "name": "targeted-test", "status": "failed", "summary": "The targeted test failed.", "command_count": 1, "full_suite": false}}, "failed_items": []string{"targeted failure"}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{finding}}
+	return map[string]any{"checks": []map[string]any{{"source": "automated", "name": "targeted-test", "status": "failed", "summary": "The targeted test failed.", "command_count": 1, "full_suite": false}}, "failed_items": []string{"targeted failure"}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{finding}, "changed_paths": []string{}, "no_file_changes": true}
 }
 
 func comprehensionJourneyResult(explained, unresolved, abstractions []string, source, status string, findings []string) map[string]any {
@@ -652,7 +652,7 @@ func comprehensionJourneyResult(explained, unresolved, abstractions []string, so
 	if source != "" {
 		confirmation = map[string]any{"source": source, "status": status, "summary": "The developer confirmed understanding."}
 	}
-	return map[string]any{"explained_components": explained, "unresolved_questions": unresolved, "unnecessary_abstractions": abstractions, "maintenance_risks": []string{}, "user_confirmation": confirmation, "findings": findings}
+	return map[string]any{"explained_components": explained, "unresolved_questions": unresolved, "unnecessary_abstractions": abstractions, "maintenance_risks": []string{}, "user_confirmation": confirmation, "findings": findings, "changed_paths": []string{}, "no_file_changes": true}
 }
 
 func refactorJourneyResult(paths, simplifications []string, behaviorChange bool, findings []string) map[string]any {
@@ -684,11 +684,11 @@ func deliveryJourneyResult(task domain.ProcessTask) map[string]any {
 			acceptance = append(acceptance, map[string]any{"criterion": criterion, "status": "satisfied"})
 		}
 	}
-	return map[string]any{"acceptance": acceptance, "automated_evidence_ids": automated, "manual_evidence_ids": manual, "test_record_id": testID, "comprehension_record_id": comprehensionID, "unverified_items": []string{}, "risks": []string{}, "findings": []string{}}
+	return map[string]any{"acceptance": acceptance, "automated_evidence_ids": automated, "manual_evidence_ids": manual, "test_record_id": testID, "comprehension_record_id": comprehensionID, "unverified_items": []string{}, "risks": []string{}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
 }
 
 func deliveryRemediationJourneyResult() map[string]any {
-	return map[string]any{"acceptance": []any{}, "automated_evidence_ids": []string{}, "manual_evidence_ids": []string{}, "test_record_id": "", "comprehension_record_id": "", "unverified_items": []string{}, "risks": []string{}, "findings": []string{"bounded delivery gap"}}
+	return map[string]any{"acceptance": []any{}, "automated_evidence_ids": []string{}, "manual_evidence_ids": []string{}, "test_record_id": "", "comprehension_record_id": "", "unverified_items": []string{}, "risks": []string{}, "findings": []string{"bounded delivery gap"}, "changed_paths": []string{}, "no_file_changes": true}
 }
 
 func assertTransitionAbsent(t *testing.T, task domain.ProcessTask, transition domain.TransitionID) {

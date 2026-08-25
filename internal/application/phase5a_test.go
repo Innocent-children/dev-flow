@@ -342,10 +342,10 @@ func phase5ProblemClass(transition string) string {
 	return classes[transition]
 }
 func requirementsNodeResult(goal string, acceptance []string) map[string]any {
-	return map[string]any{"baseline": map[string]any{"goal": goal, "scope": []string{}, "out_of_scope": []string{}, "acceptance_criteria": acceptance, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}}
+	return map[string]any{"baseline": map[string]any{"goal": goal, "scope": []string{}, "out_of_scope": []string{}, "acceptance_criteria": acceptance, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}, "changed_paths": []string{}, "no_file_changes": true}
 }
 func designNodeResult(revision uint32, approach string) map[string]any {
-	return map[string]any{"baseline": map[string]any{"requirements_revision": revision, "approach": approach, "components": []string{"component"}, "decisions": []string{"Reuse boundary"}, "rejected_alternatives": []string{}, "complexity_justification": []string{}, "risks": []string{}}, "findings": []string{}}
+	return map[string]any{"baseline": map[string]any{"requirements_revision": revision, "approach": approach, "components": []string{"component"}, "decisions": []string{"Reuse boundary"}, "rejected_alternatives": []string{}, "complexity_justification": []string{}, "risks": []string{}}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
 }
 func workItem(id string, acceptance []uint32, dependencies []string) map[string]any {
 	if dependencies == nil {
@@ -354,7 +354,7 @@ func workItem(id string, acceptance []uint32, dependencies []string) map[string]
 	return map[string]any{"work_item_id": id, "summary": "Implement work", "expected_paths": []string{"internal/file.go"}, "acceptance_indexes": acceptance, "verification_steps": []string{"Run targeted test"}, "dependencies": dependencies}
 }
 func tasksNodeResult(revision uint32, items []map[string]any) map[string]any {
-	return map[string]any{"baseline": map[string]any{"design_revision": revision, "work_items": items}, "findings": []string{}}
+	return map[string]any{"baseline": map[string]any{"design_revision": revision, "work_items": items}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
 }
 func implementationNodeResult(revision uint32, completed []string, noChanges bool, findings []string) map[string]any {
 	if completed == nil {

@@ -1457,7 +1457,7 @@ test("final registry task-bearing prompts require request binding and resume rea
     );
     assert.match(
       prompt,
-      /payload must have exactly transition_id, summary, reason, artifacts, method_evidence, and node_result[\s\S]*artifacts=\[\][\s\S]*REQUIREMENTS=\{problem_class,baseline,unresolved_questions\}[\s\S]*DELIVERY=\{problem_class,acceptance/u,
+      /payload must have exactly transition_id, summary, reason, artifacts, method_evidence, and node_result[\s\S]*artifacts=\[\][\s\S]*REQUIREMENTS=\{problem_class,baseline,unresolved_questions,changed_paths,no_file_changes\}[\s\S]*DELIVERY=\{problem_class,acceptance/u,
     );
   }
   assert.equal(smokeRuntime.finalRegistryResumePrompt.startsWith(`${EXPLICIT_SELECTOR} `), true);
@@ -2085,9 +2085,11 @@ test("final local payload fixtures and prompts preserve every closed graph branc
     assert.equal("destination" in entry.payload, false);
   }
   const requirements = fixture.entries[0].payload.node_result;
-  assert.deepEqual(Object.keys(requirements).sort(), ["baseline", "problem_class", "unresolved_questions"]);
+  assert.deepEqual(Object.keys(requirements).sort(), ["baseline", "changed_paths", "no_file_changes", "problem_class", "unresolved_questions"]);
   assert.equal(requirements.problem_class, "none");
   assert.deepEqual(requirements.unresolved_questions, []);
+  assert.deepEqual(requirements.changed_paths, []);
+  assert.equal(requirements.no_file_changes, true);
   assert.equal(JSON.stringify(fixture).includes("repository_observation"), false);
   for (const prompt of [finalLocalSessionOnePrompt, finalLocalSessionTwoPrompt, finalLocalSessionThreePrompt]) {
     assert.match(prompt, /artifacts=\[\]/u);

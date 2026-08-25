@@ -49,6 +49,31 @@ func TestMCPContractGraphCatalogAndClosedSchemas(t *testing.T) {
 	}
 }
 
+func TestStandardNodeResultsRequireRepositoryMutationEnvelope(t *testing.T) {
+	payloads, _ := graphPayloads()
+	if len(payloads) != 9 {
+		t.Fatalf("payloads=%d", len(payloads))
+	}
+	for index, name := range []string{"requirements", "design", "tasks", "implementation", "test", "comprehension", "refactor", "delivery"} {
+		payload := payloads[index].(map[string]any)
+		properties := payload["properties"].(map[string]any)
+		nodeResult := properties["node_result"].(map[string]any)
+		required := nodeResult["required"].([]string)
+		if !containsSchemaMember(required, "changed_paths") || !containsSchemaMember(required, "no_file_changes") {
+			t.Fatalf("%s required=%v", name, required)
+		}
+	}
+}
+
+func containsSchemaMember(values []string, wanted string) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
+}
+
 func TestMultiRepositoryTaskProjectionIsSortedAndUsesOneDigest(t *testing.T) {
 	now := time.Date(2026, 8, 23, 7, 0, 0, 0, time.UTC)
 	primary := graphContractBinding(now, "/core", 'a')
