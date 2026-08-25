@@ -299,27 +299,76 @@ function validateCoreEnvelope(envelope, item, shape) {
     return requestBinding;
   }
 
-  assertExactKeys(envelope.error, ["code", "message", "details"], "Core error", { optional: ["details"] });
+  assertExactKeys(envelope.error, ["code", "message", "details", "guard"], "Core error", { optional: ["details", "guard"] });
   if (!validIdentifier(envelope.error.code) || !validMessage(envelope.error.message)) {
     throw new Error("Core error code or message is invalid");
   }
+  let correctionPaths = [];
   if (Object.hasOwn(envelope.error, "details")) {
-    assertExactKeys(envelope.error.details, ["reason"], "Core error details");
-    if (!validIdentifier(envelope.error.details.reason)) {
-      throw new Error("Core error details reason is invalid");
+    if (Array.isArray(envelope.error.details)) {
+      correctionPaths = validateContractViolations(envelope.error.details, "Core error details");
+    } else {
+      // Retain the legacy closed reason object for existing frozen evidence.
+      assertExactKeys(envelope.error.details, ["reason"], "Core error details");
+      if (!validIdentifier(envelope.error.details.reason)) {
+        throw new Error("Core error details reason is invalid");
+      }
     }
   }
-  assertExactKeys(envelope.recovery, ["retry_safe", "action", "message"], "Core recovery");
+  if (Object.hasOwn(envelope.error, "guard")) {
+    assertExactKeys(envelope.error.guard, ["guard_id", "failures"], "Core error guard");
+    if (!validIdentifier(envelope.error.guard.guard_id)) {
+      throw new Error("Core error guard_id is invalid");
+    }
+    correctionPaths = correctionPaths.concat(validateContractViolations(envelope.error.guard.failures, "Core error guard failures"));
+  }
+  assertExactKeys(envelope.recovery, ["retry_safe", "action", "message", "allowed_paths"], "Core recovery", { optional: ["allowed_paths"] });
+  if (!validMessage(envelope.recovery.message)) {
+    throw new Error("Core recovery guidance is invalid");
+  }
+  if (envelope.recovery.retry_safe === true) {
+    if (
+      !["INVALID_ARGUMENT", "TRANSITION_NOT_ALLOWED"].includes(envelope.error.code)
+      || envelope.recovery.action !== "correct_current_action"
+      || !Array.isArray(envelope.recovery.allowed_paths)
+      || envelope.recovery.allowed_paths.length === 0
+      || !isDeepStrictEqual(envelope.recovery.allowed_paths, [...new Set(correctionPaths)])
+    ) {
+      throw new Error("Core bounded correction guidance is invalid");
+    }
+    return requestBinding;
+  }
   const expectedRecoveryAction = coreErrorRecoveryAction.get(envelope.error.code);
   if (
     expectedRecoveryAction === undefined
     || envelope.recovery.retry_safe !== false
     || envelope.recovery.action !== expectedRecoveryAction
-    || !validMessage(envelope.recovery.message)
+    || Object.hasOwn(envelope.recovery, "allowed_paths")
   ) {
     throw new Error("Core recovery guidance is invalid");
   }
   return requestBinding;
+}
+
+function validateContractViolations(value, label) {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(`${label} must be a non-empty array`);
+  }
+  const paths = [];
+  for (const [index, violation] of value.entries()) {
+    assertExactKeys(violation, ["path", "rule", "message"], `${label}[${index}]`);
+    if (!validViolationPath(violation.path) || !validIdentifier(violation.rule) || !validMessage(violation.message)) {
+      throw new Error(`${label}[${index}] is invalid`);
+    }
+    paths.push(violation.path);
+  }
+  return paths;
+}
+
+function validViolationPath(value) {
+  return typeof value === "string"
+    && Buffer.byteLength(value, "utf8") <= 512
+    && /^[a-z_]+(?:\[\d{1,4}\])?(?:\.[a-z_]+(?:\[\d{1,4}\])?)*$/u.test(value);
 }
 
 function callerRequestBinding(envelope, item) {

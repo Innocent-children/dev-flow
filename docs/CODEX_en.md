@@ -175,7 +175,7 @@ profile order does not affect compatibility.
 | `dev_flow_open_task` | Create one Task for the current primary and explicit additional repositories, or resume that Task from any participating repository. |
 | `dev_flow_get_task` | Read the persisted Task and optionally attach an operation probe for a Recovery assessment. |
 | `dev_flow_get_next_action` | Read the authoritative current Action, verification budget, method steps, and every legal transition. |
-| `dev_flow_apply_action` | Apply one Core-declared transition with the current revision, Action identity, repository binding, and closed payload. A write-enabled node result reports exact `changed_paths` or `no_file_changes`; artifact references remain evidence. |
+| `dev_flow_apply_action` | Apply one Core-declared transition with the current revision, Action identity, repository binding, and closed payload. A write-enabled node result reports exact `changed_paths` or `no_file_changes`; artifact references remain evidence. The input schema is one closed object, so `action_kind` and `payload` stay visible in the Host callable. Core validates the exact branch and reports field-level `error.details[]`, `error.guard`, and one `correct_current_action` allowance. |
 | `dev_flow_cancel_task` | Cancel a nonterminal Task with the current revision and an explicit reason. |
 
 ## Comprehension and Recovery

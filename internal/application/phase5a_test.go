@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -300,7 +301,7 @@ func assertApplyFails(t *testing.T, s *Service, task domain.ProcessTask, transit
 	raw := phase5Payload(t, task, transition, reason, nodeResult)
 	a := task.CurrentAction
 	_, err := s.ApplyAction(context.Background(), ApplyActionRequest{RequestID: "apply-invalid", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: raw})
-	if err != want {
+	if !errors.Is(err, want) {
 		t.Fatalf("error=%v want=%v", err, want)
 	}
 }

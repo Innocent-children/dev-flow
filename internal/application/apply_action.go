@@ -19,52 +19,10 @@ func (s *Service) ApplyAction(ctx context.Context, r ApplyActionRequest) (ApplyA
 		return ApplyActionResult{}, domain.ErrInvalidArgument
 	}
 	if r.RecoveryApply != nil {
-		if r.RecoveryApply.OperationID != r.RequestID || r.RecoveryApply.SourceCursor != r.SourceCursor {
-			return ApplyActionResult{}, domain.ErrInvalidArgument
-		}
-		if workflow.ValidateOperationReference(operation) != nil {
-			return ApplyActionResult{}, domain.ErrInvalidArgument
-		}
-		if err := validateRecoveryPayload(r.SourceCursor, r.Payload); err != nil {
-			return ApplyActionResult{}, err
-		}
-		task, err := s.loadOwned(ctx, r.Host, r.TaskID)
-		if err != nil {
-			return ApplyActionResult{}, err
-		}
-		fresh, err := s.observeTaskRepositories(ctx, task)
-		if err != nil {
-			return ApplyActionResult{}, err
-		}
-		decision, err := recovery.Reconcile(recovery.ReconcileInput{Host: r.Host, Task: task, Operation: operation, Payload: r.Payload, ObservedScope: &fresh})
-		if err != nil {
-			return ApplyActionResult{}, err
-		}
-		switch decision.Directive {
-		case recovery.DirectiveNoWrite, recovery.DirectiveReturnExistingBlocker:
-			return ApplyActionResult{Task: task}, nil
-		case recovery.DirectiveCommitRecoveredTransition:
-			if task.CurrentNode == domain.NodeBlocked && r.SourceCursor == domain.NodeBlocked {
-				payload, canonical, decodeErr := recovery.DecodeBlockerResolutionPayload(r.Payload)
-				if decodeErr != nil {
-					return ApplyActionResult{}, decodeErr
-				}
-				return s.resolveBlockerMutation(ctx, r, task, fresh, payload, canonical)
-			}
-			comparison, comparisonErr := recovery.CompareRepositoryScope(task, fresh)
-			if comparisonErr != nil {
-				return ApplyActionResult{}, domain.ErrInternal
-			}
-			return s.applyStandardMutation(ctx, r, task, fresh, comparison)
-		case recovery.DirectiveCreateBlocker:
-			return s.createRecoveryBlocker(ctx, r, task, fresh, decision)
-		case recovery.DirectiveRevisionConflict:
-			return ApplyActionResult{}, domain.ErrRevisionConflict
-		case recovery.DirectiveActionStale:
-			return ApplyActionResult{}, domain.ErrActionStale
-		default:
-			return ApplyActionResult{}, domain.ErrInternal
-		}
+		// Recovery reconciliation cannot prove that the original mutation left no
+		// write behind, so no failure on this route offers a bounded correction.
+		result, err := s.applyRecovery(ctx, r, operation)
+		return result, domain.WithoutZeroWriteProof(err)
 	}
 	if bytes.Equal(bytes.TrimSpace(r.Payload), []byte("null")) {
 		return ApplyActionResult{}, domain.ErrInvalidArgument
@@ -96,6 +54,55 @@ func (s *Service) ApplyAction(ctx context.Context, r ApplyActionRequest) (ApplyA
 	return s.applyStandardMutation(ctx, r, task, fresh, comparison)
 }
 
+func (s *Service) applyRecovery(ctx context.Context, r ApplyActionRequest, operation domain.OperationReference) (ApplyActionResult, error) {
+	if r.RecoveryApply.OperationID != r.RequestID || r.RecoveryApply.SourceCursor != r.SourceCursor {
+		return ApplyActionResult{}, domain.ErrInvalidArgument
+	}
+	if workflow.ValidateOperationReference(operation) != nil {
+		return ApplyActionResult{}, domain.ErrInvalidArgument
+	}
+	if err := validateRecoveryPayload(r.SourceCursor, r.Payload); err != nil {
+		return ApplyActionResult{}, err
+	}
+	task, err := s.loadOwned(ctx, r.Host, r.TaskID)
+	if err != nil {
+		return ApplyActionResult{}, err
+	}
+	fresh, err := s.observeTaskRepositories(ctx, task)
+	if err != nil {
+		return ApplyActionResult{}, err
+	}
+	decision, err := recovery.Reconcile(recovery.ReconcileInput{Host: r.Host, Task: task, Operation: operation, Payload: r.Payload, ObservedScope: &fresh})
+	if err != nil {
+		return ApplyActionResult{}, err
+	}
+	switch decision.Directive {
+	case recovery.DirectiveNoWrite, recovery.DirectiveReturnExistingBlocker:
+		return ApplyActionResult{Task: task}, nil
+	case recovery.DirectiveCommitRecoveredTransition:
+		if task.CurrentNode == domain.NodeBlocked && r.SourceCursor == domain.NodeBlocked {
+			payload, canonical, decodeErr := recovery.DecodeBlockerResolutionPayload(r.Payload)
+			if decodeErr != nil {
+				return ApplyActionResult{}, decodeErr
+			}
+			return s.resolveBlockerMutation(ctx, r, task, fresh, payload, canonical)
+		}
+		comparison, comparisonErr := recovery.CompareRepositoryScope(task, fresh)
+		if comparisonErr != nil {
+			return ApplyActionResult{}, domain.ErrInternal
+		}
+		return s.applyStandardMutation(ctx, r, task, fresh, comparison)
+	case recovery.DirectiveCreateBlocker:
+		return s.createRecoveryBlocker(ctx, r, task, fresh, decision)
+	case recovery.DirectiveRevisionConflict:
+		return ApplyActionResult{}, domain.ErrRevisionConflict
+	case recovery.DirectiveActionStale:
+		return ApplyActionResult{}, domain.ErrActionStale
+	default:
+		return ApplyActionResult{}, domain.ErrInternal
+	}
+}
+
 func validateStandardRequestAgainstTask(r ApplyActionRequest, task domain.ProcessTask) error {
 	if task.CurrentAction == nil || task.Revision != r.ExpectedRevision {
 		return domain.ErrRevisionConflict
@@ -110,20 +117,17 @@ func validateStandardRequestAgainstTask(r ApplyActionRequest, task domain.Proces
 	if r.SourceCursor != task.CurrentNode || task.CurrentAction.ActionID != r.ActionID || task.CurrentAction.Kind != r.ActionKind || effectiveDigest != r.RepositoryBindingDigest {
 		return domain.ErrActionStale
 	}
+	// Everything below is deterministic validation that runs before any Task,
+	// Event, Claim or Evidence write, so a structured failure produced here is a
+	// proven zero-write failure and may carry a bounded correction.
 	envelope, result, err := workflow.DecodeStandardPayload(task.CurrentNode, r.Payload)
 	if err != nil {
-		return domain.ErrInvalidArgument
+		return err
 	}
 	if _, err := workflow.TransitionFor(workflow.StandardProcess(), task.CurrentNode, envelope.TransitionID); err != nil {
 		return domain.ErrTransitionNotAllowed
 	}
-	if err := workflow.ValidatePayload(workflow.StandardProcess(), task.CurrentNode, envelope, result, task.CurrentAction.SemanticMethodSteps); err != nil {
-		if errors.Is(err, domain.ErrTransitionNotAllowed) {
-			return domain.ErrTransitionNotAllowed
-		}
-		return domain.ErrInvalidArgument
-	}
-	return nil
+	return workflow.ValidatePayload(workflow.StandardProcess(), task.CurrentNode, envelope, result, task.CurrentAction.SemanticMethodSteps)
 }
 
 func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionRequest, task domain.ProcessTask, fresh recovery.RepositoryScopeObservation, comparison recovery.RepositoryScopeComparison) (ApplyActionResult, error) {
@@ -140,9 +144,13 @@ func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionReques
 	if r.SourceCursor != task.CurrentNode || task.CurrentAction.ActionID != r.ActionID || task.CurrentAction.Kind != r.ActionKind || effectiveDigest != r.RepositoryBindingDigest {
 		return ApplyActionResult{}, domain.ErrActionStale
 	}
+	// This is the mutation path and it is also reachable from recovery
+	// reconciliation, so it never claims a zero-write proof. The ordinary route
+	// already produced the same structured detail in
+	// validateStandardRequestAgainstTask.
 	envelope, result, err := workflow.DecodeStandardPayload(task.CurrentNode, r.Payload)
 	if err != nil {
-		return ApplyActionResult{}, domain.ErrInvalidArgument
+		return ApplyActionResult{}, domain.WithoutZeroWriteProof(err)
 	}
 	definition := workflow.StandardProcess()
 	transition, err := workflow.TransitionFor(definition, task.CurrentNode, envelope.TransitionID)
@@ -150,10 +158,7 @@ func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionReques
 		return ApplyActionResult{}, domain.ErrTransitionNotAllowed
 	}
 	if err := workflow.ValidatePayload(definition, task.CurrentNode, envelope, result, task.CurrentAction.SemanticMethodSteps); err != nil {
-		if errors.Is(err, domain.ErrTransitionNotAllowed) {
-			return ApplyActionResult{}, domain.ErrTransitionNotAllowed
-		}
-		return ApplyActionResult{}, domain.ErrInvalidArgument
+		return ApplyActionResult{}, domain.WithoutZeroWriteProof(err)
 	}
 	effect, err := recovery.DeriveRepositoryEffect(task.CurrentNode, envelope, result)
 	if err != nil || task.CurrentAction == nil || !recovery.RepositoryEffectAllowed(task.CurrentAction.AllowedEffects, effect) ||
@@ -197,8 +202,8 @@ func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionReques
 		err = domain.ErrTransitionNotAllowed
 	}
 	if err != nil {
-		if err == domain.ErrTransitionNotAllowed || err == domain.ErrRepositoryDrift || err == domain.ErrVerificationBudgetExceeded {
-			return ApplyActionResult{}, err
+		if errors.Is(err, domain.ErrTransitionNotAllowed) || errors.Is(err, domain.ErrRepositoryDrift) || errors.Is(err, domain.ErrVerificationBudgetExceeded) {
+			return ApplyActionResult{}, domain.WithoutZeroWriteProof(err)
 		}
 		return ApplyActionResult{}, domain.ErrInvalidArgument
 	}

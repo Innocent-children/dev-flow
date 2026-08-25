@@ -132,7 +132,9 @@ test("Skill keeps payload, transition, method, evidence, and terminal authority 
   assert.match(forwarding, /all six common payload members/u);
   assert.match(forwarding, /branch-specific required `node_result` key/u);
   assert.match(forwarding, /"host": "deepseek"/u);
-  assert.match(forwarding, /`INVALID_ARGUMENT`[\s\S]*do not[\s\S]*second candidate payload/u);
+  assert.match(forwarding, /`INVALID_ARGUMENT`[\s\S]*bounded-correction section[\s\S]*explicitly authorizes[\s\S]*`correct_current_action`[\s\S]*otherwise stop/u);
+  const correction = section(skill, "Bounded correction of the current action");
+  assert.match(correction, /report only the exact `path`, `rule`[\s\S]*Never report[\s\S]*submitted field value/u);
 
   assert.match(skill, /Core owns task state,\s+current node, legal transitions, destinations, recovery, blockers, and terminal outcomes/u);
   assert.match(skill, /Core returns authoritative `BLOCKED`, `DONE`, `CANCELLED`/u);

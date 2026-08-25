@@ -10,6 +10,7 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/recovery"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 	"io"
+	"sort"
 	"strings"
 	"unicode/utf8"
 )
@@ -183,11 +184,27 @@ func ValidateToolInput(tool string, raw []byte) error {
 		}
 		return nil
 	case ToolApplyAction:
-		if !hasKeys(raw, "request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload") {
-			return domain.ErrInvalidArgument
+		// This boundary runs before the application service, so every failure it
+		// reports is a proven zero-write failure.
+		if missing := missingRequestMembers(raw, "request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload"); len(missing) != 0 {
+			return domain.InvalidArgumentViolations(missing...)
 		}
 		var v applyWire
-		if decodeClosed(raw, &v) != nil || !v.RequestID.IsValid() || !v.Host.IsValid() || !v.TaskID.IsValid() || v.Revision == 0 || !v.ActionID.IsValid() || !v.ActionKind.IsValid() || v.ProcessID != domain.ProcessStandardDevelopment || !v.ProcessDefinitionDigest.IsValid() || (!v.SourceCursor.Normal() && v.SourceCursor != domain.NodeBlocked) || !v.RepositoryBindingDigest.IsValid() || len(v.Payload) == 0 || !validRecoveryApply(v.RecoveryApply, v.SourceCursor, v.RequestID) || v.RecoveryApply == nil && bytes.Equal(bytes.TrimSpace(v.Payload), []byte("null")) {
+		if err := decodeClosed(raw, &v); err != nil {
+			if member, ok := unknownRequestMember(raw, "request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload", "recovery_apply"); ok {
+				return domain.InvalidArgumentViolations(domain.Violation(member, domain.RuleUnknownMember))
+			}
+			return domain.ErrInvalidArgument
+		}
+		// The payload branch is fixed by the source cursor, so a mismatched
+		// action_kind is reported as its own member before the composite identity
+		// gate hides it behind a generic refusal.
+		if v.ActionKind.IsValid() && (v.SourceCursor.Normal() || v.SourceCursor == domain.NodeBlocked) {
+			if node, err := workflow.NodeDefinition(workflow.StandardProcess(), v.SourceCursor); err == nil && node.ActionKind != v.ActionKind {
+				return domain.InvalidArgumentViolations(domain.Violation("action_kind", domain.RuleActionKindPayloadMismatch))
+			}
+		}
+		if !v.RequestID.IsValid() || !v.Host.IsValid() || !v.TaskID.IsValid() || v.Revision == 0 || !v.ActionID.IsValid() || !v.ActionKind.IsValid() || v.ProcessID != domain.ProcessStandardDevelopment || !v.ProcessDefinitionDigest.IsValid() || (!v.SourceCursor.Normal() && v.SourceCursor != domain.NodeBlocked) || !v.RepositoryBindingDigest.IsValid() || len(v.Payload) == 0 || !validRecoveryApply(v.RecoveryApply, v.SourceCursor, v.RequestID) || v.RecoveryApply == nil && bytes.Equal(bytes.TrimSpace(v.Payload), []byte("null")) {
 			return domain.ErrInvalidArgument
 		}
 		if !bytes.Equal(bytes.TrimSpace(v.Payload), []byte("null")) {
@@ -198,8 +215,8 @@ func ValidateToolInput(tool string, raw []byte) error {
 				err = workflow.ValidateRetainedPayload(v.SourceCursor, v.Payload)
 			}
 			if err != nil {
-				if errors.Is(err, domain.ErrTransitionNotAllowed) {
-					return domain.ErrTransitionNotAllowed
+				if errors.Is(err, domain.ErrTransitionNotAllowed) || errors.Is(err, domain.ErrInvalidArgument) {
+					return err
 				}
 				return domain.ErrInvalidArgument
 			}
@@ -237,6 +254,46 @@ func validOperationProbe(v *operationProbeWire) bool {
 }
 func validRecoveryApply(v *recoveryApplyWire, source domain.NodeID, requestID domain.ID) bool {
 	return v == nil || v.OperationID == requestID && v.SourceCursor == source && (source.Normal() || source == domain.NodeBlocked)
+}
+
+// missingRequestMembers names every required top-level request member that the
+// caller omitted.
+func missingRequestMembers(raw []byte, keys ...string) []domain.ContractViolation {
+	var value map[string]json.RawMessage
+	if json.Unmarshal(raw, &value) != nil {
+		return nil
+	}
+	var out []domain.ContractViolation
+	for _, key := range keys {
+		if _, present := value[key]; !present {
+			out = append(out, domain.Violation(key, domain.RuleRequiredMemberMissing))
+		}
+	}
+	return out
+}
+
+// unknownRequestMember names the first submitted top-level member the closed
+// request contract does not declare.
+func unknownRequestMember(raw []byte, declared ...string) (string, bool) {
+	var value map[string]json.RawMessage
+	if json.Unmarshal(raw, &value) != nil {
+		return "", false
+	}
+	known := make(map[string]bool, len(declared))
+	for _, key := range declared {
+		known[key] = true
+	}
+	names := make([]string, 0, len(value))
+	for name := range value {
+		if !known[name] && domain.ValidViolationPath(name) {
+			names = append(names, name)
+		}
+	}
+	if len(names) == 0 {
+		return "", false
+	}
+	sort.Strings(names)
+	return names[0], true
 }
 func hasKeys(raw []byte, keys ...string) bool {
 	var value map[string]json.RawMessage

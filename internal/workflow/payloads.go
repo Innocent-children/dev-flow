@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"reflect"
+	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -146,11 +148,20 @@ type DeliveryResult struct {
 }
 
 func DecodeStandardPayload(node domain.NodeID, raw []byte) (StandardPayload, any, error) {
-	if len(raw) > domain.MaxActionPayloadBytes || !utf8.Valid(raw) || rejectDuplicateMembers(raw) != nil ||
-		!hasJSONMembers(raw, "transition_id", "summary", "reason", "artifacts", "method_evidence", "node_result") ||
-		!arrayItemsHaveMembers(raw, "artifacts", "role", "path", "digest", "summary") ||
-		!arrayItemsHaveMembers(raw, "method_evidence", "step_id", "status", "capability", "summary") {
+	if len(raw) > domain.MaxActionPayloadBytes || !utf8.Valid(raw) || rejectDuplicateMembers(raw) != nil {
 		return StandardPayload{}, nil, domain.ErrInvalidArgument
+	}
+	if violations := missingMemberViolations("payload", raw, "transition_id", "summary", "reason", "artifacts", "method_evidence", "node_result"); len(violations) != 0 {
+		return StandardPayload{}, nil, domain.InvalidArgumentViolations(violations...)
+	}
+	if violations := missingArrayItemViolations("payload.artifacts", raw, "artifacts", "role", "path", "digest", "summary"); len(violations) != 0 {
+		return StandardPayload{}, nil, domain.InvalidArgumentViolations(violations...)
+	}
+	if violations := missingArrayItemViolations("payload.method_evidence", raw, "method_evidence", "step_id", "status", "capability", "summary"); len(violations) != 0 {
+		return StandardPayload{}, nil, domain.InvalidArgumentViolations(violations...)
+	}
+	if violations := unknownMemberViolations("payload", raw, reflect.TypeOf(StandardPayload{})); len(violations) != 0 {
+		return StandardPayload{}, nil, domain.InvalidArgumentViolations(violations...)
 	}
 	var envelope StandardPayload
 	if err := decodeClosed(raw, &envelope); err != nil {
@@ -177,18 +188,158 @@ func DecodeStandardPayload(node domain.NodeID, raw []byte) (StandardPayload, any
 	default:
 		return StandardPayload{}, nil, domain.ErrInvalidArgument
 	}
+	if violations := nodeResultMemberViolations(node, envelope.NodeResult); len(violations) != 0 {
+		return StandardPayload{}, nil, domain.InvalidArgumentViolations(violations...)
+	}
 	if !nodeResultHasRequiredMembers(node, envelope.NodeResult) {
 		return StandardPayload{}, nil, domain.ErrInvalidArgument
+	}
+	if violations := unknownMemberViolations("payload.node_result", envelope.NodeResult, reflect.TypeOf(result)); len(violations) != 0 {
+		return StandardPayload{}, nil, domain.InvalidArgumentViolations(violations...)
 	}
 	if err := decodeClosed(envelope.NodeResult, result); err != nil {
 		return StandardPayload{}, nil, domain.ErrInvalidArgument
 	}
 	return envelope, result, nil
 }
+
+// nodeResultRequiredMembers is the closed member set of one node result. It is
+// the single source for both the boolean gate and the field-level projection.
+func nodeResultRequiredMembers(node domain.NodeID) []string {
+	switch node {
+	case domain.NodeRequirements:
+		return []string{"problem_class", "baseline", "unresolved_questions", "changed_paths", "no_file_changes"}
+	case domain.NodeDesign, domain.NodeTasks:
+		return []string{"problem_class", "baseline", "findings", "changed_paths", "no_file_changes"}
+	case domain.NodeImplement:
+		return []string{"problem_class", "task_plan_revision", "completed_work_item_ids", "changed_paths", "no_file_changes", "deviations", "findings"}
+	case domain.NodeTest:
+		return []string{"problem_class", "checks", "failed_items", "unverified_items", "manual_handoff_items", "findings", "changed_paths", "no_file_changes"}
+	case domain.NodeComprehensionReview:
+		return []string{"problem_class", "explained_components", "unresolved_questions", "unnecessary_abstractions", "maintenance_risks", "user_confirmation", "findings", "changed_paths", "no_file_changes"}
+	case domain.NodeRefactor:
+		return []string{"problem_class", "changed_paths", "no_file_changes", "simplifications", "behavior_change_intended", "findings"}
+	case domain.NodeDelivery:
+		return []string{"problem_class", "acceptance", "automated_evidence_ids", "manual_evidence_ids", "test_record_id", "comprehension_record_id", "unverified_items", "risks", "findings", "changed_paths", "no_file_changes"}
+	default:
+		return nil
+	}
+}
+func nodeResultMemberViolations(node domain.NodeID, raw []byte) []domain.ContractViolation {
+	members := nodeResultRequiredMembers(node)
+	if len(members) == 0 {
+		return nil
+	}
+	violations := missingMemberViolations("payload.node_result", raw, members...)
+	if node == domain.NodeTest {
+		violations = append(violations, missingArrayItemViolations("payload.node_result.checks", raw, "checks", "source", "name", "status", "summary", "command_count", "full_suite")...)
+	}
+	return violations
+}
+func missingMemberViolations(path string, raw []byte, names ...string) []domain.ContractViolation {
+	var value map[string]json.RawMessage
+	if json.Unmarshal(raw, &value) != nil {
+		return nil
+	}
+	var out []domain.ContractViolation
+	for _, name := range names {
+		if _, present := value[name]; !present {
+			out = append(out, domain.Violation(path+"."+name, domain.RuleRequiredMemberMissing))
+		}
+	}
+	return out
+}
+func missingArrayItemViolations(path string, raw []byte, field string, names ...string) []domain.ContractViolation {
+	items, ok := rawObjectField(raw, field)
+	if !ok {
+		return nil
+	}
+	var entries []json.RawMessage
+	if json.Unmarshal(items, &entries) != nil {
+		return nil
+	}
+	var out []domain.ContractViolation
+	for index, entry := range entries {
+		out = append(out, missingMemberViolations(fmt.Sprintf("%s[%d]", path, index), entry, names...)...)
+	}
+	return out
+}
+
+var rawMessageType = reflect.TypeOf(json.RawMessage{})
+
+// unknownMemberViolations walks the existing closed Go payload types so a
+// nested unknown member keeps its parent object and array index. RawMessage is
+// a deliberate boundary: node_result is walked separately after its current
+// node type is selected.
+func unknownMemberViolations(path string, raw []byte, target reflect.Type) []domain.ContractViolation {
+	for target.Kind() == reflect.Pointer {
+		if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+			return nil
+		}
+		target = target.Elem()
+	}
+	if target == rawMessageType {
+		return nil
+	}
+	switch target.Kind() {
+	case reflect.Struct:
+		var object map[string]json.RawMessage
+		if json.Unmarshal(raw, &object) != nil {
+			return nil
+		}
+		fields := make(map[string]reflect.Type, target.NumField())
+		for index := 0; index < target.NumField(); index++ {
+			field := target.Field(index)
+			if field.PkgPath != "" {
+				continue
+			}
+			name := strings.Split(field.Tag.Get("json"), ",")[0]
+			if name == "-" {
+				continue
+			}
+			if name == "" {
+				name = field.Name
+			}
+			fields[name] = field.Type
+		}
+		names := make([]string, 0, len(object))
+		for name := range object {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		var violations []domain.ContractViolation
+		for _, name := range names {
+			childPath := path + "." + name
+			fieldType, known := fields[name]
+			if !known {
+				if violation := domain.Violation(childPath, domain.RuleUnknownMember); violation.Path != "" {
+					violations = append(violations, violation)
+				}
+				continue
+			}
+			violations = append(violations, unknownMemberViolations(childPath, object[name], fieldType)...)
+		}
+		return violations
+	case reflect.Slice, reflect.Array:
+		var items []json.RawMessage
+		if json.Unmarshal(raw, &items) != nil {
+			return nil
+		}
+		var violations []domain.ContractViolation
+		for index, item := range items {
+			violations = append(violations, unknownMemberViolations(fmt.Sprintf("%s[%d]", path, index), item, target.Elem())...)
+		}
+		return violations
+	default:
+		return nil
+	}
+}
 func ValidateRetainedPayload(node domain.NodeID, raw []byte) error {
 	envelope, result, err := DecodeStandardPayload(node, raw)
 	if err != nil {
-		return domain.ErrInvalidArgument
+		// Keep the structured field detail so the caller learns the exact member
+		// instead of a generic contract refusal.
+		return err
 	}
 	definition := StandardProcess()
 	nodeDefinition, err := NodeDefinition(definition, node)
@@ -282,10 +433,20 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 	if err != nil {
 		return err
 	}
-	if err := validateProblemClass(source, envelope.TransitionID, result); err != nil {
+	if err := validateProblemClass(source, transition, result); err != nil {
 		return err
 	}
-	if !validText(envelope.Summary, domain.MaxEvidenceSummaryBytes) || !validReason(envelope.Reason, transition.ReasonRequired) || len(envelope.Artifacts) > domain.MaxArtifactReferencesPerAction || len(envelope.MethodEvidence) > domain.MaxMethodEvidencePerAction {
+	var envelopeViolations []domain.ContractViolation
+	if !validText(envelope.Summary, domain.MaxEvidenceSummaryBytes) {
+		envelopeViolations = append(envelopeViolations, domain.Violation("payload.summary", domain.RuleTextNotNormalized))
+	}
+	if !validReason(envelope.Reason, transition.ReasonRequired) {
+		envelopeViolations = append(envelopeViolations, domain.Violation("payload.reason", domain.RuleTextNotNormalized))
+	}
+	if len(envelopeViolations) != 0 {
+		return domain.InvalidArgumentViolations(envelopeViolations...)
+	}
+	if len(envelope.Artifacts) > domain.MaxArtifactReferencesPerAction || len(envelope.MethodEvidence) > domain.MaxMethodEvidencePerAction {
 		return domain.ErrInvalidArgument
 	}
 	artifactPaths := map[string]bool{}
@@ -316,15 +477,22 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 			return domain.ErrInvalidArgument
 		}
 	case *TestResult:
-		if source != domain.NodeTest || !validRepositoryMutation(value.ChangedPaths, value.NoFileChanges) || !validStringLists(value.FailedItems, value.UnverifiedItems, value.ManualHandoffItems, value.Findings) {
+		if source != domain.NodeTest {
 			return domain.ErrInvalidArgument
 		}
+		violations := repositoryMutationViolations(value.ChangedPaths, value.NoFileChanges)
+		violations = append(violations, stringListViolations(map[string][]string{"failed_items": value.FailedItems, "unverified_items": value.UnverifiedItems, "manual_handoff_items": value.ManualHandoffItems, "findings": value.Findings})...)
 		seen := map[string]bool{}
-		for _, check := range value.Checks {
-			if validateNormalizedEvidenceInput(check) != nil || seen[check.Name] {
-				return domain.ErrInvalidArgument
+		for index, check := range value.Checks {
+			path := fmt.Sprintf("payload.node_result.checks[%d]", index)
+			violations = append(violations, EvidenceViolations(path, check)...)
+			if seen[check.Name] {
+				violations = append(violations, domain.Violation(path+".name", domain.RuleEvidenceNameDuplicate))
 			}
 			seen[check.Name] = true
+		}
+		if len(violations) != 0 {
+			return domain.InvalidArgumentViolations(violations...)
 		}
 	case *ComprehensionResult:
 		if source != domain.NodeComprehensionReview || !validRepositoryMutation(value.ChangedPaths, value.NoFileChanges) || !validStringLists(value.ExplainedComponents, value.UnresolvedQuestions, value.UnnecessaryAbstractions, value.MaintenanceRisks, value.Findings) {
@@ -391,23 +559,104 @@ func validRepositoryMutation(paths []string, noFileChanges bool) bool {
 	return noFileChanges == (len(paths) == 0) && validRepositoryContractPaths(paths)
 }
 
-func validateProblemClass(source domain.NodeID, transition domain.TransitionID, result any) error {
+// repositoryMutationViolations reports the changed_paths / no_file_changes
+// contradiction as a field-level failure.
+func repositoryMutationViolations(paths []string, noFileChanges bool) []domain.ContractViolation {
+	if noFileChanges != (len(paths) == 0) {
+		return []domain.ContractViolation{domain.Violation("payload.node_result.changed_paths", domain.RuleRepositoryMutationInconsistent)}
+	}
+	if len(paths) > domain.MaxBoundedStringListItems {
+		return []domain.ContractViolation{domain.Violation("payload.node_result.changed_paths", domain.RuleStringListTooLong)}
+	}
+	seen := map[string]bool{}
+	var violations []domain.ContractViolation
+	for index, path := range paths {
+		memberPath := fmt.Sprintf("payload.node_result.changed_paths[%d]", index)
+		if domain.ValidateRepositoryContractPath(path) != nil {
+			violations = append(violations, domain.Violation(memberPath, domain.RuleRepositoryPathInvalid))
+			continue
+		}
+		if seen[path] {
+			violations = append(violations, domain.Violation(memberPath, domain.RuleStringListDuplicate))
+		}
+		seen[path] = true
+	}
+	return violations
+}
+
+// stringListViolations names the exact bounded list that broke a list rule.
+func stringListViolations(lists map[string][]string) []domain.ContractViolation {
+	names := make([]string, 0, len(lists))
+	for name := range lists {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var out []domain.ContractViolation
+	for _, name := range names {
+		items := lists[name]
+		if len(items) > domain.MaxBoundedStringListItems {
+			out = append(out, domain.Violation("payload.node_result."+name, domain.RuleStringListTooLong))
+			continue
+		}
+		seen := map[string]bool{}
+		for index, item := range items {
+			path := fmt.Sprintf("payload.node_result.%s[%d]", name, index)
+			if !validText(item, domain.MaxEvidenceSummaryBytes) {
+				out = append(out, domain.Violation(path, domain.RuleTextNotNormalized))
+				continue
+			}
+			if seen[item] {
+				out = append(out, domain.Violation(path, domain.RuleStringListDuplicate))
+			}
+			seen[item] = true
+		}
+	}
+	return out
+}
+
+// KnownTransitionGuard reports whether the identifier is a transition guard of
+// the current standard Process Definition. A public guard failure may only name
+// a guard that exists in the live definition.
+func KnownTransitionGuard(guard domain.TransitionGuardID) bool {
+	if !guard.IsValid() {
+		return false
+	}
+	for _, transition := range StandardProcess().Transitions {
+		if transition.Guard == guard {
+			return true
+		}
+	}
+	return false
+}
+
+// validateProblemClass enforces the problem-class guard of the selected
+// transition. A failure names the guard from the current Process Definition and
+// the exact node result member, so a caller never has to guess why a forward
+// transition was refused. Repository drift, member format failures and unknown
+// work items are deliberately not reported as guard failures.
+func validateProblemClass(source domain.NodeID, transition domain.TransitionDefinition, result any) error {
 	class, findings, ok := resultProblemClass(result)
-	if !ok || !problemClassValidForNode(source, class) {
+	if !ok {
 		return domain.ErrInvalidArgument
 	}
-	expected, ok := problemClassByTransition[transition]
-	if !ok || class != expected {
+	if !problemClassValidForNode(source, class) {
+		return domain.InvalidArgumentViolations(domain.Violation("payload.node_result.problem_class", domain.RuleProblemClassNotValidForNode))
+	}
+	expected, known := problemClassByTransition[transition.TransitionID]
+	if !known {
 		return domain.ErrTransitionNotAllowed
+	}
+	if class != expected {
+		return domain.TransitionGuardFailure(transition.Guard, domain.GuardViolation("payload.node_result.problem_class", domain.GuardProblemClassTransitionMismatch))
 	}
 	if class == ProblemNone {
 		if len(findings) != 0 {
-			return domain.ErrTransitionNotAllowed
+			return domain.TransitionGuardFailure(transition.Guard, domain.GuardViolation("payload.node_result.findings", domain.GuardForwardFindingsEmpty))
 		}
 		return nil
 	}
 	if len(findings) == 0 {
-		return domain.ErrTransitionNotAllowed
+		return domain.TransitionGuardFailure(transition.Guard, domain.GuardViolation("payload.node_result.findings", domain.GuardProblemFindingsPresent))
 	}
 	return nil
 }

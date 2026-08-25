@@ -3,6 +3,7 @@ package workflow_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -116,7 +117,7 @@ func TestStandardProcessAllTransitionsAndGuards(t *testing.T) {
 				memory.task = snapshots[wrongSource]
 				before = memory.writes
 				_, err = applyStandard(t, service, memory.task, tc.transitionID, reasonFor(tc), validNodeResult(memory.task, tc.transitionID))
-				if err != domain.ErrTransitionNotAllowed || memory.writes != before {
+				if !errors.Is(err, domain.ErrTransitionNotAllowed) || memory.writes != before {
 					t.Fatalf("source %s error=%v writes=%d", wrongSource, err, memory.writes-before)
 				}
 			}
@@ -134,13 +135,13 @@ func TestStandardProcessReasonMalformedTerminalAndExceptionalRejections(t *testi
 			reason = ""
 		}
 		_, err := applyStandard(t, service, memory.task, tc.transitionID, reason, validNodeResult(memory.task, tc.transitionID))
-		if err != domain.ErrInvalidArgument || memory.writes != before {
+		if !errors.Is(err, domain.ErrInvalidArgument) || memory.writes != before {
 			t.Fatalf("%s reason rule error=%v writes=%d", tc.transitionID, err, memory.writes-before)
 		}
 		if tc.reasonRequired {
 			for _, invalid := range []string{"   ", " reason", "reason ", strings.Repeat("r", domain.MaxReasonBytes+1)} {
 				_, err = applyStandard(t, service, memory.task, tc.transitionID, invalid, validNodeResult(memory.task, tc.transitionID))
-				if err != domain.ErrInvalidArgument || memory.writes != before {
+				if !errors.Is(err, domain.ErrInvalidArgument) || memory.writes != before {
 					t.Fatalf("%s accepted invalid reason", tc.transitionID)
 				}
 			}
@@ -151,7 +152,7 @@ func TestStandardProcessReasonMalformedTerminalAndExceptionalRejections(t *testi
 	before := memory.writes
 	a := memory.task.CurrentAction
 	_, err := service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "malformed", Host: domain.HostCodex, TaskID: memory.task.TaskID, ExpectedRevision: memory.task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: memory.task.Process.ID, ProcessDefinitionDigest: memory.task.Process.DefinitionDigest, SourceCursor: memory.task.CurrentNode, RepositoryBindingDigest: memory.task.Repository.BindingDigest, Payload: json.RawMessage(`{"transition_id":`)})
-	if err != domain.ErrInvalidArgument || memory.writes != before {
+	if !errors.Is(err, domain.ErrInvalidArgument) || memory.writes != before {
 		t.Fatalf("malformed payload error=%v writes=%d", err, memory.writes-before)
 	}
 	forbiddenDestination := map[string]any{"transition_id": "tests_passed", "destination": "DONE", "summary": "Caller destination is forbidden.", "reason": "", "artifacts": []any{}, "method_evidence": []any{}, "node_result": validNodeResult(memory.task, "tests_passed")}
@@ -160,7 +161,7 @@ func TestStandardProcessReasonMalformedTerminalAndExceptionalRejections(t *testi
 		t.Fatal(marshalErr)
 	}
 	_, err = service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "caller-destination", Host: domain.HostCodex, TaskID: memory.task.TaskID, ExpectedRevision: memory.task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: memory.task.Process.ID, ProcessDefinitionDigest: memory.task.Process.DefinitionDigest, SourceCursor: memory.task.CurrentNode, RepositoryBindingDigest: memory.task.Repository.BindingDigest, Payload: rawDestination})
-	if err != domain.ErrInvalidArgument || memory.writes != before {
+	if !errors.Is(err, domain.ErrInvalidArgument) || memory.writes != before {
 		t.Fatalf("caller destination error=%v writes=%d", err, memory.writes-before)
 	}
 
@@ -178,7 +179,7 @@ func TestStandardProcessReasonMalformedTerminalAndExceptionalRejections(t *testi
 			actionID, actionKind = terminal.CurrentAction.ActionID, terminal.CurrentAction.Kind
 		}
 		_, err = service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "terminal-attempt", Host: domain.HostCodex, TaskID: terminal.TaskID, ExpectedRevision: terminal.Revision, ActionID: actionID, ActionKind: actionKind, ProcessID: terminal.Process.ID, ProcessDefinitionDigest: terminal.Process.DefinitionDigest, SourceCursor: terminal.CurrentNode, RepositoryBindingDigest: terminal.Repository.BindingDigest, Payload: standardPayload(t, snapshots[domain.NodeTest], "tests_passed", "", validNodeResult(snapshots[domain.NodeTest], "tests_passed"))})
-		if terminal.CurrentNode == domain.NodeBlocked && err != domain.ErrInvalidArgument || terminal.CurrentNode.Terminal() && err != domain.ErrTaskTerminal || memory.writes != before {
+		if terminal.CurrentNode == domain.NodeBlocked && !errors.Is(err, domain.ErrInvalidArgument) || terminal.CurrentNode.Terminal() && !errors.Is(err, domain.ErrTaskTerminal) || memory.writes != before {
 			t.Fatalf("node=%s error=%v writes=%d", terminal.CurrentNode, err, memory.writes-before)
 		}
 	}

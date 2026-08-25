@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
@@ -49,7 +50,7 @@ func TestProblemClassMismatchRejectsTransitionSelection(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			steps, evidence := phase5DMethodEvidence(t, definition, tc.source)
 			envelope := StandardPayload{TransitionID: tc.transition, Summary: "Classified result.", Reason: "Remediation is required.", Artifacts: []domain.ArtifactReference{}, MethodEvidence: evidence}
-			if err := ValidatePayload(definition, tc.source, envelope, tc.result, steps); err != domain.ErrTransitionNotAllowed {
+			if err := ValidatePayload(definition, tc.source, envelope, tc.result, steps); !errors.Is(err, domain.ErrTransitionNotAllowed) {
 				t.Fatalf("error=%v", err)
 			}
 		})
@@ -60,15 +61,15 @@ func TestProblemClassClosedFactsAndForwardRules(t *testing.T) {
 	definition := StandardProcess()
 	steps, evidence := phase5DMethodEvidence(t, definition, domain.NodeDesign)
 	unknown := &DesignResult{ProblemClass: "future", Baseline: &DesignBaselineInput{RequirementsRevision: 1, Approach: "Direct.", Decisions: []string{"Reuse."}}}
-	if err := ValidatePayload(definition, domain.NodeDesign, StandardPayload{TransitionID: "design_ready", Summary: "Ready.", Artifacts: []domain.ArtifactReference{}, MethodEvidence: evidence}, unknown, steps); err != domain.ErrInvalidArgument {
+	if err := ValidatePayload(definition, domain.NodeDesign, StandardPayload{TransitionID: "design_ready", Summary: "Ready.", Artifacts: []domain.ArtifactReference{}, MethodEvidence: evidence}, unknown, steps); !errors.Is(err, domain.ErrInvalidArgument) {
 		t.Fatalf("unknown class error=%v", err)
 	}
 	forwardWithFinding := &DesignResult{ProblemClass: ProblemNone, Baseline: &DesignBaselineInput{RequirementsRevision: 1, Approach: "Direct.", Decisions: []string{"Reuse."}}, Findings: []string{"Unexpected classification"}}
-	if err := ValidatePayload(definition, domain.NodeDesign, StandardPayload{TransitionID: "design_ready", Summary: "Ready.", Artifacts: []domain.ArtifactReference{}, MethodEvidence: evidence}, forwardWithFinding, steps); err != domain.ErrTransitionNotAllowed {
+	if err := ValidatePayload(definition, domain.NodeDesign, StandardPayload{TransitionID: "design_ready", Summary: "Ready.", Artifacts: []domain.ArtifactReference{}, MethodEvidence: evidence}, forwardWithFinding, steps); !errors.Is(err, domain.ErrTransitionNotAllowed) {
 		t.Fatalf("forward finding error=%v", err)
 	}
 	remediationWithoutFinding := &DesignResult{ProblemClass: ProblemRequirementGap}
-	if err := ValidatePayload(definition, domain.NodeDesign, StandardPayload{TransitionID: "design_requires_requirements", Summary: "Gap.", Reason: "Requirement gap.", Artifacts: []domain.ArtifactReference{}, MethodEvidence: evidence}, remediationWithoutFinding, steps); err != domain.ErrTransitionNotAllowed {
+	if err := ValidatePayload(definition, domain.NodeDesign, StandardPayload{TransitionID: "design_requires_requirements", Summary: "Gap.", Reason: "Requirement gap.", Artifacts: []domain.ArtifactReference{}, MethodEvidence: evidence}, remediationWithoutFinding, steps); !errors.Is(err, domain.ErrTransitionNotAllowed) {
 		t.Fatalf("empty remediation finding error=%v", err)
 	}
 }

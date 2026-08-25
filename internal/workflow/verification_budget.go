@@ -121,18 +121,60 @@ func normalizePayloadList(items []string, required bool) ([]string, error) {
 }
 
 func validateNormalizedEvidenceInput(input NormalizedEvidenceInput) error {
-	name, err := normalizeRequiredPayloadText(input.Name, domain.MaxEvidenceNameBytes)
-	if err != nil || name != input.Name {
-		return domain.ErrInvalidArgument
-	}
-	summary, err := normalizeRequiredPayloadText(input.Summary, domain.MaxEvidenceSummaryBytes)
-	if err != nil || summary != input.Summary || !input.Source.IsValid() || !input.Status.IsValid() ||
-		input.CommandCount < 0 || input.CommandCount > domain.MaxAutomaticVerificationCommands ||
-		(input.Source == domain.EvidenceSourceAutomated && input.CommandCount == 0) ||
-		(input.Source != domain.EvidenceSourceAutomated && (input.CommandCount != 0 || input.FullSuite)) {
+	if len(evidenceRuleFailures(input)) != 0 {
 		return domain.ErrInvalidArgument
 	}
 	return nil
+}
+
+// evidenceMemberRule pairs one evidence member with the closed rule it breaks.
+type evidenceMemberRule struct {
+	Member string
+	Rule   domain.ViolationRule
+}
+
+// evidenceRuleFailures is the single authority for the evidence source matrix.
+// Both the boolean validator and the field-level violation projection read it,
+// so a public violation can never disagree with the accepted input set.
+func evidenceRuleFailures(input NormalizedEvidenceInput) []evidenceMemberRule {
+	var out []evidenceMemberRule
+	if !input.Source.IsValid() {
+		out = append(out, evidenceMemberRule{"source", domain.RuleEvidenceSourceInvalid})
+	}
+	if name, err := normalizeRequiredPayloadText(input.Name, domain.MaxEvidenceNameBytes); err != nil || name != input.Name {
+		out = append(out, evidenceMemberRule{"name", domain.RuleTextNotNormalized})
+	}
+	if summary, err := normalizeRequiredPayloadText(input.Summary, domain.MaxEvidenceSummaryBytes); err != nil || summary != input.Summary {
+		out = append(out, evidenceMemberRule{"summary", domain.RuleTextNotNormalized})
+	}
+	if !input.Status.IsValid() {
+		out = append(out, evidenceMemberRule{"status", domain.RuleEvidenceStatusInvalid})
+	}
+	automated := input.Source == domain.EvidenceSourceAutomated
+	switch {
+	case input.CommandCount > domain.MaxAutomaticVerificationCommands:
+		out = append(out, evidenceMemberRule{"command_count", domain.RuleAutomatedCommandCountLimit})
+	case automated && input.CommandCount == 0:
+		out = append(out, evidenceMemberRule{"command_count", domain.RuleAutomatedCommandCountPositive})
+	case !automated && input.CommandCount != 0:
+		out = append(out, evidenceMemberRule{"command_count", domain.RuleNonAutomatedCommandCountZero})
+	case input.CommandCount < 0:
+		out = append(out, evidenceMemberRule{"command_count", domain.RuleAutomatedCommandCountPositive})
+	}
+	if !automated && input.FullSuite {
+		out = append(out, evidenceMemberRule{"full_suite", domain.RuleNonAutomatedFullSuiteFalse})
+	}
+	return out
+}
+
+// EvidenceViolations projects the evidence rules one input breaks onto request paths.
+func EvidenceViolations(path string, input NormalizedEvidenceInput) []domain.ContractViolation {
+	failures := evidenceRuleFailures(input)
+	out := make([]domain.ContractViolation, 0, len(failures))
+	for _, failure := range failures {
+		out = append(out, domain.Violation(path+"."+failure.Member, failure.Rule))
+	}
+	return out
 }
 
 func sameStrings(left, right []string) bool {

@@ -353,10 +353,17 @@ test("node-payload reference makes every closed branch operational without ownin
   assert.match(reference, /`<repository-key>::<repository-relative-path>`[\s\S]*multi-repository Task/u);
   assert.match(reference, /exactly the six common/u);
   assert.match(reference, /Never submit `destination`, `next_node`/u);
-  assert.match(reference, /INVALID_ARGUMENT[\s\S]*stop/u);
+  assert.match(reference, /INVALID_ARGUMENT[\s\S]*never\s+transport uncertainty/u);
+  assert.match(reference, /`error\.details\[\]`[\s\S]*`recovery\.action="correct_current_action"`[\s\S]*`recovery\.retry_safe=true`/u);
+  assert.match(reference, /exactly one\s+corrected payload for the same Action[\s\S]*only the members in `recovery\.allowed_paths`[\s\S]*new `request_id`/u);
+  assert.match(reference, /Stop after a\s+second failure[\s\S]*never probe with a third candidate payload/u);
+  assert.match(reference, /one closed object[\s\S]*does not narrow the payload by `action_kind`/u);
 
   const skill = await readFile(skillPath, "utf8");
   const forwarding = section(skill, "Closed forwarding contract");
+  const correction = section(skill, "Bounded correction of the current action");
+  assert.doesNotMatch(correction, /both attempted values|report[\s\S]*attempted values/iu);
+  assert.match(correction, /report only the exact `path`, `rule`[\s\S]*Never report[\s\S]*submitted field value/u);
   assert.match(forwarding, /`references\/node-payloads\.md`/u);
   assert.match(forwarding, /fresh Action, live `dev_flow_apply_action` `inputSchema`, and Core remain authoritative/u);
   assert.match(forwarding, /all six common payload members/u);
@@ -364,7 +371,7 @@ test("node-payload reference makes every closed branch operational without ownin
   assert.match(forwarding, /Never convert a[\s\S]*`required_evidence`[\s\S]*`repository_observation`[\s\S]*artifact role/u);
   assert.match(forwarding, /MethodEvidence exactly matches current Action steps/u);
   assert.match(forwarding, /`destination`, `next_node`, `next_cursor`/u);
-  assert.match(forwarding, /Core returns `INVALID_ARGUMENT`[\s\S]*do not[\s\S]*second candidate payload/u);
+  assert.match(forwarding, /Core returns `INVALID_ARGUMENT`[\s\S]*bounded-correction section[\s\S]*explicitly authorizes[\s\S]*`correct_current_action`[\s\S]*otherwise stop/u);
 });
 
 test("Skill honors Codex writable roots and optional codebase-memory without changing authority", async () => {
@@ -564,7 +571,9 @@ test("Skill safe-stops on unsupported storage without exposing or mutating priva
 test("Skill uses payload_contract as the apply schema discriminator", async () => {
   const forwarding = section(await readFile(skillPath, "utf8"), "Closed forwarding contract");
   assert.match(forwarding, /`(?:fresh_action\.)?payload_contract`[\s\S]*payload branch/i);
-  assert.match(forwarding, /`inputSchema`[\s\S]*`allOf`[\s\S]*`oneOf`[\s\S]*`action_kind\.const`/i);
+  assert.match(forwarding, /`inputSchema`[\s\S]*one closed object[\s\S]*`action_kind` is a[\s\S]*`enum`[\s\S]*union of every node result member/i);
+  assert.match(forwarding, /does not narrow `payload` by\s+`action_kind`[\s\S]*`fresh_action\.payload_contract`/i);
+  assert.doesNotMatch(forwarding, /under `allOf`, choose the `oneOf` payload/i);
   assert.match(forwarding, /`references\/node-payloads\.md`[\s\S]*complete common envelope[\s\S]*branch-specific required `node_result`/i);
   assert.match(forwarding, /do not search[\s\S]*(?:repository|installed package)[\s\S]*(?:binary|log)[\s\S]*another MCP server/i);
   assert.match(forwarding, /(?:do not|never)[\s\S]{0,80}(?:derive|treat)[\s\S]{0,80}payload (?:field|key|member)s?[\s\S]{0,80}`required_evidence`|`required_evidence`[\s\S]{0,80}(?:not|never)[\s\S]{0,80}payload (?:field|key|member)/i);

@@ -33,7 +33,7 @@ func assertClosed(t *testing.T, value any, path string) {
 	switch v := value.(type) {
 	case map[string]any:
 		_, discriminated := v["oneOf"]
-		if v["type"] == "object" && v["additionalProperties"] != false && !discriminated {
+		if isObjectSchema(v) && v["additionalProperties"] != false && !discriminated {
 			t.Fatalf("open object %s", path)
 		}
 		for k, x := range v {
@@ -53,19 +53,6 @@ func TestMCPCurrentContractRequiredShapes(t *testing.T) {
 		schemas[tool.Name] = v
 	}
 	requireNames := func(tool string, names []string) {
-		if tool == core.ToolApplyAction {
-			branches, _ := schemas[tool]["oneOf"].([]any)
-			if len(branches) != 9 {
-				t.Fatalf("%s branches=%d", tool, len(branches))
-			}
-			for index, raw := range branches {
-				required := stringsOf(raw.(map[string]any)["required"])
-				if !slices.Equal(required, names) {
-					t.Fatalf("%s branch %d required=%v", tool, index, required)
-				}
-			}
-			return
-		}
 		required := stringsOf(schemas[tool]["required"])
 		if !slices.Equal(required, names) {
 			t.Fatalf("%s required=%v", tool, required)
@@ -93,6 +80,20 @@ func TestMCPCurrentContractRequiredShapes(t *testing.T) {
 			t.Fatalf("%s input gained additional repositories", tool)
 		}
 	}
+}
+
+// isObjectSchema recognizes both `"type":"object"` and the nullable union form
+// `"type":["object","null"]` the apply projection uses for optional objects.
+func isObjectSchema(schema map[string]any) bool {
+	if schema["type"] == "object" {
+		return true
+	}
+	for _, name := range stringsOf(schema["type"]) {
+		if name == "object" {
+			return true
+		}
+	}
+	return false
 }
 func stringsOf(v any) []string {
 	items, _ := v.([]any)

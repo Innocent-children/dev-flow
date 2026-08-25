@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -153,7 +154,7 @@ func TestProblemClassMismatchIsTransitionNotAllowedAndZeroWrite(t *testing.T) {
 			action := task.CurrentAction
 			before := memory.commits
 			_, err = service.ApplyAction(context.Background(), ApplyActionRequest{RequestID: "problem-class-mismatch", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: raw})
-			if err != domain.ErrTransitionNotAllowed || memory.commits != before {
+			if !errors.Is(err, domain.ErrTransitionNotAllowed) || memory.commits != before {
 				t.Fatalf("error=%v writes=%d", err, memory.commits-before)
 			}
 		})

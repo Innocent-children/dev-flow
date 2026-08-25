@@ -12,9 +12,12 @@ Before every ordinary apply:
    `method_steps`, and every `available_transition`.
 2. Select only a transition returned by that Action. Never submit `destination`, `next_node`,
    `next_cursor`, resume node, guard result, or caller classification.
-3. Select the matching `dev_flow_apply_action` `inputSchema` branch and use exactly the six common
-   payload members: `transition_id`, `summary`, `reason`, `artifacts`, `method_evidence`, and
-   `node_result`.
+3. The live `dev_flow_apply_action` `inputSchema` is one closed object. `action_kind` is a top-level
+   `enum` of every action kind and `payload.node_result` declares the union of every node result
+   member, so the schema does not narrow the payload by `action_kind`. Select the branch from the
+   fresh Action's `action_kind` and `payload_contract`, send only that branch's `node_result` members,
+   and use exactly the six common payload members: `transition_id`, `summary`, `reason`, `artifacts`,
+   `method_evidence`, and `node_result`.
    Set `reason=""` whenever the selected transition has `reason_required=false`; provide a nonempty
    reason only when the selected transition has `reason_required=true`.
 4. `required_evidence` and `artifacts` are different concepts. `repository_observation` is a Core evidence requirement, not an ArtifactReference role. When no real repository-relative process
@@ -36,8 +39,12 @@ Before every ordinary apply:
    evidence sets always come from the latest Task projection and are never guessed.
 9. Do not include repository facts, payload digests, raw command/output/environment data, or
    unknown members.
-10. `INVALID_ARGUMENT` is a completed Core domain rejection: stop, report a payload-contract error,
-    and do not probe with another payload or treat it as transport uncertainty.
+10. `INVALID_ARGUMENT` and `TRANSITION_NOT_ALLOWED` are completed Core domain rejections, never
+    transport uncertainty. When the result carries `error.details[]` or `error.guard`,
+    `recovery.action="correct_current_action"`, and `recovery.retry_safe=true`, submit exactly one
+    corrected payload for the same Action: change only the members in `recovery.allowed_paths`, derive
+    each corrected value from the returned closed `rule`, and use a new `request_id`. Stop after a
+    second failure and report the exact `path` and `rule`; never probe with a third candidate payload.
 
 <!-- node-payload-template:requirements:start -->
 ```json

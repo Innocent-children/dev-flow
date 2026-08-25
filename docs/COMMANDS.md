@@ -170,7 +170,7 @@ Core 不支持 remote transport、HTTP/SSE、通用 shell 或 Git mutation 命�
 | `dev_flow_open_task` | 读取或创建 | 为一个显式 Repository Scope 创建新 Task，或在 `new_task` 为空时从任一参与仓库恢复同一 Task。 |
 | `dev_flow_get_task` | 只读 | 按 Task ID 读取持久化 Task；可附带 operation probe，以获取不确定 mutation 的 Recovery assessment。 |
 | `dev_flow_get_next_action` | 只读 | 读取当前节点的权威 Action，包括完成条件、允许副作用、所需证据、验证预算、method steps 和全部合法 transition。 |
-| `dev_flow_apply_action` | mutation | 使用当前 revision、Action identity、process identity、repository binding 与闭合 payload 应用一次 Core 声明的 transition；允许写入的 node result 必须提交精确 `changed_paths` 或 `no_file_changes`；也承担使用同一 mutation envelope 的显式 recovery apply。 |
+| `dev_flow_apply_action` | mutation | 使用当前 revision、Action identity、process identity、repository binding 与闭合 payload 应用一次 Core 声明的 transition；允许写入的 node result 必须提交精确 `changed_paths` 或 `no_file_changes`；也承担使用同一 mutation envelope 的显式 recovery apply。输入 Schema 是单个封闭对象：`action_kind` 以 `enum` 暴露全部九个 action kind，`payload.node_result` 暴露九种 node result 成员的并集；每个 action kind 的精确合同由 Core 执行，失败时返回 `error.details[]` 字段路径、`error.guard` guard 失败详情，以及在 Core 能证明零写入时返回一次 `correct_current_action` 纠正许可。 |
 | `dev_flow_cancel_task` | destructive mutation | 使用当前 revision 和非空 reason 将非终态 Task 转为 `CANCELLED`。 |
 
 未知 CLI 参数、未列出的 MCP 工具或未满足隐式/显式统一 admission 的调用不属于受支持入口。

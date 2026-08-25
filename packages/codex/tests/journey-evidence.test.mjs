@@ -516,6 +516,65 @@ test("P1-2 Core error authority uses the closed code, recovery, and request iden
   }
   assert.deepEqual(accepted, [], `unexpectedly authoritative: ${accepted.join(", ")}`);
 });
+test("Feature 013 error authority accepts bounded correction and guard shapes", async () => {
+  const domainError = await currentDomainEvents();
+  const path = "payload.node_result.checks[3].command_count";
+  const correctable = mutateEnvelope(domainError, (envelope) => {
+    envelope.error = {
+      code: "INVALID_ARGUMENT",
+      message: "The request does not match the closed Core contract.",
+      details: [{
+        path,
+        rule: "non_automated_command_count_zero",
+        message: "command_count must equal 0 when source is user, static or host_observed",
+      }],
+    };
+    envelope.recovery = {
+      retry_safe: true,
+      action: "correct_current_action",
+      message: "Correct only the listed members of this same action and resubmit once with a new request_id.",
+      allowed_paths: [path],
+    };
+  });
+  assert.doesNotThrow(() => parseCodexJSONL(encodeJSONL(correctable)));
+
+  const guardPath = "payload.node_result.findings";
+  const guard = mutateEnvelope(domainError, (envelope) => {
+    envelope.error = {
+      code: "TRANSITION_NOT_ALLOWED",
+      message: "The transition guard was not satisfied.",
+      guard: {
+        guard_id: "implementation_report_complete",
+        failures: [{
+          path: guardPath,
+          rule: "forward_findings_empty",
+          message: "findings must be empty when problem_class is none",
+        }],
+      },
+    };
+    envelope.recovery = {
+      retry_safe: true,
+      action: "correct_current_action",
+      message: "Correct only the listed members of this same action and resubmit once with a new request_id.",
+      allowed_paths: [guardPath],
+    };
+  });
+  assert.doesNotThrow(() => parseCodexJSONL(encodeJSONL(guard)));
+
+  for (const candidate of [
+    mutateEnvelope(correctable, (envelope) => {
+      envelope.recovery.allowed_paths = ["payload.summary"];
+    }),
+    mutateEnvelope(correctable, (envelope) => {
+      envelope.error.details[0].raw = "forbidden";
+    }),
+    mutateEnvelope(correctable, (envelope) => {
+      envelope.recovery.extra = true;
+    }),
+  ]) {
+    assert.throws(() => parseCodexJSONL(encodeJSONL(candidate)));
+  }
+});
 test("HIGH-3 failed event binding: authority remains attached to one session item", async () => {
   assert.equal(typeof sessionRuntime.summarizeCodexSession, "function");
   const domainError = await currentDomainEvents();

@@ -49,32 +49,58 @@ func TestMCPContractGraphCatalogAndClosedSchemas(t *testing.T) {
 	}
 }
 
-func TestApplySchemaUsesNineCompleteDiscriminatedBranches(t *testing.T) {
+// TestApplySchemaExposesEveryActionKindAndPayloadMember replaces the previous
+// nine-branch root union. A Host projector cannot model a discriminated root, so
+// the published schema is one closed object whose action_kind enumerates every
+// kind and whose payload carries the union of all nine node results. Exactness
+// per action kind stays Core-owned; see the field-level violation contract.
+func TestApplySchemaExposesEveryActionKindAndPayloadMember(t *testing.T) {
 	var schema map[string]any
 	if err := json.Unmarshal(catalog[4].InputSchema, &schema); err != nil {
 		t.Fatal(err)
 	}
-	if schema["type"] != "object" {
-		t.Fatalf("apply schema root type=%#v", schema["type"])
+	if schema["type"] != "object" || schema["additionalProperties"] != false {
+		t.Fatalf("apply schema root=%#v", schema)
 	}
-	branches, ok := schema["oneOf"].([]any)
-	if !ok || len(branches) != 9 {
-		t.Fatalf("apply oneOf=%#v", schema["oneOf"])
-	}
+	properties := schema["properties"].(map[string]any)
 	wantKinds := []string{"COMPLETE_REQUIREMENTS", "COMPLETE_DESIGN", "COMPLETE_TASKS", "COMPLETE_IMPLEMENTATION", "COMPLETE_TEST", "COMPLETE_COMPREHENSION_REVIEW", "COMPLETE_REFACTOR", "COMPLETE_DELIVERY", "RESOLVE_BLOCKER"}
-	for index, raw := range branches {
+	kinds := properties["action_kind"].(map[string]any)["enum"].([]any)
+	if len(kinds) != len(wantKinds) {
+		t.Fatalf("action_kind enum=%#v", kinds)
+	}
+	for index, want := range wantKinds {
+		if kinds[index] != want {
+			t.Fatalf("action_kind enum[%d]=%v", index, kinds[index])
+		}
+	}
+	payload := properties["payload"].(map[string]any)
+	if payload["additionalProperties"] != false {
+		t.Fatalf("payload is open: %#v", payload)
+	}
+	payloadTypes := payload["type"].([]any)
+	if len(payloadTypes) != 2 || payloadTypes[0] != "object" || payloadTypes[1] != "null" {
+		t.Fatalf("payload type=%#v", payload["type"])
+	}
+	payloadProperties := payload["properties"].(map[string]any)
+	nodeResult := payloadProperties["node_result"].(map[string]any)
+	nodeMembers := nodeResult["properties"].(map[string]any)
+
+	payloads, _ := graphPayloads()
+	for index, raw := range payloads {
 		branch := raw.(map[string]any)
-		if branch["type"] != "object" || branch["additionalProperties"] != false {
-			t.Fatalf("branch %d is not a closed object: %#v", index, branch)
+		for name := range branch["properties"].(map[string]any) {
+			if _, present := payloadProperties[name]; !present {
+				t.Fatalf("payload %d member %s is invisible in the published projection", index, name)
+			}
 		}
-		properties := branch["properties"].(map[string]any)
-		kind := properties["action_kind"].(map[string]any)
-		if kind["const"] != wantKinds[index] {
-			t.Fatalf("branch %d action_kind=%#v", index, kind)
+		result, ok := branch["properties"].(map[string]any)["node_result"].(map[string]any)
+		if !ok {
+			continue
 		}
-		payload := properties["payload"].(map[string]any)
-		if _, ok := payload["anyOf"].([]any); !ok {
-			t.Fatalf("branch %d payload is not concrete nullable schema: %#v", index, payload)
+		for name := range result["properties"].(map[string]any) {
+			if _, present := nodeMembers[name]; !present {
+				t.Fatalf("node_result member %s is invisible in the published projection", name)
+			}
 		}
 	}
 }

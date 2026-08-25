@@ -8,6 +8,7 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/recovery"
 	"github.com/Innocent-children/dev-flow/internal/userconfig"
+	"github.com/Innocent-children/dev-flow/internal/workflow"
 	"sort"
 	"strings"
 )
@@ -23,12 +24,25 @@ type Envelope struct {
 type ErrorResult struct {
 	Code    domain.ErrorCode `json:"code"`
 	Message string           `json:"message"`
+	// Details is the closed field-level contract detail. It is omitted when Core
+	// has no safe field detail, which keeps the previous public shape valid.
+	Details []domain.ContractViolation `json:"details,omitempty"`
+	// Guard is the closed transition-guard detail.
+	Guard *domain.GuardFailure `json:"guard,omitempty"`
 }
 type RecoveryGuidance struct {
 	RetrySafe bool   `json:"retry_safe"`
 	Action    string `json:"action"`
 	Message   string `json:"message"`
+	// AllowedPaths lists the exact members a bounded correction may change. It
+	// appears only with a proven zero-write failure.
+	AllowedPaths []string `json:"allowed_paths,omitempty"`
 }
+
+// correctCurrentAction is the only recovery action that permits resubmitting the
+// same Action.
+const correctCurrentAction = "correct_current_action"
+
 type EncodedResult struct {
 	JSON    []byte
 	IsError bool
@@ -55,15 +69,111 @@ func EncodeError(id, tool string, err error) EncodedResult {
 	if errors.As(err, &typed) && typed.Code.IsValid() {
 		code = typed.Code
 	}
-	message, action, recovery := publicFailure(code)
+	message, action, guidance := publicFailure(code)
 	if code == domain.ErrorRepositoryDrift && typed != nil && validRepositoryDriftMessage(typed.Message) {
 		message = typed.Message
 	}
-	raw, encodeErr := encodeEnvelope(Envelope{OK: false, RequestID: id, Tool: tool, Error: &ErrorResult{Code: code, Message: message}, Recovery: &RecoveryGuidance{RetrySafe: false, Action: action, Message: recovery}})
+	result := &ErrorResult{Code: code, Message: message}
+	guard := publicGuardFailure(code, typed)
+	if guard != nil {
+		result.Guard = guard
+		message = "The transition guard was not satisfied."
+		result.Message = message
+	}
+	result.Details = publicViolations(code, typed)
+	recoveryResult := &RecoveryGuidance{RetrySafe: false, Action: action, Message: guidance}
+	if paths := correctablePaths(typed, result); len(paths) != 0 {
+		recoveryResult = &RecoveryGuidance{RetrySafe: true, Action: correctCurrentAction, Message: "Correct only the listed members of this same action and resubmit once with a new request_id.", AllowedPaths: paths}
+	}
+	raw, encodeErr := encodeEnvelope(Envelope{OK: false, RequestID: id, Tool: tool, Error: result, Recovery: recoveryResult})
 	if encodeErr != nil || !WithinResultEnvelopeLimit(raw) {
 		return fixedFallback()
 	}
 	return EncodedResult{JSON: raw, IsError: true}
+}
+
+// publicViolations keeps only closed, safe field detail for a contract failure.
+func publicViolations(code domain.ErrorCode, typed *domain.Error) []domain.ContractViolation {
+	if code != domain.ErrorInvalidArgument || typed == nil {
+		return nil
+	}
+	return retainedViolations(typed.Violations)
+}
+
+// publicGuardFailure keeps only a closed guard detail whose identity comes from
+// the current Process Definition. Repository drift, member format failures and
+// unknown work items never reach this shape.
+func publicGuardFailure(code domain.ErrorCode, typed *domain.Error) *domain.GuardFailure {
+	if code != domain.ErrorTransitionNotAllowed || typed == nil || typed.Guard == nil {
+		return nil
+	}
+	if !workflow.KnownTransitionGuard(typed.Guard.GuardID) {
+		return nil
+	}
+	failures := retainedViolations(typed.Guard.Failures)
+	if len(failures) == 0 {
+		return nil
+	}
+	return &domain.GuardFailure{GuardID: typed.Guard.GuardID, Failures: failures}
+}
+func retainedViolations(violations []domain.ContractViolation) []domain.ContractViolation {
+	out := make([]domain.ContractViolation, 0, len(violations))
+	for _, violation := range violations {
+		if !violation.Rule.IsValid() && !domain.GuardRule(violation.Rule).IsValid() {
+			continue
+		}
+		if !domain.ValidViolationPath(violation.Path) || violation.Message == "" {
+			continue
+		}
+		out = append(out, violation)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// correctablePaths returns members whose corrected value is uniquely determined
+// by the closed failure rule. Field detail remains available for every other
+// zero-write failure, but those failures keep non-retryable guidance.
+func correctablePaths(typed *domain.Error, result *ErrorResult) []string {
+	if typed == nil || !typed.ZeroWrite {
+		return nil
+	}
+	if typed.Code != domain.ErrorInvalidArgument && typed.Code != domain.ErrorTransitionNotAllowed {
+		return nil
+	}
+	entries := append([]domain.ContractViolation(nil), result.Details...)
+	if result.Guard != nil {
+		entries = append(entries, result.Guard.Failures...)
+	}
+	if len(entries) == 0 {
+		return nil
+	}
+	seen := make(map[string]bool, len(entries))
+	paths := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if !deterministicallyCorrectable(entry.Rule) {
+			return nil
+		}
+		if seen[entry.Path] {
+			continue
+		}
+		seen[entry.Path] = true
+		paths = append(paths, entry.Path)
+	}
+	return paths
+}
+
+func deterministicallyCorrectable(rule domain.ViolationRule) bool {
+	switch rule {
+	case domain.RuleNonAutomatedCommandCountZero,
+		domain.RuleNonAutomatedFullSuiteFalse,
+		domain.RuleUnknownMember:
+		return true
+	default:
+		return domain.GuardRule(rule) == domain.GuardForwardFindingsEmpty
+	}
 }
 
 func validRepositoryDriftMessage(message string) bool {

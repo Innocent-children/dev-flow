@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -57,7 +58,7 @@ func TestMethodProfileEquivalentTransitionsAndImmutability(t *testing.T) {
 	nodeResult := requirementsNodeResult("Goal", []string{"Accepted"})
 	nodeResult["method_profile"] = "openspec"
 	raw := methodContractPayload(t, task, "requirements_ready", "", nodeResult, methodEvidenceForCurrentAction(task, domain.MethodStepPlainFallback, ""))
-	if _, err := service.ApplyAction(context.Background(), methodApplyRequest(task, "profile-mutation", raw)); err != domain.ErrInvalidArgument || memory.commits != before {
+	if _, err := service.ApplyAction(context.Background(), methodApplyRequest(task, "profile-mutation", raw)); !errors.Is(err, domain.ErrInvalidArgument) || memory.commits != before {
 		t.Fatalf("profile mutation error=%v writes=%d", err, memory.commits-before)
 	}
 

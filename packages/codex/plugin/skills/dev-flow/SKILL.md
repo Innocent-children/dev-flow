@@ -271,8 +271,11 @@ and packaged template.
 
 1. Rebind the complete `fresh_action` and read its `action_kind`, `current_node`, `payload_contract`,
    `method_steps`, and all `available_transitions`.
-2. Read the live `dev_flow_apply_action` `inputSchema`; under `allOf`, choose the `oneOf` payload
-   branch whose `action_kind.const` matches the current action kind and source node.
+2. Read the live `dev_flow_apply_action` `inputSchema`. It is one closed object: `action_kind` is a
+   top-level `enum` of every action kind and `payload` is a closed object whose `node_result`
+   declares the union of every node result member. The schema does not narrow `payload` by
+   `action_kind`, so select the branch from `fresh_action.action_kind` plus
+   `fresh_action.payload_contract` and send only that branch's members.
 3. Open the corresponding marked template in `references/node-payloads.md`.
 4. Preserve the template's complete common envelope and `node_result` wrapper; replace only dynamic
    values with facts from the current Task, Action, user decision, repository work, and actual check.
@@ -336,10 +339,10 @@ apply_arguments = {
 that request inside an outer `payload` object. For an ordinary mutation, omit `recovery_apply` or
 send `recovery_apply=null`.
 
-If Core returns `INVALID_ARGUMENT`, treat it as a complete payload-contract rejection. Stop the
-current mutation, report the failing action/payload contract without private data, and do not delete
-fields, submit a second candidate payload for the same Action, automatically retry, or treat the
-result as transport uncertainty.
+If Core returns `INVALID_ARGUMENT`, treat it as a complete payload-contract rejection, not transport
+uncertainty. Use the bounded-correction section only when the complete result explicitly authorizes
+`correct_current_action`; otherwise stop and report the failing contract without private data. Never
+alter a field from source-code inspection or another guessed payload.
 
 ## Comprehension user interaction
 
@@ -439,6 +442,32 @@ uncertainty. Never convert or treat that domain error as missing or transport fa
 `retry_safe=false` and `action=none`, stop; do not call `dev_flow_get_next_action` or
 `dev_flow_apply_action`.
 
+## Bounded correction of the current action
+
+A complete structured domain error may carry field-level detail. `error.details[]` names the exact
+failing member as `path`, a closed `rule`, and a fixed non-sensitive `message`. A refused transition
+may instead carry `error.guard` with the Core `guard_id` and the same failure shape.
+
+Submit exactly one corrected payload for the same Action only when every condition holds:
+
+1. the original result is a complete structured Core domain error;
+2. `recovery.action` is `correct_current_action`;
+3. `recovery.retry_safe` is `true`;
+4. Task revision, action ID, process identity, source cursor, and repository binding are unchanged;
+5. the corrected request uses a new `request_id`;
+6. only members listed in `recovery.allowed_paths` change;
+7. the corrected value follows directly from the returned `rule`, with no source-code guessing;
+8. every other payload byte keeps the same meaning.
+
+Stop immediately when the second submission also fails. Do not submit a third candidate payload;
+report only the exact `path`, `rule`, and that the bounded correction still failed. Never report
+either submitted field value.
+
+Never treat these as correctable: an uncertain mutation result, a possible store commit, a missing or
+truncated response, a stale action identity, repository drift, an absent or inaccurate
+`allowed_paths`, or `INTERNAL_ERROR`. Those keep `retry_safe=false` and require the
+recovery-before-retry contract.
+
 ## Evidence and verification budget
 
 - Count verification commands exactly against Core's immutable budget.
@@ -448,6 +477,12 @@ uncertainty. Never convert or treat that domain error as missing or transport fa
 - Keep static inspection, simulated Core execution, user-performed evidence, and native automated
   evidence distinctly labelled.
 - Submit actual sources and outcomes. Never relabel failed, skipped, or unavailable work as passed.
+- `source=automated` uses `command_count` 1 to 20 and may set `full_suite` when the budget allows it.
+- `source=user`, `source=static`, and `source=host_observed` use `command_count=0` and
+  `full_suite=false`. Shell commands a person ran by hand belong in that check's `summary`; they
+  never consume the automatic command budget.
+- A verification the user already completed belongs in `checks` with `source=user`. Remove it from
+  `manual_handoff_items`; that list keeps only work nobody has executed yet.
 
 ## Blocked and terminal behavior
 
