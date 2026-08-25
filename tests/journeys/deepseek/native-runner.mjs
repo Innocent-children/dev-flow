@@ -52,7 +52,7 @@ const nativeCheckpoints = Object.freeze([
     "/dev-flow I explicitly confirm that I can explain and maintain the implementation, guard boundary, and targeted test.",
     "Use the fresh current action, complete delivery, follow only legal Core transitions, confirm Core DONE, then stop.",
     "At DELIVERY, keep the payload top level to exactly transition_id, summary, reason, artifacts, method_evidence, and node_result.",
-    "Put acceptance, evidence IDs, record IDs, unverified_items, risks, and findings only inside node_result; do not duplicate them at the payload top level.",
+    "Put acceptance, evidence IDs, record IDs, unverified_items, risks, findings, changed_paths, and no_file_changes only inside node_result; do not duplicate them at the payload top level.",
   ]),
 ]);
 

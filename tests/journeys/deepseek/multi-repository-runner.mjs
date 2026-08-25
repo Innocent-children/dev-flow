@@ -26,7 +26,8 @@ const APPLY_RULES = [
   "Use artifacts=[] and one plain_fallback MethodEvidence item with capability empty for every current method step in Action order.",
   "For a forward ready, passed, or completed transition use problem_class=none and findings=[].",
   "Use a non-none problem_class and nonempty findings only for the exact corrective transition whose condition they establish.",
-  "For REQUIREMENTS, node_result contains exactly problem_class, baseline, and unresolved_questions; unresolved_questions is a sibling of baseline and baseline contains exactly goal, scope, out_of_scope, acceptance_criteria, constraints, and assumptions.",
+  "Every node_result contains exact changed_paths and no_file_changes; exactly one of nonempty changed_paths or no_file_changes=true describes the current effect.",
+  "For REQUIREMENTS, node_result contains exactly problem_class, baseline, unresolved_questions, changed_paths, and no_file_changes; unresolved_questions is a sibling of baseline and baseline contains exactly goal, scope, out_of_scope, acceptance_criteria, constraints, and assumptions.",
   "If any apply returns an error, stop immediately without retrying.",
 ].join(" ");
 

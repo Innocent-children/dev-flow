@@ -249,6 +249,7 @@ function requirementsResult() {
       constraints: [], assumptions: [],
     },
     unresolved_questions: [],
+    changed_paths: [], no_file_changes: true,
   };
 }
 
@@ -259,7 +260,7 @@ function designResult(requirementsRevision) {
       approach: "Use the direct graph flow.", components: ["DeepSeek Host"],
       decisions: ["Keep Core authoritative"], rejected_alternatives: [],
       complexity_justification: [], risks: [],
-    }, findings: [],
+    }, findings: [], changed_paths: [], no_file_changes: true,
   };
 }
 
@@ -271,7 +272,7 @@ function tasksResult(designRevision) {
         work_item_id: "work", summary: "Exercise the graph", expected_paths: ["core::feature.txt", "docs::feature.txt"],
         acceptance_indexes: [0, 1], verification_steps: ["Run targeted checks"], dependencies: [],
       }],
-    }, findings: [],
+    }, findings: [], changed_paths: [], no_file_changes: true,
   };
 }
 
@@ -287,7 +288,7 @@ function failedTestResult() {
   return {
     checks: [{ source: "automated", name: "targeted-test", status: "failed", summary: "The targeted test failed.", command_count: 1, full_suite: false }],
     failed_items: ["targeted failure"], unverified_items: [], manual_handoff_items: [],
-    findings: ["implementation defect"],
+    findings: ["implementation defect"], changed_paths: [], no_file_changes: true,
   };
 }
 
@@ -299,6 +300,7 @@ function passedTestResult() {
       { source: "host_observed", name: "host-observation", status: "passed", summary: "The Host observed the result.", command_count: 0, full_suite: false },
     ],
     failed_items: [], unverified_items: [], manual_handoff_items: [], findings: [],
+    changed_paths: [], no_file_changes: true,
   };
 }
 
@@ -307,7 +309,7 @@ function comprehensionResult({ abstractions = [], findings = [], userPassed = fa
     explained_components: userPassed ? ["request entry", "guard", "Core bridge"] : [],
     unresolved_questions: [], unnecessary_abstractions: abstractions, maintenance_risks: [],
     user_confirmation: userPassed ? { source: "user", status: "passed", summary: "The developer confirmed understanding." } : null,
-    findings,
+    findings, changed_paths: [], no_file_changes: true,
   };
 }
 
@@ -325,7 +327,7 @@ function deliveryResult(task) {
     manual_evidence_ids: [task.comprehension.user_evidence_id],
     test_record_id: task.test.record_id,
     comprehension_record_id: task.comprehension.record_id,
-    unverified_items: [], risks: [], findings: [],
+    unverified_items: [], risks: [], findings: [], changed_paths: [], no_file_changes: true,
   };
 }
 
