@@ -264,7 +264,7 @@ func TestPackageManifestAcceptsBootstrapManifests(t *testing.T) {
 			name: "create product",
 			kind: createManifest,
 			manifest: `{
-				"name": "create-dev-flow",
+					"name": "@imotong/create-dev-flow",
 				"version": "1.2.3",
 				"private": false,
 				"license": "Apache-2.0",
