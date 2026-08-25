@@ -54,6 +54,9 @@ func TestApplySchemaUsesNineCompleteDiscriminatedBranches(t *testing.T) {
 	if err := json.Unmarshal(catalog[4].InputSchema, &schema); err != nil {
 		t.Fatal(err)
 	}
+	if schema["type"] != "object" {
+		t.Fatalf("apply schema root type=%#v", schema["type"])
+	}
 	branches, ok := schema["oneOf"].([]any)
 	if !ok || len(branches) != 9 {
 		t.Fatalf("apply oneOf=%#v", schema["oneOf"])

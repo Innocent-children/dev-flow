@@ -120,7 +120,7 @@ func buildCatalog() []ToolDefinition {
 		}}}
 		applyBranches[index] = branch
 	}
-	apply := map[string]any{"oneOf": applyBranches}
+	apply := map[string]any{"type": "object", "oneOf": applyBranches}
 	repositoryKey := map[string]any{"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"}
 	additionalRepository := obj([]string{"key", "repository_path"}, map[string]any{"key": repositoryKey, "repository_path": str()})
 	open := obj([]string{"host", "repository_path"}, map[string]any{
