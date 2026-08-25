@@ -29,6 +29,7 @@ var runtimeDependencyFields = []string{
 }
 
 var rootDevelopmentScripts = map[string]string{
+	"release:create-dev-flow":  "node ./scripts/release-create-dev-flow.mjs",
 	"release:codex":            "node ./scripts/release-codex.mjs",
 	"release:codex:prepare":    "./scripts/build-codex-release.sh",
 	"release:codex:publish":    "node ./scripts/publish-codex-release.mjs",

@@ -124,6 +124,7 @@ run_step "Codex one-command release syntax" node --check scripts/release-codex.m
 run_step "DeepSeek release verifier syntax" node --check scripts/verify-deepseek-release.mjs
 run_step "DeepSeek release publisher syntax" node --check scripts/publish-deepseek-release.mjs
 run_step "DeepSeek one-command release syntax" node --check scripts/release-deepseek.mjs
+run_step "Lifecycle manager one-command release syntax" node --check scripts/release-create-dev-flow.mjs
 run_step "DeepSeek registry Journey syntax" node --check scripts/run-deepseek-real-journey.mjs
 run_step "Fake release npm syntax" node --check packages/codex/tests/fixtures/fake-release-npm.mjs
 run_step "Fake release GitHub syntax" node --check packages/codex/tests/fixtures/fake-release-gh.mjs

@@ -12,7 +12,8 @@
     "release:deepseek": "node ./scripts/release-deepseek.mjs",
     "release:deepseek:prepare": "./scripts/build-deepseek-release.sh",
     "release:deepseek:verify": "node ./scripts/verify-deepseek-release.mjs",
-    "release:deepseek:publish": "node ./scripts/publish-deepseek-release.mjs"
+    "release:deepseek:publish": "node ./scripts/publish-deepseek-release.mjs",
+    "release:create-dev-flow": "node ./scripts/release-create-dev-flow.mjs"
   },
   "engines": {
     "node": ">=24",
