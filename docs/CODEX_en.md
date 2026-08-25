@@ -25,7 +25,7 @@ verified public version; the installation commands below select npm's `latest` d
 ## Install and verify
 
 ```bash
-npx create-dev-flow@latest
+npx @imotong/create-dev-flow@latest
 ```
 
 After its separate release, `create-dev-flow` is the default lifecycle entry. The current public stable artifacts do

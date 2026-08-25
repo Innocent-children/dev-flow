@@ -77,7 +77,7 @@ dieses neue Package noch nicht; native Host-Befehle bleiben der Vorab- und Diagn
 ### Codex
 
 ```bash
-npx create-dev-flow@latest
+npx @imotong/create-dev-flow@latest
 ```
 
 Dev Flow erzwingen:
@@ -91,7 +91,7 @@ Details im [Codex-Leitfaden](docs/CODEX_en.md).
 ### DeepSeek Harness
 
 ```bash
-npx create-dev-flow@latest
+npx @imotong/create-dev-flow@latest
 ```
 
 Profil neu starten und eingeben:

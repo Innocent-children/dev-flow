@@ -1,5 +1,5 @@
 {
-  "name": "create-dev-flow",
+  "name": "@imotong/create-dev-flow",
   "version": "0.1.0",
   "private": false,
   "description": "Unified lifecycle manager for Dev Flow Codex and DeepSeek adapters.",

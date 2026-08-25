@@ -77,7 +77,7 @@ flowchart LR
 ### Codex
 
 ```bash
-npx create-dev-flow@latest
+npx @imotong/create-dev-flow@latest
 ```
 
 进入 Git 仓库后，使用精确 selector 启动 Dev Flow：
@@ -91,7 +91,7 @@ $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run 
 ### DeepSeek Harness
 
 ```bash
-npx create-dev-flow@latest
+npx @imotong/create-dev-flow@latest
 ```
 
 重启 profile 后，在对话中输入：

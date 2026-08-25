@@ -81,7 +81,7 @@ Host commands remain the pre-release and diagnostic recovery path.
 ### Codex
 
 ```bash
-npx create-dev-flow@latest
+npx @imotong/create-dev-flow@latest
 ```
 
 From a Git repository, start Dev Flow with the exact selector:
@@ -95,7 +95,7 @@ See the [Codex guide](docs/CODEX_en.md) for installation, updates, and removal.
 ### DeepSeek Harness
 
 ```bash
-npx create-dev-flow@latest
+npx @imotong/create-dev-flow@latest
 ```
 
 Restart the profile, then enter:

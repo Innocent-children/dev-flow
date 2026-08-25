@@ -8,7 +8,7 @@ const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 
 test("manager manifest exposes one dependency-free public macOS arm64 create package", async () => {
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
-  assert.equal(manifest.name, "create-dev-flow");
+  assert.equal(manifest.name, "@imotong/create-dev-flow");
   assert.equal(manifest.private, false);
   assert.equal(manifest.license, "Apache-2.0");
   assert.deepEqual(manifest.os, ["darwin"]);

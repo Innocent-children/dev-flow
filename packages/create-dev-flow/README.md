@@ -1,9 +1,9 @@
 # create-dev-flow
 
-`create-dev-flow` is the unified lifecycle manager for the supported Dev Flow Codex and DeepSeek Adapters.
+`@imotong/create-dev-flow` is the unified lifecycle manager for the supported Dev Flow Codex and DeepSeek Adapters.
 
 ```bash
-npx create-dev-flow@latest
+npx @imotong/create-dev-flow@latest
 ```
 
 It supports `status`, `doctor`, `install`, `upgrade`, `repair`, `reinstall`, `uninstall`, and

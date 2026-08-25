@@ -18,7 +18,7 @@ must not be replaced with `latest`.
 After its separate release, ordinary users manage the lifecycle through one entry:
 
 ```bash
-npx create-dev-flow@latest
+npx @imotong/create-dev-flow@latest
 ```
 
 The closed operations are `status`, `doctor`, `install`, `upgrade`, `repair`, `reinstall`, `uninstall`, and
@@ -29,7 +29,7 @@ requires another confirmation.
 
 | Entry | Purpose |
 | --- | --- |
-| `npx create-dev-flow@latest` | Open the interactive lifecycle menu. |
+| `npx @imotong/create-dev-flow@latest` | Open the interactive lifecycle menu. |
 | `... status\|doctor --host codex\|deepseek\|all` | Inspect or diagnose without mutation. |
 | `... install\|upgrade\|repair\|reinstall --host ... [--profile web] [--version latest] --yes` | Perform ordinary maintenance while preserving configuration and Task data. |
 | `... uninstall --host ... [--all-known-profiles] --yes` | Remove selected Adapters while preserving configuration and Task data. |

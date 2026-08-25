@@ -78,7 +78,7 @@ este paquete nuevo; los comandos nativos del Host siguen siendo la vía previa a
 ### Codex
 
 ```bash
-npx create-dev-flow@latest
+npx @imotong/create-dev-flow@latest
 ```
 
 Para forzar Dev Flow:
@@ -92,7 +92,7 @@ Más detalles en [Codex guide](docs/CODEX_en.md).
 ### DeepSeek Harness
 
 ```bash
-npx create-dev-flow@latest
+npx @imotong/create-dev-flow@latest
 ```
 
 Reinicia el profile y escribe:

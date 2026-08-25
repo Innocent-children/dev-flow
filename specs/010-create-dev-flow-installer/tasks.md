@@ -117,7 +117,7 @@
   `docs/PRODUCT_en.md`, `docs/COMMANDS.md`, `docs/COMMANDS_en.md`, `docs/SUPPORT-MATRIX.md`,
   `docs/SUPPORT-MATRIX_en.md`, `docs/ROADMAP.md`, `docs/ROADMAP_en.md`, `packages/codex/README.md`,
   `docs/CODEX_en.md`, `packages/deepseek/README.md`, `docs/DEEPSEEK_en.md`
-  **Result**: public default uses `npx create-dev-flow@latest`; lifecycle commands and destructive boundaries match
+  **Result**: public default uses `npx @imotong/create-dev-flow@latest`; lifecycle commands and destructive boundaries match
   executable contracts; existing Adapter exact versions remain evidence and unpublished manager availability is not claimed.
   **Dependencies**: T001–T010
   **Verification**: V1 package documentation assertions and direct synchronized-fact review.
@@ -155,7 +155,7 @@ release checks are prohibited for this Feature.
 
 - [x] T013 [US5] Implement the four-choice installation-first TTY home screen and manage-existing branch for FR-023 in `packages/create-dev-flow/lib/cli.mjs`
 - [x] T014 [US5] Add interactive prompt regression coverage while preserving non-TTY flags for FR-023 and FR-024 in `packages/create-dev-flow/tests/cli.test.mjs`
-- [x] T015 [Docs] Replace ordinary installation examples with bare `npx create-dev-flow@latest` for FR-024 in all maintained root and Host installation documents
+- [x] T015 [Docs] Replace ordinary installation examples with bare `npx @imotong/create-dev-flow@latest` for FR-024 in all maintained root and Host installation documents
 
 Validation: initial amendment run passed 22/23 and exposed only a prematurely closed multi-question test stream;
 the PassThrough fixture correction then passed 23/23. No real Host or release validation was run.

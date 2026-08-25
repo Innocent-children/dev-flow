@@ -131,7 +131,7 @@ func TestProjectManifestBootstrapMetadata(t *testing.T) {
 		{path: filepath.Join(root, "package.json"), wantName: "dev-flow", wantRootMetadata: true},
 		{path: filepath.Join(root, "packages", "codex", "package.json"), wantName: "dev-flow-codex"},
 		{path: filepath.Join(root, "packages", "deepseek", "package.json"), wantName: "dev-flow-deepseek"},
-		{path: filepath.Join(root, "packages", "create-dev-flow", "package.json"), wantName: "create-dev-flow"},
+		{path: filepath.Join(root, "packages", "create-dev-flow", "package.json"), wantName: "@imotong/create-dev-flow"},
 	}
 
 	for _, test := range tests {
@@ -653,8 +653,8 @@ func validatePackageManifest(path string, kind manifestKind) []error {
 func validateCreateManifest(path string, manifest map[string]json.RawMessage) []error {
 	var violations []error
 	var name, license string
-	if err := json.Unmarshal(manifest["name"], &name); err != nil || name != "create-dev-flow" {
-		violations = append(violations, manifestViolation(path, "name", "must be %q", "create-dev-flow"))
+	if err := json.Unmarshal(manifest["name"], &name); err != nil || name != "@imotong/create-dev-flow" {
+		violations = append(violations, manifestViolation(path, "name", "must be %q", "@imotong/create-dev-flow"))
 	}
 	if err := json.Unmarshal(manifest["license"], &license); err != nil || license != "Apache-2.0" {
 		violations = append(violations, manifestViolation(path, "license", "must be %q", "Apache-2.0"))

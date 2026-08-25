@@ -28,7 +28,7 @@ table records the exact verified public version; the installation commands below
 DSH is the prerequisite Host. After the separate manager release, select one real Profile; the default is `web`:
 
 ```bash
-npx create-dev-flow@latest
+npx @imotong/create-dev-flow@latest
 ```
 
 The current public stable artifacts do not yet include the new manager package. Before that release, and for

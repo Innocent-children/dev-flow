@@ -16,7 +16,7 @@
 `create-dev-flow` 独立发布后，普通用户统一从以下入口管理生命周期：
 
 ```bash
-npx create-dev-flow@latest
+npx @imotong/create-dev-flow@latest
 ```
 
 闭合子命令为 `status`、`doctor`、`install`、`upgrade`、`repair`、`reinstall`、`uninstall` 和
@@ -26,7 +26,7 @@ npx create-dev-flow@latest
 
 | 入口 | 作用 |
 | --- | --- |
-| `npx create-dev-flow@latest` | 打开交互式 lifecycle 菜单。 |
+| `npx @imotong/create-dev-flow@latest` | 打开交互式 lifecycle 菜单。 |
 | `... status\|doctor --host codex\|deepseek\|all` | 只读检查或诊断。 |
 | `... install\|upgrade\|repair\|reinstall --host ... [--profile web] [--version latest] --yes` | 执行普通维护并保留配置与 Task 数据。 |
 | `... uninstall --host ... [--all-known-profiles] --yes` | 移除选定 Adapter并保留配置与 Task 数据。 |

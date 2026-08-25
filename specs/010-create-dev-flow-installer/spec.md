@@ -12,7 +12,7 @@ DeepSeek Adapter 还要求用户管理 DSH Profile、临时 tarball、绝对路�
 回读。Task 数据、用户偏好、Codex 注册、DSH Profile contribution 与 Host 自身数据又具有不同 owner，
 用户难以安全判断一次升级、修复或清空会影响什么。
 
-统一生命周期管理器以 `npx create-dev-flow@latest` 和等价 npm create 入口呈现真实当前状态，生成
+统一生命周期管理器以 `npx @imotong/create-dev-flow@latest` 和等价 npm create 入口呈现真实当前状态，生成
 闭合执行计划并在确认后调用既有 Host 权威。它覆盖检查、诊断、安装、升级、修复、保留数据重装、
 卸载、恢复出厂状态和清空后重装，执行后回读真实结果并只给出一个与当前状态匹配的下一步。
 
@@ -116,11 +116,11 @@ Adapter 卸载、重复卸载、部分失败和相邻资源保留。
 
 ### Functional Requirements
 
-- **FR-001**: MUST 提供等价的 `npx create-dev-flow@latest` 与 `npm create dev-flow@latest` 入口，并提供 `status`、`doctor`、`install`、`upgrade`、`repair`、`reinstall`、`uninstall` 和 `factory-reset` 闭合子命令集。
+- **FR-001**: MUST 提供等价的 `npx @imotong/create-dev-flow@latest` 与 `npm create dev-flow@latest` 入口，并提供 `status`、`doctor`、`install`、`upgrade`、`repair`、`reinstall`、`uninstall` 和 `factory-reset` 闭合子命令集。
 - **FR-002**: MUST 支持且仅支持 Codex、DeepSeek 和 `all` Host 选择；DeepSeek 默认 `web`，允许安全的显式 Profile和 manager-owned receipt 闭集。
 - **FR-003**: MUST 提供 Host、Profile、版本、确认、数据策略、plain 和 JSON 所需的闭合参数；非 TTY 参数不足时直接失败。
 - **FR-023**: 无参数真实 TTY 首页 MUST 以安装目标为主：Codex、DeepSeek、两者、管理已有安装；普通安装不得要求用户先选择 lifecycle operation。
-- **FR-024**: `install --host ... --yes` 等完整参数 MUST 保持为非交互、CI 与高级用户入口，公开入门文档默认只展示 `npx create-dev-flow@latest`。
+- **FR-024**: `install --host ... --yes` 等完整参数 MUST 保持为非交互、CI 与高级用户入口，公开入门文档默认只展示 `npx @imotong/create-dev-flow@latest`。
 - **FR-004**: 管理器 MUST 能在低于 Adapter package 要求的 Node.js 上启动，并在持久化前检查平台、Node.js、npm、Host executable、Host compatibility 和目标制品可用性。
 - **FR-005**: Codex 操作 MUST 通过 npm 与现有 `dev-flow-codex setup/remove --json`、`--version` 和 Codex readback完成；管理器不得复制或绕过 registration ownership 实现。
 - **FR-006**: DeepSeek 操作 MUST 只调用公开 DSH version、`plugin add/remove` 与 `--dump-config`；制品必须在唯一临时根获取并验证，用户不处理 tarball、绝对制品路径或 `PROFILE` 环境变量。

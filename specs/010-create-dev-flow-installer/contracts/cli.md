@@ -3,7 +3,7 @@
 ## Entrypoints
 
 ```text
-npx create-dev-flow@latest [operation] [options]
+npx @imotong/create-dev-flow@latest [operation] [options]
 npm create dev-flow@latest -- [operation] [options]
 ```
 

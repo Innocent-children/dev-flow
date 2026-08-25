@@ -25,7 +25,7 @@ handshake、remove、uninstall 和 repository-unchanged 门禁。上表记录已
 ## 安装与验证
 
 ```bash
-npx create-dev-flow@latest
+npx @imotong/create-dev-flow@latest
 ```
 
 `create-dev-flow` 独立发布后成为默认生命周期入口；当前公开稳定制品尚未包含该新 package。发布前

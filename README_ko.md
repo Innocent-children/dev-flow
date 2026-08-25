@@ -76,7 +76,7 @@ flowchart LR
 ### Codex
 
 ```bash
-npx create-dev-flow@latest
+npx @imotong/create-dev-flow@latest
 ```
 
 Dev Flow를 강제로 선택하려면:
@@ -90,7 +90,7 @@ $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run 
 ### DeepSeek Harness
 
 ```bash
-npx create-dev-flow@latest
+npx @imotong/create-dev-flow@latest
 ```
 
 profile을 재시작한 뒤 입력합니다.

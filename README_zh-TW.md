@@ -73,7 +73,7 @@ Host 在實作後重新啟動時，新會話會讀取同一個 Task，取得目�
 ### Codex
 
 ```bash
-npx create-dev-flow@latest
+npx @imotong/create-dev-flow@latest
 ```
 
 需要強制選擇 Dev Flow 時：
@@ -87,7 +87,7 @@ $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run 
 ### DeepSeek Harness
 
 ```bash
-npx create-dev-flow@latest
+npx @imotong/create-dev-flow@latest
 ```
 
 重新啟動 profile 後輸入：

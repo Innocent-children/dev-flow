@@ -151,6 +151,6 @@ run_step "Go tests and repository contracts" go test ./...
 run_step "pnpm workspace inventory" pnpm --recursive list --depth -1
 run_step "Codex package dry-pack" validate_package_pack packages/codex dev-flow-codex codex-source
 run_step "Lifecycle manager tests" node --test packages/create-dev-flow/tests/*.test.mjs
-run_step "Lifecycle manager dry-pack" validate_package_pack packages/create-dev-flow create-dev-flow create-source
+run_step "Lifecycle manager dry-pack" validate_package_pack packages/create-dev-flow @imotong/create-dev-flow create-source
 
 printf '\nRepository validation passed.\n'

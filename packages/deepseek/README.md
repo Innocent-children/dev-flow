@@ -27,7 +27,7 @@ restart/resume、`DONE`、remove、uninstall、retained reopen 和 repository-un
 DSH 是前置 Host。`create-dev-flow` 独立发布后，用户只需指定真实 Profile，默认使用 `web`：
 
 ```bash
-npx create-dev-flow@latest
+npx @imotong/create-dev-flow@latest
 ```
 
 当前公开稳定制品尚未包含该新 manager package。发布前或诊断恢复时继续使用以下 Host 原生命令；
