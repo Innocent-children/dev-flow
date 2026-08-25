@@ -1,6 +1,6 @@
 {
   "name": "dev-flow-deepseek",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "private": false,
   "description": "Explicit DeepSeek Harness adapter for the Dev Flow process graph.",
   "license": "Apache-2.0",
