@@ -77,9 +77,7 @@ Current stable artifacts support **macOS arm64** and **Node.js `>=24`**. See the
 ### Codex
 
 ```bash
-npm install -g dev-flow-codex@latest
-dev-flow-codex setup
-dev-flow-codex --version
+npx @dev-flow/cli install codex
 ```
 
 From a Git repository, start Dev Flow with the exact selector:
@@ -93,12 +91,7 @@ See the [Codex guide](docs/CODEX_en.md) for installation, updates, and removal.
 ### DeepSeek Harness
 
 ```bash
-npm install -g @deepseek-ai/dsh@latest
-PROFILE=web
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
-rm -f "$PWD/$TARBALL"
-dsh --profile "$PROFILE" --dump-config
+npx @dev-flow/cli install deepseek --profile web
 ```
 
 Restart the profile, then enter:

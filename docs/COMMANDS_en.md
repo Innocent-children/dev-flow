@@ -17,9 +17,7 @@ must not be replaced with `latest`.
 ### Install
 
 ```bash
-npm install -g dev-flow-codex@latest
-dev-flow-codex setup
-dev-flow-codex --version
+npx @dev-flow/cli install codex
 ```
 
 The global npm installation only places the `dev-flow-codex` launcher on `PATH`. `setup` is a
@@ -33,7 +31,7 @@ reports both the host package and bundled Core identities.
 
 | Command | Purpose |
 | --- | --- |
-| `npm install -g dev-flow-codex@latest` | Install the package selected by the npm `latest` dist-tag and place `dev-flow-codex` globally on `PATH`. It does not register the Codex Plugin automatically. |
+| `npx @dev-flow/cli install codex` | Install the package selected by the npm `latest` dist-tag and place `dev-flow-codex` globally on `PATH`. It does not register the Codex Plugin automatically. |
 | `dev-flow-codex setup` | Create or validate fixed user configuration, validate the installation and Codex compatibility, register the marketplace, Plugin, and MCP configuration, then report actual configuration/receipt changes, readiness, and one next step. Repeated execution verifies the existing registration. |
 | `dev-flow-codex setup --json` | Perform the same operation as `setup`, but emit one machine-readable JSON line retaining operation, status, changed, and receipt_path while adding configuration_path, file_changes, and next_step. |
 | `dev-flow-codex --version` | Print `dev-flow-codex <package-version> (core <core-version>)` to identify the actual installed package and bundled Core. |
@@ -46,7 +44,7 @@ reports both the host package and bundled Core identities.
 subcommand. To update to the current `latest`, reinstall globally and rerun `setup`:
 
 ```bash
-npm install -g dev-flow-codex@latest
+npx @dev-flow/cli install codex
 dev-flow-codex setup
 dev-flow-codex --version
 ```
@@ -81,13 +79,7 @@ Install DSH first, then add Dev Flow to a real profile from a writable directory
 `web`; change `PROFILE` for another profile and do not enter `<profile>` literally:
 
 ```bash
-npm install -g @deepseek-ai/dsh@latest
-dsh --version
-PROFILE=web
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
-rm -f "$PWD/$TARBALL"
-dsh --profile "$PROFILE" --dump-config
+npx @dev-flow/cli install deepseek --profile web
 ```
 
 `npm pack` downloads the official package selected by `latest` and writes its tarball into the

@@ -73,9 +73,7 @@ flowchart LR
 ### Codex
 
 ```bash
-npm install -g dev-flow-codex@latest
-dev-flow-codex setup
-dev-flow-codex --version
+npx @dev-flow/cli install codex
 ```
 
 进入 Git 仓库后，使用精确 selector 启动 Dev Flow：
@@ -89,12 +87,7 @@ $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run 
 ### DeepSeek Harness
 
 ```bash
-npm install -g @deepseek-ai/dsh@latest
-PROFILE=web
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
-rm -f "$PWD/$TARBALL"
-dsh --profile "$PROFILE" --dump-config
+npx @dev-flow/cli install deepseek --profile web
 ```
 
 重启 profile 后，在对话中输入：

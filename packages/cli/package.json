@@ -1,0 +1,33 @@
+{
+  "name": "@dev-flow/cli",
+  "version": "0.6.0",
+  "private": false,
+  "description": "Unified lifecycle manager for Dev Flow adapters.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Innocent-children/dev-flow.git",
+    "directory": "packages/cli"
+  },
+  "type": "module",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "dev-flow-cli": "bin/dev-flow-cli.mjs"
+  },
+  "files": [
+    "LICENSE",
+    "bin/dev-flow-cli.mjs",
+    "lib/commands.mjs",
+    "lib/interactive.mjs",
+    "lib/util.mjs"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}

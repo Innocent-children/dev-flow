@@ -15,9 +15,7 @@
 ### 安装
 
 ```bash
-npm install -g dev-flow-codex@latest
-dev-flow-codex setup
-dev-flow-codex --version
+npx @dev-flow/cli install codex
 ```
 
 npm 全局安装只把 `dev-flow-codex` launcher 放到 `PATH`。`setup` 是独立步骤，它验证平台、
@@ -29,7 +27,7 @@ package、bundled Core 和 Codex 版本，然后注册本地 marketplace、Plugi
 
 | 命令 | 作用 |
 | --- | --- |
-| `npm install -g dev-flow-codex@latest` | 从 npm 安装 `latest` 指向的 Codex package，并把 `dev-flow-codex` 全局加入 `PATH`。它不会自动注册 Codex Plugin。 |
+| `npx @dev-flow/cli install codex` | 从 npm 安装 `latest` 指向的 Codex package，并把 `dev-flow-codex` 全局加入 `PATH`。它不会自动注册 Codex Plugin。 |
 | `dev-flow-codex setup` | 创建或验证固定用户配置，验证安装内容和 Codex 兼容版本，注册 marketplace、Plugin 与 MCP，并在成功后显示实际配置/receipt 文件变化、就绪状态和一个下一步。重复执行时会读取并校验现有注册。 |
 | `dev-flow-codex setup --json` | 执行与 `setup` 相同的操作，但只输出一行机器可读 JSON，保留 operation、status、changed、receipt_path，并增加 configuration_path、file_changes 与 next_step。 |
 | `dev-flow-codex --version` | 输出 `dev-flow-codex <package-version> (core <core-version>)`，用于确认实际安装的 package 与 bundled Core 身份。 |
@@ -42,7 +40,7 @@ package、bundled Core 和 Codex 版本，然后注册本地 marketplace、Plugi
 当前 `latest` 时重新运行全局安装和 `setup`：
 
 ```bash
-npm install -g dev-flow-codex@latest
+npx @dev-flow/cli install codex
 dev-flow-codex setup
 dev-flow-codex --version
 ```
@@ -74,18 +72,10 @@ $dev-flow-codex:dev-flow <任务描述>
 profile 时修改 `PROFILE`，不要把 `<profile>` 原样输入 shell：
 
 ```bash
-npm install -g @deepseek-ai/dsh@latest
-dsh --version
-PROFILE=web
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
-rm -f "$PWD/$TARBALL"
-dsh --profile "$PROFILE" --dump-config
+npx @dev-flow/cli install deepseek --profile web
 ```
 
-`npm pack` 下载 `latest` 指向的官方 package，并把 tarball 写入当前目录；命令替换保存实际文件名。
-DSH `plugin add` 接收该 tarball 的绝对路径，将 package、bundle layer、Skill、guard 与 MCP child
-加入指定 profile。安装后按 DSH 的 profile lifecycle 停止并重启该 profile。
+统一 CLI 会在后台自动完成临时 tarball 的获取和 DSH 插件注册。安装后按 DSH 的 profile lifecycle 停止并重启该 profile。
 
 ### Dev Flow 相关的 DSH 命令
 

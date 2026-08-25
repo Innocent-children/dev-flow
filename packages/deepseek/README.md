@@ -28,13 +28,7 @@ restart/resume、`DONE`、remove、uninstall、retained reopen 和 repository-un
 profile 时修改 `PROFILE` 的值，不要把 `<profile>` 原样输入 shell。
 
 ```bash
-npm install -g @deepseek-ai/dsh@latest
-dsh --version
-PROFILE=web
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
-rm -f "$PWD/$TARBALL"
-dsh --profile "$PROFILE" --dump-config
+npx @dev-flow/cli install deepseek --profile web
 ```
 
 `npm pack` 把 `latest` 指向的官方 package 下载为当前目录中的 tarball，并将实际文件名保存到
