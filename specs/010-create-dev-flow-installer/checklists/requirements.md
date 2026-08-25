@@ -1,7 +1,7 @@
 # Specification Quality Checklist: Unified Adapter Lifecycle Manager
 
-**Purpose**: Validate requirements before planning  
-**Created**: 2026-08-25  
+**Purpose**: Validate requirements before planning
+**Created**: 2026-08-25
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality

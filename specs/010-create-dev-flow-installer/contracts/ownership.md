@@ -60,4 +60,3 @@ parent. The result reports resource categories, not private contents.
 
 After exact child cleanup, a product directory may be removed only when it is empty. Unknown neighbors are preserved
 and reported as preventing parent removal.
-

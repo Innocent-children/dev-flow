@@ -1,8 +1,8 @@
 # Feature Specification: Unified Adapter Lifecycle Manager
 
-**Feature Directory**: `specs/010-create-dev-flow-installer`  
-**Created**: 2026-08-25  
-**Status**: Complete  
+**Feature Directory**: `specs/010-create-dev-flow-installer`
+**Created**: 2026-08-25
+**Status**: Complete
 **Input**: 用户通过一个统一入口管理 Codex 与 DeepSeek Dev Flow Adapter 的完整生命周期，不再对照 README 手工编排安装、升级、修复、卸载、数据清理或全新重装命令。
 
 ## Problem Statement

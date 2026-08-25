@@ -1,7 +1,7 @@
 # Feature 010：统一 Adapter 生命周期管理器
 
-**状态**：Complete  
-**变更类型**：Product Feature  
+**状态**：Complete
+**变更类型**：Product Feature
 **基线**：`main` at `6460abe68a5c0cb6452555e23d5132971b92668a`
 
 ## 权威与边界

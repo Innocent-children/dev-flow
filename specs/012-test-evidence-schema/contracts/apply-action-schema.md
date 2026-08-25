@@ -18,4 +18,3 @@ Every branch requires the existing eleven ordinary top-level members and carries
 `action_kind` is const and payload is the corresponding concrete payload. Unknown members are rejected.
 
 The wire request, recovery identity, field names and payload shapes remain unchanged.
-

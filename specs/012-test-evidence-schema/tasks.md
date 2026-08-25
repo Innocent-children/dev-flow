@@ -1,6 +1,6 @@
 # Tasks: Precise TEST Evidence Schema Exposure
 
-**Input**: `spec.md`, `plan.md`, `research.md`, `data-model.md`, `contracts/`, `quickstart.md`  
+**Input**: `spec.md`, `plan.md`, `research.md`, `data-model.md`, `contracts/`, `quickstart.md`
 **Verification budget**: four targeted commands; no full suite or real Host journey
 
 ## Phase 1: Foundational schema regression tests

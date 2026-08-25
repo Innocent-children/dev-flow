@@ -71,4 +71,3 @@ The persisted plan stores only the token digest. An expired or observed-state-mi
 Results never include raw environment dumps, npm auth, private file contents, child stdout/stderr, Task data or
 repository contents. Human stderr may contain a bounded diagnostic summary; JSON `next_step` remains the single
 recovery instruction.
-

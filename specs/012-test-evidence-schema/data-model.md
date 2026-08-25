@@ -32,4 +32,3 @@ result, it becomes a source=user EvidenceInput and is removed from manual_handof
 - Completed TEST pass has no failed items, findings, unverified items or outstanding manual handoff items.
 - Existing evidence plus incoming automated evidence stays within the immutable budget.
 - Invalid schema or workflow input causes zero Task/store writes.
-

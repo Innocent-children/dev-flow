@@ -20,4 +20,3 @@ Construct a TEST result with four automatic commands and the developer-reported 
 
 Expected: automatic command total remains four, user evidence is retained, manual_handoff_items is empty and TEST can
 advance. The cancelled historical Task is not resumed or rewritten.
-

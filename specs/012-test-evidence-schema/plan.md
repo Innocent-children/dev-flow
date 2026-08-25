@@ -98,4 +98,3 @@ No full repository suite, real Host journey, registry or release validation.
 - Codex callable projection is Host-owned; repository tests can prove the schema shape but cannot prove a running Host's
   generated TypeScript declaration without a separately authorized real Host gate.
 - Recovery apply must retain nullable payload behavior; schema tests cover ordinary and recovery branches.
-

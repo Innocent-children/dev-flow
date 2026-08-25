@@ -172,4 +172,3 @@ Receipt ownership is valid only with a matching current DSH dump-config readback
 8. Re-observe and atomically record completion or failure.
 9. Verify final desired state.
 10. Retain bounded recovery evidence on failure; remove or archive completed run evidence according to ownership policy.
-

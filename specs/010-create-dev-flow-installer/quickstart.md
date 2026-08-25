@@ -98,4 +98,3 @@ remains only in the reported Trash root unless a separately confirmed permanent 
 Re-run the exact operation after a partial failure. Manager validates the saved plan against real current state and
 continues only the safe remaining action. Ownership conflict, changed cleanup target or expired confirmation stops
 with one bounded next step and no force overwrite.
-

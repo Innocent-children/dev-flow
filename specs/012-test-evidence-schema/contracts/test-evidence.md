@@ -18,4 +18,3 @@ summary may state the command they ran, but the numeric budget field remains zer
 
 `manual_handoff_items` contains only checks still awaiting execution. A passing TEST result with completed user
 evidence has an empty manual_handoff_items list.
-

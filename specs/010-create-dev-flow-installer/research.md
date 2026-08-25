@@ -111,4 +111,3 @@ or confuse ownership, and reset is an explicit required lifecycle operation.
 distribution choices.
 
 **Consequences**: A missing/incompatible Host fails before mutation with one copyable next step.
-

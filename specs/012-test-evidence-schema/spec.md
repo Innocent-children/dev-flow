@@ -1,8 +1,8 @@
 # Feature Specification: Precise TEST Evidence Schema Exposure
 
-**Feature Directory**: `specs/012-test-evidence-schema`  
-**Created**: 2026-08-25  
-**Status**: Complete  
+**Feature Directory**: `specs/012-test-evidence-schema`
+**Created**: 2026-08-25
+**Status**: Complete
 **Input**: 修复 `dev_flow_apply_action` 在 Codex callable tool 中把 payload退化为 unknown，以及 TEST 手工证据虽通过通用 JSON Schema却被 workflow closed contract拒绝的问题。
 
 ## Problem Statement

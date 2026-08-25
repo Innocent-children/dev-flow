@@ -1,7 +1,7 @@
 # Feature 012：TEST Evidence Schema 精确暴露
 
-**状态**：Complete  
-**变更类型**：Product Feature  
+**状态**：Complete
+**变更类型**：Product Feature
 **基线**：`main` at `b324c2137630067f33b1aaed173d0c27c60c81b1`
 
 ## 权威与边界

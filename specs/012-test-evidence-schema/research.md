@@ -45,4 +45,3 @@ as a later release/integration concern.
 **Alternatives considered**: Restart Codex and inspect generated callable tools.
 
 **Why rejected**: That is environment-dependent and belongs to a separately authorized final gate.
-
