@@ -85,6 +85,20 @@ const codexFinalStagingFiles = [
 ].sort();
 const expectedByProfile = {
   "codex-source": codexFinalStagingFiles.filter((file) => file !== "runtime/darwin-arm64/dev-flow"),
+  "create-source": [
+    "LICENSE",
+    "README.md",
+    "bin/create-dev-flow.mjs",
+    "lib/cli.mjs",
+    "lib/hosts/codex.mjs",
+    "lib/hosts/deepseek.mjs",
+    "lib/journal.mjs",
+    "lib/lifecycle.mjs",
+    "lib/ownership.mjs",
+    "lib/plan.mjs",
+    "lib/presentation.mjs",
+    "package.json",
+  ].sort(),
 };
 const expectedFiles = expectedByProfile[process.env.PACKAGE_PROFILE];
 if (!expectedFiles) {
@@ -135,5 +149,7 @@ run_step "Go vet" go vet ./...
 run_step "Go tests and repository contracts" go test ./...
 run_step "pnpm workspace inventory" pnpm --recursive list --depth -1
 run_step "Codex package dry-pack" validate_package_pack packages/codex dev-flow-codex codex-source
+run_step "Lifecycle manager tests" node --test packages/create-dev-flow/tests/*.test.mjs
+run_step "Lifecycle manager dry-pack" validate_package_pack packages/create-dev-flow create-dev-flow create-source
 
 printf '\nRepository validation passed.\n'

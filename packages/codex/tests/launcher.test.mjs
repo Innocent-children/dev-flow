@@ -252,6 +252,32 @@ test("--version reports package and detached Core identity on one stable line", 
   assert.equal(stderr.text, "");
 });
 
+test("status is read-only and projects package, Core, receipt, marketplace, and Plugin state", async (t) => {
+  const paths = await makePaths(t);
+  paths.receiptPath = join(paths.packageRoot, "registrations", "codex.json");
+  const stdout = captureStream();
+  const result = await runCLI(["status", "--json"], {
+    stdout,
+    stderr: captureStream(),
+    resolvePaths: async () => paths,
+    readPackageVersion: async () => "0.7.0",
+    inspectCoreVersion: async () => "0.6.0",
+    inspectRegistrationStatus: async () => ({
+      status: "ready", changed: false, receipt: true, marketplace: true, plugin: true,
+    }),
+  });
+  assert.deepEqual(result, { code: 0, signal: null });
+  assert.deepEqual(JSON.parse(stdout.text), {
+    operation: "status",
+    status: "ready",
+    changed: false,
+    package_version: "0.7.0",
+    core_version: "0.6.0",
+    receipt_path: paths.receiptPath,
+    registration: { receipt: true, marketplace: true, plugin: true },
+  });
+});
+
 test("setup emits success only after verified lifecycle completion and fails on stderr", async (t) => {
   const paths = await makePaths(t);
   paths.receiptPath = join(paths.packageRoot, "registrations", "codex.json");

@@ -186,7 +186,8 @@ implementation result.
   "node_result": {
     "problem_class": "none",
     "checks": [
-      {"source": "automated", "name": "placeholder-check-name", "status": "passed", "summary": "placeholder-check-result", "command_count": 1, "full_suite": false}
+      {"source": "automated", "name": "placeholder-check-name", "status": "passed", "summary": "placeholder-check-result", "command_count": 1, "full_suite": false},
+      {"source": "user", "name": "placeholder-developer-check", "status": "passed", "summary": "placeholder-developer-result", "command_count": 0, "full_suite": false}
     ],
     "failed_items": [],
     "unverified_items": [],
@@ -198,6 +199,11 @@ implementation result.
 }
 ```
 <!-- node-payload-template:test:end -->
+
+Completed developer-run verification is a `source="user"` check with `command_count=0` and
+`full_suite=false`; the human command is described in `summary` and never charged to the automatic budget.
+`manual_handoff_items` contains only bounded checks still awaiting user execution. Once the developer reports a
+completed result, record the user check and remove that item from `manual_handoff_items`.
 
 <!-- node-payload-template:comprehension-complexity:start -->
 ```json

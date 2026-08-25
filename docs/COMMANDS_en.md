@@ -3,7 +3,8 @@
 [中文](COMMANDS.md) | [English](COMMANDS_en.md)
 
 This document lists every currently supported public or managed Dev Flow command entrypoint. The
-command surface is derived from implementation: Codex commands from `packages/codex/package.json`
+command surface is derived from implementation: unified lifecycle commands from
+`packages/create-dev-flow/package.json` and its CLI, Codex commands from `packages/codex/package.json`
 and `packages/codex/bin/dev-flow-codex.mjs`, DeepSeek lifecycle commands from the DSH CLI used by the
 final-artifact journeys, Core commands from `cmd/dev-flow/main.go`, and MCP tools from the closed
 catalog under `internal/mcp/`.
@@ -11,6 +12,33 @@ catalog under `internal/mcp/`.
 Public installation examples select npm's `latest` dist-tag so they install the current stable
 package. Support matrices, Release links, and artifact evidence continue to use exact versions and
 must not be replaced with `latest`.
+
+## Unified Adapter lifecycle
+
+After its separate release, ordinary users manage the lifecycle through one entry:
+
+```bash
+npx create-dev-flow@latest
+```
+
+The closed operations are `status`, `doctor`, `install`, `upgrade`, `repair`, `reinstall`, `uninstall`, and
+`factory-reset`. Host is `codex|deepseek|all`; the default DeepSeek Profile is `web`. Ordinary uninstall, upgrade,
+repair, and reinstall preserve configuration and Task data. Factory reset requires the token bound to the current
+plan; `--yes` alone has no data-cleanup authority. Default cleanup moves data to macOS Trash, while permanent removal
+requires another confirmation.
+
+| Entry | Purpose |
+| --- | --- |
+| `npx create-dev-flow@latest` | Open the interactive lifecycle menu. |
+| `... status\|doctor --host codex\|deepseek\|all` | Inspect or diagnose without mutation. |
+| `... install\|upgrade\|repair\|reinstall --host ... [--profile web] [--version latest] --yes` | Perform ordinary maintenance while preserving configuration and Task data. |
+| `... uninstall --host ... [--all-known-profiles] --yes` | Remove selected Adapters while preserving configuration and Task data. |
+| `... factory-reset --host all --all-known-profiles` | Produce a current-state-bound reset plan/token; `--yes` has no cleanup authority. |
+| `... factory-reset ... --confirm-reset <token> [--reinstall]` | Move confirmed data to Trash and optionally perform a clean reinstall. |
+| `--json` / `--plain` | Select one JSON object or ANSI-free plain output. |
+
+The current public npm stable release does not yet contain `create-dev-flow`; the native Host commands below remain
+the pre-release and diagnostic recovery authority.
 
 ## Codex
 
@@ -36,6 +64,8 @@ reports both the host package and bundled Core identities.
 | `npm install -g dev-flow-codex@latest` | Install the package selected by the npm `latest` dist-tag and place `dev-flow-codex` globally on `PATH`. It does not register the Codex Plugin automatically. |
 | `dev-flow-codex setup` | Create or validate fixed user configuration, validate the installation and Codex compatibility, register the marketplace, Plugin, and MCP configuration, then report actual configuration/receipt changes, readiness, and one next step. Repeated execution verifies the existing registration. |
 | `dev-flow-codex setup --json` | Perform the same operation as `setup`, but emit one machine-readable JSON line retaining operation, status, changed, and receipt_path while adding configuration_path, file_changes, and next_step. |
+| `dev-flow-codex status` | Read and display the current package/Core and registration state. |
+| `dev-flow-codex status --json` | Read package, Core, receipt, marketplace, and Plugin state without creating configuration, registration, or data. |
 | `dev-flow-codex --version` | Print `dev-flow-codex <package-version> (core <core-version>)` to identify the actual installed package and bundled Core. |
 | `dev-flow-codex remove` | Remove the package-owned Codex Plugin, marketplace registration, and receipt. Task data and the target Git repository are retained. |
 | `dev-flow-codex remove --json` | Perform the same operation as `remove` and emit machine-readable JSON. Its `next_step` points to the separate global npm uninstall. |
@@ -43,7 +73,7 @@ reports both the host package and bundled Core identities.
 | `dev-flow-codex mcp` | **Managed host command.** The Plugin MCP configuration invokes it to establish the data directory and Codex admission instructions, then launch the packaged Core with `mcp --stdio`. Normal users should not start it manually. |
 
 `dev-flow-codex` accepts no other subcommands and has no implicit `help`, `update`, or `uninstall`
-subcommand. To update to the current `latest`, reinstall globally and rerun `setup`:
+subcommand. Native Host recovery can update to `latest` by reinstalling globally and rerunning `setup`:
 
 ```bash
 npm install -g dev-flow-codex@latest

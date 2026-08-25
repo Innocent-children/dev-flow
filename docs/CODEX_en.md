@@ -25,8 +25,16 @@ verified public version; the installation commands below select npm's `latest` d
 ## Install and verify
 
 ```bash
+npx create-dev-flow@latest
+```
+
+After its separate release, `create-dev-flow` is the default lifecycle entry. The current public stable artifacts do
+not yet include the new package. Before that release, and for diagnostic recovery, use the native Host commands:
+
+```bash
 npm install -g dev-flow-codex@latest
 dev-flow-codex setup
+dev-flow-codex status --json
 dev-flow-codex --version
 ```
 
@@ -48,14 +56,16 @@ any registration operation is dispatched.
 | `npm install -g dev-flow-codex@latest` | Install the package selected by npm `latest` and place the launcher globally on `PATH`. It does not register the Codex Plugin automatically. |
 | `dev-flow-codex setup` | Create or validate fixed user configuration; validate package, Core, and Codex; register marketplace, Plugin, and MCP; then report actual configuration/receipt changes, readiness, and one next step. Repeated execution reports zero changes. |
 | `dev-flow-codex setup --json` | Perform the same operation but emit one undecorated JSON line retaining `operation`, `status`, `changed`, and `receipt_path`, and adding `configuration_path`, `file_changes`, and `next_step`. |
+| `dev-flow-codex status` | Read and display the current package/Core and registration state. |
+| `dev-flow-codex status --json` | Read package, Core, receipt, marketplace, and Plugin state without creating configuration, registration, or data. |
 | `dev-flow-codex --version` | Print `dev-flow-codex <package-version> (core <core-version>)` to identify the installed package and bundled Core. |
 | `dev-flow-codex remove` | Remove the package-owned Plugin, marketplace registration, and receipt while retaining Task data, unknown neighboring files, and the target Git repository. |
 | `dev-flow-codex remove --json` | Perform the same operation as `remove` and emit machine-readable JSON. `next_step` identifies the separate global npm uninstall. |
 | `npm uninstall -g dev-flow-codex` | Uninstall the global package after `remove` completes. Running it alone does not deregister Codex first. |
 | `dev-flow-codex mcp` | **Managed host command.** The Plugin MCP configuration invokes it to set the data directory and admission instructions, then launch the packaged Core with `mcp --stdio`. Normal users should not start it manually. |
 
-The CLI has no `help`, `update`, `uninstall`, or other implicit subcommand. To update to the current
-latest package, reinstall globally and rerun `setup`:
+The CLI has no `help`, `update`, `uninstall`, or other implicit subcommand. The unified lifecycle entry owns upgrade,
+repair, reinstall, uninstall, and clean reinstall. Native Host recovery can still reinstall globally and rerun setup:
 
 ```bash
 npm install -g dev-flow-codex@latest

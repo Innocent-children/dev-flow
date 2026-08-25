@@ -70,12 +70,14 @@ flowchart LR
 当前稳定制品支持 **macOS arm64** 和 **Node.js `>=24`**。精确版本与 Host 兼容范围见
 [Support Matrix](docs/SUPPORT-MATRIX.md)。
 
+统一生命周期管理器完成独立发布后，安装、升级、修复、重装、卸载和清空后重装都使用下方的
+`create-dev-flow` 入口。当前公开 npm 稳定版尚未包含该新 package；Host 原生命令继续作为发布前及
+诊断恢复入口。
+
 ### Codex
 
 ```bash
-npm install -g dev-flow-codex@latest
-dev-flow-codex setup
-dev-flow-codex --version
+npx create-dev-flow@latest
 ```
 
 进入 Git 仓库后，使用精确 selector 启动 Dev Flow：
@@ -89,12 +91,7 @@ $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run 
 ### DeepSeek Harness
 
 ```bash
-npm install -g @deepseek-ai/dsh@latest
-PROFILE=web
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
-rm -f "$PWD/$TARBALL"
-dsh --profile "$PROFILE" --dump-config
+npx create-dev-flow@latest
 ```
 
 重启 profile 后，在对话中输入：

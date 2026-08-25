@@ -81,6 +81,44 @@ func TestManualHandoffBudgetDoesNotBlockComprehensionConfirmation(t *testing.T) 
 	}
 }
 
+func TestUserEvidenceAfterExhaustedAutomaticBudgetReachesComprehension(t *testing.T) {
+	service, memory, _ := phase5Service(t)
+	task := phase5TaskAtTest(t, service)
+	task.Intent.VerificationBudget.MaxAutomaticCommands = 4
+	task.Intent.VerificationBudget.AllowManualHandoff = true
+	memory.task = &task
+	checks := []map[string]any{
+		evidenceCheck("automated", "passed", "automatic-budget", 4, false),
+		evidenceCheck("user", "passed", "developer-manager-v1", 0, false),
+	}
+	passed := applyPhase5(t, service, task, "tests_passed", "", testNodeResult(checks, nil, nil, nil))
+	if passed.CurrentNode != domain.NodeComprehensionReview || passed.Test == nil {
+		t.Fatal("user evidence after exhausted automatic budget did not pass TEST")
+	}
+	if passed.TaskID == "task-9eebc6f870a76062558f54b649d120f6" || len(passed.Evidence) != 2 {
+		t.Fatal("corrective journey reused the cancelled task or lost evidence")
+	}
+	if passed.Evidence[0].Source != domain.EvidenceSourceAutomated || passed.Evidence[0].CommandCount != 4 ||
+		passed.Evidence[1].Source != domain.EvidenceSourceUser || passed.Evidence[1].CommandCount != 0 {
+		t.Fatalf("evidence=%#v", passed.Evidence)
+	}
+
+	service, memory, _ = phase5Service(t)
+	task = phase5TaskAtTest(t, service)
+	task.Intent.VerificationBudget.MaxAutomaticCommands = 4
+	task.Intent.VerificationBudget.AllowManualHandoff = true
+	memory.task = &task
+	before := memory.commits
+	invalid := []map[string]any{
+		evidenceCheck("automated", "passed", "automatic-budget", 4, false),
+		evidenceCheck("user", "passed", "developer-manager-v1", 1, false),
+	}
+	assertApplyFails(t, service, task, "tests_passed", "", testNodeResult(invalid, nil, nil, nil), domain.ErrInvalidArgument)
+	if memory.commits != before {
+		t.Fatal("invalid user evidence wrote Task state")
+	}
+}
+
 func TestProblemClassMismatchIsTransitionNotAllowedAndZeroWrite(t *testing.T) {
 	tests := []struct {
 		name       string

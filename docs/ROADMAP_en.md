@@ -26,6 +26,8 @@ Delivered capabilities:
 - Codex setup configuration creation, exact configuration/receipt change summaries, and a
   degradable Simplified Chinese or English installation screen;
 - explicit Codex and DeepSeek Host Adapters.
+- the source `create-dev-flow` unified Adapter lifecycle manager for status, diagnosis, installation, upgrade, repair,
+  reinstall, uninstall, and ownership-safe factory reset; public support awaits separate release evidence.
 
 ## Current public products
 
@@ -42,7 +44,7 @@ and evidence entrypoints.
 
 These directions improve visibility and diagnosis around the current graph:
 
-- a read-only doctor for installation, Core handshake, data directory, and Task state;
+- a separate lifecycle-manager release and registry lifecycle evidence;
 - a concise Task inspection view for current node, blocker, remaining verification budget, and
   available transitions;
 - direct recovery guidance that turns the five-class assessment into short, actionable instructions;

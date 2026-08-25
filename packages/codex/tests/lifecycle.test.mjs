@@ -12,6 +12,7 @@ import { promisify } from "node:util";
 import {
   CODEX_COMPATIBILITY_RANGE,
   digestResources,
+  inspectRegistrationStatus,
   readReceipt,
   receiptOwnershipMatches,
   removeRegistration,
@@ -364,6 +365,25 @@ test("matching repeated setup is a no-op while receipt or readback conflicts fai
       plugins: [],
     })}\n`,
   );
+});
+
+test("status distinguishes absent, ready, and owned partial registration without writes", async (t) => {
+  const fixture = await makeSetupFixture(t, "status-projection");
+  assert.deepEqual(await inspectRegistrationStatus(fixture.options), {
+    status: "absent", changed: false, receipt: false, marketplace: false, plugin: false,
+  });
+  await setupRegistration(fixture.options);
+  const receiptBefore = await readFile(fixture.paths.receiptPath, "utf8");
+  assert.deepEqual(await inspectRegistrationStatus(fixture.options), {
+    status: "ready", changed: false, receipt: true, marketplace: true, plugin: true,
+  });
+  const state = JSON.parse(await readFile(fixture.statePath, "utf8"));
+  state.plugins = [];
+  await writeFile(fixture.statePath, `${JSON.stringify(state)}\n`);
+  assert.deepEqual(await inspectRegistrationStatus(fixture.options), {
+    status: "partial", changed: false, receipt: true, marketplace: true, plugin: false,
+  });
+  assert.equal(await readFile(fixture.paths.receiptPath, "utf8"), receiptBefore);
 });
 
 test("setup upgrades only an exactly owned registration and rejects package downgrade", async (t) => {

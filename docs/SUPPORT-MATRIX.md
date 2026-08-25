@@ -24,6 +24,7 @@ Codex lifecycle evidence 覆盖 package/Core identity、安装、setup、Core ha
 | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.7.0-beta.2` | `0.7.0-beta.2` | 可公开评估；不是稳定支持声明 |
 | `dev-flow-deepseek` | `0.7.0-beta.1` | `0.7.0-beta.1` | 可公开评估；不是稳定支持声明 |
+| `create-dev-flow` | 未发布 | `0.1.0` | 仅源码实现与定向测试；等待独立 release 和 registry lifecycle |
 
 稳定支持只能通过独立发布流程、registry bytes 回读和最终 Host Journey 建立，而不是简单移动 npm
 dist-tag。

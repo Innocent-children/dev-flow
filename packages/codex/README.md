@@ -25,8 +25,16 @@ handshake、remove、uninstall 和 repository-unchanged 门禁。上表记录已
 ## 安装与验证
 
 ```bash
+npx create-dev-flow@latest
+```
+
+`create-dev-flow` 独立发布后成为默认生命周期入口；当前公开稳定制品尚未包含该新 package。发布前
+或诊断恢复时继续使用以下 Host 原生命令：
+
+```bash
 npm install -g dev-flow-codex@latest
 dev-flow-codex setup
+dev-flow-codex status --json
 dev-flow-codex --version
 ```
 
@@ -45,13 +53,16 @@ bundled Core 版本。
 | `npm install -g dev-flow-codex@latest` | 安装 npm `latest` 指向的 package，并把 launcher 全局加入 `PATH`；不会自动注册 Codex Plugin。 |
 | `dev-flow-codex setup` | 创建或验证固定用户配置，校验 package、Core 和 Codex 版本，注册 marketplace、Plugin 与 MCP，并显示实际配置/receipt 文件变化、ready 和一个下一步。重复执行显示零变化，兼容升级通过同一命令完成。 |
 | `dev-flow-codex setup --json` | 与 `setup` 行为相同，但只输出一行无装饰 JSON：保留 `operation`、`status`、`changed`、`receipt_path`，增加 `configuration_path`、`file_changes`、`next_step`。 |
+| `dev-flow-codex status` | 只读显示当前 package/Core 与注册状态。 |
+| `dev-flow-codex status --json` | 只读回读 package、Core、receipt、marketplace 与 Plugin 状态；不会创建配置、注册或数据。 |
 | `dev-flow-codex --version` | 输出 `dev-flow-codex <package-version> (core <core-version>)`，用于确认实际安装身份。 |
 | `dev-flow-codex remove` | 删除该 package 拥有的 Plugin、marketplace 注册和 receipt；保留 Task data、未知相邻文件和目标 Git 仓库。 |
 | `dev-flow-codex remove --json` | 与 `remove` 行为相同，并输出机器可读 JSON；`next_step` 提示随后执行全局 npm 卸载。 |
 | `npm uninstall -g dev-flow-codex` | 在 `remove` 完成后卸载全局 package。单独执行不会先清理 Codex 注册。 |
 | `dev-flow-codex mcp` | **内部 Host 命令。** Plugin 的 MCP 配置调用它来设置数据目录和 admission instructions，再启动 packaged Core 的 `mcp --stdio`；正常用户不应手工运行。 |
 
-当前 CLI 不提供 `help`、`update`、`uninstall` 或其他隐式子命令。更新到当前最新版本时执行：
+当前 CLI 不提供 `help`、`update`、`uninstall` 或其他隐式子命令。统一生命周期入口负责升级、修复、
+重装、卸载和清空后重装；Host 原生更新仍可执行：
 
 ```bash
 npm install -g dev-flow-codex@latest

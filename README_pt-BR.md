@@ -71,12 +71,14 @@ do histórico do chat. Consulte a [demonstração](docs/DEMO_en.md).
 Os artefatos estáveis atuais oferecem suporte a **macOS arm64** e **Node.js `>=24`**. Consulte
 [Support Matrix](docs/SUPPORT-MATRIX_en.md) para versões e compatibilidade exatas.
 
+Após a publicação independente, a entrada `create-dev-flow` abaixo gerenciará instalação, atualização, reparo,
+reinstalação, desinstalação e reinstalação limpa. A versão estável pública atual do npm ainda não inclui esse novo
+package; os comandos nativos do Host continuam sendo o caminho de pré-publicação e recuperação de diagnóstico.
+
 ### Codex
 
 ```bash
-npm install -g dev-flow-codex@latest
-dev-flow-codex setup
-dev-flow-codex --version
+npx create-dev-flow@latest
 ```
 
 Para forçar Dev Flow:
@@ -90,12 +92,7 @@ Detalhes no [guia Codex](docs/CODEX_en.md).
 ### DeepSeek Harness
 
 ```bash
-npm install -g @deepseek-ai/dsh@latest
-PROFILE=web
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
-rm -f "$PWD/$TARBALL"
-dsh --profile "$PROFILE" --dump-config
+npx create-dev-flow@latest
 ```
 
 Reinicie o profile e digite:

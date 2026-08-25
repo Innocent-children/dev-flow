@@ -127,6 +127,14 @@ Git 修改仍由获得用户授权的 Host 负责。
 使用纯文本，`setup --json` 提供同一文件事实。该体验属于 Codex Host lifecycle，不改变 Core、Task
 或 DeepSeek。
 
+### 统一 Adapter 生命周期
+
+`create-dev-flow` 在源码中提供一个统一入口，覆盖 Codex 与 DeepSeek Adapter 的状态、诊断、安装、
+升级、修复、保留数据重装、卸载、恢复出厂状态和清空后重装。它调用 Codex setup/remove/status 与
+DSH 公开 lifecycle，不复制 Core 或 Host 注册权威。普通维护保留用户配置和 Task 数据；恢复出厂
+状态要求绑定当前计划的强确认，默认把精确数据目标移动到 macOS Trash。该 package 尚未完成独立
+公开发布，因此不属于当前稳定支持声明。
+
 ## 产品组成
 
 | 产品 | 职责 | 当前版本 |
@@ -134,8 +142,9 @@ Git 修改仍由获得用户授权的 Host 负责。
 | Core | 状态图、Task、Store、Recovery、MCP | `0.6.0` |
 | Codex | Codex Plugin、Skill、注册生命周期和 bundled Core | `0.7.0` |
 | DeepSeek | DSH bundle、Skill、guard、MCP child 和 bundled Core | `0.7.0` |
+| Lifecycle Manager | Codex/DeepSeek Adapter 生命周期编排、ownership-safe reset 与恢复 | `0.1.0`（仅源码，未发布） |
 
-三个产品独立版本化。Host 包记录实际 bundled Core 版本，不要求两个产品使用同一版本号。
+四个产品独立版本化。Host 包记录实际 bundled Core 版本，不要求各产品使用同一版本号。
 
 ## 产品保证
 

@@ -26,7 +26,7 @@ func TestMCPContractGraphCatalogAndClosedSchemas(t *testing.T) {
 		if err := json.Unmarshal(d.InputSchema, &schema); err != nil {
 			t.Fatal(err)
 		}
-		if schema["additionalProperties"] != false {
+		if d.Name != ToolApplyAction && schema["additionalProperties"] != false {
 			t.Fatalf("%s schema open", d.Name)
 		}
 	}
@@ -46,6 +46,33 @@ func TestMCPContractGraphCatalogAndClosedSchemas(t *testing.T) {
 	key := properties["primary_repository_key"].(map[string]any)
 	if key["pattern"] != "^[a-z0-9][a-z0-9._-]{0,127}$" {
 		t.Fatalf("primary repository key schema=%#v", key)
+	}
+}
+
+func TestApplySchemaUsesNineCompleteDiscriminatedBranches(t *testing.T) {
+	var schema map[string]any
+	if err := json.Unmarshal(catalog[4].InputSchema, &schema); err != nil {
+		t.Fatal(err)
+	}
+	branches, ok := schema["oneOf"].([]any)
+	if !ok || len(branches) != 9 {
+		t.Fatalf("apply oneOf=%#v", schema["oneOf"])
+	}
+	wantKinds := []string{"COMPLETE_REQUIREMENTS", "COMPLETE_DESIGN", "COMPLETE_TASKS", "COMPLETE_IMPLEMENTATION", "COMPLETE_TEST", "COMPLETE_COMPREHENSION_REVIEW", "COMPLETE_REFACTOR", "COMPLETE_DELIVERY", "RESOLVE_BLOCKER"}
+	for index, raw := range branches {
+		branch := raw.(map[string]any)
+		if branch["type"] != "object" || branch["additionalProperties"] != false {
+			t.Fatalf("branch %d is not a closed object: %#v", index, branch)
+		}
+		properties := branch["properties"].(map[string]any)
+		kind := properties["action_kind"].(map[string]any)
+		if kind["const"] != wantKinds[index] {
+			t.Fatalf("branch %d action_kind=%#v", index, kind)
+		}
+		payload := properties["payload"].(map[string]any)
+		if _, ok := payload["anyOf"].([]any); !ok {
+			t.Fatalf("branch %d payload is not concrete nullable schema: %#v", index, payload)
+		}
 	}
 }
 

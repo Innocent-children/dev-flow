@@ -1,0 +1,42 @@
+{
+  "name": "create-dev-flow",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Unified lifecycle manager for Dev Flow Codex and DeepSeek adapters.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Innocent-children/dev-flow.git",
+    "directory": "packages/create-dev-flow"
+  },
+  "type": "module",
+  "os": ["darwin"],
+  "cpu": ["arm64"],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "bin": {
+    "create-dev-flow": "bin/create-dev-flow.mjs"
+  },
+  "files": [
+    "README.md",
+    "bin/create-dev-flow.mjs",
+    "lib/cli.mjs",
+    "lib/hosts/codex.mjs",
+    "lib/hosts/deepseek.mjs",
+    "lib/journal.mjs",
+    "lib/lifecycle.mjs",
+    "lib/ownership.mjs",
+    "lib/plan.mjs",
+    "lib/presentation.mjs"
+  ],
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "test:package": "node --test tests/package-contract.test.mjs",
+    "pack:dry": "pnpm pack --dry-run --json"
+  }
+}

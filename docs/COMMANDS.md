@@ -3,12 +3,38 @@
 [中文](COMMANDS.md) | [English](COMMANDS_en.md)
 
 本文件列出 Dev Flow 当前公开或受支持的命令入口。命令范围以实际实现为准：Codex 命令来自
-`packages/codex/package.json` 与 `packages/codex/bin/dev-flow-codex.mjs`，DeepSeek 生命周期命令
+`packages/create-dev-flow/package.json` 与其 CLI、`packages/codex/package.json` 与
+`packages/codex/bin/dev-flow-codex.mjs`，DeepSeek 生命周期命令
 来自最终制品 Journey 使用的 DSH CLI，Core 命令来自 `cmd/dev-flow/main.go`，MCP 工具来自
 `internal/mcp/` 的闭合目录。
 
 公开安装示例使用 npm 的 `latest` dist-tag，以便安装当前最新稳定包；支持矩阵、Release 链接和
 制品证据仍使用精确版本号，不应替换为 `latest`。
+
+## 统一 Adapter 生命周期
+
+`create-dev-flow` 独立发布后，普通用户统一从以下入口管理生命周期：
+
+```bash
+npx create-dev-flow@latest
+```
+
+闭合子命令为 `status`、`doctor`、`install`、`upgrade`、`repair`、`reinstall`、`uninstall` 和
+`factory-reset`。Host 选择为 `codex|deepseek|all`；DeepSeek Profile 默认 `web`。普通卸载、升级、
+修复和重装保留用户配置与 Task 数据；`factory-reset` 要求绑定当前计划的 token，`--yes` 不能单独
+授权数据清理。默认清理移动到 macOS Trash，永久删除还需独立确认。
+
+| 入口 | 作用 |
+| --- | --- |
+| `npx create-dev-flow@latest` | 打开交互式 lifecycle 菜单。 |
+| `... status\|doctor --host codex\|deepseek\|all` | 只读检查或诊断。 |
+| `... install\|upgrade\|repair\|reinstall --host ... [--profile web] [--version latest] --yes` | 执行普通维护并保留配置与 Task 数据。 |
+| `... uninstall --host ... [--all-known-profiles] --yes` | 移除选定 Adapter并保留配置与 Task 数据。 |
+| `... factory-reset --host all --all-known-profiles` | 生成绑定当前状态的 reset plan/token；`--yes` 不授权清理。 |
+| `... factory-reset ... --confirm-reset <token> [--reinstall]` | 将已确认数据移动到 Trash，可随后全新重装。 |
+| `--json` / `--plain` | 分别选择单一 JSON 对象或无 ANSI 的纯文本结果。 |
+
+当前公开 npm 稳定版尚未包含 `create-dev-flow`；下方 Host 原生命令继续作为发布前和诊断恢复权威。
 
 ## Codex
 
@@ -32,13 +58,15 @@ package、bundled Core 和 Codex 版本，然后注册本地 marketplace、Plugi
 | `npm install -g dev-flow-codex@latest` | 从 npm 安装 `latest` 指向的 Codex package，并把 `dev-flow-codex` 全局加入 `PATH`。它不会自动注册 Codex Plugin。 |
 | `dev-flow-codex setup` | 创建或验证固定用户配置，验证安装内容和 Codex 兼容版本，注册 marketplace、Plugin 与 MCP，并在成功后显示实际配置/receipt 文件变化、就绪状态和一个下一步。重复执行时会读取并校验现有注册。 |
 | `dev-flow-codex setup --json` | 执行与 `setup` 相同的操作，但只输出一行机器可读 JSON，保留 operation、status、changed、receipt_path，并增加 configuration_path、file_changes 与 next_step。 |
+| `dev-flow-codex status` | 只读显示当前 package/Core 与注册状态。 |
+| `dev-flow-codex status --json` | 只读回读 package、Core、receipt、marketplace 与 Plugin 状态，不创建配置、注册或数据。 |
 | `dev-flow-codex --version` | 输出 `dev-flow-codex <package-version> (core <core-version>)`，用于确认实际安装的 package 与 bundled Core 身份。 |
 | `dev-flow-codex remove` | 删除由该 package 拥有的 Codex Plugin、marketplace 注册与 receipt。Task data 和目标 Git 仓库保持不变。 |
 | `dev-flow-codex remove --json` | 执行与 `remove` 相同的操作，并输出机器可读 JSON；返回的 `next_step` 指向单独的全局 npm 卸载。 |
 | `npm uninstall -g dev-flow-codex` | 在完成 `remove` 后卸载全局 npm package。单独运行它不会先清理 Codex 注册。 |
 | `dev-flow-codex mcp` | **内部 Host 命令。** 由 Plugin 的 MCP 配置调用；它设置数据目录和 Codex admission instructions，然后启动 packaged Core 的 `mcp --stdio`。正常用户不应手工启动它。 |
 
-`dev-flow-codex` 不支持其他子命令，也不提供隐式 `help`、`update` 或 `uninstall` 子命令。更新到
+`dev-flow-codex` 不支持其他子命令，也不提供隐式 `help`、`update` 或 `uninstall` 子命令。Host 原生更新到
 当前 `latest` 时重新运行全局安装和 `setup`：
 
 ```bash

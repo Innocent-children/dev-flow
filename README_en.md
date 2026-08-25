@@ -74,12 +74,14 @@ itself. The Go Core updates state only after validating the current Action.
 Current stable artifacts support **macOS arm64** and **Node.js `>=24`**. See the
 [Support Matrix](docs/SUPPORT-MATRIX_en.md) for exact versions and Host compatibility.
 
+After its separate release, the `create-dev-flow` entry below manages installation, upgrade, repair, reinstall,
+uninstall, and clean reinstall. The current public npm stable release does not yet include this new package; native
+Host commands remain the pre-release and diagnostic recovery path.
+
 ### Codex
 
 ```bash
-npm install -g dev-flow-codex@latest
-dev-flow-codex setup
-dev-flow-codex --version
+npx create-dev-flow@latest
 ```
 
 From a Git repository, start Dev Flow with the exact selector:
@@ -93,12 +95,7 @@ See the [Codex guide](docs/CODEX_en.md) for installation, updates, and removal.
 ### DeepSeek Harness
 
 ```bash
-npm install -g @deepseek-ai/dsh@latest
-PROFILE=web
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
-rm -f "$PWD/$TARBALL"
-dsh --profile "$PROFILE" --dump-config
+npx create-dev-flow@latest
 ```
 
 Restart the profile, then enter:

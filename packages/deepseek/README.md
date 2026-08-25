@@ -24,8 +24,14 @@ restart/resume、`DONE`、remove、uninstall、retained reopen 和 repository-un
 
 ## 安装与验证
 
-先安装 DSH，再在一个可写目录中把 Dev Flow 安装到真实 profile。下面使用 `web`；需要其他
-profile 时修改 `PROFILE` 的值，不要把 `<profile>` 原样输入 shell。
+DSH 是前置 Host。`create-dev-flow` 独立发布后，用户只需指定真实 Profile，默认使用 `web`：
+
+```bash
+npx create-dev-flow@latest
+```
+
+当前公开稳定制品尚未包含该新 manager package。发布前或诊断恢复时继续使用以下 Host 原生命令；
+需要其他 Profile 时修改 `PROFILE` 的值，不要把 `<profile>` 原样输入 shell：
 
 ```bash
 npm install -g @deepseek-ai/dsh@latest
@@ -55,7 +61,7 @@ process、Skill、guard 和 MCP child 合成到指定 profile。安装后按照 
 | `dsh --profile "$PROFILE" --dump-config` | 输出 profile 的有效配置，用于检查 `dev-flow-deepseek` bundle contribution 是否存在；不会修改 Dev Flow Task。 |
 | `dsh plugin --profile "$PROFILE" remove dev-flow-deepseek` | 从指定 profile 移除 package 与 bundle contribution；保留 Task data、目标 Git 仓库和 Codex-owned state。 |
 
-更新或重新安装时，按照 profile lifecycle 停止使用该 profile，然后执行：
+统一生命周期入口负责升级、修复、重装、卸载和清空后重装。Host 原生更新或重新安装仍按以下顺序：
 
 ```bash
 PROFILE=web

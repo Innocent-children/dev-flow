@@ -66,12 +66,14 @@ Host 在實作後重新啟動時，新會話會讀取同一個 Task，取得目�
 目前穩定製品支援 **macOS arm64** 與 **Node.js `>=24`**。精確版本與 Host 相容範圍請見
 [Support Matrix](docs/SUPPORT-MATRIX.md)。
 
+統一生命週期管理器完成獨立發布後，安裝、升級、修復、重裝、解除安裝與清除後重裝都使用下方的
+`create-dev-flow` 入口。目前公開的 npm 穩定版尚未包含此新 package；Host 原生命令仍是發布前與
+診斷復原入口。
+
 ### Codex
 
 ```bash
-npm install -g dev-flow-codex@latest
-dev-flow-codex setup
-dev-flow-codex --version
+npx create-dev-flow@latest
 ```
 
 需要強制選擇 Dev Flow 時：
@@ -85,12 +87,7 @@ $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run 
 ### DeepSeek Harness
 
 ```bash
-npm install -g @deepseek-ai/dsh@latest
-PROFILE=web
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
-rm -f "$PWD/$TARBALL"
-dsh --profile "$PROFILE" --dump-config
+npx create-dev-flow@latest
 ```
 
 重新啟動 profile 後輸入：

@@ -25,8 +25,15 @@ table records the exact verified public version; the installation commands below
 
 ## Install and verify
 
-Install DSH first, then add Dev Flow to a real profile from a writable directory. The example uses
-`web`; change the value of `PROFILE` for another profile and do not enter `<profile>` literally.
+DSH is the prerequisite Host. After the separate manager release, select one real Profile; the default is `web`:
+
+```bash
+npx create-dev-flow@latest
+```
+
+The current public stable artifacts do not yet include the new manager package. Before that release, and for
+diagnostic recovery, use the native Host commands below. Change `PROFILE` for another Profile and do not enter
+`<profile>` literally.
 
 ```bash
 npm install -g @deepseek-ai/dsh@latest
@@ -57,7 +64,8 @@ then confirm that the bundle is active.
 | `dsh --profile "$PROFILE" --dump-config` | Print the effective profile configuration to inspect whether the `dev-flow-deepseek` bundle contribution is present. It does not mutate a Dev Flow Task. |
 | `dsh plugin --profile "$PROFILE" remove dev-flow-deepseek` | Remove the package and bundle contribution from the selected profile while retaining Task data, the target Git repository, and Codex-owned state. |
 
-For an update or reinstall, stop the profile and run:
+The unified lifecycle entry owns upgrade, repair, reinstall, uninstall, and clean reinstall. Native Host recovery
+still uses the following sequence after stopping the Profile:
 
 ```bash
 PROFILE=web

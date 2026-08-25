@@ -26,6 +26,7 @@ restart/resume, `DONE`, and retained reopen.
 | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.7.0-beta.2` | `0.7.0-beta.2` | Publicly evaluable; not a stable support claim |
 | `dev-flow-deepseek` | `0.7.0-beta.1` | `0.7.0-beta.1` | Publicly evaluable; not a stable support claim |
+| `create-dev-flow` | unpublished | `0.1.0` | Source implementation and targeted tests only; awaiting separate release and registry lifecycle |
 
 Stable support requires the independent release flow, registry-byte read-back, and the final Host
 journey. It is not established by moving an npm dist-tag alone.

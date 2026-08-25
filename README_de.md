@@ -70,12 +70,14 @@ rekonstruiert werden. Siehe [Demo](docs/DEMO_en.md).
 Aktuelle stabile Artefakte unterstützen **macOS arm64** und **Node.js `>=24`**. Exakte Versionen und
 Host-Kompatibilität stehen in der [Support Matrix](docs/SUPPORT-MATRIX_en.md).
 
+Nach der separaten Veröffentlichung verwaltet der folgende `create-dev-flow`-Einstieg Installation, Upgrade,
+Reparatur, Neuinstallation, Deinstallation und saubere Neuinstallation. Das aktuelle öffentliche npm-Stable enthält
+dieses neue Package noch nicht; native Host-Befehle bleiben der Vorab- und Diagnose-Recovery-Weg.
+
 ### Codex
 
 ```bash
-npm install -g dev-flow-codex@latest
-dev-flow-codex setup
-dev-flow-codex --version
+npx create-dev-flow@latest
 ```
 
 Dev Flow erzwingen:
@@ -89,12 +91,7 @@ Details im [Codex-Leitfaden](docs/CODEX_en.md).
 ### DeepSeek Harness
 
 ```bash
-npm install -g @deepseek-ai/dsh@latest
-PROFILE=web
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
-rm -f "$PWD/$TARBALL"
-dsh --profile "$PROFILE" --dump-config
+npx create-dev-flow@latest
 ```
 
 Profil neu starten und eingeben:

@@ -216,6 +216,8 @@ test("node-payload reference is one explicit closed packaged resource", async ()
   assert.match(reference, /node-payload-template:blocked:start/u);
   assert.match(reference, /`repository_observation` is a Core evidence requirement/u);
   assert.match(reference, /Never submit `destination`, `next_node`/u);
+  assert.match(reference, /Completed developer-run verification is a `source="user"` check with `command_count=0`/u);
+  assert.match(reference, /`manual_handoff_items` contains only bounded checks still awaiting user execution/u);
   assert.doesNotMatch(reference, /(?:^|\s)(?:\/Users\/|\/home\/|[A-Za-z]:\\\\)/u);
   assert.doesNotMatch(reference, /(?:node_modules|tests?\/fixtures?|\.tmp|\.sqlite|\.db)(?:\/|\b)/iu);
 });

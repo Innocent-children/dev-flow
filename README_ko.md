@@ -69,12 +69,14 @@ flowchart LR
 현재 안정 아티팩트는 **macOS arm64**와 **Node.js `>=24`**를 지원합니다. 정확한 버전과 Host
 호환성은 [Support Matrix](docs/SUPPORT-MATRIX_en.md)를 참고하십시오.
 
+별도 릴리스가 완료되면 아래 `create-dev-flow` 진입점이 설치, 업그레이드, 복구, 재설치, 제거 및 데이터
+초기화 후 재설치를 관리합니다. 현재 공개 npm 안정 버전에는 이 새 package가 아직 포함되지 않았으므로,
+릴리스 전과 진단 복구에는 Host 기본 명령을 사용합니다.
+
 ### Codex
 
 ```bash
-npm install -g dev-flow-codex@latest
-dev-flow-codex setup
-dev-flow-codex --version
+npx create-dev-flow@latest
 ```
 
 Dev Flow를 강제로 선택하려면:
@@ -88,12 +90,7 @@ $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run 
 ### DeepSeek Harness
 
 ```bash
-npm install -g @deepseek-ai/dsh@latest
-PROFILE=web
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
-rm -f "$PWD/$TARBALL"
-dsh --profile "$PROFILE" --dump-config
+npx create-dev-flow@latest
 ```
 
 profile을 재시작한 뒤 입력합니다.

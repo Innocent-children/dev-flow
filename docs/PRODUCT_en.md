@@ -143,6 +143,15 @@ created or updated. Interactive results use a Dev Flow-owned Simplified Chinese 
 screen; non-interactive output is plain text, and `setup --json` exposes the same file facts. This is
 Codex Host lifecycle behavior and does not change Core, Tasks, or DeepSeek.
 
+### Unified Adapter lifecycle
+
+The source tree provides `create-dev-flow` as one entry for Codex and DeepSeek Adapter status, diagnosis,
+installation, upgrade, repair, data-preserving reinstall, uninstall, factory reset, and clean reinstall. It calls
+Codex setup/remove/status and public DSH lifecycle commands without copying Core or Host registration authority.
+Ordinary maintenance preserves configuration and Task data. Factory reset requires strong confirmation bound to the
+current plan and moves exact data targets to macOS Trash by default. The package has not completed its separate public
+release and is not part of the current stable support claim.
+
 ## Products
 
 | Product | Responsibility | Current version |
@@ -150,9 +159,10 @@ Codex Host lifecycle behavior and does not change Core, Tasks, or DeepSeek.
 | Core | State graph, Task, Store, Recovery, and MCP | `0.6.0` |
 | Codex | Codex Plugin, Skill, registration lifecycle, and bundled Core | `0.7.0` |
 | DeepSeek | DSH bundle, Skill, guard, MCP child, and bundled Core | `0.7.0` |
+| Lifecycle Manager | Codex/DeepSeek Adapter orchestration, ownership-safe reset, and recovery | `0.1.0` (source only, unpublished) |
 
-The three products have independent versions. A host package records its actual bundled Core version;
-the two product version numbers do not have to match.
+The four products have independent versions. A host package records its actual bundled Core version;
+product version numbers do not have to match.
 
 ## Product guarantees
 

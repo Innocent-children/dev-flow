@@ -22,6 +22,8 @@ Dev Flow 的路线由用户价值和可验证结果推进。日期不是承诺�
 - 固定只读用户配置中的 Host 级可选代码索引偏好，以及索引不可用时的内置检索回退；
 - Codex setup 缺失配置创建、真实配置/receipt 文件摘要和简中/英文可降级安装首屏；
 - Codex 与 DeepSeek 两个显式 Host Adapter。
+- 源码中的 `create-dev-flow` 统一 Adapter 生命周期管理器，覆盖状态、诊断、安装、升级、修复、重装、
+  卸载与 ownership-safe factory reset；公开支持等待独立 release evidence。
 
 ## 当前公开产品
 
@@ -38,7 +40,7 @@ Dev Flow 的路线由用户价值和可验证结果推进。日期不是承诺�
 
 这些方向围绕当前图增强可见性和诊断能力：
 
-- 只读 doctor：解释安装、Core handshake、数据目录和 task 状态；
+- 将统一 lifecycle manager 完成独立发布与 registry lifecycle evidence；
 - 更清晰的任务检查：快速展示当前节点、阻塞原因、剩余验证预算和可选流转；
 - 更直接的恢复提示：把五分类 Recovery 结论转换为简短、可执行的用户说明；
 - 新平台制品：在独立 final-artifact evidence 完成后扩展支持矩阵。

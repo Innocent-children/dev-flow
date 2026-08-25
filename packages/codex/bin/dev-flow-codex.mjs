@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 
 import {
   CODEX_MCP_INSTRUCTIONS,
+  inspectRegistrationStatus,
   inspectCoreVersion,
   removeRegistration,
   setupRegistration,
@@ -35,6 +36,7 @@ export async function runCLI(arguments_, dependencies = {}) {
   const resolvePaths = dependencies.resolvePaths ?? (() => resolveProductPaths({ environment }));
   const readPackageVersion = dependencies.readPackageVersion ?? readInstalledPackageVersion;
   const inspectVersion = dependencies.inspectCoreVersion ?? inspectCoreVersion;
+  const inspectStatus = dependencies.inspectRegistrationStatus ?? inspectRegistrationStatus;
   const ensureDataDirectory = dependencies.ensureDefaultDataDirectory ?? ensureDefaultDataDirectory;
   const setup = dependencies.setupRegistration ?? setupRegistration;
   const ensureConfiguration = dependencies.ensureUserConfiguration ?? ensureUserConfiguration;
@@ -43,7 +45,7 @@ export async function runCLI(arguments_, dependencies = {}) {
   let setupAttempted = false;
 
   if (!isProductionCommand(arguments_)) {
-    stderr.write("dev-flow-codex: invalid arguments; expected setup [--json], remove [--json], mcp, or --version\n");
+    stderr.write("dev-flow-codex: invalid arguments; expected status [--json], setup [--json], remove [--json], mcp, or --version\n");
     return { code: 2, signal: null };
   }
 
@@ -69,6 +71,25 @@ export async function runCLI(arguments_, dependencies = {}) {
     }
 
     const json = arguments_.at(-1) === "--json";
+    if (arguments_[0] === "status") {
+      const coreVersion = await inspectVersion(paths.runtimePath, {
+        environment,
+        currentDirectory: paths.packageRoot,
+      });
+      const result = await inspectStatus({
+        paths,
+        packageVersion,
+        codexExecutable: dependencies.codexExecutable ?? "codex",
+        environment,
+      });
+      writeStatusSuccess(stdout, result, {
+        packageVersion,
+        coreVersion,
+        receiptPath: paths.receiptPath,
+        json,
+      });
+      return { code: 0, signal: null };
+    }
     if (arguments_[0] === "setup") {
       setupAttempted = true;
       const configuration = await ensureConfiguration(paths);
@@ -201,6 +222,28 @@ function writeLifecycleSuccess(stdout, operation, result, receiptPath, json) {
   if (operation === "remove") stdout.write(`${NPM_UNINSTALL_HANDOFF}\n`);
 }
 
+function writeStatusSuccess(stdout, result, { packageVersion, coreVersion, receiptPath, json }) {
+  const output = {
+    operation: "status",
+    status: result.status,
+    changed: false,
+    package_version: packageVersion,
+    core_version: coreVersion,
+    receipt_path: receiptPath,
+    registration: {
+      receipt: result.receipt,
+      marketplace: result.marketplace,
+      plugin: result.plugin,
+    },
+  };
+  if (json) {
+    stdout.write(`${JSON.stringify(output)}\n`);
+    return;
+  }
+  stdout.write(`dev-flow-codex status: ${result.status}\n`);
+  stdout.write(`Package ${packageVersion} · Core ${coreVersion}\n`);
+}
+
 function writeSetupSuccess(stdout, result, json, { environment, renderSetupResult }) {
   if (json) {
     stdout.write(`${JSON.stringify(result)}\n`);
@@ -220,7 +263,7 @@ function isProductionCommand(arguments_) {
   if (arguments_.length === 1 && ["mcp", "--version"].includes(arguments_[0])) return true;
   return (
     (arguments_.length === 1 || arguments_.length === 2 && arguments_[1] === "--json") &&
-    ["setup", "remove"].includes(arguments_[0])
+    ["status", "setup", "remove"].includes(arguments_[0])
   );
 }
 

@@ -76,6 +76,59 @@ func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 	}
 }
 
+func TestTestEvidenceSchemaMatchesSourceCommandAndFullSuiteRules(t *testing.T) {
+	tests := []struct {
+		name        string
+		source      string
+		commands    int
+		fullSuite   bool
+		wantInvalid bool
+	}{
+		{name: "automated", source: "automated", commands: 1},
+		{name: "automated zero", source: "automated", commands: 0, wantInvalid: true},
+		{name: "user", source: "user", commands: 0},
+		{name: "user command", source: "user", commands: 1, wantInvalid: true},
+		{name: "user full suite", source: "user", commands: 0, fullSuite: true, wantInvalid: true},
+		{name: "static", source: "static", commands: 0},
+		{name: "host observed", source: "host_observed", commands: 0},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := testApplySchemaFixture(tc.source, tc.commands, tc.fullSuite)
+			err := ValidateToolInput(ToolApplyAction, raw)
+			if tc.wantInvalid && err == nil {
+				t.Fatal("invalid evidence schema accepted")
+			}
+			if !tc.wantInvalid && err != nil {
+				t.Fatalf("valid evidence schema rejected: %v", err)
+			}
+		})
+	}
+}
+
+func testApplySchemaFixture(source string, commands int, fullSuite bool) []byte {
+	payload := map[string]any{
+		"transition_id": "tests_passed", "summary": "Tests passed.", "reason": "", "artifacts": []any{},
+		"method_evidence": []any{
+			map[string]any{"step_id": "test.run_budgeted_checks", "status": "plain_fallback", "capability": "", "summary": "Ran checks."},
+			map[string]any{"step_id": "test.record_evidence", "status": "plain_fallback", "capability": "", "summary": "Recorded evidence."},
+			map[string]any{"step_id": "test.classify_failure", "status": "plain_fallback", "capability": "", "summary": "Classified results."},
+		},
+		"node_result": map[string]any{
+			"problem_class": "none",
+			"checks":        []any{map[string]any{"source": source, "name": "evidence", "status": "passed", "summary": "Evidence passed.", "command_count": commands, "full_suite": fullSuite}},
+			"failed_items":  []any{}, "unverified_items": []any{}, "manual_handoff_items": []any{}, "findings": []any{}, "changed_paths": []any{}, "no_file_changes": true,
+		},
+	}
+	request := map[string]any{
+		"request_id": "request", "host": "codex", "task_id": "task", "revision": 1, "action_id": "action",
+		"action_kind": "COMPLETE_TEST", "process_id": "standard-development", "process_definition_digest": strings.Repeat("a", 64),
+		"source_cursor": "TEST", "repository_binding_digest": strings.Repeat("b", 64), "payload": payload,
+	}
+	raw, _ := json.Marshal(request)
+	return raw
+}
+
 func TestServerInfoProjectsHostPreferenceSnapshot(t *testing.T) {
 	server := &Server{
 		version: "test",

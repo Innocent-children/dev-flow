@@ -97,6 +97,12 @@ test("manifest closes package, dependency, and lifecycle surfaces", async () => 
   }
 });
 
+test("packaged node-payload reference closes completed user evidence semantics", async () => {
+  const reference = await readFile(join(packageRoot, "skills", "dev-flow", "references", "node-payloads.md"), "utf8");
+  assert.match(reference, /Completed developer-run verification is a `source="user"` check with `command_count=0`/u);
+  assert.match(reference, /`manual_handoff_items` contains only bounded checks still awaiting user execution/u);
+});
+
 test("dry pack contains only declared product files and excludes development state", async () => {
   const manifest = await readJSON(join(packageRoot, "package.json"));
   const { stdout } = await execFile(

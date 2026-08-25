@@ -280,6 +280,55 @@ export async function removeRegistration({
   return { status: "removed", changed: true };
 }
 
+export async function inspectRegistrationStatus({
+  paths,
+  packageVersion,
+  codexExecutable = "codex",
+  environment = process.env,
+} = {}) {
+  const commandOptions = {
+    codexExecutable,
+    environment,
+    currentDirectory: paths.packageRoot,
+  };
+  await assertNoSymbolicLinkComponents(paths.productSupportRoot, dirname(paths.receiptPath));
+  await rejectSymbolicLink(paths.receiptPath);
+  const receipt = await readReceipt(paths.receiptPath);
+  const state = await readRegistrationState(commandOptions);
+
+  if (!receipt) {
+    assertRegistrationAbsent(state, paths);
+    return {
+      status: "absent",
+      changed: false,
+      receipt: false,
+      marketplace: false,
+      plugin: false,
+    };
+  }
+
+  assertRemovalReceipt(receipt, paths, packageVersion);
+  const owned = reconcileRemovalState(state, receipt);
+  if (owned.marketplace && owned.plugin) {
+    assertMatchingRegistrationState(state, paths, packageVersion);
+    return {
+      status: "ready",
+      changed: false,
+      receipt: true,
+      marketplace: true,
+      plugin: true,
+    };
+  }
+
+  return {
+    status: "partial",
+    changed: false,
+    receipt: true,
+    marketplace: owned.marketplace !== null,
+    plugin: owned.plugin !== null,
+  };
+}
+
 async function preflightSetup({ paths, packageVersion, codexExecutable, environment }) {
   assertObject(paths, "product paths");
   if (paths.runtimeKey !== "darwin-arm64") {
