@@ -13,7 +13,7 @@ npm `@latest` currently selects these packages:
 
 | Product | Public version | Bundled Core | Platform | Host compatibility | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| `dev-flow-codex` | `0.7.0` | `0.6.0` | macOS arm64, Node.js `>=24` | Codex `>=0.147.0`; final Journey used `0.147.0` | [npm](https://www.npmjs.com/package/dev-flow-codex/v/0.7.0) · [codex-v0.7.0](https://github.com/Innocent-children/dev-flow/releases/tag/codex-v0.7.0) · registry lifecycle passed |
+| `dev-flow-codex` | `0.7.1` | `0.6.0` | macOS arm64, Node.js `>=24` | Codex `>=0.147.0`; final Journey used `0.147.0` | [npm](https://www.npmjs.com/package/dev-flow-codex/v/0.7.1) · [codex-v0.7.1](https://github.com/Innocent-children/dev-flow/releases/tag/codex-v0.7.1) · registry lifecycle passed |
 | `dev-flow-deepseek` | `0.7.0` | `0.6.0` | macOS arm64, Node.js `>=24` | DSH `>=0.1.0-rc.6`; final Journey used `0.1.0-rc.6` | [npm](https://www.npmjs.com/package/dev-flow-deepseek/v/0.7.0) · [deepseek-v0.7.0](https://github.com/Innocent-children/dev-flow/releases/tag/deepseek-v0.7.0) · native registry journey passed |
 
 Codex lifecycle evidence covers package/Core identity, installation, setup, Core handshake, removal,
@@ -24,7 +24,7 @@ restart/resume, `DONE`, and retained reopen.
 
 | Product | npm `beta` | Package version on `main` | Status |
 | --- | --- | --- | --- |
-| `dev-flow-codex` | `0.7.0-beta.2` | `0.7.0-beta.2` | Publicly evaluable; not a stable support claim |
+| `dev-flow-codex` | `0.7.1-beta.2` | `0.7.1-beta.2` | Publicly evaluable; not a stable support claim |
 | `dev-flow-deepseek` | `0.7.0-beta.1` | `0.7.0-beta.1` | Publicly evaluable; not a stable support claim |
 | `create-dev-flow` | unpublished | `0.1.0` | Source implementation and targeted tests only; awaiting separate release and registry lifecycle |
 
