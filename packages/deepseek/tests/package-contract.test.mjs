@@ -167,7 +167,7 @@ test("packaged Core native version and STDIO startup", {
 
   const { stdout, stderr } = await runWithClosedInput(runtimePath, ["mcp", "--stdio"], {
     cwd: dataDirectory,
-    env: { DEV_FLOW_DATA_DIR: dataDirectory },
+    env: { DEV_FLOW_DATA_DIR: dataDirectory, HOME: dataDirectory },
   });
   assert.equal(stdout, "");
   assert.equal(stderr, "");
