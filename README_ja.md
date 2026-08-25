@@ -140,7 +140,7 @@ profile を再起動後、次を入力します。
 | 製品 | 安定バージョン | Bundled Core | 検証済み環境 |
 | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.7.1` | `0.6.0` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
-| `dev-flow-deepseek` | `0.7.0` | `0.6.0` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
+| `dev-flow-deepseek` | `0.7.1` | `0.6.0` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
 
 正確な証拠と beta/source の状態は [Project Status](docs/PROJECT-STATUS_en.md) と
 [Support Matrix](docs/SUPPORT-MATRIX_en.md) を参照してください。

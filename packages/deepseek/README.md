@@ -11,14 +11,14 @@ macOS arm64 Core executable。
 
 | 项目 | 当前支持 |
 | --- | --- |
-| Package | `dev-flow-deepseek@0.7.0` |
+| Package | `dev-flow-deepseek@0.7.1` |
 | Bundled Core | `0.6.0` |
 | Platform | macOS arm64 |
 | Node.js | `>=24` |
 | DSH | `>=0.1.0-rc.6` |
-| Release | [deepseek-v0.7.0](https://github.com/Innocent-children/dev-flow/releases/tag/deepseek-v0.7.0) |
+| Release | [deepseek-v0.7.1](https://github.com/Innocent-children/dev-flow/releases/tag/deepseek-v0.7.1) |
 
-`0.7.0` 的 normal release 已通过 registry package 安装、显式触发、Core handshake、
+`0.7.1` 的 normal release 已通过 registry package 安装、显式触发、Core handshake、
 restart/resume、`DONE`、remove、uninstall、retained reopen 和 repository-unchanged 门禁。上表
 记录已验证的精确公开版本；下面的安装命令使用 npm `latest` dist-tag 获取当前最新稳定 package。
 

@@ -141,7 +141,7 @@ DSH 公开 lifecycle，不复制 Core 或 Host 注册权威。普通维护保留
 | --- | --- | --- |
 | Core | 状态图、Task、Store、Recovery、MCP | `0.6.0` |
 | Codex | Codex Plugin、Skill、注册生命周期和 bundled Core | `0.7.1` |
-| DeepSeek | DSH bundle、Skill、guard、MCP child 和 bundled Core | `0.7.0` |
+| DeepSeek | DSH bundle、Skill、guard、MCP child 和 bundled Core | `0.7.1` |
 | Lifecycle Manager | Codex/DeepSeek Adapter 生命周期编排、ownership-safe reset 与恢复 | `0.1.0`（仅源码，未发布） |
 
 四个产品独立版本化。Host 包记录实际 bundled Core 版本，不要求各产品使用同一版本号。
@@ -183,7 +183,7 @@ Scope。每个参与仓库最多被一个活动 Task claim；单仓库调用继�
 ## 当前公开状态
 
 Codex 当前版本 `0.7.1` 已发布到 npm，并使用 `codex-v0.7.1` GitHub Release。
-DeepSeek 当前版本 `0.7.0` 已发布到 npm，并使用 `deepseek-v0.7.0` GitHub Release。
+DeepSeek 当前版本 `0.7.1` 已发布到 npm，并使用 `deepseek-v0.7.1` GitHub Release。
 两个 Host 产品分别打包支持表记录的 Core 精确身份，公开支持 macOS arm64 与 Node.js `>=24`。
 
 精确平台、Host 版本、Journey 结论和 Release 入口见

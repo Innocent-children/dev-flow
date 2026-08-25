@@ -166,7 +166,7 @@ revision、验证预算和结果；系统不会扫描相邻目录、依赖或代
 | 产品 | 稳定版本 | Bundled Core | 已验证环境 |
 | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.7.1` | `0.6.0` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
-| `dev-flow-deepseek` | `0.7.0` | `0.6.0` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
+| `dev-flow-deepseek` | `0.7.1` | `0.6.0` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
 
 这些声明来自公开制品和最终 Host Journey，而不是只来自“源码可构建”或“测试通过”。完整证据与
 beta/source 状态见 [Project Status](docs/PROJECT-STATUS.md) 和
