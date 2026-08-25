@@ -108,7 +108,7 @@ func TestManualHandoffFalseStillAllowsComprehensionJourney(t *testing.T) {
 	j := newIterationJourneyWithManualHandoff(t, false)
 	defer j.close()
 	j.toTest()
-	userTest := map[string]any{"checks": []map[string]any{{"source": "user", "name": "manual-test", "status": "passed", "summary": "User performed test.", "command_count": 0, "full_suite": false}}, "failed_items": []string{}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}}
+	userTest := map[string]any{"checks": []map[string]any{{"source": "user", "name": "manual-test", "status": "passed", "summary": "User performed test.", "command_count": 0, "full_suite": false}}, "failed_items": []string{}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
 	j.assertRejected(domain.ErrVerificationBudgetExceeded, "tests_passed", "", userTest)
 	j.apply("tests_passed", "", passedTestJourneyResult())
 	j.apply("comprehension_passed", "", comprehensionJourneyResult([]string{"component"}, nil, nil, "user", "passed", nil))

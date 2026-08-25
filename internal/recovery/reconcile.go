@@ -357,7 +357,10 @@ func RepositoryEffectAllowed(allowed []domain.AllowedEffect, effect RepositoryEf
 	default:
 		return false
 	}
-	if effect.NoFileChanges || len(effect.ChangedPaths) == 0 {
+	if effect.NoFileChanges {
+		return len(effect.ChangedPaths) == 0
+	}
+	if len(effect.ChangedPaths) == 0 {
 		return false
 	}
 	for _, candidate := range allowed {

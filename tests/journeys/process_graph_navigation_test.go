@@ -58,7 +58,7 @@ func TestProcessGraphNavigation(t *testing.T) {
 	if opened.Task.CurrentNode != "REQUIREMENTS" || len(a.AvailableTransitions) != 1 {
 		t.Fatal("requirements projection")
 	}
-	payload := journeyPayload(t, opened.Task, "requirements_ready", "", map[string]any{"baseline": map[string]any{"goal": "Goal", "scope": []string{}, "out_of_scope": []string{}, "acceptance_criteria": []string{"Accepted"}, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}})
+	payload := journeyPayload(t, opened.Task, "requirements_ready", "", map[string]any{"baseline": map[string]any{"goal": "Goal", "scope": []string{}, "out_of_scope": []string{}, "acceptance_criteria": []string{"Accepted"}, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}, "changed_paths": []string{}, "no_file_changes": true})
 	result, err := service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "request-apply", Host: domain.HostCodex, TaskID: opened.Task.TaskID, ExpectedRevision: 1, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: opened.Task.Process.ID, ProcessDefinitionDigest: opened.Task.Process.DefinitionDigest, SourceCursor: opened.Task.CurrentNode, RepositoryBindingDigest: b.BindingDigest, Payload: payload})
 	if err != nil {
 		t.Fatal(err)

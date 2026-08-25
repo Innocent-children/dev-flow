@@ -150,6 +150,9 @@ func multiRepositoryRequirementsPayload(t *testing.T, task domain.ProcessTask, a
 	}
 	sum := sha256.Sum256(artifact)
 	value["artifacts"] = []map[string]any{{"role": "requirements", "path": "core::requirements.md", "digest": hex.EncodeToString(sum[:]), "summary": "Scoped requirements artifact"}}
+	nodeResult := value["node_result"].(map[string]any)
+	nodeResult["changed_paths"] = []string{"core::requirements.md"}
+	nodeResult["no_file_changes"] = false
 	raw, err := json.Marshal(value)
 	if err != nil {
 		t.Fatal(err)

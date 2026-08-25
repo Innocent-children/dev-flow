@@ -155,6 +155,9 @@ func TestRepositoryEffectRequiresCurrentActionWriteAuthority(t *testing.T) {
 	if RepositoryEffectAllowed([]domain.AllowedEffect{domain.EffectEditProcessArtifacts}, RepositoryEffect{Kind: "unknown", ChangedPaths: []string{"spec.md"}}) {
 		t.Fatal("unknown repository effect used process-artifact authority")
 	}
+	if !RepositoryEffectAllowed([]domain.AllowedEffect{domain.EffectReadRepository}, RepositoryEffect{Kind: EffectProductFileChange, NoFileChanges: true}) {
+		t.Fatal("a no-change product result incorrectly required write authority")
+	}
 }
 
 func TestRepositoryEffectDerivationRejectsUndeclaredAndArtifactProductMismatch(t *testing.T) {
