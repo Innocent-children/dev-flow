@@ -32,7 +32,8 @@ func assertClosed(t *testing.T, value any, path string) {
 	t.Helper()
 	switch v := value.(type) {
 	case map[string]any:
-		if v["type"] == "object" && v["additionalProperties"] != false {
+		_, discriminated := v["oneOf"]
+		if v["type"] == "object" && v["additionalProperties"] != false && !discriminated {
 			t.Fatalf("open object %s", path)
 		}
 		for k, x := range v {
@@ -52,6 +53,19 @@ func TestMCPCurrentContractRequiredShapes(t *testing.T) {
 		schemas[tool.Name] = v
 	}
 	requireNames := func(tool string, names []string) {
+		if tool == core.ToolApplyAction {
+			branches, _ := schemas[tool]["oneOf"].([]any)
+			if len(branches) != 9 {
+				t.Fatalf("%s branches=%d", tool, len(branches))
+			}
+			for index, raw := range branches {
+				required := stringsOf(raw.(map[string]any)["required"])
+				if !slices.Equal(required, names) {
+					t.Fatalf("%s branch %d required=%v", tool, index, required)
+				}
+			}
+			return
+		}
 		required := stringsOf(schemas[tool]["required"])
 		if !slices.Equal(required, names) {
 			t.Fatalf("%s required=%v", tool, required)
