@@ -2,6 +2,7 @@
   "name": "dev-flow",
   "private": true,
   "scripts": {
+    "build:webui": "./scripts/build-webui.sh",
     "validate": "./scripts/validate-repository.sh",
     "validate:contracts": "go test ./tests/contract",
     "versions:check": "node ./scripts/check-versions.mjs",

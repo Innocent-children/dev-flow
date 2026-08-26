@@ -1,0 +1,494 @@
+openapi: 3.1.0
+info:
+  title: Dev Flow Local WebUI API
+  version: current
+  description: Loopback-only JSON API for the embedded React WebUI.
+servers:
+  - url: http://127.0.0.1:{port}
+    variables:
+      port: {default: "0"}
+paths:
+  /api/dashboard:
+    get:
+      operationId: getDashboard
+      responses:
+        '200': {$ref: '#/components/responses/Dashboard'}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/tasks:
+    get:
+      operationId: getTaskList
+      parameters:
+        - {name: text, in: query, schema: {type: string, maxLength: 512}}
+        - {name: host, in: query, schema: {$ref: '#/components/schemas/HostID'}}
+        - {name: repository, in: query, schema: {type: string, maxLength: 4096}}
+        - {name: node, in: query, schema: {type: string, maxLength: 128}}
+        - {name: lifecycle, in: query, schema: {type: string, enum: [active, blocked, done, cancelled]}}
+        - {name: updated_from, in: query, schema: {type: string, format: date-time}}
+        - {name: updated_to, in: query, schema: {type: string, format: date-time}}
+        - {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+      responses:
+        '200': {$ref: '#/components/responses/TaskList'}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/tasks/open:
+    post:
+      operationId: openOrResumeTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/OpenTask'}
+      responses:
+        '200': {$ref: '#/components/responses/Mutation'}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/tasks/{task_id}:
+    parameters: [{$ref: '#/components/parameters/TaskID'}]
+    get:
+      operationId: getTaskDetail
+      responses:
+        '200': {$ref: '#/components/responses/TaskDetail'}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/tasks/{task_id}/cancel:
+    parameters: [{$ref: '#/components/parameters/TaskID'}]
+    post:
+      operationId: cancelTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReasonedMutation'}
+      responses:
+        '200': {$ref: '#/components/responses/Mutation'}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/tasks/{task_id}/archive:
+    parameters: [{$ref: '#/components/parameters/TaskID'}]
+    post:
+      operationId: setTaskArchiveState
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ArchiveMutation'}
+      responses:
+        '200': {$ref: '#/components/responses/Mutation'}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/tasks/{task_id}/purge:
+    parameters: [{$ref: '#/components/parameters/TaskID'}]
+    post:
+      operationId: purgeTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PurgeMutation'}
+      responses:
+        '200': {$ref: '#/components/responses/Mutation'}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/tasks/{task_id}/actions/submit:
+    parameters: [{$ref: '#/components/parameters/TaskID'}]
+    post:
+      operationId: submitCurrentAction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ActionSubmission'}
+      responses:
+        '200': {$ref: '#/components/responses/Mutation'}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/tasks/{task_id}/recovery/assess:
+    parameters: [{$ref: '#/components/parameters/TaskID'}]
+    post:
+      operationId: assessTaskOperation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RecoveryAssessment'}
+      responses:
+        '200': {$ref: '#/components/responses/Mutation'}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/tasks/{task_id}/recovery/apply:
+    parameters: [{$ref: '#/components/parameters/TaskID'}]
+    post:
+      operationId: applyTaskRecovery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RecoverySubmission'}
+      responses:
+        '200': {$ref: '#/components/responses/Mutation'}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/system/status:
+    get:
+      operationId: getSystemStatus
+      responses:
+        '200': {$ref: '#/components/responses/SystemStatus'}
+        default: {$ref: '#/components/responses/Failure'}
+components:
+  parameters:
+    TaskID:
+      name: task_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/ID'}
+  responses:
+    Dashboard:
+      description: Dashboard view model.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/DashboardResponse'}
+    TaskList:
+      description: Filtered Task list view model.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/TaskListResponse'}
+    TaskDetail:
+      description: Complete current Task view model.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/TaskDetailResponse'}
+    SystemStatus:
+      description: Current shared WebUI runtime state.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/SystemStatusResponse'}
+    Mutation:
+      description: Closed mutation result.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/MutationResponse'}
+    Failure:
+      description: Closed failure result.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/FailureResponse'}
+  schemas:
+    ID:
+      type: string
+      minLength: 1
+      maxLength: 128
+    Digest:
+      type: string
+      pattern: '^[0-9a-f]{64}$'
+    HostID:
+      type: string
+      pattern: '^[a-z][a-z0-9._-]{0,63}$'
+      description: Host identity accepted and returned by the current Core contract.
+    Readiness:
+      type: string
+      enum: [ready, read_only, reset_required, incompatible, unavailable]
+    Lifecycle:
+      type: string
+      enum: [active, blocked, done, cancelled]
+    TaskSummary:
+      type: object
+      additionalProperties: false
+      required: [task_id, request_summary, origin_host, execution_host, current_node, lifecycle, revision, updated_at, archived, repository_keys, blocker, outcome]
+      properties:
+        task_id: {$ref: '#/components/schemas/ID'}
+        request_summary: {type: string, maxLength: 512}
+        origin_host: {$ref: '#/components/schemas/HostID'}
+        execution_host: {$ref: '#/components/schemas/HostID'}
+        current_node: {type: string, minLength: 1, maxLength: 128}
+        lifecycle: {$ref: '#/components/schemas/Lifecycle'}
+        revision: {type: integer, minimum: 1}
+        updated_at: {type: string, format: date-time}
+        archived: {type: boolean}
+        repository_keys: {type: array, minItems: 1, maxItems: 8, items: {$ref: '#/components/schemas/ID'}}
+        blocker: {type: [string, 'null'], maxLength: 512}
+        outcome: {type: [string, 'null'], maxLength: 512}
+    Fact:
+      type: object
+      additionalProperties: false
+      required: [kind, label, value]
+      properties:
+        kind: {type: string, minLength: 1, maxLength: 128}
+        label: {type: string, minLength: 1, maxLength: 256}
+        value: {type: string, maxLength: 16384}
+    DashboardCount:
+      type: object
+      additionalProperties: false
+      required: [lifecycle, count]
+      properties:
+        lifecycle: {$ref: '#/components/schemas/Lifecycle'}
+        count: {type: integer, minimum: 0}
+    DashboardResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, request_id, readiness, counts, recent]
+      properties:
+        ok: {type: boolean, const: true}
+        request_id: {$ref: '#/components/schemas/ID'}
+        readiness: {$ref: '#/components/schemas/Readiness'}
+        counts: {type: array, items: {$ref: '#/components/schemas/DashboardCount'}}
+        recent: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/TaskSummary'}}
+    TaskListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, request_id, readiness, page, has_next, items]
+      properties:
+        ok: {type: boolean, const: true}
+        request_id: {$ref: '#/components/schemas/ID'}
+        readiness: {$ref: '#/components/schemas/Readiness'}
+        page: {type: integer, minimum: 1}
+        has_next: {type: boolean}
+        items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/TaskSummary'}}
+    TaskEventView:
+      type: object
+      additionalProperties: false
+      required: [revision, event_type, source_node, destination_node, transition_id, reason, created_at]
+      properties:
+        revision: {type: integer, minimum: 1}
+        event_type: {type: string, minLength: 1, maxLength: 128}
+        source_node: {type: string, minLength: 1, maxLength: 128}
+        destination_node: {type: string, minLength: 1, maxLength: 128}
+        transition_id: {type: [string, 'null'], maxLength: 128}
+        reason: {type: [string, 'null'], maxLength: 4096}
+        created_at: {type: string, format: date-time}
+    GraphNode:
+      type: object
+      additionalProperties: false
+      required: [node_id, kind, purpose]
+      properties:
+        node_id: {type: string, minLength: 1, maxLength: 128}
+        kind: {type: string, minLength: 1, maxLength: 128}
+        purpose: {type: string, maxLength: 4096}
+    GraphTransition:
+      type: object
+      additionalProperties: false
+      required: [transition_id, source, destination]
+      properties:
+        transition_id: {type: string, minLength: 1, maxLength: 128}
+        source: {type: string, minLength: 1, maxLength: 128}
+        destination: {type: string, minLength: 1, maxLength: 128}
+    GraphView:
+      type: object
+      additionalProperties: false
+      required: [process_id, definition_digest, current_node, resume_node, nodes, transitions, actual_transition_ids, current_legal_transition_ids, future_node_ids, future_transition_ids]
+      properties:
+        process_id: {type: string, minLength: 1, maxLength: 128}
+        definition_digest: {$ref: '#/components/schemas/Digest'}
+        current_node: {type: string, minLength: 1, maxLength: 128}
+        resume_node: {type: [string, 'null'], maxLength: 128}
+        nodes: {type: array, items: {$ref: '#/components/schemas/GraphNode'}}
+        transitions: {type: array, items: {$ref: '#/components/schemas/GraphTransition'}}
+        actual_transition_ids: {type: array, items: {type: string, maxLength: 128}}
+        current_legal_transition_ids: {type: array, items: {type: string, maxLength: 128}}
+        future_node_ids: {type: array, items: {type: string, maxLength: 128}}
+        future_transition_ids: {type: array, items: {type: string, maxLength: 128}}
+    ActionView:
+      type: object
+      additionalProperties: false
+      required: [action_id, action_kind, process_id, process_definition_digest, source_node, repository_binding_digest, purpose, conditions, allowed_effects, required_evidence, method_steps, legal_transition_ids, payload_schema]
+      properties:
+        action_id: {$ref: '#/components/schemas/ID'}
+        action_kind: {type: string, minLength: 1, maxLength: 128}
+        process_id: {type: string, minLength: 1, maxLength: 128}
+        process_definition_digest: {$ref: '#/components/schemas/Digest'}
+        source_node: {type: string, minLength: 1, maxLength: 128}
+        repository_binding_digest: {$ref: '#/components/schemas/Digest'}
+        purpose: {type: string, maxLength: 4096}
+        conditions: {type: array, items: {type: string, maxLength: 4096}}
+        allowed_effects: {type: array, items: {type: string, maxLength: 4096}}
+        required_evidence: {type: array, items: {type: string, maxLength: 4096}}
+        method_steps: {type: array, items: {type: string, maxLength: 4096}}
+        legal_transition_ids: {type: array, items: {type: string, maxLength: 128}}
+        payload_schema:
+          type: object
+          description: Closed JSON Schema produced by the current Workflow-owned Action schema provider.
+    TaskDetailResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, request_id, readiness, summary, intent, acceptance_criteria, verification_budget, method_profile, repositories, baselines, records, evidence, blocker, outcome, events, graph, current_action]
+      properties:
+        ok: {type: boolean, const: true}
+        request_id: {$ref: '#/components/schemas/ID'}
+        readiness: {$ref: '#/components/schemas/Readiness'}
+        summary: {$ref: '#/components/schemas/TaskSummary'}
+        intent: {type: string, maxLength: 16384}
+        acceptance_criteria: {type: array, items: {type: string, maxLength: 4096}}
+        verification_budget: {type: string, maxLength: 4096}
+        method_profile: {type: string, enum: [plain, spec-kit, openspec]}
+        repositories: {type: array, minItems: 1, maxItems: 8, items: {$ref: '#/components/schemas/RepositoryView'}}
+        baselines: {type: array, items: {$ref: '#/components/schemas/Fact'}}
+        records: {type: array, items: {$ref: '#/components/schemas/Fact'}}
+        evidence: {type: array, items: {$ref: '#/components/schemas/Fact'}}
+        blocker:
+          oneOf:
+            - {$ref: '#/components/schemas/Fact'}
+            - {type: 'null'}
+        outcome:
+          oneOf:
+            - {$ref: '#/components/schemas/Fact'}
+            - {type: 'null'}
+        events: {type: array, items: {$ref: '#/components/schemas/TaskEventView'}}
+        graph: {$ref: '#/components/schemas/GraphView'}
+        current_action:
+          oneOf:
+            - {$ref: '#/components/schemas/ActionView'}
+            - {type: 'null'}
+    SystemStatusResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, request_id, readiness, core_identity, data_root_digest, url]
+      properties:
+        ok: {type: boolean, const: true}
+        request_id: {$ref: '#/components/schemas/ID'}
+        readiness: {$ref: '#/components/schemas/Readiness'}
+        core_identity: {type: string, minLength: 1, maxLength: 256}
+        data_root_digest: {$ref: '#/components/schemas/Digest'}
+        url: {type: string, maxLength: 4096}
+    MutationResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, request_id, workflow_write_state, task_revision, redirect, recovery]
+      properties:
+        ok: {type: boolean, const: true}
+        request_id: {$ref: '#/components/schemas/ID'}
+        workflow_write_state: {type: string, enum: [committed, not_committed]}
+        task_revision: {type: [integer, 'null'], minimum: 1}
+        redirect: {type: [string, 'null'], maxLength: 4096}
+        recovery:
+          oneOf:
+            - {$ref: '#/components/schemas/RecoveryAdvice'}
+            - {type: 'null'}
+    FailureResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, request_id, workflow_write_state, error, recovery]
+      properties:
+        ok: {type: boolean, const: false}
+        request_id: {$ref: '#/components/schemas/ID'}
+        workflow_write_state: {type: string, enum: [not_committed, unknown]}
+        error: {$ref: '#/components/schemas/Error'}
+        recovery: {$ref: '#/components/schemas/RecoveryAdvice'}
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message, field_paths, guard_id]
+      properties:
+        code: {type: string, minLength: 1, maxLength: 128}
+        message: {type: string, minLength: 1, maxLength: 4096}
+        field_paths: {type: array, maxItems: 64, items: {type: string, maxLength: 512}}
+        guard_id: {type: [string, 'null'], maxLength: 128}
+    RecoveryAdvice:
+      type: object
+      additionalProperties: false
+      required: [action, retry_safe, message]
+      properties:
+        action:
+          type: string
+          enum: [none, correct_current_action, retry_current_action, submit_recovery_apply, read_next_action, resolve_blocker, stop_for_repository_drift]
+        retry_safe: {type: boolean}
+        message: {type: string, maxLength: 4096}
+    RepositoryInput:
+      type: object
+      additionalProperties: false
+      required: [key, path]
+      properties:
+        key: {$ref: '#/components/schemas/ID'}
+        path: {type: string, minLength: 1, maxLength: 4096}
+    RepositoryView:
+      type: object
+      additionalProperties: false
+      required: [key, path, role]
+      properties:
+        key: {$ref: '#/components/schemas/ID'}
+        path: {type: string, minLength: 1, maxLength: 4096}
+        role: {type: string, enum: [primary, additional]}
+    OpenTask:
+      type: object
+      additionalProperties: false
+      required: [request_id, mode, request, acceptance_criteria, verification_budget, method_profile, execution_host, primary_repository, additional_repositories, csrf]
+      properties:
+        request_id: {$ref: '#/components/schemas/ID'}
+        mode: {type: string, enum: [create, resume]}
+        request: {type: string, minLength: 1, maxLength: 16384}
+        acceptance_criteria: {type: array, minItems: 1, maxItems: 64, items: {type: string, minLength: 1, maxLength: 4096}}
+        verification_budget: {type: string, minLength: 1, maxLength: 4096}
+        method_profile: {type: string, enum: [plain, spec-kit, openspec]}
+        execution_host: {$ref: '#/components/schemas/HostID'}
+        primary_repository: {$ref: '#/components/schemas/RepositoryInput'}
+        additional_repositories: {type: array, maxItems: 7, items: {$ref: '#/components/schemas/RepositoryInput'}}
+        csrf: {type: string, minLength: 32, maxLength: 256}
+    ReasonedMutation:
+      type: object
+      additionalProperties: false
+      required: [request_id, task_revision, reason, confirmed, csrf]
+      properties:
+        request_id: {$ref: '#/components/schemas/ID'}
+        task_revision: {type: integer, minimum: 1}
+        reason: {type: string, minLength: 1, maxLength: 4096}
+        confirmed: {type: boolean, const: true}
+        csrf: {type: string, minLength: 32, maxLength: 256}
+    ArchiveMutation:
+      type: object
+      additionalProperties: false
+      required: [request_id, task_revision, archived, csrf]
+      properties:
+        request_id: {$ref: '#/components/schemas/ID'}
+        task_revision: {type: integer, minimum: 1}
+        archived: {type: boolean}
+        csrf: {type: string, minLength: 32, maxLength: 256}
+    PurgeMutation:
+      type: object
+      additionalProperties: false
+      required: [request_id, task_revision, typed_task_id, reason, irreversible, csrf]
+      properties:
+        request_id: {$ref: '#/components/schemas/ID'}
+        task_revision: {type: integer, minimum: 1}
+        typed_task_id: {$ref: '#/components/schemas/ID'}
+        reason: {type: string, minLength: 1, maxLength: 4096}
+        irreversible: {type: boolean, const: true}
+        csrf: {type: string, minLength: 32, maxLength: 256}
+    ActionSubmission:
+      type: object
+      additionalProperties: false
+      required: [request_id, task_revision, action_id, action_kind, process_id, process_definition_digest, source_node, repository_binding_digest, payload, csrf]
+      properties:
+        request_id: {$ref: '#/components/schemas/ID'}
+        task_revision: {type: integer, minimum: 1}
+        action_id: {$ref: '#/components/schemas/ID'}
+        action_kind: {type: string, minLength: 1, maxLength: 128}
+        process_id: {type: string, const: standard-development}
+        process_definition_digest: {$ref: '#/components/schemas/Digest'}
+        source_node: {type: string, minLength: 1, maxLength: 128}
+        repository_binding_digest: {$ref: '#/components/schemas/Digest'}
+        payload:
+          type: object
+          description: Closed by the current Workflow-owned Action payload schema returned with the form.
+        csrf: {type: string, minLength: 32, maxLength: 256}
+    OperationProbe:
+      type: object
+      additionalProperties: false
+      required: [operation_id, expected_revision, action_id, action_kind, process_id, process_definition_digest, source_node, repository_binding_digest, payload]
+      properties:
+        operation_id: {$ref: '#/components/schemas/ID'}
+        expected_revision: {type: integer, minimum: 1}
+        action_id: {$ref: '#/components/schemas/ID'}
+        action_kind: {type: string, minLength: 1, maxLength: 128}
+        process_id: {type: string, const: standard-development}
+        process_definition_digest: {$ref: '#/components/schemas/Digest'}
+        source_node: {type: string, minLength: 1, maxLength: 128}
+        repository_binding_digest: {$ref: '#/components/schemas/Digest'}
+        payload:
+          type: object
+          description: Original closed Action payload retained only for Core Recovery assessment.
+    RecoveryAssessment:
+      type: object
+      additionalProperties: false
+      required: [operation, csrf]
+      properties:
+        operation: {$ref: '#/components/schemas/OperationProbe'}
+        csrf: {type: string, minLength: 32, maxLength: 256}
+    RecoverySubmission:
+      type: object
+      additionalProperties: false
+      required: [operation, recovery_action, csrf]
+      properties:
+        operation: {$ref: '#/components/schemas/OperationProbe'}
+        recovery_action:
+          type: string
+          enum: [retry_current_action, submit_recovery_apply, read_next_action, resolve_blocker, stop_for_repository_drift]
+        csrf: {type: string, minLength: 32, maxLength: 256}
