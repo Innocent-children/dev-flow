@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/store"
 	"github.com/Innocent-children/dev-flow/internal/userconfig"
 	"github.com/Innocent-children/dev-flow/internal/version"
+	"github.com/Innocent-children/dev-flow/internal/webui"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -258,6 +260,97 @@ func TestRunRejectsEveryOtherCommandAndNetworkMode(t *testing.T) {
 		if stdout.Len() != 0 || stderr.String() != "dev-flow: invalid arguments; use \"dev-flow help\"\n" {
 			t.Fatalf("run(%q) stdout/stderr = %q/%q", args, stdout.String(), stderr.String())
 		}
+	}
+}
+
+func TestRunWebUIFullPublicLifecycle(t *testing.T) {
+	dataDirectory := t.TempDir()
+	getenv := func(name string) string {
+		if name == dataDirectoryEnvironment {
+			return dataDirectory
+		}
+		return ""
+	}
+	originalStart, originalStatus, originalOpen, originalStop := startWebUI, statusWebUI, openWebUIBrowser, stopWebUI
+	t.Cleanup(func() {
+		startWebUI, statusWebUI, openWebUIBrowser, stopWebUI = originalStart, originalStatus, originalOpen, originalStop
+	})
+	state := webui.RuntimeState{Readiness: webui.ReadinessReady, CoreIdentity: "dev-flow/test", DataRootDigest: strings.Repeat("a", 64), URL: "http://127.0.0.1:1234", PID: 42}
+	startCalls, statusCalls, openCalls, stopCalls := 0, 0, 0, 0
+	startWebUI = func(_ context.Context, data, identity string, noOpen bool) (webui.RuntimeState, error) {
+		startCalls++
+		if data != dataDirectory || identity == "" || !noOpen {
+			t.Fatalf("start binding = %q/%q/%v", data, identity, noOpen)
+		}
+		return state, nil
+	}
+	statusWebUI = func(_ context.Context, data, identity string) (webui.RuntimeState, error) {
+		statusCalls++
+		if data != dataDirectory || identity == "" {
+			t.Fatalf("status binding = %q/%q", data, identity)
+		}
+		return state, nil
+	}
+	openWebUIBrowser = func(url string) error {
+		openCalls++
+		if url != state.URL {
+			t.Fatalf("open URL = %q", url)
+		}
+		return nil
+	}
+	stopWebUI = func(_ context.Context, data, identity string) (webui.RuntimeState, error) {
+		stopCalls++
+		stopped := state
+		stopped.Readiness = webui.ReadinessUnavailable
+		return stopped, nil
+	}
+
+	for _, args := range [][]string{{"webui", "start", "--no-open", "--json"}, {"webui", "open"}, {"webui", "status", "--json"}, {"webui", "stop"}} {
+		var stdout, stderr bytes.Buffer
+		if code := run(args, bytes.NewReader(nil), &stdout, &stderr, getenv, unexpectedServe(t)); code != 0 {
+			t.Fatalf("run(%q) = %d, stdout/stderr = %q/%q", args, code, stdout.String(), stderr.String())
+		}
+		if stderr.Len() != 0 || stdout.Len() == 0 {
+			t.Fatalf("run(%q) stdout/stderr = %q/%q", args, stdout.String(), stderr.String())
+		}
+	}
+	if startCalls != 1 || statusCalls != 2 || openCalls != 1 || stopCalls != 1 {
+		t.Fatalf("lifecycle calls = start:%d status:%d open:%d stop:%d", startCalls, statusCalls, openCalls, stopCalls)
+	}
+}
+
+func TestRunWebUIResetPlanAndConfirmation(t *testing.T) {
+	dataDirectory := t.TempDir()
+	getenv := func(name string) string {
+		if name == dataDirectoryEnvironment {
+			return dataDirectory
+		}
+		return ""
+	}
+	taskStore, err := store.Open(context.Background(), filepath.Join(dataDirectory, databaseFileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := taskStore.Close(); err != nil {
+		t.Fatal(err)
+	}
+	var planOutput, planError bytes.Buffer
+	if code := run([]string{"webui", "reset", "--json"}, bytes.NewReader(nil), &planOutput, &planError, getenv, unexpectedServe(t)); code != 0 {
+		t.Fatalf("reset plan = %d, %q", code, planError.String())
+	}
+	var plan struct {
+		Status       string `json:"status"`
+		ConfirmToken string `json:"confirm_token"`
+	}
+	if err := json.Unmarshal(planOutput.Bytes(), &plan); err != nil || plan.Status != "confirmation_required" || len(plan.ConfirmToken) != 64 {
+		t.Fatalf("reset plan = %#v, err = %v", plan, err)
+	}
+	var confirmOutput, confirmError bytes.Buffer
+	if code := run([]string{"webui", "reset", "--confirm", plan.ConfirmToken, "--json"}, bytes.NewReader(nil), &confirmOutput, &confirmError, getenv, unexpectedServe(t)); code != 0 {
+		t.Fatalf("reset confirm = %d, %q", code, confirmError.String())
+	}
+	if !strings.Contains(confirmOutput.String(), `"status":"completed"`) {
+		t.Fatalf("reset confirmation output = %q", confirmOutput.String())
 	}
 }
 

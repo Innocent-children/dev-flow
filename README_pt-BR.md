@@ -131,7 +131,7 @@ na versão estável.
 - Core observa Git de forma limitada e somente leitura; não faz commit, push, merge, rebase, tag ou publish.
 - Alterações de arquivos e comandos permanecem responsabilidade do Host autorizado pelo usuário.
 - Dev Flow não intercepta cada operação do Host e não é um sandbox geral de segurança.
-- Não há Web UI, remote MCP, telemetry, graph definido pelo usuário nem migração histórica automática.
+- O código-fonte atual inclui uma WebUI compartilhada limitada ao loopback, com chinês simplificado/inglês, idioma inicial do sistema e troca local no navegador; remote MCP, telemetry, graph definido pelo usuário e migração histórica automática continuam fora do escopo.
 - Um índice opcional apenas ajuda na busca; não decide escopo, permissões, Recovery ou estado.
 - Uma Action com escrita permitida informa `changed_paths` exatos ou `no_file_changes`. Core valida esses dados contra a linha de base de emissão e uma fresh Git observation; alterações autorizadas concluem com a Action original, enquanto mudanças de branch, HEAD, repository identity ou caminhos não declarados continuam retornando `REPOSITORY_DRIFT`.
 
@@ -157,6 +157,7 @@ Consulte [Project Status](docs/PROJECT-STATUS_en.md) e
 | Arquitetura | [Architecture](docs/ARCHITECTURE_en.md) |
 | Versões e plataformas | [Support Matrix](docs/SUPPORT-MATRIX_en.md) |
 | Comandos e ferramentas MCP | [Command Reference](docs/COMMANDS_en.md) |
+| WebUI local e reset somente pela CLI | [WebUI](docs/WEBUI_en.md) |
 | Segurança | [Security](SECURITY.md) · [Threat Model](docs/THREAT-MODEL_en.md) |
 | Contribuir | [Contributing](CONTRIBUTING_en.md) |
 

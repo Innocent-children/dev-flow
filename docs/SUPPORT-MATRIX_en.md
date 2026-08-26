@@ -22,6 +22,10 @@ restart/resume, `DONE`, and retained reopen.
 
 ## Preview and source
 
+Feature 014 source includes the shared local WebUI, embedded assets, and `dev-flow webui
+start|open|status|stop|reset`. Source validation does not change the public stable versions or bundled-Core claims above;
+only a later independent release, registry-byte read-back, and final Host lifecycle can add it to stable artifact claims.
+
 | Product | npm `beta` | Package version on `main` | Status |
 | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.7.2-beta.2` | `0.7.2-beta.2` | Publicly evaluable; not a stable support claim |

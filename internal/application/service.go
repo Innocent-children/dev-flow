@@ -64,6 +64,8 @@ func mapStoreError(err error) error {
 		return domain.ErrActiveTaskConflict
 	case errors.Is(err, store.ErrRevisionConflict):
 		return domain.ErrRevisionConflict
+	case errors.Is(err, store.ErrTaskTerminal):
+		return domain.ErrTaskTerminal
 	case errors.Is(err, store.ErrSchemaUnsupported):
 		return domain.ErrSchemaUnsupported
 	case errors.Is(err, store.ErrProcessUnsupported):

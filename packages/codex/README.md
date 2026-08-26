@@ -183,9 +183,11 @@ export DEV_FLOW_DATA_DIR="/absolute/path/to/existing-directory"
 显式目录必须已经存在、可用且可 canonicalize。setup、remove 和 npm uninstall 都保留 Task data
 与未知相邻文件，也不会修改目标 Git 仓库。
 
-当前 Core 只读取当前 SQLite Schema。检测到不兼容或 pre-graph data 时返回
-`SCHEMA_UNSUPPORTED` 并保持零写入。请选择新的数据目录，或在 Core 外部手工归档、改名或删除
-旧目录。
+当前 Core 只读取当前 SQLite Schema。检测到不兼容或 pre-graph data 时普通启动保持零写入并返回
+`reset_required`。package 携带的同一 Core 支持 `dev-flow webui start|open|status|stop|reset`；WebUI 只监听
+loopback，Codex 与 DeepSeek 复用同一进程和数据。reset 先展示精确 database/sidecar 目标，再要求当前
+target-bound token 和数据库独占访问；浏览器没有 reset mutation。界面支持简体中文/英文，首次跟随系统
+语言，手工选择只保存在浏览器。完整说明见 [WebUI](../../docs/WEBUI.md)。
 
 ## 卸载与彻底清理
 
@@ -218,7 +220,7 @@ rm -rf "$HOME/Library/Application Support/dev-flow"
 ## Package 内容
 
 生产 package 由 `package.json.files` 关闭，只包含 Plugin、Skill、MCP 配置、lifecycle library、
-license 和一个 darwin-arm64 Core。它不包含 source tree、tests、fixtures、specs、`.git`、
+license 和一个内嵌 WebUI 资产的 darwin-arm64 Core。它不包含 source tree、tests、fixtures、specs、`.git`、
 `node_modules`、用户数据、构建日志或绝对路径，也没有 install/uninstall hook。
 
 ## 维护者入口

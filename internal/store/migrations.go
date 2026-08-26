@@ -10,7 +10,7 @@ const DatabaseSchemaVersion = "0.2.0"
 
 var currentSchemaStatements = []string{
 	`CREATE TABLE schema_metadata (version TEXT PRIMARY KEY)`,
-	`CREATE TABLE tasks (task_id TEXT PRIMARY KEY, origin_host TEXT NOT NULL, process_id TEXT NOT NULL, process_definition_digest TEXT NOT NULL, current_node TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision >= 1), repository_identity TEXT NOT NULL, snapshot BLOB NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+	`CREATE TABLE tasks (task_id TEXT PRIMARY KEY, origin_host TEXT NOT NULL, process_id TEXT NOT NULL, process_definition_digest TEXT NOT NULL, current_node TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision >= 1), repository_identity TEXT NOT NULL, snapshot BLOB NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, archived_at TEXT)`,
 	`CREATE INDEX tasks_node_idx ON tasks (current_node)`,
 	`CREATE INDEX tasks_origin_host_idx ON tasks (origin_host)`,
 	`CREATE INDEX tasks_updated_at_idx ON tasks (updated_at)`,
@@ -36,7 +36,7 @@ var currentSchemaObjects = []struct {
 
 var currentColumns = map[string][]string{
 	"schema_metadata":   {"version"},
-	"tasks":             {"task_id", "origin_host", "process_id", "process_definition_digest", "current_node", "revision", "repository_identity", "snapshot", "created_at", "updated_at"},
+	"tasks":             {"task_id", "origin_host", "process_id", "process_definition_digest", "current_node", "revision", "repository_identity", "snapshot", "created_at", "updated_at", "archived_at"},
 	"task_events":       {"event_id", "task_id", "revision", "event_type", "source_node", "destination_node", "transition_id", "transition_reason", "action_id", "request_id", "payload_digest", "created_at"},
 	"repository_claims": {"repository_identity", "task_id", "origin_host", "claimed_at"},
 }

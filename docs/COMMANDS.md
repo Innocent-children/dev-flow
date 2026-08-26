@@ -155,8 +155,14 @@ Host package 内含的 Go Core 不作为普通用户的全局 CLI 安装。以�
 | `dev-flow --help` | `help` 的长选项形式。 |
 | `dev-flow version` | 输出 `dev-flow <core-version>`。 |
 | `DEV_FLOW_DATA_DIR=/absolute/path dev-flow mcp --stdio` | 使用现有可用数据目录启动 local STDIO MCP。目录不存在或不是目录时启动失败。 |
+| `dev-flow webui start [--no-open] [--plain\|--json]` | 启动或复用共享 loopback WebUI；默认打开浏览器。 |
+| `dev-flow webui open [--plain\|--json]` | 验证 receipt、进程身份和实时 Core 状态后打开同一 URL。 |
+| `dev-flow webui status [--plain\|--json]` | 返回 `ready`、`read_only`、`reset_required`、`incompatible` 或 `unavailable`。 |
+| `dev-flow webui stop [--plain\|--json]` | 核对 PID 与进程启动身份后停止共享实例。 |
+| `dev-flow webui reset [--confirm TOKEN] [--plain\|--json]` | 无 token 时展示精确永久清理计划；确认时先获得数据库独占访问并只删除绑定目标。WebUI 没有 reset HTTP mutation。 |
 
-Core 不支持 remote transport、HTTP/SSE、通用 shell 或 Git mutation 命令。Codex 用户应通过
+`dev-flow webui serve` 是公开 lifecycle 内部使用的子进程入口，不是 Host 用户命令。Core 不支持 remote
+transport、通用 HTTP/SSE transport、通用 shell 或 Git mutation 命令。Codex 用户应通过
 `dev-flow-codex mcp` 的受管入口启动 Core；DeepSeek 用户由 DSH integration process 启动 Core。
 
 ## MCP 工具

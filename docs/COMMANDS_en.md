@@ -169,8 +169,14 @@ accepted command surface is primarily for host integration, development, and dia
 | `dev-flow --help` | Long-option form of `help`. |
 | `dev-flow version` | Print `dev-flow <core-version>`. |
 | `DEV_FLOW_DATA_DIR=/absolute/path dev-flow mcp --stdio` | Start local STDIO MCP with an existing usable data directory. Startup fails when the path is missing or not a directory. |
+| `dev-flow webui start [--no-open] [--plain\|--json]` | Start or reuse the shared loopback WebUI; open the browser by default. |
+| `dev-flow webui open [--plain\|--json]` | Validate the receipt, process identity, and live Core status, then open the same URL. |
+| `dev-flow webui status [--plain\|--json]` | Return `ready`, `read_only`, `reset_required`, `incompatible`, or `unavailable`. |
+| `dev-flow webui stop [--plain\|--json]` | Verify PID and process-start identity before stopping the shared instance. |
+| `dev-flow webui reset [--confirm TOKEN] [--plain\|--json]` | Without a token, show the exact permanent cleanup plan; confirmation first obtains exclusive database access and deletes only bound targets. There is no reset HTTP mutation. |
 
-Core has no remote transport, HTTP/SSE, generic shell, or Git-mutation commands. Codex users start it
+`dev-flow webui serve` is an internal child-process entrypoint used by the public lifecycle, not a Host user command. Core
+has no remote transport, generic HTTP/SSE transport, generic shell, or Git-mutation commands. Codex users start it
 through the managed `dev-flow-codex mcp` entrypoint; DeepSeek users start it through the DSH
 integration process.
 

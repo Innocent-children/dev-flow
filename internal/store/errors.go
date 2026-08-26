@@ -11,6 +11,7 @@ const (
 	ErrorTaskNotFound       = domain.ErrorTaskNotFound
 	ErrorActiveTaskConflict = domain.ErrorActiveTaskConflict
 	ErrorRevisionConflict   = domain.ErrorRevisionConflict
+	ErrorTaskTerminal       = domain.ErrorTaskTerminal
 	ErrorSchemaUnsupported  = domain.ErrorSchemaUnsupported
 	ErrorProcessUnsupported = domain.ErrorProcessUnsupported
 	ErrorStorageUnavailable = domain.ErrorStorageUnavailable
@@ -33,6 +34,7 @@ var (
 		Code:    ErrorRevisionConflict,
 		Message: "the task revision does not match",
 	}
+	ErrTaskTerminal      = &domain.Error{Code: ErrorTaskTerminal, Message: "the storage operation requires a terminal task"}
 	ErrSchemaUnsupported = &domain.Error{
 		Code:    ErrorSchemaUnsupported,
 		Message: "pre-graph data is unsupported; choose a fresh data directory or archive, rename, or delete the old directory outside Core",

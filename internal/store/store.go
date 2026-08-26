@@ -12,6 +12,55 @@ type Store interface {
 	LoadActiveTask(context.Context, domain.Digest) (domain.ProcessTask, error)
 	CommitTask(context.Context, TaskMutation) error
 }
+
+type TaskListQuery struct {
+	Text        string
+	Host        domain.Host
+	Repository  string
+	Node        domain.NodeID
+	Lifecycle   string
+	UpdatedFrom *time.Time
+	UpdatedTo   *time.Time
+	Page        int
+	PageSize    int
+}
+
+type ControlCenterTask struct {
+	Task       domain.ProcessTask
+	ArchivedAt *time.Time
+	Events     []TaskEvent
+}
+
+type ControlCenterTaskPage struct {
+	Items   []ControlCenterTask
+	Page    int
+	HasNext bool
+}
+
+type ArchiveTaskMutation struct {
+	TaskID           domain.ID
+	ExpectedRevision uint64
+	Archived         bool
+	ArchivedAt       time.Time
+}
+
+type PurgeTaskMutation struct {
+	TaskID           domain.ID
+	ExpectedRevision uint64
+	TypedTaskID      domain.ID
+	Reason           string
+	Irreversible     bool
+}
+
+// ControlCenterStore owns existing Task persistence and the bounded read models used by ControlCenter.
+type ControlCenterStore interface {
+	Store
+	ListControlCenterTasks(context.Context, TaskListQuery) (ControlCenterTaskPage, error)
+	LoadControlCenterTask(context.Context, domain.ID) (ControlCenterTask, error)
+	LoadTaskEvents(context.Context, domain.ID) ([]TaskEvent, error)
+	SetTaskArchived(context.Context, ArchiveTaskMutation) (*time.Time, error)
+	PurgeTask(context.Context, PurgeTaskMutation) error
+}
 type ClaimOperation string
 
 const (

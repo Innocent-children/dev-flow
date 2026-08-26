@@ -156,7 +156,7 @@ revision、验证预算和结果；系统不会扫描相邻目录、依赖或代
 - Core 只对 Git 做有界、只读观察；不会执行 commit、push、merge、rebase、tag 或发布。
 - 真正的文件修改和命令执行仍由用户授权的 Host 完成。
 - Dev Flow 不会拦截 Host 的每一次文件读写，也不是通用安全沙箱。
-- 当前没有 Web UI、远程 MCP、遥测、用户自定义流程图或自动历史数据迁移。
+- 当前源码包含仅监听 loopback 的共享 WebUI，前端支持简体中文/英文、首次跟随系统语言并允许浏览器内切换；不包含远程 MCP、遥测、用户自定义流程图或自动历史数据迁移。
 - 可选代码索引只提供检索结果，不能决定仓库范围、权限、Recovery 或流程状态。
 
 安全边界见 [Security Policy](SECURITY.md) 和 [Threat Model](docs/THREAT-MODEL.md)。
@@ -182,6 +182,7 @@ beta/source 状态见 [Project Status](docs/PROJECT-STATUS.md) 和
 | Core、Adapter、Store 与 Recovery | [Architecture](docs/ARCHITECTURE.md) |
 | 支持版本和平台 | [Support Matrix](docs/SUPPORT-MATRIX.md) |
 | 用户命令与 MCP 工具 | [Command Reference](docs/COMMANDS.md) |
+| 本地 WebUI 与 CLI-only reset | [WebUI](docs/WEBUI.md) |
 | 后续方向 | [Roadmap](docs/ROADMAP.md) |
 | 安全报告与威胁模型 | [Security](SECURITY.md) · [Threat Model](docs/THREAT-MODEL.md) |
 | 提交 Issue 或 Pull Request | [Contributing](CONTRIBUTING.md) |

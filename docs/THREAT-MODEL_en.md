@@ -41,6 +41,12 @@ flowchart LR
 
 ## Main risks and current defenses
 
+The local WebUI binds only `tcp4 127.0.0.1` and requires the exact Host. Mutations also validate the exact Origin, a random
+process-local session value, and current Task revision. The mode-`0600` receipt binds process-start identity, data-root
+digest, URL, and live Core identity to prevent wrong reuse or PID reuse. The browser has no reset mutation. The CLI token
+binds the canonical database and SQLite sidecars present in the plan; lock failure or target drift produces zero deletes,
+and Adapters, registrations, configuration, and unrelated files are outside the target set.
+
 | Risk | Current defense |
 | --- | --- |
 | Path traversal, symlinks, or index results expand Repository Scope | Scope is canonicalized and frozen at Task creation; multi-repository paths carry an explicit key; indexes cannot add members |

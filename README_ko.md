@@ -129,7 +129,7 @@ profile을 재시작한 뒤 입력합니다.
 - Core의 Git 접근은 제한된 읽기 전용이며 commit, push, merge, rebase, tag, publish를 수행하지 않습니다.
 - 파일 변경과 명령 실행은 사용자가 승인한 Host의 책임입니다.
 - Dev Flow는 Host의 모든 파일 작업을 차단하지 않으며 일반 보안 sandbox가 아닙니다.
-- 현재 Web UI, remote MCP, telemetry, 사용자 정의 graph, 자동 과거 데이터 마이그레이션은 없습니다.
+- 현재 소스에는 중국어 간체/영어, 시스템 언어 기본값, 브라우저 로컬 전환을 지원하는 loopback 전용 공유 WebUI가 포함됩니다. remote MCP, telemetry, 사용자 정의 graph, 자동 과거 데이터 마이그레이션은 포함되지 않습니다.
 - 선택적 코드 index는 검색만 보조하며 범위, 권한, Recovery, 상태를 결정할 수 없습니다.
 - 쓰기가 허용된 Action은 정확한 `changed_paths` 또는 `no_file_changes`를 결과로 제출합니다. Core는 발급 시 기준과 fresh Git observation으로 이를 검증하며, 허가된 변경은 원래 Action으로 완료할 수 있지만 branch, HEAD, repository identity 또는 선언되지 않은 경로 변경은 계속 `REPOSITORY_DRIFT`를 반환합니다.
 
@@ -155,6 +155,7 @@ profile을 재시작한 뒤 입력합니다.
 | 아키텍처 | [Architecture](docs/ARCHITECTURE_en.md) |
 | 지원 범위 | [Support Matrix](docs/SUPPORT-MATRIX_en.md) |
 | 명령과 MCP 도구 | [Command Reference](docs/COMMANDS_en.md) |
+| 로컬 WebUI와 CLI 전용 reset | [WebUI](docs/WEBUI_en.md) |
 | 보안 보고 | [Security](SECURITY.md) · [Threat Model](docs/THREAT-MODEL_en.md) |
 | 기여 | [Contributing](CONTRIBUTING_en.md) |
 

@@ -106,7 +106,7 @@ func preflightExisting(ctx context.Context, path string) error {
 	return preflightRows(ctx, db)
 }
 func preflightRows(ctx context.Context, db *sql.DB) error {
-	rows, err := db.QueryContext(ctx, `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,repository_identity,snapshot,created_at,updated_at FROM tasks`)
+	rows, err := db.QueryContext(ctx, `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,repository_identity,snapshot,created_at,updated_at,archived_at FROM tasks`)
 	if err != nil {
 		return ErrSchemaUnsupported
 	}
@@ -115,9 +115,10 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 	tasks := map[string]preflightTask{}
 	for rows.Next() {
 		var taskID, originHost, processID, digest, node, repositoryIdentity, createdAt, updatedAt string
+		var archivedAt sql.NullString
 		var revision int64
 		var snapshot []byte
-		if err := rows.Scan(&taskID, &originHost, &processID, &digest, &node, &revision, &repositoryIdentity, &snapshot, &createdAt, &updatedAt); err != nil {
+		if err := rows.Scan(&taskID, &originHost, &processID, &digest, &node, &revision, &repositoryIdentity, &snapshot, &createdAt, &updatedAt, &archivedAt); err != nil {
 			return ErrStorageUnavailable
 		}
 		if processID != string(standard.ID) || digest != string(standard.DefinitionDigest) {
@@ -130,6 +131,10 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 		if string(task.TaskID) != taskID || string(task.OriginHost) != originHost || task.Process != standard || string(task.CurrentNode) != node || int64(task.Revision) != revision || string(task.Repository.RepositoryIdentity) != repositoryIdentity || formatTime(task.CreatedAt) != createdAt || formatTime(task.UpdatedAt) != updatedAt {
 			return ErrStorageUnavailable
 		}
+		archive, err := decodeArchiveTime(nullableString(archivedAt))
+		if err != nil || archive != nil && !task.CurrentNode.Terminal() {
+			return ErrStorageUnavailable
+		}
 		if _, exists := tasks[taskID]; exists {
 			return ErrStorageUnavailable
 		}
@@ -137,7 +142,7 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 		for _, identity := range repositoryClaimIdentities(task) {
 			expectedClaims[string(identity)] = true
 		}
-		tasks[taskID] = preflightTask{originHost: originHost, terminal: task.CurrentNode.Terminal(), expectedClaims: expectedClaims}
+		tasks[taskID] = preflightTask{task: task, originHost: originHost, terminal: task.CurrentNode.Terminal(), expectedClaims: expectedClaims}
 	}
 	if rows.Err() != nil || rows.Close() != nil {
 		return ErrStorageUnavailable
@@ -172,11 +177,23 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 		if task.terminal && claimCount[taskID] != 0 || !task.terminal && claimCount[taskID] != len(task.expectedClaims) {
 			return ErrStorageUnavailable
 		}
+		events, err := loadTaskEvents(ctx, db, domain.ID(taskID))
+		if err != nil {
+			return ErrStorageUnavailable
+		}
+		traversals := make([]workflow.CommittedTraversal, len(events))
+		for index, event := range events {
+			traversals[index] = workflow.CommittedTraversal{Revision: event.Revision, Kind: event.Kind, Source: event.SourceNode, Destination: event.DestinationNode, TransitionID: event.TransitionID, Reason: event.TransitionReason, CreatedAt: event.CreatedAt}
+		}
+		if !workflow.ProjectControlCenterGraph(task.task, traversals).Safe {
+			return ErrStorageUnavailable
+		}
 	}
 	return nil
 }
 
 type preflightTask struct {
+	task           domain.ProcessTask
 	originHost     string
 	terminal       bool
 	expectedClaims map[string]bool
@@ -201,15 +218,27 @@ func (s *SQLite) load(ctx context.Context, query, arg string) (domain.ProcessTas
 	if s == nil || s.db == nil {
 		return domain.ProcessTask{}, ErrStorageUnavailable
 	}
-	var taskID, host, processID, digest, node, identity, created, updated string
-	var revision int64
-	var snapshot []byte
-	err := s.db.QueryRowContext(ctx, query, arg).Scan(&taskID, &host, &processID, &digest, &node, &revision, &identity, &snapshot, &created, &updated)
+	task, err := scanStoredTask(s.db.QueryRowContext(ctx, query, arg))
 	if errors.Is(err, sql.ErrNoRows) {
 		return domain.ProcessTask{}, ErrTaskNotFound
 	}
 	if err != nil {
 		return domain.ProcessTask{}, ErrStorageUnavailable
+	}
+	return task, nil
+}
+
+type rowScanner interface {
+	Scan(...any) error
+}
+
+func scanStoredTask(row rowScanner) (domain.ProcessTask, error) {
+	var taskID, host, processID, digest, node, identity, created, updated string
+	var revision int64
+	var snapshot []byte
+	err := row.Scan(&taskID, &host, &processID, &digest, &node, &revision, &identity, &snapshot, &created, &updated)
+	if err != nil {
+		return domain.ProcessTask{}, err
 	}
 	task, err := decodeTask(snapshot)
 	if err != nil {
@@ -234,7 +263,7 @@ func (s *SQLite) CommitTask(ctx context.Context, m TaskMutation) error {
 	}
 	defer tx.Rollback()
 	if m.ExpectedRevision == 0 {
-		_, err = tx.ExecContext(ctx, `INSERT INTO tasks(task_id,origin_host,process_id,process_definition_digest,current_node,revision,repository_identity,snapshot,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)`, m.Task.TaskID, m.Task.OriginHost, m.Task.Process.ID, m.Task.Process.DefinitionDigest, m.Task.CurrentNode, m.Task.Revision, m.Task.Repository.RepositoryIdentity, snapshot, formatTime(m.Task.CreatedAt), formatTime(m.Task.UpdatedAt))
+		_, err = tx.ExecContext(ctx, `INSERT INTO tasks(task_id,origin_host,process_id,process_definition_digest,current_node,revision,repository_identity,snapshot,created_at,updated_at,archived_at) VALUES(?,?,?,?,?,?,?,?,?,?,NULL)`, m.Task.TaskID, m.Task.OriginHost, m.Task.Process.ID, m.Task.Process.DefinitionDigest, m.Task.CurrentNode, m.Task.Revision, m.Task.Repository.RepositoryIdentity, snapshot, formatTime(m.Task.CreatedAt), formatTime(m.Task.UpdatedAt))
 	} else {
 		result, e := tx.ExecContext(ctx, `UPDATE tasks SET current_node=?,revision=?,snapshot=?,updated_at=? WHERE task_id=? AND revision=? AND process_id=? AND process_definition_digest=?`, m.Task.CurrentNode, m.Task.Revision, snapshot, formatTime(m.Task.UpdatedAt), m.Task.TaskID, m.ExpectedRevision, m.Task.Process.ID, m.Task.Process.DefinitionDigest)
 		err = e
@@ -360,3 +389,11 @@ func sameOptionalID(a, b *domain.ID) bool {
 	return *a == *b
 }
 func formatTime(v time.Time) string { return v.UTC().Format(time.RFC3339Nano) }
+
+func nullableString(value sql.NullString) *string {
+	if !value.Valid {
+		return nil
+	}
+	copy := value.String
+	return &copy
+}

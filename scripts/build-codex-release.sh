@@ -3,7 +3,10 @@
 set -eu
 
 repository_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+webui_builder="$repository_root/scripts/build-webui.sh"
 output_directory=""
+
+[ -x "$webui_builder" ] || { printf '%s\n' 'build-codex-release: WebUI builder is unavailable' >&2; exit 1; }
 
 if [ "${1:-}" = "--" ]; then
   shift

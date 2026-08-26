@@ -124,7 +124,7 @@ npx @imotong/create-dev-flow@latest
 - Core 只對 Git 進行有界、唯讀觀察，不執行 commit、push、merge、rebase、tag 或發布。
 - 檔案修改與命令執行仍由使用者授權的 Host 負責。
 - Dev Flow 不會攔截 Host 的每一次檔案操作，也不是通用安全沙箱。
-- 目前沒有 Web UI、remote MCP、telemetry、使用者自訂流程圖或自動歷史資料遷移。
+- 目前原始碼包含僅監聽 loopback 的共享 WebUI，前端支援簡體中文/英文、首次跟隨系統語言並可在瀏覽器切換；不包含 remote MCP、telemetry、使用者自訂流程圖或自動歷史資料遷移。
 - 可選程式碼索引只能協助檢索，不能決定範圍、權限、Recovery 或流程狀態。
 - 允許寫入的 Action 以精確 `changed_paths` 或 `no_file_changes` 回報結果；Core 依簽發基線與 fresh Git observation 驗證，合法修改可用原 Action 完成，branch、HEAD、repository identity 或未宣告路徑變更仍回傳 `REPOSITORY_DRIFT`。
 
@@ -150,6 +150,7 @@ npx @imotong/create-dev-flow@latest
 | 架構 | [Architecture](docs/ARCHITECTURE.md) |
 | 支援版本與平台 | [Support Matrix](docs/SUPPORT-MATRIX.md) |
 | 命令與 MCP 工具 | [Command Reference](docs/COMMANDS.md) |
+| 本機 WebUI 與僅限 CLI 的 reset | [WebUI](docs/WEBUI.md) |
 | 安全報告與威脅模型 | [Security](SECURITY.md) · [Threat Model](docs/THREAT-MODEL.md) |
 | 參與貢獻 | [Contributing](CONTRIBUTING.md) |
 

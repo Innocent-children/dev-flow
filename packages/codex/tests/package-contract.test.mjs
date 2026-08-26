@@ -158,6 +158,7 @@ test("package metadata closes source, artifact, and development command surfaces
     "test:parser": "node --test tests/journey-evidence.test.mjs",
     "test:native-smoke": "node --test tests/journey-harness.test.mjs",
     "pack:dry": "pnpm pack --dry-run --json",
+    "build:webui": "../../scripts/build-webui.sh",
     "build:local": "../../scripts/build-codex-local.sh",
     "smoke:fixture": "../../scripts/run-codex-real-journey.sh --fixture success",
   });
@@ -346,6 +347,10 @@ test("local package builder stages one exact non-final artifact in a temporary d
       encoding: "utf8",
     });
     assert.equal(versionLine, `dev-flow ${currentVersion}\n`);
+    const { stdout: help } = await execFile(runtime, ["help"], { cwd: extractDirectory, encoding: "utf8" });
+    for (const command of ["webui start", "webui open", "webui status", "webui stop", "webui reset"]) {
+      assert.match(help, new RegExp(command, "u"));
+    }
   }
 });
 

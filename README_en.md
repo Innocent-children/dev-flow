@@ -168,8 +168,8 @@ directories, dependencies, and indexes cannot expand scope automatically. Check
   tag, or publish.
 - File changes and command execution remain the responsibility of the user-authorized Host.
 - Dev Flow does not intercept every Host file operation and is not a general security sandbox.
-- There is currently no Web UI, remote MCP, telemetry, user-defined graph, or automatic historical
-  data migration.
+- Current source includes a shared loopback-only WebUI with Simplified Chinese/English copy, system-language default, and a browser-local switch; it does not include remote MCP, telemetry,
+  a user-defined graph, or automatic historical-data migration.
 - An optional code index may assist retrieval but cannot decide repository scope, permission,
   Recovery, or process state.
 
@@ -196,6 +196,7 @@ passing tests. See [Project Status](docs/PROJECT-STATUS_en.md) and the
 | Core, Adapter, Store, and Recovery | [Architecture](docs/ARCHITECTURE_en.md) |
 | Supported versions and platforms | [Support Matrix](docs/SUPPORT-MATRIX_en.md) |
 | User commands and MCP tools | [Command Reference](docs/COMMANDS_en.md) |
+| Local WebUI and CLI-only reset | [WebUI](docs/WEBUI_en.md) |
 | Future direction | [Roadmap](docs/ROADMAP_en.md) |
 | Security reporting and threat model | [Security](SECURITY.md) · [Threat Model](docs/THREAT-MODEL_en.md) |
 | Report an issue or open a pull request | [Contributing](CONTRIBUTING_en.md) |

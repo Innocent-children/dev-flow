@@ -154,6 +154,12 @@ release and is not part of the current stable support claim.
 
 ## Products
 
+Current source also provides a Control Center embedded in Core. It browses Tasks from every Host, presents timeline,
+process graph, Action, Recovery, and Blocker facts, and performs Task lifecycle operations. `dev-flow webui
+start|open|status|stop` manages one shared loopback instance. The interface provides Simplified Chinese/English, selects the system language on first use, and stores a manual choice only in the browser. Old Task data is removed only through CLI-only,
+target-bound `reset` after exclusive database access. The browser exposes no remote access, accounts, permissions, shell,
+Git mutation, or reset mutation.
+
 | Product | Responsibility | Current version |
 | --- | --- | --- |
 | Core | State graph, Task, Store, Recovery, and MCP | `0.6.1` |
@@ -192,7 +198,7 @@ be claimed by at most one active Task. Single-repository calls retain ordinary r
 multi-repository paths use `<repository-key>::<repository-relative-path>`. It does not provide:
 
 - user-defined graphs, a workflow DSL, graph editor, or plugin framework;
-- a Web UI, remote MCP, HTTP/SSE, authentication, or telemetry;
+- remote Web UI, remote MCP, generic HTTP/SSE transport, authentication, or telemetry;
 - a generic shell, automatic Git repair, commit, push, merge, rebase, or publication;
 - automatic discovery or dynamic mutation of Repository Scope, parallel repository nodes, subtasks,
   or automatic cross-host takeover;

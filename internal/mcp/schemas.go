@@ -1,6 +1,10 @@
 package mcp
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/Innocent-children/dev-flow/internal/workflow"
+)
 
 const (
 	ToolServerInfo    = "dev_flow_server_info"
@@ -459,55 +463,14 @@ func joinSchemaPath(path, name string) string {
 	}
 	return path + "." + name
 }
-func evidenceCheckSchema(source string, automated bool) map[string]any {
-	commandCount := map[string]any{"type": "integer", "const": 0}
-	fullSuite := map[string]any{"type": "boolean", "const": false}
-	if automated {
-		commandCount = map[string]any{"type": "integer", "minimum": 1, "maximum": 20}
-		fullSuite = map[string]any{"type": "boolean"}
-	}
-	return obj(
-		[]string{"source", "name", "status", "summary", "command_count", "full_suite"},
-		map[string]any{
-			"source":        map[string]any{"const": source},
-			"name":          str(),
-			"status":        map[string]any{"enum": []string{"passed", "failed", "skipped", "not_run", "observed"}},
-			"summary":       str(),
-			"command_count": commandCount,
-			"full_suite":    fullSuite,
-		},
-	)
-}
-func payloadSchema(nodeResult map[string]any) map[string]any {
-	artifact := obj([]string{"role", "path", "digest", "summary"}, map[string]any{"role": map[string]any{"enum": []string{"requirements", "design", "task_plan", "implementation", "test", "comprehension", "refactor", "delivery", "other_process"}}, "path": str(), "digest": digest(), "summary": str()})
-	method := obj([]string{"step_id", "status", "capability", "summary"}, map[string]any{"step_id": id(), "status": map[string]any{"enum": []string{"completed", "not_run", "unavailable", "plain_fallback"}}, "capability": map[string]any{"type": "string", "maxLength": 128, "pattern": "^[a-z0-9_.@-]*$"}, "summary": str()})
-	return obj([]string{"transition_id", "summary", "reason", "artifacts", "method_evidence", "node_result"}, map[string]any{"transition_id": id(), "summary": str(), "reason": map[string]any{"type": "string", "maxLength": 4096}, "artifacts": map[string]any{"type": "array", "maxItems": 16, "items": artifact}, "method_evidence": map[string]any{"type": "array", "maxItems": 16, "items": method}, "node_result": nodeResult})
-}
 func graphPayloads() ([]any, []string) {
-	baselineReq := obj([]string{"goal", "scope", "out_of_scope", "acceptance_criteria", "constraints", "assumptions"}, map[string]any{"goal": str(), "scope": list(), "out_of_scope": list(), "acceptance_criteria": list(), "constraints": list(), "assumptions": list()})
-	mutation := map[string]any{"changed_paths": list(), "no_file_changes": map[string]any{"type": "boolean"}}
-	requirements := payloadSchema(obj([]string{"problem_class", "baseline", "unresolved_questions", "changed_paths", "no_file_changes"}, mergeProperties(map[string]any{"problem_class": problemClass("none"), "baseline": baselineReq, "unresolved_questions": list()}, mutation)))
-	designBase := obj([]string{"requirements_revision", "approach", "components", "decisions", "rejected_alternatives", "complexity_justification", "risks"}, map[string]any{"requirements_revision": map[string]any{"type": "integer", "minimum": 1}, "approach": str(), "components": list(), "decisions": list(), "rejected_alternatives": list(), "complexity_justification": list(), "risks": list()})
-	design := payloadSchema(obj([]string{"problem_class", "baseline", "findings", "changed_paths", "no_file_changes"}, mergeProperties(map[string]any{"problem_class": problemClass("none", "requirement_gap"), "baseline": nullableSchema(designBase), "findings": list()}, mutation)))
-	work := obj([]string{"work_item_id", "summary", "expected_paths", "acceptance_indexes", "verification_steps", "dependencies"}, map[string]any{"work_item_id": id(), "summary": str(), "expected_paths": list(), "acceptance_indexes": map[string]any{"type": "array", "items": map[string]any{"type": "integer", "minimum": 0}}, "verification_steps": list(), "dependencies": map[string]any{"type": "array", "items": id()}})
-	tasksBase := obj([]string{"design_revision", "work_items"}, map[string]any{"design_revision": map[string]any{"type": "integer", "minimum": 1}, "work_items": map[string]any{"type": "array", "maxItems": 64, "items": work}})
-	tasks := payloadSchema(obj([]string{"problem_class", "baseline", "findings", "changed_paths", "no_file_changes"}, mergeProperties(map[string]any{"problem_class": problemClass("none", "design_gap", "requirement_gap"), "baseline": nullableSchema(tasksBase), "findings": list()}, mutation)))
-	implementation := payloadSchema(obj([]string{"problem_class", "task_plan_revision", "completed_work_item_ids", "changed_paths", "no_file_changes", "deviations", "findings"}, map[string]any{"problem_class": problemClass("none", "design_gap", "requirement_gap", "code_complexity"), "task_plan_revision": map[string]any{"type": "integer", "minimum": 1}, "completed_work_item_ids": map[string]any{"type": "array", "items": id()}, "changed_paths": list(), "no_file_changes": map[string]any{"type": "boolean"}, "deviations": list(), "findings": list()}))
-	check := map[string]any{"oneOf": []any{
-		evidenceCheckSchema("automated", true),
-		evidenceCheckSchema("user", false),
-		evidenceCheckSchema("static", false),
-		evidenceCheckSchema("host_observed", false),
-	}}
-	test := payloadSchema(obj([]string{"problem_class", "checks", "failed_items", "unverified_items", "manual_handoff_items", "findings", "changed_paths", "no_file_changes"}, mergeProperties(map[string]any{"problem_class": problemClass("none", "implementation_failure", "design_failure", "requirement_gap"), "checks": map[string]any{"type": "array", "maxItems": 32, "items": check}, "failed_items": list(), "unverified_items": list(), "manual_handoff_items": list(), "findings": list()}, mutation)))
-	confirmation := obj([]string{"source", "status", "summary"}, map[string]any{"source": map[string]any{"const": "user"}, "status": map[string]any{"const": "passed"}, "summary": str()})
-	comprehension := payloadSchema(obj([]string{"problem_class", "explained_components", "unresolved_questions", "unnecessary_abstractions", "maintenance_risks", "user_confirmation", "findings", "changed_paths", "no_file_changes"}, mergeProperties(map[string]any{"problem_class": problemClass("none", "implementation_defect", "code_complexity", "design_complexity", "verification_gap", "requirement_gap"), "explained_components": list(), "unresolved_questions": list(), "unnecessary_abstractions": list(), "maintenance_risks": list(), "user_confirmation": nullableSchema(confirmation), "findings": list()}, mutation)))
-	refactor := payloadSchema(obj([]string{"problem_class", "changed_paths", "no_file_changes", "simplifications", "behavior_change_intended", "findings"}, map[string]any{"problem_class": problemClass("none", "design_change", "requirement_change"), "changed_paths": list(), "no_file_changes": map[string]any{"type": "boolean"}, "simplifications": list(), "behavior_change_intended": map[string]any{"type": "boolean"}, "findings": list()}))
-	delivery := payloadSchema(obj([]string{"problem_class", "acceptance", "automated_evidence_ids", "manual_evidence_ids", "test_record_id", "comprehension_record_id", "unverified_items", "risks", "findings", "changed_paths", "no_file_changes"}, mergeProperties(map[string]any{"problem_class": problemClass("none", "implementation_gap", "test_gap", "comprehension_gap", "design_gap", "requirement_gap"), "acceptance": map[string]any{"type": "array", "items": obj([]string{"criterion", "status"}, map[string]any{"criterion": str(), "status": map[string]any{"const": "satisfied"}})}, "automated_evidence_ids": map[string]any{"type": "array", "items": id()}, "manual_evidence_ids": map[string]any{"type": "array", "items": id()}, "test_record_id": id(), "comprehension_record_id": id(), "unverified_items": list(), "risks": list(), "findings": list()}, mutation)))
-	condition := obj([]string{"kind", "expected_binding_digest"}, map[string]any{"kind": map[string]any{"const": "restore_issuance_binding"}, "expected_binding_digest": digest()})
-	blocker := obj([]string{"blocker_id", "condition", "observed_binding_digest"}, map[string]any{"blocker_id": id(), "condition": condition, "observed_binding_digest": digest()})
-	payloads := []any{requirements, design, tasks, implementation, test, comprehension, refactor, delivery, blocker}
-	kinds := []string{"COMPLETE_REQUIREMENTS", "COMPLETE_DESIGN", "COMPLETE_TASKS", "COMPLETE_IMPLEMENTATION", "COMPLETE_TEST", "COMPLETE_COMPREHENSION_REVIEW", "COMPLETE_REFACTOR", "COMPLETE_DELIVERY", "RESOLVE_BLOCKER"}
+	entries := workflow.ActionPayloadSchemas()
+	payloads := make([]any, len(entries))
+	kinds := make([]string, len(entries))
+	for index, entry := range entries {
+		payloads[index] = entry.Schema
+		kinds[index] = string(entry.Kind)
+	}
 	return payloads, kinds
 }
 func buildCatalog() []ToolDefinition {
