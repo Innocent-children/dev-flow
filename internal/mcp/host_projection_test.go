@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/Innocent-children/dev-flow/internal/application"
+	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
 // The Host tool-schema projector models a bounded JSON Schema subset:
@@ -36,6 +38,19 @@ var hostProjectionKeywords = map[string]bool{
 }
 
 var hostCompositionKeywords = []string{"anyOf", "oneOf", "allOf"}
+
+func TestHostProjectionUsesWorkflowActionSchemaCatalog(t *testing.T) {
+	payloads, kinds := graphPayloads()
+	entries := workflow.ActionPayloadSchemas()
+	if len(payloads) != len(entries) || len(kinds) != len(entries) {
+		t.Fatalf("MCP payloads=%d kinds=%d Workflow entries=%d", len(payloads), len(kinds), len(entries))
+	}
+	for index, entry := range entries {
+		if kinds[index] != string(entry.Kind) || !reflect.DeepEqual(payloads[index], entry.Schema) {
+			t.Fatalf("projection[%d] diverged from Workflow kind %s", index, entry.Kind)
+		}
+	}
+}
 
 // modelledHostSchema keeps only the keywords the Host projector can model.
 func modelledHostSchema(value any) any {

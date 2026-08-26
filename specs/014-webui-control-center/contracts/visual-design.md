@@ -2,12 +2,26 @@
 
 ## Design direction
 
-Dev Flow WebUI is a premium desktop control center: modern, expressive, precise and unmistakably operational. It applies
+Dev Flow WebUI is a calm, precise desktop control center built for repeated operational use. It applies
 the hierarchy, consistency, clarity and accessibility principles associated with Google Material Design and Apple Human
 Interface Guidelines while using an original Dev Flow visual identity.
 
-The interface may use bold color, gradients, layered translucent surfaces, depth, data visualization and expressive motion.
-Visual richness must strengthen information hierarchy, workflow comprehension and action feedback.
+Content and workflow state lead the interface. Operational surfaces use neutral solid materials, a restrained blue accent,
+compact headings, consistent one-pixel borders, limited elevation and a small radius set. Decorative gradients, glass
+translucency, glow, oversized marketing headlines and excessive pill shapes are not used.
+
+## Language
+
+- Complete frontend-owned copy is maintained in Simplified Chinese and English from one typed message catalog.
+- First use follows ordered browser language preferences: the first supported locale wins; Chinese locales select Chinese,
+  and all other cases select English.
+- A keyboard-accessible shell control switches languages. The manual choice persists in local site storage and remains a
+  browser preference only; clearing site data returns selection to the browser languages.
+- Navigation, headings, labels, controls, loading/empty/stale states, destructive dialogs and runtime guidance switch as one
+  interface. Core-owned identifiers, enum values, paths, facts and original error text remain exact.
+- Chinese copy is written as native product language for ordinary users. Internal concepts such as authority boundaries,
+  runtime ownership and transport vocabulary are translated into the user's task, status or system intent rather than
+  exposed as literal section headings.
 
 ## Visual foundations
 
@@ -26,8 +40,8 @@ Visual richness must strengthen information hierarchy, workflow comprehension an
 - Status meanings remain stable across the application. `BLOCKED`, destructive, warning, success and neutral states each
   combine semantic color with text, icon, shape or line treatment.
 - Normal text meets WCAG AA contrast of 4.5:1; large text and essential graphical controls meet at least 3:1.
-- Gradients, translucency, blur, glow and shadow may create depth and identity while preserving text contrast and clear
-  interactive boundaries.
+- Operational surfaces use solid fills and one-pixel borders. Shadow is reserved for modal separation or one active floating
+  layer; gradients, translucency, blur and glow are excluded.
 
 ### Spacing, shape and density
 
@@ -36,10 +50,15 @@ Visual richness must strengthen information hierarchy, workflow comprehension an
 - Corner shapes, borders and elevation levels use a limited semantic set so rich visuals remain coherent.
 - Information-dense views group related facts through proximity and progressive disclosure rather than shrinking critical
   text or controls.
+- Text inputs, selection triggers, date fields and action buttons share a 42–44 CSS pixel control height, visible border and
+  focus treatment. Selection controls use one WebUI-owned combobox/listbox with a consistent trigger, arrow, option panel,
+  selected/check state and keyboard behavior instead of browser-native select popups.
+- Filter panels use an explicit aligned grid with a dedicated action region; action buttons do not fall into an accidental
+  partial-width row.
 
 ### Motion
 
-- Motion may express navigation, panel changes, graph emphasis, state transitions, success and destructive confirmation.
+- Motion is limited to short functional feedback for loading, focus, state changes and confirmation.
 - Motion maintains continuity and does not delay completion of a user action.
 - Loading uses contextual skeletons or progress indicators; stale and unavailable states do not masquerade as loading.
 - `prefers-reduced-motion` removes spatial and decorative motion while retaining immediate state feedback.
@@ -95,6 +114,8 @@ confirmation.
 - Field errors appear near the field and in a summary when multiple errors exist.
 - Purge confirmation presents target, permanence and required typed confirmation in one focused dialog. A reset-required
   WebUI state presents the exact Core CLI reset command; reset planning and confirmation do not run in the browser.
+- The start-Task entry is named for both create and continue flows. Ordinary users enter repository paths; default and
+  generated repository keys remain implementation details and are not editable form fields.
 
 ## Accessibility and input
 

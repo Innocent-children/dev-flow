@@ -2,9 +2,96 @@ package application
 
 import (
 	"encoding/json"
+	"time"
+
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/recovery"
+	"github.com/Innocent-children/dev-flow/internal/store"
+	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
+
+type TaskListFilter struct {
+	Text        string
+	Host        domain.Host
+	Repository  string
+	Node        domain.NodeID
+	Lifecycle   string
+	UpdatedFrom *time.Time
+	UpdatedTo   *time.Time
+	Page        int
+}
+
+type ListControlCenterTasksRequest struct {
+	Filter TaskListFilter
+}
+
+type GetControlCenterTaskRequest struct {
+	TaskID domain.ID
+}
+
+type ControlCenterTaskSummary struct {
+	TaskID         domain.ID
+	RequestSummary string
+	OriginHost     domain.Host
+	ExecutionHost  domain.Host
+	CurrentNode    domain.NodeID
+	Lifecycle      string
+	Revision       uint64
+	UpdatedAt      time.Time
+	Archived       bool
+	RepositoryKeys []domain.RepositoryKey
+	Blocker        *string
+	Outcome        *string
+}
+
+type ControlCenterTaskList struct {
+	Page    int
+	HasNext bool
+	Items   []ControlCenterTaskSummary
+}
+
+type ControlCenterDashboard struct {
+	Counts map[string]int
+	Recent []ControlCenterTaskSummary
+}
+
+type ControlCenterTaskDetail struct {
+	Task     domain.ProcessTask
+	Archived bool
+	Events   []store.TaskEvent
+	Graph    workflow.ControlCenterGraph
+	ReadOnly bool
+}
+
+type SetTaskArchiveRequest struct {
+	RequestID        domain.ID
+	TaskID           domain.ID
+	ExpectedRevision uint64
+	Archived         bool
+}
+
+type PurgeControlCenterTaskRequest struct {
+	RequestID        domain.ID
+	TaskID           domain.ID
+	ExpectedRevision uint64
+	TypedTaskID      domain.ID
+	Reason           string
+	Irreversible     bool
+}
+
+type CancelControlCenterTaskRequest struct {
+	RequestID        domain.ID
+	TaskID           domain.ID
+	ExpectedRevision uint64
+	Reason           string
+	Confirmed        bool
+}
+
+type ControlCenterMutationResult struct {
+	Task     *domain.ProcessTask
+	Archived *bool
+	Purged   bool
+}
 
 type NewTaskInput struct {
 	Request                 string

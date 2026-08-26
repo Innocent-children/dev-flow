@@ -17,6 +17,7 @@ provide consistent process behavior.
 | `repository` | Canonical repository identity and bounded read-only Git observation |
 | `recovery` | Five-class reconciliation, retry advice, blockers, and resume |
 | `mcp` | Six-tool local STDIO contract, closed schemas, and Result Envelope |
+| `webui` | Loopback HTTP adapter, embedded assets, session protection, shared runtime receipt, and lifecycle |
 | `version` | Core product version from `CORE_VERSION` or build injection |
 
 ## Authority boundary
@@ -36,8 +37,8 @@ read-only, performs no Git mutation, and exposes no generic shell.
 
 ```text
 cmd/dev-flow
-    ↓
-internal/mcp
+    ├── internal/mcp
+    └── internal/webui ── embedded React assets
     ↓
 internal/application
     ├── internal/workflow
@@ -48,8 +49,10 @@ internal/application
         local SQLite
 ```
 
-Store accepts only the current SQLite Schema and strict snapshot. Incompatible or pre-graph data
-returns `SCHEMA_UNSUPPORTED` before write capability is exposed, with zero writes.
+Store accepts only the current SQLite Schema and strict snapshot. Incompatible or pre-graph data returns
+`SCHEMA_UNSUPPORTED` before write capability is exposed, with zero writes. `dev-flow webui reset` uses a target-bound
+plan and exclusive database access to clean only confirmed Task database/sidecars. The browser has no reset mutation.
+Bilingual display preference exists only in frontend local site storage and does not enter Core or Task state.
 
 ## Targeted validation
 
@@ -60,6 +63,7 @@ go test ./internal/workflow
 go test ./internal/recovery
 go test ./internal/store
 go test ./internal/mcp
+go test ./internal/webui
 ```
 
 Cross-layer contract and journey checks live under `tests/contract/` and `tests/journeys/`. Run

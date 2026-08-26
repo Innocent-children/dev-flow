@@ -1,6 +1,11 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
+import { App } from "./app/App";
+import { I18nProvider } from "./lib/i18n";
+import "./styles/tokens.css";
+import "./styles/layout.css";
+
 const root = document.getElementById("root");
 
 if (root === null) {
@@ -9,8 +14,6 @@ if (root === null) {
 
 createRoot(root).render(
   <StrictMode>
-    <main>
-      <h1>Dev Flow</h1>
-    </main>
+    <I18nProvider><App /></I18nProvider>
   </StrictMode>,
 );

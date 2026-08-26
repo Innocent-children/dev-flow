@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-25
 
-**Status**: Ready
+**Status**: Complete
 
 **Input**: 为 Dev Flow 提供一个完整的本地单用户 WebUI。用户能够查看每个 Task 的当前状态、历史流转、
 完整流程图中的位置和未来可能路径，并能够创建、恢复、取消、归档、恢复归档、永久清除 Task，以及
@@ -14,7 +14,7 @@
 
 ### Session 2026-08-26
 
-- Q: UI 的设计方向是否需要缩减？ → A: 保留参考 Google、Apple 等国际大厂的美学设计和 Dev Flow 自有视觉语言。
+- Q: UI 的设计方向是否需要缩减？ → A: 参考 Google、Apple 的生产工具美学，采用克制、清晰、内容优先的 Dev Flow 视觉；去除概念稿式渐变、玻璃拟态、发光和超大宣传文案。
 - Q: UI 如何验收？ → A: 不安排 UI 自动化测试、截图矩阵或 Agent 视觉审查，由产品负责人人工验收。
 - Q: 安全机制采用什么强度？ → A: 只保留当前本地写入和不可恢复删除直接需要的最小防护，不建立多层防御协议。
 - Q: 测试预算如何分配？ → A: 使用尽可能少的测试全面覆盖需求、主要失败路径和已有回归，同一事实只在一个主要权威层验证。
@@ -43,7 +43,9 @@
 5. **Given** Task 具有当前 Action，**When** 用户查看流程图，**Then** 已走路径、当前位置、当前合法边和未来可达边具有文字与视觉区分，未来路径不表示 Guard 已满足。
 6. **Given** Task 处于 `BLOCKED`，**When** 用户查看流程图，**Then** 当前节点和恢复关系均准确显示。
 7. **Given** Task 在页面打开期间变化，**When** 下一次轮询读取到新 revision，**Then** 页面刷新完整 Task，旧操作表单失效。
-8. **Given** 用户浏览首页、列表、详情、流程图和操作表单，**When** 页面处于常见桌面窗口或系统浅色/深色外观，**Then** 信息层级、组件、间距、色彩和反馈保持清晰一致。
+8. **Given** 用户浏览首页、列表、详情、流程图和操作表单，**When** 页面处于常见桌面窗口或系统浅色/深色外观，**Then** 信息层级、组件、间距、色彩和反馈保持清晰一致，并使用克制的生产工具视觉而非宣传页或概念稿表达。
+9. **Given** 用户首次打开 WebUI，**When** 浏览器首选语言为中文，**Then** 页面默认显示中文；其它语言默认显示英文，且用户可以在 shell 中随时切换中英文。
+10. **Given** 用户手工选择语言，**When** 刷新或重新打开同一浏览器中的 WebUI，**Then** 继续使用该选择；清除浏览器站点数据后重新按系统语言选择。
 
 ---
 
@@ -134,7 +136,7 @@ WebUI，再由另一个 Host Adapter 读取 status 并打开同一 URL，证明�
 ### Task discovery and detail
 
 - **FR-006**: WebUI MUST provide an overview of active, blocked and terminal Tasks plus recent committed activity.
-- **FR-007**: Task browsing MUST support keyword, Core-supported Host identity, repository, node, lifecycle and updated-time filters, deterministic ordering and bounded pages.
+- **FR-007**: Task browsing MUST support keyword, Core-supported Host identity, repository, node, lifecycle and updated-time filters, deterministic ordering and bounded pages. Node filter choices MUST come from the current Core process definition rather than a frontend-maintained node list.
 - **FR-008**: Task detail MUST present intent, Scope, baselines, records, Evidence, current Action, Blocker, Outcome, revision and timestamps from one consistent read.
 - **FR-009**: Repository Scope MUST display primary and additional repositories in deterministic order with bounded path disclosure.
 - **FR-010**: Empty, loading, stale, read-only, incompatible and unavailable states MUST be explicit.
@@ -151,7 +153,7 @@ WebUI，再由另一个 Host Adapter 读取 status 并打开同一 URL，证明�
 
 ### Lifecycle management
 
-- **FR-018**: The local user MUST be able to create a Task with request, Scope, acceptance criteria, verification budget, method profile and an execution Host accepted by Core, or resume a compatible active Task.
+- **FR-018**: The local user MUST be able to create a Task with request, Scope, acceptance criteria, verification budget, method profile and an execution Host accepted by Core, or resume a compatible active Task. The ordinary form MUST ask for repository paths, not internal repository keys: the primary key uses Core's default and additional keys are generated deterministically by the client.
 - **FR-019**: Cancellation MUST require current revision, nonempty reason and explicit confirmation, then produce `CANCELLED` and release claims.
 - **FR-020**: Archive and restore MUST require a terminal Task and be idempotent by target state.
 - **FR-021**: Purge MUST require a terminal Task, zero claims, current revision, typed Task ID, reason and irreversible confirmation.
@@ -184,13 +186,16 @@ WebUI，再由另一个 Host Adapter 读取 status 并打开同一 URL，证明�
 
 ### Visual design and accessibility
 
-- **FR-039**: WebUI MUST use one coherent, polished and expressive modern visual system across dashboard, list, detail, graph, timeline, forms, dialogs and runtime states, with clear hierarchy and a distinctive Dev Flow identity.
+- **FR-039**: WebUI MUST use one coherent, polished and restrained production-tool visual system across dashboard, list, detail, graph, timeline, forms, dialogs and runtime states, with clear hierarchy and a distinctive but quiet Dev Flow identity; operational surfaces MUST NOT use decorative gradients, glass translucency, glow, oversized marketing headlines or excessive pill shapes.
 - **FR-040**: Typography MUST use a legible system-font scale with distinct page title, section title, body, label and code/identity roles; normal body text MUST remain at least 14 CSS pixels at default browser zoom.
 - **FR-041**: Layout MUST use a consistent spacing grid, aligned content regions and bounded information density; primary journeys MUST remain usable at desktop viewport widths from 1024 CSS pixels upward.
 - **FR-042**: Color MUST be semantic and consistent across surfaces, text, interaction and lifecycle states; text and essential controls MUST meet WCAG AA contrast, and no workflow fact or action state may rely on color alone.
-- **FR-043**: Interactive controls MUST provide consistent default, hover, focus-visible, active, disabled, loading, success, warning, error and destructive states; every operation MUST remain keyboard reachable with visible focus.
+- **FR-043**: Interactive controls MUST provide consistent default, hover, focus-visible, active, disabled, loading, success, warning, error and destructive states; every operation MUST remain keyboard reachable with visible focus. All selection controls MUST use the same WebUI-owned combobox/listbox presentation and keyboard behavior instead of browser-native select popups.
 - **FR-044**: WebUI MUST follow the user's light or dark system appearance and preserve the same hierarchy, contrast and state meaning in both appearances.
-- **FR-045**: Motion MAY use expressive transitions and microinteractions to communicate state, continuity and product character; it MUST preserve task efficiency, avoid obscuring content, and respect reduced-motion preferences.
+- **FR-045**: Motion MUST be limited to short functional state feedback, MUST NOT delay work or add decorative spatial movement, and MUST respect reduced-motion preferences.
+- **FR-046**: WebUI MUST provide complete Simplified Chinese and English client-owned interface copy. On first use it MUST select Chinese when the browser's ordered language preferences contain a Chinese locale first among supported locales, and English otherwise.
+- **FR-047**: The application shell MUST expose a keyboard-accessible Chinese/English switch. A manual choice MUST persist only in the current browser's local site storage and override system-language selection until that site data is cleared; it MUST NOT create Core, Task or user-account state.
+- **FR-048**: Navigation, page headings, labels, controls, loading/empty/stale states, lifecycle and destructive confirmations, runtime guidance and frontend-owned correction text MUST follow the selected language and read as native product copy rather than literal translations of internal architecture terms. Chinese UI copy MUST use ordinary user-facing wording and MUST NOT expose phrases such as “权威”“边界” or “runtime” as section copy. Core-owned identifiers, enum values, paths, payload facts and original Core error text MUST remain exact, with localized surrounding guidance where needed.
 
 ### Explicit Non-Goals
 
@@ -227,6 +232,8 @@ WebUI，再由另一个 Host Adapter 读取 status 并打开同一 URL，证明�
 - **SC-011**: Dashboard, Task list, Task detail, graph/Action view, destructive confirmation and system-state screens follow the approved Dev Flow visual direction and are presented to the product owner for manual UI acceptance.
 - **SC-012**: UI completion is decided by product-owner acceptance; automated UI tests, screenshot matrices and Agent-performed visual review are outside this Feature's verification budget.
 - **SC-013**: Validation groups `V01`–`V07` pass at their assigned checkpoints and the final repository gate `V08` runs once; no additional automated verification is required for Feature completion.
+- **SC-014**: Product-owner acceptance confirms that Chinese-system default, English fallback, manual switching and retained browser choice cover dashboard, list, open Task, Task detail and system-state surfaces without mixed frontend-owned language.
+- **SC-015**: Product-owner acceptance confirms that the delivered UI reads as a calm production tool: content hierarchy leads, page titles remain operational in scale, and decorative gradient/glass/glow treatments are absent from operational surfaces.
 
 ## Assumptions
 

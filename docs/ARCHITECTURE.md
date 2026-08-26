@@ -144,6 +144,14 @@ Probe 始终零写入。显式 recovery apply 可以最多一次完成原 transi
 
 ## Repository Scope、配置与持久化边界
 
+`internal/webui` 是 Core 内的 loopback HTTP adapter；`packages/webui` 构建 React/TypeScript/Vite 静态资产并通过
+`go:embed` 进入同一 binary。Application/Workflow/Recovery 继续决定 Task、Action、Guard、Recovery、Blocker
+和 Outcome，浏览器只投影视图并提交当前身份。mode `0600` receipt 绑定 PID、进程启动身份、data-root digest
+与 URL，使 Codex 和 DeepSeek 携带的兼容 Core 复用同一进程和 SQLite 权威。reset 位于 CLI/Store 边界，
+通过 target-bound plan、SQLite 独占访问和目标复核完成；HTTP route 集合中没有 reset mutation。
+前端 typed catalog 维护简体中文/英文；首次按 `navigator.languages` 选择，手工选择只进入 local site storage，
+不形成 Core、Task、receipt 或账号状态。
+
 `ProcessTask.Repository` 继续保存主仓库 binding；`PrimaryRepositoryKey` 缺省为 `primary`，
 `AdditionalRepositories` 保存零至七个按 key 严格升序排列的附加 binding。Scope 的成员、角色和 key
 创建后不可变。单仓库的有效 `repository_binding_digest` 仍等于主 binding digest；多仓库的唯一

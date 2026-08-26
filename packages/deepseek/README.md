@@ -147,8 +147,11 @@ Task data 位于 Dev Flow 的本地数据目录，不属于 DSH plugin 配置。
 mutation 响应不确定时，Adapter 保留原 operation identity 与 payload，先读取 Core 的五分类
 Recovery 结论，再决定恢复动作。它不盲目重试，也不自行选择 destination。
 
-当前 Core 只接受当前 SQLite Schema。不兼容或 pre-graph data 会返回
-`SCHEMA_UNSUPPORTED` 并保持零写入；用户可以选择新的数据目录，或在 Core 外部手工处理旧目录。
+当前 Core 只接受当前 SQLite Schema。不兼容或 pre-graph data 在普通启动时保持零写入并返回
+`reset_required`。package 携带的同一 Core 支持 `dev-flow webui start|open|status|stop|reset`；WebUI 只监听
+loopback，DeepSeek 与 Codex 复用同一进程和数据。reset 先展示精确 database/sidecar 目标，再要求当前
+target-bound token 和数据库独占访问；浏览器没有 reset mutation。界面支持简体中文/英文，首次跟随系统
+语言，手工选择只保存在浏览器。完整说明见 [WebUI](../../docs/WEBUI.md)。
 
 ## 卸载与彻底清理
 
@@ -177,7 +180,7 @@ rm -rf "$HOME/Library/Application Support/dev-flow"
 ## Package 内容
 
 Package 只包含一个 `cordis.patch.yml` layer、Adapter libraries、`dev-flow` Skill、references、
-license 和一个 darwin-arm64 Core。它不包含 source tree、tests、fixtures、用户数据或构建日志，
+license 和一个内嵌 WebUI 资产的 darwin-arm64 Core。它不包含 source tree、tests、fixtures、用户数据或构建日志，
 也不提供独立 `bin` executable。
 
 ## 维护者入口

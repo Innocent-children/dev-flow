@@ -143,6 +143,8 @@ trap 'rm -rf -- "$build_root"' EXIT HUP INT TERM
 stage_root="$build_root/package"
 mkdir -p "$stage_root/runtime/darwin-arm64"
 
+"$repository_root/scripts/build-webui.sh" >/dev/null
+
 production_files='package.json
 README.md
 .agents/plugins/marketplace.json

@@ -113,19 +113,31 @@ purge 直接事务删除关联数据。
 **Consequences**：自动验证闭合为 plan 中的 `V01`–`V08`。tasks 必须把每个非 UI 验收场景映射到唯一主要组，允许一个
 表驱动测试覆盖多项要求。`V07` 只证明 Host A 启动、Host B 复用；`V08` 只在最终执行一次。不生成 UI 测试或视觉证据任务。
 
-## Decision 11：建立富有表现力的 Dev Flow 视觉系统
+## Decision 11：建立克制的 Dev Flow 生产工具视觉系统
 
-**Decision**：视觉语言参考 Google Material Design 对排版、网格、空间、尺度、色彩和动效的系统化运用，
+**Decision**：视觉语言参考 Google Material Design 对排版、网格、空间和尺度的系统化运用，
 以及 Apple Human Interface Guidelines 对层级、一致性、适应性、清晰度和可访问性的要求；最终界面使用
-Dev Flow 自有的色彩、材质、图形和组件表达。
+Dev Flow 自有但克制的中性 surface、蓝色 accent、边框和状态表达。
 
 **Rationale**：控制中心同时承载高密度状态、流程图和复杂操作，需要顶级视觉层级与交互反馈。独立前端
-工程允许大胆色彩、层叠材质、数据可视化和高质量动效，同时通过语义 tokens 和组件状态保持一致。
+工程通过语义 tokens 和组件状态保持一致，排除概念稿式渐变、玻璃拟态、发光和超大宣传文案。
 
 **Alternatives considered**：浏览器默认样式、通用后台模板、直接复制某个 Google/Apple 产品界面。
 
 **Consequences**：视觉文档作为设计指导，覆盖浅色、深色、键盘、对比度和 reduced motion 的目标。不建立 UI 自动化测试、
 截图矩阵、像素级回归或 Agent 视觉审查；产品负责人人工验收最终 UI。
+
+## Decision 12：双语前端 catalog 与浏览器偏好
+
+**Decision**：前端维护一个 typed 简体中文/英文 catalog。首次按 `navigator.languages` 中最先命中的支持语言
+选择，中文 locale 使用中文，其它使用英文；手工选择保存到 local site storage。
+
+**Rationale**：语言属于本地显示偏好，不应进入 Core、Task、runtime receipt 或用户账号模型。一个 catalog
+让页面自有文案同时切换，并保留 Core identifiers、enum、path、facts 和原始 error 的精确性。
+
+**Alternatives considered**：只跟随系统且不可切换、把语言写入 Core 配置、引入通用 i18n framework。
+
+**Consequences**：新增直接的 React context/helper，不增加运行时依赖、远程资源或服务端 locale 状态。
 
 **References**：
 

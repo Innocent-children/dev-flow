@@ -36,12 +36,14 @@
 
 ## Visual Design Quality
 
-- [x] Modern visual direction is defined through hierarchy, typography, spacing, color, material, depth and motion requirements
-- [x] Expressive visual design is allowed without weakening information clarity or task efficiency
+- [x] Production-tool visual direction is defined through hierarchy, typography, spacing, solid material, limited depth and functional motion requirements
+- [x] Decorative gradient, glass, glow, oversized marketing copy and excessive pill treatments are explicitly excluded
 - [x] Light, dark, keyboard, contrast, focus and reduced-motion requirements are explicit
 - [x] Visual requirements cover only components used by current pages and do not require a generic component family
 - [x] Product-owner UI acceptance names the delivered screens and explicitly excludes automated UI tests, screenshot matrices and Agent visual review
 - [x] Google Material Design and Apple HIG are references, while Dev Flow retains an original identity
+- [x] Simplified Chinese, English, system-language default, manual switching, browser-only persistence and exact Core-fact boundaries are explicit
+- [x] Chinese copy quality excludes literal internal-architecture translations, and form/select/filter alignment requirements are measurable
 - [x] Safety mechanisms are limited to loopback session writes, revision CAS, transactional purge and target-bound reset with database-exclusive access
 - [x] The finite `V01`–`V08` inventory assigns every non-UI acceptance scenario to one primary group and limits the combined Host Journey to start/reuse evidence
 

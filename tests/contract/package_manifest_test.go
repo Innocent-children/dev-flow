@@ -29,6 +29,7 @@ var runtimeDependencyFields = []string{
 }
 
 var rootDevelopmentScripts = map[string]string{
+	"build:webui":              "./scripts/build-webui.sh",
 	"release:create-dev-flow":  "node ./scripts/release-create-dev-flow.mjs",
 	"release:codex":            "node ./scripts/release-codex.mjs",
 	"release:codex:prepare":    "./scripts/build-codex-release.sh",
@@ -60,6 +61,7 @@ var codexPackageFiles = []string{
 }
 
 var codexDevelopmentScripts = map[string]string{
+	"build:webui":       "../../scripts/build-webui.sh",
 	"build:local":       "../../scripts/build-codex-local.sh",
 	"pack:dry":          "pnpm pack --dry-run --json",
 	"smoke:fixture":     "../../scripts/run-codex-real-journey.sh --fixture success",
@@ -255,6 +257,7 @@ func TestPackageManifestAcceptsBootstrapManifests(t *testing.T) {
 					"test:parser": "node --test tests/journey-evidence.test.mjs",
 					"test:native-smoke": "node --test tests/journey-harness.test.mjs",
 					"pack:dry": "pnpm pack --dry-run --json",
+					"build:webui": "../../scripts/build-webui.sh",
 					"build:local": "../../scripts/build-codex-local.sh",
 					"smoke:fixture": "../../scripts/run-codex-real-journey.sh --fixture success"
 				}

@@ -13,6 +13,7 @@ deepseek_version=$(node -e 'const m=require(process.argv[1]); if(m.name!=="dev-f
   exit 1
 }
 
+"$repository_root/scripts/build-webui.sh" >/dev/null
 mkdir -p "$runtime_directory"
 (
   cd "$repository_root"

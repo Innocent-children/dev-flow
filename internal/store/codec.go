@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"time"
 	"unicode/utf8"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
@@ -28,6 +29,18 @@ func encodeTask(task domain.ProcessTask) ([]byte, error) {
 		return nil, ErrInvalidArgument
 	}
 	return append([]byte(nil), raw...), nil
+}
+
+func decodeArchiveTime(value *string) (*time.Time, error) {
+	if value == nil {
+		return nil, nil
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, *value)
+	if err != nil || parsed.Location() != time.UTC {
+		return nil, ErrStorageUnavailable
+	}
+	parsed = parsed.UTC()
+	return &parsed, nil
 }
 func decodeTask(raw []byte) (domain.ProcessTask, error) {
 	if len(raw) == 0 || len(raw) > domain.MaxPersistedTaskSnapshotBytes || !utf8.Valid(raw) || rejectDuplicateJSON(raw) != nil {

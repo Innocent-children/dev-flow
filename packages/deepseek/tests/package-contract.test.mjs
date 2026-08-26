@@ -76,6 +76,7 @@ test("manifest closes package, dependency, and lifecycle surfaces", async () => 
     "@deepseek-ai/dsh-skill": ">=0.1.0-rc.6",
     "@deepseek-ai/dsh-tools": ">=0.1.0-rc.6",
   });
+  assert.equal(manifest.scripts["build:webui"], "../../scripts/build-webui.sh");
 
   for (const field of [
     "dependencies",
@@ -177,6 +178,11 @@ test("packaged Core native version and STDIO startup", {
   });
   assert.equal(stdout, "");
   assert.equal(stderr, "");
+
+  const { stdout: help } = await execFile(runtimePath, ["help"], { cwd: dataDirectory, encoding: "utf8" });
+  for (const command of ["webui start", "webui open", "webui status", "webui stop", "webui reset"]) {
+    assert.match(help, new RegExp(command, "u"));
+  }
 });
 
 test("artifact builder rejects a root LICENSE changed after the source commit", async (t) => {

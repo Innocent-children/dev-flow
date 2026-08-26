@@ -86,6 +86,11 @@ access returns zero deletes and requires a new plan against current targets.
 
 ## Completion evidence
 
+Before product-owner UI acceptance, open the same embedded UI with a Chinese-preferred browser and an English-preferred
+browser (or use the shell switch), confirm first-use selection and retained manual choice, and inspect every listed surface
+for complete frontend-owned copy. Acceptance also confirms solid neutral surfaces, operational title scale and the absence
+of decorative gradient, glass, glow and marketing-style presentation.
+
 - `V01`–`V06` provide the targeted automated evidence at their assigned authority layers.
 - `V07` is the single Host A start / Host B reuse journey above; it does not repeat Task operations, reset or the full CLI
   lifecycle.

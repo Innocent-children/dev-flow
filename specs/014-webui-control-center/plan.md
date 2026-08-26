@@ -27,7 +27,7 @@
 
 **Performance Goals**: 本地用户操作保持可交互；本 Feature 不建立容量或吞吐基准
 
-**Constraints**: 单机单用户；Core 单一权威；所有 Host 共享实例与数据；本机 loopback；现代桌面视觉；浅色/深色与键盘可访问；现有 MCP 兼容；全部功能一次交付
+**Constraints**: 单机单用户；Core 单一权威；所有 Host 共享实例与数据；本机 loopback；中英文与系统语言默认；克制的生产工具视觉；浅色/深色与键盘可访问；现有 MCP 兼容；全部功能一次交付
 
 **Scale/Scope**: 一个本地用户、一个 WebUI 进程、现有标准流程、四个实施检查点
 
@@ -66,13 +66,15 @@ All Host Adapter Core processes ────────────────
 
 - 一个语义化 CSS token 层统一 surface、text、border、accent、status、spacing、radius、shadow、type 和 motion；
   浅色与深色外观只替换语义值。
-- 页面采用具有品牌辨识度的桌面 shell、清晰主次层级、充足留白和可调节的信息密度。视觉可以使用
-  大胆色彩、渐变、层叠材质、光影、图形化数据表达和高质量动效；列表、详情、图、时间线与 Action
-  面板共享同一排版和组件语言。
+- 页面采用内容优先的桌面 shell、清晰主次层级、稳定网格和适合重复工作的密度；使用中性实色 surface、
+  克制蓝色 accent、1px border、有限阴影和小型圆角集合，移除渐变、玻璃拟态、发光、超大宣传标题与
+  过量胶囊。列表、详情、图、时间线与 Action 面板共享同一排版和组件语言。
 - 状态色同时配合文字、图标或线型；交互控件拥有一致的 hover、focus-visible、active、disabled、loading
   和 destructive 表达。
 - 使用系统字体和内嵌图标/SVG；不加载外部字体、组件库或设计资源。
-- 动画覆盖状态反馈、内容连续性和品牌化微交互，通过 `prefers-reduced-motion` 提供低动效表现。
+- `packages/webui/src/lib/i18n.tsx` 保存 typed 中英文 catalog，首次按 `navigator.languages` 选择，手工选择写入
+  local site storage；不写 Core、Task 或用户配置。Core 原始事实保持不翻译。
+- 动画只用于短促功能反馈，通过 `prefers-reduced-motion` 提供低动效表现。
 - 实施以 [`contracts/visual-design.md`](contracts/visual-design.md) 为设计指导；Google Material Design 和
   Apple HIG 提供原则参考，不复制任何具体产品界面。UI 不生成自动化测试、截图证据或 Agent 视觉审查，
   最终由产品负责人人工验收。

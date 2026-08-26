@@ -1,8 +1,18 @@
 {
   "index.html": {
-    "file": "assets/index-D2-M_llm.js",
+    "file": "assets/index-DFA36F0o.js",
     "name": "index",
     "src": "index.html",
-    "isEntry": true
+    "isEntry": true,
+    "css": [
+      "assets/index-Cf7ct1rj.css"
+    ],
+    "assets": [
+      "assets/dev-flow-mark-By6tx7Au.svg"
+    ]
+  },
+  "src/assets/dev-flow-mark.svg": {
+    "file": "assets/dev-flow-mark-By6tx7Au.svg",
+    "src": "src/assets/dev-flow-mark.svg"
   }
 }

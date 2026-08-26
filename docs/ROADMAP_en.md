@@ -75,7 +75,8 @@ Longer-term research includes:
 
 ## Continuing boundary
 
-The current roadmap does not include user-defined graphs, a workflow DSL, Web UI, remote MCP,
+The current roadmap now delivers a local single-user WebUI. It does not include user-defined graphs, a workflow DSL,
+remote WebUI, remote MCP,
 generic shell, Core Git mutation, automatic discovery or dynamic expansion of Repository Scope,
 automatic multi-repository orchestration, repository-level process state, or automatic historical
 Task migration. A proposal that changes these boundaries requires an independent product

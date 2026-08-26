@@ -125,6 +125,12 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/SystemStatus'}
         default: {$ref: '#/components/responses/Failure'}
+  /api/system/filter-options:
+    get:
+      operationId: getFilterOptions
+      responses:
+        '200': {$ref: '#/components/responses/FilterOptions'}
+        default: {$ref: '#/components/responses/Failure'}
 components:
   parameters:
     TaskID:
@@ -153,6 +159,11 @@ components:
       content:
         application/json:
           schema: {$ref: '#/components/schemas/SystemStatusResponse'}
+    FilterOptions:
+      description: Current Core-owned Task filter choices.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/FilterOptionsResponse'}
     Mutation:
       description: Closed mutation result.
       content:
@@ -339,6 +350,18 @@ components:
         core_identity: {type: string, minLength: 1, maxLength: 256}
         data_root_digest: {$ref: '#/components/schemas/Digest'}
         url: {type: string, maxLength: 4096}
+    FilterOptionsResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, request_id, node_ids]
+      properties:
+        ok: {type: boolean, const: true}
+        request_id: {$ref: '#/components/schemas/ID'}
+        node_ids:
+          type: array
+          minItems: 1
+          maxItems: 16
+          items: {type: string, minLength: 1, maxLength: 128}
     MutationResponse:
       type: object
       additionalProperties: false

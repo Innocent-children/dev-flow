@@ -151,6 +151,15 @@ source node, and resolution returns only to that resume node.
 
 ## Repository Scope, configuration, and persistence boundary
 
+`internal/webui` is a loopback HTTP adapter inside Core. `packages/webui` builds React, TypeScript, and Vite static assets
+that enter the same binary through `go:embed`. Application, Workflow, and Recovery still decide Task, Action, Guard,
+Recovery, Blocker, and Outcome; the browser only projects views and submits current identities. A mode-`0600` receipt binds
+PID, process-start identity, data-root digest, and URL so compatible Core binaries carried by Codex and DeepSeek reuse one
+process and SQLite authority. Reset stays at the CLI/Store boundary and uses a target-bound plan, exclusive SQLite access,
+and target revalidation. The HTTP route set contains no reset mutation.
+A typed frontend catalog maintains Simplified Chinese and English. First use follows `navigator.languages`; a manual choice
+enters local site storage only and creates no Core, Task, receipt, or account state.
+
 `ProcessTask.Repository` continues to store the primary repository binding.
 `PrimaryRepositoryKey` defaults to `primary`, and `AdditionalRepositories` stores zero to seven
 additional bindings in strict key order. Scope membership, roles, and keys are immutable after

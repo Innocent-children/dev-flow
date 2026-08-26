@@ -20,6 +20,10 @@ Codex lifecycle evidence 覆盖 package/Core identity、安装、setup、Core ha
 
 ## 预览与源码
 
+Feature 014 源码包含共享本机 WebUI、内嵌资产和 `dev-flow webui start|open|status|stop|reset`。该源码
+验证不改变上方公开稳定版本或 Bundled Core 声明；只有后续独立 release、registry bytes 回读和最终 Host
+lifecycle 才能把它加入稳定制品声明。
+
 | 产品 | npm `beta` | `main` package 版本 | 状态 |
 | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.7.2-beta.2` | `0.7.2-beta.2` | 可公开评估；不是稳定支持声明 |

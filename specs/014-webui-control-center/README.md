@@ -1,6 +1,6 @@
 # Feature 014：Dev Flow WebUI Control Center
 
-**状态**：Ready / analyze-passed
+**状态**：Complete
 
 **变更类型**：Product Feature
 
@@ -14,9 +14,10 @@
 Core-owned `dev-flow webui` 命令管理一个共享 WebUI 进程。全部能力在本 Feature 内交付；实施按可独立
 验收的检查点推进。
 
-界面采用现代、精致、富有表现力的桌面产品视觉语言，参考 Google Material Design 和 Apple Human
-Interface Guidelines 的层级、排版、间距、色彩、材质、动效与可访问性原则，形成具有 Dev Flow
-辨识度的一致视觉系统。
+界面采用现代、克制、内容优先的桌面生产工具视觉，参考 Google Material Design 和 Apple Human Interface
+Guidelines 的层级、排版、间距、一致性与可访问性原则；使用实色 surface、有限 elevation 和安静的 Dev Flow
+辨识度，排除渐变、玻璃拟态、发光与超大宣传式文案。前端完整支持简体中文和英文，首次按系统语言选择，
+手工选择只保存在浏览器。
 
 设计以当前功能能够运行、能够直接保护本地写入与不可恢复删除、能够用最少证据全面验证为准。
 同一事实只在一个主要权威层验证；UI 由产品负责人人工验收，不建立自动化 UI 测试或截图矩阵。
@@ -51,5 +52,9 @@ Interface Guidelines 的层级、排版、间距、色彩、材质、动效与�
 3. CP3：当前 Action、Guard、Evidence、Recovery 和 Blocker 操作。
 4. CP4：本机启动、打开、状态、停止、reset、打包、文档、组合 Host 旅程和一次最终全仓验证。
 
-全部检查点通过后 Feature 才可标记为 `Complete`。当前 requirements checklist 为 29/29，45 个 FR 和 13 个 SC
-已全部映射到 32 个任务，只读分析未发现 Critical、High 或 Medium 问题。Feature 已就绪；下一步只能在用户明确授权后实施 CP1/US1。
+全部检查点已通过。requirements checklist 为 31/31，48 个 FR 和 15 个 SC 已全部映射到 35 个任务，
+只读分析未发现 Critical、High 或 Medium 问题。CP4 的 Core CLI lifecycle、CLI-only reset、运行状态 UI、
+Host package closure、维护文档与单一 Host-parity Journey 均已完成，产品负责人已于 2026-08-26
+明确接受交付 UI。V01–V07 已通过；V08 首次发现 Go 格式和当前 Schema Journey 列清单遗漏，修复后重跑
+`pnpm run validate` 通过。DeepSeek `rc.8` spill 用例因未配置 `DEV_FLOW_DSH_GATE_NODE_MODULES` 按既有条件跳过，
+其余最终仓库验证全部通过，T032 已完成。

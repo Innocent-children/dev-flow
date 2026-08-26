@@ -137,6 +137,11 @@ DSH 公开 lifecycle，不复制 Core 或 Host 注册权威。普通维护保留
 
 ## 产品组成
 
+当前源码还提供嵌入 Core 的本机 Control Center：统一浏览所有 Host 的 Task，展示时间线、流程图、Action、
+Recovery 与 Blocker，并执行 Task 生命周期操作。`dev-flow webui start|open|status|stop` 管理一个共享
+loopback 实例；界面支持简体中文/英文、首次按系统语言选择并将手工选择仅保存在浏览器。旧 Task 数据只通过 CLI-only、目标绑定且需要数据库独占访问的 `reset` 清理。浏览器不提供
+远程访问、账号、权限、shell、Git 写入或 reset mutation。
+
 | 产品 | 职责 | 当前版本 |
 | --- | --- | --- |
 | Core | 状态图、Task、Store、Recovery、MCP | `0.6.1` |
@@ -170,7 +175,7 @@ Scope。每个参与仓库最多被一个活动 Task claim；单仓库调用继�
 `<repository-key>::<repository-relative-path>`。产品尚未提供：
 
 - 用户自定义 graph、workflow DSL、graph editor 或 plugin framework；
-- Web UI、remote MCP、HTTP/SSE、authentication 或 telemetry；
+- 远程 Web UI、remote MCP、通用 HTTP/SSE transport、authentication 或 telemetry；
 - 通用 shell、自动 Git 修复、commit、push、merge、rebase 或发布；
 - 自动发现或动态修改 Repository Scope、多仓库并行节点、subtasks 或自动跨 Host takeover；
 - 自动多仓库编排、跨仓库 Git 事务或仓库级独立流程状态；
