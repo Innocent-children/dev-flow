@@ -19,7 +19,7 @@ export function createLifecyclePlan(request, observed, {
     const unselected = (observed.knownDeepSeekProfiles ?? []).filter((profile) => !targets.some((target) => target.host === "deepseek" && target.profile === profile));
     if (unselected.length > 0) throw planConflict("factory reset requires every manager-owned DeepSeek Profile");
     for (const target of targets) {
-      if (target.state !== "absent") actions.push(actionFor(target, "uninstall", null));
+      if (requiresUninstall(target)) actions.push(actionFor(target, "uninstall", null));
     }
     actions.push({ actionId: "manager.cleanup", owner: "manager", operation: "cleanup", host: "manager", profile: null, targetVersion: null });
     if (request.reinstallAfterReset) {
@@ -35,11 +35,11 @@ export function createLifecyclePlan(request, observed, {
       if (request.operation === "reinstall" || request.adopt || !alreadyReady) actions.push(actionFor(target, request.operation, targetVersion));
     }
   } else if (request.operation === "uninstall") {
-    for (const target of targets) if (target.state !== "absent") actions.push(actionFor(target, "uninstall", null));
+    for (const target of targets) if (requiresUninstall(target)) actions.push(actionFor(target, "uninstall", null));
   }
 
   const observedIdentity = {
-    targets: targets.map((target) => ({ host: target.host, profile: target.profile, state: target.state, packageVersion: target.packageVersion, receipt: Boolean(target.receipt) })),
+    targets: targets.map((target) => ({ host: target.host, profile: target.profile, state: target.state, packageInstalled: target.packageInstalled === true, packageVersion: target.packageVersion, receipt: Boolean(target.receipt) })),
     resources: observed.resources,
   };
   const observedDigest = planDigest(observedIdentity);
@@ -68,9 +68,9 @@ export function createLifecyclePlan(request, observed, {
     planId: resolvedPlanId,
     operation: request.operation,
     host: request.host,
-    targets: targets.map((target) => ({ host: target.host, profile: target.profile, state: target.state, packageVersion: target.packageVersion })),
+    targets: targets.map((target) => ({ host: target.host, profile: target.profile, state: target.state, packageInstalled: target.packageInstalled === true, packageVersion: target.packageVersion })),
     actions,
-    impacts: impactsFor(request, targets, observed),
+    impacts: impactsFor(request, targets, observed, actions),
     restartRequirements: targets.filter((target) => target.host === "deepseek" && actions.length > 0).map((target) => `Restart DeepSeek Profile ${target.profile}`),
     confirmationClass,
     observedDigest,
@@ -112,20 +112,30 @@ function actionFor(target, operation, targetVersion) {
   };
 }
 
-function impactsFor(request, targets, observed) {
+function impactsFor(request, targets, observed, actions) {
   if (["status", "doctor"].includes(request.operation)) return ["Read Host and Adapter state only"];
-  const impacts = targets.map((target) => `${request.operation} ${target.host}${target.profile ? ` Profile ${target.profile}` : " Adapter"}`);
+  const affectedTargets = request.operation === "factory-reset"
+    ? targets.filter((target) => actions.some((action) => action.owner === target.host && action.profile === target.profile))
+    : targets;
+  const impacts = affectedTargets.map((target) => `${request.operation} ${target.host}${target.profile ? ` Profile ${target.profile}` : " Adapter"}`);
   if (request.operation === "factory-reset") {
-    impacts.push("Remove every included Adapter before shared data cleanup");
+    if (actions.some((action) => action.operation === "uninstall")) impacts.push("Remove every installed Adapter before shared data cleanup");
     if (observed.resources.configuration.exists) impacts.push("Clear Dev Flow user configuration");
     if (observed.resources.defaultData.exists) impacts.push("Clear current default Task data");
     if (observed.resources.explicitData?.exists) impacts.push("Clear the explicitly confirmed Task data directory");
-    impacts.push(request.permanent ? "Permanently remove confirmed data" : "Move confirmed data to macOS Trash");
+    if (observed.resources.configuration.exists || observed.resources.defaultData.exists || observed.resources.explicitData?.exists) {
+      impacts.push(request.permanent ? "Permanently remove confirmed data" : "Move confirmed data to macOS Trash");
+    }
     if (request.reinstallAfterReset) impacts.push("Create fresh state and reinstall selected Adapters");
+    if (impacts.length === 0) impacts.push("No installed Adapter or active Dev Flow data was found");
   } else {
     impacts.push("Preserve Dev Flow user configuration and Task data");
   }
   return impacts;
+}
+
+function requiresUninstall(target) {
+  return target.state !== "absent" || target.packageInstalled === true;
 }
 
 function targetKey(target) {

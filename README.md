@@ -70,9 +70,8 @@ flowchart LR
 当前稳定制品支持 **macOS arm64** 和 **Node.js `>=24`**。精确版本与 Host 兼容范围见
 [Support Matrix](docs/SUPPORT-MATRIX.md)。
 
-统一生命周期管理器完成独立发布后，安装、升级、修复、重装、卸载和清空后重装都使用下方的
-`create-dev-flow` 入口。当前公开 npm 稳定版尚未包含该新 package；Host 原生命令继续作为发布前及
-诊断恢复入口。
+安装、升级、修复、重装、卸载和清空后重装统一使用下方已发布的 `create-dev-flow` 入口；Host
+原生命令保留为诊断恢复入口。
 
 ### Codex
 

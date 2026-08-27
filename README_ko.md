@@ -69,9 +69,8 @@ flowchart LR
 현재 안정 아티팩트는 **macOS arm64**와 **Node.js `>=24`**를 지원합니다. 정확한 버전과 Host
 호환성은 [Support Matrix](docs/SUPPORT-MATRIX_en.md)를 참고하십시오.
 
-별도 릴리스가 완료되면 아래 `create-dev-flow` 진입점이 설치, 업그레이드, 복구, 재설치, 제거 및 데이터
-초기화 후 재설치를 관리합니다. 현재 공개 npm 안정 버전에는 이 새 package가 아직 포함되지 않았으므로,
-릴리스 전과 진단 복구에는 Host 기본 명령을 사용합니다.
+공개된 `create-dev-flow` 진입점이 설치, 업그레이드, 복구, 재설치, 제거 및 데이터 초기화 후 재설치를
+관리합니다. Host 기본 명령은 진단 복구용으로 계속 사용할 수 있습니다.
 
 ### Codex
 

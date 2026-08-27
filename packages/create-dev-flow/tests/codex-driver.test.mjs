@@ -12,6 +12,7 @@ test("Codex driver observes through read-only Host authorities", async () => {
   } });
   const state = await driver.observe();
   assert.equal(state.state, "ready");
+  assert.equal(state.packageInstalled, true);
   assert.equal(state.packageVersion, "0.7.0");
   assert.deepEqual(calls, [
     ["codex", ["--version"]],
@@ -44,6 +45,25 @@ test("Codex install and uninstall use exact package then lifecycle order", async
   });
   assert.deepEqual(calls, [
     ["dev-flow-codex", ["remove", "--json"]],
+    ["npm", ["uninstall", "--global", "dev-flow-codex"]],
+  ]);
+});
+
+test("Codex uninstall removes a global package after its registration is already absent", async () => {
+  const calls = [];
+  const driver = createCodexDriver({ run: async (executable, arguments_) => {
+    calls.push([executable, arguments_]);
+    return { stdout: "{}\n", stderr: "" };
+  } });
+
+  const result = await driver.execute("uninstall", {
+    targetVersion: null,
+    observed: { hostAvailable: true, state: "absent", packageInstalled: true, packageVersion: "0.7.3" },
+  });
+
+  assert.equal(result.changed, true);
+  assert.deepEqual(result.completedSteps, ["codex.uninstall_package"]);
+  assert.deepEqual(calls, [
     ["npm", ["uninstall", "--global", "dev-flow-codex"]],
   ]);
 });

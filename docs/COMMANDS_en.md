@@ -26,6 +26,8 @@ The closed operations are `status`, `doctor`, `install`, `upgrade`, `repair`, `r
 repair, and reinstall preserve configuration and Task data. Factory reset requires the token bound to the current
 plan; `--yes` alone has no data-cleanup authority. Default cleanup moves data to macOS Trash, while permanent removal
 requires another confirmation.
+The Codex global package is observed independently from its receipt and Plugin registration. Even when registration
+is already absent, `uninstall` and `factory-reset` still remove an installed global package.
 
 | Entry | Purpose |
 | --- | --- |
@@ -37,8 +39,8 @@ requires another confirmation.
 | `... factory-reset ... --confirm-reset <token> [--reinstall]` | Move confirmed data to Trash and optionally perform a clean reinstall. |
 | `--json` / `--plain` | Select one JSON object or ANSI-free plain output. |
 
-The current public npm stable release does not yet contain `create-dev-flow`; the native Host commands below remain
-the pre-release and diagnostic recovery authority.
+`create-dev-flow` is available through npm `latest` as the unified lifecycle entry; the native Host commands below
+remain available for diagnostic recovery.
 
 ## Codex
 

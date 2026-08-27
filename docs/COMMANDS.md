@@ -23,6 +23,8 @@ npx @imotong/create-dev-flow@latest
 `factory-reset`。Host 选择为 `codex|deepseek|all`；DeepSeek Profile 默认 `web`。普通卸载、升级、
 修复和重装保留用户配置与 Task 数据；`factory-reset` 要求绑定当前计划的 token，`--yes` 不能单独
 授权数据清理。默认清理移动到 macOS Trash，永久删除还需独立确认。
+Codex 全局 package 与 receipt、Plugin 注册分别判断；即使注册已缺失，`uninstall` 和
+`factory-reset` 仍会卸载已安装的全局 package。
 
 | 入口 | 作用 |
 | --- | --- |
@@ -34,7 +36,7 @@ npx @imotong/create-dev-flow@latest
 | `... factory-reset ... --confirm-reset <token> [--reinstall]` | 将已确认数据移动到 Trash，可随后全新重装。 |
 | `--json` / `--plain` | 分别选择单一 JSON 对象或无 ANSI 的纯文本结果。 |
 
-当前公开 npm 稳定版尚未包含 `create-dev-flow`；下方 Host 原生命令继续作为发布前和诊断恢复权威。
+`create-dev-flow` 通过 npm `latest` 提供统一生命周期入口；下方 Host 原生命令保留为诊断恢复入口。
 
 ## Codex
 

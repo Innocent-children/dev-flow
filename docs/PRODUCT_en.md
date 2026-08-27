@@ -150,8 +150,10 @@ The source tree provides `create-dev-flow` as one entry for Codex and DeepSeek A
 installation, upgrade, repair, data-preserving reinstall, uninstall, factory reset, and clean reinstall. It calls
 Codex setup/remove/status and public DSH lifecycle commands without copying Core or Host registration authority.
 Ordinary maintenance preserves configuration and Task data. Factory reset requires strong confirmation bound to the
-current plan and moves exact data targets to macOS Trash by default. The package has not completed its separate public
-release and is not part of the current stable support claim.
+current plan and moves exact data targets to macOS Trash by default. Codex global-package installation is observed
+independently from receipt and Plugin registration, so uninstall and factory reset still remove the package after
+registration has already disappeared. The package is independently published through npm `latest`; see the Support
+Matrix for the exact version and installation evidence.
 
 ## Products
 
@@ -166,7 +168,7 @@ Git mutation, or reset mutation.
 | Core | State graph, Task, Store, Recovery, and MCP | `0.6.2` |
 | Codex | Codex Plugin, Skill, registration lifecycle, and bundled Core | `0.7.3` |
 | DeepSeek | DSH bundle, Skill, guard, MCP child, and bundled Core | `0.7.3` |
-| Lifecycle Manager | Codex/DeepSeek Adapter orchestration, ownership-safe reset, and recovery | `0.1.0` (source only, unpublished) |
+| Lifecycle Manager | Codex/DeepSeek Adapter orchestration, ownership-safe reset, and recovery | `0.1.1` |
 
 The four products have independent versions. A host package records its actual bundled Core version;
 product version numbers do not have to match.

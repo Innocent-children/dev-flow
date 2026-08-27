@@ -20,6 +20,7 @@ export function createCodexDriver({
         hostAvailable: host.available,
         hostVersion: host.available ? firstVersion(host.stdout) : null,
         state: status.available ? normalizeStatus(status.value.status) : "absent",
+        packageInstalled: status.available,
         packageVersion: status.available ? status.value.package_version : null,
         coreVersion: status.available ? status.value.core_version : null,
         receipt: status.available ? status.value.registration.receipt : false,
@@ -36,11 +37,13 @@ export function createCodexDriver({
     async execute(operation, { targetVersion, observed }) {
       if (!observed.hostAvailable) throw nextStepError("Codex Host is unavailable", "Install or update Codex, then rerun the same command.");
       if (operation === "uninstall") {
-        if (observed.state === "absent") return { changed: false, completedSteps: [] };
+        if (observed.state === "absent" && !observed.packageInstalled) return { changed: false, completedSteps: [] };
         const completedSteps = [];
         try {
-          await run(adapterExecutable, ["remove", "--json"], { environment });
-          completedSteps.push("codex.remove_registration");
+          if (observed.state !== "absent") {
+            await run(adapterExecutable, ["remove", "--json"], { environment });
+            completedSteps.push("codex.remove_registration");
+          }
           await run(npmExecutable, ["uninstall", "--global", "dev-flow-codex"], { environment });
           completedSteps.push("codex.uninstall_package");
           return { changed: true, completedSteps };

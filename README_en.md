@@ -74,9 +74,8 @@ itself. The Go Core updates state only after validating the current Action.
 Current stable artifacts support **macOS arm64** and **Node.js `>=24`**. See the
 [Support Matrix](docs/SUPPORT-MATRIX_en.md) for exact versions and Host compatibility.
 
-After its separate release, the `create-dev-flow` entry below manages installation, upgrade, repair, reinstall,
-uninstall, and clean reinstall. The current public npm stable release does not yet include this new package; native
-Host commands remain the pre-release and diagnostic recovery path.
+The published `create-dev-flow` entry below manages installation, upgrade, repair, reinstall, uninstall, and clean
+reinstall. Native Host commands remain available for diagnostic recovery.
 
 ### Codex
 

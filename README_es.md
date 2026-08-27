@@ -71,9 +71,8 @@ el proceso desde el historial del chat. Consulta la [demostración](docs/DEMO_en
 Los artefactos estables actuales admiten **macOS arm64** y **Node.js `>=24`**. Consulta
 [Support Matrix](docs/SUPPORT-MATRIX_en.md) para versiones y compatibilidad exactas.
 
-Tras su publicación independiente, la entrada `create-dev-flow` siguiente gestionará instalación, actualización,
-reparación, reinstalación, desinstalación y reinstalación limpia. La versión estable pública de npm aún no incluye
-este paquete nuevo; los comandos nativos del Host siguen siendo la vía previa a la publicación y de recuperación.
+La entrada publicada `create-dev-flow` gestiona instalación, actualización, reparación, reinstalación,
+desinstalación y reinstalación limpia. Los comandos nativos del Host siguen disponibles para recuperación diagnóstica.
 
 ### Codex
 

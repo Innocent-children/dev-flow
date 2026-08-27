@@ -66,9 +66,8 @@ Host 在實作後重新啟動時，新會話會讀取同一個 Task，取得目�
 目前穩定製品支援 **macOS arm64** 與 **Node.js `>=24`**。精確版本與 Host 相容範圍請見
 [Support Matrix](docs/SUPPORT-MATRIX.md)。
 
-統一生命週期管理器完成獨立發布後，安裝、升級、修復、重裝、解除安裝與清除後重裝都使用下方的
-`create-dev-flow` 入口。目前公開的 npm 穩定版尚未包含此新 package；Host 原生命令仍是發布前與
-診斷復原入口。
+安裝、升級、修復、重裝、解除安裝與清除後重裝統一使用下方已發布的 `create-dev-flow` 入口；Host
+原生命令保留為診斷復原入口。
 
 ### Codex
 

@@ -71,9 +71,8 @@ le processus depuis l’historique. Voir la [démonstration](docs/DEMO_en.md).
 Les artefacts stables actuels prennent en charge **macOS arm64** et **Node.js `>=24`**. Voir la
 [Support Matrix](docs/SUPPORT-MATRIX_en.md) pour les versions et compatibilités exactes.
 
-Après sa publication indépendante, l’entrée `create-dev-flow` ci-dessous gérera installation, mise à niveau,
-réparation, réinstallation, désinstallation et réinstallation propre. La version npm stable publique actuelle
-n’inclut pas encore ce nouveau package ; les commandes natives du Host restent la voie de prépublication et de reprise.
+L’entrée publiée `create-dev-flow` gère installation, mise à niveau, réparation, réinstallation, désinstallation et
+réinstallation propre. Les commandes natives du Host restent disponibles pour la reprise diagnostique.
 
 ### Codex
 

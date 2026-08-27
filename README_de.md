@@ -70,9 +70,8 @@ rekonstruiert werden. Siehe [Demo](docs/DEMO_en.md).
 Aktuelle stabile Artefakte unterstützen **macOS arm64** und **Node.js `>=24`**. Exakte Versionen und
 Host-Kompatibilität stehen in der [Support Matrix](docs/SUPPORT-MATRIX_en.md).
 
-Nach der separaten Veröffentlichung verwaltet der folgende `create-dev-flow`-Einstieg Installation, Upgrade,
-Reparatur, Neuinstallation, Deinstallation und saubere Neuinstallation. Das aktuelle öffentliche npm-Stable enthält
-dieses neue Package noch nicht; native Host-Befehle bleiben der Vorab- und Diagnose-Recovery-Weg.
+Der veröffentlichte `create-dev-flow`-Einstieg verwaltet Installation, Upgrade, Reparatur, Neuinstallation,
+Deinstallation und saubere Neuinstallation. Native Host-Befehle bleiben für die Diagnose-Recovery verfügbar.
 
 ### Codex
 

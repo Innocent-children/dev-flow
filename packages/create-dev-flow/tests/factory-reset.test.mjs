@@ -48,6 +48,54 @@ test("explicit data is blocked until its exact canonical path is confirmed", asy
   assert.equal(await readFile(join(fixture.paths.explicitDataDirectory, "dev-flow.db"), "utf8"), "explicit-task\n");
 });
 
+test("factory reset uninstalls a Codex package after its registration is already absent", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "create-dev-flow-reset-package-only-"));
+  const home = join(root, "home");
+  await mkdir(home);
+  let packageInstalled = true;
+  const operations = [];
+  const codexDriver = {
+    knownProfiles: async () => [],
+    resolveTargetVersion: async () => "0.7.3",
+    observe: async () => ({
+      host: "codex",
+      profile: null,
+      hostAvailable: true,
+      hostVersion: "0.147.0",
+      state: "absent",
+      packageInstalled,
+      packageVersion: packageInstalled ? "0.7.3" : null,
+      coreVersion: packageInstalled ? "0.6.2" : null,
+      receipt: false,
+    }),
+    execute: async (operation) => {
+      operations.push(operation);
+      packageInstalled = false;
+      return { changed: true, completedSteps: ["codex.uninstall_package"] };
+    },
+  };
+  const deepseekDriver = {
+    knownProfiles: async () => [],
+    resolveTargetVersion: async () => "0.7.3",
+    observe: async (profile) => ({ host: "deepseek", profile, hostAvailable: true, state: "absent", packageVersion: null, coreVersion: null, receipt: null }),
+  };
+
+  const result = await runLifecycle(request({ reinstallAfterReset: false }), {
+    homeDirectory: home,
+    environment: {},
+    codexDriver,
+    deepseekDriver,
+    confirmPlan: async () => true,
+  });
+
+  assert.deepEqual(operations, ["uninstall"]);
+  assert.equal(packageInstalled, false);
+  assert.equal(result.result.changed, true);
+  assert.equal(result.result.status, "absent");
+  assert.equal(result.result.completed_actions.includes("codex.uninstall_package"), true);
+  t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
+});
+
 async function resetFixture(t, { explicit = false } = {}) {
   const root = await mkdtemp(join(tmpdir(), "create-dev-flow-reset-"));
   const home = join(root, "home");

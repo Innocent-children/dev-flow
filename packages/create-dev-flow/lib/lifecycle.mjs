@@ -285,5 +285,5 @@ function failureResult(operation, error) {
 }
 
 function absentCodex() {
-  return Object.freeze({ host: "codex", profile: null, hostAvailable: false, hostVersion: null, state: "absent", packageVersion: null, coreVersion: null, receipt: false });
+  return Object.freeze({ host: "codex", profile: null, hostAvailable: false, hostVersion: null, state: "absent", packageInstalled: false, packageVersion: null, coreVersion: null, receipt: false });
 }
