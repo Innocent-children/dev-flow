@@ -142,7 +142,7 @@ Consulta [Security Policy](SECURITY.md) y [Threat Model](docs/THREAT-MODEL_en.md
 | Producto | Versión estable | Bundled Core | Entorno verificado |
 | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.7.3` | `0.6.2` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
-| `dev-flow-deepseek` | `0.7.2` | `0.6.1` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
+| `dev-flow-deepseek` | `0.7.3` | `0.6.2` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
 
 Consulta [Project Status](docs/PROJECT-STATUS_en.md) y
 [Support Matrix](docs/SUPPORT-MATRIX_en.md) para evidencia exacta y estado beta/source.
