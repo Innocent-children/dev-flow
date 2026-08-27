@@ -15,7 +15,7 @@ Delivered capabilities:
 - requirements/design/task-plan baselines and downstream authority invalidation;
 - the `TEST → COMPREHENSION_REVIEW → REFACTOR → TEST` maintainability loop;
 - `plain`, `spec-kit`, and `openspec` method profiles;
-- six-tool local STDIO MCP with closed payloads;
+- fifteen-tool local STDIO MCP with Action-kind-specific submission schemas and Core-retained normalized submissions;
 - local SQLite, revision CAS, restart/resume, and retained terminal data;
 - five-class Recovery, read-before-retry, and Core-owned blocker/resume;
 - bounded read-only Git observation;
@@ -80,7 +80,7 @@ remote WebUI, remote MCP,
 generic shell, Core Git mutation, automatic discovery or dynamic expansion of Repository Scope,
 automatic multi-repository orchestration, repository-level process state, or automatic historical
 Task migration. A proposal that changes these boundaries requires an independent product
-specification and Constitution review.
+product design and architecture review.
 
 The current Codex direction uses native Skill smart activation: clear task-bearing development requests
 may select Dev Flow implicitly, the exact selector remains a force-entry path, and non-task requests do

@@ -8,12 +8,16 @@ import (
 	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
 func TestMCPContractGraphCatalogAndClosedSchemas(t *testing.T) {
-	want := []string{ToolServerInfo, ToolOpenTask, ToolGetTask, ToolGetNextAction, ToolApplyAction, ToolCancelTask}
+	want := []string{ToolServerInfo, ToolOpenTask, ToolGetTask, ToolGetNextAction,
+		ToolSubmitRequirements, ToolSubmitDesign, ToolSubmitTasks, ToolSubmitImplementation,
+		ToolSubmitTest, ToolSubmitComprehension, ToolSubmitRefactor, ToolSubmitDelivery,
+		ToolResolveBlocker, ToolRecoverAction, ToolCancelTask}
 	got := ToolNames()
-	if len(got) != 6 {
+	if len(got) != len(want) {
 		t.Fatalf("tools=%d", len(got))
 	}
 	for i := range want {
@@ -26,7 +30,7 @@ func TestMCPContractGraphCatalogAndClosedSchemas(t *testing.T) {
 		if err := json.Unmarshal(d.InputSchema, &schema); err != nil {
 			t.Fatal(err)
 		}
-		if d.Name != ToolApplyAction && schema["additionalProperties"] != false {
+		if schema["additionalProperties"] != false {
 			t.Fatalf("%s schema open", d.Name)
 		}
 	}
@@ -49,58 +53,69 @@ func TestMCPContractGraphCatalogAndClosedSchemas(t *testing.T) {
 	}
 }
 
-// TestApplySchemaExposesEveryActionKindAndPayloadMember replaces the previous
-// nine-branch root union. A Host projector cannot model a discriminated root, so
-// the published schema is one closed object whose action_kind enumerates every
-// kind and whose payload carries the union of all nine node results. Exactness
-// per action kind stays Core-owned; see the field-level violation contract.
-func TestApplySchemaExposesEveryActionKindAndPayloadMember(t *testing.T) {
-	var schema map[string]any
-	if err := json.Unmarshal(catalog[4].InputSchema, &schema); err != nil {
-		t.Fatal(err)
-	}
-	if schema["type"] != "object" || schema["additionalProperties"] != false {
-		t.Fatalf("apply schema root=%#v", schema)
-	}
-	properties := schema["properties"].(map[string]any)
-	wantKinds := []string{"COMPLETE_REQUIREMENTS", "COMPLETE_DESIGN", "COMPLETE_TASKS", "COMPLETE_IMPLEMENTATION", "COMPLETE_TEST", "COMPLETE_COMPREHENSION_REVIEW", "COMPLETE_REFACTOR", "COMPLETE_DELIVERY", "RESOLVE_BLOCKER"}
-	kinds := properties["action_kind"].(map[string]any)["enum"].([]any)
-	if len(kinds) != len(wantKinds) {
-		t.Fatalf("action_kind enum=%#v", kinds)
-	}
-	for index, want := range wantKinds {
-		if kinds[index] != want {
-			t.Fatalf("action_kind enum[%d]=%v", index, kinds[index])
+func TestActionSubmissionSchemasAreKindSpecificAndCoreOwned(t *testing.T) {
+	definition := workflow.StandardProcess()
+	for _, entry := range actionSubmissionTools {
+		schema := toolSchema(t, entry.Name)
+		if schema["type"] != "object" || schema["additionalProperties"] != false {
+			t.Fatalf("%s root=%#v", entry.Name, schema)
 		}
-	}
-	payload := properties["payload"].(map[string]any)
-	if payload["additionalProperties"] != false {
-		t.Fatalf("payload is open: %#v", payload)
-	}
-	payloadTypes := payload["type"].([]any)
-	if len(payloadTypes) != 2 || payloadTypes[0] != "object" || payloadTypes[1] != "null" {
-		t.Fatalf("payload type=%#v", payload["type"])
-	}
-	payloadProperties := payload["properties"].(map[string]any)
-	nodeResult := payloadProperties["node_result"].(map[string]any)
-	nodeMembers := nodeResult["properties"].(map[string]any)
-
-	payloads, _ := graphPayloads()
-	for index, raw := range payloads {
-		branch := raw.(map[string]any)
-		for name := range branch["properties"].(map[string]any) {
-			if _, present := payloadProperties[name]; !present {
-				t.Fatalf("payload %d member %s is invisible in the published projection", index, name)
+		properties := schema["properties"].(map[string]any)
+		for _, forbidden := range []string{"request_id", "revision", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload"} {
+			if _, present := properties[forbidden]; present {
+				t.Fatalf("%s exposes Core-owned %s", entry.Name, forbidden)
 			}
 		}
-		result, ok := branch["properties"].(map[string]any)["node_result"].(map[string]any)
-		if !ok {
+		for _, required := range []string{"host", "task_id", "action_id", "transition_id", "summary", "reason", "artifacts", "method_results", "node_result"} {
+			if _, present := properties[required]; !present {
+				t.Fatalf("%s misses %s", entry.Name, required)
+			}
+		}
+		node, err := workflow.NodeDefinitionForActionKind(definition, entry.Kind)
+		if err != nil {
+			t.Fatal(err)
+		}
+		methodProperties := properties["method_results"].(map[string]any)["properties"].(map[string]any)
+		if len(methodProperties) != len(node.SemanticMethodSteps) {
+			t.Fatalf("%s method results=%#v", entry.Name, methodProperties)
+		}
+		for _, step := range node.SemanticMethodSteps {
+			if _, present := methodProperties[string(step.StepID)]; !present {
+				t.Fatalf("%s misses method step %s", entry.Name, step.StepID)
+			}
+		}
+		artifactProperties := properties["artifacts"].(map[string]any)["properties"].(map[string]any)
+		_, primaryAllowed := workflow.PrimaryArtifactRoleForNode(node.NodeID)
+		_, currentVisible := artifactProperties["current"]
+		if primaryAllowed != currentVisible {
+			t.Fatalf("%s current artifact visibility=%v want=%v", entry.Name, currentVisible, primaryAllowed)
+		}
+		for slot, raw := range artifactProperties {
+			item := raw.(map[string]any)["items"].(map[string]any)
+			fields := item["properties"].(map[string]any)
+			if len(fields) != 3 || fields["path"] == nil || fields["digest"] == nil || fields["summary"] == nil || fields["role"] != nil {
+				t.Fatalf("%s artifact slot %s fields=%#v", entry.Name, slot, fields)
+			}
+		}
+	}
+}
+
+func TestEveryCurrentActionProjectsItsSingleSubmissionTool(t *testing.T) {
+	definition := workflow.StandardProcess()
+	issuedAt := time.Date(2026, 8, 27, 1, 0, 0, 0, time.UTC)
+	binding := domain.Digest(strings.Repeat("a", 64))
+	for _, node := range definition.Nodes {
+		if node.NodeID.Terminal() {
 			continue
 		}
-		for name := range result["properties"].(map[string]any) {
-			if _, present := nodeMembers[name]; !present {
-				t.Fatalf("node_result member %s is invisible in the published projection", name)
-			}
+		action, err := workflow.BuildProcessAction(definition, node.NodeID, "task", 1, binding, domain.MethodPlain, domain.ID("action-"+strings.ToLower(string(node.NodeID))), issuedAt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		projection := projectAction(&action).(map[string]any)
+		tool, ok := projection["submission_tool"].(string)
+		if !ok || tool == "" || !isToolName(tool) {
+			t.Fatalf("node %s submission tool=%#v", node.NodeID, projection["submission_tool"])
 		}
 	}
 }

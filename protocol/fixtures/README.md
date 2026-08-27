@@ -7,7 +7,7 @@ content、Git diff/status、raw command output、environment、token 或 secret�
 ## Current graph fixtures
 
 - `graph-server-info.json`：完整、定序的 current ServerInfo、`standard-development`、三种
-  method profile、六工具 catalog 和默认 false/false Host 偏好；
+  method profile、十五工具 catalog 和默认 false/false Host 偏好；
 - `graph-multi-repository-open.json`：一个主仓库、一个附加仓库共享同一 Task、Action、revision
   和有效 `repository_binding_digest` 的 current contract 样例；
 - `graph-open-requirements.json`：创建 graph Task、TaskIntent、REQUIREMENTS Action 和唯一出边；

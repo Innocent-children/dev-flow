@@ -12,13 +12,17 @@ import (
 )
 
 func TestMCPToolCatalogIsExactStableAndConservative(t *testing.T) {
-	want := []string{core.ToolServerInfo, core.ToolOpenTask, core.ToolGetTask, core.ToolGetNextAction, core.ToolApplyAction, core.ToolCancelTask}
+	want := []string{core.ToolServerInfo, core.ToolOpenTask, core.ToolGetTask, core.ToolGetNextAction,
+		core.ToolSubmitRequirements, core.ToolSubmitDesign, core.ToolSubmitTasks, core.ToolSubmitImplementation,
+		core.ToolSubmitTest, core.ToolSubmitComprehension, core.ToolSubmitRefactor, core.ToolSubmitDelivery,
+		core.ToolResolveBlocker, core.ToolRecoverAction, core.ToolCancelTask}
 	if !slices.Equal(core.ToolNames(), want) {
 		t.Fatal(core.ToolNames())
 	}
 	for _, tool := range core.ToolCatalog() {
 		read := tool.Name == core.ToolServerInfo || tool.Name == core.ToolGetTask || tool.Name == core.ToolGetNextAction
-		if tool.Annotations.ReadOnly != read || tool.Annotations.Idempotent != read || tool.Annotations.Destructive != (tool.Name == core.ToolCancelTask) || tool.Annotations.OpenWorld {
+		idempotent := read || tool.Name == core.ToolRecoverAction || tool.Name == core.ToolResolveBlocker || strings.HasPrefix(tool.Name, "dev_flow_submit_")
+		if tool.Annotations.ReadOnly != read || tool.Annotations.Idempotent != idempotent || tool.Annotations.Destructive != (tool.Name == core.ToolCancelTask) || tool.Annotations.OpenWorld {
 			t.Fatalf("annotations %s %#v", tool.Name, tool.Annotations)
 		}
 		var schema any
@@ -61,7 +65,11 @@ func TestMCPCurrentContractRequiredShapes(t *testing.T) {
 	requireNames(core.ToolOpenTask, []string{"host", "repository_path"})
 	requireNames(core.ToolGetTask, []string{"host", "task_id"})
 	requireNames(core.ToolGetNextAction, []string{"host", "task_id"})
-	requireNames(core.ToolApplyAction, []string{"request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload"})
+	for _, tool := range []string{core.ToolSubmitRequirements, core.ToolSubmitDesign, core.ToolSubmitTasks, core.ToolSubmitImplementation, core.ToolSubmitTest, core.ToolSubmitComprehension, core.ToolSubmitRefactor, core.ToolSubmitDelivery} {
+		requireNames(tool, []string{"host", "task_id", "action_id", "transition_id", "summary", "reason", "artifacts", "method_results", "node_result"})
+	}
+	requireNames(core.ToolResolveBlocker, []string{"host", "task_id", "action_id"})
+	requireNames(core.ToolRecoverAction, []string{"host", "task_id", "action_id"})
 	requireNames(core.ToolCancelTask, []string{"request_id", "host", "task_id", "revision", "reason"})
 	openProperties := schemas[core.ToolOpenTask]["properties"].(map[string]any)
 	additional := openProperties["additional_repositories"].(map[string]any)
@@ -71,7 +79,10 @@ func TestMCPCurrentContractRequiredShapes(t *testing.T) {
 	if openProperties["primary_repository_key"].(map[string]any)["pattern"] != "^[a-z0-9][a-z0-9._-]{0,127}$" {
 		t.Fatal("primary_repository_key pattern changed")
 	}
-	for _, tool := range []string{core.ToolServerInfo, core.ToolGetTask, core.ToolGetNextAction, core.ToolApplyAction, core.ToolCancelTask} {
+	for _, tool := range core.ToolNames() {
+		if tool == core.ToolOpenTask {
+			continue
+		}
 		properties, _ := schemas[tool]["properties"].(map[string]any)
 		if _, exists := properties["primary_repository_key"]; exists {
 			t.Fatalf("%s input gained repository scope", tool)

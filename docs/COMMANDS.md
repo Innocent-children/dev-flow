@@ -167,17 +167,32 @@ transport、通用 HTTP/SSE transport、通用 shell 或 Git mutation 命令。C
 
 ## MCP 工具
 
-以下六个工具是当前完整且闭合的 public MCP catalog。它们由 Host Adapter 调用，不是终端 shell
+以下十五个工具是当前完整且闭合的 public MCP catalog。它们由 Host Adapter 调用，不是终端 shell
 命令。
 
 | 工具 | 类型 | 作用 |
 | --- | --- | --- |
 | `dev_flow_server_info` | 只读 | 读取 Core 产品版本、transport、健康状态、支持的 process、Host、method profile、工具目录和有效 Host 代码索引偏好。每次有效 Host admission 后必须首先调用。 |
 | `dev_flow_open_task` | 读取或创建 | 为一个显式 Repository Scope 创建新 Task，或在 `new_task` 为空时从任一参与仓库恢复同一 Task。 |
-| `dev_flow_get_task` | 只读 | 按 Task ID 读取持久化 Task；可附带 operation probe，以获取不确定 mutation 的 Recovery assessment。 |
-| `dev_flow_get_next_action` | 只读 | 读取当前节点的权威 Action，包括完成条件、允许副作用、所需证据、验证预算、method steps 和全部合法 transition。 |
-| `dev_flow_apply_action` | mutation | 使用当前 revision、Action identity、process identity、repository binding 与闭合 payload 应用一次 Core 声明的 transition；允许写入的 node result 必须提交精确 `changed_paths` 或 `no_file_changes`；也承担使用同一 mutation envelope 的显式 recovery apply。输入 Schema 是单个封闭对象：`action_kind` 以 `enum` 暴露全部九个 action kind，`payload.node_result` 暴露九种 node result 成员的并集；每个 action kind 的精确合同由 Core 执行，失败时返回 `error.details[]` 字段路径、`error.guard` guard 失败详情，以及在 Core 能证明零写入时返回一次 `correct_current_action` 纠正许可。 |
+| `dev_flow_get_task` | 只读 | 按 Task ID 读取持久化 Task；存在 Core 保存的 Action 提交时自动返回 Recovery assessment。 |
+| `dev_flow_get_next_action` | 只读 | 读取当前节点的 Action、`submission_tool`、完成条件、允许副作用、所需证据、验证预算、method steps 和全部合法 transition。 |
+| `dev_flow_submit_requirements` | mutation | 提交 REQUIREMENTS 节点结果。 |
+| `dev_flow_submit_design` | mutation | 提交 DESIGN 节点结果。 |
+| `dev_flow_submit_tasks` | mutation | 提交 TASKS 节点结果。 |
+| `dev_flow_submit_implementation` | mutation | 提交 IMPLEMENT 节点结果。 |
+| `dev_flow_submit_test` | mutation | 提交 TEST 节点结果。 |
+| `dev_flow_submit_comprehension` | mutation | 提交 COMPREHENSION_REVIEW 节点结果。 |
+| `dev_flow_submit_refactor` | mutation | 提交 REFACTOR 节点结果。 |
+| `dev_flow_submit_delivery` | mutation | 提交 DELIVERY 节点结果。 |
+| `dev_flow_resolve_blocker` | mutation | 在 Core 确认仓库恢复条件后解除当前 blocker；只接收 Host、Task ID 与 Action ID。 |
+| `dev_flow_recover_action` | mutation | 使用 Core 在 Task snapshot 中保存的规范化提交恢复不确定 Action；不接收原始 payload。 |
 | `dev_flow_cancel_task` | destructive mutation | 使用当前 revision 和非空 reason 将非终态 Task 转为 `CANCELLED`。 |
+
+八个普通节点提交工具都只接收 `host`、`task_id`、`action_id`、`transition_id`、`summary`、
+`reason`、`artifacts`、`method_results` 和该节点专属的 `node_result`。Core 从当前 Action 补齐
+revision、Action kind、process identity、source cursor、repository binding、artifact role、method
+step identity/order/status 与内部 payload envelope。`get_next_action` 的 `submission_tool` 指出当前
+唯一可用的提交工具。
 
 未知 CLI 参数、未列出的 MCP 工具或未满足隐式/显式统一 admission 的调用不属于受支持入口。
 

@@ -17,6 +17,12 @@ type BlockerCondition struct {
 	ExpectedBindingDigest Digest               `json:"expected_binding_digest"`
 }
 
+type BlockerResolutionPayload struct {
+	BlockerID             ID               `json:"blocker_id"`
+	Condition             BlockerCondition `json:"condition"`
+	ObservedBindingDigest Digest           `json:"observed_binding_digest"`
+}
+
 func (c BlockerCondition) Validate() error {
 	if !c.Kind.IsValid() || validateDigest(c.ExpectedBindingDigest) != nil {
 		return ErrInvalidArgument

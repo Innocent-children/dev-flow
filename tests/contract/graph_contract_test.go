@@ -2,18 +2,14 @@ package contract_test
 
 import (
 	"encoding/json"
-	"fmt"
-	"github.com/Innocent-children/dev-flow/internal/domain"
 	coremcp "github.com/Innocent-children/dev-flow/internal/mcp"
-	"github.com/Innocent-children/dev-flow/internal/workflow"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
 func TestGraphContractCatalogAndFixtures(t *testing.T) {
-	if len(coremcp.ToolNames()) != 6 {
+	if len(coremcp.ToolNames()) != 15 {
 		t.Fatal("tool catalog changed")
 	}
 	root := contractRepositoryRoot(t)
@@ -29,27 +25,25 @@ func TestGraphContractCatalogAndFixtures(t *testing.T) {
 	}
 }
 func TestGraphContractMethodEvidenceSemantics(t *testing.T) {
-	digest := workflow.StandardProcess().Reference.DefinitionDigest
-	binding := strings.Repeat("a", 64)
-	evidence := `[{"step_id":"requirements.capture","status":"plain_fallback","capability":"","summary":"Captured requirements."},{"step_id":"requirements.clarify","status":"plain_fallback","capability":"","summary":"Clarified requirements."},{"step_id":"requirements.validate","status":"plain_fallback","capability":"","summary":"Validated requirements."}]`
-	payload := `{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":` + evidence + `,"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[],"changed_paths":[],"no_file_changes":true}}`
-	request := func(value string) []byte {
-		return []byte(fmt.Sprintf(`{"request_id":"request","host":"codex","task_id":"task","revision":1,"action_id":"action","action_kind":"COMPLETE_REQUIREMENTS","process_id":"standard-development","process_definition_digest":"%s","source_cursor":"REQUIREMENTS","repository_binding_digest":"%s","payload":%s}`, digest, binding, value))
+	var schema map[string]any
+	for _, tool := range coremcp.ToolCatalog() {
+		if tool.Name == coremcp.ToolSubmitRequirements {
+			if json.Unmarshal(tool.InputSchema, &schema) != nil {
+				t.Fatal("invalid requirements submission schema")
+			}
+		}
 	}
-	if err := coremcp.ValidateToolInput(coremcp.ToolApplyAction, request(payload)); err != nil {
-		t.Fatal(err)
-	}
-	empty := strings.Replace(payload, evidence, `[]`, 1)
-	if err := coremcp.ValidateToolInput(coremcp.ToolApplyAction, request(empty)); err != domain.ErrTransitionNotAllowed {
-		t.Fatalf("empty evidence error=%v", err)
-	}
-	unavailable := strings.Replace(payload, `"status":"plain_fallback"`, `"status":"unavailable"`, 1)
-	if err := coremcp.ValidateToolInput(coremcp.ToolApplyAction, request(unavailable)); err != domain.ErrTransitionNotAllowed {
-		t.Fatalf("unavailable evidence error=%v", err)
-	}
-	unknown := strings.Replace(payload, `requirements.capture`, `design.choose_approach`, 1)
-	if err := coremcp.ValidateToolInput(coremcp.ToolApplyAction, request(unknown)); err != domain.ErrInvalidArgument {
-		t.Fatalf("unknown evidence error=%v", err)
+	methods := schema["properties"].(map[string]any)["method_results"].(map[string]any)
+	properties := methods["properties"].(map[string]any)
+	for _, step := range []string{"requirements.capture", "requirements.clarify", "requirements.validate"} {
+		entry, ok := properties[step].(map[string]any)
+		if !ok {
+			t.Fatalf("missing method step %s", step)
+		}
+		fields := entry["properties"].(map[string]any)
+		if len(fields) != 2 || fields["capability"] == nil || fields["summary"] == nil || fields["step_id"] != nil || fields["status"] != nil {
+			t.Fatalf("method step %s fields=%#v", step, fields)
+		}
 	}
 }
 func TestFixtureContractGraphInputsAreClosed(t *testing.T) {

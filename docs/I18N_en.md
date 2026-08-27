@@ -50,27 +50,27 @@ first satisfy the complete-translation and ongoing-synchronization requirements.
 | `docs/PRODUCT*`, `docs/ARCHITECTURE*`, `docs/ROADMAP*`, `docs/SUPPORT-MATRIX*`, `docs/COMMANDS*`, and `MANIFEST*` | Simplified Chinese and English |
 | Codex / DeepSeek user and installation documentation | The currently paired Simplified Chinese and English files |
 | `CONTRIBUTING*` and the I18n policy | Simplified Chinese and English |
-| Constitution, `AGENTS.md`, Feature, release, and maintainer contracts | Maintained in their authoritative language; they are not copied into all nine locales unless an explicit pair already exists |
+| Release and maintainer contracts | Maintained in their selected language; they are not copied into all nine locales unless an explicit pair already exists |
 
 Coverage is an explicit contract rather than an inference from directory names. Once a document
 family lists multiple locales, every factual change must update every maintained file in that family.
 
 ## Synchronization contract
 
-Every Product Feature that changes user-visible behavior must, in the same pull request:
+Every change to user-visible behavior must, in the same pull request:
 
 1. update all nine root README files;
 2. update both `docs/PRODUCT.md` and `docs/PRODUCT_en.md`;
 3. update Architecture, Support Matrix, Command Reference, Roadmap, host-package README,
    installation, or invocation documentation according to the affected surface;
-4. list every documentation path in `tasks.md` and in the pull-request validation summary.
+4. list every documentation path in the pull-request validation summary.
 
 A release that changes public versions, bundled Core identities, platforms, host compatibility,
 installation commands, or release evidence must also synchronize every root README plus the affected
 support, command, and package documentation before publication.
 
 A documentation-only correction must update every maintained locale containing the same incorrect
-statement. A Product Feature, documentation change, or release must not be reported as merge-ready,
+statement. A product change, documentation change, or release must not be reported as merge-ready,
 Complete, or ready to publish while a maintained translation remains stale.
 
 ## Installation commands and version identities

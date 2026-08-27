@@ -32,7 +32,29 @@ func (s *Service) GetTask(ctx context.Context, r GetTaskRequest) (GetTaskResult,
 		return GetTaskResult{Task: task, RecoveryAssessment: &decision.Assessment}, nil
 	}
 	task, err := s.loadOwned(ctx, r.Host, r.TaskID)
-	return GetTaskResult{Task: task}, err
+	if err != nil {
+		return GetTaskResult{}, err
+	}
+	if task.ActionCommit == nil {
+		return GetTaskResult{Task: task}, nil
+	}
+	assessment, err := s.assessActionCommit(ctx, r.Host, task, *task.ActionCommit)
+	if err != nil {
+		return GetTaskResult{}, err
+	}
+	return GetTaskResult{Task: task, RecoveryAssessment: assessment}, nil
+}
+
+func (s *Service) assessActionCommit(ctx context.Context, host domain.Host, task domain.ProcessTask, commit domain.ActionCommit) (*recovery.RecoveryAssessment, error) {
+	fresh, err := s.observeTaskRepositories(ctx, task)
+	if err != nil {
+		return nil, err
+	}
+	decision, err := recovery.Reconcile(recovery.ReconcileInput{Host: host, Task: task, Operation: commit.Operation, Payload: commit.Payload, ObservedScope: &fresh})
+	if err != nil {
+		return nil, err
+	}
+	return &decision.Assessment, nil
 }
 func validateProbeInput(p *OperationProbe) error {
 	if p == nil || len(p.Payload) == 0 || workflow.ValidateOperationReference(p.Reference()) != nil {

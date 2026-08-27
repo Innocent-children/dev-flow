@@ -48,7 +48,7 @@ func TestSDKRegisteredToolAnnotationsMatchContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(listed.Tools) != 6 {
+	if len(listed.Tools) != len(ToolNames()) {
 		t.Fatalf("tools=%d", len(listed.Tools))
 	}
 	for _, tool := range listed.Tools {

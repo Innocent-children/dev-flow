@@ -120,7 +120,7 @@ simples usar Codex ou DeepSeek diretamente.
 - **Verificação limitada:** cada Task tem verification budget; matrizes completas não são padrão.
 - **Recuperação entre sessões:** etapa, evidências, blockers e próximos passos ficam em SQLite local.
 - **Revisão de compreensão:** depois dos testes há `COMPREHENSION_REVIEW`; resultados difíceis de manter retornam.
-- **Escrita incerta:** o resultado Recovery do Core é lido antes de repetir.
+- **Escrita incerta:** o Core preserva a entrada Action normalizada; após perder uma resposta, Task ID e Action ID bastam, sem reconstruir o payload.
 - **Escopo multirrepositório limitado:** o source atual gerencia um principal e até sete adicionais em um único estado.
 
 Consulte [Project Status](docs/PROJECT-STATUS_en.md) para saber se o suporte multirrepositório já está

@@ -29,6 +29,19 @@ import { DEV_FLOW_TOOLS, parseCodexJSONL } from "./validate-codex-journey-eviden
 
 const execFile = promisify(execFileCallback);
 const REPOSITORY_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
+const ACTION_SUBMISSION_PREFIX = "dev_flow_submit_";
+const LEGACY_DEV_FLOW_TOOLS = Object.freeze([
+  "dev_flow_server_info", "dev_flow_open_task", "dev_flow_get_task",
+  "dev_flow_get_next_action", "dev_flow_apply_action", "dev_flow_cancel_task",
+]);
+
+function isActionSubmissionToolName(name) {
+  return typeof name === "string" && name.startsWith(ACTION_SUBMISSION_PREFIX);
+}
+
+function isActionMutationToolName(name) {
+  return isActionSubmissionToolName(name) || name === "dev_flow_apply_action";
+}
 
 export const CODEX_COMPATIBILITY_RANGE = ">=0.147.0";
 export const EXPLICIT_SELECTOR = "$dev-flow-codex:dev-flow";
@@ -98,32 +111,44 @@ export const invalidPrompt =
 export const smokePrompt =
   `${EXPLICIT_SELECTOR} Inspect the current repository and report the authoritative Dev Flow task status.`;
 export const acceptancePrompt =
-  `${EXPLICIT_SELECTOR} Begin the bounded acceptance task in this repository. Stop immediately after the first successful dev_flow_apply_action following the requested repository change while the Core task remains nonterminal. Do not continue to verification or a terminal outcome in this session; a fresh session will resume the task.`;
+  `${EXPLICIT_SELECTOR} Begin the bounded acceptance task in this repository. Stop after the first successful Action submission following the requested repository change while the Core task remains nonterminal.`;
 export const resumePrompt =
   `${EXPLICIT_SELECTOR} Resume the existing compatible Dev Flow task and continue to the Core outcome.`;
 export const developmentInvalidPrompt =
   `${EXPLICIT_SELECTOR} Reject this bounded request because the current directory is not a Git repository. Make no Dev Flow tool call and create no task.`;
-export const developmentSubstantivePrompt = `${EXPLICIT_SELECTOR} Work only in the current repository. Open one host=codex task to create native-proof.txt with the exact UTF-8 bytes "Dev Flow Codex development smoke passed.\\n". Complete the Core-required current-node work and select only returned transitions; read-only prerequisite commits do not satisfy the stop condition. Create the file only when the current Core action permits repository edits. The verification budget is one targeted command, full suites are forbidden, and verification is reserved for the restart session. Stop only after the file exists and the first successful dev_flow_apply_action after creating it commits, while the Core task is nonterminal.`;
-export const developmentResumePrompt = `${EXPLICIT_SELECTOR} Resume the existing compatible host=codex task. After dev_flow_open_task, call dev_flow_get_task and then dev_flow_get_next_action before any new dev_flow_apply_action. Preserve the same task, run only "git hash-object native-proof.txt" as the single targeted verification command, and continue until Core reports current_cursor DONE with outcome completed.`;
-const APPLY_REQUEST_BINDING_RULE = `For every dev_flow_apply_action, generate a new nonempty opaque caller request ID and include it exactly as the top-level request_id member of that tool call; never omit it, reuse a read request ID, or place it inside payload.`;
+export const developmentSubstantivePrompt =
+  `${EXPLICIT_SELECTOR} Work only in the current repository. Open one host=codex task to create native-proof.txt with the exact UTF-8 bytes "Dev Flow Codex development smoke passed.\\n". Stop after the first successful Action submission following file creation while the Task remains nonterminal. Reserve the one targeted verification command for the restart session.`;
+export const developmentResumePrompt =
+  `${EXPLICIT_SELECTOR} Resume the existing host=codex task. After dev_flow_open_task, call dev_flow_get_task and dev_flow_get_next_action before any Action submission. Run only "git hash-object native-proof.txt" and continue until Core reports DONE.`;
+const SUBMISSION_IDENTITY_RULE =
+  `Call exactly fresh_action.submission_tool with host, task_id, action_id, transition_id, summary, reason, artifacts, method_results, and node_result. Never send request_id, revision, action kind, process identity, source cursor, repository binding, a payload wrapper, artifact role, or method_evidence; Core fills and retains them.`;
+const ACTION_RESULT_RULES =
+  `Use artifacts.current only when the live schema exposes it, always include artifacts.other_process, and give each artifact only path, digest, and summary. Build method_results keyed by every method step ID with only capability and summary. Preserve the exact node_result and select only a returned transition. Use problem_class=none and findings=[] for forward success. Stop after any submission error. Node results are REQUIREMENTS={problem_class,baseline,unresolved_questions,changed_paths,no_file_changes}; DESIGN/TASKS={problem_class,baseline,findings,changed_paths,no_file_changes}; IMPLEMENT={problem_class,task_plan_revision,completed_work_item_ids,changed_paths,no_file_changes,deviations,findings}; TEST={problem_class,checks,failed_items,unverified_items,manual_handoff_items,findings,changed_paths,no_file_changes}; COMPREHENSION_REVIEW={problem_class,explained_components,unresolved_questions,unnecessary_abstractions,maintenance_risks,user_confirmation,findings,changed_paths,no_file_changes}; REFACTOR={problem_class,changed_paths,no_file_changes,simplifications,behavior_change_intended,findings}; DELIVERY={problem_class,acceptance,automated_evidence_ids,manual_evidence_ids,test_record_id,comprehension_record_id,unverified_items,risks,findings,changed_paths,no_file_changes}.`;
+
 export function multiRepositorySubstantivePrompt(primaryRepository, additionalRepository) {
   requireAbsolute(primaryRepository, "primary repository");
   requireAbsolute(additionalRepository, "additional repository");
-  return `${EXPLICIT_SELECTOR} ${APPLY_REQUEST_BINDING_RULE} ${APPLY_PAYLOAD_RULES} Create exactly one host=codex Task with repository_path=${JSON.stringify(primaryRepository)}, primary_repository_key=core, and additional_repositories=[{\"key\":\"docs\",\"repository_path\":${JSON.stringify(additionalRepository)}}]. These are the only user-declared repositories; do not discover or add any other repository. Use method_profile=plain and set a budget of one targeted verification command, but do not run that command in this substantive session because it stops at the successful IMPLEMENT apply before TEST. Advance only from complete Core Actions and returned transitions. When repository edits are allowed, create core-proof.txt in repository key core with exact UTF-8 bytes "core proof\\n" and docs-proof.txt in repository key docs with exact UTF-8 bytes "docs proof\\n". Use core::core-proof.txt and docs::docs-proof.txt in all multi-repository expected_paths, Artifact paths, Implementation changed_paths, and Refactor changed_paths. Stop after the first successful apply that records both changes while the Core Task remains nonterminal; do not resume or create another Task.`;
+  return `${EXPLICIT_SELECTOR} ${SUBMISSION_IDENTITY_RULE} ${ACTION_RESULT_RULES} Create one host=codex Task with repository_path=${JSON.stringify(primaryRepository)}, primary_repository_key=core, and additional_repositories=[{"key":"docs","repository_path":${JSON.stringify(additionalRepository)}}]. Create core-proof.txt and docs-proof.txt only when edits are allowed, report core::core-proof.txt and docs::docs-proof.txt, and stop after the first successful IMPLEMENT submission records both changes while the Task remains nonterminal.`;
 }
 
 export function multiRepositoryResumePrompt(additionalRepository) {
   requireAbsolute(additionalRepository, "additional repository");
-  return `${EXPLICIT_SELECTOR} Resume the existing host=codex Task by calling dev_flow_open_task with repository_path=${JSON.stringify(additionalRepository)}, new_task=null, and no Scope creation fields. Do not create or modify files. Do not call dev_flow_apply_action or create another Task. After open succeeds, stop; the runner will verify that this fresh Codex session returned the same post-mutation Task, revision, current Action, primary repository, and ordered Scope.`;
+  return `${EXPLICIT_SELECTOR} Resume the existing host=codex Task with repository_path=${JSON.stringify(additionalRepository)}, new_task=null, and no Scope creation fields. Do not modify files, call an Action submission tool, or create another Task. Stop after open succeeds.`;
 }
-const APPLY_PAYLOAD_RULES = `Before every apply, bind the latest complete Action and read action_kind, payload_contract, method_steps, available_transitions, and the current dev_flow_apply_action inputSchema branch. The payload must have exactly transition_id, summary, reason, artifacts, method_evidence, and node_result. Use artifacts=[] because this journey creates no process artifact; required_evidence is not an ArtifactReference role and repository_observation must never appear in artifacts. Preserve the complete node_result wrapper, arrays as arrays, and exactly one plain_fallback/capability-empty MethodEvidence item for every current method step in Action order. problem_class and findings select a graph branch rather than carrying general notes: for a forward ready, passed, or completed transition use problem_class=none and findings=[]; put ordinary observations in summary or the node-specific semantic fields. Use a non-none problem_class and nonempty findings only when they establish the exact corrective transition selected from the current Action. Never submit destination, next_node, next_cursor, unknown fields, or a guessed transition. If any apply returns an error, stop immediately without retrying that or another payload. The success wrappers are: REQUIREMENTS={problem_class,baseline,unresolved_questions,changed_paths,no_file_changes}; DESIGN/TASKS={problem_class,baseline,findings,changed_paths,no_file_changes}; IMPLEMENT={problem_class,task_plan_revision,completed_work_item_ids,changed_paths,no_file_changes,deviations,findings}; TEST={problem_class,checks,failed_items,unverified_items,manual_handoff_items,findings,changed_paths,no_file_changes}; COMPREHENSION_REVIEW={problem_class,explained_components,unresolved_questions,unnecessary_abstractions,maintenance_risks,user_confirmation,findings,changed_paths,no_file_changes}; REFACTOR={problem_class,changed_paths,no_file_changes,simplifications,behavior_change_intended,findings}; DELIVERY={problem_class,acceptance,automated_evidence_ids,manual_evidence_ids,test_record_id,comprehension_record_id,unverified_items,risks,findings,changed_paths,no_file_changes}, with all delivery IDs read dynamically from the current Core task.`;
-const FINAL_REGISTRY_COMPREHENSION_VERDICT = `The maintainer explicitly confirmed the target release with --confirm-comprehension: I have read and understood the final-registry proof implementation and validation path, can explain and maintain it, and confirm it passes COMPREHENSION_REVIEW. At COMPREHENSION_REVIEW, submit comprehension_passed only from the current Action with problem_class=none, empty unresolved_questions and unnecessary_abstractions, and user_confirmation source=user status=passed reflecting this exact verdict.`;
-export const finalRegistrySubstantivePrompt = `${EXPLICIT_SELECTOR} ${APPLY_REQUEST_BINDING_RULE} ${APPLY_PAYLOAD_RULES} Work only in the current repository. Open one host=codex task to create final-registry-proof.txt with the exact UTF-8 bytes "Dev Flow Codex final registry journey passed.\\n". Advance through the Core-required read-only prerequisites, create the file only when the current action permits repository edits, and stop after the first successful dev_flow_apply_action following file creation while the task remains nonterminal.`;
-export const finalRegistryResumePrompt = `${EXPLICIT_SELECTOR} ${APPLY_REQUEST_BINDING_RULE} ${APPLY_PAYLOAD_RULES} ${FINAL_REGISTRY_COMPREHENSION_VERDICT} Resume the existing compatible host=codex task. After dev_flow_open_task, you MUST call dev_flow_get_task and then dev_flow_get_next_action before any dev_flow_apply_action. Do not use the action returned by dev_flow_open_task to skip either read. Run only "git hash-object final-registry-proof.txt" as the targeted verification command, and continue until Core reports current_cursor DONE with outcome completed.`;
-const FINAL_LOCAL_PAYLOAD_RULES = APPLY_PAYLOAD_RULES;
-export const finalLocalSessionOnePrompt = `${EXPLICIT_SELECTOR} ${FINAL_LOCAL_PAYLOAD_RULES} Work only in the current workspace. Create one new host=codex task with method_profile=plain to implement writeProof so it writes the exact UTF-8 bytes "Dev Flow Feature 008 native journey passed.\\n". Use verification_budget level=targeted, max_automatic_commands=2, allow_full_suite=false, allow_manual_handoff=false. For the first REQUIREMENTS mutation, use artifacts=[], problem_class=none, a complete baseline object containing goal/scope/out_of_scope/acceptance_criteria/constraints/assumptions, and unresolved_questions=[]; do not flatten baseline fields. Advance REQUIREMENTS, DESIGN, TASKS, and IMPLEMENT using only the complete current Core action and returned transition IDs. During the first implementation preserve the existing ProofWriterFactory and ProofWriter layering. Modify only src/proof-writer.mjs; do not modify package.json or test/proof-writer.test.mjs, create files, commit, or change Git HEAD/branch. Run exactly one verification command: node --test test/proof-writer.test.mjs. Do not run npm test, pnpm test, a wildcard node test, or any other verification command. After tests pass, enter COMPREHENSION_REVIEW, present all six legal transitions/destinations, and explain the current design and code path. Do not supply a user comprehension confirmation, do not enter REFACTOR, DELIVERY, or DONE, and stop while waiting for the developer verdict.`;
-export const finalLocalSessionTwoPrompt = `${EXPLICIT_SELECTOR} ${FINAL_LOCAL_PAYLOAD_RULES} 我已经阅读了当前解释。Factory 与 Writer 的分层对这个单一写入行为来说是不必要的，我无法清晰解释和维护它。请将其作为明确的 code complexity verdict。 Resume the existing host=codex task by omitting or using null new_task. After dev_flow_server_info and dev_flow_open_task, call dev_flow_get_task and then dev_flow_get_next_action before any dev_flow_apply_action, and prove the task/revision/action/process/current-node identity is unchanged. Select only the returned code_too_complex transition with problem_class=code_complexity, user_confirmation=null, nonempty unnecessary_abstractions/findings, and an explicit reason. In REFACTOR remove ProofWriterFactory and ProofWriter, leaving one direct understandable writeProof implementation in src/proof-writer.mjs. Modify only src/proof-writer.mjs; do not modify package.json or test/proof-writer.test.mjs, create files, commit, or change Git HEAD/branch. Select refactor_ready_for_test with problem_class=none, behavior_change_intended=false, and nonempty simplifications; run exactly one verification command: node --test test/proof-writer.test.mjs, and run no other verification command. Submit tests_passed, return to COMPREHENSION_REVIEW, explain the simplified path, do not provide a passing user verdict, do not enter DELIVERY, and stop waiting for the final developer verdict.`;
-export const finalLocalSessionThreePrompt = `${EXPLICIT_SELECTOR} ${FINAL_LOCAL_PAYLOAD_RULES} 我已经阅读并检查了简化后的实现。我现在能够解释它的主要路径、约束和维护方式，并明确确认它可以通过理解审查。 Resume the same host=codex task. After dev_flow_server_info and dev_flow_open_task, call dev_flow_get_task and then dev_flow_get_next_action before any dev_flow_apply_action. Submit comprehension_passed only from the current Core action with problem_class=none, empty unresolved_questions/unnecessary_abstractions, and user_confirmation source=user status=passed reflecting this prompt. Enter DELIVERY, read the latest TestRecord, ComprehensionAssessment, and exact ordered Core-derived automated/manual evidence IDs from the current task; do not hard-code those IDs. Then select delivery_complete and stop only when Core reports current_cursor DONE with outcome.status=completed and current_action=null. Do not modify files, run a verification command, commit, or change Git HEAD/branch.`;
+
+const FINAL_REGISTRY_COMPREHENSION_VERDICT =
+  `The maintainer explicitly confirmed the final-registry proof can be explained and maintained. At COMPREHENSION_REVIEW, use comprehension_passed with the current user verdict.`;
+export const finalRegistrySubstantivePrompt =
+  `${EXPLICIT_SELECTOR} ${SUBMISSION_IDENTITY_RULE} ${ACTION_RESULT_RULES} Create final-registry-proof.txt with the exact required bytes and stop after the first successful Action submission following file creation while the Task remains nonterminal.`;
+export const finalRegistryResumePrompt =
+  `${EXPLICIT_SELECTOR} ${SUBMISSION_IDENTITY_RULE} ${ACTION_RESULT_RULES} ${FINAL_REGISTRY_COMPREHENSION_VERDICT} Resume the host=codex task, call dev_flow_get_task and dev_flow_get_next_action before any Action submission, run only "git hash-object final-registry-proof.txt", and continue until DONE.`;
+const FINAL_LOCAL_PAYLOAD_RULES = `${SUBMISSION_IDENTITY_RULE} ${ACTION_RESULT_RULES}`;
+export const finalLocalSessionOnePrompt =
+  `${EXPLICIT_SELECTOR} ${FINAL_LOCAL_PAYLOAD_RULES} Create one host=codex plain-profile task, implement writeProof within the declared files, run exactly node --test test/proof-writer.test.mjs, enter COMPREHENSION_REVIEW, explain the current design, and stop for the developer verdict.`;
+export const finalLocalSessionTwoPrompt =
+  `${EXPLICIT_SELECTOR} ${FINAL_LOCAL_PAYLOAD_RULES} 我无法维护当前 Factory 与 Writer 分层。Resume the task, read Task and next Action before submission, select code_too_complex, simplify src/proof-writer.mjs, run exactly node --test test/proof-writer.test.mjs, return to COMPREHENSION_REVIEW, and stop for the final verdict.`;
+export const finalLocalSessionThreePrompt =
+  `${EXPLICIT_SELECTOR} ${FINAL_LOCAL_PAYLOAD_RULES} 我确认能够解释并维护简化后的实现。Resume the task, read Task and next Action before submission, submit comprehension_passed and delivery_complete from current Core facts, and stop only at DONE.`;
 
 const PROOF_CONTENT = "Dev Flow Codex development smoke passed.\n";
 const ACCEPTANCE_PROOF_CONTENT = "Dev Flow Codex final acceptance passed.\n";
@@ -739,7 +764,7 @@ export function validateAttempt3NativeFlowEvidence(evidence, expected = null) {
     || evidence.process_identity !== "standard-development"
     || evidence.definition_digest !== FINAL_LOCAL_DEFINITION_DIGEST
     || !isDeepStrictEqual(evidence.method_profiles, ["plain", "spec-kit", "openspec"])
-    || !isDeepStrictEqual(evidence.tool_order, DEV_FLOW_TOOLS)
+    || (!isDeepStrictEqual(evidence.tool_order, DEV_FLOW_TOOLS) && !isDeepStrictEqual(evidence.tool_order, LEGACY_DEV_FLOW_TOOLS))
     || !isDeepStrictEqual(evidence.transition_sequence, expectedTransitions)
     || evidence.successful_mutation_count !== 10
     || evidence.revision_start !== 1
@@ -1948,7 +1973,7 @@ function buildLifecyclePayload(name, templates, task) {
     payload.summary = "Selected one direct packaged-Core lifecycle fixture.";
     Object.assign(payload.node_result.baseline, {
       requirements_revision: task.baselines.requirements.revision,
-      approach: "Drive the primary graph path directly through the packaged six-tool MCP contract.",
+      approach: "Drive the primary graph path through the packaged fifteen-tool MCP contract.",
       components: ["packaged Core", "Schema 2 data", "isolated package lifecycle"],
       decisions: ["Use one real Task from creation through retained terminal reopen."],
       rejected_alternatives: ["Copied fixture database"],
@@ -2033,25 +2058,33 @@ async function applyLifecyclePayload(product, layout, environment, task, payload
   const action = task.current_action;
   if (!isPlainObject(action)) throw new Error("lifecycle Task has no current Action");
   assertLifecyclePayloadClosed(payload, action);
-  const requestID = `lifecycle-${randomUUID()}`;
+  const methodResults = Object.fromEntries(payload.method_evidence.map((item) => [item.step_id, {
+    capability: item.capability,
+    summary: item.summary,
+  }]));
+  const primaryRole = {
+    REQUIREMENTS: "requirements", DESIGN: "design", TASKS: "task_plan", TEST: "test",
+    COMPREHENSION_REVIEW: "comprehension", DELIVERY: "delivery",
+  }[task.current_cursor];
   const request = {
-    request_id: requestID,
     host: "codex",
     task_id: task.task_id,
-    revision: task.revision,
     action_id: action.action_id,
-    action_kind: action.action_kind,
-    process_id: task.process_id,
-    process_definition_digest: task.process_definition_digest,
-    source_cursor: task.current_cursor,
-    repository_binding_digest: action.repository_binding_digest,
-    payload,
+    transition_id: payload.transition_id,
+    summary: payload.summary,
+    reason: payload.reason,
+    artifacts: {
+      ...(primaryRole ? { current: payload.artifacts.filter((item) => item.role === primaryRole).map(({ role: _, ...item }) => item) } : {}),
+      other_process: payload.artifacts.filter((item) => item.role === "other_process").map(({ role: _, ...item }) => item),
+    },
+    method_results: methodResults,
+    node_result: payload.node_result,
   };
   const envelope = await callPackagedCoreTool(
     product.runtimePath,
     layout.dataDirectory,
     layout.workspace,
-    "dev_flow_apply_action",
+    action.submission_tool,
     request,
     environment,
   );
@@ -2060,11 +2093,11 @@ async function applyLifecyclePayload(product, layout, environment, task, payload
     throw new Error(`lifecycle packaged-Core mutation returned ${envelope?.error?.code ?? "an invalid result"}`);
   }
   const identityChecks = {
-    envelope_request: envelope.request_id === requestID,
+    envelope_request: typeof envelope.request_id === "string" && envelope.request_id.length > 0,
     task_projection: isPlainObject(nextTask),
     task_identity: nextTask?.task_id === task.task_id,
     revision: nextTask?.revision === task.revision + 1,
-    operation_identity: nextTask?.last_operation?.operation_id === requestID,
+    operation_identity: nextTask?.last_operation?.operation_id === envelope.request_id,
     operation_action: nextTask?.last_operation?.action_id === action.action_id,
   };
   const failedChecks = Object.entries(identityChecks).filter(([, passed]) => !passed).map(([name]) => name);
@@ -2087,16 +2120,14 @@ function validateLifecycleToolCatalog(tools) {
   ) {
     throw new Error("lifecycle packaged Core tool catalog is invalid");
   }
-  const apply = tools.find((tool) => tool.name === "dev_flow_apply_action");
-  const schemaText = JSON.stringify(apply?.inputSchema);
-  if (
-    apply?.inputSchema?.type !== "object"
-    || apply.inputSchema.additionalProperties !== false
-    || !schemaText.includes("COMPLETE_REQUIREMENTS")
-    || !schemaText.includes("COMPLETE_DELIVERY")
-    || !schemaText.includes("transition_id")
-    || !schemaText.includes("node_result")
-  ) throw new Error("lifecycle live apply input schema is incomplete");
+  const submissions = tools.filter((tool) => isActionSubmissionToolName(tool.name));
+  if (submissions.length !== 8 || submissions.some((tool) => (
+    tool.inputSchema?.type !== "object"
+    || tool.inputSchema.additionalProperties !== false
+    || !JSON.stringify(tool.inputSchema).includes("transition_id")
+    || !JSON.stringify(tool.inputSchema).includes("method_results")
+    || !JSON.stringify(tool.inputSchema).includes("node_result")
+  ))) throw new Error("lifecycle live Action submission schemas are incomplete");
 }
 
 function lifecycleCoreManifest(coreRows) {
@@ -2762,7 +2793,10 @@ const TASK_BEARING_TOOLS = new Set([
   "dev_flow_open_task",
   "dev_flow_get_task",
   "dev_flow_get_next_action",
+  ...DEV_FLOW_TOOLS.filter(isActionSubmissionToolName),
   "dev_flow_apply_action",
+  "dev_flow_resolve_blocker",
+  "dev_flow_recover_action",
   "dev_flow_cancel_task",
 ]);
 
@@ -3134,8 +3168,8 @@ function validateDevelopmentSessionsUnchecked(sessions, state, {
   }
   const substantive = sessions[2];
   const resume = sessions[3];
-  const substantiveApplies = successfulCalls(substantive, "dev_flow_apply_action");
-  const resumeApplies = successfulCalls(resume, "dev_flow_apply_action");
+  const substantiveApplies = successfulActionSubmissions(substantive);
+  const resumeApplies = successfulActionSubmissions(resume);
   const taskBefore = lastTask(substantiveApplies);
   const resumeOpen = successfulCalls(resume, "dev_flow_open_task")[0];
   const taskAfter = taskFromCall(resumeOpen);
@@ -3150,7 +3184,7 @@ function validateDevelopmentSessionsUnchecked(sessions, state, {
   const tools = resume.dev_flow_calls.map((call) => call.tool);
   const readTask = tools.indexOf("dev_flow_get_task");
   const readAction = tools.indexOf("dev_flow_get_next_action");
-  const firstApply = tools.indexOf("dev_flow_apply_action");
+  const firstApply = tools.findIndex(isActionMutationToolName);
   if (!(readTask > tools.indexOf("dev_flow_open_task") && readAction > readTask && firstApply > readAction)) {
     throw new Error("resume must read task and next action before a new apply");
   }
@@ -3190,6 +3224,10 @@ function assertHandshake(session, coreVersion = "0.1.0") {
 
 function successfulCalls(session, tool) {
   return session.dev_flow_calls.filter((call) => call.tool === tool && call.classification === "success");
+}
+
+function successfulActionSubmissions(session) {
+  return session.dev_flow_calls.filter((call) => isActionMutationToolName(call.tool) && call.classification === "success");
 }
 
 function taskFromCall(call) {
@@ -3489,10 +3527,10 @@ function assertFinalLocalResume(session, expectedTask) {
 }
 
 function successfulApplyFacts(session) {
-  return successfulCalls(session, "dev_flow_apply_action").map((call) => ({
+  return successfulActionSubmissions(session).map((call) => ({
     call,
-    transition_id: call.arguments?.payload?.transition_id,
-    problem_class: call.arguments?.payload?.node_result?.problem_class,
+    transition_id: call.arguments?.transition_id,
+    problem_class: call.arguments?.node_result?.problem_class,
     task: taskFromCall(call),
   }));
 }
@@ -3904,7 +3942,7 @@ async function inspectFinalInstalledProduct({
 function finalJourneyTaskFacts(sessions) {
   const substantive = sessions[2];
   const resume = sessions[3];
-  const before = lastTask(successfulCalls(substantive, "dev_flow_apply_action"));
+  const before = lastTask(successfulActionSubmissions(substantive));
   const after = taskFromCall(successfulCalls(resume, "dev_flow_open_task")[0]);
   if (!before || !after || !before.current_action || !after.current_action) {
     throw new Error("final registry journey restart task facts are incomplete");
@@ -4221,7 +4259,7 @@ export function successfulNonterminalApplyEvent(line) {
     if (
       item?.type !== "mcp_tool_call"
       || item.server !== "dev-flow"
-      || item.tool !== "dev_flow_apply_action"
+      || !isActionMutationToolName(item.tool)
       || item.status !== "completed"
     ) return false;
     const structured = item.result?.structured_content ?? item.result?.structuredContent;
@@ -4773,11 +4811,11 @@ export async function buildMultiRepositoryEvidence(
     || Object.hasOwn(createdTask, "repository_scope_digest")
   ) throw new Error("multi-repository journey Task projection is invalid");
 
-  if (resumeCalls.some((call) => call.tool === "dev_flow_apply_action")) {
+  if (resumeCalls.some((call) => isActionMutationToolName(call.tool))) {
     throw new Error("multi-repository resume session must not mutate the Task");
   }
   const successfulApplies = substantiveCalls.filter((call) => (
-    call.tool === "dev_flow_apply_action" && call.classification === "success"
+    isActionMutationToolName(call.tool) && call.classification === "success"
   ));
   if (successfulApplies.length < 1) throw new Error("multi-repository journey recorded no Action mutation");
   const beforeResumeTask = lastTask(successfulApplies);

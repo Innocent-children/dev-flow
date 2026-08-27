@@ -67,6 +67,15 @@ func (s *Server) dispatch(ctx context.Context, tool string, id domain.ID, raw []
 	if err := ValidateToolInput(tool, raw); err != nil {
 		return EncodeError(string(resultID), tool, err)
 	}
+	if kind, ok := submissionKindForTool(tool); ok {
+		var wire submitActionWire
+		_ = decodeClosed(raw, &wire)
+		result, err := s.application.SubmitAction(ctx, toSubmitAction(wire, id, kind))
+		if err != nil {
+			return EncodeError(string(resultID), tool, err)
+		}
+		return EncodeSuccess(string(resultID), tool, projectTask(result.Task))
+	}
 	switch tool {
 	case ToolServerInfo:
 		d := workflow.StandardProcess()
@@ -104,6 +113,22 @@ func (s *Server) dispatch(ctx context.Context, tool string, id domain.ID, raw []
 			return EncodeError(string(resultID), tool, err)
 		}
 		return EncodeSuccess(string(resultID), tool, projectTask(r.Task))
+	case ToolResolveBlocker:
+		var wire actionReferenceWire
+		_ = decodeClosed(raw, &wire)
+		result, err := s.application.ResolveBlockerAction(ctx, application.RecoverActionRequest{Host: wire.Host, TaskID: wire.TaskID, ActionID: wire.ActionID}, id)
+		if err != nil {
+			return EncodeError(string(resultID), tool, err)
+		}
+		return EncodeSuccess(string(resultID), tool, projectTask(result.Task))
+	case ToolRecoverAction:
+		var wire actionReferenceWire
+		_ = decodeClosed(raw, &wire)
+		result, err := s.application.RecoverAction(ctx, application.RecoverActionRequest{Host: wire.Host, TaskID: wire.TaskID, ActionID: wire.ActionID})
+		if err != nil {
+			return EncodeError(string(resultID), tool, err)
+		}
+		return EncodeSuccess(string(resultID), tool, projectTask(result.Task))
 	case ToolCancelTask:
 		var w cancelWire
 		_ = decodeClosed(raw, &w)

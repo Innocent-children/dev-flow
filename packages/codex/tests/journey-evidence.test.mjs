@@ -171,6 +171,33 @@ test("current Core contract RequestBinding uses caller operation identity for su
   assert.equal(transport.calls[0].requestId, callerRequestID);
 });
 
+test("current Action submission accepts the Core-generated operation identity", () => {
+  const operationID = "request-core-generated-submission";
+  const envelope = {
+    ok: true,
+    request_id: operationID,
+    tool: "dev_flow_submit_requirements",
+    result: { task_id: "task-current-submission", last_operation: { operation_id: operationID } },
+  };
+  const parsed = parseCodexJSONL(encodeJSONL([
+    { type: "thread.started", thread_id: "thread-current-submission" },
+    {
+      type: "item.completed",
+      item: {
+        id: "item-current-submission",
+        type: "mcp_tool_call",
+        server: "dev-flow",
+        tool: "dev_flow_submit_requirements",
+        arguments: { host: "codex", task_id: "task-current-submission", action_id: "action-current" },
+        status: "completed",
+        error: null,
+        result: { content: [{ type: "text", text: JSON.stringify(envelope) }] },
+      },
+    },
+  ]));
+  assert.equal(parsed.calls[0].requestBinding, null);
+});
+
 test("current domain error preserves Core authority", async () => {
   const parsed = parseCodexJSONL(await currentDomainJSONL());
   const [call] = parsed.calls;

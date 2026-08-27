@@ -40,6 +40,7 @@
       "revision": 1,
       "action_id": "action-multi-repository",
       "action_kind": "COMPLETE_REQUIREMENTS",
+      "submission_tool": "dev_flow_submit_requirements",
       "repository_binding_digest": "dc9caf7d75b1019fd583d7fb7632b4c5f6ad4431bb34d6c0182fc506d70c0e13"
     }
   }

@@ -9,11 +9,21 @@ export const DEV_FLOW_TOOLS = Object.freeze([
   "dev_flow_open_task",
   "dev_flow_get_task",
   "dev_flow_get_next_action",
-  "dev_flow_apply_action",
+  "dev_flow_submit_requirements",
+  "dev_flow_submit_design",
+  "dev_flow_submit_tasks",
+  "dev_flow_submit_implementation",
+  "dev_flow_submit_test",
+  "dev_flow_submit_comprehension",
+  "dev_flow_submit_refactor",
+  "dev_flow_submit_delivery",
+  "dev_flow_resolve_blocker",
+  "dev_flow_recover_action",
   "dev_flow_cancel_task",
 ]);
 
-const toolNames = new Set(DEV_FLOW_TOOLS);
+const legacyApplyTool = "dev_flow_apply_action";
+const toolNames = new Set([...DEV_FLOW_TOOLS, legacyApplyTool]);
 const coreErrorRecoveryAction = new Map(Object.entries(Object.freeze({
   INVALID_ARGUMENT: "none",
   NOT_GIT_REPOSITORY: "none",
@@ -285,7 +295,7 @@ function validateCoreEnvelope(envelope, item, shape) {
     throw new Error("Core result envelope tool does not match the MCP item");
   }
   const requestBinding = callerRequestBinding(envelope, item);
-  if (item.tool === "dev_flow_apply_action" && success && requestBinding !== "matched") {
+  if (item.tool === legacyApplyTool && success && requestBinding !== "matched") {
     throw new Error("dev_flow_apply_action MCP item requires its caller request_id");
   }
   if (requestBinding === "mismatched") {
@@ -374,7 +384,7 @@ function validViolationPath(value) {
 function callerRequestBinding(envelope, item) {
   const argumentsObject = isPlainObject(item.arguments) ? item.arguments : null;
   if (argumentsObject === null || !Object.hasOwn(argumentsObject, "request_id")) {
-    return item.tool === "dev_flow_apply_action" ? "missing" : null;
+    return item.tool === legacyApplyTool ? "missing" : null;
   }
   if (!validIdentifier(argumentsObject.request_id)) return "invalid";
   return argumentsObject.request_id === envelope.request_id ? "matched" : "mismatched";

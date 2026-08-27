@@ -6,30 +6,6 @@
 
 实际解析版本仍会出现在 `go.mod`、`go.sum`、`pnpm-lock.yaml`、构建日志和发布清单中；这些是复现与证据记录，不是对兼容补丁或次版本的拒绝规则。
 
-## Spec Kit
-
-- Policy: 初始化和更新时使用官方最新稳定版；
-- Documentation: <https://github.github.com/spec-kit/>；
-- Releases: <https://github.com/github/spec-kit/releases/latest>；
-- Monorepo guidance: <https://github.github.com/spec-kit/guides/monorepo.html>。
-
-推荐流程：
-
-```bash
-uv tool install specify-cli
-specify self check
-# 仅当 check 报告存在更新时执行：
-specify self upgrade
-```
-
-仓库策略：
-
-- 一个根级 Spec Kit 项目；
-- Codex integration 由 Spec Kit 写入 `.agents/skills/`；
-- 不在两个产品目录创建嵌套 `.specify/`；
-- 文档和 CI 不比较 Spec Kit 精确版本号；
-- Spec Kit 升级后，只有实际行为或生成结构变化才需要修改项目文档。
-
 ## Go
 
 - Minimum: `>= 1.26`；

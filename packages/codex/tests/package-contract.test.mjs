@@ -213,12 +213,12 @@ test("node-payload reference is one explicit closed packaged resource", async ()
   const reference = await readFile(join(packageRoot, referencePath), "utf8");
   assert.equal(manifest.files.filter((path) => path === referencePath).length, 1);
   assert.equal((await stat(join(packageRoot, referencePath))).isFile(), true);
-  assert.match(reference, /node-payload-template:requirements:start/u);
-  assert.match(reference, /node-payload-template:blocked:start/u);
-  assert.match(reference, /`repository_observation` is a Core evidence requirement/u);
-  assert.match(reference, /Never submit `destination`, `next_node`/u);
+  assert.match(reference, /`dev_flow_submit_requirements`/u);
+  assert.match(reference, /`dev_flow_resolve_blocker`/u);
+  assert.match(reference, /Core fills revision[\s\S]*Action kind[\s\S]*payload envelope/u);
+  assert.match(reference, /Do not send `request_id`[\s\S]*`method_evidence`[\s\S]*artifact `role`/u);
   assert.match(reference, /Completed developer-run verification is a `source="user"` check with `command_count=0`/u);
-  assert.match(reference, /`manual_handoff_items` contains only bounded checks still awaiting user execution/u);
+  assert.match(reference, /only work nobody has run yet in `manual_handoff_items`/u);
   assert.doesNotMatch(reference, /(?:^|\s)(?:\/Users\/|\/home\/|[A-Za-z]:\\\\)/u);
   assert.doesNotMatch(reference, /(?:node_modules|tests?\/fixtures?|\.tmp|\.sqlite|\.db)(?:\/|\b)/iu);
 });

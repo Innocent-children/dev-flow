@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -282,6 +283,60 @@ func (s *SQLite) CommitTask(ctx context.Context, m TaskMutation) error {
 	}
 	if err := applyClaim(ctx, tx, m); err != nil {
 		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return ErrStorageUnavailable
+	}
+	return nil
+}
+
+func (s *SQLite) StageActionCommit(ctx context.Context, task domain.ProcessTask) error {
+	commit := task.ActionCommit
+	if s == nil || s.db == nil || commit == nil || task.CurrentAction == nil ||
+		commit.Operation.ExpectedRevision != task.Revision || commit.Operation.SourceCursor != task.CurrentNode ||
+		commit.Operation.ActionID != task.CurrentAction.ActionID || commit.Operation.ActionKind != task.CurrentAction.Kind ||
+		workflow.ValidateProcessTask(task) != nil {
+		return ErrInvalidArgument
+	}
+	snapshot, err := encodeTask(task)
+	if err != nil {
+		return err
+	}
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return ErrStorageUnavailable
+	}
+	defer tx.Rollback()
+	current, err := scanStoredTask(tx.QueryRowContext(ctx, `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,repository_identity,snapshot,created_at,updated_at FROM tasks WHERE task_id=?`, task.TaskID))
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrTaskNotFound
+	}
+	if err != nil {
+		return ErrStorageUnavailable
+	}
+	if current.Revision != task.Revision || current.CurrentAction == nil || current.CurrentAction.ActionID != task.CurrentAction.ActionID {
+		return ErrRevisionConflict
+	}
+	if current.ActionCommit != nil && current.ActionCommit.Operation.ActionID == commit.Operation.ActionID {
+		if current.ActionCommit.Equal(*commit) {
+			return nil
+		}
+		return ErrInvalidArgument
+	}
+	comparable := task
+	comparable.ActionCommit = current.ActionCommit
+	currentSnapshot, currentErr := encodeTask(current)
+	comparableSnapshot, comparableErr := encodeTask(comparable)
+	if currentErr != nil || comparableErr != nil || !bytes.Equal(currentSnapshot, comparableSnapshot) {
+		return ErrInvalidArgument
+	}
+	result, err := tx.ExecContext(ctx, `UPDATE tasks SET snapshot=? WHERE task_id=? AND revision=?`, snapshot, task.TaskID, task.Revision)
+	if err != nil {
+		return ErrStorageUnavailable
+	}
+	rows, _ := result.RowsAffected()
+	if rows != 1 {
+		return ErrRevisionConflict
 	}
 	if err := tx.Commit(); err != nil {
 		return ErrStorageUnavailable

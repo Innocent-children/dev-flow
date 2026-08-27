@@ -182,17 +182,32 @@ integration process.
 
 ## MCP tools
 
-These six tools are the complete closed public MCP catalog. Host adapters call them; they are not
+These fifteen tools are the complete closed public MCP catalog. Host adapters call them; they are not
 terminal shell commands.
 
 | Tool | Type | Purpose |
 | --- | --- | --- |
 | `dev_flow_server_info` | Read-only | Read Core product version, transport, health, supported process, hosts, method profiles, tool catalog, and effective host code-index preferences. It must be the first call after valid host admission. |
 | `dev_flow_open_task` | Read or create | Create a Task for one explicit Repository Scope, or resume the same Task from any participating repository when `new_task` is null. |
-| `dev_flow_get_task` | Read-only | Read a persisted Task by ID; an optional operation probe can request the Recovery assessment for an uncertain mutation. |
-| `dev_flow_get_next_action` | Read-only | Read the authoritative current Action, including completion conditions, allowed effects, required evidence, verification budget, method steps, and every legal transition. |
-| `dev_flow_apply_action` | Mutation | Apply one Core-declared transition using the current revision, Action identity, process identity, repository binding, and closed payload; write-enabled node results must report exact `changed_paths` or `no_file_changes`, and explicit recovery apply uses the same mutation envelope. The input schema is one closed object: `action_kind` enumerates all nine action kinds and `payload.node_result` exposes the union of the nine node result members. Core enforces the exact per-action-kind contract and reports `error.details[]` field paths, `error.guard` guard detail, and one `correct_current_action` allowance when it can prove the request wrote nothing. |
+| `dev_flow_get_task` | Read-only | Read a persisted Task by ID; automatically returns a Recovery assessment when Core retains an Action submission. |
+| `dev_flow_get_next_action` | Read-only | Read the current Action, its `submission_tool`, completion conditions, allowed effects, required evidence, verification budget, method steps, and every legal transition. |
+| `dev_flow_submit_requirements` | Mutation | Submit the REQUIREMENTS node result. |
+| `dev_flow_submit_design` | Mutation | Submit the DESIGN node result. |
+| `dev_flow_submit_tasks` | Mutation | Submit the TASKS node result. |
+| `dev_flow_submit_implementation` | Mutation | Submit the IMPLEMENT node result. |
+| `dev_flow_submit_test` | Mutation | Submit the TEST node result. |
+| `dev_flow_submit_comprehension` | Mutation | Submit the COMPREHENSION_REVIEW node result. |
+| `dev_flow_submit_refactor` | Mutation | Submit the REFACTOR node result. |
+| `dev_flow_submit_delivery` | Mutation | Submit the DELIVERY node result. |
+| `dev_flow_resolve_blocker` | Mutation | Resolve the current blocker after Core verifies repository restoration; accepts only host, Task ID, and Action ID. |
+| `dev_flow_recover_action` | Mutation | Recover an uncertain Action from the normalized submission retained in the Task snapshot; accepts no original payload. |
 | `dev_flow_cancel_task` | Destructive mutation | Move a nonterminal Task to `CANCELLED` using the current revision and a non-empty reason. |
+
+Each ordinary node submission tool accepts only `host`, `task_id`, `action_id`, `transition_id`,
+`summary`, `reason`, `artifacts`, `method_results`, and that node's exact `node_result`. Core fills the
+revision, Action kind, process identity, source cursor, repository binding, artifact roles, method
+step identity/order/status, and internal payload envelope. `get_next_action.submission_tool` names the
+only submission tool for the current Action.
 
 Unknown CLI arguments, tools outside this catalog, and calls that do not satisfy shared implicit/explicit admission
 are not supported entrypoints.

@@ -20,7 +20,16 @@ const exactTools = [
   "dev_flow_open_task",
   "dev_flow_get_task",
   "dev_flow_get_next_action",
-  "dev_flow_apply_action",
+  "dev_flow_submit_requirements",
+  "dev_flow_submit_design",
+  "dev_flow_submit_tasks",
+  "dev_flow_submit_implementation",
+  "dev_flow_submit_test",
+  "dev_flow_submit_comprehension",
+  "dev_flow_submit_refactor",
+  "dev_flow_submit_delivery",
+  "dev_flow_resolve_blocker",
+  "dev_flow_recover_action",
   "dev_flow_cancel_task",
 ];
 
@@ -198,7 +207,7 @@ test("Skill silently calls server-info first and admits the exact unordered Core
     /new_task_supported[^\n]*`true`/i,
     /plain[^\n]*spec-kit[^\n]*openspec/i,
     /regardless of order/i,
-    /exactly[^\n]*six/i,
+    /exactly[^\n]*fifteen/i,
     /incomplete|truncated|malformed/i,
     /stop/i,
   ]) {
@@ -256,14 +265,14 @@ test("Skill follows fresh Core authority for create, resume, one mutation, and c
     assert.match(loop, new RegExp(escapeRegExp(identity).replaceAll(" ", "\\s+"), "i"));
   }
   assert.match(loop, /fresh|live Core/i);
-  assert.match(loop, /one mutation|exactly one[\s\S]{0,80}mutation/i);
-  assert.match(loop, /request ID/i);
+  assert.match(loop, /exactly one call[\s\S]{0,80}(?:submission_tool|that tool)/i);
+  assert.match(loop, /Core fills and retains[\s\S]*Action identity[\s\S]*payload envelope/i);
   assert.match(loop, /complete (?:successful|committed)[\s\S]*(?:authoritative|returned|fresh)[\s\S]*(?:next Action|Core read)/i);
 
   const forwarding = section(skill, "Closed forwarding contract");
-  assert.match(forwarding, /closed payload/i);
-  assert.match(forwarding, /unknown fields|aliases/i);
-  assert.match(forwarding, /recovery_apply[\s\S]*(?:omit|null)/i);
+  assert.match(forwarding, /submission_tool[\s\S]*live schema/i);
+  assert.match(forwarding, /copy only `task_id` and `action_id`/i);
+  assert.match(forwarding, /`request_id`[\s\S]*absent/i);
 });
 
 test("Skill forwards the exact closed Core current Core contract new_task contract", async () => {
@@ -333,31 +342,15 @@ test("method-profile reference closes all 24 rendering steps without owning Core
 test("node-payload reference makes every closed branch operational without owning Core state", async () => {
   const referencePath = join(pluginRoot, "skills", "dev-flow", "references", "node-payloads.md");
   const reference = await readFile(referencePath, "utf8");
-  for (const name of [
-    "requirements", "design", "tasks", "implement", "test", "comprehension-complexity",
-    "comprehension-passed", "refactor", "delivery", "blocked",
-  ]) {
-    const pattern = new RegExp(`<!-- node-payload-template:${name}:start -->\\n\`\`\`json\\n([\\s\\S]*?)\\n\`\`\`\\n<!-- node-payload-template:${name}:end -->`, "u");
-    const template = pattern.exec(reference);
-    assert.notEqual(template, null, name);
-    const payload = JSON.parse(template[1]);
-    if (name !== "blocked") {
-      assert.deepEqual(Object.hasOwn(payload.node_result, "changed_paths"), true, name);
-      assert.deepEqual(Object.hasOwn(payload.node_result, "no_file_changes"), true, name);
-    }
+  for (const tool of exactTools.filter((name) => name.startsWith("dev_flow_submit_"))) {
+    assert.match(reference, new RegExp("`" + escapeRegExp(tool) + "`", "u"));
   }
-  assert.match(reference, /`repository_observation` is a Core evidence requirement, not an ArtifactReference role/u);
-  assert.match(reference, /Allowed ArtifactReference roles are only/u);
-  assert.match(reference, /work-item `expected_paths`[\s\S]*node-result `changed_paths`/u);
-  assert.match(reference, /Artifact references remain evidence[\s\S]*do\s+not replace this mutation envelope/u);
-  assert.match(reference, /`<repository-key>::<repository-relative-path>`[\s\S]*multi-repository Task/u);
-  assert.match(reference, /exactly the six common/u);
-  assert.match(reference, /Never submit `destination`, `next_node`/u);
-  assert.match(reference, /INVALID_ARGUMENT[\s\S]*never\s+transport uncertainty/u);
-  assert.match(reference, /`error\.details\[\]`[\s\S]*`recovery\.action="correct_current_action"`[\s\S]*`recovery\.retry_safe=true`/u);
-  assert.match(reference, /exactly one\s+corrected payload for the same Action[\s\S]*only the members in `recovery\.allowed_paths`[\s\S]*new `request_id`/u);
-  assert.match(reference, /Stop after a\s+second failure[\s\S]*never probe with a third candidate payload/u);
-  assert.match(reference, /one closed object[\s\S]*does not narrow the payload by `action_kind`/u);
+  assert.match(reference, /Core fills revision[\s\S]*Action kind[\s\S]*payload envelope/u);
+  assert.match(reference, /Artifact entries contain only `path`, `digest`, and `summary`[\s\S]*Core assigns the role/u);
+  assert.match(reference, /Method\s+result entries contain only `capability` and `summary`/u);
+  assert.match(reference, /multi-repository Task[\s\S]*`<repository-key>::<repository-relative-path>`/u);
+  assert.match(reference, /Do not send `request_id`[\s\S]*`payload`[\s\S]*`method_evidence`[\s\S]*artifact `role`/u);
+  assert.match(reference, /`changed_paths` and `no_file_changes` remain mutually exclusive/u);
 
   const skill = await readFile(skillPath, "utf8");
   const forwarding = section(skill, "Closed forwarding contract");
@@ -365,12 +358,10 @@ test("node-payload reference makes every closed branch operational without ownin
   assert.doesNotMatch(correction, /both attempted values|report[\s\S]*attempted values/iu);
   assert.match(correction, /report only the exact `path`, `rule`[\s\S]*Never report[\s\S]*submitted field value/u);
   assert.match(forwarding, /`references\/node-payloads\.md`/u);
-  assert.match(forwarding, /fresh Action, live `dev_flow_apply_action` `inputSchema`, and Core remain authoritative/u);
-  assert.match(forwarding, /all six common payload members/u);
-  assert.match(forwarding, /branch-specific required `node_result` key/u);
-  assert.match(forwarding, /Never convert a[\s\S]*`required_evidence`[\s\S]*`repository_observation`[\s\S]*artifact role/u);
-  assert.match(forwarding, /MethodEvidence exactly matches current Action steps/u);
-  assert.match(forwarding, /`destination`, `next_node`, `next_cursor`/u);
+  assert.match(forwarding, /live schema named by `fresh_action\.submission_tool`/u);
+  assert.match(forwarding, /`artifacts\.current`[\s\S]*`artifacts\.other_process`[\s\S]*Core assigns the role/u);
+  assert.match(forwarding, /`method_results`[\s\S]*keyed by every returned method `step_id`/u);
+  assert.match(forwarding, /payload envelope[\s\S]*absent/u);
   assert.match(forwarding, /Core returns `INVALID_ARGUMENT`[\s\S]*bounded-correction section[\s\S]*explicitly authorizes[\s\S]*`correct_current_action`[\s\S]*otherwise stop/u);
 });
 
@@ -392,7 +383,7 @@ test("Skill honors Codex writable roots and optional codebase-memory without cha
   assert.match(loop, /Do not[\s\S]*change sandbox mode[\s\S]*danger-full-access[\s\S]*shrink the Scope/u);
 });
 
-test("Skill selects one immutable profile and renders complete honest method evidence", async () => {
+test("Skill selects one immutable profile and reports method results for Core assembly", async () => {
   const skill = await readFile(skillPath, "utf8");
   const discovery = section(skill, "Task discovery");
   assert.match(discovery, /explicit[\s\S]{0,120}`plain`[\s\S]{0,80}`spec-kit`[\s\S]{0,80}`openspec`/i);
@@ -407,10 +398,11 @@ test("Skill selects one immutable profile and renders complete honest method evi
   assert.match(rendering, /each[\s\S]*Core-returned[\s\S]*method\s+step/i);
   assert.match(rendering, /actual(?:ly)? (?:visible|available)[\s\S]{0,80}capability/i);
   assert.match(rendering, /plain-equivalent/i);
-  assert.match(rendering, /exactly one[\s\S]*`MethodEvidence`[\s\S]*same order/i);
-  assert.match(rendering, /(?:`completed`|status=completed)[\s\S]*actual capability/i);
-  assert.match(rendering, /(?:`plain_fallback`|status=plain_fallback)[\s\S]*empty/i);
-  assert.match(rendering, /(?:`unavailable`|status=unavailable)[\s\S]*required[\s\S]*(?:do not|must not)[\s\S]*`dev_flow_apply_action`/i);
+  assert.match(rendering, /one `method_results` member for every current Action step[\s\S]*exact `step_id`/i);
+  assert.match(rendering, /actual capability ID after capability completion/i);
+  assert.match(rendering, /empty capability after completed ordinary work/i);
+  assert.match(rendering, /unavailable or not-run required step[\s\S]*do not call the submission tool/i);
+  assert.match(rendering, /Core adds the step identity, order and status/i);
   assert.match(rendering, /(?:does not|cannot|must not)[\s\S]*substitute[\s\S]*typed `node_result`/i);
   assert.match(rendering, /(?:do not|never)[\s\S]*(?:automatically install|auto-install)/i);
   assert.match(rendering, /existing[\s\S]*(?:spec|plan|tasks)[\s\S]*(?:review|revise|amend)[\s\S]*(?:not|instead of)[\s\S]*(?:regenerate|rerun)/i);
@@ -568,35 +560,21 @@ test("Skill safe-stops on unsupported storage without exposing or mutating priva
   assert.doesNotMatch(storage, /(?:\/Users\/|\/home\/|\/private\/var\/|[A-Za-z]:\\\\)/u);
 });
 
-test("Skill uses payload_contract as the apply schema discriminator", async () => {
+test("Skill uses submission_tool as the exact action schema", async () => {
   const forwarding = section(await readFile(skillPath, "utf8"), "Closed forwarding contract");
-  assert.match(forwarding, /`(?:fresh_action\.)?payload_contract`[\s\S]*payload branch/i);
-  assert.match(forwarding, /`inputSchema`[\s\S]*one closed object[\s\S]*`action_kind` is a[\s\S]*`enum`[\s\S]*union of every node result member/i);
-  assert.match(forwarding, /does not narrow `payload` by\s+`action_kind`[\s\S]*`fresh_action\.payload_contract`/i);
-  assert.doesNotMatch(forwarding, /under `allOf`, choose the `oneOf` payload/i);
-  assert.match(forwarding, /`references\/node-payloads\.md`[\s\S]*complete common envelope[\s\S]*branch-specific required `node_result`/i);
-  assert.match(forwarding, /do not search[\s\S]*(?:repository|installed package)[\s\S]*(?:binary|log)[\s\S]*another MCP server/i);
-  assert.match(forwarding, /(?:do not|never)[\s\S]{0,80}(?:derive|treat)[\s\S]{0,80}payload (?:field|key|member)s?[\s\S]{0,80}`required_evidence`|`required_evidence`[\s\S]{0,80}(?:not|never)[\s\S]{0,80}payload (?:field|key|member)/i);
-  assert.match(forwarding, /top-level[\s\S]*`request_id`[\s\S]*`process_id`[\s\S]*`source_cursor`[\s\S]*`repository_binding_digest`/i);
-  assert.match(forwarding, /selected\s+payload[\s\S]*contains exactly/i);
-  assert.match(forwarding, /do\s+not wrap[\s\S]*(?:whole|full|that) request[\s\S]*outer `payload`/i);
+  assert.match(forwarding, /`fresh_action\.submission_tool`[\s\S]*live schema/i);
+  assert.match(forwarding, /Do not choose another submit tool/i);
   assert.match(forwarding, /`fresh_action`[\s\S]*`result\.task\.current_action`[\s\S]*`result\.action`/i);
-  assert.match(forwarding, /`fresh_action\.(?:action_kind|kind)`[\s\S]*top-level `action_kind`/i);
-  assert.match(forwarding, /`fresh_action\.revision`[\s\S]*top-level `revision`/i);
-  assert.match(forwarding, /`fresh_action\.process_id`[\s\S]*top-level `process_id`/i);
-  assert.match(forwarding, /`fresh_action\.process_definition_digest`[\s\S]*top-level `process_definition_digest`/i);
-  assert.match(forwarding, /`fresh_action\.current_node`[\s\S]*top-level `source_cursor`/i);
-  assert.match(forwarding, /caller-generated[\s\S]*top-level `request_id`/i);
-  assert.match(forwarding, /`revision`[\s\S]*integer[\s\S]*not (?:a )?string/i);
-  assert.match(forwarding, /`payload`[\s\S]*object[\s\S]*not (?:a )?string/i);
-  assert.match(forwarding, /do not wrap[\s\S]*request[\s\S]*outer `payload`/i);
+  assert.match(forwarding, /copy only `task_id` and `action_id`/i);
+  assert.match(forwarding, /`artifacts\.current`[\s\S]*`artifacts\.other_process`/i);
+  assert.match(forwarding, /`method_results`[\s\S]*`capability` and `summary`/i);
+  assert.match(forwarding, /`request_id`, revision, action kind, process identity, source cursor, repository binding,[\s\S]*payload envelope[\s\S]*absent/i);
   assert.match(forwarding, /live schema[\s\S]*packaged reference disagree[\s\S]*stop before mutation/i);
-  for (const member of ["transition_id", "summary", "reason", "artifacts", "method_evidence", "node_result", "problem_class"]) {
+  for (const member of ["transition_id", "summary", "reason", "method_results", "node_result"]) {
     assert.match(forwarding, new RegExp("`" + escapeRegExp(member) + "`", "u"));
   }
   assert.doesNotMatch(forwarding, /`source_phase`/u);
-  assert.match(forwarding, /(?:do not|never)[\s\S]*`destination`[\s\S]*`next_node`[\s\S]*`next_cursor`/i);
-  assert.match(forwarding, /(?:omit[\s\S]{0,40}`recovery_apply`|`recovery_apply`[\s\S]{0,40}(?:null|`null`))/i);
+  assert.doesNotMatch(forwarding, /dev_flow_apply_action|recovery_apply/i);
 });
 
 test("Skill reads before retry and preserves budgets, evidence labels, and terminal stops", async () => {
@@ -605,13 +583,12 @@ test("Skill reads before retry and preserves budgets, evidence labels, and termi
   for (const uncertainty of ["missing", "cancelled", "malformed", "truncated", "uncertain"]) {
     assert.match(recovery, new RegExp(uncertainty, "i"));
   }
-  assert.match(recovery, /(?:do|does) not immediately repeat[\s\S]*dev_flow_apply_action/i);
+  assert.match(recovery, /(?:do|does) not immediately repeat[\s\S]*submission tool/i);
   assert.match(recovery, /dev_flow_get_task[\s\S]*recovery_assessment[\s\S]*next_advice/i);
-  assert.match(recovery, /operation[_ -]probe[\s\S]*(?:retained|original)/i);
-  assert.match(recovery, /retry_current_action[\s\S]*action_retry_safe=true/i);
-  assert.match(recovery, /submit_recovery_apply[\s\S]*recovery_apply/i);
-  assert.match(recovery, /`ok=false`[\s\S]*`retry_safe=false`[\s\S]*`action=none`[\s\S]*stop[\s\S]*do not call[\s\S]*dev_flow_get_next_action[\s\S]*dev_flow_apply_action/i);
-  assert.match(recovery, /fabricated/i);
+  assert.match(recovery, /do not construct `operation_probe`[\s\S]*do not reconstruct any payload/i);
+  assert.match(recovery, /retry_current_action[\s\S]*dev_flow_recover_action[\s\S]*submit_recovery_apply/i);
+  assert.match(recovery, /resolve_blocker[\s\S]*dev_flow_resolve_blocker/i);
+  assert.match(recovery, /`ok=false`[\s\S]*`retry_safe=false`[\s\S]*`action=none`[\s\S]*stop/i);
 
   const evidence = section(skill, "Evidence and verification budget");
   assert.match(evidence, /counted exactly|count.*verification commands/i);
@@ -628,79 +605,24 @@ test("Skill reads before retry and preserves budgets, evidence labels, and termi
   assert.match(terminal, /stop/i);
 });
 
-test("Skill retains one exact apply probe across every uncertain result shape", async () => {
+test("Skill recovers an uncertain submission from Core-retained data", async () => {
   const recovery = section(await readFile(skillPath, "utf8"), "Recovery-before-retry contract");
 
   for (const uncertainty of ["missing", "malformed", "cancelled", "truncated", "transport-failed"]) {
     assert.match(recovery, new RegExp(escapeRegExp(uncertainty), "i"));
   }
-
-  const retainedApply = recovery.match(/Before calling `dev_flow_apply_action`,[\s\S]*?(?=\n\n)/i)?.[0];
-  assert.ok(retainedApply, "recovery contract must retain one exact pre-dispatch apply identity");
-  for (const retained of [
-    "request_id",
-    "task_id",
-    "process_id",
-    "process_definition_digest",
-    "source_cursor",
-    "revision",
-    "action_id",
-    "action_kind",
-    "repository_binding_digest",
-  ]) {
-    assert.equal(retainedApply.includes(`\`${retained}\``), true, `missing retained apply value ${retained}`);
-  }
-  assert.match(retainedApply, /exact closed `payload`|`payload`[^\n]*exact closed/i);
-  assert.match(retainedApply, /same fresh action[\s\S]*same apply dispatch/i);
-  assert.match(retainedApply, /(?:do not|never)[\s\S]{0,120}(?:derive|reconstruct)[\s\S]{0,120}(?:incomplete|partial)[\s\S]{0,80}(?:response|result|output)/i);
-
-  const probeBlock = recovery.match(/`operation_probe`[^\n]*\n\s*```json\n([\s\S]*?)\n```/i);
-  assert.ok(probeBlock, "recovery contract must show the exact operation_probe JSON object");
-  const probe = JSON.parse(probeBlock[1]);
-  assert.deepEqual(probe, {
-    operation_id: "<original apply request_id>",
-    process_id: "standard-development",
-    process_definition_digest: "<original process definition digest>",
-    source_cursor: "<original source cursor>",
-    expected_revision: 3,
-    action_id: "<original action id>",
-    action_kind: "<original action kind>",
-    repository_binding_digest: "<original issuance binding digest>",
-    payload: {},
-  });
-  assert.match(recovery, /`operation_id`[\s\S]{0,100}original[\s\S]{0,80}`request_id`/i);
-  assert.match(recovery, /`operation_id`[\s\S]{0,160}(?:not|never)[\s\S]{0,80}read request ID/i);
-  assert.match(recovery, /`expected_revision`[\s\S]{0,100}original[\s\S]{0,80}(?:action )?`revision`/i);
-  assert.match(recovery, /`repository_binding_digest`[\s\S]{0,100}original[\s\S]{0,80}issuance binding/i);
-  assert.match(recovery, /`payload`[\s\S]{0,100}exact original[\s\S]{0,80}closed payload/i);
-  assert.match(recovery, /(?:(?:JSON )?`null`[\s\S]{0,100}(?:payload|retained)|payload[\s\S]{0,100}(?:JSON )?`null`)/i);
-  assert.match(recovery, /(?:do not|never)[\s\S]{0,120}(?:partial output|repository text|model memory)/i);
-
-  assert.match(recovery, /(?:(?:do|does) not immediately repeat|before any retry)[\s\S]*`dev_flow_apply_action`/i);
-  assert.match(recovery, /original `task_id`[\s\S]*`dev_flow_get_task`/i);
-  assert.match(recovery, /all[\s\S]{0,100}(?:required|original)[\s\S]{0,100}(?:retained|available)[\s\S]{0,100}`operation_probe`/i);
-  assert.match(recovery, /stale pre-dispatch[\s\S]{0,120}(?:not|never)[\s\S]{0,100}(?:read-back|authoritative)/i);
-  assert.match(recovery, /complete `recovery_assessment`[\s\S]*obey only Core's complete[\s\S]*`next_advice`/i);
-
-  assert.match(recovery, /(?:required|identity)[\s\S]{0,120}(?:missing|incomplete)[\s\S]{0,160}(?:do not|never)[\s\S]{0,100}(?:construct|fabricate|send)[\s\S]{0,100}`operation_probe`/i);
-  assert.match(recovery, /(?:half|partial) probe/i);
-  assert.match(recovery, /(?:do not|never)[\s\S]{0,100}(?:complete|fill)[\s\S]{0,100}partial (?:response|result|output)/i);
-  assert.match(recovery, /(?:do not|never)[\s\S]{0,100}assume[\s\S]{0,80}`not_started`/i);
-  assert.match(recovery, /stop[\s\S]{0,100}report[\s\S]{0,100}(?:cannot|unable)[\s\S]{0,100}(?:prove|determine)[\s\S]{0,80}mutation/i);
-  assert.match(recovery, /(?:(?:do not|never)[\s\S]{0,100}automatically retry|no automatic retry)/i);
-
-  assert.match(recovery, /complete structured `ok=false`[\s\S]{0,120}(?:domain|transport uncertainty)/i);
-  assert.match(recovery, /(?:do not|never)[\s\S]{0,100}(?:convert|treat)[\s\S]{0,100}(?:domain error|`ok=false`)[\s\S]{0,100}(?:missing|transport)/i);
-  assert.match(recovery, /`retry_safe=false`[\s\S]*`action=none`[\s\S]*stop[\s\S]*(?:do not|never)[\s\S]*`dev_flow_get_next_action`[\s\S]*`dev_flow_apply_action`/i);
-  assert.match(recovery, /`submit_recovery_apply`[\s\S]*`recovery_apply=[\s\S]*(?:do not|never)[\s\S]*(?:destination|classification)/i);
-  assert.match(recovery, /recovery read itself cannot create a blocker[\s\S]*Only a Core-requested explicit recovery apply/i);
-  assert.match(recovery, /(?:do not|never)[\s\S]{0,120}(?:(?:guess|infer)[\s\S]{0,120}(?:repository state|worktree)|(?:repository state|worktree)[\s\S]{0,120}(?:guess|infer))/i);
-  assert.doesNotMatch(recovery, /`source_phase`/u);
+  assert.match(recovery, /Retain only the `task_id` and `action_id`/u);
+  assert.match(recovery, /Core retains the complete normalized[\s\S]*Action identity and payload/u);
+  assert.match(recovery, /Call `dev_flow_get_task`[\s\S]*ordinary\s+[\s\S]*`task_id`/u);
+  assert.match(recovery, /do not construct `operation_probe`[\s\S]*do not reconstruct any payload/u);
+  assert.match(recovery, /`retry_current_action`[\s\S]*`dev_flow_recover_action`[\s\S]*`submit_recovery_apply`/u);
+  assert.match(recovery, /`resolve_blocker`[\s\S]*`dev_flow_resolve_blocker`/u);
+  assert.match(recovery, /If the original `task_id` or `action_id` is missing, stop/u);
+  assert.doesNotMatch(recovery, /original apply request_id|exact original closed payload|recovery_apply=/u);
 
   const adapterOwnedBranch = /\b(?:if|when|case|switch)\b[^\n]{0,160}\b(?:completed_and_recorded|completed_but_unrecorded|partially_completed|not_started|conflicting)\b/i;
-  assert.doesNotMatch(recovery, adapterOwnedBranch, "Skill must not branch on Core recovery classifications");
+  assert.doesNotMatch(recovery, adapterOwnedBranch);
   assert.match(recovery, /(?:do not|never)[\s\S]{0,100}(?:branch|decide|interpret)[\s\S]{0,100}recovery classification/i);
-  assert.match(recovery, /obey[\s\S]{0,100}Core(?:'s)?[\s\S]{0,100}`code`[\s\S]{0,100}`recovery\.message`/i);
 });
 
 test("Skill and production adapter contain no workflow authority or test fixture dependency", async () => {

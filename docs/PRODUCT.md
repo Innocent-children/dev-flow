@@ -39,9 +39,10 @@ SQLite，一次 Core 读取即可恢复权威状态。
 
 ### 不确定 mutation 的重复执行
 
-mutation 响应缺失、取消、截断或损坏时，直接重放可能造成二次副作用。Dev Flow 使用 revision、
-action identity、source cursor、repository binding 和原始 payload 识别操作，并要求
-read-before-retry。Core 返回五分类 Recovery assessment，再决定恢复、阻塞或安全重试。
+mutation 响应缺失、取消、截断或损坏时，直接重放可能造成二次副作用。Host 通过当前 Action 指定的
+提交工具发送 Task ID、Action ID 和节点结果；Core 补齐完整 identity、artifact role、method step 与
+payload envelope，并在推进 Task 前把规范化提交保存到 Task snapshot。Recovery 直接读取这份提交，
+调用方不再保存或重建原始 payload。
 
 ### 行为正确性与可维护性未分离
 
@@ -157,6 +158,7 @@ loopback 实例；界面支持简体中文/英文、首次按系统语言选择�
 - Task 保存不可变原始意图，实质 requirements 或 design 变化会失效下游旧 authority；
 - 每个 Task 携带 verification budget，验证范围必须与当前节点、改动、验收条件或恢复风险直接相关；
 - mutation 使用 revision、action identity、source cursor 与 repository binding；
+- Host 只提交当前 Action 的结果，Core 负责补齐并保存完整 mutation 输入；
 - 允许写入的 Action result 提交精确 `changed_paths` 或 `no_file_changes`；Core 验证签发基线、
   `allowed_effects` 和 fresh observation，artifact references 不代替 mutation envelope；
 - 一个 Task 的一至八个显式仓库共享同一 Action、revision、verification budget、Recovery、Blocker

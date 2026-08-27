@@ -11,7 +11,7 @@ that authority.
 ```mermaid
 flowchart TB
     U[Developer] --> H[Codex / DeepSeek Adapter]
-    H --> M[Local STDIO MCP · 6 tools]
+    H --> M[Local STDIO MCP · 15 tools]
     M --> A[Application Service]
     A --> W[Workflow Engine]
     A --> R[Recovery]
@@ -34,8 +34,8 @@ flowchart TB
 - start the packaged Core and complete the capability handshake;
 - present the current node, legal transitions, and comprehension request;
 - map semantic method steps to available host operations;
-- construct and forward a closed node payload;
-- retain operation identity and read before recovery after an uncertain mutation.
+- submit node results through the current Action's `submission_tool`;
+- retain the Task ID and Action ID after an uncertain mutation and recover from Core's retained normalized submission.
 
 An Adapter does not store the Task, current node, transition table, baseline, repository claim, or
 recovery classification. It does not infer completion or destination.
@@ -47,14 +47,23 @@ Core, and the DeepSeek Adapter do not participate in this display.
 
 ### MCP Contract
 
-`internal/mcp/` exposes six tools over local STDIO:
+`internal/mcp/` exposes fifteen tools over local STDIO:
 
 ```text
 dev_flow_server_info
 dev_flow_open_task
 dev_flow_get_task
 dev_flow_get_next_action
-dev_flow_apply_action
+dev_flow_submit_requirements
+dev_flow_submit_design
+dev_flow_submit_tasks
+dev_flow_submit_implementation
+dev_flow_submit_test
+dev_flow_submit_comprehension
+dev_flow_submit_refactor
+dev_flow_submit_delivery
+dev_flow_resolve_blocker
+dev_flow_recover_action
 dev_flow_cancel_task
 ```
 
@@ -114,6 +123,10 @@ invalidate related downstream records.
 A normal mutation updates snapshot, event, evidence, and claim in one transaction. Current reads use
 the Task snapshot; TaskEvent provides an audit trail rather than routine event replay.
 
+Before advancing the revision, an Action submission writes one bounded normalized `ActionCommit`
+into the current Task snapshot without adding an event or process cursor. The following Task mutation
+retains the latest submission so Recovery can read the original input directly.
+
 Before write capability is exposed, Store performs a read-only preflight over the SQLite Schema,
 snapshot, process definition, Task/Event/Claim cardinality, and current-node authority. Incompatible
 or pre-graph data returns `SCHEMA_UNSUPPORTED` with zero writes.
@@ -134,8 +147,8 @@ perform under user authority.
 
 ### Recovery
 
-`internal/recovery/` uses operation identity, the current Task, LastOperation, and one read-only
-repository observation to produce:
+`internal/recovery/` uses the normalized Action submission retained in the Task snapshot,
+LastOperation, and one read-only repository observation to produce:
 
 ```text
 not_started
@@ -145,9 +158,10 @@ partially_completed
 conflicting
 ```
 
-A probe always performs zero writes. An explicit recovery apply may commit the original transition
-at most once or create `BLOCKED` for a partial or conflicting result. The blocker records the
-source node, and resolution returns only to that resume node.
+Ordinary reads automatically return the Assessment for the retained submission.
+`dev_flow_recover_action` may commit the original transition or create `BLOCKED` for a partial or
+conflicting result. The blocker records the source node, and resolution returns only to that resume
+node.
 
 ## Repository Scope, configuration, and persistence boundary
 
@@ -215,8 +229,9 @@ sequenceDiagram
     Core->>Git: observe repository
     Core-->>Host: node contract + legal transitions
     Host->>Developer: perform and explain current-node work
-    Host->>Core: apply_action(closed payload)
+    Host->>Core: submission_tool(node result)
     Core->>Git: re-observe
+    Core->>Store: retain normalized Action submission
     Core->>Store: CAS transaction
     Core-->>Host: updated Task + next action
 ```

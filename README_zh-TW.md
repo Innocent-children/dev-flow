@@ -114,7 +114,7 @@ npx @imotong/create-dev-flow@latest
 - **有界驗證：** 每個 Task 都保存 verification budget；完整回歸與平台矩陣不是預設工作。
 - **跨會話恢復：** 目前階段、證據、阻塞原因與合法下一步保存在本機 SQLite。
 - **理解審查：** 測試通過後仍需 `COMPREHENSION_REVIEW`，無法維護的結果可返回重構。
-- **不確定寫入恢復：** 回應遺失時先讀取 Core 的 Recovery 結論，再決定是否重試。
+- **不確定寫入恢復：** Core 保存規範化 Action 輸入；回應遺失時只需 Task ID 與 Action ID 即可恢復，不必重建 payload。
 - **有界多儲存庫：** 目前原始碼允許一個主儲存庫與最多七個附加儲存庫，共用同一流程狀態。
 
 多儲存庫能力是否已進入穩定版，請以[專案狀態頁](docs/PROJECT-STATUS.md)為準。

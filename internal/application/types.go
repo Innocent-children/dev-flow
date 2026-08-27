@@ -177,6 +177,34 @@ type ApplyActionRequest struct {
 	RecoveryApply           *RecoveryApplyInput
 }
 type ApplyActionResult struct{ Task domain.ProcessTask }
+type ArtifactSubmission struct {
+	Path    string
+	Digest  domain.Digest
+	Summary string
+}
+type MethodResultSubmission struct {
+	Capability string
+	Summary    string
+}
+type SubmitActionRequest struct {
+	RequestID             domain.ID
+	Host                  domain.Host
+	TaskID                domain.ID
+	ActionID              domain.ID
+	ExpectedActionKind    domain.ActionKind
+	TransitionID          domain.TransitionID
+	Summary               string
+	Reason                string
+	CurrentArtifacts      []ArtifactSubmission
+	OtherProcessArtifacts []ArtifactSubmission
+	MethodResults         map[domain.MethodStepID]MethodResultSubmission
+	NodeResult            json.RawMessage
+}
+type RecoverActionRequest struct {
+	Host     domain.Host
+	TaskID   domain.ID
+	ActionID domain.ID
+}
 type CancelTaskRequest struct {
 	RequestID        domain.ID
 	Host             domain.Host

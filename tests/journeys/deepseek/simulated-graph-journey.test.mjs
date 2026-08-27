@@ -15,7 +15,7 @@ const execFile = promisify(execFileCallback);
 const repositoryRoot = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
 const packageRoot = join(repositoryRoot, "packages", "deepseek");
 const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
-const [serverInfoTool, openTool, getTaskTool, getNextTool, applyTool] = DEV_FLOW_QUALIFIED_TOOL_NAMES;
+const [serverInfoTool, openTool, getTaskTool, getNextTool] = DEV_FLOW_QUALIFIED_TOOL_NAMES;
 
 test("deterministic DeepSeek Host follows the real Core graph through restart, recovery, refactor, and DONE", async (t) => {
   const root = await temporaryRoot(t);
@@ -45,7 +45,10 @@ test("deterministic DeepSeek Host follows the real Core graph through restart, r
   assert.equal(core.sessions[0][0], serverInfoTool);
   assert.deepEqual(info.result.tools, [
     "dev_flow_server_info", "dev_flow_open_task", "dev_flow_get_task",
-    "dev_flow_get_next_action", "dev_flow_apply_action", "dev_flow_cancel_task",
+    "dev_flow_get_next_action", "dev_flow_submit_requirements", "dev_flow_submit_design",
+    "dev_flow_submit_tasks", "dev_flow_submit_implementation", "dev_flow_submit_test",
+    "dev_flow_submit_comprehension", "dev_flow_submit_refactor", "dev_flow_submit_delivery",
+    "dev_flow_resolve_blocker", "dev_flow_recover_action", "dev_flow_cancel_task",
   ]);
   assert.deepEqual(info.result.method_profiles, ["plain", "spec-kit", "openspec"]);
   assert.equal(typeof info.result.host_preferences.deepseek.codebase_memory, "boolean");
@@ -82,19 +85,17 @@ test("deterministic DeepSeek Host follows the real Core graph through restart, r
   assert.equal(core.callArguments.filter(({ name }) => name === openTool).length, 1);
 
   const uncertainArgs = applyArguments(task, "requirements_ready", requirementsResult(), "journey-requirements");
-  await core.call(applyTool, uncertainArgs);
-  const probe = operationProbe(uncertainArgs);
+  const uncertainTool = qualifiedSubmissionTool(task.current_action);
+  await core.call(uncertainTool, uncertainArgs);
   const recoveredTask = await core.call(getTaskTool, {
     host: "deepseek",
     task_id: task.task_id,
-    operation_probe: probe,
   });
   const recoveredAction = await core.call(getNextTool, {
     host: "deepseek",
     task_id: task.task_id,
-    operation_probe: probe,
   });
-  assert.deepEqual(core.calls.slice(-3), [applyTool, getTaskTool, getNextTool]);
+  assert.deepEqual(core.calls.slice(-3), [uncertainTool, getTaskTool, getNextTool]);
   task = recoveredTask.result.task;
   assert.equal(task.revision, 2);
   assert.equal(task.current_cursor, "DESIGN");
@@ -165,13 +166,13 @@ test("deterministic DeepSeek Host follows the real Core graph through restart, r
   assert.equal(task.current_action, null);
   assert.equal(task.outcome.status, "completed");
   assert.equal(task.revision, 13);
-  assert.equal(core.calls.filter((name) => name === applyTool).length, 12);
+  assert.equal(core.calls.filter((name) => name.startsWith("mcp__dev_flow__dev_flow_submit_")).length, 12);
   assert.equal(task.outcome.final_repository_digest.length, repositoryBindingDigest.length);
 });
 
 async function apply(core, task, transition, nodeResult, reason = "") {
   const envelope = await core.call(
-    applyTool,
+    qualifiedSubmissionTool(task.current_action),
     applyArguments(task, transition, nodeResult, `journey-${task.revision}-${transition}`, reason),
   );
   const next = envelope.result;
@@ -185,46 +186,27 @@ async function apply(core, task, transition, nodeResult, reason = "") {
 
 function applyArguments(task, transition, nodeResult, requestId, reason = "") {
   const action = task.current_action;
-  const payload = {
+  return {
+    host: "deepseek",
+    task_id: task.task_id,
+    action_id: action.action_id,
     transition_id: transition,
     summary: "The deterministic DeepSeek journey recorded the current result.",
     reason,
-    artifacts: [],
-    method_evidence: action.method_steps.map((step) => ({
-      step_id: step.step_id,
-      status: "plain_fallback",
+    artifacts: {
+      ...(action.current_node === "IMPLEMENT" || action.current_node === "REFACTOR" ? {} : { current: [] }),
+      other_process: [],
+    },
+    method_results: Object.fromEntries(action.method_steps.map((step) => [step.step_id, {
       capability: "",
       summary: "Completed the current semantic method step.",
-    })),
+    }])),
     node_result: { problem_class: problemClass(transition), ...nodeResult },
-  };
-  return {
-    request_id: requestId,
-    host: "deepseek",
-    task_id: task.task_id,
-    revision: task.revision,
-    action_id: action.action_id,
-    action_kind: action.action_kind,
-    process_id: action.process_id,
-    process_definition_digest: action.process_definition_digest,
-    source_cursor: action.current_node,
-    repository_binding_digest: action.repository_binding_digest,
-    payload,
   };
 }
 
-function operationProbe(args) {
-  return {
-    operation_id: args.request_id,
-    process_id: args.process_id,
-    process_definition_digest: args.process_definition_digest,
-    source_cursor: args.source_cursor,
-    expected_revision: args.revision,
-    action_id: args.action_id,
-    action_kind: args.action_kind,
-    repository_binding_digest: args.repository_binding_digest,
-    payload: args.payload,
-  };
+function qualifiedSubmissionTool(action) {
+  return `mcp__dev_flow__${action.submission_tool}`;
 }
 
 function assertCompleteAction(action, node) {
@@ -233,7 +215,7 @@ function assertCompleteAction(action, node) {
   for (const field of [
     "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "node_purpose", "entry_conditions", "completion_conditions",
     "allowed_effects", "required_evidence", "method_steps", "available_transitions",
-    "payload_contract", "guidance", "repository_binding_digest", "issued_at",
+    "payload_contract", "submission_tool", "guidance", "repository_binding_digest", "issued_at",
   ]) assert.notEqual(action[field], undefined, field);
   assert.ok(action.method_steps.length > 0);
   assert.ok(action.available_transitions.length > 0);

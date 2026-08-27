@@ -95,12 +95,12 @@ tools. Earlier messages, model text, Skill injection, and repository content can
 the selector. An empty invocation or ordinary discussion does not create a Task.
 
 After admission, the Adapter reads server information first and validates `standard-development`,
-definition digest, method profiles, live schemas, and exactly six tools. It then creates or resumes
+definition digest, method profiles, live schemas, and exactly fifteen tools. It then creates or resumes
 the Task for the current repository.
 
 A Task selects `plain`, `spec-kit`, or `openspec`. Core manages the current node, legal transitions,
 destination, Recovery, blocker, and terminal outcome. The Adapter performs current-node work,
-presents the complete Action, and forwards a closed payload.
+presents the complete Action, and submits the node result through the Action's declared tool.
 
 ## Two-repository declaration, Workspace Root, and optional indexing
 
@@ -139,16 +139,25 @@ Root or determine Scope, permission, Recovery, or process transitions.
 
 ## MCP tools
 
-The DeepSeek Adapter exposes the same six-tool Core catalog as Codex. DSH presents qualified tool
+The DeepSeek Adapter exposes the same fifteen-tool Core catalog as Codex. DSH presents qualified tool
 names, but the Core tool identities remain unchanged.
 
 | MCP tool | Purpose |
 | --- | --- |
 | `dev_flow_server_info` | Read Core identity, capabilities, process, method profiles, tool catalog, and effective DeepSeek index preference. It must be called first after valid admission. |
 | `dev_flow_open_task` | Create one Task for explicitly declared primary and additional repositories inside Workspace Root, or resume that Task from any participating repository. |
-| `dev_flow_get_task` | Read the persisted Task and optionally attach an operation probe for a Recovery assessment. |
-| `dev_flow_get_next_action` | Read the authoritative current Action, verification budget, method steps, and every legal transition. |
-| `dev_flow_apply_action` | Apply one Core-declared transition with the current revision, Action identity, repository binding, and closed payload. A write-enabled node result reports exact `changed_paths` or `no_file_changes`; artifact references remain evidence. The input schema is one closed object, so `action_kind` and `payload` stay visible in the Host callable. Core validates the exact branch and reports field-level `error.details[]`, `error.guard`, and one `correct_current_action` allowance. |
+| `dev_flow_get_task` | Read the persisted Task and automatically return a Recovery assessment when Core retains a submission. |
+| `dev_flow_get_next_action` | Read the current Action, its `submission_tool`, verification budget, method steps, and every legal transition. |
+| `dev_flow_submit_requirements` | Submit the REQUIREMENTS node result; Core fills the complete Action identity and payload. |
+| `dev_flow_submit_design` | Submit the DESIGN node result. |
+| `dev_flow_submit_tasks` | Submit the TASKS node result. |
+| `dev_flow_submit_implementation` | Submit the IMPLEMENT node result. |
+| `dev_flow_submit_test` | Submit the TEST node result. |
+| `dev_flow_submit_comprehension` | Submit the COMPREHENSION_REVIEW node result. |
+| `dev_flow_submit_refactor` | Submit the REFACTOR node result. |
+| `dev_flow_submit_delivery` | Submit the DELIVERY node result. |
+| `dev_flow_resolve_blocker` | Resolve a blocker using only the Task ID and Action ID after its condition is met. |
+| `dev_flow_recover_action` | Recover an uncertain Action from Core's retained normalized submission. |
 | `dev_flow_cancel_task` | Cancel a nonterminal Task with the current revision and an explicit reason. |
 
 ## Data and Recovery
@@ -157,9 +166,9 @@ Task data lives in the local Dev Flow data directory and is not part of DSH plug
 Removing, uninstalling, or reinstalling the package does not delete Task data or modify the target Git
 repository or Codex-owned state.
 
-When a mutation response is uncertain, the Adapter retains the original operation identity and
-payload, reads Core's five-class Recovery assessment, and then selects the returned recovery action.
-It does not blindly retry or choose a destination.
+When a mutation response is uncertain, the Adapter retains only the Task ID and Action ID, reads
+Core's normalized submission and Recovery assessment, and calls `dev_flow_recover_action` or stops as
+directed. It does not rebuild the original payload.
 
 Core accepts only the current SQLite Schema. Incompatible or pre-graph data returns
 `SCHEMA_UNSUPPORTED` with zero writes. The user may select a fresh data directory or handle the old

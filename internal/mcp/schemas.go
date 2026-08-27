@@ -3,17 +3,42 @@ package mcp
 import (
 	"encoding/json"
 
+	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
 const (
-	ToolServerInfo    = "dev_flow_server_info"
-	ToolOpenTask      = "dev_flow_open_task"
-	ToolGetTask       = "dev_flow_get_task"
-	ToolGetNextAction = "dev_flow_get_next_action"
-	ToolApplyAction   = "dev_flow_apply_action"
-	ToolCancelTask    = "dev_flow_cancel_task"
+	ToolServerInfo           = "dev_flow_server_info"
+	ToolOpenTask             = "dev_flow_open_task"
+	ToolGetTask              = "dev_flow_get_task"
+	ToolGetNextAction        = "dev_flow_get_next_action"
+	ToolApplyAction          = "dev_flow_apply_action"
+	ToolSubmitRequirements   = "dev_flow_submit_requirements"
+	ToolSubmitDesign         = "dev_flow_submit_design"
+	ToolSubmitTasks          = "dev_flow_submit_tasks"
+	ToolSubmitImplementation = "dev_flow_submit_implementation"
+	ToolSubmitTest           = "dev_flow_submit_test"
+	ToolSubmitComprehension  = "dev_flow_submit_comprehension"
+	ToolSubmitRefactor       = "dev_flow_submit_refactor"
+	ToolSubmitDelivery       = "dev_flow_submit_delivery"
+	ToolResolveBlocker       = "dev_flow_resolve_blocker"
+	ToolRecoverAction        = "dev_flow_recover_action"
+	ToolCancelTask           = "dev_flow_cancel_task"
 )
+
+var actionSubmissionTools = []struct {
+	Name string
+	Kind domain.ActionKind
+}{
+	{ToolSubmitRequirements, domain.ActionCompleteRequirements},
+	{ToolSubmitDesign, domain.ActionCompleteDesign},
+	{ToolSubmitTasks, domain.ActionCompleteTasks},
+	{ToolSubmitImplementation, domain.ActionCompleteImplementation},
+	{ToolSubmitTest, domain.ActionCompleteTest},
+	{ToolSubmitComprehension, domain.ActionCompleteComprehensionReview},
+	{ToolSubmitRefactor, domain.ActionCompleteRefactor},
+	{ToolSubmitDelivery, domain.ActionCompleteDelivery},
+}
 
 type ToolAnnotations struct{ ReadOnly, Destructive, Idempotent, OpenWorld bool }
 type ToolDefinition struct {
@@ -408,15 +433,6 @@ var (
 	projectedDescriptions = map[string]string{}
 )
 
-// applyToolDescription states the cross-field rules the published projection
-// cannot carry structurally. It is the caller-visible source-specific contract.
-const applyToolDescription = "Apply one Core-declared transition. " +
-	"Send the exact action_kind, payload branch and identity fields from the current Core action. " +
-	"Evidence rule: checks[].command_count is 1 to 20 only when checks[].source is automated, " +
-	"and is exactly 0 with checks[].full_suite false when the source is user, static or host_observed. " +
-	"Record a completed user verification in checks; keep manual_handoff_items for work nobody has run yet. " +
-	"Core rejects a mismatched branch with INVALID_ARGUMENT plus the exact failing field path."
-
 // projectForHostBudget applies the published-projection rules above to one
 // flattened schema tree.
 func projectForHostBudget(schema map[string]any, path string) map[string]any {
@@ -477,29 +493,11 @@ func buildCatalog() []ToolDefinition {
 	budget := obj([]string{"level", "max_automatic_commands", "allow_full_suite", "allow_manual_handoff"}, map[string]any{"level": map[string]any{"enum": []string{"minimal", "targeted", "full"}}, "max_automatic_commands": map[string]any{"type": "integer", "minimum": 0, "maximum": 20}, "allow_full_suite": map[string]any{"type": "boolean"}, "allow_manual_handoff": map[string]any{"type": "boolean"}})
 	newTask := obj([]string{"request", "initial_scope", "initial_out_of_scope", "known_acceptance_criteria", "verification_budget", "method_profile"}, map[string]any{"request": map[string]any{"type": "string", "minLength": 1, "maxLength": 8192}, "initial_scope": list(), "initial_out_of_scope": list(), "known_acceptance_criteria": list(), "verification_budget": budget, "method_profile": map[string]any{"enum": []string{"plain", "spec-kit", "openspec"}}})
 	empty := obj([]string{}, map[string]any{})
-	payloads, kinds := graphPayloads()
+	payloads, _ := graphPayloads()
 	standardPayload := map[string]any{"oneOf": payloads}
 	payload := map[string]any{"anyOf": []any{standardPayload, map[string]any{"type": "null"}}}
 	probe := obj([]string{"operation_id", "process_id", "process_definition_digest", "source_cursor", "expected_revision", "action_id", "action_kind", "repository_binding_digest", "payload"}, map[string]any{"operation_id": id(), "process_id": map[string]any{"const": "standard-development"}, "process_definition_digest": digest(), "source_cursor": id(), "expected_revision": map[string]any{"type": "integer", "minimum": 1}, "action_id": id(), "action_kind": id(), "repository_binding_digest": digest(), "payload": projectForHostBudget(projectableUnion([]any{payload, map[string]any{"type": "null"}}), "payload")})
 	read := obj([]string{"host", "task_id"}, map[string]any{"host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "operation_probe": projectableUnion([]any{probe, map[string]any{"type": "null"}})})
-	recoveryApply := obj([]string{"operation_id", "source_cursor"}, map[string]any{"operation_id": id(), "source_cursor": id()})
-	applyProps := map[string]any{"request_id": id(), "host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "revision": map[string]any{"type": "integer", "minimum": 1}, "action_id": id(), "action_kind": id(), "process_id": map[string]any{"const": "standard-development"}, "process_definition_digest": digest(), "source_cursor": id(), "repository_binding_digest": digest(), "payload": payload, "recovery_apply": map[string]any{"anyOf": []any{recoveryApply, map[string]any{"type": "null"}}}}
-	requiredApply := []string{"request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload"}
-	applyBranches := make([]any, len(kinds))
-	for index, kind := range kinds {
-		properties := mergeProperties(applyProps, map[string]any{
-			"action_kind": map[string]any{"const": kind},
-			"payload":     nullableSchema(payloads[index]),
-		})
-		branch := obj(requiredApply, properties)
-		branch["title"] = kind
-		branch["allOf"] = []any{map[string]any{"anyOf": []any{
-			map[string]any{"required": []string{"recovery_apply"}, "properties": map[string]any{"recovery_apply": recoveryApply}},
-			map[string]any{"properties": map[string]any{"recovery_apply": map[string]any{"type": "null"}, "payload": payloads[index]}},
-		}}}
-		applyBranches[index] = branch
-	}
-	apply := projectForHostBudget(projectableUnion(applyBranches), "")
 	repositoryKey := map[string]any{"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"}
 	additionalRepository := obj([]string{"key", "repository_path"}, map[string]any{"key": repositoryKey, "repository_path": str()})
 	open := obj([]string{"host", "repository_path"}, map[string]any{
@@ -512,7 +510,99 @@ func buildCatalog() []ToolDefinition {
 	cancel := obj([]string{"request_id", "host", "task_id", "revision", "reason"}, map[string]any{"request_id": id(), "host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "revision": map[string]any{"type": "integer", "minimum": 1}, "reason": str()})
 	defs := map[string]any{"newTask": newTask, "verificationBudget": budget}
 	open["$defs"] = defs
-	return []ToolDefinition{makeTool(ToolServerInfo, "Read the current Core server identity.", empty, true, true, false), makeTool(ToolOpenTask, "Open or resume one graph task.", open, false, false, false), makeTool(ToolGetTask, "Read one graph task.", read, true, true, false), makeTool(ToolGetNextAction, "Read the persisted graph action.", read, true, true, false), makeTool(ToolApplyAction, applyToolDescription, apply, false, false, false), makeTool(ToolCancelTask, "Cancel one graph task.", cancel, false, false, true)}
+	tools := []ToolDefinition{
+		makeTool(ToolServerInfo, "Read the current Core server identity.", empty, true, true, false),
+		makeTool(ToolOpenTask, "Open or resume one graph task.", open, false, false, false),
+		makeTool(ToolGetTask, "Read one graph task and any Core-retained recovery assessment.", read, true, true, false),
+		makeTool(ToolGetNextAction, "Read the persisted graph action and its exact submission tool.", read, true, true, false),
+	}
+	for _, entry := range actionSubmissionTools {
+		tools = append(tools, makeTool(entry.Name, actionSubmissionDescription(entry.Kind), actionSubmissionSchema(entry.Kind), false, true, false))
+	}
+	actionReference := obj([]string{"host", "task_id", "action_id"}, map[string]any{"host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "action_id": id()})
+	tools = append(tools,
+		makeTool(ToolResolveBlocker, "Resolve the current blocker after Core verifies the required repository condition.", actionReference, false, true, false),
+		makeTool(ToolRecoverAction, "Recover the Core-retained Action submission without resending its payload.", actionReference, false, true, false),
+		makeTool(ToolCancelTask, "Cancel one graph task.", cancel, false, false, true),
+	)
+	return tools
+}
+
+func actionSubmissionDescription(kind domain.ActionKind) string {
+	description := "Submit the result of the current " + string(kind) + " Action. Core fills the complete Action identity, artifact roles, method step identities and payload envelope."
+	if kind == domain.ActionCompleteTest {
+		description += " For checks, automated command_count is 1 to 20; user, static and host_observed use command_count 0 and full_suite false."
+	}
+	return description
+}
+
+func actionSubmissionSchema(kind domain.ActionKind) map[string]any {
+	node, err := workflow.NodeDefinitionForActionKind(workflow.StandardProcess(), kind)
+	if err != nil || node.NodeID == domain.NodeBlocked {
+		panic("invalid Action submission kind")
+	}
+	var nodeResult map[string]any
+	for _, entry := range workflow.ActionPayloadSchemas() {
+		if entry.Kind == kind {
+			nodeResult = flattenSchema(entry.Schema["properties"].(map[string]any)["node_result"])
+			break
+		}
+	}
+	if nodeResult == nil {
+		panic("missing Action submission payload schema")
+	}
+	artifact := obj([]string{"path", "digest", "summary"}, map[string]any{"path": str(), "digest": digest(), "summary": str()})
+	artifactProperties := map[string]any{"other_process": map[string]any{"type": "array", "maxItems": 16, "items": artifact}}
+	artifactRequired := []string{"other_process"}
+	if _, ok := workflow.PrimaryArtifactRoleForNode(node.NodeID); ok {
+		artifactProperties["current"] = map[string]any{"type": "array", "maxItems": 16, "items": artifact}
+		artifactRequired = append([]string{"current"}, artifactRequired...)
+	}
+	methodProperties := make(map[string]any, len(node.SemanticMethodSteps))
+	methodRequired := make([]string, len(node.SemanticMethodSteps))
+	for index, step := range node.SemanticMethodSteps {
+		methodRequired[index] = string(step.StepID)
+		methodProperties[string(step.StepID)] = obj([]string{"capability", "summary"}, map[string]any{
+			"capability": map[string]any{"type": "string", "maxLength": 128, "pattern": "^[a-z0-9_.@-]*$"},
+			"summary":    str(),
+		})
+	}
+	transitions := make([]string, len(node.OutgoingTransitions))
+	for index, transition := range node.OutgoingTransitions {
+		transitions[index] = string(transition.TransitionID)
+	}
+	return flattenSchema(obj([]string{"host", "task_id", "action_id", "transition_id", "summary", "reason", "artifacts", "method_results", "node_result"}, map[string]any{
+		"host":           map[string]any{"enum": []string{"codex", "deepseek"}},
+		"task_id":        id(),
+		"action_id":      id(),
+		"transition_id":  map[string]any{"type": "string", "enum": transitions},
+		"summary":        str(),
+		"reason":         map[string]any{"type": "string", "maxLength": 4096},
+		"artifacts":      obj(artifactRequired, artifactProperties),
+		"method_results": obj(methodRequired, methodProperties),
+		"node_result":    nodeResult,
+	}))
+}
+
+func submissionKindForTool(name string) (domain.ActionKind, bool) {
+	for _, entry := range actionSubmissionTools {
+		if entry.Name == name {
+			return entry.Kind, true
+		}
+	}
+	return "", false
+}
+
+func submissionToolForActionKind(kind domain.ActionKind) (string, bool) {
+	for _, entry := range actionSubmissionTools {
+		if entry.Kind == kind {
+			return entry.Name, true
+		}
+	}
+	if kind == domain.ActionResolveBlocker {
+		return ToolResolveBlocker, true
+	}
+	return "", false
 }
 func makeTool(name, description string, schema map[string]any, read, idempotent, destructive bool) ToolDefinition {
 	raw, err := json.Marshal(schema)

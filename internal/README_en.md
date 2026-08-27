@@ -12,11 +12,11 @@ provide consistent process behavior.
 | --- | --- |
 | `domain` | `ProcessTask`, TaskIntent, baselines, records, evidence, outcome, and limits |
 | `workflow` | `standard-development`, node contracts, 29 transitions, payloads, and invalidation |
-| `application` | Open/read/apply/cancel use cases and component coordination |
+| `application` | Open/read/submit/recover/cancel use cases and component coordination |
 | `store` | SQLite bootstrap, strict snapshot, CAS, events, claims, and read-only preflight |
 | `repository` | Canonical repository identity and bounded read-only Git observation |
 | `recovery` | Five-class reconciliation, retry advice, blockers, and resume |
-| `mcp` | Six-tool local STDIO contract, closed schemas, and Result Envelope |
+| `mcp` | Fifteen-tool local STDIO contract, Action-kind-specific submission schemas, and Result Envelope |
 | `webui` | Loopback HTTP adapter, embedded assets, session protection, shared runtime receipt, and lifecycle |
 | `version` | Core product version from `CORE_VERSION` or build injection |
 

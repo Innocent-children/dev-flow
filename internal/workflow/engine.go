@@ -17,6 +17,18 @@ func NodeDefinition(definition domain.ProcessDefinition, nodeID domain.NodeID) (
 	}
 	return domain.NodeDefinition{}, domain.NewError(domain.ErrorInvalidArgument, "node is not part of the process")
 }
+
+func NodeDefinitionForActionKind(definition domain.ProcessDefinition, kind domain.ActionKind) (domain.NodeDefinition, error) {
+	if !kind.IsValid() || ValidateDefinition(definition) != nil {
+		return domain.NodeDefinition{}, domain.ErrInvalidArgument
+	}
+	for _, node := range definition.Nodes {
+		if node.ActionKind == kind {
+			return node, nil
+		}
+	}
+	return domain.NodeDefinition{}, domain.ErrInvalidArgument
+}
 func TransitionFor(definition domain.ProcessDefinition, source domain.NodeID, id domain.TransitionID) (domain.TransitionDefinition, error) {
 	node, err := NodeDefinition(definition, source)
 	if err != nil {
@@ -48,6 +60,9 @@ func BuildProcessAction(definition domain.ProcessDefinition, nodeID domain.NodeI
 
 func ValidateProcessTask(task domain.ProcessTask) error {
 	if err := task.Validate(); err != nil {
+		return err
+	}
+	if err := ValidateActionCommit(task); err != nil {
 		return err
 	}
 	definition, err := ResolveDefinition(task.Process)

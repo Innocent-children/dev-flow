@@ -14,24 +14,20 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
-func TestMutationRequestBindingUsesCallerOperationIdentity(t *testing.T) {
+func TestSubmissionUsesServerGeneratedOperationIdentity(t *testing.T) {
 	t.Parallel()
 	transportID := domain.ID("request-transport")
 	callerID := domain.ID("request-caller-operation")
-	apply := []byte(`{"request_id":"request-caller-operation","host":"codex"}`)
-	if got := resultEnvelopeRequestID(ToolApplyAction, apply, transportID); got != callerID {
-		t.Fatalf("apply result request ID = %q, want caller operation %q", got, callerID)
+	submit := []byte(`{"host":"codex","task_id":"task","action_id":"action"}`)
+	if got := resultEnvelopeRequestID(ToolSubmitRequirements, submit, transportID); got != transportID {
+		t.Fatalf("submission request ID = %q, want generated operation %q", got, transportID)
 	}
 	cancel := []byte(`{"request_id":"request-caller-operation","host":"codex"}`)
 	if got := resultEnvelopeRequestID(ToolCancelTask, cancel, transportID); got != callerID {
 		t.Fatalf("cancel result request ID = %q, want caller operation %q", got, callerID)
 	}
-	if got := resultEnvelopeRequestID(ToolGetTask, apply, transportID); got != transportID {
+	if got := resultEnvelopeRequestID(ToolGetTask, submit, transportID); got != transportID {
 		t.Fatalf("read result request ID = %q, want generated transport %q", got, transportID)
-	}
-	duplicate := []byte(`{"request_id":"request-caller-operation","request_id":"request-other"}`)
-	if got := resultEnvelopeRequestID(ToolApplyAction, duplicate, transportID); got != transportID {
-		t.Fatalf("ambiguous request ID = %q, want generated transport %q", got, transportID)
 	}
 }
 
@@ -55,8 +51,17 @@ func TestMutationRequestBindingMatchesCommittedLastOperation(t *testing.T) {
 		t.Fatal(err)
 	}
 	action := opened.Task.CurrentAction
-	payload := json.RawMessage(`{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":[{"step_id":"requirements.capture","status":"plain_fallback","capability":"","summary":"Captured."},{"step_id":"requirements.clarify","status":"plain_fallback","capability":"","summary":"Clarified."},{"step_id":"requirements.validate","status":"plain_fallback","capability":"","summary":"Validated."}],"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Works"],"constraints":[],"assumptions":[]},"unresolved_questions":[],"changed_paths":[],"no_file_changes":true}}`)
-	input := map[string]any{"request_id": "request-caller-operation", "host": "codex", "task_id": opened.Task.TaskID, "revision": action.Revision, "action_id": action.ActionID, "action_kind": action.Kind, "process_id": action.Process.ID, "process_definition_digest": action.Process.DefinitionDigest, "source_cursor": action.NodeID, "repository_binding_digest": action.RepositoryBindingDigest, "payload": payload}
+	input := map[string]any{
+		"host": "codex", "task_id": opened.Task.TaskID, "action_id": action.ActionID,
+		"transition_id": "requirements_ready", "summary": "Ready.", "reason": "",
+		"artifacts": map[string]any{"current": []any{}, "other_process": []any{}},
+		"method_results": map[string]any{
+			"requirements.capture":  map[string]any{"capability": "", "summary": "Captured."},
+			"requirements.clarify":  map[string]any{"capability": "", "summary": "Clarified."},
+			"requirements.validate": map[string]any{"capability": "", "summary": "Validated."},
+		},
+		"node_result": map[string]any{"problem_class": "none", "baseline": map[string]any{"goal": "Goal", "scope": []any{}, "out_of_scope": []any{}, "acceptance_criteria": []string{"Works"}, "constraints": []any{}, "assumptions": []any{}}, "unresolved_questions": []any{}, "changed_paths": []any{}, "no_file_changes": true},
+	}
 	raw, err := json.Marshal(input)
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +70,7 @@ func TestMutationRequestBindingMatchesCommittedLastOperation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	encoded := server.dispatch(context.Background(), ToolApplyAction, "request-transport", raw)
+	encoded := server.dispatch(context.Background(), ToolSubmitRequirements, "request-transport", raw)
 	if encoded.IsError {
 		t.Fatalf("apply result=%s", encoded.JSON)
 	}
@@ -80,7 +85,7 @@ func TestMutationRequestBindingMatchesCommittedLastOperation(t *testing.T) {
 	if json.Unmarshal(encoded.JSON, &result) != nil {
 		t.Fatal("invalid apply result")
 	}
-	if result.RequestID != "request-caller-operation" || result.Result.LastOperation.OperationID != result.RequestID {
+	if result.RequestID != "request-transport" || result.Result.LastOperation.OperationID != result.RequestID {
 		t.Fatalf("result request=%q last operation=%q", result.RequestID, result.Result.LastOperation.OperationID)
 	}
 	if action.Process != workflow.StandardProcess().Reference {
@@ -90,16 +95,15 @@ func TestMutationRequestBindingMatchesCommittedLastOperation(t *testing.T) {
 
 func TestMutationRequestBindingAppliesToSuccessAndDomainError(t *testing.T) {
 	t.Parallel()
-	callerID := domain.ID("request-caller-operation")
 	transportID := domain.ID("request-transport")
-	raw := []byte(`{"request_id":"request-caller-operation","host":"codex"}`)
-	resultID := resultEnvelopeRequestID(ToolApplyAction, raw, transportID)
-	success := decodeEnvelopeForRequestBinding(t, EncodeSuccess(string(resultID), ToolApplyAction, map[string]any{"status": "accepted"}))
-	if !success.OK || success.RequestID != string(callerID) {
+	raw := []byte(`{"host":"codex"}`)
+	resultID := resultEnvelopeRequestID(ToolSubmitRequirements, raw, transportID)
+	success := decodeEnvelopeForRequestBinding(t, EncodeSuccess(string(resultID), ToolSubmitRequirements, map[string]any{"status": "accepted"}))
+	if !success.OK || success.RequestID != string(transportID) {
 		t.Fatalf("success envelope = ok:%v request:%q", success.OK, success.RequestID)
 	}
-	errorEnvelope := decodeEnvelopeForRequestBinding(t, (&Server{version: "0.3.0"}).dispatch(context.Background(), ToolApplyAction, transportID, raw))
-	if errorEnvelope.OK || errorEnvelope.RequestID != string(callerID) || errorEnvelope.Error == nil || errorEnvelope.Error.Code != domain.ErrorInvalidArgument {
+	errorEnvelope := decodeEnvelopeForRequestBinding(t, (&Server{version: "0.3.0"}).dispatch(context.Background(), ToolSubmitRequirements, transportID, raw))
+	if errorEnvelope.OK || errorEnvelope.RequestID != string(transportID) || errorEnvelope.Error == nil || errorEnvelope.Error.Code != domain.ErrorInvalidArgument {
 		t.Fatalf("domain-error envelope = %+v", errorEnvelope)
 	}
 	read := decodeEnvelopeForRequestBinding(t, (&Server{version: "0.3.0"}).dispatch(context.Background(), ToolServerInfo, transportID, []byte(`{}`)))

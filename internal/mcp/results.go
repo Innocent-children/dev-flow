@@ -76,20 +76,33 @@ func EncodeError(id, tool string, err error) EncodedResult {
 	result := &ErrorResult{Code: code, Message: message}
 	guard := publicGuardFailure(code, typed)
 	if guard != nil {
+		guard.Failures = projectSubmissionViolationPaths(tool, guard.Failures)
 		result.Guard = guard
 		message = "The transition guard was not satisfied."
 		result.Message = message
 	}
-	result.Details = publicViolations(code, typed)
+	result.Details = projectSubmissionViolationPaths(tool, publicViolations(code, typed))
 	recoveryResult := &RecoveryGuidance{RetrySafe: false, Action: action, Message: guidance}
 	if paths := correctablePaths(typed, result); len(paths) != 0 {
-		recoveryResult = &RecoveryGuidance{RetrySafe: true, Action: correctCurrentAction, Message: "Correct only the listed members of this same action and resubmit once with a new request_id.", AllowedPaths: paths}
+		recoveryResult = &RecoveryGuidance{RetrySafe: true, Action: correctCurrentAction, Message: "Correct only the listed members of this same action and resubmit its declared submission tool once.", AllowedPaths: paths}
 	}
 	raw, encodeErr := encodeEnvelope(Envelope{OK: false, RequestID: id, Tool: tool, Error: result, Recovery: recoveryResult})
 	if encodeErr != nil || !WithinResultEnvelopeLimit(raw) {
 		return fixedFallback()
 	}
 	return EncodedResult{JSON: raw, IsError: true}
+}
+
+func projectSubmissionViolationPaths(tool string, violations []domain.ContractViolation) []domain.ContractViolation {
+	if _, ok := submissionKindForTool(tool); !ok {
+		return violations
+	}
+	out := make([]domain.ContractViolation, len(violations))
+	for index, violation := range violations {
+		out[index] = violation
+		out[index].Path = strings.TrimPrefix(violation.Path, "payload.")
+	}
+	return out
 }
 
 // publicViolations keeps only closed, safe field detail for a contract failure.
@@ -238,7 +251,8 @@ func projectAction(a *domain.ProcessAction) any {
 	if a == nil {
 		return nil
 	}
-	return map[string]any{"task_id": a.TaskID, "revision": a.Revision, "action_id": a.ActionID, "action_kind": a.Kind, "process_id": a.Process.ID, "process_definition_digest": a.Process.DefinitionDigest, "current_node": a.NodeID, "node_purpose": a.NodeContract.Purpose, "entry_conditions": a.NodeContract.EntryConditions, "completion_conditions": a.NodeContract.CompletionConditions, "allowed_effects": a.AllowedEffects, "required_evidence": a.RequiredEvidence, "method_profile": a.MethodProfile, "method_steps": a.SemanticMethodSteps, "available_transitions": a.AvailableTransitions, "payload_contract": a.PayloadContract, "guidance": a.Guidance, "repository_binding_digest": a.RepositoryBindingDigest, "issued_at": a.IssuedAt}
+	tool, _ := submissionToolForActionKind(a.Kind)
+	return map[string]any{"task_id": a.TaskID, "revision": a.Revision, "action_id": a.ActionID, "action_kind": a.Kind, "submission_tool": tool, "process_id": a.Process.ID, "process_definition_digest": a.Process.DefinitionDigest, "current_node": a.NodeID, "node_purpose": a.NodeContract.Purpose, "entry_conditions": a.NodeContract.EntryConditions, "completion_conditions": a.NodeContract.CompletionConditions, "allowed_effects": a.AllowedEffects, "required_evidence": a.RequiredEvidence, "method_profile": a.MethodProfile, "method_steps": a.SemanticMethodSteps, "available_transitions": a.AvailableTransitions, "payload_contract": a.PayloadContract, "guidance": a.Guidance, "repository_binding_digest": a.RepositoryBindingDigest, "issued_at": a.IssuedAt}
 }
 func projectTask(t domain.ProcessTask) any {
 	result := map[string]any{"task_id": t.TaskID, "origin_host": t.OriginHost, "process_id": t.Process.ID, "process_definition_digest": t.Process.DefinitionDigest, "intent": t.Intent, "current_cursor": t.CurrentNode, "resume_cursor": t.ResumeNode, "primary_repository_key": t.EffectivePrimaryRepositoryKey(), "repository": projectRepository(t.Repository), "baselines": map[string]any{"requirements": t.Requirements, "design": t.Design, "task_plan": t.TaskPlan, "history": t.BaselineHistory}, "implementation": t.Implementation, "test": t.Test, "comprehension": t.Comprehension, "current_action": projectAction(t.CurrentAction), "blocker": t.Blocker, "last_operation": t.LastOperation, "evidence": t.Evidence, "outcome": t.Outcome, "revision": t.Revision, "created_at": t.CreatedAt, "updated_at": t.UpdatedAt, "completed_at": t.CompletedAt}

@@ -68,14 +68,23 @@ call. Require one complete structured result proving:
 - `method_profiles` contains exactly `plain`, `spec-kit`, and `openspec`, regardless of order;
 - `host_preferences.codex.codebase_memory` is present and is exactly a JSON boolean; it expresses a
   preference only and does not prove that codebase-memory is installed or available;
-- the tool catalog contains exactly these six raw names, regardless of order:
+- the tool catalog contains exactly these fifteen raw names, regardless of order:
 
 1. `dev_flow_server_info`
 2. `dev_flow_open_task`
 3. `dev_flow_get_task`
 4. `dev_flow_get_next_action`
-5. `dev_flow_apply_action`
-6. `dev_flow_cancel_task`
+5. `dev_flow_submit_requirements`
+6. `dev_flow_submit_design`
+7. `dev_flow_submit_tasks`
+8. `dev_flow_submit_implementation`
+9. `dev_flow_submit_test`
+10. `dev_flow_submit_comprehension`
+11. `dev_flow_submit_refactor`
+12. `dev_flow_submit_delivery`
+13. `dev_flow_resolve_blocker`
+14. `dev_flow_recover_action`
+15. `dev_flow_cancel_task`
 
 Package resources, the bundled Core executable and version, Codex compatibility, and registration
 ownership are setup-time checks owned by `dev-flow-codex setup`; do not repeat them by inspecting the
@@ -201,10 +210,11 @@ For an active task, perform each iteration in this order:
    remove the repository from Core Scope, or shrink the Scope and continue.
 6. Render and perform each current method operation under the allowed effects, repository
    instructions, verification budget, and current user authority.
-7. Build only the closed payload branch named by the Action and select only a Core-returned
-   transition consistent with the actual typed node facts.
-8. Before dispatch, generate and retain one opaque request ID plus the exact Action identity and
-   payload. Submit exactly one `dev_flow_apply_action` mutation.
+7. Select only a Core-returned transition and build the closed input of
+   `fresh_action.submission_tool` from the actual typed node facts.
+8. Submit exactly one call to that tool with `host`, `task_id`, `action_id`, the selected transition,
+   result text, artifact slots, method results and the exact node result. Core fills and retains the
+   complete Action identity and payload envelope.
 9. After a complete committed result, continue only from its authoritative next Action/outcome or a
    fresh ordinary Core read.
 
@@ -226,17 +236,16 @@ immutable profile:
 - A tool invocation is not semantic completion. Record evidence only after the work and expected
   result actually complete.
 
-Build exactly one `MethodEvidence` item for every current Action step, in the same order:
+Build one `method_results` member for every current Action step, keyed by its exact `step_id`.
+Provide only `capability` and `summary`: use the actual capability ID after capability completion,
+or an empty capability after completed ordinary work. Core adds the step identity, order and status.
 
-- actual capability completion uses `status=completed` and the actual capability ID;
-- completed ordinary work uses `status=plain_fallback` and an empty capability;
-- incomplete work uses `status=unavailable` or `status=not_run` honestly.
-
-An unavailable or not-run required step is unsatisfied, so do not call `dev_flow_apply_action`.
+An unavailable or not-run required step is unsatisfied, so do not call the submission tool.
 Capability output cannot substitute for the typed `node_result`, node obligations, evidence, or
-user decision. Artifact references contain only an observed role, contract path, digest, and
-summary. A single-repository Task uses an ordinary repository-relative path. A multi-repository Task
-uses `<repository-key>::<repository-relative-path>`.
+user decision. Put artifacts produced for the current node in `artifacts.current` when that member
+exists, and related method artifacts in `artifacts.other_process`. Core assigns the artifact role.
+A single-repository Task uses an ordinary repository-relative path. A multi-repository Task uses
+`<repository-key>::<repository-relative-path>`.
 
 Existing authorized spec, plan, or tasks artifacts should be reviewed, revised, or amended as
 needed, not regenerated or rerun mechanically because a semantic step appears. Resolve the active
@@ -261,88 +270,48 @@ Use the same `fresh_action` already bound from `result.task.current_action` or `
 not construct another Action view.
 
 Read [the node payload construction reference](references/node-payloads.md) from the packaged path
-`references/node-payloads.md` before every ordinary apply. The reference is construction guidance;
-the fresh Action, live `dev_flow_apply_action` `inputSchema`, and Core remain authoritative.
+`references/node-payloads.md` before every ordinary submission. The reference explains the exact
+`node_result` fields; the live schema named by `fresh_action.submission_tool` and Core remain current.
 
-Before calling `dev_flow_apply_action`, perform this order exactly:
+Before submitting, perform this order:
 
-`fresh_action.payload_contract` identifies the payload branch that must agree with the live schema
-and packaged template.
-
-1. Rebind the complete `fresh_action` and read its `action_kind`, `current_node`, `payload_contract`,
-   `method_steps`, and all `available_transitions`.
-2. Read the live `dev_flow_apply_action` `inputSchema`. It is one closed object: `action_kind` is a
-   top-level `enum` of every action kind and `payload` is a closed object whose `node_result`
-   declares the union of every node result member. The schema does not narrow `payload` by
-   `action_kind`, so select the branch from `fresh_action.action_kind` plus
-   `fresh_action.payload_contract` and send only that branch's members.
-3. Open the corresponding marked template in `references/node-payloads.md`.
-4. Preserve the template's complete common envelope and `node_result` wrapper; replace only dynamic
-   values with facts from the current Task, Action, user decision, repository work, and actual check.
-5. Use current baseline revisions, work-item IDs, record IDs, acceptance, and evidence sets; never
-   guess or reuse stale values.
-6. Confirm all six common payload members exist and no seventh member exists.
-7. Confirm every branch-specific required `node_result` key exists and arrays remain arrays.
-8. Confirm every ArtifactReference role belongs to the live closed enum. Never convert a
-   `required_evidence` kind such as `repository_observation` into an artifact role. Use
-   `"artifacts": []` when no real repository-relative process artifact exists.
-9. Confirm MethodEvidence exactly matches current Action steps in ID, order, and count. Completed
-   `plain` work uses `plain_fallback` with an empty capability.
-10. Confirm the selected transition is present in the fresh Action and its reason rule matches.
-11. Confirm `destination`, `next_node`, `next_cursor`, caller classification, repository facts,
-    payload digest, raw output, and unknown members are absent.
-12. Map the mutation top-level identity from that same fresh Action.
-13. Retain the exact request and call `dev_flow_apply_action` once.
+1. Rebind `fresh_action` and read `submission_tool`, `action_id`, `method_steps`, and all
+   `available_transitions`.
+2. Read the live schema of that exact submission tool. Do not choose another submit tool from the
+   catalog.
+3. Open the matching node-result template and fill only current facts. Use current baseline
+   revisions, work-item IDs, record IDs, acceptance and evidence sets.
+4. Set `host="codex"`, copy only `task_id` and `action_id`, and select one returned `transition_id`.
+5. Provide `summary`, the transition's required or empty `reason`, and the exact `node_result`.
+6. Put current-node artifacts in `artifacts.current` only when the live schema exposes it. Put
+   related method artifacts in `artifacts.other_process`. Each entry contains only `path`, `digest`
+   and `summary`; Core assigns the role.
+7. Build `method_results` as a closed object keyed by every returned method `step_id`. Each member
+   contains only `capability` and `summary`; Core assigns step identity, order and status.
+8. Confirm `request_id`, revision, action kind, process identity, source cursor, repository binding,
+   payload envelope, destination and recovery fields are absent.
+9. Call `fresh_action.submission_tool` once.
 
 If the live schema and packaged reference disagree, stop before mutation and report the packaging
 contract defect. Do not choose whichever shape appears more convenient.
 
-Do not derive payload keys from `required_evidence`. Do not search the repository or installed
-package, inspect a binary or log, or start another MCP server to recover a schema. The selected
-payload contains exactly `transition_id`, `summary`, `reason`, `artifacts`, `method_evidence`, and
-`node_result`; put `problem_class` exactly where that node branch's actual schema requires it. Keep
-arrays as arrays and the payload as an object. Do not add unknown fields, caller classification,
-caller digest, authoritative repository facts, command/output/configuration data, `destination`,
-`next_node`, or `next_cursor`, and do not wrap the whole request in an outer `payload`.
-
-Map every mutation top-level field from the same fresh Action:
-
-- caller-generated opaque identity -> top-level `request_id`;
-- exact value `codex` -> top-level `host`;
-- `fresh_action.task_id` -> top-level `task_id`;
-- `fresh_action.revision` -> top-level `revision`;
-- `fresh_action.action_id` -> top-level `action_id`;
-- `fresh_action.action_kind` -> top-level `action_kind`;
-- `fresh_action.process_id` -> top-level `process_id`;
-- `fresh_action.process_definition_digest` -> top-level `process_definition_digest`;
-- `fresh_action.current_node` -> top-level `source_cursor`;
-- `fresh_action.repository_binding_digest` -> top-level `repository_binding_digest`;
-- the selected closed payload -> top-level `payload`.
-
 ```text
-apply_arguments = {
-  "request_id": caller_request_id,
+submission_arguments = {
   "host": "codex",
   "task_id": fresh_action.task_id,
-  "revision": fresh_action.revision,
   "action_id": fresh_action.action_id,
-  "action_kind": fresh_action.action_kind,
-  "process_id": fresh_action.process_id,
-  "process_definition_digest": fresh_action.process_definition_digest,
-  "source_cursor": fresh_action.current_node,
-  "repository_binding_digest": fresh_action.repository_binding_digest,
-  "payload": payload_for_selected_schema_branch
+  "transition_id": selected_transition_id,
+  "summary": normalized_summary,
+  "reason": required_or_empty_reason,
+  "artifacts": artifact_slots,
+  "method_results": method_results_by_step_id,
+  "node_result": exact_current_node_result
 }
 ```
 
-`revision` remains an integer, not a string. `payload` remains an object, not a string. Do not wrap
-that request inside an outer `payload` object. For an ordinary mutation, omit `recovery_apply` or
-send `recovery_apply=null`.
-
 If Core returns `INVALID_ARGUMENT`, treat it as a complete payload-contract rejection, not transport
 uncertainty. Use the bounded-correction section only when the complete result explicitly authorizes
-`correct_current_action`; otherwise stop and report the failing contract without private data. Never
-alter a field from source-code inspection or another guessed payload.
+`correct_current_action`; otherwise stop and report the failing contract without private data.
 
 ## Comprehension user interaction
 
@@ -374,64 +343,28 @@ selector again; no background handling is promised.
 
 A mutation result is uncertain when it is missing, cancelled, malformed, truncated, or
 transport-failed instead of returning one complete structured result. Do not immediately repeat
-`dev_flow_apply_action` and do not infer the result from repository state or worktree contents.
+the submission tool and do not infer the result from repository state or worktree contents.
 
-Before calling `dev_flow_apply_action`, retain the original `request_id`, `task_id`, `process_id`,
-`process_definition_digest`, `source_cursor`, `revision`, `action_id`,
-`action_kind`, `repository_binding_digest`, and exact closed `payload` from the same fresh action and
-the same apply dispatch. Never derive or reconstruct them from an incomplete response or partial
-output.
-
-When all required original identity values are retained, construct exactly this closed
-`operation_probe`:
-
-```json
-{
-  "operation_id": "<original apply request_id>",
-  "process_id": "standard-development",
-  "process_definition_digest": "<original process definition digest>",
-  "source_cursor": "<original source cursor>",
-  "expected_revision": 3,
-  "action_id": "<original action id>",
-  "action_kind": "<original action kind>",
-  "repository_binding_digest": "<original issuance binding digest>",
-  "payload": {}
-}
-```
-
-`operation_id` is the original apply `request_id`, never a read request ID.
-`expected_revision` is the original action `revision`. `repository_binding_digest` is the original
-issuance binding. `payload` is the exact original closed payload; when it was not completely
-retained, send JSON `null`. Never reconstruct it from partial output, repository text, or model
-memory.
-
-Use the original `task_id` to call `dev_flow_get_task` with that exact probe. A stale pre-dispatch
-Task snapshot is not an authoritative read-back. Require one complete `recovery_assessment` with the
-original graph operation identity, binding relations, operation evidence, optional committed proof,
-retry flag, `next_advice`, optional unblock condition, and observation time. Stop if it is absent,
-truncated, malformed, or refers to another operation.
+Retain only the `task_id` and `action_id` used for the call. Core retains the complete normalized
+Action identity and payload before the Task transition. Call `dev_flow_get_task` with ordinary
+`host` and `task_id`; do not construct `operation_probe` and do not reconstruct any payload.
+Require one complete `recovery_assessment`. Stop if it is absent, truncated, malformed, or refers to
+another Action.
 
 Do not implement or branch on the five-class decision table. Obey only Core's complete
 `next_advice`:
 
-- `retry_current_action`: retry the ordinary current action only when Core also returns
-  `action_retry_safe=true` and the authoritative task still exposes the exact original action;
-- `submit_recovery_apply`: submit the retained original top-level operation identity and payload,
-  adding exactly `recovery_apply={"operation_id":<original request_id>,"source_cursor":<original
-  source_cursor>}`; do not add a new recovery operation ID, destination, or classification;
+- `retry_current_action`: re-perform the current Action's allowed repository work from the fresh Task
+  and Action, then call `dev_flow_recover_action` with exactly `host`, the retained `task_id`, and the
+  retained `action_id`; Core reuses the saved result, so do not rebuild it;
+- `submit_recovery_apply`: call `dev_flow_recover_action` with those same three fields immediately;
 - `read_next_action`: read the authoritative next action and continue only from that result;
-- `resolve_blocker`: stop ordinary work and handle only the Core-returned current
-  `RESOLVE_BLOCKER` action;
+- `resolve_blocker`: call `dev_flow_resolve_blocker` with the current blocked Action's `task_id` and
+  `action_id` after the required repository condition has been restored;
 - `stop_for_repository_drift`: report the bounded drift condition and stop.
 
 Never infer that an unlisted action is safe. A recovery read itself cannot create a blocker or adopt
-work. Only a Core-requested explicit recovery apply may do so, and its result becomes the next
-authority.
-
-If any required identity is missing or incomplete, do not construct or send an `operation_probe`;
-send no fabricated or half probe. Do not fill missing values from a partial response, do not assume
-`not_started`, and do not automatically retry. Stop and report that the Skill cannot prove the
-mutation state.
+work. If the original `task_id` or `action_id` is missing, stop; do not rebuild it from partial output.
 
 Do not branch, decide, or interpret any recovery classification and do not guess from repository
 state. Core owns classification, effect proof, blocker eligibility, and mutation directives.
@@ -439,8 +372,7 @@ state. Core owns classification, effect proof, blocker eligibility, and mutation
 A complete structured `ok=false` result is an authoritative domain error, not transport
 uncertainty. Never convert or treat that domain error as missing or transport failure. Obey Core's
 `code`, `message`, `recovery.retry_safe`, `recovery.action`, and `recovery.message`. When it reports
-`retry_safe=false` and `action=none`, stop; do not call `dev_flow_get_next_action` or
-`dev_flow_apply_action`.
+`retry_safe=false` and `action=none`, stop; do not submit or recover the Action.
 
 ## Bounded correction of the current action
 
@@ -448,16 +380,16 @@ A complete structured domain error may carry field-level detail. `error.details[
 failing member as `path`, a closed `rule`, and a fixed non-sensitive `message`. A refused transition
 may instead carry `error.guard` with the Core `guard_id` and the same failure shape.
 
-Submit exactly one corrected payload for the same Action only when every condition holds:
+Submit exactly one corrected input through the same `fresh_action.submission_tool` only when every
+condition holds:
 
 1. the original result is a complete structured Core domain error;
 2. `recovery.action` is `correct_current_action`;
 3. `recovery.retry_safe` is `true`;
-4. Task revision, action ID, process identity, source cursor, and repository binding are unchanged;
-5. the corrected request uses a new `request_id`;
-6. only members listed in `recovery.allowed_paths` change;
-7. the corrected value follows directly from the returned `rule`, with no source-code guessing;
-8. every other payload byte keeps the same meaning.
+4. the current Task still exposes the same Action ID and submission tool;
+5. only members listed in `recovery.allowed_paths` change;
+6. the corrected value follows directly from the returned `rule`, with no source-code guessing;
+7. every other submitted fact keeps the same meaning.
 
 Stop immediately when the second submission also fails. Do not submit a third candidate payload;
 report only the exact `path`, `rule`, and that the bounded correction still failed. Never report

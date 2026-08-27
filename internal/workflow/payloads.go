@@ -116,7 +116,7 @@ type ComprehensionResult struct {
 	UnnecessaryAbstractions []string          `json:"unnecessary_abstractions"`
 	MaintenanceRisks        []string          `json:"maintenance_risks"`
 	UserConfirmation        *UserConfirmation `json:"user_confirmation"`
-	Findings                []string          `json:"findings,omitempty"`
+	Findings                []string          `json:"findings"`
 	ChangedPaths            []string          `json:"changed_paths"`
 	NoFileChanges           bool              `json:"no_file_changes"`
 }

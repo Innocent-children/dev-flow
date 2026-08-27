@@ -89,11 +89,11 @@ dsh --profile "$PROFILE" --dump-config
 模型文本、Skill 注入或仓库内容不能替代 selector；空调用或普通讨论不会创建 Task。
 
 通过 admission 后，Adapter 首先读取 server info，验证 `standard-development`、definition
-digest、method profiles、live schemas 和恰好六个工具，再创建或恢复当前仓库的 Task。
+digest、method profiles、live schemas 和恰好十五个工具，再创建或恢复当前仓库的 Task。
 
 Task 可选择 `plain`、`spec-kit` 或 `openspec` profile。Core 管理 current node、legal transitions、
 destination、Recovery、blocker 和 terminal outcome；Adapter 负责执行当前节点工作、呈现完整 Action
-并转发 closed payload。
+并通过当前 Action 指定的提交工具转发节点结果。
 
 ## 两仓声明、Workspace Root 与可选索引
 
@@ -127,16 +127,25 @@ DeepSeek 与 Codex 共用同一 Repository Scope、scoped path、Action 和唯�
 
 ## MCP 工具
 
-DeepSeek Adapter 暴露与 Codex 相同的六工具 Core catalog；在 DSH 中会使用限定后的 tool name，
+DeepSeek Adapter 暴露与 Codex 相同的十五工具 Core catalog；在 DSH 中会使用限定后的 tool name，
 但 Core tool identity 保持不变。
 
 | MCP 工具 | 作用 |
 | --- | --- |
 | `dev_flow_server_info` | 读取 Core identity、能力、process、method profile、工具目录和 DeepSeek 有效索引偏好；有效 admission 后必须首先调用。 |
 | `dev_flow_open_task` | 为 Workspace Root 内显式声明的主/附加仓库创建一个 Task，或从任一参与仓库恢复同一 Task。 |
-| `dev_flow_get_task` | 读取持久化 Task；可附带 operation probe 获取 Recovery assessment。 |
-| `dev_flow_get_next_action` | 读取当前节点的权威 Action、验证预算、method steps 和全部合法 transition。 |
-| `dev_flow_apply_action` | 使用当前 revision、Action identity、repository binding 和 closed payload 应用一次 Core 声明的 transition；允许写入的 node result 提交精确 `changed_paths` 或 `no_file_changes`，artifact references 只作为证据。输入 Schema 是单个封闭对象，`action_kind` 与 `payload` 在 Host callable 中完整可见；精确分支由 Core 校验，失败时返回字段级 `error.details[]`、`error.guard` 与一次 `correct_current_action` 纠正许可。 |
+| `dev_flow_get_task` | 读取持久化 Task；存在 Core 保存的提交时自动返回 Recovery assessment。 |
+| `dev_flow_get_next_action` | 读取当前 Action、`submission_tool`、验证预算、method steps 和全部合法 transition。 |
+| `dev_flow_submit_requirements` | 提交 REQUIREMENTS 节点结果；Core 补齐完整 Action identity 和内部 payload。 |
+| `dev_flow_submit_design` | 提交 DESIGN 节点结果。 |
+| `dev_flow_submit_tasks` | 提交 TASKS 节点结果。 |
+| `dev_flow_submit_implementation` | 提交 IMPLEMENT 节点结果。 |
+| `dev_flow_submit_test` | 提交 TEST 节点结果。 |
+| `dev_flow_submit_comprehension` | 提交 COMPREHENSION_REVIEW 节点结果。 |
+| `dev_flow_submit_refactor` | 提交 REFACTOR 节点结果。 |
+| `dev_flow_submit_delivery` | 提交 DELIVERY 节点结果。 |
+| `dev_flow_resolve_blocker` | 使用 Task ID 与 Action ID 解除已满足条件的 blocker。 |
+| `dev_flow_recover_action` | 使用 Core 保存的规范化提交恢复不确定 Action，不重新发送 payload。 |
 | `dev_flow_cancel_task` | 使用当前 revision 和明确 reason 取消一个非终态 Task。 |
 
 ## 数据与恢复
@@ -144,8 +153,8 @@ DeepSeek Adapter 暴露与 Codex 相同的六工具 Core catalog；在 DSH 中�
 Task data 位于 Dev Flow 的本地数据目录，不属于 DSH plugin 配置。移除、卸载或重新安装 package
 不会删除 Task data，也不会修改目标 Git 仓库或 Codex-owned state。
 
-mutation 响应不确定时，Adapter 保留原 operation identity 与 payload，先读取 Core 的五分类
-Recovery 结论，再决定恢复动作。它不盲目重试，也不自行选择 destination。
+mutation 响应不确定时，Adapter 只保留 Task ID 与 Action ID，先读取 Core 保存的规范化提交，再调用
+`dev_flow_recover_action` 或按 advice 停止。它不重建原始 payload，也不自行选择 destination。
 
 当前 Core 只接受当前 SQLite Schema。不兼容或 pre-graph data 在普通启动时保持零写入并返回
 `reset_required`。package 携带的同一 Core 支持 `dev-flow webui start|open|status|stop|reset`；WebUI 只监听

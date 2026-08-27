@@ -147,8 +147,9 @@ refactoring, and repository changes pass through testing again.
 ### Uncertain-write recovery
 
 Writes carry the revision, Action identity, source cursor, and repository binding. When a response is
-lost or interrupted, the caller reads Core's five-class Recovery result before choosing recovery,
-blocking, or safe retry.
+lost or interrupted, Core uses the normalized Action input retained before transition commit to
+produce the five-class Recovery result. The caller retains only the Task ID and Action ID, not the
+original payload.
 
 A write-enabled Action reports exact `changed_paths` or `no_file_changes` in its result. Core validates
 them against the issuance baseline, current `allowed_effects`, and a fresh Git observation. Authorized

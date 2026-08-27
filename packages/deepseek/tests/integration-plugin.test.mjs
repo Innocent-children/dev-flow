@@ -31,7 +31,16 @@ test("plugin identity and injection surface are fixed", () => {
     "mcp__dev_flow__dev_flow_open_task",
     "mcp__dev_flow__dev_flow_get_task",
     "mcp__dev_flow__dev_flow_get_next_action",
-    "mcp__dev_flow__dev_flow_apply_action",
+    "mcp__dev_flow__dev_flow_submit_requirements",
+    "mcp__dev_flow__dev_flow_submit_design",
+    "mcp__dev_flow__dev_flow_submit_tasks",
+    "mcp__dev_flow__dev_flow_submit_implementation",
+    "mcp__dev_flow__dev_flow_submit_test",
+    "mcp__dev_flow__dev_flow_submit_comprehension",
+    "mcp__dev_flow__dev_flow_submit_refactor",
+    "mcp__dev_flow__dev_flow_submit_delivery",
+    "mcp__dev_flow__dev_flow_resolve_blocker",
+    "mcp__dev_flow__dev_flow_recover_action",
     "mcp__dev_flow__dev_flow_cancel_task",
   ]);
 });

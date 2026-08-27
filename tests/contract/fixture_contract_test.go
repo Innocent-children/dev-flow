@@ -54,11 +54,12 @@ type hostParityFixture struct {
 	DefinitionDigest     string                  `json:"definition_digest"`
 	CurrentNode          string                  `json:"current_node"`
 	ActionKind           string                  `json:"action_kind"`
+	SubmissionTool       string                  `json:"submission_tool"`
 	NodeContract         hostParityNodeContract  `json:"node_contract"`
 	MethodProfileEnum    []string                `json:"method_profile_enum"`
 	SemanticMethodSteps  []string                `json:"semantic_method_steps"`
 	AvailableTransitions []string                `json:"available_transitions"`
-	ApplyPayloadShape    []string                `json:"apply_payload_shape"`
+	SubmissionInputShape []string                `json:"submission_input_shape"`
 	ProblemClassRules    []hostParityProblemRule `json:"problem_class_rules"`
 	ErrorShape           hostParityErrorShape    `json:"error_shape"`
 }
@@ -129,7 +130,7 @@ func TestCurrentHostParityFixtures(t *testing.T) {
 		if fixture.FixtureKind != "core_host_parity" {
 			t.Fatalf("%s contract identity = %#v", name, fixture)
 		}
-		if fixture.ProcessID != "standard-development" || fixture.CurrentNode != "REQUIREMENTS" || fixture.ActionKind != "COMPLETE_REQUIREMENTS" {
+		if fixture.ProcessID != "standard-development" || fixture.CurrentNode != "REQUIREMENTS" || fixture.ActionKind != "COMPLETE_REQUIREMENTS" || fixture.SubmissionTool != "dev_flow_submit_requirements" {
 			t.Fatalf("%s process/action identity = %#v", name, fixture)
 		}
 		if len(fixture.DefinitionDigest) != 64 {
@@ -144,8 +145,8 @@ func TestCurrentHostParityFixtures(t *testing.T) {
 		if !reflect.DeepEqual(fixture.AvailableTransitions, []string{"requirements_ready"}) {
 			t.Fatalf("%s transitions = %#v", name, fixture.AvailableTransitions)
 		}
-		if !reflect.DeepEqual(fixture.ApplyPayloadShape, []string{"transition_id", "summary", "reason", "artifacts", "method_evidence", "node_result"}) {
-			t.Fatalf("%s payload shape = %#v", name, fixture.ApplyPayloadShape)
+		if !reflect.DeepEqual(fixture.SubmissionInputShape, []string{"host", "task_id", "action_id", "transition_id", "summary", "reason", "artifacts", "method_results", "node_result"}) {
+			t.Fatalf("%s submission shape = %#v", name, fixture.SubmissionInputShape)
 		}
 		if fixture.NodeContract.Purpose == "" || len(fixture.NodeContract.EntryConditionIDs) != 3 || len(fixture.NodeContract.CompletionConditionIDs) != 6 || len(fixture.NodeContract.AllowedEffects) != 3 || len(fixture.NodeContract.RequiredEvidence) != 2 {
 			t.Fatalf("%s node contract is incomplete: %#v", name, fixture.NodeContract)
@@ -220,7 +221,7 @@ func TestGraphServerInfoFixtureContainsCompletePublicDTO(t *testing.T) {
 		t.Fatalf("public process DTO=%#v", process)
 	}
 	tools, ok := value["tools"].([]any)
-	if !ok || len(tools) != 6 {
+	if !ok || len(tools) != 15 {
 		t.Fatalf("tools=%#v", tools)
 	}
 	preferences, ok := value["host_preferences"].(map[string]any)
@@ -277,6 +278,7 @@ type multiRepositoryFixtureAction struct {
 	Revision                uint64 `json:"revision"`
 	ActionID                string `json:"action_id"`
 	ActionKind              string `json:"action_kind"`
+	SubmissionTool          string `json:"submission_tool"`
 	RepositoryBindingDigest string `json:"repository_binding_digest"`
 }
 
@@ -296,7 +298,7 @@ func TestGraphMultiRepositoryOpenFixtureUsesOneTaskActionAndDigest(t *testing.T)
 		t.Fatal("multi repository fixture has trailing JSON")
 	}
 	const effectiveDigest = "dc9caf7d75b1019fd583d7fb7632b4c5f6ad4431bb34d6c0182fc506d70c0e13"
-	if fixture.FixtureKind != "multi_repository_open" || !fixture.Created || fixture.Task.TaskID == "" || fixture.Task.Revision != 1 || fixture.Task.CurrentAction.TaskID != fixture.Task.TaskID || fixture.Task.CurrentAction.Revision != fixture.Task.Revision {
+	if fixture.FixtureKind != "multi_repository_open" || !fixture.Created || fixture.Task.TaskID == "" || fixture.Task.Revision != 1 || fixture.Task.CurrentAction.TaskID != fixture.Task.TaskID || fixture.Task.CurrentAction.Revision != fixture.Task.Revision || fixture.Task.CurrentAction.SubmissionTool != "dev_flow_submit_requirements" {
 		t.Fatalf("task/action identity=%#v", fixture)
 	}
 	if fixture.Task.PrimaryRepositoryKey != "core" || fixture.Task.Repository.CanonicalRoot != "/workspace/core" || len(fixture.Task.AdditionalRepositories) != 1 || fixture.Task.AdditionalRepositories[0].Key != "docs" || fixture.Task.AdditionalRepositories[0].Repository.CanonicalRoot != "/workspace/docs" {

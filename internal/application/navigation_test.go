@@ -12,6 +12,8 @@ import (
 type memoryStore struct {
 	task         *domain.ProcessTask
 	commits      int
+	stages       int
+	commitErr    error
 	lastMutation store.TaskMutation
 }
 
@@ -28,10 +30,19 @@ func (m *memoryStore) LoadActiveTask(context.Context, domain.Digest) (domain.Pro
 	return *m.task, nil
 }
 func (m *memoryStore) CommitTask(_ context.Context, x store.TaskMutation) error {
+	if m.commitErr != nil {
+		return m.commitErr
+	}
 	task := x.Task
 	m.task = &task
 	m.commits++
 	m.lastMutation = x
+	return nil
+}
+func (m *memoryStore) StageActionCommit(_ context.Context, task domain.ProcessTask) error {
+	copy := task
+	m.task = &copy
+	m.stages++
 	return nil
 }
 

@@ -76,11 +76,11 @@ func TestRecoveryAssessmentProjectionIsClosedAndRedacted(t *testing.T) {
 }
 
 func TestRepositoryDriftErrorProjectsOnlyValidatedKeyAndClosedReason(t *testing.T) {
-	safe := EncodeError("drift-safe", ToolApplyAction, domain.NewError(domain.ErrorRepositoryDrift, `Repository "docs" has repository drift: head_changed.`))
+	safe := EncodeError("drift-safe", ToolRecoverAction, domain.NewError(domain.ErrorRepositoryDrift, `Repository "docs" has repository drift: head_changed.`))
 	if safe.IsError == false || !strings.Contains(string(safe.JSON), `"message":"Repository \"docs\" has repository drift: head_changed."`) {
 		t.Fatalf("safe drift result=%s", safe.JSON)
 	}
-	unsafe := EncodeError("drift-unsafe", ToolApplyAction, domain.NewError(domain.ErrorRepositoryDrift, `Repository "/Users/private" has repository drift: git status.`))
+	unsafe := EncodeError("drift-unsafe", ToolRecoverAction, domain.NewError(domain.ErrorRepositoryDrift, `Repository "/Users/private" has repository drift: git status.`))
 	if strings.Contains(string(unsafe.JSON), "/Users/private") || strings.Contains(string(unsafe.JSON), "git status") {
 		t.Fatalf("unsafe drift result=%s", unsafe.JSON)
 	}

@@ -11,11 +11,11 @@ Recovery 和只读 Git observation；Codex 与 DeepSeek package 通过同一个 
 | --- | --- |
 | `domain` | `ProcessTask`、TaskIntent、baselines、records、evidence、outcome 与 limits |
 | `workflow` | `standard-development`、node contracts、29 条 transitions、payload 与 invalidation |
-| `application` | open/read/apply/cancel use cases 与组件协调 |
+| `application` | open/read/submit/recover/cancel use cases 与组件协调 |
 | `store` | SQLite bootstrap、strict snapshot、CAS、events、claims 与 read-only preflight |
 | `repository` | canonical repository 与 bounded read-only Git observation |
 | `recovery` | 五分类 reconciliation、retry advice、blocker 与 resume |
-| `mcp` | 六工具 local STDIO contract、closed schemas 与 Result Envelope |
+| `mcp` | 十五工具 local STDIO contract、按 Action kind 收窄的提交 schema 与 Result Envelope |
 | `webui` | loopback HTTP adapter、嵌入资产、session 保护、共享 runtime receipt 与 lifecycle |
 | `version` | 从 `CORE_VERSION` 或 build injection 读取 Core 产品版本 |
 

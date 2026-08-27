@@ -126,36 +126,30 @@ func toolSchema(t *testing.T, name string) map[string]any {
 
 // TestApplyActionSchemaIsHostProjectable is the Host projection contract. It
 // fails for any apply schema the Host would reduce to an untyped argument.
-func TestApplyActionSchemaIsHostProjectable(t *testing.T) {
-	schema := toolSchema(t, ToolApplyAction)
-	if schema["type"] != "object" {
-		t.Fatalf("apply root type=%#v", schema["type"])
-	}
-	properties, ok := schema["properties"].(map[string]any)
-	if !ok || len(properties) == 0 {
-		t.Fatalf("apply root has no projectable properties: %#v", schema["properties"])
-	}
-	if schema["additionalProperties"] != false {
-		t.Fatalf("apply root additionalProperties=%#v", schema["additionalProperties"])
-	}
-	for _, keyword := range hostCompositionKeywords {
-		if _, present := schema[keyword]; present {
-			t.Fatalf("apply root carries composition keyword %s; the Host projector replaces such a root with an empty schema", keyword)
+func TestActionSubmissionSchemasAreHostProjectable(t *testing.T) {
+	for _, entry := range actionSubmissionTools {
+		schema := toolSchema(t, entry.Name)
+		if schema["type"] != "object" || schema["additionalProperties"] != false {
+			t.Fatalf("%s root=%#v", entry.Name, schema)
 		}
-	}
-	for _, name := range []string{"request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload", "recovery_apply"} {
-		if _, present := properties[name]; !present {
-			t.Fatalf("apply callable cannot see %s", name)
+		properties, ok := schema["properties"].(map[string]any)
+		if !ok || len(properties) != 9 {
+			t.Fatalf("%s properties=%#v", entry.Name, schema["properties"])
 		}
+		for _, name := range []string{"host", "task_id", "action_id", "transition_id", "summary", "reason", "artifacts", "method_results", "node_result"} {
+			if _, present := properties[name]; !present {
+				t.Fatalf("%s cannot see %s", entry.Name, name)
+			}
+		}
+		assertHostProjectable(t, schema, "$")
 	}
-	assertHostProjectable(t, schema, "$")
 }
 
 // TestApplyActionSchemaFitsHostProjectionBudget keeps the published schema below
 // the Host compaction budget so no lossy pass runs and nested structure at or
 // below the collapse depth stays visible.
 func TestApplyActionSchemaFitsHostProjectionBudget(t *testing.T) {
-	for _, name := range []string{ToolApplyAction, ToolGetTask, ToolGetNextAction, ToolOpenTask, ToolCancelTask, ToolServerInfo} {
+	for _, name := range ToolNames() {
 		for _, definition := range ToolCatalog() {
 			if definition.Name != name {
 				continue
@@ -172,9 +166,8 @@ func TestApplyActionSchemaFitsHostProjectionBudget(t *testing.T) {
 // TestApplyActionTestEvidenceIsVisibleBelowCollapseDepth proves the TEST check
 // structure survives at the depth the Host would otherwise collapse.
 func TestApplyActionTestEvidenceSchemaIsVisible(t *testing.T) {
-	schema := toolSchema(t, ToolApplyAction)
-	payload := childSchema(t, schema, "payload")
-	nodeResult := childSchema(t, payload, "node_result")
+	schema := toolSchema(t, ToolSubmitTest)
+	nodeResult := childSchema(t, schema, "node_result")
 	checks := childSchema(t, nodeResult, "checks")
 	if checks["type"] != "array" {
 		t.Fatalf("checks type=%#v", checks["type"])
@@ -217,27 +210,23 @@ func TestApplyActionTestEvidenceSchemaIsVisible(t *testing.T) {
 // rules in the tool description. A projector charges the description separately
 // from the schema budget and discards schema descriptions first, so the
 // description is the only place a source-specific rule survives reliably.
-func TestApplyActionEvidenceRulesAreInToolDescription(t *testing.T) {
-	var description string
-	for _, definition := range ToolCatalog() {
-		if definition.Name == ToolApplyAction {
-			description = definition.Description
+func TestActionSubmissionDescriptionsStateCoreOwnedAssembly(t *testing.T) {
+	for _, entry := range actionSubmissionTools {
+		var description string
+		for _, definition := range ToolCatalog() {
+			if definition.Name == entry.Name {
+				description = definition.Description
+			}
 		}
-	}
-	if len(description) > 1000 {
-		t.Fatalf("apply description is %d bytes; a Host plugin truncates at 1000", len(description))
-	}
-	for _, required := range []string{
-		"command_count is 1 to 20 only when checks[].source is automated",
-		"exactly 0",
-		"full_suite false",
-		"user, static or host_observed",
-		"Record a completed user verification in checks",
-		"manual_handoff_items for work nobody has run yet",
-		"INVALID_ARGUMENT",
-	} {
-		if !strings.Contains(description, required) {
-			t.Fatalf("apply description does not state %q: %s", required, description)
+		if len(description) > 1000 || !strings.Contains(description, "Core fills the complete Action identity") || !strings.Contains(description, "payload envelope") {
+			t.Fatalf("%s description=%q", entry.Name, description)
+		}
+		if entry.Name == ToolSubmitTest {
+			for _, rule := range []string{"automated command_count is 1 to 20", "user, static and host_observed", "command_count 0", "full_suite false"} {
+				if !strings.Contains(description, rule) {
+					t.Fatalf("%s description misses %q", entry.Name, rule)
+				}
+			}
 		}
 	}
 }
@@ -253,24 +242,19 @@ func TestApplyActionSchemaSurvivesHostCompaction(t *testing.T) {
 		t.Fatalf("the previous discriminated apply schema no longer reproduces the defect: %#v", legacy)
 	}
 
-	published := toolSchema(t, ToolApplyAction)
+	published := toolSchema(t, ToolSubmitTest)
 	compacted, ok := hostCompact(t, published).(map[string]any)
 	if !ok || compacted["type"] != "object" {
 		t.Fatalf("published apply schema collapsed: %#v", compacted)
 	}
 	properties, ok := compacted["properties"].(map[string]any)
-	if !ok || len(properties) != 12 {
-		t.Fatalf("published apply schema lost top-level properties: %#v", compacted["properties"])
+	if !ok || len(properties) != 9 {
+		t.Fatalf("published submission schema lost top-level properties: %#v", compacted["properties"])
 	}
-	kind, ok := properties["action_kind"].(map[string]any)
-	if !ok || len(stringSlice(kind["enum"])) != 9 {
-		t.Fatalf("action_kind discriminant did not survive: %#v", properties["action_kind"])
+	nodeResult, ok := properties["node_result"].(map[string]any)
+	if !ok || len(nodeResult) == 0 {
+		t.Fatal("node_result did not survive compaction")
 	}
-	payload, ok := properties["payload"].(map[string]any)
-	if !ok || len(payload) == 0 {
-		t.Fatal("payload did not survive compaction")
-	}
-	nodeResult := childSchema(t, payload, "node_result")
 	checks := childSchema(t, nodeResult, "checks")
 	item, ok := checks["items"].(map[string]any)
 	if !ok {
@@ -544,7 +528,7 @@ func assertHostProjectable(t *testing.T, schema map[string]any, path string) {
 
 // TestSDKListedApplySchemaIsProjectable proves the published apply schema can be
 // registered with the Go MCP SDK, served, listed, and still projected.
-func TestSDKListedApplySchemaIsProjectable(t *testing.T) {
+func TestSDKListedSubmissionSchemasAreProjectable(t *testing.T) {
 	service, err := application.NewService(annotationStore{}, annotationObserver{})
 	if err != nil {
 		t.Fatal(err)
@@ -567,11 +551,12 @@ func TestSDKListedApplySchemaIsProjectable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(listed.Tools) != 6 {
+	if len(listed.Tools) != len(ToolNames()) {
 		t.Fatalf("tools=%d", len(listed.Tools))
 	}
+	seen := 0
 	for _, tool := range listed.Tools {
-		if tool.Name != ToolApplyAction {
+		if _, ok := submissionKindForTool(tool.Name); !ok {
 			continue
 		}
 		raw, err := json.Marshal(tool.InputSchema)
@@ -583,13 +568,15 @@ func TestSDKListedApplySchemaIsProjectable(t *testing.T) {
 			t.Fatal(err)
 		}
 		if schema["type"] != "object" {
-			t.Fatalf("listed apply schema root type=%#v", schema["type"])
+			t.Fatalf("listed submission schema root type=%#v", schema["type"])
 		}
 		assertHostProjectable(t, schema, "$")
 		if size := modelledHostSchemaBytes(t, raw); size > hostProjectionBudgetBytes-hostProjectionMarginBytes {
-			t.Fatalf("listed apply schema is %d bytes", size)
+			t.Fatalf("listed submission schema is %d bytes", size)
 		}
-		return
+		seen++
 	}
-	t.Fatal("the SDK did not list dev_flow_apply_action")
+	if seen != len(actionSubmissionTools) {
+		t.Fatalf("listed submission tools=%d", seen)
+	}
 }

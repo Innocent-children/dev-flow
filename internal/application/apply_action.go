@@ -49,7 +49,10 @@ func (s *Service) ApplyAction(ctx context.Context, r ApplyActionRequest) (ApplyA
 		return ApplyActionResult{}, domain.ErrInternal
 	}
 	if _, err := validatedRepositoryEffect(task, r.Payload, fresh, comparison); err != nil {
-		return ApplyActionResult{}, repositoryDriftError(comparison)
+		if errors.Is(err, domain.ErrRepositoryDrift) {
+			return ApplyActionResult{}, repositoryDriftError(comparison)
+		}
+		return ApplyActionResult{}, err
 	}
 	return s.applyStandardMutation(ctx, r, task, fresh, comparison)
 }
@@ -161,8 +164,13 @@ func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionReques
 		return ApplyActionResult{}, domain.WithoutZeroWriteProof(err)
 	}
 	effect, err := recovery.DeriveRepositoryEffect(task.CurrentNode, envelope, result)
-	if err != nil || task.CurrentAction == nil || !recovery.RepositoryEffectAllowed(task.CurrentAction.AllowedEffects, effect) ||
-		recovery.RepositoryScopeEffectEvidence(task, fresh, comparison, effect) != recovery.OperationEvidenceComplete {
+	if err != nil {
+		return ApplyActionResult{}, domain.WithoutZeroWriteProof(err)
+	}
+	if task.CurrentAction == nil || !recovery.RepositoryEffectAllowed(task.CurrentAction.AllowedEffects, effect) {
+		return ApplyActionResult{}, domain.WithoutZeroWriteProof(domain.InvalidArgumentViolations(domain.Violation("payload.node_result.changed_paths", domain.RuleRepositoryEffectNotAllowed)))
+	}
+	if recovery.RepositoryScopeEffectEvidence(task, fresh, comparison, effect) != recovery.OperationEvidenceComplete {
 		return ApplyActionResult{}, repositoryDriftError(comparison)
 	}
 	canonicalPayload, err := workflow.CanonicalValidatedPayload(envelope, result)
@@ -210,6 +218,7 @@ func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionReques
 	next.CurrentNode = transition.Destination
 	next.Revision++
 	next.UpdatedAt = now
+	retainActionCommitForOperation(&next, operationFromApply(r))
 	claim := store.ClaimRetain
 	if next.CurrentNode.Terminal() {
 		next.CurrentAction = nil
@@ -252,8 +261,13 @@ func validatedRepositoryEffect(task domain.ProcessTask, raw json.RawMessage, fre
 		return recovery.RepositoryEffect{}, err
 	}
 	effect, err := recovery.DeriveRepositoryEffect(task.CurrentNode, envelope, result)
-	if err != nil || task.CurrentAction == nil || !recovery.RepositoryEffectAllowed(task.CurrentAction.AllowedEffects, effect) ||
-		recovery.RepositoryScopeEffectEvidence(task, fresh, comparison, effect) != recovery.OperationEvidenceComplete {
+	if err != nil {
+		return recovery.RepositoryEffect{}, err
+	}
+	if task.CurrentAction == nil || !recovery.RepositoryEffectAllowed(task.CurrentAction.AllowedEffects, effect) {
+		return recovery.RepositoryEffect{}, domain.InvalidArgumentViolations(domain.Violation("payload.node_result.changed_paths", domain.RuleRepositoryEffectNotAllowed))
+	}
+	if recovery.RepositoryScopeEffectEvidence(task, fresh, comparison, effect) != recovery.OperationEvidenceComplete {
 		return recovery.RepositoryEffect{}, domain.ErrRepositoryDrift
 	}
 	return effect, nil
@@ -310,6 +324,7 @@ func (s *Service) createRecoveryBlocker(ctx context.Context, r ApplyActionReques
 	next.ResumeNode = &resume
 	next.Revision++
 	next.UpdatedAt = now
+	retainActionCommitForOperation(&next, operationFromApply(r))
 	next.Blocker = &domain.ProcessBlocker{BlockerID: blockerID, Code: domain.ErrorTaskBlocked, Cause: decision.Assessment.Classification, Message: "The uncertain graph mutation requires exact repository restoration before work can continue.", ResumeNode: resume, ObservedBindingDigest: decision.Assessment.ObservedBindingDigest, Condition: *decision.Assessment.UnblockCondition, RequiredResolution: "Restore the exact repository binding recorded when the original action was issued.", CreatedAt: now}
 	effectiveDigest, err := next.EffectiveRepositoryBindingDigest()
 	if err != nil {
@@ -376,6 +391,7 @@ func (s *Service) resolveBlockerMutation(ctx context.Context, r ApplyActionReque
 	next.CurrentNode, next.ResumeNode, next.Blocker = destination, nil, nil
 	next.Revision++
 	next.UpdatedAt = now
+	retainActionCommitForOperation(&next, operationFromApply(r))
 	nextActionID, err := s.id("action")
 	if err != nil {
 		return ApplyActionResult{}, err
@@ -459,6 +475,12 @@ func validApplyIdentity(operation domain.OperationReference) bool {
 
 func digestApplyRequest(r ApplyActionRequest, canonicalPayload json.RawMessage) (domain.Digest, error) {
 	return workflow.GraphOperationDigest(r.Host, r.TaskID, operationFromApply(r), canonicalPayload)
+}
+
+func retainActionCommitForOperation(task *domain.ProcessTask, operation domain.OperationReference) {
+	if task.ActionCommit == nil || task.ActionCommit.Operation != operation {
+		task.ActionCommit = nil
+	}
 }
 
 func cloneProcessTask(task domain.ProcessTask) (domain.ProcessTask, error) {

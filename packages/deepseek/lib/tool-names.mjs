@@ -6,7 +6,16 @@ export const DEV_FLOW_RAW_TOOL_NAMES = Object.freeze([
   "dev_flow_open_task",
   "dev_flow_get_task",
   "dev_flow_get_next_action",
-  "dev_flow_apply_action",
+  "dev_flow_submit_requirements",
+  "dev_flow_submit_design",
+  "dev_flow_submit_tasks",
+  "dev_flow_submit_implementation",
+  "dev_flow_submit_test",
+  "dev_flow_submit_comprehension",
+  "dev_flow_submit_refactor",
+  "dev_flow_submit_delivery",
+  "dev_flow_resolve_blocker",
+  "dev_flow_recover_action",
   "dev_flow_cancel_task",
 ]);
 

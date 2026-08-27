@@ -15,7 +15,16 @@ const qualifiedTools = [
   "mcp__dev_flow__dev_flow_open_task",
   "mcp__dev_flow__dev_flow_get_task",
   "mcp__dev_flow__dev_flow_get_next_action",
-  "mcp__dev_flow__dev_flow_apply_action",
+  "mcp__dev_flow__dev_flow_submit_requirements",
+  "mcp__dev_flow__dev_flow_submit_design",
+  "mcp__dev_flow__dev_flow_submit_tasks",
+  "mcp__dev_flow__dev_flow_submit_implementation",
+  "mcp__dev_flow__dev_flow_submit_test",
+  "mcp__dev_flow__dev_flow_submit_comprehension",
+  "mcp__dev_flow__dev_flow_submit_refactor",
+  "mcp__dev_flow__dev_flow_submit_delivery",
+  "mcp__dev_flow__dev_flow_resolve_blocker",
+  "mcp__dev_flow__dev_flow_recover_action",
   "mcp__dev_flow__dev_flow_cancel_task",
 ];
 
@@ -24,7 +33,16 @@ const rawTools = [
   "dev_flow_open_task",
   "dev_flow_get_task",
   "dev_flow_get_next_action",
-  "dev_flow_apply_action",
+  "dev_flow_submit_requirements",
+  "dev_flow_submit_design",
+  "dev_flow_submit_tasks",
+  "dev_flow_submit_implementation",
+  "dev_flow_submit_test",
+  "dev_flow_submit_comprehension",
+  "dev_flow_submit_refactor",
+  "dev_flow_submit_delivery",
+  "dev_flow_resolve_blocker",
+  "dev_flow_recover_action",
   "dev_flow_cancel_task",
 ];
 
@@ -96,7 +114,7 @@ test("Skill opens or resumes one deepseek task and follows one complete fresh Ac
     assert.match(loop, new RegExp("`" + field + "`", "u"), field);
   }
   assert.match(loop, /all `available_transitions`[\s\S]*identifier[\s\S]*destination[\s\S]*guard identifier[\s\S]*reason rule/u);
-  assert.match(loop, /exactly one `mcp__dev_flow__dev_flow_apply_action` mutation/u);
+  assert.match(loop, /Submit exactly one call to that qualified tool/u);
 });
 
 test("Skill keeps Workspace Root and optional codebase-memory subordinate to Core", async () => {
@@ -121,16 +139,16 @@ test("Skill keeps payload, transition, method, evidence, and terminal authority 
   const forwarding = section(skill, "Closed forwarding contract");
 
   assert.match(rendering, /references\/method-profiles\.md/u);
-  assert.match(rendering, /exactly one `MethodEvidence` item for every current Action step/u);
-  assert.match(rendering, /`status=plain_fallback` and an empty capability/u);
-  assert.match(rendering, /`status=unavailable` or `status=not_run`/u);
-  assert.match(rendering, /do not call `mcp__dev_flow__dev_flow_apply_action`/u);
+  assert.match(rendering, /one `method_results` member for every current Action step/u);
+  assert.match(rendering, /empty capability after completed ordinary work/u);
+  assert.match(rendering, /Core adds the step identity, order and status/u);
+  assert.match(rendering, /unavailable or not-run required step[\s\S]*do not call the submission tool/u);
   assert.match(transitions, /only from `fresh_action\.available_transitions`/u);
   assert.match(transitions, /Never infer an edge/u);
   assert.match(transitions, /never maintain a copied transition list/u);
   assert.match(forwarding, /references\/node-payloads\.md/u);
-  assert.match(forwarding, /all six common payload members/u);
-  assert.match(forwarding, /branch-specific required `node_result` key/u);
+  assert.match(forwarding, /live schema named by `fresh_action\.submission_tool`/u);
+  assert.match(forwarding, /`method_results`[\s\S]*keyed by every returned method `step_id`/u);
   assert.match(forwarding, /"host": "deepseek"/u);
   assert.match(forwarding, /`INVALID_ARGUMENT`[\s\S]*bounded-correction section[\s\S]*explicitly authorizes[\s\S]*`correct_current_action`[\s\S]*otherwise stop/u);
   const correction = section(skill, "Bounded correction of the current action");
@@ -156,7 +174,7 @@ test("Skill encodes explicit comprehension, refactor through TEST, and read-befo
   const getNextIndex = recovery.indexOf(qualifiedTools[3]);
   assert.ok(getTaskIndex >= 0 && getNextIndex > getTaskIndex);
   assert.match(recovery, /before considering any mutation/u);
-  assert.match(recovery, /revision, action identity, current node, last operation, and\s+recovery advice/u);
+  assert.match(recovery, /action identity, current node, last operation, and recovery\s+advice/u);
   assert.match(recovery, /DSH reconnect restores transport and tool registrations only/u);
   assert.match(recovery, /never replays, retries, resumes, or\s+completes a workflow mutation/u);
   assert.match(recovery, /complete structured `ok=false` result is an authoritative domain error/u);
@@ -171,7 +189,7 @@ test("host-neutral references retain exact Codex semantic and payload marker con
   ]);
 
   assert.equal(method.slice(method.indexOf("## Authority boundary")), codexMethod.slice(codexMethod.indexOf("## Authority boundary")));
-  assert.equal(payloads.slice(payloads.indexOf("## Construction rules")), codexPayloads.slice(codexPayloads.indexOf("## Construction rules")));
+  assert.equal(payloads, codexPayloads);
 
   const semanticTable = marked(method, "semantic-step-table");
   const steps = [...semanticTable.matchAll(/^\| `([^`]+)` \|/gmu)].map((match) => match[1]);
@@ -185,22 +203,15 @@ test("host-neutral references retain exact Codex semantic and payload marker con
     assert.match(method, new RegExp("`" + capability + "`", "u"), capability);
   }
 
-  for (const templateName of [
-    "requirements", "design", "tasks", "implement", "test", "comprehension-complexity",
-    "comprehension-passed", "refactor", "delivery", "blocked",
-  ]) {
-    const parsed = JSON.parse(fencedJson(marked(payloads, `node-payload-template:${templateName}`)));
-    if (templateName !== "blocked") {
-      assert.deepEqual(Object.keys(parsed).sort(), [
-        "artifacts", "method_evidence", "node_result", "reason", "summary", "transition_id",
-      ]);
-    }
+  for (const tool of rawTools.filter((name) => name.startsWith("dev_flow_submit_"))) {
+    assert.match(payloads, new RegExp("`" + escapeRegExp(tool) + "`", "u"));
   }
 });
 
-test("all public tool-call instructions use qualified DSH names", async () => {
+test("all explicit DeepSeek tool calls use qualified DSH names", async () => {
   const skill = await readFile(skillPath, "utf8");
-  for (const toolName of qualifiedTools) assert.match(skill, new RegExp(escapeRegExp(toolName), "u"));
+  for (const toolName of qualifiedTools.slice(0, 4)) assert.match(skill, new RegExp(escapeRegExp(toolName), "u"));
+  for (const toolName of qualifiedTools.slice(12, 14)) assert.match(skill, new RegExp(escapeRegExp(toolName), "u"));
   const withoutRawCatalog = skill.replace(/^\d+\. `dev_flow_[a-z_]+`$/gmu, "");
   assert.equal(/`dev_flow_[a-z_]+/.test(withoutRawCatalog), false);
 });

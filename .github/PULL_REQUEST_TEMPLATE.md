@@ -16,7 +16,7 @@
 
 ## 合同与文档引用 / Contract and documentation references
 
-<!-- Product Feature 填写 Feature、FR/SC、合同、任务，以及受影响的文档族；普通修正可写 N/A。 -->
+<!-- 列出验收条件、对应测试或合同，以及受影响的文档族；普通修正可写 N/A。 -->
 
 ## I18n
 
@@ -25,7 +25,7 @@
 ## Checklist
 
 - [ ] 变更基于最新 `main`，范围可独立审查。
-- [ ] Product Feature 已同步全部根 README locale、`docs/PRODUCT*` 和受影响的技术文档，或本项不适用。
+- [ ] 用户可见行为变化已同步全部根 README locale、`docs/PRODUCT*` 和受影响的技术文档，或本项不适用。
 - [ ] 文档事实变更已同步该文档族的所有维护 locale，没有占位翻译或 stale version。
 - [ ] 面向用户的 npm 安装示例使用 `@latest`，Support Matrix 与 Release 证据继续保留精确版本。
 - [ ] 新增或修改的命令已对照 package manifest、CLI parser、DSH lifecycle、Core parser 或 MCP catalog，并同步 `docs/COMMANDS*`。

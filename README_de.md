@@ -119,7 +119,7 @@ Codex oder DeepSeek einfacher.
 - **Begrenzte Verifikation:** Jeder Task hat ein verification budget; vollständige Matrizen sind nicht Standard.
 - **Sitzungsübergreifende Recovery:** Phase, Evidenz, blocker und nächste Schritte liegen in lokalem SQLite.
 - **Verständlichkeitsprüfung:** Nach Tests folgt `COMPREHENSION_REVIEW`; nicht wartbare Ergebnisse gehen zurück.
-- **Unklare Schreiboperation:** Vor einer Wiederholung wird das Recovery-Ergebnis von Core gelesen.
+- **Unklare Schreiboperation:** Core speichert die normalisierte Action-Eingabe; nach einer verlorenen Antwort genügen Task ID und Action ID, ohne den Payload neu aufzubauen.
 - **Begrenzte Multi-Repository-Scope:** Der aktuelle Source verwaltet ein primäres und bis zu sieben zusätzliche Repositories in einem Zustand.
 
 Ob Multi-Repository bereits stabil ist, steht unter [Project Status](docs/PROJECT-STATUS_en.md).

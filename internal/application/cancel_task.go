@@ -46,6 +46,7 @@ func (s *Service) CancelTask(ctx context.Context, r CancelTaskRequest) (CancelTa
 	now := s.now().UTC()
 	next.CurrentNode = domain.NodeCancelled
 	next.CurrentAction = nil
+	next.ActionCommit = nil
 	next.Blocker = nil
 	next.ResumeNode = nil
 	next.Revision++

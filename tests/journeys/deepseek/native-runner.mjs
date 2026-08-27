@@ -284,7 +284,7 @@ async function runNative(baseConfig) {
   const interruptedSummary = summarizeSession(interruptedSession.rows);
   assert.deepEqual(interruptedSummary.turnEndKinds, []);
   assert.equal(interruptedSummary.devFlowCalls[0]?.name, "mcp__dev_flow__dev_flow_server_info");
-  assert.ok(interruptedSummary.devFlowCalls.some((call) => call.name === "mcp__dev_flow__dev_flow_apply_action"));
+  assert.ok(interruptedSummary.devFlowCalls.some((call) => isActionMutationName(call.name)));
   const interruptedTask = await currentTask(config.data);
   const openResult = firstSuccessfulToolResult(
     interruptedSession.rows,
@@ -354,7 +354,7 @@ async function runNative(baseConfig) {
   const reopenSummary = summarizeSession(reopenSession.rows);
   assertCompletedTurn(reopenSummary);
   assert.equal(reopenSummary.devFlowCalls[0]?.name, "mcp__dev_flow__dev_flow_server_info");
-  assert.equal(reopenSummary.devFlowCalls.some((call) => call.name === "mcp__dev_flow__dev_flow_apply_action"), false);
+  assert.equal(reopenSummary.devFlowCalls.some((call) => isActionMutationName(call.name)), false);
   assert.equal(reopenSummary.devFlowCalls.some((call) => call.name === "mcp__dev_flow__dev_flow_cancel_task"), false);
   const reopenedTask = await currentTask(config.data);
   assert.equal(reopenedTask.task_id, task.task_id);
@@ -444,10 +444,7 @@ function assessCheckpointProgress(definition, before, after, summary) {
   if (after.revision < before.revision) return failedProgress("task revision moved backward");
 
   const calls = summary.devFlowCalls;
-  const mutations = calls.filter((call) => new Set([
-    "mcp__dev_flow__dev_flow_apply_action",
-    "mcp__dev_flow__dev_flow_cancel_task",
-  ]).has(call.name));
+  const mutations = calls.filter((call) => isActionMutationName(call.name) || call.name === "mcp__dev_flow__dev_flow_cancel_task");
   if (definition.readOnly) {
     if (!recoveryReadBeforeRetry(calls)) return failedProgress("required recovery read sequence is absent");
     if (mutations.length !== 0) return failedProgress("recovery observation mutated Core");
@@ -455,7 +452,7 @@ function assessCheckpointProgress(definition, before, after, summary) {
     return { status: "passed", progress: "read_before_retry_observed", reason: "" };
   }
   if (after.revision <= before.revision) return failedProgress("mutation checkpoint made no revision progress");
-  if (!mutations.some((call) => call.name === "mcp__dev_flow__dev_flow_apply_action")) {
+  if (!mutations.some((call) => isActionMutationName(call.name))) {
     return failedProgress("mutation checkpoint did not apply a Core action");
   }
   if (definition.toNode === "DONE") {
@@ -471,10 +468,7 @@ function assessCheckpointProgress(definition, before, after, summary) {
 function recoveryReadBeforeRetry(calls) {
   const getTask = calls.findIndex((call) => call.name === "mcp__dev_flow__dev_flow_get_task");
   const getNext = calls.findIndex((call) => call.name === "mcp__dev_flow__dev_flow_get_next_action");
-  const firstMutation = calls.findIndex((call) => new Set([
-    "mcp__dev_flow__dev_flow_apply_action",
-    "mcp__dev_flow__dev_flow_cancel_task",
-  ]).has(call.name));
+  const firstMutation = calls.findIndex((call) => isActionMutationName(call.name) || call.name === "mcp__dev_flow__dev_flow_cancel_task");
   return getTask >= 0 && getNext > getTask && firstMutation === -1;
 }
 
@@ -483,21 +477,20 @@ function failedProgress(reason) {
 }
 
 function assertMutationIdentities(calls) {
-  for (const call of calls.filter((candidate) => candidate.name === "mcp__dev_flow__dev_flow_apply_action")) {
+  for (const call of calls.filter((candidate) => isActionMutationName(candidate.name))) {
     const args = JSON.parse(call.arguments);
-    for (const field of [
-      "request_id", "host", "task_id", "revision", "action_id", "action_kind",
-      "process_id", "process_definition_digest", "source_cursor",
-      "repository_binding_digest", "payload",
-    ]) {
-      assert.notEqual(args[field], undefined, `apply_action missing ${field}`);
+    if (call.name === "mcp__dev_flow__dev_flow_apply_action") {
+      for (const field of [
+        "request_id", "host", "task_id", "revision", "action_id", "action_kind",
+        "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload",
+      ]) assert.notEqual(args[field], undefined, `legacy apply_action missing ${field}`);
+      continue;
+    }
+    for (const field of ["host", "task_id", "action_id", "transition_id", "summary", "reason", "artifacts", "method_results", "node_result"]) {
+      assert.notEqual(args[field], undefined, `Action submission missing ${field}`);
     }
     assert.equal(args.host, "deepseek");
-    assert.equal(args.process_id, "standard-development");
-    assert.match(args.request_id, /\S/u);
     assert.match(args.action_id, /\S/u);
-    assert.match(args.process_definition_digest, /^[0-9a-f]{64}$/u);
-    assert.match(args.repository_binding_digest, /^[0-9a-f]{64}$/u);
     if (args.payload === null) {
       assert.notEqual(args.recovery_apply, undefined, "recovery apply identity is missing");
     } else {
@@ -610,7 +603,7 @@ async function selfTest() {
       { name: "mcp__dev_flow__dev_flow_get_next_action" },
     ];
     assert.equal(recoveryReadBeforeRetry(recoveryCalls), true);
-    assert.equal(recoveryReadBeforeRetry([...recoveryCalls, { name: "mcp__dev_flow__dev_flow_apply_action" }]), false);
+    assert.equal(recoveryReadBeforeRetry([...recoveryCalls, { name: "mcp__dev_flow__dev_flow_submit_test" }]), false);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -932,7 +925,10 @@ async function readServerInfoFromSessions(summaries) {
   assert.notEqual(info, undefined, "server-info envelope was not retained");
   const rawTools = [
     "dev_flow_server_info", "dev_flow_open_task", "dev_flow_get_task",
-    "dev_flow_get_next_action", "dev_flow_apply_action", "dev_flow_cancel_task",
+    "dev_flow_get_next_action", "dev_flow_submit_requirements", "dev_flow_submit_design",
+    "dev_flow_submit_tasks", "dev_flow_submit_implementation", "dev_flow_submit_test",
+    "dev_flow_submit_comprehension", "dev_flow_submit_refactor", "dev_flow_submit_delivery",
+    "dev_flow_resolve_blocker", "dev_flow_recover_action", "dev_flow_cancel_task",
   ];
   assert.deepEqual(info.tools, rawTools);
   assert.deepEqual(info.method_profiles, ["plain", "spec-kit", "openspec"]);
@@ -951,8 +947,20 @@ function exactDevFlowNames() {
   return new Set([
     "mcp__dev_flow__dev_flow_server_info", "mcp__dev_flow__dev_flow_open_task",
     "mcp__dev_flow__dev_flow_get_task", "mcp__dev_flow__dev_flow_get_next_action",
-    "mcp__dev_flow__dev_flow_apply_action", "mcp__dev_flow__dev_flow_cancel_task",
+    "mcp__dev_flow__dev_flow_submit_requirements", "mcp__dev_flow__dev_flow_submit_design",
+    "mcp__dev_flow__dev_flow_submit_tasks", "mcp__dev_flow__dev_flow_submit_implementation",
+    "mcp__dev_flow__dev_flow_submit_test", "mcp__dev_flow__dev_flow_submit_comprehension",
+    "mcp__dev_flow__dev_flow_submit_refactor", "mcp__dev_flow__dev_flow_submit_delivery",
+    "mcp__dev_flow__dev_flow_resolve_blocker", "mcp__dev_flow__dev_flow_recover_action",
+    "mcp__dev_flow__dev_flow_cancel_task",
   ]);
+}
+
+function isActionMutationName(name) {
+  return typeof name === "string" && (
+    name.startsWith("mcp__dev_flow__dev_flow_submit_")
+    || name === "mcp__dev_flow__dev_flow_apply_action"
+  );
 }
 
 async function validateEvidence(evidence) {

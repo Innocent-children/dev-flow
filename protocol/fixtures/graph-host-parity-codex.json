@@ -7,6 +7,7 @@
   "definition_digest": "c3500d879c1652cb4f3944317c41c1fd2536bfb262b2fa82cd44a2d7e49c0b57",
   "current_node": "REQUIREMENTS",
   "action_kind": "COMPLETE_REQUIREMENTS",
+  "submission_tool": "dev_flow_submit_requirements",
   "node_contract": {
     "purpose": "Transform the immutable initial intent into the current requirements authority.",
     "entry_condition_ids": [
@@ -45,12 +46,15 @@
   "available_transitions": [
     "requirements_ready"
   ],
-  "apply_payload_shape": [
+  "submission_input_shape": [
+    "host",
+    "task_id",
+    "action_id",
     "transition_id",
     "summary",
     "reason",
     "artifacts",
-    "method_evidence",
+    "method_results",
     "node_result"
   ],
   "problem_class_rules": [

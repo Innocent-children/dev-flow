@@ -39,7 +39,7 @@ async function handleMessage(request) {
       result: {
         protocolVersion: request.params?.protocolVersion ?? "2025-06-18",
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "dev-flow-fake-core", version: "0.6.1" },
+        serverInfo: { name: "dev-flow-fake-core", version: "0.6.2" },
         instructions: "Test-only Core current Core contract fixture server.",
       },
     });
@@ -65,7 +65,7 @@ async function handleMessage(request) {
   }
   state.calls.push({ number: state.calls.length + 1, session, name: params.name, arguments: structuredClone(params.arguments) });
   await writeState();
-  if (params.name === "dev_flow_apply_action") {
+  if (params.name.startsWith("dev_flow_submit_")) {
     await handleApply(request.id, params.arguments);
     return;
   }
@@ -73,7 +73,7 @@ async function handleMessage(request) {
 }
 
 async function handleApply(id, arguments_) {
-  state.operationId = arguments_.request_id;
+  state.operationId = `operation-${state.calls.length}`;
   state.actionId = arguments_.action_id;
   if (!["domain-error", "budget"].includes(selectedCase)) state.applyCount += 1;
   if (selectedCase === "loss") {
@@ -92,14 +92,14 @@ async function handleApply(id, arguments_) {
     return;
   }
   await writeState();
-  writeToolResult(id, await envelopeFor("dev_flow_apply_action", arguments_));
+  writeToolResult(id, await envelopeFor("dev_flow_submit_requirements", arguments_));
 }
 
 async function envelopeFor(tool, arguments_) {
   if (tool === "dev_flow_server_info") {
     return success(tool, {
       product: "dev-flow",
-      version: "0.6.1",
+      version: "0.6.2",
       transport: "stdio",
       health: "ready",
       supported_hosts: ["codex", "deepseek"],
@@ -150,13 +150,16 @@ async function envelopeFor(tool, arguments_) {
     await writeState();
     return success(tool, { task: currentTask(), claim_released: true });
   }
-  if (tool === "dev_flow_apply_action") {
-    if (selectedCase === "domain-error") return failure(tool, "ACTION_STALE", arguments_.request_id);
-    if (selectedCase === "budget") return failure(tool, "VERIFICATION_BUDGET_EXCEEDED", arguments_.request_id);
+  if (tool.startsWith("dev_flow_submit_")) {
+    if (selectedCase === "domain-error") return failure(tool, "ACTION_STALE", state.operationId);
+    if (selectedCase === "budget") return failure(tool, "VERIFICATION_BUDGET_EXCEEDED", state.operationId);
     if (selectedCase === "blocker") state.blocked = true;
     if (selectedCase === "terminal") state.done = true;
     await writeState();
-    return success(tool, { task: currentTask(), recovery_assessment: null }, arguments_.request_id);
+    return success(tool, { task: currentTask(), recovery_assessment: null }, state.operationId);
+  }
+  if (tool === "dev_flow_recover_action" || tool === "dev_flow_resolve_blocker") {
+    return success(tool, { task: currentTask(), recovery_assessment: recoveryAssessment() }, state.operationId);
   }
   throw new Error(`unsupported tool ${tool}`);
 }
@@ -234,6 +237,7 @@ function action(revision, kind, node, payloadContract, availableTransitions) {
   return {
     action_id: `action-${node.toLowerCase()}-${revision}`,
     kind,
+    submission_tool: submissionTool(kind),
     task_id: "task-graph-0001",
     revision,
     process: processReference(),
@@ -243,6 +247,14 @@ function action(revision, kind, node, payloadContract, availableTransitions) {
     available_transitions: availableTransitions,
     method_profile: "plain",
   };
+}
+
+function submissionTool(kind) {
+  return {
+    COMPLETE_REQUIREMENTS: "dev_flow_submit_requirements",
+    COMPLETE_DESIGN: "dev_flow_submit_design",
+    RESOLVE_BLOCKER: "dev_flow_resolve_blocker",
+  }[kind];
 }
 
 function transition(transitionId, destination, reasonRequired) {
@@ -299,12 +311,22 @@ function writeToolResult(id, envelope) {
 }
 
 function toolDefinitions() {
-  const metadata = [
+	const submissionRequired = ["host", "task_id", "action_id", "transition_id", "summary", "reason", "artifacts", "method_results", "node_result"];
+	const metadata = [
     ["dev_flow_server_info", [], [] , true, false, true],
     ["dev_flow_open_task", ["host", "repository_path"], ["host", "repository_path", "primary_repository_key", "additional_repositories", "new_task"], false, false, false],
     ["dev_flow_get_task", ["host", "task_id"], ["host", "task_id", "operation_probe"], true, false, true],
     ["dev_flow_get_next_action", ["host", "task_id"], ["host", "task_id", "operation_probe"], true, false, true],
-    ["dev_flow_apply_action", ["request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload"], ["request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload", "recovery_apply"], false, false, false],
+    ["dev_flow_submit_requirements", submissionRequired, submissionRequired, false, false, true],
+    ["dev_flow_submit_design", submissionRequired, submissionRequired, false, false, true],
+    ["dev_flow_submit_tasks", submissionRequired, submissionRequired, false, false, true],
+    ["dev_flow_submit_implementation", submissionRequired, submissionRequired, false, false, true],
+    ["dev_flow_submit_test", submissionRequired, submissionRequired, false, false, true],
+    ["dev_flow_submit_comprehension", submissionRequired, submissionRequired, false, false, true],
+    ["dev_flow_submit_refactor", submissionRequired, submissionRequired, false, false, true],
+    ["dev_flow_submit_delivery", submissionRequired, submissionRequired, false, false, true],
+    ["dev_flow_resolve_blocker", ["host", "task_id", "action_id"], ["host", "task_id", "action_id"], false, false, true],
+    ["dev_flow_recover_action", ["host", "task_id", "action_id"], ["host", "task_id", "action_id"], false, false, true],
     ["dev_flow_cancel_task", ["request_id", "host", "task_id", "revision", "reason"], ["request_id", "host", "task_id", "revision", "reason"], false, true, false],
   ];
   return metadata.map(([name, required, properties, readOnlyHint, destructiveHint, idempotentHint]) => {

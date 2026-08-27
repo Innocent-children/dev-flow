@@ -1,7 +1,0 @@
-{
-  "name": "nested .specify",
-  "path": "examples/nested/.specify/config.json",
-  "contents": "{}\n",
-  "expectedPath": "examples/nested/.specify",
-  "expectedContract": "single root .specify"
-}

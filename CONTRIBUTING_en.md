@@ -10,9 +10,9 @@ final-artifact evidence, and bounded product improvements grounded in real devel
 | Change | Requirement |
 | --- | --- |
 | Spelling, links, translation, or correction of existing behavior documentation | Open a bounded pull request directly and synchronize every maintained locale in that document family according to the [I18n policy](docs/I18N_en.md) |
-| Constitution, `AGENTS.md`, template, or documentation-governance change | Explain the governance impact; do not change product versions or perform a release |
+| Template or documentation-maintenance rule change | Explain the affected surface; do not change product versions or perform a release |
 | Implementation defect that does not change public semantics | Identify the gap between the approved contract and actual behavior, then fix only that gap |
-| User-visible behavior, Core/MCP contract, persistence, process graph, or host-adapter contract change | Create a complete Product Feature, follow the [Spec Kit workflow](docs/SPEC-KIT-WORKFLOW.md) through specification and analysis, and list documentation and i18n paths in its tasks |
+| User-visible behavior, Core/MCP contract, persistence, process graph, or host-adapter contract change | Explain the user problem, scope, acceptance criteria, and approach in the pull request, and synchronize implementation, tests, documentation, and i18n |
 | Version bump, npm publication, Tag, or GitHub Release | Do not make this an ordinary pull-request deliverable; maintainers run the separate release flow after product work is merged |
 
 When classification is unclear, open an Issue first and describe the user problem, current behavior,
@@ -54,11 +54,8 @@ git checkout -b <type>/<short-description> upstream/main
 pnpm install --frozen-lockfile
 ```
 
-Before editing, read [`AGENTS.md`](AGENTS.md), the
-[Constitution](.specify/memory/constitution.md), the [I18n policy](docs/I18N_en.md), the
-[Command Reference](docs/COMMANDS_en.md), and the documents directly related to the change. A
-product-behavior change must also select its exact Feature explicitly. Do not infer the active Feature
-from the branch name or the most recently edited directory.
+Before editing, read the [I18n policy](docs/I18N_en.md), the
+[Command Reference](docs/COMMANDS_en.md), and the documents directly related to the change.
 
 ## Implementation principles
 
@@ -69,14 +66,13 @@ from the branch name or the most recently edited directory.
 - Keep Core's Git observation read-only; do not add shell, commit, push, merge, tag, or publication
   authority.
 - Run only validation directly connected to the changed surface, acceptance criteria, or known risk.
-- A Product Feature must synchronize every root README locale, `docs/PRODUCT*`, and affected technical
-  documentation.
+- A user-visible behavior change must synchronize every root README locale, `docs/PRODUCT*`, and
+  affected technical documentation.
 - A documentation correction must synchronize every maintained language in that document family.
 - When adding or changing a command, verify it against the package manifest, CLI parser, DSH lifecycle,
   Core parser, or MCP catalog and synchronize `docs/COMMANDS*`.
 - Public npm installation examples use `@latest`; exact versions remain in the Support Matrix,
   Releases, and artifact evidence.
-- Do not edit generated files under `.agents/skills/` directly.
 - Do not bump versions or perform a release from an ordinary feature or documentation pull request.
 
 ## Validation
@@ -111,7 +107,7 @@ Create the branch from current `main` and explain:
 2. what the change actually modifies;
 3. the explicit non-goals;
 4. validation performed and its result;
-5. for a Product Feature, the applicable Feature, FR/SC, contract, or task references;
+5. acceptance criteria and their corresponding tests or contracts;
 6. the document families changed and locales synchronized;
 7. the implementation source for each installation or command claim.
 

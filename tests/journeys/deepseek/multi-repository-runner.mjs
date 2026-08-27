@@ -533,7 +533,7 @@ async function buildEvidence(config, product, sessions, beforeAdditionalResume) 
   assert.equal("primary_repository_key" in resume.arguments, false);
   assert.equal("additional_repositories" in resume.arguments, false);
   const successfulApplies = [...callSets.values()].flatMap((calls) => calls.filter((call) =>
-    call.name === "mcp__dev_flow__dev_flow_apply_action" && call.envelope?.ok === true
+    (call.name.startsWith("mcp__dev_flow__dev_flow_submit_") || call.name === "mcp__dev_flow__dev_flow_apply_action") && call.envelope?.ok === true
   ));
   assert.ok(successfulApplies.length >= 7);
   const before = beforeAdditionalResume;

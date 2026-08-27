@@ -10,7 +10,7 @@ Dev Flow 的架构围绕一个原则展开：过程事实只保存一次。Go Co
 ```mermaid
 flowchart TB
     U[Developer] --> H[Codex / DeepSeek Adapter]
-    H --> M[Local STDIO MCP · 6 tools]
+    H --> M[Local STDIO MCP · 15 tools]
     M --> A[Application Service]
     A --> W[Workflow Engine]
     A --> R[Recovery]
@@ -33,8 +33,8 @@ flowchart TB
 - 启动 packaged Core 并完成 capability handshake；
 - 呈现当前节点、合法 transitions 与理解审查请求；
 - 把 semantic method steps 映射为 Host 中可用的操作；
-- 构造并转发 closed node payload；
-- 在不确定 mutation 后保留 operation identity 并先读取再恢复。
+- 按当前 Action 的 `submission_tool` 提交节点结果；
+- 在不确定 mutation 后保留 Task ID 与 Action ID，并读取 Core 保存的规范化提交后恢复。
 
 Adapter 不保存 Task、current node、transition table、baseline、repository claim 或 recovery
 classification，也不推断 completion 或 destination。
@@ -45,14 +45,23 @@ registration readback 后从配置与 receipt 的实际写入事实构造 setup 
 
 ### MCP Contract
 
-`internal/mcp/` 通过 local STDIO 暴露六个工具：
+`internal/mcp/` 通过 local STDIO 暴露十五个工具：
 
 ```text
 dev_flow_server_info
 dev_flow_open_task
 dev_flow_get_task
 dev_flow_get_next_action
-dev_flow_apply_action
+dev_flow_submit_requirements
+dev_flow_submit_design
+dev_flow_submit_tasks
+dev_flow_submit_implementation
+dev_flow_submit_test
+dev_flow_submit_comprehension
+dev_flow_submit_refactor
+dev_flow_submit_delivery
+dev_flow_resolve_blocker
+dev_flow_recover_action
 dev_flow_cancel_task
 ```
 
@@ -110,6 +119,9 @@ revision 表示当前 authority。上游变更会使对应下游记录失效，�
 正常 mutation 在一个事务中更新 snapshot、event、evidence 与 claim。Task snapshot 用于当前
 读取，TaskEvent 用于审计，不依赖 event replay 重建日常状态。
 
+Action 提交在推进 revision 前先把一份有界、规范化的 `ActionCommit` 写入当前 Task snapshot，
+不新增 event 或流程游标。随后 Task mutation 保留最近一次提交，使 Recovery 可以直接读取原输入。
+
 Store 在开放写能力前执行只读 preflight，验证 SQLite Schema、snapshot、process definition、
 Task/Event/Claim cardinality 与当前节点 authority。不兼容或 pre-graph 数据返回
 `SCHEMA_UNSUPPORTED` 并保持零写入。
@@ -128,8 +140,8 @@ Core 不执行 checkout、reset、clean、stash、commit、merge、rebase、push
 
 ### Recovery
 
-`internal/recovery/` 根据 operation identity、当前 Task、LastOperation 和一次只读 repository
-observation 生成五分类 Assessment：
+`internal/recovery/` 根据 Task snapshot 中保存的规范化 Action 提交、LastOperation 和一次只读
+repository observation 生成五分类 Assessment：
 
 ```text
 not_started
@@ -139,8 +151,8 @@ partially_completed
 conflicting
 ```
 
-Probe 始终零写入。显式 recovery apply 可以最多一次完成原 transition，或为 partial/conflicting
-创建 `BLOCKED`。Blocker 保存原 source node，解除后只回到该 resume node。
+普通读取自动返回这份提交对应的 Assessment。`dev_flow_recover_action` 可以完成原 transition，或为
+partial/conflicting 创建 `BLOCKED`。Blocker 保存原 source node，解除后只回到该 resume node。
 
 ## Repository Scope、配置与持久化边界
 
@@ -198,8 +210,9 @@ sequenceDiagram
     Core->>Git: observe repository
     Core-->>Host: node contract + legal transitions
     Host->>Developer: 执行并解释当前节点工作
-    Host->>Core: apply_action(closed payload)
+    Host->>Core: submission_tool(node result)
     Core->>Git: re-observe
+    Core->>Store: retain normalized Action submission
     Core->>Store: CAS transaction
     Core-->>Host: updated Task + next action
 ```
@@ -235,7 +248,7 @@ record。
 | `internal/recovery/` | reconciliation、assessment、blocker |
 | `internal/repository/` | read-only Git observation |
 | `internal/store/` | SQLite bootstrap、strict codec、CAS、events、claims |
-| `internal/mcp/` | six tools、closed JSON、Result Envelope |
+| `internal/mcp/` | fifteen tools、closed JSON、Result Envelope |
 | `packages/codex/` | Codex Plugin、Skill、lifecycle 与 package |
 | `packages/deepseek/` | DSH bundle、Skill、guard 与 package |
 | `protocol/fixtures/` | public contract 与 Host parity fixtures |

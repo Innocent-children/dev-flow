@@ -164,7 +164,7 @@ visibility or authorization.
 After admission, `dev_flow_server_info({})` must be the first Dev Flow call. Package contents, the
 bundled Core, Codex compatibility, and registration ownership are already validated by
 `dev-flow-codex setup`. Each Task startup silently confirms Core readiness, `standard-development`,
-the definition digest, method profiles, and the closed six-tool set, then immediately opens or
+the definition digest, method profiles, and the closed fifteen-tool set, then immediately opens or
 resumes the Task. A successful startup does not enumerate versions, digests, profiles, or tools to
 the user; a failure reports the specific blocker and one actionable recovery step. Tool and method
 profile order does not affect compatibility.
@@ -173,9 +173,18 @@ profile order does not affect compatibility.
 | --- | --- |
 | `dev_flow_server_info` | Read Core identity, capabilities, process, method profiles, tool catalog, and effective Codex index preference. It must be called first after valid admission. |
 | `dev_flow_open_task` | Create one Task for the current primary and explicit additional repositories, or resume that Task from any participating repository. |
-| `dev_flow_get_task` | Read the persisted Task and optionally attach an operation probe for a Recovery assessment. |
-| `dev_flow_get_next_action` | Read the authoritative current Action, verification budget, method steps, and every legal transition. |
-| `dev_flow_apply_action` | Apply one Core-declared transition with the current revision, Action identity, repository binding, and closed payload. A write-enabled node result reports exact `changed_paths` or `no_file_changes`; artifact references remain evidence. The input schema is one closed object, so `action_kind` and `payload` stay visible in the Host callable. Core validates the exact branch and reports field-level `error.details[]`, `error.guard`, and one `correct_current_action` allowance. |
+| `dev_flow_get_task` | Read the persisted Task and automatically return a Recovery assessment when Core retains a submission. |
+| `dev_flow_get_next_action` | Read the current Action, its `submission_tool`, verification budget, method steps, and every legal transition. |
+| `dev_flow_submit_requirements` | Submit the REQUIREMENTS node result; Core fills the complete Action identity and payload. |
+| `dev_flow_submit_design` | Submit the DESIGN node result. |
+| `dev_flow_submit_tasks` | Submit the TASKS node result. |
+| `dev_flow_submit_implementation` | Submit the IMPLEMENT node result. |
+| `dev_flow_submit_test` | Submit the TEST node result. |
+| `dev_flow_submit_comprehension` | Submit the COMPREHENSION_REVIEW node result. |
+| `dev_flow_submit_refactor` | Submit the REFACTOR node result. |
+| `dev_flow_submit_delivery` | Submit the DELIVERY node result. |
+| `dev_flow_resolve_blocker` | Resolve a blocker using only the Task ID and Action ID after its condition is met. |
+| `dev_flow_recover_action` | Recover an uncertain Action from Core's retained normalized submission. |
 | `dev_flow_cancel_task` | Cancel a nonterminal Task with the current revision and an explicit reason. |
 
 ## Comprehension and Recovery
@@ -184,10 +193,10 @@ After `TEST` passes, the Task enters `COMPREHENSION_REVIEW`. Codex explains curr
 and maintenance risk, and the developer provides an explicit verdict. Excess complexity routes to
 `REFACTOR`; repository changes must return through `TEST`.
 
-Before each mutation, the Adapter retains request/operation ID, source cursor, revision, action,
-repository binding, and original payload. If the result is missing, cancelled, truncated, malformed,
-or lost to a transport failure, the Adapter reads Core and follows its five-class Recovery assessment
-and advice. It does not infer retry safety or destination.
+Core retains the normalized Action submission before advancing the Task. If the result is missing,
+cancelled, truncated, malformed, or lost to a transport failure, the Adapter keeps only the Task ID
+and Action ID, reads Core, and calls `dev_flow_recover_action` or stops as directed. It does not
+rebuild the original payload.
 
 ## Data directory
 

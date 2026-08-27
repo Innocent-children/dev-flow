@@ -67,6 +67,34 @@ type recoveryApplyWire struct {
 	OperationID  domain.ID     `json:"operation_id"`
 	SourceCursor domain.NodeID `json:"source_cursor"`
 }
+type artifactSubmissionWire struct {
+	Path    string        `json:"path"`
+	Digest  domain.Digest `json:"digest"`
+	Summary string        `json:"summary"`
+}
+type methodResultSubmissionWire struct {
+	Capability string `json:"capability"`
+	Summary    string `json:"summary"`
+}
+type submitActionWire struct {
+	Host         domain.Host         `json:"host"`
+	TaskID       domain.ID           `json:"task_id"`
+	ActionID     domain.ID           `json:"action_id"`
+	TransitionID domain.TransitionID `json:"transition_id"`
+	Summary      string              `json:"summary"`
+	Reason       string              `json:"reason"`
+	Artifacts    struct {
+		Current      []artifactSubmissionWire `json:"current"`
+		OtherProcess []artifactSubmissionWire `json:"other_process"`
+	} `json:"artifacts"`
+	MethodResults map[domain.MethodStepID]methodResultSubmissionWire `json:"method_results"`
+	NodeResult    json.RawMessage                                    `json:"node_result"`
+}
+type actionReferenceWire struct {
+	Host     domain.Host `json:"host"`
+	TaskID   domain.ID   `json:"task_id"`
+	ActionID domain.ID   `json:"action_id"`
+}
 type cancelWire struct {
 	RequestID domain.ID   `json:"request_id"`
 	Host      domain.Host `json:"host"`
@@ -135,6 +163,9 @@ func rejectDuplicateMembers(raw []byte) error {
 	return walk()
 }
 func ValidateToolInput(tool string, raw []byte) error {
+	if kind, ok := submissionKindForTool(tool); ok {
+		return validateSubmitActionInput(kind, raw)
+	}
 	switch tool {
 	case ToolServerInfo:
 		var v struct{}
@@ -231,9 +262,48 @@ func ValidateToolInput(tool string, raw []byte) error {
 			return domain.ErrInvalidArgument
 		}
 		return nil
+	case ToolResolveBlocker, ToolRecoverAction:
+		if !hasKeys(raw, "host", "task_id", "action_id") {
+			return domain.ErrInvalidArgument
+		}
+		var v actionReferenceWire
+		if decodeClosed(raw, &v) != nil || !v.Host.IsValid() || !v.TaskID.IsValid() || !v.ActionID.IsValid() {
+			return domain.ErrInvalidArgument
+		}
+		return nil
 	default:
 		return domain.ErrInvalidArgument
 	}
+}
+
+func validateSubmitActionInput(kind domain.ActionKind, raw []byte) error {
+	if missing := missingRequestMembers(raw, "host", "task_id", "action_id", "transition_id", "summary", "reason", "artifacts", "method_results", "node_result"); len(missing) != 0 {
+		return domain.InvalidArgumentViolations(missing...)
+	}
+	var value submitActionWire
+	if err := decodeClosed(raw, &value); err != nil {
+		if member, ok := unknownRequestMember(raw, "host", "task_id", "action_id", "transition_id", "summary", "reason", "artifacts", "method_results", "node_result"); ok {
+			return domain.InvalidArgumentViolations(domain.Violation(member, domain.RuleUnknownMember))
+		}
+		return domain.ErrInvalidArgument
+	}
+	if !value.Host.IsValid() || !value.TaskID.IsValid() || !value.ActionID.IsValid() ||
+		!value.TransitionID.IsValid() || len(value.NodeResult) == 0 || !json.Valid(value.NodeResult) ||
+		len(value.Artifacts.Current)+len(value.Artifacts.OtherProcess) > domain.MaxArtifactReferencesPerAction ||
+		len(value.MethodResults) > domain.MaxMethodEvidencePerAction {
+		return domain.ErrInvalidArgument
+	}
+	node, err := workflow.NodeDefinitionForActionKind(workflow.StandardProcess(), kind)
+	if err != nil {
+		return domain.ErrInvalidArgument
+	}
+	if _, err := workflow.TransitionFor(workflow.StandardProcess(), node.NodeID, value.TransitionID); err != nil {
+		return domain.ErrTransitionNotAllowed
+	}
+	if _, allowed := workflow.PrimaryArtifactRoleForNode(node.NodeID); !allowed && len(value.Artifacts.Current) != 0 {
+		return domain.InvalidArgumentViolations(domain.Violation("artifacts.current", domain.RuleArtifactRoleNotAllowed))
+	}
+	return nil
 }
 func validOperationProbe(v *operationProbeWire) bool {
 	if v == nil {
@@ -342,4 +412,24 @@ func toRecoveryApply(w *recoveryApplyWire) *application.RecoveryApplyInput {
 		return nil
 	}
 	return &application.RecoveryApplyInput{OperationID: w.OperationID, SourceCursor: w.SourceCursor}
+}
+
+func toSubmitAction(w submitActionWire, requestID domain.ID, kind domain.ActionKind) application.SubmitActionRequest {
+	current := make([]application.ArtifactSubmission, len(w.Artifacts.Current))
+	for index, item := range w.Artifacts.Current {
+		current[index] = application.ArtifactSubmission{Path: item.Path, Digest: item.Digest, Summary: item.Summary}
+	}
+	other := make([]application.ArtifactSubmission, len(w.Artifacts.OtherProcess))
+	for index, item := range w.Artifacts.OtherProcess {
+		other[index] = application.ArtifactSubmission{Path: item.Path, Digest: item.Digest, Summary: item.Summary}
+	}
+	methods := make(map[domain.MethodStepID]application.MethodResultSubmission, len(w.MethodResults))
+	for step, result := range w.MethodResults {
+		methods[step] = application.MethodResultSubmission{Capability: result.Capability, Summary: result.Summary}
+	}
+	return application.SubmitActionRequest{
+		RequestID: requestID, Host: w.Host, TaskID: w.TaskID, ActionID: w.ActionID, ExpectedActionKind: kind,
+		TransitionID: w.TransitionID, Summary: w.Summary, Reason: w.Reason, CurrentArtifacts: current,
+		OtherProcessArtifacts: other, MethodResults: methods, NodeResult: append(json.RawMessage(nil), w.NodeResult...),
+	}
 }

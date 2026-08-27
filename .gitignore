@@ -30,5 +30,3 @@ dist/
 build/
 coverage/
 *.tgz
-
-# Local Spec Kit state is managed by .specify/.gitignore.

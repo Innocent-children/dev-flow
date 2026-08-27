@@ -682,23 +682,22 @@ test("Feature-only multi-repository CLI and layout are closed over source identi
     layout.additionalRepository,
   );
   assert.equal(substantivePrompt.startsWith(`${EXPLICIT_SELECTOR} `), true);
-  assert.match(substantivePrompt, /exactly one host=codex Task/u);
+  assert.match(substantivePrompt, /Create one host=codex Task/u);
   assert.match(substantivePrompt, /primary_repository_key=core/u);
   assert.match(substantivePrompt, /additional_repositories/u);
   assert.match(substantivePrompt, /core::core-proof\.txt[\s\S]*docs::docs-proof\.txt/u);
-  assert.match(substantivePrompt, /new nonempty opaque caller request ID[\s\S]*top-level request_id/u);
-  assert.match(substantivePrompt, /payload must have exactly transition_id, summary, reason, artifacts, method_evidence, and node_result/u);
-  assert.match(substantivePrompt, /forward ready, passed, or completed transition use problem_class=none and findings=\[\]/u);
-  assert.match(substantivePrompt, /do not run that command in this substantive session because it stops at the successful IMPLEMENT apply before TEST/u);
-  assert.match(substantivePrompt, /The success wrappers are: REQUIREMENTS=/u);
+  assert.match(substantivePrompt, /Never send request_id[\s\S]*Core fills and retains/u);
+  assert.match(substantivePrompt, /artifacts\.current[\s\S]*method_results/u);
+  assert.match(substantivePrompt, /problem_class=none and findings=\[\]/u);
+  assert.match(substantivePrompt, /Node results are REQUIREMENTS=/u);
   assert.doesNotMatch(substantivePrompt, /new_task=null/u);
-  assert.match(substantivePrompt, /Stop after the first successful apply that records both changes/u);
+  assert.match(substantivePrompt, /stop after the first successful IMPLEMENT submission records both changes/u);
 
   const resumePrompt = smokeRuntime.multiRepositoryResumePrompt(layout.additionalRepository);
   assert.equal(resumePrompt.startsWith(`${EXPLICIT_SELECTOR} `), true);
   assert.match(resumePrompt, /existing host=codex Task/u);
   assert.match(resumePrompt, /repository_path=.*docs[\s\S]*new_task=null[\s\S]*no Scope creation fields/u);
-  assert.match(resumePrompt, /Do not call dev_flow_apply_action/u);
+  assert.match(resumePrompt, /Do not modify files, call an Action submission tool/u);
 
   const runnerSource = await readFile(runner, "utf8");
   assert.match(runnerSource, /--multi-repository --codex-executable ABS --result-file ABS\.json --source-commit COMMIT/u);
@@ -1259,7 +1258,7 @@ test("acceptance sessions request workspace-write without disabling repository r
   assert.doesNotMatch(invocations[1].args.at(-1), /complete the bounded acceptance task/i);
   assert.match(
     invocations[2].args.at(-1),
-    /first successful dev_flow_apply_action following the requested repository change/u,
+    /first successful Action submission following the requested repository change/u,
   );
   assert.match(invocations[2].args.at(-1), /Core task remains nonterminal/u);
   assert.doesNotMatch(invocations[2].args.at(-1), /stop only at the Core outcome/u);
@@ -1445,30 +1444,29 @@ test("development smoke admits only four bounded run labels and exact selectors"
   }
   assert.equal(smokeRuntime.ordinaryPrompt.includes(EXPLICIT_SELECTOR), false);
   assert.equal(buildCodexExecArgs(smokeRuntime.developmentSubstantivePrompt, { ephemeral: true }).includes("--ignore-user-config"), false);
-  assert.match(smokeRuntime.developmentSubstantivePrompt, /Core-required[\s\S]*current-node[\s\S]*returned transitions[\s\S]*prerequisite/i);
-  assert.match(smokeRuntime.developmentSubstantivePrompt, /file exists[\s\S]*first successful[\s\S]*after (?:creating|creation)/i);
+  assert.match(smokeRuntime.developmentSubstantivePrompt, /first successful Action submission[\s\S]*Task remains nonterminal/i);
+  assert.match(smokeRuntime.developmentSubstantivePrompt, /first successful Action submission following file creation/i);
 });
 
 test("final registry task-bearing prompts require request binding and resume reads", () => {
   for (const prompt of [smokeRuntime.finalRegistrySubstantivePrompt, smokeRuntime.finalRegistryResumePrompt]) {
     assert.match(
       prompt,
-      /every dev_flow_apply_action[\s\S]*new nonempty opaque caller request ID[\s\S]*top-level request_id[\s\S]*never omit[\s\S]*reuse a read request ID[\s\S]*inside payload/u,
+      /fresh_action\.submission_tool[\s\S]*Never send request_id[\s\S]*Core fills and retains/u,
     );
     assert.match(
       prompt,
-      /payload must have exactly transition_id, summary, reason, artifacts, method_evidence, and node_result[\s\S]*artifacts=\[\][\s\S]*REQUIREMENTS=\{problem_class,baseline,unresolved_questions,changed_paths,no_file_changes\}[\s\S]*DELIVERY=\{problem_class,acceptance/u,
+      /artifacts\.current[\s\S]*method_results[\s\S]*REQUIREMENTS=\{problem_class,baseline,unresolved_questions,changed_paths,no_file_changes\}[\s\S]*DELIVERY=\{problem_class,acceptance/u,
     );
   }
   assert.equal(smokeRuntime.finalRegistryResumePrompt.startsWith(`${EXPLICIT_SELECTOR} `), true);
   assert.match(
     smokeRuntime.finalRegistryResumePrompt,
-    /dev_flow_open_task[\s\S]*MUST call dev_flow_get_task[\s\S]*then dev_flow_get_next_action[\s\S]*before any dev_flow_apply_action/u,
+    /dev_flow_get_task[\s\S]*dev_flow_get_next_action[\s\S]*before any Action submission/u,
   );
-  assert.match(smokeRuntime.finalRegistryResumePrompt, /Do not use the action returned by dev_flow_open_task to skip either read/u);
   assert.match(
     smokeRuntime.finalRegistryResumePrompt,
-    /maintainer explicitly confirm(?:s|ed)[\s\S]*read and understood[\s\S]*can explain and maintain[\s\S]*passes COMPREHENSION_REVIEW[\s\S]*user_confirmation source=user status=passed/u,
+    /maintainer explicitly confirmed[\s\S]*explained and maintained[\s\S]*comprehension_passed/u,
   );
 });
 
@@ -1670,14 +1668,7 @@ test("simulated current Core contract journey starts with handshake and presents
     definition_digest: "c3500d879c1652cb4f3944317c41c1fd2536bfb262b2fa82cd44a2d7e49c0b57",
     new_task_supported: true,
     method_profiles: ["plain", "spec-kit", "openspec"],
-    tools: [
-      "dev_flow_server_info",
-      "dev_flow_open_task",
-      "dev_flow_get_task",
-      "dev_flow_get_next_action",
-      "dev_flow_apply_action",
-      "dev_flow_cancel_task",
-    ],
+    tools: fixture.server_info.tools,
   });
   assert.equal(journey.presentation.current_node, "COMPREHENSION_REVIEW");
   for (const field of [
@@ -1720,9 +1711,8 @@ test("simulated method journeys use only visible capabilities and wait for compl
       { capability_id: "speckit-checklist", availability: "available" },
     ],
   );
-  assert.equal(available.apply_request.payload.node_result.problem_class, "none");
+  assert.equal(available.apply_request.node_result.problem_class, "none");
   assert.equal("destination" in available.apply_request, false);
-  assert.equal("destination" in available.apply_request.payload, false);
   assert.equal(available.core_destination, "DESIGN");
 
   const specKitPending = simulateMethodAdapterJourney(fixture, byID.get("spec-kit-clarify-unavailable-pending"));
@@ -1739,8 +1729,7 @@ test("simulated method journeys use only visible capabilities and wait for compl
     byID.get("spec-kit-clarify-unavailable-fallback-complete"),
   );
   assert.equal(specKitFallback.presentation.method_profile, "spec-kit");
-  assert.equal(specKitFallback.apply_request.payload.method_evidence[1].status, "plain_fallback");
-  assert.equal(specKitFallback.apply_request.payload.method_evidence[1].capability, "");
+  assert.equal(specKitFallback.apply_request.method_results["requirements.clarify"].capability, "");
   assert.equal(specKitFallback.core_destination, "DESIGN");
 
   const openSpecPending = simulateMethodAdapterJourney(fixture, byID.get("openspec-verify-unavailable-pending"));
@@ -1757,7 +1746,7 @@ test("simulated method journeys use only visible capabilities and wait for compl
     byID.get("openspec-verify-unavailable-fallback-complete"),
   );
   assert.equal(openSpecFallback.presentation.method_profile, "openspec");
-  assert.equal(openSpecFallback.apply_request.payload.method_evidence.every(({ status }) => status === "plain_fallback"), true);
+  assert.equal(Object.values(openSpecFallback.apply_request.method_results).every(({ capability }) => capability === ""), true);
   assert.equal(openSpecFallback.core_destination, "COMPREHENSION_REVIEW");
 });
 
@@ -1777,19 +1766,19 @@ test("simulated comprehension journey waits for the developer and uses only the 
   assert.equal(awaiting.selected_transition, null);
 
   const understood = simulateMethodAdapterJourney(fixture, byID.get("comprehension-user-understands"));
-  assert.equal(understood.apply_request.payload.transition_id, "comprehension_passed");
-  assert.deepEqual(understood.apply_request.payload.node_result.user_confirmation, {
+  assert.equal(understood.apply_request.transition_id, "comprehension_passed");
+  assert.deepEqual(understood.apply_request.node_result.user_confirmation, {
     source: "user",
     status: "passed",
     summary: "The developer explicitly confirmed understanding.",
   });
-  assert.equal(understood.apply_request.payload.node_result.problem_class, "none");
+  assert.equal(understood.apply_request.node_result.problem_class, "none");
   assert.equal(understood.core_destination, "DELIVERY");
 
   const tooComplex = simulateMethodAdapterJourney(fixture, byID.get("comprehension-code-too-complex"));
-  assert.equal(tooComplex.apply_request.payload.transition_id, "code_too_complex");
-  assert.equal(tooComplex.apply_request.payload.node_result.problem_class, "code_complexity");
-  assert.equal(tooComplex.apply_request.payload.node_result.user_confirmation, null);
+  assert.equal(tooComplex.apply_request.transition_id, "code_too_complex");
+  assert.equal(tooComplex.apply_request.node_result.problem_class, "code_complexity");
+  assert.equal(tooComplex.apply_request.node_result.user_confirmation, null);
   assert.equal(tooComplex.core_destination, "REFACTOR");
 });
 
@@ -1813,7 +1802,8 @@ test("simulated tool-state and uncertain-result journeys cannot claim Core compl
   );
   const recovery = handleUncertainFixtureResult(fixture, completed.apply_request);
   assert.equal(recovery.calls[0].tool, "dev_flow_get_task");
-  assert.equal(recovery.operation_probe.source_cursor, "TEST");
+  assert.deepEqual(recovery.calls[0].arguments, { host: "codex", task_id: completed.apply_request.task_id });
+  assert.equal(recovery.retained_action_id, completed.apply_request.action_id);
   assert.deepEqual(recovery.core_response, {
     code: "RECOVERY_UNAVAILABLE",
     retry_safe: false,
@@ -2092,12 +2082,12 @@ test("final local payload fixtures and prompts preserve every closed graph branc
   assert.equal(requirements.no_file_changes, true);
   assert.equal(JSON.stringify(fixture).includes("repository_observation"), false);
   for (const prompt of [finalLocalSessionOnePrompt, finalLocalSessionTwoPrompt, finalLocalSessionThreePrompt]) {
-    assert.match(prompt, /artifacts=\[\]/u);
-    assert.match(prompt, /required_evidence is not an ArtifactReference role/u);
-    assert.match(prompt, /complete node_result wrapper/u);
-    assert.match(prompt, /If any apply returns an error, stop immediately/u);
+    assert.match(prompt, /artifacts\.current[\s\S]*artifacts\.other_process/u);
+    assert.match(prompt, /method_results[\s\S]*method step ID/u);
+    assert.match(prompt, /exact node_result/u);
+    assert.match(prompt, /Stop after any submission error/u);
     assert.match(prompt, /problem_class=none and findings=\[\]/u);
-    assert.match(prompt, /Never submit destination, next_node, next_cursor/u);
+    assert.match(prompt, /select only a returned transition/u);
   }
 });
 
@@ -2450,7 +2440,7 @@ function simulateMethodAdapterJourney(fixture, scenario) {
   assert.equal(info.supported_processes.length, 1);
   assert.equal(info.supported_processes[0].process_id, "standard-development");
   assert.equal(info.supported_processes[0].new_task_supported, true);
-  assert.equal(info.tools.length, 6);
+  assert.equal(info.tools.length, 15);
 
   const action = fixture.actions[scenario.action];
   calls.push({ tool: "dev_flow_get_next_action", arguments: { task_id: action.task_id } });
@@ -2468,9 +2458,9 @@ function simulateMethodAdapterJourney(fixture, scenario) {
   const renderedOperations = action.method_steps.map((step) => renderFixtureOperation(step, scenario));
   const applyRequest = buildFixtureApplyRequest(fixture, action, scenario);
   const transition = applyRequest
-    ? action.available_transitions.find(({ transition_id }) => transition_id === applyRequest.payload.transition_id)
+    ? action.available_transitions.find(({ transition_id }) => transition_id === applyRequest.transition_id)
     : null;
-  if (applyRequest) calls.push({ tool: "dev_flow_apply_action", arguments: applyRequest });
+  if (applyRequest) calls.push({ tool: action.submission_tool, arguments: applyRequest });
 
   return {
     calls,
@@ -2491,7 +2481,7 @@ function simulateMethodAdapterJourney(fixture, scenario) {
       waits_for_explicit_verdict: true,
     } : null,
     method_tool_state: scenario.method_tool_state ?? [],
-    selected_transition: applyRequest?.payload.transition_id ?? null,
+    selected_transition: applyRequest?.transition_id ?? null,
     apply_request: applyRequest,
     core_destination: transition?.destination ?? null,
     current_node_after: transition?.destination ?? action.current_node,
@@ -2558,43 +2548,27 @@ function buildFixtureApplyRequest(fixture, action, scenario) {
     ? fixture[scenario.node_result]
     : scenario.node_result;
   if (!nodeResult || typeof nodeResult.problem_class !== "string") return null;
+  const methodResults = Object.fromEntries(scenario.method_evidence.map((item) => [item.step_id, {
+    capability: item.capability,
+    summary: item.summary,
+  }]));
   return {
-    request_id: `request-${scenario.id}`,
     host: "codex",
     task_id: action.task_id,
-    revision: action.revision,
     action_id: action.action_id,
-    action_kind: action.action_kind,
-    process_id: action.process_id,
-    process_definition_digest: action.process_definition_digest,
-    source_cursor: action.current_node,
-    repository_binding_digest: action.repository_binding_digest,
-    payload: {
-      transition_id: scenario.transition_id,
-      summary: `Completed simulated semantic work for ${scenario.id}.`,
-      reason: scenario.reason ?? "",
-      artifacts: [],
-      method_evidence: scenario.method_evidence,
-      node_result: nodeResult,
-    },
+    transition_id: scenario.transition_id,
+    summary: `Completed simulated semantic work for ${scenario.id}.`,
+    reason: scenario.reason ?? "",
+    artifacts: { current: [], other_process: [] },
+    method_results: methodResults,
+    node_result: nodeResult,
   };
 }
 
 function handleUncertainFixtureResult(fixture, applyRequest) {
-  const operationProbe = {
-    operation_id: applyRequest.request_id,
-    process_id: applyRequest.process_id,
-    process_definition_digest: applyRequest.process_definition_digest,
-    source_cursor: applyRequest.source_cursor,
-    expected_revision: applyRequest.revision,
-    action_id: applyRequest.action_id,
-    action_kind: applyRequest.action_kind,
-    repository_binding_digest: applyRequest.repository_binding_digest,
-    payload: applyRequest.payload,
-  };
   return {
-    calls: [{ tool: "dev_flow_get_task", arguments: { task_id: applyRequest.task_id, operation_probe: operationProbe } }],
-    operation_probe: operationProbe,
+    calls: [{ tool: "dev_flow_get_task", arguments: { host: "codex", task_id: applyRequest.task_id } }],
+    retained_action_id: applyRequest.action_id,
     core_response: fixture.uncertain_result.core_response,
     stopped: true,
     automatic_retry: false,

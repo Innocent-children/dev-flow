@@ -14,11 +14,20 @@ const exactTools = [
   "dev_flow_open_task",
   "dev_flow_get_task",
   "dev_flow_get_next_action",
-  "dev_flow_apply_action",
+  "dev_flow_submit_requirements",
+  "dev_flow_submit_design",
+  "dev_flow_submit_tasks",
+  "dev_flow_submit_implementation",
+  "dev_flow_submit_test",
+  "dev_flow_submit_comprehension",
+  "dev_flow_submit_refactor",
+  "dev_flow_submit_delivery",
+  "dev_flow_resolve_blocker",
+  "dev_flow_recover_action",
   "dev_flow_cancel_task",
 ];
 
-test("fake Core serves the current six-tool catalog and complete structured results", async (t) => {
+test("fake Core serves the current fifteen-tool catalog and complete structured results", async (t) => {
   const fixture = await makeFixture(t, "catalog");
   const client = await fixture.client();
   const tools = await client.listTools();
@@ -34,17 +43,15 @@ test("fake Core serves the current six-tool catalog and complete structured resu
   assert.equal(tools[1].inputSchema.properties.additional_repositories.items.additionalProperties, false);
   assert.deepEqual(tools[1].inputSchema.properties.additional_repositories.items.required, ["key", "repository_path"]);
   assert.deepEqual(tools[4].inputSchema.required, [
-    "request_id",
     "host",
     "task_id",
-    "revision",
     "action_id",
-    "action_kind",
-    "process_id",
-    "process_definition_digest",
-    "source_cursor",
-    "repository_binding_digest",
-    "payload",
+    "transition_id",
+    "summary",
+    "reason",
+    "artifacts",
+    "method_results",
+    "node_result",
   ]);
   const info = await client.callTool("dev_flow_server_info", {});
   assert.deepEqual(info.result.method_profiles, ["plain", "spec-kit", "openspec"]);
@@ -113,16 +120,15 @@ test("driver forwards one closed graph action identity and continues from Core r
   const client = await fixture.client();
   const opened = await client.callTool("dev_flow_open_task", openArguments());
   const action = opened.result.task.current_action;
-  const requestId = "request-graph-apply-0001";
-  const submitted = applyArguments(action, requestId);
-  const applied = await client.callTool("dev_flow_apply_action", submitted);
+  const submitted = submissionArguments(action);
+  const applied = await client.callTool(action.submission_tool, submitted);
   assert.equal(applied.result.task.current_cursor, "DESIGN");
   assert.deepEqual(applied.result.task.current_action.available_transitions.map((edge) => edge.transition_id), [
     "design_ready",
     "design_requires_requirements",
   ]);
   const calls = await fixture.toolCalls();
-  assert.deepEqual(calls.find((call) => call.name === "dev_flow_apply_action").arguments, submitted);
+  assert.deepEqual(calls.find((call) => call.name === action.submission_tool).arguments, submitted);
 });
 
 test("lost and truncated graph mutations force exact reads before retry", async (t) => {
@@ -132,30 +138,18 @@ test("lost and truncated graph mutations force exact reads before retry", async 
       const mutating = await fixture.client({ selectedCase, session: "session-uncertain" });
       const opened = await mutating.callTool("dev_flow_open_task", openArguments());
       const action = opened.result.task.current_action;
-      const requestId = `request-${selectedCase}-0001`;
-      const submitted = applyArguments(action, requestId);
-      await assert.rejects(mutating.callTool("dev_flow_apply_action", submitted), (error) => error.uncertain === true);
+      const submitted = submissionArguments(action);
+      await assert.rejects(mutating.callTool(action.submission_tool, submitted), (error) => error.uncertain === true);
       await mutating.close();
 
-      const probe = {
-        operation_id: requestId,
-        process_id: action.process.process_id,
-        process_definition_digest: action.process.definition_digest,
-        source_cursor: action.current_node,
-        expected_revision: action.revision,
-        action_id: action.action_id,
-        action_kind: action.kind,
-        repository_binding_digest: action.repository_binding_digest,
-        payload: submitted.payload,
-      };
       const recovering = await fixture.client({ session: "session-recovery" });
-      const task = await recovering.callTool("dev_flow_get_task", { host: "codex", task_id: action.task_id, operation_probe: probe });
-      const next = await recovering.callTool("dev_flow_get_next_action", { host: "codex", task_id: action.task_id, operation_probe: probe });
+      const task = await recovering.callTool("dev_flow_get_task", { host: "codex", task_id: action.task_id });
+      const next = await recovering.callTool("dev_flow_get_next_action", { host: "codex", task_id: action.task_id });
       assert.equal(task.result.recovery_assessment.classification, "completed_and_recorded");
       assert.equal(task.result.recovery_assessment.operation.source_cursor, "REQUIREMENTS");
       assert.equal(next.result.current_cursor, "DESIGN");
       const calls = await fixture.toolCalls();
-      assert.equal(calls.filter((call) => call.name === "dev_flow_apply_action").length, 1);
+      assert.equal(calls.filter((call) => call.name === action.submission_tool).length, 1);
     });
   }
 });
@@ -165,21 +159,24 @@ test("driver preserves graph errors, blocker, cancellation, and terminal outcome
     const fixture = await makeFixture(t, selectedCase);
     const client = await fixture.client({ selectedCase });
     const opened = await client.callTool("dev_flow_open_task", openArguments());
-    const result = await client.callTool("dev_flow_apply_action", applyArguments(opened.result.task.current_action, `request-${selectedCase}`));
+    const action = opened.result.task.current_action;
+    const result = await client.callTool(action.submission_tool, submissionArguments(action));
     assert.equal(result.error.code, code);
   }
 
   const blockerFixture = await makeFixture(t, "blocker");
   const blockerClient = await blockerFixture.client({ selectedCase: "blocker" });
   const blockerOpen = await blockerClient.callTool("dev_flow_open_task", openArguments());
-  const blocked = await blockerClient.callTool("dev_flow_apply_action", applyArguments(blockerOpen.result.task.current_action, "request-blocker"));
+  const blockedAction = blockerOpen.result.task.current_action;
+  const blocked = await blockerClient.callTool(blockedAction.submission_tool, submissionArguments(blockedAction));
   assert.equal(blocked.result.task.current_cursor, "BLOCKED");
   assert.equal(blocked.result.task.resume_cursor, "REQUIREMENTS");
 
   const terminalFixture = await makeFixture(t, "terminal");
   const terminalClient = await terminalFixture.client({ selectedCase: "terminal" });
   const terminalOpen = await terminalClient.callTool("dev_flow_open_task", openArguments());
-  const terminal = await terminalClient.callTool("dev_flow_apply_action", applyArguments(terminalOpen.result.task.current_action, "request-terminal"));
+  const terminalAction = terminalOpen.result.task.current_action;
+  const terminal = await terminalClient.callTool(terminalAction.submission_tool, submissionArguments(terminalAction));
   assert.equal(terminal.result.task.current_cursor, "DONE");
   assert.equal(terminal.result.task.outcome.status, "completed");
 
@@ -220,29 +217,21 @@ function openArguments() {
   };
 }
 
-function applyArguments(action, requestId) {
+function submissionArguments(action) {
   return {
-    request_id: requestId,
     host: "codex",
     task_id: action.task_id,
-    revision: action.revision,
     action_id: action.action_id,
-    action_kind: action.kind,
-    process_id: action.process.process_id,
-    process_definition_digest: action.process.definition_digest,
-    source_cursor: action.current_node,
-    repository_binding_digest: action.repository_binding_digest,
-    payload: {
-      transition_id: "requirements_ready",
-      summary: "Requirements are bounded and testable.",
-      reason: "",
-      artifacts: [],
-      method_evidence: [
-        { step_id: "requirements.capture", status: "plain_fallback", capability: "", summary: "Captured requirements." },
-        { step_id: "requirements.clarify", status: "plain_fallback", capability: "", summary: "Resolved material questions." },
-        { step_id: "requirements.validate", status: "plain_fallback", capability: "", summary: "Validated requirements." },
-      ],
-      node_result: {
+    transition_id: "requirements_ready",
+    summary: "Requirements are bounded and testable.",
+    reason: "",
+    artifacts: { current: [], other_process: [] },
+    method_results: {
+      "requirements.capture": { capability: "", summary: "Captured requirements." },
+      "requirements.clarify": { capability: "", summary: "Resolved material questions." },
+      "requirements.validate": { capability: "", summary: "Validated requirements." },
+    },
+    node_result: {
         problem_class: "none",
         baseline: {
           goal: "Define one bounded graph requirement.",
@@ -255,7 +244,6 @@ function applyArguments(action, requestId) {
         unresolved_questions: [],
         changed_paths: [],
         no_file_changes: true,
-      },
     },
   };
 }

@@ -16,7 +16,7 @@ func TestCurrentResultEnvelopeContract(t *testing.T) {
 	assertEnvelope(t, failure, true)
 }
 func TestRecoveryUnavailableResultEnvelope(t *testing.T) {
-	encoded := core.EncodeError("request-recovery", core.ToolApplyAction, domain.ErrRecoveryUnavailable)
+	encoded := core.EncodeError("request-recovery", core.ToolRecoverAction, domain.ErrRecoveryUnavailable)
 	assertEnvelope(t, encoded, true)
 	if !bytes.Contains(encoded.JSON, []byte(`"code":"RECOVERY_UNAVAILABLE"`)) || !bytes.Contains(encoded.JSON, []byte(`"retry_safe":false`)) || !bytes.Contains(encoded.JSON, []byte(`"action":"none"`)) {
 		t.Fatal(string(encoded.JSON))

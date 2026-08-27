@@ -10,9 +10,9 @@ Dev Flow 接受可复现的缺陷、文档修正、经过最终制品验证的�
 | 变更 | 要求 |
 | --- | --- |
 | 拼写、链接、翻译或现有行为说明修正 | 可以直接提交有界 Pull Request；按照 [I18n 策略](docs/I18N.md) 同步该文档族的全部维护 locale |
-| Constitution、`AGENTS.md`、模板或文档治理变化 | 说明治理影响；不修改产品版本，不执行发布 |
+| 模板或文档维护规则变化 | 说明影响范围；不修改产品版本，不执行发布 |
 | 不改变公共语义的实现缺陷 | 说明已批准合同与实际行为的偏差，并只修复该偏差 |
-| 用户可见行为、Core/MCP 合同、持久化、状态图或 Host Adapter 合同变化 | 先建立完整 Product Feature，按 [Spec Kit 工作流](docs/SPEC-KIT-WORKFLOW.md) 完成规格与分析，并把文档和 i18n 路径列入任务 |
+| 用户可见行为、Core/MCP 合同、持久化、状态图或 Host Adapter 合同变化 | 在 Pull Request 中说明用户问题、范围、验收条件和方案，并同步实现、测试、文档与 i18n |
 | 版本提升、npm、Tag 或 GitHub Release | 不作为普通 Pull Request 的交付步骤；由维护者在功能合并后使用独立发布流程执行 |
 
 分类不明确时，先提交 Issue，描述用户问题、当前行为和预期结果。不要先实现较大方案，再要求规格
@@ -51,10 +51,8 @@ git checkout -b <type>/<short-description> upstream/main
 pnpm install --frozen-lockfile
 ```
 
-开始修改前，请阅读 [`AGENTS.md`](AGENTS.md)、
-[Constitution](.specify/memory/constitution.md)、[I18n 策略](docs/I18N.md)、
-[命令参考](docs/COMMANDS.md) 和与变更直接相关的文档。产品行为变更还必须显式选择对应 Feature；
-不要根据分支名称或最近编辑的目录推断活动 Feature。
+开始修改前，请阅读 [I18n 策略](docs/I18N.md)、[命令参考](docs/COMMANDS.md) 和与变更直接
+相关的文档。
 
 ## 实施原则
 
@@ -62,11 +60,10 @@ pnpm install --frozen-lockfile
 - Go Core 继续独占 Task、节点、合法流转、恢复分类和终态权威；
 - Core 只读观察 Git，不增加 shell、commit、push、merge、tag 或发布能力；
 - 只运行与改动表面、验收条件或已知风险直接相关的验证；
-- Product Feature 必须同步更新全部根 README locale、`docs/PRODUCT*` 和受影响的技术文档；
+- 改变用户可见行为时，必须同步更新全部根 README locale、`docs/PRODUCT*` 和受影响的技术文档；
 - 文档修正必须同步该文档族的所有维护语言；
 - 新增或修改命令时，对照 package manifest、CLI parser、DSH lifecycle、Core parser 或 MCP catalog，并同步 `docs/COMMANDS*`；
 - 面向用户的 npm 安装示例使用 `@latest`，精确版本只用于 Support Matrix、Release 与制品证据；
-- 不直接修改 `.agents/skills/` 下的生成文件；
 - 不在普通功能或文档 Pull Request 中提升版本或执行发布。
 
 ## 验证
@@ -99,7 +96,7 @@ pnpm run validate
 2. 本次实际修改；
 3. 明确未修改的范围；
 4. 执行过的验证及结果；
-5. Product Feature 对应的 Feature、FR/SC、合同或任务引用；
+5. 验收条件及对应的测试或合同；
 6. 修改的文档族和已同步的 locale；
 7. 命令或安装文档所对应的实现来源。
 

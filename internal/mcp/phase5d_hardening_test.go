@@ -176,7 +176,7 @@ func TestServerInfoUsesExactPublicDTOFixture(t *testing.T) {
 }
 
 func TestRecoveryUnavailablePublicEnvelopeIsFailClosed(t *testing.T) {
-	encoded := EncodeError("recovery-request", ToolApplyAction, domain.ErrRecoveryUnavailable)
+	encoded := EncodeError("recovery-request", ToolRecoverAction, domain.ErrRecoveryUnavailable)
 	if !encoded.IsError || !bytes.Contains(encoded.JSON, []byte(`"code":"RECOVERY_UNAVAILABLE"`)) ||
 		!bytes.Contains(encoded.JSON, []byte(`"retry_safe":false`)) || !bytes.Contains(encoded.JSON, []byte(`"action":"none"`)) ||
 		bytes.Contains(encoded.JSON, []byte(`"recovery_assessment"`)) {

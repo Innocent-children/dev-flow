@@ -13,6 +13,11 @@ type Store interface {
 	CommitTask(context.Context, TaskMutation) error
 }
 
+type ActionCommitStore interface {
+	Store
+	StageActionCommit(context.Context, domain.ProcessTask) error
+}
+
 type TaskListQuery struct {
 	Text        string
 	Host        domain.Host
@@ -101,3 +106,4 @@ type TaskEvent struct {
 }
 
 var _ Store = (*SQLite)(nil)
+var _ ActionCommitStore = (*SQLite)(nil)

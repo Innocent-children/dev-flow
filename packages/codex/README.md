@@ -93,7 +93,8 @@ Core 会持续返回：
 - method profile 对应的 semantic steps；
 - 全部合法 transitions、guard、destination 与 reason rule。
 
-Codex 完成当前节点工作后，只提交 live Action 允许的 `transition_id` 和 closed payload。
+Codex 完成当前节点工作后，调用 live Action 的 `submission_tool`，只提交 Task ID、Action ID、
+`transition_id`、artifact slots、method results 和节点结果；Core 补齐完整 mutation 输入。
 
 ## 两仓声明、权限与可选索引
 
@@ -150,7 +151,7 @@ $dev-flow-codex:dev-flow
 
 通过 admission 后，`dev_flow_server_info({})` 必须是第一次 Dev Flow 调用。安装内容、bundled
 Core、Codex 兼容性和注册 ownership 已由 `dev-flow-codex setup` 验证；每次 Task 启动只静默确认
-Core ready、`standard-development`、definition digest、method profiles 与六个工具的闭合集合，
+Core ready、`standard-development`、definition digest、method profiles 与十五个工具的闭合集合，
 成功后立即打开或恢复 Task。正常启动不向用户逐项展示版本、摘要、profile 或工具目录；只有失败
 时才报告具体阻塞项和一个可执行的恢复步骤。工具和 method profile 的返回顺序不影响兼容性。
 
@@ -158,9 +159,18 @@ Core ready、`standard-development`、definition digest、method profiles 与六
 | --- | --- |
 | `dev_flow_server_info` | 读取 Core identity、能力、process、method profile、工具目录和 Codex 有效索引偏好；有效 admission 后必须首先调用。 |
 | `dev_flow_open_task` | 为当前主仓库和显式附加仓库创建一个 Task，或从任一参与仓库恢复同一 Task。 |
-| `dev_flow_get_task` | 读取持久化 Task；可附带 operation probe 获取 Recovery assessment。 |
-| `dev_flow_get_next_action` | 读取当前节点的权威 Action、验证预算、method steps 和全部合法 transition。 |
-| `dev_flow_apply_action` | 使用当前 revision、Action identity、repository binding 和 closed payload 应用一次 Core 声明的 transition；允许写入的 node result 提交精确 `changed_paths` 或 `no_file_changes`，artifact references 只作为证据。输入 Schema 是单个封闭对象，`action_kind` 与 `payload` 在 Host callable 中完整可见；精确分支由 Core 校验，失败时返回字段级 `error.details[]`、`error.guard` 与一次 `correct_current_action` 纠正许可。 |
+| `dev_flow_get_task` | 读取持久化 Task；存在 Core 保存的提交时自动返回 Recovery assessment。 |
+| `dev_flow_get_next_action` | 读取当前 Action、`submission_tool`、验证预算、method steps 和全部合法 transition。 |
+| `dev_flow_submit_requirements` | 提交 REQUIREMENTS 节点结果；Core 补齐完整 Action identity 和内部 payload。 |
+| `dev_flow_submit_design` | 提交 DESIGN 节点结果。 |
+| `dev_flow_submit_tasks` | 提交 TASKS 节点结果。 |
+| `dev_flow_submit_implementation` | 提交 IMPLEMENT 节点结果。 |
+| `dev_flow_submit_test` | 提交 TEST 节点结果。 |
+| `dev_flow_submit_comprehension` | 提交 COMPREHENSION_REVIEW 节点结果。 |
+| `dev_flow_submit_refactor` | 提交 REFACTOR 节点结果。 |
+| `dev_flow_submit_delivery` | 提交 DELIVERY 节点结果。 |
+| `dev_flow_resolve_blocker` | 使用 Task ID 与 Action ID 解除已满足条件的 blocker。 |
+| `dev_flow_recover_action` | 使用 Core 保存的规范化提交恢复不确定 Action，不重新发送 payload。 |
 | `dev_flow_cancel_task` | 使用当前 revision 和明确 reason 取消一个非终态 Task。 |
 
 ## 理解审查与 Recovery
@@ -168,9 +178,9 @@ Core ready、`standard-development`、definition digest、method profiles 与六
 `TEST` 通过后，Task 进入 `COMPREHENSION_REVIEW`。Codex 解释当前行为、设计与维护风险，开发者
 给出明确 verdict。复杂实现进入 `REFACTOR`；仓库发生变化后必须重新回到 `TEST`。
 
-每次 mutation 前，Adapter 保留 request/operation ID、source cursor、revision、action、
-repository binding 和原始 payload。结果缺失、取消、截断、损坏或 transport failure 时，Adapter
-先读取 Core，再遵循五分类 Recovery 和 advice；它不自行判断 retry safety 或 destination。
+Core 在推进 Task 前保存规范化 Action 提交。结果缺失、取消、截断、损坏或 transport failure 时，
+Adapter 只保留 Task ID 与 Action ID，先读取 Core，再调用 `dev_flow_recover_action` 或按 advice
+停止；它不重建原始 payload。
 
 ## 数据目录
 

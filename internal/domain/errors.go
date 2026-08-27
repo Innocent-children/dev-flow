@@ -62,6 +62,8 @@ const (
 	RuleRepositoryPathInvalid          ViolationRule = "repository_path_invalid"
 	RuleRepositoryMutationInconsistent ViolationRule = "repository_mutation_inconsistent"
 	RuleProblemClassNotValidForNode    ViolationRule = "problem_class_not_valid_for_node"
+	RuleArtifactRoleNotAllowed         ViolationRule = "artifact_role_not_allowed"
+	RuleRepositoryEffectNotAllowed     ViolationRule = "repository_effect_not_allowed"
 )
 
 var violationMessages = map[ViolationRule]string{
@@ -81,6 +83,8 @@ var violationMessages = map[ViolationRule]string{
 	RuleRepositoryPathInvalid:          "the repository contract path is invalid",
 	RuleRepositoryMutationInconsistent: "changed_paths and no_file_changes contradict each other",
 	RuleProblemClassNotValidForNode:    "problem_class is not allowed for the current node",
+	RuleArtifactRoleNotAllowed:         "the current Action does not allow this artifact role",
+	RuleRepositoryEffectNotAllowed:     "the current Action does not allow the submitted repository effect",
 }
 
 func (r ViolationRule) IsValid() bool {

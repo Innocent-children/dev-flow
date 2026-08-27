@@ -120,7 +120,7 @@ sencillo usar Codex o DeepSeek directamente.
 - **Verificación acotada:** cada Task conserva un verification budget; las matrices completas no son predeterminadas.
 - **Recuperación entre sesiones:** etapa, evidencia, blockers y siguientes pasos se guardan en SQLite local.
 - **Revisión de comprensión:** después de las pruebas se exige `COMPREHENSION_REVIEW`.
-- **Recuperación de escrituras inciertas:** se lee el resultado Recovery de Core antes de reintentar.
+- **Recuperación de escrituras inciertas:** Core conserva la entrada Action normalizada; tras perder una respuesta bastan Task ID y Action ID, sin reconstruir el payload.
 - **Alcance multirrepositorio acotado:** el source actual admite un principal y hasta siete adicionales con un único estado.
 
 Consulta [Project Status](docs/PROJECT-STATUS_en.md) para saber si el soporte multirrepositorio ya está

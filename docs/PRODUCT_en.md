@@ -47,9 +47,10 @@ restores authoritative state.
 ### Replay of an uncertain mutation
 
 When a mutation response is missing, cancelled, truncated, or malformed, direct replay can duplicate
-side effects. Dev Flow identifies the operation through revision, action identity, source cursor,
-repository binding, and the original payload, and requires read-before-retry. Core returns a
-five-class Recovery assessment before recovery, blocking, or safe retry is selected.
+side effects. The Host submits the Task ID, Action ID, and node result through the tool named by the
+current Action. Core fills the complete identity, artifact roles, method steps, and payload envelope,
+then retains the normalized submission in the Task snapshot before advancing the Task. Recovery reads
+that retained submission, so the caller no longer stores or rebuilds the original payload.
 
 ### Behavioral correctness and maintainability are not separated
 
@@ -178,6 +179,7 @@ product version numbers do not have to match.
 - Every Task carries a verification budget, and validation scope must directly relate to the current
   node, changed surface, acceptance criteria, or recovery risk.
 - Mutations carry revision, action identity, source cursor, and repository binding.
+- The Host submits the current Action result; Core fills and retains the complete mutation input.
 - A write-enabled Action result reports exact `changed_paths` or `no_file_changes`; Core validates the
   issuance baseline, `allowed_effects`, and fresh observation, while artifact references do not replace
   the mutation envelope.

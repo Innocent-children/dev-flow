@@ -131,6 +131,31 @@ func TestCanonicalValidatedPayloadIgnoresJSONFormatting(t *testing.T) {
 	}
 }
 
+func TestCanonicalComprehensionPayloadRetainsRequiredEmptyFindings(t *testing.T) {
+	steps, err := NodeDefinition(StandardProcess(), domain.NodeComprehensionReview)
+	if err != nil {
+		t.Fatal(err)
+	}
+	method := make([]domain.MethodEvidence, len(steps.SemanticMethodSteps))
+	for index, step := range steps.SemanticMethodSteps {
+		method[index] = domain.MethodEvidence{StepID: step.StepID, Status: domain.MethodStepPlainFallback, Summary: "Completed step."}
+	}
+	envelope := StandardPayload{TransitionID: "comprehension_passed", Summary: "Understood.", Reason: "", Artifacts: []domain.ArtifactReference{}, MethodEvidence: method}
+	result := &ComprehensionResult{
+		ProblemClass: ProblemNone, ExplainedComponents: []string{"request path"}, UnresolvedQuestions: []string{},
+		UnnecessaryAbstractions: []string{}, MaintenanceRisks: []string{},
+		UserConfirmation: &UserConfirmation{Source: domain.EvidenceSourceUser, Status: domain.EvidencePassed, Summary: "Confirmed."},
+		Findings:         []string{}, ChangedPaths: []string{}, NoFileChanges: true,
+	}
+	canonical, err := CanonicalValidatedPayload(envelope, result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := DecodeStandardPayload(domain.NodeComprehensionReview, canonical); err != nil {
+		t.Fatalf("canonical comprehension payload lost a required member: %v\n%s", err, canonical)
+	}
+}
+
 func TestPhase5BReasonRulesMatchAllStandardTransitions(t *testing.T) {
 	reasonFree := map[domain.TransitionID]bool{
 		"requirements_ready": true, "design_ready": true, "tasks_ready": true,

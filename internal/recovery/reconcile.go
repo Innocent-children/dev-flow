@@ -3,19 +3,15 @@ package recovery
 import (
 	"bytes"
 	"encoding/json"
-	"io"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
-type BlockerResolutionPayload struct {
-	BlockerID             domain.ID               `json:"blocker_id"`
-	Condition             domain.BlockerCondition `json:"condition"`
-	ObservedBindingDigest domain.Digest           `json:"observed_binding_digest"`
-}
+type BlockerResolutionPayload = domain.BlockerResolutionPayload
 
 func CompareRepositoryBindings(authoritative, fresh domain.RepositoryBinding) (RepositoryRelation, error) {
 	relation, _, err := compareRepositoryBindings(authoritative, fresh)
@@ -311,9 +307,9 @@ func RepositoryScopeEffectEvidence(task domain.ProcessTask, observed RepositoryS
 }
 
 func DeriveRepositoryEffect(source domain.NodeID, envelope workflow.StandardPayload, result any) (RepositoryEffect, error) {
-	for _, artifact := range envelope.Artifacts {
-		if !artifactRoleAllowed(source, artifact.Role) {
-			return RepositoryEffect{}, domain.ErrInvalidArgument
+	for index, artifact := range envelope.Artifacts {
+		if !workflow.ArtifactRoleAllowed(source, artifact.Role) {
+			return RepositoryEffect{}, domain.InvalidArgumentViolations(domain.Violation("payload.artifacts["+strconv.Itoa(index)+"].role", domain.RuleArtifactRoleNotAllowed))
 		}
 	}
 	switch value := result.(type) {
@@ -406,21 +402,7 @@ func matchesDeclaredPaths(authoritative, declared, observed []string) bool {
 }
 
 func DecodeBlockerResolutionPayload(raw []byte) (BlockerResolutionPayload, json.RawMessage, error) {
-	if len(raw) == 0 || !json.Valid(raw) || rejectDuplicateMembers(raw) != nil {
-		return BlockerResolutionPayload{}, nil, domain.ErrInvalidArgument
-	}
-	decoder := json.NewDecoder(bytes.NewReader(raw))
-	decoder.DisallowUnknownFields()
-	var payload BlockerResolutionPayload
-	if decoder.Decode(&payload) != nil || decoder.Decode(&struct{}{}) != io.EOF ||
-		!payload.BlockerID.IsValid() || payload.Condition.Validate() != nil || !payload.ObservedBindingDigest.IsValid() {
-		return BlockerResolutionPayload{}, nil, domain.ErrInvalidArgument
-	}
-	canonical, err := json.Marshal(payload)
-	if err != nil {
-		return BlockerResolutionPayload{}, nil, domain.ErrInvalidArgument
-	}
-	return payload, canonical, nil
+	return workflow.DecodeBlockerResolutionPayload(raw)
 }
 
 func compareLastOperation(last *domain.LastOperation, operation domain.OperationReference, digest *domain.Digest, taskRevision uint64) (LastOperationRelation, *CommittedOperationProof) {
@@ -466,28 +448,6 @@ func currentActionID(action *domain.ProcessAction) *domain.ID {
 	}
 	id := action.ActionID
 	return &id
-}
-
-func artifactRoleAllowed(source domain.NodeID, role domain.ArtifactRole) bool {
-	if role == domain.ArtifactOtherProcess {
-		return true
-	}
-	switch source {
-	case domain.NodeRequirements:
-		return role == domain.ArtifactRequirements
-	case domain.NodeDesign:
-		return role == domain.ArtifactDesign
-	case domain.NodeTasks:
-		return role == domain.ArtifactTaskPlan
-	case domain.NodeTest:
-		return role == domain.ArtifactTest
-	case domain.NodeComprehensionReview:
-		return role == domain.ArtifactComprehension
-	case domain.NodeDelivery:
-		return role == domain.ArtifactDelivery
-	default:
-		return false
-	}
 }
 
 func sortedPaths(paths []string) []string {

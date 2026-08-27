@@ -24,7 +24,10 @@ import { fileURLToPath } from "node:url";
 const execFile = promisify(execFileCallback);
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = join(packageRoot, "..", "..");
-const currentVersion = (await readFile(join(repositoryRoot, "CORE_VERSION"), "utf8")).trim();
+const currentCoreVersion = (await readFile(join(repositoryRoot, "CORE_VERSION"), "utf8")).trim();
+const currentPackageVersion = JSON.parse(
+  await readFile(join(packageRoot, "package.json"), "utf8"),
+).version;
 const buildScript = join(repositoryRoot, "scripts", "build-codex-local.sh");
 const fakeCodexPath = join(packageRoot, "tests", "fixtures", "fake-codex.mjs");
 const supportedMachine = process.platform === "darwin" && process.arch === "arm64";
@@ -87,8 +90,8 @@ test("source-free global tarball install, explicit lifecycle, uninstall, and ret
   });
   const build = JSON.parse(buildOutput);
   assert.equal(build.final_artifact, false);
-  assert.equal(build.package_version, currentVersion);
-  assert.equal(build.core_version, build.package_version);
+  assert.equal(build.package_version, currentPackageVersion);
+  assert.equal(build.core_version, currentCoreVersion);
   assert.equal(build.platform, "darwin-arm64");
   assert.match(build.artifact_sha256, /^[0-9a-f]{64}$/u);
   assert.equal(await sha256(readFile(build.artifact_path)), build.artifact_sha256);
@@ -129,15 +132,25 @@ test("source-free global tarball install, explicit lifecycle, uninstall, and ret
     env: productEnvironment,
     encoding: "utf8",
   });
-  assert.equal(version.stdout, `dev-flow-codex ${currentVersion} (core ${currentVersion})\n`);
+  assert.equal(
+    version.stdout,
+    `dev-flow-codex ${currentPackageVersion} (core ${currentCoreVersion})\n`,
+  );
   assert.equal(version.stderr, "");
 
   const setup = await runLifecycle(firstInstallation.executable, "setup", productEnvironment, targetRepository);
+  const configurationPath = join(isolatedHome, ".dev-flow", "config.json");
   assert.deepEqual(setup, {
     operation: "setup",
     status: "installed",
     changed: true,
     receipt_path: receiptPath,
+    configuration_path: configurationPath,
+    file_changes: [
+      { path: configurationPath, change: "created" },
+      { path: receiptPath, change: "created" },
+    ],
+    next_step: "$dev-flow-codex:dev-flow <task description>",
   });
   const repeatedSetup = await runLifecycle(firstInstallation.executable, "setup", productEnvironment, targetRepository);
   assert.equal(repeatedSetup.status, "already-installed");
@@ -203,7 +216,7 @@ test("source-free global tarball install, explicit lifecycle, uninstall, and ret
   clients.push(firstCore);
   const info = await firstCore.callTool("dev_flow_server_info", {});
   assert.equal(info.result.version, build.core_version);
-  assert.equal(info.result.tools.length, 6);
+  assert.equal(info.result.tools.length, 15);
   const opened = await firstCore.callTool("dev_flow_open_task", {
     host: "codex",
     repository_path: targetRepository,
@@ -247,7 +260,7 @@ test("source-free global tarball install, explicit lifecycle, uninstall, and ret
   assert.equal(removed.operation, "remove");
   assert.equal(removed.status, "removed");
   assert.equal(removed.changed, true);
-  assert.match(removed.next_step, /npm uninstall dev-flow-codex separately/u);
+  assert.match(removed.next_step, /npm uninstall -g dev-flow-codex separately/u);
   await assert.rejects(stat(receiptPath), { code: "ENOENT" });
   const registrationAfterRemove = JSON.parse(await readFile(fakeState, "utf8"));
   assert.deepEqual(registrationAfterRemove, {
@@ -437,7 +450,7 @@ test("compatible package upgrade resumes the active task and a newer schema stop
     cwd: targetRepository,
     env: environment,
     encoding: "utf8",
-  })).stdout, "dev-flow-codex 0.1.1 (core 0.5.0)\n");
+  })).stdout, `dev-flow-codex 0.1.1 (core ${currentCoreVersion})\n`);
   assert.equal(await readFile(receiptPath, "utf8"), receiptA);
   assert.equal(await readFile(fakeState, "utf8"), registrationA);
   assert.deepEqual(await directoryManifest(dataDirectory), dataBeforeNpmUpdate);
@@ -449,7 +462,7 @@ test("compatible package upgrade resumes the active task and a newer schema stop
   assert.equal(setupB.changed, true);
   const receiptB = JSON.parse(await readFile(receiptPath, "utf8"));
   assert.equal(receiptB.product.version, "0.1.1");
-  assert.equal(receiptB.product.core_version, "0.5.0");
+  assert.equal(receiptB.product.core_version, currentCoreVersion);
   assert.notDeepEqual(receiptB.resource_digests, JSON.parse(receiptA).resource_digests);
   const registrationB = JSON.parse(await readFile(fakeState, "utf8"));
   assert.equal(registrationB.marketplaces.length, 1);
@@ -560,7 +573,7 @@ test("release preparation uses two clean worktrees and verifies one canonical fi
   assert.deepEqual(await readdir(output), [
     "SHA256SUMS",
     "dev-flow-codex-1.2.4.tgz",
-    "dev-flow-core-0.5.0-darwin-arm64",
+    `dev-flow-core-${currentCoreVersion}-darwin-arm64`,
     "publication-record.json",
     "release-manifest.json",
   ]);

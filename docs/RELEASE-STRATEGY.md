@@ -47,5 +47,5 @@ publish-once npm behavior, immutable Tag/assets, remote read-back, atomic local 
 read-before-retry. Resume uses the original product, Codex/Core versions, Tag, source, mode, previous
 release, and digests, including a frozen source checkout when current source has advanced.
 
-Product Features and pull-request validation never execute publication. A release occurs only after
+Product changes and pull-request validation never execute publication. A release occurs only after
 merge, mode selection, target version, and exact maintainer confirmation.
