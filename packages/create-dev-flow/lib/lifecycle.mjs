@@ -20,16 +20,18 @@ export async function runMain(arguments_, dependencies = {}) {
   const errorOutput = dependencies.errorOutput ?? process.stderr;
   let request;
   try {
+    const environment = dependencies.environment ?? process.env;
+    const language = resolveLanguage(environment);
     request = parseArguments(arguments_, {
       isTTY: dependencies.isTTY ?? Boolean(input.isTTY && output.isTTY),
       noColor: dependencies.noColor ?? process.env.NO_COLOR !== undefined,
     });
-    if (request.interactive) request = await (dependencies.promptForRequest ?? promptForRequest)({ input, output });
-    const result = await runLifecycle(request, { ...dependencies, input, output });
-    if (request.outputMode !== "json" && result.plan) output.write(renderPlan(result.plan, { mode: request.outputMode }));
+    if (request.interactive) request = await (dependencies.promptForRequest ?? promptForRequest)({ input, output, language });
+    const result = await runLifecycle(request, { ...dependencies, input, output, environment, language });
+    if (request.outputMode !== "json" && result.plan) output.write(renderPlan(result.plan, { mode: request.outputMode, language }));
     output.write(renderResult(result.result, {
       mode: request.outputMode,
-      language: resolveLanguage(dependencies.environment ?? process.env),
+      language,
     }));
     return { code: result.code };
   } catch (error) {
@@ -65,6 +67,7 @@ export async function runLifecycle(request, dependencies = {}) {
   const confirmed = await (dependencies.confirmPlan ?? confirmPlan)(plan, request, {
     input: dependencies.input ?? process.stdin,
     output: dependencies.output ?? process.stdout,
+    language: dependencies.language ?? resolveLanguage(environment),
   });
   if (!confirmed) {
     return {

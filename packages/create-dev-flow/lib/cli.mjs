@@ -1,5 +1,7 @@
 import { createInterface } from "node:readline/promises";
 
+import { messagesForLanguage, resolveLanguage } from "./presentation.mjs";
+
 export const OPERATIONS = Object.freeze([
   "status",
   "doctor",
@@ -122,20 +124,21 @@ export function parseArguments(arguments_, {
   });
 }
 
-export async function promptForRequest({ input = process.stdin, output = process.stdout } = {}) {
+export async function promptForRequest({ input = process.stdin, output = process.stdout, language = resolveLanguage() } = {}) {
+  const messages = messagesForLanguage(language);
   const terminal = createInterface({ input, output });
   try {
-    output.write("Dev Flow Lifecycle Manager\n\n");
+    output.write(`${messages.title}\n\n`);
     const homeChoices = [
-      { label: "Install Codex", host: "codex" },
-      { label: "Install DeepSeek", host: "deepseek" },
-      { label: "Install Codex + DeepSeek", host: "all" },
-      { label: "Manage existing installation", host: null },
+      { label: messages.installCodex, host: "codex" },
+      { label: messages.installDeepSeek, host: "deepseek" },
+      { label: messages.installAll, host: "all" },
+      { label: messages.manage, host: null },
     ];
     homeChoices.forEach((choice, index) => output.write(`${index + 1}. ${choice.label}\n`));
-    const home = selectNumber(await terminal.question("Choose: "), homeChoices, "home");
+    const home = selectNumber(await terminal.question(messages.choose), homeChoices, "home");
     if (home.host !== null) {
-      const profile = home.host === "codex" ? null : validateProfile((await terminal.question("DeepSeek Profile [web]: ")).trim() || "web");
+      const profile = home.host === "codex" ? null : validateProfile((await terminal.question(messages.profilePrompt)).trim() || "web");
       return parseArguments([
         "install",
         "--host", home.host,
@@ -143,12 +146,12 @@ export async function promptForRequest({ input = process.stdin, output = process
       ], { isTTY: true, noColor: process.env.NO_COLOR !== undefined });
     }
 
-    output.write("\nManage existing installation\n");
-    OPERATIONS.forEach((operation, index) => output.write(`${index + 1}. ${operation}\n`));
-    const operation = selectNumber(await terminal.question("Operation: "), OPERATIONS, "operation");
-    HOSTS.forEach((host, index) => output.write(`${index + 1}. ${host}\n`));
-    const host = selectNumber(await terminal.question("Host: "), HOSTS, "Host");
-    const profile = host === "codex" ? null : validateProfile((await terminal.question("DeepSeek Profile [web]: ")).trim() || "web");
+    output.write(`\n${messages.manage}\n`);
+    OPERATIONS.forEach((operation, index) => output.write(`${index + 1}. ${messages.operations[operation]}\n`));
+    const operation = selectNumber(await terminal.question(messages.operationPrompt), OPERATIONS, "operation");
+    HOSTS.forEach((host, index) => output.write(`${index + 1}. ${messages.hosts[host]}\n`));
+    const host = selectNumber(await terminal.question(messages.hostPrompt), HOSTS, "Host");
+    const profile = host === "codex" ? null : validateProfile((await terminal.question(messages.profilePrompt)).trim() || "web");
     return parseArguments([
       operation,
       "--host", host,
@@ -159,7 +162,8 @@ export async function promptForRequest({ input = process.stdin, output = process
   }
 }
 
-export async function confirmPlan(plan, request, { input = process.stdin, output = process.stdout } = {}) {
+export async function confirmPlan(plan, request, { input = process.stdin, output = process.stdout, language = resolveLanguage() } = {}) {
+  const messages = messagesForLanguage(language);
   if (plan.confirmationClass === "none") return true;
   if (plan.confirmationClass === "mutation" && request.yes) return true;
   if (plan.confirmationClass === "downgrade" && request.downgradeToken === plan.downgradeToken) return true;
@@ -173,17 +177,17 @@ export async function confirmPlan(plan, request, { input = process.stdin, output
   const terminal = createInterface({ input, output });
   try {
     if (plan.confirmationClass === "reset" || plan.confirmationClass === "permanent_reset") {
-      const token = await terminal.question(`Type ${plan.confirmationToken} to confirm reset: `);
+      const token = await terminal.question(language === "zh-CN" ? `输入 ${plan.confirmationToken} 确认恢复出厂设置：` : `Type ${plan.confirmationToken} to confirm reset: `);
       if (token !== plan.confirmationToken) return false;
       if (plan.confirmationClass === "permanent_reset") {
-        return await terminal.question(`Type ${plan.permanentToken} to confirm permanent removal: `) === plan.permanentToken;
+        return await terminal.question(language === "zh-CN" ? `输入 ${plan.permanentToken} 确认永久删除：` : `Type ${plan.permanentToken} to confirm permanent removal: `) === plan.permanentToken;
       }
       return true;
     }
     if (plan.confirmationClass === "downgrade") {
-      return await terminal.question(`Type ${plan.downgradeToken} to confirm downgrade: `) === plan.downgradeToken;
+      return await terminal.question(language === "zh-CN" ? `输入 ${plan.downgradeToken} 确认降级：` : `Type ${plan.downgradeToken} to confirm downgrade: `) === plan.downgradeToken;
     }
-    return /^y(?:es)?$/iu.test((await terminal.question("Continue? [y/N] ")).trim());
+    return /^(?:y(?:es)?|是)$/iu.test((await terminal.question(messages.continuePrompt)).trim());
   } finally {
     terminal.close();
   }

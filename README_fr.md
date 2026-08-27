@@ -73,6 +73,7 @@ Les artefacts stables actuels prennent en charge **macOS arm64** et **Node.js `>
 
 L’entrée publiée `create-dev-flow` gère installation, mise à niveau, réparation, réinstallation, désinstallation et
 réinstallation propre. Les commandes natives du Host restent disponibles pour la reprise diagnostique.
+L’interface interactive utilise le chinois simplifié pour les locales `zh*` et l’anglais pour toutes les autres.
 
 ### Codex
 

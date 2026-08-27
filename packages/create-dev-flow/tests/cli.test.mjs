@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { PassThrough, Readable, Writable } from "node:stream";
 import test from "node:test";
 
-import { CLIError, parseArguments, promptForRequest } from "../lib/cli.mjs";
-import { renderResult } from "../lib/presentation.mjs";
+import { CLIError, confirmPlan, parseArguments, promptForRequest } from "../lib/cli.mjs";
+import { renderPlan, renderResult, resolveLanguage } from "../lib/presentation.mjs";
 
 test("parser normalizes every lifecycle operation through one closed entry", () => {
   for (const operation of ["status", "doctor", "install", "upgrade", "repair", "reinstall", "uninstall", "factory-reset"]) {
@@ -40,9 +40,18 @@ test("JSON rendering is exactly one parseable object", () => {
   assert.deepEqual(JSON.parse(text), result);
 });
 
+test("locale selection uses Chinese only for zh and English for every other locale", () => {
+  assert.equal(resolveLanguage({ LANG: "zh_CN.UTF-8" }), "zh-CN");
+  assert.equal(resolveLanguage({ LANG: "zh-TW" }), "zh-CN");
+  assert.equal(resolveLanguage({ LANG: "en_US.UTF-8" }), "en");
+  assert.equal(resolveLanguage({ LANG: "ja_JP.UTF-8" }), "en");
+  assert.equal(resolveLanguage({ LANG: "fr_FR.UTF-8" }), "en");
+  assert.equal(resolveLanguage({}), "en");
+});
+
 test("no-argument TTY home installs Codex without asking for a lifecycle operation", async () => {
   const output = captureOutput();
-  const request = await promptForRequest({ input: Readable.from(["1\n"]), output });
+  const request = await promptForRequest({ input: Readable.from(["1\n"]), output, language: "en" });
   assert.equal(request.operation, "install");
   assert.equal(request.host, "codex");
   assert.match(output.text, /1\. Install Codex/u);
@@ -53,11 +62,52 @@ test("no-argument TTY home installs Codex without asking for a lifecycle operati
 test("manage existing installation opens the complete operation menu", async () => {
   const output = captureOutput();
   const input = scriptedInput(["4\n", "1\n", "3\n", "web\n"]);
-  const request = await promptForRequest({ input, output });
+  const request = await promptForRequest({ input, output, language: "en" });
   assert.equal(request.operation, "status");
   assert.equal(request.host, "all");
   assert.match(output.text, /Manage existing installation/u);
   assert.match(output.text, /1\. status/u);
+});
+
+test("Chinese locale renders the complete interactive menu and plan in Chinese", async () => {
+  const output = captureOutput();
+  const input = scriptedInput(["4\n", "8\n", "3\n", "web\n"]);
+  const request = await promptForRequest({ input, output, language: "zh-CN" });
+  assert.equal(request.operation, "factory-reset");
+  assert.equal(request.host, "all");
+  assert.match(output.text, /Dev Flow 生命周期管理器/u);
+  assert.match(output.text, /4\. 管理现有安装/u);
+  assert.match(output.text, /8\. 恢复出厂设置/u);
+  assert.match(output.text, /3\. 全部/u);
+  assert.doesNotMatch(output.text, /Manage existing installation|Choose:|Operation:/u);
+
+  const plan = renderPlan({
+    operation: "factory-reset",
+    planId: "plan-language",
+    impacts: [
+      "factory-reset codex Adapter",
+      "Remove every installed Adapter before shared data cleanup",
+      "Move confirmed data to macOS Trash",
+    ],
+  }, { mode: "plain", language: "zh-CN" });
+  assert.match(plan, /^执行计划 恢复出厂设置/u);
+  assert.match(plan, /恢复出厂设置 Codex Adapter/u);
+  assert.match(plan, /移除所有已安装的 Adapter/u);
+  assert.match(plan, /移入 macOS 废纸篓/u);
+  assert.doesNotMatch(plan, /Plan|Remove every|Move confirmed/u);
+});
+
+test("Chinese locale renders reset confirmation in Chinese", async () => {
+  const output = captureOutput();
+  const input = scriptedInput(["RESET-ABC123\n"], { isTTY: true });
+  const confirmed = await confirmPlan({
+    confirmationClass: "reset",
+    confirmationToken: "RESET-ABC123",
+    permanentToken: null,
+  }, { confirmationToken: null }, { input, output, language: "zh-CN" });
+  assert.equal(confirmed, true);
+  assert.match(output.text, /输入 RESET-ABC123 确认恢复出厂设置/u);
+  assert.doesNotMatch(output.text, /Type .* to confirm reset/u);
 });
 
 function captureOutput() {
@@ -67,8 +117,9 @@ function captureOutput() {
   return stream;
 }
 
-function scriptedInput(lines) {
+function scriptedInput(lines, { isTTY = false } = {}) {
   const input = new PassThrough();
+  Object.defineProperty(input, "isTTY", { value: isTTY });
   const writeNext = (index) => {
     if (index === lines.length) {
       input.end();

@@ -25,6 +25,7 @@ npx @imotong/create-dev-flow@latest
 授权数据清理。默认清理移动到 macOS Trash，永久删除还需独立确认。
 Codex 全局 package 与 receipt、Plugin 注册分别判断；即使注册已缺失，`uninstall` 和
 `factory-reset` 仍会卸载已安装的全局 package。
+交互界面读取当前 locale：`zh*` 使用简体中文，其余 locale 统一使用英文；JSON 输出保持语言无关。
 
 | 入口 | 作用 |
 | --- | --- |

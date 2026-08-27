@@ -72,6 +72,7 @@ flowchart LR
 
 安装、升级、修复、重装、卸载和清空后重装统一使用下方已发布的 `create-dev-flow` 入口；Host
 原生命令保留为诊断恢复入口。
+交互界面按当前 locale 显示：`zh*` 使用简体中文，其余 locale 统一使用英文。
 
 ### Codex
 

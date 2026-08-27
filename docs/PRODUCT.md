@@ -135,7 +135,8 @@ Git 修改仍由获得用户授权的 Host 负责。
 DSH 公开 lifecycle，不复制 Core 或 Host 注册权威。普通维护保留用户配置和 Task 数据；恢复出厂
 状态要求绑定当前计划的强确认，默认把精确数据目标移动到 macOS Trash。Codex 全局 package 的安装
 状态与 receipt、Plugin 注册状态分别判断，注册已缺失时仍能通过卸载或恢复出厂操作清理 package。
-该 package 通过 npm `latest` 独立发布，精确版本与安装验证见 Support Matrix。
+交互菜单、确认提示、计划和结果读取当前 locale：`zh*` 使用简体中文，其余 locale 统一使用英文；JSON
+输出保持语言无关。该 package 通过 npm `latest` 独立发布，精确版本与安装验证见 Support Matrix。
 
 ## 产品组成
 

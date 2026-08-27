@@ -28,6 +28,8 @@ plan; `--yes` alone has no data-cleanup authority. Default cleanup moves data to
 requires another confirmation.
 The Codex global package is observed independently from its receipt and Plugin registration. Even when registration
 is already absent, `uninstall` and `factory-reset` still remove an installed global package.
+The interactive interface reads the current locale: `zh*` uses Simplified Chinese and every other locale uses
+English. JSON output remains language-neutral.
 
 | Entry | Purpose |
 | --- | --- |

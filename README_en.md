@@ -76,6 +76,7 @@ Current stable artifacts support **macOS arm64** and **Node.js `>=24`**. See the
 
 The published `create-dev-flow` entry below manages installation, upgrade, repair, reinstall, uninstall, and clean
 reinstall. Native Host commands remain available for diagnostic recovery.
+Its interactive interface uses Simplified Chinese for `zh*` locales and English for every other locale.
 
 ### Codex
 

@@ -72,6 +72,7 @@ Host-Kompatibilität stehen in der [Support Matrix](docs/SUPPORT-MATRIX_en.md).
 
 Der veröffentlichte `create-dev-flow`-Einstieg verwaltet Installation, Upgrade, Reparatur, Neuinstallation,
 Deinstallation und saubere Neuinstallation. Native Host-Befehle bleiben für die Diagnose-Recovery verfügbar.
+Die interaktive Oberfläche verwendet für `zh*` vereinfachtes Chinesisch und für alle anderen Locales Englisch.
 
 ### Codex
 

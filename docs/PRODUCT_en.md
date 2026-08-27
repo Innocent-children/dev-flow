@@ -152,8 +152,9 @@ Codex setup/remove/status and public DSH lifecycle commands without copying Core
 Ordinary maintenance preserves configuration and Task data. Factory reset requires strong confirmation bound to the
 current plan and moves exact data targets to macOS Trash by default. Codex global-package installation is observed
 independently from receipt and Plugin registration, so uninstall and factory reset still remove the package after
-registration has already disappeared. The package is independently published through npm `latest`; see the Support
-Matrix for the exact version and installation evidence.
+registration has already disappeared. Interactive menus, confirmations, plans, and results read the current locale:
+`zh*` uses Simplified Chinese and every other locale uses English; JSON remains language-neutral. The package is
+independently published through npm `latest`; see the Support Matrix for the exact version and installation evidence.
 
 ## Products
 
