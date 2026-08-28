@@ -11,14 +11,14 @@ Core remains the sole authority for Tasks, nodes, transitions, and Recovery.
 
 | Item | Current support |
 | --- | --- |
-| Package | `dev-flow-codex@0.7.3` |
-| Bundled Core | `0.6.2` |
+| Package | `dev-flow-codex@0.7.4` |
+| Bundled Core | `0.6.3` |
 | Platform | macOS arm64 |
 | Node.js | `>=24` |
 | Codex | `>=0.147.0` |
-| Release | [codex-v0.7.3](https://github.com/Innocent-children/dev-flow/releases/tag/codex-v0.7.3) |
+| Release | [codex-v0.7.4](https://github.com/Innocent-children/dev-flow/releases/tag/codex-v0.7.4) |
 
-The `0.7.3` normal release passed registry-package installation, package/Core identity, setup, Core
+The `0.7.4` normal release passed registry-package installation, package/Core identity, setup, Core
 handshake, removal, uninstallation, and repository-unchanged gates. The table records the exact
 verified public version; the installation commands below select npm's `latest` dist-tag.
 

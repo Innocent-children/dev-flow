@@ -29,8 +29,8 @@ Dev Flow 的路线由用户价值和可验证结果推进。日期不是承诺�
 
 | 产品 | 版本 | 状态 |
 | --- | --- | --- |
-| Core | `0.6.2` | 作为两个 Host package 的独立 bundled runtime |
-| Codex | `0.7.3` | npm 与 `codex-v0.7.3` 已发布，macOS arm64 registry lifecycle 通过 |
+| Core | `0.6.3` | 作为两个 Host package 的独立 bundled runtime |
+| Codex | `0.7.4` | npm 与 `codex-v0.7.4` 已发布，macOS arm64 registry lifecycle 通过 |
 | DeepSeek | `0.7.3` | npm 与 `deepseek-v0.7.3` 已发布，macOS arm64 native registry journey 通过 |
 | Dev Flow CLI | `0.1.1` | npm 与 `dev-flow-v0.1.1` 已发布，registry package smoke 通过 |
 

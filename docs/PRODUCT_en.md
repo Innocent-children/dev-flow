@@ -169,8 +169,8 @@ Git mutation, or reset mutation.
 
 | Product | Responsibility | Current version |
 | --- | --- | --- |
-| Core | State graph, Task, Store, Recovery, and MCP | `0.6.2` |
-| Codex | Codex Plugin, Skill, registration lifecycle, and bundled Core | `0.7.3` |
+| Core | State graph, Task, Store, Recovery, and MCP | `0.6.3` |
+| Codex | Codex Plugin, Skill, registration lifecycle, and bundled Core | `0.7.4` |
 | DeepSeek | DSH bundle, Skill, guard, MCP child, and bundled Core | `0.7.3` |
 | Dev Flow CLI | Host-neutral Adapter lifecycle, public WebUI launcher, and recovery | `0.1.1` |
 
@@ -220,7 +220,7 @@ capability enters the roadmap only after its user value and independent specific
 
 ## Public status
 
-The current Codex version `0.7.3` is published to npm with the `codex-v0.7.3` GitHub Release.
+The current Codex version `0.7.4` is published to npm with the `codex-v0.7.4` GitHub Release.
 The current DeepSeek version `0.7.3` is published to npm with the `deepseek-v0.7.3` GitHub Release.
 Each host product bundles the exact Core identity recorded in the support matrix and publicly supports
 macOS arm64 with Node.js `>=24`.
