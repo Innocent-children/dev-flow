@@ -52,6 +52,13 @@ current Action. Core fills the complete identity, artifact roles, method steps, 
 then retains the normalized submission in the Task snapshot before advancing the Task. Recovery reads
 that retained submission, so the caller no longer stores or rebuilds the original payload.
 
+Before retaining a submission, Core checks node-result semantics against the current Task. Errors in
+revisions, records, evidence sets, acceptance, and other values that can be copied uniquely from Core
+return field paths, fixed rules, and `allowed_paths`; the Host may correct only those fields once.
+Test conclusions, user confirmation, work-item content, and other values that cannot be derived safely
+receive field detail without automatic correction authority. Rejected input never enters ActionCommit
+or uncertain-mutation Recovery.
+
 ### Behavioral correctness and maintainability are not separated
 
 Automated tests establish behavior; they do not establish that an implementation can be explained and

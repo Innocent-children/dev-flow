@@ -461,20 +461,53 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 	}
 	switch value := result.(type) {
 	case *RequirementsResult:
-		if source != domain.NodeRequirements || value.Baseline == nil || len(value.Baseline.AcceptanceCriteria) == 0 || len(value.UnresolvedQuestions) != 0 || !validRepositoryMutation(value.ChangedPaths, value.NoFileChanges) || !validStringLists(value.Baseline.Scope, value.Baseline.OutOfScope, value.Baseline.AcceptanceCriteria, value.Baseline.Constraints, value.Baseline.Assumptions) {
+		if source != domain.NodeRequirements || value.Baseline == nil {
 			return domain.ErrInvalidArgument
+		}
+		violations := repositoryMutationViolations(value.ChangedPaths, value.NoFileChanges)
+		violations = append(violations, stringListViolations(map[string][]string{
+			"baseline.scope": value.Baseline.Scope, "baseline.out_of_scope": value.Baseline.OutOfScope,
+			"baseline.acceptance_criteria": value.Baseline.AcceptanceCriteria, "baseline.constraints": value.Baseline.Constraints,
+			"baseline.assumptions": value.Baseline.Assumptions, "unresolved_questions": value.UnresolvedQuestions,
+		})...)
+		if !validText(value.Baseline.Goal, domain.MaxEvidenceSummaryBytes) {
+			violations = append(violations, domain.Violation("payload.node_result.baseline.goal", domain.RuleTextNotNormalized))
+		}
+		if len(value.Baseline.AcceptanceCriteria) == 0 {
+			violations = append(violations, domain.Violation("payload.node_result.baseline.acceptance_criteria", domain.RuleRequiredCollectionNonEmpty))
+		}
+		if len(violations) != 0 {
+			return domain.InvalidArgumentViolations(violations...)
 		}
 	case *DesignResult:
-		if source != domain.NodeDesign || ((envelope.TransitionID == "design_ready") != (value.Baseline != nil)) || !validRepositoryMutation(value.ChangedPaths, value.NoFileChanges) || !validStringLists(value.Findings) {
+		if source != domain.NodeDesign || ((envelope.TransitionID == "design_ready") != (value.Baseline != nil)) {
 			return domain.ErrInvalidArgument
+		}
+		violations := repositoryMutationViolations(value.ChangedPaths, value.NoFileChanges)
+		violations = append(violations, stringListViolations(map[string][]string{"findings": value.Findings})...)
+		if len(violations) != 0 {
+			return domain.InvalidArgumentViolations(violations...)
 		}
 	case *TasksResult:
-		if source != domain.NodeTasks || ((envelope.TransitionID == "tasks_ready") != (value.Baseline != nil)) || !validRepositoryMutation(value.ChangedPaths, value.NoFileChanges) || !validStringLists(value.Findings) || value.Baseline != nil && !validWorkItemPaths(value.Baseline.WorkItems) {
+		if source != domain.NodeTasks || ((envelope.TransitionID == "tasks_ready") != (value.Baseline != nil)) {
 			return domain.ErrInvalidArgument
 		}
+		violations := repositoryMutationViolations(value.ChangedPaths, value.NoFileChanges)
+		violations = append(violations, stringListViolations(map[string][]string{"findings": value.Findings})...)
+		if value.Baseline != nil && !validWorkItemPaths(value.Baseline.WorkItems) {
+			violations = append(violations, domain.Violation("payload.node_result.baseline.work_items", domain.RuleRepositoryPathInvalid))
+		}
+		if len(violations) != 0 {
+			return domain.InvalidArgumentViolations(violations...)
+		}
 	case *ImplementationResult:
-		if source != domain.NodeImplement || !validRepositoryMutation(value.ChangedPaths, value.NoFileChanges) || !validStringLists(value.Deviations, value.Findings) {
+		if source != domain.NodeImplement {
 			return domain.ErrInvalidArgument
+		}
+		violations := repositoryMutationViolations(value.ChangedPaths, value.NoFileChanges)
+		violations = append(violations, stringListViolations(map[string][]string{"deviations": value.Deviations, "findings": value.Findings})...)
+		if len(violations) != 0 {
+			return domain.InvalidArgumentViolations(violations...)
 		}
 	case *TestResult:
 		if source != domain.NodeTest {
@@ -495,8 +528,16 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 			return domain.InvalidArgumentViolations(violations...)
 		}
 	case *ComprehensionResult:
-		if source != domain.NodeComprehensionReview || !validRepositoryMutation(value.ChangedPaths, value.NoFileChanges) || !validStringLists(value.ExplainedComponents, value.UnresolvedQuestions, value.UnnecessaryAbstractions, value.MaintenanceRisks, value.Findings) {
+		if source != domain.NodeComprehensionReview {
 			return domain.ErrInvalidArgument
+		}
+		violations := repositoryMutationViolations(value.ChangedPaths, value.NoFileChanges)
+		violations = append(violations, stringListViolations(map[string][]string{
+			"explained_components": value.ExplainedComponents, "unresolved_questions": value.UnresolvedQuestions,
+			"unnecessary_abstractions": value.UnnecessaryAbstractions, "maintenance_risks": value.MaintenanceRisks, "findings": value.Findings,
+		})...)
+		if len(violations) != 0 {
+			return domain.InvalidArgumentViolations(violations...)
 		}
 		if value.UserConfirmation != nil {
 			if !value.UserConfirmation.Source.IsValid() || !value.UserConfirmation.Status.IsValid() || !validText(value.UserConfirmation.Summary, domain.MaxEvidenceSummaryBytes) {
@@ -504,12 +545,22 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 			}
 		}
 	case *RefactorResult:
-		if source != domain.NodeRefactor || !validRepositoryMutation(value.ChangedPaths, value.NoFileChanges) || !validStringLists(value.Simplifications, value.Findings) {
+		if source != domain.NodeRefactor {
 			return domain.ErrInvalidArgument
 		}
+		violations := repositoryMutationViolations(value.ChangedPaths, value.NoFileChanges)
+		violations = append(violations, stringListViolations(map[string][]string{"simplifications": value.Simplifications, "findings": value.Findings})...)
+		if len(violations) != 0 {
+			return domain.InvalidArgumentViolations(violations...)
+		}
 	case *DeliveryResult:
-		if source != domain.NodeDelivery || !validRepositoryMutation(value.ChangedPaths, value.NoFileChanges) || !validStringLists(value.UnverifiedItems, value.Risks, value.Findings) {
+		if source != domain.NodeDelivery {
 			return domain.ErrInvalidArgument
+		}
+		violations := repositoryMutationViolations(value.ChangedPaths, value.NoFileChanges)
+		violations = append(violations, stringListViolations(map[string][]string{"unverified_items": value.UnverifiedItems, "risks": value.Risks, "findings": value.Findings})...)
+		if len(violations) != 0 {
+			return domain.InvalidArgumentViolations(violations...)
 		}
 		for _, criterion := range value.Acceptance {
 			if criterion.Validate() != nil {

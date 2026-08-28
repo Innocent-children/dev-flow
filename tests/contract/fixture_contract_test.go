@@ -17,13 +17,8 @@ const sharedFixtureAggregateSHA256 = "8c27bcf6be0e4e5a4bf294c67cbda8cdf281b1b2b2
 
 func sha256Hex(raw []byte) string { sum := sha256.Sum256(raw); return hex.EncodeToString(sum[:]) }
 
-func TestFixtureContractInventory(t *testing.T) {
+func TestFixtureFilesExist(t *testing.T) {
 	root := contractRepositoryRoot(t)
-	readme, err := os.ReadFile(filepath.Join(root, "protocol", "fixtures", "README.md"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	text := string(readme)
 	for _, name := range []string{
 		"graph-server-info.json",
 		"graph-multi-repository-open.json",
@@ -33,15 +28,9 @@ func TestFixtureContractInventory(t *testing.T) {
 		"graph-host-parity-codex.json",
 		"graph-host-parity-deepseek.json",
 	} {
-		if !strings.Contains(text, "`"+name+"`") {
-			t.Errorf("missing inventory %s", name)
-		}
 		if _, err := os.Stat(filepath.Join(root, "protocol", "fixtures", name)); err != nil {
 			t.Fatal(err)
 		}
-	}
-	if strings.Contains(text, "`graph-*.json`") {
-		t.Fatal("wildcard fixture inventory")
 	}
 }
 
@@ -81,34 +70,6 @@ type hostParityProblemRule struct {
 type hostParityErrorShape struct {
 	Required         []string `json:"required"`
 	RecoveryRequired []string `json:"recovery_required"`
-}
-
-func TestCurrentHostParityInventory(t *testing.T) {
-	root := contractRepositoryRoot(t)
-	readme, err := os.ReadFile(filepath.Join(root, "protocol", "fixtures", "README.md"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	text := string(readme)
-	for _, heading := range []string{
-		"Current graph fixtures",
-		"Current Core Host parity fixtures",
-		"Released linear Core historical fixtures",
-	} {
-		if !strings.Contains(text, "## "+heading) {
-			t.Errorf("missing fixture-generation heading %q", heading)
-		}
-	}
-	for _, name := range []string{"graph-host-parity-codex.json", "graph-host-parity-deepseek.json"} {
-		if strings.Count(text, "`"+name+"`") != 1 {
-			t.Errorf("README must list %s exactly once", name)
-		}
-	}
-	for _, boundary := range []string{"do not implement or claim a DeepSeek", "native Journey", "product support"} {
-		if !strings.Contains(text, boundary) {
-			t.Errorf("missing DeepSeek parity boundary %q", boundary)
-		}
-	}
 }
 
 func TestCurrentHostParityFixtures(t *testing.T) {

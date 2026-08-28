@@ -136,6 +136,7 @@ version stable.
 - Le code source actuel contient une WebUI partagée limitée au loopback, avec chinois simplifié/anglais, langue système par défaut et sélection locale au navigateur ; remote MCP, telemetry, graph utilisateur et migration historique automatique restent exclus.
 - Un index optionnel aide seulement à rechercher ; il ne décide ni périmètre, ni permission, ni Recovery, ni état.
 - Une Action autorisée en écriture fournit uniquement les `changed_paths` apparus depuis l’émission de cette Action, ou `no_file_changes` lorsque ce nœud n’a modifié aucun fichier. Core les valide par rapport à la base d’émission et à une fresh Git observation ; les changements autorisés se terminent avec l’Action d’origine, tandis qu’un changement de branch, HEAD, repository identity ou de chemin non déclaré renvoie toujours `REPOSITORY_DRIFT`. Si le dépôt est inchangé alors que le résultat déclare des modifications, Core renvoie la règle de champ `repository_effect_not_observed`.
+- Avant de conserver une soumission d’Action, Core vérifie aussi la sémantique du résultat du nœud par rapport à la Task actuelle. Les erreurs de revision, record, ensembles d’evidence et acceptance pouvant être copiées exactement depuis Core renvoient `allowed_paths` pour une seule correction limitée. Les conclusions de test, la confirmation utilisateur et le contenu du travail ne reçoivent que le détail du champ, sans autorisation de correction automatique.
 
 Voir [Security Policy](SECURITY.md) et [Threat Model](docs/THREAT-MODEL_en.md).
 

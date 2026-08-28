@@ -65,6 +65,16 @@ const (
 	RuleProblemClassNotValidForNode    ViolationRule = "problem_class_not_valid_for_node"
 	RuleArtifactRoleNotAllowed         ViolationRule = "artifact_role_not_allowed"
 	RuleRepositoryEffectNotAllowed     ViolationRule = "repository_effect_not_allowed"
+	RuleCurrentValueRequired           ViolationRule = "current_value_required"
+	RuleCurrentSetRequired             ViolationRule = "current_set_required"
+	RuleAcceptanceSetCurrent           ViolationRule = "acceptance_set_current"
+	RuleRequiredCollectionNonEmpty     ViolationRule = "required_collection_non_empty"
+	RuleCollectionMustBeEmpty          ViolationRule = "collection_must_be_empty"
+	RulePassingStatusRequired          ViolationRule = "passing_status_required"
+	RuleUserConfirmationRequired       ViolationRule = "user_confirmation_required"
+	RuleKnownIdentifierRequired        ViolationRule = "known_identifier_required"
+	RuleBooleanFalseRequired           ViolationRule = "boolean_false_required"
+	RuleAcceptanceCoverageRequired     ViolationRule = "acceptance_coverage_required"
 )
 
 var violationMessages = map[ViolationRule]string{
@@ -87,6 +97,16 @@ var violationMessages = map[ViolationRule]string{
 	RuleProblemClassNotValidForNode:    "problem_class is not allowed for the current node",
 	RuleArtifactRoleNotAllowed:         "the current Action does not allow this artifact role",
 	RuleRepositoryEffectNotAllowed:     "the current Action does not allow the submitted repository effect",
+	RuleCurrentValueRequired:           "the member must equal the current value returned by Core",
+	RuleCurrentSetRequired:             "the list must equal the current set returned by Core",
+	RuleAcceptanceSetCurrent:           "acceptance must exactly match the current requirements in order and status",
+	RuleRequiredCollectionNonEmpty:     "the current transition requires at least one item",
+	RuleCollectionMustBeEmpty:          "the current transition requires this collection to be empty",
+	RulePassingStatusRequired:          "the current transition requires every submitted status to be passed",
+	RuleUserConfirmationRequired:       "the current transition requires explicit passed user confirmation",
+	RuleKnownIdentifierRequired:        "the identifier must be present in the current Core record",
+	RuleBooleanFalseRequired:           "the current transition requires this member to be false",
+	RuleAcceptanceCoverageRequired:     "work items must cover every current acceptance criterion",
 }
 
 func (r ViolationRule) IsValid() bool {
@@ -104,12 +124,28 @@ const (
 	GuardForwardFindingsEmpty           GuardRule = "forward_findings_empty"
 	GuardProblemFindingsPresent         GuardRule = "problem_findings_present"
 	GuardProblemClassTransitionMismatch GuardRule = "problem_class_transition_mismatch"
+	GuardCurrentValueRequired           GuardRule = "current_value_required"
+	GuardCurrentSetRequired             GuardRule = "current_set_required"
+	GuardAcceptanceSetCurrent           GuardRule = "acceptance_set_current"
+	GuardRequiredCollectionNonEmpty     GuardRule = "required_collection_non_empty"
+	GuardCollectionMustBeEmpty          GuardRule = "collection_must_be_empty"
+	GuardPassingStatusRequired          GuardRule = "passing_status_required"
+	GuardUserConfirmationRequired       GuardRule = "user_confirmation_required"
+	GuardBooleanFalseRequired           GuardRule = "boolean_false_required"
 )
 
 var guardMessages = map[GuardRule]string{
 	GuardForwardFindingsEmpty:           "findings must be empty when problem_class is none",
 	GuardProblemFindingsPresent:         "findings must not be empty when problem_class is not none",
 	GuardProblemClassTransitionMismatch: "problem_class must match the problem class the selected transition reports",
+	GuardCurrentValueRequired:           "the member must equal the current value returned by Core",
+	GuardCurrentSetRequired:             "the list must equal the current set returned by Core",
+	GuardAcceptanceSetCurrent:           "acceptance must exactly match the current requirements in order and status",
+	GuardRequiredCollectionNonEmpty:     "the current transition requires at least one item",
+	GuardCollectionMustBeEmpty:          "the current transition requires this collection to be empty",
+	GuardPassingStatusRequired:          "the current transition requires every submitted status to be passed",
+	GuardUserConfirmationRequired:       "the current transition requires explicit passed user confirmation",
+	GuardBooleanFalseRequired:           "the current transition requires this member to be false",
 }
 
 func (r GuardRule) IsValid() bool {

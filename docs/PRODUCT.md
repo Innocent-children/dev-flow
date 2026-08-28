@@ -44,6 +44,11 @@ mutation 响应缺失、取消、截断或损坏时，直接重放可能造成�
 payload envelope，并在推进 Task 前把规范化提交保存到 Task snapshot。Recovery 直接读取这份提交，
 调用方不再保存或重建原始 payload。
 
+在保存提交前，Core 先按当前 Task 预检节点结果语义。可从 Core 当前结果唯一复制的 revision、record、
+evidence 集合和 acceptance 错误会返回字段路径、固定规则与 `allowed_paths`，Host 只可纠正这些字段
+一次。测试结论、用户确认、工作项内容等无法安全推导的错误只返回字段信息，不提供自动纠正授权；
+被拒绝的输入不会进入 ActionCommit，也不会转入不确定 mutation Recovery。
+
 ### 行为正确性与可维护性未分离
 
 自动化测试证明行为，不证明实现易于解释和维护。`COMPREHENSION_REVIEW` 是独立交付门禁；

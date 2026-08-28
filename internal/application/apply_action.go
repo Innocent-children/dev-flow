@@ -127,10 +127,14 @@ func validateStandardRequestAgainstTask(r ApplyActionRequest, task domain.Proces
 	if err != nil {
 		return err
 	}
-	if _, err := workflow.TransitionFor(workflow.StandardProcess(), task.CurrentNode, envelope.TransitionID); err != nil {
+	transition, err := workflow.TransitionFor(workflow.StandardProcess(), task.CurrentNode, envelope.TransitionID)
+	if err != nil {
 		return domain.ErrTransitionNotAllowed
 	}
-	return workflow.ValidatePayload(workflow.StandardProcess(), task.CurrentNode, envelope, result, task.CurrentAction.SemanticMethodSteps)
+	if err := workflow.ValidatePayload(workflow.StandardProcess(), task.CurrentNode, envelope, result, task.CurrentAction.SemanticMethodSteps); err != nil {
+		return err
+	}
+	return validateActionResultAgainstTask(task, transition, result)
 }
 
 func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionRequest, task domain.ProcessTask, fresh recovery.RepositoryScopeObservation, comparison recovery.RepositoryScopeComparison) (ApplyActionResult, error) {

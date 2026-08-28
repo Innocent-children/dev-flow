@@ -82,6 +82,31 @@ func TestRecoverActionUsesCoreRetainedPayload(t *testing.T) {
 	}
 }
 
+func TestSubmitActionRejectsCorrectableDeliveryBeforeStagingCommit(t *testing.T) {
+	service, memory, _ := phase5Service(t)
+	task := phase5TaskAtDelivery(t, service)
+	result := deliveryCompleteNodeResult(task)
+	result["problem_class"] = "none"
+	result["manual_evidence_ids"] = []string{}
+	request := actionSubmission(t, task, "submit-delivery-missing-evidence", "delivery_complete", result)
+	stages := memory.stages
+	if _, err := service.SubmitAction(context.Background(), request); !errors.Is(err, domain.ErrTransitionNotAllowed) {
+		t.Fatalf("error=%v", err)
+	} else {
+		var typed *domain.Error
+		if !errors.As(err, &typed) || !typed.ZeroWrite || typed.Guard == nil || len(typed.Guard.Failures) != 1 || typed.Guard.Failures[0].Path != "payload.node_result.manual_evidence_ids" {
+			t.Fatalf("structured error=%#v", typed)
+		}
+	}
+	if memory.stages != stages {
+		t.Fatalf("stages=%d want=%d", memory.stages, stages)
+	}
+	retained, err := memory.LoadTask(context.Background(), task.TaskID)
+	if err != nil || retained.ActionCommit != nil {
+		t.Fatalf("action commit=%#v err=%v", retained.ActionCommit, err)
+	}
+}
+
 func TestArtifactRoleFailureIsNotRepositoryDrift(t *testing.T) {
 	service, _, _ := phase5Service(t)
 	task := openPhase5Task(t, service)
@@ -147,5 +172,23 @@ func requirementsSubmission(t *testing.T, task domain.ProcessTask, requestID dom
 		ExpectedActionKind: task.CurrentAction.Kind, TransitionID: "requirements_ready", Summary: "Requirements completed.",
 		Reason: "", CurrentArtifacts: []ArtifactSubmission{}, OtherProcessArtifacts: []ArtifactSubmission{},
 		MethodResults: methods, NodeResult: result,
+	}
+}
+
+func actionSubmission(t *testing.T, task domain.ProcessTask, requestID domain.ID, transition domain.TransitionID, nodeResult any) SubmitActionRequest {
+	t.Helper()
+	raw, err := json.Marshal(nodeResult)
+	if err != nil {
+		t.Fatal(err)
+	}
+	methods := make(map[domain.MethodStepID]MethodResultSubmission, len(task.CurrentAction.SemanticMethodSteps))
+	for _, step := range task.CurrentAction.SemanticMethodSteps {
+		methods[step.StepID] = MethodResultSubmission{Summary: "Completed the current semantic method step."}
+	}
+	return SubmitActionRequest{
+		RequestID: requestID, Host: domain.HostCodex, TaskID: task.TaskID, ActionID: task.CurrentAction.ActionID,
+		ExpectedActionKind: task.CurrentAction.Kind, TransitionID: transition, Summary: "Current Action completed.",
+		Reason: "", CurrentArtifacts: []ArtifactSubmission{}, OtherProcessArtifacts: []ArtifactSubmission{},
+		MethodResults: methods, NodeResult: raw,
 	}
 }

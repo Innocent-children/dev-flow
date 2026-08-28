@@ -157,6 +157,7 @@ A write-enabled Action reports exact `changed_paths` newly produced relative to 
 them against the issuance baseline, current `allowed_effects`, and a fresh Git observation. Authorized
 worktree results complete with the original Action; branch, HEAD, repository identity, or undeclared path
 changes still return `REPOSITORY_DRIFT`. If the repository is exact but the result declares file changes, Core returns the field rule `repository_effect_not_observed` so the Host can correct this node result to no file changes.
+Before staging an Action submission, Core also checks node-result semantics against the current Task. Errors in revisions, records, evidence sets, acceptance, and other values that can be copied exactly from Core return `allowed_paths` for one bounded correction. Test conclusions, user confirmation, work content, and other values that cannot be derived safely receive field detail without automatic correction authority.
 
 ### Bounded multi-repository scope
 

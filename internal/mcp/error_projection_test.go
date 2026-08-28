@@ -80,6 +80,25 @@ func TestApplyErrorGuardProjectsClosedGuardFailure(t *testing.T) {
 	}
 }
 
+func TestApplyErrorCurrentSetOffersBoundedCorrection(t *testing.T) {
+	failure := domain.InvalidArgumentViolations(
+		domain.Violation("payload.node_result.manual_evidence_ids", domain.RuleCurrentSetRequired),
+	)
+	envelope := decodeEnvelope(t, EncodeError("request-current-set", ToolSubmitDelivery, failure))
+	if envelope.Error == nil || len(envelope.Error.Details) != 1 {
+		t.Fatalf("error=%#v", envelope.Error)
+	}
+	if envelope.Error.Details[0].Path != "node_result.manual_evidence_ids" {
+		t.Fatalf("detail=%#v", envelope.Error.Details[0])
+	}
+	if envelope.Recovery == nil || !envelope.Recovery.RetrySafe || envelope.Recovery.Action != correctCurrentAction {
+		t.Fatalf("recovery=%#v", envelope.Recovery)
+	}
+	if len(envelope.Recovery.AllowedPaths) != 1 || envelope.Recovery.AllowedPaths[0] != "node_result.manual_evidence_ids" {
+		t.Fatalf("allowed paths=%v", envelope.Recovery.AllowedPaths)
+	}
+}
+
 // TestApplyErrorGuardRejectsUnknownGuardIdentity keeps a guard shape out of the
 // public result unless the identifier exists in the live Process Definition.
 func TestApplyErrorGuardRejectsUnknownGuardIdentity(t *testing.T) {
@@ -191,10 +210,14 @@ func TestApplyErrorCorrectionRequiresDeterministicRulesOnly(t *testing.T) {
 			domain.Violation("payload.node_result.no_file_changes", domain.RuleRepositoryEffectNotObserved),
 		), true},
 		{"forward findings", domain.TransitionGuardFailure("implementation_report_complete", domain.GuardViolation("payload.node_result.findings", domain.GuardForwardFindingsEmpty)), true},
+		{"current evidence set", domain.TransitionGuardFailure("delivery_current_and_complete", domain.GuardViolation("payload.node_result.manual_evidence_ids", domain.GuardCurrentSetRequired)), true},
+		{"current record", domain.TransitionGuardFailure("delivery_current_and_complete", domain.GuardViolation("payload.node_result.test_record_id", domain.GuardCurrentValueRequired)), true},
+		{"current acceptance", domain.TransitionGuardFailure("delivery_current_and_complete", domain.GuardViolation("payload.node_result.acceptance", domain.GuardAcceptanceSetCurrent)), true},
 		{"missing member", domain.InvalidArgumentViolations(domain.Violation("payload.node_result.summary", domain.RuleRequiredMemberMissing)), false},
 		{"invalid source", domain.InvalidArgumentViolations(domain.Violation("payload.node_result.checks[0].source", domain.RuleEvidenceSourceInvalid)), false},
 		{"text normalization", domain.InvalidArgumentViolations(domain.Violation("payload.summary", domain.RuleTextNotNormalized)), false},
 		{"problem class mismatch", domain.TransitionGuardFailure("implementation_report_complete", domain.GuardViolation("payload.node_result.problem_class", domain.GuardProblemClassTransitionMismatch)), false},
+		{"user confirmation", domain.TransitionGuardFailure("current_user_comprehension_confirmed", domain.GuardViolation("payload.node_result.user_confirmation", domain.GuardUserConfirmationRequired)), false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

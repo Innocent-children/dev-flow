@@ -134,6 +134,7 @@ profile を再起動後、次を入力します。
 - 現在のソースには loopback 限定の共有 WebUI があり、簡体字中国語/英語、システム言語による初期表示、ブラウザ内切り替えに対応します。remote MCP、telemetry、ユーザー定義 graph、自動的な旧データ移行は含みません。
 - 任意のコード index は検索を補助するだけで、スコープ、権限、Recovery、状態を決定できません。
 - 書き込み可能な Action は、その Action の発行後にこのノードで新たに変更した `changed_paths` だけを報告し、ファイルを変更していない場合は `no_file_changes` を報告します。Core は発行時の基準と fresh Git observation で検証し、許可された変更は元の Action で完了できますが、branch、HEAD、repository identity、未申告パスの変更は引き続き `REPOSITORY_DRIFT` になります。リポジトリが一致しているのに変更を申告した場合、Core はフィールド規則 `repository_effect_not_observed` を返します。
+- Core は Action 提出を保存する前に、現在の Task に対してノード結果の意味も検証します。revision、record、evidence 集合、acceptance など Core から正確にコピーできる値の誤りは `allowed_paths` を返し、Host は一度だけ限定修正できます。テスト結論、ユーザー確認、作業内容など安全に導出できない値はフィールド情報だけを返し、自動修正を許可しません。
 
 セキュリティ境界は [Security Policy](SECURITY.md) と [Threat Model](docs/THREAT-MODEL_en.md) を参照してください。
 

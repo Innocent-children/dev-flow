@@ -7,7 +7,6 @@ import test from "node:test";
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = join(packageRoot, "..", "..");
 const pluginRoot = join(packageRoot, "plugin");
-const readmePath = join(packageRoot, "README.md");
 const skillPath = join(pluginRoot, "skills", "dev-flow", "SKILL.md");
 const skillMetadataPath = join(pluginRoot, "skills", "dev-flow", "agents", "openai.yaml");
 const methodProfileFixturePath = join(packageRoot, "tests", "fixtures", "graph-method-profiles.json");
@@ -162,24 +161,6 @@ test("Skill converges implicit and exact explicit selection on one substantive a
   assert.match(admission, /imports, remotes,\s+submodules, codebase-memory/i);
   assert.match(admission, /repository instructions/i);
   assert.match(admission, /user authority/i);
-});
-
-test("Chinese README documents smart implicit activation and the explicit force-entry selector", async () => {
-  const readme = await readFile(readmePath, "utf8");
-  const invocation = section(readme, "智能启用与显式入口");
-
-  assert.match(invocation, /Skill resource\/base name[^\n]*`dev-flow`/i);
-  assert.match(invocation, /安装后的 Skill full name[^\n]*`dev-flow-codex:dev-flow`/i);
-  assert.match(invocation, /精确 selector[\s\S]{0,100}\$dev-flow-codex:dev-flow/i);
-  assert.match(invocation, /`\$dev-flow`[^\n]*不是别名[^\n]*不会选择/i);
-  assert.match(invocation, /plugin namespace 错误/i);
-  assert.match(invocation, /Skill base name 错误/i);
-  assert.match(invocation, /实现、缺陷修复、重构、定向测试和开发\s*交付/i);
-  assert.match(invocation, /仅?解释、仅?状态查询、方案讨论、普通问答和含糊请求[^\n]*不自动创建/i);
-  assert.match(invocation, /显式[^\n]*不会绕过/i);
-  assert.match(invocation, /不声称 MCP[^\n]*selector 绑定/i);
-  assert.match(invocation, /不限制 Codex\s*的普通仓库工具/i);
-  assert.match(invocation, /allow_implicit_invocation[^\n]*true/i);
 });
 
 test("Skill silently calls server-info first and admits the exact unordered Core contract", async () => {

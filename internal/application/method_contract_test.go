@@ -131,7 +131,7 @@ func TestMethodEvidenceFailurePathsAreZeroWrite(t *testing.T) {
 	invalidNode := requirementsNodeResult("Goal", []string{"Accepted"})
 	invalidNode["unresolved_questions"] = []string{"Question remains"}
 	beforeWrites, beforeObservations = memory.commits, observer.calls
-	if _, err := service.ApplyAction(context.Background(), methodApplyRequest(task, "invalid-node", methodContractPayload(t, task, "requirements_ready", "", invalidNode, complete))); err != domain.ErrInvalidArgument || memory.commits != beforeWrites || observer.calls != beforeObservations {
+	if _, err := service.ApplyAction(context.Background(), methodApplyRequest(task, "invalid-node", methodContractPayload(t, task, "requirements_ready", "", invalidNode, complete))); !errors.Is(err, domain.ErrInvalidArgument) || memory.commits != beforeWrites || observer.calls != beforeObservations {
 		t.Fatalf("invalid node result error=%v", err)
 	}
 	if _, err := service.ApplyAction(context.Background(), methodApplyRequest(task, "invalid-transition", methodContractPayload(t, task, "design_ready", "", requirementsNodeResult("Goal", []string{"Accepted"}), complete))); err != domain.ErrTransitionNotAllowed || memory.commits != beforeWrites || observer.calls != beforeObservations {

@@ -137,6 +137,13 @@ Action result 以相对当前 Action 签发状态新产生的 `changed_paths`，
 完全一致但结果声明了文件变化，Application 返回 `repository_effect_not_observed` 字段错误，不把它
 误报为真实仓库漂移。
 
+`SubmitAction` 在暂存 ActionCommit 前完成两层零写入预检：Workflow 校验闭合 payload 形状与字段
+格式，Application 再按当前 Task 校验 revision、record、work item、测试通过条件、用户确认、
+acceptance 与 evidence 集合。失败返回不包含提交值的 `ContractViolation` 或 `GuardFailure`。
+只有当前值、当前集合与当前 acceptance 这类可由 Core 唯一确定的规则进入
+`correct_current_action`；其余规则只提供定位信息。预检通过后才暂存规范化 payload，Recovery 仍只
+重放该不可变提交。
+
 Core 不执行 checkout、reset、clean、stash、commit、merge、rebase、push、tag、publish，也不
 暴露 generic shell。Action 中的 `allowed_effects` 描述 Host 在用户授权下可执行的动作。
 

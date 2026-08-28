@@ -143,6 +143,14 @@ remain evidence. Application validates per-repository paths against the issuance
 observation before choosing rebind or `REPOSITORY_DRIFT`. An exact binding paired with declared file
 changes returns the field rule `repository_effect_not_observed` instead of being reported as real drift.
 
+Before staging an ActionCommit, `SubmitAction` performs two zero-write preflights. Workflow validates
+the closed payload shape and field format; Application then checks revisions, records, work items,
+passing-test conditions, user confirmation, acceptance, and evidence sets against the current Task.
+Failures return value-free `ContractViolation` or `GuardFailure` detail. Only current values, current
+sets, and current acceptance that Core can determine uniquely enter `correct_current_action`; other
+rules provide location detail only. Core stages the normalized payload only after preflight succeeds,
+and Recovery still replays that immutable submission.
+
 Core does not run checkout, reset, clean, stash, commit, merge, rebase, push, tag, or publication
 operations, and exposes no generic shell. Action `allowed_effects` describe operations a host may
 perform under user authority.

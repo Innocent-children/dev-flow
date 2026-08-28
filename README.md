@@ -147,6 +147,7 @@ Action ID，不再保存或重建原始 payload。
 允许写入的 Action 在结果中提交相对当前 Action 签发状态新产生的精确 `changed_paths`，或在本节点未改文件时提交 `no_file_changes`。Core 以签发基线、当前
 `allowed_effects` 和 fresh Git observation 验证；合法 worktree 结果可由原 Action 提交，branch、
 HEAD、repository identity 或未声明路径变化仍返回 `REPOSITORY_DRIFT`。若仓库状态完全一致但结果声明了文件变化，Core 返回 `repository_effect_not_observed` 字段错误，Host 可将本节点结果纠正为无文件变化。
+节点结果在暂存 Action 提交前还会按当前 Task 做语义预检；revision、record、evidence 集合和 acceptance 等可从 Core 唯一复制的错误返回 `allowed_paths`，Host 只可纠正这些字段一次。测试结论、用户确认和工作内容等不能安全推导的错误只返回字段信息，不授权自动纠正。
 
 ### 有界多仓库范围
 

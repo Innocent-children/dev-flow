@@ -136,6 +136,7 @@ na versão estável.
 - O código-fonte atual inclui uma WebUI compartilhada limitada ao loopback, com chinês simplificado/inglês, idioma inicial do sistema e troca local no navegador; remote MCP, telemetry, graph definido pelo usuário e migração histórica automática continuam fora do escopo.
 - Um índice opcional apenas ajuda na busca; não decide escopo, permissões, Recovery ou estado.
 - Uma Action com escrita permitida informa somente os `changed_paths` criados desde a emissão dessa Action, ou `no_file_changes` quando este nó não alterou arquivos. Core valida esses dados contra a linha de base de emissão e uma fresh Git observation; alterações autorizadas concluem com a Action original, enquanto mudanças de branch, HEAD, repository identity ou caminhos não declarados continuam retornando `REPOSITORY_DRIFT`. Se o repositório estiver inalterado, mas o resultado declarar mudanças, Core retorna a regra de campo `repository_effect_not_observed`.
+- Antes de registrar o envio de uma Action, Core também valida a semântica do resultado do nó contra a Task atual. Erros em revision, record, conjuntos de evidence e acceptance que podem ser copiados exatamente de Core retornam `allowed_paths` para uma única correção limitada. Conclusões de testes, confirmação do usuário e conteúdo do trabalho recebem apenas detalhes de campo, sem autorização para correção automática.
 
 Consulte [Security Policy](SECURITY.md) e [Threat Model](docs/THREAT-MODEL_en.md).
 

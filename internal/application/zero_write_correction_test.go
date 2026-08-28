@@ -79,6 +79,34 @@ func TestApplyInvalidArgumentUserEvidenceIsZeroWriteAndCorrectable(t *testing.T)
 	}
 }
 
+// TestApplyDeliveryMissingComprehensionEvidenceIsZeroWriteAndCorrectable covers
+// the reported DELIVERY failure. Core exposes the exact current evidence-set
+// member before an ActionCommit is staged, so the Host can copy the retained
+// user evidence ID and resubmit the same Action once.
+func TestApplyDeliveryMissingComprehensionEvidenceIsZeroWriteAndCorrectable(t *testing.T) {
+	service, memory, _ := phase5Service(t)
+	task := phase5TaskAtDelivery(t, service)
+	before := memory.commits
+	result := deliveryCompleteNodeResult(task)
+	result["manual_evidence_ids"] = []string{}
+	err := applyTestPayload(t, service, task, "delivery-missing-comprehension", "delivery_complete", "", result)
+	if !errors.Is(err, domain.ErrTransitionNotAllowed) {
+		t.Fatalf("error=%v", err)
+	}
+	typed := structuredFailure(t, err)
+	if !typed.ZeroWrite || memory.commits != before {
+		t.Fatalf("zero write=%v commits=%d", typed.ZeroWrite, memory.commits-before)
+	}
+	paths := domain.ViolationPaths(err)
+	if len(paths) != 1 || paths[0] != "payload.node_result.manual_evidence_ids" || typed.Guard == nil || typed.Guard.Failures[0].Rule != domain.ViolationRule(domain.GuardCurrentSetRequired) {
+		t.Fatalf("paths=%v guard=%#v", paths, typed.Guard)
+	}
+	result["manual_evidence_ids"] = []string{string(task.Comprehension.UserEvidenceID)}
+	if err := applyTestPayload(t, service, task, "delivery-corrected-comprehension", "delivery_complete", "", result); err != nil {
+		t.Fatalf("corrected delivery failed: %v", err)
+	}
+}
+
 // TestApplyInvalidArgumentPartialCorrectionRemainsInvalid proves that leaving
 // one reported failure unresolved does not commit state. It does not claim that
 // Core compares the corrected request with the rejected payload.
