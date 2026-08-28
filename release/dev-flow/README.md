@@ -8,8 +8,8 @@ Trusted Publisher；工作流通过 OIDC 认证，不使用长期 npm 发布 tok
 `publication-record.json`，再用相同输入重跑。
 
 ```bash
-pnpm run release:dev-flow -- --mode normal --version 0.1.1 --output /absolute/output \
-  --confirm dev-flow-v0.1.1 --confirm-comprehension
+pnpm run release:dev-flow -- --mode normal --version "<VERSION>" --output /absolute/output \
+  --confirm "dev-flow-v<VERSION>" --confirm-comprehension
 ```
 
 The command requires clean synchronized `main`, creates or reuses the exact Tag, npm version and GitHub draft,

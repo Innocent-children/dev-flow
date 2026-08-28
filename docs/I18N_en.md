@@ -65,9 +65,9 @@ Every change to user-visible behavior must, in the same pull request:
    installation, or invocation documentation according to the affected surface;
 4. list every documentation path in the pull-request validation summary.
 
-A release that changes public versions, bundled Core identities, platforms, host compatibility,
-installation commands, or release evidence must also synchronize every root README plus the affected
-support, command, and package documentation before publication.
+A version-only release updates machine-readable version files and release records without changing
+human-readable documentation. Platform, host-compatibility, installation, or product-behavior changes
+still synchronize every affected locale.
 
 A documentation-only correction must update every maintained locale containing the same incorrect
 statement. A product change, documentation change, or release must not be reported as merge-ready,
@@ -82,10 +82,9 @@ dev-flow-codex@latest
 dev-flow-deepseek@latest
 ```
 
-Exact versions remain mandatory in the Support Matrix, Release Tags, npm version links, bundled Core
-identities, artifact digests, and final-journey evidence. Do not replace those evidence identities with
-`latest`, and do not leave an old released version pinned indefinitely in ordinary installation
-examples.
+Exact Core, Codex, DeepSeek, and Dev Flow CLI release versions remain only in machine-readable version
+files, package metadata, Release Tags, artifact digests, and release records. Human-readable documents
+use `latest`, generic npm package pages, and the Releases entry point.
 
 Installation and command documentation must be checked against executable implementation:
 

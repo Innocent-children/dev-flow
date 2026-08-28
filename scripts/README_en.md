@@ -67,12 +67,10 @@ pnpm run release:deepseek -- \
 `stable` is the default channel. It accepts stable SemVer and requires `main` to equal
 `origin/main`. `beta` accepts only `MAJOR.MINOR.PATCH-beta.N`, may use any clean named branch, and
 pushes the version commit back to that branch. It always uses npm dist-tag `beta`, marks the GitHub
-Release as a prerelease, and preserves stable `latest` and public-version documentation.
+Release as a prerelease, and preserves stable `latest`.
 
-Both one-command release flows invoke `sync-public-release-docs.mjs` only in stable version commits. The
-synchronizer gets version facts only from `CORE_VERSION`, product package manifests, and
-`release/public-versions.json`, then updates every maintained root README, product guide, Roadmap,
-Support Matrix, and Host package README. Markdown never decides a version.
+Both one-command release flows update only machine-readable version files such as package manifests,
+the Plugin mirror, and `release/public-versions.json`; they neither read nor rewrite Markdown.
 
 Before a release, inspect paths changed since the current public Tag. The maintainer explicitly
 selects `quick` or `normal`. Only these exact-confirmation entrypoints may change a product

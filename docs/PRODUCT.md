@@ -143,7 +143,7 @@ DSH 公开 lifecycle，不复制 Core 或 Host 注册权威。普通维护保留
 交互菜单、确认提示、计划和结果读取当前 locale：`zh*` 使用简体中文，其余 locale 统一使用英文；JSON
 输出保持语言无关。公共 launcher 从已安装 Adapter 的 receipt 中选择最新可用 Core，只转发闭合的
 `webui` 命令，不保存第二份 Core 或流程状态。`webui start` 可按 `0700` 创建缺失的产品默认数据目录；
-显式数据目录必须预先存在，其余 WebUI 命令保持零写入。精确公开版本与安装验证见 Support Matrix。
+显式数据目录必须预先存在，其余 WebUI 命令保持零写入。平台与安装要求见 Support Matrix。
 
 ## 产品组成
 
@@ -152,12 +152,12 @@ Recovery 与 Blocker，并执行 Task 生命周期操作。`dev-flow webui start
 loopback 实例；界面支持简体中文/英文、首次按系统语言选择并将手工选择仅保存在浏览器。旧 Task 数据只通过 CLI-only、目标绑定且需要数据库独占访问的 `reset` 清理。浏览器不提供
 远程访问、账号、权限、shell、Git 写入或 reset mutation。
 
-| 产品 | 职责 | 当前版本 |
-| --- | --- | --- |
-| Core | 状态图、Task、Store、Recovery、MCP | `0.6.4` |
-| Codex | Codex Plugin、Skill、注册生命周期和 bundled Core | `0.7.6` |
-| DeepSeek | DSH bundle、Skill、guard、MCP child 和 bundled Core | `0.7.5` |
-| Dev Flow CLI | Host 无关的 Adapter 生命周期编排、公共 WebUI launcher 与恢复 | `0.1.1` |
+| 产品 | 职责 |
+| --- | --- |
+| Core | 状态图、Task、Store、Recovery、MCP |
+| Codex | Codex Plugin、Skill、注册生命周期和 bundled Core |
+| DeepSeek | DSH bundle、Skill、guard、MCP child 和 bundled Core |
+| Dev Flow CLI | Host 无关的 Adapter 生命周期编排、公共 WebUI launcher 与恢复 |
 
 四个产品独立版本化。Host 包记录实际 bundled Core 版本，不要求各产品使用同一版本号。
 
@@ -204,9 +204,8 @@ GitHub Release 回读和最终 registry-package Journey。npm 发布通过绑定
 Publisher 和短期 OIDC 凭据完成，不保存长期 npm 发布 token。该自动化属于仓库发布工具，不进入
 Go Core，也不改变 Task 或 Host Adapter 的产品职责。
 
-Codex 当前版本 `0.7.6` 已发布到 npm，并使用 `codex-v0.7.6` GitHub Release。
-DeepSeek 当前版本 `0.7.5` 已发布到 npm，并使用 `deepseek-v0.7.5` GitHub Release。
-两个 Host 产品分别打包支持表记录的 Core 精确身份，公开支持 macOS arm64 与 Node.js `>=24`。
+Codex 与 DeepSeek Adapter 已发布到 npm。两个 Host 产品分别打包自己的 Core，公开支持 macOS arm64
+与 Node.js `>=24`。
 
 精确平台、Host 版本、Journey 结论和 Release 入口见
 [Support Matrix](SUPPORT-MATRIX.md)。精确产品行为由当前代码、机器可读 Schema 和可执行测试

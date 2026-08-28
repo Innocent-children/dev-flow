@@ -13,15 +13,15 @@ Dev Flow 仍是一个早期开源项目，但已经有公开 package 和真实 H
 前两类证据已经存在；外部采用仍处于早期，本页不会把下载次数、测试数量或维护者自己的 PR
 包装成“广泛采用”。
 
-## 稳定版本
+## 稳定支持
 
 npm `@latest` 当前选择以下稳定 package：
 
-| 产品 | 稳定版本 | Bundled Core | 已验证环境 |
-| --- | --- | --- | --- |
-| `dev-flow-codex` | `0.7.6` | `0.6.4` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
-| `dev-flow-deepseek` | `0.7.5` | `0.6.4` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
-| `@imotong/dev-flow` | `0.1.1` | 从已安装 Adapter 选择 | macOS arm64、Node.js `>=20` |
+| 产品 | 已验证环境 |
+| --- | --- |
+| `dev-flow-codex` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
+| `dev-flow-deepseek` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
+| `@imotong/dev-flow` | macOS arm64、Node.js `>=20` |
 
 稳定声明来自 registry package 的安装、Host/Core handshake、移除、卸载与仓库不变性检查；DeepSeek
 稳定旅程还覆盖显式触发、重启恢复、`DONE` 与 retained reopen。精确 Release 和 artifact 入口见
@@ -29,11 +29,11 @@ npm `@latest` 当前选择以下稳定 package：
 
 ## 当前源码
 
-| 产品 | `main` 中的 package 版本 | 当前能力 |
-| --- | --- | --- |
-| `dev-flow-codex` | `0.7.6` | 智能选择、setup、Plugin/MCP 注册和多仓库 Task Scope |
-| `dev-flow-deepseek` | `0.7.5` | DSH bundle、显式触发和多仓库 Task Scope |
-| `@imotong/dev-flow` | `0.1.1` | 统一 Adapter 生命周期与本机 Control Center launcher |
+| 产品 | 当前能力 |
+| --- | --- |
+| `dev-flow-codex` | 智能选择、setup、Plugin/MCP 注册和多仓库 Task Scope |
+| `dev-flow-deepseek` | DSH bundle、显式触发和多仓库 Task Scope |
+| `@imotong/dev-flow` | 统一 Adapter 生命周期与本机 Control Center launcher |
 
 当前源码还包含嵌入 Core 的共享本机 WebUI，公共入口为
 `dev-flow webui start|open|status|stop|reset`。源码测试通过不单独扩大平台或 Host 支持范围；公开支持

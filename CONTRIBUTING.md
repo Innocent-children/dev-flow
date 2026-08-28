@@ -63,7 +63,7 @@ pnpm install --frozen-lockfile
 - 改变用户可见行为时，必须同步更新全部根 README locale、`docs/PRODUCT*` 和受影响的技术文档；
 - 文档修正必须同步该文档族的所有维护语言；
 - 新增或修改命令时，对照 package manifest、CLI parser、DSH lifecycle、Core parser 或 MCP catalog，并同步 `docs/COMMANDS*`；
-- 面向用户的 npm 安装示例使用 `@latest`，精确版本只用于 Support Matrix、Release 与制品证据；
+- 面向用户的 npm 安装示例使用 `@latest`，人类阅读文档不记录精确产品版本；
 - 不在普通功能或文档 Pull Request 中提升版本或执行发布。
 
 ## 验证
@@ -72,8 +72,8 @@ pnpm install --frozen-lockfile
 
 - Markdown、表格、代码块和 Mermaid 在 GitHub 上正常渲染；
 - 语言导航中的所有文件存在且互相可达；
-- 同一文档族的章节结构、命令、版本、平台和支持声明一致；
-- 所有普通安装示例使用 `@latest`，所有证据表仍保留精确版本；
+- 同一文档族的章节结构、命令、平台和支持声明一致；
+- 所有普通安装示例使用 `@latest`，精确产品版本只存在于机器可读文件和发布记录；
 - `docs/COMMANDS*` 与实际可执行 command/tool catalog 一致；
 - 非英文文件没有占位翻译或整段英文 fallback；
 - 没有扩大当前 [支持矩阵](docs/SUPPORT-MATRIX.md) 的声明。

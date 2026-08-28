@@ -51,15 +51,12 @@ Every change to user-visible behavior must update documentation in the same pull
    instructions, or invocation documentation;
 4. list the exact documentation paths in the pull-request validation summary.
 
-A version-only release that changes public versions, bundled Core identities, platform support, Host
-compatibility, installation commands, or release evidence must synchronize the same facts across all
-maintained root README locales and the affected support, command, and package documentation before
-publication.
+A version-only release updates machine-readable version authorities and release records. Human-readable
+documentation must not contain exact Core, Codex, DeepSeek, or Dev Flow CLI release versions.
 
 Public end-user installation examples must select the current npm stable channel with
-`dev-flow-codex@latest` or `dev-flow-deepseek@latest`. Exact versions must remain in Support Matrix
-rows, npm version links, Release Tags, bundled Core identities, artifact digests, and final release
-evidence.
+`dev-flow-codex@latest` or `dev-flow-deepseek@latest`. Exact product versions remain only in
+machine-readable authorities, package metadata, Release Tags, artifact digests, and release records.
 
 Every documented command must be checked against its executable implementation before merge:
 

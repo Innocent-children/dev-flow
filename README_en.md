@@ -181,10 +181,10 @@ See the [Security Policy](SECURITY.md) and [Threat Model](docs/THREAT-MODEL_en.m
 
 ## Current stable support
 
-| Product | Stable version | Bundled Core | Verified environment |
-| --- | --- | --- | --- |
-| `dev-flow-codex` | `0.7.6` | `0.6.4` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
-| `dev-flow-deepseek` | `0.7.5` | `0.6.4` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
+| Product | Verified environment |
+| --- | --- |
+| `dev-flow-codex` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
+| `dev-flow-deepseek` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
 
 These claims come from public artifacts and final Host journeys, not merely from buildable source or
 passing tests. See [Project Status](docs/PROJECT-STATUS_en.md) and the

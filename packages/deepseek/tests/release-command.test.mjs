@@ -7,7 +7,6 @@ import { promisify } from "node:util";
 import test from "node:test";
 
 import { parseReleaseArguments, quickModeBlockingPaths, runReleaseCommand } from "../../../scripts/release-deepseek.mjs";
-import { PUBLIC_RELEASE_DOCUMENT_PATHS } from "../../../scripts/sync-public-release-docs.mjs";
 
 const execFile = promisify(execFileCallback);
 const baseVersion = "1.2.3";
@@ -237,7 +236,7 @@ async function createScenario(t, { changedPath }) {
     mkdir(join(repository, "scripts"), { recursive: true }),
   ]);
   await writeVersionAuthorities(repository, baseVersion);
-  await writePublicReleaseDocs(repository, { core: coreVersion, codex: codexVersion, deepseek: baseVersion });
+  await writePublicVersions(repository, { core: coreVersion, codex: codexVersion, deepseek: baseVersion });
   for (const name of ["build-deepseek-release.sh", "verify-deepseek-release.mjs", "publish-deepseek-release.mjs"]) {
     const path = join(repository, "scripts", name);
     await writeFile(path, "fixture\n");
@@ -271,23 +270,13 @@ async function writeVersionAuthorities(repository, version) {
   await writeFile(join(repository, "packages", "deepseek", "tests", "fixtures", "fake-core.mjs"), `const first = "${coreVersion}";\nconst second = "${coreVersion}";\n`);
 }
 
-async function writePublicReleaseDocs(repository, versions) {
+async function writePublicVersions(repository, versions) {
   await mkdir(join(repository, "release"), { recursive: true });
   await writeJSON(join(repository, "release", "public-versions.json"), {
     core_version: versions.core,
     codex: { version: versions.codex, core_version: versions.core },
     deepseek: { version: versions.deepseek, core_version: versions.core },
   });
-  for (const relativePath of PUBLIC_RELEASE_DOCUMENT_PATHS) {
-    const path = join(repository, relativePath);
-    await mkdir(join(path, ".."), { recursive: true });
-    const contents = relativePath === "docs/DEEPSEEK_en.md" || relativePath === "packages/deepseek/README.md"
-      ? `DeepSeek dev-flow-deepseek@${versions.deepseek} Core ${versions.core} deepseek-v${versions.deepseek}\n`
-      : relativePath === "docs/CODEX_en.md" || relativePath === "packages/codex/README.md"
-        ? `Codex dev-flow-codex@${versions.codex} Core ${versions.core} codex-v${versions.codex}\n`
-        : `Core | ${versions.core}\ndev-flow-codex | ${versions.codex} | ${versions.core} | codex-v${versions.codex}\ndev-flow-deepseek | ${versions.deepseek} | ${versions.core} | deepseek-v${versions.deepseek}\n`;
-    await writeFile(path, contents);
-  }
 }
 
 function recordingRunner(calls, { prepareOutput = null, version = targetVersion, mode = "normal", basedOnRelease = null } = {}) {

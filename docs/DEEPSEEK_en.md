@@ -11,17 +11,11 @@ executable to one DSH profile.
 
 | Item | Current support |
 | --- | --- |
-| Package | `dev-flow-deepseek@0.7.5` |
-| Bundled Core | `0.6.4` |
+| Package | [`dev-flow-deepseek`](https://www.npmjs.com/package/dev-flow-deepseek) |
 | Platform | macOS arm64 |
 | Node.js | `>=24` |
 | DSH | `>=0.1.0-rc.6` |
-| Release | [deepseek-v0.7.5](https://github.com/Innocent-children/dev-flow/releases/tag/deepseek-v0.7.5) |
-
-The `0.7.5` normal release passed registry-package installation, explicit activation, Core handshake,
-restart/resume, `DONE`, removal, uninstallation, retained reopen, and repository-unchanged gates. The
-table records the exact verified public version; the installation commands below select npm's
-`latest` dist-tag.
+| Releases | [GitHub Releases](https://github.com/Innocent-children/dev-flow/releases) |
 
 ## Install and verify
 

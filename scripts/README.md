@@ -61,12 +61,10 @@ pnpm run release:deepseek -- \
 
 `stable` 为默认 channel，只接受稳定 SemVer，并要求 `main` 与 `origin/main` 一致。`beta` 只接受
 `MAJOR.MINOR.PATCH-beta.N`，允许任意干净的命名分支，version commit 推回当前分支；npm 固定使用
-`beta` dist-tag，GitHub Release 固定为 prerelease，稳定版 `latest` 和公开版本文档保持不变。
+`beta` dist-tag，GitHub Release 固定为 prerelease，稳定版 `latest` 保持不变。
 
-两个一键发布命令仅在 stable version commit 中调用 `sync-public-release-docs.mjs`。同步器只从
-`CORE_VERSION`、产品 package manifest 和 `release/public-versions.json` 获取版本事实，并更新
-全部维护中的根 README、产品说明、Roadmap、Support Matrix 与 Host package README；Markdown
-不参与版本决策。
+两个一键发布命令只更新 package manifest、Plugin mirror 和 `release/public-versions.json` 等机器
+可读版本文件，不读取或改写 Markdown。
 
 发布前必须先检查当前公开 Tag 后的 changed paths，由维护者明确选择 `quick` 或 `normal`。
 只有上述 exact-confirmation 入口可以修改产品版本、commit/push、Tag、npm、GitHub Release 与

@@ -71,8 +71,8 @@ Before editing, read the [I18n policy](docs/I18N_en.md), the
 - A documentation correction must synchronize every maintained language in that document family.
 - When adding or changing a command, verify it against the package manifest, CLI parser, DSH lifecycle,
   Core parser, or MCP catalog and synchronize `docs/COMMANDS*`.
-- Public npm installation examples use `@latest`; exact versions remain in the Support Matrix,
-  Releases, and artifact evidence.
+- Public npm installation examples use `@latest`; human-readable documentation contains no exact
+  product release versions.
 - Do not bump versions or perform a release from an ordinary feature or documentation pull request.
 
 ## Validation
@@ -81,9 +81,10 @@ At minimum, documentation changes should confirm that:
 
 - Markdown, tables, code fences, and Mermaid render correctly on GitHub;
 - every file in the language navigation exists and links back to the other locales;
-- section structure, commands, versions, platforms, and support claims are aligned within a document
+- section structure, commands, platforms, and support claims are aligned within a document
   family;
-- every ordinary installation example uses `@latest`, while evidence tables retain exact versions;
+- every ordinary installation example uses `@latest`, while exact product versions remain in
+  machine-readable files and release records;
 - `docs/COMMANDS*` matches the executable command and tool catalog;
 - non-English files contain no placeholder translation or whole-section English fallback;
 - the change does not broaden claims in the current

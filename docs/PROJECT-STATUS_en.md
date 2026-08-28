@@ -13,15 +13,15 @@ page separates three different kinds of evidence:
 
 The first two exist today. External adoption is still early and is not overstated here.
 
-## Stable releases
+## Stable support
 
 `@latest` selects the stable packages below.
 
-| Product | Stable version | Bundled Core | Verified environment |
-| --- | --- | --- | --- |
-| `dev-flow-codex` | `0.7.6` | `0.6.4` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
-| `dev-flow-deepseek` | `0.7.5` | `0.6.4` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
-| `@imotong/dev-flow` | `0.1.1` | Selected from installed Adapters | macOS arm64, Node.js `>=20` |
+| Product | Verified environment |
+| --- | --- |
+| `dev-flow-codex` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
+| `dev-flow-deepseek` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
+| `@imotong/dev-flow` | macOS arm64, Node.js `>=20` |
 
 Stable claims come from registry-package installation, Host/Core handshake, removal, uninstallation,
 and repository-unchanged gates. The DeepSeek stable journey also covers explicit activation,
@@ -30,11 +30,11 @@ exact Releases and artifact identities.
 
 ## Current source
 
-| Product | Package version on `main` | Current capabilities |
-| --- | --- | --- |
-| `dev-flow-codex` | `0.7.6` | smart selection, setup, Plugin/MCP registration, and multi-repository Task Scope |
-| `dev-flow-deepseek` | `0.7.5` | DSH bundle, explicit activation, and multi-repository Task Scope |
-| `@imotong/dev-flow` | `0.1.1` | unified Adapter lifecycle and local Control Center launcher |
+| Product | Current capabilities |
+| --- | --- |
+| `dev-flow-codex` | smart selection, setup, Plugin/MCP registration, and multi-repository Task Scope |
+| `dev-flow-deepseek` | DSH bundle, explicit activation, and multi-repository Task Scope |
+| `@imotong/dev-flow` | unified Adapter lifecycle and local Control Center launcher |
 
 Current source also includes the shared local WebUI embedded in Core, exposed through
 `dev-flow webui start|open|status|stop|reset`. Passing source tests alone does not expand platform or

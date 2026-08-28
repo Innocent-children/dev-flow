@@ -14,7 +14,7 @@ import {
   releaseChannel,
   validateChannelVersion,
 } from "./release-channel.mjs";
-import { PUBLIC_RELEASE_DOCUMENT_PATHS, syncPublicReleaseDocs } from "./sync-public-release-docs.mjs";
+import { syncPublicReleaseVersions } from "./sync-public-release-versions.mjs";
 
 const execFile = promisify(execFileCallback);
 const CORE_VERSION_PATTERN = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/u;
@@ -24,7 +24,6 @@ const VERSION_AUTHORITY_PATHS = Object.freeze([
   "packages/codex/package.json",
   "packages/codex/plugin/.codex-plugin/plugin.json",
   "release/public-versions.json",
-  ...PUBLIC_RELEASE_DOCUMENT_PATHS,
 ]);
 const QUICK_BLOCKED_PATHS = Object.freeze([
   "CORE_VERSION",
@@ -119,7 +118,7 @@ export async function runReleaseCommand({
       }
       await updateCodexVersion(root, currentVersion, targetVersion);
       if (channel === "stable") {
-        await syncPublicReleaseDocs(root, { product: "codex", version: targetVersion, coreVersion });
+        await syncPublicReleaseVersions(root, { product: "codex", version: targetVersion, coreVersion });
       }
       currentVersion = await validateCodexAuthorities(root);
       await commitAndPushVersion(root, targetVersion, channel, source.branch);

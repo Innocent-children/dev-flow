@@ -174,12 +174,12 @@ start|open|status|stop` manages one shared loopback instance. The interface prov
 target-bound `reset` after exclusive database access. The browser exposes no remote access, accounts, permissions, shell,
 Git mutation, or reset mutation.
 
-| Product | Responsibility | Current version |
-| --- | --- | --- |
-| Core | State graph, Task, Store, Recovery, and MCP | `0.6.4` |
-| Codex | Codex Plugin, Skill, registration lifecycle, and bundled Core | `0.7.6` |
-| DeepSeek | DSH bundle, Skill, guard, MCP child, and bundled Core | `0.7.5` |
-| Dev Flow CLI | Host-neutral Adapter lifecycle, public WebUI launcher, and recovery | `0.1.1` |
+| Product | Responsibility |
+| --- | --- |
+| Core | State graph, Task, Store, Recovery, and MCP |
+| Codex | Codex Plugin, Skill, registration lifecycle, and bundled Core |
+| DeepSeek | DSH bundle, Skill, guard, MCP child, and bundled Core |
+| Dev Flow CLI | Host-neutral Adapter lifecycle, public WebUI launcher, and recovery |
 
 The four products have independent versions. A host package records its actual bundled Core version;
 product version numbers do not have to match.
@@ -235,10 +235,8 @@ credential, with no long-lived npm publish token stored in the repository. This 
 repository release tooling; it does not enter the Go Core or change Task or Host Adapter product
 responsibilities.
 
-The current Codex version `0.7.6` is published to npm with the `codex-v0.7.6` GitHub Release.
-The current DeepSeek version `0.7.5` is published to npm with the `deepseek-v0.7.5` GitHub Release.
-Each host product bundles the exact Core identity recorded in the support matrix and publicly supports
-macOS arm64 with Node.js `>=24`.
+The Codex and DeepSeek Adapters are published to npm. Each host product bundles its own Core and
+publicly supports macOS arm64 with Node.js `>=24`.
 
 See the [Support Matrix](SUPPORT-MATRIX_en.md) for exact platform, host version, Journey outcome, and
 Release evidence. Current source code, machine-readable schemas, and executable tests define exact

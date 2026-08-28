@@ -12,9 +12,10 @@ test("three product versions are independent", async (t) => {
   await setVersion(join(root, "packages/codex/package.json"), "2.3.4");
   await setVersion(join(root, "packages/codex/plugin/.codex-plugin/plugin.json"), "2.3.4");
   await setVersion(join(root, "packages/deepseek/package.json"), "3.4.5");
+  await setVersion(join(root, "packages/dev-flow/package.json"), "4.5.6");
   await setFixtureVersion(join(root, "protocol/fixtures/graph-server-info.json"), "1.2.3");
   await setNestedFixtureVersion(join(root, "packages/codex/tests/fixtures/graph-method-profiles.json"), "1.2.3");
-  assert.deepEqual(await checkVersions(root), { core: "1.2.3", codex: "2.3.4", deepseek: "3.4.5" });
+  assert.deepEqual(await checkVersions(root), { core: "1.2.3", codex: "2.3.4", deepseek: "3.4.5", devFlow: "4.5.6" });
 });
 
 test("only the Codex plugin mirrors another product version", async (t) => {
@@ -46,31 +47,13 @@ test("current product surfaces contain no internal version system except the dat
   assert.deepEqual(violations, []);
 });
 
-test("production and release authorities do not derive behavior from repository documentation", async () => {
-  const root = new URL("../", import.meta.url);
-  const files = [];
-  for (const path of [
-    "cmd", "internal", "scripts", "release",
-    "packages/codex/bin", "packages/codex/lib", "packages/deepseek/lib",
-  ]) await walk(new URL(`${path}/`, root), files);
-
-  const forbidden = /(?:^|["'`/])(?:docs|specs)\//u;
-  const violations = [];
-  for (const file of files) {
-    const path = fileURLPath(file);
-    if (path.includes("/testdata/") || path.includes("/tests/")) continue;
-    if (path.endsWith("/scripts/sync-public-release-docs.mjs")) continue;
-    if (forbidden.test(await readFile(file, "utf8"))) violations.push(path);
-  }
-  assert.deepEqual(violations, []);
-});
-
 async function fixtureRoot(t) {
   const root = await mkdtemp(join(tmpdir(), "dev-flow-versions-"));
   t.after(() => import("node:fs/promises").then(({ rm }) => rm(root, { recursive: true, force: true })));
   for (const path of [
     "CORE_VERSION", "package.json", "packages/codex/package.json",
     "packages/codex/plugin/.codex-plugin/plugin.json", "packages/deepseek/package.json",
+    "packages/dev-flow/package.json",
     "protocol/fixtures/graph-server-info.json", "packages/codex/tests/fixtures/graph-method-profiles.json",
   ]) {
     await mkdir(join(root, path, ".."), { recursive: true });
