@@ -20,6 +20,8 @@ export const PUBLIC_RELEASE_DOCUMENT_PATHS = Object.freeze([
   "docs/DEEPSEEK_en.md",
   "docs/PRODUCT.md",
   "docs/PRODUCT_en.md",
+  "docs/PROJECT-STATUS.md",
+  "docs/PROJECT-STATUS_en.md",
   "docs/ROADMAP.md",
   "docs/ROADMAP_en.md",
   "docs/SUPPORT-MATRIX.md",

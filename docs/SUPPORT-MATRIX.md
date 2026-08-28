@@ -19,23 +19,22 @@ npm `@latest` 当前选择以下 package：
 Codex lifecycle evidence 覆盖 package/Core identity、安装、setup、Core handshake、remove、uninstall
 与 repository unchanged。DeepSeek 还覆盖显式触发、restart/resume、`DONE` 和 retained reopen。
 
-## 预览与源码
+## 当前源码
 
-Feature 014 源码包含共享本机 WebUI、内嵌资产和 `dev-flow webui start|open|status|stop|reset`。该源码
-验证不改变上方公开稳定版本或 Bundled Core 声明；只有后续独立 release、registry bytes 回读和最终 Host
-lifecycle 才能把它加入稳定制品声明。
+当前源码包含共享本机 WebUI、内嵌资产和 `dev-flow webui start|open|status|stop|reset`。源码中的
+Host package 版本与上方稳定版本一致：
 
-| 产品 | npm `beta` | `main` package 版本 | 状态 |
-| --- | --- | --- | --- |
-| `dev-flow-codex` | `0.7.4-beta.2` | `0.7.4-beta.2` | 可公开评估；不是稳定支持声明 |
-| `dev-flow-deepseek` | `0.7.4-beta.1` | `0.7.4-beta.1` | 可公开评估；不是稳定支持声明 |
+| 产品 | `main` package 版本 | Bundled Core |
+| --- | --- | --- |
+| `dev-flow-codex` | `0.7.4` | `0.6.3` |
+| `dev-flow-deepseek` | `0.7.4` | `0.6.3` |
 
-稳定支持只能通过独立发布流程、registry bytes 回读和最终 Host Journey 建立，而不是简单移动 npm
-dist-tag。
+新的源码能力或后续 beta 只有经过独立发布流程、registry bytes 回读和最终 Host Journey，才能扩大上方
+稳定支持声明。
 
 ## 尚未声明支持
 
 当前没有 Linux、Windows、Intel Mac、Rosetta 或 remote MCP 支持声明。
 
-若需要了解 beta 中包含的能力、真实 Journey 入口和项目采用状态，请阅读
+若需要了解当前源码能力、真实 Journey 入口和项目采用状态，请阅读
 [项目状态页](PROJECT-STATUS.md)。

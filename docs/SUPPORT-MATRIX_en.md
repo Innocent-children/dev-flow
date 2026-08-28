@@ -21,23 +21,22 @@ Codex lifecycle evidence covers package/Core identity, installation, setup, Core
 uninstallation, and an unchanged repository. DeepSeek additionally covers explicit activation,
 restart/resume, `DONE`, and retained reopen.
 
-## Preview and source
+## Current source
 
-Feature 014 source includes the shared local WebUI, embedded assets, and `dev-flow webui
-start|open|status|stop|reset`. Source validation does not change the public stable versions or bundled-Core claims above;
-only a later independent release, registry-byte read-back, and final Host lifecycle can add it to stable artifact claims.
+Current source includes the shared local WebUI, embedded assets, and `dev-flow webui
+start|open|status|stop|reset`. The Host package versions in source match the stable versions above:
 
-| Product | npm `beta` | Package version on `main` | Status |
-| --- | --- | --- | --- |
-| `dev-flow-codex` | `0.7.4-beta.2` | `0.7.4-beta.2` | Publicly evaluable; not a stable support claim |
-| `dev-flow-deepseek` | `0.7.4-beta.1` | `0.7.4-beta.1` | Publicly evaluable; not a stable support claim |
+| Product | Package version on `main` | Bundled Core |
+| --- | --- | --- |
+| `dev-flow-codex` | `0.7.4` | `0.6.3` |
+| `dev-flow-deepseek` | `0.7.4` | `0.6.3` |
 
-Stable support requires the independent release flow, registry-byte read-back, and the final Host
-journey. It is not established by moving an npm dist-tag alone.
+New source capabilities or a later beta can expand the stable support claim above only after the
+independent release flow, registry-byte read-back, and final Host journey.
 
 ## Not currently supported
 
 There is no public support claim for Linux, Windows, Intel Mac, Rosetta, or remote MCP.
 
-For the capabilities present in beta, real journey entry points, and adoption status, read
+For current source capabilities, real journey entry points, and adoption status, read
 [Project Status](PROJECT-STATUS_en.md).

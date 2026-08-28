@@ -2,7 +2,7 @@
 
 [中文](PROJECT-STATUS.md) | [English](PROJECT-STATUS_en.md)
 
-_Last reviewed: August 24, 2026._
+_Last reviewed: August 28, 2026._
 
 Dev Flow is an early open-source project with real published packages and real Host journeys. This
 page separates three different kinds of evidence:
@@ -19,24 +19,26 @@ The first two exist today. External adoption is still early and is not overstate
 
 | Product | Stable version | Bundled Core | Verified environment |
 | --- | --- | --- | --- |
-| `dev-flow-codex` | `0.5.3` | `0.5.1` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
-| `dev-flow-deepseek` | `0.5.2` | `0.5.1` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
+| `dev-flow-codex` | `0.7.4` | `0.6.3` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
+| `dev-flow-deepseek` | `0.7.4` | `0.6.3` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
+| `@imotong/dev-flow` | `0.1.1` | Selected from installed Adapters | macOS arm64, Node.js `>=20` |
 
 Stable claims come from registry-package installation, Host/Core handshake, removal, uninstallation,
 and repository-unchanged gates. The DeepSeek stable journey also covers explicit activation,
 restart recovery, `DONE`, and retained reopen. See the [Support Matrix](SUPPORT-MATRIX_en.md) for
 exact Releases and artifact identities.
 
-## Preview and current source
+## Current source
 
-| Product | npm `beta` | Package version on `main` | Newer behavior present |
-| --- | --- | --- | --- |
-| `dev-flow-codex` | `0.6.0-beta.2` | `0.6.0-beta.2` | smart selection, improved setup, multi-repository Task Scope |
-| `dev-flow-deepseek` | `0.6.0-beta.1` | `0.6.0-beta.1` | multi-repository Task Scope |
+| Product | Package version on `main` | Current capabilities |
+| --- | --- | --- |
+| `dev-flow-codex` | `0.7.4` | smart selection, setup, Plugin/MCP registration, and multi-repository Task Scope |
+| `dev-flow-deepseek` | `0.7.4` | DSH bundle, explicit activation, and multi-repository Task Scope |
+| `@imotong/dev-flow` | `0.1.1` | unified Adapter lifecycle and local Control Center launcher |
 
-A beta package is publicly installable, but it is not a stable support claim. Buildable source, a
-passing Feature journey, or a published beta does not mean the capability is already in npm
-`@latest`.
+Current source also includes the shared local WebUI embedded in Core, exposed through
+`dev-flow webui start|open|status|stop|reset`. Passing source tests alone does not expand platform or
+Host support; public support still depends on registry-package read-back and a final Host journey.
 
 ## Evidence map
 
@@ -55,7 +57,8 @@ passing Feature journey, or a published beta does not mean the capability is alr
 - The project is young, so external Issues, pull requests, dependent projects, and long-term adoption
   evidence remain limited.
 - Core is not a Host sandbox and does not intercept every Host file operation or shell command.
-- There is currently no Web UI, telemetry, user-defined graph, or automatic historical Task migration.
+- There is currently no telemetry, user-defined graph, or automatic historical Task migration; the
+  WebUI is local loopback only and provides no remote access.
 
 ## How to evaluate the project
 

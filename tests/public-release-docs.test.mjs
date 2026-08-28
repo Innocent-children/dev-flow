@@ -9,9 +9,9 @@ import { PUBLIC_RELEASE_DOCUMENT_PATHS, syncPublicReleaseDocs, verifyPublicRelea
 test("maintained public release documentation matches recorded public identities", async () => {
   const root = new URL("../", import.meta.url);
   assert.deepEqual(await verifyPublicReleaseDocs(fileURLPath(root)), {
-    core_version: "0.5.0",
-    codex: { version: "0.5.2", core_version: "0.5.0" },
-    deepseek: { version: "0.5.1", core_version: "0.5.0" },
+    core_version: "0.6.3",
+    codex: { version: "0.7.4", core_version: "0.6.3" },
+    deepseek: { version: "0.7.4", core_version: "0.6.3" },
   });
 });
 
