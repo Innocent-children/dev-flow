@@ -171,7 +171,7 @@ Git mutation, or reset mutation.
 | Core | State graph, Task, Store, Recovery, and MCP | `0.6.2` |
 | Codex | Codex Plugin, Skill, registration lifecycle, and bundled Core | `0.7.3` |
 | DeepSeek | DSH bundle, Skill, guard, MCP child, and bundled Core | `0.7.3` |
-| Dev Flow CLI | Host-neutral Adapter lifecycle, public WebUI launcher, and recovery | `0.1.0` (source, pending independent release) |
+| Dev Flow CLI | Host-neutral Adapter lifecycle, public WebUI launcher, and recovery | `0.1.0` |
 
 The four products have independent versions. A host package records its actual bundled Core version;
 product version numbers do not have to match.

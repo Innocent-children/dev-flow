@@ -22,8 +22,8 @@ Dev Flow 的路线由用户价值和可验证结果推进。日期不是承诺�
 - 固定只读用户配置中的 Host 级可选代码索引偏好，以及索引不可用时的内置检索回退；
 - Codex setup 缺失配置创建、真实配置/receipt 文件摘要和简中/英文可降级安装首屏；
 - Codex 与 DeepSeek 两个显式 Host Adapter。
-- 源码中的 `dev-flow` 统一 Adapter 生命周期管理器，覆盖状态、诊断、安装、升级、修复、重装、
-  卸载与 ownership-safe factory reset；公开支持等待独立 release evidence。
+- 已发布的 `dev-flow` 统一 Adapter 生命周期与公共 WebUI launcher，覆盖状态、诊断、安装、升级、修复、
+  重装、卸载与 ownership-safe factory reset。
 
 ## 当前公开产品
 
@@ -32,6 +32,7 @@ Dev Flow 的路线由用户价值和可验证结果推进。日期不是承诺�
 | Core | `0.6.2` | 作为两个 Host package 的独立 bundled runtime |
 | Codex | `0.7.3` | npm 与 `codex-v0.7.3` 已发布，macOS arm64 registry lifecycle 通过 |
 | DeepSeek | `0.7.3` | npm 与 `deepseek-v0.7.3` 已发布，macOS arm64 native registry journey 通过 |
+| Dev Flow CLI | `0.1.0` | npm 与 `dev-flow-v0.1.0` 已发布，registry package smoke 通过 |
 
 公开支持的精确 Host 版本、制品 digest 和证据入口见
 [Support Matrix](SUPPORT-MATRIX.md)。

@@ -29,8 +29,8 @@ npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-After its separate release, `dev-flow` is the default lifecycle entry. The current public stable artifacts do
-not yet include the new package. Before that release, and for diagnostic recovery, use the native Host commands:
+`dev-flow` is the default lifecycle and public WebUI entry. Native Host commands remain available for diagnostic
+recovery:
 
 ```bash
 npm install -g dev-flow-codex@latest

@@ -26,8 +26,8 @@ Delivered capabilities:
 - Codex setup configuration creation, exact configuration/receipt change summaries, and a
   degradable Simplified Chinese or English installation screen;
 - explicit Codex and DeepSeek Host Adapters.
-- the source `dev-flow` unified Adapter lifecycle manager for status, diagnosis, installation, upgrade, repair,
-  reinstall, uninstall, and ownership-safe factory reset; public support awaits separate release evidence.
+- the published `dev-flow` unified Adapter lifecycle and public WebUI launcher for status, diagnosis, installation,
+  upgrade, repair, reinstall, uninstall, and ownership-safe factory reset.
 
 ## Current public products
 
@@ -36,6 +36,7 @@ Delivered capabilities:
 | Core | `0.6.2` | Independent bundled runtime in both Host packages |
 | Codex | `0.7.3` | npm and `codex-v0.7.3` published; macOS arm64 registry lifecycle passed |
 | DeepSeek | `0.7.3` | npm and `deepseek-v0.7.3` published; macOS arm64 native registry journey passed |
+| Dev Flow CLI | `0.1.0` | npm and `dev-flow-v0.1.0` published; registry package smoke passed |
 
 See the [Support Matrix](SUPPORT-MATRIX_en.md) for exact supported Host versions, artifact digests,
 and evidence entrypoints.

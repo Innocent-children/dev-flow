@@ -29,8 +29,7 @@ npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-`dev-flow` 独立发布后成为默认生命周期入口；当前公开稳定制品尚未包含该新 package。发布前
-或诊断恢复时继续使用以下 Host 原生命令：
+`dev-flow` 是默认生命周期和公共 WebUI 入口；诊断恢复时仍可使用以下 Host 原生命令：
 
 ```bash
 npm install -g dev-flow-codex@latest

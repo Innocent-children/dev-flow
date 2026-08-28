@@ -24,15 +24,15 @@ restart/resume、`DONE`、remove、uninstall、retained reopen 和 repository-un
 
 ## 安装与验证
 
-DSH 是前置 Host。`dev-flow` 独立发布后，用户只需指定真实 Profile，默认使用 `web`：
+DSH 是前置 Host。使用 `dev-flow` 时只需指定真实 Profile，默认使用 `web`：
 
 ```bash
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-当前公开稳定制品尚未包含该新 manager package。发布前或诊断恢复时继续使用以下 Host 原生命令；
-需要其他 Profile 时修改 `PROFILE` 的值，不要把 `<profile>` 原样输入 shell：
+诊断恢复时仍可使用以下 Host 原生命令；需要其他 Profile 时修改 `PROFILE` 的值，不要把
+`<profile>` 原样输入 shell：
 
 ```bash
 npm install -g @deepseek-ai/dsh@latest

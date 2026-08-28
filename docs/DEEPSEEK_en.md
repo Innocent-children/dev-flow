@@ -25,16 +25,15 @@ table records the exact verified public version; the installation commands below
 
 ## Install and verify
 
-DSH is the prerequisite Host. After the separate manager release, select one real Profile; the default is `web`:
+DSH is the prerequisite Host. With `dev-flow`, select one real Profile; the default is `web`:
 
 ```bash
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-The current public stable artifacts do not yet include the new manager package. Before that release, and for
-diagnostic recovery, use the native Host commands below. Change `PROFILE` for another Profile and do not enter
-`<profile>` literally.
+Native Host commands remain available for diagnostic recovery. Change `PROFILE` for another Profile and do not
+enter `<profile>` literally.
 
 ```bash
 npm install -g @deepseek-ai/dsh@latest
