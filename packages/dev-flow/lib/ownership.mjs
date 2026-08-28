@@ -50,6 +50,20 @@ export async function ensureManagerDirectories(paths) {
   await Promise.all([chmod(paths.managerRoot, 0o700), chmod(paths.runsDirectory, 0o700), chmod(paths.profilesDirectory, 0o700)]);
 }
 
+export async function ensureDefaultDataDirectory(paths) {
+  if (paths.explicitDataDirectory !== null) throw new OwnershipError("refusing to create an explicit data directory");
+  const expected = ownedPath(paths.productRoot, join(paths.productRoot, "data"), "default data directory");
+  if (paths.defaultDataDirectory !== expected) throw new OwnershipError("default data directory differs from the product-owned path");
+  await rejectSymlinkComponents(paths.homeDirectory, expected);
+  await mkdir(expected, { recursive: true, mode: 0o700 });
+  await rejectSymlinkComponents(paths.homeDirectory, expected);
+  const canonical = await realpath(expected);
+  const info = await stat(canonical);
+  if (canonical !== expected || !info.isDirectory()) throw new OwnershipError("default data directory must be canonical");
+  await chmod(expected, 0o700);
+  return expected;
+}
+
 export async function inspectResource(path, label) {
   let info;
   try {
@@ -232,9 +246,13 @@ function ownedPath(root, candidate, label) {
 
 async function canonicalExistingDirectory(path, label) {
   if (!isAbsolute(path)) throw new OwnershipError(`${label} must be absolute`);
-  const canonical = await realpath(path);
-  if (!(await stat(canonical)).isDirectory()) throw new OwnershipError(`${label} must be a directory`);
-  return canonical;
+  try {
+    const canonical = await realpath(path);
+    if (!(await stat(canonical)).isDirectory()) throw new Error("not a directory");
+    return canonical;
+  } catch (error) {
+    throw new OwnershipError(`${label} must name an existing directory`, { cause: error });
+  }
 }
 
 async function canonicalExplicitDirectory(path) {

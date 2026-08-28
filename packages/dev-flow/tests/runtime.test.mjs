@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { chmod, mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, realpath, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -14,7 +14,6 @@ test("public launcher selects the newest compatible Core from Codex or DeepSeek 
   const dshHome = join(root, "dsh");
   await mkdir(home);
   const paths = await resolveManagerPaths({ homeDirectory: home, environment: { DSH_HOME: dshHome } });
-  await mkdir(paths.defaultDataDirectory, { recursive: true });
 
   const codexRoot = join(root, "codex");
   const codexRuntime = await packageFixture(codexRoot, "dev-flow-codex", "0.8.0", "0.6.2");
@@ -31,21 +30,27 @@ test("public launcher selects the newest compatible Core from Codex or DeepSeek 
     dsh_version: "0.1.0-rc.8", created_at: "2026-08-28T00:00:00Z", updated_at: "2026-08-28T00:00:00Z",
   });
 
-  const selected = await resolveCoreRuntime({ homeDirectory: home, environment: { DSH_HOME: dshHome } });
+  const selected = await resolveCoreRuntime({
+    homeDirectory: home,
+    environment: { DSH_HOME: dshHome },
+    initializeDefaultData: true,
+  });
   assert.equal(selected.source, "deepseek/web");
   assert.equal(selected.version, "0.6.3");
   assert.equal(selected.dataDirectory, paths.defaultDataDirectory);
+  assert.equal((await stat(paths.defaultDataDirectory)).mode & 0o777, 0o700);
   t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
 });
 
 test("public launcher forwards only the WebUI command surface to the selected Core", async () => {
   const calls = [];
+  const selections = [];
   const child = new EventEmitter();
   child.kill = () => true;
   const signalSource = new EventEmitter();
   const pending = runDevFlow(["webui", "start", "--no-open"], {
     environment: { LANG: "en_US.UTF-8" },
-    resolveCoreRuntime: async () => ({ runtimePath: "/runtime/dev-flow", packageRoot: "/package", dataDirectory: "/data", version: "0.6.3", source: "codex" }),
+    resolveCoreRuntime: async (options) => { selections.push(options); return { runtimePath: "/runtime/dev-flow", packageRoot: "/package", dataDirectory: "/data", version: "0.6.3", source: "codex" }; },
     spawnImpl: (executable, arguments_, options) => { calls.push({ executable, arguments_, options }); return child; },
     signalSource,
   });
@@ -55,6 +60,7 @@ test("public launcher forwards only the WebUI command surface to the selected Co
   assert.equal(calls[0].executable, "/runtime/dev-flow");
   assert.deepEqual(calls[0].arguments_, ["webui", "start", "--no-open"]);
   assert.equal(calls[0].options.env.DEV_FLOW_DATA_DIR, "/data");
+  assert.equal(selections[0].initializeDefaultData, true);
 
   let resolved = false;
   const stderr = capture();
@@ -67,6 +73,16 @@ test("public launcher forwards only the WebUI command surface to the selected Co
   assert.match(stderr.text, /invalid arguments/u);
 });
 
+test("non-start WebUI commands never initialize the default data directory", async () => {
+  let selectionOptions;
+  const result = await runDevFlow(["webui", "status", "--json"], {
+    resolveCoreRuntime: async (options) => { selectionOptions = options; throw new Error("data directory is unavailable"); },
+    stderr: capture(),
+  });
+  assert.equal(result.code, 1);
+  assert.equal(selectionOptions.initializeDefaultData, false);
+});
+
 test("version remains available when no Adapter currently provides Core", async () => {
   const stdout = capture();
   const result = await runDevFlow(["version"], {
@@ -74,7 +90,7 @@ test("version remains available when no Adapter currently provides Core", async 
     resolveCoreRuntime: async () => { throw new NoRuntimeError("absent"); },
   });
   assert.equal(result.code, 0);
-  assert.equal(stdout.text, "dev-flow 0.1.0 (core unavailable)\n");
+  assert.equal(stdout.text, "dev-flow 0.1.1 (core unavailable)\n");
 });
 
 async function packageFixture(root, name, version, coreVersion) {

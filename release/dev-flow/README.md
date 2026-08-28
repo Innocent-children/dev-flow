@@ -1,8 +1,8 @@
 # dev-flow Release
 
 ```bash
-pnpm run release:dev-flow -- --mode normal --version 0.1.0 --output /absolute/output \
-  --confirm dev-flow-v0.1.0 --confirm-comprehension
+pnpm run release:dev-flow -- --mode normal --version 0.1.1 --output /absolute/output \
+  --confirm dev-flow-v0.1.1 --confirm-comprehension
 ```
 
 The command requires clean synchronized `main`, creates or reuses the exact Tag, npm version and GitHub draft,

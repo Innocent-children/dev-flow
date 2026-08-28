@@ -32,6 +32,8 @@ dev-flow webui reset
 
 The launcher validates installed Adapter receipts and package identities, selects the newest available compatible
 Core, and forwards only the closed WebUI command surface. It does not persist another Core or workflow state.
+`dev-flow webui start` creates the product-owned default data directory with mode `0700` when it is absent. Explicit
+`DEV_FLOW_DATA_DIR` values must already name canonical directories; all other WebUI commands remain zero-write.
 
 The rich first-install result shows the Dev Flow mark, verified Host states, conversation selectors, WebUI commands,
 and lifecycle commands. `zh*` locales use Simplified Chinese; every other locale uses English. Plain and JSON modes

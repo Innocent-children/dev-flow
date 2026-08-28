@@ -137,7 +137,8 @@ DSH 公开 lifecycle，不复制 Core 或 Host 注册权威。普通维护保留
 状态与 receipt、Plugin 注册状态分别判断，注册已缺失时仍能通过卸载或恢复出厂操作清理 package。
 交互菜单、确认提示、计划和结果读取当前 locale：`zh*` 使用简体中文，其余 locale 统一使用英文；JSON
 输出保持语言无关。公共 launcher 从已安装 Adapter 的 receipt 中选择最新可用 Core，只转发闭合的
-`webui` 命令，不保存第二份 Core 或流程状态。精确公开版本与安装验证见 Support Matrix。
+`webui` 命令，不保存第二份 Core 或流程状态。`webui start` 可按 `0700` 创建缺失的产品默认数据目录；
+显式数据目录必须预先存在，其余 WebUI 命令保持零写入。精确公开版本与安装验证见 Support Matrix。
 
 ## 产品组成
 
@@ -151,7 +152,7 @@ loopback 实例；界面支持简体中文/英文、首次按系统语言选择�
 | Core | 状态图、Task、Store、Recovery、MCP | `0.6.2` |
 | Codex | Codex Plugin、Skill、注册生命周期和 bundled Core | `0.7.3` |
 | DeepSeek | DSH bundle、Skill、guard、MCP child 和 bundled Core | `0.7.3` |
-| Dev Flow CLI | Host 无关的 Adapter 生命周期编排、公共 WebUI launcher 与恢复 | `0.1.0` |
+| Dev Flow CLI | Host 无关的 Adapter 生命周期编排、公共 WebUI launcher 与恢复 | `0.1.1` |
 
 四个产品独立版本化。Host 包记录实际 bundled Core 版本，不要求各产品使用同一版本号。
 

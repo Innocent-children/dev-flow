@@ -9,7 +9,7 @@ const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 test("manifest exposes one dependency-free public macOS arm64 Dev Flow package", async () => {
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
   assert.equal(manifest.name, "@imotong/dev-flow");
-  assert.equal(manifest.version, "0.1.0");
+  assert.equal(manifest.version, "0.1.1");
   assert.equal(manifest.private, false);
   assert.equal(manifest.license, "Apache-2.0");
   assert.deepEqual(manifest.os, ["darwin"]);

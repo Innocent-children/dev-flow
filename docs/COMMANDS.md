@@ -37,9 +37,12 @@ Codex 全局 package 与 receipt、Plugin 注册分别判断；即使注册已�
 | `dev-flow uninstall --host ... [--all-known-profiles] --yes` | 移除选定 Adapter并保留配置与 Task 数据。 |
 | `dev-flow factory-reset --host all --all-known-profiles` | 生成绑定当前状态的 reset plan/token；`--yes` 不授权清理。 |
 | `dev-flow factory-reset ... --confirm-reset <token> [--reinstall]` | 将已确认数据移动到 Trash，可随后全新重装。 |
-| `dev-flow webui start\|open\|status\|stop` | 从任一已安装 Adapter 选择并校验 Core，管理共享本机 Control Center。 |
+| `dev-flow webui start\|open\|status\|stop` | 从任一已安装 Adapter 选择并校验 Core，管理共享本机 Control Center；`start` 可按 `0700` 创建缺失的默认数据目录，其余命令不创建目录。 |
 | `dev-flow webui reset [--confirm TOKEN]` | 使用 Core 的目标绑定确认清理不兼容 Task 数据。 |
 | `--json` / `--plain` | 分别选择单一 JSON 对象或无 ANSI 的纯文本结果。 |
+
+设置 `DEV_FLOW_DATA_DIR` 时，公共 launcher 只接受已存在、canonical、非符号链接的绝对目录，任何命令都
+不会自动创建显式目录。
 
 下方 Host 原生命令保留为诊断恢复入口。
 

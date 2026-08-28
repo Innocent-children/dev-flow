@@ -155,8 +155,9 @@ independently from receipt and Plugin registration, so uninstall and factory res
 registration has already disappeared. Interactive menus, confirmations, plans, and results read the current locale:
 `zh*` uses Simplified Chinese and every other locale uses English; JSON remains language-neutral. The public launcher
 selects the newest available Core from installed Adapter receipts and forwards
-only the closed `webui` surface; it persists neither another Core nor workflow state. See the Support Matrix for exact
-public versions and installation evidence.
+only the closed `webui` surface; it persists neither another Core nor workflow state. `webui start` may create the
+missing product-owned default data directory with mode `0700`; explicit data directories must already exist, and every
+other WebUI command remains zero-write. See the Support Matrix for exact public versions and installation evidence.
 
 ## Products
 
@@ -171,7 +172,7 @@ Git mutation, or reset mutation.
 | Core | State graph, Task, Store, Recovery, and MCP | `0.6.2` |
 | Codex | Codex Plugin, Skill, registration lifecycle, and bundled Core | `0.7.3` |
 | DeepSeek | DSH bundle, Skill, guard, MCP child, and bundled Core | `0.7.3` |
-| Dev Flow CLI | Host-neutral Adapter lifecycle, public WebUI launcher, and recovery | `0.1.0` |
+| Dev Flow CLI | Host-neutral Adapter lifecycle, public WebUI launcher, and recovery | `0.1.1` |
 
 The four products have independent versions. A host package records its actual bundled Core version;
 product version numbers do not have to match.

@@ -5,7 +5,7 @@ import { access, lstat, readFile, realpath, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 
-import { listProfileReceipts, resolveManagerPaths } from "./ownership.mjs";
+import { ensureDefaultDataDirectory, listProfileReceipts, resolveManagerPaths } from "./ownership.mjs";
 
 const execFile = promisify(execFileCallback);
 const packageVersion = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version;
@@ -49,6 +49,7 @@ export async function runDevFlow(arguments_, dependencies = {}) {
       homeDirectory: dependencies.homeDirectory,
       exec: dependencies.exec,
       requireData: true,
+      initializeDefaultData: arguments_[0] === "webui" && arguments_[1] === "start",
     });
     return await launchCore(selection, arguments_, {
       environment,
@@ -66,6 +67,7 @@ export async function resolveCoreRuntime({
   homeDirectory,
   exec = execFile,
   requireData = true,
+  initializeDefaultData = false,
 } = {}) {
   const paths = await resolveManagerPaths({ homeDirectory, environment });
   const dataDirectory = paths.explicitDataDirectory ?? paths.defaultDataDirectory;
@@ -102,7 +104,10 @@ export async function resolveCoreRuntime({
   }
 
   if (candidates.length === 0) throw new NoRuntimeError("no installed Codex or DeepSeek Adapter provides a Core runtime");
-  if (requireData) await assertCanonicalDirectory(dataDirectory, "Dev Flow data directory");
+  if (requireData) {
+    if (initializeDefaultData && paths.explicitDataDirectory === null) await ensureDefaultDataDirectory(paths);
+    else await assertCanonicalDirectory(dataDirectory, "Dev Flow data directory");
+  }
   candidates.sort((left, right) => compareSemver(right.version, left.version) || left.source.localeCompare(right.source));
   return Object.freeze({ ...candidates[0], dataDirectory });
 }

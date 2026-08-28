@@ -15,7 +15,7 @@ npm `@latest` currently selects these packages:
 | --- | --- | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.7.3` | `0.6.2` | macOS arm64, Node.js `>=24` | Codex `>=0.147.0`; final Journey used `0.147.0` | [npm](https://www.npmjs.com/package/dev-flow-codex/v/0.7.3) · [codex-v0.7.3](https://github.com/Innocent-children/dev-flow/releases/tag/codex-v0.7.3) · registry lifecycle passed |
 | `dev-flow-deepseek` | `0.7.3` | `0.6.2` | macOS arm64, Node.js `>=24` | DSH `>=0.1.0-rc.6`; final Journey used `0.1.0-rc.6` | [npm](https://www.npmjs.com/package/dev-flow-deepseek/v/0.7.3) · [deepseek-v0.7.3](https://github.com/Innocent-children/dev-flow/releases/tag/deepseek-v0.7.3) · native registry journey passed |
-| `@imotong/dev-flow` | `0.1.0` | Selected from installed Adapters | macOS arm64, Node.js `>=20` | Target operations require an installed Codex or DSH | [npm](https://www.npmjs.com/package/@imotong/dev-flow/v/0.1.0) · [dev-flow-v0.1.0](https://github.com/Innocent-children/dev-flow/releases/tag/dev-flow-v0.1.0) · registry package smoke passed |
+| `@imotong/dev-flow` | `0.1.1` | Selected from installed Adapters | macOS arm64, Node.js `>=20` | Target operations require an installed Codex or DSH | [npm](https://www.npmjs.com/package/@imotong/dev-flow/v/0.1.1) · [dev-flow-v0.1.1](https://github.com/Innocent-children/dev-flow/releases/tag/dev-flow-v0.1.1) · registry package smoke passed |
 
 Codex lifecycle evidence covers package/Core identity, installation, setup, Core handshake, removal,
 uninstallation, and an unchanged repository. DeepSeek additionally covers explicit activation,

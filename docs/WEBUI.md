@@ -30,6 +30,8 @@ dev-flow webui stop
 `start` 默认打开浏览器；`--no-open` 只启动进程。所有命令支持 `--plain` 或 `--json`。服务只绑定
 `tcp4 127.0.0.1` 的系统分配端口。mode `0600` 的 runtime receipt 记录 PID、进程启动身份、data-root
 digest 和 loopback URL；另一 Host 携带的兼容 Core 会复用该实例，而不是创建 Host 专属进程或数据。
+公共 `dev-flow webui start` 在默认数据目录缺失时以 mode `0700` 创建它；`open/status/stop/reset` 不创建
+目录。设置 `DEV_FLOW_DATA_DIR` 后，该显式目录必须预先存在、canonical 且不经过符号链接。
 
 ## 状态与本地保护
 

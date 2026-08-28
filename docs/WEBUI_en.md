@@ -34,6 +34,9 @@ dev-flow webui stop
 The server binds only an OS-assigned `tcp4 127.0.0.1` port. A mode-`0600` runtime receipt records the PID, process-start
 identity, data-root digest, and loopback URL. A compatible Core carried by another Host reuses that instance instead of
 creating Host-specific process or data state.
+The public `dev-flow webui start` creates a missing default data directory with mode `0700`; `open/status/stop/reset`
+create no directory. When `DEV_FLOW_DATA_DIR` is set, that explicit directory must already exist, be canonical, and
+not traverse a symbolic link.
 
 ## States and local protection
 
