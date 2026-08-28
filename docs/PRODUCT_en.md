@@ -186,7 +186,7 @@ product version numbers do not have to match.
   node, changed surface, acceptance criteria, or recovery risk.
 - Mutations carry revision, action identity, source cursor, and repository binding.
 - The Host submits the current Action result; Core fills and retains the complete mutation input.
-- A write-enabled Action result reports exact `changed_paths` or `no_file_changes`; Core validates the
+- A write-enabled Action result reports exact `changed_paths` newly produced relative to the current Action's issuance state, or `no_file_changes` when this node changed no files; Core validates the
   issuance baseline, `allowed_effects`, and fresh observation, while artifact references do not replace
   the mutation envelope.
 - A Task's one to eight explicit repositories share one Action, revision, verification budget,

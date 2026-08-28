@@ -182,7 +182,8 @@ func deterministicallyCorrectable(rule domain.ViolationRule) bool {
 	switch rule {
 	case domain.RuleNonAutomatedCommandCountZero,
 		domain.RuleNonAutomatedFullSuiteFalse,
-		domain.RuleUnknownMember:
+		domain.RuleUnknownMember,
+		domain.RuleRepositoryEffectNotObserved:
 		return true
 	default:
 		return domain.GuardRule(rule) == domain.GuardForwardFindingsEmpty

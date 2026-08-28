@@ -180,6 +180,10 @@ For an active task, perform each iteration in this order:
    instructions, verification budget, and current user authority.
 7. Select only a Core-returned transition and build the closed input of
    `fresh_action.submission_tool` from the actual typed node facts.
+   `changed_paths` contains only repository paths newly changed while performing this current Action,
+   relative to its issuance binding. Do not repeat paths changed by an earlier node. When the current
+   Action only reads files or runs verification commands, submit `changed_paths=[]` and
+   `no_file_changes=true`, even when the Task's implementation already has uncommitted paths.
 8. Submit exactly one call to that qualified tool with `host`, `task_id`, `action_id`, the selected
    transition, result text, artifact slots, method results and the exact node result. Core fills and
    retains the complete Action identity and payload envelope.

@@ -131,9 +131,11 @@ Task/Event/Claim cardinality 与当前节点 authority。不兼容或 pre-graph 
 `internal/repository/` 读取 canonical repository identity、branch、HEAD、index/worktree 与有界
 changed paths，用于建立 repository binding 和判断 mutation 前后的仓库事实。
 
-Action result 以 `changed_paths`/`no_file_changes` 明确声明 mutation envelope；artifact references 只
-保留证据职责。Application 对照签发基线与 fresh observation 验证每仓路径，再决定 rebind 或
-`REPOSITORY_DRIFT`。
+Action result 以相对当前 Action 签发状态新产生的 `changed_paths`，或本节点未改文件时的
+`no_file_changes` 明确声明 mutation envelope；artifact references 只保留证据职责。Application
+对照签发基线与 fresh observation 验证每仓路径，再决定 rebind 或 `REPOSITORY_DRIFT`。若 binding
+完全一致但结果声明了文件变化，Application 返回 `repository_effect_not_observed` 字段错误，不把它
+误报为真实仓库漂移。
 
 Core 不执行 checkout、reset、clean、stash、commit、merge、rebase、push、tag、publish，也不
 暴露 generic shell。Action 中的 `allowed_effects` 描述 Host 在用户授权下可执行的动作。

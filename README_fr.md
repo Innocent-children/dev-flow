@@ -135,7 +135,7 @@ version stable.
 - Dev Flow n’intercepte pas chaque opération du Host et n’est pas un sandbox de sécurité général.
 - Le code source actuel contient une WebUI partagée limitée au loopback, avec chinois simplifié/anglais, langue système par défaut et sélection locale au navigateur ; remote MCP, telemetry, graph utilisateur et migration historique automatique restent exclus.
 - Un index optionnel aide seulement à rechercher ; il ne décide ni périmètre, ni permission, ni Recovery, ni état.
-- Une Action autorisée à écrire fournit les `changed_paths` exacts ou `no_file_changes`. Core les valide par rapport à la base d’émission et à une fresh Git observation ; les changements autorisés se terminent avec l’Action d’origine, tandis qu’un changement de branch, HEAD, repository identity ou de chemin non déclaré renvoie toujours `REPOSITORY_DRIFT`.
+- Une Action autorisée en écriture fournit uniquement les `changed_paths` apparus depuis l’émission de cette Action, ou `no_file_changes` lorsque ce nœud n’a modifié aucun fichier. Core les valide par rapport à la base d’émission et à une fresh Git observation ; les changements autorisés se terminent avec l’Action d’origine, tandis qu’un changement de branch, HEAD, repository identity ou de chemin non déclaré renvoie toujours `REPOSITORY_DRIFT`. Si le dépôt est inchangé alors que le résultat déclare des modifications, Core renvoie la règle de champ `repository_effect_not_observed`.
 
 Voir [Security Policy](SECURITY.md) et [Threat Model](docs/THREAT-MODEL_en.md).
 

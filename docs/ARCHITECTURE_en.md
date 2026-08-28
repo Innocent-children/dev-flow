@@ -137,9 +137,11 @@ or pre-graph data returns `SCHEMA_UNSUPPORTED` with zero writes.
 bounded changed paths. These facts establish the repository binding and describe repository state
 around a mutation.
 
-Action results explicitly declare the mutation envelope through `changed_paths`/`no_file_changes`;
-artifact references remain evidence. Application validates per-repository paths against the issuance
-baseline and fresh observation before choosing rebind or `REPOSITORY_DRIFT`.
+Action results declare the mutation envelope through `changed_paths` newly produced relative to the
+current Action's issuance state, or `no_file_changes` when this node changed no files; artifact references
+remain evidence. Application validates per-repository paths against the issuance baseline and fresh
+observation before choosing rebind or `REPOSITORY_DRIFT`. An exact binding paired with declared file
+changes returns the field rule `repository_effect_not_observed` instead of being reported as real drift.
 
 Core does not run checkout, reset, clean, stash, commit, merge, rebase, push, tag, or publication
 operations, and exposes no generic shell. Action `allowed_effects` describe operations a host may

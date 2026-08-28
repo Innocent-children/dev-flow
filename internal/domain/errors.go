@@ -61,6 +61,7 @@ const (
 	RuleStringListTooLong              ViolationRule = "string_list_too_long"
 	RuleRepositoryPathInvalid          ViolationRule = "repository_path_invalid"
 	RuleRepositoryMutationInconsistent ViolationRule = "repository_mutation_inconsistent"
+	RuleRepositoryEffectNotObserved    ViolationRule = "repository_effect_not_observed"
 	RuleProblemClassNotValidForNode    ViolationRule = "problem_class_not_valid_for_node"
 	RuleArtifactRoleNotAllowed         ViolationRule = "artifact_role_not_allowed"
 	RuleRepositoryEffectNotAllowed     ViolationRule = "repository_effect_not_allowed"
@@ -82,6 +83,7 @@ var violationMessages = map[ViolationRule]string{
 	RuleStringListTooLong:              "the bounded list exceeds its item limit",
 	RuleRepositoryPathInvalid:          "the repository contract path is invalid",
 	RuleRepositoryMutationInconsistent: "changed_paths and no_file_changes contradict each other",
+	RuleRepositoryEffectNotObserved:    "the declared current Action file changes were not observed",
 	RuleProblemClassNotValidForNode:    "problem_class is not allowed for the current node",
 	RuleArtifactRoleNotAllowed:         "the current Action does not allow this artifact role",
 	RuleRepositoryEffectNotAllowed:     "the current Action does not allow the submitted repository effect",

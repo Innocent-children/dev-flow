@@ -153,10 +153,10 @@ lost or interrupted, Core uses the normalized Action input retained before trans
 produce the five-class Recovery result. The caller retains only the Task ID and Action ID, not the
 original payload.
 
-A write-enabled Action reports exact `changed_paths` or `no_file_changes` in its result. Core validates
+A write-enabled Action reports exact `changed_paths` newly produced relative to that Action's issuance state, or `no_file_changes` when the node changed no files. Core validates
 them against the issuance baseline, current `allowed_effects`, and a fresh Git observation. Authorized
 worktree results complete with the original Action; branch, HEAD, repository identity, or undeclared path
-changes still return `REPOSITORY_DRIFT`.
+changes still return `REPOSITORY_DRIFT`. If the repository is exact but the result declares file changes, Core returns the field rule `repository_effect_not_observed` so the Host can correct this node result to no file changes.
 
 ### Bounded multi-repository scope
 

@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"testing"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
@@ -81,6 +82,42 @@ func TestTestRejectsStaleAuthorityAndRepository(t *testing.T) {
 	assertApplyFails(t, s, task, "tests_passed", "", testNodeResult([]map[string]any{evidenceCheck("automated", "passed", "targeted", 1, false)}, nil, nil, nil), domain.ErrRepositoryDrift)
 	if ms.commits != before {
 		t.Fatal("test repository drift wrote state")
+	}
+}
+
+func TestTestReportsDeclaredFileChangesThatWereNotObserved(t *testing.T) {
+	s, ms, _ := phase5Service(t)
+	task := phase5TaskAtTest(t, s)
+	result := testNodeResult([]map[string]any{evidenceCheck("automated", "passed", "targeted", 1, false)}, nil, nil, nil)
+	result["changed_paths"] = []string{"internal/file.go"}
+	result["no_file_changes"] = false
+
+	before := ms.commits
+	raw := phase5Payload(t, task, "tests_passed", "", result)
+	action := task.CurrentAction
+	_, err := s.ApplyAction(context.Background(), ApplyActionRequest{
+		RequestID: "apply-declared-effect-not-observed", Host: domain.HostCodex,
+		TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: action.ActionID,
+		ActionKind: action.Kind, ProcessID: task.Process.ID,
+		ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode,
+		RepositoryBindingDigest: task.Repository.BindingDigest, Payload: raw,
+	})
+	typed, ok := err.(*domain.Error)
+	if !ok || typed.Code != domain.ErrorInvalidArgument || !typed.ZeroWrite {
+		t.Fatalf("error=%#v", err)
+	}
+	want := map[string]bool{
+		"payload.node_result.changed_paths":   true,
+		"payload.node_result.no_file_changes": true,
+	}
+	for _, violation := range typed.Violations {
+		if violation.Rule != domain.RuleRepositoryEffectNotObserved || !want[violation.Path] {
+			t.Fatalf("violation=%#v", violation)
+		}
+		delete(want, violation.Path)
+	}
+	if len(want) != 0 || ms.commits != before {
+		t.Fatalf("missing=%v commits=%d want=%d", want, ms.commits, before)
 	}
 }
 

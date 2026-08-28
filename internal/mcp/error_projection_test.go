@@ -186,6 +186,10 @@ func TestApplyErrorCorrectionRequiresDeterministicRulesOnly(t *testing.T) {
 		{"user command count", domain.InvalidArgumentViolations(domain.Violation("payload.node_result.checks[0].command_count", domain.RuleNonAutomatedCommandCountZero)), true},
 		{"non-automated full suite", domain.InvalidArgumentViolations(domain.Violation("payload.node_result.checks[0].full_suite", domain.RuleNonAutomatedFullSuiteFalse)), true},
 		{"unknown member", domain.InvalidArgumentViolations(domain.Violation("payload.node_result.extra", domain.RuleUnknownMember)), true},
+		{"repository effect not observed", domain.InvalidArgumentViolations(
+			domain.Violation("payload.node_result.changed_paths", domain.RuleRepositoryEffectNotObserved),
+			domain.Violation("payload.node_result.no_file_changes", domain.RuleRepositoryEffectNotObserved),
+		), true},
 		{"forward findings", domain.TransitionGuardFailure("implementation_report_complete", domain.GuardViolation("payload.node_result.findings", domain.GuardForwardFindingsEmpty)), true},
 		{"missing member", domain.InvalidArgumentViolations(domain.Violation("payload.node_result.summary", domain.RuleRequiredMemberMissing)), false},
 		{"invalid source", domain.InvalidArgumentViolations(domain.Violation("payload.node_result.checks[0].source", domain.RuleEvidenceSourceInvalid)), false},
@@ -198,7 +202,7 @@ func TestApplyErrorCorrectionRequiresDeterministicRulesOnly(t *testing.T) {
 			if envelope.Recovery.RetrySafe != tc.correctable {
 				t.Fatalf("recovery=%#v correctable=%v", envelope.Recovery, tc.correctable)
 			}
-			if tc.correctable && (envelope.Recovery.Action != correctCurrentAction || len(envelope.Recovery.AllowedPaths) != 1) {
+			if tc.correctable && (envelope.Recovery.Action != correctCurrentAction || len(envelope.Recovery.AllowedPaths) == 0) {
 				t.Fatalf("correctable recovery=%#v", envelope.Recovery)
 			}
 			if !tc.correctable && len(envelope.Recovery.AllowedPaths) != 0 {

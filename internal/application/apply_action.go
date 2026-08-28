@@ -171,7 +171,7 @@ func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionReques
 		return ApplyActionResult{}, domain.WithoutZeroWriteProof(domain.InvalidArgumentViolations(domain.Violation("payload.node_result.changed_paths", domain.RuleRepositoryEffectNotAllowed)))
 	}
 	if recovery.RepositoryScopeEffectEvidence(task, fresh, comparison, effect) != recovery.OperationEvidenceComplete {
-		return ApplyActionResult{}, repositoryDriftError(comparison)
+		return ApplyActionResult{}, domain.WithoutZeroWriteProof(repositoryEffectEvidenceError(comparison, effect))
 	}
 	canonicalPayload, err := workflow.CanonicalValidatedPayload(envelope, result)
 	if err != nil {
@@ -268,9 +268,19 @@ func validatedRepositoryEffect(task domain.ProcessTask, raw json.RawMessage, fre
 		return recovery.RepositoryEffect{}, domain.InvalidArgumentViolations(domain.Violation("payload.node_result.changed_paths", domain.RuleRepositoryEffectNotAllowed))
 	}
 	if recovery.RepositoryScopeEffectEvidence(task, fresh, comparison, effect) != recovery.OperationEvidenceComplete {
-		return recovery.RepositoryEffect{}, domain.ErrRepositoryDrift
+		return recovery.RepositoryEffect{}, repositoryEffectEvidenceError(comparison, effect)
 	}
 	return effect, nil
+}
+
+func repositoryEffectEvidenceError(comparison recovery.RepositoryScopeComparison, effect recovery.RepositoryEffect) error {
+	if comparison.Relation == recovery.RepositoryExact && !effect.NoFileChanges && len(effect.ChangedPaths) > 0 {
+		return domain.InvalidArgumentViolations(
+			domain.Violation("payload.node_result.changed_paths", domain.RuleRepositoryEffectNotObserved),
+			domain.Violation("payload.node_result.no_file_changes", domain.RuleRepositoryEffectNotObserved),
+		)
+	}
+	return repositoryDriftError(comparison)
 }
 
 func rebindProcessAuthorities(task *domain.ProcessTask, fresh recovery.RepositoryScopeObservation) {

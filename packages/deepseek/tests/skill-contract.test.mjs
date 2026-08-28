@@ -130,6 +130,8 @@ test("Skill keeps Workspace Root and optional codebase-memory subordinate to Cor
   assert.match(discovery, /not authority for repository permissions, repository bindings, changed paths/u);
   assert.match(loop, /Before actual repository modification[\s\S]*startup Workspace Root/u);
   assert.match(loop, /failed or escaping path[\s\S]*declared repository key[\s\S]*do not shrink the Core Scope/u);
+  assert.match(loop, /`changed_paths` contains only[\s\S]*current Action[\s\S]*Do not repeat paths changed by an earlier node/u);
+  assert.match(loop, /only reads files or runs verification commands[\s\S]*`changed_paths=\[\]`[\s\S]*`no_file_changes=true`/u);
 });
 
 test("Skill keeps payload, transition, method, evidence, and terminal authority in Core", async () => {

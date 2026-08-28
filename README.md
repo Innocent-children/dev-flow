@@ -144,9 +144,9 @@ Task 数据默认保留。
 Core 使用提交前保存的规范化 Action 输入给出五分类 Recovery 结论；调用者只需保留 Task ID 和
 Action ID，不再保存或重建原始 payload。
 
-允许写入的 Action 在结果中提交精确 `changed_paths` 或 `no_file_changes`。Core 以签发基线、当前
+允许写入的 Action 在结果中提交相对当前 Action 签发状态新产生的精确 `changed_paths`，或在本节点未改文件时提交 `no_file_changes`。Core 以签发基线、当前
 `allowed_effects` 和 fresh Git observation 验证；合法 worktree 结果可由原 Action 提交，branch、
-HEAD、repository identity 或未声明路径变化仍返回 `REPOSITORY_DRIFT`。
+HEAD、repository identity 或未声明路径变化仍返回 `REPOSITORY_DRIFT`。若仓库状态完全一致但结果声明了文件变化，Core 返回 `repository_effect_not_observed` 字段错误，Host 可将本节点结果纠正为无文件变化。
 
 ### 有界多仓库范围
 

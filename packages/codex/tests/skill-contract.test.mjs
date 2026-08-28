@@ -381,6 +381,8 @@ test("Skill honors Codex writable roots and optional codebase-memory without cha
   assert.match(discovery, /not authority for repository bindings, changed paths, Git facts, Recovery/u);
   assert.match(loop, /Before any actual repository modification[\s\S]*declared repository[\s\S]*permission failure/u);
   assert.match(loop, /Do not[\s\S]*change sandbox mode[\s\S]*danger-full-access[\s\S]*shrink the Scope/u);
+  assert.match(loop, /`changed_paths` contains only[\s\S]*current Action[\s\S]*Do not repeat paths changed by an earlier node/u);
+  assert.match(loop, /only reads files or runs verification commands[\s\S]*`changed_paths=\[\]`[\s\S]*`no_file_changes=true`/u);
 });
 
 test("Skill selects one immutable profile and reports method results for Core assembly", async () => {

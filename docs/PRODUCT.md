@@ -163,7 +163,7 @@ loopback 实例；界面支持简体中文/英文、首次按系统语言选择�
 - 每个 Task 携带 verification budget，验证范围必须与当前节点、改动、验收条件或恢复风险直接相关；
 - mutation 使用 revision、action identity、source cursor 与 repository binding；
 - Host 只提交当前 Action 的结果，Core 负责补齐并保存完整 mutation 输入；
-- 允许写入的 Action result 提交精确 `changed_paths` 或 `no_file_changes`；Core 验证签发基线、
+- 允许写入的 Action result 提交相对当前 Action 签发状态新产生的精确 `changed_paths`，或本节点未改文件时提交 `no_file_changes`；Core 验证签发基线、
   `allowed_effects` 和 fresh observation，artifact references 不代替 mutation envelope；
 - 一个 Task 的一至八个显式仓库共享同一 Action、revision、verification budget、Recovery、Blocker
   和 Outcome；

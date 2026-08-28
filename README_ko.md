@@ -133,7 +133,7 @@ profile을 재시작한 뒤 입력합니다.
 - Dev Flow는 Host의 모든 파일 작업을 차단하지 않으며 일반 보안 sandbox가 아닙니다.
 - 현재 소스에는 중국어 간체/영어, 시스템 언어 기본값, 브라우저 로컬 전환을 지원하는 loopback 전용 공유 WebUI가 포함됩니다. remote MCP, telemetry, 사용자 정의 graph, 자동 과거 데이터 마이그레이션은 포함되지 않습니다.
 - 선택적 코드 index는 검색만 보조하며 범위, 권한, Recovery, 상태를 결정할 수 없습니다.
-- 쓰기가 허용된 Action은 정확한 `changed_paths` 또는 `no_file_changes`를 결과로 제출합니다. Core는 발급 시 기준과 fresh Git observation으로 이를 검증하며, 허가된 변경은 원래 Action으로 완료할 수 있지만 branch, HEAD, repository identity 또는 선언되지 않은 경로 변경은 계속 `REPOSITORY_DRIFT`를 반환합니다.
+- 쓰기가 허용된 Action은 해당 Action이 발급된 뒤 이 노드에서 새로 변경한 `changed_paths`만 제출하며, 파일을 변경하지 않았다면 `no_file_changes`를 제출합니다. Core는 발급 시 기준과 fresh Git observation으로 이를 검증하며, 허가된 변경은 원래 Action으로 완료할 수 있지만 branch, HEAD, repository identity 또는 선언되지 않은 경로 변경은 계속 `REPOSITORY_DRIFT`를 반환합니다. 저장소가 정확히 일치하는데 변경을 선언하면 Core는 `repository_effect_not_observed` 필드 규칙을 반환합니다.
 
 보안 경계는 [Security Policy](SECURITY.md)와 [Threat Model](docs/THREAT-MODEL_en.md)을 참고하십시오.
 

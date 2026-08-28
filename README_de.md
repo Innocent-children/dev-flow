@@ -133,7 +133,7 @@ Ob Multi-Repository bereits stabil ist, steht unter [Project Status](docs/PROJEC
 - Dev Flow fängt nicht jede Host-Operation ab und ist keine allgemeine Sicherheits-Sandbox.
 - Der aktuelle Quellcode enthält eine gemeinsame, nur über Loopback erreichbare WebUI mit vereinfachtem Chinesisch/Englisch, Systemsprachenauswahl und lokaler Browser-Umschaltung; remote MCP, telemetry, benutzerdefinierte Graphen und automatische Alt-Datenmigration bleiben ausgeschlossen.
 - Ein optionaler Code-Index unterstützt nur die Suche und entscheidet nicht Umfang, Berechtigung, Recovery oder Zustand.
-- Eine schreibberechtigte Action meldet exakte `changed_paths` oder `no_file_changes`. Core prüft sie gegen die Ausgabebaseline und eine fresh Git observation; autorisierte Änderungen können mit der ursprünglichen Action abgeschlossen werden, während Änderungen an branch, HEAD, repository identity oder nicht deklarierte Pfade weiterhin `REPOSITORY_DRIFT` ergeben.
+- Eine schreibberechtigte Action meldet nur `changed_paths`, die seit der Ausgabe dieser Action neu entstanden sind, oder `no_file_changes`, wenn dieser Knoten keine Datei geändert hat. Core prüft sie gegen die Ausgabebaseline und eine fresh Git observation; autorisierte Änderungen können mit der ursprünglichen Action abgeschlossen werden, während Änderungen an branch, HEAD, repository identity oder nicht deklarierte Pfade weiterhin `REPOSITORY_DRIFT` ergeben. Ist das Repository unverändert, obwohl Dateiänderungen gemeldet wurden, liefert Core die Feldregel `repository_effect_not_observed`.
 
 Siehe [Security Policy](SECURITY.md) und [Threat Model](docs/THREAT-MODEL_en.md).
 
