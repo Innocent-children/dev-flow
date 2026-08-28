@@ -41,13 +41,14 @@ SQLite，一次 Core 读取即可恢复权威状态。
 
 mutation 响应缺失、取消、截断或损坏时，直接重放可能造成二次副作用。Host 通过当前 Action 指定的
 提交工具发送 Task ID、Action ID 和节点结果；Core 补齐完整 identity、artifact role、method step 与
-payload envelope，并在推进 Task 前把规范化提交保存到 Task snapshot。Recovery 直接读取这份提交，
-调用方不再保存或重建原始 payload。
+payload envelope，完整构造并校验下一版 Task mutation，再把规范化提交保存为独立 Action 操作记录。
+Task、Event、Claim 与操作记录的 applied revision 在同一事务提交。Recovery 直接读取这份操作记录，
+调用方不再保存或重建原始 payload，Task snapshot 也不再携带恢复 payload。
 
 在保存提交前，Core 先按当前 Task 预检节点结果语义。可从 Core 当前结果唯一复制的 revision、record、
 evidence 集合和 acceptance 错误会返回字段路径、固定规则与 `allowed_paths`，Host 只可纠正这些字段
 一次。测试结论、用户确认、工作项内容等无法安全推导的错误只返回字段信息，不提供自动纠正授权；
-被拒绝的输入不会进入 ActionCommit，也不会转入不确定 mutation Recovery。
+被拒绝的输入不会进入可恢复操作记录，也不会转入不确定 mutation Recovery。
 
 ### 行为正确性与可维护性未分离
 
@@ -118,8 +119,8 @@ Core 决定 retry advice、recovery apply 或 `BLOCKED`。Blocker 解除后回�
 
 ### 本地持久化与只读 Git 观察
 
-任务、事件、证据和 repository claim 保存在本地 SQLite。一个 Task 可以拥有一个主仓库和最多七个
-显式附加仓库；Scope 创建后不可变，全部仓库共享同一流程状态。Core 按主仓优先、附加仓库 key
+任务、可恢复 Action 操作、事件、证据和 repository claim 保存在本地 SQLite。一个 Task 可以拥有
+一个主仓库和最多七个显式附加仓库；Scope 创建后不可变，全部仓库共享同一流程状态。Core 按主仓优先、附加仓库 key
 排序的顺序读取各仓库的 canonical identity、branch、HEAD、index/worktree 和有界 changed paths；
 Git 修改仍由获得用户授权的 Host 负责。
 
@@ -168,6 +169,8 @@ loopback 实例；界面支持简体中文/英文、首次按系统语言选择�
 - 每个 Task 携带 verification budget，验证范围必须与当前节点、改动、验收条件或恢复风险直接相关；
 - mutation 使用 revision、action identity、source cursor 与 repository binding；
 - Host 只提交当前 Action 的结果，Core 负责补齐并保存完整 mutation 输入；
+- Core 在保存可恢复 Action 操作前完整构造并校验下一版 Task mutation；Task、Event、Claim 与
+  操作记录的 applied revision 原子提交；
 - 允许写入的 Action result 提交相对当前 Action 签发状态新产生的精确 `changed_paths`，或本节点未改文件时提交 `no_file_changes`；Core 验证签发基线、
   `allowed_effects` 和 fresh observation，artifact references 不代替 mutation envelope；
 - 一个 Task 的一至八个显式仓库共享同一 Action、revision、verification budget、Recovery、Blocker

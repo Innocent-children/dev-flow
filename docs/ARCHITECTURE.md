@@ -110,20 +110,23 @@ revision 表示当前 authority。上游变更会使对应下游记录失效，�
 `internal/store/` 使用 CGo-free SQLite driver 保存：
 
 - current Task snapshot；
+- 独立的可恢复 Action 操作记录；
 - append-only TaskEvent audit；
 - bounded evidence；
 - repository claim；
 - LastOperation；
 - revision CAS。
 
-正常 mutation 在一个事务中更新 snapshot、event、evidence 与 claim。Task snapshot 用于当前
+普通 mutation 在一个事务中更新 snapshot、event、evidence 与 claim。Task snapshot 用于当前
 读取，TaskEvent 用于审计，不依赖 event replay 重建日常状态。
 
-Action 提交在推进 revision 前先把一份有界、规范化的 `ActionCommit` 写入当前 Task snapshot，
-不新增 event 或流程游标。随后 Task mutation 保留最近一次提交，使 Recovery 可以直接读取原输入。
+Core-retained Action 提交先在内存中完整构造并校验下一版 `TaskMutation`，再把有界、规范化的
+payload 作为 BLOB 写入独立 `action_operations` 记录。随后一个事务以 revision CAS 更新 Task、
+写入 Event、处理完整 Claim 集并填写该操作的 `applied_revision`。Task snapshot 不保存恢复 payload；
+响应不确定时 Recovery 直接读取独立操作记录。
 
 Store 在开放写能力前执行只读 preflight，验证 SQLite Schema、snapshot、process definition、
-Task/Event/Claim cardinality 与当前节点 authority。不兼容或 pre-graph 数据返回
+Task/Action-operation/Event/Claim 关联与当前节点 authority。不兼容或 pre-graph 数据返回
 `SCHEMA_UNSUPPORTED` 并保持零写入。
 
 ### Read-only Git Observer
@@ -137,19 +140,20 @@ Action result 以相对当前 Action 签发状态新产生的 `changed_paths`，
 完全一致但结果声明了文件变化，Application 返回 `repository_effect_not_observed` 字段错误，不把它
 误报为真实仓库漂移。
 
-`SubmitAction` 在暂存 ActionCommit 前完成两层零写入预检：Workflow 校验闭合 payload 形状与字段
+`SubmitAction` 在暂存 Action 操作前完成两层零写入预检：Workflow 校验闭合 payload 形状与字段
 格式，Application 再按当前 Task 校验 revision、record、work item、测试通过条件、用户确认、
 acceptance 与 evidence 集合。失败返回不包含提交值的 `ContractViolation` 或 `GuardFailure`。
 只有当前值、当前集合与当前 acceptance 这类可由 Core 唯一确定的规则进入
-`correct_current_action`；其余规则只提供定位信息。预检通过后才暂存规范化 payload，Recovery 仍只
-重放该不可变提交。
+`correct_current_action`；其余规则只提供定位信息。Application 还会在任何操作记录写入前构造并校验
+完整下一版 Task、Action、Event 与 Claim mutation。全部通过后才暂存规范化 payload，Recovery 仍只
+重放该不可变提交；提交阶段不再首次运行只有暂存后才会触发的参数校验。
 
 Core 不执行 checkout、reset、clean、stash、commit、merge、rebase、push、tag、publish，也不
 暴露 generic shell。Action 中的 `allowed_effects` 描述 Host 在用户授权下可执行的动作。
 
 ### Recovery
 
-`internal/recovery/` 根据 Task snapshot 中保存的规范化 Action 提交、LastOperation 和一次只读
+`internal/recovery/` 根据独立 Action 操作记录中的规范化提交、Task 的 LastOperation 和一次只读
 repository observation 生成五分类 Assessment：
 
 ```text
@@ -185,7 +189,9 @@ Application 创建 Task 时先观察主仓库，再按 key 顺序观察附加仓
 或顺序。多仓库公共路径使用 `<repository-key>::<repository-relative-path>`，Application 将其分派为
 各 Observer 使用的普通仓库相对路径；单仓库路径语法保持不变。
 
-SQLite 继续以一行 Task 和一个 revision CAS 保存整个流程聚合。活动 Task 为 Scope 中每个 identity
+SQLite 继续以一行 Task 和一个 revision CAS 保存整个流程聚合；每个 Task 至多保留一条最近的
+`action_operations` 记录，用于 Core-retained submission 的幂等与恢复，不形成第二个流程游标。
+活动 Task 为 Scope 中每个 identity
 持有一条 `repository_claims` 记录；Acquire、Retain 和 Release 都在 Task snapshot/event 的同一事务
 中处理完整、有序的 claim 集。任一冲突或集合不一致都会回滚或 safe-stop，不产生部分 claim、仓库级
 revision 或第二状态机。
@@ -221,13 +227,14 @@ sequenceDiagram
     Host->>Developer: 执行并解释当前节点工作
     Host->>Core: submission_tool(node result)
     Core->>Git: re-observe
-    Core->>Store: retain normalized Action submission
-    Core->>Store: CAS transaction
+    Core->>Core: plan + validate complete TaskMutation
+    Core->>Store: insert prepared action_operations row
+    Core->>Store: CAS Task/Event/Claim + mark operation applied
     Core-->>Host: updated Task + next action
 ```
 
-如果最后一步响应不确定，Host 保留原 request、operation、source cursor、revision、action 和
-payload，随后使用 read/probe 获取 Core 的恢复结论。
+如果最后一步响应不确定，Core-retained submission 的 Host 只保留 Task ID 与 Action ID，随后读取
+独立操作记录对应的恢复结论；显式 operation-probe 路径继续由调用方携带其完整 probe。
 
 ## 版本与分发
 
@@ -255,7 +262,7 @@ confirmation、仓库外 release directory，并通过远端回读安全重试�
 | `internal/application/` | use case orchestration |
 | `internal/recovery/` | reconciliation、assessment、blocker |
 | `internal/repository/` | read-only Git observation |
-| `internal/store/` | SQLite bootstrap、strict codec、CAS、events、claims |
+| `internal/store/` | SQLite bootstrap、strict codec、Action operations、CAS、events、claims |
 | `internal/mcp/` | fifteen tools、closed JSON、Result Envelope |
 | `packages/codex/` | Codex Plugin、Skill、lifecycle 与 package |
 | `packages/deepseek/` | DSH bundle、Skill、guard 与 package |

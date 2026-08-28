@@ -81,7 +81,7 @@ func TestApplyInvalidArgumentUserEvidenceIsZeroWriteAndCorrectable(t *testing.T)
 
 // TestApplyDeliveryMissingComprehensionEvidenceIsZeroWriteAndCorrectable covers
 // the reported DELIVERY failure. Core exposes the exact current evidence-set
-// member before an ActionCommit is staged, so the Host can copy the retained
+// member before an Action operation is staged, so the Host can copy the retained
 // user evidence ID and resubmit the same Action once.
 func TestApplyDeliveryMissingComprehensionEvidenceIsZeroWriteAndCorrectable(t *testing.T) {
 	service, memory, _ := phase5Service(t)

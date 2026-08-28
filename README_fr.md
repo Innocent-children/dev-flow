@@ -122,7 +122,7 @@ plus simple avec Codex ou DeepSeek directement.
 - **Vérification bornée :** chaque Task possède un verification budget ; les matrices complètes ne sont pas la norme.
 - **Récupération intersession :** étape, preuves, blockers et prochaines actions sont stockés dans SQLite local.
 - **Revue de compréhension :** `COMPREHENSION_REVIEW` suit les tests et peut renvoyer vers une reprise.
-- **Écriture incertaine :** Core conserve l’entrée Action normalisée ; après une réponse perdue, Task ID et Action ID suffisent sans reconstruire le payload.
+- **Écriture incertaine :** Core valide entièrement la prochaine Task puis conserve l’entrée Action normalisée dans un enregistrement d’opération indépendant ; après une réponse perdue, Task ID et Action ID suffisent sans reconstruire le payload.
 - **Multi-dépôts borné :** le source actuel gère un dépôt principal et jusqu’à sept dépôts supplémentaires dans un état unique.
 
 Vérifier dans [Project Status](docs/PROJECT-STATUS_en.md) si le multi-dépôts est déjà inclus dans la

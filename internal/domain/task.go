@@ -141,7 +141,6 @@ type ProcessTask struct {
 	CurrentAction          *ProcessAction           `json:"current_action"`
 	Blocker                *ProcessBlocker          `json:"blocker"`
 	LastOperation          *LastOperation           `json:"last_operation"`
-	ActionCommit           *ActionCommit            `json:"action_commit,omitempty"`
 	PrimaryRepositoryKey   RepositoryKey            `json:"primary_repository_key"`
 	Repository             RepositoryBinding        `json:"repository"`
 	AdditionalRepositories []RepositoryScopeEntry   `json:"additional_repositories"`
@@ -203,9 +202,6 @@ func (t ProcessTask) Validate() error {
 		return ErrInvalidArgument
 	}
 	if t.LastOperation != nil && (t.LastOperation.Validate() != nil || t.LastOperation.ToRevision != t.Revision) {
-		return ErrInvalidArgument
-	}
-	if !actionCommitMatchesTask(t) {
 		return ErrInvalidArgument
 	}
 	evidenceIDs := map[ID]bool{}

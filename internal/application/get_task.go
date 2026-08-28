@@ -6,6 +6,7 @@ import (
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/recovery"
+	"github.com/Innocent-children/dev-flow/internal/store"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
@@ -35,10 +36,21 @@ func (s *Service) GetTask(ctx context.Context, r GetTaskRequest) (GetTaskResult,
 	if err != nil {
 		return GetTaskResult{}, err
 	}
-	if task.ActionCommit == nil {
+	operationStore, ok := s.taskStore.(store.ActionOperationStore)
+	if !ok {
 		return GetTaskResult{Task: task}, nil
 	}
-	assessment, err := s.assessActionCommit(ctx, r.Host, task, *task.ActionCommit)
+	operation, found, err := operationStore.LoadActionOperation(ctx, task.TaskID)
+	if err != nil {
+		return GetTaskResult{}, mapStoreError(err)
+	}
+	if !found || workflow.ValidateActionCommit(task, operation.Commit) != nil {
+		if found {
+			return GetTaskResult{}, domain.ErrStorageUnavailable
+		}
+		return GetTaskResult{Task: task}, nil
+	}
+	assessment, err := s.assessActionCommit(ctx, r.Host, task, operation.Commit)
 	if err != nil {
 		return GetTaskResult{}, err
 	}

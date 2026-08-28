@@ -49,15 +49,17 @@ restores authoritative state.
 When a mutation response is missing, cancelled, truncated, or malformed, direct replay can duplicate
 side effects. The Host submits the Task ID, Action ID, and node result through the tool named by the
 current Action. Core fills the complete identity, artifact roles, method steps, and payload envelope,
-then retains the normalized submission in the Task snapshot before advancing the Task. Recovery reads
-that retained submission, so the caller no longer stores or rebuilds the original payload.
+builds and validates the complete next Task mutation, and only then retains the normalized submission
+as an independent Action operation. Task, Event, Claim, and the operation's applied revision commit in
+one transaction. Recovery reads that operation record, so the caller no longer stores or rebuilds the
+original payload and the Task snapshot carries no recovery payload.
 
 Before retaining a submission, Core checks node-result semantics against the current Task. Errors in
 revisions, records, evidence sets, acceptance, and other values that can be copied uniquely from Core
 return field paths, fixed rules, and `allowed_paths`; the Host may correct only those fields once.
 Test conclusions, user confirmation, work-item content, and other values that cannot be derived safely
-receive field detail without automatic correction authority. Rejected input never enters ActionCommit
-or uncertain-mutation Recovery.
+receive field detail without automatic correction authority. Rejected input never enters a
+recoverable Action operation or uncertain-mutation Recovery.
 
 ### Behavioral correctness and maintainability are not separated
 
@@ -133,8 +135,8 @@ recorded resume node.
 
 ### Local persistence and read-only Git observation
 
-Tasks, events, evidence, and repository claims are stored in local SQLite. A Task may contain one
-primary repository and up to seven explicit additional repositories. The scope is immutable after
+Tasks, recoverable Action operations, events, evidence, and repository claims are stored in local
+SQLite. A Task may contain one primary repository and up to seven explicit additional repositories. The scope is immutable after
 creation, and every repository shares the same process state. Core reads each repository's canonical
 identity, branch, HEAD, index/worktree, and bounded changed paths in primary-first, additional-key
 order. A user-authorized host continues to own Git mutations.
@@ -193,6 +195,8 @@ product version numbers do not have to match.
   node, changed surface, acceptance criteria, or recovery risk.
 - Mutations carry revision, action identity, source cursor, and repository binding.
 - The Host submits the current Action result; Core fills and retains the complete mutation input.
+- Core builds and validates the complete next Task mutation before retaining a recoverable Action
+  operation; Task, Event, Claim, and the operation's applied revision commit atomically.
 - A write-enabled Action result reports exact `changed_paths` newly produced relative to the current Action's issuance state, or `no_file_changes` when this node changed no files; Core validates the
   issuance baseline, `allowed_effects`, and fresh observation, while artifact references do not replace
   the mutation envelope.

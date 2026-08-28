@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
-func TestStageActionCommitUpdatesOnlyCurrentTaskSnapshot(t *testing.T) {
+func TestStageActionOperationLeavesTaskSnapshotUnchanged(t *testing.T) {
 	ctx := context.Background()
 	path := dbPath(t)
 	database, err := Open(ctx, path)
@@ -27,23 +28,23 @@ func TestStageActionCommitUpdatesOnlyCurrentTaskSnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 	commit := storeTestActionCommit(t, task)
-	prepared := task
-	prepared.ActionCommit = &commit
-	if err := database.StageActionCommit(ctx, prepared); err != nil {
+	if err := database.StageActionOperation(ctx, task, commit); err != nil {
 		t.Fatal(err)
 	}
 	loaded, err := database.LoadTask(ctx, task.TaskID)
-	if err != nil || loaded.Revision != task.Revision || loaded.ActionCommit == nil || !loaded.ActionCommit.Equal(commit) {
-		t.Fatalf("loaded commit=%#v revision=%d err=%v", loaded.ActionCommit, loaded.Revision, err)
+	if err != nil || !reflect.DeepEqual(loaded, task) {
+		t.Fatalf("loaded task changed=%v err=%v", !reflect.DeepEqual(loaded, task), err)
 	}
-	if err := database.StageActionCommit(ctx, prepared); err != nil {
+	operation, found, err := database.LoadActionOperation(ctx, task.TaskID)
+	if err != nil || !found || operation.AppliedRevision != nil || !operation.Commit.Equal(commit) {
+		t.Fatalf("operation=%#v found=%v err=%v", operation, found, err)
+	}
+	if err := database.StageActionOperation(ctx, task, commit); err != nil {
 		t.Fatalf("idempotent stage: %v", err)
 	}
-	conflict := prepared
 	copy := commit
 	copy.Operation.OperationID = "different-operation"
-	conflict.ActionCommit = &copy
-	if err := database.StageActionCommit(ctx, conflict); !errors.Is(err, ErrInvalidArgument) {
+	if err := database.StageActionOperation(ctx, task, copy); !errors.Is(err, ErrInvalidArgument) {
 		t.Fatalf("conflicting stage error=%v", err)
 	}
 	if err := database.Close(); err != nil {
@@ -54,9 +55,9 @@ func TestStageActionCommitUpdatesOnlyCurrentTaskSnapshot(t *testing.T) {
 		t.Fatalf("reopen staged commit: %v", err)
 	}
 	defer database.Close()
-	reopened, err := database.LoadTask(ctx, task.TaskID)
-	if err != nil || reopened.ActionCommit == nil || !reopened.ActionCommit.Equal(commit) {
-		t.Fatalf("reopened commit=%#v err=%v", reopened.ActionCommit, err)
+	reopened, found, err := database.LoadActionOperation(ctx, task.TaskID)
+	if err != nil || !found || !reopened.Commit.Equal(commit) {
+		t.Fatalf("reopened operation=%#v found=%v err=%v", reopened, found, err)
 	}
 }
 

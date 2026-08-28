@@ -8,7 +8,7 @@ import (
 )
 
 // validateActionResultAgainstTask checks LLM-supplied semantic references before
-// SubmitAction stages an ActionCommit. The apply functions keep their checks as
+// SubmitAction stages an Action operation. The apply functions keep their checks as
 // mutation-boundary defenses; this preflight provides safe field detail while
 // the failure is still proven zero-write.
 func validateActionResultAgainstTask(task domain.ProcessTask, transition domain.TransitionDefinition, result any) error {

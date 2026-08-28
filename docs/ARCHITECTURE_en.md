@@ -114,6 +114,7 @@ invalidate related downstream records.
 `internal/store/` uses a CGo-free SQLite driver to persist:
 
 - the current Task snapshot;
+- an independent recoverable Action operation;
 - append-only TaskEvent audit entries;
 - bounded evidence;
 - the repository claim;
@@ -123,13 +124,15 @@ invalidate related downstream records.
 A normal mutation updates snapshot, event, evidence, and claim in one transaction. Current reads use
 the Task snapshot; TaskEvent provides an audit trail rather than routine event replay.
 
-Before advancing the revision, an Action submission writes one bounded normalized `ActionCommit`
-into the current Task snapshot without adding an event or process cursor. The following Task mutation
-retains the latest submission so Recovery can read the original input directly.
+A Core-retained Action submission first builds and validates the complete next `TaskMutation` in
+memory, then writes the bounded normalized payload as a BLOB in an independent `action_operations`
+record. A following transaction performs the Task revision CAS, inserts the Event, processes the
+complete Claim set, and fills the operation's `applied_revision`. The Task snapshot carries no
+recovery payload; Recovery reads the independent operation record after an uncertain response.
 
 Before write capability is exposed, Store performs a read-only preflight over the SQLite Schema,
-snapshot, process definition, Task/Event/Claim cardinality, and current-node authority. Incompatible
-or pre-graph data returns `SCHEMA_UNSUPPORTED` with zero writes.
+snapshot, process definition, Task/Action-operation/Event/Claim relationships, and current-node
+authority. Incompatible or pre-graph data returns `SCHEMA_UNSUPPORTED` with zero writes.
 
 ### Read-only Git Observer
 
@@ -143,13 +146,15 @@ remain evidence. Application validates per-repository paths against the issuance
 observation before choosing rebind or `REPOSITORY_DRIFT`. An exact binding paired with declared file
 changes returns the field rule `repository_effect_not_observed` instead of being reported as real drift.
 
-Before staging an ActionCommit, `SubmitAction` performs two zero-write preflights. Workflow validates
+Before staging an Action operation, `SubmitAction` performs two zero-write preflights. Workflow validates
 the closed payload shape and field format; Application then checks revisions, records, work items,
 passing-test conditions, user confirmation, acceptance, and evidence sets against the current Task.
 Failures return value-free `ContractViolation` or `GuardFailure` detail. Only current values, current
 sets, and current acceptance that Core can determine uniquely enter `correct_current_action`; other
-rules provide location detail only. Core stages the normalized payload only after preflight succeeds,
-and Recovery still replays that immutable submission.
+rules provide location detail only. Application also builds and validates the complete next Task,
+Action, Event, and Claim mutation before any operation record is written. Core stages the normalized
+payload only after every check succeeds. Recovery replays that immutable submission, and the commit
+stage contains no argument validation that runs for the first time after staging.
 
 Core does not run checkout, reset, clean, stash, commit, merge, rebase, push, tag, or publication
 operations, and exposes no generic shell. Action `allowed_effects` describe operations a host may
@@ -157,7 +162,7 @@ perform under user authority.
 
 ### Recovery
 
-`internal/recovery/` uses the normalized Action submission retained in the Task snapshot,
+`internal/recovery/` uses the normalized Action submission retained in the independent operation record,
 LastOperation, and one read-only repository observation to produce:
 
 ```text
@@ -200,9 +205,10 @@ without changing its primary repository, keys, or ordering. Public multi-reposit
 `<repository-key>::<repository-relative-path>` and Application dispatches them as ordinary
 repository-relative paths to each Observer. Single-repository path syntax is unchanged.
 
-SQLite continues to store the whole process aggregate as one Task row with one revision CAS. An
-active Task holds one `repository_claims` row for every identity in its Scope. Acquire, Retain, and
-Release process the complete ordered claim set in the same transaction as the Task snapshot and
+SQLite continues to store the whole process aggregate as one Task row with one revision CAS. Each
+Task retains at most one latest `action_operations` row for Core-retained submission idempotency and
+recovery; it is not a second process cursor. An active Task holds one `repository_claims` row for
+every identity in its Scope. Acquire, Retain, and Release process the complete ordered claim set in the same transaction as the Task snapshot and
 event. A conflict or set mismatch rolls back or safe-stops; it cannot leave a partial claim set,
 repository-level revision, or second state machine.
 
@@ -241,13 +247,15 @@ sequenceDiagram
     Host->>Developer: perform and explain current-node work
     Host->>Core: submission_tool(node result)
     Core->>Git: re-observe
-    Core->>Store: retain normalized Action submission
-    Core->>Store: CAS transaction
+    Core->>Core: plan + validate complete TaskMutation
+    Core->>Store: insert prepared action_operations row
+    Core->>Store: CAS Task/Event/Claim + mark operation applied
     Core-->>Host: updated Task + next action
 ```
 
-If the final response is uncertain, the host retains the original request, operation, source cursor,
-revision, action, and payload, then uses read/probe to obtain Core's recovery assessment.
+If the final response is uncertain, a Host using Core-retained submission keeps only the Task ID and
+Action ID, then reads the assessment backed by the independent operation record. The explicit
+operation-probe path continues to carry its complete probe.
 
 ## Versioning and distribution
 
@@ -277,8 +285,8 @@ read-back for safe retries.
 | `internal/application/` | Use case orchestration |
 | `internal/recovery/` | Reconciliation, assessment, and blockers |
 | `internal/repository/` | Read-only Git observation |
-| `internal/store/` | SQLite bootstrap, strict codec, CAS, events, and claims |
-| `internal/mcp/` | Six tools, closed JSON, and Result Envelope |
+| `internal/store/` | SQLite bootstrap, strict codec, Action operations, CAS, events, and claims |
+| `internal/mcp/` | Fifteen tools, closed JSON, and Result Envelope |
 | `packages/codex/` | Codex Plugin, Skill, lifecycle, and package |
 | `packages/deepseek/` | DSH bundle, Skill, guard, and package |
 | `protocol/fixtures/` | Public contract and host-parity fixtures |

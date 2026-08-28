@@ -82,6 +82,9 @@ func (s *SQLite) PurgeTask(ctx context.Context, mutation PurgeTaskMutation) erro
 	if claims != 0 {
 		return ErrStorageUnavailable
 	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM action_operations WHERE task_id=?`, mutation.TaskID); err != nil {
+		return ErrStorageUnavailable
+	}
 	events, err := tx.ExecContext(ctx, `DELETE FROM task_events WHERE task_id=?`, mutation.TaskID)
 	if err != nil {
 		return ErrStorageUnavailable

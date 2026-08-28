@@ -115,7 +115,7 @@ func databaseManifest(t *testing.T, path string) databaseStateManifest {
 	if err := objects.Close(); err != nil {
 		t.Fatal(err)
 	}
-	for _, table := range []string{"schema_metadata", "schema_migrations", "tasks", "task_events", "repository_claims"} {
+	for _, table := range []string{"schema_metadata", "schema_migrations", "tasks", "action_operations", "task_events", "repository_claims"} {
 		var exists int
 		if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?`, table).Scan(&exists); err != nil {
 			t.Fatal(err)

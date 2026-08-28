@@ -90,10 +90,11 @@ func TestCurrentStorageHasOneSchemaCodecProcessAndProjection(t *testing.T) {
 
 	migrations := read("internal/store/migrations.go")
 	for _, required := range []string{
-		`const DatabaseSchemaVersion = "0.2.0"`,
+		`const DatabaseSchemaVersion = "0.3.0"`,
 		"currentSchemaStatements",
 		"func bootstrapCurrentSchema",
 		"func verifyCurrentSchema",
+		"CREATE TABLE action_operations",
 		"CREATE INDEX repository_claims_task_idx ON repository_claims (task_id)",
 	} {
 		if !strings.Contains(migrations, required) {
@@ -137,6 +138,15 @@ func TestCurrentStorageHasOneSchemaCodecProcessAndProjection(t *testing.T) {
 	if strings.Contains(applicationTypes, "domain.Task") || !strings.Contains(applicationTypes, "domain.ProcessTask") {
 		t.Fatal("Application must use only the ProcessTask projection")
 	}
+	domainTask := read("internal/domain/task.go")
+	if strings.Contains(domainTask, "ActionCommit") {
+		t.Fatal("ProcessTask must not embed the recoverable Action payload")
+	}
+	storeContract := read("internal/store/store.go")
+	if !strings.Contains(storeContract, "type ActionOperationStore interface") ||
+		!strings.Contains(storeContract, "CommitActionOperation(context.Context, domain.ID, TaskMutation) error") {
+		t.Fatal("Store must expose the independent Action operation commit boundary")
+	}
 }
 
 func TestCurrentStorageLifecycleHasNoTaskDataResetCapability(t *testing.T) {
@@ -154,7 +164,7 @@ func TestCurrentStorageLifecycleHasNoTaskDataResetCapability(t *testing.T) {
 		source := string(raw)
 		for _, forbidden := range []*regexp.Regexp{
 			regexp.MustCompile(`\b(?:rm|rmdir|truncate)\s*\(`),
-			regexp.MustCompile(`(?i)\b(?:DELETE|DROP)\s+(?:FROM\s+)?(?:tasks|task_events|repository_claims|schema_migrations)\b`),
+			regexp.MustCompile(`(?i)\b(?:DELETE|DROP)\s+(?:FROM\s+)?(?:tasks|task_events|action_operations|repository_claims|schema_migrations)\b`),
 			regexp.MustCompile(`(?i)\b(?:migrate|convert|reset)(?:Task|Database|DataDirectory)\b`),
 		} {
 			if forbidden.MatchString(source) {

@@ -7,8 +7,8 @@ import (
 	"unicode/utf8"
 )
 
-// ActionCommit retains the last canonical Action submission so Core can
-// reconcile an uncertain response without asking the Host to rebuild it.
+// ActionCommit is the immutable canonical input retained for one recoverable
+// Action operation.
 type ActionCommit struct {
 	Operation     OperationReference `json:"operation"`
 	Payload       json.RawMessage    `json:"payload"`
@@ -30,20 +30,7 @@ func (c ActionCommit) Equal(other ActionCommit) bool {
 		c.PreparedAt.Equal(other.PreparedAt) && bytes.Equal(c.Payload, other.Payload)
 }
 
-func actionCommitMatchesTask(task ProcessTask) bool {
-	commit := task.ActionCommit
-	if commit == nil || commit.Validate() != nil || commit.Operation.Process != task.Process {
-		return commit == nil
-	}
-	operation := commit.Operation
-	if task.CurrentAction != nil && task.Revision == operation.ExpectedRevision &&
-		task.CurrentNode == operation.SourceCursor && task.CurrentAction.ActionID == operation.ActionID &&
-		task.CurrentAction.Kind == operation.ActionKind && task.CurrentAction.RepositoryBindingDigest == operation.RepositoryBindingDigest {
-		return true
-	}
-	last := task.LastOperation
-	return last != nil && last.Kind == OperationApplyAction && last.ActionID != nil &&
-		last.OperationID == operation.OperationID && *last.ActionID == operation.ActionID &&
-		last.FromRevision == operation.ExpectedRevision && last.ToRevision == task.Revision &&
-		last.PayloadDigest == commit.PayloadDigest
+func (c ActionCommit) Clone() ActionCommit {
+	c.Payload = append(json.RawMessage(nil), c.Payload...)
+	return c
 }

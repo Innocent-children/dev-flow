@@ -13,9 +13,17 @@ type Store interface {
 	CommitTask(context.Context, TaskMutation) error
 }
 
-type ActionCommitStore interface {
+type ActionOperationStore interface {
 	Store
-	StageActionCommit(context.Context, domain.ProcessTask) error
+	LoadActionOperation(context.Context, domain.ID) (ActionOperation, bool, error)
+	StageActionOperation(context.Context, domain.ProcessTask, domain.ActionCommit) error
+	CommitActionOperation(context.Context, domain.ID, TaskMutation) error
+}
+
+type ActionOperation struct {
+	TaskID          domain.ID
+	Commit          domain.ActionCommit
+	AppliedRevision *uint64
 }
 
 type TaskListQuery struct {
@@ -106,4 +114,4 @@ type TaskEvent struct {
 }
 
 var _ Store = (*SQLite)(nil)
-var _ ActionCommitStore = (*SQLite)(nil)
+var _ ActionOperationStore = (*SQLite)(nil)

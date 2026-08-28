@@ -21,8 +21,16 @@ func (s *Service) SubmitAction(ctx context.Context, request SubmitActionRequest)
 	if err != nil {
 		return ApplyActionResult{}, err
 	}
-	if task.ActionCommit != nil && task.ActionCommit.Operation.ActionID == request.ActionID {
-		if actionCommitRecorded(task, *task.ActionCommit) {
+	operationStore, ok := s.taskStore.(store.ActionOperationStore)
+	if !ok {
+		return ApplyActionResult{}, domain.ErrInternal
+	}
+	existing, found, err := operationStore.LoadActionOperation(ctx, task.TaskID)
+	if err != nil {
+		return ApplyActionResult{}, mapStoreError(err)
+	}
+	if found && existing.Commit.Operation.ActionID == request.ActionID {
+		if existing.RecordedBy(task) {
 			return ApplyActionResult{Task: task}, nil
 		}
 		return ApplyActionResult{}, domain.ErrRecoveryUnavailable
@@ -83,19 +91,21 @@ func (s *Service) SubmitAction(ctx context.Context, request SubmitActionRequest)
 	if err != nil {
 		return ApplyActionResult{}, domain.ErrInternal
 	}
-	prepared := task
-	prepared.ActionCommit = &domain.ActionCommit{Operation: operation, Payload: canonical, PayloadDigest: digest, PreparedAt: s.now().UTC()}
-	if workflow.ValidateProcessTask(prepared) != nil {
+	mutation, err := s.planStandardMutation(apply, task, fresh, comparison)
+	if err != nil {
+		return ApplyActionResult{}, err
+	}
+	commit := domain.ActionCommit{Operation: operation, Payload: canonical, PayloadDigest: digest, PreparedAt: mutation.Task.LastOperation.CommittedAt}
+	if workflow.ValidateActionCommit(task, commit) != nil {
 		return ApplyActionResult{}, domain.ErrInternal
 	}
-	commitStore, ok := s.taskStore.(store.ActionCommitStore)
-	if !ok {
-		return ApplyActionResult{}, domain.ErrInternal
-	}
-	if err := commitStore.StageActionCommit(ctx, prepared); err != nil {
+	if err := operationStore.StageActionOperation(ctx, task, commit); err != nil {
 		return ApplyActionResult{}, mapStoreError(err)
 	}
-	return s.applyStandardMutation(ctx, apply, prepared, fresh, comparison)
+	if err := operationStore.CommitActionOperation(ctx, operation.OperationID, mutation); err != nil {
+		return ApplyActionResult{}, mapStoreError(err)
+	}
+	return ApplyActionResult{Task: mutation.Task}, nil
 }
 
 func applyRequestForCurrentAction(requestID domain.ID, host domain.Host, task domain.ProcessTask, payload json.RawMessage) ApplyActionRequest {
@@ -157,11 +167,4 @@ func submissionMethodEvidence(steps []domain.SemanticMethodStep, results map[dom
 		return nil, domain.ErrInvalidArgument
 	}
 	return items, nil
-}
-
-func actionCommitRecorded(task domain.ProcessTask, commit domain.ActionCommit) bool {
-	last := task.LastOperation
-	return last != nil && last.Kind == domain.OperationApplyAction && last.ActionID != nil &&
-		last.OperationID == commit.Operation.OperationID && *last.ActionID == commit.Operation.ActionID &&
-		last.PayloadDigest == commit.PayloadDigest && last.FromRevision == commit.Operation.ExpectedRevision
 }

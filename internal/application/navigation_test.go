@@ -11,6 +11,7 @@ import (
 
 type memoryStore struct {
 	task         *domain.ProcessTask
+	operation    *store.ActionOperation
 	commits      int
 	stages       int
 	commitErr    error
@@ -35,14 +36,44 @@ func (m *memoryStore) CommitTask(_ context.Context, x store.TaskMutation) error 
 	}
 	task := x.Task
 	m.task = &task
+	if x.Event.Kind == domain.OperationApplyAction || x.Event.Kind == domain.OperationCancelTask {
+		m.operation = nil
+	}
 	m.commits++
 	m.lastMutation = x
 	return nil
 }
-func (m *memoryStore) StageActionCommit(_ context.Context, task domain.ProcessTask) error {
-	copy := task
-	m.task = &copy
+func (m *memoryStore) LoadActionOperation(_ context.Context, taskID domain.ID) (store.ActionOperation, bool, error) {
+	if m.operation == nil || m.operation.TaskID != taskID {
+		return store.ActionOperation{}, false, nil
+	}
+	copy := *m.operation
+	copy.Commit = copy.Commit.Clone()
+	if copy.AppliedRevision != nil {
+		revision := *copy.AppliedRevision
+		copy.AppliedRevision = &revision
+	}
+	return copy, true, nil
+}
+func (m *memoryStore) StageActionOperation(_ context.Context, task domain.ProcessTask, commit domain.ActionCommit) error {
+	copy := commit.Clone()
+	m.operation = &store.ActionOperation{TaskID: task.TaskID, Commit: copy}
 	m.stages++
+	return nil
+}
+func (m *memoryStore) CommitActionOperation(_ context.Context, operationID domain.ID, mutation store.TaskMutation) error {
+	if m.commitErr != nil {
+		return m.commitErr
+	}
+	if m.operation == nil || m.operation.Commit.Operation.OperationID != operationID {
+		return store.ErrInvalidArgument
+	}
+	task := mutation.Task
+	m.task = &task
+	revision := task.Revision
+	m.operation.AppliedRevision = &revision
+	m.commits++
+	m.lastMutation = mutation
 	return nil
 }
 

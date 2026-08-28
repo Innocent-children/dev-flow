@@ -62,9 +62,6 @@ func ValidateProcessTask(task domain.ProcessTask) error {
 	if err := task.Validate(); err != nil {
 		return err
 	}
-	if err := ValidateActionCommit(task); err != nil {
-		return err
-	}
 	definition, err := ResolveDefinition(task.Process)
 	if err != nil {
 		return err

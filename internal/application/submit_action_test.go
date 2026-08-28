@@ -1,9 +1,11 @@
 package application
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"path/filepath"
 	"testing"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
@@ -12,7 +14,7 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
-func TestSubmitActionBuildsAndRetainsCanonicalCommit(t *testing.T) {
+func TestSubmitActionBuildsAndRetainsCanonicalOperation(t *testing.T) {
 	service, memory, _ := phase5Service(t)
 	task := openPhase5Task(t, service)
 	request := requirementsSubmission(t, task, "submit-requirements")
@@ -23,10 +25,14 @@ func TestSubmitActionBuildsAndRetainsCanonicalCommit(t *testing.T) {
 	if memory.stages != 1 || memory.commits != 2 {
 		t.Fatalf("stages=%d commits=%d", memory.stages, memory.commits)
 	}
-	if result.Task.CurrentNode != domain.NodeDesign || result.Task.ActionCommit == nil {
-		t.Fatalf("task node=%s commit=%#v", result.Task.CurrentNode, result.Task.ActionCommit)
+	if result.Task.CurrentNode != domain.NodeDesign {
+		t.Fatalf("task node=%s", result.Task.CurrentNode)
 	}
-	commit := result.Task.ActionCommit
+	operation, found, err := memory.LoadActionOperation(context.Background(), task.TaskID)
+	if err != nil || !found || operation.AppliedRevision == nil || *operation.AppliedRevision != result.Task.Revision {
+		t.Fatalf("operation=%#v found=%v err=%v", operation, found, err)
+	}
+	commit := &operation.Commit
 	if commit.Operation.ActionID != task.CurrentAction.ActionID || commit.Operation.ActionKind != task.CurrentAction.Kind ||
 		commit.Operation.ExpectedRevision != task.Revision || commit.Operation.SourceCursor != task.CurrentNode ||
 		commit.Operation.RepositoryBindingDigest != task.CurrentAction.RepositoryBindingDigest {
@@ -58,12 +64,18 @@ func TestRecoverActionUsesCoreRetainedPayload(t *testing.T) {
 	task := openPhase5Task(t, service)
 	memory.commitErr = store.ErrStorageUnavailable
 	request := requirementsSubmission(t, task, "submit-uncertain")
+	request.Summary = "Use config set <key> <true|false> & recover."
+	for stepID, result := range request.MethodResults {
+		result.Summary = "Retain <key> & payload bytes for recovery."
+		request.MethodResults[stepID] = result
+	}
 	if _, err := service.SubmitAction(context.Background(), request); !errors.Is(err, domain.ErrStorageUnavailable) {
 		t.Fatalf("submit error=%v", err)
 	}
 	retained, err := memory.LoadTask(context.Background(), task.TaskID)
-	if err != nil || retained.ActionCommit == nil || retained.Revision != task.Revision {
-		t.Fatalf("retained=%#v err=%v", retained.ActionCommit, err)
+	operation, found, operationErr := memory.LoadActionOperation(context.Background(), task.TaskID)
+	if err != nil || operationErr != nil || !found || operation.AppliedRevision != nil || retained.Revision != task.Revision {
+		t.Fatalf("retained operation=%#v found=%v task_revision=%d err=%v operation_err=%v", operation, found, retained.Revision, err, operationErr)
 	}
 	read, err := service.GetTask(context.Background(), GetTaskRequest{Host: domain.HostCodex, TaskID: task.TaskID})
 	if err != nil {
@@ -79,6 +91,58 @@ func TestRecoverActionUsesCoreRetainedPayload(t *testing.T) {
 	}
 	if recovered.Task.CurrentNode != domain.NodeDesign || recovered.Task.LastOperation == nil || recovered.Task.LastOperation.OperationID != "submit-uncertain" {
 		t.Fatalf("recovered task=%#v", recovered.Task)
+	}
+}
+
+func TestSubmitActionPersistsCanonicalOperationOutsideTaskSnapshot(t *testing.T) {
+	ctx := context.Background()
+	databasePath := filepath.Join(t.TempDir(), "dev-flow.db")
+	database, err := store.Open(ctx, databasePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, repositoryObserver := phase5Service(t)
+	service, err := NewService(database, repositoryObserver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	task := openPhase5Task(t, service)
+	request := requirementsSubmission(t, task, "submit-html-sensitive-requirements")
+	request.Summary = "Support config set <key> <true|false> & config show."
+	for stepID, result := range request.MethodResults {
+		result.Summary = "Use config set <key> <true|false> & verify the result."
+		request.MethodResults[stepID] = result
+	}
+	applied, err := service.SubmitAction(ctx, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if applied.Task.CurrentNode != domain.NodeDesign || applied.Task.Revision != 2 {
+		t.Fatalf("task node=%s revision=%d", applied.Task.CurrentNode, applied.Task.Revision)
+	}
+	operation, found, err := database.LoadActionOperation(ctx, task.TaskID)
+	if err != nil || !found || operation.AppliedRevision == nil || *operation.AppliedRevision != 2 ||
+		!bytes.Contains(operation.Commit.Payload, []byte("<key>")) {
+		t.Fatalf("operation=%#v found=%v err=%v", operation, found, err)
+	}
+	if err := database.Close(); err != nil {
+		t.Fatal(err)
+	}
+	database, err = store.Open(ctx, databasePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	service, err = NewService(database, repositoryObserver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	read, err := service.GetTask(ctx, GetTaskRequest{Host: domain.HostCodex, TaskID: task.TaskID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if read.RecoveryAssessment == nil || read.RecoveryAssessment.Classification != domain.RecoveryCompletedAndRecorded {
+		t.Fatalf("assessment=%#v", read.RecoveryAssessment)
 	}
 }
 
@@ -101,9 +165,9 @@ func TestSubmitActionRejectsCorrectableDeliveryBeforeStagingCommit(t *testing.T)
 	if memory.stages != stages {
 		t.Fatalf("stages=%d want=%d", memory.stages, stages)
 	}
-	retained, err := memory.LoadTask(context.Background(), task.TaskID)
-	if err != nil || retained.ActionCommit != nil {
-		t.Fatalf("action commit=%#v err=%v", retained.ActionCommit, err)
+	_, found, operationErr := memory.LoadActionOperation(context.Background(), task.TaskID)
+	if operationErr != nil || found {
+		t.Fatalf("action operation found=%v err=%v", found, operationErr)
 	}
 }
 
@@ -150,7 +214,8 @@ func TestResolveBlockerActionBuildsItsPayloadInCore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Task.CurrentNode != domain.NodeRequirements || result.Task.Blocker != nil || result.Task.ActionCommit == nil || result.Task.ActionCommit.Operation.SourceCursor != domain.NodeBlocked {
+	operation, found, operationErr := memory.LoadActionOperation(context.Background(), task.TaskID)
+	if result.Task.CurrentNode != domain.NodeRequirements || result.Task.Blocker != nil || operationErr != nil || !found || operation.Commit.Operation.SourceCursor != domain.NodeBlocked {
 		t.Fatalf("resolved task=%#v", result.Task)
 	}
 }

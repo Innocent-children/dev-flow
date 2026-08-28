@@ -6,12 +6,8 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/domain"
 )
 
-func ValidateActionCommit(task domain.ProcessTask) error {
-	commit := task.ActionCommit
-	if commit == nil {
-		return nil
-	}
-	if commit.Validate() != nil {
+func ValidateActionCommit(task domain.ProcessTask, commit domain.ActionCommit) error {
+	if commit.Validate() != nil || commit.Operation.Process != task.Process {
 		return domain.ErrInvalidArgument
 	}
 	var canonical []byte

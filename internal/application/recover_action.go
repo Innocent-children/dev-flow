@@ -18,10 +18,18 @@ func (s *Service) RecoverAction(ctx context.Context, request RecoverActionReques
 	if err != nil {
 		return ApplyActionResult{}, err
 	}
-	if task.ActionCommit == nil || task.ActionCommit.Operation.ActionID != request.ActionID {
+	operationStore, ok := s.taskStore.(store.ActionOperationStore)
+	if !ok {
+		return ApplyActionResult{}, domain.ErrInternal
+	}
+	stored, found, err := operationStore.LoadActionOperation(ctx, task.TaskID)
+	if err != nil {
+		return ApplyActionResult{}, mapStoreError(err)
+	}
+	if !found || stored.Commit.Operation.ActionID != request.ActionID || workflow.ValidateActionCommit(task, stored.Commit) != nil {
 		return ApplyActionResult{}, domain.ErrRecoveryUnavailable
 	}
-	commit := *task.ActionCommit
+	commit := stored.Commit
 	fresh, err := s.observeTaskRepositories(ctx, task)
 	if err != nil {
 		return ApplyActionResult{}, err
@@ -40,7 +48,7 @@ func (s *Service) RecoverAction(ctx context.Context, request RecoverActionReques
 		if comparisonErr != nil {
 			return ApplyActionResult{}, domain.ErrInternal
 		}
-		return s.applyStandardMutation(ctx, apply, task, fresh, comparison)
+		return s.commitStandardActionOperation(ctx, operationStore, apply, task, fresh, comparison)
 	case recovery.DirectiveReturnExistingBlocker:
 		return ApplyActionResult{Task: task}, nil
 	case recovery.DirectiveCommitRecoveredTransition:
@@ -49,15 +57,29 @@ func (s *Service) RecoverAction(ctx context.Context, request RecoverActionReques
 			if decodeErr != nil {
 				return ApplyActionResult{}, domain.ErrInternal
 			}
-			return s.resolveBlockerMutation(ctx, apply, task, fresh, payload, canonical)
+			mutation, planErr := s.planResolveBlockerMutation(apply, task, fresh, payload, canonical)
+			if planErr != nil {
+				return ApplyActionResult{}, planErr
+			}
+			if commitErr := operationStore.CommitActionOperation(ctx, apply.RequestID, mutation); commitErr != nil {
+				return ApplyActionResult{}, mapStoreError(commitErr)
+			}
+			return ApplyActionResult{Task: mutation.Task}, nil
 		}
 		comparison, comparisonErr := recovery.CompareRepositoryScope(task, fresh)
 		if comparisonErr != nil {
 			return ApplyActionResult{}, domain.ErrInternal
 		}
-		return s.applyStandardMutation(ctx, apply, task, fresh, comparison)
+		return s.commitStandardActionOperation(ctx, operationStore, apply, task, fresh, comparison)
 	case recovery.DirectiveCreateBlocker:
-		return s.createRecoveryBlocker(ctx, apply, task, fresh, decision)
+		mutation, planErr := s.planRecoveryBlocker(apply, task, fresh, decision)
+		if planErr != nil {
+			return ApplyActionResult{}, planErr
+		}
+		if commitErr := operationStore.CommitActionOperation(ctx, apply.RequestID, mutation); commitErr != nil {
+			return ApplyActionResult{}, mapStoreError(commitErr)
+		}
+		return ApplyActionResult{Task: mutation.Task}, nil
 	case recovery.DirectiveRevisionConflict:
 		return ApplyActionResult{}, domain.ErrRevisionConflict
 	case recovery.DirectiveActionStale:
@@ -75,8 +97,16 @@ func (s *Service) ResolveBlockerAction(ctx context.Context, request RecoverActio
 	if err != nil {
 		return ApplyActionResult{}, err
 	}
-	if task.ActionCommit != nil && task.ActionCommit.Operation.ActionID == request.ActionID {
-		if actionCommitRecorded(task, *task.ActionCommit) {
+	operationStore, ok := s.taskStore.(store.ActionOperationStore)
+	if !ok {
+		return ApplyActionResult{}, domain.ErrInternal
+	}
+	existing, found, err := operationStore.LoadActionOperation(ctx, task.TaskID)
+	if err != nil {
+		return ApplyActionResult{}, mapStoreError(err)
+	}
+	if found && existing.Commit.Operation.ActionID == request.ActionID {
+		if existing.RecordedBy(task) {
 			return ApplyActionResult{Task: task}, nil
 		}
 		return ApplyActionResult{}, domain.ErrRecoveryUnavailable
@@ -110,19 +140,21 @@ func (s *Service) ResolveBlockerAction(ctx context.Context, request RecoverActio
 	if err != nil {
 		return ApplyActionResult{}, domain.ErrInternal
 	}
-	prepared := task
-	prepared.ActionCommit = &domain.ActionCommit{Operation: operation, Payload: canonical, PayloadDigest: digest, PreparedAt: s.now().UTC()}
-	if workflow.ValidateProcessTask(prepared) != nil {
+	mutation, err := s.planResolveBlockerMutation(apply, task, fresh, payload, canonical)
+	if err != nil {
+		return ApplyActionResult{}, err
+	}
+	commit := domain.ActionCommit{Operation: operation, Payload: canonical, PayloadDigest: digest, PreparedAt: mutation.Task.LastOperation.CommittedAt}
+	if workflow.ValidateActionCommit(task, commit) != nil {
 		return ApplyActionResult{}, domain.ErrInternal
 	}
-	commitStore, ok := s.taskStore.(store.ActionCommitStore)
-	if !ok {
-		return ApplyActionResult{}, domain.ErrInternal
-	}
-	if err := commitStore.StageActionCommit(ctx, prepared); err != nil {
+	if err := operationStore.StageActionOperation(ctx, task, commit); err != nil {
 		return ApplyActionResult{}, mapStoreError(err)
 	}
-	return s.resolveBlockerMutation(ctx, apply, prepared, fresh, payload, canonical)
+	if err := operationStore.CommitActionOperation(ctx, operation.OperationID, mutation); err != nil {
+		return ApplyActionResult{}, mapStoreError(err)
+	}
+	return ApplyActionResult{Task: mutation.Task}, nil
 }
 
 func applyRequestFromCommit(host domain.Host, taskID domain.ID, commit domain.ActionCommit) ApplyActionRequest {
@@ -133,4 +165,15 @@ func applyRequestFromCommit(host domain.Host, taskID domain.ID, commit domain.Ac
 		ProcessDefinitionDigest: operation.Process.DefinitionDigest, SourceCursor: operation.SourceCursor,
 		RepositoryBindingDigest: operation.RepositoryBindingDigest, Payload: commit.Payload,
 	}
+}
+
+func (s *Service) commitStandardActionOperation(ctx context.Context, operationStore store.ActionOperationStore, apply ApplyActionRequest, task domain.ProcessTask, fresh recovery.RepositoryScopeObservation, comparison recovery.RepositoryScopeComparison) (ApplyActionResult, error) {
+	mutation, err := s.planStandardMutation(apply, task, fresh, comparison)
+	if err != nil {
+		return ApplyActionResult{}, err
+	}
+	if err := operationStore.CommitActionOperation(ctx, apply.RequestID, mutation); err != nil {
+		return ApplyActionResult{}, mapStoreError(err)
+	}
+	return ApplyActionResult{Task: mutation.Task}, nil
 }

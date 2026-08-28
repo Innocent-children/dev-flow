@@ -21,7 +21,8 @@ flowchart LR
 ## 需要保护什么
 
 - 开发者声明的一个至八个 Git 仓库；
-- Task 原始意图、当前阶段、revision、Action、证据、Blocker 和 Outcome；
+- Task 原始意图、当前阶段、revision、Action、证据、Blocker、Outcome，以及可恢复 Action 操作的
+  规范化 payload 与 digest；
 - Repository Scope、仓库身份与 aggregate binding；
 - 本地 SQLite、安装 receipt 与用户配置；
 - npm package、bundled Core、Git Tag、GitHub Release 与 artifact digest；
@@ -48,10 +49,10 @@ sidecars，独占锁失败或目标变化时零删除，Adapter、registration�
 | 风险 | 当前防护 |
 | --- | --- |
 | 路径穿越、symlink 或索引结果扩大仓库范围 | Task 创建时规范化并冻结 Scope；多仓库路径显式带 repository key；索引不能增加成员 |
-| 旧 Action、重复请求或丢失响应造成重复状态变化 | revision CAS、Action/request identity、repository binding、幂等读取和 read-before-retry |
+| 旧 Action、重复请求或丢失响应造成重复状态变化 | 完整 mutation 先校验后暂存；独立 Action 操作记录、revision CAS、Action/request identity、repository binding、原子 applied marker 和 read-before-retry |
 | 仓库被替换或任一成员发生冲突性 drift | apply 前重新观察全部 Scope 成员；冲突导致零 Core 写入或明确 Recovery/Blocker |
 | 仓库中的 prompt injection 诱导扩大工作 | TaskIntent、allowed effects、显式 Scope 和验证预算独立于仓库文本；高风险 Git/发布仍需用户授权 |
-| SQLite、配置或 executable 被本地进程篡改 | strict codec、Schema 检查、closed fields 与 package/executable identity 验证 |
+| SQLite、配置或 executable 被本地进程篡改 | strict codec、Schema 检查、Task/Action-operation 关联检查、closed fields 与 package/executable identity 验证 |
 | 安装或移除误删相邻配置和 Task 数据 | ownership receipt；remove 只清理自己管理的注册；普通卸载保留 Task 数据 |
 | beta、源码和稳定支持被混为一谈 | 稳定声明只来自 Support Matrix；beta 与 source 在 Project Status 中单独标记 |
 | 日志或旅程证据泄露隐私 | 提交的 evidence 只保留有界机器事实与 digest；raw transcript 默认不提交 |

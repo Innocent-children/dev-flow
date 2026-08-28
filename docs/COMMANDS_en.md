@@ -213,7 +213,7 @@ terminal shell commands.
 | `dev_flow_submit_refactor` | Mutation | Submit the REFACTOR node result. |
 | `dev_flow_submit_delivery` | Mutation | Submit the DELIVERY node result. |
 | `dev_flow_resolve_blocker` | Mutation | Resolve the current blocker after Core verifies repository restoration; accepts only host, Task ID, and Action ID. |
-| `dev_flow_recover_action` | Mutation | Recover an uncertain Action from the normalized submission retained in the Task snapshot; accepts no original payload. |
+| `dev_flow_recover_action` | Mutation | Recover an uncertain Action from the normalized submission retained in an independent Action operation record; accepts no original payload. |
 | `dev_flow_cancel_task` | Destructive mutation | Move a nonterminal Task to `CANCELLED` using the current revision and a non-empty reason. |
 
 Each ordinary node submission tool accepts only `host`, `task_id`, `action_id`, `transition_id`,

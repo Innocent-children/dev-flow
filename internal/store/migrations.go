@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-const DatabaseSchemaVersion = "0.2.0"
+const DatabaseSchemaVersion = "0.3.0"
 
 var currentSchemaStatements = []string{
 	`CREATE TABLE schema_metadata (version TEXT PRIMARY KEY)`,
@@ -14,6 +14,7 @@ var currentSchemaStatements = []string{
 	`CREATE INDEX tasks_node_idx ON tasks (current_node)`,
 	`CREATE INDEX tasks_origin_host_idx ON tasks (origin_host)`,
 	`CREATE INDEX tasks_updated_at_idx ON tasks (updated_at)`,
+	`CREATE TABLE action_operations (task_id TEXT PRIMARY KEY, operation_id TEXT NOT NULL UNIQUE, process_id TEXT NOT NULL, process_definition_digest TEXT NOT NULL, source_node TEXT NOT NULL, expected_revision INTEGER NOT NULL CHECK (expected_revision >= 1), action_id TEXT NOT NULL, action_kind TEXT NOT NULL, repository_binding_digest TEXT NOT NULL, payload BLOB NOT NULL, payload_digest TEXT NOT NULL, prepared_at TEXT NOT NULL, applied_revision INTEGER CHECK (applied_revision IS NULL OR applied_revision = expected_revision + 1), FOREIGN KEY (task_id) REFERENCES tasks (task_id) ON DELETE RESTRICT)`,
 	`CREATE TABLE task_events (event_id TEXT PRIMARY KEY, task_id TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision >= 1), event_type TEXT NOT NULL, source_node TEXT NOT NULL, destination_node TEXT NOT NULL, transition_id TEXT, transition_reason TEXT, action_id TEXT, request_id TEXT NOT NULL, payload_digest TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE (task_id, revision), FOREIGN KEY (task_id) REFERENCES tasks (task_id) ON DELETE RESTRICT)`,
 	`CREATE TABLE repository_claims (repository_identity TEXT PRIMARY KEY, task_id TEXT NOT NULL, origin_host TEXT NOT NULL, claimed_at TEXT NOT NULL, FOREIGN KEY (task_id) REFERENCES tasks (task_id) ON DELETE RESTRICT)`,
 	`CREATE INDEX repository_claims_task_idx ON repository_claims (task_id)`,
@@ -29,14 +30,16 @@ var currentSchemaObjects = []struct {
 	{"tasks_node_idx", "index", 2},
 	{"tasks_origin_host_idx", "index", 3},
 	{"tasks_updated_at_idx", "index", 4},
-	{"task_events", "table", 5},
-	{"repository_claims", "table", 6},
-	{"repository_claims_task_idx", "index", 7},
+	{"action_operations", "table", 5},
+	{"task_events", "table", 6},
+	{"repository_claims", "table", 7},
+	{"repository_claims_task_idx", "index", 8},
 }
 
 var currentColumns = map[string][]string{
 	"schema_metadata":   {"version"},
 	"tasks":             {"task_id", "origin_host", "process_id", "process_definition_digest", "current_node", "revision", "repository_identity", "snapshot", "created_at", "updated_at", "archived_at"},
+	"action_operations": {"task_id", "operation_id", "process_id", "process_definition_digest", "source_node", "expected_revision", "action_id", "action_kind", "repository_binding_digest", "payload", "payload_digest", "prepared_at", "applied_revision"},
 	"task_events":       {"event_id", "task_id", "revision", "event_type", "source_node", "destination_node", "transition_id", "transition_reason", "action_id", "request_id", "payload_digest", "created_at"},
 	"repository_claims": {"repository_identity", "task_id", "origin_host", "claimed_at"},
 }

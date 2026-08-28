@@ -161,7 +161,7 @@ func assertFreshCurrentSchema(t *testing.T, dbPath string) {
 	t.Helper()
 	db := openImmutableDatabase(t, dbPath)
 	defer db.Close()
-	want := []string{"index:repository_claims_task_idx", "index:tasks_node_idx", "index:tasks_origin_host_idx", "index:tasks_updated_at_idx", "table:repository_claims", "table:schema_metadata", "table:task_events", "table:tasks"}
+	want := []string{"index:repository_claims_task_idx", "index:tasks_node_idx", "index:tasks_origin_host_idx", "index:tasks_updated_at_idx", "table:action_operations", "table:repository_claims", "table:schema_metadata", "table:task_events", "table:tasks"}
 	rows, err := db.Query(`SELECT type||':'||name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name`)
 	if err != nil {
 		t.Fatal(err)
@@ -178,7 +178,7 @@ func assertFreshCurrentSchema(t *testing.T, dbPath string) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("schema=%v", got)
 	}
-	for table, columns := range map[string][]string{"schema_metadata": {"version"}, "tasks": {"task_id", "origin_host", "process_id", "process_definition_digest", "current_node", "revision", "repository_identity", "snapshot", "created_at", "updated_at", "archived_at"}, "task_events": {"event_id", "task_id", "revision", "event_type", "source_node", "destination_node", "transition_id", "transition_reason", "action_id", "request_id", "payload_digest", "created_at"}, "repository_claims": {"repository_identity", "task_id", "origin_host", "claimed_at"}} {
+	for table, columns := range map[string][]string{"schema_metadata": {"version"}, "tasks": {"task_id", "origin_host", "process_id", "process_definition_digest", "current_node", "revision", "repository_identity", "snapshot", "created_at", "updated_at", "archived_at"}, "action_operations": {"task_id", "operation_id", "process_id", "process_definition_digest", "source_node", "expected_revision", "action_id", "action_kind", "repository_binding_digest", "payload", "payload_digest", "prepared_at", "applied_revision"}, "task_events": {"event_id", "task_id", "revision", "event_type", "source_node", "destination_node", "transition_id", "transition_reason", "action_id", "request_id", "payload_digest", "created_at"}, "repository_claims": {"repository_identity", "task_id", "origin_host", "claimed_at"}} {
 		columnRows, err := db.Query(`SELECT name FROM pragma_table_info(?) ORDER BY cid`, table)
 		if err != nil {
 			t.Fatal(err)
