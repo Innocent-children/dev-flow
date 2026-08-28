@@ -52,7 +52,6 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      RELEASE_OUTPUT: ${{ runner.temp }}/dev-flow-release-${{ inputs.product }}-${{ inputs.version }}
       RELEASE_PRODUCT: ${{ inputs.product }}
       RELEASE_CHANNEL: ${{ inputs.channel }}
       RELEASE_MODE: ${{ inputs.mode }}
@@ -80,6 +79,8 @@ jobs:
 
       - name: Validate release selection
         shell: bash
+        env:
+          RELEASE_OUTPUT: ${{ runner.temp }}/dev-flow-release-${{ inputs.product }}-${{ inputs.version }}
         run: |
           set -euo pipefail
           test "$(uname -s)-$(uname -m)" = "Darwin-arm64"
@@ -98,6 +99,8 @@ jobs:
 
       - name: Publish selected npm product
         shell: bash
+        env:
+          RELEASE_OUTPUT: ${{ runner.temp }}/dev-flow-release-${{ inputs.product }}-${{ inputs.version }}
         run: |
           set -euo pipefail
           comprehension=()
@@ -134,6 +137,6 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: npm-release-${{ inputs.product }}-${{ inputs.version }}
-          path: ${{ env.RELEASE_OUTPUT }}
+          path: ${{ runner.temp }}/dev-flow-release-${{ inputs.product }}-${{ inputs.version }}
           if-no-files-found: ignore
           retention-days: 30
