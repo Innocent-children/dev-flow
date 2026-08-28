@@ -23,8 +23,10 @@ rejects an old publication directory before remote mutation.
 `Run workflow`，填写 `product`、`channel`、`mode`、`version`，normal 模式同时勾选
 `confirm_comprehension`。三个 npm 包分别把 `Innocent-children/dev-flow` 的 `publish-npm.yml`
 配置为允许 `npm publish` 的 GitHub Actions Trusted Publisher；工作流通过 OIDC 获取短期 npm 发布凭据，
-并使用 GitHub 自带 token 提交版本、创建 Tag 和维护 Release。工作流固定运行在 `macos-15` ARM64
-runner 上，并按产品串行执行。
+并使用安装到当前仓库、加入 `main` ruleset bypass list 的专用 GitHub App 短期 token 提交版本、
+创建 Tag 和维护 Release。仓库变量 `RELEASE_APP_CLIENT_ID` 保存 App Client ID，仓库 secret
+`RELEASE_APP_PRIVATE_KEY` 保存完整 PEM 私钥。工作流固定运行在 `macos-15` ARM64 runner 上，并按
+产品串行执行。
 
 工作流仍调用下面的 standalone command，因此版本检查、quick eligibility、精确 confirmation、
 npm/GitHub 回读和最终 registry-package Journey 没有变化。每次运行都会尝试上传 runner 临时目录中的

@@ -29,8 +29,9 @@ Both formats are current-only and contain no internal format number.
 维护者默认通过 GitHub Actions 手工触发 `publish-npm` 工作流。工作流在 ARM64 `macos-15` runner
 上收集 product、channel、mode、version 和 normal comprehension confirmation，再调用本节已有的
 一键发布命令。三个 npm 包分别信任 `Innocent-children/dev-flow` 的 `publish-npm.yml`，workflow
-通过 OIDC 获取短期 npm 发布凭据；GitHub mutation 使用当前 workflow token，同一产品的发布不会
-并发执行。
+通过 OIDC 获取短期 npm 发布凭据；GitHub mutation 使用已安装到当前仓库并加入 `main` ruleset
+bypass list 的专用 GitHub App 短期 token，同一产品的发布不会并发执行。App Client ID 存在仓库
+变量 `RELEASE_APP_CLIENT_ID`，完整 PEM 私钥存在仓库 secret `RELEASE_APP_PRIVATE_KEY`。
 
 Actions 不替维护者判断 quick/normal，也不改变发布合同。工作流上传 runner 临时发布目录用于查看
 `publication-record.json` 和制品；同输入重跑仍由 publisher 回读远端状态。需要复用本地 publication
