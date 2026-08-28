@@ -20,6 +20,8 @@ test("npm publication runs the existing release contracts on darwin-arm64", () =
     assert.match(workflow, new RegExp(`^      ${input}:`, "mu"));
   }
   assert.match(workflow, /runs-on: macos-15/u);
+  assert.match(workflow, /actions\/setup-go@v7/u);
+  assert.match(workflow, /go-version-file: go\.mod/u);
   assert.match(workflow, /node-version: 24/u);
   assert.match(workflow, /version: 11/u);
   assert.match(workflow, /fetch-depth: 0/u);
@@ -31,7 +33,7 @@ test("npm publication runs the existing release contracts on darwin-arm64", () =
 
 test("workflow uses short-lived npm and GitHub App credentials", () => {
   assert.match(workflow, /id-token: write/u);
-  assert.doesNotMatch(workflow, /NPM_TOKEN|NODE_AUTH_TOKEN|GH_TOKEN: \$\{\{ github\.token \}\}/u);
+  assert.doesNotMatch(workflow, /NPM_TOKEN|NODE_AUTH_TOKEN|registry-url|GH_TOKEN: \$\{\{ github\.token \}\}/u);
   assert.match(workflow, /actions\/create-github-app-token@v3/u);
   assert.match(workflow, /client-id: \$\{\{ vars\.RELEASE_APP_CLIENT_ID \}\}/u);
   assert.match(workflow, /private-key: \$\{\{ secrets\.RELEASE_APP_PRIVATE_KEY \}\}/u);

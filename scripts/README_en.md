@@ -36,8 +36,9 @@ The usual maintainer entrypoint is the manually dispatched `publish-npm` GitHub 
 For each npm package, configure `publish-npm.yml` from `Innocent-children/dev-flow` as a GitHub Actions
 Trusted Publisher allowed to run `npm publish`. Then select the product, channel, mode, and exact
 version; normal mode also requires `confirm_comprehension`. The workflow obtains a short-lived npm
-publish credential through OIDC, uses macOS 15 ARM64, Node.js 24, and pnpm 11, serializes runs per
-product, and invokes the existing commands below.
+publish credential through OIDC, uses macOS 15 ARM64, the Go version declared by `go.mod`, Node.js 24,
+and pnpm 11, serializes runs per product, and invokes the existing commands below. npm publication
+does not create registry authentication configuration that depends on `NODE_AUTH_TOKEN`.
 Version commits, Tags, and GitHub Releases use a short-lived token from a dedicated GitHub App that is
 installed on this repository and added to the `main` ruleset bypass list. Repository variable
 `RELEASE_APP_CLIENT_ID` and secret `RELEASE_APP_PRIVATE_KEY` provide the App Client ID and complete PEM

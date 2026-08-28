@@ -62,11 +62,15 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Node.js 24 and npmjs authentication
+      - name: Set up Go from go.mod
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Set up Node.js 24
         uses: actions/setup-node@v7
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org/
 
       - name: Set up pnpm 11
         uses: pnpm/action-setup@v6
