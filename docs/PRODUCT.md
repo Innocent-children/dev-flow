@@ -198,6 +198,11 @@ Scope。每个参与仓库最多被一个活动 Task claim；单仓库调用继�
 
 ## 当前公开状态
 
+维护者发布 npm 产品时，通过 GitHub Actions 手工运行 `publish-npm` 工作流。工作流在 ARM64 macOS
+runner 上调用现有 standalone release command，保留 quick/normal 选择、精确版本确认、npm/Tag/
+GitHub Release 回读和最终 registry-package Journey。该自动化属于仓库发布工具，不进入 Go Core，
+也不改变 Task 或 Host Adapter 的产品职责。
+
 Codex 当前版本 `0.7.5` 已发布到 npm，并使用 `codex-v0.7.5` GitHub Release。
 DeepSeek 当前版本 `0.7.5` 已发布到 npm，并使用 `deepseek-v0.7.5` GitHub Release。
 两个 Host 产品分别打包支持表记录的 Core 精确身份，公开支持 macOS arm64 与 Node.js `>=24`。

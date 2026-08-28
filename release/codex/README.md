@@ -3,6 +3,11 @@
 Codex is versioned by `packages/codex/package.json`; its plugin manifest is a mirror. The packaged
 Core is versioned independently by `CORE_VERSION` and is verified from the actual executable.
 
+日常发布从 GitHub Actions 手工运行 `publish-npm`：选择 `product=codex`、channel、mode 和目标版本；
+normal 模式必须勾选 `confirm_comprehension`。工作流需要仓库 secret `NPM_TOKEN`，并在
+`macos-15` ARM64 runner 上调用下面同一个命令。失败时下载 workflow artifact 查看发布记录，再用
+相同输入重跑；publisher 会回读并复用已创建的不可变远端状态。
+
 ```bash
 pnpm run release:codex -- \
   [--channel stable|beta] \

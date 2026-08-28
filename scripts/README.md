@@ -29,6 +29,10 @@ package contracts、Host Adapter tests、deterministic journeys 和 release tool
 
 ## 发布入口
 
+推荐在 GitHub Actions 手工运行 `publish-npm` 工作流。仓库先配置 `NPM_TOKEN` secret；运行时选择
+产品、channel、mode 和目标版本，normal 模式勾选 `confirm_comprehension`。工作流使用
+`macos-15` ARM64、Node.js 24 和 pnpm 11，按产品串行执行，并调用下列现有入口。
+
 ```bash
 pnpm run release:codex -- \
   [--channel stable|beta] \
@@ -65,5 +69,9 @@ assets。
 两个 channel 共用同一个 Publisher。Publisher 使用仓库外的 `release-manifest.json` 和 `publication-record.json` 保留 source、
 mode、版本、artifact digest、remote read-back 与恢复状态。中断后使用同一命令和同一 output
 directory 继续。
+
+Actions 会在成功或失败后上传 runner 临时发布目录。下载其中的 `publication-record.json` 可查看已完成
+步骤；用同一组 workflow 输入重跑时，publisher 会先回读 npm、Tag 和 GitHub Release，不会盲目重复
+不可逆操作。临时目录本身不会跨 workflow run 自动复用。
 
 精确操作合同见 [Release Ownership](../release/README.md)。

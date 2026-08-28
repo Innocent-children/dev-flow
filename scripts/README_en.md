@@ -32,6 +32,11 @@ repository.
 
 ## Release entrypoints
 
+The usual maintainer entrypoint is the manually dispatched `publish-npm` GitHub Actions workflow.
+Configure the repository `NPM_TOKEN` secret, then select the product, channel, mode, and exact version;
+normal mode also requires `confirm_comprehension`. The workflow uses macOS 15 ARM64, Node.js 24, and
+pnpm 11, serializes runs per product, and invokes the existing commands below.
+
 ```bash
 pnpm run release:codex -- \
   [--channel stable|beta] \
@@ -69,5 +74,10 @@ version, commit and push, create a Tag, publish npm, or mutate GitHub Release as
 Both channels share the same Publisher. It uses external `release-manifest.json` and `publication-record.json` files to retain
 source, mode, versions, artifact digests, remote read-back, and recovery state. Resume with the same
 command and output directory after an interruption.
+
+Actions uploads the temporary release directory after both successful and failed runs. Download its
+`publication-record.json` to inspect completed steps. Rerunning the same workflow inputs makes the
+publisher reread npm, Tag, and GitHub Release state before another irreversible operation; the runner
+directory itself is not automatically reused across workflow runs.
 
 See [Release Ownership](../release/README.md) for the exact operator contract.

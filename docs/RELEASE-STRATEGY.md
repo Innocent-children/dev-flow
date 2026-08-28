@@ -26,6 +26,15 @@ Both formats are current-only and contain no internal format number.
 
 ## One-command release
 
+维护者默认通过 GitHub Actions 手工触发 `publish-npm` 工作流。工作流在 ARM64 `macos-15` runner
+上收集 product、channel、mode、version 和 normal comprehension confirmation，再调用本节已有的
+一键发布命令。npm 认证来自仓库 `NPM_TOKEN` secret，GitHub mutation 使用当前 workflow token；
+同一产品的发布不会并发执行。
+
+Actions 不替维护者判断 quick/normal，也不改变发布合同。工作流上传 runner 临时发布目录用于查看
+`publication-record.json` 和制品；同输入重跑仍由 publisher 回读远端状态。需要复用本地 publication
+directory 的精确恢复场景仍可直接运行 standalone command。
+
 ```bash
 pnpm run release:codex -- \
   --mode quick|normal \

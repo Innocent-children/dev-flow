@@ -19,6 +19,16 @@ rejects an old publication directory before remote mutation.
 
 ## Operator entrypoint
 
+维护者通常通过 GitHub Actions 的 `publish-npm` 工作流运行这些入口。在 Actions 页面选择
+`Run workflow`，填写 `product`、`channel`、`mode`、`version`，normal 模式同时勾选
+`confirm_comprehension`。仓库需要配置 `NPM_TOKEN` Actions secret；工作流使用 GitHub 自带 token
+提交版本、创建 Tag 和维护 Release。工作流固定运行在 `macos-15` ARM64 runner 上，并按产品串行执行。
+
+工作流仍调用下面的 standalone command，因此版本检查、quick eligibility、精确 confirmation、
+npm/GitHub 回读和最终 registry-package Journey 没有变化。每次运行都会尝试上传 runner 临时目录中的
+发布记录和制品；失败后先下载 artifact 查看 `publication-record.json`，再用同一组输入重跑。runner
+临时目录不会跨运行自动恢复，已有不可变远端状态由 publisher 回读后复用。
+
 ```bash
 pnpm run release:codex -- \
   [--channel stable|beta] \
@@ -42,8 +52,9 @@ Without confirmation, the publisher performs read-only npm/GitHub/Tag preflight.
 confirmation, it creates or reuses only matching immutable state, publishes npm at most once,
 verifies registry bytes, uploads exact assets, and finalizes only after the selected Journey gate.
 
-CI syntax-checks these components and runs fake-remote contracts; it never invokes the real release
-entrypoint or mutates Tag, npm, GitHub Release, assets, Codex registration, or task data.
+Pull-request CI syntax-checks these components and runs fake-remote contracts; it never invokes the real
+release entrypoint or mutates Tag, npm, GitHub Release, assets, Codex registration, or task data. Only the
+manually dispatched `publish-npm` workflow invokes a real release entrypoint.
 
 DeepSeek uses the same operator argument shape with an independent product identity:
 

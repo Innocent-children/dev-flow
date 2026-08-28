@@ -227,6 +227,12 @@ capability enters the roadmap only after its user value and independent specific
 
 ## Public status
 
+Maintainers publish npm products through the manually dispatched `publish-npm` GitHub Actions workflow.
+It invokes the existing standalone release command on an ARM64 macOS runner and preserves quick/normal
+selection, exact version confirmation, npm/Tag/GitHub Release read-back, and the final registry-package
+Journey. This automation is repository release tooling; it does not enter the Go Core or change Task or
+Host Adapter product responsibilities.
+
 The current Codex version `0.7.5` is published to npm with the `codex-v0.7.5` GitHub Release.
 The current DeepSeek version `0.7.5` is published to npm with the `deepseek-v0.7.5` GitHub Release.
 Each host product bundles the exact Core identity recorded in the support matrix and publicly supports

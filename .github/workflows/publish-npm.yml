@@ -1,0 +1,139 @@
+name: publish-npm
+
+on:
+  workflow_dispatch:
+    inputs:
+      product:
+        description: Product to publish
+        required: true
+        type: choice
+        options:
+          - codex
+          - deepseek
+          - dev-flow
+      channel:
+        description: npm channel (dev-flow supports stable only)
+        required: true
+        default: stable
+        type: choice
+        options:
+          - stable
+          - beta
+      mode:
+        description: Release validation mode (dev-flow supports normal only)
+        required: true
+        default: normal
+        type: choice
+        options:
+          - normal
+          - quick
+      version:
+        description: Exact target version without a v prefix
+        required: true
+        type: string
+      confirm_comprehension:
+        description: Confirm maintainer comprehension (required for normal)
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: npm-release-${{ inputs.product }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      RELEASE_OUTPUT: ${{ runner.temp }}/dev-flow-release-${{ inputs.product }}-${{ inputs.version }}
+      RELEASE_PRODUCT: ${{ inputs.product }}
+      RELEASE_CHANNEL: ${{ inputs.channel }}
+      RELEASE_MODE: ${{ inputs.mode }}
+      RELEASE_VERSION: ${{ inputs.version }}
+      RELEASE_COMPREHENSION: ${{ inputs.confirm_comprehension }}
+    steps:
+      - name: Check out selected source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 24 and npmjs authentication
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org/
+
+      - name: Set up pnpm 11
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Validate release selection
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -s)-$(uname -m)" = "Darwin-arm64"
+          test -n "$NPM_TOKEN"
+          if [[ "$RELEASE_MODE" == "normal" && "$RELEASE_COMPREHENSION" != "true" ]]; then
+            echo "normal mode requires confirm_comprehension" >&2
+            exit 1
+          fi
+          if [[ "$RELEASE_PRODUCT" == "dev-flow" && ( "$RELEASE_CHANNEL" != "stable" || "$RELEASE_MODE" != "normal" ) ]]; then
+            echo "dev-flow supports stable/normal releases only" >&2
+            exit 1
+          fi
+          mkdir -p "$RELEASE_OUTPUT"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Publish selected npm product
+        shell: bash
+        run: |
+          set -euo pipefail
+          comprehension=()
+          if [[ "$RELEASE_COMPREHENSION" == "true" ]]; then
+            comprehension+=(--confirm-comprehension)
+          fi
+
+          case "$RELEASE_PRODUCT" in
+            codex|deepseek)
+              pnpm run "release:$RELEASE_PRODUCT" -- \
+                --channel "$RELEASE_CHANNEL" \
+                --mode "$RELEASE_MODE" \
+                --version "$RELEASE_VERSION" \
+                --output "$RELEASE_OUTPUT" \
+                --confirm "$RELEASE_PRODUCT-v$RELEASE_VERSION" \
+                "${comprehension[@]}"
+              ;;
+            dev-flow)
+              pnpm run release:dev-flow -- \
+                --mode normal \
+                --version "$RELEASE_VERSION" \
+                --output "$RELEASE_OUTPUT" \
+                --confirm "dev-flow-v$RELEASE_VERSION" \
+                --confirm-comprehension
+              ;;
+            *)
+              echo "unsupported product: $RELEASE_PRODUCT" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Upload release records and artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: npm-release-${{ inputs.product }}-${{ inputs.version }}
+          path: ${{ env.RELEASE_OUTPUT }}
+          if-no-files-found: ignore
+          retention-days: 30
