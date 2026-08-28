@@ -117,7 +117,7 @@ node "$worktree_a/packages/deepseek/tests/build-artifact.mjs" --output "$artifac
 node "$worktree_b/packages/deepseek/tests/build-artifact.mjs" --output "$artifact_b" --source-commit "$source_commit" >/dev/null
 
 node --input-type=module - \
-  "$repository_root/scripts/verify-deepseek-release.mjs" \
+  "$repository_root/release/prepare.mjs" \
   "$repository_root" \
   "$source_commit" \
   "$source_tree" \
@@ -127,17 +127,14 @@ node --input-type=module - \
 import { pathToFileURL } from "node:url";
 const [modulePath, repositoryRoot, sourceCommit, sourceTree, firstTarball, secondTarball, outputDirectory] = process.argv.slice(2);
 const { prepareRelease } = await import(pathToFileURL(modulePath).href);
-const verificationMode = process.env.DEV_FLOW_RELEASE_MODE || "normal";
-const basedOnRelease = process.env.DEV_FLOW_BASED_ON_RELEASE || "v0.5.0";
 const result = await prepareRelease({
+  product: "deepseek",
   repositoryRoot,
   sourceCommit,
   sourceTree,
   firstTarball,
   secondTarball,
   outputDirectory,
-  verificationMode,
-  basedOnRelease,
 });
 process.stdout.write(`${JSON.stringify(result)}\n`);
 NODE

@@ -31,9 +31,9 @@ package contracts、Host Adapter tests、deterministic journeys 和 release tool
 
 推荐在 GitHub Actions 手工运行 `publish-npm` 工作流。三个 npm 包分别把
 `Innocent-children/dev-flow` 的 `publish-npm.yml` 配置为允许 `npm publish` 的 GitHub Actions
-Trusted Publisher；运行时选择产品、channel、mode 和目标版本，normal 模式勾选
-`confirm_comprehension`。工作流通过 OIDC 获取短期 npm 发布凭据，使用
-`macos-15` ARM64、`go.mod` 指定的 Go 版本、Node.js 24 和 pnpm 11，按产品串行执行，并调用下列
+Trusted Publisher；运行时只选择产品、channel 和目标版本。工作流使用固定的发布检查，通过 OIDC
+获取短期 npm 发布凭据，使用
+`macos-15` ARM64、Go `1.26.5`、Node.js `24.18.0` 和 pnpm `11.24.0`，按产品串行执行，并调用下列
 现有入口。npm 发布不创建依赖 `NODE_AUTH_TOKEN` 的 registry 认证配置。
 版本提交、Tag 和 GitHub Release 使用安装到当前仓库、加入 `main` ruleset bypass list 的专用
 GitHub App 短期 token；仓库变量 `RELEASE_APP_CLIENT_ID` 和 secret `RELEASE_APP_PRIVATE_KEY`
@@ -42,21 +42,17 @@ GitHub App 短期 token；仓库变量 `RELEASE_APP_CLIENT_ID` 和 secret `RELEA
 ```bash
 pnpm run release:codex -- \
   [--channel stable|beta] \
-  --mode quick|normal \
   --version "<CODEX_VERSION>" \
   --output "<ABSOLUTE_DIRECTORY>" \
-  --confirm "codex-v<CODEX_VERSION>" \
-  [--confirm-comprehension]
+  --confirm "codex-v<CODEX_VERSION>"
 ```
 
 ```bash
 pnpm run release:deepseek -- \
   [--channel stable|beta] \
-  --mode quick|normal \
   --version "<DEEPSEEK_VERSION>" \
   --output "<ABSOLUTE_DIRECTORY>" \
-  --confirm "deepseek-v<DEEPSEEK_VERSION>" \
-  [--confirm-comprehension]
+  --confirm "deepseek-v<DEEPSEEK_VERSION>"
 ```
 
 `stable` 为默认 channel，只接受稳定 SemVer，并要求 `main` 与 `origin/main` 一致。`beta` 只接受
@@ -66,16 +62,13 @@ pnpm run release:deepseek -- \
 两个一键发布命令只更新 package manifest、Plugin mirror 和 `release/public-versions.json` 等机器
 可读版本文件，不读取或改写 Markdown。
 
-发布前必须先检查当前公开 Tag 后的 changed paths，由维护者明确选择 `quick` 或 `normal`。
-只有上述 exact-confirmation 入口可以修改产品版本、commit/push、Tag、npm、GitHub Release 与
-assets。
+发布命令使用一套固定检查。只有上述 exact-confirmation 入口可以修改产品版本、commit/push、Tag、
+npm、GitHub Release 与 assets。
 
-两个 channel 共用同一个 Publisher。Publisher 使用仓库外的 `release-manifest.json` 和 `publication-record.json` 保留 source、
-mode、版本、artifact digest、remote read-back 与恢复状态。中断后使用同一命令和同一 output
-directory 继续。
+两个 channel 共用同一个 Publisher。Publisher 使用仓库外的 `release-manifest.json` 绑定 source、
+版本和 artifact digest；重跑时回读并复用匹配的远端状态。
 
-Actions 会在成功或失败后上传 runner 临时发布目录。下载其中的 `publication-record.json` 可查看已完成
-步骤；用同一组 workflow 输入重跑时，publisher 会先回读 npm、Tag 和 GitHub Release，不会盲目重复
+Actions 会在成功或失败后上传 runner 临时发布目录；用同一组 workflow 输入重跑时，publisher 会先回读 npm、Tag 和 GitHub Release，不会盲目重复
 不可逆操作。临时目录本身不会跨 workflow run 自动复用。
 
 精确操作合同见 [Release Ownership](../release/README.md)。

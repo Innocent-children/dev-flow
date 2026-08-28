@@ -34,10 +34,10 @@ repository.
 
 The usual maintainer entrypoint is the manually dispatched `publish-npm` GitHub Actions workflow.
 For each npm package, configure `publish-npm.yml` from `Innocent-children/dev-flow` as a GitHub Actions
-Trusted Publisher allowed to run `npm publish`. Then select the product, channel, mode, and exact
-version; normal mode also requires `confirm_comprehension`. The workflow obtains a short-lived npm
-publish credential through OIDC, uses macOS 15 ARM64, the Go version declared by `go.mod`, Node.js 24,
-and pnpm 11, serializes runs per product, and invokes the existing commands below. npm publication
+Trusted Publisher allowed to run `npm publish`. Then select only the product, channel, and exact
+version. The workflow uses one fixed release check and obtains a short-lived npm
+publish credential through OIDC, uses macOS 15 ARM64, Go `1.26.5`, Node.js `24.18.0`, and pnpm
+`11.24.0`, serializes runs per product, and invokes the existing commands below. npm publication
 does not create registry authentication configuration that depends on `NODE_AUTH_TOKEN`.
 Version commits, Tags, and GitHub Releases use a short-lived token from a dedicated GitHub App that is
 installed on this repository and added to the `main` ruleset bypass list. Repository variable
@@ -47,21 +47,17 @@ private key respectively.
 ```bash
 pnpm run release:codex -- \
   [--channel stable|beta] \
-  --mode quick|normal \
   --version "<CODEX_VERSION>" \
   --output "<ABSOLUTE_DIRECTORY>" \
-  --confirm "codex-v<CODEX_VERSION>" \
-  [--confirm-comprehension]
+  --confirm "codex-v<CODEX_VERSION>"
 ```
 
 ```bash
 pnpm run release:deepseek -- \
   [--channel stable|beta] \
-  --mode quick|normal \
   --version "<DEEPSEEK_VERSION>" \
   --output "<ABSOLUTE_DIRECTORY>" \
-  --confirm "deepseek-v<DEEPSEEK_VERSION>" \
-  [--confirm-comprehension]
+  --confirm "deepseek-v<DEEPSEEK_VERSION>"
 ```
 
 `stable` is the default channel. It accepts stable SemVer and requires `main` to equal
@@ -72,16 +68,13 @@ Release as a prerelease, and preserves stable `latest`.
 Both one-command release flows update only machine-readable version files such as package manifests,
 the Plugin mirror, and `release/public-versions.json`; they neither read nor rewrite Markdown.
 
-Before a release, inspect paths changed since the current public Tag. The maintainer explicitly
-selects `quick` or `normal`. Only these exact-confirmation entrypoints may change a product
-version, commit and push, create a Tag, publish npm, or mutate GitHub Release assets.
+The release command uses one fixed check set. Only these exact-confirmation entrypoints may change a
+product version, commit and push, create a Tag, publish npm, or mutate GitHub Release assets.
 
-Both channels share the same Publisher. It uses external `release-manifest.json` and `publication-record.json` files to retain
-source, mode, versions, artifact digests, remote read-back, and recovery state. Resume with the same
-command and output directory after an interruption.
+Both channels share one Publisher. The external `release-manifest.json` binds source, version, and
+artifact digests; reruns reread and reuse matching remote state.
 
-Actions uploads the temporary release directory after both successful and failed runs. Download its
-`publication-record.json` to inspect completed steps. Rerunning the same workflow inputs makes the
+Actions uploads the temporary release directory after both successful and failed runs. Rerunning the same workflow inputs makes the
 publisher reread npm, Tag, and GitHub Release state before another irreversible operation; the runner
 directory itself is not automatically reused across workflow runs.
 

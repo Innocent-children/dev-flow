@@ -1,7 +1,7 @@
 # DeepSeek Release
 
-日常发布从 GitHub Actions 手工运行 `publish-npm`：选择 `product=deepseek`、channel、mode 和目标版本；
-normal 模式必须勾选 `confirm_comprehension`。npm 包 `dev-flow-deepseek` 把
+日常发布从 GitHub Actions 手工运行 `publish-npm`：选择 `product=deepseek`、channel 和目标版本；
+工作流使用固定发布检查。npm 包 `dev-flow-deepseek` 把
 `Innocent-children/dev-flow` 的 `publish-npm.yml` 配置为允许 `npm publish` 的 GitHub Actions
 Trusted Publisher；工作流通过 OIDC 认证，并在 `macos-15` ARM64 runner 上调用下面同一个命令。
 失败时下载 workflow artifact 查看发布记录，再用
@@ -12,11 +12,9 @@ DeepSeek uses an independent one-command release flow with the same operator int
 ```bash
 pnpm run release:deepseek -- \
   [--channel stable|beta] \
-  --mode quick|normal \
   --version "<DEEPSEEK_VERSION>" \
   --output "<ABSOLUTE_DIRECTORY>" \
-  --confirm "deepseek-v<DEEPSEEK_VERSION>" \
-  [--confirm-comprehension]
+  --confirm "deepseek-v<DEEPSEEK_VERSION>"
 ```
 
 The default `stable` channel accepts `MAJOR.MINOR.PATCH`, requires clean synchronized `main`, and
@@ -34,13 +32,8 @@ dev-flow-deepseek-<DEEPSEEK_VERSION>.tgz
 dev-flow-core-<CORE_VERSION>-darwin-arm64
 SHA256SUMS
 release-manifest.json
-publication-record.json
 ```
 
-Confirmed publication creates or reuses matching Tag/npm/GitHub state, verifies registry bytes,
-runs the selected DSH `>=0.1.0-rc.6` registry lifecycle gate, uploads immutable assets, and
-finalizes the GitHub Release only after every prior step passes. The lifecycle gate installs the exact
-registry package, verifies package/Core identity and the host handshake, then verifies removal,
-uninstall, and an unchanged repository. Complete graph, recovery, and terminal-state behavior remains
-covered by deterministic Core and integration tests. Rerunning the exact command with the same output
-directory resumes from recorded and reread remote state.
+Confirmed publication creates or reuses matching Tag/npm/GitHub state, verifies registry tarball
+bytes, uploads prepared assets, and finalizes the GitHub Release. DSH lifecycle and Task behavior
+remain covered by product tests and do not run inside publication.

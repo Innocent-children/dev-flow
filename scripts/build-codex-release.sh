@@ -117,7 +117,7 @@ artifact_a=$(BUILD_REPORT="$build_report_a" node -e 'const v=JSON.parse(process.
 artifact_b=$(BUILD_REPORT="$build_report_b" node -e 'const v=JSON.parse(process.env.BUILD_REPORT); if(v.source_dirty||v.source_commit!==process.argv[1]) throw new Error("second build source mismatch"); process.stdout.write(v.artifact_path);' "$source_commit")
 
 node --input-type=module - \
-  "$repository_root/scripts/verify-codex-release.mjs" \
+  "$repository_root/release/prepare.mjs" \
   "$repository_root" \
   "$source_commit" \
   "$source_tree" \
@@ -127,17 +127,14 @@ node --input-type=module - \
 import { pathToFileURL } from "node:url";
 const [modulePath, repositoryRoot, sourceCommit, sourceTree, firstTarball, secondTarball, outputDirectory] = process.argv.slice(2);
 const { prepareRelease } = await import(pathToFileURL(modulePath).href);
-const verificationMode = process.env.DEV_FLOW_RELEASE_MODE || "normal";
-const basedOnRelease = process.env.DEV_FLOW_BASED_ON_RELEASE || "v0.5.0";
 const result = await prepareRelease({
+  product: "codex",
   repositoryRoot,
   sourceCommit,
   sourceTree,
   firstTarball,
   secondTarball,
   outputDirectory,
-  verificationMode,
-  basedOnRelease,
 });
 process.stdout.write(`${JSON.stringify(result)}\n`);
 NODE

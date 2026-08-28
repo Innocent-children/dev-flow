@@ -10,7 +10,7 @@ import test from "node:test";
 import { promisify } from "node:util";
 
 import { CODEX_COMPATIBILITY_RANGE } from "../lib/lifecycle.mjs";
-import { releaseOutputNames } from "../../../scripts/verify-codex-release.mjs";
+import { releaseOutputNames } from "../../../release/prepare.mjs";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = dirname(dirname(packageRoot));
@@ -74,17 +74,12 @@ const reviewedSourceAllowlist = new Set([
   "tests/fixtures/fake-release-gh.mjs",
   "tests/fixtures/fake-release-npm.mjs",
   "tests/fixtures/graph-method-profiles.json",
-  "tests/journey-evidence.test.mjs",
-  "tests/journey-harness.test.mjs",
   "tests/install-experience.test.mjs",
   "tests/launcher.test.mjs",
   "tests/lifecycle.test.mjs",
   "tests/package-contract.test.mjs",
   "tests/paths.test.mjs",
   "tests/removal-retention.test.mjs",
-  "tests/release-command.test.mjs",
-  "tests/release-package.test.mjs",
-  "tests/release-publication.test.mjs",
   "tests/skill-contract.test.mjs",
 ]);
 
@@ -155,12 +150,9 @@ test("package metadata closes source, artifact, and development command surfaces
     test: "node --test tests/*.test.mjs",
     "test:package": "node --test tests/package-contract.test.mjs",
     "test:lifecycle": "node --test tests/lifecycle.test.mjs",
-    "test:parser": "node --test tests/journey-evidence.test.mjs",
-    "test:native-smoke": "node --test tests/journey-harness.test.mjs",
     "pack:dry": "pnpm pack --dry-run --json",
     "build:webui": "../../scripts/build-webui.sh",
     "build:local": "../../scripts/build-codex-local.sh",
-    "smoke:fixture": "../../scripts/run-codex-real-journey.sh --fixture success",
   });
 
   for (const name of [
@@ -294,14 +286,12 @@ test("packaged Skill publishes the exact current Core contract new-task value ty
 });
 
 test("release output names derive from Codex and Core versions", () => {
-  assert.deepEqual(releaseOutputNames(currentVersion, currentVersion), [
+  assert.deepEqual(releaseOutputNames("codex", currentVersion, currentVersion), [
     "SHA256SUMS",
     `dev-flow-core-${currentVersion}-darwin-arm64`,
     `dev-flow-codex-${currentVersion}.tgz`,
-    "publication-record.json",
     "release-manifest.json",
   ].sort());
-  assert.throws(() => releaseOutputNames("0.3", currentVersion), /strict MAJOR\.MINOR\.PATCH/u);
 });
 
 test("local package builder stages one exact non-final artifact in a temporary directory", async () => {

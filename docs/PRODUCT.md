@@ -199,8 +199,8 @@ Scope。每个参与仓库最多被一个活动 Task claim；单仓库调用继�
 ## 当前公开状态
 
 维护者发布 npm 产品时，通过 GitHub Actions 手工运行 `publish-npm` 工作流。工作流在 ARM64 macOS
-runner 上调用现有 standalone release command，保留 quick/normal 选择、精确版本确认、npm/Tag/
-GitHub Release 回读和最终 registry-package Journey。npm 发布通过绑定该 workflow 的 Trusted
+runner 上调用现有 standalone release command，执行固定的发布检查、精确版本确认和 npm/Tag/
+GitHub Release 回读。npm 发布通过绑定该 workflow 的 Trusted
 Publisher 和短期 OIDC 凭据完成，不保存长期 npm 发布 token。该自动化属于仓库发布工具，不进入
 Go Core，也不改变 Task 或 Host Adapter 的产品职责。
 

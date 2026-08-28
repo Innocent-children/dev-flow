@@ -33,12 +33,9 @@ var rootDevelopmentScripts = map[string]string{
 	"release:dev-flow":         "node ./scripts/release-dev-flow.mjs",
 	"release:codex":            "node ./scripts/release-codex.mjs",
 	"release:codex:prepare":    "./scripts/build-codex-release.sh",
-	"release:codex:publish":    "node ./scripts/publish-codex-release.mjs",
-	"release:codex:verify":     "node ./scripts/verify-codex-release.mjs",
 	"release:deepseek":         "node ./scripts/release-deepseek.mjs",
 	"release:deepseek:prepare": "./scripts/build-deepseek-release.sh",
-	"release:deepseek:publish": "node ./scripts/publish-deepseek-release.mjs",
-	"release:deepseek:verify":  "node ./scripts/verify-deepseek-release.mjs",
+	"release:publish":          "node ./release/publish.mjs",
 	"validate":                 "./scripts/validate-repository.sh",
 	"validate:contracts":       "go test ./tests/contract",
 	"versions:check":           "node ./scripts/check-versions.mjs",
@@ -64,12 +61,9 @@ var codexDevelopmentScripts = map[string]string{
 	"build:webui":       "../../scripts/build-webui.sh",
 	"build:local":       "../../scripts/build-codex-local.sh",
 	"pack:dry":          "pnpm pack --dry-run --json",
-	"smoke:fixture":     "../../scripts/run-codex-real-journey.sh --fixture success",
 	"test":              "node --test tests/*.test.mjs",
 	"test:lifecycle":    "node --test tests/lifecycle.test.mjs",
-	"test:native-smoke": "node --test tests/journey-harness.test.mjs",
 	"test:package":      "node --test tests/package-contract.test.mjs",
-	"test:parser":       "node --test tests/journey-evidence.test.mjs",
 }
 
 var devFlowPackageFiles = []string{
@@ -255,12 +249,9 @@ func TestPackageManifestAcceptsBootstrapManifests(t *testing.T) {
 					"test": "node --test tests/*.test.mjs",
 					"test:package": "node --test tests/package-contract.test.mjs",
 					"test:lifecycle": "node --test tests/lifecycle.test.mjs",
-					"test:parser": "node --test tests/journey-evidence.test.mjs",
-					"test:native-smoke": "node --test tests/journey-harness.test.mjs",
 					"pack:dry": "pnpm pack --dry-run --json",
 					"build:webui": "../../scripts/build-webui.sh",
-					"build:local": "../../scripts/build-codex-local.sh",
-					"smoke:fixture": "../../scripts/run-codex-real-journey.sh --fixture success"
+					"build:local": "../../scripts/build-codex-local.sh"
 				}
 			}`,
 		},

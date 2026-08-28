@@ -661,28 +661,6 @@ test("Skill and production adapter contain no workflow authority or test fixture
     }
   }
 
-  for (const relativePath of [
-    "scripts/write-codex-journey-evidence.mjs",
-    "scripts/validate-codex-journey-evidence.mjs",
-  ]) {
-    const source = await readFile(join(repositoryRoot, relativePath), "utf8");
-    for (const forbidden of [
-      /(?:tests\/fixtures|fake-(?:codex|core)|protocol\/fixtures)/i,
-      /\btransitionTable\b/,
-      /\btaskStates?\b/,
-      /\bactionPayloadCatalog\b/,
-      /\bpersistTask\b/,
-    ]) {
-      assert.doesNotMatch(source, forbidden, `${relativePath} embeds authority or a test import`);
-    }
-    assert.doesNotMatch(
-      source,
-      /\b(?:INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|REPLACE)\s+(?:INTO|TABLE|FROM)\b/i,
-      `${relativePath} must not mutate Core storage`,
-    );
-  }
-  const writer = await readFile(join(repositoryRoot, "scripts/write-codex-journey-evidence.mjs"), "utf8");
-  assert.match(writer, /new DatabaseSync\([^\n]+\{ readOnly: true \}\)/u);
 });
 
 function parseFrontmatter(markdown) {

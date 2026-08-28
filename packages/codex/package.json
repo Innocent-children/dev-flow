@@ -45,11 +45,8 @@
     "test": "node --test tests/*.test.mjs",
     "test:package": "node --test tests/package-contract.test.mjs",
     "test:lifecycle": "node --test tests/lifecycle.test.mjs",
-    "test:parser": "node --test tests/journey-evidence.test.mjs",
-    "test:native-smoke": "node --test tests/journey-harness.test.mjs",
     "pack:dry": "pnpm pack --dry-run --json",
     "build:webui": "../../scripts/build-webui.sh",
-    "build:local": "../../scripts/build-codex-local.sh",
-    "smoke:fixture": "../../scripts/run-codex-real-journey.sh --fixture success"
+    "build:local": "../../scripts/build-codex-local.sh"
   }
 }

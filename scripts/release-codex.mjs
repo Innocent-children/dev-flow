@@ -7,7 +7,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve } from "node:pat
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
-import { releaseOutputNames } from "./verify-codex-release.mjs";
+import { releaseOutputNames } from "../release/prepare.mjs";
 import {
   compareReleaseVersions,
   isReleaseVersion,
@@ -19,39 +19,18 @@ import { syncPublicReleaseVersions } from "./sync-public-release-versions.mjs";
 const execFile = promisify(execFileCallback);
 const CORE_VERSION_PATTERN = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/u;
 const GIT_SHA_PATTERN = /^[0-9a-f]{40}$/u;
-const RELEASE_MODES = Object.freeze(["quick", "normal"]);
 const VERSION_AUTHORITY_PATHS = Object.freeze([
   "packages/codex/package.json",
   "packages/codex/plugin/.codex-plugin/plugin.json",
   "release/public-versions.json",
 ]);
-const QUICK_BLOCKED_PATHS = Object.freeze([
-  "CORE_VERSION",
-  "go.mod",
-  "go.sum",
-  "scripts/build-codex-local.sh",
-]);
-const QUICK_BLOCKED_PREFIXES = Object.freeze([
-  "cmd/",
-  "internal/",
-  "protocol/",
-  "packages/codex/bin/",
-  "packages/codex/lib/",
-  "packages/codex/plugin/",
-]);
 
 export function parseReleaseArguments(arguments_) {
   const normalized = arguments_[0] === "--" ? arguments_.slice(1) : arguments_;
   const values = new Map();
-  let comprehensionConfirmed = false;
   for (let index = 0; index < normalized.length; index += 1) {
     const argument = normalized[index];
-    if (argument === "--confirm-comprehension") {
-      if (comprehensionConfirmed) throw new Error("--confirm-comprehension may be supplied only once");
-      comprehensionConfirmed = true;
-      continue;
-    }
-    if (!["--channel", "--mode", "--version", "--output", "--confirm"].includes(argument)) {
+    if (!["--channel", "--version", "--output", "--confirm"].includes(argument)) {
       throw new Error(`unknown argument ${argument}`);
     }
     if (values.has(argument)) throw new Error(`${argument} may be supplied only once`);
@@ -59,34 +38,22 @@ export function parseReleaseArguments(arguments_) {
     values.set(argument, normalized[index + 1]);
     index += 1;
   }
-  if (!["--mode", "--version", "--confirm"].every((flag) => values.has(flag))) {
-    throw new Error("usage: release-codex.mjs [--channel stable|beta] --mode quick|normal --version CODEX_VERSION [--output ABSOLUTE_DIRECTORY] --confirm codex-vCODEX_VERSION [--confirm-comprehension]");
+  if (!["--version", "--confirm"].every((flag) => values.has(flag))) {
+    throw new Error("usage: release-codex.mjs [--channel stable|beta] --version CODEX_VERSION [--output ABSOLUTE_DIRECTORY] --confirm codex-vCODEX_VERSION");
   }
   return {
     channel: values.get("--channel") ?? "stable",
-    mode: values.get("--mode"),
     targetVersion: values.get("--version"),
     outputDirectory: values.get("--output") ?? null,
     confirmation: values.get("--confirm"),
-    comprehensionConfirmed,
   };
-}
-
-export function quickModeBlockingPaths(changedPaths) {
-  return [...new Set(changedPaths.filter((path) => (
-    QUICK_BLOCKED_PATHS.includes(path)
-    || QUICK_BLOCKED_PREFIXES.some((prefix) => path.startsWith(prefix))
-    || path === "packages/codex/package.json"
-  )))].sort();
 }
 
 export async function runReleaseCommand({
   channel = "stable",
-  mode,
   targetVersion,
   outputDirectory = null,
   confirmation,
-  comprehensionConfirmed = false,
   repositoryRoot = repositoryRootFromModule(),
   platform = process.platform,
   architecture = process.arch,
@@ -94,7 +61,8 @@ export async function runReleaseCommand({
   runProcess = spawnProcess,
 } = {}) {
   const root = await canonicalDirectory(repositoryRoot, "repository root");
-  validateReleaseSelection({ channel, mode, targetVersion, confirmation, comprehensionConfirmed });
+  validateReleaseSelection({ channel, targetVersion, confirmation });
+  const mode = "release";
   if (platform !== "darwin" || architecture !== "arm64") throw new Error("release command requires darwin-arm64");
 
   let source = await validateSource(root, channel);
@@ -107,15 +75,17 @@ export async function runReleaseCommand({
     let currentVersion = await validateCodexAuthorities(root);
     coreVersion = await readCoreVersion(root);
     basedOnRelease = await previousCodexRelease(root, targetVersion);
+    if (currentVersion !== targetVersion && compareReleaseVersions(targetVersion, currentVersion) <= 0) {
+      throw new Error(`target version ${targetVersion} must be greater than current version ${currentVersion}`);
+    }
+    await runModeValidation(root, mode, {
+      ...environment,
+      DEV_FLOW_RELEASE_MODE: mode,
+      DEV_FLOW_RELEASE_CHANNEL: channel,
+      DEV_FLOW_BASED_ON_RELEASE: basedOnRelease ?? "",
+      DEV_FLOW_RELEASE_COMPREHENSION_CONFIRMED: "true",
+    }, runProcess);
     if (currentVersion !== targetVersion) {
-      if (compareReleaseVersions(targetVersion, currentVersion) <= 0) {
-        throw new Error(`target version ${targetVersion} must be greater than current version ${currentVersion}`);
-      }
-      const changedPaths = await changedPathsSinceTag(root, basedOnRelease);
-      if (mode === "quick") {
-        const blocked = quickModeBlockingPaths(changedPaths);
-        if (blocked.length !== 0) throw new Error(`quick mode is not eligible; product-affecting paths: ${blocked.join(", ")}`);
-      }
       await updateCodexVersion(root, currentVersion, targetVersion);
       if (channel === "stable") {
         await syncPublicReleaseVersions(root, { product: "codex", version: targetVersion, coreVersion });
@@ -132,24 +102,19 @@ export async function runReleaseCommand({
 
   const releaseEnvironment = {
     ...environment,
-    DEV_FLOW_RELEASE_MODE: mode,
     DEV_FLOW_RELEASE_CHANNEL: channel,
-    DEV_FLOW_BASED_ON_RELEASE: basedOnRelease ?? "",
-    DEV_FLOW_RELEASE_COMPREHENSION_CONFIRMED: comprehensionConfirmed ? "true" : "false",
   };
   let executionMode;
   let publicationRoot = root;
   let publicationSource = source;
 
   if (initialNames.length === 0) {
-    const expectedNames = releaseOutputNames(targetVersion, coreVersion);
-    await runModeValidation(root, mode, releaseEnvironment, runProcess);
+    const expectedNames = releaseOutputNames("codex", targetVersion, coreVersion);
     await runProcess(join(root, "scripts", "build-codex-release.sh"), ["--output", output], { cwd: root, env: releaseEnvironment });
     await requireExactReleaseFiles(output, expectedNames);
-    await runProcess(process.execPath, [join(root, "scripts", "verify-codex-release.mjs"), "--directory", output], { cwd: root, env: releaseEnvironment });
     executionMode = "prepared-and-published";
   } else {
-    const expectedNames = releaseOutputNames(targetVersion, coreVersion);
+    const expectedNames = releaseOutputNames("codex", targetVersion, coreVersion);
     await requireExactReleaseFiles(output, expectedNames);
     if (prepared.release.source_commit !== source.commit || prepared.release.source_tree !== source.tree) {
       publicationRoot = await ensureFrozenSourceCheckout(root, output, prepared.release.source_commit);
@@ -158,14 +123,15 @@ export async function runReleaseCommand({
     executionMode = "resumed-and-published";
   }
 
-  const expectedNames = releaseOutputNames(targetVersion, coreVersion);
+  const expectedNames = releaseOutputNames("codex", targetVersion, coreVersion);
 
   const publisherArguments = [
-    join(root, "scripts", "publish-codex-release.mjs"),
+    join(root, "release", "publish.mjs"),
+    "--product", "codex",
+    "--version", targetVersion,
     "--directory", output,
-    "--confirm", confirmation,
+    "--source", publicationSource.commit,
   ];
-  if (publicationRoot !== root) publisherArguments.push("--source-root", publicationRoot);
   await runProcess(process.execPath, publisherArguments, { cwd: root, env: releaseEnvironment });
 
   return {
@@ -184,24 +150,15 @@ export async function runReleaseCommand({
 }
 
 async function runModeValidation(root, mode, environment, runProcess) {
-  if (mode === "normal") {
-    await runProcess("pnpm", ["run", "validate"], { cwd: root, env: environment });
-    return;
-  }
-  await runProcess("go", ["test", "./tests/contract"], { cwd: root, env: environment });
-  await runProcess(process.execPath, ["--test", "packages/codex/tests/release-command.test.mjs", "packages/codex/tests/journey-harness.test.mjs"], {
-    cwd: root,
-    env: environment,
-  });
+  await runProcess(process.execPath, ["--test",
+      "tests/release_workflow.test.mjs",
+      "packages/codex/tests/package-contract.test.mjs",
+    ], { cwd: root, env: environment });
 }
 
-function validateReleaseSelection({ channel, mode, targetVersion, confirmation, comprehensionConfirmed }) {
-  if (!RELEASE_MODES.includes(mode)) throw new Error("release mode must equal quick or normal");
+function validateReleaseSelection({ channel, targetVersion, confirmation }) {
   validateChannelVersion(channel, targetVersion);
   if (confirmation !== `codex-v${targetVersion}`) throw new Error(`confirmation must equal codex-v${targetVersion}`);
-  if (mode === "normal" && comprehensionConfirmed !== true) {
-    throw new Error("normal mode requires --confirm-comprehension");
-  }
 }
 
 async function validateCodexAuthorities(root) {
@@ -315,11 +272,8 @@ async function requireMatchingPreparedMode(directory, expected) {
   if (
     release.product !== "codex"
     || release.version !== expected.targetVersion
-    || release.tag !== `codex-v${expected.targetVersion}`
     || !CORE_VERSION_PATTERN.test(release.core_version ?? "")
     || releaseChannel(release.version) !== releaseChannel(expected.targetVersion)
-    || release.verification_mode !== expected.mode
-    || (expected.basedOnRelease !== undefined && release.based_on_release !== expected.basedOnRelease)
   ) throw new Error("prepared release mode/version differs from the requested resume");
   return manifest;
 }

@@ -228,9 +228,9 @@ capability enters the roadmap only after its user value and independent specific
 ## Public status
 
 Maintainers publish npm products through the manually dispatched `publish-npm` GitHub Actions workflow.
-It invokes the existing standalone release command on an ARM64 macOS runner and preserves quick/normal
-selection, exact version confirmation, npm/Tag/GitHub Release read-back, and the final registry-package
-Journey. npm publication uses the Trusted Publisher bound to that workflow and a short-lived OIDC
+It invokes the existing standalone release command on an ARM64 macOS runner with one fixed release
+check, exact version confirmation, and npm/Tag/GitHub Release read-back. npm publication uses the
+Trusted Publisher bound to that workflow and a short-lived OIDC
 credential, with no long-lived npm publish token stored in the repository. This automation is
 repository release tooling; it does not enter the Go Core or change Task or Host Adapter product
 responsibilities.

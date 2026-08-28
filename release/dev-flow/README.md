@@ -1,15 +1,14 @@
 # dev-flow Release
 
-日常发布从 GitHub Actions 手工运行 `publish-npm`，选择 `product=dev-flow`、`channel=stable`、
-`mode=normal`、目标版本并勾选 `confirm_comprehension`。npm 包 `@imotong/dev-flow` 把
+日常发布从 GitHub Actions 手工运行 `publish-npm`，选择 `product=dev-flow`、`channel=stable` 和目标
+版本；工作流使用固定发布检查。npm 包 `@imotong/dev-flow` 把
 `Innocent-children/dev-flow` 的 `publish-npm.yml` 配置为允许 `npm publish` 的 GitHub Actions
 Trusted Publisher；工作流通过 OIDC 认证，不使用长期 npm 发布 token。
-`packages/dev-flow/package.json` 必须已是目标版本；失败时下载 workflow artifact 查看
-`publication-record.json`，再用相同输入重跑。
+`packages/dev-flow/package.json` 必须已是目标版本；失败后可用相同输入重跑，Publisher 会回读远端状态。
 
 ```bash
-pnpm run release:dev-flow -- --mode normal --version "<VERSION>" --output /absolute/output \
-  --confirm "dev-flow-v<VERSION>" --confirm-comprehension
+pnpm run release:dev-flow -- --version "<VERSION>" --output /absolute/output \
+  --confirm "dev-flow-v<VERSION>"
 ```
 
 The command requires clean synchronized `main`, creates or reuses the exact Tag, npm version and GitHub draft,

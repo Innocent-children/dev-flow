@@ -19,30 +19,17 @@ on:
         options:
           - stable
           - beta
-      mode:
-        description: Release validation mode (dev-flow supports normal only)
-        required: true
-        default: normal
-        type: choice
-        options:
-          - normal
-          - quick
       version:
         description: Exact target version without a v prefix
         required: true
         type: string
-      confirm_comprehension:
-        description: Confirm maintainer comprehension (required for normal)
-        required: true
-        default: false
-        type: boolean
 
 permissions:
   contents: read
   id-token: write
 
 concurrency:
-  group: npm-release-${{ inputs.product }}
+  group: npm-release
   cancel-in-progress: false
 
 jobs:
@@ -52,9 +39,7 @@ jobs:
     env:
       RELEASE_PRODUCT: ${{ inputs.product }}
       RELEASE_CHANNEL: ${{ inputs.channel }}
-      RELEASE_MODE: ${{ inputs.mode }}
       RELEASE_VERSION: ${{ inputs.version }}
-      RELEASE_COMPREHENSION: ${{ inputs.confirm_comprehension }}
     steps:
       - name: Check out selected source
         uses: actions/checkout@v7
@@ -62,20 +47,20 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Go from go.mod
+      - name: Set up Go 1.26.5
         uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
+          go-version: 1.26.5
 
-      - name: Set up Node.js 24
+      - name: Set up Node.js 24.18.0
         uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 24.18.0
 
-      - name: Set up pnpm 11
+      - name: Set up pnpm 11.24.0
         uses: pnpm/action-setup@v6
         with:
-          version: 11
+          version: 11.24.0
 
       - name: Install frozen dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
@@ -96,12 +81,8 @@ jobs:
         run: |
           set -euo pipefail
           test "$(uname -s)-$(uname -m)" = "Darwin-arm64"
-          if [[ "$RELEASE_MODE" == "normal" && "$RELEASE_COMPREHENSION" != "true" ]]; then
-            echo "normal mode requires confirm_comprehension" >&2
-            exit 1
-          fi
-          if [[ "$RELEASE_PRODUCT" == "dev-flow" && ( "$RELEASE_CHANNEL" != "stable" || "$RELEASE_MODE" != "normal" ) ]]; then
-            echo "dev-flow supports stable/normal releases only" >&2
+          if [[ "$RELEASE_PRODUCT" == "dev-flow" && "$RELEASE_CHANNEL" != "stable" ]]; then
+            echo "dev-flow supports stable releases only" >&2
             exit 1
           fi
           mkdir -p "$RELEASE_OUTPUT"
@@ -116,28 +97,19 @@ jobs:
           RELEASE_OUTPUT: ${{ runner.temp }}/dev-flow-release-${{ inputs.product }}-${{ inputs.version }}
         run: |
           set -euo pipefail
-          comprehension=()
-          if [[ "$RELEASE_COMPREHENSION" == "true" ]]; then
-            comprehension+=(--confirm-comprehension)
-          fi
-
           case "$RELEASE_PRODUCT" in
             codex|deepseek)
               pnpm run "release:$RELEASE_PRODUCT" -- \
                 --channel "$RELEASE_CHANNEL" \
-                --mode "$RELEASE_MODE" \
                 --version "$RELEASE_VERSION" \
                 --output "$RELEASE_OUTPUT" \
-                --confirm "$RELEASE_PRODUCT-v$RELEASE_VERSION" \
-                "${comprehension[@]}"
+                --confirm "$RELEASE_PRODUCT-v$RELEASE_VERSION"
               ;;
             dev-flow)
               pnpm run release:dev-flow -- \
-                --mode normal \
                 --version "$RELEASE_VERSION" \
                 --output "$RELEASE_OUTPUT" \
-                --confirm "dev-flow-v$RELEASE_VERSION" \
-                --confirm-comprehension
+                --confirm "dev-flow-v$RELEASE_VERSION"
               ;;
             *)
               echo "unsupported product: $RELEASE_PRODUCT" >&2
