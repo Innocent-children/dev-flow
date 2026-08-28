@@ -70,14 +70,15 @@ flowchart LR
 当前稳定制品支持 **macOS arm64** 和 **Node.js `>=24`**。精确版本与 Host 兼容范围见
 [Support Matrix](docs/SUPPORT-MATRIX.md)。
 
-安装、升级、修复、重装、卸载和清空后重装统一使用下方已发布的 `create-dev-flow` 入口；Host
+安装、升级、修复、重装、卸载和清空后重装统一使用下方的 `dev-flow` 入口；Host
 原生命令保留为诊断恢复入口。
 交互界面按当前 locale 显示：`zh*` 使用简体中文，其余 locale 统一使用英文。
 
 ### Codex
 
 ```bash
-npx @imotong/create-dev-flow@latest
+npm install -g @imotong/dev-flow@latest
+dev-flow
 ```
 
 进入 Git 仓库后，使用精确 selector 启动 Dev Flow：
@@ -91,7 +92,8 @@ $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run 
 ### DeepSeek Harness
 
 ```bash
-npx @imotong/create-dev-flow@latest
+npm install -g @imotong/dev-flow@latest
+dev-flow
 ```
 
 重启 profile 后，在对话中输入：

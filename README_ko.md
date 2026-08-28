@@ -69,14 +69,15 @@ flowchart LR
 현재 안정 아티팩트는 **macOS arm64**와 **Node.js `>=24`**를 지원합니다. 정확한 버전과 Host
 호환성은 [Support Matrix](docs/SUPPORT-MATRIX_en.md)를 참고하십시오.
 
-공개된 `create-dev-flow` 진입점이 설치, 업그레이드, 복구, 재설치, 제거 및 데이터 초기화 후 재설치를
+`dev-flow` 진입점이 설치, 업그레이드, 복구, 재설치, 제거 및 데이터 초기화 후 재설치를
 관리합니다. Host 기본 명령은 진단 복구용으로 계속 사용할 수 있습니다.
 대화형 화면은 `zh*` locale에서 중국어 간체를 사용하고 그 외 모든 locale에서는 영어를 사용합니다.
 
 ### Codex
 
 ```bash
-npx @imotong/create-dev-flow@latest
+npm install -g @imotong/dev-flow@latest
+dev-flow
 ```
 
 Dev Flow를 강제로 선택하려면:
@@ -90,7 +91,8 @@ $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run 
 ### DeepSeek Harness
 
 ```bash
-npx @imotong/create-dev-flow@latest
+npm install -g @imotong/dev-flow@latest
+dev-flow
 ```
 
 profile을 재시작한 뒤 입력합니다.

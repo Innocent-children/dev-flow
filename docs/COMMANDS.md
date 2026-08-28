@@ -3,7 +3,7 @@
 [中文](COMMANDS.md) | [English](COMMANDS_en.md)
 
 本文件列出 Dev Flow 当前公开或受支持的命令入口。命令范围以实际实现为准：Codex 命令来自
-`packages/create-dev-flow/package.json` 与其 CLI、`packages/codex/package.json` 与
+`packages/dev-flow/package.json` 与其 CLI、`packages/codex/package.json` 与
 `packages/codex/bin/dev-flow-codex.mjs`，DeepSeek 生命周期命令
 来自最终制品 Journey 使用的 DSH CLI，Core 命令来自 `cmd/dev-flow/main.go`，MCP 工具来自
 `internal/mcp/` 的闭合目录。
@@ -13,10 +13,11 @@
 
 ## 统一 Adapter 生命周期
 
-`create-dev-flow` 独立发布后，普通用户统一从以下入口管理生命周期：
+`@imotong/dev-flow` 提供 Host 无关的生命周期和 Control Center 入口：
 
 ```bash
-npx @imotong/create-dev-flow@latest
+npm install -g @imotong/dev-flow@latest
+dev-flow
 ```
 
 闭合子命令为 `status`、`doctor`、`install`、`upgrade`、`repair`、`reinstall`、`uninstall` 和
@@ -29,15 +30,18 @@ Codex 全局 package 与 receipt、Plugin 注册分别判断；即使注册已�
 
 | 入口 | 作用 |
 | --- | --- |
-| `npx @imotong/create-dev-flow@latest` | 打开交互式 lifecycle 菜单。 |
-| `... status\|doctor --host codex\|deepseek\|all` | 只读检查或诊断。 |
-| `... install\|upgrade\|repair\|reinstall --host ... [--profile web] [--version latest] --yes` | 执行普通维护并保留配置与 Task 数据。 |
-| `... uninstall --host ... [--all-known-profiles] --yes` | 移除选定 Adapter并保留配置与 Task 数据。 |
-| `... factory-reset --host all --all-known-profiles` | 生成绑定当前状态的 reset plan/token；`--yes` 不授权清理。 |
-| `... factory-reset ... --confirm-reset <token> [--reinstall]` | 将已确认数据移动到 Trash，可随后全新重装。 |
+| `npm install -g @imotong/dev-flow@latest` | 全局安装公共 `dev-flow` 命令。 |
+| `dev-flow` | 打开交互式 lifecycle 菜单。 |
+| `dev-flow status\|doctor --host codex\|deepseek\|all` | 只读检查或诊断。 |
+| `dev-flow install\|upgrade\|repair\|reinstall --host ... [--profile web] [--version latest] --yes` | 执行普通维护并保留配置与 Task 数据。 |
+| `dev-flow uninstall --host ... [--all-known-profiles] --yes` | 移除选定 Adapter并保留配置与 Task 数据。 |
+| `dev-flow factory-reset --host all --all-known-profiles` | 生成绑定当前状态的 reset plan/token；`--yes` 不授权清理。 |
+| `dev-flow factory-reset ... --confirm-reset <token> [--reinstall]` | 将已确认数据移动到 Trash，可随后全新重装。 |
+| `dev-flow webui start\|open\|status\|stop` | 从任一已安装 Adapter 选择并校验 Core，管理共享本机 Control Center。 |
+| `dev-flow webui reset [--confirm TOKEN]` | 使用 Core 的目标绑定确认清理不兼容 Task 数据。 |
 | `--json` / `--plain` | 分别选择单一 JSON 对象或无 ANSI 的纯文本结果。 |
 
-`create-dev-flow` 通过 npm `latest` 提供统一生命周期入口；下方 Host 原生命令保留为诊断恢复入口。
+下方 Host 原生命令保留为诊断恢复入口。
 
 ## Codex
 

@@ -1,13 +1,13 @@
 {
-  "name": "@imotong/create-dev-flow",
-  "version": "0.1.1",
+  "name": "@imotong/dev-flow",
+  "version": "0.1.0",
   "private": false,
   "description": "Unified lifecycle manager for Dev Flow Codex and DeepSeek adapters.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Innocent-children/dev-flow.git",
-    "directory": "packages/create-dev-flow"
+    "directory": "packages/dev-flow"
   },
   "type": "module",
   "os": ["darwin"],
@@ -20,11 +20,11 @@
     "registry": "https://registry.npmjs.org/"
   },
   "bin": {
-    "create-dev-flow": "bin/create-dev-flow.mjs"
+    "dev-flow": "bin/dev-flow.mjs"
   },
   "files": [
     "README.md",
-    "bin/create-dev-flow.mjs",
+    "bin/dev-flow.mjs",
     "lib/cli.mjs",
     "lib/hosts/codex.mjs",
     "lib/hosts/deepseek.mjs",
@@ -32,7 +32,8 @@
     "lib/lifecycle.mjs",
     "lib/ownership.mjs",
     "lib/plan.mjs",
-    "lib/presentation.mjs"
+    "lib/presentation.mjs",
+    "lib/runtime.mjs"
   ],
   "scripts": {
     "test": "node --test tests/*.test.mjs",

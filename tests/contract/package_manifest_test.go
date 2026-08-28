@@ -16,7 +16,7 @@ type manifestKind string
 const (
 	rootManifest    manifestKind = "root"
 	codexManifest   manifestKind = "codex"
-	createManifest  manifestKind = "create"
+	devFlowManifest manifestKind = "dev-flow"
 	productManifest manifestKind = "product"
 )
 
@@ -30,7 +30,7 @@ var runtimeDependencyFields = []string{
 
 var rootDevelopmentScripts = map[string]string{
 	"build:webui":              "./scripts/build-webui.sh",
-	"release:create-dev-flow":  "node ./scripts/release-create-dev-flow.mjs",
+	"release:dev-flow":         "node ./scripts/release-dev-flow.mjs",
 	"release:codex":            "node ./scripts/release-codex.mjs",
 	"release:codex:prepare":    "./scripts/build-codex-release.sh",
 	"release:codex:publish":    "node ./scripts/publish-codex-release.mjs",
@@ -72,9 +72,9 @@ var codexDevelopmentScripts = map[string]string{
 	"test:parser":       "node --test tests/journey-evidence.test.mjs",
 }
 
-var createPackageFiles = []string{
+var devFlowPackageFiles = []string{
 	"README.md",
-	"bin/create-dev-flow.mjs",
+	"bin/dev-flow.mjs",
 	"lib/cli.mjs",
 	"lib/hosts/codex.mjs",
 	"lib/hosts/deepseek.mjs",
@@ -83,9 +83,10 @@ var createPackageFiles = []string{
 	"lib/ownership.mjs",
 	"lib/plan.mjs",
 	"lib/presentation.mjs",
+	"lib/runtime.mjs",
 }
 
-var createDevelopmentScripts = map[string]string{
+var devFlowDevelopmentScripts = map[string]string{
 	"pack:dry":     "pnpm pack --dry-run --json",
 	"test":         "node --test tests/*.test.mjs",
 	"test:package": "node --test tests/package-contract.test.mjs",
@@ -101,7 +102,7 @@ func TestProjectPackageManifests(t *testing.T) {
 	}{
 		{path: filepath.Join(repositoryRoot, "package.json"), kind: rootManifest},
 		{path: filepath.Join(repositoryRoot, "packages", "codex", "package.json"), kind: codexManifest},
-		{path: filepath.Join(repositoryRoot, "packages", "create-dev-flow", "package.json"), kind: createManifest},
+		{path: filepath.Join(repositoryRoot, "packages", "dev-flow", "package.json"), kind: devFlowManifest},
 	}
 
 	for _, test := range tests {
@@ -133,7 +134,7 @@ func TestProjectManifestBootstrapMetadata(t *testing.T) {
 		{path: filepath.Join(root, "package.json"), wantName: "dev-flow", wantRootMetadata: true},
 		{path: filepath.Join(root, "packages", "codex", "package.json"), wantName: "dev-flow-codex"},
 		{path: filepath.Join(root, "packages", "deepseek", "package.json"), wantName: "dev-flow-deepseek"},
-		{path: filepath.Join(root, "packages", "create-dev-flow", "package.json"), wantName: "@imotong/create-dev-flow"},
+		{path: filepath.Join(root, "packages", "dev-flow", "package.json"), wantName: "@imotong/dev-flow"},
 	}
 
 	for _, test := range tests {
@@ -264,20 +265,20 @@ func TestPackageManifestAcceptsBootstrapManifests(t *testing.T) {
 			}`,
 		},
 		{
-			name: "create product",
-			kind: createManifest,
+			name: "dev-flow product",
+			kind: devFlowManifest,
 			manifest: `{
-					"name": "@imotong/create-dev-flow",
+					"name": "@imotong/dev-flow",
 				"version": "1.2.3",
 				"private": false,
 				"license": "Apache-2.0",
-				"repository": {"type": "git", "url": "git+https://github.com/Innocent-children/dev-flow.git", "directory": "packages/create-dev-flow"},
+				"repository": {"type": "git", "url": "git+https://github.com/Innocent-children/dev-flow.git", "directory": "packages/dev-flow"},
 				"os": ["darwin"],
 				"cpu": ["arm64"],
 				"publishConfig": {"access": "public", "registry": "https://registry.npmjs.org/"},
 				"engines": {"node": ">=20"},
-				"bin": {"create-dev-flow": "bin/create-dev-flow.mjs"},
-				"files": ["README.md", "bin/create-dev-flow.mjs", "lib/cli.mjs", "lib/hosts/codex.mjs", "lib/hosts/deepseek.mjs", "lib/journal.mjs", "lib/lifecycle.mjs", "lib/ownership.mjs", "lib/plan.mjs", "lib/presentation.mjs"],
+				"bin": {"dev-flow": "bin/dev-flow.mjs"},
+				"files": ["README.md", "bin/dev-flow.mjs", "lib/cli.mjs", "lib/hosts/codex.mjs", "lib/hosts/deepseek.mjs", "lib/journal.mjs", "lib/lifecycle.mjs", "lib/ownership.mjs", "lib/plan.mjs", "lib/presentation.mjs", "lib/runtime.mjs"],
 				"scripts": {"test": "node --test tests/*.test.mjs", "test:package": "node --test tests/package-contract.test.mjs", "pack:dry": "pnpm pack --dry-run --json"}
 			}`,
 		},
@@ -579,7 +580,7 @@ func validatePackageManifest(path string, kind manifestKind) []error {
 
 	var violations []error
 	privateValue, present := manifest["private"]
-	if kind == codexManifest || kind == createManifest {
+	if kind == codexManifest || kind == devFlowManifest {
 		if present {
 			var private bool
 			if err := json.Unmarshal(privateValue, &private); err != nil || private {
@@ -644,8 +645,8 @@ func validatePackageManifest(path string, kind manifestKind) []error {
 		}
 	case codexManifest:
 		violations = append(violations, validateCodexManifest(path, manifest)...)
-	case createManifest:
-		violations = append(violations, validateCreateManifest(path, manifest)...)
+	case devFlowManifest:
+		violations = append(violations, validateDevFlowManifest(path, manifest)...)
 	default:
 		violations = append(violations, manifestViolation(path, "$", "unknown manifest kind %q", kind))
 	}
@@ -653,11 +654,11 @@ func validatePackageManifest(path string, kind manifestKind) []error {
 	return violations
 }
 
-func validateCreateManifest(path string, manifest map[string]json.RawMessage) []error {
+func validateDevFlowManifest(path string, manifest map[string]json.RawMessage) []error {
 	var violations []error
 	var name, license string
-	if err := json.Unmarshal(manifest["name"], &name); err != nil || name != "@imotong/create-dev-flow" {
-		violations = append(violations, manifestViolation(path, "name", "must be %q", "@imotong/create-dev-flow"))
+	if err := json.Unmarshal(manifest["name"], &name); err != nil || name != "@imotong/dev-flow" {
+		violations = append(violations, manifestViolation(path, "name", "must be %q", "@imotong/dev-flow"))
 	}
 	if err := json.Unmarshal(manifest["license"], &license); err != nil || license != "Apache-2.0" {
 		violations = append(violations, manifestViolation(path, "license", "must be %q", "Apache-2.0"))
@@ -665,8 +666,8 @@ func validateCreateManifest(path string, manifest map[string]json.RawMessage) []
 	var repository map[string]string
 	if err := json.Unmarshal(manifest["repository"], &repository); err != nil || len(repository) != 3 ||
 		repository["type"] != "git" || repository["url"] != "git+https://github.com/Innocent-children/dev-flow.git" ||
-		repository["directory"] != "packages/create-dev-flow" {
-		violations = append(violations, manifestViolation(path, "repository", "must identify packages/create-dev-flow"))
+		repository["directory"] != "packages/dev-flow" {
+		violations = append(violations, manifestViolation(path, "repository", "must identify packages/dev-flow"))
 	}
 	var supportedOS, supportedCPU []string
 	if err := json.Unmarshal(manifest["os"], &supportedOS); err != nil || !slices.Equal(supportedOS, []string{"darwin"}) {
@@ -683,16 +684,16 @@ func validateCreateManifest(path string, manifest map[string]json.RawMessage) []
 	if err := json.Unmarshal(manifest["engines"], &engines); err != nil || len(engines) != 1 || engines["node"] != ">=20" {
 		violations = append(violations, manifestViolation(path, "engines", "must contain only node %q", ">=20"))
 	}
-	if err := json.Unmarshal(manifest["bin"], &bin); err != nil || len(bin) != 1 || bin["create-dev-flow"] != "bin/create-dev-flow.mjs" {
-		violations = append(violations, manifestViolation(path, "bin", "must expose exactly create-dev-flow"))
+	if err := json.Unmarshal(manifest["bin"], &bin); err != nil || len(bin) != 1 || bin["dev-flow"] != "bin/dev-flow.mjs" {
+		violations = append(violations, manifestViolation(path, "bin", "must expose exactly dev-flow"))
 	}
 	var files []string
-	if err := json.Unmarshal(manifest["files"], &files); err != nil || !sameStringSet(files, createPackageFiles) {
-		violations = append(violations, manifestViolation(path, "files", "must equal the reviewed create package allowlist"))
+	if err := json.Unmarshal(manifest["files"], &files); err != nil || !sameStringSet(files, devFlowPackageFiles) {
+		violations = append(violations, manifestViolation(path, "files", "must equal the reviewed dev-flow package allowlist"))
 	}
 	var scripts map[string]string
-	if err := json.Unmarshal(manifest["scripts"], &scripts); err != nil || !sameStringMap(scripts, createDevelopmentScripts) {
-		violations = append(violations, manifestViolation(path, "scripts", "must equal the reviewed create package scripts"))
+	if err := json.Unmarshal(manifest["scripts"], &scripts); err != nil || !sameStringMap(scripts, devFlowDevelopmentScripts) {
+		violations = append(violations, manifestViolation(path, "scripts", "must equal the reviewed dev-flow package scripts"))
 	}
 	return violations
 }

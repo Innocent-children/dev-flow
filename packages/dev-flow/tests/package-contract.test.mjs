@@ -6,15 +6,16 @@ import test from "node:test";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 
-test("manager manifest exposes one dependency-free public macOS arm64 create package", async () => {
+test("manifest exposes one dependency-free public macOS arm64 Dev Flow package", async () => {
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
-  assert.equal(manifest.name, "@imotong/create-dev-flow");
+  assert.equal(manifest.name, "@imotong/dev-flow");
+  assert.equal(manifest.version, "0.1.0");
   assert.equal(manifest.private, false);
   assert.equal(manifest.license, "Apache-2.0");
   assert.deepEqual(manifest.os, ["darwin"]);
   assert.deepEqual(manifest.cpu, ["arm64"]);
   assert.deepEqual(manifest.engines, { node: ">=20" });
-  assert.deepEqual(manifest.bin, { "create-dev-flow": "bin/create-dev-flow.mjs" });
+  assert.deepEqual(manifest.bin, { "dev-flow": "bin/dev-flow.mjs" });
   assert.equal(Object.keys(manifest).some((field) => /dependencies/iu.test(field)), false);
   assert.equal(manifest.files.some((path) => /[*?{}[\]]/u.test(path)), false);
   for (const path of manifest.files) assert.equal((await stat(join(packageRoot, path))).isFile(), true, path);

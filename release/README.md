@@ -61,3 +61,10 @@ Its package, Tag, output directory, npm identity, GitHub state and DSH registry 
 are independent from Codex. Stable releases apply the same public-document synchronization; beta
 releases preserve stable public identities and use the isolated `beta`/prerelease channel. See
 [`deepseek/README.md`](deepseek/README.md).
+
+The Host-neutral CLI has its own normal-only release identity:
+
+```bash
+pnpm run release:dev-flow -- --mode normal --version "<DEV_FLOW_VERSION>" --output "<ABSOLUTE_DIRECTORY>" \
+  --confirm "dev-flow-v<DEV_FLOW_VERSION>" --confirm-comprehension
+```

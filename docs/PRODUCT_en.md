@@ -146,15 +146,17 @@ Codex Host lifecycle behavior and does not change Core, Tasks, or DeepSeek.
 
 ### Unified Adapter lifecycle
 
-The source tree provides `create-dev-flow` as one entry for Codex and DeepSeek Adapter status, diagnosis,
+The source tree provides `@imotong/dev-flow` as one Host-neutral `dev-flow` entry for Codex and DeepSeek Adapter status, diagnosis,
 installation, upgrade, repair, data-preserving reinstall, uninstall, factory reset, and clean reinstall. It calls
 Codex setup/remove/status and public DSH lifecycle commands without copying Core or Host registration authority.
 Ordinary maintenance preserves configuration and Task data. Factory reset requires strong confirmation bound to the
 current plan and moves exact data targets to macOS Trash by default. Codex global-package installation is observed
 independently from receipt and Plugin registration, so uninstall and factory reset still remove the package after
 registration has already disappeared. Interactive menus, confirmations, plans, and results read the current locale:
-`zh*` uses Simplified Chinese and every other locale uses English; JSON remains language-neutral. The package is
-independently published through npm `latest`; see the Support Matrix for the exact version and installation evidence.
+`zh*` uses Simplified Chinese and every other locale uses English; JSON remains language-neutral. The public launcher
+selects the newest available Core from installed Adapter receipts and forwards
+only the closed `webui` surface; it persists neither another Core nor workflow state. See the Support Matrix for exact
+public versions and installation evidence.
 
 ## Products
 
@@ -169,7 +171,7 @@ Git mutation, or reset mutation.
 | Core | State graph, Task, Store, Recovery, and MCP | `0.6.2` |
 | Codex | Codex Plugin, Skill, registration lifecycle, and bundled Core | `0.7.3` |
 | DeepSeek | DSH bundle, Skill, guard, MCP child, and bundled Core | `0.7.3` |
-| Lifecycle Manager | Codex/DeepSeek Adapter orchestration, ownership-safe reset, and recovery | `0.1.1` |
+| Dev Flow CLI | Host-neutral Adapter lifecycle, public WebUI launcher, and recovery | `0.1.0` (source, pending independent release) |
 
 The four products have independent versions. A host package records its actual bundled Core version;
 product version numbers do not have to match.

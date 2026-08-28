@@ -1,6 +1,6 @@
 import { createInterface } from "node:readline/promises";
 
-import { messagesForLanguage, resolveLanguage } from "./presentation.mjs";
+import { messagesForLanguage, resolveLanguage, selectInteractivePresentationMode } from "./presentation.mjs";
 
 export const OPERATIONS = Object.freeze([
   "status",
@@ -124,7 +124,7 @@ export function parseArguments(arguments_, {
   });
 }
 
-export async function promptForRequest({ input = process.stdin, output = process.stdout, language = resolveLanguage() } = {}) {
+export async function promptForRequest({ input = process.stdin, output = process.stdout, language = resolveLanguage(), environment = process.env } = {}) {
   const messages = messagesForLanguage(language);
   const terminal = createInterface({ input, output });
   try {
@@ -139,11 +139,12 @@ export async function promptForRequest({ input = process.stdin, output = process
     const home = selectNumber(await terminal.question(messages.choose), homeChoices, "home");
     if (home.host !== null) {
       const profile = home.host === "codex" ? null : validateProfile((await terminal.question(messages.profilePrompt)).trim() || "web");
-      return parseArguments([
+      const request = parseArguments([
         "install",
         "--host", home.host,
         ...(profile ? ["--profile", profile] : []),
       ], { isTTY: true, noColor: process.env.NO_COLOR !== undefined });
+      return Object.freeze({ ...request, outputMode: selectInteractivePresentationMode(output, environment) });
     }
 
     output.write(`\n${messages.manage}\n`);
@@ -152,11 +153,12 @@ export async function promptForRequest({ input = process.stdin, output = process
     HOSTS.forEach((host, index) => output.write(`${index + 1}. ${messages.hosts[host]}\n`));
     const host = selectNumber(await terminal.question(messages.hostPrompt), HOSTS, "Host");
     const profile = host === "codex" ? null : validateProfile((await terminal.question(messages.profilePrompt)).trim() || "web");
-    return parseArguments([
+    const request = parseArguments([
       operation,
       "--host", host,
       ...(profile ? ["--profile", profile] : []),
     ], { isTTY: true, noColor: process.env.NO_COLOR !== undefined });
+    return Object.freeze({ ...request, outputMode: selectInteractivePresentationMode(output, environment) });
   } finally {
     terminal.close();
   }

@@ -26,7 +26,7 @@ export async function runMain(arguments_, dependencies = {}) {
       isTTY: dependencies.isTTY ?? Boolean(input.isTTY && output.isTTY),
       noColor: dependencies.noColor ?? process.env.NO_COLOR !== undefined,
     });
-    if (request.interactive) request = await (dependencies.promptForRequest ?? promptForRequest)({ input, output, language });
+    if (request.interactive) request = await (dependencies.promptForRequest ?? promptForRequest)({ input, output, language, environment });
     const result = await runLifecycle(request, { ...dependencies, input, output, environment, language });
     if (request.outputMode !== "json" && result.plan) output.write(renderPlan(result.plan, { mode: request.outputMode, language }));
     output.write(renderResult(result.result, {
@@ -38,7 +38,7 @@ export async function runMain(arguments_, dependencies = {}) {
     const json = request?.outputMode === "json" || arguments_.includes("--json");
     const result = failureResult(request?.operation ?? "status", error);
     if (json) output.write(`${JSON.stringify(result)}\n`);
-    else errorOutput.write(`create-dev-flow: ${error.message}\n${result.next_step ? `${result.next_step}\n` : ""}`);
+    else errorOutput.write(`dev-flow: ${error.message}\n${result.next_step ? `${result.next_step}\n` : ""}`);
     return { code: error.exitCode ?? (error instanceof CLIError ? 2 : 1) };
   }
 }

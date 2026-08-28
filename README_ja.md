@@ -70,14 +70,15 @@ flowchart LR
 現在の安定アーティファクトは **macOS arm64** と **Node.js `>=24`** をサポートします。正確な
 バージョンと Host 互換性は [Support Matrix](docs/SUPPORT-MATRIX_en.md) を参照してください。
 
-公開済みの `create-dev-flow` 入口でインストール、アップグレード、修復、再インストール、
+`dev-flow` 入口でインストール、アップグレード、修復、再インストール、
 アンインストール、データ消去後の再インストールを管理します。Host のネイティブコマンドは診断復旧用に残ります。
 対話画面は `zh*` locale では簡体字中国語、それ以外の locale では英語を使用します。
 
 ### Codex
 
 ```bash
-npx @imotong/create-dev-flow@latest
+npm install -g @imotong/dev-flow@latest
+dev-flow
 ```
 
 Dev Flow を強制選択する場合：
@@ -91,7 +92,8 @@ $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run 
 ### DeepSeek Harness
 
 ```bash
-npx @imotong/create-dev-flow@latest
+npm install -g @imotong/dev-flow@latest
+dev-flow
 ```
 
 profile を再起動後、次を入力します。

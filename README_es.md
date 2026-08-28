@@ -71,14 +71,15 @@ el proceso desde el historial del chat. Consulta la [demostración](docs/DEMO_en
 Los artefactos estables actuales admiten **macOS arm64** y **Node.js `>=24`**. Consulta
 [Support Matrix](docs/SUPPORT-MATRIX_en.md) para versiones y compatibilidad exactas.
 
-La entrada publicada `create-dev-flow` gestiona instalación, actualización, reparación, reinstalación,
+La entrada `dev-flow` gestiona instalación, actualización, reparación, reinstalación,
 desinstalación y reinstalación limpia. Los comandos nativos del Host siguen disponibles para recuperación diagnóstica.
 La interfaz interactiva usa chino simplificado para locales `zh*` e inglés para cualquier otro locale.
 
 ### Codex
 
 ```bash
-npx @imotong/create-dev-flow@latest
+npm install -g @imotong/dev-flow@latest
+dev-flow
 ```
 
 Para forzar Dev Flow:
@@ -92,7 +93,8 @@ Más detalles en [Codex guide](docs/CODEX_en.md).
 ### DeepSeek Harness
 
 ```bash
-npx @imotong/create-dev-flow@latest
+npm install -g @imotong/dev-flow@latest
+dev-flow
 ```
 
 Reinicia el profile y escribe:

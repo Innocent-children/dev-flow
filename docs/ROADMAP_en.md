@@ -26,7 +26,7 @@ Delivered capabilities:
 - Codex setup configuration creation, exact configuration/receipt change summaries, and a
   degradable Simplified Chinese or English installation screen;
 - explicit Codex and DeepSeek Host Adapters.
-- the source `create-dev-flow` unified Adapter lifecycle manager for status, diagnosis, installation, upgrade, repair,
+- the source `dev-flow` unified Adapter lifecycle manager for status, diagnosis, installation, upgrade, repair,
   reinstall, uninstall, and ownership-safe factory reset; public support awaits separate release evidence.
 
 ## Current public products

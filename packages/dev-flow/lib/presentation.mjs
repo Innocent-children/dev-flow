@@ -73,6 +73,9 @@ export function messagesForLanguage(language) {
 export function renderResult(result, { mode = "plain", language = resolveLanguage() } = {}) {
   if (mode === "json") return `${JSON.stringify(result)}\n`;
   const messages = messagesForLanguage(language);
+  if (["install", "reinstall"].includes(result.operation) && result.changed && result.status === "ready") {
+    return renderInstallSuccess(result, { mode, language, messages });
+  }
   const mark = result.status === "ready" || result.status === "absent" ? "✓" : "!";
   const lines = [
     mode === "rich" ? `◆ ${messages.title}` : messages.title,
@@ -84,6 +87,13 @@ export function renderResult(result, { mode = "plain", language = resolveLanguag
   }
   if (result.next_step) lines.push(`${messages.next}: ${result.next_step}`);
   return `${lines.join("\n")}\n`;
+}
+
+export function selectInteractivePresentationMode(output, environment = process.env) {
+  if (!output?.isTTY || Object.hasOwn(environment ?? {}, "NO_COLOR")) return "plain";
+  if ((environment?.TERM ?? "").toLowerCase() === "dumb") return "plain";
+  if (!Number.isInteger(output.columns) || output.columns < 80) return "plain";
+  return "rich";
 }
 
 export function renderPlan(plan, { mode = "plain", language = resolveLanguage() } = {}) {
@@ -113,4 +123,41 @@ function translateImpact(impact, language, messages) {
   if (!target) return impact;
   const [, operation, host, profile] = target;
   return `${messages.operations[operation]} ${messages.hosts[host]}${profile ? ` Profile ${profile}` : " Adapter"}`;
+}
+
+function renderInstallSuccess(result, { mode, language, messages }) {
+  const chinese = language === "zh-CN";
+  const lines = [];
+  if (mode === "rich") {
+    lines.push(
+      "██████╗ ███████╗██╗   ██╗    ███████╗██╗      ██████╗ ██╗    ██╗",
+      "██╔══██╗██╔════╝██║   ██║    ██╔════╝██║     ██╔═══██╗██║    ██║",
+      "██║  ██║█████╗  ██║   ██║    █████╗  ██║     ██║   ██║██║ █╗ ██║",
+      "██║  ██║██╔══╝  ╚██╗ ██╔╝    ██╔══╝  ██║     ██║   ██║██║███╗██║",
+      "██████╔╝███████╗ ╚████╔╝     ██║     ███████╗╚██████╔╝╚███╔███╔╝",
+      "",
+    );
+  }
+  lines.push(chinese ? "✓ Dev Flow 安装完成" : "✓ Dev Flow installation complete");
+  for (const target of result.targets ?? []) {
+    if (target.state !== "ready" && target.state !== "restart_required") continue;
+    const host = messages.hosts[target.host] ?? target.host;
+    const profile = target.profile ? ` Profile ${target.profile}` : "";
+    const version = target.package_version ? ` ${target.package_version}` : "";
+    const state = messages.statuses[target.state] ?? target.state;
+    lines.push(`✓ ${host}${profile}${version} · ${state}`);
+  }
+  const codex = result.targets?.some((target) => target.host === "codex" && ["ready", "restart_required"].includes(target.state));
+  const deepseek = result.targets?.some((target) => target.host === "deepseek" && ["ready", "restart_required"].includes(target.state));
+  lines.push("", chinese ? "接下来" : "Next steps");
+  if (codex) {
+    lines.push(chinese ? "1. 在 Codex 对话中输入" : "1. Enter in a Codex conversation", "   $dev-flow-codex:dev-flow <task description>");
+  }
+  if (deepseek) {
+    const index = codex ? 2 : 1;
+    lines.push(chinese ? `${index}. 在 DeepSeek 对话中输入` : `${index}. Enter in a DeepSeek conversation`, "   /dev-flow <task description>");
+  }
+  lines.push("", chinese ? "Control Center" : "Control Center", "  dev-flow webui start", "  dev-flow webui open", "  dev-flow webui status", "  dev-flow webui stop");
+  lines.push("", chinese ? "安装管理" : "Installation management", "  dev-flow status", "  dev-flow doctor", "  dev-flow upgrade");
+  return `${lines.join("\n")}\n`;
 }

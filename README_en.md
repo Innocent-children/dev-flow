@@ -74,14 +74,15 @@ itself. The Go Core updates state only after validating the current Action.
 Current stable artifacts support **macOS arm64** and **Node.js `>=24`**. See the
 [Support Matrix](docs/SUPPORT-MATRIX_en.md) for exact versions and Host compatibility.
 
-The published `create-dev-flow` entry below manages installation, upgrade, repair, reinstall, uninstall, and clean
+The `dev-flow` entry below manages installation, upgrade, repair, reinstall, uninstall, and clean
 reinstall. Native Host commands remain available for diagnostic recovery.
 Its interactive interface uses Simplified Chinese for `zh*` locales and English for every other locale.
 
 ### Codex
 
 ```bash
-npx @imotong/create-dev-flow@latest
+npm install -g @imotong/dev-flow@latest
+dev-flow
 ```
 
 From a Git repository, start Dev Flow with the exact selector:
@@ -95,7 +96,8 @@ See the [Codex guide](docs/CODEX_en.md) for installation, updates, and removal.
 ### DeepSeek Harness
 
 ```bash
-npx @imotong/create-dev-flow@latest
+npm install -g @imotong/dev-flow@latest
+dev-flow
 ```
 
 Restart the profile, then enter:

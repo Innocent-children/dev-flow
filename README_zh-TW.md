@@ -66,14 +66,15 @@ Host 在實作後重新啟動時，新會話會讀取同一個 Task，取得目�
 目前穩定製品支援 **macOS arm64** 與 **Node.js `>=24`**。精確版本與 Host 相容範圍請見
 [Support Matrix](docs/SUPPORT-MATRIX.md)。
 
-安裝、升級、修復、重裝、解除安裝與清除後重裝統一使用下方已發布的 `create-dev-flow` 入口；Host
+安裝、升級、修復、重裝、解除安裝與清除後重裝統一使用下方的 `dev-flow` 入口；Host
 原生命令保留為診斷復原入口。
 互動介面依目前 locale 顯示：`zh*` 使用簡體中文，其餘 locale 統一使用英文。
 
 ### Codex
 
 ```bash
-npx @imotong/create-dev-flow@latest
+npm install -g @imotong/dev-flow@latest
+dev-flow
 ```
 
 需要強制選擇 Dev Flow 時：
@@ -87,7 +88,8 @@ $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run 
 ### DeepSeek Harness
 
 ```bash
-npx @imotong/create-dev-flow@latest
+npm install -g @imotong/dev-flow@latest
+dev-flow
 ```
 
 重新啟動 profile 後輸入：

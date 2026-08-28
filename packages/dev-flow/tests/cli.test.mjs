@@ -40,6 +40,25 @@ test("JSON rendering is exactly one parseable object", () => {
   assert.deepEqual(JSON.parse(text), result);
 });
 
+test("rich successful install renders one brand screen and contextual next steps", () => {
+  const result = {
+    operation: "install", status: "ready", changed: true, next_step: null,
+    targets: [
+      { host: "codex", profile: null, package_version: "0.8.0", state: "ready" },
+      { host: "deepseek", profile: "web", package_version: "0.8.0", state: "restart_required" },
+    ],
+  };
+  const text = renderResult(result, { mode: "rich", language: "zh-CN" });
+  assert.match(text, /██████╗/u);
+  assert.match(text, /Dev Flow 安装完成/u);
+  assert.match(text, /\$dev-flow-codex:dev-flow <task description>/u);
+  assert.match(text, /\/dev-flow <task description>/u);
+  assert.match(text, /dev-flow webui start/u);
+  assert.match(text, /dev-flow status/u);
+  assert.doesNotMatch(renderResult(result, { mode: "plain", language: "en" }), /██████╗/u);
+  assert.equal(renderResult(result, { mode: "json", language: "zh-CN" }), `${JSON.stringify(result)}\n`);
+});
+
 test("locale selection uses Chinese only for zh and English for every other locale", () => {
   assert.equal(resolveLanguage({ LANG: "zh_CN.UTF-8" }), "zh-CN");
   assert.equal(resolveLanguage({ LANG: "zh-TW" }), "zh-CN");

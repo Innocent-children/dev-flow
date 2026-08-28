@@ -25,10 +25,11 @@ handshake、remove、uninstall 和 repository-unchanged 门禁。上表记录已
 ## 安装与验证
 
 ```bash
-npx @imotong/create-dev-flow@latest
+npm install -g @imotong/dev-flow@latest
+dev-flow
 ```
 
-`create-dev-flow` 独立发布后成为默认生命周期入口；当前公开稳定制品尚未包含该新 package。发布前
+`dev-flow` 独立发布后成为默认生命周期入口；当前公开稳定制品尚未包含该新 package。发布前
 或诊断恢复时继续使用以下 Host 原生命令：
 
 ```bash

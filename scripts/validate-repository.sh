@@ -85,10 +85,10 @@ const codexFinalStagingFiles = [
 ].sort();
 const expectedByProfile = {
   "codex-source": codexFinalStagingFiles.filter((file) => file !== "runtime/darwin-arm64/dev-flow"),
-  "create-source": [
+  "dev-flow-source": [
     "LICENSE",
     "README.md",
-    "bin/create-dev-flow.mjs",
+    "bin/dev-flow.mjs",
     "lib/cli.mjs",
     "lib/hosts/codex.mjs",
     "lib/hosts/deepseek.mjs",
@@ -97,6 +97,7 @@ const expectedByProfile = {
     "lib/ownership.mjs",
     "lib/plan.mjs",
     "lib/presentation.mjs",
+    "lib/runtime.mjs",
     "package.json",
   ].sort(),
 };
@@ -124,7 +125,7 @@ run_step "Codex one-command release syntax" node --check scripts/release-codex.m
 run_step "DeepSeek release verifier syntax" node --check scripts/verify-deepseek-release.mjs
 run_step "DeepSeek release publisher syntax" node --check scripts/publish-deepseek-release.mjs
 run_step "DeepSeek one-command release syntax" node --check scripts/release-deepseek.mjs
-run_step "Lifecycle manager one-command release syntax" node --check scripts/release-create-dev-flow.mjs
+run_step "Dev Flow one-command release syntax" node --check scripts/release-dev-flow.mjs
 run_step "DeepSeek registry Journey syntax" node --check scripts/run-deepseek-real-journey.mjs
 run_step "Fake release npm syntax" node --check packages/codex/tests/fixtures/fake-release-npm.mjs
 run_step "Fake release GitHub syntax" node --check packages/codex/tests/fixtures/fake-release-gh.mjs
@@ -150,7 +151,7 @@ run_step "Go vet" go vet ./...
 run_step "Go tests and repository contracts" go test ./...
 run_step "pnpm workspace inventory" pnpm --recursive list --depth -1
 run_step "Codex package dry-pack" validate_package_pack packages/codex dev-flow-codex codex-source
-run_step "Lifecycle manager tests" node --test packages/create-dev-flow/tests/*.test.mjs
-run_step "Lifecycle manager dry-pack" validate_package_pack packages/create-dev-flow @imotong/create-dev-flow create-source
+run_step "Dev Flow manager and public launcher tests" node --test packages/dev-flow/tests/*.test.mjs
+run_step "Dev Flow manager dry-pack" validate_package_pack packages/dev-flow @imotong/dev-flow dev-flow-source
 
 printf '\nRepository validation passed.\n'

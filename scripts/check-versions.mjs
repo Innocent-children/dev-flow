@@ -8,11 +8,12 @@ const SEMVER = /^(0|[1-9][0-9]*)(?:\.(0|[1-9][0-9]*)){2}(?:-(?:0|[1-9][0-9]*|[0-
 
 export async function checkVersions(root = repositoryRoot()) {
   const coreVersion = await readVersionFile(join(root, "CORE_VERSION"), "Core version");
-  const [rootPackage, codexPackage, codexPlugin, deepseekPackage, serverInfo, codexFixture] = await Promise.all([
+  const [rootPackage, codexPackage, codexPlugin, deepseekPackage, devFlowPackage, serverInfo, codexFixture] = await Promise.all([
     readJSON(join(root, "package.json")),
     readJSON(join(root, "packages/codex/package.json")),
     readJSON(join(root, "packages/codex/plugin/.codex-plugin/plugin.json")),
     readJSON(join(root, "packages/deepseek/package.json")),
+    readJSON(join(root, "packages/dev-flow/package.json")),
     readJSON(join(root, "protocol/fixtures/graph-server-info.json")),
     readJSON(join(root, "packages/codex/tests/fixtures/graph-method-profiles.json")),
   ]);
@@ -23,6 +24,7 @@ export async function checkVersions(root = repositoryRoot()) {
   const codexVersion = packageVersion(codexPackage, "dev-flow-codex", "Codex package");
   const pluginVersion = packageVersion(codexPlugin, "dev-flow-codex", "Codex plugin");
   const deepseekVersion = packageVersion(deepseekPackage, "dev-flow-deepseek", "DeepSeek package");
+  const devFlowVersion = packageVersion(devFlowPackage, "@imotong/dev-flow", "Dev Flow CLI package");
   if (pluginVersion !== codexVersion) throw new Error("Codex plugin version must equal Codex package version");
   for (const [label, value] of [
     ["Core server-info fixture", serverInfo.version],
@@ -30,7 +32,7 @@ export async function checkVersions(root = repositoryRoot()) {
   ]) {
     if (value !== coreVersion) throw new Error(`${label} must equal CORE_VERSION`);
   }
-  return Object.freeze({ core: coreVersion, codex: codexVersion, deepseek: deepseekVersion });
+  return Object.freeze({ core: coreVersion, codex: codexVersion, deepseek: deepseekVersion, devFlow: devFlowVersion });
 }
 
 async function readVersionFile(path, label) {
@@ -59,6 +61,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
     const versions = await checkVersions();
     process.stdout.write(`Core ${versions.core}\nCodex ${versions.codex}\nDeepSeek ${versions.deepseek}\n`);
+    process.stdout.write(`Dev Flow CLI ${versions.devFlow}\n`);
   } catch (error) {
     process.stderr.write(`${error.message}\n`);
     process.exitCode = 1;

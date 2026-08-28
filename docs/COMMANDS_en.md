@@ -4,7 +4,7 @@
 
 This document lists every currently supported public or managed Dev Flow command entrypoint. The
 command surface is derived from implementation: unified lifecycle commands from
-`packages/create-dev-flow/package.json` and its CLI, Codex commands from `packages/codex/package.json`
+`packages/dev-flow/package.json` and its CLI, Codex commands from `packages/codex/package.json`
 and `packages/codex/bin/dev-flow-codex.mjs`, DeepSeek lifecycle commands from the DSH CLI used by the
 final-artifact journeys, Core commands from `cmd/dev-flow/main.go`, and MCP tools from the closed
 catalog under `internal/mcp/`.
@@ -15,10 +15,11 @@ must not be replaced with `latest`.
 
 ## Unified Adapter lifecycle
 
-After its separate release, ordinary users manage the lifecycle through one entry:
+`@imotong/dev-flow` provides one Host-neutral lifecycle and Control Center entry:
 
 ```bash
-npx @imotong/create-dev-flow@latest
+npm install -g @imotong/dev-flow@latest
+dev-flow
 ```
 
 The closed operations are `status`, `doctor`, `install`, `upgrade`, `repair`, `reinstall`, `uninstall`, and
@@ -33,16 +34,18 @@ English. JSON output remains language-neutral.
 
 | Entry | Purpose |
 | --- | --- |
-| `npx @imotong/create-dev-flow@latest` | Open the interactive lifecycle menu. |
-| `... status\|doctor --host codex\|deepseek\|all` | Inspect or diagnose without mutation. |
-| `... install\|upgrade\|repair\|reinstall --host ... [--profile web] [--version latest] --yes` | Perform ordinary maintenance while preserving configuration and Task data. |
-| `... uninstall --host ... [--all-known-profiles] --yes` | Remove selected Adapters while preserving configuration and Task data. |
-| `... factory-reset --host all --all-known-profiles` | Produce a current-state-bound reset plan/token; `--yes` has no cleanup authority. |
-| `... factory-reset ... --confirm-reset <token> [--reinstall]` | Move confirmed data to Trash and optionally perform a clean reinstall. |
+| `npm install -g @imotong/dev-flow@latest` | Install the public `dev-flow` command globally. |
+| `dev-flow` | Open the interactive lifecycle menu. |
+| `dev-flow status\|doctor --host codex\|deepseek\|all` | Inspect or diagnose without mutation. |
+| `dev-flow install\|upgrade\|repair\|reinstall --host ... [--profile web] [--version latest] --yes` | Perform ordinary maintenance while preserving configuration and Task data. |
+| `dev-flow uninstall --host ... [--all-known-profiles] --yes` | Remove selected Adapters while preserving configuration and Task data. |
+| `dev-flow factory-reset --host all --all-known-profiles` | Produce a current-state-bound reset plan/token; `--yes` has no cleanup authority. |
+| `dev-flow factory-reset ... --confirm-reset <token> [--reinstall]` | Move confirmed data to Trash and optionally perform a clean reinstall. |
+| `dev-flow webui start\|open\|status\|stop` | Select and verify Core from either installed Adapter, then manage the shared local Control Center. |
+| `dev-flow webui reset [--confirm TOKEN]` | Use Core's target-bound confirmation to clear incompatible Task data. |
 | `--json` / `--plain` | Select one JSON object or ANSI-free plain output. |
 
-`create-dev-flow` is available through npm `latest` as the unified lifecycle entry; the native Host commands below
-remain available for diagnostic recovery.
+Native Host commands remain available for diagnostic recovery.
 
 ## Codex
 

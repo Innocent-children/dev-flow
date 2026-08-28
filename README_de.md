@@ -70,14 +70,15 @@ rekonstruiert werden. Siehe [Demo](docs/DEMO_en.md).
 Aktuelle stabile Artefakte unterstützen **macOS arm64** und **Node.js `>=24`**. Exakte Versionen und
 Host-Kompatibilität stehen in der [Support Matrix](docs/SUPPORT-MATRIX_en.md).
 
-Der veröffentlichte `create-dev-flow`-Einstieg verwaltet Installation, Upgrade, Reparatur, Neuinstallation,
+Der `dev-flow`-Einstieg verwaltet Installation, Upgrade, Reparatur, Neuinstallation,
 Deinstallation und saubere Neuinstallation. Native Host-Befehle bleiben für die Diagnose-Recovery verfügbar.
 Die interaktive Oberfläche verwendet für `zh*` vereinfachtes Chinesisch und für alle anderen Locales Englisch.
 
 ### Codex
 
 ```bash
-npx @imotong/create-dev-flow@latest
+npm install -g @imotong/dev-flow@latest
+dev-flow
 ```
 
 Dev Flow erzwingen:
@@ -91,7 +92,8 @@ Details im [Codex-Leitfaden](docs/CODEX_en.md).
 ### DeepSeek Harness
 
 ```bash
-npx @imotong/create-dev-flow@latest
+npm install -g @imotong/dev-flow@latest
+dev-flow
 ```
 
 Profil neu starten und eingeben:

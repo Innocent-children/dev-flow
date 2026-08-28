@@ -10,8 +10,6 @@ importers:
 
   packages/codex: {}
 
-  packages/create-dev-flow: {}
-
   packages/deepseek:
     dependencies:
       '@deepseek-ai/cordis':
@@ -26,6 +24,8 @@ importers:
       '@deepseek-ai/dsh-tools':
         specifier: '>=0.1.0-rc.6'
         version: 0.1.0-rc.8(ac9081d1e007de8a90a707560a8ae1c3)
+
+  packages/dev-flow: {}
 
   packages/webui:
     dependencies:

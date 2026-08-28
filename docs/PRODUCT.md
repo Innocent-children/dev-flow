@@ -130,13 +130,14 @@ Git 修改仍由获得用户授权的 Host 负责。
 
 ### 统一 Adapter 生命周期
 
-`create-dev-flow` 在源码中提供一个统一入口，覆盖 Codex 与 DeepSeek Adapter 的状态、诊断、安装、
+`@imotong/dev-flow` 在源码中提供一个 Host 无关的 `dev-flow` 入口，覆盖 Codex 与 DeepSeek Adapter 的状态、诊断、安装、
 升级、修复、保留数据重装、卸载、恢复出厂状态和清空后重装。它调用 Codex setup/remove/status 与
 DSH 公开 lifecycle，不复制 Core 或 Host 注册权威。普通维护保留用户配置和 Task 数据；恢复出厂
 状态要求绑定当前计划的强确认，默认把精确数据目标移动到 macOS Trash。Codex 全局 package 的安装
 状态与 receipt、Plugin 注册状态分别判断，注册已缺失时仍能通过卸载或恢复出厂操作清理 package。
 交互菜单、确认提示、计划和结果读取当前 locale：`zh*` 使用简体中文，其余 locale 统一使用英文；JSON
-输出保持语言无关。该 package 通过 npm `latest` 独立发布，精确版本与安装验证见 Support Matrix。
+输出保持语言无关。公共 launcher 从已安装 Adapter 的 receipt 中选择最新可用 Core，只转发闭合的
+`webui` 命令，不保存第二份 Core 或流程状态。精确公开版本与安装验证见 Support Matrix。
 
 ## 产品组成
 
@@ -150,7 +151,7 @@ loopback 实例；界面支持简体中文/英文、首次按系统语言选择�
 | Core | 状态图、Task、Store、Recovery、MCP | `0.6.2` |
 | Codex | Codex Plugin、Skill、注册生命周期和 bundled Core | `0.7.3` |
 | DeepSeek | DSH bundle、Skill、guard、MCP child 和 bundled Core | `0.7.3` |
-| Lifecycle Manager | Codex/DeepSeek Adapter 生命周期编排、ownership-safe reset 与恢复 | `0.1.1` |
+| Dev Flow CLI | Host 无关的 Adapter 生命周期编排、公共 WebUI launcher 与恢复 | `0.1.0`（源码，待独立发布） |
 
 四个产品独立版本化。Host 包记录实际 bundled Core 版本，不要求各产品使用同一版本号。
 
