@@ -3,7 +3,7 @@
   "evidence_class": "simulated_static_adapter_journey",
   "server_info": {
     "product": "dev-flow",
-    "version": "0.6.3",
+    "version": "0.6.4",
     "transport": "stdio",
     "health": "ready",
     "supported_hosts": [
