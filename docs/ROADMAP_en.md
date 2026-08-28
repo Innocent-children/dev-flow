@@ -35,7 +35,7 @@ Delivered capabilities:
 | --- | --- | --- |
 | Core | `0.6.4` | Independent bundled runtime in both Host packages |
 | Codex | `0.7.5` | npm and `codex-v0.7.5` published; macOS arm64 registry lifecycle passed |
-| DeepSeek | `0.7.4` | npm and `deepseek-v0.7.4` published; macOS arm64 native registry journey passed |
+| DeepSeek | `0.7.5` | npm and `deepseek-v0.7.5` published; macOS arm64 native registry journey passed |
 | Dev Flow CLI | `0.1.1` | npm and `dev-flow-v0.1.1` published; registry package smoke passed |
 
 See the [Support Matrix](SUPPORT-MATRIX_en.md) for exact supported Host versions, artifact digests,

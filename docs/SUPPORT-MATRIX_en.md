@@ -14,7 +14,7 @@ npm `@latest` currently selects these packages:
 | Product | Public version | Bundled Core | Platform | Host compatibility | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.7.5` | `0.6.4` | macOS arm64, Node.js `>=24` | Codex `>=0.147.0`; final Journey used `0.147.0` | [npm](https://www.npmjs.com/package/dev-flow-codex/v/0.7.5) · [codex-v0.7.5](https://github.com/Innocent-children/dev-flow/releases/tag/codex-v0.7.5) · registry lifecycle passed |
-| `dev-flow-deepseek` | `0.7.4` | `0.6.3` | macOS arm64, Node.js `>=24` | DSH `>=0.1.0-rc.6`; final Journey used `0.1.0-rc.6` | [npm](https://www.npmjs.com/package/dev-flow-deepseek/v/0.7.4) · [deepseek-v0.7.4](https://github.com/Innocent-children/dev-flow/releases/tag/deepseek-v0.7.4) · native registry journey passed |
+| `dev-flow-deepseek` | `0.7.5` | `0.6.4` | macOS arm64, Node.js `>=24` | DSH `>=0.1.0-rc.6`; final Journey used `0.1.0-rc.6` | [npm](https://www.npmjs.com/package/dev-flow-deepseek/v/0.7.5) · [deepseek-v0.7.5](https://github.com/Innocent-children/dev-flow/releases/tag/deepseek-v0.7.5) · native registry journey passed |
 | `@imotong/dev-flow` | `0.1.1` | Selected from installed Adapters | macOS arm64, Node.js `>=20` | Target operations require an installed Codex or DSH | [npm](https://www.npmjs.com/package/@imotong/dev-flow/v/0.1.1) · [dev-flow-v0.1.1](https://github.com/Innocent-children/dev-flow/releases/tag/dev-flow-v0.1.1) · registry package smoke passed |
 
 Codex lifecycle evidence covers package/Core identity, installation, setup, Core handshake, removal,
@@ -29,7 +29,7 @@ start|open|status|stop|reset`. The Host package versions in source match the sta
 | Product | Package version on `main` | Bundled Core |
 | --- | --- | --- |
 | `dev-flow-codex` | `0.7.5` | `0.6.4` |
-| `dev-flow-deepseek` | `0.7.4` | `0.6.3` |
+| `dev-flow-deepseek` | `0.7.5` | `0.6.4` |
 
 New source capabilities or a later beta can expand the stable support claim above only after the
 independent release flow, registry-byte read-back, and final Host journey.

@@ -20,7 +20,7 @@ The first two exist today. External adoption is still early and is not overstate
 | Product | Stable version | Bundled Core | Verified environment |
 | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.7.5` | `0.6.4` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
-| `dev-flow-deepseek` | `0.7.4` | `0.6.3` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
+| `dev-flow-deepseek` | `0.7.5` | `0.6.4` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
 | `@imotong/dev-flow` | `0.1.1` | Selected from installed Adapters | macOS arm64, Node.js `>=20` |
 
 Stable claims come from registry-package installation, Host/Core handshake, removal, uninstallation,
@@ -33,7 +33,7 @@ exact Releases and artifact identities.
 | Product | Package version on `main` | Current capabilities |
 | --- | --- | --- |
 | `dev-flow-codex` | `0.7.5` | smart selection, setup, Plugin/MCP registration, and multi-repository Task Scope |
-| `dev-flow-deepseek` | `0.7.4` | DSH bundle, explicit activation, and multi-repository Task Scope |
+| `dev-flow-deepseek` | `0.7.5` | DSH bundle, explicit activation, and multi-repository Task Scope |
 | `@imotong/dev-flow` | `0.1.1` | unified Adapter lifecycle and local Control Center launcher |
 
 Current source also includes the shared local WebUI embedded in Core, exposed through

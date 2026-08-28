@@ -143,7 +143,7 @@ Siehe [Security Policy](SECURITY.md) und [Threat Model](docs/THREAT-MODEL_en.md)
 | Produkt | Stabile Version | Bundled Core | Verifizierte Umgebung |
 | --- | --- | --- | --- |
 | `dev-flow-codex` | `0.7.5` | `0.6.4` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
-| `dev-flow-deepseek` | `0.7.4` | `0.6.3` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
+| `dev-flow-deepseek` | `0.7.5` | `0.6.4` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
 
 Exakte Evidenz und beta/source-Status stehen unter [Project Status](docs/PROJECT-STATUS_en.md) und
 [Support Matrix](docs/SUPPORT-MATRIX_en.md).
