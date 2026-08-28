@@ -1,8 +1,8 @@
 {
-  "core_version": "0.6.3",
+  "core_version": "0.6.4",
   "codex": {
-    "version": "0.7.4",
-    "core_version": "0.6.3"
+    "version": "0.7.5",
+    "core_version": "0.6.4"
   },
   "deepseek": {
     "version": "0.7.4",

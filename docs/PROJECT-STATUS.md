@@ -19,7 +19,7 @@ npm `@latest` 当前选择以下稳定 package：
 
 | 产品 | 稳定版本 | Bundled Core | 已验证环境 |
 | --- | --- | --- | --- |
-| `dev-flow-codex` | `0.7.4` | `0.6.3` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
+| `dev-flow-codex` | `0.7.5` | `0.6.4` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
 | `dev-flow-deepseek` | `0.7.4` | `0.6.3` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
 | `@imotong/dev-flow` | `0.1.1` | 从已安装 Adapter 选择 | macOS arm64、Node.js `>=20` |
 
@@ -31,7 +31,7 @@ npm `@latest` 当前选择以下稳定 package：
 
 | 产品 | `main` 中的 package 版本 | 当前能力 |
 | --- | --- | --- |
-| `dev-flow-codex` | `0.7.4` | 智能选择、setup、Plugin/MCP 注册和多仓库 Task Scope |
+| `dev-flow-codex` | `0.7.5` | 智能选择、setup、Plugin/MCP 注册和多仓库 Task Scope |
 | `dev-flow-deepseek` | `0.7.4` | DSH bundle、显式触发和多仓库 Task Scope |
 | `@imotong/dev-flow` | `0.1.1` | 统一 Adapter 生命周期与本机 Control Center launcher |
 
