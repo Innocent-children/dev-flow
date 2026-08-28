@@ -10,6 +10,8 @@ import { promisify } from "node:util";
 const execFile = promisify(execFileCallback);
 const registry = "https://registry.npmjs.org/";
 const repository = "Innocent-children/dev-flow";
+const npmVisibilityTimeoutMs = 600_000;
+const npmVisibilityPollMs = 5_000;
 const products = Object.freeze({
   codex: { packageName: "dev-flow-codex", tagPrefix: "codex-v", tarballPrefix: "dev-flow-codex-" },
   deepseek: { packageName: "dev-flow-deepseek", tagPrefix: "deepseek-v", tarballPrefix: "dev-flow-deepseek-" },
@@ -68,10 +70,11 @@ async function npmVersion(packageName, version, environment) {
 }
 
 async function verifyRegistryBytes(packageName, version, expectedSHA, environment) {
-  for (let attempt = 0; attempt < 12; attempt += 1) {
+  const attempts = Math.ceil(npmVisibilityTimeoutMs / npmVisibilityPollMs);
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
     if (await npmVersion(packageName, version, environment)) break;
-    if (attempt === 11) throw new Error("npm version did not become visible");
-    await new Promise((resolveDelay) => setTimeout(resolveDelay, 5000));
+    if (attempt + 1 === attempts) throw new Error("npm version did not become visible within 600 seconds");
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, npmVisibilityPollMs));
   }
   const directory = await mkdtemp(join(tmpdir(), "dev-flow-npm-readback-"));
   try {
