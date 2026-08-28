@@ -6,12 +6,11 @@ This document lists every currently supported public or managed Dev Flow command
 command surface is derived from implementation: unified lifecycle commands from
 `packages/dev-flow/package.json` and its CLI, Codex commands from `packages/codex/package.json`
 and `packages/codex/bin/dev-flow-codex.mjs`, DeepSeek lifecycle commands from the DSH CLI used by the
-final-artifact journeys, Core commands from `cmd/dev-flow/main.go`, and MCP tools from the closed
+DSH lifecycle tests, Core commands from `cmd/dev-flow/main.go`, and MCP tools from the closed
 catalog under `internal/mcp/`.
 
 Public installation examples select npm's `latest` dist-tag so they install the current stable
-package. Support matrices, Release links, and artifact evidence continue to use exact versions and
-must not be replaced with `latest`.
+package. Exact product versions remain in machine-readable release records.
 
 ## Unified Adapter lifecycle
 
@@ -146,7 +145,7 @@ lifecycle.
 | --- | --- |
 | `dsh --version` | Print the current DSH version. Public Dev Flow support requires the minimum version recorded in the Support Matrix. |
 | `TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"` | Fetch the package selected by npm `latest` and save the generated tarball filename in a shell variable. |
-| `dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"` | Install the absolute tarball path into the DSH profile selected by `PROFILE`. This is the command form exercised by the final-artifact journey. |
+| `dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"` | Install the absolute tarball path into the DSH profile selected by `PROFILE`. DSH lifecycle tests exercise this command form. |
 | `dsh --profile "$PROFILE" --dump-config` | Print the effective profile configuration to verify whether the `dev-flow-deepseek` bundle contribution is present or absent. It does not mutate a Dev Flow Task. |
 | `dsh plugin --profile "$PROFILE" remove dev-flow-deepseek` | Remove the package and bundle contribution from the selected profile. Task data, the target Git repository, and Codex-owned state are retained. |
 

@@ -91,7 +91,7 @@ Installation and command documentation must be checked against executable implem
 - npm package names, `bin` entries, and platform constraints come from the relevant `package.json`;
 - Codex CLI subcommands and arguments come from the actual parser in
   `packages/codex/bin/dev-flow-codex.mjs`;
-- DeepSeek installation and removal forms come from DSH lifecycle tests and the final-artifact journey;
+- DeepSeek installation and removal forms come from DSH lifecycle tests;
 - packaged Core commands come from `cmd/dev-flow/main.go`;
 - MCP tool names, read/write properties, and purposes come from the closed catalog under
   `internal/mcp/`.

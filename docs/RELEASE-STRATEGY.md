@@ -17,12 +17,9 @@ dev-flow-codex-<CODEX_VERSION>.tgz
 dev-flow-core-<CORE_VERSION>-darwin-arm64
 SHA256SUMS
 release-manifest.json
-publication-record.json
 ```
 
-The manifest records product `codex`, Codex version, Core version, Tag, source commit/tree, mode,
-previous Codex release, and artifact digests. The publication record uses the same frozen identity.
-Both formats are current-only and contain no internal format number.
+The manifest records product, package/Core versions, source commit/tree, and artifact digests.
 
 ## One-command release
 
@@ -33,9 +30,7 @@ Both formats are current-only and contain no internal format number.
 bypass list 的专用 GitHub App 短期 token，同一产品的发布不会并发执行。App Client ID 存在仓库
 变量 `RELEASE_APP_CLIENT_ID`，完整 PEM 私钥存在仓库 secret `RELEASE_APP_PRIVATE_KEY`。
 
-工作流上传 runner 临时发布目录用于查看
-`publication-record.json` 和制品；同输入重跑仍由 publisher 回读远端状态。需要复用本地 publication
-directory 的精确恢复场景仍可直接运行 standalone command。
+工作流上传 runner 临时发布目录中的制品；同输入重跑时由 Publisher 回读并复用匹配的远端状态。
 
 ```bash
 pnpm run release:codex -- \

@@ -111,9 +111,8 @@ Pull Request 应保持可独立审查。文档重写、产品行为变化、无�
 
 ## 发布边界
 
-合并产品工作不等于立即发布。Core、Codex 和 DeepSeek 独立版本化；维护者会在变更合并后根据
-实际 diff 选择 `quick` 或 `normal` 发布模式，再执行版本对齐、构建、回读、Tag、npm 和 GitHub
-Release。公开版本、平台或安装命令变化也必须在发布前同步全部维护 locale。
+合并产品工作不等于立即发布。Core、Codex 和 DeepSeek 独立版本化；维护者在变更合并后填写产品、
+channel 和精确版本，再执行固定检查、版本对齐、构建、回读、Tag、npm 和 GitHub Release。
 
 提交 Pull Request 即表示你同意你的贡献按照本仓库的
 [Apache License 2.0](LICENSE) 提供。

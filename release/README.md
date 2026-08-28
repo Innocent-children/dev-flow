@@ -1,9 +1,9 @@
 # Release Ownership
 
-`release/` contains current product release schemas and operator guidance. Generated output stays
+`release/` contains the current prepare/publish implementation and operator guidance. Generated output stays
 in an external operator-selected directory and is never committed.
 
-## Current five-file output
+## Current four-file output
 
 ```text
 dev-flow-codex-<CODEX_VERSION>.tgz
@@ -12,9 +12,7 @@ SHA256SUMS
 release-manifest.json
 ```
 
-The schemas are closed, current-only formats without internal version fields. Historical release
-testdata remains frozen and is accepted only by its historical evidence tests; current tooling
-rejects an old publication directory before remote mutation.
+The manifest binds the product, version, source commit, Core identity, and artifact digests.
 
 ## Operator entrypoint
 

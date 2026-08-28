@@ -125,10 +125,8 @@ behavior changes, unrelated refactors, and version publication into separate cha
 ## Release boundary
 
 Merging product work does not publish it immediately. Core, Codex, and DeepSeek have independent
-versions. After changes are merged, maintainers inspect the actual diff, select the `quick` or
-`normal` release mode, and then perform version alignment, build, read-back, Tag, npm, and GitHub
-Release operations. Changes to public versions, platforms, or installation commands must also
-synchronize every maintained locale before publication.
+versions. After changes are merged, maintainers select the product, channel, and exact version, then
+run the fixed checks, version alignment, build, read-back, Tag, npm, and GitHub Release operations.
 
 By submitting a pull request, you agree that your contribution is provided under this repository's
 [Apache License 2.0](LICENSE).

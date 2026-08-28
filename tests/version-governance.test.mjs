@@ -29,7 +29,7 @@ test("only the Codex plugin mirrors another product version", async (t) => {
 test("current product surfaces contain no internal version system except the database version", async () => {
   const root = new URL("../", import.meta.url);
   const files = [];
-  for (const path of ["internal", "packages/codex/bin", "packages/codex/lib", "packages/codex/plugin", "packages/deepseek/lib", "packages/deepseek/skills", "scripts", "release/schemas"]) {
+  for (const path of ["internal", "packages/codex/bin", "packages/codex/lib", "packages/codex/plugin", "packages/deepseek/lib", "packages/deepseek/skills", "scripts", "release"]) {
     await walk(new URL(`${path}/`, root), files);
   }
   for (const path of [

@@ -14,7 +14,7 @@ Before a version-only release, read in this order:
 
 1. `release/README.md`;
 2. the selected product's release README under `release/`;
-3. the current release schemas and publisher contracts;
+3. the current prepare and publisher contracts under `release/`;
 4. the package manifest and current public-version metadata.
 
 When documentation and executable behavior disagree, use the executable implementation to determine
@@ -153,27 +153,13 @@ commit, push, merge, rebase, tag, publish, or otherwise mutate Git state.
 
 Repository development actions require explicit user authority. npm publication, Git Tag changes,
 GitHub Release changes, asset upload, and public support claims require an explicit target version,
-the user's selected `quick` or `normal` mode, exact release confirmation, and the standalone release
-command.
+exact release confirmation, and the standalone release command.
 
-## Release Mode Selection
+## Release Selection
 
-Before every version release, inspect changed paths since the current public Tag, recommend `quick` or
-`normal` with a concise eligibility reason, and ask the user which mode to use. Do not modify versions,
-commit a release bump, or publish until the user answers.
-
-- Recommend `quick` only when product/runtime behavior is unchanged. Eligible changes are limited to
-  documentation, tests, repository configuration, release tooling, and approved version metadata.
-- Recommend `normal` for every product-affecting change or whenever quick eligibility cannot be
-  proven.
-- If the user explicitly requests `quick` for an ineligible diff, stop and report the blocking paths.
-- Both modes first align the selected product authority and required mirror, create and push one
-  version commit on clean `main`, and only then create Tag, npm, or GitHub effects.
-- `quick` runs bounded targeted checks and a final registry-package lifecycle smoke tied to the
-  previous normal release. `normal` runs the approved full validation and the same registry-package
-  lifecycle smoke.
-- Recovery reuses the same mode, version, output directory, source identity, Tag, npm bytes, and
-  publication record.
+Before every release, require the product, channel, exact target version, and exact confirmation.
+Run the fixed release checks before creating the version commit. Reruns reuse matching Tag, npm, and
+GitHub Release state after verifying source and artifact bytes.
 
 ## Test Budget
 
@@ -183,9 +169,8 @@ regression.
 - Prefer package-local, node-local, storage-boundary-local, or user-story-local checks.
 - Do not run the complete repository suite after each edit.
 - Full matrices, stress tests, platform matrices, and real-host journeys require a concrete need.
-- Run final repository-wide validation at most once for a normal product change unless a concrete
-  failure requires a retry. A quick release does not run the repository-wide suite.
-- Real-host registry lifecycle smoke runs only at the selected release mode's final checkpoint.
+- A release runs only the fixed package and publication checks; product-wide validation belongs to
+  ordinary CI before release.
 - Never present fake, fixture, static, different-platform, or user-performed results as native
   automated results.
 - Report unavailable checks as unavailable; do not replace them with broader unrelated testing.

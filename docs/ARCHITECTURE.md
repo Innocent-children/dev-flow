@@ -242,9 +242,8 @@ DeepSeek  → packages/deepseek/package.json
 Host package 内含一个 macOS arm64 Core executable，构建与发布证据从实际 executable 读取 Core
 版本和 digest。Codex Plugin manifest 只镜像 Codex package 版本。
 
-发布工具位于 `release/` 与 `scripts/`，不进入 Core、MCP 或 SQLite。产品发布使用独立的
-`quick` 或 `normal` 流程、精确 confirmation、仓库外 release directory 和可恢复 publication
-record。
+发布工具位于 `release/` 与 `scripts/`，不进入 Core、MCP 或 SQLite。产品发布使用固定检查、精确
+confirmation、仓库外 release directory，并通过远端回读安全重试。
 
 ## 源码导航
 

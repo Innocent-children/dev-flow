@@ -264,8 +264,8 @@ version and digest from the actual executable. The Codex Plugin manifest only mi
 package version.
 
 Release tooling lives under `release/` and `scripts/`; it is not part of Core, MCP, or SQLite.
-A product release uses an independently selected `quick` or `normal` flow, exact confirmation, an
-external release directory, and a recoverable publication record.
+A product release uses fixed checks, exact confirmation, an external release directory, and remote
+read-back for safe retries.
 
 ## Source navigation
 
