@@ -1,7 +1,9 @@
 # dev-flow Release
 
 日常发布从 GitHub Actions 手工运行 `publish-npm`，选择 `product=dev-flow`、`channel=stable`、
-`mode=normal`、目标版本并勾选 `confirm_comprehension`。工作流需要仓库 secret `NPM_TOKEN`。
+`mode=normal`、目标版本并勾选 `confirm_comprehension`。npm 包 `@imotong/dev-flow` 把
+`Innocent-children/dev-flow` 的 `publish-npm.yml` 配置为允许 `npm publish` 的 GitHub Actions
+Trusted Publisher；工作流通过 OIDC 认证，不使用长期 npm 发布 token。
 `packages/dev-flow/package.json` 必须已是目标版本；失败时下载 workflow artifact 查看
 `publication-record.json`，再用相同输入重跑。
 

@@ -33,9 +33,11 @@ repository.
 ## Release entrypoints
 
 The usual maintainer entrypoint is the manually dispatched `publish-npm` GitHub Actions workflow.
-Configure the repository `NPM_TOKEN` secret, then select the product, channel, mode, and exact version;
-normal mode also requires `confirm_comprehension`. The workflow uses macOS 15 ARM64, Node.js 24, and
-pnpm 11, serializes runs per product, and invokes the existing commands below.
+For each npm package, configure `publish-npm.yml` from `Innocent-children/dev-flow` as a GitHub Actions
+Trusted Publisher allowed to run `npm publish`. Then select the product, channel, mode, and exact
+version; normal mode also requires `confirm_comprehension`. The workflow obtains a short-lived npm
+publish credential through OIDC, uses macOS 15 ARM64, Node.js 24, and pnpm 11, serializes runs per
+product, and invokes the existing commands below.
 
 ```bash
 pnpm run release:codex -- \

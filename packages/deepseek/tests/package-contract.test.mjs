@@ -51,6 +51,11 @@ test("manifest declares one public macOS arm64 ESM DeepSeek bundle", async () =>
   assert.equal(manifest.type, "module");
   assert.equal(manifest.main, "lib/index.mjs");
   assert.equal(manifest.license, "Apache-2.0");
+  assert.deepEqual(manifest.repository, {
+    type: "git",
+    url: "git+https://github.com/Innocent-children/dev-flow.git",
+    directory: "packages/deepseek",
+  });
   assert.deepEqual(manifest.engines, { node: ">=24" });
   assert.deepEqual(manifest.os, ["darwin"]);
   assert.deepEqual(manifest.cpu, ["arm64"]);

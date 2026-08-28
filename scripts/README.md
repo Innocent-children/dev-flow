@@ -29,8 +29,10 @@ package contracts、Host Adapter tests、deterministic journeys 和 release tool
 
 ## 发布入口
 
-推荐在 GitHub Actions 手工运行 `publish-npm` 工作流。仓库先配置 `NPM_TOKEN` secret；运行时选择
-产品、channel、mode 和目标版本，normal 模式勾选 `confirm_comprehension`。工作流使用
+推荐在 GitHub Actions 手工运行 `publish-npm` 工作流。三个 npm 包分别把
+`Innocent-children/dev-flow` 的 `publish-npm.yml` 配置为允许 `npm publish` 的 GitHub Actions
+Trusted Publisher；运行时选择产品、channel、mode 和目标版本，normal 模式勾选
+`confirm_comprehension`。工作流通过 OIDC 获取短期 npm 发布凭据，使用
 `macos-15` ARM64、Node.js 24 和 pnpm 11，按产品串行执行，并调用下列现有入口。
 
 ```bash

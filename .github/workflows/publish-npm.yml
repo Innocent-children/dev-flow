@@ -39,6 +39,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: npm-release-${{ inputs.product }}
@@ -50,8 +51,6 @@ jobs:
     timeout-minutes: 90
     env:
       GH_TOKEN: ${{ github.token }}
-      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       RELEASE_PRODUCT: ${{ inputs.product }}
       RELEASE_CHANNEL: ${{ inputs.channel }}
       RELEASE_MODE: ${{ inputs.mode }}
@@ -84,7 +83,6 @@ jobs:
         run: |
           set -euo pipefail
           test "$(uname -s)-$(uname -m)" = "Darwin-arm64"
-          test -n "$NPM_TOKEN"
           if [[ "$RELEASE_MODE" == "normal" && "$RELEASE_COMPREHENSION" != "true" ]]; then
             echo "normal mode requires confirm_comprehension" >&2
             exit 1

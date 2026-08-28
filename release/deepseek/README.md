@@ -1,8 +1,10 @@
 # DeepSeek Release
 
 日常发布从 GitHub Actions 手工运行 `publish-npm`：选择 `product=deepseek`、channel、mode 和目标版本；
-normal 模式必须勾选 `confirm_comprehension`。工作流需要仓库 secret `NPM_TOKEN`，并在
-`macos-15` ARM64 runner 上调用下面同一个命令。失败时下载 workflow artifact 查看发布记录，再用
+normal 模式必须勾选 `confirm_comprehension`。npm 包 `dev-flow-deepseek` 把
+`Innocent-children/dev-flow` 的 `publish-npm.yml` 配置为允许 `npm publish` 的 GitHub Actions
+Trusted Publisher；工作流通过 OIDC 认证，并在 `macos-15` ARM64 runner 上调用下面同一个命令。
+失败时下载 workflow artifact 查看发布记录，再用
 相同输入重跑；publisher 会回读并复用已创建的不可变远端状态。
 
 DeepSeek uses an independent one-command release flow with the same operator interface as Codex:

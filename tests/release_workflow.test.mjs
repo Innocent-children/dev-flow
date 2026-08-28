@@ -9,8 +9,8 @@ const workflow = await readFile(join(root, ".github/workflows/publish-npm.yml"),
 test("npm publication is manual, serialized per product, and minimally privileged", () => {
   assert.match(workflow, /on:\n  workflow_dispatch:/u);
   assert.doesNotMatch(workflow, /^  (push|pull_request|schedule):/mu);
-  assert.match(workflow, /permissions:\n  contents: write/u);
-  assert.doesNotMatch(workflow, /id-token: write|packages: write/u);
+  assert.match(workflow, /permissions:\n  contents: write\n  id-token: write/u);
+  assert.doesNotMatch(workflow, /packages: write/u);
   assert.match(workflow, /group: npm-release-\$\{\{ inputs\.product \}\}/u);
   assert.match(workflow, /cancel-in-progress: false/u);
 });
@@ -28,8 +28,9 @@ test("npm publication runs the existing release contracts on darwin-arm64", () =
   assert.match(workflow, /pnpm run release:dev-flow/u);
 });
 
-test("workflow keeps release credentials and recovery output outside the repository", () => {
-  assert.match(workflow, /NPM_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/u);
+test("workflow uses npm trusted publishing and keeps recovery output outside the repository", () => {
+  assert.match(workflow, /id-token: write/u);
+  assert.doesNotMatch(workflow, /NPM_TOKEN|NODE_AUTH_TOKEN|secrets\./u);
   assert.match(workflow, /GH_TOKEN: \$\{\{ github\.token \}\}/u);
   assert.match(workflow, /RELEASE_OUTPUT: \$\{\{ runner\.temp \}\}/u);
   assert.match(workflow, /actions\/upload-artifact@v6/u);

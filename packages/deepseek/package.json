@@ -4,6 +4,11 @@
   "private": false,
   "description": "Explicit DeepSeek Harness adapter for the Dev Flow process graph.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Innocent-children/dev-flow.git",
+    "directory": "packages/deepseek"
+  },
   "type": "module",
   "main": "lib/index.mjs",
   "files": [
