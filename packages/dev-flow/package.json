@@ -1,6 +1,6 @@
 {
   "name": "@imotong/dev-flow",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": false,
   "description": "Unified lifecycle manager for Dev Flow Codex and DeepSeek adapters.",
   "license": "Apache-2.0",
@@ -10,8 +10,12 @@
     "directory": "packages/dev-flow"
   },
   "type": "module",
-  "os": ["darwin"],
-  "cpu": ["arm64"],
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
   "engines": {
     "node": ">=20"
   },
