@@ -155,7 +155,7 @@ loopback 实例；界面支持简体中文/英文、首次按系统语言选择�
 | 产品 | 职责 | 当前版本 |
 | --- | --- | --- |
 | Core | 状态图、Task、Store、Recovery、MCP | `0.6.4` |
-| Codex | Codex Plugin、Skill、注册生命周期和 bundled Core | `0.7.5` |
+| Codex | Codex Plugin、Skill、注册生命周期和 bundled Core | `0.7.6` |
 | DeepSeek | DSH bundle、Skill、guard、MCP child 和 bundled Core | `0.7.5` |
 | Dev Flow CLI | Host 无关的 Adapter 生命周期编排、公共 WebUI launcher 与恢复 | `0.1.1` |
 
@@ -204,7 +204,7 @@ GitHub Release 回读和最终 registry-package Journey。npm 发布通过绑定
 Publisher 和短期 OIDC 凭据完成，不保存长期 npm 发布 token。该自动化属于仓库发布工具，不进入
 Go Core，也不改变 Task 或 Host Adapter 的产品职责。
 
-Codex 当前版本 `0.7.5` 已发布到 npm，并使用 `codex-v0.7.5` GitHub Release。
+Codex 当前版本 `0.7.6` 已发布到 npm，并使用 `codex-v0.7.6` GitHub Release。
 DeepSeek 当前版本 `0.7.5` 已发布到 npm，并使用 `deepseek-v0.7.5` GitHub Release。
 两个 Host 产品分别打包支持表记录的 Core 精确身份，公开支持 macOS arm64 与 Node.js `>=24`。
 

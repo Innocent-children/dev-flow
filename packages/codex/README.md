@@ -11,14 +11,14 @@ Go Core 独自管理。
 
 | 项目 | 当前支持 |
 | --- | --- |
-| Package | `dev-flow-codex@0.7.5` |
+| Package | `dev-flow-codex@0.7.6` |
 | Bundled Core | `0.6.4` |
 | Platform | macOS arm64 |
 | Node.js | `>=24` |
 | Codex | `>=0.147.0` |
-| Release | [codex-v0.7.5](https://github.com/Innocent-children/dev-flow/releases/tag/codex-v0.7.5) |
+| Release | [codex-v0.7.6](https://github.com/Innocent-children/dev-flow/releases/tag/codex-v0.7.6) |
 
-`0.7.5` 的 normal release 已通过 registry package 安装、package/Core identity、setup、Core
+`0.7.6` 的 normal release 已通过 registry package 安装、package/Core identity、setup、Core
 handshake、remove、uninstall 和 repository-unchanged 门禁。上表记录已经验证的精确公开版本；
 下面的安装命令使用 npm `latest` dist-tag 获取当前最新稳定 package。
 
