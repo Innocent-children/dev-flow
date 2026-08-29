@@ -166,7 +166,9 @@ Ordinary maintenance preserves configuration and Task data. Factory reset requir
 current plan and moves exact data targets to macOS Trash by default. Codex global-package installation is observed
 independently from receipt and Plugin registration, so uninstall and factory reset still remove the package after
 registration has already disappeared. Interactive menus, confirmations, plans, and results read the current locale:
-`zh*` uses Simplified Chinese and every other locale uses English; JSON remains language-neutral. The public launcher
+`zh*` uses Simplified Chinese and every other locale uses English; JSON remains language-neutral. During installation,
+upgrade, repair, and reinstall, text output shows each current Host action and the package, registration, artifact,
+and readiness steps confirmed by the driver; JSON mode does not include progress text. The public launcher
 selects the newest available Core from installed Adapter receipts and forwards
 only the closed `webui` surface; it persists neither another Core nor workflow state. `webui start` may create the
 missing product-owned default data directory with mode `0700`; explicit data directories must already exist, and every

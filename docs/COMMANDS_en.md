@@ -30,6 +30,8 @@ The Codex global package is observed independently from its receipt and Plugin r
 is already absent, `uninstall` and `factory-reset` still remove an installed global package.
 The interactive interface reads the current locale: `zh*` uses Simplified Chinese and every other locale uses
 English. JSON output remains language-neutral.
+During install, upgrade, repair, and reinstall, text modes show each Host action and completed package, registration,
+artifact, and readiness step; `--json` omits these progress lines.
 
 | Entry | Purpose |
 | --- | --- |

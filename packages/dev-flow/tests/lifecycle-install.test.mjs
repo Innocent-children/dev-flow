@@ -9,9 +9,20 @@ import { runLifecycle } from "../lib/lifecycle.mjs";
 test("one install request makes Codex and DeepSeek ready and repeated install is zero-change", async (t) => {
   const fixture = await lifecycleFixture(t);
   const request = makeRequest("install");
-  const first = await runLifecycle(request, { ...fixture.dependencies, confirmPlan: async () => true });
+  const progress = [];
+  const first = await runLifecycle(request, {
+    ...fixture.dependencies,
+    confirmPlan: async () => true,
+    onProgress: (event) => progress.push(event),
+  });
   assert.equal(first.result.status, "ready");
   assert.equal(first.result.changed, true);
+  assert.deepEqual(progress.map((event) => `${event.type}:${event.action.actionId}`), [
+    "action_start:codex.default.install",
+    "action_complete:codex.default.install",
+    "action_start:deepseek.web.install",
+    "action_complete:deepseek.web.install",
+  ]);
   const second = await runLifecycle(request, { ...fixture.dependencies, confirmPlan: async () => true });
   assert.equal(second.result.changed, false);
   assert.deepEqual(second.plan.actions, []);

@@ -22,6 +22,7 @@ test("Codex driver observes through read-only Host authorities", async () => {
 
 test("Codex install and uninstall use exact package then lifecycle order", async () => {
   const calls = [];
+  const progress = [];
   const run = async (executable, arguments_) => {
     calls.push([executable, arguments_]);
     if (arguments_[0] === "status") return { stdout: `${JSON.stringify({ status: "ready", package_version: "0.8.0", core_version: "0.6.0", registration: { receipt: true } })}\n`, stderr: "" };
@@ -31,6 +32,7 @@ test("Codex install and uninstall use exact package then lifecycle order", async
   const installed = await driver.execute("install", {
     targetVersion: "0.8.0",
     observed: { hostAvailable: true, state: "absent", packageVersion: null },
+    onProgress: (step) => progress.push(step),
   });
   assert.equal(installed.changed, true);
   assert.deepEqual(calls.slice(0, 3), [
@@ -38,6 +40,7 @@ test("Codex install and uninstall use exact package then lifecycle order", async
     ["dev-flow-codex", ["setup", "--json"]],
     ["dev-flow-codex", ["status", "--json"]],
   ]);
+  assert.deepEqual(progress, ["codex.install_package", "codex.setup_registration", "codex.verify_ready"]);
   calls.length = 0;
   await driver.execute("uninstall", {
     targetVersion: null,

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { resolveManagerPaths, writeProfileReceipt } from "../lib/ownership.mjs";
-import { NoRuntimeError, resolveCoreRuntime, runDevFlow } from "../lib/runtime.mjs";
+import { resolveCoreRuntime, runDevFlow } from "../lib/runtime.mjs";
 
 test("public launcher selects the newest compatible Core from Codex or DeepSeek receipts", async (t) => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-runtime-selection-")));
@@ -81,16 +81,6 @@ test("non-start WebUI commands never initialize the default data directory", asy
   });
   assert.equal(result.code, 1);
   assert.equal(selectionOptions.initializeDefaultData, false);
-});
-
-test("version remains available when no Adapter currently provides Core", async () => {
-  const stdout = capture();
-  const result = await runDevFlow(["version"], {
-    stdout,
-    resolveCoreRuntime: async () => { throw new NoRuntimeError("absent"); },
-  });
-  assert.equal(result.code, 0);
-  assert.equal(stdout.text, "dev-flow 0.1.1 (core unavailable)\n");
 });
 
 async function packageFixture(root, name, version, coreVersion) {

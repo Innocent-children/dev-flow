@@ -76,6 +76,7 @@ Current stable artifacts support **macOS arm64** and **Node.js `>=24`**. See the
 
 The `dev-flow` entry below manages installation, upgrade, repair, reinstall, uninstall, and clean
 reinstall. Native Host commands remain available for diagnostic recovery.
+During execution, the installer shows each Host action and completed steps such as package installation, registration setup, artifact verification, and readiness readback; `--json` still emits one result object only.
 Its interactive interface uses Simplified Chinese for `zh*` locales and English for every other locale.
 
 ### Codex

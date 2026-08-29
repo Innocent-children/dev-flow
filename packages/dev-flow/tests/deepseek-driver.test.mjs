@@ -31,11 +31,15 @@ test("DeepSeek driver hides artifact lifecycle and records only verified explici
   };
   const driver = createDeepSeekDriver({ paths, run, now: () => new Date("2026-08-25T00:00:00Z") });
   const before = await driver.observe("web");
-  const result = await driver.execute("install", { profile: "web", targetVersion: "0.8.0", observed: before });
+  const progress = [];
+  const result = await driver.execute("install", {
+    profile: "web", targetVersion: "0.8.0", observed: before, onProgress: (step) => progress.push(step),
+  });
   assert.equal(result.changed, true);
   assert.deepEqual(await driver.knownProfiles(), ["web"]);
   assert.equal(calls.some(([executable, args]) => executable === "dsh" && args[0] === "plugin" && args.includes("add")), true);
   assert.equal(calls.some(([, args]) => args.some((value) => value === "PROFILE=web")), false);
+  assert.deepEqual(progress, ["deepseek.web.verify_artifact", "deepseek.web.add", "deepseek.web.write_receipt"]);
   t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
 });
 

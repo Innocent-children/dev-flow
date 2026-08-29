@@ -45,7 +45,7 @@ export function createDeepSeekDriver({
       return stableVersion(version, "DeepSeek target version");
     },
 
-    async execute(operation, { profile, targetVersion, observed, adopt = false }) {
+    async execute(operation, { profile, targetVersion, observed, adopt = false, onProgress = () => {} }) {
       if (!observed.hostAvailable) throw nextStepError("DeepSeek Harness is unavailable", "Install or update DSH, then rerun the same command.");
       if (operation === "uninstall") {
         if (observed.state === "absent") {
@@ -56,9 +56,11 @@ export function createDeepSeekDriver({
         try {
           await run(dshExecutable, ["plugin", "--profile", profile, "remove", "dev-flow-deepseek"], { environment });
           completedSteps.push(`deepseek.${profile}.remove`);
+          onProgress(`deepseek.${profile}.remove`);
           await assertContribution(run, dshExecutable, profile, environment, false);
           await removeProfileReceipt(paths, profile);
           completedSteps.push(`deepseek.${profile}.remove_receipt`);
+          onProgress(`deepseek.${profile}.remove_receipt`);
           return { changed: true, completedSteps };
         } catch (error) {
           throw partialError(error, completedSteps, `repair DeepSeek Profile ${profile}, then resume uninstall`);
@@ -79,13 +81,16 @@ export function createDeepSeekDriver({
         }
         const artifact = await realpath(join(temporaryRoot, report.filename));
         completedSteps.push(`deepseek.${profile}.verify_artifact`);
+        onProgress(`deepseek.${profile}.verify_artifact`);
         if (observed.state !== "absent") {
           await run(dshExecutable, ["plugin", "--profile", profile, "remove", "dev-flow-deepseek"], { environment });
           completedSteps.push(`deepseek.${profile}.remove`);
+          onProgress(`deepseek.${profile}.remove`);
           await assertContribution(run, dshExecutable, profile, environment, false);
         }
         await run(dshExecutable, ["plugin", "--profile", profile, "add", artifact], { environment });
         completedSteps.push(`deepseek.${profile}.add`);
+        onProgress(`deepseek.${profile}.add`);
         await assertContribution(run, dshExecutable, profile, environment, true);
         const timestamp = now().toISOString();
         await writeProfileReceipt(paths, {
@@ -98,6 +103,7 @@ export function createDeepSeekDriver({
           updated_at: timestamp,
         });
         completedSteps.push(`deepseek.${profile}.write_receipt`);
+        onProgress(`deepseek.${profile}.write_receipt`);
         return { changed: true, completedSteps, temporaryRoots: [temporaryRoot] };
       } catch (error) {
         throw partialError(error, completedSteps, `rerun repair for DeepSeek Profile ${profile}`);

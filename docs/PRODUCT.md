@@ -146,7 +146,8 @@ DSH 公开 lifecycle，不复制 Core 或 Host 注册权威。普通维护保留
 状态要求绑定当前计划的强确认，默认把精确数据目标移动到 macOS Trash。Codex 全局 package 的安装
 状态与 receipt、Plugin 注册状态分别判断，注册已缺失时仍能通过卸载或恢复出厂操作清理 package。
 交互菜单、确认提示、计划和结果读取当前 locale：`zh*` 使用简体中文，其余 locale 统一使用英文；JSON
-输出保持语言无关。公共 launcher 从已安装 Adapter 的 receipt 中选择最新可用 Core，只转发闭合的
+输出保持语言无关。安装、升级、修复和重装的文本输出会在执行期间逐项显示当前 Host 动作，以及驱动已确认完成的
+package、注册、制品和就绪检查步骤；JSON 模式不混入进度文本。公共 launcher 从已安装 Adapter 的 receipt 中选择最新可用 Core，只转发闭合的
 `webui` 命令，不保存第二份 Core 或流程状态。`webui start` 可按 `0700` 创建缺失的产品默认数据目录；
 显式数据目录必须预先存在，其余 WebUI 命令保持零写入。平台与安装要求见 Support Matrix。
 

@@ -27,6 +27,7 @@ dev-flow
 Codex 全局 package 与 receipt、Plugin 注册分别判断；即使注册已缺失，`uninstall` 和
 `factory-reset` 仍会卸载已安装的全局 package。
 交互界面读取当前 locale：`zh*` 使用简体中文，其余 locale 统一使用英文；JSON 输出保持语言无关。
+文本模式会在安装、升级、修复和重装执行期间逐项显示 Host 动作及已完成的 package、注册、制品和就绪检查步骤；`--json` 不输出这些进度行。
 
 | 入口 | 作用 |
 | --- | --- |

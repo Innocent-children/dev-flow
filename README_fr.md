@@ -73,6 +73,7 @@ Les artefacts stables actuels prennent en charge **macOS arm64** et **Node.js `>
 
 L’entrée `dev-flow` gère installation, mise à niveau, réparation, réinstallation, désinstallation et
 réinstallation propre. Les commandes natives du Host restent disponibles pour la reprise diagnostique.
+Pendant l’exécution, l’installateur affiche chaque action du Host et les étapes réellement terminées, notamment l’installation du package, la configuration de l’enregistrement, la vérification de l’artefact et la relecture de l’état prêt ; `--json` continue de produire un seul objet de résultat.
 L’interface interactive utilise le chinois simplifié pour les locales `zh*` et l’anglais pour toutes les autres.
 
 ### Codex

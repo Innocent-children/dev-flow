@@ -38,3 +38,6 @@ Core, and forwards only the closed WebUI command surface. It does not persist an
 The rich first-install result shows the Dev Flow mark, verified Host states, conversation selectors, WebUI commands,
 and lifecycle commands. `zh*` locales use Simplified Chinese; every other locale uses English. Plain and JSON modes
 remain automation-safe.
+While install, upgrade, repair, or reinstall is running, rich and plain text output shows each Host action and each
+completed package, registration, artifact, and readiness step. JSON mode remains a single result object with no
+progress lines.

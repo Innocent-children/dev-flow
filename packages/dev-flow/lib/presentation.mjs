@@ -12,6 +12,19 @@ const chinese = {
   next: "下一步",
   changed: "已变更",
   unchanged: "无变更",
+  progress: {
+    actionStart: "开始",
+    actionComplete: "完成",
+    steps: {
+      "codex.install_package": "安装 Codex Adapter 全局 package",
+      "codex.setup_registration": "配置 Codex marketplace、Plugin 和 MCP 注册",
+      "codex.verify_ready": "回读并确认 Codex Adapter 已就绪",
+      "deepseek.verify_artifact": "下载并校验 DeepSeek Adapter 制品",
+      "deepseek.remove": "移除 DeepSeek Profile 中的旧 Adapter",
+      "deepseek.add": "把 DeepSeek Adapter 加入目标 Profile",
+      "deepseek.write_receipt": "写入并保存 DeepSeek Profile 安装记录",
+    },
+  },
   continuePrompt: "继续？[y/N] ",
   operations: {
     status: "状态",
@@ -50,6 +63,19 @@ const english = {
   next: "Next step",
   changed: "Changed",
   unchanged: "No changes",
+  progress: {
+    actionStart: "Starting",
+    actionComplete: "Completed",
+    steps: {
+      "codex.install_package": "Install the global Codex Adapter package",
+      "codex.setup_registration": "Configure the Codex marketplace, Plugin, and MCP registration",
+      "codex.verify_ready": "Read back and verify that the Codex Adapter is ready",
+      "deepseek.verify_artifact": "Download and verify the DeepSeek Adapter artifact",
+      "deepseek.remove": "Remove the previous Adapter from the DeepSeek Profile",
+      "deepseek.add": "Add the DeepSeek Adapter to the target Profile",
+      "deepseek.write_receipt": "Write and save the DeepSeek Profile installation receipt",
+    },
+  },
   continuePrompt: "Continue? [y/N] ",
   operations: Object.fromEntries([
     "status", "doctor", "install", "upgrade", "repair", "reinstall", "uninstall", "factory-reset",
@@ -102,6 +128,29 @@ export function renderPlan(plan, { mode = "plain", language = resolveLanguage() 
   const lines = [`${messages.plan} ${messages.operations[plan.operation] ?? plan.operation} (${plan.planId})`];
   for (const impact of plan.impacts) lines.push(`- ${translateImpact(impact, language, messages)}`);
   return `${lines.join("\n")}\n`;
+}
+
+export function renderProgress(event, { language = resolveLanguage() } = {}) {
+  const messages = messagesForLanguage(language);
+  if (event.type === "action_start" || event.type === "action_complete") {
+    const state = event.type === "action_start" ? messages.progress.actionStart : messages.progress.actionComplete;
+    return `${event.type === "action_start" ? "→" : "✓"} ${state}: ${actionLabel(event.action, messages)}\n`;
+  }
+  if (event.type === "step_complete") {
+    return `  ✓ ${stepLabel(event.stepId, messages)}\n`;
+  }
+  throw new Error(`unsupported progress event ${event.type}`);
+}
+
+function actionLabel(action, messages) {
+  const host = messages.hosts[action.host] ?? action.host;
+  const profile = action.profile ? ` Profile ${action.profile}` : "";
+  return `${messages.operations[action.operation] ?? action.operation} ${host}${profile}`;
+}
+
+function stepLabel(stepId, messages) {
+  const normalized = stepId.replace(/^deepseek\.[^.]+\./u, "deepseek.");
+  return messages.progress.steps[normalized] ?? stepId;
 }
 
 function translateImpact(impact, language, messages) {

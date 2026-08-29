@@ -34,7 +34,7 @@ export function createCodexDriver({
       return stableVersion(version, "Codex target version");
     },
 
-    async execute(operation, { targetVersion, observed }) {
+    async execute(operation, { targetVersion, observed, onProgress = () => {} }) {
       if (!observed.hostAvailable) throw nextStepError("Codex Host is unavailable", "Install or update Codex, then rerun the same command.");
       if (operation === "uninstall") {
         if (observed.state === "absent" && !observed.packageInstalled) return { changed: false, completedSteps: [] };
@@ -43,9 +43,11 @@ export function createCodexDriver({
           if (observed.state !== "absent") {
             await run(adapterExecutable, ["remove", "--json"], { environment });
             completedSteps.push("codex.remove_registration");
+            onProgress("codex.remove_registration");
           }
           await run(npmExecutable, ["uninstall", "--global", "dev-flow-codex"], { environment });
           completedSteps.push("codex.uninstall_package");
+          onProgress("codex.uninstall_package");
           return { changed: true, completedSteps };
         } catch (error) {
           throw partialError(error, completedSteps, "repair Codex lifecycle state, then resume uninstall");
@@ -63,13 +65,16 @@ export function createCodexDriver({
       try {
         await run(npmExecutable, ["install", "--global", `dev-flow-codex@${targetVersion}`], { environment });
         completedSteps.push("codex.install_package");
+        onProgress("codex.install_package");
         await run(adapterExecutable, ["setup", "--json"], { environment });
         completedSteps.push("codex.setup_registration");
+        onProgress("codex.setup_registration");
         const verified = await optionalJSON(run, adapterExecutable, ["status", "--json"], { environment });
         if (!verified.available || verified.value.status !== "ready" || verified.value.package_version !== targetVersion) {
           throw new Error("Codex status readback did not verify the target version");
         }
         completedSteps.push("codex.verify_ready");
+        onProgress("codex.verify_ready");
         return { changed: true, completedSteps };
       } catch (error) {
         throw partialError(error, completedSteps, "rerun repair for Codex");

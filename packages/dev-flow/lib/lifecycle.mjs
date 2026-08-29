@@ -12,7 +12,7 @@ import {
   writeOwnedJSON,
 } from "./ownership.mjs";
 import { createLifecyclePlan } from "./plan.mjs";
-import { renderPlan, renderResult, resolveLanguage } from "./presentation.mjs";
+import { renderPlan, renderProgress, renderResult, resolveLanguage } from "./presentation.mjs";
 
 export async function runMain(arguments_, dependencies = {}) {
   const input = dependencies.input ?? process.stdin;
@@ -27,7 +27,10 @@ export async function runMain(arguments_, dependencies = {}) {
       noColor: dependencies.noColor ?? process.env.NO_COLOR !== undefined,
     });
     if (request.interactive) request = await (dependencies.promptForRequest ?? promptForRequest)({ input, output, language, environment });
-    const result = await runLifecycle(request, { ...dependencies, input, output, environment, language });
+    const onProgress = request.outputMode === "json" || !["install", "upgrade", "repair", "reinstall"].includes(request.operation)
+      ? undefined
+      : (event) => output.write(renderProgress(event, { language }));
+    const result = await runLifecycle(request, { ...dependencies, input, output, environment, language, onProgress });
     if (request.outputMode !== "json" && result.plan) output.write(renderPlan(result.plan, { mode: request.outputMode, language }));
     output.write(renderResult(result.result, {
       mode: request.outputMode,
@@ -87,10 +90,15 @@ export async function runLifecycle(request, dependencies = {}) {
   let trashRoot = null;
   try {
     for (const action of plan.actions) {
+      dependencies.onProgress?.({ type: "action_start", action });
       let effect;
       if (action.owner === "codex") {
         const current = await codex.observe();
-        effect = await codex.execute(action.operation, { targetVersion: action.targetVersion, observed: current });
+        effect = await codex.execute(action.operation, {
+          targetVersion: action.targetVersion,
+          observed: current,
+          onProgress: (stepId) => dependencies.onProgress?.({ type: "step_complete", action, stepId }),
+        });
       } else if (action.owner === "deepseek") {
         const current = await deepseek.observe(action.profile);
         effect = await deepseek.execute(action.operation, {
@@ -98,6 +106,7 @@ export async function runLifecycle(request, dependencies = {}) {
           targetVersion: action.targetVersion,
           observed: current,
           adopt: request.adopt,
+          onProgress: (stepId) => dependencies.onProgress?.({ type: "step_complete", action, stepId }),
         });
       } else if (action.operation === "cleanup") {
         effect = await executeCleanup(request, observed, paths, dependencies);
@@ -109,6 +118,7 @@ export async function runLifecycle(request, dependencies = {}) {
       }
       changed ||= effect.changed;
       completedActions.push(action.actionId, ...(effect.completedSteps ?? []));
+      dependencies.onProgress?.({ type: "action_complete", action });
       run = await (dependencies.recordRun ?? recordRun)(paths, run, {
         completed_action_ids: [...completedActions],
         failed_action_id: null,

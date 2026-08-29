@@ -3,7 +3,7 @@ import { PassThrough, Readable, Writable } from "node:stream";
 import test from "node:test";
 
 import { CLIError, confirmPlan, parseArguments, promptForRequest } from "../lib/cli.mjs";
-import { renderPlan, renderResult, resolveLanguage } from "../lib/presentation.mjs";
+import { renderPlan, renderProgress, renderResult, resolveLanguage } from "../lib/presentation.mjs";
 
 test("parser normalizes every lifecycle operation through one closed entry", () => {
   for (const operation of ["status", "doctor", "install", "upgrade", "repair", "reinstall", "uninstall", "factory-reset"]) {
@@ -57,6 +57,14 @@ test("rich successful install renders one brand screen and contextual next steps
   assert.match(text, /dev-flow status/u);
   assert.doesNotMatch(renderResult(result, { mode: "plain", language: "en" }), /██████╗/u);
   assert.equal(renderResult(result, { mode: "json", language: "zh-CN" }), `${JSON.stringify(result)}\n`);
+});
+
+test("installation progress renders readable localized actions and concrete Host steps", () => {
+  const action = { operation: "install", host: "deepseek", profile: "web" };
+  assert.equal(renderProgress({ type: "action_start", action }, { language: "zh-CN" }), "→ 开始: 安装 DeepSeek Profile web\n");
+  assert.equal(renderProgress({ type: "step_complete", action, stepId: "deepseek.web.verify_artifact" }, { language: "zh-CN" }), "  ✓ 下载并校验 DeepSeek Adapter 制品\n");
+  assert.equal(renderProgress({ type: "step_complete", action, stepId: "deepseek.web.write_receipt" }, { language: "en" }), "  ✓ Write and save the DeepSeek Profile installation receipt\n");
+  assert.equal(renderProgress({ type: "action_complete", action }, { language: "en" }), "✓ Completed: install deepseek Profile web\n");
 });
 
 test("locale selection uses Chinese only for zh and English for every other locale", () => {

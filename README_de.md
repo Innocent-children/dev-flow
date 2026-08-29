@@ -72,6 +72,7 @@ Host-Kompatibilität stehen in der [Support Matrix](docs/SUPPORT-MATRIX_en.md).
 
 Der `dev-flow`-Einstieg verwaltet Installation, Upgrade, Reparatur, Neuinstallation,
 Deinstallation und saubere Neuinstallation. Native Host-Befehle bleiben für die Diagnose-Recovery verfügbar.
+Während der Ausführung zeigt das Installationsprogramm jede Host-Aktion und tatsächlich abgeschlossene Schritte wie Package-Installation, Registrierungseinrichtung, Artefaktprüfung und Bereitschaftsprüfung an; `--json` gibt weiterhin nur ein einzelnes Ergebnisobjekt aus.
 Die interaktive Oberfläche verwendet für `zh*` vereinfachtes Chinesisch und für alle anderen Locales Englisch.
 
 ### Codex
