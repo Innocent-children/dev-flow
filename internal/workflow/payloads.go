@@ -151,13 +151,11 @@ func DecodeStandardPayload(node domain.NodeID, raw []byte) (StandardPayload, any
 	if len(raw) > domain.MaxActionPayloadBytes || !utf8.Valid(raw) || rejectDuplicateMembers(raw) != nil {
 		return StandardPayload{}, nil, domain.ErrInvalidArgument
 	}
-	if violations := missingMemberViolations("payload", raw, "transition_id", "summary", "reason", "artifacts", "method_evidence", "node_result"); len(violations) != 0 {
-		return StandardPayload{}, nil, domain.InvalidArgumentViolations(violations...)
+	schema, ok := payloadSchema(node)
+	if !ok {
+		return StandardPayload{}, nil, domain.ErrInvalidArgument
 	}
-	if violations := missingArrayItemViolations("payload.artifacts", raw, "artifacts", "role", "path", "digest", "summary"); len(violations) != 0 {
-		return StandardPayload{}, nil, domain.InvalidArgumentViolations(violations...)
-	}
-	if violations := missingArrayItemViolations("payload.method_evidence", raw, "method_evidence", "step_id", "status", "capability", "summary"); len(violations) != 0 {
+	if violations := requiredMemberViolations("payload", raw, schema); len(violations) != 0 {
 		return StandardPayload{}, nil, domain.InvalidArgumentViolations(violations...)
 	}
 	if violations := unknownMemberViolations("payload", raw, reflect.TypeOf(StandardPayload{})); len(violations) != 0 {
@@ -188,12 +186,6 @@ func DecodeStandardPayload(node domain.NodeID, raw []byte) (StandardPayload, any
 	default:
 		return StandardPayload{}, nil, domain.ErrInvalidArgument
 	}
-	if violations := nodeResultMemberViolations(node, envelope.NodeResult); len(violations) != 0 {
-		return StandardPayload{}, nil, domain.InvalidArgumentViolations(violations...)
-	}
-	if !nodeResultHasRequiredMembers(node, envelope.NodeResult) {
-		return StandardPayload{}, nil, domain.ErrInvalidArgument
-	}
 	if violations := unknownMemberViolations("payload.node_result", envelope.NodeResult, reflect.TypeOf(result)); len(violations) != 0 {
 		return StandardPayload{}, nil, domain.InvalidArgumentViolations(violations...)
 	}
@@ -203,66 +195,178 @@ func DecodeStandardPayload(node domain.NodeID, raw []byte) (StandardPayload, any
 	return envelope, result, nil
 }
 
-// nodeResultRequiredMembers is the closed member set of one node result. It is
-// the single source for both the boolean gate and the field-level projection.
-func nodeResultRequiredMembers(node domain.NodeID) []string {
+// payloadSchema returns the canonical payload schema of one node's results. The
+// canonical schema stays the authority for the internal payload, retained
+// records and the apply boundary.
+func payloadSchema(node domain.NodeID) (map[string]any, bool) {
+	var kind domain.ActionKind
 	switch node {
 	case domain.NodeRequirements:
-		return []string{"problem_class", "baseline", "unresolved_questions", "changed_paths", "no_file_changes"}
-	case domain.NodeDesign, domain.NodeTasks:
-		return []string{"problem_class", "baseline", "findings", "changed_paths", "no_file_changes"}
+		kind = domain.ActionCompleteRequirements
+	case domain.NodeDesign:
+		kind = domain.ActionCompleteDesign
+	case domain.NodeTasks:
+		kind = domain.ActionCompleteTasks
 	case domain.NodeImplement:
-		return []string{"problem_class", "task_plan_revision", "completed_work_item_ids", "changed_paths", "no_file_changes", "deviations", "findings"}
+		kind = domain.ActionCompleteImplementation
 	case domain.NodeTest:
-		return []string{"problem_class", "checks", "failed_items", "unverified_items", "manual_handoff_items", "findings", "changed_paths", "no_file_changes"}
+		kind = domain.ActionCompleteTest
 	case domain.NodeComprehensionReview:
-		return []string{"problem_class", "explained_components", "unresolved_questions", "unnecessary_abstractions", "maintenance_risks", "user_confirmation", "findings", "changed_paths", "no_file_changes"}
+		kind = domain.ActionCompleteComprehensionReview
 	case domain.NodeRefactor:
-		return []string{"problem_class", "changed_paths", "no_file_changes", "simplifications", "behavior_change_intended", "findings"}
+		kind = domain.ActionCompleteRefactor
 	case domain.NodeDelivery:
-		return []string{"problem_class", "acceptance", "automated_evidence_ids", "manual_evidence_ids", "test_record_id", "comprehension_record_id", "unverified_items", "risks", "findings", "changed_paths", "no_file_changes"}
+		kind = domain.ActionCompleteDelivery
+	default:
+		return nil, false
+	}
+	for _, entry := range ActionPayloadSchemas() {
+		if entry.Kind == kind {
+			return entry.Schema, true
+		}
+	}
+	return nil, false
+}
+
+// requiredMemberViolations walks one closed schema and reports every required
+// member missing from raw at a stable field path: members extend the path with
+// `.name` and array entries with `[index]`. It covers the structures the closed
+// contract declares — objects with required sets, nullable object unions, oneOf
+// branches and arrays of objects — and leaves every type, format and value
+// failure to the closed decoder, so one input never produces two failure
+// classes for the same member.
+func requiredMemberViolations(path string, raw []byte, schema map[string]any) []domain.ContractViolation {
+	if schema == nil || isJSONNull(raw) {
+		return nil
+	}
+	if alternatives := schemaAlternatives(schema, "anyOf"); alternatives != nil {
+		return unionMemberViolations(path, raw, alternatives)
+	}
+	if alternatives := schemaAlternatives(schema, "oneOf"); alternatives != nil {
+		return unionMemberViolations(path, raw, alternatives)
+	}
+	properties, _ := schema["properties"].(map[string]any)
+	if len(properties) == 0 {
+		if items, ok := schema["items"].(map[string]any); ok {
+			return arrayMemberViolations(path, raw, items)
+		}
+		return nil
+	}
+	members, ok := jsonObjectMembers(raw)
+	if !ok {
+		return nil
+	}
+	var out []domain.ContractViolation
+	for _, name := range schemaRequiredNames(schema) {
+		if _, present := members[name]; present {
+			continue
+		}
+		if violation := domain.Violation(path+"."+name, domain.RuleRequiredMemberMissing); violation.Path != "" {
+			out = append(out, violation)
+		}
+	}
+	names := make([]string, 0, len(members))
+	for name := range members {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		member, known := properties[name].(map[string]any)
+		if !known {
+			continue
+		}
+		out = append(out, requiredMemberViolations(path+"."+name, members[name], member)...)
+	}
+	return out
+}
+
+// unionMemberViolations checks one closed union against the first alternative
+// whose declared type matches the value. A value matching no declared type has
+// no member presence to report; the closed decoder refuses it.
+func unionMemberViolations(path string, raw []byte, alternatives []any) []domain.ContractViolation {
+	valueType := rawJSONType(raw)
+	for _, alternative := range alternatives {
+		schema, ok := alternative.(map[string]any)
+		if !ok || !unionAlternativeMatches(schema, valueType) {
+			continue
+		}
+		return requiredMemberViolations(path, raw, schema)
+	}
+	return nil
+}
+
+func unionAlternativeMatches(schema map[string]any, valueType string) bool {
+	declared, ok := schema["type"].(string)
+	if !ok {
+		if _, hasProperties := schema["properties"]; hasProperties {
+			declared = "object"
+		} else if _, hasItems := schema["items"]; hasItems {
+			declared = "array"
+		} else {
+			return true
+		}
+	}
+	return declared == valueType
+}
+
+func schemaAlternatives(schema map[string]any, keyword string) []any {
+	alternatives, _ := schema[keyword].([]any)
+	return alternatives
+}
+
+func schemaRequiredNames(schema map[string]any) []string {
+	switch names := schema["required"].(type) {
+	case []string:
+		return names
+	case []any:
+		out := make([]string, 0, len(names))
+		for _, name := range names {
+			if text, ok := name.(string); ok {
+				out = append(out, text)
+			}
+		}
+		return out
 	default:
 		return nil
 	}
 }
-func nodeResultMemberViolations(node domain.NodeID, raw []byte) []domain.ContractViolation {
-	members := nodeResultRequiredMembers(node)
-	if len(members) == 0 {
-		return nil
-	}
-	violations := missingMemberViolations("payload.node_result", raw, members...)
-	if node == domain.NodeTest {
-		violations = append(violations, missingArrayItemViolations("payload.node_result.checks", raw, "checks", "source", "name", "status", "summary", "command_count", "full_suite")...)
-	}
-	return violations
-}
-func missingMemberViolations(path string, raw []byte, names ...string) []domain.ContractViolation {
-	var value map[string]json.RawMessage
-	if json.Unmarshal(raw, &value) != nil {
-		return nil
-	}
-	var out []domain.ContractViolation
-	for _, name := range names {
-		if _, present := value[name]; !present {
-			out = append(out, domain.Violation(path+"."+name, domain.RuleRequiredMemberMissing))
-		}
-	}
-	return out
-}
-func missingArrayItemViolations(path string, raw []byte, field string, names ...string) []domain.ContractViolation {
-	items, ok := rawObjectField(raw, field)
-	if !ok {
-		return nil
-	}
+
+func arrayMemberViolations(path string, raw []byte, items map[string]any) []domain.ContractViolation {
 	var entries []json.RawMessage
-	if json.Unmarshal(items, &entries) != nil {
+	if json.Unmarshal(raw, &entries) != nil {
 		return nil
 	}
 	var out []domain.ContractViolation
 	for index, entry := range entries {
-		out = append(out, missingMemberViolations(fmt.Sprintf("%s[%d]", path, index), entry, names...)...)
+		out = append(out, requiredMemberViolations(fmt.Sprintf("%s[%d]", path, index), entry, items)...)
 	}
 	return out
+}
+
+func jsonObjectMembers(raw []byte) (map[string]json.RawMessage, bool) {
+	var members map[string]json.RawMessage
+	if json.Unmarshal(raw, &members) != nil || members == nil {
+		return nil, false
+	}
+	return members, true
+}
+
+// rawJSONType classifies a raw JSON value for union selection only. The closed
+// decoder stays the authority for type enforcement.
+func rawJSONType(raw []byte) string {
+	trimmed := bytes.TrimSpace(raw)
+	switch {
+	case bytes.HasPrefix(trimmed, []byte("{")):
+		return "object"
+	case bytes.HasPrefix(trimmed, []byte("[")):
+		return "array"
+	case bytes.HasPrefix(trimmed, []byte(`"`)):
+		return "string"
+	case bytes.Equal(trimmed, []byte("true")), bytes.Equal(trimmed, []byte("false")):
+		return "boolean"
+	default:
+		return "integer"
+	}
 }
 
 var rawMessageType = reflect.TypeOf(json.RawMessage{})
@@ -349,85 +453,7 @@ func ValidateRetainedPayload(node domain.NodeID, raw []byte) error {
 	return ValidatePayload(definition, node, envelope, result, nodeDefinition.SemanticMethodSteps)
 }
 
-func nodeResultHasRequiredMembers(node domain.NodeID, raw []byte) bool {
-	switch node {
-	case domain.NodeRequirements:
-		return hasJSONMembers(raw, "problem_class", "baseline", "unresolved_questions", "changed_paths", "no_file_changes") &&
-			objectFieldHasMembers(raw, "baseline", false, "goal", "scope", "out_of_scope", "acceptance_criteria", "constraints", "assumptions")
-	case domain.NodeDesign:
-		return hasJSONMembers(raw, "problem_class", "baseline", "findings", "changed_paths", "no_file_changes") &&
-			objectFieldHasMembers(raw, "baseline", true, "requirements_revision", "approach", "components", "decisions", "rejected_alternatives", "complexity_justification", "risks")
-	case domain.NodeTasks:
-		if !hasJSONMembers(raw, "problem_class", "baseline", "findings", "changed_paths", "no_file_changes") || !objectFieldHasMembers(raw, "baseline", true, "design_revision", "work_items") {
-			return false
-		}
-		baseline, ok := rawObjectField(raw, "baseline")
-		return !ok || isJSONNull(baseline) || arrayItemsHaveMembers(baseline, "work_items", "work_item_id", "summary", "expected_paths", "acceptance_indexes", "verification_steps", "dependencies")
-	case domain.NodeImplement:
-		return hasJSONMembers(raw, "problem_class", "task_plan_revision", "completed_work_item_ids", "changed_paths", "no_file_changes", "deviations", "findings")
-	case domain.NodeTest:
-		return hasJSONMembers(raw, "problem_class", "checks", "failed_items", "unverified_items", "manual_handoff_items", "findings", "changed_paths", "no_file_changes") &&
-			arrayItemsHaveMembers(raw, "checks", "source", "name", "status", "summary", "command_count", "full_suite")
-	case domain.NodeComprehensionReview:
-		return hasJSONMembers(raw, "problem_class", "explained_components", "unresolved_questions", "unnecessary_abstractions", "maintenance_risks", "user_confirmation", "findings", "changed_paths", "no_file_changes") &&
-			objectFieldHasMembers(raw, "user_confirmation", true, "source", "status", "summary")
-	case domain.NodeRefactor:
-		return hasJSONMembers(raw, "problem_class", "changed_paths", "no_file_changes", "simplifications", "behavior_change_intended", "findings")
-	case domain.NodeDelivery:
-		return hasJSONMembers(raw, "problem_class", "acceptance", "automated_evidence_ids", "manual_evidence_ids", "test_record_id", "comprehension_record_id", "unverified_items", "risks", "findings", "changed_paths", "no_file_changes") &&
-			arrayItemsHaveMembers(raw, "acceptance", "criterion", "status")
-	default:
-		return false
-	}
-}
-
-func hasJSONMembers(raw []byte, names ...string) bool {
-	var value map[string]json.RawMessage
-	if json.Unmarshal(raw, &value) != nil {
-		return false
-	}
-	for _, name := range names {
-		if _, ok := value[name]; !ok {
-			return false
-		}
-	}
-	return true
-}
-func rawObjectField(raw []byte, name string) (json.RawMessage, bool) {
-	var value map[string]json.RawMessage
-	if json.Unmarshal(raw, &value) != nil {
-		return nil, false
-	}
-	field, ok := value[name]
-	return field, ok
-}
 func isJSONNull(raw []byte) bool { return bytes.Equal(bytes.TrimSpace(raw), []byte("null")) }
-func objectFieldHasMembers(raw []byte, name string, nullable bool, members ...string) bool {
-	field, ok := rawObjectField(raw, name)
-	if !ok {
-		return false
-	}
-	if isJSONNull(field) {
-		return nullable
-	}
-	return hasJSONMembers(field, members...)
-}
-func arrayItemsHaveMembers(raw []byte, name string, members ...string) bool {
-	field, ok := rawObjectField(raw, name)
-	if !ok {
-		return false
-	}
-	var items []json.RawMessage
-	if json.Unmarshal(field, &items) != nil {
-		return false
-	}
-	for _, item := range items {
-		if !hasJSONMembers(item, members...) {
-			return false
-		}
-	}
-	return true
-}
 func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, envelope StandardPayload, result any, steps []domain.SemanticMethodStep) error {
 	transition, err := TransitionFor(definition, source, envelope.TransitionID)
 	if err != nil {

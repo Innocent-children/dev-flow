@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"unicode/utf8"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
 )
@@ -60,6 +61,116 @@ func ActionPayloadSchemas() []ActionPayloadSchema {
 		{domain.ActionCompleteImplementation, implementation}, {domain.ActionCompleteTest, test}, {domain.ActionCompleteComprehensionReview, comprehension},
 		{domain.ActionCompleteRefactor, refactor}, {domain.ActionCompleteDelivery, delivery}, {domain.ActionResolveBlocker, blocker},
 	}
+}
+
+// ActionSubmissionPayloadSchemas derives the node submission contracts from the
+// canonical payload schemas. Each contract is identical to the canonical schema
+// except that the system-state members Core fills from the current Task snapshot
+// are optional: a current Host template omits them, and an older client may
+// still send the exact current value. The canonical contract keeps them
+// required, so the persisted payload, history records and apply path are
+// unchanged.
+func ActionSubmissionPayloadSchemas() []ActionPayloadSchema {
+	entries := ActionPayloadSchemas()
+	for index := range entries {
+		properties, _ := entries[index].Schema["properties"].(map[string]any)
+		nodeResult, _ := properties["node_result"].(map[string]any)
+		nodeProperties, _ := nodeResult["properties"].(map[string]any)
+		switch entries[index].Kind {
+		case domain.ActionCompleteDesign:
+			makeRequiredMemberOptional(nullableObjectSchema(nodeProperties["baseline"]), "requirements_revision")
+		case domain.ActionCompleteTasks:
+			makeRequiredMemberOptional(nullableObjectSchema(nodeProperties["baseline"]), "design_revision")
+		case domain.ActionCompleteImplementation:
+			makeRequiredMemberOptional(nodeResult, "task_plan_revision")
+		}
+	}
+	return entries
+}
+
+// SubmissionNodeResultSchema returns the closed node_result contract one
+// submission tool accepts for its Action kind.
+func SubmissionNodeResultSchema(kind domain.ActionKind) (map[string]any, error) {
+	for _, entry := range ActionSubmissionPayloadSchemas() {
+		if entry.Kind == kind {
+			properties, _ := entry.Schema["properties"].(map[string]any)
+			schema, _ := properties["node_result"].(map[string]any)
+			if schema == nil {
+				return nil, domain.ErrInvalidArgument
+			}
+			return schema, nil
+		}
+	}
+	return nil, domain.ErrInvalidArgument
+}
+
+// ValidateSubmissionNodeResult checks one submitted node_result against the
+// submission contract of its Action kind and reports every required member that
+// is missing, with the exact field path. It is the MCP submission boundary, so
+// every reported failure is a proven zero-write failure.
+func ValidateSubmissionNodeResult(kind domain.ActionKind, raw json.RawMessage) error {
+	if err := ValidateSubmissionNodeResultSyntax(raw); err != nil {
+		return err
+	}
+	schema, err := SubmissionNodeResultSchema(kind)
+	if err != nil {
+		return err
+	}
+	if violations := requiredMemberViolations("node_result", raw, schema); len(violations) != 0 {
+		return domain.InvalidArgumentViolations(violations...)
+	}
+	return nil
+}
+
+// ValidateSubmissionNodeResultSyntax rejects malformed or ambiguous JSON before
+// Application hydrates system-state members. Hydration decodes object members
+// into maps, so duplicate members must be rejected first instead of being
+// silently collapsed during re-marshaling.
+func ValidateSubmissionNodeResultSyntax(raw json.RawMessage) error {
+	if len(raw) == 0 || len(raw) > domain.MaxActionPayloadBytes || !utf8.Valid(raw) || !json.Valid(raw) || rejectDuplicateMembers(raw) != nil {
+		return domain.ErrInvalidArgument
+	}
+	return nil
+}
+
+// nullableObjectSchema unwraps the closed null/object union of one optional
+// baseline member into its object alternative.
+func nullableObjectSchema(value any) map[string]any {
+	union, _ := value.(map[string]any)
+	alternatives, _ := union["anyOf"].([]any)
+	if len(alternatives) == 0 {
+		return nil
+	}
+	object, _ := alternatives[0].(map[string]any)
+	return object
+}
+
+// makeRequiredMemberOptional removes one system-state member from the required
+// set of a closed object schema while keeping its property declaration, so the
+// meaning of a submitted value is unchanged and only its presence becomes
+// optional.
+func makeRequiredMemberOptional(schema map[string]any, name string) {
+	if schema == nil {
+		return
+	}
+	var kept []string
+	switch required := schema["required"].(type) {
+	case []string:
+		for _, member := range required {
+			if member != name {
+				kept = append(kept, member)
+			}
+		}
+	case []any:
+		for _, member := range required {
+			if text, _ := member.(string); text != "" && text != name {
+				kept = append(kept, text)
+			}
+		}
+	default:
+		return
+	}
+	schema["required"] = kept
 }
 
 // ActionPayloadSchemaFor projects the exact payload schema for one persisted Action.

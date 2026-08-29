@@ -541,16 +541,15 @@ func actionSubmissionSchema(kind domain.ActionKind) map[string]any {
 	if err != nil || node.NodeID == domain.NodeBlocked {
 		panic("invalid Action submission kind")
 	}
-	var nodeResult map[string]any
-	for _, entry := range workflow.ActionPayloadSchemas() {
-		if entry.Kind == kind {
-			nodeResult = flattenSchema(entry.Schema["properties"].(map[string]any)["node_result"])
-			break
-		}
-	}
-	if nodeResult == nil {
+	// The published tool schema is the submission contract: identical to the
+	// canonical node_result schema except that the system-state members Core
+	// fills from the current Task snapshot are optional. The projection rules
+	// are unchanged.
+	submissionSchema, err := workflow.SubmissionNodeResultSchema(kind)
+	if err != nil {
 		panic("missing Action submission payload schema")
 	}
+	nodeResult := flattenSchema(submissionSchema)
 	artifact := obj([]string{"path", "digest", "summary"}, map[string]any{"path": str(), "digest": digest(), "summary": str()})
 	artifactProperties := map[string]any{"other_process": map[string]any{"type": "array", "maxItems": 16, "items": artifact}}
 	artifactRequired := []string{"other_process"}

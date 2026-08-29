@@ -90,6 +90,10 @@ Core 会持续返回：
 
 Codex 完成当前节点工作后，调用 live Action 的 `submission_tool`，只提交 Task ID、Action ID、
 `transition_id`、artifact slots、method results 和节点结果；Core 补齐完整 mutation 输入。
+Design、Tasks 与 Implementation 节点结果不发送 `requirements_revision`、`design_revision` 与
+`task_plan_revision`；Core 确认当前 Action 身份后从同一 Task 快照填充。已证明零写入的
+`required_member_missing` 只可按 `allowed_paths` 和当前节点已有事实修正一次；需要新的用户决定时
+Codex 停止并请求输入。
 
 ## 两仓声明、权限与可选索引
 

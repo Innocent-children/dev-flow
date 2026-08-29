@@ -146,15 +146,23 @@ remain evidence. Application validates per-repository paths against the issuance
 observation before choosing rebind or `REPOSITORY_DRIFT`. An exact binding paired with declared file
 changes returns the field rule `repository_effect_not_observed` instead of being reported as real drift.
 
-Before staging an Action operation, `SubmitAction` performs two zero-write preflights. Workflow validates
-the closed payload shape and field format; Application then checks revisions, records, work items,
-passing-test conditions, user confirmation, acceptance, and evidence sets against the current Task.
-Failures return value-free `ContractViolation` or `GuardFailure` detail. Only current values, current
-sets, and current acceptance that Core can determine uniquely enter `correct_current_action`; other
-rules provide location detail only. Application also builds and validates the complete next Task,
-Action, Event, and Claim mutation before any operation record is written. Core stages the normalized
-payload only after every check succeeds. Recovery replays that immutable submission, and the commit
-stage contains no argument validation that runs for the first time after staging.
+Node-specific MCP tools use submission schemas derived from the complete internal schemas. Only the
+Design baseline's `requirements_revision`, the Tasks baseline's `design_revision`, and
+Implementation's `task_plan_revision` become optional; their declarations, types, and the complete
+internal contract remain unchanged. The MCP boundary recursively checks required members against the
+submission schema and returns exact paths for missing members in nested objects and array items.
+
+`SubmitAction` first validates the current Action ID, kind, and Task status, rejects duplicate JSON
+members, and fills omitted system revisions from that same Task snapshot. A value sent by an older
+client must equal the snapshot's current value. Workflow then validates the complete internal payload;
+Application checks revisions, records, work items, passing-test conditions, user confirmation,
+acceptance, and evidence sets against the current Task. Failures return value-free `ContractViolation`
+or `GuardFailure` detail. Current values, current sets, current acceptance, and a proven zero-write
+`required_member_missing` with an exact path on a node submission may enter one
+`correct_current_action`; the Host must stop when the missing content requires a new user decision.
+Application also builds and validates the complete next Task, Action, Event, and Claim mutation before
+any operation record is written. Core stages the normalized payload only after every check succeeds,
+and Recovery replays that immutable submission.
 
 Core does not run checkout, reset, clean, stash, commit, merge, rebase, push, tag, or publication
 operations, and exposes no generic shell. Action `allowed_effects` describe operations a host may

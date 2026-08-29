@@ -48,18 +48,22 @@ restores authoritative state.
 
 When a mutation response is missing, cancelled, truncated, or malformed, direct replay can duplicate
 side effects. The Host submits the Task ID, Action ID, and node result through the tool named by the
-current Action. Core fills the complete identity, artifact roles, method steps, and payload envelope,
-builds and validates the complete next Task mutation, and only then retains the normalized submission
-as an independent Action operation. Task, Event, Claim, and the operation's applied revision commit in
+current Action. Design, Tasks, and Implementation results omit `requirements_revision`,
+`design_revision`, and `task_plan_revision`, respectively. Core validates the current Action identity,
+fills those system-state members from the same Task snapshot, completes the identity, artifact roles,
+method steps, and payload envelope, builds and validates the complete next Task mutation, and only then
+retains the normalized submission as an independent Action operation. Task, Event, Claim, and the operation's applied revision commit in
 one transaction. Recovery reads that operation record, so the caller no longer stores or rebuilds the
 original payload and the Task snapshot carries no recovery payload.
 
-Before retaining a submission, Core checks node-result semantics against the current Task. Errors in
+Before retaining a submission, Core recursively checks required members against the submission
+contract, then validates the complete internal contract and current-Task semantics. Errors in
 revisions, records, evidence sets, acceptance, and other values that can be copied uniquely from Core
-return field paths, fixed rules, and `allowed_paths`; the Host may correct only those fields once.
-Test conclusions, user confirmation, work-item content, and other values that cannot be derived safely
-receive field detail without automatic correction authority. Rejected input never enters a
-recoverable Action operation or uncertain-mutation Recovery.
+return field paths, fixed rules, and `allowed_paths`. A proven zero-write `required_member_missing` in
+a node submission may also be corrected once at its exact path, but only with facts already established
+by the current node work; when the missing content requires a new user decision, the Host must stop and
+request it. Other values that cannot be derived safely receive field detail without automatic correction
+authority. Rejected input never enters a recoverable Action operation or uncertain-mutation Recovery.
 
 ### Behavioral correctness and maintainability are not separated
 

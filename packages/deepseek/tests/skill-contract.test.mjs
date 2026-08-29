@@ -150,11 +150,16 @@ test("Skill keeps payload, transition, method, evidence, and terminal authority 
   assert.match(transitions, /never maintain a copied transition list/u);
   assert.match(forwarding, /references\/node-payloads\.md/u);
   assert.match(forwarding, /live schema named by `fresh_action\.submission_tool`/u);
+  assert.match(forwarding, /Do not copy `requirements_revision`, `design_revision`,\s+or `task_plan_revision`/u);
+  assert.match(forwarding, /Core fills those system-state members from the current Task snapshot/u);
   assert.match(forwarding, /`method_results`[\s\S]*keyed by every returned method `step_id`/u);
   assert.match(forwarding, /"host": "deepseek"/u);
   assert.match(forwarding, /`INVALID_ARGUMENT`[\s\S]*bounded-correction section[\s\S]*explicitly authorizes[\s\S]*`correct_current_action`[\s\S]*otherwise stop/u);
   const correction = section(skill, "Bounded correction of the current action");
   assert.match(correction, /report only the exact `path`, `rule`[\s\S]*Never report[\s\S]*submitted field value/u);
+  assert.match(correction, /`required_member_missing`[\s\S]*facts the current node work already established/u);
+  assert.match(correction, /needs a new user decision[\s\S]*stop and request that input instead of\s+generating/i);
+  assert.match(correction, /Stop immediately when the second submission also fails/i);
 
   assert.match(skill, /Core owns task state,\s+current node, legal transitions, destinations, recovery, blockers, and terminal outcomes/u);
   assert.match(skill, /Core returns authoritative `BLOCKED`, `DONE`, `CANCELLED`/u);
@@ -208,6 +213,8 @@ test("host-neutral references retain exact Codex semantic and payload marker con
   for (const tool of rawTools.filter((name) => name.startsWith("dev_flow_submit_"))) {
     assert.match(payloads, new RegExp("`" + escapeRegExp(tool) + "`", "u"));
   }
+  assert.match(payloads, /Core also fills the system-state members `requirements_revision`[\s\S]*`design_revision`[\s\S]*`task_plan_revision`[\s\S]*current Task\s+snapshot[\s\S]*Node templates omit them/u);
+  assert.doesNotMatch(payloads, /\| Implementation \|[^|]*`task_plan_revision`/u);
 });
 
 test("all explicit DeepSeek tool calls use qualified DSH names", async () => {

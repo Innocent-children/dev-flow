@@ -283,8 +283,10 @@ Before submitting, perform this order:
    `available_transitions`.
 2. Read the live schema of that exact submission tool. Do not choose another submit tool from the
    catalog.
-3. Open the matching node-result template and fill only current facts. Use current baseline
-   revisions, work-item IDs, record IDs, acceptance and evidence sets.
+3. Open the matching node-result template and fill only current facts. Use current work-item IDs,
+   record IDs, acceptance and evidence sets. Do not copy `requirements_revision`, `design_revision`,
+   or `task_plan_revision`: Core fills those system-state members from the current Task snapshot
+   after verifying the current Action.
 4. Set `host="codex"`, copy only `task_id` and `action_id`, and select one returned `transition_id`.
 5. Provide `summary`, the transition's required or empty `reason`, and the exact `node_result`.
 6. Put current-node artifacts in `artifacts.current` only when the live schema exposes it. Put
@@ -394,6 +396,11 @@ condition holds:
 5. only members listed in `recovery.allowed_paths` change;
 6. the corrected value follows directly from the returned `rule`, with no source-code guessing;
 7. every other submitted fact keeps the same meaning.
+
+A `required_member_missing` failure lists exactly the member Core could not find. Fill it from the
+facts the current node work already established. When the missing member needs a new user decision,
+such as a user confirmation that has not been obtained yet, stop and request that input instead of
+generating it.
 
 Stop immediately when the second submission also fails. Do not submit a third candidate payload;
 report only the exact `path`, `rule`, and that the bounded correction still failed. Never report

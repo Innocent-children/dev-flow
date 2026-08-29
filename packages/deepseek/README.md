@@ -90,6 +90,10 @@ digest、method profiles、live schemas 和恰好十五个工具，再创建或�
 Task 可选择 `plain`、`spec-kit` 或 `openspec` profile。Core 管理 current node、legal transitions、
 destination、Recovery、blocker 和 terminal outcome；Adapter 负责执行当前节点工作、呈现完整 Action
 并通过当前 Action 指定的提交工具转发节点结果。
+Design、Tasks 与 Implementation 节点结果不发送 `requirements_revision`、`design_revision` 与
+`task_plan_revision`；Core 确认当前 Action 身份后从同一 Task 快照填充。已证明零写入的
+`required_member_missing` 只可按 `allowed_paths` 和当前节点已有事实修正一次；需要新的用户决定时
+DeepSeek 停止并请求输入。
 
 ## 两仓声明、Workspace Root 与可选索引
 

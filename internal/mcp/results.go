@@ -83,8 +83,8 @@ func EncodeError(id, tool string, err error) EncodedResult {
 	}
 	result.Details = projectSubmissionViolationPaths(tool, publicViolations(code, typed))
 	recoveryResult := &RecoveryGuidance{RetrySafe: false, Action: action, Message: guidance}
-	if paths := correctablePaths(typed, result); len(paths) != 0 {
-		recoveryResult = &RecoveryGuidance{RetrySafe: true, Action: correctCurrentAction, Message: "Correct only the listed members of this same action and resubmit its declared submission tool once.", AllowedPaths: paths}
+	if paths := boundedCorrectionPaths(tool, typed, result); len(paths) != 0 {
+		recoveryResult = &RecoveryGuidance{RetrySafe: true, Action: correctCurrentAction, Message: boundedCorrectionMessage, AllowedPaths: paths}
 	}
 	raw, encodeErr := encodeEnvelope(Envelope{OK: false, RequestID: id, Tool: tool, Error: result, Recovery: recoveryResult})
 	if encodeErr != nil || !WithinResultEnvelopeLimit(raw) {
@@ -146,16 +146,23 @@ func retainedViolations(violations []domain.ContractViolation) []domain.Contract
 	return out
 }
 
-// correctablePaths returns members whose corrected value is uniquely determined
-// by the closed failure rule. Field detail remains available for every other
-// zero-write failure, but those failures keep non-retryable guidance.
-func correctablePaths(typed *domain.Error, result *ErrorResult) []string {
+// boundedCorrectionMessage states the closed boundary of one correction: only
+// the listed members change, the values come from facts the current Action work
+// already established, and a second failed submission stops the attempt.
+const boundedCorrectionMessage = "Correct only the members listed in allowed_paths, using facts already confirmed in the current Action work, and resubmit through the same submission tool once. Do not re-expand requirements, change more code, or guess a user decision; stop when the resubmission fails."
+
+// boundedCorrectionPaths returns the members one bounded submission correction
+// may change for a proven zero-write failure. Every rule in the failure must be
+// bounded-correction eligible, so a failure that mixes one ineligible rule
+// offers no correction at all.
+func boundedCorrectionPaths(tool string, typed *domain.Error, result *ErrorResult) []string {
 	if typed == nil || !typed.ZeroWrite {
 		return nil
 	}
 	if typed.Code != domain.ErrorInvalidArgument && typed.Code != domain.ErrorTransitionNotAllowed {
 		return nil
 	}
+	_, submissionTool := submissionKindForTool(tool)
 	entries := append([]domain.ContractViolation(nil), result.Details...)
 	if result.Guard != nil {
 		entries = append(entries, result.Guard.Failures...)
@@ -166,7 +173,7 @@ func correctablePaths(typed *domain.Error, result *ErrorResult) []string {
 	seen := make(map[string]bool, len(entries))
 	paths := make([]string, 0, len(entries))
 	for _, entry := range entries {
-		if !deterministicallyCorrectable(entry.Rule) {
+		if !boundedCorrectionRule(entry.Rule, submissionTool) {
 			return nil
 		}
 		if seen[entry.Path] {
@@ -178,7 +185,15 @@ func correctablePaths(typed *domain.Error, result *ErrorResult) []string {
 	return paths
 }
 
-func deterministicallyCorrectable(rule domain.ViolationRule) bool {
+// boundedCorrectionRule decides whether one closed failure rule may be answered
+// by one bounded submission correction. A required member missing from a node
+// submission is zero-write and its value is the caller's own current fact, so a
+// node submission tool may correct it once; the same rule outside a submission
+// tool keeps non-retryable guidance.
+func boundedCorrectionRule(rule domain.ViolationRule, submissionTool bool) bool {
+	if rule == domain.RuleRequiredMemberMissing {
+		return submissionTool
+	}
 	switch rule {
 	case domain.RuleNonAutomatedCommandCountZero,
 		domain.RuleNonAutomatedFullSuiteFalse,

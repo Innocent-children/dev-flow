@@ -5,6 +5,12 @@ is the exact input contract. The Host sends current work results; Core fills rev
 process identity, source cursor, repository binding, artifact roles, method step identity/order/status
 and the internal payload envelope.
 
+Core also fills the system-state members `requirements_revision` (Design baseline),
+`design_revision` (Tasks baseline) and `task_plan_revision` (Implementation) from the current Task
+snapshot after it verifies the current Action. Node templates omit them. A client that still sends
+the exact current value is accepted; a different value is refused as `current_value_required` with
+the exact member path.
+
 ## Common input
 
 Every ordinary submission contains exactly:
@@ -47,7 +53,7 @@ Use the live tool schema for types and nested members. These are the closed top-
 | Requirements | `problem_class`, `baseline`, `unresolved_questions`, `changed_paths`, `no_file_changes` |
 | Design | `problem_class`, `baseline`, `findings`, `changed_paths`, `no_file_changes` |
 | Tasks | `problem_class`, `baseline`, `findings`, `changed_paths`, `no_file_changes` |
-| Implementation | `problem_class`, `task_plan_revision`, `completed_work_item_ids`, `changed_paths`, `no_file_changes`, `deviations`, `findings` |
+| Implementation | `problem_class`, `completed_work_item_ids`, `changed_paths`, `no_file_changes`, `deviations`, `findings` |
 | Test | `problem_class`, `checks`, `failed_items`, `unverified_items`, `manual_handoff_items`, `findings`, `changed_paths`, `no_file_changes` |
 | Comprehension | `problem_class`, `explained_components`, `unresolved_questions`, `unnecessary_abstractions`, `maintenance_risks`, `user_confirmation`, `findings`, `changed_paths`, `no_file_changes` |
 | Refactor | `problem_class`, `changed_paths`, `no_file_changes`, `simplifications`, `behavior_change_intended`, `findings` |

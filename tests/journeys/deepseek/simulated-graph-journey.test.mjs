@@ -103,8 +103,9 @@ test("deterministic DeepSeek Host follows the real Core graph through restart, r
   assert.equal(recoveredAction.result.action.action_id, task.current_action.action_id);
   assert.equal(recoveredTask.result.recovery_assessment.next_advice, "read_next_action");
 
-  task = await apply(core, task, "design_ready", designResult(task.baselines.requirements.revision));
+  task = await apply(core, task, "design_ready", designResult());
   assert.equal(task.revision, 3);
+  assert.equal(task.baselines.design.requirements_revision, task.baselines.requirements.revision);
   await core.restart();
   const restartedInfo = await core.call(serverInfoTool, {});
   assert.equal(restartedInfo.result.product, "dev-flow");
@@ -124,17 +125,19 @@ test("deterministic DeepSeek Host follows the real Core graph through restart, r
   assert.equal(resumedAction.result.action.action_id, task.current_action.action_id);
   task = resumed.result.task;
 
-  task = await apply(core, task, "tasks_ready", tasksResult(task.baselines.design.revision));
+  task = await apply(core, task, "tasks_ready", tasksResult());
+  assert.equal(task.baselines.task_plan.design_revision, task.baselines.design.revision);
   await writeFile(join(repository, "feature.txt"), "implementation one\n");
   await writeFile(join(additionalRepository, "feature.txt"), "documentation one\n");
-  task = await apply(core, task, "implementation_ready_for_test", implementationResult(task.baselines.task_plan.revision));
+  task = await apply(core, task, "implementation_ready_for_test", implementationResult());
+  assert.equal(task.implementation.task_plan_revision, task.baselines.task_plan.revision);
   task = await apply(core, task, "tests_failed_implementation", failedTestResult(), "The first targeted check failed.");
   assert.equal(task.current_cursor, "IMPLEMENT");
   assert.equal(task.test, null);
 
   await writeFile(join(repository, "feature.txt"), "implementation fixed\n");
   await writeFile(join(additionalRepository, "feature.txt"), "documentation fixed\n");
-  task = await apply(core, task, "implementation_ready_for_test", implementationResult(task.baselines.task_plan.revision));
+  task = await apply(core, task, "implementation_ready_for_test", implementationResult());
   task = await apply(core, task, "tests_passed", passedTestResult());
   const firstTestRecord = task.test.record_id;
   assert.equal(task.current_cursor, "COMPREHENSION_REVIEW");
@@ -235,10 +238,9 @@ function requirementsResult() {
   };
 }
 
-function designResult(requirementsRevision) {
+function designResult() {
   return {
     baseline: {
-      requirements_revision: requirementsRevision,
       approach: "Use the direct graph flow.", components: ["DeepSeek Host"],
       decisions: ["Keep Core authoritative"], rejected_alternatives: [],
       complexity_justification: [], risks: [],
@@ -246,10 +248,9 @@ function designResult(requirementsRevision) {
   };
 }
 
-function tasksResult(designRevision) {
+function tasksResult() {
   return {
     baseline: {
-      design_revision: designRevision,
       work_items: [{
         work_item_id: "work", summary: "Exercise the graph", expected_paths: ["core::feature.txt", "docs::feature.txt"],
         acceptance_indexes: [0, 1], verification_steps: ["Run targeted checks"], dependencies: [],
@@ -258,9 +259,8 @@ function tasksResult(designRevision) {
   };
 }
 
-function implementationResult(taskPlanRevision) {
+function implementationResult() {
   return {
-    task_plan_revision: taskPlanRevision,
     completed_work_item_ids: ["work"], changed_paths: ["core::feature.txt", "docs::feature.txt"], no_file_changes: false,
     deviations: [], findings: [],
   };

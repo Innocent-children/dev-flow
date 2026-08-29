@@ -300,6 +300,13 @@ func validateSubmitActionInput(kind domain.ActionKind, raw []byte) error {
 	if _, err := workflow.TransitionFor(workflow.StandardProcess(), node.NodeID, value.TransitionID); err != nil {
 		return domain.ErrTransitionNotAllowed
 	}
+	// The submission contract relaxes only the system-state members Core fills
+	// from the current Task snapshot, so a nested member the model owes is
+	// reported here with its exact path, before any Task, Event, Evidence or
+	// Action operation is touched.
+	if err := workflow.ValidateSubmissionNodeResult(kind, value.NodeResult); err != nil {
+		return err
+	}
 	if _, allowed := workflow.PrimaryArtifactRoleForNode(node.NodeID); !allowed && len(value.Artifacts.Current) != 0 {
 		return domain.InvalidArgumentViolations(domain.Violation("artifacts.current", domain.RuleArtifactRoleNotAllowed))
 	}

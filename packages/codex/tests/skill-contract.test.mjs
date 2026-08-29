@@ -330,6 +330,10 @@ test("node-payload reference makes every closed branch operational without ownin
   assert.match(reference, /Artifact entries contain only `path`, `digest`, and `summary`[\s\S]*Core assigns the role/u);
   assert.match(reference, /Method\s+result entries contain only `capability` and `summary`/u);
   assert.match(reference, /multi-repository Task[\s\S]*`<repository-key>::<repository-relative-path>`/u);
+  assert.match(reference, /Core also fills the system-state members `requirements_revision`[\s\S]*`design_revision`[\s\S]*`task_plan_revision`[\s\S]*current Task\s+snapshot[\s\S]*Node templates omit them/u);
+  assert.match(reference, /a different value is refused as `current_value_required`[\s\S]*exact member/u);
+  assert.match(reference, /\| Implementation \| `problem_class`, `completed_work_item_ids`/u);
+  assert.doesNotMatch(reference, /\| Implementation \|[^|]*`task_plan_revision`/u);
   assert.match(reference, /Do not send `request_id`[\s\S]*`payload`[\s\S]*`method_evidence`[\s\S]*artifact `role`/u);
   assert.match(reference, /`changed_paths` and `no_file_changes` remain mutually exclusive/u);
 
@@ -338,8 +342,13 @@ test("node-payload reference makes every closed branch operational without ownin
   const correction = section(skill, "Bounded correction of the current action");
   assert.doesNotMatch(correction, /both attempted values|report[\s\S]*attempted values/iu);
   assert.match(correction, /report only the exact `path`, `rule`[\s\S]*Never report[\s\S]*submitted field value/u);
+  assert.match(correction, /`required_member_missing`[\s\S]*facts the current node work already established/u);
+  assert.match(correction, /needs a new user decision[\s\S]*stop and request that input instead of\s+generating/i);
+  assert.match(correction, /Stop immediately when the second submission also fails/i);
   assert.match(forwarding, /`references\/node-payloads\.md`/u);
   assert.match(forwarding, /live schema named by `fresh_action\.submission_tool`/u);
+  assert.match(forwarding, /Do not copy `requirements_revision`, `design_revision`,\s+or `task_plan_revision`/u);
+  assert.match(forwarding, /Core fills those system-state members from the current Task snapshot/u);
   assert.match(forwarding, /`artifacts\.current`[\s\S]*`artifacts\.other_process`[\s\S]*Core assigns the role/u);
   assert.match(forwarding, /`method_results`[\s\S]*keyed by every returned method `step_id`/u);
   assert.match(forwarding, /payload envelope[\s\S]*absent/u);

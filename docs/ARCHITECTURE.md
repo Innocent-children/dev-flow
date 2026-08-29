@@ -140,13 +140,19 @@ Action result 以相对当前 Action 签发状态新产生的 `changed_paths`，
 完全一致但结果声明了文件变化，Application 返回 `repository_effect_not_observed` 字段错误，不把它
 误报为真实仓库漂移。
 
-`SubmitAction` 在暂存 Action 操作前完成两层零写入预检：Workflow 校验闭合 payload 形状与字段
-格式，Application 再按当前 Task 校验 revision、record、work item、测试通过条件、用户确认、
-acceptance 与 evidence 集合。失败返回不包含提交值的 `ContractViolation` 或 `GuardFailure`。
-只有当前值、当前集合与当前 acceptance 这类可由 Core 唯一确定的规则进入
-`correct_current_action`；其余规则只提供定位信息。Application 还会在任何操作记录写入前构造并校验
-完整下一版 Task、Action、Event 与 Claim mutation。全部通过后才暂存规范化 payload，Recovery 仍只
-重放该不可变提交；提交阶段不再首次运行只有暂存后才会触发的参数校验。
+节点专用 MCP 工具使用从内部完整 Schema 派生的提交 Schema；只将 Design baseline 的
+`requirements_revision`、Tasks baseline 的 `design_revision` 与 Implementation 的
+`task_plan_revision` 改为可省略，字段声明、类型和内部完整契约保持不变。MCP 边界按这份提交 Schema
+递归检查必填字段，嵌套对象和数组项缺失时返回准确路径。
+
+`SubmitAction` 先确认当前 Action ID、kind 与 Task 状态，再拒绝重复 JSON member，并从同一 Task
+快照填充省略的系统 revision；旧客户端提交的值必须等于该快照当前值。随后 Workflow 校验完整内部
+payload，Application 再按当前 Task 校验 revision、record、work item、测试通过条件、用户确认、
+acceptance 与 evidence 集合。失败返回不包含提交值的 `ContractViolation` 或 `GuardFailure`。可由
+Core 唯一确定的当前值、当前集合、当前 acceptance，以及节点提交中已证明零写入且路径准确的
+`required_member_missing`，可以进入一次 `correct_current_action`；缺失内容需要新的用户决定时 Host
+必须停止。Application 还会在任何操作记录写入前构造并校验完整下一版 Task、Action、Event 与 Claim
+mutation。全部通过后才暂存规范化 payload，Recovery 仍只重放该不可变提交。
 
 Core 不执行 checkout、reset、clean、stash、commit、merge、rebase、push、tag、publish，也不
 暴露 generic shell。Action 中的 `allowed_effects` 描述 Host 在用户授权下可执行的动作。

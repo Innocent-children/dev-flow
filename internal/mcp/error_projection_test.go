@@ -213,7 +213,7 @@ func TestApplyErrorCorrectionRequiresDeterministicRulesOnly(t *testing.T) {
 		{"current evidence set", domain.TransitionGuardFailure("delivery_current_and_complete", domain.GuardViolation("payload.node_result.manual_evidence_ids", domain.GuardCurrentSetRequired)), true},
 		{"current record", domain.TransitionGuardFailure("delivery_current_and_complete", domain.GuardViolation("payload.node_result.test_record_id", domain.GuardCurrentValueRequired)), true},
 		{"current acceptance", domain.TransitionGuardFailure("delivery_current_and_complete", domain.GuardViolation("payload.node_result.acceptance", domain.GuardAcceptanceSetCurrent)), true},
-		{"missing member", domain.InvalidArgumentViolations(domain.Violation("payload.node_result.summary", domain.RuleRequiredMemberMissing)), false},
+		{"missing member on a submission tool", domain.InvalidArgumentViolations(domain.Violation("payload.node_result.summary", domain.RuleRequiredMemberMissing)), true},
 		{"invalid source", domain.InvalidArgumentViolations(domain.Violation("payload.node_result.checks[0].source", domain.RuleEvidenceSourceInvalid)), false},
 		{"text normalization", domain.InvalidArgumentViolations(domain.Violation("payload.summary", domain.RuleTextNotNormalized)), false},
 		{"problem class mismatch", domain.TransitionGuardFailure("implementation_report_complete", domain.GuardViolation("payload.node_result.problem_class", domain.GuardProblemClassTransitionMismatch)), false},
@@ -232,6 +232,20 @@ func TestApplyErrorCorrectionRequiresDeterministicRulesOnly(t *testing.T) {
 				t.Fatalf("non-correctable recovery=%#v", envelope.Recovery)
 			}
 		})
+	}
+}
+
+// TestApplyErrorCorrectionOutsideSubmissionToolKeepsStop proves the same
+// required-member failure keeps non-retryable guidance on a non-submission
+// catalog tool.
+func TestApplyErrorCorrectionOutsideSubmissionToolKeepsStop(t *testing.T) {
+	envelope := decodeEnvelope(t, EncodeError("request-read-missing", ToolGetTask,
+		domain.InvalidArgumentViolations(domain.Violation("payload.node_result.summary", domain.RuleRequiredMemberMissing))))
+	if envelope.Recovery == nil || envelope.Recovery.RetrySafe || envelope.Recovery.Action == correctCurrentAction || len(envelope.Recovery.AllowedPaths) != 0 {
+		t.Fatalf("recovery=%#v", envelope.Recovery)
+	}
+	if len(envelope.Error.Details) != 1 || envelope.Error.Details[0].Path != "payload.node_result.summary" {
+		t.Fatalf("details=%#v", envelope.Error.Details)
 	}
 }
 
@@ -264,8 +278,11 @@ func TestApplyToolBoundaryReportsFieldViolations(t *testing.T) {
 	if len(envelope.Error.Details) != 1 || envelope.Error.Details[0].Path != "summary" || envelope.Error.Details[0].Rule != domain.RuleRequiredMemberMissing {
 		t.Fatalf("details=%#v", envelope.Error.Details)
 	}
-	if envelope.Recovery.RetrySafe {
-		t.Fatalf("a missing member offered a guessed correction: %#v", envelope.Recovery)
+	if envelope.Recovery == nil || !envelope.Recovery.RetrySafe || envelope.Recovery.Action != correctCurrentAction {
+		t.Fatalf("a missing member on a submission tool must offer the bounded correction: %#v", envelope.Recovery)
+	}
+	if len(envelope.Recovery.AllowedPaths) != 1 || envelope.Recovery.AllowedPaths[0] != "summary" {
+		t.Fatalf("allowed paths=%#v", envelope.Recovery.AllowedPaths)
 	}
 
 	unknown := map[string]any{"unexpected_member": true}

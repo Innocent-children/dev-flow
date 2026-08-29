@@ -14,6 +14,7 @@
 | `process_graph_concurrency_test.go` | 两个 Store/Application handle 对同一 mutation 的 CAS 竞争与单次提交 | two-handle deterministic；real temporary Git/SQLite |
 | `process_graph_restart_test.go` | COMPREHENSION_REVIEW 跨进程关闭/重开、同一 task/action/baseline/test/profile/transition | subprocess；real temporary Git/SQLite |
 | `storage_generation_boundary_test.go` | direct current storage bootstrap、former storage zero-write rejection、显式新目录、restart | in-process deterministic；real temporary Git/SQLite |
+| `shared/simulated-submission-contract.test.mjs` | Codex-owned Task 省略 Design、Tasks、Implementation system-state revision，Core 从同一当前 Task 快照填充 | simulated shared MCP client；source-built Core；real temporary Git/SQLite |
 
 测试 helper 可以在 setup 阶段初始化并 commit 临时 repository。进入 Core Journey 后，Repository
 Observer 只执行有界只读 Git 观察；测试会比较预期 repository state，并关闭/丢弃旧 Store、DB

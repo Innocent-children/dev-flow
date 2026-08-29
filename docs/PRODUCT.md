@@ -40,15 +40,19 @@ SQLite，一次 Core 读取即可恢复权威状态。
 ### 不确定 mutation 的重复执行
 
 mutation 响应缺失、取消、截断或损坏时，直接重放可能造成二次副作用。Host 通过当前 Action 指定的
-提交工具发送 Task ID、Action ID 和节点结果；Core 补齐完整 identity、artifact role、method step 与
-payload envelope，完整构造并校验下一版 Task mutation，再把规范化提交保存为独立 Action 操作记录。
+提交工具发送 Task ID、Action ID 和节点结果；Design、Tasks 与 Implementation 结果分别省略
+`requirements_revision`、`design_revision` 与 `task_plan_revision`。Core 先确认当前 Action 身份，再从
+同一 Task 快照填充这三个系统状态字段，并补齐完整 identity、artifact role、method step 与 payload
+envelope，完整构造并校验下一版 Task mutation，再把规范化提交保存为独立 Action 操作记录。
 Task、Event、Claim 与操作记录的 applied revision 在同一事务提交。Recovery 直接读取这份操作记录，
 调用方不再保存或重建原始 payload，Task snapshot 也不再携带恢复 payload。
 
-在保存提交前，Core 先按当前 Task 预检节点结果语义。可从 Core 当前结果唯一复制的 revision、record、
-evidence 集合和 acceptance 错误会返回字段路径、固定规则与 `allowed_paths`，Host 只可纠正这些字段
-一次。测试结论、用户确认、工作项内容等无法安全推导的错误只返回字段信息，不提供自动纠正授权；
-被拒绝的输入不会进入可恢复操作记录，也不会转入不确定 mutation Recovery。
+在保存提交前，Core 先按提交契约递归检查必填字段，再按内部完整契约和当前 Task 预检节点结果。
+可从 Core 当前结果唯一复制的 revision、record、evidence 集合和 acceptance 错误会返回字段路径、
+固定规则与 `allowed_paths`。节点提交中已证明零写入的 `required_member_missing` 也可以按准确路径修正
+一次，但修正内容必须来自当前节点工作已经确认的事实；需要新的用户决定时，Host 必须停止并请求
+输入。其他无法安全推导的错误只返回字段信息，不提供自动纠正授权；被拒绝的输入不会进入可恢复
+操作记录，也不会转入不确定 mutation Recovery。
 
 ### 行为正确性与可维护性未分离
 

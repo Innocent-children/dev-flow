@@ -208,6 +208,13 @@ revision、Action kind、process identity、source cursor、repository binding�
 step identity/order/status 与内部 payload envelope。`get_next_action` 的 `submission_tool` 指出当前
 唯一可用的提交工具。
 
+`dev_flow_submit_design` 的 `node_result.baseline.requirements_revision`、`dev_flow_submit_tasks` 的
+`node_result.baseline.design_revision` 与 `dev_flow_submit_implementation` 的
+`node_result.task_plan_revision` 均可省略。Core 确认当前 Action 身份后，从同一 Task 快照填充这些
+字段；旧客户端仍可提交准确当前值，其他值返回准确路径的 `current_value_required`。节点提交缺少
+其他必填字段时返回准确的 `required_member_missing` 路径；只有已证明零写入且修正内容来自当前节点
+既有事实时，Host 才能按 `allowed_paths` 通过同一提交工具修正一次。
+
 未知 CLI 参数、未列出的 MCP 工具或未满足隐式/显式统一 admission 的调用不属于受支持入口。
 
 ### Repository Scope 与 Host 偏好字段

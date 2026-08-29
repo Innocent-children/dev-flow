@@ -222,6 +222,15 @@ revision, Action kind, process identity, source cursor, repository binding, arti
 step identity/order/status, and internal payload envelope. `get_next_action.submission_tool` names the
 only submission tool for the current Action.
 
+`node_result.baseline.requirements_revision` on `dev_flow_submit_design`,
+`node_result.baseline.design_revision` on `dev_flow_submit_tasks`, and
+`node_result.task_plan_revision` on `dev_flow_submit_implementation` are optional. After validating
+the current Action identity, Core fills them from the same Task snapshot. Older clients may still send
+the exact current value; any other value returns `current_value_required` at the exact path. Other
+missing required members return exact `required_member_missing` paths. The Host may correct through the
+same submission tool once only when Core proves zero writes and the value comes from facts already
+established by the current node work.
+
 Unknown CLI arguments, tools outside this catalog, and calls that do not satisfy shared implicit/explicit admission
 are not supported entrypoints.
 

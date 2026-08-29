@@ -1,9 +1,11 @@
 package application
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/recovery"
@@ -39,6 +41,13 @@ func (s *Service) SubmitAction(ctx context.Context, request SubmitActionRequest)
 		task.CurrentAction.Kind != request.ExpectedActionKind || task.CurrentNode == domain.NodeBlocked || task.CurrentNode.Terminal() {
 		return ApplyActionResult{}, domain.ErrActionStale
 	}
+	if err := workflow.ValidateSubmissionNodeResultSyntax(request.NodeResult); err != nil {
+		return ApplyActionResult{}, err
+	}
+	nodeResult, err := hydrateSubmissionNodeResult(task, request.NodeResult)
+	if err != nil {
+		return ApplyActionResult{}, err
+	}
 	artifacts, err := submissionArtifacts(task.CurrentNode, request.CurrentArtifacts, request.OtherProcessArtifacts)
 	if err != nil {
 		return ApplyActionResult{}, err
@@ -53,7 +62,7 @@ func (s *Service) SubmitAction(ctx context.Context, request SubmitActionRequest)
 		Reason:         request.Reason,
 		Artifacts:      artifacts,
 		MethodEvidence: methodEvidence,
-		NodeResult:     append(json.RawMessage(nil), request.NodeResult...),
+		NodeResult:     append(json.RawMessage(nil), nodeResult...),
 	}
 	raw, err := json.Marshal(envelope)
 	if err != nil {
@@ -116,6 +125,110 @@ func applyRequestForCurrentAction(requestID domain.ID, host domain.Host, task do
 		ProcessDefinitionDigest: action.Process.DefinitionDigest, SourceCursor: action.NodeID,
 		RepositoryBindingDigest: action.RepositoryBindingDigest, Payload: payload,
 	}
+}
+
+// hydrateSubmissionNodeResult completes the system-state members of one node
+// submission from the Task snapshot that already passed the Action identity
+// checks: the current Action exists, its ID and kind match the request, and the
+// Task is neither blocked nor terminal. A member the caller omitted is filled
+// with the current value of that same snapshot; a member the caller supplied
+// must equal it, so an older client is still accepted and a stale value is
+// refused with the exact member. The snapshot is never re-read, so a submitted
+// result can never be bound to Task state newer than the current Action. Every
+// failure here happens before any Task, Event, Evidence or operation write.
+func hydrateSubmissionNodeResult(task domain.ProcessTask, raw json.RawMessage) (json.RawMessage, error) {
+	members, ok := jsonObjectMembers(raw)
+	if !ok {
+		return raw, nil
+	}
+	switch task.CurrentNode {
+	case domain.NodeDesign:
+		value, present := members["baseline"]
+		if !present || isNullJSON(value) {
+			return raw, nil
+		}
+		if task.Requirements == nil {
+			return nil, domain.ErrInternal
+		}
+		filled, changed, err := hydrateRevisionMember(value, "requirements_revision", task.Requirements.Revision, "payload.node_result.baseline.requirements_revision")
+		if err != nil || !changed {
+			return raw, err
+		}
+		return rebuildJSON(members, "baseline", filled)
+	case domain.NodeTasks:
+		value, present := members["baseline"]
+		if !present || isNullJSON(value) {
+			return raw, nil
+		}
+		if task.Design == nil {
+			return nil, domain.ErrInternal
+		}
+		filled, changed, err := hydrateRevisionMember(value, "design_revision", task.Design.Revision, "payload.node_result.baseline.design_revision")
+		if err != nil || !changed {
+			return raw, err
+		}
+		return rebuildJSON(members, "baseline", filled)
+	case domain.NodeImplement:
+		if task.TaskPlan == nil {
+			return nil, domain.ErrInternal
+		}
+		filled, changed, err := hydrateRevisionMember(raw, "task_plan_revision", task.TaskPlan.Revision, "payload.node_result.task_plan_revision")
+		if err != nil || !changed {
+			return raw, err
+		}
+		return filled, nil
+	default:
+		return raw, nil
+	}
+}
+
+// hydrateRevisionMember completes one system-state revision member of one
+// object. A submitted value must equal the current value of the same Task
+// snapshot; any other value is refused with the exact member before any write.
+// The changed result is false when the member already carries that current
+// value, and the object is kept as submitted.
+func hydrateRevisionMember(object json.RawMessage, member string, current uint32, path string) (json.RawMessage, bool, error) {
+	members, ok := jsonObjectMembers(object)
+	if !ok {
+		return nil, false, domain.ErrInvalidArgument
+	}
+	if submitted, present := members[member]; present {
+		var value uint32
+		if json.Unmarshal(submitted, &value) != nil || value != current {
+			return nil, false, domain.InvalidArgumentViolations(domain.Violation(path, domain.RuleCurrentValueRequired))
+		}
+		return nil, false, nil
+	}
+	members[member] = json.RawMessage(strconv.FormatUint(uint64(current), 10))
+	filled, err := json.Marshal(members)
+	if err != nil {
+		return nil, false, domain.ErrInternal
+	}
+	return filled, true, nil
+}
+
+// rebuildJSON re-marshals one object after replacing the raw value of one
+// member. The members came from a validated JSON value, so re-marshaling cannot
+// fail; an unexpected encoder failure is an internal error.
+func rebuildJSON(members map[string]json.RawMessage, name string, value json.RawMessage) (json.RawMessage, error) {
+	members[name] = value
+	filled, err := json.Marshal(members)
+	if err != nil {
+		return nil, domain.ErrInternal
+	}
+	return filled, nil
+}
+
+func jsonObjectMembers(raw json.RawMessage) (map[string]json.RawMessage, bool) {
+	var members map[string]json.RawMessage
+	if json.Unmarshal(raw, &members) != nil || members == nil {
+		return nil, false
+	}
+	return members, true
+}
+
+func isNullJSON(raw json.RawMessage) bool {
+	return bytes.Equal(bytes.TrimSpace(raw), []byte("null"))
 }
 
 func submissionArtifacts(node domain.NodeID, current, other []ArtifactSubmission) ([]domain.ArtifactReference, error) {
