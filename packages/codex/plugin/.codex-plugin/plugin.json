@@ -1,6 +1,6 @@
 {
   "name": "dev-flow-codex",
-  "version": "0.7.8",
+  "version": "0.7.9",
   "description": "Smart and explicit Dev Flow integration for Codex CLI.",
   "author": {
     "name": "Dev Flow"
