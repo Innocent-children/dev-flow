@@ -69,21 +69,37 @@ async function npmVersion(packageName, version, environment) {
   return JSON.parse(observed.stdout) === version;
 }
 
-async function verifyRegistryBytes(packageName, version, expectedSHA, environment) {
-  const attempts = Math.ceil(npmVisibilityTimeoutMs / npmVisibilityPollMs);
+export async function verifyRegistryBytes(packageName, version, expectedSHA, environment, options = {}) {
+  const timeoutMs = options.timeoutMs ?? npmVisibilityTimeoutMs;
+  const pollMs = options.pollMs ?? npmVisibilityPollMs;
+  const runProcess = options.runProcess ?? run;
+  const wait = options.wait ?? ((milliseconds) => new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds)));
+  const attempts = Math.max(1, Math.ceil(timeoutMs / pollMs));
   for (let attempt = 0; attempt < attempts; attempt += 1) {
-    if (await npmVersion(packageName, version, environment)) break;
-    if (attempt + 1 === attempts) throw new Error("npm version did not become visible within 600 seconds");
-    await new Promise((resolveDelay) => setTimeout(resolveDelay, npmVisibilityPollMs));
+    const directory = await mkdtemp(join(tmpdir(), "dev-flow-npm-readback-"));
+    try {
+      let output;
+      try {
+        output = await runProcess("npm", ["pack", `${packageName}@${version}`, "--pack-destination", directory, "--ignore-scripts", "--json", `--registry=${registry}`], environment);
+      } catch (error) {
+        if (!npmTarballPending(error)) throw error;
+        if (attempt + 1 === attempts) throw new Error("npm tarball did not become readable within the bounded read-back window");
+        await wait(pollMs);
+        continue;
+      }
+      const filename = JSON.parse(output)?.[0]?.filename;
+      if (!filename || await sha256(join(directory, filename)) !== expectedSHA) throw new Error("npm tarball read-back differs from local artifact");
+      return;
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   }
-  const directory = await mkdtemp(join(tmpdir(), "dev-flow-npm-readback-"));
-  try {
-    const output = await run("npm", ["pack", `${packageName}@${version}`, "--pack-destination", directory, "--ignore-scripts", "--json", `--registry=${registry}`], environment);
-    const filename = JSON.parse(output)?.[0]?.filename;
-    if (!filename || await sha256(join(directory, filename)) !== expectedSHA) throw new Error("npm tarball read-back differs from local artifact");
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+}
+
+function npmTarballPending(error) {
+  return /(?:\bETARGET\b|\bE404\b|404 Not Found|No matching version found|npm error notarget)/iu.test(
+    `${error?.message ?? ""}\n${error?.stdout ?? ""}\n${error?.stderr ?? ""}`,
+  );
 }
 
 async function ensureAssets(tag, directory, names, environment) {

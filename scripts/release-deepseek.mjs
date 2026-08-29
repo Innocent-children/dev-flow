@@ -151,6 +151,7 @@ export async function runReleaseCommand({
 async function runModeValidation(root, mode, environment, runProcess) {
   await runProcess(process.execPath, ["--test",
       "tests/release_workflow.test.mjs",
+      "release/publish.test.mjs",
       "packages/deepseek/tests/package-contract.test.mjs",
     ], { cwd: root, env: environment });
 }

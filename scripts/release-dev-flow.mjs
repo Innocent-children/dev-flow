@@ -91,7 +91,7 @@ async function prepare(selection) {
 
 async function main(selection) {
   await ensureCleanSynchronizedMain();
-  await run(process.execPath, ["--test", "packages/dev-flow/tests/package-contract.test.mjs"]);
+  await run(process.execPath, ["--test", "release/publish.test.mjs", "packages/dev-flow/tests/package-contract.test.mjs"]);
   await alignVersion(selection.version);
   const sourceCommit = await prepare(selection);
   return publishRelease({ product: "dev-flow", version: selection.version, directory: selection.output, sourceCommit });

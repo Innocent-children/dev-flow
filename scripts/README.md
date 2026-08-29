@@ -67,6 +67,8 @@ npm、GitHub Release 与 assets。
 
 两个 channel 共用同一个 Publisher。Publisher 使用仓库外的 `release-manifest.json` 绑定 source、
 版本和 artifact digest；重跑时回读并复用匹配的远端状态。
+Publisher 最多等待十分钟并重试真正的 `npm pack <package>@<version>` tarball 回读；只对
+`ETARGET`、`E404` 这类 registry 传播延迟继续等待，认证失败和字节不一致立即停止。
 
 Actions 会在成功或失败后上传 runner 临时发布目录；用同一组 workflow 输入重跑时，publisher 会先回读 npm、Tag 和 GitHub Release，不会盲目重复
 不可逆操作。临时目录本身不会跨 workflow run 自动复用。

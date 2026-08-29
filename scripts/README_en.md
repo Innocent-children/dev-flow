@@ -73,6 +73,9 @@ product version, commit and push, create a Tag, publish npm, or mutate GitHub Re
 
 Both channels share one Publisher. The external `release-manifest.json` binds source, version, and
 artifact digests; reruns reread and reuse matching remote state.
+The Publisher retries the actual `npm pack <package>@<version>` tarball read-back for up to ten
+minutes. Only registry propagation responses such as `ETARGET` and `E404` keep waiting;
+authentication failures and byte mismatches stop immediately.
 
 Actions uploads the temporary release directory after both successful and failed runs. Rerunning the same workflow inputs makes the
 publisher reread npm, Tag, and GitHub Release state before another irreversible operation; the runner

@@ -50,6 +50,10 @@ The publisher creates or reuses only matching Tag and GitHub Release state, publ
 once, verifies registry tarball bytes, uploads prepared assets, and finalizes without running Host or
 Task journeys.
 
+Registry byte verification retries the actual `npm pack <package>@<version>` read-back for up to ten
+minutes when npm returns `ETARGET` or `E404`. Metadata visibility alone is not treated as tarball
+availability. Authentication failures, malformed output, and byte mismatches still stop immediately.
+
 Pull-request CI syntax-checks these components and runs fake-remote contracts; it never invokes the real
 release entrypoint or mutates Tag, npm, GitHub Release, assets, Codex registration, or task data. Only the
 manually dispatched `publish-npm` workflow invokes a real release entrypoint.

@@ -120,6 +120,7 @@ run_step "Codex release prepare syntax" bash -n scripts/build-codex-release.sh
 run_step "DeepSeek runtime build syntax" bash -n scripts/build-deepseek-runtime.sh
 run_step "DeepSeek release prepare syntax" bash -n scripts/build-deepseek-release.sh
 run_step "npm release publisher syntax" node --check release/publish.mjs
+run_step "npm release publisher behavior" node --test release/publish.test.mjs
 run_step "Codex one-command release syntax" node --check scripts/release-codex.mjs
 run_step "DeepSeek one-command release syntax" node --check scripts/release-deepseek.mjs
 run_step "Dev Flow one-command release syntax" node --check scripts/release-dev-flow.mjs

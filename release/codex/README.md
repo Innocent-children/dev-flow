@@ -38,3 +38,5 @@ Resume is bound to product `codex`, both product versions, Tag, source commit/tr
 Codex release, and artifact digests. Mismatched or old-format directories fail before remote
 mutation. Publication verifies the exact npm tarball bytes and GitHub Release assets. Host setup,
 Task flow, removal, and uninstall remain covered by product tests and do not run inside publication.
+The npm tarball read-back retries only propagation responses such as `ETARGET` and `E404` for up to
+ten minutes; authentication failures and byte mismatches stop immediately.

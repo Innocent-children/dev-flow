@@ -14,3 +14,5 @@ pnpm run release:dev-flow -- --version "<VERSION>" --output /absolute/output \
 The command requires clean synchronized `main`, creates or reuses the exact Tag, npm version and GitHub draft,
 verifies registry tarball bytes, installs the registry package in an isolated prefix, runs a zero-mutation CLI smoke,
 uploads the tarball and checksums, and then finalizes the Release. Rerun with the same output directory to recover.
+Registry tarball read-back retries only propagation responses such as `ETARGET` and `E404` for up to
+ten minutes; authentication failures and byte mismatches stop immediately.
