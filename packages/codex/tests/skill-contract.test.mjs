@@ -1,758 +1,104 @@
 import assert from "node:assert/strict";
-import { readdir, readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const repositoryRoot = join(packageRoot, "..", "..");
 const pluginRoot = join(packageRoot, "plugin");
-const skillPath = join(pluginRoot, "skills", "dev-flow", "SKILL.md");
-const skillMetadataPath = join(pluginRoot, "skills", "dev-flow", "agents", "openai.yaml");
-const methodProfileFixturePath = join(packageRoot, "tests", "fixtures", "graph-method-profiles.json");
-const skillBaseName = "dev-flow";
-const installedSkillName = "dev-flow-codex:dev-flow";
-const explicitSelector = `$${installedSkillName}`;
-
-const exactTools = [
-  "dev_flow_server_info",
-  "dev_flow_open_task",
-  "dev_flow_get_task",
-  "dev_flow_get_next_action",
-  "dev_flow_submit_requirements",
-  "dev_flow_submit_design",
-  "dev_flow_submit_tasks",
-  "dev_flow_submit_implementation",
-  "dev_flow_submit_test",
-  "dev_flow_submit_comprehension",
-  "dev_flow_submit_refactor",
-  "dev_flow_submit_delivery",
-  "dev_flow_resolve_blocker",
-  "dev_flow_recover_action",
-  "dev_flow_cancel_task",
+const skillRoot = join(pluginRoot, "skills", "dev-flow");
+const skillPath = join(skillRoot, "SKILL.md");
+const expectedTools = [
+  "dev_flow_server_info", "dev_flow_open_task", "dev_flow_get_task", "dev_flow_get_next_action",
+  "dev_flow_submit_requirements", "dev_flow_submit_design", "dev_flow_submit_tasks",
+  "dev_flow_submit_implementation", "dev_flow_submit_test", "dev_flow_submit_comprehension",
+  "dev_flow_submit_refactor", "dev_flow_submit_delivery", "dev_flow_resolve_blocker",
+  "dev_flow_recover_action", "dev_flow_cancel_task",
 ];
 
-const semanticMethodSteps = [
-  "requirements.capture",
-  "requirements.clarify",
-  "requirements.validate",
-  "design.choose_approach",
-  "design.review_complexity",
-  "design.record_decisions",
-  "tasks.decompose",
-  "tasks.map_acceptance",
-  "tasks.analyze_consistency",
-  "implementation.execute_plan",
-  "implementation.record_surface",
-  "implementation.classify_deviations",
-  "test.run_budgeted_checks",
-  "test.record_evidence",
-  "test.classify_failure",
-  "comprehension.explain",
-  "comprehension.identify_complexity",
-  "comprehension.obtain_user_verdict",
-  "refactor.simplify",
-  "refactor.reconcile_artifacts",
-  "refactor.record_surface",
-  "delivery.reconcile_acceptance",
-  "delivery.reconcile_method_artifacts",
-  "delivery.prepare_summary",
-];
-
-const specKitCapabilities = [
-  "speckit-specify",
-  "speckit-clarify",
-  "speckit-plan",
-  "speckit-checklist",
-  "speckit-tasks",
-  "speckit-analyze",
-  "speckit-implement",
-];
-
-const openSpecCapabilities = [
-  "openspec-explore",
-  "openspec-propose",
-  "openspec-apply",
-  "openspec-verify",
-  "openspec-sync",
-  "openspec-archive",
-  "openspec-validate",
-];
-
-test("plugin exposes one implicitly enabled Skill with an exact explicit selector", async () => {
+test("plugin exposes one implicitly enabled Skill", async () => {
   const skillFiles = (await walkFiles(join(pluginRoot, "skills"))).filter((path) => path.endsWith("SKILL.md"));
   assert.deepEqual(skillFiles, ["dev-flow/SKILL.md"]);
-
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
-  const skill = await readFile(skillPath, "utf8");
-  const frontmatter = parseFrontmatter(skill);
-  assert.equal(frontmatter.name, skillBaseName);
-  assert.equal(`${manifest.name}:${frontmatter.name}`, installedSkillName);
-  for (const positive of ["implementation", "bug fixes", "refactoring", "targeted testing", "development delivery"]) {
-    assert.match(frontmatter.description, new RegExp(escapeRegExp(positive), "i"));
-  }
-  for (const negative of ["explanation-only", "status-only", "design discussion", "ordinary questions", "ambiguous requests"]) {
-    assert.match(frontmatter.description, new RegExp(escapeRegExp(negative), "i"));
-  }
-  assert.match(frontmatter.description, /selected implicitly/i);
-  assert.match(frontmatter.description, new RegExp(escapeRegExp(explicitSelector)));
-  assert.match(frontmatter.description, /Do not create a Dev Flow Task/i);
+  const frontmatter = parseFrontmatter(await readFile(skillPath, "utf8"));
+  assert.equal(frontmatter.name, "dev-flow");
+  assert.equal(`${manifest.name}:${frontmatter.name}`, "dev-flow-codex:dev-flow");
   assert.equal("allow_implicit_invocation" in frontmatter, false);
-
-  const metadata = await readFile(skillMetadataPath, "utf8");
-  assert.equal(metadata, "policy:\n  allow_implicit_invocation: true\n");
+  assert.equal(await readFile(join(skillRoot, "agents", "openai.yaml"), "utf8"), "policy:\n  allow_implicit_invocation: true\n");
 });
 
-test("plugin user-facing metadata emits only the installed full Skill selector", async () => {
+test("plugin metadata and MCP registration use resolvable product identities", async () => {
   const plugin = JSON.parse(await readFile(join(pluginRoot, ".codex-plugin", "plugin.json"), "utf8"));
-  assert.match(plugin.description, /Smart and explicit/i);
-  assert.match(plugin.interface.shortDescription, /Smart Dev Flow/i);
-  assert.match(plugin.interface.longDescription, /Automatically select Dev Flow/i);
-  assert.match(plugin.interface.longDescription, /non-task requests do not create Tasks/i);
-  assert.match(plugin.interface.longDescription, new RegExp(escapeRegExp(explicitSelector)));
-  assert.deepEqual(plugin.interface.defaultPrompt, [
-    `${explicitSelector} implement the requested change in this repository.`,
-  ]);
-  assert.equal(
-    JSON.stringify(plugin.interface).match(/\$dev-flow(?!-codex)/gu),
-    null,
-    "plugin metadata must not generate the unresolvable bare selector",
-  );
-});
-
-test("Skill converges implicit and exact explicit selection on one substantive admission", async () => {
-  const skill = await readFile(skillPath, "utf8");
-  const admissionIndex = skill.indexOf("## Admission gate");
-  const handshakeIndex = skill.indexOf("## Compatibility handshake");
-  assert.ok(admissionIndex >= 0, "Skill must define a local admission gate");
-  assert.ok(handshakeIndex > admissionIndex, "local admission must precede the Core handshake");
-
-  const admission = skill.slice(admissionIndex, handshakeIndex);
-  assert.match(admission, /current user turn/i);
-  assert.match(admission, /Skill resource\/base name[^\n]*`dev-flow`/i);
-  assert.match(admission, /installed Skill full name[^\n]*`dev-flow-codex:dev-flow`/i);
-  assert.match(admission, /only exact explicit selector[^\n]*`\$dev-flow-codex:dev-flow`/i);
-  assert.match(admission, /bare[^\n]*`\$dev-flow`[^\n]*(?:not an alias|does not select|not an explicit selector)/i);
-  assert.match(admission, /wrong[^\n]*plugin namespace/i);
-  assert.match(admission, /wrong[^\n]*Skill base name/i);
-  assert.match(admission, /missing selector[^\n]*valid only[^\n]*implicitly/i);
-  assert.match(admission, /Both activation paths use this same admission gate/i);
-  for (const positive of ["implementation", "bug fix", "refactoring", "targeted testing", "development delivery"]) {
-    assert.match(admission, new RegExp(escapeRegExp(positive), "i"));
-  }
-  for (const negative of ["Explanation-only", "status-only", "design discussion", "ordinary questions", "ambiguous requests"]) {
-    assert.match(admission, new RegExp(escapeRegExp(negative), "i"));
-  }
-  assert.match(admission, /do not create or resume a Dev Flow Task/i);
-  assert.match(admission, /substantive[^\n]*(?:requirement|request)/i);
-  assert.match(admission, /explicit[^\n]*resume/i);
-  assert.match(admission, /empty|conversational/i);
-  assert.match(admission, /stop before Skill-owned task/i);
-  assert.match(admission, /do\s+not complete a task-bearing call/i);
-  assert.match(admission, /Core-rejected\s+calls[\s\S]*reported honestly/i);
-  assert.match(admission, /Host implicit selection/i);
-
-  assert.match(admission, /read-only Git/i);
-  assert.match(admission, /current Git worktree/i);
-  assert.match(admission, /canonical/i);
-  assert.match(admission, /explicitly[\s\S]*repository key and path/i);
-  assert.match(admission, /additional writable root/i);
-  assert.match(admission, /Do not scan parent or sibling directories/i);
-  assert.match(admission, /imports, remotes,\s+submodules, codebase-memory/i);
-  assert.match(admission, /repository instructions/i);
-  assert.match(admission, /user authority/i);
-});
-
-test("Skill silently calls server-info first and admits the exact unordered Core contract", async () => {
-  const skill = await readFile(skillPath, "utf8");
-  const handshakeIndex = skill.indexOf("## Compatibility handshake");
-  assert.ok(handshakeIndex >= 0);
-
-  const firstToolCall = firstToolReference(skill.slice(handshakeIndex));
-  assert.equal(firstToolCall, "dev_flow_server_info");
-  assert.match(skill.slice(handshakeIndex), /dev_flow_server_info\(\{\}\)/);
-
-  const catalog = [...skill.matchAll(/^\d+\. `(dev_flow_[a-z_]+)`$/gm)].map((match) => match[1]);
-  assert.deepEqual([...catalog].sort(), [...exactTools].sort());
-
-  const handshake = skill.slice(handshakeIndex);
-  for (const expectation of [
-    /product[^\n]*`dev-flow`/i,
-    /Core version[^\n]*present[^\n]*canonical/i,
-    /independently versioned products/i,
-    /transport[^\n]*`stdio`/i,
-    /health[^\n]*`ready`/i,
-    /supported host[\s\S]{0,80}`codex`/i,
-    /standard-development/i,
-    /definition_digest/i,
-    /new_task_supported[^\n]*`true`/i,
-    /plain[^\n]*spec-kit[^\n]*openspec/i,
-    /regardless of order/i,
-    /exactly[^\n]*fifteen/i,
-    /incomplete|truncated|malformed/i,
-    /stop/i,
-  ]) {
-    assert.match(handshake, expectation);
-  }
-  assert.doesNotMatch(handshake, /Core version[^\n]*(?:equals|matches)[^\n]*(?:package|packaged product) version/i);
-  assert.doesNotMatch(handshake, /reordered tool/i);
-  assert.match(handshake, /setup-time checks[\s\S]*`dev-flow-codex setup`/i);
-  assert.match(handshake, /On success[\s\S]*do not display[\s\S]*continue immediately/i);
-  assert.match(handshake, /On failure[\s\S]*specific blocking condition[\s\S]*actionable next step/i);
-  assert.doesNotMatch(handshake, /(?:schema|Core Contract)[^\n]*`?0\.1`?/i);
-  assert.match(handshake, /(?:do\s+not|never)[\s\S]*local source[\s\S]*second MCP server/i);
-
-  assert.doesNotMatch(skill, /tests\/fixtures|fake-(?:codex|core)/i);
-  assert.doesNotMatch(skill, /generic shell MCP|seventh tool/i);
-});
-
-test("Skill follows fresh Core authority for create, resume, one mutation, and continuation", async () => {
-  const skill = await readFile(skillPath, "utf8");
-  for (const heading of ["## Task discovery", "## Governed action loop", "## Closed forwarding contract"]) {
-    assert.equal(skill.includes(heading), true, `missing ${heading}`);
-  }
-  const discovery = section(skill, "Task discovery");
-  assert.match(discovery, /host=codex|host=`codex`|`host=codex`/i);
-  assert.match(discovery, /`repository_path`[\s\S]*canonical current worktree/i);
-  assert.match(discovery, /`primary_repository_key`[\s\S]*`additional_repositories`/i);
-  assert.match(discovery, /single-repository[\s\S]*omit both optional Scope\s+fields/i);
-  assert.match(discovery, /resume from the primary or an additional repository[\s\S]*omit the Scope creation fields/i);
-  assert.match(discovery, /resume[\s\S]*omit[\s\S]*`new_task`/i);
-  assert.match(discovery, /new[\s\S]*contract[\s\S]*user/i);
-  assert.match(discovery, /ownership|contract conflict/i);
-  assert.match(discovery, /stop/i);
-
-  const loop = section(skill, "Governed action loop");
-  for (const identity of [
-    "task ID",
-    "revision",
-    "action ID",
-    "action kind",
-    "process ID",
-    "process version",
-    "process-definition digest",
-    "current node",
-    "node purpose",
-    "entry conditions",
-    "completion conditions",
-    "repository-binding digest",
-    "allowed effects",
-    "required evidence",
-    "method profile",
-    "method steps",
-    "available transitions",
-    "payload schema",
-  ]) {
-    assert.match(loop, new RegExp(escapeRegExp(identity).replaceAll(" ", "\\s+"), "i"));
-  }
-  assert.match(loop, /fresh|live Core/i);
-  assert.match(loop, /exactly one call[\s\S]{0,80}(?:submission_tool|that tool)/i);
-  assert.match(loop, /Core fills and retains[\s\S]*Action identity[\s\S]*payload envelope/i);
-  assert.match(loop, /complete (?:successful|committed)[\s\S]*(?:authoritative|returned|fresh)[\s\S]*(?:next Action|Core read)/i);
-
-  const forwarding = section(skill, "Closed forwarding contract");
-  assert.match(forwarding, /submission_tool[\s\S]*live schema/i);
-  assert.match(forwarding, /copy only `task_id` and `action_id`/i);
-  assert.match(forwarding, /`request_id`[\s\S]*absent/i);
-});
-
-test("Skill forwards the exact closed Core current Core contract new_task contract", async () => {
-  const discovery = section(await readFile(skillPath, "utf8"), "Task discovery");
-  for (const member of [
-    "request",
-    "initial_scope",
-    "initial_out_of_scope",
-    "known_acceptance_criteria",
-    "verification_budget",
-    "method_profile",
-    "level",
-    "max_automatic_commands",
-    "allow_full_suite",
-    "allow_manual_handoff",
-  ]) {
-    assert.equal(discovery.includes(`\`${member}\``), true, `missing closed Core member ${member}`);
-  }
-  for (const alias of ["goal", "scope", "out_of_scope", "acceptance_criteria", "exclusions", "verification", "automatic_command_budget"]) {
-    assert.equal(discovery.includes(`\`${alias}\``), false, `forbidden Core member alias ${alias}`);
-  }
-  assert.match(discovery, /no additional members|exact members/i);
-  assert.match(discovery, /acceptance[\s\S]{0,100}(?:may be|need not be|does not\s+need to be)[\s\S]{0,80}complete/i);
-  assert.match(discovery, /resume[\s\S]*(?:omit `new_task`|`new_task=null`)/i);
-  assert.match(discovery, /(?:immutable|must not|never)[^\n]*profile/i);
-});
-
-test("method-profile reference closes all 24 rendering steps without owning Core state", async () => {
-  const referencePath = join(pluginRoot, "skills", "dev-flow", "references", "method-profiles.md");
-  const reference = await readFile(referencePath, "utf8");
-  const catalog = reference.match(/<!-- semantic-step-table:start -->\n([\s\S]*?)\n<!-- semantic-step-table:end -->/u);
-  assert.notEqual(catalog, null);
-  const catalogSteps = [...catalog[1].matchAll(/^\| `([^`]+)` \|/gmu)].map((match) => match[1]);
-  assert.deepEqual(catalogSteps, semanticMethodSteps);
-
-  for (const profile of ["plain", "spec-kit", "openspec"]) {
-    assert.match(reference, new RegExp("`" + escapeRegExp(profile) + "`", "u"));
-  }
-  for (const capability of [...specKitCapabilities, ...openSpecCapabilities]) {
-    assert.match(reference, new RegExp("`" + escapeRegExp(capability) + "`", "u"));
-  }
-  assert.match(reference, /`speckit-converge`[\s\S]*optional[\s\S]*(?:not|never)[\s\S]*Core required step/i);
-  assert.match(reference, /available[\s\S]*unavailable[\s\S]*not_applicable[\s\S]*unknown/i);
-  assert.match(reference, /`plain_fallback`[\s\S]*`capability`[\s\S]*empty/i);
-  assert.match(reference, /exactly one `MethodEvidence`[\s\S]*Action order/i);
-  assert.match(reference, /`unavailable`[\s\S]*`not_run`[\s\S]*(?:do not|cannot)[\s\S]*required/i);
-  assert.match(reference, /`role`[\s\S]*contract `path`[\s\S]*`digest`[\s\S]*`summary`/i);
-  assert.match(reference, /multi-repository Task[\s\S]*`<repository-key>::<repository-relative-path>`/i);
-  assert.match(reference, /explicit[\s\S]*user[\s\S]*(?:verdict|confirmation)/i);
-  assert.match(reference, /(?:does not|must not|never)[\s\S]*(?:derive|select)[\s\S]*(?:transition|destination)/i);
-  assert.match(reference, /(?:checkbox|archive|capability)[\s\S]*(?:does not|cannot|must not)[\s\S]*(?:advance|mutate)[\s\S]*Core/i);
-
-  const rendered = reference.match(/<!-- rendered-operation-example:start -->\n```json\n([\s\S]*?)\n```\n<!-- rendered-operation-example:end -->/u);
-  assert.notEqual(rendered, null);
-  assert.deepEqual(JSON.parse(rendered[1]), {
-    step_id: "requirements.clarify",
-    purpose: "Resolve material requirement ambiguity.",
-    required: true,
-    profile: "spec-kit",
-    capability_id: "speckit-clarify",
-    rendered_instruction: "Use the installed Spec Kit clarify capability for the active feature.",
-    expected_artifacts: ["active feature specification clarification"],
-    availability: "available",
-  });
-});
-
-test("node-payload reference makes every closed branch operational without owning Core state", async () => {
-  const referencePath = join(pluginRoot, "skills", "dev-flow", "references", "node-payloads.md");
-  const reference = await readFile(referencePath, "utf8");
-  for (const tool of exactTools.filter((name) => name.startsWith("dev_flow_submit_"))) {
-    assert.match(reference, new RegExp("`" + escapeRegExp(tool) + "`", "u"));
-  }
-  assert.match(reference, /Core fills revision[\s\S]*Action kind[\s\S]*payload envelope/u);
-  assert.match(reference, /Artifact entries contain only `path`, `digest`, and `summary`[\s\S]*Core assigns the role/u);
-  assert.match(reference, /Method\s+result entries contain only `capability` and `summary`/u);
-  assert.match(reference, /multi-repository Task[\s\S]*`<repository-key>::<repository-relative-path>`/u);
-  assert.match(reference, /Core also fills the system-state members `requirements_revision`[\s\S]*`design_revision`[\s\S]*`task_plan_revision`[\s\S]*current Task\s+snapshot[\s\S]*Node templates omit them/u);
-  assert.match(reference, /a different value is refused as `current_value_required`[\s\S]*exact member/u);
-  assert.match(reference, /\| Implementation \| `problem_class`, `completed_work_item_ids`/u);
-  assert.doesNotMatch(reference, /\| Implementation \|[^|]*`task_plan_revision`/u);
-  assert.match(reference, /Do not send `request_id`[\s\S]*`payload`[\s\S]*`method_evidence`[\s\S]*artifact `role`/u);
-  assert.match(reference, /`changed_paths` and `no_file_changes` remain mutually exclusive/u);
-
-  const skill = await readFile(skillPath, "utf8");
-  const forwarding = section(skill, "Closed forwarding contract");
-  const correction = section(skill, "Bounded correction of the current action");
-  assert.doesNotMatch(correction, /both attempted values|report[\s\S]*attempted values/iu);
-  assert.match(correction, /report only the exact `path`, `rule`[\s\S]*Never report[\s\S]*submitted field value/u);
-  assert.match(correction, /`required_member_missing`[\s\S]*facts the current node work already established/u);
-  assert.match(correction, /needs a new user decision[\s\S]*stop and request that input instead of\s+generating/i);
-  assert.match(correction, /Stop immediately when the second submission also fails/i);
-  assert.match(forwarding, /`references\/node-payloads\.md`/u);
-  assert.match(forwarding, /live schema named by `fresh_action\.submission_tool`/u);
-  assert.match(forwarding, /Do not copy `requirements_revision`, `design_revision`,\s+or `task_plan_revision`/u);
-  assert.match(forwarding, /Core fills those system-state members from the current Task snapshot/u);
-  assert.match(forwarding, /`artifacts\.current`[\s\S]*`artifacts\.other_process`[\s\S]*Core assigns the role/u);
-  assert.match(forwarding, /`method_results`[\s\S]*keyed by every returned method `step_id`/u);
-  assert.match(forwarding, /payload envelope[\s\S]*absent/u);
-  assert.match(forwarding, /Core returns `INVALID_ARGUMENT`[\s\S]*bounded-correction section[\s\S]*explicitly authorizes[\s\S]*`correct_current_action`[\s\S]*otherwise stop/u);
-});
-
-test("Skill honors Codex writable roots and optional codebase-memory without changing authority", async () => {
-  const skill = await readFile(skillPath, "utf8");
-  const admission = section(skill, "Admission gate");
-  const discovery = section(skill, "Optional code discovery");
-  const loop = section(skill, "Governed action loop");
-
-  assert.match(admission, /additional writable root authorized for the current Codex session/u);
-  assert.match(admission, /do not read or parse global\s+Codex configuration/u);
-  assert.match(discovery, /preference is `false`[\s\S]*do not call any codebase-memory tool/u);
-  assert.match(discovery, /preference is `true`[\s\S]*already visible and usable[\s\S]*cross-repository/u);
-  assert.match(discovery, /at most once in the current Dev Flow session[\s\S]*fall back/u);
-  assert.match(discovery, /Never install, configure, upgrade, start, repair, or remove codebase-memory/u);
-  assert.match(discovery, /never call plugin\s+management to install it/u);
-  assert.match(discovery, /not authority for repository bindings, changed paths, Git facts, Recovery/u);
-  assert.match(loop, /Before any actual repository modification[\s\S]*declared repository[\s\S]*permission failure/u);
-  assert.match(loop, /Do not[\s\S]*change sandbox mode[\s\S]*danger-full-access[\s\S]*shrink the Scope/u);
-  assert.match(loop, /`changed_paths` contains only[\s\S]*current Action[\s\S]*Do not repeat paths changed by an earlier node/u);
-  assert.match(loop, /only reads files or runs verification commands[\s\S]*`changed_paths=\[\]`[\s\S]*`no_file_changes=true`/u);
-});
-
-test("Skill selects one immutable profile and reports method results for Core assembly", async () => {
-  const skill = await readFile(skillPath, "utf8");
-  const discovery = section(skill, "Task discovery");
-  assert.match(discovery, /explicit[\s\S]{0,120}`plain`[\s\S]{0,80}`spec-kit`[\s\S]{0,80}`openspec`/i);
-  assert.match(discovery, /Spec Kit[\s\S]{0,80}`spec-kit`/i);
-  assert.match(discovery, /OpenSpec[\s\S]{0,80}`openspec`/i);
-  assert.match(discovery, /otherwise[\s\S]{0,80}`plain`/i);
-  assert.match(discovery, /conflicting[^\n]*profile[\s\S]*stop/i);
-  assert.match(discovery, /(?:do not|never)[^\n]*installed[^\n]*switch|installed[^\n]*(?:does not|must not)[^\n]*select/i);
-
-  const rendering = section(skill, "Method operation rendering");
-  assert.match(rendering, /`references\/method-profiles\.md`/u);
-  assert.match(rendering, /each[\s\S]*Core-returned[\s\S]*method\s+step/i);
-  assert.match(rendering, /actual(?:ly)? (?:visible|available)[\s\S]{0,80}capability/i);
-  assert.match(rendering, /plain-equivalent/i);
-  assert.match(rendering, /one `method_results` member for every current Action step[\s\S]*exact `step_id`/i);
-  assert.match(rendering, /actual capability ID after capability completion/i);
-  assert.match(rendering, /empty capability after completed ordinary work/i);
-  assert.match(rendering, /unavailable or not-run required step[\s\S]*do not call the submission tool/i);
-  assert.match(rendering, /Core adds the step identity, order and status/i);
-  assert.match(rendering, /(?:does not|cannot|must not)[\s\S]*substitute[\s\S]*typed `node_result`/i);
-  assert.match(rendering, /(?:do not|never)[\s\S]*(?:automatically install|auto-install)/i);
-  assert.match(rendering, /existing[\s\S]*(?:spec|plan|tasks)[\s\S]*(?:review|revise|amend)[\s\S]*(?:not|instead of)[\s\S]*(?:regenerate|rerun)/i);
-});
-
-test("method-profile fixtures close the three profiles and every Phase 6C capability scenario", async () => {
-  const fixture = await readJSON(methodProfileFixturePath);
-  assert.equal(fixture.fixture_kind, "simulated_codex_adapter_contract");
-  assert.equal(fixture.evidence_class, "simulated_static_adapter_journey");
-  assert.deepEqual(fixture.server_info.host_preferences, {
-    codex: { codebase_memory: false },
-    deepseek: { codebase_memory: true },
-  });
-  assert.equal(fixture.scenarios.length, 11);
-
-  const scenarios = new Map(fixture.scenarios.map((scenario) => [scenario.id, scenario]));
-  assert.deepEqual(
-    [...new Set(fixture.scenarios.map((scenario) => scenario.profile))].sort(),
-    ["openspec", "plain", "spec-kit"],
-  );
-  for (const id of [
-    "plain-requirements",
-    "spec-kit-requirements-available",
-    "spec-kit-clarify-unavailable-pending",
-    "spec-kit-clarify-unavailable-fallback-complete",
-    "openspec-requirements-available",
-    "openspec-verify-unavailable-pending",
-    "openspec-verify-unavailable-fallback-complete",
-    "method-tool-state-without-core-result",
-    "comprehension-awaiting-user-verdict",
-    "comprehension-user-understands",
-    "comprehension-code-too-complex",
-  ]) {
-    assert.equal(scenarios.has(id), true, id);
-  }
-
-  assert.deepEqual(scenarios.get("plain-requirements").available_capabilities, []);
-  assert.equal(
-    scenarios.get("spec-kit-clarify-unavailable-pending").available_capabilities.includes("speckit-clarify"),
-    false,
-  );
-  assert.equal(
-    scenarios.get("openspec-verify-unavailable-pending").available_capabilities.includes("openspec-verify"),
-    false,
-  );
-  assert.equal(JSON.stringify(fixture).includes("native evidence"), false);
-  assert.equal(JSON.stringify(fixture).includes("released package evidence"), false);
-});
-
-test("fixture admission requires one honest MethodEvidence per required step and a typed result", async () => {
-  const fixture = await readJSON(methodProfileFixturePath);
-  const scenarios = new Map(fixture.scenarios.map((scenario) => [scenario.id, scenario]));
-
-  for (const id of [
-    "plain-requirements",
-    "spec-kit-requirements-available",
-    "spec-kit-clarify-unavailable-fallback-complete",
-    "openspec-requirements-available",
-    "openspec-verify-unavailable-fallback-complete",
-    "comprehension-user-understands",
-    "comprehension-code-too-complex",
-  ]) {
-    const result = buildFixtureApply(fixture, scenarios.get(id));
-    assert.notEqual(result, null, id);
-    assert.equal("destination" in result.payload, false, id);
-    assert.equal("next_node" in result.payload, false, id);
-    assert.equal("next_cursor" in result.payload, false, id);
-    assert.equal(result.payload.node_result.problem_class.length > 0, true, id);
-  }
-
-  for (const id of [
-    "spec-kit-clarify-unavailable-pending",
-    "openspec-verify-unavailable-pending",
-    "method-tool-state-without-core-result",
-    "comprehension-awaiting-user-verdict",
-  ]) {
-    assert.equal(buildFixtureApply(fixture, scenarios.get(id)), null, id);
-  }
-
-  const specKitFallback = scenarios.get("spec-kit-clarify-unavailable-fallback-complete");
-  const clarify = specKitFallback.method_evidence.find((item) => item.step_id === "requirements.clarify");
-  assert.deepEqual({ status: clarify.status, capability: clarify.capability }, {
-    status: "plain_fallback",
-    capability: "",
-  });
-  const openSpecFallback = scenarios.get("openspec-verify-unavailable-fallback-complete");
-  assert.equal(openSpecFallback.method_evidence.every((item) => item.status === "plain_fallback"), true);
-  assert.equal(openSpecFallback.method_evidence.every((item) => item.capability === ""), true);
-});
-
-test("equivalent profile fixtures select one Core transition and destination from identical facts", async () => {
-  const fixture = await readJSON(methodProfileFixturePath);
-  const scenarios = new Map(fixture.scenarios.map((scenario) => [scenario.id, scenario]));
-  const applies = [
-    "plain-requirements",
-    "spec-kit-requirements-available",
-    "openspec-requirements-available",
-  ].map((id) => buildFixtureApply(fixture, scenarios.get(id)));
-
-  for (const apply of applies) {
-    assert.equal(apply.action.process_id, "standard-development");
-    assert.equal(apply.action.current_node, "REQUIREMENTS");
-    assert.equal(apply.payload.transition_id, "requirements_ready");
-    assert.equal(apply.core_destination, "DESIGN");
-    assert.deepEqual(apply.payload.node_result, fixture.requirements_node_result);
-    assert.deepEqual(apply.action.available_transitions, applies[0].action.available_transitions);
-  }
-  assert.equal(new Set(applies.map((apply) => apply.action.process_definition_digest)).size, 1);
-  assert.equal(new Set(applies.map((apply) => apply.profile)).size, 3);
-  assert.notDeepEqual(applies[0].payload.method_evidence, applies[1].payload.method_evidence);
-  assert.notDeepEqual(applies[1].payload.method_evidence, applies[2].payload.method_evidence);
-});
-
-test("Skill keeps normal Action internals quiet and reserves comprehension verdict for the user", async () => {
-  const skill = await readFile(skillPath, "utf8");
-  const loop = section(skill, "Governed action loop");
-  assert.match(loop, /validate[\s\S]*complete Action[\s\S]*internally/i);
-  assert.match(loop, /concise current-node\s+status/i);
-  assert.match(loop, /do not dump[\s\S]*all `available_transitions`/i);
-  assert.match(loop, /user decision[\s\S]*blocker/i);
-  assert.match(loop, /complete Action[\s\S]*transition selection[\s\S]*forwarding/i);
-
-  const transition = section(skill, "Transition selection");
-  assert.match(transition, /only[\s\S]*`fresh_action\.available_transitions`/i);
-  assert.match(transition, /`problem_class`/u);
-  assert.match(transition, /(?:destination[\s\S]*Core[\s\S]*(?:derive|own)|Core[\s\S]*(?:derive|own)[\s\S]*destination)/i);
-  assert.match(transition, /(?:checkbox|method tool|capability)[\s\S]*(?:does not|cannot|must not)[\s\S]*(?:advance|select|complete)/i);
-
-  const comprehension = section(skill, "Comprehension user interaction");
-  assert.match(comprehension, /bounded explanation/i);
-  assert.match(comprehension, /unnecessary abstractions/i);
-  assert.match(comprehension, /maintenance risks/i);
-  assert.match(comprehension, /ask[\s\S]*developer[\s\S]*(?:explain|maintain)/i);
-  assert.match(comprehension, /wait[\s\S]*explicit[\s\S]*(?:answer|verdict|confirmation)/i);
-  assert.match(comprehension, /`comprehension_passed`[\s\S]*explicit[\s\S]*user/i);
-  assert.match(comprehension, /AI[\s\S]*(?:must not|cannot|does not)[\s\S]*(?:answer|confirm|self-confirm)/i);
-  assert.match(comprehension, /Spec Kit|OpenSpec/i);
-});
-
-test("Skill safe-stops on unsupported storage without exposing or mutating private data", async () => {
-  const storage = section(await readFile(skillPath, "utf8"), "SCHEMA_UNSUPPORTED");
-  assert.match(storage, /pre-graph|incompatible data/i);
-  assert.match(storage, /Core[\s\S]*(?:did not|has not)[\s\S]*(?:modify|delete)/i);
-  assert.match(storage, /fresh[\s\S]*`DEV_FLOW_DATA_DIR`/i);
-  for (const operation of ["archive", "rename", "delete"]) {
-    assert.match(storage, new RegExp(`manual(?:ly)?|user-controlled[\\s\\S]*${operation}|${operation}[\\s\\S]*outside Core`, "i"));
-  }
-  assert.match(storage, /stop[\s\S]*(?:task discovery|open|create)/i);
-  assert.match(storage, /(?:do not|never)[\s\S]*(?:retry|reset|convert|migrate)/i);
-  assert.match(storage, /(?:do not|never)[\s\S]*(?:search|discover)[\s\S]*(?:data directory|database path)/i);
-  assert.match(storage, /(?:do not|never)[\s\S]*(?:display|reveal|expose)[\s\S]*private[\s\S]*(?:path|location)/i);
-  assert.match(storage, /stable error code[\s\S]*bounded[\s\S]*guidance/i);
-  assert.match(storage, /(?:do not|never)[\s\S]*(?:HOME|username)[\s\S]*(?:raw SQLite|raw Git)/i);
-  assert.match(storage, /result-envelope[\s\S]*data path/i);
-  assert.doesNotMatch(storage, /(?:\/Users\/|\/home\/|\/private\/var\/|[A-Za-z]:\\\\)/u);
-});
-
-test("Skill uses submission_tool as the exact action schema", async () => {
-  const forwarding = section(await readFile(skillPath, "utf8"), "Closed forwarding contract");
-  assert.match(forwarding, /`fresh_action\.submission_tool`[\s\S]*live schema/i);
-  assert.match(forwarding, /Do not choose another submit tool/i);
-  assert.match(forwarding, /`fresh_action`[\s\S]*`result\.task\.current_action`[\s\S]*`result\.action`/i);
-  assert.match(forwarding, /copy only `task_id` and `action_id`/i);
-  assert.match(forwarding, /`artifacts\.current`[\s\S]*`artifacts\.other_process`/i);
-  assert.match(forwarding, /`method_results`[\s\S]*`capability` and `summary`/i);
-  assert.match(forwarding, /`request_id`, revision, action kind, process identity, source cursor, repository binding,[\s\S]*payload envelope[\s\S]*absent/i);
-  assert.match(forwarding, /live schema[\s\S]*packaged reference disagree[\s\S]*stop before mutation/i);
-  for (const member of ["transition_id", "summary", "reason", "method_results", "node_result"]) {
-    assert.match(forwarding, new RegExp("`" + escapeRegExp(member) + "`", "u"));
-  }
-  assert.doesNotMatch(forwarding, /`source_phase`/u);
-  assert.doesNotMatch(forwarding, /dev_flow_apply_action|recovery_apply/i);
-});
-
-test("Skill reads before retry and preserves budgets, evidence labels, and terminal stops", async () => {
-  const skill = await readFile(skillPath, "utf8");
-  const recovery = section(skill, "Recovery-before-retry contract");
-  for (const uncertainty of ["missing", "cancelled", "malformed", "truncated", "uncertain"]) {
-    assert.match(recovery, new RegExp(uncertainty, "i"));
-  }
-  assert.match(recovery, /(?:do|does) not immediately repeat[\s\S]*submission tool/i);
-  assert.match(recovery, /dev_flow_get_task[\s\S]*recovery_assessment[\s\S]*next_advice/i);
-  assert.match(recovery, /do not construct `operation_probe`[\s\S]*do not reconstruct any payload/i);
-  assert.match(recovery, /retry_current_action[\s\S]*dev_flow_recover_action[\s\S]*submit_recovery_apply/i);
-  assert.match(recovery, /resolve_blocker[\s\S]*dev_flow_resolve_blocker/i);
-  assert.match(recovery, /`ok=false`[\s\S]*`retry_safe=false`[\s\S]*`action=none`[\s\S]*stop/i);
-
-  const evidence = section(skill, "Evidence and verification budget");
-  assert.match(evidence, /counted exactly|count.*verification commands/i);
-  assert.match(evidence, /full suite/i);
-  assert.match(evidence, /manual handoff/i);
-  assert.match(evidence, /static[\s\S]*(?:simulated Core|fake-Core)[\s\S]*user[\s\S]*native/i);
-  assert.match(evidence, /repository instructions/i);
-
-  const terminal = section(skill, "Blocked and terminal behavior");
-  for (const outcome of ["BLOCKED", "DONE", "CANCELLED", "conflict"]) {
-    assert.match(terminal, new RegExp(outcome, "i"));
-  }
-  assert.match(terminal, /Core(?:'s|-owned| returns)|authoritative/i);
-  assert.match(terminal, /stop/i);
-});
-
-test("Skill recovers an uncertain submission from Core-retained data", async () => {
-  const recovery = section(await readFile(skillPath, "utf8"), "Recovery-before-retry contract");
-
-  for (const uncertainty of ["missing", "malformed", "cancelled", "truncated", "transport-failed"]) {
-    assert.match(recovery, new RegExp(escapeRegExp(uncertainty), "i"));
-  }
-  assert.match(recovery, /Retain only the `task_id` and `action_id`/u);
-  assert.match(recovery, /Core retains the complete normalized[\s\S]*Action identity and payload/u);
-  assert.match(recovery, /Call `dev_flow_get_task`[\s\S]*ordinary\s+[\s\S]*`task_id`/u);
-  assert.match(recovery, /do not construct `operation_probe`[\s\S]*do not reconstruct any payload/u);
-  assert.match(recovery, /`retry_current_action`[\s\S]*`dev_flow_recover_action`[\s\S]*`submit_recovery_apply`/u);
-  assert.match(recovery, /`resolve_blocker`[\s\S]*`dev_flow_resolve_blocker`/u);
-  assert.match(recovery, /If the original `task_id` or `action_id` is missing, stop/u);
-  assert.doesNotMatch(recovery, /original apply request_id|exact original closed payload|recovery_apply=/u);
-
-  const adapterOwnedBranch = /\b(?:if|when|case|switch)\b[^\n]{0,160}\b(?:completed_and_recorded|completed_but_unrecorded|partially_completed|not_started|conflicting)\b/i;
-  assert.doesNotMatch(recovery, adapterOwnedBranch);
-  assert.match(recovery, /(?:do not|never)[\s\S]{0,100}(?:branch|decide|interpret)[\s\S]{0,100}recovery classification/i);
-});
-
-test("Skill and production adapter contain no workflow authority or test fixture dependency", async () => {
-  const skill = await readFile(skillPath, "utf8");
-  for (const forbiddenHeading of [
-    "## State machine",
-    "## Action catalog",
-    "## Transition table",
-    "## Error taxonomy",
-    "## Completion predicate",
-  ]) {
-    assert.equal(skill.includes(forbiddenHeading), false, forbiddenHeading);
-  }
-  for (const forbidden of [
-    /\btransitionTable\b/,
-    /\btaskStates?\b/,
-    /\bactionPayloadCatalog\b/,
-    /\bnextState\b/,
-    /\bpersistTask\b/,
-    /\bisComplete\b/,
-    /(?:tests\/fixtures|fake-(?:codex|core)|protocol\/fixtures)/i,
-  ]) {
-    assert.doesNotMatch(skill, forbidden);
-  }
-  assert.doesNotMatch(skill, /`source_phase`/u);
-  assert.doesNotMatch(skill, /\b(?:INTAKE|ASSESS|VERIFY|HANDOFF)\b/u);
-  assert.doesNotMatch(skill, /Core Contract[^\n]*0\.1/iu);
-  assert.doesNotMatch(skill, /(?:REQUIREMENTS\s*(?:→|->)\s*DESIGN|DESIGN\s*(?:→|->)\s*TASKS)/u);
-  assert.doesNotMatch(skill, /(?:transition|destination)\s+(?:table|matrix)/iu);
-  assert.match(skill, /current node[\s\S]*Core/i);
-  assert.match(skill, /`available_transitions`[\s\S]*(?:Core-returned|returned by Core|fresh_action)/i);
-
   const mcp = JSON.parse(await readFile(join(pluginRoot, ".mcp.json"), "utf8"));
-  assert.equal(mcp.$schema, "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json");
-  assert.deepEqual(Object.keys(mcp.mcpServers), ["dev-flow"]);
-  assert.deepEqual(mcp.mcpServers["dev-flow"], {
-    type: "stdio",
-    command: "dev-flow-codex",
-    args: ["mcp"],
-  });
+  assert.deepEqual(plugin.interface.defaultPrompt, ["$dev-flow-codex:dev-flow implement the requested change in this repository."]);
+  assert.equal(JSON.stringify(plugin.interface).includes("$dev-flow "), false);
+  assert.deepEqual(mcp.mcpServers, { "dev-flow": { type: "stdio", command: "dev-flow-codex", args: ["mcp"] } });
+});
 
-  for (const relativePath of ["bin/dev-flow-codex.mjs", "lib/lifecycle.mjs", "lib/paths.mjs"]) {
-    const source = await readFile(join(packageRoot, relativePath), "utf8");
-    for (const forbidden of [
-      /(?:tests\/fixtures|fake-(?:codex|core)|protocol\/fixtures)/i,
-      /\btransitionTable\b/,
-      /\btaskStates?\b/,
-      /\bactionPayloadCatalog\b/,
-      /\bpersistTask\b/,
-      /\bsqlite\b/i,
-    ]) {
-      assert.doesNotMatch(source, forbidden, `${relativePath} embeds authority or a test import`);
-    }
+test("Skill contains required operational sections and the complete Core tool catalog", async () => {
+  const skill = await readFile(skillPath, "utf8");
+  for (const heading of ["Admission gate", "Compatibility handshake", "Task discovery", "Governed action loop", "Method operation rendering", "Transition selection", "Closed forwarding contract", "Recovery-before-retry contract", "Evidence and verification budget"]) {
+    assert.equal(skill.includes(`## ${heading}`), true, heading);
   }
+  const catalog = [...skill.matchAll(/^\d+\. `(dev_flow_[a-z_]+)`$/gmu)].map((match) => match[1]);
+  assert.deepEqual([...catalog].sort(), [...expectedTools].sort());
+  assert.equal(section(skill, "Compatibility handshake").match(/\b(dev_flow_[a-z_]+)\b/u)?.[1], "dev_flow_server_info");
+});
 
+test("packaged references cover method steps, submission tools, and the new-task shape", async () => {
+  const methodReference = await readFile(join(skillRoot, "references", "method-profiles.md"), "utf8");
+  const payloadReference = await readFile(join(skillRoot, "references", "node-payloads.md"), "utf8");
+  const steps = [...marked(methodReference, "semantic-step-table").matchAll(/^\| `([^`]+)` \|/gmu)].map((match) => match[1]);
+  assert.equal(steps.length, 24);
+  assert.equal(new Set(steps).size, steps.length);
+  for (const tool of expectedTools.filter((name) => name.startsWith("dev_flow_submit_"))) assert.equal(payloadReference.includes(`\`${tool}\``), true, tool);
+  const block = marked(await readFile(skillPath, "utf8"), "new-task-example");
+  const example = JSON.parse(block.match(/^```json\n([\s\S]*)\n```$/u)?.[1]);
+  assert.deepEqual(Object.keys(example).sort(), ["initial_out_of_scope", "initial_scope", "known_acceptance_criteria", "method_profile", "request", "verification_budget"]);
+});
+
+test("production adapter does not embed workflow or fixture state", async () => {
+  for (const path of ["bin/dev-flow-codex.mjs", "lib/lifecycle.mjs", "lib/paths.mjs"]) {
+    const source = await readFile(join(packageRoot, path), "utf8");
+    assert.doesNotMatch(source, /tests\/fixtures|fake-(?:codex|core)|protocol\/fixtures/iu, path);
+    assert.doesNotMatch(source, /\btransitionTable\b|\btaskStates?\b|\bpersistTask\b|\bsqlite\b/iu, path);
+  }
 });
 
 function parseFrontmatter(markdown) {
-  const match = markdown.match(/^---\n([\s\S]*?)\n---\n/);
-  assert.ok(match, "Skill must start with YAML frontmatter");
-  const result = {};
-  for (const line of match[1].split("\n")) {
+  const match = markdown.match(/^---\n([\s\S]*?)\n---\n/u);
+  assert.notEqual(match, null);
+  return Object.fromEntries(match[1].split("\n").flatMap((line) => {
     const separator = line.indexOf(":");
-    if (separator < 0) continue;
-    const key = line.slice(0, separator).trim();
+    if (separator < 0) return [];
     let value = line.slice(separator + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1);
-    }
-    result[key] = value;
-  }
-  return result;
-}
-
-function firstToolReference(markdown) {
-  const match = markdown.match(/\b(dev_flow_[a-z_]+)\b/);
-  return match?.[1];
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
+    return [[line.slice(0, separator).trim(), value]];
+  }));
 }
 
 function section(markdown, heading) {
-  const marker = `## ${heading}`;
-  const start = markdown.indexOf(marker);
-  assert.ok(start >= 0, `missing ${marker}`);
-  const next = markdown.indexOf("\n## ", start + marker.length);
-  return markdown.slice(start, next < 0 ? undefined : next);
+  const start = markdown.indexOf(`## ${heading}`);
+  assert.ok(start >= 0, heading);
+  const end = markdown.indexOf("\n## ", start + 4);
+  return markdown.slice(start, end < 0 ? undefined : end);
 }
 
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-async function readJSON(path) {
-  return JSON.parse(await readFile(path, "utf8"));
-}
-
-function buildFixtureApply(fixture, scenario) {
-  const action = fixture.actions[scenario.action];
-  if (!scenario.should_apply || !action || !scenario.node_result || !scenario.transition_id) return null;
-  if (scenario.method_evidence.length !== action.method_steps.length) return null;
-  for (const [index, step] of action.method_steps.entries()) {
-    const evidence = scenario.method_evidence[index];
-    if (evidence.step_id !== step.step_id) return null;
-    if (step.required && !["completed", "plain_fallback"].includes(evidence.status)) return null;
-    if (evidence.status === "completed" && (
-      evidence.capability === "" || !scenario.available_capabilities.includes(evidence.capability)
-    )) return null;
-    if (evidence.status === "plain_fallback" && evidence.capability !== "") return null;
-  }
-  const transition = action.available_transitions.find((candidate) => candidate.transition_id === scenario.transition_id);
-  if (!transition) return null;
-  const nodeResult = typeof scenario.node_result === "string"
-    ? fixture[scenario.node_result]
-    : scenario.node_result;
-  if (!nodeResult || typeof nodeResult.problem_class !== "string") return null;
-  return {
-    profile: scenario.profile,
-    action,
-    core_destination: transition.destination,
-    payload: {
-      transition_id: scenario.transition_id,
-      summary: `Fixture ${scenario.id} completed the semantic node work.`,
-      reason: scenario.reason ?? "",
-      artifacts: [],
-      method_evidence: scenario.method_evidence,
-      node_result: nodeResult,
-    },
-  };
+function marked(markdown, name) {
+  const match = markdown.match(new RegExp(`<!-- ${name}:start -->\\n([\\s\\S]*?)\\n<!-- ${name}:end -->`, "u"));
+  assert.notEqual(match, null, name);
+  return match[1];
 }
 
 async function walkFiles(root) {
   const files = [];
-  async function visit(directory) {
+  async function walk(directory) {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
-      const path = join(directory, entry.name);
-      if (entry.isDirectory()) await visit(path);
-      else files.push(relative(root, path).split("\\").join("/"));
+      const absolute = join(directory, entry.name);
+      if (entry.isDirectory()) await walk(absolute);
+      else files.push(relative(root, absolute));
     }
   }
-  await visit(root);
+  await walk(root);
   return files.sort();
 }

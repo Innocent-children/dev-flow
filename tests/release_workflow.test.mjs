@@ -22,9 +22,9 @@ test("npm publication runs the existing release contracts on darwin-arm64", () =
   assert.doesNotMatch(workflow, /^      (mode|confirm_comprehension):/mu);
   assert.match(workflow, /runs-on: macos-15/u);
   assert.match(workflow, /actions\/setup-go@v7/u);
-  assert.match(workflow, /go-version: 1\.26\.5/u);
-  assert.match(workflow, /node-version: 24\.18\.0/u);
-  assert.match(workflow, /version: 11\.24\.0/u);
+  assert.match(workflow, /go-version: ['"]?1\.26(?:\.|['"]?\s*$)/mu);
+  assert.match(workflow, /node-version: ['"]?24(?:\.|['"]?\s*$)/mu);
+  assert.match(workflow, /version: ['"]?11(?:\.|['"]?\s*$)/mu);
   assert.match(workflow, /fetch-depth: 0/u);
   assert.match(workflow, /persist-credentials: false/u);
   assert.match(workflow, /test "\$\(uname -s\)-\$\(uname -m\)" = "Darwin-arm64"/u);

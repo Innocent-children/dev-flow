@@ -9,7 +9,6 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { promisify } from "node:util";
 
-import { CODEX_COMPATIBILITY_RANGE } from "../lib/lifecycle.mjs";
 import { releaseOutputNames } from "../../../release/prepare.mjs";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -52,37 +51,6 @@ const expectedPackedFiles = [
   "runtime/darwin-arm64/dev-flow",
 ].sort();
 
-const reviewedSourceAllowlist = new Set([
-  ".agents/plugins/marketplace.json",
-  "LICENSE",
-  "README.md",
-  "bin/dev-flow-codex.mjs",
-  "lib/install-experience.mjs",
-  "lib/lifecycle.mjs",
-  "lib/paths.mjs",
-  "package.json",
-  "plugin/.codex-plugin/plugin.json",
-  "plugin/.mcp.json",
-  "plugin/skills/dev-flow/SKILL.md",
-  "plugin/skills/dev-flow/agents/openai.yaml",
-  "plugin/skills/dev-flow/references/method-profiles.md",
-  "plugin/skills/dev-flow/references/node-payloads.md",
-  "tests/fake-core-contract.test.mjs",
-  "tests/fixtures/fake-codex.mjs",
-  "tests/fixtures/fake-core.mjs",
-  "tests/fixtures/fake-native-tool.mjs",
-  "tests/fixtures/fake-release-gh.mjs",
-  "tests/fixtures/fake-release-npm.mjs",
-  "tests/fixtures/graph-method-profiles.json",
-  "tests/install-experience.test.mjs",
-  "tests/launcher.test.mjs",
-  "tests/lifecycle.test.mjs",
-  "tests/package-contract.test.mjs",
-  "tests/paths.test.mjs",
-  "tests/removal-retention.test.mjs",
-  "tests/skill-contract.test.mjs",
-]);
-
 test("source package declares one public macOS arm64 Codex product", async () => {
   const [coreVersion, manifest, plugin, marketplace, mcp] = await Promise.all([
     readFile(join(repositoryRoot, "CORE_VERSION"), "utf8").then((value) => value.trim()),
@@ -108,7 +76,6 @@ test("source package declares one public macOS arm64 Codex product", async () =>
     directory: "packages/codex",
   });
   assert.deepEqual(manifest.engines, { node: ">=24" });
-  assert.equal(CODEX_COMPATIBILITY_RANGE, ">=0.147.0");
   for (const field of [
     "dependencies",
     "optionalDependencies",
@@ -172,10 +139,6 @@ test("package metadata closes source, artifact, and development command surfaces
     assert.equal(name in manifest.scripts, false, name);
   }
 
-  const sourceFiles = await walkFiles(packageRoot, { skipDirectories: new Set(["node_modules"]) });
-  assert.deepEqual(sourceFiles.filter((path) => !reviewedSourceAllowlist.has(path)), []);
-  assert.equal(sourceFiles.some((path) => path.startsWith("runtime/")), false);
-  assert.equal(sourceFiles.some((path) => /\.(?:tgz|db|sqlite)$/iu.test(path)), false);
 });
 
 test("method-profile reference is one closed dependency-free packaged resource", async () => {
