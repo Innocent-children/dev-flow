@@ -11,7 +11,7 @@
   "interface": {
     "displayName": "Dev Flow for Codex",
     "shortDescription": "Smart Dev Flow workflow for Codex",
-    "longDescription": "Automatically select Dev Flow for bounded development tasks, or force entry with $dev-flow-codex:dev-flow; non-task requests do not create Tasks.",
+    "longDescription": "Automatically select Dev Flow for bounded development tasks, coordinate explicit parallel batches through separate Host-provided Git worktrees, or force entry with $dev-flow-codex:dev-flow; non-task requests do not create Tasks.",
     "developerName": "Dev Flow",
     "category": "Productivity",
     "capabilities": [

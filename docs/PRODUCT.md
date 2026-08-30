@@ -128,6 +128,10 @@ Core 决定 retry advice、recovery apply 或 `BLOCKED`。Blocker 解除后回�
 排序的顺序读取各仓库的 canonical identity、branch、HEAD、index/worktree 和有界 changed paths；
 Git 修改仍由获得用户授权的 Host 负责。
 
+`GitCommonDirDigest` 只用于识别同一 Git common directory 下的 linked worktree 组；包含 canonical
+root 的 `RepositoryIdentity` 继续表示一个实际 worktree，也是 repository claim 的排他键。因此同一
+逻辑 Git 仓库可以在不同 worktree 中同时运行多个独立 Task，但同一个 worktree 仍最多有一个活动 Task。
+
 `$HOME/.dev-flow/config.json` 只读提供 Codex 与 DeepSeek 各自的 `codebase_memory` 布尔偏好。
 配置不存在时默认关闭；配置和索引能力不进入 Task、repository binding、Recovery 或流程权威。
 
@@ -190,7 +194,8 @@ loopback 实例；界面支持简体中文/英文、首次按系统语言选择�
 ## 当前产品边界
 
 当前产品聚焦一个本地 Host，以及由一个主仓库和零至七个显式附加仓库组成的有界 Repository
-Scope。每个参与仓库最多被一个活动 Task claim；单仓库调用继续使用普通相对路径，多仓库路径使用
+Scope。每个参与 worktree identity 最多被一个活动 Task claim；同一 Git common directory 下的
+不同 linked worktree 可以分别运行活动 Task。单仓库调用继续使用普通相对路径，多仓库路径使用
 `<repository-key>::<repository-relative-path>`。产品尚未提供：
 
 - 用户自定义 graph、workflow DSL、graph editor 或 plugin framework；
@@ -225,3 +230,8 @@ Codex Plugin 允许 Host 为边界明确的实现、缺陷修复、重构、定�
 Dev Flow；`$dev-flow-codex:dev-flow` 保留为精确强制入口。仅解释、仅状态查询、方案讨论、普通问答
 和含糊请求不自动创建或恢复 Task。两种入口共用同一 admission、Core Action 和授权边界，均不自动
 授权 Git 变更或发布。
+
+当用户明确要求在同一逻辑 Git 仓库并行执行两个以上彼此独立的有界任务时，Codex Plugin 先走
+Host 协调路径：只有当前 Host 能为每个任务创建独立 worktree-backed task/thread 时才分派，每个
+子任务再独立进入普通 Dev Flow admission。协调者不创建父 Core Task，也不调用 Dev Flow MCP；共享
+当前目录的 sub-agent 不属于有效隔离。能力不可用时，Plugin 停止并提示用户分别启动独立 worktree。

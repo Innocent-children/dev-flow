@@ -125,6 +125,7 @@ plus simple avec Codex ou DeepSeek directement.
 - **Revue de compréhension :** `COMPREHENSION_REVIEW` suit les tests et peut renvoyer vers une reprise.
 - **Écriture incertaine :** Core valide entièrement la prochaine Task puis conserve l’entrée Action normalisée dans un enregistrement d’opération indépendant ; après une réponse perdue, Task ID et Action ID suffisent sans reconstruire le payload.
 - **Multi-dépôts borné :** le source actuel gère un dépôt principal et jusqu’à sept dépôts supplémentaires dans un état unique.
+- **Tasks parallèles dans un même dépôt :** un dépôt Git logique peut exécuter plusieurs Tasks indépendantes en parallèle grâce à des linked worktrees. Chaque worktree physique conserve au plus une Task active. Codex ne répartit automatiquement le travail que si le Host fournit déjà une capacité task/thread adossée aux worktrees ; sinon il demande de démarrer un autre worktree. Core ne crée, ne change et ne nettoie pas les worktrees.
 
 Vérifier dans [Project Status](docs/PROJECT-STATUS_en.md) si le multi-dépôts est déjà inclus dans la
 version stable.

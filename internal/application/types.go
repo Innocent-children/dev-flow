@@ -30,18 +30,20 @@ type GetControlCenterTaskRequest struct {
 }
 
 type ControlCenterTaskSummary struct {
-	TaskID         domain.ID
-	RequestSummary string
-	OriginHost     domain.Host
-	ExecutionHost  domain.Host
-	CurrentNode    domain.NodeID
-	Lifecycle      string
-	Revision       uint64
-	UpdatedAt      time.Time
-	Archived       bool
-	RepositoryKeys []domain.RepositoryKey
-	Blocker        *string
-	Outcome        *string
+	TaskID            domain.ID
+	RequestSummary    string
+	OriginHost        domain.Host
+	ExecutionHost     domain.Host
+	CurrentNode       domain.NodeID
+	Lifecycle         string
+	Revision          uint64
+	UpdatedAt         time.Time
+	Archived          bool
+	RepositoryKeys    []domain.RepositoryKey
+	RepositoryGroupID domain.Digest
+	WorktreePath      string
+	Blocker           *string
+	Outcome           *string
 }
 
 type ControlCenterTaskList struct {

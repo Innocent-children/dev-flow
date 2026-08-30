@@ -124,6 +124,7 @@ Codex oder DeepSeek einfacher.
 - **Verständlichkeitsprüfung:** Nach Tests folgt `COMPREHENSION_REVIEW`; nicht wartbare Ergebnisse gehen zurück.
 - **Unklare Schreiboperation:** Core validiert zuerst den vollständigen nächsten Task und speichert die normalisierte Action-Eingabe dann in einem unabhängigen Operationsdatensatz; nach einer verlorenen Antwort genügen Task ID und Action ID, ohne den Payload neu aufzubauen.
 - **Begrenzte Multi-Repository-Scope:** Der aktuelle Source verwaltet ein primäres und bis zu sieben zusätzliche Repositories in einem Zustand.
+- **Parallele Tasks im selben Repository:** Ein logisches Git-Repository kann über mehrere linked worktrees mehrere unabhängige Tasks gleichzeitig ausführen. Jeder physische Worktree hält weiterhin höchstens einen aktiven Task. Codex verteilt nur dann automatisch, wenn der Host bereits eine worktree-backed task/thread-Funktion bereitstellt; andernfalls fordert es zum Start eines weiteren Worktrees auf. Core erstellt, wechselt oder bereinigt keine Worktrees.
 
 Ob Multi-Repository bereits stabil ist, steht unter [Project Status](docs/PROJECT-STATUS_en.md).
 

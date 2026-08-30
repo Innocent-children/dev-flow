@@ -37,12 +37,26 @@ test("plugin metadata and MCP registration use resolvable product identities", a
 
 test("Skill contains required operational sections and the complete Core tool catalog", async () => {
   const skill = await readFile(skillPath, "utf8");
-  for (const heading of ["Admission gate", "Compatibility handshake", "Task discovery", "Governed action loop", "Method operation rendering", "Transition selection", "Closed forwarding contract", "Recovery-before-retry contract", "Evidence and verification budget"]) {
+  for (const heading of ["Request routing", "Admission gate", "Compatibility handshake", "Task discovery", "Governed action loop", "Method operation rendering", "Transition selection", "Closed forwarding contract", "Recovery-before-retry contract", "Evidence and verification budget"]) {
     assert.equal(skill.includes(`## ${heading}`), true, heading);
   }
   const catalog = [...skill.matchAll(/^\d+\. `(dev_flow_[a-z_]+)`$/gmu)].map((match) => match[1]);
   assert.deepEqual([...catalog].sort(), [...expectedTools].sort());
   assert.equal(section(skill, "Compatibility handshake").match(/\b(dev_flow_[a-z_]+)\b/u)?.[1], "dev_flow_server_info");
+});
+
+test("parallel batches require one Host worktree-backed Task per bounded item", async () => {
+  const routing = section(await readFile(skillPath, "utf8"), "Request routing");
+  for (const required of [
+    "distinct Git worktree",
+    "not be used for this route",
+    "one worktree-backed Codex task for each bounded item",
+    "Do not call any Dev Flow MCP tool from the coordinator",
+    "do not create a parent Core Task",
+    "stop before dispatch",
+  ]) {
+    assert.equal(routing.includes(required), true, required);
+  }
 });
 
 test("packaged references cover method steps, submission tools, and the new-task shape", async () => {

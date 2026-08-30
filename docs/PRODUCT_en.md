@@ -145,6 +145,12 @@ creation, and every repository shares the same process state. Core reads each re
 identity, branch, HEAD, index/worktree, and bounded changed paths in primary-first, additional-key
 order. A user-authorized host continues to own Git mutations.
 
+`GitCommonDirDigest` identifies only the group of linked worktrees under one Git common directory.
+`RepositoryIdentity`, which also includes the canonical root, continues to identify one physical
+worktree and remains the exclusive repository-claim key. The same logical Git repository can
+therefore run independent Tasks concurrently in different worktrees while one worktree still holds
+at most one active Task.
+
 The read-only `$HOME/.dev-flow/config.json` file provides independent `codebase_memory` boolean
 preferences for Codex and DeepSeek. Missing configuration defaults to disabled. Configuration and
 index availability never enter the Task, repository binding, Recovery, or process authority.
@@ -218,8 +224,9 @@ product version numbers do not have to match.
 ## Current product boundary
 
 The current product focuses on one local host and a bounded Repository Scope made of one primary
-repository plus zero to seven explicit additional repositories. Each participating repository can
-be claimed by at most one active Task. Single-repository calls retain ordinary relative paths;
+repository plus zero to seven explicit additional repositories. Each participating worktree identity
+can be claimed by at most one active Task; different linked worktrees under one Git common directory
+may each run an active Task. Single-repository calls retain ordinary relative paths;
 multi-repository paths use `<repository-key>::<repository-relative-path>`. It does not provide:
 
 - user-defined graphs, a workflow DSL, graph editor, or plugin framework;
@@ -259,3 +266,10 @@ refactoring, targeted-testing, and development-delivery requests. `$dev-flow-cod
 the exact force-entry selector. Explanation-only, status-only, design-discussion, ordinary-question,
 and ambiguous requests do not automatically create or resume a Task. Both paths share the same
 admission, Core Action, and authority boundaries and do not authorize Git mutations or releases.
+
+When the user explicitly requests two or more independent bounded tasks to run concurrently in one
+logical Git repository, the Codex Plugin uses a Host-coordination route first. It dispatches only
+when the current Host can create a separate worktree-backed task/thread for every item; each child
+then enters ordinary Dev Flow admission independently. The coordinator creates no parent Core Task
+and calls no Dev Flow MCP tool. Shared-directory sub-agents are not isolation. When the capability is
+unavailable, the Plugin stops and asks the user to start separate worktrees.

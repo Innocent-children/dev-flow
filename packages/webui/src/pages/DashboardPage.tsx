@@ -43,7 +43,7 @@ export function DashboardPage() {
                 {data.recent.map((task) => (
                   <AppLink className="task-row" href={`/tasks/${encodeURIComponent(task.task_id)}`} key={task.task_id}>
                     <span className={`status-badge ${task.lifecycle}`}><span className="status-symbol" aria-hidden="true" />{t(stateKey(task.lifecycle))}</span>
-                    <span className="task-copy"><strong>{task.request_summary}</strong><small><span className="stage"><span>{nodeLabel(task.current_node, language)}</span><code>{task.current_node}</code></span><span>r{task.revision}</span><span>{formatDate(task.updated_at, language)}</span></small></span>
+                    <span className="task-copy"><strong>{task.request_summary}</strong><small><span className="stage"><span>{nodeLabel(task.current_node, language)}</span><code>{task.current_node}</code></span><span>r{task.revision}</span><span>{formatDate(task.updated_at, language)}</span><span className="repository-context" title={task.worktree_path}><span>{t("repository.group")} <code>{task.repository_group_id.slice(0, 12)}</code></span><span>{task.worktree_path}</span></span></small></span>
                     <span className="task-row-tail"><code>{task.task_id}</code><span aria-hidden="true">›</span></span>
                   </AppLink>
                 ))}

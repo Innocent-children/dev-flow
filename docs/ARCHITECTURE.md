@@ -195,12 +195,22 @@ Application 创建 Task 时先观察主仓库，再按 key 顺序观察附加仓
 或顺序。多仓库公共路径使用 `<repository-key>::<repository-relative-path>`，Application 将其分派为
 各 Observer 使用的普通仓库相对路径；单仓库路径语法保持不变。
 
+Repository binding 同时保留两个不同用途的身份：`GitCommonDirDigest` 把 linked worktree 归到同一
+本地逻辑仓库组，`RepositoryIdentity` 由该 digest 与 canonical root 共同形成并表示实际 worktree。
+Store 继续按后者排他 claim，因此不同 worktree 的 Task 可以并行，而同一 worktree 的第二个活动
+Task 仍然冲突。Control Center 从 Task snapshot 投影主仓库组标识和 worktree path，不保存新状态。
+
 SQLite 继续以一行 Task 和一个 revision CAS 保存整个流程聚合；每个 Task 至多保留一条最近的
 `action_operations` 记录，用于 Core-retained submission 的幂等与恢复，不形成第二个流程游标。
 活动 Task 为 Scope 中每个 identity
 持有一条 `repository_claims` 记录；Acquire、Retain 和 Release 都在 Task snapshot/event 的同一事务
 中处理完整、有序的 claim 集。任一冲突或集合不一致都会回滚或 safe-stop，不产生部分 claim、仓库级
 revision 或第二状态机。
+
+Codex Skill 在单 Task admission 之前识别用户明确声明的并行批次。协调路径只调用 Host 已提供的
+worktree-backed task/thread 能力，为每个有界项创建独立 Codex task；协调者不调用 Core，也不创建
+父 Task。每个子 task 在自己的 canonical worktree 中执行原有 handshake 和 Action loop。共享目录的
+sub-agent、Core Git mutation 和自动合并都不属于这条路径。
 
 `dev_flow_open_task` 在现有 `host`、`repository_path` 与 `new_task` 旁仅增加可选
 `primary_repository_key` 和最多七项的 closed `additional_repositories[{key,repository_path}]`。

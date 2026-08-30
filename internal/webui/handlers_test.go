@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/application"
 	"github.com/Innocent-children/dev-flow/internal/domain"
@@ -135,6 +136,35 @@ func TestFilterOptionsUseCurrentWorkflowDefinition(t *testing.T) {
 	}
 	if len(body.NodeIDs) != 11 || body.NodeIDs[0] != string(domain.NodeRequirements) || body.NodeIDs[len(body.NodeIDs)-1] != string(domain.NodeCancelled) {
 		t.Fatalf("node IDs=%v", body.NodeIDs)
+	}
+}
+
+func TestTaskReadModelsExposeRepositoryGroupAndWorktree(t *testing.T) {
+	group := strings.Repeat("a", 64)
+	now := time.Date(2026, 8, 30, 2, 0, 0, 0, time.UTC)
+	summaries := projectSummaries([]application.ControlCenterTaskSummary{{
+		TaskID: "task", RequestSummary: "Parallel worktree task", OriginHost: domain.HostCodex,
+		ExecutionHost: domain.HostCodex, CurrentNode: domain.NodeRequirements, Lifecycle: "active",
+		Revision: 1, UpdatedAt: now, RepositoryKeys: []domain.RepositoryKey{"primary"},
+		RepositoryGroupID: domain.Digest(group), WorktreePath: "/worktrees/task-a",
+	}})
+	if len(summaries) != 1 || summaries[0].RepositoryGroupID != group || summaries[0].WorktreePath != "/worktrees/task-a" {
+		t.Fatalf("summary projection=%+v", summaries)
+	}
+
+	branch := "main"
+	head := strings.Repeat("b", 40)
+	digest := domain.Digest(strings.Repeat("c", 64))
+	detail, err := projectTaskDetail("request-read", application.ControlCenterTaskDetail{Task: domain.ProcessTask{
+		TaskID: "task", OriginHost: domain.HostCodex,
+		Intent:      domain.TaskIntent{Request: "Parallel worktree task", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 1}, MethodProfile: domain.MethodPlain},
+		Process:     domain.ProcessReference{ID: domain.ProcessStandardDevelopment, DefinitionDigest: digest},
+		CurrentNode: domain.NodeRequirements,
+		Repository:  domain.RepositoryBinding{CanonicalRoot: "/worktrees/task-a", GitCommonDirDigest: domain.Digest(group), RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest},
+		Revision:    1, CreatedAt: now, UpdatedAt: now,
+	}})
+	if err != nil || len(detail.Repositories) != 1 || detail.Repositories[0].RepositoryGroupID != group || detail.Repositories[0].Path != "/worktrees/task-a" {
+		t.Fatalf("detail projection=%+v err=%v", detail.Repositories, err)
 	}
 }
 

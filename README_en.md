@@ -168,6 +168,11 @@ All repositories share one stage, Action, revision, verification budget, and out
 directories, dependencies, and indexes cannot expand scope automatically. Check
 [Project Status](docs/PROJECT-STATUS_en.md) to see whether this capability is in the stable release.
 
+One logical Git repository can run several independent Tasks concurrently through linked worktrees.
+Each physical worktree still holds at most one active Task. Codex dispatches automatically only when
+the Host already provides a worktree-backed task/thread capability; otherwise it asks the user to
+start another worktree. Core does not create, switch, or clean worktrees.
+
 ## Boundaries
 
 - Core observes Git through bounded, read-only operations; it does not commit, push, merge, rebase,

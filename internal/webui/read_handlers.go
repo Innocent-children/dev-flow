@@ -118,16 +118,16 @@ func projectSummaries(items []application.ControlCenterTaskSummary) []TaskSummar
 		for keyIndex, key := range item.RepositoryKeys {
 			keys[keyIndex] = string(key)
 		}
-		result[index] = TaskSummary{TaskID: string(item.TaskID), RequestSummary: item.RequestSummary, OriginHost: string(item.OriginHost), ExecutionHost: string(item.ExecutionHost), CurrentNode: string(item.CurrentNode), Lifecycle: Lifecycle(item.Lifecycle), Revision: item.Revision, UpdatedAt: item.UpdatedAt, Archived: item.Archived, RepositoryKeys: keys, Blocker: item.Blocker, Outcome: item.Outcome}
+		result[index] = TaskSummary{TaskID: string(item.TaskID), RequestSummary: item.RequestSummary, OriginHost: string(item.OriginHost), ExecutionHost: string(item.ExecutionHost), CurrentNode: string(item.CurrentNode), Lifecycle: Lifecycle(item.Lifecycle), Revision: item.Revision, UpdatedAt: item.UpdatedAt, Archived: item.Archived, RepositoryKeys: keys, RepositoryGroupID: string(item.RepositoryGroupID), WorktreePath: item.WorktreePath, Blocker: item.Blocker, Outcome: item.Outcome}
 	}
 	return result
 }
 
 func projectTaskDetail(requestID string, detail application.ControlCenterTaskDetail) (TaskDetailResponse, error) {
 	summary := projectSummaries([]application.ControlCenterTaskSummary{summarizeDetail(detail)})[0]
-	repositories := []RepositoryView{{Key: string(detail.Task.EffectivePrimaryRepositoryKey()), Path: detail.Task.Repository.CanonicalRoot, Role: "primary"}}
+	repositories := []RepositoryView{{Key: string(detail.Task.EffectivePrimaryRepositoryKey()), Path: detail.Task.Repository.CanonicalRoot, Role: "primary", RepositoryGroupID: string(detail.Task.Repository.GitCommonDirDigest)}}
 	for _, repository := range detail.Task.AdditionalRepositories {
-		repositories = append(repositories, RepositoryView{Key: string(repository.Key), Path: repository.Binding.CanonicalRoot, Role: "additional"})
+		repositories = append(repositories, RepositoryView{Key: string(repository.Key), Path: repository.Binding.CanonicalRoot, Role: "additional", RepositoryGroupID: string(repository.Binding.GitCommonDirDigest)})
 	}
 	baselines, err := projectNamedFacts([]namedFact{{"requirements", "Requirements", detail.Task.Requirements}, {"design", "Design", detail.Task.Design}, {"task_plan", "Task plan", detail.Task.TaskPlan}, {"baseline_history", "Baseline history", detail.Task.BaselineHistory}})
 	if err != nil {
@@ -203,7 +203,7 @@ func summarizeDetail(detail application.ControlCenterTaskDetail) application.Con
 		value := detail.Task.Outcome.Summary
 		outcome = &value
 	}
-	return application.ControlCenterTaskSummary{TaskID: detail.Task.TaskID, RequestSummary: truncateWebSummary(detail.Task.Intent.Request), OriginHost: detail.Task.OriginHost, ExecutionHost: detail.Task.OriginHost, CurrentNode: detail.Task.CurrentNode, Lifecycle: lifecycleFromNode(detail.Task.CurrentNode), Revision: detail.Task.Revision, UpdatedAt: detail.Task.UpdatedAt, Archived: detail.Archived, RepositoryKeys: keys, Blocker: blocker, Outcome: outcome}
+	return application.ControlCenterTaskSummary{TaskID: detail.Task.TaskID, RequestSummary: truncateWebSummary(detail.Task.Intent.Request), OriginHost: detail.Task.OriginHost, ExecutionHost: detail.Task.OriginHost, CurrentNode: detail.Task.CurrentNode, Lifecycle: lifecycleFromNode(detail.Task.CurrentNode), Revision: detail.Task.Revision, UpdatedAt: detail.Task.UpdatedAt, Archived: detail.Archived, RepositoryKeys: keys, RepositoryGroupID: detail.Task.Repository.GitCommonDirDigest, WorktreePath: detail.Task.Repository.CanonicalRoot, Blocker: blocker, Outcome: outcome}
 }
 
 func truncateWebSummary(value string) string {

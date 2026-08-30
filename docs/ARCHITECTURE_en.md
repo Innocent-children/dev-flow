@@ -213,12 +213,25 @@ without changing its primary repository, keys, or ordering. Public multi-reposit
 `<repository-key>::<repository-relative-path>` and Application dispatches them as ordinary
 repository-relative paths to each Observer. Single-repository path syntax is unchanged.
 
+Repository binding keeps two identities with different responsibilities. `GitCommonDirDigest`
+groups linked worktrees in one local logical repository, while `RepositoryIdentity` combines that
+digest with the canonical root and identifies one physical worktree. Store keeps the latter as the
+exclusive claim key, so Tasks in different worktrees may run concurrently while a second active
+Task in the same worktree still conflicts. Control Center projects the primary repository group and
+worktree path from the Task snapshot without persisting new state.
+
 SQLite continues to store the whole process aggregate as one Task row with one revision CAS. Each
 Task retains at most one latest `action_operations` row for Core-retained submission idempotency and
 recovery; it is not a second process cursor. An active Task holds one `repository_claims` row for
 every identity in its Scope. Acquire, Retain, and Release process the complete ordered claim set in the same transaction as the Task snapshot and
 event. A conflict or set mismatch rolls back or safe-stops; it cannot leave a partial claim set,
 repository-level revision, or second state machine.
+
+Before single-Task admission, the Codex Skill recognizes an explicit parallel batch. Its coordinator
+uses only a Host-provided worktree-backed task/thread capability to create one Codex task per bounded
+item. The coordinator calls no Core tool and creates no parent Task. Every child performs the normal
+handshake and Action loop in its own canonical worktree. Shared-directory sub-agents, Core Git
+mutation, and automatic merging are outside this route.
 
 Alongside the existing `host`, `repository_path`, and `new_task` fields, `dev_flow_open_task` adds
 only optional `primary_repository_key` and at most seven closed

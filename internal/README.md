@@ -26,11 +26,15 @@ Core 独自拥有：
 - Task identity、immutable intent 与 method profile；
 - process definition/digest、current node、resume node 与 legal transitions；
 - requirements/design/task-plan baselines 及其失效关系；
-- repository claim、revision CAS、current action 与 evidence；
+- 以实际 worktree identity 为键的 repository claim、revision CAS、current action 与 evidence；
 - Recovery classification、blocker 与 terminal outcome。
 
 Host Adapter 执行用户授权的仓库工作并提交结果。Core 只读观察 Git，不执行任何 Git mutation，
 也不提供通用 shell。
+
+linked worktree 共享 `GitCommonDirDigest` 作为 Control Center 的逻辑仓库组标识，但各自拥有包含
+canonical root 的 `RepositoryIdentity`。Store 只按后者排他 claim，因此同组的不同 worktree 可各自
+运行 Task，同一 worktree 仍只能有一个活动 Task。
 
 ## 当前运行模型
 

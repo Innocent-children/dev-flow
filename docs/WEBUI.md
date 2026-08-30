@@ -15,6 +15,10 @@ Dev Flow Control Center 是嵌入 Go Core 的本机单用户界面。它展示�
 生成。任务列表的当前阶段选项来自 Core 当前流程定义。所有选择控件使用 WebUI 自有、支持键盘操作的
 combobox/listbox，不调用浏览器原生下拉弹层。
 
+概览和任务列表同时显示主仓库的 `repository_group_id` 短标识与实际 `worktree_path`；任务详情为
+Scope 中每个 repository 显示自己的组标识和路径。linked worktree 共享组标识但路径不同，因此用户
+可以看出同一逻辑 Git 仓库中的多个独立 Task。该信息只从 Task snapshot 投影，不增加持久化状态。
+
 ## 启动与复用
 
 先让 `DEV_FLOW_DATA_DIR` 指向一个已存在的本机目录，再使用携带 Core 的任一维护中 Host package：

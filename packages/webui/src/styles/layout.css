@@ -639,6 +639,20 @@
   font-size: .68rem;
 }
 
+.repository-context {
+  min-width: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: .35rem;
+}
+
+.repository-context > span:last-child {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .task-row-tail {
   min-width: 0;
   display: flex;
@@ -1013,6 +1027,25 @@ td small {
   font-size: .66rem;
 }
 
+.worktree-cell {
+  min-width: 260px;
+}
+
+.worktree-cell > span {
+  display: flex;
+  align-items: baseline;
+  gap: .35rem;
+  color: var(--text);
+  font-size: .78rem;
+}
+
+.worktree-cell > small {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .host-name {
   text-transform: capitalize;
 }
@@ -1244,6 +1277,12 @@ td small {
   font-size: .66rem;
   font-weight: 720;
   text-transform: uppercase;
+}
+
+.repository-list small {
+  color: var(--text-muted);
+  font-size: .68rem;
+  text-align: right;
 }
 
 .repository-list code {

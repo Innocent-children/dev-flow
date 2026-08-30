@@ -115,6 +115,12 @@ and ambiguous requests do not automatically create or resume a Task. Both paths 
 then the host silently calls `dev_flow_server_info`; explicit selection does not bypass permissions,
 Core Actions, Git-mutation authority, or release confirmation.
 
+An explicit request to run several independent tasks concurrently in one logical Git repository is
+not a new command or MCP tool. The Codex Skill creates one worktree-backed Codex task per item only
+when the Host already provides that capability. The coordinator calls no Dev Flow MCP tool and
+creates no parent Core Task. A shared-directory sub-agent cannot replace worktree isolation; when
+the capability is unavailable, the user must start separate worktrees.
+
 ## DeepSeek Harness
 
 `dev-flow-deepseek` has no `bin` field in `package.json`, so it does not expose a standalone
@@ -279,6 +285,12 @@ multi-repository Task. Every active Task's `repository_claims` are acquired, ret
 in the same SQLite transaction as the snapshot and event. An incompatible old Schema follows
 `reject-and-reset`: reject with zero writes before writable open and never migrate, delete, rename,
 or overwrite the data.
+
+The identity in `repository_claims` represents one physical worktree, not the entire Git common
+directory. Linked worktrees share a logical repository group but have different canonical roots, so
+they may each hold an active Task; one worktree still holds only one active Task. Control Center Task
+summaries expose read-only `repository_group_id` and `worktree_path` fields, and every repository in
+Task detail exposes its own `repository_group_id`.
 
 The `dev_flow_server_info({})` result includes:
 

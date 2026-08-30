@@ -27,11 +27,16 @@ Core alone owns:
 - Task identity, immutable intent, and method profile;
 - process definition/digest, current node, resume node, and legal transitions;
 - requirements/design/task-plan baselines and their invalidation;
-- repository claim, revision CAS, current action, and evidence;
+- repository claim keyed by physical worktree identity, revision CAS, current action, and evidence;
 - Recovery classification, blocker, and terminal outcome.
 
 A Host Adapter performs user-authorized repository work and submits the result. Core observes Git
 read-only, performs no Git mutation, and exposes no generic shell.
+
+Linked worktrees share `GitCommonDirDigest` as the logical repository group projected by Control
+Center, but each has a `RepositoryIdentity` that includes its canonical root. Store claims only the
+latter exclusively, so different worktrees in one group may each run a Task while one worktree still
+holds only one active Task.
 
 ## Runtime structure
 

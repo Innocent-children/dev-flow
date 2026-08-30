@@ -18,6 +18,12 @@ The Start Task entry contains create and continue flows. The ordinary form accep
 the default primary key and deterministic additional keys. Current-stage filter choices come from the Core process
 definition. Every selection control uses the WebUI-owned keyboard-accessible combobox/listbox rather than a native popup.
 
+The overview and Task list show the primary repository's shortened `repository_group_id` together
+with its physical `worktree_path`. Task detail shows the group and path for every repository in the
+Scope. Linked worktrees share a group but have different paths, so users can recognize independent
+Tasks in one logical Git repository. These fields are projected from the Task snapshot and add no
+persisted state.
+
 ## Start and reuse
 
 Point `DEV_FLOW_DATA_DIR` at an existing local directory, then use a maintained Host package that carries Core:

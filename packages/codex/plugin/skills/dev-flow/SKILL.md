@@ -1,6 +1,6 @@
 ---
 name: dev-flow
-description: "Use Dev Flow for bounded Codex software development tasks: implementation, bug fixes, refactoring, targeted testing, and development delivery. It may be selected implicitly for those tasks or explicitly with $dev-flow-codex:dev-flow. Do not create a Dev Flow Task for explanation-only, status-only, design discussion, ordinary questions, or ambiguous requests."
+description: "Use Dev Flow for bounded Codex software development tasks: implementation, bug fixes, refactoring, targeted testing, development delivery, and explicit parallel batches isolated in separate Git worktrees. It may be selected implicitly for those tasks or explicitly with $dev-flow-codex:dev-flow. Do not create a Dev Flow Task for explanation-only, status-only, design discussion, ordinary questions, or ambiguous requests."
 ---
 
 # Dev Flow
@@ -9,6 +9,35 @@ This Skill is the current Core contract Codex adapter for the shared Dev Flow Co
 current node, legal transitions, destinations, recovery, blockers, and terminal outcomes. The Skill
 admits one implicit or explicit request, silently validates normal startup results, renders method work, and
 forwards one closed result without keeping adapter state.
+
+## Request routing
+
+Route the current request before the single-Task admission gate.
+
+An explicit parallel batch names two or more independent, bounded development tasks for the same
+logical Git repository and asks Codex to run them concurrently. Handle that batch as a Host
+coordination request, not as one Core Task:
+
+1. Use this route only when the current Host exposes a task/thread creation capability that can
+   place every child in a distinct Git worktree. A generic sub-agent or child that shares the
+   coordinator's working directory is not isolated and must not be used for this route.
+2. Create one worktree-backed Codex task for each bounded item. Give each child only its own request,
+   bounds and acceptance criteria, and include the exact `$dev-flow-codex:dev-flow` selector so the
+   child performs its own admission, handshake, Task discovery and Action loop.
+3. Do not call any Dev Flow MCP tool from the coordinator and do not create a parent Core Task for
+   the batch. Each child worktree owns one independent Core Task; Core remains unaware of the Host
+   coordination layer.
+4. Do not create, switch, delete or clean a Git worktree through shell or Core. The Host-provided
+   worktree task capability owns worktree setup under the user's current request and authorization.
+5. If the capability is absent, cannot guarantee a distinct worktree for every child, or cannot
+   preserve the requested task boundaries, stop before dispatch. Tell the user to start each item in
+   a separate Codex worktree-backed task; do not fall through to one combined Task or shared-directory
+   parallel work.
+6. Host monitoring may report each child independently. It must not merge Task state, infer a shared
+   outcome, or perform commit, merge, rebase, push or conflict resolution without separate authority.
+
+All other task-bearing requests follow the single-Task admission gate below. A request with several
+steps toward one outcome remains one Task rather than a parallel batch.
 
 ## Admission gate
 

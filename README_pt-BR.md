@@ -125,6 +125,7 @@ simples usar Codex ou DeepSeek diretamente.
 - **Revisão de compreensão:** depois dos testes há `COMPREHENSION_REVIEW`; resultados difíceis de manter retornam.
 - **Escrita incerta:** o Core valida por completo a próxima Task e preserva a entrada Action normalizada em um registro de operação independente; após perder uma resposta, Task ID e Action ID bastam, sem reconstruir o payload.
 - **Escopo multirrepositório limitado:** o source atual gerencia um principal e até sete adicionais em um único estado.
+- **Tasks paralelas no mesmo repositório:** um repositório Git lógico pode executar várias Tasks independentes ao mesmo tempo por meio de linked worktrees. Cada worktree físico mantém no máximo uma Task ativa. O Codex só distribui automaticamente quando o Host já oferece uma capacidade task/thread apoiada em worktrees; caso contrário, solicita o início de outro worktree. Core não cria, troca nem limpa worktrees.
 
 Consulte [Project Status](docs/PROJECT-STATUS_en.md) para saber se o suporte multirrepositório já está
 na versão estável.

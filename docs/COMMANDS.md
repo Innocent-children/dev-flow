@@ -106,6 +106,11 @@ $dev-flow-codex:dev-flow <任务描述>
 创建或恢复 Task。两种选择方式通过同一 admission 后，Host 静默调用 `dev_flow_server_info` 并立即
 打开或恢复 Task；显式选择不会绕过权限、Core Action、Git 变更授权或发布确认。
 
+用户明确要求同一逻辑 Git 仓库中的多个独立任务并行执行时，这不是新的命令或 MCP 工具。Codex
+Skill 只在 Host 已提供 worktree-backed task/thread 能力时，为每个任务创建独立 worktree-backed
+Codex task；协调者不调用 Dev Flow MCP，也不创建父 Core Task。共享目录 sub-agent 不可替代
+worktree 隔离；能力不可用时，用户需要分别启动独立 worktree。
+
 ## DeepSeek Harness
 
 `dev-flow-deepseek` 的 `package.json` 没有 `bin` 字段，因此它不提供名为
@@ -257,6 +262,11 @@ Task result 保留主 `repository`，增加 `primary_repository_key` 与 sorted
 `repository_claims` 与 snapshot/event 在同一 SQLite transaction 中 Acquire、Retain 或 Release；
 不兼容旧 Schema 采用 `reject-and-reset`，在 writable open 前零写入拒绝，不自动迁移、删除、改名
 或覆盖数据。
+
+`repository_claims` 的 identity 表示实际 worktree，不是整个 Git common directory。linked
+worktree 共享逻辑仓库组标识，但 canonical root 不同，因此可以分别持有活动 Task；同一 worktree
+仍只能持有一个活动 Task。Control Center 的 Task summary 公开只读 `repository_group_id` 和
+`worktree_path`，详情中的每个 repository 也公开自己的 `repository_group_id`。
 
 `dev_flow_server_info({})` 的结果包含：
 

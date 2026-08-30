@@ -2,7 +2,7 @@
 
 [中文](PROJECT-STATUS.md) | [English](PROJECT-STATUS_en.md)
 
-_最后核对：2026 年 8 月 28 日。_
+_最后核对：2026 年 8 月 30 日。_
 
 Dev Flow 仍是一个早期开源项目，但已经有公开 package 和真实 Host 旅程。本页刻意区分三种证据：
 
@@ -31,9 +31,9 @@ npm `@latest` 当前选择以下稳定 package：
 
 | 产品 | 当前能力 |
 | --- | --- |
-| `dev-flow-codex` | 智能选择、setup、Plugin/MCP 注册和多仓库 Task Scope |
+| `dev-flow-codex` | 智能选择、setup、Plugin/MCP 注册、多仓库 Task Scope，以及 Host 能力可用时的独立 worktree 并行 Task 路由 |
 | `dev-flow-deepseek` | DSH bundle、显式触发和多仓库 Task Scope |
-| `@imotong/dev-flow` | 统一 Adapter 生命周期与本机 Control Center launcher |
+| `@imotong/dev-flow` | 统一 Adapter 生命周期与本机 Control Center launcher；Control Center 可显示逻辑仓库组和实际 worktree |
 
 当前源码还包含嵌入 Core 的共享本机 WebUI，公共入口为
 `dev-flow webui start|open|status|stop|reset`。源码测试通过不单独扩大平台或 Host 支持范围；公开支持
@@ -54,6 +54,7 @@ npm `@latest` 当前选择以下稳定 package：
 - 稳定支持仅覆盖 macOS arm64；没有 Linux、Windows、Intel Mac、Rosetta 或 remote MCP 声明。
 - 项目创建时间较短，外部 Issue、PR、依赖项目与长期采用证据仍有限。
 - Core 不是 Host sandbox，不会拦截 Host 的每一次文件读写或 shell 命令。
+- 同一逻辑仓库的自动并行分派依赖 Host 提供 worktree-backed task/thread 能力；能力不可用时需要用户分别启动 worktree，且该源码能力尚无最终制品 Journey 声明。
 - 当前没有遥测、用户自定义流程图或自动历史 Task 迁移；WebUI 只支持本机 loopback，不提供远程访问。
 
 ## 评估项目时建议查看

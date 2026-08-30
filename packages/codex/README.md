@@ -95,6 +95,17 @@ Design、Tasks 与 Implementation 节点结果不发送 `requirements_revision`�
 `required_member_missing` 只可按 `allowed_paths` 和当前节点已有事实修正一次；需要新的用户决定时
 Codex 停止并请求输入。
 
+## 同一仓库并行多个 Task
+
+用户明确列出两个以上彼此独立的有界任务，并要求在同一逻辑 Git 仓库并行执行时，Skill 在普通
+Task admission 之前检查 Host 是否提供 worktree-backed task/thread 创建能力。能力可用时，每个任务
+进入一个独立 Git worktree 和 Codex task，并在子 task 中通过 `$dev-flow-codex:dev-flow` 创建自己的
+Core Task。协调者不创建父 Core Task，也不调用 Dev Flow MCP。
+
+普通 sub-agent 若共享当前工作目录，不属于有效隔离。Host 无法保证每个子 task 使用独立 worktree
+时，Skill 会停止并提示用户分别启动 worktree；不会把多个任务合并为一个 Task，也不会自动执行
+commit、merge、rebase、push 或冲突处理。每个物理 worktree 仍最多有一个活动 Task。
+
 ## 两仓声明、权限与可选索引
 
 启动 Codex 会话时，当前 Git 仓库自动成为主仓库。附加仓库必须先通过 Codex 的 `--add-dir` 成为

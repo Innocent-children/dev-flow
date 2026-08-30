@@ -62,6 +62,7 @@ test("mcp selects only the package-local Core and inherits protocol stdio", asyn
   assert.equal(
     calls[0].options.env.DEV_FLOW_CODEX_MCP_INSTRUCTIONS,
     "Dev Flow for Codex supports implicit selection for bounded implementation, bug-fix, refactoring, targeted-testing, and development-delivery tasks, plus explicit selection with `$dev-flow-codex:dev-flow`. " +
+      "An explicit parallel batch for one logical Git repository must be split before single-Task admission into one Host-created worktree-backed Codex task per bounded item; never use shared-directory sub-agents or create one parent Core Task. " +
       "Explanation-only, status-only, design-discussion, ordinary-question, and ambiguous requests must not create or resume a Dev Flow Task. " +
       "The exact selector force-selects the Skill; bare `$dev-flow` and wrong plugin or Skill names are not explicit selection. " +
       "After either valid activation path, `dev_flow_server_info` must be the first Dev Flow call. " +

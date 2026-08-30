@@ -157,6 +157,10 @@ Design、Tasks 和 Implementation 提交分别省略 `requirements_revision`、`
 revision、验证预算和结果；系统不会扫描相邻目录、依赖或代码索引来自动扩大范围。该能力是否已进入
 稳定版，请以[项目状态页](docs/PROJECT-STATUS.md)为准。
 
+同一逻辑 Git 仓库可以通过多个 linked worktree 同时运行多个独立 Task。每个物理 worktree 仍最多
+持有一个活动 Task；Codex 只在 Host 已提供 worktree-backed task/thread 能力时自动分派，否则提示
+用户另开 worktree。Core 不创建、切换或清理 worktree。
+
 ## 边界
 
 - Core 只对 Git 做有界、只读观察；不会执行 commit、push、merge、rebase、tag 或发布。

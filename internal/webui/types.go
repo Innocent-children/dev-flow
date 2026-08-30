@@ -25,18 +25,20 @@ const (
 )
 
 type TaskSummary struct {
-	TaskID         string    `json:"task_id"`
-	RequestSummary string    `json:"request_summary"`
-	OriginHost     string    `json:"origin_host"`
-	ExecutionHost  string    `json:"execution_host"`
-	CurrentNode    string    `json:"current_node"`
-	Lifecycle      Lifecycle `json:"lifecycle"`
-	Revision       uint64    `json:"revision"`
-	UpdatedAt      time.Time `json:"updated_at"`
-	Archived       bool      `json:"archived"`
-	RepositoryKeys []string  `json:"repository_keys"`
-	Blocker        *string   `json:"blocker"`
-	Outcome        *string   `json:"outcome"`
+	TaskID            string    `json:"task_id"`
+	RequestSummary    string    `json:"request_summary"`
+	OriginHost        string    `json:"origin_host"`
+	ExecutionHost     string    `json:"execution_host"`
+	CurrentNode       string    `json:"current_node"`
+	Lifecycle         Lifecycle `json:"lifecycle"`
+	Revision          uint64    `json:"revision"`
+	UpdatedAt         time.Time `json:"updated_at"`
+	Archived          bool      `json:"archived"`
+	RepositoryKeys    []string  `json:"repository_keys"`
+	RepositoryGroupID string    `json:"repository_group_id"`
+	WorktreePath      string    `json:"worktree_path"`
+	Blocker           *string   `json:"blocker"`
+	Outcome           *string   `json:"outcome"`
 }
 
 type Fact struct {
@@ -119,9 +121,10 @@ type ActionView struct {
 }
 
 type RepositoryView struct {
-	Key  string `json:"key"`
-	Path string `json:"path"`
-	Role string `json:"role"`
+	Key               string `json:"key"`
+	Path              string `json:"path"`
+	Role              string `json:"role"`
+	RepositoryGroupID string `json:"repository_group_id"`
 }
 
 type TaskDetailResponse struct {

@@ -30,6 +30,7 @@ const IMPLICIT_SKILL_POLICY = "policy:\n  allow_implicit_invocation: true";
 
 export const CODEX_MCP_INSTRUCTIONS = [
   "Dev Flow for Codex supports implicit selection for bounded implementation, bug-fix, refactoring, targeted-testing, and development-delivery tasks, plus explicit selection with `$dev-flow-codex:dev-flow`.",
+  "An explicit parallel batch for one logical Git repository must be split before single-Task admission into one Host-created worktree-backed Codex task per bounded item; never use shared-directory sub-agents or create one parent Core Task.",
   "Explanation-only, status-only, design-discussion, ordinary-question, and ambiguous requests must not create or resume a Dev Flow Task.",
   "The exact selector force-selects the Skill; bare `$dev-flow` and wrong plugin or Skill names are not explicit selection.",
   "After either valid activation path, `dev_flow_server_info` must be the first Dev Flow call.",
@@ -503,6 +504,7 @@ async function assertPackageResources(paths, packageVersion) {
     "implicit selection", "$dev-flow-codex:dev-flow", "Explanation-only", "status-only",
     "design-discussion", "ordinary-question", "ambiguous requests", "must not create or resume",
     "either valid activation path", "substantive bounded request or explicit resume",
+    "explicit parallel batch", "worktree-backed Codex task", "shared-directory sub-agents",
   ]) {
     if (!CODEX_MCP_INSTRUCTIONS.includes(required)) {
       throw new Error(`Dev Flow MCP admission is missing activation boundary: ${required}`);

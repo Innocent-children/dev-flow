@@ -124,6 +124,7 @@ profile を再起動後、次を入力します。
 - **理解度レビュー：** テスト通過後も `COMPREHENSION_REVIEW` を行い、保守できない結果は戻します。
 - **不確実な書き込みの復旧：** Core は次の Task を完全に検証してから、正規化済み Action 入力を独立した操作レコードに保持します。応答喪失後は Task ID と Action ID だけで復旧でき、payload の再構築は不要です。
 - **限定された複数リポジトリ：** 現在の source は主リポジトリ 1 つと追加 7 つまでを 1 つの状態で扱います。
+- **同一リポジトリの並列 Task：** 同じ論理 Git リポジトリは、複数の linked worktree を使って独立した Task を同時実行できます。各物理 worktree が保持できる active Task は 1 つだけです。Codex は Host に worktree-backed task/thread 機能がある場合だけ自動で分配し、ない場合は別 worktree の開始を案内します。Core は worktree を作成、切り替え、削除しません。
 
 複数リポジトリ機能が安定版に含まれるかは [Project Status](docs/PROJECT-STATUS_en.md) を確認してください。
 

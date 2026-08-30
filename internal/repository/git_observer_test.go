@@ -509,6 +509,26 @@ func TestGitObserverResolvesSymlinkedRepositoryPath(t *testing.T) {
 	}
 }
 
+func TestGitObserverLinkedWorktreesShareGroupAndKeepDistinctIdentity(t *testing.T) {
+	repositoryPath := newCommittedRepository(t, "worktree-primary")
+	linkedPath := filepath.Join(t.TempDir(), "worktree-linked")
+	runTestGit(t, repositoryPath, "worktree", "add", "--detach", linkedPath, "HEAD")
+
+	observer := NewGitObserver()
+	primary := observeRepository(t, observer, repositoryPath)
+	linked := observeRepository(t, observer, linkedPath)
+
+	if primary.GitCommonDirDigest != linked.GitCommonDirDigest {
+		t.Fatalf("linked worktrees have different groups: primary=%s linked=%s", primary.GitCommonDirDigest, linked.GitCommonDirDigest)
+	}
+	if primary.CanonicalRoot == linked.CanonicalRoot || primary.RepositoryIdentity == linked.RepositoryIdentity {
+		t.Fatalf("linked worktrees did not keep distinct identities: primary=%+v linked=%+v", primary, linked)
+	}
+	if primary.Head == nil || linked.Head == nil || *primary.Head != *linked.Head {
+		t.Fatalf("linked worktrees do not observe the same source commit: primary=%v linked=%v", primary.Head, linked.Head)
+	}
+}
+
 func TestGitObserverDisappearanceAndSamePathReplacement(t *testing.T) {
 	root := t.TempDir()
 	repositoryPath := filepath.Join(root, "repository")

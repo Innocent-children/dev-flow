@@ -12,6 +12,8 @@ export interface TaskSummary {
   updated_at: string;
   archived: boolean;
   repository_keys: string[];
+  repository_group_id: string;
+  worktree_path: string;
   blocker: string | null;
   outcome: string | null;
 }
@@ -109,7 +111,7 @@ export interface TaskDetailResponse {
   acceptance_criteria: string[];
   verification_budget: string;
   method_profile: string;
-  repositories: { key: string; path: string; role: "primary" | "additional" }[];
+  repositories: { key: string; path: string; role: "primary" | "additional"; repository_group_id: string }[];
   baselines: Fact[];
   records: Fact[];
   evidence: Fact[];

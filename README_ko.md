@@ -123,6 +123,7 @@ profile을 재시작한 뒤 입력합니다.
 - **이해도 검토:** 테스트 이후 `COMPREHENSION_REVIEW`를 수행하고 유지보수하기 어려운 결과는 되돌립니다.
 - **불확실한 쓰기 복구:** Core는 다음 Task를 완전히 검증한 뒤 정규화된 Action 입력을 독립 작업 레코드에 보존합니다. 응답 유실 후에는 Task ID와 Action ID만으로 복구하며 payload를 다시 만들지 않습니다.
 - **제한된 다중 저장소:** 현재 source는 주 저장소 1개와 추가 저장소 최대 7개를 하나의 상태로 관리합니다.
+- **동일 저장소의 병렬 Task:** 하나의 논리 Git 저장소는 여러 linked worktree에서 독립 Task를 동시에 실행할 수 있습니다. 각 물리 worktree에는 active Task를 하나만 둘 수 있습니다. Codex는 Host가 worktree-backed task/thread 기능을 제공할 때만 자동 분배하며, 그렇지 않으면 별도 worktree를 시작하도록 안내합니다. Core는 worktree를 생성·전환·정리하지 않습니다.
 
 다중 저장소 기능이 안정 버전에 포함되었는지는
 [Project Status](docs/PROJECT-STATUS_en.md)에서 확인하십시오.

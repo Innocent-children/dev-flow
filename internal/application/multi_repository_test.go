@@ -3,6 +3,8 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -219,6 +221,95 @@ func TestMultiRepositoryOpenOperationDigestIncludesScopeInput(t *testing.T) {
 	}
 }
 
+func TestLinkedWorktreesOwnIndependentTasksAndClaims(t *testing.T) {
+	ctx := context.Background()
+	database, err := store.Open(ctx, filepath.Join(t.TempDir(), "linked-worktrees.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+
+	now := time.Date(2026, 8, 30, 1, 0, 0, 0, time.UTC)
+	group := domain.Digest(strings.Repeat("a", 64))
+	left := linkedWorktreeBinding(now, "/worktrees/left", group, 'b')
+	right := linkedWorktreeBinding(now, "/worktrees/right", group, 'c')
+	observer := &multiRepositoryObserver{bindings: map[string]domain.RepositoryBinding{
+		left.CanonicalRoot:  left,
+		right.CanonicalRoot: right,
+	}}
+	sequence := 0
+	service, err := newService(database, observer, func() time.Time { return now }, func(prefix string) (domain.ID, error) {
+		sequence++
+		return domain.ID(fmt.Sprintf("%s-linked-%d", prefix, sequence)), nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	open := func(requestID domain.ID, path, request string) OpenTaskResult {
+		result, openErr := service.OpenTask(ctx, OpenTaskRequest{
+			RequestID: requestID, Host: domain.HostCodex, RepositoryPath: path,
+			NewTask: &NewTaskInput{Request: request, KnownAcceptanceCriteria: []string{"The worktree owns an independent Task."}, VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain},
+		})
+		if openErr != nil {
+			t.Fatalf("open %s: %v", path, openErr)
+		}
+		return result
+	}
+	leftTask := open("request-left", left.CanonicalRoot, "Implement the left change.")
+	rightTask := open("request-right", right.CanonicalRoot, "Implement the right change.")
+	if !leftTask.Created || !rightTask.Created || leftTask.Task.TaskID == rightTask.Task.TaskID {
+		t.Fatalf("linked worktree tasks were not independent: left=%+v right=%+v", leftTask, rightTask)
+	}
+	if leftTask.Task.Repository.GitCommonDirDigest != rightTask.Task.Repository.GitCommonDirDigest ||
+		leftTask.Task.Repository.RepositoryIdentity == rightTask.Task.Repository.RepositoryIdentity {
+		t.Fatalf("linked worktree grouping or identity is incorrect: left=%+v right=%+v", leftTask.Task.Repository, rightTask.Task.Repository)
+	}
+	center := &ControlCenter{core: service, tasks: database}
+	listed, err := center.ListTasks(ctx, ListControlCenterTasksRequest{Filter: TaskListFilter{Page: 1}})
+	if err != nil || len(listed.Items) != 2 {
+		t.Fatalf("list linked worktree tasks=%+v err=%v", listed, err)
+	}
+	paths := map[string]bool{}
+	for _, item := range listed.Items {
+		if item.RepositoryGroupID != group {
+			t.Fatalf("task %s group=%s want=%s", item.TaskID, item.RepositoryGroupID, group)
+		}
+		paths[item.WorktreePath] = true
+	}
+	if !paths[left.CanonicalRoot] || !paths[right.CanonicalRoot] {
+		t.Fatalf("linked worktree paths=%v", paths)
+	}
+
+	conflict := OpenTaskRequest{RequestID: "request-left-conflict", Host: domain.HostCodex, RepositoryPath: left.CanonicalRoot, NewTask: &NewTaskInput{Request: "A different left task.", KnownAcceptanceCriteria: []string{"A second Task is rejected."}, VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 1}, MethodProfile: domain.MethodPlain}}
+	if _, conflictErr := service.OpenTask(ctx, conflict); !errors.Is(conflictErr, domain.ErrActiveTaskConflict) {
+		t.Fatalf("same-worktree conflict error=%v", conflictErr)
+	}
+
+	payload := phase5Payload(t, leftTask.Task, "requirements_ready", "", requirementsNodeResult("Complete the left task.", []string{"The left Task advances independently."}))
+	action := leftTask.Task.CurrentAction
+	advanced, err := service.ApplyAction(ctx, ApplyActionRequest{RequestID: "apply-left", Host: domain.HostCodex, TaskID: leftTask.Task.TaskID, ExpectedRevision: leftTask.Task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: leftTask.Task.Process.ID, ProcessDefinitionDigest: leftTask.Task.Process.DefinitionDigest, SourceCursor: leftTask.Task.CurrentNode, RepositoryBindingDigest: action.RepositoryBindingDigest, Payload: payload})
+	if err != nil || advanced.Task.Revision != 2 || advanced.Task.CurrentNode != domain.NodeDesign {
+		t.Fatalf("advance left=%+v err=%v", advanced, err)
+	}
+	retainedRight, err := database.LoadTask(ctx, rightTask.Task.TaskID)
+	if err != nil || retainedRight.Revision != 1 || retainedRight.CurrentNode != domain.NodeRequirements {
+		t.Fatalf("right Task changed with left Task: right=%+v err=%v", retainedRight, err)
+	}
+
+	cancelled, err := service.CancelTask(ctx, CancelTaskRequest{RequestID: "cancel-left", Host: domain.HostCodex, TaskID: advanced.Task.TaskID, ExpectedRevision: advanced.Task.Revision, Reason: "Finish the isolation check."})
+	if err != nil || cancelled.Task.CurrentNode != domain.NodeCancelled {
+		t.Fatalf("cancel left=%+v err=%v", cancelled, err)
+	}
+	if _, err := database.LoadActiveTask(ctx, left.RepositoryIdentity); !errors.Is(err, store.ErrTaskNotFound) {
+		t.Fatalf("left claim remains after cancellation: %v", err)
+	}
+	activeRight, err := database.LoadActiveTask(ctx, right.RepositoryIdentity)
+	if err != nil || activeRight.TaskID != rightTask.Task.TaskID || activeRight.Revision != 1 {
+		t.Fatalf("right claim changed after left cancellation: right=%+v err=%v", activeRight, err)
+	}
+}
+
 func multiRepositoryService(t *testing.T, now time.Time, bindings map[string]domain.RepositoryBinding) (*Service, *multiRepositoryStore, *multiRepositoryObserver) {
 	t.Helper()
 	taskStore := &multiRepositoryStore{}
@@ -252,6 +343,22 @@ func multiRepositoryBinding(now time.Time, root string, marker byte) domain.Repo
 	return domain.RepositoryBinding{
 		CanonicalRoot:       root,
 		GitCommonDirDigest:  digest,
+		RepositoryIdentity:  digest,
+		Branch:              &branch,
+		Head:                &head,
+		WorktreeFingerprint: digest,
+		ObservedAt:          now,
+		BindingDigest:       digest,
+	}
+}
+
+func linkedWorktreeBinding(now time.Time, root string, group domain.Digest, marker byte) domain.RepositoryBinding {
+	digest := domain.Digest(strings.Repeat(string(marker), 64))
+	branch := "main"
+	head := strings.Repeat("d", 40)
+	return domain.RepositoryBinding{
+		CanonicalRoot:       root,
+		GitCommonDirDigest:  group,
 		RepositoryIdentity:  digest,
 		Branch:              &branch,
 		Head:                &head,

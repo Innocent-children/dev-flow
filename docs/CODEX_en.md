@@ -96,6 +96,19 @@ Core continuously returns:
 
 After performing current-node work, Codex submits only a live Action transition and a closed payload.
 
+## Run parallel Tasks in one repository
+
+When the user explicitly lists two or more independent bounded tasks and asks to run them
+concurrently in one logical Git repository, the Skill checks for a Host-provided worktree-backed
+task/thread creation capability before ordinary Task admission. When available, every item receives
+its own Git worktree and Codex task, and the child uses `$dev-flow-codex:dev-flow` to create its own
+Core Task. The coordinator creates no parent Core Task and calls no Dev Flow MCP tool.
+
+A generic sub-agent that shares the current working directory is not isolation. If the Host cannot
+guarantee a separate worktree for every child, the Skill stops and asks the user to start separate
+worktrees. It does not combine the items into one Task and does not commit, merge, rebase, push, or
+resolve conflicts automatically. Each physical worktree still holds at most one active Task.
+
 ## Two-repository declaration, permission, and optional indexing
 
 When a Codex session starts, the current Git repository becomes the primary repository. Every
