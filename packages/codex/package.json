@@ -1,6 +1,6 @@
 {
   "name": "dev-flow-codex",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "private": false,
   "description": "Smart and explicit Dev Flow integration for Codex CLI.",
   "license": "Apache-2.0",
