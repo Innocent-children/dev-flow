@@ -190,6 +190,10 @@ process graph, Action, Recovery, and Blocker facts, and performs Task lifecycle 
 start|open|status|stop` manages one shared loopback instance. The interface provides Simplified Chinese/English, selects the system language on first use, and stores a manual choice only in the browser. Old Task data is removed only through CLI-only,
 target-bound `reset` after exclusive database access. The browser exposes no remote access, accounts, permissions, shell,
 Git mutation, or reset mutation.
+Control Center uses the repository-embedded Dev Flow blue-to-violet mark, dark brand navigation, layered cards, and
+separate semantic status colors. Desktop and narrow layouts retain the same pages, operations, and facts; narrow screens
+collapse to icon navigation while keeping the primary action visible. The interface still uses system fonts and local
+artifacts only, with no CDN, external font, or additional browser-state contract.
 
 | Product | Responsibility |
 | --- | --- |

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title">
+  <title id="title">dev-flow light app icon</title>
+  <defs><linearGradient id="df-gradient" x1="10" y1="30" x2="310" y2="146" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#387FFB"/>
+      <stop offset="0.3" stop-color="#3A7FFB"/>
+      <stop offset="0.55" stop-color="#4D76F9"/>
+      <stop offset="0.88" stop-color="#6D67F7"/>
+      <stop offset="1" stop-color="#7163F7"/>
+    </linearGradient>
+      <linearGradient id="light-bg" x1="60" y1="40" x2="452" y2="486" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#FFFFFF"/>
+        <stop offset="1" stop-color="#F7F8FC"/>
+      </linearGradient>
+      <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="150%">
+        <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#101828" flood-opacity="0.14"/>
+      </filter></defs>
+  <rect x="12" y="10" width="488" height="488" rx="108" fill="url(#light-bg)" stroke="#EEF0F5" stroke-width="2" filter="url(#soft-shadow)"/><g transform="translate(91 124) scale(1.03125)" fill="url(#df-gradient)"><path d="M 316 28 C 306.72 18.72 297.6 12.13 286 6.33 C 275.49 1.08 261.34 -0.89 250 1 C 239.81 2.7 230.56 3.89 221 8.67 C 194.29 22.02 174.84 54.93 170 84 C 168.92 90.49 165.08 96.52 164 103 C 163.29 107.26 160.61 113.12 158.67 117 C 152 130.33 149.34 145.66 142.67 159 C 140.11 164.11 138.89 169.89 136.33 175 C 128.4 190.87 115.46 205.92 97 209 C 91.51 209.91 85.29 208.88 80 208 C 51.42 203.24 37.99 168.68 50.33 144 C 55.22 134.22 63.58 128.04 73 123.33 C 79.58 120.05 88.61 118.77 96 120 C 106.34 121.72 116.3 127.96 123 136 C 124.81 138.17 129.7 148.35 131 149 L 149 102 C 144.33 94.99 135.48 89.07 128 85.33 C 96.95 69.81 58.97 73.52 32 96 C -6.92 128.43 -6.99 187.81 24 225 C 32.49 235.19 44.49 241.58 56 247.33 C 68.67 253.67 85.37 255.27 99 253 C 110.18 251.14 120.52 249.91 131 244.67 C 145.26 237.54 156.81 227.22 167 215 C 178.03 201.76 182.18 184.98 189.67 170 C 200.42 148.49 208.08 123.77 215.67 101 C 219.65 89.05 222.05 76.24 227.67 65 C 236.37 47.59 258.29 42.19 274 52.67 C 277.08 54.72 281.8 58.41 283 62 L 316 28 Z"/><path d="M228 115 H287 C284 134 276 149 263 157 C254 162 244 164 230 164 H208 L228 115 Z"/></g>
+</svg>

@@ -1,18 +1,18 @@
 {
   "index.html": {
-    "file": "assets/index-DmQ1yXEZ.js",
+    "file": "assets/index-B_HL-pZD.js",
     "name": "index",
     "src": "index.html",
     "isEntry": true,
     "css": [
-      "assets/index-OuCRuyCm.css"
+      "assets/index-Dy8j3oJR.css"
     ],
     "assets": [
-      "assets/dev-flow-mark-By6tx7Au.svg"
+      "assets/dev-flow-mark-32-DfVBvCoZ.svg"
     ]
   },
-  "src/assets/dev-flow-mark.svg": {
-    "file": "assets/dev-flow-mark-By6tx7Au.svg",
-    "src": "src/assets/dev-flow-mark.svg"
+  "src/assets/dev-flow-mark-32.svg": {
+    "file": "assets/dev-flow-mark-32-DfVBvCoZ.svg",
+    "src": "src/assets/dev-flow-mark-32.svg"
   }
 }
