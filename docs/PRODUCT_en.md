@@ -276,3 +276,15 @@ when the current Host can create a separate worktree-backed task/thread for ever
 then enters ordinary Dev Flow admission independently. The coordinator creates no parent Core Task
 and calls no Dev Flow MCP tool. Shared-directory sub-agents are not isolation. When the capability is
 unavailable, the Plugin stops and asks the user to start separate worktrees.
+
+One new request still performs ordinary Task discovery once in the current physical worktree. Only
+when a `dev_flow_open_task` call carrying non-null `new_task` returns a complete
+`ACTIVE_TASK_CONFLICT`, and the Host can create a separate worktree-backed Codex task, does the
+Plugin create exactly one child after that result. The creation request uses
+`target.environment.type="worktree"` and omits `startingState`, so the child starts only from the
+project's committed default-branch state. The occupied checkout's index, tracked working-tree
+changes, and untracked files are not read, copied, or applied to the child. The child uses the exact
+`$dev-flow-codex:dev-flow` selector for its own admission, handshake, and Action loop; the coordinator
+makes no further Core call, does not retry creation, and leaves the original active Task and
+worktree unchanged. Explicit resume, `HOST_OWNERSHIP_CONFLICT`, and other errors retain their
+existing stop behavior.

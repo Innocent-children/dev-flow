@@ -95,12 +95,24 @@ Design、Tasks 与 Implementation 节点结果不发送 `requirements_revision`�
 `required_member_missing` 只可按 `allowed_paths` 和当前节点已有事实修正一次；需要新的用户决定时
 Codex 停止并请求输入。
 
-## 同一仓库并行多个 Task
+## 独立 worktree Task 分派
 
 用户明确列出两个以上彼此独立的有界任务，并要求在同一逻辑 Git 仓库并行执行时，Skill 在普通
 Task admission 之前检查 Host 是否提供 worktree-backed task/thread 创建能力。能力可用时，每个任务
 进入一个独立 Git worktree 和 Codex task，并在子 task 中通过 `$dev-flow-codex:dev-flow` 创建自己的
 Core Task。协调者不创建父 Core Task，也不调用 Dev Flow MCP。
+
+单个新请求仍在当前物理 worktree 完成 admission、handshake，并调用一次 `dev_flow_open_task`。
+只有该调用携带非空 `new_task` 且返回完整 `ACTIVE_TASK_CONFLICT` 时，Skill 才在 Host 能力可用的
+前提下创建且只创建一个独立 Codex task。创建调用设置
+`target.environment.type="worktree"`，完全省略 `startingState`，因此新 worktree 从项目默认分支的
+已提交状态开始。Skill 不读取、复制或应用占用中 checkout 的 index、已跟踪工作区改动、未跟踪
+文件、diff 或 Task artifact；子 task 只接收当前有界请求、验收条件、验证权限和精确 selector，
+再自行执行完整 Dev Flow 流程。
+
+分派成功后，协调者不再调用 Core，不重试 `dev_flow_open_task`，也不创建父 Task、替代 Task 或恢复
+原 Task；原活动 Task、repository claim 和 worktree 保持不变。Host 创建结果不确定时也不重试，
+避免创建第二个子 task。显式 resume、`HOST_OWNERSHIP_CONFLICT` 与其他错误仍按原规则停止。
 
 普通 sub-agent 若共享当前工作目录，不属于有效隔离。Host 无法保证每个子 task 使用独立 worktree
 时，Skill 会停止并提示用户分别启动 worktree；不会把多个任务合并为一个 Task，也不会自动执行

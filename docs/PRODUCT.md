@@ -238,3 +238,12 @@ Dev Flow；`$dev-flow-codex:dev-flow` 保留为精确强制入口。仅解释、
 Host 协调路径：只有当前 Host 能为每个任务创建独立 worktree-backed task/thread 时才分派，每个
 子任务再独立进入普通 Dev Flow admission。协调者不创建父 Core Task，也不调用 Dev Flow MCP；共享
 当前目录的 sub-agent 不属于有效隔离。能力不可用时，Plugin 停止并提示用户分别启动独立 worktree。
+
+单个新请求仍先在当前物理 worktree 执行一次普通 Task discovery。只有携带非空 `new_task` 的
+`dev_flow_open_task` 返回完整 `ACTIVE_TASK_CONFLICT`，且 Host 能创建独立 worktree-backed Codex
+task 时，Plugin 才在结果之后创建且只创建一个子 task。创建请求使用
+`target.environment.type="worktree"` 并省略 `startingState`，因此子 task 只从项目默认分支的已提交
+状态开始；原 checkout 的 index、已跟踪工作区改动和未跟踪文件不会被读取、复制或应用到子 task。
+子 task 通过精确 `$dev-flow-codex:dev-flow` selector 自行执行 admission、handshake 和 Action loop；
+协调者不再调用 Core，不重试创建，也不改变原活动 Task 或原 worktree。显式 resume、
+`HOST_OWNERSHIP_CONFLICT` 和其他错误继续按原规则停止。

@@ -111,6 +111,13 @@ Skill 只在 Host 已提供 worktree-backed task/thread 能力时，为每个任
 Codex task；协调者不调用 Dev Flow MCP，也不创建父 Core Task。共享目录 sub-agent 不可替代
 worktree 隔离；能力不可用时，用户需要分别启动独立 worktree。
 
+单个新请求也没有新增命令：它仍调用一次 `dev_flow_open_task`。只有该调用携带非空 `new_task` 并
+返回完整 `ACTIVE_TASK_CONFLICT`，Skill 才通过 Host 创建且只创建一个 worktree-backed Codex task。
+创建参数使用 `target.environment.type="worktree"` 且省略 `startingState`，子 task 只从默认分支的
+已提交状态开始，不复制原 checkout 的 index、已跟踪工作区改动或未跟踪文件；子 task 使用精确
+`$dev-flow-codex:dev-flow` selector。协调者随后不再调用 Core 或重试创建。显式 resume、
+`HOST_OWNERSHIP_CONFLICT` 和其他错误保持原有停止规则，原活动 Task 与 worktree 不变。
+
 ## DeepSeek Harness
 
 `dev-flow-deepseek` 的 `package.json` 没有 `bin` 字段，因此它不提供名为

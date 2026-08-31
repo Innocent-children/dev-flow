@@ -158,8 +158,12 @@ revision、验证预算和结果；系统不会扫描相邻目录、依赖或代
 稳定版，请以[项目状态页](docs/PROJECT-STATUS.md)为准。
 
 同一逻辑 Git 仓库可以通过多个 linked worktree 同时运行多个独立 Task。每个物理 worktree 仍最多
-持有一个活动 Task；Codex 只在 Host 已提供 worktree-backed task/thread 能力时自动分派，否则提示
-用户另开 worktree。Core 不创建、切换或清理 worktree。
+持有一个活动 Task。Host 提供 worktree-backed task/thread 能力时，Codex 会为明确的并行批次在
+admission 前按有界项创建子任务；单个新请求的 `dev_flow_open_task` 返回
+`ACTIVE_TASK_CONFLICT` 时，则创建且只创建一个子任务。冲突后的子任务使用
+`target.environment.type="worktree"` 且不传 `startingState`，只从默认分支的已提交状态开始，不接收
+原 checkout 的 index、已跟踪工作区改动或未跟踪文件。显式 resume、`HOST_OWNERSHIP_CONFLICT` 和
+其他错误仍按原规则停止；Core 不创建、切换或清理 worktree，原活动 Task 与原 worktree 保持不变。
 
 ## 边界
 
