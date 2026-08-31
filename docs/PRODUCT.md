@@ -151,7 +151,7 @@ root 的 `RepositoryIdentity` 继续表示一个实际 worktree，也是 reposit
 升级、修复、保留数据重装、卸载、恢复出厂状态和清空后重装。它调用 Codex setup/remove/status 与
 DSH 公开 lifecycle，不复制 Core 或 Host 注册权威。普通维护保留用户配置和 Task 数据；恢复出厂
 状态要求绑定当前计划的强确认，默认把精确数据目标移动到 macOS Trash。Codex 全局 package 的安装
-状态与 receipt、Plugin 注册状态分别判断，注册已缺失时仍能通过卸载或恢复出厂操作清理 package。
+状态与 receipt、Plugin 注册状态分别判断，注册已缺失时仍能通过卸载或恢复出厂操作清理 package。Codex 卸载始终先由当前已安装 Adapter 的 bundled Core 按 runtime receipt 校验并停止对应 WebUI，再移除注册和 package；停止失败时卸载中止并保留后续对象。
 交互菜单、确认提示、计划和结果读取当前 locale：`zh*` 使用简体中文，其余 locale 统一使用英文；JSON
 输出保持语言无关。安装、升级、修复和重装的文本输出会在执行期间逐项显示当前 Host 动作，以及驱动已确认完成的
 package、注册、制品和就绪检查步骤；JSON 模式不混入进度文本。公共 launcher 从已安装 Adapter 的 receipt 中选择最新可用 Core，只转发闭合的

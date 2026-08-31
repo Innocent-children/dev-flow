@@ -174,7 +174,7 @@ Codex setup/remove/status and public DSH lifecycle commands without copying Core
 Ordinary maintenance preserves configuration and Task data. Factory reset requires strong confirmation bound to the
 current plan and moves exact data targets to macOS Trash by default. Codex global-package installation is observed
 independently from receipt and Plugin registration, so uninstall and factory reset still remove the package after
-registration has already disappeared. Interactive menus, confirmations, plans, and results read the current locale:
+registration has already disappeared. Codex uninstall first asks the currently installed Adapter's bundled Core to validate the runtime receipt and stop the matching WebUI; a stop failure aborts registration and package removal. Interactive menus, confirmations, plans, and results read the current locale:
 `zh*` uses Simplified Chinese and every other locale uses English; JSON remains language-neutral. During installation,
 upgrade, repair, and reinstall, text output shows each current Host action and the package, registration, artifact,
 and readiness steps confirmed by the driver; JSON mode does not include progress text. The public launcher

@@ -41,3 +41,4 @@ remain automation-safe.
 While install, upgrade, repair, or reinstall is running, rich and plain text output shows each Host action and each
 completed package, registration, artifact, and readiness step. JSON mode remains a single result object with no
 progress lines.
+Codex uninstall first runs the installed Adapter's idempotent `remove`, which validates the runtime receipt and stops the matching WebUI before deregistration. If that stop fails, the global package is retained for a safe retry.

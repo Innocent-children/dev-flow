@@ -11,6 +11,7 @@ import { promisify } from "node:util";
 import {
   launchPackagedCore,
   runCLI,
+  stopPackagedWebUI,
 } from "../bin/dev-flow-codex.mjs";
 import { resolveProductPaths } from "../lib/paths.mjs";
 
@@ -426,12 +427,18 @@ test("remove reports deregistration before a separate npm-uninstall handoff", as
   paths.receiptPath = join(paths.packageRoot, "registrations", "codex.json");
   const stdout = captureStream();
   const stderr = captureStream();
+  const steps = [];
   const result = await runCLI(["remove", "--json"], {
     stdout,
     stderr,
     resolvePaths: async () => paths,
     readPackageVersion: async () => "0.1.0",
+    stopPackagedWebUI: async (actual) => {
+      assert.equal(actual, paths);
+      steps.push("stop");
+    },
     removeRegistration: async ({ paths: actual, packageVersion }) => {
+      steps.push("remove");
       assert.equal(stdout.text, "", "remove must not report success before absence readback");
       assert.equal(actual, paths);
       assert.equal(packageVersion, "0.1.0");
@@ -447,6 +454,7 @@ test("remove reports deregistration before a separate npm-uninstall handoff", as
     next_step: "Run npm uninstall -g dev-flow-codex separately after deregistration.",
   });
   assert.equal(stderr.text, "");
+  assert.deepEqual(steps, ["stop", "remove"]);
 
   const humanOutput = captureStream();
   assert.deepEqual(await runCLI(["remove"], {
@@ -454,6 +462,7 @@ test("remove reports deregistration before a separate npm-uninstall handoff", as
     stderr: captureStream(),
     resolvePaths: async () => paths,
     readPackageVersion: async () => "0.1.0",
+    stopPackagedWebUI: async () => {},
     removeRegistration: async () => ({ status: "already-absent", changed: false }),
   }), { code: 0, signal: null });
   assert.match(humanOutput.text, /remove: already-absent/);
@@ -466,12 +475,52 @@ test("remove reports deregistration before a separate npm-uninstall handoff", as
     stderr: failedError,
     resolvePaths: async () => paths,
     readPackageVersion: async () => "0.1.0",
+    stopPackagedWebUI: async () => {},
     removeRegistration: async () => {
       throw new Error("removal readback conflict");
     },
   }), { code: 1, signal: null });
   assert.equal(failedOutput.text, "");
   assert.equal(failedError.text, "dev-flow-codex: removal readback conflict\n");
+});
+
+test("remove keeps registration when WebUI stop fails", async (t) => {
+  const paths = await makePaths(t);
+  let removeCalled = false;
+  const stdout = captureStream();
+  const stderr = captureStream();
+
+  assert.deepEqual(await runCLI(["remove", "--json"], {
+    stdout,
+    stderr,
+    resolvePaths: async () => paths,
+    readPackageVersion: async () => "0.1.0",
+    stopPackagedWebUI: async () => { throw new Error("stop packaged WebUI"); },
+    removeRegistration: async () => { removeCalled = true; },
+  }), { code: 1, signal: null });
+
+  assert.equal(removeCalled, false);
+  assert.equal(stdout.text, "");
+  assert.equal(stderr.text, "dev-flow-codex: stop packaged WebUI\n");
+});
+
+test("packaged WebUI stop uses the current runtime and treats a missing default data directory as stopped", async (t) => {
+  const paths = await makePaths(t);
+  const calls = [];
+  await stopPackagedWebUI(paths, {
+    environment: { SAFE_PARENT_VALUE: "preserved" },
+    exec: async (executable, arguments_, options) => calls.push({ executable, arguments_, options }),
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].executable, paths.runtimePath);
+  assert.deepEqual(calls[0].arguments_, ["webui", "stop", "--json"]);
+  assert.equal(calls[0].options.cwd, paths.packageRoot);
+  assert.equal(calls[0].options.env.DEV_FLOW_DATA_DIR, paths.dataDirectory);
+
+  const missingDefault = { ...paths, dataDirectory: join(paths.packageRoot, "missing-data"), usesDefaultDataDirectory: true };
+  await stopPackagedWebUI(missingDefault, {
+    exec: async () => { throw new Error("must not execute Core"); },
+  });
 });
 
 test("unknown launcher commands fail without dispatch", async () => {

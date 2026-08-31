@@ -122,6 +122,7 @@ plus simple avec Codex ou DeepSeek directement.
 - **Périmètre explicite :** `TaskIntent` conserve la demande, les critères d’acceptation et le hors-périmètre.
 - **Vérification bornée :** chaque Task possède un verification budget ; les matrices complètes ne sont pas la norme.
 - **Récupération intersession :** étape, preuves, blockers et prochaines actions sont stockés dans SQLite local.
+- **Désinstallation sûre :** la désinstallation Codex valide le runtime receipt et arrête d’abord la WebUI correspondante ; si l’arrêt échoue, elle conserve l’enregistrement et le package afin qu’une ancienne version supprimée ne continue pas d’écouter sur un port.
 - **Revue de compréhension :** `COMPREHENSION_REVIEW` suit les tests et peut renvoyer vers une reprise.
 - **Écriture incertaine :** Core valide entièrement la prochaine Task puis conserve l’entrée Action normalisée dans un enregistrement d’opération indépendant ; après une réponse perdue, Task ID et Action ID suffisent sans reconstruire le payload.
 - **Multi-dépôts borné :** le source actuel gère un dépôt principal et jusqu’à sept dépôts supplémentaires dans un état unique.

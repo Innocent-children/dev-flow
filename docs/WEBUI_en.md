@@ -40,6 +40,7 @@ dev-flow webui stop
 The server binds only an OS-assigned `tcp4 127.0.0.1` port. A mode-`0600` runtime receipt records the PID, process-start
 identity, data-root digest, and loopback URL. A compatible Core carried by another Host reuses that instance instead of
 creating Host-specific process or data state.
+Codex `remove` and unified uninstall invoke the same stop capability before deleting registration or package state. A stop signal is sent only when PID, process-start identity, and data root all match the runtime receipt; failure aborts the remaining uninstall steps.
 The public `dev-flow webui start` creates a missing default data directory with mode `0700`; `open/status/stop/reset`
 create no directory. When `DEV_FLOW_DATA_DIR` is set, that explicit directory must already exist, be canonical, and
 not traverse a symbolic link.

@@ -51,7 +51,7 @@ bundled Core 版本。
 | `dev-flow-codex status` | 只读显示当前 package/Core 与注册状态。 |
 | `dev-flow-codex status --json` | 只读回读 package、Core、receipt、marketplace 与 Plugin 状态；不会创建配置、注册或数据。 |
 | `dev-flow-codex --version` | 输出 `dev-flow-codex <package-version> (core <core-version>)`，用于确认实际安装身份。 |
-| `dev-flow-codex remove` | 删除该 package 拥有的 Plugin、marketplace 注册和 receipt；保留 Task data、未知相邻文件和目标 Git 仓库。 |
+| `dev-flow-codex remove` | 先按 runtime receipt 停止对应 WebUI，再删除该 package 拥有的 Plugin、marketplace 注册和 receipt；停止失败时保留注册。Task data、未知相邻文件和目标 Git 仓库保持不变。 |
 | `dev-flow-codex remove --json` | 与 `remove` 行为相同，并输出机器可读 JSON；`next_step` 提示随后执行全局 npm 卸载。 |
 | `npm uninstall -g dev-flow-codex` | 在 `remove` 完成后卸载全局 package。单独执行不会先清理 Codex 注册。 |
 | `dev-flow-codex mcp` | **内部 Host 命令。** Plugin 的 MCP 配置调用它来设置数据目录和 admission instructions，再启动 packaged Core 的 `mcp --stdio`；正常用户不应手工运行。 |

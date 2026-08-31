@@ -55,7 +55,7 @@ any registration operation is dispatched.
 | `dev-flow-codex status` | Read and display the current package/Core and registration state. |
 | `dev-flow-codex status --json` | Read package, Core, receipt, marketplace, and Plugin state without creating configuration, registration, or data. |
 | `dev-flow-codex --version` | Print `dev-flow-codex <package-version> (core <core-version>)` to identify the installed package and bundled Core. |
-| `dev-flow-codex remove` | Remove the package-owned Plugin, marketplace registration, and receipt while retaining Task data, unknown neighboring files, and the target Git repository. |
+| `dev-flow-codex remove` | Validate the runtime receipt and stop the matching WebUI before removing the package-owned Plugin, marketplace registration, and receipt. A stop failure leaves registration intact; Task data, unknown neighboring files, and the target Git repository remain unchanged. |
 | `dev-flow-codex remove --json` | Perform the same operation as `remove` and emit machine-readable JSON. `next_step` identifies the separate global npm uninstall. |
 | `npm uninstall -g dev-flow-codex` | Uninstall the global package after `remove` completes. Running it alone does not deregister Codex first. |
 | `dev-flow-codex mcp` | **Managed host command.** The Plugin MCP configuration invokes it to set the data directory and admission instructions, then launch the packaged Core with `mcp --stdio`. Normal users should not start it manually. |

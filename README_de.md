@@ -121,6 +121,7 @@ Codex oder DeepSeek einfacher.
 - **Expliziter Umfang:** `TaskIntent` hält Anfrage, Akzeptanzkriterien und Ausschlüsse fest.
 - **Begrenzte Verifikation:** Jeder Task hat ein verification budget; vollständige Matrizen sind nicht Standard.
 - **Sitzungsübergreifende Recovery:** Phase, Evidenz, blocker und nächste Schritte liegen in lokalem SQLite.
+- **Sichere Deinstallation:** Die Codex-Deinstallation prüft den runtime receipt und stoppt zuerst die zugehörige WebUI. Schlägt das Stoppen fehl, bleiben Registrierung und package erhalten, damit eine gelöschte Altversion nicht weiter auf einem Port lauscht.
 - **Verständlichkeitsprüfung:** Nach Tests folgt `COMPREHENSION_REVIEW`; nicht wartbare Ergebnisse gehen zurück.
 - **Unklare Schreiboperation:** Core validiert zuerst den vollständigen nächsten Task und speichert die normalisierte Action-Eingabe dann in einem unabhängigen Operationsdatensatz; nach einer verlorenen Antwort genügen Task ID und Action ID, ohne den Payload neu aufzubauen.
 - **Begrenzte Multi-Repository-Scope:** Der aktuelle Source verwaltet ein primäres und bis zu sieben zusätzliche Repositories in einem Zustand.

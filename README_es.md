@@ -122,6 +122,7 @@ sencillo usar Codex o DeepSeek directamente.
 - **Alcance explícito:** `TaskIntent` conserva la solicitud, los criterios y lo que queda fuera.
 - **Verificación acotada:** cada Task conserva un verification budget; las matrices completas no son predeterminadas.
 - **Recuperación entre sesiones:** etapa, evidencia, blockers y siguientes pasos se guardan en SQLite local.
+- **Desinstalación segura:** la desinstalación de Codex valida el runtime receipt y detiene primero la WebUI correspondiente; si no puede detenerla, conserva el registro y el package para impedir que una versión eliminada siga escuchando en un puerto.
 - **Revisión de comprensión:** después de las pruebas se exige `COMPREHENSION_REVIEW`.
 - **Recuperación de escrituras inciertas:** Core valida por completo la siguiente Task y conserva la entrada Action normalizada en un registro de operación independiente; tras perder una respuesta bastan Task ID y Action ID, sin reconstruir el payload.
 - **Alcance multirrepositorio acotado:** el source actual admite un principal y hasta siete adicionales con un único estado.

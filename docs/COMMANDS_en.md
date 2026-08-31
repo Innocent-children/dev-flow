@@ -41,7 +41,7 @@ artifact, and readiness step; `--json` omits these progress lines.
 | `dev-flow install\|upgrade\|repair\|reinstall --host ... [--profile web] [--version latest] --yes` | Perform ordinary maintenance while preserving configuration and Task data. |
 | `dev-flow install\|repair --host deepseek\|all --adopt ...` | Adopt an existing identity-verified DeepSeek Profile contribution; other operations and Codex-only targets reject `--adopt`. |
 | `dev-flow upgrade ... --confirm-downgrade <token>` | Explicitly confirm a downgrade with the token from the current plan when the target is older than the installed version. |
-| `dev-flow uninstall --host ... [--all-known-profiles] --yes` | Remove selected Adapters while preserving configuration and Task data. |
+| `dev-flow uninstall --host ... [--all-known-profiles] --yes` | Remove selected Adapters while preserving configuration and Task data; Codex first stops the matching WebUI safely and retains registration and package state if that stop fails. |
 | `dev-flow factory-reset --host all --all-known-profiles` | Produce a current-state-bound reset plan/token; `--yes` has no cleanup authority. |
 | `dev-flow factory-reset ... --confirm-reset <token> [--reinstall]` | Move confirmed data to Trash and optionally perform a clean reinstall. |
 | `dev-flow factory-reset ... --confirm-explicit-data <absolute-path>` | Confirm one explicit `DEV_FLOW_DATA_DIR` listed by the plan; repeat the option for multiple directories. |
@@ -82,7 +82,7 @@ reports both the host package and bundled Core identities.
 | `dev-flow-codex status` | Read and display the current package/Core and registration state. |
 | `dev-flow-codex status --json` | Read package, Core, receipt, marketplace, and Plugin state without creating configuration, registration, or data. |
 | `dev-flow-codex --version` | Print `dev-flow-codex <package-version> (core <core-version>)` to identify the actual installed package and bundled Core. |
-| `dev-flow-codex remove` | Remove the package-owned Codex Plugin, marketplace registration, and receipt. Task data and the target Git repository are retained. |
+| `dev-flow-codex remove` | Validate the runtime receipt and stop the matching WebUI before removing the package-owned Codex Plugin, marketplace registration, and receipt. A stop failure leaves registration intact; Task data and the target Git repository are retained. |
 | `dev-flow-codex remove --json` | Perform the same operation as `remove` and emit machine-readable JSON. Its `next_step` points to the separate global npm uninstall. |
 | `npm uninstall -g dev-flow-codex` | Uninstall the global npm package after `remove` completes. Running it alone does not deregister the Codex integration first. |
 | `dev-flow-codex mcp` | **Managed host command.** The Plugin MCP configuration invokes it to establish the data directory and Codex admission instructions, then launch the packaged Core with `mcp --stdio`. Normal users should not start it manually. |

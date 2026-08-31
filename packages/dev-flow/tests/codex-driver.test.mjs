@@ -65,8 +65,32 @@ test("Codex uninstall removes a global package after its registration is already
   });
 
   assert.equal(result.changed, true);
-  assert.deepEqual(result.completedSteps, ["codex.uninstall_package"]);
+  assert.deepEqual(result.completedSteps, ["codex.remove_registration", "codex.uninstall_package"]);
   assert.deepEqual(calls, [
+    ["dev-flow-codex", ["remove", "--json"]],
     ["npm", ["uninstall", "--global", "dev-flow-codex"]],
+  ]);
+});
+
+test("Codex uninstall keeps the package when remove fails", async () => {
+  const calls = [];
+  const driver = createCodexDriver({ run: async (executable, arguments_) => {
+    calls.push([executable, arguments_]);
+    if (executable === "dev-flow-codex") throw new Error("WebUI did not stop");
+    return { stdout: "{}\n", stderr: "" };
+  } });
+
+  await assert.rejects(() => driver.execute("uninstall", {
+    targetVersion: null,
+    observed: { hostAvailable: true, state: "ready", packageInstalled: true, packageVersion: "0.8.0" },
+  }), (error) => {
+    assert.equal(error.message, "WebUI did not stop");
+    assert.deepEqual(error.completedSteps, []);
+    assert.match(error.nextStep, /resume uninstall/u);
+    return true;
+  });
+
+  assert.deepEqual(calls, [
+    ["dev-flow-codex", ["remove", "--json"]],
   ]);
 });

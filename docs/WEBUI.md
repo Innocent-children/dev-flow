@@ -36,6 +36,7 @@ dev-flow webui stop
 digest 和 loopback URL；另一 Host 携带的兼容 Core 会复用该实例，而不是创建 Host 专属进程或数据。
 公共 `dev-flow webui start` 在默认数据目录缺失时以 mode `0700` 创建它；`open/status/stop/reset` 不创建
 目录。设置 `DEV_FLOW_DATA_DIR` 后，该显式目录必须预先存在、canonical 且不经过符号链接。
+Codex 的 `remove` 与统一卸载会在删除注册或 package 前调用同一 stop 能力；只有 runtime receipt 中的 PID、启动身份和 data-root 全部匹配时才发送停止信号，失败则中止后续卸载。
 
 ## 状态与本地保护
 

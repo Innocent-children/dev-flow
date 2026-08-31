@@ -40,11 +40,9 @@ export function createCodexDriver({
         if (observed.state === "absent" && !observed.packageInstalled) return { changed: false, completedSteps: [] };
         const completedSteps = [];
         try {
-          if (observed.state !== "absent") {
-            await run(adapterExecutable, ["remove", "--json"], { environment });
-            completedSteps.push("codex.remove_registration");
-            onProgress("codex.remove_registration");
-          }
+          await run(adapterExecutable, ["remove", "--json"], { environment });
+          completedSteps.push("codex.remove_registration");
+          onProgress("codex.remove_registration");
           await run(npmExecutable, ["uninstall", "--global", "dev-flow-codex"], { environment });
           completedSteps.push("codex.uninstall_package");
           onProgress("codex.uninstall_package");

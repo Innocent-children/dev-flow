@@ -116,6 +116,7 @@ dev-flow
 - **明確範圍：** `TaskIntent` 保存原始請求、驗收條件與範圍外事項。
 - **有界驗證：** 每個 Task 都保存 verification budget；完整回歸與平台矩陣不是預設工作。
 - **跨會話恢復：** 目前階段、證據、阻塞原因與合法下一步保存在本機 SQLite。
+- **安全卸載：** Codex 卸載先依 runtime receipt 驗證並停止對應 WebUI；停止失敗時保留註冊與 package，避免已刪除的舊版本繼續監聽連接埠。
 - **理解審查：** 測試通過後仍需 `COMPREHENSION_REVIEW`，無法維護的結果可返回重構。
 - **不確定寫入恢復：** Core 完整驗證下一版 Task 後，把規範化 Action 輸入保存到獨立操作記錄；回應遺失時只需 Task ID 與 Action ID 即可恢復，不必重建 payload。
 - **有界多儲存庫：** 目前原始碼允許一個主儲存庫與最多七個附加儲存庫，共用同一流程狀態。

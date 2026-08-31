@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
-import { spawn } from "node:child_process";
+import { execFile as execFileCallback, spawn } from "node:child_process";
 import { constants as fsConstants, realpathSync } from "node:fs";
 import { access, readFile, stat } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
+import { promisify } from "node:util";
 
 import {
   CODEX_MCP_INSTRUCTIONS,
@@ -26,6 +27,7 @@ import {
 } from "../lib/paths.mjs";
 
 const FORWARDED_SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"];
+const execFile = promisify(execFileCallback);
 const NPM_UNINSTALL_HANDOFF = "Run npm uninstall -g dev-flow-codex separately after deregistration.";
 const CODEX_MCP_INSTRUCTIONS_ENVIRONMENT = "DEV_FLOW_CODEX_MCP_INSTRUCTIONS";
 
@@ -109,6 +111,8 @@ export async function runCLI(arguments_, dependencies = {}) {
       return { code: 0, signal: null };
     }
 
+    const stopWebUI = dependencies.stopPackagedWebUI ?? stopPackagedWebUI;
+    await stopWebUI(paths, { environment });
     const remove = dependencies.removeRegistration ?? removeRegistration;
     const result = await remove({
       paths,
@@ -128,6 +132,29 @@ export async function runCLI(arguments_, dependencies = {}) {
       stderr.write(`dev-flow-codex: ${error.message}\n`);
     }
     return { code: 1, signal: null };
+  }
+}
+
+export async function stopPackagedWebUI(
+  paths,
+  { environment = process.env, exec = execFile } = {},
+) {
+  try {
+    if (!(await stat(paths.dataDirectory)).isDirectory()) throw new Error("data path is not a directory");
+  } catch (error) {
+    if (error?.code === "ENOENT" && paths.usesDefaultDataDirectory) return;
+    throw new Error("inspect packaged WebUI data directory", { cause: error });
+  }
+  await assertExecutableRuntime(paths.runtimePath);
+  try {
+    await exec(paths.runtimePath, ["webui", "stop", "--json"], {
+      cwd: paths.packageRoot,
+      env: { ...environment, DEV_FLOW_DATA_DIR: paths.dataDirectory },
+      encoding: "utf8",
+      maxBuffer: 64 * 1024,
+    });
+  } catch (error) {
+    throw new Error("stop packaged WebUI", { cause: error });
   }
 }
 

@@ -139,7 +139,7 @@ stress tests are not default work.
 ### Cross-session recovery
 
 The current stage, requirements/design/task baselines, evidence, blockers, and legal next steps are
-stored in local SQLite. Removing a Host integration retains Task data by default.
+stored in local SQLite. Removing a Host integration retains Task data by default. Codex uninstall first validates the runtime receipt and stops the matching WebUI; a stop failure retains the registration and package so a removed build cannot keep listening in the background.
 
 ### Comprehension review
 
