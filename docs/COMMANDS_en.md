@@ -121,6 +121,16 @@ when the Host already provides that capability. The coordinator calls no Dev Flo
 creates no parent Core Task. A shared-directory sub-agent cannot replace worktree isolation; when
 the capability is unavailable, the user must start separate worktrees.
 
+One new request adds no command either: it still calls `dev_flow_open_task` once. Only when that call
+carried non-null `new_task` and returns a complete `ACTIVE_TASK_CONFLICT` does the Skill create exactly
+one worktree-backed Codex task through the Host. Creation uses
+`target.environment.type="worktree"` and omits `startingState`; the child starts only from committed
+default-branch state and receives none of the source checkout's index, tracked working-tree changes,
+or untracked files. The child uses the exact `$dev-flow-codex:dev-flow` selector. The coordinator then
+makes no further Core call and does not retry creation. Explicit resume,
+`HOST_OWNERSHIP_CONFLICT`, and other errors retain their existing stop behavior, and the original
+active Task and worktree stay unchanged.
+
 ## DeepSeek Harness
 
 `dev-flow-deepseek` has no `bin` field in `package.json`, so it does not expose a standalone

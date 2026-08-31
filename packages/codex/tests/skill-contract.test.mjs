@@ -59,6 +59,36 @@ test("parallel batches require one Host worktree-backed Task per bounded item", 
   }
 });
 
+test("one new request relocates only after ACTIVE_TASK_CONFLICT", async () => {
+  const skill = await readFile(skillPath, "utf8");
+  const routing = section(skill, "Request routing");
+  const discovery = section(skill, "Task discovery");
+  for (const required of [
+    "A single new request is not a parallel batch",
+    "Only a complete `ACTIVE_TASK_CONFLICT`",
+    "Do not pre-dispatch the request",
+  ]) {
+    assert.equal(routing.includes(required), true, required);
+  }
+  for (const required of [
+    "non-null `new_task`",
+    "exactly `ACTIVE_TASK_CONFLICT`",
+    "explicit resume",
+    "exactly one worktree-backed Codex task",
+    "`target.environment.type=\"worktree\"`",
+    "omit the `startingState` member entirely",
+    "committed default-branch state",
+    "Never select a `working-tree` starting state",
+    "Do not inspect, read, copy or apply",
+    "Do not call any Dev Flow Core tool again",
+    "stop without retrying or creating another child",
+    "`HOST_OWNERSHIP_CONFLICT`",
+    "No other error authorizes Host dispatch",
+  ]) {
+    assert.equal(discovery.includes(required), true, required);
+  }
+});
+
 test("packaged references cover method steps, submission tools, and the new-task shape", async () => {
   const methodReference = await readFile(join(skillRoot, "references", "method-profiles.md"), "utf8");
   const payloadReference = await readFile(join(skillRoot, "references", "node-payloads.md"), "utf8");

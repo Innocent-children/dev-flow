@@ -214,6 +214,14 @@ worktree-backed task/thread 能力，为每个有界项创建独立 Codex task�
 父 Task。每个子 task 在自己的 canonical worktree 中执行原有 handshake 和 Action loop。共享目录的
 sub-agent、Core Git mutation 和自动合并都不属于这条路径。
 
+单个新请求不进入这条 admission 前路径。它先在当前 worktree 调用一次 `dev_flow_open_task`；只有
+调用携带非空 `new_task` 且完整结果为 `ACTIVE_TASK_CONFLICT` 时，Codex Skill 才使用同一 Host 能力
+创建且只创建一个子 task。创建参数固定为 `target.environment.type="worktree"`，省略
+`startingState`，由 Host 从项目默认分支的已提交状态建立 worktree；Skill 不读取、复制或应用占用中
+checkout 的 index、已跟踪工作区改动或未跟踪文件。子 task 收到原有界请求和精确 selector 后独立
+进入 handshake；协调者不再调用 Core，也不重试创建。显式 resume、`HOST_OWNERSHIP_CONFLICT` 和
+其他错误仍然 safe-stop，原 Task、claim 与 worktree 不变。
+
 `dev_flow_open_task` 在现有 `host`、`repository_path` 与 `new_task` 旁仅增加可选
 `primary_repository_key` 和最多七项的 closed `additional_repositories[{key,repository_path}]`。
 Task result 保留主 `repository`，并返回主 key 与 sorted `additional_repositories`。

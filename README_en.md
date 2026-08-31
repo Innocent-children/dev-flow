@@ -177,9 +177,14 @@ directories, dependencies, and indexes cannot expand scope automatically. Check
 [Project Status](docs/PROJECT-STATUS_en.md) to see whether this capability is in the stable release.
 
 One logical Git repository can run several independent Tasks concurrently through linked worktrees.
-Each physical worktree still holds at most one active Task. Codex dispatches automatically only when
-the Host already provides a worktree-backed task/thread capability; otherwise it asks the user to
-start another worktree. Core does not create, switch, or clean worktrees.
+Each physical worktree still holds at most one active Task. With a Host-provided worktree-backed
+task/thread capability, Codex creates one child per bounded item before admission for an explicit
+parallel batch; when one new request's `dev_flow_open_task` returns `ACTIVE_TASK_CONFLICT`, it creates
+exactly one child after that result. The conflict child uses
+`target.environment.type="worktree"` with no `startingState`, starts only from committed default-branch
+state, and receives none of the occupied checkout's index, tracked working-tree changes, or untracked
+files. Explicit resume, `HOST_OWNERSHIP_CONFLICT`, and other errors keep their existing stop behavior.
+Core does not create, switch, or clean worktrees, and the original active Task and worktree stay unchanged.
 
 ## Boundaries
 

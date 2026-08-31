@@ -96,13 +96,29 @@ Core continuously returns:
 
 After performing current-node work, Codex submits only a live Action transition and a closed payload.
 
-## Run parallel Tasks in one repository
+## Dispatch isolated worktree Tasks
 
 When the user explicitly lists two or more independent bounded tasks and asks to run them
 concurrently in one logical Git repository, the Skill checks for a Host-provided worktree-backed
 task/thread creation capability before ordinary Task admission. When available, every item receives
 its own Git worktree and Codex task, and the child uses `$dev-flow-codex:dev-flow` to create its own
 Core Task. The coordinator creates no parent Core Task and calls no Dev Flow MCP tool.
+
+One new request still completes admission and handshake in the current physical worktree and calls
+`dev_flow_open_task` once. Only when that call carried non-null `new_task` and returns a complete
+`ACTIVE_TASK_CONFLICT` does the Skill create exactly one separate Codex task, provided the Host
+capability is available. The creation call sets `target.environment.type="worktree"` and omits
+`startingState` entirely, so the new worktree starts from the project's committed default-branch
+state. The Skill does not read, copy, or apply the occupied checkout's index, tracked working-tree
+changes, untracked files, diffs, or Task artifacts. The child receives only the current bounded
+request, acceptance criteria, verification authority, and exact selector, then runs the complete
+Dev Flow process itself.
+
+After successful dispatch, the coordinator makes no further Core call, does not retry
+`dev_flow_open_task`, and creates no parent, replacement, or resumed Task. The original active Task,
+repository claim, and worktree stay unchanged. An uncertain Host creation result is not retried, so
+the coordinator cannot create a second child. Explicit resume, `HOST_OWNERSHIP_CONFLICT`, and other
+errors retain their existing stop behavior.
 
 A generic sub-agent that shares the current working directory is not isolation. If the Host cannot
 guarantee a separate worktree for every child, the Skill stops and asks the user to start separate

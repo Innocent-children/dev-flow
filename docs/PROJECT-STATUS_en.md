@@ -2,7 +2,7 @@
 
 [中文](PROJECT-STATUS.md) | [English](PROJECT-STATUS_en.md)
 
-_Last reviewed: August 30, 2026._
+_Last reviewed: August 31, 2026._
 
 Dev Flow is an early open-source project with real published packages and real Host journeys. This
 page separates three different kinds of evidence:
@@ -32,7 +32,7 @@ exact Releases and artifact identities.
 
 | Product | Current capabilities |
 | --- | --- |
-| `dev-flow-codex` | smart selection, setup, Plugin/MCP registration, multi-repository Task Scope, and separate-worktree parallel Task routing when the Host capability is available |
+| `dev-flow-codex` | smart selection, setup, Plugin/MCP registration, multi-repository Task Scope, explicit parallel-batch routing, and one-worktree Task dispatch when a new request meets `ACTIVE_TASK_CONFLICT` |
 | `dev-flow-deepseek` | DSH bundle, explicit activation, and multi-repository Task Scope |
 | `@imotong/dev-flow` | unified Adapter lifecycle and local Control Center launcher; Control Center displays logical repository groups and physical worktrees |
 
@@ -57,7 +57,7 @@ Host support; public support still depends on registry-package read-back and a f
 - The project is young, so external Issues, pull requests, dependent projects, and long-term adoption
   evidence remain limited.
 - Core is not a Host sandbox and does not intercept every Host file operation or shell command.
-- Automatic parallel dispatch in one logical repository depends on a Host-provided worktree-backed task/thread capability. Without it, users start separate worktrees themselves, and this source capability does not yet have a final-artifact Journey claim.
+- Explicit parallel batches and single-Task dispatch after `ACTIVE_TASK_CONFLICT` both depend on a Host-provided worktree-backed task/thread capability. Without it, users start another worktree themselves, and these source capabilities do not yet have a final-artifact Journey claim.
 - There is currently no telemetry, user-defined graph, or automatic historical Task migration; the
   WebUI is local loopback only and provides no remote access.
 

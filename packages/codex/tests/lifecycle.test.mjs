@@ -221,6 +221,18 @@ test("setup preflights compatibility, resources, runtime, and PATH before regist
   await assert.rejects(setupRegistration(wrongSkillAdmission.options), /admission does not unify/);
   await assert.rejects(stat(wrongSkillAdmission.statePath), { code: "ENOENT" });
 
+  const wrongConflictRelocation = await makeSetupFixture(t, "wrong-conflict-relocation");
+  const conflictSkill = await readFile(
+    join(wrongConflictRelocation.paths.pluginRoot, "skills", "dev-flow", "SKILL.md"),
+    "utf8",
+  );
+  await writeFile(
+    join(wrongConflictRelocation.paths.pluginRoot, "skills", "dev-flow", "SKILL.md"),
+    conflictSkill.replace("complete `ACTIVE_TASK_CONFLICT`", "complete conflict"),
+  );
+  await assert.rejects(setupRegistration(wrongConflictRelocation.options), /conflict relocation is missing/);
+  await assert.rejects(stat(wrongConflictRelocation.statePath), { code: "ENOENT" });
+
   const wrongMcp = await makeSetupFixture(t, "wrong-mcp-shape");
   await writeFile(
     join(wrongMcp.paths.pluginRoot, ".mcp.json"),
@@ -746,7 +758,7 @@ async function makeSetupFixture(t, name) {
   );
   await writeFile(
     join(pluginRoot, "skills", "dev-flow", "SKILL.md"),
-    "---\nname: dev-flow\ndescription: \"Use Dev Flow for bounded Codex software development tasks: implementation, bug fixes, refactoring, targeted testing, and development delivery. It may be selected implicitly for those tasks or explicitly with $dev-flow-codex:dev-flow. Do not create a Dev Flow Task for explanation-only, status-only, design discussion, ordinary questions, or ambiguous requests.\"\n---\n\nBoth activation paths use this same admission gate. For a non-task request, do not create or resume a Dev Flow Task.\n",
+    "---\nname: dev-flow\ndescription: \"Use Dev Flow for bounded Codex software development tasks: implementation, bug fixes, refactoring, targeted testing, and development delivery. It may be selected implicitly for those tasks or explicitly with $dev-flow-codex:dev-flow. Do not create a Dev Flow Task for explanation-only, status-only, design discussion, ordinary questions, or ambiguous requests.\"\n---\n\nBoth activation paths use this same admission gate. For a non-task request, do not create or resume a Dev Flow Task. A single new request is not a parallel batch. Only when the original call carried non-null `new_task` and returned a complete `ACTIVE_TASK_CONFLICT`, create exactly one worktree-backed Codex task with `target.environment.type=\"worktree\"` and omit the `startingState` member entirely. Do not inspect, read, copy or apply source working-tree state. Do not call any Dev Flow Core tool again. Explicit resume and `HOST_OWNERSHIP_CONFLICT` preserve their existing handling.\n",
   );
   await writeFile(
     join(pluginRoot, "skills", "dev-flow", "agents", "openai.yaml"),

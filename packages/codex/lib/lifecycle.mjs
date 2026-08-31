@@ -36,6 +36,8 @@ export const CODEX_MCP_INSTRUCTIONS = [
   "After either valid activation path, `dev_flow_server_info` must be the first Dev Flow call.",
   "Read `host_preferences.codex.codebase_memory` from that handshake without installing or configuring codebase-memory.",
   "Call `dev_flow_open_task` only for a substantive bounded request or explicit resume after a successful `dev_flow_server_info` handshake.",
+  "Only when a new-task dev_flow_open_task returns a complete ACTIVE_TASK_CONFLICT and the Host worktree-backed task/thread capability is available, dispatch exactly one Host-created worktree-backed Codex task with the exact selector; set target.environment.type=worktree and omit startingState so the child starts from committed default-branch state, and never inspect, copy, or apply the source checkout's index, tracked working-tree changes, or untracked files.",
+  "After that conflict decision make no further Dev Flow Core call and never retry Host creation; explicit resume, HOST_OWNERSHIP_CONFLICT, and every other error keep the existing stop behavior.",
   "Use the current Git worktree as primary and only user-declared additional repositories already authorized as writable roots; never scan repositories or change Codex sandbox permissions.",
 ].join(" ");
 
@@ -487,6 +489,17 @@ async function assertPackageResources(paths, packageVersion) {
       !skill.includes("do not create or resume a Dev Flow Task")) {
     throw new Error("Dev Flow Skill admission does not unify implicit and explicit activation");
   }
+  for (const required of [
+    "A single new request is not a parallel batch", "complete `ACTIVE_TASK_CONFLICT`",
+    "exactly one worktree-backed Codex task", "`target.environment.type=\"worktree\"`",
+    "omit the `startingState` member entirely",
+    "Do not inspect, read, copy or apply", "Do not call any Dev Flow Core tool again",
+    "`HOST_OWNERSHIP_CONFLICT`",
+  ]) {
+    if (!skill.includes(required)) {
+      throw new Error(`Dev Flow Skill conflict relocation is missing: ${required}`);
+    }
+  }
 
   let skillMetadata;
   try {
@@ -505,6 +518,12 @@ async function assertPackageResources(paths, packageVersion) {
     "design-discussion", "ordinary-question", "ambiguous requests", "must not create or resume",
     "either valid activation path", "substantive bounded request or explicit resume",
     "explicit parallel batch", "worktree-backed Codex task", "shared-directory sub-agents",
+    "new-task dev_flow_open_task", "ACTIVE_TASK_CONFLICT",
+    "exactly one Host-created worktree-backed Codex task", "target.environment.type=worktree",
+    "omit startingState",
+    "committed default-branch state", "source checkout's index",
+    "no further Dev Flow Core call", "never retry Host creation", "explicit resume",
+    "HOST_OWNERSHIP_CONFLICT",
   ]) {
     if (!CODEX_MCP_INSTRUCTIONS.includes(required)) {
       throw new Error(`Dev Flow MCP admission is missing activation boundary: ${required}`);

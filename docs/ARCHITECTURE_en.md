@@ -236,6 +236,16 @@ item. The coordinator calls no Core tool and creates no parent Task. Every child
 handshake and Action loop in its own canonical worktree. Shared-directory sub-agents, Core Git
 mutation, and automatic merging are outside this route.
 
+One new request does not take that pre-admission route. It calls `dev_flow_open_task` once in the
+current worktree. Only when the call carried non-null `new_task` and its complete result is
+`ACTIVE_TASK_CONFLICT` does the Codex Skill use the same Host capability to create exactly one child.
+Creation fixes `target.environment.type="worktree"` and omits `startingState`, so the Host builds the
+worktree from committed project default-branch state. The Skill does not read, copy, or apply the
+occupied checkout's index, tracked working-tree changes, or untracked files. The child receives the
+original bounded request and exact selector, then performs its own handshake. The coordinator makes
+no further Core call and does not retry creation. Explicit resume, `HOST_OWNERSHIP_CONFLICT`, and
+other errors still safe-stop, leaving the original Task, claim, and worktree unchanged.
+
 Alongside the existing `host`, `repository_path`, and `new_task` fields, `dev_flow_open_task` adds
 only optional `primary_repository_key` and at most seven closed
 `additional_repositories[{key,repository_path}]` entries. The Task result retains the primary

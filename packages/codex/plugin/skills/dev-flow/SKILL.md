@@ -39,6 +39,11 @@ coordination request, not as one Core Task:
 All other task-bearing requests follow the single-Task admission gate below. A request with several
 steps toward one outcome remains one Task rather than a parallel batch.
 
+A single new request is not a parallel batch. It follows ordinary admission and Task discovery once.
+Only a complete `ACTIVE_TASK_CONFLICT` from that new-task open can enter the post-conflict Host
+relocation route defined below. Do not pre-dispatch the request or use that route for an explicit
+resume.
+
 ## Admission gate
 
 Perform every check below locally and in order before any Core or Dev Flow tool call.
@@ -204,9 +209,40 @@ Use this exact `new_task` JSON shape, changing only values derived from the admi
 
 Ask before opening only when a material request, initial-bound, verification, or profile choice
 cannot be derived without changing user intent. Let Core decide whether a compatible intent creates
-or resumes a task. Report an ownership or contract conflict unchanged in meaning and stop. After a
-successful open, give at most one concise status containing the Task identity, revision, and current
-node, then begin the node's substantive repository work without reciting startup checks.
+or resumes a task. After a successful open, give at most one concise status containing the Task
+identity, revision, and current node, then begin the node's substantive repository work without
+reciting startup checks.
+
+### New-request active-conflict relocation
+
+Apply this closed Host route only after one complete `dev_flow_open_task` result:
+
+1. Require that the rejected call carried a non-null `new_task` and that the complete domain error
+   code is exactly `ACTIVE_TASK_CONFLICT`. A call for explicit resume, including a call that omitted
+   `new_task` or sent `new_task=null`, is never eligible.
+2. Require a current Host task/thread creation capability that can place one child in a distinct Git
+   worktree. Resolve one exact saved project for the current logical repository through Host-provided
+   read-only project discovery. If the project cannot be resolved unambiguously, treat the capability
+   as unavailable.
+3. Make exactly one Host creation call for exactly one worktree-backed Codex task. Set
+   `target.environment.type="worktree"` and omit the `startingState` member entirely so the child
+   starts from the saved project's committed default-branch state. Never select a `working-tree` starting state,
+   invent a branch or ref, or ask the Host to transfer working-tree state.
+4. Give the child only the exact `$dev-flow-codex:dev-flow` selector, the admitted current request,
+   its bounds and acceptance criteria, and its verification authority. Do not inspect, read, copy or apply
+   the occupied checkout's index, tracked working-tree changes, untracked files, diffs or Task
+   artifacts when constructing the child request; they belong to the existing Task.
+5. After a successful dispatch, report the one child identity and stop work in the coordinator. Do not call any Dev Flow Core tool again
+   for the conflicted request, retry `dev_flow_open_task`, create
+   a parent or replacement Core Task, resume the existing Task, or change the occupied worktree. The
+   original active Task and original worktree remain unchanged.
+6. If the Host capability is absent or unsuitable, stop and report `ACTIVE_TASK_CONFLICT` with
+   guidance to start the request in a separate Codex worktree-backed task. If the Host creation result
+   is missing, malformed, truncated or otherwise uncertain, report that exactly-one dispatch is
+   uncertain and stop without retrying or creating another child. Never fall back to a shared-directory
+   sub-agent.
+7. Report `HOST_OWNERSHIP_CONFLICT`, every explicit-resume conflict, and every other complete Core
+   error unchanged in meaning and stop. No other error authorizes Host dispatch.
 
 ## Governed action loop
 

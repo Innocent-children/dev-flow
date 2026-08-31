@@ -128,7 +128,7 @@ dev-flow
 - **理解審查：** 測試通過後仍需 `COMPREHENSION_REVIEW`，無法維護的結果可返回重構。
 - **不確定寫入恢復：** Core 完整驗證下一版 Task 後，把規範化 Action 輸入保存到獨立操作記錄；回應遺失時只需 Task ID 與 Action ID 即可恢復，不必重建 payload。
 - **有界多儲存庫：** 目前原始碼允許一個主儲存庫與最多七個附加儲存庫，共用同一流程狀態。
-- **同一儲存庫並行 Task：** 同一邏輯 Git 儲存庫可透過多個 linked worktree 同時執行獨立 Task；每個實體 worktree 仍最多持有一個進行中的 Task。Codex 只在 Host 已提供 worktree-backed task/thread 能力時自動分派，否則提示使用者另開 worktree；Core 不建立、切換或清理 worktree。
+- **同一儲存庫並行 Task：** 同一邏輯 Git 儲存庫可透過多個 linked worktree 同時執行獨立 Task；每個實體 worktree 仍最多持有一個進行中的 Task。Host 提供 worktree-backed task/thread 能力時，Codex 會在 admission 前為明確的平行批次按有界項建立子 Task；單一新請求的 `dev_flow_open_task` 返回 `ACTIVE_TASK_CONFLICT` 時，則建立且只建立一個子 Task。衝突後的子 Task 使用 `target.environment.type="worktree"` 且不傳 `startingState`，只從預設分支的已提交狀態開始，不接收原 checkout 的 index、已追蹤工作區變更或未追蹤檔案。明確 resume、`HOST_OWNERSHIP_CONFLICT` 與其他錯誤仍按原規則停止；Core 不建立、切換或清理 worktree，原進行中 Task 與原 worktree 保持不變。
 
 多儲存庫能力是否已進入穩定版，請以[專案狀態頁](docs/PROJECT-STATUS.md)為準。
 
