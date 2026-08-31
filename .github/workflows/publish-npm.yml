@@ -44,6 +44,7 @@ jobs:
       - name: Check out selected source
         uses: actions/checkout@v7
         with:
+          ref: main
           fetch-depth: 0
           persist-credentials: false
 

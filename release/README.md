@@ -23,7 +23,8 @@ The manifest binds the product, version, source commit, Core identity, and artif
 并使用安装到当前仓库、加入 `main` ruleset bypass list 的专用 GitHub App 短期 token 提交版本、
 创建 Tag 和维护 Release。仓库变量 `RELEASE_APP_CLIENT_ID` 保存 App Client ID，仓库 secret
 `RELEASE_APP_PRIVATE_KEY` 保存完整 PEM 私钥。工作流固定运行在 `macos-15` ARM64 runner 上，并按
-产品串行执行；发布工具链固定为 Go `1.26.5`、Node.js `24.18.0` 和 pnpm `11.24.0`，npm 发布只使用 Trusted Publishing OIDC，不生成依赖
+产品串行执行；排队任务获得执行机会后从最新 `main` checkout，避免前一个发布任务推送版本提交后，
+后续任务仍基于触发时的旧提交发布。发布工具链固定为 Go `1.26.5`、Node.js `24.18.0` 和 pnpm `11.24.0`，npm 发布只使用 Trusted Publishing OIDC，不生成依赖
 `NODE_AUTH_TOKEN` 的旧式 registry 认证配置。
 
 工作流仍调用下面的 standalone command，完成版本检查、制品检查、npm tarball 回读和 GitHub

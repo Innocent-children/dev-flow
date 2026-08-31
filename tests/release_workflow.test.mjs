@@ -25,6 +25,7 @@ test("npm publication runs the existing release contracts on darwin-arm64", () =
   assert.match(workflow, /go-version: ['"]?1\.26(?:\.|['"]?\s*$)/mu);
   assert.match(workflow, /node-version: ['"]?24(?:\.|['"]?\s*$)/mu);
   assert.match(workflow, /version: ['"]?11(?:\.|['"]?\s*$)/mu);
+  assert.match(workflow, /uses: actions\/checkout@v7\n        with:\n          ref: main/u);
   assert.match(workflow, /fetch-depth: 0/u);
   assert.match(workflow, /persist-credentials: false/u);
   assert.match(workflow, /test "\$\(uname -s\)-\$\(uname -m\)" = "Darwin-arm64"/u);
