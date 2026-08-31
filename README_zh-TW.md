@@ -131,7 +131,7 @@ dev-flow
 - 目前原始碼包含僅監聽 loopback 的共享 WebUI，前端支援簡體中文/英文、首次跟隨系統語言並可在瀏覽器切換；不包含 remote MCP、telemetry、使用者自訂流程圖或自動歷史資料遷移。
 - 可選程式碼索引只能協助檢索，不能決定範圍、權限、Recovery 或流程狀態。
 - 允許寫入的 Action 只回報該 Action 簽發後由本節點新產生的 `changed_paths`；本節點未修改檔案時回報 `no_file_changes`。Core 依簽發基線與 fresh Git observation 驗證，合法修改可用原 Action 完成，branch、HEAD、repository identity 或未宣告路徑變更仍回傳 `REPOSITORY_DRIFT`。若倉庫狀態完全一致但結果宣告了檔案變更，Core 會回傳 `repository_effect_not_observed` 欄位規則。
-- Design、Tasks 與 Implementation 提交分別省略 `requirements_revision`、`design_revision` 與 `task_plan_revision`；Core 驗證目前 Action identity 後，從同一 Task snapshot 填入這些欄位。Core 在暫存前還會依目前 Task 預檢節點結果語義：revision、record、evidence 集合與 acceptance 等可從 Core 精確複製的錯誤會回傳 `allowed_paths`；節點提交中已證明零寫入的 `required_member_missing` 也可依準確路徑修正一次，但只能使用目前節點工作已確認的內容。缺少的內容若需要新的使用者決定，Host 必須停止並請求輸入；其他無法安全推導的值只回傳欄位資訊，不授權自動修正。
+- Design、Tasks 與 Implementation 提交分別省略 `requirements_revision`、`design_revision` 與 `task_plan_revision`；Core 驗證目前 Action identity 後，從同一 Task snapshot 填入這些欄位。Delivery 提交不包含 acceptance、automated/manual evidence ID 或 Test/Comprehension record ID；Core 依目前 Task 產生這些欄位，提交它們會以 `unknown_member` 拒絕。Core 在暫存前仍會依目前 Task 預檢節點結果語義；節點提交中已證明零寫入的 `required_member_missing` 可依準確路徑修正一次，但只能使用目前節點工作已確認的內容。缺少的內容若需要新的使用者決定，Host 必須停止並請求輸入；其他無法安全推導的值只回傳欄位資訊，不授權自動修正。
 
 安全邊界見 [Security Policy](SECURITY.md) 與 [Threat Model](docs/THREAT-MODEL.md)。
 

@@ -102,8 +102,8 @@ func TestCanonicalDecodeNamesEveryNestedMissingMember(t *testing.T) {
 	})
 	t.Run("delivery acceptance status", func(t *testing.T) {
 		violations := decodeMissingMemberViolations(t, domain.NodeDelivery, map[string]any{
-			"problem_class": "none",
-			"acceptance":    []any{map[string]any{"criterion": "The field is returned"}},
+			"problem_class":          "none",
+			"acceptance":             []any{map[string]any{"criterion": "The field is returned"}},
 			"automated_evidence_ids": []any{}, "manual_evidence_ids": []any{}, "test_record_id": "test-1",
 			"comprehension_record_id": "comprehension-1", "unverified_items": []any{}, "risks": []any{},
 			"findings": []any{}, "changed_paths": []any{}, "no_file_changes": true,
@@ -218,10 +218,10 @@ func schemaRequires(schema map[string]any, name string) bool {
 	return false
 }
 
-// TestSubmissionContractRelaxesOnlySystemStateRevisions proves the submission
-// contract is the canonical contract with exactly the three system-state members
-// made optional, and that a missing model-owned member keeps its exact path.
-func TestSubmissionContractRelaxesOnlySystemStateRevisions(t *testing.T) {
+// TestSubmissionContractProjectsOnlyHostOwnedMembers proves revision members
+// stay optional while Core-owned Delivery authority members are absent from the
+// closed submission contract.
+func TestSubmissionContractProjectsOnlyHostOwnedMembers(t *testing.T) {
 	designWithoutRevision := map[string]any{
 		"problem_class": "none",
 		"baseline": map[string]any{
@@ -268,6 +268,35 @@ func TestSubmissionContractRelaxesOnlySystemStateRevisions(t *testing.T) {
 			}
 		})
 	}
+	t.Run("Delivery authority belongs only to Core", func(t *testing.T) {
+		schema, err := SubmissionNodeResultSchema(domain.ActionCompleteDelivery)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, member := range []string{"acceptance", "automated_evidence_ids", "manual_evidence_ids", "test_record_id", "comprehension_record_id"} {
+			if schemaRequires(schema, member) || schemaDeclaresProperty(schema, member) {
+				t.Fatalf("Delivery submission still exposes %s", member)
+			}
+		}
+		minimal := map[string]any{
+			"problem_class": "none", "unverified_items": []any{}, "risks": []any{}, "findings": []any{},
+			"changed_paths": []any{}, "no_file_changes": true,
+		}
+		raw, marshalErr := json.Marshal(minimal)
+		if marshalErr != nil {
+			t.Fatal(marshalErr)
+		}
+		if err := ValidateSubmissionNodeResult(domain.ActionCompleteDelivery, raw); err != nil {
+			t.Fatalf("minimal Delivery submission was refused: %v", err)
+		}
+		minimal["acceptance"] = []any{}
+		raw, _ = json.Marshal(minimal)
+		err = ValidateSubmissionNodeResult(domain.ActionCompleteDelivery, raw)
+		typed, ok := err.(*domain.Error)
+		if !ok || len(typed.Violations) != 1 || typed.Violations[0].Path != "node_result.acceptance" || typed.Violations[0].Rule != domain.RuleUnknownMember {
+			t.Fatalf("removed Delivery member error=%v", err)
+		}
+	})
 	t.Run("older clients keep sending the current value", func(t *testing.T) {
 		withRevision := map[string]any{
 			"problem_class": "none",

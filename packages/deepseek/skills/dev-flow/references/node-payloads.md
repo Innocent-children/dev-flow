@@ -57,11 +57,16 @@ Use the live tool schema for types and nested members. These are the closed top-
 | Test | `problem_class`, `checks`, `failed_items`, `unverified_items`, `manual_handoff_items`, `findings`, `changed_paths`, `no_file_changes` |
 | Comprehension | `problem_class`, `explained_components`, `unresolved_questions`, `unnecessary_abstractions`, `maintenance_risks`, `user_confirmation`, `findings`, `changed_paths`, `no_file_changes` |
 | Refactor | `problem_class`, `changed_paths`, `no_file_changes`, `simplifications`, `behavior_change_intended`, `findings` |
-| Delivery | `problem_class`, `acceptance`, `automated_evidence_ids`, `manual_evidence_ids`, `test_record_id`, `comprehension_record_id`, `unverified_items`, `risks`, `findings`, `changed_paths`, `no_file_changes` |
+| Delivery | `problem_class`, `unverified_items`, `risks`, `findings`, `changed_paths`, `no_file_changes` |
 
 `changed_paths` and `no_file_changes` remain mutually exclusive. A single-repository Task uses
 repository-relative paths. A multi-repository Task uses
 `<repository-key>::<repository-relative-path>`.
+
+Delivery submissions never send `acceptance`, `automated_evidence_ids`, `manual_evidence_ids`,
+`test_record_id`, or `comprehension_record_id`. Core derives those authority members from the current
+Requirements, Test, Comprehension, and Evidence records before canonical validation and Recovery
+retention. A submission containing any of those members violates the closed contract.
 
 Completed developer-run verification is a `source="user"` check with `command_count=0` and
 `full_suite=false`. Put only work nobody has run yet in `manual_handoff_items`.

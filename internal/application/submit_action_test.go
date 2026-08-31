@@ -146,28 +146,114 @@ func TestSubmitActionPersistsCanonicalOperationOutsideTaskSnapshot(t *testing.T)
 	}
 }
 
-func TestSubmitActionRejectsCorrectableDeliveryBeforeStagingCommit(t *testing.T) {
+func TestSubmitActionHydratesDeliveryAuthorityFromCurrentTask(t *testing.T) {
+	service, memory, _ := phase5Service(t)
+	task := phase5TaskAtTest(t, service)
+	task = applyPhase5(t, service, task, "tests_passed", "", testNodeResult(
+		[]map[string]any{evidenceCheck("automated", "passed", "historical-build", 1, false)}, nil, nil, nil,
+	))
+	historicalAutomatedID := task.Test.EvidenceIDs[0]
+	task = applyPhase5(t, service, task, "implementation_defect", "Implementation changed after the build.", comprehensionNodeResult(
+		nil, nil, nil, "", "", []string{"Implementation changed after the build"},
+	))
+	task = applyPhase5(t, service, task, "implementation_ready_for_test", "", implementationNodeResult(1, []string{"work-a"}, true, nil))
+	task = applyPhase5(t, service, task, "tests_passed", "", testNodeResult(
+		[]map[string]any{evidenceCheck("static", "passed", "current-static-check", 0, false)}, nil, nil, nil,
+	))
+	task = applyPhase5(t, service, task, "comprehension_passed", "", comprehensionNodeResult(
+		[]string{"component"}, nil, nil, "user", "passed", nil,
+	))
+
+	request := actionSubmission(t, task, "submit-core-hydrated-delivery", "delivery_complete", deliverySubmissionResult())
+	applied, err := service.SubmitAction(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outcome := applied.Task.Outcome
+	if applied.Task.CurrentNode != domain.NodeDone || outcome == nil || len(outcome.AutomatedEvidenceIDs) != 0 ||
+		len(outcome.ManualEvidenceIDs) != 1 || outcome.ManualEvidenceIDs[0] != task.Comprehension.UserEvidenceID ||
+		outcome.TestRecordID != task.Test.RecordID || outcome.ComprehensionRecordID != task.Comprehension.RecordID {
+		t.Fatalf("outcome=%#v", outcome)
+	}
+	if evidenceByID(applied.Task, historicalAutomatedID) == nil {
+		t.Fatal("historical evidence was not retained")
+	}
+
+	operation, found, operationErr := memory.LoadActionOperation(context.Background(), task.TaskID)
+	if operationErr != nil || !found {
+		t.Fatalf("operation found=%v err=%v", found, operationErr)
+	}
+	_, decoded, decodeErr := workflow.DecodeStandardPayload(domain.NodeDelivery, operation.Commit.Payload)
+	delivery, ok := decoded.(*workflow.DeliveryResult)
+	if decodeErr != nil || !ok || len(delivery.AutomatedEvidenceIDs) != 0 || len(delivery.ManualEvidenceIDs) != 1 ||
+		delivery.ManualEvidenceIDs[0] != task.Comprehension.UserEvidenceID || delivery.TestRecordID != task.Test.RecordID ||
+		delivery.ComprehensionRecordID != task.Comprehension.RecordID || len(delivery.Acceptance) != len(task.Requirements.AcceptanceCriteria) {
+		t.Fatalf("canonical delivery=%#v decode_err=%v", delivery, decodeErr)
+	}
+}
+
+func TestSubmitActionRejectsDeliveryAuthorityMembersWithoutCompatibility(t *testing.T) {
 	service, memory, _ := phase5Service(t)
 	task := phase5TaskAtDelivery(t, service)
-	result := deliveryCompleteNodeResult(task)
-	result["problem_class"] = "none"
-	result["manual_evidence_ids"] = []string{}
-	request := actionSubmission(t, task, "submit-delivery-missing-evidence", "delivery_complete", result)
+	result := deliverySubmissionResult()
+	result["automated_evidence_ids"] = []string{string(task.Test.EvidenceIDs[0])}
+	request := actionSubmission(t, task, "submit-legacy-delivery-member", "delivery_complete", result)
 	stages := memory.stages
-	if _, err := service.SubmitAction(context.Background(), request); !errors.Is(err, domain.ErrTransitionNotAllowed) {
-		t.Fatalf("error=%v", err)
-	} else {
-		var typed *domain.Error
-		if !errors.As(err, &typed) || !typed.ZeroWrite || typed.Guard == nil || len(typed.Guard.Failures) != 1 || typed.Guard.Failures[0].Path != "payload.node_result.manual_evidence_ids" {
-			t.Fatalf("structured error=%#v", typed)
-		}
+	_, err := service.SubmitAction(context.Background(), request)
+	var typed *domain.Error
+	if !errors.As(err, &typed) || typed.Code != domain.ErrorInvalidArgument || !typed.ZeroWrite || len(typed.Violations) != 1 ||
+		typed.Violations[0].Path != "payload.node_result.automated_evidence_ids" || typed.Violations[0].Rule != domain.RuleUnknownMember {
+		t.Fatalf("error=%#v", err)
 	}
 	if memory.stages != stages {
 		t.Fatalf("stages=%d want=%d", memory.stages, stages)
 	}
-	_, found, operationErr := memory.LoadActionOperation(context.Background(), task.TaskID)
-	if operationErr != nil || found {
-		t.Fatalf("action operation found=%v err=%v", found, operationErr)
+}
+
+func TestSubmitActionHydratedDeliveryStillRejectsOutstandingTestWork(t *testing.T) {
+	service, memory, _ := phase5Service(t)
+	task := phase5TaskAtTest(t, service)
+	task = applyPhase5(t, service, task, "tests_passed", "", testNodeResult(
+		[]map[string]any{evidenceCheck("automated", "passed", "targeted-test", 1, false)}, nil,
+		[]string{"Browser verification remains"}, nil,
+	))
+	task = applyPhase5(t, service, task, "comprehension_passed", "", comprehensionNodeResult(
+		[]string{"component"}, nil, nil, "user", "passed", nil,
+	))
+	request := actionSubmission(t, task, "submit-delivery-with-outstanding-test", "delivery_complete", deliverySubmissionResult())
+	stages := memory.stages
+	if _, err := service.SubmitAction(context.Background(), request); !errors.Is(err, domain.ErrTransitionNotAllowed) {
+		t.Fatalf("error=%v", err)
+	}
+	if memory.stages != stages {
+		t.Fatalf("stages=%d want=%d", memory.stages, stages)
+	}
+}
+
+func TestSubmitActionHydratesDeliveryRemediationAuthorityAsEmpty(t *testing.T) {
+	service, memory, _ := phase5Service(t)
+	task := phase5TaskAtDelivery(t, service)
+	result := deliverySubmissionResult()
+	result["problem_class"] = "test_gap"
+	result["findings"] = []string{"Current verification is insufficient"}
+	request := actionSubmission(t, task, "submit-hydrated-delivery-remediation", "delivery_needs_test", result)
+	request.Reason = "Current verification must be repeated."
+	applied, err := service.SubmitAction(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if applied.Task.CurrentNode != domain.NodeTest || applied.Task.Outcome != nil {
+		t.Fatalf("task node=%s outcome=%#v", applied.Task.CurrentNode, applied.Task.Outcome)
+	}
+	operation, found, operationErr := memory.LoadActionOperation(context.Background(), task.TaskID)
+	if operationErr != nil || !found {
+		t.Fatalf("operation found=%v err=%v", found, operationErr)
+	}
+	_, decoded, decodeErr := workflow.DecodeStandardPayload(domain.NodeDelivery, operation.Commit.Payload)
+	delivery, ok := decoded.(*workflow.DeliveryResult)
+	if decodeErr != nil || !ok || len(delivery.Acceptance) != 0 || len(delivery.AutomatedEvidenceIDs) != 0 ||
+		len(delivery.ManualEvidenceIDs) != 0 || delivery.TestRecordID != "" || delivery.ComprehensionRecordID != "" {
+		t.Fatalf("canonical remediation=%#v decode_err=%v", delivery, decodeErr)
 	}
 }
 
@@ -255,5 +341,12 @@ func actionSubmission(t *testing.T, task domain.ProcessTask, requestID domain.ID
 		ExpectedActionKind: task.CurrentAction.Kind, TransitionID: transition, Summary: "Current Action completed.",
 		Reason: "", CurrentArtifacts: []ArtifactSubmission{}, OtherProcessArtifacts: []ArtifactSubmission{},
 		MethodResults: methods, NodeResult: raw,
+	}
+}
+
+func deliverySubmissionResult() map[string]any {
+	return map[string]any{
+		"problem_class": "none", "unverified_items": []string{}, "risks": []string{}, "findings": []string{},
+		"changed_paths": []string{}, "no_file_changes": true,
 	}
 }

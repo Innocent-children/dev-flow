@@ -54,12 +54,15 @@ fills those system-state members from the same Task snapshot, completes the iden
 method steps, and payload envelope, builds and validates the complete next Task mutation, and only then
 retains the normalized submission as an independent Action operation. Task, Event, Claim, and the operation's applied revision commit in
 one transaction. Recovery reads that operation record, so the caller no longer stores or rebuilds the
-original payload and the Task snapshot carries no recovery payload.
+original payload and the Task snapshot carries no recovery payload. A Delivery submission reports only
+Host-owned delivery judgment, risks, and new findings. Acceptance, current automated/manual evidence
+IDs, and Test/Comprehension record IDs are absent from the submission contract and are filled by Core
+from that same Task snapshot. Submitting those Core-owned members is rejected as `unknown_member`.
 
 Before retaining a submission, Core recursively checks required members against the submission
-contract, then validates the complete internal contract and current-Task semantics. Errors in
-revisions, records, evidence sets, acceptance, and other values that can be copied uniquely from Core
-return field paths, fixed rules, and `allowed_paths`. A proven zero-write `required_member_missing` in
+contract, then validates the complete internal contract and current-Task semantics. System-state
+revisions that Core can determine uniquely are filled by Core, and callers cannot submit Delivery
+authority members. A proven zero-write `required_member_missing` in
 a node submission may also be corrected once at its exact path, but only with facts already established
 by the current node work; when the missing content requires a new user decision, the Host must stop and
 request it. Other values that cannot be derived safely receive field detail without automatic correction

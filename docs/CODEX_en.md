@@ -196,6 +196,11 @@ profile order does not affect compatibility.
 | `dev_flow_recover_action` | Recover an uncertain Action from Core's retained normalized submission. |
 | `dev_flow_cancel_task` | Cancel a nonterminal Task with the current revision and an explicit reason. |
 
+`dev_flow_submit_delivery` accepts only Host-owned delivery judgment, unverified items, risks,
+findings, and the mutation envelope. Core fills acceptance, automated/manual evidence IDs, and
+Test/Comprehension record IDs from the current Task; submitting those members is rejected as
+`unknown_member`.
+
 ## Comprehension and Recovery
 
 After `TEST` passes, the Task enters `COMPREHENSION_REVIEW`. Codex explains current behavior, design,

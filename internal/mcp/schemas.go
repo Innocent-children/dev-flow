@@ -533,6 +533,9 @@ func actionSubmissionDescription(kind domain.ActionKind) string {
 	if kind == domain.ActionCompleteTest {
 		description += " For checks, automated command_count is 1 to 20; user, static and host_observed use command_count 0 and full_suite false."
 	}
+	if kind == domain.ActionCompleteDelivery {
+		description += " Core also fills current acceptance, test and comprehension record IDs, and automated and manual evidence IDs from the current Task."
+	}
 	return description
 }
 
@@ -541,10 +544,9 @@ func actionSubmissionSchema(kind domain.ActionKind) map[string]any {
 	if err != nil || node.NodeID == domain.NodeBlocked {
 		panic("invalid Action submission kind")
 	}
-	// The published tool schema is the submission contract: identical to the
-	// canonical node_result schema except that the system-state members Core
-	// fills from the current Task snapshot are optional. The projection rules
-	// are unchanged.
+	// The published tool schema is the submission contract. Revision members
+	// filled from the current Task are optional; Delivery authority members are
+	// absent because node submissions never own them.
 	submissionSchema, err := workflow.SubmissionNodeResultSchema(kind)
 	if err != nil {
 		panic("missing Action submission payload schema")

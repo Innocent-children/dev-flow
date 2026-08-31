@@ -149,7 +149,7 @@ Core 先完整构造并校验下一版 Task，再把规范化 Action 输入保�
 允许写入的 Action 在结果中提交相对当前 Action 签发状态新产生的精确 `changed_paths`，或在本节点未改文件时提交 `no_file_changes`。Core 以签发基线、当前
 `allowed_effects` 和 fresh Git observation 验证；合法 worktree 结果可由原 Action 提交，branch、
 HEAD、repository identity 或未声明路径变化仍返回 `REPOSITORY_DRIFT`。若仓库状态完全一致但结果声明了文件变化，Core 返回 `repository_effect_not_observed` 字段错误，Host 可将本节点结果纠正为无文件变化。
-Design、Tasks 和 Implementation 提交分别省略 `requirements_revision`、`design_revision` 和 `task_plan_revision`；Core 在确认当前 Action 身份后，从同一 Task 快照填充这些字段。节点结果在暂存前还会按当前 Task 做语义预检：revision、record、evidence 集合和 acceptance 等可从 Core 唯一复制的错误会返回 `allowed_paths`；节点提交中已证明零写入的 `required_member_missing` 也可按准确路径修正一次，但只能使用当前节点工作已经确认的内容。缺失内容需要新的用户决定时必须停止并请求输入；其他不能安全推导的错误只返回字段信息，不授权自动纠正。
+Design、Tasks 和 Implementation 提交分别省略 `requirements_revision`、`design_revision` 和 `task_plan_revision`；Core 在确认当前 Action 身份后，从同一 Task 快照填充这些字段。Delivery 提交不包含 acceptance、automated/manual evidence ID 或 Test/Comprehension record ID；Core 从当前 Task 生成这些字段，提交它们会按 `unknown_member` 拒绝。节点结果在暂存前仍会按当前 Task 做语义预检；节点提交中已证明零写入的 `required_member_missing` 可按准确路径修正一次，但只能使用当前节点工作已经确认的内容。缺失内容需要新的用户决定时必须停止并请求输入；其他不能安全推导的错误只返回字段信息，不授权自动纠正。
 
 ### 有界多仓库范围
 

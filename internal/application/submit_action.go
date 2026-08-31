@@ -44,7 +44,7 @@ func (s *Service) SubmitAction(ctx context.Context, request SubmitActionRequest)
 	if err := workflow.ValidateSubmissionNodeResultSyntax(request.NodeResult); err != nil {
 		return ApplyActionResult{}, err
 	}
-	nodeResult, err := hydrateSubmissionNodeResult(task, request.NodeResult)
+	nodeResult, err := hydrateSubmissionNodeResult(task, request.TransitionID, request.NodeResult)
 	if err != nil {
 		return ApplyActionResult{}, err
 	}
@@ -127,16 +127,14 @@ func applyRequestForCurrentAction(requestID domain.ID, host domain.Host, task do
 	}
 }
 
-// hydrateSubmissionNodeResult completes the system-state members of one node
-// submission from the Task snapshot that already passed the Action identity
-// checks: the current Action exists, its ID and kind match the request, and the
-// Task is neither blocked nor terminal. A member the caller omitted is filled
-// with the current value of that same snapshot; a member the caller supplied
-// must equal it, so an older client is still accepted and a stale value is
-// refused with the exact member. The snapshot is never re-read, so a submitted
-// result can never be bound to Task state newer than the current Action. Every
-// failure here happens before any Task, Event, Evidence or operation write.
-func hydrateSubmissionNodeResult(task domain.ProcessTask, raw json.RawMessage) (json.RawMessage, error) {
+// hydrateSubmissionNodeResult completes Core-owned members from the Task
+// snapshot that already passed the Action identity checks. Optional revision
+// members accept only the exact current value when supplied. Delivery authority
+// members are absent from the submission contract and rejected when supplied.
+// The snapshot is never re-read, so a submitted result cannot bind to Task state
+// newer than the current Action. Every failure here happens before any Task,
+// Event, Evidence or operation write.
+func hydrateSubmissionNodeResult(task domain.ProcessTask, transition domain.TransitionID, raw json.RawMessage) (json.RawMessage, error) {
 	members, ok := jsonObjectMembers(raw)
 	if !ok {
 		return raw, nil
@@ -177,9 +175,74 @@ func hydrateSubmissionNodeResult(task domain.ProcessTask, raw json.RawMessage) (
 			return raw, err
 		}
 		return filled, nil
+	case domain.NodeDelivery:
+		return hydrateDeliveryNodeResult(task, transition, members)
 	default:
 		return raw, nil
 	}
+}
+
+// hydrateDeliveryNodeResult builds the canonical Delivery authority fields from
+// the same Task snapshot that owns the current Action. Node submissions cannot
+// provide these members; internal apply and Recovery payloads remain complete.
+func hydrateDeliveryNodeResult(task domain.ProcessTask, transition domain.TransitionID, members map[string]json.RawMessage) (json.RawMessage, error) {
+	var violations []domain.ContractViolation
+	for _, name := range workflow.DeliveryAuthorityMembers() {
+		if _, present := members[name]; present {
+			violations = append(violations, domain.Violation("payload.node_result."+name, domain.RuleUnknownMember))
+		}
+	}
+	if len(violations) != 0 {
+		return nil, domain.InvalidArgumentViolations(violations...)
+	}
+
+	acceptance := []domain.OutcomeCriterion{}
+	automated := []domain.ID{}
+	manual := []domain.ID{}
+	testRecordID := domain.ID("")
+	comprehensionRecordID := domain.ID("")
+	if transition == "delivery_complete" {
+		if task.Requirements == nil || task.Test == nil || task.Comprehension == nil {
+			return nil, domain.ErrTransitionNotAllowed
+		}
+		acceptance = make([]domain.OutcomeCriterion, len(task.Requirements.AcceptanceCriteria))
+		for index, criterion := range task.Requirements.AcceptanceCriteria {
+			acceptance[index] = domain.OutcomeCriterion{Criterion: criterion, Status: domain.CriterionSatisfied}
+		}
+		var current bool
+		automated, manual, current = currentDeliveryEvidence(task)
+		if !current {
+			return nil, domain.ErrTransitionNotAllowed
+		}
+		if automated == nil {
+			automated = []domain.ID{}
+		}
+		if manual == nil {
+			manual = []domain.ID{}
+		}
+		testRecordID = task.Test.RecordID
+		comprehensionRecordID = task.Comprehension.RecordID
+	}
+
+	values := map[string]any{
+		"acceptance":              acceptance,
+		"automated_evidence_ids":  automated,
+		"manual_evidence_ids":     manual,
+		"test_record_id":          testRecordID,
+		"comprehension_record_id": comprehensionRecordID,
+	}
+	for name, value := range values {
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			return nil, domain.ErrInternal
+		}
+		members[name] = encoded
+	}
+	filled, err := json.Marshal(members)
+	if err != nil {
+		return nil, domain.ErrInternal
+	}
+	return filled, nil
 }
 
 // hydrateRevisionMember completes one system-state revision member of one

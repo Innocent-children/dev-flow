@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"sort"
 	"unicode/utf8"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
@@ -11,6 +12,20 @@ import (
 type ActionPayloadSchema struct {
 	Kind   domain.ActionKind
 	Schema map[string]any
+}
+
+var deliveryAuthorityMembers = []string{
+	"acceptance",
+	"automated_evidence_ids",
+	"manual_evidence_ids",
+	"test_record_id",
+	"comprehension_record_id",
+}
+
+// DeliveryAuthorityMembers returns the canonical Delivery members owned and
+// hydrated only by Core.
+func DeliveryAuthorityMembers() []string {
+	return append([]string(nil), deliveryAuthorityMembers...)
 }
 
 // ActionPayloadSchemas returns the closed payload contracts accepted by the current workflow.
@@ -64,12 +79,11 @@ func ActionPayloadSchemas() []ActionPayloadSchema {
 }
 
 // ActionSubmissionPayloadSchemas derives the node submission contracts from the
-// canonical payload schemas. Each contract is identical to the canonical schema
-// except that the system-state members Core fills from the current Task snapshot
-// are optional: a current Host template omits them, and an older client may
-// still send the exact current value. The canonical contract keeps them
-// required, so the persisted payload, history records and apply path are
-// unchanged.
+// canonical payload schemas. Revision members that Core fills remain optional
+// submission properties. Delivery authority members are omitted entirely
+// because only Core owns their values. The canonical contract keeps every
+// member required, so persisted payloads, history records and the apply path
+// remain complete.
 func ActionSubmissionPayloadSchemas() []ActionPayloadSchema {
 	entries := ActionPayloadSchemas()
 	for index := range entries {
@@ -83,6 +97,8 @@ func ActionSubmissionPayloadSchemas() []ActionPayloadSchema {
 			makeRequiredMemberOptional(nullableObjectSchema(nodeProperties["baseline"]), "design_revision")
 		case domain.ActionCompleteImplementation:
 			makeRequiredMemberOptional(nodeResult, "task_plan_revision")
+		case domain.ActionCompleteDelivery:
+			removeObjectMembers(nodeResult, deliveryAuthorityMembers...)
 		}
 	}
 	return entries
@@ -116,10 +132,37 @@ func ValidateSubmissionNodeResult(kind domain.ActionKind, raw json.RawMessage) e
 	if err != nil {
 		return err
 	}
+	if violations := unknownSubmissionMembers("node_result", raw, schema); len(violations) != 0 {
+		return domain.InvalidArgumentViolations(violations...)
+	}
 	if violations := requiredMemberViolations("node_result", raw, schema); len(violations) != 0 {
 		return domain.InvalidArgumentViolations(violations...)
 	}
 	return nil
+}
+
+// unknownSubmissionMembers checks the closed top-level node_result members.
+// Nested canonical payload validation remains responsible for nested objects;
+// this boundary check ensures Core-owned Delivery members are not accepted
+// from a node submission even though they exist in the internal result type.
+func unknownSubmissionMembers(path string, raw json.RawMessage, schema map[string]any) []domain.ContractViolation {
+	members, ok := jsonObjectMembers(raw)
+	if !ok {
+		return nil
+	}
+	properties, _ := schema["properties"].(map[string]any)
+	names := make([]string, 0, len(members))
+	for name := range members {
+		if _, known := properties[name]; !known {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	violations := make([]domain.ContractViolation, 0, len(names))
+	for _, name := range names {
+		violations = append(violations, domain.Violation(path+"."+name, domain.RuleUnknownMember))
+	}
+	return violations
 }
 
 // ValidateSubmissionNodeResultSyntax rejects malformed or ambiguous JSON before
@@ -171,6 +214,20 @@ func makeRequiredMemberOptional(schema map[string]any, name string) {
 		return
 	}
 	schema["required"] = kept
+}
+
+// removeObjectMembers removes Core-owned members from one closed submission
+// object. They remain required in the canonical schema and are hydrated from
+// the current Task snapshot before canonical validation.
+func removeObjectMembers(schema map[string]any, names ...string) {
+	if schema == nil {
+		return
+	}
+	properties, _ := schema["properties"].(map[string]any)
+	for _, name := range names {
+		makeRequiredMemberOptional(schema, name)
+		delete(properties, name)
+	}
 }
 
 // ActionPayloadSchemaFor projects the exact payload schema for one persisted Action.

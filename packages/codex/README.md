@@ -183,6 +183,10 @@ Core ready、`standard-development`、definition digest、method profiles 与十
 | `dev_flow_recover_action` | 使用 Core 保存的规范化提交恢复不确定 Action，不重新发送 payload。 |
 | `dev_flow_cancel_task` | 使用当前 revision 和明确 reason 取消一个非终态 Task。 |
 
+`dev_flow_submit_delivery` 只接收 Host 负责的交付判断、未验证项、风险、发现和 mutation envelope。
+acceptance、自动/人工 evidence ID 以及 Test/Comprehension record ID 由 Core 从当前 Task 补齐；提交
+这些字段会按 `unknown_member` 拒绝。
+
 ## 理解审查与 Recovery
 
 `TEST` 通过后，Task 进入 `COMPREHENSION_REVIEW`。Codex 解释当前行为、设计与维护风险，开发者

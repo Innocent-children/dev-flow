@@ -203,7 +203,7 @@ transport、通用 HTTP/SSE transport、通用 shell 或 Git mutation 命令。C
 | `dev_flow_submit_test` | mutation | 提交 TEST 节点结果。 |
 | `dev_flow_submit_comprehension` | mutation | 提交 COMPREHENSION_REVIEW 节点结果。 |
 | `dev_flow_submit_refactor` | mutation | 提交 REFACTOR 节点结果。 |
-| `dev_flow_submit_delivery` | mutation | 提交 DELIVERY 节点结果。 |
+| `dev_flow_submit_delivery` | mutation | 提交 Host 负责的 DELIVERY 判断、风险和发现；acceptance、evidence ID 与 Test/Comprehension record ID 由 Core 补齐，提交这些字段会按 `unknown_member` 拒绝。 |
 | `dev_flow_resolve_blocker` | mutation | 在 Core 确认仓库恢复条件后解除当前 blocker；只接收 Host、Task ID 与 Action ID。 |
 | `dev_flow_recover_action` | mutation | 使用 Core 在独立 Action 操作记录中保存的规范化提交恢复不确定 Action；不接收原始 payload。 |
 | `dev_flow_cancel_task` | destructive mutation | 使用当前 revision 和非空 reason 将非终态 Task 转为 `CANCELLED`。 |

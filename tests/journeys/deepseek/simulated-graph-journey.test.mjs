@@ -163,7 +163,7 @@ test("deterministic DeepSeek Host follows the real Core graph through restart, r
   assert.equal(task.current_cursor, "DELIVERY");
   const userEvidence = task.evidence.find((item) => item.evidence_id === task.comprehension.user_evidence_id);
   assert.equal(userEvidence.source, "user");
-  task = await apply(core, task, "delivery_complete", deliveryResult(task));
+  task = await apply(core, task, "delivery_complete", deliveryResult());
 
   assert.equal(task.current_cursor, "DONE");
   assert.equal(task.current_action, null);
@@ -302,13 +302,8 @@ function refactorResult() {
   };
 }
 
-function deliveryResult(task) {
+function deliveryResult() {
   return {
-    acceptance: task.baselines.requirements.acceptance_criteria.map((criterion) => ({ criterion, status: "satisfied" })),
-    automated_evidence_ids: [task.test.evidence_ids[0]],
-    manual_evidence_ids: [task.comprehension.user_evidence_id],
-    test_record_id: task.test.record_id,
-    comprehension_record_id: task.comprehension.record_id,
     unverified_items: [], risks: [], findings: [], changed_paths: [], no_file_changes: true,
   };
 }

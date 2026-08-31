@@ -154,6 +154,11 @@ names, but the Core tool identities remain unchanged.
 | `dev_flow_recover_action` | Recover an uncertain Action from Core's retained normalized submission. |
 | `dev_flow_cancel_task` | Cancel a nonterminal Task with the current revision and an explicit reason. |
 
+`dev_flow_submit_delivery` accepts only Host-owned delivery judgment, unverified items, risks,
+findings, and the mutation envelope. Core fills acceptance, automated/manual evidence IDs, and
+Test/Comprehension record IDs from the current Task; submitting those members is rejected as
+`unknown_member`.
+
 ## Data and Recovery
 
 Task data lives in the local Dev Flow data directory and is not part of DSH plugin configuration.

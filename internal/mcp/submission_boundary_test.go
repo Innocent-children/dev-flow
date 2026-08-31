@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
@@ -26,9 +27,9 @@ func submissionInput(t *testing.T, kind domain.ActionKind, nodeResult map[string
 	raw, err := json.Marshal(map[string]any{
 		"host": "codex", "task_id": "task-1", "action_id": "action-1",
 		"transition_id": transitions[0], "summary": "Result recorded.", "reason": "",
-		"artifacts":     map[string]any{"current": []any{}, "other_process": []any{}},
+		"artifacts":      map[string]any{"current": []any{}, "other_process": []any{}},
 		"method_results": methodResults,
-		"node_result":   nodeResult,
+		"node_result":    nodeResult,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -48,6 +49,13 @@ func designNodeResultWithoutRevision() map[string]any {
 	return map[string]any{
 		"problem_class": "none", "baseline": designBaseline("Direct design"),
 		"findings": []any{}, "changed_paths": []any{}, "no_file_changes": true,
+	}
+}
+
+func deliverySubmissionNodeResult() map[string]any {
+	return map[string]any{
+		"problem_class": "none", "unverified_items": []any{}, "risks": []any{}, "findings": []any{},
+		"changed_paths": []any{}, "no_file_changes": true,
 	}
 }
 
@@ -90,6 +98,36 @@ func TestSubmissionBoundaryAcceptsOmittedSystemStateRevisions(t *testing.T) {
 			t.Fatalf("the older-client shape was refused: %v", err)
 		}
 	})
+}
+
+// TestDeliverySubmissionBoundaryRejectsCoreOwnedMembers proves the public
+// Delivery contract accepts only Host-owned facts. The complete internal
+// Delivery result still receives these members from Core hydration.
+func TestDeliverySubmissionBoundaryRejectsCoreOwnedMembers(t *testing.T) {
+	minimal := deliverySubmissionNodeResult()
+	if err := ValidateToolInput(ToolSubmitDelivery, submissionInput(t, domain.ActionCompleteDelivery, minimal)); err != nil {
+		t.Fatalf("minimal Delivery submission was refused: %v", err)
+	}
+
+	legacy := map[string]any{
+		"acceptance":              []any{},
+		"automated_evidence_ids":  []any{},
+		"manual_evidence_ids":     []any{},
+		"test_record_id":          "test-current",
+		"comprehension_record_id": "comprehension-current",
+	}
+	for name, value := range legacy {
+		t.Run(name, func(t *testing.T) {
+			withLegacyMember := deliverySubmissionNodeResult()
+			withLegacyMember[name] = value
+			err := ValidateToolInput(ToolSubmitDelivery, submissionInput(t, domain.ActionCompleteDelivery, withLegacyMember))
+			var typed *domain.Error
+			if !errors.As(err, &typed) || typed.Code != domain.ErrorInvalidArgument || len(typed.Violations) != 1 ||
+				typed.Violations[0].Path != "node_result."+name || typed.Violations[0].Rule != domain.RuleUnknownMember {
+				t.Fatalf("legacy member error=%#v", err)
+			}
+		})
+	}
 }
 
 // TestSubmissionBoundaryNamesTheMissingModelMember proves a nested member the
