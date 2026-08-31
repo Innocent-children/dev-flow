@@ -95,6 +95,10 @@ Core continuously returns:
 - every legal transition, guard, destination, and reason rule.
 
 After performing current-node work, Codex submits only a live Action transition and a closed payload.
+Before every ordinary submission and the one allowed correction, the Skill rereads the current
+`submission_tool` live schema and checks the complete draft member by member: required and extra
+members, nested value and array-item types, nullability, enums, and consts. It stops before calling
+the tool when the draft cannot be matched exactly; field names and error prose never define types.
 
 ## Dispatch isolated worktree Tasks
 

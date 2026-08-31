@@ -15,6 +15,7 @@ export function createDeepSeekDriver({
   npmExecutable = "npm",
   dshExecutable = "dsh",
   now = () => new Date(),
+  localPackage = null,
 } = {}) {
   return Object.freeze({
     async knownProfiles() {
@@ -39,6 +40,7 @@ export function createDeepSeekDriver({
     },
 
     async resolveTargetVersion(target) {
+      if (localPackage) return stableVersion(localPackage.version, "local DeepSeek package version");
       const result = await run(npmExecutable, ["view", `dev-flow-deepseek@${target}`, "version", "--json"], { environment });
       const value = parseJSON(result.stdout, "npm DeepSeek version");
       const version = Array.isArray(value) ? value.at(-1) : value;
@@ -67,19 +69,24 @@ export function createDeepSeekDriver({
         }
       }
 
-      if (operation !== "reinstall" && !adopt && observed.state === "ready" && observed.packageVersion === targetVersion) {
+      if (!localPackage && operation !== "reinstall" && !adopt && observed.state === "ready" && observed.packageVersion === targetVersion) {
         return { changed: false, completedSteps: [] };
       }
 
-      const temporaryRoot = await mkdtemp(join(tmpdir(), "create-dev-flow-deepseek-"));
+      const temporaryRoot = localPackage ? null : await mkdtemp(join(tmpdir(), "create-dev-flow-deepseek-"));
       const completedSteps = [];
       try {
-        const packed = await run(npmExecutable, ["pack", `dev-flow-deepseek@${targetVersion}`, "--json"], { environment, cwd: temporaryRoot });
-        const report = Array.isArray(parseJSON(packed.stdout, "npm pack")) ? parseJSON(packed.stdout, "npm pack")[0] : parseJSON(packed.stdout, "npm pack");
-        if (report?.name !== "dev-flow-deepseek" || report?.version !== targetVersion || typeof report?.filename !== "string" || basename(report.filename) !== report.filename) {
-          throw new Error("DeepSeek artifact identity is invalid");
+        let artifact;
+        if (localPackage) {
+          artifact = await realpath(localPackage.path);
+        } else {
+          const packed = await run(npmExecutable, ["pack", `dev-flow-deepseek@${targetVersion}`, "--json"], { environment, cwd: temporaryRoot });
+          const report = Array.isArray(parseJSON(packed.stdout, "npm pack")) ? parseJSON(packed.stdout, "npm pack")[0] : parseJSON(packed.stdout, "npm pack");
+          if (report?.name !== "dev-flow-deepseek" || report?.version !== targetVersion || typeof report?.filename !== "string" || basename(report.filename) !== report.filename) {
+            throw new Error("DeepSeek artifact identity is invalid");
+          }
+          artifact = await realpath(join(temporaryRoot, report.filename));
         }
-        const artifact = await realpath(join(temporaryRoot, report.filename));
         completedSteps.push(`deepseek.${profile}.verify_artifact`);
         onProgress(`deepseek.${profile}.verify_artifact`);
         if (observed.state !== "absent") {
@@ -104,11 +111,11 @@ export function createDeepSeekDriver({
         });
         completedSteps.push(`deepseek.${profile}.write_receipt`);
         onProgress(`deepseek.${profile}.write_receipt`);
-        return { changed: true, completedSteps, temporaryRoots: [temporaryRoot] };
+        return { changed: true, completedSteps, temporaryRoots: temporaryRoot ? [temporaryRoot] : [] };
       } catch (error) {
         throw partialError(error, completedSteps, `rerun repair for DeepSeek Profile ${profile}`);
       } finally {
-        await rm(temporaryRoot, { recursive: true, force: true });
+        if (temporaryRoot) await rm(temporaryRoot, { recursive: true, force: true });
       }
     },
   });

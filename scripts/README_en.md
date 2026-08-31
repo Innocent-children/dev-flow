@@ -13,12 +13,35 @@ install real Host products or create npm, Tag, or GitHub Release state.
 | `pnpm run validate` | Run bounded repository validation |
 | `pnpm run validate:contracts` | Run public contract tests only |
 | `pnpm run versions:check` | Verify Core, Codex, and DeepSeek version authorities and mirrors |
+| `pnpm run dev-flow:local` | Pack all three products from current source and open the normal `dev-flow` install menu |
 | `pnpm --dir packages/codex test` | Run Codex package-local tests |
 | `pnpm --dir packages/deepseek test` | Run DeepSeek package-local tests |
 
 `validate-repository.sh` checks toolchains, frozen dependency installation, version authorities,
 whitespace, Go formatting, package contracts, Host Adapter tests, deterministic journeys, and
 release-tooling contracts. It does not invoke a real release entrypoint.
+
+## Local installation testing
+
+This one command builds the WebUI and bundled Core, creates `@imotong/dev-flow`, `dev-flow-codex`,
+and `dev-flow-deepseek` tarballs in a temporary directory outside the repository, and starts the
+unified install menu from the local tarball:
+
+```bash
+pnpm run dev-flow:local
+```
+
+Existing non-interactive arguments can be forwarded unchanged:
+
+```bash
+pnpm run dev-flow:local -- reinstall --host codex --yes
+```
+
+Local mode really replaces the selected Host Adapter even when its manifest version matches the
+installed version. The existing `dev-flow` lifecycle still owns plans, confirmation, registration,
+receipts, and readiness read-back. The launcher removes temporary artifacts when it exits; it never
+runs `npm publish` or creates a Tag or GitHub Release. Registry byte read-back and Release asset
+checks still require the publication workflow.
 
 ## Source-local builds
 

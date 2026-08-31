@@ -34,11 +34,18 @@ flowchart TB
 - start the packaged Core and complete the capability handshake;
 - present the current node, legal transitions, and comprehension request;
 - map semantic method steps to available host operations;
+- compare the complete draft member by member with the current `submission_tool` live schema before
+  every ordinary submission and the one allowed corrected submission;
 - submit node results through the current Action's `submission_tool`;
 - retain the Task ID and Action ID after an uncertain mutation and recover from Core's retained normalized submission.
 
 An Adapter does not store the Task, current node, transition table, baseline, repository claim, or
 recovery classification. It does not infer completion or destination.
+
+The Codex pre-submit comparison covers required and extra members at every level, nested value and
+array-item types, nullability, enums, and consts. When the draft cannot match the live schema exactly,
+the Adapter stops before calling the tool instead of inferring types from field names, reference
+prose, or error text. The live tool schema remains the only submission-shape contract.
 
 The Codex Adapter `setup` lifecycle creates or validates fixed user configuration before any
 registration mutation, then constructs the setup result from actual configuration and receipt writes

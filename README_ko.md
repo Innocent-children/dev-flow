@@ -142,10 +142,11 @@ profile을 재시작한 뒤 입력합니다.
 - Core의 Git 접근은 제한된 읽기 전용이며 commit, push, merge, rebase, tag, publish를 수행하지 않습니다.
 - 파일 변경과 명령 실행은 사용자가 승인한 Host의 책임입니다.
 - Dev Flow는 Host의 모든 파일 작업을 차단하지 않으며 일반 보안 sandbox가 아닙니다.
-- 현재 소스에는 중국어 간체/영어, 시스템 언어 기본값, 브라우저 로컬 전환을 지원하는 loopback 전용 공유 WebUI가 포함됩니다. remote MCP, telemetry, 사용자 정의 graph, 자동 과거 데이터 마이그레이션은 포함되지 않습니다.
+- 현재 소스에는 중국어 간체/영어, 시스템 언어 기본값, 브라우저 로컬 전환을 지원하는 loopback 전용 공유 WebUI가 포함됩니다. 공통 페이지 셸은 화면 너비에 맞춰 탐색, 필터, Task 목록, 상세, 폼, 시스템 상태를 재배치하며, 넓은 화면의 공간을 활용하고 좁은 화면에서도 핵심 정보를 바로 보여 줍니다. remote MCP, telemetry, 사용자 정의 graph, 자동 과거 데이터 마이그레이션은 포함되지 않습니다.
 - 선택적 코드 index는 검색만 보조하며 범위, 권한, Recovery, 상태를 결정할 수 없습니다.
 - 쓰기가 허용된 Action은 해당 Action이 발급된 뒤 이 노드에서 새로 변경한 `changed_paths`만 제출하며, 파일을 변경하지 않았다면 `no_file_changes`를 제출합니다. Core는 발급 시 기준과 fresh Git observation으로 이를 검증하며, 허가된 변경은 원래 Action으로 완료할 수 있지만 branch, HEAD, repository identity 또는 선언되지 않은 경로 변경은 계속 `REPOSITORY_DRIFT`를 반환합니다. 저장소가 정확히 일치하는데 변경을 선언하면 Core는 `repository_effect_not_observed` 필드 규칙을 반환합니다.
 - Design, Tasks, Implementation 제출은 각각 `requirements_revision`, `design_revision`, `task_plan_revision`을 생략합니다. Core는 현재 Action identity를 검증한 뒤 같은 Task snapshot에서 이 필드들을 채웁니다. Delivery 제출에는 acceptance, automated/manual evidence ID, Test/Comprehension record ID를 포함하지 않습니다. Core가 현재 Task에서 생성하며, 제출하면 `unknown_member`로 거부됩니다. 저장 전에는 현재 Task를 기준으로 노드 결과의 의미를 계속 검사합니다. 노드 제출에서 쓰기 없음이 증명된 `required_member_missing`은 현재 노드 작업에서 이미 확인한 사실만 사용해 정확한 경로를 한 번 수정할 수 있습니다. 누락된 내용에 새로운 사용자 결정이 필요하면 Host는 중지하고 입력을 요청해야 하며, 그 밖에 안전하게 도출할 수 없는 값에는 자동 수정 권한을 주지 않습니다.
+- Codex Skill은 각 일반 제출과 허용된 한 번의 수정 제출 전에 현재 `submission_tool`의 live schema를 다시 읽고 전체 초안의 필수/추가 멤버, 중첩 값 및 배열 항목 유형, nullability, enum, const를 항목별로 대조하도록 요구합니다. 정확히 일치하지 않으면 도구 호출 전에 중지하며 필드명이나 오류 문구로 유형을 추측하지 않습니다.
 
 보안 경계는 [Security Policy](SECURITY.md)와 [Threat Model](docs/THREAT-MODEL_en.md)을 참고하십시오.
 

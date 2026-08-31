@@ -68,6 +68,12 @@ by the current node work; when the missing content requires a new user decision,
 request it. Other values that cannot be derived safely receive field detail without automatic correction
 authority. Rejected input never enters a recoverable Action operation or uncertain-mutation Recovery.
 
+Before every ordinary submission and the one allowed corrected submission, the Codex Host compares
+the complete draft member by member with the current `submission_tool` live schema, including required
+and extra members at every level, nested value and array-item types, nullability, enums, and consts. It
+stops before calling the tool when the draft cannot match exactly; field names, reference prose, and
+error text do not define types in place of the live schema.
+
 ### Behavioral correctness and maintainability are not separated
 
 Automated tests establish behavior; they do not establish that an implementation can be explained and
@@ -190,6 +196,7 @@ process graph, Action, Recovery, and Blocker facts, and performs Task lifecycle 
 start|open|status|stop` manages one shared loopback instance. The interface provides Simplified Chinese/English, selects the system language on first use, and stores a manual choice only in the browser. Old Task data is removed only through CLI-only,
 target-bound `reset` after exclusive database access. The browser exposes no remote access, accounts, permissions, shell,
 Git mutation, or reset mutation.
+The shared page shell reflows navigation, filters, Task lists, detail, forms, and system state across desktop, tablet, and narrow screens. Wide screens expand structured content, while narrow screens render the Task table as labeled cards without changing routes or operation semantics.
 
 | Product | Responsibility |
 | --- | --- |

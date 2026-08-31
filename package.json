@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "build:webui": "./scripts/build-webui.sh",
+    "dev-flow:local": "node ./scripts/dev-flow-local.mjs",
     "validate": "./scripts/validate-repository.sh",
     "validate:contracts": "go test ./tests/contract",
     "versions:check": "node ./scripts/check-versions.mjs",

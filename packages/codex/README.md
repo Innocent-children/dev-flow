@@ -95,6 +95,10 @@ Design、Tasks 与 Implementation 节点结果不发送 `requirements_revision`�
 `required_member_missing` 只可按 `allowed_paths` 和当前节点已有事实修正一次；需要新的用户决定时
 Codex 停止并请求输入。
 
+每次普通提交和允许的一次修正提交前，Skill 都要求重新读取当前 `submission_tool` 的实时 schema，
+并逐项核对完整参数的必填/额外字段、嵌套值和数组元素类型、nullability、enum 与 const。不能精确
+匹配时，Codex 会在调用工具前停止，不根据字段名或错误文本猜测类型。
+
 ## 独立 worktree Task 分派
 
 用户明确列出两个以上彼此独立的有界任务，并要求在同一逻辑 Git 仓库并行执行时，Skill 在普通

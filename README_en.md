@@ -169,6 +169,8 @@ worktree results complete with the original Action; branch, HEAD, repository ide
 changes still return `REPOSITORY_DRIFT`. If the repository is exact but the result declares file changes, Core returns the field rule `repository_effect_not_observed` so the Host can correct this node result to no file changes.
 Design, Tasks, and Implementation submissions omit `requirements_revision`, `design_revision`, and `task_plan_revision`; after validating the current Action identity, Core fills them from the same Task snapshot. Delivery submissions contain no acceptance, automated/manual evidence IDs, or Test/Comprehension record IDs; Core derives those members from the current Task, and submitting them is rejected as `unknown_member`. Before staging, Core still checks node-result semantics against the current Task. A proven zero-write `required_member_missing` in a node submission may be corrected once at its exact path, using only facts already established by the current node work. If the missing content requires a new user decision, the Host must stop and request it; other values that cannot be derived safely receive field detail without automatic correction authority.
 
+The Codex Skill requires every ordinary submission and the one allowed corrected submission to reread the current `submission_tool` live schema and compare the complete draft member by member, including required and extra members, nested value and array-item types, nullability, enums, and consts. It stops before calling the tool when the draft cannot match exactly; field names and error prose never define types.
+
 ### Bounded multi-repository scope
 
 Current source lets one Task declare one primary repository and up to seven additional repositories.
@@ -192,8 +194,7 @@ Core does not create, switch, or clean worktrees, and the original active Task a
   tag, or publish.
 - File changes and command execution remain the responsibility of the user-authorized Host.
 - Dev Flow does not intercept every Host file operation and is not a general security sandbox.
-- Current source includes a shared loopback-only WebUI with Simplified Chinese/English copy, system-language default, and a browser-local switch; it does not include remote MCP, telemetry,
-  a user-defined graph, or automatic historical-data migration.
+- Current source includes a shared loopback-only WebUI with Simplified Chinese/English copy, system-language default, and a browser-local switch. Its shared page shell reflows navigation, filters, Task lists, detail, forms, and system state across desktop and narrow screens, using wide space while keeping core information directly readable; it does not include remote MCP, telemetry, a user-defined graph, or automatic historical-data migration.
 - An optional code index may assist retrieval but cannot decide repository scope, permission,
   Recovery, or process state.
 

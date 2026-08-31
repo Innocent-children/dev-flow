@@ -52,8 +52,17 @@ export async function runLifecycle(request, dependencies = {}) {
     homeDirectory: dependencies.homeDirectory,
     environment,
   });
-  const codex = dependencies.codexDriver ?? createCodexDriver({ environment, run: dependencies.runCodexChild });
-  const deepseek = dependencies.deepseekDriver ?? createDeepSeekDriver({ paths, environment, run: dependencies.runDeepSeekChild });
+  const codex = dependencies.codexDriver ?? createCodexDriver({
+    environment,
+    run: dependencies.runCodexChild,
+    localPackage: dependencies.localPackages?.codex ?? null,
+  });
+  const deepseek = dependencies.deepseekDriver ?? createDeepSeekDriver({
+    paths,
+    environment,
+    run: dependencies.runDeepSeekChild,
+    localPackage: dependencies.localPackages?.deepseek ?? null,
+  });
   const observed = await observeLifecycle(request, { paths, codex, deepseek });
   const targetVersions = await resolveTargetVersions(request, observed, { codex, deepseek });
   const plan = createLifecyclePlan(request, observed, {

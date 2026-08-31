@@ -71,6 +71,32 @@ retention. A submission containing any of those members violates the closed cont
 Completed developer-run verification is a `source="user"` check with `command_count=0` and
 `full_suite=false`. Put only work nobody has run yet in `manual_handoff_items`.
 
+## Design node-result example
+
+The current `dev_flow_submit_design` schema remains authoritative. In that schema,
+`complexity_justification` is `string[]`, even when there is only one justification. Never submit a
+scalar string based on the field name or this prose. Design also omits the Core-owned
+`requirements_revision` unless the live schema and current Task explicitly require the current value.
+
+<!-- design-node-result-example:start -->
+```json
+{
+  "problem_class": "none",
+  "baseline": {
+    "approach": "Use the direct existing component.",
+    "components": ["current component"],
+    "decisions": ["Keep the change local."],
+    "rejected_alternatives": [],
+    "complexity_justification": ["No new abstraction is required."],
+    "risks": []
+  },
+  "findings": [],
+  "changed_paths": [],
+  "no_file_changes": true
+}
+```
+<!-- design-node-result-example:end -->
+
 ## Requirements example
 
 ```json

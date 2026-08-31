@@ -142,10 +142,11 @@ profile を再起動後、次を入力します。
 - Core の Git アクセスは限定された読み取り専用です。commit、push、merge、rebase、tag、publish は行いません。
 - ファイル変更とコマンド実行は、ユーザーが許可した Host の責任です。
 - Dev Flow は Host のすべてのファイル操作を遮断せず、一般的なセキュリティ sandbox ではありません。
-- 現在のソースには loopback 限定の共有 WebUI があり、簡体字中国語/英語、システム言語による初期表示、ブラウザ内切り替えに対応します。remote MCP、telemetry、ユーザー定義 graph、自動的な旧データ移行は含みません。
+- 現在のソースには loopback 限定の共有 WebUI があり、簡体字中国語/英語、システム言語による初期表示、ブラウザ内切り替えに対応します。共通ページシェルは画面幅に応じてナビゲーション、フィルター、Task 一覧、詳細、フォーム、システム状態を再配置し、ワイド画面では空間を活用し、狭い画面でも主要情報を直接読めます。remote MCP、telemetry、ユーザー定義 graph、自動的な旧データ移行は含みません。
 - 任意のコード index は検索を補助するだけで、スコープ、権限、Recovery、状態を決定できません。
 - 書き込み可能な Action は、その Action の発行後にこのノードで新たに変更した `changed_paths` だけを報告し、ファイルを変更していない場合は `no_file_changes` を報告します。Core は発行時の基準と fresh Git observation で検証し、許可された変更は元の Action で完了できますが、branch、HEAD、repository identity、未申告パスの変更は引き続き `REPOSITORY_DRIFT` になります。リポジトリが一致しているのに変更を申告した場合、Core はフィールド規則 `repository_effect_not_observed` を返します。
 - Design、Tasks、Implementation の提出では、それぞれ `requirements_revision`、`design_revision`、`task_plan_revision` を省略します。Core は現在の Action identity を検証した後、同じ Task snapshot からこれらを補完します。Delivery の提出には acceptance、automated/manual evidence ID、Test/Comprehension record ID を含めません。Core が現在の Task から生成し、提出された場合は `unknown_member` として拒否します。保存前には現在の Task に対してノード結果の意味も検証します。ノード提出でゼロ書き込みが証明された `required_member_missing` は、現在のノード作業ですでに確認した事実だけを使い、正確なパスを一度だけ修正できます。欠落内容に新しいユーザー判断が必要なら Host は停止して入力を求め、それ以外の安全に導出できない値には自動修正を許可しません。
+- Codex Skill は、通常の各提出と許可された 1 回の修正提出の前に、現在の `submission_tool` の live schema を再読し、完全なドラフトについて必須/余分なメンバー、ネスト値と配列要素の型、nullability、enum、const を項目ごとに照合するよう求めます。完全に一致しない場合はツール呼び出し前に停止し、フィールド名やエラー文から型を推測しません。
 
 セキュリティ境界は [Security Policy](SECURITY.md) と [Threat Model](docs/THREAT-MODEL_en.md) を参照してください。
 

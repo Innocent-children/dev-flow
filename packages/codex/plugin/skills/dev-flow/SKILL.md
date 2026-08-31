@@ -360,9 +360,17 @@ Before submitting, perform this order:
    and `summary`; Core assigns the role.
 7. Build `method_results` as a closed object keyed by every returned method `step_id`. Each member
    contains only `capability` and `summary`; Core assigns step identity, order and status.
-8. Confirm `request_id`, revision, action kind, process identity, source cursor, repository binding,
+8. Compare the complete draft with the live schema member by member. Check every required and
+   allowed member at each object level; every scalar, array, object and null type; every array item;
+   every enum and const; and the exact `method_results` keys. Never infer a type from a field name,
+   the packaged reference, a previous node or an earlier tool call.
+9. Confirm `request_id`, revision, action kind, process identity, source cursor, repository binding,
    payload envelope, destination and recovery fields are absent.
-9. Call `fresh_action.submission_tool` once.
+10. Call `fresh_action.submission_tool` once.
+
+Step 8 is the submission schema conformance gate. It is mandatory even for a one-line repository
+change. Do not call the submission tool until the complete draft passes it. If the live schema is
+unavailable, incomplete or cannot be matched exactly, stop before mutation instead of guessing.
 
 If the live schema and packaged reference disagree, stop before mutation and report the packaging
 contract defect. Do not choose whichever shape appears more convenient.
@@ -462,6 +470,11 @@ condition holds:
 5. only members listed in `recovery.allowed_paths` change;
 6. the corrected value follows directly from the returned `rule`, with no source-code guessing;
 7. every other submitted fact keeps the same meaning.
+
+Before the corrected call, reread the live schema of the same submission tool, rebuild the complete
+draft with changes limited to `recovery.allowed_paths`, and repeat the submission schema conformance
+gate. A correction is not an exception to the live-schema check, and the returned error message does
+not define the corrected member's type.
 
 A `required_member_missing` failure lists exactly the member Core could not find. Fill it from the
 facts the current node work already established. When the missing member needs a new user decision,

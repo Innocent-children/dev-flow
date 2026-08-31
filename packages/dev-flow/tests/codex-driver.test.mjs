@@ -52,6 +52,23 @@ test("Codex install and uninstall use exact package then lifecycle order", async
   ]);
 });
 
+test("Codex local package bypasses registry lookup and installs the exact tarball", async () => {
+  const calls = [];
+  const artifact = "/tmp/dev-flow-codex-local.tgz";
+  const driver = createCodexDriver({
+    localPackage: { path: artifact, version: "0.8.2" },
+    run: async (executable, arguments_) => {
+      calls.push([executable, arguments_]);
+      if (arguments_[0] === "status") return { stdout: `${JSON.stringify({ status: "ready", package_version: "0.8.2", core_version: "0.6.4", registration: { receipt: true } })}\n`, stderr: "" };
+      return { stdout: "{}\n", stderr: "" };
+    },
+  });
+  assert.equal(await driver.resolveTargetVersion("latest"), "0.8.2");
+  await driver.execute("install", { targetVersion: "0.8.2", observed: { hostAvailable: true, state: "ready", packageVersion: "0.8.2" } });
+  assert.deepEqual(calls[0], ["npm", ["install", "--global", artifact]]);
+  assert.equal(calls.some(([executable, arguments_]) => executable === "npm" && arguments_[0] === "view"), false);
+});
+
 test("Codex uninstall removes a global package after its registration is already absent", async () => {
   const calls = [];
   const driver = createCodexDriver({ run: async (executable, arguments_) => {

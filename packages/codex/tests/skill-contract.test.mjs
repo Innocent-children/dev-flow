@@ -101,6 +101,38 @@ test("packaged references cover method steps, submission tools, and the new-task
   assert.deepEqual(Object.keys(example).sort(), ["initial_out_of_scope", "initial_scope", "known_acceptance_criteria", "method_profile", "request", "verification_budget"]);
 });
 
+test("ordinary and corrected submissions must pass the live-schema conformance gate", async () => {
+  const skill = await readFile(skillPath, "utf8");
+  const forwarding = section(skill, "Closed forwarding contract");
+  for (const required of [
+    "Compare the complete draft with the live schema member by member",
+    "every scalar, array, object and null type",
+    "every enum and const",
+    "submission schema conformance gate",
+    "Do not call the submission tool until the complete draft passes it",
+    "stop before mutation instead of guessing",
+  ]) {
+    assert.equal(forwarding.includes(required), true, required);
+  }
+
+  const correction = section(skill, "Bounded correction of the current action").replace(/\s+/gu, " ");
+  for (const required of [
+    "reread the live schema of the same submission tool",
+    "changes limited to `recovery.allowed_paths`",
+    "repeat the submission schema conformance gate",
+    "does not define the corrected member's type",
+  ]) {
+    assert.equal(correction.includes(required), true, required);
+  }
+
+  const payloadReference = await readFile(join(skillRoot, "references", "node-payloads.md"), "utf8");
+  assert.equal(payloadReference.includes("`complexity_justification` is `string[]`"), true);
+  const block = marked(payloadReference, "design-node-result-example");
+  const example = JSON.parse(block.match(/^```json\n([\s\S]*)\n```$/u)?.[1]);
+  assert.equal(Array.isArray(example.baseline.complexity_justification), true);
+  assert.deepEqual(example.baseline.complexity_justification, ["No new abstraction is required."]);
+});
+
 test("production adapter does not embed workflow or fixture state", async () => {
   for (const path of ["bin/dev-flow-codex.mjs", "lib/lifecycle.mjs", "lib/paths.mjs"]) {
     const source = await readFile(join(packageRoot, path), "utf8");

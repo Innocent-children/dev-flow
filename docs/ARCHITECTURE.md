@@ -33,11 +33,16 @@ flowchart TB
 - 启动 packaged Core 并完成 capability handshake；
 - 呈现当前节点、合法 transitions 与理解审查请求；
 - 把 semantic method steps 映射为 Host 中可用的操作；
+- 在普通提交和一次允许的修正提交前，按当前 `submission_tool` 的实时 schema 逐项核对完整草稿；
 - 按当前 Action 的 `submission_tool` 提交节点结果；
 - 在不确定 mutation 后保留 Task ID 与 Action ID，并读取 Core 保存的规范化提交后恢复。
 
 Adapter 不保存 Task、current node、transition table、baseline、repository claim 或 recovery
 classification，也不推断 completion 或 destination。
+
+Codex 的提交前核对覆盖每层必填与额外成员、嵌套值和数组元素类型、nullability、enum 与 const。
+草稿不能与实时 schema 精确匹配时，Adapter 在调用工具前停止，不根据字段名、参考说明或错误文本
+猜测类型。实时工具 schema 仍是唯一的提交格式合同。
 
 Codex Adapter 的 `setup` lifecycle 在任何 registration mutation 前创建或验证固定用户配置，并在
 registration readback 后从配置与 receipt 的实际写入事实构造 setup result。rich/plain/JSON 只是该

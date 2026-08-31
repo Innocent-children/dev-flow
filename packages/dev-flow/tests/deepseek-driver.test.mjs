@@ -66,3 +66,30 @@ test("DeepSeek stale contribution is removed only after target artifact verifica
   }), /registry unavailable/u);
   assert.equal(calls.some(([executable]) => executable === "dsh"), false);
 });
+
+test("DeepSeek local package bypasses npm pack and adds the exact tarball", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "dev-flow-deepseek-local-test-"));
+  const artifact = join(root, "dev-flow-deepseek-local.tgz");
+  await writeFile(artifact, "local artifact\n");
+  const home = join(root, "home");
+  await mkdir(home);
+  const paths = await resolveManagerPaths({ homeDirectory: home, environment: {} });
+  const calls = [];
+  let present = false;
+  const driver = createDeepSeekDriver({
+    paths,
+    localPackage: { path: artifact, version: "0.8.2" },
+    run: async (executable, arguments_) => {
+      calls.push([executable, arguments_]);
+      if (arguments_[0] === "--version") return { stdout: "dsh 0.1.0-rc.8\n", stderr: "" };
+      if (arguments_.includes("--dump-config")) return { stdout: present ? "- id: dev-flow-deepseek\n" : "", stderr: "" };
+      if (arguments_.at(-2) === "add") present = true;
+      return { stdout: "", stderr: "" };
+    },
+  });
+  assert.equal(await driver.resolveTargetVersion("latest"), "0.8.2");
+  await driver.execute("install", { profile: "web", targetVersion: "0.8.2", observed: { hostAvailable: true, hostVersion: "0.1.0-rc.8", state: "ready", packageVersion: "0.8.2", receipt: null } });
+  assert.equal(calls.some(([executable]) => executable === "npm"), false);
+  assert.equal(calls.some(([executable, arguments_]) => executable === "dsh" && arguments_.at(-1)?.endsWith("/dev-flow-deepseek-local.tgz")), true);
+  t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
+});

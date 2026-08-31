@@ -255,7 +255,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: 0 var(--space-6);
+  padding: 0 var(--page-gutter);
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
@@ -291,7 +291,7 @@
 
 .main-content {
   min-width: 0;
-  padding: var(--space-7) var(--space-6) 3rem;
+  padding: var(--space-6) var(--page-gutter) 3.5rem;
 }
 
 .main-content:focus {
@@ -299,7 +299,7 @@
 }
 
 .page-stack {
-  width: min(1260px, 100%);
+  width: min(var(--content-max), 100%);
   margin: 0 auto;
   display: grid;
   gap: var(--space-5);
@@ -310,16 +310,16 @@
 }
 
 .narrow-page {
-  max-width: 960px;
+  max-width: var(--content-narrow);
 }
 
 .page-header {
-  min-height: 104px;
+  min-height: 92px;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-5);
-  padding: .15rem 0 var(--space-3);
+  padding: .15rem 0 var(--space-2);
 }
 
 .page-header h1 {
@@ -331,6 +331,10 @@
 
 .detail-header h1 {
   max-width: 860px;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
   font-size: clamp(1.5rem, 2vw, 1.95rem);
 }
 
@@ -338,7 +342,7 @@
   max-width: 720px;
   margin: .55rem 0 0;
   color: var(--text-muted);
-  font-size: .98rem;
+  font-size: .95rem;
 }
 
 .eyebrow {
@@ -467,7 +471,7 @@
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-4);
 }
 
@@ -481,16 +485,6 @@
   background: var(--surface);
   text-decoration: none;
   transition: border-color .14s ease, background-color .14s ease;
-}
-
-.metric-card.active,
-.metric-card.blocked {
-  grid-column: span 2;
-}
-
-.metric-card.done,
-.metric-card.cancelled {
-  grid-column: span 1;
 }
 
 .metric-card.active {
@@ -953,12 +947,31 @@ details[open] > summary .disclosure-chevron {
 
 table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
 }
 
+th:nth-child(1),
+td:nth-child(1) { width: 33%; }
+
+th:nth-child(2),
+td:nth-child(2) { width: 25%; }
+
+th:nth-child(3),
+td:nth-child(3) { width: 15%; }
+
+th:nth-child(4),
+td:nth-child(4) { width: 7%; }
+
+th:nth-child(5),
+td:nth-child(5) { width: 6%; }
+
+th:nth-child(6),
+td:nth-child(6) { width: 14%; }
+
 th,
 td {
-  padding: .85rem var(--space-5);
+  padding: .85rem var(--space-4);
   text-align: left;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
@@ -978,14 +991,6 @@ tbody tr:hover {
   background: var(--surface-subtle);
 }
 
-td:first-child {
-  min-width: 340px;
-}
-
-td:last-child {
-  min-width: 170px;
-}
-
 td a {
   display: grid;
   gap: .2rem;
@@ -996,11 +1001,23 @@ td a:hover strong {
   color: var(--accent-strong);
 }
 
+td a strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 td code,
 td small {
   display: block;
   color: var(--text-muted);
   font-size: .73rem;
+}
+
+td:last-child time {
+  font-size: .78rem;
+  white-space: nowrap;
 }
 
 .table-status {
@@ -1028,7 +1045,7 @@ td small {
 }
 
 .worktree-cell {
-  min-width: 260px;
+  min-width: 0;
 }
 
 .worktree-cell > span {
@@ -1040,7 +1057,7 @@ td small {
 }
 
 .worktree-cell > small {
-  max-width: 320px;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2229,10 +2246,6 @@ td small {
     font-size: .68rem;
   }
 
-  .main-content {
-    padding-inline: var(--space-5);
-  }
-
   .metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2272,6 +2285,93 @@ td small {
   .task-row-tail {
     display: none;
   }
+
+  .table-scroll {
+    overflow: visible;
+    margin: 0;
+  }
+
+  .task-table-surface table,
+  .task-table-surface tbody {
+    display: block;
+  }
+
+  .task-table-surface thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .task-table-surface tbody {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+
+  .task-table-surface tbody tr {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .85rem var(--space-4);
+    align-content: start;
+    padding: var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-subtle);
+  }
+
+  .task-table-surface tbody tr:hover {
+    border-color: var(--border-strong);
+  }
+
+  .task-table-surface td,
+  .task-table-surface td:nth-child(n) {
+    width: auto;
+    min-width: 0;
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+
+  .task-table-surface td:nth-child(1),
+  .task-table-surface td:nth-child(2),
+  .task-table-surface td:nth-child(3),
+  .task-table-surface td:nth-child(6) {
+    grid-column: 1 / -1;
+  }
+
+  .task-table-surface td::before {
+    display: block;
+    margin-bottom: .28rem;
+    color: var(--text-muted);
+    font-size: .65rem;
+    font-weight: 760;
+    letter-spacing: .055em;
+    text-transform: uppercase;
+    content: attr(data-label);
+  }
+
+  .task-table-surface td:first-child {
+    padding-bottom: .85rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .task-table-surface td:first-child a {
+    gap: .32rem;
+  }
+
+  .worktree-cell > small {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }
 
 @media (max-width: 760px) {
@@ -2285,9 +2385,10 @@ td small {
     height: auto;
     min-height: 62px;
     overflow: visible;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: .6rem;
+    gap: .5rem;
     padding: .375rem .8rem;
     border-right: 0;
     border-bottom: 1px solid var(--border);
@@ -2301,7 +2402,8 @@ td small {
   .sidebar nav {
     display: flex;
     gap: .2rem;
-    margin-left: auto;
+    justify-content: center;
+    margin-left: 0;
   }
 
   .nav-link {
@@ -2345,6 +2447,10 @@ td small {
     padding: var(--space-5) var(--space-4) var(--space-7);
   }
 
+  .page-stack {
+    gap: var(--space-4);
+  }
+
   .page-header,
   .detail-header {
     min-height: auto;
@@ -2352,8 +2458,18 @@ td small {
     flex-direction: column;
   }
 
+  .detail-header h1 {
+    font-size: 1.35rem;
+    line-height: 1.22;
+    -webkit-line-clamp: 4;
+  }
+
   .revision-card {
     width: 100%;
+  }
+
+  .task-table-surface tbody {
+    grid-template-columns: 1fr;
   }
 
   .outcome-panel {
@@ -2386,44 +2502,47 @@ td small {
   .transition-list li {
     grid-template-columns: 1fr;
   }
+
+  .section-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
 }
 
 @media (max-width: 620px) {
   .sidebar {
-    height: 112px;
-    min-height: 112px;
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    grid-template-areas:
-      "brand nav runtime"
-      "language language language";
-    align-content: center;
-    gap: .35rem .5rem;
+    height: 62px;
+    min-height: 62px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: .25rem;
+    padding-inline: .55rem;
   }
 
-  .brand { grid-area: brand; }
-
-  .sidebar nav {
-    grid-area: nav;
-    justify-self: center;
-    margin-left: 0;
+  .brand-mark {
+    width: 32px;
+    height: 32px;
   }
 
-  .sidebar-footer {
-    display: contents;
+  .nav-link {
+    min-width: 38px;
+    min-height: 40px;
+    padding: .48rem;
   }
 
   .sidebar-footer .runtime-chip {
-    grid-area: runtime;
+    width: 40px;
+    min-height: 40px;
+    padding: .42rem;
   }
 
   .sidebar-footer .language-switch {
-    width: 100%;
-    grid-area: language;
+    width: 88px;
   }
 
-  .toolbar {
-    top: 112px;
+  .sidebar-footer .language-switch button {
+    min-height: 38px;
+    padding-inline: .1rem;
+    font-size: .64rem;
   }
 
   .toolbar-create span {
@@ -2463,6 +2582,24 @@ td small {
 
   .lifecycle-form {
     padding: var(--space-5);
+  }
+
+  .surface,
+  .filter-panel {
+    padding: var(--space-4);
+  }
+
+  .table-scroll {
+    margin: 0;
+  }
+
+  .task-table-surface tbody tr {
+    padding: .9rem;
+  }
+
+  .runtime-facts div {
+    grid-template-columns: 1fr;
+    gap: .25rem;
   }
 
   .lifecycle-form > fieldset {

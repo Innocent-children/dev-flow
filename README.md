@@ -159,6 +159,8 @@ Core 先完整构造并校验下一版 Task，再把规范化 Action 输入保�
 HEAD、repository identity 或未声明路径变化仍返回 `REPOSITORY_DRIFT`。若仓库状态完全一致但结果声明了文件变化，Core 返回 `repository_effect_not_observed` 字段错误，Host 可将本节点结果纠正为无文件变化。
 Design、Tasks 和 Implementation 提交分别省略 `requirements_revision`、`design_revision` 和 `task_plan_revision`；Core 在确认当前 Action 身份后，从同一 Task 快照填充这些字段。Delivery 提交不包含 acceptance、automated/manual evidence ID 或 Test/Comprehension record ID；Core 从当前 Task 生成这些字段，提交它们会按 `unknown_member` 拒绝。节点结果在暂存前仍会按当前 Task 做语义预检；节点提交中已证明零写入的 `required_member_missing` 可按准确路径修正一次，但只能使用当前节点工作已经确认的内容。缺失内容需要新的用户决定时必须停止并请求输入；其他不能安全推导的错误只返回字段信息，不授权自动纠正。
 
+Codex Skill 要求每次普通提交和允许的一次修正提交都重新读取当前 `submission_tool` 的实时 schema，并逐项核对完整草稿的必填/额外成员、嵌套值和数组元素类型、nullability、enum 与 const。无法精确匹配时会在调用工具前停止，不根据字段名或错误文本猜测类型。
+
 ### 有界多仓库范围
 
 当前源码允许一个 Task 显式声明一个主仓库和最多七个附加仓库。所有仓库共享同一个阶段、Action、
@@ -178,7 +180,7 @@ admission 前按有界项创建子任务；单个新请求的 `dev_flow_open_tas
 - Core 只对 Git 做有界、只读观察；不会执行 commit、push、merge、rebase、tag 或发布。
 - 真正的文件修改和命令执行仍由用户授权的 Host 完成。
 - Dev Flow 不会拦截 Host 的每一次文件读写，也不是通用安全沙箱。
-- 当前源码包含仅监听 loopback 的共享 WebUI，前端支持简体中文/英文、首次跟随系统语言并允许浏览器内切换；不包含远程 MCP、遥测、用户自定义流程图或自动历史数据迁移。
+- 当前源码包含仅监听 loopback 的共享 WebUI，前端支持简体中文/英文、首次跟随系统语言并允许浏览器内切换。共享页面框架会按宽度重排导航、筛选、Task 列表、详情、表单和系统状态，宽屏充分使用可用空间，窄屏直接呈现核心信息；不包含远程 MCP、遥测、用户自定义流程图或自动历史数据迁移。
 - 可选代码索引只提供检索结果，不能决定仓库范围、权限、Recovery 或流程状态。
 
 安全边界见 [Security Policy](SECURITY.md) 和 [Threat Model](docs/THREAT-MODEL.md)。

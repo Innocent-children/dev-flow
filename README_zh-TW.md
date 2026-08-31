@@ -137,10 +137,11 @@ dev-flow
 - Core 只對 Git 進行有界、唯讀觀察，不執行 commit、push、merge、rebase、tag 或發布。
 - 檔案修改與命令執行仍由使用者授權的 Host 負責。
 - Dev Flow 不會攔截 Host 的每一次檔案操作，也不是通用安全沙箱。
-- 目前原始碼包含僅監聽 loopback 的共享 WebUI，前端支援簡體中文/英文、首次跟隨系統語言並可在瀏覽器切換；不包含 remote MCP、telemetry、使用者自訂流程圖或自動歷史資料遷移。
+- 目前原始碼包含僅監聽 loopback 的共享 WebUI，前端支援簡體中文/英文、首次跟隨系統語言並可在瀏覽器切換。共享頁面框架會依寬度重排導覽、篩選、Task 清單、詳細資料、表單與系統狀態，寬螢幕充分運用空間，窄螢幕直接呈現核心資訊；不包含 remote MCP、telemetry、使用者自訂流程圖或自動歷史資料遷移。
 - 可選程式碼索引只能協助檢索，不能決定範圍、權限、Recovery 或流程狀態。
 - 允許寫入的 Action 只回報該 Action 簽發後由本節點新產生的 `changed_paths`；本節點未修改檔案時回報 `no_file_changes`。Core 依簽發基線與 fresh Git observation 驗證，合法修改可用原 Action 完成，branch、HEAD、repository identity 或未宣告路徑變更仍回傳 `REPOSITORY_DRIFT`。若倉庫狀態完全一致但結果宣告了檔案變更，Core 會回傳 `repository_effect_not_observed` 欄位規則。
 - Design、Tasks 與 Implementation 提交分別省略 `requirements_revision`、`design_revision` 與 `task_plan_revision`；Core 驗證目前 Action identity 後，從同一 Task snapshot 填入這些欄位。Delivery 提交不包含 acceptance、automated/manual evidence ID 或 Test/Comprehension record ID；Core 依目前 Task 產生這些欄位，提交它們會以 `unknown_member` 拒絕。Core 在暫存前仍會依目前 Task 預檢節點結果語義；節點提交中已證明零寫入的 `required_member_missing` 可依準確路徑修正一次，但只能使用目前節點工作已確認的內容。缺少的內容若需要新的使用者決定，Host 必須停止並請求輸入；其他無法安全推導的值只回傳欄位資訊，不授權自動修正。
+- Codex Skill 要求每次一般提交與獲准的一次修正提交都重新讀取目前 `submission_tool` 的 live schema，並逐項比對完整草稿的必要/額外成員、巢狀值與陣列元素型別、nullability、enum 與 const。若無法精確匹配，會在呼叫工具前停止，不依欄位名稱或錯誤文字猜測型別。
 
 安全邊界見 [Security Policy](SECURITY.md) 與 [Threat Model](docs/THREAT-MODEL.md)。
 

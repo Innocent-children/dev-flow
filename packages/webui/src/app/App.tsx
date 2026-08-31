@@ -29,10 +29,12 @@ export function App() {
       break;
     default:
       page = (
-        <section className="state-panel" aria-labelledby="missing-title">
-          <p className="eyebrow">{t("app.notFoundEyebrow")}</p>
-          <h1 id="missing-title">{t("app.notFoundTitle")}</h1>
-        </section>
+        <div className="page-stack narrow-page not-found-page">
+          <section className="state-panel" aria-labelledby="missing-title">
+            <p className="eyebrow">{t("app.notFoundEyebrow")}</p>
+            <h1 id="missing-title">{t("app.notFoundTitle")}</h1>
+          </section>
+        </div>
       );
   }
   return <AppShell>{page}</AppShell>;

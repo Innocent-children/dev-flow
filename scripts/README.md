@@ -12,12 +12,33 @@
 | `pnpm run validate` | 运行有界仓库验证 |
 | `pnpm run validate:contracts` | 只运行公共 contract tests |
 | `pnpm run versions:check` | 检查 Core、Codex、DeepSeek 版本权威与镜像 |
+| `pnpm run dev-flow:local` | 从当前源码打包三个产品并进入与 `dev-flow` 相同的本地安装菜单 |
 | `pnpm --dir packages/codex test` | 运行 Codex package-local tests |
 | `pnpm --dir packages/deepseek test` | 运行 DeepSeek package-local tests |
 
 `validate-repository.sh` 检查工具链、冻结依赖安装、版本权威、whitespace、Go formatting、
 package contracts、Host Adapter tests、deterministic journeys 和 release tooling contracts。它不
 调用真实发布入口。
+
+## 本地安装测试
+
+下面一条命令会构建 WebUI 和 bundled Core，在仓库外的临时目录生成 `@imotong/dev-flow`、
+`dev-flow-codex` 与 `dev-flow-deepseek` tarball，再从本地 tarball 启动统一安装菜单：
+
+```bash
+pnpm run dev-flow:local
+```
+
+也可以转发现有非交互参数：
+
+```bash
+pnpm run dev-flow:local -- reinstall --host codex --yes
+```
+
+本地模式会真实替换所选 Host 的 Adapter，即使 manifest 版本与已安装版本相同；安装计划、确认、
+注册、receipt 和就绪回读仍由现有 `dev-flow` 生命周期负责。脚本退出时删除临时制品，不调用
+`npm publish`，也不创建 Tag 或 GitHub Release。它不能替代发布后的 npm registry 字节回读和
+Release 附件检查。
 
 ## Source-local 构建
 

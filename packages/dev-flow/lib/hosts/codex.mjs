@@ -9,6 +9,7 @@ export function createCodexDriver({
   npmExecutable = "npm",
   codexExecutable = "codex",
   adapterExecutable = "dev-flow-codex",
+  localPackage = null,
 } = {}) {
   return Object.freeze({
     async observe() {
@@ -28,6 +29,7 @@ export function createCodexDriver({
     },
 
     async resolveTargetVersion(target) {
+      if (localPackage) return stableVersion(localPackage.version, "local Codex package version");
       const result = await run(npmExecutable, ["view", `dev-flow-codex@${target}`, "version", "--json"], { environment });
       const value = parseJSON(result.stdout, "npm Codex version");
       const version = Array.isArray(value) ? value.at(-1) : value;
@@ -52,16 +54,17 @@ export function createCodexDriver({
         }
       }
 
-      if (operation === "install" && observed.state === "ready" && observed.packageVersion === targetVersion) {
+      if (!localPackage && operation === "install" && observed.state === "ready" && observed.packageVersion === targetVersion) {
         return { changed: false, completedSteps: [] };
       }
-      if (["upgrade", "repair"].includes(operation) && observed.state === "ready" && observed.packageVersion === targetVersion) {
+      if (!localPackage && ["upgrade", "repair"].includes(operation) && observed.state === "ready" && observed.packageVersion === targetVersion) {
         return { changed: false, completedSteps: [] };
       }
 
       const completedSteps = [];
       try {
-        await run(npmExecutable, ["install", "--global", `dev-flow-codex@${targetVersion}`], { environment });
+        const packageSource = localPackage?.path ?? `dev-flow-codex@${targetVersion}`;
+        await run(npmExecutable, ["install", "--global", packageSource], { environment });
         completedSteps.push("codex.install_package");
         onProgress("codex.install_package");
         await run(adapterExecutable, ["setup", "--json"], { environment });

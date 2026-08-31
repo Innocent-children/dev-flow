@@ -36,8 +36,11 @@
   --radius-md: 11px;
   --radius-lg: 14px;
   --control-height: 44px;
-  --sidebar-width: 248px;
-  --toolbar-height: 64px;
+  --sidebar-width: 224px;
+  --toolbar-height: 68px;
+  --content-max: 1540px;
+  --content-narrow: 1060px;
+  --page-gutter: clamp(1.25rem, 2.6vw, 3rem);
   --space-1: .25rem;
   --space-2: .5rem;
   --space-3: .75rem;
