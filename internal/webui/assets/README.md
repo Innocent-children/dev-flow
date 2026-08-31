@@ -8,3 +8,6 @@ pnpm, Vite and an external asset service are build-time responsibilities only.
 
 Edit frontend source under `packages/webui/` and regenerate the bundle through the repository build command. Generated
 files record build output and are not a source-authority surface.
+
+Repository-owned brand SVGs live under `packages/webui/src/assets/`. The README hero uses the light App Icon source; the
+shell and favicon import the optimized 32px mark, which Vite copies in hashed form into this generated boundary.

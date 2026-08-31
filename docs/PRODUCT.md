@@ -164,6 +164,9 @@ package、注册、制品和就绪检查步骤；JSON 模式不混入进度文�
 Recovery 与 Blocker，并执行 Task 生命周期操作。`dev-flow webui start|open|status|stop` 管理一个共享
 loopback 实例；界面支持简体中文/英文、首次按系统语言选择并将手工选择仅保存在浏览器。旧 Task 数据只通过 CLI-only、目标绑定且需要数据库独占访问的 `reset` 清理。浏览器不提供
 远程访问、账号、权限、shell、Git 写入或 reset mutation。
+Control Center 使用仓库内嵌的 Dev Flow 蓝紫渐变标志、深色品牌导航、分层卡片和独立语义状态色；
+桌面与窄屏复用同一组页面、操作与事实，在窄屏上收拢为图标导航并保持主要操作可见。界面继续只使用
+系统字体和本机制品，不增加 CDN、外部字体或新的浏览器状态合同。
 
 | 产品 | 职责 |
 | --- | --- |

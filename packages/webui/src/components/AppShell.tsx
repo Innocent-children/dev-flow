@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { AppLink, currentRoute } from "../app/router";
 import { getSystemStatus, Readiness } from "../lib/api";
-import devFlowMark from "../assets/dev-flow-mark.svg";
+import devFlowMark from "../assets/dev-flow-mark-32.svg";
 import { readinessKey, useI18n } from "../lib/i18n";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
