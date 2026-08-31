@@ -18,13 +18,6 @@ The Start Task entry contains create and continue flows. The ordinary form accep
 the default primary key and deterministic additional keys. Current-stage filter choices come from the Core process
 definition. Every selection control uses the WebUI-owned keyboard-accessible combobox/listbox rather than a native popup.
 
-The visual layer reuses the embedded Dev Flow blue-to-violet small-size mark, separates the workspace with
-dark brand navigation, organizes Tasks, Actions, the process graph, and runtime state in layered cards, and keeps green,
-amber, and red for their own semantic states. Desktop layouts show full navigation labels and parallel information;
-narrow layouts collapse to icon navigation, single-column cards, and horizontally viewable dense content while preserving
-page entries, primary actions, focus treatment, and keyboard interaction. The interface uses system fonts and requests no
-external font, CDN, or brand-asset service.
-
 The overview and Task list show the primary repository's shortened `repository_group_id` together
 with its physical `worktree_path`. Task detail shows the group and path for every repository in the
 Scope. Linked worktrees share a group but have different paths, so users can recognize independent
