@@ -249,13 +249,14 @@ func standardProcessFixture(t *testing.T) (*application.Service, *standardProces
 	now := time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)
 	digest := domain.Digest(strings.Repeat("a", 64))
 	branch, head := "main", strings.Repeat("b", 40)
-	binding := domain.RepositoryBinding{CanonicalRoot: "/repo", GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
+	repositoryPath := testPath("repo")
+	binding := domain.RepositoryBinding{CanonicalRoot: repositoryPath, GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
 	memory := &standardProcessStore{}
 	service, err := application.NewService(memory, standardProcessObserver{binding})
 	if err != nil {
 		t.Fatal(err)
 	}
-	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "open-standard", Host: domain.HostCodex, RepositoryPath: "/repo", NewTask: &application.NewTaskInput{Request: "Prove the process.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 16, AllowManualHandoff: true}, MethodProfile: domain.MethodPlain}})
+	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "open-standard", Host: domain.HostCodex, RepositoryPath: repositoryPath, NewTask: &application.NewTaskInput{Request: "Prove the process.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 16, AllowManualHandoff: true}, MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -13,13 +13,21 @@ test("public launcher selects the newest compatible Core from Codex or DeepSeek 
   const home = join(root, "home");
   const dshHome = join(root, "dsh");
   await mkdir(home);
-  const paths = await resolveManagerPaths({ homeDirectory: home, environment: { DSH_HOME: dshHome } });
+  const platform = process.platform === "win32" ? "win32" : "darwin";
+  const arch = process.platform === "win32" ? "x64" : "arm64";
+  const environment = { DSH_HOME: dshHome };
+  if (platform === "win32") {
+    environment.LOCALAPPDATA = join(home, "AppData", "Local");
+    await mkdir(environment.LOCALAPPDATA, { recursive: true });
+  }
+  const paths = await resolveManagerPaths({ homeDirectory: home, environment, platform, arch });
 
   const codexRoot = join(root, "codex");
   const codexRuntime = await packageFixture(codexRoot, "dev-flow-codex", "0.8.0", "0.6.2");
   await mkdir(join(paths.productRoot, "registrations"), { recursive: true });
   await writeFile(join(paths.productRoot, "registrations", "codex.json"), `${JSON.stringify({
     product: { name: "dev-flow-codex", version: "0.8.0", core_version: "0.6.2", codex_compatibility: ">=0.147.0" },
+    host: { surface: "codex-cli", version: "0.147.0", os: platform, arch },
     paths: { package_root: codexRoot, runtime_path: codexRuntime, data_dir: paths.defaultDataDirectory, receipt_path: join(paths.productRoot, "registrations", "codex.json") },
   })}\n`);
 
@@ -32,13 +40,16 @@ test("public launcher selects the newest compatible Core from Codex or DeepSeek 
 
   const selected = await resolveCoreRuntime({
     homeDirectory: home,
-    environment: { DSH_HOME: dshHome },
+    environment,
+    platform,
+    arch,
+    exec: async (runtimePath) => ({ stdout: `dev-flow ${runtimePath === codexRuntime ? "0.6.2" : "0.6.3"}\n` }),
     initializeDefaultData: true,
   });
   assert.equal(selected.source, "deepseek/web");
   assert.equal(selected.version, "0.6.3");
   assert.equal(selected.dataDirectory, paths.defaultDataDirectory);
-  assert.equal((await stat(paths.defaultDataDirectory)).mode & 0o777, 0o700);
+  if (process.platform !== "win32") assert.equal((await stat(paths.defaultDataDirectory)).mode & 0o777, 0o700);
   t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
 });
 
@@ -84,8 +95,10 @@ test("non-start WebUI commands never initialize the default data directory", asy
 });
 
 async function packageFixture(root, name, version, coreVersion) {
-  const runtime = join(root, "runtime", "darwin-arm64", "dev-flow");
-  await mkdir(join(root, "runtime", "darwin-arm64"), { recursive: true });
+  const runtimeKey = process.platform === "win32" ? "win32-x64" : "darwin-arm64";
+  const executable = process.platform === "win32" ? "dev-flow.exe" : "dev-flow";
+  const runtime = join(root, "runtime", runtimeKey, executable);
+  await mkdir(join(root, "runtime", runtimeKey), { recursive: true });
   await writeFile(join(root, "package.json"), `${JSON.stringify({ name, version })}\n`);
   await writeFile(runtime, `#!/bin/sh\nprintf 'dev-flow ${coreVersion}\\n'\n`);
   await chmod(runtime, 0o755);

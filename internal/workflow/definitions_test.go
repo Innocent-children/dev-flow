@@ -180,7 +180,7 @@ func TestDefinitionDigestPersistedActionWordingIsIdentityStable(t *testing.T) {
 		TaskID: "task", OriginHost: domain.HostCodex,
 		Intent:  domain.TaskIntent{Request: "Build feature", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 1}, MethodProfile: domain.MethodPlain},
 		Process: definition.Reference, CurrentNode: domain.NodeRequirements, CurrentAction: &action,
-		Repository: domain.RepositoryBinding{CanonicalRoot: "/repo", GitCommonDirDigest: bindingDigest, RepositoryIdentity: bindingDigest, Branch: &branch, Head: &head, WorktreeFingerprint: bindingDigest, ObservedAt: now, BindingDigest: bindingDigest},
+		Repository: domain.RepositoryBinding{CanonicalRoot: testPath("repo"), GitCommonDirDigest: bindingDigest, RepositoryIdentity: bindingDigest, Branch: &branch, Head: &head, WorktreeFingerprint: bindingDigest, ObservedAt: now, BindingDigest: bindingDigest},
 		Revision:   1, CreatedAt: now, UpdatedAt: now,
 	}
 	if err := ValidateProcessTask(task); err != nil {

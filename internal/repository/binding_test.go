@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/dev-flow/internal/testpath"
 )
 
 func TestBindingDigestCoversClosedRepositoryComponents(t *testing.T) {
@@ -105,7 +106,7 @@ func TestVerifyBindingDigests(t *testing.T) {
 	}{
 		{name: "repository identity tampered", mutate: func(value *domain.RepositoryBinding) { value.RepositoryIdentity = bindingDigest("1") }},
 		{name: "binding digest tampered", mutate: func(value *domain.RepositoryBinding) { value.BindingDigest = bindingDigest("2") }},
-		{name: "canonical root changed without digest update", mutate: func(value *domain.RepositoryBinding) { value.CanonicalRoot = "/public/other" }},
+		{name: "canonical root changed without digest update", mutate: func(value *domain.RepositoryBinding) { value.CanonicalRoot = testpath.Absolute("public", "other") }},
 		{name: "common-directory digest changed without digest update", mutate: func(value *domain.RepositoryBinding) { value.GitCommonDirDigest = bindingDigest("3") }},
 		{name: "branch changed without digest update", mutate: func(value *domain.RepositoryBinding) { branch := "feature"; value.Branch = &branch }},
 		{name: "detached changed without digest update", mutate: func(value *domain.RepositoryBinding) { value.Branch = nil; value.Detached = true }},
@@ -150,11 +151,12 @@ func TestRepositoryBindingChangedPathsRemainComponentRelative(t *testing.T) {
 func selfConsistentBinding() domain.RepositoryBinding {
 	branch := "main"
 	head := strings.Repeat("1", 40)
-	common := digestGitCommonDirectory("/public/example/.git")
+	root := testpath.Absolute("public", "example")
+	common := digestGitCommonDirectory(filepath.Join(root, ".git"))
 	binding := domain.RepositoryBinding{
-		CanonicalRoot:       "/public/example",
+		CanonicalRoot:       root,
 		GitCommonDirDigest:  common,
-		RepositoryIdentity:  digestRepositoryIdentity("/public/example", common),
+		RepositoryIdentity:  digestRepositoryIdentity(root, common),
 		Branch:              &branch,
 		Head:                &head,
 		WorktreeFingerprint: bindingDigest("a"),

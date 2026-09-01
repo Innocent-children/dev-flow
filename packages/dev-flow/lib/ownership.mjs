@@ -16,14 +16,37 @@ import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 export const DATA_DIRECTORY_ENVIRONMENT = "DEV_FLOW_DATA_DIR";
+export const SUPPORTED_RUNTIME_KEYS = Object.freeze(["darwin-arm64", "win32-x64"]);
 
 export async function resolveManagerPaths({
   homeDirectory = homedir(),
   environment = process.env,
+  platform = process.platform,
+  arch = process.arch,
 } = {}) {
+  const runtimeKey = `${platform}-${arch}`;
+  if (!SUPPORTED_RUNTIME_KEYS.includes(runtimeKey)) {
+    throw new OwnershipError(`unsupported platform ${runtimeKey}; supported runtimes: ${SUPPORTED_RUNTIME_KEYS.join(", ")}`);
+  }
   const canonicalHome = await canonicalExistingDirectory(homeDirectory, "home directory");
-  const productRoot = ownedPath(canonicalHome, join(canonicalHome, "Library", "Application Support", "dev-flow"), "product root");
-  const managerRoot = ownedPath(canonicalHome, join(canonicalHome, "Library", "Application Support", "create-dev-flow"), "manager root");
+  const applicationDataRoot = platform === "win32"
+    ? environment?.LOCALAPPDATA
+      ? await canonicalExistingDirectory(environment.LOCALAPPDATA, "LOCALAPPDATA")
+      : ownedPath(
+        canonicalHome,
+        join(canonicalHome, "AppData", "Local"),
+        "local application data directory",
+      )
+    : ownedPath(
+      canonicalHome,
+      join(canonicalHome, "Library", "Application Support"),
+      "application support directory",
+    );
+  const applicationDataInspectionRoot = platform === "win32" && !environment?.LOCALAPPDATA
+    ? canonicalHome
+    : applicationDataRoot;
+  const productRoot = ownedPath(applicationDataRoot, join(applicationDataRoot, "dev-flow"), "product root");
+  const managerRoot = ownedPath(applicationDataRoot, join(applicationDataRoot, "create-dev-flow"), "manager root");
   const configurationDirectory = ownedPath(canonicalHome, join(canonicalHome, ".dev-flow"), "configuration directory");
   const configurationPath = ownedPath(configurationDirectory, join(configurationDirectory, "config.json"), "configuration path");
   const defaultDataDirectory = ownedPath(productRoot, join(productRoot, "data"), "default data directory");
@@ -31,6 +54,11 @@ export async function resolveManagerPaths({
   const explicitDataDirectory = explicitValue === "" ? null : await canonicalExplicitDirectory(explicitValue);
   return Object.freeze({
     homeDirectory: canonicalHome,
+    platform,
+    arch,
+    runtimeKey,
+    applicationDataRoot,
+    applicationDataInspectionRoot,
     productRoot,
     managerRoot,
     runsDirectory: ownedPath(managerRoot, join(managerRoot, "runs"), "runs directory"),
@@ -39,28 +67,32 @@ export async function resolveManagerPaths({
     configurationPath,
     defaultDataDirectory,
     explicitDataDirectory,
-    trashDirectory: ownedPath(canonicalHome, join(canonicalHome, ".Trash"), "Trash directory"),
+    trashDirectory: platform === "win32"
+      ? ownedPath(managerRoot, join(managerRoot, "trash"), "recoverable cleanup directory")
+      : ownedPath(canonicalHome, join(canonicalHome, ".Trash"), "Trash directory"),
   });
 }
 
 export async function ensureManagerDirectories(paths) {
-  await rejectSymlinkComponents(paths.homeDirectory, paths.managerRoot);
+  await rejectSymlinkComponents(paths.applicationDataInspectionRoot, paths.managerRoot);
   await mkdir(paths.runsDirectory, { recursive: true, mode: 0o700 });
   await mkdir(paths.profilesDirectory, { recursive: true, mode: 0o700 });
-  await Promise.all([chmod(paths.managerRoot, 0o700), chmod(paths.runsDirectory, 0o700), chmod(paths.profilesDirectory, 0o700)]);
+  if (paths.platform !== "win32") {
+    await Promise.all([chmod(paths.managerRoot, 0o700), chmod(paths.runsDirectory, 0o700), chmod(paths.profilesDirectory, 0o700)]);
+  }
 }
 
 export async function ensureDefaultDataDirectory(paths) {
   if (paths.explicitDataDirectory !== null) throw new OwnershipError("refusing to create an explicit data directory");
   const expected = ownedPath(paths.productRoot, join(paths.productRoot, "data"), "default data directory");
   if (paths.defaultDataDirectory !== expected) throw new OwnershipError("default data directory differs from the product-owned path");
-  await rejectSymlinkComponents(paths.homeDirectory, expected);
+  await rejectSymlinkComponents(paths.applicationDataInspectionRoot, expected);
   await mkdir(expected, { recursive: true, mode: 0o700 });
-  await rejectSymlinkComponents(paths.homeDirectory, expected);
+  await rejectSymlinkComponents(paths.applicationDataInspectionRoot, expected);
   const canonical = await realpath(expected);
   const info = await stat(canonical);
   if (canonical !== expected || !info.isDirectory()) throw new OwnershipError("default data directory must be canonical");
-  await chmod(expected, 0o700);
+  if (paths.platform !== "win32") await chmod(expected, 0o700);
   return expected;
 }
 
@@ -100,7 +132,7 @@ export async function writeOwnedJSON(path, value, { root }) {
   try {
     await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600, flag: "wx" });
     await rename(temporary, target);
-    await chmod(target, 0o600);
+    if (process.platform !== "win32") await chmod(target, 0o600);
   } catch (error) {
     await unlink(temporary).catch(() => {});
     throw error;
@@ -160,7 +192,10 @@ export async function listProfileReceipts(paths) {
 }
 
 export async function moveTargetsToTrash(paths, targets, { now = () => new Date(), random = () => randomBytes(6).toString("hex") } = {}) {
+  const trashAnchor = paths.platform === "win32" ? paths.applicationDataInspectionRoot : paths.homeDirectory;
+  await rejectSymlinkComponents(trashAnchor, paths.trashDirectory);
   await mkdir(paths.trashDirectory, { recursive: true, mode: 0o700 });
+  await rejectSymlinkComponents(trashAnchor, paths.trashDirectory);
   const stamp = now().toISOString().replace(/[:.]/gu, "-");
   const trashRoot = ownedPath(paths.trashDirectory, join(paths.trashDirectory, `create-dev-flow-${stamp}-${random()}`), "Trash root");
   await mkdir(trashRoot, { mode: 0o700 });

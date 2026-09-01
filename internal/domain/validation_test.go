@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Innocent-children/dev-flow/internal/testpath"
 )
 
 var testTime = time.Date(2026, time.August, 14, 1, 2, 3, 0, time.UTC)
@@ -417,7 +419,7 @@ func TestRepositoryKeyAndContractPathSyntax(t *testing.T) {
 			t.Fatalf("valid contract path %q: %v", path, err)
 		}
 	}
-	for _, path := range []string{"", "/absolute", "../escape", "Core::README.md", "core::", "core::../escape", "core::nested::file"} {
+	for _, path := range []string{"", "/absolute", "../escape", `internal\domain\task.go`, "Core::README.md", "core::", "core::../escape", "core::nested::file"} {
 		if err := ValidateRepositoryContractPath(path); err == nil {
 			t.Fatalf("invalid contract path %q was accepted", path)
 		}
@@ -1101,7 +1103,7 @@ func validRepositoryBinding() RepositoryBinding {
 	branch := "main"
 	head := strings.Repeat("a", 40)
 	return RepositoryBinding{
-		CanonicalRoot:       filepath.Join(string(filepath.Separator), "tmp", "repository"),
+		CanonicalRoot:       testpath.Absolute("tmp", "repository"),
 		GitCommonDirDigest:  testDigest("a"),
 		RepositoryIdentity:  testDigest("b"),
 		Branch:              &branch,

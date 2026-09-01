@@ -65,7 +65,8 @@ Use the live tool schema for types and nested members. These are the closed top-
 
 `changed_paths` and `no_file_changes` remain mutually exclusive. A single-repository Task uses
 repository-relative paths. A multi-repository Task uses
-`<repository-key>::<repository-relative-path>`.
+`<repository-key>::<repository-relative-path>`. Contract paths use `/` separators on every Host;
+backslashes are invalid even on Windows.
 
 Delivery submissions never send `acceptance`, `automated_evidence_ids`, `manual_evidence_ids`,
 `test_record_id`, or `comprehension_record_id`. Core derives those authority members from the current

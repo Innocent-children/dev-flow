@@ -30,12 +30,13 @@ Preparation creates exactly:
 ```text
 dev-flow-deepseek-<DEEPSEEK_VERSION>.tgz
 dev-flow-core-<CORE_VERSION>-darwin-arm64
+dev-flow-core-<CORE_VERSION>-windows-amd64.exe
 SHA256SUMS
 release-manifest.json
 ```
 
 Confirmed publication creates or reuses matching Tag/npm/GitHub state, verifies registry tarball
-bytes, uploads prepared assets, and finalizes the GitHub Release. DSH lifecycle and Task behavior
+bytes, uploads both standalone Core assets, and finalizes the GitHub Release. DSH lifecycle and Task behavior
 remain covered by product tests and do not run inside publication.
 The npm tarball read-back retries only propagation responses such as `ETARGET` and `E404` for up to
 ten minutes; authentication failures and byte mismatches stop immediately.

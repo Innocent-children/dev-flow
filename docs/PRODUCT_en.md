@@ -206,3 +206,8 @@ rates, reduced unnecessary testing, or complete recovery from every interruption
 [Project Status](PROJECT-STATUS_en.md) and the [Support Matrix](SUPPORT-MATRIX_en.md) for stable,
 source-only, unverified, and gap status. Source code, machine-readable schemas, package manifests,
 CLI parsers, and executable tests remain the final runtime reference.
+
+Current source selects only two exact package runtime pairs: `darwin-arm64` and `win32-x64`. The
+Windows product scope is Windows 10/11 desktop x64; it excludes Windows Server, 32-bit Windows, and
+Windows ARM64. Native source evidence does not expand npm `@latest` stable support by itself; that
+still requires an independent release and final Host journey.

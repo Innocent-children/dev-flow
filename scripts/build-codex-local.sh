@@ -111,8 +111,8 @@ const packageManifest = JSON.parse(fs.readFileSync(path.join(root, "packages/cod
 const pluginManifest = JSON.parse(fs.readFileSync(path.join(root, "packages/codex/plugin/.codex-plugin/plugin.json"), "utf8"));
 const lifecycleSource = fs.readFileSync(path.join(root, "packages/codex/lib/lifecycle.mjs"), "utf8");
 const privateContract = !Object.hasOwn(packageManifest, "private") || packageManifest.private === false;
-const platformContract = JSON.stringify(packageManifest.os) === JSON.stringify(["darwin"]) &&
-  JSON.stringify(packageManifest.cpu) === JSON.stringify(["arm64"]);
+const platformContract = JSON.stringify(packageManifest.os) === JSON.stringify(["darwin", "win32"]) &&
+  JSON.stringify(packageManifest.cpu) === JSON.stringify(["arm64", "x64"]);
 const publishContract = packageManifest.publishConfig?.access === "public" &&
   packageManifest.publishConfig?.registry === "https://registry.npmjs.org/" &&
   JSON.stringify(Object.keys(packageManifest.publishConfig).sort()) === JSON.stringify(["access", "registry"]);
@@ -141,7 +141,7 @@ NODE
 build_root=$(mktemp -d -t dev-flow-codex-build.XXXXXX)
 trap 'rm -rf -- "$build_root"' EXIT HUP INT TERM
 stage_root="$build_root/package"
-mkdir -p "$stage_root/runtime/darwin-arm64"
+mkdir -p "$stage_root/runtime/darwin-arm64" "$stage_root/runtime/win32-x64"
 
 "$repository_root/scripts/build-webui.sh" >/dev/null 2>&1
 
@@ -149,6 +149,7 @@ production_files='package.json
 README.md
 .agents/plugins/marketplace.json
 bin/dev-flow-codex.mjs
+lib/command.mjs
 lib/install-experience.mjs
 lib/lifecycle.mjs
 lib/paths.mjs
@@ -183,6 +184,18 @@ chmod 0755 "$stage_root/bin/dev-flow-codex.mjs"
 )
 chmod 0755 "$stage_root/runtime/darwin-arm64/dev-flow"
 
+(
+  cd "$repository_root"
+  CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build \
+    -mod=readonly \
+    -trimpath \
+    -buildvcs=false \
+    -ldflags "-s -w -X github.com/Innocent-children/dev-flow/internal/version.buildVersion=$core_version" \
+    -o "$stage_root/runtime/win32-x64/dev-flow.exe" \
+    ./cmd/dev-flow
+)
+chmod 0755 "$stage_root/runtime/win32-x64/dev-flow.exe"
+
 if [ "$(uname -s)" = Darwin ] && [ "$(uname -m)" = arm64 ]; then
   reported_core=$(
     cd "$build_root"
@@ -190,8 +203,14 @@ if [ "$(uname -s)" = Darwin ] && [ "$(uname -m)" = arm64 ]; then
   )
   [ "$reported_core" = "dev-flow $core_version" ] || fail "detached Core version does not match CORE_VERSION"
 else
-  go version "$stage_root/runtime/darwin-arm64/dev-flow" >/dev/null
+  go version -m "$stage_root/runtime/darwin-arm64/dev-flow" >/dev/null
 fi
+darwin_build_metadata=$(go version -m "$stage_root/runtime/darwin-arm64/dev-flow")
+windows_build_metadata=$(go version -m "$stage_root/runtime/win32-x64/dev-flow.exe")
+printf '%s\n' "$darwin_build_metadata" | grep -Eq '[[:space:]]build[[:space:]]GOOS=darwin$' || fail "darwin Core GOOS metadata is invalid"
+printf '%s\n' "$darwin_build_metadata" | grep -Eq '[[:space:]]build[[:space:]]GOARCH=arm64$' || fail "darwin Core GOARCH metadata is invalid"
+printf '%s\n' "$windows_build_metadata" | grep -Eq '[[:space:]]build[[:space:]]GOOS=windows$' || fail "Windows Core GOOS metadata is invalid"
+printf '%s\n' "$windows_build_metadata" | grep -Eq '[[:space:]]build[[:space:]]GOARCH=amd64$' || fail "Windows Core GOARCH metadata is invalid"
 
 pack_report=$(pnpm --config.ignore-scripts=true --dir "$stage_root" pack --dry-run --json)
 PACK_REPORT=$pack_report node <<'NODE'
@@ -205,6 +224,7 @@ const expected = [
   "LICENSE",
   "README.md",
   "bin/dev-flow-codex.mjs",
+  "lib/command.mjs",
   "lib/install-experience.mjs",
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
@@ -218,6 +238,7 @@ const expected = [
   "plugin/skills/dev-flow/references/method-profiles.md",
   "plugin/skills/dev-flow/references/node-payloads.md",
   "runtime/darwin-arm64/dev-flow",
+  "runtime/win32-x64/dev-flow.exe",
 ].sort();
 if (report.name !== "dev-flow-codex" || JSON.stringify(actual) !== JSON.stringify(expected)) {
   throw new Error(`unexpected staged pack contents: ${JSON.stringify(actual)}`);
@@ -282,7 +303,7 @@ const baseReport = {
   source_commit: process.env.SOURCE_COMMIT,
   source_dirty: process.env.SOURCE_DIRTY === "true",
   final_artifact: process.env.FINAL_ARTIFACT === "true",
-  platform: "darwin-arm64",
+  platforms: ["darwin-arm64", "win32-x64"],
 };
 
 if (!baseReport.final_artifact) {
@@ -300,7 +321,7 @@ const report = {
   source_commit: baseReport.source_commit,
   source_dirty: baseReport.source_dirty,
   final_artifact: true,
-  platform: baseReport.platform,
+  platforms: baseReport.platforms,
   package_allowlist_verified: true,
   runtime_executable_verified: true,
   built_at: new Date().toISOString(),

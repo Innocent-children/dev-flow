@@ -14,13 +14,16 @@ explicit blocker after repository drift or an uncertain Action result.
 | Item | Current support |
 | --- | --- |
 | Package | [`dev-flow-deepseek`](https://www.npmjs.com/package/dev-flow-deepseek) |
-| Platform | macOS arm64 |
+| Stable platform | macOS arm64 |
+| Current-source platform | macOS arm64 (`darwin-arm64`); Windows 10/11 desktop x64 (`win32-x64`) |
 | Node.js | `>=24` |
 | DSH | `>=0.1.0-rc.6` |
 | Releases | [GitHub Releases](https://github.com/Innocent-children/dev-flow/releases) |
 
 Stable support is defined by the [Support Matrix](SUPPORT-MATRIX_en.md). Capability on `main` may not
-yet be present in npm `@latest`.
+yet be present in npm `@latest`. Windows Server, 32-bit Windows, Windows ARM64, and Intel Mac are
+outside the current-source support boundary. The runtime selector rejects pairs other than
+`darwin-arm64` and `win32-x64`.
 
 ## Install
 
@@ -44,8 +47,24 @@ rm -f "$PWD/$TARBALL"
 dsh --profile "$PROFILE" --dump-config
 ```
 
+Windows PowerShell uses:
+
+```powershell
+npm install -g @deepseek-ai/dsh@latest
+$ProfileName = 'web'
+$Tarball = (npm pack dev-flow-deepseek@latest --silent | Select-Object -Last 1).Trim()
+$TarballPath = (Resolve-Path -LiteralPath $Tarball).Path
+dsh plugin --profile $ProfileName add $TarballPath
+Remove-Item -LiteralPath $TarballPath
+dsh --profile $ProfileName --dump-config
+```
+
 Restart the Profile through the DSH lifecycle after installation. See the
 [Command Reference](COMMANDS_en.md#deepseek-harness) for complete commands and update order.
+
+Task data defaults to `$HOME/Library/Application Support/dev-flow/data` on macOS and
+`%LOCALAPPDATA%\dev-flow\data` on Windows. An explicit `DEV_FLOW_DATA_DIR` must already exist and pass
+the canonical non-link directory checks.
 
 ## Start a Task
 

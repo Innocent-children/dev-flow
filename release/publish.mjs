@@ -37,10 +37,16 @@ export async function publishRelease({ product, version, directory, sourceCommit
   const existing = await npmVersion(config.packageName, version, environment);
   if (!existing) await run("npm", ["publish", tarball, "--access", "public", `--registry=${registry}`, ...(version.includes("-beta.") ? ["--tag", "beta"] : [])], environment);
   await verifyRegistryBytes(config.packageName, version, localSHA, environment);
-  const core = manifest.artifacts.find((item) => item.kind === "core_binary")?.relative_path;
-  await ensureAssets(tag, root, [basename(tarball), ...(core ? [basename(core)] : []), "release-manifest.json", "SHA256SUMS"], environment);
+  await ensureAssets(tag, root, releaseAssetNames(tarball, manifest), environment);
   await run("gh", ["release", "edit", tag, "--repo", repository, "--draft=false"], environment);
   return { product, version, tag, source_commit: sourceCommit, status: "complete" };
+}
+
+export function releaseAssetNames(tarball, manifest) {
+  const cores = (manifest?.artifacts ?? [])
+    .filter((item) => item.kind === "core_binary")
+    .map((item) => basename(item.relative_path));
+  return [basename(tarball), ...cores, "release-manifest.json", "SHA256SUMS"];
 }
 
 async function ensureTag(tag, sourceCommit, environment) {

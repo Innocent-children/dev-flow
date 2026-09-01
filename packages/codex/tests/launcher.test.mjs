@@ -132,6 +132,26 @@ test("host-check forwards the closed pre-file-write command to the package-local
   assert.equal(calls[0].options.env.SAFE_PARENT_VALUE, "preserved");
 });
 
+test("hook dispatches the package-owned PreToolUse implementation without resolving product paths", async () => {
+  let resolved = false;
+  let invoked = false;
+  const result = await runCLI(["hook", "pre-tool-use"], {
+    environment: { SAFE_PARENT_VALUE: "preserved" },
+    stdout: captureStream(),
+    stderr: captureStream(),
+    resolvePaths: async () => {
+      resolved = true;
+    },
+    runPreToolUseHook: async () => {
+      invoked = true;
+      return 0;
+    },
+  });
+  assert.deepEqual(result, { code: 0, signal: null });
+  assert.equal(invoked, true);
+  assert.equal(resolved, false);
+});
+
 test("launcher fails before spawn for unsupported platforms and non-executable runtimes", async (t) => {
   const stdout = captureStream();
   const stderr = captureStream();
@@ -140,7 +160,7 @@ test("launcher fails before spawn for unsupported platforms and non-executable r
     stdout,
     stderr,
     resolvePaths: async () => {
-      throw new Error("unsupported platform linux-x64; Feature 003 supports darwin-arm64");
+      throw new Error("unsupported platform linux-x64; supported runtimes: darwin-arm64, win32-x64");
     },
     spawnImpl: () => {
       spawned = true;
@@ -583,6 +603,9 @@ test("launcher exposes no repository or sandbox configuration command", async ()
     ["host-check"],
     ["host-check", "future"],
     ["host-check", "pre-file-write", "extra"],
+    ["hook"],
+    ["hook", "future"],
+    ["hook", "pre-tool-use", "extra"],
     ["configure-codebase-memory"],
     ["add-repository", "/workspace/docs"],
   ]) {
@@ -596,7 +619,9 @@ test("launcher exposes no repository or sandbox configuration command", async ()
   }
 });
 
-test("installed bin symlinks still execute the launcher entry point", async (t) => {
+test("installed bin symlinks still execute the launcher entry point", {
+  skip: process.platform === "win32" ? "ordinary Windows cannot create unprivileged file symlinks" : false,
+}, async (t) => {
   const root = (await makePaths(t)).packageRoot;
   const link = join(root, "dev-flow-codex");
   await symlink(launcherPath, link);
@@ -625,6 +650,7 @@ async function makePaths(t, { usesDefaultDataDirectory = false, executable = tru
   assert.equal((await stat(runtimePath)).isFile(), true);
   return {
     packageRoot: root,
+    platform: executable ? process.platform : "darwin",
     runtimePath,
     dataDirectory,
     usesDefaultDataDirectory,

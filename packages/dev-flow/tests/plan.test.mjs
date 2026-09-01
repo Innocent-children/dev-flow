@@ -52,6 +52,23 @@ test("factory reset reports one exact no-op impact when Adapters and data are ab
   assert.deepEqual(plan.impacts, ["No installed Adapter or active Dev Flow data was found"]);
 });
 
+test("Windows factory reset previews the product recovery directory instead of macOS Trash", () => {
+  const current = observed();
+  current.resources.defaultData = {
+    label: "default-data",
+    path: "C:\\Users\\ordinary\\AppData\\Local\\dev-flow\\data",
+    exists: true,
+    identity: "volume:file:directory:0:0",
+  };
+  const plan = createLifecyclePlan(
+    { ...request("factory-reset", "all"), allKnownProfiles: true },
+    current,
+    { platform: "win32" },
+  );
+  assert.equal(plan.impacts.includes("Move confirmed data to the Dev Flow recovery directory"), true);
+  assert.equal(plan.impacts.some((impact) => impact.includes("macOS Trash")), false);
+});
+
 function request(operation, host) {
   return { operation, host, profiles: host === "codex" ? [] : ["web"], targetVersion: "latest", allKnownProfiles: false, adopt: false, reinstallAfterReset: false, permanent: false };
 }

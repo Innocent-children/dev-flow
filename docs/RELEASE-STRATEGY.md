@@ -15,11 +15,14 @@ compare against the latest lower `codex-v*`.
 ```text
 dev-flow-codex-<CODEX_VERSION>.tgz
 dev-flow-core-<CORE_VERSION>-darwin-arm64
+dev-flow-core-<CORE_VERSION>-windows-amd64.exe
 SHA256SUMS
 release-manifest.json
 ```
 
-The manifest records product, package/Core versions, source commit/tree, and artifact digests.
+The manifest records product, package/Core versions, source commit/tree, and artifact digests. The
+npm package contains the exact `darwin-arm64` and `win32-x64` runtime directories, and publication
+verifies and uploads both standalone Core executables.
 
 ## One-command release
 

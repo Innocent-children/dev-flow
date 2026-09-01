@@ -13,10 +13,11 @@ import (
 
 func TestPrepareFileChangeChecksPlanAndPersistsDecisions(t *testing.T) {
 	now := time.Date(2026, 9, 1, 1, 0, 0, 0, time.UTC)
+	repositoryPath := testPath("repo")
 	t.Run("planned exact and directory paths do not write Task state", func(t *testing.T) {
 		service, taskStore := fileScopeService(t, now, fileScopeTask(t, now, []string{"src/exact.go", "tests/**"}))
-		for index, path := range []string{"/repo/src/exact.go", "/repo/tests/unit/file_test.go"} {
-			result, err := service.PrepareFileChange(context.Background(), PrepareFileChangeRequest{Host: domain.HostCodex, RepositoryPath: "/repo", ToolName: "apply_patch", Paths: []string{path}, IntentDigest: testDigest(byte('b' + index)), PathParseComplete: true})
+		for index, path := range []string{testPath("repo", "src", "exact.go"), testPath("repo", "tests", "unit", "file_test.go")} {
+			result, err := service.PrepareFileChange(context.Background(), PrepareFileChangeRequest{Host: domain.HostCodex, RepositoryPath: repositoryPath, ToolName: "apply_patch", Paths: []string{path}, IntentDigest: testDigest(byte('b' + index)), PathParseComplete: true})
 			if err != nil || result.Decision != FileChangeAllow || taskStore.commits != 0 {
 				t.Fatalf("path=%s result=%#v err=%v commits=%d", path, result, err, taskStore.commits)
 			}
@@ -26,7 +27,7 @@ func TestPrepareFileChangeChecksPlanAndPersistsDecisions(t *testing.T) {
 	t.Run("outside path blocks before write and allow_once matches only the prepared intent", func(t *testing.T) {
 		service, taskStore := fileScopeService(t, now, fileScopeTask(t, now, []string{"src/**"}))
 		intent := testDigest('c')
-		blocked, err := service.PrepareFileChange(context.Background(), PrepareFileChangeRequest{Host: domain.HostCodex, RepositoryPath: "/repo", ToolName: "apply_patch", Paths: []string{"/repo/config/security.yml"}, IntentDigest: intent, PathParseComplete: true})
+		blocked, err := service.PrepareFileChange(context.Background(), PrepareFileChangeRequest{Host: domain.HostCodex, RepositoryPath: repositoryPath, ToolName: "apply_patch", Paths: []string{testPath("repo", "config", "security.yml")}, IntentDigest: intent, PathParseComplete: true})
 		if err != nil || blocked.Decision != FileChangeDeny || blocked.ScopeRequestID == "" || taskStore.task.CurrentNode != domain.NodeBlocked || len(taskStore.task.FileScopeRecords) != 1 {
 			t.Fatalf("blocked=%#v err=%v task=%#v", blocked, err, taskStore.task)
 		}
@@ -34,11 +35,11 @@ func TestPrepareFileChangeChecksPlanAndPersistsDecisions(t *testing.T) {
 		if err != nil || resolved.Task.CurrentNode != domain.NodeImplement || resolved.Task.FileScopeRecords[0].AllowedActionID == nil || resolved.Task.FileScopeRecords[0].Consumed {
 			t.Fatalf("resolved=%#v err=%v", resolved, err)
 		}
-		allowed, err := service.PrepareFileChange(context.Background(), PrepareFileChangeRequest{Host: domain.HostCodex, RepositoryPath: "/repo", ToolName: "apply_patch", Paths: []string{"/repo/config/security.yml"}, IntentDigest: intent, PathParseComplete: true})
+		allowed, err := service.PrepareFileChange(context.Background(), PrepareFileChangeRequest{Host: domain.HostCodex, RepositoryPath: repositoryPath, ToolName: "apply_patch", Paths: []string{testPath("repo", "config", "security.yml")}, IntentDigest: intent, PathParseComplete: true})
 		if err != nil || allowed.Decision != FileChangeAllow {
 			t.Fatalf("allowed=%#v err=%v", allowed, err)
 		}
-		second, err := service.PrepareFileChange(context.Background(), PrepareFileChangeRequest{Host: domain.HostCodex, RepositoryPath: "/repo", ToolName: "apply_patch", Paths: []string{"/repo/config/security.yml"}, IntentDigest: testDigest('d'), PathParseComplete: true})
+		second, err := service.PrepareFileChange(context.Background(), PrepareFileChangeRequest{Host: domain.HostCodex, RepositoryPath: repositoryPath, ToolName: "apply_patch", Paths: []string{testPath("repo", "config", "security.yml")}, IntentDigest: testDigest('d'), PathParseComplete: true})
 		if err != nil || second.Decision != FileChangeDeny || taskStore.task.CurrentNode != domain.NodeBlocked || len(taskStore.task.FileScopeRecords) != 2 {
 			t.Fatalf("second=%#v err=%v records=%#v", second, err, taskStore.task.FileScopeRecords)
 		}
@@ -47,7 +48,7 @@ func TestPrepareFileChangeChecksPlanAndPersistsDecisions(t *testing.T) {
 	t.Run("reject stays effective for the current Task Plan revision", func(t *testing.T) {
 		service, taskStore := fileScopeService(t, now, fileScopeTask(t, now, []string{"src/**"}))
 		intent := testDigest('e')
-		_, err := service.PrepareFileChange(context.Background(), PrepareFileChangeRequest{Host: domain.HostCodex, RepositoryPath: "/repo", ToolName: "apply_patch", Paths: []string{"/repo/config/security.yml"}, IntentDigest: intent, PathParseComplete: true})
+		_, err := service.PrepareFileChange(context.Background(), PrepareFileChangeRequest{Host: domain.HostCodex, RepositoryPath: repositoryPath, ToolName: "apply_patch", Paths: []string{testPath("repo", "config", "security.yml")}, IntentDigest: intent, PathParseComplete: true})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -56,7 +57,7 @@ func TestPrepareFileChangeChecksPlanAndPersistsDecisions(t *testing.T) {
 			t.Fatal(err)
 		}
 		before := taskStore.commits
-		denied, err := service.PrepareFileChange(context.Background(), PrepareFileChangeRequest{Host: domain.HostCodex, RepositoryPath: "/repo", ToolName: "apply_patch", Paths: []string{"/repo/config/security.yml"}, IntentDigest: testDigest('f'), PathParseComplete: true})
+		denied, err := service.PrepareFileChange(context.Background(), PrepareFileChangeRequest{Host: domain.HostCodex, RepositoryPath: repositoryPath, ToolName: "apply_patch", Paths: []string{testPath("repo", "config", "security.yml")}, IntentDigest: testDigest('f'), PathParseComplete: true})
 		if err != nil || denied.Decision != FileChangeDeny || taskStore.commits != before || taskStore.task.CurrentNode != domain.NodeImplement {
 			t.Fatalf("denied=%#v err=%v commits=%d", denied, err, taskStore.commits-before)
 		}
@@ -64,7 +65,7 @@ func TestPrepareFileChangeChecksPlanAndPersistsDecisions(t *testing.T) {
 
 	t.Run("expand scope archives the plan and resumes TASKS", func(t *testing.T) {
 		service, taskStore := fileScopeService(t, now, fileScopeTask(t, now, []string{"src/**"}))
-		_, err := service.PrepareFileChange(context.Background(), PrepareFileChangeRequest{Host: domain.HostCodex, RepositoryPath: "/repo", ToolName: "apply_patch", Paths: []string{"/repo/config/security.yml"}, IntentDigest: testDigest('1'), PathParseComplete: true})
+		_, err := service.PrepareFileChange(context.Background(), PrepareFileChangeRequest{Host: domain.HostCodex, RepositoryPath: repositoryPath, ToolName: "apply_patch", Paths: []string{testPath("repo", "config", "security.yml")}, IntentDigest: testDigest('1'), PathParseComplete: true})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -77,8 +78,10 @@ func TestPrepareFileChangeChecksPlanAndPersistsDecisions(t *testing.T) {
 
 func TestPrepareFileChangeUsesAllDeclaredRepositories(t *testing.T) {
 	now := time.Date(2026, 9, 1, 2, 0, 0, 0, time.UTC)
-	primary := fileScopeBinding(now, "/core", 'a')
-	docs := fileScopeBinding(now, "/docs", 'b')
+	corePath := testPath("core")
+	docsPath := testPath("docs")
+	primary := fileScopeBinding(now, corePath, 'a')
+	docs := fileScopeBinding(now, docsPath, 'b')
 	task := fileScopeTaskWithBinding(t, now, primary, []string{"src/**"})
 	task.PrimaryRepositoryKey = "core"
 	task.AdditionalRepositories = []domain.RepositoryScopeEntry{{Key: "docs", Binding: docs}}
@@ -96,12 +99,12 @@ func TestPrepareFileChangeUsesAllDeclaredRepositories(t *testing.T) {
 		t.Fatal("multi-repository task invalid")
 	}
 	taskStore := &multiRepositoryStore{task: &task}
-	observer := &multiRepositoryObserver{bindings: map[string]domain.RepositoryBinding{"/core": primary, "/docs": docs}}
+	observer := &multiRepositoryObserver{bindings: map[string]domain.RepositoryBinding{corePath: primary, docsPath: docs}}
 	service, err := newService(taskStore, observer, func() time.Time { return now }, sequentialTestIDs())
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := service.PrepareFileChange(context.Background(), PrepareFileChangeRequest{Host: domain.HostCodex, RepositoryPath: "/core", ToolName: "apply_patch", Paths: []string{"/docs/src/guide.go"}, IntentDigest: testDigest('2'), PathParseComplete: true})
+	result, err := service.PrepareFileChange(context.Background(), PrepareFileChangeRequest{Host: domain.HostCodex, RepositoryPath: corePath, ToolName: "apply_patch", Paths: []string{testPath("docs", "src", "guide.go")}, IntentDigest: testDigest('2'), PathParseComplete: true})
 	if err != nil || result.Decision != FileChangeAllow || taskStore.commits != 0 || len(result.Paths) != 1 || result.Paths[0] != "docs::src/guide.go" {
 		t.Fatalf("result=%#v err=%v commits=%d", result, err, taskStore.commits)
 	}
@@ -151,7 +154,7 @@ func sequentialTestIDs() idGenerator {
 
 func fileScopeTask(t *testing.T, now time.Time, expected []string) domain.ProcessTask {
 	t.Helper()
-	return fileScopeTaskWithBinding(t, now, fileScopeBinding(now, "/repo", 'a'), expected)
+	return fileScopeTaskWithBinding(t, now, fileScopeBinding(now, testPath("repo"), 'a'), expected)
 }
 
 func fileScopeTaskWithBinding(t *testing.T, now time.Time, binding domain.RepositoryBinding, expected []string) domain.ProcessTask {

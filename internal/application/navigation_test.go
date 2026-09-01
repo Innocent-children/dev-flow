@@ -87,14 +87,15 @@ func TestProcessGraphNavigation(t *testing.T) {
 	digest := domain.Digest(strings.Repeat("a", 64))
 	branch := "main"
 	head := strings.Repeat("b", 40)
-	binding := domain.RepositoryBinding{CanonicalRoot: "/repo", GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
+	repositoryPath := testPath("repo")
+	binding := domain.RepositoryBinding{CanonicalRoot: repositoryPath, GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
 	ms := &memoryStore{}
 	n := 0
 	service, err := newService(ms, observer{binding}, func() time.Time { return now }, func(prefix string) (domain.ID, error) { n++; return domain.ID(prefix + "-" + string(rune('a'+n))), nil })
 	if err != nil {
 		t.Fatal(err)
 	}
-	opened, err := service.OpenTask(context.Background(), OpenTaskRequest{RequestID: "request-open", Host: domain.HostCodex, RepositoryPath: "/repo", NewTask: &NewTaskInput{Request: "Simplify order submission.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4, AllowManualHandoff: true}, MethodProfile: domain.MethodSpecKit}})
+	opened, err := service.OpenTask(context.Background(), OpenTaskRequest{RequestID: "request-open", Host: domain.HostCodex, RepositoryPath: repositoryPath, NewTask: &NewTaskInput{Request: "Simplify order submission.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4, AllowManualHandoff: true}, MethodProfile: domain.MethodSpecKit}})
 	if err != nil {
 		t.Fatal(err)
 	}

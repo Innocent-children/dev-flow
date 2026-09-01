@@ -210,15 +210,18 @@ perform under user authority.
 
 The union of every WorkItem's `ExpectedPaths` in the current Task Plan is the planned file scope. A
 single-repository Task uses ordinary relative paths; a multi-repository Task uses
-`<repository-key>::<repository-relative-path>`. Exact files match literally, and only a trailing
+`<repository-key>::<repository-relative-path>`. Repository contract paths use `/` on every platform;
+backslashes are rejected, and Host-native absolute paths are normalized before entering the Core
+contract. Exact files match literally, and only a trailing
 `directory/**` means files below that directory. This is not a general glob language or workflow
 DSL. A write in additional repository B or C proceeds without another question when that repository
 is already in immutable Repository Scope, the Host can write it, and the target is planned.
 
-The Codex Plugin bundles a `PreToolUse` hook that runs after the developer trusts it and parses
-`apply_patch` headers. The DeepSeek Adapter reads structured file-tool paths in
-`tools/pre-execute`. Both send normalized absolute targets and a write-intent digest to the internal
-`dev-flow host-check pre-file-write` command. This managed Core command reuses the same
+The Codex Plugin bundles a `PreToolUse` hook that runs after the developer trusts it and uses the
+package-owned `dev-flow-codex hook pre-tool-use` launcher on `PATH` to parse `apply_patch` headers.
+The DeepSeek Adapter reads structured file-tool paths in `tools/pre-execute`. Both ultimately send
+normalized absolute targets and a write-intent digest to the internal `dev-flow host-check
+pre-file-write` command. This managed Core command reuses the same
 Application/SQLite Task authority, performs no target write, and creates no second process state.
 Ordinary writes are unaffected when no Task is active; a supported write fails closed when an active
 Task check is unavailable.
@@ -291,12 +294,24 @@ node.
 
 `internal/webui` is a loopback HTTP adapter inside Core. `packages/webui` builds React, TypeScript, and Vite static assets
 that enter the same binary through `go:embed`. Application, Workflow, and Recovery still decide Task, Action, Guard,
-Recovery, Blocker, and Outcome; the browser only projects views and submits current identities. A mode-`0600` receipt binds
-PID, process-start identity, data-root digest, and URL so compatible Core binaries carried by Codex and DeepSeek reuse one
-process and SQLite authority. Reset stays at the CLI/Store boundary and uses a target-bound plan, exclusive SQLite access,
+Recovery, Blocker, and Outcome; the browser only projects views and submits current identities. A receipt binds PID,
+process-start identity, data-root digest, and URL. macOS requires mode `0600`; Windows requires a regular non-symlink
+file under the user product directory. Compatible Core binaries carried by Codex and DeepSeek therefore reuse one process
+and SQLite authority. Reset stays at the CLI/Store boundary and uses a target-bound plan, exclusive SQLite access,
 and target revalidation. The HTTP route set contains no reset mutation.
 A typed frontend catalog maintains Simplified Chinese and English. First use follows `navigator.languages`; a manual choice
 enters local site storage only and creates no Core, Task, receipt, or account state.
+
+Package runtime selection accepts only `darwin-arm64` and `win32-x64`. The Windows executable is
+`runtime/win32-x64/dev-flow.exe`; 32-bit, ARM64, Windows Server, and cross-pairs are outside the
+product support scope. The default product root is `$HOME/Library/Application Support/dev-flow` on
+macOS and `%LOCALAPPDATA%\dev-flow` on Windows. Configuration is read from
+`$HOME/.dev-flow/config.json` or `%USERPROFILE%\.dev-flow\config.json`, respectively. macOS enforces
+POSIX directory and receipt modes. Windows relies on the current profile and LocalAppData inherited
+ACL while retaining canonical-path, regular-file, and symlink checks. The Windows WebUI background
+process uses a separate process group and creation time as its start identity. Stop first requests
+`CTRL_BREAK`; if another console cannot deliver it or the exact process does not exit, only the
+receipt-matched process is terminated.
 
 `ProcessTask.Repository` continues to store the primary repository binding.
 `PrimaryRepositoryKey` defaults to `primary`, and `AdditionalRepositories` stores zero to seven
@@ -312,7 +327,8 @@ repository in key order. It constructs one Store mutation only after every obser
 every identity is unique. A Task can be resumed through the claim of any participating repository
 without changing its primary repository, keys, or ordering. Public multi-repository paths use
 `<repository-key>::<repository-relative-path>` and Application dispatches them as ordinary
-repository-relative paths to each Observer. Single-repository path syntax is unchanged.
+repository-relative paths to each Observer. Single-repository path syntax is unchanged. These public
+contract paths always use `/`, independently of the Host path separator.
 
 Repository binding keeps two identities with different responsibilities. `GitCommonDirDigest`
 groups linked worktrees in one local logical repository, while `RepositoryIdentity` combines that
@@ -350,8 +366,9 @@ only optional `primary_repository_key` and at most seven closed
 `repository` and adds the primary key plus sorted `additional_repositories`.
 `dev_flow_server_info({})` returns
 `host_preferences.codex.codebase_memory` and
-`host_preferences.deepseek.codebase_memory` from the read-only
-`$HOME/.dev-flow/config.json` snapshot loaded at process startup. Missing configuration yields false
+`host_preferences.deepseek.codebase_memory` from the read-only configuration snapshot loaded at
+process startup (`$HOME/.dev-flow/config.json` on macOS
+or `%USERPROFILE%\.dev-flow\config.json` on Windows). Missing configuration yields false
 for both values. Configuration and index availability never enter the Task or process digest.
 
 Before opening a writable connection, Store uses an immutable read-only preflight to verify the
@@ -399,9 +416,10 @@ Codex     → packages/codex/package.json
 DeepSeek  → packages/deepseek/package.json
 ```
 
-A host package contains one macOS arm64 Core executable. Build and release evidence reads the Core
-version and digest from the actual executable. The Codex Plugin manifest only mirrors the Codex
-package version.
+A host package contains `runtime/darwin-arm64/dev-flow` and
+`runtime/win32-x64/dev-flow.exe`; runtime selection uses only the exact OS/CPU match. Build and
+release evidence verifies each executable's GOOS, GOARCH, Core version, and digest. The Codex Plugin
+manifest only mirrors the Codex package version.
 
 Release tooling lives under `release/` and `scripts/`; it is not part of Core, MCP, or SQLite.
 A product release uses fixed checks, exact confirmation, an external release directory, and remote

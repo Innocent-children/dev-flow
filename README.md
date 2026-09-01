@@ -38,8 +38,8 @@ Dev Flow 把这份进度保存为本地 Task。新会话先读取 Task，再从�
 | 判断 | 当前实现变化后哪些旧测试和理解确认已经失效，仓库状态是否仍符合 Task |
 | 恢复 | Action 结果不确定时，应该继续、补记结果、阻塞还是安全重试 |
 
-Codex 和 DeepSeek 仍然负责读代码、改文件和运行命令。对 Codex `apply_patch` 和 DeepSeek 的结构化
-文件工具，Host 会在写入前把目标路径交给 Core；计划外路径先进入 `BLOCKED`，由用户选择单次允许、
+Codex 和 DeepSeek 仍然负责读代码、改文件和运行命令。Codex packaged hook 通过 package-owned launcher、
+DeepSeek 通过结构化文件工具入口，在写入前把目标路径交给 Core；计划外路径先进入 `BLOCKED`，由用户选择单次允许、
 更新 Task Plan 或拒绝。Core 还会在进入测试和 `DONE` 前核对本 Task 实际修改的路径。
 
 ## 30 秒理解
@@ -94,7 +94,8 @@ Next: run the remaining targeted auth test
 
 ## 最短安装路径
 
-当前稳定制品支持 macOS arm64。Host、Node.js 与稳定 package 的准确范围见
+当前稳定 `@latest` 制品支持 macOS arm64；当前源码还实现并在 Windows 11 本机验证了 Windows 10/11
+桌面版 x64 runtime，但它要经过独立发布和最终 Host Journey 后才会扩大稳定声明。准确范围见
 [Support Matrix](docs/SUPPORT-MATRIX.md)。
 
 ```bash
@@ -120,13 +121,18 @@ Host 原生命令只用于诊断和恢复。完整安装、状态、恢复与移
 [Codex 使用说明](packages/codex/README.md)、[DeepSeek 使用说明](packages/deepseek/README.md)和
 [命令参考](docs/COMMANDS.md)。
 
-## 当前支持与边界
+## 稳定支持、当前源码与边界
 
 | 产品 | 已验证环境 |
 | --- | --- |
 | `dev-flow-codex` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
 | `dev-flow-deepseek` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
 | `@imotong/dev-flow` | macOS arm64、Node.js `>=20` |
+
+当前源码的 package runtime selector 另外精确支持 `win32-x64`，对应 Windows 10/11 桌面版 x64；不支持
+Windows Server、32 位 Windows 或 Windows ARM64。Windows 默认数据目录是
+`%LOCALAPPDATA%\dev-flow\data`，配置文件是 `%USERPROFILE%\.dev-flow\config.json`。这项源码能力尚未
+改变上表的稳定 `@latest` 范围。
 
 Dev Flow 仍处于早期，外部采用有限。当前边界包括：
 

@@ -44,13 +44,14 @@ func TestProcessGraphNavigation(t *testing.T) {
 	d := domain.Digest(strings.Repeat("a", 64))
 	branch := "main"
 	head := strings.Repeat("b", 40)
-	b := domain.RepositoryBinding{CanonicalRoot: "/repo", GitCommonDirDigest: d, RepositoryIdentity: d, Branch: &branch, Head: &head, WorktreeFingerprint: d, ObservedAt: now, BindingDigest: d}
+	repositoryPath := testPath("repo")
+	b := domain.RepositoryBinding{CanonicalRoot: repositoryPath, GitCommonDirDigest: d, RepositoryIdentity: d, Branch: &branch, Head: &head, WorktreeFingerprint: d, ObservedAt: now, BindingDigest: d}
 	s := &graphStore{}
 	service, err := application.NewService(s, graphObserver{b})
 	if err != nil {
 		t.Fatal(err)
 	}
-	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "request-open", Host: domain.HostCodex, RepositoryPath: "/repo", NewTask: &application.NewTaskInput{Request: "Simplify order submission.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: domain.MethodPlain}})
+	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "request-open", Host: domain.HostCodex, RepositoryPath: repositoryPath, NewTask: &application.NewTaskInput{Request: "Simplify order submission.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)
 	}

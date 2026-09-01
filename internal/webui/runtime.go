@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/application"
@@ -55,7 +54,7 @@ func Start(ctx context.Context, dataDirectory, coreIdentity string, noOpen bool)
 	command.Stdin = nil
 	command.Stdout = logFile
 	command.Stderr = logFile
-	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	configureBackgroundCommand(command)
 	if err := command.Start(); err != nil {
 		_ = logFile.Close()
 		return RuntimeState{}, err
@@ -152,7 +151,7 @@ func OpenBrowser(url string) error {
 	if url == "" {
 		return fmt.Errorf("WebUI URL is unavailable")
 	}
-	return exec.Command("open", url).Start()
+	return openBrowser(url)
 }
 
 func Stop(ctx context.Context, dataDirectory, coreIdentity string) (RuntimeState, error) {
@@ -168,7 +167,12 @@ func Stop(ctx context.Context, dataDirectory, coreIdentity string) (RuntimeState
 	if err != nil {
 		return state, err
 	}
-	if err := process.Signal(os.Interrupt); err != nil {
+	if err := signalWebUIProcess(process, receipt.PID); err != nil {
+		if !receiptProcessMatches(receipt) {
+			_ = removeReceipt(dataDirectory, receipt)
+			state.Readiness = ReadinessUnavailable
+			return state, nil
+		}
 		return state, err
 	}
 	deadline := time.Now().Add(5 * time.Second)
@@ -182,6 +186,30 @@ func Stop(ctx context.Context, dataDirectory, coreIdentity string) (RuntimeState
 		case <-ctx.Done():
 			return state, ctx.Err()
 		case <-time.After(50 * time.Millisecond):
+		}
+	}
+	forced, forceErr := forceStopWebUIProcess(process)
+	if forceErr != nil {
+		if !receiptProcessMatches(receipt) {
+			_ = removeReceipt(dataDirectory, receipt)
+			state.Readiness = ReadinessUnavailable
+			return state, nil
+		}
+		return state, forceErr
+	}
+	if forced {
+		deadline = time.Now().Add(2 * time.Second)
+		for time.Now().Before(deadline) {
+			if !receiptProcessMatches(receipt) {
+				_ = removeReceipt(dataDirectory, receipt)
+				state.Readiness = ReadinessUnavailable
+				return state, nil
+			}
+			select {
+			case <-ctx.Done():
+				return state, ctx.Err()
+			case <-time.After(50 * time.Millisecond):
+			}
 		}
 	}
 	return state, fmt.Errorf("WebUI did not stop")

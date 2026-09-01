@@ -11,10 +11,12 @@
   },
   "type": "module",
   "os": [
-    "darwin"
+    "darwin",
+    "win32"
   ],
   "cpu": [
-    "arm64"
+    "arm64",
+    "x64"
   ],
   "publishConfig": {
     "access": "public",
@@ -30,6 +32,7 @@
     ".agents/plugins/marketplace.json",
     "LICENSE",
     "bin/dev-flow-codex.mjs",
+    "lib/command.mjs",
     "lib/install-experience.mjs",
     "lib/lifecycle.mjs",
     "lib/paths.mjs",
@@ -41,14 +44,15 @@
     "plugin/skills/dev-flow/agents/openai.yaml",
     "plugin/skills/dev-flow/references/method-profiles.md",
     "plugin/skills/dev-flow/references/node-payloads.md",
-    "runtime/darwin-arm64/dev-flow"
+    "runtime/darwin-arm64/dev-flow",
+    "runtime/win32-x64/dev-flow.exe"
   ],
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "test:package": "node --test tests/package-contract.test.mjs",
     "test:lifecycle": "node --test tests/lifecycle.test.mjs",
     "pack:dry": "pnpm pack --dry-run --json",
-    "build:webui": "../../scripts/build-webui.sh",
+    "build:webui": "node ../../scripts/build-webui.mjs",
     "build:local": "../../scripts/build-codex-local.sh"
   }
 }

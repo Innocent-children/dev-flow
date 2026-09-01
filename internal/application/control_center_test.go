@@ -27,7 +27,8 @@ func TestControlCenterLifecycleCP2(t *testing.T) {
 	now := time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC)
 	digest := domain.Digest(strings.Repeat("a", 64))
 	branch, head := "main", strings.Repeat("b", 40)
-	binding := domain.RepositoryBinding{CanonicalRoot: "/repo", GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
+	repositoryPath := testPath("repo")
+	binding := domain.RepositoryBinding{CanonicalRoot: repositoryPath, GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
 	var sequence atomic.Int64
 	core, err := newService(database, observer{binding}, func() time.Time { return now }, func(prefix string) (domain.ID, error) {
 		return domain.ID(fmt.Sprintf("%s-%d", prefix, sequence.Add(1))), nil
@@ -36,12 +37,12 @@ func TestControlCenterLifecycleCP2(t *testing.T) {
 		t.Fatal(err)
 	}
 	center := &ControlCenter{core: core, tasks: database}
-	request := OpenTaskRequest{RequestID: "open-request", Host: domain.HostCodex, RepositoryPath: "/repo", PrimaryRepositoryKey: domain.DefaultPrimaryRepositoryKey, NewTask: &NewTaskInput{Request: "Manage the task lifecycle.", KnownAcceptanceCriteria: []string{"Lifecycle operations are authoritative."}, VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain}}
+	request := OpenTaskRequest{RequestID: "open-request", Host: domain.HostCodex, RepositoryPath: repositoryPath, PrimaryRepositoryKey: domain.DefaultPrimaryRepositoryKey, NewTask: &NewTaskInput{Request: "Manage the task lifecycle.", KnownAcceptanceCriteria: []string{"Lifecycle operations are authoritative."}, VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain}}
 	opened, err := center.OpenOrResumeTask(ctx, request)
 	if err != nil || opened.Task == nil || opened.Task.Revision != 1 {
 		t.Fatalf("open=%#v err=%v", opened, err)
 	}
-	resumed, err := center.OpenOrResumeTask(ctx, OpenTaskRequest{RequestID: "resume-request", Host: domain.HostCodex, RepositoryPath: "/repo"})
+	resumed, err := center.OpenOrResumeTask(ctx, OpenTaskRequest{RequestID: "resume-request", Host: domain.HostCodex, RepositoryPath: repositoryPath})
 	if err != nil || resumed.Task == nil || resumed.Task.TaskID != opened.Task.TaskID || resumed.Task.Revision != 1 {
 		t.Fatalf("resume=%#v err=%v", resumed, err)
 	}
@@ -111,7 +112,8 @@ func TestControlCenterActionAndRecoveryCP3(t *testing.T) {
 	now := time.Date(2026, 8, 26, 14, 0, 0, 0, time.UTC)
 	digest := domain.Digest(strings.Repeat("a", 64))
 	branch, head := "main", strings.Repeat("b", 40)
-	binding := domain.RepositoryBinding{CanonicalRoot: "/repo", GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
+	repositoryPath := testPath("repo")
+	binding := domain.RepositoryBinding{CanonicalRoot: repositoryPath, GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
 	var sequence atomic.Int64
 	core, err := newService(database, observer{binding}, func() time.Time { return now }, func(prefix string) (domain.ID, error) {
 		return domain.ID(fmt.Sprintf("%s-%d", prefix, sequence.Add(1))), nil
@@ -120,7 +122,7 @@ func TestControlCenterActionAndRecoveryCP3(t *testing.T) {
 		t.Fatal(err)
 	}
 	center := &ControlCenter{core: core, tasks: database}
-	opened, err := center.OpenOrResumeTask(ctx, OpenTaskRequest{RequestID: "open-action", Host: domain.HostCodex, RepositoryPath: "/repo", PrimaryRepositoryKey: domain.DefaultPrimaryRepositoryKey, NewTask: &NewTaskInput{Request: "Execute the current action.", KnownAcceptanceCriteria: []string{"Core advances the task."}, VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain}})
+	opened, err := center.OpenOrResumeTask(ctx, OpenTaskRequest{RequestID: "open-action", Host: domain.HostCodex, RepositoryPath: repositoryPath, PrimaryRepositoryKey: domain.DefaultPrimaryRepositoryKey, NewTask: &NewTaskInput{Request: "Execute the current action.", KnownAcceptanceCriteria: []string{"Core advances the task."}, VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)
 	}

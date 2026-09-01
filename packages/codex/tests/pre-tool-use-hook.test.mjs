@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { hookDecision, preparedWriteFromHook, runHook } from "../plugin/hooks/pre-tool-use.mjs";
 
@@ -15,7 +16,11 @@ test("Codex apply_patch hook extracts every target and keeps one stable intent",
   };
   const first = preparedWriteFromHook(event);
   const second = preparedWriteFromHook(JSON.parse(JSON.stringify(event)));
-  assert.deepEqual(first.paths, ["/workspace/core/src/a.go", "/workspace/core/src/b.go", "/workspace/docs/a.go"]);
+  assert.deepEqual(first.paths, [
+    resolve("/workspace/core/src/a.go"),
+    resolve("/workspace/core/src/b.go"),
+    resolve("/workspace/docs/a.go"),
+  ].sort());
   assert.equal(first.path_parse_complete, true);
   assert.equal(first.intent_digest, second.intent_digest);
   event.tool_input.command += "\n";
@@ -45,7 +50,7 @@ test("Codex hook permits absent Task data, uses the managed launcher, and fails 
     tool_input: { command: "*** Begin Patch\n*** Update File: src/a.go\n*** End Patch" },
   });
   const writes = [];
-  const absent = runHook({ readInput: () => event, output: { write: (value) => writes.push(value) }, error: { write: () => undefined }, environment: { HOME: root, PLUGIN_ROOT: join(root, "plugin") } });
+  const absent = runHook({ readInput: () => event, output: { write: (value) => writes.push(value) }, error: { write: () => undefined }, environment: { HOME: root, PLUGIN_ROOT: join(root, "plugin") }, platform: "darwin" });
   assert.equal(absent, 0);
   assert.deepEqual(writes, []);
 
@@ -55,14 +60,19 @@ test("Codex hook permits absent Task data, uses the managed launcher, and fails 
     output: { write: (value) => writes.push(value) },
     error: { write: () => undefined },
     environment: { DEV_FLOW_DATA_DIR: root },
+    platform: "darwin",
     spawn: (executable, arguments_, options) => {
       invocation = { executable, arguments_, options };
       return { status: 0, stdout: JSON.stringify({ decision: "allow" }), stderr: "" };
     },
   });
   assert.equal(allowed, 0);
-  assert.equal(invocation.executable, "dev-flow-codex");
-  assert.deepEqual(invocation.arguments_, ["host-check", "pre-file-write"]);
+  assert.equal(invocation.executable, process.execPath);
+  assert.deepEqual(invocation.arguments_, [
+    fileURLToPath(new URL("../bin/dev-flow-codex.mjs", import.meta.url)),
+    "host-check",
+    "pre-file-write",
+  ]);
   assert.equal(invocation.options.cwd, "/workspace/core");
   assert.equal(JSON.parse(invocation.options.input).repository_path, "/workspace/core");
 
@@ -72,8 +82,38 @@ test("Codex hook permits absent Task data, uses the managed launcher, and fails 
     output: { write: () => undefined },
     error: { write: (value) => errors.push(value) },
     environment: { DEV_FLOW_DATA_DIR: root, PLUGIN_ROOT: join(root, "plugin") },
+    platform: "darwin",
     spawn: () => ({ status: 1, stdout: "", stderr: "failed" }),
   });
   assert.equal(failed, 2);
   assert.match(errors.join(""), /write was stopped/u);
+});
+
+test("Windows hook fallback prefers USERPROFILE when HOME is also present", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "dev-flow-hook-windows-home-"));
+  const userProfile = join(root, "ordinary-user");
+  const gitHome = join(root, "git-home");
+  const dataDirectory = join(userProfile, "AppData", "Local", "dev-flow", "data");
+  await mkdir(dataDirectory, { recursive: true });
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const event = JSON.stringify({
+    hook_event_name: "PreToolUse",
+    tool_name: "apply_patch",
+    cwd: resolve(root),
+    tool_input: { command: "*** Begin Patch\n*** Update File: src/a.go\n*** End Patch" },
+  });
+  let invocation;
+  const code = runHook({
+    readInput: () => event,
+    output: { write: () => undefined },
+    error: { write: () => undefined },
+    environment: { USERPROFILE: userProfile, HOME: gitHome },
+    platform: "win32",
+    spawn: (executable, arguments_, options) => {
+      invocation = { executable, arguments_, options };
+      return { status: 0, stdout: JSON.stringify({ decision: "allow" }), stderr: "" };
+    },
+  });
+  assert.equal(code, 0);
+  assert.equal(invocation.options.env.DEV_FLOW_DATA_DIR, dataDirectory);
 });

@@ -187,3 +187,7 @@ Dev Flow 仍处于早期，外部采用有限，尚未证明能够降低缺陷�
 完整恢复。稳定支持、源码能力、尚未验证内容和当前缺口见
 [Project Status](PROJECT-STATUS.md) 与 [Support Matrix](SUPPORT-MATRIX.md)。运行时最终以源码、
 机器可读 Schema、package manifest、CLI parser 和可执行测试为准。
+
+当前源码只选择两个精确 package runtime pair：`darwin-arm64` 与 `win32-x64`。后者的产品范围是
+Windows 10/11 桌面版 x64，不包含 Windows Server、32 位 Windows 或 Windows ARM64。源码本机证据
+不会自动扩大 npm `@latest` 的稳定支持；稳定范围仍由独立发布和最终 Host Journey 决定。

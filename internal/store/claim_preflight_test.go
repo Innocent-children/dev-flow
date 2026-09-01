@@ -227,7 +227,7 @@ func multiRepositoryGraphTask(t *testing.T) domain.ProcessTask {
 	t.Helper()
 	task := testGraphTask(t)
 	additional := task.Repository.Clone()
-	additional.CanonicalRoot = "/docs"
+	additional.CanonicalRoot = testPath("docs")
 	additional.GitCommonDirDigest = domain.Digest(strings.Repeat("d", 64))
 	additional.RepositoryIdentity = domain.Digest(strings.Repeat("e", 64))
 	additional.WorktreeFingerprint = domain.Digest(strings.Repeat("f", 64))

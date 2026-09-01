@@ -7,9 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -47,7 +45,7 @@ func ReadReceipt(dataDirectory string) (RuntimeReceipt, error) {
 	if err != nil {
 		return RuntimeReceipt{}, err
 	}
-	if !info.Mode().IsRegular() || info.Mode().Perm() != 0o600 {
+	if !validRuntimeReceiptFile(info) {
 		return RuntimeReceipt{}, fmt.Errorf("invalid WebUI runtime receipt")
 	}
 	content, err := os.ReadFile(path)
@@ -105,21 +103,6 @@ func removeReceipt(dataDirectory string, expected RuntimeReceipt) error {
 		return fmt.Errorf("WebUI runtime receipt changed")
 	}
 	return os.Remove(ReceiptPath(dataDirectory))
-}
-
-func processStartIdentity(pid int) (string, error) {
-	if pid <= 0 {
-		return "", fmt.Errorf("invalid process identity")
-	}
-	output, err := exec.Command("ps", "-o", "lstart=", "-p", strconv.Itoa(pid)).Output()
-	if err != nil {
-		return "", err
-	}
-	identity := strings.Join(strings.Fields(string(output)), " ")
-	if identity == "" {
-		return "", fmt.Errorf("process is unavailable")
-	}
-	return identity, nil
 }
 
 func receiptProcessMatches(receipt RuntimeReceipt) bool {

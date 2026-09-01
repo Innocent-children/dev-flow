@@ -36,7 +36,8 @@ func TestMutationRequestBindingMatchesCommittedLastOperation(t *testing.T) {
 	now := time.Date(2026, 8, 20, 9, 0, 0, 0, time.UTC)
 	digest := domain.Digest(strings.Repeat("a", 64))
 	branch, head := "main", strings.Repeat("b", 40)
-	binding := domain.RepositoryBinding{CanonicalRoot: "/repo", GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
+	repositoryPath := testPath("repo")
+	binding := domain.RepositoryBinding{CanonicalRoot: repositoryPath, GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
 	database, err := store.Open(context.Background(), filepath.Join(t.TempDir(), "tasks.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -46,7 +47,7 @@ func TestMutationRequestBindingMatchesCommittedLastOperation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "request-open", Host: domain.HostCodex, RepositoryPath: "/repo", NewTask: &application.NewTaskInput{Request: "Define work.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain}})
+	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "request-open", Host: domain.HostCodex, RepositoryPath: repositoryPath, NewTask: &application.NewTaskInput{Request: "Define work.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)
 	}

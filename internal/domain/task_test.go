@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Innocent-children/dev-flow/internal/testpath"
 )
 
 func TestProcessTaskRepositoryScopeBoundariesAndDigest(t *testing.T) {
@@ -104,7 +106,7 @@ func TestProcessTaskRepositoryScopeBoundariesAndDigest(t *testing.T) {
 	if !RepositoryScopeMembershipEqual(multi, refreshed) {
 		t.Fatal("mutable repository observation changed Scope membership")
 	}
-	refreshed.AdditionalRepositories[0].Binding.CanonicalRoot = "/repo/replaced"
+	refreshed.AdditionalRepositories[0].Binding.CanonicalRoot = testpath.Absolute("repo", "replaced")
 	if RepositoryScopeMembershipEqual(multi, refreshed) {
 		t.Fatal("repository replacement preserved Scope membership")
 	}
@@ -149,7 +151,7 @@ func repositoryScopeEntryForTest(now time.Time, key RepositoryKey, seed int) Rep
 	head := fmt.Sprintf("%040x", seed+1)
 	digest := Digest(fmt.Sprintf("%064x", seed+1))
 	return RepositoryScopeEntry{Key: key, Binding: RepositoryBinding{
-		CanonicalRoot:       "/repo/" + string(key),
+		CanonicalRoot:       testpath.Absolute("repo", string(key)),
 		GitCommonDirDigest:  digest,
 		RepositoryIdentity:  digest,
 		Branch:              &branch,
@@ -234,7 +236,7 @@ func TestProcessBlockerStrictGraphAuthority(t *testing.T) {
 func validProcessTaskForDomainTest(now time.Time, digest Digest) ProcessTask {
 	branch := "main"
 	head := strings.Repeat("b", 40)
-	repository := RepositoryBinding{CanonicalRoot: "/repo", GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
+	repository := RepositoryBinding{CanonicalRoot: testpath.Absolute("repo"), GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
 	process := ProcessReference{ID: ProcessStandardDevelopment, DefinitionDigest: digest}
 	action := &ProcessAction{ActionID: "action", Kind: ActionCompleteRequirements, TaskID: "task", Revision: 1, Process: process, NodeID: NodeRequirements, RepositoryBindingDigest: digest, AllowedEffects: []AllowedEffect{EffectReadRepository}, RequiredEvidence: []EvidenceRequirement{{Kind: RequirementRepositoryObservation, Required: true}}, PayloadContract: "requirements-result", NodeContract: NodeContractProjection{Purpose: "Capture requirements.", EntryConditions: []string{"intent"}, CompletionConditions: []string{"baseline"}}, MethodProfile: MethodPlain, SemanticMethodSteps: []SemanticMethodStep{{StepID: "requirements.capture", Purpose: "Capture requirements.", Required: true}}, Guidance: "Complete requirements.", IssuedAt: now}
 	return ProcessTask{TaskID: "task", OriginHost: HostCodex, Intent: TaskIntent{Request: "Request", VerificationBudget: VerificationBudget{Level: VerificationTargeted, MaxAutomaticCommands: 1}, MethodProfile: MethodPlain}, Process: process, CurrentNode: NodeRequirements, CurrentAction: action, Repository: repository, Revision: 1, CreatedAt: now, UpdatedAt: now}

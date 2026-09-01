@@ -42,9 +42,12 @@ flowchart LR
 ## 主要风险与现有防护
 
 本机 WebUI 只监听 `tcp4 127.0.0.1` 并要求精确 Host；mutation 还验证精确 Origin、进程内随机 session
-值与当前 Task revision。mode `0600` receipt 绑定进程启动身份、data-root digest、URL 和实时 Core identity，
-避免错误复用或 PID 重用。浏览器没有 reset mutation；CLI token 绑定 canonical database 与当时存在的 SQLite
-sidecars，独占锁失败或目标变化时零删除，Adapter、registration、配置和无关文件不属于目标。
+值与当前 Task revision。macOS receipt 是 mode `0600` 的普通非链接文件；Windows receipt 是位于用户
+profile 下、继承该目录 ACL 的普通非链接文件。两者都绑定进程启动身份、data-root digest、URL 和实时
+Core identity，避免错误复用或 PID 重用；Windows 从内核进程信息读取创建时间。浏览器没有 reset
+mutation；CLI token 绑定 canonical database 与当时存在的 SQLite sidecars。macOS 使用独占锁后删除，
+Windows 持有并复核每个文件的 volume/file identity 后统一标记 disposition，部分标记失败会回滚；锁、
+身份或目标变化均产生零删除。Adapter、registration、配置和无关文件不属于目标。
 
 | 风险 | 当前防护 |
 | --- | --- |

@@ -14,6 +14,10 @@
 公开安装示例使用 npm 的 `latest` dist-tag，以便安装当前最新稳定包；支持矩阵、Release 链接和
 制品证据仍使用精确版本号，不应替换为 `latest`。
 
+当前源码的 launcher 和 bundled Core 只接受两个精确运行时对：`darwin-arm64` 与
+`win32-x64`。下方 `@latest` 命令仍描述当前 npm 稳定通道；Windows 10/11 桌面 x64 的源码能力
+要通过本仓库构建的 package 验证，直到一次明确确认的发布把对应制品送入稳定通道。
+
 ## 多数用户需要的推荐入口
 
 ```bash
@@ -36,7 +40,9 @@ dev-flow
 闭合子命令为 `status`、`doctor`、`install`、`upgrade`、`repair`、`reinstall`、`uninstall` 和
 `factory-reset`。Host 选择为 `codex|deepseek|all`；DeepSeek Profile 默认 `web`。普通卸载、升级、
 修复和重装保留用户配置与 Task 数据；`factory-reset` 要求绑定当前计划的 token，`--yes` 不能单独
-授权数据清理。默认清理移动到 macOS Trash，永久删除还需独立确认。
+授权数据清理。默认清理在 macOS 移动到用户 Trash，在 Windows 移动到
+`%LOCALAPPDATA%\create-dev-flow\trash` 的可恢复隔离目录；Windows 目标不是系统回收站。永久删除还需
+独立确认。
 Codex 全局 package 与 receipt、Plugin 注册分别判断；即使注册已缺失，`uninstall` 和
 `factory-reset` 仍会卸载已安装的全局 package。
 交互界面读取当前 locale：`zh*` 使用简体中文，其余 locale 统一使用英文；JSON 输出保持语言无关。
@@ -55,12 +61,27 @@ Codex 全局 package 与 receipt、Plugin 注册分别判断；即使注册已�
 | `dev-flow factory-reset ... --confirm-reset <token> [--reinstall]` | 将已确认数据移动到 Trash，可随后全新重装。 |
 | `dev-flow factory-reset ... --confirm-explicit-data <absolute-path>` | 确认计划中列出的一个显式 `DEV_FLOW_DATA_DIR`；多个目录时可重复传入该参数。 |
 | `dev-flow factory-reset ... --permanent --confirm-reset <token> --confirm-permanent <token>` | 永久删除计划中的精确目标；需要 reset token 和独立的永久删除 token。 |
-| `dev-flow webui start\|open\|status\|stop` | 从任一已安装 Adapter 选择并校验 Core，管理共享本机 Control Center；`start` 可按 `0700` 创建缺失的默认数据目录，其余命令不创建目录。 |
+| `dev-flow webui start\|open\|status\|stop` | 从任一已安装 Adapter 选择并校验 Core，管理共享本机 Control Center；`start` 可创建缺失的默认数据目录：macOS 使用 `0700`，Windows 继承用户 profile/LocalAppData ACL。其余命令不创建目录。 |
 | `dev-flow webui reset [--confirm TOKEN]` | 使用 Core 的目标绑定确认清理不兼容 Task 数据。 |
 | `--json` / `--plain` | 分别选择单一 JSON 对象或无 ANSI 的纯文本结果。 |
 
 设置 `DEV_FLOW_DATA_DIR` 时，公共 launcher 只接受已存在、canonical、非符号链接的绝对目录，任何命令都
 不会自动创建显式目录。
+
+默认本机路径按平台固定：
+
+| 路径 | macOS arm64 | Windows 10/11 x64 |
+| --- | --- | --- |
+| Task 数据 | `$HOME/Library/Application Support/dev-flow/data` | `%LOCALAPPDATA%\dev-flow\data` |
+| 用户配置 | `$HOME/.dev-flow/config.json` | `%USERPROFILE%\.dev-flow\config.json` |
+| 生命周期管理状态 | `$HOME/Library/Application Support/create-dev-flow` | `%LOCALAPPDATA%\create-dev-flow` |
+
+PowerShell 中设置显式数据目录的形式为：
+
+```powershell
+$env:DEV_FLOW_DATA_DIR = 'C:\absolute\existing\dev-flow-data'
+dev-flow status --host all
+```
 
 下方 Host 原生命令保留为诊断恢复入口。
 
@@ -76,7 +97,8 @@ dev-flow-codex --version
 
 npm 全局安装只把 `dev-flow-codex` launcher 放到 `PATH`。`setup` 是独立步骤，它验证平台、
 package、bundled Core 和 Codex 版本，然后注册本地 marketplace、Plugin 与 MCP 配置，并回读
-注册结果。配置缺失时，`setup` 先创建 `$HOME/.dev-flow/config.json`；成功后显示配置/receipt 的
+注册结果。配置缺失时，`setup` 在 macOS 创建 `$HOME/.dev-flow/config.json`，在 Windows 创建
+`%USERPROFILE%\.dev-flow\config.json`；成功后显示配置/receipt 的
 实际文件变化和一个下一步。`--version` 同时报告 Host package 与 bundled Core 版本。
 
 ### 支持的 Codex 命令
@@ -93,7 +115,8 @@ package、bundled Core 和 Codex 版本，然后注册本地 marketplace、Plugi
 | `dev-flow-codex remove --json` | 执行与 `remove` 相同的操作，并输出机器可读 JSON；返回的 `next_step` 指向单独的全局 npm 卸载。 |
 | `npm uninstall -g dev-flow-codex` | 在完成 `remove` 后卸载全局 npm package。单独运行它不会先清理 Codex 注册。 |
 | `dev-flow-codex mcp` | **内部 Host 命令。** 由 Plugin 的 MCP 配置调用；它设置数据目录和 Codex admission instructions，然后启动 packaged Core 的 `mcp --stdio`。正常用户不应手工启动它。 |
-| `dev-flow-codex host-check pre-file-write` | **内部 Host 命令。** 由 packaged `PreToolUse` hook 调用；launcher 定位 package-local Core，并原样转发 stdin/stdout 与精确的 `host-check pre-file-write` 参数。正常用户不应手工启动它。 |
+| `dev-flow-codex hook pre-tool-use` | **内部 Host 命令。** Codex packaged hook 通过 `PATH` 中 package-owned launcher 调用它；该命令读取一个 Hook 事件，提取 `apply_patch` 目标并执行写前检查。正常用户不应手工启动它。 |
+| `dev-flow-codex host-check pre-file-write` | **内部 Host 命令。** `hook pre-tool-use` 的实现调用它；launcher 定位 package-local Core，并原样转发 stdin/stdout 与精确的 `host-check pre-file-write` 参数。正常用户不应手工启动它。 |
 
 `dev-flow-codex` 不支持其他子命令，也不提供隐式 `help`、`update` 或 `uninstall` 子命令。Host 原生更新到
 当前 `latest` 时重新运行全局安装和 `setup`：
@@ -106,7 +129,8 @@ dev-flow-codex --version
 
 保留 Task 数据的卸载顺序是 `dev-flow-codex remove`，然后
 `npm uninstall -g dev-flow-codex`。只有在 Codex 和 DeepSeek Adapter 都已移除且不再需要任何
-Task 时，才删除共享默认数据目录 `$HOME/Library/Application Support/dev-flow`。
+Task 时，才删除共享默认产品目录：macOS 为 `$HOME/Library/Application Support/dev-flow`，Windows
+为 `%LOCALAPPDATA%\dev-flow`。
 
 ### Codex 智能启用与显式 selector
 
@@ -152,6 +176,19 @@ rm -f "$PWD/$TARBALL"
 dsh --profile "$PROFILE" --dump-config
 ```
 
+Windows PowerShell 使用同一个 DSH profile lifecycle，但必须把 `npm pack` 结果解析为绝对路径：
+
+```powershell
+npm install -g @deepseek-ai/dsh@latest
+dsh --version
+$ProfileName = 'web'
+$Tarball = (npm pack dev-flow-deepseek@latest --silent | Select-Object -Last 1).Trim()
+$TarballPath = (Resolve-Path -LiteralPath $Tarball).Path
+dsh plugin --profile $ProfileName add $TarballPath
+Remove-Item -LiteralPath $TarballPath
+dsh --profile $ProfileName --dump-config
+```
+
 `npm pack` 下载 `latest` 指向的官方 package，并把 tarball 写入当前目录；命令替换保存实际文件名。
 DSH `plugin add` 接收该 tarball 的绝对路径，将 package、bundle layer、Skill、guard 与 MCP child
 加入指定 profile。安装后按 DSH 的 profile lifecycle 停止并重启该 profile。
@@ -168,11 +205,13 @@ DSH `plugin add` 接收该 tarball 的绝对路径，将 package、bundle layer�
 
 更新或重新安装时，先停止 profile，再执行 remove、重新获取 `@latest` tarball、add、删除临时
 tarball 并重启 profile。对每个安装过 Dev Flow 的 profile 分别执行 remove。不再使用 DSH 时，
-可另行执行 `npm uninstall -g @deepseek-ai/dsh`；`$HOME/.dsh` 中的 profile 数据会保留。
+可另行执行 `npm uninstall -g @deepseek-ai/dsh`；macOS 的 `$HOME/.dsh` 或 Windows 的
+`%USERPROFILE%\.dsh` 中的 profile 数据会保留。
 
 彻底清除 Task 数据时，先移除两个 Host Adapter，再删除
-`$HOME/Library/Application Support/dev-flow`。若设置过 `DEV_FLOW_DATA_DIR`，还需核对并单独删除
-该变量对应的绝对目录。删除 `$HOME/.dsh` 会同时删除所有 DSH profile、会话和其他插件。
+macOS 的 `$HOME/Library/Application Support/dev-flow` 或 Windows 的 `%LOCALAPPDATA%\dev-flow`。
+若设置过 `DEV_FLOW_DATA_DIR`，还需核对并单独删除该变量对应的绝对目录。删除 `.dsh` 用户目录会
+同时删除所有 DSH profile、会话和其他插件。
 
 ### DeepSeek 显式 selector
 
@@ -196,6 +235,7 @@ Host package 内含的 Go Core 不作为普通用户的全局 CLI 安装。以�
 | `dev-flow --help` | `help` 的长选项形式。 |
 | `dev-flow version` | 输出 `dev-flow <core-version>`。 |
 | `DEV_FLOW_DATA_DIR=/absolute/path dev-flow mcp --stdio` | 使用现有可用数据目录启动 local STDIO MCP。目录不存在或不是目录时启动失败。 |
+| `$env:DEV_FLOW_DATA_DIR = 'C:\absolute\existing\data'; dev-flow.exe mcp --stdio` | Windows PowerShell 中使用现有可用数据目录启动 local STDIO MCP。 |
 | `dev-flow host-check pre-file-write` | **Host 受管命令。** 从 stdin 读取规范化的结构化写入目标，检查活动 Task 的跨仓库 ExpectedPaths，并输出 `allow` 或在写入前持久化 file-scope blocker 后输出 `deny`。Codex/DeepSeek Adapter 调用，普通用户不手工运行。 |
 | `dev-flow webui start [--no-open] [--plain\|--json]` | 启动或复用共享 loopback WebUI；默认打开浏览器。 |
 | `dev-flow webui open [--plain\|--json]` | 验证 receipt、进程身份和实时 Core 状态后打开同一 URL。 |
@@ -301,5 +341,6 @@ worktree 共享逻辑仓库组标识，但 canonical root 不同，因此可以�
 }
 ```
 
-这些值来自只读 `$HOME/.dev-flow/config.json` 的进程启动快照，仅表示偏好，不表示索引能力已经安装
-或可用。文件不存在时两者都为 false；Dev Flow 不创建或修改配置文件。
+这些值来自只读用户配置的进程启动快照：macOS 为 `$HOME/.dev-flow/config.json`，Windows 为
+`%USERPROFILE%\.dev-flow\config.json`。它们仅表示偏好，不表示索引能力已经安装或可用。文件不存在时
+两者都为 false；Dev Flow 不创建或修改配置文件。

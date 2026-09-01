@@ -21,14 +21,25 @@ Codex lifecycle evidence 覆盖 package/Core identity、安装、setup、Core ha
 
 ## 当前源码
 
-当前源码包含共享本机 WebUI、内嵌资产和 `dev-flow webui start|open|status|stop|reset`。
+当前源码包含共享本机 WebUI、内嵌资产和 `dev-flow webui start|open|status|stop|reset`，并闭合了以下
+package runtime pair：
+
+| Runtime pair | 当前源码范围 | 当前证据边界 |
+| --- | --- | --- |
+| `darwin-arm64` | macOS arm64 | 现有稳定 package 与 Host Journey |
+| `win32-x64` | Windows 10/11 桌面版 x64 | Windows 11 x64 本机 Core/WebUI/MCP、完整 Go 套件、Adapter contract 与双 runtime 本地打包；尚未进入稳定 `@latest` Journey |
+
+npm manifest 需要分别列出允许的 OS 和 CPU，因此安装层可能接受交叉组合；package runtime selector 只接受
+上表两个精确 pair，并拒绝 `win32-ia32`、`win32-arm64` 与 `darwin-x64`。Windows 使用
+`%LOCALAPPDATA%\dev-flow` 保存产品数据，用户配置仍位于 `%USERPROFILE%\.dev-flow\config.json`。
 
 新的源码能力或后续 beta 只有经过独立发布流程、registry bytes 回读和最终 Host Journey，才能扩大上方
 稳定支持声明。
 
 ## 尚未声明支持
 
-当前没有 Linux、Windows、Intel Mac、Rosetta 或 remote MCP 支持声明。
+当前没有 Linux、Windows Server、Windows 32 位、Windows ARM64、Intel Mac、Rosetta 或 remote MCP
+支持声明。Windows 运行时不根据 SKU 主动阻止 Server；这里表达的是没有对应验证、Journey 或产品支持承诺。
 
 若需要了解当前源码能力、真实 Journey 入口和项目采用状态，请阅读
 [项目状态页](PROJECT-STATUS.md)。

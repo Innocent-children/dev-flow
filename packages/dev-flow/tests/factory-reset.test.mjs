@@ -83,6 +83,8 @@ test("factory reset uninstalls a Codex package after its registration is already
   const result = await runLifecycle(request({ reinstallAfterReset: false }), {
     homeDirectory: home,
     environment: {},
+    platform: "darwin",
+    arch: "arm64",
     codexDriver,
     deepseekDriver,
     confirmPlan: async () => true,
@@ -106,7 +108,7 @@ async function resetFixture(t, { explicit = false } = {}) {
     explicitData = await realpath(explicitData);
   }
   const environment = explicit ? { DEV_FLOW_DATA_DIR: explicitData } : {};
-  const paths = await resolveManagerPaths({ homeDirectory: home, environment });
+  const paths = await resolveManagerPaths({ homeDirectory: home, environment, platform: "darwin", arch: "arm64" });
   await mkdir(paths.configurationDirectory);
   await mkdir(paths.defaultDataDirectory, { recursive: true });
   await writeFile(paths.configurationPath, "old-config\n");
@@ -117,7 +119,7 @@ async function resetFixture(t, { explicit = false } = {}) {
   const deepseekDriver = driver("deepseek", "web", states);
   deepseekDriver.knownProfiles = async () => ["web"];
   t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
-  return { paths, states, dependencies: { homeDirectory: home, environment, codexDriver, deepseekDriver } };
+  return { paths, states, dependencies: { homeDirectory: home, environment, platform: "darwin", arch: "arm64", codexDriver, deepseekDriver } };
 }
 
 function driver(host, profile, states) {

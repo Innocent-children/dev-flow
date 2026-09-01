@@ -36,6 +36,7 @@ The following capabilities exist on current `main`; some may be beta-only or sou
 | Uncertain Action recovery | Read-before-retry, Recovery assessment, Blocker, and resume |
 | Pre-delivery comprehension | Comprehension follows testing; repository changes require testing again |
 | Local view and diagnostics | Shared loopback WebUI through `dev-flow webui start|open|status|stop|reset` |
+| Current-source platforms | Exact `darwin-arm64` and `win32-x64` runtimes; Windows scope is Windows 10/11 desktop x64 |
 | Advanced repository capability | One primary plus up to seven explicit additional repositories; Codex may dispatch isolated worktree Tasks when the Host supports it |
 | Host lifecycle | Unified `dev-flow` entry for Codex and DeepSeek installation, diagnosis, maintenance, and removal |
 
@@ -44,7 +45,10 @@ presence also does not imply a corresponding stable final-artifact journey.
 
 ## Not yet verified
 
-- Linux, Windows, Intel Mac, Rosetta, and remote MCP have no stable support claim;
+- Windows 10/11 x64 has native Core/WebUI/MCP, Adapter-contract, and local-package evidence, but not
+  yet a stable `@latest` final-artifact Host journey;
+- Linux, Windows Server, 32-bit and ARM64 Windows, Intel Mac, Rosetta, and remote MCP have no stable
+  support claim;
 - Codex explicit parallel batches and worktree dispatch after `ACTIVE_TASK_CONFLICT` do not yet have
   a final-artifact journey;
 - external usage has not established that the verification budget reduces unnecessary testing;

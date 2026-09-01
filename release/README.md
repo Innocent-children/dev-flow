@@ -3,16 +3,19 @@
 `release/` contains the current prepare/publish implementation and operator guidance. Generated output stays
 in an external operator-selected directory and is never committed.
 
-## Current four-file output
+## Current five-file output
 
 ```text
 dev-flow-codex-<CODEX_VERSION>.tgz
 dev-flow-core-<CORE_VERSION>-darwin-arm64
+dev-flow-core-<CORE_VERSION>-windows-amd64.exe
 SHA256SUMS
 release-manifest.json
 ```
 
-The manifest binds the product, version, source commit, Core identity, and artifact digests.
+The manifest binds the product, version, source commit, Core identity, and artifact digests. The
+package and standalone assets include only the exact `darwin-arm64` and `win32-x64` runtime pairs;
+the Publisher verifies and uploads both standalone Core assets.
 
 ## Operator entrypoint
 

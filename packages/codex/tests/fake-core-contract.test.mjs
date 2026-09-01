@@ -281,7 +281,7 @@ class FakeCoreClient {
     this.pending = new Map();
     this.stderr = "";
     this.closed = false;
-    this.child = spawn(fakeCorePath, [], {
+    this.child = spawn(process.execPath, [fakeCorePath], {
       env: { ...process.env, FAKE_CORE_STATE: statePath, FAKE_CORE_TRACE: tracePath, FAKE_CORE_CASE: selectedCase, FAKE_CORE_SESSION: session },
       stdio: ["pipe", "pipe", "pipe"],
     });

@@ -71,6 +71,7 @@ const codexFinalStagingFiles = [
   "LICENSE",
   "README.md",
   "bin/dev-flow-codex.mjs",
+  "lib/command.mjs",
   "lib/install-experience.mjs",
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
@@ -84,14 +85,16 @@ const codexFinalStagingFiles = [
   "plugin/skills/dev-flow/references/method-profiles.md",
   "plugin/skills/dev-flow/references/node-payloads.md",
   "runtime/darwin-arm64/dev-flow",
+  "runtime/win32-x64/dev-flow.exe",
 ].sort();
 const expectedByProfile = {
-  "codex-source": codexFinalStagingFiles.filter((file) => file !== "runtime/darwin-arm64/dev-flow"),
+  "codex-source": codexFinalStagingFiles.filter((file) => !file.startsWith("runtime/")),
   "dev-flow-source": [
     "LICENSE",
     "README.md",
     "bin/dev-flow.mjs",
     "lib/cli.mjs",
+    "lib/command.mjs",
     "lib/hosts/codex.mjs",
     "lib/hosts/deepseek.mjs",
     "lib/journal.mjs",
@@ -121,6 +124,8 @@ run_step "Go formatting" check_go_formatting
 run_step "Codex release prepare syntax" bash -n scripts/build-codex-release.sh
 run_step "DeepSeek runtime build syntax" bash -n scripts/build-deepseek-runtime.sh
 run_step "DeepSeek release prepare syntax" bash -n scripts/build-deepseek-release.sh
+run_step "Cross-platform WebUI build syntax" node --check scripts/build-webui.mjs
+run_step "Cross-platform local package syntax" node --check scripts/dev-flow-local.mjs
 run_step "npm release publisher syntax" node --check release/publish.mjs
 run_step "npm release publisher behavior" node --test release/publish.test.mjs
 run_step "Codex one-command release syntax" node --check scripts/release-codex.mjs

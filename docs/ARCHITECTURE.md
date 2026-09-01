@@ -193,12 +193,14 @@ Core 不执行 checkout、reset、clean、stash、commit、merge、rebase、push
 ### 范围外文件先询问
 
 Task Plan 中所有 WorkItem 的 `ExpectedPaths` 合集是当前文件计划范围。单仓库使用普通相对路径；
-多仓库使用 `<repository-key>::<repository-relative-path>`。精确文件名直接匹配，只有末尾
+多仓库使用 `<repository-key>::<repository-relative-path>`。仓库契约路径在所有平台都固定使用 `/`
+分隔，反斜杠会被拒绝；Host 的本机绝对路径在进入 Core 契约前完成规范化。精确文件名直接匹配，只有末尾
 `directory/**` 表示该目录下的文件；它不是通用 glob 或 workflow DSL。写入 B、C 等附加仓库时，
 只要仓库已在不可变 Repository Scope 中、Host 已有写权限且目标属于计划范围，就直接放行。
 
-Codex Plugin 自带受信任后才运行的 `PreToolUse` hook，解析 `apply_patch` 的文件头；DeepSeek Adapter
-在 `tools/pre-execute` 中读取结构化文件工具的路径。两者把规范化绝对路径和写入意图摘要交给内部
+Codex Plugin 自带受信任后才运行的 `PreToolUse` hook，通过 `PATH` 中 package-owned
+`dev-flow-codex hook pre-tool-use` 解析 `apply_patch` 的文件头；DeepSeek Adapter 在
+`tools/pre-execute` 中读取结构化文件工具的路径。两者最终把规范化绝对路径和写入意图摘要交给内部
 `dev-flow host-check pre-file-write`。这个 managed Core 命令只复用同一 Application/SQLite Task
 权威，不执行目标写入，也不形成第二个流程状态。没有活动 Task 时普通写入不受影响；活动 Task 的
 检查不可用时，支持的写入保守停止。
@@ -261,11 +263,21 @@ partial/conflicting 创建 `BLOCKED`。Blocker 保存原 source node，解除后
 
 `internal/webui` 是 Core 内的 loopback HTTP adapter；`packages/webui` 构建 React/TypeScript/Vite 静态资产并通过
 `go:embed` 进入同一 binary。Application/Workflow/Recovery 继续决定 Task、Action、Guard、Recovery、Blocker
-和 Outcome，浏览器只投影视图并提交当前身份。mode `0600` receipt 绑定 PID、进程启动身份、data-root digest
-与 URL，使 Codex 和 DeepSeek 携带的兼容 Core 复用同一进程和 SQLite 权威。reset 位于 CLI/Store 边界，
+和 Outcome，浏览器只投影视图并提交当前身份。receipt 绑定 PID、进程启动身份、data-root digest 与 URL；
+macOS 要求 mode `0600`，Windows 要求位于用户产品目录中的 regular non-symlink file。Codex 和 DeepSeek
+携带的兼容 Core 因此复用同一进程和 SQLite 权威。reset 位于 CLI/Store 边界，
 通过 target-bound plan、SQLite 独占访问和目标复核完成；HTTP route 集合中没有 reset mutation。
 前端 typed catalog 维护简体中文/英文；首次按 `navigator.languages` 选择，手工选择只进入 local site storage，
 不形成 Core、Task、receipt 或账号状态。
+
+package runtime selector 只接受 `darwin-arm64` 与 `win32-x64`。Windows executable 位于
+`runtime/win32-x64/dev-flow.exe`；32 位、ARM64、Windows Server 和交叉 pair 不属于产品支持范围。
+macOS 默认数据根为 `$HOME/Library/Application Support/dev-flow`，Windows 为
+`%LOCALAPPDATA%\dev-flow`；配置分别从 `$HOME/.dev-flow/config.json` 或
+`%USERPROFILE%\.dev-flow\config.json` 读取。POSIX 目录/receipt mode 在 macOS 强制检查；Windows 依赖
+当前用户 profile 与 LocalAppData 的继承 ACL，同时保留 canonical、regular-file 与 symlink 检查。
+WebUI 后台进程在 Windows 使用独立 process group、creation time 作为启动身份，并以 `CTRL_BREAK`
+请求退出；不同 console 无法投递或进程未退出时，只终止 receipt 精确匹配的进程。
 
 `ProcessTask.Repository` 继续保存主仓库 binding；`PrimaryRepositoryKey` 缺省为 `primary`，
 `AdditionalRepositories` 保存零至七个按 key 严格升序排列的附加 binding。Scope 的成员、角色和 key
@@ -277,7 +289,8 @@ Scope digest。
 Application 创建 Task 时先观察主仓库，再按 key 顺序观察附加仓库；全部 identity 唯一且观察成功后
 才构造一次 Store mutation。恢复可以从任一参与仓库的 claim 找到同一 Task，但不会改变主仓、key
 或顺序。多仓库公共路径使用 `<repository-key>::<repository-relative-path>`，Application 将其分派为
-各 Observer 使用的普通仓库相对路径；单仓库路径语法保持不变。
+各 Observer 使用的普通仓库相对路径；单仓库路径语法保持不变。这些公共契约路径始终使用 `/`，不随
+Host 路径分隔符变化。
 
 Repository binding 同时保留两个不同用途的身份：`GitCommonDirDigest` 把 linked worktree 归到同一
 本地逻辑仓库组，`RepositoryIdentity` 由该 digest 与 canonical root 共同形成并表示实际 worktree。
@@ -307,7 +320,8 @@ checkout 的 index、已跟踪工作区改动或未跟踪文件。子 task 收�
 `dev_flow_open_task` 在现有 `host`、`repository_path` 与 `new_task` 旁仅增加可选
 `primary_repository_key` 和最多七项的 closed `additional_repositories[{key,repository_path}]`。
 Task result 保留主 `repository`，并返回主 key 与 sorted `additional_repositories`。
-`dev_flow_server_info({})` 返回进程启动时从只读 `$HOME/.dev-flow/config.json` 得到的
+`dev_flow_server_info({})` 返回进程启动时从只读配置（macOS 为 `$HOME/.dev-flow/config.json`，
+Windows 为 `%USERPROFILE%\.dev-flow\config.json`）得到的
 `host_preferences.codex.codebase_memory` 与 `host_preferences.deepseek.codebase_memory`。配置不存在时
 均为 false；配置或索引状态不进入 Task 或流程摘要。
 
@@ -354,8 +368,9 @@ Codex     → packages/codex/package.json
 DeepSeek  → packages/deepseek/package.json
 ```
 
-Host package 内含一个 macOS arm64 Core executable，构建与发布证据从实际 executable 读取 Core
-版本和 digest。Codex Plugin manifest 只镜像 Codex package 版本。
+Host package 内含 `runtime/darwin-arm64/dev-flow` 与 `runtime/win32-x64/dev-flow.exe` 两个 Core
+executable；运行时只选择与当前 OS/CPU 精确匹配的一个。构建与发布证据分别核对两者的 GOOS、
+GOARCH、Core 版本和 digest。Codex Plugin manifest 只镜像 Codex package 版本。
 
 发布工具位于 `release/` 与 `scripts/`，不进入 Core、MCP 或 SQLite。产品发布使用固定检查、精确
 confirmation、仓库外 release directory，并通过远端回读安全重试。

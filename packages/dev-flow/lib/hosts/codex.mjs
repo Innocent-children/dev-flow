@@ -1,7 +1,4 @@
-import { execFile as execFileCallback } from "node:child_process";
-import { promisify } from "node:util";
-
-const execFile = promisify(execFileCallback);
+import { execPortableCommand } from "../command.mjs";
 
 export function createCodexDriver({
   environment = process.env,
@@ -86,7 +83,7 @@ export function createCodexDriver({
 
 export async function runChild(executable, arguments_, { environment = process.env, cwd = process.cwd(), timeout = 120_000 } = {}) {
   try {
-    return await execFile(executable, arguments_, {
+    return await execPortableCommand(executable, arguments_, {
       cwd,
       env: environment,
       encoding: "utf8",

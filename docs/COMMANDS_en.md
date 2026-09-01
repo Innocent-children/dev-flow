@@ -15,6 +15,11 @@ catalog under `internal/mcp/`.
 Public installation examples select npm's `latest` dist-tag so they install the current stable
 package. Exact product versions remain in machine-readable release records.
 
+The current source launcher and bundled Core accept exactly two runtime pairs: `darwin-arm64` and
+`win32-x64`. The `@latest` commands below still describe the current npm stable channel. Validate the
+Windows 10/11 desktop x64 source capability with packages built from this repository until an
+explicitly confirmed release places those artifacts on the stable channel.
+
 ## Recommended entry for most users
 
 ```bash
@@ -37,8 +42,9 @@ dev-flow
 The closed operations are `status`, `doctor`, `install`, `upgrade`, `repair`, `reinstall`, `uninstall`, and
 `factory-reset`. Host is `codex|deepseek|all`; the default DeepSeek Profile is `web`. Ordinary uninstall, upgrade,
 repair, and reinstall preserve configuration and Task data. Factory reset requires the token bound to the current
-plan; `--yes` alone has no data-cleanup authority. Default cleanup moves data to macOS Trash, while permanent removal
-requires another confirmation.
+plan; `--yes` alone has no data-cleanup authority. Default cleanup moves data to the user's Trash on macOS and to the
+recoverable `%LOCALAPPDATA%\create-dev-flow\trash` quarantine on Windows; the Windows target is not the system
+Recycle Bin. Permanent removal requires another confirmation.
 The Codex global package is observed independently from its receipt and Plugin registration. Even when registration
 is already absent, `uninstall` and `factory-reset` still remove an installed global package.
 The interactive interface reads the current locale: `zh*` uses Simplified Chinese and every other locale uses
@@ -59,12 +65,27 @@ artifact, and readiness step; `--json` omits these progress lines.
 | `dev-flow factory-reset ... --confirm-reset <token> [--reinstall]` | Move confirmed data to Trash and optionally perform a clean reinstall. |
 | `dev-flow factory-reset ... --confirm-explicit-data <absolute-path>` | Confirm one explicit `DEV_FLOW_DATA_DIR` listed by the plan; repeat the option for multiple directories. |
 | `dev-flow factory-reset ... --permanent --confirm-reset <token> --confirm-permanent <token>` | Permanently remove the plan's exact targets; both the reset token and a separate permanent-removal token are required. |
-| `dev-flow webui start\|open\|status\|stop` | Select and verify Core from either installed Adapter, then manage the shared local Control Center; `start` may create a missing default data directory with mode `0700`, while the other commands create nothing. |
+| `dev-flow webui start\|open\|status\|stop` | Select and verify Core from either installed Adapter, then manage the shared local Control Center; `start` may create a missing default data directory with mode `0700` on macOS or inherited user-profile/LocalAppData ACLs on Windows. The other commands create nothing. |
 | `dev-flow webui reset [--confirm TOKEN]` | Use Core's target-bound confirmation to clear incompatible Task data. |
 | `--json` / `--plain` | Select one JSON object or ANSI-free plain output. |
 
 When `DEV_FLOW_DATA_DIR` is set, the public launcher accepts only an existing canonical, non-symbolic-link absolute
 directory. No command creates an explicit directory.
+
+Default local paths are platform-specific:
+
+| Path | macOS arm64 | Windows 10/11 x64 |
+| --- | --- | --- |
+| Task data | `$HOME/Library/Application Support/dev-flow/data` | `%LOCALAPPDATA%\dev-flow\data` |
+| User configuration | `$HOME/.dev-flow/config.json` | `%USERPROFILE%\.dev-flow\config.json` |
+| Lifecycle manager state | `$HOME/Library/Application Support/create-dev-flow` | `%LOCALAPPDATA%\create-dev-flow` |
+
+Set an explicit data directory in PowerShell with:
+
+```powershell
+$env:DEV_FLOW_DATA_DIR = 'C:\absolute\existing\dev-flow-data'
+dev-flow status --host all
+```
 
 Native Host commands remain available for diagnostic recovery.
 
@@ -81,7 +102,8 @@ dev-flow-codex --version
 The global npm installation only places the `dev-flow-codex` launcher on `PATH`. `setup` is a
 separate operation: it verifies the platform, package, bundled Core, and Codex version; registers the
 local marketplace, Plugin, and MCP configuration; and reads back the resulting ownership. When
-configuration is absent, setup first creates `$HOME/.dev-flow/config.json`; success then reports
+configuration is absent, setup first creates `$HOME/.dev-flow/config.json` on macOS or
+`%USERPROFILE%\.dev-flow\config.json` on Windows; success then reports
 actual configuration/receipt file changes and one next step. `--version`
 reports both the host package and bundled Core identities.
 
@@ -99,7 +121,8 @@ reports both the host package and bundled Core identities.
 | `dev-flow-codex remove --json` | Perform the same operation as `remove` and emit machine-readable JSON. Its `next_step` points to the separate global npm uninstall. |
 | `npm uninstall -g dev-flow-codex` | Uninstall the global npm package after `remove` completes. Running it alone does not deregister the Codex integration first. |
 | `dev-flow-codex mcp` | **Managed host command.** The Plugin MCP configuration invokes it to establish the data directory and Codex admission instructions, then launch the packaged Core with `mcp --stdio`. Normal users should not start it manually. |
-| `dev-flow-codex host-check pre-file-write` | **Managed host command.** The packaged `PreToolUse` hook invokes it so the launcher resolves the package-local Core and forwards stdin/stdout with the exact `host-check pre-file-write` arguments. Normal users should not start it manually. |
+| `dev-flow-codex hook pre-tool-use` | **Managed host command.** The packaged Codex hook invokes it through the package-owned launcher on `PATH`; it reads one hook event, extracts `apply_patch` targets, and performs the prewrite check. Normal users should not start it manually. |
+| `dev-flow-codex host-check pre-file-write` | **Managed host command.** The `hook pre-tool-use` implementation invokes it so the launcher resolves the package-local Core and forwards stdin/stdout with the exact `host-check pre-file-write` arguments. Normal users should not start it manually. |
 
 `dev-flow-codex` accepts no other subcommands and has no implicit `help`, `update`, or `uninstall`
 subcommand. Native Host recovery can update to `latest` by reinstalling globally and rerunning `setup`:
@@ -112,8 +135,8 @@ dev-flow-codex --version
 
 To uninstall while retaining Task data, run `dev-flow-codex remove` and then
 `npm uninstall -g dev-flow-codex`. Delete the shared default data directory at
-`$HOME/Library/Application Support/dev-flow` only after both the Codex and DeepSeek Adapters are
-removed and no Task is needed.
+`$HOME/Library/Application Support/dev-flow` on macOS or `%LOCALAPPDATA%\dev-flow` on Windows only
+after both the Codex and DeepSeek Adapters are removed and no Task is needed.
 
 ### Codex smart activation and explicit selector
 
@@ -165,6 +188,20 @@ rm -f "$PWD/$TARBALL"
 dsh --profile "$PROFILE" --dump-config
 ```
 
+Windows PowerShell uses the same DSH profile lifecycle, with the `npm pack` result resolved to an
+absolute path:
+
+```powershell
+npm install -g @deepseek-ai/dsh@latest
+dsh --version
+$ProfileName = 'web'
+$Tarball = (npm pack dev-flow-deepseek@latest --silent | Select-Object -Last 1).Trim()
+$TarballPath = (Resolve-Path -LiteralPath $Tarball).Path
+dsh plugin --profile $ProfileName add $TarballPath
+Remove-Item -LiteralPath $TarballPath
+dsh --profile $ProfileName --dump-config
+```
+
 `npm pack` downloads the official package selected by `latest` and writes its tarball into the
 current directory; command substitution retains the actual filename. DSH `plugin add` receives the
 absolute tarball path and contributes the package, bundle layer, Skill, guard, and MCP child to the
@@ -184,12 +221,13 @@ lifecycle.
 For an update or reinstall, stop the profile, remove the package, fetch a fresh `@latest` tarball,
 add it, delete the temporary tarball, and restart the profile. Repeat removal for every profile that
 contains Dev Flow. If DSH is no longer needed, uninstall it separately with
-`npm uninstall -g @deepseek-ai/dsh`; profile data under `$HOME/.dsh` is retained.
+`npm uninstall -g @deepseek-ai/dsh`; profile data under `$HOME/.dsh` on macOS or
+`%USERPROFILE%\.dsh` on Windows is retained.
 
 For permanent Task-data cleanup, first remove both Host Adapters, then delete
-`$HOME/Library/Application Support/dev-flow`. If `DEV_FLOW_DATA_DIR` was set, verify and delete its
-exact absolute directory separately. Deleting `$HOME/.dsh` also deletes every DSH profile, session,
-and unrelated plugin.
+`$HOME/Library/Application Support/dev-flow` on macOS or `%LOCALAPPDATA%\dev-flow` on Windows. If
+`DEV_FLOW_DATA_DIR` was set, verify and delete its exact absolute directory separately. Deleting the
+user `.dsh` directory also deletes every DSH profile, session, and unrelated plugin.
 
 ### DeepSeek explicit selector
 
@@ -214,6 +252,7 @@ accepted command surface is primarily for host integration, development, and dia
 | `dev-flow --help` | Long-option form of `help`. |
 | `dev-flow version` | Print `dev-flow <core-version>`. |
 | `DEV_FLOW_DATA_DIR=/absolute/path dev-flow mcp --stdio` | Start local STDIO MCP with an existing usable data directory. Startup fails when the path is missing or not a directory. |
+| `$env:DEV_FLOW_DATA_DIR = 'C:\absolute\existing\data'; dev-flow.exe mcp --stdio` | Start local STDIO MCP with an existing usable data directory from Windows PowerShell. |
 | `dev-flow host-check pre-file-write` | **Managed Host command.** Read normalized structured-write targets from stdin, compare them with the active Task's cross-repository ExpectedPaths, and return `allow` or persist a file-scope blocker before returning `deny`. Codex/DeepSeek Adapters call it; ordinary users do not. |
 | `dev-flow webui start [--no-open] [--plain\|--json]` | Start or reuse the shared loopback WebUI; open the browser by default. |
 | `dev-flow webui open [--plain\|--json]` | Validate the receipt, process identity, and live Core status, then open the same URL. |
@@ -328,6 +367,7 @@ The `dev_flow_server_info({})` result includes:
 }
 ```
 
-These values come from the process-start snapshot of the read-only
-`$HOME/.dev-flow/config.json` file. They express preference, not installed or available index
-capability. Both are false when the file is absent, and Dev Flow does not create or modify it.
+These values come from the process-start snapshot of the read-only user configuration:
+`$HOME/.dev-flow/config.json` on macOS or `%USERPROFILE%\.dev-flow\config.json` on Windows. They
+express preference, not installed or available index capability. Both are false when the file is
+absent, and Dev Flow does not create or modify it.

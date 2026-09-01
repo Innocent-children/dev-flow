@@ -4,7 +4,21 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const DATA_DIRECTORY_ENVIRONMENT = "DEV_FLOW_DATA_DIR";
-export const SUPPORTED_RUNTIME_KEY = "darwin-arm64";
+export const SUPPORTED_RUNTIME_KEYS = Object.freeze(["darwin-arm64", "win32-x64"]);
+
+const RUNTIME_DESCRIPTORS = Object.freeze({
+  "darwin-arm64": Object.freeze({ directory: "darwin-arm64", executable: "dev-flow" }),
+  "win32-x64": Object.freeze({ directory: "win32-x64", executable: "dev-flow.exe" }),
+});
+
+export function packagedRuntimeDescriptor(platform, arch) {
+  const runtimeKey = `${platform}-${arch}`;
+  const descriptor = RUNTIME_DESCRIPTORS[runtimeKey];
+  if (descriptor === undefined) {
+    throw new Error(`unsupported platform ${runtimeKey}; supported runtimes: ${SUPPORTED_RUNTIME_KEYS.join(", ")}`);
+  }
+  return Object.freeze({ runtimeKey, ...descriptor });
+}
 
 export function packageRootFromModule(moduleUrl = import.meta.url) {
   return dirname(dirname(fileURLToPath(moduleUrl)));
@@ -17,20 +31,32 @@ export async function resolveProductPaths({
   arch = process.arch,
   environment = process.env,
 } = {}) {
-  const runtimeKey = `${platform}-${arch}`;
-  if (runtimeKey !== SUPPORTED_RUNTIME_KEY) {
-    throw new Error(`unsupported platform ${runtimeKey}; Feature 003 supports ${SUPPORTED_RUNTIME_KEY}`);
-  }
+  const runtime = packagedRuntimeDescriptor(platform, arch);
 
   const canonicalPackageRoot = await canonicalExistingDirectory(packageRoot, "package root");
   const canonicalHome = await canonicalExistingDirectory(homeDirectory, "home directory");
-  const productSupportRoot = join(
-    canonicalHome,
-    "Library",
-    "Application Support",
-    "dev-flow",
+  const productSupportAnchor = platform === "win32"
+    ? environment?.LOCALAPPDATA
+      ? await canonicalExistingDirectory(environment.LOCALAPPDATA, "LOCALAPPDATA")
+      : containedPath(
+        canonicalHome,
+        join(canonicalHome, "AppData", "Local"),
+        "local application data directory",
+      )
+    : containedPath(
+      canonicalHome,
+      join(canonicalHome, "Library", "Application Support"),
+      "application support directory",
+    );
+  const productSupportInspectionRoot = platform === "win32" && !environment?.LOCALAPPDATA
+    ? canonicalHome
+    : productSupportAnchor;
+  const productSupportRoot = containedPath(
+    productSupportAnchor,
+    join(productSupportAnchor, "dev-flow"),
+    "product support root",
   );
-  await assertNoSymlinkComponents(canonicalHome, productSupportRoot);
+  await assertNoSymlinkComponents(productSupportInspectionRoot, productSupportRoot);
   const configurationDirectory = containedPath(
     canonicalHome,
     join(canonicalHome, ".dev-flow"),
@@ -45,7 +71,7 @@ export async function resolveProductPaths({
 
   const runtimePath = containedPath(
     canonicalPackageRoot,
-    join(canonicalPackageRoot, "runtime", runtimeKey, "dev-flow"),
+    join(canonicalPackageRoot, "runtime", runtime.directory, runtime.executable),
     "runtime",
   );
   const pluginRoot = containedPath(
@@ -103,7 +129,11 @@ export async function resolveProductPaths({
     marketplaceRoot: canonicalPackageRoot,
     pluginRoot,
     runtimePath,
+    platform,
+    arch,
     homeDirectory: canonicalHome,
+    productSupportAnchor,
+    productSupportInspectionRoot,
     productSupportRoot,
     registrationsDirectory,
     receiptPath,
@@ -111,7 +141,7 @@ export async function resolveProductPaths({
     configurationPath,
     dataDirectory,
     usesDefaultDataDirectory,
-    runtimeKey,
+    runtimeKey: runtime.runtimeKey,
   });
 }
 
@@ -127,10 +157,10 @@ export async function ensureDefaultDataDirectory(paths) {
   if (paths.dataDirectory !== expected) {
     throw new Error("default data directory does not match the product-owned path");
   }
-  await assertNoSymlinkComponents(paths.homeDirectory, paths.productSupportRoot);
+  await assertNoSymlinkComponents(paths.productSupportInspectionRoot, paths.productSupportRoot);
   await mkdir(paths.dataDirectory, { recursive: true, mode: 0o700 });
-  await assertNoSymlinkComponents(paths.homeDirectory, paths.dataDirectory);
-  await chmod(paths.dataDirectory, 0o700);
+  await assertNoSymlinkComponents(paths.productSupportInspectionRoot, paths.dataDirectory);
+  if (paths.platform !== "win32") await chmod(paths.dataDirectory, 0o700);
   return paths.dataDirectory;
 }
 

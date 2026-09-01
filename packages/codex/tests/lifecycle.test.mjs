@@ -1,14 +1,13 @@
 import assert from "node:assert/strict";
-import { execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmod, lstat, mkdir, readFile, readdir, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { chmod, copyFile, link, lstat, mkdir, readFile, readdir, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
-import { promisify } from "node:util";
 
+import { execPortableCommand } from "../lib/command.mjs";
 import {
   CODEX_COMPATIBILITY_RANGE,
   digestResources,
@@ -25,7 +24,6 @@ import {
 
 const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const fakeCodexPath = fileURLToPath(new URL("./fixtures/fake-codex.mjs", import.meta.url));
-const execFile = promisify(execFileCallback);
 
 test("receipt parser enforces the current closed shape", async (t) => {
   const root = await makeRoot(t);
@@ -96,14 +94,16 @@ test("atomic receipt writes are read back without disturbing adjacent files", as
   await writeReceiptAtomic(receiptPath, receipt, { ownedRoot });
   assert.deepEqual(await readReceipt(receiptPath), receipt);
   assert.equal(await readFile(adjacentPath, "utf8"), "preserve\n");
-  assert.equal((await lstat(receiptPath)).mode & 0o777, 0o600);
+  if (process.platform !== "win32") assert.equal((await lstat(receiptPath)).mode & 0o777, 0o600);
   assert.deepEqual(
     (await readdir(dirname(receiptPath))).filter((name) => name.includes(".tmp-")),
     [],
   );
 });
 
-test("receipt writes reject a symlink escape before writing", async (t) => {
+test("receipt writes reject a symlink escape before writing", {
+  skip: process.platform === "win32" ? "ordinary Windows cannot create unprivileged file symlinks" : false,
+}, async (t) => {
   const root = await makeRoot(t);
   const ownedRoot = join(root, "product-data");
   const outside = join(root, "outside");
@@ -172,8 +172,8 @@ test("Codex JSON invocation is argv-closed, traced, and fails on malformed outpu
   const traces = (await readFile(tracePath, "utf8")).trim().split("\n").map(JSON.parse);
   assert.deepEqual(traces[0].argv, ["plugin", "marketplace", "list", "--json"]);
 
-  const malformed = join(root, "malformed-codex");
-  await writeFile(malformed, "#!/bin/sh\nprintf 'not-json\\n'\n", { mode: 0o700 });
+  const malformed = join(root, "malformed-codex.mjs");
+  await writeFile(malformed, "#!/usr/bin/env node\nprocess.stdout.write('not-json\\n');\n", { mode: 0o700 });
   await chmod(malformed, 0o700);
   await assert.rejects(
     runCodexJSON(["plugin", "list", "--json"], { codexExecutable: malformed, environment }),
@@ -258,7 +258,12 @@ test("setup preflights compatibility, resources, runtime, and PATH before regist
   await assert.rejects(stat(wrongPath.statePath), { code: "ENOENT" });
 
   const nonExecutable = await makeSetupFixture(t, "non-executable");
-  await chmod(nonExecutable.paths.runtimePath, 0o600);
+  if (process.platform === "win32") {
+    await rm(nonExecutable.paths.runtimePath);
+    await mkdir(nonExecutable.paths.runtimePath);
+  } else {
+    await chmod(nonExecutable.paths.runtimePath, 0o600);
+  }
   await assert.rejects(setupRegistration(nonExecutable.options), /packaged Core.*executable/);
   await assert.rejects(stat(nonExecutable.statePath), { code: "ENOENT" });
 });
@@ -292,6 +297,26 @@ test("setup rejects every mismatched public package identity before registration
     await assert.rejects(stat(fixture.statePath), { code: "ENOENT" });
     await assert.rejects(stat(fixture.paths.receiptPath), { code: "ENOENT" });
   }
+});
+
+test("setup accepts CRLF packaged Skill resources without changing their evidence bytes", async (t) => {
+  const fixture = await makeSetupFixture(t, "crlf-resources");
+  const skillPath = join(fixture.paths.pluginRoot, "skills", "dev-flow", "SKILL.md");
+  const metadataPath = join(fixture.paths.pluginRoot, "skills", "dev-flow", "agents", "openai.yaml");
+  const skill = await readFile(skillPath, "utf8");
+  const metadata = await readFile(metadataPath, "utf8");
+  await writeFile(skillPath, skill.replace(/\r?\n/gu, "\r\n"), "utf8");
+  await writeFile(metadataPath, metadata.replace(/\r?\n/gu, "\r\n"), "utf8");
+
+  const expectedDigests = await digestResources({
+    pluginManifest: join(fixture.paths.pluginRoot, ".codex-plugin", "plugin.json"),
+    skill: skillPath,
+    skillMetadata: metadataPath,
+    mcpConfiguration: join(fixture.paths.pluginRoot, ".mcp.json"),
+  });
+  const result = await setupRegistration(fixture.options);
+  assert.equal(result.status, "installed");
+  assert.deepEqual(result.receipt.resource_digests, expectedDigests);
 });
 
 test("setup registers through exact JSON commands, verifies readback, and writes the receipt last", async (t) => {
@@ -476,7 +501,7 @@ if (argv[0] === "plugin" && argv[1] === "marketplace" && argv[2] === "add") {
     plugins: [],
   }));
 }
-const child = spawn(${JSON.stringify(fakeCodexPath)}, argv, { env: process.env, stdio: "inherit" });
+const child = spawn(process.execPath, [${JSON.stringify(fakeCodexPath)}, ...argv], { env: process.env, stdio: "inherit" });
 child.once("error", (error) => { throw error; });
 child.once("exit", (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
 `, { mode: 0o700 });
@@ -530,18 +555,18 @@ test("local npm uninstall removes only package-managed files and retains every d
       await createLifecycleDataFixture(dataDirectory, kind);
       await writeFile(join(installPrefix, "package.json"), `${JSON.stringify({ name: `retention-${kind}`, private: true })}\n`);
 
-      await execFile("npm", [
+      await execPortableCommand("npm", [
         "install", "--prefix", installPrefix, join(repositoryRoot, "packages", "codex"),
         "--ignore-scripts", "--no-audit", "--no-fund", "--package-lock=false",
-      ], { encoding: "utf8" });
+      ], { encoding: "utf8", env: process.env });
       const installedPackage = join(installPrefix, "node_modules", "dev-flow-codex");
       assert.equal((await stat(installedPackage)).isDirectory(), true);
 
       const beforeUninstall = await lifecycleDataManifest(dataDirectory);
-      await execFile("npm", [
+      await execPortableCommand("npm", [
         "uninstall", "--prefix", installPrefix, "dev-flow-codex",
         "--ignore-scripts", "--no-audit", "--no-fund", "--package-lock=false",
-      ], { encoding: "utf8" });
+      ], { encoding: "utf8", env: process.env });
       await assert.rejects(stat(installedPackage), { code: "ENOENT" });
       assert.deepEqual(await lifecycleDataManifest(dataDirectory), beforeUninstall);
     });
@@ -664,7 +689,9 @@ test("removal fails closed on receipt identity or marketplace-root conflict", as
   assert.notEqual(await readReceipt(rootConflict.paths.receiptPath), null);
 });
 
-test("removal rejects a receipt symbolic link before mutating Codex state", async (t) => {
+test("removal rejects a receipt symbolic link before mutating Codex state", {
+  skip: process.platform === "win32" ? "ordinary Windows cannot create unprivileged file symlinks" : false,
+}, async (t) => {
   const fixture = await makeSetupFixture(t, "remove-receipt-symlink");
   await setupRegistration(fixture.options);
   const externalReceipt = join(fixture.root, "user-owned-receipt.json");
@@ -679,7 +706,9 @@ test("removal rejects a receipt symbolic link before mutating Codex state", asyn
   assert.equal((await lstat(fixture.paths.receiptPath)).isSymbolicLink(), true);
 });
 
-test("removal rejects a symbolic-link receipt parent before mutating Codex state", async (t) => {
+test("removal rejects a symbolic-link receipt parent before mutating Codex state", {
+  skip: process.platform === "win32" ? "ordinary Windows cannot create unprivileged file symlinks" : false,
+}, async (t) => {
   const fixture = await makeSetupFixture(t, "remove-receipt-parent-symlink");
   await setupRegistration(fixture.options);
   const receiptContents = await readFile(fixture.paths.receiptPath);
@@ -710,7 +739,10 @@ async function makeSetupFixture(t, name) {
   const root = join(await makeRoot(t), name);
   const packageRoot = join(root, "installed package-插件");
   const pluginRoot = join(packageRoot, "plugin");
-  const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
+  const fixturePlatform = process.platform === "win32" ? "win32" : "darwin";
+  const fixtureArch = process.platform === "win32" ? "x64" : "arm64";
+  const runtimeKey = `${fixturePlatform}-${fixtureArch}`;
+  const runtimePath = join(packageRoot, "runtime", runtimeKey, fixturePlatform === "win32" ? "dev-flow.exe" : "dev-flow");
   const productSupportRoot = join(root, "home", "Library", "Application Support", "dev-flow");
   const receiptPath = join(productSupportRoot, "registrations", "codex.json");
   const dataDirectory = join(productSupportRoot, "data");
@@ -760,7 +792,7 @@ async function makeSetupFixture(t, name) {
   );
   await writeFile(
     join(pluginRoot, "hooks", "hooks.json"),
-    `${JSON.stringify({ hooks: { PreToolUse: [{ matcher: "^apply_patch$", hooks: [{ type: "command", command: 'node "$PLUGIN_ROOT/hooks/pre-tool-use.mjs"' }] }] } })}\n`,
+    `${JSON.stringify({ hooks: { PreToolUse: [{ matcher: "^apply_patch$", hooks: [{ type: "command", command: "dev-flow-codex hook pre-tool-use" }] }] } })}\n`,
   );
   await writeFile(join(pluginRoot, "hooks", "pre-tool-use.mjs"), "export {};\n");
   await writeFile(
@@ -771,10 +803,16 @@ async function makeSetupFixture(t, name) {
     join(pluginRoot, "skills", "dev-flow", "agents", "openai.yaml"),
     "policy:\n  allow_implicit_invocation: true\n",
   );
-  await writeFile(runtimePath, "#!/bin/sh\nprintf 'dev-flow 0.1.0\\n'\n", { mode: 0o700 });
+  await writeFakeCore(runtimePath, packageRoot, "0.1.0");
   const packageLauncher = join(packageRoot, "bin", "dev-flow-codex.mjs");
-  await writeFile(packageLauncher, "#!/bin/sh\nexit 0\n", { mode: 0o700 });
-  await symlink(packageLauncher, join(hostBin, "dev-flow-codex"));
+  await writeFile(packageLauncher, "#!/usr/bin/env node\nprocess.exitCode = 0;\n", { mode: 0o700 });
+  if (process.platform === "win32") {
+    await writeFile(join(hostBin, "dev-flow-codex.ps1"), "exit 0\n");
+    await mkdir(join(hostBin, "node_modules"), { recursive: true });
+    await symlink(packageRoot, join(hostBin, "node_modules", "dev-flow-codex"), "junction");
+  } else {
+    await symlink(packageLauncher, join(hostBin, "dev-flow-codex"));
+  }
 
   const paths = {
     packageRoot,
@@ -784,11 +822,13 @@ async function makeSetupFixture(t, name) {
     productSupportRoot,
     receiptPath,
     dataDirectory,
-    runtimeKey: "darwin-arm64",
+    platform: fixturePlatform,
+    arch: fixtureArch,
+    runtimeKey,
   };
   const environment = {
     ...process.env,
-    PATH: `${hostBin}:${process.env.PATH ?? ""}`,
+    PATH: `${hostBin}${delimiter}${process.env.PATH ?? ""}`,
     FAKE_CODEX_STATE: statePath,
     FAKE_CODEX_TRACE: tracePath,
     FAKE_CODEX_VERSION: "0.147.0",
@@ -820,8 +860,31 @@ async function updateSetupFixtureVersion(fixture, version) {
   const pluginManifest = JSON.parse(await readFile(pluginManifestPath, "utf8"));
   pluginManifest.version = version;
   await writeFile(pluginManifestPath, `${JSON.stringify(pluginManifest)}\n`);
-  await writeFile(fixture.paths.runtimePath, `#!/bin/sh\nprintf 'dev-flow ${version}\\n'\n`, { mode: 0o700 });
+  await writeFakeCore(fixture.paths.runtimePath, fixture.paths.packageRoot, version, { createRuntime: false });
   fixture.options.packageVersion = version;
+}
+
+async function writeFakeCore(runtimePath, workingDirectory, version, { createRuntime = true } = {}) {
+  if (process.platform === "win32") {
+    if (createRuntime) {
+      try {
+        await link(process.execPath, runtimePath);
+      } catch {
+        await copyFile(process.execPath, runtimePath);
+      }
+    }
+    await writeFile(
+      join(workingDirectory, "version"),
+      `process.stdout.write('dev-flow ${version}\\n');\n`,
+      "utf8",
+    );
+    return;
+  }
+  await writeFile(
+    runtimePath,
+    `#!/usr/bin/env node\nprocess.stdout.write('dev-flow ${version}\\n');\n`,
+    { mode: 0o700 },
+  );
 }
 
 function publicPackageManifestFixture() {
@@ -830,8 +893,8 @@ function publicPackageManifestFixture() {
     version: "0.1.0",
     private: false,
     license: "Apache-2.0",
-    os: ["darwin"],
-    cpu: ["arm64"],
+    os: ["darwin", "win32"],
+    cpu: ["arm64", "x64"],
     publishConfig: {
       access: "public",
       registry: "https://registry.npmjs.org/",

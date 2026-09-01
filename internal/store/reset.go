@@ -3,14 +3,12 @@ package store
 import (
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"sort"
-	"syscall"
 
 	_ "modernc.org/sqlite"
 )
@@ -42,11 +40,11 @@ func PlanReset(databasePath string) (ResetPlan, error) {
 		if statErr != nil || !info.Mode().IsRegular() {
 			return ResetPlan{}, ErrStorageUnavailable
 		}
-		stat, ok := info.Sys().(*syscall.Stat_t)
+		device, inode, ok := resetFileIdentity(path, info)
 		if !ok {
 			return ResetPlan{}, ErrStorageUnavailable
 		}
-		targets = append(targets, ResetTarget{Path: path, Size: info.Size(), ModifiedNS: info.ModTime().UnixNano(), Device: uint64(stat.Dev), Inode: uint64(stat.Ino)})
+		targets = append(targets, ResetTarget{Path: path, Size: info.Size(), ModifiedNS: info.ModTime().UnixNano(), Device: device, Inode: inode})
 	}
 	sort.Slice(targets, func(i, j int) bool { return targets[i].Path < targets[j].Path })
 	content, err := json.Marshal(targets)
@@ -73,44 +71,9 @@ func ConfirmReset(ctx context.Context, databasePath, token string) error {
 		return ErrInvalidArgument
 	}
 	if len(plan.Targets) > 0 {
-		db, openErr := sql.Open("sqlite", dataSource(canonical, false))
-		if openErr != nil {
-			return ErrStorageUnavailable
+		if err := removeResetTargets(ctx, canonical, token, plan); err != nil {
+			return err
 		}
-		db.SetMaxOpenConns(1)
-		connection, connectionErr := db.Conn(ctx)
-		if connectionErr != nil {
-			_ = db.Close()
-			return ErrStorageUnavailable
-		}
-		locked := false
-		defer func() {
-			if locked {
-				_, _ = connection.ExecContext(context.Background(), "ROLLBACK")
-			}
-			_ = connection.Close()
-			_ = db.Close()
-		}()
-		if _, err := connection.ExecContext(ctx, "PRAGMA locking_mode=EXCLUSIVE"); err != nil {
-			return ErrStorageUnavailable
-		}
-		if _, err := connection.ExecContext(ctx, "BEGIN EXCLUSIVE"); err != nil {
-			return ErrStorageUnavailable
-		}
-		locked = true
-		current, planErr := PlanReset(canonical)
-		if planErr != nil || current.Token != token {
-			return ErrRevisionConflict
-		}
-		for _, target := range plan.Targets {
-			if err := os.Remove(target.Path); err != nil {
-				return ErrStorageUnavailable
-			}
-		}
-		_, _ = connection.ExecContext(context.Background(), "ROLLBACK")
-		locked = false
-		_ = connection.Close()
-		_ = db.Close()
 	}
 	empty, err := Open(ctx, canonical)
 	if err != nil {

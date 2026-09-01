@@ -32,7 +32,7 @@ export async function activateDeepSeekIntegration(ctx, {
 } = {}) {
   const manifest = await readPackageManifest(packageRoot);
   const runtimeSelection = await selectPackagedRuntime({ packageRoot, platform, arch });
-  const dataSelection = await resolveDataDirectory({ homeDirectory, environment });
+  const dataSelection = await resolveDataDirectory({ homeDirectory, environment, platform });
   if (dataSelection.usesDefaultDataDirectory) {
     await ensureDefaultDataDirectory(dataSelection);
   }

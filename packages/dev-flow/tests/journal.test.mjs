@@ -11,7 +11,7 @@ test("operation journal is atomic, closed, and retains exact completed external 
   const root = await mkdtemp(join(tmpdir(), "create-dev-flow-journal-"));
   const home = join(root, "home");
   await mkdir(home);
-  const paths = await resolveManagerPaths({ homeDirectory: home, environment: {} });
+  const paths = await resolveManagerPaths({ homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64" });
   const plan = { planId: "plan-fixture", digest: "a".repeat(64) };
   const run = await createRun(paths, plan, {
     operationId: "operation-fixture-0001", now: () => new Date("2026-08-25T00:00:00Z"),

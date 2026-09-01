@@ -40,12 +40,20 @@ dev-flow webui stop
 ```
 
 `start` 默认打开浏览器；`--no-open` 只启动进程。所有命令支持 `--plain` 或 `--json`。公共
-`dev-flow webui start` 可以按 mode `0700` 创建缺失的产品默认数据目录，其他命令不创建目录。
+`dev-flow webui start` 可以创建缺失的产品默认数据目录：macOS 强制 mode `0700`，Windows 使用当前
+用户 `%LOCALAPPDATA%` 继承的 ACL。其他命令不创建目录。
 
 设置显式数据目录时，它必须已经存在、可以 canonicalize 且不经过符号链接：
 
 ```bash
 export DEV_FLOW_DATA_DIR="/absolute/path/to/existing-directory"
+dev-flow webui start
+```
+
+Windows PowerShell 使用同一个变量：
+
+```powershell
+$env:DEV_FLOW_DATA_DIR = "C:\absolute\existing-directory"
 dev-flow webui start
 ```
 
@@ -55,14 +63,19 @@ dev-flow webui start
 进程生成的随机 session 值和 Task revision；页面过期或 revision 变化会使旧表单失效。
 
 这些检查用于防止本机误请求和陈旧页面操作，不是账号认证，也不提供多用户隔离。
+macOS 通过 POSIX mode 收紧默认目录和 receipt；Windows 依赖当前用户 profile 与 LocalAppData 的继承
+ACL。具有同一用户或管理员权限的进程仍在本地信任边界内。
 
 ## runtime receipt 的作用
 
-mode `0600` 的 runtime receipt 记录 PID、进程启动身份、data-root digest 和 loopback URL。Codex 与
-DeepSeek 携带的兼容 Core 通过它复用同一个进程和 SQLite 数据，而不是各自创建一份 Task 状态。
+runtime receipt 记录 PID、进程启动身份、data-root digest 和 loopback URL。macOS 要求它是 mode
+`0600` regular file；Windows 要求它是产品目录内的 regular non-symlink file，并使用 process creation
+time 识别 PID 是否被复用。Codex 与 DeepSeek 携带的兼容 Core 通过它复用同一个进程和 SQLite 数据，
+而不是各自创建一份 Task 状态。
 
 停止或卸载时，只有 receipt 中的 PID、启动身份和数据目录全部匹配，才会向进程发送停止信号。
-校验失败会中止后续卸载，避免停止或删除不属于当前安装的对象。
+Windows 先向独立 process group 发送 `CTRL_BREAK`；不同 console 无法投递或进程未退出时，才终止
+同一个精确匹配进程。校验失败会中止后续卸载，避免停止或删除不属于当前安装的对象。
 
 ## 状态
 
@@ -89,10 +102,13 @@ dev-flow webui reset --confirm <当前计划返回的 TOKEN>
 第一条命令只展示当前 canonical database 和现有 SQLite sidecar 的精确目标。token 与这些目标绑定；
 确认时 Core 先获得数据库独占访问并再次核对目标。锁失败、token 不匹配或目标变化都不删除数据。
 成功后只清理确认的 Task 数据并创建当前空 Schema；Host package、注册、用户配置和无关文件保留。
+Windows 在关闭 SQLite connection 后以 file handle 再次核对 volume/file identity、大小和修改时间，
+全部目标都匹配后才标记删除；部分标记失败会撤回已设置的 disposition。
 
 ## 数据与制品
 
-默认 Task 数据位于本机产品数据目录。Codex 与 DeepSeek 共用同一数据，不属于浏览器缓存或 Host
+默认 Task 数据在 macOS 位于 `$HOME/Library/Application Support/dev-flow/data`，在 Windows 位于
+`%LOCALAPPDATA%\dev-flow\data`。Codex 与 DeepSeek 共用同一数据，不属于浏览器缓存或 Host
 聊天记录。React、TypeScript 和 Vite 只参与构建；HTML、JavaScript、CSS、SVG 和 manifest 都嵌入
 Core binary，运行时不需要 Node server、CDN、外部字体或独立 WebUI package。
 

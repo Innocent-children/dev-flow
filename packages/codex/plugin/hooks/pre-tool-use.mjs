@@ -5,11 +5,11 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const MAX_INPUT_BYTES = 1024 * 1024;
 const PATCH_HEADERS = ["*** Add File: ", "*** Update File: ", "*** Delete File: ", "*** Move to: "];
-const HOST_CHECK_COMMAND = "dev-flow-codex";
+const HOST_CHECK_LAUNCHER = fileURLToPath(new URL("../../bin/dev-flow-codex.mjs", import.meta.url));
 
 export function preparedWriteFromHook(value) {
   if (!isObject(value) || value.hook_event_name !== "PreToolUse" || value.tool_name !== "apply_patch" ||
@@ -65,6 +65,7 @@ export function runHook({
   output = process.stdout,
   error = process.stderr,
   environment = process.env,
+  platform = process.platform,
   spawn = spawnSync,
   readInput = () => readFileSync(0, "utf8"),
 } = {}) {
@@ -85,10 +86,15 @@ export function runHook({
   }
   const request = preparedWriteFromHook(event);
   if (request === undefined) return 0;
-  const homeDirectory = environment.HOME || homedir();
-  const dataDirectory = environment.DEV_FLOW_DATA_DIR || join(homeDirectory, "Library", "Application Support", "dev-flow", "data");
+  const homeDirectory = platform === "win32"
+    ? environment.USERPROFILE || environment.HOME || homedir()
+    : environment.HOME || homedir();
+  const defaultDataDirectory = platform === "win32"
+    ? join(environment.LOCALAPPDATA || join(homeDirectory, "AppData", "Local"), "dev-flow", "data")
+    : join(homeDirectory, "Library", "Application Support", "dev-flow", "data");
+  const dataDirectory = environment.DEV_FLOW_DATA_DIR || defaultDataDirectory;
   if (!existsSync(dataDirectory)) return 0;
-  const child = spawn(HOST_CHECK_COMMAND, ["host-check", "pre-file-write"], {
+  const child = spawn(process.execPath, [HOST_CHECK_LAUNCHER, "host-check", "pre-file-write"], {
     cwd: request.repository_path,
     env: { ...environment, DEV_FLOW_DATA_DIR: dataDirectory },
     input: `${JSON.stringify(request)}\n`,

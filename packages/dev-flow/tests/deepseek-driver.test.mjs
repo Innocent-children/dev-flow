@@ -11,7 +11,7 @@ test("DeepSeek driver hides artifact lifecycle and records only verified explici
   const root = await mkdtemp(join(tmpdir(), "create-dev-flow-deepseek-test-"));
   const home = join(root, "home");
   await mkdir(home);
-  const paths = await resolveManagerPaths({ homeDirectory: home, environment: {} });
+  const paths = await resolveManagerPaths({ homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64" });
   let present = false;
   const calls = [];
   const run = async (executable, arguments_, options = {}) => {
@@ -73,7 +73,7 @@ test("DeepSeek local package bypasses npm pack and adds the exact tarball", asyn
   await writeFile(artifact, "local artifact\n");
   const home = join(root, "home");
   await mkdir(home);
-  const paths = await resolveManagerPaths({ homeDirectory: home, environment: {} });
+  const paths = await resolveManagerPaths({ homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64" });
   const calls = [];
   let present = false;
   const driver = createDeepSeekDriver({
@@ -90,6 +90,6 @@ test("DeepSeek local package bypasses npm pack and adds the exact tarball", asyn
   assert.equal(await driver.resolveTargetVersion("latest"), "0.8.2");
   await driver.execute("install", { profile: "web", targetVersion: "0.8.2", observed: { hostAvailable: true, hostVersion: "0.1.0-rc.8", state: "ready", packageVersion: "0.8.2", receipt: null } });
   assert.equal(calls.some(([executable]) => executable === "npm"), false);
-  assert.equal(calls.some(([executable, arguments_]) => executable === "dsh" && arguments_.at(-1)?.endsWith("/dev-flow-deepseek-local.tgz")), true);
+  assert.equal(calls.some(([executable, arguments_]) => executable === "dsh" && arguments_.at(-1)?.endsWith("dev-flow-deepseek-local.tgz")), true);
   t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
 });

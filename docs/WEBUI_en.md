@@ -45,13 +45,21 @@ dev-flow webui stop
 
 `start` opens the browser by default; `--no-open` starts only the process. Every command supports
 `--plain` or `--json`. Public `dev-flow webui start` may create a missing product-default data
-directory with mode `0700`; other commands do not create directories.
+directory. macOS enforces mode `0700`; Windows uses the ACL inherited from the current user's
+`%LOCALAPPDATA%`. Other commands do not create directories.
 
 An explicit data directory must already exist, canonicalize successfully, and not traverse a
 symbolic link:
 
 ```bash
 export DEV_FLOW_DATA_DIR="/absolute/path/to/existing-directory"
+dev-flow webui start
+```
+
+Windows PowerShell uses the same variable:
+
+```powershell
+$env:DEV_FLOW_DATA_DIR = "C:\absolute\existing-directory"
 dev-flow webui start
 ```
 
@@ -63,16 +71,23 @@ revision. A stale page or changed revision invalidates an old form.
 
 These checks protect against mistaken local requests and stale-page actions. They are not account
 authentication or multi-user isolation.
+macOS tightens default directories and the receipt with POSIX modes. Windows relies on the ACL
+inherited from the current user profile and LocalAppData. A same-user or administrator process
+remains inside the local trust boundary.
 
 ## What the runtime receipt does
 
-A mode-`0600` runtime receipt records the PID, process-start identity, data-root digest, and loopback
-URL. Compatible Core binaries carried by Codex and DeepSeek use it to share one process and SQLite
-data instead of creating separate Task state.
+A runtime receipt records the PID, process-start identity, data-root digest, and loopback URL. macOS
+requires a mode-`0600` regular file. Windows requires a regular non-symlink file under the product
+directory and uses process creation time to detect PID reuse. Compatible Core binaries carried by
+Codex and DeepSeek use it to share one process and SQLite data instead of creating separate Task
+state.
 
 During stop or uninstall, a signal is sent only when PID, start identity, and data directory all
-match the receipt. A failed check stops the remaining uninstall steps so an unrelated process or
-installation is not removed.
+match the receipt. Windows first sends `CTRL_BREAK` to the separate process group; if another console
+cannot deliver it or the process does not exit, only that exact matched process is terminated. A
+failed identity check stops the remaining uninstall steps so an unrelated process or installation
+is not removed.
 
 ## States
 
@@ -101,10 +116,14 @@ token is bound to those targets. Confirmation obtains exclusive database access 
 target. Lock failure, token mismatch, or target drift deletes nothing. Success clears only confirmed
 Task data and creates the current empty Schema; Host packages, registrations, user configuration,
 and unrelated files remain.
+On Windows, after the SQLite connection closes, file handles recheck volume/file identity, size, and
+modification time. Targets are marked for deletion only after every handle matches; a partial marking
+failure rolls back dispositions already set.
 
 ## Data and artifacts
 
-Default Task data lives in the local product data directory. Codex and DeepSeek share it; it is not
+Default Task data lives at `$HOME/Library/Application Support/dev-flow/data` on macOS and
+`%LOCALAPPDATA%\dev-flow\data` on Windows. Codex and DeepSeek share it; it is not
 browser cache or Host chat history. React, TypeScript, and Vite participate only in the build. HTML,
 JavaScript, CSS, SVG, and the manifest are embedded in the Core binary, so runtime use needs no Node
 server, CDN, external font, or separate WebUI package.

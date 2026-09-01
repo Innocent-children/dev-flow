@@ -23,6 +23,7 @@ const repositoryPaths = [
   ...packagePaths
     .filter((path) => path !== "LICENSE")
     .filter((path) => path !== "runtime/darwin-arm64/dev-flow")
+    .filter((path) => path !== "runtime/win32-x64/dev-flow.exe")
     .map((path) => join("packages", "deepseek", path)),
 ];
 await execFile("git", ["cat-file", "-e", `${options.sourceCommit}^{commit}`], { cwd: repositoryRoot });
@@ -42,7 +43,7 @@ try {
     const destinationPath = join(stageRoot, relativePath);
     await mkdir(dirname(destinationPath), { recursive: true, mode: 0o755 });
     await copyFile(sourcePath, destinationPath);
-    await chmod(destinationPath, relativePath === "runtime/darwin-arm64/dev-flow" ? 0o755 : 0o644);
+    await chmod(destinationPath, relativePath.startsWith("runtime/") ? 0o755 : 0o644);
     copied.push(`package/${relativePath}`);
   }
 
@@ -62,6 +63,14 @@ try {
   const artifact = await fileIdentity(options.output);
   const corePath = join(stageRoot, "runtime", "darwin-arm64", "dev-flow");
   const core = await fileIdentity(corePath);
+  const windowsCorePath = join(stageRoot, "runtime", "win32-x64", "dev-flow.exe");
+  const windowsCore = await fileIdentity(windowsCorePath);
+  const { stdout: windowsBuildMetadata } = await execFile("go", ["version", "-m", windowsCorePath], { encoding: "utf8" });
+  if (!/\tbuild\tGOOS=windows(?:\r?\n|$)/u.test(windowsBuildMetadata) ||
+      !/\tbuild\tGOARCH=amd64(?:\r?\n|$)/u.test(windowsBuildMetadata) ||
+      !/\tbuild\tCGO_ENABLED=0(?:\r?\n|$)/u.test(windowsBuildMetadata)) {
+    throw new Error("packaged Windows Core build metadata is invalid");
+  }
   const { stdout: coreIdentity } = await execFile(corePath, ["version"], { encoding: "utf8" });
   const coreVersion = /^dev-flow (\S+)\n?$/u.exec(coreIdentity)?.[1];
   if (coreVersion === undefined) throw new Error("packaged Core returned an invalid version line");
@@ -71,6 +80,7 @@ try {
     core_version: coreVersion,
     artifact: { path: options.output, ...artifact },
     core,
+    windows_core: windowsCore,
     package_files: copied.map((path) => path.slice("package/".length)),
   })}\n`);
 } finally {

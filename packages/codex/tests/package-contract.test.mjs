@@ -10,6 +10,7 @@ import test from "node:test";
 import { promisify } from "node:util";
 
 import { releaseOutputNames } from "../../../release/prepare.mjs";
+import { execPortableCommand, findCommandPath } from "../lib/command.mjs";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = dirname(dirname(packageRoot));
@@ -21,6 +22,7 @@ const expectedPackageFiles = [
   ".agents/plugins/marketplace.json",
   "LICENSE",
   "bin/dev-flow-codex.mjs",
+  "lib/command.mjs",
   "lib/install-experience.mjs",
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
@@ -33,6 +35,7 @@ const expectedPackageFiles = [
   "plugin/skills/dev-flow/references/method-profiles.md",
   "plugin/skills/dev-flow/references/node-payloads.md",
   "runtime/darwin-arm64/dev-flow",
+  "runtime/win32-x64/dev-flow.exe",
 ];
 
 const expectedPackedFiles = [
@@ -40,6 +43,7 @@ const expectedPackedFiles = [
   "LICENSE",
   "README.md",
   "bin/dev-flow-codex.mjs",
+  "lib/command.mjs",
   "lib/install-experience.mjs",
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
@@ -53,9 +57,10 @@ const expectedPackedFiles = [
   "plugin/skills/dev-flow/references/method-profiles.md",
   "plugin/skills/dev-flow/references/node-payloads.md",
   "runtime/darwin-arm64/dev-flow",
+  "runtime/win32-x64/dev-flow.exe",
 ].sort();
 
-test("source package declares one public macOS arm64 Codex product", async () => {
+test("source package declares one public macOS arm64 and Windows x64 Codex product", async () => {
   const [coreVersion, manifest, plugin, marketplace, mcp] = await Promise.all([
     readFile(join(repositoryRoot, "CORE_VERSION"), "utf8").then((value) => value.trim()),
     readJSON(join(packageRoot, "package.json")),
@@ -68,8 +73,8 @@ test("source package declares one public macOS arm64 Codex product", async () =>
   assert.match(coreVersion, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u);
   assert.equal(manifest.private, false);
   assert.equal(manifest.license, "Apache-2.0");
-  assert.deepEqual(manifest.os, ["darwin"]);
-  assert.deepEqual(manifest.cpu, ["arm64"]);
+  assert.deepEqual(manifest.os, ["darwin", "win32"]);
+  assert.deepEqual(manifest.cpu, ["arm64", "x64"]);
   assert.deepEqual(manifest.publishConfig, {
     access: "public",
     registry: "https://registry.npmjs.org/",
@@ -105,7 +110,7 @@ test("source package declares one public macOS arm64 Codex product", async () =>
     },
   });
   assert.equal(
-    await readFile(join(pluginRoot, "skills", "dev-flow", "agents", "openai.yaml"), "utf8"),
+    normalizeNewlines(await readFile(join(pluginRoot, "skills", "dev-flow", "agents", "openai.yaml"), "utf8")),
     "policy:\n  allow_implicit_invocation: true\n",
   );
 });
@@ -122,7 +127,7 @@ test("package metadata closes source, artifact, and development command surfaces
     "test:package": "node --test tests/package-contract.test.mjs",
     "test:lifecycle": "node --test tests/lifecycle.test.mjs",
     "pack:dry": "pnpm pack --dry-run --json",
-    "build:webui": "../../scripts/build-webui.sh",
+    "build:webui": "node ../../scripts/build-webui.mjs",
     "build:local": "../../scripts/build-codex-local.sh",
   });
 
@@ -184,17 +189,20 @@ test("node-payload reference is one explicit closed packaged resource", async ()
 
 test("npm compatibility metadata rejects an unsupported OS and CPU", async () => {
   const manifest = await readJSON(join(packageRoot, "package.json"));
-  const { stdout } = await execFile("npm", ["root", "--global"], { encoding: "utf8" });
-  const npmRequire = createRequire(join(stdout.trim(), "npm", "package.json"));
+  const npmManifestPath = process.platform === "win32"
+    ? join(dirname(await findCommandPath("npm")), "node_modules", "npm", "package.json")
+    : join((await execPortableCommand("npm", ["root", "--global"], { encoding: "utf8" })).stdout.trim(), "npm", "package.json");
+  const npmRequire = createRequire(npmManifestPath);
   const { checkPlatform } = npmRequire("npm-install-checks");
 
   assert.doesNotThrow(() => checkPlatform(manifest, false, { os: "darwin", cpu: "arm64" }));
+  assert.doesNotThrow(() => checkPlatform(manifest, false, { os: "win32", cpu: "x64" }));
   assert.throws(
     () => checkPlatform(manifest, false, { os: "linux", cpu: "x64", libc: "glibc" }),
     (error) => {
       assert.equal(error.code, "EBADPLATFORM");
-      assert.deepEqual(error.required.os, ["darwin"]);
-      assert.deepEqual(error.required.cpu, ["arm64"]);
+      assert.deepEqual(error.required.os, ["darwin", "win32"]);
+      assert.deepEqual(error.required.cpu, ["arm64", "x64"]);
       return true;
     },
   );
@@ -227,7 +235,7 @@ test("packaged resources contain no copied fixtures or workflow engine", async (
 });
 
 test("packaged Skill publishes the exact current Core contract new-task value types and vocabulary", async () => {
-  const skill = await readFile(join(pluginRoot, "skills", "dev-flow", "SKILL.md"), "utf8");
+  const skill = normalizeNewlines(await readFile(join(pluginRoot, "skills", "dev-flow", "SKILL.md"), "utf8"));
 
   assert.match(
     skill,
@@ -256,12 +264,15 @@ test("release output names derive from Codex and Core versions", () => {
   assert.deepEqual(releaseOutputNames("codex", currentVersion, currentVersion), [
     "SHA256SUMS",
     `dev-flow-core-${currentVersion}-darwin-arm64`,
+    `dev-flow-core-${currentVersion}-windows-amd64.exe`,
     `dev-flow-codex-${currentVersion}.tgz`,
     "release-manifest.json",
   ].sort());
 });
 
-test("local package builder stages one exact non-final artifact in a temporary directory", async () => {
+test("local package builder stages one exact non-final artifact in a temporary directory", {
+  skip: process.platform === "win32" ? "the Unix builder is covered on Unix; Windows uses scripts/dev-flow-local.mjs" : false,
+}, async () => {
   const outputDirectory = await mkdtemp(join(tmpdir(), "dev-flow-codex-package-contract-"));
   const { stdout } = await execFile(
     join(repositoryRoot, "scripts", "build-codex-local.sh"),
@@ -280,8 +291,8 @@ test("local package builder stages one exact non-final artifact in a temporary d
   );
   const packedManifest = JSON.parse(manifestContents);
   assert.equal(packedManifest.private, false);
-  assert.deepEqual(packedManifest.os, ["darwin"]);
-  assert.deepEqual(packedManifest.cpu, ["arm64"]);
+  assert.deepEqual(packedManifest.os, ["darwin", "win32"]);
+  assert.deepEqual(packedManifest.cpu, ["arm64", "x64"]);
 
   const { stdout: listing } = await execFile("tar", ["-tzf", report.artifact_path], {
     encoding: "utf8",
@@ -313,6 +324,10 @@ test("local package builder stages one exact non-final artifact in a temporary d
 
 async function readJSON(path) {
   return JSON.parse(await readFile(path, "utf8"));
+}
+
+function normalizeNewlines(value) {
+  return value.replaceAll("\r\n", "\n");
 }
 
 async function sha256(value) {

@@ -83,8 +83,8 @@ const privateContract = !Object.hasOwn(packageManifest, "private") || packageMan
 if (
   packageManifest.name !== "dev-flow-deepseek" || packageManifest.version !== deepseekVersion ||
   !privateContract || packageManifest.license !== "Apache-2.0" ||
-  JSON.stringify(packageManifest.os) !== JSON.stringify(["darwin"]) ||
-  JSON.stringify(packageManifest.cpu) !== JSON.stringify(["arm64"]) ||
+  JSON.stringify(packageManifest.os) !== JSON.stringify(["darwin", "win32"]) ||
+  JSON.stringify(packageManifest.cpu) !== JSON.stringify(["arm64", "x64"]) ||
   packageManifest.publishConfig?.access !== "public" ||
   packageManifest.publishConfig?.registry !== "https://registry.npmjs.org/"
 ) {

@@ -11,10 +11,12 @@
   },
   "type": "module",
   "os": [
-    "darwin"
+    "darwin",
+    "win32"
   ],
   "cpu": [
-    "arm64"
+    "arm64",
+    "x64"
   ],
   "engines": {
     "node": ">=20"
@@ -30,6 +32,7 @@
     "README.md",
     "bin/dev-flow.mjs",
     "lib/cli.mjs",
+    "lib/command.mjs",
     "lib/hosts/codex.mjs",
     "lib/hosts/deepseek.mjs",
     "lib/journal.mjs",

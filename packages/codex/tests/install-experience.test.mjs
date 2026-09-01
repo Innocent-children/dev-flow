@@ -19,8 +19,10 @@ test("creates one closed default user configuration with private modes", async (
   const result = await ensureUserConfiguration(paths);
   assert.deepEqual(result.fileChange, { path: paths.configurationPath, change: "created" });
   assert.equal(await readFile(paths.configurationPath, "utf8"), DEFAULT_USER_CONFIGURATION);
-  assert.equal((await lstat(paths.configurationDirectory)).mode & 0o777, 0o700);
-  assert.equal((await lstat(paths.configurationPath)).mode & 0o777, 0o600);
+  if (process.platform !== "win32") {
+    assert.equal((await lstat(paths.configurationDirectory)).mode & 0o777, 0o700);
+    assert.equal((await lstat(paths.configurationPath)).mode & 0o777, 0o600);
+  }
 });
 
 test("preserves valid existing configuration and adjacent files byte for byte", async () => {
@@ -58,16 +60,19 @@ test("rejects invalid, duplicate, unknown, nonboolean, oversized, and unsafe exi
   await mkdir(unsafe.configurationDirectory, { recursive: true, mode: 0o700 });
   await writeFile(unsafe.configurationPath, "{}\n", { mode: 0o644 });
   await chmod(unsafe.configurationPath, 0o644);
+  unsafe.platform = "darwin";
   await assert.rejects(ensureUserConfiguration(unsafe), /permissions are unsafe/);
 });
 
 test("rejects symbolic-link and non-file configuration targets", async () => {
-  const linkPaths = await fixturePaths();
-  const outside = join(linkPaths.homeDirectory, "outside.json");
-  await mkdir(linkPaths.configurationDirectory, { recursive: true, mode: 0o700 });
-  await writeFile(outside, "{}\n", { mode: 0o600 });
-  await symlink(outside, linkPaths.configurationPath);
-  await assert.rejects(ensureUserConfiguration(linkPaths), /regular non-symbolic-link file/);
+  if (process.platform !== "win32") {
+    const linkPaths = await fixturePaths();
+    const outside = join(linkPaths.homeDirectory, "outside.json");
+    await mkdir(linkPaths.configurationDirectory, { recursive: true, mode: 0o700 });
+    await writeFile(outside, "{}\n", { mode: 0o600 });
+    await symlink(outside, linkPaths.configurationPath);
+    await assert.rejects(ensureUserConfiguration(linkPaths), /regular non-symbolic-link file/);
+  }
 
   const directoryPaths = await fixturePaths();
   await mkdir(directoryPaths.configurationPath, { recursive: true, mode: 0o700 });
@@ -137,6 +142,7 @@ async function fixturePaths() {
   const configurationDirectory = join(homeDirectory, ".dev-flow");
   return {
     homeDirectory,
+    platform: process.platform,
     configurationDirectory,
     configurationPath: join(configurationDirectory, "config.json"),
   };

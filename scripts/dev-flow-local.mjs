@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
-import { execFile as execFileCallback } from "node:child_process";
 import { chmod, copyFile, mkdir, mkdtemp, readFile, realpath, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { promisify } from "node:util";
 
-const execFile = promisify(execFileCallback);
+import { execPortableCommand } from "../packages/dev-flow/lib/command.mjs";
+import { buildWebUI } from "./build-webui.mjs";
+
 const scriptPath = fileURLToPath(import.meta.url);
 const repositoryRoot = resolve(dirname(scriptPath), "..");
 
@@ -17,7 +17,9 @@ export function normalizeForwardedArguments(arguments_) {
 
 export async function copyExecutable(source, target, dependencies = {}) {
   await (dependencies.copyFile ?? copyFile)(source, target);
-  await (dependencies.chmod ?? chmod)(target, 0o755);
+  if ((dependencies.platform ?? process.platform) !== "win32") {
+    await (dependencies.chmod ?? chmod)(target, 0o755);
+  }
 }
 
 export async function runLocalDevFlow(arguments_, dependencies = {}) {
@@ -55,22 +57,32 @@ async function buildPackages({ root, temporaryRoot, run }) {
   await mkdir(outputRoot, { recursive: true });
   await mkdir(stageRoot, { recursive: true });
 
-  await run(join(root, "scripts", "build-webui.sh"), [], { cwd: root });
-  const corePath = join(temporaryRoot, "dev-flow-core");
+  await buildWebUI({ repositoryRoot: root, run });
+  const darwinCorePath = join(temporaryRoot, "dev-flow-core-darwin-arm64");
+  const windowsCorePath = join(temporaryRoot, "dev-flow-core-windows-amd64.exe");
   const coreVersion = (await readFile(join(root, "CORE_VERSION"), "utf8")).trim();
   await run("go", [
     "build", "-mod=readonly", "-trimpath", "-buildvcs=false",
     "-ldflags", `-s -w -X github.com/Innocent-children/dev-flow/internal/version.buildVersion=${coreVersion}`,
-    "-o", corePath, "./cmd/dev-flow",
+    "-o", darwinCorePath, "./cmd/dev-flow",
   ], { cwd: root, environment: { ...process.env, CGO_ENABLED: "0", GOOS: "darwin", GOARCH: "arm64" } });
+  await run("go", [
+    "build", "-mod=readonly", "-trimpath", "-buildvcs=false",
+    "-ldflags", `-s -w -X github.com/Innocent-children/dev-flow/internal/version.buildVersion=${coreVersion}`,
+    "-o", windowsCorePath, "./cmd/dev-flow",
+  ], { cwd: root, environment: { ...process.env, CGO_ENABLED: "0", GOOS: "windows", GOARCH: "amd64" } });
+  const corePaths = new Map([
+    ["runtime/darwin-arm64/dev-flow", darwinCorePath],
+    ["runtime/win32-x64/dev-flow.exe", windowsCorePath],
+  ]);
 
-  const codex = await stageAndPack("codex", { root, stageRoot, outputRoot, corePath, run });
-  const deepseek = await stageAndPack("deepseek", { root, stageRoot, outputRoot, corePath, run });
-  const manager = await stageAndPack("dev-flow", { root, stageRoot, outputRoot, corePath: null, run });
+  const codex = await stageAndPack("codex", { root, stageRoot, outputRoot, corePaths, run });
+  const deepseek = await stageAndPack("deepseek", { root, stageRoot, outputRoot, corePaths, run });
+  const manager = await stageAndPack("dev-flow", { root, stageRoot, outputRoot, corePaths: null, run });
   return { codex, deepseek, manager };
 }
 
-async function stageAndPack(product, { root, stageRoot, outputRoot, corePath, run }) {
+async function stageAndPack(product, { root, stageRoot, outputRoot, corePaths, run }) {
   const packageRoot = join(root, "packages", product);
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
   const productStageRoot = join(stageRoot, product);
@@ -80,14 +92,14 @@ async function stageAndPack(product, { root, stageRoot, outputRoot, corePath, ru
     const target = join(destination, relativePath);
     await mkdir(dirname(target), { recursive: true });
     if (relativePath === "LICENSE") await copyFile(join(root, "LICENSE"), target);
-    else if (relativePath === "runtime/darwin-arm64/dev-flow") {
-      await copyExecutable(corePath, target);
-      if (((await stat(target)).mode & 0o111) === 0) throw new Error(`local ${product} staged Core is not executable`);
+    else if (corePaths?.has(relativePath)) {
+      await copyExecutable(corePaths.get(relativePath), target);
+      if (process.platform !== "win32" && ((await stat(target)).mode & 0o111) === 0) throw new Error(`local ${product} staged Core is not executable`);
     }
     else await copyFile(join(packageRoot, relativePath), target);
   }
   let artifactPath;
-  if (corePath) {
+  if (corePaths) {
     const filename = `${manifest.name.replace(/^@/u, "").replaceAll("/", "-")}-${manifest.version}.tgz`;
     artifactPath = join(outputRoot, filename);
     await run("tar", ["-czf", artifactPath, "-C", productStageRoot, "package"], { cwd: root });
@@ -100,19 +112,21 @@ async function stageAndPack(product, { root, stageRoot, outputRoot, corePath, ru
     if (report.name !== manifest.name || report.version !== manifest.version) throw new Error(`local ${product} package identity is invalid`);
   }
   if (!(await stat(artifactPath)).isFile()) throw new Error(`local ${product} package is missing`);
-  if (corePath) {
+  if (corePaths) {
     const verificationRoot = join(stageRoot, `${product}-verification`);
     await mkdir(verificationRoot, { recursive: true });
     await run("tar", ["-xzf", artifactPath, "-C", verificationRoot], { cwd: root });
-    const packagedCore = await stat(join(verificationRoot, "package", "runtime", "darwin-arm64", "dev-flow"));
-    if ((packagedCore.mode & 0o111) === 0) throw new Error(`local ${product} packaged Core is not executable (${(packagedCore.mode & 0o777).toString(8)})`);
+    for (const relativePath of corePaths.keys()) {
+      const packagedCore = await stat(join(verificationRoot, "package", relativePath));
+      if (process.platform !== "win32" && (packagedCore.mode & 0o111) === 0) throw new Error(`local ${product} packaged Core is not executable (${(packagedCore.mode & 0o777).toString(8)})`);
+    }
   }
   return { path: artifactPath, version: manifest.version };
 }
 
 async function runCommand(executable, arguments_, { cwd, environment = process.env } = {}) {
   try {
-    return await execFile(executable, arguments_, {
+    return await execPortableCommand(executable, arguments_, {
       cwd,
       env: environment,
       encoding: "utf8",

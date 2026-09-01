@@ -24,14 +24,26 @@ restart/resume, `DONE`, and retained reopen.
 ## Current source
 
 Current source includes the shared local WebUI, embedded assets, and `dev-flow webui
-start|open|status|stop|reset`.
+start|open|status|stop|reset`, and closes these package runtime pairs:
+
+| Runtime pair | Current-source scope | Current evidence boundary |
+| --- | --- | --- |
+| `darwin-arm64` | macOS arm64 | Existing stable packages and Host journeys |
+| `win32-x64` | Windows 10/11 desktop x64 | Native Windows 11 x64 Core/WebUI/MCP, complete Go suite, Adapter contracts, and dual-runtime local packaging; not yet a stable `@latest` journey |
+
+An npm manifest must list allowed operating systems and CPUs independently, so installation metadata
+can admit cross-pairs. Package runtime selection accepts only the two exact pairs above and rejects
+`win32-ia32`, `win32-arm64`, and `darwin-x64`. Windows product data lives under
+`%LOCALAPPDATA%\dev-flow`; user configuration remains at `%USERPROFILE%\.dev-flow\config.json`.
 
 New source capabilities or a later beta can expand the stable support claim above only after the
 independent release flow, registry-byte read-back, and final Host journey.
 
 ## Not currently supported
 
-There is no public support claim for Linux, Windows, Intel Mac, Rosetta, or remote MCP.
+There is no public support claim for Linux, Windows Server, 32-bit Windows, Windows ARM64, Intel Mac,
+Rosetta, or remote MCP. The Windows runtime does not reject Server by SKU; this statement means that
+Server has no validation, journey, or product-support commitment.
 
 For current source capabilities, real journey entry points, and adoption status, read
 [Project Status](PROJECT-STATUS_en.md).

@@ -1,16 +1,19 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import { dirname, resolve } from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
 
 import { preparedWrite, registerFileScopeGate } from "../lib/file-scope.mjs";
 
 test("DeepSeek structured write paths and intent digests are stable", () => {
+  const workspaceRoot = resolve("/workspace");
   const execution = { name: "edit", arguments: { file_path: "docs/guide.md", old_string: "a", new_string: "b" } };
-  const first = preparedWrite(execution, "/workspace");
-  const reordered = preparedWrite({ name: "edit", arguments: { new_string: "b", old_string: "a", file_path: "docs/guide.md" } }, "/workspace");
-  assert.deepEqual(first.paths, ["/workspace/docs/guide.md"]);
-  assert.equal(first.repository_path, "/workspace/docs");
+  const first = preparedWrite(execution, workspaceRoot);
+  const reordered = preparedWrite({ name: "edit", arguments: { new_string: "b", old_string: "a", file_path: "docs/guide.md" } }, workspaceRoot);
+  const expectedPath = resolve(workspaceRoot, "docs", "guide.md");
+  assert.deepEqual(first.paths, [expectedPath]);
+  assert.equal(first.repository_path, dirname(expectedPath));
   assert.equal(first.path_parse_complete, true);
   assert.equal(first.intent_digest, reordered.intent_digest);
 });

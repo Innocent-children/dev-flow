@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/application"
@@ -196,7 +195,7 @@ func runWebUI(args []string, stdout, stderr io.Writer, getenv func(string) strin
 			_, _ = io.WriteString(stderr, "dev-flow: invalid WebUI serve arguments\n")
 			return 2
 		}
-		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+		ctx, cancel := signal.NotifyContext(context.Background(), webUISignals()...)
 		defer cancel()
 		if err := webui.Serve(ctx, dataDirectory, coreIdentity); err != nil {
 			_, _ = io.WriteString(stderr, "dev-flow: WebUI serve failed\n")
@@ -349,7 +348,7 @@ func runMCP(
 		_, _ = io.WriteString(stderr, "dev-flow: DEV_FLOW_DATA_DIR must name an existing usable directory\n")
 		return 1
 	}
-	preferences, err := userconfig.Load(getenv("HOME"))
+	preferences, err := userconfig.Load(userHomeDirectory(getenv))
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "dev-flow: %v\n", err)
 		return 1

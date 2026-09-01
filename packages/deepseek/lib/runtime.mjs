@@ -5,7 +5,21 @@ import { promisify } from "node:util";
 
 import { containedPath, packageRootFromModule } from "./paths.mjs";
 
-export const SUPPORTED_RUNTIME_KEY = "darwin-arm64";
+export const SUPPORTED_RUNTIME_KEYS = Object.freeze(["darwin-arm64", "win32-x64"]);
+
+const RUNTIME_DESCRIPTORS = Object.freeze({
+  "darwin-arm64": Object.freeze({ directory: "darwin-arm64", executable: "dev-flow" }),
+  "win32-x64": Object.freeze({ directory: "win32-x64", executable: "dev-flow.exe" }),
+});
+
+export function packagedRuntimeDescriptor(platform, arch) {
+  const runtimeKey = `${platform}-${arch}`;
+  const descriptor = RUNTIME_DESCRIPTORS[runtimeKey];
+  if (descriptor === undefined) {
+    throw new Error(`unsupported platform ${runtimeKey}; supported runtimes: ${SUPPORTED_RUNTIME_KEYS.join(", ")}`);
+  }
+  return Object.freeze({ runtimeKey, ...descriptor });
+}
 
 const execFile = promisify(execFileCallback);
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
@@ -15,18 +29,17 @@ export async function selectPackagedRuntime({
   platform = process.platform,
   arch = process.arch,
 } = {}) {
-  const runtimeKey = `${platform}-${arch}`;
-  if (runtimeKey !== SUPPORTED_RUNTIME_KEY) {
-    throw new Error(`unsupported platform ${runtimeKey}; dev-flow-deepseek supports ${SUPPORTED_RUNTIME_KEY}`);
-  }
+  const runtime = packagedRuntimeDescriptor(platform, arch);
 
   const canonicalPackageRoot = await canonicalPackageDirectory(packageRoot);
   return Object.freeze({
     packageRoot: canonicalPackageRoot,
-    runtimeKey,
+    platform,
+    arch,
+    runtimeKey: runtime.runtimeKey,
     runtimePath: containedPath(
       canonicalPackageRoot,
-      join(canonicalPackageRoot, "runtime", runtimeKey, "dev-flow"),
+      join(canonicalPackageRoot, "runtime", runtime.directory, runtime.executable),
       "packaged Core runtime",
     ),
   });
@@ -39,18 +52,22 @@ export async function preflightPackagedCore(
     currentDirectory = dirname(selection?.runtimePath ?? "."),
   } = {},
 ) {
-  if (!selection || selection.runtimeKey !== SUPPORTED_RUNTIME_KEY) {
-    throw new Error("packaged Core selection must use darwin-arm64");
+  if (!selection || !SUPPORTED_RUNTIME_KEYS.includes(selection.runtimeKey)) {
+    throw new Error(`packaged Core selection must use one of ${SUPPORTED_RUNTIME_KEYS.join(", ")}`);
   }
+  const runtime = packagedRuntimeDescriptor(
+    selection.platform ?? selection.runtimeKey.split("-")[0],
+    selection.arch ?? selection.runtimeKey.split("-")[1],
+  );
   const expectedRuntimePath = containedPath(
     selection.packageRoot,
-    join(selection.packageRoot, "runtime", SUPPORTED_RUNTIME_KEY, "dev-flow"),
+    join(selection.packageRoot, "runtime", runtime.directory, runtime.executable),
     "packaged Core runtime",
   );
   if (selection.runtimePath !== expectedRuntimePath) {
     throw new Error("packaged Core must use the exact package-relative runtime path");
   }
-  await assertRegularExecutableFile(selection.runtimePath);
+  await assertRegularExecutableFile(selection.runtimePath, selection.platform ?? process.platform);
 
   let stdout;
   try {
@@ -83,7 +100,7 @@ async function canonicalPackageDirectory(path) {
   }
 }
 
-async function assertRegularExecutableFile(path) {
+async function assertRegularExecutableFile(path, platform) {
   let info;
   try {
     info = await lstat(path);
@@ -93,7 +110,7 @@ async function assertRegularExecutableFile(path) {
   if (!info.isFile() || info.isSymbolicLink()) {
     throw new Error("packaged Core must be a regular executable file");
   }
-  if ((info.mode & 0o111) === 0) {
+  if (platform !== "win32" && (info.mode & 0o111) === 0) {
     throw new Error("packaged Core must have executable mode");
   }
   const canonical = await realpath(path);

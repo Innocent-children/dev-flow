@@ -37,7 +37,7 @@ async function lifecycleFixture(t) {
   const deepseekDriver = fakeDriver("deepseek", states, "web");
   deepseekDriver.knownProfiles = async () => ["web"];
   t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
-  return { dependencies: { homeDirectory: home, environment: {}, codexDriver, deepseekDriver } };
+  return { dependencies: { homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64", codexDriver, deepseekDriver } };
 }
 
 function fakeDriver(host, states, profile) {

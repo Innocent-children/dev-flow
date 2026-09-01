@@ -37,8 +37,14 @@ export async function checkVersions(root = repositoryRoot()) {
 
 async function readVersionFile(path, label) {
   const raw = await readFile(path, "utf8");
-  const value = raw.endsWith("\n") ? raw.slice(0, -1) : raw;
-  if (value.includes("\n") || !SEMVER.test(value)) throw new Error(`${label} must be valid SemVer`);
+  const value = raw.endsWith("\r\n")
+    ? raw.slice(0, -2)
+    : raw.endsWith("\n")
+      ? raw.slice(0, -1)
+      : raw;
+  if (value.includes("\n") || value.includes("\r") || !SEMVER.test(value)) {
+    throw new Error(`${label} must be valid SemVer`);
+  }
   return value;
 }
 

@@ -1,4 +1,3 @@
-import { execFile as execFileCallback } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
 import {
@@ -13,12 +12,10 @@ import {
   unlink,
   writeFile,
 } from "node:fs/promises";
-import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { promisify } from "node:util";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { containedPath } from "./paths.mjs";
-
-const execFile = promisify(execFileCallback);
+import { execPortableCommand, findCommandPath } from "./command.mjs";
+import { containedPath, SUPPORTED_RUNTIME_KEYS } from "./paths.mjs";
 
 export const CODEX_COMPATIBILITY_RANGE = ">=0.147.0";
 export const MARKETPLACE_NAME = "dev-flow-local";
@@ -60,7 +57,7 @@ export async function runCodexJSON(
   }
   let stdout;
   try {
-    ({ stdout } = await execFile(codexExecutable, arguments_, {
+    ({ stdout } = await execPortableCommand(codexExecutable, arguments_, {
       cwd: currentDirectory,
       env: environment,
       encoding: "utf8",
@@ -89,12 +86,13 @@ export async function inspectCoreVersion(
   {
     environment = process.env,
     currentDirectory = dirname(runtimePath),
+    platform = process.platform,
   } = {},
 ) {
-  await assertExecutableFile(runtimePath, "packaged Core");
+  await assertExecutableFile(runtimePath, "packaged Core", platform);
   let stdout;
   try {
-    ({ stdout } = await execFile(runtimePath, ["version"], {
+    ({ stdout } = await execPortableCommand(runtimePath, ["version"], {
       cwd: currentDirectory,
       env: environment,
       encoding: "utf8",
@@ -175,6 +173,7 @@ export async function setupRegistration({
     }
     await writeReceiptAtomic(paths.receiptPath, expectedReceipt, {
       ownedRoot: paths.productSupportRoot,
+      platform: paths.platform,
     });
     return {
       status: "installed",
@@ -202,6 +201,7 @@ export async function setupRegistration({
     assertMatchingRegistrationState(finalState, paths, preflight.packageVersion);
     await writeReceiptAtomic(paths.receiptPath, expectedReceipt, {
       ownedRoot: paths.productSupportRoot,
+      platform: paths.platform,
     });
     return {
       status: "installed",
@@ -337,12 +337,12 @@ export async function inspectRegistrationStatus({
 
 async function preflightSetup({ paths, packageVersion, codexExecutable, environment }) {
   assertObject(paths, "product paths");
-  if (paths.runtimeKey !== "darwin-arm64") {
-    throw new Error(`unsupported platform ${paths.runtimeKey ?? "unknown"}; Feature 003 supports darwin-arm64`);
+  if (!SUPPORTED_RUNTIME_KEYS.includes(paths.runtimeKey)) {
+    throw new Error(`unsupported platform ${paths.runtimeKey ?? "unknown"}; supported runtimes: ${SUPPORTED_RUNTIME_KEYS.join(", ")}`);
   }
   parseSemver(packageVersion, "package version");
   await assertPackageResources(paths, packageVersion);
-  const launcherPath = await assertExecutableOnPath("dev-flow-codex", environment?.PATH ?? "");
+  const launcherPath = await assertExecutableOnPath("dev-flow-codex", environment, paths.platform);
   const expectedLauncherPath = join(paths.packageRoot, "bin", "dev-flow-codex.mjs");
   let canonicalLauncher;
   let canonicalExpectedLauncher;
@@ -354,12 +354,25 @@ async function preflightSetup({ paths, packageVersion, codexExecutable, environm
   } catch (error) {
     throw new Error("resolve the package-owned dev-flow-codex launcher on PATH", { cause: error });
   }
-  if (canonicalLauncher !== canonicalExpectedLauncher) {
+  let launcherOwnedByPackage = canonicalLauncher === canonicalExpectedLauncher;
+  if (!launcherOwnedByPackage && paths.platform === "win32") {
+    const installedLauncherPath = join(
+      dirname(launcherPath),
+      "node_modules",
+      PLUGIN_NAME,
+      "bin",
+      "dev-flow-codex.mjs",
+    );
+    const canonicalInstalledLauncher = await realpath(installedLauncherPath).catch(() => null);
+    launcherOwnedByPackage = canonicalInstalledLauncher === canonicalExpectedLauncher;
+  }
+  if (!launcherOwnedByPackage) {
     throw new Error("dev-flow-codex on PATH does not resolve to this installed package");
   }
   const coreVersion = await inspectCoreVersion(paths.runtimePath, {
     environment,
     currentDirectory: paths.packageRoot,
+    platform: paths.platform,
   });
   const codexVersion = await inspectCodexVersion(codexExecutable, {
     environment,
@@ -379,7 +392,7 @@ async function preflightSetup({ paths, packageVersion, codexExecutable, environm
 async function inspectCodexVersion(codexExecutable, { environment, currentDirectory }) {
   let stdout;
   try {
-    ({ stdout } = await execFile(codexExecutable, ["--version"], {
+    ({ stdout } = await execPortableCommand(codexExecutable, ["--version"], {
       cwd: currentDirectory,
       env: environment,
       encoding: "utf8",
@@ -398,8 +411,8 @@ async function inspectCodexVersion(codexExecutable, { environment, currentDirect
 async function assertPackageResources(paths, packageVersion) {
   const packageManifest = await readJSON(join(paths.packageRoot, "package.json"), "package manifest");
   const privateContract = !Object.hasOwn(packageManifest, "private") || packageManifest.private === false;
-  const platformContract = stableJSON(packageManifest.os) === stableJSON(["darwin"]) &&
-    stableJSON(packageManifest.cpu) === stableJSON(["arm64"]);
+  const platformContract = stableJSON(packageManifest.os) === stableJSON(["darwin", "win32"]) &&
+    stableJSON(packageManifest.cpu) === stableJSON(["arm64", "x64"]);
   const publishContract = packageManifest.publishConfig?.access === "public" &&
     packageManifest.publishConfig?.registry === "https://registry.npmjs.org/" &&
     stableJSON(Object.keys(packageManifest.publishConfig).sort()) === stableJSON(["access", "registry"]);
@@ -464,7 +477,7 @@ async function assertPackageResources(paths, packageVersion) {
   if (!Array.isArray(preToolUse) || preToolUse.length !== 1 || preToolUse[0]?.matcher !== "^apply_patch$" ||
       !Array.isArray(preToolUse[0]?.hooks) || preToolUse[0].hooks.length !== 1 ||
       preToolUse[0].hooks[0]?.type !== "command" ||
-      preToolUse[0].hooks[0]?.command !== 'node "$PLUGIN_ROOT/hooks/pre-tool-use.mjs"') {
+      preToolUse[0].hooks[0]?.command !== "dev-flow-codex hook pre-tool-use") {
     throw new Error("Plugin PreToolUse hook does not match the fixed apply_patch scope check");
   }
   await assertReadableFile(join(paths.pluginRoot, "hooks", "pre-tool-use.mjs"), "Plugin PreToolUse hook");
@@ -489,7 +502,8 @@ async function assertPackageResources(paths, packageVersion) {
     throw new Error("Dev Flow Skill is unavailable", { cause: error });
   }
   if (skill.trim() === "") throw new Error("Dev Flow Skill must be non-empty");
-  const skillFrontmatter = skill.match(/^---\n([\s\S]*?)\n---\n/)?.[1] ?? "";
+  const normalizedSkill = skill.replace(/\r\n?/gu, "\n");
+  const skillFrontmatter = normalizedSkill.match(/^---\n([\s\S]*?)\n---\n/)?.[1] ?? "";
   if (/^allow_implicit_invocation\s*:/m.test(skillFrontmatter)) {
     throw new Error("Dev Flow Skill frontmatter must not carry Codex invocation policy");
   }
@@ -503,8 +517,8 @@ async function assertPackageResources(paths, packageVersion) {
       throw new Error(`Dev Flow Skill description is missing activation boundary: ${required}`);
     }
   }
-  if (!skill.includes("Both activation paths use this same admission gate") ||
-      !skill.includes("do not create or resume a Dev Flow Task")) {
+  if (!normalizedSkill.includes("Both activation paths use this same admission gate") ||
+      !normalizedSkill.includes("do not create or resume a Dev Flow Task")) {
     throw new Error("Dev Flow Skill admission does not unify implicit and explicit activation");
   }
   for (const required of [
@@ -514,7 +528,7 @@ async function assertPackageResources(paths, packageVersion) {
     "Do not inspect, read, copy or apply", "Do not call any Dev Flow Core tool again",
     "`HOST_OWNERSHIP_CONFLICT`",
   ]) {
-    if (!skill.includes(required)) {
+    if (!normalizedSkill.includes(required)) {
       throw new Error(`Dev Flow Skill conflict relocation is missing: ${required}`);
     }
   }
@@ -528,7 +542,7 @@ async function assertPackageResources(paths, packageVersion) {
   } catch (error) {
     throw new Error("Dev Flow implicit Skill policy is unavailable", { cause: error });
   }
-  if (skillMetadata.trim() !== IMPLICIT_SKILL_POLICY) {
+  if (skillMetadata.replace(/\r\n?/gu, "\n").trim() !== IMPLICIT_SKILL_POLICY) {
     throw new Error("Dev Flow implicit Skill policy must enable implicit invocation");
   }
   for (const required of [
@@ -869,8 +883,8 @@ function createReceipt({
     host: {
       surface: "codex-cli",
       version: codexVersion,
-      os: "darwin",
-      arch: "arm64",
+      os: paths.platform ?? paths.runtimeKey.split("-")[0],
+      arch: paths.arch ?? paths.runtimeKey.split("-")[1],
     },
     registration: {
       marketplace_name: MARKETPLACE_NAME,
@@ -909,30 +923,23 @@ async function assertReadableFile(path, label) {
   }
 }
 
-async function assertExecutableFile(path, label) {
+async function assertExecutableFile(path, label, platform = process.platform) {
   let info;
   try {
     info = await stat(path);
-    await access(path, fsConstants.X_OK);
+    await access(path, platform === "win32" ? fsConstants.F_OK : fsConstants.X_OK);
   } catch (error) {
     throw new Error(`${label} must exist and be executable`, { cause: error });
   }
-  if (!info.isFile() || (info.mode & 0o111) === 0) {
+  if (!info.isFile() || platform !== "win32" && (info.mode & 0o111) === 0) {
     throw new Error(`${label} must exist and be executable`);
   }
 }
 
-async function assertExecutableOnPath(name, pathValue) {
-  for (const directory of pathValue.split(delimiter).filter(Boolean)) {
-    const candidate = join(directory, name);
-    try {
-      await assertExecutableFile(candidate, name);
-      return candidate;
-    } catch {
-      // Continue through the closed PATH list.
-    }
-  }
-  throw new Error(`${name} must be executable and discoverable on PATH`);
+async function assertExecutableOnPath(name, environment, platform) {
+  const candidate = await findCommandPath(name, { environment, platform });
+  await assertExecutableFile(candidate, name, platform);
+  return candidate;
 }
 
 async function readJSON(path, label) {
@@ -977,8 +984,10 @@ export function validateReceipt(receipt, { compatibilityRange = CODEX_COMPATIBIL
   assertObject(receipt.host, "host");
   assertExactKeys(receipt.host, ["surface", "version", "os", "arch"], "host");
   assertEqual(receipt.host.surface, "codex-cli", "host.surface");
-  assertEqual(receipt.host.os, "darwin", "host.os");
-  assertEqual(receipt.host.arch, "arm64", "host.arch");
+  const runtimeKey = `${receipt.host.os}-${receipt.host.arch}`;
+  if (!SUPPORTED_RUNTIME_KEYS.includes(runtimeKey)) {
+    throw new Error(`host platform ${runtimeKey} is unsupported`);
+  }
   if (!versionSatisfiesRange(receipt.host.version, compatibilityRange)) {
     throw new Error(`host.version ${receipt.host.version} does not satisfy ${compatibilityRange}`);
   }
@@ -1045,7 +1054,11 @@ export async function readReceipt(receiptPath, options) {
   }
 }
 
-export async function writeReceiptAtomic(receiptPath, receipt, { ownedRoot, compatibilityRange } = {}) {
+export async function writeReceiptAtomic(receiptPath, receipt, {
+  ownedRoot,
+  compatibilityRange,
+  platform = process.platform,
+} = {}) {
   if (!ownedRoot) throw new Error("receipt owned root is required");
   assertCanonicalAbsolutePath(receiptPath, "receipt path");
   assertCanonicalAbsolutePath(ownedRoot, "receipt owned root");
@@ -1069,7 +1082,7 @@ export async function writeReceiptAtomic(receiptPath, receipt, { ownedRoot, comp
   await assertNoSymbolicLinkComponents(ownedRoot, parent);
   await mkdir(parent, { recursive: true, mode: 0o700 });
   await assertNoSymbolicLinkComponents(ownedRoot, parent);
-  await chmod(parent, 0o700);
+  if (platform !== "win32") await chmod(parent, 0o700);
   await rejectSymbolicLink(receiptPath);
 
   const temporaryPath = join(parent, `.${basename(receiptPath)}.tmp-${process.pid}-${randomBytes(8).toString("hex")}`);
@@ -1080,7 +1093,7 @@ export async function writeReceiptAtomic(receiptPath, receipt, { ownedRoot, comp
       flag: "wx",
     });
     await rename(temporaryPath, receiptPath);
-    await chmod(receiptPath, 0o600);
+    if (platform !== "win32") await chmod(receiptPath, 0o600);
   } catch (error) {
     await unlink(temporaryPath).catch(() => {});
     throw error;

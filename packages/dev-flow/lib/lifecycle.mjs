@@ -51,6 +51,8 @@ export async function runLifecycle(request, dependencies = {}) {
   const paths = await (dependencies.resolveManagerPaths ?? resolveManagerPaths)({
     homeDirectory: dependencies.homeDirectory,
     environment,
+    platform: dependencies.platform,
+    arch: dependencies.arch,
   });
   const codex = dependencies.codexDriver ?? createCodexDriver({
     environment,
@@ -70,6 +72,7 @@ export async function runLifecycle(request, dependencies = {}) {
     planId: dependencies.planId,
     token: dependencies.token,
     now: dependencies.now,
+    platform: paths.platform,
   });
 
   if (["status", "doctor"].includes(request.operation)) {

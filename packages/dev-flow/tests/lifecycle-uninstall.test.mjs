@@ -11,7 +11,7 @@ test("ordinary all-Host uninstall removes Adapters and retains shared user data"
   const root = await mkdtemp(join(tmpdir(), "create-dev-flow-uninstall-"));
   const home = join(root, "home");
   await mkdir(home);
-  const paths = await resolveManagerPaths({ homeDirectory: home, environment: {} });
+  const paths = await resolveManagerPaths({ homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64" });
   await mkdir(paths.configurationDirectory);
   await mkdir(paths.defaultDataDirectory, { recursive: true });
   await writeFile(paths.configurationPath, "preserve-config\n");
@@ -20,7 +20,7 @@ test("ordinary all-Host uninstall removes Adapters and retains shared user data"
   const codexDriver = driver("codex", null, states);
   const deepseekDriver = driver("deepseek", "web", states);
   deepseekDriver.knownProfiles = async () => ["web"];
-  const result = await runLifecycle(request(), { homeDirectory: home, environment: {}, codexDriver, deepseekDriver, confirmPlan: async () => true });
+  const result = await runLifecycle(request(), { homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64", codexDriver, deepseekDriver, confirmPlan: async () => true });
   assert.equal(result.result.status, "absent");
   assert.equal(await readFile(paths.configurationPath, "utf8"), "preserve-config\n");
   assert.equal(await readFile(join(paths.defaultDataDirectory, "dev-flow.db"), "utf8"), "preserve-task\n");

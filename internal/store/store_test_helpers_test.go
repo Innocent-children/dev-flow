@@ -30,7 +30,7 @@ func testGraphTask(t *testing.T) domain.ProcessTask {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return domain.ProcessTask{TaskID: "task", OriginHost: domain.HostCodex, Intent: domain.TaskIntent{Request: "Build graph storage.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain}, Process: process.Reference, CurrentNode: domain.NodeRequirements, CurrentAction: &action, Repository: domain.RepositoryBinding{CanonicalRoot: "/repo", GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}, Revision: 1, CreatedAt: now, UpdatedAt: now}
+	return domain.ProcessTask{TaskID: "task", OriginHost: domain.HostCodex, Intent: domain.TaskIntent{Request: "Build graph storage.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain}, Process: process.Reference, CurrentNode: domain.NodeRequirements, CurrentAction: &action, Repository: domain.RepositoryBinding{CanonicalRoot: testPath("repo"), GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}, Revision: 1, CreatedAt: now, UpdatedAt: now}
 }
 func testMutation(t *testing.T, task domain.ProcessTask) TaskMutation {
 	t.Helper()

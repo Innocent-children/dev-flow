@@ -43,10 +43,17 @@ receipts, and readiness read-back. The launcher removes temporary artifacts when
 runs `npm publish` or creates a Tag or GitHub Release. Registry byte read-back and Release asset
 checks still require the publication workflow.
 
+The `dev-flow:local` Node orchestrator runs on macOS arm64 and Windows 10/11 x64, and builds,
+verifies, and stages both `darwin-arm64/dev-flow` and `win32-x64/dev-flow.exe`. A Windows development
+host needs Go, Node.js, npm, and pnpm; this entry does not require Bash to launch.
+
 ## Source-local builds
 
-- `build-codex-local.sh`: build the Codex source-local tarball and darwin-arm64 Core;
-- `build-deepseek-runtime.sh`: build the Core used by DeepSeek package tests;
+- `build-webui.mjs`: build and synchronize the embedded WebUI cross-platform;
+  `build-webui.sh` is its Unix wrapper;
+- `build-codex-local.sh`: build the Codex source-local tarball and both darwin-arm64 and
+  windows-amd64 Core executables;
+- `build-deepseek-runtime.sh`: build both Core runtimes used by DeepSeek package tests;
 - `build-codex-release.sh` and `build-deepseek-release.sh`: prepare deterministic artifacts for a
   standalone release.
 
@@ -60,8 +67,10 @@ For each npm package, configure `publish-npm.yml` from `Innocent-children/dev-fl
 Trusted Publisher allowed to run `npm publish`. Then select only the product, channel, and exact
 version. The workflow uses one fixed release check and obtains a short-lived npm
 publish credential through OIDC, uses macOS 15 ARM64, Go `1.26.5`, Node.js `24.18.0`, and pnpm
-`11.24.0`, serializes runs per product, and invokes the existing commands below. npm publication
-does not create registry authentication configuration that depends on `NODE_AUTH_TOKEN`.
+`11.24.0`, cross-builds and verifies both macOS arm64 and Windows amd64 Core executables, serializes
+runs per product, and invokes the existing commands below. The release runner OS is build
+infrastructure rather than an artifact-runtime restriction. npm publication does not create
+registry authentication configuration that depends on `NODE_AUTH_TOKEN`.
 Version commits, Tags, and GitHub Releases use a short-lived token from a dedicated GitHub App that is
 installed on this repository and added to the `main` ruleset bypass list. Repository variable
 `RELEASE_APP_CLIENT_ID` and secret `RELEASE_APP_PRIVATE_KEY` provide the App Client ID and complete PEM

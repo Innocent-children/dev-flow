@@ -34,8 +34,8 @@ func TestRuntimeReceiptReuseAndServeLifecycle(t *testing.T) {
 		t.Fatalf("receipt/state mismatch: %#v / %#v", receipt, state)
 	}
 	info, err := os.Stat(ReceiptPath(dataDirectory))
-	if err != nil || info.Mode().Perm() != 0o600 {
-		t.Fatalf("receipt mode = %v, err = %v", info.Mode().Perm(), err)
+	if err != nil || !validRuntimeReceiptFile(info) {
+		t.Fatalf("receipt file validation failed: mode = %v, err = %v", info.Mode(), err)
 	}
 	reused, err := Start(context.Background(), dataDirectory, coreIdentity, true)
 	if err != nil || reused.PID != state.PID || reused.URL != state.URL {

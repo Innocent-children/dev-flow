@@ -40,10 +40,15 @@ pnpm run dev-flow:local -- reinstall --host codex --yes
 `npm publish`，也不创建 Tag 或 GitHub Release。它不能替代发布后的 npm registry 字节回读和
 Release 附件检查。
 
+`dev-flow:local` 的 Node orchestrator 可在 macOS arm64 和 Windows 10/11 x64 运行，并同时构建、
+校验、暂存 `darwin-arm64/dev-flow` 与 `win32-x64/dev-flow.exe`。Windows 开发机需要可用的 Go、
+Node.js、npm 和 pnpm；不要求 Bash 来启动这个入口。
+
 ## Source-local 构建
 
-- `build-codex-local.sh`：构建 Codex source-local tarball 与 darwin-arm64 Core；
-- `build-deepseek-runtime.sh`：构建 DeepSeek package tests 使用的 Core；
+- `build-webui.mjs`：跨平台构建并同步嵌入式 WebUI；`build-webui.sh` 是 Unix 包装层；
+- `build-codex-local.sh`：构建 Codex source-local tarball，以及 darwin-arm64 和 windows-amd64 Core；
+- `build-deepseek-runtime.sh`：构建 DeepSeek package tests 使用的两个 Core runtime；
 - `build-codex-release.sh`、`build-deepseek-release.sh`：为 standalone release 准备确定性制品。
 
 最终制品和 evidence 必须写入仓库外、由操作者选择的目录。
@@ -54,8 +59,9 @@ Release 附件检查。
 `Innocent-children/dev-flow` 的 `publish-npm.yml` 配置为允许 `npm publish` 的 GitHub Actions
 Trusted Publisher；运行时只选择产品、channel 和目标版本。工作流使用固定的发布检查，通过 OIDC
 获取短期 npm 发布凭据，使用
-`macos-15` ARM64、Go `1.26.5`、Node.js `24.18.0` 和 pnpm `11.24.0`，按产品串行执行，并调用下列
-现有入口。npm 发布不创建依赖 `NODE_AUTH_TOKEN` 的 registry 认证配置。
+`macos-15` ARM64、Go `1.26.5`、Node.js `24.18.0` 和 pnpm `11.24.0`，按产品串行执行，并交叉构建、
+校验 macOS arm64 与 Windows amd64 Core 后调用下列现有入口。发布 runner 的操作系统只是构建基础设施，
+不缩小制品运行时范围。npm 发布不创建依赖 `NODE_AUTH_TOKEN` 的 registry 认证配置。
 版本提交、Tag 和 GitHub Release 使用安装到当前仓库、加入 `main` ruleset bypass list 的专用
 GitHub App 短期 token；仓库变量 `RELEASE_APP_CLIENT_ID` 和 secret `RELEASE_APP_PRIVATE_KEY`
 分别提供 App Client ID 与完整 PEM 私钥。

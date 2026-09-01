@@ -33,3 +33,70 @@ jobs:
 
       - name: Run bounded repository validation
         run: ./scripts/validate-repository.sh
+
+  windows-x64:
+    name: Windows x64 build contract (CI infrastructure only)
+    runs-on: windows-2025
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up current stable Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          check-latest: true
+
+      - name: Set up current Node LTS
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+
+      - name: Set up pnpm 11
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - name: Install frozen workspace dependencies
+        shell: pwsh
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build native Windows x64 Core
+        shell: pwsh
+        run: |
+          $coreVersion = (Get-Content CORE_VERSION -Raw).Trim()
+          $runtime = Join-Path $env:RUNNER_TEMP "dev-flow.exe"
+          $env:CGO_ENABLED = "0"
+          $env:GOOS = "windows"
+          $env:GOARCH = "amd64"
+          go build -mod=readonly -trimpath -buildvcs=false -ldflags "-s -w -X github.com/Innocent-children/dev-flow/internal/version.buildVersion=$coreVersion" -o $runtime ./cmd/dev-flow
+          "DEV_FLOW_WINDOWS_CORE=$runtime" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          if (& $runtime version) { } else { exit 1 }
+
+      - name: Run the complete Go suite on Windows
+        shell: pwsh
+        run: go test ./... -count=1
+
+      - name: Run Windows Node package suites
+        shell: pwsh
+        run: |
+          pnpm --dir packages/codex test
+          pnpm --dir packages/deepseek test
+          pnpm --dir packages/dev-flow test
+
+      - name: Build the dual-runtime local packages on Windows
+        shell: pwsh
+        run: node scripts/dev-flow-local.mjs help
+
+      - name: Run native Windows WebUI lifecycle
+        shell: pwsh
+        run: |
+          $data = Join-Path $env:RUNNER_TEMP "dev-flow-webui-data"
+          New-Item -ItemType Directory -Path $data | Out-Null
+          $env:DEV_FLOW_DATA_DIR = $data
+          $started = & $env:DEV_FLOW_WINDOWS_CORE webui start --no-open --json | ConvertFrom-Json
+          if ($started.readiness -ne "ready") { throw "WebUI did not become ready" }
+          $status = & $env:DEV_FLOW_WINDOWS_CORE webui status --json | ConvertFrom-Json
+          if ($status.readiness -ne "ready") { throw "WebUI status is not ready" }
+          $stopped = & $env:DEV_FLOW_WINDOWS_CORE webui stop --json | ConvertFrom-Json
+          if ($stopped.readiness -ne "unavailable") { throw "WebUI did not stop" }

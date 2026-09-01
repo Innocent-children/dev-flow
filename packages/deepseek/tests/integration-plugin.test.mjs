@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmod, copyFile, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { chmod, copyFile, link, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -20,6 +20,10 @@ import {
 const sourcePackageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = dirname(dirname(sourcePackageRoot));
 const currentVersion = (await readFile(join(repositoryRoot, "CORE_VERSION"), "utf8")).trim();
+const fixturePlatform = process.platform === "win32" ? "win32" : "darwin";
+const fixtureArch = process.platform === "win32" ? "x64" : "arm64";
+const fixtureRuntimeKey = `${fixturePlatform}-${fixtureArch}`;
+const fixtureExecutable = fixturePlatform === "win32" ? "dev-flow.exe" : "dev-flow";
 
 test("plugin identity and injection surface are fixed", () => {
   assert.equal(name, "dev-flow-deepseek");
@@ -52,8 +56,8 @@ test("registers one user-only Skill, one guard, and the official MCP child confi
 
   await activateDeepSeekIntegration(fake.ctx, {
     packageRoot,
-    platform: "darwin",
-    arch: "arm64",
+    platform: fixturePlatform,
+    arch: fixtureArch,
     environment: { DEV_FLOW_DATA_DIR: dataDirectory },
   });
 
@@ -72,7 +76,7 @@ test("registers one user-only Skill, one guard, and the official MCP child confi
   assert.deepEqual(fake.children[0].config, {
     transport: "stdio",
     serverName: "dev_flow",
-    command: join(fake.packageRoot, "runtime", "darwin-arm64", "dev-flow"),
+    command: join(fake.packageRoot, "runtime", fixtureRuntimeKey, fixtureExecutable),
     args: ["mcp", "--stdio"],
     env: { DEV_FLOW_DATA_DIR: dataDirectory },
     cwd: fake.packageRoot,
@@ -100,8 +104,8 @@ test("ordinary host tools remain executable and reconnect restores the exact cat
   const fake = createFakeContext({ packageRoot, initialToolNames: [], unrelatedToolNames: ["read_file"] });
   await activateDeepSeekIntegration(fake.ctx, {
     packageRoot,
-    platform: "darwin",
-    arch: "arm64",
+    platform: fixturePlatform,
+    arch: fixtureArch,
     environment: { DEV_FLOW_DATA_DIR: dataDirectory },
   });
 
@@ -124,8 +128,8 @@ test("missing or extra connected namespace tools fail compatibility and dispose 
   const fake = createFakeContext({ packageRoot, initialToolNames: DEV_FLOW_QUALIFIED_TOOL_NAMES });
   await activateDeepSeekIntegration(fake.ctx, {
     packageRoot,
-    platform: "darwin",
-    arch: "arm64",
+    platform: fixturePlatform,
+    arch: fixtureArch,
     environment: { DEV_FLOW_DATA_DIR: dataDirectory },
   });
 
@@ -263,7 +267,7 @@ async function temporaryDirectory(t, name) {
 async function temporaryPackage(t, name) {
   const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-deepseek-package-")));
   const packageRoot = join(root, name);
-  const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
+  const runtimePath = join(packageRoot, "runtime", fixtureRuntimeKey, fixtureExecutable);
   const skillRoot = join(packageRoot, "skills", "dev-flow");
   await mkdir(dirname(runtimePath), { recursive: true });
   await mkdir(join(skillRoot, "references"), { recursive: true });
@@ -278,16 +282,29 @@ async function temporaryPackage(t, name) {
       join(skillRoot, "references", reference),
     );
   }
-  await writeFile(runtimePath, [
-    "#!/bin/sh",
-    "if [ \"$1\" = \"version\" ]; then",
-    `  printf 'dev-flow ${currentVersion}\\n'`,
-    "  exit 0",
-    "fi",
-    "exit 1",
-    "",
-  ].join("\n"));
-  await chmod(runtimePath, 0o755);
+  if (fixturePlatform === "win32") {
+    try {
+      await link(process.execPath, runtimePath);
+    } catch {
+      await copyFile(process.execPath, runtimePath);
+    }
+    await writeFile(
+      join(dirname(runtimePath), "version"),
+      `process.stdout.write('dev-flow ${currentVersion}\\n');\n`,
+      "utf8",
+    );
+  } else {
+    await writeFile(runtimePath, [
+      "#!/bin/sh",
+      "if [ \"$1\" = \"version\" ]; then",
+      `  printf 'dev-flow ${currentVersion}\\n'`,
+      "  exit 0",
+      "fi",
+      "exit 1",
+      "",
+    ].join("\n"));
+    await chmod(runtimePath, 0o755);
+  }
   t.after(() => rm(root, { recursive: true, force: true }));
   return packageRoot;
 }

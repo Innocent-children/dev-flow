@@ -1,7 +1,7 @@
 package domain
 
 import (
-	"path/filepath"
+	"path"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -174,7 +174,9 @@ func (b TaskPlanBaseline) Validate() error {
 }
 
 func validateRepositoryRelativePath(value string) error {
-	if !utf8.ValidString(value) || value == "" || strings.Contains(value, repositoryPathSeparator) || filepath.IsAbs(value) || filepath.Clean(value) != value || value == ".." || strings.HasPrefix(value, ".."+string(filepath.Separator)) {
+	if !utf8.ValidString(value) || value == "" || strings.Contains(value, repositoryPathSeparator) ||
+		strings.Contains(value, `\`) || path.IsAbs(value) || path.Clean(value) != value ||
+		value == ".." || strings.HasPrefix(value, "../") {
 		return ErrInvalidArgument
 	}
 	return nil

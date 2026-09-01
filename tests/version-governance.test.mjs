@@ -18,6 +18,13 @@ test("three product versions are independent", async (t) => {
   assert.deepEqual(await checkVersions(root), { core: "1.2.3", codex: "2.3.4", deepseek: "3.4.5", devFlow: "4.5.6" });
 });
 
+test("Core version authority accepts one Windows CRLF terminator", async (t) => {
+  const root = await fixtureRoot(t);
+  const expected = JSON.parse(await readFile(join(root, "protocol/fixtures/graph-server-info.json"), "utf8")).version;
+  await writeFile(join(root, "CORE_VERSION"), `${expected}\r\n`);
+  assert.equal((await checkVersions(root)).core, expected);
+});
+
 test("only the Codex plugin mirrors another product version", async (t) => {
   const root = await fixtureRoot(t);
   await setVersion(join(root, "packages/codex/plugin/.codex-plugin/plugin.json"), "9.9.9");

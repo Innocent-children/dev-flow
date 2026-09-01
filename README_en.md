@@ -42,8 +42,9 @@ from its saved stage and next step.
 | Decide | Which old test and comprehension records became stale after implementation changes, and whether repository state still matches the Task |
 | Recover | Whether an uncertain Action should continue, be recorded, block, or retry safely |
 
-Codex and DeepSeek still read code, edit files, and run commands. Before Codex `apply_patch` or a
-structured DeepSeek file tool writes, the Host sends its target paths to Core. An unplanned path
+Codex and DeepSeek still read code, edit files, and run commands. The packaged Codex hook uses its
+package-owned launcher, while DeepSeek uses its structured-file-tool entry; each sends target paths
+to Core before a write. An unplanned path
 enters `BLOCKED` so the developer can allow that exact write, revise the Task Plan, or reject it.
 Core also reconciles Task-introduced paths before testing and `DONE`.
 
@@ -103,8 +104,10 @@ state. It continues the remaining test instead of inferring progress from chat h
 
 ## Shortest installation path
 
-Current stable artifacts support macOS arm64. See the
-[Support Matrix](docs/SUPPORT-MATRIX_en.md) for exact Host, Node.js, and stable-package coverage.
+Current stable `@latest` artifacts support macOS arm64. Current source also implements Windows 10/11
+desktop x64 and has native Windows 11 evidence; the stable claim expands only after an independent
+release and final Host journey. See the [Support Matrix](docs/SUPPORT-MATRIX_en.md) for exact Host,
+Node.js, source, and stable-package coverage.
 
 ```bash
 npm install -g @imotong/dev-flow@latest
@@ -129,13 +132,19 @@ Native Host commands are diagnostic and recovery entry points. See the
 [Codex guide](docs/CODEX_en.md), [DeepSeek guide](docs/DEEPSEEK_en.md), and
 [Command Reference](docs/COMMANDS_en.md) for installation, status, resume, and removal details.
 
-## Current support and boundaries
+## Stable support, current source, and boundaries
 
 | Product | Verified environment |
 | --- | --- |
 | `dev-flow-codex` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
 | `dev-flow-deepseek` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
 | `@imotong/dev-flow` | macOS arm64, Node.js `>=20` |
+
+Current source additionally selects the exact `win32-x64` package runtime for Windows 10/11 desktop
+x64. Windows Server, 32-bit Windows, and Windows ARM64 are not supported. The Windows default data
+directory is `%LOCALAPPDATA%\dev-flow\data`, and configuration is
+`%USERPROFILE%\.dev-flow\config.json`. This source capability has not changed the stable `@latest`
+table above.
 
 Dev Flow remains early and external adoption is limited. Current boundaries include:
 

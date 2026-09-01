@@ -7,6 +7,8 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
+import { execPortableCommand } from "../../dev-flow/lib/command.mjs";
+
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = dirname(dirname(packageRoot));
 const execFile = promisify(execFileCallback);
@@ -22,6 +24,7 @@ const expectedPackageFiles = [
   "lib/runtime.mjs",
   "lib/tool-names.mjs",
   "runtime/darwin-arm64/dev-flow",
+  "runtime/win32-x64/dev-flow.exe",
   "skills/dev-flow/SKILL.md",
   "skills/dev-flow/references/method-profiles.md",
   "skills/dev-flow/references/node-payloads.md",
@@ -43,7 +46,7 @@ const lifecycleHooks = [
   "postuninstall",
 ];
 
-test("manifest declares one public macOS arm64 ESM DeepSeek bundle", async () => {
+test("manifest declares one public macOS arm64 and Windows x64 ESM DeepSeek bundle", async () => {
   const manifest = await readJSON(join(packageRoot, "package.json"));
 
   assert.equal(manifest.name, "dev-flow-deepseek");
@@ -58,8 +61,8 @@ test("manifest declares one public macOS arm64 ESM DeepSeek bundle", async () =>
     directory: "packages/deepseek",
   });
   assert.deepEqual(manifest.engines, { node: ">=24" });
-  assert.deepEqual(manifest.os, ["darwin"]);
-  assert.deepEqual(manifest.cpu, ["arm64"]);
+  assert.deepEqual(manifest.os, ["darwin", "win32"]);
+  assert.deepEqual(manifest.cpu, ["arm64", "x64"]);
   assert.deepEqual(manifest.publishConfig, { access: "public", registry: "https://registry.npmjs.org/" });
   assert.deepEqual(manifest.dsh, {
     bundle: {
@@ -82,7 +85,7 @@ test("manifest closes package, dependency, and lifecycle surfaces", async () => 
     "@deepseek-ai/dsh-skill": ">=0.1.0-rc.6",
     "@deepseek-ai/dsh-tools": ">=0.1.0-rc.6",
   });
-  assert.equal(manifest.scripts["build:webui"], "../../scripts/build-webui.sh");
+  assert.equal(manifest.scripts["build:webui"], "node ../../scripts/build-webui.mjs");
 
   for (const field of [
     "dependencies",
@@ -112,7 +115,7 @@ test("packaged node-payload reference closes completed user evidence semantics",
 
 test("dry pack contains only declared product files and excludes development state", async () => {
   const manifest = await readJSON(join(packageRoot, "package.json"));
-  const { stdout } = await execFile(
+  const { stdout } = await execPortableCommand(
     "pnpm",
     ["--config.ignore-scripts=true", "--dir", packageRoot, "pack", "--dry-run", "--json"],
     { encoding: "utf8" },
@@ -144,7 +147,9 @@ test("dry pack contains only declared product files and excludes development sta
   assert.equal(packedFiles.some((path) => /\.(?:db|sqlite|tgz|map)$/iu.test(path)), false);
 });
 
-test("packaged Core is a detached executable darwin-arm64 CGo-free file", async () => {
+test("packaged Core is a detached executable darwin-arm64 CGo-free file", {
+  skip: process.platform === "win32" ? "POSIX mode and Darwin metadata are verified on Unix; Windows has a native .exe contract" : false,
+}, async () => {
   const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
   const runtime = await import("node:fs/promises").then(({ lstat }) => lstat(runtimePath));
   assert.equal(runtime.isFile(), true);

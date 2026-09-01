@@ -1,12 +1,9 @@
-import { execFile as execFileCallback } from "node:child_process";
 import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { promisify } from "node:util";
 
+import { execPortableCommand } from "../command.mjs";
 import { listProfileReceipts, removeProfileReceipt, writeProfileReceipt } from "../ownership.mjs";
-
-const execFile = promisify(execFileCallback);
 
 export function createDeepSeekDriver({
   paths,
@@ -129,7 +126,7 @@ async function assertContribution(run, executable, profile, environment, expecte
 
 async function runChild(executable, arguments_, { environment = process.env, cwd = process.cwd(), timeout = 120_000 } = {}) {
   try {
-    return await execFile(executable, arguments_, { cwd, env: environment, encoding: "utf8", maxBuffer: 1024 * 1024, timeout, windowsHide: true, shell: false });
+    return await execPortableCommand(executable, arguments_, { cwd, env: environment, encoding: "utf8", maxBuffer: 1024 * 1024, timeout, windowsHide: true, shell: false });
   } catch (error) {
     const wrapped = new Error(`${executable} ${arguments_.join(" ")} failed`, { cause: error });
     wrapped.code = error?.code;

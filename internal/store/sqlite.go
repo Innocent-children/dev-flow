@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
@@ -63,7 +64,12 @@ func Open(ctx context.Context, path string) (*SQLite, error) {
 	return &SQLite{db: db}, nil
 }
 func dataSource(path string, readOnly bool) string {
-	u := &url.URL{Scheme: "file", Path: filepath.Clean(path)}
+	clean := filepath.Clean(path)
+	uriPath := filepath.ToSlash(clean)
+	if filepath.VolumeName(clean) != "" && !strings.HasPrefix(uriPath, "/") {
+		uriPath = "/" + uriPath
+	}
+	u := &url.URL{Scheme: "file", Path: uriPath}
 	q := u.Query()
 	q.Set("_foreign_keys", "on")
 	q.Set("_busy_timeout", strconv.FormatInt(domain.SQLiteBusyTimeout.Milliseconds(), 10))

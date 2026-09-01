@@ -14,13 +14,16 @@ blocker after repository drift or an uncertain Action result.
 | Item | Current support |
 | --- | --- |
 | Package | [`dev-flow-codex`](https://www.npmjs.com/package/dev-flow-codex) |
-| Platform | macOS arm64 |
+| Stable platform | macOS arm64 |
+| Current-source platform | macOS arm64 (`darwin-arm64`); Windows 10/11 desktop x64 (`win32-x64`) |
 | Node.js | `>=24` |
 | Codex | `>=0.147.0` |
 | Releases | [GitHub Releases](https://github.com/Innocent-children/dev-flow/releases) |
 
 Stable support is defined by the [Support Matrix](SUPPORT-MATRIX_en.md). Capability on `main` may not
-yet be present in npm `@latest`.
+yet be present in npm `@latest`. Windows Server, 32-bit Windows, Windows ARM64, and Intel Mac are
+outside the current-source support boundary. The launcher rejects runtime pairs other than
+`darwin-arm64` and `win32-x64`.
 
 ## Install
 
@@ -41,8 +44,10 @@ dev-flow-codex status --json
 dev-flow-codex --version
 ```
 
-When fixed user configuration is absent, `setup` creates `$HOME/.dev-flow/config.json`, validates the
-package, bundled Core, and Codex compatibility, then registers the marketplace, Plugin, and MCP. See
+When fixed user configuration is absent, `setup` creates `$HOME/.dev-flow/config.json` on macOS or
+`%USERPROFILE%\.dev-flow\config.json` on Windows, validates the package, bundled Core, and Codex
+compatibility, then registers the marketplace, Plugin, and MCP. Windows Task data defaults to
+`%LOCALAPPDATA%\dev-flow\data`. See
 the [Command Reference](COMMANDS_en.md#codex) for every argument and machine-readable result.
 
 After `setup`, review and trust the Dev Flow packaged hook through Codex `/hooks`. Codex skips the
@@ -87,8 +92,9 @@ repetition pauses the Task again.
 
 The Plugin bundles a `PreToolUse` hook. After the developer trusts the current hook through Codex
 `/hooks`, every `apply_patch` call sends its target files to the packaged Core before execution through
-the managed `dev-flow-codex host-check pre-file-write` entrypoint. The launcher resolves the package-local
-Core without depending on the Codex Plugin cache layout.
+the package-owned `dev-flow-codex hook pre-tool-use` launcher on `PATH`, which parses the event and
+uses the internal `host-check pre-file-write` entrypoint. The launcher resolves the package-local Core
+without depending on the Codex Plugin cache layout.
 Core uses the union of every WorkItem's `ExpectedPaths` in the current Task Plan, with repository-key
 qualification for multi-repository Tasks. An expected file in additional repository B or C proceeds
 without a question when the repository is already in Task Repository Scope and authorized through

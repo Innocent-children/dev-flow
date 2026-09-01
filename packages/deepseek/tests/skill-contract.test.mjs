@@ -16,7 +16,7 @@ const rawTools = [
 ];
 
 test("Skill declares explicit activation and the complete qualified tool catalog", async () => {
-  const skill = await readFile(skillPath, "utf8");
+  const skill = (await readFile(skillPath, "utf8")).replace(/\r\n?/gu, "\n");
   assert.equal(skill.startsWith("# Dev Flow\n"), true);
   const handshake = section(skill, "Compatibility handshake");
   const catalog = [...handshake.matchAll(/^\d+\. `(dev_flow_[a-z_]+)`$/gmu)].map((match) => match[1]);
@@ -55,7 +55,8 @@ function section(markdown, heading) {
 }
 
 function marked(markdown, name) {
-  const match = markdown.match(new RegExp(`<!-- ${name}:start -->\\n([\\s\\S]*?)\\n<!-- ${name}:end -->`, "u"));
+  const normalized = markdown.replace(/\r\n?/gu, "\n");
+  const match = normalized.match(new RegExp(`<!-- ${name}:start -->\\n([\\s\\S]*?)\\n<!-- ${name}:end -->`, "u"));
   assert.notEqual(match, null, name);
   return match[1];
 }

@@ -51,7 +51,7 @@ func TestControlCenterReadsCP1(t *testing.T) {
 	}{
 		{"text", TaskListQuery{Text: "beta", Page: 1, PageSize: 10}, "task-b"},
 		{"host", TaskListQuery{Host: domain.HostDeepSeek, Page: 1, PageSize: 10}, "task-b"},
-		{"repository", TaskListQuery{Repository: "/repo/alpha", Page: 1, PageSize: 10}, "task-a"},
+		{"repository", TaskListQuery{Repository: testPath("repo", "alpha"), Page: 1, PageSize: 10}, "task-a"},
 		{"node", TaskListQuery{Node: domain.NodeCancelled, Page: 1, PageSize: 10}, "task-b"},
 		{"lifecycle", TaskListQuery{Lifecycle: "cancelled", Page: 1, PageSize: 10}, "task-b"},
 		{"updated time", TaskListQuery{UpdatedFrom: pointerTime(third.UpdatedAt), UpdatedTo: pointerTime(third.UpdatedAt), Page: 1, PageSize: 10}, "task-c"},
@@ -89,7 +89,7 @@ func controlCenterTestTask(t *testing.T, id domain.ID, host domain.Host, key, re
 	if err != nil {
 		t.Fatal(err)
 	}
-	return domain.ProcessTask{TaskID: id, OriginHost: host, Intent: domain.TaskIntent{Request: request, KnownAcceptanceCriteria: []string{"The task is visible."}, VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 1}, MethodProfile: domain.MethodPlain}, Process: definition.Reference, CurrentNode: domain.NodeRequirements, CurrentAction: &action, PrimaryRepositoryKey: domain.RepositoryKey(key), Repository: domain.RepositoryBinding{CanonicalRoot: "/repo/" + key, GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}, Revision: 1, CreatedAt: now, UpdatedAt: now}
+	return domain.ProcessTask{TaskID: id, OriginHost: host, Intent: domain.TaskIntent{Request: request, KnownAcceptanceCriteria: []string{"The task is visible."}, VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 1}, MethodProfile: domain.MethodPlain}, Process: definition.Reference, CurrentNode: domain.NodeRequirements, CurrentAction: &action, PrimaryRepositoryKey: domain.RepositoryKey(key), Repository: domain.RepositoryBinding{CanonicalRoot: testPath("repo", key), GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}, Revision: 1, CreatedAt: now, UpdatedAt: now}
 }
 
 func controlCenterOpenMutation(task domain.ProcessTask) TaskMutation {

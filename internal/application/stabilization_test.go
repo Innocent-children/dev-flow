@@ -13,11 +13,12 @@ func TestOpenTaskIntentConflictAndIDFailureAreZeroWrite(t *testing.T) {
 	digest := domain.Digest(strings.Repeat("a", 64))
 	branch := "main"
 	head := strings.Repeat("b", 40)
-	binding := domain.RepositoryBinding{CanonicalRoot: "/repo", GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
+	repositoryPath := testPath("repo")
+	binding := domain.RepositoryBinding{CanonicalRoot: repositoryPath, GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
 	ms := &memoryStore{}
 	n := 0
 	s, _ := newService(ms, observer{binding}, func() time.Time { return now }, func(prefix string) (domain.ID, error) { n++; return domain.ID(prefix + "-id"), nil })
-	base := OpenTaskRequest{RequestID: "request-one", Host: domain.HostCodex, RepositoryPath: "/repo", NewTask: &NewTaskInput{Request: "Requirement A", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 1}, MethodProfile: domain.MethodPlain}}
+	base := OpenTaskRequest{RequestID: "request-one", Host: domain.HostCodex, RepositoryPath: repositoryPath, NewTask: &NewTaskInput{Request: "Requirement A", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 1}, MethodProfile: domain.MethodPlain}}
 	if _, err := s.OpenTask(context.Background(), base); err != nil {
 		t.Fatal(err)
 	}
@@ -49,11 +50,12 @@ func TestApplyRepositoryDriftIsZeroWrite(t *testing.T) {
 	d := domain.Digest(strings.Repeat("a", 64))
 	branch := "main"
 	head := strings.Repeat("b", 40)
-	binding := domain.RepositoryBinding{CanonicalRoot: "/repo", GitCommonDirDigest: d, RepositoryIdentity: d, Branch: &branch, Head: &head, WorktreeFingerprint: d, ObservedAt: now, BindingDigest: d}
+	repositoryPath := testPath("repo")
+	binding := domain.RepositoryBinding{CanonicalRoot: repositoryPath, GitCommonDirDigest: d, RepositoryIdentity: d, Branch: &branch, Head: &head, WorktreeFingerprint: d, ObservedAt: now, BindingDigest: d}
 	o := &mutableObserver{binding: binding}
 	ms := &memoryStore{}
 	s, _ := newService(ms, o, func() time.Time { return now }, func(prefix string) (domain.ID, error) { return domain.ID(prefix + "-id"), nil })
-	opened, err := s.OpenTask(context.Background(), OpenTaskRequest{RequestID: "request-open", Host: domain.HostCodex, RepositoryPath: "/repo", NewTask: &NewTaskInput{Request: "Requirement", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 1}, MethodProfile: domain.MethodPlain}})
+	opened, err := s.OpenTask(context.Background(), OpenTaskRequest{RequestID: "request-open", Host: domain.HostCodex, RepositoryPath: repositoryPath, NewTask: &NewTaskInput{Request: "Requirement", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 1}, MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -20,7 +20,7 @@ test("local launcher stages bundled Core with executable permissions", async (t)
 
   await copyExecutable(source, target);
 
-  assert.equal((await stat(target)).mode & 0o777, 0o755);
+  if (process.platform !== "win32") assert.equal((await stat(target)).mode & 0o777, 0o755);
   assert.equal(await readFile(target, "utf8"), "core\n");
   t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
 });

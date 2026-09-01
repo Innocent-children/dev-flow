@@ -12,11 +12,28 @@ export function packageRootFromModule(moduleUrl = import.meta.url) {
 export async function resolveDataDirectory({
   homeDirectory = homedir(),
   environment = process.env,
+  platform = process.platform,
 } = {}) {
   const canonicalHome = await canonicalExistingDirectory(homeDirectory, "home directory");
+  const productSupportAnchor = platform === "win32"
+    ? environment?.LOCALAPPDATA
+      ? await canonicalExistingDirectory(environment.LOCALAPPDATA, "LOCALAPPDATA")
+      : containedPath(
+        canonicalHome,
+        join(canonicalHome, "AppData", "Local"),
+        "local application data directory",
+      )
+    : containedPath(
+      canonicalHome,
+      join(canonicalHome, "Library", "Application Support"),
+      "application support directory",
+    );
+  const productSupportInspectionRoot = platform === "win32" && !environment?.LOCALAPPDATA
+    ? canonicalHome
+    : productSupportAnchor;
   const productSupportRoot = containedPath(
-    canonicalHome,
-    join(canonicalHome, "Library", "Application Support", "dev-flow"),
+    productSupportAnchor,
+    join(productSupportAnchor, "dev-flow"),
     "product support root",
   );
 
@@ -25,13 +42,16 @@ export async function resolveDataDirectory({
     const dataDirectory = await canonicalExplicitDataDirectory(explicitDataDirectory);
     return Object.freeze({
       dataDirectory,
+      platform,
       homeDirectory: canonicalHome,
+      productSupportAnchor,
+      productSupportInspectionRoot,
       productSupportRoot,
       usesDefaultDataDirectory: false,
     });
   }
 
-  await assertNoSymlinkComponents(canonicalHome, productSupportRoot);
+  await assertNoSymlinkComponents(productSupportInspectionRoot, productSupportRoot);
 
   return Object.freeze({
     dataDirectory: containedPath(
@@ -39,7 +59,10 @@ export async function resolveDataDirectory({
       join(productSupportRoot, "data"),
       "default data directory",
     ),
+    platform,
     homeDirectory: canonicalHome,
+    productSupportAnchor,
+    productSupportInspectionRoot,
     productSupportRoot,
     usesDefaultDataDirectory: true,
   });
@@ -58,10 +81,10 @@ export async function ensureDefaultDataDirectory(paths) {
     throw new Error("default data directory does not match the shared product path");
   }
 
-  await assertNoSymlinkComponents(paths.homeDirectory, paths.productSupportRoot);
+  await assertNoSymlinkComponents(paths.productSupportInspectionRoot, paths.productSupportRoot);
   await mkdir(paths.dataDirectory, { recursive: true, mode: 0o700 });
-  await assertNoSymlinkComponents(paths.homeDirectory, paths.dataDirectory);
-  await chmod(paths.dataDirectory, 0o700);
+  await assertNoSymlinkComponents(paths.productSupportInspectionRoot, paths.dataDirectory);
+  if (paths.platform !== "win32") await chmod(paths.dataDirectory, 0o700);
   return paths.dataDirectory;
 }
 

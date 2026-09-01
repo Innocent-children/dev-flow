@@ -193,7 +193,7 @@ test("open-task guard rejects root-external and symlink-escaping repositories be
   const outside = join(base, "outside");
   const escape = join(root, "escape");
   await Promise.all([mkdir(primary, { recursive: true }), mkdir(outside)]);
-  await symlink(outside, escape);
+  await symlink(outside, escape, process.platform === "win32" ? "junction" : undefined);
 
   for (const [name, repositoryPath] of [["outside", outside], ["escape", escape]]) {
     let dispatches = 0;

@@ -77,7 +77,7 @@ test("accepts only an existing canonical absolute explicit data directory", asyn
   );
 
   const link = join(t.testRoot, "data-link");
-  await symlink(explicit, link);
+  await symlink(explicit, link, process.platform === "win32" ? "junction" : undefined);
   await assert.rejects(
     resolveProductPaths({
       packageRoot: root,
@@ -139,7 +139,11 @@ test("rejects a default product root that escapes through a symlink", async (t) 
   const outside = join(t.testRoot, "outside");
   await mkdir(join(home, "Library", "Application Support"), { recursive: true });
   await mkdir(outside, { recursive: true });
-  await symlink(outside, join(home, "Library", "Application Support", "dev-flow"));
+  await symlink(
+    outside,
+    join(home, "Library", "Application Support", "dev-flow"),
+    process.platform === "win32" ? "junction" : undefined,
+  );
 
   await assert.rejects(
     resolveProductPaths({

@@ -147,9 +147,10 @@ func containsSchemaMember(values []string, wanted string) bool {
 
 func TestMultiRepositoryTaskProjectionIsSortedAndUsesOneDigest(t *testing.T) {
 	now := time.Date(2026, 8, 23, 7, 0, 0, 0, time.UTC)
-	primary := graphContractBinding(now, "/core", 'a')
-	api := graphContractBinding(now, "/api", 'b')
-	docs := graphContractBinding(now, "/docs", 'c')
+	corePath, apiPath, docsPath := testPath("core"), testPath("api"), testPath("docs")
+	primary := graphContractBinding(now, corePath, 'a')
+	api := graphContractBinding(now, apiPath, 'b')
+	docs := graphContractBinding(now, docsPath, 'c')
 	task := domain.ProcessTask{
 		PrimaryRepositoryKey: "core",
 		Repository:           primary,
@@ -173,7 +174,7 @@ func TestMultiRepositoryTaskProjectionIsSortedAndUsesOneDigest(t *testing.T) {
 	if json.Unmarshal(raw, &projection) != nil {
 		t.Fatal("invalid task projection")
 	}
-	if projection["primary_repository_key"] != "core" || projection["repository"].(map[string]any)["canonical_root"] != "/core" {
+	if projection["primary_repository_key"] != "core" || projection["repository"].(map[string]any)["canonical_root"] != corePath {
 		t.Fatalf("primary projection=%#v", projection)
 	}
 	additional, ok := projection["additional_repositories"].([]any)
@@ -185,7 +186,7 @@ func TestMultiRepositoryTaskProjectionIsSortedAndUsesOneDigest(t *testing.T) {
 	}
 
 	single := projectTask(domain.ProcessTask{Repository: primary}).(map[string]any)
-	if single["primary_repository_key"] != domain.DefaultPrimaryRepositoryKey || single["repository"].(map[string]any)["canonical_root"] != "/core" {
+	if single["primary_repository_key"] != domain.DefaultPrimaryRepositoryKey || single["repository"].(map[string]any)["canonical_root"] != corePath {
 		t.Fatalf("single repository projection=%#v", single)
 	}
 	if _, exists := single["additional_repositories"]; exists {

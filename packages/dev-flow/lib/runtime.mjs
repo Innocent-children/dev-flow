@@ -10,7 +10,10 @@ import { ensureDefaultDataDirectory, listProfileReceipts, resolveManagerPaths } 
 const execFile = promisify(execFileCallback);
 const packageVersion = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version;
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u;
-const forwardedSignals = ["SIGINT", "SIGTERM", "SIGHUP"];
+const RUNTIME_DESCRIPTORS = Object.freeze({
+  "darwin-arm64": Object.freeze({ directory: "darwin-arm64", executable: "dev-flow" }),
+  "win32-x64": Object.freeze({ directory: "win32-x64", executable: "dev-flow.exe" }),
+});
 const help = `Dev Flow
 
 Usage:
@@ -35,7 +38,14 @@ export async function runDevFlow(arguments_, dependencies = {}) {
     if (["version", "--version"].includes(arguments_[0])) {
       let selection;
       try {
-        selection = await (dependencies.resolveCoreRuntime ?? resolveCoreRuntime)({ environment, homeDirectory: dependencies.homeDirectory, exec: dependencies.exec, requireData: false });
+        selection = await (dependencies.resolveCoreRuntime ?? resolveCoreRuntime)({
+          environment,
+          homeDirectory: dependencies.homeDirectory,
+          platform: dependencies.platform,
+          arch: dependencies.arch,
+          exec: dependencies.exec,
+          requireData: false,
+        });
       } catch (error) {
         if (!(error instanceof NoRuntimeError)) throw error;
       }
@@ -47,6 +57,8 @@ export async function runDevFlow(arguments_, dependencies = {}) {
     const selection = await (dependencies.resolveCoreRuntime ?? resolveCoreRuntime)({
       environment,
       homeDirectory: dependencies.homeDirectory,
+      platform: dependencies.platform,
+      arch: dependencies.arch,
       exec: dependencies.exec,
       requireData: true,
       initializeDefaultData: arguments_[0] === "webui" && arguments_[1] === "start",
@@ -65,20 +77,31 @@ export async function runDevFlow(arguments_, dependencies = {}) {
 export async function resolveCoreRuntime({
   environment = process.env,
   homeDirectory,
+  platform = process.platform,
+  arch = process.arch,
   exec = execFile,
   requireData = true,
   initializeDefaultData = false,
 } = {}) {
-  const paths = await resolveManagerPaths({ homeDirectory, environment });
+  const runtime = runtimeDescriptor(platform, arch);
+  const paths = await resolveManagerPaths({ homeDirectory, environment, platform, arch });
   const dataDirectory = paths.explicitDataDirectory ?? paths.defaultDataDirectory;
   const candidates = [];
 
   const codexReceipt = await readOptionalJSON(join(paths.productRoot, "registrations", "codex.json"), "Codex receipt");
   if (codexReceipt !== null) {
     const product = exactObject(codexReceipt.product, ["name", "version", "core_version", "codex_compatibility"], "Codex receipt product");
+    const host = exactObject(codexReceipt.host, ["surface", "version", "os", "arch"], "Codex receipt host");
     const receiptPaths = exactObject(codexReceipt.paths, ["package_root", "runtime_path", "data_dir", "receipt_path"], "Codex receipt paths");
     if (product.name !== "dev-flow-codex" || !semverPattern.test(product.version) || !semverPattern.test(product.core_version)) {
       throw new Error("Codex receipt product identity is invalid");
+    }
+    if (host.surface !== "codex-cli" || `${host.os}-${host.arch}` !== runtime.runtimeKey) {
+      throw new Error("Codex receipt host platform differs from this runtime");
+    }
+    const expectedRuntimePath = join(receiptPaths.package_root, "runtime", runtime.directory, runtime.executable);
+    if (resolve(receiptPaths.runtime_path) !== resolve(expectedRuntimePath)) {
+      throw new Error("Codex receipt runtime path differs from the supported package layout");
     }
     candidates.push(await preflightCandidate({
       source: "codex",
@@ -87,7 +110,7 @@ export async function resolveCoreRuntime({
       expectedCoreVersion: product.core_version,
       packageRoot: receiptPaths.package_root,
       runtimePath: receiptPaths.runtime_path,
-    }, exec, environment));
+    }, exec, environment, platform));
   }
 
   const dshHome = resolve(environment.DSH_HOME || join(paths.homeDirectory, ".dsh"));
@@ -99,8 +122,8 @@ export async function resolveCoreRuntime({
       packageVersion: receipt.installed_version,
       expectedCoreVersion: null,
       packageRoot,
-      runtimePath: join(packageRoot, "runtime", "darwin-arm64", "dev-flow"),
-    }, exec, environment));
+      runtimePath: join(packageRoot, "runtime", runtime.directory, runtime.executable),
+    }, exec, environment, platform));
   }
 
   if (candidates.length === 0) throw new NoRuntimeError("no installed Codex or DeepSeek Adapter provides a Core runtime");
@@ -109,7 +132,7 @@ export async function resolveCoreRuntime({
     else await assertCanonicalDirectory(dataDirectory, "Dev Flow data directory");
   }
   candidates.sort((left, right) => compareSemver(right.version, left.version) || left.source.localeCompare(right.source));
-  return Object.freeze({ ...candidates[0], dataDirectory });
+  return Object.freeze({ ...candidates[0], dataDirectory, platform, arch, runtimeKey: runtime.runtimeKey });
 }
 
 export class NoRuntimeError extends Error {
@@ -119,7 +142,7 @@ export class NoRuntimeError extends Error {
   }
 }
 
-async function preflightCandidate(candidate, exec, environment) {
+async function preflightCandidate(candidate, exec, environment, platform) {
   const packageRoot = await realpath(candidate.packageRoot).catch((error) => {
     throw new Error(`${candidate.source} package root is unavailable`, { cause: error });
   });
@@ -130,7 +153,7 @@ async function preflightCandidate(candidate, exec, environment) {
   if (manifest?.name !== candidate.packageName || manifest.version !== candidate.packageVersion) {
     throw new Error(`${candidate.source} package identity differs from its receipt`);
   }
-  const runtimePath = await assertCanonicalExecutable(candidate.runtimePath, `${candidate.source} Core runtime`);
+  const runtimePath = await assertCanonicalExecutable(candidate.runtimePath, `${candidate.source} Core runtime`, platform);
   const result = await exec(runtimePath, ["version"], { cwd: packageRoot, encoding: "utf8", maxBuffer: 64 * 1024, env: environment });
   const match = /^dev-flow (\S+)\n?$/u.exec(result.stdout);
   if (!match || !semverPattern.test(match[1]) || candidate.expectedCoreVersion && match[1] !== candidate.expectedCoreVersion) {
@@ -154,6 +177,9 @@ async function launchCore(selection, arguments_, { environment, spawnImpl, signa
     windowsHide: true,
   });
   const handlers = new Map();
+  const forwardedSignals = (selection.platform ?? process.platform) === "win32"
+    ? ["SIGINT", "SIGTERM"]
+    : ["SIGINT", "SIGTERM", "SIGHUP"];
   for (const signal of forwardedSignals) {
     const handler = () => child.kill(signal);
     handlers.set(signal, handler);
@@ -185,10 +211,10 @@ async function assertCanonicalDirectory(path, label) {
   if (canonical !== resolve(path) || !(await stat(canonical)).isDirectory()) throw new Error(`${label} must be a canonical directory`);
 }
 
-async function assertCanonicalExecutable(path, label) {
+async function assertCanonicalExecutable(path, label, platform) {
   const info = await lstat(path).catch((error) => { throw new Error(`${label} is unavailable`, { cause: error }); });
-  if (!info.isFile() || info.isSymbolicLink() || (info.mode & 0o111) === 0) throw new Error(`${label} must be a regular executable file`);
-  await access(path, fsConstants.X_OK);
+  if (!info.isFile() || info.isSymbolicLink() || platform !== "win32" && (info.mode & 0o111) === 0) throw new Error(`${label} must be a regular executable file`);
+  await access(path, platform === "win32" ? fsConstants.F_OK : fsConstants.X_OK);
   const canonical = await realpath(path);
   if (canonical !== resolve(path)) throw new Error(`${label} must be canonical`);
   return canonical;
@@ -199,4 +225,13 @@ function compareSemver(left, right) {
   const b = right.split(".").map(Number);
   for (let index = 0; index < 3; index += 1) if (a[index] !== b[index]) return a[index] - b[index];
   return 0;
+}
+
+function runtimeDescriptor(platform, arch) {
+  const runtimeKey = `${platform}-${arch}`;
+  const descriptor = RUNTIME_DESCRIPTORS[runtimeKey];
+  if (descriptor === undefined) {
+    throw new Error(`unsupported platform ${runtimeKey}; supported runtimes: ${Object.keys(RUNTIME_DESCRIPTORS).join(", ")}`);
+  }
+  return Object.freeze({ runtimeKey, ...descriptor });
 }

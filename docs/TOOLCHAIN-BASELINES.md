@@ -22,6 +22,18 @@
 
 Node.js 只用于 Monorepo 包工具和宿主适配，不是共享流程 Runtime。CI 使用当前 LTS，而不是固定一个补丁版本。
 
+## 平台构建与原生验证
+
+当前源码只生成两个精确 runtime pair：Go `darwin/arm64` 对应 Node `darwin-arm64`，Go
+`windows/amd64` 对应 Node `win32-x64`。npm 的独立 `os`/`cpu` 元数据不能表达配对关系，因此 package
+保留 `darwin|win32` 与 `arm64|x64` 元数据供 npm 预筛选，再由 launcher 拒绝交叉组合、32 位和 ARM64
+Windows。
+
+普通 PR CI 在 Linux runner 运行仓库通用验证，并在 Windows x64 runner 原生构建 Core、运行完整 Go 与
+三个 Node package 的可执行测试、构建双 runtime 本地 package 以及验证 WebUI lifecycle。CI runner 都属于构建
+基础设施：Linux runner 不构成 Linux 产品支持，Windows runner 也不构成 Windows Server 产品支持声明。standalone release 可在 macOS runner 交叉构建
+Windows amd64 Core，但稳定支持仍要求 Support Matrix 中记录的真实消费版 Windows Host journey。
+
 ## pnpm
 
 - Supported range: `>= 11 < 12`；

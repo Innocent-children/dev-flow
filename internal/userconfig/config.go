@@ -23,7 +23,7 @@ type Preferences struct {
 
 func Load(homeDirectory string) (Preferences, error) {
 	if homeDirectory == "" {
-		return Preferences{}, fmt.Errorf("user configuration: HOME is unavailable")
+		return Preferences{}, fmt.Errorf("user configuration: user home directory is unavailable")
 	}
 	path := filepath.Join(homeDirectory, ".dev-flow", "config.json")
 	file, err := os.Open(path)

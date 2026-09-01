@@ -252,7 +252,7 @@ func multiRepositoryRecoveryFixture(t *testing.T) (domain.ProcessTask, domain.Op
 	t.Helper()
 	task, _, _ := recoveryRefactorFixture(t)
 	docs := testBinding(task.CreatedAt, "d")
-	docs.CanonicalRoot = "/docs"
+	docs.CanonicalRoot = testPath("docs")
 	docs.GitCommonDirDigest = digest("e")
 	docs.RepositoryIdentity = digest("f")
 	docs.WorktreeFingerprint = digest("7")
@@ -302,7 +302,7 @@ func payloadFor(t *testing.T, steps []domain.SemanticMethodStep, transition stri
 func testBinding(now time.Time, seed string) domain.RepositoryBinding {
 	branch, head := "main", strings.Repeat("b", 40)
 	d := digest(seed)
-	return domain.RepositoryBinding{CanonicalRoot: "/repo", GitCommonDirDigest: d, RepositoryIdentity: d, Branch: &branch, Head: &head, WorktreeFingerprint: d, ObservedAt: now, BindingDigest: d}
+	return domain.RepositoryBinding{CanonicalRoot: testPath("repo"), GitCommonDirDigest: d, RepositoryIdentity: d, Branch: &branch, Head: &head, WorktreeFingerprint: d, ObservedAt: now, BindingDigest: d}
 }
 
 func changedBinding(base domain.RepositoryBinding, paths []string, seed string) domain.RepositoryBinding {

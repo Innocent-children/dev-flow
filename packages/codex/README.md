@@ -12,13 +12,15 @@
 | 项目 | 当前支持 |
 | --- | --- |
 | Package | [`dev-flow-codex`](https://www.npmjs.com/package/dev-flow-codex) |
-| Platform | macOS arm64 |
+| 稳定 Platform | macOS arm64 |
+| 当前源码 Platform | macOS arm64（`darwin-arm64`）；Windows 10/11 桌面 x64（`win32-x64`） |
 | Node.js | `>=24` |
 | Codex | `>=0.147.0` |
 | Releases | [GitHub Releases](https://github.com/Innocent-children/dev-flow/releases) |
 
 稳定支持以[支持矩阵](../../docs/SUPPORT-MATRIX.md)为准。`main` 中存在的能力不一定已经进入 npm
-`@latest`。
+`@latest`。Windows Server、32 位 Windows、Windows ARM64 与 Intel Mac 不在当前源码支持范围；
+launcher 会拒绝除 `darwin-arm64` 和 `win32-x64` 之外的运行时对。
 
 ## 安装
 
@@ -39,8 +41,9 @@ dev-flow-codex status --json
 dev-flow-codex --version
 ```
 
-`setup` 在缺少固定用户配置时创建 `$HOME/.dev-flow/config.json`，验证 package、bundled Core 和
-Codex 兼容性，再注册 marketplace、Plugin 与 MCP。所有参数和机器可读输出见
+`setup` 在缺少固定用户配置时创建 macOS 的 `$HOME/.dev-flow/config.json` 或 Windows 的
+`%USERPROFILE%\.dev-flow\config.json`，验证 package、bundled Core 和 Codex 兼容性，再注册
+marketplace、Plugin 与 MCP。Windows 默认 Task 数据位于 `%LOCALAPPDATA%\dev-flow\data`。所有参数和机器可读输出见
 [命令参考](../../docs/COMMANDS.md#codex)。
 
 `setup` 完成后先在 Codex `/hooks` 中审核并信任 Dev Flow packaged hook；未信任时 Codex 会跳过
@@ -77,8 +80,9 @@ $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run 
 ## 范围外文件先询问
 
 Plugin 自带 `PreToolUse` hook。用户通过 Codex `/hooks` 信任当前 hook 后，每次 `apply_patch` 执行前
-都会通过内部 `dev-flow-codex host-check pre-file-write` 入口把目标文件交给 packaged Core；launcher
-负责定位 package-local Core，不依赖 Codex Plugin 缓存目录结构。Core 使用当前 Task Plan 所有 WorkItem 的 `ExpectedPaths` 合集；
+都会先通过 `PATH` 中 package-owned `dev-flow-codex hook pre-tool-use` 入口解析事件，再由内部
+`host-check pre-file-write` 入口把目标文件交给 packaged Core；launcher 负责定位 package-local Core，
+不依赖 Codex Plugin 缓存目录结构。Core 使用当前 Task Plan 所有 WorkItem 的 `ExpectedPaths` 合集；
 多仓库路径带 repository key。B、C 等附加仓库只要已在 Task Repository Scope 中、已通过 `--add-dir`
 授权且文件属于计划范围，就直接修改，不因为当前工作目录位于 A 而询问。
 

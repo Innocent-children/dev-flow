@@ -34,6 +34,7 @@ DeepSeek 稳定 Journey 还覆盖显式触发、重启恢复、`DONE` 和保留�
 | 不确定 Action 恢复 | read-before-retry、Recovery 判断、Blocker 和 resume |
 | 交付前理解确认 | 测试后进入理解确认；仓库变更后重新测试 |
 | 本机查看与诊断 | 共享 loopback WebUI，入口为 `dev-flow webui start|open|status|stop|reset` |
+| 当前源码平台 | 精确支持 `darwin-arm64` 与 `win32-x64` runtime；Windows 范围是 Windows 10/11 桌面版 x64 |
 | 高级仓库能力 | 一个主仓库加最多七个显式附加仓库；Codex 在 Host 支持时可分派独立 worktree Task |
 | Host 生命周期 | 统一 `dev-flow` 入口管理 Codex 与 DeepSeek 的安装、诊断、维护和移除 |
 
@@ -42,7 +43,9 @@ DeepSeek 稳定 Journey 还覆盖显式触发、重启恢复、`DONE` 和保留�
 
 ## 尚未验证
 
-- Linux、Windows、Intel Mac、Rosetta 和 remote MCP 没有稳定支持声明；
+- Windows 10/11 x64 已有本机 Core/WebUI/MCP、Adapter contract 和本地打包证据，但尚未完成稳定
+  `@latest` 最终制品 Host Journey；
+- Linux、Windows Server、Windows 32 位与 ARM64、Intel Mac、Rosetta 和 remote MCP 没有稳定支持声明；
 - Codex 的显式并行批次和 `ACTIVE_TASK_CONFLICT` 后 worktree 分派仍缺少最终制品 Journey；
 - verification budget 尚未通过外部使用数据证明能够减少无效测试；
 - 自动刹车尚未通过真实 Host Journey 和外部使用数据确认误阻塞率；

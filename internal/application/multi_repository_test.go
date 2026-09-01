@@ -67,27 +67,30 @@ func (o *multiRepositoryObserver) Observe(_ context.Context, path string) (domai
 func TestMultiRepositoryOpenPreservesSingleRepositoryAndCreatesOneTask(t *testing.T) {
 	now := time.Date(2026, 8, 23, 6, 0, 0, 0, time.UTC)
 	t.Run("single repository compatibility", func(t *testing.T) {
-		primary := multiRepositoryBinding(now, "/core", 'a')
-		service, taskStore, observer := multiRepositoryService(t, now, map[string]domain.RepositoryBinding{"/core": primary})
-		result, err := service.OpenTask(context.Background(), multiRepositoryOpenRequest("request-single", "/core"))
+		corePath := testPath("core")
+		primary := multiRepositoryBinding(now, corePath, 'a')
+		service, taskStore, observer := multiRepositoryService(t, now, map[string]domain.RepositoryBinding{corePath: primary})
+		result, err := service.OpenTask(context.Background(), multiRepositoryOpenRequest("request-single", corePath))
 		if err != nil {
 			t.Fatal(err)
 		}
 		if !result.Created || taskStore.commits != 1 || len(result.Task.AdditionalRepositories) != 0 || result.Task.EffectivePrimaryRepositoryKey() != domain.DefaultPrimaryRepositoryKey {
 			t.Fatalf("single repository result=%#v commits=%d", result, taskStore.commits)
 		}
-		if result.Task.CurrentAction.RepositoryBindingDigest != primary.BindingDigest || strings.Join(observer.calls, ",") != "/core" {
+		if result.Task.CurrentAction.RepositoryBindingDigest != primary.BindingDigest || strings.Join(observer.calls, ",") != corePath {
 			t.Fatalf("single repository digest/calls=%s/%v", result.Task.CurrentAction.RepositoryBindingDigest, observer.calls)
 		}
 	})
 
 	t.Run("primary and one additional share one action revision and digest", func(t *testing.T) {
-		primary := multiRepositoryBinding(now, "/core", 'a')
-		docs := multiRepositoryBinding(now, "/docs", 'b')
-		service, taskStore, observer := multiRepositoryService(t, now, map[string]domain.RepositoryBinding{"/core": primary, "/docs": docs})
-		request := multiRepositoryOpenRequest("request-multi", "/core")
+		corePath := testPath("core")
+		docsPath := testPath("docs")
+		primary := multiRepositoryBinding(now, corePath, 'a')
+		docs := multiRepositoryBinding(now, docsPath, 'b')
+		service, taskStore, observer := multiRepositoryService(t, now, map[string]domain.RepositoryBinding{corePath: primary, docsPath: docs})
+		request := multiRepositoryOpenRequest("request-multi", corePath)
 		request.PrimaryRepositoryKey = "core"
-		request.AdditionalRepositories = []AdditionalRepositoryInput{{Key: "docs", RepositoryPath: "/docs"}}
+		request.AdditionalRepositories = []AdditionalRepositoryInput{{Key: "docs", RepositoryPath: docsPath}}
 		result, err := service.OpenTask(context.Background(), request)
 		if err != nil {
 			t.Fatal(err)
@@ -99,7 +102,7 @@ func TestMultiRepositoryOpenPreservesSingleRepositoryAndCreatesOneTask(t *testin
 		if !result.Created || taskStore.commits != 1 || result.Task.Revision != 1 || result.Task.CurrentAction == nil || result.Task.CurrentAction.Revision != 1 || result.Task.CurrentAction.RepositoryBindingDigest != effective || effective == primary.BindingDigest {
 			t.Fatalf("multi repository result=%#v effective=%s", result, effective)
 		}
-		if len(result.Task.AdditionalRepositories) != 1 || result.Task.AdditionalRepositories[0].Key != "docs" || strings.Join(observer.calls, ",") != "/core,/docs" {
+		if len(result.Task.AdditionalRepositories) != 1 || result.Task.AdditionalRepositories[0].Key != "docs" || strings.Join(observer.calls, ",") != strings.Join([]string{corePath, docsPath}, ",") {
 			t.Fatalf("scope/calls=%#v/%v", result.Task.AdditionalRepositories, observer.calls)
 		}
 	})
@@ -107,45 +110,47 @@ func TestMultiRepositoryOpenPreservesSingleRepositoryAndCreatesOneTask(t *testin
 
 func TestMultiRepositoryOpenObservesAdditionalRepositoriesByKey(t *testing.T) {
 	now := time.Date(2026, 8, 23, 6, 10, 0, 0, time.UTC)
+	corePath, apiPath, docsPath := testPath("core"), testPath("api"), testPath("docs")
 	bindings := map[string]domain.RepositoryBinding{
-		"/core": multiRepositoryBinding(now, "/core", 'a'),
-		"/api":  multiRepositoryBinding(now, "/api", 'b'),
-		"/docs": multiRepositoryBinding(now, "/docs", 'c'),
+		corePath: multiRepositoryBinding(now, corePath, 'a'),
+		apiPath:  multiRepositoryBinding(now, apiPath, 'b'),
+		docsPath: multiRepositoryBinding(now, docsPath, 'c'),
 	}
 	service, _, observer := multiRepositoryService(t, now, bindings)
-	request := multiRepositoryOpenRequest("request-order", "/core")
+	request := multiRepositoryOpenRequest("request-order", corePath)
 	request.PrimaryRepositoryKey = "core"
-	request.AdditionalRepositories = []AdditionalRepositoryInput{{Key: "docs", RepositoryPath: "/docs"}, {Key: "api", RepositoryPath: "/api"}}
+	request.AdditionalRepositories = []AdditionalRepositoryInput{{Key: "docs", RepositoryPath: docsPath}, {Key: "api", RepositoryPath: apiPath}}
 	result, err := service.OpenTask(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(observer.calls, ",") != "/core,/api,/docs" || result.Task.AdditionalRepositories[0].Key != "api" || result.Task.AdditionalRepositories[1].Key != "docs" {
+	if strings.Join(observer.calls, ",") != strings.Join([]string{corePath, apiPath, docsPath}, ",") || result.Task.AdditionalRepositories[0].Key != "api" || result.Task.AdditionalRepositories[1].Key != "docs" {
 		t.Fatalf("calls=%v scope=%#v", observer.calls, result.Task.AdditionalRepositories)
 	}
 }
 
 func TestMultiRepositoryOpenRejectsInvalidScopeWithoutWrites(t *testing.T) {
 	now := time.Date(2026, 8, 23, 6, 20, 0, 0, time.UTC)
-	primary := multiRepositoryBinding(now, "/core", 'a')
-	docs := multiRepositoryBinding(now, "/docs", 'b')
+	corePath, docsPath, samePath := testPath("core"), testPath("docs"), testPath("same")
+	primary := multiRepositoryBinding(now, corePath, 'a')
+	docs := multiRepositoryBinding(now, docsPath, 'b')
 	duplicateIdentity := docs
 	duplicateIdentity.RepositoryIdentity = primary.RepositoryIdentity
-	bindings := map[string]domain.RepositoryBinding{"/core": primary, "/docs": docs, "/same": duplicateIdentity}
+	bindings := map[string]domain.RepositoryBinding{corePath: primary, docsPath: docs, samePath: duplicateIdentity}
 
 	tests := []struct {
 		name       string
 		additional []AdditionalRepositoryInput
 		wantCalls  int
 	}{
-		{name: "duplicate key", additional: []AdditionalRepositoryInput{{Key: "docs", RepositoryPath: "/docs"}, {Key: "docs", RepositoryPath: "/docs"}}, wantCalls: 0},
-		{name: "duplicate identity", additional: []AdditionalRepositoryInput{{Key: "same", RepositoryPath: "/same"}}, wantCalls: 2},
+		{name: "duplicate key", additional: []AdditionalRepositoryInput{{Key: "docs", RepositoryPath: docsPath}, {Key: "docs", RepositoryPath: docsPath}}, wantCalls: 0},
+		{name: "duplicate identity", additional: []AdditionalRepositoryInput{{Key: "same", RepositoryPath: samePath}}, wantCalls: 2},
 		{name: "ninth repository", additional: multiRepositoryInputs(8), wantCalls: 0},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			service, taskStore, observer := multiRepositoryService(t, now, bindings)
-			request := multiRepositoryOpenRequest("request-invalid", "/core")
+			request := multiRepositoryOpenRequest("request-invalid", corePath)
 			request.PrimaryRepositoryKey = "core"
 			request.AdditionalRepositories = test.additional
 			if _, err := service.OpenTask(context.Background(), request); err != domain.ErrInvalidArgument {
@@ -160,15 +165,16 @@ func TestMultiRepositoryOpenRejectsInvalidScopeWithoutWrites(t *testing.T) {
 
 func TestMultiRepositoryOpenRejectsScopeMismatchAndResumesFromAdditionalIdentity(t *testing.T) {
 	now := time.Date(2026, 8, 23, 6, 30, 0, 0, time.UTC)
+	corePath, docsPath, apiPath := testPath("core"), testPath("docs"), testPath("api")
 	bindings := map[string]domain.RepositoryBinding{
-		"/core": multiRepositoryBinding(now, "/core", 'a'),
-		"/docs": multiRepositoryBinding(now, "/docs", 'b'),
-		"/api":  multiRepositoryBinding(now, "/api", 'c'),
+		corePath: multiRepositoryBinding(now, corePath, 'a'),
+		docsPath: multiRepositoryBinding(now, docsPath, 'b'),
+		apiPath:  multiRepositoryBinding(now, apiPath, 'c'),
 	}
 	service, taskStore, observer := multiRepositoryService(t, now, bindings)
-	request := multiRepositoryOpenRequest("request-create", "/core")
+	request := multiRepositoryOpenRequest("request-create", corePath)
 	request.PrimaryRepositoryKey = "core"
-	request.AdditionalRepositories = []AdditionalRepositoryInput{{Key: "docs", RepositoryPath: "/docs"}}
+	request.AdditionalRepositories = []AdditionalRepositoryInput{{Key: "docs", RepositoryPath: docsPath}}
 	created, err := service.OpenTask(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
@@ -177,7 +183,7 @@ func TestMultiRepositoryOpenRejectsScopeMismatchAndResumesFromAdditionalIdentity
 
 	mismatch := request
 	mismatch.RequestID = "request-mismatch"
-	mismatch.AdditionalRepositories = []AdditionalRepositoryInput{{Key: "api", RepositoryPath: "/api"}}
+	mismatch.AdditionalRepositories = []AdditionalRepositoryInput{{Key: "api", RepositoryPath: apiPath}}
 	if _, err := service.OpenTask(context.Background(), mismatch); err != domain.ErrActiveTaskConflict {
 		t.Fatalf("scope mismatch error=%v", err)
 	}
@@ -186,28 +192,29 @@ func TestMultiRepositoryOpenRejectsScopeMismatchAndResumesFromAdditionalIdentity
 	}
 
 	observer.calls = nil
-	resumed, err := service.OpenTask(context.Background(), OpenTaskRequest{RequestID: "request-resume", Host: domain.HostCodex, RepositoryPath: "/docs"})
+	resumed, err := service.OpenTask(context.Background(), OpenTaskRequest{RequestID: "request-resume", Host: domain.HostCodex, RepositoryPath: docsPath})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if resumed.Created || resumed.Task.TaskID != created.Task.TaskID || resumed.Task.Revision != created.Task.Revision || resumed.Task.CurrentAction.ActionID != created.Task.CurrentAction.ActionID || resumed.Task.Repository.RepositoryIdentity != created.Task.Repository.RepositoryIdentity || !domain.RepositoryScopeMembershipEqual(resumed.Task, created.Task) {
 		t.Fatalf("resume result=%#v created=%#v", resumed, created)
 	}
-	if taskStore.commits != 1 || strings.Join(observer.calls, ",") != "/docs" {
+	if taskStore.commits != 1 || strings.Join(observer.calls, ",") != docsPath {
 		t.Fatalf("resume commits/calls=%d/%v", taskStore.commits, observer.calls)
 	}
 }
 
 func TestMultiRepositoryOpenOperationDigestIncludesScopeInput(t *testing.T) {
 	now := time.Date(2026, 8, 23, 6, 40, 0, 0, time.UTC)
+	corePath, docsPath, apiPath := testPath("core"), testPath("docs"), testPath("api")
 	bindings := map[string]domain.RepositoryBinding{
-		"/core": multiRepositoryBinding(now, "/core", 'a'),
-		"/docs": multiRepositoryBinding(now, "/docs", 'b'),
-		"/api":  multiRepositoryBinding(now, "/api", 'c'),
+		corePath: multiRepositoryBinding(now, corePath, 'a'),
+		docsPath: multiRepositoryBinding(now, docsPath, 'b'),
+		apiPath:  multiRepositoryBinding(now, apiPath, 'c'),
 	}
 	open := func(path, key string) domain.Digest {
 		service, _, _ := multiRepositoryService(t, now, bindings)
-		request := multiRepositoryOpenRequest("request-same", "/core")
+		request := multiRepositoryOpenRequest("request-same", corePath)
 		request.PrimaryRepositoryKey = "core"
 		request.AdditionalRepositories = []AdditionalRepositoryInput{{Key: domain.RepositoryKey(key), RepositoryPath: path}}
 		result, err := service.OpenTask(context.Background(), request)
@@ -216,7 +223,7 @@ func TestMultiRepositoryOpenOperationDigestIncludesScopeInput(t *testing.T) {
 		}
 		return result.Task.LastOperation.PayloadDigest
 	}
-	if open("/docs", "docs") == open("/api", "api") {
+	if open(docsPath, "docs") == open(apiPath, "api") {
 		t.Fatal("different repository scope inputs produced one open operation digest")
 	}
 }
@@ -231,8 +238,8 @@ func TestLinkedWorktreesOwnIndependentTasksAndClaims(t *testing.T) {
 
 	now := time.Date(2026, 8, 30, 1, 0, 0, 0, time.UTC)
 	group := domain.Digest(strings.Repeat("a", 64))
-	left := linkedWorktreeBinding(now, "/worktrees/left", group, 'b')
-	right := linkedWorktreeBinding(now, "/worktrees/right", group, 'c')
+	left := linkedWorktreeBinding(now, testPath("worktrees", "left"), group, 'b')
+	right := linkedWorktreeBinding(now, testPath("worktrees", "right"), group, 'c')
 	observer := &multiRepositoryObserver{bindings: map[string]domain.RepositoryBinding{
 		left.CanonicalRoot:  left,
 		right.CanonicalRoot: right,
@@ -371,7 +378,8 @@ func linkedWorktreeBinding(now time.Time, root string, group domain.Digest, mark
 func multiRepositoryInputs(count int) []AdditionalRepositoryInput {
 	inputs := make([]AdditionalRepositoryInput, count)
 	for i := range inputs {
-		inputs[i] = AdditionalRepositoryInput{Key: domain.RepositoryKey("repo" + string(rune('a'+i))), RepositoryPath: "/repo" + string(rune('a'+i))}
+		name := "repo" + string(rune('a'+i))
+		inputs[i] = AdditionalRepositoryInput{Key: domain.RepositoryKey(name), RepositoryPath: testPath(name)}
 	}
 	return inputs
 }

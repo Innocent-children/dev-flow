@@ -50,7 +50,7 @@ func TestMethodProfileEquivalentTransitionsAndImmutability(t *testing.T) {
 
 	service, memory, _ := phase5Service(t)
 	task := openMethodProfileTask(t, service, domain.MethodPlain)
-	_, err := service.OpenTask(context.Background(), OpenTaskRequest{RequestID: "profile-conflict", Host: domain.HostCodex, RepositoryPath: "/repo", NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: task.Intent.VerificationBudget, MethodProfile: domain.MethodSpecKit}})
+	_, err := service.OpenTask(context.Background(), OpenTaskRequest{RequestID: "profile-conflict", Host: domain.HostCodex, RepositoryPath: testPath("repo"), NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: task.Intent.VerificationBudget, MethodProfile: domain.MethodSpecKit}})
 	if err != domain.ErrActiveTaskConflict {
 		t.Fatalf("profile conflict error=%v", err)
 	}
@@ -63,7 +63,7 @@ func TestMethodProfileEquivalentTransitionsAndImmutability(t *testing.T) {
 	}
 
 	invalidService, _, _ := phase5Service(t)
-	if _, err := invalidService.OpenTask(context.Background(), OpenTaskRequest{RequestID: "invalid-profile", Host: domain.HostCodex, RepositoryPath: "/repo", NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: "future"}}); err != domain.ErrInvalidArgument {
+	if _, err := invalidService.OpenTask(context.Background(), OpenTaskRequest{RequestID: "invalid-profile", Host: domain.HostCodex, RepositoryPath: testPath("repo"), NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: "future"}}); err != domain.ErrInvalidArgument {
 		t.Fatalf("invalid profile error=%v", err)
 	}
 }
@@ -182,7 +182,7 @@ func TestMethodProfileAndProcessActionRestartStability(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	resumed, err := resumedService.OpenTask(context.Background(), OpenTaskRequest{RequestID: "resume-method-task", Host: domain.HostCodex, RepositoryPath: "/repo"})
+	resumed, err := resumedService.OpenTask(context.Background(), OpenTaskRequest{RequestID: "resume-method-task", Host: domain.HostCodex, RepositoryPath: testPath("repo")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +228,7 @@ func TestMethodProfileGetNextActionActiveBlockedAndTerminal(t *testing.T) {
 
 func openMethodProfileTask(t *testing.T, service *Service, profile domain.MethodProfile) domain.ProcessTask {
 	t.Helper()
-	result, err := service.OpenTask(context.Background(), OpenTaskRequest{RequestID: "open-method-task", Host: domain.HostCodex, RepositoryPath: "/repo", NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: profile}})
+	result, err := service.OpenTask(context.Background(), OpenTaskRequest{RequestID: "open-method-task", Host: domain.HostCodex, RepositoryPath: testPath("repo"), NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: profile}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -279,5 +279,5 @@ func phase5Binding(now time.Time) domain.RepositoryBinding {
 	digest := digestOf("a")
 	branch := "main"
 	head := strings.Repeat("b", 40)
-	return domain.RepositoryBinding{CanonicalRoot: "/repo", GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
+	return domain.RepositoryBinding{CanonicalRoot: testPath("repo"), GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
 }

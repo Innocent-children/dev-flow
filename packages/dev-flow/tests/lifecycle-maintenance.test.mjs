@@ -11,7 +11,7 @@ test("upgrade and forced reinstall preserve configuration and Task bytes", async
   const root = await mkdtemp(join(tmpdir(), "create-dev-flow-maintenance-"));
   const home = join(root, "home");
   await mkdir(home);
-  const paths = await resolveManagerPaths({ homeDirectory: home, environment: {} });
+  const paths = await resolveManagerPaths({ homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64" });
   await mkdir(paths.configurationDirectory);
   await mkdir(paths.defaultDataDirectory, { recursive: true });
   await writeFile(paths.configurationPath, "config-bytes\n");
@@ -23,7 +23,7 @@ test("upgrade and forced reinstall preserve configuration and Task bytes", async
     execute: async () => { version = "0.8.0"; return { changed: true, completedSteps: ["codex.maintenance"] }; },
   };
   const deepseekDriver = { knownProfiles: async () => [], observe: async () => { throw new Error("unused"); }, resolveTargetVersion: async () => "0.8.0" };
-  const base = { homeDirectory: home, environment: {}, codexDriver, deepseekDriver, confirmPlan: async () => true };
+  const base = { homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64", codexDriver, deepseekDriver, confirmPlan: async () => true };
   await runLifecycle(request("upgrade"), base);
   await runLifecycle(request("reinstall"), base);
   assert.equal(await readFile(paths.configurationPath, "utf8"), "config-bytes\n");

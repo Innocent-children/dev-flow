@@ -194,19 +194,20 @@ func TestGraphRecoveryAdoptsDeclaredProcessArtifactOnlyEffect(t *testing.T) {
 
 func TestMultiRepositoryRecoveryRejectsUndeclaredAdditionalDriftWithoutWrite(t *testing.T) {
 	now := time.Date(2026, 8, 23, 7, 0, 0, 0, time.UTC)
-	primary := multiRepositoryBinding(now, "/core", 'a')
-	docs := multiRepositoryBinding(now, "/docs", 'b')
-	service, taskStore, observer := multiRepositoryService(t, now, map[string]domain.RepositoryBinding{"/core": primary, "/docs": docs})
-	request := multiRepositoryOpenRequest("open-recovery-multi", "/core")
+	corePath, docsPath := testPath("core"), testPath("docs")
+	primary := multiRepositoryBinding(now, corePath, 'a')
+	docs := multiRepositoryBinding(now, docsPath, 'b')
+	service, taskStore, observer := multiRepositoryService(t, now, map[string]domain.RepositoryBinding{corePath: primary, docsPath: docs})
+	request := multiRepositoryOpenRequest("open-recovery-multi", corePath)
 	request.PrimaryRepositoryKey = "core"
-	request.AdditionalRepositories = []AdditionalRepositoryInput{{Key: "docs", RepositoryPath: "/docs"}}
+	request.AdditionalRepositories = []AdditionalRepositoryInput{{Key: "docs", RepositoryPath: docsPath}}
 	opened, err := service.OpenTask(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
 	}
 	payload := phase5Payload(t, opened.Task, "requirements_ready", "", requirementsNodeResult("Goal", []string{"Works"}))
 	docsChanged := graphChangedBinding(docs, []string{"docs/unexpected.md"}, "c")
-	observer.bindings["/docs"] = docsChanged
+	observer.bindings[docsPath] = docsChanged
 	apply := graphRecoveryApply(opened.Task, "multi-drift-apply", payload)
 	apply.RecoveryApply = nil
 	commits := taskStore.commits

@@ -25,8 +25,11 @@ import {
   ensureDefaultDataDirectory,
   resolveProductPaths,
 } from "../lib/paths.mjs";
+import { runHook } from "../plugin/hooks/pre-tool-use.mjs";
 
-const FORWARDED_SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"];
+const FORWARDED_SIGNALS = process.platform === "win32"
+  ? ["SIGINT", "SIGTERM"]
+  : ["SIGINT", "SIGTERM", "SIGHUP"];
 const execFile = promisify(execFileCallback);
 const NPM_UNINSTALL_HANDOFF = "Run npm uninstall -g dev-flow-codex separately after deregistration.";
 const CODEX_MCP_INSTRUCTIONS_ENVIRONMENT = "DEV_FLOW_CODEX_MCP_INSTRUCTIONS";
@@ -47,11 +50,19 @@ export async function runCLI(arguments_, dependencies = {}) {
   let setupAttempted = false;
 
   if (!isProductionCommand(arguments_)) {
-    stderr.write("dev-flow-codex: invalid arguments; expected status [--json], setup [--json], remove [--json], mcp, host-check pre-file-write, or --version\n");
+    stderr.write("dev-flow-codex: invalid arguments; expected status [--json], setup [--json], remove [--json], mcp, hook pre-tool-use, host-check pre-file-write, or --version\n");
     return { code: 2, signal: null };
   }
 
   try {
+    if (arguments_.length === 2 && arguments_[0] === "hook" && arguments_[1] === "pre-tool-use") {
+      const invokeHook = dependencies.runPreToolUseHook ?? (() => runHook({
+        output: stdout,
+        error: stderr,
+        environment,
+      }));
+      return { code: await invokeHook(), signal: null };
+    }
     const paths = await resolvePaths();
     if (arguments_.length === 1 && arguments_[0] === "mcp") {
       if (paths.usesDefaultDataDirectory) await ensureDataDirectory(paths);
@@ -152,7 +163,7 @@ export async function stopPackagedWebUI(
     if (error?.code === "ENOENT" && paths.usesDefaultDataDirectory) return;
     throw new Error("inspect packaged WebUI data directory", { cause: error });
   }
-  await assertExecutableRuntime(paths.runtimePath);
+  await assertExecutableRuntime(paths.runtimePath, paths.platform);
   try {
     await exec(paths.runtimePath, ["webui", "stop", "--json"], {
       cwd: paths.packageRoot,
@@ -174,7 +185,7 @@ export async function launchPackagedCore(
     signalSource = process,
   } = {},
 ) {
-  await assertExecutableRuntime(paths.runtimePath);
+  await assertExecutableRuntime(paths.runtimePath, paths.platform);
   let child;
   try {
     child = spawnImpl(paths.runtimePath, arguments_, {
@@ -227,15 +238,15 @@ async function readInstalledPackageVersion(packageRoot) {
   return manifest.version;
 }
 
-async function assertExecutableRuntime(runtimePath) {
+async function assertExecutableRuntime(runtimePath, platform = process.platform) {
   let info;
   try {
     info = await stat(runtimePath);
-    await access(runtimePath, fsConstants.X_OK);
+    await access(runtimePath, platform === "win32" ? fsConstants.F_OK : fsConstants.X_OK);
   } catch (error) {
     throw new Error("packaged Core must exist and be executable", { cause: error });
   }
-  if (!info.isFile() || (info.mode & 0o111) === 0) {
+  if (!info.isFile() || platform !== "win32" && (info.mode & 0o111) === 0) {
     throw new Error("packaged Core must exist and be executable");
   }
 }
@@ -295,6 +306,7 @@ function writeSetupSuccess(stdout, result, json, { environment, renderSetupResul
 function isProductionCommand(arguments_) {
   if (!Array.isArray(arguments_)) return false;
   if (arguments_.length === 1 && ["mcp", "--version"].includes(arguments_[0])) return true;
+  if (arguments_.length === 2 && arguments_[0] === "hook" && arguments_[1] === "pre-tool-use") return true;
   if (arguments_.length === 2 && arguments_[0] === "host-check" && arguments_[1] === "pre-file-write") return true;
   return (
     (arguments_.length === 1 || arguments_.length === 2 && arguments_[1] === "--json") &&

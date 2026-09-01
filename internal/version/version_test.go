@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -132,7 +133,11 @@ func TestDetachedBinaryReportsInjectedVersionAfterMove(t *testing.T) {
 	}
 
 	buildDirectory := t.TempDir()
-	binaryPath := filepath.Join(buildDirectory, "staging", "dev-flow")
+	binaryName := "dev-flow"
+	if runtime.GOOS == "windows" {
+		binaryName += ".exe"
+	}
+	binaryPath := filepath.Join(buildDirectory, "staging", binaryName)
 	if err := os.MkdirAll(filepath.Dir(binaryPath), 0o700); err != nil {
 		t.Fatalf("create build directory: %v", err)
 	}
@@ -148,7 +153,7 @@ func TestDetachedBinaryReportsInjectedVersionAfterMove(t *testing.T) {
 	if err := os.MkdirAll(movedDirectory, 0o700); err != nil {
 		t.Fatalf("create moved directory: %v", err)
 	}
-	movedPath := filepath.Join(movedDirectory, "dev-flow")
+	movedPath := filepath.Join(movedDirectory, binaryName)
 	if err := os.Rename(binaryPath, movedPath); err != nil {
 		t.Fatalf("move detached binary: %v", err)
 	}
@@ -182,7 +187,7 @@ func TestReadReportsPathAndValidationReason(t *testing.T) {
 	if err == nil {
 		t.Fatal("read() unexpectedly accepted an invalid CORE_VERSION")
 	}
-	if !strings.Contains(err.Error(), versionPath) {
+	if !strings.Contains(err.Error(), strconv.Quote(versionPath)) {
 		t.Fatalf("read() error %q does not contain path %q", err, versionPath)
 	}
 	if !strings.Contains(err.Error(), "leading zero") {

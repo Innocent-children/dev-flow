@@ -13,13 +13,15 @@ Recovery 判断或明确阻塞。
 | 项目 | 当前支持 |
 | --- | --- |
 | Package | [`dev-flow-deepseek`](https://www.npmjs.com/package/dev-flow-deepseek) |
-| Platform | macOS arm64 |
+| 稳定 Platform | macOS arm64 |
+| 当前源码 Platform | macOS arm64（`darwin-arm64`）；Windows 10/11 桌面 x64（`win32-x64`） |
 | Node.js | `>=24` |
 | DSH | `>=0.1.0-rc.6` |
 | Releases | [GitHub Releases](https://github.com/Innocent-children/dev-flow/releases) |
 
 稳定支持以[支持矩阵](../../docs/SUPPORT-MATRIX.md)为准。`main` 中存在的能力不一定已经进入 npm
-`@latest`。
+`@latest`。Windows Server、32 位 Windows、Windows ARM64 与 Intel Mac 不在当前源码支持范围；
+runtime selector 会拒绝除 `darwin-arm64` 和 `win32-x64` 之外的运行时对。
 
 ## 安装
 
@@ -42,8 +44,23 @@ rm -f "$PWD/$TARBALL"
 dsh --profile "$PROFILE" --dump-config
 ```
 
+Windows PowerShell 使用：
+
+```powershell
+npm install -g @deepseek-ai/dsh@latest
+$ProfileName = 'web'
+$Tarball = (npm pack dev-flow-deepseek@latest --silent | Select-Object -Last 1).Trim()
+$TarballPath = (Resolve-Path -LiteralPath $Tarball).Path
+dsh plugin --profile $ProfileName add $TarballPath
+Remove-Item -LiteralPath $TarballPath
+dsh --profile $ProfileName --dump-config
+```
+
 安装后按 DSH profile lifecycle 重启该 Profile。完整命令和更新顺序见
 [命令参考](../../docs/COMMANDS.md#deepseek-harness)。
+
+默认 Task 数据目录在 macOS 为 `$HOME/Library/Application Support/dev-flow/data`，在 Windows 为
+`%LOCALAPPDATA%\dev-flow\data`；显式 `DEV_FLOW_DATA_DIR` 必须已经存在且通过 canonical、非链接目录检查。
 
 ## 启动一个 Task
 

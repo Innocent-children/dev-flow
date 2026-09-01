@@ -5,10 +5,26 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { verifyRegistryBytes } from "./publish.mjs";
+import { releaseAssetNames, verifyRegistryBytes } from "./publish.mjs";
 
 const packageName = "dev-flow-codex";
 const version = "0.7.8";
+
+test("release assets retain both supported standalone Core binaries", () => {
+  assert.deepEqual(releaseAssetNames(`dev-flow-codex-${version}.tgz`, {
+    artifacts: [
+      { kind: "npm_tarball", relative_path: `dev-flow-codex-${version}.tgz` },
+      { kind: "core_binary", relative_path: "dev-flow-core-0.8.5-darwin-arm64" },
+      { kind: "core_binary", relative_path: "dev-flow-core-0.8.5-windows-amd64.exe" },
+    ],
+  }), [
+    `dev-flow-codex-${version}.tgz`,
+    "dev-flow-core-0.8.5-darwin-arm64",
+    "dev-flow-core-0.8.5-windows-amd64.exe",
+    "release-manifest.json",
+    "SHA256SUMS",
+  ]);
+});
 
 test("registry tarball read-back retries ETARGET until npm pack can resolve the published version", async (t) => {
   const fixture = await tarballFixture(t, "expected package bytes\n");

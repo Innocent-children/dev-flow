@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
@@ -24,7 +24,10 @@ test("plugin exposes one implicitly enabled Skill", async () => {
   assert.equal(frontmatter.name, "dev-flow");
   assert.equal(`${manifest.name}:${frontmatter.name}`, "dev-flow-codex:dev-flow");
   assert.equal("allow_implicit_invocation" in frontmatter, false);
-  assert.equal(await readFile(join(skillRoot, "agents", "openai.yaml"), "utf8"), "policy:\n  allow_implicit_invocation: true\n");
+  assert.equal(
+    (await readFile(join(skillRoot, "agents", "openai.yaml"), "utf8")).replace(/\r\n?/gu, "\n"),
+    "policy:\n  allow_implicit_invocation: true\n",
+  );
 });
 
 test("plugin metadata and MCP registration use resolvable product identities", async () => {
@@ -142,7 +145,8 @@ test("production adapter does not embed workflow or fixture state", async () => 
 });
 
 function parseFrontmatter(markdown) {
-  const match = markdown.match(/^---\n([\s\S]*?)\n---\n/u);
+  const normalized = markdown.replace(/\r\n?/gu, "\n");
+  const match = normalized.match(/^---\n([\s\S]*?)\n---\n/u);
   assert.notEqual(match, null);
   return Object.fromEntries(match[1].split("\n").flatMap((line) => {
     const separator = line.indexOf(":");
@@ -161,7 +165,8 @@ function section(markdown, heading) {
 }
 
 function marked(markdown, name) {
-  const match = markdown.match(new RegExp(`<!-- ${name}:start -->\\n([\\s\\S]*?)\\n<!-- ${name}:end -->`, "u"));
+  const normalized = markdown.replace(/\r\n?/gu, "\n");
+  const match = normalized.match(new RegExp(`<!-- ${name}:start -->\\n([\\s\\S]*?)\\n<!-- ${name}:end -->`, "u"));
   assert.notEqual(match, null, name);
   return match[1];
 }
@@ -172,7 +177,7 @@ async function walkFiles(root) {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const absolute = join(directory, entry.name);
       if (entry.isDirectory()) await walk(absolute);
-      else files.push(relative(root, absolute));
+      else files.push(relative(root, absolute).split(sep).join("/"));
     }
   }
   await walk(root);

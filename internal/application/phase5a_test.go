@@ -261,7 +261,8 @@ func phase5Service(t *testing.T) (*Service, *memoryStore, *mutableObserver) {
 	d := digestOf("a")
 	branch := "main"
 	head := strings.Repeat("b", 40)
-	binding := domain.RepositoryBinding{CanonicalRoot: "/repo", GitCommonDirDigest: d, RepositoryIdentity: d, Branch: &branch, Head: &head, WorktreeFingerprint: d, ObservedAt: now, BindingDigest: d}
+	repositoryPath := testPath("repo")
+	binding := domain.RepositoryBinding{CanonicalRoot: repositoryPath, GitCommonDirDigest: d, RepositoryIdentity: d, Branch: &branch, Head: &head, WorktreeFingerprint: d, ObservedAt: now, BindingDigest: d}
 	ms := &memoryStore{}
 	observer := &mutableObserver{binding: binding}
 	n := 0
@@ -274,7 +275,7 @@ func phase5Service(t *testing.T) (*Service, *memoryStore, *mutableObserver) {
 
 func openPhase5Task(t *testing.T, s *Service) domain.ProcessTask {
 	t.Helper()
-	result, err := s.OpenTask(context.Background(), OpenTaskRequest{RequestID: "open-request", Host: domain.HostCodex, RepositoryPath: "/repo", NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4, AllowManualHandoff: true}, MethodProfile: domain.MethodPlain}})
+	result, err := s.OpenTask(context.Background(), OpenTaskRequest{RequestID: "open-request", Host: domain.HostCodex, RepositoryPath: testPath("repo"), NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4, AllowManualHandoff: true}, MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)
 	}
