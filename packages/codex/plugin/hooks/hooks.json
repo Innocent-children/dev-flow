@@ -1,0 +1,18 @@
+{
+  "description": "Dev Flow checks supported file writes against the active Task Plan before execution.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^apply_patch$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$PLUGIN_ROOT/hooks/pre-tool-use.mjs\"",
+            "timeout": 30,
+            "statusMessage": "Checking Dev Flow file scope"
+          }
+        ]
+      }
+    ]
+  }
+}

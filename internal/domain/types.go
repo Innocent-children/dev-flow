@@ -49,13 +49,14 @@ func (k ActionKind) IsValid() bool {
 type OperationKind string
 
 const (
-	OperationOpenTask    OperationKind = "open_task"
-	OperationApplyAction OperationKind = "apply_action"
-	OperationCancelTask  OperationKind = "cancel_task"
+	OperationOpenTask          OperationKind = "open_task"
+	OperationApplyAction       OperationKind = "apply_action"
+	OperationPrepareFileChange OperationKind = "prepare_file_change"
+	OperationCancelTask        OperationKind = "cancel_task"
 )
 
 func (k OperationKind) IsValid() bool {
-	return k == OperationOpenTask || k == OperationApplyAction || k == OperationCancelTask
+	return k == OperationOpenTask || k == OperationApplyAction || k == OperationPrepareFileChange || k == OperationCancelTask
 }
 
 type EvidenceSource string

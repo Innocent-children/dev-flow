@@ -36,7 +36,7 @@ func (m *memoryStore) CommitTask(_ context.Context, x store.TaskMutation) error 
 	}
 	task := x.Task
 	m.task = &task
-	if x.Event.Kind == domain.OperationApplyAction || x.Event.Kind == domain.OperationCancelTask {
+	if x.Event.Kind == domain.OperationApplyAction || x.Event.Kind == domain.OperationPrepareFileChange || x.Event.Kind == domain.OperationCancelTask {
 		m.operation = nil
 	}
 	m.commits++

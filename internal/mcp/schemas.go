@@ -520,8 +520,12 @@ func buildCatalog() []ToolDefinition {
 		tools = append(tools, makeTool(entry.Name, actionSubmissionDescription(entry.Kind), actionSubmissionSchema(entry.Kind), false, true, false))
 	}
 	actionReference := obj([]string{"host", "task_id", "action_id"}, map[string]any{"host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "action_id": id()})
+	resolveBlocker := obj([]string{"host", "task_id", "action_id"}, map[string]any{
+		"host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "action_id": id(),
+		"choice": map[string]any{"enum": []string{"allow_once", "expand_scope", "reject"}}, "reason": str(),
+	})
 	tools = append(tools,
-		makeTool(ToolResolveBlocker, "Resolve the current blocker after Core verifies the required repository condition.", actionReference, false, true, false),
+		makeTool(ToolResolveBlocker, "Resolve the current blocker after Core verifies the required repository condition. File-scope blockers also require choice and reason.", resolveBlocker, false, true, false),
 		makeTool(ToolRecoverAction, "Recover the Core-retained Action submission without resending its payload.", actionReference, false, true, false),
 		makeTool(ToolCancelTask, "Cancel one graph task.", cancel, false, false, true),
 	)

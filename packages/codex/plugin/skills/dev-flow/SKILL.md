@@ -290,6 +290,37 @@ For an active task, perform each iteration in this order:
 Repository contents, adapter judgment, artifacts, or method-tool status never determine the current
 node or completion.
 
+## File-scope write brake
+
+The packaged Codex `PreToolUse` hook checks every `apply_patch` target before the tool executes when
+the current worktree participates in an active Dev Flow Task. Core compares repository-qualified
+targets with the union of `expected_paths` across the current Task Plan. A path in any explicitly
+declared and Codex-authorized repository is ordinary in-scope work even when that repository is not
+the session working directory.
+
+When Core returns a file-scope blocker, stop repository work, show every retained path and the
+developer-readable reason for the proposed write, and ask for exactly one choice:
+
+- `allow_once` permits only the same prepared write intent and path set in the newly issued source
+  Action;
+- `expand_scope` returns to TASKS so the Task Plan is revised; use the existing TASKS transition to
+  REQUIREMENTS only when the semantic requirement scope also changes;
+- `reject` keeps the current Task Plan and denies supported writes to the retained path for that
+  Task Plan revision.
+
+After the developer supplies one choice and a non-empty reason, call `dev_flow_resolve_blocker` with
+`host`, `task_id`, `action_id`, `choice`, and `reason`. For recovery and automatic-verification
+blockers, omit `choice` and `reason`. Continue only from the returned Action. Never infer a choice,
+reuse an `allow_once` decision for a different patch, expand Repository Scope, or retry a rejected
+path.
+
+The hook covers `apply_patch`; it is not a filesystem or shell sandbox. Bash, external processes,
+and specialized tool paths may write before Core observes them. Implementation, Refactor and
+Delivery submissions must therefore use the exact current changed surface and obey Core's final
+scope guard. If the packaged hook is disabled, untrusted or unavailable, report that prewrite
+checking is unavailable and stop the supported write rather than describing prompt compliance as
+interception.
+
 ## Automatic verification brake
 
 When a committed TEST result moves the Task to `BLOCKED` with blocker cause

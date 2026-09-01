@@ -43,6 +43,9 @@ dev-flow-codex --version
 Codex 兼容性，再注册 marketplace、Plugin 与 MCP。所有参数和机器可读输出见
 [命令参考](../../docs/COMMANDS.md#codex)。
 
+`setup` 完成后先在 Codex `/hooks` 中审核并信任 Dev Flow packaged hook；未信任时 Codex 会跳过
+`apply_patch` 写前检查。
+
 ## 启动一个 Task
 
 在 Git 仓库中直接描述边界明确的实现、缺陷修复、重构、定向测试或开发交付请求，Codex 可以智能
@@ -70,6 +73,21 @@ $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run 
 同一失败、同一测试结果，或相同修改路径与失败组成的测试循环连续出现三次时，Core 会保存第三次
 结果并暂停 Task。Codex 不会自动解除；用户明确选择换方案或再试一次后，Adapter 才解除 blocker，
 并从 Core 保存的原目标阶段继续。下一次仍然完全重复时会再次暂停。
+
+## 范围外文件先询问
+
+Plugin 自带 `PreToolUse` hook。用户通过 Codex `/hooks` 信任当前 hook 后，每次 `apply_patch` 执行前
+都会通过内部 `dev-flow-codex host-check pre-file-write` 入口把目标文件交给 packaged Core；launcher
+负责定位 package-local Core，不依赖 Codex Plugin 缓存目录结构。Core 使用当前 Task Plan 所有 WorkItem 的 `ExpectedPaths` 合集；
+多仓库路径带 repository key。B、C 等附加仓库只要已在 Task Repository Scope 中、已通过 `--add-dir`
+授权且文件属于计划范围，就直接修改，不因为当前工作目录位于 A 而询问。
+
+计划外文件会在 `apply_patch` 运行前暂停 Task。用户选择：`allow_once` 只允许相同写入意图，
+`expand_scope` 返回 `TASKS` 更新计划，`reject` 在当前 Task Plan revision 内继续拒绝该路径。选择与
+原因由 Core 保存。进入测试和 `DONE` 前，Core 还会核对本 Task 累计修改路径。
+
+该 hook 不解析 Bash、外部进程或绕过 Codex tool hook 的专用工具；这些写入可能只能在 Core 最终
+检查时发现。未信任、被禁用或不可用的 hook 不能被描述成可靠写前检查。
 
 ## 查看状态
 
@@ -108,7 +126,7 @@ npm uninstall -g dev-flow-codex
 
 - Codex 会话中的仓库权限仍由 Codex 和用户授权决定；Dev Flow 不扩大 sandbox；
 - Core 只读观察 Git，不执行 commit、push、merge、rebase、tag 或 publish；
-- Codex 负责文件修改和命令执行，Core 不拦截每一次操作；
+- Codex 负责文件修改和命令执行；Host hook 检查 `apply_patch`，Core 最终检查累计路径，但不会拦截每一次操作；
 - selector 不绕过仓库权限、当前 Action、Git 写入授权或发布确认；
 - 可选代码索引只帮助检索，不能扩大 Scope 或决定 Recovery 和流程状态。
 

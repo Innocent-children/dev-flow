@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { registerDevFlowGuard } from "./authorization.mjs";
+import { registerFileScopeGate } from "./file-scope.mjs";
 import {
   ensureDefaultDataDirectory,
   packageRootFromModule,
@@ -27,6 +28,7 @@ export async function activateDeepSeekIntegration(ctx, {
   environment = process.env,
   platform = process.platform,
   arch = process.arch,
+  workspaceRoot = process.cwd(),
 } = {}) {
   const manifest = await readPackageManifest(packageRoot);
   const runtimeSelection = await selectPackagedRuntime({ packageRoot, platform, arch });
@@ -56,7 +58,12 @@ export async function activateDeepSeekIntegration(ctx, {
     content: skillContent,
     path: skillPath,
   }));
-  registerDevFlowGuard(ctx);
+  registerDevFlowGuard(ctx, { workspaceRoot });
+  registerFileScopeGate(ctx, {
+    runtimePath: runtime.runtimePath,
+    dataDirectory: dataSelection.dataDirectory,
+    workspaceRoot,
+  });
 
   let mcpFiber;
   let catalogCheckQueued = false;

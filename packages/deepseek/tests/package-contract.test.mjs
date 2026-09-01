@@ -16,6 +16,7 @@ const expectedPackageFiles = [
   "README.md",
   "cordis.patch.yml",
   "lib/authorization.mjs",
+  "lib/file-scope.mjs",
   "lib/index.mjs",
   "lib/paths.mjs",
   "lib/runtime.mjs",

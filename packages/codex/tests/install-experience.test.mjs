@@ -90,7 +90,7 @@ test("builds stable setup facts and plain output", async () => {
       { path: "/config.json", change: "created" },
       { path: "/receipt.json", change: "created" },
     ],
-    next_step: "$dev-flow-codex:dev-flow <task description>",
+    next_step: "Review and trust the Dev Flow hook with /hooks, then use $dev-flow-codex:dev-flow <task description>",
   });
   assert.match(renderSetupPlain(result, "en"), /created: \/config\.json/);
   assert.match(renderSetupPlain(result, "zh-CN"), /下一步/);

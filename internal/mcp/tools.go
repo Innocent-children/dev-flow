@@ -95,6 +95,13 @@ type actionReferenceWire struct {
 	TaskID   domain.ID   `json:"task_id"`
 	ActionID domain.ID   `json:"action_id"`
 }
+type resolveBlockerWire struct {
+	Host     domain.Host              `json:"host"`
+	TaskID   domain.ID                `json:"task_id"`
+	ActionID domain.ID                `json:"action_id"`
+	Choice   domain.FileScopeDecision `json:"choice"`
+	Reason   string                   `json:"reason"`
+}
 type cancelWire struct {
 	RequestID domain.ID   `json:"request_id"`
 	Host      domain.Host `json:"host"`
@@ -262,7 +269,23 @@ func ValidateToolInput(tool string, raw []byte) error {
 			return domain.ErrInvalidArgument
 		}
 		return nil
-	case ToolResolveBlocker, ToolRecoverAction:
+	case ToolResolveBlocker:
+		if !hasKeys(raw, "host", "task_id", "action_id") {
+			return domain.ErrInvalidArgument
+		}
+		var v resolveBlockerWire
+		if decodeClosed(raw, &v) != nil || !v.Host.IsValid() || !v.TaskID.IsValid() || !v.ActionID.IsValid() {
+			return domain.ErrInvalidArgument
+		}
+		if v.Choice == "" {
+			if v.Reason != "" {
+				return domain.ErrInvalidArgument
+			}
+		} else if (domain.FileScopeDecisionInput{Choice: v.Choice, Reason: v.Reason}).Validate() != nil {
+			return domain.ErrInvalidArgument
+		}
+		return nil
+	case ToolRecoverAction:
 		if !hasKeys(raw, "host", "task_id", "action_id") {
 			return domain.ErrInvalidArgument
 		}

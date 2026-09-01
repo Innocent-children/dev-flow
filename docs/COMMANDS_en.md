@@ -90,7 +90,7 @@ reports both the host package and bundled Core identities.
 | Command | Purpose |
 | --- | --- |
 | `npm install -g dev-flow-codex@latest` | Install the package selected by the npm `latest` dist-tag and place `dev-flow-codex` globally on `PATH`. It does not register the Codex Plugin automatically. |
-| `dev-flow-codex setup` | Create or validate fixed user configuration, validate the installation and Codex compatibility, register the marketplace, Plugin, and MCP configuration, then report actual configuration/receipt changes, readiness, and one next step. Repeated execution verifies the existing registration. |
+| `dev-flow-codex setup` | Create or validate fixed user configuration, validate the installation and Codex compatibility, register the marketplace, Plugin, MCP, and packaged hook, then direct the developer to review and trust the current hook through Codex `/hooks`. Repeated execution verifies the existing registration. |
 | `dev-flow-codex setup --json` | Perform the same operation as `setup`, but emit one machine-readable JSON line retaining operation, status, changed, and receipt_path while adding configuration_path, file_changes, and next_step. |
 | `dev-flow-codex status` | Read and display the current package/Core and registration state. |
 | `dev-flow-codex status --json` | Read package, Core, receipt, marketplace, and Plugin state without creating configuration, registration, or data. |
@@ -99,6 +99,7 @@ reports both the host package and bundled Core identities.
 | `dev-flow-codex remove --json` | Perform the same operation as `remove` and emit machine-readable JSON. Its `next_step` points to the separate global npm uninstall. |
 | `npm uninstall -g dev-flow-codex` | Uninstall the global npm package after `remove` completes. Running it alone does not deregister the Codex integration first. |
 | `dev-flow-codex mcp` | **Managed host command.** The Plugin MCP configuration invokes it to establish the data directory and Codex admission instructions, then launch the packaged Core with `mcp --stdio`. Normal users should not start it manually. |
+| `dev-flow-codex host-check pre-file-write` | **Managed host command.** The packaged `PreToolUse` hook invokes it so the launcher resolves the package-local Core and forwards stdin/stdout with the exact `host-check pre-file-write` arguments. Normal users should not start it manually. |
 
 `dev-flow-codex` accepts no other subcommands and has no implicit `help`, `update`, or `uninstall`
 subcommand. Native Host recovery can update to `latest` by reinstalling globally and rerunning `setup`:
@@ -213,13 +214,14 @@ accepted command surface is primarily for host integration, development, and dia
 | `dev-flow --help` | Long-option form of `help`. |
 | `dev-flow version` | Print `dev-flow <core-version>`. |
 | `DEV_FLOW_DATA_DIR=/absolute/path dev-flow mcp --stdio` | Start local STDIO MCP with an existing usable data directory. Startup fails when the path is missing or not a directory. |
+| `dev-flow host-check pre-file-write` | **Managed Host command.** Read normalized structured-write targets from stdin, compare them with the active Task's cross-repository ExpectedPaths, and return `allow` or persist a file-scope blocker before returning `deny`. Codex/DeepSeek Adapters call it; ordinary users do not. |
 | `dev-flow webui start [--no-open] [--plain\|--json]` | Start or reuse the shared loopback WebUI; open the browser by default. |
 | `dev-flow webui open [--plain\|--json]` | Validate the receipt, process identity, and live Core status, then open the same URL. |
 | `dev-flow webui status [--plain\|--json]` | Return `ready`, `read_only`, `reset_required`, `incompatible`, or `unavailable`. |
 | `dev-flow webui stop [--plain\|--json]` | Verify PID and process-start identity before stopping the shared instance. |
 | `dev-flow webui reset [--confirm TOKEN] [--plain\|--json]` | Without a token, show the exact permanent cleanup plan; confirmation first obtains exclusive database access and deletes only bound targets. There is no reset HTTP mutation. |
 
-`dev-flow webui serve` is an internal child-process entrypoint used by the public lifecycle, not a Host user command. Core
+`dev-flow host-check pre-file-write` and `dev-flow webui serve` are internal Adapter/lifecycle entrypoints, not Host user commands. Core
 has no remote transport, generic HTTP/SSE transport, generic shell, or Git-mutation commands. Codex users start it
 through the managed `dev-flow-codex mcp` entrypoint; DeepSeek users start it through the DSH
 integration process.
@@ -243,7 +245,7 @@ terminal shell commands.
 | `dev_flow_submit_comprehension` | Mutation | Submit the COMPREHENSION_REVIEW node result. |
 | `dev_flow_submit_refactor` | Mutation | Submit the REFACTOR node result. |
 | `dev_flow_submit_delivery` | Mutation | Submit Host-owned DELIVERY judgment, risks, and findings. Core fills acceptance, evidence IDs, and Test/Comprehension record IDs; submitting those members is rejected as `unknown_member`. |
-| `dev_flow_resolve_blocker` | Mutation | Resolve the current blocker after Core verifies its condition. A recovery blocker requires exact repository restoration; an automatic-brake blocker requires explicit developer approval to continue. Accepts only host, Task ID, and Action ID. |
+| `dev_flow_resolve_blocker` | Mutation | Resolve the current blocker after Core verifies its condition. A recovery blocker requires exact repository restoration and an automatic-brake blocker requires explicit approval. A file-scope blocker additionally requires `choice` (`allow_once`, `expand_scope`, or `reject`) and a non-empty `reason`; other blockers omit those members. |
 | `dev_flow_recover_action` | Mutation | Recover an uncertain Action from the normalized submission retained in an independent Action operation record; accepts no original payload. |
 | `dev_flow_cancel_task` | Destructive mutation | Move a nonterminal Task to `CANCELLED` using the current revision and a non-empty reason. |
 

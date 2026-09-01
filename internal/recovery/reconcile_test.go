@@ -196,6 +196,9 @@ func TestRepositoryEffectDerivationRejectsUndeclaredAndArtifactProductMismatch(t
 	if !RepositoryEffectMatches(RepositoryEffect{Kind: EffectExactBlockerRestoration, NoFileChanges: true}, RepositoryExact, base, base) {
 		t.Fatal("exact blocker restoration rejected")
 	}
+	if !RepositoryEffectMatches(RepositoryEffect{Kind: EffectFileScopeResolution, NoFileChanges: true}, RepositoryWorktreeOnlyChanged, base, observed) {
+		t.Fatal("file-scope resolution rejected an in-progress worktree")
+	}
 }
 
 func TestGraphRecoveryProductionHasNoLinearClassifier(t *testing.T) {

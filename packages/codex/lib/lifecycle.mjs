@@ -39,6 +39,9 @@ export const CODEX_MCP_INSTRUCTIONS = [
   "Only when a new-task dev_flow_open_task returns a complete ACTIVE_TASK_CONFLICT and the Host worktree-backed task/thread capability is available, dispatch exactly one Host-created worktree-backed Codex task with the exact selector; set target.environment.type=worktree and omit startingState so the child starts from committed default-branch state, and never inspect, copy, or apply the source checkout's index, tracked working-tree changes, or untracked files.",
   "After that conflict decision make no further Dev Flow Core call and never retry Host creation; explicit resume, HOST_OWNERSHIP_CONFLICT, and every other error keep the existing stop behavior.",
   "Use the current Git worktree as primary and only user-declared additional repositories already authorized as writable roots; never scan repositories or change Codex sandbox permissions.",
+  "The packaged PreToolUse hook checks apply_patch targets against the complete current multi-repository Task Plan before execution; an expected path in any declared writable repository needs no extra question.",
+  "When a file-scope blocker is current, obtain exactly one developer choice and reason, then call dev_flow_resolve_blocker with allow_once, expand_scope, or reject; never infer or reuse the decision.",
+  "Do not claim that Bash, external processes, specialized tools, or an untrusted or disabled hook were intercepted; Core final scope guards still reconcile Task-introduced changed paths.",
 ].join(" ");
 
 const semverPattern = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
@@ -438,6 +441,7 @@ async function assertPackageResources(paths, packageVersion) {
     pluginManifest.version !== packageVersion ||
     pluginManifest.skills !== "./skills/" ||
     pluginManifest.mcpServers !== "./.mcp.json"
+    || pluginManifest.hooks !== "./hooks/hooks.json"
   ) {
     throw new Error("plugin manifest identity or resource paths do not match the package");
   }
@@ -450,6 +454,20 @@ async function assertPackageResources(paths, packageVersion) {
   if (mcpConfiguration.$schema !== MCP_SCHEMA_URI) {
     throw new Error(`MCP configuration schema must equal ${MCP_SCHEMA_URI}`);
   }
+
+  const hooksConfiguration = await readJSON(
+    join(paths.pluginRoot, "hooks", "hooks.json"),
+    "Plugin hooks configuration",
+  );
+  assertObject(hooksConfiguration.hooks, "Plugin hooks");
+  const preToolUse = hooksConfiguration.hooks.PreToolUse;
+  if (!Array.isArray(preToolUse) || preToolUse.length !== 1 || preToolUse[0]?.matcher !== "^apply_patch$" ||
+      !Array.isArray(preToolUse[0]?.hooks) || preToolUse[0].hooks.length !== 1 ||
+      preToolUse[0].hooks[0]?.type !== "command" ||
+      preToolUse[0].hooks[0]?.command !== 'node "$PLUGIN_ROOT/hooks/pre-tool-use.mjs"') {
+    throw new Error("Plugin PreToolUse hook does not match the fixed apply_patch scope check");
+  }
+  await assertReadableFile(join(paths.pluginRoot, "hooks", "pre-tool-use.mjs"), "Plugin PreToolUse hook");
   assertObject(mcpConfiguration.mcpServers, "MCP servers");
   assertExactKeys(mcpConfiguration.mcpServers, ["dev-flow"], "MCP servers");
   const server = mcpConfiguration.mcpServers["dev-flow"];
@@ -879,6 +897,16 @@ function resourcePaths(paths) {
     skillMetadata: join(paths.pluginRoot, "skills", "dev-flow", "agents", "openai.yaml"),
     mcpConfiguration: join(paths.pluginRoot, ".mcp.json"),
   };
+}
+
+async function assertReadableFile(path, label) {
+  try {
+    const info = await stat(path);
+    if (!info.isFile()) throw new Error("not a file");
+    await access(path, fsConstants.R_OK);
+  } catch (error) {
+    throw new Error(`${label} must exist and be readable`, { cause: error });
+  }
 }
 
 async function assertExecutableFile(path, label) {

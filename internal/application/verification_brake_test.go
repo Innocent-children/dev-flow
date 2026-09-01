@@ -63,7 +63,7 @@ func TestAutomaticBrakeClassifiesUnchangedResultAndImplementationLoop(t *testing
 		task := phase5TaskAtTest(t, service)
 		for attempt := 1; attempt <= 3; attempt++ {
 			implementation := *task.Implementation
-			implementation.ChangedPaths = []string{"internal/auth.go"}
+			implementation.ChangedPaths = []string{"internal/file.go"}
 			implementation.NoFileChanges = false
 			task.Implementation = &implementation
 			memory.task = &task

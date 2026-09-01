@@ -196,7 +196,7 @@ func TestPayloadRequiredAndUnknownMemberViolations(t *testing.T) {
 	duplicatePath["node_result"].(map[string]any)["no_file_changes"] = false
 	assertPayloadViolation(t, duplicatePath, "payload.node_result.changed_paths[1]", domain.RuleStringListDuplicate)
 
-	tooManyPaths := make([]any, domain.MaxBoundedStringListItems+1)
+	tooManyPaths := make([]any, domain.MaxFingerprintPaths+1)
 	for index := range tooManyPaths {
 		tooManyPaths[index] = fmt.Sprintf("internal/file-%d.go", index)
 	}

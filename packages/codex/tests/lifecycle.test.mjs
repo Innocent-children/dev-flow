@@ -719,6 +719,7 @@ async function makeSetupFixture(t, name) {
   const tracePath = join(root, "fake", "trace.jsonl");
   await mkdir(join(packageRoot, ".agents", "plugins"), { recursive: true });
   await mkdir(join(pluginRoot, ".codex-plugin"), { recursive: true });
+  await mkdir(join(pluginRoot, "hooks"), { recursive: true });
   await mkdir(join(pluginRoot, "skills", "dev-flow", "agents"), { recursive: true });
   await mkdir(join(packageRoot, "bin"), { recursive: true });
   await mkdir(dirname(runtimePath), { recursive: true });
@@ -745,6 +746,7 @@ async function makeSetupFixture(t, name) {
       description: "fixture",
       skills: "./skills/",
       mcpServers: "./.mcp.json",
+      hooks: "./hooks/hooks.json",
     })}\n`,
   );
   await writeFile(
@@ -756,6 +758,11 @@ async function makeSetupFixture(t, name) {
       },
     })}\n`,
   );
+  await writeFile(
+    join(pluginRoot, "hooks", "hooks.json"),
+    `${JSON.stringify({ hooks: { PreToolUse: [{ matcher: "^apply_patch$", hooks: [{ type: "command", command: 'node "$PLUGIN_ROOT/hooks/pre-tool-use.mjs"' }] }] } })}\n`,
+  );
+  await writeFile(join(pluginRoot, "hooks", "pre-tool-use.mjs"), "export {};\n");
   await writeFile(
     join(pluginRoot, "skills", "dev-flow", "SKILL.md"),
     "---\nname: dev-flow\ndescription: \"Use Dev Flow for bounded Codex software development tasks: implementation, bug fixes, refactoring, targeted testing, and development delivery. It may be selected implicitly for those tasks or explicitly with $dev-flow-codex:dev-flow. Do not create a Dev Flow Task for explanation-only, status-only, design discussion, ordinary questions, or ambiguous requests.\"\n---\n\nBoth activation paths use this same admission gate. For a non-task request, do not create or resume a Dev Flow Task. A single new request is not a parallel batch. Only when the original call carried non-null `new_task` and returned a complete `ACTIVE_TASK_CONFLICT`, create exactly one worktree-backed Codex task with `target.environment.type=\"worktree\"` and omit the `startingState` member entirely. Do not inspect, read, copy or apply source working-tree state. Do not call any Dev Flow Core tool again. Explicit resume and `HOST_OWNERSHIP_CONFLICT` preserve their existing handling.\n",

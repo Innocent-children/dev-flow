@@ -16,7 +16,8 @@ func DecodeBlockerResolutionPayload(raw []byte) (domain.BlockerResolutionPayload
 	decoder.DisallowUnknownFields()
 	var payload domain.BlockerResolutionPayload
 	if decoder.Decode(&payload) != nil || decoder.Decode(&struct{}{}) != io.EOF ||
-		!payload.BlockerID.IsValid() || payload.Condition.Validate() != nil || !payload.ObservedBindingDigest.IsValid() {
+		!payload.BlockerID.IsValid() || payload.Condition.Validate() != nil || !payload.ObservedBindingDigest.IsValid() ||
+		payload.FileScopeDecision != nil && payload.FileScopeDecision.Validate() != nil {
 		return domain.BlockerResolutionPayload{}, nil, domain.ErrInvalidArgument
 	}
 	canonical, err := json.Marshal(payload)

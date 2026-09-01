@@ -154,6 +154,8 @@ lib/lifecycle.mjs
 lib/paths.mjs
 plugin/.codex-plugin/plugin.json
 plugin/.mcp.json
+plugin/hooks/hooks.json
+plugin/hooks/pre-tool-use.mjs
 plugin/skills/dev-flow/SKILL.md
 plugin/skills/dev-flow/agents/openai.yaml
 plugin/skills/dev-flow/references/method-profiles.md
@@ -209,6 +211,8 @@ const expected = [
   "package.json",
   "plugin/.codex-plugin/plugin.json",
   "plugin/.mcp.json",
+  "plugin/hooks/hooks.json",
+  "plugin/hooks/pre-tool-use.mjs",
   "plugin/skills/dev-flow/SKILL.md",
   "plugin/skills/dev-flow/agents/openai.yaml",
   "plugin/skills/dev-flow/references/method-profiles.md",

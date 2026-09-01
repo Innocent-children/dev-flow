@@ -114,9 +114,13 @@ func (s *Server) dispatch(ctx context.Context, tool string, id domain.ID, raw []
 		}
 		return EncodeSuccess(string(resultID), tool, projectTask(r.Task))
 	case ToolResolveBlocker:
-		var wire actionReferenceWire
+		var wire resolveBlockerWire
 		_ = decodeClosed(raw, &wire)
-		result, err := s.application.ResolveBlockerAction(ctx, application.RecoverActionRequest{Host: wire.Host, TaskID: wire.TaskID, ActionID: wire.ActionID}, id)
+		var decision *domain.FileScopeDecisionInput
+		if wire.Choice != "" {
+			decision = &domain.FileScopeDecisionInput{Choice: wire.Choice, Reason: wire.Reason}
+		}
+		result, err := s.application.ResolveBlockerAction(ctx, application.RecoverActionRequest{Host: wire.Host, TaskID: wire.TaskID, ActionID: wire.ActionID, FileScopeDecision: decision}, id)
 		if err != nil {
 			return EncodeError(string(resultID), tool, err)
 		}

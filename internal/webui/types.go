@@ -145,6 +145,16 @@ type TaskDetailResponse struct {
 	Events             []TaskEventView  `json:"events"`
 	Graph              GraphView        `json:"graph"`
 	CurrentAction      *ActionView      `json:"current_action"`
+	FileScope          FileScopeView    `json:"file_scope"`
+}
+
+type FileScopeView struct {
+	ExpectedPaths     []string `json:"expected_paths"`
+	TaskChangedPaths  []string `json:"task_changed_paths"`
+	UnexplainedPaths  []string `json:"unexplained_paths"`
+	CoveredHostTools  []string `json:"covered_host_tools"`
+	DecisionCount     int      `json:"decision_count"`
+	FinalCheckEnabled bool     `json:"final_check_enabled"`
 }
 
 type SystemStatusResponse struct {

@@ -5,16 +5,16 @@ import { RecoveryPanel } from "./RecoveryPanel";
 import { defaultValue, SchemaField } from "./SchemaField";
 import { actionKindKey, useI18n } from "../lib/i18n";
 
-export function ActionPanel({ taskID, revision, action, disabled, onChanged }: { taskID: string; revision: number; action: ActionView; disabled: boolean; onChanged: () => void }) {
+export function ActionPanel({ taskID, revision, action, disabled, onChanged, initialPayload }: { taskID: string; revision: number; action: ActionView; disabled: boolean; onChanged: () => void; initialPayload?: Record<string, unknown> }) {
   const { language, t } = useI18n();
-  const [payload, setPayload] = useState<Record<string, unknown>>(() => asObject(defaultValue(action.payload_schema)));
+  const [payload, setPayload] = useState<Record<string, unknown>>(() => initialPayload ?? asObject(defaultValue(action.payload_schema)));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [paths, setPaths] = useState<string[]>([]);
   const [guard, setGuard] = useState<string | null>(null);
   const [uncertain, setUncertain] = useState<{ operation: OperationProbe; advice: RecoveryAdvice } | null>(null);
   const errorSummary = useRef<HTMLDivElement>(null);
-  useEffect(() => { setPayload(asObject(defaultValue(action.payload_schema))); setError(""); setPaths([]); setGuard(null); setUncertain(null); }, [action.action_id]);
+  useEffect(() => { setPayload(initialPayload ?? asObject(defaultValue(action.payload_schema))); setError(""); setPaths([]); setGuard(null); setUncertain(null); }, [action.action_id]);
   useEffect(() => { setError(""); setPaths([]); setGuard(null); }, [language]);
   const submit = async () => {
     const operationID = `action-${crypto.randomUUID()}`;

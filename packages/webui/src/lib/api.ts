@@ -120,6 +120,14 @@ export interface TaskDetailResponse {
   events: TaskEventView[];
   graph: GraphView;
   current_action: ActionView | null;
+  file_scope: {
+    expected_paths: string[];
+    task_changed_paths: string[];
+    unexplained_paths: string[];
+    covered_host_tools: string[];
+    decision_count: number;
+    final_check_enabled: boolean;
+  };
 }
 
 export interface FailureResponse {

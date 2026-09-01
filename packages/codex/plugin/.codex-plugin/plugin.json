@@ -8,6 +8,7 @@
   "license": "Apache-2.0",
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
+  "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "Dev Flow for Codex",
     "shortDescription": "Smart Dev Flow workflow for Codex",

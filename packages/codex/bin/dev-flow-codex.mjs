@@ -47,7 +47,7 @@ export async function runCLI(arguments_, dependencies = {}) {
   let setupAttempted = false;
 
   if (!isProductionCommand(arguments_)) {
-    stderr.write("dev-flow-codex: invalid arguments; expected status [--json], setup [--json], remove [--json], mcp, or --version\n");
+    stderr.write("dev-flow-codex: invalid arguments; expected status [--json], setup [--json], remove [--json], mcp, host-check pre-file-write, or --version\n");
     return { code: 2, signal: null };
   }
 
@@ -56,6 +56,13 @@ export async function runCLI(arguments_, dependencies = {}) {
     if (arguments_.length === 1 && arguments_[0] === "mcp") {
       if (paths.usesDefaultDataDirectory) await ensureDataDirectory(paths);
       return await launchPackagedCore(paths, ["mcp", "--stdio"], {
+        environment,
+        spawnImpl: dependencies.spawnImpl ?? spawn,
+        signalSource: dependencies.signalSource ?? process,
+      });
+    }
+    if (arguments_.length === 2 && arguments_[0] === "host-check" && arguments_[1] === "pre-file-write") {
+      return await launchPackagedCore(paths, ["host-check", "pre-file-write"], {
         environment,
         spawnImpl: dependencies.spawnImpl ?? spawn,
         signalSource: dependencies.signalSource ?? process,
@@ -288,6 +295,7 @@ function writeSetupSuccess(stdout, result, json, { environment, renderSetupResul
 function isProductionCommand(arguments_) {
   if (!Array.isArray(arguments_)) return false;
   if (arguments_.length === 1 && ["mcp", "--version"].includes(arguments_[0])) return true;
+  if (arguments_.length === 2 && arguments_[0] === "host-check" && arguments_[1] === "pre-file-write") return true;
   return (
     (arguments_.length === 1 || arguments_.length === 2 && arguments_[1] === "--json") &&
     ["status", "setup", "remove"].includes(arguments_[0])

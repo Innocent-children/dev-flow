@@ -23,7 +23,7 @@ func (o LastOperation) Validate() error {
 		if o.FromRevision != 0 || o.ActionID != nil {
 			return ErrInvalidArgument
 		}
-	case OperationApplyAction:
+	case OperationApplyAction, OperationPrepareFileChange:
 		if o.FromRevision == 0 || o.ActionID == nil || validateID(*o.ActionID) != nil {
 			return ErrInvalidArgument
 		}

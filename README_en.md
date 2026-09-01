@@ -38,20 +38,21 @@ from its saved stage and next step.
 | Action | What Dev Flow retains and checks |
 | --- | --- |
 | Remember | Original request, current stage, completed verification, blockers, and outcome |
-| Limit | Task scope, automatic verification-command count, repeated test loops, and permission for full suites or manual handoff |
+| Limit | Task Plan file scope, one-write file authorization, automatic verification-command count, repeated test loops, and permission for full suites or manual handoff |
 | Decide | Which old test and comprehension records became stale after implementation changes, and whether repository state still matches the Task |
 | Recover | Whether an uncertain Action should continue, be recorded, block, or retry safely |
 
-Codex and DeepSeek still read code, edit files, and run commands. Dev Flow does not replace the coding
-agent or intercept every Host operation; it checks whether the same development task may advance and
-what must be confirmed first.
+Codex and DeepSeek still read code, edit files, and run commands. Before Codex `apply_patch` or a
+structured DeepSeek file tool writes, the Host sends its target paths to Core. An unplanned path
+enters `BLOCKED` so the developer can allow that exact write, revise the Task Plan, or reject it.
+Core also reconciles Task-introduced paths before testing and `DONE`.
 
 ## Understand it in 30 seconds
 
 | Using an agent directly | What Dev Flow adds |
 | --- | --- |
 | Progress is reconstructed after an interrupted session | Resume the same local Task |
-| A local task gradually expands in scope | Retain the original goal and explicit boundaries |
+| A local task gradually expands in scope | Ask before supported unplanned writes and reconcile actual paths before delivery |
 | Targeted testing keeps expanding | Retain the verification budget |
 | The same check and failure keep repeating | Pause after the third exact repetition and wait for the developer |
 | A missing operation response is retried immediately | Read the current Task and Recovery state first |
@@ -140,7 +141,8 @@ Dev Flow remains early and external adoption is limited. Current boundaries incl
 
 - Core observes Git read-only and does not commit, push, merge, rebase, tag, or publish;
 - file changes and command execution remain with user-authorized Codex or DeepSeek;
-- Core does not intercept every Host file operation and is not a shell or file-system sandbox;
+- the Host performs write-before checks only for the listed structured tools; Core does not intercept every file operation and is not a shell or file-system sandbox;
+- writes made by Bash, external processes, or specialized tools may be found only by Core's Implementation/Delivery reconciliation;
 - the WebUI is a local loopback single-user view and diagnostic entry, not a cloud project manager;
 - stable support comes only from public artifacts and real Host journeys listed in the Support Matrix.
 

@@ -132,6 +132,7 @@ const (
 	GuardPassingStatusRequired          GuardRule = "passing_status_required"
 	GuardUserConfirmationRequired       GuardRule = "user_confirmation_required"
 	GuardBooleanFalseRequired           GuardRule = "boolean_false_required"
+	GuardChangedPathsExplained          GuardRule = "changed_paths_explained"
 )
 
 var guardMessages = map[GuardRule]string{
@@ -146,6 +147,7 @@ var guardMessages = map[GuardRule]string{
 	GuardPassingStatusRequired:          "the current transition requires every submitted status to be passed",
 	GuardUserConfirmationRequired:       "the current transition requires explicit passed user confirmation",
 	GuardBooleanFalseRequired:           "the current transition requires this member to be false",
+	GuardChangedPathsExplained:          "every Task-introduced changed path must be planned or covered by a consumed explicit authorization",
 }
 
 func (r GuardRule) IsValid() bool {

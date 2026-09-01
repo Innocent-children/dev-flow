@@ -70,6 +70,7 @@ const (
 	EffectProcessArtifactOnly     RepositoryEffectKind = "process_artifact_only"
 	EffectProductFileChange       RepositoryEffectKind = "product_file_change"
 	EffectExactBlockerRestoration RepositoryEffectKind = "exact_blocker_restoration"
+	EffectFileScopeResolution     RepositoryEffectKind = "file_scope_resolution"
 )
 
 type RepositoryEffect struct {

@@ -137,7 +137,7 @@ func (b RepositoryBinding) Validate() error {
 		validateDigest(b.BindingDigest) != nil || validateUTC(b.ObservedAt) != nil {
 		return ErrInvalidArgument
 	}
-	if len(b.ChangedPaths) > MaxBoundedStringListItems {
+	if len(b.ChangedPaths) > MaxFingerprintPaths {
 		return ErrInvalidArgument
 	}
 	seenPaths := map[string]bool{}

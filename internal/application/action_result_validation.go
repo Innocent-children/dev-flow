@@ -74,6 +74,9 @@ func validateActionResultAgainstTask(task domain.ProcessTask, transition domain.
 				}
 			}
 		}
+		if transition.TransitionID == "implementation_ready_for_test" && len(unexplainedTaskPaths(task, value.ChangedPaths)) != 0 {
+			guard("changed_paths", domain.GuardChangedPathsExplained)
+		}
 	case *workflow.TestResult:
 		if transition.TransitionID == "tests_passed" {
 			if len(value.Checks) == 0 {
@@ -111,10 +114,16 @@ func validateActionResultAgainstTask(task domain.ProcessTask, transition domain.
 			if value.BehaviorChangeIntended {
 				guard("behavior_change_intended", domain.GuardBooleanFalseRequired)
 			}
+			if len(unexplainedTaskPaths(task, value.ChangedPaths)) != 0 {
+				guard("changed_paths", domain.GuardChangedPathsExplained)
+			}
 		}
 	case *workflow.DeliveryResult:
 		if transition.TransitionID == "delivery_complete" {
 			validateDeliveryResultAgainstTask(task, value, guard)
+			if len(unexplainedTaskPaths(task, value.ChangedPaths)) != 0 {
+				guard("changed_paths", domain.GuardChangedPathsExplained)
+			}
 		}
 	}
 

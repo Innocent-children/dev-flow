@@ -69,8 +69,15 @@ func ActionPayloadSchemas() []ActionPayloadSchema {
 	delivery := standardPayloadSchema(schemaObject([]string{"problem_class", "acceptance", "automated_evidence_ids", "manual_evidence_ids", "test_record_id", "comprehension_record_id", "unverified_items", "risks", "findings", "changed_paths", "no_file_changes"}, mergeSchemaProperties(map[string]any{
 		"problem_class": schemaEnum("none", "implementation_gap", "test_gap", "comprehension_gap", "design_gap", "requirement_gap"), "acceptance": map[string]any{"type": "array", "items": schemaObject([]string{"criterion", "status"}, map[string]any{"criterion": schemaString(), "status": map[string]any{"const": "satisfied"}})}, "automated_evidence_ids": map[string]any{"type": "array", "items": schemaID()}, "manual_evidence_ids": map[string]any{"type": "array", "items": schemaID()}, "test_record_id": schemaID(), "comprehension_record_id": schemaID(), "unverified_items": schemaList(), "risks": schemaList(), "findings": schemaList(),
 	}, mutation)))
-	condition := schemaObject([]string{"kind", "expected_binding_digest"}, map[string]any{"kind": schemaEnum("restore_issuance_binding", "allow_verification_retry"), "expected_binding_digest": schemaDigest()})
-	blocker := schemaObject([]string{"blocker_id", "condition", "observed_binding_digest"}, map[string]any{"blocker_id": schemaID(), "condition": condition, "observed_binding_digest": schemaDigest()})
+	condition := schemaObject([]string{"kind", "expected_binding_digest"}, map[string]any{
+		"kind": schemaEnum("restore_issuance_binding", "allow_verification_retry", "resolve_file_scope"), "expected_binding_digest": schemaDigest(), "scope_request_id": schemaID(),
+	})
+	fileScopeDecision := schemaObject([]string{"choice", "reason"}, map[string]any{
+		"choice": schemaEnum("allow_once", "expand_scope", "reject"), "reason": schemaString(),
+	})
+	blocker := schemaObject([]string{"blocker_id", "condition", "observed_binding_digest"}, map[string]any{
+		"blocker_id": schemaID(), "condition": condition, "observed_binding_digest": schemaDigest(), "file_scope_decision": fileScopeDecision,
+	})
 	return []ActionPayloadSchema{
 		{domain.ActionCompleteRequirements, requirements}, {domain.ActionCompleteDesign, design}, {domain.ActionCompleteTasks, tasks},
 		{domain.ActionCompleteImplementation, implementation}, {domain.ActionCompleteTest, test}, {domain.ActionCompleteComprehensionReview, comprehension},

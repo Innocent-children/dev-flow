@@ -45,6 +45,9 @@ When fixed user configuration is absent, `setup` creates `$HOME/.dev-flow/config
 package, bundled Core, and Codex compatibility, then registers the marketplace, Plugin, and MCP. See
 the [Command Reference](COMMANDS_en.md#codex) for every argument and machine-readable result.
 
+After `setup`, review and trust the Dev Flow packaged hook through Codex `/hooks`. Codex skips the
+`apply_patch` write-before check until that hook is trusted.
+
 ## Start a Task
 
 From a Git repository, describe a bounded implementation, bug fix, refactoring, targeted-testing, or
@@ -79,6 +82,26 @@ times, Core retains the third result and pauses the Task. Codex does not resolve
 automatically. After the developer explicitly chooses another approach or allows one more attempt,
 the Adapter resolves the blocker and continues from Core's retained resume stage. Another exact
 repetition pauses the Task again.
+
+## Ask before an out-of-scope file write
+
+The Plugin bundles a `PreToolUse` hook. After the developer trusts the current hook through Codex
+`/hooks`, every `apply_patch` call sends its target files to the packaged Core before execution through
+the managed `dev-flow-codex host-check pre-file-write` entrypoint. The launcher resolves the package-local
+Core without depending on the Codex Plugin cache layout.
+Core uses the union of every WorkItem's `ExpectedPaths` in the current Task Plan, with repository-key
+qualification for multi-repository Tasks. An expected file in additional repository B or C proceeds
+without a question when the repository is already in Task Repository Scope and authorized through
+`--add-dir`; being outside working directory A is not itself out of scope.
+
+An unplanned file pauses the Task before `apply_patch` runs. The developer chooses `allow_once` for
+that same write intent, `expand_scope` to return to `TASKS`, or `reject` for the current Task Plan
+revision. Core retains the choice and reason. Before testing and `DONE`, Core also reconciles all
+Task-introduced paths.
+
+The hook does not parse Bash, external processes, or specialized tools that bypass Codex tool hooks;
+those writes may be found only by Core's final check. An untrusted, disabled, or unavailable hook
+must not be presented as reliable write-before interception.
 
 ## Inspect status
 
@@ -119,7 +142,7 @@ from its current plan. Do not manually delete an uncertain data directory.
 - repository access remains controlled by Codex and user authorization; Dev Flow does not expand the
   sandbox;
 - Core observes Git read-only and does not commit, push, merge, rebase, tag, or publish;
-- Codex edits files and runs commands; Core does not intercept every operation;
+- Codex edits files and runs commands; the Host hook checks `apply_patch` and Core reconciles cumulative paths, but does not intercept every operation;
 - the selector does not bypass repository permission, the current Action, Git-mutation authority, or
   release confirmation;
 - optional code indexing assists retrieval only and cannot expand Scope or decide Recovery and

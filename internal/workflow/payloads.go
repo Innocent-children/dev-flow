@@ -642,7 +642,7 @@ func repositoryMutationViolations(paths []string, noFileChanges bool) []domain.C
 	if noFileChanges != (len(paths) == 0) {
 		return []domain.ContractViolation{domain.Violation("payload.node_result.changed_paths", domain.RuleRepositoryMutationInconsistent)}
 	}
-	if len(paths) > domain.MaxBoundedStringListItems {
+	if len(paths) > domain.MaxFingerprintPaths {
 		return []domain.ContractViolation{domain.Violation("payload.node_result.changed_paths", domain.RuleStringListTooLong)}
 	}
 	seen := map[string]bool{}

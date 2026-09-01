@@ -72,6 +72,20 @@ Adapter 会先读取 Core，恢复当前阶段、revision、范围、剩余验�
 结果并暂停 Task。Adapter 不会自动解除；用户明确选择换方案或再试一次后，才解除 blocker，并从
 Core 保存的原目标阶段继续。下一次仍然完全重复时会再次暂停。
 
+## 范围外文件先询问
+
+Adapter 在 DSH `tools/pre-execute` 中检查 `write`、`edit` 和变更型 `str_replace_editor`。当前 direct
+user turn 使用 `/dev-flow` 时，这些工具在写入前把目标文件交给 packaged Core。Core 使用当前 Task
+Plan 全部 WorkItem 的 `ExpectedPaths` 合集；多仓库路径带 repository key。B、C 等仓库已在 Task
+Repository Scope、位于 Workspace Root 且文件属于计划范围时，不因为当前目录位于 A 而询问。
+
+计划外文件会在工具执行前暂停 Task。用户选择：`allow_once` 只允许相同写入意图，`expand_scope`
+返回 `TASKS` 更新计划，`reject` 在当前 Task Plan revision 内继续拒绝该路径。选择与原因由 Core
+保存；进入测试和 `DONE` 前，Core 还会核对本 Task 累计修改路径。
+
+该 gate 不解析 Bash、外部进程或其他工具路径；这些写入可能只能在 Core 最终检查时发现。gate
+不可用时，支持的结构化写入保守停止。
+
 ## 查看状态
 
 查看统一 lifecycle 与 DSH Profile 状态：
@@ -109,7 +123,7 @@ dsh --profile "$PROFILE" --dump-config
 - DSH 启动时的 canonical Workspace Root 是权限边界；仓库和 symlink 解析结果必须位于其中；
 - Dev Flow 不扩大 Workspace Root，也不会通过索引发现并加入相邻仓库；
 - Core 只读观察 Git，不执行 commit、push、merge、rebase、tag 或 publish；
-- DeepSeek 负责文件修改和命令执行，Core 不拦截每一次操作；
+- DeepSeek 负责文件修改和命令执行；Host gate 检查列出的结构化工具，Core 最终检查累计路径，但不会拦截每一次操作；
 - `/dev-flow` 不绕过当前 Action、Workspace 权限、Git 写入授权或发布确认。
 
 ## 高级多仓库

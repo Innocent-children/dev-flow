@@ -7,10 +7,11 @@ type BlockerConditionKind string
 const (
 	BlockerConditionRestoreIssuanceBinding BlockerConditionKind = "restore_issuance_binding"
 	BlockerConditionAllowVerificationRetry BlockerConditionKind = "allow_verification_retry"
+	BlockerConditionResolveFileScope       BlockerConditionKind = "resolve_file_scope"
 )
 
 func (k BlockerConditionKind) IsValid() bool {
-	return k == BlockerConditionRestoreIssuanceBinding || k == BlockerConditionAllowVerificationRetry
+	return k == BlockerConditionRestoreIssuanceBinding || k == BlockerConditionAllowVerificationRetry || k == BlockerConditionResolveFileScope
 }
 
 type BlockerCause string
@@ -21,6 +22,7 @@ const (
 	BlockerCauseRepeatedVerificationFailure     BlockerCause = "repeated_verification_failure"
 	BlockerCauseUnchangedVerificationResult     BlockerCause = "unchanged_verification_result"
 	BlockerCauseUnchangedTestImplementationLoop BlockerCause = "unchanged_test_implementation_loop"
+	BlockerCauseFileScopeDecision               BlockerCause = "file_scope_decision"
 )
 
 func (c BlockerCause) IsVerificationBrake() bool {
@@ -30,22 +32,31 @@ func (c BlockerCause) IsVerificationBrake() bool {
 }
 
 func (c BlockerCause) IsValid() bool {
-	return c == BlockerCauseRecoveryPartiallyCompleted || c == BlockerCauseRecoveryConflicting || c.IsVerificationBrake()
+	return c == BlockerCauseRecoveryPartiallyCompleted || c == BlockerCauseRecoveryConflicting || c.IsVerificationBrake() || c == BlockerCauseFileScopeDecision
 }
 
 type BlockerCondition struct {
 	Kind                  BlockerConditionKind `json:"kind"`
 	ExpectedBindingDigest Digest               `json:"expected_binding_digest"`
+	ScopeRequestID        ID                   `json:"scope_request_id,omitempty"`
 }
 
 type BlockerResolutionPayload struct {
-	BlockerID             ID               `json:"blocker_id"`
-	Condition             BlockerCondition `json:"condition"`
-	ObservedBindingDigest Digest           `json:"observed_binding_digest"`
+	BlockerID             ID                      `json:"blocker_id"`
+	Condition             BlockerCondition        `json:"condition"`
+	ObservedBindingDigest Digest                  `json:"observed_binding_digest"`
+	FileScopeDecision     *FileScopeDecisionInput `json:"file_scope_decision,omitempty"`
 }
 
 func (c BlockerCondition) Validate() error {
 	if !c.Kind.IsValid() || validateDigest(c.ExpectedBindingDigest) != nil {
+		return ErrInvalidArgument
+	}
+	if c.Kind == BlockerConditionResolveFileScope {
+		if !c.ScopeRequestID.IsValid() {
+			return ErrInvalidArgument
+		}
+	} else if c.ScopeRequestID != "" {
 		return ErrInvalidArgument
 	}
 	return nil
@@ -73,7 +84,13 @@ func (b ProcessBlocker) Validate() error {
 		validateUTC(b.CreatedAt) != nil {
 		return ErrInvalidArgument
 	}
-	if b.Cause.IsVerificationBrake() != (b.Condition.Kind == BlockerConditionAllowVerificationRetry) {
+	expectedCondition := BlockerConditionRestoreIssuanceBinding
+	if b.Cause.IsVerificationBrake() {
+		expectedCondition = BlockerConditionAllowVerificationRetry
+	} else if b.Cause == BlockerCauseFileScopeDecision {
+		expectedCondition = BlockerConditionResolveFileScope
+	}
+	if b.Condition.Kind != expectedCondition {
 		return ErrInvalidArgument
 	}
 	return nil

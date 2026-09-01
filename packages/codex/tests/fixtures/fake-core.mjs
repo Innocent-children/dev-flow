@@ -325,7 +325,7 @@ function toolDefinitions() {
     ["dev_flow_submit_comprehension", submissionRequired, submissionRequired, false, false, true],
     ["dev_flow_submit_refactor", submissionRequired, submissionRequired, false, false, true],
     ["dev_flow_submit_delivery", submissionRequired, submissionRequired, false, false, true],
-    ["dev_flow_resolve_blocker", ["host", "task_id", "action_id"], ["host", "task_id", "action_id"], false, false, true],
+    ["dev_flow_resolve_blocker", ["host", "task_id", "action_id"], ["host", "task_id", "action_id", "choice", "reason"], false, false, true],
     ["dev_flow_recover_action", ["host", "task_id", "action_id"], ["host", "task_id", "action_id"], false, false, true],
     ["dev_flow_cancel_task", ["request_id", "host", "task_id", "revision", "reason"], ["request_id", "host", "task_id", "revision", "reason"], false, true, false],
   ];

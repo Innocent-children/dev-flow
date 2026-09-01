@@ -20,6 +20,8 @@ const (
 	MaxEvidenceSummaryBytes           = 2_048
 	MaxRetainedEvidenceItems          = 256
 	MaxRetainedVerificationAttempts   = 3
+	MaxFileScopeRecords               = 64
+	MaxFileScopePaths                 = 64
 	MaxBoundedStringListItems         = 64
 	MaxBlockerMessageBytes            = 4_096
 	MaxReasonBytes                    = 4_096

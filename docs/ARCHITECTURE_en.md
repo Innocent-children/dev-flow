@@ -57,6 +57,7 @@ flowchart TB
 - start the packaged Core and complete the capability handshake;
 - present the current node, legal transitions, and comprehension request;
 - map semantic method steps to available host operations;
+- call the packaged Core file-scope check before Codex `apply_patch` and before DeepSeek `write`, `edit`, or mutating `str_replace_editor` execution;
 - compare the complete draft member by member with the current `submission_tool` live schema before
   every ordinary submission and the one allowed corrected submission;
 - submit node results through the current Action's `submission_tool`;
@@ -150,6 +151,7 @@ invalidate related downstream records.
 - append-only TaskEvent audit entries;
 - bounded evidence;
 - at most three recent `VerificationAttempt` entries;
+- file-scope requests, developer decisions, applicability, and cumulative Task-introduced paths;
 - the repository claim;
 - LastOperation;
 - revision CAS.
@@ -203,6 +205,47 @@ and Recovery replays that immutable submission.
 Core does not run checkout, reset, clean, stash, commit, merge, rebase, push, tag, or publication
 operations, and exposes no generic shell. Action `allowed_effects` describe operations a host may
 perform under user authority.
+
+### Ask before an out-of-scope file write
+
+The union of every WorkItem's `ExpectedPaths` in the current Task Plan is the planned file scope. A
+single-repository Task uses ordinary relative paths; a multi-repository Task uses
+`<repository-key>::<repository-relative-path>`. Exact files match literally, and only a trailing
+`directory/**` means files below that directory. This is not a general glob language or workflow
+DSL. A write in additional repository B or C proceeds without another question when that repository
+is already in immutable Repository Scope, the Host can write it, and the target is planned.
+
+The Codex Plugin bundles a `PreToolUse` hook that runs after the developer trusts it and parses
+`apply_patch` headers. The DeepSeek Adapter reads structured file-tool paths in
+`tools/pre-execute`. Both send normalized absolute targets and a write-intent digest to the internal
+`dev-flow host-check pre-file-write` command. This managed Core command reuses the same
+Application/SQLite Task authority, performs no target write, and creates no second process state.
+Ordinary writes are unaffected when no Task is active; a supported write fails closed when an active
+Task check is unavailable.
+
+Before the Host writes an unplanned path, Core adds a `FileScopeRecord` and moves the Task to the
+existing `BLOCKED` node:
+
+- `allow_once` binds the path set, write-intent digest, Task Plan revision, and newly issued source Action; a different write asks again;
+- `expand_scope` archives the current Task Plan, clears downstream Implementation/Test/Comprehension authority, and returns to `TASKS`; semantic changes use the existing `tasks_require_requirements` route;
+- `reject` binds the current Task Plan revision and supported Host tools continue to deny that path.
+
+`BLOCKED` remains outside ordinary transitions. A separate TaskEvent records entry into the blocker,
+and the existing `RESOLVE_BLOCKER` Action resolves it. The ordinary nodes and 29 outgoing
+transitions remain unchanged, so the process definition digest remains unchanged.
+`dev_flow_resolve_blocker` additionally accepts `choice` and a non-empty `reason` for file-scope
+blockers; other blocker calls retain their original identity-only input.
+
+Every successful Action merges Git-proven paths newly introduced relative to Action issuance into
+`task_changed_paths`. Before `implementation_ready_for_test`, `refactor_ready_for_test`, or
+`delivery_complete`, Core requires every cumulative path to match current ExpectedPaths or a consumed
+`allow_once` record. Older snapshots missing the new fields read them as empty. SQLite tables and the
+Schema version remain unchanged, while the strict codec still rejects future unknown members.
+
+The two checks are not a filesystem sandbox. Bash, external processes, and some specialized tools
+may bypass the Host prewrite entry. Core can later find their paths through Git and stop unexplained
+files from advancing, but a final path-only observation cannot distinguish a later bypassed rewrite
+of a file that was already authorized once.
 
 ### Automatic verification brake
 

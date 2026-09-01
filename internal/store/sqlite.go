@@ -289,7 +289,7 @@ func (s *SQLite) CommitTask(ctx context.Context, m TaskMutation) error {
 		return ErrStorageUnavailable
 	}
 	defer tx.Rollback()
-	if m.Event.Kind == domain.OperationApplyAction || m.Event.Kind == domain.OperationCancelTask {
+	if m.Event.Kind == domain.OperationApplyAction || m.Event.Kind == domain.OperationPrepareFileChange || m.Event.Kind == domain.OperationCancelTask {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM action_operations WHERE task_id=?`, m.Task.TaskID); err != nil {
 			return ErrStorageUnavailable
 		}

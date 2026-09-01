@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/application"
+	"github.com/Innocent-children/dev-flow/internal/domain"
 	coremcp "github.com/Innocent-children/dev-flow/internal/mcp"
 	"github.com/Innocent-children/dev-flow/internal/repository"
 	"github.com/Innocent-children/dev-flow/internal/store"
@@ -35,6 +36,7 @@ Usage:
   dev-flow [help|-h|--help]
   dev-flow version
   dev-flow mcp --stdio
+  dev-flow host-check pre-file-write
   dev-flow webui start [--no-open] [--plain|--json]
   dev-flow webui open [--plain|--json]
   dev-flow webui status [--plain|--json]
@@ -84,12 +86,92 @@ func run(
 	if len(args) == 2 && args[0] == "mcp" && args[1] == "--stdio" {
 		return runMCP(stdin, stdout, stderr, getenv, serve)
 	}
+	if len(args) == 2 && args[0] == "host-check" && args[1] == "pre-file-write" {
+		return runPreFileWriteCheck(stdin, stdout, stderr, getenv)
+	}
 	if len(args) >= 2 && args[0] == "webui" {
 		return runWebUI(args[1:], stdout, stderr, getenv)
 	}
 
 	_, _ = io.WriteString(stderr, "dev-flow: invalid arguments; use \"dev-flow help\"\n")
 	return 2
+}
+
+type preFileWriteInput struct {
+	Host              domain.Host   `json:"host"`
+	RepositoryPath    string        `json:"repository_path"`
+	ToolName          string        `json:"tool_name"`
+	Paths             []string      `json:"paths"`
+	IntentDigest      domain.Digest `json:"intent_digest"`
+	PathParseComplete bool          `json:"path_parse_complete"`
+}
+
+type preFileWriteOutput struct {
+	Decision       application.FileChangeDecision `json:"decision"`
+	Reason         string                         `json:"reason,omitempty"`
+	TaskID         domain.ID                      `json:"task_id,omitempty"`
+	TaskRevision   uint64                         `json:"task_revision,omitempty"`
+	ScopeRequestID domain.ID                      `json:"scope_request_id,omitempty"`
+	Paths          []string                       `json:"paths,omitempty"`
+}
+
+func runPreFileWriteCheck(stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
+	if stdin == nil || stdout == nil || stderr == nil || getenv == nil {
+		_, _ = io.WriteString(stderr, "dev-flow: Host file check configuration is unavailable\n")
+		return 1
+	}
+	dataDirectory := getenv(dataDirectoryEnvironment)
+	if !usableDataDirectory(dataDirectory) {
+		_, _ = io.WriteString(stderr, "dev-flow: Host file check data directory is unavailable\n")
+		return 1
+	}
+	databasePath := filepath.Join(dataDirectory, databaseFileName)
+	if _, err := os.Stat(databasePath); errors.Is(err, os.ErrNotExist) {
+		_ = json.NewEncoder(stdout).Encode(preFileWriteOutput{Decision: application.FileChangeAllow})
+		return 0
+	} else if err != nil {
+		_, _ = io.WriteString(stderr, "dev-flow: Host file check storage is unavailable\n")
+		return 1
+	}
+	decoder := json.NewDecoder(stdin)
+	decoder.DisallowUnknownFields()
+	var input preFileWriteInput
+	if decoder.Decode(&input) != nil {
+		_, _ = io.WriteString(stderr, "dev-flow: Host file check input is invalid\n")
+		return 1
+	}
+	var trailing any
+	if decoder.Decode(&trailing) != io.EOF {
+		_, _ = io.WriteString(stderr, "dev-flow: Host file check input is invalid\n")
+		return 1
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	taskStore, err := store.Open(ctx, databasePath)
+	if err != nil {
+		_, _ = io.WriteString(stderr, "dev-flow: Host file check storage startup failed\n")
+		return 1
+	}
+	defer taskStore.Close()
+	service, err := application.NewService(taskStore, repository.NewGitObserver())
+	if err != nil {
+		_, _ = io.WriteString(stderr, "dev-flow: Host file check Core startup failed\n")
+		return 1
+	}
+	result, err := service.PrepareFileChange(ctx, application.PrepareFileChangeRequest{
+		Host: input.Host, RepositoryPath: input.RepositoryPath, ToolName: input.ToolName,
+		Paths: input.Paths, IntentDigest: input.IntentDigest, PathParseComplete: input.PathParseComplete,
+	})
+	if err != nil {
+		_, _ = io.WriteString(stderr, "dev-flow: Host file check failed\n")
+		return 1
+	}
+	output := preFileWriteOutput{Decision: result.Decision, Reason: result.Reason, TaskID: result.TaskID, TaskRevision: result.TaskRevision, ScopeRequestID: result.ScopeRequestID, Paths: result.Paths}
+	if json.NewEncoder(stdout).Encode(output) != nil {
+		_, _ = io.WriteString(stderr, "dev-flow: Host file check output failed\n")
+		return 1
+	}
+	return 0
 }
 
 func runWebUI(args []string, stdout, stderr io.Writer, getenv func(string) string) int {

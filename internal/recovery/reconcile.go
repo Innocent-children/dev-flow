@@ -149,6 +149,9 @@ func Reconcile(input ReconcileInput) (RecoveryDecision, error) {
 			}
 			canonical = raw
 			effect = RepositoryEffect{Kind: EffectExactBlockerRestoration, NoFileChanges: true}
+			if payload.Condition.Kind == domain.BlockerConditionResolveFileScope {
+				effect = RepositoryEffect{Kind: EffectFileScopeResolution, NoFileChanges: true}
+			}
 			if input.Task.Blocker == nil || payload.BlockerID != input.Task.Blocker.BlockerID ||
 				payload.Condition != input.Task.Blocker.Condition || payload.ObservedBindingDigest != comparison.ObservedDigest {
 				evidence = OperationEvidenceContradictory
@@ -258,6 +261,12 @@ func RepositoryScopeEffectEvidence(task domain.ProcessTask, observed RepositoryS
 	for i, entry := range task.AdditionalRepositories {
 		authoritative[entry.Key] = entry.Binding
 		fresh[entry.Key] = observed.Additional[i].Binding
+	}
+	if effect.Kind == EffectFileScopeResolution && effect.NoFileChanges && len(effect.ChangedPaths) == 0 {
+		if comparison.Relation == RepositoryExact || comparison.Relation == RepositoryWorktreeOnlyChanged {
+			return OperationEvidenceComplete
+		}
+		return OperationEvidenceContradictory
 	}
 	if effect.NoFileChanges && len(effect.ChangedPaths) == 0 {
 		if comparison.Relation == RepositoryExact {
@@ -374,6 +383,8 @@ func RepositoryEffectMatches(effect RepositoryEffect, relation RepositoryRelatio
 	switch effect.Kind {
 	case EffectExactBinding, EffectExactBlockerRestoration:
 		return relation == RepositoryExact
+	case EffectFileScopeResolution:
+		return effect.NoFileChanges && len(effect.ChangedPaths) == 0 && (relation == RepositoryExact || relation == RepositoryWorktreeOnlyChanged)
 	case EffectProcessArtifactOnly:
 		return relation == RepositoryExact || relation == RepositoryWorktreeOnlyChanged && matchesDeclaredPaths(authoritative.ChangedPaths, effect.ChangedPaths, observed.ChangedPaths)
 	case EffectProductFileChange:

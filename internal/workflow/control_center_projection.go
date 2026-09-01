@@ -112,6 +112,9 @@ func exceptionalTraversal(index int, traversal CommittedTraversal) bool {
 	if traversal.Kind == domain.OperationCancelTask {
 		return traversal.Destination == domain.NodeCancelled
 	}
+	if traversal.Kind == domain.OperationPrepareFileChange {
+		return traversal.Source.Normal() && traversal.Destination == domain.NodeBlocked
+	}
 	if traversal.Kind != domain.OperationApplyAction {
 		return false
 	}

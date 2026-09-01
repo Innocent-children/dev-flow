@@ -54,6 +54,7 @@ flowchart TB
 - 启动 packaged Core 并完成 capability handshake；
 - 呈现当前节点、合法 transitions 与理解审查请求；
 - 把 semantic method steps 映射为 Host 中可用的操作；
+- Codex 在 `apply_patch`、DeepSeek 在 `write`、`edit` 和变更型 `str_replace_editor` 执行前调用 packaged Core 的文件范围检查；
 - 在普通提交和一次允许的修正提交前，按当前 `submission_tool` 的实时 schema 逐项核对完整草稿；
 - 按当前 Action 的 `submission_tool` 提交节点结果；
 - 在不确定 mutation 后保留 Task ID 与 Action ID，并读取 Core 保存的规范化提交后恢复。
@@ -142,6 +143,7 @@ revision 表示当前 authority。上游变更会使对应下游记录失效，�
 - append-only TaskEvent audit；
 - bounded evidence；
 - 最多三条近期 `VerificationAttempt`；
+- 文件范围请求、用户决定、适用范围与 Task 累计修改路径；
 - repository claim；
 - LastOperation；
 - revision CAS。
@@ -187,6 +189,39 @@ mutation。全部通过后才暂存规范化 payload，Recovery 仍只重放该�
 
 Core 不执行 checkout、reset、clean、stash、commit、merge、rebase、push、tag、publish，也不
 暴露 generic shell。Action 中的 `allowed_effects` 描述 Host 在用户授权下可执行的动作。
+
+### 范围外文件先询问
+
+Task Plan 中所有 WorkItem 的 `ExpectedPaths` 合集是当前文件计划范围。单仓库使用普通相对路径；
+多仓库使用 `<repository-key>::<repository-relative-path>`。精确文件名直接匹配，只有末尾
+`directory/**` 表示该目录下的文件；它不是通用 glob 或 workflow DSL。写入 B、C 等附加仓库时，
+只要仓库已在不可变 Repository Scope 中、Host 已有写权限且目标属于计划范围，就直接放行。
+
+Codex Plugin 自带受信任后才运行的 `PreToolUse` hook，解析 `apply_patch` 的文件头；DeepSeek Adapter
+在 `tools/pre-execute` 中读取结构化文件工具的路径。两者把规范化绝对路径和写入意图摘要交给内部
+`dev-flow host-check pre-file-write`。这个 managed Core 命令只复用同一 Application/SQLite Task
+权威，不执行目标写入，也不形成第二个流程状态。没有活动 Task 时普通写入不受影响；活动 Task 的
+检查不可用时，支持的写入保守停止。
+
+计划外路径在 Host 写入前生成一个 `FileScopeRecord`，Task 进入既有 `BLOCKED`：
+
+- `allow_once` 绑定该路径集合、写入意图摘要、Task Plan revision 和解除后新签发的源 Action；不同写入再次询问；
+- `expand_scope` 归档当前 Task Plan，清除下游 Implementation/Test/Comprehension 并返回 `TASKS`；若语义也变化，继续使用既有 `tasks_require_requirements`；
+- `reject` 绑定当前 Task Plan revision，支持的 Host 工具继续拒绝同一路径。
+
+`BLOCKED` 仍不是普通 transition。范围请求使用独立 TaskEvent 进入 `BLOCKED`，解除时使用现有
+`RESOLVE_BLOCKER` Action；普通节点及其 29 条出边不变，process definition digest 不变。
+`dev_flow_resolve_blocker` 对文件范围 blocker 额外接收 `choice` 与非空 `reason`，其他 blocker 仍只
+接收原有身份字段。
+
+每次成功 Action 都把相对签发状态由 Git 证明的新路径并入 `task_changed_paths`。进入
+`implementation_ready_for_test`、`refactor_ready_for_test` 或 `delivery_complete` 时，Core 要求全部累计
+路径属于当前 ExpectedPaths，或已有已使用的 `allow_once` 记录。旧 snapshot 缺少新字段时按空列表
+读取；SQLite table 与 Schema version 不变，未来未知字段继续被 strict codec 拒绝。
+
+这两层检查不构成文件系统沙箱。Bash、外部进程和部分专用工具可能绕过 Host 写前入口；Core 会在
+后续 Action 根据 Git 路径发现并阻止未说明文件继续流转，但只靠最终路径无法区分一次授权文件后来
+是否又被绕过入口修改。
 
 ### 自动刹车
 

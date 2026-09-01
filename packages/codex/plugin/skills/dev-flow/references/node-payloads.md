@@ -44,6 +44,10 @@ Do not send `request_id`, revision, Action kind, process identity, source cursor
 | `COMPLETE_DELIVERY` | `dev_flow_submit_delivery` |
 | `RESOLVE_BLOCKER` | `dev_flow_resolve_blocker` |
 
+For a file-scope blocker, `dev_flow_resolve_blocker` also requires `choice` (`allow_once`,
+`expand_scope`, or `reject`) and a non-empty `reason`. Omit both members for repository-recovery and
+automatic-verification blockers.
+
 ## Node-result members
 
 Use the live tool schema for types and nested members. These are the closed top-level members:

@@ -84,7 +84,7 @@ package、bundled Core 和 Codex 版本，然后注册本地 marketplace、Plugi
 | 命令 | 作用 |
 | --- | --- |
 | `npm install -g dev-flow-codex@latest` | 从 npm 安装 `latest` 指向的 Codex package，并把 `dev-flow-codex` 全局加入 `PATH`。它不会自动注册 Codex Plugin。 |
-| `dev-flow-codex setup` | 创建或验证固定用户配置，验证安装内容和 Codex 兼容版本，注册 marketplace、Plugin 与 MCP，并在成功后显示实际配置/receipt 文件变化、就绪状态和一个下一步。重复执行时会读取并校验现有注册。 |
+| `dev-flow-codex setup` | 创建或验证固定用户配置，验证安装内容和 Codex 兼容版本，注册 marketplace、Plugin、MCP 与 packaged hook，并在成功后提示先用 Codex `/hooks` 审核并信任当前 hook。重复执行时会读取并校验现有注册。 |
 | `dev-flow-codex setup --json` | 执行与 `setup` 相同的操作，但只输出一行机器可读 JSON，保留 operation、status、changed、receipt_path，并增加 configuration_path、file_changes 与 next_step。 |
 | `dev-flow-codex status` | 只读显示当前 package/Core 与注册状态。 |
 | `dev-flow-codex status --json` | 只读回读 package、Core、receipt、marketplace 与 Plugin 状态，不创建配置、注册或数据。 |
@@ -93,6 +93,7 @@ package、bundled Core 和 Codex 版本，然后注册本地 marketplace、Plugi
 | `dev-flow-codex remove --json` | 执行与 `remove` 相同的操作，并输出机器可读 JSON；返回的 `next_step` 指向单独的全局 npm 卸载。 |
 | `npm uninstall -g dev-flow-codex` | 在完成 `remove` 后卸载全局 npm package。单独运行它不会先清理 Codex 注册。 |
 | `dev-flow-codex mcp` | **内部 Host 命令。** 由 Plugin 的 MCP 配置调用；它设置数据目录和 Codex admission instructions，然后启动 packaged Core 的 `mcp --stdio`。正常用户不应手工启动它。 |
+| `dev-flow-codex host-check pre-file-write` | **内部 Host 命令。** 由 packaged `PreToolUse` hook 调用；launcher 定位 package-local Core，并原样转发 stdin/stdout 与精确的 `host-check pre-file-write` 参数。正常用户不应手工启动它。 |
 
 `dev-flow-codex` 不支持其他子命令，也不提供隐式 `help`、`update` 或 `uninstall` 子命令。Host 原生更新到
 当前 `latest` 时重新运行全局安装和 `setup`：
@@ -195,13 +196,14 @@ Host package 内含的 Go Core 不作为普通用户的全局 CLI 安装。以�
 | `dev-flow --help` | `help` 的长选项形式。 |
 | `dev-flow version` | 输出 `dev-flow <core-version>`。 |
 | `DEV_FLOW_DATA_DIR=/absolute/path dev-flow mcp --stdio` | 使用现有可用数据目录启动 local STDIO MCP。目录不存在或不是目录时启动失败。 |
+| `dev-flow host-check pre-file-write` | **Host 受管命令。** 从 stdin 读取规范化的结构化写入目标，检查活动 Task 的跨仓库 ExpectedPaths，并输出 `allow` 或在写入前持久化 file-scope blocker 后输出 `deny`。Codex/DeepSeek Adapter 调用，普通用户不手工运行。 |
 | `dev-flow webui start [--no-open] [--plain\|--json]` | 启动或复用共享 loopback WebUI；默认打开浏览器。 |
 | `dev-flow webui open [--plain\|--json]` | 验证 receipt、进程身份和实时 Core 状态后打开同一 URL。 |
 | `dev-flow webui status [--plain\|--json]` | 返回 `ready`、`read_only`、`reset_required`、`incompatible` 或 `unavailable`。 |
 | `dev-flow webui stop [--plain\|--json]` | 核对 PID 与进程启动身份后停止共享实例。 |
 | `dev-flow webui reset [--confirm TOKEN] [--plain\|--json]` | 无 token 时展示精确永久清理计划；确认时先获得数据库独占访问并只删除绑定目标。WebUI 没有 reset HTTP mutation。 |
 
-`dev-flow webui serve` 是公开 lifecycle 内部使用的子进程入口，不是 Host 用户命令。Core 不支持 remote
+`dev-flow host-check pre-file-write` 与 `dev-flow webui serve` 都是 Adapter/lifecycle 内部入口，不是 Host 用户命令。Core 不支持 remote
 transport、通用 HTTP/SSE transport、通用 shell 或 Git mutation 命令。Codex 用户应通过
 `dev-flow-codex mcp` 的受管入口启动 Core；DeepSeek 用户由 DSH integration process 启动 Core。
 
@@ -224,7 +226,7 @@ transport、通用 HTTP/SSE transport、通用 shell 或 Git mutation 命令。C
 | `dev_flow_submit_comprehension` | mutation | 提交 COMPREHENSION_REVIEW 节点结果。 |
 | `dev_flow_submit_refactor` | mutation | 提交 REFACTOR 节点结果。 |
 | `dev_flow_submit_delivery` | mutation | 提交 Host 负责的 DELIVERY 判断、风险和发现；acceptance、evidence ID 与 Test/Comprehension record ID 由 Core 补齐，提交这些字段会按 `unknown_member` 拒绝。 |
-| `dev_flow_resolve_blocker` | mutation | 在 Core 确认当前 blocker 条件后解除阻塞；仓库恢复 blocker 要求精确恢复，自动刹车 blocker 要求用户明确允许继续；只接收 Host、Task ID 与 Action ID。 |
+| `dev_flow_resolve_blocker` | mutation | 在 Core 确认当前 blocker 条件后解除阻塞；仓库恢复 blocker 要求精确恢复，自动刹车 blocker 要求用户明确允许继续；文件范围 blocker 还要求 `choice`（`allow_once`、`expand_scope` 或 `reject`）与非空 `reason`，其他 blocker 省略这两个字段。 |
 | `dev_flow_recover_action` | mutation | 使用 Core 在独立 Action 操作记录中保存的规范化提交恢复不确定 Action；不接收原始 payload。 |
 | `dev_flow_cancel_task` | destructive mutation | 使用当前 revision 和非空 reason 将非终态 Task 转为 `CANCELLED`。 |
 

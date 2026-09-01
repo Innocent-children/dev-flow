@@ -6,7 +6,7 @@ export const DEFAULT_USER_CONFIGURATION = `${JSON.stringify({
 }, null, 2)}\n`;
 
 const MAX_CONFIGURATION_BYTES = 16 * 1024;
-export const SETUP_NEXT_STEP = "$dev-flow-codex:dev-flow <task description>";
+export const SETUP_NEXT_STEP = "Review and trust the Dev Flow hook with /hooks, then use $dev-flow-codex:dev-flow <task description>";
 
 export async function ensureUserConfiguration(paths) {
   const { configurationDirectory, configurationPath } = paths ?? {};

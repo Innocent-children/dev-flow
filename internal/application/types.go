@@ -203,9 +203,44 @@ type SubmitActionRequest struct {
 	NodeResult            json.RawMessage
 }
 type RecoverActionRequest struct {
-	Host     domain.Host
-	TaskID   domain.ID
-	ActionID domain.ID
+	Host              domain.Host
+	TaskID            domain.ID
+	ActionID          domain.ID
+	FileScopeDecision *domain.FileScopeDecisionInput
+}
+
+type PrepareFileChangeRequest struct {
+	Host              domain.Host
+	RepositoryPath    string
+	ToolName          string
+	Paths             []string
+	IntentDigest      domain.Digest
+	PathParseComplete bool
+}
+
+type FileChangeDecision string
+
+const (
+	FileChangeAllow FileChangeDecision = "allow"
+	FileChangeDeny  FileChangeDecision = "deny"
+)
+
+type PrepareFileChangeResult struct {
+	Decision       FileChangeDecision
+	Reason         string
+	TaskID         domain.ID
+	TaskRevision   uint64
+	ScopeRequestID domain.ID
+	Paths          []string
+}
+
+type FileScopeStatus struct {
+	ExpectedPaths     []string
+	TaskChangedPaths  []string
+	UnexplainedPaths  []string
+	Records           []domain.FileScopeRecord
+	CoveredHostTools  []string
+	FinalCheckEnabled bool
 }
 type CancelTaskRequest struct {
 	RequestID        domain.ID

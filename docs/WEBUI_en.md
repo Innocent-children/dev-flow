@@ -13,6 +13,7 @@ does not retain a second process state; every read and operation goes through th
 - current stage, scope, revision, Action, and legal next step;
 - timeline, process graph, test and comprehension records, and the three most recent test attempts;
 - Recovery assessment, automatic-brake Blocker, and the required recovery or continuation condition;
+- Task Plan expected paths, cumulative Task-introduced paths, file-scope decisions, and unexplained paths;
 - primary and additional repositories, including the advanced worktree view;
 - current Core, data directory, and runtime status.
 
@@ -23,6 +24,13 @@ After the automatic brake triggers, the page shows the exact repetition reason, 
 stage, and current resolution condition. It does not resolve on the developer's behalf. The developer
 may explicitly allow one continuation or cancel the Task. If the next test repeats exactly, the Task
 pauses again.
+
+A file-scope blocker prefills the current blocker identity and repository observation, shows
+`allow_once`, `expand_scope`, and `reject`, and requires a reason. The file-scope card also shows
+ExpectedPaths count, Task-introduced paths, decision count, Host tools covered before writing, and
+unexplained paths. The page distinguishes Host checks for structured tools from Core's final check
+before testing and `DONE`; it does not claim to intercept Bash, external processes, or every
+specialized tool.
 
 ## Start, open, inspect, and stop
 
@@ -104,7 +112,7 @@ server, CDN, external font, or separate WebUI package.
 ## Not currently supported
 
 - remote access, accounts, team permissions, or cloud synchronization;
-- shell, file editing, Git mutations, or publication;
+- shell, file editing, Git mutations, or publication; the page only submits Core file-scope decisions;
 - browser-based reset;
 - user-defined graphs or automatic historical-data migration;
 - treating the WebUI as another Task-state authority.

@@ -114,6 +114,14 @@ func (s *Service) ResolveBlockerAction(ctx context.Context, request RecoverActio
 	if task.CurrentNode != domain.NodeBlocked || task.CurrentAction == nil || task.CurrentAction.ActionID != request.ActionID || task.Blocker == nil {
 		return ApplyActionResult{}, domain.ErrActionStale
 	}
+	fileScopeBlocker := task.Blocker.Cause == domain.BlockerCauseFileScopeDecision
+	if fileScopeBlocker {
+		if request.FileScopeDecision == nil || request.FileScopeDecision.Validate() != nil {
+			return ApplyActionResult{}, domain.ErrInvalidArgument
+		}
+	} else if request.FileScopeDecision != nil {
+		return ApplyActionResult{}, domain.ErrInvalidArgument
+	}
 	fresh, err := s.observeTaskRepositories(ctx, task)
 	if err != nil {
 		return ApplyActionResult{}, err
@@ -122,10 +130,14 @@ func (s *Service) ResolveBlockerAction(ctx context.Context, request RecoverActio
 	if err != nil {
 		return ApplyActionResult{}, domain.ErrInternal
 	}
-	if comparison.Relation != recovery.RepositoryExact {
+	if fileScopeBlocker {
+		if !fileScopeResolutionRepositoryCurrent(task, fresh, comparison) {
+			return ApplyActionResult{}, repositoryDriftError(comparison)
+		}
+	} else if comparison.Relation != recovery.RepositoryExact {
 		return ApplyActionResult{}, repositoryDriftError(comparison)
 	}
-	payload := domain.BlockerResolutionPayload{BlockerID: task.Blocker.BlockerID, Condition: task.Blocker.Condition, ObservedBindingDigest: comparison.ObservedDigest}
+	payload := domain.BlockerResolutionPayload{BlockerID: task.Blocker.BlockerID, Condition: task.Blocker.Condition, ObservedBindingDigest: comparison.ObservedDigest, FileScopeDecision: request.FileScopeDecision}
 	raw, err := json.Marshal(payload)
 	if err != nil {
 		return ApplyActionResult{}, domain.ErrInternal

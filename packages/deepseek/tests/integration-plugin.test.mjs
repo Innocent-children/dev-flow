@@ -163,6 +163,7 @@ function createFakeContext({ packageRoot, initialToolNames, unrelatedToolNames =
   const skills = [];
   const guards = [];
   const listeners = [];
+  const preExecuteListeners = [];
   const effects = [];
   const children = [];
   const errors = [];
@@ -205,11 +206,12 @@ function createFakeContext({ packageRoot, initialToolNames, unrelatedToolNames =
       },
     },
     on(eventName, listener) {
-      assert.equal(eventName, "tools/change");
-      listeners.push(listener);
+      assert.ok(eventName === "tools/change" || eventName === "tools/pre-execute");
+      const target = eventName === "tools/change" ? listeners : preExecuteListeners;
+      target.push(listener);
       const dispose = () => {
-        const index = listeners.indexOf(listener);
-        if (index >= 0) listeners.splice(index, 1);
+        const index = target.indexOf(listener);
+        if (index >= 0) target.splice(index, 1);
       };
       effects.push(dispose);
       return dispose;

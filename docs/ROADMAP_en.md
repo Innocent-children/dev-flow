@@ -20,6 +20,7 @@ This stage improves the clarity and cost of using capabilities that already exis
 - show which verification records still apply to the current implementation;
 - explain why a Task is blocked and what must be confirmed;
 - show the current legal next step directly;
+- show the Task Plan, actual changed paths, file-scope decisions, and unexplained paths;
 - make the current stage, remaining verification budget, and Recovery assessment easier to read in
   the Host and local WebUI.
 
@@ -29,7 +30,6 @@ This work does not change the current state graph or introduce a second Task sta
 
 The following are future directions and are not implemented, or not fully implemented, today:
 
-- a clearer comparison between declared scope and actual repository changes;
 - stronger binding between verification records and current implementation state;
 - visible verification-budget consumption and the stated reason for expansion;
 - a public fault-injection journey for an uncertain Action;

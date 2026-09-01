@@ -68,6 +68,25 @@ func TestRunVersionUsesCurrentRepositoryVersion(t *testing.T) {
 	}
 }
 
+func TestHostCheckWithoutTaskDatabaseAllowsOrdinaryWrite(t *testing.T) {
+	dataDirectory := t.TempDir()
+	input := `{"host":"codex","repository_path":"/repo","tool_name":"apply_patch","paths":["/repo/file.go"],"intent_digest":"` + strings.Repeat("a", 64) + `","path_parse_complete":true}`
+	getenv := func(name string) string {
+		if name == dataDirectoryEnvironment {
+			return dataDirectory
+		}
+		return ""
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"host-check", "pre-file-write"}, strings.NewReader(input), &stdout, &stderr, getenv, unexpectedServe(t)); code != 0 {
+		t.Fatalf("host-check exit=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	var output preFileWriteOutput
+	if json.Unmarshal(stdout.Bytes(), &output) != nil || output.Decision != application.FileChangeAllow || stderr.Len() != 0 {
+		t.Fatalf("host-check output=%q stderr=%q", stdout.String(), stderr.String())
+	}
+}
+
 func TestRunMCPStdioStartsAndStopsCleanlyOnEOF(t *testing.T) {
 	const instructions = "test host-specific MCP presentation"
 	dataDirectory := t.TempDir()

@@ -54,11 +54,16 @@ Codex 或 DeepSeek 仍然读取仓库、修改文件和运行命令。Dev Flow �
 | 动作 | 产品行为 |
 | --- | --- |
 | 记住 | 保存最初请求、当前阶段、已有验证、阻塞原因和交付结果 |
-| 限制 | 保存 Repository Scope 和 verification budget，检查自动命令数量与授权，并在第三次精确重复测试后暂停 |
+| 限制 | 保存 Repository Scope、Task Plan 文件范围和 verification budget；计划外结构化写入先询问，并在第三次精确重复测试后暂停 |
 | 判断 | 根据 requirements、design、task plan、实现和仓库状态，让不再适用的测试或理解确认失效 |
 | 恢复 | 对不确定 Action 执行 read-before-retry，决定继续、补记结果、阻塞或安全重试 |
 
-Dev Flow 不拦截 Host 的每一次操作。它控制的是 Task 状态如何推进，以及继续之前需要确认什么。
+Dev Flow 使用两层文件范围检查。Codex `apply_patch` 与 DeepSeek 的结构化文件工具在写入前调用 Core；
+不在当前多仓库 Task Plan `ExpectedPaths` 合集中的路径进入 `BLOCKED`。用户可以只允许当前写入、返回
+`TASKS` 更新计划，或拒绝。Core 再在 Implementation、Refactor 和 Delivery 检查本 Task 实际产生的
+`ChangedPaths`，未说明路径不能进入测试或 `DONE`。
+
+这不等于拦截 Host 的每一次操作。Bash、外部进程和专用工具的写入可能先发生，随后才被 Core 发现。
 
 ## 当前产品承诺
 
@@ -66,6 +71,8 @@ Dev Flow 不拦截 Host 的每一次操作。它控制的是 Task 状态如何�
 
 - 保存并恢复同一个本地 Task；
 - 保存原始请求、明确范围、当前阶段、验证预算、已有记录和阻塞原因；
+- 保存文件范围决定、适用的 Task Plan revision 和本 Task 累计修改路径；
+- 对支持的结构化文件工具在写入前检查，并阻止未说明路径进入测试或 `DONE`；
 - 保存最近三次测试尝试，并在相同失败、相同结果或相同修改与失败循环精确重复时暂停；
 - 只允许当前内建流程定义中的合法流转；
 - 在检测到仓库漂移或当前条件不满足时停止推进；
@@ -117,9 +124,10 @@ OpenSpec 和 Spec Kit 是可选 method profile，不是 Dev Flow 的主定位。
 
 ### 第二层：范围与验证约束
 
-保存最初请求、明确范围和 verification budget；限制自动验证命令数量，区分是否允许完整测试和
-人工交接；第三次精确重复测试后进入 `BLOCKED`，由用户决定是否再试一次；上游要求或实现发生
-变化时，让不再适用的下游记录失效。
+保存最初请求、明确范围和 verification budget；把当前 Task Plan 全部 WorkItem 的 `ExpectedPaths`
+作为跨仓库计划范围；对支持的 Host 文件工具执行写前检查，并保存 `allow_once`、`expand_scope` 或
+`reject`；进入测试和完成任务前核对累计路径。系统同时限制自动验证命令数量，第三次精确重复测试后
+进入 `BLOCKED`，并在上游要求或实现变化时让不再适用的下游记录失效。
 
 ### 第三层：中断与不确定操作恢复
 

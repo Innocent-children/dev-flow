@@ -234,6 +234,7 @@ func (s *Service) planStandardMutation(r ApplyActionRequest, task domain.Process
 		}
 		return store.TaskMutation{}, domain.ErrInvalidArgument
 	}
+	recordTaskChangedPaths(&next, effect.ChangedPaths, r.ActionID)
 	destination := transition.Destination
 	if brakeDecision.Triggered() {
 		blocker, blockerErr := s.verificationBrakeBlocker(next, transition.Destination, brakeDecision, now)
@@ -440,7 +441,20 @@ func (s *Service) resolveBlockerMutation(ctx context.Context, r ApplyActionReque
 
 func (s *Service) planResolveBlockerMutation(r ApplyActionRequest, task domain.ProcessTask, fresh recovery.RepositoryScopeObservation, payload recovery.BlockerResolutionPayload, canonical json.RawMessage) (store.TaskMutation, error) {
 	comparison, err := recovery.CompareRepositoryScope(task, fresh)
-	if err != nil || comparison.Relation != recovery.RepositoryExact {
+	if err != nil {
+		return store.TaskMutation{}, domain.ErrInternal
+	}
+	fileScopeBlocker := task.Blocker != nil && task.Blocker.Cause == domain.BlockerCauseFileScopeDecision
+	if fileScopeBlocker {
+		if payload.FileScopeDecision == nil || payload.FileScopeDecision.Validate() != nil {
+			return store.TaskMutation{}, domain.ErrInvalidArgument
+		}
+		if !fileScopeResolutionRepositoryCurrent(task, fresh, comparison) {
+			return store.TaskMutation{}, repositoryDriftError(comparison)
+		}
+	} else if payload.FileScopeDecision != nil {
+		return store.TaskMutation{}, domain.ErrInvalidArgument
+	} else if comparison.Relation != recovery.RepositoryExact {
 		return store.TaskMutation{}, repositoryDriftError(comparison)
 	}
 	if payload.BlockerID != task.Blocker.BlockerID || payload.Condition != task.Blocker.Condition ||
@@ -454,6 +468,43 @@ func (s *Service) planResolveBlockerMutation(r ApplyActionRequest, task domain.P
 	now := s.now().UTC()
 	destination := *task.ResumeNode
 	resolvedCause := task.Blocker.Cause
+	fileScopeRecordIndex := -1
+	if fileScopeBlocker {
+		for index := range next.FileScopeRecords {
+			if next.FileScopeRecords[index].RequestID == task.Blocker.Condition.ScopeRequestID && next.FileScopeRecords[index].Decision == domain.FileScopePending {
+				fileScopeRecordIndex = index
+				break
+			}
+		}
+		if fileScopeRecordIndex < 0 {
+			return store.TaskMutation{}, domain.ErrInvalidArgument
+		}
+		record := &next.FileScopeRecords[fileScopeRecordIndex]
+		record.Decision = payload.FileScopeDecision.Choice
+		record.Reason = payload.FileScopeDecision.Reason
+		record.DecidedAt = &now
+		switch record.Decision {
+		case domain.FileScopeAllowOnce:
+			record.Applicability = domain.FileScopeExactWrite
+		case domain.FileScopeReject:
+			record.Applicability = domain.FileScopeTaskPlanRevision
+		case domain.FileScopeExpandScope:
+			record.Applicability = domain.FileScopeTaskPlanUpdate
+			delta := observedTaskDeltaPaths(task, fresh)
+			recordTaskChangedPaths(&next, delta, record.SourceActionID)
+			rebindTaskRepositories(&next, fresh)
+			if next.TaskPlan == nil {
+				return store.TaskMutation{}, domain.ErrInvalidArgument
+			}
+			if err := appendBaselineHistory(&next, taskPlanReference(*next.TaskPlan)); err != nil {
+				return store.TaskMutation{}, err
+			}
+			next.TaskPlan, next.Implementation, next.Test, next.Comprehension = nil, nil, nil, nil
+			destination = domain.NodeTasks
+		default:
+			return store.TaskMutation{}, domain.ErrInvalidArgument
+		}
+	}
 	next.CurrentNode, next.ResumeNode, next.Blocker = destination, nil, nil
 	next.Revision++
 	next.UpdatedAt = now
@@ -470,6 +521,10 @@ func (s *Service) planResolveBlockerMutation(r ApplyActionRequest, task domain.P
 		return store.TaskMutation{}, domain.ErrInternal
 	}
 	next.CurrentAction = &action
+	if fileScopeRecordIndex >= 0 && next.FileScopeRecords[fileScopeRecordIndex].Decision == domain.FileScopeAllowOnce {
+		allowedActionID := action.ActionID
+		next.FileScopeRecords[fileScopeRecordIndex].AllowedActionID = &allowedActionID
+	}
 	digest, err := workflow.GraphOperationDigest(r.Host, r.TaskID, operationFromApply(r), canonical)
 	if err != nil {
 		return store.TaskMutation{}, domain.ErrInternal
@@ -480,7 +535,11 @@ func (s *Service) planResolveBlockerMutation(r ApplyActionRequest, task domain.P
 	if err != nil {
 		return store.TaskMutation{}, err
 	}
-	event := store.TaskEvent{EventID: eventID, TaskID: next.TaskID, Revision: next.Revision, Kind: domain.OperationApplyAction, SourceNode: domain.NodeBlocked, DestinationNode: destination, TransitionReason: blockerResolvedReason(resolvedCause), ActionID: &resolvedActionID, RequestID: r.RequestID, PayloadDigest: digest, CreatedAt: now}
+	eventReason := blockerResolvedReason(resolvedCause)
+	if fileScopeBlocker {
+		eventReason = "File-scope blocker resolved after the developer recorded a bounded decision."
+	}
+	event := store.TaskEvent{EventID: eventID, TaskID: next.TaskID, Revision: next.Revision, Kind: domain.OperationApplyAction, SourceNode: domain.NodeBlocked, DestinationNode: destination, TransitionReason: eventReason, ActionID: &resolvedActionID, RequestID: r.RequestID, PayloadDigest: digest, CreatedAt: now}
 	if workflow.ValidateProcessTask(next) != nil {
 		return store.TaskMutation{}, domain.ErrInvalidArgument
 	}

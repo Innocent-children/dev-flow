@@ -58,12 +58,18 @@ local Task around that work and performs four jobs:
 | Action | Product behavior |
 | --- | --- |
 | Remember | Retain the original request, current stage, completed verification, blockers, and outcome |
-| Limit | Retain Repository Scope and verification budget, check automatic-command count and permissions, and pause after a third exact test repetition |
+| Limit | Retain Repository Scope, Task Plan file scope, and verification budget; ask before supported unplanned writes and pause after a third exact test repetition |
 | Decide | Use requirements, design, task plan, implementation, and repository state to invalidate test or comprehension records that no longer apply |
 | Recover | Apply read-before-retry to an uncertain Action and decide whether to continue, record completion, block, or retry safely |
 
-Dev Flow does not intercept every Host operation. It controls how Task state advances and what must
-be confirmed before work continues.
+Dev Flow uses two file-scope checks. Codex `apply_patch` and structured DeepSeek file tools call Core
+before writing. A path outside the union of `ExpectedPaths` in the current multi-repository Task Plan
+enters `BLOCKED`. The developer can allow the exact write, return to `TASKS` to revise the plan, or
+reject it. Core then checks Task-introduced `ChangedPaths` in Implementation, Refactor, and Delivery;
+unexplained paths cannot reach testing or `DONE`.
+
+This does not intercept every Host operation. Bash, external processes, and specialized tools may
+write first and be discovered only by Core's later reconciliation.
 
 ## Current product commitments
 
@@ -72,6 +78,9 @@ The current product commits to:
 - storing and resuming the same local Task;
 - retaining the original request, explicit scope, current stage, verification budget, records, and
   blockers;
+- retaining file-scope decisions, their Task Plan revision, and cumulative Task-introduced paths;
+- checking supported structured file tools before writing and preventing unexplained paths from
+  reaching testing or `DONE`;
 - retaining the three most recent test attempts and pausing when the same failure, same result, or
   same changed-path and failure loop repeats exactly;
 - allowing only transitions present in the current built-in process definition;
@@ -125,10 +134,12 @@ product's foundation, not its complete value.
 
 ### Layer 2: scope and verification constraints
 
-Retain the original request, explicit scope, and verification budget. Limit automatic verification
-commands, distinguish permission for full suites and manual handoff, enter `BLOCKED` after the third
-exact test repetition so the developer decides whether to allow one more attempt, and invalidate
-downstream records when upstream requirements or implementation change.
+Retain the original request, explicit scope, and verification budget. Use the union of every
+WorkItem's `ExpectedPaths` in the current Task Plan as the cross-repository planned scope. Check
+supported Host file tools before writing, retain `allow_once`, `expand_scope`, or `reject`, and
+reconcile cumulative paths before testing and completion. Also limit automatic verification
+commands, enter `BLOCKED` after the third exact test repetition, and invalidate downstream records
+when upstream requirements or implementation change.
 
 ### Layer 3: interruption and uncertain-operation recovery
 

@@ -71,7 +71,10 @@ test("mcp selects only the package-local Core and inherits protocol stdio", asyn
       "Call `dev_flow_open_task` only for a substantive bounded request or explicit resume after a successful `dev_flow_server_info` handshake. " +
       "Only when a new-task dev_flow_open_task returns a complete ACTIVE_TASK_CONFLICT and the Host worktree-backed task/thread capability is available, dispatch exactly one Host-created worktree-backed Codex task with the exact selector; set target.environment.type=worktree and omit startingState so the child starts from committed default-branch state, and never inspect, copy, or apply the source checkout's index, tracked working-tree changes, or untracked files. " +
       "After that conflict decision make no further Dev Flow Core call and never retry Host creation; explicit resume, HOST_OWNERSHIP_CONFLICT, and every other error keep the existing stop behavior. " +
-      "Use the current Git worktree as primary and only user-declared additional repositories already authorized as writable roots; never scan repositories or change Codex sandbox permissions.",
+      "Use the current Git worktree as primary and only user-declared additional repositories already authorized as writable roots; never scan repositories or change Codex sandbox permissions. " +
+      "The packaged PreToolUse hook checks apply_patch targets against the complete current multi-repository Task Plan before execution; an expected path in any declared writable repository needs no extra question. " +
+      "When a file-scope blocker is current, obtain exactly one developer choice and reason, then call dev_flow_resolve_blocker with allow_once, expand_scope, or reject; never infer or reuse the decision. " +
+      "Do not claim that Bash, external processes, specialized tools, or an untrusted or disabled hook were intercepted; Core final scope guards still reconcile Task-introduced changed paths.",
   );
   assert.equal(calls[0].arguments_.includes("--add-dir"), false);
   assert.equal(calls[0].arguments_.includes("--sandbox"), false);
@@ -94,6 +97,39 @@ test("mcp preserves an explicit data root without creating it", async (t) => {
 
   assert.deepEqual(result, { code: 0, signal: null });
   assert.equal(createAttempted, false);
+});
+
+test("host-check forwards the closed pre-file-write command to the package-local Core", async (t) => {
+  const paths = await makePaths(t, { usesDefaultDataDirectory: false });
+  const calls = [];
+  let createAttempted = false;
+  const result = await runCLI(["host-check", "pre-file-write"], {
+    environment: { SAFE_PARENT_VALUE: "preserved" },
+    stdout: captureStream(),
+    stderr: captureStream(),
+    resolvePaths: async () => paths,
+    ensureDefaultDataDirectory: async () => {
+      createAttempted = true;
+    },
+    spawnImpl: (executable, arguments_, options) => {
+      calls.push({ executable, arguments_, options });
+      const child = new EventEmitter();
+      child.kill = () => true;
+      queueMicrotask(() => child.emit("exit", 0, null));
+      return child;
+    },
+    signalSource: new EventEmitter(),
+  });
+
+  assert.deepEqual(result, { code: 0, signal: null });
+  assert.equal(createAttempted, false);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].executable, paths.runtimePath);
+  assert.deepEqual(calls[0].arguments_, ["host-check", "pre-file-write"]);
+  assert.equal(calls[0].options.stdio, "inherit");
+  assert.equal(calls[0].options.shell, false);
+  assert.equal(calls[0].options.env.DEV_FLOW_DATA_DIR, paths.dataDirectory);
+  assert.equal(calls[0].options.env.SAFE_PARENT_VALUE, "preserved");
 });
 
 test("launcher fails before spawn for unsupported platforms and non-executable runtimes", async (t) => {
@@ -307,7 +343,7 @@ test("setup emits success only after verified lifecycle completion and fails on 
     receipt_path: paths.receiptPath,
     configuration_path: paths.configurationPath,
     file_changes: [{ path: paths.configurationPath, change: "created" }],
-    next_step: "$dev-flow-codex:dev-flow <task description>",
+    next_step: "Review and trust the Dev Flow hook with /hooks, then use $dev-flow-codex:dev-flow <task description>",
   });
   assert.equal(stderr.text, "");
 
@@ -544,6 +580,9 @@ test("launcher exposes no repository or sandbox configuration command", async ()
   for (const arguments_ of [
     ["mcp", "--add-dir", "/workspace/docs"],
     ["mcp", "--sandbox", "danger-full-access"],
+    ["host-check"],
+    ["host-check", "future"],
+    ["host-check", "pre-file-write", "extra"],
     ["configure-codebase-memory"],
     ["add-repository", "/workspace/docs"],
   ]) {

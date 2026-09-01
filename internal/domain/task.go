@@ -153,6 +153,8 @@ type ProcessTask struct {
 	BaselineHistory        []BaselineReference      `json:"baseline_history"`
 	Evidence               []EvidenceSummary        `json:"evidence"`
 	VerificationAttempts   []VerificationAttempt    `json:"verification_attempts"`
+	FileScopeRecords       []FileScopeRecord        `json:"file_scope_records"`
+	TaskChangedPaths       []string                 `json:"task_changed_paths"`
 	Outcome                *ProcessOutcome          `json:"outcome"`
 	Revision               uint64                   `json:"revision"`
 	CreatedAt              time.Time                `json:"created_at"`
@@ -165,7 +167,7 @@ func (t ProcessTask) Validate() error {
 	if err != nil || t.validateRepositoryPaths() != nil {
 		return ErrInvalidArgument
 	}
-	if validateID(t.TaskID) != nil || !t.OriginHost.IsValid() || t.Intent.Validate() != nil || t.Process.Validate() != nil || !t.CurrentNode.IsValid() || t.Revision == 0 || validateUTC(t.CreatedAt) != nil || validateUTC(t.UpdatedAt) != nil || t.UpdatedAt.Before(t.CreatedAt) || len(t.BaselineHistory) > MaxRetainedBaselineReferences || len(t.Evidence) > MaxRetainedEvidenceItems || len(t.VerificationAttempts) > MaxRetainedVerificationAttempts {
+	if validateID(t.TaskID) != nil || !t.OriginHost.IsValid() || t.Intent.Validate() != nil || t.Process.Validate() != nil || !t.CurrentNode.IsValid() || t.Revision == 0 || validateUTC(t.CreatedAt) != nil || validateUTC(t.UpdatedAt) != nil || t.UpdatedAt.Before(t.CreatedAt) || len(t.BaselineHistory) > MaxRetainedBaselineReferences || len(t.Evidence) > MaxRetainedEvidenceItems || len(t.VerificationAttempts) > MaxRetainedVerificationAttempts || len(t.FileScopeRecords) > MaxFileScopeRecords || len(t.TaskChangedPaths) > MaxFingerprintPaths {
 		return ErrInvalidArgument
 	}
 	if t.Requirements != nil && t.Requirements.Validate() != nil {
@@ -197,6 +199,9 @@ func (t ProcessTask) Validate() error {
 		return ErrInvalidArgument
 	}
 	if t.CurrentAction != nil && (t.CurrentAction.Validate() != nil || t.CurrentAction.TaskID != t.TaskID || t.CurrentAction.Revision != t.Revision || t.CurrentAction.Process != t.Process || t.CurrentAction.NodeID != t.CurrentNode || t.CurrentAction.RepositoryBindingDigest != effectiveRepositoryDigest || t.CurrentAction.MethodProfile != t.Intent.MethodProfile) {
+		return ErrInvalidArgument
+	}
+	if !fileScopeStateValid(t) {
 		return ErrInvalidArgument
 	}
 	if !authorityMatchesCurrentNode(t) {
@@ -277,7 +282,64 @@ func (t ProcessTask) Validate() error {
 	if size, err := compactJSONSize(t); err != nil || size > MaxPersistedTaskSnapshotBytes {
 		return ErrInvalidArgument
 	}
+	for _, record := range t.FileScopeRecords {
+		for _, path := range record.Paths {
+			if t.ValidateRepositoryPath(path) != nil {
+				return ErrInvalidArgument
+			}
+		}
+	}
+	for _, path := range t.TaskChangedPaths {
+		if t.ValidateRepositoryPath(path) != nil {
+			return ErrInvalidArgument
+		}
+	}
 	return nil
+}
+
+func fileScopeStateValid(t ProcessTask) bool {
+	requestIDs := make(map[ID]bool, len(t.FileScopeRecords))
+	changed := make(map[string]bool, len(t.TaskChangedPaths))
+	for index, path := range t.TaskChangedPaths {
+		if ValidateRepositoryContractPath(path) != nil || index > 0 && t.TaskChangedPaths[index-1] >= path {
+			return false
+		}
+		changed[path] = true
+	}
+	highestPlanRevision := uint32(0)
+	if t.TaskPlan != nil {
+		highestPlanRevision = t.TaskPlan.Revision
+	}
+	for _, reference := range t.BaselineHistory {
+		if reference.Kind == BaselineTaskPlan && reference.Revision > highestPlanRevision {
+			highestPlanRevision = reference.Revision
+		}
+	}
+	pending := ID("")
+	for _, record := range t.FileScopeRecords {
+		if record.Validate() != nil || requestIDs[record.RequestID] || record.TaskPlanRevision > highestPlanRevision {
+			return false
+		}
+		requestIDs[record.RequestID] = true
+		if record.Decision == FileScopePending {
+			if pending != "" {
+				return false
+			}
+			pending = record.RequestID
+		}
+		if record.Consumed {
+			for _, path := range record.Paths {
+				if !changed[path] {
+					return false
+				}
+			}
+		}
+	}
+	fileScopeBlocked := t.CurrentNode == NodeBlocked && t.Blocker != nil && t.Blocker.Cause == BlockerCauseFileScopeDecision
+	if fileScopeBlocked {
+		return pending != "" && t.Blocker.Condition.ScopeRequestID == pending
+	}
+	return pending == ""
 }
 
 func (t ProcessTask) EffectivePrimaryRepositoryKey() RepositoryKey {

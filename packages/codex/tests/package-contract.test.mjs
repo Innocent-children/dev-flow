@@ -26,6 +26,8 @@ const expectedPackageFiles = [
   "lib/paths.mjs",
   "plugin/.codex-plugin/plugin.json",
   "plugin/.mcp.json",
+  "plugin/hooks/hooks.json",
+  "plugin/hooks/pre-tool-use.mjs",
   "plugin/skills/dev-flow/SKILL.md",
   "plugin/skills/dev-flow/agents/openai.yaml",
   "plugin/skills/dev-flow/references/method-profiles.md",
@@ -44,6 +46,8 @@ const expectedPackedFiles = [
   "package.json",
   "plugin/.codex-plugin/plugin.json",
   "plugin/.mcp.json",
+  "plugin/hooks/hooks.json",
+  "plugin/hooks/pre-tool-use.mjs",
   "plugin/skills/dev-flow/SKILL.md",
   "plugin/skills/dev-flow/agents/openai.yaml",
   "plugin/skills/dev-flow/references/method-profiles.md",
@@ -90,7 +94,7 @@ test("source package declares one public macOS arm64 Codex product", async () =>
   assert.equal(plugin.version, manifest.version);
   assert.equal(plugin.skills, "./skills/");
   assert.equal(plugin.mcpServers, "./.mcp.json");
-  assert.equal("hooks" in plugin, false);
+  assert.equal(plugin.hooks, "./hooks/hooks.json");
   assert.equal("apps" in plugin, false);
   assert.deepEqual(marketplace.plugins.map((entry) => entry.name), ["dev-flow-codex"]);
   assert.deepEqual(mcp.mcpServers, {

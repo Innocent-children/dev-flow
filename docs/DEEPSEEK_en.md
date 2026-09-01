@@ -80,6 +80,23 @@ automatically. After the developer explicitly chooses another approach or allows
 it resolves the blocker and continues from Core's retained resume stage. Another exact repetition
 pauses the Task again.
 
+## Ask before an out-of-scope file write
+
+The Adapter checks `write`, `edit`, and mutating `str_replace_editor` calls in DSH
+`tools/pre-execute`. During a direct `/dev-flow` turn, those tools send the target file to the
+packaged Core before writing. Core uses the union of every WorkItem's `ExpectedPaths` in the current
+Task Plan, qualified by repository key for multi-repository Tasks. An expected file in repository B
+or C needs no question when that repository is already in Task Repository Scope and inside the
+Workspace Root; being outside current directory A is not itself out of scope.
+
+An unplanned file pauses the Task before the tool executes. The developer chooses `allow_once` for
+the same write intent, `expand_scope` to return to `TASKS`, or `reject` for the current Task Plan
+revision. Core retains the choice and reason, then reconciles cumulative Task paths before testing
+and `DONE`.
+
+The gate does not parse Bash, external processes, or other tool paths; those writes may be found only
+by Core's final check. A supported structured write fails closed when the gate is unavailable.
+
 ## Inspect status
 
 Inspect the unified lifecycle and DSH Profile:
@@ -120,7 +137,7 @@ from its current plan.
   and resolved symlink targets must stay inside it;
 - Dev Flow does not expand Workspace Root or discover neighboring repositories through an index;
 - Core observes Git read-only and does not commit, push, merge, rebase, tag, or publish;
-- DeepSeek edits files and runs commands; Core does not intercept every operation;
+- DeepSeek edits files and runs commands; the Host gate checks the listed structured tools and Core reconciles cumulative paths, but does not intercept every operation;
 - `/dev-flow` does not bypass the current Action, Workspace permission, Git-mutation authority, or
   release confirmation.
 

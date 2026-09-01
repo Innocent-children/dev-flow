@@ -133,7 +133,7 @@ func projectTaskDetail(requestID string, detail application.ControlCenterTaskDet
 	if err != nil {
 		return TaskDetailResponse{}, err
 	}
-	records, err := projectNamedFacts([]namedFact{{"implementation", "Implementation", detail.Task.Implementation}, {"test", "Test", detail.Task.Test}, {"comprehension", "Comprehension", detail.Task.Comprehension}, {"verification_attempts", "Recent verification attempts", detail.Task.VerificationAttempts}, {"last_operation", "Last operation", detail.Task.LastOperation}})
+	records, err := projectNamedFacts([]namedFact{{"implementation", "Implementation", detail.Task.Implementation}, {"test", "Test", detail.Task.Test}, {"comprehension", "Comprehension", detail.Task.Comprehension}, {"verification_attempts", "Recent verification attempts", detail.Task.VerificationAttempts}, {"file_scope_records", "File scope decisions", detail.Task.FileScopeRecords}, {"last_operation", "Last operation", detail.Task.LastOperation}})
 	if err != nil {
 		return TaskDetailResponse{}, err
 	}
@@ -186,7 +186,9 @@ func projectTaskDetail(requestID string, detail application.ControlCenterTaskDet
 	if err != nil {
 		return TaskDetailResponse{}, err
 	}
-	return TaskDetailResponse{OK: true, RequestID: requestID, Readiness: readiness, Summary: summary, Intent: detail.Task.Intent.Request, AcceptanceCriteria: criteria, VerificationBudget: string(budget), MethodProfile: string(detail.Task.Intent.MethodProfile), Repositories: repositories, Baselines: baselines, Records: records, Evidence: evidence, Blocker: blocker, Outcome: outcome, Events: events, Graph: projectGraph(detail.Graph), CurrentAction: currentAction}, nil
+	scope := application.CurrentFileScopeStatus(detail.Task)
+	fileScope := FileScopeView{ExpectedPaths: scope.ExpectedPaths, TaskChangedPaths: scope.TaskChangedPaths, UnexplainedPaths: scope.UnexplainedPaths, CoveredHostTools: scope.CoveredHostTools, DecisionCount: len(scope.Records), FinalCheckEnabled: scope.FinalCheckEnabled}
+	return TaskDetailResponse{OK: true, RequestID: requestID, Readiness: readiness, Summary: summary, Intent: detail.Task.Intent.Request, AcceptanceCriteria: criteria, VerificationBudget: string(budget), MethodProfile: string(detail.Task.Intent.MethodProfile), Repositories: repositories, Baselines: baselines, Records: records, Evidence: evidence, Blocker: blocker, Outcome: outcome, Events: events, Graph: projectGraph(detail.Graph), CurrentAction: currentAction, FileScope: fileScope}, nil
 }
 
 func summarizeDetail(detail application.ControlCenterTaskDetail) application.ControlCenterTaskSummary {
@@ -266,6 +268,8 @@ func isNilFact(value any) bool {
 		return typed == nil
 	case *domain.LastOperation:
 		return typed == nil
+	case []domain.FileScopeRecord:
+		return len(typed) == 0
 	default:
 		return false
 	}
