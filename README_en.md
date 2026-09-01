@@ -38,7 +38,7 @@ from its saved stage and next step.
 | Action | What Dev Flow retains and checks |
 | --- | --- |
 | Remember | Original request, current stage, completed verification, blockers, and outcome |
-| Limit | Task scope, automatic verification-command count, and permission for full suites or manual handoff |
+| Limit | Task scope, automatic verification-command count, repeated test loops, and permission for full suites or manual handoff |
 | Decide | Which old test and comprehension records became stale after implementation changes, and whether repository state still matches the Task |
 | Recover | Whether an uncertain Action should continue, be recorded, block, or retry safely |
 
@@ -53,6 +53,7 @@ what must be confirmed first.
 | Progress is reconstructed after an interrupted session | Resume the same local Task |
 | A local task gradually expands in scope | Retain the original goal and explicit boundaries |
 | Targeted testing keeps expanding | Retain the verification budget |
+| The same check and failure keep repeating | Pause after the third exact repetition and wait for the developer |
 | A missing operation response is retried immediately | Read the current Task and Recovery state first |
 | Test results are mixed with later code changes | Retain the current stage and its corresponding evidence |
 

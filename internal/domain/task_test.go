@@ -188,7 +188,7 @@ func TestProcessTaskTerminalAndBlockedShapes(t *testing.T) {
 	task.CurrentNode = NodeBlocked
 	resume := NodeRequirements
 	task.ResumeNode = &resume
-	task.Blocker = &ProcessBlocker{BlockerID: "blocker", Code: ErrorTaskBlocked, Cause: RecoveryConflicting, ResumeNode: resume, Message: "Restore binding", ObservedBindingDigest: task.Repository.BindingDigest, Condition: BlockerCondition{Kind: BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: task.Repository.BindingDigest}, RequiredResolution: "Restore the issuance binding.", CreatedAt: task.UpdatedAt}
+	task.Blocker = &ProcessBlocker{BlockerID: "blocker", Code: ErrorTaskBlocked, Cause: BlockerCauseRecoveryConflicting, ResumeNode: resume, Message: "Restore binding", ObservedBindingDigest: task.Repository.BindingDigest, Condition: BlockerCondition{Kind: BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: task.Repository.BindingDigest}, RequiredResolution: "Restore the issuance binding.", CreatedAt: task.UpdatedAt}
 	task.CurrentAction.Kind = ActionResolveBlocker
 	task.CurrentAction.NodeID = NodeBlocked
 	if err := task.Validate(); err != nil {
@@ -203,16 +203,23 @@ func TestProcessTaskTerminalAndBlockedShapes(t *testing.T) {
 func TestProcessBlockerStrictGraphAuthority(t *testing.T) {
 	now := time.Date(2026, 8, 19, 1, 0, 0, 0, time.UTC)
 	digest := Digest(strings.Repeat("a", 64))
-	base := ProcessBlocker{BlockerID: "blocker", Code: ErrorTaskBlocked, Cause: RecoveryPartiallyCompleted, Message: "Restore the issuance binding.", ResumeNode: NodeRefactor, ObservedBindingDigest: digest, Condition: BlockerCondition{Kind: BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: digest}, RequiredResolution: "Restore the exact issuance binding.", CreatedAt: now}
+	base := ProcessBlocker{BlockerID: "blocker", Code: ErrorTaskBlocked, Cause: BlockerCauseRecoveryPartiallyCompleted, Message: "Restore the issuance binding.", ResumeNode: NodeRefactor, ObservedBindingDigest: digest, Condition: BlockerCondition{Kind: BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: digest}, RequiredResolution: "Restore the exact issuance binding.", CreatedAt: now}
 	if err := base.Validate(); err != nil {
 		t.Fatal(err)
 	}
+	automatic := base
+	automatic.Cause = BlockerCauseRepeatedVerificationFailure
+	automatic.Condition.Kind = BlockerConditionAllowVerificationRetry
+	if err := automatic.Validate(); err != nil {
+		t.Fatalf("automatic brake blocker: %v", err)
+	}
 	for name, mutate := range map[string]func(*ProcessBlocker){
-		"missing code":             func(v *ProcessBlocker) { v.Code = "" },
-		"invalid cause":            func(v *ProcessBlocker) { v.Cause = RecoveryNotStarted },
-		"terminal resume":          func(v *ProcessBlocker) { v.ResumeNode = NodeDone },
-		"invalid condition":        func(v *ProcessBlocker) { v.Condition.Kind = "future" },
-		"missing observed binding": func(v *ProcessBlocker) { v.ObservedBindingDigest = "" },
+		"missing code":               func(v *ProcessBlocker) { v.Code = "" },
+		"invalid cause":              func(v *ProcessBlocker) { v.Cause = BlockerCause(RecoveryNotStarted) },
+		"terminal resume":            func(v *ProcessBlocker) { v.ResumeNode = NodeDone },
+		"invalid condition":          func(v *ProcessBlocker) { v.Condition.Kind = "future" },
+		"mismatched brake condition": func(v *ProcessBlocker) { v.Cause = BlockerCauseRepeatedVerificationFailure },
+		"missing observed binding":   func(v *ProcessBlocker) { v.ObservedBindingDigest = "" },
 	} {
 		t.Run(name, func(t *testing.T) {
 			candidate := base

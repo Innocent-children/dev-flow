@@ -133,7 +133,7 @@ func projectTaskDetail(requestID string, detail application.ControlCenterTaskDet
 	if err != nil {
 		return TaskDetailResponse{}, err
 	}
-	records, err := projectNamedFacts([]namedFact{{"implementation", "Implementation", detail.Task.Implementation}, {"test", "Test", detail.Task.Test}, {"comprehension", "Comprehension", detail.Task.Comprehension}, {"last_operation", "Last operation", detail.Task.LastOperation}})
+	records, err := projectNamedFacts([]namedFact{{"implementation", "Implementation", detail.Task.Implementation}, {"test", "Test", detail.Task.Test}, {"comprehension", "Comprehension", detail.Task.Comprehension}, {"verification_attempts", "Recent verification attempts", detail.Task.VerificationAttempts}, {"last_operation", "Last operation", detail.Task.LastOperation}})
 	if err != nil {
 		return TaskDetailResponse{}, err
 	}

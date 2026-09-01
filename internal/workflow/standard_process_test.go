@@ -454,7 +454,7 @@ func blockedTask(t *testing.T, source domain.ProcessTask) domain.ProcessTask {
 	resume := source.CurrentNode
 	source.CurrentNode = domain.NodeBlocked
 	source.ResumeNode = &resume
-	source.Blocker = &domain.ProcessBlocker{BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.RecoveryConflicting, ResumeNode: resume, Message: "Restore the repository binding.", ObservedBindingDigest: source.Repository.BindingDigest, Condition: domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: source.Repository.BindingDigest}, RequiredResolution: "Restore the issuance binding.", CreatedAt: source.UpdatedAt}
+	source.Blocker = &domain.ProcessBlocker{BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.BlockerCauseRecoveryConflicting, ResumeNode: resume, Message: "Restore the repository binding.", ObservedBindingDigest: source.Repository.BindingDigest, Condition: domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: source.Repository.BindingDigest}, RequiredResolution: "Restore the issuance binding.", CreatedAt: source.UpdatedAt}
 	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), domain.NodeBlocked, source.TaskID, source.Revision, source.Repository.BindingDigest, source.Intent.MethodProfile, "blocked-action", source.UpdatedAt)
 	if err != nil {
 		t.Fatal(err)

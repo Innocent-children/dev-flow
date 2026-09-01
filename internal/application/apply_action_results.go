@@ -172,6 +172,9 @@ func (s *Service) applyTestResult(task *domain.ProcessTask, transition domain.Tr
 		return err
 	}
 	task.Evidence = append(task.Evidence, evidence...)
+	if err := recordVerificationAttempt(task, transition, result, evidence, now); err != nil {
+		return err
+	}
 	if !passing {
 		task.Test = nil
 		return invalidateForDestination(task, transition.Destination)

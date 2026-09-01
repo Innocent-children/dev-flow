@@ -30,6 +30,7 @@ DeepSeek 稳定 Journey 还覆盖显式触发、重启恢复、`DONE` 和保留�
 | 持久 Task | 本地保存请求、范围、当前阶段、验证预算、记录、阻塞和结果 |
 | 中断后继续 | Codex 和 DeepSeek 从同一 Task 恢复当前阶段与下一步 |
 | 范围与验证限制 | 明确 Repository Scope、verification budget 和记录失效规则 |
+| 自动刹车 | 保存最近三次测试尝试；相同失败、相同结果或相同修改与失败循环第三次精确重复后暂停 |
 | 不确定 Action 恢复 | read-before-retry、Recovery 判断、Blocker 和 resume |
 | 交付前理解确认 | 测试后进入理解确认；仓库变更后重新测试 |
 | 本机查看与诊断 | 共享 loopback WebUI，入口为 `dev-flow webui start|open|status|stop|reset` |
@@ -44,6 +45,7 @@ DeepSeek 稳定 Journey 还覆盖显式触发、重启恢复、`DONE` 和保留�
 - Linux、Windows、Intel Mac、Rosetta 和 remote MCP 没有稳定支持声明；
 - Codex 的显式并行批次和 `ACTIVE_TASK_CONFLICT` 后 worktree 分派仍缺少最终制品 Journey；
 - verification budget 尚未通过外部使用数据证明能够减少无效测试；
+- 自动刹车尚未通过真实 Host Journey 和外部使用数据确认误阻塞率；
 - comprehension gate 尚未通过长期项目数据证明能够降低维护成本或缺陷率；
 - 外部采用、长期重复使用和依赖项目仍然有限。
 
@@ -70,7 +72,7 @@ package 可用和已有的具体 Host Journey，不能据此推导缺陷率、�
 - 当前内部状态仍需要更短、更直接的用户摘要；
 - Recovery 需要更直接的公开故障注入演示；
 - verification budget 尚未通过外部使用数据证明能减少无效测试；
-- 尚未量化中断后恢复耗时、错误阻塞率和重复使用率；
+- 尚未量化中断后恢复耗时、自动刹车错误阻塞率和重复使用率；
 - 当前还不能清楚展示验证预算如何消耗，以及为什么扩大；
 - 多仓库与 worktree 是高级能力，不代表主要用户场景；
 - 外部 Issue、Pull Request、依赖项目和长期采用仍然有限。

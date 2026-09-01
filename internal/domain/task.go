@@ -152,6 +152,7 @@ type ProcessTask struct {
 	Comprehension          *ComprehensionAssessment `json:"comprehension"`
 	BaselineHistory        []BaselineReference      `json:"baseline_history"`
 	Evidence               []EvidenceSummary        `json:"evidence"`
+	VerificationAttempts   []VerificationAttempt    `json:"verification_attempts"`
 	Outcome                *ProcessOutcome          `json:"outcome"`
 	Revision               uint64                   `json:"revision"`
 	CreatedAt              time.Time                `json:"created_at"`
@@ -164,7 +165,7 @@ func (t ProcessTask) Validate() error {
 	if err != nil || t.validateRepositoryPaths() != nil {
 		return ErrInvalidArgument
 	}
-	if validateID(t.TaskID) != nil || !t.OriginHost.IsValid() || t.Intent.Validate() != nil || t.Process.Validate() != nil || !t.CurrentNode.IsValid() || t.Revision == 0 || validateUTC(t.CreatedAt) != nil || validateUTC(t.UpdatedAt) != nil || t.UpdatedAt.Before(t.CreatedAt) || len(t.BaselineHistory) > MaxRetainedBaselineReferences || len(t.Evidence) > MaxRetainedEvidenceItems {
+	if validateID(t.TaskID) != nil || !t.OriginHost.IsValid() || t.Intent.Validate() != nil || t.Process.Validate() != nil || !t.CurrentNode.IsValid() || t.Revision == 0 || validateUTC(t.CreatedAt) != nil || validateUTC(t.UpdatedAt) != nil || t.UpdatedAt.Before(t.CreatedAt) || len(t.BaselineHistory) > MaxRetainedBaselineReferences || len(t.Evidence) > MaxRetainedEvidenceItems || len(t.VerificationAttempts) > MaxRetainedVerificationAttempts {
 		return ErrInvalidArgument
 	}
 	if t.Requirements != nil && t.Requirements.Validate() != nil {
@@ -212,6 +213,19 @@ func (t ProcessTask) Validate() error {
 		}
 		evidenceIDs[item.EvidenceID] = true
 		evidenceByID[item.EvidenceID] = item
+	}
+	var previousAttemptRevision uint64
+	for _, attempt := range t.VerificationAttempts {
+		if attempt.Validate() != nil || attempt.TaskRevision <= previousAttemptRevision || attempt.TaskRevision > t.Revision {
+			return ErrInvalidArgument
+		}
+		for _, id := range attempt.EvidenceIDs {
+			item, ok := evidenceByID[id]
+			if !ok || !item.RecordedAt.Equal(attempt.RecordedAt) {
+				return ErrInvalidArgument
+			}
+		}
+		previousAttemptRevision = attempt.TaskRevision
 	}
 	if t.Test != nil && (t.Test.Validate() != nil || t.Requirements == nil || t.Design == nil || t.TaskPlan == nil || t.Test.RequirementsRevision != t.Requirements.Revision || t.Test.DesignRevision != t.Design.Revision || t.Test.TaskPlanRevision != t.TaskPlan.Revision || t.Test.RepositoryBindingDigest != effectiveRepositoryDigest) {
 		return ErrInvalidArgument
@@ -342,6 +356,13 @@ func (t ProcessTask) validateRepositoryPaths() error {
 	}
 	if t.Implementation != nil {
 		for _, path := range t.Implementation.ChangedPaths {
+			if t.ValidateRepositoryPath(path) != nil {
+				return ErrInvalidArgument
+			}
+		}
+	}
+	for _, attempt := range t.VerificationAttempts {
+		for _, path := range attempt.ChangedPaths {
 			if t.ValidateRepositoryPath(path) != nil {
 				return ErrInvalidArgument
 			}

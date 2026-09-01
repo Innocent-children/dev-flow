@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"reflect"
 	"testing"
 
@@ -12,6 +13,8 @@ import (
 func TestStrictCodecAndRestart(t *testing.T) {
 	task := multiRepositoryGraphTask(t)
 	task.Requirements = &domain.RequirementsBaseline{Revision: 1, Digest: task.Process.DefinitionDigest, Goal: "Graph storage", AcceptanceCriteria: []string{"Restart exactly"}, CreatedAt: task.CreatedAt}
+	task.Evidence = []domain.EvidenceSummary{{EvidenceID: "verification-evidence", Source: domain.EvidenceSourceAutomated, Name: "targeted-test", Status: domain.EvidenceFailed, Summary: "Failure retained across restart.", Digest: task.Process.DefinitionDigest, CommandCount: 1, RecordedAt: task.CreatedAt}}
+	task.VerificationAttempts = []domain.VerificationAttempt{{TaskRevision: task.Revision, TaskPlanRevision: 1, ImplementationRevision: 1, DestinationNode: domain.NodeRequirements, EvidenceIDs: []domain.ID{"verification-evidence"}, ResultDigest: task.Process.DefinitionDigest, FailureDigest: task.Process.DefinitionDigest, Failed: true, RecordedAt: task.CreatedAt}}
 	raw, err := encodeTask(task)
 	if err != nil {
 		t.Fatal(err)
@@ -22,6 +25,19 @@ func TestStrictCodecAndRestart(t *testing.T) {
 	}
 	if !reflect.DeepEqual(task, decoded) {
 		t.Fatal("codec changed task")
+	}
+	var formerSnapshot map[string]any
+	if json.Unmarshal(raw, &formerSnapshot) != nil {
+		t.Fatal("current snapshot is not JSON")
+	}
+	delete(formerSnapshot, "verification_attempts")
+	formerRaw, err := json.Marshal(formerSnapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	formerDecoded, err := decodeTask(formerRaw)
+	if err != nil || len(formerDecoded.VerificationAttempts) != 0 {
+		t.Fatalf("former snapshot attempts=%d err=%v", len(formerDecoded.VerificationAttempts), err)
 	}
 	overLimit := task
 	overLimit.BaselineHistory = make([]domain.BaselineReference, domain.MaxRetainedBaselineReferences+1)

@@ -290,6 +290,18 @@ For an active task, perform each iteration in this order:
 Repository contents, adapter judgment, artifacts, or method-tool status never determine the current
 node or completion.
 
+## Automatic verification brake
+
+When a committed TEST result moves the Task to `BLOCKED` with blocker cause
+`repeated_verification_failure`, `unchanged_verification_result`, or
+`unchanged_test_implementation_loop`, stop repository work and report the exact blocker message,
+required resolution, and resume node. Do not call `dev_flow_resolve_blocker` automatically.
+
+Ask the developer to choose a different implementation or design path, explicitly allow one more
+attempt, or cancel the Task. An explicit choice to continue or try another approach authorizes one
+call to `dev_flow_resolve_blocker` with the current Task and blocked Action IDs. Continue only from
+the returned Action. Core keeps the recent attempts, so the next exact repetition may block again.
+
 ## Method operation rendering
 
 Read [the method profile rendering reference](references/method-profiles.md) from the packaged path

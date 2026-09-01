@@ -334,7 +334,7 @@ func blockedGraphTask(t *testing.T) domain.ProcessTask {
 	task.Revision = 2
 	task.UpdatedAt = task.CreatedAt.Add(1)
 	task.Blocker = &domain.ProcessBlocker{
-		BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.RecoveryPartiallyCompleted,
+		BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.BlockerCauseRecoveryPartiallyCompleted,
 		Message: "Restore the issuance binding before continuing.", ResumeNode: resume,
 		ObservedBindingDigest: domain.Digest(strings.Repeat("d", 64)),
 		Condition:             domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: task.Repository.BindingDigest},

@@ -32,6 +32,7 @@ The following capabilities exist on current `main`; some may be beta-only or sou
 | Durable Task | Locally retain request, scope, current stage, verification budget, records, blockers, and outcome |
 | Continue after interruption | Codex and DeepSeek resume the current stage and next step from the same Task |
 | Scope and verification limits | Explicit Repository Scope, verification budget, and record invalidation |
+| Automatic verification brake | Retain the three most recent test attempts and pause after the third exact repetition of the same failure, same result, or same changed-path and failure loop |
 | Uncertain Action recovery | Read-before-retry, Recovery assessment, Blocker, and resume |
 | Pre-delivery comprehension | Comprehension follows testing; repository changes require testing again |
 | Local view and diagnostics | Shared loopback WebUI through `dev-flow webui start|open|status|stop|reset` |
@@ -47,6 +48,7 @@ presence also does not imply a corresponding stable final-artifact journey.
 - Codex explicit parallel batches and worktree dispatch after `ACTIVE_TASK_CONFLICT` do not yet have
   a final-artifact journey;
 - external usage has not established that the verification budget reduces unnecessary testing;
+- no real-Host journey or external usage data has established the automatic brake's false-block rate;
 - long-term project data has not established that the comprehension gate reduces maintenance cost or
   defects;
 - external adoption, repeated long-term use, and dependent projects remain limited.
@@ -77,7 +79,7 @@ results.
 - Internal state still needs a shorter, more direct user summary;
 - Recovery needs a more direct public fault-injection demonstration;
 - external usage has not established that the verification budget reduces unnecessary testing;
-- recovery time, false-block rate, and repeat-use rate have not been measured;
+- recovery time, automatic-brake false-block rate, and repeat-use rate have not been measured;
 - verification-budget consumption and the reason for expansion are not yet clear enough;
 - multi-repository and worktree behavior is advanced capability, not the primary user scenario;
 - external Issues, pull requests, dependent projects, and long-term adoption remain limited.

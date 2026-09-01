@@ -179,7 +179,7 @@ func TestRecoveryUncertaintyFiveClassJourney(t *testing.T) {
 				t.Fatal(err)
 			}
 			j.task = blocked.Task
-			if j.task.CurrentNode != domain.NodeBlocked || j.task.Blocker == nil || j.task.Blocker.Cause != domain.RecoveryConflicting || j.task.Revision != before.revision+1 || j.eventCount() != before.events+1 {
+			if j.task.CurrentNode != domain.NodeBlocked || j.task.Blocker == nil || j.task.Blocker.Cause != domain.BlockerCauseRecoveryConflicting || j.task.Revision != before.revision+1 || j.eventCount() != before.events+1 {
 				t.Fatal("conflicting recovery did not create one blocker")
 			}
 		})

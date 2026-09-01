@@ -92,6 +92,10 @@ func TestResolveBlockerInputUsesClosedPayloadAndNoDestination(t *testing.T) {
 	if err := ValidateToolInput(ToolApplyAction, raw); err != nil {
 		t.Fatal(err)
 	}
+	retryRaw := []byte(`{"request_id":"retry","host":"codex","task_id":"task","revision":2,"action_id":"action","action_kind":"RESOLVE_BLOCKER","process_id":"standard-development","process_definition_digest":"` + string(digest) + `","source_cursor":"BLOCKED","repository_binding_digest":"` + string(digest) + `","payload":{"blocker_id":"blocker","condition":{"kind":"allow_verification_retry","expected_binding_digest":"` + string(digest) + `"},"observed_binding_digest":"` + string(digest) + `"}}`)
+	if err := ValidateToolInput(ToolApplyAction, retryRaw); err != nil {
+		t.Fatal(err)
+	}
 	var value map[string]any
 	if json.Unmarshal(raw, &value) != nil {
 		t.Fatal("invalid fixture")

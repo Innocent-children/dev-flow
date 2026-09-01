@@ -45,9 +45,10 @@ The same durable state also helps with:
 
 1. a local change gradually expanding into unrequested modules or future capabilities;
 2. targeted verification growing into a full regression, platform matrix, or open-ended testing;
-3. old verification records remaining in use after the implementation changes;
-4. a lost write response being replayed immediately;
-5. tests passing while the implementation remains unnecessarily complex or difficult to explain.
+3. the same check, failure, or test-and-implementation loop repeating without a new result;
+4. old verification records remaining in use after the implementation changes;
+5. a lost write response being replayed immediately;
+6. tests passing while the implementation remains unnecessarily complex or difficult to explain.
 
 ## How the product intervenes
 
@@ -57,7 +58,7 @@ local Task around that work and performs four jobs:
 | Action | Product behavior |
 | --- | --- |
 | Remember | Retain the original request, current stage, completed verification, blockers, and outcome |
-| Limit | Retain Repository Scope and verification budget, then check automatic-command count and permission for full suites or manual handoff |
+| Limit | Retain Repository Scope and verification budget, check automatic-command count and permissions, and pause after a third exact test repetition |
 | Decide | Use requirements, design, task plan, implementation, and repository state to invalidate test or comprehension records that no longer apply |
 | Recover | Apply read-before-retry to an uncertain Action and decide whether to continue, record completion, block, or retry safely |
 
@@ -71,6 +72,8 @@ The current product commits to:
 - storing and resuming the same local Task;
 - retaining the original request, explicit scope, current stage, verification budget, records, and
   blockers;
+- retaining the three most recent test attempts and pausing when the same failure, same result, or
+  same changed-path and failure loop repeats exactly;
 - allowing only transitions present in the current built-in process definition;
 - stopping progress when repository drift or current conditions are not satisfied;
 - assessing an uncertain Action and requiring a read before retry is considered;
@@ -123,8 +126,9 @@ product's foundation, not its complete value.
 ### Layer 2: scope and verification constraints
 
 Retain the original request, explicit scope, and verification budget. Limit automatic verification
-commands, distinguish permission for full suites and manual handoff, and invalidate downstream
-records when upstream requirements or implementation change.
+commands, distinguish permission for full suites and manual handoff, enter `BLOCKED` after the third
+exact test repetition so the developer decides whether to allow one more attempt, and invalidate
+downstream records when upstream requirements or implementation change.
 
 ### Layer 3: interruption and uncertain-operation recovery
 
@@ -174,7 +178,7 @@ Future product measurement should focus on user outcomes rather than component c
 
 - time required to recover a trustworthy current state after interruption;
 - rate of completed work repeated because progress was unclear;
-- false-allow and false-block rates in Recovery decisions;
+- false-allow and false-block rates in automatic-brake and Recovery decisions;
 - rate at which a verification budget expands without a stated reason;
 - repeat use by the same developer for another long-running task.
 

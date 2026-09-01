@@ -214,17 +214,17 @@ transport、通用 HTTP/SSE transport、通用 shell 或 Git mutation 命令。C
 | --- | --- | --- |
 | `dev_flow_server_info` | 只读 | 读取 Core 产品版本、transport、健康状态、支持的 process、Host、method profile、工具目录和有效 Host 代码索引偏好。每次有效 Host admission 后必须首先调用。 |
 | `dev_flow_open_task` | 读取或创建 | 为一个显式 Repository Scope 创建新 Task，或在 `new_task` 为空时从任一参与仓库恢复同一 Task。 |
-| `dev_flow_get_task` | 只读 | 按 Task ID 读取持久化 Task；存在 Core 保存的 Action 提交时自动返回 Recovery assessment。 |
+| `dev_flow_get_task` | 只读 | 按 Task ID 读取持久化 Task，包括最多三条近期测试尝试；存在 Core 保存的 Action 提交时自动返回 Recovery assessment。 |
 | `dev_flow_get_next_action` | 只读 | 读取当前节点的 Action、`submission_tool`、完成条件、允许副作用、所需证据、验证预算、method steps 和全部合法 transition。 |
 | `dev_flow_submit_requirements` | mutation | 提交 REQUIREMENTS 节点结果。 |
 | `dev_flow_submit_design` | mutation | 提交 DESIGN 节点结果。 |
 | `dev_flow_submit_tasks` | mutation | 提交 TASKS 节点结果。 |
 | `dev_flow_submit_implementation` | mutation | 提交 IMPLEMENT 节点结果。 |
-| `dev_flow_submit_test` | mutation | 提交 TEST 节点结果。 |
+| `dev_flow_submit_test` | mutation | 提交 TEST 节点结果；第三次精确重复相同失败、相同结果或相同修改与失败循环时，Core 保存结果并把 Task 暂停在 `BLOCKED`。 |
 | `dev_flow_submit_comprehension` | mutation | 提交 COMPREHENSION_REVIEW 节点结果。 |
 | `dev_flow_submit_refactor` | mutation | 提交 REFACTOR 节点结果。 |
 | `dev_flow_submit_delivery` | mutation | 提交 Host 负责的 DELIVERY 判断、风险和发现；acceptance、evidence ID 与 Test/Comprehension record ID 由 Core 补齐，提交这些字段会按 `unknown_member` 拒绝。 |
-| `dev_flow_resolve_blocker` | mutation | 在 Core 确认仓库恢复条件后解除当前 blocker；只接收 Host、Task ID 与 Action ID。 |
+| `dev_flow_resolve_blocker` | mutation | 在 Core 确认当前 blocker 条件后解除阻塞；仓库恢复 blocker 要求精确恢复，自动刹车 blocker 要求用户明确允许继续；只接收 Host、Task ID 与 Action ID。 |
 | `dev_flow_recover_action` | mutation | 使用 Core 在独立 Action 操作记录中保存的规范化提交恢复不确定 Action；不接收原始 payload。 |
 | `dev_flow_cancel_task` | destructive mutation | 使用当前 revision 和非空 reason 将非终态 Task 转为 `CANCELLED`。 |
 

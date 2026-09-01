@@ -67,6 +67,10 @@ $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run 
 如果上一次 Action 的响应丢失或被截断，Adapter 先读取当前 Task 和 Recovery 判断，再按 Core 给出的
 结果继续、恢复、阻塞或安全重试。它不会自行重复原提交。
 
+同一失败、同一测试结果，或相同修改路径与失败组成的测试循环连续出现三次时，Core 会保存第三次
+结果并暂停 Task。Codex 不会自动解除；用户明确选择换方案或再试一次后，Adapter 才解除 blocker，
+并从 Core 保存的原目标阶段继续。下一次仍然完全重复时会再次暂停。
+
 ## 查看状态
 
 查看安装和注册状态：

@@ -271,7 +271,7 @@ func retainMutation(t *testing.T, task domain.ProcessTask) TaskMutation {
 	if err != nil {
 		t.Fatal(err)
 	}
-	task.Blocker = &domain.ProcessBlocker{BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.RecoveryPartiallyCompleted, Message: "Restore the issuance binding before continuing.", ResumeNode: resume, ObservedBindingDigest: domain.Digest(strings.Repeat("2", 64)), Condition: domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: digest}, RequiredResolution: "Restore the exact issuance binding.", CreatedAt: now}
+	task.Blocker = &domain.ProcessBlocker{BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.BlockerCauseRecoveryPartiallyCompleted, Message: "Restore the issuance binding before continuing.", ResumeNode: resume, ObservedBindingDigest: domain.Digest(strings.Repeat("2", 64)), Condition: domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: digest}, RequiredResolution: "Restore the exact issuance binding.", CreatedAt: now}
 	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), domain.NodeBlocked, task.TaskID, task.Revision, digest, task.Intent.MethodProfile, "resolve-action", now)
 	if err != nil {
 		t.Fatal(err)

@@ -204,6 +204,7 @@ func (s *Service) planStandardMutation(r ApplyActionRequest, task domain.Process
 	if effect.Kind == recovery.EffectProcessArtifactOnly && comparison.Relation == recovery.RepositoryWorktreeOnlyChanged {
 		rebindProcessAuthorities(&next, fresh)
 	}
+	var brakeDecision workflow.VerificationBrakeDecision
 	switch value := result.(type) {
 	case *workflow.RequirementsResult:
 		err = applyRequirementsResult(&next, envelope, value, now)
@@ -215,6 +216,9 @@ func (s *Service) planStandardMutation(r ApplyActionRequest, task domain.Process
 		err = applyImplementationResult(&next, transition, envelope, value, fresh, comparison.Relation, now)
 	case *workflow.TestResult:
 		err = s.applyTestResult(&next, transition, value, now)
+		if err == nil {
+			brakeDecision, err = workflow.EvaluateVerificationBrake(next.VerificationAttempts, next.Evidence)
+		}
 	case *workflow.ComprehensionResult:
 		err = s.applyComprehensionResult(&next, transition, value, now)
 	case *workflow.RefactorResult:
@@ -230,7 +234,18 @@ func (s *Service) planStandardMutation(r ApplyActionRequest, task domain.Process
 		}
 		return store.TaskMutation{}, domain.ErrInvalidArgument
 	}
-	next.CurrentNode = transition.Destination
+	destination := transition.Destination
+	if brakeDecision.Triggered() {
+		blocker, blockerErr := s.verificationBrakeBlocker(next, transition.Destination, brakeDecision, now)
+		if blockerErr != nil {
+			return store.TaskMutation{}, blockerErr
+		}
+		resume := transition.Destination
+		next.ResumeNode = &resume
+		next.Blocker = blocker
+		destination = domain.NodeBlocked
+	}
+	next.CurrentNode = destination
 	next.Revision++
 	next.UpdatedAt = now
 	claim := store.ClaimRetain
@@ -261,8 +276,15 @@ func (s *Service) planStandardMutation(r ApplyActionRequest, task domain.Process
 	if err != nil {
 		return store.TaskMutation{}, err
 	}
-	tid := transition.TransitionID
-	event := store.TaskEvent{EventID: eventID, TaskID: next.TaskID, Revision: next.Revision, Kind: domain.OperationApplyAction, SourceNode: task.CurrentNode, DestinationNode: next.CurrentNode, TransitionID: &tid, TransitionReason: envelope.Reason, ActionID: &actionID, RequestID: r.RequestID, PayloadDigest: operationDigest, CreatedAt: now}
+	var transitionID *domain.TransitionID
+	eventReason := envelope.Reason
+	if brakeDecision.Triggered() {
+		eventReason = next.Blocker.Message
+	} else {
+		tid := transition.TransitionID
+		transitionID = &tid
+	}
+	event := store.TaskEvent{EventID: eventID, TaskID: next.TaskID, Revision: next.Revision, Kind: domain.OperationApplyAction, SourceNode: task.CurrentNode, DestinationNode: next.CurrentNode, TransitionID: transitionID, TransitionReason: eventReason, ActionID: &actionID, RequestID: r.RequestID, PayloadDigest: operationDigest, CreatedAt: now}
 	return store.TaskMutation{ExpectedRevision: r.ExpectedRevision, Task: next, Event: event, Claim: claim}, nil
 }
 
@@ -356,7 +378,7 @@ func (s *Service) planRecoveryBlocker(r ApplyActionRequest, task domain.ProcessT
 	next.ResumeNode = &resume
 	next.Revision++
 	next.UpdatedAt = now
-	next.Blocker = &domain.ProcessBlocker{BlockerID: blockerID, Code: domain.ErrorTaskBlocked, Cause: decision.Assessment.Classification, Message: "The uncertain graph mutation requires exact repository restoration before work can continue.", ResumeNode: resume, ObservedBindingDigest: decision.Assessment.ObservedBindingDigest, Condition: *decision.Assessment.UnblockCondition, RequiredResolution: "Restore the exact repository binding recorded when the original action was issued.", CreatedAt: now}
+	next.Blocker = &domain.ProcessBlocker{BlockerID: blockerID, Code: domain.ErrorTaskBlocked, Cause: domain.BlockerCause(decision.Assessment.Classification), Message: "The uncertain graph mutation requires exact repository restoration before work can continue.", ResumeNode: resume, ObservedBindingDigest: decision.Assessment.ObservedBindingDigest, Condition: *decision.Assessment.UnblockCondition, RequiredResolution: "Restore the exact repository binding recorded when the original action was issued.", CreatedAt: now}
 	effectiveDigest, err := next.EffectiveRepositoryBindingDigest()
 	if err != nil {
 		return store.TaskMutation{}, domain.ErrInternal
@@ -431,6 +453,7 @@ func (s *Service) planResolveBlockerMutation(r ApplyActionRequest, task domain.P
 	}
 	now := s.now().UTC()
 	destination := *task.ResumeNode
+	resolvedCause := task.Blocker.Cause
 	next.CurrentNode, next.ResumeNode, next.Blocker = destination, nil, nil
 	next.Revision++
 	next.UpdatedAt = now
@@ -457,7 +480,7 @@ func (s *Service) planResolveBlockerMutation(r ApplyActionRequest, task domain.P
 	if err != nil {
 		return store.TaskMutation{}, err
 	}
-	event := store.TaskEvent{EventID: eventID, TaskID: next.TaskID, Revision: next.Revision, Kind: domain.OperationApplyAction, SourceNode: domain.NodeBlocked, DestinationNode: destination, TransitionReason: "Recovery blocker resolved after exact repository restoration.", ActionID: &resolvedActionID, RequestID: r.RequestID, PayloadDigest: digest, CreatedAt: now}
+	event := store.TaskEvent{EventID: eventID, TaskID: next.TaskID, Revision: next.Revision, Kind: domain.OperationApplyAction, SourceNode: domain.NodeBlocked, DestinationNode: destination, TransitionReason: blockerResolvedReason(resolvedCause), ActionID: &resolvedActionID, RequestID: r.RequestID, PayloadDigest: digest, CreatedAt: now}
 	if workflow.ValidateProcessTask(next) != nil {
 		return store.TaskMutation{}, domain.ErrInvalidArgument
 	}

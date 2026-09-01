@@ -289,7 +289,7 @@ func TestResolveBlockerActionBuildsItsPayloadInCore(t *testing.T) {
 	task.CurrentNode = domain.NodeBlocked
 	task.ResumeNode = &resume
 	task.Blocker = &domain.ProcessBlocker{
-		BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.RecoveryConflicting,
+		BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.BlockerCauseRecoveryConflicting,
 		ResumeNode: resume, Message: "Restore repository binding.", ObservedBindingDigest: task.Repository.BindingDigest,
 		Condition:          domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: task.Repository.BindingDigest},
 		RequiredResolution: "Restore the issuance binding.", CreatedAt: task.UpdatedAt,

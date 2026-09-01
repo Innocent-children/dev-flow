@@ -20,6 +20,7 @@ documents. The [Command Reference](COMMANDS_en.md) remains the complete invocati
 | Task scope | `TaskIntent` and Repository Scope |
 | Verification limit | verification budget |
 | Existing verification | `TestRecord` / evidence |
+| Recent test attempts | `VerificationAttempt`, retaining at most three entries |
 | Recovery conclusion | Recovery Assessment |
 | Blocking reason | Blocker |
 | Completion result | `ProcessOutcome` |
@@ -112,6 +113,7 @@ case sequencing, transaction inputs, and projections, but no second process defi
 - 29 transitions, guards, and reason rules;
 - node-specific payload validators;
 - authority invalidation;
+- automatic-brake decisions for three exact repeated test attempts;
 - semantic method steps;
 - the process definition digest.
 
@@ -130,6 +132,7 @@ DesignBaseline
 TaskPlanBaseline
 ImplementationRecord
 TestRecord
+VerificationAttempt
 ComprehensionAssessment
 ProcessOutcome
 ```
@@ -146,6 +149,7 @@ invalidate related downstream records.
 - an independent recoverable Action operation;
 - append-only TaskEvent audit entries;
 - bounded evidence;
+- at most three recent `VerificationAttempt` entries;
 - the repository claim;
 - LastOperation;
 - revision CAS.
@@ -199,6 +203,28 @@ and Recovery replays that immutable submission.
 Core does not run checkout, reset, clean, stash, commit, merge, rebase, push, tag, or publication
 operations, and exposes no generic shell. Action `allowed_effects` describe operations a host may
 perform under user authority.
+
+### Automatic verification brake
+
+A TEST submission first passes the existing verification-budget check and retains its evidence. The
+Task snapshot also keeps the three most recent `VerificationAttempt` entries. Each records its Task
+Plan, Implementation revision, original transition destination, evidence IDs, normalized result and
+failure digests, and changed paths. The first version uses exact matching only:
+
+- the same automatic check and failure appear in three consecutive attempts;
+- the complete normalized test result is identical in three attempts;
+- all three tests originally return to IMPLEMENT, Implementation revisions increase, and the changed
+  paths and failure digest remain identical.
+
+The third result is still committed in the same Task mutation, but the mutation sets the current node
+to `BLOCKED` and retains the original transition destination in `resume_node`. TaskEvent does not
+invent a standard transition. The Blocker condition is `allow_verification_retry`. A Host must wait
+for explicit developer approval before calling `dev_flow_resolve_blocker`; resolution returns to the
+retained destination. The three-attempt sliding window means another exact repetition pauses again.
+
+This capability adds no node, transition, or second process cursor, so the `standard-development`
+definition digest is unchanged. The SQLite table schema is also unchanged; an older snapshot with no
+`verification_attempts` member reads it as empty history.
 
 ### Recovery
 

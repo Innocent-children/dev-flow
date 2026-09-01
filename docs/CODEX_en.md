@@ -74,6 +74,12 @@ If the previous Action response was lost or truncated, the Adapter reads the cur
 Recovery assessment before continuing, recovering, blocking, or retrying safely. It does not replay
 the original submission on its own.
 
+When the same failure, the same test result, or the same changed-path and failure loop appears three
+times, Core retains the third result and pauses the Task. Codex does not resolve that blocker
+automatically. After the developer explicitly chooses another approach or allows one more attempt,
+the Adapter resolves the blocker and continues from Core's retained resume stage. Another exact
+repetition pauses the Task again.
+
 ## Inspect status
 
 Inspect package and registration state:

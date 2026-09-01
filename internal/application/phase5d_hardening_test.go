@@ -223,7 +223,7 @@ func TestCancelTerminalAndReasonValidationZeroWrite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	blocked.CurrentNode, blocked.ResumeNode, blocked.Blocker, blocked.CurrentAction = domain.NodeBlocked, &resume, &domain.ProcessBlocker{BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.RecoveryConflicting, ResumeNode: resume, Message: "Restore repository binding.", ObservedBindingDigest: blocked.Repository.BindingDigest, Condition: domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: blocked.Repository.BindingDigest}, RequiredResolution: "Restore the issuance binding.", CreatedAt: blocked.UpdatedAt}, &action
+	blocked.CurrentNode, blocked.ResumeNode, blocked.Blocker, blocked.CurrentAction = domain.NodeBlocked, &resume, &domain.ProcessBlocker{BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.BlockerCauseRecoveryConflicting, ResumeNode: resume, Message: "Restore repository binding.", ObservedBindingDigest: blocked.Repository.BindingDigest, Condition: domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: blocked.Repository.BindingDigest}, RequiredResolution: "Restore the issuance binding.", CreatedAt: blocked.UpdatedAt}, &action
 	blockedMemory.task = &blocked
 	blockedResult, err := blockedService.CancelTask(context.Background(), CancelTaskRequest{RequestID: "cancel-blocked", Host: domain.HostCodex, TaskID: blocked.TaskID, ExpectedRevision: blocked.Revision, Reason: "Cancel blocked task."})
 	if err != nil || blockedResult.Task.CurrentNode != domain.NodeCancelled || blockedResult.Task.Blocker != nil || blockedResult.Task.ResumeNode != nil {

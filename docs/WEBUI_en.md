@@ -11,13 +11,18 @@ does not retain a second process state; every read and operation goes through th
 
 - the shared Task overview and filtered list across Hosts;
 - current stage, scope, revision, Action, and legal next step;
-- timeline, process graph, test records, and comprehension records;
-- Recovery assessment, Blocker, and required recovery condition;
+- timeline, process graph, test and comprehension records, and the three most recent test attempts;
+- Recovery assessment, automatic-brake Blocker, and the required recovery or continuation condition;
 - primary and additional repositories, including the advanced worktree view;
 - current Core, data directory, and runtime status.
 
 The interface supports Simplified Chinese and English. First use follows browser language, while a
 manual choice remains only in the current browser and does not enter Core, Task, or account state.
+
+After the automatic brake triggers, the page shows the exact repetition reason, retained resume
+stage, and current resolution condition. It does not resolve on the developer's behalf. The developer
+may explicitly allow one continuation or cancel the Task. If the next test repeats exactly, the Task
+pauses again.
 
 ## Start, open, inspect, and stop
 

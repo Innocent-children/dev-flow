@@ -18,6 +18,7 @@ Host lifecycle 细节的主要归属。命令的完整调用形式仍以[命令�
 | 任务范围 | `TaskIntent` 与 Repository Scope |
 | 验证限制 | verification budget |
 | 已有验证 | `TestRecord` / evidence |
+| 最近测试尝试 | `VerificationAttempt`，最多保留三条 |
 | 恢复结论 | Recovery Assessment |
 | 阻塞原因 | Blocker |
 | 完成结果 | `ProcessOutcome` |
@@ -106,6 +107,7 @@ schema，再进行 task-bearing 调用。
 - 29 条 transition、guard 与 reason rule；
 - node-specific payload validator；
 - authority invalidation；
+- 三次精确重复测试的自动刹车判断；
 - method semantic steps；
 - process definition digest。
 
@@ -123,6 +125,7 @@ DesignBaseline
 TaskPlanBaseline
 ImplementationRecord
 TestRecord
+VerificationAttempt
 ComprehensionAssessment
 ProcessOutcome
 ```
@@ -138,6 +141,7 @@ revision 表示当前 authority。上游变更会使对应下游记录失效，�
 - 独立的可恢复 Action 操作记录；
 - append-only TaskEvent audit；
 - bounded evidence；
+- 最多三条近期 `VerificationAttempt`；
 - repository claim；
 - LastOperation；
 - revision CAS。
@@ -183,6 +187,24 @@ mutation。全部通过后才暂存规范化 payload，Recovery 仍只重放该�
 
 Core 不执行 checkout、reset、clean、stash、commit、merge、rebase、push、tag、publish，也不
 暴露 generic shell。Action 中的 `allowed_effects` 描述 Host 在用户授权下可执行的动作。
+
+### 自动刹车
+
+TEST 提交先按现有 verification budget 校验并保存本次 evidence。Task snapshot 同时保留最近三次
+`VerificationAttempt`，每条记录所属 Task Plan、Implementation revision、原 transition 目标、
+evidence ID、规范化结果摘要、失败摘要和修改路径。第一版只做精确匹配：
+
+- 同一自动检查与失败连续出现三次；
+- 三次测试的完整规范化结果相同；
+- 三次测试都原本返回 IMPLEMENT，Implementation revision 连续增加，并且修改路径与失败摘要相同。
+
+第三次结果仍然写入同一次 Task mutation，但 mutation 的当前节点改为 `BLOCKED`，`resume_node`
+保存原 transition 目标，TaskEvent 不伪造新的标准 transition。Blocker condition 为
+`allow_verification_retry`。Host 必须等用户明确允许后才能调用 `dev_flow_resolve_blocker`；解除后回到
+保存的目标节点。最近三次尝试采用滑动窗口，因此下一次完全重复会再次暂停。
+
+这项能力不增加节点、transition 或第二份流程游标，`standard-development` definition digest 不变。
+SQLite 表结构也不变；旧 snapshot 缺少 `verification_attempts` 时按空历史读取。
 
 ### Recovery
 
