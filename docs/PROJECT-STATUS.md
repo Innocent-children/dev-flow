@@ -2,18 +2,12 @@
 
 [中文](PROJECT-STATUS.md) | [English](PROJECT-STATUS_en.md)
 
-_最后核对：2026 年 8 月 31 日。_
+_最后核对：2026 年 9 月 1 日。_
 
-Dev Flow 仍是一个早期开源项目，但已经有公开 package 和真实 Host 旅程。本页刻意区分三种证据：
+Dev Flow 仍是一个早期开源项目。本页区分已经稳定发布、只在 beta 或源码中出现、尚未验证，以及
+产品仍需改进的内容。源码可构建或测试通过不会自动扩大稳定支持。
 
-1. **稳定产品证据**：registry package 完成发布和 Host 生命周期门禁；
-2. **预览/源码证据**：更新能力已经进入 npm `beta` 或 `main`；
-3. **采用证据**：外部用户、贡献者和依赖项目。
-
-前两类证据已经存在；外部采用仍处于早期，本页不会把下载次数、测试数量或维护者自己的 PR
-包装成“广泛采用”。
-
-## 稳定支持
+## 已稳定发布
 
 npm `@latest` 当前选择以下稳定 package：
 
@@ -23,43 +17,77 @@ npm `@latest` 当前选择以下稳定 package：
 | `dev-flow-deepseek` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
 | `@imotong/dev-flow` | macOS arm64、Node.js `>=20` |
 
-稳定声明来自 registry package 的安装、Host/Core handshake、移除、卸载与仓库不变性检查；DeepSeek
-稳定旅程还覆盖显式触发、重启恢复、`DONE` 与 retained reopen。精确 Release 和 artifact 入口见
-[Support Matrix](SUPPORT-MATRIX.md)。
+稳定 lifecycle 记录覆盖 registry package 安装、Host/Core 就绪检查、移除、卸载和目标仓库不变性。
+DeepSeek 稳定 Journey 还覆盖显式触发、重启恢复、`DONE` 和保留数据后的重新打开。准确 Release 与
+制品入口见 [Support Matrix](SUPPORT-MATRIX.md)。
 
-## 当前源码
+## 当前源码与预览能力
 
-| 产品 | 当前能力 |
+以下能力存在于当前 `main`，其中部分可能只在 beta 或源码中：
+
+| 用户可见能力 | 当前内容 |
 | --- | --- |
-| `dev-flow-codex` | 智能选择、setup、Plugin/MCP 注册、多仓库 Task Scope、显式并行批次路由，以及新请求遇到 `ACTIVE_TASK_CONFLICT` 时的单 worktree Task 分派 |
-| `dev-flow-deepseek` | DSH bundle、显式触发和多仓库 Task Scope |
-| `@imotong/dev-flow` | 统一 Adapter 生命周期与本机 Control Center launcher；Control Center 可显示逻辑仓库组和实际 worktree |
+| 持久 Task | 本地保存请求、范围、当前阶段、验证预算、记录、阻塞和结果 |
+| 中断后继续 | Codex 和 DeepSeek 从同一 Task 恢复当前阶段与下一步 |
+| 范围与验证限制 | 明确 Repository Scope、verification budget 和记录失效规则 |
+| 不确定 Action 恢复 | read-before-retry、Recovery 判断、Blocker 和 resume |
+| 交付前理解确认 | 测试后进入理解确认；仓库变更后重新测试 |
+| 本机查看与诊断 | 共享 loopback WebUI，入口为 `dev-flow webui start|open|status|stop|reset` |
+| 高级仓库能力 | 一个主仓库加最多七个显式附加仓库；Codex 在 Host 支持时可分派独立 worktree Task |
+| Host 生命周期 | 统一 `dev-flow` 入口管理 Codex 与 DeepSeek 的安装、诊断、维护和移除 |
 
-当前源码还包含嵌入 Core 的共享本机 WebUI，公共入口为
-`dev-flow webui start|open|status|stop|reset`。源码测试通过不单独扩大平台或 Host 支持范围；公开支持
-仍以 registry package 回读和最终 Host Journey 为准。
+多仓库与 worktree 是高级能力，不代表 Dev Flow 的主要用户场景。它们的源码存在也不表示已有对应
+稳定最终制品 Journey。
 
-## 证据导览
+## 尚未验证
+
+- Linux、Windows、Intel Mac、Rosetta 和 remote MCP 没有稳定支持声明；
+- Codex 的显式并行批次和 `ACTIVE_TASK_CONFLICT` 后 worktree 分派仍缺少最终制品 Journey；
+- verification budget 尚未通过外部使用数据证明能够减少无效测试；
+- comprehension gate 尚未通过长期项目数据证明能够降低维护成本或缺陷率；
+- 外部采用、长期重复使用和依赖项目仍然有限。
+
+## 当前记录导览
 
 | 入口 | 能回答什么问题 |
 | --- | --- |
-| [Codex 多仓库 Attempt 7](../tests/journeys/codex/evidence/feature-001-multi-repository-attempt-7.json) | Codex 能否在两个独立会话中从附加仓库恢复同一 Task？ |
+| [Codex 多仓库 Attempt 7](../tests/journeys/codex/evidence/feature-001-multi-repository-attempt-7.json) | 两个独立 Codex 会话能否从附加仓库恢复同一 Task？ |
 | [DeepSeek 多仓库 Attempt 5](../tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-5.json) | DSH 是否真实完成多仓库、重启恢复、定向验证、理解确认和 `DONE`？ |
 | [PR #8](https://github.com/Innocent-children/dev-flow/pull/8) | Codex 状态图是否真实覆盖重构、重新测试、理解确认和交付？ |
-| [Support Matrix](SUPPORT-MATRIX.md) | 哪些公开稳定 package 与 Host 环境具有最终制品证据？ |
-| [Release 目录](../release/README.md) | 维护者如何构建、回读并发布不可变制品？ |
+| [Support Matrix](SUPPORT-MATRIX.md) | 哪些公开稳定 package 与 Host 环境完成最终制品验证？ |
+| [Release 目录](../release/README.md) | 维护者如何构建、回读并发布制品？ |
+
+不同记录分别说明不同范围。不能把它们合并描述成“一次运行证明全部能力”。
+
+## 外部采用情况
+
+当前公开 Issue、外部 Pull Request、依赖项目和长期重复使用记录仍然很少。npm 下载次数、仓库测试
+数量和维护者自己的 Journey 不能单独说明外部用户已经持续使用并获得效果。本页目前只能确认公开
+package 可用和已有的具体 Host Journey，不能据此推导缺陷率、验证成本或长期维护结果。
+
+## 当前产品缺口
+
+- 当前内部状态仍需要更短、更直接的用户摘要；
+- Recovery 需要更直接的公开故障注入演示；
+- verification budget 尚未通过外部使用数据证明能减少无效测试；
+- 尚未量化中断后恢复耗时、错误阻塞率和重复使用率；
+- 当前还不能清楚展示验证预算如何消耗，以及为什么扩大；
+- 多仓库与 worktree 是高级能力，不代表主要用户场景；
+- 外部 Issue、Pull Request、依赖项目和长期采用仍然有限。
+
+这些缺口是后续评估方向，不是已经交付的功能。优先级见 [Roadmap](ROADMAP.md)。
 
 ## 当前限制
 
-- 稳定支持仅覆盖 macOS arm64；没有 Linux、Windows、Intel Mac、Rosetta 或 remote MCP 声明。
-- 项目创建时间较短，外部 Issue、PR、依赖项目与长期采用证据仍有限。
-- Core 不是 Host sandbox，不会拦截 Host 的每一次文件读写或 shell 命令。
-- 同一逻辑仓库的显式并行批次和 `ACTIVE_TASK_CONFLICT` 后单 Task 自动分派都依赖 Host 提供 worktree-backed task/thread 能力；能力不可用时需要用户另开 worktree，且这些源码能力尚无最终制品 Journey 声明。
-- 当前没有遥测、用户自定义流程图或自动历史 Task 迁移；WebUI 只支持本机 loopback，不提供远程访问。
+- Core 不是 Host sandbox，不会拦截每一次文件读写或 shell 命令；
+- Core 只读观察 Git，不执行 commit、push、merge、rebase、tag 或 publish；
+- 当前没有遥测、用户自定义流程图或自动历史 Task 迁移；
+- WebUI 只支持本机 loopback，不提供远程访问或多用户权限；
+- 稳定支持范围只以 [Support Matrix](SUPPORT-MATRIX.md) 为准。
 
-## 评估项目时建议查看
+## 如何评估
 
-1. 先读[两分钟演示](DEMO.md)，判断问题和使用方式是否清楚；
-2. 再读 [Support Matrix](SUPPORT-MATRIX.md)，区分稳定支持与预览能力；
-3. 打开上表的 Journey 证据，核对真实 Host 运行范围；
-4. 阅读 [Security Policy](../SECURITY.md) 和 [Threat Model](THREAT-MODEL.md)，了解明确剩余风险。
+1. 先读[中断后继续的演示](DEMO.md)，判断主要问题是否适合自己的任务；
+2. 再读 [Support Matrix](SUPPORT-MATRIX.md)，区分稳定支持与源码能力；
+3. 按需打开上表中的真实 Journey，核对每项记录的准确范围；
+4. 阅读 [Security Policy](../SECURITY.md) 和 [Threat Model](THREAT-MODEL.md)，了解剩余风险。

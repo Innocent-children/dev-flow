@@ -2,20 +2,15 @@
 
 [中文](PROJECT-STATUS.md) | [English](PROJECT-STATUS_en.md)
 
-_Last reviewed: August 31, 2026._
+_Last reviewed: September 1, 2026._
 
-Dev Flow is an early open-source project with real published packages and real Host journeys. This
-page separates three different kinds of evidence:
+Dev Flow remains an early open-source project. This page separates stable releases, beta or source
+capabilities, unverified claims, and product gaps. A buildable source tree or passing tests do not
+expand stable support automatically.
 
-1. **stable product evidence** — a registry package completed the release and Host lifecycle gates;
-2. **preview/source evidence** — newer behavior exists in npm `beta` or on `main`;
-3. **adoption evidence** — external users, contributors, and dependent projects.
+## Stable releases
 
-The first two exist today. External adoption is still early and is not overstated here.
-
-## Stable support
-
-`@latest` selects the stable packages below.
+npm `@latest` currently selects these stable packages:
 
 | Product | Verified environment |
 | --- | --- |
@@ -23,47 +18,85 @@ The first two exist today. External adoption is still early and is not overstate
 | `dev-flow-deepseek` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
 | `@imotong/dev-flow` | macOS arm64, Node.js `>=20` |
 
-Stable claims come from registry-package installation, Host/Core handshake, removal, uninstallation,
-and repository-unchanged gates. The DeepSeek stable journey also covers explicit activation,
-restart recovery, `DONE`, and retained reopen. See the [Support Matrix](SUPPORT-MATRIX_en.md) for
-exact Releases and artifact identities.
+Stable lifecycle records cover registry-package installation, Host/Core readiness, removal,
+uninstallation, and an unchanged target repository. The DeepSeek stable journey also covers explicit
+activation, restart recovery, `DONE`, and reopen with retained data. See the
+[Support Matrix](SUPPORT-MATRIX_en.md) for exact Releases and artifacts.
 
-## Current source
+## Current source and preview capability
 
-| Product | Current capabilities |
+The following capabilities exist on current `main`; some may be beta-only or source-only:
+
+| User-visible capability | Current content |
 | --- | --- |
-| `dev-flow-codex` | smart selection, setup, Plugin/MCP registration, multi-repository Task Scope, explicit parallel-batch routing, and one-worktree Task dispatch when a new request meets `ACTIVE_TASK_CONFLICT` |
-| `dev-flow-deepseek` | DSH bundle, explicit activation, and multi-repository Task Scope |
-| `@imotong/dev-flow` | unified Adapter lifecycle and local Control Center launcher; Control Center displays logical repository groups and physical worktrees |
+| Durable Task | Locally retain request, scope, current stage, verification budget, records, blockers, and outcome |
+| Continue after interruption | Codex and DeepSeek resume the current stage and next step from the same Task |
+| Scope and verification limits | Explicit Repository Scope, verification budget, and record invalidation |
+| Uncertain Action recovery | Read-before-retry, Recovery assessment, Blocker, and resume |
+| Pre-delivery comprehension | Comprehension follows testing; repository changes require testing again |
+| Local view and diagnostics | Shared loopback WebUI through `dev-flow webui start|open|status|stop|reset` |
+| Advanced repository capability | One primary plus up to seven explicit additional repositories; Codex may dispatch isolated worktree Tasks when the Host supports it |
+| Host lifecycle | Unified `dev-flow` entry for Codex and DeepSeek installation, diagnosis, maintenance, and removal |
 
-Current source also includes the shared local WebUI embedded in Core, exposed through
-`dev-flow webui start|open|status|stop|reset`. Passing source tests alone does not expand platform or
-Host support; public support still depends on registry-package read-back and a final Host journey.
+Multi-repository and worktree behavior is advanced capability, not the primary user scenario. Source
+presence also does not imply a corresponding stable final-artifact journey.
 
-## Evidence map
+## Not yet verified
+
+- Linux, Windows, Intel Mac, Rosetta, and remote MCP have no stable support claim;
+- Codex explicit parallel batches and worktree dispatch after `ACTIVE_TASK_CONFLICT` do not yet have
+  a final-artifact journey;
+- external usage has not established that the verification budget reduces unnecessary testing;
+- long-term project data has not established that the comprehension gate reduces maintenance cost or
+  defects;
+- external adoption, repeated long-term use, and dependent projects remain limited.
+
+## Current record map
 
 | Entry point | Question it can answer |
 | --- | --- |
 | [Codex multi-repository Attempt 7](../tests/journeys/codex/evidence/feature-001-multi-repository-attempt-7.json) | Can two independent Codex sessions resume the same Task from an additional repository? |
 | [DeepSeek multi-repository Attempt 5](../tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-5.json) | Did a real DSH journey complete multi-repository work, restart recovery, targeted verification, comprehension, and `DONE`? |
-| [PR #8](https://github.com/Innocent-children/dev-flow/pull/8) | Did a real Codex graph journey cover refactoring, retesting, comprehension acceptance, and delivery? |
-| [Support Matrix](SUPPORT-MATRIX_en.md) | Which public stable packages and Host environments have final-artifact evidence? |
-| [Release directory](../release/README.md) | How do maintainers build, read back, and publish immutable artifacts? |
+| [PR #8](https://github.com/Innocent-children/dev-flow/pull/8) | Did a real Codex graph journey cover refactoring, retesting, comprehension, and delivery? |
+| [Support Matrix](SUPPORT-MATRIX_en.md) | Which public stable packages and Host environments completed final-artifact validation? |
+| [Release directory](../release/README.md) | How do maintainers build, read back, and publish artifacts? |
+
+These records cover independent scopes. They must not be combined into a claim that one run proved
+the entire product.
+
+## External adoption status
+
+Public Issues, external pull requests, dependent projects, and long-term repeat-use records remain
+scarce. npm downloads, repository test counts, and maintainer-owned journeys do not by themselves
+show sustained external use or outcomes. Current material establishes package availability and the
+specific Host journeys listed above, not defect-rate, verification-cost, or long-term-maintenance
+results.
+
+## Current product gaps
+
+- Internal state still needs a shorter, more direct user summary;
+- Recovery needs a more direct public fault-injection demonstration;
+- external usage has not established that the verification budget reduces unnecessary testing;
+- recovery time, false-block rate, and repeat-use rate have not been measured;
+- verification-budget consumption and the reason for expansion are not yet clear enough;
+- multi-repository and worktree behavior is advanced capability, not the primary user scenario;
+- external Issues, pull requests, dependent projects, and long-term adoption remain limited.
+
+These are evaluation directions, not delivered capabilities. See the [Roadmap](ROADMAP_en.md) for
+priority.
 
 ## Current limitations
 
-- Stable support is macOS arm64 only; there is no Linux, Windows, Intel Mac, Rosetta, or remote MCP
-  claim.
-- The project is young, so external Issues, pull requests, dependent projects, and long-term adoption
-  evidence remain limited.
-- Core is not a Host sandbox and does not intercept every Host file operation or shell command.
-- Explicit parallel batches and single-Task dispatch after `ACTIVE_TASK_CONFLICT` both depend on a Host-provided worktree-backed task/thread capability. Without it, users start another worktree themselves, and these source capabilities do not yet have a final-artifact Journey claim.
-- There is currently no telemetry, user-defined graph, or automatic historical Task migration; the
-  WebUI is local loopback only and provides no remote access.
+- Core is not a Host sandbox and does not intercept every file operation or shell command;
+- Core observes Git read-only and does not commit, push, merge, rebase, tag, or publish;
+- there is no telemetry, user-defined graph, or automatic historical Task migration;
+- the WebUI is local loopback only, with no remote access or multi-user permissions;
+- stable support is only what the [Support Matrix](SUPPORT-MATRIX_en.md) lists.
 
 ## How to evaluate the project
 
-1. Read the [two-minute walkthrough](DEMO_en.md) to understand the problem and user experience.
-2. Read the [Support Matrix](SUPPORT-MATRIX_en.md) to separate stable support from preview behavior.
-3. Open the journey evidence above to inspect the exact real-Host claims.
+1. Read the [interruption-and-resume demo](DEMO_en.md) to see whether the primary problem fits your
+   work.
+2. Read the [Support Matrix](SUPPORT-MATRIX_en.md) to distinguish stable support from source capability.
+3. Open the real journeys above when you need the exact scope of a record.
 4. Read the [Security Policy](../SECURITY.md) and [Threat Model](THREAT-MODEL_en.md) for residual risk.

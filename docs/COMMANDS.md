@@ -2,6 +2,9 @@
 
 [中文](COMMANDS.md) | [English](COMMANDS_en.md)
 
+> 普通用户通常只需要安装统一入口、运行 `dev-flow`，并在 Host 中使用对应 selector。其余命令
+> 主要用于诊断、恢复和集成开发。
+
 本文件列出 Dev Flow 当前公开或受支持的命令入口。命令范围以实际实现为准：Codex 命令来自
 `packages/dev-flow/package.json` 与其 CLI、`packages/codex/package.json` 与
 `packages/codex/bin/dev-flow-codex.mjs`，DeepSeek 生命周期命令
@@ -10,6 +13,16 @@
 
 公开安装示例使用 npm 的 `latest` dist-tag，以便安装当前最新稳定包；支持矩阵、Release 链接和
 制品证据仍使用精确版本号，不应替换为 `latest`。
+
+## 多数用户需要的推荐入口
+
+```bash
+npm install -g @imotong/dev-flow@latest
+dev-flow
+```
+
+安装后，Codex 使用 `$dev-flow-codex:dev-flow <任务描述>`，DeepSeek Harness 使用
+`/dev-flow <任务描述>`。这两项是 Host 对话 selector，不是 shell 命令。
 
 ## 统一 Adapter 生命周期
 

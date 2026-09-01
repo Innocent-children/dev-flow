@@ -2,82 +2,66 @@
 
 [中文](ROADMAP.md) | [English](ROADMAP_en.md)
 
-Dev Flow advances through user value and verifiable outcomes. Dates are not commitments. Every
-product capability requires an independent specification, explicit boundaries, and reproducible
-evidence.
+The roadmap describes user outcomes to improve, not delivery dates. Delivered capabilities and their
+current status belong in [Project Status](PROJECT-STATUS_en.md); stable support remains in the
+[Support Matrix](SUPPORT-MATRIX_en.md).
 
-## Current: a reliable local development graph
+## North Star
 
-Delivered capabilities:
+> After a long-running task is interrupted, give the developer and agent a trustworthy current state
+> and a next step that does not expand work, repeat effects, or broaden verification without reason.
 
-- `standard-development` with Go Core as the sole process authority;
-- eight working nodes, `DONE`, two exceptional nodes, and 29 controlled transitions;
-- requirements/design/task-plan baselines and downstream authority invalidation;
-- the `TEST → COMPREHENSION_REVIEW → REFACTOR → TEST` maintainability loop;
-- `plain`, `spec-kit`, and `openspec` method profiles;
-- fifteen-tool local STDIO MCP with Action-kind-specific submission schemas and Core-retained normalized submissions;
-- local SQLite, revision CAS, restart/resume, and retained terminal data;
-- five-class Recovery, read-before-retry, and Core-owned blocker/resume;
-- bounded read-only Git observation;
-- an immutable Repository Scope with one primary and up to seven explicit additional repositories,
-  all sharing one Task authority;
-- host-specific optional code-index preferences from fixed read-only user configuration, with
-  built-in search fallback when the index is unavailable;
-- Codex setup configuration creation, exact configuration/receipt change summaries, and a
-  degradable Simplified Chinese or English installation screen;
-- explicit Codex and DeepSeek Host Adapters.
-- the published `dev-flow` unified Adapter lifecycle and public WebUI launcher for status, diagnosis, installation,
-  upgrade, repair, reinstall, uninstall, and ownership-safe factory reset.
+## Now: understand the current Task
 
-## Current public products
+This stage improves the clarity and cost of using capabilities that already exist:
 
-Core is the independent bundled runtime in both Host packages. Codex, DeepSeek, and the Dev Flow CLI
-are available through npm. See the [Support Matrix](SUPPORT-MATRIX_en.md) for platform and Host
-compatibility requirements.
+- summarize what the current Task is;
+- distinguish confirmed results from results that remain uncertain;
+- show which verification records still apply to the current implementation;
+- explain why a Task is blocked and what must be confirmed;
+- show the current legal next step directly;
+- make the current stage, remaining verification budget, and Recovery assessment easier to read in
+  the Host and local WebUI.
 
-## Next: lower the cost of daily use
+This work does not change the current state graph or introduce a second Task state.
 
-These directions improve visibility and diagnosis around the current graph:
+## Next: make completion decisions more trustworthy
 
-- a separate lifecycle-manager release and registry lifecycle evidence;
-- a concise Task inspection view for current node, blocker, remaining verification budget, and
-  available transitions;
-- direct recovery guidance that turns the five-class assessment into short, actionable instructions;
-- artifacts for additional platforms after independent final-artifact evidence is complete.
+The following are future directions and are not implemented, or not fully implemented, today:
 
-Each capability preserves one Core authority, read-only Git, and read-before-retry.
+- a clearer comparison between declared scope and actual repository changes;
+- stronger binding between verification records and current implementation state;
+- visible verification-budget consumption and the stated reason for expansion;
+- a public fault-injection journey for an uncertain Action;
+- lower process cost based on task complexity;
+- different process intensity for small tasks, ordinary long tasks, and strict tasks.
 
-## Later candidate: controlled collaboration
+Names such as Skip, Guarded, and Strict are not delivered user features. Any future naming and
+behavior requires an independent product design and a real journey.
 
-After real cross-host use establishes value, Dev Flow may evaluate:
+## Later: trustworthy handoff
 
-- user-authorized Codex ↔ DeepSeek handoff;
-- a verifiable Task export reference or handoff receipt;
-- a read-only shared view for team review;
-- more granular but still bounded verification budgets.
+The following are later candidates and are not implemented today:
 
-Cross-host behavior must retain a single Task authority and cannot introduce an Adapter-owned
-process cursor.
+- explicit handoff between Codex and DeepSeek;
+- Task export or a handoff receipt;
+- read-only PR / CI verification summaries;
+- a team read-only Task view;
+- thinner OpenSpec / Spec Kit artifact integration.
 
-## Research directions
+Handoff must continue to use one Core Task state. An Adapter cannot copy the current stage or decide
+completion independently.
 
-Longer-term research includes:
+## Not planned
 
-- reproducible artifacts for additional OS/CPU combinations;
-- supply-chain signing, notarization, and transparency evidence;
-- measuring the effect of the comprehension gate in real projects;
-- improving the built-in graph while keeping it direct and bounded.
+Dev Flow does not currently plan to:
 
-## Continuing boundary
+- become a general-purpose agent;
+- make Core a shell or file-system sandbox;
+- commit, merge, rebase, push, tag, or publish automatically;
+- provide an arbitrary workflow DSL or user-defined state machine;
+- scan neighboring repositories and expand Repository Scope automatically;
+- turn the local WebUI into a cloud project-management platform.
 
-The current roadmap now delivers a local single-user WebUI. It does not include user-defined graphs, a workflow DSL,
-remote WebUI, remote MCP,
-generic shell, Core Git mutation, automatic discovery or dynamic expansion of Repository Scope,
-automatic multi-repository orchestration, repository-level process state, or automatic historical
-Task migration. A proposal that changes these boundaries requires an independent product
-product design and architecture review.
-
-The current Codex direction uses native Skill smart activation: clear task-bearing development requests
-may select Dev Flow implicitly, the exact selector remains a force-entry path, and non-task requests do
-not automatically create Tasks. A custom classifier, activation-mode configuration, duplicate Skill, and
-persistent activation state are outside the current roadmap.
+A new platform, Host, or interface enters the roadmap only when it improves long-running task
+continuation and has an independent validation method.

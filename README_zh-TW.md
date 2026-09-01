@@ -4,170 +4,95 @@
 
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>讓 Codex 與 DeepSeek 在長任務中守住範圍、控制驗證，並在中斷後繼續。</strong></p>
-
-<p align="center">
-  <a href="https://www.npmjs.com/package/dev-flow-codex"><img src="https://img.shields.io/npm/v/dev-flow-codex?label=dev-flow-codex" alt="Codex npm" /></a>
-  <a href="https://www.npmjs.com/package/dev-flow-deepseek"><img src="https://img.shields.io/npm/v/dev-flow-deepseek?label=dev-flow-deepseek" alt="DeepSeek npm" /></a>
-  <a href="https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml"><img src="https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="Apache 2.0 License" /></a>
-</p>
+<p align="center"><strong>讓長時間 AI 程式開發工作從持久 Task 狀態繼續，而不是從聊天記錄重新猜測。</strong></p>
 
 <p align="center">
   <a href="README.md">简体中文</a> · <a href="README_en.md">English</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-Dev Flow 為 AI 程式設計任務提供一份**獨立於聊天記錄的本機持久狀態**。它會記住：
+> 此頁是穩定文件快照。最新且持續同步的產品說明請參閱
+> [简体中文](README.md) 或 [English](README_en.md)。
 
-- 這次任務允許修改什麼，以及明確排除哪些工作；
-- 目前處於需求、設計、實作、測試或交付階段；
-- 已約定多少驗證，以及哪些證據已完成；
-- 會話中斷或寫入結果不確定時，應恢復、阻塞或安全重試。
+Dev Flow 是長時間 AI 程式開發工作的本機流程控制與恢復層。它在聊天記錄之外保存任務目標、範圍、
+目前階段、驗證預算、已有驗證、阻塞原因與恢復狀態，讓 Codex 或 DeepSeek 在內容壓縮、Host 重啟
+或操作結果不確定後繼續同一個 Task。
 
-**它不是另一個程式設計 Agent，也不是任務編排器。** Codex 與 DeepSeek 仍負責讀取儲存庫、
-修改程式碼和執行命令；Dev Flow 只管理單一開發任務的範圍、階段、驗證強度、證據與恢復。
+## 它解決的主要問題
 
-**快速入口：** [兩分鐘看懂完整任務](docs/DEMO.md) ·
-[查看目前版本與真實證據](docs/PROJECT-STATUS.md) · [安裝穩定版](#安裝穩定版)
-
-> 本 README 說明目前 `main` 的能力。npm `@latest` 是通過最終製品驗證的穩定版，可能落後於
-> `main`；穩定版、beta 與原始碼的精確差異請見[專案狀態頁](docs/PROJECT-STATUS.md)。
+長時間任務中斷後，新會話常只能根據殘缺聊天與目前 repository 猜測進度，因而重複修改、跳過剩餘
+驗證，或把舊測試結果當成目前結果。Dev Flow 先讀取本機 Task，再從保存的階段與下一步繼續。
 
 ## 30 秒理解
 
-| 直接使用 Agent 時 | Dev Flow 增加的能力 |
+| 直接使用 Agent | Dev Flow 增加的能力 |
 | --- | --- |
-| Prompt 反覆強調「不要擴大範圍」 | Task 保存原始意圖，每一步明確允許做什麼 |
-| 會話重啟後重新掃描儲存庫並猜測進度 | 目前階段、證據與阻塞原因保存在本機，可直接恢復 |
-| 定向檢查逐漸擴成完整回歸或平台矩陣 | 每個 Task 都有明確的 verification budget |
-| 測試通過，但結果仍難以解釋或接手 | 交付前經過 `COMPREHENSION_REVIEW` |
-| 寫入回應遺失後直接重試，可能重複副作用 | 先讀取權威狀態，再依 Recovery 結論行動 |
+| 會話中斷後重新猜測進度 | 恢復同一個本機 Task |
+| 局部任務逐漸擴大範圍 | 保存最初目標與明確邊界 |
+| 定向測試不斷擴大 | 保存 verification budget |
+| 操作回應遺失後直接重試 | 先讀取目前 Task 與 Recovery 狀態 |
+| 測試結果與後續程式變更混在一起 | 保存目前階段及相應記錄 |
 
-## 看一次任務如何執行
+## 適合與不適合
 
-```mermaid
-flowchart LR
-    A["描述任務與邊界"] --> B["需求與設計"]
-    B --> C["實作"]
-    C --> D["定向測試"]
-    D --> E["理解審查"]
-    E --> F["交付"]
-    F --> G["DONE"]
-    D -. 實作問題 .-> C
-    E -. 過度複雜 .-> H["重構"]
-    H --> D
-```
+Dev Flow 適合跨會話、跨天或 Host 重啟後繼續的真實 repository 工作，尤其是需要明確範圍、定向
+驗證、返工路徑或交付前理解確認的任務。
 
-Host 在實作後重新啟動時，新會話會讀取同一個 Task，取得目前階段、已完成證據、剩餘驗證預算
-與合法下一步，而不是從聊天記錄重新推測。詳見[兩分鐘演示](docs/DEMO.md)。
+一次性問答、程式解釋、狀態查詢或不需保存進度的機械性小修改，直接使用 Codex 或 DeepSeek 通常
+更簡單。Dev Flow 不是通用任務編排器、遠端執行平台或安全 sandbox。
 
-## 在工具鏈中的位置
+## 與其他工具的關係
 
-| 工具 | 負責什麼 |
+| 工具 | 職責 |
 | --- | --- |
-| Codex / DeepSeek Harness | 讀取儲存庫、修改程式碼、執行命令 |
-| Spec Kit / OpenSpec | 提供需求、設計與任務拆分方法 |
-| Dev Flow | 保存單一任務的範圍、階段、驗證預算、返工路徑與恢復狀態 |
+| Codex / DeepSeek | 讀取 repository、修改程式並執行命令 |
+| OpenSpec / Spec Kit | 協助整理需求、設計與任務 |
+| Dev Flow | 保存 Task 階段、範圍、驗證預算、恢復狀態與合法下一步 |
 
-## 安裝穩定版
+目前沒有 OpenSpec / Spec Kit artifact importer；更薄的整合仍是未來方向。
 
-目前穩定製品支援 **macOS arm64** 與 **Node.js `>=24`**。精確版本與 Host 相容範圍請見
-[Support Matrix](docs/SUPPORT-MATRIX.md)。
-
-安裝、升級、修復、重裝、解除安裝與清除後重裝統一使用下方的 `dev-flow` 入口；Host
-原生命令保留為診斷復原入口。
-安裝精靈會在執行期間逐項顯示目前的 Host 動作，以及 package 安裝、註冊設定、製品驗證與就緒回讀等實際完成步驟；`--json` 仍只輸出單一結果物件。
-互動介面依目前 locale 顯示：`zh*` 使用簡體中文，其餘 locale 統一使用英文。
-
-### Codex
+## 安裝與啟動
 
 ```bash
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-需要強制選擇 Dev Flow 時：
+Codex 明確入口：
 
 ```text
-$dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
+$dev-flow-codex:dev-flow 修正登入失敗次數限制，只執行定向測試。
 ```
 
-完整說明見 [Codex 使用指南](docs/CODEX_en.md)。
-
-### DeepSeek Harness
-
-```bash
-npm install -g @imotong/dev-flow@latest
-dev-flow
-```
-
-重新啟動 profile 後輸入：
+DeepSeek Harness 明確入口：
 
 ```text
-/dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
+/dev-flow 修正登入失敗次數限制，只執行定向測試。
 ```
 
-完整說明見 [DeepSeek 使用指南](docs/DEEPSEEK_en.md)。
-
-## 適合什麼任務
-
-- 跨越需求、設計、實作、測試與交付多個階段的真實儲存庫工作；
-- 可能返工，並需要保留驗證證據的修改；
-- 跨會話、跨日或 Host 重新啟動後繼續的工作；
-- 需要明確限制驗證強度，或要求開發者在交付前真正理解實作的任務；
-- 一個主儲存庫與少量明確附加儲存庫共同完成的有界工作。
-
-一次性問答或不需要保存狀態的機械式單檔修改，通常直接使用 Codex 或 DeepSeek 更簡單。
-
-## 核心能力
-
-- **明確範圍：** `TaskIntent` 保存原始請求、驗收條件與範圍外事項。
-- **有界驗證：** 每個 Task 都保存 verification budget；完整回歸與平台矩陣不是預設工作。
-- **跨會話恢復：** 目前階段、證據、阻塞原因與合法下一步保存在本機 SQLite。
-- **安全卸載：** Codex 卸載先依 runtime receipt 驗證並停止對應 WebUI；停止失敗時保留註冊與 package，避免已刪除的舊版本繼續監聽連接埠。
-- **理解審查：** 測試通過後仍需 `COMPREHENSION_REVIEW`，無法維護的結果可返回重構。
-- **不確定寫入恢復：** Core 完整驗證下一版 Task 後，把規範化 Action 輸入保存到獨立操作記錄；回應遺失時只需 Task ID 與 Action ID 即可恢復，不必重建 payload。
-- **有界多儲存庫：** 目前原始碼允許一個主儲存庫與最多七個附加儲存庫，共用同一流程狀態。
-- **同一儲存庫並行 Task：** 同一邏輯 Git 儲存庫可透過多個 linked worktree 同時執行獨立 Task；每個實體 worktree 仍最多持有一個進行中的 Task。Host 提供 worktree-backed task/thread 能力時，Codex 會在 admission 前為明確的平行批次按有界項建立子 Task；單一新請求的 `dev_flow_open_task` 返回 `ACTIVE_TASK_CONFLICT` 時，則建立且只建立一個子 Task。衝突後的子 Task 使用 `target.environment.type="worktree"` 且不傳 `startingState`，只從預設分支的已提交狀態開始，不接收原 checkout 的 index、已追蹤工作區變更或未追蹤檔案。明確 resume、`HOST_OWNERSHIP_CONFLICT` 與其他錯誤仍按原規則停止；Core 不建立、切換或清理 worktree，原進行中 Task 與原 worktree 保持不變。
-
-多儲存庫能力是否已進入穩定版，請以[專案狀態頁](docs/PROJECT-STATUS.md)為準。
-
-## 邊界
-
-- Core 只對 Git 進行有界、唯讀觀察，不執行 commit、push、merge、rebase、tag 或發布。
-- 檔案修改與命令執行仍由使用者授權的 Host 負責。
-- Dev Flow 不會攔截 Host 的每一次檔案操作，也不是通用安全沙箱。
-- 目前原始碼包含僅監聽 loopback 的共享 WebUI，前端支援簡體中文/英文、首次跟隨系統語言並可在瀏覽器切換。共享頁面框架會依寬度重排導覽、篩選、Task 清單、詳細資料、表單與系統狀態，寬螢幕充分運用空間，窄螢幕直接呈現核心資訊；不包含 remote MCP、telemetry、使用者自訂流程圖或自動歷史資料遷移。
-- 可選程式碼索引只能協助檢索，不能決定範圍、權限、Recovery 或流程狀態。
-- 允許寫入的 Action 只回報該 Action 簽發後由本節點新產生的 `changed_paths`；本節點未修改檔案時回報 `no_file_changes`。Core 依簽發基線與 fresh Git observation 驗證，合法修改可用原 Action 完成，branch、HEAD、repository identity 或未宣告路徑變更仍回傳 `REPOSITORY_DRIFT`。若倉庫狀態完全一致但結果宣告了檔案變更，Core 會回傳 `repository_effect_not_observed` 欄位規則。
-- Design、Tasks 與 Implementation 提交分別省略 `requirements_revision`、`design_revision` 與 `task_plan_revision`；Core 驗證目前 Action identity 後，從同一 Task snapshot 填入這些欄位。Delivery 提交不包含 acceptance、automated/manual evidence ID 或 Test/Comprehension record ID；Core 依目前 Task 產生這些欄位，提交它們會以 `unknown_member` 拒絕。Core 在暫存前仍會依目前 Task 預檢節點結果語義；節點提交中已證明零寫入的 `required_member_missing` 可依準確路徑修正一次，但只能使用目前節點工作已確認的內容。缺少的內容若需要新的使用者決定，Host 必須停止並請求輸入；其他無法安全推導的值只回傳欄位資訊，不授權自動修正。
-- Codex Skill 要求每次一般提交與獲准的一次修正提交都重新讀取目前 `submission_tool` 的 live schema，並逐項比對完整草稿的必要/額外成員、巢狀值與陣列元素型別、nullability、enum 與 const。若無法精確匹配，會在呼叫工具前停止，不依欄位名稱或錯誤文字猜測型別。
-
-安全邊界見 [Security Policy](SECURITY.md) 與 [Threat Model](docs/THREAT-MODEL.md)。
-
-## 目前穩定支援
+## 目前穩定支援與邊界
 
 | 產品 | 已驗證環境 |
 | --- | --- |
 | `dev-flow-codex` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
 | `dev-flow-deepseek` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
+| `@imotong/dev-flow` | macOS arm64、Node.js `>=20` |
 
-完整證據與 beta/source 狀態見 [Project Status](docs/PROJECT-STATUS.md) 與
-[Support Matrix](docs/SUPPORT-MATRIX.md)。
+- Core 僅以唯讀方式觀察 Git，不執行 commit、push、merge、rebase、tag 或 publish。
+- 檔案修改與命令執行仍由使用者授權的 Codex 或 DeepSeek 完成。
+- Core 不攔截 Host 的每一次檔案操作，也不是 shell 或檔案系統 sandbox。
+- WebUI 僅是本機 loopback 的單使用者檢視與診斷入口。
+- 專案仍處於早期，外部採用有限；穩定範圍以 Support Matrix 為準。
 
-## 文件
+## 目前文件
 
-| 想了解什麼 | 入口 |
-| --- | --- |
-| 兩分鐘理解真實流程 | [Demo](docs/DEMO.md) |
-| 穩定版、beta、原始碼與證據 | [Project Status](docs/PROJECT-STATUS.md) |
-| 產品能力與邊界 | [Product](docs/PRODUCT.md) |
-| 架構 | [Architecture](docs/ARCHITECTURE.md) |
-| 支援版本與平台 | [Support Matrix](docs/SUPPORT-MATRIX.md) |
-| 命令與 MCP 工具 | [Command Reference](docs/COMMANDS.md) |
-| 本機 WebUI 與僅限 CLI 的 reset | [WebUI](docs/WEBUI.md) |
-| 安全報告與威脅模型 | [Security](SECURITY.md) · [Threat Model](docs/THREAT-MODEL.md) |
-| 參與貢獻 | [Contributing](CONTRIBUTING.md) |
+- [English README](README_en.md)
+- [產品定義](docs/PRODUCT_en.md)
+- [中斷後繼續的 Demo](docs/DEMO_en.md)
+- [Project Status](docs/PROJECT-STATUS_en.md)
+- [Support Matrix](docs/SUPPORT-MATRIX_en.md)
+- [Command Reference](docs/COMMANDS_en.md)
+- [Architecture](docs/ARCHITECTURE_en.md)
+- [Security](SECURITY.md) 與 [Threat Model](docs/THREAT-MODEL_en.md)
 
 ## License
 

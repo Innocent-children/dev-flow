@@ -2,6 +2,28 @@
 
 [中文](ARCHITECTURE.md) | [English](ARCHITECTURE_en.md)
 
+> This document explains Dev Flow implementation and protocol. To decide whether the project fits
+> your work, first read the [README](../README_en.md) and
+> [Product Definition](PRODUCT_en.md).
+
+This page is the primary home for state-graph, submission-protocol, persistence, Recovery,
+multi-repository, worktree, WebUI-receipt, and Host-lifecycle details moved out of user-facing
+documents. The [Command Reference](COMMANDS_en.md) remains the complete invocation reference.
+
+## User concepts and internal concepts
+
+| User concept | Internal implementation |
+| --- | --- |
+| Current task | `ProcessTask` |
+| Current stage | current node |
+| Next step | current Action and transitions |
+| Task scope | `TaskIntent` and Repository Scope |
+| Verification limit | verification budget |
+| Existing verification | `TestRecord` / evidence |
+| Recovery conclusion | Recovery Assessment |
+| Blocking reason | Blocker |
+| Completion result | `ProcessOutcome` |
+
 ## Design goal
 
 Dev Flow is built around one rule: process facts are stored once. Go Core manages the Task, state

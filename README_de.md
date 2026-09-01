@@ -4,176 +4,102 @@
 
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>Hält Codex und DeepSeek im Umfang, begrenzt Verifikation und setzt unterbrochene Aufgaben fort.</strong></p>
-
-<p align="center">
-  <a href="https://www.npmjs.com/package/dev-flow-codex"><img src="https://img.shields.io/npm/v/dev-flow-codex?label=dev-flow-codex" alt="Codex npm" /></a>
-  <a href="https://www.npmjs.com/package/dev-flow-deepseek"><img src="https://img.shields.io/npm/v/dev-flow-deepseek?label=dev-flow-deepseek" alt="DeepSeek npm" /></a>
-  <a href="https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml"><img src="https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="Apache 2.0 License" /></a>
-</p>
+<p align="center"><strong>Setze lange KI-Coding-Aufgaben aus dauerhaftem Task-Zustand fort, nicht aus dem Chatverlauf.</strong></p>
 
 <p align="center">
   <a href="README.md">简体中文</a> · <a href="README_en.md">English</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-Dev Flow gibt KI-Coding-Aufgaben einen **lokalen, dauerhaften Zustand außerhalb des Chats**. Es merkt sich:
+> Diese Seite ist eine stabile Dokumentations-Momentaufnahme. Aktuelle und laufend synchronisierte
+> Informationen stehen in [简体中文](README.md) oder [English](README_en.md).
 
-- was diese Aufgabe ändern darf und was ausdrücklich außerhalb des Umfangs liegt;
-- ob die Arbeit bei Anforderungen, Design, Implementierung, Tests oder Auslieferung steht;
-- wie viel Verifikation vereinbart wurde und welche Evidenz bereits vorhanden ist;
-- ob eine unterbrochene oder unklare Schreiboperation wiederhergestellt, blockiert oder sicher wiederholt werden soll.
+Dev Flow ist eine lokale Prozesssteuerungs- und Wiederherstellungsschicht für lange KI-Coding-Aufgaben.
+Außerhalb des Chats speichert es Ziel, Umfang, aktuelle Phase, Verifizierungsbudget, abgeschlossene
+Prüfungen, Blocker und Recovery-Status. So können Codex oder DeepSeek nach Kontextkomprimierung,
+Host-Neustart oder einem unklaren Operationsergebnis denselben Task fortsetzen.
 
-**Es ist weder ein weiterer Coding-Agent noch ein Task-Orchestrator.** Codex und DeepSeek lesen weiterhin
-Repositories, ändern Code und führen Befehle aus. Dev Flow verwaltet Umfang, Phase, Verifikationsaufwand,
-Evidenz und Recovery einer einzelnen Entwicklungsaufgabe.
+## Das wichtigste Problem
 
-**Hier beginnen:** [Zwei-Minuten-Ablauf](docs/DEMO_en.md) ·
-[aktuelle Versionen und reale Evidenz](docs/PROJECT-STATUS_en.md) ·
-[stabile Version installieren](#stabile-version-installieren)
+Nach einer Unterbrechung rekonstruiert eine neue Sitzung den Fortschritt oft aus einem unvollständigen
+Chat und dem aktuellen Repository. Dadurch können Änderungen wiederholt, verbleibende Prüfungen
+übersprungen oder alte Testergebnisse weiterverwendet werden. Dev Flow liest zuerst den lokalen Task
+und setzt bei der gespeicherten Phase und dem nächsten Schritt fort.
 
-> Dieses README beschreibt die Fähigkeiten von `main`. npm `@latest` ist die mit dem finalen Artefakt
-> verifizierte stabile Version und kann hinter `main` liegen. Die genaue Trennung von stable, beta und
-> source steht unter [Project Status](docs/PROJECT-STATUS_en.md).
+## In 30 Sekunden
 
-## In 30 Sekunden verstehen
-
-| Ohne Dev Flow | Was Dev Flow ergänzt |
+| Agent direkt verwenden | Was Dev Flow ergänzt |
 | --- | --- |
-| Der Prompt wiederholt „Umfang nicht erweitern“ | Der Task behält die ursprüngliche Absicht und jede Phase nennt erlaubte Änderungen |
-| Eine neu gestartete Sitzung scannt erneut und errät den Fortschritt | Phase, Evidenz und blocker werden lokal gespeichert |
-| Ein gezielter Check wächst zu kompletter Suite oder Plattformmatrix | Jeder Task hat ein explizites verification budget |
-| Tests bestehen, aber das Ergebnis bleibt schwer erklärbar oder wartbar | Vor der Auslieferung steht `COMPREHENSION_REVIEW` |
-| Eine verlorene Schreibantwort wird riskant wiederholt | Vor dem retry wird der autoritative Zustand gelesen |
+| Nach einer Unterbrechung wird der Fortschritt neu erraten | Denselben lokalen Task fortsetzen |
+| Eine kleine Aufgabe erweitert schrittweise ihren Umfang | Ursprüngliches Ziel und klare Grenzen speichern |
+| Zielgerichtete Tests werden immer weiter ausgeweitet | verification budget speichern |
+| Eine verlorene Antwort wird sofort erneut versucht | Zuerst Task- und Recovery-Status lesen |
+| Testergebnisse vermischen sich mit späteren Codeänderungen | Aktuelle Phase und zugehörige Einträge speichern |
 
-## Ablauf einer Aufgabe
+## Wann es passt
 
-```mermaid
-flowchart LR
-    A["Aufgabe und Grenzen beschreiben"] --> B["Anforderungen und Design"]
-    B --> C["Implementierung"]
-    C --> D["Gezielte Tests"]
-    D --> E["Verständlichkeitsprüfung"]
-    E --> F["Auslieferung"]
-    F --> G["DONE"]
-    D -. Implementierungsproblem .-> C
-    E -. zu hohe Komplexität .-> H["Refactoring"]
-    H --> D
-```
+Dev Flow eignet sich für echte Repository-Arbeit über mehrere Sitzungen, Tage oder Host-Neustarts,
+besonders bei klaren Grenzen, gezielter Verifizierung, Überarbeitungspfaden oder einer
+Verständnisprüfung vor der Auslieferung.
 
-Nach einem Host-Neustart liest die neue Sitzung denselben Task und erhält aktuelle Phase, abgeschlossene
-Evidenz, verbleibendes Budget und zulässige nächste Schritte. Der Prozess muss nicht aus dem Chatverlauf
-rekonstruiert werden. Siehe [Demo](docs/DEMO_en.md).
+Für einmalige Fragen, Codeerklärungen, Statusabfragen oder kleine mechanische Änderungen ohne
+dauerhaften Fortschritt sind Codex oder DeepSeek allein meist einfacher. Dev Flow ist weder ein
+allgemeiner Orchestrator noch eine Remote-Ausführungsplattform oder Security-Sandbox.
 
-## Rolle in der Werkzeugkette
+## Verhältnis zu anderen Werkzeugen
 
-| Werkzeug | Verantwortung |
+| Werkzeug | Aufgabe |
 | --- | --- |
-| Codex / DeepSeek Harness | Repositories lesen, Code ändern und Befehle ausführen |
-| Spec Kit / OpenSpec | Methoden für Anforderungen, Design und Aufgabenplanung liefern |
-| Dev Flow | Umfang, Phase, Budget, Nacharbeitswege und Recovery einer Aufgabe speichern |
+| Codex / DeepSeek | Repositories lesen, Code ändern und Befehle ausführen |
+| OpenSpec / Spec Kit | Anforderungen, Design und Aufgaben strukturieren |
+| Dev Flow | Task-Phase, Umfang, Verifizierungsbudget, Recovery und nächsten gültigen Schritt speichern |
 
-## Stabile Version installieren
+Derzeit gibt es keinen OpenSpec / Spec Kit artifact importer. Eine schlankere Integration bleibt
+eine zukünftige Richtung.
 
-Aktuelle stabile Artefakte unterstützen **macOS arm64** und **Node.js `>=24`**. Exakte Versionen und
-Host-Kompatibilität stehen in der [Support Matrix](docs/SUPPORT-MATRIX_en.md).
-
-Der `dev-flow`-Einstieg verwaltet Installation, Upgrade, Reparatur, Neuinstallation,
-Deinstallation und saubere Neuinstallation. Native Host-Befehle bleiben für die Diagnose-Recovery verfügbar.
-Während der Ausführung zeigt das Installationsprogramm jede Host-Aktion und tatsächlich abgeschlossene Schritte wie Package-Installation, Registrierungseinrichtung, Artefaktprüfung und Bereitschaftsprüfung an; `--json` gibt weiterhin nur ein einzelnes Ergebnisobjekt aus.
-Die interaktive Oberfläche verwendet für `zh*` vereinfachtes Chinesisch und für alle anderen Locales Englisch.
-
-### Codex
+## Installation und Start
 
 ```bash
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-Dev Flow erzwingen:
+Expliziter Codex-Einstieg:
 
 ```text
-$dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
+$dev-flow-codex:dev-flow Behebe das Limit fehlgeschlagener Anmeldungen und führe nur gezielte Tests aus.
 ```
 
-Details im [Codex-Leitfaden](docs/CODEX_en.md).
-
-### DeepSeek Harness
-
-```bash
-npm install -g @imotong/dev-flow@latest
-dev-flow
-```
-
-Profil neu starten und eingeben:
+Expliziter DeepSeek-Harness-Einstieg:
 
 ```text
-/dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
+/dev-flow Behebe das Limit fehlgeschlagener Anmeldungen und führe nur gezielte Tests aus.
 ```
 
-Details im [DeepSeek-Leitfaden](docs/DEEPSEEK_en.md).
-
-## Geeignete Aufgaben
-
-- reale Repository-Arbeit über Anforderungen, Design, Implementierung, Tests und Auslieferung;
-- Änderungen mit möglicher Nacharbeit und aufzubewahrender Evidenz;
-- Aufgaben über mehrere Sitzungen, Tage, Kontextkomprimierungen oder Host-Neustarts;
-- Arbeit mit explizitem Verifikationslimit oder Verständlichkeitsprüfung;
-- begrenzte Aufgaben über ein primäres und wenige ausdrücklich genannte zusätzliche Repositories.
-
-Eine einmalige Frage oder mechanische Einzeldateiänderung ohne dauerhaften Zustand ist meist direkt mit
-Codex oder DeepSeek einfacher.
-
-## Hauptfähigkeiten
-
-- **Expliziter Umfang:** `TaskIntent` hält Anfrage, Akzeptanzkriterien und Ausschlüsse fest.
-- **Begrenzte Verifikation:** Jeder Task hat ein verification budget; vollständige Matrizen sind nicht Standard.
-- **Sitzungsübergreifende Recovery:** Phase, Evidenz, blocker und nächste Schritte liegen in lokalem SQLite.
-- **Sichere Deinstallation:** Die Codex-Deinstallation prüft den runtime receipt und stoppt zuerst die zugehörige WebUI. Schlägt das Stoppen fehl, bleiben Registrierung und package erhalten, damit eine gelöschte Altversion nicht weiter auf einem Port lauscht.
-- **Verständlichkeitsprüfung:** Nach Tests folgt `COMPREHENSION_REVIEW`; nicht wartbare Ergebnisse gehen zurück.
-- **Unklare Schreiboperation:** Core validiert zuerst den vollständigen nächsten Task und speichert die normalisierte Action-Eingabe dann in einem unabhängigen Operationsdatensatz; nach einer verlorenen Antwort genügen Task ID und Action ID, ohne den Payload neu aufzubauen.
-- **Begrenzte Multi-Repository-Scope:** Der aktuelle Source verwaltet ein primäres und bis zu sieben zusätzliche Repositories in einem Zustand.
-- **Parallele Tasks im selben Repository:** Ein logisches Git-Repository kann über mehrere linked worktrees mehrere unabhängige Tasks gleichzeitig ausführen. Jeder physische Worktree hält weiterhin höchstens einen aktiven Task. Wenn der Host eine worktree-backed task/thread-Funktion bereitstellt, erstellt Codex für einen ausdrücklich parallelen Batch vor der Admission ein Kind pro begrenztem Element; gibt `dev_flow_open_task` für eine einzelne neue Anfrage `ACTIVE_TASK_CONFLICT` zurück, erstellt es nach diesem Ergebnis genau ein Kind. Das Konflikt-Kind verwendet `target.environment.type="worktree"` ohne `startingState`, startet nur vom committeten Stand des Standard-Branches und erhält weder den Index noch verfolgte Working-Tree-Änderungen oder unversionierte Dateien des belegten Checkouts. Explizites Resume, `HOST_OWNERSHIP_CONFLICT` und andere Fehler behalten ihr bisheriges Stoppverhalten. Core erstellt, wechselt oder bereinigt keine Worktrees; der ursprüngliche aktive Task und Worktree bleiben unverändert.
-
-Ob Multi-Repository bereits stabil ist, steht unter [Project Status](docs/PROJECT-STATUS_en.md).
-
-## Grenzen
-
-- Core beobachtet Git begrenzt und schreibgeschützt; kein commit, push, merge, rebase, tag oder publish.
-- Dateiänderungen und Befehle bleiben Verantwortung des vom Benutzer autorisierten Hosts.
-- Dev Flow fängt nicht jede Host-Operation ab und ist keine allgemeine Sicherheits-Sandbox.
-- Der aktuelle Quellcode enthält eine gemeinsame, nur über Loopback erreichbare WebUI mit vereinfachtem Chinesisch/Englisch, Systemsprachenauswahl und lokaler Browser-Umschaltung. Der gemeinsame Seitenrahmen ordnet Navigation, Filter, Task-Listen, Details, Formulare und Systemstatus je nach Breite neu an, nutzt breite Bildschirme aus und zeigt Kerninformationen auf schmalen Bildschirmen direkt an; remote MCP, telemetry, benutzerdefinierte Graphen und automatische Alt-Datenmigration bleiben ausgeschlossen.
-- Ein optionaler Code-Index unterstützt nur die Suche und entscheidet nicht Umfang, Berechtigung, Recovery oder Zustand.
-- Eine schreibberechtigte Action meldet nur `changed_paths`, die seit der Ausgabe dieser Action neu entstanden sind, oder `no_file_changes`, wenn dieser Knoten keine Datei geändert hat. Core prüft sie gegen die Ausgabebaseline und eine fresh Git observation; autorisierte Änderungen können mit der ursprünglichen Action abgeschlossen werden, während Änderungen an branch, HEAD, repository identity oder nicht deklarierte Pfade weiterhin `REPOSITORY_DRIFT` ergeben. Ist das Repository unverändert, obwohl Dateiänderungen gemeldet wurden, liefert Core die Feldregel `repository_effect_not_observed`.
-- Design-, Tasks- und Implementation-Einreichungen lassen `requirements_revision`, `design_revision` beziehungsweise `task_plan_revision` aus. Nachdem Core die Identität der aktuellen Action geprüft hat, ergänzt es diese Felder aus demselben Task snapshot. Delivery-Einreichungen enthalten weder acceptance noch automated/manual evidence IDs oder Test/Comprehension record IDs; Core erzeugt sie aus der aktuellen Task und weist ihre Übermittlung als `unknown_member` zurück. Vor dem Vormerken prüft Core weiterhin die Semantik des Knotenergebnisses gegen die aktuelle Task. Ein nachweislich schreibfreier Fehler `required_member_missing` in einer Knoteneinreichung darf genau einmal am exakten Pfad korrigiert werden, jedoch nur mit Fakten, die in der aktuellen Knotenarbeit bereits bestätigt wurden. Erfordert der fehlende Inhalt eine neue Benutzerentscheidung, muss der Host anhalten und diese anfordern; andere nicht sicher ableitbare Werte erlauben keine automatische Korrektur.
-- Der Codex Skill verlangt vor jeder regulären Einreichung und der einmal zulässigen korrigierten Einreichung, das Live-Schema des aktuellen `submission_tool` erneut zu lesen und den vollständigen Entwurf Feld für Feld abzugleichen: erforderliche oder zusätzliche Elemente, Typen verschachtelter Werte und Array-Elemente, Nullability, Enums und Consts. Ohne exakte Übereinstimmung stoppt er vor dem Tool-Aufruf und leitet Typen weder aus Feldnamen noch aus Fehlertext ab.
-
-Siehe [Security Policy](SECURITY.md) und [Threat Model](docs/THREAT-MODEL_en.md).
-
-## Aktueller stabiler Support
+## Aktueller stabiler Support und Grenzen
 
 | Produkt | Verifizierte Umgebung |
 | --- | --- |
 | `dev-flow-codex` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
 | `dev-flow-deepseek` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
+| `@imotong/dev-flow` | macOS arm64, Node.js `>=20` |
 
-Exakte Evidenz und beta/source-Status stehen unter [Project Status](docs/PROJECT-STATUS_en.md) und
-[Support Matrix](docs/SUPPORT-MATRIX_en.md).
+- Core beobachtet Git nur lesend und führt weder commit, push, merge, rebase, tag noch publish aus.
+- Dateiänderungen und Befehle bleiben bei vom Benutzer autorisiertem Codex oder DeepSeek.
+- Core fängt nicht jede Host-Dateioperation ab und ist keine Shell- oder Dateisystem-Sandbox.
+- WebUI ist eine lokale loopback Ansicht und Diagnoseoberfläche für einen Benutzer.
+- Das Projekt ist noch jung und extern wenig verbreitet; der stabile Umfang steht in der Support Matrix.
 
-## Dokumentation
+## Aktuelle Dokumentation
 
-| Gesucht | Einstieg |
-| --- | --- |
-| Eine reale Aufgabe in zwei Minuten verstehen | [Demo](docs/DEMO_en.md) |
-| stable, beta, source und Evidenz | [Project Status](docs/PROJECT-STATUS_en.md) |
-| Produktfähigkeiten und Grenzen | [Product](docs/PRODUCT_en.md) |
-| Architektur | [Architecture](docs/ARCHITECTURE_en.md) |
-| Versionen und Plattformen | [Support Matrix](docs/SUPPORT-MATRIX_en.md) |
-| Befehle und MCP-Werkzeuge | [Command Reference](docs/COMMANDS_en.md) |
-| Lokale WebUI und Reset nur per CLI | [WebUI](docs/WEBUI_en.md) |
-| Sicherheit | [Security](SECURITY.md) · [Threat Model](docs/THREAT-MODEL_en.md) |
-| Mitwirken | [Contributing](CONTRIBUTING_en.md) |
+- [English README](README_en.md)
+- [Product Definition](docs/PRODUCT_en.md)
+- [Unterbrechungs- und Fortsetzungs-Demo](docs/DEMO_en.md)
+- [Project Status](docs/PROJECT-STATUS_en.md)
+- [Support Matrix](docs/SUPPORT-MATRIX_en.md)
+- [Command Reference](docs/COMMANDS_en.md)
+- [Architecture](docs/ARCHITECTURE_en.md)
+- [Security](SECURITY.md) und [Threat Model](docs/THREAT-MODEL_en.md)
 
-## License
+## Lizenz
 
 [Apache License 2.0](LICENSE)

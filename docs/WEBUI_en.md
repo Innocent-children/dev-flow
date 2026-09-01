@@ -2,76 +2,109 @@
 
 [中文](WEBUI.md) | [English](WEBUI_en.md)
 
-Dev Flow Control Center is a local single-user interface embedded in Go Core. It presents the Task overview, filtered
-list, detail, timeline, process graph, Action, Recovery, Blocker, and lifecycle operations from the shared data directory.
-The browser stores no second workflow cursor: every read and mutation crosses the Core Application, Workflow, Recovery,
-and Store boundaries.
+> The local visualization and diagnostic entry for Dev Flow's durable Task state.
 
-The interface fully supports Simplified Chinese and English. First use follows ordered browser language preferences: the
-first matching Chinese locale selects Chinese, the first matching English locale selects English, and other cases select
-English. The shell switch changes language at any time. A manual choice is stored only in local site storage; clearing site
-data returns to system-language selection. Core IDs, enums, paths, facts, and original errors remain exact.
-Chinese UI copy uses native product wording for Tasks, filters, actions, and system state instead of literal translations
-of internal authority or runtime-ownership terminology. Inputs, selects, date controls, and buttons share one height,
-border, focus, and alignment system.
-The Start Task entry contains create and continue flows. The ordinary form accepts repository paths while the system owns
-the default primary key and deterministic additional keys. Current-stage filter choices come from the Core process
-definition. Every selection control uses the WebUI-owned keyboard-accessible combobox/listbox rather than a native popup.
+Control Center is embedded in Go Core and reads the same local Task data as the Hosts. The browser
+does not retain a second process state; every read and operation goes through the current Core.
 
-The shared page shell adapts the content width, navigation, and action areas to the available space. Desktop layouts give filters, the Task table, process graph, and detail summary a wider structured surface. Tablet and narrow layouts tighten spacing, retain a single-row primary navigation, and reflow the Task table into labeled cards. Overview metrics, the Start Task form, detail summary, Action, timeline, and system state progressively move to two or one columns at the same breakpoints so core information does not depend on horizontal browsing.
+## What you can view
 
-The overview and Task list show the primary repository's shortened `repository_group_id` together
-with its physical `worktree_path`. Task detail shows the group and path for every repository in the
-Scope. Linked worktrees share a group but have different paths, so users can recognize independent
-Tasks in one logical Git repository. These fields are projected from the Task snapshot and add no
-persisted state.
+- the shared Task overview and filtered list across Hosts;
+- current stage, scope, revision, Action, and legal next step;
+- timeline, process graph, test records, and comprehension records;
+- Recovery assessment, Blocker, and required recovery condition;
+- primary and additional repositories, including the advanced worktree view;
+- current Core, data directory, and runtime status.
 
-## Start and reuse
+The interface supports Simplified Chinese and English. First use follows browser language, while a
+manual choice remains only in the current browser and does not enter Core, Task, or account state.
 
-Point `DEV_FLOW_DATA_DIR` at an existing local directory, then use a maintained Host package that carries Core:
+## Start, open, inspect, and stop
+
+Use the unified entry:
 
 ```bash
-export DEV_FLOW_DATA_DIR="/absolute/path/to/existing-directory"
 dev-flow webui start
 dev-flow webui status
 dev-flow webui open
 dev-flow webui stop
 ```
 
-`start` opens the browser by default; `--no-open` starts only the process. Every command supports `--plain` or `--json`.
-The server binds only an OS-assigned `tcp4 127.0.0.1` port. A mode-`0600` runtime receipt records the PID, process-start
-identity, data-root digest, and loopback URL. A compatible Core carried by another Host reuses that instance instead of
-creating Host-specific process or data state.
-Codex `remove` and unified uninstall invoke the same stop capability before deleting registration or package state. A stop signal is sent only when PID, process-start identity, and data root all match the runtime receipt; failure aborts the remaining uninstall steps.
-The public `dev-flow webui start` creates a missing default data directory with mode `0700`; `open/status/stop/reset`
-create no directory. When `DEV_FLOW_DATA_DIR` is set, that explicit directory must already exist, be canonical, and
-not traverse a symbolic link.
+`start` opens the browser by default; `--no-open` starts only the process. Every command supports
+`--plain` or `--json`. Public `dev-flow webui start` may create a missing product-default data
+directory with mode `0700`; other commands do not create directories.
 
-## States and local protection
+An explicit data directory must already exist, canonicalize successfully, and not traverse a
+symbolic link:
 
-`status` distinguishes `ready`, `read_only`, `reset_required`, `incompatible`, and `unavailable`. Browser mutations require
-the exact Origin, a random value generated by the current process, and the current Task revision. A failed poll or changed
-revision invalidates an old form. This boundary protects against mistaken local requests and stale pages; it is not account
-authentication and exposes no remote-listen option.
+```bash
+export DEV_FLOW_DATA_DIR="/absolute/path/to/existing-directory"
+dev-flow webui start
+```
+
+## Local single-user boundary
+
+The service binds only an OS-assigned `tcp4 127.0.0.1` port and exposes no remote-listen option.
+Browser mutations verify exact Origin, a random session value from the current process, and the Task
+revision. A stale page or changed revision invalidates an old form.
+
+These checks protect against mistaken local requests and stale-page actions. They are not account
+authentication or multi-user isolation.
+
+## What the runtime receipt does
+
+A mode-`0600` runtime receipt records the PID, process-start identity, data-root digest, and loopback
+URL. Compatible Core binaries carried by Codex and DeepSeek use it to share one process and SQLite
+data instead of creating separate Task state.
+
+During stop or uninstall, a signal is sent only when PID, start identity, and data directory all
+match the receipt. A failed check stops the remaining uninstall steps so an unrelated process or
+installation is not removed.
+
+## States
+
+`status` distinguishes:
+
+| State | Meaning |
+| --- | --- |
+| `ready` | Current Core and data are usable |
+| `read_only` | Reads are available, but current mutations are not |
+| `reset_required` | The data Schema is incompatible and requires a reset plan |
+| `incompatible` | Current Core or runtime instance is incompatible |
+| `unavailable` | No usable instance or status is available |
 
 ## Resetting old data
 
-Old schemas or pre-Feature Task data use `reject-and-reset`: ordinary startup returns `reset_required` with zero writes.
-Reset never runs in the browser:
+Incompatible or pre-graph data follows `reject-and-reset`. Ordinary startup performs zero writes and
+returns `reset_required`. Reset is CLI-only; the browser has no reset operation:
 
 ```bash
 dev-flow webui reset
 dev-flow webui reset --confirm <TOKEN-FROM-CURRENT-PLAN>
 ```
 
-The first command only lists the exact canonical database and existing SQLite sidecar targets. The confirmation token binds
-those targets. Confirmation first obtains exclusive database access and rechecks every target. Lock failure, token mismatch,
-or target drift stops with zero deletes. Success deletes only confirmed Task data and creates the current empty schema;
-Host packages, registrations, user configuration, and unrelated files remain intact.
+The first command only lists the exact current canonical database and existing SQLite sidecars. The
+token is bound to those targets. Confirmation obtains exclusive database access and rechecks every
+target. Lock failure, token mismatch, or target drift deletes nothing. Success clears only confirmed
+Task data and creates the current empty Schema; Host packages, registrations, user configuration,
+and unrelated files remain.
 
-## Artifact boundary
+## Data and artifacts
 
-React, TypeScript, and Vite participate only in the source build. Entry HTML, JavaScript, CSS, SVG, and manifest are embedded
-in the Core binary. Runtime use needs no Node server, CDN, external font, telemetry, or separate WebUI package. Consult
-[Project Status](PROJECT-STATUS_en.md) and the [Support Matrix](SUPPORT-MATRIX_en.md) to determine whether a public stable
-package already carries this source capability.
+Default Task data lives in the local product data directory. Codex and DeepSeek share it; it is not
+browser cache or Host chat history. React, TypeScript, and Vite participate only in the build. HTML,
+JavaScript, CSS, SVG, and the manifest are embedded in the Core binary, so runtime use needs no Node
+server, CDN, external font, or separate WebUI package.
+
+## Not currently supported
+
+- remote access, accounts, team permissions, or cloud synchronization;
+- shell, file editing, Git mutations, or publication;
+- browser-based reset;
+- user-defined graphs or automatic historical-data migration;
+- treating the WebUI as another Task-state authority.
+
+Consult [Project Status](PROJECT-STATUS_en.md) and the [Support Matrix](SUPPORT-MATRIX_en.md) to see
+whether stable packages carry current source capability. See the
+[Command Reference](COMMANDS_en.md) for exact CLI options and [Architecture](ARCHITECTURE_en.md) for
+protocol design.

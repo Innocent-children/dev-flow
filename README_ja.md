@@ -4,175 +4,97 @@
 
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>Codex と DeepSeek の長いタスクで、スコープを守り、検証を制限し、中断後に再開できるようにします。</strong></p>
-
-<p align="center">
-  <a href="https://www.npmjs.com/package/dev-flow-codex"><img src="https://img.shields.io/npm/v/dev-flow-codex?label=dev-flow-codex" alt="Codex npm" /></a>
-  <a href="https://www.npmjs.com/package/dev-flow-deepseek"><img src="https://img.shields.io/npm/v/dev-flow-deepseek?label=dev-flow-deepseek" alt="DeepSeek npm" /></a>
-  <a href="https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml"><img src="https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="Apache 2.0 License" /></a>
-</p>
+<p align="center"><strong>長時間の AI コーディング作業を、チャット履歴の推測ではなく永続化された Task 状態から再開します。</strong></p>
 
 <p align="center">
   <a href="README.md">简体中文</a> · <a href="README_en.md">English</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-Dev Flow は、AI コーディングタスクに**チャット履歴とは独立したローカルの永続状態**を追加します。
-次の情報を保持します。
+> このページは安定版ドキュメントのスナップショットです。継続的に更新される最新情報は
+> [简体中文](README.md) または [English](README_en.md) を参照してください。
 
-- このタスクで変更してよい範囲と、明示的に対象外とした作業
-- requirements、design、implementation、test、delivery のどこまで進んだか
-- 合意した検証量と、すでに得られた証拠
-- セッション中断や不確実な書き込みの後に、復旧・ブロック・安全な再試行のどれを選ぶべきか
+Dev Flow は、長時間の AI コーディング作業向けのローカルなプロセス制御・復旧レイヤーです。
+チャット履歴とは別に、目標、範囲、現在の段階、検証予算、完了済みの検証、Blocker、Recovery
+状態を保存し、コンテキスト圧縮や Host 再起動、結果が不明な操作の後も同じ Task を続行できます。
 
-**別のコーディング Agent やタスクオーケストレーターではありません。** Codex と DeepSeek が
-リポジトリを読み、コードを変更し、コマンドを実行します。Dev Flow は 1 つの開発タスクの
-スコープ、段階、検証量、証拠、復旧だけを管理します。
+## 最初に解決する問題
 
-**まずはこちら：** [2 分のウォークスルー](docs/DEMO_en.md) ·
-[現在のバージョンと実証](docs/PROJECT-STATUS_en.md) · [安定版のインストール](#安定版のインストール)
+長時間の作業が中断されると、新しいセッションは不完全なチャットと現在の repository から進捗を
+推測しがちです。その結果、変更の重複、残りの検証の見落とし、古いテスト結果の再利用が起きます。
+Dev Flow はローカル Task を先に読み、保存済みの段階と次の作業から再開します。
 
-> この README は現在の `main` の機能を説明します。npm `@latest` は最終アーティファクトで
-> 検証済みの安定版であり、`main` より遅れる場合があります。正確な区別は
-> [Project Status](docs/PROJECT-STATUS_en.md) を参照してください。
+## 30 秒で理解する
 
-## 30 秒で理解
-
-| Dev Flow なし | Dev Flow が追加するもの |
+| Agent を直接使う場合 | Dev Flow が追加するもの |
 | --- | --- |
-| Prompt で「範囲を広げない」と繰り返す | Task が元の意図を保持し、各段階で変更可能範囲を示す |
-| 再起動したセッションが進捗を推測する | 現在段階、証拠、blocker をローカルに保存して再開する |
-| 対象テストが全スイートや平台マトリクスへ拡大する | 各 Task に明示的な verification budget を持たせる |
-| テストは通るが、結果を説明・保守できない | delivery 前に `COMPREHENSION_REVIEW` を行う |
-| 書き込み応答が失われ、危険な replay を行う | 権威状態を読んでから retry の安全性を判断する |
+| 中断後に進捗を推測し直す | 同じローカル Task を再開する |
+| 小さな作業が徐々に範囲を広げる | 最初の目標と明確な境界を保存する |
+| 対象を絞ったテストが拡大し続ける | verification budget を保存する |
+| 応答が失われるとすぐ再実行する | 現在の Task と Recovery 状態を先に読む |
+| テスト結果が後のコード変更と混ざる | 現在の段階と対応する記録を保存する |
 
-## 1 つのタスクの流れ
+## 向いている作業・向いていない作業
 
-```mermaid
-flowchart LR
-    A["タスクと境界を説明"] --> B["要件と設計"]
-    B --> C["実装"]
-    C --> D["対象テスト"]
-    D --> E["理解度レビュー"]
-    E --> F["デリバリー"]
-    F --> G["DONE"]
-    D -. 実装上の問題 .-> C
-    E -. 過度な複雑さ .-> H["リファクタリング"]
-    H --> D
-```
+Dev Flow は、複数セッション、複数日、または Host 再起動をまたぐ実際の repository 作業に向いて
+います。特に、範囲、対象を絞った検証、手戻り経路、配布前の理解確認が必要な変更に適しています。
 
-実装後に Host が再起動しても、新しいセッションは同じ Task から現在段階、完了済み証拠、
-残りの検証予算、合法な次の手順を取得します。チャット履歴から推測し直す必要はありません。
-詳しくは [2 分のデモ](docs/DEMO_en.md) を参照してください。
+一度きりの質問、コード説明、状態確認、進捗保存が不要な機械的な小変更は、Codex または DeepSeek
+を直接使う方が簡単です。Dev Flow は汎用オーケストレーター、リモート実行基盤、セキュリティ
+sandbox ではありません。
 
-## ツールチェーンでの役割
+## 他のツールとの関係
 
-| ツール | 責務 |
+| ツール | 役割 |
 | --- | --- |
-| Codex / DeepSeek Harness | リポジトリを読み、コードを変更し、コマンドを実行する |
-| Spec Kit / OpenSpec | 要件、設計、タスク分解の方法を提供する |
-| Dev Flow | 1 つのタスクのスコープ、段階、検証予算、手戻り経路、復旧状態を保持する |
+| Codex / DeepSeek | repository の読み取り、コード変更、コマンド実行 |
+| OpenSpec / Spec Kit | 要件、設計、タスクの整理 |
+| Dev Flow | Task の段階、範囲、検証予算、復旧状態、正当な次の手順を保存 |
 
-## 安定版のインストール
+現在、OpenSpec / Spec Kit artifact importer はありません。薄い連携は将来の方向です。
 
-現在の安定アーティファクトは **macOS arm64** と **Node.js `>=24`** をサポートします。正確な
-バージョンと Host 互換性は [Support Matrix](docs/SUPPORT-MATRIX_en.md) を参照してください。
-
-`dev-flow` 入口でインストール、アップグレード、修復、再インストール、
-アンインストール、データ消去後の再インストールを管理します。Host のネイティブコマンドは診断復旧用に残ります。
-インストーラーは実行中に各 Host アクションと、package のインストール、登録設定、成果物の検証、ready 状態の再確認など、実際に完了した手順を順に表示します。`--json` は引き続き単一の結果オブジェクトだけを出力します。
-対話画面は `zh*` locale では簡体字中国語、それ以外の locale では英語を使用します。
-
-### Codex
+## インストールと開始
 
 ```bash
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-Dev Flow を強制選択する場合：
+Codex の明示的な入口：
 
 ```text
-$dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
+$dev-flow-codex:dev-flow ログイン失敗回数の制限を修正し、対象テストだけを実行してください。
 ```
 
-詳細は [Codex guide](docs/CODEX_en.md) を参照してください。
-
-### DeepSeek Harness
-
-```bash
-npm install -g @imotong/dev-flow@latest
-dev-flow
-```
-
-profile を再起動後、次を入力します。
+DeepSeek Harness の明示的な入口：
 
 ```text
-/dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
+/dev-flow ログイン失敗回数の制限を修正し、対象テストだけを実行してください。
 ```
 
-詳細は [DeepSeek guide](docs/DEEPSEEK_en.md) を参照してください。
-
-## 適したタスク
-
-- requirements、design、implementation、test、delivery をまたぐ実リポジトリ作業
-- 手戻りがあり、検証証拠を保持する必要がある変更
-- 複数セッション、別日、context compaction、Host 再起動をまたぐ作業
-- 検証量の上限や、開発者による理解確認が必要なタスク
-- 1 つの主リポジトリと少数の明示的な追加リポジトリにまたがる限定作業
-
-状態保持が不要な単発の質問や機械的な単一ファイル変更は、Codex または DeepSeek を直接使う方が
-通常は簡単です。
-
-## 主な機能
-
-- **明示的なスコープ：** `TaskIntent` が元の依頼、受け入れ条件、対象外を保持します。
-- **限定された検証：** 各 Task に verification budget があり、全回帰や平台マトリクスは既定ではありません。
-- **セッション間の復旧：** 現在段階、証拠、blocker、次の手順をローカル SQLite に保存します。
-- **安全なアンインストール：** Codex のアンインストールは runtime receipt を検証して対応する WebUI を先に停止します。停止できない場合は登録と package を保持し、削除済みの旧版がポートを待ち受け続けることを防ぎます。
-- **理解度レビュー：** テスト通過後も `COMPREHENSION_REVIEW` を行い、保守できない結果は戻します。
-- **不確実な書き込みの復旧：** Core は次の Task を完全に検証してから、正規化済み Action 入力を独立した操作レコードに保持します。応答喪失後は Task ID と Action ID だけで復旧でき、payload の再構築は不要です。
-- **限定された複数リポジトリ：** 現在の source は主リポジトリ 1 つと追加 7 つまでを 1 つの状態で扱います。
-- **同一リポジトリの並列 Task：** 同じ論理 Git リポジトリは、複数の linked worktree を使って独立した Task を同時実行できます。各物理 worktree が保持できる active Task は 1 つだけです。Host に worktree-backed task/thread 機能がある場合、Codex は明示的な並列バッチでは admission 前に有界項ごとに子 Task を作成し、単一の新規リクエストの `dev_flow_open_task` が `ACTIVE_TASK_CONFLICT` を返した場合は、その結果の後に子 Task を 1 つだけ作成します。競合後の子 Task は `target.environment.type="worktree"` を使用し、`startingState` を渡さず、既定ブランチのコミット済み状態だけから開始します。使用中 checkout の index、追跡済み作業ツリー変更、未追跡ファイルは渡しません。明示的 resume、`HOST_OWNERSHIP_CONFLICT`、その他のエラーは従来どおり停止します。Core は worktree を作成、切り替え、削除せず、元の active Task と worktree は変わりません。
-
-複数リポジトリ機能が安定版に含まれるかは [Project Status](docs/PROJECT-STATUS_en.md) を確認してください。
-
-## 境界
-
-- Core の Git アクセスは限定された読み取り専用です。commit、push、merge、rebase、tag、publish は行いません。
-- ファイル変更とコマンド実行は、ユーザーが許可した Host の責任です。
-- Dev Flow は Host のすべてのファイル操作を遮断せず、一般的なセキュリティ sandbox ではありません。
-- 現在のソースには loopback 限定の共有 WebUI があり、簡体字中国語/英語、システム言語による初期表示、ブラウザ内切り替えに対応します。共通ページシェルは画面幅に応じてナビゲーション、フィルター、Task 一覧、詳細、フォーム、システム状態を再配置し、ワイド画面では空間を活用し、狭い画面でも主要情報を直接読めます。remote MCP、telemetry、ユーザー定義 graph、自動的な旧データ移行は含みません。
-- 任意のコード index は検索を補助するだけで、スコープ、権限、Recovery、状態を決定できません。
-- 書き込み可能な Action は、その Action の発行後にこのノードで新たに変更した `changed_paths` だけを報告し、ファイルを変更していない場合は `no_file_changes` を報告します。Core は発行時の基準と fresh Git observation で検証し、許可された変更は元の Action で完了できますが、branch、HEAD、repository identity、未申告パスの変更は引き続き `REPOSITORY_DRIFT` になります。リポジトリが一致しているのに変更を申告した場合、Core はフィールド規則 `repository_effect_not_observed` を返します。
-- Design、Tasks、Implementation の提出では、それぞれ `requirements_revision`、`design_revision`、`task_plan_revision` を省略します。Core は現在の Action identity を検証した後、同じ Task snapshot からこれらを補完します。Delivery の提出には acceptance、automated/manual evidence ID、Test/Comprehension record ID を含めません。Core が現在の Task から生成し、提出された場合は `unknown_member` として拒否します。保存前には現在の Task に対してノード結果の意味も検証します。ノード提出でゼロ書き込みが証明された `required_member_missing` は、現在のノード作業ですでに確認した事実だけを使い、正確なパスを一度だけ修正できます。欠落内容に新しいユーザー判断が必要なら Host は停止して入力を求め、それ以外の安全に導出できない値には自動修正を許可しません。
-- Codex Skill は、通常の各提出と許可された 1 回の修正提出の前に、現在の `submission_tool` の live schema を再読し、完全なドラフトについて必須/余分なメンバー、ネスト値と配列要素の型、nullability、enum、const を項目ごとに照合するよう求めます。完全に一致しない場合はツール呼び出し前に停止し、フィールド名やエラー文から型を推測しません。
-
-セキュリティ境界は [Security Policy](SECURITY.md) と [Threat Model](docs/THREAT-MODEL_en.md) を参照してください。
-
-## 現在の安定サポート
+## 現在の安定サポートと境界
 
 | 製品 | 検証済み環境 |
 | --- | --- |
 | `dev-flow-codex` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
 | `dev-flow-deepseek` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
+| `@imotong/dev-flow` | macOS arm64、Node.js `>=20` |
 
-正確な証拠と beta/source の状態は [Project Status](docs/PROJECT-STATUS_en.md) と
-[Support Matrix](docs/SUPPORT-MATRIX_en.md) を参照してください。
+- Core は Git を読み取り専用で観察し、commit、push、merge、rebase、tag、publish を行いません。
+- ファイル変更とコマンド実行は、ユーザーが許可した Codex または DeepSeek が担当します。
+- Core は Host のすべてのファイル操作を遮断せず、shell やファイルシステムの sandbox ではありません。
+- WebUI はローカル loopback の単一ユーザー向け表示・診断入口です。
+- プロジェクトはまだ初期段階で、外部利用は限定的です。安定範囲は Support Matrix に従います。
 
-## ドキュメント
+## 最新ドキュメント
 
-| 知りたいこと | 入口 |
-| --- | --- |
-| 実タスクを 2 分で理解する | [Demo](docs/DEMO_en.md) |
-| stable、beta、source、実証 | [Project Status](docs/PROJECT-STATUS_en.md) |
-| 製品機能と境界 | [Product](docs/PRODUCT_en.md) |
-| アーキテクチャ | [Architecture](docs/ARCHITECTURE_en.md) |
-| サポート対象 | [Support Matrix](docs/SUPPORT-MATRIX_en.md) |
-| コマンドと MCP ツール | [Command Reference](docs/COMMANDS_en.md) |
-| ローカル WebUI と CLI 専用 reset | [WebUI](docs/WEBUI_en.md) |
-| セキュリティ報告 | [Security](SECURITY.md) · [Threat Model](docs/THREAT-MODEL_en.md) |
-| コントリビューション | [Contributing](CONTRIBUTING_en.md) |
+- [English README](README_en.md)
+- [Product Definition](docs/PRODUCT_en.md)
+- [中断と再開の Demo](docs/DEMO_en.md)
+- [Project Status](docs/PROJECT-STATUS_en.md)
+- [Support Matrix](docs/SUPPORT-MATRIX_en.md)
+- [Command Reference](docs/COMMANDS_en.md)
+- [Architecture](docs/ARCHITECTURE_en.md)
+- [Security](SECURITY.md) / [Threat Model](docs/THREAT-MODEL_en.md)
 
 ## License
 

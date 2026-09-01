@@ -2,66 +2,99 @@
 
 [中文](WEBUI.md) | [English](WEBUI_en.md)
 
-Dev Flow Control Center 是嵌入 Go Core 的本机单用户界面。它展示共享数据目录中的 Task 概览、筛选列表、
-详情、时间线、流程图、Action、Recovery、Blocker 和生命周期操作。浏览器不保存第二份流程游标；每次读取和
-写入都经由 Core 的 Application、Workflow、Recovery 与 Store 边界。
+> Dev Flow 持久任务状态的本地可视化与诊断入口。
 
-界面完整支持简体中文和英文。首次打开时按浏览器有序语言偏好选择：最先命中的中文 locale 使用中文，
-最先命中的英文 locale 使用英文，其它情况使用英文。shell 中的语言开关可随时切换；手工选择只保存在
-当前浏览器的 local site storage，清除站点数据后重新跟随系统语言。Core ID、枚举、路径、事实和原始错误不翻译。
-中文界面使用自然的产品语言描述任务、筛选、操作和系统状态，不把“权威边界”“runtime ownership”等内部
-架构术语直译成页面标题。输入框、下拉框、日期控件和按钮使用统一高度、边框、焦点与对齐规则。
-“开始任务”同时承载新建和继续已有任务；普通表单只填写仓库路径，主仓库默认标识和附加仓库标识由系统
-生成。任务列表的当前阶段选项来自 Core 当前流程定义。所有选择控件使用 WebUI 自有、支持键盘操作的
-combobox/listbox，不调用浏览器原生下拉弹层。
+Control Center 嵌入 Go Core，读取与 Host 相同的本地 Task 数据。浏览器不保存第二份流程状态，所有
+读取和操作都经过当前 Core。
 
-共享页面框架根据可用宽度调整内容区、导航和操作区。桌面端为筛选、Task 表格、流程图和详情摘要提供更宽的结构化内容区；平板与窄屏收紧留白、保持单行主导航，并把 Task 表格重排为带字段名的卡片。概览指标、开始任务表单、详情摘要、Action、时间线和系统状态按同一组断点逐级改为两列或单列，核心信息不依赖横向浏览。
+## 可以查看什么
 
-概览和任务列表同时显示主仓库的 `repository_group_id` 短标识与实际 `worktree_path`；任务详情为
-Scope 中每个 repository 显示自己的组标识和路径。linked worktree 共享组标识但路径不同，因此用户
-可以看出同一逻辑 Git 仓库中的多个独立 Task。该信息只从 Task snapshot 投影，不增加持久化状态。
+- 所有 Host 共用的 Task 概览和筛选列表；
+- 当前阶段、范围、revision、Action 和合法下一步；
+- 时间线、流程图、测试与理解确认记录；
+- Recovery 判断、Blocker 和需要满足的恢复条件；
+- 主仓库、附加仓库以及高级 worktree 视图；
+- 当前 Core、数据目录和运行状态。
 
-## 启动与复用
+界面支持简体中文和英文。首次打开时跟随浏览器语言，手工选择只保存在当前浏览器，不进入 Core、
+Task 或账号状态。
 
-先让 `DEV_FLOW_DATA_DIR` 指向一个已存在的本机目录，再使用携带 Core 的任一维护中 Host package：
+## 启动、打开、查看状态和停止
+
+推荐使用统一入口：
 
 ```bash
-export DEV_FLOW_DATA_DIR="/absolute/path/to/existing-directory"
 dev-flow webui start
 dev-flow webui status
 dev-flow webui open
 dev-flow webui stop
 ```
 
-`start` 默认打开浏览器；`--no-open` 只启动进程。所有命令支持 `--plain` 或 `--json`。服务只绑定
-`tcp4 127.0.0.1` 的系统分配端口。mode `0600` 的 runtime receipt 记录 PID、进程启动身份、data-root
-digest 和 loopback URL；另一 Host 携带的兼容 Core 会复用该实例，而不是创建 Host 专属进程或数据。
-公共 `dev-flow webui start` 在默认数据目录缺失时以 mode `0700` 创建它；`open/status/stop/reset` 不创建
-目录。设置 `DEV_FLOW_DATA_DIR` 后，该显式目录必须预先存在、canonical 且不经过符号链接。
-Codex 的 `remove` 与统一卸载会在删除注册或 package 前调用同一 stop 能力；只有 runtime receipt 中的 PID、启动身份和 data-root 全部匹配时才发送停止信号，失败则中止后续卸载。
+`start` 默认打开浏览器；`--no-open` 只启动进程。所有命令支持 `--plain` 或 `--json`。公共
+`dev-flow webui start` 可以按 mode `0700` 创建缺失的产品默认数据目录，其他命令不创建目录。
 
-## 状态与本地保护
+设置显式数据目录时，它必须已经存在、可以 canonicalize 且不经过符号链接：
 
-`status` 区分 `ready`、`read_only`、`reset_required`、`incompatible` 和 `unavailable`。页面写操作要求
-精确 Origin 和当前进程生成的随机 session 值，并始终携带当前 Task revision。页面轮询失败或 revision
-变化时会失效旧表单。该边界用于本机误请求与陈旧页面保护，不是账号认证，也不允许远程监听。
+```bash
+export DEV_FLOW_DATA_DIR="/absolute/path/to/existing-directory"
+dev-flow webui start
+```
+
+## 本机与单用户边界
+
+服务只监听 `tcp4 127.0.0.1` 的系统分配端口，不提供远程监听。页面写操作检查精确 Origin、当前
+进程生成的随机 session 值和 Task revision；页面过期或 revision 变化会使旧表单失效。
+
+这些检查用于防止本机误请求和陈旧页面操作，不是账号认证，也不提供多用户隔离。
+
+## runtime receipt 的作用
+
+mode `0600` 的 runtime receipt 记录 PID、进程启动身份、data-root digest 和 loopback URL。Codex 与
+DeepSeek 携带的兼容 Core 通过它复用同一个进程和 SQLite 数据，而不是各自创建一份 Task 状态。
+
+停止或卸载时，只有 receipt 中的 PID、启动身份和数据目录全部匹配，才会向进程发送停止信号。
+校验失败会中止后续卸载，避免停止或删除不属于当前安装的对象。
+
+## 状态
+
+`status` 区分：
+
+| 状态 | 含义 |
+| --- | --- |
+| `ready` | 当前 Core 和数据可正常使用 |
+| `read_only` | 可以读取，但当前不开放写操作 |
+| `reset_required` | 数据 Schema 不兼容，需要先查看 reset 计划 |
+| `incompatible` | 当前 Core 或运行实例不兼容 |
+| `unavailable` | 没有可用实例或无法读取状态 |
 
 ## 旧数据 reset
 
-旧 Schema 或启用前 Task 数据采用 `reject-and-reset`：普通启动零写入返回 `reset_required`。reset 永远不在
-浏览器中执行：
+不兼容或启用前数据采用 `reject-and-reset`。普通启动保持零写入并返回 `reset_required`。reset 只能从
+CLI 执行，浏览器没有 reset 操作：
 
 ```bash
 dev-flow webui reset
 dev-flow webui reset --confirm <当前计划返回的 TOKEN>
 ```
 
-第一条命令只展示 canonical database 与现有 SQLite sidecar 的精确目标。确认 token 绑定这些目标；确认时
-Core 先获得数据库独占访问并重新核对目标。锁失败、token 不匹配或目标变化都以零删除停止。成功后只删除
-确认的 Task 数据并创建当前空 Schema；Host packages、registrations、用户配置和无关文件保持不变。
+第一条命令只展示当前 canonical database 和现有 SQLite sidecar 的精确目标。token 与这些目标绑定；
+确认时 Core 先获得数据库独占访问并再次核对目标。锁失败、token 不匹配或目标变化都不删除数据。
+成功后只清理确认的 Task 数据并创建当前空 Schema；Host package、注册、用户配置和无关文件保留。
 
-## 制品边界
+## 数据与制品
 
-React/TypeScript/Vite 只参与源码构建。入口 HTML、JavaScript、CSS、SVG 和 manifest 都嵌入 Core binary；
-运行时不需要 Node server、CDN、外部字体、遥测或独立 WebUI package。公开稳定 package 是否已经携带本能力，
-以[项目状态](PROJECT-STATUS.md)和[支持矩阵](SUPPORT-MATRIX.md)为准。
+默认 Task 数据位于本机产品数据目录。Codex 与 DeepSeek 共用同一数据，不属于浏览器缓存或 Host
+聊天记录。React、TypeScript 和 Vite 只参与构建；HTML、JavaScript、CSS、SVG 和 manifest 都嵌入
+Core binary，运行时不需要 Node server、CDN、外部字体或独立 WebUI package。
+
+## 当前不支持
+
+- 远程访问、账号、团队权限或云端同步；
+- shell、文件编辑、Git 写入或发布操作；
+- 浏览器内 reset；
+- 用户自定义流程图或自动历史数据迁移；
+- 把 WebUI 作为另一份 Task 状态来源。
+
+公开稳定 package 是否携带当前源码能力，以[项目状态](PROJECT-STATUS.md)和
+[支持矩阵](SUPPORT-MATRIX.md)为准。完整 CLI 参数见[命令参考](COMMANDS.md)，协议原理见
+[Architecture](ARCHITECTURE.md)。

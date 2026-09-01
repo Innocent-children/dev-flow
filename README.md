@@ -4,7 +4,7 @@
 
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>让 Codex 和 DeepSeek 在长任务中守住范围、控制验证，并在中断后继续。</strong></p>
+<p align="center"><strong>让长时 AI 编程任务从持久任务状态继续，而不是从聊天记录重新猜测。</strong></p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/dev-flow-codex"><img src="https://img.shields.io/npm/v/dev-flow-codex?label=dev-flow-codex" alt="Codex npm" /></a>
@@ -17,204 +17,141 @@
   <a href="README.md">简体中文</a> · <a href="README_en.md">English</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-Dev Flow 为 AI 编程任务提供一份**独立于聊天记录的本地任务状态**。它记住：
+Dev Flow 是长时 AI 编程任务的本地过程控制与恢复层。它在聊天记录之外保存任务目标、范围、当前
+阶段、验证预算、已有验证、阻塞原因和恢复状态，让 Codex 或 DeepSeek 在会话压缩、Host 重启或
+操作结果不确定后继续同一个任务。
 
-- 这次任务允许改什么，不允许扩展到什么；
-- 当前进行到需求、设计、实现、测试还是交付；
-- 约定了多少验证，哪些证据已经完成；
-- 会话中断或写入结果不确定时，应该恢复、阻塞还是安全重试。
+## 你是不是遇到过这个问题
 
-**它不是另一个编程 Agent，也不是任务编排器。** Codex 和 DeepSeek 仍负责读代码、改代码和运行
-命令；Dev Flow 只管理一个开发任务的范围、阶段、验证强度、证据和恢复。
+一个代码任务已经完成实现，正在跑最后一项定向测试。会话却被压缩，或者 Host 重启了。新会话只
+看到部分聊天和当前仓库，不知道哪些步骤已经完成、测试是否仍然有效，于是重新扫描、重复修改，
+或者直接跳过剩余工作。
 
-**从这里开始：** [两分钟看懂一次完整任务](docs/DEMO.md) ·
-[查看当前版本与真实证据](docs/PROJECT-STATUS.md) · [安装稳定版](#安装稳定版)
+Dev Flow 把这份进度保存为本地 Task。新会话先读取 Task，再从保存的阶段和下一步继续。
 
-> 本 README 介绍当前 `main` 的能力。npm `@latest` 是经过最终制品验证的稳定版，可能晚于
-> `main`；稳定版、beta 和源码的准确差异见[项目状态页](docs/PROJECT-STATUS.md)。
+## Dev Flow 保存什么
+
+- 最初请求、验收条件和明确不做的内容；
+- 当前处于需求、设计、实现、测试、理解确认还是交付；
+- verification budget，以及哪些验证已经完成；
+- 当前阻塞原因和需要满足的恢复条件；
+- Action 结果不确定时的 Recovery 判断。
+
+Codex 和 DeepSeek 仍然负责读代码、改文件和运行命令。Dev Flow 不替代编程 Agent，只保存并检查
+同一个开发任务如何继续。
 
 ## 30 秒理解
 
 | 直接使用 Agent 时 | Dev Flow 增加的能力 |
 | --- | --- |
-| Prompt 反复强调“不要扩大范围” | Task 保存原始意图，每一步明确允许做什么 |
-| 会话重启后重新扫描仓库、猜测进度 | 当前阶段、证据和阻塞原因保存在本地，可直接恢复 |
-| 定向检查逐渐扩成全量回归或平台矩阵 | 每个 Task 都有明确的 verification budget |
-| 测试通过，但实现仍难以解释和接手 | 交付前经过 `COMPREHENSION_REVIEW` |
-| 写操作响应丢失后直接重试，可能重复副作用 | 先读取权威状态，再依据 Recovery 结论行动 |
-
-## 看一次任务如何运行
-
-```mermaid
-flowchart LR
-    A["描述任务与边界"] --> B["需求与设计"]
-    B --> C["实现"]
-    C --> D["定向测试"]
-    D --> E["理解审查"]
-    E --> F["交付"]
-    F --> G["DONE"]
-    D -. 发现实现问题 .-> C
-    E -. 过度复杂 .-> H["重构"]
-    H --> D
-```
-
-如果 Host 在实现后重启，新会话读取同一个 Task，仍能得到当前阶段、已完成证据、剩余验证预算和
-合法下一步，而不是从聊天记录重新推断。仓库中保留了真实 Codex 与 DeepSeek Journey 的结构化证据；
-详见[两分钟演示](docs/DEMO.md)。
-
-## 它在工具链中的位置
-
-| 工具 | 负责什么 |
-| --- | --- |
-| Codex / DeepSeek Harness | 读取仓库、修改代码、运行命令 |
-| Spec Kit / OpenSpec | 提供需求、设计和任务拆分方法 |
-| Dev Flow | 保存一个任务的范围、阶段、验证预算、返工路径和恢复状态 |
-
-一个 Spec Kit 文档、OpenSpec checkbox 或成功的测试命令都不会自行推进 Task；状态只由 Go Core
-在校验当前 Action 后更新。
-
-## 安装稳定版
-
-当前稳定制品支持 **macOS arm64** 和 **Node.js `>=24`**。精确版本与 Host 兼容范围见
-[Support Matrix](docs/SUPPORT-MATRIX.md)。
-
-安装、升级、修复、重装、卸载和清空后重装统一使用下方的 `dev-flow` 入口；Host
-原生命令保留为诊断恢复入口。
-安装向导会在执行过程中逐项显示当前 Host 动作，以及 package 安装、注册配置、制品校验和就绪回读等真实完成步骤；`--json` 仍只输出单个结果对象。
-交互界面按当前 locale 显示：`zh*` 使用简体中文，其余 locale 统一使用英文。
-
-### Codex
-
-```bash
-npm install -g @imotong/dev-flow@latest
-dev-flow
-```
-
-进入 Git 仓库后，使用精确 selector 启动 Dev Flow：
-
-```text
-$dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
-```
-
-完整安装、升级和移除方式见 [Codex 使用说明](packages/codex/README.md)。
-
-### DeepSeek Harness
-
-```bash
-npm install -g @imotong/dev-flow@latest
-dev-flow
-```
-
-重启 profile 后，在对话中输入：
-
-```text
-/dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
-```
-
-完整说明见 [DeepSeek 使用说明](packages/deepseek/README.md)。
+| 会话中断后重新猜测进度 | 恢复同一个本地 Task |
+| 局部任务逐渐扩大范围 | 保存最初目标和明确边界 |
+| 定向测试不断扩大 | 保存 verification budget |
+| 操作响应丢失后直接重试 | 先读取当前 Task 和 Recovery 状态 |
+| 测试结果与后续代码变化混在一起 | 保存当前阶段和相应证据 |
 
 ## 适合什么任务
 
-Dev Flow 适合：
+Dev Flow 适合会跨会话、跨天或在 Host 重启后继续的真实仓库任务，尤其是需要明确范围、定向验证、
+返工路径或交付前理解确认的修改。一个主仓库加少量显式附加仓库属于高级用法。
 
-- 需要经历需求、设计、实现、测试和交付多个阶段的真实仓库任务；
-- 可能返工，并需要保留验证证据的修改；
-- 会跨会话、跨天或在 Host 重启后继续的工作；
-- 需要明确限制测试强度，或要求开发者在交付前真正理解实现的任务；
-- 由一个主仓库和少量显式附加仓库共同完成的有界任务。
+一次性问答、代码解释、状态查询，或无需保留进度的机械性小改动，直接使用 Codex 或 DeepSeek
+通常更简单。Dev Flow 也不是通用任务编排器、远程执行平台或安全沙箱。
 
-一次性问答、无需保留状态的机械性单文件修改，直接使用 Codex 或 DeepSeek 通常更简单。
+## 与其他工具的关系
 
-## 核心能力
+| 工具 | 负责什么 |
+| --- | --- |
+| Codex / DeepSeek | 读取仓库、修改代码和运行命令 |
+| OpenSpec / Spec Kit | 帮助组织需求、设计和任务 |
+| Dev Flow | 保存当前 Task 的阶段、范围、验证预算、恢复状态和合法下一步 |
 
-### 显式范围
+OpenSpec 和 Spec Kit 是可选的工作方法，不是 Dev Flow 的主定位。当前没有 OpenSpec / Spec Kit
+artifact importer；更薄的集成仍是[未来方向](docs/ROADMAP.md)。
 
-`TaskIntent` 保存最初请求、验收条件和范围外事项。实质性需求或设计变化必须通过受控流转返回相应
-阶段，不能悄悄扩大当前步骤的权限。
+## 一次中断后如何继续
 
-### 有界验证
+```text
+重启前
+Task: auth-rate-limit
+State: TEST
+Revision: 5
+Completed: implementation
+Remaining: targeted auth test
 
-每个 Task 都保存 verification budget。检查应直接关联当前阶段、变更范围、验收条件或已知恢复风险；
-完整回归、平台矩阵和压力测试不是默认动作。
+重启后
+Task: auth-rate-limit
+State: TEST
+Revision: 5
+Next: run the remaining targeted auth test
+```
 
-### 跨会话恢复
+恢复时，Host 读取同一个 Task 的当前阶段、范围、剩余验证和恢复状态。它继续剩余验证，不需要从
+聊天记录重新推断。完整故事见[中断后继续的两分钟演示](docs/DEMO.md)。
 
-当前阶段、需求/设计/任务基线、证据、阻塞原因和合法下一步保存在本地 SQLite。卸载 Host 集成时，
-Task 数据默认保留。Codex 卸载会先按 runtime receipt 校验并停止对应 WebUI；停止失败时保留注册和 package，避免已删除的旧版本继续监听端口。
+## 最短安装路径
 
-### 理解审查
+当前稳定制品支持 macOS arm64。Host、Node.js 与稳定 package 的准确范围见
+[Support Matrix](docs/SUPPORT-MATRIX.md)。
 
-测试通过后仍需经过 `COMPREHENSION_REVIEW`。无法清楚解释或维护的实现可以回到设计、实现或重构，
-任何仓库变更都必须重新通过测试。
+```bash
+npm install -g @imotong/dev-flow@latest
+dev-flow
+```
 
-### 不确定写入恢复
+安装完成后，在 Git 仓库中使用对应入口。
 
-写操作携带 revision、Action identity、source cursor 和 repository binding。响应丢失或中断时，
-Core 先完整构造并校验下一版 Task，再把规范化 Action 输入保存到独立操作记录；Task、Event、Claim
-与操作的 applied revision 原子提交。响应丢失或中断时，调用者只需保留 Task ID 和 Action ID，
-不再保存或重建原始 payload。
+Codex 可以智能选择 Dev Flow；需要明确进入时使用：
 
-允许写入的 Action 在结果中提交相对当前 Action 签发状态新产生的精确 `changed_paths`，或在本节点未改文件时提交 `no_file_changes`。Core 以签发基线、当前
-`allowed_effects` 和 fresh Git observation 验证；合法 worktree 结果可由原 Action 提交，branch、
-HEAD、repository identity 或未声明路径变化仍返回 `REPOSITORY_DRIFT`。若仓库状态完全一致但结果声明了文件变化，Core 返回 `repository_effect_not_observed` 字段错误，Host 可将本节点结果纠正为无文件变化。
-Design、Tasks 和 Implementation 提交分别省略 `requirements_revision`、`design_revision` 和 `task_plan_revision`；Core 在确认当前 Action 身份后，从同一 Task 快照填充这些字段。Delivery 提交不包含 acceptance、automated/manual evidence ID 或 Test/Comprehension record ID；Core 从当前 Task 生成这些字段，提交它们会按 `unknown_member` 拒绝。节点结果在暂存前仍会按当前 Task 做语义预检；节点提交中已证明零写入的 `required_member_missing` 可按准确路径修正一次，但只能使用当前节点工作已经确认的内容。缺失内容需要新的用户决定时必须停止并请求输入；其他不能安全推导的错误只返回字段信息，不授权自动纠正。
+```text
+$dev-flow-codex:dev-flow 修复登录失败次数限制，只运行定向测试。
+```
 
-Codex Skill 要求每次普通提交和允许的一次修正提交都重新读取当前 `submission_tool` 的实时 schema，并逐项核对完整草稿的必填/额外成员、嵌套值和数组元素类型、nullability、enum 与 const。无法精确匹配时会在调用工具前停止，不根据字段名或错误文本猜测类型。
+DeepSeek Harness 每个需要调用 Dev Flow 的直接用户消息都使用：
 
-### 有界多仓库范围
+```text
+/dev-flow 修复登录失败次数限制，只运行定向测试。
+```
 
-当前源码允许一个 Task 显式声明一个主仓库和最多七个附加仓库。所有仓库共享同一个阶段、Action、
-revision、验证预算和结果；系统不会扫描相邻目录、依赖或代码索引来自动扩大范围。该能力是否已进入
-稳定版，请以[项目状态页](docs/PROJECT-STATUS.md)为准。
+Host 原生命令只用于诊断和恢复。完整安装、状态、恢复与移除方式见
+[Codex 使用说明](packages/codex/README.md)、[DeepSeek 使用说明](packages/deepseek/README.md)和
+[命令参考](docs/COMMANDS.md)。
 
-同一逻辑 Git 仓库可以通过多个 linked worktree 同时运行多个独立 Task。每个物理 worktree 仍最多
-持有一个活动 Task。Host 提供 worktree-backed task/thread 能力时，Codex 会为明确的并行批次在
-admission 前按有界项创建子任务；单个新请求的 `dev_flow_open_task` 返回
-`ACTIVE_TASK_CONFLICT` 时，则创建且只创建一个子任务。冲突后的子任务使用
-`target.environment.type="worktree"` 且不传 `startingState`，只从默认分支的已提交状态开始，不接收
-原 checkout 的 index、已跟踪工作区改动或未跟踪文件。显式 resume、`HOST_OWNERSHIP_CONFLICT` 和
-其他错误仍按原规则停止；Core 不创建、切换或清理 worktree，原活动 Task 与原 worktree 保持不变。
-
-## 边界
-
-- Core 只对 Git 做有界、只读观察；不会执行 commit、push、merge、rebase、tag 或发布。
-- 真正的文件修改和命令执行仍由用户授权的 Host 完成。
-- Dev Flow 不会拦截 Host 的每一次文件读写，也不是通用安全沙箱。
-- 当前源码包含仅监听 loopback 的共享 WebUI，前端支持简体中文/英文、首次跟随系统语言并允许浏览器内切换。共享页面框架会按宽度重排导航、筛选、Task 列表、详情、表单和系统状态，宽屏充分使用可用空间，窄屏直接呈现核心信息；不包含远程 MCP、遥测、用户自定义流程图或自动历史数据迁移。
-- 可选代码索引只提供检索结果，不能决定仓库范围、权限、Recovery 或流程状态。
-
-安全边界见 [Security Policy](SECURITY.md) 和 [Threat Model](docs/THREAT-MODEL.md)。
-
-## 当前稳定支持
+## 当前支持与边界
 
 | 产品 | 已验证环境 |
 | --- | --- |
 | `dev-flow-codex` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
 | `dev-flow-deepseek` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
+| `@imotong/dev-flow` | macOS arm64、Node.js `>=20` |
 
-这些声明来自公开制品和最终 Host Journey，而不是只来自“源码可构建”或“测试通过”。完整证据与
-beta/source 状态见 [Project Status](docs/PROJECT-STATUS.md) 和
-[Support Matrix](docs/SUPPORT-MATRIX.md)。
+Dev Flow 仍处于早期，外部采用有限。当前边界包括：
 
-## 文档
+- Core 只读观察 Git，不执行 commit、push、merge、rebase、tag 或 publish；
+- 文件修改和命令执行由用户授权的 Codex 或 DeepSeek 完成；
+- Core 不拦截 Host 的每一次文件读写，不是 shell 或文件系统沙箱；
+- WebUI 是本机 loopback 的单用户查看与诊断入口，不是云端项目管理平台；
+- 稳定支持只以 Support Matrix 中的公开制品和真实 Host Journey 为准。
+
+## 详细文档
 
 | 想了解什么 | 入口 |
 | --- | --- |
-| 两分钟理解真实流程 | [Demo](docs/DEMO.md) |
-| 当前稳定版、beta、源码和证据 | [Project Status](docs/PROJECT-STATUS.md) |
-| 产品能力与边界 | [Product](docs/PRODUCT.md) |
-| Core、Adapter、Store 与 Recovery | [Architecture](docs/ARCHITECTURE.md) |
-| 支持版本和平台 | [Support Matrix](docs/SUPPORT-MATRIX.md) |
-| 用户命令与 MCP 工具 | [Command Reference](docs/COMMANDS.md) |
-| 本地 WebUI 与 CLI-only reset | [WebUI](docs/WEBUI.md) |
-| 后续方向 | [Roadmap](docs/ROADMAP.md) |
-| 安全报告与威胁模型 | [Security](SECURITY.md) · [Threat Model](docs/THREAT-MODEL.md) |
-| 提交 Issue 或 Pull Request | [Contributing](CONTRIBUTING.md) |
-| 维护者发布流程 | [Release](release/README.md) |
+| 产品定位、目标用户和非目标 | [Product](docs/PRODUCT.md) |
+| 中断后继续的真实用户故事 | [Demo](docs/DEMO.md) |
+| 稳定、源码、未验证和当前缺口 | [Project Status](docs/PROJECT-STATUS.md) |
+| 未来优先级 | [Roadmap](docs/ROADMAP.md) |
+| Core、Adapter、Store、Recovery 与协议 | [Architecture](docs/ARCHITECTURE.md) |
+| 完整 CLI、selector 和 MCP 工具 | [Command Reference](docs/COMMANDS.md) |
+| 本机 WebUI | [WebUI](docs/WEBUI.md) |
+| 支持平台与 Host | [Support Matrix](docs/SUPPORT-MATRIX.md) |
+| 文档和源码各自负责什么 | [Manifest](MANIFEST.md) |
+| 安全边界 | [Security](SECURITY.md) · [Threat Model](docs/THREAT-MODEL.md) |
+| 参与贡献 | [Contributing](CONTRIBUTING.md) |
 
 ## 本地开发
 
-需要 Go `>=1.26`、Node.js `>=24` 和 pnpm `>=11 <12`：
+仓库开发需要 Go `>=1.26`、Node.js `>=24` 和 pnpm `>=11 <12`：
 
 ```bash
 pnpm install --frozen-lockfile

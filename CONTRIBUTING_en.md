@@ -9,7 +9,7 @@ final-artifact evidence, and bounded product improvements grounded in real devel
 
 | Change | Requirement |
 | --- | --- |
-| Spelling, links, translation, or correction of existing behavior documentation | Open a bounded pull request directly and synchronize every maintained locale in that document family according to the [I18n policy](docs/I18N_en.md) |
+| Spelling, links, translation, or correction of existing behavior documentation | Open a bounded pull request directly, synchronize the paired Chinese/English family, and check other root README snapshots according to the [I18n policy](docs/I18N_en.md) |
 | Template or documentation-maintenance rule change | Explain the affected surface; do not change product versions or perform a release |
 | Implementation defect that does not change public semantics | Identify the gap between the approved contract and actual behavior, then fix only that gap |
 | User-visible behavior, Core/MCP contract, persistence, process graph, or host-adapter contract change | Explain the user problem, scope, acceptance criteria, and approach in the pull request, and synchronize implementation, tests, documentation, and i18n |
@@ -34,6 +34,58 @@ A useful bug report includes:
 A product proposal should first explain the concrete user problem, why the current workflow cannot
 solve it, and how success would be measured. An implementation approach may be discussed, but it does
 not replace requirement definition.
+
+### Product feature proposal template
+
+```markdown
+## User event
+
+What actually happened?
+
+## Current approach
+
+How does the user handle it without Dev Flow?
+
+## Facts Dev Flow can confirm
+
+What can the Task, Action, repository, and retained evidence determine?
+
+## Decision to make
+
+Should the system continue, review, retry, block, or ask the user to decide?
+
+## User-visible result
+
+What change will the user ultimately see?
+
+## Cost of error
+
+What are the consequences of a false allow and a false block?
+
+## Acceptance evidence
+
+Which test, fault injection, or real Host journey demonstrates the result?
+
+## Explicit non-goals
+
+Which capabilities will this change not expand?
+```
+
+### Product decision gate
+
+Before implementation, a proposal must answer clearly:
+
+1. Does it directly improve trustworthy continuation of a long-running task?
+2. Is it based on Task, Action, repository observation, or retained records rather than only the
+   agent's narrative?
+3. Does it reduce the user's effort to judge current state and next step?
+4. Can it establish a repeatable real-Host journey?
+5. Does it retain one Core Task state?
+6. Does it add unnecessary process steps?
+7. Is it horizontal expansion only for another platform, Host, or interface?
+
+A proposal that cannot explain the user problem, visible result, and acceptance method should not
+move directly into implementation.
 
 ## Local environment
 
@@ -66,9 +118,10 @@ Before editing, read the [I18n policy](docs/I18N_en.md), the
 - Keep Core's Git observation read-only; do not add shell, commit, push, merge, tag, or publication
   authority.
 - Run only validation directly connected to the changed surface, acceptance criteria, or known risk.
-- A user-visible behavior change must synchronize every root README locale, `docs/PRODUCT*`, and
-  affected technical documentation.
-- A documentation correction must synchronize every maintained language in that document family.
+- A user-visible behavior change must synchronize the Chinese/English root README files,
+  `docs/PRODUCT*`, and affected technical documentation, then check other root README snapshots.
+- A documentation correction must synchronize the paired Chinese/English family; other root README
+  files are updated or retain an accurate snapshot notice according to the I18n policy.
 - When adding or changing a command, verify it against the package manifest, CLI parser, DSH lifecycle,
   Core parser, or MCP catalog and synchronize `docs/COMMANDS*`.
 - Public npm installation examples use `@latest`; human-readable documentation contains no exact
@@ -81,8 +134,10 @@ At minimum, documentation changes should confirm that:
 
 - Markdown, tables, code fences, and Mermaid render correctly on GitHub;
 - every file in the language navigation exists and links back to the other locales;
-- section structure, commands, platforms, and support claims are aligned within a document
-  family;
+- section structure, commands, platforms, and support claims are aligned in paired Chinese/English
+  document families;
+- other root README snapshots do not expand capability or conflict with current position, commands,
+  or stable support;
 - every ordinary installation example uses `@latest`, while exact product versions remain in
   machine-readable files and release records;
 - `docs/COMMANDS*` matches the executable command and tool catalog;

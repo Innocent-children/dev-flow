@@ -5,125 +5,108 @@
 ## Scope
 
 This policy governs human-readable repository documentation; it does not define runtime product
-locales. Source code, machine-readable schemas, artifact manifests, and executable tests remain the
-product-behavior authority. Translations present the same facts in different languages.
+locales. Source code, machine-readable schemas, package manifests, CLI parsers, and executable tests
+still define runtime behavior.
 
-## Maintained locales
+## Authoritative product-document languages
 
-The root README family maintains these nine locales:
+Simplified Chinese and English are the continuously synchronized product-document languages. The
+following families maintain both:
 
-| Locale | Language | File | Role |
+- root `README.md` and `README_en.md`;
+- `docs/PRODUCT*`, `docs/DEMO*`, `docs/ROADMAP*`, and `docs/PROJECT-STATUS*`;
+- `docs/ARCHITECTURE*`, `docs/COMMANDS*`, `docs/WEBUI*`, and `docs/SUPPORT-MATRIX*`;
+- `MANIFEST*`, `CONTRIBUTING*`, and this I18n policy;
+- the existing Chinese and English Codex and DeepSeek Host guides.
+
+These languages synchronize product position, current capability, future direction, commands,
+platforms, Hosts, and security boundaries. Technical references continue to be maintained only in
+Simplified Chinese and English.
+
+## Root README locales
+
+The root README family retains these nine locales:
+
+| Locale | Language | File | Maintenance role |
 | --- | --- | --- | --- |
-| `zh-CN` | Simplified Chinese | `README.md` | Repository default entry and Chinese version |
-| `en` | English | `README_en.md` | English version and source text for other non-Chinese translations |
-| `zh-TW` | Traditional Chinese | `README_zh-TW.md` | Fully maintained |
-| `ja` | Japanese | `README_ja.md` | Fully maintained |
-| `ko` | Korean | `README_ko.md` | Fully maintained |
-| `es` | Spanish | `README_es.md` | Fully maintained |
-| `fr` | French | `README_fr.md` | Fully maintained |
-| `de` | German | `README_de.md` | Fully maintained |
-| `pt-BR` | Brazilian Portuguese | `README_pt-BR.md` | Fully maintained |
+| `zh-CN` | Simplified Chinese | `README.md` | Continuously synchronized default product entry |
+| `en` | English | `README_en.md` | Continuously synchronized English product entry |
+| `zh-TW` | Traditional Chinese | `README_zh-TW.md` | Community translation or stable documentation snapshot |
+| `ja` | Japanese | `README_ja.md` | Community translation or stable documentation snapshot |
+| `ko` | Korean | `README_ko.md` | Community translation or stable documentation snapshot |
+| `es` | Spanish | `README_es.md` | Community translation or stable documentation snapshot |
+| `fr` | French | `README_fr.md` | Community translation or stable documentation snapshot |
+| `de` | German | `README_de.md` | Community translation or stable documentation snapshot |
+| `pt-BR` | Brazilian Portuguese | `README_pt-BR.md` | Community translation or stable documentation snapshot |
 
-A new locale requires a complete initial translation, a language-navigation entry, and an ongoing
-maintenance commitment. Do not add empty files, placeholder links, or title-only translations.
+The other seven locales do not promise paragraph-level synchronization with every source commit.
+They must accurately retain the core position, main capabilities, boundaries, recommended install
+entry, selectors, stable support, and links to authoritative documents. When a translation does not
+match current Chinese and English content, its top section must identify it as a stable documentation
+snapshot and point readers to `README.md` or `README_en.md` for current information.
 
-## Selection principles
+## Synchronization rules
 
-The maintained set places a fixed boundary between reach and long-term synchronization cost:
+When user-visible behavior or product position changes:
 
-- `zh-CN` and `en` are the primary languages for product and technical documentation;
-- `zh-TW`, `ja`, and `ko` cover major East Asian developer communities;
-- `es`, `fr`, `de`, and `pt-BR` cover commonly maintained large open-source developer locales;
-- the root README receives broader localization, while precise technical references remain focused on
-  Simplified Chinese and English;
-- a locale without clear maintenance ownership is not added, to prevent version, installation, and
-  support claims from drifting over time.
+1. synchronize the paired Simplified Chinese and English document families;
+2. update every affected technical reference and Host guide;
+3. check that the other seven root README files still describe core position, capability, boundary,
+   commands, and stable support accurately;
+4. update a translation when complete synchronization is available; otherwise retain an accurate
+   snapshot notice without expanding or inventing current capability;
+5. list updated paths and snapshot locales in the pull-request validation summary.
 
-This set is not a runtime language catalog and does not exclude future translations. A new locale must
-first satisfy the complete-translation and ongoing-synchronization requirements.
-
-## Documentation coverage matrix
-
-| Document family | Maintained coverage |
-| --- | --- |
-| Root `README*` | All nine locales above; structure and product facts must remain aligned |
-| `docs/PRODUCT*`, `docs/ARCHITECTURE*`, `docs/ROADMAP*`, `docs/SUPPORT-MATRIX*`, `docs/COMMANDS*`, and `MANIFEST*` | Simplified Chinese and English |
-| Codex / DeepSeek user and installation documentation | The currently paired Simplified Chinese and English files |
-| `CONTRIBUTING*` and the I18n policy | Simplified Chinese and English |
-| Release and maintainer contracts | Maintained in their selected language; they are not copied into all nine locales unless an explicit pair already exists |
-
-Coverage is an explicit contract rather than an inference from directory names. Once a document
-family lists multiple locales, every factual change must update every maintained file in that family.
-
-## Synchronization contract
-
-Every change to user-visible behavior must, in the same pull request:
-
-1. update all nine root README files;
-2. update both `docs/PRODUCT.md` and `docs/PRODUCT_en.md`;
-3. update Architecture, Support Matrix, Command Reference, Roadmap, host-package README,
-   installation, or invocation documentation according to the affected surface;
-4. list every documentation path in the pull-request validation summary.
-
-A version-only release updates machine-readable version files and release records without changing
-human-readable documentation. Platform, host-compatibility, installation, or product-behavior changes
-still synchronize every affected locale.
-
-A documentation-only correction must update every maintained locale containing the same incorrect
-statement. A product change, documentation change, or release must not be reported as merge-ready,
-Complete, or ready to publish while a maintained translation remains stale.
+Other languages cannot add capabilities, platforms, or support claims absent from the current Chinese
+and English documents. Commands, selectors, package names, paths, version identities, and Support
+Matrix facts do not change in translation.
 
 ## Installation commands and version identities
 
-Public end-user installation examples select npm's `latest` dist-tag:
+Public installation examples use npm's stable channel:
 
 ```text
+@imotong/dev-flow@latest
 dev-flow-codex@latest
 dev-flow-deepseek@latest
 ```
 
-Exact Core, Codex, DeepSeek, and Dev Flow CLI release versions remain only in machine-readable version
+Exact Core, Codex, DeepSeek, and Dev Flow CLI product versions remain only in machine-readable version
 files, package metadata, Release Tags, artifact digests, and release records. Human-readable documents
-use `latest`, generic npm package pages, and the Releases entry point.
+do not contain exact product versions.
 
-Installation and command documentation must be checked against executable implementation:
+Command documentation must be checked against implementation:
 
-- npm package names, `bin` entries, and platform constraints come from the relevant `package.json`;
-- Codex CLI subcommands and arguments come from the actual parser in
-  `packages/codex/bin/dev-flow-codex.mjs`;
+- package names, `bin` entries, and platform constraints come from the relevant `package.json`;
+- Codex commands come from `packages/codex/bin/dev-flow-codex.mjs`;
+- unified lifecycle commands come from `packages/dev-flow/lib/cli.mjs`;
 - DeepSeek installation and removal forms come from DSH lifecycle tests;
 - packaged Core commands come from `cmd/dev-flow/main.go`;
-- MCP tool names, read/write properties, and purposes come from the closed catalog under
-  `internal/mcp/`.
-
-Do not document an unimplemented `help`, `update`, `uninstall`, alias, or other inferred command.
-Managed host commands, user shell commands, conversational selectors, and MCP tools must be clearly
-separated instead of being presented as one invocation surface.
+- MCP tools come from the closed catalog under `internal/mcp/`.
 
 ## Translation invariants
 
-Every locale must preserve:
+Every locale preserves:
 
+- Dev Flow's primary position and failure scenario;
+- the distinction between current capability and future direction;
 - commands, selectors, tool names, environment variables, paths, and filenames;
-- product versions, bundled Core identities, platforms, and host compatibility;
-- nodes, transitions, error codes, schemas, Recovery classifications, and technical identifiers;
-- table-row correspondence and factual values;
-- command code blocks, Mermaid topology, node IDs, and support claims;
-- the meaning of capabilities, non-goals, limitations, and verification evidence.
+- package, bundled Core, platform, and Host compatibility facts;
+- the meaning of capabilities, non-goals, security boundaries, and support claims;
+- links to current Simplified Chinese or English technical references.
 
-Narrative prose, headings, and diagram annotations may be adapted to the target language. Links must
-preserve the same meaning and may point to the corresponding localized file. Keep identifiers in
-English when no stable localized term exists, and do not invent locale-specific product terminology or
-additional promises. A translation must not broaden, narrow, or reinterpret product behavior.
+Narrative prose may be natural for the target language. Identifiers without a stable translation stay
+in English; translations do not invent additional product terminology or commitments.
 
 ## Review requirements
 
-A documentation or product pull request must at least confirm that:
+Documentation changes must at least confirm that:
 
-- every file in the language navigation exists and links back to the other locales;
-- added, removed, or moved sections are aligned across all root README files;
-- versions, commands, platforms, and Support Matrix claims have not drifted;
-- every public installation block uses `@latest`, while exact evidence tables retain verified versions;
-- `docs/COMMANDS*` matches the current CLI parsers, DSH lifecycle, Core parser, and MCP catalog;
-- non-English README files contain no placeholder text or whole-section English fallback;
-- paired Chinese and English technical references express the same facts.
+- every file in the language navigation exists;
+- paired Chinese and English families express the same product facts;
+- other root README files do not conflict with the current position, commands, platforms, or
+  boundaries;
+- snapshot files identify their status and link to current Chinese or English entry points;
+- ordinary installation examples use `@latest`;
+- non-English files contain no placeholder translation or whole-section English fallback;
+- `docs/COMMANDS*` matches current parsers, lifecycle tests, and the MCP catalog.

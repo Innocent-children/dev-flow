@@ -36,6 +36,58 @@ define authorized product work.
 - Historical design material is available through Git history; it is not current implementation
   authority.
 
+## Product Feature Proposals
+
+Before implementation, structure a product feature proposal with this template:
+
+```markdown
+## User event
+
+What actually happened?
+
+## Current approach
+
+How does the user handle it without Dev Flow?
+
+## Facts Dev Flow can confirm
+
+What can the Task, Action, repository, and retained evidence determine?
+
+## Decision to make
+
+Should the system continue, review, retry, block, or ask the user to decide?
+
+## User-visible result
+
+What change will the user ultimately see?
+
+## Cost of error
+
+What are the consequences of a false allow and a false block?
+
+## Acceptance evidence
+
+Which test, fault injection, or real Host journey demonstrates the result?
+
+## Explicit non-goals
+
+Which capabilities will this change not expand?
+```
+
+Apply this decision gate before product implementation:
+
+1. Does the proposal directly improve trustworthy continuation of a long-running task?
+2. Is the decision based on Task, Action, repository observation, or retained records rather than
+   only an agent narrative?
+3. Does it reduce the user's effort to understand current state and next step?
+4. Can it establish a repeatable real-Host journey?
+5. Does it retain one Core Task authority?
+6. Does it add unnecessary process ceremony?
+7. Is it horizontal expansion only for another platform, Host, or interface?
+
+Do not move a proposal directly into implementation when it cannot state the user problem,
+user-visible result, and acceptance method clearly.
+
 ## Documentation and Internationalization
 
 Human-readable documentation mirrors delivered product behavior; it is not runtime, build, release,
@@ -44,7 +96,8 @@ or test authority. The maintained locale set and document-family coverage are de
 
 Every change to user-visible behavior must update documentation in the same pull request:
 
-1. update `README.md` and every maintained root README locale listed in `docs/I18N.md`;
+1. update `README.md` and `README_en.md`, then update or verify the other root README snapshots as
+   required by `docs/I18N.md`;
 2. update both `docs/PRODUCT.md` and `docs/PRODUCT_en.md`;
 3. update each affected technical reference, including `docs/ARCHITECTURE*`,
    `docs/SUPPORT-MATRIX*`, `docs/COMMANDS*`, `docs/ROADMAP*`, host package READMEs, installation
@@ -71,13 +124,17 @@ A change that adds, removes, or changes a CLI command, selector, environment var
 command, or MCP tool must update `docs/COMMANDS.md`, `docs/COMMANDS_en.md`, every affected package
 README, and all affected root README locale snippets.
 
-- Do not update only one locale when a maintained document family has multiple locale files.
+- Do not update only one side of a maintained Chinese/English document family.
+- Other root README locales are community translations or stable documentation snapshots. Keep their
+  core position, capability, boundaries, commands, and support facts accurate, and add or retain an
+  explicit snapshot notice when they are not fully synchronized.
 - Do not leave placeholder translations, stale version numbers, untranslated new sections, or an
   English fallback copied into another locale file.
 - Preserve commands, identifiers, paths, versions, digests, code blocks, tables, Mermaid graphs, and
   support claims exactly across translations; translate prose, not product facts.
 - If synchronized translation cannot be completed, do not report the change as merge-ready.
-- A documentation-only correction must update every maintained locale containing the same statement.
+- A documentation-only correction must update both Chinese and English files containing the same
+  statement and must not leave a conflicting statement in another root README snapshot.
 
 ## Product Boundary
 

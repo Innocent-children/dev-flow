@@ -4,175 +4,97 @@
 
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>Codex와 DeepSeek의 긴 작업에서 범위를 지키고, 검증을 제한하며, 중단 후 다시 시작할 수 있게 합니다.</strong></p>
-
-<p align="center">
-  <a href="https://www.npmjs.com/package/dev-flow-codex"><img src="https://img.shields.io/npm/v/dev-flow-codex?label=dev-flow-codex" alt="Codex npm" /></a>
-  <a href="https://www.npmjs.com/package/dev-flow-deepseek"><img src="https://img.shields.io/npm/v/dev-flow-deepseek?label=dev-flow-deepseek" alt="DeepSeek npm" /></a>
-  <a href="https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml"><img src="https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="Apache 2.0 License" /></a>
-</p>
+<p align="center"><strong>장시간 AI 코딩 작업을 채팅 기록의 추측이 아니라 영구 Task 상태에서 이어갑니다.</strong></p>
 
 <p align="center">
   <a href="README.md">简体中文</a> · <a href="README_en.md">English</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-Dev Flow는 AI 코딩 작업에 **채팅 기록과 분리된 로컬 영속 상태**를 제공합니다. 다음을 기억합니다.
+> 이 페이지는 안정 문서 스냅샷입니다. 계속 동기화되는 최신 설명은
+> [简体中文](README.md) 또는 [English](README_en.md)를 확인하세요.
 
-- 이번 작업에서 변경해도 되는 범위와 명시적으로 제외한 작업
-- requirements, design, implementation, test, delivery 중 현재 단계
-- 합의한 검증량과 이미 확보한 증거
-- 세션 중단이나 불확실한 쓰기 후 복구, 차단, 안전한 재시도 중 무엇을 해야 하는지
+Dev Flow는 장시간 AI 코딩 작업을 위한 로컬 프로세스 제어 및 복구 계층입니다. 채팅 기록 밖에 목표,
+범위, 현재 단계, 검증 예산, 완료된 검증, Blocker와 Recovery 상태를 저장하여 컨텍스트 압축, Host
+재시작, 결과가 불확실한 작업 뒤에도 같은 Task를 계속할 수 있습니다.
 
-**또 다른 코딩 Agent나 작업 오케스트레이터가 아닙니다.** Codex와 DeepSeek가 저장소를 읽고,
-코드를 수정하고, 명령을 실행합니다. Dev Flow는 하나의 개발 작업에 대한 범위, 단계, 검증량,
-증거, 복구만 관리합니다.
+## 가장 먼저 해결하는 문제
 
-**바로 시작하기:** [2분 워크스루](docs/DEMO_en.md) ·
-[현재 버전과 실제 증거](docs/PROJECT-STATUS_en.md) · [안정 버전 설치](#안정-버전-설치)
+장시간 작업이 중단되면 새 세션은 불완전한 채팅과 현재 repository를 보고 진행 상황을 다시 추측합니다.
+그 결과 변경을 반복하거나 남은 검증을 건너뛰고, 오래된 테스트 결과를 현재 결과로 사용할 수 있습니다.
+Dev Flow는 로컬 Task를 먼저 읽고 저장된 단계와 다음 작업에서 이어갑니다.
 
-> 이 README는 현재 `main`의 기능을 설명합니다. npm `@latest`는 최종 아티팩트로 검증된 안정
-> 버전이며 `main`보다 늦을 수 있습니다. 정확한 stable, beta, source 구분은
-> [Project Status](docs/PROJECT-STATUS_en.md)를 참고하십시오.
+## 30초 요약
 
-## 30초 이해
-
-| Dev Flow 없이 | Dev Flow가 추가하는 것 |
+| Agent를 직접 사용할 때 | Dev Flow가 추가하는 기능 |
 | --- | --- |
-| Prompt에서 “범위를 넓히지 말 것”을 반복 | Task가 원래 의도를 보존하고 각 단계의 허용 범위를 제시 |
-| 재시작한 세션이 저장소를 다시 훑고 진행 상태를 추측 | 현재 단계, 증거, blocker를 로컬에 보존하고 재개 |
-| 대상 검사가 전체 suite나 플랫폼 매트릭스로 확대 | 각 Task에 명시적 verification budget 적용 |
-| 테스트는 통과하지만 결과를 설명하거나 인수하기 어려움 | delivery 전에 `COMPREHENSION_REVIEW` 수행 |
-| 쓰기 응답이 유실되어 위험한 replay 수행 | 권위 상태를 먼저 읽고 retry 안전성을 결정 |
+| 세션 중단 후 진행 상황을 다시 추측 | 같은 로컬 Task 복구 |
+| 작은 작업의 범위가 점차 확대 | 최초 목표와 명확한 경계 저장 |
+| 대상 테스트가 계속 확대 | verification budget 저장 |
+| 응답 유실 후 즉시 재시도 | 현재 Task와 Recovery 상태를 먼저 읽기 |
+| 테스트 결과가 이후 코드 변경과 혼합 | 현재 단계와 해당 기록 저장 |
 
-## 한 작업의 흐름
+## 적합한 작업과 적합하지 않은 작업
 
-```mermaid
-flowchart LR
-    A["작업과 경계 설명"] --> B["요구사항과 설계"]
-    B --> C["구현"]
-    C --> D["대상 테스트"]
-    D --> E["이해도 검토"]
-    E --> F["전달"]
-    F --> G["DONE"]
-    D -. 구현 문제 .-> C
-    E -. 과도한 복잡성 .-> H["리팩터링"]
-    H --> D
-```
+Dev Flow는 여러 세션이나 날짜, Host 재시작을 거치는 실제 repository 작업에 적합합니다. 특히 범위,
+대상 검증, 재작업 경로, 전달 전 이해 확인이 필요한 변경에 유용합니다.
 
-구현 후 Host가 재시작되어도 새 세션은 같은 Task에서 현재 단계, 완료한 증거, 남은 검증 예산,
-합법적인 다음 단계를 읽습니다. 채팅 기록에서 다시 추론하지 않습니다. 자세한 내용은
-[2분 데모](docs/DEMO_en.md)를 참고하십시오.
+일회성 질문, 코드 설명, 상태 조회, 진행 상태를 보존할 필요가 없는 기계적인 작은 변경은 Codex 또는
+DeepSeek를 직접 사용하는 편이 간단합니다. Dev Flow는 범용 작업 오케스트레이터, 원격 실행 플랫폼,
+보안 sandbox가 아닙니다.
 
-## 도구 체인에서의 역할
+## 다른 도구와의 관계
 
-| 도구 | 책임 |
+| 도구 | 역할 |
 | --- | --- |
-| Codex / DeepSeek Harness | 저장소 읽기, 코드 변경, 명령 실행 |
-| Spec Kit / OpenSpec | 요구사항, 설계, 작업 계획 방법 제공 |
-| Dev Flow | 하나의 작업에 대한 범위, 단계, 검증 예산, 재작업 경로, 복구 상태 보존 |
+| Codex / DeepSeek | repository 읽기, 코드 변경, 명령 실행 |
+| OpenSpec / Spec Kit | 요구사항, 설계, 작업 정리 지원 |
+| Dev Flow | Task 단계, 범위, 검증 예산, 복구 상태, 합법적인 다음 단계 저장 |
 
-## 안정 버전 설치
+현재 OpenSpec / Spec Kit artifact importer는 없습니다. 더 얇은 연동은 향후 방향입니다.
 
-현재 안정 아티팩트는 **macOS arm64**와 **Node.js `>=24`**를 지원합니다. 정확한 버전과 Host
-호환성은 [Support Matrix](docs/SUPPORT-MATRIX_en.md)를 참고하십시오.
-
-`dev-flow` 진입점이 설치, 업그레이드, 복구, 재설치, 제거 및 데이터 초기화 후 재설치를
-관리합니다. Host 기본 명령은 진단 복구용으로 계속 사용할 수 있습니다.
-설치 프로그램은 실행 중 각 Host 작업과 package 설치, 등록 구성, 아티팩트 검증, 준비 상태 재확인 등 실제로 완료된 단계를 차례로 표시합니다. `--json`은 계속 단일 결과 객체만 출력합니다.
-대화형 화면은 `zh*` locale에서 중국어 간체를 사용하고 그 외 모든 locale에서는 영어를 사용합니다.
-
-### Codex
+## 설치 및 시작
 
 ```bash
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-Dev Flow를 강제로 선택하려면:
+Codex 명시적 진입점:
 
 ```text
-$dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
+$dev-flow-codex:dev-flow 로그인 실패 횟수 제한을 수정하고 대상 테스트만 실행하세요.
 ```
 
-자세한 내용은 [Codex guide](docs/CODEX_en.md)를 참고하십시오.
-
-### DeepSeek Harness
-
-```bash
-npm install -g @imotong/dev-flow@latest
-dev-flow
-```
-
-profile을 재시작한 뒤 입력합니다.
+DeepSeek Harness 명시적 진입점:
 
 ```text
-/dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
+/dev-flow 로그인 실패 횟수 제한을 수정하고 대상 테스트만 실행하세요.
 ```
 
-자세한 내용은 [DeepSeek guide](docs/DEEPSEEK_en.md)를 참고하십시오.
-
-## 적합한 작업
-
-- requirements, design, implementation, test, delivery를 거치는 실제 저장소 작업
-- 재작업 가능성이 있고 검증 증거를 보존해야 하는 변경
-- 여러 세션, 날짜, context compaction, Host 재시작을 넘나드는 작업
-- 명시적 검증 한도나 개발자 이해도 확인이 필요한 작업
-- 하나의 주 저장소와 소수의 명시적 추가 저장소에 걸친 제한된 작업
-
-상태 보존이 필요 없는 일회성 질문이나 기계적인 단일 파일 수정은 Codex 또는 DeepSeek를 직접
-사용하는 편이 보통 더 단순합니다.
-
-## 주요 기능
-
-- **명시적 범위:** `TaskIntent`가 원래 요청, 인수 조건, 범위 밖 작업을 보존합니다.
-- **제한된 검증:** 각 Task에 verification budget이 있으며 전체 회귀와 플랫폼 매트릭스는 기본 작업이 아닙니다.
-- **세션 간 복구:** 현재 단계, 증거, blocker, 다음 단계를 로컬 SQLite에 보존합니다.
-- **안전한 제거:** Codex 제거는 runtime receipt를 검증해 해당 WebUI를 먼저 중지합니다. 중지에 실패하면 등록과 package를 유지하여 삭제된 이전 버전이 포트를 계속 수신하지 않도록 합니다.
-- **이해도 검토:** 테스트 이후 `COMPREHENSION_REVIEW`를 수행하고 유지보수하기 어려운 결과는 되돌립니다.
-- **불확실한 쓰기 복구:** Core는 다음 Task를 완전히 검증한 뒤 정규화된 Action 입력을 독립 작업 레코드에 보존합니다. 응답 유실 후에는 Task ID와 Action ID만으로 복구하며 payload를 다시 만들지 않습니다.
-- **제한된 다중 저장소:** 현재 source는 주 저장소 1개와 추가 저장소 최대 7개를 하나의 상태로 관리합니다.
-- **동일 저장소의 병렬 Task:** 하나의 논리 Git 저장소는 여러 linked worktree에서 독립 Task를 동시에 실행할 수 있습니다. 각 물리 worktree에는 active Task를 하나만 둘 수 있습니다. Host가 worktree-backed task/thread 기능을 제공하면 Codex는 명시적 병렬 배치에 대해 admission 전에 각 제한된 항목별로 하위 Task를 만들고, 하나의 새 요청에서 `dev_flow_open_task`가 `ACTIVE_TASK_CONFLICT`를 반환하면 그 결과 뒤에 하위 Task를 정확히 하나만 만듭니다. 충돌 뒤의 하위 Task는 `target.environment.type="worktree"`를 사용하고 `startingState`를 전달하지 않으며 기본 브랜치의 커밋된 상태에서만 시작합니다. 사용 중인 checkout의 index, 추적된 작업 트리 변경, 추적되지 않은 파일은 전달하지 않습니다. 명시적 resume, `HOST_OWNERSHIP_CONFLICT`, 기타 오류는 기존 규칙대로 중단합니다. Core는 worktree를 생성·전환·정리하지 않으며 기존 active Task와 worktree는 그대로 유지됩니다.
-
-다중 저장소 기능이 안정 버전에 포함되었는지는
-[Project Status](docs/PROJECT-STATUS_en.md)에서 확인하십시오.
-
-## 경계
-
-- Core의 Git 접근은 제한된 읽기 전용이며 commit, push, merge, rebase, tag, publish를 수행하지 않습니다.
-- 파일 변경과 명령 실행은 사용자가 승인한 Host의 책임입니다.
-- Dev Flow는 Host의 모든 파일 작업을 차단하지 않으며 일반 보안 sandbox가 아닙니다.
-- 현재 소스에는 중국어 간체/영어, 시스템 언어 기본값, 브라우저 로컬 전환을 지원하는 loopback 전용 공유 WebUI가 포함됩니다. 공통 페이지 셸은 화면 너비에 맞춰 탐색, 필터, Task 목록, 상세, 폼, 시스템 상태를 재배치하며, 넓은 화면의 공간을 활용하고 좁은 화면에서도 핵심 정보를 바로 보여 줍니다. remote MCP, telemetry, 사용자 정의 graph, 자동 과거 데이터 마이그레이션은 포함되지 않습니다.
-- 선택적 코드 index는 검색만 보조하며 범위, 권한, Recovery, 상태를 결정할 수 없습니다.
-- 쓰기가 허용된 Action은 해당 Action이 발급된 뒤 이 노드에서 새로 변경한 `changed_paths`만 제출하며, 파일을 변경하지 않았다면 `no_file_changes`를 제출합니다. Core는 발급 시 기준과 fresh Git observation으로 이를 검증하며, 허가된 변경은 원래 Action으로 완료할 수 있지만 branch, HEAD, repository identity 또는 선언되지 않은 경로 변경은 계속 `REPOSITORY_DRIFT`를 반환합니다. 저장소가 정확히 일치하는데 변경을 선언하면 Core는 `repository_effect_not_observed` 필드 규칙을 반환합니다.
-- Design, Tasks, Implementation 제출은 각각 `requirements_revision`, `design_revision`, `task_plan_revision`을 생략합니다. Core는 현재 Action identity를 검증한 뒤 같은 Task snapshot에서 이 필드들을 채웁니다. Delivery 제출에는 acceptance, automated/manual evidence ID, Test/Comprehension record ID를 포함하지 않습니다. Core가 현재 Task에서 생성하며, 제출하면 `unknown_member`로 거부됩니다. 저장 전에는 현재 Task를 기준으로 노드 결과의 의미를 계속 검사합니다. 노드 제출에서 쓰기 없음이 증명된 `required_member_missing`은 현재 노드 작업에서 이미 확인한 사실만 사용해 정확한 경로를 한 번 수정할 수 있습니다. 누락된 내용에 새로운 사용자 결정이 필요하면 Host는 중지하고 입력을 요청해야 하며, 그 밖에 안전하게 도출할 수 없는 값에는 자동 수정 권한을 주지 않습니다.
-- Codex Skill은 각 일반 제출과 허용된 한 번의 수정 제출 전에 현재 `submission_tool`의 live schema를 다시 읽고 전체 초안의 필수/추가 멤버, 중첩 값 및 배열 항목 유형, nullability, enum, const를 항목별로 대조하도록 요구합니다. 정확히 일치하지 않으면 도구 호출 전에 중지하며 필드명이나 오류 문구로 유형을 추측하지 않습니다.
-
-보안 경계는 [Security Policy](SECURITY.md)와 [Threat Model](docs/THREAT-MODEL_en.md)을 참고하십시오.
-
-## 현재 안정 지원
+## 현재 안정 지원 및 경계
 
 | 제품 | 검증된 환경 |
 | --- | --- |
 | `dev-flow-codex` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
 | `dev-flow-deepseek` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
+| `@imotong/dev-flow` | macOS arm64, Node.js `>=20` |
 
-정확한 증거와 beta/source 상태는 [Project Status](docs/PROJECT-STATUS_en.md)와
-[Support Matrix](docs/SUPPORT-MATRIX_en.md)를 참고하십시오.
+- Core는 Git을 읽기 전용으로 관찰하며 commit, push, merge, rebase, tag, publish를 실행하지 않습니다.
+- 파일 변경과 명령 실행은 사용자가 승인한 Codex 또는 DeepSeek가 담당합니다.
+- Core는 Host의 모든 파일 작업을 차단하지 않으며 shell 또는 파일 시스템 sandbox가 아닙니다.
+- WebUI는 로컬 loopback의 단일 사용자 보기 및 진단 진입점입니다.
+- 프로젝트는 아직 초기 단계이며 외부 도입이 제한적입니다. 안정 범위는 Support Matrix를 따릅니다.
 
-## 문서
+## 최신 문서
 
-| 알고 싶은 내용 | 시작 위치 |
-| --- | --- |
-| 실제 작업을 2분 안에 이해 | [Demo](docs/DEMO_en.md) |
-| stable, beta, source, 증거 | [Project Status](docs/PROJECT-STATUS_en.md) |
-| 제품 기능과 경계 | [Product](docs/PRODUCT_en.md) |
-| 아키텍처 | [Architecture](docs/ARCHITECTURE_en.md) |
-| 지원 범위 | [Support Matrix](docs/SUPPORT-MATRIX_en.md) |
-| 명령과 MCP 도구 | [Command Reference](docs/COMMANDS_en.md) |
-| 로컬 WebUI와 CLI 전용 reset | [WebUI](docs/WEBUI_en.md) |
-| 보안 보고 | [Security](SECURITY.md) · [Threat Model](docs/THREAT-MODEL_en.md) |
-| 기여 | [Contributing](CONTRIBUTING_en.md) |
+- [English README](README_en.md)
+- [Product Definition](docs/PRODUCT_en.md)
+- [중단 후 재개 Demo](docs/DEMO_en.md)
+- [Project Status](docs/PROJECT-STATUS_en.md)
+- [Support Matrix](docs/SUPPORT-MATRIX_en.md)
+- [Command Reference](docs/COMMANDS_en.md)
+- [Architecture](docs/ARCHITECTURE_en.md)
+- [Security](SECURITY.md) / [Threat Model](docs/THREAT-MODEL_en.md)
 
 ## License
 

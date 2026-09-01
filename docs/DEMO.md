@@ -1,11 +1,11 @@
-# 两分钟看懂 Dev Flow
+# 中断后继续：两分钟看懂 Dev Flow
 
 [中文](DEMO.md) | [English](DEMO_en.md)
 
-这是一段面向使用者的流程演示，不是完整协议说明。文末链接指向多组真实 Host 旅程证据；这些证据
-分别证明不同能力，本页不会把它们包装成“同一次运行证明了所有事情”。
+本页用一个具体失败场景解释 Dev Flow 的主要价值。它不是完整协议说明；节点、命令和 MCP 工具的
+精确定义见 [Architecture](ARCHITECTURE.md) 与 [Command Reference](COMMANDS.md)。
 
-## 用户提出任务
+## 1. 用户提出一个有边界的任务
 
 开发者对 Codex 说：
 
@@ -13,78 +13,90 @@
 增加登录失败次数限制。修改范围只限认证模块，只运行验证该行为所需的定向测试。
 ```
 
-如果没有持久任务状态，长会话可能逐渐扩大范围、追加越来越多的验证，或在重启后忘记做到哪里。
-Dev Flow 把这条请求变成可以恢复的开发过程：
+Dev Flow 创建本地 Task，保存请求、范围、验收条件和 verification budget。Codex 仍然负责读取代码、
+修改文件和运行命令。
 
-```mermaid
-flowchart LR
-    A[提出任务] --> B[确认范围与验收条件]
-    B --> C[设计]
-    C --> D[实现]
-    D --> E[定向测试]
-    E --> F[开发者理解确认]
-    F --> G[交付]
-    G --> H[DONE]
-    E -. 失败 .-> D
-    F -. 过度复杂 .-> I[重构]
-    I --> E
-```
+## 2. 实现完成，进入测试
 
-## 开发者实际感受到什么
-
-### 1. 任务先有边界
-
-Dev Flow 保存原始需求、验收条件、明确不做的内容和 verification budget。Codex 仍然负责修改
-仓库，但当前步骤会说明这一阶段需要完成什么，以及可以合法进入哪些下一步。
-
-### 2. 会话结束后进度仍然存在
-
-当前节点、证据、阻塞原因和仓库身份保存在本地。Codex 会话被压缩或重启后，新会话读取的是同一个
-Task，而不是重新扫描仓库并从聊天记录猜测进度。
+Codex 完成实现并进入 `TEST`。当前 Task 已记录实现阶段完成，剩下一项定向认证测试：
 
 ```text
-重启前：TEST，revision 5
-重启后：TEST，revision 5
-下一步：复用已有定向证据，或报告明确缺口
+Task: auth-rate-limit
+State: TEST
+Revision: 5
+Completed: implementation
+Remaining: targeted auth test
 ```
 
-### 3. 返工路径是明确的
+这些内容保存在本地 Task 状态中，不只存在于聊天记录。
 
-测试失败不会在当前步骤里悄悄扩展成无关重构，而是返回对应的实现或设计节点。复杂度问题可以进入
-`REFACTOR`，但只要修改过代码，就必须重新经过 `TEST`。
+## 3. 会话被压缩或 Host 重启
 
-### 4. 测试通过并不等于可以交付
+如果没有持久状态，新会话只能重新检查仓库和残缺聊天，猜测实现是否完成、测试是否跑过、是否还
+应该扩大验证。
 
-测试之后，Dev Flow 要求开发者确认当前实现能否被解释、审查和维护。功能正确但明显过度复杂的
-结果，可以在交付前返回重构。
+Dev Flow 不从聊天记录重建进度。新会话打开同一个 Task，恢复当前节点、revision、范围和剩余验证：
 
-### 5. 写操作结果不确定时先读取再重试
+```text
+重启前
+Task: auth-rate-limit
+State: TEST
+Revision: 5
+Completed: implementation
+Remaining: targeted auth test
 
-如果写操作响应丢失或中断，调用方先读取权威 Task 状态，不会直接重放操作并承担重复副作用风险。
+重启后
+Task: auth-rate-limit
+State: TEST
+Revision: 5
+Next: run the remaining targeted auth test
+```
 
-## 仓库中已有的真实证据
+上面的文本是用户故事的简化展示，不是某个真实 Host 的逐字输出。关键行为是恢复前后仍然指向同一
+Task、同一阶段和同一剩余工作。
 
-下面是相互独立的证据路径，每一项只证明表格中列出的范围：
+## 4. 新会话继续剩余验证
 
-| 证据 | 证明内容 |
+Agent 运行剩余的定向认证测试，不重新扫描并发明一套新计划，也不把验证扩大成完整回归。测试失败
+时，Task 回到对应实现工作；测试通过后，进入开发者理解确认。
+
+理解确认要求当前实现能够被解释和维护。若需要修改仓库进行重构，Task 会重新经过 `TEST`。
+
+## 5. 完成理解确认和交付
+
+测试记录与理解确认都对应当前实现后，Task 进入交付并最终到达 `DONE`。如果中途发现需求、范围或
+实现发生实质变化，旧的下游记录不会继续充当当前结果。
+
+## 较短的 Recovery 场景
+
+另一个常见中断发生在 Dev Flow Action 提交时：Host 已发出写请求，但响应丢失或被截断。此时
+Adapter 不直接重复提交，而是用 Task ID 和 Action ID 读取当前 Task 与 Recovery 状态，再按照结果
+继续、恢复、阻塞或安全重试。
+
+这只适用于 Dev Flow 可以识别和记录的 Action。它不表示 Dev Flow 能恢复任意 Host 文件写入、shell
+命令或外部系统副作用。
+
+## 当前记录分别说明什么
+
+以下是相互独立的记录路径，每一项只说明表格中的范围：
+
+| 记录 | 说明的范围 |
 | --- | --- |
 | [Codex 多仓库 Attempt 7](../tests/journeys/codex/evidence/feature-001-multi-repository-attempt-7.json) | 两个独立 Codex 会话从附加仓库恢复同一个 Core Task，恢复前后 revision、Action、binding 和 Scope 一致 |
 | [DeepSeek 多仓库 Attempt 5](../tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-5.json) | 真实 DSH 旅程完成多仓库修改、重启恢复、一次定向验证、理解确认并到达 `DONE` |
-| [PR #8 的 Codex 状态图验收](https://github.com/Innocent-children/dev-flow/pull/8) | 真实 Codex 旅程覆盖重启、重构、重新测试、明确理解确认、交付和 Core `DONE` |
-| [Support Matrix](SUPPORT-MATRIX.md) | 哪些稳定 registry package 与 Host 环境具有最终生命周期证据 |
+| [PR #8 的 Codex 状态图验收](https://github.com/Innocent-children/dev-flow/pull/8) | 真实 Codex 旅程覆盖重启、重构、重新测试、理解确认、交付和 Core `DONE` |
+| [Support Matrix](SUPPORT-MATRIX.md) | 哪些稳定 registry package 与 Host 环境具有最终生命周期记录 |
 
-## 体验稳定版 Codex package
+不同 Journey 分别说明不同能力；不要把多份记录描述成一次运行证明全部能力。源码测试也不等于
+最终公开制品支持。稳定、源码和未验证内容见 [Project Status](PROJECT-STATUS.md)。
+
+## 试用稳定入口
 
 ```bash
-npm install -g dev-flow-codex@latest
-dev-flow-codex setup
-dev-flow-codex --version
+npm install -g @imotong/dev-flow@latest
+dev-flow
 ```
 
-进入 Git 仓库后直接描述一个边界明确的开发任务。需要强制选择 Dev Flow 时：
-
-```text
-$dev-flow-codex:dev-flow 修复登录失败次数限制，只运行定向测试。
-```
-
-稳定 package 可能晚于当前 `main`。评估预览能力前，请先阅读[项目状态页](PROJECT-STATUS.md)。
+安装后使用 Codex 的 `$dev-flow-codex:dev-flow` 或 DeepSeek Harness 的 `/dev-flow` selector。Host
+差异和完整命令见 [Codex 使用说明](../packages/codex/README.md)、
+[DeepSeek 使用说明](../packages/deepseek/README.md)和[命令参考](COMMANDS.md)。

@@ -2,6 +2,9 @@
 
 [中文](COMMANDS.md) | [English](COMMANDS_en.md)
 
+> Most users only need to install the unified entry, run `dev-flow`, and use the corresponding
+> selector in their Host. Other commands are mainly for diagnosis, recovery, and integration work.
+
 This document lists every currently supported public or managed Dev Flow command entrypoint. The
 command surface is derived from implementation: unified lifecycle commands from
 `packages/dev-flow/package.json` and its CLI, Codex commands from `packages/codex/package.json`
@@ -11,6 +14,16 @@ catalog under `internal/mcp/`.
 
 Public installation examples select npm's `latest` dist-tag so they install the current stable
 package. Exact product versions remain in machine-readable release records.
+
+## Recommended entry for most users
+
+```bash
+npm install -g @imotong/dev-flow@latest
+dev-flow
+```
+
+After installation, Codex uses `$dev-flow-codex:dev-flow <task description>` and DeepSeek Harness
+uses `/dev-flow <task description>`. These are conversational Host selectors, not shell commands.
 
 ## Unified Adapter lifecycle
 

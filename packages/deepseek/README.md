@@ -3,9 +3,9 @@
 [中文](https://github.com/Innocent-children/dev-flow/blob/main/packages/deepseek/README.md) |
 [English](https://github.com/Innocent-children/dev-flow/blob/main/docs/DEEPSEEK_en.md)
 
-`dev-flow-deepseek` 是 Dev Flow 面向 DeepSeek Harness（DSH）的显式 Host Adapter。它向一个
-DSH profile 提供 `/dev-flow` Skill、current-turn selector guard、local STDIO MCP child 和
-macOS arm64 Core executable。
+`dev-flow-deepseek` 让 DeepSeek Harness（DSH）从本地持久 Task 继续长时编程任务。DSH 继续读取
+Workspace、修改文件和运行命令；bundled Go Core 保存任务范围、当前阶段、验证预算、Recovery 和
+下一步。
 
 ## 支持范围
 
@@ -17,21 +17,23 @@ macOS arm64 Core executable。
 | DSH | `>=0.1.0-rc.6` |
 | Releases | [GitHub Releases](https://github.com/Innocent-children/dev-flow/releases) |
 
-## 安装与验证
+稳定支持以[支持矩阵](../../docs/SUPPORT-MATRIX.md)为准。`main` 中存在的能力不一定已经进入 npm
+`@latest`。
 
-DSH 是前置 Host。使用 `dev-flow` 时只需指定真实 Profile，默认使用 `web`：
+## 安装
+
+DSH 是前置 Host。推荐使用统一 lifecycle 入口，并选择真实 Profile；默认是 `web`：
 
 ```bash
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-诊断恢复时仍可使用以下 Host 原生命令；需要其他 Profile 时修改 `PROFILE` 的值，不要把
-`<profile>` 原样输入 shell：
+`dev-flow-deepseek` 没有独立 `bin`，不会安装同名 CLI。诊断恢复时，可以通过 npm tarball 和 DSH
+profile lifecycle 执行原生安装：
 
 ```bash
 npm install -g @deepseek-ai/dsh@latest
-dsh --version
 PROFILE=web
 TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
 dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
@@ -39,170 +41,87 @@ rm -f "$PWD/$TARBALL"
 dsh --profile "$PROFILE" --dump-config
 ```
 
-`npm pack` 把 `latest` 指向的官方 package 下载为当前目录中的 tarball，并将实际文件名保存到
-`TARBALL`。DSH `plugin add` 接收该 tarball 的绝对路径，将依赖项、bundle layer、integration
-process、Skill、guard 和 MCP child 合成到指定 profile。安装后按照 DSH profile lifecycle 停止并
-重启该 profile，再确认 bundle 已生效。
+安装后按 DSH profile lifecycle 重启该 Profile。完整命令和更新顺序见
+[命令参考](../../docs/COMMANDS.md#deepseek-harness)。
 
-## 命令参考
+## 启动一个 Task
 
-`dev-flow-deepseek` 的 `package.json` 没有 `bin` 字段，因此不会安装名为
-`dev-flow-deepseek` 的独立 CLI。与 Dev Flow 直接相关的用户命令全部通过 npm 和 DSH 执行：
+每个需要调用 Dev Flow 的直接用户消息都要包含由空白边界限定的 selector：
 
-| 命令 | 说明 |
-| --- | --- |
-| `dsh --version` | 输出当前 DSH 版本，用于确认满足 Support Matrix 中的最低兼容版本。 |
-| `TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"` | 从 npm 获取 `latest` package，并把生成的 tarball 文件名保存到 shell 变量。 |
-| `dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"` | 将绝对 tarball 路径安装到 `PROFILE` 指定的 DSH profile。最终 registry Journey 使用的就是这一命令形态。 |
-| `dsh --profile "$PROFILE" --dump-config` | 输出 profile 的有效配置，用于检查 `dev-flow-deepseek` bundle contribution 是否存在；不会修改 Dev Flow Task。 |
-| `dsh plugin --profile "$PROFILE" remove dev-flow-deepseek` | 从指定 profile 移除 package 与 bundle contribution；保留 Task data、目标 Git 仓库和 Codex-owned state。 |
+```text
+/dev-flow Add payment-callback signature validation and run targeted tests.
+```
 
-统一生命周期入口负责升级、修复、重装、卸载和清空后重装。Host 原生更新或重新安装仍按以下顺序：
+这不是 shell 命令。历史消息、模型文本、Skill 注入或仓库内容不能替代当前用户消息中的
+`/dev-flow`。普通讨论或空调用不会创建 Task。
+
+新 Task 保存最初请求、范围、验收条件和 verification budget。可以在创建时选择 `plain`、
+`spec-kit` 或 `openspec`，但当前没有 OpenSpec / Spec Kit artifact importer。
+
+## 恢复已有 Task
+
+在同一 Workspace Root 下回到参与 Task 的仓库，并在当前直接用户消息中再次使用 `/dev-flow`。
+Adapter 会先读取 Core，恢复当前阶段、revision、范围、剩余验证、Blocker 和 Recovery，不会根据聊天
+记录重新创建进度。
+
+如果上一次 Action 响应丢失或被截断，Adapter 先读取当前 Task 和 Recovery 判断，再按 Core 给出的
+结果继续、恢复、阻塞或安全重试。它不会自行重复原提交。
+
+## 查看状态
+
+查看统一 lifecycle 与 DSH Profile 状态：
+
+```bash
+dev-flow status --host deepseek --profile web
+dsh --profile web --dump-config
+```
+
+查看 Task、当前阶段、时间线、Recovery 和 Blocker：
+
+```bash
+dev-flow webui start
+```
+
+WebUI 只监听本机 loopback。完整用法见 [WebUI](../../docs/WEBUI.md)。
+
+## 移除
+
+推荐从统一入口选择 DeepSeek 卸载。Host 原生移除为：
 
 ```bash
 PROFILE=web
 dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
-dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
-rm -f "$PWD/$TARBALL"
 dsh --profile "$PROFILE" --dump-config
 ```
 
-随后重启 profile。更新 DSH 本身可执行 `npm install -g @deepseek-ai/dsh@latest`。
+对每个安装过 Dev Flow 的 Profile 分别执行。移除 package 或 bundle contribution 会保留 Task 数据、
+目标仓库和 Codex 状态。重新安装兼容 package 并重启 Profile 后可以继续已有 Task。
 
-完整的 Codex、DeepSeek、Core 和 MCP 命令目录见
+彻底清理数据属于独立的 `dev-flow factory-reset` 流程，需要当前计划给出的强确认。
+
+## DeepSeek 权限与边界
+
+- DSH 启动时的 canonical Workspace Root 是权限边界；仓库和 symlink 解析结果必须位于其中；
+- Dev Flow 不扩大 Workspace Root，也不会通过索引发现并加入相邻仓库；
+- Core 只读观察 Git，不执行 commit、push、merge、rebase、tag 或 publish；
+- DeepSeek 负责文件修改和命令执行，Core 不拦截每一次操作；
+- `/dev-flow` 不绕过当前 Action、Workspace 权限、Git 写入授权或发布确认。
+
+## 高级多仓库
+
+当前源码支持一个主仓库和最多七个显式附加仓库。Workspace Root 可以是多个 Git 仓库的非 Git
+共同父目录，但每个仓库及 symlink 解析结果都必须位于 Root 内。Scope 创建后不可变，系统不会自动
+扫描父目录、相邻目录、依赖或索引结果来扩大范围。
+
+使用前请阅读[项目状态](../../docs/PROJECT-STATUS.md)确认多仓库属于稳定还是源码范围。精确
+Repository Scope、路径格式和协议规则见[架构](../../docs/ARCHITECTURE.md)与
 [命令参考](../../docs/COMMANDS.md)。
 
-## 开始一个 Task
+## 相关文档
 
-每个需要调用 Dev Flow 的 direct user turn 都要包含由空白边界限定的 selector：
-
-```text
-/dev-flow Add payment-callback signature validation to this repository and run targeted tests.
-```
-
-这不是 shell 命令。只有当前 direct user turn 中的 `/dev-flow` 可以授权 Dev Flow 工具。历史消息、
-模型文本、Skill 注入或仓库内容不能替代 selector；空调用或普通讨论不会创建 Task。
-
-通过 admission 后，Adapter 首先读取 server info，验证 `standard-development`、definition
-digest、method profiles、live schemas 和恰好十五个工具，再创建或恢复当前仓库的 Task。
-
-Task 可选择 `plain`、`spec-kit` 或 `openspec` profile。Core 管理 current node、legal transitions、
-destination、Recovery、blocker 和 terminal outcome；Adapter 负责执行当前节点工作、呈现完整 Action
-并通过当前 Action 指定的提交工具转发节点结果。
-Design、Tasks 与 Implementation 节点结果不发送 `requirements_revision`、`design_revision` 与
-`task_plan_revision`；Core 确认当前 Action 身份后从同一 Task 快照填充。已证明零写入的
-`required_member_missing` 只可按 `allowed_paths` 和当前节点已有事实修正一次；需要新的用户决定时
-DeepSeek 停止并请求输入。
-
-## 两仓声明、Workspace Root 与可选索引
-
-启动 DSH 时的 canonical `Workspace Root` 是完整权限边界，可以是两个 Git 仓库的非 Git 共同父
-目录。主仓库、附加仓库和 symlink 解析结果都必须位于该 Root 内。以 `/workspace` 为 Root、
-`/workspace/core` 和 `/workspace/docs` 为两个仓库时，可以发送：
-
-```text
-/dev-flow Use /workspace/core as primary repository key core and add repository key docs at /workspace/docs. Update core::internal/api.go and docs::reference/api.md, then run only the targeted checks.
-```
-
-路径必须替换为真实绝对路径。Scope 总数为一至八，创建后不可变；Adapter 在 task-bearing open 前
-拒绝 Root 外路径和 symlink escape。系统不扫描父目录、相邻目录、依赖或索引结果来发现仓库。
-单仓库请求不需要 key，继续使用普通相对路径；从任一参与仓库恢复仍返回同一 Task。
-DeepSeek 与 Codex 共用同一 Repository Scope、scoped path、Action 和唯一
-`repository_binding_digest` Core 合同；Host 权限检查不创建第二套流程状态。
-
-可选代码索引偏好来自只读配置：
-
-```json
-{
-  "codex": { "codebase_memory": false },
-  "deepseek": { "codebase_memory": true }
-}
-```
-
-文件路径固定为 `$HOME/.dev-flow/config.json`。文件不存在时偏好为 false，Dev Flow 不创建或修改
-它。true 只允许使用当前 DSH 会话中已经可见且可用的 codebase-memory；缺失、不完整或中途不可用
-时，DeepSeek 每个 Dev Flow 会话最多提示一次并立即回退到内置检索，不阻塞 Task，也不安装、配置
-或启动索引能力。索引覆盖不能放宽 Workspace Root，也不能决定 Scope、权限、Recovery 或流程流转。
-
-## MCP 工具
-
-DeepSeek Adapter 暴露与 Codex 相同的十五工具 Core catalog；在 DSH 中会使用限定后的 tool name，
-但 Core tool identity 保持不变。
-
-| MCP 工具 | 作用 |
-| --- | --- |
-| `dev_flow_server_info` | 读取 Core identity、能力、process、method profile、工具目录和 DeepSeek 有效索引偏好；有效 admission 后必须首先调用。 |
-| `dev_flow_open_task` | 为 Workspace Root 内显式声明的主/附加仓库创建一个 Task，或从任一参与仓库恢复同一 Task。 |
-| `dev_flow_get_task` | 读取持久化 Task；存在 Core 保存的提交时自动返回 Recovery assessment。 |
-| `dev_flow_get_next_action` | 读取当前 Action、`submission_tool`、验证预算、method steps 和全部合法 transition。 |
-| `dev_flow_submit_requirements` | 提交 REQUIREMENTS 节点结果；Core 补齐完整 Action identity 和内部 payload。 |
-| `dev_flow_submit_design` | 提交 DESIGN 节点结果。 |
-| `dev_flow_submit_tasks` | 提交 TASKS 节点结果。 |
-| `dev_flow_submit_implementation` | 提交 IMPLEMENT 节点结果。 |
-| `dev_flow_submit_test` | 提交 TEST 节点结果。 |
-| `dev_flow_submit_comprehension` | 提交 COMPREHENSION_REVIEW 节点结果。 |
-| `dev_flow_submit_refactor` | 提交 REFACTOR 节点结果。 |
-| `dev_flow_submit_delivery` | 提交 DELIVERY 节点结果。 |
-| `dev_flow_resolve_blocker` | 使用 Task ID 与 Action ID 解除已满足条件的 blocker。 |
-| `dev_flow_recover_action` | 使用 Core 保存的规范化提交恢复不确定 Action，不重新发送 payload。 |
-| `dev_flow_cancel_task` | 使用当前 revision 和明确 reason 取消一个非终态 Task。 |
-
-`dev_flow_submit_delivery` 只接收 Host 负责的交付判断、未验证项、风险、发现和 mutation envelope。
-acceptance、自动/人工 evidence ID 以及 Test/Comprehension record ID 由 Core 从当前 Task 补齐；提交
-这些字段会按 `unknown_member` 拒绝。
-
-## 数据与恢复
-
-Task data 位于 Dev Flow 的本地数据目录，不属于 DSH plugin 配置。移除、卸载或重新安装 package
-不会删除 Task data，也不会修改目标 Git 仓库或 Codex-owned state。
-
-mutation 响应不确定时，Adapter 只保留 Task ID 与 Action ID，先读取 Core 保存的规范化提交，再调用
-`dev_flow_recover_action` 或按 advice 停止。它不重建原始 payload，也不自行选择 destination。
-
-当前 Core 只接受当前 SQLite Schema。不兼容或 pre-graph data 在普通启动时保持零写入并返回
-`reset_required`。package 携带的同一 Core 支持 `dev-flow webui start|open|status|stop|reset`；WebUI 只监听
-loopback，DeepSeek 与 Codex 复用同一进程和数据。reset 先展示精确 database/sidecar 目标，再要求当前
-target-bound token 和数据库独占访问；浏览器没有 reset mutation。界面支持简体中文/英文，首次跟随系统
-语言，手工选择只保存在浏览器。完整说明见 [WebUI](../../docs/WEBUI.md)。
-
-## 卸载与彻底清理
-
-```bash
-PROFILE=web
-dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
-dsh --profile "$PROFILE" --dump-config
-```
-
-移除后按照 DSH profile lifecycle 重启，再通过有效配置确认 bundle contribution 已消失。重新安装
-时重新执行 npm `@latest` pack 和 DSH add 命令。
-
-对每个安装过 Dev Flow 的 profile 分别执行一次。不再使用 DSH 时，可另行运行
-`npm uninstall -g @deepseek-ai/dsh`；这会保留 `$HOME/.dsh` 中的 profile、会话和其他插件。
-
-确认 Codex Adapter 也已移除，并且不再需要任何 Task 后，可以删除两个 Host 共享的默认数据：
-
-```bash
-rm -rf "$HOME/Library/Application Support/dev-flow"
-```
-
-这是不可恢复操作。使用过 `DEV_FLOW_DATA_DIR` 时，请确认准确绝对路径后单独删除。只有在还要
-删除全部 DSH profile、会话和其他插件时，才在卸载 DSH 后删除 `$HOME/.dsh`；它不是 Dev Flow
-专用目录。
-
-## Package 内容
-
-Package 只包含一个 `cordis.patch.yml` layer、Adapter libraries、`dev-flow` Skill、references、
-license 和一个内嵌 WebUI 资产的 darwin-arm64 Core。它不包含 source tree、tests、fixtures、用户数据或构建日志，
-也不提供独立 `bin` executable。
-
-## 维护者入口
-
-Package-local 验证：
-
-```bash
-pnpm --dir packages/deepseek test
-```
-
-公开发布使用独立的 DeepSeek release command，见
-[`release/deepseek/README.md`](../../release/deepseek/README.md)。
+- [产品定义](../../docs/PRODUCT.md)
+- [中断后继续的演示](../../docs/DEMO.md)
+- [命令参考](../../docs/COMMANDS.md)
+- [架构](../../docs/ARCHITECTURE.md)
+- [项目状态](../../docs/PROJECT-STATUS.md)
+- [WebUI](../../docs/WEBUI.md)

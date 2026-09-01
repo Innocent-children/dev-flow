@@ -2,6 +2,26 @@
 
 [中文](ARCHITECTURE.md) | [English](ARCHITECTURE_en.md)
 
+> 本文解释 Dev Flow 的实现与协议。判断项目是否适合使用，请先阅读
+> [README](../README.md) 和[产品定义](PRODUCT.md)。
+
+本页是从用户文档移出的状态图、提交协议、持久化、Recovery、多仓库、worktree、WebUI receipt 与
+Host lifecycle 细节的主要归属。命令的完整调用形式仍以[命令参考](COMMANDS.md)为准。
+
+## 用户概念与内部概念映射
+
+| 用户概念 | 内部实现 |
+| --- | --- |
+| 当前任务 | `ProcessTask` |
+| 当前阶段 | current node |
+| 下一步 | current Action 与 transitions |
+| 任务范围 | `TaskIntent` 与 Repository Scope |
+| 验证限制 | verification budget |
+| 已有验证 | `TestRecord` / evidence |
+| 恢复结论 | Recovery Assessment |
+| 阻塞原因 | Blocker |
+| 完成结果 | `ProcessOutcome` |
+
 ## 设计目标
 
 Dev Flow 的架构围绕一个原则展开：过程事实只保存一次。Go Core 管理 Task、状态图、流转、

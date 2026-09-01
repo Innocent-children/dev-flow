@@ -2,71 +2,62 @@
 
 [中文](ROADMAP.md) | [English](ROADMAP_en.md)
 
-Dev Flow 的路线由用户价值和可验证结果推进。日期不是承诺；每一项产品能力都需要独立规格、
-明确边界和可复现证据。
+路线图描述希望改善的用户结果，不承诺日期。当前已经交付的能力和对应状态集中记录在
+[Project Status](PROJECT-STATUS.md)；稳定支持范围以 [Support Matrix](SUPPORT-MATRIX.md) 为准。
 
-## 当前：可靠的本地开发过程图
+## North Star
 
-已经交付：
+> 在长时任务中断后，让开发者和 Agent 快速获得一份可信的当前状态，以及一个不会无理由重复、
+> 扩大范围或扩大验证的下一步。
 
-- 由 Go Core 独占权威的 `standard-development`；
-- 8 个工作节点、`DONE` 和两个异常节点，共 29 条受控流转；
-- requirements/design/task-plan baselines 与下游 authority invalidation；
-- `TEST → COMPREHENSION_REVIEW → REFACTOR → TEST` 可理解性闭环；
-- `plain`、`spec-kit`、`openspec` 三种 method profile；
-- 十五工具 local STDIO MCP、按 Action kind 收窄的提交 schema 与 Core 保存的规范化提交；
-- 本地 SQLite、revision CAS、restart/resume 与 retained terminal data；
-- 五分类 Recovery、read-before-retry 和 Core-owned blocker/resume；
-- 有界只读 Git observation；
-- 一个主仓库加最多七个显式附加仓库的不可变 Repository Scope，全部仓库共享一个 Task 权威；
-- 固定只读用户配置中的 Host 级可选代码索引偏好，以及索引不可用时的内置检索回退；
-- Codex setup 缺失配置创建、真实配置/receipt 文件摘要和简中/英文可降级安装首屏；
-- Codex 与 DeepSeek 两个显式 Host Adapter。
-- 已发布的 `dev-flow` 统一 Adapter 生命周期与公共 WebUI launcher，覆盖状态、诊断、安装、升级、修复、
-  重装、卸载与 ownership-safe factory reset。
+## Now：看懂当前任务状态
 
-## 当前公开产品
+这一阶段围绕当前已有能力改善表达和使用成本：
 
-Core 作为两个 Host package 的独立 bundled runtime；Codex、DeepSeek 与 Dev Flow CLI 均通过 npm
-提供。平台与 Host 兼容要求见 [Support Matrix](SUPPORT-MATRIX.md)。
+- 用简短摘要回答当前 Task 是什么；
+- 区分已经确认的结果与仍然不确定的结果；
+- 显示哪些验证记录仍然适用于当前实现；
+- 说明 Task 为什么被阻塞，以及需要确认什么；
+- 直接展示当前合法下一步；
+- 让当前阶段、剩余验证预算和 Recovery 判断更容易从 Host 与本机 WebUI 中读取。
 
-## 下一阶段：降低日常使用成本
+这些工作不改变当前状态图，也不增加第二份 Task 状态。
 
-这些方向围绕当前图增强可见性和诊断能力：
+## Next：让完成判断更可信
 
-- 将统一 lifecycle manager 完成独立发布与 registry lifecycle evidence；
-- 更清晰的任务检查：快速展示当前节点、阻塞原因、剩余验证预算和可选流转；
-- 更直接的恢复提示：把五分类 Recovery 结论转换为简短、可执行的用户说明；
-- 新平台制品：在独立 final-artifact evidence 完成后扩展支持矩阵。
+以下是未来方向，当前尚未实现或尚未完整实现：
 
-每项工作都保留单一 Core 权威、只读 Git 和 read-before-retry 约束。
+- 更直观地核对范围声明与实际仓库变化；
+- 把验证记录与当前实现状态绑定得更紧，减少旧结果被继续使用；
+- 显示 verification budget 的消耗过程，以及扩大验证的具体原因；
+- 提供不确定 Action 的公开故障注入 Journey；
+- 根据任务复杂度降低不必要的流程成本；
+- 为小任务、普通长任务和严格任务提供不同的流程强度。
 
-## 后续候选：受控协作
+Skip、Guarded、Strict 等模式名称目前不是已交付的用户功能。后续是否采用这些名称和具体行为，
+需要独立产品设计与真实 Journey。
 
-真实跨 Host 使用出现后，可以评估：
+## Later：可信交接
 
-- 用户显式授权的 Codex ↔ DeepSeek handoff；
-- 可验证的 task export reference 或 handoff receipt；
-- 针对团队审查场景的只读共享视图；
-- 更细粒度但仍有界的 verification budget。
+以下能力是更晚的候选方向，当前未实现：
 
-跨 Host 能力需要保证同一时刻只有一个 Task authority，不允许 Adapter 复制 process cursor。
+- Codex 与 DeepSeek 的显式 handoff；
+- Task export 或 handoff receipt；
+- PR / CI 的只读验证摘要；
+- 团队只读任务视图；
+- 更薄的 OpenSpec / Spec Kit artifact 集成。
 
-## 研究方向
+交接能力必须继续使用同一个 Core Task 状态，不能让 Adapter 复制当前阶段或自行判断完成。
 
-长期研究项包括：
+## Not planned
 
-- 新 OS/CPU 的可复现最终制品；
-- 供应链签名、notarization 与透明度证据；
-- 基于真实项目数据验证 comprehension gate 的效果；
-- 在不引入流程 DSL 的前提下改进内建图。
+当前不计划：
 
-## 持续边界
+- 把 Dev Flow 做成通用 Agent；
+- 把 Core 做成 shell 或文件系统沙箱；
+- 自动 commit、merge、rebase、push、tag 或 publish；
+- 提供任意 workflow DSL 或用户自定义状态机；
+- 自动扫描相邻仓库并扩大 Repository Scope；
+- 把本机 WebUI 变成云端项目管理平台。
 
-当前路线已交付本机单用户 WebUI；仍不包含用户自定义 graph、workflow DSL、远程 WebUI、remote MCP、generic shell、Core Git
-mutation、自动发现或动态扩展 Repository Scope、自动多仓库编排、仓库级独立流程状态或历史任务
-自动迁移。任何改变这些边界的提议都需要独立产品设计和架构审查。
-
-Codex 当前路线采用原生 Skill 智能启用：明确开发执行请求可隐式选择 Dev Flow，精确 selector 保留
-为强制入口，非任务请求不自动创建 Task。自定义分类器、激活模式配置、第二份 Skill 和激活状态持久化
-不在当前路线中。
+新平台、Host 或界面只有在能够改善长时任务继续体验，并且有独立验证方式时才进入路线图。
