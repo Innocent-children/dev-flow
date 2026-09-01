@@ -3,9 +3,9 @@
 [中文](https://github.com/Innocent-children/dev-flow/blob/main/packages/codex/README.md) |
 [English](https://github.com/Innocent-children/dev-flow/blob/main/docs/CODEX_en.md)
 
-`dev-flow-codex` 让 Codex 从本地持久 Task 继续长时编程任务，而不是只根据聊天记录重建进度。Codex
-继续读取仓库、修改文件和运行命令；bundled Go Core 保存任务范围、当前阶段、验证预算、Recovery
-和下一步。
+`dev-flow-codex` 让 Codex 从本地持久 Task 继续长时编程任务，并在执行中守住任务范围、验证预算和
+交付条件。Codex 继续读取仓库、修改文件和运行命令；bundled Go Core 保存当前阶段，限制验证扩张，
+让过期记录失效，并在仓库漂移或 Action 结果不确定时给出下一步、Recovery 判断或明确阻塞。
 
 ## 支持范围
 

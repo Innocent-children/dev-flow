@@ -4,11 +4,13 @@
 
 ## One-sentence position
 
-> Dev Flow is a local process-control and recovery layer for long-running AI coding tasks.
+> Dev Flow resumes long-running AI coding tasks from durable state while keeping scope, verification
+> budget, and delivery conditions explicit.
 
-Outside chat history, it stores the task goal, scope, current stage, verification budget, existing
-records, blockers, and recovery state. Codex or DeepSeek can continue the same task after context
-compaction, a Host restart, or an uncertain operation result instead of reconstructing progress.
+It is a local process-control and recovery layer for long-running AI coding tasks: it retains progress
+outside chat history, limits what a Task may do and how much verification remains, decides whether
+existing results still apply to the current implementation, and returns a legal next step, Recovery
+assessment, or explicit blocker after interruption, repository drift, or an uncertain result.
 
 ## Target users
 
@@ -22,7 +24,8 @@ Users need to move a bounded code change from request to delivery while being ab
 
 - continue the same Task after an interruption;
 - retain the original goal, acceptance criteria, and out-of-scope work;
-- remember the current stage, remaining verification, and existing records;
+- limit automatic verification-command count and permission for full suites or manual handoff;
+- know which old test and comprehension records became stale after implementation changes;
 - check whether an uncertain operation took effect before choosing recovery or retry;
 - confirm before delivery that the implementation is both tested and understandable.
 
@@ -49,13 +52,14 @@ The same durable state also helps with:
 ## How the product intervenes
 
 Codex or DeepSeek still reads the repository, edits files, and runs commands. Dev Flow maintains one
-local Task around that work:
+local Task around that work and performs four jobs:
 
-- creation stores the request, acceptance criteria, scope, and verification budget;
-- each stage returns completion conditions, allowed operations, and available next steps;
-- implementation, tests, comprehension, blockers, and delivery are recorded;
-- repository drift or unmet conditions block progress;
-- an uncertain Action follows read-before-retry and receives a Recovery assessment.
+| Action | Product behavior |
+| --- | --- |
+| Remember | Retain the original request, current stage, completed verification, blockers, and outcome |
+| Limit | Retain Repository Scope and verification budget, then check automatic-command count and permission for full suites or manual handoff |
+| Decide | Use requirements, design, task plan, implementation, and repository state to invalidate test or comprehension records that no longer apply |
+| Recover | Apply read-before-retry to an uncertain Action and decide whether to continue, record completion, block, or retry safely |
 
 Dev Flow does not intercept every Host operation. It controls how Task state advances and what must
 be confirmed before work continues.
@@ -114,17 +118,19 @@ Thinner artifact integration appears only as a future direction in the [Roadmap]
 ### Layer 1: durable Task state
 
 Retain the Task, current stage, records, blockers, and outcome outside chat history. This is the
-product's primary capability.
+product's foundation, not its complete value.
 
 ### Layer 2: scope and verification constraints
 
-Retain the original request, explicit scope, and verification budget. When upstream requirements or
-implementation change, records that no longer apply are invalidated.
+Retain the original request, explicit scope, and verification budget. Limit automatic verification
+commands, distinguish permission for full suites and manual handoff, and invalidate downstream
+records when upstream requirements or implementation change.
 
 ### Layer 3: interruption and uncertain-operation recovery
 
-Retain Action identity and recovery state. After a missing, cancelled, or truncated response, read
-the current state before choosing continue, recover, block, or safe retry.
+Retain Action identity and recovery state. Combine the current Task with read-only repository
+observation after a missing, cancelled, or truncated response or repository conflict, then choose
+continue, record completion, block, or safe retry.
 
 ### Layer 4: trustworthy handoff and collaboration
 

@@ -4,7 +4,7 @@
 
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>Retome tarefas longas de programação com IA a partir de um estado persistente, não do histórico do chat.</strong></p>
+<p align="center"><strong>Retome tarefas longas de programação com IA a partir de um estado persistente, mantendo explícitos o escopo, o orçamento de verificação e as condições de entrega.</strong></p>
 
 <p align="center">
   <a href="README.md">简体中文</a> · <a href="README_en.md">English</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
@@ -13,10 +13,11 @@
 > Esta página é um retrato estável da documentação. Para informações atuais e sincronizadas
 > continuamente, consulte [简体中文](README.md) ou [English](README_en.md).
 
-Dev Flow é uma camada local de controle e recuperação para tarefas longas de programação com IA.
-Fora do chat, ele mantém objetivo, escopo, etapa atual, orçamento de verificação, verificações já
-concluídas, bloqueios e estado de Recovery. Assim, Codex ou DeepSeek pode continuar o mesmo Task após
-compactação de contexto, reinício do Host ou um resultado incerto.
+Dev Flow é uma camada local de controle e recuperação para tarefas longas de programação com IA. Ele
+não apenas mantém o progresso fora do chat: também limita o escopo do Task e a expansão das
+verificações, invalidando registros antigos que não correspondem mais à implementação atual. Após
+compactação de contexto, divergência do repository ou um resultado incerto, Codex ou DeepSeek obtém
+do mesmo Task o próximo passo, uma avaliação de Recovery ou um bloqueio explícito.
 
 ## O principal problema
 

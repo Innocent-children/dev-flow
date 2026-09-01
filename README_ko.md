@@ -4,7 +4,7 @@
 
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>장시간 AI 코딩 작업을 채팅 기록의 추측이 아니라 영구 Task 상태에서 이어갑니다.</strong></p>
+<p align="center"><strong>장시간 AI 코딩 작업을 영구 상태에서 이어가며 작업 범위, 검증 예산, 전달 조건을 명확히 유지합니다.</strong></p>
 
 <p align="center">
   <a href="README.md">简体中文</a> · <a href="README_en.md">English</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
@@ -13,9 +13,10 @@
 > 이 페이지는 안정 문서 스냅샷입니다. 계속 동기화되는 최신 설명은
 > [简体中文](README.md) 또는 [English](README_en.md)를 확인하세요.
 
-Dev Flow는 장시간 AI 코딩 작업을 위한 로컬 프로세스 제어 및 복구 계층입니다. 채팅 기록 밖에 목표,
-범위, 현재 단계, 검증 예산, 완료된 검증, Blocker와 Recovery 상태를 저장하여 컨텍스트 압축, Host
-재시작, 결과가 불확실한 작업 뒤에도 같은 Task를 계속할 수 있습니다.
+Dev Flow는 장시간 AI 코딩 작업을 위한 로컬 프로세스 제어 및 복구 계층입니다. 채팅 기록 밖에
+진행 상황을 저장하는 데 그치지 않고 Task 범위와 검증 확대를 제한하며 현재 구현에 맞지 않는 오래된
+기록을 무효화합니다. 컨텍스트 압축, repository 변경 또는 결과가 불확실한 작업 뒤에는 같은 Task에서
+다음 단계, Recovery 판단 또는 명확한 Blocker를 얻습니다.
 
 ## 가장 먼저 해결하는 문제
 

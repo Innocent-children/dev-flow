@@ -4,7 +4,7 @@
 
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>長時間の AI コーディング作業を、チャット履歴の推測ではなく永続化された Task 状態から再開します。</strong></p>
+<p align="center"><strong>長時間の AI コーディング作業を永続状態から再開し、実行中のタスク範囲、検証予算、デリバリー条件を明確に保ちます。</strong></p>
 
 <p align="center">
   <a href="README.md">简体中文</a> · <a href="README_en.md">English</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
@@ -14,8 +14,9 @@
 > [简体中文](README.md) または [English](README_en.md) を参照してください。
 
 Dev Flow は、長時間の AI コーディング作業向けのローカルなプロセス制御・復旧レイヤーです。
-チャット履歴とは別に、目標、範囲、現在の段階、検証予算、完了済みの検証、Blocker、Recovery
-状態を保存し、コンテキスト圧縮や Host 再起動、結果が不明な操作の後も同じ Task を続行できます。
+進捗をチャット履歴とは別に保存するだけでなく、Task の範囲と検証の拡大を制限し、現在の実装に
+合わない古い記録を無効にします。コンテキスト圧縮、repository のずれ、結果が不明な操作の後は、
+同じ Task から次の手順、Recovery 判断、または明示的な Blocker を取得できます。
 
 ## 最初に解決する問題
 

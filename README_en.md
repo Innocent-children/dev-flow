@@ -4,7 +4,7 @@
 
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>Resume long-running coding-agent work from durable task state, not chat history.</strong></p>
+<p align="center"><strong>Resume long-running coding-agent work from durable state while keeping scope, verification budget, and delivery conditions explicit.</strong></p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/dev-flow-codex"><img src="https://img.shields.io/npm/v/dev-flow-codex?label=dev-flow-codex" alt="Codex npm" /></a>
@@ -17,10 +17,11 @@
   <a href="README.md">简体中文</a> · <a href="README_en.md">English</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-Dev Flow is a local process-control and recovery layer for long-running AI coding tasks. Outside chat
-history, it stores the task goal, scope, current stage, verification budget, completed verification,
-blockers, and recovery state so Codex or DeepSeek can continue the same task after context compaction,
-a Host restart, or an uncertain operation result.
+Dev Flow is a local process-control and recovery layer for long-running AI coding tasks. It does more
+than retain progress outside chat history: a Task advances only when scope, verification budget, and
+current records satisfy the next step. After an interrupted session, repository drift, or an uncertain
+Action result, Codex or DeepSeek can read the same Task and receive a legal next step, Recovery
+assessment, or explicit blocker.
 
 ## Have you encountered this?
 
@@ -32,16 +33,18 @@ remaining work.
 Dev Flow stores that progress as a local Task. The next session reads the Task first and continues
 from its saved stage and next step.
 
-## What Dev Flow retains
+## Four things it manages
 
-- the original request, acceptance criteria, and explicit out-of-scope work;
-- whether work is in requirements, design, implementation, testing, comprehension, or delivery;
-- the verification budget and which checks are complete;
-- the current blocker and the condition required to continue;
-- a Recovery assessment when an Action result is uncertain.
+| Action | What Dev Flow retains and checks |
+| --- | --- |
+| Remember | Original request, current stage, completed verification, blockers, and outcome |
+| Limit | Task scope, automatic verification-command count, and permission for full suites or manual handoff |
+| Decide | Which old test and comprehension records became stale after implementation changes, and whether repository state still matches the Task |
+| Recover | Whether an uncertain Action should continue, be recorded, block, or retry safely |
 
 Codex and DeepSeek still read code, edit files, and run commands. Dev Flow does not replace the coding
-agent; it retains and checks how the same development task continues.
+agent or intercept every Host operation; it checks whether the same development task may advance and
+what must be confirmed first.
 
 ## Understand it in 30 seconds
 

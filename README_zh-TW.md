@@ -4,7 +4,7 @@
 
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>讓長時間 AI 程式開發工作從持久 Task 狀態繼續，而不是從聊天記錄重新猜測。</strong></p>
+<p align="center"><strong>讓長時間 AI 程式開發工作從持久狀態繼續，並在執行中守住任務範圍、驗證預算與交付條件。</strong></p>
 
 <p align="center">
   <a href="README.md">简体中文</a> · <a href="README_en.md">English</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
@@ -13,9 +13,9 @@
 > 此頁是穩定文件快照。最新且持續同步的產品說明請參閱
 > [简体中文](README.md) 或 [English](README_en.md)。
 
-Dev Flow 是長時間 AI 程式開發工作的本機流程控制與恢復層。它在聊天記錄之外保存任務目標、範圍、
-目前階段、驗證預算、已有驗證、阻塞原因與恢復狀態，讓 Codex 或 DeepSeek 在內容壓縮、Host 重啟
-或操作結果不確定後繼續同一個 Task。
+Dev Flow 是長時間 AI 程式開發工作的本機流程控制與恢復層。它不只在聊天記錄之外保存進度，還會
+限制 Task 範圍與驗證擴張，讓不再適用的舊記錄失效；在內容壓縮、repository 漂移或操作結果不確定
+時，Codex 或 DeepSeek 可以從同一個 Task 取得下一步、Recovery 判斷或明確阻塞。
 
 ## 它解決的主要問題
 

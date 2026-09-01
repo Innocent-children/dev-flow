@@ -4,7 +4,7 @@
 
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>Setze lange KI-Coding-Aufgaben aus dauerhaftem Task-Zustand fort, nicht aus dem Chatverlauf.</strong></p>
+<p align="center"><strong>Setze lange KI-Coding-Aufgaben aus dauerhaftem Zustand fort und halte Umfang, Verifizierungsbudget und Lieferbedingungen explizit.</strong></p>
 
 <p align="center">
   <a href="README.md">简体中文</a> · <a href="README_en.md">English</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
@@ -14,9 +14,11 @@
 > Informationen stehen in [简体中文](README.md) oder [English](README_en.md).
 
 Dev Flow ist eine lokale Prozesssteuerungs- und Wiederherstellungsschicht für lange KI-Coding-Aufgaben.
-Außerhalb des Chats speichert es Ziel, Umfang, aktuelle Phase, Verifizierungsbudget, abgeschlossene
-Prüfungen, Blocker und Recovery-Status. So können Codex oder DeepSeek nach Kontextkomprimierung,
-Host-Neustart oder einem unklaren Operationsergebnis denselben Task fortsetzen.
+Es speichert nicht nur den Fortschritt außerhalb des Chats, sondern begrenzt auch Task-Umfang und
+Verifizierung und macht alte, nicht mehr zur aktuellen Implementierung passende Ergebnisse ungültig.
+Nach Kontextkomprimierung, Repository-Abweichung oder einem unklaren Operationsergebnis erhält Codex
+oder DeepSeek aus demselben Task den nächsten Schritt, eine Recovery-Entscheidung oder einen klaren
+Blocker.
 
 ## Das wichtigste Problem
 

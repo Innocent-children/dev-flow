@@ -4,7 +4,7 @@
 
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>让长时 AI 编程任务从持久任务状态继续，而不是从聊天记录重新猜测。</strong></p>
+<p align="center"><strong>让长时 AI 编程任务从持久状态继续，并在执行中守住任务范围、验证预算和交付条件。</strong></p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/dev-flow-codex"><img src="https://img.shields.io/npm/v/dev-flow-codex?label=dev-flow-codex" alt="Codex npm" /></a>
@@ -17,9 +17,9 @@
   <a href="README.md">简体中文</a> · <a href="README_en.md">English</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-Dev Flow 是长时 AI 编程任务的本地过程控制与恢复层。它在聊天记录之外保存任务目标、范围、当前
-阶段、验证预算、已有验证、阻塞原因和恢复状态，让 Codex 或 DeepSeek 在会话压缩、Host 重启或
-操作结果不确定后继续同一个任务。
+Dev Flow 是长时 AI 编程任务的本地过程控制与恢复层。它不只在聊天记录之外保存进度，还让 Task
+只有在范围、verification budget 和当前记录满足条件时继续流转；当会话中断、仓库漂移或 Action
+结果不确定时，Codex 或 DeepSeek 可以读取同一 Task，获得合法下一步、Recovery 判断或明确阻塞。
 
 ## 你是不是遇到过这个问题
 
@@ -29,16 +29,17 @@ Dev Flow 是长时 AI 编程任务的本地过程控制与恢复层。它在聊�
 
 Dev Flow 把这份进度保存为本地 Task。新会话先读取 Task，再从保存的阶段和下一步继续。
 
-## Dev Flow 保存什么
+## 它管理的四件事
 
-- 最初请求、验收条件和明确不做的内容；
-- 当前处于需求、设计、实现、测试、理解确认还是交付；
-- verification budget，以及哪些验证已经完成；
-- 当前阻塞原因和需要满足的恢复条件；
-- Action 结果不确定时的 Recovery 判断。
+| 动作 | Dev Flow 保存和检查什么 |
+| --- | --- |
+| 记住 | 最初请求、当前阶段、已有验证、阻塞原因和交付结果 |
+| 限制 | 任务范围、自动验证命令数量、是否允许完整测试和人工交接 |
+| 判断 | 当前实现变化后哪些旧测试和理解确认已经失效，仓库状态是否仍符合 Task |
+| 恢复 | Action 结果不确定时，应该继续、补记结果、阻塞还是安全重试 |
 
-Codex 和 DeepSeek 仍然负责读代码、改文件和运行命令。Dev Flow 不替代编程 Agent，只保存并检查
-同一个开发任务如何继续。
+Codex 和 DeepSeek 仍然负责读代码、改文件和运行命令。Dev Flow 不替代编程 Agent，也不拦截 Host
+的每一次操作；它检查同一个开发任务能否继续流转，以及继续前还需要确认什么。
 
 ## 30 秒理解
 

@@ -4,8 +4,10 @@
 [English](https://github.com/Innocent-children/dev-flow/blob/main/docs/DEEPSEEK_en.md)
 
 `dev-flow-deepseek` lets DeepSeek Harness (DSH) continue long-running coding work from a local durable
-Task. DSH still reads the Workspace, edits files, and runs commands; the bundled Go Core retains task
-scope, current stage, verification budget, Recovery, and next step.
+Task while keeping scope, verification budget, and delivery conditions explicit. DSH still reads the
+Workspace, edits files, and runs commands; the bundled Go Core retains the current stage, limits
+verification expansion, invalidates stale records, and returns a next step, Recovery assessment, or
+explicit blocker after repository drift or an uncertain Action result.
 
 ## Support
 

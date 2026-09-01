@@ -3,9 +3,10 @@
 [中文](https://github.com/Innocent-children/dev-flow/blob/main/packages/deepseek/README.md) |
 [English](https://github.com/Innocent-children/dev-flow/blob/main/docs/DEEPSEEK_en.md)
 
-`dev-flow-deepseek` 让 DeepSeek Harness（DSH）从本地持久 Task 继续长时编程任务。DSH 继续读取
-Workspace、修改文件和运行命令；bundled Go Core 保存任务范围、当前阶段、验证预算、Recovery 和
-下一步。
+`dev-flow-deepseek` 让 DeepSeek Harness（DSH）从本地持久 Task 继续长时编程任务，并在执行中守住
+任务范围、验证预算和交付条件。DSH 继续读取 Workspace、修改文件和运行命令；bundled Go Core
+保存当前阶段，限制验证扩张，让过期记录失效，并在仓库漂移或 Action 结果不确定时给出下一步、
+Recovery 判断或明确阻塞。
 
 ## 支持范围
 

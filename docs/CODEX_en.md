@@ -3,10 +3,11 @@
 [中文](https://github.com/Innocent-children/dev-flow/blob/main/packages/codex/README.md) |
 [English](https://github.com/Innocent-children/dev-flow/blob/main/docs/CODEX_en.md)
 
-`dev-flow-codex` lets Codex continue long-running coding work from a local durable Task instead of
-reconstructing progress from chat history. Codex still reads repositories, edits files, and runs
-commands; the bundled Go Core retains task scope, current stage, verification budget, Recovery, and
-next step.
+`dev-flow-codex` lets Codex continue long-running coding work from a local durable Task while keeping
+scope, verification budget, and delivery conditions explicit. Codex still reads repositories, edits
+files, and runs commands; the bundled Go Core retains the current stage, limits verification
+expansion, invalidates stale records, and returns a next step, Recovery assessment, or explicit
+blocker after repository drift or an uncertain Action result.
 
 ## Support
 
