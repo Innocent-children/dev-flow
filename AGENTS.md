@@ -257,6 +257,21 @@ documentation to recognize it later.
 - When a shared contract is insufficient, update and review that contract before its consumers.
 - No release operation belongs in an ordinary product change.
 
+## Core Version Changes
+
+`CORE_VERSION` is the single machine-readable Core product-version authority. Every ordinary change
+that modifies the shipped Core executable, its externally observable behavior, or a Core-owned
+contract must review and update `CORE_VERSION` in the same change. This includes changes to Core data
+structures, the persisted Schema, protocols or payloads, process definitions, CLI or MCP behavior,
+and platform implementations compiled into Core. Select the MAJOR, MINOR, or PATCH increment from
+the compatibility impact and the current semantic-versioning contract; do not leave the version
+unchanged merely because the change is not a release.
+
+Changes limited to tests, documentation, or build tooling that do not alter the shipped Core do not
+require a Core version increment. Direct consumers and version checks must continue to read
+`CORE_VERSION`; stable public release metadata is synchronized later by the standalone release flow,
+not by the ordinary product change.
+
 ## Git Boundary
 
 The product Core may inspect Git read-only. It may not create, switch, delete, reset, clean, stash,
