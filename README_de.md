@@ -7,11 +7,11 @@
 <p align="center"><strong>Setze lange KI-Coding-Aufgaben aus dauerhaftem Zustand fort und halte Umfang, Verifizierungsbudget und Lieferbedingungen explizit.</strong></p>
 
 <p align="center">
-  <a href="README.md">简体中文</a> · <a href="README_en.md">English</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
+  <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
 > Diese Seite ist eine stabile Dokumentations-Momentaufnahme. Aktuelle und laufend synchronisierte
-> Informationen stehen in [简体中文](README.md) oder [English](README_en.md).
+> Informationen stehen in [English](README.md) oder [简体中文](README_zh-CN.md).
 
 Dev Flow ist eine lokale Prozesssteuerungs- und Wiederherstellungsschicht für lange KI-Coding-Aufgaben.
 Es speichert nicht nur den Fortschritt außerhalb des Chats, sondern begrenzt auch Task-Umfang und
@@ -93,7 +93,7 @@ Expliziter DeepSeek-Harness-Einstieg:
 
 ## Aktuelle Dokumentation
 
-- [English README](README_en.md)
+- [English README](README.md)
 - [Product Definition](docs/PRODUCT_en.md)
 - [Unterbrechungs- und Fortsetzungs-Demo](docs/DEMO_en.md)
 - [Project Status](docs/PROJECT-STATUS_en.md)

@@ -3,7 +3,7 @@
 [中文](ARCHITECTURE.md) | [English](ARCHITECTURE_en.md)
 
 > 本文解释 Dev Flow 的实现与协议。判断项目是否适合使用，请先阅读
-> [README](../README.md) 和[产品定义](PRODUCT.md)。
+> [README](../README_zh-CN.md) 和[产品定义](PRODUCT.md)。
 
 本页是从用户文档移出的状态图、提交协议、持久化、Recovery、多仓库、worktree、WebUI receipt 与
 Host lifecycle 细节的主要归属。命令的完整调用形式仍以[命令参考](COMMANDS.md)为准。

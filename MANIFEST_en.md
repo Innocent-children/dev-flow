@@ -11,7 +11,7 @@ executable tests decide current behavior, and the documentation must be correcte
 
 | Document | Primary question it answers |
 | --- | --- |
-| `README_en.md` | What Dev Flow is, its primary problem, whether a task fits, and the shortest start |
+| `README.md` | What Dev Flow is, its current core capabilities, shortest start, support, and safety boundaries |
 | `docs/PRODUCT_en.md` | Target users, failure scenarios, current commitments, non-goals, and product decision principles |
 | `docs/DEMO_en.md` | How one long-running task continues from the same Task after interruption |
 | `docs/ROADMAP_en.md` | Future user outcomes and priorities; not a current capability inventory |

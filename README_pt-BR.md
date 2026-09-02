@@ -7,11 +7,11 @@
 <p align="center"><strong>Retome tarefas longas de programação com IA a partir de um estado persistente, mantendo explícitos o escopo, o orçamento de verificação e as condições de entrega.</strong></p>
 
 <p align="center">
-  <a href="README.md">简体中文</a> · <a href="README_en.md">English</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
+  <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
 > Esta página é um retrato estável da documentação. Para informações atuais e sincronizadas
-> continuamente, consulte [简体中文](README.md) ou [English](README_en.md).
+> continuamente, consulte [English](README.md) ou [简体中文](README_zh-CN.md).
 
 Dev Flow é uma camada local de controle e recuperação para tarefas longas de programação com IA. Ele
 não apenas mantém o progresso fora do chat: também limita o escopo do Task e a expansão das
@@ -92,7 +92,7 @@ Entrada explícita do DeepSeek Harness:
 
 ## Documentação atual
 
-- [English README](README_en.md)
+- [English README](README.md)
 - [Product Definition](docs/PRODUCT_en.md)
 - [Demo de interrupção e retomada](docs/DEMO_en.md)
 - [Project Status](docs/PROJECT-STATUS_en.md)

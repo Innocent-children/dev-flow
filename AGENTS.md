@@ -145,7 +145,7 @@ by `docs/I18N.md` and `docs/I18N_en.md`.
 
 Every change to user-visible behavior must update documentation in the same pull request:
 
-1. update `README.md` and `README_en.md`, then update or verify the other root README snapshots as
+1. update `README.md` and `README_zh-CN.md`, then update or verify the other root README snapshots as
    required by `docs/I18N.md`;
 2. update both `docs/PRODUCT.md` and `docs/PRODUCT_en.md`;
 3. update each affected technical reference, including `docs/ARCHITECTURE*`,

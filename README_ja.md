@@ -7,11 +7,11 @@
 <p align="center"><strong>長時間の AI コーディング作業を永続状態から再開し、実行中のタスク範囲、検証予算、デリバリー条件を明確に保ちます。</strong></p>
 
 <p align="center">
-  <a href="README.md">简体中文</a> · <a href="README_en.md">English</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
+  <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
 > このページは安定版ドキュメントのスナップショットです。継続的に更新される最新情報は
-> [简体中文](README.md) または [English](README_en.md) を参照してください。
+> [English](README.md) または [简体中文](README_zh-CN.md) を参照してください。
 
 Dev Flow は、長時間の AI コーディング作業向けのローカルなプロセス制御・復旧レイヤーです。
 進捗をチャット履歴とは別に保存するだけでなく、Task の範囲と検証の拡大を制限し、現在の実装に
@@ -88,7 +88,7 @@ DeepSeek Harness の明示的な入口：
 
 ## 最新ドキュメント
 
-- [English README](README_en.md)
+- [English README](README.md)
 - [Product Definition](docs/PRODUCT_en.md)
 - [中断と再開の Demo](docs/DEMO_en.md)
 - [Project Status](docs/PROJECT-STATUS_en.md)

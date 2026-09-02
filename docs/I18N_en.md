@@ -10,10 +10,10 @@ still define runtime behavior.
 
 ## Authoritative product-document languages
 
-Simplified Chinese and English are the continuously synchronized product-document languages. The
+English and Simplified Chinese are the continuously synchronized product-document languages. The
 following families maintain both:
 
-- root `README.md` and `README_en.md`;
+- root `README.md` (English default) and `README_zh-CN.md` (Simplified Chinese);
 - `docs/PRODUCT*`, `docs/DEMO*`, `docs/ROADMAP*`, and `docs/PROJECT-STATUS*`;
 - `docs/ARCHITECTURE*`, `docs/COMMANDS*`, `docs/WEBUI*`, and `docs/SUPPORT-MATRIX*`;
 - `MANIFEST*`, `CONTRIBUTING*`, and this I18n policy;
@@ -29,8 +29,8 @@ The root README family retains these nine locales:
 
 | Locale | Language | File | Maintenance role |
 | --- | --- | --- | --- |
-| `zh-CN` | Simplified Chinese | `README.md` | Continuously synchronized default product entry |
-| `en` | English | `README_en.md` | Continuously synchronized English product entry |
+| `en` | English | `README.md` | Continuously synchronized default product entry |
+| `zh-CN` | Simplified Chinese | `README_zh-CN.md` | Continuously synchronized Simplified Chinese product entry |
 | `zh-TW` | Traditional Chinese | `README_zh-TW.md` | Community translation or stable documentation snapshot |
 | `ja` | Japanese | `README_ja.md` | Community translation or stable documentation snapshot |
 | `ko` | Korean | `README_ko.md` | Community translation or stable documentation snapshot |
@@ -39,17 +39,20 @@ The root README family retains these nine locales:
 | `de` | German | `README_de.md` | Community translation or stable documentation snapshot |
 | `pt-BR` | Brazilian Portuguese | `README_pt-BR.md` | Community translation or stable documentation snapshot |
 
+`README_en.md` is only a compatibility pointer to `README.md`, so old external links keep working;
+it is not an English authority and does not appear in locale navigation.
+
 The other seven locales do not promise paragraph-level synchronization with every source commit.
 They must accurately retain the core position, main capabilities, boundaries, recommended install
 entry, selectors, stable support, and links to authoritative documents. When a translation does not
-match current Chinese and English content, its top section must identify it as a stable documentation
-snapshot and point readers to `README.md` or `README_en.md` for current information.
+match current English and Chinese content, its top section must identify it as a stable documentation
+snapshot and point readers to `README.md` or `README_zh-CN.md` for current information.
 
 ## Synchronization rules
 
 When user-visible behavior or product position changes:
 
-1. synchronize the paired Simplified Chinese and English document families;
+1. synchronize the paired English and Simplified Chinese document families;
 2. update every affected technical reference and Host guide;
 3. check that the other seven root README files still describe core position, capability, boundary,
    commands, and stable support accurately;

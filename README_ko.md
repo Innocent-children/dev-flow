@@ -7,11 +7,11 @@
 <p align="center"><strong>장시간 AI 코딩 작업을 영구 상태에서 이어가며 작업 범위, 검증 예산, 전달 조건을 명확히 유지합니다.</strong></p>
 
 <p align="center">
-  <a href="README.md">简体中文</a> · <a href="README_en.md">English</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
+  <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
 > 이 페이지는 안정 문서 스냅샷입니다. 계속 동기화되는 최신 설명은
-> [简体中文](README.md) 또는 [English](README_en.md)를 확인하세요.
+> [English](README.md) 또는 [简体中文](README_zh-CN.md)를 확인하세요.
 
 Dev Flow는 장시간 AI 코딩 작업을 위한 로컬 프로세스 제어 및 복구 계층입니다. 채팅 기록 밖에
 진행 상황을 저장하는 데 그치지 않고 Task 범위와 검증 확대를 제한하며 현재 구현에 맞지 않는 오래된
@@ -88,7 +88,7 @@ DeepSeek Harness 명시적 진입점:
 
 ## 최신 문서
 
-- [English README](README_en.md)
+- [English README](README.md)
 - [Product Definition](docs/PRODUCT_en.md)
 - [중단 후 재개 Demo](docs/DEMO_en.md)
 - [Project Status](docs/PROJECT-STATUS_en.md)

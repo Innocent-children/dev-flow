@@ -3,7 +3,7 @@
 [中文](ARCHITECTURE.md) | [English](ARCHITECTURE_en.md)
 
 > This document explains Dev Flow implementation and protocol. To decide whether the project fits
-> your work, first read the [README](../README_en.md) and
+> your work, first read the [README](../README.md) and
 > [Product Definition](PRODUCT_en.md).
 
 This page is the primary home for state-graph, submission-protocol, persistence, Recovery,
