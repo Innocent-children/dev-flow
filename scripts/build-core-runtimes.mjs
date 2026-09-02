@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
-import { chmod, mkdir, readFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 import { execPortableCommand } from "../packages/dev-flow/lib/command.mjs";
 import { buildWebUI } from "./build-webui.mjs";
@@ -134,7 +134,7 @@ function parseArguments(arguments_) {
   return { outputRoot: arguments_[1] };
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+if (process.argv[1] && await realpath(resolve(process.argv[1])) === await realpath(scriptPath)) {
   buildCoreRuntimes(parseArguments(process.argv.slice(2))).then(
     (report) => process.stdout.write(`${JSON.stringify(report)}\n`),
     (error) => {
