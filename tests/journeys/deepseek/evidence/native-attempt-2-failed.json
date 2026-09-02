@@ -1,9 +1,0 @@
-{
-  "evidence_class": "native_deepseek_graph_journey",
-  "status": "failed",
-  "native_attempt": 2,
-  "failure_class": "native_runner_error",
-  "bounded_diagnostic": "DSH headless turn timed out",
-  "artifact_sha256": "2414bfdf18b22afdb30395dd108fd3a881f723766e53faa1f24aba4e94ea4c73",
-  "publication_effects": false
-}

@@ -82,8 +82,6 @@ Adapter 不直接重复提交，而是用 Task ID 和 Action ID 读取当前 Tas
 
 | 记录 | 说明的范围 |
 | --- | --- |
-| [Codex 多仓库 Attempt 7](../tests/journeys/codex/evidence/feature-001-multi-repository-attempt-7.json) | 两个独立 Codex 会话从附加仓库恢复同一个 Core Task，恢复前后 revision、Action、binding 和 Scope 一致 |
-| [DeepSeek 多仓库 Attempt 5](../tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-5.json) | 真实 DSH 旅程完成多仓库修改、重启恢复、一次定向验证、理解确认并到达 `DONE` |
 | [PR #8 的 Codex 状态图验收](https://github.com/Innocent-children/dev-flow/pull/8) | 真实 Codex 旅程覆盖重启、重构、重新测试、理解确认、交付和 Core `DONE` |
 | [Support Matrix](SUPPORT-MATRIX.md) | 哪些稳定 registry package 与 Host 环境具有最终生命周期记录 |
 

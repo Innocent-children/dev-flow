@@ -4,21 +4,26 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { platformAdapter as codexPlatform } from "../packages/codex/lib/platform.mjs";
-import { platformAdapter as deepseekPlatform } from "../packages/deepseek/lib/platform.mjs";
-import { platformAdapter as managerPlatform } from "../packages/dev-flow/lib/platform.mjs";
+import { permissionPolicy as codexPermissions, runtimeDescriptor as codexRuntime } from "../packages/codex/lib/platform.mjs";
+import { permissionPolicy as deepseekPermissions, runtimeDescriptor as deepseekRuntime } from "../packages/deepseek/lib/platform.mjs";
+import { permissionPolicy as managerPermissions, runtimeDescriptor as managerRuntime } from "../packages/dev-flow/lib/platform.mjs";
 import { buildCoreRuntimes, CORE_RUNTIME_TARGETS } from "./build-core-runtimes.mjs";
 
 test("package platform implementations match the runtime target catalog", () => {
   for (const target of CORE_RUNTIME_TARGETS) {
     const platform = target.runtimeKey.split("-")[0];
     const arch = target.runtimeKey.split("-")[1];
-    for (const select of [codexPlatform, deepseekPlatform, managerPlatform]) {
-      const adapter = select(platform, arch);
-      assert.equal(adapter.runtimeKey, target.runtimeKey);
-      assert.equal(adapter.runtimeDirectory, target.runtimeKey);
-      assert.equal(adapter.runtimeExecutable, target.executable);
-      assert.equal(adapter.requireExecutableMode, target.requireExecutableMode);
+    for (const [selectRuntime, selectPermissions] of [
+      [codexRuntime, codexPermissions],
+      [deepseekRuntime, deepseekPermissions],
+      [managerRuntime, managerPermissions],
+    ]) {
+      const runtime = selectRuntime(platform, arch);
+      const permissions = selectPermissions(platform, arch);
+      assert.equal(runtime.runtimeKey, target.runtimeKey);
+      assert.equal(runtime.runtimeDirectory, target.runtimeKey);
+      assert.equal(runtime.runtimeExecutable, target.executable);
+      assert.equal(permissions.requireExecutableMode, target.requireExecutableMode);
     }
   }
 });

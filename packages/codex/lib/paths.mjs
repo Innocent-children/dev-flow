@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { platformAdapter } from "./platform.mjs";
+import { dataPathPolicy, permissionPolicy, runtimeDescriptor, signalPolicy } from "./platform.mjs";
 
 export const DATA_DIRECTORY_ENVIRONMENT = "DEV_FLOW_DATA_DIR";
 
@@ -18,11 +18,14 @@ export async function resolveProductPaths({
   arch = process.arch,
   environment = process.env,
 } = {}) {
-  const adapter = platformAdapter(platform, arch);
+  const runtime = runtimeDescriptor(platform, arch);
+  const dataPaths = dataPathPolicy(platform, arch);
+  const permissions = permissionPolicy(platform, arch);
+  const signals = signalPolicy(platform, arch);
 
   const canonicalPackageRoot = await canonicalExistingDirectory(packageRoot, "package root");
   const canonicalHome = await canonicalExistingDirectory(homeDirectory, "home directory");
-  const applicationData = adapter.applicationData({ homeDirectory: canonicalHome, environment });
+  const applicationData = dataPaths.applicationData({ homeDirectory: canonicalHome, environment });
   const productSupportAnchor = applicationData.canonicalizeRoot
     ? await canonicalExistingDirectory(applicationData.path, applicationData.label)
     : containedPath(canonicalHome, applicationData.path, applicationData.label);
@@ -49,7 +52,7 @@ export async function resolveProductPaths({
 
   const runtimePath = containedPath(
     canonicalPackageRoot,
-    join(canonicalPackageRoot, "runtime", adapter.runtimeDirectory, adapter.runtimeExecutable),
+    join(canonicalPackageRoot, "runtime", runtime.runtimeDirectory, runtime.runtimeExecutable),
     "runtime",
   );
   const pluginRoot = containedPath(
@@ -107,11 +110,11 @@ export async function resolveProductPaths({
     marketplaceRoot: canonicalPackageRoot,
     pluginRoot,
     runtimePath,
-    platform: adapter.platform,
-    arch: adapter.arch,
-    enforcePrivateModes: adapter.enforcePrivateModes,
-    requireExecutableMode: adapter.requireExecutableMode,
-    forwardedSignals: adapter.forwardedSignals,
+    platform: runtime.platform,
+    arch: runtime.arch,
+    enforcePrivateModes: permissions.enforcePrivateModes,
+    requireExecutableMode: permissions.requireExecutableMode,
+    forwardedSignals: signals.forwardedSignals,
     homeDirectory: canonicalHome,
     productSupportAnchor,
     productSupportInspectionRoot,
@@ -122,7 +125,7 @@ export async function resolveProductPaths({
     configurationPath,
     dataDirectory,
     usesDefaultDataDirectory,
-    runtimeKey: adapter.runtimeKey,
+    runtimeKey: runtime.runtimeKey,
   });
 }
 

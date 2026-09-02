@@ -21,11 +21,11 @@ const EVIDENCE_KIND = "feature-001-multi-repository-deepseek-journey";
 const PROFILE = "headless";
 const TURN_TIMEOUT_MS = 300_000;
 const APPLY_RULES = [
-  "Before every apply, bind the latest complete Core Action and its current input schema.",
-  "Use exactly the returned transition_id, current revision, action identity, process identity, and repository binding digest.",
-  "The payload top level must contain exactly transition_id, summary, reason, artifacts, method_evidence, and node_result.",
+  "Before every submission, bind the latest complete Core Action, its submission_tool, and that tool's live input schema.",
+  "Use exactly host, task_id, action_id, one returned transition_id, summary, reason, artifacts, method_results, and node_result.",
+  "Do not send payload, method_evidence, revision, Action kind, process identity, source cursor, repository binding, artifact roles, or recovery fields.",
   "Set reason to the empty string whenever the selected transition has reason_required=false; use a nonempty reason only when reason_required=true.",
-  "Use artifacts=[] and one plain_fallback MethodEvidence item with capability empty for every current method step in Action order.",
+  "Use the live artifacts object and one method_results entry with capability empty for every current method step ID.",
   "For a forward ready, passed, or completed transition use problem_class=none and findings=[].",
   "Use a non-none problem_class and nonempty findings only for the exact corrective transition whose condition they establish.",
   "Every node_result contains exact changed_paths and no_file_changes; exactly one of nonempty changed_paths or no_file_changes=true describes the current effect.",
@@ -93,6 +93,7 @@ async function execute(selectedMode, options) {
     stage = "evidence-validation";
     const evidence = await buildEvidence(config, product, observedSessions, beforeAdditionalResume);
     assertSafeEvidence(evidence);
+    await mkdir(dirname(options.resultFile), { recursive: true, mode: 0o700 });
     await writeFile(options.resultFile, JSON.stringify(evidence, null, 2) + "\n", { mode: 0o600, flag: "wx" });
     process.stdout.write(JSON.stringify(evidence) + "\n");
   } catch (error) {
@@ -329,7 +330,7 @@ function checkpoints(config) {
     checkpoint("deliver-to-done", "DONE", [
       "/dev-flow Complete only the DELIVERY action for the active bounded multi-repository Task.", additionalResume,
       "Perform the server-info handshake and fresh Task and Action reads.", APPLY_RULES,
-      "Use only current Core identities, submit delivery_completed, confirm Core reports DONE with outcome completed, and stop.",
+      "Use only the current submission_tool contract, submit delivery_complete, confirm Core reports DONE with outcome completed, and stop.",
       "Do not modify files, run commands, or create another Task.",
     ]),
   ];
@@ -511,7 +512,7 @@ async function buildEvidence(config, product, sessions, beforeAdditionalResume) 
     const serverInfo = devFlowCalls[0];
     assert.equal(serverInfo?.name, "mcp__dev_flow__dev_flow_server_info", stageId + " must start Dev Flow with server-info");
     assert.equal(serverInfo?.envelope?.ok, true);
-    assert.equal(serverInfo?.envelope?.result?.tools?.length, 6);
+    assert.equal(serverInfo?.envelope?.result?.tools?.length, 15);
   }
   const createCalls = callSets.get("create-task");
   const create = createCalls.find((call) => call.name === "mcp__dev_flow__dev_flow_open_task");
@@ -528,7 +529,7 @@ async function buildEvidence(config, product, sessions, beforeAdditionalResume) 
   assert.equal("primary_repository_key" in resume.arguments, false);
   assert.equal("additional_repositories" in resume.arguments, false);
   const successfulApplies = [...callSets.values()].flatMap((calls) => calls.filter((call) =>
-    (call.name.startsWith("mcp__dev_flow__dev_flow_submit_") || call.name === "mcp__dev_flow__dev_flow_apply_action") && call.envelope?.ok === true
+    call.name.startsWith("mcp__dev_flow__dev_flow_submit_") && call.envelope?.ok === true
   ));
   assert.ok(successfulApplies.length >= 7);
   const before = beforeAdditionalResume;
@@ -584,7 +585,7 @@ async function buildEvidence(config, product, sessions, beforeAdditionalResume) 
     scoped_paths: ["core::core-proof.txt", "docs::docs-proof.txt"],
     successful_action_count: successfulApplies.length,
     verification_command_count: 1,
-    tool_catalog_size: 6,
+    tool_catalog_size: 15,
     codebase_memory_preference: callSets.get("create-task")
       .find((call) => call.name === "mcp__dev_flow__dev_flow_server_info")
       .envelope.result.host_preferences.deepseek.codebase_memory,
@@ -667,7 +668,7 @@ function selfTest() {
   assert.match(definitions[1].prompt, /exact closed REQUIREMENTS node_result shape/u);
   assert.match(definitions[3].prompt, /additional repository/u);
   assert.match(definitions[4].prompt, /explicitly confirm/u);
-  assert.match(definitions[5].prompt, /delivery_completed/u);
+  assert.match(definitions[5].prompt, /delivery_complete/u);
   assert.throws(() => assertSafeEvidence({ path: "/private/secret" }));
 }
 

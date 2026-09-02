@@ -17,9 +17,6 @@ import (
 
 func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 	digest := workflow.StandardProcess().Reference.DefinitionDigest
-	payload := `{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":[{"step_id":"requirements.capture","status":"plain_fallback","capability":"","summary":"Captured requirements."},{"step_id":"requirements.clarify","status":"plain_fallback","capability":"","summary":"Clarified requirements."},{"step_id":"requirements.validate","status":"plain_fallback","capability":"","summary":"Validated requirements."}],"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[],"changed_paths":[],"no_file_changes":true}}`
-	emptyMethodPayload := `{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":[],"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[],"changed_paths":[],"no_file_changes":true}}`
-	applyBase := `"request_id":"request","host":"codex","task_id":"task","revision":1,"action_id":"action","action_kind":"COMPLETE_REQUIREMENTS","process_id":"standard-development","process_definition_digest":"%s","source_cursor":"REQUIREMENTS","repository_binding_digest":"%s","payload":%s`
 	binding := strings.Repeat("a", 64)
 	valid := []struct {
 		name string
@@ -35,10 +32,6 @@ func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 		{"next omitted", ToolGetNextAction, `{"host":"codex","task_id":"task"}`},
 		{"next null", ToolGetNextAction, `{"host":"codex","task_id":"task","operation_probe":null}`},
 		{"probe nonnull", ToolGetTask, fmt.Sprintf(`{"host":"codex","task_id":"task","operation_probe":{"operation_id":"original","process_id":"standard-development","process_definition_digest":"%s","source_cursor":"REQUIREMENTS","expected_revision":1,"action_id":"action","action_kind":"COMPLETE_REQUIREMENTS","repository_binding_digest":"%s","payload":null}}`, digest, binding)},
-		{"apply omitted", ToolApplyAction, fmt.Sprintf("{"+applyBase+"}", digest, binding, payload)},
-		{"apply null", ToolApplyAction, fmt.Sprintf("{"+applyBase+`,"recovery_apply":null}`, digest, binding, payload)},
-		{"recovery nonnull", ToolApplyAction, fmt.Sprintf("{"+applyBase+`,"recovery_apply":{"operation_id":"request","source_cursor":"REQUIREMENTS"}}`, digest, binding, payload)},
-		{"recovery nonnull without retained payload", ToolApplyAction, fmt.Sprintf("{"+applyBase+`,"recovery_apply":{"operation_id":"request","source_cursor":"REQUIREMENTS"}}`, digest, binding, "null")},
 	}
 	for _, tc := range valid {
 		t.Run(tc.name, func(t *testing.T) {
@@ -61,8 +54,6 @@ func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 		{"open eighth additional", ToolOpenTask, `{"host":"codex","repository_path":"/core","additional_repositories":[{"key":"a","repository_path":"/a"},{"key":"b","repository_path":"/b"},{"key":"c","repository_path":"/c"},{"key":"d","repository_path":"/d"},{"key":"e","repository_path":"/e"},{"key":"f","repository_path":"/f"},{"key":"g","repository_path":"/g"},{"key":"h","repository_path":"/h"}],"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}}`},
 		{"read duplicate", ToolGetTask, `{"host":"codex","task_id":"task","operation_probe":null,"operation_probe":null}`},
 		{"probe incomplete", ToolGetTask, `{"host":"codex","task_id":"task","operation_probe":{"operation_id":"original"}}`},
-		{"recovery unknown", ToolApplyAction, fmt.Sprintf("{"+applyBase+`,"recovery_apply":{"operation_id":"original","source_cursor":"REQUIREMENTS","unknown":true}}`, digest, binding, payload)},
-		{"recovery duplicate", ToolApplyAction, fmt.Sprintf("{"+applyBase+`,"recovery_apply":{"operation_id":"original","operation_id":"again","source_cursor":"REQUIREMENTS"}}`, digest, binding, payload)},
 	}
 	for _, tc := range invalid {
 		t.Run(tc.name, func(t *testing.T) {
@@ -71,62 +62,6 @@ func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 			}
 		})
 	}
-	if err := ValidateToolInput(ToolApplyAction, []byte(fmt.Sprintf("{"+applyBase+"}", digest, binding, emptyMethodPayload))); err != domain.ErrTransitionNotAllowed {
-		t.Fatalf("empty method evidence error=%v", err)
-	}
-}
-
-func TestTestEvidenceSchemaMatchesSourceCommandAndFullSuiteRules(t *testing.T) {
-	tests := []struct {
-		name        string
-		source      string
-		commands    int
-		fullSuite   bool
-		wantInvalid bool
-	}{
-		{name: "automated", source: "automated", commands: 1},
-		{name: "automated zero", source: "automated", commands: 0, wantInvalid: true},
-		{name: "user", source: "user", commands: 0},
-		{name: "user command", source: "user", commands: 1, wantInvalid: true},
-		{name: "user full suite", source: "user", commands: 0, fullSuite: true, wantInvalid: true},
-		{name: "static", source: "static", commands: 0},
-		{name: "host observed", source: "host_observed", commands: 0},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			raw := testApplySchemaFixture(tc.source, tc.commands, tc.fullSuite)
-			err := ValidateToolInput(ToolApplyAction, raw)
-			if tc.wantInvalid && err == nil {
-				t.Fatal("invalid evidence schema accepted")
-			}
-			if !tc.wantInvalid && err != nil {
-				t.Fatalf("valid evidence schema rejected: %v", err)
-			}
-		})
-	}
-}
-
-func testApplySchemaFixture(source string, commands int, fullSuite bool) []byte {
-	payload := map[string]any{
-		"transition_id": "tests_passed", "summary": "Tests passed.", "reason": "", "artifacts": []any{},
-		"method_evidence": []any{
-			map[string]any{"step_id": "test.run_budgeted_checks", "status": "plain_fallback", "capability": "", "summary": "Ran checks."},
-			map[string]any{"step_id": "test.record_evidence", "status": "plain_fallback", "capability": "", "summary": "Recorded evidence."},
-			map[string]any{"step_id": "test.classify_failure", "status": "plain_fallback", "capability": "", "summary": "Classified results."},
-		},
-		"node_result": map[string]any{
-			"problem_class": "none",
-			"checks":        []any{map[string]any{"source": source, "name": "evidence", "status": "passed", "summary": "Evidence passed.", "command_count": commands, "full_suite": fullSuite}},
-			"failed_items":  []any{}, "unverified_items": []any{}, "manual_handoff_items": []any{}, "findings": []any{}, "changed_paths": []any{}, "no_file_changes": true,
-		},
-	}
-	request := map[string]any{
-		"request_id": "request", "host": "codex", "task_id": "task", "revision": 1, "action_id": "action",
-		"action_kind": "COMPLETE_TEST", "process_id": "standard-development", "process_definition_digest": strings.Repeat("a", 64),
-		"source_cursor": "TEST", "repository_binding_digest": strings.Repeat("b", 64), "payload": payload,
-	}
-	raw, _ := json.Marshal(request)
-	return raw
 }
 
 func TestServerInfoProjectsHostPreferenceSnapshot(t *testing.T) {

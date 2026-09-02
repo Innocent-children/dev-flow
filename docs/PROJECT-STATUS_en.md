@@ -61,8 +61,6 @@ presence also does not imply a corresponding stable final-artifact journey.
 
 | Entry point | Question it can answer |
 | --- | --- |
-| [Codex multi-repository Attempt 7](../tests/journeys/codex/evidence/feature-001-multi-repository-attempt-7.json) | Can two independent Codex sessions resume the same Task from an additional repository? |
-| [DeepSeek multi-repository Attempt 5](../tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-5.json) | Did a real DSH journey complete multi-repository work, restart recovery, targeted verification, comprehension, and `DONE`? |
 | [PR #8](https://github.com/Innocent-children/dev-flow/pull/8) | Did a real Codex graph journey cover refactoring, retesting, comprehension, and delivery? |
 | [Support Matrix](SUPPORT-MATRIX_en.md) | Which public stable packages and Host environments completed final-artifact validation? |
 | [Release directory](../release/README.md) | How do maintainers build, read back, and publish artifacts? |

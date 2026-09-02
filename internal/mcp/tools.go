@@ -3,7 +3,6 @@ package mcp
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/Innocent-children/dev-flow/internal/application"
 	"github.com/Innocent-children/dev-flow/internal/domain"
@@ -48,24 +47,6 @@ type operationProbeWire struct {
 	ActionKind              domain.ActionKind `json:"action_kind"`
 	RepositoryBindingDigest domain.Digest     `json:"repository_binding_digest"`
 	Payload                 json.RawMessage   `json:"payload"`
-}
-type applyWire struct {
-	RequestID               domain.ID          `json:"request_id"`
-	Host                    domain.Host        `json:"host"`
-	TaskID                  domain.ID          `json:"task_id"`
-	Revision                uint64             `json:"revision"`
-	ActionID                domain.ID          `json:"action_id"`
-	ActionKind              domain.ActionKind  `json:"action_kind"`
-	ProcessID               domain.ProcessID   `json:"process_id"`
-	ProcessDefinitionDigest domain.Digest      `json:"process_definition_digest"`
-	SourceCursor            domain.NodeID      `json:"source_cursor"`
-	RepositoryBindingDigest domain.Digest      `json:"repository_binding_digest"`
-	Payload                 json.RawMessage    `json:"payload"`
-	RecoveryApply           *recoveryApplyWire `json:"recovery_apply"`
-}
-type recoveryApplyWire struct {
-	OperationID  domain.ID     `json:"operation_id"`
-	SourceCursor domain.NodeID `json:"source_cursor"`
 }
 type artifactSubmissionWire struct {
 	Path    string        `json:"path"`
@@ -221,45 +202,6 @@ func ValidateToolInput(tool string, raw []byte) error {
 			return domain.ErrInvalidArgument
 		}
 		return nil
-	case ToolApplyAction:
-		// This boundary runs before the application service, so every failure it
-		// reports is a proven zero-write failure.
-		if missing := missingRequestMembers(raw, "request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload"); len(missing) != 0 {
-			return domain.InvalidArgumentViolations(missing...)
-		}
-		var v applyWire
-		if err := decodeClosed(raw, &v); err != nil {
-			if member, ok := unknownRequestMember(raw, "request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload", "recovery_apply"); ok {
-				return domain.InvalidArgumentViolations(domain.Violation(member, domain.RuleUnknownMember))
-			}
-			return domain.ErrInvalidArgument
-		}
-		// The payload branch is fixed by the source cursor, so a mismatched
-		// action_kind is reported as its own member before the composite identity
-		// gate hides it behind a generic refusal.
-		if v.ActionKind.IsValid() && (v.SourceCursor.Normal() || v.SourceCursor == domain.NodeBlocked) {
-			if node, err := workflow.NodeDefinition(workflow.StandardProcess(), v.SourceCursor); err == nil && node.ActionKind != v.ActionKind {
-				return domain.InvalidArgumentViolations(domain.Violation("action_kind", domain.RuleActionKindPayloadMismatch))
-			}
-		}
-		if !v.RequestID.IsValid() || !v.Host.IsValid() || !v.TaskID.IsValid() || v.Revision == 0 || !v.ActionID.IsValid() || !v.ActionKind.IsValid() || v.ProcessID != domain.ProcessStandardDevelopment || !v.ProcessDefinitionDigest.IsValid() || (!v.SourceCursor.Normal() && v.SourceCursor != domain.NodeBlocked) || !v.RepositoryBindingDigest.IsValid() || len(v.Payload) == 0 || !validRecoveryApply(v.RecoveryApply, v.SourceCursor, v.RequestID) || v.RecoveryApply == nil && bytes.Equal(bytes.TrimSpace(v.Payload), []byte("null")) {
-			return domain.ErrInvalidArgument
-		}
-		if !bytes.Equal(bytes.TrimSpace(v.Payload), []byte("null")) {
-			var err error
-			if v.SourceCursor == domain.NodeBlocked {
-				_, _, err = recovery.DecodeBlockerResolutionPayload(v.Payload)
-			} else {
-				err = workflow.ValidateRetainedPayload(v.SourceCursor, v.Payload)
-			}
-			if err != nil {
-				if errors.Is(err, domain.ErrTransitionNotAllowed) || errors.Is(err, domain.ErrInvalidArgument) {
-					return err
-				}
-				return domain.ErrInvalidArgument
-			}
-		}
-		return nil
 	case ToolCancelTask:
 		if !hasKeys(raw, "request_id", "host", "task_id", "revision", "reason") {
 			return domain.ErrInvalidArgument
@@ -352,9 +294,6 @@ func validOperationProbe(v *operationProbeWire) bool {
 	}
 	return workflow.ValidateRetainedPayload(v.SourceCursor, v.Payload) == nil
 }
-func validRecoveryApply(v *recoveryApplyWire, source domain.NodeID, requestID domain.ID) bool {
-	return v == nil || v.OperationID == requestID && v.SourceCursor == source && (source.Normal() || source == domain.NodeBlocked)
-}
 
 // missingRequestMembers names every required top-level request member that the
 // caller omitted.
@@ -437,13 +376,6 @@ func toProbe(w *operationProbeWire) *application.OperationProbe {
 	}
 	return &application.OperationProbe{OperationID: w.OperationID, ProcessID: w.ProcessID, ProcessDefinitionDigest: w.ProcessDefinitionDigest, SourceCursor: w.SourceCursor, ExpectedRevision: w.ExpectedRevision, ActionID: w.ActionID, ActionKind: w.ActionKind, RepositoryBindingDigest: w.RepositoryBindingDigest, Payload: w.Payload}
 }
-func toRecoveryApply(w *recoveryApplyWire) *application.RecoveryApplyInput {
-	if w == nil {
-		return nil
-	}
-	return &application.RecoveryApplyInput{OperationID: w.OperationID, SourceCursor: w.SourceCursor}
-}
-
 func toSubmitAction(w submitActionWire, requestID domain.ID, kind domain.ActionKind) application.SubmitActionRequest {
 	current := make([]application.ArtifactSubmission, len(w.Artifacts.Current))
 	for index, item := range w.Artifacts.Current {

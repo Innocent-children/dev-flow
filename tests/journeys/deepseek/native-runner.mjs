@@ -16,6 +16,8 @@ const repositoryRoot = dirname(dirname(dirname(dirname(runnerPath))));
 const evidenceDirectory = join(repositoryRoot, "tests", "journeys", "deepseek", "evidence");
 const successEvidencePath = join(evidenceDirectory, "native-acceptance.json");
 const failureEvidencePath = join(evidenceDirectory, "native-acceptance-failed.json");
+const currentCoreVersion = (await readFile(join(repositoryRoot, "CORE_VERSION"), "utf8")).trim();
+const currentPackageVersion = JSON.parse(await readFile(join(repositoryRoot, "packages", "deepseek", "package.json"), "utf8")).version;
 const exactTestCommand = "node --test test/proof-writer.test.mjs";
 const TURN_TIMEOUT_MS = 300_000;
 const dshIntegrity = "sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==";
@@ -51,8 +53,8 @@ const nativeCheckpoints = Object.freeze([
   checkpoint("accept-and-deliver", "COMPREHENSION_REVIEW", "DONE", false, [
     "/dev-flow I explicitly confirm that I can explain and maintain the implementation, guard boundary, and targeted test.",
     "Use the fresh current action, complete delivery, follow only legal Core transitions, confirm Core DONE, then stop.",
-    "At DELIVERY, keep the payload top level to exactly transition_id, summary, reason, artifacts, method_evidence, and node_result.",
-    "Put acceptance, evidence IDs, record IDs, unverified_items, risks, findings, changed_paths, and no_file_changes only inside node_result; do not duplicate them at the payload top level.",
+    "At DELIVERY, call the current Action submission_tool with exactly host, task_id, action_id, transition_id, summary, reason, artifacts, method_results, and node_result.",
+    "Do not send payload, method_evidence, revision, Action kind, process identity, source cursor, repository binding, acceptance, evidence IDs, or record IDs; Core fills those members.",
   ]),
 ]);
 
@@ -73,12 +75,14 @@ if (mode === "self-test") {
   try {
     const evidence = await runNative(baseConfig);
     await validateEvidence(evidence);
+    await mkdir(evidenceDirectory, { recursive: true, mode: 0o700 });
     await writeFile(successEvidencePath, `${JSON.stringify(evidence, null, 2)}\n`, { flag: "wx", mode: 0o600 });
     process.stdout.write(`${JSON.stringify({ status: "passed", task_id: evidence.task.task_id, revision: evidence.task.terminal_revision })}\n`);
   } catch (error) {
     const processCleanup = await terminateActiveTurns();
     const failure = await sanitizedFailure(error, activeConfig ?? baseConfig, processCleanup);
     await validateFailureEvidence(failure);
+    await mkdir(evidenceDirectory, { recursive: true, mode: 0o700 });
     await writeFile(failureEvidencePath, `${JSON.stringify(failure, null, 2)}\n`, { flag: "wx", mode: 0o600 });
     throw error;
   }
@@ -154,7 +158,7 @@ async function preflight(baseConfig) {
   assert.match(config.acceptanceCommit, /^[0-9a-f]{40}$/u);
   assert.match(config.artifactSha256, /^[0-9a-f]{64}$/u);
   assert.match(config.coreSha256, /^[0-9a-f]{64}$/u);
-  assert.match(basename(config.artifact), /^dev-flow-deepseek-0\.5\.0.*\.tgz$/u);
+  assert.equal(basename(config.artifact), `dev-flow-deepseek-${currentPackageVersion}.tgz`);
   const artifact = await fileIdentity(await realpath(config.artifact));
   assert.equal(artifact.sha256, config.artifactSha256);
   const dsh = await validateDshConsumer(config);
@@ -191,7 +195,7 @@ async function preflight(baseConfig) {
   const core = await fileIdentity(extractedCorePath);
   assert.equal(core.sha256, config.coreSha256);
   assert.ok((await stat(extractedCorePath)).mode & 0o111);
-  assert.equal((await execFile(extractedCorePath, ["version"])).stdout.trim(), "dev-flow 0.5.0");
+  assert.equal((await execFile(extractedCorePath, ["version"])).stdout.trim(), `dev-flow ${currentCoreVersion}`);
   assert.equal(await exists(installedPackageRoot(config)), false, "Artifact must not be installed during Preflight");
   const marker = {
     run_root: config.root,
@@ -395,7 +399,7 @@ async function runNative(baseConfig) {
     outcomes: {
       ordinary_zero_dispatch: true,
       selector_guard: true,
-      six_tools: info.qualified_tools.length === 6,
+      fifteen_tools: info.qualified_tools.length === 15,
       restart_resume: true,
       read_before_retry: recoveryReadBeforeRetry(recoveredTask.devFlowCalls),
       comprehension: true,
@@ -479,16 +483,11 @@ function failedProgress(reason) {
 function assertMutationIdentities(calls) {
   for (const call of calls.filter((candidate) => isActionMutationName(candidate.name))) {
     const args = JSON.parse(call.arguments);
-    for (const field of ["host", "task_id", "action_id", "transition_id", "summary", "reason", "artifacts", "method_results", "node_result"]) {
-      assert.notEqual(args[field], undefined, `Action submission missing ${field}`);
-    }
+    const fields = ["host", "task_id", "action_id", "transition_id", "summary", "reason", "artifacts", "method_results", "node_result"];
+    assert.deepEqual(Object.keys(args).sort(), [...fields].sort(), "Action submission must match the current top-level contract");
     assert.equal(args.host, "deepseek");
     assert.match(args.action_id, /\S/u);
-    if (args.payload === null) {
-      assert.notEqual(args.recovery_apply, undefined, "recovery apply identity is missing");
-    } else {
-      assert.match(args.payload.transition_id, /\S/u);
-    }
+    assert.match(args.transition_id, /\S/u);
   }
 }
 
@@ -557,8 +556,29 @@ async function selfTest() {
   ]);
   assert.ok(nativeCheckpoints.every((definition) => definition.prompt.includes("/dev-flow")));
   const deliveryPrompt = nativeCheckpoints.find((definition) => definition.id === "accept-and-deliver").prompt;
-  assert.match(deliveryPrompt, /payload top level to exactly transition_id, summary, reason, artifacts, method_evidence, and node_result/u);
-  assert.match(deliveryPrompt, /only inside node_result; do not duplicate them at the payload top level/u);
+  assert.match(deliveryPrompt, /exactly host, task_id, action_id, transition_id, summary, reason, artifacts, method_results, and node_result/u);
+  assert.match(deliveryPrompt, /Do not send payload, method_evidence, revision/u);
+  const currentSubmission = {
+    host: "deepseek",
+    task_id: "task-current",
+    action_id: "action-current",
+    transition_id: "delivery_complete",
+    summary: "Delivery completed.",
+    reason: "",
+    artifacts: { other_process: [] },
+    method_results: { "delivery.prepare_summary": { capability: "", summary: "Prepared delivery." } },
+    node_result: { problem_class: "none", unverified_items: [], risks: [], findings: [], changed_paths: [], no_file_changes: true },
+  };
+  assertMutationIdentities([{
+    name: "mcp__dev_flow__dev_flow_submit_delivery",
+    arguments: JSON.stringify(currentSubmission),
+  }]);
+  const legacySubmission = { ...currentSubmission, payload: { transition_id: "delivery_complete" } };
+  delete legacySubmission.transition_id;
+  assert.throws(() => assertMutationIdentities([{
+    name: "mcp__dev_flow__dev_flow_submit_delivery",
+    arguments: JSON.stringify(legacySubmission),
+  }]), /current top-level contract/u);
   assertCompletedTurn(summarizeEvents([
     { type: "turn/end", data: { reason: { kind: "completed" } } },
   ]));
@@ -996,7 +1016,7 @@ function assertEvidenceShape(evidence) {
   assert.match(evidence.artifact.sha256, /^[0-9a-f]{64}$/u);
   assertClosedKeys(evidence.core, ["sha256", "reported_version"]);
   assert.match(evidence.core.sha256, /^[0-9a-f]{64}$/u);
-  assert.equal(evidence.core.reported_version, "dev-flow 0.5.0");
+  assert.equal(evidence.core.reported_version, `dev-flow ${currentCoreVersion}`);
   assert.deepEqual(evidence.dsh, { version: "0.1.0-rc.8", integrity: dshIntegrity });
   assertClosedKeys(evidence.platform, ["node", "pnpm", "os", "arch"]);
   assert.match(evidence.platform.node, /^v24\./u);
@@ -1010,7 +1030,7 @@ function assertEvidenceShape(evidence) {
   assert.ok(evidence.task.terminal_revision > evidence.task.resumed_revision);
   assert.equal(evidence.task.terminal_state, "DONE");
   assertClosedKeys(evidence.outcomes, [
-    "ordinary_zero_dispatch", "selector_guard", "six_tools", "restart_resume",
+    "ordinary_zero_dispatch", "selector_guard", "fifteen_tools", "restart_resume",
     "read_before_retry", "comprehension", "core_done",
     "remove_reinstall", "data_retained", "repository_retained", "codex_unchanged",
     "read_only_reopen",

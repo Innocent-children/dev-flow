@@ -18,11 +18,11 @@ const dshCli = process.env.DEV_FLOW_DSH_CLI;
 const artifactPath = process.env.DEV_FLOW_DEEPSEEK_ARTIFACT;
 const lifecycleRoot = process.env.DEV_FLOW_LIFECYCLE_ROOT;
 const sourceCommit = process.env.DEV_FLOW_ARTIFACT_SOURCE_COMMIT;
-const evidencePath = join(repositoryRoot, "tests", "journeys", "deepseek", "evidence", "phase6-lifecycle.json");
+const evidencePath = join(repositoryRoot, "tests", "journeys", "deepseek", "evidence", "lifecycle-acceptance.json");
 
 test("official DSH add/remove/reinstall preserves Core data, repository, and Codex identities", {
   skip: [dshCli, artifactPath, lifecycleRoot, sourceCommit].some((value) => value === undefined)
-    ? "set the exact Phase 6 lifecycle environment for the one official lifecycle gate"
+    ? "set the exact lifecycle environment for the official lifecycle gate"
     : false,
 }, async (t) => {
   assert.equal(platform(), "darwin");
@@ -51,6 +51,7 @@ test("official DSH add/remove/reinstall preserves Core data, repository, and Cod
   const addedManifest = await readJSON(join(profileDirectory, "package.json"));
   assert.deepEqual(addedManifest.dsh.profile.bundles.filter((name) => name === "dev-flow-deepseek"), ["dev-flow-deepseek"]);
   const installedPackage = await realpath(join(profileDirectory, "node_modules", "dev-flow-deepseek"));
+  const installedProductManifest = await readJSON(join(installedPackage, "package.json"));
   const installedCore = join(installedPackage, "runtime", "darwin-arm64", "dev-flow");
   const coreIdentity = await fileIdentity(installedCore);
   const firstMount = await mountInstalledProduct(installedPackage, dataDirectory);
@@ -117,7 +118,7 @@ test("official DSH add/remove/reinstall preserves Core data, repository, and Cod
     repository_commit: sourceCommit,
     package: {
       filename: basename(canonicalArtifact), size: artifactIdentity.size, sha256: artifactIdentity.sha256,
-      version_label: "0.5.0",
+      version_label: installedProductManifest.version,
     },
     embedded_core: {
       filename: "runtime/darwin-arm64/dev-flow", size: coreIdentity.size,
@@ -144,6 +145,7 @@ test("official DSH add/remove/reinstall preserves Core data, repository, and Cod
       exact_reinstall: "passed", same_task_reopen: "passed", read_only_reopen: "passed",
     },
   };
+  await mkdir(dirname(evidencePath), { recursive: true, mode: 0o700 });
   await writeFile(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`, { flag: "wx", mode: 0o600 });
   t.diagnostic(JSON.stringify({
     artifact_sha256: artifactIdentity.sha256,

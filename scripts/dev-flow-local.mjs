@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
-import { chmod, copyFile, mkdir, mkdtemp, readFile, realpath, rm, stat } from "node:fs/promises";
+import { chmod, copyFile, mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { gunzipSync, gzipSync } from "node:zlib";
 
 import { execPortableCommand } from "../packages/dev-flow/lib/command.mjs";
 import { buildCoreRuntimes } from "./build-core-runtimes.mjs";
@@ -17,7 +18,7 @@ export function normalizeForwardedArguments(arguments_) {
 
 export async function copyExecutable(source, target, dependencies = {}) {
   await (dependencies.copyFile ?? copyFile)(source, target);
-  if (dependencies.requireExecutableMode ?? true) {
+  if ((dependencies.requireExecutableMode ?? true) && (dependencies.platform ?? process.platform) !== "win32") {
     await (dependencies.chmod ?? chmod)(target, 0o755);
   }
 }
@@ -87,9 +88,6 @@ async function stageAndPack(product, { root, stageRoot, outputRoot, coreArtifact
       await copyExecutable(runtime.path, target, {
         requireExecutableMode: runtime.requireExecutableMode,
       });
-      if (runtime.requireExecutableMode && ((await stat(target)).mode & 0o111) === 0) {
-        throw new Error(`local ${product} staged Core is not executable`);
-      }
     }
     else await copyFile(join(packageRoot, relativePath), target);
   }
@@ -97,7 +95,11 @@ async function stageAndPack(product, { root, stageRoot, outputRoot, coreArtifact
   if (coreArtifacts) {
     const filename = `${manifest.name.replace(/^@/u, "").replaceAll("/", "-")}-${manifest.version}.tgz`;
     artifactPath = join(outputRoot, filename);
-    await run("tar", ["-czf", artifactPath, "-C", productStageRoot, "package"], { cwd: root });
+    const tarPath = join(outputRoot, `${filename}.tar`);
+    await run("tar", ["-cf", tarPath, "--format", "ustar", "-C", productStageRoot, "package"], { cwd: root });
+    const executablePaths = packageExecutablePaths(manifest, coreArtifacts);
+    const normalized = normalizeUstarModes(await readFile(tarPath), executablePaths);
+    await writeFile(artifactPath, gzipSync(normalized, { level: 9, mtime: 0 }), { mode: 0o644 });
     artifactPath = await realpath(artifactPath);
   } else {
     const result = await run("pnpm", ["--config.ignore-scripts=true", "--dir", destination, "pack", "--pack-destination", outputRoot, "--json"], { cwd: root });
@@ -108,17 +110,91 @@ async function stageAndPack(product, { root, stageRoot, outputRoot, coreArtifact
   }
   if (!(await stat(artifactPath)).isFile()) throw new Error(`local ${product} package is missing`);
   if (coreArtifacts) {
-    const verificationRoot = join(stageRoot, `${product}-verification`);
-    await mkdir(verificationRoot, { recursive: true });
-    await run("tar", ["-xzf", artifactPath, "-C", verificationRoot], { cwd: root });
+    const modes = ustarEntryModes(gunzipSync(await readFile(artifactPath)));
     for (const [relativePath, runtime] of coreArtifacts) {
-      const packagedCore = await stat(join(verificationRoot, "package", relativePath));
-      if (runtime.requireExecutableMode && (packagedCore.mode & 0o111) === 0) {
-        throw new Error(`local ${product} packaged Core is not executable (${(packagedCore.mode & 0o777).toString(8)})`);
+      const archivedPath = `package/${relativePath}`;
+      const expectedMode = runtime.requireExecutableMode ? 0o755 : 0o644;
+      if (modes.get(archivedPath) !== expectedMode) {
+        throw new Error(`local ${product} packaged Core mode is invalid (${modes.get(archivedPath)?.toString(8) ?? "missing"})`);
       }
     }
   }
   return { path: artifactPath, version: manifest.version };
+}
+
+function packageExecutablePaths(manifest, coreArtifacts) {
+  const paths = new Set(
+    [...coreArtifacts.values()]
+      .filter((runtime) => runtime.requireExecutableMode)
+      .map((runtime) => `package/${runtime.relativePath}`),
+  );
+  const bins = typeof manifest.bin === "string" ? [manifest.bin] : Object.values(manifest.bin ?? {});
+  for (const path of bins) paths.add(`package/${path}`);
+  return paths;
+}
+
+export function normalizeUstarModes(archive, executablePaths = new Set()) {
+  const normalized = Buffer.from(archive);
+  const foundExecutables = new Set();
+  walkUstar(normalized, ({ offset, path, type }) => {
+    if (type !== "file" && type !== "directory") return;
+    const executable = type === "file" && executablePaths.has(path);
+    writeTarOctal(normalized, offset + 100, 8, type === "directory" || executable ? 0o755 : 0o644);
+    writeTarChecksum(normalized, offset);
+    if (executable) foundExecutables.add(path);
+  });
+  const missing = [...executablePaths].filter((path) => !foundExecutables.has(path));
+  if (missing.length !== 0) throw new Error(`archive is missing executable entries: ${missing.join(", ")}`);
+  return normalized;
+}
+
+export function ustarEntryModes(archive) {
+  const modes = new Map();
+  walkUstar(archive, ({ offset, path, type }) => {
+    if (type === "file" || type === "directory") modes.set(path, readTarOctal(archive, offset + 100, 8));
+  });
+  return modes;
+}
+
+function walkUstar(archive, visit) {
+  let offset = 0;
+  while (offset + 512 <= archive.length) {
+    const header = archive.subarray(offset, offset + 512);
+    if (header.every((byte) => byte === 0)) return;
+    const name = readTarString(archive, offset, 100);
+    const prefix = readTarString(archive, offset + 345, 155);
+    const path = prefix === "" ? name : `${prefix}/${name}`;
+    const typeFlag = archive[offset + 156];
+    const type = typeFlag === 53 ? "directory" : typeFlag === 0 || typeFlag === 48 ? "file" : "other";
+    const size = readTarOctal(archive, offset + 124, 12);
+    visit({ offset, path, type, size });
+    offset += 512 + Math.ceil(size / 512) * 512;
+  }
+  if (offset !== archive.length) throw new Error("invalid USTAR archive length");
+}
+
+function readTarString(archive, offset, length) {
+  const field = archive.subarray(offset, offset + length);
+  const end = field.indexOf(0);
+  return field.subarray(0, end < 0 ? field.length : end).toString("utf8");
+}
+
+function readTarOctal(archive, offset, length) {
+  const value = readTarString(archive, offset, length).trim();
+  if (!/^[0-7]+$/u.test(value)) throw new Error("invalid USTAR octal field");
+  return Number.parseInt(value, 8);
+}
+
+function writeTarOctal(archive, offset, length, value) {
+  const encoded = `${value.toString(8).padStart(length - 1, "0")}\0`;
+  archive.write(encoded, offset, length, "ascii");
+}
+
+function writeTarChecksum(archive, offset) {
+  archive.fill(32, offset + 148, offset + 156);
+  let checksum = 0;
+  for (let index = offset; index < offset + 512; index += 1) checksum += archive[index];
+  archive.write(`${checksum.toString(8).padStart(6, "0")}\0 `, offset + 148, 8, "ascii");
 }
 
 async function runCommand(executable, arguments_, { cwd, environment = process.env } = {}) {

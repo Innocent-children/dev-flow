@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 
 import { containedPath, packageRootFromModule } from "./paths.mjs";
-import { platformAdapter } from "./platform.mjs";
+import { permissionPolicy, runtimeDescriptor } from "./platform.mjs";
 
 const execFile = promisify(execFileCallback);
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
@@ -14,18 +14,19 @@ export async function selectPackagedRuntime({
   platform = process.platform,
   arch = process.arch,
 } = {}) {
-  const adapter = platformAdapter(platform, arch);
+  const runtime = runtimeDescriptor(platform, arch);
+  const permissions = permissionPolicy(platform, arch);
 
   const canonicalPackageRoot = await canonicalPackageDirectory(packageRoot);
   return Object.freeze({
     packageRoot: canonicalPackageRoot,
-    platform: adapter.platform,
-    arch: adapter.arch,
-    runtimeKey: adapter.runtimeKey,
-    requireExecutableMode: adapter.requireExecutableMode,
+    platform: runtime.platform,
+    arch: runtime.arch,
+    runtimeKey: runtime.runtimeKey,
+    requireExecutableMode: permissions.requireExecutableMode,
     runtimePath: containedPath(
       canonicalPackageRoot,
-      join(canonicalPackageRoot, "runtime", adapter.runtimeDirectory, adapter.runtimeExecutable),
+      join(canonicalPackageRoot, "runtime", runtime.runtimeDirectory, runtime.runtimeExecutable),
       "packaged Core runtime",
     ),
   });
@@ -41,16 +42,17 @@ export async function preflightPackagedCore(
   if (!selection) {
     throw new Error("packaged Core selection is required");
   }
-  const adapter = platformAdapter(
+  const runtime = runtimeDescriptor(
     selection.platform ?? selection.runtimeKey.split("-")[0],
     selection.arch ?? selection.runtimeKey.split("-")[1],
   );
-  if (selection.runtimeKey !== adapter.runtimeKey) {
+  const permissions = permissionPolicy(runtime.platform, runtime.arch);
+  if (selection.runtimeKey !== runtime.runtimeKey) {
     throw new Error("packaged Core selection does not match its platform");
   }
   const expectedRuntimePath = containedPath(
     selection.packageRoot,
-    join(selection.packageRoot, "runtime", adapter.runtimeDirectory, adapter.runtimeExecutable),
+    join(selection.packageRoot, "runtime", runtime.runtimeDirectory, runtime.runtimeExecutable),
     "packaged Core runtime",
   );
   if (selection.runtimePath !== expectedRuntimePath) {
@@ -58,7 +60,7 @@ export async function preflightPackagedCore(
   }
   await assertRegularExecutableFile(
     selection.runtimePath,
-    selection.requireExecutableMode ?? adapter.requireExecutableMode,
+    selection.requireExecutableMode ?? permissions.requireExecutableMode,
   );
 
   let stdout;

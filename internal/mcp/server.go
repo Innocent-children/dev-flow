@@ -105,14 +105,6 @@ func (s *Server) dispatch(ctx context.Context, tool string, id domain.ID, raw []
 			return EncodeError(string(resultID), tool, err)
 		}
 		return EncodeSuccess(string(resultID), tool, projectNextAction(r))
-	case ToolApplyAction:
-		var w applyWire
-		_ = decodeClosed(raw, &w)
-		r, err := s.application.ApplyAction(ctx, application.ApplyActionRequest{RequestID: w.RequestID, Host: w.Host, TaskID: w.TaskID, ExpectedRevision: w.Revision, ActionID: w.ActionID, ActionKind: w.ActionKind, ProcessID: w.ProcessID, ProcessDefinitionDigest: w.ProcessDefinitionDigest, SourceCursor: w.SourceCursor, RepositoryBindingDigest: w.RepositoryBindingDigest, Payload: w.Payload, RecoveryApply: toRecoveryApply(w.RecoveryApply)})
-		if err != nil {
-			return EncodeError(string(resultID), tool, err)
-		}
-		return EncodeSuccess(string(resultID), tool, projectTask(r.Task))
 	case ToolResolveBlocker:
 		var wire resolveBlockerWire
 		_ = decodeClosed(raw, &wire)
@@ -147,7 +139,7 @@ func (s *Server) dispatch(ctx context.Context, tool string, id domain.ID, raw []
 }
 
 func resultEnvelopeRequestID(tool string, raw []byte, generated domain.ID) domain.ID {
-	if tool != ToolApplyAction && tool != ToolCancelTask || !generated.IsValid() || rejectDuplicateMembers(raw) != nil {
+	if tool != ToolCancelTask || !generated.IsValid() || rejectDuplicateMembers(raw) != nil {
 		return generated
 	}
 	var object map[string]json.RawMessage

@@ -56,8 +56,6 @@ DeepSeek 稳定 Journey 还覆盖显式触发、重启恢复、`DONE` 和保留�
 
 | 入口 | 能回答什么问题 |
 | --- | --- |
-| [Codex 多仓库 Attempt 7](../tests/journeys/codex/evidence/feature-001-multi-repository-attempt-7.json) | 两个独立 Codex 会话能否从附加仓库恢复同一 Task？ |
-| [DeepSeek 多仓库 Attempt 5](../tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-5.json) | DSH 是否真实完成多仓库、重启恢复、定向验证、理解确认和 `DONE`？ |
 | [PR #8](https://github.com/Innocent-children/dev-flow/pull/8) | Codex 状态图是否真实覆盖重构、重新测试、理解确认和交付？ |
 | [Support Matrix](SUPPORT-MATRIX.md) | 哪些公开稳定 package 与 Host 环境完成最终制品验证？ |
 | [Release 目录](../release/README.md) | 维护者如何构建、回读并发布制品？ |

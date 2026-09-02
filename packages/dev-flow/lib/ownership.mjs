@@ -15,7 +15,13 @@ import {
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { platformAdapter } from "./platform.mjs";
+import {
+  cleanupPolicy,
+  dataPathPolicy,
+  permissionPolicy,
+  runtimeDescriptor,
+  signalPolicy,
+} from "./platform.mjs";
 
 export const DATA_DIRECTORY_ENVIRONMENT = "DEV_FLOW_DATA_DIR";
 
@@ -25,9 +31,13 @@ export async function resolveManagerPaths({
   platform = process.platform,
   arch = process.arch,
 } = {}) {
-  const adapter = platformAdapter(platform, arch);
+  const runtime = runtimeDescriptor(platform, arch);
+  const dataPaths = dataPathPolicy(platform, arch);
+  const permissions = permissionPolicy(platform, arch);
+  const signals = signalPolicy(platform, arch);
+  const cleanup = cleanupPolicy(platform, arch);
   const canonicalHome = await canonicalExistingDirectory(homeDirectory, "home directory");
-  const applicationData = adapter.applicationData({ homeDirectory: canonicalHome, environment });
+  const applicationData = dataPaths.applicationData({ homeDirectory: canonicalHome, environment });
   const applicationDataRoot = applicationData.canonicalizeRoot
     ? await canonicalExistingDirectory(applicationData.path, applicationData.label)
     : ownedPath(canonicalHome, applicationData.path, applicationData.label);
@@ -36,7 +46,7 @@ export async function resolveManagerPaths({
     : ownedPath(canonicalHome, applicationData.inspectionRoot, "application data inspection root");
   const productRoot = ownedPath(applicationDataRoot, join(applicationDataRoot, "dev-flow"), "product root");
   const managerRoot = ownedPath(applicationDataRoot, join(applicationDataRoot, "create-dev-flow"), "manager root");
-  const trash = adapter.trash({
+  const trash = cleanup.trash({
     homeDirectory: canonicalHome,
     managerRoot,
     inspectionRoot: applicationDataInspectionRoot,
@@ -48,15 +58,15 @@ export async function resolveManagerPaths({
   const explicitDataDirectory = explicitValue === "" ? null : await canonicalExplicitDirectory(explicitValue);
   return Object.freeze({
     homeDirectory: canonicalHome,
-    platform: adapter.platform,
-    arch: adapter.arch,
-    runtimeKey: adapter.runtimeKey,
-    runtimeDirectory: adapter.runtimeDirectory,
-    runtimeExecutable: adapter.runtimeExecutable,
-    enforcePrivateModes: adapter.enforcePrivateModes,
-    requireExecutableMode: adapter.requireExecutableMode,
-    forwardedSignals: adapter.forwardedSignals,
-    recoverableCleanupDescription: adapter.recoverableCleanupDescription,
+    platform: runtime.platform,
+    arch: runtime.arch,
+    runtimeKey: runtime.runtimeKey,
+    runtimeDirectory: runtime.runtimeDirectory,
+    runtimeExecutable: runtime.runtimeExecutable,
+    enforcePrivateModes: permissions.enforcePrivateModes,
+    requireExecutableMode: permissions.requireExecutableMode,
+    forwardedSignals: signals.forwardedSignals,
+    recoverableCleanupDescription: cleanup.recoverableCleanupDescription,
     applicationDataRoot,
     applicationDataInspectionRoot,
     productRoot,

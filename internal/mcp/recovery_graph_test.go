@@ -88,23 +88,21 @@ func TestRepositoryDriftErrorProjectsOnlyValidatedKeyAndClosedReason(t *testing.
 }
 
 func TestResolveBlockerInputUsesClosedPayloadAndNoDestination(t *testing.T) {
-	digest := workflow.StandardProcess().Reference.DefinitionDigest
-	raw := []byte(`{"request_id":"resolve","host":"codex","task_id":"task","revision":2,"action_id":"action","action_kind":"RESOLVE_BLOCKER","process_id":"standard-development","process_definition_digest":"` + string(digest) + `","source_cursor":"BLOCKED","repository_binding_digest":"` + string(digest) + `","payload":{"blocker_id":"blocker","condition":{"kind":"restore_issuance_binding","expected_binding_digest":"` + string(digest) + `"},"observed_binding_digest":"` + string(digest) + `"}}`)
-	if err := ValidateToolInput(ToolApplyAction, raw); err != nil {
+	raw := []byte(`{"host":"codex","task_id":"task","action_id":"action"}`)
+	if err := ValidateToolInput(ToolResolveBlocker, raw); err != nil {
 		t.Fatal(err)
 	}
-	retryRaw := []byte(`{"request_id":"retry","host":"codex","task_id":"task","revision":2,"action_id":"action","action_kind":"RESOLVE_BLOCKER","process_id":"standard-development","process_definition_digest":"` + string(digest) + `","source_cursor":"BLOCKED","repository_binding_digest":"` + string(digest) + `","payload":{"blocker_id":"blocker","condition":{"kind":"allow_verification_retry","expected_binding_digest":"` + string(digest) + `"},"observed_binding_digest":"` + string(digest) + `"}}`)
-	if err := ValidateToolInput(ToolApplyAction, retryRaw); err != nil {
+	fileScope := []byte(`{"host":"codex","task_id":"task","action_id":"action","choice":"allow_once","reason":"Allow this exact write."}`)
+	if err := ValidateToolInput(ToolResolveBlocker, fileScope); err != nil {
 		t.Fatal(err)
 	}
 	var value map[string]any
 	if json.Unmarshal(raw, &value) != nil {
 		t.Fatal("invalid fixture")
 	}
-	payload := value["payload"].(map[string]any)
-	payload["destination"] = "REFACTOR"
+	value["destination"] = "REFACTOR"
 	bad, _ := json.Marshal(value)
-	if err := ValidateToolInput(ToolApplyAction, bad); err != domain.ErrInvalidArgument {
+	if err := ValidateToolInput(ToolResolveBlocker, bad); err != domain.ErrInvalidArgument {
 		t.Fatalf("destination error=%v", err)
 	}
 }

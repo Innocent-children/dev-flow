@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { platformAdapter } from "./platform.mjs";
+import { dataPathPolicy, permissionPolicy } from "./platform.mjs";
 
 export const DATA_DIRECTORY_ENVIRONMENT = "DEV_FLOW_DATA_DIR";
 
@@ -17,9 +17,10 @@ export async function resolveDataDirectory({
   platform = process.platform,
   arch = process.arch,
 } = {}) {
-  const adapter = platformAdapter(platform, arch);
+  const dataPaths = dataPathPolicy(platform, arch);
+  const permissions = permissionPolicy(platform, arch);
   const canonicalHome = await canonicalExistingDirectory(homeDirectory, "home directory");
-  const applicationData = adapter.applicationData({ homeDirectory: canonicalHome, environment });
+  const applicationData = dataPaths.applicationData({ homeDirectory: canonicalHome, environment });
   const productSupportAnchor = applicationData.canonicalizeRoot
     ? await canonicalExistingDirectory(applicationData.path, applicationData.label)
     : containedPath(canonicalHome, applicationData.path, applicationData.label);
@@ -37,9 +38,9 @@ export async function resolveDataDirectory({
     const dataDirectory = await canonicalExplicitDataDirectory(explicitDataDirectory);
     return Object.freeze({
       dataDirectory,
-      platform: adapter.platform,
-      arch: adapter.arch,
-      enforcePrivateModes: adapter.enforcePrivateModes,
+      platform,
+      arch,
+      enforcePrivateModes: permissions.enforcePrivateModes,
       homeDirectory: canonicalHome,
       productSupportAnchor,
       productSupportInspectionRoot,
@@ -56,9 +57,9 @@ export async function resolveDataDirectory({
       join(productSupportRoot, "data"),
       "default data directory",
     ),
-    platform: adapter.platform,
-    arch: adapter.arch,
-    enforcePrivateModes: adapter.enforcePrivateModes,
+    platform,
+    arch,
+    enforcePrivateModes: permissions.enforcePrivateModes,
     homeDirectory: canonicalHome,
     productSupportAnchor,
     productSupportInspectionRoot,

@@ -79,8 +79,8 @@ Completed developer-run verification is a `source="user"` check with `command_co
 
 The current `dev_flow_submit_design` schema remains authoritative. In that schema,
 `complexity_justification` is `string[]`, even when there is only one justification. Never submit a
-scalar string based on the field name or this prose. Design also omits the Core-owned
-`requirements_revision` unless the live schema and current Task explicitly require the current value.
+scalar string based on the field name or this prose. Always omit the Core-owned
+`requirements_revision`; Core fills it from the current Task.
 
 <!-- design-node-result-example:start -->
 ```json

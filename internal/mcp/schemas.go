@@ -12,7 +12,6 @@ const (
 	ToolOpenTask             = "dev_flow_open_task"
 	ToolGetTask              = "dev_flow_get_task"
 	ToolGetNextAction        = "dev_flow_get_next_action"
-	ToolApplyAction          = "dev_flow_apply_action"
 	ToolSubmitRequirements   = "dev_flow_submit_requirements"
 	ToolSubmitDesign         = "dev_flow_submit_design"
 	ToolSubmitTasks          = "dev_flow_submit_tasks"

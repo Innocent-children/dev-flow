@@ -91,8 +91,6 @@ The entries below are independent paths. Each demonstrates only the stated scope
 
 | Record | Scope demonstrated |
 | --- | --- |
-| [Codex multi-repository Attempt 7](../tests/journeys/codex/evidence/feature-001-multi-repository-attempt-7.json) | Two independent Codex sessions resume the same Core Task from an additional repository; revision, Action, binding, and Scope remain unchanged |
-| [DeepSeek multi-repository Attempt 5](../tests/journeys/deepseek/evidence/feature-001-multi-repository-attempt-5.json) | A real DSH journey completes multi-repository changes, restart recovery, one targeted verification, comprehension, and `DONE` |
 | [PR #8 Codex graph acceptance](https://github.com/Innocent-children/dev-flow/pull/8) | A real Codex journey covers restart, refactoring, retesting, comprehension, delivery, and Core `DONE` |
 | [Support Matrix](SUPPORT-MATRIX_en.md) | Stable registry packages and Host environments with final lifecycle records |
 

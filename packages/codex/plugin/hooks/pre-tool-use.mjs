@@ -7,7 +7,7 @@ import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { platformAdapter } from "../../lib/platform.mjs";
+import { dataPathPolicy } from "../../lib/platform.mjs";
 
 const MAX_INPUT_BYTES = 1024 * 1024;
 const PATCH_HEADERS = ["*** Add File: ", "*** Update File: ", "*** Delete File: ", "*** Move to: "];
@@ -89,9 +89,9 @@ export function runHook({
   }
   const request = preparedWriteFromHook(event);
   if (request === undefined) return 0;
-  const adapter = platformAdapter(platform, arch);
-  const homeDirectory = adapter.homeDirectory({ environment, fallback: homedir() });
-  const applicationData = adapter.applicationData({ homeDirectory, environment });
+  const dataPaths = dataPathPolicy(platform, arch);
+  const homeDirectory = dataPaths.homeDirectory({ environment, fallback: homedir() });
+  const applicationData = dataPaths.applicationData({ homeDirectory, environment });
   const defaultDataDirectory = join(applicationData.path, "dev-flow", "data");
   const dataDirectory = environment.DEV_FLOW_DATA_DIR || defaultDataDirectory;
   if (!existsSync(dataDirectory)) return 0;

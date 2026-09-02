@@ -1,9 +1,0 @@
-{
-  "evidence_class": "native_deepseek_graph_journey",
-  "status": "failed",
-  "native_attempt": 1,
-  "failure_class": "acceptance_assertion",
-  "bounded_diagnostic": "interrupted mutation result was already recorded",
-  "artifact_sha256": "668b4702acb3278be291a186308ef59d0968334f159523c9a0b20cb116efb719",
-  "publication_effects": false
-}
