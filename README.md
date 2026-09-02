@@ -1,25 +1,57 @@
-<p align="center">
-  <img src="packages/webui/src/assets/dev-flow-app-icon-light.svg" width="112" height="112" alt="Dev Flow" />
-</p>
-
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>让长时 AI 编程任务从持久状态继续，并在执行中守住任务范围、验证预算和交付条件。</strong></p>
+<p align="center">
+  <img src=".github/assets/dev-flow-social-preview.png" width="960" alt="Dev Flow — Resume the task. Not the chat. Session 1 resumes as the same Task in Session 2 after a Host restart." />
+</p>
+
+<p align="center"><strong>让 Codex 和 DeepSeek Harness 在中断后继续同一个任务，并保留范围、阶段和剩余验证。</strong></p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/dev-flow-codex"><img src="https://img.shields.io/npm/v/dev-flow-codex?label=dev-flow-codex" alt="Codex npm" /></a>
-  <a href="https://www.npmjs.com/package/dev-flow-deepseek"><img src="https://img.shields.io/npm/v/dev-flow-deepseek?label=dev-flow-deepseek" alt="DeepSeek npm" /></a>
+  <a href="https://www.npmjs.com/package/@imotong/dev-flow"><img src="https://img.shields.io/npm/v/%40imotong%2Fdev-flow?label=%40imotong%2Fdev-flow" alt="Dev Flow npm" /></a>
   <a href="https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml"><img src="https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="Apache 2.0 License" /></a>
+</p>
+
+<p align="center">
+  <a href="#最短安装路径">安装</a> · <a href="docs/DEMO.md">两分钟演示</a> · <a href="https://dev-flow.top">官网</a>
 </p>
 
 <p align="center">
   <a href="README.md">简体中文</a> · <a href="README_en.md">English</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-Dev Flow 是长时 AI 编程任务的本地过程控制与恢复层。它不只在聊天记录之外保存进度，还让 Task
-只有在范围、verification budget 和当前记录满足条件时继续流转；当会话中断、仓库漂移或 Action
-结果不确定时，Codex 或 DeepSeek 可以读取同一 Task，获得合法下一步、Recovery 判断或明确阻塞。
+Dev Flow 把一个长时 AI 编程任务的范围、当前阶段、剩余验证和恢复状态保存在聊天记录之外。会话压缩
+或 Host 重启后，Codex 或 DeepSeek Harness 先读取同一个本地 Task，再继续尚未完成的工作，不必根据
+残缺聊天重新猜测进度。
+
+## 最短安装路径
+
+当前稳定 `@latest` 制品支持 macOS arm64；当前源码还实现并在 Windows 11 本机验证了 Windows 10/11
+桌面版 x64 runtime，但它要经过独立发布和最终 Host Journey 后才会扩大稳定声明。准确范围见
+[Support Matrix](docs/SUPPORT-MATRIX.md)。
+
+```bash
+npm install -g @imotong/dev-flow@latest
+dev-flow
+```
+
+安装完成后，在 Git 仓库中使用对应入口。
+
+Codex 可以智能选择 Dev Flow；需要明确进入时使用：
+
+```text
+$dev-flow-codex:dev-flow 修复登录失败次数限制，只运行定向测试。
+```
+
+DeepSeek Harness 每个需要调用 Dev Flow 的直接用户消息都使用：
+
+```text
+/dev-flow 修复登录失败次数限制，只运行定向测试。
+```
+
+Host 原生命令只用于诊断和恢复。完整安装、状态、恢复与移除方式见
+[Codex 使用说明](packages/codex/README.md)、[DeepSeek 使用说明](packages/deepseek/README.md)和
+[命令参考](docs/COMMANDS.md)。
 
 ## 你是不是遇到过这个问题
 
@@ -91,35 +123,6 @@ Next: run the remaining targeted auth test
 
 恢复时，Host 读取同一个 Task 的当前阶段、范围、剩余验证和恢复状态。它继续剩余验证，不需要从
 聊天记录重新推断。完整故事见[中断后继续的两分钟演示](docs/DEMO.md)。
-
-## 最短安装路径
-
-当前稳定 `@latest` 制品支持 macOS arm64；当前源码还实现并在 Windows 11 本机验证了 Windows 10/11
-桌面版 x64 runtime，但它要经过独立发布和最终 Host Journey 后才会扩大稳定声明。准确范围见
-[Support Matrix](docs/SUPPORT-MATRIX.md)。
-
-```bash
-npm install -g @imotong/dev-flow@latest
-dev-flow
-```
-
-安装完成后，在 Git 仓库中使用对应入口。
-
-Codex 可以智能选择 Dev Flow；需要明确进入时使用：
-
-```text
-$dev-flow-codex:dev-flow 修复登录失败次数限制，只运行定向测试。
-```
-
-DeepSeek Harness 每个需要调用 Dev Flow 的直接用户消息都使用：
-
-```text
-/dev-flow 修复登录失败次数限制，只运行定向测试。
-```
-
-Host 原生命令只用于诊断和恢复。完整安装、状态、恢复与移除方式见
-[Codex 使用说明](packages/codex/README.md)、[DeepSeek 使用说明](packages/deepseek/README.md)和
-[命令参考](docs/COMMANDS.md)。
 
 ## 稳定支持、当前源码与边界
 

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { releaseAssetNames, verifyRegistryBytes } from "./publish.mjs";
+import { releaseAssetNames, releasePresentation, verifyRegistryBytes } from "./publish.mjs";
 
 const packageName = "dev-flow-codex";
 const version = "0.7.8";
@@ -24,6 +24,35 @@ test("release assets retain both supported standalone Core binaries", () => {
     "release-manifest.json",
     "SHA256SUMS",
   ]);
+});
+
+test("release presentation names every product and links immutable release details", () => {
+  const sourceCommit = "a".repeat(40);
+  const coreVersion = "0.8.5";
+  const cases = [
+    { product: "codex", title: "Dev Flow for Codex v0.7.8", packageName: "dev-flow-codex", guidePath: "packages/codex/README.md", bundlesCore: true },
+    { product: "deepseek", title: "Dev Flow for DeepSeek Harness v0.7.8", packageName: "dev-flow-deepseek", guidePath: "packages/deepseek/README.md", bundlesCore: true },
+    { product: "dev-flow", title: "Dev Flow CLI v0.7.8", packageName: "@imotong/dev-flow", guidePath: "packages/dev-flow/README.md", bundlesCore: false },
+  ];
+
+  for (const item of cases) {
+    const presentation = releasePresentation(item.product, version, {
+      release: {
+        product: item.product,
+        version,
+        source_commit: sourceCommit,
+        ...(item.bundlesCore ? { core_version: coreVersion } : {}),
+      },
+    });
+    assert.equal(presentation.title, item.title);
+    assert.ok(presentation.notes.includes(`${item.packageName}@${version}`));
+    assert.equal(presentation.notes.includes(`Dev Flow Core \`${coreVersion}\``), item.bundlesCore);
+    assert.ok(presentation.notes.includes(`${sourceCommit}/${item.guidePath}`));
+    assert.ok(presentation.notes.includes(`${sourceCommit}/docs/SUPPORT-MATRIX_en.md`));
+    assert.ok(presentation.notes.includes(`tree/${sourceCommit}`));
+    assert.ok(presentation.notes.includes("`SHA256SUMS`"));
+    assert.equal(presentation.notes.includes("standalone Core binaries"), item.bundlesCore);
+  }
 });
 
 test("registry tarball read-back retries ETARGET until npm pack can resolve the published version", async (t) => {

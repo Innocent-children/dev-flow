@@ -54,6 +54,13 @@ The publisher creates or reuses only matching Tag and GitHub Release state, publ
 once, verifies registry tarball bytes, uploads prepared assets, and finalizes without running Host or
 Task journeys.
 
+For a new draft, the publisher writes a product-specific title and a compact Release summary. The
+summary names the exact npm package, links the immutable source commit and source-pinned
+installation/support documents, and points readers to `SHA256SUMS`. Codex and DeepSeek summaries also
+name their bundled Core version; the Host-neutral lifecycle CLI has no bundled Core and omits that
+sentence. A retry that finds an existing matching Release preserves that remote Release instead of
+rewriting its title or notes.
+
 Registry byte verification retries the actual `npm pack <package>@<version>` read-back for up to ten
 minutes when npm returns `ETARGET` or `E404`. Metadata visibility alone is not treated as tarball
 availability. Authentication failures, malformed output, and byte mismatches still stop immediately.

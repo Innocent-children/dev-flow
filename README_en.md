@@ -1,27 +1,59 @@
-<p align="center">
-  <img src="packages/webui/src/assets/dev-flow-app-icon-light.svg" width="112" height="112" alt="Dev Flow" />
-</p>
-
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>Resume long-running coding-agent work from durable state while keeping scope, verification budget, and delivery conditions explicit.</strong></p>
+<p align="center">
+  <img src=".github/assets/dev-flow-social-preview.png" width="960" alt="Dev Flow — Resume the task. Not the chat. Session 1 resumes as the same Task in Session 2 after a Host restart." />
+</p>
+
+<p align="center"><strong>Resume the same Codex or DeepSeek Harness task after an interruption, with its scope, stage, and remaining verification intact.</strong></p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/dev-flow-codex"><img src="https://img.shields.io/npm/v/dev-flow-codex?label=dev-flow-codex" alt="Codex npm" /></a>
-  <a href="https://www.npmjs.com/package/dev-flow-deepseek"><img src="https://img.shields.io/npm/v/dev-flow-deepseek?label=dev-flow-deepseek" alt="DeepSeek npm" /></a>
+  <a href="https://www.npmjs.com/package/@imotong/dev-flow"><img src="https://img.shields.io/npm/v/%40imotong%2Fdev-flow?label=%40imotong%2Fdev-flow" alt="Dev Flow npm" /></a>
   <a href="https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml"><img src="https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="Apache 2.0 License" /></a>
+</p>
+
+<p align="center">
+  <a href="#shortest-installation-path">Install</a> · <a href="docs/DEMO_en.md">Two-minute demo</a> · <a href="https://dev-flow.top">Website</a>
 </p>
 
 <p align="center">
   <a href="README.md">简体中文</a> · <a href="README_en.md">English</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-Dev Flow is a local process-control and recovery layer for long-running AI coding tasks. It does more
-than retain progress outside chat history: a Task advances only when scope, verification budget, and
-current records satisfy the next step. After an interrupted session, repository drift, or an uncertain
-Action result, Codex or DeepSeek can read the same Task and receive a legal next step, Recovery
-assessment, or explicit blocker.
+Dev Flow keeps a long-running AI coding task's scope, current stage, remaining verification, and
+recovery state outside chat history. After context compaction or a Host restart, Codex or DeepSeek
+Harness reads the same local Task and continues the unfinished work instead of reconstructing progress
+from a partial conversation.
+
+## Shortest installation path
+
+Current stable `@latest` artifacts support macOS arm64. Current source also implements Windows 10/11
+desktop x64 and has native Windows 11 evidence; the stable claim expands only after an independent
+release and final Host journey. See the [Support Matrix](docs/SUPPORT-MATRIX_en.md) for exact Host,
+Node.js, source, and stable-package coverage.
+
+```bash
+npm install -g @imotong/dev-flow@latest
+dev-flow
+```
+
+After installation, use the corresponding entry from a Git repository.
+
+Codex can select Dev Flow automatically. To enter explicitly:
+
+```text
+$dev-flow-codex:dev-flow Fix the failed-login attempt limit and run only targeted tests.
+```
+
+Every direct DeepSeek Harness user message that needs Dev Flow uses:
+
+```text
+/dev-flow Fix the failed-login attempt limit and run only targeted tests.
+```
+
+Native Host commands are diagnostic and recovery entry points. See the
+[Codex guide](docs/CODEX_en.md), [DeepSeek guide](docs/DEEPSEEK_en.md), and
+[Command Reference](docs/COMMANDS_en.md) for installation, status, resume, and removal details.
 
 ## Have you encountered this?
 
@@ -101,36 +133,6 @@ Next: run the remaining targeted auth test
 On resume, the Host reads the same Task's current stage, scope, remaining verification, and recovery
 state. It continues the remaining test instead of inferring progress from chat history. See the
 [two-minute interruption story](docs/DEMO_en.md).
-
-## Shortest installation path
-
-Current stable `@latest` artifacts support macOS arm64. Current source also implements Windows 10/11
-desktop x64 and has native Windows 11 evidence; the stable claim expands only after an independent
-release and final Host journey. See the [Support Matrix](docs/SUPPORT-MATRIX_en.md) for exact Host,
-Node.js, source, and stable-package coverage.
-
-```bash
-npm install -g @imotong/dev-flow@latest
-dev-flow
-```
-
-After installation, use the corresponding entry from a Git repository.
-
-Codex can select Dev Flow automatically. To enter explicitly:
-
-```text
-$dev-flow-codex:dev-flow Fix the failed-login attempt limit and run only targeted tests.
-```
-
-Every direct DeepSeek Harness user message that needs Dev Flow uses:
-
-```text
-/dev-flow Fix the failed-login attempt limit and run only targeted tests.
-```
-
-Native Host commands are diagnostic and recovery entry points. See the
-[Codex guide](docs/CODEX_en.md), [DeepSeek guide](docs/DEEPSEEK_en.md), and
-[Command Reference](docs/COMMANDS_en.md) for installation, status, resume, and removal details.
 
 ## Stable support, current source, and boundaries
 

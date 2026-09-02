@@ -13,9 +13,33 @@ const repository = "Innocent-children/dev-flow";
 const npmVisibilityTimeoutMs = 600_000;
 const npmVisibilityPollMs = 5_000;
 const products = Object.freeze({
-  codex: { packageName: "dev-flow-codex", tagPrefix: "codex-v", tarballPrefix: "dev-flow-codex-" },
-  deepseek: { packageName: "dev-flow-deepseek", tagPrefix: "deepseek-v", tarballPrefix: "dev-flow-deepseek-" },
-  "dev-flow": { packageName: "@imotong/dev-flow", tagPrefix: "dev-flow-v", tarballPrefix: "imotong-dev-flow-" },
+  codex: {
+    packageName: "dev-flow-codex",
+    tagPrefix: "codex-v",
+    tarballPrefix: "dev-flow-codex-",
+    releaseName: "Dev Flow for Codex",
+    guideName: "Codex guide",
+    guidePath: "packages/codex/README.md",
+    bundlesCore: true,
+  },
+  deepseek: {
+    packageName: "dev-flow-deepseek",
+    tagPrefix: "deepseek-v",
+    tarballPrefix: "dev-flow-deepseek-",
+    releaseName: "Dev Flow for DeepSeek Harness",
+    guideName: "DeepSeek Harness guide",
+    guidePath: "packages/deepseek/README.md",
+    bundlesCore: true,
+  },
+  "dev-flow": {
+    packageName: "@imotong/dev-flow",
+    tagPrefix: "dev-flow-v",
+    tarballPrefix: "imotong-dev-flow-",
+    releaseName: "Dev Flow CLI",
+    guideName: "lifecycle CLI guide",
+    guidePath: "packages/dev-flow/README.md",
+    bundlesCore: false,
+  },
 });
 
 export async function publishRelease({ product, version, directory, sourceCommit, environment = process.env } = {}) {
@@ -31,9 +55,10 @@ export async function publishRelease({ product, version, directory, sourceCommit
     throw new Error("release manifest identity mismatch");
   }
   const localSHA = await sha256(tarball);
+  const presentation = releasePresentation(product, version, manifest);
 
   await ensureTag(tag, sourceCommit, environment);
-  await ensureDraft(tag, sourceCommit, environment);
+  await ensureDraft(tag, sourceCommit, presentation, environment);
   const existing = await npmVersion(config.packageName, version, environment);
   if (!existing) await run("npm", ["publish", tarball, "--access", "public", `--registry=${registry}`, ...(version.includes("-beta.") ? ["--tag", "beta"] : [])], environment);
   await verifyRegistryBytes(config.packageName, version, localSHA, environment);
@@ -49,6 +74,48 @@ export function releaseAssetNames(tarball, manifest) {
   return [basename(tarball), ...cores, "release-manifest.json", "SHA256SUMS"];
 }
 
+export function releasePresentation(product, version, manifest) {
+  const config = products[product];
+  const coreVersion = manifest?.release?.core_version;
+  const sourceCommit = manifest?.release?.source_commit;
+  if (!config || !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-beta\.(0|[1-9]\d*))?$/u.test(version ?? "")) {
+    throw new Error("invalid release presentation identity");
+  }
+  if (!/^[0-9a-f]{40}$/u.test(sourceCommit ?? "")) {
+    throw new Error("release presentation metadata is incomplete");
+  }
+  if (config.bundlesCore && !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u.test(coreVersion ?? "")) {
+    throw new Error("release presentation Core metadata is incomplete");
+  }
+  if (!config.bundlesCore && coreVersion !== undefined) throw new Error("release presentation Core metadata conflicts with product");
+
+  const sourceRoot = `https://github.com/${repository}/blob/${sourceCommit}`;
+  const packageIdentity = `${config.packageName}@${version}`;
+  const packageURL = `https://www.npmjs.com/package/${encodeURIComponent(config.packageName)}/v/${encodeURIComponent(version)}`;
+  const summary = config.bundlesCore
+    ? `This release publishes [\`${packageIdentity}\`](${packageURL}) with Dev Flow Core \`${coreVersion}\`.`
+    : `This release publishes [\`${packageIdentity}\`](${packageURL}).`;
+  const verification = config.bundlesCore
+    ? "Use `SHA256SUMS` from this Release to verify the npm package and standalone Core binaries before installation."
+    : "Use `SHA256SUMS` from this Release to verify the npm package before installation.";
+  return {
+    title: `${config.releaseName} v${version}`,
+    notes: [
+      summary,
+      "",
+      "## Start here",
+      "",
+      `- [${config.guideName}](${sourceRoot}/${config.guidePath})`,
+      `- [Supported platforms and Hosts](${sourceRoot}/docs/SUPPORT-MATRIX_en.md)`,
+      `- Source commit: [\`${sourceCommit}\`](https://github.com/${repository}/tree/${sourceCommit})`,
+      "",
+      "## Verify downloads",
+      "",
+      verification,
+    ].join("\n"),
+  };
+}
+
 async function ensureTag(tag, sourceCommit, environment) {
   const observed = await allow("git", ["ls-remote", "--tags", "origin", `refs/tags/${tag}`], environment);
   if (observed.ok && observed.stdout) {
@@ -59,14 +126,14 @@ async function ensureTag(tag, sourceCommit, environment) {
   await run("git", ["push", "origin", `refs/tags/${tag}:refs/tags/${tag}`], environment);
 }
 
-async function ensureDraft(tag, sourceCommit, environment) {
+async function ensureDraft(tag, sourceCommit, presentation, environment) {
   const observed = await allow("gh", ["release", "view", tag, "--repo", repository, "--json", "tagName,targetCommitish,isDraft"], environment);
   if (observed.ok) {
     const release = JSON.parse(observed.stdout);
     if (release.tagName !== tag || release.targetCommitish !== sourceCommit) throw new Error("existing GitHub Release identity mismatch");
     return;
   }
-  await run("gh", ["release", "create", tag, "--repo", repository, "--draft", "--title", `Dev Flow ${tag}`, "--notes", "Prepared release.", "--target", sourceCommit], environment);
+  await run("gh", ["release", "create", tag, "--repo", repository, "--draft", "--title", presentation.title, "--notes", presentation.notes, "--target", sourceCommit], environment);
 }
 
 async function npmVersion(packageName, version, environment) {
