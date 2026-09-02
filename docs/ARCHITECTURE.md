@@ -371,8 +371,9 @@ DeepSeek  → packages/deepseek/package.json
 Host package 内含 `runtime/darwin-arm64/dev-flow` 与 `runtime/win32-x64/dev-flow.exe` 两个 Core
 executable；运行时只选择与当前 OS/CPU 精确匹配的一个。`scripts/build-core-runtimes.mjs` 一次构建
 两个目标并返回按 runtime key 命名的 JSON 报告；本地打包、release staging 与真实 Journey 都按
-该报告选择产物。构建与发布证据分别核对两者的 GOOS、GOARCH、Core 版本和 digest。Codex Plugin
-manifest 只镜像 Codex package 版本。
+该报告选择产物。Codex 与 DeepSeek 源码 package 均不保存预编译 Core；manifest 声明最终文件路径，
+临时 staging 现场生成两个 runtime 后再打包。构建与发布检查分别核对两者的 GOOS、GOARCH、Core
+版本和 digest。Codex Plugin manifest 只镜像 Codex package 版本。
 
 发布工具位于 `release/` 与 `scripts/`，不进入 Core、MCP 或 SQLite。产品发布使用固定检查、精确
 confirmation、仓库外 release directory，并通过远端回读安全重试。

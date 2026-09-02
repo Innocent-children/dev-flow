@@ -420,9 +420,11 @@ DeepSeek  → packages/deepseek/package.json
 A host package contains `runtime/darwin-arm64/dev-flow` and
 `runtime/win32-x64/dev-flow.exe`; runtime selection uses only the exact OS/CPU match. Build and
 release use the runtime-keyed JSON report produced by `scripts/build-core-runtimes.mjs`, which builds
-both targets once for local packaging, release staging, and real Host journeys. Evidence verifies
-each executable's GOOS, GOARCH, Core version, and digest. The Codex Plugin manifest only mirrors the
-Codex package version.
+both targets once for local packaging, release staging, and real Host journeys. Neither the Codex
+nor DeepSeek source package stores a precompiled Core: each manifest declares the final paths, and a
+temporary staging directory builds both runtimes before packing. Build and release checks verify each
+executable's GOOS, GOARCH, Core version, and digest. The Codex Plugin manifest only mirrors the Codex
+package version.
 
 Release tooling lives under `release/` and `scripts/`; it is not part of Core, MCP, or SQLite.
 A product release uses fixed checks, exact confirmation, an external release directory, and remote

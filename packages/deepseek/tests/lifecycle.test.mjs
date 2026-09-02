@@ -252,6 +252,7 @@ async function assertProductMatchesCommit(commit) {
   const manifest = await readJSON(join(packageRoot, "package.json"));
   const productPaths = ["package.json", "README.md", "cordis.patch.yml", ...manifest.files]
     .filter((path) => !path.startsWith("LICENSE"))
+    .filter((path) => !path.startsWith("runtime/"))
     .map((path) => join("packages", "deepseek", path));
   await execFile("git", ["diff", "--quiet", commit, "--", ...productPaths], { cwd: repositoryRoot });
 }

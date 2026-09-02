@@ -109,10 +109,24 @@ git -C "$repository_root" worktree add --detach "$worktree_a" "$source_commit" >
 git -C "$repository_root" worktree add --detach "$worktree_b" "$source_commit" >/dev/null 2>&1 || fail "create second clean worktree"
 mkdir "$build_a" "$build_b"
 
-artifact_a="$build_a/dev-flow-deepseek-$deepseek_version.tgz"
-artifact_b="$build_b/dev-flow-deepseek-$deepseek_version.tgz"
-node "$worktree_a/packages/deepseek/tests/build-artifact.mjs" --output "$artifact_a" --source-commit "$source_commit" >/dev/null
-node "$worktree_b/packages/deepseek/tests/build-artifact.mjs" --output "$artifact_b" --source-commit "$source_commit" >/dev/null
+build_report_a=$(node "$worktree_a/scripts/build-deepseek-local.mjs" --output "$build_a")
+build_report_b=$(node "$worktree_b/scripts/build-deepseek-local.mjs" --output "$build_b")
+artifact_a=$(BUILD_REPORT="$build_report_a" node -e '
+const report = JSON.parse(process.env.BUILD_REPORT);
+if (
+  report.source_dirty || report.source_commit !== process.argv[1] ||
+  report.package_version !== process.argv[2] || report.core_version !== process.argv[3]
+) throw new Error("first DeepSeek build source or version mismatch");
+process.stdout.write(report.artifact_path);
+' "$source_commit" "$deepseek_version" "$core_version")
+artifact_b=$(BUILD_REPORT="$build_report_b" node -e '
+const report = JSON.parse(process.env.BUILD_REPORT);
+if (
+  report.source_dirty || report.source_commit !== process.argv[1] ||
+  report.package_version !== process.argv[2] || report.core_version !== process.argv[3]
+) throw new Error("second DeepSeek build source or version mismatch");
+process.stdout.write(report.artifact_path);
+' "$source_commit" "$deepseek_version" "$core_version")
 
 node --input-type=module - \
   "$repository_root/release/prepare.mjs" \

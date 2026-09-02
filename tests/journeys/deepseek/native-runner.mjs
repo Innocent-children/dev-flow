@@ -28,7 +28,6 @@ const productSourcePaths = Object.freeze([
   "packages/deepseek/cordis.patch.yml",
   "packages/deepseek/lib",
   "packages/deepseek/skills",
-  "packages/deepseek/runtime",
 ]);
 const activeTurns = new Set();
 let activeStage = "not-started";

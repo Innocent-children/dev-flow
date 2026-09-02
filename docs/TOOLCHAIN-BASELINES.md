@@ -30,7 +30,8 @@ Node.js 只用于 Monorepo 包工具和宿主适配，不是共享流程 Runtime
 Windows。
 
 `scripts/build-core-runtimes.mjs` 是双 runtime 的唯一构建入口，按 runtime key 返回路径、GOOS、GOARCH、
-Core 版本、大小和 SHA-256；本地 package、release staging 与真实 Journey 不再各自编译或解析位置参数。
+Core 版本、大小和 SHA-256；Codex 与 DeepSeek 源码 package 不保存该输出，本地 package、release staging
+与真实 Journey 在仓库外临时目录构建并按同一报告选择产物。
 
 普通 PR CI 在 macOS arm64 runner 运行仓库通用验证和 macOS 原生 Journey，并在 Windows x64 runner
 原生构建 Core、运行完整 Go 与三个 Node package 的可执行测试、构建双 runtime 本地 package 以及验证

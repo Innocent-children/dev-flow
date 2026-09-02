@@ -35,6 +35,11 @@ SHA256SUMS
 release-manifest.json
 ```
 
+The repository does not store either DeepSeek Core executable. `packages/deepseek/package.json`
+declares their final package paths, while release preparation checks out the frozen source twice and
+uses `scripts/build-deepseek-local.mjs` to build both runtime pairs in temporary staging directories.
+The resulting tarballs must be byte-identical before either one becomes the prepared npm artifact.
+
 Confirmed publication creates or reuses matching Tag/npm/GitHub state, verifies registry tarball
 bytes, uploads both standalone Core assets, and finalizes the GitHub Release. DSH lifecycle and Task behavior
 remain covered by product tests and do not run inside publication.

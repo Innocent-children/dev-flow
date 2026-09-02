@@ -73,7 +73,7 @@ async function buildPackages({ root, temporaryRoot, run }) {
   return { codex, deepseek, manager };
 }
 
-async function stageAndPack(product, { root, stageRoot, outputRoot, coreArtifacts, run }) {
+export async function stageAndPack(product, { root, stageRoot, outputRoot, coreArtifacts, run }) {
   const packageRoot = join(root, "packages", product);
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
   const productStageRoot = join(stageRoot, product);
@@ -98,7 +98,7 @@ async function stageAndPack(product, { root, stageRoot, outputRoot, coreArtifact
     const tarPath = join(outputRoot, `${filename}.tar`);
     await run("tar", ["-cf", tarPath, "--format", "ustar", "-C", productStageRoot, "package"], { cwd: root });
     const executablePaths = packageExecutablePaths(manifest, coreArtifacts);
-    const normalized = normalizeUstarModes(await readFile(tarPath), executablePaths);
+    const normalized = normalizeUstarArchive(await readFile(tarPath), executablePaths);
     await writeFile(artifactPath, gzipSync(normalized, { level: 9, mtime: 0 }), { mode: 0o644 });
     artifactPath = await realpath(artifactPath);
   } else {
@@ -133,13 +133,17 @@ function packageExecutablePaths(manifest, coreArtifacts) {
   return paths;
 }
 
-export function normalizeUstarModes(archive, executablePaths = new Set()) {
+export function normalizeUstarArchive(archive, executablePaths = new Set()) {
   const normalized = Buffer.from(archive);
   const foundExecutables = new Set();
   walkUstar(normalized, ({ offset, path, type }) => {
     if (type !== "file" && type !== "directory") return;
     const executable = type === "file" && executablePaths.has(path);
     writeTarOctal(normalized, offset + 100, 8, type === "directory" || executable ? 0o755 : 0o644);
+    writeTarOctal(normalized, offset + 108, 8, 0);
+    writeTarOctal(normalized, offset + 116, 8, 0);
+    writeTarOctal(normalized, offset + 136, 12, 0);
+    normalized.fill(0, offset + 265, offset + 329);
     writeTarChecksum(normalized, offset);
     if (executable) foundExecutables.add(path);
   });

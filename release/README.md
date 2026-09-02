@@ -77,6 +77,10 @@ are independent from Codex. Stable releases apply the same public-document synch
 releases preserve stable public identities and use the isolated `beta`/prerelease channel. See
 [`deepseek/README.md`](deepseek/README.md).
 
+Like Codex, the DeepSeek source tree stores no precompiled Core. Release preparation builds both
+runtime pairs from `CORE_VERSION` inside each temporary frozen-source staging directory, packs them
+into the npm tarball, and compares the two independently built tarballs before publication.
+
 The Host-neutral CLI has its own normal-only release identity:
 
 ```bash

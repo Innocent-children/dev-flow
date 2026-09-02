@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile as execFileCallback } from "node:child_process";
-import { chmod, mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, stat, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 import {
   copyExecutable,
   normalizeForwardedArguments,
-  normalizeUstarModes,
+  normalizeUstarArchive,
   ustarEntryModes,
 } from "./dev-flow-local.mjs";
 
@@ -45,7 +45,7 @@ test("Windows staging leaves POSIX mode ownership to the archive", async () => {
   assert.equal(chmodCalls, 0);
 });
 
-test("USTAR normalization assigns executable modes without host filesystem support", async (t) => {
+test("USTAR normalization assigns modes and removes host metadata", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "dev-flow-local-archive-mode-test-"));
   const packageRoot = join(root, "package");
   await mkdir(join(packageRoot, "runtime", "darwin-arm64"), { recursive: true });
@@ -55,12 +55,27 @@ test("USTAR normalization assigns executable modes without host filesystem suppo
   const tarPath = join(root, "package.tar");
   await execFile("tar", ["-cf", tarPath, "--format", "ustar", "-C", root, "package"]);
 
-  const normalized = normalizeUstarModes(await readFile(tarPath), new Set([
+  const executablePaths = new Set([
     "package/runtime/darwin-arm64/dev-flow",
-  ]));
+  ]);
+  const normalized = normalizeUstarArchive(await readFile(tarPath), executablePaths);
   const modes = ustarEntryModes(normalized);
   assert.equal(modes.get("package/"), 0o755);
   assert.equal(modes.get("package/runtime/darwin-arm64/dev-flow"), 0o755);
   assert.equal(modes.get("package/runtime/win32-x64/dev-flow.exe"), 0o644);
+
+  const changedTime = new Date("2030-01-02T03:04:05.000Z");
+  await Promise.all([
+    utimes(packageRoot, changedTime, changedTime),
+    utimes(join(packageRoot, "runtime"), changedTime, changedTime),
+    utimes(join(packageRoot, "runtime", "darwin-arm64"), changedTime, changedTime),
+    utimes(join(packageRoot, "runtime", "win32-x64"), changedTime, changedTime),
+    utimes(join(packageRoot, "runtime", "darwin-arm64", "dev-flow"), changedTime, changedTime),
+    utimes(join(packageRoot, "runtime", "win32-x64", "dev-flow.exe"), changedTime, changedTime),
+  ]);
+  const secondTarPath = join(root, "package-second.tar");
+  await execFile("tar", ["-cf", secondTarPath, "--format", "ustar", "-C", root, "package"]);
+  const secondNormalized = normalizeUstarArchive(await readFile(secondTarPath), executablePaths);
+  assert.deepEqual(secondNormalized, normalized);
   t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
 });

@@ -54,10 +54,14 @@ host needs Go, Node.js, npm, and pnpm; this entry does not require Bash to launc
 - `build-core-runtimes.mjs`: the only dual-Core runtime builder, returning one JSON report keyed by
   runtime pair;
 - `build-codex-local.sh`: build the Codex source-local tarball from that runtime report;
-- `build-deepseek-runtime.sh`: development wrapper that writes the shared runtime build into the
-  DeepSeek source package;
+- `build-deepseek-local.mjs`: build the DeepSeek source-local tarball from that runtime report in a
+  system-temporary staging directory;
 - `build-codex-release.sh` and `build-deepseek-release.sh`: prepare deterministic artifacts for a
   standalone release.
+
+Neither the Codex nor DeepSeek source package stores a precompiled Core. Each `package.json` still
+declares the two runtime paths required in the final npm package; local builds and release staging
+create those files before packing.
 
 Final artifacts and evidence must be written to an operator-selected directory outside the
 repository.

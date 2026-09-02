@@ -88,8 +88,27 @@ const codexFinalStagingFiles = [
   "runtime/darwin-arm64/dev-flow",
   "runtime/win32-x64/dev-flow.exe",
 ].sort();
+const deepseekFinalStagingFiles = [
+  "LICENSE",
+  "README.md",
+  "cordis.patch.yml",
+  "lib/authorization.mjs",
+  "lib/file-scope.mjs",
+  "lib/index.mjs",
+  "lib/paths.mjs",
+  "lib/platform.mjs",
+  "lib/runtime.mjs",
+  "lib/tool-names.mjs",
+  "package.json",
+  "runtime/darwin-arm64/dev-flow",
+  "runtime/win32-x64/dev-flow.exe",
+  "skills/dev-flow/SKILL.md",
+  "skills/dev-flow/references/method-profiles.md",
+  "skills/dev-flow/references/node-payloads.md",
+].sort();
 const expectedByProfile = {
   "codex-source": codexFinalStagingFiles.filter((file) => !file.startsWith("runtime/")),
+  "deepseek-source": deepseekFinalStagingFiles.filter((file) => !file.startsWith("runtime/")),
   "dev-flow-source": [
     "LICENSE",
     "README.md",
@@ -124,7 +143,7 @@ run_step "Product version authorities" pnpm run versions:check
 run_step "Working tree whitespace" git diff --check
 run_step "Go formatting" check_go_formatting
 run_step "Codex release prepare syntax" bash -n scripts/build-codex-release.sh
-run_step "DeepSeek runtime build syntax" bash -n scripts/build-deepseek-runtime.sh
+run_step "DeepSeek source-local package syntax" node --check scripts/build-deepseek-local.mjs
 run_step "DeepSeek release prepare syntax" bash -n scripts/build-deepseek-release.sh
 run_step "Cross-platform WebUI build syntax" node --check scripts/build-webui.mjs
 run_step "Cross-platform Core runtime build syntax" node --check scripts/build-core-runtimes.mjs
@@ -156,6 +175,7 @@ run_step "Go vet" go vet ./...
 run_step "Go tests and repository contracts" go test -p 1 ./...
 run_step "pnpm workspace inventory" pnpm --recursive list --depth -1
 run_step "Codex package dry-pack" validate_package_pack packages/codex dev-flow-codex codex-source
+run_step "DeepSeek package dry-pack" validate_package_pack packages/deepseek dev-flow-deepseek deepseek-source
 run_step "Dev Flow manager and public launcher tests" node --test packages/dev-flow/tests/*.test.mjs
 run_step "Dev Flow manager dry-pack" validate_package_pack packages/dev-flow @imotong/dev-flow dev-flow-source
 

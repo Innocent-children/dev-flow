@@ -33,6 +33,7 @@
     "test:package": "node --test tests/package-contract.test.mjs",
     "test:bundle": "node --test tests/bundle-contract.test.mjs",
     "build:webui": "node ../../scripts/build-webui.mjs",
+    "build:local": "node ../../scripts/build-deepseek-local.mjs",
     "pack:dry": "pnpm pack --dry-run --json"
   },
   "engines": {

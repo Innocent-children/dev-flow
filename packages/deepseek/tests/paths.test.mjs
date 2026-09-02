@@ -71,17 +71,18 @@ test("packageRootFromModule handles encoded spaces and Unicode", async (t) => {
   assert.equal(packageRootFromModule(pathToFileURL(modulePath).href), root);
 });
 
-test("selects only the exact darwin-arm64 package runtime", async () => {
-  const selected = await selectPackagedRuntime({ packageRoot, platform: "darwin", arch: "arm64" });
+test("selects only the exact darwin-arm64 path without a source runtime", async (t) => {
+  const packageDirectory = await makeDirectory(t, "runtime-selection-package");
+  const selected = await selectPackagedRuntime({ packageRoot: packageDirectory, platform: "darwin", arch: "arm64" });
   assert.equal(selected.runtimeKey, "darwin-arm64");
-  assert.equal(selected.runtimePath, join(packageRoot, "runtime", "darwin-arm64", "dev-flow"));
+  assert.equal(selected.runtimePath, join(packageDirectory, "runtime", "darwin-arm64", "dev-flow"));
 
   await assert.rejects(
-    selectPackagedRuntime({ packageRoot, platform: "linux", arch: "arm64" }),
+    selectPackagedRuntime({ packageRoot: packageDirectory, platform: "linux", arch: "arm64" }),
     /unsupported platform linux-arm64/,
   );
   await assert.rejects(
-    selectPackagedRuntime({ packageRoot, platform: "darwin", arch: "x64" }),
+    selectPackagedRuntime({ packageRoot: packageDirectory, platform: "darwin", arch: "x64" }),
     /unsupported platform darwin-x64/,
   );
 });
