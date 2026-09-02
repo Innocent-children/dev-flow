@@ -63,7 +63,10 @@ test("Windows factory reset previews the product recovery directory instead of m
   const plan = createLifecyclePlan(
     { ...request("factory-reset", "all"), allKnownProfiles: true },
     current,
-    { platform: "win32" },
+    {
+      platformKey: "win32-x64",
+      recoverableCleanupDescription: "Move confirmed data to the Dev Flow recovery directory",
+    },
   );
   assert.equal(plan.impacts.includes("Move confirmed data to the Dev Flow recovery directory"), true);
   assert.equal(plan.impacts.some((impact) => impact.includes("macOS Trash")), false);

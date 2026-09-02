@@ -46,11 +46,9 @@ The local WebUI binds only `tcp4 127.0.0.1` and requires the exact Host. Mutatio
 process-local session value, and current Task revision. On macOS the receipt is a mode-`0600` regular non-link file; on
 Windows it is a regular non-link file under the user profile and inherits that directory's ACL. Both bind process-start
 identity, data-root digest, URL, and live Core identity to prevent wrong reuse or PID reuse; Windows obtains creation time
-from kernel process information. The browser has no reset mutation. The CLI token binds the canonical database and SQLite
-sidecars present in the plan. macOS deletes after exclusive locking. Windows retains and revalidates each file handle's
-volume/file identity before marking every target for disposition, rolling those marks back if the set cannot be completed.
-Lock, identity, or target drift produces zero deletes, and Adapters, registrations, configuration, and unrelated files are
-outside the target set.
+from kernel process information. The unified manager's `factory-reset` plan binds the current ownership targets;
+recoverable cleanup moves exact targets, while permanent cleanup requires separate confirmation.
+Identity or target drift stops cleanup.
 
 | Risk | Current defense |
 | --- | --- |

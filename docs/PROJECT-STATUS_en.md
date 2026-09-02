@@ -35,7 +35,7 @@ The following capabilities exist on current `main`; some may be beta-only or sou
 | Automatic verification brake | Retain the three most recent test attempts and pause after the third exact repetition of the same failure, same result, or same changed-path and failure loop |
 | Uncertain Action recovery | Read-before-retry, Recovery assessment, Blocker, and resume |
 | Pre-delivery comprehension | Comprehension follows testing; repository changes require testing again |
-| Local view and diagnostics | Shared loopback WebUI through `dev-flow webui start|open|status|stop|reset` |
+| Local view and diagnostics | Shared loopback WebUI through `dev-flow webui start|open|status|stop` |
 | Current-source platforms | Exact `darwin-arm64` and `win32-x64` runtimes; Windows scope is Windows 10/11 desktop x64 |
 | Advanced repository capability | One primary plus up to seven explicit additional repositories; Codex may dispatch isolated worktree Tasks when the Host supports it |
 | Host lifecycle | Unified `dev-flow` entry for Codex and DeepSeek installation, diagnosis, maintenance, and removal |
@@ -95,7 +95,7 @@ priority.
 
 - Core is not a Host sandbox and does not intercept every file operation or shell command;
 - Core observes Git read-only and does not commit, push, merge, rebase, tag, or publish;
-- there is no telemetry, user-defined graph, or automatic historical Task migration;
+- there is no telemetry or user-defined graph;
 - the WebUI is local loopback only, with no remote access or multi-user permissions;
 - stable support is only what the [Support Matrix](SUPPORT-MATRIX_en.md) lists.
 

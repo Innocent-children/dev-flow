@@ -39,6 +39,7 @@ test("resolves package root and runtime after the package is moved outside the c
   await mkdir(join(detachedRoot, "lib"), { recursive: true });
   await mkdir(join(detachedRoot, "runtime", "darwin-arm64"), { recursive: true });
   await copyFile(join(packageRoot, "lib", "paths.mjs"), join(detachedRoot, "lib", "paths.mjs"));
+  await copyFile(join(packageRoot, "lib", "platform.mjs"), join(detachedRoot, "lib", "platform.mjs"));
   await copyFile(join(packageRoot, "lib", "runtime.mjs"), join(detachedRoot, "lib", "runtime.mjs"));
   await writeFakeRuntime(join(detachedRoot, "runtime", "darwin-arm64", "dev-flow"));
 
@@ -55,6 +56,7 @@ test("resolves package root and runtime after the package is moved outside the c
     platform: "darwin",
     arch: "arm64",
     runtimeKey: "darwin-arm64",
+    requireExecutableMode: true,
     runtimePath: join(detachedRoot, "runtime", "darwin-arm64", "dev-flow"),
   });
   if (process.platform !== "win32") {
@@ -93,7 +95,7 @@ test("preflight rejects a missing, symlinked, non-regular, or non-executable run
   await mkdir(runtimeDirectory, { recursive: true });
   const selection = await selectPackagedRuntime({
     packageRoot: root,
-    platform: "darwin",
+    platform: "darwin", arch: "arm64",
     arch: "arm64",
   });
 
@@ -142,6 +144,7 @@ test("explicit data directory must be existing, absolute, canonical, and non-sym
   const selected = await resolveDataDirectory({
     homeDirectory,
     platform: "darwin",
+    arch: "arm64",
     environment: { DEV_FLOW_DATA_DIR: explicit },
   });
   assert.equal(selected.dataDirectory, explicit);
@@ -160,6 +163,7 @@ test("explicit data directory must be existing, absolute, canonical, and non-sym
       resolveDataDirectory({
         homeDirectory,
         platform: "darwin",
+        arch: "arm64",
         environment: { DEV_FLOW_DATA_DIR: value },
       }),
     );
@@ -168,7 +172,7 @@ test("explicit data directory must be existing, absolute, canonical, and non-sym
 
 test("default data directory is restrictive and rejects symbolic-link components", async (t) => {
   const homeDirectory = await makeDirectory(t, "default-home");
-  const selected = await resolveDataDirectory({ homeDirectory, platform: "darwin", environment: {} });
+  const selected = await resolveDataDirectory({ homeDirectory, platform: "darwin", arch: "arm64", environment: {} });
   const expected = join(homeDirectory, "Library", "Application Support", "dev-flow", "data");
   assert.equal(selected.dataDirectory, expected);
   assert.equal(selected.usesDefaultDataDirectory, true);
@@ -185,9 +189,30 @@ test("default data directory is restrictive and rejects symbolic-link components
     process.platform === "win32" ? "junction" : undefined,
   );
   await assert.rejects(
-    resolveDataDirectory({ homeDirectory: symlinkHome, platform: "darwin", environment: {} }),
+    resolveDataDirectory({ homeDirectory: symlinkHome, platform: "darwin", arch: "arm64", environment: {} }),
     /symbolic link/,
   );
+});
+
+test("rejects a macOS application-data symlink before creating product files", async (t) => {
+  const homeDirectory = await makeDirectory(t, "application-data-symlink-home");
+  const outside = await makeDirectory(t, "application-data-symlink-target");
+  await symlink(
+    outside,
+    join(homeDirectory, "Library"),
+    process.platform === "win32" ? "junction" : undefined,
+  );
+
+  await assert.rejects(
+    resolveDataDirectory({
+      homeDirectory,
+      platform: "darwin",
+      arch: "arm64",
+      environment: {},
+    }),
+    /symbolic link/,
+  );
+  await assert.rejects(stat(join(outside, "Application Support", "dev-flow")), { code: "ENOENT" });
 });
 
 test("explicit data directory takes precedence over an unused symlinked default", async (t) => {
@@ -202,6 +227,7 @@ test("explicit data directory takes precedence over an unused symlinked default"
   const selected = await resolveDataDirectory({
     homeDirectory,
     platform: "darwin",
+    arch: "arm64",
     environment: { DEV_FLOW_DATA_DIR: explicit },
   });
 
@@ -217,7 +243,7 @@ test("DeepSeek data-path cases remain externally aligned with Codex", async (t) 
   const explicit = await makeDirectory(t, "parity-explicit");
 
   for (const environment of [{}, { DEV_FLOW_DATA_DIR: explicit }]) {
-    const deepseek = await resolveDataDirectory({ homeDirectory, platform: "darwin", environment });
+    const deepseek = await resolveDataDirectory({ homeDirectory, platform: "darwin", arch: "arm64", environment });
     const codex = await resolveCodexProductPaths({
       packageRoot: packageDirectory,
       homeDirectory,

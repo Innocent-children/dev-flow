@@ -60,8 +60,7 @@ func deliverySubmissionNodeResult() map[string]any {
 }
 
 // TestSubmissionBoundaryAcceptsOmittedSystemStateRevisions proves the node
-// submission input boundary accepts a node_result that omits the members Core
-// fills, and still accepts the older-client shape that sends the current value.
+// submission input boundary accepts only the Host-owned shape.
 func TestSubmissionBoundaryAcceptsOmittedSystemStateRevisions(t *testing.T) {
 	design := designNodeResultWithoutRevision()
 	tasks := map[string]any{
@@ -91,11 +90,11 @@ func TestSubmissionBoundaryAcceptsOmittedSystemStateRevisions(t *testing.T) {
 			}
 		})
 	}
-	t.Run("older clients keep sending the current value", func(t *testing.T) {
-		older := designNodeResultWithoutRevision()
-		older["baseline"].(map[string]any)["requirements_revision"] = 2
-		if err := ValidateToolInput(ToolSubmitDesign, submissionInput(t, domain.ActionCompleteDesign, older)); err != nil {
-			t.Fatalf("the older-client shape was refused: %v", err)
+	t.Run("Core-owned revision is rejected", func(t *testing.T) {
+		submitted := designNodeResultWithoutRevision()
+		submitted["baseline"].(map[string]any)["requirements_revision"] = 2
+		if err := ValidateToolInput(ToolSubmitDesign, submissionInput(t, domain.ActionCompleteDesign, submitted)); err == nil {
+			t.Fatal("the submission boundary accepted a Core-owned revision")
 		}
 	})
 }
@@ -109,22 +108,22 @@ func TestDeliverySubmissionBoundaryRejectsCoreOwnedMembers(t *testing.T) {
 		t.Fatalf("minimal Delivery submission was refused: %v", err)
 	}
 
-	legacy := map[string]any{
+	coreOwned := map[string]any{
 		"acceptance":              []any{},
 		"automated_evidence_ids":  []any{},
 		"manual_evidence_ids":     []any{},
 		"test_record_id":          "test-current",
 		"comprehension_record_id": "comprehension-current",
 	}
-	for name, value := range legacy {
+	for name, value := range coreOwned {
 		t.Run(name, func(t *testing.T) {
-			withLegacyMember := deliverySubmissionNodeResult()
-			withLegacyMember[name] = value
-			err := ValidateToolInput(ToolSubmitDelivery, submissionInput(t, domain.ActionCompleteDelivery, withLegacyMember))
+			withCoreOwnedMember := deliverySubmissionNodeResult()
+			withCoreOwnedMember[name] = value
+			err := ValidateToolInput(ToolSubmitDelivery, submissionInput(t, domain.ActionCompleteDelivery, withCoreOwnedMember))
 			var typed *domain.Error
 			if !errors.As(err, &typed) || typed.Code != domain.ErrorInvalidArgument || len(typed.Violations) != 1 ||
 				typed.Violations[0].Path != "node_result."+name || typed.Violations[0].Rule != domain.RuleUnknownMember {
-				t.Fatalf("legacy member error=%#v", err)
+				t.Fatalf("Core-owned member error=%#v", err)
 			}
 		})
 	}

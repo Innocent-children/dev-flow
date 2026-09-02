@@ -37,7 +37,7 @@ var (
 	ErrTaskTerminal      = &domain.Error{Code: ErrorTaskTerminal, Message: "the storage operation requires a terminal task"}
 	ErrSchemaUnsupported = &domain.Error{
 		Code:    ErrorSchemaUnsupported,
-		Message: "pre-graph data is unsupported; choose a fresh data directory or archive, rename, or delete the old directory outside Core",
+		Message: "the storage schema is unsupported",
 	}
 	ErrProcessUnsupported = &domain.Error{Code: ErrorProcessUnsupported, Message: "the stored process definition is unsupported"}
 	ErrStorageUnavailable = &domain.Error{

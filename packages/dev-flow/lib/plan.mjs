@@ -7,7 +7,8 @@ export function createLifecyclePlan(request, observed, {
   planId = null,
   token = null,
   now = () => new Date(),
-  platform = process.platform,
+  platformKey = "darwin-arm64",
+  recoverableCleanupDescription = "Move confirmed data to macOS Trash",
 } = {}) {
   if (request.operation === "factory-reset" && request.host !== "all") {
     throw planConflict("factory reset requires --host all because Task data is shared");
@@ -53,7 +54,7 @@ export function createLifecyclePlan(request, observed, {
     reinstallAfterReset: request.reinstallAfterReset,
     permanent: request.permanent,
     adopt: request.adopt,
-    platform,
+    platformKey,
     observedDigest,
     actions,
   });
@@ -72,7 +73,7 @@ export function createLifecyclePlan(request, observed, {
     host: request.host,
     targets: targets.map((target) => ({ host: target.host, profile: target.profile, state: target.state, packageInstalled: target.packageInstalled === true, packageVersion: target.packageVersion })),
     actions,
-    impacts: impactsFor(request, targets, observed, actions, platform),
+    impacts: impactsFor(request, targets, observed, actions, recoverableCleanupDescription),
     restartRequirements: targets.filter((target) => target.host === "deepseek" && actions.length > 0).map((target) => `Restart DeepSeek Profile ${target.profile}`),
     confirmationClass,
     observedDigest,
@@ -114,7 +115,7 @@ function actionFor(target, operation, targetVersion) {
   };
 }
 
-function impactsFor(request, targets, observed, actions, platform) {
+function impactsFor(request, targets, observed, actions, recoverableCleanupDescription) {
   if (["status", "doctor"].includes(request.operation)) return ["Read Host and Adapter state only"];
   const affectedTargets = request.operation === "factory-reset"
     ? targets.filter((target) => actions.some((action) => action.owner === target.host && action.profile === target.profile))
@@ -126,11 +127,7 @@ function impactsFor(request, targets, observed, actions, platform) {
     if (observed.resources.defaultData.exists) impacts.push("Clear current default Task data");
     if (observed.resources.explicitData?.exists) impacts.push("Clear the explicitly confirmed Task data directory");
     if (observed.resources.configuration.exists || observed.resources.defaultData.exists || observed.resources.explicitData?.exists) {
-      impacts.push(request.permanent
-        ? "Permanently remove confirmed data"
-        : platform === "win32"
-          ? "Move confirmed data to the Dev Flow recovery directory"
-          : "Move confirmed data to macOS Trash");
+      impacts.push(request.permanent ? "Permanently remove confirmed data" : recoverableCleanupDescription);
     }
     if (request.reinstallAfterReset) impacts.push("Create fresh state and reinstall selected Adapters");
     if (impacts.length === 0) impacts.push("No installed Adapter or active Dev Flow data was found");

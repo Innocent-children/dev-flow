@@ -521,8 +521,8 @@ child.once("exit", (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
   assert.equal(calls.includes("plugin marketplace remove dev-flow-local --json"), false);
 });
 
-test("setup update and remove preserve current storage pre-graph and ordinary user data manifests", async (t) => {
-  for (const kind of ["currentSchema", "pre-graph", "user-files"]) {
+test("setup update and remove preserve Task and ordinary user data manifests", async (t) => {
+  for (const kind of ["database-files", "user-files"]) {
     await t.test(kind, async () => {
       const fixture = await makeSetupFixture(t, `data-retention-${kind}`);
       await createLifecycleDataFixture(fixture.paths.dataDirectory, kind);
@@ -545,8 +545,8 @@ test("setup update and remove preserve current storage pre-graph and ordinary us
   }
 });
 
-test("local npm uninstall removes only package-managed files and retains every data generation", async (t) => {
-  for (const kind of ["currentSchema", "pre-graph", "user-files"]) {
+test("local npm uninstall removes only package-managed files and retains user data", async (t) => {
+  for (const kind of ["database-files", "user-files"]) {
     await t.test(kind, async () => {
       const root = join(await makeRoot(t), `npm-uninstall-${kind}`);
       const installPrefix = join(root, "local prefix");
@@ -933,29 +933,10 @@ async function createLifecycleDataFixture(dataDirectory, kind) {
   }
 
   const database = new DatabaseSync(join(dataDirectory, "dev-flow.db"));
-  if (kind === "currentSchema") {
-    database.exec(`
-      CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL, digest TEXT NOT NULL);
-      CREATE TABLE tasks(task_id TEXT PRIMARY KEY, snapshot BLOB NOT NULL);
-      CREATE TABLE task_events(event_id TEXT PRIMARY KEY, task_id TEXT NOT NULL);
-      CREATE TABLE repository_claims(repository_identity TEXT PRIMARY KEY, task_id TEXT NOT NULL);
-      INSERT INTO schema_migrations VALUES(2, '2026-08-19T00:00:00Z', '${"a".repeat(64)}');
-      INSERT INTO tasks VALUES('graph-task', X'7B2267656E65726174696F6E223A327D');
-      INSERT INTO task_events VALUES('graph-event', 'graph-task');
-      INSERT INTO repository_claims VALUES('${"b".repeat(64)}', 'graph-task');
-    `);
-  } else {
-    database.exec(`
-      CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL, digest TEXT NOT NULL);
-      CREATE TABLE tasks(task_id TEXT PRIMARY KEY, snapshot BLOB NOT NULL);
-      CREATE TABLE task_events(event_id TEXT PRIMARY KEY, task_id TEXT NOT NULL);
-      CREATE TABLE repository_claims(repository_identity TEXT PRIMARY KEY, task_id TEXT NOT NULL);
-      INSERT INTO schema_migrations VALUES(1, '2026-08-01T00:00:00Z', 'pre-graph');
-      INSERT INTO tasks VALUES('old-task', X'7B227068617365223A22494E54414B45227D');
-      INSERT INTO task_events VALUES('old-event', 'old-task');
-      INSERT INTO repository_claims VALUES('old-repository', 'old-task');
-    `);
-  }
+  database.exec(`
+    CREATE TABLE records(record_id TEXT PRIMARY KEY, value TEXT NOT NULL);
+    INSERT INTO records VALUES('user-record', 'preserve');
+  `);
   database.close();
 }
 
@@ -992,9 +973,7 @@ async function lifecycleDataManifest(dataDirectory) {
       "SELECT type, name, COALESCE(sql, '') AS sql FROM sqlite_master WHERE type IN ('table','index') AND name NOT LIKE 'sqlite_%' ORDER BY type, name",
     ).all();
     const tables = {};
-    for (const name of ["schema_migrations", "tasks", "task_events", "repository_claims"]) {
-      const exists = sqlite.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type='table' AND name=?").get(name).count;
-      if (exists !== 1) continue;
+    for (const { name } of schema.filter((entry) => entry.type === "table")) {
       const rows = sqlite.prepare(`SELECT * FROM "${name}" ORDER BY rowid`).all();
       tables[name] = rows.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [key, manifestSQLiteValue(value)])));
     }

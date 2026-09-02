@@ -47,8 +47,9 @@ Node.js、npm 和 pnpm；不要求 Bash 来启动这个入口。
 ## Source-local 构建
 
 - `build-webui.mjs`：跨平台构建并同步嵌入式 WebUI；`build-webui.sh` 是 Unix 包装层；
-- `build-codex-local.sh`：构建 Codex source-local tarball，以及 darwin-arm64 和 windows-amd64 Core；
-- `build-deepseek-runtime.sh`：构建 DeepSeek package tests 使用的两个 Core runtime；
+- `build-core-runtimes.mjs`：唯一的双 Core runtime 构建入口，输出按 runtime key 命名的 JSON 报告；
+- `build-codex-local.sh`：使用统一 runtime 报告构建 Codex source-local tarball；
+- `build-deepseek-runtime.sh`：把统一构建结果写入 DeepSeek source package 的开发包装层；
 - `build-codex-release.sh`、`build-deepseek-release.sh`：为 standalone release 准备确定性制品。
 
 最终制品和 evidence 必须写入仓库外、由操作者选择的目录。

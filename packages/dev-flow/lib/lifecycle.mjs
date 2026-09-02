@@ -72,7 +72,8 @@ export async function runLifecycle(request, dependencies = {}) {
     planId: dependencies.planId,
     token: dependencies.token,
     now: dependencies.now,
-    platform: paths.platform,
+    platformKey: paths.runtimeKey,
+    recoverableCleanupDescription: paths.recoverableCleanupDescription,
   });
 
   if (["status", "doctor"].includes(request.operation)) {
@@ -231,7 +232,10 @@ async function initializeFreshState(paths) {
   await writeOwnedJSON(paths.configurationPath, {
     codex: { codebase_memory: false },
     deepseek: { codebase_memory: false },
-  }, { root: paths.configurationDirectory });
+  }, {
+    root: paths.configurationDirectory,
+    enforcePrivateModes: paths.enforcePrivateModes,
+  });
   return { changed: true, completedSteps: ["manager.initialize_configuration", "manager.initialize_data"] };
 }
 

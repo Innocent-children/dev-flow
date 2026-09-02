@@ -38,6 +38,7 @@
     "lib/journal.mjs",
     "lib/lifecycle.mjs",
     "lib/ownership.mjs",
+    "lib/platform.mjs",
     "lib/plan.mjs",
     "lib/presentation.mjs",
     "lib/runtime.mjs"

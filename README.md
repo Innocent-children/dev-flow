@@ -134,6 +134,9 @@ Windows Server、32 位 Windows 或 Windows ARM64。Windows 默认数据目录�
 `%LOCALAPPDATA%\dev-flow\data`，配置文件是 `%USERPROFILE%\.dev-flow\config.json`。这项源码能力尚未
 改变上表的稳定 `@latest` 范围。
 
+Host package 在 Core 之外选择对应的平台实现；macOS 与 Windows 各自负责本机目录、权限、进程、
+信号和 executable 规则，Core 的 Task 与流程语义不随平台变化。
+
 Dev Flow 仍处于早期，外部采用有限。当前边界包括：
 
 - Core 只读观察 Git，不执行 commit、push、merge、rebase、tag 或 publish；

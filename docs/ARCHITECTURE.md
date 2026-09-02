@@ -156,9 +156,9 @@ payload 作为 BLOB 写入独立 `action_operations` 记录。随后一个事务
 写入 Event、处理完整 Claim 集并填写该操作的 `applied_revision`。Task snapshot 不保存恢复 payload；
 响应不确定时 Recovery 直接读取独立操作记录。
 
-Store 在开放写能力前执行只读 preflight，验证 SQLite Schema、snapshot、process definition、
-Task/Action-operation/Event/Claim 关联与当前节点 authority。不兼容或 pre-graph 数据返回
-`SCHEMA_UNSUPPORTED` 并保持零写入。
+Store 在开放写能力前执行只读 preflight，验证当前精确 SQLite Schema、snapshot、process definition、
+Task/Action-operation/Event/Claim 关联与当前节点 authority。任何非当前 Schema 返回通用
+`SCHEMA_UNSUPPORTED`。
 
 ### Read-only Git Observer
 
@@ -172,14 +172,14 @@ Action result 以相对当前 Action 签发状态新产生的 `changed_paths`，
 误报为真实仓库漂移。
 
 节点专用 MCP 工具使用从内部完整 Schema 派生的提交 Schema；Design baseline 的
-`requirements_revision`、Tasks baseline 的 `design_revision` 与 Implementation 的
-`task_plan_revision` 改为可省略。Delivery 的 acceptance、自动/人工 evidence ID 和
-Test/Comprehension record ID 从提交 Schema 中删除，由 Core 补齐；提交这些字段会按
+`requirements_revision`、Tasks baseline 的 `design_revision`、Implementation 的
+`task_plan_revision`，以及 Delivery 的 acceptance、自动/人工 evidence ID 和
+Test/Comprehension record ID 都从提交 Schema 中删除并由 Core 补齐；提交这些字段会按
 `unknown_member` 拒绝。内部完整契约保持不变。MCP 边界按提交 Schema 递归检查必填字段，嵌套对象和
 数组项缺失时返回准确路径。
 
 `SubmitAction` 先确认当前 Action ID、kind 与 Task 状态，再拒绝重复 JSON member，并从同一 Task
-快照填充省略的系统 revision；旧客户端提交的值必须等于该快照当前值。随后 Workflow 校验完整内部
+快照填充系统 revision；Host 提交这些 Core-owned 字段会按 `unknown_member` 拒绝。随后 Workflow 校验完整内部
 payload，Application 再按当前 Task 校验 revision、record、work item、测试通过条件、用户确认、
 acceptance 与 evidence 集合。Delivery authority 字段在这一步已经由 Core 从同一 Task 快照写入完整
 payload，不属于调用方纠正范围。失败返回不包含提交值的 `ContractViolation` 或 `GuardFailure`。节点
@@ -218,8 +218,7 @@ Codex Plugin 自带受信任后才运行的 `PreToolUse` hook，通过 `PATH` �
 
 每次成功 Action 都把相对签发状态由 Git 证明的新路径并入 `task_changed_paths`。进入
 `implementation_ready_for_test`、`refactor_ready_for_test` 或 `delivery_complete` 时，Core 要求全部累计
-路径属于当前 ExpectedPaths，或已有已使用的 `allow_once` 记录。旧 snapshot 缺少新字段时按空列表
-读取；SQLite table 与 Schema version 不变，未来未知字段继续被 strict codec 拒绝。
+路径属于当前 ExpectedPaths，或已有已使用的 `allow_once` 记录。未来未知字段继续被 strict codec 拒绝。
 
 这两层检查不构成文件系统沙箱。Bash、外部进程和部分专用工具可能绕过 Host 写前入口；Core 会在
 后续 Action 根据 Git 路径发现并阻止未说明文件继续流转，但只靠最终路径无法区分一次授权文件后来
@@ -241,7 +240,6 @@ evidence ID、规范化结果摘要、失败摘要和修改路径。第一版只
 保存的目标节点。最近三次尝试采用滑动窗口，因此下一次完全重复会再次暂停。
 
 这项能力不增加节点、transition 或第二份流程游标，`standard-development` definition digest 不变。
-SQLite 表结构也不变；旧 snapshot 缺少 `verification_attempts` 时按空历史读取。
 
 ### Recovery
 
@@ -265,8 +263,7 @@ partial/conflicting 创建 `BLOCKED`。Blocker 保存原 source node，解除后
 `go:embed` 进入同一 binary。Application/Workflow/Recovery 继续决定 Task、Action、Guard、Recovery、Blocker
 和 Outcome，浏览器只投影视图并提交当前身份。receipt 绑定 PID、进程启动身份、data-root digest 与 URL；
 macOS 要求 mode `0600`，Windows 要求位于用户产品目录中的 regular non-symlink file。Codex 和 DeepSeek
-携带的兼容 Core 因此复用同一进程和 SQLite 权威。reset 位于 CLI/Store 边界，
-通过 target-bound plan、SQLite 独占访问和目标复核完成；HTTP route 集合中没有 reset mutation。
+携带的 Core 因此复用同一进程和 SQLite 权威。
 前端 typed catalog 维护简体中文/英文；首次按 `navigator.languages` 选择，手工选择只进入 local site storage，
 不形成 Core、Task、receipt 或账号状态。
 
@@ -278,6 +275,10 @@ macOS 默认数据根为 `$HOME/Library/Application Support/dev-flow`，Windows 
 当前用户 profile 与 LocalAppData 的继承 ACL，同时保留 canonical、regular-file 与 symlink 检查。
 WebUI 后台进程在 Windows 使用独立 process group、creation time 作为启动身份，并以 `CTRL_BREAK`
 请求退出；不同 console 无法投递或进程未退出时，只终止 receipt 精确匹配的进程。
+
+三个 npm package 都通过各自 package 内的小型平台实现选择上述目录、权限和 executable 规则；
+Go 的进程、receipt 与 signal 行为分别由 `darwin`、`windows` build tag 文件实现。平台选择发生在
+Core 语义之外，Domain、Workflow、Application 和 Recovery 不包含操作系统判断。
 
 `ProcessTask.Repository` 继续保存主仓库 binding；`PrimaryRepositoryKey` 缺省为 `primary`，
 `AdditionalRepositories` 保存零至七个按 key 严格升序排列的附加 binding。Scope 的成员、角色和 key
@@ -326,8 +327,7 @@ Windows 为 `%USERPROFILE%\.dev-flow\config.json`）得到的
 均为 false；配置或索引状态不进入 Task 或流程摘要。
 
 Store 在开放 writable connection 前以 immutable read-only preflight 校验当前精确 Schema、closed
-snapshot 和完整 claim 集。旧或未知 Schema 使用 `reject-and-reset`：零写入拒绝，不迁移、不自动
-删除、改名或覆盖。用户可以选择新的 `DEV_FLOW_DATA_DIR`，或在 Core 外手工归档旧目录。
+snapshot 和完整 claim 集，只实现这一份当前持久化格式。
 
 ## 一次任务如何流动
 
@@ -369,8 +369,10 @@ DeepSeek  → packages/deepseek/package.json
 ```
 
 Host package 内含 `runtime/darwin-arm64/dev-flow` 与 `runtime/win32-x64/dev-flow.exe` 两个 Core
-executable；运行时只选择与当前 OS/CPU 精确匹配的一个。构建与发布证据分别核对两者的 GOOS、
-GOARCH、Core 版本和 digest。Codex Plugin manifest 只镜像 Codex package 版本。
+executable；运行时只选择与当前 OS/CPU 精确匹配的一个。`scripts/build-core-runtimes.mjs` 一次构建
+两个目标并返回按 runtime key 命名的 JSON 报告；本地打包、release staging 与真实 Journey 都按
+该报告选择产物。构建与发布证据分别核对两者的 GOOS、GOARCH、Core 版本和 digest。Codex Plugin
+manifest 只镜像 Codex package 版本。
 
 发布工具位于 `release/` 与 `scripts/`，不进入 Core、MCP 或 SQLite。产品发布使用固定检查、精确
 confirmation、仓库外 release directory，并通过远端回读安全重试。
@@ -387,11 +389,12 @@ confirmation、仓库外 release directory，并通过远端回读安全重试�
 | `internal/repository/` | read-only Git observation |
 | `internal/store/` | SQLite bootstrap、strict codec、Action operations、CAS、events、claims |
 | `internal/mcp/` | fifteen tools、closed JSON、Result Envelope |
-| `packages/codex/` | Codex Plugin、Skill、lifecycle 与 package |
-| `packages/deepseek/` | DSH bundle、Skill、guard 与 package |
+| `packages/codex/` | Codex Plugin、Skill、lifecycle、平台实现与 package |
+| `packages/deepseek/` | DSH bundle、Skill、guard、平台实现与 package |
+| `packages/dev-flow/` | 统一 lifecycle、Control Center launcher 与平台实现 |
 | `protocol/fixtures/` | public contract 与 Host parity fixtures |
 | `tests/contract/`, `tests/journeys/` | deterministic contract 与 process evidence |
-| `release/`, `scripts/` | standalone release contracts and tooling |
+| `release/`, `scripts/` | 双 runtime 构建、standalone release contracts and tooling |
 
 当前行为权威是代码、机器可读 Schema 与可执行测试。文档帮助读者理解系统，不作为运行、
 构建或发布输入。

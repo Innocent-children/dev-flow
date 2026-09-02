@@ -338,41 +338,6 @@ func TestRunWebUIFullPublicLifecycle(t *testing.T) {
 	}
 }
 
-func TestRunWebUIResetPlanAndConfirmation(t *testing.T) {
-	dataDirectory := t.TempDir()
-	getenv := func(name string) string {
-		if name == dataDirectoryEnvironment {
-			return dataDirectory
-		}
-		return ""
-	}
-	taskStore, err := store.Open(context.Background(), filepath.Join(dataDirectory, databaseFileName))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := taskStore.Close(); err != nil {
-		t.Fatal(err)
-	}
-	var planOutput, planError bytes.Buffer
-	if code := run([]string{"webui", "reset", "--json"}, bytes.NewReader(nil), &planOutput, &planError, getenv, unexpectedServe(t)); code != 0 {
-		t.Fatalf("reset plan = %d, %q", code, planError.String())
-	}
-	var plan struct {
-		Status       string `json:"status"`
-		ConfirmToken string `json:"confirm_token"`
-	}
-	if err := json.Unmarshal(planOutput.Bytes(), &plan); err != nil || plan.Status != "confirmation_required" || len(plan.ConfirmToken) != 64 {
-		t.Fatalf("reset plan = %#v, err = %v", plan, err)
-	}
-	var confirmOutput, confirmError bytes.Buffer
-	if code := run([]string{"webui", "reset", "--confirm", plan.ConfirmToken, "--json"}, bytes.NewReader(nil), &confirmOutput, &confirmError, getenv, unexpectedServe(t)); code != 0 {
-		t.Fatalf("reset confirm = %d, %q", code, confirmError.String())
-	}
-	if !strings.Contains(confirmOutput.String(), `"status":"completed"`) {
-		t.Fatalf("reset confirmation output = %q", confirmOutput.String())
-	}
-}
-
 type nopWriteCloser struct {
 	io.Writer
 }

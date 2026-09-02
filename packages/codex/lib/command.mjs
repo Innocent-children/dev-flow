@@ -1,6 +1,6 @@
 import { execFile as execFileCallback } from "node:child_process";
-import { access, lstat, readFile } from "node:fs/promises";
-import { delimiter, dirname, extname, isAbsolute, join, resolve } from "node:path";
+import { access, lstat, readFile, realpath } from "node:fs/promises";
+import { basename, delimiter, dirname, extname, isAbsolute, join, resolve } from "node:path";
 
 const WINDOWS_NATIVE_EXTENSIONS = Object.freeze([".exe", ".com"]);
 const WINDOWS_SCRIPT_EXTENSIONS = Object.freeze([".ps1", ".cmd", ".bat"]);
@@ -35,6 +35,23 @@ export async function findCommandPath(name, {
     }
   }
   throw commandNotFound(name, "command is not discoverable on PATH");
+}
+
+export async function commandResolvesToPackage(commandPath, expectedLauncherPath, {
+  platform = process.platform,
+  packageName,
+} = {}) {
+  const [command, expected] = await Promise.all([realpath(commandPath), realpath(expectedLauncherPath)]);
+  if (command === expected) return true;
+  if (platform !== "win32") return false;
+  const installedLauncher = join(
+    dirname(commandPath),
+    "node_modules",
+    packageName,
+    "bin",
+    basename(expectedLauncherPath),
+  );
+  return await realpath(installedLauncher).catch(() => null) === expected;
 }
 
 async function resolveCommandInvocation(executable, { environment }) {

@@ -27,47 +27,8 @@ released package evidence。
 DeepSeek fixture 只证明 Host identity/Core parity。These fixtures do not implement or claim a DeepSeek
 Adapter, Skill, package, native Journey, or product support. 静态 fixture 也不是任何真实 Host 证据。
 
-## Released linear Core historical fixtures
-
-以下文件记录已发布线性合同的历史事实，不能作为当前 graph 操作说明：
-
-- `server-info.json`；
-- `open-task.json`；
-- `active-task-conflict.json`；
-- `host-ownership-conflict.json`；
-- `task.json`；
-- `next-action.json`；
-- `apply-success.json`；
-- `rework.json`；
-- `verification-budget-failure.json`；
-- `revision-conflict.json`；
-- `stale-action.json`；
-- `repository-drift.json`；
-- `completed-outcome.json`；
-- `cancelled-outcome.json`。
-
-其中出现的旧阶段、action 或 Schema 含义属于 Contract 0.1 freeze evidence。Contract 0.2 runtime
-不会读取、迁移、继续或投影这些历史 Task。
-
-## Frozen Recovery fixtures
-
-以下 Contract 0.1 recovery 文件独立分组，以保留五分类和 read-before-retry 的历史公共形状：
-
-- `recovery-not-started.json`；
-- `recovery-completed-and-recorded.json`；
-- `recovery-completed-but-unrecorded.json`；
-- `recovery-partially-completed.json`；
-- `recovery-conflicting.json`；
-- `recovery-apply-read-back.json`；
-- `recovery-blocked.json`；
-- `recovery-resolved.json`。
-
-当前 graph-native Recovery 使用 process reference 和 `source_cursor`，由 Domain/Application/
-Journey tests 确定性证明。历史 fixture 不授权 `source_phase` 或旧 payload 进入 Contract 0.2。
-
 ## Evidence classification
 
 - 上述 JSON 都是 **static evidence**；
 - contract tests 对 exact JSON/schema/order/parity 的执行结果是 **deterministic contract evidence**；
-- Contract 0.1 文件是 **historical freeze evidence**；
 - 无 fixture 可称为 simulated/native Codex、real DeepSeek、registry package 或 released artifact。

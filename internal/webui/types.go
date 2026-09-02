@@ -8,11 +8,10 @@ import (
 type Readiness string
 
 const (
-	ReadinessReady         Readiness = "ready"
-	ReadinessReadOnly      Readiness = "read_only"
-	ReadinessResetRequired Readiness = "reset_required"
-	ReadinessIncompatible  Readiness = "incompatible"
-	ReadinessUnavailable   Readiness = "unavailable"
+	ReadinessReady        Readiness = "ready"
+	ReadinessReadOnly     Readiness = "read_only"
+	ReadinessIncompatible Readiness = "incompatible"
+	ReadinessUnavailable  Readiness = "unavailable"
 )
 
 type Lifecycle string

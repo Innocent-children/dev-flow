@@ -99,19 +99,17 @@ func TestSubmitImplementationFillsTaskPlanRevisionFromCurrentTask(t *testing.T) 
 	}
 }
 
-// TestSubmitLegacyRevisionValuesStillAcceptedAndRefused proves the older-client
-// path: the exact current value is accepted, and a different value is refused
-// with the exact member before any write.
-func TestSubmitLegacyRevisionValuesStillAcceptedAndRefused(t *testing.T) {
+// TestSubmitCoreOwnedRevisionMembersAreRejected proves Host submissions cannot
+// provide state that Core derives from the current Task.
+func TestSubmitCoreOwnedRevisionMembersAreRejected(t *testing.T) {
 	service, memory, _ := phase5Service(t)
 	task := openPhase5Task(t, service)
 	task = applyPhase5(t, service, task, "requirements_ready", "", requirementsNodeResult("Goal", []string{"criterion"}))
 
-	// A different value is a zero-write refusal with the exact member.
 	before := memory.commits
-	_, err := submitNodeResult(t, service, task, "submit-design-stale-revision", "design_ready", designNodeResult(task.Requirements.Revision+1, "Direct design"))
+	_, err := submitNodeResult(t, service, task, "submit-design-owned-revision", "design_ready", designNodeResult(task.Requirements.Revision, "Direct design"))
 	typed := structuredFailure(t, err)
-	if len(typed.Violations) != 1 || typed.Violations[0].Path != "payload.node_result.baseline.requirements_revision" || typed.Violations[0].Rule != domain.RuleCurrentValueRequired {
+	if len(typed.Violations) != 1 || typed.Violations[0].Path != "payload.node_result.baseline.requirements_revision" || typed.Violations[0].Rule != domain.RuleUnknownMember {
 		t.Fatalf("violations=%#v", typed.Violations)
 	}
 	if !typed.ZeroWrite || memory.commits != before {
@@ -120,15 +118,6 @@ func TestSubmitLegacyRevisionValuesStillAcceptedAndRefused(t *testing.T) {
 	current, loadErr := memory.LoadTask(context.Background(), task.TaskID)
 	if loadErr != nil || current.Revision != task.Revision {
 		t.Fatalf("a refused submission moved the Task: revision=%d want=%d err=%v", current.Revision, task.Revision, loadErr)
-	}
-
-	// The exact current value is still accepted.
-	next, err := submitNodeResult(t, service, task, "submit-design-current-revision", "design_ready", designNodeResult(task.Requirements.Revision, "Direct design"))
-	if err != nil {
-		t.Fatalf("the current value was refused: %v", err)
-	}
-	if next.Design.RequirementsRevision != task.Requirements.Revision {
-		t.Fatalf("design requirements revision=%d want=%d", next.Design.RequirementsRevision, task.Requirements.Revision)
 	}
 }
 

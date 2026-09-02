@@ -57,7 +57,10 @@ export async function clearRunRecords(paths, { trashRoot = null, permanent = fal
 
 async function writeRun(paths, run) {
   validateRun(run);
-  await writeOwnedJSON(runPath(paths, run.operation_id), run, { root: paths.managerRoot });
+  await writeOwnedJSON(runPath(paths, run.operation_id), run, {
+    root: paths.managerRoot,
+    enforcePrivateModes: paths.enforcePrivateModes,
+  });
 }
 
 function runPath(paths, operationId) {

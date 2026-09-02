@@ -26,6 +26,7 @@ const expectedPackageFiles = [
   "lib/install-experience.mjs",
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
+  "lib/platform.mjs",
   "plugin/.codex-plugin/plugin.json",
   "plugin/.mcp.json",
   "plugin/hooks/hooks.json",
@@ -47,6 +48,7 @@ const expectedPackedFiles = [
   "lib/install-experience.mjs",
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
+  "lib/platform.mjs",
   "package.json",
   "plugin/.codex-plugin/plugin.json",
   "plugin/.mcp.json",
@@ -316,7 +318,7 @@ test("local package builder stages one exact non-final artifact in a temporary d
     });
     assert.equal(versionLine, `dev-flow ${currentVersion}\n`);
     const { stdout: help } = await execFile(runtime, ["help"], { cwd: extractDirectory, encoding: "utf8" });
-    for (const command of ["webui start", "webui open", "webui status", "webui stop", "webui reset"]) {
+    for (const command of ["webui start", "webui open", "webui status", "webui stop"]) {
       assert.match(help, new RegExp(command, "u"));
     }
   }

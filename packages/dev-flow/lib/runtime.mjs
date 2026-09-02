@@ -10,10 +10,6 @@ import { ensureDefaultDataDirectory, listProfileReceipts, resolveManagerPaths } 
 const execFile = promisify(execFileCallback);
 const packageVersion = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version;
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u;
-const RUNTIME_DESCRIPTORS = Object.freeze({
-  "darwin-arm64": Object.freeze({ directory: "darwin-arm64", executable: "dev-flow" }),
-  "win32-x64": Object.freeze({ directory: "win32-x64", executable: "dev-flow.exe" }),
-});
 const help = `Dev Flow
 
 Usage:
@@ -21,7 +17,6 @@ Usage:
   dev-flow status|doctor|install|upgrade|repair|reinstall|uninstall|factory-reset [options]
   dev-flow webui start [--no-open] [--plain|--json]
   dev-flow webui open|status|stop [--plain|--json]
-  dev-flow webui reset [--confirm TOKEN] [--plain|--json]
   dev-flow version
 `;
 
@@ -83,7 +78,6 @@ export async function resolveCoreRuntime({
   requireData = true,
   initializeDefaultData = false,
 } = {}) {
-  const runtime = runtimeDescriptor(platform, arch);
   const paths = await resolveManagerPaths({ homeDirectory, environment, platform, arch });
   const dataDirectory = paths.explicitDataDirectory ?? paths.defaultDataDirectory;
   const candidates = [];
@@ -96,10 +90,15 @@ export async function resolveCoreRuntime({
     if (product.name !== "dev-flow-codex" || !semverPattern.test(product.version) || !semverPattern.test(product.core_version)) {
       throw new Error("Codex receipt product identity is invalid");
     }
-    if (host.surface !== "codex-cli" || `${host.os}-${host.arch}` !== runtime.runtimeKey) {
+    if (host.surface !== "codex-cli" || `${host.os}-${host.arch}` !== paths.runtimeKey) {
       throw new Error("Codex receipt host platform differs from this runtime");
     }
-    const expectedRuntimePath = join(receiptPaths.package_root, "runtime", runtime.directory, runtime.executable);
+    const expectedRuntimePath = join(
+      receiptPaths.package_root,
+      "runtime",
+      paths.runtimeDirectory,
+      paths.runtimeExecutable,
+    );
     if (resolve(receiptPaths.runtime_path) !== resolve(expectedRuntimePath)) {
       throw new Error("Codex receipt runtime path differs from the supported package layout");
     }
@@ -110,7 +109,7 @@ export async function resolveCoreRuntime({
       expectedCoreVersion: product.core_version,
       packageRoot: receiptPaths.package_root,
       runtimePath: receiptPaths.runtime_path,
-    }, exec, environment, platform));
+    }, exec, environment, paths.requireExecutableMode));
   }
 
   const dshHome = resolve(environment.DSH_HOME || join(paths.homeDirectory, ".dsh"));
@@ -122,8 +121,13 @@ export async function resolveCoreRuntime({
       packageVersion: receipt.installed_version,
       expectedCoreVersion: null,
       packageRoot,
-      runtimePath: join(packageRoot, "runtime", runtime.directory, runtime.executable),
-    }, exec, environment, platform));
+      runtimePath: join(
+        packageRoot,
+        "runtime",
+        paths.runtimeDirectory,
+        paths.runtimeExecutable,
+      ),
+    }, exec, environment, paths.requireExecutableMode));
   }
 
   if (candidates.length === 0) throw new NoRuntimeError("no installed Codex or DeepSeek Adapter provides a Core runtime");
@@ -132,7 +136,14 @@ export async function resolveCoreRuntime({
     else await assertCanonicalDirectory(dataDirectory, "Dev Flow data directory");
   }
   candidates.sort((left, right) => compareSemver(right.version, left.version) || left.source.localeCompare(right.source));
-  return Object.freeze({ ...candidates[0], dataDirectory, platform, arch, runtimeKey: runtime.runtimeKey });
+  return Object.freeze({
+    ...candidates[0],
+    dataDirectory,
+    platform: paths.platform,
+    arch: paths.arch,
+    runtimeKey: paths.runtimeKey,
+    forwardedSignals: paths.forwardedSignals,
+  });
 }
 
 export class NoRuntimeError extends Error {
@@ -142,7 +153,7 @@ export class NoRuntimeError extends Error {
   }
 }
 
-async function preflightCandidate(candidate, exec, environment, platform) {
+async function preflightCandidate(candidate, exec, environment, requireExecutableMode) {
   const packageRoot = await realpath(candidate.packageRoot).catch((error) => {
     throw new Error(`${candidate.source} package root is unavailable`, { cause: error });
   });
@@ -153,7 +164,11 @@ async function preflightCandidate(candidate, exec, environment, platform) {
   if (manifest?.name !== candidate.packageName || manifest.version !== candidate.packageVersion) {
     throw new Error(`${candidate.source} package identity differs from its receipt`);
   }
-  const runtimePath = await assertCanonicalExecutable(candidate.runtimePath, `${candidate.source} Core runtime`, platform);
+  const runtimePath = await assertCanonicalExecutable(
+    candidate.runtimePath,
+    `${candidate.source} Core runtime`,
+    requireExecutableMode,
+  );
   const result = await exec(runtimePath, ["version"], { cwd: packageRoot, encoding: "utf8", maxBuffer: 64 * 1024, env: environment });
   const match = /^dev-flow (\S+)\n?$/u.exec(result.stdout);
   if (!match || !semverPattern.test(match[1]) || candidate.expectedCoreVersion && match[1] !== candidate.expectedCoreVersion) {
@@ -163,12 +178,15 @@ async function preflightCandidate(candidate, exec, environment, platform) {
 }
 
 function assertWebUIArguments(arguments_) {
-  if (!Array.isArray(arguments_) || arguments_[0] !== "webui" || !["start", "open", "status", "stop", "reset"].includes(arguments_[1]) || arguments_.some((value) => typeof value !== "string" || value.includes("\0"))) {
+  if (!Array.isArray(arguments_) || arguments_[0] !== "webui" || !["start", "open", "status", "stop"].includes(arguments_[1]) || arguments_.some((value) => typeof value !== "string" || value.includes("\0"))) {
     throw new Error("invalid arguments; run dev-flow help");
   }
 }
 
 async function launchCore(selection, arguments_, { environment, spawnImpl, signalSource }) {
+  if (!Array.isArray(selection.forwardedSignals) || selection.forwardedSignals.length === 0) {
+    throw new Error("platform signal contract is unavailable");
+  }
   const child = spawnImpl(selection.runtimePath, arguments_, {
     cwd: selection.packageRoot,
     env: { ...environment, DEV_FLOW_DATA_DIR: selection.dataDirectory },
@@ -177,10 +195,7 @@ async function launchCore(selection, arguments_, { environment, spawnImpl, signa
     windowsHide: true,
   });
   const handlers = new Map();
-  const forwardedSignals = (selection.platform ?? process.platform) === "win32"
-    ? ["SIGINT", "SIGTERM"]
-    : ["SIGINT", "SIGTERM", "SIGHUP"];
-  for (const signal of forwardedSignals) {
+  for (const signal of selection.forwardedSignals) {
     const handler = () => child.kill(signal);
     handlers.set(signal, handler);
     signalSource.on(signal, handler);
@@ -211,10 +226,10 @@ async function assertCanonicalDirectory(path, label) {
   if (canonical !== resolve(path) || !(await stat(canonical)).isDirectory()) throw new Error(`${label} must be a canonical directory`);
 }
 
-async function assertCanonicalExecutable(path, label, platform) {
+async function assertCanonicalExecutable(path, label, requireExecutableMode) {
   const info = await lstat(path).catch((error) => { throw new Error(`${label} is unavailable`, { cause: error }); });
-  if (!info.isFile() || info.isSymbolicLink() || platform !== "win32" && (info.mode & 0o111) === 0) throw new Error(`${label} must be a regular executable file`);
-  await access(path, platform === "win32" ? fsConstants.F_OK : fsConstants.X_OK);
+  if (!info.isFile() || info.isSymbolicLink() || requireExecutableMode && (info.mode & 0o111) === 0) throw new Error(`${label} must be a regular executable file`);
+  await access(path, requireExecutableMode ? fsConstants.X_OK : fsConstants.F_OK);
   const canonical = await realpath(path);
   if (canonical !== resolve(path)) throw new Error(`${label} must be canonical`);
   return canonical;
@@ -225,13 +240,4 @@ function compareSemver(left, right) {
   const b = right.split(".").map(Number);
   for (let index = 0; index < 3; index += 1) if (a[index] !== b[index]) return a[index] - b[index];
   return 0;
-}
-
-function runtimeDescriptor(platform, arch) {
-  const runtimeKey = `${platform}-${arch}`;
-  const descriptor = RUNTIME_DESCRIPTORS[runtimeKey];
-  if (descriptor === undefined) {
-    throw new Error(`unsupported platform ${runtimeKey}; supported runtimes: ${Object.keys(RUNTIME_DESCRIPTORS).join(", ")}`);
-  }
-  return Object.freeze({ runtimeKey, ...descriptor });
 }

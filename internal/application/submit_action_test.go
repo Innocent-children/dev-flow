@@ -197,7 +197,7 @@ func TestSubmitActionRejectsDeliveryAuthorityMembersWithoutCompatibility(t *test
 	task := phase5TaskAtDelivery(t, service)
 	result := deliverySubmissionResult()
 	result["automated_evidence_ids"] = []string{string(task.Test.EvidenceIDs[0])}
-	request := actionSubmission(t, task, "submit-legacy-delivery-member", "delivery_complete", result)
+	request := actionSubmission(t, task, "submit-core-owned-delivery-member", "delivery_complete", result)
 	stages := memory.stages
 	_, err := service.SubmitAction(context.Background(), request)
 	var typed *domain.Error

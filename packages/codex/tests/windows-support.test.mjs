@@ -63,7 +63,7 @@ test("Windows packaged Core executes natively and reports the repository Core ve
   await copyFile(windowsCore, runtimePath);
   t.after(() => rm(root, { recursive: true, force: true }));
   const expectedVersion = (await readFile(new URL("../../../CORE_VERSION", import.meta.url), "utf8")).trim();
-  assert.equal(await inspectCoreVersion(runtimePath, { platform: "win32" }), expectedVersion);
+  assert.equal(await inspectCoreVersion(runtimePath, { requireExecutableMode: false }), expectedVersion);
 
   const environment = {
     ...process.env,

@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-func TestCurrentStorageProductionHasNoHistoricalTaskRuntime(t *testing.T) {
+func TestCurrentStorageProductionHasOneCurrentTaskRuntime(t *testing.T) {
 	root := currentStorageRepositoryRoot(t)
 	roots := []string{
 		"internal",
@@ -72,8 +72,6 @@ func TestCurrentStorageProductionHasNoHistoricalTaskRuntime(t *testing.T) {
 		})
 	}
 
-	// Historical specifications, protocol fixtures, tests, and release evidence are deliberately
-	// outside this allowlist. They may describe or construct linear contract only as frozen evidence.
 	t.Logf("scanned %d production files under %s", len(files), strings.Join(roots, ", "))
 }
 
@@ -88,7 +86,7 @@ func TestCurrentStorageHasOneSchemaCodecProcessAndProjection(t *testing.T) {
 		return string(raw)
 	}
 
-	migrations := read("internal/store/migrations.go")
+	schema := read("internal/store/schema.go")
 	for _, required := range []string{
 		`const DatabaseSchemaVersion = "0.3.0"`,
 		"currentSchemaStatements",
@@ -97,14 +95,14 @@ func TestCurrentStorageHasOneSchemaCodecProcessAndProjection(t *testing.T) {
 		"CREATE TABLE action_operations",
 		"CREATE INDEX repository_claims_task_idx ON repository_claims (task_id)",
 	} {
-		if !strings.Contains(migrations, required) {
+		if !strings.Contains(schema, required) {
 			t.Errorf("current storage bootstrap missing %q", required)
 		}
 	}
-	if strings.Contains(migrations, "task_id TEXT NOT NULL UNIQUE") {
+	if strings.Contains(schema, "task_id TEXT NOT NULL UNIQUE") {
 		t.Fatal("repository claims still restrict one claim per task")
 	}
-	if regexp.MustCompile(`(?i)ALTER\s+TABLE|schema_migrations|process_version|snapshot_version`).MatchString(migrations) {
+	if regexp.MustCompile(`(?i)ALTER\s+TABLE|schema_migrations|process_version|snapshot_version`).MatchString(schema) {
 		t.Fatal("current storage bootstrap contains version metadata or a migration path")
 	}
 
@@ -151,6 +149,24 @@ func TestCurrentStorageHasOneSchemaCodecProcessAndProjection(t *testing.T) {
 
 func TestCurrentStorageLifecycleHasNoTaskDataResetCapability(t *testing.T) {
 	root := currentStorageRepositoryRoot(t)
+	for _, relative := range []string{
+		"internal/store/reset.go",
+		"internal/store/reset_remove_darwin.go",
+		"internal/store/reset_remove_windows.go",
+	} {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(relative))); !os.IsNotExist(err) {
+			t.Fatalf("Core reset implementation remains at %s", relative)
+		}
+	}
+	for _, relative := range []string{"cmd/dev-flow/main.go", "internal/webui/types.go"} {
+		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if regexp.MustCompile(`webui reset|runWebUIReset|reset_required|ReadinessResetRequired`).Match(raw) {
+			t.Fatalf("%s retains the removed Core reset surface", relative)
+		}
+	}
 	lifecyclePaths := []string{
 		"packages/codex/lib/lifecycle.mjs",
 		"packages/codex/lib/paths.mjs",

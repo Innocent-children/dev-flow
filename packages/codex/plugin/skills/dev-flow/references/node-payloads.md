@@ -7,9 +7,8 @@ and the internal payload envelope.
 
 Core also fills the system-state members `requirements_revision` (Design baseline),
 `design_revision` (Tasks baseline) and `task_plan_revision` (Implementation) from the current Task
-snapshot after it verifies the current Action. Node templates omit them. A client that still sends
-the exact current value is accepted; a different value is refused as `current_value_required` with
-the exact member path.
+snapshot after it verifies the current Action. Node templates omit them. A client that sends
+one of these Core-owned members violates the closed submission contract.
 
 ## Common input
 

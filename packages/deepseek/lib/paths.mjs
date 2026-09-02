@@ -3,6 +3,8 @@ import { homedir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { platformAdapter } from "./platform.mjs";
+
 export const DATA_DIRECTORY_ENVIRONMENT = "DEV_FLOW_DATA_DIR";
 
 export function packageRootFromModule(moduleUrl = import.meta.url) {
@@ -13,24 +15,17 @@ export async function resolveDataDirectory({
   homeDirectory = homedir(),
   environment = process.env,
   platform = process.platform,
+  arch = process.arch,
 } = {}) {
+  const adapter = platformAdapter(platform, arch);
   const canonicalHome = await canonicalExistingDirectory(homeDirectory, "home directory");
-  const productSupportAnchor = platform === "win32"
-    ? environment?.LOCALAPPDATA
-      ? await canonicalExistingDirectory(environment.LOCALAPPDATA, "LOCALAPPDATA")
-      : containedPath(
-        canonicalHome,
-        join(canonicalHome, "AppData", "Local"),
-        "local application data directory",
-      )
-    : containedPath(
-      canonicalHome,
-      join(canonicalHome, "Library", "Application Support"),
-      "application support directory",
-    );
-  const productSupportInspectionRoot = platform === "win32" && !environment?.LOCALAPPDATA
-    ? canonicalHome
-    : productSupportAnchor;
+  const applicationData = adapter.applicationData({ homeDirectory: canonicalHome, environment });
+  const productSupportAnchor = applicationData.canonicalizeRoot
+    ? await canonicalExistingDirectory(applicationData.path, applicationData.label)
+    : containedPath(canonicalHome, applicationData.path, applicationData.label);
+  const productSupportInspectionRoot = applicationData.canonicalizeRoot
+    ? productSupportAnchor
+    : containedPath(canonicalHome, applicationData.inspectionRoot, "application data inspection root");
   const productSupportRoot = containedPath(
     productSupportAnchor,
     join(productSupportAnchor, "dev-flow"),
@@ -42,7 +37,9 @@ export async function resolveDataDirectory({
     const dataDirectory = await canonicalExplicitDataDirectory(explicitDataDirectory);
     return Object.freeze({
       dataDirectory,
-      platform,
+      platform: adapter.platform,
+      arch: adapter.arch,
+      enforcePrivateModes: adapter.enforcePrivateModes,
       homeDirectory: canonicalHome,
       productSupportAnchor,
       productSupportInspectionRoot,
@@ -59,7 +56,9 @@ export async function resolveDataDirectory({
       join(productSupportRoot, "data"),
       "default data directory",
     ),
-    platform,
+    platform: adapter.platform,
+    arch: adapter.arch,
+    enforcePrivateModes: adapter.enforcePrivateModes,
     homeDirectory: canonicalHome,
     productSupportAnchor,
     productSupportInspectionRoot,
@@ -84,7 +83,7 @@ export async function ensureDefaultDataDirectory(paths) {
   await assertNoSymlinkComponents(paths.productSupportInspectionRoot, paths.productSupportRoot);
   await mkdir(paths.dataDirectory, { recursive: true, mode: 0o700 });
   await assertNoSymlinkComponents(paths.productSupportInspectionRoot, paths.dataDirectory);
-  if (paths.platform !== "win32") await chmod(paths.dataDirectory, 0o700);
+  if (paths.enforcePrivateModes) await chmod(paths.dataDirectory, 0o700);
   return paths.dataDirectory;
 }
 

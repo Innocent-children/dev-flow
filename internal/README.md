@@ -52,10 +52,10 @@ internal/application
         local SQLite
 ```
 
-当前 Store 只支持当前 SQLite Schema 与严格 snapshot。不兼容或 pre-graph 数据在写能力开放前返回
-`SCHEMA_UNSUPPORTED`，并保持零写入；`dev-flow webui reset` 使用 target-bound plan 和数据库独占访问
-只清理确认的 Task database/sidecars。浏览器没有 reset mutation；双语显示偏好只存在于 frontend local
-site storage，不进入 Core 或 Task。
+当前 Store 只实现一份当前 SQLite Schema 与严格 snapshot；任何非当前 Schema 返回通用
+`SCHEMA_UNSUPPORTED`。双语显示偏好只存在于 frontend local site storage，不进入 Core 或 Task。
+操作系统相关的进程、receipt 与 signal 行为位于 `darwin`、`windows` build-tag 文件，Domain、Workflow、
+Application 和 Recovery 不包含平台判断。
 
 ## 定向验证
 

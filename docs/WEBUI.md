@@ -85,25 +85,8 @@ Windows 先向独立 process group 发送 `CTRL_BREAK`；不同 console 无法�
 | --- | --- |
 | `ready` | 当前 Core 和数据可正常使用 |
 | `read_only` | 可以读取，但当前不开放写操作 |
-| `reset_required` | 数据 Schema 不兼容，需要先查看 reset 计划 |
 | `incompatible` | 当前 Core 或运行实例不兼容 |
 | `unavailable` | 没有可用实例或无法读取状态 |
-
-## 旧数据 reset
-
-不兼容或启用前数据采用 `reject-and-reset`。普通启动保持零写入并返回 `reset_required`。reset 只能从
-CLI 执行，浏览器没有 reset 操作：
-
-```bash
-dev-flow webui reset
-dev-flow webui reset --confirm <当前计划返回的 TOKEN>
-```
-
-第一条命令只展示当前 canonical database 和现有 SQLite sidecar 的精确目标。token 与这些目标绑定；
-确认时 Core 先获得数据库独占访问并再次核对目标。锁失败、token 不匹配或目标变化都不删除数据。
-成功后只清理确认的 Task 数据并创建当前空 Schema；Host package、注册、用户配置和无关文件保留。
-Windows 在关闭 SQLite connection 后以 file handle 再次核对 volume/file identity、大小和修改时间，
-全部目标都匹配后才标记删除；部分标记失败会撤回已设置的 disposition。
 
 ## 数据与制品
 
@@ -111,13 +94,14 @@ Windows 在关闭 SQLite connection 后以 file handle 再次核对 volume/file 
 `%LOCALAPPDATA%\dev-flow\data`。Codex 与 DeepSeek 共用同一数据，不属于浏览器缓存或 Host
 聊天记录。React、TypeScript 和 Vite 只参与构建；HTML、JavaScript、CSS、SVG 和 manifest 都嵌入
 Core binary，运行时不需要 Node server、CDN、外部字体或独立 WebUI package。
+Host package 通过各自的平台实现选择 macOS 或 Windows 的目录、权限、进程和 executable 行为；
+WebUI 与 Core 的 Task 语义不包含平台分支。
 
 ## 当前不支持
 
 - 远程访问、账号、团队权限或云端同步；
 - shell、文件编辑、Git 写入或发布操作；页面只提交 Core 文件范围决定；
-- 浏览器内 reset；
-- 用户自定义流程图或自动历史数据迁移；
+- 用户自定义流程图；
 - 把 WebUI 作为另一份 Task 状态来源。
 
 公开稳定 package 是否携带当前源码能力，以[项目状态](PROJECT-STATUS.md)和

@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
 	"time"
 )
@@ -46,13 +45,27 @@ func TestWebUIHostParityJourney(t *testing.T) {
 		t.Fatalf("install Host A: %v\n%s", err, output)
 	}
 	codexRuntime := filepath.Join(extractRoot, "package", "runtime", "darwin-arm64", "dev-flow")
-	deepseekBuild := exec.Command(filepath.Join(root, "scripts", "build-deepseek-runtime.sh"))
+	runtimeOutput := filepath.Join(buildRoot, "deepseek-runtimes")
+	deepseekBuild := exec.Command(
+		"node",
+		filepath.Join(root, "scripts", "build-core-runtimes.mjs"),
+		"--output",
+		runtimeOutput,
+	)
 	deepseekBuild.Dir = root
 	output, err := deepseekBuild.Output()
 	if err != nil {
 		t.Fatalf("build Host B: %v", err)
 	}
-	deepseekRuntime := strings.TrimSpace(string(output))
+	var runtimeReport struct {
+		Runtimes map[string]struct {
+			Path string `json:"path"`
+		} `json:"runtimes"`
+	}
+	if json.Unmarshal(output, &runtimeReport) != nil || runtimeReport.Runtimes["darwin-arm64"].Path == "" {
+		t.Fatalf("invalid Host B runtime report: %s", output)
+	}
+	deepseekRuntime := runtimeReport.Runtimes["darwin-arm64"].Path
 
 	dataDirectory := filepath.Join(buildRoot, "data")
 	if err := os.Mkdir(dataDirectory, 0o700); err != nil {

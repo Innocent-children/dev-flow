@@ -31,6 +31,7 @@ test("DeepSeek selects and preflights only the Windows x64 packaged Core", {
   const data = await resolveDataDirectory({
     homeDirectory: home,
     platform: "win32",
+    arch: "x64",
     environment: { LOCALAPPDATA: localAppData },
   });
   assert.equal(data.dataDirectory, join(localAppData, "dev-flow", "data"));

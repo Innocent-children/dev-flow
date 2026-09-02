@@ -8,7 +8,8 @@ permissions:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    name: macOS arm64 current-platform validation
+    runs-on: macos-15
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -30,6 +31,9 @@ jobs:
         uses: pnpm/action-setup@v6
         with:
           version: 11
+
+      - name: Verify native macOS arm64 runner
+        run: test "$(uname -s)" = Darwin && test "$(uname -m)" = arm64
 
       - name: Run bounded repository validation
         run: ./scripts/validate-repository.sh

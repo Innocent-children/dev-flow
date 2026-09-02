@@ -350,7 +350,7 @@ var (
 	ErrVerificationBudgetExceeded = &Error{Code: ErrorVerificationBudgetExceeded, Message: "the verification budget was exceeded"}
 	ErrTaskBlocked                = &Error{Code: ErrorTaskBlocked, Message: "the task is blocked"}
 	ErrTaskTerminal               = &Error{Code: ErrorTaskTerminal, Message: "the task is terminal"}
-	ErrSchemaUnsupported          = &Error{Code: ErrorSchemaUnsupported, Message: "pre-graph data is unsupported; choose a fresh data directory or archive, rename, or delete the old directory outside Core"}
+	ErrSchemaUnsupported          = &Error{Code: ErrorSchemaUnsupported, Message: "the storage schema is unsupported"}
 	ErrProcessUnsupported         = &Error{Code: ErrorProcessUnsupported, Message: "the stored process definition is unsupported"}
 	ErrTransitionNotAllowed       = &Error{Code: ErrorTransitionNotAllowed, Message: "the transition is not allowed from the current node"}
 	ErrRecoveryUnavailable        = &Error{Code: ErrorRecoveryUnavailable, Message: "recovery is unavailable for this operation"}

@@ -21,6 +21,7 @@ const expectedPackageFiles = [
   "lib/file-scope.mjs",
   "lib/index.mjs",
   "lib/paths.mjs",
+  "lib/platform.mjs",
   "lib/runtime.mjs",
   "lib/tool-names.mjs",
   "runtime/darwin-arm64/dev-flow",
@@ -191,7 +192,7 @@ test("packaged Core native version and STDIO startup", {
   assert.equal(stderr, "");
 
   const { stdout: help } = await execFile(runtimePath, ["help"], { cwd: dataDirectory, encoding: "utf8" });
-  for (const command of ["webui start", "webui open", "webui status", "webui stop", "webui reset"]) {
+  for (const command of ["webui start", "webui open", "webui status", "webui stop"]) {
     assert.match(help, new RegExp(command, "u"));
   }
 });

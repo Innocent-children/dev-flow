@@ -19,6 +19,7 @@
     "lib/file-scope.mjs",
     "lib/index.mjs",
     "lib/paths.mjs",
+    "lib/platform.mjs",
     "lib/runtime.mjs",
     "lib/tool-names.mjs",
     "runtime/darwin-arm64/dev-flow",

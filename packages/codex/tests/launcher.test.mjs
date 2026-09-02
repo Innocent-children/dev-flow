@@ -651,6 +651,9 @@ async function makePaths(t, { usesDefaultDataDirectory = false, executable = tru
   return {
     packageRoot: root,
     platform: executable ? process.platform : "darwin",
+    requireExecutableMode: true,
+    enforcePrivateModes: true,
+    forwardedSignals: ["SIGINT", "SIGTERM", "SIGHUP"],
     runtimePath,
     dataDirectory,
     usesDefaultDataDirectory,

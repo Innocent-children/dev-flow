@@ -157,6 +157,27 @@ test("rejects a default product root that escapes through a symlink", async (t) 
   );
 });
 
+test("rejects a macOS application-data symlink before creating product files", async (t) => {
+  const root = await makePackage(t, "application-data-symlink-package");
+  const home = join(t.testRoot, "home");
+  const outside = join(t.testRoot, "outside");
+  await mkdir(home, { recursive: true });
+  await mkdir(outside, { recursive: true });
+  await symlink(outside, join(home, "Library"), process.platform === "win32" ? "junction" : undefined);
+
+  await assert.rejects(
+    resolveProductPaths({
+      packageRoot: root,
+      homeDirectory: home,
+      platform: "darwin",
+      arch: "arm64",
+      environment: {},
+    }),
+    /symbolic link/,
+  );
+  await assert.rejects(stat(join(outside, "Application Support", "dev-flow")), { code: "ENOENT" });
+});
+
 test("never falls back to a runtime in the current repository", async (t) => {
   const root = await makePackage(t, "installed-package");
   const repository = join(t.testRoot, "target-repository");

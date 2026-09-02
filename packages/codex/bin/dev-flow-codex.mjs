@@ -27,9 +27,6 @@ import {
 } from "../lib/paths.mjs";
 import { runHook } from "../plugin/hooks/pre-tool-use.mjs";
 
-const FORWARDED_SIGNALS = process.platform === "win32"
-  ? ["SIGINT", "SIGTERM"]
-  : ["SIGINT", "SIGTERM", "SIGHUP"];
 const execFile = promisify(execFileCallback);
 const NPM_UNINSTALL_HANDOFF = "Run npm uninstall -g dev-flow-codex separately after deregistration.";
 const CODEX_MCP_INSTRUCTIONS_ENVIRONMENT = "DEV_FLOW_CODEX_MCP_INSTRUCTIONS";
@@ -163,7 +160,7 @@ export async function stopPackagedWebUI(
     if (error?.code === "ENOENT" && paths.usesDefaultDataDirectory) return;
     throw new Error("inspect packaged WebUI data directory", { cause: error });
   }
-  await assertExecutableRuntime(paths.runtimePath, paths.platform);
+  await assertExecutableRuntime(paths.runtimePath, paths.requireExecutableMode);
   try {
     await exec(paths.runtimePath, ["webui", "stop", "--json"], {
       cwd: paths.packageRoot,
@@ -185,7 +182,10 @@ export async function launchPackagedCore(
     signalSource = process,
   } = {},
 ) {
-  await assertExecutableRuntime(paths.runtimePath, paths.platform);
+  await assertExecutableRuntime(paths.runtimePath, paths.requireExecutableMode);
+  if (!Array.isArray(paths.forwardedSignals) || paths.forwardedSignals.length === 0) {
+    throw new Error("platform signal contract is unavailable");
+  }
   let child;
   try {
     child = spawnImpl(paths.runtimePath, arguments_, {
@@ -204,7 +204,7 @@ export async function launchPackagedCore(
   }
 
   const handlers = new Map();
-  for (const signal of FORWARDED_SIGNALS) {
+  for (const signal of paths.forwardedSignals) {
     const handler = () => child.kill(signal);
     handlers.set(signal, handler);
     signalSource.on(signal, handler);
@@ -238,15 +238,15 @@ async function readInstalledPackageVersion(packageRoot) {
   return manifest.version;
 }
 
-async function assertExecutableRuntime(runtimePath, platform = process.platform) {
+async function assertExecutableRuntime(runtimePath, requireExecutableMode = true) {
   let info;
   try {
     info = await stat(runtimePath);
-    await access(runtimePath, platform === "win32" ? fsConstants.F_OK : fsConstants.X_OK);
+    await access(runtimePath, requireExecutableMode ? fsConstants.X_OK : fsConstants.F_OK);
   } catch (error) {
     throw new Error("packaged Core must exist and be executable", { cause: error });
   }
-  if (!info.isFile() || platform !== "win32" && (info.mode & 0o111) === 0) {
+  if (!info.isFile() || requireExecutableMode && (info.mode & 0o111) === 0) {
     throw new Error("packaged Core must exist and be executable");
   }
 }

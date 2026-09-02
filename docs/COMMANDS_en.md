@@ -66,7 +66,6 @@ artifact, and readiness step; `--json` omits these progress lines.
 | `dev-flow factory-reset ... --confirm-explicit-data <absolute-path>` | Confirm one explicit `DEV_FLOW_DATA_DIR` listed by the plan; repeat the option for multiple directories. |
 | `dev-flow factory-reset ... --permanent --confirm-reset <token> --confirm-permanent <token>` | Permanently remove the plan's exact targets; both the reset token and a separate permanent-removal token are required. |
 | `dev-flow webui start\|open\|status\|stop` | Select and verify Core from either installed Adapter, then manage the shared local Control Center; `start` may create a missing default data directory with mode `0700` on macOS or inherited user-profile/LocalAppData ACLs on Windows. The other commands create nothing. |
-| `dev-flow webui reset [--confirm TOKEN]` | Use Core's target-bound confirmation to clear incompatible Task data. |
 | `--json` / `--plain` | Select one JSON object or ANSI-free plain output. |
 
 When `DEV_FLOW_DATA_DIR` is set, the public launcher accepts only an existing canonical, non-symbolic-link absolute
@@ -256,9 +255,8 @@ accepted command surface is primarily for host integration, development, and dia
 | `dev-flow host-check pre-file-write` | **Managed Host command.** Read normalized structured-write targets from stdin, compare them with the active Task's cross-repository ExpectedPaths, and return `allow` or persist a file-scope blocker before returning `deny`. Codex/DeepSeek Adapters call it; ordinary users do not. |
 | `dev-flow webui start [--no-open] [--plain\|--json]` | Start or reuse the shared loopback WebUI; open the browser by default. |
 | `dev-flow webui open [--plain\|--json]` | Validate the receipt, process identity, and live Core status, then open the same URL. |
-| `dev-flow webui status [--plain\|--json]` | Return `ready`, `read_only`, `reset_required`, `incompatible`, or `unavailable`. |
+| `dev-flow webui status [--plain\|--json]` | Return `ready`, `read_only`, `incompatible`, or `unavailable`. |
 | `dev-flow webui stop [--plain\|--json]` | Verify PID and process-start identity before stopping the shared instance. |
-| `dev-flow webui reset [--confirm TOKEN] [--plain\|--json]` | Without a token, show the exact permanent cleanup plan; confirmation first obtains exclusive database access and deletes only bound targets. There is no reset HTTP mutation. |
 
 `dev-flow host-check pre-file-write` and `dev-flow webui serve` are internal Adapter/lifecycle entrypoints, not Host user commands. Core
 has no remote transport, generic HTTP/SSE transport, generic shell, or Git-mutation commands. Codex users start it
@@ -296,9 +294,9 @@ only submission tool for the current Action.
 
 `node_result.baseline.requirements_revision` on `dev_flow_submit_design`,
 `node_result.baseline.design_revision` on `dev_flow_submit_tasks`, and
-`node_result.task_plan_revision` on `dev_flow_submit_implementation` are optional. After validating
-the current Action identity, Core fills them from the same Task snapshot. Older clients may still send
-the exact current value; any other value returns `current_value_required` at the exact path. Other
+`node_result.task_plan_revision` on `dev_flow_submit_implementation` are absent from the Host
+submission contract. After validating the current Action identity, Core fills them from the same
+Task snapshot; supplying one returns `unknown_member` at the exact path. Other
 missing required members return exact `required_member_missing` paths. The Host may correct through the
 same submission tool once only when Core proves zero writes and the value comes from facts already
 established by the current node work.
@@ -346,9 +344,7 @@ The Task result retains the primary `repository` and adds `primary_repository_ke
 `additional_repositories`. The current Action's single `repository_binding_digest` remains the
 primary binding digest for a single-repository Task and becomes the complete Scope aggregate for a
 multi-repository Task. Every active Task's `repository_claims` are acquired, retained, or released
-in the same SQLite transaction as the snapshot and event. An incompatible old Schema follows
-`reject-and-reset`: reject with zero writes before writable open and never migrate, delete, rename,
-or overwrite the data.
+in the same SQLite transaction as the snapshot and event.
 
 The identity in `repository_claims` represents one physical worktree, not the entire Git common
 directory. Linked worktrees share a logical repository group but have different canonical roots, so

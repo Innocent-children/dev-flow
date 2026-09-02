@@ -29,10 +29,14 @@ Node.js 只用于 Monorepo 包工具和宿主适配，不是共享流程 Runtime
 保留 `darwin|win32` 与 `arm64|x64` 元数据供 npm 预筛选，再由 launcher 拒绝交叉组合、32 位和 ARM64
 Windows。
 
-普通 PR CI 在 Linux runner 运行仓库通用验证，并在 Windows x64 runner 原生构建 Core、运行完整 Go 与
-三个 Node package 的可执行测试、构建双 runtime 本地 package 以及验证 WebUI lifecycle。CI runner 都属于构建
-基础设施：Linux runner 不构成 Linux 产品支持，Windows runner 也不构成 Windows Server 产品支持声明。standalone release 可在 macOS runner 交叉构建
-Windows amd64 Core，但稳定支持仍要求 Support Matrix 中记录的真实消费版 Windows Host journey。
+`scripts/build-core-runtimes.mjs` 是双 runtime 的唯一构建入口，按 runtime key 返回路径、GOOS、GOARCH、
+Core 版本、大小和 SHA-256；本地 package、release staging 与真实 Journey 不再各自编译或解析位置参数。
+
+普通 PR CI 在 macOS arm64 runner 运行仓库通用验证和 macOS 原生 Journey，并在 Windows x64 runner
+原生构建 Core、运行完整 Go 与三个 Node package 的可执行测试、构建双 runtime 本地 package 以及验证
+WebUI lifecycle。Windows runner 不构成 Windows Server 产品支持声明。standalone release 可在 macOS
+runner 交叉构建 Windows amd64 Core，但稳定支持仍要求 Support Matrix 中记录的真实消费版 Windows
+Host journey。
 
 ## pnpm
 

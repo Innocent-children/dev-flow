@@ -37,7 +37,7 @@ func Start(ctx context.Context, dataDirectory, coreIdentity string, noOpen bool)
 		}
 		return state, nil
 	}
-	if state.Readiness == ReadinessIncompatible || state.Readiness == ReadinessResetRequired {
+	if state.Readiness == ReadinessIncompatible {
 		return state, fmt.Errorf("WebUI is %s", state.Readiness)
 	}
 	executable, err := os.Executable()
@@ -71,7 +71,7 @@ func Start(ctx context.Context, dataDirectory, coreIdentity string, noOpen bool)
 			}
 			return state, nil
 		}
-		if state.Readiness == ReadinessIncompatible || state.Readiness == ReadinessResetRequired {
+		if state.Readiness == ReadinessIncompatible {
 			return state, fmt.Errorf("WebUI is %s", state.Readiness)
 		}
 		select {
@@ -137,7 +137,6 @@ func classifyStoppedStorage(ctx context.Context, dataDirectory string, state Run
 		return state
 	}
 	if errors.Is(err, store.ErrSchemaUnsupported) || errors.Is(err, store.ErrProcessUnsupported) {
-		state.Readiness = ReadinessResetRequired
 		return state
 	}
 	if file, openErr := os.Open(databasePath); openErr == nil {

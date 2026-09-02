@@ -62,7 +62,6 @@ Codex 全局 package 与 receipt、Plugin 注册分别判断；即使注册已�
 | `dev-flow factory-reset ... --confirm-explicit-data <absolute-path>` | 确认计划中列出的一个显式 `DEV_FLOW_DATA_DIR`；多个目录时可重复传入该参数。 |
 | `dev-flow factory-reset ... --permanent --confirm-reset <token> --confirm-permanent <token>` | 永久删除计划中的精确目标；需要 reset token 和独立的永久删除 token。 |
 | `dev-flow webui start\|open\|status\|stop` | 从任一已安装 Adapter 选择并校验 Core，管理共享本机 Control Center；`start` 可创建缺失的默认数据目录：macOS 使用 `0700`，Windows 继承用户 profile/LocalAppData ACL。其余命令不创建目录。 |
-| `dev-flow webui reset [--confirm TOKEN]` | 使用 Core 的目标绑定确认清理不兼容 Task 数据。 |
 | `--json` / `--plain` | 分别选择单一 JSON 对象或无 ANSI 的纯文本结果。 |
 
 设置 `DEV_FLOW_DATA_DIR` 时，公共 launcher 只接受已存在、canonical、非符号链接的绝对目录，任何命令都
@@ -239,9 +238,8 @@ Host package 内含的 Go Core 不作为普通用户的全局 CLI 安装。以�
 | `dev-flow host-check pre-file-write` | **Host 受管命令。** 从 stdin 读取规范化的结构化写入目标，检查活动 Task 的跨仓库 ExpectedPaths，并输出 `allow` 或在写入前持久化 file-scope blocker 后输出 `deny`。Codex/DeepSeek Adapter 调用，普通用户不手工运行。 |
 | `dev-flow webui start [--no-open] [--plain\|--json]` | 启动或复用共享 loopback WebUI；默认打开浏览器。 |
 | `dev-flow webui open [--plain\|--json]` | 验证 receipt、进程身份和实时 Core 状态后打开同一 URL。 |
-| `dev-flow webui status [--plain\|--json]` | 返回 `ready`、`read_only`、`reset_required`、`incompatible` 或 `unavailable`。 |
+| `dev-flow webui status [--plain\|--json]` | 返回 `ready`、`read_only`、`incompatible` 或 `unavailable`。 |
 | `dev-flow webui stop [--plain\|--json]` | 核对 PID 与进程启动身份后停止共享实例。 |
-| `dev-flow webui reset [--confirm TOKEN] [--plain\|--json]` | 无 token 时展示精确永久清理计划；确认时先获得数据库独占访问并只删除绑定目标。WebUI 没有 reset HTTP mutation。 |
 
 `dev-flow host-check pre-file-write` 与 `dev-flow webui serve` 都是 Adapter/lifecycle 内部入口，不是 Host 用户命令。Core 不支持 remote
 transport、通用 HTTP/SSE transport、通用 shell 或 Git mutation 命令。Codex 用户应通过
@@ -278,8 +276,8 @@ step identity/order/status 与内部 payload envelope。`get_next_action` 的 `s
 
 `dev_flow_submit_design` 的 `node_result.baseline.requirements_revision`、`dev_flow_submit_tasks` 的
 `node_result.baseline.design_revision` 与 `dev_flow_submit_implementation` 的
-`node_result.task_plan_revision` 均可省略。Core 确认当前 Action 身份后，从同一 Task 快照填充这些
-字段；旧客户端仍可提交准确当前值，其他值返回准确路径的 `current_value_required`。节点提交缺少
+`node_result.task_plan_revision` 均不属于 Host 提交合同。Core 确认当前 Action 身份后，从同一 Task
+快照填充这些字段；提交任一字段会返回准确路径的 `unknown_member`。节点提交缺少
 其他必填字段时返回准确的 `required_member_missing` 路径；只有已证明零写入且修正内容来自当前节点
 既有事实时，Host 才能按 `allowed_paths` 通过同一提交工具修正一次。
 
@@ -321,9 +319,7 @@ step identity/order/status 与内部 payload envelope。`get_next_action` 的 `s
 Task result 保留主 `repository`，增加 `primary_repository_key` 与 sorted
 `additional_repositories`。当前 Action 中唯一的 `repository_binding_digest` 在单仓库 Task 中仍是
 主 binding digest，在多仓库 Task 中是完整 Scope aggregate。活动 Task 的全部
-`repository_claims` 与 snapshot/event 在同一 SQLite transaction 中 Acquire、Retain 或 Release；
-不兼容旧 Schema 采用 `reject-and-reset`，在 writable open 前零写入拒绝，不自动迁移、删除、改名
-或覆盖数据。
+`repository_claims` 与 snapshot/event 在同一 SQLite transaction 中 Acquire、Retain 或 Release。
 
 `repository_claims` 的 identity 表示实际 worktree，不是整个 Git common directory。linked
 worktree 共享逻辑仓库组标识，但 canonical root 不同，因此可以分别持有活动 Task；同一 worktree

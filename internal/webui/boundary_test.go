@@ -73,7 +73,7 @@ func TestWebBoundaryCP1(t *testing.T) {
 		}
 	})
 
-	t.Run("unknown query and reset route stay closed", func(t *testing.T) {
+	t.Run("unknown query and mutation route stay closed", func(t *testing.T) {
 		response, err := http.Get(server.URL() + "/api/tasks?unknown=value")
 		if err != nil {
 			t.Fatal(err)
@@ -82,16 +82,16 @@ func TestWebBoundaryCP1(t *testing.T) {
 		if response.StatusCode != http.StatusBadRequest {
 			t.Fatalf("unknown query status=%d", response.StatusCode)
 		}
-		reset, err := http.Get(server.URL() + "/api/system/reset")
+		unknown, err := http.Get(server.URL() + "/api/system/unsupported")
 		if err != nil {
 			t.Fatal(err)
 		}
-		reset.Body.Close()
-		if reset.StatusCode != http.StatusNotFound {
-			t.Fatalf("reset status=%d", reset.StatusCode)
+		unknown.Body.Close()
+		if unknown.StatusCode != http.StatusNotFound {
+			t.Fatalf("unknown status=%d", unknown.StatusCode)
 		}
 		body := []byte(`{"csrf":"` + server.session.Value() + `"}`)
-		request, _ := http.NewRequest(http.MethodPost, server.URL()+"/api/system/reset", bytes.NewReader(body))
+		request, _ := http.NewRequest(http.MethodPost, server.URL()+"/api/system/unsupported", bytes.NewReader(body))
 		request.Header.Set("Origin", server.URL())
 		request.Header.Set("Content-Type", "application/json")
 		mutation, err := http.DefaultClient.Do(request)
@@ -100,7 +100,7 @@ func TestWebBoundaryCP1(t *testing.T) {
 		}
 		mutation.Body.Close()
 		if mutation.StatusCode != http.StatusNotFound {
-			t.Fatalf("reset mutation status=%d", mutation.StatusCode)
+			t.Fatalf("unknown mutation status=%d", mutation.StatusCode)
 		}
 	})
 }

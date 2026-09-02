@@ -128,9 +128,8 @@ func applyRequestForCurrentAction(requestID domain.ID, host domain.Host, task do
 }
 
 // hydrateSubmissionNodeResult completes Core-owned members from the Task
-// snapshot that already passed the Action identity checks. Optional revision
-// members accept only the exact current value when supplied. Delivery authority
-// members are absent from the submission contract and rejected when supplied.
+// snapshot that already passed the Action identity checks. Core-owned members
+// are absent from the submission contract and rejected when supplied.
 // The snapshot is never re-read, so a submitted result cannot bind to Task state
 // newer than the current Action. Every failure here happens before any Task,
 // Event, Evidence or operation write.
@@ -148,8 +147,8 @@ func hydrateSubmissionNodeResult(task domain.ProcessTask, transition domain.Tran
 		if task.Requirements == nil {
 			return nil, domain.ErrInternal
 		}
-		filled, changed, err := hydrateRevisionMember(value, "requirements_revision", task.Requirements.Revision, "payload.node_result.baseline.requirements_revision")
-		if err != nil || !changed {
+		filled, err := hydrateRevisionMember(value, "requirements_revision", task.Requirements.Revision, "payload.node_result.baseline.requirements_revision")
+		if err != nil {
 			return raw, err
 		}
 		return rebuildJSON(members, "baseline", filled)
@@ -161,8 +160,8 @@ func hydrateSubmissionNodeResult(task domain.ProcessTask, transition domain.Tran
 		if task.Design == nil {
 			return nil, domain.ErrInternal
 		}
-		filled, changed, err := hydrateRevisionMember(value, "design_revision", task.Design.Revision, "payload.node_result.baseline.design_revision")
-		if err != nil || !changed {
+		filled, err := hydrateRevisionMember(value, "design_revision", task.Design.Revision, "payload.node_result.baseline.design_revision")
+		if err != nil {
 			return raw, err
 		}
 		return rebuildJSON(members, "baseline", filled)
@@ -170,8 +169,8 @@ func hydrateSubmissionNodeResult(task domain.ProcessTask, transition domain.Tran
 		if task.TaskPlan == nil {
 			return nil, domain.ErrInternal
 		}
-		filled, changed, err := hydrateRevisionMember(raw, "task_plan_revision", task.TaskPlan.Revision, "payload.node_result.task_plan_revision")
-		if err != nil || !changed {
+		filled, err := hydrateRevisionMember(raw, "task_plan_revision", task.TaskPlan.Revision, "payload.node_result.task_plan_revision")
+		if err != nil {
 			return raw, err
 		}
 		return filled, nil
@@ -245,29 +244,22 @@ func hydrateDeliveryNodeResult(task domain.ProcessTask, transition domain.Transi
 	return filled, nil
 }
 
-// hydrateRevisionMember completes one system-state revision member of one
-// object. A submitted value must equal the current value of the same Task
-// snapshot; any other value is refused with the exact member before any write.
-// The changed result is false when the member already carries that current
-// value, and the object is kept as submitted.
-func hydrateRevisionMember(object json.RawMessage, member string, current uint32, path string) (json.RawMessage, bool, error) {
+// hydrateRevisionMember adds one Core-owned revision to the canonical object.
+// Host submissions cannot supply the member.
+func hydrateRevisionMember(object json.RawMessage, member string, current uint32, path string) (json.RawMessage, error) {
 	members, ok := jsonObjectMembers(object)
 	if !ok {
-		return nil, false, domain.ErrInvalidArgument
+		return nil, domain.ErrInvalidArgument
 	}
-	if submitted, present := members[member]; present {
-		var value uint32
-		if json.Unmarshal(submitted, &value) != nil || value != current {
-			return nil, false, domain.InvalidArgumentViolations(domain.Violation(path, domain.RuleCurrentValueRequired))
-		}
-		return nil, false, nil
+	if _, present := members[member]; present {
+		return nil, domain.InvalidArgumentViolations(domain.Violation(path, domain.RuleUnknownMember))
 	}
 	members[member] = json.RawMessage(strconv.FormatUint(uint64(current), 10))
 	filled, err := json.Marshal(members)
 	if err != nil {
-		return nil, false, domain.ErrInternal
+		return nil, domain.ErrInternal
 	}
-	return filled, true, nil
+	return filled, nil
 }
 
 // rebuildJSON re-marshals one object after replacing the raw value of one

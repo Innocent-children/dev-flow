@@ -141,9 +141,7 @@ NODE
 build_root=$(mktemp -d -t dev-flow-codex-build.XXXXXX)
 trap 'rm -rf -- "$build_root"' EXIT HUP INT TERM
 stage_root="$build_root/package"
-mkdir -p "$stage_root/runtime/darwin-arm64" "$stage_root/runtime/win32-x64"
-
-"$repository_root/scripts/build-webui.sh" >/dev/null 2>&1
+mkdir -p "$stage_root"
 
 production_files='package.json
 README.md
@@ -153,6 +151,7 @@ lib/command.mjs
 lib/install-experience.mjs
 lib/lifecycle.mjs
 lib/paths.mjs
+lib/platform.mjs
 plugin/.codex-plugin/plugin.json
 plugin/.mcp.json
 plugin/hooks/hooks.json
@@ -172,29 +171,14 @@ done
 cp "$repository_root/LICENSE" "$stage_root/LICENSE"
 chmod 0755 "$stage_root/bin/dev-flow-codex.mjs"
 
-(
-  cd "$repository_root"
-  CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build \
-    -mod=readonly \
-    -trimpath \
-    -buildvcs=false \
-    -ldflags "-s -w -X github.com/Innocent-children/dev-flow/internal/version.buildVersion=$core_version" \
-    -o "$stage_root/runtime/darwin-arm64/dev-flow" \
-    ./cmd/dev-flow
-)
-chmod 0755 "$stage_root/runtime/darwin-arm64/dev-flow"
-
-(
-  cd "$repository_root"
-  CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build \
-    -mod=readonly \
-    -trimpath \
-    -buildvcs=false \
-    -ldflags "-s -w -X github.com/Innocent-children/dev-flow/internal/version.buildVersion=$core_version" \
-    -o "$stage_root/runtime/win32-x64/dev-flow.exe" \
-    ./cmd/dev-flow
-)
-chmod 0755 "$stage_root/runtime/win32-x64/dev-flow.exe"
+runtime_report=$(node "$repository_root/scripts/build-core-runtimes.mjs" --output "$stage_root/runtime")
+RUNTIME_REPORT=$runtime_report CORE_VERSION=$core_version node <<'NODE'
+const report = JSON.parse(process.env.RUNTIME_REPORT);
+if (report.coreVersion !== process.env.CORE_VERSION ||
+    JSON.stringify(Object.keys(report.runtimes).sort()) !== JSON.stringify(["darwin-arm64", "win32-x64"])) {
+  throw new Error("Core runtime build report does not match the package contract");
+}
+NODE
 
 if [ "$(uname -s)" = Darwin ] && [ "$(uname -m)" = arm64 ]; then
   reported_core=$(
@@ -205,12 +189,6 @@ if [ "$(uname -s)" = Darwin ] && [ "$(uname -m)" = arm64 ]; then
 else
   go version -m "$stage_root/runtime/darwin-arm64/dev-flow" >/dev/null
 fi
-darwin_build_metadata=$(go version -m "$stage_root/runtime/darwin-arm64/dev-flow")
-windows_build_metadata=$(go version -m "$stage_root/runtime/win32-x64/dev-flow.exe")
-printf '%s\n' "$darwin_build_metadata" | grep -Eq '[[:space:]]build[[:space:]]GOOS=darwin$' || fail "darwin Core GOOS metadata is invalid"
-printf '%s\n' "$darwin_build_metadata" | grep -Eq '[[:space:]]build[[:space:]]GOARCH=arm64$' || fail "darwin Core GOARCH metadata is invalid"
-printf '%s\n' "$windows_build_metadata" | grep -Eq '[[:space:]]build[[:space:]]GOOS=windows$' || fail "Windows Core GOOS metadata is invalid"
-printf '%s\n' "$windows_build_metadata" | grep -Eq '[[:space:]]build[[:space:]]GOARCH=amd64$' || fail "Windows Core GOARCH metadata is invalid"
 
 pack_report=$(pnpm --config.ignore-scripts=true --dir "$stage_root" pack --dry-run --json)
 PACK_REPORT=$pack_report node <<'NODE'
@@ -228,6 +206,7 @@ const expected = [
   "lib/install-experience.mjs",
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
+  "lib/platform.mjs",
   "package.json",
   "plugin/.codex-plugin/plugin.json",
   "plugin/.mcp.json",

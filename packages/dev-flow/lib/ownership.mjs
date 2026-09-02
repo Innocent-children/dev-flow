@@ -15,8 +15,9 @@ import {
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
+import { platformAdapter } from "./platform.mjs";
+
 export const DATA_DIRECTORY_ENVIRONMENT = "DEV_FLOW_DATA_DIR";
-export const SUPPORTED_RUNTIME_KEYS = Object.freeze(["darwin-arm64", "win32-x64"]);
 
 export async function resolveManagerPaths({
   homeDirectory = homedir(),
@@ -24,29 +25,22 @@ export async function resolveManagerPaths({
   platform = process.platform,
   arch = process.arch,
 } = {}) {
-  const runtimeKey = `${platform}-${arch}`;
-  if (!SUPPORTED_RUNTIME_KEYS.includes(runtimeKey)) {
-    throw new OwnershipError(`unsupported platform ${runtimeKey}; supported runtimes: ${SUPPORTED_RUNTIME_KEYS.join(", ")}`);
-  }
+  const adapter = platformAdapter(platform, arch);
   const canonicalHome = await canonicalExistingDirectory(homeDirectory, "home directory");
-  const applicationDataRoot = platform === "win32"
-    ? environment?.LOCALAPPDATA
-      ? await canonicalExistingDirectory(environment.LOCALAPPDATA, "LOCALAPPDATA")
-      : ownedPath(
-        canonicalHome,
-        join(canonicalHome, "AppData", "Local"),
-        "local application data directory",
-      )
-    : ownedPath(
-      canonicalHome,
-      join(canonicalHome, "Library", "Application Support"),
-      "application support directory",
-    );
-  const applicationDataInspectionRoot = platform === "win32" && !environment?.LOCALAPPDATA
-    ? canonicalHome
-    : applicationDataRoot;
+  const applicationData = adapter.applicationData({ homeDirectory: canonicalHome, environment });
+  const applicationDataRoot = applicationData.canonicalizeRoot
+    ? await canonicalExistingDirectory(applicationData.path, applicationData.label)
+    : ownedPath(canonicalHome, applicationData.path, applicationData.label);
+  const applicationDataInspectionRoot = applicationData.canonicalizeRoot
+    ? applicationDataRoot
+    : ownedPath(canonicalHome, applicationData.inspectionRoot, "application data inspection root");
   const productRoot = ownedPath(applicationDataRoot, join(applicationDataRoot, "dev-flow"), "product root");
   const managerRoot = ownedPath(applicationDataRoot, join(applicationDataRoot, "create-dev-flow"), "manager root");
+  const trash = adapter.trash({
+    homeDirectory: canonicalHome,
+    managerRoot,
+    inspectionRoot: applicationDataInspectionRoot,
+  });
   const configurationDirectory = ownedPath(canonicalHome, join(canonicalHome, ".dev-flow"), "configuration directory");
   const configurationPath = ownedPath(configurationDirectory, join(configurationDirectory, "config.json"), "configuration path");
   const defaultDataDirectory = ownedPath(productRoot, join(productRoot, "data"), "default data directory");
@@ -54,9 +48,15 @@ export async function resolveManagerPaths({
   const explicitDataDirectory = explicitValue === "" ? null : await canonicalExplicitDirectory(explicitValue);
   return Object.freeze({
     homeDirectory: canonicalHome,
-    platform,
-    arch,
-    runtimeKey,
+    platform: adapter.platform,
+    arch: adapter.arch,
+    runtimeKey: adapter.runtimeKey,
+    runtimeDirectory: adapter.runtimeDirectory,
+    runtimeExecutable: adapter.runtimeExecutable,
+    enforcePrivateModes: adapter.enforcePrivateModes,
+    requireExecutableMode: adapter.requireExecutableMode,
+    forwardedSignals: adapter.forwardedSignals,
+    recoverableCleanupDescription: adapter.recoverableCleanupDescription,
     applicationDataRoot,
     applicationDataInspectionRoot,
     productRoot,
@@ -67,9 +67,8 @@ export async function resolveManagerPaths({
     configurationPath,
     defaultDataDirectory,
     explicitDataDirectory,
-    trashDirectory: platform === "win32"
-      ? ownedPath(managerRoot, join(managerRoot, "trash"), "recoverable cleanup directory")
-      : ownedPath(canonicalHome, join(canonicalHome, ".Trash"), "Trash directory"),
+    trashDirectory: ownedPath(trash.inspectionRoot, trash.path, "recoverable cleanup directory"),
+    trashInspectionRoot: trash.inspectionRoot,
   });
 }
 
@@ -77,7 +76,7 @@ export async function ensureManagerDirectories(paths) {
   await rejectSymlinkComponents(paths.applicationDataInspectionRoot, paths.managerRoot);
   await mkdir(paths.runsDirectory, { recursive: true, mode: 0o700 });
   await mkdir(paths.profilesDirectory, { recursive: true, mode: 0o700 });
-  if (paths.platform !== "win32") {
+  if (paths.enforcePrivateModes) {
     await Promise.all([chmod(paths.managerRoot, 0o700), chmod(paths.runsDirectory, 0o700), chmod(paths.profilesDirectory, 0o700)]);
   }
 }
@@ -92,7 +91,7 @@ export async function ensureDefaultDataDirectory(paths) {
   const canonical = await realpath(expected);
   const info = await stat(canonical);
   if (canonical !== expected || !info.isDirectory()) throw new OwnershipError("default data directory must be canonical");
-  if (paths.platform !== "win32") await chmod(expected, 0o700);
+  if (paths.enforcePrivateModes) await chmod(expected, 0o700);
   return expected;
 }
 
@@ -124,7 +123,7 @@ export async function assertResourceUnchanged(expected) {
   return current;
 }
 
-export async function writeOwnedJSON(path, value, { root }) {
+export async function writeOwnedJSON(path, value, { root, enforcePrivateModes = true }) {
   const target = ownedPath(root, path, "JSON target");
   await rejectSymlinkComponents(root, dirname(target));
   await mkdir(dirname(target), { recursive: true, mode: 0o700 });
@@ -132,7 +131,7 @@ export async function writeOwnedJSON(path, value, { root }) {
   try {
     await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600, flag: "wx" });
     await rename(temporary, target);
-    if (process.platform !== "win32") await chmod(target, 0o600);
+    if (enforcePrivateModes) await chmod(target, 0o600);
   } catch (error) {
     await unlink(temporary).catch(() => {});
     throw error;
@@ -162,7 +161,10 @@ export async function readOwnedJSON(path, { root, validate }) {
 export async function writeProfileReceipt(paths, receipt) {
   validateProfileReceipt(receipt);
   await ensureManagerDirectories(paths);
-  await writeOwnedJSON(profileReceiptPath(paths, receipt.profile), receipt, { root: paths.managerRoot });
+  await writeOwnedJSON(profileReceiptPath(paths, receipt.profile), receipt, {
+    root: paths.managerRoot,
+    enforcePrivateModes: paths.enforcePrivateModes,
+  });
 }
 
 export async function removeProfileReceipt(paths, profile) {
@@ -192,10 +194,9 @@ export async function listProfileReceipts(paths) {
 }
 
 export async function moveTargetsToTrash(paths, targets, { now = () => new Date(), random = () => randomBytes(6).toString("hex") } = {}) {
-  const trashAnchor = paths.platform === "win32" ? paths.applicationDataInspectionRoot : paths.homeDirectory;
-  await rejectSymlinkComponents(trashAnchor, paths.trashDirectory);
+  await rejectSymlinkComponents(paths.trashInspectionRoot, paths.trashDirectory);
   await mkdir(paths.trashDirectory, { recursive: true, mode: 0o700 });
-  await rejectSymlinkComponents(trashAnchor, paths.trashDirectory);
+  await rejectSymlinkComponents(paths.trashInspectionRoot, paths.trashDirectory);
   const stamp = now().toISOString().replace(/[:.]/gu, "-");
   const trashRoot = ownedPath(paths.trashDirectory, join(paths.trashDirectory, `create-dev-flow-${stamp}-${random()}`), "Trash root");
   await mkdir(trashRoot, { mode: 0o700 });

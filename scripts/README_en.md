@@ -51,9 +51,11 @@ host needs Go, Node.js, npm, and pnpm; this entry does not require Bash to launc
 
 - `build-webui.mjs`: build and synchronize the embedded WebUI cross-platform;
   `build-webui.sh` is its Unix wrapper;
-- `build-codex-local.sh`: build the Codex source-local tarball and both darwin-arm64 and
-  windows-amd64 Core executables;
-- `build-deepseek-runtime.sh`: build both Core runtimes used by DeepSeek package tests;
+- `build-core-runtimes.mjs`: the only dual-Core runtime builder, returning one JSON report keyed by
+  runtime pair;
+- `build-codex-local.sh`: build the Codex source-local tarball from that runtime report;
+- `build-deepseek-runtime.sh`: development wrapper that writes the shared runtime build into the
+  DeepSeek source package;
 - `build-codex-release.sh` and `build-deepseek-release.sh`: prepare deterministic artifacts for a
   standalone release.
 

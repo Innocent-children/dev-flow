@@ -146,6 +146,10 @@ directory is `%LOCALAPPDATA%\dev-flow\data`, and configuration is
 `%USERPROFILE%\.dev-flow\config.json`. This source capability has not changed the stable `@latest`
 table above.
 
+Host packages select the platform implementation outside Core. macOS and Windows each own their
+local path, permission, process, signal, and executable rules, while Core Task and workflow semantics
+remain platform-neutral.
+
 Dev Flow remains early and external adoption is limited. Current boundaries include:
 
 - Core observes Git read-only and does not commit, push, merge, rebase, tag, or publish;

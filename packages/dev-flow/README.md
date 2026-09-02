@@ -31,11 +31,11 @@ dev-flow webui start
 dev-flow webui open
 dev-flow webui status
 dev-flow webui stop
-dev-flow webui reset
 ```
 
 The launcher validates installed Adapter receipts and package identities, selects the newest available compatible
 Core, and forwards only the closed WebUI command surface. It does not persist another Core or workflow state.
+Platform-specific path, permission, process, signal, and executable behavior is selected outside Core semantics.
 `dev-flow webui start` creates the product-owned default data directory with mode `0700` on macOS or inherited
 user-profile/LocalAppData ACLs on Windows when it is absent. The defaults are
 `$HOME/Library/Application Support/dev-flow/data` and `%LOCALAPPDATA%\dev-flow\data`, respectively. Explicit

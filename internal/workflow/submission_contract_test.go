@@ -218,9 +218,8 @@ func schemaRequires(schema map[string]any, name string) bool {
 	return false
 }
 
-// TestSubmissionContractProjectsOnlyHostOwnedMembers proves revision members
-// stay optional while Core-owned Delivery authority members are absent from the
-// closed submission contract.
+// TestSubmissionContractProjectsOnlyHostOwnedMembers proves every Core-owned
+// member is absent from the closed Host submission contract.
 func TestSubmissionContractProjectsOnlyHostOwnedMembers(t *testing.T) {
 	designWithoutRevision := map[string]any{
 		"problem_class": "none",
@@ -253,11 +252,8 @@ func TestSubmissionContractProjectsOnlyHostOwnedMembers(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if schemaRequires(schema, tc.revision) {
-				t.Fatalf("the submission schema still requires %s", tc.revision)
-			}
-			if !schemaDeclaresProperty(schema, tc.revision) {
-				t.Fatalf("the submission schema dropped the %s property", tc.revision)
+			if schemaRequires(schema, tc.revision) || schemaDeclaresProperty(schema, tc.revision) {
+				t.Fatalf("the submission schema exposes Core-owned member %s", tc.revision)
 			}
 			raw, err := json.Marshal(tc.nodeResult)
 			if err != nil {
@@ -297,7 +293,7 @@ func TestSubmissionContractProjectsOnlyHostOwnedMembers(t *testing.T) {
 			t.Fatalf("removed Delivery member error=%v", err)
 		}
 	})
-	t.Run("older clients keep sending the current value", func(t *testing.T) {
+	t.Run("Core-owned revision is rejected", func(t *testing.T) {
 		withRevision := map[string]any{
 			"problem_class": "none",
 			"baseline": map[string]any{
@@ -310,8 +306,8 @@ func TestSubmissionContractProjectsOnlyHostOwnedMembers(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := ValidateSubmissionNodeResult(domain.ActionCompleteDesign, raw); err != nil {
-			t.Fatalf("the older-client shape was refused: %v", err)
+		if err := ValidateSubmissionNodeResult(domain.ActionCompleteDesign, raw); err == nil {
+			t.Fatal("the submission contract accepted a Core-owned revision")
 		}
 	})
 	t.Run("model-owned members keep exact paths", func(t *testing.T) {

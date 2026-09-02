@@ -447,21 +447,6 @@ typed facts. `comprehension_passed` requires explicit current user confirmation.
 self-confirm, or infer that the user understands. Neither Spec Kit nor OpenSpec can own or replace
 the verdict.
 
-## SCHEMA_UNSUPPORTED
-
-When Core returns `SCHEMA_UNSUPPORTED`, explain that the selected data directory contains pre-graph
-or otherwise incompatible data and that Core did not modify or delete the old data. The user must
-act explicitly outside Core by choosing a fresh `DEV_FLOW_DATA_DIR`, manually archiving the old
-directory, manually renaming it, or manually deleting it.
-
-Stop current task discovery and do not continue open/create, automatically retry, reset, convert,
-migrate, install a migration tool, or create a substitute task. Never run delete, move, truncate, or
-reset operations for the user. Do not search for a local data directory or database path, and do not
-display, reveal, or expose a private path or location. Report only the stable error code and bounded
-guidance: never include a `HOME` value, username, result-envelope data path, raw SQLite error, or raw
-Git error. After the user completes an explicit external choice, they may invoke the exact Skill
-selector again; no background handling is promised.
-
 ## Recovery-before-retry contract
 
 A mutation result is uncertain when it is missing, cancelled, malformed, truncated, or

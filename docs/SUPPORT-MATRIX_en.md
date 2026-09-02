@@ -24,7 +24,7 @@ restart/resume, `DONE`, and retained reopen.
 ## Current source
 
 Current source includes the shared local WebUI, embedded assets, and `dev-flow webui
-start|open|status|stop|reset`, and closes these package runtime pairs:
+start|open|status|stop`, and closes these package runtime pairs:
 
 | Runtime pair | Current-source scope | Current evidence boundary |
 | --- | --- | --- |

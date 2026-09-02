@@ -238,17 +238,9 @@ func TestActionSubmissionDescriptionsStateCoreOwnedAssembly(t *testing.T) {
 	}
 }
 
-// TestApplyActionSchemaSurvivesHostCompaction runs the Host compaction passes
-// against both the published schema and the previous discriminated-union shape.
-// The previous shape collapses to an empty schema, which is what makes the
-// callable argument untyped; the published schema keeps its full surface.
+// TestApplyActionSchemaSurvivesHostCompaction verifies the current published
+// schema retains its callable surface after Host projection.
 func TestApplyActionSchemaSurvivesHostCompaction(t *testing.T) {
-	legacy := hostCompact(t, legacyDiscriminatedApplySchema())
-	legacyObject, ok := legacy.(map[string]any)
-	if !ok || len(legacyObject) != 0 {
-		t.Fatalf("the previous discriminated apply schema no longer reproduces the defect: %#v", legacy)
-	}
-
 	published := toolSchema(t, ToolSubmitTest)
 	compacted, ok := hostCompact(t, published).(map[string]any)
 	if !ok || compacted["type"] != "object" {
@@ -271,29 +263,6 @@ func TestApplyActionSchemaSurvivesHostCompaction(t *testing.T) {
 	if !ok || len(itemProperties) != 6 {
 		t.Fatalf("check item lost members during compaction: %#v", item)
 	}
-}
-
-// legacyDiscriminatedApplySchema reproduces the previous nine-branch root union
-// exactly as it was published, so the projection contract keeps a live witness
-// of the defect instead of a prose claim.
-func legacyDiscriminatedApplySchema() map[string]any {
-	payloads, kinds := graphPayloads()
-	generic := map[string]any{"anyOf": []any{map[string]any{"oneOf": payloads}, map[string]any{"type": "null"}}}
-	recoveryApply := obj([]string{"operation_id", "source_cursor"}, map[string]any{"operation_id": id(), "source_cursor": id()})
-	base := map[string]any{"request_id": id(), "host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "revision": map[string]any{"type": "integer", "minimum": 1}, "action_id": id(), "action_kind": id(), "process_id": map[string]any{"const": "standard-development"}, "process_definition_digest": digest(), "source_cursor": id(), "repository_binding_digest": digest(), "payload": generic, "recovery_apply": nullableSchema(recoveryApply)}
-	required := []string{"request_id", "host", "task_id", "revision", "action_id", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload"}
-	branches := make([]any, len(kinds))
-	for index, kind := range kinds {
-		properties := mergeProperties(base, map[string]any{"action_kind": map[string]any{"const": kind}, "payload": nullableSchema(payloads[index])})
-		branch := obj(required, properties)
-		branch["title"] = kind
-		branch["allOf"] = []any{map[string]any{"anyOf": []any{
-			map[string]any{"required": []string{"recovery_apply"}, "properties": map[string]any{"recovery_apply": recoveryApply}},
-			map[string]any{"properties": map[string]any{"recovery_apply": map[string]any{"type": "null"}, "payload": payloads[index]}},
-		}}}
-		branches[index] = branch
-	}
-	return map[string]any{"type": "object", "oneOf": branches}
 }
 
 // hostCompact applies the Host compaction passes in order while the modelled

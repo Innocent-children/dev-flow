@@ -21,7 +21,7 @@ Codex lifecycle evidence 覆盖 package/Core identity、安装、setup、Core ha
 
 ## 当前源码
 
-当前源码包含共享本机 WebUI、内嵌资产和 `dev-flow webui start|open|status|stop|reset`，并闭合了以下
+当前源码包含共享本机 WebUI、内嵌资产和 `dev-flow webui start|open|status|stop`，并闭合了以下
 package runtime pair：
 
 | Runtime pair | 当前源码范围 | 当前证据边界 |

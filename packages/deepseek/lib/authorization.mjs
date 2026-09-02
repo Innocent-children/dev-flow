@@ -1,5 +1,5 @@
 import { realpathSync } from "node:fs";
-import { isAbsolute, relative } from "node:path";
+import { isAbsolute, relative, sep } from "node:path";
 
 import {
   DEV_FLOW_QUALIFIED_TOOL_NAMES,
@@ -124,7 +124,7 @@ function authorizeRepositoryScope(arguments_, { workspaceRoot, realpathImpl }) {
       return `${DENIAL_CODES.REPOSITORY_PATH_INVALID}: repository "${safeRepositoryKey(repository.key)}" is not accessible.`;
     }
     const fromRoot = relative(canonicalRoot, canonicalPath);
-    if (fromRoot === ".." || fromRoot.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) || isAbsolute(fromRoot)) {
+    if (fromRoot === ".." || fromRoot.startsWith(`..${sep}`) || isAbsolute(fromRoot)) {
       return `${DENIAL_CODES.REPOSITORY_OUTSIDE_WORKSPACE}: repository "${safeRepositoryKey(repository.key)}" is outside the Workspace Root.`;
     }
   }

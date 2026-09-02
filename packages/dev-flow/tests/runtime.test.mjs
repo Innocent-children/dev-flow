@@ -61,7 +61,7 @@ test("public launcher forwards only the WebUI command surface to the selected Co
   const signalSource = new EventEmitter();
   const pending = runDevFlow(["webui", "start", "--no-open"], {
     environment: { LANG: "en_US.UTF-8" },
-    resolveCoreRuntime: async (options) => { selections.push(options); return { runtimePath: "/runtime/dev-flow", packageRoot: "/package", dataDirectory: "/data", version: "0.6.3", source: "codex" }; },
+    resolveCoreRuntime: async (options) => { selections.push(options); return { runtimePath: "/runtime/dev-flow", packageRoot: "/package", dataDirectory: "/data", version: "0.6.3", source: "codex", forwardedSignals: ["SIGINT", "SIGTERM", "SIGHUP"] }; },
     spawnImpl: (executable, arguments_, options) => { calls.push({ executable, arguments_, options }); return child; },
     signalSource,
   });

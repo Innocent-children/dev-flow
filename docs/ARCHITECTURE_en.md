@@ -165,9 +165,9 @@ record. A following transaction performs the Task revision CAS, inserts the Even
 complete Claim set, and fills the operation's `applied_revision`. The Task snapshot carries no
 recovery payload; Recovery reads the independent operation record after an uncertain response.
 
-Before write capability is exposed, Store performs a read-only preflight over the SQLite Schema,
-snapshot, process definition, Task/Action-operation/Event/Claim relationships, and current-node
-authority. Incompatible or pre-graph data returns `SCHEMA_UNSUPPORTED` with zero writes.
+Before write capability is exposed, Store performs a read-only preflight over the exact current
+SQLite Schema, snapshot, process definition, Task/Action-operation/Event/Claim relationships, and
+current-node authority. Any non-current Schema returns generic `SCHEMA_UNSUPPORTED`.
 
 ### Read-only Git Observer
 
@@ -182,16 +182,16 @@ observation before choosing rebind or `REPOSITORY_DRIFT`. An exact binding paire
 changes returns the field rule `repository_effect_not_observed` instead of being reported as real drift.
 
 Node-specific MCP tools use submission schemas derived from the complete internal schemas. The Design
-baseline's `requirements_revision`, the Tasks baseline's `design_revision`, and Implementation's
-`task_plan_revision` become optional. Delivery acceptance, automated/manual evidence IDs, and
-Test/Comprehension record IDs are removed from the submission schema and filled by Core; submitting
+baseline's `requirements_revision`, the Tasks baseline's `design_revision`, Implementation's
+`task_plan_revision`, Delivery acceptance, automated/manual evidence IDs, and Test/Comprehension
+record IDs are removed from the submission schema and filled by Core; submitting
 them is rejected as `unknown_member`. The complete internal contract remains unchanged. The MCP
 boundary recursively checks required members against the submission schema and returns exact paths for
 missing members in nested objects and array items.
 
 `SubmitAction` first validates the current Action ID, kind, and Task status, rejects duplicate JSON
-members, and fills omitted system revisions from that same Task snapshot. A value sent by an older
-client must equal the snapshot's current value. Workflow then validates the complete internal payload;
+members, and fills system revisions from that same Task snapshot. Host submissions containing these
+Core-owned members are rejected as `unknown_member`. Workflow then validates the complete internal payload;
 Application checks revisions, records, work items, passing-test conditions, user confirmation,
 acceptance, and evidence sets against the current Task. Core has already written Delivery authority
 members into the complete payload from that same Task snapshot, so they are outside caller correction.
@@ -242,8 +242,7 @@ blockers; other blocker calls retain their original identity-only input.
 Every successful Action merges Git-proven paths newly introduced relative to Action issuance into
 `task_changed_paths`. Before `implementation_ready_for_test`, `refactor_ready_for_test`, or
 `delivery_complete`, Core requires every cumulative path to match current ExpectedPaths or a consumed
-`allow_once` record. Older snapshots missing the new fields read them as empty. SQLite tables and the
-Schema version remain unchanged, while the strict codec still rejects future unknown members.
+`allow_once` record. The strict codec rejects unknown members.
 
 The two checks are not a filesystem sandbox. Bash, external processes, and some specialized tools
 may bypass the Host prewrite entry. Core can later find their paths through Git and stop unexplained
@@ -269,8 +268,7 @@ for explicit developer approval before calling `dev_flow_resolve_blocker`; resol
 retained destination. The three-attempt sliding window means another exact repetition pauses again.
 
 This capability adds no node, transition, or second process cursor, so the `standard-development`
-definition digest is unchanged. The SQLite table schema is also unchanged; an older snapshot with no
-`verification_attempts` member reads it as empty history.
+definition digest is unchanged.
 
 ### Recovery
 
@@ -297,8 +295,7 @@ that enter the same binary through `go:embed`. Application, Workflow, and Recove
 Recovery, Blocker, and Outcome; the browser only projects views and submits current identities. A receipt binds PID,
 process-start identity, data-root digest, and URL. macOS requires mode `0600`; Windows requires a regular non-symlink
 file under the user product directory. Compatible Core binaries carried by Codex and DeepSeek therefore reuse one process
-and SQLite authority. Reset stays at the CLI/Store boundary and uses a target-bound plan, exclusive SQLite access,
-and target revalidation. The HTTP route set contains no reset mutation.
+and SQLite authority.
 A typed frontend catalog maintains Simplified Chinese and English. First use follows `navigator.languages`; a manual choice
 enters local site storage only and creates no Core, Task, receipt, or account state.
 
@@ -312,6 +309,11 @@ ACL while retaining canonical-path, regular-file, and symlink checks. The Window
 process uses a separate process group and creation time as its start identity. Stop first requests
 `CTRL_BREAK`; if another console cannot deliver it or the exact process does not exit, only the
 receipt-matched process is terminated.
+
+Each npm package selects these path, permission, and executable rules through a small package-local
+platform implementation. Go process, receipt, and signal behavior lives in separate `darwin` and
+`windows` build-tag files. Platform selection stays outside Core semantics; Domain, Workflow,
+Application, and Recovery contain no operating-system decisions.
 
 `ProcessTask.Repository` continues to store the primary repository binding.
 `PrimaryRepositoryKey` defaults to `primary`, and `AdditionalRepositories` stores zero to seven
@@ -372,9 +374,8 @@ or `%USERPROFILE%\.dev-flow\config.json` on Windows). Missing configuration yiel
 for both values. Configuration and index availability never enter the Task or process digest.
 
 Before opening a writable connection, Store uses an immutable read-only preflight to verify the
-current exact Schema, closed snapshots, and complete claim sets. Old or unknown Schemas follow
-`reject-and-reset`: reject with zero writes and never migrate, delete, rename, or overwrite data.
-The user can select a new `DEV_FLOW_DATA_DIR` or archive the old directory outside Core.
+current exact Schema, closed snapshots, and complete claim sets. It implements only this current
+persistence format.
 
 ## Task interaction
 
@@ -418,8 +419,10 @@ DeepSeek  → packages/deepseek/package.json
 
 A host package contains `runtime/darwin-arm64/dev-flow` and
 `runtime/win32-x64/dev-flow.exe`; runtime selection uses only the exact OS/CPU match. Build and
-release evidence verifies each executable's GOOS, GOARCH, Core version, and digest. The Codex Plugin
-manifest only mirrors the Codex package version.
+release use the runtime-keyed JSON report produced by `scripts/build-core-runtimes.mjs`, which builds
+both targets once for local packaging, release staging, and real Host journeys. Evidence verifies
+each executable's GOOS, GOARCH, Core version, and digest. The Codex Plugin manifest only mirrors the
+Codex package version.
 
 Release tooling lives under `release/` and `scripts/`; it is not part of Core, MCP, or SQLite.
 A product release uses fixed checks, exact confirmation, an external release directory, and remote
@@ -437,11 +440,12 @@ read-back for safe retries.
 | `internal/repository/` | Read-only Git observation |
 | `internal/store/` | SQLite bootstrap, strict codec, Action operations, CAS, events, and claims |
 | `internal/mcp/` | Fifteen tools, closed JSON, and Result Envelope |
-| `packages/codex/` | Codex Plugin, Skill, lifecycle, and package |
-| `packages/deepseek/` | DSH bundle, Skill, guard, and package |
+| `packages/codex/` | Codex Plugin, Skill, lifecycle, platform implementation, and package |
+| `packages/deepseek/` | DSH bundle, Skill, guard, platform implementation, and package |
+| `packages/dev-flow/` | Unified lifecycle, Control Center launcher, and platform implementation |
 | `protocol/fixtures/` | Public contract and host-parity fixtures |
 | `tests/contract/`, `tests/journeys/` | Deterministic contract and process evidence |
-| `release/`, `scripts/` | Standalone release contracts and tooling |
+| `release/`, `scripts/` | Dual-runtime builds, standalone release contracts, and tooling |
 
 Source code, machine-readable schemas, and executable tests define current behavior. Documentation
 helps readers understand the system and is not used as runtime, build, or release input.

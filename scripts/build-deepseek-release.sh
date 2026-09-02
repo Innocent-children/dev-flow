@@ -109,8 +109,6 @@ git -C "$repository_root" worktree add --detach "$worktree_a" "$source_commit" >
 git -C "$repository_root" worktree add --detach "$worktree_b" "$source_commit" >/dev/null 2>&1 || fail "create second clean worktree"
 mkdir "$build_a" "$build_b"
 
-"$worktree_a/scripts/build-deepseek-runtime.sh" >/dev/null
-"$worktree_b/scripts/build-deepseek-runtime.sh" >/dev/null
 artifact_a="$build_a/dev-flow-deepseek-$deepseek_version.tgz"
 artifact_b="$build_b/dev-flow-deepseek-$deepseek_version.tgz"
 node "$worktree_a/packages/deepseek/tests/build-artifact.mjs" --output "$artifact_a" --source-commit "$source_commit" >/dev/null

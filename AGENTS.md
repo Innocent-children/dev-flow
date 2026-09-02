@@ -28,13 +28,62 @@ define authorized product work.
 
 - Every implementation task must map to the current request, an acceptance criterion, a public
   contract, or an approved engineering constraint.
-- Identify the exact files or directories affected before implementation.
+- Identify the exact responsibilities, files, and directories affected before implementation.
 - Do not convert rationale, examples, future candidates, or historical incidents into new behavior.
-- Do not broaden an implementation because a nearby abstraction appears useful.
-- When the request conflicts with current contracts or leaves a material product choice unresolved,
-  stop and ask for direction before changing behavior.
+- Do not broaden an implementation because a nearby abstraction appears useful. Structural changes
+  required to establish the responsibilities explicitly requested by the user remain in scope.
+- When the request deliberately replaces a current contract, update that contract and its direct
+  consumers in the same change. Stop only when the target design still leaves a material product
+  choice unresolved.
 - Historical design material is available through Git history; it is not current implementation
   authority.
+
+## Architecture and Current Design
+
+Code structure, responsibility boundaries, and long-term readability are implementation requirements,
+not optional cleanup after behavior works.
+
+Before choosing an implementation pattern, assign every affected behavior to exactly one of these
+responsibilities:
+
+- Core owns platform-neutral product semantics, the state graph, current data rules, and decisions.
+- Host adapters translate Codex, DeepSeek, CLI, MCP, and WebUI interactions without becoming workflow
+  authorities.
+- Platform implementations own operating-system-specific paths, permissions, processes, signals,
+  executable handling, file identity, and deletion behavior.
+- Build and release code owns target compilation, artifact staging, package contents, verification,
+  and publication.
+
+Apply the following rules to every redesign:
+
+- Select adapters or another design pattern only after the responsibilities are clear. A pattern is
+  useful only when it makes those responsibilities easier to understand and change.
+- Keep interfaces small and consumer-specific. Do not create one platform or Host interface that
+  combines paths, processes, files, builds, releases, and product rules.
+- Do not add a layer when a direct function or small module already expresses one responsibility
+  clearly.
+- Keep every platform difference inside its platform implementation. Adding or changing Windows or
+  another platform must not change macOS implementation details or Core semantic rules.
+- Core semantic code must not branch on the operating system. Operating-system selection belongs at
+  the platform boundary.
+- Implement only the current approved design. Do not add or retain historical-data readers, old
+  Schema migrations, old path rules, compatibility versions, compatibility branches, or fallback
+  behavior.
+- Historical Task data may be incompatible with the current design. Do not add migration, reset
+  prompts, fallback reads, or user-facing compatibility-result handling for it.
+- When the affected surface contains compatibility code alongside the current design, remove that
+  code in the same change. Remove its tests and documentation at the same time.
+- Tests describe only current behavior. Do not retain tests solely to preserve superseded data,
+  Schemas, paths, commands, or runtime behavior.
+
+Judge the resulting design by these outcomes:
+
+1. A maintainer can identify the owner of each behavior directly from the code structure.
+2. A platform change does not alter another platform's implementation.
+3. Core semantic code contains no operating-system decisions.
+4. Build, runtime, and product-data rules remain separate.
+5. Superseded compatibility code and tests are absent.
+6. Understanding current behavior does not require tracing fallback chains.
 
 ## Product Feature Proposals
 
@@ -90,9 +139,9 @@ user-visible result, and acceptance method clearly.
 
 ## Documentation and Internationalization
 
-Human-readable documentation mirrors delivered product behavior; it is not runtime, build, release,
-or test authority. The maintained locale set and document-family coverage are defined by
-`docs/I18N.md` and `docs/I18N_en.md`.
+Human-readable documentation describes only delivered current product behavior; it is not runtime,
+build, release, or test authority. The maintained locale set and document-family coverage are defined
+by `docs/I18N.md` and `docs/I18N_en.md`.
 
 Every change to user-visible behavior must update documentation in the same pull request:
 
@@ -130,6 +179,9 @@ README, and all affected root README locale snippets.
   explicit snapshot notice when they are not fully synchronized.
 - Do not leave placeholder translations, stale version numbers, untranslated new sections, or an
   English fallback copied into another locale file.
+- Remove superseded compatibility descriptions, historical Schema and path rules, migration
+  instructions, reset guidance, and historical-data incompatibility notes from every maintained
+  document in the same change that removes the behavior.
 - Preserve commands, identifiers, paths, versions, digests, code blocks, tables, Mermaid graphs, and
   support claims exactly across translations; translate prose, not product facts.
 - If synchronized translation cannot be completed, do not report the change as merge-ready.
@@ -180,7 +232,7 @@ When a change affects process behavior, define all of the following before imple
 - allowed effects and required evidence;
 - method-profile operations;
 - payload and MCP projections;
-- exact persisted-data disposition;
+- current persisted Schema and validation rules;
 - forbidden transitions and non-goals.
 
 Do not implement a node without its full edge set. Do not add a destination in code and ask the
@@ -192,8 +244,10 @@ documentation to recognize it later.
 - Implement version-only release work only through the standalone release contracts after the user
   selects a release mode; do not mix publication with ordinary product work.
 - Stop at the requested phase or checkpoint.
-- Extend the existing architecture with the smallest direct change that satisfies the requirements,
-  and prefer readable code over new abstractions.
+- Make the smallest coherent change after responsibilities and module boundaries are correct. Do not
+  minimize changed files or lines at the cost of structure, readability, or maintainability.
+- Prefer direct code over new abstractions, but perform the structural refactoring required by the
+  approved design instead of layering compatibility branches onto the old structure.
 - Do not add unrelated refactoring, frameworks, registries, DSLs, provider systems, a second state
   machine, or speculative future capability.
 - Multi-repository capability changes require an explicit, bounded requirement and complete contract
@@ -220,12 +274,13 @@ GitHub Release state after verifying source and artifact bytes.
 
 ## Test Budget
 
-Every check must trace directly to the current acceptance criteria, affected contract, or documented
-regression.
+Every check must trace directly to the current acceptance criteria, affected current contract, or a
+regression that remains relevant to current behavior.
 
 - Prefer package-local, node-local, storage-boundary-local, or user-story-local checks.
 - Do not run the complete repository suite after each edit.
 - Full matrices, stress tests, platform matrices, and real-host journeys require a concrete need.
+- Delete tests for removed compatibility behavior; do not count them as current regression coverage.
 - A release runs only the fixed package and publication checks; product-wide validation belongs to
   ordinary CI before release.
 - Never present fake, fixture, static, different-platform, or user-performed results as native
@@ -237,10 +292,13 @@ regression.
 When approved behavior changes:
 
 1. update affected public contracts and machine-readable schemas;
-2. update the implementation and direct consumers;
-3. update targeted tests for the success path, main failure paths, and known regressions;
-4. update affected documentation and maintained locales;
-5. run checks proportional to the changed surface;
-6. report exact changed paths, verification results, and remaining risks.
+2. remove superseded implementations, compatibility branches, Schema migrations, fallbacks, tests,
+   and documentation from the affected surface;
+3. update the implementation and direct consumers;
+4. update targeted tests for the current success path, main current failure paths, and regressions
+   that remain relevant;
+5. update affected documentation and maintained locales so they describe only current behavior;
+6. run checks proportional to the changed surface;
+7. report exact changed paths, verification results, and remaining current-design risks.
 
 Do not enlarge code scope first and ask documentation to approve it afterward.

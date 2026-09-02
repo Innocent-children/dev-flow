@@ -14,7 +14,7 @@ func TestZeroLengthDatabaseWithSidecarIsRejectedWithoutWrites(t *testing.T) {
 	if err := os.WriteFile(path, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(sidecar, []byte("former sqlite sidecar"), 0o600); err != nil {
+	if err := os.WriteFile(sidecar, []byte("existing sqlite sidecar"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	beforeMain, _ := os.ReadFile(path)
@@ -33,11 +33,11 @@ func TestZeroLengthDatabaseWithSidecarIsRejectedWithoutWrites(t *testing.T) {
 	}
 }
 
-func TestFutureSchemaAndUnsupportedProcessSafeStop(t *testing.T) {
-	t.Run("future schema", func(t *testing.T) {
+func TestUnsupportedSchemaAndProcessSafeStop(t *testing.T) {
+	t.Run("unsupported schema", func(t *testing.T) {
 		path := dbPath(t)
 		db := openRaw(t, path)
-		if _, err := db.Exec(`CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,applied_at TEXT,digest TEXT);INSERT INTO schema_migrations VALUES(3,'future','future')`); err != nil {
+		if _, err := db.Exec(`CREATE TABLE unsupported_schema(marker TEXT PRIMARY KEY);INSERT INTO unsupported_schema VALUES('unsupported')`); err != nil {
 			t.Fatal(err)
 		}
 		db.Close()

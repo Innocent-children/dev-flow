@@ -97,28 +97,8 @@ is not removed.
 | --- | --- |
 | `ready` | Current Core and data are usable |
 | `read_only` | Reads are available, but current mutations are not |
-| `reset_required` | The data Schema is incompatible and requires a reset plan |
 | `incompatible` | Current Core or runtime instance is incompatible |
 | `unavailable` | No usable instance or status is available |
-
-## Resetting old data
-
-Incompatible or pre-graph data follows `reject-and-reset`. Ordinary startup performs zero writes and
-returns `reset_required`. Reset is CLI-only; the browser has no reset operation:
-
-```bash
-dev-flow webui reset
-dev-flow webui reset --confirm <TOKEN-FROM-CURRENT-PLAN>
-```
-
-The first command only lists the exact current canonical database and existing SQLite sidecars. The
-token is bound to those targets. Confirmation obtains exclusive database access and rechecks every
-target. Lock failure, token mismatch, or target drift deletes nothing. Success clears only confirmed
-Task data and creates the current empty Schema; Host packages, registrations, user configuration,
-and unrelated files remain.
-On Windows, after the SQLite connection closes, file handles recheck volume/file identity, size, and
-modification time. Targets are marked for deletion only after every handle matches; a partial marking
-failure rolls back dispositions already set.
 
 ## Data and artifacts
 
@@ -127,13 +107,14 @@ Default Task data lives at `$HOME/Library/Application Support/dev-flow/data` on 
 browser cache or Host chat history. React, TypeScript, and Vite participate only in the build. HTML,
 JavaScript, CSS, SVG, and the manifest are embedded in the Core binary, so runtime use needs no Node
 server, CDN, external font, or separate WebUI package.
+Each Host package selects macOS or Windows path, permission, process, and executable behavior through
+its package-local platform implementation. WebUI and Core Task semantics contain no platform branch.
 
 ## Not currently supported
 
 - remote access, accounts, team permissions, or cloud synchronization;
 - shell, file editing, Git mutations, or publication; the page only submits Core file-scope decisions;
-- browser-based reset;
-- user-defined graphs or automatic historical-data migration;
+- user-defined graphs;
 - treating the WebUI as another Task-state authority.
 
 Consult [Project Status](PROJECT-STATUS_en.md) and the [Support Matrix](SUPPORT-MATRIX_en.md) to see

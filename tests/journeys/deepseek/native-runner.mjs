@@ -479,13 +479,6 @@ function failedProgress(reason) {
 function assertMutationIdentities(calls) {
   for (const call of calls.filter((candidate) => isActionMutationName(candidate.name))) {
     const args = JSON.parse(call.arguments);
-    if (call.name === "mcp__dev_flow__dev_flow_apply_action") {
-      for (const field of [
-        "request_id", "host", "task_id", "revision", "action_id", "action_kind",
-        "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload",
-      ]) assert.notEqual(args[field], undefined, `legacy apply_action missing ${field}`);
-      continue;
-    }
     for (const field of ["host", "task_id", "action_id", "transition_id", "summary", "reason", "artifacts", "method_results", "node_result"]) {
       assert.notEqual(args[field], undefined, `Action submission missing ${field}`);
     }
@@ -957,10 +950,7 @@ function exactDevFlowNames() {
 }
 
 function isActionMutationName(name) {
-  return typeof name === "string" && (
-    name.startsWith("mcp__dev_flow__dev_flow_submit_")
-    || name === "mcp__dev_flow__dev_flow_apply_action"
-  );
+  return typeof name === "string" && name.startsWith("mcp__dev_flow__dev_flow_submit_");
 }
 
 async function validateEvidence(evidence) {

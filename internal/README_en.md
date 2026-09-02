@@ -54,10 +54,10 @@ internal/application
         local SQLite
 ```
 
-Store accepts only the current SQLite Schema and strict snapshot. Incompatible or pre-graph data returns
-`SCHEMA_UNSUPPORTED` before write capability is exposed, with zero writes. `dev-flow webui reset` uses a target-bound
-plan and exclusive database access to clean only confirmed Task database/sidecars. The browser has no reset mutation.
-Bilingual display preference exists only in frontend local site storage and does not enter Core or Task state.
+Store implements one current SQLite Schema and strict snapshot. Any non-current Schema returns generic
+`SCHEMA_UNSUPPORTED`. Bilingual display preference exists only in frontend local site storage and does
+not enter Core or Task state. Operating-system process, receipt, and signal behavior lives in `darwin`
+and `windows` build-tag files; Domain, Workflow, Application, and Recovery contain no platform decision.
 
 ## Targeted validation
 

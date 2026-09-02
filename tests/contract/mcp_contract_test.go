@@ -162,7 +162,7 @@ func TestMCPStableErrorEnvelopesAreClosedAndRedacted(t *testing.T) {
 	_ = domain.ErrorInternal
 }
 
-func TestSchemaUnsupportedGuidanceIsBoundedAndPathFree(t *testing.T) {
+func TestSchemaUnsupportedResultIsBoundedAndPathFree(t *testing.T) {
 	encoded := core.EncodeError("schema-unsupported", core.ToolOpenTask, domain.ErrSchemaUnsupported)
 	text := string(encoded.JSON)
 	for _, forbidden := range []string{"/Users/", "/home/", "HOME=", "dev-flow.db", "SELECT ", "sqlite", "repository_path", "data_path"} {
@@ -170,7 +170,7 @@ func TestSchemaUnsupportedGuidanceIsBoundedAndPathFree(t *testing.T) {
 			t.Fatalf("SCHEMA_UNSUPPORTED leaked private/storage detail %q: %s", forbidden, text)
 		}
 	}
-	for _, required := range []string{`"code":"SCHEMA_UNSUPPORTED"`, "fresh data directory", "outside Core"} {
+	for _, required := range []string{`"code":"SCHEMA_UNSUPPORTED"`, "storage schema is unsupported", "Stop this operation"} {
 		if !strings.Contains(text, required) {
 			t.Fatalf("SCHEMA_UNSUPPORTED guidance missing %q: %s", required, text)
 		}

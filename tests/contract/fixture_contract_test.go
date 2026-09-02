@@ -2,8 +2,6 @@ package contract_test
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"io"
 	"os"
@@ -12,10 +10,6 @@ import (
 	"strings"
 	"testing"
 )
-
-const sharedFixtureAggregateSHA256 = "8c27bcf6be0e4e5a4bf294c67cbda8cdf281b1b2b2c53fff16206db2828dede7"
-
-func sha256Hex(raw []byte) string { sum := sha256.Sum256(raw); return hex.EncodeToString(sum[:]) }
 
 func TestFixtureFilesExist(t *testing.T) {
 	root := contractRepositoryRoot(t)

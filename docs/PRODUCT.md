@@ -191,3 +191,7 @@ Dev Flow 仍处于早期，外部采用有限，尚未证明能够降低缺陷�
 当前源码只选择两个精确 package runtime pair：`darwin-arm64` 与 `win32-x64`。后者的产品范围是
 Windows 10/11 桌面版 x64，不包含 Windows Server、32 位 Windows 或 Windows ARM64。源码本机证据
 不会自动扩大 npm `@latest` 的稳定支持；稳定范围仍由独立发布和最终 Host Journey 决定。
+
+平台实现只负责本机路径、权限、进程、信号和 executable 行为；Host Adapter 在 Core 外选择平台，
+Core 的 Task、状态图、数据规则和决策保持平台无关。本机 WebUI 的当前公共生命周期是
+`start|open|status|stop`。

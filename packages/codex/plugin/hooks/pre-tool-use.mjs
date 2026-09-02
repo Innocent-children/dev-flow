@@ -7,6 +7,8 @@ import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { platformAdapter } from "../../lib/platform.mjs";
+
 const MAX_INPUT_BYTES = 1024 * 1024;
 const PATCH_HEADERS = ["*** Add File: ", "*** Update File: ", "*** Delete File: ", "*** Move to: "];
 const HOST_CHECK_LAUNCHER = fileURLToPath(new URL("../../bin/dev-flow-codex.mjs", import.meta.url));
@@ -66,6 +68,7 @@ export function runHook({
   error = process.stderr,
   environment = process.env,
   platform = process.platform,
+  arch = process.arch,
   spawn = spawnSync,
   readInput = () => readFileSync(0, "utf8"),
 } = {}) {
@@ -86,12 +89,10 @@ export function runHook({
   }
   const request = preparedWriteFromHook(event);
   if (request === undefined) return 0;
-  const homeDirectory = platform === "win32"
-    ? environment.USERPROFILE || environment.HOME || homedir()
-    : environment.HOME || homedir();
-  const defaultDataDirectory = platform === "win32"
-    ? join(environment.LOCALAPPDATA || join(homeDirectory, "AppData", "Local"), "dev-flow", "data")
-    : join(homeDirectory, "Library", "Application Support", "dev-flow", "data");
+  const adapter = platformAdapter(platform, arch);
+  const homeDirectory = adapter.homeDirectory({ environment, fallback: homedir() });
+  const applicationData = adapter.applicationData({ homeDirectory, environment });
+  const defaultDataDirectory = join(applicationData.path, "dev-flow", "data");
   const dataDirectory = environment.DEV_FLOW_DATA_DIR || defaultDataDirectory;
   if (!existsSync(dataDirectory)) return 0;
   const child = spawn(process.execPath, [HOST_CHECK_LAUNCHER, "host-check", "pre-file-write"], {

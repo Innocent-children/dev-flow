@@ -1,4 +1,4 @@
-export type Readiness = "ready" | "read_only" | "reset_required" | "incompatible" | "unavailable";
+export type Readiness = "ready" | "read_only" | "incompatible" | "unavailable";
 export type Lifecycle = "active" | "blocked" | "done" | "cancelled";
 
 export interface TaskSummary {

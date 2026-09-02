@@ -54,7 +54,7 @@ func TestBootstrapFailureLeavesNoPartialSchema(t *testing.T) {
 func TestPartialSchemaIsRejectedWithoutCompletion(t *testing.T) {
 	path := dbPath(t)
 	db := openRaw(t, path)
-	if _, err := db.Exec(`CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,applied_at TEXT,digest TEXT);INSERT INTO schema_migrations VALUES(2,'x','bad')`); err != nil {
+	if _, err := db.Exec(`CREATE TABLE unexpected_schema(marker TEXT PRIMARY KEY);INSERT INTO unexpected_schema VALUES('unsupported')`); err != nil {
 		t.Fatal(err)
 	}
 	db.Close()

@@ -36,6 +36,7 @@
     "lib/install-experience.mjs",
     "lib/lifecycle.mjs",
     "lib/paths.mjs",
+    "lib/platform.mjs",
     "plugin/.codex-plugin/plugin.json",
     "plugin/.mcp.json",
     "plugin/hooks/hooks.json",

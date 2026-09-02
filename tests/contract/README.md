@@ -11,20 +11,19 @@ Release evidence。
 - `result_envelope_test.go`：typed Result Envelope、stable public errors、closed/redacted output；
 - `graph_contract_test.go`：`standard-development` 节点、29 transitions、guard/reason/problem
   class 和 method-profile public semantics；
-- `current_storage_contract_test.go`：Fresh current storage、strict snapshot、no-legacy source、unsupported/future
+- `current_storage_contract_test.go`：Fresh current storage、strict snapshot、single current runtime、unsupported
   safe-stop、lifecycle non-deletion 和 private-path redaction；
-- `fixture_contract_test.go`：current Core contract graph fixtures、Host parity、Recovery fixtures 与冻结
-  frozen linear contract inventory/parity；
-- `package_manifest_test.go`：root/Codex package closed manifest、scripts、allowlist 和 platform；
-- `release_contract_test.go`：历史 release schema/fixture/tooling freeze，不能作为当前发布动作。
+- `platform_boundary_test.go`：Core 语义层无操作系统判断、三个 package 使用封闭平台实现、双 runtime
+  只从统一构建目录产生；
+- `fixture_contract_test.go`：current Core contract graph fixtures 与 Host parity；
+- `repository_root_test.go`：repository layout、package manifest、scripts 和 executable allowlist；
+- `final_local_payload_test.go`：final local payload 与 Host 投影；
+- `webui_package_closure_test.go`：WebUI 嵌入制品闭合性。
 
 ## 证据类型
 
 - **static evidence**：checked-in manifest、schema 和 JSON fixture；
 - **deterministic contract evidence**：Go tests 对闭合 schema、ordering、allowlist、zero-write 和
   redaction 的实际执行结果；
-- **historical freeze evidence**：frozen linear contract、已发布 `0.3.0` 和既有 release fixtures，仅证明
-  已发生历史，不定义当前 graph runtime。
-
 Host parity fixture 证明 Core identity parity，不证明 DeepSeek 产品。Package/layout contract
 通过不等于 source-local artifact 已构建，也不等于 native Codex 或 public registry 验收。

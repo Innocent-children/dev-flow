@@ -14,8 +14,9 @@ import {
 } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { execPortableCommand, findCommandPath } from "./command.mjs";
-import { containedPath, SUPPORTED_RUNTIME_KEYS } from "./paths.mjs";
+import { commandResolvesToPackage, execPortableCommand, findCommandPath } from "./command.mjs";
+import { containedPath } from "./paths.mjs";
+import { SUPPORTED_RUNTIME_KEYS } from "./platform.mjs";
 
 export const CODEX_COMPATIBILITY_RANGE = ">=0.147.0";
 export const MARKETPLACE_NAME = "dev-flow-local";
@@ -86,10 +87,10 @@ export async function inspectCoreVersion(
   {
     environment = process.env,
     currentDirectory = dirname(runtimePath),
-    platform = process.platform,
+    requireExecutableMode = true,
   } = {},
 ) {
-  await assertExecutableFile(runtimePath, "packaged Core", platform);
+  await assertExecutableFile(runtimePath, "packaged Core", requireExecutableMode);
   let stdout;
   try {
     ({ stdout } = await execPortableCommand(runtimePath, ["version"], {
@@ -173,7 +174,7 @@ export async function setupRegistration({
     }
     await writeReceiptAtomic(paths.receiptPath, expectedReceipt, {
       ownedRoot: paths.productSupportRoot,
-      platform: paths.platform,
+      enforcePrivateModes: paths.enforcePrivateModes,
     });
     return {
       status: "installed",
@@ -201,7 +202,7 @@ export async function setupRegistration({
     assertMatchingRegistrationState(finalState, paths, preflight.packageVersion);
     await writeReceiptAtomic(paths.receiptPath, expectedReceipt, {
       ownedRoot: paths.productSupportRoot,
-      platform: paths.platform,
+      enforcePrivateModes: paths.enforcePrivateModes,
     });
     return {
       status: "installed",
@@ -342,29 +343,21 @@ async function preflightSetup({ paths, packageVersion, codexExecutable, environm
   }
   parseSemver(packageVersion, "package version");
   await assertPackageResources(paths, packageVersion);
-  const launcherPath = await assertExecutableOnPath("dev-flow-codex", environment, paths.platform);
+  const launcherPath = await assertExecutableOnPath(
+    "dev-flow-codex",
+    environment,
+    paths.platform,
+    paths.requireExecutableMode,
+  );
   const expectedLauncherPath = join(paths.packageRoot, "bin", "dev-flow-codex.mjs");
-  let canonicalLauncher;
-  let canonicalExpectedLauncher;
+  let launcherOwnedByPackage;
   try {
-    [canonicalLauncher, canonicalExpectedLauncher] = await Promise.all([
-      realpath(launcherPath),
-      realpath(expectedLauncherPath),
-    ]);
+    launcherOwnedByPackage = await commandResolvesToPackage(launcherPath, expectedLauncherPath, {
+      platform: paths.platform,
+      packageName: PLUGIN_NAME,
+    });
   } catch (error) {
     throw new Error("resolve the package-owned dev-flow-codex launcher on PATH", { cause: error });
-  }
-  let launcherOwnedByPackage = canonicalLauncher === canonicalExpectedLauncher;
-  if (!launcherOwnedByPackage && paths.platform === "win32") {
-    const installedLauncherPath = join(
-      dirname(launcherPath),
-      "node_modules",
-      PLUGIN_NAME,
-      "bin",
-      "dev-flow-codex.mjs",
-    );
-    const canonicalInstalledLauncher = await realpath(installedLauncherPath).catch(() => null);
-    launcherOwnedByPackage = canonicalInstalledLauncher === canonicalExpectedLauncher;
   }
   if (!launcherOwnedByPackage) {
     throw new Error("dev-flow-codex on PATH does not resolve to this installed package");
@@ -372,7 +365,7 @@ async function preflightSetup({ paths, packageVersion, codexExecutable, environm
   const coreVersion = await inspectCoreVersion(paths.runtimePath, {
     environment,
     currentDirectory: paths.packageRoot,
-    platform: paths.platform,
+    requireExecutableMode: paths.requireExecutableMode,
   });
   const codexVersion = await inspectCodexVersion(codexExecutable, {
     environment,
@@ -923,22 +916,22 @@ async function assertReadableFile(path, label) {
   }
 }
 
-async function assertExecutableFile(path, label, platform = process.platform) {
+async function assertExecutableFile(path, label, requireExecutableMode = true) {
   let info;
   try {
     info = await stat(path);
-    await access(path, platform === "win32" ? fsConstants.F_OK : fsConstants.X_OK);
+    await access(path, requireExecutableMode ? fsConstants.X_OK : fsConstants.F_OK);
   } catch (error) {
     throw new Error(`${label} must exist and be executable`, { cause: error });
   }
-  if (!info.isFile() || platform !== "win32" && (info.mode & 0o111) === 0) {
+  if (!info.isFile() || requireExecutableMode && (info.mode & 0o111) === 0) {
     throw new Error(`${label} must exist and be executable`);
   }
 }
 
-async function assertExecutableOnPath(name, environment, platform) {
+async function assertExecutableOnPath(name, environment, platform, requireExecutableMode) {
   const candidate = await findCommandPath(name, { environment, platform });
-  await assertExecutableFile(candidate, name, platform);
+  await assertExecutableFile(candidate, name, requireExecutableMode);
   return candidate;
 }
 
@@ -1057,7 +1050,7 @@ export async function readReceipt(receiptPath, options) {
 export async function writeReceiptAtomic(receiptPath, receipt, {
   ownedRoot,
   compatibilityRange,
-  platform = process.platform,
+  enforcePrivateModes = true,
 } = {}) {
   if (!ownedRoot) throw new Error("receipt owned root is required");
   assertCanonicalAbsolutePath(receiptPath, "receipt path");
@@ -1082,7 +1075,7 @@ export async function writeReceiptAtomic(receiptPath, receipt, {
   await assertNoSymbolicLinkComponents(ownedRoot, parent);
   await mkdir(parent, { recursive: true, mode: 0o700 });
   await assertNoSymbolicLinkComponents(ownedRoot, parent);
-  if (platform !== "win32") await chmod(parent, 0o700);
+  if (enforcePrivateModes) await chmod(parent, 0o700);
   await rejectSymbolicLink(receiptPath);
 
   const temporaryPath = join(parent, `.${basename(receiptPath)}.tmp-${process.pid}-${randomBytes(8).toString("hex")}`);
@@ -1093,7 +1086,7 @@ export async function writeReceiptAtomic(receiptPath, receipt, {
       flag: "wx",
     });
     await rename(temporaryPath, receiptPath);
-    if (platform !== "win32") await chmod(receiptPath, 0o600);
+    if (enforcePrivateModes) await chmod(receiptPath, 0o600);
   } catch (error) {
     await unlink(temporaryPath).catch(() => {});
     throw error;

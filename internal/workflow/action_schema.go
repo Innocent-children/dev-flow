@@ -85,12 +85,9 @@ func ActionPayloadSchemas() []ActionPayloadSchema {
 	}
 }
 
-// ActionSubmissionPayloadSchemas derives the node submission contracts from the
-// canonical payload schemas. Revision members that Core fills remain optional
-// submission properties. Delivery authority members are omitted entirely
-// because only Core owns their values. The canonical contract keeps every
-// member required, so persisted payloads, history records and the apply path
-// remain complete.
+// ActionSubmissionPayloadSchemas derives the Host submission contracts from the
+// canonical payload schemas. Every member owned by Core is absent from the
+// closed submission object and added only after the current Action is bound.
 func ActionSubmissionPayloadSchemas() []ActionPayloadSchema {
 	entries := ActionPayloadSchemas()
 	for index := range entries {
@@ -99,11 +96,11 @@ func ActionSubmissionPayloadSchemas() []ActionPayloadSchema {
 		nodeProperties, _ := nodeResult["properties"].(map[string]any)
 		switch entries[index].Kind {
 		case domain.ActionCompleteDesign:
-			makeRequiredMemberOptional(nullableObjectSchema(nodeProperties["baseline"]), "requirements_revision")
+			removeObjectMembers(nullableObjectSchema(nodeProperties["baseline"]), "requirements_revision")
 		case domain.ActionCompleteTasks:
-			makeRequiredMemberOptional(nullableObjectSchema(nodeProperties["baseline"]), "design_revision")
+			removeObjectMembers(nullableObjectSchema(nodeProperties["baseline"]), "design_revision")
 		case domain.ActionCompleteImplementation:
-			makeRequiredMemberOptional(nodeResult, "task_plan_revision")
+			removeObjectMembers(nodeResult, "task_plan_revision")
 		case domain.ActionCompleteDelivery:
 			removeObjectMembers(nodeResult, deliveryAuthorityMembers...)
 		}
@@ -148,11 +145,24 @@ func ValidateSubmissionNodeResult(kind domain.ActionKind, raw json.RawMessage) e
 	return nil
 }
 
-// unknownSubmissionMembers checks the closed top-level node_result members.
-// Nested canonical payload validation remains responsible for nested objects;
-// this boundary check ensures Core-owned Delivery members are not accepted
-// from a node submission even though they exist in the internal result type.
+// unknownSubmissionMembers walks the closed Host schema so Core-owned nested
+// members are rejected before Application adds the canonical values.
 func unknownSubmissionMembers(path string, raw json.RawMessage, schema map[string]any) []domain.ContractViolation {
+	if schema == nil || isJSONNull(raw) {
+		return nil
+	}
+	for _, keyword := range []string{"anyOf", "oneOf"} {
+		if alternatives := schemaAlternatives(schema, keyword); alternatives != nil {
+			valueType := rawJSONType(raw)
+			for _, alternative := range alternatives {
+				candidate, ok := alternative.(map[string]any)
+				if ok && unionAlternativeMatches(candidate, valueType) {
+					return unknownSubmissionMembers(path, raw, candidate)
+				}
+			}
+			return nil
+		}
+	}
 	members, ok := jsonObjectMembers(raw)
 	if !ok {
 		return nil
@@ -168,6 +178,17 @@ func unknownSubmissionMembers(path string, raw json.RawMessage, schema map[strin
 	violations := make([]domain.ContractViolation, 0, len(names))
 	for _, name := range names {
 		violations = append(violations, domain.Violation(path+"."+name, domain.RuleUnknownMember))
+	}
+	knownNames := make([]string, 0, len(members))
+	for name := range members {
+		if _, known := properties[name]; known {
+			knownNames = append(knownNames, name)
+		}
+	}
+	sort.Strings(knownNames)
+	for _, name := range knownNames {
+		member, _ := properties[name].(map[string]any)
+		violations = append(violations, unknownSubmissionMembers(path+"."+name, members[name], member)...)
 	}
 	return violations
 }
@@ -195,11 +216,7 @@ func nullableObjectSchema(value any) map[string]any {
 	return object
 }
 
-// makeRequiredMemberOptional removes one system-state member from the required
-// set of a closed object schema while keeping its property declaration, so the
-// meaning of a submitted value is unchanged and only its presence becomes
-// optional.
-func makeRequiredMemberOptional(schema map[string]any, name string) {
+func removeRequiredMember(schema map[string]any, name string) {
 	if schema == nil {
 		return
 	}
@@ -224,15 +241,15 @@ func makeRequiredMemberOptional(schema map[string]any, name string) {
 }
 
 // removeObjectMembers removes Core-owned members from one closed submission
-// object. They remain required in the canonical schema and are hydrated from
-// the current Task snapshot before canonical validation.
+// object. They remain required in the canonical schema and are filled from the
+// current Task snapshot before canonical validation.
 func removeObjectMembers(schema map[string]any, names ...string) {
 	if schema == nil {
 		return
 	}
 	properties, _ := schema["properties"].(map[string]any)
 	for _, name := range names {
-		makeRequiredMemberOptional(schema, name)
+		removeRequiredMember(schema, name)
 		delete(properties, name)
 	}
 }

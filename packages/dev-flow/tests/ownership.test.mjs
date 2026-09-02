@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, realpath, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -65,4 +65,25 @@ test("default data creation is restrictive and rejects a symbolic-link product r
   const linkedPaths = await resolveManagerPaths({ homeDirectory: linkedHome, environment: {}, platform: "darwin", arch: "arm64" });
   await assert.rejects(ensureDefaultDataDirectory(linkedPaths), /symbolic link/u);
   t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
+});
+
+test("default data creation rejects a macOS application-data symlink before writing", async (t) => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-application-data-symlink-")));
+  const home = join(root, "home");
+  const outside = join(root, "outside");
+  await mkdir(home);
+  await mkdir(outside);
+  await symlink(outside, join(home, "Library"), process.platform === "win32" ? "junction" : undefined);
+  const paths = await resolveManagerPaths({
+    homeDirectory: home,
+    environment: {},
+    platform: "darwin",
+    arch: "arm64",
+  });
+  await assert.rejects(ensureDefaultDataDirectory(paths), /symbolic link/u);
+  await assert.rejects(stat(join(outside, "Application Support", "dev-flow")), { code: "ENOENT" });
+  t.after(async () => {
+    const { rm } = await import("node:fs/promises");
+    await rm(root, { recursive: true, force: true });
+  });
 });

@@ -109,6 +109,7 @@ test("Windows hook fallback prefers USERPROFILE when HOME is also present", asyn
     error: { write: () => undefined },
     environment: { USERPROFILE: userProfile, HOME: gitHome },
     platform: "win32",
+    arch: "x64",
     spawn: (executable, arguments_, options) => {
       invocation = { executable, arguments_, options };
       return { status: 0, stdout: JSON.stringify({ decision: "allow" }), stderr: "" };

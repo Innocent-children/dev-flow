@@ -137,7 +137,7 @@ test("ordinary and corrected submissions must pass the live-schema conformance g
 });
 
 test("production adapter does not embed workflow or fixture state", async () => {
-  for (const path of ["bin/dev-flow-codex.mjs", "lib/lifecycle.mjs", "lib/paths.mjs"]) {
+  for (const path of ["bin/dev-flow-codex.mjs", "lib/lifecycle.mjs", "lib/paths.mjs", "lib/platform.mjs"]) {
     const source = await readFile(join(packageRoot, path), "utf8");
     assert.doesNotMatch(source, /tests\/fixtures|fake-(?:codex|core)|protocol\/fixtures/iu, path);
     assert.doesNotMatch(source, /\btransitionTable\b|\btaskStates?\b|\bpersistTask\b|\bsqlite\b/iu, path);

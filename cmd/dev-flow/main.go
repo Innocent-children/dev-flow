@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/application"
@@ -40,7 +39,6 @@ Usage:
   dev-flow webui open [--plain|--json]
   dev-flow webui status [--plain|--json]
   dev-flow webui stop [--plain|--json]
-  dev-flow webui reset [--confirm TOKEN] [--plain|--json]
 
 Set DEV_FLOW_DATA_DIR to an existing local data directory before starting MCP or WebUI.
 Host product integration, installation, publication, and remote transports are not included.
@@ -225,8 +223,6 @@ func runWebUI(args []string, stdout, stderr io.Writer, getenv func(string) strin
 		}
 	case "stop":
 		state, err = stopWebUI(ctx, dataDirectory, coreIdentity)
-	case "reset":
-		return runWebUIReset(ctx, dataDirectory, options.confirmToken, options.json, stdout, stderr)
 	default:
 		_, _ = io.WriteString(stderr, "dev-flow: invalid WebUI arguments; use \"dev-flow help\"\n")
 		return 2
@@ -240,9 +236,8 @@ func runWebUI(args []string, stdout, stderr io.Writer, getenv func(string) strin
 }
 
 type webUIOptions struct {
-	json         bool
-	noOpen       bool
-	confirmToken string
+	json   bool
+	noOpen bool
 }
 
 func parseWebUIOptions(command string, args []string) (webUIOptions, error) {
@@ -261,51 +256,11 @@ func parseWebUIOptions(command string, args []string) (webUIOptions, error) {
 				return webUIOptions{}, errors.New("invalid no-open option")
 			}
 			result.noOpen = true
-		case "--confirm":
-			if command != "reset" || result.confirmToken != "" || index+1 >= len(args) || strings.TrimSpace(args[index+1]) == "" {
-				return webUIOptions{}, errors.New("invalid confirmation option")
-			}
-			index++
-			result.confirmToken = args[index]
 		default:
 			return webUIOptions{}, errors.New("unknown WebUI option")
 		}
 	}
 	return result, nil
-}
-
-func runWebUIReset(ctx context.Context, dataDirectory, confirmation string, jsonOutput bool, stdout, stderr io.Writer) int {
-	databasePath := filepath.Join(dataDirectory, databaseFileName)
-	plan, err := store.PlanReset(databasePath)
-	if err != nil {
-		_, _ = io.WriteString(stderr, "dev-flow: WebUI reset plan failed\n")
-		return 1
-	}
-	if confirmation == "" {
-		if jsonOutput {
-			_ = json.NewEncoder(stdout).Encode(map[string]any{"operation": "reset", "status": "confirmation_required", "targets": plan.Targets, "confirm_token": plan.Token, "permanent": true})
-		} else {
-			_, _ = io.WriteString(stdout, "WebUI reset permanently deletes only these Task-data targets:\n")
-			if len(plan.Targets) == 0 {
-				_, _ = io.WriteString(stdout, "  (no existing Task-data files)\n")
-			}
-			for _, target := range plan.Targets {
-				_, _ = fmt.Fprintf(stdout, "  %s\n", target.Path)
-			}
-			_, _ = fmt.Fprintf(stdout, "Confirm with: dev-flow webui reset --confirm %s\n", plan.Token)
-		}
-		return 0
-	}
-	if err := store.ConfirmReset(ctx, databasePath, confirmation); err != nil {
-		_, _ = fmt.Fprintf(stderr, "dev-flow: WebUI reset failed: %v\n", err)
-		return 1
-	}
-	if jsonOutput {
-		_ = json.NewEncoder(stdout).Encode(map[string]any{"operation": "reset", "status": "completed", "deleted_targets": plan.Targets})
-	} else {
-		_, _ = io.WriteString(stdout, "WebUI Task data reset completed. Adapter packages, registrations, configuration, and unrelated files were preserved.\n")
-	}
-	return 0
 }
 
 func writeRuntimeState(output io.Writer, operation string, state webui.RuntimeState, jsonOutput bool) {

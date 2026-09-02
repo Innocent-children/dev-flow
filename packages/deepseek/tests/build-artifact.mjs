@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { createHash } from "node:crypto";
 
+import { buildCoreRuntimes } from "../../../scripts/build-core-runtimes.mjs";
+
 const execFile = promisify(execFileCallback);
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = dirname(dirname(packageRoot));
@@ -33,8 +35,13 @@ const buildRoot = await mkdtemp(join(tmpdir(), "dev-flow-deepseek-artifact-"));
 try {
   const stageRoot = join(buildRoot, "package");
   await mkdir(stageRoot, { mode: 0o755 });
-  const copied = [];
+  const runtimeReport = await buildCoreRuntimes({
+    repositoryRoot,
+    outputRoot: join(stageRoot, "runtime"),
+  });
+  const copied = Object.values(runtimeReport.runtimes).map((runtime) => `package/${runtime.relativePath}`);
   for (const relativePath of packagePaths) {
+    if (relativePath.startsWith("runtime/")) continue;
     const sourcePath = relativePath === "LICENSE"
       ? join(repositoryRoot, "LICENSE")
       : join(packageRoot, relativePath);
@@ -43,7 +50,7 @@ try {
     const destinationPath = join(stageRoot, relativePath);
     await mkdir(dirname(destinationPath), { recursive: true, mode: 0o755 });
     await copyFile(sourcePath, destinationPath);
-    await chmod(destinationPath, relativePath.startsWith("runtime/") ? 0o755 : 0o644);
+    await chmod(destinationPath, 0o644);
     copied.push(`package/${relativePath}`);
   }
 
@@ -65,15 +72,11 @@ try {
   const core = await fileIdentity(corePath);
   const windowsCorePath = join(stageRoot, "runtime", "win32-x64", "dev-flow.exe");
   const windowsCore = await fileIdentity(windowsCorePath);
-  const { stdout: windowsBuildMetadata } = await execFile("go", ["version", "-m", windowsCorePath], { encoding: "utf8" });
-  if (!/\tbuild\tGOOS=windows(?:\r?\n|$)/u.test(windowsBuildMetadata) ||
-      !/\tbuild\tGOARCH=amd64(?:\r?\n|$)/u.test(windowsBuildMetadata) ||
-      !/\tbuild\tCGO_ENABLED=0(?:\r?\n|$)/u.test(windowsBuildMetadata)) {
-    throw new Error("packaged Windows Core build metadata is invalid");
-  }
   const { stdout: coreIdentity } = await execFile(corePath, ["version"], { encoding: "utf8" });
   const coreVersion = /^dev-flow (\S+)\n?$/u.exec(coreIdentity)?.[1];
-  if (coreVersion === undefined) throw new Error("packaged Core returned an invalid version line");
+  if (coreVersion === undefined || coreVersion !== runtimeReport.coreVersion) {
+    throw new Error("packaged Core returned an invalid version line");
+  }
   process.stdout.write(`${JSON.stringify({
     source_commit: options.sourceCommit,
     package_version: manifest.version,

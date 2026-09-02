@@ -9,19 +9,19 @@ const MAX_CONFIGURATION_BYTES = 16 * 1024;
 export const SETUP_NEXT_STEP = "Review and trust the Dev Flow hook with /hooks, then use $dev-flow-codex:dev-flow <task description>";
 
 export async function ensureUserConfiguration(paths) {
-  const { configurationDirectory, configurationPath, platform = process.platform } = paths ?? {};
+  const { configurationDirectory, configurationPath, enforcePrivateModes = true } = paths ?? {};
   if (typeof configurationDirectory !== "string" || typeof configurationPath !== "string") {
     throw new Error("user configuration path is unavailable");
   }
 
-  await ensureConfigurationDirectory(configurationDirectory, platform);
+  await ensureConfigurationDirectory(configurationDirectory, enforcePrivateModes);
   try {
     await writeFile(configurationPath, DEFAULT_USER_CONFIGURATION, {
       encoding: "utf8",
       flag: "wx",
       mode: 0o600,
     });
-    if (platform !== "win32") await chmod(configurationPath, 0o600);
+    if (enforcePrivateModes) await chmod(configurationPath, 0o600);
     return Object.freeze({
       configurationPath,
       fileChange: Object.freeze({ path: configurationPath, change: "created" }),
@@ -32,7 +32,7 @@ export async function ensureUserConfiguration(paths) {
     }
   }
 
-  await validateExistingConfiguration(configurationPath, platform);
+  await validateExistingConfiguration(configurationPath, enforcePrivateModes);
   return Object.freeze({ configurationPath, fileChange: null });
 }
 
@@ -105,13 +105,13 @@ export function renderSetup(result, {
   return `${lines.join("\n")}\n`;
 }
 
-async function ensureConfigurationDirectory(path, platform) {
+async function ensureConfigurationDirectory(path, enforcePrivateModes) {
   try {
     const info = await lstat(path);
     if (info.isSymbolicLink() || !info.isDirectory()) {
       throw new Error("user configuration directory must be a regular directory");
     }
-    if (platform !== "win32" && (info.mode & 0o022) !== 0) {
+    if (enforcePrivateModes && (info.mode & 0o022) !== 0) {
       throw new Error("user configuration directory permissions are unsafe");
     }
     return;
@@ -119,10 +119,10 @@ async function ensureConfigurationDirectory(path, platform) {
     if (error?.code !== "ENOENT") throw error;
   }
   await mkdir(path, { recursive: true, mode: 0o700 });
-  if (platform !== "win32") await chmod(path, 0o700);
+  if (enforcePrivateModes) await chmod(path, 0o700);
 }
 
-async function validateExistingConfiguration(path, platform) {
+async function validateExistingConfiguration(path, enforcePrivateModes) {
   let info;
   try {
     info = await lstat(path);
@@ -132,7 +132,7 @@ async function validateExistingConfiguration(path, platform) {
   if (info.isSymbolicLink() || !info.isFile()) {
     throw new Error(`user configuration ${JSON.stringify(path)}: must be a regular non-symbolic-link file`);
   }
-  if (platform !== "win32" && (info.mode & 0o077) !== 0) {
+  if (enforcePrivateModes && (info.mode & 0o077) !== 0) {
     throw new Error(`user configuration ${JSON.stringify(path)}: permissions are unsafe`);
   }
   let raw;

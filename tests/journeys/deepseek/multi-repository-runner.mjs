@@ -12,6 +12,8 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { zstdDecompressSync } from "node:zlib";
 
+import { buildCoreRuntimes } from "../../../scripts/build-core-runtimes.mjs";
+
 const execFile = promisify(execFileCallback);
 const runnerPath = fileURLToPath(import.meta.url);
 const repositoryRoot = dirname(dirname(dirname(dirname(runnerPath))));
@@ -192,25 +194,18 @@ async function buildSourcePackage(config) {
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
   const paths = ["package.json", ...manifest.files].filter((value, index, values) => values.indexOf(value) === index);
   for (const relativePath of paths) {
-    if (relativePath === "runtime/darwin-arm64/dev-flow") continue;
+    if (relativePath.startsWith("runtime/")) continue;
     const source = relativePath === "LICENSE" ? join(repositoryRoot, "LICENSE") : join(packageRoot, relativePath);
     const destination = join(config.packageStage, relativePath);
     await mkdir(dirname(destination), { recursive: true, mode: 0o755 });
     await cp(source, destination, { recursive: true });
   }
-  const corePath = join(config.packageStage, "runtime", "darwin-arm64", "dev-flow");
-  await mkdir(dirname(corePath), { recursive: true, mode: 0o755 });
-  const coreVersion = (await readFile(join(repositoryRoot, "CORE_VERSION"), "utf8")).trim();
-  await execFile("go", [
-    "build", "-mod=readonly", "-trimpath", "-buildvcs=false",
-    "-ldflags", "-s -w -X github.com/Innocent-children/dev-flow/internal/version.buildVersion=" + coreVersion,
-    "-o", corePath, "./cmd/dev-flow",
-  ], {
-    cwd: repositoryRoot,
-    env: { ...process.env, CGO_ENABLED: "0", GOOS: "darwin", GOARCH: "arm64" },
-    timeout: 120_000,
+  const runtimeReport = await buildCoreRuntimes({
+    repositoryRoot,
+    outputRoot: join(config.packageStage, "runtime"),
   });
-  await chmod(corePath, 0o755);
+  const corePath = runtimeReport.runtimes["darwin-arm64"].path;
+  const coreVersion = runtimeReport.coreVersion;
   assert.equal((await execFile(corePath, ["version"], { encoding: "utf8" })).stdout.trim(), "dev-flow " + coreVersion);
   const packed = JSON.parse((await execFile("npm", [
     "pack", config.packageStage, "--json", "--pack-destination", config.artifactDirectory,

@@ -75,6 +75,7 @@ const codexFinalStagingFiles = [
   "lib/install-experience.mjs",
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
+  "lib/platform.mjs",
   "package.json",
   "plugin/.codex-plugin/plugin.json",
   "plugin/.mcp.json",
@@ -100,6 +101,7 @@ const expectedByProfile = {
     "lib/journal.mjs",
     "lib/lifecycle.mjs",
     "lib/ownership.mjs",
+    "lib/platform.mjs",
     "lib/plan.mjs",
     "lib/presentation.mjs",
     "lib/runtime.mjs",
@@ -125,7 +127,9 @@ run_step "Codex release prepare syntax" bash -n scripts/build-codex-release.sh
 run_step "DeepSeek runtime build syntax" bash -n scripts/build-deepseek-runtime.sh
 run_step "DeepSeek release prepare syntax" bash -n scripts/build-deepseek-release.sh
 run_step "Cross-platform WebUI build syntax" node --check scripts/build-webui.mjs
+run_step "Cross-platform Core runtime build syntax" node --check scripts/build-core-runtimes.mjs
 run_step "Cross-platform local package syntax" node --check scripts/dev-flow-local.mjs
+run_step "Cross-platform build contracts" node --test scripts/build-core-runtimes.test.mjs scripts/dev-flow-local.test.mjs
 run_step "npm release publisher syntax" node --check release/publish.mjs
 run_step "npm release publisher behavior" node --test release/publish.test.mjs
 run_step "Codex one-command release syntax" node --check scripts/release-codex.mjs
@@ -149,7 +153,7 @@ run_step "DeepSeek simulated graph journey" \
   node --test tests/journeys/deepseek/simulated-graph-journey.test.mjs
 run_step "Go package inventory" go list ./...
 run_step "Go vet" go vet ./...
-run_step "Go tests and repository contracts" go test ./...
+run_step "Go tests and repository contracts" go test -p 1 ./...
 run_step "pnpm workspace inventory" pnpm --recursive list --depth -1
 run_step "Codex package dry-pack" validate_package_pack packages/codex dev-flow-codex codex-source
 run_step "Dev Flow manager and public launcher tests" node --test packages/dev-flow/tests/*.test.mjs
