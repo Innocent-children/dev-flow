@@ -1,0 +1,12 @@
+{
+  "name": "@dev-flow/comprehensive-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test ./*.test.mjs",
+    "test:qualification": "node --test ./qualification.test.mjs"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}
