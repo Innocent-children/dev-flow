@@ -166,6 +166,13 @@ func TestTaskReadModelsExposeRepositoryGroupAndWorktree(t *testing.T) {
 	if err != nil || len(detail.Repositories) != 1 || detail.Repositories[0].RepositoryGroupID != group || detail.Repositories[0].Path != "/worktrees/task-a" {
 		t.Fatalf("detail projection=%+v err=%v", detail.Repositories, err)
 	}
+	raw, err := json.Marshal(detail)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), `"task_changed_paths":[]`) {
+		t.Fatalf("task changed paths must be a JSON array: %s", raw)
+	}
 }
 
 type stubControlCenterMutator struct {
