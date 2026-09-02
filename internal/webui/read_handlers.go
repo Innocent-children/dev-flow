@@ -187,7 +187,14 @@ func projectTaskDetail(requestID string, detail application.ControlCenterTaskDet
 		return TaskDetailResponse{}, err
 	}
 	scope := application.CurrentFileScopeStatus(detail.Task)
-	fileScope := FileScopeView{ExpectedPaths: scope.ExpectedPaths, TaskChangedPaths: scope.TaskChangedPaths, UnexplainedPaths: scope.UnexplainedPaths, CoveredHostTools: scope.CoveredHostTools, DecisionCount: len(scope.Records), FinalCheckEnabled: scope.FinalCheckEnabled}
+	fileScope := FileScopeView{
+		ExpectedPaths:     append([]string{}, scope.ExpectedPaths...),
+		TaskChangedPaths:  append([]string{}, scope.TaskChangedPaths...),
+		UnexplainedPaths:  append([]string{}, scope.UnexplainedPaths...),
+		CoveredHostTools:  append([]string{}, scope.CoveredHostTools...),
+		DecisionCount:     len(scope.Records),
+		FinalCheckEnabled: scope.FinalCheckEnabled,
+	}
 	return TaskDetailResponse{OK: true, RequestID: requestID, Readiness: readiness, Summary: summary, Intent: detail.Task.Intent.Request, AcceptanceCriteria: criteria, VerificationBudget: string(budget), MethodProfile: string(detail.Task.Intent.MethodProfile), Repositories: repositories, Baselines: baselines, Records: records, Evidence: evidence, Blocker: blocker, Outcome: outcome, Events: events, Graph: projectGraph(detail.Graph), CurrentAction: currentAction, FileScope: fileScope}, nil
 }
 
