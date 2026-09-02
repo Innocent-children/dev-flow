@@ -17,6 +17,7 @@ const repositoryRoot = dirname(dirname(packageRoot));
 const pluginRoot = join(packageRoot, "plugin");
 const execFile = promisify(execFileCallback);
 const currentVersion = (await readFile(join(repositoryRoot, "CORE_VERSION"), "utf8")).trim();
+const packageIconUrl = "https://raw.githubusercontent.com/Innocent-children/dev-flow/main/packages/webui/src/assets/dev-flow-app-icon-light.svg";
 
 const expectedPackageFiles = [
   ".agents/plugins/marketplace.json",
@@ -61,6 +62,11 @@ const expectedPackedFiles = [
   "runtime/darwin-arm64/dev-flow",
   "runtime/win32-x64/dev-flow.exe",
 ].sort();
+
+test("package README displays the public Dev Flow icon", async () => {
+  const readme = await readFile(join(packageRoot, "README.md"), "utf8");
+  assert.match(readme, new RegExp(`<img src="${packageIconUrl}" width="112" height="112" alt="Dev Flow" \\/>`));
+});
 
 test("source package declares one public macOS arm64 and Windows x64 Codex product", async () => {
   const [coreVersion, manifest, plugin, marketplace, mcp] = await Promise.all([

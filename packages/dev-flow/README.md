@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Innocent-children/dev-flow/main/packages/webui/src/assets/dev-flow-app-icon-light.svg" width="112" height="112" alt="Dev Flow" />
+</p>
+
 # @imotong/dev-flow
 
 `@imotong/dev-flow` is the Host-neutral lifecycle and Control Center CLI for Dev Flow.

@@ -5,6 +5,12 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+const packageIconUrl = "https://raw.githubusercontent.com/Innocent-children/dev-flow/main/packages/webui/src/assets/dev-flow-app-icon-light.svg";
+
+test("package README displays the public Dev Flow icon", async () => {
+  const readme = await readFile(join(packageRoot, "README.md"), "utf8");
+  assert.match(readme, new RegExp(`<img src="${packageIconUrl}" width="112" height="112" alt="Dev Flow" \\/>`));
+});
 
 test("manifest exposes one dependency-free public macOS arm64 and Windows x64 Dev Flow package", async () => {
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));

@@ -12,6 +12,7 @@ import { execPortableCommand } from "../../dev-flow/lib/command.mjs";
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = dirname(dirname(packageRoot));
 const execFile = promisify(execFileCallback);
+const packageIconUrl = "https://raw.githubusercontent.com/Innocent-children/dev-flow/main/packages/webui/src/assets/dev-flow-app-icon-light.svg";
 
 const expectedPackageFiles = [
   "LICENSE",
@@ -46,6 +47,11 @@ const lifecycleHooks = [
   "uninstall",
   "postuninstall",
 ];
+
+test("package README displays the public Dev Flow icon", async () => {
+  const readme = await readFile(join(packageRoot, "README.md"), "utf8");
+  assert.match(readme, new RegExp(`<img src="${packageIconUrl}" width="112" height="112" alt="Dev Flow" \\/>`));
+});
 
 test("manifest declares one public macOS arm64 and Windows x64 ESM DeepSeek bundle", async () => {
   const manifest = await readJSON(join(packageRoot, "package.json"));

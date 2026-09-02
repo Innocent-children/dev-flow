@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Innocent-children/dev-flow/main/packages/webui/src/assets/dev-flow-app-icon-light.svg" width="112" height="112" alt="Dev Flow" />
+</p>
+
 # dev-flow-codex
 
 [中文](https://github.com/Innocent-children/dev-flow/blob/main/packages/codex/README.md) |
