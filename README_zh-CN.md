@@ -1,133 +1,141 @@
+<p align="center">
+  <img src="packages/webui/src/assets/dev-flow-app-icon-light.svg" width="112" height="112" alt="Dev Flow 图标" />
+</p>
+
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>让长时间运行的 AI 编程任务守住你定下的改动范围和测试上限，并在继续前知道当前结果是否可信。</strong></p>
+<p align="center"><strong>让长时间运行的 AI 编程任务守住你定下的改动范围和测试上限。</strong></p>
+
+<p align="center">面向 Codex 与 DeepSeek 的本机约束、持久进度和安全恢复。</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/@imotong/dev-flow"><img alt="npm @latest" src="https://img.shields.io/badge/npm-%40latest-CB3837?style=flat-square&logo=npm&logoColor=white" /></a>
+  <a href="docs/SUPPORT-MATRIX.md"><img alt="稳定平台：macOS arm64" src="https://img.shields.io/badge/platform-macOS%20arm64-111827?style=flat-square&logo=apple&logoColor=white" /></a>
+  <a href="LICENSE"><img alt="Apache License 2.0" src="https://img.shields.io/badge/license-Apache--2.0-3867F5?style=flat-square" /></a>
+</p>
 
 <p align="center">
   <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-## 当一个代码任务开始失控
+<p align="center">
+  <a href="#快速开始">快速开始</a> · <a href="packages/codex/README.md">Codex</a> · <a href="packages/deepseek/README.md">DeepSeek</a> · <a href="docs/WEBUI.md">Control Center</a> · <a href="#文档">文档</a>
+</p>
 
-假设你对 Agent 说：
+## 把任务守在你同意的范围内
 
-```text
-增加登录失败限流。只修改认证相关文件，最多运行 4 项定向检查。
-```
+长时间的代码任务很少突然失败，更多时候是逐渐走偏：一个计划外文件变成三个，定向检查变成没有
+上限的测试，同一个失败又触发一轮相似修改，或者会话重启后只能从残缺的聊天记录重建进度。
 
-任务比预期更久。Agent 想顺手改一份相邻配置，定向测试一直失败，会话又在剩余检查完成前重启。
-这时，光看聊天记录很难回答几个关键问题：额外文件真的属于这次需求吗？还能跑多少测试？再试一次
-会有新信息吗？之前通过的检查还适用于现在的代码吗？
+Dev Flow 把已经同意的请求、预计路径、验证预算、当前阶段和结果保存在本机 Task 中。Codex 或
+DeepSeek 仍然负责读代码、改文件和跑命令；Dev Flow 让范围变化、重复尝试、恢复和交付都成为
+看得见、需要明确决定的事情。
 
-Dev Flow 把这些决定和任务放在一起。Agent 仍然负责读代码、改文件和跑命令；Dev Flow 让扩大范围、
-增加测试、重复尝试和最终交付变成看得见、需要明确决定的事情，而不是任务悄悄变大。
+## 它会守住什么
 
-## 使用后有什么不同
-
-| 直接使用 Agent | 使用 Dev Flow |
+| 关注点 | Dev Flow 的处理方式 |
 | --- | --- |
-| 文件范围只写在提示词里 | 计划会记住预计文件；受支持的计划外写入先暂停，让你决定 |
-| “只跑定向测试”可能逐渐变成开放式测试 | 自动检查有固定上限，完整测试需要提前允许 |
-| 同一个失败容易触发下一轮相似修改 | 第三次完全重复时暂停，要求换思路或明确同意继续 |
-| 会话重启后靠残缺聊天重建进度 | 新会话继续同一个任务、同一组限制和剩余检查 |
-| 代码改了，旧的测试通过仍可能被沿用 | 与当前代码不再匹配的结果会在交付前作废 |
-
-## 最值得关注的地方
-
-### 任务不会悄悄扩大
-
-每项工作都会记下预计修改的文件和需要完成的检查。受支持的结构化工具要写计划外文件时，会在
-写入前暂停；你可以只允许这一次、修改计划或拒绝。进入测试和完成任务之前，还会再次核对实际
-改过的路径，包括没有经过写前检查的工具产生的路径。
-
-### 重试必须带来新信息
-
-Dev Flow 会比较最近三次测试尝试。只有同一个失败检查、完整结果，或“修改同一批文件后仍得到
-同一失败”连续完全重复时才会暂停。需求、计划或实现发生变化后，旧测试和旧的人工确认也会失效，
-不能拿昨天的绿灯批准今天的代码。
-
-### 中断后继续，不靠猜，也不盲目重试
-
-请求、计划、当前进度、检查记录和阻塞原因保存在本机，不只存在聊天里。新会话可以继续同一个
-任务。如果一次 Dev Flow 操作没有返回明确结果，集成会先读取已保存的操作和当前仓库，再判断
-是否可以安全重试。
-
-### 交付由开发者决定
-
-测试通过是必要条件，但不是全部。交付前，开发者还要看过实际改动、不必要的复杂度和维护风险，
-并明确确认自己能够解释和维护结果。之后代码再变，就要重新测试。
-
-### 在本机看清整个任务
-
-当前源码包含本机 Control Center，可以查看 Codex 与 DeepSeek 共用的任务、当前进度、计划路径与
-实际路径、检查历史、重复尝试暂停和下一步决定。它读取同一份本机数据，不是云端看板，也不会
-另外保存一套任务状态。
+| **改动范围** | 记录预计路径；受支持的计划外写入先暂停；测试与完成前再次核对累计修改路径。 |
+| **验证投入** | 保存命令预算；完整测试需要事先允许；同一失败或无变化结果第三次完全重复时暂停。 |
+| **持久进度** | Task 不只存在聊天里，新会话可以继续同一阶段、限制、记录和阻塞原因。 |
+| **结果是否仍有效** | 请求、计划、实现或仓库变化后，让不再适用的测试与理解确认失效。 |
+| **开发者确认** | 交付前检查实际改动、不必要的复杂度和维护风险，由开发者确认结果。 |
 
 ## 快速开始
+
+> 稳定 npm `@latest` 目前已验证 macOS arm64；Host Adapter 需要 Node.js `>=24`。
+> 其他环境安装前请先看[支持矩阵](docs/SUPPORT-MATRIX.md)。
+
+### 1. 安装并连接 Host
 
 ```bash
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
+交互界面可以为 Codex、DeepSeek 或两者安装 Dev Flow。之后也可以从同一入口查看状态、诊断、
+升级、修复或移除。
+
+### 2. 启动一个有边界的 Task
+
+在 **Codex** 中发送这条用户消息：
+
 ```text
-$dev-flow-codex:dev-flow 增加登录失败限流。只改认证相关文件，最多运行 4 项定向检查。
-/dev-flow 增加登录失败限流。只改认证相关文件，最多运行 4 项定向检查。
+$dev-flow-codex:dev-flow 增加登录失败限流。只修改认证相关文件，最多运行 4 项定向检查。
 ```
 
-安装、状态、恢复和移除方式见 [Codex 使用说明](packages/codex/README.md)、
-[DeepSeek 使用说明](packages/deepseek/README.md)和[命令参考](docs/COMMANDS.md)。
+在 **DeepSeek Harness** 中发送：
 
-## 适合与不适合
+```text
+/dev-flow 增加登录失败限流。只修改认证相关文件，最多运行 4 项定向检查。
+```
 
-Dev Flow 适合会跨会话、需要明确文件边界、必须限制测试投入、可能返工，或需要在交付前完成清楚
-交接的真实仓库任务。
+这两项是对话 selector，不是 shell 命令。尽量写清目标、验收条件、文件边界和测试上限。
 
-一次性问答、代码解释、状态查询和无需保存进度的机械性小改动，直接使用 Codex 或 DeepSeek 通常
-更简单。Dev Flow 不是通用项目管理工具、远程执行服务或安全沙箱。
+### 3. 恢复或查看进度
 
-## 当前真正可用的范围
+会话重启后，回到参与 Task 的仓库，再次使用同一个 Host selector。Dev Flow 会读取已保存的 Task，
+从当前阶段继续，不需要根据聊天记录重新猜进度。
 
-### 稳定 npm `@latest`
+```bash
+# 只读查看 Adapter 状态
+dev-flow status --host all
 
-| 产品 | 已验证环境 |
+# 打开本机 Control Center
+dev-flow webui start
+```
+
+Control Center 会展示当前阶段、计划路径与实际路径、检查历史、阻塞、恢复建议和下一项决定。
+Codex、DeepSeek 与页面读取的是同一份本机 Task 数据。
+
+非交互安装、Host 原生命令、自定义 DeepSeek Profile、升级和移除方式见[命令参考](docs/COMMANDS.md)。
+
+## Task 运行时会发生什么
+
+1. **先定边界。** Task 保存请求、参与仓库、预计路径、工作项和验证预算。
+2. **由 Host 执行。** Codex 或 DeepSeek 修改代码；受支持的结构化文件工具在写入计划外路径前询问。
+3. **核对真实改动。** 测试和完成前，Core 再核对本 Task 的累计修改路径，包括没有经过写前检查的改动。
+4. **停止无效循环。** 第三次完全重复时暂停，要求换一种做法或明确允许继续。
+5. **只交付当前结果。** 代码后来发生变化，旧检查就会失效；测试和开发者理解确认必须对应最终实现。
+
+如果一次操作没有返回明确结果，集成会先读取已保存的 Action 和当前仓库，再判断能否安全重试。
+
+## 什么时候适合使用
+
+| 适合使用 Dev Flow | 直接使用 Host 更简单 |
+| --- | --- |
+| 任务可能跨会话、重启或多天 | 一次性问答或代码解释 |
+| 需要明确限制修改文件和测试投入 | 小型机械修改，不需要保存进度 |
+| 返工时不能沿用已经过期的结果 | 只想查询状态或讨论方案 |
+| 交付前需要开发者清楚复核 | 不需要持久 Task 或恢复状态 |
+
+## 支持范围
+
+| 稳定 npm `@latest` 产品 | 已验证环境 |
 | --- | --- |
 | `dev-flow-codex` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
 | `dev-flow-deepseek` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
 | `@imotong/dev-flow` | macOS arm64、Node.js `>=20` |
 
-稳定记录覆盖 package 安装、就绪检查、移除、卸载和目标仓库不变性。DeepSeek 的稳定 Journey 还
-覆盖明确触发、重启、完成任务和重新打开已保留的数据。
-
-### 当前源码与公开记录
-
-- 当前源码包含本机 WebUI、文件范围决定、自动重复刹车，以及精确的 `darwin-arm64` 和 `win32-x64` runtime。
-- Windows 目前只是源码能力：已有 Windows 11 本机记录，但还没有稳定 `@latest` Host Journey。
-- [PR #8](https://github.com/Innocent-children/dev-flow/pull/8) 记录了一次真实 Codex Journey，覆盖重启、
-  重构、重新测试、开发者理解确认、交付和完成。
-
-这些记录各自只说明自己的范围，不能合并成“一次运行证明全部能力”。
-
-### 尚未证明或尚未稳定
-
-- 外部使用数据尚未证明 Dev Flow 能降低测试成本、缺陷率或维护成本。
-- 外部采用和长期重复使用记录仍然有限。
-- Linux、Windows Server、Windows 32 位与 ARM64、Intel Mac、Rosetta 和 remote MCP 没有稳定支持声明。
-- 团队视图、云端同步、Task 导出和明确的跨 Host 交接仍是未来工作。
+当前源码还包含本机 WebUI 和精确的 `win32-x64` runtime，但 Windows 尚未完成稳定 `@latest`
+Host Journey。稳定平台声明以[支持矩阵](docs/SUPPORT-MATRIX.md)为准；[项目状态](docs/PROJECT-STATUS.md)
+集中说明稳定发布、仅源码能力、公开 Journey 和当前缺口。
 
 ## 边界
 
+- Dev Flow 是控制层，不是编程 Agent；文件修改和命令执行仍由用户授权的 Codex 或 DeepSeek 完成。
 - Go Core 只读观察 Git，不执行 commit、push、merge、rebase、tag 或 publish。
-- 文件修改和命令执行仍由用户授权的 Codex 或 DeepSeek 完成。
-- 写前检查只覆盖列出的结构化工具。Bash 和外部工具可能先写入，因此 Dev Flow 不是 shell 或文件系统沙箱。
-- WebUI 只在本机 loopback 运行，面向单用户，不提供远程访问或团队权限。
-- 稳定支持只以[支持矩阵](docs/SUPPORT-MATRIX.md)为准。
+- 写前检查只覆盖列出的 Host 结构化工具。Bash 和外部工具可能先写入，因此 Dev Flow 不是 shell
+  或文件系统沙箱。
+- Control Center 只监听本机 loopback，面向单用户，不提供远程访问、云同步或团队权限。
 
 ## 文档
 
-- [产品定义](docs/PRODUCT.md) · [演示](docs/DEMO.md) · [项目状态](docs/PROJECT-STATUS.md) · [路线图](docs/ROADMAP.md)
-- [架构](docs/ARCHITECTURE.md) · [命令](docs/COMMANDS.md) · [WebUI](docs/WEBUI.md) · [支持矩阵](docs/SUPPORT-MATRIX.md)
-- [安全策略](SECURITY.md) · [威胁模型](docs/THREAT-MODEL.md) · [文档职责](MANIFEST.md) · [贡献指南](CONTRIBUTING.md)
+- **先了解产品：** [产品定义](docs/PRODUCT.md) · [演示](docs/DEMO.md) · [项目状态](docs/PROJECT-STATUS.md)
+- **开始使用：** [Codex](packages/codex/README.md) · [DeepSeek](packages/deepseek/README.md) · [命令](docs/COMMANDS.md) · [Control Center](docs/WEBUI.md)
+- **了解实现：** [架构](docs/ARCHITECTURE.md) · [支持矩阵](docs/SUPPORT-MATRIX.md) · [路线图](docs/ROADMAP.md)
+- **安全与贡献：** [安全策略](SECURITY.md) · [威胁模型](docs/THREAT-MODEL.md) · [贡献指南](CONTRIBUTING.md)
 
-## License
+## 许可证
 
 [Apache License 2.0](LICENSE)

@@ -1,112 +1,145 @@
+<p align="center">
+  <img src="packages/webui/src/assets/dev-flow-app-icon-light.svg" width="112" height="112" alt="Dev Flow 아이콘" />
+</p>
+
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>오래 실행되는 AI 코딩 작업을 정한 변경 범위와 테스트 한도 안에 유지하고, 이어가기 전에 현재 결과를 믿을 수 있는지 확인합니다.</strong></p>
+<p align="center"><strong>오래 실행되는 AI 코딩 작업을 정한 변경 범위와 테스트 한도 안에 유지합니다.</strong></p>
+
+<p align="center">Codex와 DeepSeek를 위한 로컬 가드레일, 지속되는 진행 상태, 안전한 복구.</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/@imotong/dev-flow"><img alt="npm @latest" src="https://img.shields.io/badge/npm-%40latest-CB3837?style=flat-square&logo=npm&logoColor=white" /></a>
+  <a href="docs/SUPPORT-MATRIX_en.md"><img alt="안정 플랫폼: macOS arm64" src="https://img.shields.io/badge/platform-macOS%20arm64-111827?style=flat-square&logo=apple&logoColor=white" /></a>
+  <a href="LICENSE"><img alt="Apache License 2.0" src="https://img.shields.io/badge/license-Apache--2.0-3867F5?style=flat-square" /></a>
+</p>
 
 <p align="center">
   <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-## 코딩 작업이 범위를 벗어나기 시작할 때
+<p align="center">
+  <a href="#빠른-시작">빠른 시작</a> · <a href="docs/CODEX_en.md">Codex</a> · <a href="docs/DEEPSEEK_en.md">DeepSeek</a> · <a href="docs/WEBUI_en.md">Control Center</a> · <a href="#문서">문서</a>
+</p>
 
-Agent에게 다음과 같이 요청했다고 가정해 보세요.
+## 승인한 범위 안에서 작업 유지
 
-```text
-로그인 실패 속도 제한을 추가하세요. 인증 관련 파일만 변경하고 대상 확인을 최대 4개 실행하세요.
-```
+긴 코딩 작업은 한순간에 실패하기보다 조금씩 벗어납니다. 계획 밖 파일 하나가 세 개로 늘고, 대상 확인이
+끝없는 테스트가 되며, 같은 실패가 비슷한 수정으로 이어지거나 재시작한 세션이 불완전한 채팅 기록에서
+진행 상황을 다시 만들어야 합니다.
 
-작업이 길어지면서 인접 설정 파일까지 바꾸려 하고, 같은 테스트가 계속 실패하며, 남은 확인을 끝내기 전에
-세션이 재시작됩니다. 채팅만으로는 추가 파일이 정말 필요한지, 테스트를 얼마나 더 할 수 있는지, 다시
-시도할 가치가 있는지, 예전 통과 결과가 지금 코드에도 맞는지 판단하기 어렵습니다.
+Dev Flow는 합의한 요청, 예정 경로, 검증 예산, 현재 단계, 결과를 로컬 Task에 저장합니다. Codex 또는
+DeepSeek가 계속 코드를 읽고 파일을 수정하고 명령을 실행하며, Dev Flow는 범위 변경, 반복 시도, 복구,
+전달을 눈에 보이는 명시적 결정으로 만듭니다.
 
-Dev Flow는 이런 결정을 작업과 함께 보관합니다. Agent는 그대로 코드를 읽고 수정하고 명령을 실행하지만,
-범위 확대, 추가 테스트, 반복 시도, 완료 여부는 조용히 바뀌지 않고 명확한 결정이 됩니다.
+## 통제하는 항목
 
-## Dev Flow가 만드는 차이
-
-| Agent만 사용할 때 | Dev Flow를 사용할 때 |
+| 항목 | Dev Flow의 동작 |
 | --- | --- |
-| 파일 제한이 프롬프트에만 있음 | 예정 파일을 기록하고 지원되는 계획 밖 쓰기는 결정을 기다림 |
-| “대상 테스트만”이 끝없이 늘어날 수 있음 | 자동 확인에 상한이 있고 전체 스위트는 사전 허용이 필요 |
-| 같은 실패가 비슷한 수정으로 이어짐 | 세 번째 정확한 반복에서 멈추고 다른 방법이나 명시적 승인을 요구 |
-| 재시작 후 불완전한 채팅으로 진행 상황을 복원 | 같은 작업, 제한, 남은 확인을 이어감 |
-| 코드가 바뀌어도 예전 통과 결과를 사용 | 현재 코드와 맞지 않는 결과는 전달 전에 무효화 |
-
-## 핵심 장점
-
-### 작업이 몰래 커지지 않습니다
-
-각 작업에는 예정 파일과 필요한 확인이 있습니다. 지원되는 도구가 계획 밖 파일에 쓰기 전에 멈추며, 한 번
-허용, 계획 수정, 거부 중 하나를 선택합니다. 테스트와 완료 전에는 실제 변경 경로를 다시 확인합니다.
-
-### 재시도는 새 정보를 만들어야 합니다
-
-최근 세 번의 테스트를 비교하여 같은 실패, 같은 결과, 또는 같은 파일 변경과 실패가 정확히 반복될 때만
-멈춥니다. 요구사항, 계획, 구현이 바뀌면 오래된 테스트와 개발자 확인은 더 이상 사용할 수 없습니다.
-
-### 추측하거나 무작정 재실행하지 않고 이어갑니다
-
-요청, 계획, 진행 상태, 확인 기록, 중단 이유는 로컬에 저장됩니다. 새 세션에서도 같은 작업을 이어가며,
-작업 결과가 불확실하면 저장 내용과 현재 repository를 읽은 뒤 재시도를 결정합니다.
-
-### 완료는 개발자가 결정합니다
-
-테스트 통과만으로 끝나지 않습니다. 개발자가 실제 변경, 불필요한 복잡성, 유지보수 위험을 확인하고 결과를
-설명하고 관리할 수 있다고 명시적으로 확인합니다. 이후 코드가 바뀌면 다시 테스트합니다.
-
-### 로컬에서 전체 작업을 확인합니다
-
-현재 소스의 로컬 Control Center에서 Codex와 DeepSeek 작업, 진행 상태, 예정/실제 경로, 테스트 기록,
-반복 중단, 다음 결정을 볼 수 있습니다. 클라우드 대시보드가 아닙니다.
+| **변경 범위** | 예정 경로를 기록하고, 지원되는 계획 밖 쓰기를 멈추며, 테스트와 완료 전에 누적 변경 경로를 다시 확인합니다. |
+| **검증 비용** | 명령 예산을 보관하고, 전체 스위트에 사전 허용을 요구하며, 같은 실패나 변화 없는 결과가 세 번째 정확히 반복되면 멈춥니다. |
+| **지속되는 진행 상태** | Task를 채팅 밖에 저장해 새 세션에서도 같은 단계, 제한, 기록, Blocker를 이어갑니다. |
+| **현재도 유효한 결과** | 요청, 계획, 구현 또는 repository가 바뀌면 더 이상 맞지 않는 테스트와 이해 확인을 무효화합니다. |
+| **개발자 확인** | 전달 전에 실제 변경, 불필요한 복잡성, 유지보수 위험을 개발자가 확인하도록 합니다. |
 
 ## 빠른 시작
+
+> 안정 npm `@latest`는 현재 macOS arm64에서 검증되었습니다. Host Adapter에는 Node.js `>=24`가
+> 필요합니다. 다른 환경에 설치하기 전에 [Support Matrix](docs/SUPPORT-MATRIX_en.md)를 확인하세요.
+
+### 1. 설치하고 Host 연결하기
 
 ```bash
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
+대화형 설정에서 Codex, DeepSeek 또는 둘 다에 Dev Flow를 설치할 수 있습니다. 이후에도 같은 진입점에서
+상태 확인, 진단, 업그레이드, 복구, 제거를 실행할 수 있습니다.
+
+### 2. 범위가 정해진 Task 시작하기
+
+**Codex**에서는 다음 내용을 사용자 메시지로 보냅니다.
+
 ```text
 $dev-flow-codex:dev-flow 로그인 실패 속도 제한을 추가하세요. 인증 관련 파일만 변경하고 대상 확인을 최대 4개 실행하세요.
+```
+
+**DeepSeek Harness**에서는 다음을 보냅니다.
+
+```text
 /dev-flow 로그인 실패 속도 제한을 추가하세요. 인증 관련 파일만 변경하고 대상 확인을 최대 4개 실행하세요.
 ```
 
-## 적합한 작업
+이는 shell 명령이 아니라 대화 selector입니다. 목표, 인수 조건, 파일 범위, 테스트 한도를 최대한 구체적으로
+작성하세요.
 
-여러 세션에 걸치고, 파일 범위나 테스트 양을 제한해야 하며, 재작업이나 명확한 전달이 필요한 실제 repository
-작업에 적합합니다. 일회성 질문, 설명, 상태 확인, 작은 기계적 변경은 Agent만 쓰는 편이 간단합니다.
+### 3. 이어서 하거나 확인하기
 
-## 현재 사용 가능한 범위
+세션이 재시작되면 Task에 참여하는 repository로 돌아가 같은 Host selector를 다시 사용하세요. Dev Flow는
+저장된 Task를 읽고 채팅에서 진행 상황을 재구성하지 않고 현재 단계부터 이어갑니다.
 
-### 안정 npm `@latest`
+```bash
+# Adapter 상태를 읽기 전용으로 확인
+dev-flow status --host all
 
-| 제품 | 검증된 환경 |
+# 로컬 Control Center 열기
+dev-flow webui start
+```
+
+Control Center에는 현재 단계, 예정/실제 경로, 확인 기록, Blocker, 복구 안내, 다음 결정이 표시됩니다.
+Codex, DeepSeek, 화면은 모두 같은 로컬 Task 데이터를 읽습니다.
+
+비대화형 설정, Host 기본 명령, 사용자 지정 DeepSeek Profile, 업그레이드, 제거는
+[Command Reference](docs/COMMANDS_en.md)를 참고하세요.
+
+## Task 진행 중 동작
+
+1. **범위를 정합니다.** Task에 요청, 참여 repository, 예정 경로, 작업 항목, 검증 예산을 저장합니다.
+2. **Host가 작업합니다.** Codex 또는 DeepSeek가 코드를 변경하고, 지원되는 구조화 파일 도구는 계획 밖 경로에 쓰기 전에 묻습니다.
+3. **실제 변경을 확인합니다.** 테스트와 완료 전에 Core가 쓰기 전 확인을 거치지 않은 변경까지 포함해 Task의 누적 변경 경로를 다시 대조합니다.
+4. **무의미한 반복을 멈춥니다.** 세 번째 정확한 반복에서 Task를 멈추고 다른 방법이나 명시적인 계속 허용을 요구합니다.
+5. **현재 결과만 전달합니다.** 나중의 코드 변경은 오래된 확인을 무효화합니다. 테스트와 개발자 이해 확인은 최종 구현과 일치해야 합니다.
+
+작업이 명확한 응답 없이 끝나면, 통합은 재시도가 안전한지 결정하기 전에 저장된 Action과 현재
+repository를 읽습니다.
+
+## 언제 사용하면 좋은가
+
+| Dev Flow가 적합한 경우 | Host를 직접 쓰는 편이 간단한 경우 |
+| --- | --- |
+| 작업이 여러 세션, 재시작, 여러 날에 걸칠 수 있음 | 일회성 질문이나 코드 설명 |
+| 변경 파일과 테스트 비용에 명확한 한도가 필요함 | 진행 상태 저장이 필요 없는 작은 기계적 변경 |
+| 재작업에서 오래된 결과를 재사용하면 안 됨 | 상태 확인이나 설계 논의만 필요함 |
+| 전달 전에 개발자의 명확한 검토가 필요함 | 지속되는 Task나 복구 상태가 필요 없음 |
+
+## 지원
+
+| 안정 npm `@latest` 제품 | 검증된 환경 |
 | --- | --- |
 | `dev-flow-codex` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
 | `dev-flow-deepseek` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
 | `@imotong/dev-flow` | macOS arm64, Node.js `>=20` |
 
-안정 기록은 설치, 준비 상태, 제거, 삭제, 대상 repository 불변성을 다룹니다. DeepSeek 안정 Journey는 명시적
-실행, 재시작, 완료, 보관 데이터 다시 열기도 포함합니다.
+현재 소스에는 로컬 WebUI와 정확한 `win32-x64` runtime도 포함되지만 Windows에는 아직 안정
+`@latest` Host Journey가 없습니다. 안정 플랫폼 범위는 [Support Matrix](docs/SUPPORT-MATRIX_en.md)를
+따르며, 안정 릴리스, 소스 전용 기능, 공개 Journey, 현재 부족한 부분은
+[Project Status](docs/PROJECT-STATUS_en.md)에 정리되어 있습니다.
 
-### 현재 소스와 공개 기록
+## 경계
 
-- 소스에는 로컬 WebUI, 파일 범위 결정, 자동 반복 중단, `darwin-arm64`와 `win32-x64`가 있습니다.
-- Windows는 현재 소스 기능입니다. Windows 11 실기 기록은 있지만 안정 `@latest` Host Journey는 없습니다.
-- [PR #8](https://github.com/Innocent-children/dev-flow/pull/8)은 재시작, 리팩터링, 재테스트, 이해 확인, 전달, 완료를 다룬 실제 Codex Journey입니다.
+- Dev Flow는 제어 계층이며 코딩 Agent가 아닙니다. 사용자가 허용한 Codex 또는 DeepSeek가 파일 변경과 명령을 실행합니다.
+- Go Core는 Git을 읽기 전용으로 관찰하며 commit, push, merge, rebase, tag, publish를 실행하지 않습니다.
+- 쓰기 전 확인은 나열된 Host 구조화 도구만 다룹니다. Bash와 외부 도구가 먼저 쓸 수 있으므로 shell 또는 파일 시스템 sandbox가 아닙니다.
+- Control Center는 로컬 loopback에서 한 사용자만을 위해 실행되며 원격 접속, 클라우드 동기화, 팀 권한을 제공하지 않습니다.
 
-### 아직 검증되지 않았거나 안정적이지 않은 내용
+## 문서
 
-- 테스트 비용, 결함률, 유지보수 비용 감소는 외부 사용으로 입증되지 않았고 장기 도입 기록도 제한적입니다.
-- Linux, Windows Server, 32비트/ARM64 Windows, Intel Mac, Rosetta, remote MCP는 안정 지원 대상이 아닙니다.
-- 팀 보기, 클라우드 동기화, Task 내보내기, 명시적 Host 간 인계는 향후 기능입니다.
+- **제품 이해:** [Product](docs/PRODUCT_en.md) · [Demo](docs/DEMO_en.md) · [Project Status](docs/PROJECT-STATUS_en.md)
+- **사용 방법:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Commands](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
+- **시스템 이해:** [Architecture](docs/ARCHITECTURE_en.md) · [Support Matrix](docs/SUPPORT-MATRIX_en.md) · [Roadmap](docs/ROADMAP_en.md)
+- **보안과 기여:** [Security](SECURITY.md) · [Threat Model](docs/THREAT-MODEL_en.md) · [Contributing](CONTRIBUTING_en.md)
 
-## 경계와 문서
-
-- Core는 Git을 읽기 전용으로 관찰하며 commit, push, merge, rebase, tag, publish를 실행하지 않습니다.
-- 쓰기 전 확인은 나열된 구조화 도구만 다루며 shell 또는 파일 시스템 sandbox가 아닙니다.
-- WebUI는 로컬 loopback의 단일 사용자용입니다.
-- [Product](docs/PRODUCT_en.md) · [Demo](docs/DEMO_en.md) · [Project Status](docs/PROJECT-STATUS_en.md) · [Architecture](docs/ARCHITECTURE_en.md) · [Commands](docs/COMMANDS_en.md) · [Support Matrix](docs/SUPPORT-MATRIX_en.md)
-
-## License
+## 라이선스
 
 [Apache License 2.0](LICENSE)
