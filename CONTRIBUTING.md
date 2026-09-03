@@ -1,96 +1,101 @@
-# Dev Flow 贡献指南
+# Contributing to Dev Flow
 
-[中文](CONTRIBUTING.md) | [English](CONTRIBUTING_en.md)
+[中文](CONTRIBUTING_zh-CN.md) | [English](CONTRIBUTING.md)
 
-Dev Flow 接受可复现的缺陷、文档修正、经过最终制品验证的平台支持，以及围绕真实开发问题提出的
-有界产品改进。
+Dev Flow accepts reproducible defects, documentation corrections, platform support backed by
+final-artifact evidence, and bounded product improvements grounded in real development problems.
 
-## 变更分类
+## Change classification
 
-| 变更 | 要求 |
+| Change | Requirement |
 | --- | --- |
-| 拼写、链接、翻译或现有行为说明修正 | 可以直接提交有界 Pull Request；按照 [I18n 策略](docs/I18N.md) 同步对应文档族和受影响的 9 个根 README |
-| 模板或文档维护规则变化 | 说明影响范围；不修改产品版本，不执行发布 |
-| 不改变公共语义的实现缺陷 | 说明已批准合同与实际行为的偏差，并只修复该偏差 |
-| 用户可见行为、Core/MCP 合同、持久化、状态图或 Host Adapter 合同变化 | 在 Pull Request 中说明用户问题、范围、验收条件和方案，并同步实现、测试、文档与 i18n |
-| 版本提升、npm、Tag 或 GitHub Release | 不作为普通 Pull Request 的交付步骤；由维护者在功能合并后使用独立发布流程执行 |
+| Spelling, links, translation, or correction of existing behavior documentation | Open a bounded pull request directly and synchronize the affected document family and root README locales according to the [I18n policy](docs/I18N_en.md) |
+| Template or documentation-maintenance rule change | Explain the affected surface; do not change product versions or perform a release |
+| Implementation defect that does not change public semantics | Identify the gap between the approved contract and actual behavior, then fix only that gap |
+| User-visible behavior, Core/MCP contract, persistence, process graph, or host-adapter contract change | Explain the user problem, scope, acceptance criteria, and approach in the pull request, and synchronize implementation, tests, documentation, and i18n |
+| Version bump, npm publication, Tag, or GitHub Release | Do not make this an ordinary pull-request deliverable; maintainers run the separate release flow after product work is merged |
 
-分类不明确时，先提交 Issue，描述用户问题、当前行为和预期结果。不要先实现较大方案，再要求规格
-接受已经完成的代码。
+When classification is unclear, open an Issue first and describe the user problem, current behavior,
+and expected result. Do not implement a large solution and then ask the specification to accept the
+completed code.
 
-## 提交 Issue
+## Opening an Issue
 
-缺陷报告请尽量包含：
+A useful bug report includes:
 
-- 使用的产品与版本，例如 Core、`dev-flow-codex` 或 `dev-flow-deepseek`；
-- 操作系统、CPU、Node.js 与 Host 版本；
-- 最小复现步骤；
-- 预期结果与实际结果；
-- 已去除密钥、私有路径和个人数据的日志或错误输出；
-- 问题是否涉及安装、显式触发、Task 流转、Recovery、数据目录或卸载。
+- the product and version, such as Core, `dev-flow-codex`, or `dev-flow-deepseek`;
+- operating system, CPU, Node.js version, and host version;
+- minimal reproduction steps;
+- expected and actual results;
+- logs or errors with secrets, private paths, and personal data removed;
+- whether the issue concerns installation, explicit activation, Task transitions, Recovery, the data
+  directory, or removal.
 
-产品提案应先说明具体用户问题、当前流程为什么无法解决，以及如何判断改进有效。实现方案可以讨论，
-但不能直接替代需求定义。
+A product proposal should first explain the concrete user problem, why the current workflow cannot
+solve it, and how success would be measured. An implementation approach may be discussed, but it does
+not replace requirement definition.
 
-### 产品功能提案模板
+### Product feature proposal template
 
 ```markdown
-## 用户事件
+## User event
 
-真实发生了什么？
+What actually happened?
 
-## 当前做法
+## Current approach
 
-没有 Dev Flow 时，用户如何处理？
+How does the user handle it without Dev Flow?
 
-## Dev Flow 可确认的事实
+## Facts Dev Flow can confirm
 
-Task、Action、仓库和证据能确定什么？
+What can the Task, Action, repository, and retained evidence determine?
 
-## 应作出的判断
+## Decision to make
 
-继续、复核、重试、阻塞还是请求用户决定？
+Should the system continue, review, retry, block, or ask the user to decide?
 
-## 用户可见结果
+## User-visible result
 
-用户最终会看到什么变化？
+What change will the user ultimately see?
 
-## 错误成本
+## Cost of error
 
-误放行和误阻塞分别有什么后果？
+What are the consequences of a false allow and a false block?
 
-## 验收证据
+## Acceptance evidence
 
-使用什么测试、故障注入或真实 Host Journey 证明？
+Which test, fault injection, or real Host journey demonstrates the result?
 
-## 明确不做
+## Explicit non-goals
 
-本次不扩展哪些能力？
+Which capabilities will this change not expand?
 ```
 
-### 功能决策门禁
+### Product decision gate
 
-进入实现前，提案需要清楚回答：
+Before implementation, a proposal must answer clearly:
 
-1. 是否直接改善长时任务的可信继续？
-2. 是否基于 Task、Action、仓库观察或已有记录，而不是只依赖 Agent 自述？
-3. 是否减少用户判断当前状态和下一步的成本？
-4. 是否可以建立可重复的真实 Host Journey？
-5. 是否保持一个 Core Task 状态？
-6. 是否增加了不必要的流程步骤？
-7. 是否只是为了支持更多平台、Host 或界面而横向扩张？
+1. Does it directly improve trustworthy continuation of a long-running task?
+2. Is it based on Task, Action, repository observation, or retained records rather than only the
+   agent's narrative?
+3. Does it reduce the user's effort to judge current state and next step?
+4. Can it establish a repeatable real-Host journey?
+5. Does it retain one Core Task state?
+6. Does it add unnecessary process steps?
+7. Is it horizontal expansion only for another platform, Host, or interface?
 
-不能回答清楚用户问题、用户可见结果和验收方式的提案，不应直接进入实现。
+A proposal that cannot explain the user problem, visible result, and acceptance method should not
+move directly into implementation.
 
-## 本地环境
+## Local environment
 
-仓库开发需要：
+Repository development requires:
 
-- Go `>=1.26`；
-- Node.js `>=24`；
-- pnpm `>=11 <12`。
+- Go `>=1.26`;
+- Node.js `>=24`;
+- pnpm `>=11 <12`.
 
-先在 GitHub Fork 本仓库，再从自己的 Fork 创建分支：
+Fork the repository on GitHub, then create a branch from your fork:
 
 ```bash
 git clone https://github.com/<your-account>/dev-flow.git
@@ -101,69 +106,82 @@ git checkout -b <type>/<short-description> upstream/main
 pnpm install --frozen-lockfile
 ```
 
-开始修改前，请阅读 [I18n 策略](docs/I18N.md)、[命令参考](docs/COMMANDS.md) 和与变更直接
-相关的文档。
+Before editing, read the [I18n policy](docs/I18N_en.md), the
+[Command Reference](docs/COMMANDS_en.md), and the documents directly related to the change.
 
-## 实施原则
+## Implementation principles
 
-- 只解决 Pull Request 明确描述的问题，不加入未来能力、通用框架或无关重构；
-- Go Core 继续独占 Task、节点、合法流转、恢复分类和终态权威；
-- Core 只读观察 Git，不增加 shell、commit、push、merge、tag 或发布能力；
-- 只运行与改动表面、验收条件或已知风险直接相关的验证；
-- 改变用户可见行为时，必须同步 9 个根 README、`docs/PRODUCT*` 和受影响的技术文档；
-- 文档修正必须同步该文档族的简中/英文配对文件，以及所有受影响的根 README locale；
-- 新增或修改命令时，对照 package manifest、CLI parser、DSH lifecycle、Core parser 或 MCP catalog，并同步 `docs/COMMANDS*`；
-- 面向用户的 npm 安装示例使用 `@latest`，人类阅读文档不记录精确产品版本；
-- 不在普通功能或文档 Pull Request 中提升版本或执行发布。
+- Solve only the problem stated by the pull request; do not add future capabilities, generic
+  frameworks, or unrelated refactoring.
+- Keep Go Core as the sole authority for Tasks, nodes, legal transitions, recovery classification,
+  and terminal outcomes.
+- Keep Core's Git observation read-only; do not add shell, commit, push, merge, tag, or publication
+  authority.
+- Run only validation directly connected to the changed surface, acceptance criteria, or known risk.
+- A user-visible behavior change must synchronize all nine root README files, `docs/PRODUCT*`, and
+  affected technical documentation.
+- A documentation correction must synchronize the paired Chinese/English technical family and every
+  affected root README locale.
+- When adding or changing a command, verify it against the package manifest, CLI parser, DSH lifecycle,
+  Core parser, or MCP catalog and synchronize `docs/COMMANDS*`.
+- Public npm installation examples use `@latest`; human-readable documentation contains no exact
+  product release versions.
+- Do not bump versions or perform a release from an ordinary feature or documentation pull request.
 
-## 验证
+## Validation
 
-文档改动至少检查：
+At minimum, documentation changes should confirm that:
 
-- Markdown、表格、代码块和 Mermaid 在 GitHub 上正常渲染；
-- 语言导航中的所有文件存在且互相可达；
-- 简中/英文文档族的章节结构、命令、平台和支持声明一致；
-- 9 个根 README 的定位、能力、命令、平台、稳定支持和边界一致；
-- 所有普通安装示例使用 `@latest`，精确产品版本只存在于机器可读文件和发布记录；
-- `docs/COMMANDS*` 与实际可执行 command/tool catalog 一致；
-- 非英文文件没有占位翻译或整段英文 fallback；
-- 没有扩大当前 [支持矩阵](docs/SUPPORT-MATRIX.md) 的声明。
+- Markdown, tables, code fences, and Mermaid render correctly on GitHub;
+- every file in the language navigation exists and links back to the other locales;
+- section structure, commands, platforms, and support claims are aligned in paired Chinese/English
+  document families;
+- all nine root README files keep position, capability, commands, platforms, stable support, and
+  boundaries aligned;
+- every ordinary installation example uses `@latest`, while exact product versions remain in
+  machine-readable files and release records;
+- `docs/COMMANDS*` matches the executable command and tool catalog;
+- non-English files contain no placeholder translation or whole-section English fallback;
+- the change does not broaden claims in the current
+  [Support Matrix](docs/SUPPORT-MATRIX_en.md).
 
-代码改动优先运行受影响 package、节点、合同或用户故事的定向检查。完整仓库验证只在变更合同要求
-的最终检查点运行：
+For code changes, prefer targeted checks for the affected package, node, contract, or user story. Run
+repository-wide validation only at the final checkpoint required by the change contract:
 
 ```bash
 pnpm run validate
 ```
 
-不要反复运行完整套件作为泛化保险，也不要把模拟、静态检查或用户手工结果描述为真实 Host 最终
-制品证据。
+Do not repeatedly run the complete suite as generic insurance, and do not present simulation, static
+checks, or user-performed results as real-host final-artifact evidence.
 
-## Pull Request 要求
+## Pull request requirements
 
-从最新 `main` 创建分支，并在 Pull Request 中说明：
+Create the branch from current `main` and explain:
 
-1. 当前问题；
-2. 本次实际修改；
-3. 明确未修改的范围；
-4. 执行过的验证及结果；
-5. 验收条件及对应的测试或合同；
-6. 修改的文档族和已同步的 locale；
-7. 命令或安装文档所对应的实现来源。
+1. the current problem;
+2. what the change actually modifies;
+3. the explicit non-goals;
+4. validation performed and its result;
+5. acceptance criteria and their corresponding tests or contracts;
+6. the document families changed and locales synchronized;
+7. the implementation source for each installation or command claim.
 
-建议使用简洁的 Conventional Commit 风格，例如：
+Concise Conventional Commit-style messages are recommended, for example:
 
 ```text
 docs: synchronize README locales
 fix(store): reject invalid snapshot before writable open
 ```
 
-Pull Request 应保持可独立审查。文档重写、产品行为变化、无关重构和版本发布应拆分为不同变更。
+A pull request should remain independently reviewable. Split documentation rewrites, product
+behavior changes, unrelated refactors, and version publication into separate changes.
 
-## 发布边界
+## Release boundary
 
-合并产品工作不等于立即发布。Core、Codex 和 DeepSeek 独立版本化；维护者在变更合并后填写产品、
-channel 和精确版本，再执行固定检查、版本对齐、构建、回读、Tag、npm 和 GitHub Release。
+Merging product work does not publish it immediately. Core, Codex, and DeepSeek have independent
+versions. After changes are merged, maintainers select the product, channel, and exact version, then
+run the fixed checks, version alignment, build, read-back, Tag, npm, and GitHub Release operations.
 
-提交 Pull Request 即表示你同意你的贡献按照本仓库的
-[Apache License 2.0](LICENSE) 提供。
+By submitting a pull request, you agree that your contribution is provided under this repository's
+[Apache License 2.0](LICENSE).

@@ -85,7 +85,7 @@ Dev Flow 适合会跨会话、需要明确文件范围、必须限制测试投�
 ## 文档
 
 - **使用说明：** [Codex](packages/codex/README.md) · [DeepSeek](packages/deepseek/README.md) · [命令参考](docs/COMMANDS.md) · [Control Center](docs/WEBUI.md)
-- **项目资料：** [产品定义](docs/PRODUCT.md) · [支持矩阵](docs/SUPPORT-MATRIX.md) · [安全策略](SECURITY.md) · [贡献指南](CONTRIBUTING.md)
+- **项目资料：** [产品定义](docs/PRODUCT.md) · [支持矩阵](docs/SUPPORT-MATRIX.md) · [安全策略](SECURITY.md) · [贡献指南](CONTRIBUTING_zh-CN.md)
 
 ## 许可证
 

@@ -20,7 +20,7 @@ executable tests decide current behavior, and the documentation must be correcte
 | `docs/COMMANDS_en.md` | Complete lifecycle, Host, Core, selector, and MCP entrypoint reference |
 | `docs/WEBUI_en.md` | Local visualization and diagnostics, security boundaries, and reset |
 | `docs/SUPPORT-MATRIX_en.md` | Verified package, platform, and Host coverage |
-| `CONTRIBUTING_en.md` | Rules for issues, product proposals, documentation, and code contributions |
+| `CONTRIBUTING.md` | Rules for issues, product proposals, documentation, and code contributions |
 | Host README | Installation, startup, recovery, status, removal, and Host-specific behavior |
 
 README, PRODUCT, and Host README files do not repeat protocol fields, the complete MCP catalog, or

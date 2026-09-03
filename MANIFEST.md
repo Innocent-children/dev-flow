@@ -19,7 +19,7 @@
 | `docs/COMMANDS.md` | lifecycle、Host、Core、selector 和 MCP 工具的完整可执行入口 |
 | `docs/WEBUI.md` | 本机可视化与诊断入口的使用、安全边界和 reset 流程 |
 | `docs/SUPPORT-MATRIX.md` | 已验证 package、平台和 Host 范围 |
-| `CONTRIBUTING.md` | Issue、产品提案、文档和代码贡献规则 |
+| `CONTRIBUTING_zh-CN.md` | Issue、产品提案、文档和代码贡献规则 |
 | Host README | 对应 Host 的安装、启动、恢复、状态、移除和特有边界 |
 
 README、PRODUCT 和 Host README 不重复协议字段、完整 MCP 目录或 Store 实现；需要精确细节时进入

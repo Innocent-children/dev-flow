@@ -5,7 +5,7 @@
 Before implementation work, read in this order:
 
 1. the user's current explicit request and acceptance criteria;
-2. `CONTRIBUTING.md` or `CONTRIBUTING_en.md`;
+2. `CONTRIBUTING_zh-CN.md` or `CONTRIBUTING.md`;
 3. `docs/PRODUCT.md` or `docs/PRODUCT_en.md`;
 4. the technical documents directly related to the change;
 5. the current source code, schemas, package manifests, and executable tests for the affected surface.
