@@ -9,7 +9,7 @@ Dev Flow 接受可复现的缺陷、文档修正、经过最终制品验证的�
 
 | 变更 | 要求 |
 | --- | --- |
-| 拼写、链接、翻译或现有行为说明修正 | 可以直接提交有界 Pull Request；按照 [I18n 策略](docs/I18N.md) 同步简中/英文文档族，并检查其他根 README 快照没有冲突 |
+| 拼写、链接、翻译或现有行为说明修正 | 可以直接提交有界 Pull Request；按照 [I18n 策略](docs/I18N.md) 同步对应文档族和受影响的 9 个根 README |
 | 模板或文档维护规则变化 | 说明影响范围；不修改产品版本，不执行发布 |
 | 不改变公共语义的实现缺陷 | 说明已批准合同与实际行为的偏差，并只修复该偏差 |
 | 用户可见行为、Core/MCP 合同、持久化、状态图或 Host Adapter 合同变化 | 在 Pull Request 中说明用户问题、范围、验收条件和方案，并同步实现、测试、文档与 i18n |
@@ -110,8 +110,8 @@ pnpm install --frozen-lockfile
 - Go Core 继续独占 Task、节点、合法流转、恢复分类和终态权威；
 - Core 只读观察 Git，不增加 shell、commit、push、merge、tag 或发布能力；
 - 只运行与改动表面、验收条件或已知风险直接相关的验证；
-- 改变用户可见行为时，必须同步简中/英文根 README、`docs/PRODUCT*` 和受影响的技术文档，并检查其他根 README 快照；
-- 文档修正必须同步该文档族的简中/英文配对文件；其他根 README 按 I18n 策略更新或保留准确快照说明；
+- 改变用户可见行为时，必须同步 9 个根 README、`docs/PRODUCT*` 和受影响的技术文档；
+- 文档修正必须同步该文档族的简中/英文配对文件，以及所有受影响的根 README locale；
 - 新增或修改命令时，对照 package manifest、CLI parser、DSH lifecycle、Core parser 或 MCP catalog，并同步 `docs/COMMANDS*`；
 - 面向用户的 npm 安装示例使用 `@latest`，人类阅读文档不记录精确产品版本；
 - 不在普通功能或文档 Pull Request 中提升版本或执行发布。
@@ -123,7 +123,7 @@ pnpm install --frozen-lockfile
 - Markdown、表格、代码块和 Mermaid 在 GitHub 上正常渲染；
 - 语言导航中的所有文件存在且互相可达；
 - 简中/英文文档族的章节结构、命令、平台和支持声明一致；
-- 其他根 README 快照没有扩大能力或与当前定位、命令和稳定支持冲突；
+- 9 个根 README 的定位、能力、命令、平台、稳定支持和边界一致；
 - 所有普通安装示例使用 `@latest`，精确产品版本只存在于机器可读文件和发布记录；
 - `docs/COMMANDS*` 与实际可执行 command/tool catalog 一致；
 - 非英文文件没有占位翻译或整段英文 fallback；

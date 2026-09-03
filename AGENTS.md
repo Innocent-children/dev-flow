@@ -145,8 +145,7 @@ by `docs/I18N.md` and `docs/I18N_en.md`.
 
 Every change to user-visible behavior must update documentation in the same pull request:
 
-1. update `README.md` and `README_zh-CN.md`, then update or verify the other root README snapshots as
-   required by `docs/I18N.md`;
+1. update all nine root README locale files defined by `docs/I18N.md`;
 2. update both `docs/PRODUCT.md` and `docs/PRODUCT_en.md`;
 3. update each affected technical reference, including `docs/ARCHITECTURE*`,
    `docs/SUPPORT-MATRIX*`, `docs/COMMANDS*`, `docs/ROADMAP*`, host package READMEs, installation
@@ -174,9 +173,8 @@ command, or MCP tool must update `docs/COMMANDS.md`, `docs/COMMANDS_en.md`, ever
 README, and all affected root README locale snippets.
 
 - Do not update only one side of a maintained Chinese/English document family.
-- Other root README locales are community translations or stable documentation snapshots. Keep their
-  core position, capability, boundaries, commands, and support facts accurate, and add or retain an
-  explicit snapshot notice when they are not fully synchronized.
+- All nine root README locale files are maintained. Keep their core position, capability, boundaries,
+  commands, support facts, and detailed-document links synchronized.
 - Do not leave placeholder translations, stale version numbers, untranslated new sections, or an
   English fallback copied into another locale file.
 - Remove superseded compatibility descriptions, historical Schema and path rules, migration
@@ -185,8 +183,8 @@ README, and all affected root README locale snippets.
 - Preserve commands, identifiers, paths, versions, digests, code blocks, tables, Mermaid graphs, and
   support claims exactly across translations; translate prose, not product facts.
 - If synchronized translation cannot be completed, do not report the change as merge-ready.
-- A documentation-only correction must update both Chinese and English files containing the same
-  statement and must not leave a conflicting statement in another root README snapshot.
+- A documentation-only correction must update both Chinese and English technical files containing the
+  same statement and every affected root README locale.
 
 ## Product Boundary
 

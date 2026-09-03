@@ -1,82 +1,85 @@
-<p align="center">
-  <img src="packages/webui/src/assets/dev-flow-app-icon-light.svg" width="112" height="112" alt="Dev Flow" />
-</p>
-
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>Retome tarefas longas de programação com IA a partir de um estado persistente, mantendo explícitos o escopo, o orçamento de verificação e as condições de entrega.</strong></p>
+<p align="center"><strong>Mantenha tarefas longas de programação com IA dentro dos limites de mudança e teste definidos, e confirme se o estado atual é confiável antes de continuar.</strong></p>
 
 <p align="center">
   <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-> Esta página é um retrato estável da documentação. Para informações atuais e sincronizadas
-> continuamente, consulte [English](README.md) ou [简体中文](README_zh-CN.md).
+## Quando uma tarefa começa a sair do controle
 
-Dev Flow é uma camada local de controle e recuperação para tarefas longas de programação com IA. Ele
-não apenas mantém o progresso fora do chat: também limita o escopo do Task e a expansão das
-verificações, invalidando registros antigos que não correspondem mais à implementação atual. Após
-compactação de contexto, divergência do repository ou um resultado incerto, Codex ou DeepSeek obtém
-do mesmo Task o próximo passo, uma avaliação de Recovery ou um bloqueio explícito.
+Imagine pedir a um Agent:
 
-## O principal problema
+```text
+Adicione limite de frequência para falhas de login. Altere apenas arquivos de autenticação e execute no máximo 4 verificações direcionadas.
+```
 
-Depois de uma interrupção, uma nova sessão costuma reconstruir o progresso a partir de um chat
-incompleto e do repository atual. Isso pode repetir alterações, ignorar verificações restantes ou usar
-resultados antigos como atuais. Dev Flow lê primeiro o Task local e continua da etapa e do próximo
-passo salvos.
+A tarefa demora mais. O Agent quer alterar uma configuração vizinha, o mesmo teste continua falhando e
+a sessão reinicia antes do fim. Só o chat já não responde com segurança se o arquivo extra pertence ao
+trabalho, quantos testes ainda cabem, se outra tentativa trará informação ou se um resultado antigo vale
+para o código atual.
 
-## Em 30 segundos
+Dev Flow mantém essas decisões junto da tarefa. O Agent continua lendo e alterando código e executando
+comandos; ampliar o escopo, testar mais, repetir e concluir passam a ser escolhas visíveis.
 
-| Usando um Agent diretamente | O que Dev Flow acrescenta |
+## O que muda com Dev Flow
+
+| Agent direto | Com Dev Flow |
 | --- | --- |
-| Após uma interrupção, o progresso é adivinhado novamente | Retoma o mesmo Task local |
-| Uma tarefa pequena amplia gradualmente o escopo | Mantém o objetivo inicial e limites explícitos |
-| Testes direcionados continuam aumentando | Mantém o verification budget |
-| Uma resposta perdida causa nova tentativa imediata | Lê primeiro o Task e o estado de Recovery |
-| Resultados de testes se misturam com mudanças posteriores | Mantém a etapa atual e seus registros |
+| Limites de arquivo ficam apenas no prompt | Arquivos previstos são registrados e uma gravação compatível fora do plano espera sua decisão |
+| “Só testes direcionados” pode crescer sem fim | Verificações automáticas têm limite; a suíte completa exige permissão prévia |
+| A mesma falha provoca outra correção parecida | A terceira repetição exata para e exige outro caminho ou aprovação |
+| Após reiniciar, o progresso é reconstruído do chat | A mesma tarefa, seus limites e verificações pendentes continuam |
+| Um resultado verde sobrevive a mudanças posteriores | Resultados que não correspondem mais são descartados antes da entrega |
 
-## Quando usar
+## As diferenças principais
 
-Dev Flow é adequado para trabalho real em repository que continua entre sessões, dias ou reinícios do
-Host, especialmente quando exige escopo claro, verificação direcionada, caminhos de retrabalho ou uma
-revisão de compreensão antes da entrega.
+### A tarefa não cresce em silêncio
 
-Para perguntas pontuais, explicações de código, consultas de status ou pequenas mudanças mecânicas
-sem progresso persistente, normalmente é mais simples usar Codex ou DeepSeek diretamente. Dev Flow
-não é um orquestrador geral, uma plataforma de execução remota ou um sandbox de segurança.
+Cada trabalho guarda arquivos previstos e verificações necessárias. Ferramentas compatíveis param antes
+de escrever fora do plano; você permite uma vez, altera o plano ou recusa. Antes dos testes e da conclusão,
+os caminhos realmente modificados são comparados novamente.
 
-## Relação com outras ferramentas
+### Repetir precisa trazer informação
 
-| Ferramenta | Responsabilidade |
-| --- | --- |
-| Codex / DeepSeek | Ler repositories, alterar código e executar comandos |
-| OpenSpec / Spec Kit | Ajudar a organizar requisitos, design e tarefas |
-| Dev Flow | Manter etapa, escopo, orçamento de verificação, Recovery e próximo passo válido do Task |
+Dev Flow compara as três últimas tentativas e só pausa quando a mesma falha, resultado ou padrão de caminhos
+e falha se repete exatamente. Se pedido, plano ou implementação mudar, testes e confirmações antigos deixam de valer.
 
-Atualmente não existe um artifact importer para OpenSpec / Spec Kit. Uma integração mais leve
-continua sendo uma direção futura.
+### Continuar sem adivinhar nem repetir às cegas
 
-## Instalação e início
+Pedido, plano, avanço, verificações e motivos de parada ficam salvos localmente. Outra sessão continua a
+mesma tarefa. Se uma operação ficar incerta, o estado salvo e o repository atual são lidos antes de decidir nova tentativa.
+
+### O desenvolvedor decide o fim
+
+Passar nos testes não basta. Antes da entrega, o desenvolvedor revisa mudanças, complexidade desnecessária e
+riscos de manutenção, e confirma que consegue explicar e manter o resultado.
+
+### Ver toda a tarefa localmente
+
+O código atual inclui um Control Center local para tarefas Codex e DeepSeek, progresso, caminhos previstos e
+reais, histórico de testes, pausas e próximas decisões. Não é um painel em nuvem.
+
+## Início rápido
 
 ```bash
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-Entrada explícita do Codex:
-
 ```text
-$dev-flow-codex:dev-flow Corrija o limite de falhas de login e execute apenas testes direcionados.
+$dev-flow-codex:dev-flow Adicione limite de frequência para falhas de login. Altere apenas arquivos de autenticação e execute no máximo 4 verificações direcionadas.
+/dev-flow Adicione limite de frequência para falhas de login. Altere apenas arquivos de autenticação e execute no máximo 4 verificações direcionadas.
 ```
 
-Entrada explícita do DeepSeek Harness:
+## Quando usar
 
-```text
-/dev-flow Corrija o limite de falhas de login e execute apenas testes direcionados.
-```
+Dev Flow serve para trabalho real de repository entre sessões, com limites de arquivos ou testes, possível
+retrabalho ou entrega clara. Para perguntas, explicações, estado e pequenas mudanças mecânicas, o Agent sozinho é mais simples.
 
-## Suporte estável e limites atuais
+## Escopo realmente disponível
+
+### npm `@latest` estável
 
 | Produto | Ambiente verificado |
 | --- | --- |
@@ -84,22 +87,27 @@ Entrada explícita do DeepSeek Harness:
 | `dev-flow-deepseek` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
 | `@imotong/dev-flow` | macOS arm64, Node.js `>=20` |
 
+Registros estáveis cobrem instalação, prontidão, remoção, desinstalação e repository alvo inalterado.
+A Journey estável DeepSeek também cobre ativação, reinício, conclusão e reabertura.
+
+### Fonte atual e registros públicos
+
+- A fonte inclui WebUI local, decisões de escopo, freio automático e `darwin-arm64`/`win32-x64`.
+- Windows ainda é capacidade de fonte: há registros nativos Windows 11, sem Journey estável.
+- [PR #8](https://github.com/Innocent-children/dev-flow/pull/8) documenta Journey Codex real com reinício, refatoração, novos testes, revisão, entrega e conclusão.
+
+### Ainda não demonstrado ou estável
+
+- Menor custo de testes, defeitos ou manutenção não foi demonstrado; adoção prolongada é limitada.
+- Linux, Windows Server, Windows 32-bit/ARM64, Intel Mac, Rosetta e remote MCP não têm suporte estável.
+- Visão de equipe, sincronização cloud, exportação de Task e passagem explícita entre Hosts são futuros.
+
+## Limites e documentação
+
 - Core observa Git somente para leitura e não executa commit, push, merge, rebase, tag ou publish.
-- Alterações de arquivos e execução de comandos continuam com Codex ou DeepSeek autorizado pelo usuário.
-- Core não intercepta toda operação do Host e não é um sandbox de shell ou sistema de arquivos.
-- WebUI é uma visualização local loopback e entrada de diagnóstico para um único usuário.
-- O projeto ainda está no início e a adoção externa é limitada; o escopo estável está na Support Matrix.
-
-## Documentação atual
-
-- [English README](README.md)
-- [Product Definition](docs/PRODUCT_en.md)
-- [Demo de interrupção e retomada](docs/DEMO_en.md)
-- [Project Status](docs/PROJECT-STATUS_en.md)
-- [Support Matrix](docs/SUPPORT-MATRIX_en.md)
-- [Command Reference](docs/COMMANDS_en.md)
-- [Architecture](docs/ARCHITECTURE_en.md)
-- [Security](SECURITY.md) e [Threat Model](docs/THREAT-MODEL_en.md)
+- A verificação prévia cobre apenas ferramentas estruturadas indicadas; não é sandbox de shell ou arquivos.
+- WebUI é local, loopback e de um usuário.
+- [Product](docs/PRODUCT_en.md) · [Demo](docs/DEMO_en.md) · [Project Status](docs/PROJECT-STATUS_en.md) · [Architecture](docs/ARCHITECTURE_en.md) · [Commands](docs/COMMANDS_en.md) · [Support Matrix](docs/SUPPORT-MATRIX_en.md)
 
 ## Licença
 

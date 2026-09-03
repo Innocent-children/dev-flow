@@ -4,63 +4,68 @@
 
 ## One-sentence position
 
-> Dev Flow resumes long-running AI coding tasks from durable state while keeping scope, verification
-> budget, and delivery conditions explicit.
+> Dev Flow keeps AI coding tasks inside an agreed change scope and verification budget, and pauses
+> when the plan, tests, or recorded results no longer justify continuing.
 
-It is a local process-control and recovery layer for long-running AI coding tasks: it retains progress
-outside chat history, limits what a Task may do and how much verification remains, decides whether
-existing results still apply to the current implementation, and returns a legal next step, Recovery
-assessment, or explicit blocker after interruption, repository drift, or an uncertain result.
+It is a local execution-control and recovery layer for long-running AI coding tasks. Codex or
+DeepSeek still reads code, edits files, and runs commands. Dev Flow retains the agreed goal, file
+scope, and test budget, then pauses when the work widens, exceeds that budget, repeats an unchanged
+failure, or relies on an old result. Durable local Task state also supports continuation after an
+interruption and read-before-retry for an uncertain operation.
 
 ## Target users
 
 Dev Flow is for developers who use Codex or DeepSeek in real repositories and whose work may span
-several sessions or days. They want to see what is complete and what remains before continuing,
-rather than maintain context through increasingly long prompts or chat history.
+several sessions or days. They want the agent to work independently without quietly touching more
+files, turning a targeted check into a full regression run, or repeating the same failed attempt.
+When work crosses sessions, they also need a reliable view of what is complete and what remains.
 
 ## The job users need to complete
 
 Users need to move a bounded code change from request to delivery while being able to:
 
-- continue the same Task after an interruption;
 - retain the original goal, acceptance criteria, and out-of-scope work;
+- list the expected changed paths and required verification for each work item;
+- allow one unplanned write, revise the plan, or reject it;
 - limit automatic verification-command count and permission for full suites or manual handoff;
+- pause when the same failure or unchanged result repeats;
 - know which old test and comprehension records became stale after implementation changes;
 - check whether an uncertain operation took effect before choosing recovery or retry;
+- continue the same Task after an interruption;
 - confirm before delivery that the implementation is both tested and understandable.
 
 ## Primary failure scenario
 
-A long-running coding task loses trustworthy progress after a session interruption, context
-compaction, or Host restart. The next session can only infer what was completed and what remains from
-partial chat history and the current repository. That can repeat work, skip remaining verification,
-or reuse stale results.
+A bounded task gradually loses its boundaries while it runs: changes spread into unplanned files,
+targeted verification becomes a full regression run, the same paths and checks repeat after a
+failure, or changed code continues using an earlier test result. The agent still produces output,
+but the developer can no longer tell whether it is doing the work that was originally approved.
 
-Dev Flow primarily addresses this failure. It persists the Task locally, then uses the current Task
-to report the stage, recovery judgment, and legal next step.
+Dev Flow primarily addresses this failure. The Task retains the agreed file scope, verification
+steps, and verification budget. Supported unplanned writes pause first, test submissions must fit
+the budget, a third exact repetition blocks, and requirement or implementation changes invalidate
+results that no longer apply.
 
 ## Supporting failure scenarios
 
-The same durable state also helps with:
+The same Task state also helps with:
 
-1. a local change gradually expanding into unrequested modules or future capabilities;
-2. targeted verification growing into a full regression, platform matrix, or open-ended testing;
-3. the same check, failure, or test-and-implementation loop repeating without a new result;
-4. old verification records remaining in use after the implementation changes;
-5. a lost write response being replayed immediately;
-6. tests passing while the implementation remains unnecessarily complex or difficult to explain.
+1. continuing the same task after session interruption, context compaction, or a Host restart;
+2. deciding what to do after a write response is lost and the Host cannot tell whether it applied;
+3. stopping when the repository no longer matches the retained Task state;
+4. tests passing while the implementation remains unnecessarily complex or difficult to explain.
 
 ## How the product intervenes
 
 Codex or DeepSeek still reads the repository, edits files, and runs commands. Dev Flow maintains one
 local Task around that work and performs four jobs:
 
-| Action | Product behavior |
+| Problem during the task | Product behavior |
 | --- | --- |
-| Remember | Retain the original request, current stage, completed verification, blockers, and outcome |
-| Limit | Retain Repository Scope, Task Plan file scope, and verification budget; ask before supported unplanned writes and pause after a third exact test repetition |
-| Decide | Use requirements, design, task plan, implementation, and repository state to invalidate test or comprehension records that no longer apply |
-| Recover | Apply read-before-retry to an uncertain Action and decide whether to continue, record completion, block, or retry safely |
+| Changes leave the plan | Retain Repository Scope and Task Plan paths; ask before supported unplanned writes and reconcile accumulated changed paths before delivery |
+| Testing widens or repeats | Retain the verification budget; reject over-budget testing and pause after the third exact repetition |
+| Earlier results no longer apply | Use requirements, design, task plan, implementation, and repository state to invalidate stale test or comprehension records |
+| A session stops or a result is uncertain | Retain the current Task and apply read-before-retry before continuing, recording completion, blocking, or retrying safely |
 
 Dev Flow uses two file-scope checks. Codex `apply_patch` and structured DeepSeek file tools call Core
 before writing. A path outside the union of `ExpectedPaths` in the current multi-repository Task Plan
@@ -170,7 +175,8 @@ user-authorized Host.
 
 A proposed capability should answer:
 
-1. Does it directly improve trustworthy continuation after a long task is interrupted?
+1. Does it directly improve task-scope control, verification effort, or trustworthy continuation
+   after an interruption?
 2. Is the decision based on Task, Action, repository observation, or retained records rather than
    only the agent's narrative?
 3. Does it reduce the effort required to understand the current state and next step?
@@ -187,10 +193,11 @@ move directly into implementation.
 
 Future product measurement should focus on user outcomes rather than component counts:
 
-- time required to recover a trustworthy current state after interruption;
+- rate at which tasks leave planned paths or require scope expansion;
 - rate of completed work repeated because progress was unclear;
 - false-allow and false-block rates in automatic-brake and Recovery decisions;
 - rate at which a verification budget expands without a stated reason;
+- time required to recover a trustworthy current state after interruption;
 - repeat use by the same developer for another long-running task.
 
 The project does not yet have enough external usage data to present these as achieved results.

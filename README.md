@@ -1,102 +1,142 @@
 <h1 align="center">Dev Flow</h1>
 
-<p align="center">
-  <img src=".github/assets/dev-flow-social-preview.png" width="960" alt="Dev Flow — Resume the task. Not the chat. Session 1 resumes as the same Task in Session 2 after a Host restart." />
-</p>
-
-<p align="center"><strong>Resume the same Codex or DeepSeek Harness task after an interruption, with its scope, stage, and remaining verification intact.</strong></p>
-
-<p align="center">
-  <a href="https://www.npmjs.com/package/@imotong/dev-flow"><img src="https://img.shields.io/npm/v/%40imotong%2Fdev-flow?label=%40imotong%2Fdev-flow" alt="Dev Flow npm" /></a>
-  <a href="https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml"><img src="https://github.com/Innocent-children/dev-flow/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="Apache 2.0 License" /></a>
-</p>
-
-<p align="center">
-  <a href="#install">Install</a> · <a href="docs/DEMO_en.md">Two-minute demo</a> · <a href="https://dev-flow.top">Website</a>
-</p>
+<p align="center"><strong>Keep long AI coding tasks inside the change and test limits you set—and know when it is safe to continue.</strong></p>
 
 <p align="center">
   <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-Dev Flow keeps durable local state for long-running AI coding tasks, so an interrupted session can
-continue from the same Task instead of reconstructing progress from chat history.
+## When a coding task starts to drift
 
-## What it keeps explicit
+Suppose you ask an agent:
 
-| Capability | Current behavior |
+```text
+Add failed-login rate limiting. Change only authentication files and run at most 4 targeted checks.
+```
+
+The change takes longer than expected. The agent wants to edit a nearby configuration file, a focused
+test keeps failing, and the session restarts before the remaining checks finish. Now you need answers
+that chat history alone cannot reliably provide: Is the extra file really part of the job? How much
+testing is still allowed? Is another retry useful? Which results still apply to the current code?
+
+Dev Flow keeps those decisions with the task. The agent still reads code, edits files, and runs
+commands; Dev Flow makes scope changes, extra testing, repeated attempts, and completion visible
+decisions instead of quiet drift.
+
+## What changes with Dev Flow
+
+| Using an agent directly | With Dev Flow |
 | --- | --- |
-| Resume | Retains the request, current stage, records, blockers, and outcome outside chat history |
-| Scope | Checks supported structured writes against the Task Plan and reconciles Task-introduced paths before testing and delivery |
-| Verification | Retains the command budget, full-suite and handoff permissions, and recent repeated attempts |
-| Recovery | Reads current Task and Action state before deciding whether an uncertain operation may continue or retry |
-| Freshness | Invalidates test and comprehension records that no longer match changed requirements or implementation |
+| File limits live in the prompt | Planned files are recorded; supported out-of-plan writes pause for your decision |
+| “Run targeted tests” can grow into open-ended testing | Automatic checks have a fixed limit, and a full suite needs prior permission |
+| The same failure can trigger another similar fix | A third exact repetition pauses and asks for a different path or explicit approval |
+| A restart forces the next session to reconstruct progress | The next session continues the same work, limits, and remaining checks |
+| A green test can outlive later code changes | Results that no longer match the current work are discarded before delivery |
 
-Codex and DeepSeek still read code, edit files, and run commands. Dev Flow owns the local Task state,
-legal transitions, recovery decisions, and delivery conditions.
+## Why it stands out
 
-## Install
+### The task cannot quietly grow
 
-Current stable `@latest` artifacts support macOS arm64. See the
-[Support Matrix](docs/SUPPORT-MATRIX_en.md) for exact package, Host, Node.js, source-only, and stable
-coverage.
+Each piece of work records the files it expects to touch and the checks it needs. Supported structured
+writes outside that plan stop before writing; you can allow that exact write once, update the plan,
+or reject it. Before testing and completion, changed paths are checked again—including paths written
+by tools that were not covered before the write.
+
+### More retries must add information
+
+Dev Flow remembers the three latest test attempts. It pauses only on exact repeated patterns: the
+same failed check, the same complete result, or the same changed files followed by the same failure.
+Changes to the request, plan, or implementation also retire old test and review results, so yesterday's
+green check cannot approve today's code.
+
+### Continue without guessing or blindly retrying
+
+The task's request, plan, current stage, checks, and blockers live in local data rather than only in
+the conversation. A new session can pick up the same task. If a Dev Flow operation returned no clear
+result, the integration reads the saved operation and current repository before deciding whether a
+retry is safe.
+
+### The developer owns the finish line
+
+Passing tests is necessary, but not sufficient. Before delivery, the developer reviews what changed,
+unnecessary complexity, and maintenance risks, then explicitly confirms that the result can be
+explained and maintained. A later code change requires testing again.
+
+### Inspect the task locally
+
+Current source includes a local Control Center that shows tasks across Codex and DeepSeek, current
+stage, planned and changed paths, check history, repeated-attempt pauses, and the next decision. It
+uses the same local data as the integrations; it is not a cloud dashboard or a second copy of task state.
+
+## Quick start
 
 ```bash
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-Explicit Codex entry:
-
 ```text
-$dev-flow-codex:dev-flow Fix the failed-login attempt limit and run only targeted tests.
+$dev-flow-codex:dev-flow Add failed-login rate limiting. Change only auth files and run at most 4 targeted checks.
+/dev-flow Add failed-login rate limiting. Change only auth files and run at most 4 targeted checks.
 ```
 
-Every direct DeepSeek Harness message that needs Dev Flow uses:
+See the [Codex guide](docs/CODEX_en.md), [DeepSeek guide](docs/DEEPSEEK_en.md), and
+[Command Reference](docs/COMMANDS_en.md) for setup, status, recovery, and removal.
 
-```text
-/dev-flow Fix the failed-login attempt limit and run only targeted tests.
-```
+## Good fit / poor fit
 
-Installation, status, resume, and removal details are in the [Codex guide](docs/CODEX_en.md),
-[DeepSeek guide](docs/DEEPSEEK_en.md), and [Command Reference](docs/COMMANDS_en.md).
+Dev Flow is useful when a repository task may span sessions, needs a real file boundary, must limit
+test effort, may require rework, or needs a clear handoff before delivery.
 
-## Support and boundaries
+Using Codex or DeepSeek directly is usually simpler for one-off questions, code explanation, status
+checks, and small mechanical edits that do not need retained progress. Dev Flow is not a general
+project manager, remote execution service, or security sandbox.
 
-| Product | Stable verified environment |
+## What is actually available
+
+### Stable npm `@latest`
+
+| Product | Verified environment |
 | --- | --- |
 | `dev-flow-codex` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
 | `dev-flow-deepseek` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
 | `@imotong/dev-flow` | macOS arm64, Node.js `>=20` |
 
-Current source also selects `win32-x64` for Windows 10/11 desktop x64 and has native Windows 11
-evidence; that does not expand the stable `@latest` claim. Windows Server, 32-bit Windows, and
-Windows ARM64 are not supported.
+Stable lifecycle records cover package installation, readiness, removal, uninstallation, and an
+unchanged target repository. The stable DeepSeek journey also covers explicit activation, restart,
+completion, and reopening retained data.
 
-- Core observes Git read-only; it does not commit, push, merge, rebase, tag, or publish.
+### Current source and public records
+
+- Current source includes the local WebUI, file-scope decisions, the automatic repetition brake, and
+  exact `darwin-arm64` and `win32-x64` runtimes.
+- Windows is source-only today: native Windows 11 evidence exists, but no stable `@latest` Host journey does.
+- [PR #8](https://github.com/Innocent-children/dev-flow/pull/8) records a real Codex journey covering
+  restart, refactoring, retesting, developer comprehension, delivery, and completion.
+
+These are separate records; they do not combine into one proof of every feature.
+
+### Limits and unproven outcomes
+
+- External use has not yet shown that Dev Flow reduces testing cost, defect rate, or maintenance effort.
+- Adoption and long-term repeat-use records remain limited.
+- Linux, Windows Server, 32-bit and ARM64 Windows, Intel Mac, Rosetta, and remote MCP have no stable support claim.
+- Team views, cloud synchronization, task export, and explicit cross-Host handoff remain future work.
+
+## Boundaries
+
+- The Go Core observes Git read-only and does not commit, push, merge, rebase, tag, or publish.
 - File changes and command execution remain with user-authorized Codex or DeepSeek.
-- Supported structured tools receive pre-write scope checks, but Core does not intercept every Host,
-  Bash, external-process, or specialized-tool write and is not a shell or file-system sandbox.
-- The WebUI is a local loopback single-user view and diagnostic entry, not a cloud project manager.
-- Dev Flow remains early, with limited external adoption; stable support comes only from the public
-  artifacts and real Host journeys listed in the Support Matrix.
+- Pre-write checks cover listed structured tools only. Bash and external tools may write first, so
+  Dev Flow is not a shell or file-system sandbox.
+- The WebUI is local loopback and single-user; it provides no remote access or team permissions.
+- Stable support is only what the [Support Matrix](docs/SUPPORT-MATRIX_en.md) lists.
 
 ## Documentation
 
-| Topic | Reference |
-| --- | --- |
-| Product position, target users, and non-goals | [Product](docs/PRODUCT_en.md) |
-| Interruption and resume walkthrough | [Demo](docs/DEMO_en.md) |
-| Delivered, source-only, unverified, and gap status | [Project Status](docs/PROJECT-STATUS_en.md) |
-| Future priorities | [Roadmap](docs/ROADMAP_en.md) |
-| Core, Adapter, Store, Recovery, and protocol | [Architecture](docs/ARCHITECTURE_en.md) |
-| CLI, selectors, and MCP tools | [Command Reference](docs/COMMANDS_en.md) |
-| Local WebUI | [WebUI](docs/WEBUI_en.md) |
-| Platforms and Hosts | [Support Matrix](docs/SUPPORT-MATRIX_en.md) |
-| Documentation and source responsibilities | [Manifest](MANIFEST_en.md) |
-| Security boundaries | [Security](SECURITY.md) · [Threat Model](docs/THREAT-MODEL_en.md) |
-| Contributing | [Contributing](CONTRIBUTING_en.md) |
+- [Product](docs/PRODUCT_en.md) · [Demo](docs/DEMO_en.md) · [Project Status](docs/PROJECT-STATUS_en.md) · [Roadmap](docs/ROADMAP_en.md)
+- [Architecture](docs/ARCHITECTURE_en.md) · [Commands](docs/COMMANDS_en.md) · [WebUI](docs/WEBUI_en.md) · [Support Matrix](docs/SUPPORT-MATRIX_en.md)
+- [Security](SECURITY.md) · [Threat Model](docs/THREAT-MODEL_en.md) · [Manifest](MANIFEST_en.md) · [Contributing](CONTRIBUTING_en.md)
 
 ## License
 

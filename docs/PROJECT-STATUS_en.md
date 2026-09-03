@@ -99,8 +99,9 @@ priority.
 
 ## How to evaluate the project
 
-1. Read the [interruption-and-resume demo](DEMO_en.md) to see whether the primary problem fits your
-   work.
-2. Read the [Support Matrix](SUPPORT-MATRIX_en.md) to distinguish stable support from source capability.
-3. Open the real journeys above when you need the exact scope of a record.
+1. Read the root [README](../README.md) and [Product Definition](PRODUCT_en.md) to decide whether your
+   task needs explicit change scope and verification limits.
+2. Read the [interruption demo](DEMO_en.md) when continuation across sessions matters to your work.
+3. Read the [Support Matrix](SUPPORT-MATRIX_en.md) to separate stable support from source capability,
+   then open the real journeys above when you need the exact scope of a record.
 4. Read the [Security Policy](../SECURITY.md) and [Threat Model](THREAT-MODEL_en.md) for residual risk.

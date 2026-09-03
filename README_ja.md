@@ -1,78 +1,83 @@
-<p align="center">
-  <img src="packages/webui/src/assets/dev-flow-app-icon-light.svg" width="112" height="112" alt="Dev Flow" />
-</p>
-
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>長時間の AI コーディング作業を永続状態から再開し、実行中のタスク範囲、検証予算、デリバリー条件を明確に保ちます。</strong></p>
+<p align="center"><strong>長時間の AI コーディング作業を、決めた変更範囲とテスト上限の内側に保ち、再開前に結果を信頼できるか確認します。</strong></p>
 
 <p align="center">
   <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-> このページは安定版ドキュメントのスナップショットです。継続的に更新される最新情報は
-> [English](README.md) または [简体中文](README_zh-CN.md) を参照してください。
+## コーディング作業が脱線し始めるとき
 
-Dev Flow は、長時間の AI コーディング作業向けのローカルなプロセス制御・復旧レイヤーです。
-進捗をチャット履歴とは別に保存するだけでなく、Task の範囲と検証の拡大を制限し、現在の実装に
-合わない古い記録を無効にします。コンテキスト圧縮、repository のずれ、結果が不明な操作の後は、
-同じ Task から次の手順、Recovery 判断、または明示的な Blocker を取得できます。
+Agent に次のように依頼したとします。
 
-## 最初に解決する問題
+```text
+ログイン失敗のレート制限を追加してください。認証関連のファイルだけを変更し、対象を絞った確認を最大 4 件実行してください。
+```
 
-長時間の作業が中断されると、新しいセッションは不完全なチャットと現在の repository から進捗を
-推測しがちです。その結果、変更の重複、残りの検証の見落とし、古いテスト結果の再利用が起きます。
-Dev Flow はローカル Task を先に読み、保存済みの段階と次の作業から再開します。
+作業が長引き、隣の設定ファイルも変更したくなり、同じテストが失敗し続け、残りの確認を終える前に
+セッションが再起動しました。チャットだけでは、追加ファイルが本当に必要か、あと何件テストできるか、
+次の再試行に意味があるか、以前の合格結果が今のコードにも使えるかを判断しにくくなります。
 
-## 30 秒で理解する
+Dev Flow はこうした判断をタスクと一緒に保持します。Agent は通常どおりコードを読み、変更し、
+コマンドを実行しますが、範囲拡大、追加テスト、繰り返し、完了は見える判断になります。
 
-| Agent を直接使う場合 | Dev Flow が追加するもの |
+## Dev Flow があると何が変わるか
+
+| Agent を直接使う | Dev Flow を使う |
 | --- | --- |
-| 中断後に進捗を推測し直す | 同じローカル Task を再開する |
-| 小さな作業が徐々に範囲を広げる | 最初の目標と明確な境界を保存する |
-| 対象を絞ったテストが拡大し続ける | verification budget を保存する |
-| 応答が失われるとすぐ再実行する | 現在の Task と Recovery 状態を先に読む |
-| テスト結果が後のコード変更と混ざる | 現在の段階と対応する記録を保存する |
+| ファイル制限はプロンプトだけ | 予定ファイルを記録し、対応する計画外書き込みは判断を待つ |
+| 「対象テストだけ」が際限なく増える | 自動確認に上限があり、フルスイートは事前許可が必要 |
+| 同じ失敗で似た修正を繰り返す | 3 回目の完全一致で止まり、別案か明示的な続行を求める |
+| 再起動後に不完全な会話から進捗を復元 | 同じ作業、制限、残りの確認を続ける |
+| コード変更後も古い合格結果を使う | 現在のコードに合わない結果はデリバリー前に無効になる |
 
-## 向いている作業・向いていない作業
+## 主な違い
 
-Dev Flow は、複数セッション、複数日、または Host 再起動をまたぐ実際の repository 作業に向いて
-います。特に、範囲、対象を絞った検証、手戻り経路、配布前の理解確認が必要な変更に適しています。
+### 作業が勝手に広がらない
 
-一度きりの質問、コード説明、状態確認、進捗保存が不要な機械的な小変更は、Codex または DeepSeek
-を直接使う方が簡単です。Dev Flow は汎用オーケストレーター、リモート実行基盤、セキュリティ
-sandbox ではありません。
+各作業には予定ファイルと必要な確認があります。対応するツールが計画外ファイルへ書く前に停止し、
+その 1 回だけ許可、計画変更、拒否を選べます。テスト前と完了前にも実際の変更パスを照合します。
 
-## 他のツールとの関係
+### 再試行には新しい情報が必要
 
-| ツール | 役割 |
-| --- | --- |
-| Codex / DeepSeek | repository の読み取り、コード変更、コマンド実行 |
-| OpenSpec / Spec Kit | 要件、設計、タスクの整理 |
-| Dev Flow | Task の段階、範囲、検証予算、復旧状態、正当な次の手順を保存 |
+直近 3 回のテストを比較し、同じ失敗、同じ結果、または同じファイル変更と失敗が完全に繰り返された
+ときだけ停止します。要件、計画、実装が変われば、古いテストと開発者確認は使えなくなります。
 
-現在、OpenSpec / Spec Kit artifact importer はありません。薄い連携は将来の方向です。
+### 推測や盲目的な再実行なしで続ける
 
-## インストールと開始
+依頼、計画、進捗、確認記録、停止理由はローカルに保存されます。別セッションでも同じ作業を続けられ、
+操作結果が不明なら保存内容と現在の repository を読んでから再試行を判断します。
+
+### 完了は開発者が決める
+
+テスト合格だけでは終わりません。開発者が変更、不要な複雑さ、保守リスクを確認し、説明して保守できる
+ことを明示的に承認します。その後コードが変われば再テストします。
+
+### ローカルで全体を確認する
+
+現在のソースにはローカル Control Center があり、Codex と DeepSeek の作業、進捗、予定と実際のパス、
+テスト履歴、繰り返し停止、次の判断を表示します。クラウドサービスではありません。
+
+## クイックスタート
 
 ```bash
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-Codex の明示的な入口：
-
 ```text
-$dev-flow-codex:dev-flow ログイン失敗回数の制限を修正し、対象テストだけを実行してください。
+$dev-flow-codex:dev-flow ログイン失敗のレート制限を追加してください。認証関連のファイルだけを変更し、対象を絞った確認を最大 4 件実行してください。
+/dev-flow ログイン失敗のレート制限を追加してください。認証関連のファイルだけを変更し、対象を絞った確認を最大 4 件実行してください。
 ```
 
-DeepSeek Harness の明示的な入口：
+## 向いている作業
 
-```text
-/dev-flow ログイン失敗回数の制限を修正し、対象テストだけを実行してください。
-```
+複数セッションにまたがる、ファイル範囲やテスト量を制限したい、手戻りや明確な引き継ぎがある実際の
+repository 作業に向きます。一度きりの質問、説明、状態確認、小さな機械的変更は Agent 単体の方が簡単です。
 
-## 現在の安定サポートと境界
+## 現在利用できる範囲
+
+### 安定版 npm `@latest`
 
 | 製品 | 検証済み環境 |
 | --- | --- |
@@ -80,22 +85,27 @@ DeepSeek Harness の明示的な入口：
 | `dev-flow-deepseek` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
 | `@imotong/dev-flow` | macOS arm64、Node.js `>=20` |
 
+安定記録はインストール、準備完了、削除、アンインストール、対象 repository の不変性を対象にします。
+DeepSeek の安定 Journey は明示的な起動、再起動、完了、保存データの再表示も対象です。
+
+### 現在のソースと公開記録
+
+- ソースにはローカル WebUI、ファイル範囲判断、自動繰り返し停止、`darwin-arm64` と `win32-x64` があります。
+- Windows は現時点ではソース機能です。Windows 11 の実機記録はありますが、安定版 Host Journey はありません。
+- [PR #8](https://github.com/Innocent-children/dev-flow/pull/8) は再起動、リファクタリング、再テスト、理解確認、デリバリー、完了を含む実際の Codex Journey です。
+
+### 未検証または未安定
+
+- テスト費用、欠陥率、保守費用の低下は外部利用で証明されておらず、長期採用記録も限られます。
+- Linux、Windows Server、32 ビット/ARM64 Windows、Intel Mac、Rosetta、remote MCP に安定サポートはありません。
+- チーム表示、クラウド同期、Task エクスポート、明示的な Host 間引き継ぎは将来の機能です。
+
+## 境界とドキュメント
+
 - Core は Git を読み取り専用で観察し、commit、push、merge、rebase、tag、publish を行いません。
-- ファイル変更とコマンド実行は、ユーザーが許可した Codex または DeepSeek が担当します。
-- Core は Host のすべてのファイル操作を遮断せず、shell やファイルシステムの sandbox ではありません。
-- WebUI はローカル loopback の単一ユーザー向け表示・診断入口です。
-- プロジェクトはまだ初期段階で、外部利用は限定的です。安定範囲は Support Matrix に従います。
-
-## 最新ドキュメント
-
-- [English README](README.md)
-- [Product Definition](docs/PRODUCT_en.md)
-- [中断と再開の Demo](docs/DEMO_en.md)
-- [Project Status](docs/PROJECT-STATUS_en.md)
-- [Support Matrix](docs/SUPPORT-MATRIX_en.md)
-- [Command Reference](docs/COMMANDS_en.md)
-- [Architecture](docs/ARCHITECTURE_en.md)
-- [Security](SECURITY.md) / [Threat Model](docs/THREAT-MODEL_en.md)
+- 書き込み前確認は列挙された構造化ツールだけが対象で、shell やファイルシステムの sandbox ではありません。
+- WebUI はローカル loopback の単一ユーザー向けです。
+- [Product](docs/PRODUCT_en.md) · [Demo](docs/DEMO_en.md) · [Project Status](docs/PROJECT-STATUS_en.md) · [Architecture](docs/ARCHITECTURE_en.md) · [Commands](docs/COMMANDS_en.md) · [Support Matrix](docs/SUPPORT-MATRIX_en.md)
 
 ## License
 

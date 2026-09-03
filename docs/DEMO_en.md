@@ -2,9 +2,10 @@
 
 [中文](DEMO.md) | [English](DEMO_en.md)
 
-This page explains Dev Flow's primary value through one concrete failure scenario. It is not the full
-protocol reference; see [Architecture](ARCHITECTURE_en.md) and the
-[Command Reference](COMMANDS_en.md) for exact nodes, commands, and MCP tools.
+This page uses one interruption scenario to show how Dev Flow retains task boundaries and remaining
+work. It demonstrates one important capability, not the product's complete value. See
+[Architecture](ARCHITECTURE_en.md) and the [Command Reference](COMMANDS_en.md) for exact nodes,
+commands, and MCP tools.
 
 ## 1. The user requests a bounded task
 

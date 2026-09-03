@@ -90,7 +90,7 @@ package 可用和已有的具体 Host Journey，不能据此推导缺陷率、�
 
 ## 如何评估
 
-1. 先读[中断后继续的演示](DEMO.md)，判断主要问题是否适合自己的任务；
-2. 再读 [Support Matrix](SUPPORT-MATRIX.md)，区分稳定支持与源码能力；
-3. 按需打开上表中的真实 Journey，核对每项记录的准确范围；
+1. 先读根 [README](../README_zh-CN.md) 和[产品定义](PRODUCT.md)，判断任务是否需要限制改动范围和验证预算；
+2. 需要了解中断后继续时，再看对应的 [Demo](DEMO.md)；
+3. 阅读 [Support Matrix](SUPPORT-MATRIX.md)，区分稳定支持与源码能力，并按需打开上表中的真实 Journey；
 4. 阅读 [Security Policy](../SECURITY.md) 和 [Threat Model](THREAT-MODEL.md)，了解剩余风险。

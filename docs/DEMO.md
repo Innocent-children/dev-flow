@@ -2,8 +2,9 @@
 
 [中文](DEMO.md) | [English](DEMO_en.md)
 
-本页用一个具体失败场景解释 Dev Flow 的主要价值。它不是完整协议说明；节点、命令和 MCP 工具的
-精确定义见 [Architecture](ARCHITECTURE.md) 与 [Command Reference](COMMANDS.md)。
+本页用一个具体中断场景说明 Dev Flow 如何保留任务边界和剩余工作。这是产品的一项重要能力，
+不代表全部价值；节点、命令和 MCP 工具的精确定义见 [Architecture](ARCHITECTURE.md) 与
+[Command Reference](COMMANDS.md)。
 
 ## 1. 用户提出一个有边界的任务
 
