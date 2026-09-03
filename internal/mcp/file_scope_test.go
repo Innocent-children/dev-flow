@@ -6,7 +6,7 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/domain"
 )
 
-func TestResolveBlockerFileScopeChoiceKeepsClosedFifteenToolCatalog(t *testing.T) {
+func TestResolveBlockerFileScopeChoiceKeepsClosedSeventeenToolCatalog(t *testing.T) {
 	valid := []byte(`{"host":"codex","task_id":"task","action_id":"action","choice":"allow_once","reason":"Allow this prepared write."}`)
 	if err := ValidateToolInput(ToolResolveBlocker, valid); err != nil {
 		t.Fatalf("valid file-scope resolution rejected: %v", err)
@@ -23,16 +23,16 @@ func TestResolveBlockerFileScopeChoiceKeepsClosedFifteenToolCatalog(t *testing.T
 	if err := ValidateToolInput(ToolRecoverAction, valid); err == nil {
 		t.Fatal("recover_action accepted file-scope decision members")
 	}
-	if len(ToolNames()) != 15 {
+	if len(ToolNames()) != 17 {
 		t.Fatalf("tool catalog size=%d", len(ToolNames()))
 	}
 }
 
 func TestTaskProjectionIncludesFileScopeState(t *testing.T) {
-	projected := projectTask(domain.ProcessTask{TaskChangedPaths: []string{"src/file.go"}, FileScopeRecords: []domain.FileScopeRecord{}}).(map[string]any)
-	paths, ok := projected["task_changed_paths"].([]string)
+	projected := projectTask(domain.ProcessTask{CurrentChangedPaths: []string{"src/file.go"}, FileScopeRecords: []domain.FileScopeRecord{}}).(map[string]any)
+	paths, ok := projected["current_changed_paths"].([]string)
 	if !ok || len(paths) != 1 || paths[0] != "src/file.go" {
-		t.Fatalf("task_changed_paths projection=%#v", projected["task_changed_paths"])
+		t.Fatalf("current_changed_paths projection=%#v", projected["current_changed_paths"])
 	}
 	if _, ok := projected["file_scope_records"]; !ok {
 		t.Fatal("file_scope_records projection missing")

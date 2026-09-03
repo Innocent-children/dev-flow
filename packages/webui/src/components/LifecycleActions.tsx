@@ -1,16 +1,25 @@
-import { KeyboardEvent, useEffect, useRef, useState } from "react";
+import { KeyboardEvent, RefObject, useEffect, useRef, useState } from "react";
 
-import { cancelTask, setTaskArchived, TaskSummary } from "../lib/api";
+import {
+  abandonTask,
+  cancelTask,
+  prepareTaskRelocation,
+  setTaskArchived,
+  TaskSummary,
+  WorkspaceView,
+} from "../lib/api";
 import { PurgeDialog } from "./PurgeDialog";
 import { useI18n } from "../lib/i18n";
 
-export function LifecycleActions({ task, onChanged, onPurged }: { task: TaskSummary; onChanged: () => void; onPurged: () => void }) {
+export function LifecycleActions({ task, workspace, onChanged, onPurged }: { task: TaskSummary; workspace: WorkspaceView; onChanged: () => void; onPurged: () => void }) {
   const { language, t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [abandonOpen, setAbandonOpen] = useState(false);
   const [purgeOpen, setPurgeOpen] = useState(false);
   const cancelTrigger = useRef<HTMLButtonElement>(null);
+  const abandonTrigger = useRef<HTMLButtonElement>(null);
   const purgeTrigger = useRef<HTMLButtonElement>(null);
   const lifecycleRegion = useRef<HTMLElement>(null);
   useEffect(() => setError(""), [language]);
@@ -23,20 +32,56 @@ export function LifecycleActions({ task, onChanged, onPurged }: { task: TaskSumm
   };
   const cancel = async (reason: string) => {
     setBusy(true); setError("");
-    try { await cancelTask(task.task_id, task.revision, reason); setCancelOpen(false); onChanged(); window.requestAnimationFrame(() => lifecycleRegion.current?.focus()); }
+    try { await cancelTask(task.task_id, task.revision, reason); setCancelOpen(false); onChanged(); focusRegion(lifecycleRegion); }
     catch (failure) { setError(failure instanceof Error ? failure.message : t("lifecycle.failure")); }
     finally { setBusy(false); }
   };
-  const closeCancel = () => { setCancelOpen(false); window.requestAnimationFrame(() => cancelTrigger.current?.focus()); };
-  const closePurge = () => { setPurgeOpen(false); window.requestAnimationFrame(() => purgeTrigger.current?.focus()); };
-  return <section ref={lifecycleRegion} className="surface lifecycle-actions" aria-labelledby="lifecycle-title" tabIndex={-1}><div><p className="eyebrow">{t("lifecycle.eyebrow")}</p><h2 id="lifecycle-title">{t("lifecycle.title")}</h2></div>{error !== "" && !cancelOpen && <div className="notice error" role="alert">{error}</div>}<div className="action-row">{!terminal && <button ref={cancelTrigger} className="button danger-ghost" disabled={busy} onClick={() => { setError(""); setCancelOpen(true); }}>{t("lifecycle.cancel")}</button>}{terminal && <button className="button secondary" disabled={busy} onClick={archive}>{t(task.archived ? "lifecycle.restore" : "lifecycle.archive")}</button>}{terminal && <button ref={purgeTrigger} className="button danger-ghost" disabled={busy} onClick={() => setPurgeOpen(true)}>{t("lifecycle.purge")}</button>}</div>{cancelOpen && <CancelDialog busy={busy} error={error} onClose={closeCancel} onConfirm={cancel} />}{purgeOpen && <PurgeDialog taskID={task.task_id} revision={task.revision} onClose={closePurge} onPurged={onPurged} />}</section>;
+  const abandon = async (reason: string) => {
+    setBusy(true); setError("");
+    try { await abandonTask(task.task_id, task.revision, task.execution_host, reason); setAbandonOpen(false); onChanged(); focusRegion(lifecycleRegion); }
+    catch (failure) { setError(failure instanceof Error ? failure.message : t("lifecycle.failure")); }
+    finally { setBusy(false); }
+  };
+  const prepareRelocation = async () => {
+    if (!window.confirm(t("lifecycle.confirmRelocation"))) return;
+    setBusy(true); setError("");
+    try { await prepareTaskRelocation(task.task_id, task.revision, task.execution_host); onChanged(); focusRegion(lifecycleRegion); }
+    catch (failure) { setError(failure instanceof Error ? failure.message : t("lifecycle.failure")); }
+    finally { setBusy(false); }
+  };
+  const closeCancel = () => closeDialog(setCancelOpen, cancelTrigger);
+  const closeAbandon = () => closeDialog(setAbandonOpen, abandonTrigger);
+  const closePurge = () => closeDialog(setPurgeOpen, purgeTrigger);
+  return <section ref={lifecycleRegion} className="surface lifecycle-actions" aria-labelledby="lifecycle-title" tabIndex={-1}>
+    <div><p className="eyebrow">{t("lifecycle.eyebrow")}</p><h2 id="lifecycle-title">{t("lifecycle.title")}</h2></div>
+    {error !== "" && !cancelOpen && !abandonOpen && <div className="notice error" role="alert">{error}</div>}
+    <div className="action-row">
+      {!terminal && !workspace.relocation.pending && <button className="button secondary" disabled={busy} onClick={prepareRelocation}>{busy ? t("lifecycle.preparingRelocation") : t("lifecycle.prepareRelocation")}</button>}
+      {!terminal && <button ref={cancelTrigger} className="button danger-ghost" disabled={busy} onClick={() => { setError(""); setCancelOpen(true); }}>{t("lifecycle.cancel")}</button>}
+      {!terminal && <button ref={abandonTrigger} className="button danger-ghost" disabled={busy} onClick={() => { setError(""); setAbandonOpen(true); }}>{t("lifecycle.abandon")}</button>}
+      {terminal && <button className="button secondary" disabled={busy} onClick={archive}>{t(task.archived ? "lifecycle.restore" : "lifecycle.archive")}</button>}
+      {terminal && <button ref={purgeTrigger} className="button danger-ghost" disabled={busy} onClick={() => setPurgeOpen(true)}>{t("lifecycle.purge")}</button>}
+    </div>
+    {cancelOpen && <ReasonDialog title={t("lifecycle.cancelTitle")} body={t("lifecycle.cancelBody")} confirm={t("lifecycle.confirmCancel")} busyLabel={t("lifecycle.cancelling")} busy={busy} error={error} onClose={closeCancel} onConfirm={cancel} />}
+    {abandonOpen && <ReasonDialog title={t("lifecycle.abandonTitle")} body={t("lifecycle.abandonBody")} confirm={t("lifecycle.confirmAbandon")} busyLabel={t("lifecycle.abandoning")} busy={busy} error={error} onClose={closeAbandon} onConfirm={abandon} />}
+    {purgeOpen && <PurgeDialog taskID={task.task_id} revision={task.revision} onClose={closePurge} onPurged={onPurged} />}
+  </section>;
 }
 
-function CancelDialog({ busy, error, onClose, onConfirm }: { busy: boolean; error: string; onClose: () => void; onConfirm: (reason: string) => void }) {
+function ReasonDialog({ title, body, confirm, busyLabel, busy, error, onClose, onConfirm }: { title: string; body: string; confirm: string; busyLabel: string; busy: boolean; error: string; onClose: () => void; onConfirm: (reason: string) => void }) {
   const { t } = useI18n();
   const [reason, setReason] = useState("");
   const dialog = useRef<HTMLElement>(null);
-  return <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (!busy && event.target === event.currentTarget) onClose(); }}><section ref={dialog} className="dialog" role="dialog" aria-modal="true" aria-labelledby="cancel-title" aria-describedby="cancel-description" onKeyDown={(event) => trapDialogFocus(event, dialog.current, busy ? () => undefined : onClose)}><p className="eyebrow">{t("lifecycle.cancelEyebrow")}</p><h2 id="cancel-title">{t("lifecycle.cancelTitle")}</h2><p id="cancel-description">{t("lifecycle.cancelBody")}</p>{error !== "" && <div className="notice error" role="alert">{error}</div>}<label>{t("lifecycle.reason")}<textarea autoFocus value={reason} onChange={(event) => setReason(event.target.value)} rows={3} /></label><div className="dialog-actions"><button className="button secondary" disabled={busy} onClick={onClose}>{t("lifecycle.continue")}</button><button className="button danger" disabled={busy || reason.trim() === ""} onClick={() => onConfirm(reason.trim())}>{busy ? t("lifecycle.cancelling") : t("lifecycle.confirmCancel")}</button></div></section></div>;
+  return <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (!busy && event.target === event.currentTarget) onClose(); }}><section ref={dialog} className="dialog" role="dialog" aria-modal="true" aria-label={title} onKeyDown={(event) => trapDialogFocus(event, dialog.current, busy ? () => undefined : onClose)}><p className="eyebrow">{t("lifecycle.eyebrow")}</p><h2>{title}</h2><p>{body}</p>{error !== "" && <div className="notice error" role="alert">{error}</div>}<label>{t("lifecycle.reason")}<textarea autoFocus value={reason} onChange={(event) => setReason(event.target.value)} rows={3} /></label><div className="dialog-actions"><button className="button secondary" disabled={busy} onClick={onClose}>{t("lifecycle.continue")}</button><button className="button danger" disabled={busy || reason.trim() === ""} onClick={() => onConfirm(reason.trim())}>{busy ? busyLabel : confirm}</button></div></section></div>;
+}
+
+function closeDialog(setOpen: (open: boolean) => void, trigger: RefObject<HTMLButtonElement | null>) {
+  setOpen(false);
+  window.requestAnimationFrame(() => trigger.current?.focus());
+}
+
+function focusRegion(region: RefObject<HTMLElement | null>) {
+  window.requestAnimationFrame(() => region.current?.focus());
 }
 
 function trapDialogFocus(event: KeyboardEvent<HTMLElement>, dialog: HTMLElement | null, onClose: () => void) {

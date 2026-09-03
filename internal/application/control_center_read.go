@@ -113,8 +113,8 @@ func summarizeTasks(items []store.ControlCenterTask) []ControlCenterTaskSummary 
 			TaskID: task.TaskID, RequestSummary: truncateSummary(task.Intent.Request), OriginHost: task.OriginHost,
 			ExecutionHost: task.OriginHost, CurrentNode: task.CurrentNode, Lifecycle: lifecycleForNode(task.CurrentNode),
 			Revision: task.Revision, UpdatedAt: task.UpdatedAt, Archived: item.ArchivedAt != nil,
-			RepositoryKeys: keys, RepositoryGroupID: task.Repository.GitCommonDirDigest,
-			WorktreePath: task.Repository.CanonicalRoot, Blocker: blocker, Outcome: outcome,
+			RepositoryKeys: keys, RepositoryGroupID: task.WorkspaceOrigin.SourceRepositoryGroupDigest,
+			WorktreePath: task.WorkspaceOrigin.CanonicalWorktreeRoot, Blocker: blocker, Outcome: outcome,
 		}
 	}
 	return result

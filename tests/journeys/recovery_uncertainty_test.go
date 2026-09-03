@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/Innocent-children/dev-flow/internal/application"
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/recovery"
 )
@@ -19,12 +20,12 @@ func TestRecoveryUncertaintyFiveClassJourney(t *testing.T) {
 		defer j.close()
 		j.toRefactor()
 		observer := j.installCountingObserver()
-		payload := refactorRecoveryPayload(t, j.task)
+		payload := json.RawMessage("null")
 		operationID := domain.ID("recovery-not-started")
 		probe := recoveryProbe(j.task, operationID, payload)
 		read := assertProbedReads(t, j, observer, probe)
 		assessment := read.RecoveryAssessment
-		if assessment.Classification != domain.RecoveryNotStarted || !assessment.ActionRetrySafe || assessment.NextAdvice != recovery.AdviceRetryCurrentAction || assessment.CommittedProof != nil || assessment.UnblockCondition != nil {
+		if assessment.Classification != domain.RecoveryNotStarted || assessment.ActionRetrySafe || assessment.NextAdvice != recovery.AdviceReadNextAction || assessment.CommittedProof != nil || assessment.UnblockCondition != nil || assessment.OperationPayloadDigest != nil {
 			t.Fatalf("assessment=%+v", assessment)
 		}
 		before := j.state()
@@ -157,30 +158,43 @@ func TestRecoveryUncertaintyFiveClassJourney(t *testing.T) {
 	})
 
 	t.Run("conflicting_payload_effect_and_forbidden_repository", func(t *testing.T) {
-		t.Run("payload_effect", func(t *testing.T) {
+		t.Run("unplanned_surface_conflicts_before_recovery_apply", func(t *testing.T) {
 			j := newIterationJourney(t)
 			defer j.close()
 			j.toRefactor()
 			observer := j.installCountingObserver()
 			source := j.task
+			implementation := *source.Implementation
 			payload := refactorRecoveryPayload(t, source)
 			operationID := domain.ID("recovery-conflict-effect")
 			if err := os.WriteFile(filepath.Join(j.repo, "other.txt"), []byte("unexpected\n"), 0o644); err != nil {
 				t.Fatal(err)
 			}
-			read := assertProbedReads(t, j, observer, recoveryProbe(source, operationID, payload))
-			if read.RecoveryAssessment.Classification != domain.RecoveryConflicting || read.RecoveryAssessment.ActionRetrySafe || read.RecoveryAssessment.OperationEvidence != recovery.OperationEvidenceContradictory {
+			probe := recoveryProbe(source, operationID, payload)
+			read := assertProbedReads(t, j, observer, probe)
+			assessment := read.RecoveryAssessment
+			if assessment.Classification != domain.RecoveryConflicting || assessment.RepositoryRelation != recovery.RepositoryWorktreeOnlyChanged || assessment.OperationEvidence != recovery.OperationEvidenceContradictory || assessment.NextAdvice != recovery.AdviceSubmitRecoveryApply || assessment.ActionRetrySafe || assessment.UnblockCondition == nil || assessment.UnblockCondition.Kind != domain.BlockerConditionRestoreIssuanceBinding {
 				t.Fatalf("assessment=%+v", read.RecoveryAssessment)
 			}
 			before := j.state()
 			beforeCalls := observer.calls
-			blocked, err := j.service.ApplyAction(context.Background(), recoveryApplyRequest(source, operationID, payload))
-			if err != nil || observer.calls != beforeCalls+1 {
+			next, err := j.service.GetNextAction(context.Background(), application.GetNextActionRequest{Host: domain.HostCodex, TaskID: source.TaskID, OperationProbe: &probe})
+			if err != nil {
 				t.Fatal(err)
 			}
+			if observer.calls != beforeCalls+1 || next.CurrentNode != domain.NodeRefactor || next.Revision != source.Revision || next.RecoveryAssessment == nil || next.RecoveryAssessment.Classification != domain.RecoveryConflicting || next.RecoveryAssessment.NextAdvice != recovery.AdviceSubmitRecoveryApply {
+				t.Fatalf("next=%+v observations=%d", next, observer.calls-beforeCalls)
+			}
+			j.assertStateUnchanged(before)
+
+			beforeCalls = observer.calls
+			blocked, err := j.service.ApplyAction(context.Background(), recoveryApplyRequest(source, operationID, payload))
+			if err != nil || observer.calls != beforeCalls+1 {
+				t.Fatalf("blocked=%+v err=%v observations=%d", blocked, err, observer.calls-beforeCalls)
+			}
 			j.task = blocked.Task
-			if j.task.CurrentNode != domain.NodeBlocked || j.task.Blocker == nil || j.task.Blocker.Cause != domain.BlockerCauseRecoveryConflicting || j.task.Revision != before.revision+1 || j.eventCount() != before.events+1 {
-				t.Fatal("conflicting recovery did not create one blocker")
+			if j.task.CurrentNode != domain.NodeBlocked || j.task.Revision != before.revision+1 || j.eventCount() != before.events+1 || j.claimCount() != 1 || j.task.Blocker == nil || j.task.Blocker.Cause != domain.BlockerCauseRecoveryConflicting || j.task.ResumeNode == nil || *j.task.ResumeNode != domain.NodeRefactor || j.task.CurrentAction == nil || j.task.CurrentAction.Kind != domain.ActionResolveBlocker || !reflect.DeepEqual(*j.task.Implementation, implementation) || j.task.Repository.BindingDigest != source.Repository.BindingDigest || j.task.Blocker.ObservedBindingDigest == source.Repository.BindingDigest || j.task.LastOperation == nil || j.task.LastOperation.OperationID != operationID {
+				t.Fatal("conflicting recovery did not retain source authority behind an exact restoration blocker")
 			}
 		})
 
@@ -221,7 +235,7 @@ func TestRecoveryUncertaintyCallerShapesUseOneExactProbe(t *testing.T) {
 			}
 			before := j.state()
 			read := assertProbedReads(t, j, observer, exactProbe)
-			if read.RecoveryAssessment.Classification != domain.RecoveryNotStarted || read.RecoveryAssessment.Operation.OperationID != operationID || !reflect.DeepEqual(read.RecoveryAssessment.Operation, exactProbe.Reference()) {
+			if read.RecoveryAssessment.Classification != domain.RecoveryCompletedButUnrecorded || read.RecoveryAssessment.NextAdvice != recovery.AdviceSubmitRecoveryApply || read.RecoveryAssessment.Operation.OperationID != operationID || !reflect.DeepEqual(read.RecoveryAssessment.Operation, exactProbe.Reference()) {
 				t.Fatalf("assessment=%+v", read.RecoveryAssessment)
 			}
 			j.assertStateUnchanged(before)

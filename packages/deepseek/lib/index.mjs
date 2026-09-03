@@ -10,6 +10,7 @@ import {
   resolveDataDirectory,
 } from "./paths.mjs";
 import { preflightPackagedCore, selectPackagedRuntime } from "./runtime.mjs";
+import { registerWorkspaceCoordinator } from "./workspace-tool.mjs";
 import {
   DEV_FLOW_SERVER_NAME,
   assertQualifiedToolCatalog,
@@ -18,8 +19,8 @@ import {
 export const name = "dev-flow-deepseek";
 export const inject = ["skills", "tools"];
 
-export async function apply(ctx) {
-  await activateDeepSeekIntegration(ctx);
+export async function apply(ctx, options = {}) {
+  await activateDeepSeekIntegration(ctx, options);
 }
 
 export async function activateDeepSeekIntegration(ctx, {
@@ -46,10 +47,10 @@ export async function activateDeepSeekIntegration(ctx, {
 
   ctx.skills.register(Object.freeze({
     name: "dev-flow",
-    description: "Use the Dev Flow graph Core for the current explicit development request.",
-    whenToUse: "Use only for a current direct user turn containing /dev-flow.",
+    description: "Assess bounded development requests, then use Dev Flow only after the developer confirms an isolated worktree launch.",
+    whenToUse: "Use for new development-request suitability assessment, explicit worktree confirmation, or an explicit Dev Flow Task resume.",
     invocation: Object.freeze({
-      modelInvocable: false,
+      modelInvocable: true,
       userInvocable: true,
     }),
     source: "bundled",
@@ -61,6 +62,10 @@ export async function activateDeepSeekIntegration(ctx, {
   registerDevFlowGuard(ctx, { workspaceRoot });
   registerFileScopeGate(ctx, {
     runtimePath: runtime.runtimePath,
+    dataDirectory: dataSelection.dataDirectory,
+    workspaceRoot,
+  });
+  registerWorkspaceCoordinator(ctx, {
     dataDirectory: dataSelection.dataDirectory,
     workspaceRoot,
   });

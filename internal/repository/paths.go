@@ -68,9 +68,10 @@ func parseSingleLine(output []byte) (string, error) {
 }
 
 type fingerprintPathState struct {
-	statusPath   string
-	resolvedPath string
-	info         os.FileInfo
+	statusPath    string
+	resolvedPath  string
+	info          os.FileInfo
+	symlinkTarget string
 }
 
 // prepareFingerprintPaths validates every status-identified path before the
@@ -108,17 +109,27 @@ func inspectFingerprintPath(canonicalRoot, statusPath string) (fingerprintPathSt
 		return fingerprintPathState{}, err
 	}
 	info, err := os.Lstat(path)
-	if err != nil || !info.Mode().IsRegular() {
+	if err != nil || !info.Mode().IsRegular() && info.Mode()&os.ModeSymlink == 0 {
 		return fingerprintPathState{}, ErrInconsistentWorktree
 	}
-	resolved, err := filepath.EvalSymlinks(path)
-	if err != nil || !pathInsideRoot(canonicalRoot, resolved) {
-		return fingerprintPathState{}, ErrInconsistentWorktree
+	resolved := path
+	symlinkTarget := ""
+	if info.Mode()&os.ModeSymlink != 0 {
+		symlinkTarget, err = os.Readlink(path)
+		if err != nil {
+			return fingerprintPathState{}, ErrInconsistentWorktree
+		}
+	} else {
+		resolved, err = filepath.EvalSymlinks(path)
+		if err != nil || !pathInsideRoot(canonicalRoot, resolved) {
+			return fingerprintPathState{}, ErrInconsistentWorktree
+		}
 	}
 	return fingerprintPathState{
-		statusPath:   statusPath,
-		resolvedPath: filepath.Clean(resolved),
-		info:         info,
+		statusPath:    statusPath,
+		resolvedPath:  filepath.Clean(resolved),
+		info:          info,
+		symlinkTarget: symlinkTarget,
 	}, nil
 }
 
@@ -129,7 +140,7 @@ func verifyFingerprintPath(canonicalRoot string, before fingerprintPathState) er
 	}
 	if before.resolvedPath != after.resolvedPath || !os.SameFile(before.info, after.info) ||
 		before.info.Mode() != after.info.Mode() || before.info.Size() != after.info.Size() ||
-		!before.info.ModTime().Equal(after.info.ModTime()) {
+		!before.info.ModTime().Equal(after.info.ModTime()) || before.symlinkTarget != after.symlinkTarget {
 		return ErrInconsistentWorktree
 	}
 	return nil

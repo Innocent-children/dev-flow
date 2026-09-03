@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -34,20 +33,18 @@ func TestSubmissionUsesServerGeneratedOperationIdentity(t *testing.T) {
 func TestMutationRequestBindingMatchesCommittedLastOperation(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 8, 20, 9, 0, 0, 0, time.UTC)
-	digest := domain.Digest(strings.Repeat("a", 64))
-	branch, head := "main", strings.Repeat("b", 40)
 	repositoryPath := testPath("repo")
-	binding := domain.RepositoryBinding{CanonicalRoot: repositoryPath, GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
+	origin, binding, originInput := mcpWorkspaceFixture(now, repositoryPath, 'a')
 	database, err := store.Open(context.Background(), filepath.Join(t.TempDir(), "tasks.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer database.Close()
-	service, err := application.NewService(database, recoveryProjectionObserver{binding: binding})
+	service, err := application.NewService(database, recoveryProjectionObserver{origin: origin, binding: binding})
 	if err != nil {
 		t.Fatal(err)
 	}
-	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "request-open", Host: domain.HostCodex, RepositoryPath: repositoryPath, NewTask: &application.NewTaskInput{Request: "Define work.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain}})
+	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "request-open", Host: domain.HostCodex, RepositoryPath: repositoryPath, WorkspaceOrigin: &originInput, NewTask: &application.NewTaskInput{Request: "Define work.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,13 +58,13 @@ func TestMutationRequestBindingMatchesCommittedLastOperation(t *testing.T) {
 			"requirements.clarify":  map[string]any{"capability": "", "summary": "Clarified."},
 			"requirements.validate": map[string]any{"capability": "", "summary": "Validated."},
 		},
-		"node_result": map[string]any{"problem_class": "none", "baseline": map[string]any{"goal": "Goal", "scope": []any{}, "out_of_scope": []any{}, "acceptance_criteria": []string{"Works"}, "constraints": []any{}, "assumptions": []any{}}, "unresolved_questions": []any{}, "changed_paths": []any{}, "no_file_changes": true},
+		"node_result": map[string]any{"problem_class": "none", "baseline": map[string]any{"goal": "Goal", "scope": []any{}, "out_of_scope": []any{}, "acceptance_criteria": []string{"Works"}, "constraints": []any{}, "assumptions": []any{}}, "unresolved_questions": []any{}},
 	}
 	raw, err := json.Marshal(input)
 	if err != nil {
 		t.Fatal(err)
 	}
-	server, err := NewServer(service, "0.3.0", nil)
+	server, err := NewServer(service, "0.7.0", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,11 +100,11 @@ func TestMutationRequestBindingAppliesToSuccessAndDomainError(t *testing.T) {
 	if !success.OK || success.RequestID != string(transportID) {
 		t.Fatalf("success envelope = ok:%v request:%q", success.OK, success.RequestID)
 	}
-	errorEnvelope := decodeEnvelopeForRequestBinding(t, (&Server{version: "0.3.0"}).dispatch(context.Background(), ToolSubmitRequirements, transportID, raw))
+	errorEnvelope := decodeEnvelopeForRequestBinding(t, (&Server{version: "0.7.0"}).dispatch(context.Background(), ToolSubmitRequirements, transportID, raw))
 	if errorEnvelope.OK || errorEnvelope.RequestID != string(transportID) || errorEnvelope.Error == nil || errorEnvelope.Error.Code != domain.ErrorInvalidArgument {
 		t.Fatalf("domain-error envelope = %+v", errorEnvelope)
 	}
-	read := decodeEnvelopeForRequestBinding(t, (&Server{version: "0.3.0"}).dispatch(context.Background(), ToolServerInfo, transportID, []byte(`{}`)))
+	read := decodeEnvelopeForRequestBinding(t, (&Server{version: "0.7.0"}).dispatch(context.Background(), ToolServerInfo, transportID, []byte(`{}`)))
 	if !read.OK || read.RequestID != string(transportID) {
 		t.Fatalf("transport-bound read envelope = ok:%v request:%q", read.OK, read.RequestID)
 	}

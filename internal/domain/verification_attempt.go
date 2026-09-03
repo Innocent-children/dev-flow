@@ -8,19 +8,20 @@ type VerificationAttempt struct {
 	TaskRevision           uint64    `json:"task_revision"`
 	TaskPlanRevision       uint32    `json:"task_plan_revision"`
 	ImplementationRevision uint32    `json:"implementation_revision"`
+	ContentDigest          Digest    `json:"content_digest"`
 	DestinationNode        NodeID    `json:"destination_node"`
 	EvidenceIDs            []ID      `json:"evidence_ids"`
 	ResultDigest           Digest    `json:"result_digest"`
 	FailureDigest          Digest    `json:"failure_digest"`
 	Failed                 bool      `json:"failed"`
-	ChangedPaths           []string  `json:"changed_paths"`
+	ImplementationPaths    []string  `json:"implementation_paths"`
 	RecordedAt             time.Time `json:"recorded_at"`
 }
 
 func (a VerificationAttempt) Validate() error {
 	if a.TaskRevision == 0 || a.TaskPlanRevision == 0 || a.ImplementationRevision == 0 ||
-		!a.DestinationNode.Normal() || validateDigest(a.ResultDigest) != nil ||
-		len(a.EvidenceIDs) > MaxEvidencePerAction || len(a.ChangedPaths) > MaxFingerprintPaths ||
+		!a.DestinationNode.Normal() || validateDigest(a.ContentDigest) != nil || validateDigest(a.ResultDigest) != nil ||
+		len(a.EvidenceIDs) > MaxEvidencePerAction || len(a.ImplementationPaths) > MaxFingerprintPaths ||
 		validateUTC(a.RecordedAt) != nil {
 		return ErrInvalidArgument
 	}
@@ -41,12 +42,12 @@ func (a VerificationAttempt) Validate() error {
 		}
 		evidenceIDs[id] = struct{}{}
 	}
-	paths := make(map[string]struct{}, len(a.ChangedPaths))
-	for index, path := range a.ChangedPaths {
+	paths := make(map[string]struct{}, len(a.ImplementationPaths))
+	for index, path := range a.ImplementationPaths {
 		if _, duplicate := paths[path]; duplicate {
 			return ErrInvalidArgument
 		}
-		if index > 0 && a.ChangedPaths[index-1] >= path {
+		if index > 0 && a.ImplementationPaths[index-1] >= path {
 			return ErrInvalidArgument
 		}
 		paths[path] = struct{}{}

@@ -83,14 +83,15 @@ func TestPrepareFileChangeUsesAllDeclaredRepositories(t *testing.T) {
 	primary := fileScopeBinding(now, corePath, 'a')
 	docs := fileScopeBinding(now, docsPath, 'b')
 	task := fileScopeTaskWithBinding(t, now, primary, []string{"src/**"})
+	task.WorkspaceOrigin = fileScopeOrigin(corePath, 'a')
 	task.PrimaryRepositoryKey = "core"
-	task.AdditionalRepositories = []domain.RepositoryScopeEntry{{Key: "docs", Binding: docs}}
+	task.AdditionalRepositories = []domain.RepositoryScopeEntry{{Key: "docs", Origin: fileScopeOrigin(docsPath, 'b'), Binding: docs}}
 	task.TaskPlan.WorkItems[0].ExpectedPaths = []string{"docs::src/**"}
-	effective, err := task.EffectiveRepositoryBindingDigest()
+	workspace, err := task.EffectiveWorkspaceDigests()
 	if err != nil {
 		t.Fatal(err)
 	}
-	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), domain.NodeImplement, task.TaskID, task.Revision, effective, task.Intent.MethodProfile, "action-implement", now)
+	action, err := workflow.BuildProcessActionForWorkspace(workflow.StandardProcess(), domain.NodeImplement, task.TaskID, task.Revision, workspace, task.Intent.MethodProfile, "action-implement", now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,34 +111,10 @@ func TestPrepareFileChangeUsesAllDeclaredRepositories(t *testing.T) {
 	}
 }
 
-func TestImplementationAndDeliveryGuardsRequireExplainedPaths(t *testing.T) {
-	now := time.Date(2026, 9, 1, 3, 0, 0, 0, time.UTC)
-	task := fileScopeTask(t, now, []string{"src/**"})
-	transition, err := workflow.TransitionFor(workflow.StandardProcess(), domain.NodeImplement, "implementation_ready_for_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	result := &workflow.ImplementationResult{ProblemClass: workflow.ProblemNone, TaskPlanRevision: 1, CompletedWorkItemIDs: []domain.ID{"work"}, ChangedPaths: []string{"config/security.yml"}}
-	err = validateActionResultAgainstTask(task, transition, result)
-	var typed *domain.Error
-	if !errorsAs(err, &typed) || typed.Guard == nil || len(typed.Guard.Failures) != 1 || typed.Guard.Failures[0].Rule != domain.ViolationRule(domain.GuardChangedPathsExplained) {
-		t.Fatalf("guard error=%#v", err)
-	}
-	record := domain.FileScopeRecord{RequestID: "scope-record", Paths: []string{"config/security.yml"}, IntentDigest: testDigest('3'), TaskPlanRevision: 1, SourceNode: domain.NodeImplement, SourceActionID: "source-action", Decision: domain.FileScopeAllowOnce, Reason: "Allowed for this implementation.", Applicability: domain.FileScopeExactWrite, AllowedActionID: &task.CurrentAction.ActionID, CreatedAt: now, DecidedAt: &now}
-	task.FileScopeRecords = []domain.FileScopeRecord{record}
-	if err := validateActionResultAgainstTask(task, transition, result); err != nil {
-		t.Fatalf("authorized path rejected: %v", err)
-	}
-	recordTaskChangedPaths(&task, result.ChangedPaths, task.CurrentAction.ActionID)
-	if !task.FileScopeRecords[0].Consumed || len(unexplainedTaskPaths(task, nil)) != 0 || task.Validate() != nil {
-		t.Fatalf("consumption/task invalid: %#v", task.FileScopeRecords[0])
-	}
-}
-
 func fileScopeService(t *testing.T, now time.Time, task domain.ProcessTask) (*Service, *memoryStore) {
 	t.Helper()
 	taskStore := &memoryStore{task: &task}
-	service, err := newService(taskStore, observer{binding: task.Repository}, func() time.Time { return now.Add(time.Minute) }, sequentialTestIDs())
+	service, err := newService(taskStore, observer{origin: task.WorkspaceOrigin, binding: task.Repository}, func() time.Time { return now.Add(time.Minute) }, sequentialTestIDs())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,17 +140,17 @@ func fileScopeTaskWithBinding(t *testing.T, now time.Time, binding domain.Reposi
 	task := domain.ProcessTask{
 		TaskID: "task-scope", OriginHost: domain.HostCodex,
 		Intent:  domain.TaskIntent{Request: "Implement the bounded change.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: domain.MethodPlain},
-		Process: definition.Reference, CurrentNode: domain.NodeImplement, Repository: binding,
+		Process: definition.Reference, CurrentNode: domain.NodeImplement, WorkspaceOrigin: fileScopeOrigin(testPath("repo"), 'a'), Repository: binding,
 		Requirements: &domain.RequirementsBaseline{Revision: 1, Digest: testDigest('4'), Goal: "Implement scope checks.", AcceptanceCriteria: []string{"Writes are scoped."}, CreatedAt: now},
 		Design:       &domain.DesignBaseline{Revision: 1, Digest: testDigest('5'), RequirementsRevision: 1, Approach: "Use the existing process.", Decisions: []string{"Reuse BLOCKED."}, CreatedAt: now},
 		TaskPlan:     &domain.TaskPlanBaseline{Revision: 1, Digest: testDigest('6'), DesignRevision: 1, WorkItems: []domain.WorkItem{{WorkItemID: "work", Summary: "Implement scope checks.", ExpectedPaths: expected, AcceptanceIndexes: []uint32{0}, VerificationSteps: []string{"Run focused tests."}}}, CreatedAt: now},
 		Revision:     4, CreatedAt: now, UpdatedAt: now,
 	}
-	effective, err := task.EffectiveRepositoryBindingDigest()
+	workspace, err := task.EffectiveWorkspaceDigests()
 	if err != nil {
 		t.Fatal(err)
 	}
-	action, err := workflow.BuildProcessAction(definition, domain.NodeImplement, task.TaskID, task.Revision, effective, task.Intent.MethodProfile, "action-implement", now)
+	action, err := workflow.BuildProcessActionForWorkspace(definition, domain.NodeImplement, task.TaskID, task.Revision, workspace, task.Intent.MethodProfile, "action-implement", now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,20 +163,14 @@ func fileScopeTaskWithBinding(t *testing.T, now time.Time, binding domain.Reposi
 
 func fileScopeBinding(now time.Time, root string, seed byte) domain.RepositoryBinding {
 	digest := testDigest(seed)
-	branch := "main"
+	branch := "feature/task"
 	head := strings.Repeat(string(seed), 40)
-	return domain.RepositoryBinding{CanonicalRoot: root, GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
+	return domain.RepositoryBinding{WorktreeInstanceDigest: digest, IdentityDigest: digest, HistoryDigest: digest, ContentDigest: digest, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: digest}
+}
+
+func fileScopeOrigin(root string, seed byte) domain.WorkspaceOrigin {
+	digest := testDigest(seed)
+	return domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: strings.Repeat(string(seed), 40), TaskBranch: "feature/task", SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: root, WorktreeGitDirDigest: digest, ProvisioningReceiptID: domain.ID("receipt-" + string(seed))}
 }
 
 func testDigest(seed byte) domain.Digest { return domain.Digest(strings.Repeat(string(seed), 64)) }
-
-func errorsAs(err error, target **domain.Error) bool {
-	if err == nil {
-		return false
-	}
-	value, ok := err.(*domain.Error)
-	if ok {
-		*target = value
-	}
-	return ok
-}

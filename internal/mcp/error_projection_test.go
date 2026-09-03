@@ -150,7 +150,7 @@ func TestApplyErrorDetailRejectsUnsafePathsAndRules(t *testing.T) {
 	failure := &domain.Error{Code: domain.ErrorInvalidArgument, Message: "the domain value is invalid", ZeroWrite: true, Violations: []domain.ContractViolation{
 		{Path: "/Users/private/secret.db", Rule: domain.RuleTextNotNormalized, Message: "unsafe path"},
 		{Path: "payload.node_result.findings", Rule: "invented_rule", Message: "unknown rule"},
-		{Path: "payload.node_result.changed_paths", Rule: domain.RuleRepositoryMutationInconsistent, Message: domain.RuleRepositoryMutationInconsistent.Message()},
+		{Path: "payload.node_result.changed_paths", Rule: domain.RuleUnknownMember, Message: domain.RuleUnknownMember.Message()},
 	}}
 	envelope := decodeEnvelope(t, EncodeError("request-unsafe", ToolSubmitTest, failure))
 	if len(envelope.Error.Details) != 1 || envelope.Error.Details[0].Path != "node_result.changed_paths" {
@@ -205,9 +205,9 @@ func TestApplyErrorCorrectionRequiresDeterministicRulesOnly(t *testing.T) {
 		{"user command count", domain.InvalidArgumentViolations(domain.Violation("payload.node_result.checks[0].command_count", domain.RuleNonAutomatedCommandCountZero)), true},
 		{"non-automated full suite", domain.InvalidArgumentViolations(domain.Violation("payload.node_result.checks[0].full_suite", domain.RuleNonAutomatedFullSuiteFalse)), true},
 		{"unknown member", domain.InvalidArgumentViolations(domain.Violation("payload.node_result.extra", domain.RuleUnknownMember)), true},
-		{"repository effect not observed", domain.InvalidArgumentViolations(
-			domain.Violation("payload.node_result.changed_paths", domain.RuleRepositoryEffectNotObserved),
-			domain.Violation("payload.node_result.no_file_changes", domain.RuleRepositoryEffectNotObserved),
+		{"legacy repository effect members", domain.InvalidArgumentViolations(
+			domain.Violation("payload.node_result.changed_paths", domain.RuleUnknownMember),
+			domain.Violation("payload.node_result.no_file_changes", domain.RuleUnknownMember),
 		), true},
 		{"forward findings", domain.TransitionGuardFailure("implementation_report_complete", domain.GuardViolation("payload.node_result.findings", domain.GuardForwardFindingsEmpty)), true},
 		{"current evidence set", domain.TransitionGuardFailure("delivery_current_and_complete", domain.GuardViolation("payload.node_result.manual_evidence_ids", domain.GuardCurrentSetRequired)), true},

@@ -130,17 +130,17 @@ func TestProblemClassMismatchIsTransitionNotAllowedAndZeroWrite(t *testing.T) {
 		{
 			name: "implementation failure cannot choose design issue", prepare: phase5TaskAtTest,
 			transition: "tests_expose_design_issue",
-			result:     map[string]any{"problem_class": "implementation_failure", "checks": []map[string]any{evidenceCheck("automated", "failed", "test", 1, false)}, "failed_items": []string{"failure"}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{"Implementation failure"}, "changed_paths": []string{}, "no_file_changes": true},
+			result:     map[string]any{"problem_class": "implementation_failure", "checks": []map[string]any{evidenceCheck("automated", "failed", "test", 1, false)}, "failed_items": []string{"failure"}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{"Implementation failure"}},
 		},
 		{
 			name: "code complexity cannot choose design complexity", prepare: phase5TaskAtComprehension,
 			transition: "design_too_complex",
-			result:     map[string]any{"problem_class": "code_complexity", "explained_components": []string{}, "unresolved_questions": []string{}, "unnecessary_abstractions": []string{"factory"}, "maintenance_risks": []string{}, "user_confirmation": nil, "findings": []string{"Code complexity"}, "changed_paths": []string{}, "no_file_changes": true},
+			result:     map[string]any{"problem_class": "code_complexity", "explained_components": []string{}, "unresolved_questions": []string{}, "unnecessary_abstractions": []string{"factory"}, "maintenance_risks": []string{}, "user_confirmation": nil, "findings": []string{"Code complexity"}},
 		},
 		{
 			name: "delivery test gap cannot choose requirements", prepare: phase5TaskAtDelivery,
 			transition: "delivery_needs_requirements",
-			result:     map[string]any{"problem_class": "test_gap", "acceptance": []any{}, "automated_evidence_ids": []string{}, "manual_evidence_ids": []string{}, "test_record_id": "", "comprehension_record_id": "", "unverified_items": []string{}, "risks": []string{}, "findings": []string{"Test gap"}, "changed_paths": []string{}, "no_file_changes": true},
+			result:     map[string]any{"problem_class": "test_gap", "acceptance": []any{}, "automated_evidence_ids": []string{}, "manual_evidence_ids": []string{}, "test_record_id": "", "comprehension_record_id": "", "unverified_items": []string{}, "risks": []string{}, "findings": []string{"Test gap"}},
 		},
 	}
 	for _, tc := range tests {
@@ -151,9 +151,8 @@ func TestProblemClassMismatchIsTransitionNotAllowedAndZeroWrite(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			action := task.CurrentAction
 			before := memory.commits
-			_, err = service.ApplyAction(context.Background(), ApplyActionRequest{RequestID: "problem-class-mismatch", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: raw})
+			_, err = service.ApplyAction(context.Background(), currentActionApplyRequest(task, "problem-class-mismatch", raw))
 			if !errors.Is(err, domain.ErrTransitionNotAllowed) || memory.commits != before {
 				t.Fatalf("error=%v writes=%d", err, memory.commits-before)
 			}
@@ -216,15 +215,13 @@ func TestCancelTerminalAndReasonValidationZeroWrite(t *testing.T) {
 		t.Fatalf("DONE cancel error=%v writes=%d", err, doneMemory.commits-before)
 	}
 
-	blockedService, blockedMemory, _ := phase5Service(t)
+	blockedService, _, _ := phase5Service(t)
 	blocked := openPhase5Task(t, blockedService)
-	resume := blocked.CurrentNode
-	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), domain.NodeBlocked, blocked.TaskID, blocked.Revision, blocked.Repository.BindingDigest, blocked.Intent.MethodProfile, "blocked-action", blocked.UpdatedAt)
+	prepared, err := blockedService.PrepareTaskRelocation(context.Background(), PrepareTaskRelocationRequest{RequestID: "prepare-cancel-relocation", Host: domain.HostCodex, TaskID: blocked.TaskID, ExpectedRevision: blocked.Revision})
 	if err != nil {
 		t.Fatal(err)
 	}
-	blocked.CurrentNode, blocked.ResumeNode, blocked.Blocker, blocked.CurrentAction = domain.NodeBlocked, &resume, &domain.ProcessBlocker{BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.BlockerCauseRecoveryConflicting, ResumeNode: resume, Message: "Restore repository binding.", ObservedBindingDigest: blocked.Repository.BindingDigest, Condition: domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: blocked.Repository.BindingDigest}, RequiredResolution: "Restore the issuance binding.", CreatedAt: blocked.UpdatedAt}, &action
-	blockedMemory.task = &blocked
+	blocked = prepared.Task
 	blockedResult, err := blockedService.CancelTask(context.Background(), CancelTaskRequest{RequestID: "cancel-blocked", Host: domain.HostCodex, TaskID: blocked.TaskID, ExpectedRevision: blocked.Revision, Reason: "Cancel blocked task."})
 	if err != nil || blockedResult.Task.CurrentNode != domain.NodeCancelled || blockedResult.Task.Blocker != nil || blockedResult.Task.ResumeNode != nil {
 		t.Fatalf("blocked cancel error=%v task=%#v", err, blockedResult.Task)
@@ -248,7 +245,7 @@ func TestDeliveryEvidenceRequiresExactCurrentSets(t *testing.T) {
 			"automated_evidence_ids": []string{string(task.Test.EvidenceIDs[0])},
 			"manual_evidence_ids":    []string{string(task.Test.EvidenceIDs[1]), string(task.Comprehension.UserEvidenceID)},
 			"test_record_id":         task.Test.RecordID, "comprehension_record_id": task.Comprehension.RecordID,
-			"unverified_items": []string{}, "risks": []string{}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true,
+			"unverified_items": []string{}, "risks": []string{}, "findings": []string{},
 		}
 	}
 	tests := map[string]func(map[string]any){

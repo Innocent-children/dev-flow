@@ -9,7 +9,7 @@ import (
 
 func TestGraphOperationReferenceRejectsProcessSourceAndActionMismatch(t *testing.T) {
 	process := StandardProcess().Reference
-	base := domain.OperationReference{OperationID: "operation", Process: process, SourceCursor: domain.NodeRefactor, ExpectedRevision: 3, ActionID: "action", ActionKind: domain.ActionCompleteRefactor, RepositoryBindingDigest: process.DefinitionDigest}
+	base := domain.OperationReference{OperationID: "operation", Process: process, SourceCursor: domain.NodeRefactor, ExpectedRevision: 3, ActionID: "action", ActionKind: domain.ActionCompleteRefactor, RepositoryBindingDigest: process.DefinitionDigest, IssuanceIdentityDigest: process.DefinitionDigest, IssuanceHistoryDigest: process.DefinitionDigest, IssuanceContentDigest: process.DefinitionDigest}
 	if err := ValidateOperationReference(base); err != nil {
 		t.Fatal(err)
 	}
@@ -33,8 +33,8 @@ func TestGraphOperationReferenceRejectsProcessSourceAndActionMismatch(t *testing
 
 func TestGraphOperationDigestUsesCanonicalPayload(t *testing.T) {
 	process := StandardProcess().Reference
-	operation := domain.OperationReference{OperationID: "operation", Process: process, SourceCursor: domain.NodeRequirements, ExpectedRevision: 1, ActionID: "action", ActionKind: domain.ActionCompleteRequirements, RepositoryBindingDigest: process.DefinitionDigest}
-	leftEnvelope, leftResult, err := DecodeStandardPayload(domain.NodeRequirements, []byte(`{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":[{"step_id":"requirements.capture","status":"plain_fallback","capability":"","summary":"Done."},{"step_id":"requirements.clarify","status":"plain_fallback","capability":"","summary":"Done."},{"step_id":"requirements.validate","status":"plain_fallback","capability":"","summary":"Done."}],"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Works"],"constraints":[],"assumptions":[]},"unresolved_questions":[],"changed_paths":[],"no_file_changes":true}}`))
+	operation := domain.OperationReference{OperationID: "operation", Process: process, SourceCursor: domain.NodeRequirements, ExpectedRevision: 1, ActionID: "action", ActionKind: domain.ActionCompleteRequirements, RepositoryBindingDigest: process.DefinitionDigest, IssuanceIdentityDigest: process.DefinitionDigest, IssuanceHistoryDigest: process.DefinitionDigest, IssuanceContentDigest: process.DefinitionDigest}
+	leftEnvelope, leftResult, err := DecodeStandardPayload(domain.NodeRequirements, []byte(`{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":[{"step_id":"requirements.capture","status":"plain_fallback","capability":"","summary":"Done."},{"step_id":"requirements.clarify","status":"plain_fallback","capability":"","summary":"Done."},{"step_id":"requirements.validate","status":"plain_fallback","capability":"","summary":"Done."}],"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Works"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,40 +3,23 @@
 [中文](https://github.com/Innocent-children/dev-flow/blob/main/packages/deepseek/README.md) |
 [English](https://github.com/Innocent-children/dev-flow/blob/main/docs/DEEPSEEK_en.md)
 
-`dev-flow-deepseek` lets DeepSeek Harness (DSH) continue long-running coding work from a local durable
-Task while keeping scope, verification budget, and delivery conditions explicit. DSH still reads the
-Workspace, edits files, and runs commands; the bundled Go Core retains the current stage, limits
-verification expansion, invalidates stale records, and returns a next step, Recovery assessment, or
-explicit blocker after repository drift or an uncertain Action result.
+`dev-flow-deepseek` gives DeepSeek Harness (DSH) one durable Core Task in a dedicated worktree. A
+normal development request is assessed without a Dev Flow call. A later exact confirmation authorizes
+provisioning and relaunch; Core then derives the current surface from read-only Git.
 
-## Support
+## Support and installation
 
-| Item | Current support |
-| --- | --- |
-| Package | [`dev-flow-deepseek`](https://www.npmjs.com/package/dev-flow-deepseek) |
-| Stable platform | macOS arm64 |
-| Current-source platform | macOS arm64 (`darwin-arm64`); Windows 10/11 desktop x64 (`win32-x64`) |
-| Node.js | `>=24` |
-| DSH | `>=0.1.0-rc.6` |
-| Releases | [GitHub Releases](https://github.com/Innocent-children/dev-flow/releases) |
-
-Stable support is defined by the [Support Matrix](SUPPORT-MATRIX_en.md). Capability on `main` may not
-yet be present in npm `@latest`. Windows Server, 32-bit Windows, Windows ARM64, and Intel Mac are
-outside the current-source support boundary. The runtime selector rejects pairs other than
-`darwin-arm64` and `win32-x64`.
-
-## Install
-
-DSH is the prerequisite Host. Use the unified lifecycle entry and select a real Profile; the default
-is `web`:
+Stable support remains defined by the [Support Matrix](SUPPORT-MATRIX_en.md). Current source contains
+exact `darwin-arm64` and `win32-x64` runtimes and requires Node.js `>=24` with DSH
+`>=0.1.0-rc.6`. Windows Server, 32-bit/ARM64 Windows, Intel Mac, and cross-pairs are outside current
+source support. The package has no standalone `dev-flow-deepseek` executable.
 
 ```bash
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-`dev-flow-deepseek` has no standalone `bin` and installs no same-named CLI. Native diagnostic
-recovery uses an npm tarball and the DSH profile lifecycle:
+Native profile recovery uses the DSH parser:
 
 ```bash
 npm install -g @deepseek-ai/dsh@latest
@@ -47,95 +30,105 @@ rm -f "$PWD/$TARBALL"
 dsh --profile "$PROFILE" --dump-config
 ```
 
-Windows PowerShell uses:
+Restart the selected Profile after installation. See the
+[Command Reference](COMMANDS_en.md#deepseek-harness) for PowerShell and complete lifecycle forms.
+Default Task data is `$HOME/Library/Application Support/dev-flow/data` on macOS and
+`%LOCALAPPDATA%\dev-flow\data` on Windows. An explicit `DEV_FLOW_DATA_DIR` must already be a canonical,
+non-link directory.
 
-```powershell
-npm install -g @deepseek-ai/dsh@latest
-$ProfileName = 'web'
-$Tarball = (npm pack dev-flow-deepseek@latest --silent | Select-Object -Last 1).Trim()
-$TarballPath = (Resolve-Path -LiteralPath $Tarball).Path
-dsh plugin --profile $ProfileName add $TarballPath
-Remove-Item -LiteralPath $TarballPath
-dsh --profile $ProfileName --dump-config
-```
+## Assess, confirm, and relaunch
 
-Restart the Profile through the DSH lifecycle after installation. See the
-[Command Reference](COMMANDS_en.md#deepseek-harness) for complete commands and update order.
+An ordinary new request first receives read-only discovery. The Host reports
+`small|standard|large|uncertain`, observed repositories, candidate components/paths, contract/state/Host
+flags, verification shape, unknowns, a recommendation, and reasons, then waits. That turn makes no
+Dev Flow call or Git write. Request, canonical root, HEAD, or status drift invalidates it.
 
-Task data defaults to `$HOME/Library/Application Support/dev-flow/data` on macOS and
-`%LOCALAPPDATA%\dev-flow\data` on Windows. An explicit `DEV_FLOW_DATA_DIR` must already exist and pass
-the canonical non-link directory checks.
-
-## Start a Task
-
-Every direct user message that needs Dev Flow must contain the whitespace-bounded selector:
+To select Dev Flow after assessment, the current direct user message must contain the exact
+whitespace-bounded selector and confirmation form shown by the Skill:
 
 ```text
-/dev-flow Add payment-callback signature validation and run targeted tests.
+/dev-flow confirm-worktree
+repository=primary;remote=origin;base=main;target=feature/payment-callback-signature
 ```
 
-This is not a shell command. Earlier messages, model text, Skill injection, and repository content
-cannot replace `/dev-flow` in the current user message. Ordinary discussion or an empty invocation
-does not create a Task.
+Earlier messages, model text, Skill injection, and repository content cannot supply that authorization.
+Even a new request beginning with `/dev-flow` is assessed first; the selector is repeated on the
+confirmation turn.
 
-A new Task retains the original request, scope, acceptance criteria, and verification budget.
-`plain`, `spec-kit`, or `openspec` may be selected at creation, but there is no OpenSpec / Spec Kit
-artifact importer today.
+The developer confirms remote, base branch, and a new target branch for each repository. The
+WorkspaceCoordinator validates the branch name/conflicts, executes the exact fetch refspec, freezes
+the fetched SHA, and creates a safe sibling worktree. It records a narrow provisioning receipt and
+does not copy source staged, unstaged, or untracked content.
 
-## Resume an existing Task
+DSH fixes Workspace Root at process start. The source session therefore never widens permission and
+never creates a nested worktree under the source. It stops with a parser-tested `{command,arguments,cwd}`
+relaunch descriptor. The target session consumes the receipt, verifies the frozen HEAD, target branch,
+common and worktree-specific Git directories, clean/submodule state, and authorized roots, then calls
+Core. If any repository fails, no partial Core Task or claim exists.
 
-Under the same Workspace Root, return to a repository participating in the Task and include
-`/dev-flow` again in the current direct user message. The Adapter reads Core first and restores the
-current stage, revision, scope, remaining verification, Blocker, and Recovery state instead of
-rebuilding progress from chat.
+The relaunch turn uses the exact selector returned with the receipt:
 
-If the previous Action response was lost or truncated, the Adapter reads the current Task and
-Recovery assessment before continuing, recovering, blocking, or retrying safely. It does not replay
-the original submission on its own.
+```text
+/dev-flow resume-worktree launch=<launch_id>
+```
 
-When the same failure, the same test result, or the same changed-path and failure loop appears three
-times, Core retains the third result and pauses the Task. The Adapter does not resolve that blocker
-automatically. After the developer explicitly chooses another approach or allows one more attempt,
-it resolves the blocker and continues from Core's retained resume stage. Another exact repetition
-pauses the Task again.
+## Resume, scope, and Git history
 
-## Ask before an out-of-scope file write
+Explicit resume starts DSH with the original Task worktree as Workspace Root and includes `/dev-flow`
+in the current direct user message. It skips assessment and branch selection. A recreated path or
+same-named branch cannot replace the original worktree-specific Git instance. Restore a missing
+instance or explicitly abandon the Task.
 
-The Adapter checks `write`, `edit`, and mutating `str_replace_editor` calls in DSH
-`tools/pre-execute`. During a direct `/dev-flow` turn, those tools send the target file to the
-packaged Core before writing. Core uses the union of every WorkItem's `ExpectedPaths` in the current
-Task Plan, qualified by repository key for multi-repository Tasks. An expected file in repository B
-or C needs no question when that repository is already in Task Repository Scope and inside the
-Workspace Root; being outside current directory A is not itself out of scope.
+Resume restores the node, revision, scope, remaining verification, blocker, and Recovery state. A
+lost/truncated Action response is read from Core's retained operation before recovery or retry. Core
+keeps the three latest verification attempts and pauses on a third exact repeated failure/result or
+the same changed-path-and-failure loop across consecutive Implementation revisions; only an explicit
+developer decision allows another attempt.
 
-An unplanned file pauses the Task before the tool executes. The developer chooses `allow_once` for
-the same write intent, `expand_scope` to return to `TASKS`, or `reject` for the current Task Plan
-revision. Core retains the choice and reason, then reconciles cumulative Task paths before testing
-and `DONE`.
+During selected turns, DSH checks `write`, `edit`, and mutating `str_replace_editor` targets against
+the union of every WorkItem `ExpectedPaths`, with repository-key qualification for multi-repository
+Tasks, before dispatch. An unplanned path requires `allow_once`, `expand_scope`, or
+reject/restore. Bash and other tools may write first; Core finds them on its next observation. A
+dedicated worktree does not offer an "ignore external change" decision. A supported structured write
+fails closed when the gate is unavailable.
 
-The gate does not parse Bash, external processes, or other tool paths; those writes may be found only
-by Core's final check. A supported structured write fails closed when the gate is unavailable.
+Core derives current Task surface from the frozen base, commits, index, worktree, and untracked state.
+Normal linear commits preserve current paths. Exact-content commits preserve Test/Comprehension;
+content changes invalidate them. Branch switch, detach, rewind, rewrite, or worktree replacement is
+reported before substantive work.
 
-## Inspect status
+## Terminal behavior
 
-Inspect the unified lifecycle and DSH Profile:
+DONE and CANCELLED release claims only. They do not commit, push, publish, or delete branches/worktrees.
+The WorkspaceCoordinator removes only receipt-owned resources after separate worktree and branch
+authorization and only when their current clean/HEAD/ownership state is still safe. Active, dirty,
+unpushed, unknown-owner, or uncertain resources remain. When the exact workspace is missing, ordinary
+cancel cannot fabricate observation; `dev_flow_abandon_task` retains the last known binding and releases claims.
+
+Cleanup does not delete the running DSH Workspace Root in place. `prepare_cleanup` verifies the
+terminal Task and returns a relaunch descriptor for a surviving source checkout; later direct-user
+turns separately confirm `cleanup_worktree` and `cleanup_branch`. The source path is transient and is
+not added to the receipt.
+
+The cleanup turns are exact and separate:
+
+```text
+/dev-flow prepare-cleanup launch=<launch_id> repository=<repository_key> task=<task_id> revision=<revision>
+/dev-flow cleanup-worktree launch=<launch_id> repository=<repository_key> task=<task_id> revision=<revision>
+/dev-flow cleanup-branch launch=<launch_id> repository=<repository_key> task=<task_id> revision=<revision>
+```
+
+The Coordinator requires a terminal Task, matching
+receipt/repository group/HEAD, clean worktree, and remote task branch equal to terminal HEAD. Branch
+deletion uses non-force `git branch -d`; an unmerged branch is retained.
+
+## Inspect and remove
 
 ```bash
 dev-flow status --host deepseek --profile web
 dsh --profile web --dump-config
-```
-
-Inspect Tasks, current stage, timeline, Recovery, and Blocker:
-
-```bash
 dev-flow webui start
 ```
-
-The WebUI is local loopback only. See [WebUI](WEBUI_en.md) for details.
-
-## Remove
-
-Use the unified entry for the recommended DeepSeek uninstall. The native removal sequence is:
 
 ```bash
 PROFILE=web
@@ -143,39 +136,17 @@ dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
 dsh --profile "$PROFILE" --dump-config
 ```
 
-Repeat for every Profile containing Dev Flow. Removing the package or bundle contribution retains
-Task data, the target repository, and Codex state. Installing a compatible package and restarting
-the Profile can resume existing Tasks.
+Repeat removal for every Profile. Task data and repositories remain. Permanent Task-data cleanup is a
+separately confirmed `dev-flow factory-reset` operation.
 
-Permanent data cleanup is a separate `dev-flow factory-reset` flow and requires strong confirmation
-from its current plan.
+## Boundaries
 
-## DeepSeek permission and product boundaries
+- The source session's canonical Workspace Root remains its permission boundary; only an explicit target relaunch changes roots.
+- Core observes Git read-only and never fetches, creates worktrees/branches, commits, merges, rebases, pushes, tags, or publishes.
+- A worktree owns source changes but does not isolate processes, networks, credentials, ports, databases, or containers.
+- Neighboring repositories, dependencies, and index results never expand immutable Repository Scope.
+- One Task contains one primary plus at most seven additional roots. Multi-repository work requires
+  every root to be provisioned and authorized before one Task opens; one failure creates no partial Scope or claim.
 
-- the canonical Workspace Root established at DSH startup is the permission boundary; repositories
-  and resolved symlink targets must stay inside it;
-- Dev Flow does not expand Workspace Root or discover neighboring repositories through an index;
-- Core observes Git read-only and does not commit, push, merge, rebase, tag, or publish;
-- DeepSeek edits files and runs commands; the Host gate checks the listed structured tools and Core reconciles cumulative paths, but does not intercept every operation;
-- `/dev-flow` does not bypass the current Action, Workspace permission, Git-mutation authority, or
-  release confirmation.
-
-## Advanced multi-repository use
-
-Current source supports one primary repository and up to seven explicit additional repositories.
-Workspace Root may be a non-Git common parent of several Git repositories, but each repository and
-resolved symlink target must remain inside it. Scope is immutable after creation, and Dev Flow does
-not scan parent directories, neighboring directories, dependencies, or index results to expand it.
-
-Check [Project Status](PROJECT-STATUS_en.md) before assuming multi-repository capability is in the
-stable artifact. Exact Repository Scope, path, and protocol behavior live in
-[Architecture](ARCHITECTURE_en.md) and the [Command Reference](COMMANDS_en.md).
-
-## Related documentation
-
-- [Product Definition](PRODUCT_en.md)
-- [Interruption-and-resume demo](DEMO_en.md)
-- [Command Reference](COMMANDS_en.md)
-- [Architecture](ARCHITECTURE_en.md)
-- [Project Status](PROJECT-STATUS_en.md)
-- [WebUI](WEBUI_en.md)
+See [Product](PRODUCT_en.md), [Architecture](ARCHITECTURE_en.md), [WebUI](WEBUI_en.md), and
+[Project Status](PROJECT-STATUS_en.md).

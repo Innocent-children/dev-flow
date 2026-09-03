@@ -26,9 +26,16 @@ restart/resume, `DONE`, and retained reopen.
 Current source includes the shared local WebUI, embedded assets, and `dev-flow webui
 start|open|status|stop`, and closes these package runtime pairs:
 
+The current-source new-Task lifecycle performs read-only Host assessment, asks the developer to
+confirm remote/base/target, provisions a dedicated worktree from the fetched frozen commit, and lets
+Core derive worktree identity, history, content, and current Task surface read-only. Source includes
+deterministic temporary-Git/receipt journeys and explicit-input native-journey validators. Native
+evidence exists only when the matching Host journey actually passes, and no source result changes the
+stable table before an independent release.
+
 | Runtime pair | Current-source scope | Current evidence boundary |
 | --- | --- | --- |
-| `darwin-arm64` | macOS arm64 | Existing stable packages and Host journeys |
+| `darwin-arm64` | macOS arm64 | Existing stable-package journeys; worktree-first source capability needs separately confirmed native-journey results |
 | `win32-x64` | Windows 10/11 desktop x64 | Native Windows 11 x64 Core/WebUI/MCP, complete Go suite, Adapter contracts, and dual-runtime local packaging; not yet a stable `@latest` journey |
 
 An npm manifest must list allowed operating systems and CPUs independently, so installation metadata

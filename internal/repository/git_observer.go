@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -22,225 +21,414 @@ type gitReadCommand uint8
 const (
 	gitShowWorktreeRoot gitReadCommand = iota + 1
 	gitShowCommonDirectory
+	gitShowWorktreeGitDirectory
 	gitShowBranch
 	gitShowHead
+	gitShowHeadTree
 	gitShowStatus
 	gitHashObject
+	gitHashObjectStdin
+	gitShowRemoteBase
+	gitShowTaskSurface
+	gitShowWorktreeDelta
+	gitShowIndexEntry
+	gitShowBaseEntry
+	gitIsAncestor
+	gitShowMergeCommits
 )
 
-// GitObserver observes one Git worktree using only fixed, allowlisted,
-// read-only Git command shapes.
-type GitObserver struct {
-	runner gitCommandRunner
-}
+type GitObserver struct{ runner gitCommandRunner }
 
-// NewGitObserver returns an observer using the fixed Core output and timeout
-// limits. The limits are private implementation details rather than a user
-// configuration surface.
 func NewGitObserver() *GitObserver {
-	return &GitObserver{runner: gitCommandRunner{
-		timeout:     domain.GitCommandTimeout,
-		outputLimit: int64(domain.MaxGitCommandOutputBytes),
-	}}
+	return &GitObserver{runner: gitCommandRunner{timeout: domain.GitCommandTimeout, outputLimit: int64(domain.MaxGitCommandOutputBytes)}}
 }
 
-var _ RepositoryObserver = (*GitObserver)(nil)
+var _ WorkspaceRepositoryObserver = (*GitObserver)(nil)
 
-// Observe returns a normalized repository binding. Raw Git status and command
-// diagnostics are consumed only to calculate the binding and are never
-// returned or persisted by this package.
-func (o *GitObserver) Observe(ctx context.Context, repositoryPath string) (domain.RepositoryBinding, error) {
+func (o *GitObserver) IdentifyWorkspace(ctx context.Context, repositoryPath string) (string, domain.Digest, error) {
 	if err := validateRepositoryPath(repositoryPath); err != nil {
-		return domain.RepositoryBinding{}, err
+		return "", "", err
 	}
 	if o == nil {
-		return domain.RepositoryBinding{}, ErrGitObservation
+		return "", "", ErrGitObservation
 	}
-
-	rootResult, err := o.runner.run(ctx, gitShowWorktreeRoot, repositoryPath, "")
+	rootResult, err := o.required(ctx, gitShowWorktreeRoot, repositoryPath, "")
 	if err != nil {
-		return domain.RepositoryBinding{}, err
+		return "", "", err
 	}
-	if rootResult.exitCode != 0 {
-		return domain.RepositoryBinding{}, ErrNotGitRepository
+	root, err := canonicalGitDirectory(rootResult.stdout)
+	if err != nil {
+		return "", "", err
+	}
+	commonResult, err := o.required(ctx, gitShowCommonDirectory, root, "")
+	if err != nil {
+		return "", "", err
+	}
+	common, err := canonicalGitDirectory(commonResult.stdout)
+	if err != nil {
+		return "", "", err
+	}
+	commonIdentity, err := gitDirectoryIdentity(common)
+	if err != nil {
+		return "", "", err
+	}
+	gitDirResult, err := o.required(ctx, gitShowWorktreeGitDirectory, root, "")
+	if err != nil {
+		return "", "", err
+	}
+	gitDir, err := canonicalGitDirectory(gitDirResult.stdout)
+	if err != nil {
+		return "", "", err
+	}
+	fileIdentity, err := gitDirectoryIdentity(gitDir)
+	if err != nil {
+		return "", "", err
+	}
+	return root, digestWorktreeInstance(root, common, commonIdentity, gitDir, fileIdentity), nil
+}
+
+// Observe identifies the current worktree instance without assuming a Task
+// base. Application uses the stable instance digest to find an existing claim.
+func (o *GitObserver) Observe(ctx context.Context, repositoryPath string) (domain.RepositoryBinding, error) {
+	origin, binding, err := o.observe(ctx, repositoryPath, WorkspaceOriginSelection{}, nil, false)
+	_ = origin
+	return binding, err
+}
+
+func (o *GitObserver) ObserveWorkspace(ctx context.Context, repositoryPath string, selection WorkspaceOriginSelection, previous *domain.RepositoryBinding) (domain.WorkspaceOrigin, domain.RepositoryBinding, error) {
+	return o.observe(ctx, repositoryPath, selection, previous, true)
+}
+
+func (o *GitObserver) observe(ctx context.Context, repositoryPath string, selection WorkspaceOriginSelection, previous *domain.RepositoryBinding, provisioned bool) (domain.WorkspaceOrigin, domain.RepositoryBinding, error) {
+	if err := validateRepositoryPath(repositoryPath); err != nil || o == nil {
+		if err != nil {
+			return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
+		}
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, ErrGitObservation
+	}
+	rootResult, err := o.required(ctx, gitShowWorktreeRoot, repositoryPath, "")
+	if err != nil {
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
 	}
 	canonicalRoot, err := canonicalGitDirectory(rootResult.stdout)
 	if err != nil {
-		return domain.RepositoryBinding{}, err
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
 	}
-
-	commonResult, err := o.runner.run(ctx, gitShowCommonDirectory, canonicalRoot, "")
+	commonResult, err := o.required(ctx, gitShowCommonDirectory, canonicalRoot, "")
 	if err != nil {
-		return domain.RepositoryBinding{}, err
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
 	}
-	if commonResult.exitCode != 0 {
-		return domain.RepositoryBinding{}, fmt.Errorf("%w: common directory", ErrGitObservation)
-	}
-	canonicalCommonDirectory, err := canonicalGitDirectory(commonResult.stdout)
+	commonDir, err := canonicalGitDirectory(commonResult.stdout)
 	if err != nil {
-		return domain.RepositoryBinding{}, err
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
 	}
-
+	commonDirectoryIdentity, err := gitDirectoryIdentity(commonDir)
+	if err != nil {
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
+	}
+	gitDirResult, err := o.required(ctx, gitShowWorktreeGitDirectory, canonicalRoot, "")
+	if err != nil {
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
+	}
+	gitDir, err := canonicalGitDirectory(gitDirResult.stdout)
+	if err != nil {
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
+	}
+	worktreeGitDirectoryIdentity, err := gitDirectoryIdentity(gitDir)
+	if err != nil {
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
+	}
 	branchResult, err := o.runner.run(ctx, gitShowBranch, canonicalRoot, "")
 	if err != nil {
-		return domain.RepositoryBinding{}, err
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
 	}
 	branch, detached, err := observedBranch(branchResult)
 	if err != nil {
-		return domain.RepositoryBinding{}, err
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
+	}
+	headResult, err := o.required(ctx, gitShowHead, canonicalRoot, "")
+	if err != nil {
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
+	}
+	head, err := parseObjectLine(headResult.stdout)
+	if err != nil {
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
+	}
+	treeResult, err := o.required(ctx, gitShowHeadTree, canonicalRoot, "")
+	if err != nil {
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
+	}
+	headTree, err := parseObjectLine(treeResult.stdout)
+	if err != nil {
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
 	}
 
-	headResult, err := o.runner.run(ctx, gitShowHead, canonicalRoot, "")
+	baseCommit := head
+	taskBranch := ""
+	if branch != nil {
+		taskBranch = *branch
+	}
+	if provisioned {
+		if !validOriginSelection(selection) {
+			return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, ErrProvisioningRequired
+		}
+		baseCommit, taskBranch = selection.BaseCommit, selection.TaskBranch
+		if previous == nil {
+			remote, runErr := o.runner.run(ctx, gitShowRemoteBase, canonicalRoot, selection.RemoteName+"\x00"+selection.BaseBranch)
+			if runErr != nil || remote.exitCode != 0 {
+				return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, ErrProvisioningRequired
+			}
+			remoteCommit, parseErr := parseObjectLine(remote.stdout)
+			if parseErr != nil || remoteCommit != selection.BaseCommit {
+				return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, ErrProvisioningRequired
+			}
+		}
+	}
+	statusResult, err := o.required(ctx, gitShowStatus, canonicalRoot, "")
 	if err != nil {
-		return domain.RepositoryBinding{}, err
-	}
-	head, unborn, err := observedHead(headResult)
-	if err != nil {
-		return domain.RepositoryBinding{}, err
-	}
-	if detached && unborn {
-		return domain.RepositoryBinding{}, fmt.Errorf("%w: detached unborn state", ErrGitObservation)
-	}
-
-	statusResult, err := o.runner.run(ctx, gitShowStatus, canonicalRoot, "")
-	if err != nil {
-		return domain.RepositoryBinding{}, err
-	}
-	if statusResult.exitCode != 0 {
-		return domain.RepositoryBinding{}, fmt.Errorf("%w: worktree status", ErrGitObservation)
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
 	}
 	statusRecords, err := parsePorcelainV2(statusResult.stdout)
 	if err != nil {
-		return domain.RepositoryBinding{}, err
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, ErrGitObservation
+	}
+	if err := ensureNoDirtySubmodules(statusRecords); err != nil {
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
 	}
 	pathStates, err := prepareFingerprintPaths(canonicalRoot, statusRecords)
 	if err != nil {
-		return domain.RepositoryBinding{}, err
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
 	}
-	fingerprintRecords, err := o.contentFingerprintRecords(ctx, canonicalRoot, statusRecords, pathStates)
+	surfaceResult, err := o.required(ctx, gitShowTaskSurface, canonicalRoot, baseCommit)
 	if err != nil {
-		return domain.RepositoryBinding{}, err
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
+	}
+	surfacePaths, surfaceKinds, err := parseNameStatus(surfaceResult.stdout)
+	if err != nil {
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
+	}
+	worktreeResult, err := o.required(ctx, gitShowWorktreeDelta, canonicalRoot, "")
+	if err != nil {
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
+	}
+	worktreePaths, worktreeKinds, err := parseNameStatus(worktreeResult.stdout)
+	if err != nil {
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
+	}
+	for _, path := range worktreePaths {
+		if surfaceKinds[path] == "" {
+			surfacePaths = append(surfacePaths, path)
+		}
+		surfaceKinds[path] = mergeChangeKind(surfaceKinds[path], worktreeKinds[path])
+	}
+	for _, record := range statusRecords {
+		if record.kind == "?" && surfaceKinds[record.path] == "" {
+			surfacePaths = append(surfacePaths, record.path)
+			surfaceKinds[record.path] = "A"
+		}
+	}
+	changedPaths := observedChangedPaths(statusRecords)
+	changedKinds := make(map[string]string, len(changedPaths))
+	for _, record := range statusRecords {
+		changedKinds[record.path] = recordStatusKind(record)
+	}
+	changedEntries, err := o.entries(ctx, canonicalRoot, baseCommit, changedPaths, changedKinds)
+	if err != nil {
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
+	}
+	taskSurface, err := o.entries(ctx, canonicalRoot, baseCommit, surfacePaths, surfaceKinds)
+	if err != nil {
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
 	}
 
-	secondStatusResult, err := o.runner.run(ctx, gitShowStatus, canonicalRoot, "")
+	instance := digestWorktreeInstance(canonicalRoot, commonDir, commonDirectoryIdentity, gitDir, worktreeGitDirectoryIdentity)
+	origin := domain.WorkspaceOrigin{
+		Mode: selection.Mode, RemoteName: selection.RemoteName, BaseBranch: selection.BaseBranch,
+		BaseCommit: baseCommit, TaskBranch: taskBranch, SourceRepositoryGroupDigest: digestGitDirectory(commonDir, commonDirectoryIdentity, commonDirectoryDigestDomain),
+		CanonicalWorktreeRoot: canonicalRoot, WorktreeGitDirDigest: digestWorktreeGitDirectory(gitDir, worktreeGitDirectoryIdentity),
+		ProvisioningReceiptID: selection.ProvisioningReceiptID,
+	}
+	if !provisioned {
+		origin.Mode = domain.WorkspaceModeDedicatedWorktree
+		origin.RemoteName, origin.BaseBranch, origin.ProvisioningReceiptID = "observed", taskBranch, "observed-worktree"
+	}
+	identity := digestWorkspaceIdentity(origin, instance)
+	relation, history, err := o.history(ctx, canonicalRoot, origin, instance, branch, detached, head, previous)
 	if err != nil {
-		return domain.RepositoryBinding{}, err
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
 	}
-	if secondStatusResult.exitCode != 0 {
-		return domain.RepositoryBinding{}, fmt.Errorf("%w: second worktree status", ErrGitObservation)
-	}
-	secondStatusRecords, err := parsePorcelainV2(secondStatusResult.stdout)
+	content := digestWorkspaceContent(baseCommit, taskSurface)
+	baseAncestorResult, err := o.runner.run(ctx, gitIsAncestor, canonicalRoot, baseCommit+"\x00"+head)
 	if err != nil {
-		return domain.RepositoryBinding{}, err
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
 	}
-	if err := ensureNoDirtySubmodules(secondStatusRecords); err != nil {
-		return domain.RepositoryBinding{}, err
-	}
-	if err := ensureStatusUnchanged(statusRecords, secondStatusRecords); err != nil {
-		return domain.RepositoryBinding{}, err
-	}
-	if err := verifyFingerprintPaths(canonicalRoot, pathStates); err != nil {
-		return domain.RepositoryBinding{}, err
-	}
-
-	commonDirectoryDigest := digestGitCommonDirectory(canonicalCommonDirectory)
+	baseAncestor := baseAncestorResult.exitCode == 0
 	binding := domain.RepositoryBinding{
-		CanonicalRoot:       canonicalRoot,
-		GitCommonDirDigest:  commonDirectoryDigest,
-		RepositoryIdentity:  digestRepositoryIdentity(canonicalRoot, commonDirectoryDigest),
-		Branch:              branch,
-		Detached:            detached,
-		Head:                head,
-		Unborn:              unborn,
-		WorktreeFingerprint: fingerprintWorktree(fingerprintRecords),
-		ChangedPaths:        observedChangedPaths(statusRecords),
-		ObservedAt:          time.Now().UTC(),
+		WorktreeInstanceDigest: instance, IdentityDigest: identity, HistoryDigest: history, ContentDigest: content,
+		CurrentBranch: branch, Detached: detached, CurrentHead: head, HeadTree: headTree, HistoryRelation: relation,
+		BaseCommitAncestor: baseAncestor,
+		ChangedEntries:     changedEntries, TaskSurface: taskSurface, ObservedAt: time.Now().UTC(),
 	}
 	binding.BindingDigest = digestRepositoryBinding(binding)
-	if err := binding.Validate(); err != nil {
-		return domain.RepositoryBinding{}, fmt.Errorf("%w: invalid repository binding: %v", ErrGitObservation, err)
-	}
-	return binding, nil
-}
-
-func observedChangedPaths(records []porcelainRecord) []string {
-	paths := make([]string, 0, len(records))
-	seen := map[string]bool{}
-	for _, record := range records {
-		if record.path == "" || seen[record.path] {
-			continue
+	if provisioned {
+		commonDigest := digestGitDirectory(commonDir, commonDirectoryIdentity, commonDirectoryDigestDomain)
+		gitDigest := digestWorktreeGitDirectory(gitDir, worktreeGitDirectoryIdentity)
+		if origin.Validate() != nil || gitDir == commonDir || commonDigest != origin.SourceRepositoryGroupDigest || gitDigest != origin.WorktreeGitDirDigest {
+			return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, ErrProvisioningRequired
 		}
-		seen[record.path] = true
-		paths = append(paths, record.path)
-	}
-	sort.Strings(paths)
-	return paths
-}
-
-func (o *GitObserver) contentFingerprintRecords(
-	ctx context.Context,
-	canonicalRoot string,
-	statusRecords []porcelainRecord,
-	pathStates map[string]fingerprintPathState,
-) ([]worktreeFingerprintRecord, error) {
-	normalized := normalizedPorcelainRecords(statusRecords)
-	contentByPath := make(map[string]string, len(pathStates))
-	fingerprintRecords := make([]worktreeFingerprintRecord, 0, len(normalized))
-	for _, record := range normalized {
-		contentIdentity := missingContentIdentity
-		switch {
-		case record.contentMissing():
-		case record.gitlink():
-			objectID, ok := record.cleanGitlinkObjectID()
-			if !ok {
-				return nil, ErrInconsistentWorktree
-			}
-			contentIdentity = gitlinkContentPrefix + objectID
-		default:
-			var exists bool
-			contentIdentity, exists = contentByPath[record.path]
-			if !exists {
-				state, found := pathStates[record.path]
-				if !found {
-					return nil, ErrInconsistentWorktree
-				}
-				objectID, err := o.hashObject(ctx, canonicalRoot, record.path, state)
-				if err != nil {
-					return nil, err
-				}
-				contentIdentity = gitObjectContentPrefix + objectID
-				contentByPath[record.path] = contentIdentity
-			}
+		if previous == nil && (detached || branch == nil || *branch != selection.TaskBranch || head != selection.BaseCommit || len(changedEntries) != 0 || len(taskSurface) != 0) {
+			return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, ErrProvisioningRequired
 		}
-		fingerprintRecords = append(fingerprintRecords, worktreeFingerprintRecord{
-			status:          record,
-			contentIdentity: contentIdentity,
-		})
 	}
-	return fingerprintRecords, nil
+	if binding.Validate() != nil {
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, ErrGitObservation
+	}
+	if err := o.verifyStable(ctx, canonicalRoot, commonResult.stdout, commonDirectoryIdentity, gitDirResult.stdout, worktreeGitDirectoryIdentity, branchResult, headResult.stdout, statusRecords); err != nil {
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
+	}
+	if err := verifyFingerprintPaths(canonicalRoot, pathStates); err != nil {
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
+	}
+	return origin, binding, nil
 }
 
-func (o *GitObserver) hashObject(
-	ctx context.Context,
-	canonicalRoot string,
-	statusPath string,
-	state fingerprintPathState,
-) (string, error) {
-	result, err := o.runner.run(ctx, gitHashObject, canonicalRoot, statusPath)
+func ValidWorkspaceOriginSelection(s WorkspaceOriginSelection) bool {
+	return s.Mode == domain.WorkspaceModeDedicatedWorktree && validRemoteRefName(s.RemoteName) && validBranchRefName(s.BaseBranch) &&
+		validBranchRefName(s.TaskBranch) && validGitObjectID(s.BaseCommit) && s.ProvisioningReceiptID.IsValid()
+}
+
+func validOriginSelection(s WorkspaceOriginSelection) bool {
+	return ValidWorkspaceOriginSelection(s)
+}
+
+func validRemoteRefName(value string) bool {
+	if value == "" || len(value) > domain.MaxIdentifierBytes || value == "." || value == ".." {
+		return false
+	}
+	for _, r := range value {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '.' || r == '_' || r == '-') {
+			return false
+		}
+	}
+	return true
+}
+func validBranchRefName(value string) bool {
+	if value == "" || len(value) > domain.MaxRepositoryPathBytes || strings.TrimSpace(value) != value || strings.HasPrefix(value, "-") || strings.HasPrefix(value, "/") || strings.HasSuffix(value, "/") || strings.HasSuffix(value, ".") || strings.Contains(value, "..") || strings.Contains(value, "@{") || strings.ContainsAny(value, " ~^:?*[\\") || value == "@" {
+		return false
+	}
+	for _, component := range strings.Split(value, "/") {
+		if component == "" || strings.HasPrefix(component, ".") || strings.HasSuffix(component, ".lock") {
+			return false
+		}
+	}
+	for _, r := range value {
+		if r < 0x20 || r == 0x7f {
+			return false
+		}
+	}
+	return true
+}
+
+func (o *GitObserver) required(ctx context.Context, command gitReadCommand, root, value string) (gitCommandResult, error) {
+	result, err := o.runner.run(ctx, command, root, value)
 	if err != nil {
-		return "", err
+		return gitCommandResult{}, err
 	}
 	if result.exitCode != 0 {
-		return "", ErrInconsistentWorktree
+		if command == gitShowWorktreeRoot {
+			return gitCommandResult{}, ErrNotGitRepository
+		}
+		return gitCommandResult{}, ErrGitObservation
 	}
-	objectID, err := parseSingleLine(result.stdout)
-	if err != nil || !validGitObjectID(objectID) {
-		return "", ErrInconsistentWorktree
+	return result, nil
+}
+
+func (o *GitObserver) history(ctx context.Context, root string, origin domain.WorkspaceOrigin, instance domain.Digest, branch *string, detached bool, head string, previous *domain.RepositoryBinding) (domain.RepositoryHistoryRelation, domain.Digest, error) {
+	relation := domain.RepositoryHistoryExact
+	priorHead := origin.BaseCommit
+	priorDigest := domain.Digest("")
+	if previous != nil {
+		priorHead, priorDigest = previous.CurrentHead, previous.HistoryDigest
+		_ = instance
 	}
-	if err := verifyFingerprintPath(canonicalRoot, state); err != nil {
-		return "", err
+	if detached {
+		relation = domain.RepositoryHistoryDetached
+	} else if branch == nil || *branch != origin.TaskBranch {
+		relation = domain.RepositoryHistoryBranchChanged
+	} else if head == priorHead {
+		if previous != nil {
+			return domain.RepositoryHistoryExact, previous.HistoryDigest, nil
+		}
+	} else {
+		forward, err := o.runner.run(ctx, gitIsAncestor, root, priorHead+"\x00"+head)
+		if err != nil {
+			return "", "", err
+		}
+		if forward.exitCode == 0 {
+			merges, mergeErr := o.runner.run(ctx, gitShowMergeCommits, root, priorHead+"\x00"+head)
+			if mergeErr != nil {
+				return "", "", mergeErr
+			}
+			if merges.exitCode == 0 && len(bytes.TrimSpace(merges.stdout)) == 0 {
+				relation = domain.RepositoryHistoryLinearAdvance
+			} else {
+				relation = domain.RepositoryHistoryRewrite
+			}
+		} else {
+			reverse, reverseErr := o.runner.run(ctx, gitIsAncestor, root, head+"\x00"+priorHead)
+			if reverseErr != nil {
+				return "", "", reverseErr
+			}
+			if reverse.exitCode == 0 {
+				relation = domain.RepositoryHistoryRewind
+			} else {
+				relation = domain.RepositoryHistoryRewrite
+			}
+		}
 	}
-	return objectID, nil
+	return relation, digestHistory(priorDigest, priorHead, head, relation), nil
+}
+
+func (o *GitObserver) verifyStable(ctx context.Context, root string, common []byte, commonDirectoryIdentity string, gitDir []byte, worktreeGitDirectoryIdentity string, branch gitCommandResult, head []byte, status []porcelainRecord) error {
+	checks := []struct {
+		command  gitReadCommand
+		expected []byte
+	}{{gitShowCommonDirectory, common}, {gitShowWorktreeGitDirectory, gitDir}, {gitShowHead, head}}
+	for _, check := range checks {
+		result, err := o.runner.run(ctx, check.command, root, "")
+		if err != nil || result.exitCode != 0 || !bytes.Equal(result.stdout, check.expected) {
+			return ErrInconsistentWorktree
+		}
+	}
+	commonDirectoryPath, err := canonicalGitDirectory(common)
+	if err != nil {
+		return ErrInconsistentWorktree
+	}
+	secondCommonIdentity, err := gitDirectoryIdentity(commonDirectoryPath)
+	if err != nil || secondCommonIdentity != commonDirectoryIdentity {
+		return ErrInconsistentWorktree
+	}
+	gitDirectoryPath, err := canonicalGitDirectory(gitDir)
+	if err != nil {
+		return ErrInconsistentWorktree
+	}
+	secondIdentity, err := gitDirectoryIdentity(gitDirectoryPath)
+	if err != nil || secondIdentity != worktreeGitDirectoryIdentity {
+		return ErrInconsistentWorktree
+	}
+	secondBranch, err := o.runner.run(ctx, gitShowBranch, root, "")
+	if err != nil || secondBranch.exitCode != branch.exitCode || !bytes.Equal(secondBranch.stdout, branch.stdout) {
+		return ErrInconsistentWorktree
+	}
+	secondStatus, err := o.runner.run(ctx, gitShowStatus, root, "")
+	if err != nil || secondStatus.exitCode != 0 {
+		return ErrInconsistentWorktree
+	}
+	records, err := parsePorcelainV2(secondStatus.stdout)
+	if err != nil || ensureStatusUnchanged(status, records) != nil {
+		return ErrInconsistentWorktree
+	}
+	return nil
 }
 
 func observedBranch(result gitCommandResult) (*string, bool, error) {
@@ -248,70 +436,56 @@ func observedBranch(result gitCommandResult) (*string, bool, error) {
 	case 0:
 		branch, err := parseSingleLine(result.stdout)
 		if err != nil {
-			return nil, false, fmt.Errorf("%w: branch", ErrGitObservation)
+			return nil, false, ErrGitObservation
 		}
 		return &branch, false, nil
 	case 1:
 		return nil, true, nil
 	default:
-		return nil, false, fmt.Errorf("%w: branch", ErrGitObservation)
+		return nil, false, ErrGitObservation
 	}
 }
 
-func observedHead(result gitCommandResult) (*string, bool, error) {
-	switch result.exitCode {
-	case 0:
-		head, err := parseSingleLine(result.stdout)
-		if err != nil {
-			return nil, false, fmt.Errorf("%w: HEAD", ErrGitObservation)
-		}
-		return &head, false, nil
-	case 1:
-		return nil, true, nil
-	default:
-		return nil, false, fmt.Errorf("%w: HEAD", ErrGitObservation)
+func parseObjectLine(output []byte) (string, error) {
+	value, err := parseSingleLine(output)
+	if err != nil || !validGitObjectID(value) {
+		return "", ErrGitObservation
 	}
+	return value, nil
 }
 
 type gitCommandRunner struct {
 	timeout     time.Duration
 	outputLimit int64
 }
-
 type gitCommandResult struct {
 	stdout   []byte
 	exitCode int
 }
 
-func (r gitCommandRunner) run(
-	ctx context.Context,
-	command gitReadCommand,
-	repositoryPath string,
-	statusPath string,
-) (gitCommandResult, error) {
-	args, ok := command.arguments(repositoryPath, statusPath)
+func (r gitCommandRunner) run(ctx context.Context, command gitReadCommand, repositoryPath, value string) (gitCommandResult, error) {
+	return r.runWithInput(ctx, command, repositoryPath, value, nil)
+}
+
+func (r gitCommandRunner) runWithInput(ctx context.Context, command gitReadCommand, repositoryPath, value string, input []byte) (gitCommandResult, error) {
+	args, ok := command.arguments(repositoryPath, value)
 	if !ok {
 		return gitCommandResult{}, ErrGitObservation
 	}
-
 	timeoutContext, timeoutCancel := context.WithTimeout(ctx, r.timeout)
 	commandContext, commandCancel := context.WithCancel(timeoutContext)
 	defer timeoutCancel()
 	defer commandCancel()
-
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	capture := boundedCommandCapture{
-		remaining: r.outputLimit,
-		cancel:    commandCancel,
-	}
-
+	var stdout, stderr bytes.Buffer
+	capture := boundedCommandCapture{remaining: r.outputLimit, cancel: commandCancel}
 	cmd := exec.CommandContext(commandContext, gitExecutable, args...)
 	cmd.Env = gitEnvironment(os.Environ())
+	if input != nil {
+		cmd.Stdin = bytes.NewReader(input)
+	}
 	cmd.Stdout = capture.writer(&stdout)
 	cmd.Stderr = capture.writer(&stderr)
 	runErr := cmd.Run()
-
 	if capture.limitExceeded() {
 		return gitCommandResult{}, ErrGitOutputLimit
 	}
@@ -321,7 +495,6 @@ func (r gitCommandRunner) run(
 	if errors.Is(timeoutContext.Err(), context.DeadlineExceeded) {
 		return gitCommandResult{}, ErrGitCommandTimeout
 	}
-
 	result := gitCommandResult{stdout: append([]byte(nil), stdout.Bytes()...)}
 	if runErr == nil {
 		return result, nil
@@ -334,49 +507,97 @@ func (r gitCommandRunner) run(
 	return gitCommandResult{}, fmt.Errorf("%w: start Git", ErrGitObservation)
 }
 
-func (command gitReadCommand) arguments(repositoryPath, statusPath string) ([]string, bool) {
-	// Explicitly disable optional index writes and configured file-system
-	// monitors. The remaining suffixes are a closed read-only allowlist.
-	args := []string{
-		"--no-optional-locks",
-		"-c", "core.fsmonitor=false",
-		"-c", "core.untrackedCache=false",
-		"-C", repositoryPath,
+func (command gitReadCommand) arguments(repositoryPath, value string) ([]string, bool) {
+	args := []string{"--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false", "-C", repositoryPath}
+	pair := func() (string, string, bool) {
+		left, right, ok := strings.Cut(value, "\x00")
+		return left, right, ok && left != "" && right != ""
 	}
-
 	switch command {
 	case gitShowWorktreeRoot:
-		if statusPath != "" {
+		if value != "" {
 			return nil, false
 		}
 		return append(args, "rev-parse", "--path-format=absolute", "--show-toplevel"), true
 	case gitShowCommonDirectory:
-		if statusPath != "" {
+		if value != "" {
 			return nil, false
 		}
 		return append(args, "rev-parse", "--path-format=absolute", "--git-common-dir"), true
+	case gitShowWorktreeGitDirectory:
+		if value != "" {
+			return nil, false
+		}
+		return append(args, "rev-parse", "--path-format=absolute", "--absolute-git-dir"), true
 	case gitShowBranch:
-		if statusPath != "" {
+		if value != "" {
 			return nil, false
 		}
 		return append(args, "symbolic-ref", "--quiet", "--short", "HEAD"), true
 	case gitShowHead:
-		if statusPath != "" {
+		if value != "" {
 			return nil, false
 		}
-		return append(args, "rev-parse", "--verify", "--quiet", "HEAD"), true
+		return append(args, "rev-parse", "--verify", "HEAD"), true
+	case gitShowHeadTree:
+		if value != "" {
+			return nil, false
+		}
+		return append(args, "rev-parse", "--verify", "HEAD^{tree}"), true
 	case gitShowStatus:
-		if statusPath != "" {
+		if value != "" {
 			return nil, false
 		}
-		return append(args,
-			"status", "--porcelain=v2", "--untracked-files=all", "--ignore-submodules=none", "--no-renames", "-z",
-		), true
+		return append(args, "status", "--porcelain=v2", "--untracked-files=all", "--ignore-submodules=none", "--no-renames", "-z"), true
 	case gitHashObject:
-		if statusPath == "" {
+		if value == "" {
 			return nil, false
 		}
-		return append(args, "hash-object", "--no-filters", "--", statusPath), true
+		return append(args, "hash-object", "--no-filters", "--", value), true
+	case gitHashObjectStdin:
+		if value != "" {
+			return nil, false
+		}
+		return append(args, "hash-object", "--stdin"), true
+	case gitShowRemoteBase:
+		remote, branch, ok := pair()
+		if !ok {
+			return nil, false
+		}
+		return append(args, "rev-parse", "--verify", "refs/remotes/"+remote+"/"+branch+"^{commit}"), true
+	case gitShowTaskSurface:
+		if !validGitObjectID(value) {
+			return nil, false
+		}
+		return append(args, "diff", "--no-ext-diff", "--cached", "--name-status", "--no-renames", "-z", value, "--"), true
+	case gitShowWorktreeDelta:
+		if value != "" {
+			return nil, false
+		}
+		return append(args, "diff", "--no-ext-diff", "--name-status", "--no-renames", "-z", "--"), true
+	case gitShowIndexEntry:
+		if value == "" {
+			return nil, false
+		}
+		return append(args, "ls-files", "--stage", "-z", "--", value), true
+	case gitShowBaseEntry:
+		base, path, ok := pair()
+		if !ok || !validGitObjectID(base) {
+			return nil, false
+		}
+		return append(args, "ls-tree", "-z", base, "--", path), true
+	case gitIsAncestor:
+		left, right, ok := pair()
+		if !ok || !validGitObjectID(left) || !validGitObjectID(right) {
+			return nil, false
+		}
+		return append(args, "merge-base", "--is-ancestor", left, right), true
+	case gitShowMergeCommits:
+		left, right, ok := pair()
+		if !ok || !validGitObjectID(left) || !validGitObjectID(right) {
+			return nil, false
+		}
+		return append(args, "rev-list", "--min-parents=2", left+".."+right), true
 	default:
 		return nil, false
 	}
@@ -404,7 +625,6 @@ type boundedCommandCapture struct {
 func (capture *boundedCommandCapture) writer(destination *bytes.Buffer) *boundedCommandWriter {
 	return &boundedCommandWriter{capture: capture, destination: destination}
 }
-
 func (capture *boundedCommandCapture) limitExceeded() bool {
 	capture.mu.Lock()
 	defer capture.mu.Unlock()
@@ -419,21 +639,15 @@ type boundedCommandWriter struct {
 func (writer *boundedCommandWriter) Write(value []byte) (int, error) {
 	writer.capture.mu.Lock()
 	defer writer.capture.mu.Unlock()
-
 	if writer.capture.exceeded {
 		return len(value), nil
 	}
-	if int64(len(value)) <= writer.capture.remaining {
-		_, _ = writer.destination.Write(value)
-		writer.capture.remaining -= int64(len(value))
+	if int64(len(value)) > writer.capture.remaining {
+		writer.capture.exceeded = true
+		writer.capture.cancel()
 		return len(value), nil
 	}
-
-	if writer.capture.remaining > 0 {
-		_, _ = writer.destination.Write(value[:writer.capture.remaining])
-		writer.capture.remaining = 0
-	}
-	writer.capture.exceeded = true
-	writer.capture.cancel()
+	writer.capture.remaining -= int64(len(value))
+	_, _ = writer.destination.Write(value)
 	return len(value), nil
 }

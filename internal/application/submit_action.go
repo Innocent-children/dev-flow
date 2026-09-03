@@ -80,11 +80,28 @@ func (s *Service) SubmitAction(ctx context.Context, request SubmitActionRequest)
 	if err != nil {
 		return ApplyActionResult{}, domain.ErrInternal
 	}
-	if _, err := validatedRepositoryEffect(task, raw, fresh, comparison); err != nil {
+	if scopeHasUnavailableWorkspace(task, fresh) {
+		return ApplyActionResult{}, domain.ErrWorkspaceUnavailable
+	}
+	if scopeHasHistoryConflict(fresh) {
+		blocked, blockErr := s.createWorkspaceHistoryBlocker(ctx, task, fresh, request.RequestID)
+		return ApplyActionResult{Task: blocked}, blockErr
+	}
+	if implementationContentMustRemainCurrent(task.CurrentNode) && contentDiffersFromCurrentAuthority(task, fresh) {
+		updated, updateErr := s.invalidateContentEvidence(ctx, task, fresh, request.RequestID)
+		return ApplyActionResult{Task: updated}, updateErr
+	}
+	if _, outside, err := validatedRepositoryEffect(task, raw, fresh, comparison); err != nil {
 		if errors.Is(err, domain.ErrRepositoryDrift) {
 			return ApplyActionResult{}, repositoryDriftError(comparison)
 		}
 		return ApplyActionResult{}, err
+	} else if len(outside) != 0 {
+		if task.TaskPlan == nil || task.CurrentNode != domain.NodeImplement && task.CurrentNode != domain.NodeRefactor {
+			return ApplyActionResult{}, domain.ErrRepositoryDrift
+		}
+		blocked, blockErr := s.createObservedFileScopeBlocker(ctx, task, fresh, outside, request.RequestID)
+		return ApplyActionResult{Task: blocked}, blockErr
 	}
 	decodedEnvelope, result, err := workflow.DecodeStandardPayload(task.CurrentNode, raw)
 	if err != nil {
@@ -123,7 +140,8 @@ func applyRequestForCurrentAction(requestID domain.ID, host domain.Host, task do
 		RequestID: requestID, Host: host, TaskID: task.TaskID, ExpectedRevision: task.Revision,
 		ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: action.Process.ID,
 		ProcessDefinitionDigest: action.Process.DefinitionDigest, SourceCursor: action.NodeID,
-		RepositoryBindingDigest: action.RepositoryBindingDigest, Payload: payload,
+		RepositoryBindingDigest: action.RepositoryBindingDigest, IssuanceIdentityDigest: action.IssuanceIdentityDigest,
+		IssuanceHistoryDigest: action.IssuanceHistoryDigest, IssuanceContentDigest: action.IssuanceContentDigest, Payload: payload,
 	}
 }
 

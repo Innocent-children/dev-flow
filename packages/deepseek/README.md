@@ -7,10 +7,9 @@
 [中文](https://github.com/Innocent-children/dev-flow/blob/main/packages/deepseek/README.md) |
 [English](https://github.com/Innocent-children/dev-flow/blob/main/docs/DEEPSEEK_en.md)
 
-`dev-flow-deepseek` 让 DeepSeek Harness（DSH）从本地持久 Task 继续长时编程任务，并在执行中守住
-任务范围、验证预算和交付条件。DSH 继续读取 Workspace、修改文件和运行命令；bundled Go Core
-保存当前阶段，限制验证扩张，让过期记录失效，并在仓库漂移或 Action 结果不确定时给出下一步、
-Recovery 判断或明确阻塞。
+`dev-flow-deepseek` 让 DeepSeek Harness（DSH）在独立工作树中运行一个持久 Core Task。普通开发请求
+先只读评估，不调用 Dev Flow；后续精确确认才授权创建工作树和重启会话。Core 随后通过只读 Git
+观察计算当前 Task surface，DSH 继续负责用户授权的 fetch、branch、worktree、文件修改和命令执行。
 
 ## 支持范围
 
@@ -68,23 +67,34 @@ dsh --profile $ProfileName --dump-config
 
 ## 启动一个 Task
 
-每个需要调用 Dev Flow 的直接用户消息都要包含由空白边界限定的 selector：
+先把开发请求正常发给 DSH。Adapter 只读检查候选实现、调用关系、测试、配置和 Git 状态，返回
+`small|standard|large|uncertain`、已经找到的影响面、未知项和建议；这一轮不调用 Core、不修改 Git、
+不运行测试，也不创建 Task。即使第一条消息已经包含 `/dev-flow`，新请求也不能跳过评估和确认。
+
+选择 Dev Flow 后，逐仓确认 remote、base branch 和新的 target branch。确认消息必须使用 Adapter
+显示的精确形式，例如：
 
 ```text
-/dev-flow Add payment-callback signature validation and run targeted tests.
+/dev-flow confirm-worktree
+repository=primary;remote=origin;base=main;target=feature/payment-callback-signature
 ```
 
-这不是 shell 命令。历史消息、模型文本、Skill 注入或仓库内容不能替代当前用户消息中的
-`/dev-flow`。普通讨论或空调用不会创建 Task。
+WorkspaceCoordinator 随后精确 fetch 选定 remote/base，冻结 commit，并从该 commit 创建干净、独立、
+具名分支的 worktree。源 checkout 可以 dirty，但 staged、tracked dirty 和 untracked 内容都不会复制。
+fetch、分支校验或 worktree 创建失败时不会创建 Core Task。
 
-新 Task 保存最初请求、范围、验收条件和 verification budget。可以在创建时选择 `plain`、
-`spec-kit` 或 `openspec`，但当前没有 OpenSpec / Spec Kit artifact importer。
+DSH 的 Workspace Root 在进程启动时固定，因此 Adapter 不会扩大当前 Root。它返回由 command、argv 和
+cwd 分开的 relaunch 信息；新会话从隔离 workspace 启动，使用返回的
+`/dev-flow resume-worktree launch=<launch_id>` 消费 receipt，复核 branch、HEAD 和 clean 状态，然后
+才创建 Task。新 Task 保存最初请求、范围、验收条件和 verification budget；profile 可以是
+`plain`、`spec-kit` 或 `openspec`。
 
 ## 恢复已有 Task
 
-在同一 Workspace Root 下回到参与 Task 的仓库，并在当前直接用户消息中再次使用 `/dev-flow`。
-Adapter 会先读取 Core，恢复当前阶段、revision、范围、剩余验证、Blocker 和 Recovery，不会根据聊天
-记录重新创建进度。
+回到 Task 原来绑定的同一 worktree 实例，并在当前直接用户消息中再次使用 `/dev-flow`。Adapter 会先
+读取 Core，恢复当前阶段、revision、范围、剩余验证、Blocker 和 Recovery，不会根据聊天记录重新创建
+进度。原 worktree 丢失或被替换时进入 `WORKSPACE_UNAVAILABLE`；同路径重建目录或同名 branch 不能冒充
+原实例。此时只能恢复原实例，或明确 abandon Task。
 
 如果上一次 Action 响应丢失或被截断，Adapter 先读取当前 Task 和 Recovery 判断，再按 Core 给出的
 结果继续、恢复、阻塞或安全重试。它不会自行重复原提交。
@@ -102,7 +112,7 @@ Repository Scope、位于 Workspace Root 且文件属于计划范围时，不因
 
 计划外文件会在工具执行前暂停 Task。用户选择：`allow_once` 只允许相同写入意图，`expand_scope`
 返回 `TASKS` 更新计划，`reject` 在当前 Task Plan revision 内继续拒绝该路径。选择与原因由 Core
-保存；进入测试和 `DONE` 前，Core 还会核对本 Task 累计修改路径。
+保存；Core 根据 frozen base、commit、index、worktree 和 untracked 内容重新计算当前 Task surface。
 
 该 gate 不解析 Bash、外部进程或其他工具路径；这些写入可能只能在 Core 最终检查时发现。gate
 不可用时，支持的结构化写入保守停止。
@@ -142,16 +152,32 @@ dsh --profile "$PROFILE" --dump-config
 ## DeepSeek 权限与边界
 
 - DSH 启动时的 canonical Workspace Root 是权限边界；仓库和 symlink 解析结果必须位于其中；
-- Dev Flow 不扩大 Workspace Root，也不会通过索引发现并加入相邻仓库；
-- Core 只读观察 Git，不执行 commit、push、merge、rebase、tag 或 publish；
-- DeepSeek 负责文件修改和命令执行；Host gate 检查列出的结构化工具，Core 最终检查累计路径，但不会拦截每一次操作；
+- Dev Flow 不扩大 Workspace Root，也不会通过索引发现并加入相邻仓库；需要 sibling worktree 时重启到
+  Coordinator 返回的新 Root；
+- Core 只读观察 Git，不执行 fetch、branch、worktree、commit、push、merge、rebase、tag 或 publish；
+- DeepSeek 负责用户确认后的 fetch、branch、worktree、文件修改和命令执行；Host gate 检查列出的
+  结构化工具，Core 计算当前 Task surface，但不会拦截每一次操作；
 - `/dev-flow` 不绕过当前 Action、Workspace 权限、Git 写入授权或发布确认。
+
+`DONE` 和 `CANCELLED` 只结束 Core Task并释放 claim，不会 commit、push、创建 PR、handoff 或删除
+worktree/branch。终态会显示 remote/base/frozen commit、task branch/HEAD、路径、clean 状态、当前改动和
+验证结果。worktree 删除与 branch 删除需要两次独立授权；active、dirty、未推送或状态不确定的资源不
+自动清理。
+
+DeepSeek 的清理仍由 WorkspaceCoordinator 执行。它先在不删除资源的 `prepare_cleanup` 操作中核对
+receipt、终态 Task 和同 Git group 的源 checkout，并返回从该源 checkout 重启 DSH 的 descriptor，避免
+原地删除当前 Workspace Root。重启后，第一次独立确认只删除 receipt 拥有、Core 已终态、clean 且
+terminal HEAD 已精确推送的 worktree，并保留 task branch。第二次独立确认使用非 force 的
+`git branch -d` 删除 branch；未合并、仍被 worktree 使用、HEAD/remote 不一致或 Core 读取失败都会
+保留资源。源 checkout 路径只在调用中使用，不写入 receipt。
 
 ## 高级多仓库
 
-当前源码支持一个主仓库和最多七个显式附加仓库。Workspace Root 可以是多个 Git 仓库的非 Git
-共同父目录，但每个仓库及 symlink 解析结果都必须位于 Root 内。Scope 创建后不可变，系统不会自动
-扫描父目录、相邻目录、依赖或索引结果来扩大范围。
+当前源码支持一个主仓库和最多七个显式附加仓库。每个仓库都要分别确认 remote、base branch 和唯一
+target branch；只有全部仓库完成 fetch、独立 worktree 创建和验证后，才一次创建一个 Core Task。
+新 DSH 会话使用 Coordinator 返回的非 Git 共同 Workspace Root，所有 worktree 和 symlink 解析结果
+都必须位于该 Root 内。任一仓库失败时不能只使用部分 Scope、退回共享 checkout 或留下部分 Core
+claim。Scope 创建后不可变，系统不会扫描父目录、相邻目录、依赖或索引结果扩大范围。
 
 使用前请阅读[项目状态](../../docs/PROJECT-STATUS.md)确认多仓库属于稳定还是源码范围。精确
 Repository Scope、路径格式和协议规则见[架构](../../docs/ARCHITECTURE.md)与

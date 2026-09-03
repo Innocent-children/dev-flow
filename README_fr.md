@@ -19,9 +19,16 @@ essai similaire ou une session redémarrée doit reconstituer l'avancement depui
 Dev Flow conserve dans une seule tâche locale la demande convenue, les chemins prévus, les limites de
 vérification, l'étape actuelle et les résultats. Codex ou DeepSeek continue à modifier le code.
 
+Chaque nouvelle demande est d'abord évaluée en lecture seule. Si vous choisissez Dev Flow, vous confirmez
+le remote, la branche de base et une nouvelle branche de tâche ; le Host crée depuis cette base distante
+un worktree propre et dédié avant que Core ne crée la Task. Les changements du checkout source ne sont pas copiés.
+
 - **Le périmètre reste clair.** Les chemins prévus sont enregistrés, les outils structurés pris en charge
   demandent confirmation avant d'écrire hors du plan et les changements réels sont revérifiés avant les
   tests et la livraison.
+- **Chaque worktree a un seul propriétaire des modifications.** Core calcule la surface actuelle de la
+  Task depuis Git ; les commits linéaires normaux continuent, tandis qu'une réécriture de branche ou le
+  remplacement du worktree arrête la tâche.
 - **La vérification reste limitée.** Le nombre de commandes automatiques est plafonné, la suite complète
   nécessite une autorisation préalable et la troisième répétition exacte suspend la tâche.
 - **Le travail reprend après un redémarrage.** Une nouvelle session retrouve la même tâche, les contrôles
@@ -64,12 +71,17 @@ Ou envoyez ce message dans **DeepSeek Harness** :
 ```
 
 Ce sont des sélecteurs de conversation, pas des commandes shell. Indiquez un objectif concret, les
-conditions d'acceptation, le périmètre des fichiers et la limite de tests.
+conditions d'acceptation, le périmètre des fichiers et la limite de tests. La première réponse évalue
+l'impact et demande de travailler directement ou avec Dev Flow ; même un sélecteur explicite ne saute
+pas ce choix. Si vous choisissez Dev Flow, confirmez le remote, la base et la branche cible. Codex ouvre
+un worktree géré lorsque le Host le permet ; DeepSeek indique comment redémarrer depuis le nouveau
+worktree, car le Workspace Root de la session est fixe.
 
 ### 3. Reprendre et consulter l'avancement
 
-Après un redémarrage, revenez dans le même répertoire de travail du dépôt et utilisez à nouveau le même
-sélecteur. Dev Flow lit la tâche sauvegardée et reprend à l'étape actuelle.
+Après un redémarrage, revenez dans le worktree exact lié à la Task et demandez explicitement la reprise.
+La reprise ne répète pas l'admission et ne choisit pas de worktree de remplacement ; si l'instance a
+disparu ou a été remplacée, la Task s'arrête jusqu'à sa restauration ou son abandon explicite.
 
 ```bash
 # Consulter les intégrations installées

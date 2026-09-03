@@ -22,23 +22,15 @@ func (r RepositoryRelation) IsValid() bool {
 type RepositoryReason string
 
 const (
-	RepositoryReasonExact           RepositoryReason = "exact"
-	RepositoryReasonWorktreeChanged RepositoryReason = "worktree_changed"
-	RepositoryReasonCanonicalRoot   RepositoryReason = "canonical_root_changed"
-	RepositoryReasonGitCommonDir    RepositoryReason = "git_common_dir_changed"
-	RepositoryReasonIdentity        RepositoryReason = "repository_identity_changed"
-	RepositoryReasonBranch          RepositoryReason = "branch_changed"
-	RepositoryReasonHead            RepositoryReason = "head_changed"
-	RepositoryReasonDetached        RepositoryReason = "detached_changed"
-	RepositoryReasonUnborn          RepositoryReason = "unborn_changed"
-	RepositoryReasonBinding         RepositoryReason = "binding_changed"
+	RepositoryReasonExact            RepositoryReason = "exact"
+	RepositoryReasonHistory          RepositoryReason = "history_changed"
+	RepositoryReasonContent          RepositoryReason = "content_changed"
+	RepositoryReasonWorktreeInstance RepositoryReason = "worktree_instance_changed"
 )
 
 func (r RepositoryReason) IsValid() bool {
 	switch r {
-	case RepositoryReasonExact, RepositoryReasonWorktreeChanged, RepositoryReasonCanonicalRoot,
-		RepositoryReasonGitCommonDir, RepositoryReasonIdentity, RepositoryReasonBranch,
-		RepositoryReasonHead, RepositoryReasonDetached, RepositoryReasonUnborn, RepositoryReasonBinding:
+	case RepositoryReasonExact, RepositoryReasonHistory, RepositoryReasonContent, RepositoryReasonWorktreeInstance:
 		return true
 	default:
 		return false
@@ -74,9 +66,8 @@ const (
 )
 
 type RepositoryEffect struct {
-	Kind          RepositoryEffectKind
-	ChangedPaths  []string
-	NoFileChanges bool
+	Kind  RepositoryEffectKind
+	Paths []string
 }
 
 type LastOperationRelation string

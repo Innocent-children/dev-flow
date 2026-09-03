@@ -15,14 +15,15 @@ func TestMCPToolCatalogIsExactStableAndConservative(t *testing.T) {
 	want := []string{core.ToolServerInfo, core.ToolOpenTask, core.ToolGetTask, core.ToolGetNextAction,
 		core.ToolSubmitRequirements, core.ToolSubmitDesign, core.ToolSubmitTasks, core.ToolSubmitImplementation,
 		core.ToolSubmitTest, core.ToolSubmitComprehension, core.ToolSubmitRefactor, core.ToolSubmitDelivery,
-		core.ToolResolveBlocker, core.ToolRecoverAction, core.ToolCancelTask}
+		core.ToolPrepareTaskRelocation, core.ToolResolveBlocker, core.ToolRecoverAction, core.ToolCancelTask, core.ToolAbandonTask}
 	if !slices.Equal(core.ToolNames(), want) {
 		t.Fatal(core.ToolNames())
 	}
 	for _, tool := range core.ToolCatalog() {
-		read := tool.Name == core.ToolServerInfo || tool.Name == core.ToolGetTask || tool.Name == core.ToolGetNextAction
-		idempotent := read || tool.Name == core.ToolRecoverAction || tool.Name == core.ToolResolveBlocker || strings.HasPrefix(tool.Name, "dev_flow_submit_")
-		if tool.Annotations.ReadOnly != read || tool.Annotations.Idempotent != idempotent || tool.Annotations.Destructive != (tool.Name == core.ToolCancelTask) || tool.Annotations.OpenWorld {
+		read := tool.Name == core.ToolServerInfo || tool.Name == core.ToolGetTask
+		idempotent := tool.Name != core.ToolOpenTask && tool.Name != core.ToolCancelTask && tool.Name != core.ToolAbandonTask
+		destructive := tool.Name == core.ToolCancelTask || tool.Name == core.ToolAbandonTask
+		if tool.Annotations.ReadOnly != read || tool.Annotations.Idempotent != idempotent || tool.Annotations.Destructive != destructive || tool.Annotations.OpenWorld {
 			t.Fatalf("annotations %s %#v", tool.Name, tool.Annotations)
 		}
 		var schema any
@@ -71,13 +72,32 @@ func TestMCPCurrentContractRequiredShapes(t *testing.T) {
 	requireNames(core.ToolResolveBlocker, []string{"host", "task_id", "action_id"})
 	requireNames(core.ToolRecoverAction, []string{"host", "task_id", "action_id"})
 	requireNames(core.ToolCancelTask, []string{"request_id", "host", "task_id", "revision", "reason"})
+	requireNames(core.ToolPrepareTaskRelocation, []string{"host", "task_id", "revision"})
+	requireNames(core.ToolAbandonTask, []string{"host", "task_id", "revision", "reason"})
 	openProperties := schemas[core.ToolOpenTask]["properties"].(map[string]any)
+	workspaceOrigin := openProperties["workspace_origin"].(map[string]any)
+	if !slices.Equal(stringsOf(workspaceOrigin["required"]), []string{"mode", "remote_name", "base_branch", "base_commit", "task_branch", "provisioning_receipt_id"}) {
+		t.Fatalf("workspace_origin schema=%#v", workspaceOrigin)
+	}
 	additional := openProperties["additional_repositories"].(map[string]any)
 	if additional["maxItems"] != float64(domain.MaxAdditionalRepositories) || additional["items"].(map[string]any)["additionalProperties"] != false {
 		t.Fatalf("additional_repositories schema=%#v", additional)
 	}
 	if openProperties["primary_repository_key"].(map[string]any)["pattern"] != "^[a-z0-9][a-z0-9._-]{0,127}$" {
 		t.Fatal("primary_repository_key pattern changed")
+	}
+	additionalRequired := stringsOf(additional["items"].(map[string]any)["required"])
+	if !slices.Equal(additionalRequired, []string{"key", "repository_path", "workspace_origin"}) {
+		t.Fatalf("additional repository required=%v", additionalRequired)
+	}
+	resolveProperties := schemas[core.ToolResolveBlocker]["properties"].(map[string]any)
+	relocationItems := resolveProperties["relocation_destinations"].(map[string]any)["items"].(map[string]any)
+	if !slices.Equal(stringsOf(relocationItems["required"]), []string{"key", "repository_path"}) {
+		t.Fatalf("relocation destination schema=%#v", relocationItems)
+	}
+	history := resolveProperties["history_resolution"].(map[string]any)
+	if !slices.Equal(stringsOf(history["required"]), []string{"choice", "reason"}) {
+		t.Fatalf("history resolution schema=%#v", history)
 	}
 	for _, tool := range core.ToolNames() {
 		if tool == core.ToolOpenTask {
@@ -124,34 +144,57 @@ func TestMCPStrictInputBoundaryAndDuplicateMembers(t *testing.T) {
 			t.Fatal("duplicate accepted")
 		}
 	}
+	validLifecycle := map[string]string{
+		core.ToolPrepareTaskRelocation: `{"host":"codex","task_id":"task","revision":3}`,
+		core.ToolAbandonTask:           `{"host":"codex","task_id":"task","revision":3,"reason":"The retained worktree instance is unavailable."}`,
+		core.ToolResolveBlocker:        `{"host":"codex","task_id":"task","action_id":"action","relocation_id":"relocation","relocation_destinations":[{"key":"primary","repository_path":"/worktree"}]}`,
+	}
+	for tool, raw := range validLifecycle {
+		if err := core.ValidateToolInput(tool, []byte(raw)); err != nil {
+			t.Fatalf("%s lifecycle input rejected: %v", tool, err)
+		}
+	}
+	if err := core.ValidateToolInput(core.ToolResolveBlocker, []byte(`{"host":"codex","task_id":"task","action_id":"action","history_resolution":{"choice":"accept_current_history","reason":"The reviewed history is current."}}`)); err != nil {
+		t.Fatalf("history resolution input rejected: %v", err)
+	}
 }
 
 func TestMCPOpenTaskSingleAndMultiRepositoryInputBoundary(t *testing.T) {
 	newTask := `"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}`
+	origin := `"workspace_origin":{"mode":"dedicated_worktree","remote_name":"origin","base_branch":"main","base_commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","task_branch":"task/core","provisioning_receipt_id":"receipt-core"}`
+	additionalOrigin := `"workspace_origin":{"mode":"dedicated_worktree","remote_name":"origin","base_branch":"main","base_commit":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","task_branch":"task/docs","provisioning_receipt_id":"receipt-docs"}`
 	for _, raw := range []string{
 		`{"host":"codex","repository_path":"/repo"}`,
-		`{"host":"codex","repository_path":"/core","primary_repository_key":"core","additional_repositories":[{"key":"docs","repository_path":"/docs"}],` + newTask + `}`,
+		`{"host":"codex","repository_path":"/core",` + origin + `,"primary_repository_key":"core","additional_repositories":[{"key":"docs","repository_path":"/docs",` + additionalOrigin + `}],` + newTask + `}`,
 	} {
 		if err := core.ValidateToolInput(core.ToolOpenTask, []byte(raw)); err != nil {
 			t.Fatalf("valid open input rejected: %v %s", err, raw)
 		}
 	}
-	additional := make([]map[string]string, domain.MaxAdditionalRepositories+1)
+	additional := make([]map[string]any, domain.MaxAdditionalRepositories+1)
 	for i := range additional {
-		additional[i] = map[string]string{"key": fmt.Sprintf("repo%d", i), "repository_path": fmt.Sprintf("/repo%d", i)}
+		additional[i] = map[string]any{"key": fmt.Sprintf("repo%d", i), "repository_path": fmt.Sprintf("/repo%d", i), "workspace_origin": workspaceOriginValue(fmt.Sprintf("task/repo%d", i), fmt.Sprintf("receipt-repo%d", i))}
 	}
-	tooMany, err := json.Marshal(map[string]any{"host": "codex", "repository_path": "/core", "additional_repositories": additional, "new_task": map[string]any{"request": "Build feature", "initial_scope": []string{}, "initial_out_of_scope": []string{}, "known_acceptance_criteria": []string{}, "verification_budget": map[string]any{"level": "targeted", "max_automatic_commands": 1, "allow_full_suite": false, "allow_manual_handoff": false}, "method_profile": "plain"}})
+	tooMany, err := json.Marshal(map[string]any{"host": "codex", "repository_path": "/core", "workspace_origin": workspaceOriginValue("task/core", "receipt-core"), "additional_repositories": additional, "new_task": map[string]any{"request": "Build feature", "initial_scope": []string{}, "initial_out_of_scope": []string{}, "known_acceptance_criteria": []string{}, "verification_budget": map[string]any{"level": "targeted", "max_automatic_commands": 1, "allow_full_suite": false, "allow_manual_handoff": false}, "method_profile": "plain"}})
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := core.ValidateToolInput(core.ToolOpenTask, []byte(`{"host":"codex","repository_path":"/core",`+newTask+`}`)); err != domain.ErrWorktreeProvisioningRequired {
+		t.Fatalf("missing workspace origin error=%v", err)
+	}
 	for _, raw := range [][]byte{
-		[]byte(`{"host":"codex","repository_path":"/core","additional_repositories":[{"key":"docs","repository_path":"/docs","unknown":true}],` + newTask + `}`),
+		[]byte(`{"host":"codex","repository_path":"/core",` + origin + `,"additional_repositories":[{"key":"docs","repository_path":"/docs"}],` + newTask + `}`),
+		[]byte(`{"host":"codex","repository_path":"/core",` + origin + `,"additional_repositories":[{"key":"docs","repository_path":"/docs",` + additionalOrigin + `,"unknown":true}],` + newTask + `}`),
 		tooMany,
 	} {
 		if err := core.ValidateToolInput(core.ToolOpenTask, raw); err != domain.ErrInvalidArgument {
 			t.Fatalf("invalid multi repository input error=%v raw=%s", err, raw)
 		}
 	}
+}
+
+func workspaceOriginValue(taskBranch, receiptID string) map[string]any {
+	return map[string]any{"mode": "dedicated_worktree", "remote_name": "origin", "base_branch": "main", "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "task_branch": taskBranch, "provisioning_receipt_id": receiptID}
 }
 func TestMCPStableErrorEnvelopesAreClosedAndRedacted(t *testing.T) {
 	secret := "/Users/private/secret.db SELECT * FROM tasks"

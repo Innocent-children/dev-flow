@@ -43,6 +43,10 @@ func TransitionFor(definition domain.ProcessDefinition, source domain.NodeID, id
 }
 
 func BuildProcessAction(definition domain.ProcessDefinition, nodeID domain.NodeID, taskID domain.ID, revision uint64, binding domain.Digest, profile domain.MethodProfile, actionID domain.ID, issuedAt time.Time) (domain.ProcessAction, error) {
+	return BuildProcessActionForWorkspace(definition, nodeID, taskID, revision, domain.WorkspaceDigests{Binding: binding, Identity: binding, History: binding, Content: binding}, profile, actionID, issuedAt)
+}
+
+func BuildProcessActionForWorkspace(definition domain.ProcessDefinition, nodeID domain.NodeID, taskID domain.ID, revision uint64, workspace domain.WorkspaceDigests, profile domain.MethodProfile, actionID domain.ID, issuedAt time.Time) (domain.ProcessAction, error) {
 	node, err := NodeDefinition(definition, nodeID)
 	if err != nil || nodeID.Terminal() {
 		return domain.ProcessAction{}, domain.ErrInvalidArgument
@@ -51,8 +55,8 @@ func BuildProcessAction(definition domain.ProcessDefinition, nodeID domain.NodeI
 	for i, v := range node.OutgoingTransitions {
 		available[i] = domain.TransitionProjection{TransitionID: v.TransitionID, Destination: v.Destination, Guard: v.Guard, Description: v.Description, SelectionCondition: v.SelectionCondition, ReasonRequired: v.ReasonRequired}
 	}
-	action := domain.ProcessAction{ActionID: actionID, Kind: node.ActionKind, TaskID: taskID, Revision: revision, Process: definition.Reference, NodeID: nodeID, RepositoryBindingDigest: binding, AllowedEffects: append([]domain.AllowedEffect(nil), node.AllowedEffects...), RequiredEvidence: append([]domain.EvidenceRequirement(nil), node.RequiredEvidence...), PayloadContract: node.PayloadContract, NodeContract: domain.NodeContractProjection{Purpose: node.Purpose, EntryConditions: append([]string(nil), node.EntryAssumptions...), CompletionConditions: append([]string(nil), node.CompletionConditions...)}, AvailableTransitions: available, MethodProfile: profile, SemanticMethodSteps: append([]domain.SemanticMethodStep(nil), node.SemanticMethodSteps...), Guidance: "Complete the current node contract and select one available transition.", IssuedAt: issuedAt}
-	if action.Process != StandardProcess().Reference || !profile.IsValid() || !actionID.IsValid() || !taskID.IsValid() || revision == 0 || !binding.IsValid() {
+	action := domain.ProcessAction{ActionID: actionID, Kind: node.ActionKind, TaskID: taskID, Revision: revision, Process: definition.Reference, NodeID: nodeID, RepositoryBindingDigest: workspace.Binding, IssuanceIdentityDigest: workspace.Identity, IssuanceHistoryDigest: workspace.History, IssuanceContentDigest: workspace.Content, AllowedEffects: append([]domain.AllowedEffect(nil), node.AllowedEffects...), RequiredEvidence: append([]domain.EvidenceRequirement(nil), node.RequiredEvidence...), PayloadContract: node.PayloadContract, NodeContract: domain.NodeContractProjection{Purpose: node.Purpose, EntryConditions: append([]string(nil), node.EntryAssumptions...), CompletionConditions: append([]string(nil), node.CompletionConditions...)}, AvailableTransitions: available, MethodProfile: profile, SemanticMethodSteps: append([]domain.SemanticMethodStep(nil), node.SemanticMethodSteps...), Guidance: "Complete the current node contract and select one available transition.", IssuedAt: issuedAt}
+	if action.Process != StandardProcess().Reference || !profile.IsValid() || !actionID.IsValid() || !taskID.IsValid() || revision == 0 || !workspace.Binding.IsValid() || !workspace.Identity.IsValid() || !workspace.History.IsValid() || !workspace.Content.IsValid() {
 		return domain.ProcessAction{}, domain.ErrInvalidArgument
 	}
 	return action, nil
@@ -69,18 +73,18 @@ func ValidateProcessTask(task domain.ProcessTask) error {
 	if task.CurrentAction == nil {
 		return nil
 	}
-	bindingDigest, err := task.EffectiveRepositoryBindingDigest()
+	workspace, err := task.EffectiveWorkspaceDigests()
 	if err != nil {
 		return err
 	}
-	expected, err := BuildProcessAction(definition, task.CurrentNode, task.TaskID, task.Revision, bindingDigest, task.Intent.MethodProfile, task.CurrentAction.ActionID, task.CurrentAction.IssuedAt)
+	expected, err := BuildProcessActionForWorkspace(definition, task.CurrentNode, task.TaskID, task.Revision, workspace, task.Intent.MethodProfile, task.CurrentAction.ActionID, task.CurrentAction.IssuedAt)
 	if err != nil || !sameAction(expected, *task.CurrentAction) {
 		return domain.ErrInvalidArgument
 	}
 	return nil
 }
 func sameAction(a, b domain.ProcessAction) bool {
-	if a.ActionID != b.ActionID || a.Kind != b.Kind || a.TaskID != b.TaskID || a.Revision != b.Revision || a.Process != b.Process || a.NodeID != b.NodeID || a.RepositoryBindingDigest != b.RepositoryBindingDigest || a.PayloadContract != b.PayloadContract || a.MethodProfile != b.MethodProfile || !a.IssuedAt.Equal(b.IssuedAt) {
+	if a.ActionID != b.ActionID || a.Kind != b.Kind || a.TaskID != b.TaskID || a.Revision != b.Revision || a.Process != b.Process || a.NodeID != b.NodeID || a.RepositoryBindingDigest != b.RepositoryBindingDigest || a.IssuanceIdentityDigest != b.IssuanceIdentityDigest || a.IssuanceHistoryDigest != b.IssuanceHistoryDigest || a.IssuanceContentDigest != b.IssuanceContentDigest || a.PayloadContract != b.PayloadContract || a.MethodProfile != b.MethodProfile || !a.IssuedAt.Equal(b.IssuedAt) {
 		return false
 	}
 	return slicesEqual(a.AllowedEffects, b.AllowedEffects) &&

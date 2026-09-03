@@ -54,6 +54,7 @@ export interface TaskEventView {
   destination_node: string;
   transition_id: string | null;
   reason: string | null;
+  repository_delta_paths: string[];
   created_at: string;
 }
 export interface GraphView {
@@ -75,6 +76,9 @@ export interface ActionView {
   process_definition_digest: string;
   source_node: string;
   repository_binding_digest: string;
+  issuance_identity_digest: string;
+  issuance_history_digest: string;
+  issuance_content_digest: string;
   purpose: string;
   conditions: string[];
   allowed_effects: string[];
@@ -111,7 +115,7 @@ export interface TaskDetailResponse {
   acceptance_criteria: string[];
   verification_budget: string;
   method_profile: string;
-  repositories: { key: string; path: string; role: "primary" | "additional"; repository_group_id: string }[];
+  repositories: RepositoryView[];
   baselines: Fact[];
   records: Fact[];
   evidence: Fact[];
@@ -122,12 +126,60 @@ export interface TaskDetailResponse {
   current_action: ActionView | null;
   file_scope: {
     expected_paths: string[];
-    task_changed_paths: string[];
+    current_changed_paths: string[];
     unexplained_paths: string[];
     covered_host_tools: string[];
     decision_count: number;
     final_check_enabled: boolean;
   };
+  workspace: WorkspaceView;
+}
+
+export interface ChangedEntryView {
+  path: string;
+  change_type: string;
+  file_mode: string;
+  gitlink: boolean;
+  content_digest: string;
+}
+
+export interface RepositoryView {
+  key: string;
+  path: string;
+  role: "primary" | "additional";
+  repository_group_id: string;
+  workspace_origin: {
+    mode: "dedicated_worktree";
+    remote_name: string;
+    base_branch: string;
+    base_commit: string;
+    task_branch: string;
+    provisioning_receipt_id: string;
+  };
+  workspace_observation: {
+    worktree_instance_digest: string;
+    identity_digest: string;
+    history_digest: string;
+    content_digest: string;
+    current_branch: string | null;
+    detached: boolean;
+    current_head: string;
+    head_tree: string;
+    history_relation: string;
+    base_commit_ancestor: boolean;
+    changed_entries: ChangedEntryView[];
+    task_surface: ChangedEntryView[];
+    observed_at: string;
+    binding_digest: string;
+  };
+}
+
+export interface WorkspaceView {
+  provisioning_status: "last_known" | "unavailable";
+  current_changed_paths: string[];
+  history_conflict: boolean;
+  relocation: { pending: boolean; relocation_id: string | null; resume_node: string | null };
+  cleanup: { automatic: false; host_action_required: true; separate_worktree_and_branch: true; terminal: boolean };
 }
 
 export interface FailureResponse {
@@ -150,6 +202,9 @@ export interface OperationProbe {
   process_definition_digest: string;
   source_node: string;
   repository_binding_digest: string;
+  issuance_identity_digest: string;
+  issuance_history_digest: string;
+  issuance_content_digest: string;
   payload: Record<string, unknown>;
 }
 
@@ -166,17 +221,12 @@ export interface MutationResponse {
   task_revision: number | null;
   redirect: string | null;
   recovery: RecoveryAdvice | null;
+  relocation_id: string | null;
 }
 
-export interface OpenTaskInput {
-  mode: "create" | "resume";
-  request: string;
-  acceptance_criteria: string[];
-  verification_budget: string;
-  method_profile: "plain" | "spec-kit" | "openspec";
+export interface ResumeTaskInput {
   execution_host: "codex" | "deepseek";
-  primary_repository: { key: string; path: string };
-  additional_repositories: { key: string; path: string }[];
+  repository_path: string;
 }
 
 async function readJSON<T>(path: string, signal?: AbortSignal): Promise<T> {
@@ -231,8 +281,16 @@ export function getFilterOptions(signal?: AbortSignal) {
   return readJSON<FilterOptionsResponse>("/api/system/filter-options", signal);
 }
 
-export function openTask(input: OpenTaskInput) {
-  return postJSON("/api/tasks/open", { request_id: requestID("open"), ...input });
+export function resumeTask(input: ResumeTaskInput) {
+  return postJSON("/api/tasks/resume", { request_id: requestID("resume"), ...input });
+}
+
+export function prepareTaskRelocation(taskID: string, revision: number, executionHost: string) {
+  return postJSON(`/api/tasks/${encodeURIComponent(taskID)}/relocation/prepare`, { request_id: requestID("relocation"), task_revision: revision, execution_host: executionHost, confirmed: true });
+}
+
+export function abandonTask(taskID: string, revision: number, executionHost: string, reason: string) {
+  return postJSON(`/api/tasks/${encodeURIComponent(taskID)}/abandon`, { request_id: requestID("abandon"), task_revision: revision, execution_host: executionHost, reason, confirmed: true });
 }
 
 export function cancelTask(taskID: string, revision: number, reason: string) {
@@ -257,6 +315,9 @@ export function submitCurrentAction(taskID: string, revision: number, action: Ac
     process_definition_digest: action.process_definition_digest,
     source_node: action.source_node,
     repository_binding_digest: action.repository_binding_digest,
+    issuance_identity_digest: action.issuance_identity_digest,
+    issuance_history_digest: action.issuance_history_digest,
+    issuance_content_digest: action.issuance_content_digest,
     payload,
   });
 }
@@ -271,6 +332,9 @@ export function operationProbe(revision: number, action: ActionView, payload: Re
     process_definition_digest: action.process_definition_digest,
     source_node: action.source_node,
     repository_binding_digest: action.repository_binding_digest,
+    issuance_identity_digest: action.issuance_identity_digest,
+    issuance_history_digest: action.issuance_history_digest,
+    issuance_content_digest: action.issuance_content_digest,
     payload,
   };
 }

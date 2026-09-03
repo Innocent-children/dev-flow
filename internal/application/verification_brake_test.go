@@ -63,8 +63,7 @@ func TestAutomaticBrakeClassifiesUnchangedResultAndImplementationLoop(t *testing
 		task := phase5TaskAtTest(t, service)
 		for attempt := 1; attempt <= 3; attempt++ {
 			implementation := *task.Implementation
-			implementation.ChangedPaths = []string{"internal/file.go"}
-			implementation.NoFileChanges = false
+			implementation.ActionChangedPaths = []string{"internal/file.go"}
 			task.Implementation = &implementation
 			memory.task = &task
 			result := testNodeResult([]map[string]any{evidenceCheck("automated", "passed", "probe-"+string(rune('a'+attempt-1)), 1, false)}, []string{"behavior still fails"}, nil, []string{"same failure"})

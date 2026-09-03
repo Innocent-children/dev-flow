@@ -78,7 +78,7 @@ func Classify(facts ClassificationFacts) (RecoveryDecision, error) {
 		assessment.UnblockCondition = &condition
 	} else if classification == domain.RecoveryPartiallyCompleted ||
 		classification == domain.RecoveryConflicting && directive == DirectiveCreateBlocker {
-		assessment.UnblockCondition = &domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: facts.IssuanceBindingDigest}
+		assessment.UnblockCondition = &domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: facts.IssuanceBindingDigest, ExpectedIdentityDigest: facts.Operation.IssuanceIdentityDigest, ExpectedHistoryDigest: facts.Operation.IssuanceHistoryDigest, ExpectedContentDigest: facts.Operation.IssuanceContentDigest}
 	}
 	return RecoveryDecision{Assessment: assessment, Directive: directive}, nil
 }

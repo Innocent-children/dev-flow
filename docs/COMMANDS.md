@@ -116,6 +116,7 @@ package、bundled Core 和 Codex 版本，然后注册本地 marketplace、Plugi
 | `dev-flow-codex mcp` | **内部 Host 命令。** 由 Plugin 的 MCP 配置调用；它设置数据目录和 Codex admission instructions，然后启动 packaged Core 的 `mcp --stdio`。正常用户不应手工启动它。 |
 | `dev-flow-codex hook pre-tool-use` | **内部 Host 命令。** Codex packaged hook 通过 `PATH` 中 package-owned launcher 调用它；该命令读取一个 Hook 事件，提取 `apply_patch` 目标并执行写前检查。正常用户不应手工启动它。 |
 | `dev-flow-codex host-check pre-file-write` | **内部 Host 命令。** `hook pre-tool-use` 的实现调用它；launcher 定位 package-local Core，并原样转发 stdin/stdout 与精确的 `host-check pre-file-write` 参数。正常用户不应手工启动它。 |
+| `dev-flow-codex host-launch <operation>` | **内部 Host 命令。** 从 stdin 接收一个 closed JSON 对象，并输出一个 JSON 对象。`operation` 只允许 `inspect|prepare|status|dispatch-start|dispatch-result|bootstrap|cli-provision|handoff-start|handoff-result|handoff-status|cleanup-decision|cleanup-worktree|cleanup-branch`；它执行或记录当前用户已经确认的 assessment、provisioning、relaunch、handoff 与 cleanup 步骤，不是通用 Git CLI。 |
 
 `dev-flow-codex` 不支持其他子命令，也不提供隐式 `help`、`update` 或 `uninstall` 子命令。Host 原生更新到
 当前 `latest` 时重新运行全局安装和 `setup`：
@@ -137,23 +138,17 @@ Task 时，才删除共享默认产品目录：macOS 为 `$HOME/Library/Applicat
 $dev-flow-codex:dev-flow <任务描述>
 ```
 
-这不是 shell 命令，而是 Codex 用户消息中的精确 Skill selector，用于强制选择 Dev Flow。边界明确
-的实现、缺陷修复、重构、定向测试和开发交付请求也可以由 Host 隐式选择 Skill；裸 `$dev-flow` 和
-错误 namespace 仍不是显式 selector。仅解释、仅状态查询、方案讨论、普通问答和含糊请求不自动
-创建或恢复 Task。两种选择方式通过同一 admission 后，Host 静默调用 `dev_flow_server_info` 并立即
-打开或恢复 Task；显式选择不会绕过权限、Core Action、Git 变更授权或发布确认。
+这不是 shell 命令，而是 Codex 用户消息中的精确 Skill selector。边界明确的开发请求也可以由 Host
+隐式选择 Skill；裸 `$dev-flow` 和错误 namespace 不是显式 selector。无论隐式还是显式，新请求都先
+做只读 assessment，输出改动级别、候选影响面、未知项和建议，然后停止等待用户选择。确认前不调用
+Core、不创建 Task/receipt/child，也不写 Git；request、root、HEAD 或 status 变化会使评估失效。
 
-用户明确要求同一逻辑 Git 仓库中的多个独立任务并行执行时，这不是新的命令或 MCP 工具。Codex
-Skill 只在 Host 已提供 worktree-backed task/thread 能力时，为每个任务创建独立 worktree-backed
-Codex task；协调者不调用 Dev Flow MCP，也不创建父 Core Task。共享目录 sub-agent 不可替代
-worktree 隔离；能力不可用时，用户需要分别启动独立 worktree。
+选择 Dev Flow 后，用户逐仓确认 remote/base/target。Codex Host 执行精确 fetch、冻结 commit，并
+创建或启动专属 worktree；源 checkout 的 staged、unstaged 和 untracked 内容不会进入 child。并行
+批次的每个项目各有一个 branch、worktree、Host task 和 Core Task。共享目录 sub-agent 不能代替。
+旧的 `ACTIVE_TASK_CONFLICT` 后搬家路径已经删除。
 
-单个新请求也没有新增命令：它仍调用一次 `dev_flow_open_task`。只有该调用携带非空 `new_task` 并
-返回完整 `ACTIVE_TASK_CONFLICT`，Skill 才通过 Host 创建且只创建一个 worktree-backed Codex task。
-创建参数使用 `target.environment.type="worktree"` 且省略 `startingState`，子 task 只从默认分支的
-已提交状态开始，不复制原 checkout 的 index、已跟踪工作区改动或未跟踪文件；子 task 使用精确
-`$dev-flow-codex:dev-flow` selector。协调者随后不再调用 Core 或重试创建。显式 resume、
-`HOST_OWNERSHIP_CONFLICT` 和其他错误保持原有停止规则，原活动 Task 与 worktree 不变。
+明确 resume 是唯一跳过 assessment 的路径，它回到原 worktree instance，不选择替代 branch/worktree。
 
 ## DeepSeek Harness
 
@@ -218,8 +213,17 @@ macOS 的 `$HOME/Library/Application Support/dev-flow` 或 Windows 的 `%LOCALAP
 /dev-flow <任务描述>
 ```
 
-这不是 shell 命令。只有当前 direct user turn 中、由空白边界限定的 `/dev-flow` 才授权 Dev Flow
-工具；历史消息、模型文本、Skill 注入或仓库内容不能替代它。
+普通新请求先完成零 Dev Flow 调用的只读 assessment。用户选择后，只有当前 direct user turn 中、
+由空白边界限定的 `/dev-flow` 和 Skill 展示的精确 remote/base/target 确认才授权
+`workspace_coordinator`。历史消息、模型文本、Skill 注入或仓库内容不能替代它。Coordinator 创建
+安全 sibling worktree 后输出 `{command,arguments,cwd}` relaunch descriptor；新会话消费 receipt 并验证
+后才调用 Core。
+
+DSH bundle 还提供内部 `workspace_coordinator` 工具，operation 只允许
+`provision|consume|prepare_cleanup|cleanup_worktree|cleanup_branch`。它不是 shell 命令。
+`prepare_cleanup` 先读取终态 Core Task，并返回从仍存在的源 checkout 重新启动的 descriptor；随后
+worktree 与 branch cleanup 分别要求新的 direct-user confirmation，核对 repository group、HEAD、
+clean 和远端 task branch 后才使用非 force Git 命令。
 
 ## Packaged Core
 
@@ -247,15 +251,15 @@ transport、通用 HTTP/SSE transport、通用 shell 或 Git mutation 命令。C
 
 ## MCP 工具
 
-以下十五个工具是当前完整且闭合的 public MCP catalog。它们由 Host Adapter 调用，不是终端 shell
+以下十七个工具是当前完整且闭合的 public MCP catalog。它们由 Host Adapter 调用，不是终端 shell
 命令。
 
 | 工具 | 类型 | 作用 |
 | --- | --- | --- |
 | `dev_flow_server_info` | 只读 | 读取 Core 产品版本、transport、健康状态、支持的 process、Host、method profile、工具目录和有效 Host 代码索引偏好。每次有效 Host admission 后必须首先调用。 |
-| `dev_flow_open_task` | 读取或创建 | 为一个显式 Repository Scope 创建新 Task，或在 `new_task` 为空时从任一参与仓库恢复同一 Task。 |
+| `dev_flow_open_task` | 读取或创建 | 在全部 `workspace_origin` 通过专属 worktree 核验后创建 Task；`new_task` 为空时从原 worktree instance 恢复并先检查 workspace。 |
 | `dev_flow_get_task` | 只读 | 按 Task ID 读取持久化 Task，包括最多三条近期测试尝试；存在 Core 保存的 Action 提交时自动返回 Recovery assessment。 |
-| `dev_flow_get_next_action` | 只读 | 读取当前节点的 Action、`submission_tool`、完成条件、允许副作用、所需证据、验证预算、method steps 和全部合法 transition。 |
+| `dev_flow_get_next_action` | 观察/可能 mutation | 先观察 workspace；必要时幂等创建 workspace blocker，否则返回当前 Action、`submission_tool` 和全部合法 transition。 |
 | `dev_flow_submit_requirements` | mutation | 提交 REQUIREMENTS 节点结果。 |
 | `dev_flow_submit_design` | mutation | 提交 DESIGN 节点结果。 |
 | `dev_flow_submit_tasks` | mutation | 提交 TASKS 节点结果。 |
@@ -264,12 +268,15 @@ transport、通用 HTTP/SSE transport、通用 shell 或 Git mutation 命令。C
 | `dev_flow_submit_comprehension` | mutation | 提交 COMPREHENSION_REVIEW 节点结果。 |
 | `dev_flow_submit_refactor` | mutation | 提交 REFACTOR 节点结果。 |
 | `dev_flow_submit_delivery` | mutation | 提交 Host 负责的 DELIVERY 判断、风险和发现；acceptance、evidence ID 与 Test/Comprehension record ID 由 Core 补齐，提交这些字段会按 `unknown_member` 拒绝。 |
-| `dev_flow_resolve_blocker` | mutation | 在 Core 确认当前 blocker 条件后解除阻塞；仓库恢复 blocker 要求精确恢复，自动刹车 blocker 要求用户明确允许继续；文件范围 blocker 还要求 `choice`（`allow_once`、`expand_scope` 或 `reject`）与非空 `reason`，其他 blocker 省略这两个字段。 |
+| `dev_flow_resolve_blocker` | mutation | 在 Core 确认当前 blocker 条件后解除阻塞；文件范围使用 `choice` 与 `reason`，history 使用 `history_resolution:{choice:"accept_current_history",reason}`，relocation 使用 `relocation_id` 与全部 `relocation_destinations[{key,repository_path}]`，验证/Recovery blocker 使用当前身份字段。 |
 | `dev_flow_recover_action` | mutation | 使用 Core 在独立 Action 操作记录中保存的规范化提交恢复不确定 Action；不接收原始 payload。 |
 | `dev_flow_cancel_task` | destructive mutation | 使用当前 revision 和非空 reason 将非终态 Task 转为 `CANCELLED`。 |
+| `dev_flow_prepare_task_relocation` | mutation | 保存 relocation ID、源 workspace/content/surface 和 resume node；Host handoff 期间保留原 claims。 |
+| `dev_flow_abandon_task` | destructive mutation | 原 worktree 确实不可用时，用精确 host/task/revision 和非空 reason 进入 `CANCELLED` 并释放 claims；不访问 Git。 |
 
 八个普通节点提交工具都只接收 `host`、`task_id`、`action_id`、`transition_id`、`summary`、
-`reason`、`artifacts`、`method_results` 和该节点专属的 `node_result`。Core 从当前 Action 补齐
+`reason`、`artifacts`、`method_results` 和只含语义事实的节点专属 `node_result`；其中没有
+`changed_paths` 或 `no_file_changes`。Core 从 Git 计算 Action delta/current surface，并从当前 Action 补齐
 revision、Action kind、process identity、source cursor、repository binding、artifact role、method
 step identity/order/status 与内部 payload envelope。`get_next_action` 的 `submission_tool` 指出当前
 唯一可用的提交工具。
@@ -279,7 +286,7 @@ step identity/order/status 与内部 payload envelope。`get_next_action` 的 `s
 `node_result.task_plan_revision` 均不属于 Host 提交合同。Core 确认当前 Action 身份后，从同一 Task
 快照填充这些字段；提交任一字段会返回准确路径的 `unknown_member`。节点提交缺少
 其他必填字段时返回准确的 `required_member_missing` 路径；只有已证明零写入且修正内容来自当前节点
-既有事实时，Host 才能按 `allowed_paths` 通过同一提交工具修正一次。
+既有事实时，Host 才能按 `recovery.allowed_paths` 通过同一提交工具修正一次。
 
 未知 CLI 参数、未列出的 MCP 工具或未满足隐式/显式统一 admission 的调用不属于受支持入口。
 
@@ -291,9 +298,28 @@ step identity/order/status 与内部 payload envelope。`get_next_action` 的 `s
 {
   "host": "codex",
   "repository_path": "/workspace/core",
+  "workspace_origin": {
+    "mode": "dedicated_worktree",
+    "remote_name": "origin",
+    "base_branch": "main",
+    "base_commit": "<fetched-commit>",
+    "task_branch": "feature/core-docs",
+    "provisioning_receipt_id": "launch-core-docs"
+  },
   "primary_repository_key": "core",
   "additional_repositories": [
-    { "key": "docs", "repository_path": "/workspace/docs" }
+    {
+      "key": "docs",
+      "repository_path": "/workspace/docs",
+      "workspace_origin": {
+        "mode": "dedicated_worktree",
+        "remote_name": "origin",
+        "base_branch": "main",
+        "base_commit": "<fetched-commit>",
+        "task_branch": "feature/docs",
+        "provisioning_receipt_id": "launch-core-docs"
+      }
+    }
   ],
   "new_task": {
     "request": "同步 Core 与文档仓库中的接口说明",
@@ -311,19 +337,21 @@ step identity/order/status 与内部 payload envelope。`get_next_action` 的 `s
 }
 ```
 
-该示例只说明 closed MCP 输入形状，不是 shell 命令。创建时 `new_task` 使用既有非空 Task intent；
-恢复时将其省略或设为 `null`，`repository_path` 可以指向任一参与仓库，并省略 Scope 创建字段。
-总仓库数为一至八；附加仓库按 key 排序，Scope 创建后不可变。单仓库调用无需新字段，继续使用普通
-相对路径；多仓库 payload 路径使用 `<repository-key>::<repository-relative-path>`。
+该示例只说明 closed MCP 输入形状，不是 shell 命令。`<fetched-commit>` 必须替换为实际 object ID。
+创建时每个 repository 都必须带 receipt 证明的 `workspace_origin` 和非空 `new_task`；Core 从本地 Git
+核对并补齐 source group、canonical root 与 worktree Git-dir。恢复时省略或设 `new_task=null`，
+`repository_path` 指向原参与 worktree，并省略全部 Scope/origin 创建字段。总仓库数为一至八；附加
+仓库按 key 排序，Scope 创建后不可变。多仓库 payload 路径使用
+`<repository-key>::<repository-relative-path>`。
 
 Task result 保留主 `repository`，增加 `primary_repository_key` 与 sorted
 `additional_repositories`。当前 Action 中唯一的 `repository_binding_digest` 在单仓库 Task 中仍是
 主 binding digest，在多仓库 Task 中是完整 Scope aggregate。活动 Task 的全部
 `repository_claims` 与 snapshot/event 在同一 SQLite transaction 中 Acquire、Retain 或 Release。
 
-`repository_claims` 的 identity 表示实际 worktree，不是整个 Git common directory。linked
-worktree 共享逻辑仓库组标识，但 canonical root 不同，因此可以分别持有活动 Task；同一 worktree
-仍只能持有一个活动 Task。Control Center 的 Task summary 公开只读 `repository_group_id` 和
+`repository_claims` 使用可直接观察的 worktree-instance identity，不是整个 Git common directory。
+linked worktree 共享逻辑仓库组标识，但 canonical root/worktree Git-dir 不同，因此可以分别持有活动
+Task；同一实例只能持有一个活动 Task。Control Center 的 Task summary 公开只读 `repository_group_id` 和
 `worktree_path`，详情中的每个 repository 也公开自己的 `repository_group_id`。
 
 `dev_flow_server_info({})` 的结果包含：

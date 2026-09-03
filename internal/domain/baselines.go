@@ -209,19 +209,18 @@ func (r BaselineReference) Validate() error {
 }
 
 type ImplementationRecord struct {
-	Revision                uint32    `json:"revision"`
-	TaskPlanRevision        uint32    `json:"task_plan_revision"`
-	RepositoryBindingDigest Digest    `json:"repository_binding_digest"`
-	CompletedWorkItemIDs    []ID      `json:"completed_work_item_ids"`
-	ChangedPaths            []string  `json:"changed_paths"`
-	NoFileChanges           bool      `json:"no_file_changes"`
-	Deviations              []string  `json:"deviations"`
-	Summary                 string    `json:"summary"`
-	CreatedAt               time.Time `json:"created_at"`
+	Revision             uint32    `json:"revision"`
+	TaskPlanRevision     uint32    `json:"task_plan_revision"`
+	ContentDigest        Digest    `json:"content_digest"`
+	CompletedWorkItemIDs []ID      `json:"completed_work_item_ids"`
+	ActionChangedPaths   []string  `json:"action_changed_paths"`
+	Deviations           []string  `json:"deviations"`
+	Summary              string    `json:"summary"`
+	CreatedAt            time.Time `json:"created_at"`
 }
 
 func (r ImplementationRecord) Validate() error {
-	if r.Revision == 0 || r.TaskPlanRevision == 0 || !r.RepositoryBindingDigest.IsValid() || (len(r.ChangedPaths) > 0) == r.NoFileChanges || requireNormalizedText(r.Summary, MaxEvidenceSummaryBytes, true) != nil || validateUTC(r.CreatedAt) != nil || validateNormalizedList(r.Deviations) != nil {
+	if r.Revision == 0 || r.TaskPlanRevision == 0 || !r.ContentDigest.IsValid() || requireNormalizedText(r.Summary, MaxEvidenceSummaryBytes, true) != nil || validateUTC(r.CreatedAt) != nil || validateNormalizedList(r.Deviations) != nil {
 		return ErrInvalidArgument
 	}
 	seen := map[ID]bool{}
@@ -232,7 +231,7 @@ func (r ImplementationRecord) Validate() error {
 		seen[id] = true
 	}
 	paths := map[string]bool{}
-	for _, path := range r.ChangedPaths {
+	for _, path := range r.ActionChangedPaths {
 		if ValidateRepositoryContractPath(path) != nil || paths[path] {
 			return ErrInvalidArgument
 		}
@@ -242,19 +241,19 @@ func (r ImplementationRecord) Validate() error {
 }
 
 type TestRecord struct {
-	RecordID                ID        `json:"record_id"`
-	RequirementsRevision    uint32    `json:"requirements_revision"`
-	DesignRevision          uint32    `json:"design_revision"`
-	TaskPlanRevision        uint32    `json:"task_plan_revision"`
-	RepositoryBindingDigest Digest    `json:"repository_binding_digest"`
-	EvidenceIDs             []ID      `json:"evidence_ids"`
-	UnverifiedItems         []string  `json:"unverified_items"`
-	ManualHandoffItems      []string  `json:"manual_handoff_items"`
-	PassedAt                time.Time `json:"passed_at"`
+	RecordID             ID        `json:"record_id"`
+	RequirementsRevision uint32    `json:"requirements_revision"`
+	DesignRevision       uint32    `json:"design_revision"`
+	TaskPlanRevision     uint32    `json:"task_plan_revision"`
+	ContentDigest        Digest    `json:"content_digest"`
+	EvidenceIDs          []ID      `json:"evidence_ids"`
+	UnverifiedItems      []string  `json:"unverified_items"`
+	ManualHandoffItems   []string  `json:"manual_handoff_items"`
+	PassedAt             time.Time `json:"passed_at"`
 }
 
 func (r TestRecord) Validate() error {
-	if validateID(r.RecordID) != nil || r.RequirementsRevision == 0 || r.DesignRevision == 0 || r.TaskPlanRevision == 0 || !r.RepositoryBindingDigest.IsValid() || validateUTC(r.PassedAt) != nil || validateNormalizedList(r.UnverifiedItems) != nil || validateNormalizedList(r.ManualHandoffItems) != nil {
+	if validateID(r.RecordID) != nil || r.RequirementsRevision == 0 || r.DesignRevision == 0 || r.TaskPlanRevision == 0 || !r.ContentDigest.IsValid() || validateUTC(r.PassedAt) != nil || validateNormalizedList(r.UnverifiedItems) != nil || validateNormalizedList(r.ManualHandoffItems) != nil {
 		return ErrInvalidArgument
 	}
 	seen := map[ID]bool{}
@@ -268,20 +267,20 @@ func (r TestRecord) Validate() error {
 }
 
 type ComprehensionAssessment struct {
-	RecordID                ID        `json:"record_id"`
-	TestRecordID            ID        `json:"test_record_id"`
-	RequirementsRevision    uint32    `json:"requirements_revision"`
-	DesignRevision          uint32    `json:"design_revision"`
-	TaskPlanRevision        uint32    `json:"task_plan_revision"`
-	RepositoryBindingDigest Digest    `json:"repository_binding_digest"`
-	ExplainedComponents     []string  `json:"explained_components"`
-	MaintenanceRisks        []string  `json:"maintenance_risks"`
-	UserEvidenceID          ID        `json:"user_evidence_id"`
-	ConfirmedAt             time.Time `json:"confirmed_at"`
+	RecordID             ID        `json:"record_id"`
+	TestRecordID         ID        `json:"test_record_id"`
+	RequirementsRevision uint32    `json:"requirements_revision"`
+	DesignRevision       uint32    `json:"design_revision"`
+	TaskPlanRevision     uint32    `json:"task_plan_revision"`
+	ContentDigest        Digest    `json:"content_digest"`
+	ExplainedComponents  []string  `json:"explained_components"`
+	MaintenanceRisks     []string  `json:"maintenance_risks"`
+	UserEvidenceID       ID        `json:"user_evidence_id"`
+	ConfirmedAt          time.Time `json:"confirmed_at"`
 }
 
 func (r ComprehensionAssessment) Validate() error {
-	if validateID(r.RecordID) != nil || validateID(r.TestRecordID) != nil || r.RequirementsRevision == 0 || r.DesignRevision == 0 || r.TaskPlanRevision == 0 || !r.RepositoryBindingDigest.IsValid() || len(r.ExplainedComponents) == 0 || len(r.ExplainedComponents) > MaxExplainedComponents || validateID(r.UserEvidenceID) != nil || validateUTC(r.ConfirmedAt) != nil || validateNormalizedList(r.ExplainedComponents) != nil || validateNormalizedList(r.MaintenanceRisks) != nil {
+	if validateID(r.RecordID) != nil || validateID(r.TestRecordID) != nil || r.RequirementsRevision == 0 || r.DesignRevision == 0 || r.TaskPlanRevision == 0 || !r.ContentDigest.IsValid() || len(r.ExplainedComponents) == 0 || len(r.ExplainedComponents) > MaxExplainedComponents || validateID(r.UserEvidenceID) != nil || validateUTC(r.ConfirmedAt) != nil || validateNormalizedList(r.ExplainedComponents) != nil || validateNormalizedList(r.MaintenanceRisks) != nil {
 		return ErrInvalidArgument
 	}
 	return nil

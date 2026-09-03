@@ -12,7 +12,7 @@ const requirementsMethodEvidenceReorderedJSON = `[{"summary":"Captured requireme
 const designMethodEvidenceJSON = `[{"step_id":"design.choose_approach","status":"plain_fallback","capability":"","summary":"Selected the approach."},{"step_id":"design.review_complexity","status":"plain_fallback","capability":"","summary":"Reviewed complexity."},{"step_id":"design.record_decisions","status":"plain_fallback","capability":"","summary":"Recorded decisions."}]`
 
 func TestPayloadDispatchIsClosedAndTransitionAware(t *testing.T) {
-	valid := []byte(`{"transition_id":"requirements_ready","summary":"Requirements ready.","reason":"","artifacts":[],"method_evidence":` + requirementsMethodEvidenceJSON + `,"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[],"changed_paths":[],"no_file_changes":true}}`)
+	valid := []byte(`{"transition_id":"requirements_ready","summary":"Requirements ready.","reason":"","artifacts":[],"method_evidence":` + requirementsMethodEvidenceJSON + `,"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
 	envelope, result, err := DecodeStandardPayload("REQUIREMENTS", valid)
 	if err != nil {
 		t.Fatal(err)
@@ -36,15 +36,11 @@ func TestPayloadDispatchIsClosedAndTransitionAware(t *testing.T) {
 	}
 }
 
-func TestRepositoryMutationEnvelopeIsRequiredAndExclusive(t *testing.T) {
-	valid := []byte(`{"transition_id":"requirements_ready","summary":"Requirements ready.","reason":"","artifacts":[],"method_evidence":` + requirementsMethodEvidenceJSON + `,"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[],"changed_paths":[],"no_file_changes":true}}`)
+func TestLegacyRepositoryMutationMembersAreRejected(t *testing.T) {
+	valid := []byte(`{"transition_id":"requirements_ready","summary":"Requirements ready.","reason":"","artifacts":[],"method_evidence":` + requirementsMethodEvidenceJSON + `,"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
 	for _, mutate := range []func(map[string]any){
-		func(result map[string]any) { delete(result, "changed_paths") },
-		func(result map[string]any) { delete(result, "no_file_changes") },
-		func(result map[string]any) {
-			result["changed_paths"], result["no_file_changes"] = []string{"spec.md"}, true
-		},
-		func(result map[string]any) { result["changed_paths"], result["no_file_changes"] = []string{}, false },
+		func(result map[string]any) { result["changed_paths"] = []string{} },
+		func(result map[string]any) { result["no_file_changes"] = true },
 	} {
 		var payload map[string]any
 		if err := json.Unmarshal(valid, &payload); err != nil {
@@ -63,7 +59,7 @@ func TestRepositoryMutationEnvelopeIsRequiredAndExclusive(t *testing.T) {
 }
 
 func TestMethodEvidenceChangesCanonicalPayloadDigest(t *testing.T) {
-	result := &RequirementsResult{ProblemClass: ProblemNone, Baseline: &RequirementsBaselineInput{Goal: "Goal", AcceptanceCriteria: []string{"Accepted"}}, UnresolvedQuestions: []string{}, NoFileChanges: true}
+	result := &RequirementsResult{ProblemClass: ProblemNone, Baseline: &RequirementsBaselineInput{Goal: "Goal", AcceptanceCriteria: []string{"Accepted"}}, UnresolvedQuestions: []string{}}
 	base := StandardPayload{TransitionID: "requirements_ready", Summary: "Ready.", Reason: "", Artifacts: []domain.ArtifactReference{}, MethodEvidence: []domain.MethodEvidence{
 		{StepID: "requirements.capture", Status: domain.MethodStepCompleted, Capability: "capability-a", Summary: "Captured requirements."},
 		{StepID: "requirements.clarify", Status: domain.MethodStepCompleted, Capability: "capability-a", Summary: "Clarified requirements."},
@@ -96,7 +92,7 @@ func TestMethodEvidenceChangesCanonicalPayloadDigest(t *testing.T) {
 }
 
 func TestPayloadReasonRulesAndForbiddenTransitions(t *testing.T) {
-	raw := []byte(`{"transition_id":"design_requires_requirements","summary":"Gap found.","reason":"","artifacts":[],"method_evidence":` + designMethodEvidenceJSON + `,"node_result":{"problem_class":"requirement_gap","baseline":null,"findings":["Acceptance is unclear"],"changed_paths":[],"no_file_changes":true}}`)
+	raw := []byte(`{"transition_id":"design_requires_requirements","summary":"Gap found.","reason":"","artifacts":[],"method_evidence":` + designMethodEvidenceJSON + `,"node_result":{"problem_class":"requirement_gap","baseline":null,"findings":["Acceptance is unclear"]}}`)
 	envelope, result, err := DecodeStandardPayload("DESIGN", raw)
 	if err != nil {
 		t.Fatal(err)
@@ -114,8 +110,8 @@ func TestPayloadReasonRulesAndForbiddenTransitions(t *testing.T) {
 	}
 }
 func TestCanonicalValidatedPayloadIgnoresJSONFormatting(t *testing.T) {
-	left := []byte(`{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":` + requirementsMethodEvidenceJSON + `,"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[],"changed_paths":[],"no_file_changes":true}}`)
-	right := []byte(`{ "node_result": {"unresolved_questions":[],"changed_paths":[],"no_file_changes":true,"problem_class":"none","baseline":{"assumptions":[],"constraints":[],"acceptance_criteria":["Accepted"],"out_of_scope":[],"scope":[],"goal":"Goal"}},"method_evidence":` + requirementsMethodEvidenceReorderedJSON + `,"artifacts":[],"reason":"","summary":"Ready.","transition_id":"requirements_ready"}`)
+	left := []byte(`{"transition_id":"requirements_ready","summary":"Ready.","reason":"","artifacts":[],"method_evidence":` + requirementsMethodEvidenceJSON + `,"node_result":{"problem_class":"none","baseline":{"goal":"Goal","scope":[],"out_of_scope":[],"acceptance_criteria":["Accepted"],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
+	right := []byte(`{ "node_result": {"unresolved_questions":[],"problem_class":"none","baseline":{"assumptions":[],"constraints":[],"acceptance_criteria":["Accepted"],"out_of_scope":[],"scope":[],"goal":"Goal"}},"method_evidence":` + requirementsMethodEvidenceReorderedJSON + `,"artifacts":[],"reason":"","summary":"Ready.","transition_id":"requirements_ready"}`)
 	a, ar, err := DecodeStandardPayload(domain.NodeRequirements, left)
 	if err != nil {
 		t.Fatal(err)
@@ -145,7 +141,7 @@ func TestCanonicalComprehensionPayloadRetainsRequiredEmptyFindings(t *testing.T)
 		ProblemClass: ProblemNone, ExplainedComponents: []string{"request path"}, UnresolvedQuestions: []string{},
 		UnnecessaryAbstractions: []string{}, MaintenanceRisks: []string{},
 		UserConfirmation: &UserConfirmation{Source: domain.EvidenceSourceUser, Status: domain.EvidencePassed, Summary: "Confirmed."},
-		Findings:         []string{}, ChangedPaths: []string{}, NoFileChanges: true,
+		Findings:         []string{},
 	}
 	canonical, err := CanonicalValidatedPayload(envelope, result)
 	if err != nil {

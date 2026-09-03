@@ -125,9 +125,11 @@ func projectSummaries(items []application.ControlCenterTaskSummary) []TaskSummar
 
 func projectTaskDetail(requestID string, detail application.ControlCenterTaskDetail) (TaskDetailResponse, error) {
 	summary := projectSummaries([]application.ControlCenterTaskSummary{summarizeDetail(detail)})[0]
-	repositories := []RepositoryView{{Key: string(detail.Task.EffectivePrimaryRepositoryKey()), Path: detail.Task.Repository.CanonicalRoot, Role: "primary", RepositoryGroupID: string(detail.Task.Repository.GitCommonDirDigest)}}
+	repositories := []RepositoryView{projectRepository(
+		detail.Task.EffectivePrimaryRepositoryKey(), "primary", detail.Task.WorkspaceOrigin, detail.Task.Repository,
+	)}
 	for _, repository := range detail.Task.AdditionalRepositories {
-		repositories = append(repositories, RepositoryView{Key: string(repository.Key), Path: repository.Binding.CanonicalRoot, Role: "additional", RepositoryGroupID: string(repository.Binding.GitCommonDirDigest)})
+		repositories = append(repositories, projectRepository(repository.Key, "additional", repository.Origin, repository.Binding))
 	}
 	baselines, err := projectNamedFacts([]namedFact{{"requirements", "Requirements", detail.Task.Requirements}, {"design", "Design", detail.Task.Design}, {"task_plan", "Task plan", detail.Task.TaskPlan}, {"baseline_history", "Baseline history", detail.Task.BaselineHistory}})
 	if err != nil {
@@ -171,7 +173,7 @@ func projectTaskDetail(requestID string, detail application.ControlCenterTaskDet
 			value := event.TransitionReason
 			reason = &value
 		}
-		events[index] = TaskEventView{Revision: event.Revision, EventType: string(event.Kind), SourceNode: string(event.SourceNode), DestinationNode: string(event.DestinationNode), TransitionID: transitionID, Reason: reason, CreatedAt: event.CreatedAt}
+		events[index] = TaskEventView{Revision: event.Revision, EventType: string(event.Kind), SourceNode: string(event.SourceNode), DestinationNode: string(event.DestinationNode), TransitionID: transitionID, Reason: reason, RepositoryDeltaPaths: append([]string{}, event.RepositoryDeltaPaths...), CreatedAt: event.CreatedAt}
 	}
 	readiness := ReadinessReady
 	if detail.ReadOnly {
@@ -188,14 +190,15 @@ func projectTaskDetail(requestID string, detail application.ControlCenterTaskDet
 	}
 	scope := application.CurrentFileScopeStatus(detail.Task)
 	fileScope := FileScopeView{
-		ExpectedPaths:     append([]string{}, scope.ExpectedPaths...),
-		TaskChangedPaths:  append([]string{}, scope.TaskChangedPaths...),
-		UnexplainedPaths:  append([]string{}, scope.UnexplainedPaths...),
-		CoveredHostTools:  append([]string{}, scope.CoveredHostTools...),
-		DecisionCount:     len(scope.Records),
-		FinalCheckEnabled: scope.FinalCheckEnabled,
+		ExpectedPaths:       append([]string{}, scope.ExpectedPaths...),
+		CurrentChangedPaths: append([]string{}, detail.Task.CurrentChangedPaths...),
+		UnexplainedPaths:    append([]string{}, scope.UnexplainedPaths...),
+		CoveredHostTools:    append([]string{}, scope.CoveredHostTools...),
+		DecisionCount:       len(scope.Records),
+		FinalCheckEnabled:   scope.FinalCheckEnabled,
 	}
-	return TaskDetailResponse{OK: true, RequestID: requestID, Readiness: readiness, Summary: summary, Intent: detail.Task.Intent.Request, AcceptanceCriteria: criteria, VerificationBudget: string(budget), MethodProfile: string(detail.Task.Intent.MethodProfile), Repositories: repositories, Baselines: baselines, Records: records, Evidence: evidence, Blocker: blocker, Outcome: outcome, Events: events, Graph: projectGraph(detail.Graph), CurrentAction: currentAction, FileScope: fileScope}, nil
+	workspace := projectWorkspace(detail.Task)
+	return TaskDetailResponse{OK: true, RequestID: requestID, Readiness: readiness, Summary: summary, Intent: detail.Task.Intent.Request, AcceptanceCriteria: criteria, VerificationBudget: string(budget), MethodProfile: string(detail.Task.Intent.MethodProfile), Repositories: repositories, Baselines: baselines, Records: records, Evidence: evidence, Blocker: blocker, Outcome: outcome, Events: events, Graph: projectGraph(detail.Graph), CurrentAction: currentAction, FileScope: fileScope, Workspace: workspace}, nil
 }
 
 func summarizeDetail(detail application.ControlCenterTaskDetail) application.ControlCenterTaskSummary {
@@ -212,7 +215,70 @@ func summarizeDetail(detail application.ControlCenterTaskDetail) application.Con
 		value := detail.Task.Outcome.Summary
 		outcome = &value
 	}
-	return application.ControlCenterTaskSummary{TaskID: detail.Task.TaskID, RequestSummary: truncateWebSummary(detail.Task.Intent.Request), OriginHost: detail.Task.OriginHost, ExecutionHost: detail.Task.OriginHost, CurrentNode: detail.Task.CurrentNode, Lifecycle: lifecycleFromNode(detail.Task.CurrentNode), Revision: detail.Task.Revision, UpdatedAt: detail.Task.UpdatedAt, Archived: detail.Archived, RepositoryKeys: keys, RepositoryGroupID: detail.Task.Repository.GitCommonDirDigest, WorktreePath: detail.Task.Repository.CanonicalRoot, Blocker: blocker, Outcome: outcome}
+	return application.ControlCenterTaskSummary{TaskID: detail.Task.TaskID, RequestSummary: truncateWebSummary(detail.Task.Intent.Request), OriginHost: detail.Task.OriginHost, ExecutionHost: detail.Task.OriginHost, CurrentNode: detail.Task.CurrentNode, Lifecycle: lifecycleFromNode(detail.Task.CurrentNode), Revision: detail.Task.Revision, UpdatedAt: detail.Task.UpdatedAt, Archived: detail.Archived, RepositoryKeys: keys, RepositoryGroupID: detail.Task.WorkspaceOrigin.SourceRepositoryGroupDigest, WorktreePath: detail.Task.WorkspaceOrigin.CanonicalWorktreeRoot, Blocker: blocker, Outcome: outcome}
+}
+
+func projectRepository(key domain.RepositoryKey, role string, origin domain.WorkspaceOrigin, binding domain.RepositoryBinding) RepositoryView {
+	return RepositoryView{
+		Key: string(key), Path: origin.CanonicalWorktreeRoot, Role: role,
+		RepositoryGroupID: string(origin.SourceRepositoryGroupDigest),
+		Origin: WorkspaceOriginView{
+			Mode: string(origin.Mode), RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch,
+			BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch,
+			ProvisioningReceiptID: string(origin.ProvisioningReceiptID),
+		},
+		Observation: WorkspaceObservationView{
+			WorktreeInstanceDigest: string(binding.WorktreeInstanceDigest), IdentityDigest: string(binding.IdentityDigest),
+			HistoryDigest: string(binding.HistoryDigest), ContentDigest: string(binding.ContentDigest),
+			CurrentBranch: cloneString(binding.CurrentBranch), Detached: binding.Detached,
+			CurrentHead: binding.CurrentHead, HeadTree: binding.HeadTree, HistoryRelation: string(binding.HistoryRelation),
+			BaseCommitAncestor: binding.BaseCommitAncestor,
+			ChangedEntries:     projectChangedEntries(binding.ChangedEntries), TaskSurface: projectChangedEntries(binding.TaskSurface),
+			ObservedAt: binding.ObservedAt, BindingDigest: string(binding.BindingDigest),
+		},
+	}
+}
+
+func projectWorkspace(task domain.ProcessTask) WorkspaceView {
+	conflict := task.Repository.HistoryRelation != domain.RepositoryHistoryExact && task.Repository.HistoryRelation != domain.RepositoryHistoryLinearAdvance
+	for _, repository := range task.AdditionalRepositories {
+		conflict = conflict || repository.Binding.HistoryRelation != domain.RepositoryHistoryExact && repository.Binding.HistoryRelation != domain.RepositoryHistoryLinearAdvance
+	}
+	var relocationID, resumeNode *string
+	pending := task.Blocker != nil && task.Blocker.Cause == domain.BlockerCauseTaskRelocationPending
+	if pending {
+		value := string(task.Blocker.Condition.RelocationID)
+		relocationID = &value
+		resume := string(task.Blocker.ResumeNode)
+		resumeNode = &resume
+	}
+	provisioningStatus := "last_known"
+	if task.LastOperation != nil && task.LastOperation.Kind == domain.OperationAbandonTask {
+		provisioningStatus = "unavailable"
+	}
+	return WorkspaceView{
+		ProvisioningStatus:  provisioningStatus,
+		CurrentChangedPaths: append([]string{}, task.CurrentChangedPaths...),
+		HistoryConflict:     conflict || task.Blocker != nil && task.Blocker.Cause == domain.BlockerCauseWorkspaceHistoryConflict,
+		Relocation:          RelocationView{Pending: pending, RelocationID: relocationID, ResumeNode: resumeNode},
+		Cleanup:             CleanupView{Automatic: false, HostActionRequired: true, SeparateWorktreeAndBranch: true, Terminal: task.CurrentNode.Terminal()},
+	}
+}
+
+func projectChangedEntries(entries []domain.RepositoryChangedEntry) []ChangedEntryView {
+	result := make([]ChangedEntryView, len(entries))
+	for index, entry := range entries {
+		result[index] = ChangedEntryView{Path: entry.Path, ChangeType: string(entry.ChangeType), FileMode: entry.FileMode, Gitlink: entry.Gitlink, ContentDigest: string(entry.ContentDigest)}
+	}
+	return result
+}
+
+func cloneString(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	copy := *value
+	return &copy
 }
 
 func truncateWebSummary(value string) string {
@@ -334,7 +400,7 @@ func projectAction(action *domain.ProcessAction) (*ActionView, error) {
 	for index, transition := range action.AvailableTransitions {
 		legal[index] = string(transition.TransitionID)
 	}
-	return &ActionView{ActionID: string(action.ActionID), ActionKind: string(action.Kind), ProcessID: string(action.Process.ID), ProcessDefinitionDigest: string(action.Process.DefinitionDigest), SourceNode: string(action.NodeID), RepositoryBindingDigest: string(action.RepositoryBindingDigest), Purpose: action.NodeContract.Purpose, Conditions: conditions, AllowedEffects: effects, RequiredEvidence: evidence, MethodSteps: steps, LegalTransitionIDs: legal, PayloadSchema: payloadSchema}, nil
+	return &ActionView{ActionID: string(action.ActionID), ActionKind: string(action.Kind), ProcessID: string(action.Process.ID), ProcessDefinitionDigest: string(action.Process.DefinitionDigest), SourceNode: string(action.NodeID), RepositoryBindingDigest: string(action.RepositoryBindingDigest), IssuanceIdentityDigest: string(action.IssuanceIdentityDigest), IssuanceHistoryDigest: string(action.IssuanceHistoryDigest), IssuanceContentDigest: string(action.IssuanceContentDigest), Purpose: action.NodeContract.Purpose, Conditions: conditions, AllowedEffects: effects, RequiredEvidence: evidence, MethodSteps: steps, LegalTransitionIDs: legal, PayloadSchema: payloadSchema}, nil
 }
 
 func writeReadError(w http.ResponseWriter, requestID string, err error) {

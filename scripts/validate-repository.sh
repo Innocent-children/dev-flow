@@ -76,6 +76,10 @@ const codexFinalStagingFiles = [
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
   "lib/platform.mjs",
+  "lib/provisioning-receipt.mjs",
+  "lib/task-admission.mjs",
+  "lib/task-launch.mjs",
+  "lib/worktree-lifecycle.mjs",
   "package.json",
   "plugin/.codex-plugin/plugin.json",
   "plugin/.mcp.json",
@@ -97,8 +101,11 @@ const deepseekFinalStagingFiles = [
   "lib/index.mjs",
   "lib/paths.mjs",
   "lib/platform.mjs",
+  "lib/provisioning-receipt.mjs",
   "lib/runtime.mjs",
   "lib/tool-names.mjs",
+  "lib/workspace-coordinator.mjs",
+  "lib/workspace-tool.mjs",
   "package.json",
   "runtime/darwin-arm64/dev-flow",
   "runtime/win32-x64/dev-flow.exe",
@@ -157,8 +164,14 @@ run_step "Dev Flow one-command release syntax" node --check scripts/release-dev-
 run_step "GitHub npm release workflow contract" node --test tests/release_workflow.test.mjs
 run_step "Fake release npm syntax" node --check packages/codex/tests/fixtures/fake-release-npm.mjs
 run_step "Fake release GitHub syntax" node --check packages/codex/tests/fixtures/fake-release-gh.mjs
-run_step "Codex public package contract" node --test packages/codex/tests/package-contract.test.mjs
-run_step "Codex launcher command contract" node --test packages/codex/tests/launcher.test.mjs
+run_step "Codex worktree-first package and Host contracts" \
+  node --test \
+    packages/codex/tests/package-contract.test.mjs \
+    packages/codex/tests/launcher.test.mjs \
+    packages/codex/tests/skill-contract.test.mjs \
+    packages/codex/tests/task-admission.test.mjs \
+    packages/codex/tests/provisioning-receipt.test.mjs \
+    packages/codex/tests/task-launch.test.mjs
 run_step "DeepSeek package and adapter contracts" \
   node --test \
     packages/deepseek/tests/package-contract.test.mjs \
@@ -166,10 +179,17 @@ run_step "DeepSeek package and adapter contracts" \
     packages/deepseek/tests/paths.test.mjs \
     packages/deepseek/tests/authorization.test.mjs \
     packages/deepseek/tests/integration-plugin.test.mjs \
+    packages/deepseek/tests/file-scope.test.mjs \
     packages/deepseek/tests/mcp-result-gate.test.mjs \
-    packages/deepseek/tests/skill-contract.test.mjs
+    packages/deepseek/tests/skill-contract.test.mjs \
+    packages/deepseek/tests/workspace-coordinator.test.mjs
 run_step "DeepSeek simulated graph journey" \
   node --test tests/journeys/deepseek/simulated-graph-journey.test.mjs
+run_step "Shared and Codex worktree-first simulated journeys" \
+  node --test \
+    tests/journeys/shared/simulated-submission-contract.test.mjs \
+    tests/journeys/codex/simulated-worktree-first.test.mjs
+run_step "WebUI source build" pnpm run build:webui
 run_step "Go package inventory" go list ./...
 run_step "Go vet" go vet ./...
 run_step "Go tests and repository contracts" go test -p 1 ./...

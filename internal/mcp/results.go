@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"sort"
+	"strings"
+
 	"github.com/Innocent-children/dev-flow/internal/application"
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/recovery"
 	"github.com/Innocent-children/dev-flow/internal/userconfig"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
-	"sort"
-	"strings"
 )
 
 type Envelope struct {
@@ -198,7 +199,6 @@ func boundedCorrectionRule(rule domain.ViolationRule, submissionTool bool) bool 
 	case domain.RuleNonAutomatedCommandCountZero,
 		domain.RuleNonAutomatedFullSuiteFalse,
 		domain.RuleUnknownMember,
-		domain.RuleRepositoryEffectNotObserved,
 		domain.RuleCurrentValueRequired,
 		domain.RuleCurrentSetRequired,
 		domain.RuleAcceptanceSetCurrent:
@@ -249,7 +249,29 @@ func mustEncode(v Envelope) []byte {
 	return raw
 }
 func publicFailure(code domain.ErrorCode) (string, string, string) {
-	m := map[domain.ErrorCode][3]string{domain.ErrorInvalidArgument: {"The request does not match the closed Core contract.", "none", "Correct the request before submitting it again."}, domain.ErrorNotGitRepository: {"The requested path is not a Git repository.", "none", "Choose a valid local Git repository."}, domain.ErrorTaskNotFound: {"The task was not found.", "read_task", "Confirm the retained task identity before continuing."}, domain.ErrorActiveTaskConflict: {"The repository already has an incompatible active task.", "cancel_or_finish_active_task", "Finish or cancel the active task before opening another task."}, domain.ErrorHostOwnershipConflict: {"The task belongs to another host.", "use_origin_host", "Resume the task from its origin host."}, domain.ErrorRevisionConflict: {"The submitted task revision is stale.", "read_task", "Read the authoritative task before another mutation."}, domain.ErrorActionStale: {"The submitted action identity is stale.", "read_next_action", "Read and use the exact persisted next action."}, domain.ErrorRepositoryDrift: {"The repository binding is not permitted for this operation.", "resolve_repository_drift", "Restore the required repository reality before continuing."}, domain.ErrorTransitionNotAllowed: {"The transition is not allowed from the current node.", "read_next_action", "Read the complete current transition set."}, domain.ErrorProcessUnsupported: {"The process definition is unsupported.", "repair_storage", "Use storage created by this graph Core."}, domain.ErrorRecoveryUnavailable: {"Recovery is unavailable for this operation.", "none", "Do not automatically retry; use only a supported graph recovery route."}, domain.ErrorVerificationBudgetExceeded: {"The submitted evidence exceeds the verification budget.", "read_next_action", "Remain within the current evidence budget."}, domain.ErrorTaskBlocked: {"The task is blocked.", "read_next_action", "Read the blocker-resolution action."}, domain.ErrorTaskTerminal: {"The task is terminal.", "read_task", "Read the retained terminal outcome."}, domain.ErrorSchemaUnsupported: {"The storage schema is unsupported.", "none", "Stop this operation."}, domain.ErrorStorageUnavailable: {"Core storage is unavailable.", "repair_storage", "Restore storage availability before continuing."}, domain.ErrorInternal: {"The Core could not complete the operation.", "report_internal_error", "Report the bounded failure and stop this operation."}}
+	m := map[domain.ErrorCode][3]string{
+		domain.ErrorInvalidArgument:              {"The request does not match the closed Core contract.", "none", "Correct the request before submitting it again."},
+		domain.ErrorNotGitRepository:             {"The requested path is not a Git repository.", "none", "Choose a valid local Git repository."},
+		domain.ErrorTaskNotFound:                 {"The task was not found.", "read_task", "Confirm the retained task identity before continuing."},
+		domain.ErrorActiveTaskConflict:           {"The worktree instance already has an active task.", "read_task", "Resume the active task or choose another provisioned worktree."},
+		domain.ErrorHostOwnershipConflict:        {"The task belongs to another host.", "use_origin_host", "Resume the task from its origin host."},
+		domain.ErrorRevisionConflict:             {"The submitted task revision is stale.", "read_task", "Read the authoritative task before another mutation."},
+		domain.ErrorActionStale:                  {"The submitted action identity is stale.", "read_next_action", "Read and use the exact persisted next action."},
+		domain.ErrorRepositoryDrift:              {"The repository observation is not permitted for this operation.", "read_next_action", "Read the current workspace blocker or action."},
+		domain.ErrorWorkspaceUnavailable:         {"The retained Task worktree instance is unavailable.", "restore_or_abandon", "Restore the original worktree instance or explicitly abandon the Task."},
+		domain.ErrorWorkspaceObservationUnstable: {"The Task repository scope changed during observation.", "retry_read", "Wait for repository activity to settle, then read the Task again."},
+		domain.ErrorWorkspaceHistoryConflict:     {"The Task worktree history conflicts with its retained state.", "resolve_blocker", "Restore the retained history or resolve the prepared history decision."},
+		domain.ErrorWorktreeProvisioningRequired: {"A clean dedicated worktree is required before opening a Task.", "provision_worktree", "Complete Host worktree provisioning and submit its exact origin."},
+		domain.ErrorTransitionNotAllowed:         {"The transition is not allowed from the current node.", "read_next_action", "Read the complete current transition set."},
+		domain.ErrorProcessUnsupported:           {"The process definition is unsupported.", "repair_storage", "Use storage created by this graph Core."},
+		domain.ErrorRecoveryUnavailable:          {"Recovery is unavailable for this operation.", "none", "Do not automatically retry; use only a supported graph recovery route."},
+		domain.ErrorVerificationBudgetExceeded:   {"The submitted evidence exceeds the verification budget.", "read_next_action", "Remain within the current evidence budget."},
+		domain.ErrorTaskBlocked:                  {"The task is blocked.", "read_next_action", "Read the blocker-resolution action."},
+		domain.ErrorTaskTerminal:                 {"The task is terminal.", "read_task", "Read the retained terminal outcome."},
+		domain.ErrorSchemaUnsupported:            {"The storage schema is unsupported.", "none", "Stop this operation."},
+		domain.ErrorStorageUnavailable:           {"Core storage is unavailable.", "repair_storage", "Restore storage availability before continuing."},
+		domain.ErrorInternal:                     {"The Core could not complete the operation.", "report_internal_error", "Report the bounded failure and stop this operation."},
+	}
 	v, ok := m[code]
 	if !ok {
 		v = m[domain.ErrorInternal]
@@ -279,23 +301,23 @@ func projectAction(a *domain.ProcessAction) any {
 		return nil
 	}
 	tool, _ := submissionToolForActionKind(a.Kind)
-	return map[string]any{"task_id": a.TaskID, "revision": a.Revision, "action_id": a.ActionID, "action_kind": a.Kind, "submission_tool": tool, "process_id": a.Process.ID, "process_definition_digest": a.Process.DefinitionDigest, "current_node": a.NodeID, "node_purpose": a.NodeContract.Purpose, "entry_conditions": a.NodeContract.EntryConditions, "completion_conditions": a.NodeContract.CompletionConditions, "allowed_effects": a.AllowedEffects, "required_evidence": a.RequiredEvidence, "method_profile": a.MethodProfile, "method_steps": a.SemanticMethodSteps, "available_transitions": a.AvailableTransitions, "payload_contract": a.PayloadContract, "guidance": a.Guidance, "repository_binding_digest": a.RepositoryBindingDigest, "issued_at": a.IssuedAt}
+	return map[string]any{"task_id": a.TaskID, "revision": a.Revision, "action_id": a.ActionID, "action_kind": a.Kind, "submission_tool": tool, "process_id": a.Process.ID, "process_definition_digest": a.Process.DefinitionDigest, "current_node": a.NodeID, "node_purpose": a.NodeContract.Purpose, "entry_conditions": a.NodeContract.EntryConditions, "completion_conditions": a.NodeContract.CompletionConditions, "allowed_effects": a.AllowedEffects, "required_evidence": a.RequiredEvidence, "method_profile": a.MethodProfile, "method_steps": a.SemanticMethodSteps, "available_transitions": a.AvailableTransitions, "payload_contract": a.PayloadContract, "guidance": a.Guidance, "repository_binding_digest": a.RepositoryBindingDigest, "issuance_identity_digest": a.IssuanceIdentityDigest, "issuance_history_digest": a.IssuanceHistoryDigest, "issuance_content_digest": a.IssuanceContentDigest, "issued_at": a.IssuedAt}
 }
 func projectTask(t domain.ProcessTask) any {
-	result := map[string]any{"task_id": t.TaskID, "origin_host": t.OriginHost, "process_id": t.Process.ID, "process_definition_digest": t.Process.DefinitionDigest, "intent": t.Intent, "current_cursor": t.CurrentNode, "resume_cursor": t.ResumeNode, "primary_repository_key": t.EffectivePrimaryRepositoryKey(), "repository": projectRepository(t.Repository), "baselines": map[string]any{"requirements": t.Requirements, "design": t.Design, "task_plan": t.TaskPlan, "history": t.BaselineHistory}, "implementation": t.Implementation, "test": t.Test, "comprehension": t.Comprehension, "verification_attempts": t.VerificationAttempts, "file_scope_records": t.FileScopeRecords, "task_changed_paths": t.TaskChangedPaths, "current_action": projectAction(t.CurrentAction), "blocker": t.Blocker, "last_operation": t.LastOperation, "evidence": t.Evidence, "outcome": t.Outcome, "revision": t.Revision, "created_at": t.CreatedAt, "updated_at": t.UpdatedAt, "completed_at": t.CompletedAt}
+	result := map[string]any{"task_id": t.TaskID, "origin_host": t.OriginHost, "process_id": t.Process.ID, "process_definition_digest": t.Process.DefinitionDigest, "intent": t.Intent, "current_cursor": t.CurrentNode, "resume_cursor": t.ResumeNode, "primary_repository_key": t.EffectivePrimaryRepositoryKey(), "workspace_origin": t.WorkspaceOrigin, "repository": projectRepository(t.Repository), "baselines": map[string]any{"requirements": t.Requirements, "design": t.Design, "task_plan": t.TaskPlan, "history": t.BaselineHistory}, "implementation": t.Implementation, "test": t.Test, "comprehension": t.Comprehension, "verification_attempts": t.VerificationAttempts, "file_scope_records": t.FileScopeRecords, "current_changed_paths": t.CurrentChangedPaths, "relocation": t.Relocation, "current_action": projectAction(t.CurrentAction), "blocker": t.Blocker, "last_operation": t.LastOperation, "evidence": t.Evidence, "outcome": t.Outcome, "revision": t.Revision, "created_at": t.CreatedAt, "updated_at": t.UpdatedAt, "completed_at": t.CompletedAt}
 	if len(t.AdditionalRepositories) != 0 {
 		entries := append([]domain.RepositoryScopeEntry(nil), t.AdditionalRepositories...)
 		sort.Slice(entries, func(i, j int) bool { return entries[i].Key < entries[j].Key })
 		additional := make([]map[string]any, len(entries))
 		for i, entry := range entries {
-			additional[i] = map[string]any{"key": entry.Key, "repository": projectRepository(entry.Binding)}
+			additional[i] = map[string]any{"key": entry.Key, "workspace_origin": entry.Origin, "repository": projectRepository(entry.Binding)}
 		}
 		result["additional_repositories"] = additional
 	}
 	return result
 }
 func projectRepository(repository domain.RepositoryBinding) map[string]any {
-	return map[string]any{"canonical_root": repository.CanonicalRoot, "repository_identity": repository.RepositoryIdentity, "branch": repository.Branch, "detached": repository.Detached, "head": repository.Head, "unborn": repository.Unborn, "worktree_fingerprint": repository.WorktreeFingerprint, "observed_at": repository.ObservedAt, "binding_digest": repository.BindingDigest}
+	return map[string]any{"worktree_instance_digest": repository.WorktreeInstanceDigest, "identity_digest": repository.IdentityDigest, "history_digest": repository.HistoryDigest, "content_digest": repository.ContentDigest, "current_branch": repository.CurrentBranch, "detached": repository.Detached, "current_head": repository.CurrentHead, "head_tree": repository.HeadTree, "history_relation": repository.HistoryRelation, "base_commit_ancestor": repository.BaseCommitAncestor, "changed_entries": repository.ChangedEntries, "task_surface": repository.TaskSurface, "observed_at": repository.ObservedAt, "binding_digest": repository.BindingDigest}
 }
 func projectNextAction(result application.NextActionResult) any {
 	return map[string]any{"task_id": result.TaskID, "process": result.Process, "current_cursor": result.CurrentNode, "revision": result.Revision, "method_profile": result.MethodProfile, "blocker": result.Blocker, "action": projectAction(result.Action), "outcome": result.Outcome, "recovery_assessment": projectRecoveryAssessment(result.RecoveryAssessment)}
@@ -308,7 +330,7 @@ func projectRecoveryAssessment(assessment *recovery.RecoveryAssessment) any {
 	operation := assessment.Operation
 	result := map[string]any{
 		"classification":               assessment.Classification,
-		"operation":                    map[string]any{"operation_id": operation.OperationID, "process_id": operation.Process.ID, "process_definition_digest": operation.Process.DefinitionDigest, "source_cursor": operation.SourceCursor, "expected_revision": operation.ExpectedRevision, "action_id": operation.ActionID, "action_kind": operation.ActionKind},
+		"operation":                    map[string]any{"operation_id": operation.OperationID, "process_id": operation.Process.ID, "process_definition_digest": operation.Process.DefinitionDigest, "source_cursor": operation.SourceCursor, "expected_revision": operation.ExpectedRevision, "action_id": operation.ActionID, "action_kind": operation.ActionKind, "repository_binding_digest": operation.RepositoryBindingDigest, "issuance_identity_digest": operation.IssuanceIdentityDigest, "issuance_history_digest": operation.IssuanceHistoryDigest, "issuance_content_digest": operation.IssuanceContentDigest},
 		"task_revision":                assessment.TaskRevision,
 		"current_action_id":            assessment.CurrentActionID,
 		"issuance_binding_digest":      assessment.IssuanceBindingDigest,

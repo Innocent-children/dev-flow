@@ -103,8 +103,9 @@ func TestEvaluateVerificationBrakeRejectsMissingEvidenceReference(t *testing.T) 
 func brakeAttempt(taskRevision uint64, implementationRevision uint32, result, failure domain.Digest, failed bool, destination domain.NodeID, paths []string, evidenceID domain.ID, now time.Time) domain.VerificationAttempt {
 	return domain.VerificationAttempt{
 		TaskRevision: taskRevision, TaskPlanRevision: 1, ImplementationRevision: implementationRevision,
+		ContentDigest:   brakeDigest("c"),
 		DestinationNode: destination, EvidenceIDs: []domain.ID{evidenceID}, ResultDigest: result,
-		FailureDigest: failure, Failed: failed, ChangedPaths: paths, RecordedAt: now,
+		FailureDigest: failure, Failed: failed, ImplementationPaths: paths, RecordedAt: now,
 	}
 }
 

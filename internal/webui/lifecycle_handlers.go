@@ -1,10 +1,7 @@
 package webui
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 
 	"github.com/Innocent-children/dev-flow/internal/application"
@@ -13,32 +10,62 @@ import (
 
 type lifecycleHandlers struct{ mutator ControlCenterMutator }
 
-func (h *lifecycleHandlers) openTask(w http.ResponseWriter, r *http.Request) {
-	var request OpenTaskRequest
+func (h *lifecycleHandlers) resumeTask(w http.ResponseWriter, r *http.Request) {
+	var request ResumeTaskRequest
 	if DecodeJSON(r, &request) != nil {
 		writeMutationError(w, "request-invalid", domain.ErrInvalidArgument)
 		return
 	}
-	budget, err := decodeVerificationBudget(request.VerificationBudget)
-	if err != nil || request.Mode != "create" && request.Mode != "resume" {
+	if request.RequestID == "" || request.RepositoryPath == "" {
 		writeMutationError(w, request.RequestID, domain.ErrInvalidArgument)
 		return
 	}
-	input := application.OpenTaskRequest{RequestID: domain.ID(request.RequestID), Host: domain.Host(request.ExecutionHost), RepositoryPath: request.PrimaryRepository.Path}
-	if request.Mode == "create" {
-		input.PrimaryRepositoryKey = domain.RepositoryKey(request.PrimaryRepository.Key)
-		input.AdditionalRepositories = make([]application.AdditionalRepositoryInput, len(request.AdditionalRepositories))
-		for index, repository := range request.AdditionalRepositories {
-			input.AdditionalRepositories[index] = application.AdditionalRepositoryInput{Key: domain.RepositoryKey(repository.Key), RepositoryPath: repository.Path}
-		}
-		input.NewTask = &application.NewTaskInput{Request: request.Request, KnownAcceptanceCriteria: append([]string{}, request.AcceptanceCriteria...), VerificationBudget: budget, MethodProfile: domain.MethodProfile(request.MethodProfile)}
-	}
-	result, err := h.mutator.OpenOrResumeTask(r.Context(), input)
+	result, err := h.mutator.OpenOrResumeTask(r.Context(), application.OpenTaskRequest{
+		RequestID: domain.ID(request.RequestID), Host: domain.Host(request.ExecutionHost),
+		RepositoryPath: request.RepositoryPath, NewTask: nil,
+	})
 	if err != nil {
 		writeMutationError(w, request.RequestID, err)
 		return
 	}
 	writeTaskMutation(w, request.RequestID, result)
+}
+
+func (h *lifecycleHandlers) prepareRelocation(w http.ResponseWriter, r *http.Request) {
+	var request PrepareRelocationRequest
+	if DecodeJSON(r, &request) != nil || !request.Confirmed {
+		writeMutationError(w, "request-invalid", domain.ErrInvalidArgument)
+		return
+	}
+	result, err := h.mutator.PrepareTaskRelocation(r.Context(), application.PrepareTaskRelocationRequest{
+		RequestID: domain.ID(request.RequestID), Host: domain.Host(request.ExecutionHost), TaskID: domain.ID(r.PathValue("task_id")), ExpectedRevision: request.TaskRevision,
+	})
+	if err != nil {
+		writeMutationError(w, request.RequestID, err)
+		return
+	}
+	revision := result.Task.Revision
+	redirect := "/tasks/" + string(result.Task.TaskID)
+	relocationID := string(result.RelocationID)
+	_ = WriteJSON(w, http.StatusOK, MutationResponse{OK: true, RequestID: request.RequestID, WorkflowWriteState: "committed", TaskRevision: &revision, Redirect: &redirect, RelocationID: &relocationID})
+}
+
+func (h *lifecycleHandlers) abandonTask(w http.ResponseWriter, r *http.Request) {
+	var request AbandonMutationRequest
+	if DecodeJSON(r, &request) != nil || !request.Confirmed {
+		writeMutationError(w, "request-invalid", domain.ErrInvalidArgument)
+		return
+	}
+	result, err := h.mutator.AbandonTask(r.Context(), application.AbandonTaskRequest{
+		RequestID: domain.ID(request.RequestID), Host: domain.Host(request.ExecutionHost), TaskID: domain.ID(r.PathValue("task_id")), ExpectedRevision: request.TaskRevision, Reason: request.Reason,
+	})
+	if err != nil {
+		writeMutationError(w, request.RequestID, err)
+		return
+	}
+	revision := result.Task.Revision
+	redirect := "/tasks/" + string(result.Task.TaskID)
+	_ = WriteJSON(w, http.StatusOK, MutationResponse{OK: true, RequestID: request.RequestID, WorkflowWriteState: "committed", TaskRevision: &revision, Redirect: &redirect})
 }
 
 func (h *lifecycleHandlers) cancelTask(w http.ResponseWriter, r *http.Request) {
@@ -116,17 +143,4 @@ func writeMutationError(w http.ResponseWriter, requestID string, err error) {
 		recovery = RecoveryAdvice{Action: RecoveryReadNextAction, RetrySafe: false, Message: "Reload the current Task before submitting another lifecycle operation."}
 	}
 	_ = WriteFailure(w, status, requestID, "not_committed", ErrorResponse{Code: string(code), Message: message, FieldPaths: domain.ViolationPaths(err)}, recovery)
-}
-
-func decodeVerificationBudget(raw string) (domain.VerificationBudget, error) {
-	decoder := json.NewDecoder(bytes.NewBufferString(raw))
-	decoder.DisallowUnknownFields()
-	var budget domain.VerificationBudget
-	if err := decoder.Decode(&budget); err != nil || budget.Validate() != nil {
-		return domain.VerificationBudget{}, domain.ErrInvalidArgument
-	}
-	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		return domain.VerificationBudget{}, domain.ErrInvalidArgument
-	}
-	return budget, nil
 }

@@ -172,9 +172,7 @@ func TestSubmitOmittedRevisionKeepsDuplicateMemberRejection(t *testing.T) {
 			"complexity_justification":[],
 			"risks":[]
 		},
-		"findings":[],
-		"changed_paths":[],
-		"no_file_changes":true
+		"findings":[]
 	}`)
 	beforeCommits, beforeStages := memory.commits, memory.stages
 	_, err := service.SubmitAction(context.Background(), SubmitActionRequest{

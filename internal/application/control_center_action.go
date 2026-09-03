@@ -18,6 +18,9 @@ type SubmitControlCenterActionRequest struct {
 	ProcessDefinitionDigest domain.Digest
 	SourceNode              domain.NodeID
 	RepositoryBindingDigest domain.Digest
+	IssuanceIdentityDigest  domain.Digest
+	IssuanceHistoryDigest   domain.Digest
+	IssuanceContentDigest   domain.Digest
 	Payload                 json.RawMessage
 }
 
@@ -50,7 +53,8 @@ func (c *ControlCenter) SubmitCurrentAction(ctx context.Context, request SubmitC
 		RequestID: request.RequestID, Host: host, TaskID: request.TaskID, ExpectedRevision: request.ExpectedRevision,
 		ActionID: request.ActionID, ActionKind: request.ActionKind, ProcessID: request.ProcessID,
 		ProcessDefinitionDigest: request.ProcessDefinitionDigest, SourceCursor: request.SourceNode,
-		RepositoryBindingDigest: request.RepositoryBindingDigest, Payload: append([]byte(nil), request.Payload...),
+		RepositoryBindingDigest: request.RepositoryBindingDigest, IssuanceIdentityDigest: request.IssuanceIdentityDigest,
+		IssuanceHistoryDigest: request.IssuanceHistoryDigest, IssuanceContentDigest: request.IssuanceContentDigest, Payload: append([]byte(nil), request.Payload...),
 	})
 	if err != nil {
 		return ControlCenterActionResult{}, err
@@ -101,7 +105,8 @@ func (c *ControlCenter) ApplyTaskRecovery(ctx context.Context, request ApplyCont
 		RequestID: operation.OperationID, Host: host, TaskID: request.TaskID, ExpectedRevision: operation.ExpectedRevision,
 		ActionID: operation.ActionID, ActionKind: operation.ActionKind, ProcessID: operation.ProcessID,
 		ProcessDefinitionDigest: operation.ProcessDefinitionDigest, SourceCursor: operation.SourceCursor,
-		RepositoryBindingDigest: operation.RepositoryBindingDigest, Payload: append([]byte(nil), operation.Payload...),
+		RepositoryBindingDigest: operation.RepositoryBindingDigest, IssuanceIdentityDigest: operation.IssuanceIdentityDigest,
+		IssuanceHistoryDigest: operation.IssuanceHistoryDigest, IssuanceContentDigest: operation.IssuanceContentDigest, Payload: append([]byte(nil), operation.Payload...),
 	}
 	if request.RecoveryAction == recovery.AdviceSubmitRecoveryApply {
 		apply.RecoveryApply = &RecoveryApplyInput{OperationID: operation.OperationID, SourceCursor: operation.SourceCursor}

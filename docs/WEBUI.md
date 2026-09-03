@@ -2,35 +2,44 @@
 
 [中文](WEBUI.md) | [English](WEBUI_en.md)
 
-> Dev Flow 持久任务状态的本地可视化与诊断入口。
+> Dev Flow 持久 Task、专属工作树和恢复状态的本地可视化与诊断入口。
 
-Control Center 嵌入 Go Core，读取与 Host 相同的本地 Task 数据。浏览器不保存第二份流程状态，所有
-读取和操作都经过当前 Core。
+Control Center 嵌入 Go Core，读取与 Codex、DeepSeek 相同的 SQLite Task。浏览器不保存第二份流程
+状态，也不执行 fetch、branch、worktree、handoff 或清理。
 
 ## 可以查看什么
 
-- 所有 Host 共用的 Task 概览和筛选列表；
-- 当前阶段、范围、revision、Action 和合法下一步；
-- 时间线、流程图、测试与理解确认记录，以及最近三次测试尝试；
-- Recovery 判断、自动刹车 Blocker 和需要满足的恢复或继续条件；
-- Task Plan 预计路径、累计实际修改路径、文件范围决定和没有说明的路径；
-- 主仓库、附加仓库以及高级 worktree 视图；
-- 当前 Core、数据目录和运行状态。
+- 所有 Host 共用的 Task 概览、筛选列表、当前阶段、revision 和合法下一步；
+- requirements、design、Task Plan、实现、测试、理解确认、evidence 和时间线；
+- 每个仓库确认的 remote/base/base commit、task branch、worktree path 和 repository group；
+- 当前 HEAD、clean/dirty、identity/history/content 摘要、Task surface 和当前 changed paths；
+- 文件范围、验证刹车、历史冲突、relocation、Recovery 和 workspace unavailable 状态；
+- provisioning receipt 身份、当前 Host、已完成验证，以及 keep/review/handoff/cleanup 后续选择；
+- 当前 Core、数据目录和 runtime 状态。
 
-界面支持简体中文和英文。首次打开时跟随浏览器语言，手工选择只保存在当前浏览器，不进入 Core、
-Task 或账号状态。
+界面支持简体中文和英文。首次跟随浏览器语言；手工选择只保存在浏览器，不进入 Core、Task、receipt
+或账号状态。
 
-自动刹车触发后，页面显示具体重复原因、原本要返回的阶段和当前解除条件。页面不会替用户自动解除；
-用户可以明确允许一次继续，或取消 Task。解除后如果下一次测试仍然完全重复，Task 会再次暂停。
+## 可执行操作的边界
 
-文件范围 blocker 会预填当前 blocker 身份和仓库观察，展示 `allow_once`、`expand_scope` 与 `reject`
-三个选择，并要求填写原因。文件范围卡片同时显示 ExpectedPaths 数量、Task 实际修改路径、决定数量、
-Host 写前覆盖的工具和未说明路径。页面明确区分 Host 对结构化工具的写前检查与 Core 在进入测试和
-`DONE` 前的最终检查；它不声称能够拦截 Bash、外部进程或所有专用工具。
+WebUI 不再从任意 checkout 创建新 Task。新 Task 必须由 Codex 或 DeepSeek 完成只读评估、用户确认、
+fetch、专属工作树创建和验证后，再从目标 Host 调用 Core。
+
+页面可以提交当前 Core 身份要求的语义操作：
+
+- 解除文件范围、验证或历史 blocker；
+- 为同机 Host relocation 创建 Core blocker，并在 Host 已完成 handoff 后提交目标路径；
+- 在工作树仍可观察时取消 Task；
+- 在原工作树确实丢失时，用精确 revision 和非空原因显式 abandon；
+- 对终态 Task 进行 archive 或明确的不可逆数据清理。
+
+实际 handoff、worktree 删除和 branch 删除属于 Host。worktree 与 branch 是两个独立授权；页面不会
+自动清理 active、dirty、未推送、来源不明或状态不确定的对象。
+
+计划外结构化写入仍由 Host 在写前调用 Core。Bash、外部进程或其他工具的写入可能先发生，Core 在
+下一次 Task 读取或 Action 前从 Git 观察中发现。专属工作树内没有“忽略外部改动”的选项。
 
 ## 启动、打开、查看状态和停止
-
-推荐使用统一入口：
 
 ```bash
 dev-flow webui start
@@ -39,71 +48,43 @@ dev-flow webui open
 dev-flow webui stop
 ```
 
-`start` 默认打开浏览器；`--no-open` 只启动进程。所有命令支持 `--plain` 或 `--json`。公共
-`dev-flow webui start` 可以创建缺失的产品默认数据目录：macOS 强制 mode `0700`，Windows 使用当前
-用户 `%LOCALAPPDATA%` 继承的 ACL。其他命令不创建目录。
-
-设置显式数据目录时，它必须已经存在、可以 canonicalize 且不经过符号链接：
+`start` 默认打开浏览器；`--no-open` 只启动进程。所有命令支持 `--plain` 或 `--json`。默认数据目录
+缺失时，只有 `start` 可以创建它：macOS 使用 mode `0700`，Windows 使用当前用户 LocalAppData ACL。
+显式 `DEV_FLOW_DATA_DIR` 必须已经存在、可以 canonicalize 且不经过符号链接。
 
 ```bash
 export DEV_FLOW_DATA_DIR="/absolute/path/to/existing-directory"
 dev-flow webui start
 ```
 
-Windows PowerShell 使用同一个变量：
-
 ```powershell
 $env:DEV_FLOW_DATA_DIR = "C:\absolute\existing-directory"
 dev-flow webui start
 ```
 
-## 本机与单用户边界
+## 本机单用户边界
 
-服务只监听 `tcp4 127.0.0.1` 的系统分配端口，不提供远程监听。页面写操作检查精确 Origin、当前
-进程生成的随机 session 值和 Task revision；页面过期或 revision 变化会使旧表单失效。
+服务只监听系统分配的 `tcp4 127.0.0.1` 端口。页面 mutation 检查精确 Origin、当前进程生成的随机
+session 值和 Task revision；过期页面不能提交旧操作。这些检查防止本机误请求，不是账号认证或
+多用户隔离。同一用户或管理员权限的进程仍在本地信任边界内。
 
-这些检查用于防止本机误请求和陈旧页面操作，不是账号认证，也不提供多用户隔离。
-macOS 通过 POSIX mode 收紧默认目录和 receipt；Windows 依赖当前用户 profile 与 LocalAppData 的继承
-ACL。具有同一用户或管理员权限的进程仍在本地信任边界内。
+runtime receipt 绑定 PID、进程启动身份、data-root digest 和 loopback URL。停止或卸载只操作 receipt
+精确匹配的进程。它与 Host 的 provisioning receipt、Core Action operation 和 relocation record
+职责不同，互不代替。
 
-## runtime receipt 的作用
+## 状态和数据
 
-runtime receipt 记录 PID、进程启动身份、data-root digest 和 loopback URL。macOS 要求它是 mode
-`0600` regular file；Windows 要求它是产品目录内的 regular non-symlink file，并使用 process creation
-time 识别 PID 是否被复用。Codex 与 DeepSeek 携带的兼容 Core 通过它复用同一个进程和 SQLite 数据，
-而不是各自创建一份 Task 状态。
+`status` 返回 `ready`、`read_only`、`incompatible` 或 `unavailable`。默认 Task 数据在 macOS 位于
+`$HOME/Library/Application Support/dev-flow/data`，Windows 位于 `%LOCALAPPDATA%\dev-flow\data`。
+Codex 与 DeepSeek 共用这份数据。
 
-停止或卸载时，只有 receipt 中的 PID、启动身份和数据目录全部匹配，才会向进程发送停止信号。
-Windows 先向独立 process group 发送 `CTRL_BREAK`；不同 console 无法投递或进程未退出时，才终止
-同一个精确匹配进程。校验失败会中止后续卸载，避免停止或删除不属于当前安装的对象。
-
-## 状态
-
-`status` 区分：
-
-| 状态 | 含义 |
-| --- | --- |
-| `ready` | 当前 Core 和数据可正常使用 |
-| `read_only` | 可以读取，但当前不开放写操作 |
-| `incompatible` | 当前 Core 或运行实例不兼容 |
-| `unavailable` | 没有可用实例或无法读取状态 |
-
-## 数据与制品
-
-默认 Task 数据在 macOS 位于 `$HOME/Library/Application Support/dev-flow/data`，在 Windows 位于
-`%LOCALAPPDATA%\dev-flow\data`。Codex 与 DeepSeek 共用同一数据，不属于浏览器缓存或 Host
-聊天记录。React、TypeScript 和 Vite 只参与构建；HTML、JavaScript、CSS、SVG 和 manifest 都嵌入
-Core binary，运行时不需要 Node server、CDN、外部字体或独立 WebUI package。
-Host package 通过各自的平台实现选择 macOS 或 Windows 的目录、权限、进程和 executable 行为；
-WebUI 与 Core 的 Task 语义不包含平台分支。
+React、TypeScript 和 Vite 只参与构建；静态资产嵌入 Core binary，运行时不需要 Node server、CDN、
+外部字体或独立 WebUI package。完整命令见[命令参考](COMMANDS.md)，协议见
+[Architecture](ARCHITECTURE.md)，稳定范围见[支持矩阵](SUPPORT-MATRIX.md)。
 
 ## 当前不支持
 
 - 远程访问、账号、团队权限或云端同步；
-- shell、文件编辑、Git 写入或发布操作；页面只提交 Core 文件范围决定；
-- 用户自定义流程图；
-- 把 WebUI 作为另一份 Task 状态来源。
-
-公开稳定 package 是否携带当前源码能力，以[项目状态](PROJECT-STATUS.md)和
-[支持矩阵](SUPPORT-MATRIX.md)为准。完整 CLI 参数见[命令参考](COMMANDS.md)，协议原理见
-[Architecture](ARCHITECTURE.md)。
+- 由浏览器执行 shell、文件编辑、Git mutation、Host handoff 或发布；
+- 由浏览器创建共享 checkout Task 或自动补建丢失的工作树；
+- 用户自定义流程图或第二份 Task 状态。

@@ -29,6 +29,7 @@ test("resolves the runtime and resources relative to the installed package", asy
   assert.equal(paths.marketplaceRoot, root);
   assert.equal(paths.configurationDirectory, join(home, ".dev-flow"));
   assert.equal(paths.configurationPath, join(home, ".dev-flow", "config.json"));
+  assert.equal(paths.provisioningDirectory, join(home, "Library", "Application Support", "dev-flow", "provisioning", "codex"));
   assert.equal(paths.usesDefaultDataDirectory, true);
 });
 
@@ -115,6 +116,7 @@ test("owns only the exact default data directory under macOS Application Support
   assert.equal((await stat(paths.dataDirectory)).isDirectory(), true);
   assert.equal(await readFile(adjacent, "utf8"), "preserve me\n");
   await assert.rejects(stat(paths.receiptPath), { code: "ENOENT" });
+  await assert.rejects(stat(paths.provisioningDirectory), { code: "ENOENT" });
 });
 
 test("rejects unsupported runtime platforms", async (t) => {

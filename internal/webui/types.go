@@ -69,13 +69,14 @@ type TaskListResponse struct {
 }
 
 type TaskEventView struct {
-	Revision        uint64    `json:"revision"`
-	EventType       string    `json:"event_type"`
-	SourceNode      string    `json:"source_node"`
-	DestinationNode string    `json:"destination_node"`
-	TransitionID    *string   `json:"transition_id"`
-	Reason          *string   `json:"reason"`
-	CreatedAt       time.Time `json:"created_at"`
+	Revision             uint64    `json:"revision"`
+	EventType            string    `json:"event_type"`
+	SourceNode           string    `json:"source_node"`
+	DestinationNode      string    `json:"destination_node"`
+	TransitionID         *string   `json:"transition_id"`
+	Reason               *string   `json:"reason"`
+	RepositoryDeltaPaths []string  `json:"repository_delta_paths"`
+	CreatedAt            time.Time `json:"created_at"`
 }
 
 type GraphNode struct {
@@ -110,6 +111,9 @@ type ActionView struct {
 	ProcessDefinitionDigest string          `json:"process_definition_digest"`
 	SourceNode              string          `json:"source_node"`
 	RepositoryBindingDigest string          `json:"repository_binding_digest"`
+	IssuanceIdentityDigest  string          `json:"issuance_identity_digest"`
+	IssuanceHistoryDigest   string          `json:"issuance_history_digest"`
+	IssuanceContentDigest   string          `json:"issuance_content_digest"`
 	Purpose                 string          `json:"purpose"`
 	Conditions              []string        `json:"conditions"`
 	AllowedEffects          []string        `json:"allowed_effects"`
@@ -120,10 +124,67 @@ type ActionView struct {
 }
 
 type RepositoryView struct {
-	Key               string `json:"key"`
-	Path              string `json:"path"`
-	Role              string `json:"role"`
-	RepositoryGroupID string `json:"repository_group_id"`
+	Key               string                   `json:"key"`
+	Path              string                   `json:"path"`
+	Role              string                   `json:"role"`
+	RepositoryGroupID string                   `json:"repository_group_id"`
+	Origin            WorkspaceOriginView      `json:"workspace_origin"`
+	Observation       WorkspaceObservationView `json:"workspace_observation"`
+}
+
+type WorkspaceOriginView struct {
+	Mode                  string `json:"mode"`
+	RemoteName            string `json:"remote_name"`
+	BaseBranch            string `json:"base_branch"`
+	BaseCommit            string `json:"base_commit"`
+	TaskBranch            string `json:"task_branch"`
+	ProvisioningReceiptID string `json:"provisioning_receipt_id"`
+}
+
+type ChangedEntryView struct {
+	Path          string `json:"path"`
+	ChangeType    string `json:"change_type"`
+	FileMode      string `json:"file_mode"`
+	Gitlink       bool   `json:"gitlink"`
+	ContentDigest string `json:"content_digest"`
+}
+
+type WorkspaceObservationView struct {
+	WorktreeInstanceDigest string             `json:"worktree_instance_digest"`
+	IdentityDigest         string             `json:"identity_digest"`
+	HistoryDigest          string             `json:"history_digest"`
+	ContentDigest          string             `json:"content_digest"`
+	CurrentBranch          *string            `json:"current_branch"`
+	Detached               bool               `json:"detached"`
+	CurrentHead            string             `json:"current_head"`
+	HeadTree               string             `json:"head_tree"`
+	HistoryRelation        string             `json:"history_relation"`
+	BaseCommitAncestor     bool               `json:"base_commit_ancestor"`
+	ChangedEntries         []ChangedEntryView `json:"changed_entries"`
+	TaskSurface            []ChangedEntryView `json:"task_surface"`
+	ObservedAt             time.Time          `json:"observed_at"`
+	BindingDigest          string             `json:"binding_digest"`
+}
+
+type RelocationView struct {
+	Pending      bool    `json:"pending"`
+	RelocationID *string `json:"relocation_id"`
+	ResumeNode   *string `json:"resume_node"`
+}
+
+type CleanupView struct {
+	Automatic                 bool `json:"automatic"`
+	HostActionRequired        bool `json:"host_action_required"`
+	SeparateWorktreeAndBranch bool `json:"separate_worktree_and_branch"`
+	Terminal                  bool `json:"terminal"`
+}
+
+type WorkspaceView struct {
+	ProvisioningStatus  string         `json:"provisioning_status"`
+	CurrentChangedPaths []string       `json:"current_changed_paths"`
+	HistoryConflict     bool           `json:"history_conflict"`
+	Relocation          RelocationView `json:"relocation"`
+	Cleanup             CleanupView    `json:"cleanup"`
 }
 
 type TaskDetailResponse struct {
@@ -145,15 +206,16 @@ type TaskDetailResponse struct {
 	Graph              GraphView        `json:"graph"`
 	CurrentAction      *ActionView      `json:"current_action"`
 	FileScope          FileScopeView    `json:"file_scope"`
+	Workspace          WorkspaceView    `json:"workspace"`
 }
 
 type FileScopeView struct {
-	ExpectedPaths     []string `json:"expected_paths"`
-	TaskChangedPaths  []string `json:"task_changed_paths"`
-	UnexplainedPaths  []string `json:"unexplained_paths"`
-	CoveredHostTools  []string `json:"covered_host_tools"`
-	DecisionCount     int      `json:"decision_count"`
-	FinalCheckEnabled bool     `json:"final_check_enabled"`
+	ExpectedPaths       []string `json:"expected_paths"`
+	CurrentChangedPaths []string `json:"current_changed_paths"`
+	UnexplainedPaths    []string `json:"unexplained_paths"`
+	CoveredHostTools    []string `json:"covered_host_tools"`
+	DecisionCount       int      `json:"decision_count"`
+	FinalCheckEnabled   bool     `json:"final_check_enabled"`
 }
 
 type SystemStatusResponse struct {
@@ -196,6 +258,7 @@ type MutationResponse struct {
 	TaskRevision       *uint64         `json:"task_revision"`
 	Redirect           *string         `json:"redirect"`
 	Recovery           *RecoveryAdvice `json:"recovery"`
+	RelocationID       *string         `json:"relocation_id"`
 }
 
 type ErrorResponse struct {
@@ -213,22 +276,28 @@ type FailureResponse struct {
 	Recovery           RecoveryAdvice `json:"recovery"`
 }
 
-type RepositoryInput struct {
-	Key  string `json:"key"`
-	Path string `json:"path"`
+type ResumeTaskRequest struct {
+	RequestID      string `json:"request_id"`
+	ExecutionHost  string `json:"execution_host"`
+	RepositoryPath string `json:"repository_path"`
+	CSRF           string `json:"csrf"`
 }
 
-type OpenTaskRequest struct {
-	RequestID              string            `json:"request_id"`
-	Mode                   string            `json:"mode"`
-	Request                string            `json:"request"`
-	AcceptanceCriteria     []string          `json:"acceptance_criteria"`
-	VerificationBudget     string            `json:"verification_budget"`
-	MethodProfile          string            `json:"method_profile"`
-	ExecutionHost          string            `json:"execution_host"`
-	PrimaryRepository      RepositoryInput   `json:"primary_repository"`
-	AdditionalRepositories []RepositoryInput `json:"additional_repositories"`
-	CSRF                   string            `json:"csrf"`
+type PrepareRelocationRequest struct {
+	RequestID     string `json:"request_id"`
+	ExecutionHost string `json:"execution_host"`
+	TaskRevision  uint64 `json:"task_revision"`
+	Confirmed     bool   `json:"confirmed"`
+	CSRF          string `json:"csrf"`
+}
+
+type AbandonMutationRequest struct {
+	RequestID     string `json:"request_id"`
+	ExecutionHost string `json:"execution_host"`
+	TaskRevision  uint64 `json:"task_revision"`
+	Reason        string `json:"reason"`
+	Confirmed     bool   `json:"confirmed"`
+	CSRF          string `json:"csrf"`
 }
 
 type ReasonedMutationRequest struct {
@@ -264,6 +333,9 @@ type ActionSubmissionRequest struct {
 	ProcessDefinitionDigest string          `json:"process_definition_digest"`
 	SourceNode              string          `json:"source_node"`
 	RepositoryBindingDigest string          `json:"repository_binding_digest"`
+	IssuanceIdentityDigest  string          `json:"issuance_identity_digest"`
+	IssuanceHistoryDigest   string          `json:"issuance_history_digest"`
+	IssuanceContentDigest   string          `json:"issuance_content_digest"`
 	Payload                 json.RawMessage `json:"payload"`
 	CSRF                    string          `json:"csrf"`
 }
@@ -277,6 +349,9 @@ type OperationProbe struct {
 	ProcessDefinitionDigest string          `json:"process_definition_digest"`
 	SourceNode              string          `json:"source_node"`
 	RepositoryBindingDigest string          `json:"repository_binding_digest"`
+	IssuanceIdentityDigest  string          `json:"issuance_identity_digest"`
+	IssuanceHistoryDigest   string          `json:"issuance_history_digest"`
+	IssuanceContentDigest   string          `json:"issuance_content_digest"`
 	Payload                 json.RawMessage `json:"payload"`
 }
 

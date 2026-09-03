@@ -25,7 +25,8 @@ flowchart LR
 - original Task intent, current stage, revision, Action, evidence, Blocker, Outcome, and the canonical
   payload and digest of a recoverable Action operation;
 - Repository Scope, repository identities, and the aggregate binding;
-- local SQLite, installation receipts, and user configuration;
+- WorkspaceOrigin, worktree-instance identity, the fixed base commit, and current Task surface;
+- local SQLite, installation and provisioning receipts, relocation records, and user configuration;
 - npm packages, bundled Core executables, Git Tags, GitHub Releases, and artifact digests;
 - paths, code fragments, and diagnostics that may appear in logs or evidence.
 
@@ -33,10 +34,10 @@ flowchart LR
 
 | Participant | Responsibility |
 | --- | --- |
-| Developer | Authorizes repositories and Host permissions; confirms task boundaries, comprehension, and releases |
+| Developer | Chooses whether to enter Dev Flow and confirms remote/base/target, repository and Host permissions, comprehension, handoff, cleanup, and releases |
 | Codex / DeepSeek Harness | Actually reads files, changes repositories, and runs commands; this is the privileged execution surface |
-| Host Adapter | Calls Core according to the current Action, Scope, verification budget, and Recovery contract |
-| Go Core | Retains the single process state and validates revision, binding, closed payloads, transitions, and persistence |
+| Host Adapter | Assesses requests read-only; after confirmation performs fetch, branch, worktree, relaunch/handoff; calls Core under the Action, Scope, budget, and Recovery contract |
+| Go Core | Observes Git read-only, retains the one process state, derives Task surface, and validates revision, workspace, closed payloads, transitions, and persistence |
 | Repository content | Treated as untrusted input that may contain prompt injection, dangerous scripts, symlinks, or hostile filenames |
 | npm / GitHub | Supplies remote package and Release identities that the release flow must read back |
 
@@ -52,9 +53,14 @@ Identity or target drift stops cleanup.
 
 | Risk | Current defense |
 | --- | --- |
+| A small request is captured by the workflow or confirmation causes early Task/Git writes | Every new request stops after a read-only, request/root/HEAD/status-bound assessment; an exact selector cannot skip the developer choice |
+| Wrong remote/base/target or source-checkout content enters a Task worktree | Per-repository confirmation, exact fetch and frozen commit, branch/HEAD/common-dir/git-dir/clean verification, and no copying of source dirtiness |
+| An uncertain provisioning or Host dispatch result is executed twice | A narrow provisioning receipt binds one launch and owned resources; uncertainty reads receipt/Host state instead of blindly retrying or force-cleaning |
 | Path traversal, symlinks, or index results expand Repository Scope | Scope is canonicalized and frozen at Task creation; multi-repository paths carry an explicit key; indexes cannot add members |
 | A stale Action, duplicate request, or lost response repeats a state change | complete mutation validation before staging; an independent Action operation record, revision CAS, Action/request identity, repository binding, an atomic applied marker, and read-before-retry |
-| A repository is replaced or any Scope member drifts incompatibly | Every member is observed again before apply; conflicts produce zero Core writes or an explicit Recovery/Blocker result |
+| A worktree is replaced, history rewinds, or a Scope member conflicts | Worktree-specific Git dir, task branch, base, HEAD ancestry, and content are checked separately; resume and next Action surface a blocker or unavailable result before work |
+| Host-reported paths omit actual changes | Core derives current surface from the base commit, commits, index, worktree, and untracked state; node payloads accept no Host file-change report |
+| Relocation failure or a lost response creates duplicate claims or handoffs | Core prepare retains source claims, Host handoff runs once, and verified destination bindings/claims replace them in one transaction |
 | Repository prompt injection tries to expand work | TaskIntent, allowed effects, explicit Scope, and verification budget are independent of repository prose; high-risk Git and release actions still require user authorization |
 | SQLite, configuration, or the executable is modified locally | strict codecs, Schema checks, Task/Action-operation relationship checks, closed fields, and package/executable identity verification detect several inconsistencies |
 | Setup or removal deletes adjacent configuration or Task data | ownership receipts; remove cleans only managed registration; ordinary uninstall retains Task data |
@@ -65,6 +71,10 @@ Identity or target drift stops cleanup.
 
 - Core does not intercept every Host file read, write, or shell command; a compromised Host or incorrect
   authorization can still cause harm.
+- Worktree isolation defines source-change ownership; it does not isolate processes, networks,
+  credentials, ports, databases, or containers.
+- Fetch, branch, worktree, handoff, and cleanup remain privileged Host operations. Receipts bound the
+  recoverable scope but cannot remove the risk of incorrect authorization.
 - An attacker with the same local-user or administrator privileges can replace binaries, SQLite, or
   configuration.
 - There is currently no encrypted state store, multi-user isolation, remote authentication, automatic

@@ -3,7 +3,6 @@ package store
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"reflect"
 	"testing"
 
@@ -14,7 +13,7 @@ func TestStrictCodecAndRestart(t *testing.T) {
 	task := multiRepositoryGraphTask(t)
 	task.Requirements = &domain.RequirementsBaseline{Revision: 1, Digest: task.Process.DefinitionDigest, Goal: "Graph storage", AcceptanceCriteria: []string{"Restart exactly"}, CreatedAt: task.CreatedAt}
 	task.Evidence = []domain.EvidenceSummary{{EvidenceID: "verification-evidence", Source: domain.EvidenceSourceAutomated, Name: "targeted-test", Status: domain.EvidenceFailed, Summary: "Failure retained across restart.", Digest: task.Process.DefinitionDigest, CommandCount: 1, RecordedAt: task.CreatedAt}}
-	task.VerificationAttempts = []domain.VerificationAttempt{{TaskRevision: task.Revision, TaskPlanRevision: 1, ImplementationRevision: 1, DestinationNode: domain.NodeRequirements, EvidenceIDs: []domain.ID{"verification-evidence"}, ResultDigest: task.Process.DefinitionDigest, FailureDigest: task.Process.DefinitionDigest, Failed: true, RecordedAt: task.CreatedAt}}
+	task.VerificationAttempts = []domain.VerificationAttempt{{TaskRevision: task.Revision, TaskPlanRevision: 1, ImplementationRevision: 1, ContentDigest: task.Repository.ContentDigest, DestinationNode: domain.NodeRequirements, EvidenceIDs: []domain.ID{"verification-evidence"}, ResultDigest: task.Process.DefinitionDigest, FailureDigest: task.Process.DefinitionDigest, Failed: true, RecordedAt: task.CreatedAt}}
 	raw, err := encodeTask(task)
 	if err != nil {
 		t.Fatal(err)
@@ -25,21 +24,6 @@ func TestStrictCodecAndRestart(t *testing.T) {
 	}
 	if !reflect.DeepEqual(task, decoded) {
 		t.Fatal("codec changed task")
-	}
-	var formerSnapshot map[string]any
-	if json.Unmarshal(raw, &formerSnapshot) != nil {
-		t.Fatal("current snapshot is not JSON")
-	}
-	delete(formerSnapshot, "verification_attempts")
-	delete(formerSnapshot, "file_scope_records")
-	delete(formerSnapshot, "task_changed_paths")
-	formerRaw, err := json.Marshal(formerSnapshot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	formerDecoded, err := decodeTask(formerRaw)
-	if err != nil || len(formerDecoded.VerificationAttempts) != 0 || len(formerDecoded.FileScopeRecords) != 0 || len(formerDecoded.TaskChangedPaths) != 0 {
-		t.Fatalf("former snapshot attempts=%d scope=%d paths=%d err=%v", len(formerDecoded.VerificationAttempts), len(formerDecoded.FileScopeRecords), len(formerDecoded.TaskChangedPaths), err)
 	}
 	overLimit := task
 	overLimit.BaselineHistory = make([]domain.BaselineReference, domain.MaxRetainedBaselineReferences+1)
@@ -86,23 +70,28 @@ func TestStrictCodecAndRestart(t *testing.T) {
 	}
 }
 
-func TestStrictCodecRetainsFileScopeDecisionsAndTaskPaths(t *testing.T) {
+func TestStrictCodecRetainsFileScopeDecisionsAndCurrentPaths(t *testing.T) {
 	task := fullGraphTask(t)
 	now := task.CreatedAt
 	allowedActionID := domain.ID("implementation-action")
-	task.TaskChangedPaths = []string{"internal/extra.go"}
+	task.Repository.TaskSurface = []domain.RepositoryChangedEntry{storeChangedEntry("internal/extra.go", task.Repository.ContentDigest)}
+	task.CurrentChangedPaths = []string{"internal/extra.go"}
+	acceptedStates, err := task.FileScopePathStates(task.CurrentChangedPaths)
+	if err != nil {
+		t.Fatal(err)
+	}
 	task.FileScopeRecords = []domain.FileScopeRecord{{
 		RequestID: "scope-request", Paths: []string{"internal/extra.go"}, IntentDigest: task.Repository.BindingDigest,
 		TaskPlanRevision: 1, SourceNode: domain.NodeImplement, SourceActionID: "source-action",
 		Decision: domain.FileScopeAllowOnce, Reason: "Allow the exact implementation write.", Applicability: domain.FileScopeExactWrite,
-		AllowedActionID: &allowedActionID, Consumed: true, CreatedAt: now, DecidedAt: &now,
+		AllowedActionID: &allowedActionID, Consumed: true, AcceptedPathStates: acceptedStates, CreatedAt: now, DecidedAt: &now,
 	}}
 	raw, err := encodeTask(task)
 	if err != nil {
 		t.Fatal(err)
 	}
 	decoded, err := decodeTask(raw)
-	if err != nil || !reflect.DeepEqual(task.FileScopeRecords, decoded.FileScopeRecords) || !reflect.DeepEqual(task.TaskChangedPaths, decoded.TaskChangedPaths) {
-		t.Fatalf("decoded scope=%#v paths=%#v err=%v", decoded.FileScopeRecords, decoded.TaskChangedPaths, err)
+	if err != nil || !reflect.DeepEqual(task.FileScopeRecords, decoded.FileScopeRecords) || !reflect.DeepEqual(task.CurrentChangedPaths, decoded.CurrentChangedPaths) {
+		t.Fatalf("decoded scope=%#v paths=%#v err=%v", decoded.FileScopeRecords, decoded.CurrentChangedPaths, err)
 	}
 }

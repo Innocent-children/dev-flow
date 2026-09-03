@@ -13,7 +13,6 @@ import (
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	persistence "github.com/Innocent-children/dev-flow/internal/store"
-	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
 func TestMethodProfileEquivalentTransitionsAndImmutability(t *testing.T) {
@@ -51,7 +50,7 @@ func TestMethodProfileEquivalentTransitionsAndImmutability(t *testing.T) {
 	service, memory, _ := phase5Service(t)
 	task := openMethodProfileTask(t, service, domain.MethodPlain)
 	_, err := service.OpenTask(context.Background(), OpenTaskRequest{RequestID: "profile-conflict", Host: domain.HostCodex, RepositoryPath: testPath("repo"), NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: task.Intent.VerificationBudget, MethodProfile: domain.MethodSpecKit}})
-	if err != domain.ErrActiveTaskConflict {
+	if err != domain.ErrWorktreeProvisioningRequired {
 		t.Fatalf("profile conflict error=%v", err)
 	}
 	before := memory.commits
@@ -63,7 +62,9 @@ func TestMethodProfileEquivalentTransitionsAndImmutability(t *testing.T) {
 	}
 
 	invalidService, _, _ := phase5Service(t)
-	if _, err := invalidService.OpenTask(context.Background(), OpenTaskRequest{RequestID: "invalid-profile", Host: domain.HostCodex, RepositoryPath: testPath("repo"), NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: "future"}}); err != domain.ErrInvalidArgument {
+	invalidOrigin := invalidService.repositoryObserver.(*mutableObserver).origin
+	invalidOriginInput := WorkspaceOriginInput{Mode: invalidOrigin.Mode, RemoteName: invalidOrigin.RemoteName, BaseBranch: invalidOrigin.BaseBranch, BaseCommit: invalidOrigin.BaseCommit, TaskBranch: invalidOrigin.TaskBranch, ProvisioningReceiptID: invalidOrigin.ProvisioningReceiptID}
+	if _, err := invalidService.OpenTask(context.Background(), OpenTaskRequest{RequestID: "invalid-profile", Host: domain.HostCodex, RepositoryPath: testPath("repo"), WorkspaceOrigin: &invalidOriginInput, NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: "future"}}); err != domain.ErrInvalidArgument {
 		t.Fatalf("invalid profile error=%v", err)
 	}
 }
@@ -153,13 +154,13 @@ func TestMethodEvidenceChangesCanonicalOperationDigest(t *testing.T) {
 
 func TestMethodProfileAndProcessActionRestartStability(t *testing.T) {
 	now := time.Date(2026, 8, 19, 16, 0, 0, 0, time.UTC)
-	binding := phase5Binding(now)
+	origin, binding, _ := applicationWorkspaceFixture(now, testPath("repo"), 'a')
 	path := filepath.Join(t.TempDir(), "tasks.db")
 	database, err := persistence.Open(context.Background(), path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	observer := &mutableObserver{binding: binding}
+	observer := &mutableObserver{binding: binding, origin: origin}
 	n := 0
 	service, err := newService(database, observer, func() time.Time { return now }, func(prefix string) (domain.ID, error) {
 		n++
@@ -203,14 +204,11 @@ func TestMethodProfileGetNextActionActiveBlockedAndTerminal(t *testing.T) {
 	if err != nil || result.MethodProfile != domain.MethodSpecKit {
 		t.Fatalf("active profile=%s error=%v", result.MethodProfile, err)
 	}
-	blocked := active
-	resume := active.CurrentNode
-	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), domain.NodeBlocked, blocked.TaskID, blocked.Revision, blocked.Repository.BindingDigest, blocked.Intent.MethodProfile, "blocked-method-action", blocked.UpdatedAt)
+	prepared, err := service.PrepareTaskRelocation(context.Background(), PrepareTaskRelocationRequest{RequestID: "prepare-method-relocation", Host: domain.HostCodex, TaskID: active.TaskID, ExpectedRevision: active.Revision})
 	if err != nil {
 		t.Fatal(err)
 	}
-	blocked.CurrentNode, blocked.ResumeNode, blocked.Blocker, blocked.CurrentAction = domain.NodeBlocked, &resume, &domain.ProcessBlocker{BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.BlockerCauseRecoveryConflicting, ResumeNode: resume, Message: "Restore repository binding.", ObservedBindingDigest: blocked.Repository.BindingDigest, Condition: domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: blocked.Repository.BindingDigest}, RequiredResolution: "Restore the issuance binding.", CreatedAt: blocked.UpdatedAt}, &action
-	memory.task = &blocked
+	blocked := prepared.Task
 	result, err = service.GetNextAction(context.Background(), GetNextActionRequest{Host: domain.HostCodex, TaskID: blocked.TaskID})
 	if err != nil || result.MethodProfile != domain.MethodSpecKit || result.Action == nil {
 		t.Fatalf("blocked profile=%s error=%v", result.MethodProfile, err)
@@ -228,7 +226,9 @@ func TestMethodProfileGetNextActionActiveBlockedAndTerminal(t *testing.T) {
 
 func openMethodProfileTask(t *testing.T, service *Service, profile domain.MethodProfile) domain.ProcessTask {
 	t.Helper()
-	result, err := service.OpenTask(context.Background(), OpenTaskRequest{RequestID: "open-method-task", Host: domain.HostCodex, RepositoryPath: testPath("repo"), NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: profile}})
+	origin := service.repositoryObserver.(*mutableObserver).origin
+	input := WorkspaceOriginInput{Mode: origin.Mode, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
+	result, err := service.OpenTask(context.Background(), OpenTaskRequest{RequestID: "open-method-task", Host: domain.HostCodex, RepositoryPath: testPath("repo"), WorkspaceOrigin: &input, NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: profile}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -260,8 +260,7 @@ func methodContractPayload(t *testing.T, task domain.ProcessTask, transition, re
 }
 
 func methodApplyRequest(task domain.ProcessTask, requestID domain.ID, payload json.RawMessage) ApplyActionRequest {
-	action := task.CurrentAction
-	return ApplyActionRequest{RequestID: requestID, Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: payload}
+	return currentActionApplyRequest(task, requestID, payload)
 }
 
 func cloneMethodEvidenceMaps(items []map[string]any) []map[string]any {
@@ -276,8 +275,6 @@ func cloneMethodEvidenceMaps(items []map[string]any) []map[string]any {
 }
 
 func phase5Binding(now time.Time) domain.RepositoryBinding {
-	digest := digestOf("a")
-	branch := "main"
-	head := strings.Repeat("b", 40)
-	return domain.RepositoryBinding{CanonicalRoot: testPath("repo"), GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
+	_, binding, _ := applicationWorkspaceFixture(now, testPath("repo"), 'a')
+	return binding
 }

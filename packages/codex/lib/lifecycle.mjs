@@ -27,19 +27,19 @@ const MCP_SCHEMA_URI = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
 const IMPLICIT_SKILL_POLICY = "policy:\n  allow_implicit_invocation: true";
 
 export const CODEX_MCP_INSTRUCTIONS = [
-  "Dev Flow for Codex supports implicit selection for bounded implementation, bug-fix, refactoring, targeted-testing, and development-delivery tasks, plus explicit selection with `$dev-flow-codex:dev-flow`.",
-  "An explicit parallel batch for one logical Git repository must be split before single-Task admission into one Host-created worktree-backed Codex task per bounded item; never use shared-directory sub-agents or create one parent Core Task.",
-  "Explanation-only, status-only, design-discussion, ordinary-question, and ambiguous requests must not create or resume a Dev Flow Task.",
-  "The exact selector force-selects the Skill; bare `$dev-flow` and wrong plugin or Skill names are not explicit selection.",
-  "After either valid activation path, `dev_flow_server_info` must be the first Dev Flow call.",
-  "Read `host_preferences.codex.codebase_memory` from that handshake without installing or configuring codebase-memory.",
-  "Call `dev_flow_open_task` only for a substantive bounded request or explicit resume after a successful `dev_flow_server_info` handshake.",
-  "Only when a new-task dev_flow_open_task returns a complete ACTIVE_TASK_CONFLICT and the Host worktree-backed task/thread capability is available, dispatch exactly one Host-created worktree-backed Codex task with the exact selector; set target.environment.type=worktree and omit startingState so the child starts from committed default-branch state, and never inspect, copy, or apply the source checkout's index, tracked working-tree changes, or untracked files.",
-  "After that conflict decision make no further Dev Flow Core call and never retry Host creation; explicit resume, HOST_OWNERSHIP_CONFLICT, and every other error keep the existing stop behavior.",
-  "Use the current Git worktree as primary and only user-declared additional repositories already authorized as writable roots; never scan repositories or change Codex sandbox permissions.",
-  "The packaged PreToolUse hook checks apply_patch targets against the complete current multi-repository Task Plan before execution; an expected path in any declared writable repository needs no extra question.",
-  "When a file-scope blocker is current, obtain exactly one developer choice and reason, then call dev_flow_resolve_blocker with allow_once, expand_scope, or reject; never infer or reuse the decision.",
-  "Do not claim that Bash, external processes, specialized tools, or an untrusted or disabled hook were intercepted; Core final scope guards still reconcile Task-introduced changed paths.",
+  "Every new user development request, including `$dev-flow-codex:dev-flow` and a parallel batch, receives a read-only suitability assessment and explicit user choice before any Dev Flow Core call, receipt, fetch, branch, worktree, or child dispatch; only explicit Task resume or a receipt-backed confirmed bootstrap bypasses duplicate assessment.",
+  "Bind assessment to the request, canonical repository roots, HEADs, and status digests; an anchor change requires reassessment.",
+  "A direct choice creates no Dev Flow state. A Dev Flow choice requires separate explicit confirmation of every repository key, remote, base branch, and new target branch.",
+  "After confirmation, use the packaged host-launch receipt helpers, exact fetch, and frozen remote/base commit; source checkout staged, tracked-dirty, and untracked content is not copied.",
+  "Managed Codex task creation starts exactly once from the existing refs/remotes/<remote>/<base> ref with target.environment.type=worktree and no onMissing fallback; queued, clientThreadId, timeout, or uncertain results are read from the receipt and Host state without redispatch.",
+  "The child verifies the fetched HEAD and clean managed worktree, creates the confirmed target branch, and only then performs dev_flow_server_info followed by dev_flow_open_task with receipt-backed workspace_origin.",
+  "ACTIVE_TASK_CONFLICT is a safe stop and never authorizes relocation or replacement dispatch.",
+  "Core computes repository file effects from Git; Host node results carry semantic facts only.",
+  "Relocation requires dev_flow_prepare_task_relocation followed by one coordinator-owned Host Handoff and exact blocker resolution; an uncertain Handoff is inspected and never repeated.",
+  "Relocation resolution uses relocation_id plus relocation_destinations entries; workspace-history resolution uses history_resolution with accept_current_history and a reason.",
+  "DONE and CANCELLED release claims without deleting a worktree or branch; managed cleanup stays Host-owned and worktree/branch deletion require separate user authorization.",
+  "Use only user-declared repositories, never scan or change Codex sandbox permissions, and reject the whole request when every repository cannot be isolated and authorized.",
+  "The packaged PreToolUse hook checks apply_patch targets against the current Task Plan; every Git-visible change in the dedicated worktree belongs to the Task.",
 ].join(" ");
 
 const semverPattern = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
@@ -502,27 +502,28 @@ async function assertPackageResources(paths, packageVersion) {
   }
   const skillDescription = skillFrontmatter.match(/^description:\s*"([^"]+)"$/m)?.[1] ?? "";
   for (const required of [
-    "implementation", "bug fixes", "refactoring", "targeted testing", "development delivery",
-    "selected implicitly", "$dev-flow-codex:dev-flow", "explanation-only", "status-only",
-    "design discussion", "ordinary questions", "ambiguous requests",
+    "Assess", "development requests", "direct work or Dev Flow", "dedicated Git worktrees",
+    "selected implicitly", "$dev-flow-codex:dev-flow", "never skips assessment", "resume",
   ]) {
     if (!skillDescription.toLowerCase().includes(required.toLowerCase())) {
       throw new Error(`Dev Flow Skill description is missing activation boundary: ${required}`);
     }
   }
-  if (!normalizedSkill.includes("Both activation paths use this same admission gate") ||
-      !normalizedSkill.includes("do not create or resume a Dev Flow Task")) {
-    throw new Error("Dev Flow Skill admission does not unify implicit and explicit activation");
+  if (!normalizedSkill.includes("Show the assessment and stop") ||
+      !normalizedSkill.includes("explicit resume") ||
+      !normalizedSkill.includes("zero Dev Flow calls")) {
+    throw new Error("Dev Flow Skill admission does not require assessment and explicit choice");
   }
   for (const required of [
-    "A single new request is not a parallel batch", "complete `ACTIVE_TASK_CONFLICT`",
-    "exactly one worktree-backed Codex task", "`target.environment.type=\"worktree\"`",
-    "omit the `startingState` member entirely",
-    "Do not inspect, read, copy or apply", "Do not call any Dev Flow Core tool again",
-    "`HOST_OWNERSHIP_CONFLICT`",
+    "Provisioning confirmation", "refs/remotes/<remote>/<base>",
+    "`target.environment.type=\"worktree\"`", "omit `onMissing`",
+    "clientThreadId", "never dispatch again", "workspace_origin",
+    "`ACTIVE_TASK_CONFLICT`", "never starts relocation",
+    "`relocation_id`", "`relocation_destinations:[{key,repository_path}]`",
+    "`history_resolution:{choice:\"accept_current_history\",reason}`",
   ]) {
     if (!normalizedSkill.includes(required)) {
-      throw new Error(`Dev Flow Skill conflict relocation is missing: ${required}`);
+      throw new Error(`Dev Flow Skill worktree-first lifecycle is missing: ${required}`);
     }
   }
 
@@ -539,16 +540,14 @@ async function assertPackageResources(paths, packageVersion) {
     throw new Error("Dev Flow implicit Skill policy must enable implicit invocation");
   }
   for (const required of [
-    "implicit selection", "$dev-flow-codex:dev-flow", "Explanation-only", "status-only",
-    "design-discussion", "ordinary-question", "ambiguous requests", "must not create or resume",
-    "either valid activation path", "substantive bounded request or explicit resume",
-    "explicit parallel batch", "worktree-backed Codex task", "shared-directory sub-agents",
-    "new-task dev_flow_open_task", "ACTIVE_TASK_CONFLICT",
-    "exactly one Host-created worktree-backed Codex task", "target.environment.type=worktree",
-    "omit startingState",
-    "committed default-branch state", "source checkout's index",
-    "no further Dev Flow Core call", "never retry Host creation", "explicit resume",
-    "HOST_OWNERSHIP_CONFLICT",
+    "Every new user development request", "$dev-flow-codex:dev-flow", "read-only suitability assessment",
+    "receipt-backed confirmed bootstrap bypasses duplicate assessment", "request", "HEADs", "status digests",
+    "separate explicit confirmation", "host-launch receipt helpers", "frozen remote/base commit",
+    "refs/remotes/<remote>/<base>", "target.environment.type=worktree", "no onMissing fallback",
+    "clientThreadId", "without redispatch", "receipt-backed workspace_origin",
+    "ACTIVE_TASK_CONFLICT", "never authorizes relocation", "semantic facts only",
+    "dev_flow_prepare_task_relocation", "separate user authorization",
+    "relocation_destinations", "history_resolution", "accept_current_history",
   ]) {
     if (!CODEX_MCP_INSTRUCTIONS.includes(required)) {
       throw new Error(`Dev Flow MCP admission is missing activation boundary: ${required}`);

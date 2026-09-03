@@ -8,6 +8,8 @@ const statePath = requiredIsolatedPath("FAKE_CORE_STATE");
 const tracePath = requiredIsolatedPath("FAKE_CORE_TRACE");
 const selectedCase = process.env.FAKE_CORE_CASE ?? "success";
 const session = process.env.FAKE_CORE_SESSION ?? "session-1";
+const coreVersion = "0.7.0";
+const processDefinitionDigest = "8f9543abc67421f1470e9ca8b953206571a119c65e5ec39c655bccd334203dc5";
 const state = await readState();
 const tools = toolDefinitions();
 const toolByName = new Map(tools.map((tool) => [tool.name, tool]));
@@ -39,7 +41,7 @@ async function handleMessage(request) {
       result: {
         protocolVersion: request.params?.protocolVersion ?? "2025-06-18",
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "dev-flow-fake-core", version: "0.6.2" },
+        serverInfo: { name: "dev-flow-fake-core", version: coreVersion },
         instructions: "Test-only Core current Core contract fixture server.",
       },
     });
@@ -99,11 +101,11 @@ async function envelopeFor(tool, arguments_) {
   if (tool === "dev_flow_server_info") {
     return success(tool, {
       product: "dev-flow",
-      version: "0.6.2",
+      version: coreVersion,
       transport: "stdio",
       health: "ready",
       supported_hosts: ["codex", "deepseek"],
-      supported_processes: [{ process_id: "standard-development", definition_digest: digest(), new_task_supported: true }],
+      supported_processes: [{ process_id: "standard-development", definition_digest: processDefinitionDigest, new_task_supported: true }],
       method_profiles: ["plain", "spec-kit", "openspec"],
       host_preferences: {
         codex: { codebase_memory: false },
@@ -120,6 +122,7 @@ async function envelopeFor(tool, arguments_) {
       state.scope = {
         primary_repository_key: arguments_.primary_repository_key ?? "primary",
         repository_path: arguments_.repository_path,
+        workspace_origin: arguments_.workspace_origin,
         additional_repositories: [...(arguments_.additional_repositories ?? [])]
           .sort((left, right) => left.key.localeCompare(right.key)),
       };
@@ -150,6 +153,16 @@ async function envelopeFor(tool, arguments_) {
     await writeState();
     return success(tool, { task: currentTask(), claim_released: true });
   }
+  if (tool === "dev_flow_prepare_task_relocation") {
+    state.blocked = true;
+    await writeState();
+    return success(tool, { task: currentTask(), relocation_id: "relocation-0001" });
+  }
+  if (tool === "dev_flow_abandon_task") {
+    state.cancelled = true;
+    await writeState();
+    return success(tool, { task: currentTask(), claim_released: true });
+  }
   if (tool.startsWith("dev_flow_submit_")) {
     if (selectedCase === "domain-error") return failure(tool, "ACTION_STALE", state.operationId);
     if (selectedCase === "budget") return failure(tool, "VERIFICATION_BUDGET_EXCEEDED", state.operationId);
@@ -172,7 +185,7 @@ function currentTask() {
     task_id: "task-graph-0001",
     origin_host: "codex",
     process_id: "standard-development",
-    process_definition_digest: digest(),
+    process_definition_digest: processDefinitionDigest,
     intent: {
       request: "Define one bounded graph requirement.",
       initial_scope: ["one repository"],
@@ -184,9 +197,15 @@ function currentTask() {
     current_cursor: currentCursor,
     resume_cursor: state.blocked ? "REQUIREMENTS" : null,
     primary_repository_key: state.scope?.primary_repository_key ?? "primary",
+    workspace_origin: persistedWorkspaceOrigin(
+      state.scope?.workspace_origin ?? workspaceOriginSelection("primary"),
+      state.scope?.repository_path ?? "/workspace/example",
+      "primary",
+    ),
     repository: repositoryProjection(state.scope?.repository_path ?? "/workspace/example", "primary"),
     additional_repositories: (state.scope?.additional_repositories ?? []).map((entry) => ({
       key: entry.key,
+      workspace_origin: persistedWorkspaceOrigin(entry.workspace_origin, entry.repository_path, entry.key),
       repository: repositoryProjection(entry.repository_path, entry.key),
     })),
     baselines: { requirements: state.applyCount > 0 ? { revision: 1, digest: digest() } : null, design: null, task_plan: null, history: [] },
@@ -197,6 +216,8 @@ function currentTask() {
     blocker: state.blocked ? { blocker_id: "blocker-graph-0001", code: "TASK_BLOCKED", resume_node: "REQUIREMENTS" } : null,
     last_operation: state.operationId ? { operation_id: state.operationId } : null,
     evidence: [],
+    current_changed_paths: [],
+    relocation: null,
     outcome: state.cancelled ? { status: "cancelled", summary: "Cancelled by the user." } : state.done ? { status: "completed", summary: "Completed by the fixture." } : null,
     revision,
   };
@@ -204,15 +225,41 @@ function currentTask() {
 
 function repositoryProjection(canonicalRoot, key) {
   return {
-    canonical_root: canonicalRoot,
-    repository_identity: `fixture-${key}-identity`,
-    branch: "main",
+    worktree_instance_digest: digest(),
+    identity_digest: digest(),
+    history_digest: digest(),
+    content_digest: digest(),
+    current_branch: `codex/${key}`,
     detached: false,
-    head: digest(),
-    unborn: false,
-    worktree_fingerprint: digest(),
+    current_head: objectID(),
+    head_tree: objectID(),
+    history_relation: "exact",
+    base_commit_ancestor: true,
+    changed_entries: [],
+    task_surface: [],
     observed_at: "2026-08-23T00:00:00Z",
     binding_digest: digest(),
+  };
+}
+
+function workspaceOriginSelection(key) {
+  return {
+    mode: "dedicated_worktree",
+    remote_name: "origin",
+    base_branch: "main",
+    base_commit: objectID(),
+    task_branch: `codex/${key}`,
+    provisioning_receipt_id: `fixture-receipt-${key}`,
+  };
+}
+
+function persistedWorkspaceOrigin(selection, canonicalRoot, key) {
+  return {
+    ...selection,
+    source_repository_group_digest: digest(),
+    canonical_worktree_root: canonicalRoot,
+    worktree_git_dir_digest: digest(),
+    provisioning_receipt_id: selection?.provisioning_receipt_id ?? `fixture-receipt-${key}`,
   };
 }
 
@@ -236,16 +283,28 @@ function blockerAction(revision) {
 function action(revision, kind, node, payloadContract, availableTransitions) {
   return {
     action_id: `action-${node.toLowerCase()}-${revision}`,
-    kind,
+    action_kind: kind,
     submission_tool: submissionTool(kind),
     task_id: "task-graph-0001",
     revision,
-    process: processReference(),
+    process_id: "standard-development",
+    process_definition_digest: processDefinitionDigest,
     current_node: node,
+    node_purpose: `Complete ${node}.`,
+    entry_conditions: ["Current Task authority is available."],
+    completion_conditions: ["Current node facts are complete."],
+    allowed_effects: ["read_repository"],
+    required_evidence: [{ kind: "repository_observation", required: true }],
     repository_binding_digest: digest(),
+    issuance_identity_digest: digest(),
+    issuance_history_digest: digest(),
+    issuance_content_digest: digest(),
     payload_contract: payloadContract,
     available_transitions: availableTransitions,
     method_profile: "plain",
+    method_steps: [{ step_id: `${node.toLowerCase()}.fixture`, purpose: "Complete fixture work.", required: true }],
+    guidance: "Follow the current fixture Action.",
+    issued_at: "2026-08-23T00:00:00Z",
   };
 }
 
@@ -258,7 +317,7 @@ function submissionTool(kind) {
 }
 
 function transition(transitionId, destination, reasonRequired) {
-  return { transition_id: transitionId, destination, guard_id: `${transitionId}_guard`, when: "Fixture guard is satisfied.", reason_required: reasonRequired };
+  return { transition_id: transitionId, destination_node: destination, guard_id: `${transitionId}_guard`, description: "Fixture transition.", selection_condition: "Fixture guard is satisfied.", reason_required: reasonRequired };
 }
 
 function recoveryAssessment() {
@@ -268,7 +327,7 @@ function recoveryAssessment() {
     operation: {
       operation_id: state.operationId,
       process_id: "standard-development",
-      process_definition_digest: digest(),
+      process_definition_digest: processDefinitionDigest,
       source_cursor: "REQUIREMENTS",
       expected_revision: 1,
       action_id: state.actionId,
@@ -281,7 +340,7 @@ function recoveryAssessment() {
 }
 
 function processReference() {
-  return { process_id: "standard-development", definition_digest: digest() };
+  return { process_id: "standard-development", process_definition_digest: processDefinitionDigest };
 }
 
 function success(tool, result, requestId = null) {
@@ -325,13 +384,16 @@ function toolDefinitions() {
     ["dev_flow_submit_comprehension", submissionRequired, submissionRequired, false, false, true],
     ["dev_flow_submit_refactor", submissionRequired, submissionRequired, false, false, true],
     ["dev_flow_submit_delivery", submissionRequired, submissionRequired, false, false, true],
-    ["dev_flow_resolve_blocker", ["host", "task_id", "action_id"], ["host", "task_id", "action_id", "choice", "reason"], false, false, true],
+    ["dev_flow_prepare_task_relocation", ["host", "task_id", "revision"], ["host", "task_id", "revision"], false, false, true],
+    ["dev_flow_resolve_blocker", ["host", "task_id", "action_id"], ["host", "task_id", "action_id", "choice", "reason", "relocation_id", "relocation_destinations", "history_resolution"], false, false, true],
     ["dev_flow_recover_action", ["host", "task_id", "action_id"], ["host", "task_id", "action_id"], false, false, true],
     ["dev_flow_cancel_task", ["request_id", "host", "task_id", "revision", "reason"], ["request_id", "host", "task_id", "revision", "reason"], false, true, false],
+    ["dev_flow_abandon_task", ["host", "task_id", "revision", "reason"], ["host", "task_id", "revision", "reason"], false, true, false],
   ];
   return metadata.map(([name, required, properties, readOnlyHint, destructiveHint, idempotentHint]) => {
     const inputSchema = closedSchema(required, properties);
     if (name === "dev_flow_open_task") {
+      inputSchema.properties.workspace_origin = workspaceOriginSchema();
       inputSchema.properties.primary_repository_key = {
         type: "string",
         pattern: "^[a-z0-9][a-z0-9._-]{0,127}$",
@@ -342,9 +404,26 @@ function toolDefinitions() {
         items: {
           type: "object",
           additionalProperties: false,
+          required: ["key", "repository_path", "workspace_origin"],
+          properties: { key: { type: "string" }, repository_path: { type: "string" }, workspace_origin: workspaceOriginSchema() },
+        },
+      };
+    }
+    if (name === "dev_flow_resolve_blocker") {
+      inputSchema.properties.relocation_destinations = {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
           required: ["key", "repository_path"],
           properties: { key: { type: "string" }, repository_path: { type: "string" } },
         },
+      };
+      inputSchema.properties.history_resolution = {
+        type: "object",
+        additionalProperties: false,
+        required: ["choice", "reason"],
+        properties: { choice: { const: "accept_current_history" }, reason: { type: "string" } },
       };
     }
     return {
@@ -355,6 +434,22 @@ function toolDefinitions() {
       annotations: { title: name, readOnlyHint, destructiveHint, idempotentHint, openWorldHint: false },
     };
   });
+}
+
+function workspaceOriginSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["mode", "remote_name", "base_branch", "base_commit", "task_branch", "provisioning_receipt_id"],
+    properties: {
+      mode: { const: "dedicated_worktree" },
+      remote_name: { type: "string" },
+      base_branch: { type: "string" },
+      base_commit: { type: "string" },
+      task_branch: { type: "string" },
+      provisioning_receipt_id: { type: "string" },
+    },
+  };
 }
 
 function closedSchema(required, properties) {
@@ -414,4 +509,8 @@ function isPlainObject(value) {
 
 function digest() {
   return "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a1e89b016644c2819e320f2c1";
+}
+
+function objectID() {
+  return "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a";
 }

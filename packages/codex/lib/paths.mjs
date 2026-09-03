@@ -70,6 +70,11 @@ export async function resolveProductPaths({
     join(registrationsDirectory, "codex.json"),
     "receipt",
   );
+  const provisioningDirectory = containedPath(
+    productSupportRoot,
+    join(productSupportRoot, "provisioning", "codex"),
+    "Codex provisioning directory",
+  );
 
   const explicitDataDirectory = environment?.[DATA_DIRECTORY_ENVIRONMENT] ?? "";
   let dataDirectory;
@@ -121,6 +126,7 @@ export async function resolveProductPaths({
     productSupportRoot,
     registrationsDirectory,
     receiptPath,
+    provisioningDirectory,
     configurationDirectory,
     configurationPath,
     dataDirectory,

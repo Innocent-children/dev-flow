@@ -15,7 +15,7 @@ import (
 func TestGraphRecoveryProbedReadsAndRecoveredTransition(t *testing.T) {
 	service, memory, observer := phase5Service(t)
 	task := phase5TaskAtRefactor(t, service)
-	payload := phase5Payload(t, task, "refactor_ready_for_test", "", refactorNodeResult([]string{"internal/order.go"}, false, []string{"Removed indirection"}, false, nil))
+	payload := phase5Payload(t, task, "refactor_ready_for_test", "", refactorNodeResult([]string{"internal/file.go"}, false, []string{"Removed indirection"}, false, nil))
 	probe := graphProbe(task, "uncertain-refactor", payload)
 	commits := memory.commits
 	observations := observer.calls
@@ -24,7 +24,7 @@ func TestGraphRecoveryProbedReadsAndRecoveredTransition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if read.RecoveryAssessment == nil || read.RecoveryAssessment.Classification != domain.RecoveryNotStarted || memory.commits != commits || observer.calls != observations+1 {
+	if read.RecoveryAssessment == nil || read.RecoveryAssessment.Classification != domain.RecoveryCompletedButUnrecorded || read.RecoveryAssessment.NextAdvice != recovery.AdviceSubmitRecoveryApply || memory.commits != commits || observer.calls != observations+1 {
 		t.Fatalf("read=%+v commits=%d observations=%d", read.RecoveryAssessment, memory.commits-commits, observer.calls-observations)
 	}
 	next, err := service.GetNextAction(context.Background(), GetNextActionRequest{Host: domain.HostCodex, TaskID: task.TaskID, OperationProbe: &probe})
@@ -35,7 +35,7 @@ func TestGraphRecoveryProbedReadsAndRecoveredTransition(t *testing.T) {
 		t.Fatal("get_task/get_next_action recovery assessments diverged or wrote")
 	}
 
-	dirty := graphChangedBinding(task.Repository, []string{"internal/order.go"}, "c")
+	dirty := graphChangedBinding(task.Repository, []string{"internal/file.go"}, "c")
 	observer.binding = dirty
 	read, err = service.GetTask(context.Background(), GetTaskRequest{Host: domain.HostCodex, TaskID: task.TaskID, OperationProbe: &probe})
 	if err != nil {
@@ -101,7 +101,7 @@ func TestGraphRecoveryPartialCreatesOneBlockerAndResolvesExactResume(t *testing.
 	}
 
 	badPayload, _ := json.Marshal(map[string]any{"blocker_id": "wrong-blocker", "condition": blocked.Task.Blocker.Condition, "observed_binding_digest": observer.binding.BindingDigest})
-	badResolve := ApplyActionRequest{RequestID: "bad-resolve", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: blocked.Task.Revision, ActionID: blocked.Task.CurrentAction.ActionID, ActionKind: domain.ActionResolveBlocker, ProcessID: blocked.Task.Process.ID, ProcessDefinitionDigest: blocked.Task.Process.DefinitionDigest, SourceCursor: domain.NodeBlocked, RepositoryBindingDigest: blocked.Task.Repository.BindingDigest, Payload: badPayload}
+	badResolve := currentActionApplyRequest(blocked.Task, "bad-resolve", badPayload)
 	commits = memory.commits
 	if _, err := service.ApplyAction(context.Background(), badResolve); err != domain.ErrRepositoryDrift || memory.commits != commits {
 		t.Fatalf("unrestored repository err=%v commits=%d", err, memory.commits-commits)
@@ -112,7 +112,7 @@ func TestGraphRecoveryPartialCreatesOneBlockerAndResolvesExactResume(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	resolve := ApplyActionRequest{RequestID: "resolve-operation", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: blocked.Task.Revision, ActionID: blocked.Task.CurrentAction.ActionID, ActionKind: domain.ActionResolveBlocker, ProcessID: blocked.Task.Process.ID, ProcessDefinitionDigest: blocked.Task.Process.DefinitionDigest, SourceCursor: domain.NodeBlocked, RepositoryBindingDigest: blocked.Task.Repository.BindingDigest, Payload: resolutionPayload}
+	resolve := currentActionApplyRequest(blocked.Task, "resolve-operation", resolutionPayload)
 	badResolve = resolve
 	badResolve.RequestID = "wrong-blocker-resolve"
 	badResolve.Payload, _ = json.Marshal(map[string]any{"blocker_id": "wrong-blocker", "condition": blocked.Task.Blocker.Condition, "observed_binding_digest": task.Repository.BindingDigest})
@@ -169,9 +169,6 @@ func TestGraphRecoveryAdoptsDeclaredProcessArtifactOnlyEffect(t *testing.T) {
 		t.Fatal(err)
 	}
 	document["artifacts"] = []map[string]any{{"role": "requirements", "path": "artifacts/requirements.json", "digest": digestOf("e"), "summary": "Requirements artifact"}}
-	nodeResult := document["node_result"].(map[string]any)
-	nodeResult["changed_paths"] = []string{"artifacts/requirements.json"}
-	nodeResult["no_file_changes"] = false
 	payload, _ = json.Marshal(document)
 	observer.binding = graphChangedBinding(task.Repository, []string{"artifacts/requirements.json"}, "f")
 	probe := graphProbe(task, "artifact-operation", payload)
@@ -198,9 +195,9 @@ func TestMultiRepositoryRecoveryRejectsUndeclaredAdditionalDriftWithoutWrite(t *
 	primary := multiRepositoryBinding(now, corePath, 'a')
 	docs := multiRepositoryBinding(now, docsPath, 'b')
 	service, taskStore, observer := multiRepositoryService(t, now, map[string]domain.RepositoryBinding{corePath: primary, docsPath: docs})
-	request := multiRepositoryOpenRequest("open-recovery-multi", corePath)
+	request := multiRepositoryOpenRequest("open-recovery-multi", corePath, primary)
 	request.PrimaryRepositoryKey = "core"
-	request.AdditionalRepositories = []AdditionalRepositoryInput{{Key: "docs", RepositoryPath: docsPath}}
+	request.AdditionalRepositories = []AdditionalRepositoryInput{additionalRepositoryInput("docs", docsPath, docs)}
 	opened, err := service.OpenTask(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
@@ -230,20 +227,17 @@ func TestMultiRepositoryRecoveryRejectsUndeclaredAdditionalDriftWithoutWrite(t *
 func graphProbe(task domain.ProcessTask, operationID domain.ID, payload json.RawMessage) OperationProbe {
 	action := task.CurrentAction
 	digest, _ := task.EffectiveRepositoryBindingDigest()
-	return OperationProbe{OperationID: operationID, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, RepositoryBindingDigest: digest, Payload: payload}
+	return OperationProbe{OperationID: operationID, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, RepositoryBindingDigest: digest, IssuanceIdentityDigest: action.IssuanceIdentityDigest, IssuanceHistoryDigest: action.IssuanceHistoryDigest, IssuanceContentDigest: action.IssuanceContentDigest, Payload: payload}
 }
 
 func graphRecoveryApply(task domain.ProcessTask, operationID domain.ID, payload json.RawMessage) ApplyActionRequest {
 	action := task.CurrentAction
 	digest, _ := task.EffectiveRepositoryBindingDigest()
-	return ApplyActionRequest{RequestID: operationID, Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: digest, Payload: payload, RecoveryApply: &RecoveryApplyInput{OperationID: operationID, SourceCursor: task.CurrentNode}}
+	return ApplyActionRequest{RequestID: operationID, Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: digest, IssuanceIdentityDigest: action.IssuanceIdentityDigest, IssuanceHistoryDigest: action.IssuanceHistoryDigest, IssuanceContentDigest: action.IssuanceContentDigest, Payload: payload, RecoveryApply: &RecoveryApplyInput{OperationID: operationID, SourceCursor: task.CurrentNode}}
 }
 
 func graphChangedBinding(base domain.RepositoryBinding, paths []string, seed string) domain.RepositoryBinding {
-	changed := base.Clone()
-	changed.WorktreeFingerprint = digestOf(seed)
-	changed.BindingDigest = digestOf(seed)
-	changed.ChangedPaths = append([]string(nil), paths...)
+	changed := phase5BindingWithSurface(base.Clone(), paths, seed)
 	changed.ObservedAt = base.ObservedAt.Add(1)
 	return changed
 }

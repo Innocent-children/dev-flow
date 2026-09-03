@@ -14,9 +14,11 @@ export const DEV_FLOW_RAW_TOOL_NAMES = Object.freeze([
   "dev_flow_submit_comprehension",
   "dev_flow_submit_refactor",
   "dev_flow_submit_delivery",
+  "dev_flow_prepare_task_relocation",
   "dev_flow_resolve_blocker",
   "dev_flow_recover_action",
   "dev_flow_cancel_task",
+  "dev_flow_abandon_task",
 ]);
 
 export const DEV_FLOW_QUALIFIED_TOOL_NAMES = Object.freeze(

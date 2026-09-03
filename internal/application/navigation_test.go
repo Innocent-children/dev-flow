@@ -3,8 +3,8 @@ package application
 import (
 	"context"
 	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/dev-flow/internal/repository"
 	"github.com/Innocent-children/dev-flow/internal/store"
-	"strings"
 	"testing"
 	"time"
 )
@@ -77,25 +77,28 @@ func (m *memoryStore) CommitActionOperation(_ context.Context, operationID domai
 	return nil
 }
 
-type observer struct{ binding domain.RepositoryBinding }
+type observer struct {
+	origin  domain.WorkspaceOrigin
+	binding domain.RepositoryBinding
+}
 
 func (o observer) Observe(context.Context, string) (domain.RepositoryBinding, error) {
 	return o.binding, nil
 }
+func (o observer) ObserveWorkspace(context.Context, string, repository.WorkspaceOriginSelection, *domain.RepositoryBinding) (domain.WorkspaceOrigin, domain.RepositoryBinding, error) {
+	return o.origin, o.binding, nil
+}
 func TestProcessGraphNavigation(t *testing.T) {
 	now := time.Date(2026, 8, 19, 3, 0, 0, 0, time.UTC)
-	digest := domain.Digest(strings.Repeat("a", 64))
-	branch := "main"
-	head := strings.Repeat("b", 40)
 	repositoryPath := testPath("repo")
-	binding := domain.RepositoryBinding{CanonicalRoot: repositoryPath, GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
+	origin, binding, originInput := applicationWorkspaceFixture(now, repositoryPath, 'a')
 	ms := &memoryStore{}
 	n := 0
-	service, err := newService(ms, observer{binding}, func() time.Time { return now }, func(prefix string) (domain.ID, error) { n++; return domain.ID(prefix + "-" + string(rune('a'+n))), nil })
+	service, err := newService(ms, observer{origin: origin, binding: binding}, func() time.Time { return now }, func(prefix string) (domain.ID, error) { n++; return domain.ID(prefix + "-" + string(rune('a'+n))), nil })
 	if err != nil {
 		t.Fatal(err)
 	}
-	opened, err := service.OpenTask(context.Background(), OpenTaskRequest{RequestID: "request-open", Host: domain.HostCodex, RepositoryPath: repositoryPath, NewTask: &NewTaskInput{Request: "Simplify order submission.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4, AllowManualHandoff: true}, MethodProfile: domain.MethodSpecKit}})
+	opened, err := service.OpenTask(context.Background(), OpenTaskRequest{RequestID: "request-open", Host: domain.HostCodex, RepositoryPath: repositoryPath, WorkspaceOrigin: &originInput, NewTask: &NewTaskInput{Request: "Simplify order submission.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4, AllowManualHandoff: true}, MethodProfile: domain.MethodSpecKit}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +106,7 @@ func TestProcessGraphNavigation(t *testing.T) {
 		t.Fatal("requirements action incomplete")
 	}
 	payload := phase5Payload(t, opened.Task, "requirements_ready", "", requirementsNodeResult("Simplify order submission.", []string{"behavior preserved"}))
-	applied, err := service.ApplyAction(context.Background(), ApplyActionRequest{RequestID: "request-apply", Host: domain.HostCodex, TaskID: opened.Task.TaskID, ExpectedRevision: 1, ActionID: opened.Task.CurrentAction.ActionID, ActionKind: opened.Task.CurrentAction.Kind, ProcessID: opened.Task.Process.ID, ProcessDefinitionDigest: opened.Task.Process.DefinitionDigest, SourceCursor: opened.Task.CurrentNode, RepositoryBindingDigest: binding.BindingDigest, Payload: payload})
+	applied, err := service.ApplyAction(context.Background(), currentActionApplyRequest(opened.Task, "request-apply", payload))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +118,7 @@ func TestProcessGraphNavigation(t *testing.T) {
 	}
 	before := ms.commits
 	bad := payload
-	_, err = service.ApplyAction(context.Background(), ApplyActionRequest{RequestID: "request-bad", Host: domain.HostCodex, TaskID: applied.Task.TaskID, ExpectedRevision: 2, ActionID: applied.Task.CurrentAction.ActionID, ActionKind: applied.Task.CurrentAction.Kind, ProcessID: applied.Task.Process.ID, ProcessDefinitionDigest: applied.Task.Process.DefinitionDigest, SourceCursor: applied.Task.CurrentNode, RepositoryBindingDigest: binding.BindingDigest, Payload: bad})
+	_, err = service.ApplyAction(context.Background(), currentActionApplyRequest(applied.Task, "request-bad", bad))
 	if err == nil || ms.commits != before {
 		t.Fatal("invalid DESIGN edge wrote state")
 	}

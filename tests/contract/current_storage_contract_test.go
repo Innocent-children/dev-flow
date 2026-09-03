@@ -88,12 +88,17 @@ func TestCurrentStorageHasOneSchemaCodecProcessAndProjection(t *testing.T) {
 
 	schema := read("internal/store/schema.go")
 	for _, required := range []string{
-		`const DatabaseSchemaVersion = "0.3.0"`,
+		`const DatabaseSchemaVersion = "0.4.0"`,
 		"currentSchemaStatements",
 		"func bootstrapCurrentSchema",
 		"func verifyCurrentSchema",
 		"CREATE TABLE action_operations",
+		"CREATE TABLE relocation_operations",
+		"issuance_identity_digest TEXT NOT NULL",
+		"repository_delta_paths BLOB NOT NULL",
+		"worktree_instance_digest TEXT PRIMARY KEY",
 		"CREATE INDEX repository_claims_task_idx ON repository_claims (task_id)",
+		"CREATE UNIQUE INDEX relocation_operations_unresolved_task_idx ON relocation_operations (task_id) WHERE resolved_revision IS NULL",
 	} {
 		if !strings.Contains(schema, required) {
 			t.Errorf("current storage bootstrap missing %q", required)

@@ -98,7 +98,7 @@ func TestProcessGraphIterationJourney(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "terminal-apply", Host: domain.HostCodex, TaskID: loaded.TaskID, ExpectedRevision: loaded.Revision, ActionID: "terminal-action", ActionKind: domain.ActionCompleteDelivery, ProcessID: loaded.Process.ID, ProcessDefinitionDigest: loaded.Process.DefinitionDigest, SourceCursor: loaded.CurrentNode, RepositoryBindingDigest: loaded.Repository.BindingDigest, Payload: journeyPayload(t, loaded, "delivery_complete", "", deliveryJourneyResult(loaded))})
+	_, err = service.ApplyAction(context.Background(), terminalJourneyApplyRequest(t, loaded, "terminal-apply", journeyPayload(t, loaded, "delivery_complete", "", deliveryJourneyResult(loaded))))
 	if err != domain.ErrTaskTerminal {
 		t.Fatalf("terminal apply error=%v", err)
 	}
@@ -108,7 +108,7 @@ func TestManualHandoffFalseStillAllowsComprehensionJourney(t *testing.T) {
 	j := newIterationJourneyWithManualHandoff(t, false)
 	defer j.close()
 	j.toTest()
-	userTest := map[string]any{"checks": []map[string]any{{"source": "user", "name": "manual-test", "status": "passed", "summary": "User performed test.", "command_count": 0, "full_suite": false}}, "failed_items": []string{}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
+	userTest := map[string]any{"checks": []map[string]any{{"source": "user", "name": "manual-test", "status": "passed", "summary": "User performed test.", "command_count": 0, "full_suite": false}}, "failed_items": []string{}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}}
 	j.assertRejected(domain.ErrVerificationBudgetExceeded, "tests_passed", "", userTest)
 	j.apply("tests_passed", "", passedTestJourneyResult())
 	j.apply("comprehension_passed", "", comprehensionJourneyResult([]string{"component"}, nil, nil, "user", "passed", nil))
@@ -147,7 +147,7 @@ func TestProcessGraphIterationNegativeComprehension(t *testing.T) {
 		defer j.close()
 		j.toComprehension()
 		j.writeRepository("repository changed after TEST")
-		j.assertRejected(domain.ErrRepositoryDrift, "comprehension_passed", "", comprehensionJourneyResult([]string{"component"}, nil, nil, "user", "passed", nil))
+		j.assertContentChangeInvalidatesEvidence("comprehension_passed", comprehensionJourneyResult([]string{"component"}, nil, nil, "user", "passed", nil))
 	})
 	for _, target := range []string{"test_record", "requirements_revision", "design_revision", "task_plan_revision"} {
 		t.Run("stale_"+target, func(t *testing.T) {
@@ -157,7 +157,7 @@ func TestProcessGraphIterationNegativeComprehension(t *testing.T) {
 			tampered := &journeyTamperingStore{Store: j.store, mutate: func(task *domain.ProcessTask) {
 				switch target {
 				case "test_record":
-					task.Test.RepositoryBindingDigest = domain.Digest(strings.Repeat("f", 64))
+					task.Test.ContentDigest = domain.Digest(strings.Repeat("f", 64))
 				case "requirements_revision":
 					task.Test.RequirementsRevision++
 				case "design_revision":
@@ -263,9 +263,9 @@ func TestProcessGraphIterationNegativeDelivery(t *testing.T) {
 				case "comprehension":
 					task.Comprehension = nil
 				case "stale_test":
-					task.Test.RepositoryBindingDigest = domain.Digest(strings.Repeat("f", 64))
+					task.Test.ContentDigest = domain.Digest(strings.Repeat("f", 64))
 				case "stale_comprehension":
-					task.Comprehension.RepositoryBindingDigest = domain.Digest(strings.Repeat("f", 64))
+					task.Comprehension.ContentDigest = domain.Digest(strings.Repeat("f", 64))
 				case "requirements":
 					task.Requirements.Revision++
 				case "design":
@@ -292,7 +292,7 @@ func TestProcessGraphIterationNegativeDelivery(t *testing.T) {
 		defer j.close()
 		j.toDelivery()
 		j.writeRepository("changed after comprehension")
-		j.assertRejected(domain.ErrRepositoryDrift, "delivery_complete", "", deliveryJourneyResult(j.task))
+		j.assertContentChangeInvalidatesEvidence("delivery_complete", deliveryJourneyResult(j.task))
 	})
 	t.Run("direct_COMPREHENSION_to_DONE", func(t *testing.T) {
 		j := newIterationJourney(t)
@@ -403,17 +403,7 @@ func newIterationJourney(t *testing.T) *iterationJourney {
 func newIterationJourneyWithManualHandoff(t *testing.T, allowManualHandoff bool) *iterationJourney {
 	t.Helper()
 	repo := filepath.Join(t.TempDir(), "repository")
-	if err := os.Mkdir(repo, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	runJourneyGit(t, repo, "init", "-q")
-	runJourneyGit(t, repo, "config", "user.email", "journey@example.invalid")
-	runJourneyGit(t, repo, "config", "user.name", "Journey Test")
-	if err := os.WriteFile(filepath.Join(repo, "README.md"), []byte("initial\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	runJourneyGit(t, repo, "add", "README.md")
-	runJourneyGit(t, repo, "commit", "-q", "-m", "initial")
+	origin := initializeDedicatedJourneyWorktree(t, repo, "task/iteration", "receipt-iteration")
 	dbPath := filepath.Join(t.TempDir(), "dev-flow.db")
 	sqliteStore, err := store.Open(context.Background(), dbPath)
 	if err != nil {
@@ -423,7 +413,7 @@ func newIterationJourneyWithManualHandoff(t *testing.T, allowManualHandoff bool)
 	if err != nil {
 		t.Fatal(err)
 	}
-	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "open-journey", Host: domain.HostCodex, RepositoryPath: repo, NewTask: &application.NewTaskInput{Request: "Prove the iterative development loop.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 16, AllowManualHandoff: allowManualHandoff}, MethodProfile: domain.MethodPlain}})
+	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "open-journey", Host: domain.HostCodex, RepositoryPath: repo, WorkspaceOrigin: &origin, NewTask: &application.NewTaskInput{Request: "Prove the iterative development loop.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 16, AllowManualHandoff: allowManualHandoff}, MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -480,6 +470,27 @@ func (j *iterationJourney) assertRejected(want error, transition domain.Transiti
 		j.t.Fatalf("transition=%s error=%v want=%v", transition, err, want)
 	}
 	j.assertStateUnchanged(before)
+}
+
+func (j *iterationJourney) assertContentChangeInvalidatesEvidence(transition domain.TransitionID, node any) {
+	j.t.Helper()
+	before := j.state()
+	previousContent := j.task.Test.ContentDigest
+	requestID := "content-guard-" + domain.ID(transition)
+	result, err := j.service.ApplyAction(context.Background(), journeyApplyRequest(j.task, requestID, journeyPayload(j.t, j.task, transition, "", node)))
+	if err != nil {
+		j.t.Fatalf("transition=%s content guard error=%v", transition, err)
+	}
+	j.task = result.Task
+	if j.task.CurrentNode != domain.NodeImplement || j.task.Implementation != nil || j.task.Test != nil || j.task.Comprehension != nil || j.task.Outcome != nil {
+		j.t.Fatalf("transition=%s did not invalidate content-bound evidence: task=%+v", transition, j.task)
+	}
+	if j.task.Repository.ContentDigest == previousContent || j.task.CurrentAction == nil || j.task.CurrentAction.Kind != domain.ActionCompleteImplementation || j.task.CurrentAction.ActionID == before.actionID {
+		j.t.Fatalf("transition=%s did not bind a fresh IMPLEMENT Action to changed content", transition)
+	}
+	if j.task.LastOperation == nil || j.task.LastOperation.Kind != domain.OperationObserveWorkspace || j.task.LastOperation.OperationID != requestID || j.task.Revision != before.revision+1 || j.eventCount() != before.events+1 || len(j.task.Evidence) != before.evidence || j.claimCount() != before.claims {
+		j.t.Fatalf("transition=%s content guard did not commit exactly one observation", transition)
+	}
 }
 
 func (j *iterationJourney) state() journeyState {
@@ -570,7 +581,16 @@ func (j *iterationJourney) evidence(id domain.ID) domain.EvidenceSummary {
 
 func journeyApplyRequest(task domain.ProcessTask, requestID domain.ID, payload json.RawMessage) application.ApplyActionRequest {
 	a := task.CurrentAction
-	return application.ApplyActionRequest{RequestID: requestID, Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: payload}
+	return application.ApplyActionRequest{RequestID: requestID, Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: a.RepositoryBindingDigest, IssuanceIdentityDigest: a.IssuanceIdentityDigest, IssuanceHistoryDigest: a.IssuanceHistoryDigest, IssuanceContentDigest: a.IssuanceContentDigest, Payload: payload}
+}
+
+func terminalJourneyApplyRequest(t *testing.T, task domain.ProcessTask, requestID domain.ID, payload json.RawMessage) application.ApplyActionRequest {
+	t.Helper()
+	digests, err := task.EffectiveWorkspaceDigests()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return application.ApplyActionRequest{RequestID: requestID, Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: "terminal-action", ActionKind: domain.ActionCompleteDelivery, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: domain.NodeDelivery, RepositoryBindingDigest: digests.Binding, IssuanceIdentityDigest: digests.Identity, IssuanceHistoryDigest: digests.History, IssuanceContentDigest: digests.Content, Payload: payload}
 }
 
 func journeyPayload(t *testing.T, task domain.ProcessTask, transition domain.TransitionID, reason string, node any) json.RawMessage {
@@ -605,22 +625,22 @@ func journeyProblemClass(transition domain.TransitionID) string {
 }
 
 func requirementsJourneyResult(goal string) map[string]any {
-	return map[string]any{"baseline": map[string]any{"goal": goal, "scope": []string{"iterative loop"}, "out_of_scope": []string{}, "acceptance_criteria": []string{"first acceptance", "second acceptance"}, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}, "changed_paths": []string{}, "no_file_changes": true}
+	return map[string]any{"baseline": map[string]any{"goal": goal, "scope": []string{"iterative loop"}, "out_of_scope": []string{}, "acceptance_criteria": []string{"first acceptance", "second acceptance"}, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}}
 }
 
 func designJourneyResult(requirementsRevision uint32, approach string) map[string]any {
-	return map[string]any{"baseline": map[string]any{"requirements_revision": requirementsRevision, "approach": approach, "components": []string{"process"}, "decisions": []string{"Use the direct flow"}, "rejected_alternatives": []string{}, "complexity_justification": []string{}, "risks": []string{}}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
+	return map[string]any{"baseline": map[string]any{"requirements_revision": requirementsRevision, "approach": approach, "components": []string{"process"}, "decisions": []string{"Use the direct flow"}, "rejected_alternatives": []string{}, "complexity_justification": []string{}, "risks": []string{}}, "findings": []string{}}
 }
 
 func tasksJourneyResult(designRevision uint32) map[string]any {
-	return map[string]any{"baseline": map[string]any{"design_revision": designRevision, "work_items": []map[string]any{{"work_item_id": "work", "summary": "Implement the flow", "expected_paths": []string{"feature.txt"}, "acceptance_indexes": []uint32{0, 1}, "verification_steps": []string{"Run targeted tests"}, "dependencies": []string{}}}}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
+	return map[string]any{"baseline": map[string]any{"design_revision": designRevision, "work_items": []map[string]any{{"work_item_id": "work", "summary": "Implement the flow", "expected_paths": []string{"feature.txt"}, "acceptance_indexes": []uint32{0, 1}, "verification_steps": []string{"Run targeted tests"}, "dependencies": []string{}}}}, "findings": []string{}}
 }
 
-func implementationJourneyResult(planRevision uint32, changedPaths, findings []string) map[string]any {
+func implementationJourneyResult(planRevision uint32, _ []string, findings []string) map[string]any {
 	if findings == nil {
 		findings = []string{}
 	}
-	return map[string]any{"task_plan_revision": planRevision, "completed_work_item_ids": []string{"work"}, "changed_paths": changedPaths, "no_file_changes": len(changedPaths) == 0, "deviations": []string{}, "findings": findings}
+	return map[string]any{"task_plan_revision": planRevision, "completed_work_item_ids": []string{"work"}, "deviations": []string{}, "findings": findings}
 }
 
 func passedTestJourneyResult() map[string]any {
@@ -628,11 +648,11 @@ func passedTestJourneyResult() map[string]any {
 		{"source": "automated", "name": "targeted-test", "status": "passed", "summary": "The targeted test passed.", "command_count": 1, "full_suite": false},
 		{"source": "static", "name": "static-review", "status": "passed", "summary": "Static review completed.", "command_count": 0, "full_suite": false},
 		{"source": "host_observed", "name": "host-observation", "status": "passed", "summary": "The host observed the result.", "command_count": 0, "full_suite": false},
-	}, "failed_items": []string{}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
+	}, "failed_items": []string{}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}}
 }
 
 func failedTestJourneyResult(finding string) map[string]any {
-	return map[string]any{"checks": []map[string]any{{"source": "automated", "name": "targeted-test", "status": "failed", "summary": "The targeted test failed.", "command_count": 1, "full_suite": false}}, "failed_items": []string{"targeted failure"}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{finding}, "changed_paths": []string{}, "no_file_changes": true}
+	return map[string]any{"checks": []map[string]any{{"source": "automated", "name": "targeted-test", "status": "failed", "summary": "The targeted test failed.", "command_count": 1, "full_suite": false}}, "failed_items": []string{"targeted failure"}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{finding}}
 }
 
 func comprehensionJourneyResult(explained, unresolved, abstractions []string, source, status string, findings []string) map[string]any {
@@ -652,14 +672,14 @@ func comprehensionJourneyResult(explained, unresolved, abstractions []string, so
 	if source != "" {
 		confirmation = map[string]any{"source": source, "status": status, "summary": "The developer confirmed understanding."}
 	}
-	return map[string]any{"explained_components": explained, "unresolved_questions": unresolved, "unnecessary_abstractions": abstractions, "maintenance_risks": []string{}, "user_confirmation": confirmation, "findings": findings, "changed_paths": []string{}, "no_file_changes": true}
+	return map[string]any{"explained_components": explained, "unresolved_questions": unresolved, "unnecessary_abstractions": abstractions, "maintenance_risks": []string{}, "user_confirmation": confirmation, "findings": findings}
 }
 
-func refactorJourneyResult(paths, simplifications []string, behaviorChange bool, findings []string) map[string]any {
+func refactorJourneyResult(_ []string, simplifications []string, behaviorChange bool, findings []string) map[string]any {
 	if findings == nil {
 		findings = []string{}
 	}
-	return map[string]any{"changed_paths": paths, "no_file_changes": len(paths) == 0, "simplifications": simplifications, "behavior_change_intended": behaviorChange, "findings": findings}
+	return map[string]any{"simplifications": simplifications, "behavior_change_intended": behaviorChange, "findings": findings}
 }
 
 func deliveryJourneyResult(task domain.ProcessTask) map[string]any {
@@ -684,11 +704,11 @@ func deliveryJourneyResult(task domain.ProcessTask) map[string]any {
 			acceptance = append(acceptance, map[string]any{"criterion": criterion, "status": "satisfied"})
 		}
 	}
-	return map[string]any{"acceptance": acceptance, "automated_evidence_ids": automated, "manual_evidence_ids": manual, "test_record_id": testID, "comprehension_record_id": comprehensionID, "unverified_items": []string{}, "risks": []string{}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
+	return map[string]any{"acceptance": acceptance, "automated_evidence_ids": automated, "manual_evidence_ids": manual, "test_record_id": testID, "comprehension_record_id": comprehensionID, "unverified_items": []string{}, "risks": []string{}, "findings": []string{}}
 }
 
 func deliveryRemediationJourneyResult() map[string]any {
-	return map[string]any{"acceptance": []any{}, "automated_evidence_ids": []string{}, "manual_evidence_ids": []string{}, "test_record_id": "", "comprehension_record_id": "", "unverified_items": []string{}, "risks": []string{}, "findings": []string{"bounded delivery gap"}, "changed_paths": []string{}, "no_file_changes": true}
+	return map[string]any{"acceptance": []any{}, "automated_evidence_ids": []string{}, "manual_evidence_ids": []string{}, "test_record_id": "", "comprehension_record_id": "", "unverified_items": []string{}, "risks": []string{}, "findings": []string{"bounded delivery gap"}}
 }
 
 func assertTransitionAbsent(t *testing.T, task domain.ProcessTask, transition domain.TransitionID) {
@@ -717,4 +737,16 @@ func runJourneyGit(t *testing.T, directory string, args ...string) {
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, output)
 	}
+}
+
+func journeyGitOutput(t *testing.T, directory string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = directory
+	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1")
+	output, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git %s: %v", strings.Join(args, " "), err)
+	}
+	return strings.TrimSpace(string(output))
 }

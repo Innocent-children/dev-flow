@@ -19,9 +19,15 @@ Versuch aus oder eine neu gestartete Sitzung muss den Fortschritt aus dem Chat r
 Dev Flow speichert die vereinbarte Anfrage, erwartete Pfade, Prüfgrenzen, die aktuelle Phase und Ergebnisse
 in einer lokalen Aufgabe. Codex oder DeepSeek ändert weiterhin den Code.
 
+Jede neue Anfrage wird zuerst schreibgeschützt bewertet. Wenn du Dev Flow auswählst, bestätigst du Remote,
+Basis-Branch und einen neuen Task-Branch; der Host erstellt von dieser entfernten Basis einen sauberen,
+eigenen Worktree, bevor Core die Task anlegt. Änderungen aus dem Quell-Checkout werden nicht kopiert.
+
 - **Der Umfang bleibt klar.** Erwartete Pfade werden festgehalten, unterstützte strukturierte Werkzeuge
   fragen vor Schreibvorgängen außerhalb des Plans und tatsächliche Änderungen werden vor Tests und
   Auslieferung erneut geprüft.
+- **Jeder Worktree hat genau einen Änderungsbesitzer.** Core berechnet die aktuelle Task-Oberfläche aus
+  Git. Normale lineare Commits können fortgesetzt werden; Branch-Rewrites oder ein ersetzter Worktree stoppen die Task.
 - **Der Prüfaufwand bleibt begrenzt.** Automatische Prüfungen haben ein Befehlslimit, die vollständige
   Suite braucht vorherige Erlaubnis und die dritte exakte Wiederholung pausiert die Aufgabe.
 - **Die Arbeit übersteht Neustarts.** Eine neue Sitzung stellt dieselbe Aufgabe, übrige Prüfungen und die
@@ -64,12 +70,16 @@ Oder sende in **DeepSeek Harness**:
 ```
 
 Das sind Selektoren für die Unterhaltung, keine Shell-Befehle. Nenne ein konkretes Ziel, Abnahmekriterien,
-die Dateigrenze und das Testlimit.
+die Dateigrenze und das Testlimit. Die erste Antwort bewertet die Auswirkungen und fragt nach direkter
+Arbeit oder Dev Flow; auch ein expliziter Selektor überspringt diese Entscheidung nicht. Bei Dev Flow
+bestätigst du Remote, Basis und Ziel-Branch. Codex öffnet einen verwalteten Worktree, wenn der Host das
+unterstützt; DeepSeek zeigt den Neustart aus dem neuen Worktree, weil der Workspace Root der Sitzung feststeht.
 
 ### 3. Fortsetzen und Fortschritt prüfen
 
-Kehre nach einem Neustart in dasselbe Arbeitsverzeichnis des Repositorys zurück und verwende denselben
-Selektor erneut. Dev Flow liest die gespeicherte Aufgabe und setzt die aktuelle Phase fort.
+Kehre nach einem Neustart in den exakten, an die Task gebundenen Worktree zurück und fordere die Fortsetzung
+ausdrücklich an. Dabei werden Aufnahme und Worktree-Wahl nicht wiederholt. Fehlt die ursprüngliche Instanz
+oder wurde sie ersetzt, stoppt die Task bis zur Wiederherstellung oder zum ausdrücklichen Abandon.
 
 ```bash
 # Installierte Integrationen prüfen

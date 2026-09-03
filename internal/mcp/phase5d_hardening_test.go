@@ -18,6 +18,8 @@ import (
 func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 	digest := workflow.StandardProcess().Reference.DefinitionDigest
 	binding := strings.Repeat("a", 64)
+	origin := `{"mode":"dedicated_worktree","remote_name":"origin","base_branch":"main","base_commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","task_branch":"feature/task","provisioning_receipt_id":"receipt"}`
+	docsOrigin := `{"mode":"dedicated_worktree","remote_name":"origin","base_branch":"main","base_commit":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","task_branch":"feature/docs","provisioning_receipt_id":"receipt-docs"}`
 	valid := []struct {
 		name string
 		tool string
@@ -25,13 +27,13 @@ func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 	}{
 		{"open omitted", ToolOpenTask, `{"host":"codex","repository_path":"/repo"}`},
 		{"open null", ToolOpenTask, `{"host":"codex","repository_path":"/repo","new_task":null}`},
-		{"open nonnull", ToolOpenTask, `{"host":"codex","repository_path":"/repo","new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}}`},
-		{"open multi repository", ToolOpenTask, `{"host":"codex","repository_path":"/core","primary_repository_key":"core","additional_repositories":[{"key":"docs","repository_path":"/docs"}],"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}}`},
+		{"open nonnull", ToolOpenTask, `{"host":"codex","repository_path":"/repo","workspace_origin":` + origin + `,"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}}`},
+		{"open multi repository", ToolOpenTask, `{"host":"codex","repository_path":"/core","workspace_origin":` + origin + `,"primary_repository_key":"core","additional_repositories":[{"key":"docs","repository_path":"/docs","workspace_origin":` + docsOrigin + `}],"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}}`},
 		{"read omitted", ToolGetTask, `{"host":"codex","task_id":"task"}`},
 		{"read null", ToolGetTask, `{"host":"codex","task_id":"task","operation_probe":null}`},
 		{"next omitted", ToolGetNextAction, `{"host":"codex","task_id":"task"}`},
 		{"next null", ToolGetNextAction, `{"host":"codex","task_id":"task","operation_probe":null}`},
-		{"probe nonnull", ToolGetTask, fmt.Sprintf(`{"host":"codex","task_id":"task","operation_probe":{"operation_id":"original","process_id":"standard-development","process_definition_digest":"%s","source_cursor":"REQUIREMENTS","expected_revision":1,"action_id":"action","action_kind":"COMPLETE_REQUIREMENTS","repository_binding_digest":"%s","payload":null}}`, digest, binding)},
+		{"probe nonnull", ToolGetTask, fmt.Sprintf(`{"host":"codex","task_id":"task","operation_probe":{"operation_id":"original","process_id":"standard-development","process_definition_digest":"%s","source_cursor":"REQUIREMENTS","expected_revision":1,"action_id":"action","action_kind":"COMPLETE_REQUIREMENTS","repository_binding_digest":"%s","issuance_identity_digest":"%s","issuance_history_digest":"%s","issuance_content_digest":"%s","payload":null}}`, digest, binding, binding, binding, binding)},
 	}
 	for _, tc := range valid {
 		t.Run(tc.name, func(t *testing.T) {
@@ -47,11 +49,10 @@ func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 		raw  string
 	}{
 		{"open unknown", ToolOpenTask, `{"host":"codex","repository_path":"/repo","unknown":true}`},
-		{"open additional unknown", ToolOpenTask, `{"host":"codex","repository_path":"/core","additional_repositories":[{"key":"docs","repository_path":"/docs","unknown":true}],"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}}`},
-		{"open null primary key", ToolOpenTask, `{"host":"codex","repository_path":"/core","primary_repository_key":null,"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}}`},
-		{"open null additions", ToolOpenTask, `{"host":"codex","repository_path":"/core","additional_repositories":null,"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}}`},
+		{"open additional unknown", ToolOpenTask, `{"host":"codex","repository_path":"/core","workspace_origin":` + origin + `,"additional_repositories":[{"key":"docs","repository_path":"/docs","workspace_origin":` + docsOrigin + `,"unknown":true}],"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}}`},
+		{"open null primary key", ToolOpenTask, `{"host":"codex","repository_path":"/core","workspace_origin":` + origin + `,"primary_repository_key":null,"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}}`},
+		{"open null additions", ToolOpenTask, `{"host":"codex","repository_path":"/core","workspace_origin":` + origin + `,"additional_repositories":null,"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}}`},
 		{"open scope during resume", ToolOpenTask, `{"host":"codex","repository_path":"/core","primary_repository_key":"core","new_task":null}`},
-		{"open eighth additional", ToolOpenTask, `{"host":"codex","repository_path":"/core","additional_repositories":[{"key":"a","repository_path":"/a"},{"key":"b","repository_path":"/b"},{"key":"c","repository_path":"/c"},{"key":"d","repository_path":"/d"},{"key":"e","repository_path":"/e"},{"key":"f","repository_path":"/f"},{"key":"g","repository_path":"/g"},{"key":"h","repository_path":"/h"}],"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}}`},
 		{"read duplicate", ToolGetTask, `{"host":"codex","task_id":"task","operation_probe":null,"operation_probe":null}`},
 		{"probe incomplete", ToolGetTask, `{"host":"codex","task_id":"task","operation_probe":{"operation_id":"original"}}`},
 	}
@@ -61,6 +62,14 @@ func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 				t.Fatalf("error=%v", err)
 			}
 		})
+	}
+	additional := make([]map[string]any, 8)
+	for index := range additional {
+		additional[index] = map[string]any{"key": string(rune('a' + index)), "repository_path": fmt.Sprintf("/%c", 'a'+index), "workspace_origin": map[string]any{"mode": "dedicated_worktree", "remote_name": "origin", "base_branch": "main", "base_commit": strings.Repeat("a", 40), "task_branch": fmt.Sprintf("feature/%c", 'a'+index), "provisioning_receipt_id": fmt.Sprintf("receipt-%c", 'a'+index)}}
+	}
+	eighth, _ := json.Marshal(map[string]any{"host": "codex", "repository_path": "/core", "workspace_origin": json.RawMessage(origin), "additional_repositories": additional, "new_task": map[string]any{"request": "Build feature", "initial_scope": []any{}, "initial_out_of_scope": []any{}, "known_acceptance_criteria": []any{}, "verification_budget": map[string]any{"level": "targeted", "max_automatic_commands": 1, "allow_full_suite": false, "allow_manual_handoff": false}, "method_profile": "plain"}})
+	if err := ValidateToolInput(ToolOpenTask, eighth); err != domain.ErrInvalidArgument {
+		t.Fatalf("eighth additional repository error=%v", err)
 	}
 }
 

@@ -7,7 +7,7 @@ work. It demonstrates one important capability, not the product's complete value
 [Architecture](ARCHITECTURE_en.md) and the [Command Reference](COMMANDS_en.md) for exact nodes,
 commands, and MCP tools.
 
-## 1. The user requests a bounded task
+## 1. The user requests work and chooses whether to enter Dev Flow
 
 A developer asks Codex:
 
@@ -16,8 +16,13 @@ Add a failed-login attempt limit. Keep the change inside the authentication modu
 targeted tests needed for this behavior.
 ```
 
-Dev Flow creates a local Task and retains the request, scope, acceptance criteria, and verification
-budget. Codex still reads code, edits files, and runs commands.
+The Host first inspects candidate implementation, callers, tests, and Git state read-only, reports a
+change level, known impact, unknowns, and a recommendation, then stops. No Core call, Task, or Git
+write exists yet. After the developer chooses Dev Flow, they confirm a remote, base branch, and new
+target branch. The Host fetches the exact ref, freezes the base commit, and creates a clean dedicated
+worktree without copying staged, unstaged, or untracked source-checkout content. Core creates the
+local Task only after target verification and retains the request, scope, acceptance, WorkspaceOrigin,
+and verification budget.
 
 ## 2. Implementation completes and testing begins
 
@@ -39,8 +44,9 @@ This information lives in local Task state, not only in chat history.
 Without durable state, the next session can only inspect the repository and partial chat, then guess
 whether implementation finished, whether the test already ran, or whether verification should expand.
 
-Dev Flow does not reconstruct progress from chat. The next session opens the same Task and recovers
-the current node, revision, scope, and remaining verification:
+Dev Flow does not reconstruct progress from chat. The next session returns to the exact Task worktree
+and explicitly resumes. Core observes identity, history, and content before returning the current node,
+revision, scope, and remaining verification:
 
 ```text
 Before restart
@@ -58,14 +64,20 @@ Next: run the remaining targeted auth test
 ```
 
 This text is a simplified view of the user story, not a verbatim transcript from one Host. The
-important behavior is that both sides of the restart refer to the same Task, stage, and remaining
-work.
+important behavior is that both sides of the restart refer to the same Task, worktree instance, stage,
+and remaining work. A recreated path or same-named branch cannot impersonate the original instance;
+the Task becomes workspace-unavailable until the original is restored or explicitly abandoned.
 
 ## 4. The next session runs the remaining verification
 
 The agent runs the remaining targeted authentication test. It does not rescan and invent a new plan,
 or broaden verification into a full regression without reason. A failed test returns the Task to the
 corresponding implementation work. A passing test moves to developer comprehension.
+
+Core derives the Task surface from the fixed base commit, current commits, index, worktree, and
+untracked content. A normal linear commit on the task branch preserves changed paths, and committing
+identical content does not invalidate the test. A real content change, branch switch, rewind, or
+history rewrite is handled before substantive work continues.
 
 The comprehension check asks whether the current implementation can be explained and maintained. If
 refactoring changes the repository, the Task returns through `TEST`.

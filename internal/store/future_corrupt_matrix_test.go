@@ -15,7 +15,7 @@ import (
 func TestWrongDatabaseVersionSafeStops(t *testing.T) {
 	path := exactCurrentSchemaDatabase(t)
 	db := openRaw(t, path)
-	if _, err := db.Exec(`UPDATE schema_metadata SET version='0.4.0'`); err != nil {
+	if _, err := db.Exec(`UPDATE schema_metadata SET version='9.9.9'`); err != nil {
 		t.Fatal(err)
 	}
 	db.Close()
@@ -32,6 +32,7 @@ func TestPartialCurrentSchemaSafeStopMatrix(t *testing.T) {
 		{"missing action_operations table", func(statements []string) []string { return withoutSchemaStatements(statements, 5) }},
 		{"missing task_events table", func(statements []string) []string { return withoutSchemaStatements(statements, 6) }},
 		{"missing repository_claims table", func(statements []string) []string { return withoutSchemaStatements(statements, 7, 8) }},
+		{"missing unresolved relocation index", func(statements []string) []string { return withoutSchemaStatements(statements, 11) }},
 		{"missing required column", func(statements []string) []string {
 			statements[1] = strings.Replace(statements[1], `origin_host TEXT NOT NULL, `, ``, 1)
 			return withoutSchemaStatements(statements, 3)
@@ -107,6 +108,8 @@ func TestCorruptSnapshotSafeStopMatrix(t *testing.T) {
 	downstream.Design = &domain.DesignBaseline{Revision: 1, Digest: base.Repository.BindingDigest, RequirementsRevision: 1, Approach: "Impossible design", Decisions: []string{"Corrupt downstream authority"}, CreatedAt: base.CreatedAt}
 	lastOperation := base
 	lastOperation.LastOperation = &domain.LastOperation{OperationID: "operation", Kind: domain.OperationApplyAction, FromRevision: 1, ToRevision: 2, PayloadDigest: base.Repository.BindingDigest, CommittedAt: base.CreatedAt}
+	hiddenSurface := base
+	hiddenSurface.Repository.TaskSurface = []domain.RepositoryChangedEntry{storeChangedEntry("hidden.go", base.Repository.ContentDigest)}
 
 	cases := []struct {
 		name string
@@ -122,6 +125,7 @@ func TestCorruptSnapshotSafeStopMatrix(t *testing.T) {
 		{"invalid current node", invalidNode, mustJSONTask(t, invalidNode)},
 		{"downstream authority retained", downstream, mustJSONTask(t, downstream)},
 		{"LastOperation revision contradiction", lastOperation, mustJSONTask(t, lastOperation)},
+		{"current changed paths hide repository surface", hiddenSurface, mustJSONTask(t, hiddenSurface)},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -259,13 +263,13 @@ func taskDatabase(t *testing.T, task domain.ProcessTask, snapshot []byte) string
 	t.Helper()
 	path := exactCurrentSchemaDatabase(t)
 	db := openRaw(t, path)
-	_, err := db.Exec(`INSERT INTO tasks(task_id,origin_host,process_id,process_definition_digest,current_node,revision,repository_identity,snapshot,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)`,
-		task.TaskID, task.OriginHost, task.Process.ID, task.Process.DefinitionDigest, task.CurrentNode, task.Revision, task.Repository.RepositoryIdentity, snapshot, formatTime(task.CreatedAt), formatTime(task.UpdatedAt))
+	_, err := db.Exec(`INSERT INTO tasks(task_id,origin_host,process_id,process_definition_digest,current_node,revision,worktree_instance_digest,snapshot,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)`,
+		task.TaskID, task.OriginHost, task.Process.ID, task.Process.DefinitionDigest, task.CurrentNode, task.Revision, task.Repository.WorktreeInstanceDigest, snapshot, formatTime(task.CreatedAt), formatTime(task.UpdatedAt))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !task.CurrentNode.Terminal() {
-		if _, err := db.Exec(`INSERT INTO repository_claims(repository_identity,task_id,origin_host,claimed_at) VALUES(?,?,?,?)`, task.Repository.RepositoryIdentity, task.TaskID, task.OriginHost, formatTime(task.CreatedAt)); err != nil {
+		if _, err := db.Exec(`INSERT INTO repository_claims(worktree_instance_digest,canonical_worktree_root,task_id,origin_host,claimed_at) VALUES(?,?,?,?,?)`, task.Repository.WorktreeInstanceDigest, task.WorkspaceOrigin.CanonicalWorktreeRoot, task.TaskID, task.OriginHost, formatTime(task.CreatedAt)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -305,13 +309,13 @@ func fullGraphTask(t *testing.T) domain.ProcessTask {
 	task.Requirements = &domain.RequirementsBaseline{Revision: 1, Digest: digest, Goal: "Current goal", AcceptanceCriteria: []string{"Accepted behavior"}, CreatedAt: now}
 	task.Design = &domain.DesignBaseline{Revision: 1, Digest: digest, RequirementsRevision: 1, Approach: "Direct design", Decisions: []string{"Reuse the current boundary"}, CreatedAt: now}
 	task.TaskPlan = &domain.TaskPlanBaseline{Revision: 1, Digest: digest, DesignRevision: 1, WorkItems: []domain.WorkItem{{WorkItemID: "work", Summary: "Implement work", ExpectedPaths: []string{"internal/work.go"}, AcceptanceIndexes: []uint32{0}, VerificationSteps: []string{"Run targeted tests"}}}, CreatedAt: now}
-	task.Implementation = &domain.ImplementationRecord{Revision: 1, TaskPlanRevision: 1, RepositoryBindingDigest: digest, CompletedWorkItemIDs: []domain.ID{"work"}, NoFileChanges: true, Summary: "Implemented work", CreatedAt: now}
+	task.Implementation = &domain.ImplementationRecord{Revision: 1, TaskPlanRevision: 1, ContentDigest: digest, CompletedWorkItemIDs: []domain.ID{"work"}, Summary: "Implemented work", CreatedAt: now}
 	task.Evidence = []domain.EvidenceSummary{
 		{EvidenceID: "automated", Source: domain.EvidenceSourceAutomated, Name: "targeted", Status: domain.EvidencePassed, Summary: "Targeted tests passed", Digest: digest, CommandCount: 1, RecordedAt: now},
 		{EvidenceID: "user", Source: domain.EvidenceSourceUser, Name: "confirmation", Status: domain.EvidencePassed, Summary: "User confirmed understanding", Digest: digest, RecordedAt: now},
 	}
-	task.Test = &domain.TestRecord{RecordID: "test", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, RepositoryBindingDigest: digest, EvidenceIDs: []domain.ID{"automated"}, PassedAt: now}
-	task.Comprehension = &domain.ComprehensionAssessment{RecordID: "comprehension", TestRecordID: "test", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, RepositoryBindingDigest: digest, ExplainedComponents: []string{"component"}, UserEvidenceID: "user", ConfirmedAt: now}
+	task.Test = &domain.TestRecord{RecordID: "test", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, ContentDigest: digest, EvidenceIDs: []domain.ID{"automated"}, PassedAt: now}
+	task.Comprehension = &domain.ComprehensionAssessment{RecordID: "comprehension", TestRecordID: "test", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, ContentDigest: digest, ExplainedComponents: []string{"component"}, UserEvidenceID: "user", ConfirmedAt: now}
 	task.CurrentNode = domain.NodeDelivery
 	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), task.CurrentNode, task.TaskID, task.Revision, digest, task.Intent.MethodProfile, "delivery-action", now)
 	if err != nil {
@@ -337,10 +341,11 @@ func blockedGraphTask(t *testing.T) domain.ProcessTask {
 		BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.BlockerCauseRecoveryPartiallyCompleted,
 		Message: "Restore the issuance binding before continuing.", ResumeNode: resume,
 		ObservedBindingDigest: domain.Digest(strings.Repeat("d", 64)),
-		Condition:             domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: task.Repository.BindingDigest},
+		Condition:             domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: task.Repository.BindingDigest, ExpectedIdentityDigest: task.Repository.IdentityDigest, ExpectedHistoryDigest: task.Repository.HistoryDigest, ExpectedContentDigest: task.Repository.ContentDigest},
 		RequiredResolution:    "Restore the exact issuance binding.", CreatedAt: task.UpdatedAt,
 	}
-	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), task.CurrentNode, task.TaskID, task.Revision, task.Repository.BindingDigest, task.Intent.MethodProfile, "resolve-action", task.UpdatedAt)
+	workspace, _ := task.EffectiveWorkspaceDigests()
+	action, err := workflow.BuildProcessActionForWorkspace(workflow.StandardProcess(), task.CurrentNode, task.TaskID, task.Revision, workspace, task.Intent.MethodProfile, "resolve-action", task.UpdatedAt)
 	if err != nil {
 		t.Fatal(err)
 	}

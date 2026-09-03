@@ -3,7 +3,7 @@
   "evidence_class": "simulated_static_adapter_journey",
   "server_info": {
     "product": "dev-flow",
-    "version": "0.6.4",
+    "version": "0.7.0",
     "transport": "stdio",
     "health": "ready",
     "supported_hosts": [
@@ -13,7 +13,7 @@
     "supported_processes": [
       {
         "process_id": "standard-development",
-        "definition_digest": "c3500d879c1652cb4f3944317c41c1fd2536bfb262b2fa82cd44a2d7e49c0b57",
+        "definition_digest": "8f9543abc67421f1470e9ca8b953206571a119c65e5ec39c655bccd334203dc5",
         "new_task_supported": true
       }
     ],
@@ -43,9 +43,11 @@
       "dev_flow_submit_comprehension",
       "dev_flow_submit_refactor",
       "dev_flow_submit_delivery",
+      "dev_flow_prepare_task_relocation",
       "dev_flow_resolve_blocker",
       "dev_flow_recover_action",
-      "dev_flow_cancel_task"
+      "dev_flow_cancel_task",
+      "dev_flow_abandon_task"
     ]
   },
   "actions": {
@@ -56,16 +58,21 @@
       "action_kind": "COMPLETE_REQUIREMENTS",
       "submission_tool": "dev_flow_submit_requirements",
       "process_id": "standard-development",
-      "process_definition_digest": "c3500d879c1652cb4f3944317c41c1fd2536bfb262b2fa82cd44a2d7e49c0b57",
+      "process_definition_digest": "8f9543abc67421f1470e9ca8b953206571a119c65e5ec39c655bccd334203dc5",
       "current_node": "REQUIREMENTS",
       "node_purpose": "Transform the immutable initial intent into the current requirements authority.",
       "entry_conditions": [
-        "A valid immutable TaskIntent exists.",
-        "The canonical repository is claimed by this task."
+        "intent_available",
+        "repository_claimed",
+        "requirements_context_available"
       ],
       "completion_conditions": [
-        "The goal and boundaries are explicit.",
-        "Acceptance is observable and material questions are resolved."
+        "requirements_goal_defined",
+        "requirements_scope_bounded",
+        "requirements_exclusions_explicit",
+        "requirements_acceptance_nonempty",
+        "requirements_material_questions_resolved",
+        "requirements_user_decisions_recorded"
       ],
       "allowed_effects": [
         "read_repository",
@@ -73,38 +80,49 @@
         "request_user_decision"
       ],
       "required_evidence": [
-        "repository_observation",
-        "requirements_baseline"
+        {
+          "kind": "repository_observation",
+          "required": true
+        },
+        {
+          "kind": "requirements_baseline",
+          "required": true
+        }
       ],
+      "method_profile": "plain",
       "method_steps": [
         {
           "step_id": "requirements.capture",
-          "purpose": "Capture bounded requirements.",
+          "purpose": "Capture a bounded goal, scope, exclusions, acceptance criteria, constraints, and assumptions.",
           "required": true
         },
         {
           "step_id": "requirements.clarify",
-          "purpose": "Resolve material questions with the developer.",
+          "purpose": "Resolve material requirement questions with the developer.",
           "required": true
         },
         {
           "step_id": "requirements.validate",
-          "purpose": "Validate observable and bounded acceptance.",
+          "purpose": "Verify that requirements are observable, bounded, and free of material ambiguity.",
           "required": true
         }
       ],
       "available_transitions": [
         {
           "transition_id": "requirements_ready",
-          "destination": "DESIGN",
+          "destination_node": "DESIGN",
           "guard_id": "requirements_baseline_complete",
-          "when": "A complete requirements baseline has no material unresolved question.",
+          "description": "Move from REQUIREMENTS to DESIGN after completing the declared node obligations.",
+          "selection_condition": "Choose this transition only when the requirements baseline complete condition is satisfied.",
           "reason_required": false
         }
       ],
       "payload_contract": "requirements-result",
-      "guidance": "Complete the REQUIREMENTS contract and select one returned transition.",
+      "guidance": "Complete the current node contract and select one available transition.",
       "repository_binding_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "issuance_identity_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "issuance_history_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "issuance_content_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
       "issued_at": "2026-08-19T00:00:00Z"
     },
     "test": {
@@ -114,14 +132,19 @@
       "action_kind": "COMPLETE_TEST",
       "submission_tool": "dev_flow_submit_test",
       "process_id": "standard-development",
-      "process_definition_digest": "c3500d879c1652cb4f3944317c41c1fd2536bfb262b2fa82cd44a2d7e49c0b57",
+      "process_definition_digest": "8f9543abc67421f1470e9ca8b953206571a119c65e5ec39c655bccd334203dc5",
       "current_node": "TEST",
-      "node_purpose": "Verify current repository behavior within the immutable verification budget.",
+      "node_purpose": "Verify the current repository behavior within the immutable verification budget.",
       "entry_conditions": [
-        "The implementation and repository binding are current."
+        "implementation_current",
+        "repository_binding_current",
+        "verification_budget_available"
       ],
       "completion_conditions": [
-        "Checks, evidence, failures, and unverified work are classified."
+        "test_checks_classified",
+        "test_failures_classified",
+        "test_unverified_items_recorded",
+        "test_budget_obeyed"
       ],
       "allowed_effects": [
         "read_repository",
@@ -129,59 +152,73 @@
         "edit_process_artifacts"
       ],
       "required_evidence": [
-        "repository_observation",
-        "test_summary"
+        {
+          "kind": "repository_observation",
+          "required": true
+        },
+        {
+          "kind": "test_summary",
+          "required": true
+        }
       ],
+      "method_profile": "plain",
       "method_steps": [
         {
           "step_id": "test.run_budgeted_checks",
-          "purpose": "Run only budgeted checks.",
+          "purpose": "Run only verification authorized by the current verification budget.",
           "required": true
         },
         {
           "step_id": "test.record_evidence",
-          "purpose": "Record actual evidence.",
+          "purpose": "Record actual evidence sources, outcomes, and unverified or manual items.",
           "required": true
         },
         {
           "step_id": "test.classify_failure",
-          "purpose": "Classify the observed outcome.",
+          "purpose": "Classify failures as implementation, design, or requirement problems.",
           "required": true
         }
       ],
       "available_transitions": [
         {
           "transition_id": "tests_passed",
-          "destination": "COMPREHENSION_REVIEW",
+          "destination_node": "COMPREHENSION_REVIEW",
           "guard_id": "current_tests_pass",
-          "when": "All required current checks pass.",
+          "description": "Move from TEST to COMPREHENSION_REVIEW after completing the declared node obligations.",
+          "selection_condition": "Choose this transition only when the current tests pass condition is satisfied.",
           "reason_required": false
         },
         {
           "transition_id": "tests_failed_implementation",
-          "destination": "IMPLEMENT",
+          "destination_node": "IMPLEMENT",
           "guard_id": "implementation_failure_identified",
-          "when": "A current failure is attributable to implementation.",
+          "description": "Move from TEST to IMPLEMENT after completing the declared node obligations.",
+          "selection_condition": "Choose this transition only when the implementation failure identified condition is satisfied.",
           "reason_required": true
         },
         {
           "transition_id": "tests_expose_design_issue",
-          "destination": "DESIGN",
+          "destination_node": "DESIGN",
           "guard_id": "test_design_failure_identified",
-          "when": "A current failure demonstrates a design defect.",
+          "description": "Move from TEST to DESIGN after completing the declared node obligations.",
+          "selection_condition": "Choose this transition only when the test design failure identified condition is satisfied.",
           "reason_required": true
         },
         {
           "transition_id": "tests_expose_requirement_issue",
-          "destination": "REQUIREMENTS",
+          "destination_node": "REQUIREMENTS",
           "guard_id": "test_requirement_gap_identified",
-          "when": "A current failure demonstrates a requirement gap.",
+          "description": "Move from TEST to REQUIREMENTS after completing the declared node obligations.",
+          "selection_condition": "Choose this transition only when the test requirement gap identified condition is satisfied.",
           "reason_required": true
         }
       ],
       "payload_contract": "test-result",
-      "guidance": "Complete the TEST contract and select one returned transition.",
+      "guidance": "Complete the current node contract and select one available transition.",
       "repository_binding_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "issuance_identity_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "issuance_history_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "issuance_content_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
       "issued_at": "2026-08-19T00:05:00Z"
     },
     "comprehension_review": {
@@ -191,15 +228,19 @@
       "action_kind": "COMPLETE_COMPREHENSION_REVIEW",
       "submission_tool": "dev_flow_submit_comprehension",
       "process_id": "standard-development",
-      "process_definition_digest": "c3500d879c1652cb4f3944317c41c1fd2536bfb262b2fa82cd44a2d7e49c0b57",
+      "process_definition_digest": "8f9543abc67421f1470e9ca8b953206571a119c65e5ec39c655bccd334203dc5",
       "current_node": "COMPREHENSION_REVIEW",
-      "node_purpose": "Verify that the developer can explain and maintain the current result.",
+      "node_purpose": "Verify that the developer can explain and maintain the current design and implementation.",
       "entry_conditions": [
-        "Current tests passed against the current repository and baselines."
+        "test_current_and_passed",
+        "repository_binding_current",
+        "requirements_design_plan_current"
       ],
       "completion_conditions": [
-        "The explanation and complexity review are complete.",
-        "The developer provided an explicit verdict."
+        "comprehension_explanation_complete",
+        "comprehension_complexity_classified",
+        "comprehension_questions_resolved_or_routed",
+        "comprehension_user_verdict_recorded"
       ],
       "allowed_effects": [
         "read_repository",
@@ -207,13 +248,20 @@
         "request_user_decision"
       ],
       "required_evidence": [
-        "repository_observation",
-        "comprehension_assessment"
+        {
+          "kind": "repository_observation",
+          "required": true
+        },
+        {
+          "kind": "comprehension_assessment",
+          "required": true
+        }
       ],
+      "method_profile": "plain",
       "method_steps": [
         {
           "step_id": "comprehension.explain",
-          "purpose": "Explain current behavior, design, and code paths.",
+          "purpose": "Explain the current behavior, design, and code path in developer-readable terms.",
           "required": true
         },
         {
@@ -223,57 +271,66 @@
         },
         {
           "step_id": "comprehension.obtain_user_verdict",
-          "purpose": "Obtain the developer's explicit verdict.",
+          "purpose": "Obtain the developer's explicit understanding or remediation verdict.",
           "required": true
         }
       ],
       "available_transitions": [
         {
           "transition_id": "comprehension_passed",
-          "destination": "DELIVERY",
+          "destination_node": "DELIVERY",
           "guard_id": "current_user_comprehension_confirmed",
-          "when": "The developer explicitly confirms current comprehension.",
+          "description": "Move from COMPREHENSION_REVIEW to DELIVERY after completing the declared node obligations.",
+          "selection_condition": "Choose this transition only when the current user comprehension confirmed condition is satisfied.",
           "reason_required": false
         },
         {
           "transition_id": "implementation_defect",
-          "destination": "IMPLEMENT",
+          "destination_node": "IMPLEMENT",
           "guard_id": "implementation_defect_identified",
-          "when": "The review identifies an implementation defect.",
+          "description": "Move from COMPREHENSION_REVIEW to IMPLEMENT after completing the declared node obligations.",
+          "selection_condition": "Choose this transition only when the implementation defect identified condition is satisfied.",
           "reason_required": true
         },
         {
           "transition_id": "code_too_complex",
-          "destination": "REFACTOR",
+          "destination_node": "REFACTOR",
           "guard_id": "code_complexity_identified",
-          "when": "The developer identifies unnecessary code complexity.",
+          "description": "Move from COMPREHENSION_REVIEW to REFACTOR after completing the declared node obligations.",
+          "selection_condition": "Choose this transition only when the code complexity identified condition is satisfied.",
           "reason_required": true
         },
         {
           "transition_id": "design_too_complex",
-          "destination": "DESIGN",
+          "destination_node": "DESIGN",
           "guard_id": "design_complexity_identified",
-          "when": "The developer identifies unnecessary design complexity.",
+          "description": "Move from COMPREHENSION_REVIEW to DESIGN after completing the declared node obligations.",
+          "selection_condition": "Choose this transition only when the design complexity identified condition is satisfied.",
           "reason_required": true
         },
         {
           "transition_id": "evidence_insufficient",
-          "destination": "TEST",
+          "destination_node": "TEST",
           "guard_id": "verification_gap_identified",
-          "when": "Current verification cannot support comprehension.",
+          "description": "Move from COMPREHENSION_REVIEW to TEST after completing the declared node obligations.",
+          "selection_condition": "Choose this transition only when the verification gap identified condition is satisfied.",
           "reason_required": true
         },
         {
           "transition_id": "requirement_unclear",
-          "destination": "REQUIREMENTS",
+          "destination_node": "REQUIREMENTS",
           "guard_id": "comprehension_requirement_gap_identified",
-          "when": "A material requirement remains unclear.",
+          "description": "Move from COMPREHENSION_REVIEW to REQUIREMENTS after completing the declared node obligations.",
+          "selection_condition": "Choose this transition only when the comprehension requirement gap identified condition is satisfied.",
           "reason_required": true
         }
       ],
       "payload_contract": "comprehension-result",
-      "guidance": "Present the review and wait for the developer's explicit verdict.",
+      "guidance": "Complete the current node contract and select one available transition.",
       "repository_binding_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "issuance_identity_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "issuance_history_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "issuance_content_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
       "issued_at": "2026-08-19T00:06:00Z"
     }
   },
@@ -296,9 +353,7 @@
       ],
       "assumptions": []
     },
-    "unresolved_questions": [],
-    "changed_paths": [],
-    "no_file_changes": true
+    "unresolved_questions": []
   },
   "scenarios": [
     {
@@ -627,9 +682,7 @@
           "source": "user",
           "status": "passed",
           "summary": "The developer explicitly confirmed understanding."
-        },
-        "changed_paths": [],
-        "no_file_changes": true
+        }
       },
       "transition_id": "comprehension_passed",
       "should_apply": true
@@ -678,9 +731,7 @@
         "user_confirmation": null,
         "findings": [
           "The current code path is unnecessarily complex."
-        ],
-        "changed_paths": [],
-        "no_file_changes": true
+        ]
       },
       "transition_id": "code_too_complex",
       "reason": "The developer cannot maintain the unnecessary rendering wrapper.",

@@ -12,7 +12,7 @@ import (
 
 func TestProcessActionMethodProfileAndStepsProjection(t *testing.T) {
 	definition := workflow.StandardProcess()
-	action, err := workflow.BuildProcessAction(definition, domain.NodeRequirements, "task", 1, methodProjectionDigest(), domain.MethodSpecKit, "action", time.Date(2026, 8, 19, 17, 0, 0, 0, time.UTC))
+	action, err := workflow.BuildProcessActionForWorkspace(definition, domain.NodeRequirements, "task", 1, methodProjectionWorkspace(), domain.MethodSpecKit, "action", time.Date(2026, 8, 19, 17, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,11 +48,11 @@ func TestProcessActionMethodProfileAndStepsProjection(t *testing.T) {
 func TestGetNextActionMethodProfileActiveBlockedDoneAndCancelled(t *testing.T) {
 	definition := workflow.StandardProcess()
 	now := time.Date(2026, 8, 19, 17, 0, 0, 0, time.UTC)
-	action, err := workflow.BuildProcessAction(definition, domain.NodeRequirements, "task", 1, methodProjectionDigest(), domain.MethodOpenSpec, "action", now)
+	action, err := workflow.BuildProcessActionForWorkspace(definition, domain.NodeRequirements, "task", 1, methodProjectionWorkspace(), domain.MethodOpenSpec, "action", now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	blockedAction, err := workflow.BuildProcessAction(definition, domain.NodeBlocked, "task", 1, methodProjectionDigest(), domain.MethodOpenSpec, "blocked-action", now)
+	blockedAction, err := workflow.BuildProcessActionForWorkspace(definition, domain.NodeBlocked, "task", 1, methodProjectionWorkspace(), domain.MethodOpenSpec, "blocked-action", now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,4 +81,8 @@ func TestGetNextActionMethodProfileActiveBlockedDoneAndCancelled(t *testing.T) {
 
 func methodProjectionDigest() domain.Digest {
 	return "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}
+
+func methodProjectionWorkspace() domain.WorkspaceDigests {
+	return domain.WorkspaceDigests{Binding: methodProjectionDigest(), Identity: repeatedDigest('b'), History: repeatedDigest('c'), Content: repeatedDigest('d')}
 }

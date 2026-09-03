@@ -6,6 +6,12 @@
 
 `@imotong/dev-flow` is the Host-neutral lifecycle and Control Center CLI for Dev Flow.
 
+New development Tasks are not created by this lifecycle CLI or by Control Center. Codex and DeepSeek
+first assess a request read-only, obtain the developer's remote/base/target confirmation, provision a
+dedicated worktree, and only then open Core from the target Host. Control Center projects that
+WorkspaceOrigin, current Task surface, blockers, relocation, and terminal cleanup choices without
+performing Git or Host handoff itself.
+
 The current source accepts exactly `darwin-arm64` and `win32-x64`; the Windows scope is consumer
 Windows 10/11 desktop x64. Windows Server, 32-bit/ARM64 Windows, and Intel Mac are excluded. npm
 `@latest` availability remains defined by the repository Support Matrix until a confirmed release.

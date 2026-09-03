@@ -15,7 +15,7 @@ Products evolve independently. Releasing one product changes only that product's
 required mirror. Codex and DeepSeek may package a different Core version; builds and release evidence
 read it from the actual Core executable.
 
-SQLite additionally has one Core-owned database Schema version, currently `0.3.0`. It identifies
+SQLite additionally has one Core-owned database Schema version, currently `0.4.0`. It identifies
 the one supported persisted layout and changes with that current layout.
 
 Internal protocols, limits, snapshots, process definitions, payload contracts,
@@ -24,4 +24,4 @@ numbers. Current capabilities, closed schemas/catalogs, content digests, artifac
 runtime behavior define the current contract.
 
 New public Tags use `core-vX.Y.Z`, `codex-vX.Y.Z`, or `deepseek-vX.Y.Z`. Historical unprefixed Tags
-remain frozen; the first new Codex Tag uses `v0.5.0` as its previous release.
+remain frozen and are not current version authorities.

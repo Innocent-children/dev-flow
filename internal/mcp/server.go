@@ -5,12 +5,13 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"strings"
+
 	"github.com/Innocent-children/dev-flow/internal/application"
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/userconfig"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
-	"strings"
 )
 
 type RequestIDGenerator func() (domain.ID, error)
@@ -88,7 +89,7 @@ func (s *Server) dispatch(ctx context.Context, tool string, id domain.ID, raw []
 		if err != nil {
 			return EncodeError(string(resultID), tool, err)
 		}
-		return EncodeSuccess(string(resultID), tool, map[string]any{"created": r.Created, "task": projectTask(r.Task), "recovery_assessment": nil})
+		return EncodeSuccess(string(resultID), tool, map[string]any{"created": r.Created, "task": projectTask(r.Task), "recovery_assessment": projectRecoveryAssessment(r.RecoveryAssessment)})
 	case ToolGetTask:
 		var w readWire
 		_ = decodeClosed(raw, &w)
@@ -112,7 +113,7 @@ func (s *Server) dispatch(ctx context.Context, tool string, id domain.ID, raw []
 		if wire.Choice != "" {
 			decision = &domain.FileScopeDecisionInput{Choice: wire.Choice, Reason: wire.Reason}
 		}
-		result, err := s.application.ResolveBlockerAction(ctx, application.RecoverActionRequest{Host: wire.Host, TaskID: wire.TaskID, ActionID: wire.ActionID, FileScopeDecision: decision}, id)
+		result, err := s.application.ResolveBlockerAction(ctx, application.RecoverActionRequest{Host: wire.Host, TaskID: wire.TaskID, ActionID: wire.ActionID, FileScopeDecision: decision, RelocationID: wire.RelocationID, RelocationDestinations: wire.RelocationDestinations, HistoryResolution: wire.HistoryResolution}, id)
 		if err != nil {
 			return EncodeError(string(resultID), tool, err)
 		}
@@ -129,6 +130,22 @@ func (s *Server) dispatch(ctx context.Context, tool string, id domain.ID, raw []
 		var w cancelWire
 		_ = decodeClosed(raw, &w)
 		r, err := s.application.CancelTask(ctx, application.CancelTaskRequest{RequestID: w.RequestID, Host: w.Host, TaskID: w.TaskID, ExpectedRevision: w.Revision, Reason: w.Reason})
+		if err != nil {
+			return EncodeError(string(resultID), tool, err)
+		}
+		return EncodeSuccess(string(resultID), tool, projectTask(r.Task))
+	case ToolPrepareTaskRelocation:
+		var w lifecycleWire
+		_ = decodeClosed(raw, &w)
+		r, err := s.application.PrepareTaskRelocation(ctx, application.PrepareTaskRelocationRequest{RequestID: id, Host: w.Host, TaskID: w.TaskID, ExpectedRevision: w.Revision})
+		if err != nil {
+			return EncodeError(string(resultID), tool, err)
+		}
+		return EncodeSuccess(string(resultID), tool, map[string]any{"relocation_id": r.RelocationID, "task": projectTask(r.Task)})
+	case ToolAbandonTask:
+		var w abandonWire
+		_ = decodeClosed(raw, &w)
+		r, err := s.application.AbandonTask(ctx, application.AbandonTaskRequest{RequestID: id, Host: w.Host, TaskID: w.TaskID, ExpectedRevision: w.Revision, Reason: w.Reason})
 		if err != nil {
 			return EncodeError(string(resultID), tool, err)
 		}

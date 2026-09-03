@@ -1,53 +1,48 @@
-# Core Journeys
+# Current Core and Host Journeys
 
-本目录验证 shared Go Core 的跨层开发过程行为。所有 repository 和 SQLite 数据均位于测试框架
-管理的临时目录；测试完成后不保留用户数据，不修改真实 Git repository 或 Codex 配置。
+本目录验证当前 worktree-first Core 与 Host 合同。测试仓库、remote、worktree 和 SQLite 位于测试框架
+管理的临时目录；fixture cleanup 不操作用户仓库、用户工作树、真实 Host 配置或公开制品。
 
-## 已实现 Journey
+## Core Journey
 
-| 文件 / Journey | 能力 | 证据类型 |
+| 文件 | 当前覆盖 | 证据类型 |
 | --- | --- | --- |
-| `process_graph_navigation_test.go` | 创建 Graph Task、REQUIREMENTS/DESIGN 导航、完整合法出边、invalid edge zero-write | in-process deterministic；real temporary Git/SQLite |
-| `process_graph_iteration_test.go` | IMPLEMENT/TEST/COMPREHENSION_REVIEW/REFACTOR/retest/delivery、negative comprehension/delivery | in-process deterministic；real temporary Git/SQLite |
-| `process_graph_iteration_test.go` rework cases | requirements/design/delivery remediation 和 downstream authority invalidation | in-process deterministic；real temporary Git/SQLite |
-| `recovery_uncertainty_test.go` | graph operation probe、五分类、read-before-retry、blocker/recovery apply | in-process deterministic；real temporary Git/SQLite |
-| `process_graph_concurrency_test.go` | 两个 Store/Application handle 对同一 mutation 的 CAS 竞争与单次提交 | two-handle deterministic；real temporary Git/SQLite |
-| `process_graph_restart_test.go` | COMPREHENSION_REVIEW 跨进程关闭/重开、同一 task/action/baseline/test/profile/transition | subprocess；real temporary Git/SQLite |
-| `storage_generation_boundary_test.go` | direct current storage bootstrap、former storage zero-write rejection、显式新目录、restart | in-process deterministic；real temporary Git/SQLite |
-| `shared/simulated-submission-contract.test.mjs` | Codex-owned Task 省略 Design、Tasks、Implementation system-state revision，Core 从同一当前 Task 快照填充 | simulated shared MCP client；source-built Core；real temporary Git/SQLite |
+| `process_graph_navigation_test.go` | 专属 worktree open、REQUIREMENTS/DESIGN 导航、完整合法出边、invalid edge zero-write | in-process deterministic；real temporary Git/SQLite |
+| `process_graph_iteration_test.go` | IMPLEMENT/TEST/COMPREHENSION_REVIEW/REFACTOR/retest/delivery 与返工失效 | in-process deterministic；real temporary Git/SQLite |
+| `recovery_uncertainty_test.go` | issuance digests、五分类、Core-retained Action、read-before-retry、blocker/recovery apply | in-process deterministic；real temporary Git/SQLite |
+| `process_graph_concurrency_test.go` | 多 Store/Application handle 的 revision CAS 与单次提交 | two-handle deterministic；real temporary Git/SQLite |
+| `process_graph_restart_test.go` | 关闭/重开后保留 Task、Action、origin、records 和合法下一步 | subprocess；real temporary Git/SQLite |
+| `current_storage_boundary_test.go` | 当前 Schema direct bootstrap、非当前 Schema zero-write 拒绝与 restart | in-process deterministic；real temporary Git/SQLite |
+| `multi_repository_scope_test.go` | 全部 roots 先 provision、一次 Task/claim 集、repository-qualified current surface | in-process deterministic；real temporary Git/SQLite |
+| `webui_host_parity_test.go` | Codex/DeepSeek 共用 Core Task 与 workspace projection | in-process deterministic；real temporary Git/SQLite |
 
-测试 helper 可以在 setup 阶段初始化并 commit 临时 repository。进入 Core Journey 后，Repository
-Observer 只执行有界只读 Git 观察；测试会比较预期 repository state，并关闭/丢弃旧 Store、DB
-handle、observer 和 service 后再证明 restart。
+Core Journey 的 setup helper 可以初始化 remote、commit 和独立 worktree；Task 打开后，Core Observer
+只执行有界只读 Git 命令。Host 自报文件变化不是测试输入。
 
-## Adapter 与 native 边界
+## Host 与 shared Journey
 
-`packages/codex/tests/journey-harness.test.mjs` 和相关 fixture 验证 simulated Codex Adapter/Harness
-控制流、parser 和 evidence closure。它们属于 **simulated Codex adapter** evidence，不属于本目录
-Go Journey，也不能标记为 real/native Codex。
+| 文件 | 当前覆盖 | 证据类型 |
+| --- | --- | --- |
+| `shared/simulated-submission-contract.test.mjs` | dedicated-worktree open、semantic-only node result、Core-owned revision/issuance fields | simulated shared MCP client；source-built Core；real temporary Git/SQLite |
+| `codex/simulated-worktree-first.test.mjs` | assessment、确认、fetch、managed descriptor/bootstrap、Task、commit、relocation/Handoff 与双 cleanup | simulated Codex/Core/Host；real temporary Git remote/worktree/receipt |
+| `codex/native-runner.mjs` | 校验外部真实 Codex App worktree-first Journey 的闭合事件与 artifact 身份 | explicit-input native validator；无输入时 skipped |
+| `deepseek/simulated-graph-journey.test.mjs` | DSH selector/semantic payload、Core graph 与 worktree-first contract | simulated DeepSeek；source-built Core |
+| `deepseek/native-runner.mjs` | 普通请求 assessment、确认、provision/relaunch、Task、测试、DONE 与 cleanup | explicit-input real DSH runner |
+| `deepseek/multi-repository-runner.mjs` | 多 remote/root 全量 provisioning、一次 open 和零 partial claim | explicit-input real DSH runner |
 
-Feature 003 历史 native evidence 仍是对应已发布合同的冻结事实。Feature 008 current Core contract 的
-native attempt 1 在第一条 REQUIREMENTS payload 上失败；explicitly authorized attempt 2 在
-`requirements_ready` 提交后因非法 DESIGN payload 失败。Attempt 3 的四个真实 Codex 会话完成
-graph workflow 并到达 Core `DONE`，随后 runner 在命令分类阶段误把只读 TEST 模板检查识别为
-验证命令，因此 lifecycle 未执行。三个原始外部证据目录均保留，Attempt 3 的 failed marker 不
-改写，Attempt 4 禁止执行。
+`packages/codex/tests/task-launch.test.mjs` 与 Codex simulated Journey 使用真实临时 Git，但 Codex task、
+Core 和 Handoff 是模拟 Adapter，因此不能标记为 native Codex。`codex/native-runner.mjs` 只校验显式
+提供的真实 App 结果，本身不创建 Task 或执行 Handoff。
 
-Feature 008 的最终 SC-015 采用同一精确 source-local artifact 的组合证据：Attempt 3 提供
-`native Codex graph-flow evidence`；独立的 no-Codex packaged-Core runner 提供
-`deterministic exact-artifact lifecycle evidence`，覆盖 setup/remove/repeated remove/npm
-uninstall/data retention/exact-artifact reinstall/同一 lifecycle Task retained reopen。两个组件
-使用不同 Task，组合记录只绑定共同 artifact identity。T092 仅在离线 native 重验、确定性
-lifecycle 和闭合组合证据全部通过后完成；该门禁现已满足，T092 状态为 Complete。
+DeepSeek native runners 只有在 credentials、settings、DSH CLI、source-local artifact、digest 和
+确认变量全部显式提供时才运行。缺少条件时的 `skipped` 是 unavailable，不是 passed。
 
-当前 Journey 不证明 released package、registry artifact 或 public support。
+## 证据规则
 
-## Evidence rules
-
-- `in-process deterministic`、`real temporary Git/SQLite`、`two-handle`、`subprocess`、
-  `simulated Codex adapter` 和 `native Codex` 必须保持不同标签；
-- failure injection/response-loss fixtures 只证明其确定性边界，不是 real-host crash；
-- fake、fixture、static、user-performed 或 simulated evidence 不能升级为 native evidence；
-- deterministic exact-artifact lifecycle evidence 不能升级为 native Codex evidence，也不能
-  表示为 Attempt 3 的同一 Task；
-- Journey 不写入 repository artifact、用户 HOME、真实数据库路径或真实 Codex state。
+- `static`、`fixture`、`simulated`、`in-process`、`subprocess`、`native Host` 和 `final artifact`
+  保持不同标签；
+- response-loss/failure injection 只证明确定性分支，不等于真实 Host crash；
+- fake、fixture 或 source test 不能扩大 Support Matrix；
+- native validator 没有显式外部结果时不能声明 native evidence；
+- 当前 Journey 不证明 registry package、released artifact、Windows native Host 或公开稳定支持；
+- Journey 不保存 raw transcript、凭据、用户路径、源文件正文或 secret。

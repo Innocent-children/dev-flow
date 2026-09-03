@@ -22,35 +22,20 @@ func compareRepositoryBindings(authoritative, fresh domain.RepositoryBinding) (R
 	if authoritative.Validate() != nil || fresh.Validate() != nil {
 		return "", "", domain.ErrInvalidArgument
 	}
-	identity := authoritative.CanonicalRoot == fresh.CanonicalRoot &&
-		authoritative.GitCommonDirDigest == fresh.GitCommonDirDigest &&
-		authoritative.RepositoryIdentity == fresh.RepositoryIdentity &&
-		sameText(authoritative.Branch, fresh.Branch) && authoritative.Detached == fresh.Detached &&
-		sameText(authoritative.Head, fresh.Head) && authoritative.Unborn == fresh.Unborn
-	if identity && authoritative.WorktreeFingerprint == fresh.WorktreeFingerprint && authoritative.BindingDigest == fresh.BindingDigest {
+	if authoritative.WorktreeInstanceDigest != fresh.WorktreeInstanceDigest || authoritative.IdentityDigest != fresh.IdentityDigest {
+		return RepositoryForbiddenChange, RepositoryReasonWorktreeInstance, nil
+	}
+	if fresh.HistoryRelation != domain.RepositoryHistoryExact && fresh.HistoryRelation != domain.RepositoryHistoryLinearAdvance {
+		return RepositoryForbiddenChange, RepositoryReasonHistory, nil
+	}
+	if authoritative.BindingDigest == fresh.BindingDigest {
 		return RepositoryExact, RepositoryReasonExact, nil
 	}
-	if identity && authoritative.WorktreeFingerprint != fresh.WorktreeFingerprint && authoritative.BindingDigest != fresh.BindingDigest {
-		return RepositoryWorktreeOnlyChanged, RepositoryReasonWorktreeChanged, nil
+	reason := RepositoryReasonHistory
+	if authoritative.ContentDigest != fresh.ContentDigest {
+		reason = RepositoryReasonContent
 	}
-	reason := RepositoryReasonBinding
-	switch {
-	case authoritative.CanonicalRoot != fresh.CanonicalRoot:
-		reason = RepositoryReasonCanonicalRoot
-	case authoritative.GitCommonDirDigest != fresh.GitCommonDirDigest:
-		reason = RepositoryReasonGitCommonDir
-	case authoritative.RepositoryIdentity != fresh.RepositoryIdentity:
-		reason = RepositoryReasonIdentity
-	case !sameText(authoritative.Branch, fresh.Branch):
-		reason = RepositoryReasonBranch
-	case !sameText(authoritative.Head, fresh.Head):
-		reason = RepositoryReasonHead
-	case authoritative.Detached != fresh.Detached:
-		reason = RepositoryReasonDetached
-	case authoritative.Unborn != fresh.Unborn:
-		reason = RepositoryReasonUnborn
-	}
-	return RepositoryForbiddenChange, reason, nil
+	return RepositoryWorktreeOnlyChanged, reason, nil
 }
 
 func CompareRepositoryScope(task domain.ProcessTask, observed RepositoryScopeObservation) (RepositoryScopeComparison, error) {
@@ -88,24 +73,16 @@ func CompareRepositoryScope(task domain.ProcessTask, observed RepositoryScopeObs
 	}
 	sort.Slice(facts, func(i, j int) bool { return facts[i].RepositoryKey < facts[j].RepositoryKey })
 	digestTask := task
-	digestTask.Repository = observedDigestBinding(task.Repository, observed.Primary)
+	digestTask.Repository = observed.Primary.Clone()
 	digestTask.AdditionalRepositories = make([]domain.RepositoryScopeEntry, len(task.AdditionalRepositories))
 	for i, entry := range task.AdditionalRepositories {
-		digestTask.AdditionalRepositories[i] = domain.RepositoryScopeEntry{Key: entry.Key, Binding: observedDigestBinding(entry.Binding, observed.Additional[i].Binding)}
+		digestTask.AdditionalRepositories[i] = domain.RepositoryScopeEntry{Key: entry.Key, Origin: entry.Origin, Binding: observed.Additional[i].Binding.Clone()}
 	}
 	digest, err := digestTask.EffectiveRepositoryBindingDigest()
 	if err != nil {
 		return RepositoryScopeComparison{}, domain.ErrInvalidArgument
 	}
 	return RepositoryScopeComparison{Relation: relation, Repositories: facts, ObservedDigest: digest, ObservedAt: observedAt}, nil
-}
-
-func observedDigestBinding(authoritative, observed domain.RepositoryBinding) domain.RepositoryBinding {
-	binding := observed.Clone()
-	binding.CanonicalRoot = authoritative.CanonicalRoot
-	binding.GitCommonDirDigest = authoritative.GitCommonDirDigest
-	binding.RepositoryIdentity = authoritative.RepositoryIdentity
-	return binding
 }
 
 func BindingAcceptedForAction(action domain.ActionKind, relation RepositoryRelation) (bool, error) {
@@ -148,9 +125,9 @@ func Reconcile(input ReconcileInput) (RecoveryDecision, error) {
 				return RecoveryDecision{}, decodeErr
 			}
 			canonical = raw
-			effect = RepositoryEffect{Kind: EffectExactBlockerRestoration, NoFileChanges: true}
+			effect = RepositoryEffect{Kind: EffectExactBlockerRestoration}
 			if payload.Condition.Kind == domain.BlockerConditionResolveFileScope {
-				effect = RepositoryEffect{Kind: EffectFileScopeResolution, NoFileChanges: true}
+				effect = RepositoryEffect{Kind: EffectFileScopeResolution}
 			}
 			if input.Task.Blocker == nil || payload.BlockerID != input.Task.Blocker.BlockerID ||
 				payload.Condition != input.Task.Blocker.Condition || payload.ObservedBindingDigest != comparison.ObservedDigest {
@@ -226,7 +203,7 @@ func Reconcile(input ReconcileInput) (RecoveryDecision, error) {
 
 func reconcileObservation(input ReconcileInput) (RepositoryScopeObservation, error) {
 	if input.ObservedScope != nil {
-		if input.Observed.CanonicalRoot != "" {
+		if input.Observed.WorktreeInstanceDigest != "" {
 			return RepositoryScopeObservation{}, domain.ErrInvalidArgument
 		}
 		return *input.ObservedScope, nil
@@ -238,79 +215,65 @@ func reconcileObservation(input ReconcileInput) (RepositoryScopeObservation, err
 }
 
 func operationEvidenceFor(effect RepositoryEffect, relation RepositoryRelation, authoritative, observed domain.RepositoryBinding) OperationEvidenceState {
-	if relation == RepositoryExact && !effect.NoFileChanges &&
-		(effect.Kind == EffectProductFileChange || effect.Kind == EffectProcessArtifactOnly) {
-		return OperationEvidenceNone
+	if relation == RepositoryForbiddenChange {
+		return OperationEvidenceContradictory
 	}
-	if RepositoryEffectMatches(effect, relation, authoritative, observed) {
+	delta := bindingDeltaPaths(authoritative, observed)
+	if len(delta) == 0 {
+		return OperationEvidenceComplete
+	}
+	if effect.Kind == EffectProcessArtifactOnly && containsEveryPath(effect.Paths, delta) {
+		return OperationEvidenceComplete
+	}
+	if effect.Kind == EffectProductFileChange {
 		return OperationEvidenceComplete
 	}
 	return OperationEvidenceContradictory
 }
 
 func RepositoryScopeEffectEvidence(task domain.ProcessTask, observed RepositoryScopeObservation, comparison RepositoryScopeComparison, effect RepositoryEffect) OperationEvidenceState {
+	if effect.Kind == EffectProductFileChange && len(task.UnexplainedChangedPaths(observed.Primary, observed.Additional)) != 0 {
+		return OperationEvidenceContradictory
+	}
 	if len(task.AdditionalRepositories) == 0 {
 		return operationEvidenceFor(effect, comparison.Relation, task.Repository, observed.Primary)
 	}
 	authoritative := map[domain.RepositoryKey]domain.RepositoryBinding{task.EffectivePrimaryRepositoryKey(): task.Repository}
 	fresh := map[domain.RepositoryKey]domain.RepositoryBinding{task.EffectivePrimaryRepositoryKey(): observed.Primary}
-	relations := map[domain.RepositoryKey]RepositoryRelation{}
-	for _, fact := range comparison.Repositories {
-		relations[fact.RepositoryKey] = fact.Relation
-	}
 	for i, entry := range task.AdditionalRepositories {
 		authoritative[entry.Key] = entry.Binding
 		fresh[entry.Key] = observed.Additional[i].Binding
 	}
-	if effect.Kind == EffectFileScopeResolution && effect.NoFileChanges && len(effect.ChangedPaths) == 0 {
+	if effect.Kind == EffectFileScopeResolution {
 		if comparison.Relation == RepositoryExact || comparison.Relation == RepositoryWorktreeOnlyChanged {
 			return OperationEvidenceComplete
 		}
 		return OperationEvidenceContradictory
 	}
-	if effect.NoFileChanges && len(effect.ChangedPaths) == 0 {
-		if comparison.Relation == RepositoryExact {
-			return OperationEvidenceComplete
-		}
-		return OperationEvidenceContradictory
-	}
 	declared := map[domain.RepositoryKey][]string{}
-	for _, scopedPath := range effect.ChangedPaths {
+	for _, scopedPath := range effect.Paths {
 		keyText, path, ok := strings.Cut(scopedPath, "::")
-		key := domain.RepositoryKey(keyText)
-		if !ok || path == "" || authoritative[key].Validate() != nil {
-			return OperationEvidenceContradictory
+		if ok {
+			declared[domain.RepositoryKey(keyText)] = append(declared[domain.RepositoryKey(keyText)], path)
 		}
-		declared[key] = append(declared[key], path)
-	}
-	if len(declared) == 0 {
-		return OperationEvidenceContradictory
 	}
 	completed := 0
 	for key, binding := range authoritative {
-		paths := declared[key]
-		if len(paths) == 0 {
-			if relations[key] != RepositoryExact {
-				return OperationEvidenceContradictory
-			}
+		delta := bindingDeltaPaths(binding, fresh[key])
+		if len(delta) == 0 {
 			continue
 		}
-		componentEffect := effect
-		componentEffect.ChangedPaths = paths
-		componentEffect.NoFileChanges = false
-		if RepositoryEffectMatches(componentEffect, relations[key], binding, fresh[key]) {
+		if effect.Kind == EffectProductFileChange || effect.Kind == EffectProcessArtifactOnly && containsEveryPath(declared[key], delta) {
 			completed++
 			continue
 		}
-		if relations[key] != RepositoryExact {
-			return OperationEvidenceContradictory
-		}
+		return OperationEvidenceContradictory
 	}
-	if completed == len(declared) {
+	if comparison.Relation == RepositoryForbiddenChange {
+		return OperationEvidenceContradictory
+	}
+	if completed > 0 || comparison.Relation == RepositoryExact || comparison.Relation == RepositoryWorktreeOnlyChanged {
 		return OperationEvidenceComplete
-	}
-	if completed > 0 {
-		return OperationEvidencePartial
 	}
 	return OperationEvidenceNone
 }
@@ -323,49 +286,52 @@ func DeriveRepositoryEffect(source domain.NodeID, envelope workflow.StandardPayl
 	}
 	switch value := result.(type) {
 	case *workflow.RequirementsResult:
-		return processArtifactEffect(value.ChangedPaths, value.NoFileChanges), nil
+		_ = value
+		return processArtifactEffect(envelope.Artifacts), nil
 	case *workflow.DesignResult:
-		return processArtifactEffect(value.ChangedPaths, value.NoFileChanges), nil
+		_ = value
+		return processArtifactEffect(envelope.Artifacts), nil
 	case *workflow.TasksResult:
-		return processArtifactEffect(value.ChangedPaths, value.NoFileChanges), nil
+		_ = value
+		return processArtifactEffect(envelope.Artifacts), nil
 	case *workflow.ImplementationResult:
-		return RepositoryEffect{Kind: EffectProductFileChange, ChangedPaths: sortedPaths(value.ChangedPaths), NoFileChanges: value.NoFileChanges}, nil
+		_ = value
+		return RepositoryEffect{Kind: EffectProductFileChange}, nil
 	case *workflow.TestResult:
-		return processArtifactEffect(value.ChangedPaths, value.NoFileChanges), nil
+		_ = value
+		return processArtifactEffect(envelope.Artifacts), nil
 	case *workflow.ComprehensionResult:
-		return processArtifactEffect(value.ChangedPaths, value.NoFileChanges), nil
+		_ = value
+		return processArtifactEffect(envelope.Artifacts), nil
 	case *workflow.RefactorResult:
-		return RepositoryEffect{Kind: EffectProductFileChange, ChangedPaths: sortedPaths(value.ChangedPaths), NoFileChanges: value.NoFileChanges}, nil
+		_ = value
+		return RepositoryEffect{Kind: EffectProductFileChange}, nil
 	case *workflow.DeliveryResult:
-		return processArtifactEffect(value.ChangedPaths, value.NoFileChanges), nil
+		_ = value
+		return processArtifactEffect(envelope.Artifacts), nil
 	default:
 		return RepositoryEffect{}, domain.ErrInvalidArgument
 	}
 }
 
-func processArtifactEffect(paths []string, noFileChanges bool) RepositoryEffect {
-	if noFileChanges {
-		return RepositoryEffect{Kind: EffectExactBinding, NoFileChanges: true}
+func processArtifactEffect(artifacts []domain.ArtifactReference) RepositoryEffect {
+	paths := make([]string, 0, len(artifacts))
+	for _, artifact := range artifacts {
+		paths = append(paths, artifact.Path)
 	}
-	return RepositoryEffect{Kind: EffectProcessArtifactOnly, ChangedPaths: sortedPaths(paths)}
+	return RepositoryEffect{Kind: EffectProcessArtifactOnly, Paths: sortedPaths(paths)}
 }
 
 func RepositoryEffectAllowed(allowed []domain.AllowedEffect, effect RepositoryEffect) bool {
 	var wanted domain.AllowedEffect
 	switch effect.Kind {
 	case EffectExactBinding, EffectExactBlockerRestoration:
-		return effect.NoFileChanges && len(effect.ChangedPaths) == 0
+		return len(effect.Paths) == 0
 	case EffectProcessArtifactOnly:
 		wanted = domain.EffectEditProcessArtifacts
 	case EffectProductFileChange:
 		wanted = domain.EffectEditProductFiles
 	default:
-		return false
-	}
-	if effect.NoFileChanges {
-		return len(effect.ChangedPaths) == 0
-	}
-	if len(effect.ChangedPaths) == 0 {
 		return false
 	}
 	for _, candidate := range allowed {
@@ -380,36 +346,104 @@ func RepositoryEffectMatches(effect RepositoryEffect, relation RepositoryRelatio
 	if relation == RepositoryForbiddenChange {
 		return false
 	}
+	delta := bindingDeltaPaths(authoritative, observed)
 	switch effect.Kind {
 	case EffectExactBinding, EffectExactBlockerRestoration:
-		return relation == RepositoryExact
+		return len(delta) == 0
 	case EffectFileScopeResolution:
-		return effect.NoFileChanges && len(effect.ChangedPaths) == 0 && (relation == RepositoryExact || relation == RepositoryWorktreeOnlyChanged)
+		return relation == RepositoryExact || relation == RepositoryWorktreeOnlyChanged
 	case EffectProcessArtifactOnly:
-		return relation == RepositoryExact || relation == RepositoryWorktreeOnlyChanged && matchesDeclaredPaths(authoritative.ChangedPaths, effect.ChangedPaths, observed.ChangedPaths)
+		return len(delta) == 0 || containsEveryPath(effect.Paths, delta)
 	case EffectProductFileChange:
-		if effect.NoFileChanges {
-			return relation == RepositoryExact && len(effect.ChangedPaths) == 0
-		}
-		return relation == RepositoryWorktreeOnlyChanged && len(effect.ChangedPaths) > 0 && matchesDeclaredPaths(authoritative.ChangedPaths, effect.ChangedPaths, observed.ChangedPaths)
+		return true
 	default:
 		return false
 	}
 }
 
-func matchesDeclaredPaths(authoritative, declared, observed []string) bool {
-	expected := make(map[string]struct{}, len(authoritative)+len(declared))
-	for _, path := range authoritative {
-		expected[path] = struct{}{}
+func bindingDeltaPaths(authoritative, observed domain.RepositoryBinding) []string {
+	before := map[string]domain.RepositoryChangedEntry{}
+	for _, entry := range authoritative.TaskSurface {
+		before[entry.Path] = entry
 	}
-	for _, path := range declared {
-		expected[path] = struct{}{}
+	after := map[string]domain.RepositoryChangedEntry{}
+	for _, entry := range observed.TaskSurface {
+		after[entry.Path] = entry
 	}
-	paths := make([]string, 0, len(expected))
-	for path := range expected {
+	set := map[string]bool{}
+	for path, entry := range before {
+		if other, ok := after[path]; !ok || !sameEffectivePathState(entry, other) {
+			set[path] = true
+		}
+	}
+	for path, entry := range after {
+		if other, ok := before[path]; !ok || !sameEffectivePathState(entry, other) {
+			set[path] = true
+		}
+	}
+	paths := make([]string, 0, len(set))
+	for path := range set {
 		paths = append(paths, path)
 	}
-	return samePaths(paths, observed)
+	sort.Strings(paths)
+	return paths
+}
+
+func sameEffectivePathState(left, right domain.RepositoryChangedEntry) bool {
+	return left.Path == right.Path &&
+		left.ChangeType == right.ChangeType &&
+		left.FileMode == right.FileMode &&
+		left.Gitlink == right.Gitlink &&
+		left.ContentDigest == right.ContentDigest
+}
+
+func RepositoryScopeDeltaPaths(task domain.ProcessTask, observed RepositoryScopeObservation) []string {
+	prefix := ""
+	if len(task.AdditionalRepositories) != 0 {
+		prefix = string(task.EffectivePrimaryRepositoryKey()) + "::"
+	}
+	paths := bindingDeltaPaths(task.Repository, observed.Primary)
+	for i := range paths {
+		paths[i] = prefix + paths[i]
+	}
+	for i, entry := range task.AdditionalRepositories {
+		for _, path := range bindingDeltaPaths(entry.Binding, observed.Additional[i].Binding) {
+			paths = append(paths, string(entry.Key)+"::"+path)
+		}
+	}
+	sort.Strings(paths)
+	return paths
+}
+
+func RepositoryScopeCurrentPaths(task domain.ProcessTask, observed RepositoryScopeObservation) []string {
+	prefix := ""
+	if len(task.AdditionalRepositories) != 0 {
+		prefix = string(task.EffectivePrimaryRepositoryKey()) + "::"
+	}
+	paths := domain.RepositoryChangedPaths(observed.Primary.TaskSurface)
+	for i := range paths {
+		paths[i] = prefix + paths[i]
+	}
+	for _, entry := range observed.Additional {
+		for _, path := range domain.RepositoryChangedPaths(entry.Binding.TaskSurface) {
+			paths = append(paths, string(entry.Key)+"::"+path)
+		}
+	}
+	sort.Strings(paths)
+	return paths
+}
+
+func containsEveryPath(allowed, actual []string) bool {
+	set := map[string]bool{}
+	for _, path := range allowed {
+		set[path] = true
+	}
+	for _, path := range actual {
+		if !set[path] {
+			return false
+		}
+	}
+	return true
 }
 
 func DecodeBlockerResolutionPayload(raw []byte) (BlockerResolutionPayload, json.RawMessage, error) {
@@ -441,13 +475,16 @@ func sourceCurrent(task domain.ProcessTask, operation domain.OperationReference,
 		task.CurrentAction.Kind == operation.ActionKind && task.CurrentAction.Process == operation.Process &&
 		task.CurrentAction.NodeID == operation.SourceCursor &&
 		task.CurrentAction.RepositoryBindingDigest == operation.RepositoryBindingDigest &&
+		task.CurrentAction.IssuanceIdentityDigest == operation.IssuanceIdentityDigest &&
+		task.CurrentAction.IssuanceHistoryDigest == operation.IssuanceHistoryDigest &&
+		task.CurrentAction.IssuanceContentDigest == operation.IssuanceContentDigest &&
 		authoritativeDigest == operation.RepositoryBindingDigest
 }
 
 func mayHavePartialRepositoryWork(operation domain.OperationReference, relation RepositoryRelation, observed RepositoryScopeObservation) bool {
-	changed := len(observed.Primary.ChangedPaths) > 0
+	changed := len(observed.Primary.TaskSurface) > 0
 	for _, entry := range observed.Additional {
-		changed = changed || len(entry.Binding.ChangedPaths) > 0
+		changed = changed || len(entry.Binding.TaskSurface) > 0
 	}
 	return relation == RepositoryWorktreeOnlyChanged && changed &&
 		(operation.ActionKind == domain.ActionCompleteImplementation || operation.ActionKind == domain.ActionCompleteRefactor)

@@ -22,7 +22,9 @@ func (h *actionHandlers) submit(w http.ResponseWriter, r *http.Request) {
 		RequestID: domain.ID(request.RequestID), TaskID: domain.ID(r.PathValue("task_id")), ExpectedRevision: request.TaskRevision,
 		ActionID: domain.ID(request.ActionID), ActionKind: domain.ActionKind(request.ActionKind), ProcessID: domain.ProcessID(request.ProcessID),
 		ProcessDefinitionDigest: domain.Digest(request.ProcessDefinitionDigest), SourceNode: domain.NodeID(request.SourceNode),
-		RepositoryBindingDigest: domain.Digest(request.RepositoryBindingDigest), Payload: append([]byte(nil), request.Payload...),
+		RepositoryBindingDigest: domain.Digest(request.RepositoryBindingDigest), IssuanceIdentityDigest: domain.Digest(request.IssuanceIdentityDigest),
+		IssuanceHistoryDigest: domain.Digest(request.IssuanceHistoryDigest), IssuanceContentDigest: domain.Digest(request.IssuanceContentDigest),
+		Payload: append([]byte(nil), request.Payload...),
 	})
 	if err != nil {
 		writeActionError(w, request.RequestID, err, false)
@@ -65,7 +67,9 @@ func projectOperationProbe(probe OperationProbe) application.OperationProbe {
 	return application.OperationProbe{
 		OperationID: domain.ID(probe.OperationID), ExpectedRevision: probe.ExpectedRevision, ActionID: domain.ID(probe.ActionID),
 		ActionKind: domain.ActionKind(probe.ActionKind), ProcessID: domain.ProcessID(probe.ProcessID), ProcessDefinitionDigest: domain.Digest(probe.ProcessDefinitionDigest),
-		SourceCursor: domain.NodeID(probe.SourceNode), RepositoryBindingDigest: domain.Digest(probe.RepositoryBindingDigest), Payload: append([]byte(nil), probe.Payload...),
+		SourceCursor: domain.NodeID(probe.SourceNode), RepositoryBindingDigest: domain.Digest(probe.RepositoryBindingDigest),
+		IssuanceIdentityDigest: domain.Digest(probe.IssuanceIdentityDigest), IssuanceHistoryDigest: domain.Digest(probe.IssuanceHistoryDigest), IssuanceContentDigest: domain.Digest(probe.IssuanceContentDigest),
+		Payload: append([]byte(nil), probe.Payload...),
 	}
 }
 

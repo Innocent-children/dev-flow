@@ -11,7 +11,7 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
-const actionOperationSelect = `SELECT task_id,operation_id,process_id,process_definition_digest,source_node,expected_revision,action_id,action_kind,repository_binding_digest,payload,payload_digest,prepared_at,applied_revision FROM action_operations WHERE task_id=?`
+const actionOperationSelect = `SELECT task_id,operation_id,process_id,process_definition_digest,source_node,expected_revision,action_id,action_kind,repository_binding_digest,issuance_identity_digest,issuance_history_digest,issuance_content_digest,payload,payload_digest,prepared_at,applied_revision FROM action_operations WHERE task_id=?`
 
 func (s *SQLite) LoadActionOperation(ctx context.Context, taskID domain.ID) (ActionOperation, bool, error) {
 	if s == nil || s.db == nil || ctx == nil || !taskID.IsValid() {
@@ -42,7 +42,7 @@ func (s *SQLite) StageActionOperation(ctx context.Context, task domain.ProcessTa
 		return ErrStorageUnavailable
 	}
 	defer tx.Rollback()
-	current, err := scanStoredTask(tx.QueryRowContext(ctx, `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,repository_identity,snapshot,created_at,updated_at FROM tasks WHERE task_id=?`, task.TaskID))
+	current, err := scanStoredTask(tx.QueryRowContext(ctx, `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,worktree_instance_digest,snapshot,created_at,updated_at FROM tasks WHERE task_id=?`, task.TaskID))
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrTaskNotFound
 	}
@@ -72,10 +72,10 @@ func (s *SQLite) StageActionOperation(ctx context.Context, task domain.ProcessTa
 		}
 	}
 	operation := commit.Operation
-	if _, err := tx.ExecContext(ctx, `INSERT INTO action_operations(task_id,operation_id,process_id,process_definition_digest,source_node,expected_revision,action_id,action_kind,repository_binding_digest,payload,payload_digest,prepared_at,applied_revision) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)`,
+	if _, err := tx.ExecContext(ctx, `INSERT INTO action_operations(task_id,operation_id,process_id,process_definition_digest,source_node,expected_revision,action_id,action_kind,repository_binding_digest,issuance_identity_digest,issuance_history_digest,issuance_content_digest,payload,payload_digest,prepared_at,applied_revision) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)`,
 		task.TaskID, operation.OperationID, operation.Process.ID, operation.Process.DefinitionDigest,
 		operation.SourceCursor, operation.ExpectedRevision, operation.ActionID, operation.ActionKind,
-		operation.RepositoryBindingDigest, []byte(commit.Payload), commit.PayloadDigest, formatTime(commit.PreparedAt)); err != nil {
+		operation.RepositoryBindingDigest, operation.IssuanceIdentityDigest, operation.IssuanceHistoryDigest, operation.IssuanceContentDigest, []byte(commit.Payload), commit.PayloadDigest, formatTime(commit.PreparedAt)); err != nil {
 		return ErrStorageUnavailable
 	}
 	if err := tx.Commit(); err != nil {
@@ -138,11 +138,11 @@ func loadActionOperationTx(ctx context.Context, tx *sql.Tx, taskID domain.ID) (A
 }
 
 func scanActionOperation(row rowScanner) (ActionOperation, error) {
-	var taskID, operationID, processID, processDigest, sourceNode, actionID, actionKind, repositoryDigest, payloadDigest, preparedAt string
+	var taskID, operationID, processID, processDigest, sourceNode, actionID, actionKind, repositoryDigest, identityDigest, historyDigest, contentDigest, payloadDigest, preparedAt string
 	var expectedRevision int64
 	var payload []byte
 	var appliedRevision sql.NullInt64
-	if err := row.Scan(&taskID, &operationID, &processID, &processDigest, &sourceNode, &expectedRevision, &actionID, &actionKind, &repositoryDigest, &payload, &payloadDigest, &preparedAt, &appliedRevision); err != nil {
+	if err := row.Scan(&taskID, &operationID, &processID, &processDigest, &sourceNode, &expectedRevision, &actionID, &actionKind, &repositoryDigest, &identityDigest, &historyDigest, &contentDigest, &payload, &payloadDigest, &preparedAt, &appliedRevision); err != nil {
 		return ActionOperation{}, err
 	}
 	prepared, err := time.Parse(time.RFC3339Nano, preparedAt)
@@ -155,7 +155,7 @@ func scanActionOperation(row rowScanner) (ActionOperation, error) {
 			Process:      domain.ProcessReference{ID: domain.ProcessID(processID), DefinitionDigest: domain.Digest(processDigest)},
 			SourceCursor: domain.NodeID(sourceNode), ExpectedRevision: uint64(expectedRevision),
 			ActionID: domain.ID(actionID), ActionKind: domain.ActionKind(actionKind),
-			RepositoryBindingDigest: domain.Digest(repositoryDigest),
+			RepositoryBindingDigest: domain.Digest(repositoryDigest), IssuanceIdentityDigest: domain.Digest(identityDigest), IssuanceHistoryDigest: domain.Digest(historyDigest), IssuanceContentDigest: domain.Digest(contentDigest),
 		},
 		Payload: append([]byte(nil), payload...), PayloadDigest: domain.Digest(payloadDigest), PreparedAt: prepared.UTC(),
 	}
@@ -178,7 +178,7 @@ func actionOperationMatchesCurrentTask(task domain.ProcessTask, commit domain.Ac
 	operation := commit.Operation
 	return action != nil && task.Revision == operation.ExpectedRevision && task.CurrentNode == operation.SourceCursor &&
 		action.ActionID == operation.ActionID && action.Kind == operation.ActionKind &&
-		action.RepositoryBindingDigest == operation.RepositoryBindingDigest
+		action.RepositoryBindingDigest == operation.RepositoryBindingDigest && action.IssuanceIdentityDigest == operation.IssuanceIdentityDigest && action.IssuanceHistoryDigest == operation.IssuanceHistoryDigest && action.IssuanceContentDigest == operation.IssuanceContentDigest
 }
 
 func actionOperationMatchesMutation(commit domain.ActionCommit, mutation TaskMutation) bool {

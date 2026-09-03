@@ -3,12 +3,9 @@ package domain
 import (
 	"crypto/sha256"
 	"errors"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/Innocent-children/dev-flow/internal/testpath"
 )
 
 var primitiveTestTime = time.Date(2026, time.August, 14, 1, 2, 3, 0, time.UTC)
@@ -82,14 +79,8 @@ func TestRepositoryBindingInvariants(t *testing.T) {
 		t.Fatalf("valid repository binding rejected: %v", err)
 	}
 
-	unborn := normal
-	unborn.Head = nil
-	unborn.Unborn = true
-	if err := unborn.Validate(); err != nil {
-		t.Fatalf("valid unborn repository rejected: %v", err)
-	}
 	detached := normal
-	detached.Branch = nil
+	detached.CurrentBranch = nil
 	detached.Detached = true
 	if err := detached.Validate(); err != nil {
 		t.Fatalf("valid detached repository rejected: %v", err)
@@ -100,13 +91,9 @@ func TestRepositoryBindingInvariants(t *testing.T) {
 		mutate func(*RepositoryBinding)
 	}{
 		{name: "detached with branch", mutate: func(b *RepositoryBinding) { b.Detached = true }},
-		{name: "attached without branch", mutate: func(b *RepositoryBinding) { b.Branch = nil }},
-		{name: "unborn with head", mutate: func(b *RepositoryBinding) { b.Unborn = true }},
-		{name: "born without head", mutate: func(b *RepositoryBinding) { b.Head = nil }},
-		{name: "relative root", mutate: func(b *RepositoryBinding) { b.CanonicalRoot = "relative/repo" }},
-		{name: "unclean root", mutate: func(b *RepositoryBinding) {
-			b.CanonicalRoot += string(filepath.Separator) + "child" + string(filepath.Separator) + ".."
-		}},
+		{name: "attached without branch", mutate: func(b *RepositoryBinding) { b.CurrentBranch = nil }},
+		{name: "invalid head", mutate: func(b *RepositoryBinding) { b.CurrentHead = "not-an-object" }},
+		{name: "invalid history relation", mutate: func(b *RepositoryBinding) { b.HistoryRelation = "unknown" }},
 		{name: "uppercase digest", mutate: func(b *RepositoryBinding) { b.BindingDigest = Digest(strings.Repeat("A", sha256.Size*2)) }},
 		{name: "zero observation", mutate: func(b *RepositoryBinding) { b.ObservedAt = time.Time{} }},
 	}
@@ -121,9 +108,8 @@ func TestRepositoryBindingInvariants(t *testing.T) {
 	}
 
 	clone := normal.Clone()
-	*clone.Branch = "mutated"
-	*clone.Head = strings.Repeat("b", 40)
-	if *normal.Branch != "main" || *normal.Head != strings.Repeat("a", 40) {
+	*clone.CurrentBranch = "mutated"
+	if *normal.CurrentBranch != "feature/task" {
 		t.Fatal("repository clone retained pointer aliases")
 	}
 }
@@ -206,6 +192,7 @@ func TestStableTypedErrors(t *testing.T) {
 	for _, code := range []ErrorCode{
 		ErrorInvalidArgument, ErrorNotGitRepository, ErrorTaskNotFound, ErrorActiveTaskConflict,
 		ErrorHostOwnershipConflict, ErrorRevisionConflict, ErrorActionStale, ErrorRepositoryDrift,
+		ErrorWorkspaceUnavailable, ErrorWorkspaceHistoryConflict, ErrorWorktreeProvisioningRequired,
 		ErrorVerificationBudgetExceeded, ErrorTaskBlocked, ErrorTaskTerminal, ErrorSchemaUnsupported,
 		ErrorProcessUnsupported, ErrorTransitionNotAllowed, ErrorRecoveryUnavailable,
 		ErrorStorageUnavailable, ErrorInternal,
@@ -224,12 +211,12 @@ func TestStableTypedErrors(t *testing.T) {
 }
 
 func validCurrentRepositoryBinding() RepositoryBinding {
-	branch := "main"
-	head := strings.Repeat("a", 40)
+	branch := "feature/task"
 	return RepositoryBinding{
-		CanonicalRoot: testpath.Absolute("tmp", "repository"), GitCommonDirDigest: primitiveDigest("a"),
-		RepositoryIdentity: primitiveDigest("b"), Branch: &branch, Head: &head,
-		WorktreeFingerprint: primitiveDigest("c"), ObservedAt: primitiveTestTime, BindingDigest: primitiveDigest("d"),
+		WorktreeInstanceDigest: primitiveDigest("a"), IdentityDigest: primitiveDigest("b"), HistoryDigest: primitiveDigest("c"),
+		ContentDigest: primitiveDigest("d"), CurrentBranch: &branch, CurrentHead: strings.Repeat("a", 40),
+		HeadTree: strings.Repeat("b", 40), HistoryRelation: RepositoryHistoryExact, BaseCommitAncestor: true,
+		ObservedAt: primitiveTestTime, BindingDigest: primitiveDigest("e"),
 	}
 }
 

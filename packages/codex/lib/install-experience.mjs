@@ -6,7 +6,7 @@ export const DEFAULT_USER_CONFIGURATION = `${JSON.stringify({
 }, null, 2)}\n`;
 
 const MAX_CONFIGURATION_BYTES = 16 * 1024;
-export const SETUP_NEXT_STEP = "Review and trust the Dev Flow hook with /hooks, then use $dev-flow-codex:dev-flow <task description>";
+export const SETUP_NEXT_STEP = "Review and trust the Dev Flow hook with /hooks, then use $dev-flow-codex:dev-flow <task description> to assess the request";
 
 export async function ensureUserConfiguration(paths) {
   const { configurationDirectory, configurationPath, enforcePrivateModes = true } = paths ?? {};
@@ -152,7 +152,7 @@ async function validateExistingConfiguration(path, enforcePrivateModes) {
   }
   let value;
   try {
-    assertNoDuplicateMembers(text);
+    assertNoDuplicateJSONMembers(text);
     value = JSON.parse(text);
   } catch (error) {
     throw new Error(`user configuration ${JSON.stringify(path)}: invalid JSON`, { cause: error });
@@ -184,7 +184,7 @@ function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function assertNoDuplicateMembers(text) {
+export function assertNoDuplicateJSONMembers(text) {
   let offset = 0;
   const skip = () => { while (/\s/u.test(text[offset] ?? "")) offset += 1; };
   const string = () => {

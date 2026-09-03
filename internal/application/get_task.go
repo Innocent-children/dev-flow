@@ -50,11 +50,49 @@ func (s *Service) GetTask(ctx context.Context, r GetTaskRequest) (GetTaskResult,
 		}
 		return GetTaskResult{Task: task}, nil
 	}
+	if operation.RecordedBy(task) {
+		assessment, err := assessRecordedActionCommit(r.Host, task, operation.Commit)
+		if err != nil {
+			return GetTaskResult{}, err
+		}
+		return GetTaskResult{Task: task, RecoveryAssessment: assessment}, nil
+	}
+	if task.CurrentNode == domain.NodeBlocked && task.Blocker != nil &&
+		task.Blocker.Cause == domain.BlockerCauseTaskRelocationPending &&
+		operation.AppliedRevision == nil && operation.Commit.Operation.SourceCursor == domain.NodeBlocked {
+		assessment, err := s.assessTaskRelocationCommit(ctx, r.Host, task, operation.Commit)
+		if err != nil {
+			return GetTaskResult{}, err
+		}
+		return GetTaskResult{Task: task, RecoveryAssessment: assessment}, nil
+	}
 	assessment, err := s.assessActionCommit(ctx, r.Host, task, operation.Commit)
 	if err != nil {
 		return GetTaskResult{}, err
 	}
 	return GetTaskResult{Task: task, RecoveryAssessment: assessment}, nil
+}
+
+func assessRecordedActionCommit(host domain.Host, task domain.ProcessTask, commit domain.ActionCommit) (*recovery.RecoveryAssessment, error) {
+	additional := make([]domain.RepositoryScopeEntry, len(task.AdditionalRepositories))
+	for index, repository := range task.AdditionalRepositories {
+		additional[index] = repository.Clone()
+	}
+	observed := recovery.RepositoryScopeObservation{
+		Primary:    task.Repository.Clone(),
+		Additional: additional,
+	}
+	decision, err := recovery.Reconcile(recovery.ReconcileInput{
+		Host:          host,
+		Task:          task,
+		Operation:     commit.Operation,
+		Payload:       commit.Payload,
+		ObservedScope: &observed,
+	})
+	if err != nil || decision.Assessment.Classification != domain.RecoveryCompletedAndRecorded {
+		return nil, domain.ErrStorageUnavailable
+	}
+	return &decision.Assessment, nil
 }
 
 func (s *Service) assessActionCommit(ctx context.Context, host domain.Host, task domain.ProcessTask, commit domain.ActionCommit) (*recovery.RecoveryAssessment, error) {

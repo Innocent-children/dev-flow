@@ -6,7 +6,7 @@
 不代表全部价值；节点、命令和 MCP 工具的精确定义见 [Architecture](ARCHITECTURE.md) 与
 [Command Reference](COMMANDS.md)。
 
-## 1. 用户提出一个有边界的任务
+## 1. 用户提出请求并选择是否进入 Dev Flow
 
 开发者对 Codex 说：
 
@@ -14,8 +14,11 @@
 增加登录失败次数限制。修改范围只限认证模块，只运行验证该行为所需的定向测试。
 ```
 
-Dev Flow 创建本地 Task，保存请求、范围、验收条件和 verification budget。Codex 仍然负责读取代码、
-修改文件和运行命令。
+Host 先只读检查候选实现、调用方、测试和 Git 状态，给出改动级别、已知影响面、未知项和建议，然后
+停止。此时没有 Core 调用、Task 或 Git 写入。开发者选择 Dev Flow 后，确认 remote、base branch 和
+新的 target branch；Host 精确 fetch、冻结 base commit，并创建干净的专属工作树。源 checkout 的
+staged、unstaged 和 untracked 内容不会复制进去。只有目标工作树验证成功后，Core 才创建本地 Task，
+保存请求、范围、验收条件、WorkspaceOrigin 和 verification budget。
 
 ## 2. 实现完成，进入测试
 
@@ -36,7 +39,8 @@ Remaining: targeted auth test
 如果没有持久状态，新会话只能重新检查仓库和残缺聊天，猜测实现是否完成、测试是否跑过、是否还
 应该扩大验证。
 
-Dev Flow 不从聊天记录重建进度。新会话打开同一个 Task，恢复当前节点、revision、范围和剩余验证：
+Dev Flow 不从聊天记录重建进度。新会话回到 Task 绑定的同一个工作树实例并明确 resume；Core 先观察
+identity、history 和 content，再恢复当前节点、revision、范围和剩余验证：
 
 ```text
 重启前
@@ -54,12 +58,17 @@ Next: run the remaining targeted auth test
 ```
 
 上面的文本是用户故事的简化展示，不是某个真实 Host 的逐字输出。关键行为是恢复前后仍然指向同一
-Task、同一阶段和同一剩余工作。
+Task、同一工作树实例、同一阶段和同一剩余工作。原路径被删除后重新创建，或只找到同名 branch，
+都不能冒充原实例；此时 Task 进入 workspace unavailable，等待恢复原实例或显式 abandon。
 
 ## 4. 新会话继续剩余验证
 
 Agent 运行剩余的定向认证测试，不重新扫描并发明一套新计划，也不把验证扩大成完整回归。测试失败
 时，Task 回到对应实现工作；测试通过后，进入开发者理解确认。
+
+Core 从固定 base commit、当前 commits、index、worktree 和 untracked 内容计算 Task surface。正常的
+同 branch 线性 commit 不会丢失修改路径；只提交完全相同内容也不会让测试记录失效。内容真的变化、
+branch switch、rewind 或 history rewrite 则会在继续工作前触发相应处理。
 
 理解确认要求当前实现能够被解释和维护。若需要修改仓库进行重构，Task 会重新经过 `TEST`。
 

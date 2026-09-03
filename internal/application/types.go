@@ -104,20 +104,31 @@ type NewTaskInput struct {
 	MethodProfile           domain.MethodProfile
 }
 type AdditionalRepositoryInput struct {
-	Key            domain.RepositoryKey `json:"key"`
-	RepositoryPath string               `json:"repository_path"`
+	Key             domain.RepositoryKey `json:"key"`
+	RepositoryPath  string               `json:"repository_path"`
+	WorkspaceOrigin WorkspaceOriginInput `json:"workspace_origin"`
+}
+type WorkspaceOriginInput struct {
+	Mode                  domain.WorkspaceMode `json:"mode"`
+	RemoteName            string               `json:"remote_name"`
+	BaseBranch            string               `json:"base_branch"`
+	BaseCommit            string               `json:"base_commit"`
+	TaskBranch            string               `json:"task_branch"`
+	ProvisioningReceiptID domain.ID            `json:"provisioning_receipt_id"`
 }
 type OpenTaskRequest struct {
 	RequestID              domain.ID
 	Host                   domain.Host
 	RepositoryPath         string
+	WorkspaceOrigin        *WorkspaceOriginInput
 	PrimaryRepositoryKey   domain.RepositoryKey
 	AdditionalRepositories []AdditionalRepositoryInput
 	NewTask                *NewTaskInput
 }
 type OpenTaskResult struct {
-	Created bool
-	Task    domain.ProcessTask
+	Created            bool
+	Task               domain.ProcessTask
+	RecoveryAssessment *recovery.RecoveryAssessment
 }
 type OperationProbe struct {
 	OperationID             domain.ID
@@ -128,11 +139,14 @@ type OperationProbe struct {
 	ActionID                domain.ID
 	ActionKind              domain.ActionKind
 	RepositoryBindingDigest domain.Digest
+	IssuanceIdentityDigest  domain.Digest
+	IssuanceHistoryDigest   domain.Digest
+	IssuanceContentDigest   domain.Digest
 	Payload                 json.RawMessage
 }
 
 func (p OperationProbe) Reference() domain.OperationReference {
-	return domain.OperationReference{OperationID: p.OperationID, Process: domain.ProcessReference{ID: p.ProcessID, DefinitionDigest: p.ProcessDefinitionDigest}, SourceCursor: p.SourceCursor, ExpectedRevision: p.ExpectedRevision, ActionID: p.ActionID, ActionKind: p.ActionKind, RepositoryBindingDigest: p.RepositoryBindingDigest}
+	return domain.OperationReference{OperationID: p.OperationID, Process: domain.ProcessReference{ID: p.ProcessID, DefinitionDigest: p.ProcessDefinitionDigest}, SourceCursor: p.SourceCursor, ExpectedRevision: p.ExpectedRevision, ActionID: p.ActionID, ActionKind: p.ActionKind, RepositoryBindingDigest: p.RepositoryBindingDigest, IssuanceIdentityDigest: p.IssuanceIdentityDigest, IssuanceHistoryDigest: p.IssuanceHistoryDigest, IssuanceContentDigest: p.IssuanceContentDigest}
 }
 
 type RecoveryApplyInput struct {
@@ -175,6 +189,9 @@ type ApplyActionRequest struct {
 	ProcessDefinitionDigest domain.Digest
 	SourceCursor            domain.NodeID
 	RepositoryBindingDigest domain.Digest
+	IssuanceIdentityDigest  domain.Digest
+	IssuanceHistoryDigest   domain.Digest
+	IssuanceContentDigest   domain.Digest
 	Payload                 json.RawMessage
 	RecoveryApply           *RecoveryApplyInput
 }
@@ -203,10 +220,13 @@ type SubmitActionRequest struct {
 	NodeResult            json.RawMessage
 }
 type RecoverActionRequest struct {
-	Host              domain.Host
-	TaskID            domain.ID
-	ActionID          domain.ID
-	FileScopeDecision *domain.FileScopeDecisionInput
+	Host                   domain.Host
+	TaskID                 domain.ID
+	ActionID               domain.ID
+	FileScopeDecision      *domain.FileScopeDecisionInput
+	RelocationID           domain.ID
+	RelocationDestinations []domain.RelocationDestination
+	HistoryResolution      *domain.WorkspaceHistoryResolutionInput
 }
 
 type PrepareFileChangeRequest struct {
@@ -235,12 +255,12 @@ type PrepareFileChangeResult struct {
 }
 
 type FileScopeStatus struct {
-	ExpectedPaths     []string
-	TaskChangedPaths  []string
-	UnexplainedPaths  []string
-	Records           []domain.FileScopeRecord
-	CoveredHostTools  []string
-	FinalCheckEnabled bool
+	ExpectedPaths       []string
+	CurrentChangedPaths []string
+	UnexplainedPaths    []string
+	Records             []domain.FileScopeRecord
+	CoveredHostTools    []string
+	FinalCheckEnabled   bool
 }
 type CancelTaskRequest struct {
 	RequestID        domain.ID
@@ -250,3 +270,23 @@ type CancelTaskRequest struct {
 	Reason           string
 }
 type CancelTaskResult struct{ Task domain.ProcessTask }
+
+type PrepareTaskRelocationRequest struct {
+	RequestID        domain.ID
+	Host             domain.Host
+	TaskID           domain.ID
+	ExpectedRevision uint64
+}
+type PrepareTaskRelocationResult struct {
+	Task         domain.ProcessTask
+	RelocationID domain.ID
+}
+
+type AbandonTaskRequest struct {
+	RequestID        domain.ID
+	Host             domain.Host
+	TaskID           domain.ID
+	ExpectedRevision uint64
+	Reason           string
+}
+type AbandonTaskResult struct{ Task domain.ProcessTask }

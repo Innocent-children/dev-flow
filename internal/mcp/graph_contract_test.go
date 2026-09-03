@@ -15,7 +15,7 @@ func TestMCPContractGraphCatalogAndClosedSchemas(t *testing.T) {
 	want := []string{ToolServerInfo, ToolOpenTask, ToolGetTask, ToolGetNextAction,
 		ToolSubmitRequirements, ToolSubmitDesign, ToolSubmitTasks, ToolSubmitImplementation,
 		ToolSubmitTest, ToolSubmitComprehension, ToolSubmitRefactor, ToolSubmitDelivery,
-		ToolResolveBlocker, ToolRecoverAction, ToolCancelTask}
+		ToolPrepareTaskRelocation, ToolResolveBlocker, ToolRecoverAction, ToolCancelTask, ToolAbandonTask}
 	got := ToolNames()
 	if len(got) != len(want) {
 		t.Fatalf("tools=%d", len(got))
@@ -61,7 +61,7 @@ func TestActionSubmissionSchemasAreKindSpecificAndCoreOwned(t *testing.T) {
 			t.Fatalf("%s root=%#v", entry.Name, schema)
 		}
 		properties := schema["properties"].(map[string]any)
-		for _, forbidden := range []string{"request_id", "revision", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload"} {
+		for _, forbidden := range []string{"request_id", "revision", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "issuance_identity_digest", "issuance_history_digest", "issuance_content_digest", "payload"} {
 			if _, present := properties[forbidden]; present {
 				t.Fatalf("%s exposes Core-owned %s", entry.Name, forbidden)
 			}
@@ -103,12 +103,12 @@ func TestActionSubmissionSchemasAreKindSpecificAndCoreOwned(t *testing.T) {
 func TestEveryCurrentActionProjectsItsSingleSubmissionTool(t *testing.T) {
 	definition := workflow.StandardProcess()
 	issuedAt := time.Date(2026, 8, 27, 1, 0, 0, 0, time.UTC)
-	binding := domain.Digest(strings.Repeat("a", 64))
+	workspace := domain.WorkspaceDigests{Binding: repeatedDigest('a'), Identity: repeatedDigest('b'), History: repeatedDigest('c'), Content: repeatedDigest('d')}
 	for _, node := range definition.Nodes {
 		if node.NodeID.Terminal() {
 			continue
 		}
-		action, err := workflow.BuildProcessAction(definition, node.NodeID, "task", 1, binding, domain.MethodPlain, domain.ID("action-"+strings.ToLower(string(node.NodeID))), issuedAt)
+		action, err := workflow.BuildProcessActionForWorkspace(definition, node.NodeID, "task", 1, workspace, domain.MethodPlain, domain.ID("action-"+strings.ToLower(string(node.NodeID))), issuedAt)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -117,10 +117,15 @@ func TestEveryCurrentActionProjectsItsSingleSubmissionTool(t *testing.T) {
 		if !ok || tool == "" || !isToolName(tool) {
 			t.Fatalf("node %s submission tool=%#v", node.NodeID, projection["submission_tool"])
 		}
+		for key, want := range map[string]domain.Digest{"repository_binding_digest": workspace.Binding, "issuance_identity_digest": workspace.Identity, "issuance_history_digest": workspace.History, "issuance_content_digest": workspace.Content} {
+			if projection[key] != want {
+				t.Fatalf("node %s %s=%v want=%s", node.NodeID, key, projection[key], want)
+			}
+		}
 	}
 }
 
-func TestStandardNodeResultsRequireRepositoryMutationEnvelope(t *testing.T) {
+func TestStandardNodeResultsAreSemanticOnly(t *testing.T) {
 	payloads, _ := graphPayloads()
 	if len(payloads) != 9 {
 		t.Fatalf("payloads=%d", len(payloads))
@@ -129,9 +134,9 @@ func TestStandardNodeResultsRequireRepositoryMutationEnvelope(t *testing.T) {
 		payload := payloads[index].(map[string]any)
 		properties := payload["properties"].(map[string]any)
 		nodeResult := properties["node_result"].(map[string]any)
-		required := nodeResult["required"].([]string)
-		if !containsSchemaMember(required, "changed_paths") || !containsSchemaMember(required, "no_file_changes") {
-			t.Fatalf("%s required=%v", name, required)
+		nodeProperties := nodeResult["properties"].(map[string]any)
+		if nodeProperties["changed_paths"] != nil || nodeProperties["no_file_changes"] != nil {
+			t.Fatalf("%s exposes legacy repository effect members: %v", name, nodeProperties)
 		}
 	}
 }
@@ -149,23 +154,27 @@ func TestMultiRepositoryTaskProjectionIsSortedAndUsesOneDigest(t *testing.T) {
 	now := time.Date(2026, 8, 23, 7, 0, 0, 0, time.UTC)
 	corePath, apiPath, docsPath := testPath("core"), testPath("api"), testPath("docs")
 	primary := graphContractBinding(now, corePath, 'a')
+	primaryOrigin := graphContractOrigin(corePath, 'a')
 	api := graphContractBinding(now, apiPath, 'b')
+	apiOrigin := graphContractOrigin(apiPath, 'b')
 	docs := graphContractBinding(now, docsPath, 'c')
+	docsOrigin := graphContractOrigin(docsPath, 'c')
 	task := domain.ProcessTask{
 		PrimaryRepositoryKey: "core",
+		WorkspaceOrigin:      primaryOrigin,
 		Repository:           primary,
 		AdditionalRepositories: []domain.RepositoryScopeEntry{
-			{Key: "docs", Binding: docs},
-			{Key: "api", Binding: api},
+			{Key: "docs", Origin: docsOrigin, Binding: docs},
+			{Key: "api", Origin: apiOrigin, Binding: api},
 		},
 	}
 	effectiveTask := task
-	effectiveTask.AdditionalRepositories = []domain.RepositoryScopeEntry{{Key: "api", Binding: api}, {Key: "docs", Binding: docs}}
-	effective, err := effectiveTask.EffectiveRepositoryBindingDigest()
+	effectiveTask.AdditionalRepositories = []domain.RepositoryScopeEntry{{Key: "api", Origin: apiOrigin, Binding: api}, {Key: "docs", Origin: docsOrigin, Binding: docs}}
+	effective, err := effectiveTask.EffectiveWorkspaceDigests()
 	if err != nil {
 		t.Fatal(err)
 	}
-	task.CurrentAction = &domain.ProcessAction{RepositoryBindingDigest: effective}
+	task.CurrentAction = &domain.ProcessAction{RepositoryBindingDigest: effective.Binding, IssuanceIdentityDigest: effective.Identity, IssuanceHistoryDigest: effective.History, IssuanceContentDigest: effective.Content}
 	raw, err := json.Marshal(projectTask(task))
 	if err != nil {
 		t.Fatal(err)
@@ -174,19 +183,19 @@ func TestMultiRepositoryTaskProjectionIsSortedAndUsesOneDigest(t *testing.T) {
 	if json.Unmarshal(raw, &projection) != nil {
 		t.Fatal("invalid task projection")
 	}
-	if projection["primary_repository_key"] != "core" || projection["repository"].(map[string]any)["canonical_root"] != corePath {
+	if projection["primary_repository_key"] != "core" || projection["workspace_origin"].(map[string]any)["canonical_worktree_root"] != corePath {
 		t.Fatalf("primary projection=%#v", projection)
 	}
 	additional, ok := projection["additional_repositories"].([]any)
 	if !ok || len(additional) != 2 || additional[0].(map[string]any)["key"] != "api" || additional[1].(map[string]any)["key"] != "docs" {
 		t.Fatalf("additional projection=%#v", projection["additional_repositories"])
 	}
-	if bytes.Count(raw, []byte(`"repository_binding_digest"`)) != 1 || bytes.Contains(raw, []byte("repository_scope_digest")) || !bytes.Contains(raw, []byte(effective)) {
+	if bytes.Count(raw, []byte(`"repository_binding_digest"`)) != 1 || bytes.Contains(raw, []byte("repository_scope_digest")) || !bytes.Contains(raw, []byte(effective.Binding)) {
 		t.Fatalf("digest projection=%s", raw)
 	}
 
-	single := projectTask(domain.ProcessTask{Repository: primary}).(map[string]any)
-	if single["primary_repository_key"] != domain.DefaultPrimaryRepositoryKey || single["repository"].(map[string]any)["canonical_root"] != corePath {
+	single := projectTask(domain.ProcessTask{WorkspaceOrigin: primaryOrigin, Repository: primary}).(map[string]any)
+	if single["primary_repository_key"] != domain.DefaultPrimaryRepositoryKey || single["workspace_origin"].(domain.WorkspaceOrigin).CanonicalWorktreeRoot != corePath {
 		t.Fatalf("single repository projection=%#v", single)
 	}
 	if _, exists := single["additional_repositories"]; exists {
@@ -195,7 +204,7 @@ func TestMultiRepositoryTaskProjectionIsSortedAndUsesOneDigest(t *testing.T) {
 }
 
 func TestOpenTaskMultiRepositoryWireMapsApplicationRequest(t *testing.T) {
-	raw := []byte(`{"host":"codex","repository_path":"/core","primary_repository_key":"core","additional_repositories":[{"key":"docs","repository_path":"/docs"}],"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}}`)
+	raw := []byte(`{"host":"codex","repository_path":"/core","workspace_origin":{"mode":"dedicated_worktree","remote_name":"origin","base_branch":"main","base_commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","task_branch":"feature/core","provisioning_receipt_id":"receipt-core"},"primary_repository_key":"core","additional_repositories":[{"key":"docs","repository_path":"/docs","workspace_origin":{"mode":"dedicated_worktree","remote_name":"origin","base_branch":"main","base_commit":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","task_branch":"feature/docs","provisioning_receipt_id":"receipt-docs"}}],"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}}`)
 	if err := ValidateToolInput(ToolOpenTask, raw); err != nil {
 		t.Fatal(err)
 	}
@@ -204,14 +213,47 @@ func TestOpenTaskMultiRepositoryWireMapsApplicationRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 	request := toOpen(wire, "request-mapped")
-	if request.RequestID != "request-mapped" || request.RepositoryPath != "/core" || request.PrimaryRepositoryKey != "core" || len(request.AdditionalRepositories) != 1 || request.AdditionalRepositories[0].Key != "docs" || request.AdditionalRepositories[0].RepositoryPath != "/docs" || request.NewTask == nil {
+	if request.RequestID != "request-mapped" || request.RepositoryPath != "/core" || request.WorkspaceOrigin == nil || request.WorkspaceOrigin.TaskBranch != "feature/core" || request.PrimaryRepositoryKey != "core" || len(request.AdditionalRepositories) != 1 || request.AdditionalRepositories[0].Key != "docs" || request.AdditionalRepositories[0].RepositoryPath != "/docs" || request.AdditionalRepositories[0].WorkspaceOrigin.TaskBranch != "feature/docs" || request.NewTask == nil {
 		t.Fatalf("mapped request=%#v", request)
+	}
+}
+
+func TestWorkspaceLifecycleToolInputsAreClosed(t *testing.T) {
+	valid := map[string][]byte{
+		ToolPrepareTaskRelocation:          []byte(`{"host":"codex","task_id":"task","revision":4}`),
+		ToolAbandonTask:                    []byte(`{"host":"deepseek","task_id":"task","revision":4,"reason":"The original worktree instance is unavailable."}`),
+		ToolResolveBlocker + "/relocation": []byte(`{"host":"codex","task_id":"task","action_id":"action","relocation_id":"relocation","relocation_destinations":[{"key":"primary","repository_path":"/worktree"}]}`),
+		ToolResolveBlocker + "/history":    []byte(`{"host":"codex","task_id":"task","action_id":"action","history_resolution":{"choice":"accept_current_history","reason":"The rewritten history was reviewed."}}`),
+	}
+	for label, raw := range valid {
+		tool := strings.Split(label, "/")[0]
+		if err := ValidateToolInput(tool, raw); err != nil {
+			t.Fatalf("%s rejected: %v", label, err)
+		}
+		var value map[string]any
+		if json.Unmarshal(raw, &value) != nil {
+			t.Fatal("invalid test input")
+		}
+		value["destination"] = "DONE"
+		invalid, _ := json.Marshal(value)
+		if err := ValidateToolInput(tool, invalid); err == nil {
+			t.Fatalf("%s accepted an unknown destination", label)
+		}
 	}
 }
 
 func graphContractBinding(now time.Time, root string, marker byte) domain.RepositoryBinding {
 	digest := domain.Digest(strings.Repeat(string(marker), 64))
-	branch := "main"
+	branch := "feature/" + string(marker)
 	head := strings.Repeat(string(marker), 40)
-	return domain.RepositoryBinding{CanonicalRoot: root, GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
+	return domain.RepositoryBinding{WorktreeInstanceDigest: digest, IdentityDigest: digest, HistoryDigest: digest, ContentDigest: digest, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: digest}
+}
+
+func graphContractOrigin(root string, marker byte) domain.WorkspaceOrigin {
+	digest := repeatedDigest(marker)
+	return domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: strings.Repeat(string(marker), 40), TaskBranch: "feature/" + string(marker), SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: root, WorktreeGitDirDigest: digest, ProvisioningReceiptID: domain.ID("receipt-" + string(marker))}
+}
+
+func repeatedDigest(marker byte) domain.Digest {
+	return domain.Digest(strings.Repeat(string(marker), 64))
 }

@@ -23,14 +23,17 @@ func testGraphTask(t *testing.T) domain.ProcessTask {
 	t.Helper()
 	now := time.Date(2026, 8, 19, 2, 0, 0, 0, time.UTC)
 	digest := domain.Digest(strings.Repeat("a", 64))
-	branch := "main"
+	branch := "feature/task"
 	head := strings.Repeat("b", 40)
 	process := workflow.StandardProcess()
-	action, err := workflow.BuildProcessAction(process, domain.NodeRequirements, "task", 1, digest, domain.MethodPlain, "action", now)
+	workspace := domain.WorkspaceDigests{Binding: digest, Identity: digest, History: digest, Content: digest}
+	action, err := workflow.BuildProcessActionForWorkspace(process, domain.NodeRequirements, "task", 1, workspace, domain.MethodPlain, "action", now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return domain.ProcessTask{TaskID: "task", OriginHost: domain.HostCodex, Intent: domain.TaskIntent{Request: "Build graph storage.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain}, Process: process.Reference, CurrentNode: domain.NodeRequirements, CurrentAction: &action, Repository: domain.RepositoryBinding{CanonicalRoot: testPath("repo"), GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}, Revision: 1, CreatedAt: now, UpdatedAt: now}
+	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: testPath("repo"), WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt"}
+	binding := domain.RepositoryBinding{WorktreeInstanceDigest: digest, IdentityDigest: digest, HistoryDigest: digest, ContentDigest: digest, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: digest}
+	return domain.ProcessTask{TaskID: "task", OriginHost: domain.HostCodex, Intent: domain.TaskIntent{Request: "Build graph storage.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain}, Process: process.Reference, CurrentNode: domain.NodeRequirements, CurrentAction: &action, WorkspaceOrigin: origin, Repository: binding, Revision: 1, CreatedAt: now, UpdatedAt: now}
 }
 func testMutation(t *testing.T, task domain.ProcessTask) TaskMutation {
 	t.Helper()
@@ -38,6 +41,22 @@ func testMutation(t *testing.T, task domain.ProcessTask) TaskMutation {
 	task.LastOperation = &domain.LastOperation{OperationID: "request", Kind: domain.OperationOpenTask, FromRevision: 0, ToRevision: 1, PayloadDigest: payload, CommittedAt: task.CreatedAt}
 	return TaskMutation{Task: task, Event: TaskEvent{EventID: "event", TaskID: task.TaskID, Revision: task.Revision, Kind: domain.OperationOpenTask, SourceNode: domain.NodeRequirements, DestinationNode: domain.NodeRequirements, RequestID: "request", PayloadDigest: payload, CreatedAt: task.CreatedAt}, Claim: ClaimAcquire}
 }
+
+func storeChangedEntry(path string, digest domain.Digest) domain.RepositoryChangedEntry {
+	return domain.RepositoryChangedEntry{
+		Path:                  path,
+		ChangeType:            domain.RepositoryChangeModified,
+		FileMode:              "100644",
+		BaseMode:              "100644",
+		BaseContentDigest:     digest,
+		IndexMode:             "100644",
+		IndexContentDigest:    digest,
+		WorktreeMode:          "100644",
+		WorktreeContentDigest: digest,
+		ContentDigest:         digest,
+	}
+}
+
 func openRaw(t *testing.T, path string) *sql.DB {
 	t.Helper()
 	db, err := sql.Open("sqlite", dataSource(path, false))
@@ -115,7 +134,7 @@ func databaseManifest(t *testing.T, path string) databaseStateManifest {
 	if err := objects.Close(); err != nil {
 		t.Fatal(err)
 	}
-	for _, table := range []string{"schema_metadata", "tasks", "action_operations", "task_events", "repository_claims"} {
+	for _, table := range []string{"schema_metadata", "tasks", "action_operations", "task_events", "repository_claims", "relocation_operations"} {
 		var exists int
 		if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?`, table).Scan(&exists); err != nil {
 			t.Fatal(err)

@@ -4,19 +4,22 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/Innocent-children/dev-flow/internal/application"
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/recovery"
-	"github.com/Innocent-children/dev-flow/internal/workflow"
 	"io"
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/Innocent-children/dev-flow/internal/application"
+	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/dev-flow/internal/recovery"
+	"github.com/Innocent-children/dev-flow/internal/repository"
+	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
 type openWire struct {
 	Host                   domain.Host                `json:"host"`
 	RepositoryPath         string                     `json:"repository_path"`
+	WorkspaceOrigin        *workspaceOriginWire       `json:"workspace_origin"`
 	PrimaryRepositoryKey   domain.RepositoryKey       `json:"primary_repository_key"`
 	AdditionalRepositories []additionalRepositoryWire `json:"additional_repositories"`
 	NewTask                *struct {
@@ -29,8 +32,17 @@ type openWire struct {
 	} `json:"new_task"`
 }
 type additionalRepositoryWire struct {
-	Key            domain.RepositoryKey `json:"key"`
-	RepositoryPath string               `json:"repository_path"`
+	Key             domain.RepositoryKey `json:"key"`
+	RepositoryPath  string               `json:"repository_path"`
+	WorkspaceOrigin workspaceOriginWire  `json:"workspace_origin"`
+}
+type workspaceOriginWire struct {
+	Mode                  domain.WorkspaceMode `json:"mode"`
+	RemoteName            string               `json:"remote_name"`
+	BaseBranch            string               `json:"base_branch"`
+	BaseCommit            string               `json:"base_commit"`
+	TaskBranch            string               `json:"task_branch"`
+	ProvisioningReceiptID domain.ID            `json:"provisioning_receipt_id"`
 }
 type readWire struct {
 	Host           domain.Host         `json:"host"`
@@ -46,6 +58,9 @@ type operationProbeWire struct {
 	ActionID                domain.ID         `json:"action_id"`
 	ActionKind              domain.ActionKind `json:"action_kind"`
 	RepositoryBindingDigest domain.Digest     `json:"repository_binding_digest"`
+	IssuanceIdentityDigest  domain.Digest     `json:"issuance_identity_digest"`
+	IssuanceHistoryDigest   domain.Digest     `json:"issuance_history_digest"`
+	IssuanceContentDigest   domain.Digest     `json:"issuance_content_digest"`
 	Payload                 json.RawMessage   `json:"payload"`
 }
 type artifactSubmissionWire struct {
@@ -77,11 +92,14 @@ type actionReferenceWire struct {
 	ActionID domain.ID   `json:"action_id"`
 }
 type resolveBlockerWire struct {
-	Host     domain.Host              `json:"host"`
-	TaskID   domain.ID                `json:"task_id"`
-	ActionID domain.ID                `json:"action_id"`
-	Choice   domain.FileScopeDecision `json:"choice"`
-	Reason   string                   `json:"reason"`
+	Host                   domain.Host                             `json:"host"`
+	TaskID                 domain.ID                               `json:"task_id"`
+	ActionID               domain.ID                               `json:"action_id"`
+	Choice                 domain.FileScopeDecision                `json:"choice"`
+	Reason                 string                                  `json:"reason"`
+	RelocationID           domain.ID                               `json:"relocation_id"`
+	RelocationDestinations []domain.RelocationDestination          `json:"relocation_destinations"`
+	HistoryResolution      *domain.WorkspaceHistoryResolutionInput `json:"history_resolution"`
 }
 type cancelWire struct {
 	RequestID domain.ID   `json:"request_id"`
@@ -89,6 +107,17 @@ type cancelWire struct {
 	TaskID    domain.ID   `json:"task_id"`
 	Revision  uint64      `json:"revision"`
 	Reason    string      `json:"reason"`
+}
+type lifecycleWire struct {
+	Host     domain.Host `json:"host"`
+	TaskID   domain.ID   `json:"task_id"`
+	Revision uint64      `json:"revision"`
+}
+type abandonWire struct {
+	Host     domain.Host `json:"host"`
+	TaskID   domain.ID   `json:"task_id"`
+	Revision uint64      `json:"revision"`
+	Reason   string      `json:"reason"`
 }
 
 func decodeClosed(raw []byte, out any) error {
@@ -178,15 +207,18 @@ func ValidateToolInput(tool string, raw []byte) error {
 		}
 		keys := map[domain.RepositoryKey]bool{primaryKey: true}
 		for _, repository := range v.AdditionalRepositories {
-			if !repository.Key.IsValid() || keys[repository.Key] || !validRepositoryPath(repository.RepositoryPath) {
+			if !repository.Key.IsValid() || keys[repository.Key] || !validRepositoryPath(repository.RepositoryPath) || !validWorkspaceOriginWire(repository.WorkspaceOrigin) {
 				return domain.ErrInvalidArgument
 			}
 			keys[repository.Key] = true
 		}
-		if v.NewTask == nil && (v.PrimaryRepositoryKey != "" || len(v.AdditionalRepositories) != 0) {
+		if v.NewTask == nil && hasAnyKey(raw, "workspace_origin", "primary_repository_key", "additional_repositories") {
 			return domain.ErrInvalidArgument
 		}
 		if v.NewTask != nil {
+			if v.WorkspaceOrigin == nil || !validWorkspaceOriginWire(*v.WorkspaceOrigin) {
+				return domain.ErrWorktreeProvisioningRequired
+			}
 			intent := domain.TaskIntent{Request: v.NewTask.Request, InitialScope: v.NewTask.InitialScope, InitialOutOfScope: v.NewTask.InitialOutOfScope, KnownAcceptanceCriteria: v.NewTask.KnownAcceptanceCriteria, VerificationBudget: v.NewTask.VerificationBudget, MethodProfile: v.NewTask.MethodProfile}
 			if intent.Validate() != nil {
 				return domain.ErrInvalidArgument
@@ -211,6 +243,24 @@ func ValidateToolInput(tool string, raw []byte) error {
 			return domain.ErrInvalidArgument
 		}
 		return nil
+	case ToolPrepareTaskRelocation:
+		if !hasKeys(raw, "host", "task_id", "revision") {
+			return domain.ErrInvalidArgument
+		}
+		var v lifecycleWire
+		if decodeClosed(raw, &v) != nil || !v.Host.IsValid() || !v.TaskID.IsValid() || v.Revision == 0 {
+			return domain.ErrInvalidArgument
+		}
+		return nil
+	case ToolAbandonTask:
+		if !hasKeys(raw, "host", "task_id", "revision", "reason") {
+			return domain.ErrInvalidArgument
+		}
+		var v abandonWire
+		if decodeClosed(raw, &v) != nil || !v.Host.IsValid() || !v.TaskID.IsValid() || v.Revision == 0 || strings.TrimSpace(v.Reason) != v.Reason || v.Reason == "" || len(v.Reason) > domain.MaxReasonBytes {
+			return domain.ErrInvalidArgument
+		}
+		return nil
 	case ToolResolveBlocker:
 		if !hasKeys(raw, "host", "task_id", "action_id") {
 			return domain.ErrInvalidArgument
@@ -224,6 +274,12 @@ func ValidateToolInput(tool string, raw []byte) error {
 				return domain.ErrInvalidArgument
 			}
 		} else if (domain.FileScopeDecisionInput{Choice: v.Choice, Reason: v.Reason}).Validate() != nil {
+			return domain.ErrInvalidArgument
+		}
+		if v.RelocationID != "" && (!v.RelocationID.IsValid() || len(v.RelocationDestinations) == 0) {
+			return domain.ErrInvalidArgument
+		}
+		if v.HistoryResolution != nil && v.HistoryResolution.Validate() != nil {
 			return domain.ErrInvalidArgument
 		}
 		return nil
@@ -281,7 +337,7 @@ func validOperationProbe(v *operationProbeWire) bool {
 	if v == nil {
 		return true
 	}
-	operation := domain.OperationReference{OperationID: v.OperationID, Process: domain.ProcessReference{ID: v.ProcessID, DefinitionDigest: v.ProcessDefinitionDigest}, SourceCursor: v.SourceCursor, ExpectedRevision: v.ExpectedRevision, ActionID: v.ActionID, ActionKind: v.ActionKind, RepositoryBindingDigest: v.RepositoryBindingDigest}
+	operation := domain.OperationReference{OperationID: v.OperationID, Process: domain.ProcessReference{ID: v.ProcessID, DefinitionDigest: v.ProcessDefinitionDigest}, SourceCursor: v.SourceCursor, ExpectedRevision: v.ExpectedRevision, ActionID: v.ActionID, ActionKind: v.ActionKind, RepositoryBindingDigest: v.RepositoryBindingDigest, IssuanceIdentityDigest: v.IssuanceIdentityDigest, IssuanceHistoryDigest: v.IssuanceHistoryDigest, IssuanceContentDigest: v.IssuanceContentDigest}
 	if workflow.ValidateOperationReference(operation) != nil || len(v.Payload) == 0 {
 		return false
 	}
@@ -346,6 +402,19 @@ func hasKeys(raw []byte, keys ...string) bool {
 	}
 	return true
 }
+
+func hasAnyKey(raw []byte, keys ...string) bool {
+	var value map[string]json.RawMessage
+	if json.Unmarshal(raw, &value) != nil {
+		return false
+	}
+	for _, key := range keys {
+		if _, ok := value[key]; ok {
+			return true
+		}
+	}
+	return false
+}
 func nullField(raw []byte, key string) bool {
 	var value map[string]json.RawMessage
 	if json.Unmarshal(raw, &value) != nil {
@@ -356,10 +425,14 @@ func nullField(raw []byte, key string) bool {
 }
 func toOpen(w openWire, id domain.ID) application.OpenTaskRequest {
 	r := application.OpenTaskRequest{RequestID: id, Host: w.Host, RepositoryPath: w.RepositoryPath, PrimaryRepositoryKey: w.PrimaryRepositoryKey}
+	if w.WorkspaceOrigin != nil {
+		input := toWorkspaceOrigin(*w.WorkspaceOrigin)
+		r.WorkspaceOrigin = &input
+	}
 	if len(w.AdditionalRepositories) != 0 {
 		r.AdditionalRepositories = make([]application.AdditionalRepositoryInput, len(w.AdditionalRepositories))
 		for i, repository := range w.AdditionalRepositories {
-			r.AdditionalRepositories[i] = application.AdditionalRepositoryInput{Key: repository.Key, RepositoryPath: repository.RepositoryPath}
+			r.AdditionalRepositories[i] = application.AdditionalRepositoryInput{Key: repository.Key, RepositoryPath: repository.RepositoryPath, WorkspaceOrigin: toWorkspaceOrigin(repository.WorkspaceOrigin)}
 		}
 	}
 	if w.NewTask != nil {
@@ -374,7 +447,14 @@ func toProbe(w *operationProbeWire) *application.OperationProbe {
 	if w == nil {
 		return nil
 	}
-	return &application.OperationProbe{OperationID: w.OperationID, ProcessID: w.ProcessID, ProcessDefinitionDigest: w.ProcessDefinitionDigest, SourceCursor: w.SourceCursor, ExpectedRevision: w.ExpectedRevision, ActionID: w.ActionID, ActionKind: w.ActionKind, RepositoryBindingDigest: w.RepositoryBindingDigest, Payload: w.Payload}
+	return &application.OperationProbe{OperationID: w.OperationID, ProcessID: w.ProcessID, ProcessDefinitionDigest: w.ProcessDefinitionDigest, SourceCursor: w.SourceCursor, ExpectedRevision: w.ExpectedRevision, ActionID: w.ActionID, ActionKind: w.ActionKind, RepositoryBindingDigest: w.RepositoryBindingDigest, IssuanceIdentityDigest: w.IssuanceIdentityDigest, IssuanceHistoryDigest: w.IssuanceHistoryDigest, IssuanceContentDigest: w.IssuanceContentDigest, Payload: w.Payload}
+}
+
+func toWorkspaceOrigin(w workspaceOriginWire) application.WorkspaceOriginInput {
+	return application.WorkspaceOriginInput{Mode: w.Mode, RemoteName: w.RemoteName, BaseBranch: w.BaseBranch, BaseCommit: w.BaseCommit, TaskBranch: w.TaskBranch, ProvisioningReceiptID: w.ProvisioningReceiptID}
+}
+func validWorkspaceOriginWire(w workspaceOriginWire) bool {
+	return repository.ValidWorkspaceOriginSelection(repository.WorkspaceOriginSelection{Mode: w.Mode, RemoteName: w.RemoteName, BaseBranch: w.BaseBranch, BaseCommit: w.BaseCommit, TaskBranch: w.TaskBranch, ProvisioningReceiptID: w.ProvisioningReceiptID})
 }
 func toSubmitAction(w submitActionWire, requestID domain.ID, kind domain.ActionKind) application.SubmitActionRequest {
 	current := make([]application.ArtifactSubmission, len(w.Artifacts.Current))

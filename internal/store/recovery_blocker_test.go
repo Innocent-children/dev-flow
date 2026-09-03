@@ -30,8 +30,9 @@ func TestProcessBlockerSnapshotCloseReopenEquality(t *testing.T) {
 	task.Revision++
 	task.UpdatedAt = now
 	observed := domain.Digest(strings.Repeat("d", 64))
-	task.Blocker = &domain.ProcessBlocker{BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.BlockerCauseRecoveryPartiallyCompleted, Message: "Restore the issuance binding before continuing.", ResumeNode: resume, ObservedBindingDigest: observed, Condition: domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: task.Repository.BindingDigest}, RequiredResolution: "Restore the exact issuance binding.", CreatedAt: now}
-	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), domain.NodeBlocked, task.TaskID, task.Revision, task.Repository.BindingDigest, task.Intent.MethodProfile, "resolve-action", now)
+	task.Blocker = &domain.ProcessBlocker{BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.BlockerCauseRecoveryPartiallyCompleted, Message: "Restore the issuance binding before continuing.", ResumeNode: resume, ObservedBindingDigest: observed, Condition: domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: task.Repository.BindingDigest, ExpectedIdentityDigest: task.Repository.IdentityDigest, ExpectedHistoryDigest: task.Repository.HistoryDigest, ExpectedContentDigest: task.Repository.ContentDigest}, RequiredResolution: "Restore the exact issuance binding.", CreatedAt: now}
+	workspace, _ := task.EffectiveWorkspaceDigests()
+	action, err := workflow.BuildProcessActionForWorkspace(workflow.StandardProcess(), domain.NodeBlocked, task.TaskID, task.Revision, workspace, task.Intent.MethodProfile, "resolve-action", now)
 	if err != nil {
 		t.Fatal(err)
 	}

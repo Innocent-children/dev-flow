@@ -26,7 +26,7 @@ import (
 // schema. The last pass reaches the root, which is exactly how a discriminated
 // root union becomes an untyped callable argument.
 const (
-	hostProjectionBudgetBytes = 5000
+	hostProjectionBudgetBytes = 6000
 	hostProjectionMarginBytes = 64
 	hostProjectionCollapse    = 3
 )

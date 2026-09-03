@@ -21,8 +21,8 @@ func TestMultiRepositoryScopeJourney(t *testing.T) {
 	root := t.TempDir()
 	primaryPath := filepath.Join(root, "core")
 	additionalPath := filepath.Join(root, "docs")
-	initializeJourneyRepository(t, primaryPath)
-	initializeJourneyRepository(t, additionalPath)
+	primaryOrigin := initializeDedicatedJourneyWorktree(t, primaryPath, "task/core", "receipt-core")
+	additionalOrigin := initializeDedicatedJourneyWorktree(t, additionalPath, "task/docs", "receipt-docs")
 	databasePath := filepath.Join(root, "dev-flow.db")
 	sqliteStore, err := store.Open(context.Background(), databasePath)
 	if err != nil {
@@ -35,7 +35,7 @@ func TestMultiRepositoryScopeJourney(t *testing.T) {
 	}
 
 	occupied, err := service.OpenTask(context.Background(), application.OpenTaskRequest{
-		RequestID: "occupy-additional", Host: domain.HostCodex, RepositoryPath: additionalPath,
+		RequestID: "occupy-additional", Host: domain.HostCodex, RepositoryPath: additionalPath, WorkspaceOrigin: &additionalOrigin,
 		NewTask: &application.NewTaskInput{Request: "Temporarily occupy the additional repository.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain},
 	})
 	if err != nil {
@@ -43,8 +43,8 @@ func TestMultiRepositoryScopeJourney(t *testing.T) {
 	}
 	beforeConflict := multiRepositoryDatabaseCounts(t, databasePath)
 	_, err = service.OpenTask(context.Background(), application.OpenTaskRequest{
-		RequestID: "conflicting-multi-open", Host: domain.HostCodex, RepositoryPath: primaryPath, PrimaryRepositoryKey: "core",
-		AdditionalRepositories: []application.AdditionalRepositoryInput{{Key: "docs", RepositoryPath: additionalPath}},
+		RequestID: "conflicting-multi-open", Host: domain.HostCodex, RepositoryPath: primaryPath, WorkspaceOrigin: &primaryOrigin, PrimaryRepositoryKey: "core",
+		AdditionalRepositories: []application.AdditionalRepositoryInput{{Key: "docs", RepositoryPath: additionalPath, WorkspaceOrigin: additionalOrigin}},
 		NewTask:                &application.NewTaskInput{Request: "Create a conflicting two-repository task.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain},
 	})
 	if !errors.Is(err, domain.ErrActiveTaskConflict) {
@@ -58,8 +58,8 @@ func TestMultiRepositoryScopeJourney(t *testing.T) {
 	}
 
 	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{
-		RequestID: "open-multi-repository", Host: domain.HostCodex, RepositoryPath: primaryPath, PrimaryRepositoryKey: "core",
-		AdditionalRepositories: []application.AdditionalRepositoryInput{{Key: "docs", RepositoryPath: additionalPath}},
+		RequestID: "open-multi-repository", Host: domain.HostCodex, RepositoryPath: primaryPath, WorkspaceOrigin: &primaryOrigin, PrimaryRepositoryKey: "core",
+		AdditionalRepositories: []application.AdditionalRepositoryInput{{Key: "docs", RepositoryPath: additionalPath, WorkspaceOrigin: additionalOrigin}},
 		NewTask:                &application.NewTaskInput{Request: "Record one scoped requirements mutation.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: domain.MethodPlain},
 	})
 	if err != nil {
@@ -82,12 +82,7 @@ func TestMultiRepositoryScopeJourney(t *testing.T) {
 		t.Fatal(err)
 	}
 	payload := multiRepositoryRequirementsPayload(t, opened.Task, artifactContent)
-	digest, err := opened.Task.EffectiveRepositoryBindingDigest()
-	if err != nil {
-		t.Fatal(err)
-	}
-	action := opened.Task.CurrentAction
-	applied, err := service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "apply-scoped-requirements", Host: domain.HostCodex, TaskID: opened.Task.TaskID, ExpectedRevision: opened.Task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: opened.Task.Process.ID, ProcessDefinitionDigest: opened.Task.Process.DefinitionDigest, SourceCursor: opened.Task.CurrentNode, RepositoryBindingDigest: digest, Payload: payload})
+	applied, err := service.ApplyAction(context.Background(), journeyApplyRequest(opened.Task, "apply-scoped-requirements", payload))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,9 +145,6 @@ func multiRepositoryRequirementsPayload(t *testing.T, task domain.ProcessTask, a
 	}
 	sum := sha256.Sum256(artifact)
 	value["artifacts"] = []map[string]any{{"role": "requirements", "path": "core::requirements.md", "digest": hex.EncodeToString(sum[:]), "summary": "Scoped requirements artifact"}}
-	nodeResult := value["node_result"].(map[string]any)
-	nodeResult["changed_paths"] = []string{"core::requirements.md"}
-	nodeResult["no_file_changes"] = false
 	raw, err := json.Marshal(value)
 	if err != nil {
 		t.Fatal(err)

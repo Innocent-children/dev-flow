@@ -2,7 +2,7 @@
 
 [中文](PROJECT-STATUS.md) | [English](PROJECT-STATUS_en.md)
 
-_最后核对：2026 年 9 月 1 日。_
+_最后核对：2026 年 9 月 3 日。_
 
 Dev Flow 仍是一个早期开源项目。本页区分已经稳定发布、只在 beta 或源码中出现、尚未验证，以及
 产品仍需改进的内容。源码可构建或测试通过不会自动扩大稳定支持。
@@ -27,15 +27,17 @@ DeepSeek 稳定 Journey 还覆盖显式触发、重启恢复、`DONE` 和保留�
 
 | 用户可见能力 | 当前内容 |
 | --- | --- |
+| 新请求准入 | Host 先做只读 `small|standard|large|uncertain` 评估并等待用户选择；显式 selector 也不能跳过 |
+| 工作树优先 | 用户逐仓确认 remote/base/target，Host 精确 fetch、冻结 commit，并在干净专属工作树验证后才创建 Task |
 | 持久 Task | 本地保存请求、范围、当前阶段、验证预算、记录、阻塞和结果 |
 | 中断后继续 | Codex 和 DeepSeek 从同一 Task 恢复当前阶段与下一步 |
-| 范围与验证限制 | 明确 Repository Scope、verification budget 和记录失效规则 |
+| 范围与验证限制 | Core 从固定 base、commits、index/worktree/untracked 状态计算当前 Task surface，并执行 ExpectedPaths、verification budget 和记录失效规则 |
 | 自动刹车 | 保存最近三次测试尝试；相同失败、相同结果或相同修改与失败循环第三次精确重复后暂停 |
 | 不确定 Action 恢复 | read-before-retry、Recovery 判断、Blocker 和 resume |
 | 交付前理解确认 | 测试后进入理解确认；仓库变更后重新测试 |
 | 本机查看与诊断 | 共享 loopback WebUI，入口为 `dev-flow webui start|open|status|stop` |
 | 当前源码平台 | 精确支持 `darwin-arm64` 与 `win32-x64` runtime；Windows 范围是 Windows 10/11 桌面版 x64 |
-| 高级仓库能力 | 一个主仓库加最多七个显式附加仓库；Codex 在 Host 支持时可分派独立 worktree Task |
+| 高级仓库能力 | 一个主仓库加最多七个显式附加仓库；全部 roots 都必须先隔离和授权；同机 relocation 原子替换 bindings 与 claims |
 | Host 生命周期 | 统一 `dev-flow` 入口管理 Codex 与 DeepSeek 的安装、诊断、维护和移除 |
 
 多仓库与 worktree 是高级能力，不代表 Dev Flow 的主要用户场景。它们的源码存在也不表示已有对应
@@ -46,7 +48,7 @@ DeepSeek 稳定 Journey 还覆盖显式触发、重启恢复、`DONE` 和保留�
 - Windows 10/11 x64 已有本机 Core/WebUI/MCP、Adapter contract 和本地打包证据，但尚未完成稳定
   `@latest` 最终制品 Host Journey；
 - Linux、Windows Server、Windows 32 位与 ARM64、Intel Mac、Rosetta 和 remote MCP 没有稳定支持声明；
-- Codex 的显式并行批次和 `ACTIVE_TASK_CONFLICT` 后 worktree 分派仍缺少最终制品 Journey；
+- 工作树优先准入、provisioning、同机 relocation 和 abandon 尚未进入稳定 `@latest` 最终制品 Journey；
 - verification budget 尚未通过外部使用数据证明能够减少无效测试；
 - 自动刹车尚未通过真实 Host Journey 和外部使用数据确认误阻塞率；
 - comprehension gate 尚未通过长期项目数据证明能够降低维护成本或缺陷率；
@@ -75,7 +77,8 @@ package 可用和已有的具体 Host Journey，不能据此推导缺陷率、�
 - verification budget 尚未通过外部使用数据证明能减少无效测试；
 - 尚未量化中断后恢复耗时、自动刹车错误阻塞率和重复使用率；
 - 当前还不能清楚展示验证预算如何消耗，以及为什么扩大；
-- 多仓库与 worktree 是高级能力，不代表主要用户场景；
+- Host 对 change-level 的误判率、provisioning 失败恢复耗时和 relocation 可用性尚未形成外部数据；
+- 多仓库、worktree 与 relocation 是高级能力，不代表主要用户场景；
 - 外部 Issue、Pull Request、依赖项目和长期采用仍然有限。
 
 这些缺口是后续评估方向，不是已经交付的功能。优先级见 [Roadmap](ROADMAP.md)。

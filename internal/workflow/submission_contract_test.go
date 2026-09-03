@@ -66,7 +66,7 @@ func TestCanonicalDecodeNamesEveryNestedMissingMember(t *testing.T) {
 				"approach": "Direct design", "components": []any{}, "decisions": []any{},
 				"rejected_alternatives": []any{}, "complexity_justification": []any{}, "risks": []any{},
 			},
-			"findings": []any{}, "changed_paths": []any{}, "no_file_changes": true,
+			"findings": []any{},
 		})
 		assertViolation(t, violations, "payload.node_result.baseline.requirements_revision", domain.RuleRequiredMemberMissing)
 	})
@@ -76,7 +76,7 @@ func TestCanonicalDecodeNamesEveryNestedMissingMember(t *testing.T) {
 			"baseline": map[string]any{
 				"work_items": []any{workItemInput("work", []any{0})},
 			},
-			"findings": []any{}, "changed_paths": []any{}, "no_file_changes": true,
+			"findings": []any{},
 		})
 		assertViolation(t, violations, "payload.node_result.baseline.design_revision", domain.RuleRequiredMemberMissing)
 	})
@@ -87,7 +87,7 @@ func TestCanonicalDecodeNamesEveryNestedMissingMember(t *testing.T) {
 				"design_revision": 1,
 				"work_items":      []any{workItemWithoutVerificationSteps("work", []any{0})},
 			},
-			"findings": []any{}, "changed_paths": []any{}, "no_file_changes": true,
+			"findings": []any{},
 		})
 		assertViolation(t, violations, "payload.node_result.baseline.work_items[0].verification_steps", domain.RuleRequiredMemberMissing)
 	})
@@ -96,7 +96,7 @@ func TestCanonicalDecodeNamesEveryNestedMissingMember(t *testing.T) {
 			"problem_class": "none", "explained_components": []any{}, "unresolved_questions": []any{},
 			"unnecessary_abstractions": []any{}, "maintenance_risks": []any{},
 			"user_confirmation": map[string]any{"source": "user", "summary": "The developer confirmed."},
-			"findings":          []any{}, "changed_paths": []any{}, "no_file_changes": true,
+			"findings":          []any{},
 		})
 		assertViolation(t, violations, "payload.node_result.user_confirmation.status", domain.RuleRequiredMemberMissing)
 	})
@@ -106,7 +106,7 @@ func TestCanonicalDecodeNamesEveryNestedMissingMember(t *testing.T) {
 			"acceptance":             []any{map[string]any{"criterion": "The field is returned"}},
 			"automated_evidence_ids": []any{}, "manual_evidence_ids": []any{}, "test_record_id": "test-1",
 			"comprehension_record_id": "comprehension-1", "unverified_items": []any{}, "risks": []any{},
-			"findings": []any{}, "changed_paths": []any{}, "no_file_changes": true,
+			"findings": []any{},
 		})
 		assertViolation(t, violations, "payload.node_result.acceptance[0].status", domain.RuleRequiredMemberMissing)
 	})
@@ -115,7 +115,7 @@ func TestCanonicalDecodeNamesEveryNestedMissingMember(t *testing.T) {
 			"problem_class": "none",
 			"checks":        []any{map[string]any{"source": "user", "status": "passed", "summary": "Manual check.", "command_count": 0, "full_suite": false}},
 			"failed_items":  []any{}, "unverified_items": []any{}, "manual_handoff_items": []any{},
-			"findings": []any{}, "changed_paths": []any{}, "no_file_changes": true,
+			"findings": []any{},
 		})
 		assertViolation(t, violations, "payload.node_result.checks[0].name", domain.RuleRequiredMemberMissing)
 	})
@@ -127,8 +127,7 @@ func TestCanonicalDecodeNamesEveryNestedMissingMember(t *testing.T) {
 				"step_id": "step.one", "status": "plain_fallback", "capability": "", "summary": "Completed the step.",
 			}},
 			"node_result": map[string]any{"problem_class": "none", "checks": []any{}, "failed_items": []any{},
-				"unverified_items": []any{}, "manual_handoff_items": []any{}, "findings": []any{},
-				"changed_paths": []any{}, "no_file_changes": true},
+				"unverified_items": []any{}, "manual_handoff_items": []any{}, "findings": []any{}},
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -227,16 +226,16 @@ func TestSubmissionContractProjectsOnlyHostOwnedMembers(t *testing.T) {
 			"approach": "Direct design", "components": []any{}, "decisions": []any{},
 			"rejected_alternatives": []any{}, "complexity_justification": []any{}, "risks": []any{},
 		},
-		"findings": []any{}, "changed_paths": []any{}, "no_file_changes": true,
+		"findings": []any{},
 	}
 	tasksWithoutRevision := map[string]any{
 		"problem_class": "none",
 		"baseline":      map[string]any{"work_items": []any{workItemInput("work", []any{0})}},
-		"findings":      []any{}, "changed_paths": []any{}, "no_file_changes": true,
+		"findings":      []any{},
 	}
 	implementationWithoutRevision := map[string]any{
-		"problem_class": "none", "completed_work_item_ids": []any{}, "changed_paths": []any{},
-		"no_file_changes": true, "deviations": []any{}, "findings": []any{},
+		"problem_class": "none", "completed_work_item_ids": []any{},
+		"deviations": []any{}, "findings": []any{},
 	}
 	for _, tc := range []struct {
 		kind       domain.ActionKind
@@ -276,7 +275,6 @@ func TestSubmissionContractProjectsOnlyHostOwnedMembers(t *testing.T) {
 		}
 		minimal := map[string]any{
 			"problem_class": "none", "unverified_items": []any{}, "risks": []any{}, "findings": []any{},
-			"changed_paths": []any{}, "no_file_changes": true,
 		}
 		raw, marshalErr := json.Marshal(minimal)
 		if marshalErr != nil {
@@ -300,7 +298,7 @@ func TestSubmissionContractProjectsOnlyHostOwnedMembers(t *testing.T) {
 				"requirements_revision": 3, "approach": "Direct design", "components": []any{}, "decisions": []any{},
 				"rejected_alternatives": []any{}, "complexity_justification": []any{}, "risks": []any{},
 			},
-			"findings": []any{}, "changed_paths": []any{}, "no_file_changes": true,
+			"findings": []any{},
 		}
 		raw, err := json.Marshal(withRevision)
 		if err != nil {
@@ -317,7 +315,7 @@ func TestSubmissionContractProjectsOnlyHostOwnedMembers(t *testing.T) {
 				"components": []any{}, "decisions": []any{}, "rejected_alternatives": []any{},
 				"complexity_justification": []any{}, "risks": []any{},
 			},
-			"findings": []any{}, "changed_paths": []any{}, "no_file_changes": true,
+			"findings": []any{},
 		}
 		raw, err := json.Marshal(missingApproach)
 		if err != nil {
@@ -334,7 +332,7 @@ func TestSubmissionContractProjectsOnlyHostOwnedMembers(t *testing.T) {
 		missingVerification := map[string]any{
 			"problem_class": "none",
 			"baseline":      map[string]any{"work_items": []any{workItemWithoutVerificationSteps("work", []any{0})}},
-			"findings":      []any{}, "changed_paths": []any{}, "no_file_changes": true,
+			"findings":      []any{},
 		}
 		raw, err := json.Marshal(missingVerification)
 		if err != nil {
@@ -348,7 +346,7 @@ func TestSubmissionContractProjectsOnlyHostOwnedMembers(t *testing.T) {
 		}
 	})
 	t.Run("nullable baseline stays optional", func(t *testing.T) {
-		raw := []byte(`{"problem_class":"requirement_gap","baseline":null,"findings":["Acceptance is unclear"],"changed_paths":[],"no_file_changes":true}`)
+		raw := []byte(`{"problem_class":"requirement_gap","baseline":null,"findings":["Acceptance is unclear"]}`)
 		if err := ValidateSubmissionNodeResult(domain.ActionCompleteDesign, raw); err != nil {
 			t.Fatalf("a null baseline was refused: %v", err)
 		}

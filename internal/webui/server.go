@@ -26,6 +26,8 @@ type ControlCenterMutator interface {
 	SubmitCurrentAction(context.Context, application.SubmitControlCenterActionRequest) (application.ControlCenterActionResult, error)
 	AssessTaskOperation(context.Context, application.AssessControlCenterRecoveryRequest) (application.ControlCenterActionResult, error)
 	ApplyTaskRecovery(context.Context, application.ApplyControlCenterRecoveryRequest) (application.ControlCenterActionResult, error)
+	PrepareTaskRelocation(context.Context, application.PrepareTaskRelocationRequest) (application.PrepareTaskRelocationResult, error)
+	AbandonTask(context.Context, application.AbandonTaskRequest) (application.AbandonTaskResult, error)
 }
 
 func NewReadAPI(reader ControlCenterReader, status SystemStatusProvider) (http.Handler, error) {
@@ -52,8 +54,10 @@ func newAPI(reader ControlCenterReader, mutator ControlCenterMutator, status Sys
 	mux.HandleFunc("GET /api/system/filter-options", handlers.filterOptions)
 	if mutator != nil {
 		lifecycle := &lifecycleHandlers{mutator: mutator}
-		mux.HandleFunc("POST /api/tasks/open", lifecycle.openTask)
+		mux.HandleFunc("POST /api/tasks/resume", lifecycle.resumeTask)
 		mux.HandleFunc("POST /api/tasks/{task_id}/cancel", lifecycle.cancelTask)
+		mux.HandleFunc("POST /api/tasks/{task_id}/relocation/prepare", lifecycle.prepareRelocation)
+		mux.HandleFunc("POST /api/tasks/{task_id}/abandon", lifecycle.abandonTask)
 		mux.HandleFunc("POST /api/tasks/{task_id}/archive", lifecycle.archiveTask)
 		mux.HandleFunc("POST /api/tasks/{task_id}/purge", lifecycle.purgeTask)
 		actions := &actionHandlers{mutator: mutator}

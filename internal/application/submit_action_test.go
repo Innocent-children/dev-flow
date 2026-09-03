@@ -267,8 +267,7 @@ func TestArtifactRoleFailureIsNotRepositoryDrift(t *testing.T) {
 	}
 	document["artifacts"] = []map[string]any{{"role": "implementation", "path": "internal/file.go", "digest": digestOf("e"), "summary": "Wrong role"}}
 	raw, _ = json.Marshal(document)
-	action := task.CurrentAction
-	_, err := service.ApplyAction(context.Background(), ApplyActionRequest{RequestID: "invalid-artifact-role", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: action.RepositoryBindingDigest, Payload: raw})
+	_, err := service.ApplyAction(context.Background(), currentActionApplyRequest(task, "invalid-artifact-role", raw))
 	if !errors.Is(err, domain.ErrInvalidArgument) || errors.Is(err, domain.ErrRepositoryDrift) {
 		t.Fatalf("error=%v", err)
 	}
@@ -279,29 +278,20 @@ func TestArtifactRoleFailureIsNotRepositoryDrift(t *testing.T) {
 }
 
 func TestResolveBlockerActionBuildsItsPayloadInCore(t *testing.T) {
-	service, memory, _ := phase5Service(t)
-	task := openPhase5Task(t, service)
-	resume := task.CurrentNode
-	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), domain.NodeBlocked, task.TaskID, task.Revision, task.Repository.BindingDigest, task.Intent.MethodProfile, "blocked-submit-action", task.UpdatedAt)
+	service, memory, observer := phase5Service(t)
+	task := phase5TaskAtRefactor(t, service)
+	observer.binding = graphChangedBinding(task.Repository, []string{"internal/file.go"}, "c")
+	blocked, err := service.ApplyAction(context.Background(), graphRecoveryApply(task, "partial-submit-blocker", json.RawMessage("null")))
 	if err != nil {
 		t.Fatal(err)
 	}
-	task.CurrentNode = domain.NodeBlocked
-	task.ResumeNode = &resume
-	task.Blocker = &domain.ProcessBlocker{
-		BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.BlockerCauseRecoveryConflicting,
-		ResumeNode: resume, Message: "Restore repository binding.", ObservedBindingDigest: task.Repository.BindingDigest,
-		Condition:          domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: task.Repository.BindingDigest},
-		RequiredResolution: "Restore the issuance binding.", CreatedAt: task.UpdatedAt,
-	}
-	task.CurrentAction = &action
-	memory.task = &task
-	result, err := service.ResolveBlockerAction(context.Background(), RecoverActionRequest{Host: domain.HostCodex, TaskID: task.TaskID, ActionID: action.ActionID}, "resolve-blocker-submit")
+	observer.binding = task.Repository
+	result, err := service.ResolveBlockerAction(context.Background(), RecoverActionRequest{Host: domain.HostCodex, TaskID: task.TaskID, ActionID: blocked.Task.CurrentAction.ActionID}, "resolve-blocker-submit")
 	if err != nil {
 		t.Fatal(err)
 	}
 	operation, found, operationErr := memory.LoadActionOperation(context.Background(), task.TaskID)
-	if result.Task.CurrentNode != domain.NodeRequirements || result.Task.Blocker != nil || operationErr != nil || !found || operation.Commit.Operation.SourceCursor != domain.NodeBlocked {
+	if result.Task.CurrentNode != domain.NodeRefactor || result.Task.Blocker != nil || operationErr != nil || !found || operation.Commit.Operation.SourceCursor != domain.NodeBlocked {
 		t.Fatalf("resolved task=%#v", result.Task)
 	}
 }
@@ -347,6 +337,5 @@ func actionSubmission(t *testing.T, task domain.ProcessTask, requestID domain.ID
 func deliverySubmissionResult() map[string]any {
 	return map[string]any{
 		"problem_class": "none", "unverified_items": []string{}, "risks": []string{}, "findings": []string{},
-		"changed_paths": []string{}, "no_file_changes": true,
 	}
 }

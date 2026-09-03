@@ -66,7 +66,7 @@ func storeTestActionCommit(t *testing.T, task domain.ProcessTask) domain.ActionC
 	result := map[string]any{
 		"problem_class":        "none",
 		"baseline":             map[string]any{"goal": "Goal", "scope": []string{}, "out_of_scope": []string{}, "acceptance_criteria": []string{"Works"}, "constraints": []string{}, "assumptions": []string{}},
-		"unresolved_questions": []string{}, "changed_paths": []string{}, "no_file_changes": true,
+		"unresolved_questions": []string{},
 	}
 	nodeResult, _ := json.Marshal(result)
 	method := make([]domain.MethodEvidence, len(task.CurrentAction.SemanticMethodSteps))
@@ -83,7 +83,7 @@ func storeTestActionCommit(t *testing.T, task domain.ProcessTask) domain.ActionC
 	if err != nil {
 		t.Fatal(err)
 	}
-	operation := domain.OperationReference{OperationID: "action-operation", Process: task.Process, SourceCursor: task.CurrentNode, ExpectedRevision: task.Revision, ActionID: task.CurrentAction.ActionID, ActionKind: task.CurrentAction.Kind, RepositoryBindingDigest: task.CurrentAction.RepositoryBindingDigest}
+	operation := domain.OperationReference{OperationID: "action-operation", Process: task.Process, SourceCursor: task.CurrentNode, ExpectedRevision: task.Revision, ActionID: task.CurrentAction.ActionID, ActionKind: task.CurrentAction.Kind, RepositoryBindingDigest: task.CurrentAction.RepositoryBindingDigest, IssuanceIdentityDigest: task.CurrentAction.IssuanceIdentityDigest, IssuanceHistoryDigest: task.CurrentAction.IssuanceHistoryDigest, IssuanceContentDigest: task.CurrentAction.IssuanceContentDigest}
 	digest, err := workflow.GraphOperationDigest(task.OriginHost, task.TaskID, operation, canonical)
 	if err != nil {
 		t.Fatal(err)

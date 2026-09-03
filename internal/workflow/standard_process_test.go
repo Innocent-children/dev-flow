@@ -11,6 +11,7 @@ import (
 
 	"github.com/Innocent-children/dev-flow/internal/application"
 	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/dev-flow/internal/repository"
 	"github.com/Innocent-children/dev-flow/internal/store"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
@@ -35,10 +36,16 @@ func (s *standardProcessStore) CommitTask(_ context.Context, mutation store.Task
 	return nil
 }
 
-type standardProcessObserver struct{ binding domain.RepositoryBinding }
+type standardProcessObserver struct {
+	origin  domain.WorkspaceOrigin
+	binding domain.RepositoryBinding
+}
 
 func (o standardProcessObserver) Observe(context.Context, string) (domain.RepositoryBinding, error) {
 	return o.binding, nil
+}
+func (o standardProcessObserver) ObserveWorkspace(context.Context, string, repository.WorkspaceOriginSelection, *domain.RepositoryBinding) (domain.WorkspaceOrigin, domain.RepositoryBinding, error) {
+	return o.origin, o.binding, nil
 }
 
 type standardTransitionCase struct {
@@ -151,7 +158,7 @@ func TestStandardProcessReasonMalformedTerminalAndExceptionalRejections(t *testi
 	memory.task = snapshots[domain.NodeTest]
 	before := memory.writes
 	a := memory.task.CurrentAction
-	_, err := service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "malformed", Host: domain.HostCodex, TaskID: memory.task.TaskID, ExpectedRevision: memory.task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: memory.task.Process.ID, ProcessDefinitionDigest: memory.task.Process.DefinitionDigest, SourceCursor: memory.task.CurrentNode, RepositoryBindingDigest: memory.task.Repository.BindingDigest, Payload: json.RawMessage(`{"transition_id":`)})
+	_, err := service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "malformed", Host: domain.HostCodex, TaskID: memory.task.TaskID, ExpectedRevision: memory.task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: memory.task.Process.ID, ProcessDefinitionDigest: memory.task.Process.DefinitionDigest, SourceCursor: memory.task.CurrentNode, RepositoryBindingDigest: a.RepositoryBindingDigest, IssuanceIdentityDigest: a.IssuanceIdentityDigest, IssuanceHistoryDigest: a.IssuanceHistoryDigest, IssuanceContentDigest: a.IssuanceContentDigest, Payload: json.RawMessage(`{"transition_id":`)})
 	if !errors.Is(err, domain.ErrInvalidArgument) || memory.writes != before {
 		t.Fatalf("malformed payload error=%v writes=%d", err, memory.writes-before)
 	}
@@ -160,7 +167,7 @@ func TestStandardProcessReasonMalformedTerminalAndExceptionalRejections(t *testi
 	if marshalErr != nil {
 		t.Fatal(marshalErr)
 	}
-	_, err = service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "caller-destination", Host: domain.HostCodex, TaskID: memory.task.TaskID, ExpectedRevision: memory.task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: memory.task.Process.ID, ProcessDefinitionDigest: memory.task.Process.DefinitionDigest, SourceCursor: memory.task.CurrentNode, RepositoryBindingDigest: memory.task.Repository.BindingDigest, Payload: rawDestination})
+	_, err = service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "caller-destination", Host: domain.HostCodex, TaskID: memory.task.TaskID, ExpectedRevision: memory.task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: memory.task.Process.ID, ProcessDefinitionDigest: memory.task.Process.DefinitionDigest, SourceCursor: memory.task.CurrentNode, RepositoryBindingDigest: a.RepositoryBindingDigest, IssuanceIdentityDigest: a.IssuanceIdentityDigest, IssuanceHistoryDigest: a.IssuanceHistoryDigest, IssuanceContentDigest: a.IssuanceContentDigest, Payload: rawDestination})
 	if !errors.Is(err, domain.ErrInvalidArgument) || memory.writes != before {
 		t.Fatalf("caller destination error=%v writes=%d", err, memory.writes-before)
 	}
@@ -178,7 +185,7 @@ func TestStandardProcessReasonMalformedTerminalAndExceptionalRejections(t *testi
 		if terminal.CurrentAction != nil {
 			actionID, actionKind = terminal.CurrentAction.ActionID, terminal.CurrentAction.Kind
 		}
-		_, err = service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "terminal-attempt", Host: domain.HostCodex, TaskID: terminal.TaskID, ExpectedRevision: terminal.Revision, ActionID: actionID, ActionKind: actionKind, ProcessID: terminal.Process.ID, ProcessDefinitionDigest: terminal.Process.DefinitionDigest, SourceCursor: terminal.CurrentNode, RepositoryBindingDigest: terminal.Repository.BindingDigest, Payload: standardPayload(t, snapshots[domain.NodeTest], "tests_passed", "", validNodeResult(snapshots[domain.NodeTest], "tests_passed"))})
+		_, err = service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "terminal-attempt", Host: domain.HostCodex, TaskID: terminal.TaskID, ExpectedRevision: terminal.Revision, ActionID: actionID, ActionKind: actionKind, ProcessID: terminal.Process.ID, ProcessDefinitionDigest: terminal.Process.DefinitionDigest, SourceCursor: terminal.CurrentNode, RepositoryBindingDigest: terminal.Repository.BindingDigest, IssuanceIdentityDigest: terminal.Repository.IdentityDigest, IssuanceHistoryDigest: terminal.Repository.HistoryDigest, IssuanceContentDigest: terminal.Repository.ContentDigest, Payload: standardPayload(t, snapshots[domain.NodeTest], "tests_passed", "", validNodeResult(snapshots[domain.NodeTest], "tests_passed"))})
 		if terminal.CurrentNode == domain.NodeBlocked && !errors.Is(err, domain.ErrInvalidArgument) || terminal.CurrentNode.Terminal() && !errors.Is(err, domain.ErrTaskTerminal) || memory.writes != before {
 			t.Fatalf("node=%s error=%v writes=%d", terminal.CurrentNode, err, memory.writes-before)
 		}
@@ -248,15 +255,16 @@ func standardProcessFixture(t *testing.T) (*application.Service, *standardProces
 	t.Helper()
 	now := time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)
 	digest := domain.Digest(strings.Repeat("a", 64))
-	branch, head := "main", strings.Repeat("b", 40)
+	branch, head := "feature/process", strings.Repeat("b", 40)
 	repositoryPath := testPath("repo")
-	binding := domain.RepositoryBinding{CanonicalRoot: repositoryPath, GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
+	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: repositoryPath, WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt"}
+	binding := domain.RepositoryBinding{WorktreeInstanceDigest: digest, IdentityDigest: digest, HistoryDigest: digest, ContentDigest: digest, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: digest}
 	memory := &standardProcessStore{}
-	service, err := application.NewService(memory, standardProcessObserver{binding})
+	service, err := application.NewService(memory, standardProcessObserver{origin: origin, binding: binding})
 	if err != nil {
 		t.Fatal(err)
 	}
-	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "open-standard", Host: domain.HostCodex, RepositoryPath: repositoryPath, NewTask: &application.NewTaskInput{Request: "Prove the process.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 16, AllowManualHandoff: true}, MethodProfile: domain.MethodPlain}})
+	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "open-standard", Host: domain.HostCodex, RepositoryPath: repositoryPath, WorkspaceOrigin: &application.WorkspaceOriginInput{Mode: origin.Mode, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}, NewTask: &application.NewTaskInput{Request: "Prove the process.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 16, AllowManualHandoff: true}, MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -332,7 +340,7 @@ func applyStandard(t *testing.T, service *application.Service, task domain.Proce
 		fields["problem_class"] = standardProblemClass(transition)
 	}
 	a := task.CurrentAction
-	result, err := service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: domain.ID(fmt.Sprintf("request-%s-%d", transition, task.Revision)), Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: standardPayload(t, task, transition, reason, node)})
+	result, err := service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: domain.ID(fmt.Sprintf("request-%s-%d", transition, task.Revision)), Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: a.RepositoryBindingDigest, IssuanceIdentityDigest: a.IssuanceIdentityDigest, IssuanceHistoryDigest: a.IssuanceHistoryDigest, IssuanceContentDigest: a.IssuanceContentDigest, Payload: standardPayload(t, task, transition, reason, node)})
 	return result.Task, err
 }
 
@@ -348,33 +356,33 @@ func mustApplyStandard(t *testing.T, service *application.Service, task domain.P
 func validNodeResult(task domain.ProcessTask, transition domain.TransitionID) any {
 	switch task.CurrentNode {
 	case domain.NodeRequirements:
-		return map[string]any{"baseline": map[string]any{"goal": "Prove the process.", "scope": []string{"process"}, "out_of_scope": []string{}, "acceptance_criteria": []string{"the process is proven"}, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}, "changed_paths": []string{}, "no_file_changes": true}
+		return map[string]any{"baseline": map[string]any{"goal": "Prove the process.", "scope": []string{"process"}, "out_of_scope": []string{}, "acceptance_criteria": []string{"the process is proven"}, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}}
 	case domain.NodeDesign:
 		if transition != "design_ready" {
-			return map[string]any{"baseline": nil, "findings": []string{"A material requirement gap exists."}, "changed_paths": []string{}, "no_file_changes": true}
+			return map[string]any{"baseline": nil, "findings": []string{"A material requirement gap exists."}}
 		}
-		return map[string]any{"baseline": map[string]any{"requirements_revision": task.Requirements.Revision, "approach": "Use the direct process.", "components": []string{"process"}, "decisions": []string{"Keep one definition."}, "rejected_alternatives": []string{}, "complexity_justification": []string{}, "risks": []string{}}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
+		return map[string]any{"baseline": map[string]any{"requirements_revision": task.Requirements.Revision, "approach": "Use the direct process.", "components": []string{"process"}, "decisions": []string{"Keep one definition."}, "rejected_alternatives": []string{}, "complexity_justification": []string{}, "risks": []string{}}, "findings": []string{}}
 	case domain.NodeTasks:
 		if transition != "tasks_ready" {
-			return map[string]any{"baseline": nil, "findings": []string{"Upstream correction is required."}, "changed_paths": []string{}, "no_file_changes": true}
+			return map[string]any{"baseline": nil, "findings": []string{"Upstream correction is required."}}
 		}
-		return map[string]any{"baseline": map[string]any{"design_revision": task.Design.Revision, "work_items": []map[string]any{{"work_item_id": "work", "summary": "Implement the process.", "expected_paths": []string{"internal/process.go"}, "acceptance_indexes": []uint32{0}, "verification_steps": []string{"Run the process test."}, "dependencies": []string{}}}}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
+		return map[string]any{"baseline": map[string]any{"design_revision": task.Design.Revision, "work_items": []map[string]any{{"work_item_id": "work", "summary": "Implement the process.", "expected_paths": []string{"internal/process.go"}, "acceptance_indexes": []uint32{0}, "verification_steps": []string{"Run the process test."}, "dependencies": []string{}}}}, "findings": []string{}}
 	case domain.NodeImplement:
 		findings := []string{}
 		if transition != "implementation_ready_for_test" {
 			findings = []string{"The selected problem class is present."}
 		}
-		return map[string]any{"task_plan_revision": task.TaskPlan.Revision, "completed_work_item_ids": []string{"work"}, "changed_paths": []string{}, "no_file_changes": true, "deviations": []string{}, "findings": findings}
+		return map[string]any{"task_plan_revision": task.TaskPlan.Revision, "completed_work_item_ids": []string{"work"}, "deviations": []string{}, "findings": findings}
 	case domain.NodeTest:
 		if transition == "tests_passed" {
-			return map[string]any{"checks": []map[string]any{{"source": "automated", "name": "targeted-process-test", "status": "passed", "summary": "The process passed.", "command_count": 1, "full_suite": false}}, "failed_items": []string{}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
+			return map[string]any{"checks": []map[string]any{{"source": "automated", "name": "targeted-process-test", "status": "passed", "summary": "The process passed.", "command_count": 1, "full_suite": false}}, "failed_items": []string{}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}}
 		}
-		return map[string]any{"checks": []map[string]any{{"source": "automated", "name": "targeted-process-test", "status": "failed", "summary": "The classified failure occurred.", "command_count": 1, "full_suite": false}}, "failed_items": []string{"classified failure"}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{"The selected problem class is present."}, "changed_paths": []string{}, "no_file_changes": true}
+		return map[string]any{"checks": []map[string]any{{"source": "automated", "name": "targeted-process-test", "status": "failed", "summary": "The classified failure occurred.", "command_count": 1, "full_suite": false}}, "failed_items": []string{"classified failure"}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{"The selected problem class is present."}}
 	case domain.NodeComprehensionReview:
 		if transition == "comprehension_passed" {
-			return map[string]any{"explained_components": []string{"process"}, "unresolved_questions": []string{}, "unnecessary_abstractions": []string{}, "maintenance_risks": []string{}, "user_confirmation": map[string]any{"source": "user", "status": "passed", "summary": "The developer confirmed understanding."}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
+			return map[string]any{"explained_components": []string{"process"}, "unresolved_questions": []string{}, "unnecessary_abstractions": []string{}, "maintenance_risks": []string{}, "user_confirmation": map[string]any{"source": "user", "status": "passed", "summary": "The developer confirmed understanding."}, "findings": []string{}}
 		}
-		result := map[string]any{"explained_components": []string{}, "unresolved_questions": []string{}, "unnecessary_abstractions": []string{}, "maintenance_risks": []string{}, "user_confirmation": nil, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
+		result := map[string]any{"explained_components": []string{}, "unresolved_questions": []string{}, "unnecessary_abstractions": []string{}, "maintenance_risks": []string{}, "user_confirmation": nil, "findings": []string{}}
 		switch transition {
 		case "code_too_complex", "design_too_complex":
 			result["unnecessary_abstractions"] = []string{"unnecessary layer"}
@@ -389,14 +397,14 @@ func validNodeResult(task domain.ProcessTask, transition domain.TransitionID) an
 		return result
 	case domain.NodeRefactor:
 		if transition == "refactor_ready_for_test" {
-			return map[string]any{"changed_paths": []string{}, "no_file_changes": true, "simplifications": []string{"Removed one layer."}, "behavior_change_intended": false, "findings": []string{}}
+			return map[string]any{"simplifications": []string{"Removed one layer."}, "behavior_change_intended": false, "findings": []string{}}
 		}
-		return map[string]any{"changed_paths": []string{}, "no_file_changes": true, "simplifications": []string{}, "behavior_change_intended": true, "findings": []string{"Upstream correction is required."}}
+		return map[string]any{"simplifications": []string{}, "behavior_change_intended": true, "findings": []string{"Upstream correction is required."}}
 	case domain.NodeDelivery:
 		if transition == "delivery_complete" {
-			return map[string]any{"acceptance": []map[string]any{{"criterion": task.Requirements.AcceptanceCriteria[0], "status": "satisfied"}}, "automated_evidence_ids": []string{string(task.Test.EvidenceIDs[0])}, "manual_evidence_ids": []string{string(task.Comprehension.UserEvidenceID)}, "test_record_id": task.Test.RecordID, "comprehension_record_id": task.Comprehension.RecordID, "unverified_items": []string{}, "risks": []string{}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
+			return map[string]any{"acceptance": []map[string]any{{"criterion": task.Requirements.AcceptanceCriteria[0], "status": "satisfied"}}, "automated_evidence_ids": []string{string(task.Test.EvidenceIDs[0])}, "manual_evidence_ids": []string{string(task.Comprehension.UserEvidenceID)}, "test_record_id": task.Test.RecordID, "comprehension_record_id": task.Comprehension.RecordID, "unverified_items": []string{}, "risks": []string{}, "findings": []string{}}
 		}
-		return map[string]any{"acceptance": []any{}, "automated_evidence_ids": []string{}, "manual_evidence_ids": []string{}, "test_record_id": "", "comprehension_record_id": "", "unverified_items": []string{}, "risks": []string{}, "findings": []string{"Delivery remediation is required."}, "changed_paths": []string{}, "no_file_changes": true}
+		return map[string]any{"acceptance": []any{}, "automated_evidence_ids": []string{}, "manual_evidence_ids": []string{}, "test_record_id": "", "comprehension_record_id": "", "unverified_items": []string{}, "risks": []string{}, "findings": []string{"Delivery remediation is required."}}
 	}
 	return map[string]any{}
 }
@@ -455,8 +463,12 @@ func blockedTask(t *testing.T, source domain.ProcessTask) domain.ProcessTask {
 	resume := source.CurrentNode
 	source.CurrentNode = domain.NodeBlocked
 	source.ResumeNode = &resume
-	source.Blocker = &domain.ProcessBlocker{BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.BlockerCauseRecoveryConflicting, ResumeNode: resume, Message: "Restore the repository binding.", ObservedBindingDigest: source.Repository.BindingDigest, Condition: domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: source.Repository.BindingDigest}, RequiredResolution: "Restore the issuance binding.", CreatedAt: source.UpdatedAt}
-	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), domain.NodeBlocked, source.TaskID, source.Revision, source.Repository.BindingDigest, source.Intent.MethodProfile, "blocked-action", source.UpdatedAt)
+	workspace, err := source.EffectiveWorkspaceDigests()
+	if err != nil {
+		t.Fatal(err)
+	}
+	source.Blocker = &domain.ProcessBlocker{BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.BlockerCauseRecoveryConflicting, ResumeNode: resume, Message: "Restore the repository binding.", ObservedBindingDigest: workspace.Binding, Condition: domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: workspace.Binding, ExpectedIdentityDigest: workspace.Identity, ExpectedHistoryDigest: workspace.History, ExpectedContentDigest: workspace.Content}, RequiredResolution: "Restore the issuance binding.", CreatedAt: source.UpdatedAt}
+	action, err := workflow.BuildProcessActionForWorkspace(workflow.StandardProcess(), domain.NodeBlocked, source.TaskID, source.Revision, workspace, source.Intent.MethodProfile, "blocked-action", source.UpdatedAt)
 	if err != nil {
 		t.Fatal(err)
 	}
