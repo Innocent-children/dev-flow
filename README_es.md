@@ -4,144 +4,96 @@
 
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>Mantén las tareas largas de programación con IA dentro de los límites de cambios y pruebas que definiste.</strong></p>
-
-<p align="center">Límites locales, progreso duradero y recuperación segura para Codex y DeepSeek.</p>
-
-<p align="center">
-  <a href="https://www.npmjs.com/package/@imotong/dev-flow"><img alt="npm @latest" src="https://img.shields.io/badge/npm-%40latest-CB3837?style=flat-square&logo=npm&logoColor=white" /></a>
-  <a href="docs/SUPPORT-MATRIX_en.md"><img alt="Plataforma estable: macOS arm64" src="https://img.shields.io/badge/platform-macOS%20arm64-111827?style=flat-square&logo=apple&logoColor=white" /></a>
-  <a href="LICENSE"><img alt="Apache License 2.0" src="https://img.shields.io/badge/license-Apache--2.0-3867F5?style=flat-square" /></a>
-</p>
+<p align="center"><strong>Conserva el alcance, los límites de verificación y el progreso de las tareas largas de programación con IA entre sesiones.</strong></p>
 
 <p align="center">
   <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-<p align="center">
-  <a href="#inicio-rápido">Inicio rápido</a> · <a href="docs/CODEX_en.md">Codex</a> · <a href="docs/DEEPSEEK_en.md">DeepSeek</a> · <a href="docs/WEBUI_en.md">Control Center</a> · <a href="#documentación">Documentación</a>
-</p>
+## Evita que las tareas largas se desvíen
 
-## Mantén la tarea que aprobaste
+Cuanto más dura una tarea de programación, más fácil es que cambie poco a poco: aparecen más archivos,
+una comprobación dirigida se convierte en una ejecución de pruebas sin límite, el mismo fallo provoca
+otro intento parecido o una sesión reiniciada tiene que reconstruir el avance desde el chat.
 
-Las tareas largas de programación rara vez fallan de golpe. Se desvían poco a poco: un archivo fuera
-del plan se convierte en tres, una comprobación dirigida pasa a ser una ejecución de pruebas sin límite,
-el mismo fallo provoca otra corrección parecida o una sesión reiniciada reconstruye el avance desde un
-historial de chat incompleto.
+Dev Flow guarda en una sola tarea local la petición acordada, las rutas previstas, los límites de
+verificación, la etapa actual y los resultados. Codex o DeepSeek sigue encargándose de modificar el código.
 
-Dev Flow guarda en una Task local la petición acordada, las rutas previstas, el presupuesto de
-verificación, la etapa actual y los resultados. Codex o DeepSeek sigue leyendo y modificando código y
-ejecutando comandos; Dev Flow convierte los cambios de alcance, las repeticiones, la recuperación y la
-entrega en decisiones explícitas.
-
-## Qué mantiene bajo control
-
-| Aspecto | Qué hace Dev Flow |
-| --- | --- |
-| **Alcance de cambios** | Registra las rutas previstas, pausa las escrituras compatibles fuera del plan y vuelve a comprobar las rutas modificadas acumuladas antes de probar y finalizar. |
-| **Esfuerzo de verificación** | Conserva un presupuesto de comandos, exige permiso previo para la suite completa y se detiene en la tercera repetición exacta del mismo fallo o resultado sin cambios. |
-| **Progreso duradero** | Guarda la Task fuera del chat para que otra sesión retome la misma etapa, límites, registros y bloqueos. |
-| **Resultados vigentes** | Invalida pruebas y confirmaciones de comprensión cuando cambian la petición, el plan, la implementación o el repository. |
-| **Aprobación del desarrollador** | Antes de entregar, exige revisar los cambios reales, la complejidad innecesaria y los riesgos de mantenimiento. |
+- **El alcance permanece claro.** Registra las rutas previstas, pide confirmación antes de que las
+  herramientas estructuradas compatibles escriban fuera del plan y vuelve a comprobar los cambios reales
+  antes de las pruebas y la entrega.
+- **La verificación tiene límites.** Restringe el número de comandos automáticos, exige permiso previo
+  para la suite completa y se detiene en la tercera repetición exacta.
+- **El trabajo continúa después de un reinicio.** Una nueva sesión recupera la misma tarea, las
+  comprobaciones pendientes y la decisión actual sin reconstruirlas desde la conversación.
+- **Solo se reutilizan resultados vigentes.** Los cambios en la petición, el plan, la implementación o
+  el repositorio invalidan las comprobaciones antiguas; el desarrollador revisa el resultado antes de entregarlo.
 
 ## Inicio rápido
 
-> El npm `@latest` estable está verificado actualmente en macOS arm64. Los Host Adapter requieren
-> Node.js `>=24`. Consulta la [Support Matrix](docs/SUPPORT-MATRIX_en.md) antes de instalarlo en otro entorno.
+> La versión estable publicada en npm bajo `@latest` está verificada actualmente en macOS arm64. Instala primero Node.js `>=24`
+> y una versión compatible de Codex o DeepSeek Harness. Consulta las versiones exactas y otros entornos
+> en la [Support Matrix](docs/SUPPORT-MATRIX_en.md).
 
-### 1. Instala y conecta un Host
+### 1. Instala Dev Flow
 
 ```bash
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-La configuración interactiva permite instalar Dev Flow para Codex, DeepSeek o ambos. Más adelante,
-el mismo punto de entrada ofrece estado, diagnóstico, actualización, reparación y eliminación.
+Elige Codex, DeepSeek o ambos en la configuración interactiva. Antes de iniciar la primera tarea,
+completa también el último paso que indique el instalador:
 
-### 2. Inicia una Task con límites
+- **Codex:** abre `/hooks`, revisa el hook incluido con Dev Flow y márcalo como confiable. La comprobación
+  previa compatible de `apply_patch` no funciona hasta que confíes en el hook.
+- **DeepSeek Harness:** reinicia el Profile de DSH elegido después de la instalación.
 
-En **Codex**, envía este mensaje de usuario:
+### 2. Inicia una tarea
+
+Envía este mensaje de usuario en **Codex**:
 
 ```text
 $dev-flow-codex:dev-flow Añade un límite de frecuencia para los inicios de sesión fallidos. Modifica solo archivos de autenticación y ejecuta como máximo 4 comprobaciones dirigidas.
 ```
 
-En **DeepSeek Harness**, envía:
+O envía este mensaje en **DeepSeek Harness**:
 
 ```text
 /dev-flow Añade un límite de frecuencia para los inicios de sesión fallidos. Modifica solo archivos de autenticación y ejecuta como máximo 4 comprobaciones dirigidas.
 ```
 
-Son selectores de conversación, no comandos de shell. Describe con la mayor precisión posible el
-objetivo, las condiciones de aceptación, el límite de archivos y el tope de pruebas.
+Son selectores de conversación, no comandos de shell. Incluye un objetivo concreto, las condiciones de
+aceptación, el límite de archivos y el tope de pruebas.
 
-### 3. Retoma o inspecciona
+### 3. Retoma y revisa el progreso
 
-Después de un reinicio, vuelve al repository que participa en la Task y utiliza el mismo selector del
-Host. Dev Flow lee la Task guardada y retoma su etapa actual sin reconstruir el avance desde la conversación.
+Después de un reinicio, vuelve al mismo directorio de trabajo del repositorio y utiliza de nuevo el mismo
+selector. Dev Flow lee la tarea guardada y continúa desde su etapa actual.
 
 ```bash
-# Estado de los Adapter en modo de solo lectura
+# Consultar las integraciones instaladas
 dev-flow status --host all
 
-# Abrir el Control Center local
+# Abrir la vista local de tareas
 dev-flow webui start
 ```
 
-Control Center muestra la etapa actual, las rutas previstas y modificadas, el historial de comprobaciones,
-los bloqueos, las indicaciones de recuperación y la siguiente decisión. Lee los mismos datos locales de
-Task que las dos integraciones de Host.
+Para instalación no interactiva, Profiles de DSH personalizados, actualizaciones, reparación y
+eliminación, consulta la [Command Reference](docs/COMMANDS_en.md).
 
-Para configuración no interactiva, comandos nativos del Host, perfiles personalizados de DeepSeek,
-actualizaciones y eliminación, consulta la [Command Reference](docs/COMMANDS_en.md).
+## Cuándo resulta útil
 
-## Cómo se comporta durante una Task
+Dev Flow resulta útil para trabajo de repositorio que abarca varias sesiones, necesita un límite real
+de archivos, restringe el esfuerzo de pruebas o puede requerir retrabajo sin reutilizar resultados obsoletos.
 
-1. **Define el límite.** La Task guarda la petición, los repositories participantes, las rutas previstas, los trabajos y el presupuesto de verificación.
-2. **Trabaja mediante el Host.** Codex o DeepSeek modifica el código; las herramientas de archivos estructuradas compatibles preguntan antes de escribir fuera del plan.
-3. **Comprueba los cambios reales.** Antes de probar y finalizar, Core concilia todas las rutas modificadas por la Task, incluidas las que no pasaron por una comprobación previa.
-4. **Detén los bucles improductivos.** La tercera repetición exacta pausa la Task y exige otro camino o permiso explícito para continuar.
-5. **Entrega resultados actuales.** Los cambios posteriores invalidan comprobaciones antiguas; las pruebas y la comprensión del desarrollador deben corresponder a la implementación entregada.
-
-Si una operación termina sin una respuesta clara, la integración lee la Action guardada y el repository
-actual antes de decidir si es seguro reintentar.
-
-## Cuándo usarlo
-
-| Usa Dev Flow cuando… | Usa el Host directamente cuando… |
-| --- | --- |
-| El trabajo puede durar varias sesiones, reinicios o días | Necesitas una respuesta puntual o una explicación de código |
-| Los archivos modificados y las pruebas necesitan límites explícitos | El cambio es pequeño, mecánico y no requiere guardar el avance |
-| El retrabajo no debe reutilizar resultados obsoletos | Solo quieres consultar el estado o hablar del diseño |
-| La entrega necesita una revisión clara del desarrollador | No necesitas una Task duradera ni estado de recuperación |
-
-## Compatibilidad
-
-| Producto npm `@latest` estable | Entorno verificado |
-| --- | --- |
-| `dev-flow-codex` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
-| `dev-flow-deepseek` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
-| `@imotong/dev-flow` | macOS arm64, Node.js `>=20` |
-
-El código fuente actual también contiene la WebUI local y el runtime exacto `win32-x64`, pero Windows
-aún no tiene una Host Journey estable de `@latest`. La [Support Matrix](docs/SUPPORT-MATRIX_en.md) define
-las plataformas estables; [Project Status](docs/PROJECT-STATUS_en.md) separa versiones estables,
-capacidades presentes solo en el código, Journeys públicas y carencias actuales.
-
-## Límites
-
-- Dev Flow es una capa de control, no un Agent de programación. Codex o DeepSeek, con autorización del usuario, modifica archivos y ejecuta comandos.
-- Go Core observa Git en modo de solo lectura. No ejecuta commit, push, merge, rebase, tag ni publish.
-- Las comprobaciones previas cubren las herramientas estructuradas del Host indicadas. Bash y las herramientas externas pueden escribir primero, por lo que no es un sandbox de shell o del sistema de archivos.
-- Control Center escucha solo en loopback local para un usuario; no ofrece acceso remoto, sincronización cloud ni permisos de equipo.
+Para preguntas puntuales, explicaciones de código, consultas de estado y pequeños cambios mecánicos que
+no necesitan guardar el progreso, suele ser más sencillo usar Codex o DeepSeek directamente.
 
 ## Documentación
 
-- **Para empezar:** [Product](docs/PRODUCT_en.md) · [Demo](docs/DEMO_en.md) · [Project Status](docs/PROJECT-STATUS_en.md)
 - **Uso:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Commands](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
-- **Sistema:** [Architecture](docs/ARCHITECTURE_en.md) · [Support Matrix](docs/SUPPORT-MATRIX_en.md) · [Roadmap](docs/ROADMAP_en.md)
-- **Seguridad y contribuciones:** [Security](SECURITY.md) · [Threat Model](docs/THREAT-MODEL_en.md) · [Contributing](CONTRIBUTING_en.md)
+- **Proyecto:** [Product](docs/PRODUCT_en.md) · [Support Matrix](docs/SUPPORT-MATRIX_en.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING_en.md)
 
 ## Licencia
 
