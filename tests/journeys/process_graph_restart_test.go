@@ -84,7 +84,7 @@ func TestPhase7BSubprocessWorker(t *testing.T) {
 			t.Fatal(err)
 		}
 		payload := journeyPayload(t, loaded, "delivery_complete", "", deliveryJourneyResult(loaded))
-		_, err = service.ApplyAction(context.Background(), application.ApplyActionRequest{RequestID: "terminal-reopen-apply", Host: domain.HostCodex, TaskID: loaded.TaskID, ExpectedRevision: loaded.Revision, ActionID: "terminal-action", ActionKind: domain.ActionCompleteDelivery, ProcessID: loaded.Process.ID, ProcessDefinitionDigest: loaded.Process.DefinitionDigest, SourceCursor: loaded.CurrentNode, RepositoryBindingDigest: loaded.Repository.BindingDigest, Payload: payload})
+		_, err = service.ApplyAction(context.Background(), terminalJourneyApplyRequest(t, loaded, "terminal-reopen-apply", payload))
 		if !errors.Is(err, domain.ErrTaskTerminal) {
 			t.Fatalf("terminal apply err=%v", err)
 		}

@@ -8,29 +8,34 @@ import (
 type ErrorCode string
 
 const (
-	ErrorInvalidArgument            ErrorCode = "INVALID_ARGUMENT"
-	ErrorNotGitRepository           ErrorCode = "NOT_GIT_REPOSITORY"
-	ErrorTaskNotFound               ErrorCode = "TASK_NOT_FOUND"
-	ErrorActiveTaskConflict         ErrorCode = "ACTIVE_TASK_CONFLICT"
-	ErrorHostOwnershipConflict      ErrorCode = "HOST_OWNERSHIP_CONFLICT"
-	ErrorRevisionConflict           ErrorCode = "REVISION_CONFLICT"
-	ErrorActionStale                ErrorCode = "ACTION_STALE"
-	ErrorRepositoryDrift            ErrorCode = "REPOSITORY_DRIFT"
-	ErrorVerificationBudgetExceeded ErrorCode = "VERIFICATION_BUDGET_EXCEEDED"
-	ErrorTaskBlocked                ErrorCode = "TASK_BLOCKED"
-	ErrorTaskTerminal               ErrorCode = "TASK_TERMINAL"
-	ErrorSchemaUnsupported          ErrorCode = "SCHEMA_UNSUPPORTED"
-	ErrorProcessUnsupported         ErrorCode = "PROCESS_UNSUPPORTED"
-	ErrorTransitionNotAllowed       ErrorCode = "TRANSITION_NOT_ALLOWED"
-	ErrorRecoveryUnavailable        ErrorCode = "RECOVERY_UNAVAILABLE"
-	ErrorStorageUnavailable         ErrorCode = "STORAGE_UNAVAILABLE"
-	ErrorInternal                   ErrorCode = "INTERNAL_ERROR"
+	ErrorInvalidArgument              ErrorCode = "INVALID_ARGUMENT"
+	ErrorNotGitRepository             ErrorCode = "NOT_GIT_REPOSITORY"
+	ErrorTaskNotFound                 ErrorCode = "TASK_NOT_FOUND"
+	ErrorActiveTaskConflict           ErrorCode = "ACTIVE_TASK_CONFLICT"
+	ErrorHostOwnershipConflict        ErrorCode = "HOST_OWNERSHIP_CONFLICT"
+	ErrorRevisionConflict             ErrorCode = "REVISION_CONFLICT"
+	ErrorActionStale                  ErrorCode = "ACTION_STALE"
+	ErrorRepositoryDrift              ErrorCode = "REPOSITORY_DRIFT"
+	ErrorWorkspaceUnavailable         ErrorCode = "WORKSPACE_UNAVAILABLE"
+	ErrorWorkspaceObservationUnstable ErrorCode = "WORKSPACE_OBSERVATION_UNSTABLE"
+	ErrorWorkspaceHistoryConflict     ErrorCode = "WORKSPACE_HISTORY_CONFLICT"
+	ErrorWorktreeProvisioningRequired ErrorCode = "WORKTREE_PROVISIONING_REQUIRED"
+	ErrorVerificationBudgetExceeded   ErrorCode = "VERIFICATION_BUDGET_EXCEEDED"
+	ErrorTaskBlocked                  ErrorCode = "TASK_BLOCKED"
+	ErrorTaskTerminal                 ErrorCode = "TASK_TERMINAL"
+	ErrorSchemaUnsupported            ErrorCode = "SCHEMA_UNSUPPORTED"
+	ErrorProcessUnsupported           ErrorCode = "PROCESS_UNSUPPORTED"
+	ErrorTransitionNotAllowed         ErrorCode = "TRANSITION_NOT_ALLOWED"
+	ErrorRecoveryUnavailable          ErrorCode = "RECOVERY_UNAVAILABLE"
+	ErrorStorageUnavailable           ErrorCode = "STORAGE_UNAVAILABLE"
+	ErrorInternal                     ErrorCode = "INTERNAL_ERROR"
 )
 
 func (c ErrorCode) IsValid() bool {
 	switch c {
 	case ErrorInvalidArgument, ErrorNotGitRepository, ErrorTaskNotFound, ErrorActiveTaskConflict,
 		ErrorHostOwnershipConflict, ErrorRevisionConflict, ErrorActionStale, ErrorRepositoryDrift,
+		ErrorWorkspaceUnavailable, ErrorWorkspaceObservationUnstable, ErrorWorkspaceHistoryConflict, ErrorWorktreeProvisioningRequired,
 		ErrorVerificationBudgetExceeded, ErrorTaskBlocked, ErrorTaskTerminal,
 		ErrorSchemaUnsupported, ErrorProcessUnsupported, ErrorTransitionNotAllowed, ErrorRecoveryUnavailable,
 		ErrorStorageUnavailable, ErrorInternal:
@@ -46,67 +51,61 @@ func (c ErrorCode) IsValid() bool {
 type ViolationRule string
 
 const (
-	RuleEvidenceSourceInvalid          ViolationRule = "evidence_source_invalid"
-	RuleEvidenceStatusInvalid          ViolationRule = "evidence_status_invalid"
-	RuleNonAutomatedCommandCountZero   ViolationRule = "non_automated_command_count_zero"
-	RuleNonAutomatedFullSuiteFalse     ViolationRule = "non_automated_full_suite_false"
-	RuleAutomatedCommandCountPositive  ViolationRule = "automated_command_count_positive"
-	RuleAutomatedCommandCountLimit     ViolationRule = "automated_command_count_limit"
-	RuleEvidenceNameDuplicate          ViolationRule = "evidence_name_duplicate"
-	RuleActionKindPayloadMismatch      ViolationRule = "action_kind_payload_mismatch"
-	RuleRequiredMemberMissing          ViolationRule = "required_member_missing"
-	RuleUnknownMember                  ViolationRule = "unknown_member"
-	RuleTextNotNormalized              ViolationRule = "text_not_normalized"
-	RuleStringListDuplicate            ViolationRule = "string_list_duplicate"
-	RuleStringListTooLong              ViolationRule = "string_list_too_long"
-	RuleRepositoryPathInvalid          ViolationRule = "repository_path_invalid"
-	RuleRepositoryMutationInconsistent ViolationRule = "repository_mutation_inconsistent"
-	RuleRepositoryEffectNotObserved    ViolationRule = "repository_effect_not_observed"
-	RuleProblemClassNotValidForNode    ViolationRule = "problem_class_not_valid_for_node"
-	RuleArtifactRoleNotAllowed         ViolationRule = "artifact_role_not_allowed"
-	RuleRepositoryEffectNotAllowed     ViolationRule = "repository_effect_not_allowed"
-	RuleCurrentValueRequired           ViolationRule = "current_value_required"
-	RuleCurrentSetRequired             ViolationRule = "current_set_required"
-	RuleAcceptanceSetCurrent           ViolationRule = "acceptance_set_current"
-	RuleRequiredCollectionNonEmpty     ViolationRule = "required_collection_non_empty"
-	RuleCollectionMustBeEmpty          ViolationRule = "collection_must_be_empty"
-	RulePassingStatusRequired          ViolationRule = "passing_status_required"
-	RuleUserConfirmationRequired       ViolationRule = "user_confirmation_required"
-	RuleKnownIdentifierRequired        ViolationRule = "known_identifier_required"
-	RuleBooleanFalseRequired           ViolationRule = "boolean_false_required"
-	RuleAcceptanceCoverageRequired     ViolationRule = "acceptance_coverage_required"
+	RuleEvidenceSourceInvalid         ViolationRule = "evidence_source_invalid"
+	RuleEvidenceStatusInvalid         ViolationRule = "evidence_status_invalid"
+	RuleNonAutomatedCommandCountZero  ViolationRule = "non_automated_command_count_zero"
+	RuleNonAutomatedFullSuiteFalse    ViolationRule = "non_automated_full_suite_false"
+	RuleAutomatedCommandCountPositive ViolationRule = "automated_command_count_positive"
+	RuleAutomatedCommandCountLimit    ViolationRule = "automated_command_count_limit"
+	RuleEvidenceNameDuplicate         ViolationRule = "evidence_name_duplicate"
+	RuleActionKindPayloadMismatch     ViolationRule = "action_kind_payload_mismatch"
+	RuleRequiredMemberMissing         ViolationRule = "required_member_missing"
+	RuleUnknownMember                 ViolationRule = "unknown_member"
+	RuleTextNotNormalized             ViolationRule = "text_not_normalized"
+	RuleStringListDuplicate           ViolationRule = "string_list_duplicate"
+	RuleStringListTooLong             ViolationRule = "string_list_too_long"
+	RuleRepositoryPathInvalid         ViolationRule = "repository_path_invalid"
+	RuleProblemClassNotValidForNode   ViolationRule = "problem_class_not_valid_for_node"
+	RuleArtifactRoleNotAllowed        ViolationRule = "artifact_role_not_allowed"
+	RuleCurrentValueRequired          ViolationRule = "current_value_required"
+	RuleCurrentSetRequired            ViolationRule = "current_set_required"
+	RuleAcceptanceSetCurrent          ViolationRule = "acceptance_set_current"
+	RuleRequiredCollectionNonEmpty    ViolationRule = "required_collection_non_empty"
+	RuleCollectionMustBeEmpty         ViolationRule = "collection_must_be_empty"
+	RulePassingStatusRequired         ViolationRule = "passing_status_required"
+	RuleUserConfirmationRequired      ViolationRule = "user_confirmation_required"
+	RuleKnownIdentifierRequired       ViolationRule = "known_identifier_required"
+	RuleBooleanFalseRequired          ViolationRule = "boolean_false_required"
+	RuleAcceptanceCoverageRequired    ViolationRule = "acceptance_coverage_required"
 )
 
 var violationMessages = map[ViolationRule]string{
-	RuleEvidenceSourceInvalid:          "source must be automated, user, static or host_observed",
-	RuleEvidenceStatusInvalid:          "status must be passed, failed, skipped, not_run or observed",
-	RuleNonAutomatedCommandCountZero:   "command_count must equal 0 when source is user, static or host_observed",
-	RuleNonAutomatedFullSuiteFalse:     "full_suite must be false when source is user, static or host_observed",
-	RuleAutomatedCommandCountPositive:  "command_count must be at least 1 when source is automated",
-	RuleAutomatedCommandCountLimit:     "command_count must not exceed the automatic verification limit",
-	RuleEvidenceNameDuplicate:          "name must be unique within one evidence set",
-	RuleActionKindPayloadMismatch:      "action_kind must match the payload branch of the current node",
-	RuleRequiredMemberMissing:          "the closed contract requires this member",
-	RuleUnknownMember:                  "the closed contract does not declare this member",
-	RuleTextNotNormalized:              "text must be non-empty, trimmed and within the declared limit",
-	RuleStringListDuplicate:            "the bounded list must not repeat an item",
-	RuleStringListTooLong:              "the bounded list exceeds its item limit",
-	RuleRepositoryPathInvalid:          "the repository contract path is invalid",
-	RuleRepositoryMutationInconsistent: "changed_paths and no_file_changes contradict each other",
-	RuleRepositoryEffectNotObserved:    "the declared current Action file changes were not observed",
-	RuleProblemClassNotValidForNode:    "problem_class is not allowed for the current node",
-	RuleArtifactRoleNotAllowed:         "the current Action does not allow this artifact role",
-	RuleRepositoryEffectNotAllowed:     "the current Action does not allow the submitted repository effect",
-	RuleCurrentValueRequired:           "the member must equal the current value returned by Core",
-	RuleCurrentSetRequired:             "the list must equal the current set returned by Core",
-	RuleAcceptanceSetCurrent:           "acceptance must exactly match the current requirements in order and status",
-	RuleRequiredCollectionNonEmpty:     "the current transition requires at least one item",
-	RuleCollectionMustBeEmpty:          "the current transition requires this collection to be empty",
-	RulePassingStatusRequired:          "the current transition requires every submitted status to be passed",
-	RuleUserConfirmationRequired:       "the current transition requires explicit passed user confirmation",
-	RuleKnownIdentifierRequired:        "the identifier must be present in the current Core record",
-	RuleBooleanFalseRequired:           "the current transition requires this member to be false",
-	RuleAcceptanceCoverageRequired:     "work items must cover every current acceptance criterion",
+	RuleEvidenceSourceInvalid:         "source must be automated, user, static or host_observed",
+	RuleEvidenceStatusInvalid:         "status must be passed, failed, skipped, not_run or observed",
+	RuleNonAutomatedCommandCountZero:  "command_count must equal 0 when source is user, static or host_observed",
+	RuleNonAutomatedFullSuiteFalse:    "full_suite must be false when source is user, static or host_observed",
+	RuleAutomatedCommandCountPositive: "command_count must be at least 1 when source is automated",
+	RuleAutomatedCommandCountLimit:    "command_count must not exceed the automatic verification limit",
+	RuleEvidenceNameDuplicate:         "name must be unique within one evidence set",
+	RuleActionKindPayloadMismatch:     "action_kind must match the payload branch of the current node",
+	RuleRequiredMemberMissing:         "the closed contract requires this member",
+	RuleUnknownMember:                 "the closed contract does not declare this member",
+	RuleTextNotNormalized:             "text must be non-empty, trimmed and within the declared limit",
+	RuleStringListDuplicate:           "the bounded list must not repeat an item",
+	RuleStringListTooLong:             "the bounded list exceeds its item limit",
+	RuleRepositoryPathInvalid:         "the repository contract path is invalid",
+	RuleProblemClassNotValidForNode:   "problem_class is not allowed for the current node",
+	RuleArtifactRoleNotAllowed:        "the current Action does not allow this artifact role",
+	RuleCurrentValueRequired:          "the member must equal the current value returned by Core",
+	RuleCurrentSetRequired:            "the list must equal the current set returned by Core",
+	RuleAcceptanceSetCurrent:          "acceptance must exactly match the current requirements in order and status",
+	RuleRequiredCollectionNonEmpty:    "the current transition requires at least one item",
+	RuleCollectionMustBeEmpty:         "the current transition requires this collection to be empty",
+	RulePassingStatusRequired:         "the current transition requires every submitted status to be passed",
+	RuleUserConfirmationRequired:      "the current transition requires explicit passed user confirmation",
+	RuleKnownIdentifierRequired:       "the identifier must be present in the current Core record",
+	RuleBooleanFalseRequired:          "the current transition requires this member to be false",
+	RuleAcceptanceCoverageRequired:    "work items must cover every current acceptance criterion",
 }
 
 func (r ViolationRule) IsValid() bool {
@@ -132,7 +131,6 @@ const (
 	GuardPassingStatusRequired          GuardRule = "passing_status_required"
 	GuardUserConfirmationRequired       GuardRule = "user_confirmation_required"
 	GuardBooleanFalseRequired           GuardRule = "boolean_false_required"
-	GuardChangedPathsExplained          GuardRule = "changed_paths_explained"
 )
 
 var guardMessages = map[GuardRule]string{
@@ -147,7 +145,6 @@ var guardMessages = map[GuardRule]string{
 	GuardPassingStatusRequired:          "the current transition requires every submitted status to be passed",
 	GuardUserConfirmationRequired:       "the current transition requires explicit passed user confirmation",
 	GuardBooleanFalseRequired:           "the current transition requires this member to be false",
-	GuardChangedPathsExplained:          "every Task-introduced changed path must be planned or covered by a consumed explicit authorization",
 }
 
 func (r GuardRule) IsValid() bool {
@@ -339,21 +336,25 @@ func NewError(code ErrorCode, message string) *Error {
 }
 
 var (
-	ErrInvalidArgument            = &Error{Code: ErrorInvalidArgument, Message: "the domain value is invalid"}
-	ErrNotGitRepository           = &Error{Code: ErrorNotGitRepository, Message: "the path is not a Git repository"}
-	ErrTaskNotFound               = &Error{Code: ErrorTaskNotFound, Message: "the task was not found"}
-	ErrActiveTaskConflict         = &Error{Code: ErrorActiveTaskConflict, Message: "the repository already has an active task"}
-	ErrHostOwnershipConflict      = &Error{Code: ErrorHostOwnershipConflict, Message: "the task belongs to another host"}
-	ErrRevisionConflict           = &Error{Code: ErrorRevisionConflict, Message: "the task revision is stale"}
-	ErrActionStale                = &Error{Code: ErrorActionStale, Message: "the action identity is stale"}
-	ErrRepositoryDrift            = &Error{Code: ErrorRepositoryDrift, Message: "the repository binding has changed"}
-	ErrVerificationBudgetExceeded = &Error{Code: ErrorVerificationBudgetExceeded, Message: "the verification budget was exceeded"}
-	ErrTaskBlocked                = &Error{Code: ErrorTaskBlocked, Message: "the task is blocked"}
-	ErrTaskTerminal               = &Error{Code: ErrorTaskTerminal, Message: "the task is terminal"}
-	ErrSchemaUnsupported          = &Error{Code: ErrorSchemaUnsupported, Message: "the storage schema is unsupported"}
-	ErrProcessUnsupported         = &Error{Code: ErrorProcessUnsupported, Message: "the stored process definition is unsupported"}
-	ErrTransitionNotAllowed       = &Error{Code: ErrorTransitionNotAllowed, Message: "the transition is not allowed from the current node"}
-	ErrRecoveryUnavailable        = &Error{Code: ErrorRecoveryUnavailable, Message: "recovery is unavailable for this operation"}
-	ErrStorageUnavailable         = &Error{Code: ErrorStorageUnavailable, Message: "storage is unavailable"}
-	ErrInternal                   = &Error{Code: ErrorInternal, Message: "an internal error occurred"}
+	ErrInvalidArgument              = &Error{Code: ErrorInvalidArgument, Message: "the domain value is invalid"}
+	ErrNotGitRepository             = &Error{Code: ErrorNotGitRepository, Message: "the path is not a Git repository"}
+	ErrTaskNotFound                 = &Error{Code: ErrorTaskNotFound, Message: "the task was not found"}
+	ErrActiveTaskConflict           = &Error{Code: ErrorActiveTaskConflict, Message: "the repository already has an active task"}
+	ErrHostOwnershipConflict        = &Error{Code: ErrorHostOwnershipConflict, Message: "the task belongs to another host"}
+	ErrRevisionConflict             = &Error{Code: ErrorRevisionConflict, Message: "the task revision is stale"}
+	ErrActionStale                  = &Error{Code: ErrorActionStale, Message: "the action identity is stale"}
+	ErrRepositoryDrift              = &Error{Code: ErrorRepositoryDrift, Message: "the repository binding has changed"}
+	ErrWorkspaceUnavailable         = &Error{Code: ErrorWorkspaceUnavailable, Message: "the task worktree instance is unavailable"}
+	ErrWorkspaceObservationUnstable = &Error{Code: ErrorWorkspaceObservationUnstable, Message: "the task repository scope changed during observation"}
+	ErrWorkspaceHistoryConflict     = &Error{Code: ErrorWorkspaceHistoryConflict, Message: "the task worktree history conflicts with its retained state"}
+	ErrWorktreeProvisioningRequired = &Error{Code: ErrorWorktreeProvisioningRequired, Message: "a clean dedicated worktree is required before opening a task"}
+	ErrVerificationBudgetExceeded   = &Error{Code: ErrorVerificationBudgetExceeded, Message: "the verification budget was exceeded"}
+	ErrTaskBlocked                  = &Error{Code: ErrorTaskBlocked, Message: "the task is blocked"}
+	ErrTaskTerminal                 = &Error{Code: ErrorTaskTerminal, Message: "the task is terminal"}
+	ErrSchemaUnsupported            = &Error{Code: ErrorSchemaUnsupported, Message: "the storage schema is unsupported"}
+	ErrProcessUnsupported           = &Error{Code: ErrorProcessUnsupported, Message: "the stored process definition is unsupported"}
+	ErrTransitionNotAllowed         = &Error{Code: ErrorTransitionNotAllowed, Message: "the transition is not allowed from the current node"}
+	ErrRecoveryUnavailable          = &Error{Code: ErrorRecoveryUnavailable, Message: "recovery is unavailable for this operation"}
+	ErrStorageUnavailable           = &Error{Code: ErrorStorageUnavailable, Message: "storage is unavailable"}
+	ErrInternal                     = &Error{Code: ErrorInternal, Message: "an internal error occurred"}
 )

@@ -16,7 +16,7 @@ import (
 func TestMCPGeneratedCatalogMatchesProcessAndClosedSchemas(t *testing.T) {
 	names := coremcp.ToolNames()
 	catalog := coremcp.ToolCatalog()
-	if len(names) != 15 || len(catalog) != len(names) {
+	if len(names) != 17 || len(catalog) != len(names) {
 		t.Fatalf("names=%d catalog=%d", len(names), len(catalog))
 	}
 	seen := map[string]bool{}
@@ -34,9 +34,10 @@ func TestMCPGeneratedCatalogMatchesProcessAndClosedSchemas(t *testing.T) {
 			t.Fatalf("%s schema: %v", tool.Name, err)
 		}
 		assertClosedSchema(t, schema, tool.Name)
-		readOnly := tool.Name == coremcp.ToolServerInfo || tool.Name == coremcp.ToolGetTask || tool.Name == coremcp.ToolGetNextAction
-		idempotent := readOnly || tool.Name == coremcp.ToolResolveBlocker || tool.Name == coremcp.ToolRecoverAction || strings.HasPrefix(tool.Name, "dev_flow_submit_")
-		if tool.Annotations.ReadOnly != readOnly || tool.Annotations.Idempotent != idempotent || tool.Annotations.Destructive != (tool.Name == coremcp.ToolCancelTask) || tool.Annotations.OpenWorld {
+		readOnly := tool.Name == coremcp.ToolServerInfo || tool.Name == coremcp.ToolGetTask
+		idempotent := tool.Name != coremcp.ToolOpenTask && tool.Name != coremcp.ToolCancelTask && tool.Name != coremcp.ToolAbandonTask
+		destructive := tool.Name == coremcp.ToolCancelTask || tool.Name == coremcp.ToolAbandonTask
+		if tool.Annotations.ReadOnly != readOnly || tool.Annotations.Idempotent != idempotent || tool.Annotations.Destructive != destructive || tool.Annotations.OpenWorld {
 			t.Fatalf("%s annotations=%#v", tool.Name, tool.Annotations)
 		}
 	}
@@ -54,13 +55,15 @@ func TestMCPGeneratedCatalogMatchesProcessAndClosedSchemas(t *testing.T) {
 
 func TestMCPReadLifecycleInputsAndClosedRejections(t *testing.T) {
 	valid := map[string]string{
-		coremcp.ToolServerInfo:     `{}`,
-		coremcp.ToolOpenTask:       `{"host":"codex","repository_path":"/repo"}`,
-		coremcp.ToolGetTask:        `{"host":"codex","task_id":"task","operation_probe":null}`,
-		coremcp.ToolGetNextAction:  `{"host":"deepseek","task_id":"task","operation_probe":null}`,
-		coremcp.ToolResolveBlocker: `{"host":"codex","task_id":"task","action_id":"action"}`,
-		coremcp.ToolRecoverAction:  `{"host":"codex","task_id":"task","action_id":"action"}`,
-		coremcp.ToolCancelTask:     `{"request_id":"request","host":"codex","task_id":"task","revision":1,"reason":"cancel requested"}`,
+		coremcp.ToolServerInfo:            `{}`,
+		coremcp.ToolOpenTask:              `{"host":"codex","repository_path":"/repo"}`,
+		coremcp.ToolGetTask:               `{"host":"codex","task_id":"task","operation_probe":null}`,
+		coremcp.ToolGetNextAction:         `{"host":"deepseek","task_id":"task","operation_probe":null}`,
+		coremcp.ToolResolveBlocker:        `{"host":"codex","task_id":"task","action_id":"action"}`,
+		coremcp.ToolRecoverAction:         `{"host":"codex","task_id":"task","action_id":"action"}`,
+		coremcp.ToolCancelTask:            `{"request_id":"request","host":"codex","task_id":"task","revision":1,"reason":"cancel requested"}`,
+		coremcp.ToolPrepareTaskRelocation: `{"host":"codex","task_id":"task","revision":1}`,
+		coremcp.ToolAbandonTask:           `{"host":"codex","task_id":"task","revision":1,"reason":"worktree is unavailable"}`,
 	}
 	for tool, raw := range valid {
 		if err := coremcp.ValidateToolInput(tool, []byte(raw)); err != nil {
@@ -97,11 +100,12 @@ func TestMCPReadLifecycleInputsAndClosedRejections(t *testing.T) {
 
 func TestMCPOpenTaskRepositoryAndVerificationBudgetRanges(t *testing.T) {
 	for additionalCount := 0; additionalCount <= domain.MaxAdditionalRepositories; additionalCount++ {
-		additional := make([]map[string]string, additionalCount)
+		additional := make([]map[string]any, additionalCount)
 		for index := range additional {
-			additional[index] = map[string]string{
-				"key":             fmt.Sprintf("repo-%d", index),
-				"repository_path": fmt.Sprintf("/repo/%d", index),
+			additional[index] = map[string]any{
+				"key":              fmt.Sprintf("repo-%d", index),
+				"repository_path":  fmt.Sprintf("/repo/%d", index),
+				"workspace_origin": comprehensiveWorkspaceOrigin(fmt.Sprintf("task/repo-%d", index), fmt.Sprintf("receipt-repo-%d", index)),
 			}
 		}
 		for _, level := range []domain.VerificationLevel{domain.VerificationMinimal, domain.VerificationTargeted, domain.VerificationFull} {
@@ -109,6 +113,7 @@ func TestMCPOpenTaskRepositoryAndVerificationBudgetRanges(t *testing.T) {
 				request := map[string]any{
 					"host":                    "codex",
 					"repository_path":         "/repo/primary",
+					"workspace_origin":        comprehensiveWorkspaceOrigin("task/primary", "receipt-primary"),
 					"primary_repository_key":  "primary",
 					"additional_repositories": additional,
 					"new_task": map[string]any{
@@ -136,14 +141,14 @@ func TestMCPOpenTaskRepositoryAndVerificationBudgetRanges(t *testing.T) {
 		}
 	}
 
-	invalidAdditional := make([]map[string]string, domain.MaxAdditionalRepositories+1)
+	invalidAdditional := make([]map[string]any, domain.MaxAdditionalRepositories+1)
 	for index := range invalidAdditional {
-		invalidAdditional[index] = map[string]string{"key": fmt.Sprintf("repo-%d", index), "repository_path": fmt.Sprintf("/repo/%d", index)}
+		invalidAdditional[index] = map[string]any{"key": fmt.Sprintf("repo-%d", index), "repository_path": fmt.Sprintf("/repo/%d", index), "workspace_origin": comprehensiveWorkspaceOrigin(fmt.Sprintf("task/repo-%d", index), fmt.Sprintf("receipt-repo-%d", index))}
 	}
 	invalidRequests := []map[string]any{
 		openTaskRequest(invalidAdditional, domain.VerificationTargeted, 1),
 		openTaskRequest(nil, domain.VerificationTargeted, domain.MaxAutomaticVerificationCommands+1),
-		openTaskRequest([]map[string]string{{"key": "primary", "repository_path": "/duplicate"}}, domain.VerificationTargeted, 1),
+		openTaskRequest([]map[string]any{{"key": "primary", "repository_path": "/duplicate", "workspace_origin": comprehensiveWorkspaceOrigin("task/duplicate", "receipt-duplicate")}}, domain.VerificationTargeted, 1),
 	}
 	for index, request := range invalidRequests {
 		raw, err := json.Marshal(request)
@@ -158,7 +163,7 @@ func TestMCPOpenTaskRepositoryAndVerificationBudgetRanges(t *testing.T) {
 
 func TestMCPSubmissionSchemasRemainActionSpecificAndHostBounded(t *testing.T) {
 	wantRequired := []string{"host", "task_id", "action_id", "transition_id", "summary", "reason", "artifacts", "method_results", "node_result"}
-	coreOwned := []string{"request_id", "revision", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "payload", "destination"}
+	coreOwned := []string{"request_id", "revision", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "issuance_identity_digest", "issuance_history_digest", "issuance_content_digest", "payload", "destination"}
 	for _, tool := range coremcp.ToolCatalog() {
 		if !strings.HasPrefix(tool.Name, "dev_flow_submit_") {
 			continue
@@ -180,6 +185,11 @@ func TestMCPSubmissionSchemasRemainActionSpecificAndHostBounded(t *testing.T) {
 		for _, member := range []string{"artifacts", "method_results", "node_result"} {
 			if _, exists := properties[member]; !exists {
 				t.Fatalf("%s omits %s", tool.Name, member)
+			}
+		}
+		for _, removed := range []string{"changed_paths", "no_file_changes"} {
+			if bytes.Contains(tool.InputSchema, []byte(`"`+removed+`"`)) {
+				t.Fatalf("%s retains removed Host file field %s", tool.Name, removed)
 			}
 		}
 	}
@@ -267,10 +277,11 @@ func jsonStrings(value any) []string {
 	return result
 }
 
-func openTaskRequest(additional []map[string]string, level domain.VerificationLevel, commandLimit int) map[string]any {
+func openTaskRequest(additional []map[string]any, level domain.VerificationLevel, commandLimit int) map[string]any {
 	return map[string]any{
 		"host":                    "codex",
 		"repository_path":         "/repo/primary",
+		"workspace_origin":        comprehensiveWorkspaceOrigin("task/primary", "receipt-primary"),
 		"primary_repository_key":  "primary",
 		"additional_repositories": additional,
 		"new_task": map[string]any{
@@ -287,4 +298,8 @@ func openTaskRequest(additional []map[string]string, level domain.VerificationLe
 			"method_profile": "plain",
 		},
 	}
+}
+
+func comprehensiveWorkspaceOrigin(taskBranch, receiptID string) map[string]any {
+	return map[string]any{"mode": "dedicated_worktree", "remote_name": "origin", "base_branch": "main", "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "task_branch": taskBranch, "provisioning_receipt_id": receiptID}
 }

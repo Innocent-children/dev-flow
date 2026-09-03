@@ -9,6 +9,7 @@ import { promisify } from "node:util";
 
 import { authorizeDevFlowExecution } from "../../../packages/deepseek/lib/authorization.mjs";
 import { DEV_FLOW_QUALIFIED_TOOL_NAMES } from "../../../packages/deepseek/lib/tool-names.mjs";
+import { createWorkspaceCoordinator } from "../../../packages/deepseek/lib/workspace-coordinator.mjs";
 import { DeterministicCoreHost } from "./fake-core.mjs";
 
 const execFile = promisify(execFileCallback);
@@ -19,14 +20,27 @@ const [serverInfoTool, openTool, getTaskTool, getNextTool] = DEV_FLOW_QUALIFIED_
 
 test("deterministic DeepSeek Host follows the real Core graph through restart, recovery, refactor, and DONE", async (t) => {
   const root = await temporaryRoot(t);
-  const repository = join(root, "core");
-  const additionalRepository = join(root, "docs");
+  const sources = join(root, "sources");
+  const sourceRepository = join(sources, "core");
+  const sourceAdditionalRepository = join(sources, "docs");
   const dataDirectory = join(root, "data");
-  await mkdir(repository);
-  await mkdir(additionalRepository);
+  await mkdir(sources);
+  await mkdir(sourceRepository);
+  await mkdir(sourceAdditionalRepository);
   await mkdir(dataDirectory, { mode: 0o700 });
-  await initializeGit(repository);
-  await initializeGit(additionalRepository);
+  await initializeGit(sourceRepository, join(root, "core.git"));
+  await initializeGit(sourceAdditionalRepository, join(root, "docs.git"));
+  const provisioned = await createWorkspaceCoordinator({ dataDirectory, workspaceRoot: sources }).provision({
+    request: "Prove the deterministic DeepSeek graph loop.",
+    profile: "headless",
+    repositories: [
+      { repository_key: "core", source_repository_path: sourceRepository, remote_name: "origin", base_branch: "main", target_branch: "feature/core-proof" },
+      { repository_key: "docs", source_repository_path: sourceAdditionalRepository, remote_name: "origin", base_branch: "main", target_branch: "feature/docs-proof" },
+    ],
+  });
+  const consumed = await createWorkspaceCoordinator({ dataDirectory, workspaceRoot: provisioned.workspace_root }).consume({ launchID: provisioned.launch_id });
+  const repository = consumed.open_task.repository_path;
+  const additionalRepository = consumed.open_task.additional_repositories[0].repository_path;
 
   const core = new DeterministicCoreHost({ runtimePath, dataDirectory, packageRoot, useSourceRuntime: true });
   t.after(() => core.stop());
@@ -48,16 +62,15 @@ test("deterministic DeepSeek Host follows the real Core graph through restart, r
     "dev_flow_get_next_action", "dev_flow_submit_requirements", "dev_flow_submit_design",
     "dev_flow_submit_tasks", "dev_flow_submit_implementation", "dev_flow_submit_test",
     "dev_flow_submit_comprehension", "dev_flow_submit_refactor", "dev_flow_submit_delivery",
-    "dev_flow_resolve_blocker", "dev_flow_recover_action", "dev_flow_cancel_task",
+    "dev_flow_prepare_task_relocation", "dev_flow_resolve_blocker", "dev_flow_recover_action",
+    "dev_flow_cancel_task", "dev_flow_abandon_task",
   ]);
   assert.deepEqual(info.result.method_profiles, ["plain", "spec-kit", "openspec"]);
   assert.equal(typeof info.result.host_preferences.deepseek.codebase_memory, "boolean");
 
   const opened = await core.call(openTool, {
     host: "deepseek",
-    repository_path: repository,
-    primary_repository_key: "core",
-    additional_repositories: [{ key: "docs", repository_path: additionalRepository }],
+    ...consumed.open_task,
     new_task: {
       request: "Prove the deterministic DeepSeek graph loop.",
       initial_scope: ["Exercise the current graph"],
@@ -234,7 +247,6 @@ function requirementsResult() {
       constraints: [], assumptions: [],
     },
     unresolved_questions: [],
-    changed_paths: [], no_file_changes: true,
   };
 }
 
@@ -244,7 +256,7 @@ function designResult() {
       approach: "Use the direct graph flow.", components: ["DeepSeek Host"],
       decisions: ["Keep Core authoritative"], rejected_alternatives: [],
       complexity_justification: [], risks: [],
-    }, findings: [], changed_paths: [], no_file_changes: true,
+    }, findings: [],
   };
 }
 
@@ -255,14 +267,13 @@ function tasksResult() {
         work_item_id: "work", summary: "Exercise the graph", expected_paths: ["core::feature.txt", "docs::feature.txt"],
         acceptance_indexes: [0, 1], verification_steps: ["Run targeted checks"], dependencies: [],
       }],
-    }, findings: [], changed_paths: [], no_file_changes: true,
+    }, findings: [],
   };
 }
 
 function implementationResult() {
   return {
-    completed_work_item_ids: ["work"], changed_paths: ["core::feature.txt", "docs::feature.txt"], no_file_changes: false,
-    deviations: [], findings: [],
+    completed_work_item_ids: ["work"], deviations: [], findings: [],
   };
 }
 
@@ -270,7 +281,7 @@ function failedTestResult() {
   return {
     checks: [{ source: "automated", name: "targeted-test", status: "failed", summary: "The targeted test failed.", command_count: 1, full_suite: false }],
     failed_items: ["targeted failure"], unverified_items: [], manual_handoff_items: [],
-    findings: ["implementation defect"], changed_paths: [], no_file_changes: true,
+    findings: ["implementation defect"],
   };
 }
 
@@ -282,7 +293,6 @@ function passedTestResult() {
       { source: "host_observed", name: "host-observation", status: "passed", summary: "The Host observed the result.", command_count: 0, full_suite: false },
     ],
     failed_items: [], unverified_items: [], manual_handoff_items: [], findings: [],
-    changed_paths: [], no_file_changes: true,
   };
 }
 
@@ -291,20 +301,19 @@ function comprehensionResult({ abstractions = [], findings = [], userPassed = fa
     explained_components: userPassed ? ["request entry", "guard", "Core bridge"] : [],
     unresolved_questions: [], unnecessary_abstractions: abstractions, maintenance_risks: [],
     user_confirmation: userPassed ? { source: "user", status: "passed", summary: "The developer confirmed understanding." } : null,
-    findings, changed_paths: [], no_file_changes: true,
+    findings,
   };
 }
 
 function refactorResult() {
   return {
-    changed_paths: ["core::feature.txt"], no_file_changes: false,
     simplifications: ["Removed the factory layer"], behavior_change_intended: false, findings: [],
   };
 }
 
 function deliveryResult() {
   return {
-    unverified_items: [], risks: [], findings: [], changed_paths: [], no_file_changes: true,
+    unverified_items: [], risks: [], findings: [],
   };
 }
 
@@ -341,14 +350,17 @@ function authorizeExecution(text, callId, toolName, withHistoricalSelector = fal
 function event(seq, type, data) { return { seq, time: seq, type, data }; }
 function userMessage(text, id) { return { id, role: "user", source: { kind: "user" }, content: [{ type: "text", text }] }; }
 
-async function initializeGit(repository) {
+async function initializeGit(repository, remote) {
   const env = { ...process.env, GIT_CONFIG_NOSYSTEM: "1" };
-  await execFile("git", ["init", "-q"], { cwd: repository, env });
+  await execFile("git", ["init", "--bare", "--initial-branch=main", remote], { env });
+  await execFile("git", ["init", "-q", "--initial-branch=main"], { cwd: repository, env });
   await execFile("git", ["config", "user.email", "journey@example.invalid"], { cwd: repository, env });
   await execFile("git", ["config", "user.name", "Journey Test"], { cwd: repository, env });
   await writeFile(join(repository, "README.md"), "initial\n");
   await execFile("git", ["add", "README.md"], { cwd: repository, env });
   await execFile("git", ["commit", "-q", "-m", "initial"], { cwd: repository, env });
+  await execFile("git", ["remote", "add", "origin", remote], { cwd: repository, env });
+  await execFile("git", ["push", "-u", "origin", "main"], { cwd: repository, env });
 }
 
 async function temporaryRoot(t) {

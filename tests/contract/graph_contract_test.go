@@ -9,7 +9,7 @@ import (
 )
 
 func TestGraphContractCatalogAndFixtures(t *testing.T) {
-	if len(coremcp.ToolNames()) != 15 {
+	if len(coremcp.ToolNames()) != 17 {
 		t.Fatal("tool catalog changed")
 	}
 	root := contractRepositoryRoot(t)

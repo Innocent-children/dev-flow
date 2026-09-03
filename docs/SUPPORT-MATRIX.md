@@ -24,9 +24,14 @@ Codex lifecycle evidence 覆盖 package/Core identity、安装、setup、Core ha
 当前源码包含共享本机 WebUI、内嵌资产和 `dev-flow webui start|open|status|stop`，并闭合了以下
 package runtime pair：
 
+当前源码的新 Task 生命周期先在 Host 中做只读改动量评估，再由用户确认 remote/base/target，从
+fetch 后冻结的 commit 建立专属工作树；Core 只读计算工作树 identity、history、content 和当前
+Task surface。源码包含确定性临时 Git/receipt Journey 与显式输入的原生 Journey 校验入口；只有
+实际原生 Host Journey 通过后才构成该 Host/平台的原生证据，并且独立发布前不改变上方稳定表。
+
 | Runtime pair | 当前源码范围 | 当前证据边界 |
 | --- | --- | --- |
-| `darwin-arm64` | macOS arm64 | 现有稳定 package 与 Host Journey |
+| `darwin-arm64` | macOS arm64 | 现有稳定 package Journey；工作树优先源码能力需对应原生 Journey 结果单独确认 |
 | `win32-x64` | Windows 10/11 桌面版 x64 | Windows 11 x64 本机 Core/WebUI/MCP、完整 Go 套件、Adapter contract 与双 runtime 本地打包；尚未进入稳定 `@latest` Journey |
 
 npm manifest 需要分别列出允许的 OS 和 CPU，因此安装层可能接受交叉组合；package runtime selector 只接受

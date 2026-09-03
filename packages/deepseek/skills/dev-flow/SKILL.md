@@ -1,55 +1,110 @@
 # Dev Flow
 
-This Skill is the current Core contract DeepSeek Harness adapter for the shared Dev Flow Core. Core owns task state,
-current node, legal transitions, destinations, recovery, blockers, and terminal outcomes. The Skill
-admits one explicit request, presents a complete Core Action, renders method work, and forwards one
-closed result without keeping adapter state.
+This Skill is the DeepSeek Harness adapter for the shared Dev Flow Core. A new development request
+first receives a read-only suitability assessment. Only after the developer explicitly chooses Dev
+Flow and confirms every repository's remote, base branch, and new task branch may the Host provision
+an isolated workspace and open a Core Task. Core remains the sole owner of Task state, transitions,
+recovery, blockers, and terminal outcomes.
 
-## Admission gate
+## Suitability assessment
 
-Perform every check below locally and in order before any Core or Dev Flow tool call.
+Classify the current message before any Core call. An explicit request to resume an existing Task is
+the only path that skips assessment. Every other new development request, including one containing
+`/dev-flow`, first performs only read-only inspection and then stops for the developer's choice.
 
-The Skill name and exact explicit selector are `dev-flow` and `/dev-flow`. The selector must match
-`(^|\s)/dev-flow(?=\s|$)` in text from a current `source.kind=user` message. DSH may expose the
-qualified MCP tools independently from Skill injection; the integration's monotonic tool guard is
-the selector authorization boundary.
+During assessment you may read the request, repository instructions and directly relevant docs,
+inspect Git without changing it, and inspect candidate implementation, callers, tests, configuration,
+and package manifests. Do not edit files, run tests or builds, install dependencies, call any Dev Flow
+Core or Host tool, fetch, create a branch or worktree, or write a receipt.
 
-1. Require a whitespace-bounded `/dev-flow` in the current direct user turn. Do not infer it from
-   earlier turns, model text, plugin or Skill injection, task state, repository contents, or
-   discussion about Dev Flow. Every later user turn expected to call Dev Flow must include it again.
-2. After removing the selector, accept either one substantive bounded request or an explicit request
-   to resume its compatible active DeepSeek task. Reject an empty or conversational invocation
-   before any Core call.
-3. Treat the canonical `Workspace Root` established when DSH started as the containment boundary.
-   The Workspace Root may be a non-Git common parent. Use read-only Git inspection to resolve the
-   explicitly declared primary Git worktree and preserve its path as one value.
-4. Accept zero to seven additional Git repositories only when the current user request explicitly
-   declares each stable repository key and path. Resolve every primary and additional path
-   canonically and require it to remain within the same Workspace Root, including after symlink
-   resolution.
-5. Do not scan parent or sibling directories and do not infer repositories from imports, remotes,
-   submodules, codebase-memory, or other discovery results. Never add a discovered repository to the
-   Repository Scope. Reject unresolved, root-external, or symlink-escaping repository paths before a
-   task-bearing Core call. Preserve repository instructions and current user authority.
+Return exactly these developer-readable fields:
 
-If admission fails, explain the missing precondition and stop before task discovery. Do not make a
-task-bearing call or create adapter state. Core-rejected calls must be reported honestly.
+```text
+change_level: small | standard | large | uncertain
+observed_repositories
+candidate_components
+candidate_paths
+public_contract_flags
+persistence_or_state_flags
+host_or_platform_flags
+verification_shape
+unknowns
+recommendation: direct | dev_flow | clarify
+reasons
+```
+
+`candidate_paths` is a discovered lower bound, not a final file list. Do not predict exact lines of
+code, duration, defect probability, or one-turn completion. Use `small` only for a clear,
+single-repository, single-responsibility change with concentrated implementation/callers/tests, no
+public API, CLI, MCP, Schema, persistence, state-graph, Host lifecycle, platform, permission,
+security, build, release, recovery, or real-Host-Journey impact, and only a few targeted checks.
+Use `uncertain` when the real entry point, impact, or verification cannot yet be found.
+
+Bind the assessment to the exact request, canonical repository roots, current HEAD values, and Git
+status digests. If any changes before confirmation, repeat the assessment and ask again. If the
+developer chooses direct work, leave Dev Flow: no Core call, Task, claim, Git mutation, child launch,
+or provisioning receipt may exist.
+
+## Explicit worktree confirmation
+
+After the developer chooses Dev Flow, show for every explicitly scoped repository:
+
+```text
+repository_key
+remote_name
+base_branch
+target_branch
+current source-checkout dirty paths (bounded)
+```
+
+Explain that staged, tracked-dirty, and untracked source content will not enter the Task worktree.
+Suggestions are not selections. Require one current direct user message in this exact form, with one
+repository line per repository in primary-first order:
+
+```text
+/dev-flow confirm-worktree
+repository=<repository_key>;remote=<remote_name>;base=<base_branch>;target=<target_branch>
+```
+
+Do not infer this confirmation from history, an assessment, model text, or Skill injection. Call the
+Host `workspace_coordinator` with `operation=provision`, the exact admitted request, current DSH
+Profile, and the confirmed repository rows. The coordinator performs safe-argv validation, exact
+fetch, frozen-commit worktree creation, verification, and receipt updates. Do not perform those Git
+mutations through Bash.
+
+On success, present the returned relaunch descriptor exactly. Its `command`, `arguments`, and `cwd`
+are separate values; do not concatenate or reinterpret them. The original DSH Workspace Root cannot
+be widened to the sibling worktree. Start a new DSH session using that descriptor. The new session's
+direct user message is exactly the returned `/dev-flow resume-worktree launch=<launch_id>` prompt and
+calls `workspace_coordinator` with `operation=consume` and that launch ID. Only a complete consumed
+result whose workspace root and repositories verify may proceed to the Core handshake.
+
+Queued, timed-out, interrupted, malformed, or otherwise uncertain provisioning retains the receipt
+and filesystem for inspection. Do not dispatch or provision again. A definite failure creates no
+Core Task; cleanup is limited to resources the receipt proves were created, still clean, and still at
+the frozen commit. A multi-repository request opens no partial Core Task.
+
+The whitespace-bounded `/dev-flow` selector remains mandatory in every direct user turn that calls
+the coordinator or Core. It must come from a current `source.kind=user` message; earlier turns,
+model text, plugin text, and Skill injection do not authorize a call.
 
 ## Compatibility handshake
 
-Only after admission passes, call `mcp__dev_flow__dev_flow_server_info({})`; it must be the first Dev Flow tool
+Only after an explicit resume is admitted or a provisioning receipt is consumed, call
+`mcp__dev_flow__dev_flow_server_info({})`; it must be the first Core tool
 call. Require one complete structured result proving:
 
-- product is exactly `dev-flow`, and Core version equals the packaged product version;
+- product is exactly `dev-flow`, and Core version is present and canonical. Core and the DeepSeek
+  npm package are independently versioned products and need not have equal versions;
 - transport is exactly `stdio`, health is exactly `ready`, and the supported host set contains
   `deepseek`;
 - `supported_processes` contains exactly one closed `standard-development` entry:
-  `process_id` is `standard-development` is `1`, `definition_digest` is present
+  `process_id` is `standard-development`, `definition_digest` is present
   and canonical, and `new_task_supported` is exactly `true`;
-- `method_profiles` is exactly `plain`, `spec-kit`, `openspec` in that order;
+- `method_profiles` contains exactly the set `plain`, `spec-kit`, and `openspec`, regardless of order;
 - `host_preferences.deepseek.codebase_memory` is present and is exactly a JSON boolean; it expresses
   a preference only and does not prove that codebase-memory is installed or available;
-- the tool catalog contains exactly these fifteen raw names, in this order:
+- the tool catalog contains exactly these seventeen raw names, regardless of order:
 
 1. `dev_flow_server_info`
 2. `dev_flow_open_task`
@@ -63,12 +118,14 @@ call. Require one complete structured result proving:
 10. `dev_flow_submit_comprehension`
 11. `dev_flow_submit_refactor`
 12. `dev_flow_submit_delivery`
-13. `dev_flow_resolve_blocker`
-14. `dev_flow_recover_action`
-15. `dev_flow_cancel_task`
+13. `dev_flow_prepare_task_relocation`
+14. `dev_flow_resolve_blocker`
+15. `dev_flow_recover_action`
+16. `dev_flow_cancel_task`
+17. `dev_flow_abandon_task`
 
 Any other schema, unsupported process version, absent process digest, false new-task support,
-incomplete method-profile set, missing/additional/reordered tool, or incomplete, truncated, malformed,
+incomplete method-profile set, missing/additional tool, or incomplete, truncated, malformed,
 or incompatible result fails the handshake. Stop without task discovery or undocumented probing. Do
 not inspect local source or an installed binary, and do not start a second MCP server to bypass a
 failed handshake.
@@ -96,35 +153,36 @@ presentation state and must not be written into the Core Task.
 
 ## Task discovery
 
-After the handshake, call `mcp__dev_flow__dev_flow_open_task` with `host=deepseek` and the following
-Scope rules:
+After the handshake, call `mcp__dev_flow__dev_flow_open_task` with `host=deepseek`.
 
-- For a new request, send `repository_path` for the explicitly declared primary repository,
-  `primary_repository_key` when supplied, and `additional_repositories` as the user's explicit
-  closed `{key, repository_path}` declarations. A single-repository request may omit both optional
-  Scope fields and keeps ordinary repository-relative paths.
-- For a resume from any participating repository, send that repository as `repository_path`, omit
-  the Scope creation fields, and omit `new_task` or send `new_task=null`. Accept the immutable primary
-  repository, ordered Scope, profile, revision, and current Action returned by Core.
+For a new request, use only the complete `workspace_coordinator` consume result from this relaunch:
 
-- For an explicit resume, omit `new_task` or send `new_task=null`. Do not resend a guessed intent or
-  select another profile; accept the immutable profile returned by Core.
-- For a new request, select one profile from explicit current user intent. An explicit `plain`,
-  `spec-kit`, or `openspec` request selects that exact profile. An explicit request to use Spec Kit
-  selects `spec-kit`; an explicit request to use OpenSpec selects `openspec`; otherwise use the
-  conservative `plain` profile.
-- Installed tooling does not select or switch a profile. Never change the profile after creation. If
-  the user explicitly requests conflicting profiles, report the profile conflict and stop.
-- Derive the new-task contract only from the admitted user request, repository instructions, known
-  initial bounds, known acceptance, and granted verification authority. Formal acceptance does not
-  need to be complete at creation; the current requirements work forms that authority.
-- Forward `new_task` with exactly the members `request`, `initial_scope`,
-  `initial_out_of_scope`, `known_acceptance_criteria`, `verification_budget`, and `method_profile`,
-  with no additional members. Forward `verification_budget` with exactly `level`,
-  `max_automatic_commands`, `allow_full_suite`, and `allow_manual_handoff`.
-- `request` is a JSON string. `initial_scope`, `initial_out_of_scope`, and
-  `known_acceptance_criteria` are JSON arrays of strings and may be empty. Never collapse an array
-  into prose. `verification_budget.level` is exactly `minimal`, `targeted`, or `full`.
+- `repository_path` and `workspace_origin` come from its primary repository descriptor;
+- `primary_repository_key` is that descriptor's key;
+- every `additional_repositories` entry contains exactly `key`, `repository_path`, and
+  `workspace_origin` from the same launch;
+- every Host-supplied `workspace_origin` contains exactly `mode="dedicated_worktree"`,
+  `remote_name`, `base_branch`, `base_commit`, `task_branch`, and
+  `provisioning_receipt_id`;
+- never add Core-computed source-group, canonical-root, or worktree-Git-dir members;
+- all repositories from the confirmed launch must be present. Never open a partial Scope or use a
+  source checkout after provisioning.
+
+For an explicit resume, send the participating original worktree as `repository_path`, omit
+`workspace_origin`, `primary_repository_key`, and `additional_repositories`, and omit `new_task` or
+send `new_task=null`. Do not create a replacement directory, use a same-named branch, resend guessed
+intent, or select another profile. Accept the immutable original worktree instance and profile from
+Core. `WORKSPACE_UNAVAILABLE` requires restoration of that exact instance or an explicit
+`mcp__dev_flow__dev_flow_abandon_task` request; ordinary cancel cannot invent a successful
+observation.
+
+For a new request, select one profile from explicit current user intent. `plain`, `spec-kit`, and
+`openspec` select themselves; otherwise use `plain`. Installed tooling does not select or change a
+profile. Derive `new_task` only from the admitted request, repository instructions, known bounds,
+known acceptance, and granted verification authority. It contains exactly `request`,
+`initial_scope`, `initial_out_of_scope`, `known_acceptance_criteria`, `verification_budget`, and
+`method_profile`. The budget contains exactly `level`, `max_automatic_commands`, `allow_full_suite`,
+and `allow_manual_handoff`.
 
 Use this exact `new_task` JSON shape, changing only values derived from the admitted request:
 
@@ -146,9 +204,10 @@ Use this exact `new_task` JSON shape, changing only values derived from the admi
 ```
 <!-- new-task-example:end -->
 
-Ask before opening only when a material request, initial-bound, verification, or profile choice
-cannot be derived without changing user intent. Let Core decide whether a compatible intent creates
-or resumes a task. Report an ownership or contract conflict unchanged in meaning and stop.
+The Core call occurs only after all repository descriptors were consumed and verified. A new Task
+opened without a dedicated-worktree origin is a contract defect, not permission to fall back to the
+source checkout. Report ownership, provisioning, workspace, or contract conflicts unchanged in
+meaning and stop.
 
 ## Governed action loop
 
@@ -156,16 +215,18 @@ The inseparable Action fields are exactly `task_id`, `revision`, `action_id`, `a
 `process_id`, `process_definition_digest`, `current_node`, `node_purpose`,
 `entry_conditions`, `completion_conditions`, `allowed_effects`, `required_evidence`,
 `method_profile`, `method_steps`, `available_transitions`, `payload_contract`, `guidance`,
-`repository_binding_digest`, and `issued_at`.
+`repository_binding_digest`, `issuance_identity_digest`, `issuance_history_digest`,
+`issuance_content_digest`, and `issued_at`.
 
 For an active task, perform each iteration in this order:
 
 1. Obtain one complete fresh Action from the open result or `mcp__dev_flow__dev_flow_get_next_action`, and bind it as
    `fresh_action` from `result.task.current_action` or `result.action` respectively.
-2. Treat its task ID, revision, action ID, action kind, process ID, process version,
+2. Treat its task ID, revision, action ID, action kind, process ID,
    process-definition digest, current node, node purpose, entry conditions, completion conditions,
    allowed effects, required evidence, method profile, method steps, available transitions, payload
-   schema/contract, guidance, repository-binding digest, and issued time as one inseparable Core
+   schema/contract, guidance, repository-binding and issuance identity/history/content digests, and
+   issued time as one inseparable Core
    result. Stop if any field is absent, malformed, or truncated.
 3. Present the current node, purpose, entry and completion conditions, allowed effects, required
    evidence, immutable method profile, every method step, and all `available_transitions`. For every
@@ -180,10 +241,8 @@ For an active task, perform each iteration in this order:
    instructions, verification budget, and current user authority.
 7. Select only a Core-returned transition and build the closed input of
    `fresh_action.submission_tool` from the actual typed node facts.
-   `changed_paths` contains only repository paths newly changed while performing this current Action,
-   relative to its issuance binding. Do not repeat paths changed by an earlier node. When the current
-   Action only reads files or runs verification commands, submit `changed_paths=[]` and
-   `no_file_changes=true`, even when the Task's implementation already has uncommitted paths.
+   File effects are not Host payload fields. Core re-observes the dedicated worktree and computes the
+   Action delta and complete current Task surface.
 8. Submit exactly one call to that qualified tool with `host`, `task_id`, `action_id`, the selected
    transition, result text, artifact slots, method results and the exact node result. Core fills and
    retains the complete Action identity and payload envelope.
@@ -218,8 +277,8 @@ reuse an `allow_once` decision for a different write, expand Repository Scope, o
 path.
 
 The gate covers the structured tools above; it is not a filesystem or shell sandbox. Bash, external
-processes, and other tool paths may write before Core observes them. Implementation, Refactor and
-Delivery submissions must therefore use the exact current changed surface and obey Core's final
+processes, and other tool paths may write before Core observes them. Core derives the complete Task
+surface from the frozen base, commits, index, worktree, and untracked entries, and applies the final
 scope guard. If the gate is unavailable, stop the supported write rather than describing prompt
 compliance as interception.
 
@@ -444,12 +503,81 @@ recovery-before-retry contract.
 - A verification the user already completed belongs in `checks` with `source=user`. Remove it from
   `manual_handoff_items`; that list keeps only work nobody has executed yet.
 
+## Relocation and unavailable workspaces
+
+Relocation keeps one Core Task. After explicit developer authority, call
+`mcp__dev_flow__dev_flow_prepare_task_relocation` with exactly `host`, `task_id`, and `revision` from
+the fresh Task before changing the Host workspace. Core enters `BLOCKED` and returns the relocation
+ID and retained source facts. Then
+perform only the same-machine DSH relaunch or supported Host handoff. Resolve the relocation blocker
+only after the target workspace is available, using `mcp__dev_flow__dev_flow_resolve_blocker` with
+the normal blocked Action identity plus `relocation_id` and
+`relocation_destinations=[{key,repository_path}]` for every repository. Core verifies the same Git
+group, base, content, Task surface, and claim availability and atomically replaces bindings and
+claims. A failure retains the old claim. An uncertain Host response
+requires reading the retained relocation operation and actual Host state; never repeat the handoff
+blindly.
+
+`WORKSPACE_UNAVAILABLE` cannot be bypassed by creating a directory at the old path or selecting a
+same-named branch. Restore the exact worktree instance or, after explicit current-turn authority,
+call `mcp__dev_flow__dev_flow_abandon_task` with exact host, Task ID, revision, and a non-empty reason.
+Abandon records the last known binding, releases claims, and ends at `CANCELLED`; it does not inspect
+or delete Git resources.
+
+For a prepared workspace-history blocker, use only
+`history_resolution={choice:"accept_current_history",reason:<non-empty>}` after explicit review and
+authorization. Do not mix history, relocation, and file-scope decision members.
+
 ## Blocked and terminal behavior
 
 Stop repository work when Core returns authoritative `BLOCKED`, `DONE`, `CANCELLED`, an ownership or
 contract conflict, or another safe-stop. Report Core's blocker and condition, terminal outcome,
 evidence summary, cancellation, or conflict without replacing or merging a task. Use
-`mcp__dev_flow__dev_flow_cancel_task` only after explicit user authority and a fresh current Core identity.
+`mcp__dev_flow__dev_flow_cancel_task` only after explicit user authority, a fresh current Core
+identity, and a successful workspace observation. Use abandon only for a genuinely unavailable
+worktree.
+
+Terminal state releases Core claims but never means commit, push, merge, PR, handoff, worktree
+removal, or branch removal. Show the remote/base/frozen commit, task branch/current HEAD, worktree
+path, clean state, current changed paths, and completed verification. Keep, review, handoff,
+worktree cleanup, and branch cleanup are distinct choices. Never automatically remove an active,
+dirty, unpushed, uncertain, or unknown-origin worktree; worktree and branch deletion require separate
+current user authorization and may touch only resources owned by the retained provisioning receipt.
+
+Cleanup never deletes the DSH process's current Workspace Root in place. First choose a surviving
+source checkout in the same Git group and require:
+
+```text
+/dev-flow prepare-cleanup launch=<launch_id> repository=<repository_key> task=<task_id> revision=<revision>
+```
+
+Call `workspace_coordinator` with `operation=prepare_cleanup`, those identities, and the transient
+`source_repository_path`. It verifies the terminal Core Task and receipt, does not persist the source
+path, and returns a `command`/`arguments`/`cwd` relaunch descriptor. Relaunch DSH from that source
+checkout. The relaunch turn deletes nothing and asks for the separate worktree decision below.
+
+For worktree removal, require the exact current message returned by the Adapter:
+
+```text
+/dev-flow cleanup-worktree launch=<launch_id> repository=<repository_key> task=<task_id> revision=<revision>
+```
+
+Then call `workspace_coordinator` with `operation=cleanup_worktree` and those exact values. The
+Coordinator performs a nested fresh Core read and removes only a terminal receipt-owned worktree
+whose branch and HEAD match Core, whose tracked/index/worktree/submodule state is clean, and whose
+remote task branch equals the terminal HEAD. It never uses force. The task branch remains.
+
+Branch deletion is a second decision in a later current user message:
+
+```text
+/dev-flow cleanup-branch launch=<launch_id> repository=<repository_key> task=<task_id> revision=<revision>
+```
+
+Call `workspace_coordinator` with `operation=cleanup_branch`, the same identities, and a current
+source checkout path. The Coordinator does not persist that source path. It verifies the same Git
+group, terminal Core HEAD, exact remote branch, and that no worktree uses the task branch, then uses
+non-force branch deletion. If the branch is not merged, Git refuses and the branch remains. A failed
+or uncertain safety check preserves the resource.
 
 Adapter belief that work is complete does not override Core, and a blocker is not success.
 

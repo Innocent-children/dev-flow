@@ -21,6 +21,20 @@ func (c *ControlCenter) OpenOrResumeTask(ctx context.Context, request OpenTaskRe
 	return ControlCenterMutationResult{Task: &task}, nil
 }
 
+func (c *ControlCenter) PrepareTaskRelocation(ctx context.Context, request PrepareTaskRelocationRequest) (PrepareTaskRelocationResult, error) {
+	if !c.valid() || ctx == nil {
+		return PrepareTaskRelocationResult{}, domain.ErrInvalidArgument
+	}
+	return c.core.PrepareTaskRelocation(ctx, request)
+}
+
+func (c *ControlCenter) AbandonTask(ctx context.Context, request AbandonTaskRequest) (AbandonTaskResult, error) {
+	if !c.valid() || ctx == nil {
+		return AbandonTaskResult{}, domain.ErrInvalidArgument
+	}
+	return c.core.AbandonTask(ctx, request)
+}
+
 func (c *ControlCenter) CancelLifecycleTask(ctx context.Context, request CancelControlCenterTaskRequest) (ControlCenterMutationResult, error) {
 	if !c.valid() || ctx == nil || !request.RequestID.IsValid() || !request.TaskID.IsValid() || request.ExpectedRevision == 0 || !request.Confirmed || request.Reason == "" || request.Reason != strings.TrimSpace(request.Reason) || len(request.Reason) > domain.MaxReasonBytes {
 		return ControlCenterMutationResult{}, domain.ErrInvalidArgument

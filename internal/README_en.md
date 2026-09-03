@@ -10,13 +10,13 @@ provide consistent process behavior.
 
 | Package | Responsibility |
 | --- | --- |
-| `domain` | `ProcessTask`, TaskIntent, baselines, records, evidence, outcome, and limits |
+| `domain` | `ProcessTask`, WorkspaceOrigin/Binding, baselines, records, blockers, evidence, outcome, and limits |
 | `workflow` | `standard-development`, node contracts, 29 transitions, payloads, and invalidation |
-| `application` | Open/read/submit/recover/cancel use cases and component coordination |
+| `application` | Open/resume/read/submit/recover/relocate/cancel/abandon use cases and component coordination |
 | `store` | SQLite bootstrap, strict snapshot, CAS, events, claims, and read-only preflight |
-| `repository` | Canonical repository identity and bounded read-only Git observation |
+| `repository` | Bounded read-only dedicated-worktree identity/history/content/task-surface observation |
 | `recovery` | Five-class reconciliation, retry advice, blockers, and resume |
-| `mcp` | Fifteen-tool local STDIO contract, Action-kind-specific submission schemas, and Result Envelope |
+| `mcp` | Seventeen-tool local STDIO contract, Action-kind-specific submission schemas, and Result Envelope |
 | `webui` | Loopback HTTP adapter, embedded assets, session protection, shared runtime receipt, and lifecycle |
 | `version` | Core product version from `CORE_VERSION` or build injection |
 
@@ -27,16 +27,17 @@ Core alone owns:
 - Task identity, immutable intent, and method profile;
 - process definition/digest, current node, resume node, and legal transitions;
 - requirements/design/task-plan baselines and their invalidation;
-- repository claim keyed by physical worktree identity, revision CAS, current action, and evidence;
+- repository claim keyed by worktree-instance identity, revision CAS, current action, and evidence;
+- immutable WorkspaceOrigin, current Task surface, and Action issuance identity/history/content;
 - Recovery classification, blocker, and terminal outcome.
 
-A Host Adapter performs user-authorized repository work and submits the result. Core observes Git
-read-only, performs no Git mutation, and exposes no generic shell.
+A Host Adapter performs developer-confirmed fetch, branch, worktree, handoff, and ordinary repository
+work and submits semantic results. Core derives the surface from Git, observes read-only, performs no
+Git mutation, and exposes no generic shell.
 
-Linked worktrees share `GitCommonDirDigest` as the logical repository group projected by Control
-Center, but each has a `RepositoryIdentity` that includes its canonical root. Store claims only the
-latter exclusively, so different worktrees in one group may each run a Task while one worktree still
-holds only one active Task.
+Linked worktrees share `SourceRepositoryGroupDigest`, while canonical root plus the worktree-specific
+Git directory gives every instance a distinct `WorktreeInstanceDigest`. Store claims the latter, so
+different worktrees in one group may each run a Task while one instance holds only one active Task.
 
 ## Runtime structure
 

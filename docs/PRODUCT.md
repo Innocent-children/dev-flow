@@ -4,198 +4,116 @@
 
 ## 一句话定位
 
-> Dev Flow 把 AI 编程任务限制在约定的改动范围和验证预算内；当任务超出计划、重复验证却没有
-> 新进展，或现有结果已经过期时，它会停下来。
+> Dev Flow 先帮助开发者判断一个请求是否值得进入完整流程；采用 Dev Flow 的新 Task 从用户确认的
+> 远端基线进入独立工作树，并由 Core 持续核对实际修改面、验证上限和当前进度。
 
-它是长时 AI 编程任务的本地执行约束与恢复层。Codex 或 DeepSeek 仍然读代码、改文件和运行命令；
-Dev Flow 保存已经同意的目标、文件范围和测试预算，在任务扩大范围、超过预算、重复失败或沿用旧
-结果时暂停。持久的本地 Task 同时让任务能在会话中断后继续，并让结果不确定的操作先确认、再重试。
+Codex 或 DeepSeek 仍然读代码、改文件和运行命令。Dev Flow 保存唯一 Task 状态，并在范围扩大、
+验证超额、结果过期、工作树历史冲突或操作结果不确定时暂停。
 
-## 目标用户
+## 目标用户和要完成的工作
 
-Dev Flow 面向把 Codex 或 DeepSeek 用于真实代码库、并且一个任务可能持续多个会话或多天的开发者。
-这些开发者希望 Agent 可以自主执行，但不能悄悄增加改动文件、把定向检查变成全量回归，或反复尝试
-同一个失败；任务跨会话时，他们也需要看清已经做到哪里、还有什么未完成。
+Dev Flow 面向把 Codex 或 DeepSeek 用于真实代码库、且一个任务可能持续多个会话或多天的开发者。
+它适合需要明确文件范围、限制测试投入、保留中断恢复能力，并且不希望共享 checkout 中的其他改动
+干扰当前任务的人。
 
-## 用户要完成的工作
+用户可以：
 
-用户要把一个范围明确的代码任务从提出需求推进到可交付结果，同时能够：
-
-- 保留最初目标、验收条件和范围外事项；
-- 为每项工作列出预计修改路径和需要完成的验证；
-- 对计划外写入选择单次允许、修改计划或拒绝；
-- 限制自动验证命令数量，以及是否允许完整测试和人工交接；
-- 在同一失败或无变化结果连续重复时暂停；
-- 在实现变化后知道哪些旧测试和理解确认已经失效；
-- 在结果不确定时先判断是否已经生效，再决定恢复或重试；
-- 中断后继续同一个 Task；
-- 在交付前确认实现不仅通过测试，而且能够被解释和维护。
+- 在创建 Task 前查看只读改动量评估，并选择直接开发、使用 Dev Flow 或先澄清；
+- 为每个仓库确认 remote、base branch 和新的 target branch；
+- 从 fetch 后冻结的 base commit 创建干净、独立、具名分支的工作树；
+- 保留目标、验收条件、范围外事项、预计路径和验证预算；
+- 让 Core 从 Git 计算当前修改面，而不是依赖 Agent 自报路径；
+- 对计划外路径选择单次允许、修改计划或恢复文件；
+- 允许 task branch 上的正常线性 commit，同时阻止 branch switch、rewind 和未准备的历史重写；
+- 在内容变化后让旧测试和理解确认失效，在只提交相同内容时保留它们；
+- 在结果不确定时先读取保存的操作，再决定恢复或重试；
+- 在同机 Host 交接后继续同一个 Task；
+- 在工作树丢失时显式放弃 Task，并在终态分别决定是否保留、交接或清理工作树和分支。
 
 ## 首要失效场景
 
-一个原本有边界的任务在执行中逐渐失去边界：修改扩展到计划外文件，定向验证变成完整回归，失败后
-反复改同一批路径、运行同一检查，或者代码已经变化却继续使用之前的测试结果。Agent 仍然在产生
-输出，但开发者已经无法确认它是否还在做最初同意的工作。
+旧流程先把新 Task 绑定到用户正在使用的 checkout。另一个工具、进程或用户产生的 Git 可见变化
+会让当前 Task 漂移；而 Agent 自报的文件路径既不能证明修改者，也不能可靠区分同一路径后续发生的
+内容变化。
 
-Dev Flow 首先解决这个问题：Task 保存已经同意的文件范围、验证步骤和验证预算；受支持的计划外
-写入会先暂停，测试提交必须满足预算，连续三次精确重复会进入阻塞，要求或实现变化会让旧结果失效。
-
-## 辅助失效场景
-
-同一套 Task 状态还帮助处理：
-
-1. 会话中断、上下文压缩或 Host 重启后，新会话需要继续同一个任务；
-2. 写操作响应丢失后，Host 不知道操作是否已经生效；
-3. 仓库状态变化后，已有 Task 记录不再符合当前仓库；
-4. 测试已经通过，但实现仍然过度复杂或难以解释。
+当前流程把工作树作为修改归属边界。新请求先经过只读评估；用户选择 Dev Flow 后，Host 取得明确的
+remote/base/target 确认，精确 fetch 远端分支，冻结 commit，并在独立工作树中创建 Task。源 checkout
+后续变化与 Task 无关；Task 工作树里的全部 Git 可见变化都属于这个 Task。
 
 ## 产品如何介入
 
-Codex 或 DeepSeek 仍然读取仓库、修改文件和运行命令。Dev Flow 在这些工作之外维护一个本地 Task，
-主要完成四件事：
-
-| 任务中的问题 | 产品行为 |
+| 用户事件 | 产品行为 |
 | --- | --- |
-| 改动超出计划 | 保存 Repository Scope 和 Task Plan 文件范围；受支持的计划外结构化写入先询问，交付前再核对累计修改路径 |
-| 测试不断扩大或重复 | 保存 verification budget；拒绝超额测试，并在第三次精确重复后暂停 |
-| 旧结果不再适用 | 根据 requirements、design、task plan、实现和仓库状态，让旧测试或理解确认失效 |
-| 会话中断或结果不确定 | 保存当前 Task；对不确定 Action 执行 read-before-retry，再决定继续、补记、阻塞或安全重试 |
-
-Dev Flow 使用两层文件范围检查。Codex `apply_patch` 与 DeepSeek 的结构化文件工具在写入前调用 Core；
-不在当前多仓库 Task Plan `ExpectedPaths` 合集中的路径进入 `BLOCKED`。用户可以只允许当前写入、返回
-`TASKS` 更新计划，或拒绝。Core 再在 Implementation、Refactor 和 Delivery 检查本 Task 实际产生的
-`ChangedPaths`，未说明路径不能进入测试或 `DONE`。
-
-这不等于拦截 Host 的每一次操作。Bash、外部进程和专用工具的写入可能先发生，随后才被 Core 发现。
+| 新请求可能很小 | Host 只读检查影响面并停止等待选择；确认前没有 Core 调用、Task、Git 写入或 child dispatch |
+| 用户选择 Dev Flow | Host 显示并确认 remote/base/target 与源 checkout dirty 状态，随后 fetch、冻结 commit、创建并验证专属工作树 |
+| Task 工作树发生变化 | Core 计算 identity、history、content、Action delta 和相对 base 的当前 Task surface |
+| 改动离开计划 | 受支持的结构化写入先询问；其他写入由下一次观察发现，未说明路径不能继续测试或交付 |
+| 测试扩大或重复 | verification budget 限制自动命令与完整测试；第三次精确重复时暂停 |
+| 旧结果不再适用 | 内容变化使旧 Test/Comprehension 失效；只把相同内容提交成 commit 不会失效 |
+| 工作树历史异常 | branch switch、detach、rewind、rewrite 或工作树实例替换进入明确 blocker 或 unavailable 状态 |
+| Host 交接 | Core 先准备 relocation blocker；Host 只执行一次 handoff；目标验证通过后原子替换 binding 与 claims |
+| 工作树丢失 | 普通 cancel 不伪造观察；显式 abandon 保存最后已知状态并释放 claim |
 
 ## 当前产品承诺
 
-当前产品承诺：
+当前源码承诺：
 
-- 保存并恢复同一个本地 Task；
-- 保存原始请求、明确范围、当前阶段、验证预算、已有记录和阻塞原因；
-- 保存文件范围决定、适用的 Task Plan revision 和本 Task 累计修改路径；
-- 对支持的结构化文件工具在写入前检查，并阻止未说明路径进入测试或 `DONE`；
-- 保存最近三次测试尝试，并在相同失败、相同结果或相同修改与失败循环精确重复时暂停；
-- 只允许当前内建流程定义中的合法流转；
-- 在检测到仓库漂移或当前条件不满足时停止推进；
-- 对不确定 Action 给出 Recovery 判断，并要求先读取再决定是否重试；
-- 仓库发生变化后，不把旧测试或理解确认直接当作当前结果；
-- 由一个 Go Core 保存 Task、当前阶段、Recovery 和最终结果；
-- 通过 Codex、DeepSeek Adapter 和本机 WebUI 使用同一份本地状态。
+- 每个新 Task 只在用户确认后建立在干净、独立、具名任务分支的工作树中；
+- 新请求、显式 selector 和并行批次都先评估并等待用户选择；明确 resume 是唯一跳过评估的路径；
+- 源 checkout 的 staged、unstaged 和 untracked 内容不会进入 Task 工作树；
+- 多仓库 Task 只有在所有仓库都完成 fetch、隔离、授权和验证后才一次创建；
+- Core 只读观察 Git，并保存 WorkspaceOrigin、当前观察、Task surface、Action、记录、blocker 和 outcome；
+- Host 的节点结果只提交语义结论；Core 从 Git 计算文件效果与当前路径；
+- 计划外路径、工作树历史冲突、验证刹车和 Recovery 都复用一个 Core Task 与 `BLOCKED`；
+- 正常线性 commit 不丢失修改面；内容相同的 commit 不让验证记录过期；
+- provisioning、Action Recovery 和 relocation 各自使用窄的可恢复记录，不形成第二个业务状态机；
+- DONE 和 CANCELLED 只结束 Task 并释放 claims，不自动 commit、push、创建 PR 或删除工作树；
+- Codex、DeepSeek 与本机 WebUI 读取同一份 Core 状态。
 
-这些承诺不等于拦截 Host 的全部文件或 shell 操作，也不保证模型输出、代码质量或测试充分性。
+这些承诺不等于拦截 Host 的所有 shell 或文件操作，也不把工作树描述成文件系统、进程、网络或凭据
+沙箱。外部写入可能先发生，Core 会在下一次观察时处理。
 
-## 适合使用的任务
+## 适合与不适合的任务
 
-Dev Flow 适合：
+Dev Flow 适合跨会话、跨天或 Host 重启后继续的任务；涉及公共合同、Schema、状态、多个 package、
+多个 Host 或复杂恢复的工作；以及需要明确修改面、验证预算、工作树隔离或同机交接的任务。少量显式
+仓库可以组成一个 Task，但每个仓库都必须先完成独立 provisioning。
 
-- 会跨会话、跨天或在 Host 重启后继续的代码任务；
-- 需要经历需求、设计、实现、测试和交付多个阶段的修改；
-- 可能返工，并且需要知道哪些验证仍然有效的任务；
-- 需要限制改动范围或验证强度的工作；
-- 需要在交付前进行开发者理解确认的任务；
-- 少量显式仓库共同完成的有界高级任务。
-
-## 不适合使用的任务
-
-以下工作通常直接使用 Codex 或 DeepSeek 更简单：
-
-- 一次性问答、代码解释或状态查询；
-- 不需要跨会话保存进度的机械性小改动；
-- 通用项目管理、非开发工作流或任意任务编排；
-- 需要安全沙箱、远程执行平台或自动 Git 发布的场景。
+一次性问答、解释、状态查询和不改变公共合同的机械小改动通常直接使用 Host 更简单。没有可访问
+remote/base 的本地仓库，以及需要跨机器交接、安全沙箱、远程执行或自动 Git 发布的工作不适用。
 
 ## 与其他工具的关系
 
 | 工具 | 负责什么 |
 | --- | --- |
-| Codex / DeepSeek | 读取仓库、修改代码、运行命令并解释结果 |
-| OpenSpec / Spec Kit | 帮助组织需求、设计和任务 |
-| Dev Flow | 保存当前 Task 的过程状态、范围、验证预算、恢复状态和合法下一步 |
+| Codex / DeepSeek | 理解请求和代码、完成准入评估、执行用户确认的 Host/Git 操作、修改代码和运行检查 |
+| OpenSpec / Spec Kit | 可选地组织需求、设计和任务；不决定 Core 节点或完成状态 |
+| Dev Flow Core | 保存唯一 Task、观察工作树、执行范围/验证/恢复规则并决定合法下一步 |
 
-OpenSpec 和 Spec Kit 是可选 method profile，不是 Dev Flow 的主定位。当前 Core 不安装、执行或解析
-这些工具，也没有 OpenSpec / Spec Kit artifact importer。更薄的 artifact 集成只作为未来方向记录在
-[Roadmap](ROADMAP.md) 中。
+## 能力分层
 
-## 产品能力层级
-
-### 第一层：持久任务状态
-
-保存 Task、当前阶段、已有记录、阻塞原因和最终结果，使任务可以在聊天记录之外继续。这是产品的
-基础，不是完整价值。
-
-### 第二层：范围与验证约束
-
-保存最初请求、明确范围和 verification budget；把当前 Task Plan 全部 WorkItem 的 `ExpectedPaths`
-作为跨仓库计划范围；对支持的 Host 文件工具执行写前检查，并保存 `allow_once`、`expand_scope` 或
-`reject`；进入测试和完成任务前核对累计路径。系统同时限制自动验证命令数量，第三次精确重复测试后
-进入 `BLOCKED`，并在上游要求或实现变化时让不再适用的下游记录失效。
-
-### 第三层：中断与不确定操作恢复
-
-保存 Action 身份和恢复所需状态；结合当前 Task 与只读仓库观察，在响应丢失、取消、截断或仓库
-状态冲突时，选择继续、补记结果、阻塞或安全重试。
-
-### 第四层：可信交接与协作
-
-Codex 与 DeepSeek 的显式 handoff、Task export、团队只读视图和 PR/CI 摘要属于未来方向，当前尚未
-作为产品能力交付。
+1. Host 对新请求做只读评估，给出 `small|standard|large|uncertain`、候选影响面、未知项和建议。评估绑定
+   request、canonical root、HEAD 和 status；这些事实变化后必须重新评估。
+2. 用户确认 remote/base/target 后，Host 精确 fetch 并建立专属工作树。Core 核对实际 worktree、branch、
+   HEAD、base 和 clean 状态后才创建 Task。明确 resume 回到原工作树实例。
+3. Core 从 base commit、commits、index、worktree 和 untracked 文件计算当前 Task surface；ExpectedPaths、
+   allow-once 决定和 verification budget 控制后续流转。Test 与 Comprehension 绑定内容摘要。
+4. Core 保存不确定 Action、blocker、relocation 和 outcome。同机 relocation 在 Host handoff 前后保持旧 claim，
+   验证目标后一次替换。终态清理需要独立授权。
 
 ## 明确非目标
 
-Dev Flow 不做：
-
-- 另一个编程 Agent 或通用任务编排器；
-- shell、文件系统或操作系统安全沙箱；
-- 用户自定义 workflow DSL 或任意流程图编辑器；
-- 自动发现相邻仓库或动态扩大 Repository Scope；
-- 自动 commit、push、merge、rebase、tag 或 publish；
-- 远程多用户项目管理平台。
-
-Core 只读观察 Git。代码修改、命令执行和 Git 写入继续由获得用户授权的 Host 负责。
-
-## 功能决策原则
-
-新能力优先回答以下问题：
-
-1. 是否直接改善任务范围、验证投入或中断后的可信继续？
-2. 判断是否来自 Task、Action、仓库观察或已有记录，而不只依赖 Agent 自述？
-3. 是否让用户更快看懂当前状态和下一步？
-4. 是否能用可重复的真实 Host Journey 验证？
-5. 是否继续只保存一个 Core Task 状态？
-6. 是否为简单任务增加了不必要的流程成本？
-7. 是否只是横向增加平台、Host 或界面，而没有改善主要失效场景？
-
-需求不清楚、无法说明用户结果或无法设计验收方式的提案，不直接进入实现。
-
-## 成功指标
-
-产品后续应关注可测量的用户结果，而不是组件数量：
-
-- 任务超出计划路径或需要扩大范围的比例；
-- 因状态不清而重复执行已完成工作的比例；
-- 自动刹车与 Recovery 判断中的错误放行和错误阻塞率；
-- verification budget 被无理由扩大的比例；
-- 中断后恢复到可信当前状态所需时间；
-- 同一用户再次使用 Dev Flow 继续长时任务的比例。
-
-这些指标目前尚未通过足够的外部使用数据建立结果，不能写成已经实现的成效。
+Dev Flow 不做通用 Agent 或 workflow DSL；Core 不执行 fetch、branch、worktree、commit、stash、reset、
+merge、rebase、push、tag、PR 或 publish；系统不复制 `.env`、证书、token、ignored/untracked 文件或
+凭据，不自动安装依赖或隔离端口、数据库、Docker volume 和外部服务，也不自动清理 active、dirty、
+未推送、来源不明或结果不确定的工作树。跨机器 relocation、相邻仓库自动发现、部分隔离的多仓库
+Task、remote MCP 和云端多用户管理也不在当前范围。
 
 ## 当前证据边界
 
-项目已有公开 npm package、源码合同测试和真实 Codex / DeepSeek Host Journey。它们分别证明特定
-package、环境或流程片段，不代表一次运行证明全部能力，也不代表源码测试可以扩大稳定支持范围。
+项目包含公开 npm package、源码合同测试和真实 Codex / DeepSeek Host Journey。每份记录只证明对应
+package、平台和流程片段；fixture、静态检查或另一平台的结果不会扩大稳定支持。
 
-Dev Flow 仍处于早期，外部采用有限，尚未证明能够降低缺陷率、减少无效测试或在所有中断场景中
-完整恢复。稳定支持、源码能力、尚未验证内容和当前缺口见
-[Project Status](PROJECT-STATUS.md) 与 [Support Matrix](SUPPORT-MATRIX.md)。运行时最终以源码、
-机器可读 Schema、package manifest、CLI parser 和可执行测试为准。
-
-当前源码只选择两个精确 package runtime pair：`darwin-arm64` 与 `win32-x64`。后者的产品范围是
-Windows 10/11 桌面版 x64，不包含 Windows Server、32 位 Windows 或 Windows ARM64。源码本机证据
-不会自动扩大 npm `@latest` 的稳定支持；稳定范围仍由独立发布和最终 Host Journey 决定。
-
-平台实现只负责本机路径、权限、进程、信号和 executable 行为；Host Adapter 在 Core 外选择平台，
-Core 的 Task、状态图、数据规则和决策保持平台无关。本机 WebUI 的当前公共生命周期是
-`start|open|status|stop`。
+Dev Flow 仍处于早期，尚未用足够外部数据证明降低缺陷率、验证成本或恢复时间。稳定支持、源码能力
+和未验证内容见[项目状态](PROJECT-STATUS.md)与[支持矩阵](SUPPORT-MATRIX.md)。运行时以源码、机器可读
+Schema、package manifest、CLI parser 和可执行测试为准。

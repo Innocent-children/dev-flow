@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -135,90 +136,67 @@ func TestImplementationTransitionsRecordsRepositoryEffectsAndZeroWrites(t *testi
 	}
 
 	changed := observer.binding.Clone()
-	changed.WorktreeFingerprint = digestOf("c")
-	changed.BindingDigest = digestOf("d")
-	changed.ChangedPaths = []string{"internal/file.go"}
+	changed = phase5BindingWithSurface(changed, []string{"internal/file.go"}, "c")
 	observer.binding = changed
-	task = applyPhase5(t, s, task, "implementation_ready_for_test", "", implementationNodeResultWithPaths(1, []string{"work-a"}, []string{"internal/file.go"}, nil))
-	if task.Repository.BindingDigest != changed.BindingDigest || task.Implementation.RepositoryBindingDigest != changed.BindingDigest {
-		t.Fatal("worktree-only observation was not accepted as authority")
+	task = applyPhase5(t, s, task, "implementation_ready_for_test", "", implementationNodeResult(1, []string{"work-a"}, false, nil))
+	if task.Repository.BindingDigest != changed.BindingDigest || task.Implementation.ContentDigest != changed.ContentDigest || !reflect.DeepEqual(task.Implementation.ActionChangedPaths, []string{"internal/file.go"}) || !reflect.DeepEqual(task.CurrentChangedPaths, []string{"internal/file.go"}) {
+		t.Fatal("Core-derived implementation surface was not accepted as authority")
 	}
 
-	t.Run("dirty baseline accepts declared implementation delta", func(t *testing.T) {
-		s, _, observer := phase5Service(t)
-		observer.binding.ChangedPaths = []string{"sql/existing.sql"}
-		task := phase5TaskAtImplement(t, s)
-		changed := observer.binding.Clone()
-		changed.WorktreeFingerprint = digestOf("c")
-		changed.BindingDigest = digestOf("d")
-		changed.ChangedPaths = []string{"internal/file.go", "sql/existing.sql"}
-		observer.binding = changed
-		result := applyPhase5(t, s, task, "implementation_ready_for_test", "", implementationNodeResultWithPaths(1, []string{"work-a"}, []string{"internal/file.go"}, nil))
-		if result.Repository.BindingDigest != changed.BindingDigest || result.Implementation.RepositoryBindingDigest != changed.BindingDigest {
-			t.Fatal("dirty-baseline implementation did not adopt the fresh binding")
-		}
-	})
-
-	t.Run("dirty baseline rejects undeclared implementation path", func(t *testing.T) {
+	t.Run("unplanned observed path creates proactive file-scope blocker", func(t *testing.T) {
 		s, ms, observer := phase5Service(t)
-		observer.binding.ChangedPaths = []string{"sql/existing.sql"}
 		task := phase5TaskAtImplement(t, s)
-		changed := observer.binding.Clone()
-		changed.WorktreeFingerprint = digestOf("c")
-		changed.BindingDigest = digestOf("d")
-		changed.ChangedPaths = []string{"internal/extra.go", "internal/file.go", "sql/existing.sql"}
-		observer.binding = changed
+		observer.binding = phase5BindingWithSurface(observer.binding, []string{"internal/extra.go", "internal/file.go"}, "c")
 		before := ms.commits
-		assertApplyFails(t, s, task, "implementation_ready_for_test", "", implementationNodeResultWithPaths(1, []string{"work-a"}, []string{"internal/file.go"}, nil), domain.ErrRepositoryDrift)
-		if ms.commits != before {
-			t.Fatal("undeclared dirty-baseline path wrote state")
+		result, err := applyPhase5Result(t, s, task, "implementation_ready_for_test", "", implementationNodeResult(1, []string{"work-a"}, false, nil))
+		if err != nil || result.CurrentNode != domain.NodeBlocked || result.Blocker == nil || result.Blocker.Cause != domain.BlockerCauseFileScopeDecision || ms.commits != before+1 {
+			t.Fatalf("file-scope guard result=%#v err=%v writes=%d", result.Blocker, err, ms.commits-before)
 		}
 	})
 
 	t.Run("implementation rework accepts a previously declared path", func(t *testing.T) {
 		s, _, observer := phase5Service(t)
 		task := phase5TaskAtImplement(t, s)
-		changed := observer.binding.Clone()
-		changed.WorktreeFingerprint = digestOf("c")
-		changed.BindingDigest = digestOf("d")
-		changed.ChangedPaths = []string{"internal/file.go"}
-		observer.binding = changed
-		task = applyPhase5(t, s, task, "implementation_ready_for_test", "", implementationNodeResultWithPaths(1, []string{"work-a"}, []string{"internal/file.go"}, nil))
+		observer.binding = phase5BindingWithSurface(observer.binding, []string{"internal/file.go"}, "c")
+		task = applyPhase5(t, s, task, "implementation_ready_for_test", "", implementationNodeResult(1, []string{"work-a"}, false, nil))
 		task = applyPhase5(t, s, task, "tests_failed_implementation", "Targeted check failed.", testNodeResult(
 			[]map[string]any{evidenceCheck("automated", "failed", "targeted-check", 1, false)},
 			[]string{"implementation defect"}, nil, []string{"Implementation failure"},
 		))
-		reworked := observer.binding.Clone()
-		reworked.WorktreeFingerprint = digestOf("e")
-		reworked.BindingDigest = digestOf("f")
+		reworked := phase5BindingWithSurface(observer.binding, []string{"internal/file.go"}, "e")
 		observer.binding = reworked
-		result := applyPhase5(t, s, task, "implementation_ready_for_test", "", implementationNodeResultWithPaths(1, []string{"work-a"}, []string{"internal/file.go"}, nil))
-		if result.Repository.BindingDigest != reworked.BindingDigest || result.Implementation.Revision != 2 {
+		result := applyPhase5(t, s, task, "implementation_ready_for_test", "", implementationNodeResult(1, []string{"work-a"}, false, nil))
+		if result.Repository.BindingDigest != reworked.BindingDigest || result.Implementation.Revision != 2 || !reflect.DeepEqual(result.Implementation.ActionChangedPaths, []string{"internal/file.go"}) {
 			t.Fatal("implementation rework did not adopt the repeated declared path")
 		}
 	})
 
-	s, ms, observer = phase5Service(t)
-	task = phase5TaskAtImplement(t, s)
-	for name, mutate := range map[string]func(*domain.RepositoryBinding){
-		"branch":           func(binding *domain.RepositoryBinding) { branch := "other"; binding.Branch = &branch },
-		"head":             func(binding *domain.RepositoryBinding) { head := strings.Repeat("c", 40); binding.Head = &head },
-		"identity":         func(binding *domain.RepositoryBinding) { binding.RepositoryIdentity = digestOf("f") },
-		"common directory": func(binding *domain.RepositoryBinding) { binding.GitCommonDirDigest = digestOf("f") },
-	} {
-		t.Run(name+" drift", func(t *testing.T) {
-			drift := observer.binding.Clone()
-			mutate(&drift)
-			drift.BindingDigest = digestOf("e")
-			observer.binding = drift
-			before := ms.commits
-			assertApplyFails(t, s, task, "implementation_ready_for_test", "", implementationNodeResultWithPaths(1, []string{"work-a"}, []string{"internal/file.go"}, nil), domain.ErrRepositoryDrift)
-			if ms.commits != before {
-				t.Fatal("forbidden repository drift wrote state")
-			}
-			observer.binding = task.Repository
-		})
-	}
+	t.Run("history conflict blocks before action application", func(t *testing.T) {
+		s, ms, observer := phase5Service(t)
+		task := phase5TaskAtImplement(t, s)
+		drift := observer.binding.Clone()
+		branch := "feature/other"
+		drift.CurrentBranch, drift.HistoryRelation, drift.HistoryDigest, drift.BindingDigest = &branch, domain.RepositoryHistoryBranchChanged, digestOf("c"), digestOf("d")
+		observer.binding = drift
+		before := ms.commits
+		result, err := applyPhase5Result(t, s, task, "implementation_ready_for_test", "", implementationNodeResult(1, []string{"work-a"}, true, nil))
+		if err != nil || result.CurrentNode != domain.NodeBlocked || result.Blocker == nil || result.Blocker.Cause != domain.BlockerCauseWorkspaceHistoryConflict || ms.commits != before+1 {
+			t.Fatalf("history guard result=%#v err=%v", result.Blocker, err)
+		}
+	})
+
+	t.Run("worktree instance replacement is unavailable and zero-write", func(t *testing.T) {
+		s, ms, observer := phase5Service(t)
+		task := phase5TaskAtImplement(t, s)
+		drift := observer.binding.Clone()
+		drift.WorktreeInstanceDigest, drift.IdentityDigest, drift.BindingDigest = digestOf("c"), digestOf("d"), digestOf("e")
+		observer.binding = drift
+		before := ms.commits
+		assertApplyFails(t, s, task, "implementation_ready_for_test", "", implementationNodeResult(1, []string{"work-a"}, true, nil), domain.ErrWorkspaceUnavailable)
+		if ms.commits != before {
+			t.Fatal("workspace replacement wrote state")
+		}
+	})
 }
 
 func TestImplementationRevisionAndCurrentEvidenceInvalidation(t *testing.T) {
@@ -231,7 +209,11 @@ func TestImplementationRevisionAndCurrentEvidenceInvalidation(t *testing.T) {
 
 	// Simulate the contract-defined tested rework return without implementing the later TEST mutation slice.
 	task.CurrentNode = domain.NodeImplement
-	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), domain.NodeImplement, task.TaskID, task.Revision, task.Repository.BindingDigest, task.Intent.MethodProfile, "action-rework", task.UpdatedAt)
+	workspace, err := task.EffectiveWorkspaceDigests()
+	if err != nil {
+		t.Fatal(err)
+	}
+	action, err := workflow.BuildProcessActionForWorkspace(workflow.StandardProcess(), domain.NodeImplement, task.TaskID, task.Revision, workspace, task.Intent.MethodProfile, "action-rework", task.UpdatedAt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -259,12 +241,13 @@ func phase5Service(t *testing.T) (*Service, *memoryStore, *mutableObserver) {
 	t.Helper()
 	now := time.Date(2026, 8, 19, 8, 0, 0, 0, time.UTC)
 	d := digestOf("a")
-	branch := "main"
+	branch := "feature/task"
 	head := strings.Repeat("b", 40)
 	repositoryPath := testPath("repo")
-	binding := domain.RepositoryBinding{CanonicalRoot: repositoryPath, GitCommonDirDigest: d, RepositoryIdentity: d, Branch: &branch, Head: &head, WorktreeFingerprint: d, ObservedAt: now, BindingDigest: d}
+	binding := domain.RepositoryBinding{WorktreeInstanceDigest: d, IdentityDigest: d, HistoryDigest: d, ContentDigest: d, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: d}
+	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: d, CanonicalWorktreeRoot: repositoryPath, WorktreeGitDirDigest: d, ProvisioningReceiptID: "receipt"}
 	ms := &memoryStore{}
-	observer := &mutableObserver{binding: binding}
+	observer := &mutableObserver{binding: binding, origin: origin}
 	n := 0
 	s, err := newService(ms, observer, func() time.Time { return now }, func(prefix string) (domain.ID, error) { n++; return domain.ID(fmt.Sprintf("%s-%d", prefix, n)), nil })
 	if err != nil {
@@ -275,7 +258,9 @@ func phase5Service(t *testing.T) (*Service, *memoryStore, *mutableObserver) {
 
 func openPhase5Task(t *testing.T, s *Service) domain.ProcessTask {
 	t.Helper()
-	result, err := s.OpenTask(context.Background(), OpenTaskRequest{RequestID: "open-request", Host: domain.HostCodex, RepositoryPath: testPath("repo"), NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4, AllowManualHandoff: true}, MethodProfile: domain.MethodPlain}})
+	origin := s.repositoryObserver.(*mutableObserver).origin
+	originInput := WorkspaceOriginInput{Mode: origin.Mode, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
+	result, err := s.OpenTask(context.Background(), OpenTaskRequest{RequestID: "open-request", Host: domain.HostCodex, RepositoryPath: testPath("repo"), WorkspaceOrigin: &originInput, NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4, AllowManualHandoff: true}, MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -291,17 +276,23 @@ func applyPhase5(t *testing.T, s *Service, task domain.ProcessTask, transition, 
 	t.Helper()
 	raw := phase5Payload(t, task, transition, reason, nodeResult)
 	a := task.CurrentAction
-	result, err := s.ApplyAction(context.Background(), ApplyActionRequest{RequestID: domain.ID(fmt.Sprintf("apply-%d", task.Revision)), Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: raw})
+	result, err := s.ApplyAction(context.Background(), ApplyActionRequest{RequestID: domain.ID(fmt.Sprintf("apply-%d", task.Revision)), Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: a.RepositoryBindingDigest, IssuanceIdentityDigest: a.IssuanceIdentityDigest, IssuanceHistoryDigest: a.IssuanceHistoryDigest, IssuanceContentDigest: a.IssuanceContentDigest, Payload: raw})
 	if err != nil {
 		t.Fatalf("apply %s: %v", transition, err)
 	}
 	return result.Task
 }
+func applyPhase5Result(t *testing.T, s *Service, task domain.ProcessTask, transition, reason string, nodeResult any) (domain.ProcessTask, error) {
+	t.Helper()
+	raw := phase5Payload(t, task, transition, reason, nodeResult)
+	result, err := s.ApplyAction(context.Background(), currentActionApplyRequest(task, domain.ID(fmt.Sprintf("apply-%d", task.Revision)), raw))
+	return result.Task, err
+}
 func assertApplyFails(t *testing.T, s *Service, task domain.ProcessTask, transition, reason string, nodeResult any, want error) {
 	t.Helper()
 	raw := phase5Payload(t, task, transition, reason, nodeResult)
 	a := task.CurrentAction
-	_, err := s.ApplyAction(context.Background(), ApplyActionRequest{RequestID: "apply-invalid", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: raw})
+	_, err := s.ApplyAction(context.Background(), ApplyActionRequest{RequestID: "apply-invalid", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: a.RepositoryBindingDigest, IssuanceIdentityDigest: a.IssuanceIdentityDigest, IssuanceHistoryDigest: a.IssuanceHistoryDigest, IssuanceContentDigest: a.IssuanceContentDigest, Payload: raw})
 	if !errors.Is(err, want) {
 		t.Fatalf("error=%v want=%v", err, want)
 	}
@@ -344,10 +335,10 @@ func phase5ProblemClass(transition string) string {
 	return classes[transition]
 }
 func requirementsNodeResult(goal string, acceptance []string) map[string]any {
-	return map[string]any{"baseline": map[string]any{"goal": goal, "scope": []string{}, "out_of_scope": []string{}, "acceptance_criteria": acceptance, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}, "changed_paths": []string{}, "no_file_changes": true}
+	return map[string]any{"baseline": map[string]any{"goal": goal, "scope": []string{}, "out_of_scope": []string{}, "acceptance_criteria": acceptance, "constraints": []string{}, "assumptions": []string{}}, "unresolved_questions": []string{}}
 }
 func designNodeResult(revision uint32, approach string) map[string]any {
-	return map[string]any{"baseline": map[string]any{"requirements_revision": revision, "approach": approach, "components": []string{"component"}, "decisions": []string{"Reuse boundary"}, "rejected_alternatives": []string{}, "complexity_justification": []string{}, "risks": []string{}}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
+	return map[string]any{"baseline": map[string]any{"requirements_revision": revision, "approach": approach, "components": []string{"component"}, "decisions": []string{"Reuse boundary"}, "rejected_alternatives": []string{}, "complexity_justification": []string{}, "risks": []string{}}, "findings": []string{}}
 }
 func workItem(id string, acceptance []uint32, dependencies []string) map[string]any {
 	if dependencies == nil {
@@ -356,7 +347,7 @@ func workItem(id string, acceptance []uint32, dependencies []string) map[string]
 	return map[string]any{"work_item_id": id, "summary": "Implement work", "expected_paths": []string{"internal/file.go"}, "acceptance_indexes": acceptance, "verification_steps": []string{"Run targeted test"}, "dependencies": dependencies}
 }
 func tasksNodeResult(revision uint32, items []map[string]any) map[string]any {
-	return map[string]any{"baseline": map[string]any{"design_revision": revision, "work_items": items}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
+	return map[string]any{"baseline": map[string]any{"design_revision": revision, "work_items": items}, "findings": []string{}}
 }
 func implementationNodeResult(revision uint32, completed []string, noChanges bool, findings []string) map[string]any {
 	if completed == nil {
@@ -365,13 +356,15 @@ func implementationNodeResult(revision uint32, completed []string, noChanges boo
 	if findings == nil {
 		findings = []string{}
 	}
-	return map[string]any{"task_plan_revision": revision, "completed_work_item_ids": completed, "changed_paths": []string{}, "no_file_changes": noChanges, "deviations": []string{}, "findings": findings}
+	_ = noChanges
+	return map[string]any{"task_plan_revision": revision, "completed_work_item_ids": completed, "deviations": []string{}, "findings": findings}
 }
 func implementationNodeResultWithPaths(revision uint32, completed, paths, findings []string) map[string]any {
 	if findings == nil {
 		findings = []string{}
 	}
-	return map[string]any{"task_plan_revision": revision, "completed_work_item_ids": completed, "changed_paths": paths, "no_file_changes": false, "deviations": []string{}, "findings": findings}
+	_ = paths
+	return map[string]any{"task_plan_revision": revision, "completed_work_item_ids": completed, "deviations": []string{}, "findings": findings}
 }
 func problemFindings(transition string) []string {
 	if transition == "implementation_ready_for_test" {
@@ -388,6 +381,21 @@ func hasHistory(task domain.ProcessTask, kind domain.BaselineKind, revision uint
 	return false
 }
 func digestOf(char string) domain.Digest { return domain.Digest(strings.Repeat(char, 64)) }
+func phase5BindingWithSurface(binding domain.RepositoryBinding, paths []string, seed string) domain.RepositoryBinding {
+	entries := make([]domain.RepositoryChangedEntry, len(paths))
+	for index, path := range paths {
+		entries[index] = phase5ChangedEntry(path, seed)
+	}
+	binding.ContentDigest = digestOf(seed)
+	binding.BindingDigest = digestOf(seed)
+	binding.ChangedEntries = entries
+	binding.TaskSurface = append([]domain.RepositoryChangedEntry(nil), entries...)
+	return binding
+}
+func phase5ChangedEntry(path, seed string) domain.RepositoryChangedEntry {
+	digest := digestOf(seed)
+	return domain.RepositoryChangedEntry{Path: path, ChangeType: domain.RepositoryChangeModified, FileMode: "100644", BaseMode: "100644", IndexMode: "100644", WorktreeMode: "100644", BaseContentDigest: digestOf("a"), IndexContentDigest: digest, WorktreeContentDigest: digest, ContentDigest: digest}
+}
 func phase5UserEvidence(now time.Time, id domain.ID) domain.EvidenceSummary {
 	return domain.EvidenceSummary{EvidenceID: id, Source: domain.EvidenceSourceUser, Name: "confirmation", Status: domain.EvidencePassed, Summary: "User confirmed.", Digest: digestOf("a"), RecordedAt: now}
 }

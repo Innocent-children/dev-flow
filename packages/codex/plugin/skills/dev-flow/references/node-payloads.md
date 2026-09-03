@@ -27,7 +27,8 @@ result entries contain only `capability` and `summary`. Use the actual capabilit
 completed the step, otherwise use an empty capability after completed ordinary work.
 
 Do not send `request_id`, revision, Action kind, process identity, source cursor, repository binding,
-`payload`, `method_evidence`, artifact `role`, destination, or recovery fields.
+issuance identity/history/content digests, `payload`, `method_evidence`, artifact `role`, destination,
+or recovery fields.
 
 ## Tool mapping
 
@@ -44,8 +45,10 @@ Do not send `request_id`, revision, Action kind, process identity, source cursor
 | `RESOLVE_BLOCKER` | `dev_flow_resolve_blocker` |
 
 For a file-scope blocker, `dev_flow_resolve_blocker` also requires `choice` (`allow_once`,
-`expand_scope`, or `reject`) and a non-empty `reason`. Omit both members for repository-recovery and
-automatic-verification blockers.
+`expand_scope`, or `reject`) and a non-empty `reason`. A relocation blocker instead uses
+`relocation_id` plus `relocation_destinations:[{key,repository_path}]`. A history blocker uses
+`history_resolution:{choice:"accept_current_history",reason}`. Omit these members for recovery and
+automatic-verification blockers unless the live schema explicitly requires one.
 
 ## Node-result members
 
@@ -53,19 +56,18 @@ Use the live tool schema for types and nested members. These are the closed top-
 
 | Submission tool | Required `node_result` members |
 | --- | --- |
-| Requirements | `problem_class`, `baseline`, `unresolved_questions`, `changed_paths`, `no_file_changes` |
-| Design | `problem_class`, `baseline`, `findings`, `changed_paths`, `no_file_changes` |
-| Tasks | `problem_class`, `baseline`, `findings`, `changed_paths`, `no_file_changes` |
-| Implementation | `problem_class`, `completed_work_item_ids`, `changed_paths`, `no_file_changes`, `deviations`, `findings` |
-| Test | `problem_class`, `checks`, `failed_items`, `unverified_items`, `manual_handoff_items`, `findings`, `changed_paths`, `no_file_changes` |
-| Comprehension | `problem_class`, `explained_components`, `unresolved_questions`, `unnecessary_abstractions`, `maintenance_risks`, `user_confirmation`, `findings`, `changed_paths`, `no_file_changes` |
-| Refactor | `problem_class`, `changed_paths`, `no_file_changes`, `simplifications`, `behavior_change_intended`, `findings` |
-| Delivery | `problem_class`, `unverified_items`, `risks`, `findings`, `changed_paths`, `no_file_changes` |
+| Requirements | `problem_class`, `baseline`, `unresolved_questions` |
+| Design | `problem_class`, `baseline`, `findings` |
+| Tasks | `problem_class`, `baseline`, `findings` |
+| Implementation | `problem_class`, `completed_work_item_ids`, `deviations`, `findings` |
+| Test | `problem_class`, `checks`, `failed_items`, `unverified_items`, `manual_handoff_items`, `findings` |
+| Comprehension | `problem_class`, `explained_components`, `unresolved_questions`, `unnecessary_abstractions`, `maintenance_risks`, `user_confirmation`, `findings` |
+| Refactor | `problem_class`, `simplifications`, `behavior_change_intended`, `findings` |
+| Delivery | `problem_class`, `unverified_items`, `risks`, `findings` |
 
-`changed_paths` and `no_file_changes` remain mutually exclusive. A single-repository Task uses
-repository-relative paths. A multi-repository Task uses
-`<repository-key>::<repository-relative-path>`. Contract paths use `/` separators on every Host;
-backslashes are invalid even on Windows.
+The Host never declares repository file effects in a node result. Core observes every participating
+worktree before submission, computes the Action delta, and derives the current Task surface relative
+to each frozen base commit.
 
 Delivery submissions never send `acceptance`, `automated_evidence_ids`, `manual_evidence_ids`,
 `test_record_id`, or `comprehension_record_id`. Core derives those authority members from the current
@@ -94,9 +96,7 @@ scalar string based on the field name or this prose. Always omit the Core-owned
     "complexity_justification": ["No new abstraction is required."],
     "risks": []
   },
-  "findings": [],
-  "changed_paths": [],
-  "no_file_changes": true
+  "findings": []
 }
 ```
 <!-- design-node-result-example:end -->
@@ -130,9 +130,7 @@ scalar string based on the field name or this prose. Always omit the Core-owned
       "constraints": [],
       "assumptions": []
     },
-    "unresolved_questions": [],
-    "changed_paths": [],
-    "no_file_changes": true
+    "unresolved_questions": []
   }
 }
 ```

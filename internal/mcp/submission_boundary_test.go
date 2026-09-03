@@ -48,14 +48,13 @@ func designBaseline(approach string) map[string]any {
 func designNodeResultWithoutRevision() map[string]any {
 	return map[string]any{
 		"problem_class": "none", "baseline": designBaseline("Direct design"),
-		"findings": []any{}, "changed_paths": []any{}, "no_file_changes": true,
+		"findings": []any{},
 	}
 }
 
 func deliverySubmissionNodeResult() map[string]any {
 	return map[string]any{
 		"problem_class": "none", "unverified_items": []any{}, "risks": []any{}, "findings": []any{},
-		"changed_paths": []any{}, "no_file_changes": true,
 	}
 }
 
@@ -69,11 +68,11 @@ func TestSubmissionBoundaryAcceptsOmittedSystemStateRevisions(t *testing.T) {
 			"work_item_id": "work", "summary": "Implement", "expected_paths": []any{"internal/file.go"},
 			"acceptance_indexes": []any{0}, "verification_steps": []any{"Run the targeted check"}, "dependencies": []any{},
 		}}},
-		"findings": []any{}, "changed_paths": []any{}, "no_file_changes": true,
+		"findings": []any{},
 	}
 	implementation := map[string]any{
-		"problem_class": "none", "completed_work_item_ids": []any{}, "changed_paths": []any{},
-		"no_file_changes": true, "deviations": []any{}, "findings": []any{},
+		"problem_class": "none", "completed_work_item_ids": []any{},
+		"deviations": []any{}, "findings": []any{},
 	}
 	for _, tc := range []struct {
 		tool       string
@@ -97,6 +96,22 @@ func TestSubmissionBoundaryAcceptsOmittedSystemStateRevisions(t *testing.T) {
 			t.Fatal("the submission boundary accepted a Core-owned revision")
 		}
 	})
+}
+
+func TestSubmissionBoundaryRejectsLegacyRepositoryEffectMembers(t *testing.T) {
+	for _, member := range []string{"changed_paths", "no_file_changes"} {
+		nodeResult := designNodeResultWithoutRevision()
+		if member == "changed_paths" {
+			nodeResult[member] = []any{}
+		} else {
+			nodeResult[member] = true
+		}
+		err := ValidateToolInput(ToolSubmitDesign, submissionInput(t, domain.ActionCompleteDesign, nodeResult))
+		var typed *domain.Error
+		if !errors.As(err, &typed) || len(typed.Violations) != 1 || typed.Violations[0].Path != "node_result."+member || typed.Violations[0].Rule != domain.RuleUnknownMember {
+			t.Fatalf("legacy %s error=%v", member, err)
+		}
+	}
 }
 
 // TestDeliverySubmissionBoundaryRejectsCoreOwnedMembers proves the public

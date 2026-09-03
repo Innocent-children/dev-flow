@@ -26,18 +26,20 @@ func TestControlCenterLifecycleCP2(t *testing.T) {
 	defer database.Close()
 	now := time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC)
 	digest := domain.Digest(strings.Repeat("a", 64))
-	branch, head := "main", strings.Repeat("b", 40)
+	branch, head := "feature/task", strings.Repeat("b", 40)
 	repositoryPath := testPath("repo")
-	binding := domain.RepositoryBinding{CanonicalRoot: repositoryPath, GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
+	binding := domain.RepositoryBinding{WorktreeInstanceDigest: digest, IdentityDigest: digest, HistoryDigest: digest, ContentDigest: digest, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: digest}
+	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: repositoryPath, WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt"}
+	originInput := WorkspaceOriginInput{Mode: origin.Mode, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
 	var sequence atomic.Int64
-	core, err := newService(database, observer{binding}, func() time.Time { return now }, func(prefix string) (domain.ID, error) {
+	core, err := newService(database, &mutableObserver{binding: binding, origin: origin}, func() time.Time { return now }, func(prefix string) (domain.ID, error) {
 		return domain.ID(fmt.Sprintf("%s-%d", prefix, sequence.Add(1))), nil
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	center := &ControlCenter{core: core, tasks: database}
-	request := OpenTaskRequest{RequestID: "open-request", Host: domain.HostCodex, RepositoryPath: repositoryPath, PrimaryRepositoryKey: domain.DefaultPrimaryRepositoryKey, NewTask: &NewTaskInput{Request: "Manage the task lifecycle.", KnownAcceptanceCriteria: []string{"Lifecycle operations are authoritative."}, VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain}}
+	request := OpenTaskRequest{RequestID: "open-request", Host: domain.HostCodex, RepositoryPath: repositoryPath, WorkspaceOrigin: &originInput, PrimaryRepositoryKey: domain.DefaultPrimaryRepositoryKey, NewTask: &NewTaskInput{Request: "Manage the task lifecycle.", KnownAcceptanceCriteria: []string{"Lifecycle operations are authoritative."}, VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain}}
 	opened, err := center.OpenOrResumeTask(ctx, request)
 	if err != nil || opened.Task == nil || opened.Task.Revision != 1 {
 		t.Fatalf("open=%#v err=%v", opened, err)
@@ -111,24 +113,26 @@ func TestControlCenterActionAndRecoveryCP3(t *testing.T) {
 	defer database.Close()
 	now := time.Date(2026, 8, 26, 14, 0, 0, 0, time.UTC)
 	digest := domain.Digest(strings.Repeat("a", 64))
-	branch, head := "main", strings.Repeat("b", 40)
+	branch, head := "feature/task", strings.Repeat("b", 40)
 	repositoryPath := testPath("repo")
-	binding := domain.RepositoryBinding{CanonicalRoot: repositoryPath, GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}
+	binding := domain.RepositoryBinding{WorktreeInstanceDigest: digest, IdentityDigest: digest, HistoryDigest: digest, ContentDigest: digest, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: digest}
+	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: repositoryPath, WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt"}
+	originInput := WorkspaceOriginInput{Mode: origin.Mode, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
 	var sequence atomic.Int64
-	core, err := newService(database, observer{binding}, func() time.Time { return now }, func(prefix string) (domain.ID, error) {
+	core, err := newService(database, &mutableObserver{binding: binding, origin: origin}, func() time.Time { return now }, func(prefix string) (domain.ID, error) {
 		return domain.ID(fmt.Sprintf("%s-%d", prefix, sequence.Add(1))), nil
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	center := &ControlCenter{core: core, tasks: database}
-	opened, err := center.OpenOrResumeTask(ctx, OpenTaskRequest{RequestID: "open-action", Host: domain.HostCodex, RepositoryPath: repositoryPath, PrimaryRepositoryKey: domain.DefaultPrimaryRepositoryKey, NewTask: &NewTaskInput{Request: "Execute the current action.", KnownAcceptanceCriteria: []string{"Core advances the task."}, VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain}})
+	opened, err := center.OpenOrResumeTask(ctx, OpenTaskRequest{RequestID: "open-action", Host: domain.HostCodex, RepositoryPath: repositoryPath, WorkspaceOrigin: &originInput, PrimaryRepositoryKey: domain.DefaultPrimaryRepositoryKey, NewTask: &NewTaskInput{Request: "Execute the current action.", KnownAcceptanceCriteria: []string{"Core advances the task."}, VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	requirementsPayload := phase5Payload(t, *opened.Task, "requirements_ready", "", requirementsNodeResult("Action goal", []string{"Action works"}))
 	action := opened.Task.CurrentAction
-	first, err := center.SubmitCurrentAction(ctx, SubmitControlCenterActionRequest{RequestID: "submit-action", TaskID: opened.Task.TaskID, ExpectedRevision: opened.Task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: opened.Task.Process.ID, ProcessDefinitionDigest: opened.Task.Process.DefinitionDigest, SourceNode: opened.Task.CurrentNode, RepositoryBindingDigest: action.RepositoryBindingDigest, Payload: requirementsPayload})
+	first, err := center.SubmitCurrentAction(ctx, SubmitControlCenterActionRequest{RequestID: "submit-action", TaskID: opened.Task.TaskID, ExpectedRevision: opened.Task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: opened.Task.Process.ID, ProcessDefinitionDigest: opened.Task.Process.DefinitionDigest, SourceNode: opened.Task.CurrentNode, RepositoryBindingDigest: action.RepositoryBindingDigest, IssuanceIdentityDigest: action.IssuanceIdentityDigest, IssuanceHistoryDigest: action.IssuanceHistoryDigest, IssuanceContentDigest: action.IssuanceContentDigest, Payload: requirementsPayload})
 	if err != nil || !first.Committed || first.Task.CurrentNode != domain.NodeDesign {
 		t.Fatalf("submit=%#v err=%v", first, err)
 	}

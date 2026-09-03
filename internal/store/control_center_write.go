@@ -85,6 +85,9 @@ func (s *SQLite) PurgeTask(ctx context.Context, mutation PurgeTaskMutation) erro
 	if _, err := tx.ExecContext(ctx, `DELETE FROM action_operations WHERE task_id=?`, mutation.TaskID); err != nil {
 		return ErrStorageUnavailable
 	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM relocation_operations WHERE task_id=?`, mutation.TaskID); err != nil {
+		return ErrStorageUnavailable
+	}
 	events, err := tx.ExecContext(ctx, `DELETE FROM task_events WHERE task_id=?`, mutation.TaskID)
 	if err != nil {
 		return ErrStorageUnavailable
@@ -116,7 +119,7 @@ func (s *SQLite) PurgeTask(ctx context.Context, mutation PurgeTaskMutation) erro
 }
 
 func loadControlCenterTaskRow(ctx context.Context, tx *sql.Tx, id domain.ID) (ControlCenterTask, error) {
-	item, err := scanControlCenterTask(tx.QueryRowContext(ctx, `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,repository_identity,snapshot,created_at,updated_at,archived_at FROM tasks WHERE task_id=?`, id))
+	item, err := scanControlCenterTask(tx.QueryRowContext(ctx, `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,worktree_instance_digest,snapshot,created_at,updated_at,archived_at FROM tasks WHERE task_id=?`, id))
 	if err == sql.ErrNoRows {
 		return ControlCenterTask{}, ErrTaskNotFound
 	}

@@ -11,13 +11,18 @@ function format(value: string): string { try { return JSON.stringify(JSON.parse(
 
 function blockerPayload(value: string): Record<string, unknown> | undefined {
   try {
-    const blocker = JSON.parse(value) as { blocker_id?: unknown; condition?: unknown; observed_binding_digest?: unknown; cause?: unknown };
+    const blocker = JSON.parse(value) as { blocker_id?: unknown; condition?: { relocation_id?: unknown; kind?: unknown }; observed_binding_digest?: unknown; cause?: unknown };
     if (typeof blocker.blocker_id !== "string" || typeof blocker.observed_binding_digest !== "string" || typeof blocker.condition !== "object" || blocker.condition === null) return undefined;
     return {
       blocker_id: blocker.blocker_id,
       condition: blocker.condition,
       observed_binding_digest: blocker.observed_binding_digest,
       ...(blocker.cause === "file_scope_decision" ? { file_scope_decision: { choice: "allow_once", reason: "" } } : {}),
+      ...(blocker.cause === "workspace_history_conflict" ? { history_resolution: { choice: "accept_current_history", reason: "" } } : {}),
+      ...(blocker.cause === "task_relocation_pending" && typeof blocker.condition.relocation_id === "string" ? {
+        relocation_id: blocker.condition.relocation_id,
+        relocation_destinations: [],
+      } : {}),
     };
   } catch { return undefined; }
 }

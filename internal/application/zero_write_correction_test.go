@@ -14,8 +14,7 @@ import (
 func applyTestPayload(t *testing.T, s *Service, task domain.ProcessTask, requestID, transition, reason string, nodeResult any) error {
 	t.Helper()
 	raw := phase5Payload(t, task, transition, reason, nodeResult)
-	action := task.CurrentAction
-	_, err := s.ApplyAction(context.Background(), ApplyActionRequest{RequestID: domain.ID(requestID), Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: raw})
+	_, err := s.ApplyAction(context.Background(), currentActionApplyRequest(task, domain.ID(requestID), raw))
 	return err
 }
 
@@ -213,8 +212,8 @@ func TestApplyRecoveryFailureKeepsZeroWriteProofUnset(t *testing.T) {
 	before := memory.commits
 	checks := []map[string]any{evidenceCheck("user", "passed", "manual-check", 1, false)}
 	raw := phase5Payload(t, task, "tests_passed", "", testNodeResult(checks, nil, nil, nil))
-	action := task.CurrentAction
-	request := ApplyActionRequest{RequestID: "apply-recovery", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: raw, RecoveryApply: &RecoveryApplyInput{OperationID: "apply-recovery", SourceCursor: task.CurrentNode}}
+	request := currentActionApplyRequest(task, "apply-recovery", raw)
+	request.RecoveryApply = &RecoveryApplyInput{OperationID: "apply-recovery", SourceCursor: task.CurrentNode}
 	_, err := service.ApplyAction(context.Background(), request)
 	if err == nil {
 		t.Fatal("an invalid recovery payload was accepted")

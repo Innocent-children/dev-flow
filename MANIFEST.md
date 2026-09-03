@@ -34,13 +34,13 @@ Architecture、Command Reference 和 Host 对应的高级入口。
 | DeepSeek product version 与 package 内容 | `packages/deepseek/package.json` |
 | 统一 lifecycle package 与 `dev-flow` bin | `packages/dev-flow/package.json`、`packages/dev-flow/` |
 | Process nodes、transitions 与 guards | `internal/workflow/` |
-| Task aggregate 与 validation | `internal/domain/` |
+| Task aggregate、WorkspaceOrigin/Binding 与 validation | `internal/domain/` |
 | SQLite bootstrap、codec、Action operation 与只读 preflight | `internal/store/` |
-| Recovery 与 blocker reconciliation | `internal/recovery/`、`internal/application/` |
-| 只读 Git observation 与 repository binding | `internal/repository/` |
+| Recovery、workspace blocker、relocation 与 abandon | `internal/recovery/`、`internal/application/` |
+| 只读 Git identity/history/content/task-surface observation | `internal/repository/` |
 | MCP tools、closed schemas 与 projections | `internal/mcp/` |
-| Codex Host lifecycle 与 selector 行为 | `packages/codex/` |
-| DeepSeek Host lifecycle 与 selector 行为 | `packages/deepseek/` |
+| Codex 准入、provisioning、relaunch/handoff 与 selector | `packages/codex/` |
+| DeepSeek 准入、WorkspaceCoordinator、receipt/relaunch 与 selector | `packages/deepseek/` |
 | Protocol fixtures | `protocol/fixtures/` |
 | 可执行合同与真实 Journey | `tests/contract/`、`tests/journeys/` |
 | Release schemas、prepare 与 publisher | `release/`、`scripts/release-*.mjs` |

@@ -83,13 +83,15 @@ func controlCenterTestTask(t *testing.T, id domain.ID, host domain.Host, key, re
 	t.Helper()
 	sum := sha256.Sum256([]byte(key))
 	digest := domain.Digest(hex.EncodeToString(sum[:]))
-	branch, head := "main", strings.Repeat("b", 40)
+	branch, head := "feature/"+key, strings.Repeat("b", 40)
 	definition := workflow.StandardProcess()
 	action, err := workflow.BuildProcessAction(definition, domain.NodeRequirements, id, 1, digest, domain.MethodPlain, domain.ID("action-"+string(id)), now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return domain.ProcessTask{TaskID: id, OriginHost: host, Intent: domain.TaskIntent{Request: request, KnownAcceptanceCriteria: []string{"The task is visible."}, VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 1}, MethodProfile: domain.MethodPlain}, Process: definition.Reference, CurrentNode: domain.NodeRequirements, CurrentAction: &action, PrimaryRepositoryKey: domain.RepositoryKey(key), Repository: domain.RepositoryBinding{CanonicalRoot: testPath("repo", key), GitCommonDirDigest: digest, RepositoryIdentity: digest, Branch: &branch, Head: &head, WorktreeFingerprint: digest, ObservedAt: now, BindingDigest: digest}, Revision: 1, CreatedAt: now, UpdatedAt: now}
+	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: testPath("repo", key), WorktreeGitDirDigest: digest, ProvisioningReceiptID: domain.ID("receipt-" + key)}
+	binding := domain.RepositoryBinding{WorktreeInstanceDigest: digest, IdentityDigest: digest, HistoryDigest: digest, ContentDigest: digest, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: digest}
+	return domain.ProcessTask{TaskID: id, OriginHost: host, Intent: domain.TaskIntent{Request: request, KnownAcceptanceCriteria: []string{"The task is visible."}, VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 1}, MethodProfile: domain.MethodPlain}, Process: definition.Reference, CurrentNode: domain.NodeRequirements, CurrentAction: &action, PrimaryRepositoryKey: domain.RepositoryKey(key), WorkspaceOrigin: origin, Repository: binding, Revision: 1, CreatedAt: now, UpdatedAt: now}
 }
 
 func controlCenterOpenMutation(task domain.ProcessTask) TaskMutation {
@@ -170,7 +172,7 @@ func TestControlCenterLifecycleCP2(t *testing.T) {
 	if err := opened.PurgeTask(ctx, PurgeTaskMutation{TaskID: active.TaskID, ExpectedRevision: 1, TypedTaskID: active.TaskID, Reason: basePurge.Reason, Irreversible: true}); !errors.Is(err, ErrTaskTerminal) {
 		t.Fatalf("active purge err=%v", err)
 	}
-	if _, err := opened.db.ExecContext(ctx, `INSERT INTO repository_claims(repository_identity,task_id,origin_host,claimed_at) VALUES(?,?,?,?)`, terminal.Repository.RepositoryIdentity, terminal.TaskID, terminal.OriginHost, formatTime(now)); err != nil {
+	if _, err := opened.db.ExecContext(ctx, `INSERT INTO repository_claims(worktree_instance_digest,canonical_worktree_root,task_id,origin_host,claimed_at) VALUES(?,?,?,?,?)`, terminal.Repository.WorktreeInstanceDigest, terminal.WorkspaceOrigin.CanonicalWorktreeRoot, terminal.TaskID, terminal.OriginHost, formatTime(now)); err != nil {
 		t.Fatal(err)
 	}
 	if err := opened.PurgeTask(ctx, basePurge); !errors.Is(err, ErrStorageUnavailable) {

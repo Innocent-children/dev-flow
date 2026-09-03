@@ -44,8 +44,6 @@ type RequirementsResult struct {
 	ProblemClass        ProblemClass               `json:"problem_class"`
 	Baseline            *RequirementsBaselineInput `json:"baseline"`
 	UnresolvedQuestions []string                   `json:"unresolved_questions"`
-	ChangedPaths        []string                   `json:"changed_paths"`
-	NoFileChanges       bool                       `json:"no_file_changes"`
 }
 type RequirementsBaselineInput struct {
 	Goal               string   `json:"goal"`
@@ -56,11 +54,9 @@ type RequirementsBaselineInput struct {
 	Assumptions        []string `json:"assumptions"`
 }
 type DesignResult struct {
-	ProblemClass  ProblemClass         `json:"problem_class"`
-	Baseline      *DesignBaselineInput `json:"baseline"`
-	Findings      []string             `json:"findings"`
-	ChangedPaths  []string             `json:"changed_paths"`
-	NoFileChanges bool                 `json:"no_file_changes"`
+	ProblemClass ProblemClass         `json:"problem_class"`
+	Baseline     *DesignBaselineInput `json:"baseline"`
+	Findings     []string             `json:"findings"`
 }
 type DesignBaselineInput struct {
 	RequirementsRevision    uint32   `json:"requirements_revision"`
@@ -72,11 +68,9 @@ type DesignBaselineInput struct {
 	Risks                   []string `json:"risks"`
 }
 type TasksResult struct {
-	ProblemClass  ProblemClass        `json:"problem_class"`
-	Baseline      *TasksBaselineInput `json:"baseline"`
-	Findings      []string            `json:"findings"`
-	ChangedPaths  []string            `json:"changed_paths"`
-	NoFileChanges bool                `json:"no_file_changes"`
+	ProblemClass ProblemClass        `json:"problem_class"`
+	Baseline     *TasksBaselineInput `json:"baseline"`
+	Findings     []string            `json:"findings"`
 }
 type TasksBaselineInput struct {
 	DesignRevision uint32            `json:"design_revision"`
@@ -86,8 +80,6 @@ type ImplementationResult struct {
 	ProblemClass         ProblemClass `json:"problem_class"`
 	TaskPlanRevision     uint32       `json:"task_plan_revision"`
 	CompletedWorkItemIDs []domain.ID  `json:"completed_work_item_ids"`
-	ChangedPaths         []string     `json:"changed_paths"`
-	NoFileChanges        bool         `json:"no_file_changes"`
 	Deviations           []string     `json:"deviations"`
 	Findings             []string     `json:"findings"`
 }
@@ -98,8 +90,6 @@ type TestResult struct {
 	UnverifiedItems    []string        `json:"unverified_items"`
 	ManualHandoffItems []string        `json:"manual_handoff_items"`
 	Findings           []string        `json:"findings"`
-	ChangedPaths       []string        `json:"changed_paths"`
-	NoFileChanges      bool            `json:"no_file_changes"`
 }
 type EvidenceInput struct {
 	Source       domain.EvidenceSource `json:"source"`
@@ -117,8 +107,6 @@ type ComprehensionResult struct {
 	MaintenanceRisks        []string          `json:"maintenance_risks"`
 	UserConfirmation        *UserConfirmation `json:"user_confirmation"`
 	Findings                []string          `json:"findings"`
-	ChangedPaths            []string          `json:"changed_paths"`
-	NoFileChanges           bool              `json:"no_file_changes"`
 }
 type UserConfirmation struct {
 	Source  domain.EvidenceSource `json:"source"`
@@ -127,8 +115,6 @@ type UserConfirmation struct {
 }
 type RefactorResult struct {
 	ProblemClass           ProblemClass `json:"problem_class"`
-	ChangedPaths           []string     `json:"changed_paths"`
-	NoFileChanges          bool         `json:"no_file_changes"`
 	Simplifications        []string     `json:"simplifications"`
 	BehaviorChangeIntended bool         `json:"behavior_change_intended"`
 	Findings               []string     `json:"findings"`
@@ -143,8 +129,6 @@ type DeliveryResult struct {
 	UnverifiedItems       []string                  `json:"unverified_items"`
 	Risks                 []string                  `json:"risks"`
 	Findings              []string                  `json:"findings"`
-	ChangedPaths          []string                  `json:"changed_paths"`
-	NoFileChanges         bool                      `json:"no_file_changes"`
 }
 
 func DecodeStandardPayload(node domain.NodeID, raw []byte) (StandardPayload, any, error) {
@@ -490,12 +474,11 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 		if source != domain.NodeRequirements || value.Baseline == nil {
 			return domain.ErrInvalidArgument
 		}
-		violations := repositoryMutationViolations(value.ChangedPaths, value.NoFileChanges)
-		violations = append(violations, stringListViolations(map[string][]string{
+		violations := stringListViolations(map[string][]string{
 			"baseline.scope": value.Baseline.Scope, "baseline.out_of_scope": value.Baseline.OutOfScope,
 			"baseline.acceptance_criteria": value.Baseline.AcceptanceCriteria, "baseline.constraints": value.Baseline.Constraints,
 			"baseline.assumptions": value.Baseline.Assumptions, "unresolved_questions": value.UnresolvedQuestions,
-		})...)
+		})
 		if !validText(value.Baseline.Goal, domain.MaxEvidenceSummaryBytes) {
 			violations = append(violations, domain.Violation("payload.node_result.baseline.goal", domain.RuleTextNotNormalized))
 		}
@@ -509,8 +492,7 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 		if source != domain.NodeDesign || ((envelope.TransitionID == "design_ready") != (value.Baseline != nil)) {
 			return domain.ErrInvalidArgument
 		}
-		violations := repositoryMutationViolations(value.ChangedPaths, value.NoFileChanges)
-		violations = append(violations, stringListViolations(map[string][]string{"findings": value.Findings})...)
+		violations := stringListViolations(map[string][]string{"findings": value.Findings})
 		if len(violations) != 0 {
 			return domain.InvalidArgumentViolations(violations...)
 		}
@@ -518,8 +500,7 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 		if source != domain.NodeTasks || ((envelope.TransitionID == "tasks_ready") != (value.Baseline != nil)) {
 			return domain.ErrInvalidArgument
 		}
-		violations := repositoryMutationViolations(value.ChangedPaths, value.NoFileChanges)
-		violations = append(violations, stringListViolations(map[string][]string{"findings": value.Findings})...)
+		violations := stringListViolations(map[string][]string{"findings": value.Findings})
 		if value.Baseline != nil && !validWorkItemPaths(value.Baseline.WorkItems) {
 			violations = append(violations, domain.Violation("payload.node_result.baseline.work_items", domain.RuleRepositoryPathInvalid))
 		}
@@ -530,8 +511,7 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 		if source != domain.NodeImplement {
 			return domain.ErrInvalidArgument
 		}
-		violations := repositoryMutationViolations(value.ChangedPaths, value.NoFileChanges)
-		violations = append(violations, stringListViolations(map[string][]string{"deviations": value.Deviations, "findings": value.Findings})...)
+		violations := stringListViolations(map[string][]string{"deviations": value.Deviations, "findings": value.Findings})
 		if len(violations) != 0 {
 			return domain.InvalidArgumentViolations(violations...)
 		}
@@ -539,8 +519,7 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 		if source != domain.NodeTest {
 			return domain.ErrInvalidArgument
 		}
-		violations := repositoryMutationViolations(value.ChangedPaths, value.NoFileChanges)
-		violations = append(violations, stringListViolations(map[string][]string{"failed_items": value.FailedItems, "unverified_items": value.UnverifiedItems, "manual_handoff_items": value.ManualHandoffItems, "findings": value.Findings})...)
+		violations := stringListViolations(map[string][]string{"failed_items": value.FailedItems, "unverified_items": value.UnverifiedItems, "manual_handoff_items": value.ManualHandoffItems, "findings": value.Findings})
 		seen := map[string]bool{}
 		for index, check := range value.Checks {
 			path := fmt.Sprintf("payload.node_result.checks[%d]", index)
@@ -557,11 +536,10 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 		if source != domain.NodeComprehensionReview {
 			return domain.ErrInvalidArgument
 		}
-		violations := repositoryMutationViolations(value.ChangedPaths, value.NoFileChanges)
-		violations = append(violations, stringListViolations(map[string][]string{
+		violations := stringListViolations(map[string][]string{
 			"explained_components": value.ExplainedComponents, "unresolved_questions": value.UnresolvedQuestions,
 			"unnecessary_abstractions": value.UnnecessaryAbstractions, "maintenance_risks": value.MaintenanceRisks, "findings": value.Findings,
-		})...)
+		})
 		if len(violations) != 0 {
 			return domain.InvalidArgumentViolations(violations...)
 		}
@@ -574,8 +552,7 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 		if source != domain.NodeRefactor {
 			return domain.ErrInvalidArgument
 		}
-		violations := repositoryMutationViolations(value.ChangedPaths, value.NoFileChanges)
-		violations = append(violations, stringListViolations(map[string][]string{"simplifications": value.Simplifications, "findings": value.Findings})...)
+		violations := stringListViolations(map[string][]string{"simplifications": value.Simplifications, "findings": value.Findings})
 		if len(violations) != 0 {
 			return domain.InvalidArgumentViolations(violations...)
 		}
@@ -583,8 +560,7 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 		if source != domain.NodeDelivery {
 			return domain.ErrInvalidArgument
 		}
-		violations := repositoryMutationViolations(value.ChangedPaths, value.NoFileChanges)
-		violations = append(violations, stringListViolations(map[string][]string{"unverified_items": value.UnverifiedItems, "risks": value.Risks, "findings": value.Findings})...)
+		violations := stringListViolations(map[string][]string{"unverified_items": value.UnverifiedItems, "risks": value.Risks, "findings": value.Findings})
 		if len(violations) != 0 {
 			return domain.InvalidArgumentViolations(violations...)
 		}
@@ -630,35 +606,6 @@ func validRepositoryContractPaths(paths []string) bool {
 		seen[path] = true
 	}
 	return true
-}
-
-func validRepositoryMutation(paths []string, noFileChanges bool) bool {
-	return noFileChanges == (len(paths) == 0) && validRepositoryContractPaths(paths)
-}
-
-// repositoryMutationViolations reports the changed_paths / no_file_changes
-// contradiction as a field-level failure.
-func repositoryMutationViolations(paths []string, noFileChanges bool) []domain.ContractViolation {
-	if noFileChanges != (len(paths) == 0) {
-		return []domain.ContractViolation{domain.Violation("payload.node_result.changed_paths", domain.RuleRepositoryMutationInconsistent)}
-	}
-	if len(paths) > domain.MaxFingerprintPaths {
-		return []domain.ContractViolation{domain.Violation("payload.node_result.changed_paths", domain.RuleStringListTooLong)}
-	}
-	seen := map[string]bool{}
-	var violations []domain.ContractViolation
-	for index, path := range paths {
-		memberPath := fmt.Sprintf("payload.node_result.changed_paths[%d]", index)
-		if domain.ValidateRepositoryContractPath(path) != nil {
-			violations = append(violations, domain.Violation(memberPath, domain.RuleRepositoryPathInvalid))
-			continue
-		}
-		if seen[path] {
-			violations = append(violations, domain.Violation(memberPath, domain.RuleStringListDuplicate))
-		}
-		seen[path] = true
-	}
-	return violations
 }
 
 // stringListViolations names the exact bounded list that broke a list rule.

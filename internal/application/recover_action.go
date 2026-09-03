@@ -29,7 +29,20 @@ func (s *Service) RecoverAction(ctx context.Context, request RecoverActionReques
 	if !found || stored.Commit.Operation.ActionID != request.ActionID || workflow.ValidateActionCommit(task, stored.Commit) != nil {
 		return ApplyActionResult{}, domain.ErrRecoveryUnavailable
 	}
+	if stored.RecordedBy(task) {
+		return ApplyActionResult{Task: task}, nil
+	}
 	commit := stored.Commit
+	if task.CurrentNode == domain.NodeBlocked && task.Blocker != nil &&
+		task.Blocker.Cause == domain.BlockerCauseTaskRelocationPending &&
+		commit.Operation.SourceCursor == domain.NodeBlocked {
+		payload, canonical, decodeErr := workflow.DecodeBlockerResolutionPayload(commit.Payload)
+		if decodeErr != nil {
+			return ApplyActionResult{}, domain.ErrInternal
+		}
+		apply := applyRequestFromCommit(request.Host, task.TaskID, commit)
+		return s.resolveTaskRelocationPayload(ctx, apply, task, payload, canonical)
+	}
 	fresh, err := s.observeTaskRepositories(ctx, task)
 	if err != nil {
 		return ApplyActionResult{}, err
@@ -114,12 +127,25 @@ func (s *Service) ResolveBlockerAction(ctx context.Context, request RecoverActio
 	if task.CurrentNode != domain.NodeBlocked || task.CurrentAction == nil || task.CurrentAction.ActionID != request.ActionID || task.Blocker == nil {
 		return ApplyActionResult{}, domain.ErrActionStale
 	}
+	if task.Blocker.Cause == domain.BlockerCauseTaskRelocationPending {
+		if request.RelocationID == "" || request.FileScopeDecision != nil || request.HistoryResolution != nil {
+			return ApplyActionResult{}, domain.ErrInvalidArgument
+		}
+		return s.resolveTaskRelocation(ctx, request, requestID, task, "", nil)
+	}
 	fileScopeBlocker := task.Blocker.Cause == domain.BlockerCauseFileScopeDecision
 	if fileScopeBlocker {
 		if request.FileScopeDecision == nil || request.FileScopeDecision.Validate() != nil {
 			return ApplyActionResult{}, domain.ErrInvalidArgument
 		}
-	} else if request.FileScopeDecision != nil {
+	} else if request.FileScopeDecision != nil || request.RelocationID != "" || len(request.RelocationDestinations) != 0 {
+		return ApplyActionResult{}, domain.ErrInvalidArgument
+	}
+	if task.Blocker.Cause == domain.BlockerCauseWorkspaceHistoryConflict {
+		if request.HistoryResolution == nil || request.HistoryResolution.Validate() != nil {
+			return ApplyActionResult{}, domain.ErrInvalidArgument
+		}
+	} else if request.HistoryResolution != nil {
 		return ApplyActionResult{}, domain.ErrInvalidArgument
 	}
 	fresh, err := s.observeTaskRepositories(ctx, task)
@@ -130,14 +156,19 @@ func (s *Service) ResolveBlockerAction(ctx context.Context, request RecoverActio
 	if err != nil {
 		return ApplyActionResult{}, domain.ErrInternal
 	}
+	historyBlocker := task.Blocker.Cause == domain.BlockerCauseWorkspaceHistoryConflict
 	if fileScopeBlocker {
 		if !fileScopeResolutionRepositoryCurrent(task, fresh, comparison) {
 			return ApplyActionResult{}, repositoryDriftError(comparison)
 		}
+	} else if historyBlocker {
+		if !historyResolutionMatchesReviewedWorkspace(task, fresh, comparison) {
+			return ApplyActionResult{}, domain.ErrWorkspaceHistoryConflict
+		}
 	} else if comparison.Relation != recovery.RepositoryExact {
 		return ApplyActionResult{}, repositoryDriftError(comparison)
 	}
-	payload := domain.BlockerResolutionPayload{BlockerID: task.Blocker.BlockerID, Condition: task.Blocker.Condition, ObservedBindingDigest: comparison.ObservedDigest, FileScopeDecision: request.FileScopeDecision}
+	payload := domain.BlockerResolutionPayload{BlockerID: task.Blocker.BlockerID, Condition: task.Blocker.Condition, ObservedBindingDigest: comparison.ObservedDigest, FileScopeDecision: request.FileScopeDecision, HistoryResolution: request.HistoryResolution}
 	raw, err := json.Marshal(payload)
 	if err != nil {
 		return ApplyActionResult{}, domain.ErrInternal
@@ -175,7 +206,8 @@ func applyRequestFromCommit(host domain.Host, taskID domain.ID, commit domain.Ac
 		RequestID: operation.OperationID, Host: host, TaskID: taskID, ExpectedRevision: operation.ExpectedRevision,
 		ActionID: operation.ActionID, ActionKind: operation.ActionKind, ProcessID: operation.Process.ID,
 		ProcessDefinitionDigest: operation.Process.DefinitionDigest, SourceCursor: operation.SourceCursor,
-		RepositoryBindingDigest: operation.RepositoryBindingDigest, Payload: commit.Payload,
+		RepositoryBindingDigest: operation.RepositoryBindingDigest, IssuanceIdentityDigest: operation.IssuanceIdentityDigest,
+		IssuanceHistoryDigest: operation.IssuanceHistoryDigest, IssuanceContentDigest: operation.IssuanceContentDigest, Payload: commit.Payload,
 	}
 }
 

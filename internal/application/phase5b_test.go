@@ -77,47 +77,31 @@ func TestTestRejectsStaleAuthorityAndRepository(t *testing.T) {
 	}
 	ms.task = &task
 	drift := observer.binding.Clone()
-	drift.WorktreeFingerprint, drift.BindingDigest = digestOf("c"), digestOf("d")
+	drift = phase5BindingWithSurface(drift, []string{"internal/file.go"}, "c")
 	observer.binding = drift
-	assertApplyFails(t, s, task, "tests_passed", "", testNodeResult([]map[string]any{evidenceCheck("automated", "passed", "targeted", 1, false)}, nil, nil, nil), domain.ErrRepositoryDrift)
-	if ms.commits != before {
-		t.Fatal("test repository drift wrote state")
+	updated, err := applyPhase5Result(t, s, task, "tests_passed", "", testNodeResult([]map[string]any{evidenceCheck("automated", "passed", "targeted", 1, false)}, nil, nil, nil))
+	if err != nil || updated.CurrentNode != domain.NodeImplement || updated.Implementation != nil || ms.commits != before+1 {
+		t.Fatalf("stale implementation content was not invalidated: node=%s commits=%d err=%v", updated.CurrentNode, ms.commits-before, err)
 	}
 }
 
-func TestTestReportsDeclaredFileChangesThatWereNotObserved(t *testing.T) {
+func TestTestRejectsLegacyRepositoryEffectMembers(t *testing.T) {
 	s, ms, _ := phase5Service(t)
 	task := phase5TaskAtTest(t, s)
-	result := testNodeResult([]map[string]any{evidenceCheck("automated", "passed", "targeted", 1, false)}, nil, nil, nil)
-	result["changed_paths"] = []string{"internal/file.go"}
-	result["no_file_changes"] = false
-
-	before := ms.commits
-	raw := phase5Payload(t, task, "tests_passed", "", result)
-	action := task.CurrentAction
-	_, err := s.ApplyAction(context.Background(), ApplyActionRequest{
-		RequestID: "apply-declared-effect-not-observed", Host: domain.HostCodex,
-		TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: action.ActionID,
-		ActionKind: action.Kind, ProcessID: task.Process.ID,
-		ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode,
-		RepositoryBindingDigest: task.Repository.BindingDigest, Payload: raw,
-	})
-	typed, ok := err.(*domain.Error)
-	if !ok || typed.Code != domain.ErrorInvalidArgument || !typed.ZeroWrite {
-		t.Fatalf("error=%#v", err)
-	}
-	want := map[string]bool{
-		"payload.node_result.changed_paths":   true,
-		"payload.node_result.no_file_changes": true,
-	}
-	for _, violation := range typed.Violations {
-		if violation.Rule != domain.RuleRepositoryEffectNotObserved || !want[violation.Path] {
-			t.Fatalf("violation=%#v", violation)
+	for _, member := range []string{"changed_paths", "no_file_changes"} {
+		result := testNodeResult([]map[string]any{evidenceCheck("automated", "passed", "targeted", 1, false)}, nil, nil, nil)
+		if member == "changed_paths" {
+			result[member] = []string{}
+		} else {
+			result[member] = true
 		}
-		delete(want, violation.Path)
-	}
-	if len(want) != 0 || ms.commits != before {
-		t.Fatalf("missing=%v commits=%d want=%d", want, ms.commits, before)
+		before := ms.commits
+		raw := phase5Payload(t, task, "tests_passed", "", result)
+		_, err := s.ApplyAction(context.Background(), currentActionApplyRequest(task, domain.ID("apply-legacy-"+member), raw))
+		typed, ok := err.(*domain.Error)
+		if !ok || typed.Code != domain.ErrorInvalidArgument || !typed.ZeroWrite || len(typed.Violations) != 1 || typed.Violations[0].Rule != domain.RuleUnknownMember || typed.Violations[0].Path != "payload.node_result."+member || ms.commits != before {
+			t.Fatalf("legacy %s error=%#v", member, err)
+		}
 	}
 }
 
@@ -185,7 +169,7 @@ func TestComprehensionRejectsStaleTestRecord(t *testing.T) {
 	task := phase5TaskAtComprehension(t, s)
 	stale := task
 	record := *task.Test
-	record.RepositoryBindingDigest = digestOf("f")
+	record.ContentDigest = digestOf("f")
 	stale.Test = &record
 	ms.task = &stale
 	before := ms.commits
@@ -198,13 +182,10 @@ func TestComprehensionRejectsStaleTestRecord(t *testing.T) {
 func TestRefactorTransitionsRepositoryEffectsAndGuards(t *testing.T) {
 	s, ms, observer := phase5Service(t)
 	task := phase5TaskAtRefactor(t, s)
-	changed := observer.binding.Clone()
-	changed.WorktreeFingerprint = digestOf("c")
-	changed.BindingDigest = digestOf("d")
-	changed.ChangedPaths = []string{"internal/file.go"}
+	changed := phase5BindingWithSurface(observer.binding.Clone(), []string{"internal/file.go"}, "c")
 	observer.binding = changed
-	result := applyPhase5(t, s, task, "refactor_ready_for_test", "", refactorNodeResult([]string{"internal/file.go"}, false, []string{"Removed indirection"}, false, nil))
-	if result.CurrentNode != domain.NodeTest || result.Test != nil || result.Comprehension != nil || result.Implementation == nil || result.Implementation.Revision != 2 || result.Repository.BindingDigest != changed.BindingDigest {
+	result := applyPhase5(t, s, task, "refactor_ready_for_test", "", refactorNodeResult(nil, false, []string{"Removed indirection"}, false, nil))
+	if result.CurrentNode != domain.NodeTest || result.Test != nil || result.Comprehension != nil || result.Implementation == nil || result.Implementation.Revision != 2 || result.Repository.BindingDigest != changed.BindingDigest || result.Implementation.ContentDigest != changed.ContentDigest || len(result.Implementation.ActionChangedPaths) != 1 || result.Implementation.ActionChangedPaths[0] != "internal/file.go" {
 		t.Fatal("refactor did not update implementation, binding, invalidation, and mandatory TEST return")
 	}
 
@@ -296,7 +277,7 @@ func TestDeliveryRejectsStaleCurrentRecords(t *testing.T) {
 				stale.Test = &record
 			} else {
 				record := *task.Comprehension
-				record.RepositoryBindingDigest = digestOf("f")
+				record.ContentDigest = digestOf("f")
 				stale.Comprehension = &record
 			}
 			ms.task = &stale
@@ -337,29 +318,6 @@ func TestDeliveryRemediationTransitionsRetainClaim(t *testing.T) {
 			}
 		})
 	}
-	for name, mutate := range map[string]func(*domain.RepositoryBinding){
-		"branch": func(binding *domain.RepositoryBinding) { branch := "other"; binding.Branch = &branch },
-		"head": func(binding *domain.RepositoryBinding) {
-			head := "cccccccccccccccccccccccccccccccccccccccc"
-			binding.Head = &head
-		},
-		"identity":         func(binding *domain.RepositoryBinding) { binding.RepositoryIdentity = digestOf("f") },
-		"common directory": func(binding *domain.RepositoryBinding) { binding.GitCommonDirDigest = digestOf("f") },
-	} {
-		t.Run(name+" drift", func(t *testing.T) {
-			s, ms, observer := phase5Service(t)
-			task := phase5TaskAtRefactor(t, s)
-			drift := observer.binding.Clone()
-			mutate(&drift)
-			drift.BindingDigest = digestOf("e")
-			observer.binding = drift
-			before := ms.commits
-			assertApplyFails(t, s, task, "refactor_ready_for_test", "", refactorNodeResult([]string{"internal/file.go"}, false, []string{"Removed indirection"}, false, nil), domain.ErrRepositoryDrift)
-			if ms.commits != before {
-				t.Fatal("repository drift wrote refactor state")
-			}
-		})
-	}
 }
 
 func phase5TaskAtTest(t *testing.T, s *Service) domain.ProcessTask {
@@ -391,7 +349,7 @@ func testNodeResult(checks []map[string]any, failed, unverified, findings []stri
 	if findings == nil {
 		findings = []string{}
 	}
-	return map[string]any{"checks": checks, "failed_items": failed, "unverified_items": unverified, "manual_handoff_items": []string{}, "findings": findings, "changed_paths": []string{}, "no_file_changes": true}
+	return map[string]any{"checks": checks, "failed_items": failed, "unverified_items": unverified, "manual_handoff_items": []string{}, "findings": findings}
 }
 func comprehensionNodeResult(explained, unresolved, abstractions []string, source, status string, findings []string) map[string]any {
 	if explained == nil {
@@ -410,7 +368,7 @@ func comprehensionNodeResult(explained, unresolved, abstractions []string, sourc
 	if source != "" {
 		confirmation = map[string]any{"source": source, "status": status, "summary": "Developer confirmed."}
 	}
-	return map[string]any{"explained_components": explained, "unresolved_questions": unresolved, "unnecessary_abstractions": abstractions, "maintenance_risks": []string{}, "user_confirmation": confirmation, "findings": findings, "changed_paths": []string{}, "no_file_changes": true}
+	return map[string]any{"explained_components": explained, "unresolved_questions": unresolved, "unnecessary_abstractions": abstractions, "maintenance_risks": []string{}, "user_confirmation": confirmation, "findings": findings}
 }
 func refactorNodeResult(paths []string, noChanges bool, simplifications []string, behavior bool, findings []string) map[string]any {
 	if paths == nil {
@@ -422,13 +380,15 @@ func refactorNodeResult(paths []string, noChanges bool, simplifications []string
 	if findings == nil {
 		findings = []string{}
 	}
-	return map[string]any{"changed_paths": paths, "no_file_changes": noChanges, "simplifications": simplifications, "behavior_change_intended": behavior, "findings": findings}
+	_ = paths
+	_ = noChanges
+	return map[string]any{"simplifications": simplifications, "behavior_change_intended": behavior, "findings": findings}
 }
 func deliveryCompleteNodeResult(task domain.ProcessTask) map[string]any {
-	return map[string]any{"acceptance": []map[string]any{{"criterion": task.Requirements.AcceptanceCriteria[0], "status": "satisfied"}}, "automated_evidence_ids": []string{string(task.Test.EvidenceIDs[0])}, "manual_evidence_ids": []string{string(task.Comprehension.UserEvidenceID)}, "test_record_id": task.Test.RecordID, "comprehension_record_id": task.Comprehension.RecordID, "unverified_items": []string{}, "risks": []string{}, "findings": []string{}, "changed_paths": []string{}, "no_file_changes": true}
+	return map[string]any{"acceptance": []map[string]any{{"criterion": task.Requirements.AcceptanceCriteria[0], "status": "satisfied"}}, "automated_evidence_ids": []string{string(task.Test.EvidenceIDs[0])}, "manual_evidence_ids": []string{string(task.Comprehension.UserEvidenceID)}, "test_record_id": task.Test.RecordID, "comprehension_record_id": task.Comprehension.RecordID, "unverified_items": []string{}, "risks": []string{}, "findings": []string{}}
 }
 func deliveryRemediationNodeResult() map[string]any {
-	return map[string]any{"acceptance": []any{}, "automated_evidence_ids": []string{}, "manual_evidence_ids": []string{}, "test_record_id": "", "comprehension_record_id": "", "unverified_items": []string{}, "risks": []string{}, "findings": []string{"gap"}, "changed_paths": []string{}, "no_file_changes": true}
+	return map[string]any{"acceptance": []any{}, "automated_evidence_ids": []string{}, "manual_evidence_ids": []string{}, "test_record_id": "", "comprehension_record_id": "", "unverified_items": []string{}, "risks": []string{}, "findings": []string{"gap"}}
 }
 func evidenceByID(task domain.ProcessTask, id domain.ID) *domain.EvidenceSummary {
 	for i := range task.Evidence {
@@ -442,7 +402,7 @@ func evidenceByID(task domain.ProcessTask, id domain.ID) *domain.EvidenceSummary
 func cloneImplementationRecord(record *domain.ImplementationRecord) *domain.ImplementationRecord {
 	clone := *record
 	clone.CompletedWorkItemIDs = append([]domain.ID(nil), record.CompletedWorkItemIDs...)
-	clone.ChangedPaths = append([]string(nil), record.ChangedPaths...)
+	clone.ActionChangedPaths = append([]string(nil), record.ActionChangedPaths...)
 	clone.Deviations = append([]string(nil), record.Deviations...)
 	return &clone
 }

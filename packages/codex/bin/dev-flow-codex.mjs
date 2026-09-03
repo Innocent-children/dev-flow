@@ -14,6 +14,7 @@ import {
   setupRegistration,
 } from "../lib/lifecycle.mjs";
 import {
+  assertNoDuplicateJSONMembers,
   buildSetupSuccessResult,
   ensureUserConfiguration,
   renderSetup,
@@ -26,6 +27,21 @@ import {
   resolveProductPaths,
 } from "../lib/paths.mjs";
 import { runHook } from "../plugin/hooks/pre-tool-use.mjs";
+import { inspectAdmissionAnchor } from "../lib/task-admission.mjs";
+import {
+  beginManagedTaskDispatch,
+  beginTaskHandoff,
+  bootstrapManagedTask,
+  cleanupCliTaskWorktree,
+  cleanupTaskBranch,
+  prepareTaskLaunch,
+  provisionCliTask,
+  recordManagedTaskDispatch,
+  recordTaskHandoff,
+  recordTaskHandoffStatus,
+} from "../lib/task-launch.mjs";
+import { provisioningReceiptPath, readProvisioningReceipt } from "../lib/provisioning-receipt.mjs";
+import { terminalCleanupDecision } from "../lib/worktree-lifecycle.mjs";
 
 const execFile = promisify(execFileCallback);
 const NPM_UNINSTALL_HANDOFF = "Run npm uninstall -g dev-flow-codex separately after deregistration.";
@@ -47,7 +63,7 @@ export async function runCLI(arguments_, dependencies = {}) {
   let setupAttempted = false;
 
   if (!isProductionCommand(arguments_)) {
-    stderr.write("dev-flow-codex: invalid arguments; expected status [--json], setup [--json], remove [--json], mcp, hook pre-tool-use, host-check pre-file-write, or --version\n");
+    stderr.write("dev-flow-codex: invalid arguments; expected status [--json], setup [--json], remove [--json], mcp, hook pre-tool-use, host-check pre-file-write, host-launch <operation>, or --version\n");
     return { code: 2, signal: null };
   }
 
@@ -75,6 +91,12 @@ export async function runCLI(arguments_, dependencies = {}) {
         spawnImpl: dependencies.spawnImpl ?? spawn,
         signalSource: dependencies.signalSource ?? process,
       });
+    }
+    if (arguments_.length === 2 && arguments_[0] === "host-launch") {
+      const input = await readClosedStandardInput(dependencies.readInput);
+      const result = await runHostLaunchCommand(arguments_[1], input, paths, dependencies);
+      stdout.write(`${JSON.stringify(result)}\n`);
+      return { code: 0, signal: null };
     }
 
     const packageVersion = await readPackageVersion(paths.packageRoot);
@@ -308,10 +330,98 @@ function isProductionCommand(arguments_) {
   if (arguments_.length === 1 && ["mcp", "--version"].includes(arguments_[0])) return true;
   if (arguments_.length === 2 && arguments_[0] === "hook" && arguments_[1] === "pre-tool-use") return true;
   if (arguments_.length === 2 && arguments_[0] === "host-check" && arguments_[1] === "pre-file-write") return true;
+  if (arguments_.length === 2 && arguments_[0] === "host-launch" && [
+    "inspect",
+    "prepare",
+    "status",
+    "dispatch-start",
+    "dispatch-result",
+    "bootstrap",
+    "cli-provision",
+    "handoff-start",
+    "handoff-result",
+    "handoff-status",
+    "cleanup-decision",
+    "cleanup-worktree",
+    "cleanup-branch",
+  ].includes(arguments_[1])) return true;
   return (
     (arguments_.length === 1 || arguments_.length === 2 && arguments_[1] === "--json") &&
     ["status", "setup", "remove"].includes(arguments_[0])
   );
+}
+
+async function runHostLaunchCommand(operation, input, paths, dependencies) {
+  const common = {
+    productSupportRoot: paths.productSupportRoot,
+    enforcePrivateModes: paths.enforcePrivateModes,
+    runGit: dependencies.runGit,
+  };
+  if (operation === "inspect") {
+    assertClosedObject(input, ["request", "repositories"], "host-launch inspect input");
+    return await inspectAdmissionAnchor({ ...input, runGit: dependencies.runGit });
+  }
+  if (operation === "prepare") {
+    return await prepareTaskLaunch(input, {
+      ...common,
+      now: dependencies.now,
+      createLaunchId: dependencies.createLaunchId,
+    });
+  }
+  if (operation === "status") {
+    assertClosedObject(input, ["launch_id", "repository_key"], "host-launch status input");
+    const receiptPath = provisioningReceiptPath(paths.productSupportRoot, input.launch_id, input.repository_key);
+    return {
+      receipt_path: receiptPath,
+      receipt: await readProvisioningReceipt(receiptPath, { productSupportRoot: paths.productSupportRoot }),
+    };
+  }
+  if (operation === "dispatch-start") return await beginManagedTaskDispatch(input, common);
+  if (operation === "dispatch-result") return await recordManagedTaskDispatch(input, common);
+  if (operation === "handoff-start") return await beginTaskHandoff(input, common);
+  if (operation === "handoff-result") return await recordTaskHandoff(input, common);
+  if (operation === "handoff-status") return await recordTaskHandoffStatus(input, common);
+  if (operation === "cleanup-decision") {
+    assertClosedObject(input, ["lifecycle", "surface", "clean", "pushed", "stateCertain"], "cleanup decision input");
+    return terminalCleanupDecision(input);
+  }
+  if (operation === "bootstrap") return await bootstrapManagedTask(input, common);
+
+  const sourceRepositoryPath = input?.source_repository_path;
+  if (typeof sourceRepositoryPath !== "string") throw new Error(`${operation} requires source_repository_path`);
+  const operationInput = { ...input };
+  delete operationInput.source_repository_path;
+  const repositoryOptions = { ...common, sourceRepositoryPath };
+  if (operation === "cli-provision") return await provisionCliTask(operationInput, repositoryOptions);
+  if (operation === "cleanup-worktree") return await cleanupCliTaskWorktree(operationInput, repositoryOptions);
+  if (operation === "cleanup-branch") return await cleanupTaskBranch(operationInput, repositoryOptions);
+  throw new Error(`unsupported host-launch operation ${operation}`);
+}
+
+async function readClosedStandardInput(readInput = () => readFile(0, "utf8")) {
+  const raw = await readInput();
+  if (typeof raw !== "string" || Buffer.byteLength(raw) > 1024 * 1024) {
+    throw new Error("host-launch input must be UTF-8 JSON no larger than 1 MiB");
+  }
+  let value;
+  try {
+    assertNoDuplicateJSONMembers(raw);
+    value = JSON.parse(raw);
+  } catch (error) {
+    throw new Error(`host-launch input must be one JSON object: ${error.message}`, { cause: error });
+  }
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("host-launch input must be one JSON object");
+  }
+  return value;
+}
+
+function assertClosedObject(value, keys, label) {
+  const actual = Object.keys(value ?? {}).sort();
+  const expected = [...keys].sort();
+  if (value === null || typeof value !== "object" || Array.isArray(value) || JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`${label} has an invalid closed shape`);
+  }
 }
 
 function isMainModule() {

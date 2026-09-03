@@ -3,39 +3,24 @@
 [中文](https://github.com/Innocent-children/dev-flow/blob/main/packages/codex/README.md) |
 [English](https://github.com/Innocent-children/dev-flow/blob/main/docs/CODEX_en.md)
 
-`dev-flow-codex` lets Codex continue long-running coding work from a local durable Task while keeping
-scope, verification budget, and delivery conditions explicit. Codex still reads repositories, edits
-files, and runs commands; the bundled Go Core retains the current stage, limits verification
-expansion, invalidates stale records, and returns a next step, Recovery assessment, or explicit
-blocker after repository drift or an uncertain Action result.
+`dev-flow-codex` gives Codex one durable Core Task in a dedicated worktree. New requests are assessed
+before Core is contacted; selected requests start from a developer-confirmed remote/base/target, and
+Core derives the current change surface from read-only Git.
 
-## Support
+## Support and installation
 
-| Item | Current support |
-| --- | --- |
-| Package | [`dev-flow-codex`](https://www.npmjs.com/package/dev-flow-codex) |
-| Stable platform | macOS arm64 |
-| Current-source platform | macOS arm64 (`darwin-arm64`); Windows 10/11 desktop x64 (`win32-x64`) |
-| Node.js | `>=24` |
-| Codex | `>=0.147.0` |
-| Releases | [GitHub Releases](https://github.com/Innocent-children/dev-flow/releases) |
-
-Stable support is defined by the [Support Matrix](SUPPORT-MATRIX_en.md). Capability on `main` may not
-yet be present in npm `@latest`. Windows Server, 32-bit Windows, Windows ARM64, and Intel Mac are
-outside the current-source support boundary. The launcher rejects runtime pairs other than
-`darwin-arm64` and `win32-x64`.
-
-## Install
-
-Use the unified lifecycle entry:
+Stable support remains defined by the [Support Matrix](SUPPORT-MATRIX_en.md). Current source contains
+exact `darwin-arm64` and `win32-x64` runtimes; the package requires Node.js `>=24` and Codex
+`>=0.147.0`. Windows Server, 32-bit/ARM64 Windows, Intel Mac, and cross-pairs such as
+`darwin-x64` or `win32-arm64` are outside current source support. Source capability does not by
+itself expand npm `@latest` support.
 
 ```bash
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-The installer installs the Codex package, registers the Plugin and MCP, and reads back readiness.
-Native Host commands remain for diagnosis and recovery:
+Native diagnosis and recovery remain available:
 
 ```bash
 npm install -g dev-flow-codex@latest
@@ -44,137 +29,119 @@ dev-flow-codex status --json
 dev-flow-codex --version
 ```
 
-When fixed user configuration is absent, `setup` creates `$HOME/.dev-flow/config.json` on macOS or
-`%USERPROFILE%\.dev-flow\config.json` on Windows, validates the package, bundled Core, and Codex
-compatibility, then registers the marketplace, Plugin, and MCP. Windows Task data defaults to
-`%LOCALAPPDATA%\dev-flow\data`. See
-the [Command Reference](COMMANDS_en.md#codex) for every argument and machine-readable result.
+After setup, use Codex `/hooks` to inspect and trust the packaged hook. Until then, the supported
+`apply_patch` prewrite check is inactive. See the [Command Reference](COMMANDS_en.md#codex) for the
+complete parser surface.
 
-After `setup`, review and trust the Dev Flow packaged hook through Codex `/hooks`. Codex skips the
-`apply_patch` write-before check until that hook is trusted.
+When absent, setup creates `$HOME/.dev-flow/config.json` on macOS or
+`%USERPROFILE%\.dev-flow\config.json` on Windows. Default Task data is
+`$HOME/Library/Application Support/dev-flow/data` or `%LOCALAPPDATA%\dev-flow\data`.
 
-## Start a Task
+## Assess and start a Task
 
-From a Git repository, describe a bounded implementation, bug fix, refactoring, targeted-testing, or
-development-delivery request. Codex can select Dev Flow automatically. Use the exact selector when
-you want to enter explicitly:
+Codex may select the Skill for a bounded development request. This exact conversation selector forces
+selection but does not skip assessment:
 
 ```text
 $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
 ```
 
-This is not a shell command. `$dev-flow` is not an alias. Explanation-only, status-only,
-design-discussion, ordinary-question, and ambiguous requests do not automatically create or resume a
-Task.
+For every new request—including an exact selector and each item in a parallel batch—Codex first performs
+read-only code and Git discovery. It reports `small|standard|large|uncertain`, observed repositories,
+candidate components and paths, public-contract/state/Host flags, verification shape, unknowns, a
+recommendation, and reasons. Then it stops. Before the developer chooses Dev Flow there is no Dev Flow
+tool call, Task, claim, Git write, provisioning receipt, or child dispatch. A changed request,
+canonical root, HEAD, or status invalidates the assessment.
 
-A new Task begins in requirements and retains the original request, scope, acceptance criteria, and
-verification budget. `plain`, `spec-kit`, or `openspec` may be selected at creation, but there is no
-OpenSpec / Spec Kit artifact importer today.
+After the developer chooses Dev Flow, Codex shows every repository's remote, base branch, new target
+branch, and bounded source-checkout dirtiness. The confirmation authorizes one exact fetch and launch.
+The Host freezes the fetched commit and creates a dedicated worktree. Staged, unstaged, and untracked
+source content is never copied.
 
-## Resume an existing Task
+In Codex App, managed-worktree and snapshot behavior remains Host-owned. The coordinator creates one
+task from the selected remote ref and records one launch; queued, timed-out, or uncertain creation is
+read from that launch rather than dispatched again. The child verifies HEAD, creates/switches to the
+confirmed target branch, verifies clean state and worktree identity, then calls Core. Codex CLI uses
+the parser-supported `codex -C <worktree> [--add-dir <additional-worktree>] -- <prompt>` relaunch descriptor. It never uses an on-missing
+default-branch fallback.
 
-Return to the same participating physical worktree and continue the original request in a new Codex
-session, or use the exact selector. The Adapter reads Core first and restores the current stage,
-revision, scope, remaining verification, Blocker, and Recovery state instead of rebuilding progress
-from chat.
+Only after all participating roots pass provisioning and Host authorization does one Core Task open in
+`REQUIREMENTS`. `plain`, `spec-kit`, or `openspec` is immutable after creation.
 
-If the previous Action response was lost or truncated, the Adapter reads the current Task and
-Recovery assessment before continuing, recovering, blocking, or retrying safely. It does not replay
-the original submission on its own.
+## Resume, scope, and Git history
 
-When the same failure, the same test result, or the same changed-path and failure loop appears three
-times, Core retains the third result and pauses the Task. Codex does not resolve that blocker
-automatically. After the developer explicitly chooses another approach or allows one more attempt,
-the Adapter resolves the blocker and continues from Core's retained resume stage. Another exact
-repetition pauses the Task again.
+An explicit resume returns to the exact worktree instance already bound to the Task. It skips assessment,
+branch selection, and replacement-worktree creation. A recreated path or same-named branch cannot
+impersonate the original worktree-specific Git directory. A missing/replaced instance reports workspace
+unavailability; restore it or explicitly abandon the Task.
 
-## Ask before an out-of-scope file write
+Resume restores the current node, revision, scope, remaining verification, blocker, and Recovery
+state. If an Action response was lost or truncated, the Adapter reads Core's retained operation before
+recovering or retrying; it never repeats the original submission from memory. Core also retains the
+three latest verification attempts and pauses on the third exact repeated failure/result or the same
+changed-path-and-failure loop across consecutive Implementation revisions. Only an explicit developer
+decision allows another attempt.
 
-The Plugin bundles a `PreToolUse` hook. After the developer trusts the current hook through Codex
-`/hooks`, every `apply_patch` call sends its target files to the packaged Core before execution through
-the package-owned `dev-flow-codex hook pre-tool-use` launcher on `PATH`, which parses the event and
-uses the internal `host-check pre-file-write` entrypoint. The launcher resolves the package-local Core
-without depending on the Codex Plugin cache layout.
-Core uses the union of every WorkItem's `ExpectedPaths` in the current Task Plan, with repository-key
-qualification for multi-repository Tasks. An expected file in additional repository B or C proceeds
-without a question when the repository is already in Task Repository Scope and authorized through
-`--add-dir`; being outside working directory A is not itself out of scope.
+The trusted hook runs `dev-flow-codex hook pre-tool-use`, which forwards the parsed targets through
+`dev-flow-codex host-check pre-file-write` to the packaged Core. It checks supported `apply_patch`
+targets against the current Task Plan before writing. An expected additional-repository path proceeds
+only when that root is already in immutable Scope and authorized through Codex `--add-dir`.
+For an unplanned path the developer chooses `allow_once`, `expand_scope`, or reject/restore with a reason.
+Other tools and shell commands may write first; Core observes them before the next action. There is no
+"ignore external change" choice inside a dedicated Task worktree. A disabled, untrusted, or unavailable
+hook must not be described as reliable interception; when an invoked child check fails, that write stops.
 
-An unplanned file pauses the Task before `apply_patch` runs. The developer chooses `allow_once` for
-that same write intent, `expand_scope` to return to `TASKS`, or `reject` for the current Task Plan
-revision. Core retains the choice and reason. Before testing and `DONE`, Core also reconciles all
-Task-introduced paths.
+Core derives the current Task surface from the frozen base, commits, index, worktree, and untracked
+state. A normal linear commit on the task branch preserves current paths. An exact-content commit keeps
+Test and Comprehension valid; a content change invalidates them. Branch switch, detach, rewind, rewrite,
+or worktree replacement produces a specific blocker or unavailable result before substantive work.
 
-The hook does not parse Bash, external processes, or specialized tools that bypass Codex tool hooks;
-those writes may be found only by Core's final check. An untrusted, disabled, or unavailable hook
-must not be presented as reliable write-before interception.
+## Handoff and terminal worktrees
 
-## Inspect status
+Same-machine relocation starts with Core `dev_flow_prepare_task_relocation`, which retains source bindings,
+claims, base, content, surface, and resume node. Codex performs one Host handoff. Destination paths and
+the retained relocation ID are then verified before Core atomically replaces all bindings and claims.
+A lost handoff response is read from Host/receipt state and is never blindly repeated.
 
-Inspect package and registration state:
+One Task may contain one primary repository plus at most seven explicitly declared additional roots.
+Every root must be provisioned and authorized before the one Core open. A selected parallel batch gives
+each item its own Host task, target branch, worktree, and Core Task; it never creates a parent Task or
+uses a shared-directory sub-agent.
+
+DONE and CANCELLED release Core claims only. They do not commit, push, open a pull request, delete a
+branch, or delete a worktree. Worktree cleanup and branch cleanup need separate current developer
+authorization; active, dirty, unpushed, unknown-owner, or uncertain resources remain.
+CLI cleanup is invoked only after the Adapter has read a fresh terminal Core Task and obtained the
+separate user decision. The helper independently verifies receipt surface, repository group, and a
+clean dedicated worktree; worktree removal retains the branch, while the later branch decision uses
+non-force `git branch -d` and retains an unmerged branch. `terminalCleanupDecision` marks an unpushed
+branch for review before that separate decision. If the exact
+worktree is gone, `dev_flow_abandon_task` keeps the last known binding and releases claims without Git access.
+
+## Inspect and remove
 
 ```bash
 dev-flow status --host codex
 dev-flow-codex status --json
-```
-
-Inspect Tasks, current stage, timeline, Recovery, and Blocker:
-
-```bash
 dev-flow webui start
 ```
-
-The WebUI is local loopback only. See [WebUI](WEBUI_en.md) for details.
-
-## Remove
-
-Use the unified entry for the recommended Codex uninstall. The native data-preserving sequence is:
 
 ```bash
 dev-flow-codex remove
 npm uninstall -g dev-flow-codex
 ```
 
-`remove` validates the runtime receipt and stops the matching WebUI before removing the package-owned
-Plugin, marketplace registration, and receipt. A stop failure retains later objects. Task data and
-the target Git repository are retained by default, so installing a compatible package and running
-`setup` can resume existing Tasks.
+Removal stops the matching WebUI and removes only package-owned registration/receipt state. Task data
+and Git repositories remain. Permanent Task-data cleanup uses the separately confirmed
+`dev-flow factory-reset` flow.
 
-Permanent data cleanup is a separate `dev-flow factory-reset` flow and requires strong confirmation
-from its current plan. Do not manually delete an uncertain data directory.
+## Boundaries
 
-## Codex permission and product boundaries
+- Codex and the developer authorize repositories and Host/Git operations; Dev Flow does not widen the sandbox.
+- Core observes Git read-only and never fetches, creates worktrees/branches, commits, merges, rebases, pushes, tags, or publishes.
+- A worktree is a source-change ownership boundary, not a process, network, credential, port, database, or container sandbox.
+- A multi-repository Task opens only after every root is independently provisioned and authorized; partial isolation is rejected.
+- A shared-directory sub-agent cannot replace a dedicated Host worktree and no `ACTIVE_TASK_CONFLICT` post-open move remains.
 
-- repository access remains controlled by Codex and user authorization; Dev Flow does not expand the
-  sandbox;
-- Core observes Git read-only and does not commit, push, merge, rebase, tag, or publish;
-- Codex edits files and runs commands; the Host hook checks `apply_patch` and Core reconciles cumulative paths, but does not intercept every operation;
-- the selector does not bypass repository permission, the current Action, Git-mutation authority, or
-  release confirmation;
-- optional code indexing assists retrieval only and cannot expand Scope or decide Recovery and
-  process state.
-
-## Advanced multi-repository and worktree use
-
-Current source supports one primary repository and up to seven explicit additional repositories.
-Each additional repository must first be authorized as a writable root for the session through Codex
-`--add-dir`. Scope is immutable after creation, and neighboring directories are not discovered
-automatically.
-
-For an explicit parallel batch, or when a new request meets `ACTIVE_TASK_CONFLICT`, Codex dispatches
-an isolated Task only when the Host provides worktree-backed task/thread creation. A child starts
-from committed default-branch state and receives no uncommitted changes from the occupied checkout.
-Core does not create, switch, merge, or clean worktrees.
-
-Check [Project Status](PROJECT-STATUS_en.md) before assuming these capabilities are in the stable
-artifact. Exact Repository Scope, worktree dispatch, and protocol behavior live in
-[Architecture](ARCHITECTURE_en.md) and the [Command Reference](COMMANDS_en.md).
-
-## Related documentation
-
-- [Product Definition](PRODUCT_en.md)
-- [Interruption-and-resume demo](DEMO_en.md)
-- [Command Reference](COMMANDS_en.md)
-- [Architecture](ARCHITECTURE_en.md)
-- [Project Status](PROJECT-STATUS_en.md)
-- [WebUI](WEBUI_en.md)
+See [Product](PRODUCT_en.md), [Architecture](ARCHITECTURE_en.md), [WebUI](WEBUI_en.md), and
+[Project Status](PROJECT-STATUS_en.md).

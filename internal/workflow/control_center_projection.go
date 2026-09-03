@@ -109,11 +109,15 @@ func exceptionalTraversal(index int, traversal CommittedTraversal) bool {
 	if index == 0 {
 		return traversal.Kind == domain.OperationOpenTask && traversal.Source == domain.NodeRequirements && traversal.Destination == domain.NodeRequirements
 	}
-	if traversal.Kind == domain.OperationCancelTask {
+	if traversal.Kind == domain.OperationCancelTask || traversal.Kind == domain.OperationAbandonTask {
 		return traversal.Destination == domain.NodeCancelled
 	}
-	if traversal.Kind == domain.OperationPrepareFileChange {
+	if traversal.Kind == domain.OperationPrepareFileChange || traversal.Kind == domain.OperationPrepareTaskRelocation {
 		return traversal.Source.Normal() && traversal.Destination == domain.NodeBlocked
+	}
+	if traversal.Kind == domain.OperationObserveWorkspace {
+		return traversal.Source.Normal() && (traversal.Destination == domain.NodeBlocked || traversal.Destination == domain.NodeImplement) ||
+			traversal.Source == domain.NodeBlocked && traversal.Destination == domain.NodeBlocked
 	}
 	if traversal.Kind != domain.OperationApplyAction {
 		return false

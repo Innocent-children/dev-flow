@@ -152,6 +152,10 @@ lib/install-experience.mjs
 lib/lifecycle.mjs
 lib/paths.mjs
 lib/platform.mjs
+lib/provisioning-receipt.mjs
+lib/task-admission.mjs
+lib/task-launch.mjs
+lib/worktree-lifecycle.mjs
 plugin/.codex-plugin/plugin.json
 plugin/.mcp.json
 plugin/hooks/hooks.json
@@ -207,6 +211,10 @@ const expected = [
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
   "lib/platform.mjs",
+  "lib/provisioning-receipt.mjs",
+  "lib/task-admission.mjs",
+  "lib/task-launch.mjs",
+  "lib/worktree-lifecycle.mjs",
   "package.json",
   "plugin/.codex-plugin/plugin.json",
   "plugin/.mcp.json",

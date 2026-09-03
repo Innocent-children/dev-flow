@@ -1306,6 +1306,61 @@ td:last-child time {
   font-size: .72rem;
 }
 
+.workspace-panel,
+.workspace-repositories,
+.workspace-repository {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.workspace-repositories {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.workspace-repository {
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+}
+
+.workspace-repository .fact-grid div {
+  background: var(--surface);
+}
+
+.workspace-repository small,
+.workspace-repository dd {
+  display: grid;
+  gap: .18rem;
+}
+
+.workspace-path {
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+}
+
+.workspace-provisioning-note {
+  margin: calc(var(--space-3) * -1) 0 0;
+  color: var(--text-muted);
+  font-size: .78rem;
+}
+
+.workspace-repository details ul,
+.workspace-panel .notice ul {
+  margin-bottom: 0;
+}
+
+.workspace-cleanup {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.workspace-cleanup p {
+  margin-bottom: 0;
+  color: var(--text-secondary);
+}
+
 .outcome-panel {
   display: grid;
   grid-template-columns: minmax(180px, .4fr) minmax(0, 1fr);
@@ -1667,6 +1722,30 @@ td:last-child time {
 
 .timeline p {
   margin: .3rem 0 0;
+}
+
+.timeline-paths {
+  margin-top: .45rem;
+}
+
+.timeline-paths ul {
+  display: grid;
+  gap: .2rem;
+  margin: .3rem 0 0;
+  padding-left: 1rem;
+}
+
+.timeline-paths li {
+  display: list-item;
+  padding: 0;
+}
+
+.timeline-paths li::before {
+  content: none;
+}
+
+.timeline-paths code {
+  overflow-wrap: anywhere;
 }
 
 .fact-group h3 {

@@ -10,6 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import { DEV_FLOW_QUALIFIED_TOOL_NAMES } from "../lib/tool-names.mjs";
+import { createWorkspaceCoordinator } from "../lib/workspace-coordinator.mjs";
 
 const execFile = promisify(execFileCallback);
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -32,17 +33,26 @@ test("official DSH add/remove/reinstall preserves Core data, repository, and Cod
   const dshHome = join(canonicalRoot, "dsh-home");
   const dataDirectory = join(canonicalRoot, "data");
   const repository = join(canonicalRoot, "repository");
+  const remote = join(canonicalRoot, "remote.git");
   const profileName = "dev-flow-acceptance";
   const profileDirectory = join(dshHome, "profiles", profileName);
   await mkdir(dshHome, { recursive: true, mode: 0o700 });
   await mkdir(dataDirectory, { mode: 0o700 });
   await mkdir(repository);
-  await initializeGit(repository);
+  await initializeGit(repository, remote);
+
+  const provisioned = await createWorkspaceCoordinator({ dataDirectory, workspaceRoot: repository }).provision({
+    request: "Lifecycle acceptance task.",
+    profile: profileName,
+    repositories: [{ repository_key: "primary", source_repository_path: repository, remote_name: "origin", base_branch: "main", target_branch: "feature/lifecycle-acceptance" }],
+  });
+  const taskRepository = provisioned.workspace_root;
+  const consumed = await createWorkspaceCoordinator({ dataDirectory, workspaceRoot: taskRepository }).consume({ launchID: provisioned.launch_id });
 
   await assertProductMatchesCommit(sourceCommit);
   const artifactIdentity = await fileIdentity(canonicalArtifact);
   const beforeCodex = await codexIdentity();
-  const beforeRepository = await repositoryIdentity(repository);
+  const beforeRepository = await repositoryIdentity(taskRepository);
   const env = { ...process.env, DSH_HOME: dshHome };
 
   await runDsh(["plugin", "--profile", profileName, "add", canonicalArtifact], env);
@@ -54,14 +64,14 @@ test("official DSH add/remove/reinstall preserves Core data, repository, and Cod
   const installedProductManifest = await readJSON(join(installedPackage, "package.json"));
   const installedCore = join(installedPackage, "runtime", "darwin-arm64", "dev-flow");
   const coreIdentity = await fileIdentity(installedCore);
-  const firstMount = await mountInstalledProduct(installedPackage, dataDirectory);
+  const firstMount = await mountInstalledProduct(installedPackage, dataDirectory, taskRepository);
   assert.deepEqual(firstMount.toolNames, DEV_FLOW_QUALIFIED_TOOL_NAMES);
-  assert.deepEqual(firstMount.skill.invocation, { modelInvocable: false, userInvocable: true });
+  assert.deepEqual(firstMount.skill.invocation, { modelInvocable: true, userInvocable: true });
   assert.match(firstMount.unauthorizedText, /DEV_FLOW_NO_AGENT/u);
   const serverInfo = firstMount.serverInfo;
   const opened = await firstMount.call("mcp__dev_flow__dev_flow_open_task", {
     host: "deepseek",
-    repository_path: repository,
+    ...consumed.open_task,
     new_task: {
       request: "Lifecycle acceptance task.",
       initial_scope: ["Verify lifecycle retention"],
@@ -93,7 +103,7 @@ test("official DSH add/remove/reinstall preserves Core data, repository, and Cod
   assert.ok(repeatedRemoval.code === 0 || repeatedRemoval.code > 0);
   assert.equal(await treeDigest(dataDirectory), dataAfterCreate);
   assert.deepEqual(await codexIdentity(), beforeCodex);
-  assert.deepEqual(await repositoryIdentity(repository), beforeRepository);
+  assert.deepEqual(await repositoryIdentity(taskRepository), beforeRepository);
 
   await runDsh(["plugin", "--profile", profileName, "add", canonicalArtifact], env);
   const reinstalledDump = await dumpProfile(profileName, env);
@@ -101,9 +111,9 @@ test("official DSH add/remove/reinstall preserves Core data, repository, and Cod
   const reinstalledPackage = await realpath(join(profileDirectory, "node_modules", "dev-flow-deepseek"));
   const reinstalledCore = await fileIdentity(join(reinstalledPackage, "runtime", "darwin-arm64", "dev-flow"));
   assert.deepEqual(reinstalledCore, coreIdentity);
-  const secondMount = await mountInstalledProduct(reinstalledPackage, dataDirectory);
+  const secondMount = await mountInstalledProduct(reinstalledPackage, dataDirectory, taskRepository);
   const reopened = await secondMount.call("mcp__dev_flow__dev_flow_open_task", {
-    host: "deepseek", repository_path: repository, new_task: null,
+    host: "deepseek", repository_path: taskRepository, new_task: null,
   });
   assert.equal(reopened.result.created, false);
   assert.equal(reopened.result.task.task_id, task.task_id);
@@ -111,7 +121,7 @@ test("official DSH add/remove/reinstall preserves Core data, repository, and Cod
   await secondMount.dispose();
   assert.equal(await treeDigest(dataDirectory), dataAfterCreate);
   assert.deepEqual(await codexIdentity(), beforeCodex);
-  assert.deepEqual(await repositoryIdentity(repository), beforeRepository);
+  assert.deepEqual(await repositoryIdentity(taskRepository), beforeRepository);
 
   const evidence = {
     evidence_class: "official_profile_lifecycle",
@@ -155,7 +165,7 @@ test("official DSH add/remove/reinstall preserves Core data, repository, and Cod
   }));
 });
 
-async function mountInstalledProduct(installedPackage, dataDirectory) {
+async function mountInstalledProduct(installedPackage, dataDirectory, workspaceRoot) {
   const packageRequire = createRequire(join(installedPackage, "package.json"));
   const toolsRequire = createRequire(packageRequire.resolve("@deepseek-ai/dsh-tools"));
   const [cordis, systemPrompt, tools, skills, integration] = await Promise.all([
@@ -173,7 +183,13 @@ async function mountInstalledProduct(installedPackage, dataDirectory) {
   const previousDataDirectory = process.env.DEV_FLOW_DATA_DIR;
   process.env.DEV_FLOW_DATA_DIR = dataDirectory;
   try {
-    fibers.push(await ctx.plugin(integration));
+    fibers.push(await ctx.plugin(integration, {
+      packageRoot: installedPackage,
+      environment: { ...process.env, DEV_FLOW_DATA_DIR: dataDirectory },
+      workspaceRoot,
+      platform: platform(),
+      arch: arch(),
+    }));
   } finally {
     if (previousDataDirectory === undefined) delete process.env.DEV_FLOW_DATA_DIR;
     else process.env.DEV_FLOW_DATA_DIR = previousDataDirectory;
@@ -324,12 +340,15 @@ async function importResolved(require, specifier) {
   return await import(pathToFileURL(require.resolve(specifier)).href);
 }
 
-async function initializeGit(repository) {
+async function initializeGit(repository, remote) {
   const env = { ...process.env, GIT_CONFIG_NOSYSTEM: "1" };
-  await execFile("git", ["init", "-q"], { cwd: repository, env });
+  await execFile("git", ["init", "--bare", "--initial-branch=main", remote], { env });
+  await execFile("git", ["init", "-q", "--initial-branch=main"], { cwd: repository, env });
   await execFile("git", ["config", "user.email", "lifecycle@example.invalid"], { cwd: repository, env });
   await execFile("git", ["config", "user.name", "Lifecycle Test"], { cwd: repository, env });
   await writeFile(join(repository, "README.md"), "lifecycle\n");
   await execFile("git", ["add", "README.md"], { cwd: repository, env });
   await execFile("git", ["commit", "-q", "-m", "initial"], { cwd: repository, env });
+  await execFile("git", ["remote", "add", "origin", remote], { cwd: repository, env });
+  await execFile("git", ["push", "-u", "origin", "main"], { cwd: repository, env });
 }

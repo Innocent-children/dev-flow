@@ -44,6 +44,7 @@ const nativeCheckpoints = Object.freeze([
     "Complete the bounded design, task planning, implementation, and targeted test for the single requested source file.",
     "Create only src/proof-writer.mjs exporting writeProof() that returns exactly deepseek-native-proof.",
     `Run only: ${exactTestCommand}`,
+    "After implementation, use the original explicit authorization to commit with message deepseek native proof and push the confirmed task branch.",
     "Follow legal Core actions until COMPREHENSION_REVIEW.",
     "At COMPREHENSION_REVIEW, explain the result, ask for the developer's explicit verdict, and stop.",
     "Do not self-confirm the comprehension verdict.",
@@ -132,6 +133,7 @@ function withRunRoot(config, root) {
     temporaryDirectory: join(root, "tmp"),
     data: join(root, "data"),
     workspace: join(root, "workspace"),
+    remote: join(root, "remote.git"),
     readback: join(root, "artifact-readback"),
   };
 }
@@ -176,7 +178,7 @@ async function preflight(baseConfig) {
   await copyFile(config.settings, join(config.dshHome, "settings.yaml"));
   await chmod(join(config.dshHome, ".credentials.yaml"), 0o600);
   await chmod(join(config.dshHome, "settings.yaml"), 0o600);
-  await initializeWorkspace(config.workspace);
+  await initializeWorkspace(config.workspace, config.remote);
 
   await runIsolatedDsh(config, ["--profile", config.profile, "--dump-default-config"], {
     cwd: config.workspace, timeout: 30_000,
@@ -258,27 +260,52 @@ async function runNative(baseConfig) {
   assert.equal(installedCore.sha256, config.coreSha256);
 
   process.stdout.write("NATIVE_ACCEPTANCE_START\n");
-  activeStage = "ordinary-turn";
-  const ordinary = await runTurn(
-    config,
-    "Inspect this repository without changing files. Reply with one short sentence. Do not invoke Dev Flow.",
-    { stageId: activeStage, timeoutMs: TURN_TIMEOUT_MS },
-  );
-  const ordinarySession = await readNewSession(sessionRoot, ordinary.beforeSessions);
-  const ordinarySummary = summarizeSession(ordinarySession.rows);
-  assertCompletedTurn(ordinarySummary);
-  assert.equal(ordinarySummary.devFlowCalls.length, 0);
-  assert.equal(await coreTaskCount(config.data), 0);
-
-  const initialPrompt = [
-    "/dev-flow Implement the bounded plain-profile task in this repository.",
+  const taskRequest = [
+    "Implement the bounded plain-profile task in this repository.",
     "Create only src/proof-writer.mjs exporting writeProof() that returns the exact string deepseek-native-proof.",
     `The only authorized automated test command is exactly: ${exactTestCommand}`,
     "Run that exact test once before comprehension. Do not modify package.json, README.md, or test files.",
-    "Follow fresh Core actions and payload schemas. At comprehension, wait for an explicit user verdict and never self-confirm.",
-  ].join(" ");
+    "I explicitly authorize one commit with message deepseek native proof and one push of the confirmed task branch after implementation so terminal cleanup can be verified.",
+  ].join("\n");
+  activeStage = "suitability-assessment";
+  const sourceBeforeAssessment = await repositoryIdentity(config.workspace);
+  const assessment = await runTurn(
+    config,
+    `${taskRequest} First provide the Dev Flow suitability assessment and stop for my choice. Do not edit files, run tests, call Dev Flow, fetch, create branches/worktrees, or create a Task.`,
+    { stageId: activeStage, timeoutMs: TURN_TIMEOUT_MS },
+  );
+  const assessmentSession = await readNewSession(sessionRoot, assessment.beforeSessions);
+  const assessmentSummary = summarizeSession(assessmentSession.rows);
+  assertCompletedTurn(assessmentSummary);
+  assert.equal(assessmentSummary.devFlowCalls.length, 0);
+  assert.match(assessment.exit.stdout, /change_level/u);
+  assert.match(assessment.exit.stdout, /recommendation/u);
+  const assessmentZeroGitWrite = JSON.stringify(await repositoryIdentity(config.workspace)) === JSON.stringify(sourceBeforeAssessment);
+  assert.equal(assessmentZeroGitWrite, true);
+  assert.equal(await coreTaskCount(config.data), 0);
+
+  activeStage = "worktree-confirmation";
+  const confirmationText = [
+    "/dev-flow confirm-worktree",
+    "repository=primary;remote=origin;base=main;target=feature/deepseek-native-proof",
+    `The assessed request is: ${taskRequest}`,
+    "Call workspace_coordinator once with operation=provision, profile=headless, and the confirmed primary repository. Stop after returning its relaunch descriptor; do not call Core.",
+  ].join("\n");
+  const confirmation = await runTurn(config, confirmationText, { stageId: activeStage, timeoutMs: TURN_TIMEOUT_MS });
+  const confirmationSession = await readNewSession(sessionRoot, confirmation.beforeSessions);
+  const confirmationSummary = summarizeSession(confirmationSession.rows);
+  assertCompletedTurn(confirmationSummary);
+  assert.equal(confirmationSummary.devFlowCalls.length, 0);
+  const launch = firstToolJSON(confirmationSession.rows, "workspace_coordinator");
+  assert.equal(launch?.status, "relaunch_required");
+  assert.deepEqual(launch?.relaunch?.arguments?.slice(0, 2), ["--profile", config.profile]);
+  assert.equal(launch?.relaunch?.command, "dsh");
+  assert.ok(typeof launch?.relaunch?.cwd === "string" && launch.relaunch.cwd !== config.workspace);
+  config.taskWorkspace = launch.relaunch.cwd;
+
   activeStage = "interruption";
-  const interrupted = await startTurn(config, initialPrompt);
+  const relaunchPrompt = `${launch.relaunch.arguments[2]} Follow fresh Core actions and payload schemas. Open the new Task only from the consumed descriptor. At comprehension, wait for an explicit user verdict and never self-confirm.`;
+  const interrupted = await startTurn(config, relaunchPrompt);
   await waitForNodeOrExit(config.data, interrupted.child, "DESIGN", TURN_TIMEOUT_MS);
   killProcessGroup(interrupted.child.pid, "SIGKILL");
   const interruptedExit = await interrupted.completion;
@@ -316,7 +343,10 @@ async function runNative(baseConfig) {
   assert.equal(task.current_node, "DONE");
   assert.equal(task.origin_host, "deepseek");
   assert.equal(task.task_id, interruptedTask.task_id);
-  const allSummaries = [ordinarySummary, interruptedSummary, ...checkpointSummaries.values()];
+  assert.equal(task.workspace_origin?.mode, "dedicated_worktree");
+  assert.equal(task.workspace_origin?.canonical_worktree_root, config.taskWorkspace);
+  assert.equal(task.workspace_origin?.task_branch, "feature/deepseek-native-proof");
+  const allSummaries = [assessmentSummary, confirmationSummary, interruptedSummary, ...checkpointSummaries.values()];
   const devFlowNames = allSummaries.flatMap((summary) => summary.devFlowCalls.map((call) => call.name));
   assert.ok(devFlowNames.every((name) => exactDevFlowNames().has(name)));
   const commands = allSummaries.flatMap((summary) => summary.bashCommands);
@@ -324,9 +354,9 @@ async function runNative(baseConfig) {
   assert.ok(testLike.every((command) => command === exactTestCommand));
   assert.equal(testLike.length, 1);
   assert.ok(checkpointSummaries.get("work-to-comprehension").bashCommands.includes(exactTestCommand));
-  const changed = await gitChangedPaths(config.workspace);
-  assert.deepEqual(changed, ["src/proof-writer.mjs"]);
-  assert.match(await readFile(join(config.workspace, "src", "proof-writer.mjs"), "utf8"), /deepseek-native-proof/u);
+  const changed = await gitChangedPaths(config.taskWorkspace);
+  assert.deepEqual(changed, []);
+  assert.match(await readFile(join(config.taskWorkspace, "src", "proof-writer.mjs"), "utf8"), /deepseek-native-proof/u);
   const info = await readServerInfoFromSessions(allSummaries);
   assert.equal(info.process_id, "standard-development");
   assert.deepEqual(info.qualified_tools, [...exactDevFlowNames()]);
@@ -334,14 +364,14 @@ async function runNative(baseConfig) {
   const beforeLifecycle = await retainedIdentity(config, task.task_id);
   assert.equal(beforeLifecycle.codex, marker.codex_identity_sha256);
   await runIsolatedDsh(config, ["plugin", "--profile", config.profile, "remove", "dev-flow-deepseek"], {
-    cwd: config.workspace, timeout: 120_000,
+    cwd: config.taskWorkspace, timeout: 120_000,
   });
   await readProfileBundles(config);
   assert.equal(await exists(installedPackageRoot(config)), false);
   assert.deepEqual(await retainedIdentity(config, task.task_id), beforeLifecycle);
 
   await runIsolatedDsh(config, ["plugin", "--profile", config.profile, "add", config.artifact], {
-    cwd: config.workspace, timeout: 120_000,
+    cwd: config.taskWorkspace, timeout: 120_000,
   });
   await readProfileBundles(config, ["dev-flow-deepseek"]);
   const reinstalledCore = await fileIdentity(await realpath(join(installedPackageRoot(config), "runtime", "darwin-arm64", "dev-flow")));
@@ -364,6 +394,41 @@ async function runNative(baseConfig) {
   assert.equal(reopenedTask.revision, task.revision);
   assert.equal(reopenedTask.current_node, "DONE");
   assert.deepEqual(await retainedIdentity(config, task.task_id), beforeLifecycle);
+
+  const terminalWorktree = config.taskWorkspace;
+  activeStage = "prepare-cleanup";
+  const prepareCleanupPrompt = `/dev-flow prepare-cleanup launch=${launch.launch_id} repository=primary task=${task.task_id} revision=${task.revision}\nCall workspace_coordinator exactly once with operation=prepare_cleanup, these identities, and source_repository_path=${JSON.stringify(config.workspace)}. Return its relaunch descriptor without deleting Git resources.`;
+  const prepareCleanupTurn = await runTurn(config, prepareCleanupPrompt, { stageId: activeStage, timeoutMs: TURN_TIMEOUT_MS });
+  const prepareCleanupSession = await readNewSession(sessionRoot, prepareCleanupTurn.beforeSessions);
+  const cleanupLaunch = firstToolJSON(prepareCleanupSession.rows, "workspace_coordinator");
+  assert.equal(cleanupLaunch?.status, "cleanup_relaunch_required");
+  assert.equal(cleanupLaunch?.relaunch?.cwd, config.workspace);
+  config.taskWorkspace = cleanupLaunch.relaunch.cwd;
+  activeStage = "cleanup-relaunch";
+  const cleanupRelaunchTurn = await runTurn(config, cleanupLaunch.relaunch.arguments[2], { stageId: activeStage, timeoutMs: TURN_TIMEOUT_MS });
+  const cleanupRelaunchSession = await readNewSession(sessionRoot, cleanupRelaunchTurn.beforeSessions);
+  assertCompletedTurn(summarizeSession(cleanupRelaunchSession.rows));
+  assert.equal(await exists(terminalWorktree), true);
+
+  activeStage = "cleanup-worktree";
+  const cleanupWorktreePrompt = `/dev-flow cleanup-worktree launch=${launch.launch_id} repository=primary task=${task.task_id} revision=${task.revision}\nCall workspace_coordinator exactly once with operation=cleanup_worktree and these identities. Stop after the result.`;
+  const cleanupWorktreeTurn = await runTurn(config, cleanupWorktreePrompt, { stageId: activeStage, timeoutMs: TURN_TIMEOUT_MS });
+  const cleanupWorktreeSession = await readNewSession(sessionRoot, cleanupWorktreeTurn.beforeSessions);
+  const cleanupWorktree = firstToolJSON(cleanupWorktreeSession.rows, "workspace_coordinator");
+  assert.equal(cleanupWorktree?.status, "worktree_removed");
+  assert.equal(cleanupWorktree?.branch_retained, true);
+  assert.equal(await exists(terminalWorktree), false);
+
+  await execFile("git", ["merge", "--ff-only", "feature/deepseek-native-proof"], { cwd: config.workspace });
+  activeStage = "cleanup-branch";
+  const cleanupBranchPrompt = `/dev-flow cleanup-branch launch=${launch.launch_id} repository=primary task=${task.task_id} revision=${task.revision}\nCall workspace_coordinator exactly once with operation=cleanup_branch, these identities, and source_repository_path equal to the current working directory. Stop after the result.`;
+  const cleanupBranchTurn = await runTurn(config, cleanupBranchPrompt, { stageId: activeStage, timeoutMs: TURN_TIMEOUT_MS });
+  const cleanupBranchSession = await readNewSession(sessionRoot, cleanupBranchTurn.beforeSessions);
+  const cleanupBranch = firstToolJSON(cleanupBranchSession.rows, "workspace_coordinator");
+  assert.equal(cleanupBranch?.status, "branch_removed");
+  const branchExists = await execFile("git", ["show-ref", "--verify", "--quiet", "refs/heads/feature/deepseek-native-proof"], { cwd: config.workspace }).then(() => true, () => false);
+  const terminalCleanup = !branchExists && !await exists(terminalWorktree);
+  assert.equal(terminalCleanup, true);
 
   const artifact = await fileIdentity(config.artifact);
   const corePath = join(config.readback, "package", "runtime", "darwin-arm64", "dev-flow");
@@ -396,9 +461,14 @@ async function runNative(baseConfig) {
       terminal_state: task.current_node,
     },
     outcomes: {
-      ordinary_zero_dispatch: true,
+      assessment_zero_dispatch: assessmentSummary.devFlowCalls.length === 0,
+      assessment_zero_git_write: assessmentZeroGitWrite,
+      confirmation_zero_core: confirmationSummary.devFlowCalls.length === 0,
+      isolated_worktree: task.workspace_origin?.canonical_worktree_root === config.taskWorkspace,
+      relaunch_consumed: interruptedTask.workspace_origin?.provisioning_receipt_id === launch.launch_id,
+      terminal_cleanup: terminalCleanup,
       selector_guard: true,
-      fifteen_tools: info.qualified_tools.length === 15,
+      seventeen_tools: info.qualified_tools.length === 17,
       restart_resume: true,
       read_before_retry: recoveryReadBeforeRetry(recoveredTask.devFlowCalls),
       comprehension: true,
@@ -497,6 +567,12 @@ function firstSuccessfulToolResult(events, name) {
   return envelope?.ok === true ? envelope.result : undefined;
 }
 
+function firstToolJSON(rows, name) {
+  const events = rows.filter((row) => row.type !== "session" && !row.type.endsWith("-chunks"));
+  const call = events.find((event) => event.type === "tool/call" && event.data?.name === name)?.data;
+  return call === undefined ? undefined : toolResultEnvelope(events, call.callId);
+}
+
 function installedPackageRoot(config) {
   return join(config.dshHome, "profiles", config.profile, "node_modules", "dev-flow-deepseek");
 }
@@ -504,7 +580,7 @@ function installedPackageRoot(config) {
 async function retainedIdentity(config, taskID) {
   return {
     data: await taskPersistenceIdentity(config.data, taskID),
-    repository: await treeDigest(config.workspace, new Set([".git"])),
+    repository: await treeDigest(config.taskWorkspace ?? config.workspace, new Set([".git"])),
     codex: await treeDigest(join(repositoryRoot, "packages", "codex")),
   };
 }
@@ -566,7 +642,7 @@ async function selfTest() {
     reason: "",
     artifacts: { other_process: [] },
     method_results: { "delivery.prepare_summary": { capability: "", summary: "Prepared delivery." } },
-    node_result: { problem_class: "none", unverified_items: [], risks: [], findings: [], changed_paths: [], no_file_changes: true },
+    node_result: { problem_class: "none", unverified_items: [], risks: [], findings: [] },
   };
   assertMutationIdentities([{
     name: "mcp__dev_flow__dev_flow_submit_delivery",
@@ -692,7 +768,7 @@ async function selfTest() {
 async function startTurn(config, prompt) {
   const beforeSessions = new Set(await sessionFiles(join(config.dshHome, "sessions")));
   const child = spawnIsolatedDsh(config, ["--profile", config.profile, prompt], {
-    cwd: config.workspace, detached: true, stdio: ["ignore", "pipe", "pipe"],
+    cwd: config.taskWorkspace ?? config.workspace, detached: true, stdio: ["ignore", "pipe", "pipe"],
   });
   const stdout = boundedCollector(child.stdout, 1_048_576);
   const stderr = boundedCollector(child.stderr, 1_048_576);
@@ -940,7 +1016,8 @@ async function readServerInfoFromSessions(summaries) {
     "dev_flow_get_next_action", "dev_flow_submit_requirements", "dev_flow_submit_design",
     "dev_flow_submit_tasks", "dev_flow_submit_implementation", "dev_flow_submit_test",
     "dev_flow_submit_comprehension", "dev_flow_submit_refactor", "dev_flow_submit_delivery",
-    "dev_flow_resolve_blocker", "dev_flow_recover_action", "dev_flow_cancel_task",
+    "dev_flow_prepare_task_relocation", "dev_flow_resolve_blocker", "dev_flow_recover_action",
+    "dev_flow_cancel_task", "dev_flow_abandon_task",
   ];
   assert.deepEqual(info.tools, rawTools);
   assert.deepEqual(info.method_profiles, ["plain", "spec-kit", "openspec"]);
@@ -963,8 +1040,9 @@ function exactDevFlowNames() {
     "mcp__dev_flow__dev_flow_submit_tasks", "mcp__dev_flow__dev_flow_submit_implementation",
     "mcp__dev_flow__dev_flow_submit_test", "mcp__dev_flow__dev_flow_submit_comprehension",
     "mcp__dev_flow__dev_flow_submit_refactor", "mcp__dev_flow__dev_flow_submit_delivery",
-    "mcp__dev_flow__dev_flow_resolve_blocker", "mcp__dev_flow__dev_flow_recover_action",
-    "mcp__dev_flow__dev_flow_cancel_task",
+    "mcp__dev_flow__dev_flow_prepare_task_relocation", "mcp__dev_flow__dev_flow_resolve_blocker",
+    "mcp__dev_flow__dev_flow_recover_action", "mcp__dev_flow__dev_flow_cancel_task",
+    "mcp__dev_flow__dev_flow_abandon_task",
   ]);
 }
 
@@ -1029,7 +1107,8 @@ function assertEvidenceShape(evidence) {
   assert.ok(evidence.task.terminal_revision > evidence.task.resumed_revision);
   assert.equal(evidence.task.terminal_state, "DONE");
   assertClosedKeys(evidence.outcomes, [
-    "ordinary_zero_dispatch", "selector_guard", "fifteen_tools", "restart_resume",
+    "assessment_zero_dispatch", "assessment_zero_git_write", "confirmation_zero_core", "isolated_worktree", "relaunch_consumed", "terminal_cleanup",
+    "selector_guard", "seventeen_tools", "restart_resume",
     "read_before_retry", "comprehension", "core_done",
     "remove_reinstall", "data_retained", "repository_retained", "codex_unchanged",
     "read_only_reopen",
@@ -1206,9 +1285,10 @@ async function readProfileBundles(config, additional = []) {
   return bundles;
 }
 
-async function initializeWorkspace(workspace) {
+async function initializeWorkspace(workspace, remote) {
   const env = { ...process.env, GIT_CONFIG_NOSYSTEM: "1" };
-  await execFile("git", ["init", "-q"], { cwd: workspace, env });
+  await execFile("git", ["init", "--bare", "--initial-branch=main", remote], { env });
+  await execFile("git", ["init", "-q", "--initial-branch=main"], { cwd: workspace, env });
   await execFile("git", ["config", "user.email", "native@example.invalid"], { cwd: workspace, env });
   await execFile("git", ["config", "user.name", "Native Journey"], { cwd: workspace, env });
   await mkdir(join(workspace, "test"));
@@ -1223,6 +1303,8 @@ async function initializeWorkspace(workspace) {
   ].join("\n"));
   await execFile("git", ["add", "README.md", "package.json", "test/proof-writer.test.mjs"], { cwd: workspace, env });
   await execFile("git", ["commit", "-q", "-m", "initial fixture"], { cwd: workspace, env });
+  await execFile("git", ["remote", "add", "origin", remote], { cwd: workspace, env });
+  await execFile("git", ["push", "-u", "origin", "main"], { cwd: workspace, env });
 }
 
 async function gitChangedPaths(workspace) {

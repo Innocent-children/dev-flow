@@ -18,8 +18,14 @@
 Dev Flow 把已同意的請求、預期路徑、驗證上限、目前階段與結果保存在同一個本機任務中，程式修改
 仍由 Codex 或 DeepSeek 完成。
 
+每個新請求都先做唯讀評估。使用者選擇 Dev Flow 後，必須確認 remote、base branch 與新的任務
+分支；Host 從該遠端基線建立乾淨的專屬 worktree，Core 之後才建立 Task。來源 checkout 的現有修改
+不會複製進去。
+
 - **範圍保持明確。** 記錄預期路徑；支援的結構化工具在寫入計畫外檔案前先詢問；測試與交付前
   再次核對實際修改。
+- **工作樹只有一個修改歸屬。** Core 從專屬 worktree 的 Git 狀態計算目前 Task 修改面；正常線性
+  commit 會保留修改面，branch rewrite 或 worktree 實例遭替換時會停止任務。
 - **驗證投入有上限。** 自動檢查限制命令數量，完整測試需要事先允許，第三次完全重複時暫停任務。
 - **會話中斷後可以繼續。** 新會話恢復同一任務、剩餘檢查與目前決定，不需從聊天記錄重建。
 - **只沿用仍有效的結果。** 請求、計畫、實作或程式碼儲存庫改變後，舊檢查會失效；交付前由開發者
@@ -58,11 +64,14 @@ $dev-flow-codex:dev-flow 加入登入失敗限流。只修改驗證相關檔案�
 ```
 
 這兩項是對話 selector，不是 shell 命令。請盡量清楚說明目標、驗收條件、檔案邊界與測試上限。
+第一次回覆只評估影響並詢問直接開發或使用 Dev Flow；明確 selector 也不會跳過選擇。選擇 Dev Flow
+後還要確認建議的 remote、base 與 target branch。Codex 在 Host 支援時開啟 managed worktree；
+DeepSeek 因目前會話的 Workspace Root 固定，會提供從新 worktree 重新啟動的命令。
 
 ### 3. 恢復並查看進度
 
-會話重啟後，回到參與任務的同一個程式碼儲存庫目錄，再次使用相同 selector。Dev Flow 會讀取
-已保存的任務，從目前階段繼續。
+會話重啟後，回到 Task 綁定的原 worktree，並明確要求恢復。恢復不會重做准入，也不會選擇替代
+worktree；原實例遺失或被替換時，Task 會停止，等待恢復原實例或明確 abandon。
 
 ```bash
 # 查看已安裝的整合

@@ -204,7 +204,7 @@ test("setup preflights compatibility, resources, runtime, and PATH before regist
   const wrongSkillDescription = await makeSetupFixture(t, "wrong-skill-description");
   await writeFile(
     join(wrongSkillDescription.paths.pluginRoot, "skills", "dev-flow", "SKILL.md"),
-    "---\nname: dev-flow\ndescription: \"Only explain repositories.\"\n---\n\nBoth activation paths use this same admission gate. For a non-task request, do not create or resume a Dev Flow Task.\n",
+    "---\nname: dev-flow\ndescription: \"Only explain repositories.\"\n---\n\nShow the assessment and stop. An explicit resume uses zero Dev Flow calls before discovery.\n",
   );
   await assert.rejects(setupRegistration(wrongSkillDescription.options), /description is missing activation boundary/);
   await assert.rejects(stat(wrongSkillDescription.statePath), { code: "ENOENT" });
@@ -216,21 +216,21 @@ test("setup preflights compatibility, resources, runtime, and PATH before regist
   );
   await writeFile(
     join(wrongSkillAdmission.paths.pluginRoot, "skills", "dev-flow", "SKILL.md"),
-    validSkill.replace("Both activation paths use this same admission gate.", "Use separate activation paths."),
+    validSkill.replace("Show the assessment and stop.", "Continue immediately."),
   );
-  await assert.rejects(setupRegistration(wrongSkillAdmission.options), /admission does not unify/);
+  await assert.rejects(setupRegistration(wrongSkillAdmission.options), /admission does not require assessment/);
   await assert.rejects(stat(wrongSkillAdmission.statePath), { code: "ENOENT" });
 
-  const wrongConflictRelocation = await makeSetupFixture(t, "wrong-conflict-relocation");
+  const wrongConflictRelocation = await makeSetupFixture(t, "wrong-worktree-first-lifecycle");
   const conflictSkill = await readFile(
     join(wrongConflictRelocation.paths.pluginRoot, "skills", "dev-flow", "SKILL.md"),
     "utf8",
   );
   await writeFile(
     join(wrongConflictRelocation.paths.pluginRoot, "skills", "dev-flow", "SKILL.md"),
-    conflictSkill.replace("complete `ACTIVE_TASK_CONFLICT`", "complete conflict"),
+    conflictSkill.replace("clientThreadId", "queued identifier"),
   );
-  await assert.rejects(setupRegistration(wrongConflictRelocation.options), /conflict relocation is missing/);
+  await assert.rejects(setupRegistration(wrongConflictRelocation.options), /worktree-first lifecycle is missing/);
   await assert.rejects(stat(wrongConflictRelocation.statePath), { code: "ENOENT" });
 
   const wrongMcp = await makeSetupFixture(t, "wrong-mcp-shape");
@@ -580,6 +580,7 @@ test("removal deletes only matching registration and the exact receipt", async (
   const repository = join(fixture.root, "target repository");
   const codexCache = join(fixture.root, "codex-owned-cache");
   const adjacentReceiptFile = join(dirname(fixture.paths.receiptPath), "user-note.txt");
+  const provisioningReceipt = join(fixture.paths.productSupportRoot, "provisioning", "codex", "launch-1", "primary.json");
   await mkdir(repository, { recursive: true });
   await mkdir(fixture.paths.dataDirectory, { recursive: true });
   await mkdir(codexCache, { recursive: true });
@@ -587,6 +588,8 @@ test("removal deletes only matching registration and the exact receipt", async (
   await writeFile(join(fixture.paths.dataDirectory, "dev-flow.db"), "preserve task data\n");
   await writeFile(join(codexCache, "cache.db"), "preserve Codex cache\n");
   await writeFile(adjacentReceiptFile, "preserve adjacent receipt data\n");
+  await mkdir(dirname(provisioningReceipt), { recursive: true });
+  await writeFile(provisioningReceipt, "preserve in-flight provisioning\n");
 
   const state = JSON.parse(await readFile(fixture.statePath, "utf8"));
   state.marketplaces.push(marketplaceStateEntry("user-marketplace", "/user"));
@@ -609,6 +612,7 @@ test("removal deletes only matching registration and the exact receipt", async (
   assert.deepEqual(removed, { status: "removed", changed: true });
   await assert.rejects(stat(fixture.paths.receiptPath), { code: "ENOENT" });
   assert.equal(await readFile(adjacentReceiptFile, "utf8"), "preserve adjacent receipt data\n");
+  assert.equal(await readFile(provisioningReceipt, "utf8"), "preserve in-flight provisioning\n");
   assert.deepEqual(
     await Promise.all([
       directoryFingerprint(fixture.paths.packageRoot),
@@ -797,7 +801,7 @@ async function makeSetupFixture(t, name) {
   await writeFile(join(pluginRoot, "hooks", "pre-tool-use.mjs"), "export {};\n");
   await writeFile(
     join(pluginRoot, "skills", "dev-flow", "SKILL.md"),
-    "---\nname: dev-flow\ndescription: \"Use Dev Flow for bounded Codex software development tasks: implementation, bug fixes, refactoring, targeted testing, and development delivery. It may be selected implicitly for those tasks or explicitly with $dev-flow-codex:dev-flow. Do not create a Dev Flow Task for explanation-only, status-only, design discussion, ordinary questions, or ambiguous requests.\"\n---\n\nBoth activation paths use this same admission gate. For a non-task request, do not create or resume a Dev Flow Task. A single new request is not a parallel batch. Only when the original call carried non-null `new_task` and returned a complete `ACTIVE_TASK_CONFLICT`, create exactly one worktree-backed Codex task with `target.environment.type=\"worktree\"` and omit the `startingState` member entirely. Do not inspect, read, copy or apply source working-tree state. Do not call any Dev Flow Core tool again. Explicit resume and `HOST_OWNERSHIP_CONFLICT` preserve their existing handling.\n",
+    await readFile(join(repositoryRoot, "packages", "codex", "plugin", "skills", "dev-flow", "SKILL.md"), "utf8"),
   );
   await writeFile(
     join(pluginRoot, "skills", "dev-flow", "agents", "openai.yaml"),

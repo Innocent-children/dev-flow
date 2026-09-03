@@ -6,8 +6,8 @@ Release evidence。
 
 ## 覆盖范围
 
-- `mcp_contract_test.go`：Core current Core contract exact fifteen-tool catalog、Action-specific
-  submission schemas、Recovery fields、ServerInfo DTO、process/method/storage identity；
+- `mcp_contract_test.go`：Core current contract exact seventeen-tool catalog、semantic-only
+  Action submission schemas、workspace/relocation/abandon fields、Recovery、ServerInfo 与 storage identity；
 - `result_envelope_test.go`：typed Result Envelope、stable public errors、closed/redacted output；
 - `graph_contract_test.go`：`standard-development` 节点、29 transitions、guard/reason/problem
   class 和 method-profile public semantics；

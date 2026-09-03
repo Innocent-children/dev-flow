@@ -19,8 +19,14 @@ reconstruct progress from chat history.
 Dev Flow keeps the agreed request, expected paths, verification limits, current stage, and results in
 one local task while Codex or DeepSeek does the coding work.
 
+Every new request is assessed read-only before Dev Flow is selected. If you choose it, you confirm a
+remote, base branch, and new task branch; the Host fetches that base and creates a clean dedicated
+worktree before Core creates the Task. Changes in the source checkout are not copied into that worktree.
+
 - **Scope stays explicit.** Expected paths are recorded, supported structured writes outside the plan
   ask first, and actual changes are checked again before testing and delivery.
+- **The workspace has one owner.** Core derives the current Task surface from Git inside the dedicated
+  worktree; normal linear commits keep that surface, while branch rewrites and replacement worktrees stop.
 - **Testing stays bounded.** Automatic checks have a command limit, full suites need prior permission,
   and a third exact repetition pauses the task.
 - **Progress survives restarts.** A new session can resume the same task, remaining checks, and current
@@ -63,12 +69,16 @@ Or send this in **DeepSeek Harness**:
 ```
 
 These are conversation selectors, not shell commands. Include a concrete goal, acceptance conditions,
-file boundary, and test limit.
+file boundary, and test limit. The first response assesses the likely impact and asks whether to work
+directly or use Dev Flow; even an explicit selector does not skip that choice. If you choose Dev Flow,
+confirm the proposed remote, base, and target branch. Codex then opens a managed worktree when its Host
+supports it; DeepSeek prints a relaunch instruction because its Workspace Root is fixed for the session.
 
 ### 3. Resume and inspect
 
-After a restart, return to the same participating repository and use the same selector. Dev Flow reads
-the saved task and continues from its current stage.
+After a restart, return to the exact worktree bound to the Task and explicitly ask to resume. Resume
+does not repeat admission or choose a replacement worktree; a missing or replaced instance stops for
+recovery or explicit abandon.
 
 ```bash
 # Inspect installed integrations

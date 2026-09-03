@@ -12,8 +12,8 @@ final-artifact evidence, and bounded product improvements grounded in real devel
 | Spelling, links, translation, or correction of existing behavior documentation | Open a bounded pull request directly and synchronize the affected document family and root README locales according to the [I18n policy](docs/I18N_en.md) |
 | Template or documentation-maintenance rule change | Explain the affected surface; do not change product versions or perform a release |
 | Implementation defect that does not change public semantics | Identify the gap between the approved contract and actual behavior, then fix only that gap |
-| User-visible behavior, Core/MCP contract, persistence, process graph, or host-adapter contract change | Explain the user problem, scope, acceptance criteria, and approach in the pull request, and synchronize implementation, tests, documentation, and i18n |
-| Version bump, npm publication, Tag, or GitHub Release | Do not make this an ordinary pull-request deliverable; maintainers run the separate release flow after product work is merged |
+| User-visible behavior, Core/MCP contract, persistence, process graph, or host-adapter contract change | Explain the user problem, scope, acceptance criteria, and approach, synchronize implementation/tests/docs/i18n, and update `CORE_VERSION` when shipped Core changes |
+| npm package version, npm publication, Tag, or GitHub Release | Do not make this an ordinary pull-request deliverable; maintainers run the separate release flow after product work is merged |
 
 When classification is unclear, open an Issue first and describe the user problem, current behavior,
 and expected result. Do not implement a large solution and then ask the specification to accept the
@@ -126,7 +126,8 @@ Before editing, read the [I18n policy](docs/I18N_en.md), the
   Core parser, or MCP catalog and synchronize `docs/COMMANDS*`.
 - Public npm installation examples use `@latest`; human-readable documentation contains no exact
   product release versions.
-- Do not bump versions or perform a release from an ordinary feature or documentation pull request.
+- An ordinary feature pull request that changes shipped Core behavior or contracts updates the
+  machine-readable `CORE_VERSION`; it does not change npm release versions or perform Tag, npm, or GitHub Release operations.
 
 ## Validation
 

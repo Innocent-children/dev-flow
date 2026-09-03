@@ -47,6 +47,8 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   const isolatedHome = join(root, "isolated home");
   const dataDirectory = join(root, "Core task data");
   const targetRepository = join(root, "target repository-仓库");
+  const remoteRepository = join(root, "remote repository.git");
+  const taskRepository = join(root, "task worktree-工作树");
   const fakeState = join(root, "fake Codex", "state.json");
   const fakeTrace = join(root, "fake Codex", "trace.jsonl");
   await Promise.all([
@@ -55,10 +57,9 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
     mkdir(reinstallPrefix, { recursive: true }),
     mkdir(isolatedHome, { recursive: true }),
     mkdir(dataDirectory, { recursive: true }),
-    initializeRepository(targetRepository),
   ]);
+  await initializeRepository(targetRepository, remoteRepository);
 
-  const repositoryBefore = await directoryManifest(targetRepository);
   const { stdout: buildOutput } = await execFile(buildScript, ["--output", artifactDirectory], {
     cwd: repositoryRoot,
     encoding: "utf8",
@@ -71,6 +72,8 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   await installArtifact(build.artifact_path, installPrefix);
   const installedPackage = await realpath(join(installPrefix, "node_modules", "dev-flow-codex"));
   const lifecycle = await importInstalledLifecycle(installedPackage, "initial");
+  const admission = await importInstalledModule(installedPackage, "lib/task-admission.mjs", "admission-initial");
+  const taskLaunch = await importInstalledModule(installedPackage, "lib/task-launch.mjs", "launch-initial");
   const paths = productPaths(installedPackage, isolatedHome, dataDirectory);
   const environment = fakeEnvironment(installPrefix, fakeState, fakeTrace);
 
@@ -82,6 +85,36 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
     now: () => new Date("2026-08-15T00:00:00.000Z"),
   });
   assert.equal(setup.status, "installed");
+  const taskRequest = "Prove graph task data survives bounded Codex deregistration";
+  const assessmentAnchor = await admission.inspectAdmissionAnchor({
+    request: taskRequest,
+    repositories: [{ key: "primary", repository_path: targetRepository }],
+  });
+  const prepared = await taskLaunch.prepareTaskLaunch({
+    launch_id: "retention-launch",
+    request: taskRequest,
+    assessment_anchor: assessmentAnchor,
+    repository_key: "primary",
+    repository_path: targetRepository,
+    remote_name: "origin",
+    base_branch: "main",
+    target_branch: "codex/retention-task",
+    surface: "cli_worktree",
+    worktree_path: taskRepository,
+  }, { productSupportRoot: paths.productSupportRoot, enforcePrivateModes: true });
+  const provisioned = await taskLaunch.provisionCliTask({
+    launch_id: prepared.receipt.launch_id,
+    repository_key: "primary",
+    request: taskRequest,
+    additional_worktree_paths: [],
+  }, {
+    productSupportRoot: paths.productSupportRoot,
+    enforcePrivateModes: true,
+    sourceRepositoryPath: targetRepository,
+  });
+  const repositoryBefore = await directoryManifest(targetRepository);
+  const taskRepositoryBefore = await directoryManifest(taskRepository);
+  const provisioningReceiptBefore = await readFile(prepared.receipt_path, "utf8");
   await mkdir(paths.configurationDirectory, { recursive: true, mode: 0o700 });
   await writeFile(paths.configurationPath, '{"codex":{"codebase_memory":true}}\n', { mode: 0o600 });
   const configurationBefore = await readFile(paths.configurationPath, "utf8");
@@ -123,14 +156,15 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   await writeFile(join(unrelatedMarketplaceRoot, "plugin", "marker.txt"), "unrelated plugin bytes\n");
   const unrelatedMarketplaceBefore = await directoryManifest(unrelatedMarketplaceRoot);
 
-  const firstCore = await startCore(paths.runtimePath, dataDirectory, targetRepository);
+  const firstCore = await startCore(paths.runtimePath, dataDirectory, taskRepository);
   const info = await firstCore.callTool("dev_flow_server_info", {});
   assert.equal(info.result.product, "dev-flow");
   const opened = await firstCore.callTool("dev_flow_open_task", {
     host: "codex",
-    repository_path: targetRepository,
+    repository_path: taskRepository,
+    workspace_origin: provisioned.workspace_origin,
     new_task: {
-      request: "Prove graph task data survives bounded Codex deregistration",
+      request: taskRequest,
       initial_scope: ["one isolated repository"],
       initial_out_of_scope: ["real Codex", "repository mutation"],
       known_acceptance_criteria: ["The same task is readable after deregistration."],
@@ -158,6 +192,7 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   });
   assert.deepEqual(removed, { status: "removed", changed: true });
   assert.equal(await optionalContents(paths.receiptPath), null);
+  assert.equal(await readFile(prepared.receipt_path, "utf8"), provisioningReceiptBefore);
   assert.equal(await readFile(adjacentFile, "utf8"), "preserve adjacent data\n");
   assert.equal(await readFile(codexAdjacentFile, "utf8"), "preserve Codex-adjacent data\n");
   assert.equal(await readFile(unrelatedConfig, "utf8"), "model = \"unrelated-user-choice\"\n");
@@ -170,8 +205,9 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   });
   assert.deepEqual(await directoryManifest(dataDirectory), dataBeforeRemoval);
   assert.deepEqual(await directoryManifest(targetRepository), repositoryBefore);
+  assert.deepEqual(await directoryManifest(taskRepository), taskRepositoryBefore);
 
-  const reopenedCore = await startCore(paths.runtimePath, dataDirectory, targetRepository);
+  const reopenedCore = await startCore(paths.runtimePath, dataDirectory, taskRepository);
   await reopenedCore.callTool("dev_flow_server_info", {});
   const reopened = await reopenedCore.callTool("dev_flow_get_task", {
     host: "codex",
@@ -193,6 +229,7 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   await assert.rejects(stat(installedPackage), { code: "ENOENT" });
   assert.deepEqual(await directoryManifest(dataDirectory), dataBeforeUninstall);
   assert.deepEqual(await directoryManifest(targetRepository), repositoryBefore);
+  assert.equal(await readFile(prepared.receipt_path, "utf8"), provisioningReceiptBefore);
   assert.equal(await readFile(adjacentFile, "utf8"), "preserve adjacent data\n");
   assert.equal(await readFile(codexAdjacentFile, "utf8"), "preserve Codex-adjacent data\n");
   assert.equal(await readFile(unrelatedConfig, "utf8"), "model = \"unrelated-user-choice\"\n");
@@ -209,7 +246,7 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   assert.notEqual(reinstalledPackage, installedPackage);
   const reinstalledPaths = productPaths(reinstalledPackage, isolatedHome, dataDirectory);
   const dataBeforeRetainedRead = await directoryManifest(dataDirectory);
-  const finalCore = await startCore(reinstalledPaths.runtimePath, dataDirectory, targetRepository);
+  const finalCore = await startCore(reinstalledPaths.runtimePath, dataDirectory, taskRepository);
   await finalCore.callTool("dev_flow_server_info", {});
   const retained = await finalCore.callTool("dev_flow_get_task", {
     host: "codex",
@@ -231,6 +268,7 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   assert.equal(fakeCalls.length > 0, true);
   assert.equal(fakeCalls.every((entry) => entry.argv[0] === "--version" || entry.argv[0] === "plugin"), true);
   assert.deepEqual(await directoryManifest(targetRepository), repositoryBefore);
+  assert.deepEqual(await directoryManifest(taskRepository), taskRepositoryBefore);
   assert.equal(await readFile(adjacentFile, "utf8"), "preserve adjacent data\n");
   assert.equal(await readFile(codexAdjacentFile, "utf8"), "preserve Codex-adjacent data\n");
   assert.equal(await readFile(unrelatedConfig, "utf8"), "model = \"unrelated-user-choice\"\n");
@@ -346,7 +384,8 @@ class CoreClient {
   }
 }
 
-async function initializeRepository(path) {
+async function initializeRepository(path, remotePath) {
+  await execFile("git", ["init", "--bare", "--initial-branch=main", remotePath]);
   await mkdir(path, { recursive: true });
   await execFile("git", ["init", "--initial-branch=main"], { cwd: path });
   await execFile("git", ["config", "user.name", "Dev Flow Retention Test"], { cwd: path });
@@ -354,6 +393,8 @@ async function initializeRepository(path) {
   await writeFile(join(path, "README.md"), "retention fixture\n");
   await execFile("git", ["add", "README.md"], { cwd: path });
   await execFile("git", ["commit", "-m", "retention fixture baseline"], { cwd: path });
+  await execFile("git", ["remote", "add", "origin", remotePath], { cwd: path });
+  await execFile("git", ["push", "-u", "origin", "main"], { cwd: path });
 }
 
 async function installArtifact(artifactPath, installPrefix) {
@@ -381,7 +422,11 @@ async function uninstallPackage(installPrefix) {
 }
 
 async function importInstalledLifecycle(installedPackage, cacheKey) {
-  const url = pathToFileURL(join(installedPackage, "lib", "lifecycle.mjs"));
+  return await importInstalledModule(installedPackage, "lib/lifecycle.mjs", cacheKey);
+}
+
+async function importInstalledModule(installedPackage, relativePath, cacheKey) {
+  const url = pathToFileURL(join(installedPackage, relativePath));
   url.searchParams.set("retention", cacheKey);
   return import(url.href);
 }
@@ -414,7 +459,7 @@ function taskIdentity(task) {
     current_cursor: task.current_cursor,
     current_action: task.current_action === null ? null : {
       action_id: task.current_action.action_id,
-      kind: task.current_action.kind,
+      kind: task.current_action.action_kind,
       revision: task.current_action.revision,
       current_node: task.current_action.current_node,
     },

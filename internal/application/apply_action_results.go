@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/recovery"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
@@ -103,12 +102,9 @@ func applyTaskPlanResult(task *domain.ProcessTask, transition domain.TransitionD
 	return nil
 }
 
-func applyImplementationResult(task *domain.ProcessTask, transition domain.TransitionDefinition, envelope workflow.StandardPayload, result *workflow.ImplementationResult, fresh recovery.RepositoryScopeObservation, relation recovery.RepositoryRelation, now time.Time) error {
+func applyImplementationResult(task *domain.ProcessTask, transition domain.TransitionDefinition, envelope workflow.StandardPayload, result *workflow.ImplementationResult, actionPaths []string, now time.Time) error {
 	if task.TaskPlan == nil || result.TaskPlanRevision != task.TaskPlan.Revision {
 		return domain.ErrInvalidArgument
-	}
-	if result.NoFileChanges != (relation == recovery.RepositoryExact) || (len(result.ChangedPaths) > 0) != (relation == recovery.RepositoryWorktreeOnlyChanged) {
-		return domain.ErrRepositoryDrift
 	}
 	known := make(map[domain.ID]bool, len(task.TaskPlan.WorkItems))
 	for _, item := range task.TaskPlan.WorkItems {
@@ -130,12 +126,11 @@ func applyImplementationResult(task *domain.ProcessTask, transition domain.Trans
 	if task.Implementation != nil {
 		revision = task.Implementation.Revision + 1
 	}
-	rebindTaskRepositories(task, fresh)
-	effectiveDigest, err := task.EffectiveRepositoryBindingDigest()
+	workspace, err := task.EffectiveWorkspaceDigests()
 	if err != nil {
 		return domain.ErrInvalidArgument
 	}
-	record := domain.ImplementationRecord{Revision: revision, TaskPlanRevision: result.TaskPlanRevision, RepositoryBindingDigest: effectiveDigest, CompletedWorkItemIDs: result.CompletedWorkItemIDs, ChangedPaths: result.ChangedPaths, NoFileChanges: result.NoFileChanges, Deviations: result.Deviations, Summary: envelope.Summary, CreatedAt: now}
+	record := domain.ImplementationRecord{Revision: revision, TaskPlanRevision: result.TaskPlanRevision, ContentDigest: workspace.Content, CompletedWorkItemIDs: result.CompletedWorkItemIDs, ActionChangedPaths: append([]string(nil), actionPaths...), Deviations: result.Deviations, Summary: envelope.Summary, CreatedAt: now}
 	if record.Validate() != nil {
 		return domain.ErrInvalidArgument
 	}
@@ -144,11 +139,11 @@ func applyImplementationResult(task *domain.ProcessTask, transition domain.Trans
 }
 
 func (s *Service) applyTestResult(task *domain.ProcessTask, transition domain.TransitionDefinition, result *workflow.TestResult, now time.Time) error {
-	effectiveDigest, err := task.EffectiveRepositoryBindingDigest()
+	workspace, err := task.EffectiveWorkspaceDigests()
 	if err != nil {
 		return domain.ErrInvalidArgument
 	}
-	if task.Requirements == nil || task.Design == nil || task.TaskPlan == nil || task.Implementation == nil || task.Implementation.TaskPlanRevision != task.TaskPlan.Revision || task.Implementation.RepositoryBindingDigest != effectiveDigest {
+	if task.Requirements == nil || task.Design == nil || task.TaskPlan == nil || task.Implementation == nil || task.Implementation.TaskPlanRevision != task.TaskPlan.Revision {
 		return domain.ErrTransitionNotAllowed
 	}
 	if err := workflow.EvaluateVerificationBudget(task.Intent.VerificationBudget, task.Evidence, result.Checks, result.ManualHandoffItems); err != nil {
@@ -187,7 +182,7 @@ func (s *Service) applyTestResult(task *domain.ProcessTask, transition domain.Tr
 	for i := range evidence {
 		ids[i] = evidence[i].EvidenceID
 	}
-	task.Test = &domain.TestRecord{RecordID: recordID, RequirementsRevision: task.Requirements.Revision, DesignRevision: task.Design.Revision, TaskPlanRevision: task.TaskPlan.Revision, RepositoryBindingDigest: effectiveDigest, EvidenceIDs: ids, UnverifiedItems: result.UnverifiedItems, ManualHandoffItems: result.ManualHandoffItems, PassedAt: now}
+	task.Test = &domain.TestRecord{RecordID: recordID, RequirementsRevision: task.Requirements.Revision, DesignRevision: task.Design.Revision, TaskPlanRevision: task.TaskPlan.Revision, ContentDigest: workspace.Content, EvidenceIDs: ids, UnverifiedItems: result.UnverifiedItems, ManualHandoffItems: result.ManualHandoffItems, PassedAt: now}
 	task.Comprehension = nil
 	return nil
 }
@@ -231,12 +226,12 @@ func (s *Service) applyComprehensionResult(task *domain.ProcessTask, transition 
 	if err != nil {
 		return err
 	}
-	effectiveDigest, err := task.EffectiveRepositoryBindingDigest()
+	workspace, err := task.EffectiveWorkspaceDigests()
 	if err != nil {
 		return domain.ErrInvalidArgument
 	}
 	task.Evidence = append(task.Evidence, evidence[0])
-	task.Comprehension = &domain.ComprehensionAssessment{RecordID: recordID, TestRecordID: task.Test.RecordID, RequirementsRevision: task.Requirements.Revision, DesignRevision: task.Design.Revision, TaskPlanRevision: task.TaskPlan.Revision, RepositoryBindingDigest: effectiveDigest, ExplainedComponents: result.ExplainedComponents, MaintenanceRisks: result.MaintenanceRisks, UserEvidenceID: evidence[0].EvidenceID, ConfirmedAt: now}
+	task.Comprehension = &domain.ComprehensionAssessment{RecordID: recordID, TestRecordID: task.Test.RecordID, RequirementsRevision: task.Requirements.Revision, DesignRevision: task.Design.Revision, TaskPlanRevision: task.TaskPlan.Revision, ContentDigest: workspace.Content, ExplainedComponents: result.ExplainedComponents, MaintenanceRisks: result.MaintenanceRisks, UserEvidenceID: evidence[0].EvidenceID, ConfirmedAt: now}
 	return nil
 }
 
@@ -253,30 +248,25 @@ func comprehensionFailureFactsPresent(transition domain.TransitionID, result *wo
 	}
 }
 
-func applyRefactorResult(task *domain.ProcessTask, transition domain.TransitionDefinition, envelope workflow.StandardPayload, result *workflow.RefactorResult, fresh recovery.RepositoryScopeObservation, relation recovery.RepositoryRelation, now time.Time) error {
+func applyRefactorResult(task *domain.ProcessTask, transition domain.TransitionDefinition, envelope workflow.StandardPayload, result *workflow.RefactorResult, actionPaths []string, now time.Time) error {
 	if task.Requirements == nil || task.Design == nil || task.TaskPlan == nil || task.Implementation == nil {
 		return domain.ErrTransitionNotAllowed
-	}
-	if result.NoFileChanges != (relation == recovery.RepositoryExact) || (len(result.ChangedPaths) > 0) != (relation == recovery.RepositoryWorktreeOnlyChanged) {
-		return domain.ErrRepositoryDrift
 	}
 	if transition.TransitionID != "refactor_ready_for_test" {
 		if len(result.Findings) == 0 {
 			return domain.ErrTransitionNotAllowed
 		}
-		rebindProcessAuthorities(task, fresh)
 		return invalidateForDestination(task, transition.Destination)
 	}
 	if len(result.Simplifications) == 0 || result.BehaviorChangeIntended || len(result.Findings) != 0 {
 		return domain.ErrTransitionNotAllowed
 	}
 	previous := task.Implementation
-	rebindTaskRepositories(task, fresh)
-	effectiveDigest, err := task.EffectiveRepositoryBindingDigest()
+	workspace, err := task.EffectiveWorkspaceDigests()
 	if err != nil {
 		return domain.ErrInvalidArgument
 	}
-	record := domain.ImplementationRecord{Revision: previous.Revision + 1, TaskPlanRevision: task.TaskPlan.Revision, RepositoryBindingDigest: effectiveDigest, CompletedWorkItemIDs: previous.CompletedWorkItemIDs, ChangedPaths: result.ChangedPaths, NoFileChanges: result.NoFileChanges, Deviations: previous.Deviations, Summary: envelope.Summary, CreatedAt: now}
+	record := domain.ImplementationRecord{Revision: previous.Revision + 1, TaskPlanRevision: task.TaskPlan.Revision, ContentDigest: workspace.Content, CompletedWorkItemIDs: previous.CompletedWorkItemIDs, ActionChangedPaths: append([]string(nil), actionPaths...), Deviations: previous.Deviations, Summary: envelope.Summary, CreatedAt: now}
 	if record.Validate() != nil {
 		return domain.ErrInvalidArgument
 	}

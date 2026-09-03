@@ -19,9 +19,16 @@ otro intento parecido o una sesión reiniciada tiene que reconstruir el avance d
 Dev Flow guarda en una sola tarea local la petición acordada, las rutas previstas, los límites de
 verificación, la etapa actual y los resultados. Codex o DeepSeek sigue encargándose de modificar el código.
 
+Cada petición nueva se evalúa en modo de solo lectura antes de elegir Dev Flow. Si lo eliges, confirmas
+el remote, la rama base y una rama nueva para la tarea; el Host crea desde esa base remota un worktree
+dedicado y limpio antes de que Core cree la Task. Los cambios del checkout de origen no se copian.
+
 - **El alcance permanece claro.** Registra las rutas previstas, pide confirmación antes de que las
   herramientas estructuradas compatibles escriban fuera del plan y vuelve a comprobar los cambios reales
   antes de las pruebas y la entrega.
+- **Cada worktree tiene un solo propietario de cambios.** Core calcula la superficie actual de la Task
+  desde Git; los commits lineales normales continúan, mientras que una reescritura de rama o la sustitución
+  del worktree detiene la tarea.
 - **La verificación tiene límites.** Restringe el número de comandos automáticos, exige permiso previo
   para la suite completa y se detiene en la tercera repetición exacta.
 - **El trabajo continúa después de un reinicio.** Una nueva sesión recupera la misma tarea, las
@@ -64,12 +71,17 @@ O envía este mensaje en **DeepSeek Harness**:
 ```
 
 Son selectores de conversación, no comandos de shell. Incluye un objetivo concreto, las condiciones de
-aceptación, el límite de archivos y el tope de pruebas.
+aceptación, el límite de archivos y el tope de pruebas. La primera respuesta evalúa el impacto y pregunta
+si prefieres trabajar directamente o usar Dev Flow; ni siquiera un selector explícito omite esa decisión.
+Si eliges Dev Flow, confirma el remote, la base y la rama de destino. Codex abre un worktree administrado
+cuando el Host lo permite; DeepSeek muestra cómo reiniciar desde el nuevo worktree porque el Workspace Root
+de la sesión es fijo.
 
 ### 3. Retoma y revisa el progreso
 
-Después de un reinicio, vuelve al mismo directorio de trabajo del repositorio y utiliza de nuevo el mismo
-selector. Dev Flow lee la tarea guardada y continúa desde su etapa actual.
+Después de un reinicio, vuelve al worktree exacto asociado a la Task y solicita reanudarla explícitamente.
+La reanudación no repite la admisión ni elige un worktree sustituto; si la instancia desapareció o fue
+reemplazada, se detiene hasta restaurarla o abandonarla explícitamente.
 
 ```bash
 # Consultar las integraciones instaladas

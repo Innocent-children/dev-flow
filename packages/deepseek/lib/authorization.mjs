@@ -48,13 +48,27 @@ export function deriveCurrentTurn(execution) {
   }
 }
 
+export function currentDirectUserText(execution) {
+  const turn = deriveCurrentTurn(execution);
+  if (turn === undefined) return "";
+  const ids = new Set(turn.directUserMessageIds);
+  return execution.agent.session.events
+    .filter((event) => event?.type === "user/message"
+      && ids.has(event.data?.id)
+      && event.data?.source?.kind === "user")
+    .flatMap((event) => event.data.content ?? [])
+    .filter((block) => block?.type === "text" && typeof block.text === "string")
+    .map((block) => block.text)
+    .join("\n");
+}
+
 export function authorizeDevFlowExecution(execution, {
   workspaceRoot = process.cwd(),
   realpathImpl = realpathSync,
 } = {}) {
   if (!isDevFlowNamespaceTool(execution?.name)) return undefined;
   if (!isExpectedDevFlowTool(execution.name)) {
-    return `${DENIAL_CODES.UNEXPECTED_TOOL}: the Dev Flow namespace permits only the six contracted tools.`;
+    return `${DENIAL_CODES.UNEXPECTED_TOOL}: the Dev Flow namespace permits only the contracted Core tools.`;
   }
   if (execution.agent === undefined) {
     return `${DENIAL_CODES.NO_AGENT}: ${selectorInstruction}.`;

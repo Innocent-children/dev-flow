@@ -13,6 +13,10 @@ type Store interface {
 	CommitTask(context.Context, TaskMutation) error
 }
 
+type WorkspaceLookupStore interface {
+	LoadActiveTaskByCanonicalRoot(context.Context, string) (domain.ProcessTask, error)
+}
+
 type ActionOperationStore interface {
 	Store
 	LoadActionOperation(context.Context, domain.ID) (ActionOperation, bool, error)
@@ -80,6 +84,7 @@ const (
 	ClaimAcquire ClaimOperation = "acquire"
 	ClaimRetain  ClaimOperation = "retain"
 	ClaimRelease ClaimOperation = "release"
+	ClaimReplace ClaimOperation = "replace"
 )
 
 type TaskMutation struct {
@@ -87,30 +92,50 @@ type TaskMutation struct {
 	Task             domain.ProcessTask
 	Event            TaskEvent
 	Claim            ClaimOperation
+	PreviousClaims   []domain.Digest
 }
 
 func repositoryClaimIdentities(task domain.ProcessTask) []domain.Digest {
 	identities := make([]domain.Digest, 0, len(task.AdditionalRepositories)+1)
-	identities = append(identities, task.Repository.RepositoryIdentity)
+	identities = append(identities, task.Repository.WorktreeInstanceDigest)
 	for _, entry := range task.AdditionalRepositories {
-		identities = append(identities, entry.Binding.RepositoryIdentity)
+		identities = append(identities, entry.Binding.WorktreeInstanceDigest)
 	}
 	return identities
 }
 
+func RepositoryClaimIdentities(task domain.ProcessTask) []domain.Digest {
+	return append([]domain.Digest(nil), repositoryClaimIdentities(task)...)
+}
+
+type repositoryClaim struct {
+	identity domain.Digest
+	root     string
+}
+
+func repositoryClaims(task domain.ProcessTask) []repositoryClaim {
+	claims := []repositoryClaim{{identity: task.Repository.WorktreeInstanceDigest, root: task.WorkspaceOrigin.CanonicalWorktreeRoot}}
+	for _, entry := range task.AdditionalRepositories {
+		claims = append(claims, repositoryClaim{identity: entry.Binding.WorktreeInstanceDigest, root: entry.Origin.CanonicalWorktreeRoot})
+	}
+	return claims
+}
+
 type TaskEvent struct {
-	EventID          domain.ID
-	TaskID           domain.ID
-	Revision         uint64
-	Kind             domain.OperationKind
-	SourceNode       domain.NodeID
-	DestinationNode  domain.NodeID
-	TransitionID     *domain.TransitionID
-	TransitionReason string
-	ActionID         *domain.ID
-	RequestID        domain.ID
-	PayloadDigest    domain.Digest
-	CreatedAt        time.Time
+	EventID               domain.ID
+	TaskID                domain.ID
+	Revision              uint64
+	Kind                  domain.OperationKind
+	SourceNode            domain.NodeID
+	DestinationNode       domain.NodeID
+	TransitionID          *domain.TransitionID
+	TransitionReason      string
+	ActionID              *domain.ID
+	ObservedBindingDigest *domain.Digest
+	RepositoryDeltaPaths  []string
+	RequestID             domain.ID
+	PayloadDigest         domain.Digest
+	CreatedAt             time.Time
 }
 
 var _ Store = (*SQLite)(nil)

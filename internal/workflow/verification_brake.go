@@ -115,7 +115,7 @@ func attemptContainsSameCheck(attempt domain.VerificationAttempt, expected domai
 
 func unchangedTestImplementationLoop(attempts []domain.VerificationAttempt) bool {
 	for _, attempt := range attempts {
-		if !attempt.Failed || attempt.DestinationNode != domain.NodeImplement || len(attempt.ChangedPaths) == 0 {
+		if !attempt.Failed || attempt.DestinationNode != domain.NodeImplement || len(attempt.ImplementationPaths) == 0 {
 			return false
 		}
 	}
@@ -123,7 +123,7 @@ func unchangedTestImplementationLoop(attempts []domain.VerificationAttempt) bool
 		attempts[0].FailureDigest != attempts[1].FailureDigest || attempts[1].FailureDigest != attempts[2].FailureDigest {
 		return false
 	}
-	return samePaths(attempts[0].ChangedPaths, attempts[1].ChangedPaths) && samePaths(attempts[1].ChangedPaths, attempts[2].ChangedPaths)
+	return samePaths(attempts[0].ImplementationPaths, attempts[1].ImplementationPaths) && samePaths(attempts[1].ImplementationPaths, attempts[2].ImplementationPaths)
 }
 
 func samePaths(left, right []string) bool {

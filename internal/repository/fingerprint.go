@@ -2,11 +2,14 @@ package repository
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"hash"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -16,13 +19,14 @@ import (
 var ErrInvalidBindingDigests = errors.New("repository binding digests are inconsistent")
 
 const (
-	commonDirectoryDigestDomain = "dev-flow/git-common-dir"
-	repositoryIdentityDomain    = "dev-flow/repository-identity"
-	worktreeFingerprintDomain   = "dev-flow/worktree-fingerprint"
-	repositoryBindingDomain     = "dev-flow/repository-binding"
-	missingContentIdentity      = "missing"
-	gitObjectContentPrefix      = "git-object:"
-	gitlinkContentPrefix        = "gitlink-object:"
+	commonDirectoryDigestDomain      = "dev-flow/git-common-dir"
+	worktreeGitDirectoryDigestDomain = "dev-flow/git-worktree-dir"
+	worktreeInstanceDigestDomain     = "dev-flow/worktree-instance"
+	workspaceIdentityDigestDomain    = "dev-flow/workspace-identity"
+	workspaceHistoryDigestDomain     = "dev-flow/workspace-history"
+	workspaceContentDigestDomain     = "dev-flow/workspace-content"
+	repositoryBindingDomain          = "dev-flow/repository-binding"
+	pathContentDigestDomain          = "dev-flow/path-content"
 )
 
 type porcelainRecord struct {
@@ -36,14 +40,9 @@ type porcelainRecord struct {
 func (record porcelainRecord) contentMissing() bool {
 	return record.kind != "?" && record.worktreeMode == "000000"
 }
-
 func (record porcelainRecord) dirtySubmodule() bool {
-	if record.kind == "u" && record.gitlink() {
-		return true
-	}
-	return len(record.submodule) == 4 && record.submodule[0] == 'S' && record.submodule != "S..."
+	return record.kind == "u" && record.gitlink() || len(record.submodule) == 4 && record.submodule[0] == 'S' && record.submodule != "S..."
 }
-
 func (record porcelainRecord) gitlink() bool {
 	for _, field := range record.fields {
 		if field == "160000" {
@@ -53,66 +52,6 @@ func (record porcelainRecord) gitlink() bool {
 	return false
 }
 
-func (record porcelainRecord) cleanGitlinkObjectID() (string, bool) {
-	if record.kind != "1" || len(record.fields) != 8 || record.dirtySubmodule() {
-		return "", false
-	}
-	for _, candidate := range []struct {
-		modeIndex int
-		oidIndex  int
-	}{
-		{modeIndex: 4, oidIndex: 7},
-		{modeIndex: 3, oidIndex: 6},
-	} {
-		objectID := record.fields[candidate.oidIndex]
-		if record.fields[candidate.modeIndex] == "160000" &&
-			validGitObjectID(objectID) && objectID != strings.Repeat("0", len(objectID)) {
-			return objectID, true
-		}
-	}
-	return "", false
-}
-
-type worktreeFingerprintRecord struct {
-	status          porcelainRecord
-	contentIdentity string
-}
-
-func digestGitCommonDirectory(canonicalCommonDirectory string) domain.Digest {
-	return digestFields(commonDirectoryDigestDomain, []byte(canonicalCommonDirectory))
-}
-
-func digestRepositoryIdentity(canonicalRoot string, commonDirectoryDigest domain.Digest) domain.Digest {
-	return digestFields(
-		repositoryIdentityDomain,
-		[]byte(canonicalRoot),
-		[]byte(commonDirectoryDigest),
-	)
-}
-
-func fingerprintWorktree(records []worktreeFingerprintRecord) domain.Digest {
-	normalized := append([]worktreeFingerprintRecord(nil), records...)
-	sort.Slice(normalized, func(left, right int) bool {
-		leftKey := normalized[left].status.canonicalKey()
-		rightKey := normalized[right].status.canonicalKey()
-		if comparison := bytes.Compare(leftKey, rightKey); comparison != 0 {
-			return comparison < 0
-		}
-		return normalized[left].contentIdentity < normalized[right].contentIdentity
-	})
-
-	digest := sha256.New()
-	writeDigestField(digest, []byte(worktreeFingerprintDomain))
-	var count [8]byte
-	binary.BigEndian.PutUint64(count[:], uint64(len(normalized)))
-	_, _ = digest.Write(count[:])
-	for _, record := range normalized {
-		writeDigestField(digest, record.status.canonicalKey())
-		writeDigestField(digest, []byte(record.contentIdentity))
-	}
-	return domain.Digest(hex.EncodeToString(digest.Sum(nil)))
-}
-
 func parsePorcelainV2(output []byte) ([]porcelainRecord, error) {
 	if len(output) == 0 {
 		return nil, nil
@@ -120,15 +59,11 @@ func parsePorcelainV2(output []byte) ([]porcelainRecord, error) {
 	if output[len(output)-1] != 0 {
 		return nil, ErrGitObservation
 	}
-
 	rawRecords := bytes.Split(output[:len(output)-1], []byte{0})
 	records := make([]porcelainRecord, 0, len(rawRecords))
-	paths := make(map[string]struct{}, len(rawRecords))
-	for _, rawRecord := range rawRecords {
-		if len(rawRecord) == 0 {
-			return nil, ErrGitObservation
-		}
-		record, err := parsePorcelainRecord(rawRecord)
+	paths := map[string]struct{}{}
+	for _, raw := range rawRecords {
+		record, err := parsePorcelainRecord(raw)
 		if err != nil {
 			return nil, err
 		}
@@ -141,48 +76,37 @@ func parsePorcelainV2(output []byte) ([]porcelainRecord, error) {
 	return records, nil
 }
 
-func parsePorcelainRecord(rawRecord []byte) (porcelainRecord, error) {
+func parsePorcelainRecord(raw []byte) (porcelainRecord, error) {
 	switch {
-	case bytes.HasPrefix(rawRecord, []byte("1 ")):
-		parts := bytes.SplitN(rawRecord, []byte{' '}, 9)
-		if len(parts) != 9 || !validXY(parts[1]) || !validSubmoduleField(parts[2]) ||
-			!validModes(parts[3:6]) || !validObjectIDs(parts[6:8]) || len(parts[8]) == 0 {
+	case bytes.HasPrefix(raw, []byte("1 ")):
+		parts := bytes.SplitN(raw, []byte{' '}, 9)
+		if len(parts) != 9 || !validXY(parts[1]) || !validSubmoduleField(parts[2]) || !validModes(parts[3:6]) || !validObjectIDs(parts[6:8]) || len(parts[8]) == 0 {
 			return porcelainRecord{}, ErrGitObservation
 		}
 		return newPorcelainRecord(parts[:8], parts[8], parts[2], parts[5]), nil
-	case bytes.HasPrefix(rawRecord, []byte("u ")):
-		parts := bytes.SplitN(rawRecord, []byte{' '}, 11)
-		if len(parts) != 11 || !validXY(parts[1]) || !validSubmoduleField(parts[2]) ||
-			!validModes(parts[3:7]) || !validObjectIDs(parts[7:10]) || len(parts[10]) == 0 {
+	case bytes.HasPrefix(raw, []byte("u ")):
+		parts := bytes.SplitN(raw, []byte{' '}, 11)
+		if len(parts) != 11 || !validXY(parts[1]) || !validSubmoduleField(parts[2]) || !validModes(parts[3:7]) || !validObjectIDs(parts[7:10]) || len(parts[10]) == 0 {
 			return porcelainRecord{}, ErrGitObservation
 		}
 		return newPorcelainRecord(parts[:10], parts[10], parts[2], parts[6]), nil
-	case bytes.HasPrefix(rawRecord, []byte("? ")):
-		if len(rawRecord) == 2 {
+	case bytes.HasPrefix(raw, []byte("? ")):
+		if len(raw) == 2 {
 			return porcelainRecord{}, ErrGitObservation
 		}
-		return porcelainRecord{kind: "?", fields: []string{"?"}, path: string(rawRecord[2:])}, nil
+		return porcelainRecord{kind: "?", fields: []string{"?"}, path: string(raw[2:])}, nil
 	default:
-		// Rename/copy records are disabled at the command boundary, and branch,
-		// ignored, or unknown record forms are not part of this closed parser.
 		return porcelainRecord{}, ErrGitObservation
 	}
 }
 
 func newPorcelainRecord(fields [][]byte, path, submodule, worktreeMode []byte) porcelainRecord {
-	normalizedFields := make([]string, len(fields))
-	for index, field := range fields {
-		normalizedFields[index] = string(field)
+	values := make([]string, len(fields))
+	for i := range fields {
+		values[i] = string(fields[i])
 	}
-	return porcelainRecord{
-		kind:         normalizedFields[0],
-		fields:       normalizedFields,
-		path:         string(path),
-		submodule:    string(submodule),
-		worktreeMode: string(worktreeMode),
-	}
+	return porcelainRecord{kind: values[0], fields: values, path: string(path), submodule: string(submodule), worktreeMode: string(worktreeMode)}
 }
-
 func validXY(value []byte) bool {
 	if len(value) != 2 || bytes.Equal(value, []byte("..")) {
 		return false
@@ -194,17 +118,9 @@ func validXY(value []byte) bool {
 	}
 	return true
 }
-
 func validSubmoduleField(value []byte) bool {
-	if bytes.Equal(value, []byte("N...")) {
-		return true
-	}
-	return len(value) == 4 && value[0] == 'S' &&
-		(value[1] == '.' || value[1] == 'C') &&
-		(value[2] == '.' || value[2] == 'M') &&
-		(value[3] == '.' || value[3] == 'U')
+	return bytes.Equal(value, []byte("N...")) || len(value) == 4 && value[0] == 'S' && (value[1] == '.' || value[1] == 'C') && (value[2] == '.' || value[2] == 'M') && (value[3] == '.' || value[3] == 'U')
 }
-
 func validModes(values [][]byte) bool {
 	for _, value := range values {
 		if len(value) != 6 {
@@ -218,7 +134,6 @@ func validModes(values [][]byte) bool {
 	}
 	return true
 }
-
 func validObjectIDs(values [][]byte) bool {
 	for _, value := range values {
 		if !validGitObjectID(string(value)) {
@@ -227,7 +142,6 @@ func validObjectIDs(values [][]byte) bool {
 	}
 	return true
 }
-
 func validGitObjectID(value string) bool {
 	if len(value) != 40 && len(value) != 64 {
 		return false
@@ -248,36 +162,32 @@ func (record porcelainRecord) canonicalKey() []byte {
 	writeBufferField(&key, []byte(record.path))
 	return key.Bytes()
 }
-
 func writeBufferField(destination *bytes.Buffer, value []byte) {
 	var length [8]byte
 	binary.BigEndian.PutUint64(length[:], uint64(len(value)))
 	_, _ = destination.Write(length[:])
 	_, _ = destination.Write(value)
 }
-
 func ensureStatusUnchanged(first, second []porcelainRecord) error {
-	firstKeys := canonicalStatusKeys(first)
-	secondKeys := canonicalStatusKeys(second)
-	if len(firstKeys) != len(secondKeys) {
+	a, b := canonicalStatusKeys(first), canonicalStatusKeys(second)
+	if len(a) != len(b) {
 		return ErrInconsistentWorktree
 	}
-	for index := range firstKeys {
-		if !bytes.Equal(firstKeys[index], secondKeys[index]) {
+	for i := range a {
+		if !bytes.Equal(a[i], b[i]) {
 			return ErrInconsistentWorktree
 		}
 	}
 	return nil
 }
-
-func normalizedPorcelainRecords(records []porcelainRecord) []porcelainRecord {
-	normalized := append([]porcelainRecord(nil), records...)
-	sort.Slice(normalized, func(left, right int) bool {
-		return bytes.Compare(normalized[left].canonicalKey(), normalized[right].canonicalKey()) < 0
-	})
-	return normalized
+func canonicalStatusKeys(records []porcelainRecord) [][]byte {
+	keys := make([][]byte, len(records))
+	for i, record := range records {
+		keys[i] = record.canonicalKey()
+	}
+	sort.Slice(keys, func(i, j int) bool { return bytes.Compare(keys[i], keys[j]) < 0 })
+	return keys
 }
-
 func ensureNoDirtySubmodules(records []porcelainRecord) error {
 	for _, record := range records {
 		if record.dirtySubmodule() {
@@ -287,65 +197,309 @@ func ensureNoDirtySubmodules(records []porcelainRecord) error {
 	return nil
 }
 
-func canonicalStatusKeys(records []porcelainRecord) [][]byte {
-	keys := make([][]byte, len(records))
-	for index, record := range records {
-		keys[index] = record.canonicalKey()
+func observedChangedPaths(records []porcelainRecord) []string {
+	seen := map[string]bool{}
+	paths := []string{}
+	for _, record := range records {
+		if record.path != "" && !seen[record.path] {
+			seen[record.path] = true
+			paths = append(paths, record.path)
+		}
 	}
-	sort.Slice(keys, func(left, right int) bool { return bytes.Compare(keys[left], keys[right]) < 0 })
-	return keys
+	sort.Strings(paths)
+	return paths
+}
+
+func recordStatusKind(record porcelainRecord) string {
+	if record.kind == "?" {
+		return "A"
+	}
+	if len(record.fields) > 1 {
+		if strings.Contains(record.fields[1], "A") {
+			return "A"
+		}
+		if strings.Contains(record.fields[1], "D") {
+			return "D"
+		}
+	}
+	if record.contentMissing() {
+		return "D"
+	}
+	if len(record.fields) > 1 && strings.Contains(record.fields[1], "T") {
+		return "T"
+	}
+	return "M"
+}
+
+func parseNameStatus(output []byte) ([]string, map[string]string, error) {
+	if len(output) == 0 {
+		return nil, map[string]string{}, nil
+	}
+	if output[len(output)-1] != 0 {
+		return nil, nil, ErrGitObservation
+	}
+	parts := bytes.Split(output[:len(output)-1], []byte{0})
+	if len(parts)%2 != 0 {
+		return nil, nil, ErrGitObservation
+	}
+	kinds := map[string]string{}
+	paths := make([]string, 0, len(parts)/2)
+	for i := 0; i < len(parts); i += 2 {
+		status, path := string(parts[i]), string(parts[i+1])
+		if len(status) != 1 || !strings.Contains("AMDTU", status) || path == "" || kinds[path] != "" {
+			return nil, nil, ErrGitObservation
+		}
+		kinds[path] = status
+		paths = append(paths, path)
+		if len(paths) > domain.MaxFingerprintPaths {
+			return nil, nil, ErrFingerprintPathLimit
+		}
+	}
+	sort.Strings(paths)
+	return paths, kinds, nil
+}
+
+func mergeChangeKind(left, right string) string {
+	if left == "" {
+		return right
+	}
+	if left == "T" || right == "T" {
+		return "T"
+	}
+	if left == "A" || right == "A" {
+		return "A"
+	}
+	if left == "D" && right == "D" {
+		return "D"
+	}
+	return "M"
+}
+
+type repositoryLayerState struct{ mode, object string }
+
+func parseIndexEntry(output []byte, path string) (repositoryLayerState, error) {
+	if len(output) == 0 {
+		return repositoryLayerState{mode: "000000", object: "missing"}, nil
+	}
+	if output[len(output)-1] != 0 {
+		return repositoryLayerState{}, ErrGitObservation
+	}
+	records := bytes.Split(output[:len(output)-1], []byte{0})
+	if len(records) != 1 {
+		return repositoryLayerState{}, ErrInconsistentWorktree
+	}
+	header, gotPath, ok := bytes.Cut(records[0], []byte{'\t'})
+	fields := bytes.Fields(header)
+	if !ok || string(gotPath) != path || len(fields) != 3 || len(fields[0]) != 6 || !validGitObjectID(string(fields[1])) || string(fields[2]) != "0" {
+		return repositoryLayerState{}, ErrGitObservation
+	}
+	return repositoryLayerState{mode: string(fields[0]), object: string(fields[1])}, nil
+}
+
+func parseBaseEntry(output []byte, path string) (repositoryLayerState, error) {
+	if len(output) == 0 {
+		return repositoryLayerState{mode: "000000", object: "missing"}, nil
+	}
+	if output[len(output)-1] != 0 {
+		return repositoryLayerState{}, ErrGitObservation
+	}
+	records := bytes.Split(output[:len(output)-1], []byte{0})
+	if len(records) != 1 {
+		return repositoryLayerState{}, ErrGitObservation
+	}
+	header, gotPath, ok := bytes.Cut(records[0], []byte{'\t'})
+	fields := bytes.Fields(header)
+	if !ok || string(gotPath) != path || len(fields) != 3 || len(fields[0]) != 6 || !validGitObjectID(string(fields[2])) {
+		return repositoryLayerState{}, ErrGitObservation
+	}
+	return repositoryLayerState{mode: string(fields[0]), object: string(fields[2])}, nil
+}
+
+func layerDigest(layer string, state repositoryLayerState) domain.Digest {
+	_ = layer
+	return digestFields(pathContentDigestDomain+"/layer", []byte(state.mode), []byte(state.object))
+}
+
+func (o *GitObserver) entries(ctx context.Context, root, baseCommit string, paths []string, kinds map[string]string) ([]domain.RepositoryChangedEntry, error) {
+	unique := map[string]bool{}
+	sorted := make([]string, 0, len(paths))
+	for _, path := range paths {
+		if !unique[path] {
+			if _, err := resolveStatusPath(root, path); err != nil {
+				return nil, err
+			}
+			unique[path] = true
+			sorted = append(sorted, path)
+		}
+	}
+	sort.Strings(sorted)
+	entries := make([]domain.RepositoryChangedEntry, 0, len(sorted))
+	for _, path := range sorted {
+		kind := kinds[path]
+		change := domain.RepositoryChangeModified
+		switch kind {
+		case "A":
+			change = domain.RepositoryChangeAdded
+		case "D":
+			change = domain.RepositoryChangeDeleted
+		case "T":
+			change = domain.RepositoryChangeTypeMode
+		}
+		baseResult, err := o.runner.run(ctx, gitShowBaseEntry, root, baseCommit+"\x00"+path)
+		if err != nil || baseResult.exitCode != 0 {
+			return nil, ErrInconsistentWorktree
+		}
+		baseState, err := parseBaseEntry(baseResult.stdout, path)
+		if err != nil {
+			return nil, err
+		}
+		indexResult, err := o.runner.run(ctx, gitShowIndexEntry, root, path)
+		if err != nil || indexResult.exitCode != 0 {
+			return nil, ErrInconsistentWorktree
+		}
+		indexState, err := parseIndexEntry(indexResult.stdout, path)
+		if err != nil {
+			return nil, err
+		}
+		worktreeState := repositoryLayerState{mode: "000000", object: "missing"}
+		local, _ := resolveStatusPath(root, path)
+		info, statErr := os.Lstat(local)
+		if statErr == nil {
+			switch {
+			case info.Mode().IsRegular():
+				worktreeState.mode = "100644"
+				if info.Mode()&0o111 != 0 {
+					worktreeState.mode = "100755"
+				}
+			case info.Mode()&os.ModeSymlink != 0:
+				worktreeState.mode = "120000"
+				target, readErr := os.Readlink(local)
+				if readErr != nil {
+					return nil, ErrInconsistentWorktree
+				}
+				result, hashErr := o.runner.runWithInput(ctx, gitHashObjectStdin, root, "", []byte(target))
+				if hashErr != nil || result.exitCode != 0 {
+					return nil, ErrInconsistentWorktree
+				}
+				object, parseErr := parseObjectLine(result.stdout)
+				if parseErr != nil {
+					return nil, parseErr
+				}
+				worktreeState.object = object
+			case info.IsDir():
+				if indexState.mode != "160000" {
+					return nil, ErrInconsistentWorktree
+				}
+				worktreeState.mode, worktreeState.object = "160000", indexState.object
+			default:
+				return nil, ErrInconsistentWorktree
+			}
+			if worktreeState.mode != "160000" && worktreeState.mode != "120000" {
+				result, err := o.runner.run(ctx, gitHashObject, root, path)
+				if err != nil || result.exitCode != 0 {
+					return nil, ErrInconsistentWorktree
+				}
+				object, parseErr := parseObjectLine(result.stdout)
+				if parseErr != nil {
+					return nil, parseErr
+				}
+				worktreeState.object = object
+			}
+		} else if !errors.Is(statErr, os.ErrNotExist) {
+			return nil, ErrInconsistentWorktree
+		}
+		baseDigest := layerDigest("base", baseState)
+		indexDigest := layerDigest("index", indexState)
+		worktreeDigest := layerDigest("worktree", worktreeState)
+		contentDigest := normalizedPathContentDigest(baseDigest, indexDigest, worktreeDigest)
+		mode := normalizedPathMode(baseState, indexState, worktreeState)
+		entries = append(entries, domain.RepositoryChangedEntry{Path: path, ChangeType: change, FileMode: mode, Gitlink: mode == "160000", BaseMode: baseState.mode, BaseContentDigest: baseDigest, IndexMode: indexState.mode, IndexContentDigest: indexDigest, WorktreeMode: worktreeState.mode, WorktreeContentDigest: worktreeDigest, ContentDigest: contentDigest})
+	}
+	return entries, nil
+}
+
+func normalizedPathContentDigest(base, index, worktree domain.Digest) domain.Digest {
+	if index == base {
+		return worktree
+	}
+	if worktree == index {
+		return index
+	}
+	return digestFields(pathContentDigestDomain+"/split", []byte(index), []byte(worktree))
+}
+
+func normalizedPathMode(base, index, worktree repositoryLayerState) string {
+	baseDigest, indexDigest, worktreeDigest := layerDigest("base", base), layerDigest("index", index), layerDigest("worktree", worktree)
+	if indexDigest == baseDigest {
+		return worktree.mode
+	}
+	if worktreeDigest == indexDigest {
+		return index.mode
+	}
+	return worktree.mode
+}
+
+func digestGitDirectory(path, fileIdentity, domainName string) domain.Digest {
+	return digestFields(domainName, []byte(path), []byte(fileIdentity))
+}
+func digestWorktreeGitDirectory(path, fileIdentity string) domain.Digest {
+	return digestFields(worktreeGitDirectoryDigestDomain, []byte(path), []byte(fileIdentity))
+}
+func digestWorktreeInstance(root, common, commonIdentity, gitDir, gitDirectoryIdentity string) domain.Digest {
+	return digestFields(worktreeInstanceDigestDomain, []byte(root), []byte(common), []byte(commonIdentity), []byte(gitDir), []byte(gitDirectoryIdentity))
+}
+func digestWorkspaceIdentity(origin domain.WorkspaceOrigin, instance domain.Digest) domain.Digest {
+	return digestFields(workspaceIdentityDigestDomain, []byte(instance), []byte(origin.TaskBranch), []byte(origin.BaseCommit))
+}
+func digestHistory(previous domain.Digest, previousHead, head string, relation domain.RepositoryHistoryRelation) domain.Digest {
+	return digestFields(workspaceHistoryDigestDomain, []byte(previous), []byte(previousHead), []byte(head), []byte(relation))
+}
+
+func digestWorkspaceContent(baseCommit string, surface []domain.RepositoryChangedEntry) domain.Digest {
+	digest := sha256.New()
+	writeDigestField(digest, []byte(workspaceContentDigestDomain))
+	writeDigestField(digest, []byte(baseCommit))
+	for _, entry := range surface {
+		writeDigestField(digest, []byte(entry.Path))
+		writeDigestField(digest, []byte(entry.FileMode))
+		writeDigestField(digest, []byte(entry.ContentDigest))
+	}
+	return domain.Digest(hex.EncodeToString(digest.Sum(nil)))
 }
 
 func digestRepositoryBinding(binding domain.RepositoryBinding) domain.Digest {
-	branchPresent, branch := optionalString(binding.Branch)
-	headPresent, head := optionalString(binding.Head)
-
-	return digestFields(
-		repositoryBindingDomain,
-		[]byte(binding.CanonicalRoot),
-		[]byte(binding.GitCommonDirDigest),
-		[]byte(binding.RepositoryIdentity),
-		[]byte{branchPresent},
-		[]byte(branch),
-		boolByte(binding.Detached),
-		[]byte{headPresent},
-		[]byte(head),
-		boolByte(binding.Unborn),
-		[]byte(binding.WorktreeFingerprint),
-	)
+	digest := sha256.New()
+	writeDigestField(digest, []byte(repositoryBindingDomain))
+	for _, value := range []string{string(binding.WorktreeInstanceDigest), string(binding.IdentityDigest), string(binding.HistoryDigest), string(binding.ContentDigest), binding.CurrentHead, binding.HeadTree} {
+		writeDigestField(digest, []byte(value))
+	}
+	if binding.BaseCommitAncestor {
+		writeDigestField(digest, []byte{1})
+	} else {
+		writeDigestField(digest, []byte{0})
+	}
+	if binding.CurrentBranch == nil {
+		writeDigestField(digest, nil)
+	} else {
+		writeDigestField(digest, []byte(*binding.CurrentBranch))
+	}
+	for _, set := range [][]domain.RepositoryChangedEntry{binding.ChangedEntries, binding.TaskSurface} {
+		for _, entry := range set {
+			writeDigestField(digest, []byte(entry.Path))
+			writeDigestField(digest, []byte(entry.ChangeType))
+			writeDigestField(digest, []byte(entry.FileMode))
+			writeDigestField(digest, []byte(entry.ContentDigest))
+		}
+	}
+	return domain.Digest(hex.EncodeToString(digest.Sum(nil)))
 }
 
-// VerifyBindingDigests is the sole pure self-consistency verifier for public
-// RepositoryBinding values. It reuses the private construction algorithms,
-// performs no I/O, and deliberately excludes ObservedAt.
 func VerifyBindingDigests(binding domain.RepositoryBinding) error {
-	if binding.Validate() != nil {
-		return ErrInvalidBindingDigests
-	}
-	expectedIdentity := digestRepositoryIdentity(binding.CanonicalRoot, binding.GitCommonDirDigest)
-	if binding.RepositoryIdentity != expectedIdentity {
-		return ErrInvalidBindingDigests
-	}
-	if binding.BindingDigest != digestRepositoryBinding(binding) {
+	if binding.Validate() != nil || binding.BindingDigest != digestRepositoryBinding(binding) {
 		return ErrInvalidBindingDigests
 	}
 	return nil
 }
-
-func optionalString(value *string) (byte, string) {
-	if value == nil {
-		return 0, ""
-	}
-	return 1, *value
-}
-
-func boolByte(value bool) []byte {
-	if value {
-		return []byte{1}
-	}
-	return []byte{0}
-}
-
 func digestFields(domainSeparator string, fields ...[]byte) domain.Digest {
 	digest := sha256.New()
 	writeDigestField(digest, []byte(domainSeparator))
@@ -354,10 +508,12 @@ func digestFields(domainSeparator string, fields ...[]byte) domain.Digest {
 	}
 	return domain.Digest(hex.EncodeToString(digest.Sum(nil)))
 }
-
 func writeDigestField(destination hash.Hash, value []byte) {
 	var length [8]byte
 	binary.BigEndian.PutUint64(length[:], uint64(len(value)))
 	_, _ = destination.Write(length[:])
 	_, _ = destination.Write(value)
 }
+
+// keep filepath imported in this platform package so mode/path semantics remain here.
+var _ = filepath.Separator

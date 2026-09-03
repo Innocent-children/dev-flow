@@ -31,6 +31,9 @@ func (s *Service) CancelTask(ctx context.Context, r CancelTaskRequest) (CancelTa
 	if err != nil {
 		return CancelTaskResult{}, err
 	}
+	if scopeHasUnavailableWorkspace(task, fresh) {
+		return CancelTaskResult{}, domain.ErrWorkspaceUnavailable
+	}
 	comparison, err := recovery.CompareRepositoryScope(task, fresh)
 	if err != nil {
 		return CancelTaskResult{}, domain.ErrInternal
@@ -48,6 +51,7 @@ func (s *Service) CancelTask(ctx context.Context, r CancelTaskRequest) (CancelTa
 	next.CurrentAction = nil
 	next.Blocker = nil
 	next.ResumeNode = nil
+	next.Relocation = nil
 	next.Revision++
 	next.UpdatedAt = now
 	next.CompletedAt = &now
@@ -70,7 +74,7 @@ func (s *Service) CancelTask(ctx context.Context, r CancelTaskRequest) (CancelTa
 	if err != nil {
 		return CancelTaskResult{}, err
 	}
-	event := store.TaskEvent{EventID: eventID, TaskID: next.TaskID, Revision: next.Revision, Kind: domain.OperationCancelTask, SourceNode: source, DestinationNode: domain.NodeCancelled, RequestID: r.RequestID, PayloadDigest: digest, CreatedAt: now}
+	event := store.TaskEvent{EventID: eventID, TaskID: next.TaskID, Revision: next.Revision, Kind: domain.OperationCancelTask, SourceNode: source, DestinationNode: domain.NodeCancelled, RepositoryDeltaPaths: observedTaskDeltaPaths(task, fresh), RequestID: r.RequestID, PayloadDigest: digest, CreatedAt: now}
 	if err := s.taskStore.CommitTask(ctx, store.TaskMutation{ExpectedRevision: r.ExpectedRevision, Task: next, Event: event, Claim: store.ClaimRelease}); err != nil {
 		return CancelTaskResult{}, mapStoreError(err)
 	}

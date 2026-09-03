@@ -65,18 +65,23 @@ func recordVerificationAttempt(task *domain.ProcessTask, transition domain.Trans
 	for index := range evidence {
 		evidenceIDs[index] = evidence[index].EvidenceID
 	}
-	paths := append([]string(nil), task.Implementation.ChangedPaths...)
+	paths := append([]string(nil), task.Implementation.ActionChangedPaths...)
 	sort.Strings(paths)
+	workspace, err := task.EffectiveWorkspaceDigests()
+	if err != nil {
+		return domain.ErrInternal
+	}
 	attempt := domain.VerificationAttempt{
 		TaskRevision:           task.Revision + 1,
 		TaskPlanRevision:       task.TaskPlan.Revision,
 		ImplementationRevision: task.Implementation.Revision,
+		ContentDigest:          workspace.Content,
 		DestinationNode:        transition.Destination,
 		EvidenceIDs:            evidenceIDs,
 		ResultDigest:           resultDigest,
 		FailureDigest:          failureDigest,
 		Failed:                 failed,
-		ChangedPaths:           paths,
+		ImplementationPaths:    paths,
 		RecordedAt:             now,
 	}
 	if attempt.Validate() != nil {
@@ -125,7 +130,7 @@ func (s *Service) verificationBrakeBlocker(task domain.ProcessTask, resume domai
 	if err != nil {
 		return nil, err
 	}
-	digest, err := task.EffectiveRepositoryBindingDigest()
+	workspace, err := task.EffectiveWorkspaceDigests()
 	if err != nil {
 		return nil, domain.ErrInternal
 	}
@@ -146,8 +151,8 @@ func (s *Service) verificationBrakeBlocker(task domain.ProcessTask, resume domai
 		Cause:                 decision.Cause,
 		Message:               message,
 		ResumeNode:            resume,
-		ObservedBindingDigest: digest,
-		Condition:             domain.BlockerCondition{Kind: domain.BlockerConditionAllowVerificationRetry, ExpectedBindingDigest: digest},
+		ObservedBindingDigest: workspace.Binding,
+		Condition:             domain.BlockerCondition{Kind: domain.BlockerConditionAllowVerificationRetry, ExpectedBindingDigest: workspace.Binding, ExpectedIdentityDigest: workspace.Identity, ExpectedHistoryDigest: workspace.History, ExpectedContentDigest: workspace.Content},
 		RequiredResolution:    "Choose a different implementation or design path, explicitly allow one more attempt, or cancel the Task.",
 		CreatedAt:             now,
 	}, nil

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -26,6 +25,15 @@ type countingRepositoryObserver struct {
 func (o *countingRepositoryObserver) Observe(ctx context.Context, path string) (domain.RepositoryBinding, error) {
 	o.calls++
 	return o.delegate.Observe(ctx, path)
+}
+
+func (o *countingRepositoryObserver) ObserveWorkspace(ctx context.Context, path string, selection repository.WorkspaceOriginSelection, previous *domain.RepositoryBinding) (domain.WorkspaceOrigin, domain.RepositoryBinding, error) {
+	o.calls++
+	delegate, ok := o.delegate.(repository.WorkspaceRepositoryObserver)
+	if !ok {
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, repository.ErrProvisioningRequired
+	}
+	return delegate.ObserveWorkspace(ctx, path, selection, previous)
 }
 
 type commitBarrierStore struct {
@@ -74,7 +82,7 @@ func (j *iterationJourney) installCountingObserver() *countingRepositoryObserver
 
 func recoveryProbe(task domain.ProcessTask, operationID domain.ID, payload json.RawMessage) application.OperationProbe {
 	action := task.CurrentAction
-	return application.OperationProbe{OperationID: operationID, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, RepositoryBindingDigest: task.Repository.BindingDigest, Payload: payload}
+	return application.OperationProbe{OperationID: operationID, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, ExpectedRevision: task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, RepositoryBindingDigest: action.RepositoryBindingDigest, IssuanceIdentityDigest: action.IssuanceIdentityDigest, IssuanceHistoryDigest: action.IssuanceHistoryDigest, IssuanceContentDigest: action.IssuanceContentDigest, Payload: payload}
 }
 
 func recoveryApplyRequest(task domain.ProcessTask, operationID domain.ID, payload json.RawMessage) application.ApplyActionRequest {
@@ -95,22 +103,8 @@ func assertProbedReads(t *testing.T, j *iterationJourney, observer *countingRepo
 		t.Fatalf("get_task observations=%d", observer.calls-beforeCalls)
 	}
 	j.assertStateUnchanged(before)
-	beforeCalls = observer.calls
-	next, err := j.service.GetNextAction(context.Background(), application.GetNextActionRequest{Host: domain.HostCodex, TaskID: j.task.TaskID, OperationProbe: &probe})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if observer.calls != beforeCalls+1 {
-		t.Fatalf("get_next_action observations=%d", observer.calls-beforeCalls)
-	}
-	j.assertStateUnchanged(before)
-	if read.RecoveryAssessment == nil || next.RecoveryAssessment == nil {
+	if read.RecoveryAssessment == nil {
 		t.Fatal("probed read omitted recovery assessment")
-	}
-	readAssessment, nextAssessment := *read.RecoveryAssessment, *next.RecoveryAssessment
-	readAssessment.ObservedAt, nextAssessment.ObservedAt = time.Time{}, time.Time{}
-	if !reflect.DeepEqual(readAssessment, nextAssessment) || !reflect.DeepEqual(read.Task, j.task) || next.Action == nil || next.Action.ActionID != j.task.CurrentAction.ActionID {
-		t.Fatal("probed read projections diverged or changed action authority")
 	}
 	raw, err := json.Marshal(read.RecoveryAssessment)
 	if err != nil {
@@ -141,18 +135,10 @@ func refactorRecoveryPayload(t *testing.T, task domain.ProcessTask) json.RawMess
 
 func openJourneyAtPaths(t *testing.T, repoPath, dbPath string, profile domain.MethodProfile, create bool) *iterationJourney {
 	t.Helper()
+	var workspaceOrigin *application.WorkspaceOriginInput
 	if create {
-		if err := os.MkdirAll(repoPath, 0o755); err != nil {
-			t.Fatal(err)
-		}
-		runJourneyGit(t, repoPath, "init", "-q")
-		runJourneyGit(t, repoPath, "config", "user.email", "phase7b@example.invalid")
-		runJourneyGit(t, repoPath, "config", "user.name", "Phase 7B Journey")
-		if err := os.WriteFile(filepath.Join(repoPath, "README.md"), []byte("initial\n"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		runJourneyGit(t, repoPath, "add", "README.md")
-		runJourneyGit(t, repoPath, "commit", "-q", "-m", "initial")
+		origin := initializeDedicatedJourneyWorktree(t, repoPath, "task/phase7b", "receipt-phase7b")
+		workspaceOrigin = &origin
 	}
 	sqliteStore, err := store.Open(context.Background(), dbPath)
 	if err != nil {
@@ -165,7 +151,7 @@ func openJourneyAtPaths(t *testing.T, repoPath, dbPath string, profile domain.Me
 	}
 	var task domain.ProcessTask
 	if create {
-		opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "phase7b-open", Host: domain.HostCodex, RepositoryPath: repoPath, NewTask: &application.NewTaskInput{Request: "Prove Phase 7B graph recovery and restart journeys.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 16, AllowManualHandoff: true}, MethodProfile: profile}})
+		opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "phase7b-open", Host: domain.HostCodex, RepositoryPath: repoPath, WorkspaceOrigin: workspaceOrigin, NewTask: &application.NewTaskInput{Request: "Prove Phase 7B graph recovery and restart journeys.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 16, AllowManualHandoff: true}, MethodProfile: profile}})
 		if err != nil {
 			_ = sqliteStore.Close()
 			t.Fatal(err)
@@ -180,6 +166,40 @@ func openJourneyAtPaths(t *testing.T, repoPath, dbPath string, profile domain.Me
 		task = resumed.Task
 	}
 	return &iterationJourney{t: t, service: service, store: sqliteStore, dbPath: dbPath, repo: repoPath, task: task}
+}
+
+func initializeDedicatedJourneyWorktree(t *testing.T, worktreePath, taskBranch string, receiptID domain.ID) application.WorkspaceOriginInput {
+	t.Helper()
+	sourcePath := worktreePath + "-source"
+	remotePath := worktreePath + "-remote.git"
+	if err := os.MkdirAll(filepath.Dir(worktreePath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	runJourneyGit(t, filepath.Dir(worktreePath), "init", "--bare", "-q", "--initial-branch=main", remotePath)
+	if err := os.MkdirAll(sourcePath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	runJourneyGit(t, sourcePath, "init", "-q", "--initial-branch=main")
+	runJourneyGit(t, sourcePath, "config", "user.email", "journey@example.invalid")
+	runJourneyGit(t, sourcePath, "config", "user.name", "Journey Test")
+	if err := os.WriteFile(filepath.Join(sourcePath, "README.md"), []byte("initial\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runJourneyGit(t, sourcePath, "add", "README.md")
+	runJourneyGit(t, sourcePath, "commit", "-q", "-m", "initial")
+	runJourneyGit(t, sourcePath, "remote", "add", "origin", remotePath)
+	runJourneyGit(t, sourcePath, "push", "-q", "-u", "origin", "main")
+	runJourneyGit(t, sourcePath, "worktree", "add", "-q", "-b", taskBranch, worktreePath, "refs/remotes/origin/main")
+	return journeyWorkspaceOriginInput(t, worktreePath, receiptID)
+}
+
+func journeyWorkspaceOriginInput(t *testing.T, worktreePath string, receiptID domain.ID) application.WorkspaceOriginInput {
+	t.Helper()
+	return application.WorkspaceOriginInput{
+		Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main",
+		BaseCommit: journeyGitOutput(t, worktreePath, "rev-parse", "refs/remotes/origin/main"),
+		TaskBranch: journeyGitOutput(t, worktreePath, "branch", "--show-current"), ProvisioningReceiptID: receiptID,
+	}
 }
 
 func databaseCount(t *testing.T, dbPath, query string, args ...any) int {

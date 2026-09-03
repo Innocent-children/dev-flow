@@ -13,6 +13,7 @@ import {
   runCLI,
   stopPackagedWebUI,
 } from "../bin/dev-flow-codex.mjs";
+import { CODEX_MCP_INSTRUCTIONS } from "../lib/lifecycle.mjs";
 import { resolveProductPaths } from "../lib/paths.mjs";
 
 const execFile = promisify(execFileCallback);
@@ -62,19 +63,7 @@ test("mcp selects only the package-local Core and inherits protocol stdio", asyn
   assert.equal(calls[0].options.env.SAFE_PARENT_VALUE, "preserved");
   assert.equal(
     calls[0].options.env.DEV_FLOW_CODEX_MCP_INSTRUCTIONS,
-    "Dev Flow for Codex supports implicit selection for bounded implementation, bug-fix, refactoring, targeted-testing, and development-delivery tasks, plus explicit selection with `$dev-flow-codex:dev-flow`. " +
-      "An explicit parallel batch for one logical Git repository must be split before single-Task admission into one Host-created worktree-backed Codex task per bounded item; never use shared-directory sub-agents or create one parent Core Task. " +
-      "Explanation-only, status-only, design-discussion, ordinary-question, and ambiguous requests must not create or resume a Dev Flow Task. " +
-      "The exact selector force-selects the Skill; bare `$dev-flow` and wrong plugin or Skill names are not explicit selection. " +
-      "After either valid activation path, `dev_flow_server_info` must be the first Dev Flow call. " +
-      "Read `host_preferences.codex.codebase_memory` from that handshake without installing or configuring codebase-memory. " +
-      "Call `dev_flow_open_task` only for a substantive bounded request or explicit resume after a successful `dev_flow_server_info` handshake. " +
-      "Only when a new-task dev_flow_open_task returns a complete ACTIVE_TASK_CONFLICT and the Host worktree-backed task/thread capability is available, dispatch exactly one Host-created worktree-backed Codex task with the exact selector; set target.environment.type=worktree and omit startingState so the child starts from committed default-branch state, and never inspect, copy, or apply the source checkout's index, tracked working-tree changes, or untracked files. " +
-      "After that conflict decision make no further Dev Flow Core call and never retry Host creation; explicit resume, HOST_OWNERSHIP_CONFLICT, and every other error keep the existing stop behavior. " +
-      "Use the current Git worktree as primary and only user-declared additional repositories already authorized as writable roots; never scan repositories or change Codex sandbox permissions. " +
-      "The packaged PreToolUse hook checks apply_patch targets against the complete current multi-repository Task Plan before execution; an expected path in any declared writable repository needs no extra question. " +
-      "When a file-scope blocker is current, obtain exactly one developer choice and reason, then call dev_flow_resolve_blocker with allow_once, expand_scope, or reject; never infer or reuse the decision. " +
-      "Do not claim that Bash, external processes, specialized tools, or an untrusted or disabled hook were intercepted; Core final scope guards still reconcile Task-introduced changed paths.",
+    CODEX_MCP_INSTRUCTIONS,
   );
   assert.equal(calls[0].arguments_.includes("--add-dir"), false);
   assert.equal(calls[0].arguments_.includes("--sandbox"), false);
@@ -130,6 +119,46 @@ test("host-check forwards the closed pre-file-write command to the package-local
   assert.equal(calls[0].options.shell, false);
   assert.equal(calls[0].options.env.DEV_FLOW_DATA_DIR, paths.dataDirectory);
   assert.equal(calls[0].options.env.SAFE_PARENT_VALUE, "preserved");
+});
+
+test("host-launch accepts only closed JSON on the fixed internal operation surface", async (t) => {
+  const paths = await makePaths(t, { usesDefaultDataDirectory: false });
+  const stdout = captureStream();
+  assert.deepEqual(await runCLI(["host-launch", "cleanup-decision"], {
+    stdout,
+    stderr: captureStream(),
+    resolvePaths: async () => paths,
+    readInput: async () => JSON.stringify({
+      lifecycle: "DONE",
+      surface: "cli_worktree",
+      clean: true,
+      pushed: true,
+      stateCertain: true,
+    }),
+  }), { code: 0, signal: null });
+  assert.deepEqual(JSON.parse(stdout.text), {
+    automatic_cleanup: false,
+    worktree_cleanup: "separate_authorization_required",
+    branch_cleanup: "separate_authorization_required",
+  });
+
+  const invalidError = captureStream();
+  assert.deepEqual(await runCLI(["host-launch", "cleanup-decision"], {
+    stdout: captureStream(),
+    stderr: invalidError,
+    resolvePaths: async () => paths,
+    readInput: async () => "[]",
+  }), { code: 1, signal: null });
+  assert.match(invalidError.text, /one JSON object/u);
+
+  const duplicateError = captureStream();
+  assert.deepEqual(await runCLI(["host-launch", "cleanup-decision"], {
+    stdout: captureStream(),
+    stderr: duplicateError,
+    resolvePaths: async () => paths,
+    readInput: async () => '{"lifecycle":"DONE","lifecycle":"CANCELLED","surface":"cli_worktree","clean":true,"pushed":true,"stateCertain":true}',
+  }), { code: 1, signal: null });
+  assert.match(duplicateError.text, /duplicate field lifecycle/u);
 });
 
 test("hook dispatches the package-owned PreToolUse implementation without resolving product paths", async () => {
@@ -363,7 +392,7 @@ test("setup emits success only after verified lifecycle completion and fails on 
     receipt_path: paths.receiptPath,
     configuration_path: paths.configurationPath,
     file_changes: [{ path: paths.configurationPath, change: "created" }],
-    next_step: "Review and trust the Dev Flow hook with /hooks, then use $dev-flow-codex:dev-flow <task description>",
+    next_step: "Review and trust the Dev Flow hook with /hooks, then use $dev-flow-codex:dev-flow <task description> to assess the request",
   });
   assert.equal(stderr.text, "");
 
@@ -603,6 +632,7 @@ test("launcher exposes no repository or sandbox configuration command", async ()
     ["host-check"],
     ["host-check", "future"],
     ["host-check", "pre-file-write", "extra"],
+    ["host-launch", "future"],
     ["hook"],
     ["hook", "future"],
     ["hook", "pre-tool-use", "extra"],
@@ -658,6 +688,7 @@ async function makePaths(t, { usesDefaultDataDirectory = false, executable = tru
     dataDirectory,
     usesDefaultDataDirectory,
     homeDirectory,
+    productSupportRoot: join(root, "product support"),
     configurationDirectory,
     configurationPath: join(configurationDirectory, "config.json"),
   };

@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/url"
 	"os"
@@ -112,7 +113,7 @@ func preflightExisting(ctx context.Context, path string) error {
 	return preflightRows(ctx, db)
 }
 func preflightRows(ctx context.Context, db *sql.DB) error {
-	rows, err := db.QueryContext(ctx, `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,repository_identity,snapshot,created_at,updated_at,archived_at FROM tasks`)
+	rows, err := db.QueryContext(ctx, `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,worktree_instance_digest,snapshot,created_at,updated_at,archived_at FROM tasks`)
 	if err != nil {
 		return ErrSchemaUnsupported
 	}
@@ -120,11 +121,11 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 	standard := workflow.StandardProcess().Reference
 	tasks := map[string]preflightTask{}
 	for rows.Next() {
-		var taskID, originHost, processID, digest, node, repositoryIdentity, createdAt, updatedAt string
+		var taskID, originHost, processID, digest, node, worktreeInstance, createdAt, updatedAt string
 		var archivedAt sql.NullString
 		var revision int64
 		var snapshot []byte
-		if err := rows.Scan(&taskID, &originHost, &processID, &digest, &node, &revision, &repositoryIdentity, &snapshot, &createdAt, &updatedAt, &archivedAt); err != nil {
+		if err := rows.Scan(&taskID, &originHost, &processID, &digest, &node, &revision, &worktreeInstance, &snapshot, &createdAt, &updatedAt, &archivedAt); err != nil {
 			return ErrStorageUnavailable
 		}
 		if processID != string(standard.ID) || digest != string(standard.DefinitionDigest) {
@@ -134,7 +135,7 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 		if err != nil {
 			return err
 		}
-		if string(task.TaskID) != taskID || string(task.OriginHost) != originHost || task.Process != standard || string(task.CurrentNode) != node || int64(task.Revision) != revision || string(task.Repository.RepositoryIdentity) != repositoryIdentity || formatTime(task.CreatedAt) != createdAt || formatTime(task.UpdatedAt) != updatedAt {
+		if string(task.TaskID) != taskID || string(task.OriginHost) != originHost || task.Process != standard || string(task.CurrentNode) != node || int64(task.Revision) != revision || string(task.Repository.WorktreeInstanceDigest) != worktreeInstance || formatTime(task.CreatedAt) != createdAt || formatTime(task.UpdatedAt) != updatedAt {
 			return ErrStorageUnavailable
 		}
 		archive, err := decodeArchiveTime(nullableString(archivedAt))
@@ -144,16 +145,16 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 		if _, exists := tasks[taskID]; exists {
 			return ErrStorageUnavailable
 		}
-		expectedClaims := map[string]bool{}
-		for _, identity := range repositoryClaimIdentities(task) {
-			expectedClaims[string(identity)] = true
+		expectedClaims := map[string]string{}
+		for _, claim := range repositoryClaims(task) {
+			expectedClaims[string(claim.identity)] = claim.root
 		}
 		tasks[taskID] = preflightTask{task: task, originHost: originHost, terminal: task.CurrentNode.Terminal(), expectedClaims: expectedClaims}
 	}
 	if rows.Err() != nil || rows.Close() != nil {
 		return ErrStorageUnavailable
 	}
-	operations, err := db.QueryContext(ctx, `SELECT task_id,operation_id,process_id,process_definition_digest,source_node,expected_revision,action_id,action_kind,repository_binding_digest,payload,payload_digest,prepared_at,applied_revision FROM action_operations`)
+	operations, err := db.QueryContext(ctx, `SELECT task_id,operation_id,process_id,process_definition_digest,source_node,expected_revision,action_id,action_kind,repository_binding_digest,issuance_identity_digest,issuance_history_digest,issuance_content_digest,payload,payload_digest,prepared_at,applied_revision FROM action_operations`)
 	if err != nil {
 		return ErrSchemaUnsupported
 	}
@@ -180,20 +181,75 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 	if operations.Err() != nil || operations.Close() != nil {
 		return ErrStorageUnavailable
 	}
-	claims, err := db.QueryContext(ctx, `SELECT repository_identity,task_id,origin_host FROM repository_claims`)
+	relocations, err := db.QueryContext(ctx, `SELECT relocation_id,task_id,request_id,source_binding_digest,prepared_at,resolved_revision FROM relocation_operations`)
+	if err != nil {
+		return ErrSchemaUnsupported
+	}
+	defer relocations.Close()
+	unresolved := map[string]preflightRelocation{}
+	relocationHistory := map[string][]preflightRelocation{}
+	for relocations.Next() {
+		var relocationID, taskID, requestID, sourceDigest, preparedAt string
+		var resolved sql.NullInt64
+		if relocations.Scan(&relocationID, &taskID, &requestID, &sourceDigest, &preparedAt, &resolved) != nil {
+			return ErrStorageUnavailable
+		}
+		prepared, parseErr := time.Parse(time.RFC3339Nano, preparedAt)
+		task, exists := tasks[taskID]
+		if !exists || !domain.ID(relocationID).IsValid() || !domain.ID(requestID).IsValid() || !domain.Digest(sourceDigest).IsValid() || parseErr != nil || prepared.Location() != time.UTC {
+			return ErrStorageUnavailable
+		}
+		record := preflightRelocation{
+			relocationID:        relocationID,
+			requestID:           requestID,
+			sourceBindingDigest: sourceDigest,
+			preparedAt:          prepared,
+		}
+		relocationHistory[taskID] = append(relocationHistory[taskID], record)
+		if resolved.Valid {
+			if resolved.Int64 < 1 || uint64(resolved.Int64) > task.task.Revision {
+				return ErrStorageUnavailable
+			}
+			record.resolvedRevision = uint64(resolved.Int64)
+			history := relocationHistory[taskID]
+			history[len(history)-1] = record
+			relocationHistory[taskID] = history
+			continue
+		}
+		if unresolved[taskID].relocationID != "" {
+			return ErrStorageUnavailable
+		}
+		unresolved[taskID] = record
+	}
+	if relocations.Err() != nil || relocations.Close() != nil {
+		return ErrStorageUnavailable
+	}
+	for taskID, item := range tasks {
+		pending := unresolved[taskID]
+		if (item.task.Relocation == nil) != (pending.relocationID == "") || item.task.Relocation != nil &&
+			(string(item.task.Relocation.RelocationID) != pending.relocationID ||
+				string(item.task.Relocation.SourceBindingDigest) != pending.sourceBindingDigest ||
+				!item.task.Relocation.PreparedAt.Equal(pending.preparedAt) || item.task.LastOperation == nil ||
+				item.task.LastOperation.Kind != domain.OperationPrepareTaskRelocation ||
+				string(item.task.LastOperation.OperationID) != pending.requestID) {
+			return ErrStorageUnavailable
+		}
+	}
+	claims, err := db.QueryContext(ctx, `SELECT worktree_instance_digest,canonical_worktree_root,task_id,origin_host FROM repository_claims`)
 	if err != nil {
 		return ErrSchemaUnsupported
 	}
 	defer claims.Close()
 	claimCount := map[string]int{}
 	for claims.Next() {
-		var repositoryIdentity, taskID, originHost string
-		if err := claims.Scan(&repositoryIdentity, &taskID, &originHost); err != nil {
+		var worktreeInstance, root, taskID, originHost string
+		if err := claims.Scan(&worktreeInstance, &root, &taskID, &originHost); err != nil {
 			claims.Close()
 			return ErrStorageUnavailable
 		}
 		task, exists := tasks[taskID]
-		if !exists || task.terminal || !task.expectedClaims[repositoryIdentity] || task.originHost != originHost {
+		expectedRoot, claimed := task.expectedClaims[worktreeInstance]
+		if !exists || task.terminal || !claimed || expectedRoot != root || task.originHost != originHost {
 			claims.Close()
 			return ErrStorageUnavailable
 		}
@@ -215,8 +271,34 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 			return ErrStorageUnavailable
 		}
 		traversals := make([]workflow.CommittedTraversal, len(events))
+		eventsByRequest := make(map[domain.ID][]TaskEvent, len(events))
+		eventsByRevision := make(map[uint64]TaskEvent, len(events))
 		for index, event := range events {
+			if !storedTaskEventValid(task.task, event) {
+				return ErrStorageUnavailable
+			}
+			eventsByRequest[event.RequestID] = append(eventsByRequest[event.RequestID], event)
+			eventsByRevision[event.Revision] = event
 			traversals[index] = workflow.CommittedTraversal{Revision: event.Revision, Kind: event.Kind, Source: event.SourceNode, Destination: event.DestinationNode, TransitionID: event.TransitionID, Reason: event.TransitionReason, CreatedAt: event.CreatedAt}
+		}
+		for _, relocation := range relocationHistory[taskID] {
+			matches := eventsByRequest[domain.ID(relocation.requestID)]
+			if len(matches) != 1 {
+				return ErrStorageUnavailable
+			}
+			event := matches[0]
+			if event.Kind != domain.OperationPrepareTaskRelocation ||
+				event.DestinationNode != domain.NodeBlocked || !event.SourceNode.Normal() ||
+				event.ObservedBindingDigest == nil || string(*event.ObservedBindingDigest) != relocation.sourceBindingDigest ||
+				!event.CreatedAt.Equal(relocation.preparedAt) {
+				return ErrStorageUnavailable
+			}
+			if relocation.resolvedRevision != 0 {
+				resolvedEvent, exists := eventsByRevision[relocation.resolvedRevision]
+				if !exists || relocation.resolvedRevision != event.Revision+1 || !relocationResolutionEvent(resolvedEvent) {
+					return ErrStorageUnavailable
+				}
+			}
 		}
 		if !workflow.ProjectControlCenterGraph(task.task, traversals).Safe {
 			return ErrStorageUnavailable
@@ -225,11 +307,54 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 	return nil
 }
 
+func storedTaskEventValid(task domain.ProcessTask, event TaskEvent) bool {
+	if !event.EventID.IsValid() || event.TaskID != task.TaskID || event.Revision == 0 || event.Revision > task.Revision ||
+		!event.Kind.IsValid() || !event.SourceNode.IsValid() || !event.DestinationNode.IsValid() ||
+		!event.RequestID.IsValid() || !event.PayloadDigest.IsValid() || event.CreatedAt.IsZero() || event.CreatedAt.Location() != time.UTC ||
+		len(event.RepositoryDeltaPaths) > domain.MaxRepositoryDeltaPaths {
+		return false
+	}
+	if event.ActionID != nil && !event.ActionID.IsValid() {
+		return false
+	}
+	if event.ObservedBindingDigest != nil && !event.ObservedBindingDigest.IsValid() {
+		return false
+	}
+	if event.TransitionID != nil && !event.TransitionID.IsValid() {
+		return false
+	}
+	for index, path := range event.RepositoryDeltaPaths {
+		if task.ValidateRepositoryPath(path) != nil || index > 0 && event.RepositoryDeltaPaths[index-1] >= path {
+			return false
+		}
+	}
+	return true
+}
+
+func relocationResolutionEvent(event TaskEvent) bool {
+	switch event.Kind {
+	case domain.OperationApplyAction:
+		return event.SourceNode == domain.NodeBlocked && event.DestinationNode.Normal()
+	case domain.OperationCancelTask, domain.OperationAbandonTask:
+		return event.DestinationNode == domain.NodeCancelled
+	default:
+		return false
+	}
+}
+
 type preflightTask struct {
 	task           domain.ProcessTask
 	originHost     string
 	terminal       bool
-	expectedClaims map[string]bool
+	expectedClaims map[string]string
+}
+
+type preflightRelocation struct {
+	relocationID        string
+	requestID           string
+	sourceBindingDigest string
+	preparedAt          time.Time
+	resolvedRevision    uint64
 }
 
 func (s *SQLite) Close() error {
@@ -242,10 +367,13 @@ func (s *SQLite) Close() error {
 	return nil
 }
 func (s *SQLite) LoadTask(ctx context.Context, id domain.ID) (domain.ProcessTask, error) {
-	return s.load(ctx, `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,repository_identity,snapshot,created_at,updated_at FROM tasks WHERE task_id=?`, string(id))
+	return s.load(ctx, `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,worktree_instance_digest,snapshot,created_at,updated_at FROM tasks WHERE task_id=?`, string(id))
 }
 func (s *SQLite) LoadActiveTask(ctx context.Context, identity domain.Digest) (domain.ProcessTask, error) {
-	return s.load(ctx, `SELECT t.task_id,t.origin_host,t.process_id,t.process_definition_digest,t.current_node,t.revision,t.repository_identity,t.snapshot,t.created_at,t.updated_at FROM repository_claims c JOIN tasks t ON t.task_id=c.task_id WHERE c.repository_identity=?`, string(identity))
+	return s.load(ctx, `SELECT t.task_id,t.origin_host,t.process_id,t.process_definition_digest,t.current_node,t.revision,t.worktree_instance_digest,t.snapshot,t.created_at,t.updated_at FROM repository_claims c JOIN tasks t ON t.task_id=c.task_id WHERE c.worktree_instance_digest=?`, string(identity))
+}
+func (s *SQLite) LoadActiveTaskByCanonicalRoot(ctx context.Context, root string) (domain.ProcessTask, error) {
+	return s.load(ctx, `SELECT t.task_id,t.origin_host,t.process_id,t.process_definition_digest,t.current_node,t.revision,t.worktree_instance_digest,t.snapshot,t.created_at,t.updated_at FROM repository_claims c JOIN tasks t ON t.task_id=c.task_id WHERE c.canonical_worktree_root=?`, root)
 }
 func (s *SQLite) load(ctx context.Context, query, arg string) (domain.ProcessTask, error) {
 	if s == nil || s.db == nil {
@@ -277,7 +405,7 @@ func scanStoredTask(row rowScanner) (domain.ProcessTask, error) {
 	if err != nil {
 		return domain.ProcessTask{}, err
 	}
-	if taskID != string(task.TaskID) || host != string(task.OriginHost) || processID != string(task.Process.ID) || digest != string(task.Process.DefinitionDigest) || node != string(task.CurrentNode) || revision != int64(task.Revision) || identity != string(task.Repository.RepositoryIdentity) || created != formatTime(task.CreatedAt) || updated != formatTime(task.UpdatedAt) {
+	if taskID != string(task.TaskID) || host != string(task.OriginHost) || processID != string(task.Process.ID) || digest != string(task.Process.DefinitionDigest) || node != string(task.CurrentNode) || revision != int64(task.Revision) || identity != string(task.Repository.WorktreeInstanceDigest) || created != formatTime(task.CreatedAt) || updated != formatTime(task.UpdatedAt) {
 		return domain.ProcessTask{}, ErrStorageUnavailable
 	}
 	return task, nil
@@ -295,10 +423,8 @@ func (s *SQLite) CommitTask(ctx context.Context, m TaskMutation) error {
 		return ErrStorageUnavailable
 	}
 	defer tx.Rollback()
-	if m.Event.Kind == domain.OperationApplyAction || m.Event.Kind == domain.OperationPrepareFileChange || m.Event.Kind == domain.OperationCancelTask {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM action_operations WHERE task_id=?`, m.Task.TaskID); err != nil {
-			return ErrStorageUnavailable
-		}
+	if err := clearSupersededActionOperation(ctx, tx, m); err != nil {
+		return err
 	}
 	if err := writeTaskMutation(ctx, tx, m, snapshot); err != nil {
 		return err
@@ -309,12 +435,36 @@ func (s *SQLite) CommitTask(ctx context.Context, m TaskMutation) error {
 	return nil
 }
 
+func clearSupersededActionOperation(ctx context.Context, tx *sql.Tx, mutation TaskMutation) error {
+	if mutation.Event.Kind == domain.OperationOpenTask {
+		return nil
+	}
+	operation, found, err := loadActionOperationTx(ctx, tx, mutation.Task.TaskID)
+	if err != nil || !found {
+		return err
+	}
+	if operation.AppliedRevision == nil {
+		if mutation.Event.Kind != domain.OperationCancelTask && mutation.Event.Kind != domain.OperationAbandonTask {
+			return ErrRevisionConflict
+		}
+	} else {
+		current, loadErr := scanStoredTask(tx.QueryRowContext(ctx, `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,worktree_instance_digest,snapshot,created_at,updated_at FROM tasks WHERE task_id=?`, mutation.Task.TaskID))
+		if loadErr != nil || !operation.RecordedBy(current) {
+			return ErrStorageUnavailable
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM action_operations WHERE task_id=?`, mutation.Task.TaskID); err != nil {
+		return ErrStorageUnavailable
+	}
+	return nil
+}
+
 func writeTaskMutation(ctx context.Context, tx *sql.Tx, m TaskMutation, snapshot []byte) error {
 	var err error
 	if m.ExpectedRevision == 0 {
-		_, err = tx.ExecContext(ctx, `INSERT INTO tasks(task_id,origin_host,process_id,process_definition_digest,current_node,revision,repository_identity,snapshot,created_at,updated_at,archived_at) VALUES(?,?,?,?,?,?,?,?,?,?,NULL)`, m.Task.TaskID, m.Task.OriginHost, m.Task.Process.ID, m.Task.Process.DefinitionDigest, m.Task.CurrentNode, m.Task.Revision, m.Task.Repository.RepositoryIdentity, snapshot, formatTime(m.Task.CreatedAt), formatTime(m.Task.UpdatedAt))
+		_, err = tx.ExecContext(ctx, `INSERT INTO tasks(task_id,origin_host,process_id,process_definition_digest,current_node,revision,worktree_instance_digest,snapshot,created_at,updated_at,archived_at) VALUES(?,?,?,?,?,?,?,?,?,?,NULL)`, m.Task.TaskID, m.Task.OriginHost, m.Task.Process.ID, m.Task.Process.DefinitionDigest, m.Task.CurrentNode, m.Task.Revision, m.Task.Repository.WorktreeInstanceDigest, snapshot, formatTime(m.Task.CreatedAt), formatTime(m.Task.UpdatedAt))
 	} else {
-		result, e := tx.ExecContext(ctx, `UPDATE tasks SET current_node=?,revision=?,snapshot=?,updated_at=? WHERE task_id=? AND revision=? AND process_id=? AND process_definition_digest=?`, m.Task.CurrentNode, m.Task.Revision, snapshot, formatTime(m.Task.UpdatedAt), m.Task.TaskID, m.ExpectedRevision, m.Task.Process.ID, m.Task.Process.DefinitionDigest)
+		result, e := tx.ExecContext(ctx, `UPDATE tasks SET current_node=?,revision=?,worktree_instance_digest=?,snapshot=?,updated_at=? WHERE task_id=? AND revision=? AND process_id=? AND process_definition_digest=?`, m.Task.CurrentNode, m.Task.Revision, m.Task.Repository.WorktreeInstanceDigest, snapshot, formatTime(m.Task.UpdatedAt), m.Task.TaskID, m.ExpectedRevision, m.Task.Process.ID, m.Task.Process.DefinitionDigest)
 		err = e
 		if err == nil {
 			n, _ := result.RowsAffected()
@@ -332,11 +482,32 @@ func writeTaskMutation(ctx context.Context, tx *sql.Tx, m TaskMutation, snapshot
 	if err := applyClaim(ctx, tx, m); err != nil {
 		return err
 	}
+	if m.Event.Kind == domain.OperationPrepareTaskRelocation {
+		if m.Task.Relocation == nil {
+			return ErrInvalidArgument
+		}
+		r := m.Task.Relocation
+		if _, err := tx.ExecContext(ctx, `INSERT INTO relocation_operations(task_id,relocation_id,request_id,source_binding_digest,prepared_at,resolved_revision) VALUES(?,?,?,?,?,NULL)`, m.Task.TaskID, r.RelocationID, m.Event.RequestID, r.SourceBindingDigest, formatTime(r.PreparedAt)); err != nil {
+			return ErrStorageUnavailable
+		}
+	}
+	if m.Claim == ClaimReplace || m.Claim == ClaimRelease {
+		if _, err := tx.ExecContext(ctx, `UPDATE relocation_operations SET resolved_revision=? WHERE task_id=? AND resolved_revision IS NULL`, m.Task.Revision, m.Task.TaskID); err != nil {
+			return ErrStorageUnavailable
+		}
+	}
 	return nil
 }
 
 func insertEvent(ctx context.Context, tx *sql.Tx, e TaskEvent) error {
-	var transition, reason, action any
+	var duplicate int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM task_events WHERE task_id=? AND request_id=?`, e.TaskID, e.RequestID).Scan(&duplicate); err != nil {
+		return ErrStorageUnavailable
+	}
+	if duplicate != 0 {
+		return ErrRevisionConflict
+	}
+	var transition, reason, action, observedBinding any
 	if e.TransitionID != nil {
 		transition = string(*e.TransitionID)
 	}
@@ -346,7 +517,18 @@ func insertEvent(ctx context.Context, tx *sql.Tx, e TaskEvent) error {
 	if e.ActionID != nil {
 		action = string(*e.ActionID)
 	}
-	_, err := tx.ExecContext(ctx, `INSERT INTO task_events(event_id,task_id,revision,event_type,source_node,destination_node,transition_id,transition_reason,action_id,request_id,payload_digest,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, e.EventID, e.TaskID, e.Revision, e.Kind, e.SourceNode, e.DestinationNode, transition, reason, action, e.RequestID, e.PayloadDigest, formatTime(e.CreatedAt))
+	if e.ObservedBindingDigest != nil {
+		observedBinding = string(*e.ObservedBindingDigest)
+	}
+	paths := e.RepositoryDeltaPaths
+	if paths == nil {
+		paths = []string{}
+	}
+	encodedPaths, err := json.Marshal(paths)
+	if err != nil {
+		return ErrInvalidArgument
+	}
+	_, err = tx.ExecContext(ctx, `INSERT INTO task_events(event_id,task_id,revision,event_type,source_node,destination_node,transition_id,transition_reason,action_id,observed_binding_digest,repository_delta_paths,request_id,payload_digest,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, e.EventID, e.TaskID, e.Revision, e.Kind, e.SourceNode, e.DestinationNode, transition, reason, action, observedBinding, encodedPaths, e.RequestID, e.PayloadDigest, formatTime(e.CreatedAt))
 	if err != nil {
 		return ErrStorageUnavailable
 	}
@@ -356,8 +538,8 @@ func applyClaim(ctx context.Context, tx *sql.Tx, m TaskMutation) error {
 	identities := repositoryClaimIdentities(m.Task)
 	switch m.Claim {
 	case ClaimAcquire:
-		for _, identity := range identities {
-			if _, err := tx.ExecContext(ctx, `INSERT INTO repository_claims(repository_identity,task_id,origin_host,claimed_at) VALUES(?,?,?,?)`, identity, m.Task.TaskID, m.Task.OriginHost, formatTime(m.Event.CreatedAt)); err != nil {
+		for _, claim := range repositoryClaims(m.Task) {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO repository_claims(worktree_instance_digest,canonical_worktree_root,task_id,origin_host,claimed_at) VALUES(?,?,?,?,?)`, claim.identity, claim.root, m.Task.TaskID, m.Task.OriginHost, formatTime(m.Event.CreatedAt)); err != nil {
 				return ErrActiveTaskConflict
 			}
 		}
@@ -377,6 +559,18 @@ func applyClaim(ctx context.Context, tx *sql.Tx, m TaskMutation) error {
 		if n != int64(len(identities)) {
 			return ErrStorageUnavailable
 		}
+	case ClaimReplace:
+		if len(m.PreviousClaims) == 0 || validateClaimSet(ctx, tx, m.Task, m.PreviousClaims) != nil {
+			return ErrStorageUnavailable
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM repository_claims WHERE task_id=?`, m.Task.TaskID); err != nil {
+			return ErrStorageUnavailable
+		}
+		for _, claim := range repositoryClaims(m.Task) {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO repository_claims(worktree_instance_digest,canonical_worktree_root,task_id,origin_host,claimed_at) VALUES(?,?,?,?,?)`, claim.identity, claim.root, m.Task.TaskID, m.Task.OriginHost, formatTime(m.Event.CreatedAt)); err != nil {
+				return ErrActiveTaskConflict
+			}
+		}
 	default:
 		return ErrInvalidArgument
 	}
@@ -384,7 +578,7 @@ func applyClaim(ctx context.Context, tx *sql.Tx, m TaskMutation) error {
 }
 
 func validateClaimSet(ctx context.Context, tx *sql.Tx, task domain.ProcessTask, expected []domain.Digest) error {
-	rows, err := tx.QueryContext(ctx, `SELECT repository_identity,origin_host FROM repository_claims WHERE task_id=? ORDER BY repository_identity`, task.TaskID)
+	rows, err := tx.QueryContext(ctx, `SELECT worktree_instance_digest,origin_host FROM repository_claims WHERE task_id=? ORDER BY worktree_instance_digest`, task.TaskID)
 	if err != nil {
 		return ErrStorageUnavailable
 	}
@@ -426,6 +620,31 @@ func validateMutation(m TaskMutation) error {
 		if err != nil || transition.Destination != m.Event.DestinationNode || (transition.ReasonRequired != (m.Event.TransitionReason != "")) {
 			return ErrInvalidArgument
 		}
+	}
+	if m.Event.ObservedBindingDigest != nil && !m.Event.ObservedBindingDigest.IsValid() {
+		return ErrInvalidArgument
+	}
+	if len(m.Event.RepositoryDeltaPaths) > domain.MaxRepositoryDeltaPaths {
+		return ErrInvalidArgument
+	}
+	for index, path := range m.Event.RepositoryDeltaPaths {
+		if m.Task.ValidateRepositoryPath(path) != nil || index > 0 && m.Event.RepositoryDeltaPaths[index-1] >= path {
+			return ErrInvalidArgument
+		}
+	}
+	if m.Claim == ClaimReplace {
+		if len(m.PreviousClaims) != len(repositoryClaimIdentities(m.Task)) {
+			return ErrInvalidArgument
+		}
+		seen := map[domain.Digest]bool{}
+		for _, identity := range m.PreviousClaims {
+			if !identity.IsValid() || seen[identity] {
+				return ErrInvalidArgument
+			}
+			seen[identity] = true
+		}
+	} else if len(m.PreviousClaims) != 0 {
+		return ErrInvalidArgument
 	}
 	return nil
 }

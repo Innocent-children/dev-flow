@@ -9,6 +9,10 @@ import { createInterface } from "node:readline";
 import test from "node:test";
 
 const fakeCorePath = fileURLToPath(new URL("./fixtures/fake-core.mjs", import.meta.url));
+const currentCoreVersion = (await readFile(new URL("../../../CORE_VERSION", import.meta.url), "utf8")).trim();
+const currentProcessDigest = JSON.parse(
+  await readFile(new URL("../../../protocol/fixtures/graph-server-info.json", import.meta.url), "utf8"),
+).supported_processes[0].definition_digest;
 const exactTools = [
   "dev_flow_server_info",
   "dev_flow_open_task",
@@ -22,12 +26,22 @@ const exactTools = [
   "dev_flow_submit_comprehension",
   "dev_flow_submit_refactor",
   "dev_flow_submit_delivery",
+  "dev_flow_prepare_task_relocation",
   "dev_flow_resolve_blocker",
   "dev_flow_recover_action",
   "dev_flow_cancel_task",
+  "dev_flow_abandon_task",
 ];
+const exactActionMembers = [
+  "task_id", "revision", "action_id", "action_kind", "submission_tool", "process_id",
+  "process_definition_digest", "current_node", "node_purpose", "entry_conditions",
+  "completion_conditions", "allowed_effects", "required_evidence", "method_profile",
+  "method_steps", "available_transitions", "payload_contract", "guidance",
+  "repository_binding_digest", "issuance_identity_digest", "issuance_history_digest",
+  "issuance_content_digest", "issued_at",
+].sort();
 
-test("fake Core serves the current fifteen-tool catalog and complete structured results", async (t) => {
+test("fake Core serves the current seventeen-tool catalog and complete structured results", async (t) => {
   const fixture = await makeFixture(t, "catalog");
   const client = await fixture.client();
   const tools = await client.listTools();
@@ -41,7 +55,7 @@ test("fake Core serves the current fifteen-tool catalog and complete structured 
   assert.deepEqual(tools[1].inputSchema.required, ["host", "repository_path"]);
   assert.equal(tools[1].inputSchema.properties.additional_repositories.maxItems, 7);
   assert.equal(tools[1].inputSchema.properties.additional_repositories.items.additionalProperties, false);
-  assert.deepEqual(tools[1].inputSchema.properties.additional_repositories.items.required, ["key", "repository_path"]);
+  assert.deepEqual(tools[1].inputSchema.properties.additional_repositories.items.required, ["key", "repository_path", "workspace_origin"]);
   assert.deepEqual(tools[4].inputSchema.required, [
     "host",
     "task_id",
@@ -53,7 +67,14 @@ test("fake Core serves the current fifteen-tool catalog and complete structured 
     "method_results",
     "node_result",
   ]);
+  assert.deepEqual(tools.find((tool) => tool.name === "dev_flow_prepare_task_relocation").inputSchema.required, ["host", "task_id", "revision"]);
+  assert.deepEqual(tools.find((tool) => tool.name === "dev_flow_abandon_task").inputSchema.required, ["host", "task_id", "revision", "reason"]);
+  const resolveBlocker = tools.find((tool) => tool.name === "dev_flow_resolve_blocker").inputSchema;
+  assert.deepEqual(resolveBlocker.properties.relocation_destinations.items.required, ["key", "repository_path"]);
+  assert.deepEqual(resolveBlocker.properties.history_resolution.required, ["choice", "reason"]);
   const info = await client.callTool("dev_flow_server_info", {});
+  assert.equal(info.result.version, currentCoreVersion);
+  assert.equal(info.result.supported_processes[0].definition_digest, currentProcessDigest);
   assert.deepEqual(info.result.method_profiles, ["plain", "spec-kit", "openspec"]);
   assert.deepEqual(info.result.host_preferences, {
     codex: { codebase_memory: false },
@@ -69,20 +90,37 @@ test("fake Core projects one multi-repository task, Action, revision, and digest
     ...openArguments(),
     repository_path: "/workspace/core",
     primary_repository_key: "core",
-    additional_repositories: [{ key: "docs", repository_path: "/workspace/docs" }],
+    workspace_origin: workspaceOrigin("core"),
+    additional_repositories: [{ key: "docs", repository_path: "/workspace/docs", workspace_origin: workspaceOrigin("docs") }],
   });
   assert.equal(opened.result.task.primary_repository_key, "core");
-  assert.equal(opened.result.task.repository.canonical_root, "/workspace/core");
-  assert.deepEqual(opened.result.task.additional_repositories.map(({ key, repository }) => ({
-    key, root: repository.canonical_root,
+  assert.equal(opened.result.task.workspace_origin.canonical_worktree_root, "/workspace/core");
+  assert.deepEqual(opened.result.task.additional_repositories.map(({ key, workspace_origin }) => ({
+    key, root: workspace_origin.canonical_worktree_root,
   })), [{ key: "docs", root: "/workspace/docs" }]);
   assert.equal(opened.result.task.revision, 1);
-  assert.equal(typeof opened.result.task.current_action.repository_binding_digest, "string");
-  assert.equal(Object.hasOwn(opened.result.task.current_action, "repository_scope_digest"), false);
+  const action = opened.result.task.current_action;
+  assert.deepEqual(Object.keys(action).sort(), exactActionMembers);
+  assert.equal(action.process_definition_digest, currentProcessDigest);
+  assert.equal(action.payload_contract, "requirements-result");
+  for (const member of ["repository_binding_digest", "issuance_identity_digest", "issuance_history_digest", "issuance_content_digest"]) {
+    assert.match(action[member], /^[0-9a-f]{64}$/u, member);
+  }
+  assert.deepEqual(Object.keys(action.required_evidence[0]).sort(), ["kind", "required"]);
+  assert.deepEqual(Object.keys(action.method_steps[0]).sort(), ["purpose", "required", "step_id"]);
+  assert.deepEqual(Object.keys(action.available_transitions[0]).sort(), [
+    "description", "destination_node", "guard_id", "reason_required", "selection_condition", "transition_id",
+  ]);
+  assert.equal(Object.hasOwn(action, "repository_scope_digest"), false);
+  const next = await client.callTool("dev_flow_get_next_action", { host: "codex", task_id: action.task_id });
+  assert.deepEqual(next.result.process, {
+    process_id: "standard-development",
+    process_definition_digest: currentProcessDigest,
+  });
 
   const calls = await fixture.toolCalls();
   assert.deepEqual(calls.find((call) => call.name === "dev_flow_open_task").arguments.additional_repositories, [
-    { key: "docs", repository_path: "/workspace/docs" },
+    { key: "docs", repository_path: "/workspace/docs", workspace_origin: workspaceOrigin("docs") },
   ]);
 });
 
@@ -101,6 +139,7 @@ test("driver creates and resumes one graph task while surfacing Core conflicts",
   const resumed = await resumedClient.callTool("dev_flow_open_task", {
     host: "codex",
     repository_path: "/workspace/example",
+    workspace_origin: workspaceOrigin("primary"),
   });
   assert.equal(resumed.result.created, false);
   assert.equal(resumed.result.task.task_id, taskId);
@@ -242,9 +281,18 @@ function submissionArguments(action) {
           assumptions: [],
         },
         unresolved_questions: [],
-        changed_paths: [],
-        no_file_changes: true,
     },
+  };
+}
+
+function workspaceOrigin(key) {
+  return {
+    mode: "dedicated_worktree",
+    remote_name: "origin",
+    base_branch: "main",
+    base_commit: "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a",
+    task_branch: `codex/${key}`,
+    provisioning_receipt_id: `launch-0001:${key}`,
   };
 }
 
@@ -310,6 +358,7 @@ class FakeCoreClient {
   async initialize() {
     const response = await this.request("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "fake-driver", version: "0.2.0" } });
     assert.equal(response.result.serverInfo.name, "dev-flow-fake-core");
+    assert.equal(response.result.serverInfo.version, currentCoreVersion);
     this.notify("notifications/initialized", {});
   }
 

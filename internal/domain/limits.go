@@ -45,6 +45,7 @@ const (
 	MaxStandardProcessTransitions     = 64
 	MaxStandardProcessNodes           = 16
 	MaxFingerprintPaths               = 1_024
+	MaxRepositoryDeltaPaths           = MaxFingerprintPaths * 2
 	MaxGitCommandOutputBytes          = 1_048_576
 	MaxAutomaticVerificationCommands  = 20
 	GitCommandTimeout                 = 10 * time.Second

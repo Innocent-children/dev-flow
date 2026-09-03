@@ -6,18 +6,21 @@ import (
 	"strings"
 )
 
-const DatabaseSchemaVersion = "0.3.0"
+const DatabaseSchemaVersion = "0.4.0"
 
 var currentSchemaStatements = []string{
 	`CREATE TABLE schema_metadata (version TEXT PRIMARY KEY)`,
-	`CREATE TABLE tasks (task_id TEXT PRIMARY KEY, origin_host TEXT NOT NULL, process_id TEXT NOT NULL, process_definition_digest TEXT NOT NULL, current_node TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision >= 1), repository_identity TEXT NOT NULL, snapshot BLOB NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, archived_at TEXT)`,
+	`CREATE TABLE tasks (task_id TEXT PRIMARY KEY, origin_host TEXT NOT NULL, process_id TEXT NOT NULL, process_definition_digest TEXT NOT NULL, current_node TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision >= 1), worktree_instance_digest TEXT NOT NULL, snapshot BLOB NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, archived_at TEXT)`,
 	`CREATE INDEX tasks_node_idx ON tasks (current_node)`,
 	`CREATE INDEX tasks_origin_host_idx ON tasks (origin_host)`,
 	`CREATE INDEX tasks_updated_at_idx ON tasks (updated_at)`,
-	`CREATE TABLE action_operations (task_id TEXT PRIMARY KEY, operation_id TEXT NOT NULL UNIQUE, process_id TEXT NOT NULL, process_definition_digest TEXT NOT NULL, source_node TEXT NOT NULL, expected_revision INTEGER NOT NULL CHECK (expected_revision >= 1), action_id TEXT NOT NULL, action_kind TEXT NOT NULL, repository_binding_digest TEXT NOT NULL, payload BLOB NOT NULL, payload_digest TEXT NOT NULL, prepared_at TEXT NOT NULL, applied_revision INTEGER CHECK (applied_revision IS NULL OR applied_revision = expected_revision + 1), FOREIGN KEY (task_id) REFERENCES tasks (task_id) ON DELETE RESTRICT)`,
-	`CREATE TABLE task_events (event_id TEXT PRIMARY KEY, task_id TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision >= 1), event_type TEXT NOT NULL, source_node TEXT NOT NULL, destination_node TEXT NOT NULL, transition_id TEXT, transition_reason TEXT, action_id TEXT, request_id TEXT NOT NULL, payload_digest TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE (task_id, revision), FOREIGN KEY (task_id) REFERENCES tasks (task_id) ON DELETE RESTRICT)`,
-	`CREATE TABLE repository_claims (repository_identity TEXT PRIMARY KEY, task_id TEXT NOT NULL, origin_host TEXT NOT NULL, claimed_at TEXT NOT NULL, FOREIGN KEY (task_id) REFERENCES tasks (task_id) ON DELETE RESTRICT)`,
+	`CREATE TABLE action_operations (task_id TEXT PRIMARY KEY, operation_id TEXT NOT NULL UNIQUE, process_id TEXT NOT NULL, process_definition_digest TEXT NOT NULL, source_node TEXT NOT NULL, expected_revision INTEGER NOT NULL CHECK (expected_revision >= 1), action_id TEXT NOT NULL, action_kind TEXT NOT NULL, repository_binding_digest TEXT NOT NULL, issuance_identity_digest TEXT NOT NULL, issuance_history_digest TEXT NOT NULL, issuance_content_digest TEXT NOT NULL, payload BLOB NOT NULL, payload_digest TEXT NOT NULL, prepared_at TEXT NOT NULL, applied_revision INTEGER CHECK (applied_revision IS NULL OR applied_revision = expected_revision + 1), FOREIGN KEY (task_id) REFERENCES tasks (task_id) ON DELETE RESTRICT)`,
+	`CREATE TABLE task_events (event_id TEXT PRIMARY KEY, task_id TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision >= 1), event_type TEXT NOT NULL, source_node TEXT NOT NULL, destination_node TEXT NOT NULL, transition_id TEXT, transition_reason TEXT, action_id TEXT, observed_binding_digest TEXT, repository_delta_paths BLOB NOT NULL, request_id TEXT NOT NULL, payload_digest TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE (task_id, revision), UNIQUE (task_id, request_id), FOREIGN KEY (task_id) REFERENCES tasks (task_id) ON DELETE RESTRICT)`,
+	`CREATE TABLE repository_claims (worktree_instance_digest TEXT PRIMARY KEY, canonical_worktree_root TEXT NOT NULL UNIQUE, task_id TEXT NOT NULL, origin_host TEXT NOT NULL, claimed_at TEXT NOT NULL, FOREIGN KEY (task_id) REFERENCES tasks (task_id) ON DELETE RESTRICT)`,
 	`CREATE INDEX repository_claims_task_idx ON repository_claims (task_id)`,
+	`CREATE TABLE relocation_operations (relocation_id TEXT PRIMARY KEY, task_id TEXT NOT NULL, request_id TEXT NOT NULL UNIQUE, source_binding_digest TEXT NOT NULL, prepared_at TEXT NOT NULL, resolved_revision INTEGER, FOREIGN KEY (task_id) REFERENCES tasks (task_id) ON DELETE RESTRICT)`,
+	`CREATE INDEX relocation_operations_task_idx ON relocation_operations (task_id)`,
+	`CREATE UNIQUE INDEX relocation_operations_unresolved_task_idx ON relocation_operations (task_id) WHERE resolved_revision IS NULL`,
 }
 
 var currentSchemaObjects = []struct {
@@ -34,14 +37,18 @@ var currentSchemaObjects = []struct {
 	{"task_events", "table", 6},
 	{"repository_claims", "table", 7},
 	{"repository_claims_task_idx", "index", 8},
+	{"relocation_operations", "table", 9},
+	{"relocation_operations_task_idx", "index", 10},
+	{"relocation_operations_unresolved_task_idx", "index", 11},
 }
 
 var currentColumns = map[string][]string{
-	"schema_metadata":   {"version"},
-	"tasks":             {"task_id", "origin_host", "process_id", "process_definition_digest", "current_node", "revision", "repository_identity", "snapshot", "created_at", "updated_at", "archived_at"},
-	"action_operations": {"task_id", "operation_id", "process_id", "process_definition_digest", "source_node", "expected_revision", "action_id", "action_kind", "repository_binding_digest", "payload", "payload_digest", "prepared_at", "applied_revision"},
-	"task_events":       {"event_id", "task_id", "revision", "event_type", "source_node", "destination_node", "transition_id", "transition_reason", "action_id", "request_id", "payload_digest", "created_at"},
-	"repository_claims": {"repository_identity", "task_id", "origin_host", "claimed_at"},
+	"schema_metadata":       {"version"},
+	"tasks":                 {"task_id", "origin_host", "process_id", "process_definition_digest", "current_node", "revision", "worktree_instance_digest", "snapshot", "created_at", "updated_at", "archived_at"},
+	"action_operations":     {"task_id", "operation_id", "process_id", "process_definition_digest", "source_node", "expected_revision", "action_id", "action_kind", "repository_binding_digest", "issuance_identity_digest", "issuance_history_digest", "issuance_content_digest", "payload", "payload_digest", "prepared_at", "applied_revision"},
+	"task_events":           {"event_id", "task_id", "revision", "event_type", "source_node", "destination_node", "transition_id", "transition_reason", "action_id", "observed_binding_digest", "repository_delta_paths", "request_id", "payload_digest", "created_at"},
+	"repository_claims":     {"worktree_instance_digest", "canonical_worktree_root", "task_id", "origin_host", "claimed_at"},
+	"relocation_operations": {"relocation_id", "task_id", "request_id", "source_binding_digest", "prepared_at", "resolved_revision"},
 }
 
 func bootstrapCurrentSchema(ctx context.Context, db *sql.DB) error {

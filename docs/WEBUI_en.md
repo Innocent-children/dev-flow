@@ -2,39 +2,48 @@
 
 [中文](WEBUI.md) | [English](WEBUI_en.md)
 
-> The local visualization and diagnostic entry for Dev Flow's durable Task state.
+> The local visualization and diagnostic entry for durable Tasks, dedicated worktrees, and recovery state.
 
-Control Center is embedded in Go Core and reads the same local Task data as the Hosts. The browser
-does not retain a second process state; every read and operation goes through the current Core.
+Control Center is embedded in Go Core and reads the same SQLite Tasks as Codex and DeepSeek. The
+browser keeps no second process state and does not fetch, create branches/worktrees, hand off a Host,
+or clean resources.
 
 ## What you can view
 
-- the shared Task overview and filtered list across Hosts;
-- current stage, scope, revision, Action, and legal next step;
-- timeline, process graph, test and comprehension records, and the three most recent test attempts;
-- Recovery assessment, automatic-brake Blocker, and the required recovery or continuation condition;
-- Task Plan expected paths, cumulative Task-introduced paths, file-scope decisions, and unexplained paths;
-- primary and additional repositories, including the advanced worktree view;
+- the shared Task overview, filters, current stage, revision, and legal next action;
+- requirements, design, Task Plan, implementation, tests, comprehension, evidence, and timeline;
+- each repository's confirmed remote/base/base commit, task branch, worktree path, and repository group;
+- current HEAD, clean/dirty state, identity/history/content digests, Task surface, and current changed paths;
+- file-scope, verification, history, relocation, Recovery, and workspace-unavailable conditions;
+- provisioning receipt identity, current Host, completed verification, and keep/review/handoff/cleanup choices;
 - current Core, data directory, and runtime status.
 
-The interface supports Simplified Chinese and English. First use follows browser language, while a
-manual choice remains only in the current browser and does not enter Core, Task, or account state.
+The interface supports Simplified Chinese and English. Initial selection follows browser language;
+a manual choice remains in the browser and never enters Core, a Task, a receipt, or account state.
 
-After the automatic brake triggers, the page shows the exact repetition reason, retained resume
-stage, and current resolution condition. It does not resolve on the developer's behalf. The developer
-may explicitly allow one continuation or cancel the Task. If the next test repeats exactly, the Task
-pauses again.
+## Mutation boundary
 
-A file-scope blocker prefills the current blocker identity and repository observation, shows
-`allow_once`, `expand_scope`, and `reject`, and requires a reason. The file-scope card also shows
-ExpectedPaths count, Task-introduced paths, decision count, Host tools covered before writing, and
-unexplained paths. The page distinguishes Host checks for structured tools from Core's final check
-before testing and `DONE`; it does not claim to intercept Bash, external processes, or every
-specialized tool.
+The WebUI no longer creates a new Task from an arbitrary checkout. A new Task must pass Host-side
+read-only assessment, developer confirmation, fetch, dedicated-worktree provisioning, and verification
+in Codex or DeepSeek before the target Host calls Core.
+
+The page may submit semantic operations using current Core identities:
+
+- resolve file-scope, verification, or history blockers;
+- prepare a Core blocker for same-machine relocation and submit destination paths after Host handoff;
+- cancel while the workspace remains observable;
+- explicitly abandon a genuinely missing workspace with the exact revision and a non-empty reason;
+- archive a terminal Task or perform separately confirmed irreversible Task-data cleanup.
+
+Actual handoff, worktree deletion, and branch deletion belong to the Host. Worktree and branch cleanup
+are separately authorized, and the page never automatically removes an active, dirty, unpushed,
+unknown-owner, or uncertain resource.
+
+Hosts still ask Core before supported structured writes outside the Task Plan. Bash, external
+processes, and other tools may write first; Core finds those changes during the next Task/Action Git
+observation. A dedicated worktree has no option to ignore a supposedly external change.
 
 ## Start, open, inspect, and stop
-
-Use the unified entry:
 
 ```bash
 dev-flow webui start
@@ -43,20 +52,15 @@ dev-flow webui open
 dev-flow webui stop
 ```
 
-`start` opens the browser by default; `--no-open` starts only the process. Every command supports
-`--plain` or `--json`. Public `dev-flow webui start` may create a missing product-default data
-directory. macOS enforces mode `0700`; Windows uses the ACL inherited from the current user's
-`%LOCALAPPDATA%`. Other commands do not create directories.
-
-An explicit data directory must already exist, canonicalize successfully, and not traverse a
-symbolic link:
+`start` opens the browser unless `--no-open` is supplied. Every command accepts `--plain` or `--json`.
+Only `start` may create a missing default data directory: mode `0700` on macOS or the current user's
+LocalAppData ACL on Windows. An explicit `DEV_FLOW_DATA_DIR` must already exist, canonicalize, and not
+traverse a symbolic link.
 
 ```bash
 export DEV_FLOW_DATA_DIR="/absolute/path/to/existing-directory"
 dev-flow webui start
 ```
-
-Windows PowerShell uses the same variable:
 
 ```powershell
 $env:DEV_FLOW_DATA_DIR = "C:\absolute\existing-directory"
@@ -65,59 +69,29 @@ dev-flow webui start
 
 ## Local single-user boundary
 
-The service binds only an OS-assigned `tcp4 127.0.0.1` port and exposes no remote-listen option.
-Browser mutations verify exact Origin, a random session value from the current process, and the Task
-revision. A stale page or changed revision invalidates an old form.
+The service binds an OS-assigned `tcp4 127.0.0.1` port. Browser mutations verify exact Origin, a
+random session value from the current process, and the Task revision, so a stale page cannot submit an
+old operation. These checks prevent mistaken local requests; they are not account authentication or
+multi-user isolation. Same-user and administrator processes remain inside the local trust boundary.
 
-These checks protect against mistaken local requests and stale-page actions. They are not account
-authentication or multi-user isolation.
-macOS tightens default directories and the receipt with POSIX modes. Windows relies on the ACL
-inherited from the current user profile and LocalAppData. A same-user or administrator process
-remains inside the local trust boundary.
+The runtime receipt binds PID, process-start identity, data-root digest, and loopback URL. Stop and
+uninstall act only on its exact process. It is distinct from Host provisioning receipts, Core Action
+operations, and relocation records; none substitutes for another.
 
-## What the runtime receipt does
+## States and data
 
-A runtime receipt records the PID, process-start identity, data-root digest, and loopback URL. macOS
-requires a mode-`0600` regular file. Windows requires a regular non-symlink file under the product
-directory and uses process creation time to detect PID reuse. Compatible Core binaries carried by
-Codex and DeepSeek use it to share one process and SQLite data instead of creating separate Task
-state.
+`status` returns `ready`, `read_only`, `incompatible`, or `unavailable`. Default Task data lives at
+`$HOME/Library/Application Support/dev-flow/data` on macOS and `%LOCALAPPDATA%\dev-flow\data` on
+Windows. Codex and DeepSeek share it.
 
-During stop or uninstall, a signal is sent only when PID, start identity, and data directory all
-match the receipt. Windows first sends `CTRL_BREAK` to the separate process group; if another console
-cannot deliver it or the process does not exit, only that exact matched process is terminated. A
-failed identity check stops the remaining uninstall steps so an unrelated process or installation
-is not removed.
-
-## States
-
-`status` distinguishes:
-
-| State | Meaning |
-| --- | --- |
-| `ready` | Current Core and data are usable |
-| `read_only` | Reads are available, but current mutations are not |
-| `incompatible` | Current Core or runtime instance is incompatible |
-| `unavailable` | No usable instance or status is available |
-
-## Data and artifacts
-
-Default Task data lives at `$HOME/Library/Application Support/dev-flow/data` on macOS and
-`%LOCALAPPDATA%\dev-flow\data` on Windows. Codex and DeepSeek share it; it is not
-browser cache or Host chat history. React, TypeScript, and Vite participate only in the build. HTML,
-JavaScript, CSS, SVG, and the manifest are embedded in the Core binary, so runtime use needs no Node
-server, CDN, external font, or separate WebUI package.
-Each Host package selects macOS or Windows path, permission, process, and executable behavior through
-its package-local platform implementation. WebUI and Core Task semantics contain no platform branch.
+React, TypeScript, and Vite participate only in the build. Static assets are embedded in Core, so
+runtime use needs no Node server, CDN, external font, or separate WebUI package. See the
+[Command Reference](COMMANDS_en.md), [Architecture](ARCHITECTURE_en.md), and
+[Support Matrix](SUPPORT-MATRIX_en.md).
 
 ## Not currently supported
 
 - remote access, accounts, team permissions, or cloud synchronization;
-- shell, file editing, Git mutations, or publication; the page only submits Core file-scope decisions;
-- user-defined graphs;
-- treating the WebUI as another Task-state authority.
-
-Consult [Project Status](PROJECT-STATUS_en.md) and the [Support Matrix](SUPPORT-MATRIX_en.md) to see
-whether stable packages carry current source capability. See the
-[Command Reference](COMMANDS_en.md) for exact CLI options and [Architecture](ARCHITECTURE_en.md) for
-protocol design.
+- browser-owned shell, file editing, Git mutation, Host handoff, or publication;
+- browser-created shared-checkout Tasks or automatic reconstruction of a missing worktree;
+- user-defined graphs or another Task-state authority.

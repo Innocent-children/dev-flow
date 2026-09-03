@@ -31,15 +31,21 @@ func TestActionPayloadSchemasCoverEveryCurrentActionKind(t *testing.T) {
 
 func TestActionPayloadSchemaForNarrowsCurrentTransitions(t *testing.T) {
 	now := time.Date(2026, 8, 26, 14, 0, 0, 0, time.UTC)
-	digest := domain.Digest(strings.Repeat("a", 64))
+	workspace := domain.WorkspaceDigests{
+		Binding: domain.Digest(strings.Repeat("a", 64)), Identity: domain.Digest(strings.Repeat("b", 64)),
+		History: domain.Digest(strings.Repeat("c", 64)), Content: domain.Digest(strings.Repeat("d", 64)),
+	}
 	definition := StandardProcess()
 	for _, node := range definition.Nodes {
 		if node.NodeID.Terminal() {
 			continue
 		}
-		action, err := BuildProcessAction(definition, node.NodeID, "task", 1, digest, domain.MethodPlain, domain.ID("action-"+strings.ToLower(string(node.NodeID))), now)
+		action, err := BuildProcessActionForWorkspace(definition, node.NodeID, "task", 1, workspace, domain.MethodPlain, domain.ID("action-"+strings.ToLower(string(node.NodeID))), now)
 		if err != nil {
 			t.Fatalf("build %s: %v", node.NodeID, err)
+		}
+		if action.RepositoryBindingDigest != workspace.Binding || action.IssuanceIdentityDigest != workspace.Identity || action.IssuanceHistoryDigest != workspace.History || action.IssuanceContentDigest != workspace.Content {
+			t.Fatalf("%s lost issuance workspace digests: %#v", node.NodeID, action)
 		}
 		raw, err := ActionPayloadSchemaFor(action)
 		if err != nil {

@@ -19,9 +19,16 @@ outra tentativa parecida ou uma sessão reiniciada precisa reconstruir o progres
 Dev Flow guarda em uma única tarefa local o pedido acordado, os caminhos previstos, os limites de
 verificação, a etapa atual e os resultados. Codex ou DeepSeek continua responsável por alterar o código.
 
+Cada pedido novo é avaliado em modo somente leitura antes da escolha do Dev Flow. Se você o escolher,
+confirma o remote, o branch base e um novo branch da tarefa; o Host cria a partir dessa base remota um
+worktree limpo e dedicado antes de o Core criar a Task. As mudanças do checkout de origem não são copiadas.
+
 - **O escopo permanece claro.** Os caminhos previstos são registrados, as ferramentas estruturadas
   compatíveis pedem confirmação antes de gravar fora do plano e as mudanças reais são conferidas novamente
   antes dos testes e da entrega.
+- **Cada worktree tem um único responsável pelas mudanças.** O Core calcula no Git a superfície atual da
+  Task; commits lineares normais continuam, enquanto uma reescrita de branch ou a substituição do worktree
+  interrompe a tarefa.
 - **A verificação tem limites.** O número de comandos automáticos é limitado, a suíte completa exige
   permissão prévia e a terceira repetição exata pausa a tarefa.
 - **O trabalho continua depois de uma reinicialização.** Uma nova sessão recupera a mesma tarefa, as
@@ -64,12 +71,17 @@ Ou envie esta mensagem no **DeepSeek Harness**:
 ```
 
 Esses são seletores de conversa, não comandos de shell. Inclua um objetivo concreto, as condições de
-aceite, o limite de arquivos e o teto de testes.
+aceite, o limite de arquivos e o teto de testes. A primeira resposta avalia o impacto e pergunta se você
+prefere trabalhar diretamente ou usar o Dev Flow; nem um seletor explícito pula essa escolha. Ao escolher
+o Dev Flow, confirme o remote, a base e o branch de destino. O Codex abre um worktree gerenciado quando o
+Host oferece essa capacidade; o DeepSeek mostra como reiniciar no novo worktree porque o Workspace Root
+da sessão é fixo.
 
 ### 3. Retome e acompanhe o progresso
 
-Depois de reiniciar, volte ao mesmo diretório de trabalho do repositório e use novamente o mesmo seletor.
-Dev Flow lê a tarefa salva e continua a partir da etapa atual.
+Depois de reiniciar, volte ao worktree exato associado à Task e peça explicitamente para retomar. A retomada
+não repete a admissão nem escolhe um worktree substituto; se a instância original sumiu ou foi substituída,
+a Task para até ser restaurada ou abandonada explicitamente.
 
 ```bash
 # Consultar as integrações instaladas

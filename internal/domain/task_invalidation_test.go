@@ -163,15 +163,14 @@ func TestInvalidationAggregateRejectsEveryStaleDownstreamAuthority(t *testing.T)
 		{"design", func(task *ProcessTask) { task.Design.RequirementsRevision++ }},
 		{"task plan", func(task *ProcessTask) { task.TaskPlan.DesignRevision++ }},
 		{"implementation revision", func(task *ProcessTask) { task.Implementation.TaskPlanRevision++ }},
-		{"implementation repository", func(task *ProcessTask) { task.Implementation.RepositoryBindingDigest = matrixDigest('f') }},
 		{"test requirements", func(task *ProcessTask) { task.Test.RequirementsRevision++ }},
 		{"test design", func(task *ProcessTask) { task.Test.DesignRevision++ }},
 		{"test task plan", func(task *ProcessTask) { task.Test.TaskPlanRevision++ }},
-		{"test repository", func(task *ProcessTask) { task.Test.RepositoryBindingDigest = matrixDigest('f') }},
+		{"test repository", func(task *ProcessTask) { task.Test.ContentDigest = matrixDigest('f') }},
 		{"comprehension requirements", func(task *ProcessTask) { task.Comprehension.RequirementsRevision++ }},
 		{"comprehension design", func(task *ProcessTask) { task.Comprehension.DesignRevision++ }},
 		{"comprehension task plan", func(task *ProcessTask) { task.Comprehension.TaskPlanRevision++ }},
-		{"comprehension repository", func(task *ProcessTask) { task.Comprehension.RepositoryBindingDigest = matrixDigest('f') }},
+		{"comprehension repository", func(task *ProcessTask) { task.Comprehension.ContentDigest = matrixDigest('f') }},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -192,12 +191,12 @@ func invalidationMatrixTask(t *testing.T) ProcessTask {
 	task.Requirements = &RequirementsBaseline{Revision: 2, Digest: digest, Goal: "Current goal", AcceptanceCriteria: []string{"accepted"}, CreatedAt: now}
 	task.Design = &DesignBaseline{Revision: 1, Digest: digest, RequirementsRevision: 2, Approach: "Direct design", Decisions: []string{"Reuse the boundary"}, CreatedAt: now}
 	task.TaskPlan = &TaskPlanBaseline{Revision: 1, Digest: digest, DesignRevision: 1, WorkItems: []WorkItem{{WorkItemID: "work", Summary: "Implement work", ExpectedPaths: []string{"internal/work.go"}, AcceptanceIndexes: []uint32{0}, VerificationSteps: []string{"Run targeted tests"}}}, CreatedAt: now}
-	task.Implementation = &ImplementationRecord{Revision: 1, TaskPlanRevision: 1, RepositoryBindingDigest: digest, CompletedWorkItemIDs: []ID{"work"}, NoFileChanges: true, Summary: "Implemented work", CreatedAt: now}
+	task.Implementation = &ImplementationRecord{Revision: 1, TaskPlanRevision: 1, ContentDigest: digest, CompletedWorkItemIDs: []ID{"work"}, Summary: "Implemented work", CreatedAt: now}
 	automated := EvidenceSummary{EvidenceID: "automated", Source: EvidenceSourceAutomated, Name: "targeted", Status: EvidencePassed, Summary: "Targeted tests passed", Digest: digest, CommandCount: 1, RecordedAt: now}
 	user := EvidenceSummary{EvidenceID: "user", Source: EvidenceSourceUser, Name: "confirmation", Status: EvidencePassed, Summary: "User confirmed understanding", Digest: digest, RecordedAt: now}
 	task.Evidence = []EvidenceSummary{automated, user}
-	task.Test = &TestRecord{RecordID: "test", RequirementsRevision: 2, DesignRevision: 1, TaskPlanRevision: 1, RepositoryBindingDigest: digest, EvidenceIDs: []ID{"automated"}, PassedAt: now}
-	task.Comprehension = &ComprehensionAssessment{RecordID: "comprehension", TestRecordID: "test", RequirementsRevision: 2, DesignRevision: 1, TaskPlanRevision: 1, RepositoryBindingDigest: digest, ExplainedComponents: []string{"component"}, UserEvidenceID: "user", ConfirmedAt: now}
+	task.Test = &TestRecord{RecordID: "test", RequirementsRevision: 2, DesignRevision: 1, TaskPlanRevision: 1, ContentDigest: digest, EvidenceIDs: []ID{"automated"}, PassedAt: now}
+	task.Comprehension = &ComprehensionAssessment{RecordID: "comprehension", TestRecordID: "test", RequirementsRevision: 2, DesignRevision: 1, TaskPlanRevision: 1, ContentDigest: digest, ExplainedComponents: []string{"component"}, UserEvidenceID: "user", ConfirmedAt: now}
 	task.CurrentNode = NodeDelivery
 	task.CurrentAction.Kind = ActionCompleteDelivery
 	task.CurrentAction.NodeID = NodeDelivery

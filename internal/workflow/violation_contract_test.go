@@ -93,7 +93,7 @@ func TestPayloadProblemClassGuardFailuresNameTheLiveGuard(t *testing.T) {
 	for _, step := range node.SemanticMethodSteps {
 		evidence = append(evidence, domain.MethodEvidence{StepID: step.StepID, Status: domain.MethodStepPlainFallback, Summary: "Completed the current semantic method step."})
 	}
-	forwardWithFindings := &ImplementationResult{ProblemClass: ProblemNone, TaskPlanRevision: 1, CompletedWorkItemIDs: []domain.ID{"work-a"}, NoFileChanges: true, Findings: []string{"An unresolved design gap"}}
+	forwardWithFindings := &ImplementationResult{ProblemClass: ProblemNone, TaskPlanRevision: 1, CompletedWorkItemIDs: []domain.ID{"work-a"}, Findings: []string{"An unresolved design gap"}}
 	envelope := StandardPayload{TransitionID: "implementation_ready_for_test", Summary: "Implementation complete.", Artifacts: []domain.ArtifactReference{}, MethodEvidence: evidence}
 	err = ValidatePayload(definition, domain.NodeImplement, envelope, forwardWithFindings, node.SemanticMethodSteps)
 	if !errors.Is(err, domain.ErrTransitionNotAllowed) {
@@ -110,14 +110,14 @@ func TestPayloadProblemClassGuardFailuresNameTheLiveGuard(t *testing.T) {
 		t.Fatalf("guard failures=%#v", typed.Guard.Failures)
 	}
 
-	remediationWithoutFindings := &ImplementationResult{ProblemClass: ProblemDesignGap, TaskPlanRevision: 1, CompletedWorkItemIDs: []domain.ID{}, NoFileChanges: true, Findings: []string{}}
+	remediationWithoutFindings := &ImplementationResult{ProblemClass: ProblemDesignGap, TaskPlanRevision: 1, CompletedWorkItemIDs: []domain.ID{}, Findings: []string{}}
 	remediation := StandardPayload{TransitionID: "implementation_requires_design", Summary: "Design gap found.", Reason: "Design gap.", Artifacts: []domain.ArtifactReference{}, MethodEvidence: evidence}
 	err = ValidatePayload(definition, domain.NodeImplement, remediation, remediationWithoutFindings, node.SemanticMethodSteps)
 	if !errors.As(err, &typed) || typed.Guard == nil || typed.Guard.Failures[0].Rule != domain.ViolationRule(domain.GuardProblemFindingsPresent) {
 		t.Fatalf("remediation guard=%v", err)
 	}
 
-	mismatch := &ImplementationResult{ProblemClass: ProblemRequirementGap, TaskPlanRevision: 1, CompletedWorkItemIDs: []domain.ID{}, NoFileChanges: true, Findings: []string{"A requirement gap"}}
+	mismatch := &ImplementationResult{ProblemClass: ProblemRequirementGap, TaskPlanRevision: 1, CompletedWorkItemIDs: []domain.ID{}, Findings: []string{"A requirement gap"}}
 	err = ValidatePayload(definition, domain.NodeImplement, remediation, mismatch, node.SemanticMethodSteps)
 	if !errors.As(err, &typed) || typed.Guard == nil || typed.Guard.Failures[0].Rule != domain.ViolationRule(domain.GuardProblemClassTransitionMismatch) {
 		t.Fatalf("mismatch guard=%v", err)
@@ -135,7 +135,7 @@ func TestPayloadDeviationsDoNotBlockForwardTransition(t *testing.T) {
 	for _, step := range node.SemanticMethodSteps {
 		evidence = append(evidence, domain.MethodEvidence{StepID: step.StepID, Status: domain.MethodStepPlainFallback, Summary: "Completed the current semantic method step."})
 	}
-	result := &ImplementationResult{ProblemClass: ProblemNone, TaskPlanRevision: 1, CompletedWorkItemIDs: []domain.ID{"work-a"}, NoFileChanges: true, Deviations: []string{"Renamed one helper"}, Findings: []string{}}
+	result := &ImplementationResult{ProblemClass: ProblemNone, TaskPlanRevision: 1, CompletedWorkItemIDs: []domain.ID{"work-a"}, Deviations: []string{"Renamed one helper"}, Findings: []string{}}
 	envelope := StandardPayload{TransitionID: "implementation_ready_for_test", Summary: "Implementation complete.", Artifacts: []domain.ArtifactReference{}, MethodEvidence: evidence}
 	if err := ValidatePayload(definition, domain.NodeImplement, envelope, result, node.SemanticMethodSteps); err != nil {
 		t.Fatalf("recorded deviations blocked the forward transition: %v", err)
@@ -160,7 +160,7 @@ func TestPayloadRequiredAndUnknownMemberViolations(t *testing.T) {
 		"method_evidence": methodEvidence,
 		"node_result": map[string]any{
 			"problem_class": "none", "checks": []any{}, "failed_items": []any{}, "unverified_items": []any{},
-			"manual_handoff_items": []any{}, "findings": []any{}, "changed_paths": []any{}, "no_file_changes": true,
+			"manual_handoff_items": []any{}, "findings": []any{},
 		},
 	}
 	missing := cloneMap(base)
@@ -182,28 +182,12 @@ func TestPayloadRequiredAndUnknownMemberViolations(t *testing.T) {
 	delete(missingEnvelope, "reason")
 	assertPayloadViolation(t, missingEnvelope, "payload.reason", domain.RuleRequiredMemberMissing)
 
-	inconsistent := cloneMap(base)
-	inconsistent["node_result"].(map[string]any)["no_file_changes"] = false
-	assertPayloadViolation(t, inconsistent, "payload.node_result.changed_paths", domain.RuleRepositoryMutationInconsistent)
-
-	invalidPath := cloneMap(base)
-	invalidPath["node_result"].(map[string]any)["changed_paths"] = []any{"../outside"}
-	invalidPath["node_result"].(map[string]any)["no_file_changes"] = false
-	assertPayloadViolation(t, invalidPath, "payload.node_result.changed_paths[0]", domain.RuleRepositoryPathInvalid)
-
-	duplicatePath := cloneMap(base)
-	duplicatePath["node_result"].(map[string]any)["changed_paths"] = []any{"internal/a.go", "internal/a.go"}
-	duplicatePath["node_result"].(map[string]any)["no_file_changes"] = false
-	assertPayloadViolation(t, duplicatePath, "payload.node_result.changed_paths[1]", domain.RuleStringListDuplicate)
-
-	tooManyPaths := make([]any, domain.MaxFingerprintPaths+1)
-	for index := range tooManyPaths {
-		tooManyPaths[index] = fmt.Sprintf("internal/file-%d.go", index)
-	}
-	oversizedPaths := cloneMap(base)
-	oversizedPaths["node_result"].(map[string]any)["changed_paths"] = tooManyPaths
-	oversizedPaths["node_result"].(map[string]any)["no_file_changes"] = false
-	assertPayloadViolation(t, oversizedPaths, "payload.node_result.changed_paths", domain.RuleStringListTooLong)
+	legacyPaths := cloneMap(base)
+	legacyPaths["node_result"].(map[string]any)["changed_paths"] = []any{}
+	assertPayloadViolation(t, legacyPaths, "payload.node_result.changed_paths", domain.RuleUnknownMember)
+	legacyNoFileChanges := cloneMap(base)
+	legacyNoFileChanges["node_result"].(map[string]any)["no_file_changes"] = true
+	assertPayloadViolation(t, legacyNoFileChanges, "payload.node_result.no_file_changes", domain.RuleUnknownMember)
 
 	tooManyFailedItems := make([]any, domain.MaxBoundedStringListItems+1)
 	for index := range tooManyFailedItems {

@@ -36,7 +36,7 @@ func TestClaimPreflightRejectsCorruptionWithZeroWriteManifest(t *testing.T) {
 		{"active repository mismatch", false, func(t *testing.T, path string, task domain.ProcessTask) {
 			db := openRaw(t, path)
 			defer db.Close()
-			if _, err := db.Exec(`UPDATE repository_claims SET repository_identity='ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' WHERE repository_identity=?`, task.AdditionalRepositories[0].Binding.RepositoryIdentity); err != nil {
+			if _, err := db.Exec(`UPDATE repository_claims SET worktree_instance_digest='ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' WHERE worktree_instance_digest=?`, task.AdditionalRepositories[0].Binding.WorktreeInstanceDigest); err != nil {
 				t.Fatal(err)
 			}
 		}},
@@ -49,14 +49,14 @@ func TestClaimPreflightRejectsCorruptionWithZeroWriteManifest(t *testing.T) {
 		{"active extra claim", false, func(t *testing.T, path string, task domain.ProcessTask) {
 			db := openRaw(t, path)
 			defer db.Close()
-			if _, err := db.Exec(`INSERT INTO repository_claims(repository_identity,task_id,origin_host,claimed_at) VALUES(?,?,?,?)`, domain.Digest(strings.Repeat("f", 64)), task.TaskID, task.OriginHost, formatTime(task.UpdatedAt)); err != nil {
+			if _, err := db.Exec(`INSERT INTO repository_claims(worktree_instance_digest,canonical_worktree_root,task_id,origin_host,claimed_at) VALUES(?,?,?,?,?)`, domain.Digest(strings.Repeat("f", 64)), testPath("extra"), task.TaskID, task.OriginHost, formatTime(task.UpdatedAt)); err != nil {
 				t.Fatal(err)
 			}
 		}},
 		{"terminal retains claim", true, func(t *testing.T, path string, task domain.ProcessTask) {
 			db := openRaw(t, path)
 			defer db.Close()
-			_, err := db.Exec(`INSERT INTO repository_claims(repository_identity,task_id,origin_host,claimed_at) VALUES(?,?,?,?)`, task.Repository.RepositoryIdentity, task.TaskID, task.OriginHost, formatTime(task.UpdatedAt))
+			_, err := db.Exec(`INSERT INTO repository_claims(worktree_instance_digest,canonical_worktree_root,task_id,origin_host,claimed_at) VALUES(?,?,?,?,?)`, task.Repository.WorktreeInstanceDigest, task.WorkspaceOrigin.CanonicalWorktreeRoot, task.TaskID, task.OriginHost, formatTime(task.UpdatedAt))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -85,7 +85,7 @@ func TestMultiRepositoryClaimAcquireLoadRetainAndRelease(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	loaded, err := opened.LoadActiveTask(context.Background(), task.AdditionalRepositories[0].Binding.RepositoryIdentity)
+	loaded, err := opened.LoadActiveTask(context.Background(), task.AdditionalRepositories[0].Binding.WorktreeInstanceDigest)
 	if err != nil || loaded.TaskID != task.TaskID || loaded.Revision != task.Revision {
 		t.Fatalf("load from additional repository = %+v, %v", loaded, err)
 	}
@@ -111,7 +111,7 @@ func TestMultiRepositoryClaimConflictRollsBackTaskEventAndPartialClaims(t *testi
 		t.Fatal(err)
 	}
 	candidate := multiRepositoryGraphTask(t)
-	existing := singleRepositoryTaskForBinding(t, "existing-task", candidate.AdditionalRepositories[0].Binding)
+	existing := singleRepositoryTaskForBinding(t, "existing-task", candidate.AdditionalRepositories[0])
 	if err := opened.CommitTask(context.Background(), openMutation(t, existing, "existing")); err != nil {
 		t.Fatal(err)
 	}
@@ -143,19 +143,19 @@ func TestMultiRepositoryClaimRetainRejectsMissingExtraAndHostMismatch(t *testing
 		corrupt func(*testing.T, *SQLite, domain.ProcessTask)
 	}{
 		{"missing", func(t *testing.T, opened *SQLite, task domain.ProcessTask) {
-			_, err := opened.db.Exec(`DELETE FROM repository_claims WHERE repository_identity=?`, task.AdditionalRepositories[0].Binding.RepositoryIdentity)
+			_, err := opened.db.Exec(`DELETE FROM repository_claims WHERE worktree_instance_digest=?`, task.AdditionalRepositories[0].Binding.WorktreeInstanceDigest)
 			if err != nil {
 				t.Fatal(err)
 			}
 		}},
 		{"extra", func(t *testing.T, opened *SQLite, task domain.ProcessTask) {
-			_, err := opened.db.Exec(`INSERT INTO repository_claims(repository_identity,task_id,origin_host,claimed_at) VALUES(?,?,?,?)`, domain.Digest(strings.Repeat("f", 64)), task.TaskID, task.OriginHost, formatTime(task.UpdatedAt))
+			_, err := opened.db.Exec(`INSERT INTO repository_claims(worktree_instance_digest,canonical_worktree_root,task_id,origin_host,claimed_at) VALUES(?,?,?,?,?)`, domain.Digest(strings.Repeat("f", 64)), testPath("extra"), task.TaskID, task.OriginHost, formatTime(task.UpdatedAt))
 			if err != nil {
 				t.Fatal(err)
 			}
 		}},
 		{"host mismatch", func(t *testing.T, opened *SQLite, task domain.ProcessTask) {
-			_, err := opened.db.Exec(`UPDATE repository_claims SET origin_host=? WHERE repository_identity=?`, domain.HostDeepSeek, task.AdditionalRepositories[0].Binding.RepositoryIdentity)
+			_, err := opened.db.Exec(`UPDATE repository_claims SET origin_host=? WHERE worktree_instance_digest=?`, domain.HostDeepSeek, task.AdditionalRepositories[0].Binding.WorktreeInstanceDigest)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -227,30 +227,39 @@ func multiRepositoryGraphTask(t *testing.T) domain.ProcessTask {
 	t.Helper()
 	task := testGraphTask(t)
 	additional := task.Repository.Clone()
-	additional.CanonicalRoot = testPath("docs")
-	additional.GitCommonDirDigest = domain.Digest(strings.Repeat("d", 64))
-	additional.RepositoryIdentity = domain.Digest(strings.Repeat("e", 64))
-	additional.WorktreeFingerprint = domain.Digest(strings.Repeat("f", 64))
+	additional.WorktreeInstanceDigest = domain.Digest(strings.Repeat("d", 64))
+	additional.IdentityDigest = domain.Digest(strings.Repeat("e", 64))
+	additional.HistoryDigest = domain.Digest(strings.Repeat("f", 64))
+	additional.ContentDigest = domain.Digest(strings.Repeat("1", 64))
 	additional.BindingDigest = domain.Digest(strings.Repeat("1", 64))
+	origin := task.WorkspaceOrigin
+	origin.CanonicalWorktreeRoot = testPath("docs")
+	origin.SourceRepositoryGroupDigest = domain.Digest(strings.Repeat("d", 64))
+	origin.WorktreeGitDirDigest = domain.Digest(strings.Repeat("e", 64))
+	origin.ProvisioningReceiptID = "receipt-docs"
 	task.PrimaryRepositoryKey = "core"
-	task.AdditionalRepositories = []domain.RepositoryScopeEntry{{Key: "docs", Binding: additional}}
-	digest, err := task.EffectiveRepositoryBindingDigest()
+	task.AdditionalRepositories = []domain.RepositoryScopeEntry{{Key: "docs", Origin: origin, Binding: additional}}
+	workspace, err := task.EffectiveWorkspaceDigests()
 	if err != nil {
 		t.Fatal(err)
 	}
-	task.CurrentAction.RepositoryBindingDigest = digest
+	task.CurrentAction.RepositoryBindingDigest = workspace.Binding
+	task.CurrentAction.IssuanceIdentityDigest = workspace.Identity
+	task.CurrentAction.IssuanceHistoryDigest = workspace.History
+	task.CurrentAction.IssuanceContentDigest = workspace.Content
 	if err := workflow.ValidateProcessTask(task); err != nil {
 		t.Fatal(err)
 	}
 	return task
 }
 
-func singleRepositoryTaskForBinding(t *testing.T, taskID domain.ID, binding domain.RepositoryBinding) domain.ProcessTask {
+func singleRepositoryTaskForBinding(t *testing.T, taskID domain.ID, entry domain.RepositoryScopeEntry) domain.ProcessTask {
 	t.Helper()
 	task := testGraphTask(t)
 	task.TaskID = taskID
-	task.Repository = binding
-	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), task.CurrentNode, task.TaskID, task.Revision, binding.BindingDigest, task.Intent.MethodProfile, domain.ID(string(taskID)+"-action"), task.CreatedAt)
+	task.WorkspaceOrigin, task.Repository = entry.Origin, entry.Binding
+	workspace, _ := task.EffectiveWorkspaceDigests()
+	action, err := workflow.BuildProcessActionForWorkspace(workflow.StandardProcess(), task.CurrentNode, task.TaskID, task.Revision, workspace, task.Intent.MethodProfile, domain.ID(string(taskID)+"-action"), task.CreatedAt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,12 +276,12 @@ func retainMutation(t *testing.T, task domain.ProcessTask) TaskMutation {
 	task.ResumeNode = &resume
 	task.Revision++
 	task.UpdatedAt = now
-	digest, err := task.EffectiveRepositoryBindingDigest()
+	workspace, err := task.EffectiveWorkspaceDigests()
 	if err != nil {
 		t.Fatal(err)
 	}
-	task.Blocker = &domain.ProcessBlocker{BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.BlockerCauseRecoveryPartiallyCompleted, Message: "Restore the issuance binding before continuing.", ResumeNode: resume, ObservedBindingDigest: domain.Digest(strings.Repeat("2", 64)), Condition: domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: digest}, RequiredResolution: "Restore the exact issuance binding.", CreatedAt: now}
-	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), domain.NodeBlocked, task.TaskID, task.Revision, digest, task.Intent.MethodProfile, "resolve-action", now)
+	task.Blocker = &domain.ProcessBlocker{BlockerID: "blocker", Code: domain.ErrorTaskBlocked, Cause: domain.BlockerCauseRecoveryPartiallyCompleted, Message: "Restore the issuance binding before continuing.", ResumeNode: resume, ObservedBindingDigest: domain.Digest(strings.Repeat("2", 64)), Condition: domain.BlockerCondition{Kind: domain.BlockerConditionRestoreIssuanceBinding, ExpectedBindingDigest: workspace.Binding, ExpectedIdentityDigest: workspace.Identity, ExpectedHistoryDigest: workspace.History, ExpectedContentDigest: workspace.Content}, RequiredResolution: "Restore the exact issuance binding.", CreatedAt: now}
+	action, err := workflow.BuildProcessActionForWorkspace(workflow.StandardProcess(), domain.NodeBlocked, task.TaskID, task.Revision, workspace, task.Intent.MethodProfile, "resolve-action", now)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 	"testing"
+
+	"github.com/Innocent-children/dev-flow/internal/domain"
 )
 
 func TestFreshCurrentSchemaBootstrapIsDirectAndExact(t *testing.T) {
@@ -24,12 +26,67 @@ func TestFreshCurrentSchemaBootstrapIsDirectAndExact(t *testing.T) {
 	if version != DatabaseSchemaVersion {
 		t.Fatalf("database version=%q", version)
 	}
-	if version != "0.3.0" {
+	if version != "0.4.0" {
 		t.Fatalf("database schema identity=%q", version)
 	}
 	var claimIndexes int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='repository_claims_task_idx'`).Scan(&claimIndexes); err != nil || claimIndexes != 1 {
 		t.Fatalf("claim task index count=%d err=%v", claimIndexes, err)
+	}
+}
+
+func TestRelocationSchemaRetainsHistoryAndLimitsPendingOperation(t *testing.T) {
+	path := dbPath(t)
+	opened, err := Open(context.Background(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	task := testGraphTask(t)
+	if err := opened.CommitTask(context.Background(), testMutation(t, task)); err != nil {
+		t.Fatal(err)
+	}
+	preparedAt := formatTime(task.CreatedAt)
+	for _, operation := range []struct {
+		relocationID domain.ID
+		requestID    domain.ID
+		revision     uint64
+	}{
+		{"relocation-one", "relocation-request-one", 1},
+		{"relocation-two", "relocation-request-two", 1},
+	} {
+		_, err := opened.db.Exec(
+			`INSERT INTO relocation_operations(relocation_id,task_id,request_id,source_binding_digest,prepared_at,resolved_revision) VALUES(?,?,?,?,?,?)`,
+			operation.relocationID,
+			task.TaskID,
+			operation.requestID,
+			task.Repository.BindingDigest,
+			preparedAt,
+			operation.revision,
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	defer opened.Close()
+	if _, err := opened.db.Exec(
+		`INSERT INTO relocation_operations(relocation_id,task_id,request_id,source_binding_digest,prepared_at,resolved_revision) VALUES(?,?,?,?,?,NULL)`,
+		"relocation-pending-one",
+		task.TaskID,
+		"relocation-pending-request-one",
+		task.Repository.BindingDigest,
+		preparedAt,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := opened.db.Exec(
+		`INSERT INTO relocation_operations(relocation_id,task_id,request_id,source_binding_digest,prepared_at,resolved_revision) VALUES(?,?,?,?,?,NULL)`,
+		"relocation-pending-two",
+		task.TaskID,
+		"relocation-pending-request-two",
+		task.Repository.BindingDigest,
+		preparedAt,
+	); err == nil {
+		t.Fatal("second unresolved relocation accepted for one Task")
 	}
 }
 

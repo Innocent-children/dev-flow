@@ -18,9 +18,8 @@ test("shared simulated MCP client omits system-state revisions for a Codex-owned
   const root = await temporaryRoot(t);
   const repository = join(root, "repository");
   const dataDirectory = join(root, "data");
-  await mkdir(repository);
   await mkdir(dataDirectory, { mode: 0o700 });
-  await initializeGit(repository);
+  const workspaceOrigin = await initializeGit(root, repository);
 
   const core = new DeterministicCoreHost({ runtimePath, dataDirectory, packageRoot, useSourceRuntime: true });
   t.after(() => core.stop());
@@ -29,6 +28,7 @@ test("shared simulated MCP client omits system-state revisions for a Codex-owned
   const opened = await core.call(tool("dev_flow_open_task"), {
     host: "codex",
     repository_path: repository,
+    workspace_origin: workspaceOrigin,
     new_task: {
       request: "Verify the shared node submission contract.",
       initial_scope: ["Submit Design, Tasks and Implementation results"],
@@ -56,8 +56,6 @@ test("shared simulated MCP client omits system-state revisions for a Codex-owned
       assumptions: [],
     },
     unresolved_questions: [],
-    changed_paths: [],
-    no_file_changes: true,
   });
 
   const design = {
@@ -70,8 +68,6 @@ test("shared simulated MCP client omits system-state revisions for a Codex-owned
       risks: [],
     },
     findings: [],
-    changed_paths: [],
-    no_file_changes: true,
   };
   assert.equal(Object.hasOwn(design.baseline, "requirements_revision"), false);
   task = await submit(core, task, "design_ready", design);
@@ -89,8 +85,6 @@ test("shared simulated MCP client omits system-state revisions for a Codex-owned
       }],
     },
     findings: [],
-    changed_paths: [],
-    no_file_changes: true,
   };
   assert.equal(Object.hasOwn(tasks.baseline, "design_revision"), false);
   task = await submit(core, task, "tasks_ready", tasks);
@@ -98,8 +92,6 @@ test("shared simulated MCP client omits system-state revisions for a Codex-owned
 
   const implementation = {
     completed_work_item_ids: ["work"],
-    changed_paths: [],
-    no_file_changes: true,
     deviations: [],
     findings: [],
   };
@@ -136,14 +128,30 @@ function tool(name) {
   return `mcp__dev_flow__${name}`;
 }
 
-async function initializeGit(repository) {
+async function initializeGit(root, repository) {
   const env = { ...process.env, GIT_CONFIG_NOSYSTEM: "1" };
-  await execFile("git", ["init", "-q"], { cwd: repository, env });
-  await execFile("git", ["config", "user.email", "journey@example.invalid"], { cwd: repository, env });
-  await execFile("git", ["config", "user.name", "Journey Test"], { cwd: repository, env });
-  await writeFile(join(repository, "README.md"), "initial\n");
-  await execFile("git", ["add", "README.md"], { cwd: repository, env });
-  await execFile("git", ["commit", "-q", "-m", "initial"], { cwd: repository, env });
+  const source = join(root, "source");
+  const remote = join(root, "remote.git");
+  await mkdir(source);
+  await execFile("git", ["init", "--bare", "-q", "--initial-branch=main", remote], { cwd: root, env });
+  await execFile("git", ["init", "-q", "--initial-branch=main"], { cwd: source, env });
+  await execFile("git", ["config", "user.email", "journey@example.invalid"], { cwd: source, env });
+  await execFile("git", ["config", "user.name", "Journey Test"], { cwd: source, env });
+  await writeFile(join(source, "README.md"), "initial\n");
+  await execFile("git", ["add", "README.md"], { cwd: source, env });
+  await execFile("git", ["commit", "-q", "-m", "initial"], { cwd: source, env });
+  await execFile("git", ["remote", "add", "origin", remote], { cwd: source, env });
+  await execFile("git", ["push", "-q", "-u", "origin", "main"], { cwd: source, env });
+  await execFile("git", ["worktree", "add", "-q", "-b", "task/shared-submission", repository, "refs/remotes/origin/main"], { cwd: source, env });
+  const baseCommit = (await execFile("git", ["rev-parse", "refs/remotes/origin/main"], { cwd: repository, env, encoding: "utf8" })).stdout.trim();
+  return {
+    mode: "dedicated_worktree",
+    remote_name: "origin",
+    base_branch: "main",
+    base_commit: baseCommit,
+    task_branch: "task/shared-submission",
+    provisioning_receipt_id: "receipt-shared-submission",
+  };
 }
 
 async function temporaryRoot(t) {

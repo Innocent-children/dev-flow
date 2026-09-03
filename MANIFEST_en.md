@@ -36,13 +36,13 @@ advanced Host sections.
 | DeepSeek product version and package contents | `packages/deepseek/package.json` |
 | Unified lifecycle package and `dev-flow` bin | `packages/dev-flow/package.json`, `packages/dev-flow/` |
 | Process nodes, transitions, and guards | `internal/workflow/` |
-| Task aggregate and validation | `internal/domain/` |
+| Task aggregate, WorkspaceOrigin/Binding, and validation | `internal/domain/` |
 | SQLite bootstrap, codec, Action operations, and read-only preflight | `internal/store/` |
-| Recovery and blocker reconciliation | `internal/recovery/`, `internal/application/` |
-| Read-only Git observation and repository binding | `internal/repository/` |
+| Recovery, workspace blockers, relocation, and abandon | `internal/recovery/`, `internal/application/` |
+| Read-only Git identity/history/content/task-surface observation | `internal/repository/` |
 | MCP tools, closed schemas, and projections | `internal/mcp/` |
-| Codex Host lifecycle and selector behavior | `packages/codex/` |
-| DeepSeek Host lifecycle and selector behavior | `packages/deepseek/` |
+| Codex admission, provisioning, relaunch/handoff, and selector | `packages/codex/` |
+| DeepSeek admission, WorkspaceCoordinator, receipt/relaunch, and selector | `packages/deepseek/` |
 | Protocol fixtures | `protocol/fixtures/` |
 | Executable contracts and real journeys | `tests/contract/`, `tests/journeys/` |
 | Release schemas, prepare, and publisher | `release/`, `scripts/release-*.mjs` |

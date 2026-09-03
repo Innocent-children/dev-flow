@@ -1,91 +1,140 @@
 ---
 name: dev-flow
-description: "Use Dev Flow for bounded Codex software development tasks: implementation, bug fixes, refactoring, targeted testing, development delivery, and explicit parallel batches isolated in separate Git worktrees. It may be selected implicitly for those tasks or explicitly with $dev-flow-codex:dev-flow. Do not create a Dev Flow Task for explanation-only, status-only, design discussion, ordinary questions, or ambiguous requests."
+description: "Assess bounded Codex software development requests before choosing direct work or Dev Flow, then provision confirmed Dev Flow Tasks in dedicated Git worktrees. It may be selected implicitly or explicitly with $dev-flow-codex:dev-flow; the selector never skips assessment. Explicit Task resume and receipt-backed confirmed bootstrap bypass duplicate assessment."
 ---
 
 # Dev Flow
 
-This Skill is the current Core contract Codex adapter for the shared Dev Flow Core. Core owns task state,
-current node, legal transitions, destinations, recovery, blockers, and terminal outcomes. The Skill
-admits one implicit or explicit request, silently validates normal startup results, renders method work, and
-forwards one closed result without keeping adapter state.
+This Skill is the current Core contract Codex adapter for the shared Dev Flow Core. Core owns Task state,
+the current node, legal transitions, repository observation, recovery, blockers, and terminal outcomes.
+The Host owns suitability assessment, confirmed Git provisioning, Codex task creation, Handoff, and
+cleanup. A narrow Host receipt makes those operations recoverable without becoming a second Task cursor.
 
 ## Request routing
 
-Route the current request before the single-Task admission gate.
+Route the current request before any Dev Flow Core call or Git mutation:
 
-An explicit parallel batch names two or more independent, bounded development tasks for the same
-logical Git repository and asks Codex to run them concurrently. Handle that batch as a Host
-coordination request, not as one Core Task:
+- A receipt-backed bootstrap names an already confirmed launch created by the coordinator. It is not a
+  new user request: consume and verify that exact receipt/worktree, then continue to handshake and
+  Task creation without repeating assessment or confirmation. A missing, conflicting, failed, or
+  uncertain receipt stops before Core.
+- An explicit resume names or unambiguously identifies an existing Task. It is the only route that
+  skips new-request suitability assessment, profile selection, and provisioning. Resume the Task in
+  its original worktree instance; a missing or replaced instance is `WORKSPACE_UNAVAILABLE`.
+- A parallel batch names two or more independent development items. Assess every item first, then let
+  the user choose the items that use Dev Flow and confirm a unique target branch for each selected
+  item. No child dispatch occurs before that confirmation. Each selected item gets one Host task, one
+  dedicated worktree, and one Core Task; there is no parent Core Task and a shared-directory sub-agent
+  is not isolation.
+- Every other substantive development request is a new request. An exact selector still follows the
+  assessment and confirmation route; it is not authority to fetch, create a branch or worktree, or
+  call Core.
 
-1. Use this route only when the current Host exposes a task/thread creation capability that can
-   place every child in a distinct Git worktree. A generic sub-agent or child that shares the
-   coordinator's working directory is not isolated and must not be used for this route.
-2. Create one worktree-backed Codex task for each bounded item. Give each child only its own request,
-   bounds and acceptance criteria, and include the exact `$dev-flow-codex:dev-flow` selector so the
-   child performs its own admission, handshake, Task discovery and Action loop.
-3. Do not call any Dev Flow MCP tool from the coordinator and do not create a parent Core Task for
-   the batch. Each child worktree owns one independent Core Task; Core remains unaware of the Host
-   coordination layer.
-4. Do not create, switch, delete or clean a Git worktree through shell or Core. The Host-provided
-   worktree task capability owns worktree setup under the user's current request and authorization.
-5. If the capability is absent, cannot guarantee a distinct worktree for every child, or cannot
-   preserve the requested task boundaries, stop before dispatch. Tell the user to start each item in
-   a separate Codex worktree-backed task; do not fall through to one combined Task or shared-directory
-   parallel work.
-6. Host monitoring may report each child independently. It must not merge Task state, infer a shared
-   outcome, or perform commit, merge, rebase, push or conflict resolution without separate authority.
-
-All other task-bearing requests follow the single-Task admission gate below. A request with several
-steps toward one outcome remains one Task rather than a parallel batch.
-
-A single new request is not a parallel batch. It follows ordinary admission and Task discovery once.
-Only a complete `ACTIVE_TASK_CONFLICT` from that new-task open can enter the post-conflict Host
-relocation route defined below. Do not pre-dispatch the request or use that route for an explicit
-resume.
+A request with several dependent steps toward one result remains one request. Explanation, status,
+design discussion, ordinary questions, and ambiguous intent create no Task. `ACTIVE_TASK_CONFLICT`
+never authorizes post-conflict relocation or a replacement dispatch.
 
 ## Admission gate
 
-Perform every check below locally and in order before any Core or Dev Flow tool call.
+For every new user request, perform a read-only suitability assessment before any Dev Flow tool call,
+fetch, branch/worktree creation, file edit, build, test, dependency installation, or receipt write.
 
 The Skill resource/base name is `dev-flow`; the installed Skill full name is `dev-flow-codex:dev-flow`.
-The only exact explicit selector is `$dev-flow-codex:dev-flow`; it force-selects this Skill for the
-current user turn. The Host may also select this Skill implicitly when the current request is a
-bounded implementation, bug fix, refactoring, targeted testing, or development delivery task.
+The only exact explicit selector is `$dev-flow-codex:dev-flow`; it selects this assessment Skill for
+the current turn. The Host may also select it implicitly for a development request.
 Bare `$dev-flow`, a wrong plugin namespace, or a wrong Skill base name is not an explicit selector.
 A missing selector is valid only when the Host selected this Skill implicitly for a task-bearing
 development request. Codex may expose this plugin's MCP tools independently from Skill injection;
 this Skill does not claim selector-bound tool visibility or authorization.
 
-1. Accept either Host implicit selection for a task-bearing development request or the exact standalone
-   `$dev-flow-codex:dev-flow` selector in the current user turn. Do not infer an explicit selection from
-   earlier turns, repository contents, discussion about Dev Flow, bare `$dev-flow`, or another namespace.
-2. Both activation paths use this same admission gate. After removing an explicit selector when present,
-   accept either one substantive bounded request or an explicit resume request for its compatible active
-   Codex task. Reject an empty or conversational invocation before any Core call. Explanation-only,
-   status-only, design discussion, ordinary questions, and ambiguous requests are non-task-bearing: if
-   the Host loaded this Skill for one, do not create or resume a Dev Flow Task and return to ordinary
-   conversation or clarify the intent.
-3. Use read-only Git inspection to resolve the current Git worktree and its canonical root as the
-   primary repository. Preserve spaces, Unicode, symlinks, and subdirectory invocation as one path
-   value; do not concatenate a shell command.
-4. Accept zero to seven additional repositories only when the current user request explicitly
-   declares each stable repository key and path. Each additional repository must already be within
-   an additional writable root authorized for the current Codex session. Use the Host's existing
-   capabilities and actual file-tool results to enforce this boundary; do not read or parse global
-   Codex configuration to infer writable roots.
-5. Do not scan parent or sibling directories and do not infer repositories from imports, remotes,
-   submodules, codebase-memory, or other discovery results. Never add a discovered repository to the
-   Repository Scope. Reject an unresolved repository or an additional repository whose current
-   writable authorization cannot be established. Preserve repository instructions and user authority
-   when checking whether the work is permitted.
+1. Resolve only user-declared repositories with read-only Git inspection. Preserve spaces, Unicode,
+   symlinks, and subdirectory invocation as one argv value. Do not infer Repository Scope from
+   imports, remotes, submodules, an index, or neighboring directories.
+2. Read the request, repository instructions, directly relevant product/technical documents,
+   candidate implementation symbols, callers, tests, configuration, package manifests, HEAD, and
+   status. Existing code indexes may help; an unavailable or incomplete index falls back to file and
+   text search and becomes an `unknowns` item when it limits the result.
+3. Bind the assessment to the exact request digest and, for every canonical repository root, its HEAD
+   and status digest. Candidate paths are a discovered lower bound, never a promised final file list.
+4. Produce exactly these fields:
 
-If admission fails, explain the missing precondition and stop before Skill-owned task discovery. Do
-not complete a task-bearing call or create adapter state. Host-exposed read-only or Core-rejected
-calls are not activation and must be reported honestly.
+```text
+change_level: small | standard | large | uncertain
+observed_repositories
+candidate_components
+candidate_paths
+public_contract_flags
+persistence_or_state_flags
+host_or_platform_flags
+verification_shape
+unknowns
+recommendation: direct | dev_flow | clarify
+reasons
+anchor: request_digest + repository root/HEAD/status digests
+```
 
-Successful admission is internal startup work. Do not narrate the selector, Git-root, repository,
-profile-default, or authorization checklist; continue directly to the compatibility handshake.
+5. Use `small` only for one repository, one responsibility, a clear success condition, concentrated
+   implementation/callers/tests, no public API/CLI/MCP/Schema/persistence/state-graph/Host/platform/
+   security change, a few targeted checks, and no material unknown. Public contracts, persistence,
+   state graphs, multiple repositories, multiple Hosts/platforms, security, concurrency, recovery,
+   or real Host Journeys cannot be `small`. Missing entry points, impact, or verification makes the
+   result `uncertain` and the recommendation `clarify`.
+6. Show the assessment and stop. Ask the user to choose direct development, Dev Flow, or clarification.
+   Do not call Core, create a receipt, or dispatch a child in this turn.
+
+If the user chooses direct development, leave Dev Flow with zero Dev Flow calls, Tasks, claims,
+receipts, fetches, branches, or worktrees. If the user chooses Dev Flow, re-read the request, HEAD,
+and status; any anchor change invalidates the assessment and requires a new assessment and choice.
+
+## Provisioning confirmation
+
+After a still-current Dev Flow choice, show for each repository its stable key, remote name, base
+branch, proposed new target branch, and bounded dirty-path list. Explain that staged, tracked-dirty,
+and untracked source content will not enter the Task worktree. Require explicit confirmation of every
+`repository_key`, `remote_name`, `base_branch`, and `target_branch`, then stop again.
+
+After confirmation:
+
+1. Validate each target with `git check-ref-format --branch`; reject local, selected-remote, or
+   worktree-occupied conflicts. Create the narrow provisioning receipt before the first Git write.
+2. Fetch only `refs/heads/<base>:refs/remotes/<remote>/<base>` from the selected remote with closed
+   argv, no pull and no prune, then freeze the fetched commit. A failed fetch leaves no target branch,
+   worktree, or Core Task.
+3. For a managed Codex worktree, call the packaged `host-launch dispatch-start` helper before exactly
+   one Host creation call. Create from the existing ref `refs/remotes/<remote>/<base>` with
+   `target.environment.type="worktree"`; omit `onMissing` and never use Host create-branch fallback.
+   Use the helper's deterministic launch/repository title. A `clientThreadId`, queued result,
+   timeout, or malformed result is read through the receipt and Host status using that marker only;
+   never dispatch again.
+4. The child consumes the receipt before any Core call, verifies the same Git common group, a new
+   worktree Git directory, exact fetched HEAD, and clean status, then creates and switches to the
+   confirmed target branch. It verifies branch, HEAD, clean status, submodules, and Host write access.
+5. A Codex CLI surface without Host task creation uses the receipt-backed `cli-provision` helper and
+   the returned closed relaunch descriptor: executable `codex`, `-C` for the primary worktree, one
+   `--add-dir` per additional worktree, and the bootstrap prompt. Do not invent a shell string.
+6. All repositories must be isolated, writable, and verified before one Core Task is opened. If the
+   Host cannot isolate every root, reject the entire Dev Flow request; do not keep shared additional
+   repositories or shrink Scope. Build the open call from one receipt-backed repository-scope
+   descriptor so every entry belongs to the same confirmed launch and request.
+
+Only a `provisioned` receipt can supply the exact Host-facing workspace origin:
+
+```json
+{
+  "mode": "dedicated_worktree",
+  "remote_name": "origin",
+  "base_branch": "main",
+  "base_commit": "<complete fetched commit>",
+  "task_branch": "codex/example",
+  "provisioning_receipt_id": "<stable receipt identity>"
+}
+```
+
+Core computes and verifies the source repository group, canonical worktree root, and worktree Git-dir
+identity from local Git. Host text never substitutes for those facts. Setup that changes tracked
+files, dirty submodules, failed LFS checkout, missing authorization, partial multi-repository setup,
+or an uncertain Host result stops before Core Task creation. Keep uncertain resources for inspection;
+never force, prune, retry dispatch, copy secrets, or copy source checkout changes.
 
 ## Compatibility handshake
 
@@ -102,7 +151,7 @@ call. Require one complete structured result proving:
 - `method_profiles` contains exactly `plain`, `spec-kit`, and `openspec`, regardless of order;
 - `host_preferences.codex.codebase_memory` is present and is exactly a JSON boolean; it expresses a
   preference only and does not prove that codebase-memory is installed or available;
-- the tool catalog contains exactly these fifteen raw names, regardless of order:
+- the tool catalog contains exactly these seventeen raw names, regardless of order:
 
 1. `dev_flow_server_info`
 2. `dev_flow_open_task`
@@ -116,9 +165,11 @@ call. Require one complete structured result proving:
 10. `dev_flow_submit_comprehension`
 11. `dev_flow_submit_refactor`
 12. `dev_flow_submit_delivery`
-13. `dev_flow_resolve_blocker`
-14. `dev_flow_recover_action`
-15. `dev_flow_cancel_task`
+13. `dev_flow_prepare_task_relocation`
+14. `dev_flow_resolve_blocker`
+15. `dev_flow_recover_action`
+16. `dev_flow_cancel_task`
+17. `dev_flow_abandon_task`
 
 Package resources, the bundled Core executable and version, Codex compatibility, and registration
 ownership are setup-time checks owned by `dev-flow-codex setup`; do not repeat them by inspecting the
@@ -135,8 +186,10 @@ failed handshake.
 
 ## Optional code discovery
 
-After the successful handshake, consume only `host_preferences.codex.codebase_memory` and the
-capabilities actually visible in this Codex session:
+After the successful handshake for a provisioned or resumed Task, consume only
+`host_preferences.codex.codebase_memory` and the capabilities actually visible in this Codex session.
+This preference governs Task work; the pre-Core suitability assessment may use an index already
+visible to the Host and otherwise falls back immediately.
 
 - When the preference is `false`, do not call any codebase-memory tool even when one is visible. Use
   Codex Git inspection, file reads, file search, and text search, and do not prompt for installation.
@@ -156,20 +209,19 @@ be written into the Core Task.
 
 ## Task discovery
 
-After the handshake, call `dev_flow_open_task` with `host=codex`, `repository_path` equal to the
-canonical current worktree, and the following Scope rules:
+After provisioning and the handshake, call `dev_flow_open_task` with `host=codex`, `repository_path`
+equal to the verified task worktree, and the following Scope rules:
 
-- For a new multi-repository request, send `primary_repository_key` when explicitly supplied and
-  send `additional_repositories` as the user's explicit closed `{key, repository_path}` declarations.
-  Do not synthesize keys or paths. For a new single-repository request, omit both optional Scope
-  fields and retain the ordinary repository-relative path behavior.
-- For an explicit resume from the primary or an additional repository, send that participating
-  repository as `repository_path`, omit the Scope creation fields, and omit `new_task` or send
-  `new_task=null`. Accept the immutable primary repository, ordered Scope, profile, revision, and
-  current Action returned by Core.
-
-- For an explicit resume, omit `new_task` or send `new_task=null`. Do not resend a guessed intent or
-  select another profile; accept the immutable profile returned by Core.
+- For a new single-repository request, send the primary top-level `workspace_origin` beside
+  `repository_path`. For a new multi-repository request, send `primary_repository_key`, the primary
+  top-level `workspace_origin`, and each closed additional entry as exactly
+  `{key, repository_path, workspace_origin}`. Use only values from the matching provisioned receipts
+  and compare the complete call with the live schema.
+- For an explicit resume, return to the original worktree instance and send that participating
+  repository as `repository_path`. Omit `workspace_origin`, all Scope creation fields, and `new_task`
+  (or send `new_task=null`). Accept the immutable primary repository, ordered Scope, origin, profile,
+  revision, and current Action returned by Core; do not resend guessed intent or select another
+  profile. Never recreate a missing path or select a same-named branch as a substitute.
 - For a new request, select one profile from explicit current user intent. An explicit `plain`,
   `spec-kit`, or `openspec` request selects that exact profile. An explicit request to use Spec Kit
   selects `spec-kit`; an explicit request to use OpenSpec selects `openspec`; otherwise use the
@@ -207,42 +259,10 @@ Use this exact `new_task` JSON shape, changing only values derived from the admi
 ```
 <!-- new-task-example:end -->
 
-Ask before opening only when a material request, initial-bound, verification, or profile choice
-cannot be derived without changing user intent. Let Core decide whether a compatible intent creates
-or resumes a task. After a successful open, give at most one concise status containing the Task
-identity, revision, and current node, then begin the node's substantive repository work without
-reciting startup checks.
-
-### New-request active-conflict relocation
-
-Apply this closed Host route only after one complete `dev_flow_open_task` result:
-
-1. Require that the rejected call carried a non-null `new_task` and that the complete domain error
-   code is exactly `ACTIVE_TASK_CONFLICT`. A call for explicit resume, including a call that omitted
-   `new_task` or sent `new_task=null`, is never eligible.
-2. Require a current Host task/thread creation capability that can place one child in a distinct Git
-   worktree. Resolve one exact saved project for the current logical repository through Host-provided
-   read-only project discovery. If the project cannot be resolved unambiguously, treat the capability
-   as unavailable.
-3. Make exactly one Host creation call for exactly one worktree-backed Codex task. Set
-   `target.environment.type="worktree"` and omit the `startingState` member entirely so the child
-   starts from the saved project's committed default-branch state. Never select a `working-tree` starting state,
-   invent a branch or ref, or ask the Host to transfer working-tree state.
-4. Give the child only the exact `$dev-flow-codex:dev-flow` selector, the admitted current request,
-   its bounds and acceptance criteria, and its verification authority. Do not inspect, read, copy or apply
-   the occupied checkout's index, tracked working-tree changes, untracked files, diffs or Task
-   artifacts when constructing the child request; they belong to the existing Task.
-5. After a successful dispatch, report the one child identity and stop work in the coordinator. Do not call any Dev Flow Core tool again
-   for the conflicted request, retry `dev_flow_open_task`, create
-   a parent or replacement Core Task, resume the existing Task, or change the occupied worktree. The
-   original active Task and original worktree remain unchanged.
-6. If the Host capability is absent or unsuitable, stop and report `ACTIVE_TASK_CONFLICT` with
-   guidance to start the request in a separate Codex worktree-backed task. If the Host creation result
-   is missing, malformed, truncated or otherwise uncertain, report that exactly-one dispatch is
-   uncertain and stop without retrying or creating another child. Never fall back to a shared-directory
-   sub-agent.
-7. Report `HOST_OWNERSHIP_CONFLICT`, every explicit-resume conflict, and every other complete Core
-   error unchanged in meaning and stop. No other error authorizes Host dispatch.
+After a successful open, give at most one concise status containing the Task identity, revision,
+current node, task branch, and worktree path, then begin the current node. A new-task
+`ACTIVE_TASK_CONFLICT`, `WORKTREE_PROVISIONING_REQUIRED`, ownership error, or other domain error is a
+safe stop. It never starts relocation or another Host task.
 
 ## Governed action loop
 
@@ -250,16 +270,19 @@ The inseparable Action fields are exactly `task_id`, `revision`, `action_id`, `a
 `process_id`, `process_definition_digest`, `current_node`, `node_purpose`,
 `entry_conditions`, `completion_conditions`, `allowed_effects`, `required_evidence`,
 `method_profile`, `method_steps`, `available_transitions`, `payload_contract`, `guidance`,
-`repository_binding_digest`, and `issued_at`.
+`repository_binding_digest`, `issuance_identity_digest`, `issuance_history_digest`,
+`issuance_content_digest`, and `issued_at`.
 
 For an active task, perform each iteration in this order:
 
 1. Obtain one complete fresh Action from the open result or `dev_flow_get_next_action`, and bind it as
-   `fresh_action` from `result.task.current_action` or `result.action` respectively.
+   `fresh_action` from `result.task.current_action` or `result.action` respectively. These reads first
+   observe every task worktree; handle a workspace blocker before doing repository work.
 2. Treat its task ID, revision, action ID, action kind, process ID, process version,
    process-definition digest, current node, node purpose, entry conditions, completion conditions,
    allowed effects, required evidence, method profile, method steps, available transitions, payload
-   schema/contract, guidance, repository-binding digest, and issued time as one inseparable Core
+   schema/contract, guidance, repository-binding digest, issuance identity/history/content digests,
+   and issued time as one inseparable Core
    result. Stop if any field is absent, malformed, or truncated.
 3. Validate the complete Action internally. During normal work, give only a concise current-node
    status and proceed; do not dump entry conditions, completion conditions, allowed effects, required
@@ -276,11 +299,9 @@ For an active task, perform each iteration in this order:
 6. Render and perform each current method operation under the allowed effects, repository
    instructions, verification budget, and current user authority.
 7. Select only a Core-returned transition and build the closed input of
-   `fresh_action.submission_tool` from the actual typed node facts.
-   `changed_paths` contains only repository paths newly changed while performing this current Action,
-   relative to its issuance binding. Do not repeat paths changed by an earlier node. When the current
-   Action only reads files or runs verification commands, submit `changed_paths=[]` and
-   `no_file_changes=true`, even when the Task's implementation already has uncommitted paths.
+   `fresh_action.submission_tool` from the actual typed semantic node facts. Do not add Host-declared
+   file-effect members; Core re-observes Git, computes the Action delta, and derives the complete
+   current Task surface relative to the frozen base commit.
 8. Submit exactly one call to that tool with `host`, `task_id`, `action_id`, the selected transition,
    result text, artifact slots, method results and the exact node result. Core fills and retains the
    complete Action identity and payload envelope.
@@ -305,8 +326,8 @@ developer-readable reason for the proposed write, and ask for exactly one choice
   Action;
 - `expand_scope` returns to TASKS so the Task Plan is revised; use the existing TASKS transition to
   REQUIREMENTS only when the semantic requirement scope also changes;
-- `reject` keeps the current Task Plan and denies supported writes to the retained path for that
-  Task Plan revision.
+- `reject` / restore keeps the current Task Plan and returns to the source node only after every
+  rejected path has actually been restored to the retained content.
 
 After the developer supplies one choice and a non-empty reason, call `dev_flow_resolve_blocker` with
 `host`, `task_id`, `action_id`, `choice`, and `reason`. For recovery and automatic-verification
@@ -315,9 +336,9 @@ reuse an `allow_once` decision for a different patch, expand Repository Scope, o
 path.
 
 The hook covers `apply_patch`; it is not a filesystem or shell sandbox. Bash, external processes,
-and specialized tool paths may write before Core observes them. Implementation, Refactor and
-Delivery submissions must therefore use the exact current changed surface and obey Core's final
-scope guard. If the packaged hook is disabled, untrusted or unavailable, report that prewrite
+and specialized tool paths may write before Core observes them. Core therefore checks the current
+Task surface before progressing, and every visible change in the dedicated worktree belongs to the
+Task. If the packaged hook is disabled, untrusted or unavailable, report that prewrite
 checking is unavailable and stop the supported write rather than describing prompt compliance as
 interception.
 
@@ -408,7 +429,7 @@ Before submitting, perform this order:
    every enum and const; and the exact `method_results` keys. Never infer a type from a field name,
    the packaged reference, a previous node or an earlier tool call.
 9. Confirm `request_id`, revision, action kind, process identity, source cursor, repository binding,
-   payload envelope, destination and recovery fields are absent.
+   issuance workspace digests, payload envelope, destination and recovery fields are absent.
 10. Call `fresh_action.submission_tool` once.
 
 Step 8 is the submission schema conformance gate. It is mandatory even for a one-line repository
@@ -469,7 +490,7 @@ Do not implement or branch on the five-class decision table. Obey only Core's co
 - `read_next_action`: read the authoritative next action and continue only from that result;
 - `resolve_blocker`: call `dev_flow_resolve_blocker` with the current blocked Action's `task_id` and
   `action_id` after the required repository condition has been restored;
-- `stop_for_repository_drift`: report the bounded drift condition and stop.
+- `stop_for_repository_drift`: report the retained workspace/history condition and stop.
 
 Never infer that an unlisted action is safe. A recovery read itself cannot create a blocker or adopt
 work. If the original `task_id` or `action_id` is missing, stop; do not rebuild it from partial output.
@@ -537,9 +558,59 @@ recovery-before-retry contract.
 ## Blocked and terminal behavior
 
 Stop repository work when Core returns authoritative `BLOCKED`, `DONE`, `CANCELLED`, an ownership or
-contract conflict, or another safe-stop. Report Core's blocker and condition, terminal outcome,
-evidence summary, cancellation, or conflict without replacing or merging a task. Use
-`dev_flow_cancel_task` only after explicit user authority and a fresh current Core identity.
+contract conflict, or another safe-stop. Report Core's exact condition without replacing the Task.
+
+- Planned-path changes proceed normally. An unplanned current path uses the retained file-scope
+  choices; there is no “external change, ignore it” option inside a dedicated Task worktree.
+- A linear commit on the same task branch is normal. A branch switch, detached HEAD, rewind, or
+  unprepared rewrite uses the Core workspace-history blocker. Never automatically rebase or merge.
+- A missing or replaced worktree is `WORKSPACE_UNAVAILABLE` and cannot be resolved by recreating the
+  directory. Restore the original instance or, after explicit user authority, call
+  `dev_flow_abandon_task` with exact host, Task ID, revision, and a non-empty reason.
+- Ordinary cancellation uses `dev_flow_cancel_task` only after explicit user authority and a fresh
+  identity; it must still observe the worktree. Abandonment is only for an unavailable workspace.
+
+## Task relocation and Codex Handoff
+
+Relocation is Core-owned preparation followed by one Host-owned Handoff:
+
+1. After explicit user authority, call `dev_flow_prepare_task_relocation` once with exact host, Task
+   ID, and revision. Retain its relocation
+   ID, source binding, base commit, content digest, task surface, and resume node.
+2. From a coordinator other than the thread being moved, persist `handoff_dispatching` in the Host
+   receipt before one `handoff_thread` call. The calling thread cannot move itself. A returned Host
+   operation ID is polled with Host status; a missing response reads the receipt and Host status and
+   is never dispatched again.
+3. After Host success, the destination session calls `dev_flow_resolve_blocker` with the exact
+   `relocation_id` and `relocation_destinations:[{key,repository_path}]`. Core verifies the
+   same Git common group, frozen base, equivalent Task surface, and absence of claim conflicts before
+   atomically replacing bindings and claims.
+4. Any failure preserves the old binding and claims. Relocation is same-machine only and never
+   implies merge, rebase, commit, push, or cross-machine data transfer.
+
+`ACTIVE_TASK_CONFLICT` is not relocation preparation and never triggers Handoff.
+
+For a workspace-history blocker, use only the live-schema
+`history_resolution:{choice:"accept_current_history",reason}` after the user-authorized Git operation
+has completed and Core can observe the requested history. Do not reuse relocation fields.
+
+## Terminal worktree presentation and cleanup
+
+`DONE` and `CANCELLED` release Core claims only. They never commit, push, create a pull request,
+Handoff, delete a worktree, or delete a branch. Present remote/base/base commit, task branch/current
+HEAD, worktree path, clean or dirty state, current changed paths, completed verification, and the
+available keep/review/Handoff/cleanup actions.
+
+Automatic cleanup is always false. An active, dirty, unpushed, or uncertain worktree is preserved.
+Worktree deletion and branch deletion require two separate current user authorizations. Managed
+worktree snapshot/Handoff/cleanup belongs to the Codex Host; do not replace it with `git worktree`
+shell commands. For a CLI-provisioned worktree, use the receipt-owned cleanup helpers: mark the
+attempt before mutation, remove only the exact clean terminal worktree without force, and delete the
+branch separately with ordinary safe Git refusal preserved. An uncertain cleanup is inspected and
+never blindly retried.
+
+A terminal Host-only Handoff may move or present the finished Codex worktree after separate user
+authorization. It does not call Core relocation preparation or mutate a terminal Task.
 
 Codex's belief that work is complete does not override Core, and a blocker is not success.
 

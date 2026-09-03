@@ -38,4 +38,8 @@ var (
 	// that no longer agrees with the bounded initial status. The observer never
 	// retries or returns the path that caused the failure.
 	ErrInconsistentWorktree = fmt.Errorf("%w: inconsistent worktree observation", ErrGitObservation)
+
+	// ErrProvisioningRequired identifies a path that is not the clean,
+	// dedicated worktree selected by the Host's frozen origin.
+	ErrProvisioningRequired = errors.New("worktree provisioning is required")
 )

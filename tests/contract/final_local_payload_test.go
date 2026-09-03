@@ -193,6 +193,12 @@ func assertFinalLocalPayloadCommonShape(t *testing.T, raw []byte) {
 	if _, found := payload["destination"]; found {
 		t.Fatal("payload contains caller destination")
 	}
+	nodeResult, _ := payload["node_result"].(map[string]any)
+	for _, removed := range []string{"changed_paths", "no_file_changes"} {
+		if _, found := nodeResult[removed]; found {
+			t.Fatalf("payload retains removed Host file field %s", removed)
+		}
+	}
 }
 
 func decodePayloadObject(t *testing.T, raw []byte) map[string]any {

@@ -11,8 +11,9 @@ const rawTools = [
   "dev_flow_server_info", "dev_flow_open_task", "dev_flow_get_task", "dev_flow_get_next_action",
   "dev_flow_submit_requirements", "dev_flow_submit_design", "dev_flow_submit_tasks",
   "dev_flow_submit_implementation", "dev_flow_submit_test", "dev_flow_submit_comprehension",
-  "dev_flow_submit_refactor", "dev_flow_submit_delivery", "dev_flow_resolve_blocker",
-  "dev_flow_recover_action", "dev_flow_cancel_task",
+  "dev_flow_submit_refactor", "dev_flow_submit_delivery", "dev_flow_prepare_task_relocation",
+  "dev_flow_resolve_blocker", "dev_flow_recover_action", "dev_flow_cancel_task",
+  "dev_flow_abandon_task",
 ];
 
 test("Skill declares explicit activation and the complete qualified tool catalog", async () => {
@@ -26,16 +27,24 @@ test("Skill declares explicit activation and the complete qualified tool catalog
 
 test("Skill contains the required operational sections", async () => {
   const skill = await readFile(skillPath, "utf8");
-  for (const heading of ["Admission gate", "Compatibility handshake", "Task discovery", "Optional code discovery", "Governed action loop", "Method operation rendering", "Transition selection", "Closed forwarding contract", "Recovery-before-retry contract"]) {
+  for (const heading of ["Suitability assessment", "Explicit worktree confirmation", "Compatibility handshake", "Task discovery", "Optional code discovery", "Governed action loop", "Method operation rendering", "Transition selection", "Closed forwarding contract", "Recovery-before-retry contract"]) {
     assert.equal(skill.includes(`## ${heading}`), true, heading);
   }
+  const assessment = section(skill, "Suitability assessment");
+  assert.match(assessment, /Do not edit files, run tests or builds, install dependencies, call any Dev Flow/u);
+  assert.match(assessment, /change_level: small \| standard \| large \| uncertain/u);
+  assert.match(assessment, /recommendation: direct \| dev_flow \| clarify/u);
+  const confirmation = section(skill, "Explicit worktree confirmation");
+  assert.match(confirmation, /\/dev-flow confirm-worktree/u);
+  assert.match(confirmation, /workspace_coordinator/u);
+  assert.match(confirmation, /operation=consume/u);
 });
 
 test("all explicit DeepSeek tool calls use qualified DSH names", async () => {
   const skill = await readFile(skillPath, "utf8");
   const withoutCatalog = skill.replace(/^\d+\. `dev_flow_[a-z_]+`$/gmu, "");
   assert.equal(/`dev_flow_[a-z_]+/.test(withoutCatalog), false);
-  for (const name of [rawTools[0], rawTools[1], rawTools[2], rawTools[3], rawTools[12], rawTools[13]]) assert.equal(skill.includes(`mcp__dev_flow__${name}`), true, name);
+  for (const name of [rawTools[0], rawTools[1], rawTools[2], rawTools[3], rawTools[12], rawTools[13], rawTools[14], rawTools[15], rawTools[16]]) assert.equal(skill.includes(`mcp__dev_flow__${name}`), true, name);
 });
 
 test("packaged references cover method steps and every submission tool", async () => {

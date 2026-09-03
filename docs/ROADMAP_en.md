@@ -11,7 +11,7 @@ current status belong in [Project Status](PROJECT-STATUS_en.md); stable support 
 > After a long-running task is interrupted, give the developer and agent a trustworthy current state
 > and a next step that does not expand work, repeat effects, or broaden verification without reason.
 
-## Now: understand the current Task
+## Now: understand the current Task and worktree
 
 This stage improves the clarity and cost of using capabilities that already exist:
 
@@ -20,7 +20,11 @@ This stage improves the clarity and cost of using capabilities that already exis
 - show which verification records still apply to the current implementation;
 - explain why a Task is blocked and what must be confirmed;
 - show the current legal next step directly;
-- show the Task Plan, actual changed paths, file-scope decisions, and unexplained paths;
+- show a read-only change assessment and recommendation before a new request creates a Task;
+- show confirmed remote/base/target, the dedicated worktree, Task Plan, current changed paths,
+  file-scope decisions, and unexplained paths;
+- distinguish normal linear commits, content changes, history conflicts, workspace unavailability,
+  and relocation;
 - make the current stage, remaining verification budget, and Recovery assessment easier to read in
   the Host and local WebUI.
 
@@ -33,24 +37,23 @@ The following are future directions and are not implemented, or not fully implem
 - stronger binding between verification records and current implementation state;
 - visible verification-budget consumption and the stated reason for expansion;
 - a public fault-injection journey for an uncertain Action;
-- lower process cost based on task complexity;
-- different process intensity for small tasks, ordinary long tasks, and strict tasks.
+- improve the explainability and feedback loop for `small|standard|large|uncertain` assessments;
+- reduce confirmation and recovery steps without adding a second state machine.
 
 Names such as Skip, Guarded, and Strict are not delivered user features. Any future naming and
 behavior requires an independent product design and a real journey.
 
-## Later: trustworthy handoff
+## Later: cross-machine and team collaboration
 
 The following are later candidates and are not implemented today:
 
-- explicit handoff between Codex and DeepSeek;
-- Task export or a handoff receipt;
+- cross-machine Task transfer with verifiable export/import;
 - read-only PR / CI verification summaries;
 - a team read-only Task view;
 - thinner OpenSpec / Spec Kit artifact integration.
 
-Handoff must continue to use one Core Task state. An Adapter cannot copy the current stage or decide
-completion independently.
+Current source supports same-machine relocation. Any future cross-machine capability must still use
+one Core Task state; an Adapter cannot copy the current stage or decide completion independently.
 
 ## Not planned
 

@@ -13,6 +13,7 @@ import { promisify } from "node:util";
 import { zstdDecompressSync } from "node:zlib";
 
 import { buildCoreRuntimes } from "../../../scripts/build-core-runtimes.mjs";
+import { createWorkspaceCoordinator } from "../../../packages/deepseek/lib/workspace-coordinator.mjs";
 
 const execFile = promisify(execFileCallback);
 const runnerPath = fileURLToPath(import.meta.url);
@@ -28,8 +29,8 @@ const APPLY_RULES = [
   "Use the live artifacts object and one method_results entry with capability empty for every current method step ID.",
   "For a forward ready, passed, or completed transition use problem_class=none and findings=[].",
   "Use a non-none problem_class and nonempty findings only for the exact corrective transition whose condition they establish.",
-  "Every node_result contains exact changed_paths and no_file_changes; exactly one of nonempty changed_paths or no_file_changes=true describes the current effect.",
-  "For REQUIREMENTS, node_result contains exactly problem_class, baseline, unresolved_questions, changed_paths, and no_file_changes; unresolved_questions is a sibling of baseline and baseline contains exactly goal, scope, out_of_scope, acceptance_criteria, constraints, and assumptions.",
+  "Never send changed_paths or no_file_changes; Core computes file effects from the dedicated worktrees.",
+  "For REQUIREMENTS, node_result contains exactly problem_class, baseline, and unresolved_questions; unresolved_questions is a sibling of baseline and baseline contains exactly goal, scope, out_of_scope, acceptance_criteria, constraints, and assumptions.",
   "If any apply returns an error, stop immediately without retrying.",
 ].join(" ");
 
@@ -73,6 +74,22 @@ async function execute(selectedMode, options) {
 
     stage = "workspace";
     await initializeWorkspace(config);
+    const provisioned = await createWorkspaceCoordinator({ dataDirectory: config.dataDirectory, workspaceRoot: config.workspaceRoot }).provision({
+      request: "Create exactly one bounded multi-repository Task.",
+      profile: PROFILE,
+      repositories: [
+        { repository_key: "core", source_repository_path: config.primaryRepository, remote_name: "origin", base_branch: "main", target_branch: "feature/core-proof" },
+        { repository_key: "docs", source_repository_path: config.additionalRepository, remote_name: "origin", base_branch: "main", target_branch: "feature/docs-proof" },
+      ],
+    });
+    const consumed = await createWorkspaceCoordinator({ dataDirectory: config.dataDirectory, workspaceRoot: provisioned.workspace_root }).consume({ launchID: provisioned.launch_id });
+    config.sourcePrimaryRepository = config.primaryRepository;
+    config.sourceAdditionalRepository = config.additionalRepository;
+    config.taskWorkspace = consumed.workspace_root;
+    config.primaryRepository = consumed.open_task.repository_path;
+    config.additionalRepository = consumed.open_task.additional_repositories[0].repository_path;
+    config.openTask = consumed.open_task;
+    await writeVerificationScript(config);
     const sessionRoot = join(config.dshHome, "sessions");
 
     let previousTask = null;
@@ -174,6 +191,8 @@ function layout(root, options) {
     workspaceRoot: join(root, "workspace"),
     primaryRepository: join(root, "workspace", "core"),
     additionalRepository: join(root, "workspace", "docs"),
+    primaryRemote: join(root, "core.git"),
+    additionalRemote: join(root, "docs.git"),
     packageStage: join(root, "source-package"),
     artifactDirectory: join(root, "artifact"),
   };
@@ -261,16 +280,22 @@ async function installAndReadBack(config, product) {
 async function initializeWorkspace(config) {
   await mkdir(config.primaryRepository);
   await mkdir(config.additionalRepository);
-  for (const [path, name] of [[config.primaryRepository, "core"], [config.additionalRepository, "docs"]]) {
+  for (const [path, remote, name] of [[config.primaryRepository, config.primaryRemote, "core"], [config.additionalRepository, config.additionalRemote, "docs"]]) {
     const env = { ...process.env, GIT_CONFIG_NOSYSTEM: "1" };
-    await execFile("git", ["init", "-q"], { cwd: path, env });
+    await execFile("git", ["init", "--bare", "--initial-branch=main", remote], { env });
+    await execFile("git", ["init", "-q", "--initial-branch=main"], { cwd: path, env });
     await execFile("git", ["config", "user.email", "journey@example.invalid"], { cwd: path, env });
     await execFile("git", ["config", "user.name", "DeepSeek Journey"], { cwd: path, env });
     await writeFile(join(path, "README.md"), "# " + name + "\n");
     await execFile("git", ["add", "README.md"], { cwd: path, env });
     await execFile("git", ["commit", "-q", "-m", "initial fixture"], { cwd: path, env });
+    await execFile("git", ["remote", "add", "origin", remote], { cwd: path, env });
+    await execFile("git", ["push", "-u", "origin", "main"], { cwd: path, env });
   }
-  await writeFile(join(config.workspaceRoot, "verify.mjs"), [
+}
+
+async function writeVerificationScript(config) {
+  await writeFile(join(config.taskWorkspace, "verify.mjs"), [
     'import assert from "node:assert/strict";',
     'import { readFile } from "node:fs/promises";',
     'assert.equal(await readFile("core/core-proof.txt", "utf8"), "core proof\\n");',
@@ -278,15 +303,14 @@ async function initializeWorkspace(config) {
     "",
   ].join("\n"));
   const rootGit = await execFile("git", ["rev-parse", "--show-toplevel"], {
-    cwd: config.workspaceRoot, encoding: "utf8",
+    cwd: config.taskWorkspace, encoding: "utf8",
   }).then(() => true, () => false);
   assert.equal(rootGit, false, "Workspace Root must not be a Git repository");
 }
 
 function checkpoints(config) {
-  const createInput = "Use repository_path=" + JSON.stringify(config.primaryRepository)
-    + ", primary_repository_key=core, and additional_repositories=[{\"key\":\"docs\",\"repository_path\":"
-    + JSON.stringify(config.additionalRepository) + "}].";
+  const createInput = "Use this consumed provisioning descriptor exactly for repository_path, primary_repository_key, workspace_origin, and additional_repositories: "
+    + JSON.stringify(config.openTask) + ".";
   const primaryResume = "Resume the existing host=deepseek Task with repository_path="
     + JSON.stringify(config.primaryRepository) + ", new_task=null, and no Scope creation fields.";
   const additionalResume = "Resume the existing host=deepseek Task from the additional repository with repository_path="
@@ -310,7 +334,7 @@ function checkpoints(config) {
       "/dev-flow Continue the active bounded multi-repository Task from fresh Core authority.", primaryResume,
       "Perform the server-info handshake, then read the Task and current Action.",
       "Complete DESIGN and TASKS using both scoped paths. At IMPLEMENT create only core/core-proof.txt and docs/docs-proof.txt with their requested exact bytes.",
-      "Use core::core-proof.txt and docs::docs-proof.txt as every multi-repository expected_paths and changed_paths set.", APPLY_RULES,
+      "Use core::core-proof.txt and docs::docs-proof.txt as the multi-repository expected_paths set.", APPLY_RULES,
       "Submit implementation_ready_for_test and stop immediately when Core reports TEST. Do not run any verification command.",
     ]),
     checkpoint("additional-resume-to-comprehension", "COMPREHENSION_REVIEW", [
@@ -344,7 +368,7 @@ async function runTurn(config, prompt, stage) {
   const sessionRoot = join(config.dshHome, "sessions");
   const beforeSessions = new Set(await sessionFiles(sessionRoot));
   const child = spawn(config.dshExecutable, ["--profile", PROFILE, prompt], {
-    cwd: config.workspaceRoot,
+    cwd: config.taskWorkspace ?? config.workspaceRoot,
     env: dshEnvironment(config),
     detached: true,
     stdio: ["ignore", "pipe", "pipe"],
@@ -512,7 +536,7 @@ async function buildEvidence(config, product, sessions, beforeAdditionalResume) 
     const serverInfo = devFlowCalls[0];
     assert.equal(serverInfo?.name, "mcp__dev_flow__dev_flow_server_info", stageId + " must start Dev Flow with server-info");
     assert.equal(serverInfo?.envelope?.ok, true);
-    assert.equal(serverInfo?.envelope?.result?.tools?.length, 15);
+    assert.equal(serverInfo?.envelope?.result?.tools?.length, 17);
   }
   const createCalls = callSets.get("create-task");
   const create = createCalls.find((call) => call.name === "mcp__dev_flow__dev_flow_open_task");
@@ -523,7 +547,8 @@ async function buildEvidence(config, product, sessions, beforeAdditionalResume) 
   assert.equal(create.arguments.host, "deepseek");
   assert.equal(create.arguments.repository_path, config.primaryRepository);
   assert.equal(create.arguments.primary_repository_key, "core");
-  assert.deepEqual(create.arguments.additional_repositories, [{ key: "docs", repository_path: config.additionalRepository }]);
+  assert.deepEqual(create.arguments.workspace_origin, config.openTask.workspace_origin);
+  assert.deepEqual(create.arguments.additional_repositories, config.openTask.additional_repositories);
   assert.equal(resume.arguments.host, "deepseek");
   assert.equal(resume.arguments.repository_path, config.additionalRepository);
   assert.equal("primary_repository_key" in resume.arguments, false);
@@ -546,6 +571,8 @@ async function buildEvidence(config, product, sessions, beforeAdditionalResume) 
   assert.equal(finalTask.task_id, resumed.task_id);
   assert.equal(finalTask.origin_host, "deepseek");
   assert.equal(finalTask.current_node, "DONE");
+  assert.equal(finalTask.workspace_origin.mode, "dedicated_worktree");
+  assert.equal(finalTask.workspace_origin.canonical_worktree_root, config.primaryRepository);
   assert.equal(finalTask.outcome?.status, "completed");
   assert.equal(finalTask.current_action, null);
   assert.equal(await readFile(join(config.primaryRepository, "core-proof.txt"), "utf8"), "core proof\n");
@@ -585,7 +612,7 @@ async function buildEvidence(config, product, sessions, beforeAdditionalResume) 
     scoped_paths: ["core::core-proof.txt", "docs::docs-proof.txt"],
     successful_action_count: successfulApplies.length,
     verification_command_count: 1,
-    tool_catalog_size: 15,
+    tool_catalog_size: 17,
     codebase_memory_preference: callSets.get("create-task")
       .find((call) => call.name === "mcp__dev_flow__dev_flow_server_info")
       .envelope.result.host_preferences.deepseek.codebase_memory,
@@ -663,7 +690,7 @@ function selfTest() {
   ]);
   assert.equal(parsed.sourceCommit, "a".repeat(40));
   assert.equal(parsed.journeyBudget, "2/2");
-  const definitions = checkpoints({ primaryRepository: "/tmp/core", additionalRepository: "/tmp/docs" });
+  const definitions = checkpoints({ primaryRepository: "/tmp/core", additionalRepository: "/tmp/docs", openTask: { repository_path: "/tmp/core", primary_repository_key: "core", workspace_origin: {}, additional_repositories: [] } });
   assert.deepEqual(definitions.map((item) => item.toNode), ["REQUIREMENTS", "DESIGN", "TEST", "COMPREHENSION_REVIEW", "DELIVERY", "DONE"]);
   assert.match(definitions[1].prompt, /exact closed REQUIREMENTS node_result shape/u);
   assert.match(definitions[3].prompt, /additional repository/u);

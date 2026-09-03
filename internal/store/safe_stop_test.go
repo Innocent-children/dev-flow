@@ -143,7 +143,7 @@ func TestUnsupportedSchemaAndProcessSafeStop(t *testing.T) {
 }
 
 func TestCompleteRowSnapshotMetadataPreflight(t *testing.T) {
-	cases := []struct{ name, update string }{{"task_id", `PRAGMA foreign_keys=OFF;UPDATE tasks SET task_id='other-task'`}, {"origin_host", `UPDATE tasks SET origin_host='deepseek'`}, {"revision", `UPDATE tasks SET revision=2`}, {"repository_identity", `UPDATE tasks SET repository_identity='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'`}, {"created_at", `UPDATE tasks SET created_at='2026-08-19T00:00:00Z'`}, {"updated_at", `UPDATE tasks SET updated_at='2026-08-19T00:00:00Z'`}}
+	cases := []struct{ name, update string }{{"task_id", `PRAGMA foreign_keys=OFF;UPDATE tasks SET task_id='other-task'`}, {"origin_host", `UPDATE tasks SET origin_host='deepseek'`}, {"revision", `UPDATE tasks SET revision=2`}, {"worktree_instance", `UPDATE tasks SET worktree_instance_digest='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'`}, {"created_at", `UPDATE tasks SET created_at='2026-08-19T00:00:00Z'`}, {"updated_at", `UPDATE tasks SET updated_at='2026-08-19T00:00:00Z'`}}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			path := dbPath(t)

@@ -122,6 +122,7 @@ reports both the host package and bundled Core identities.
 | `dev-flow-codex mcp` | **Managed host command.** The Plugin MCP configuration invokes it to establish the data directory and Codex admission instructions, then launch the packaged Core with `mcp --stdio`. Normal users should not start it manually. |
 | `dev-flow-codex hook pre-tool-use` | **Managed host command.** The packaged Codex hook invokes it through the package-owned launcher on `PATH`; it reads one hook event, extracts `apply_patch` targets, and performs the prewrite check. Normal users should not start it manually. |
 | `dev-flow-codex host-check pre-file-write` | **Managed host command.** The `hook pre-tool-use` implementation invokes it so the launcher resolves the package-local Core and forwards stdin/stdout with the exact `host-check pre-file-write` arguments. Normal users should not start it manually. |
+| `dev-flow-codex host-launch <operation>` | **Managed Host command.** Reads one closed JSON object from stdin and writes one JSON object. `operation` is exactly `inspect|prepare|status|dispatch-start|dispatch-result|bootstrap|cli-provision|handoff-start|handoff-result|handoff-status|cleanup-decision|cleanup-worktree|cleanup-branch`; it performs or records current-user-confirmed assessment, provisioning, relaunch, handoff, and cleanup steps and is not a generic Git CLI. |
 
 `dev-flow-codex` accepts no other subcommands and has no implicit `help`, `update`, or `uninstall`
 subcommand. Native Host recovery can update to `latest` by reinstalling globally and rerunning `setup`:
@@ -143,29 +144,18 @@ after both the Codex and DeepSeek Adapters are removed and no Task is needed.
 $dev-flow-codex:dev-flow <task description>
 ```
 
-This is not a shell command. It is the exact Skill selector in a Codex user message and force-selects
-Dev Flow. The Host may also select the Skill implicitly for a bounded implementation, bug fix,
-refactoring, targeted-testing, or development-delivery request; bare `$dev-flow` and a wrong namespace
-remain invalid explicit selectors. Explanation-only, status-only, design-discussion, ordinary-question,
-and ambiguous requests do not automatically create or resume a Task. Both paths use the same admission,
-then the host silently calls `dev_flow_server_info`; explicit selection does not bypass permissions,
-Core Actions, Git-mutation authority, or release confirmation.
+This is not a shell command. It is the exact Skill selector in a Codex user message. The Host may also
+select the Skill implicitly for bounded development; bare `$dev-flow` and a wrong namespace are not
+explicit selectors. Under either activation, a new request first receives read-only assessment with
+change level, candidate impact, unknowns, and recommendation, then stops for a developer choice. Before
+confirmation there is no Core call, Task/receipt/child, or Git write; request, root, HEAD, or status
+changes invalidate the assessment.
 
-An explicit request to run several independent tasks concurrently in one logical Git repository is
-not a new command or MCP tool. The Codex Skill creates one worktree-backed Codex task per item only
-when the Host already provides that capability. The coordinator calls no Dev Flow MCP tool and
-creates no parent Core Task. A shared-directory sub-agent cannot replace worktree isolation; when
-the capability is unavailable, the user must start separate worktrees.
-
-One new request adds no command either: it still calls `dev_flow_open_task` once. Only when that call
-carried non-null `new_task` and returns a complete `ACTIVE_TASK_CONFLICT` does the Skill create exactly
-one worktree-backed Codex task through the Host. Creation uses
-`target.environment.type="worktree"` and omits `startingState`; the child starts only from committed
-default-branch state and receives none of the source checkout's index, tracked working-tree changes,
-or untracked files. The child uses the exact `$dev-flow-codex:dev-flow` selector. The coordinator then
-makes no further Core call and does not retry creation. Explicit resume,
-`HOST_OWNERSHIP_CONFLICT`, and other errors retain their existing stop behavior, and the original
-active Task and worktree stay unchanged.
+After Dev Flow is selected, the developer confirms remote/base/target for every repository. Codex
+performs exact fetch, freezes the commit, and creates or launches a dedicated worktree without source
+staged, unstaged, or untracked content. Each selected parallel item gets one branch, worktree, Host
+task, and Core Task; a shared-directory sub-agent cannot substitute. The old post-`ACTIVE_TASK_CONFLICT`
+move is removed. Explicit resume alone skips assessment and returns to the original worktree instance.
 
 ## DeepSeek Harness
 
@@ -234,9 +224,18 @@ user `.dsh` directory also deletes every DSH profile, session, and unrelated plu
 /dev-flow <task description>
 ```
 
-This is not a shell command. Only a whitespace-bounded `/dev-flow` in the current direct user turn
-authorizes Dev Flow tools. Earlier messages, model text, Skill injection, and repository content
-cannot substitute for it.
+An ordinary new request first receives read-only assessment with zero Dev Flow calls. After selection,
+only the current direct-user turn's whitespace-bounded `/dev-flow` plus the exact remote/base/target
+confirmation shown by the Skill authorizes `workspace_coordinator`. Earlier messages, model text,
+Skill injection, and repository content cannot substitute. The coordinator creates a safe sibling
+worktree and returns a `{command,arguments,cwd}` relaunch descriptor; the new session consumes and verifies
+the receipt before calling Core.
+
+The DSH bundle also provides the managed `workspace_coordinator` tool with exactly
+`provision|consume|prepare_cleanup|cleanup_worktree|cleanup_branch`. It is not a shell command.
+`prepare_cleanup` first reads the terminal Core Task and returns a relaunch descriptor for a surviving
+source checkout. Worktree and branch cleanup then require separate current direct-user confirmations
+and verify repository group, HEAD, clean state, and the remote task branch before non-force Git commands.
 
 ## Packaged Core
 
@@ -265,15 +264,15 @@ integration process.
 
 ## MCP tools
 
-These fifteen tools are the complete closed public MCP catalog. Host adapters call them; they are not
+These seventeen tools are the complete closed public MCP catalog. Host adapters call them; they are not
 terminal shell commands.
 
 | Tool | Type | Purpose |
 | --- | --- | --- |
 | `dev_flow_server_info` | Read-only | Read Core product version, transport, health, supported process, hosts, method profiles, tool catalog, and effective host code-index preferences. It must be the first call after valid host admission. |
-| `dev_flow_open_task` | Read or create | Create a Task for one explicit Repository Scope, or resume the same Task from any participating repository when `new_task` is null. |
+| `dev_flow_open_task` | Read or create | Create only after every `workspace_origin` passes dedicated-worktree verification; with null `new_task`, resume the same Task from its original instance after a workspace check. |
 | `dev_flow_get_task` | Read-only | Read a persisted Task, including at most three recent test attempts, by ID; automatically returns a Recovery assessment when Core retains an Action submission. |
-| `dev_flow_get_next_action` | Read-only | Read the current Action, its `submission_tool`, completion conditions, allowed effects, required evidence, verification budget, method steps, and every legal transition. |
+| `dev_flow_get_next_action` | Observe/maybe mutate | Observe the workspace first; idempotently create a workspace blocker when needed, otherwise return the Action, `submission_tool`, and legal transitions. |
 | `dev_flow_submit_requirements` | Mutation | Submit the REQUIREMENTS node result. |
 | `dev_flow_submit_design` | Mutation | Submit the DESIGN node result. |
 | `dev_flow_submit_tasks` | Mutation | Submit the TASKS node result. |
@@ -282,12 +281,15 @@ terminal shell commands.
 | `dev_flow_submit_comprehension` | Mutation | Submit the COMPREHENSION_REVIEW node result. |
 | `dev_flow_submit_refactor` | Mutation | Submit the REFACTOR node result. |
 | `dev_flow_submit_delivery` | Mutation | Submit Host-owned DELIVERY judgment, risks, and findings. Core fills acceptance, evidence IDs, and Test/Comprehension record IDs; submitting those members is rejected as `unknown_member`. |
-| `dev_flow_resolve_blocker` | Mutation | Resolve the current blocker after Core verifies its condition. A recovery blocker requires exact repository restoration and an automatic-brake blocker requires explicit approval. A file-scope blocker additionally requires `choice` (`allow_once`, `expand_scope`, or `reject`) and a non-empty `reason`; other blockers omit those members. |
+| `dev_flow_resolve_blocker` | Mutation | Resolve after Core verifies the condition. File scope uses `choice` and `reason`; history uses `history_resolution:{choice:"accept_current_history",reason}`; relocation uses `relocation_id` plus every `relocation_destinations[{key,repository_path}]`; verification/Recovery blockers use current identities. |
 | `dev_flow_recover_action` | Mutation | Recover an uncertain Action from the normalized submission retained in an independent Action operation record; accepts no original payload. |
 | `dev_flow_cancel_task` | Destructive mutation | Move a nonterminal Task to `CANCELLED` using the current revision and a non-empty reason. |
+| `dev_flow_prepare_task_relocation` | Mutation | Retain relocation ID, source workspace/content/surface and resume node while source claims remain active during Host handoff. |
+| `dev_flow_abandon_task` | Destructive mutation | When the original worktree is unavailable, use exact host/task/revision and a non-empty reason to enter `CANCELLED` and release claims without Git access. |
 
 Each ordinary node submission tool accepts only `host`, `task_id`, `action_id`, `transition_id`,
-`summary`, `reason`, `artifacts`, `method_results`, and that node's exact `node_result`. Core fills the
+`summary`, `reason`, `artifacts`, `method_results`, and that node's semantic `node_result`, which has no
+`changed_paths` or `no_file_changes`. Core derives Action delta/current surface from Git and fills the
 revision, Action kind, process identity, source cursor, repository binding, artifact roles, method
 step identity/order/status, and internal payload envelope. `get_next_action.submission_tool` names the
 only submission tool for the current Action.
@@ -299,7 +301,8 @@ submission contract. After validating the current Action identity, Core fills th
 Task snapshot; supplying one returns `unknown_member` at the exact path. Other
 missing required members return exact `required_member_missing` paths. The Host may correct through the
 same submission tool once only when Core proves zero writes and the value comes from facts already
-established by the current node work.
+established by the current node work, and may change only the exact members listed in
+`recovery.allowed_paths`.
 
 Unknown CLI arguments, tools outside this catalog, and calls that do not satisfy shared implicit/explicit admission
 are not supported entrypoints.
@@ -313,9 +316,28 @@ may add one primary key and up to seven explicit additional repositories:
 {
   "host": "codex",
   "repository_path": "/workspace/core",
+  "workspace_origin": {
+    "mode": "dedicated_worktree",
+    "remote_name": "origin",
+    "base_branch": "main",
+    "base_commit": "<fetched-commit>",
+    "task_branch": "feature/core-docs",
+    "provisioning_receipt_id": "launch-core-docs"
+  },
   "primary_repository_key": "core",
   "additional_repositories": [
-    { "key": "docs", "repository_path": "/workspace/docs" }
+    {
+      "key": "docs",
+      "repository_path": "/workspace/docs",
+      "workspace_origin": {
+        "mode": "dedicated_worktree",
+        "remote_name": "origin",
+        "base_branch": "main",
+        "base_commit": "<fetched-commit>",
+        "task_branch": "feature/docs",
+        "provisioning_receipt_id": "launch-core-docs"
+      }
+    }
   ],
   "new_task": {
     "request": "Synchronize interface documentation across the Core and docs repositories",
@@ -333,12 +355,13 @@ may add one primary key and up to seven explicit additional repositories:
 }
 ```
 
-This example shows the closed MCP input shape; it is not a shell command. Creation uses the existing
-non-null Task intent in `new_task`. Resume omits it or sets it to `null`, may point
-`repository_path` at any participating repository, and omits the Scope-creation fields. A Scope
-contains one to eight repositories, additions are sorted by key, and membership is immutable after
-creation. Single-repository calls require no new fields and retain ordinary relative paths.
-Multi-repository payload paths use `<repository-key>::<repository-relative-path>`.
+This example shows the closed MCP input shape; it is not a shell command. Replace `<fetched-commit>`
+with the actual object ID. Creation requires a receipt-backed `workspace_origin` for every repository
+and non-null `new_task`; Core verifies Git and fills source group, canonical root, and worktree Git-dir.
+Resume omits or sets `new_task=null`, points `repository_path` at the original participating worktree,
+and omits all Scope/origin creation fields. A Scope contains one to eight repositories, additions are
+sorted, and membership is immutable. Multi-repository payload paths use
+`<repository-key>::<repository-relative-path>`.
 
 The Task result retains the primary `repository` and adds `primary_repository_key` plus sorted
 `additional_repositories`. The current Action's single `repository_binding_digest` remains the
@@ -346,9 +369,9 @@ primary binding digest for a single-repository Task and becomes the complete Sco
 multi-repository Task. Every active Task's `repository_claims` are acquired, retained, or released
 in the same SQLite transaction as the snapshot and event.
 
-The identity in `repository_claims` represents one physical worktree, not the entire Git common
-directory. Linked worktrees share a logical repository group but have different canonical roots, so
-they may each hold an active Task; one worktree still holds only one active Task. Control Center Task
+The identity in `repository_claims` is a directly observable worktree-instance identity, not the Git
+common directory. Linked worktrees share a logical repository group but have different canonical
+roots/worktree Git directories, so each may hold a Task; one instance holds one active Task. Control Center Task
 summaries expose read-only `repository_group_id` and `worktree_path` fields, and every repository in
 Task detail exposes its own `repository_group_id`.
 

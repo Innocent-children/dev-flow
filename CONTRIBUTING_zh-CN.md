@@ -12,8 +12,8 @@ Dev Flow 接受可复现的缺陷、文档修正、经过最终制品验证的�
 | 拼写、链接、翻译或现有行为说明修正 | 可以直接提交有界 Pull Request；按照 [I18n 策略](docs/I18N.md) 同步对应文档族和受影响的 9 个根 README |
 | 模板或文档维护规则变化 | 说明影响范围；不修改产品版本，不执行发布 |
 | 不改变公共语义的实现缺陷 | 说明已批准合同与实际行为的偏差，并只修复该偏差 |
-| 用户可见行为、Core/MCP 合同、持久化、状态图或 Host Adapter 合同变化 | 在 Pull Request 中说明用户问题、范围、验收条件和方案，并同步实现、测试、文档与 i18n |
-| 版本提升、npm、Tag 或 GitHub Release | 不作为普通 Pull Request 的交付步骤；由维护者在功能合并后使用独立发布流程执行 |
+| 用户可见行为、Core/MCP 合同、持久化、状态图或 Host Adapter 合同变化 | 在 Pull Request 中说明用户问题、范围、验收条件和方案，并同步实现、测试、文档与 i18n；修改 shipped Core 时同步更新 `CORE_VERSION` |
+| npm package 版本、npm、Tag 或 GitHub Release | 不作为普通 Pull Request 的交付步骤；由维护者在功能合并后使用独立发布流程执行 |
 
 分类不明确时，先提交 Issue，描述用户问题、当前行为和预期结果。不要先实现较大方案，再要求规格
 接受已经完成的代码。
@@ -114,7 +114,8 @@ pnpm install --frozen-lockfile
 - 文档修正必须同步该文档族的简中/英文配对文件，以及所有受影响的根 README locale；
 - 新增或修改命令时，对照 package manifest、CLI parser、DSH lifecycle、Core parser 或 MCP catalog，并同步 `docs/COMMANDS*`；
 - 面向用户的 npm 安装示例使用 `@latest`，人类阅读文档不记录精确产品版本；
-- 不在普通功能或文档 Pull Request 中提升版本或执行发布。
+- 修改 shipped Core 行为或合同的普通功能 Pull Request 同步更新机器可读 `CORE_VERSION`；不修改 npm
+  package 发布版本，也不执行 Tag、npm 或 GitHub Release。
 
 ## 验证
 

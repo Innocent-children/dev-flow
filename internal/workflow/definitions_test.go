@@ -15,7 +15,7 @@ func TestStandardDefinitionIsStableAndComplete(t *testing.T) {
 	if err := ValidateDefinition(definition); err != nil {
 		t.Fatalf("ValidateDefinition: %v", err)
 	}
-	if got, want := definition.Reference.DefinitionDigest, domain.Digest("c3500d879c1652cb4f3944317c41c1fd2536bfb262b2fa82cd44a2d7e49c0b57"); got != want {
+	if got, want := definition.Reference.DefinitionDigest, domain.Digest("8f9543abc67421f1470e9ca8b953206571a119c65e5ec39c655bccd334203dc5"); got != want {
 		t.Fatalf("digest = %s, want %s", got, want)
 	}
 	wantNodes := []domain.NodeID{domain.NodeRequirements, domain.NodeDesign, domain.NodeTasks, domain.NodeImplement, domain.NodeTest, domain.NodeComprehensionReview, domain.NodeRefactor, domain.NodeDelivery, domain.NodeDone, domain.NodeBlocked, domain.NodeCancelled}
@@ -163,7 +163,7 @@ func TestDefinitionDigestPersistedActionWordingIsIdentityStable(t *testing.T) {
 	now := time.Date(2026, 8, 19, 9, 0, 0, 0, time.UTC)
 	bindingDigest := domain.Digest(strings.Repeat("a", 64))
 	definition := StandardProcess()
-	action, err := BuildProcessAction(definition, domain.NodeRequirements, "task", 1, bindingDigest, domain.MethodPlain, "action", now)
+	action, err := BuildProcessActionForWorkspace(definition, domain.NodeRequirements, "task", 1, domain.WorkspaceDigests{Binding: bindingDigest, Identity: bindingDigest, History: bindingDigest, Content: bindingDigest}, domain.MethodPlain, "action", now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,8 +180,9 @@ func TestDefinitionDigestPersistedActionWordingIsIdentityStable(t *testing.T) {
 		TaskID: "task", OriginHost: domain.HostCodex,
 		Intent:  domain.TaskIntent{Request: "Build feature", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 1}, MethodProfile: domain.MethodPlain},
 		Process: definition.Reference, CurrentNode: domain.NodeRequirements, CurrentAction: &action,
-		Repository: domain.RepositoryBinding{CanonicalRoot: testPath("repo"), GitCommonDirDigest: bindingDigest, RepositoryIdentity: bindingDigest, Branch: &branch, Head: &head, WorktreeFingerprint: bindingDigest, ObservedAt: now, BindingDigest: bindingDigest},
-		Revision:   1, CreatedAt: now, UpdatedAt: now,
+		WorkspaceOrigin: domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: bindingDigest, CanonicalWorktreeRoot: testPath("repo"), WorktreeGitDirDigest: bindingDigest, ProvisioningReceiptID: "receipt"},
+		Repository:      domain.RepositoryBinding{WorktreeInstanceDigest: bindingDigest, IdentityDigest: bindingDigest, HistoryDigest: bindingDigest, ContentDigest: bindingDigest, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: bindingDigest},
+		Revision:        1, CreatedAt: now, UpdatedAt: now,
 	}
 	if err := ValidateProcessTask(task); err != nil {
 		t.Fatalf("human wording changed process identity: %v", err)
@@ -222,7 +223,8 @@ func TestDefinitionRejectsUnknownDuplicateAndRuntimeAlternates(t *testing.T) {
 	if _, err := ResolveDefinition(alternate); err == nil {
 		t.Fatal("alternate process accepted")
 	}
-	action, err := BuildProcessAction(standard, domain.NodeDesign, "task", 1, domain.Digest(strings.Repeat("a", 64)), domain.MethodPlain, "action", time.Date(2026, 8, 19, 1, 0, 0, 0, time.UTC))
+	binding := domain.Digest(strings.Repeat("a", 64))
+	action, err := BuildProcessActionForWorkspace(standard, domain.NodeDesign, "task", 1, domain.WorkspaceDigests{Binding: binding, Identity: binding, History: binding, Content: binding}, domain.MethodPlain, "action", time.Date(2026, 8, 19, 1, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatal(err)
 	}

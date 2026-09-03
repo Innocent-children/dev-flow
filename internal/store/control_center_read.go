@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"sort"
 	"strings"
@@ -38,7 +39,7 @@ func (s *SQLite) ListControlCenterTasks(ctx context.Context, query TaskListQuery
 	case "cancelled":
 		clauses = append(clauses, "current_node='CANCELLED'")
 	}
-	statement := `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,repository_identity,snapshot,created_at,updated_at,archived_at FROM tasks WHERE ` + strings.Join(clauses, " AND ") + ` ORDER BY updated_at DESC,task_id ASC`
+	statement := `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,worktree_instance_digest,snapshot,created_at,updated_at,archived_at FROM tasks WHERE ` + strings.Join(clauses, " AND ") + ` ORDER BY updated_at DESC,task_id ASC`
 	rows, err := s.db.QueryContext(ctx, statement, args...)
 	if err != nil {
 		return ControlCenterTaskPage{}, ErrStorageUnavailable
@@ -84,7 +85,7 @@ func (s *SQLite) LoadControlCenterTask(ctx context.Context, id domain.ID) (Contr
 		return ControlCenterTask{}, ErrStorageUnavailable
 	}
 	defer tx.Rollback()
-	item, err := scanControlCenterTask(tx.QueryRowContext(ctx, `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,repository_identity,snapshot,created_at,updated_at,archived_at FROM tasks WHERE task_id=?`, id))
+	item, err := scanControlCenterTask(tx.QueryRowContext(ctx, `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,worktree_instance_digest,snapshot,created_at,updated_at,archived_at FROM tasks WHERE task_id=?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return ControlCenterTask{}, ErrTaskNotFound
 	}
@@ -111,7 +112,7 @@ func scanControlCenterTask(row rowScanner) (ControlCenterTask, error) {
 	if err != nil {
 		return ControlCenterTask{}, err
 	}
-	if taskID != string(task.TaskID) || host != string(task.OriginHost) || processID != string(task.Process.ID) || digest != string(task.Process.DefinitionDigest) || node != string(task.CurrentNode) || revision != int64(task.Revision) || identity != string(task.Repository.RepositoryIdentity) || created != formatTime(task.CreatedAt) || updated != formatTime(task.UpdatedAt) {
+	if taskID != string(task.TaskID) || host != string(task.OriginHost) || processID != string(task.Process.ID) || digest != string(task.Process.DefinitionDigest) || node != string(task.CurrentNode) || revision != int64(task.Revision) || identity != string(task.Repository.WorktreeInstanceDigest) || created != formatTime(task.CreatedAt) || updated != formatTime(task.UpdatedAt) {
 		return ControlCenterTask{}, ErrStorageUnavailable
 	}
 	archive, err := decodeArchiveTime(nullableString(archived))
@@ -131,7 +132,7 @@ func (s *SQLite) LoadTaskEvents(ctx context.Context, id domain.ID) ([]TaskEvent,
 func loadTaskEvents(ctx context.Context, queryer interface {
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 }, id domain.ID) ([]TaskEvent, error) {
-	rows, err := queryer.QueryContext(ctx, `SELECT event_id,task_id,revision,event_type,source_node,destination_node,transition_id,transition_reason,action_id,request_id,payload_digest,created_at FROM task_events WHERE task_id=? ORDER BY revision ASC`, id)
+	rows, err := queryer.QueryContext(ctx, `SELECT event_id,task_id,revision,event_type,source_node,destination_node,transition_id,transition_reason,action_id,observed_binding_digest,repository_delta_paths,request_id,payload_digest,created_at FROM task_events WHERE task_id=? ORDER BY revision ASC`, id)
 	if err != nil {
 		return nil, ErrStorageUnavailable
 	}
@@ -140,15 +141,25 @@ func loadTaskEvents(ctx context.Context, queryer interface {
 	for rows.Next() {
 		var eventID, taskID, kind, source, destination, requestID, payloadDigest, created string
 		var revision int64
-		var transition, reason, action sql.NullString
-		if rows.Scan(&eventID, &taskID, &revision, &kind, &source, &destination, &transition, &reason, &action, &requestID, &payloadDigest, &created) != nil || revision <= 0 {
+		var encodedPaths []byte
+		var transition, reason, action, observedBinding sql.NullString
+		if rows.Scan(&eventID, &taskID, &revision, &kind, &source, &destination, &transition, &reason, &action, &observedBinding, &encodedPaths, &requestID, &payloadDigest, &created) != nil || revision <= 0 {
 			return nil, ErrStorageUnavailable
+		}
+		var paths []string
+		if json.Unmarshal(encodedPaths, &paths) != nil || paths == nil || len(paths) > domain.MaxRepositoryDeltaPaths {
+			return nil, ErrStorageUnavailable
+		}
+		for index, path := range paths {
+			if domain.ValidateRepositoryContractPath(path) != nil || index > 0 && paths[index-1] >= path {
+				return nil, ErrStorageUnavailable
+			}
 		}
 		createdAt, parseErr := time.Parse(time.RFC3339Nano, created)
-		if parseErr != nil {
+		if parseErr != nil || createdAt.Location() != time.UTC {
 			return nil, ErrStorageUnavailable
 		}
-		event := TaskEvent{EventID: domain.ID(eventID), TaskID: domain.ID(taskID), Revision: uint64(revision), Kind: domain.OperationKind(kind), SourceNode: domain.NodeID(source), DestinationNode: domain.NodeID(destination), TransitionReason: reason.String, RequestID: domain.ID(requestID), PayloadDigest: domain.Digest(payloadDigest), CreatedAt: createdAt.UTC()}
+		event := TaskEvent{EventID: domain.ID(eventID), TaskID: domain.ID(taskID), Revision: uint64(revision), Kind: domain.OperationKind(kind), SourceNode: domain.NodeID(source), DestinationNode: domain.NodeID(destination), TransitionReason: reason.String, RepositoryDeltaPaths: paths, RequestID: domain.ID(requestID), PayloadDigest: domain.Digest(payloadDigest), CreatedAt: createdAt.UTC()}
 		if transition.Valid {
 			value := domain.TransitionID(transition.String)
 			event.TransitionID = &value
@@ -156,6 +167,10 @@ func loadTaskEvents(ctx context.Context, queryer interface {
 		if action.Valid {
 			value := domain.ID(action.String)
 			event.ActionID = &value
+		}
+		if observedBinding.Valid {
+			value := domain.Digest(observedBinding.String)
+			event.ObservedBindingDigest = &value
 		}
 		events = append(events, event)
 	}
@@ -206,9 +221,9 @@ func matchesControlCenterTask(task domain.ProcessTask, query TaskListQuery) bool
 		}
 	}
 	if repository := strings.ToLower(strings.TrimSpace(query.Repository)); repository != "" {
-		values := []string{string(task.EffectivePrimaryRepositoryKey()), task.Repository.CanonicalRoot}
+		values := []string{string(task.EffectivePrimaryRepositoryKey()), task.WorkspaceOrigin.CanonicalWorktreeRoot}
 		for _, entry := range task.AdditionalRepositories {
-			values = append(values, string(entry.Key), entry.Binding.CanonicalRoot)
+			values = append(values, string(entry.Key), entry.Origin.CanonicalWorktreeRoot)
 		}
 		matched := false
 		for _, value := range values {

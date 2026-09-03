@@ -17,7 +17,7 @@ func TestControlCenterProjectionCP1(t *testing.T) {
 	}
 	open := CommittedTraversal{Revision: 1, Kind: domain.OperationOpenTask, Source: domain.NodeRequirements, Destination: domain.NodeRequirements, CreatedAt: now}
 	makeTask := func(node domain.NodeID, revision uint64) domain.ProcessTask {
-		action, err := BuildProcessAction(definition, node, "task", revision, digest, domain.MethodPlain, "action", now)
+		action, err := BuildProcessActionForWorkspace(definition, node, "task", revision, domain.WorkspaceDigests{Binding: digest, Identity: digest, History: digest, Content: digest}, domain.MethodPlain, "action", now)
 		if err != nil {
 			t.Fatal(err)
 		}

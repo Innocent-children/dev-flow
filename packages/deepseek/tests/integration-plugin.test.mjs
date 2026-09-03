@@ -16,6 +16,7 @@ import {
   DEV_FLOW_TOOL_NAMESPACE_PREFIX,
   assertQualifiedToolCatalog,
 } from "../lib/tool-names.mjs";
+import { WORKSPACE_COORDINATOR_TOOL } from "../lib/workspace-coordinator.mjs";
 
 const sourcePackageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = dirname(dirname(sourcePackageRoot));
@@ -43,13 +44,15 @@ test("plugin identity and injection surface are fixed", () => {
     "mcp__dev_flow__dev_flow_submit_comprehension",
     "mcp__dev_flow__dev_flow_submit_refactor",
     "mcp__dev_flow__dev_flow_submit_delivery",
+    "mcp__dev_flow__dev_flow_prepare_task_relocation",
     "mcp__dev_flow__dev_flow_resolve_blocker",
     "mcp__dev_flow__dev_flow_recover_action",
     "mcp__dev_flow__dev_flow_cancel_task",
+    "mcp__dev_flow__dev_flow_abandon_task",
   ]);
 });
 
-test("registers one user-only Skill, one guard, and the official MCP child config", async (t) => {
+test("registers one model-visible assessment Skill, guarded workspace coordinator, and the official MCP child config", async (t) => {
   const dataDirectory = await temporaryDirectory(t, "data");
   const packageRoot = await temporaryPackage(t, "integration package-工具");
   const fake = createFakeContext({ packageRoot, initialToolNames: DEV_FLOW_QUALIFIED_TOOL_NAMES });
@@ -63,14 +66,14 @@ test("registers one user-only Skill, one guard, and the official MCP child confi
 
   assert.equal(fake.skills.length, 1);
   assert.deepEqual(fake.skills[0].invocation, {
-    modelInvocable: false,
+    modelInvocable: true,
     userInvocable: true,
   });
   assert.equal(fake.skills[0].name, "dev-flow");
   assert.equal(fake.skills[0].provider, "dev-flow-deepseek");
   assert.equal(fake.skills[0].resourceBase.kind, "directory");
   assert.match(fake.skills[0].content, /# Dev Flow/u);
-  assert.equal(fake.guards.length, 1);
+  assert.equal(fake.guards.length, 2);
   assert.equal(fake.children.length, 1);
   assert.equal(fake.children[0].plugin.name, "mcp-client");
   assert.deepEqual(fake.children[0].config, {
@@ -90,6 +93,7 @@ test("registers one user-only Skill, one guard, and the official MCP child confi
     },
   });
   assert.deepEqual(assertQualifiedToolCatalog(fake.toolNames()), DEV_FLOW_QUALIFIED_TOOL_NAMES);
+  assert.equal(fake.toolNames().includes(WORKSPACE_COORDINATOR_TOOL), true);
 
   await fake.dispose();
   assert.equal(fake.skills.length, 0);
@@ -196,6 +200,13 @@ function createFakeContext({ packageRoot, initialToolNames, unrelatedToolNames =
       },
     },
     tools: {
+      register(definition) {
+        assert.equal(typeof definition?.name, "string");
+        definitions.add(definition.name);
+        const dispose = () => definitions.delete(definition.name);
+        effects.push(dispose);
+        return dispose;
+      },
       guard(guard) {
         guards.push(guard);
         const dispose = () => {

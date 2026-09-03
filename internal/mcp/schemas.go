@@ -8,21 +8,23 @@ import (
 )
 
 const (
-	ToolServerInfo           = "dev_flow_server_info"
-	ToolOpenTask             = "dev_flow_open_task"
-	ToolGetTask              = "dev_flow_get_task"
-	ToolGetNextAction        = "dev_flow_get_next_action"
-	ToolSubmitRequirements   = "dev_flow_submit_requirements"
-	ToolSubmitDesign         = "dev_flow_submit_design"
-	ToolSubmitTasks          = "dev_flow_submit_tasks"
-	ToolSubmitImplementation = "dev_flow_submit_implementation"
-	ToolSubmitTest           = "dev_flow_submit_test"
-	ToolSubmitComprehension  = "dev_flow_submit_comprehension"
-	ToolSubmitRefactor       = "dev_flow_submit_refactor"
-	ToolSubmitDelivery       = "dev_flow_submit_delivery"
-	ToolResolveBlocker       = "dev_flow_resolve_blocker"
-	ToolRecoverAction        = "dev_flow_recover_action"
-	ToolCancelTask           = "dev_flow_cancel_task"
+	ToolServerInfo            = "dev_flow_server_info"
+	ToolOpenTask              = "dev_flow_open_task"
+	ToolGetTask               = "dev_flow_get_task"
+	ToolGetNextAction         = "dev_flow_get_next_action"
+	ToolSubmitRequirements    = "dev_flow_submit_requirements"
+	ToolSubmitDesign          = "dev_flow_submit_design"
+	ToolSubmitTasks           = "dev_flow_submit_tasks"
+	ToolSubmitImplementation  = "dev_flow_submit_implementation"
+	ToolSubmitTest            = "dev_flow_submit_test"
+	ToolSubmitComprehension   = "dev_flow_submit_comprehension"
+	ToolSubmitRefactor        = "dev_flow_submit_refactor"
+	ToolSubmitDelivery        = "dev_flow_submit_delivery"
+	ToolPrepareTaskRelocation = "dev_flow_prepare_task_relocation"
+	ToolResolveBlocker        = "dev_flow_resolve_blocker"
+	ToolRecoverAction         = "dev_flow_recover_action"
+	ToolCancelTask            = "dev_flow_cancel_task"
+	ToolAbandonTask           = "dev_flow_abandon_task"
 )
 
 var actionSubmissionTools = []struct {
@@ -495,13 +497,15 @@ func buildCatalog() []ToolDefinition {
 	payloads, _ := graphPayloads()
 	standardPayload := map[string]any{"oneOf": payloads}
 	payload := map[string]any{"anyOf": []any{standardPayload, map[string]any{"type": "null"}}}
-	probe := obj([]string{"operation_id", "process_id", "process_definition_digest", "source_cursor", "expected_revision", "action_id", "action_kind", "repository_binding_digest", "payload"}, map[string]any{"operation_id": id(), "process_id": map[string]any{"const": "standard-development"}, "process_definition_digest": digest(), "source_cursor": id(), "expected_revision": map[string]any{"type": "integer", "minimum": 1}, "action_id": id(), "action_kind": id(), "repository_binding_digest": digest(), "payload": projectForHostBudget(projectableUnion([]any{payload, map[string]any{"type": "null"}}), "payload")})
+	probe := obj([]string{"operation_id", "process_id", "process_definition_digest", "source_cursor", "expected_revision", "action_id", "action_kind", "repository_binding_digest", "issuance_identity_digest", "issuance_history_digest", "issuance_content_digest", "payload"}, map[string]any{"operation_id": id(), "process_id": map[string]any{"const": "standard-development"}, "process_definition_digest": digest(), "source_cursor": id(), "expected_revision": map[string]any{"type": "integer", "minimum": 1}, "action_id": id(), "action_kind": id(), "repository_binding_digest": digest(), "issuance_identity_digest": digest(), "issuance_history_digest": digest(), "issuance_content_digest": digest(), "payload": projectForHostBudget(projectableUnion([]any{payload, map[string]any{"type": "null"}}), "payload")})
 	read := obj([]string{"host", "task_id"}, map[string]any{"host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "operation_probe": projectableUnion([]any{probe, map[string]any{"type": "null"}})})
 	repositoryKey := map[string]any{"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"}
-	additionalRepository := obj([]string{"key", "repository_path"}, map[string]any{"key": repositoryKey, "repository_path": str()})
+	workspaceOrigin := obj([]string{"mode", "remote_name", "base_branch", "base_commit", "task_branch", "provisioning_receipt_id"}, map[string]any{"mode": map[string]any{"const": "dedicated_worktree"}, "remote_name": id(), "base_branch": str(), "base_commit": map[string]any{"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"}, "task_branch": str(), "provisioning_receipt_id": id()})
+	additionalRepository := obj([]string{"key", "repository_path", "workspace_origin"}, map[string]any{"key": repositoryKey, "repository_path": str(), "workspace_origin": workspaceOrigin})
 	open := obj([]string{"host", "repository_path"}, map[string]any{
 		"host":                    map[string]any{"enum": []string{"codex", "deepseek"}},
 		"repository_path":         str(),
+		"workspace_origin":        workspaceOrigin,
 		"primary_repository_key":  repositoryKey,
 		"additional_repositories": map[string]any{"type": "array", "maxItems": 7, "items": additionalRepository},
 		"new_task":                map[string]any{"anyOf": []any{newTask, map[string]any{"type": "null"}}},
@@ -513,7 +517,7 @@ func buildCatalog() []ToolDefinition {
 		makeTool(ToolServerInfo, "Read the current Core server identity.", empty, true, true, false),
 		makeTool(ToolOpenTask, "Open or resume one graph task.", open, false, false, false),
 		makeTool(ToolGetTask, "Read one graph task and any Core-retained recovery assessment.", read, true, true, false),
-		makeTool(ToolGetNextAction, "Read the persisted graph action and its exact submission tool.", read, true, true, false),
+		makeTool(ToolGetNextAction, "Observe the Task worktree, persist any required guard, and return the current graph action.", read, false, true, false),
 	}
 	for _, entry := range actionSubmissionTools {
 		tools = append(tools, makeTool(entry.Name, actionSubmissionDescription(entry.Kind), actionSubmissionSchema(entry.Kind), false, true, false))
@@ -521,14 +525,22 @@ func buildCatalog() []ToolDefinition {
 	actionReference := obj([]string{"host", "task_id", "action_id"}, map[string]any{"host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "action_id": id()})
 	resolveBlocker := obj([]string{"host", "task_id", "action_id"}, map[string]any{
 		"host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "action_id": id(),
-		"choice": map[string]any{"enum": []string{"allow_once", "expand_scope", "reject"}}, "reason": str(),
+		"choice": map[string]any{"enum": []string{"allow_once", "expand_scope", "reject"}}, "reason": str(), "relocation_id": id(), "relocation_destinations": map[string]any{"type": "array", "maxItems": domain.MaxRepositoryScopeEntries, "items": additionalRepositoryPathSchema(repositoryKey)}, "history_resolution": obj([]string{"choice", "reason"}, map[string]any{"choice": map[string]any{"const": "accept_current_history"}, "reason": str()}),
 	})
+	lifecycle := obj([]string{"host", "task_id", "revision"}, map[string]any{"host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "revision": map[string]any{"type": "integer", "minimum": 1}})
+	abandon := obj([]string{"host", "task_id", "revision", "reason"}, map[string]any{"host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "revision": map[string]any{"type": "integer", "minimum": 1}, "reason": str()})
 	tools = append(tools,
+		makeTool(ToolPrepareTaskRelocation, "Prepare one same-machine Task relocation and retain its exact source workspace state.", lifecycle, false, true, false),
 		makeTool(ToolResolveBlocker, "Resolve the current blocker after Core verifies the required repository condition. File-scope blockers also require choice and reason.", resolveBlocker, false, true, false),
 		makeTool(ToolRecoverAction, "Recover the Core-retained Action submission without resending its payload.", actionReference, false, true, false),
 		makeTool(ToolCancelTask, "Cancel one graph task.", cancel, false, false, true),
+		makeTool(ToolAbandonTask, "Explicitly abandon a Task whose retained worktree instance is unavailable.", abandon, false, false, true),
 	)
 	return tools
+}
+
+func additionalRepositoryPathSchema(repositoryKey map[string]any) map[string]any {
+	return obj([]string{"key", "repository_path"}, map[string]any{"key": repositoryKey, "repository_path": str()})
 }
 
 func actionSubmissionDescription(kind domain.ActionKind) string {

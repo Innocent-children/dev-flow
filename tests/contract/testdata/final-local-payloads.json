@@ -25,9 +25,7 @@
             "constraints": ["run only the authorized targeted verification command", "retain the initial layering until the first comprehension review"],
             "assumptions": []
           },
-          "unresolved_questions": [],
-          "changed_paths": [],
-          "no_file_changes": true
+          "unresolved_questions": []
         }
       }
     },
@@ -56,9 +54,7 @@
             "complexity_justification": ["The initial layering is retained only to exercise the comprehension and refactor gates."],
             "risks": ["The developer may reject the temporary layering as unnecessary complexity."]
           },
-          "findings": [],
-          "changed_paths": [],
-          "no_file_changes": true
+          "findings": []
         }
       }
     },
@@ -91,9 +87,7 @@
               }
             ]
           },
-          "findings": [],
-          "changed_paths": [],
-          "no_file_changes": true
+          "findings": []
         }
       }
     },
@@ -115,8 +109,6 @@
           "problem_class": "none",
           "task_plan_revision": 1,
           "completed_work_item_ids": ["implement-proof-writer"],
-          "changed_paths": ["src/proof-writer.mjs"],
-          "no_file_changes": false,
           "deviations": [],
           "findings": []
         }
@@ -142,9 +134,7 @@
           "failed_items": [],
           "unverified_items": [],
           "manual_handoff_items": [],
-          "findings": [],
-          "changed_paths": [],
-          "no_file_changes": true
+          "findings": []
         }
       }
     },
@@ -169,9 +159,7 @@
           "unnecessary_abstractions": ["ProofWriterFactory", "ProofWriter"],
           "maintenance_risks": ["A simple write path crosses unnecessary abstractions."],
           "user_confirmation": null,
-          "findings": ["The Factory and Writer layers are unnecessary for the approved behavior."],
-          "changed_paths": [],
-          "no_file_changes": true
+          "findings": ["The Factory and Writer layers are unnecessary for the approved behavior."]
         }
       }
     },
@@ -191,8 +179,6 @@
         ],
         "node_result": {
           "problem_class": "none",
-          "changed_paths": ["src/proof-writer.mjs"],
-          "no_file_changes": false,
           "simplifications": ["Replaced ProofWriterFactory and ProofWriter with one direct writeProof function."],
           "behavior_change_intended": false,
           "findings": []
@@ -219,9 +205,7 @@
           "failed_items": [],
           "unverified_items": [],
           "manual_handoff_items": [],
-          "findings": [],
-          "changed_paths": [],
-          "no_file_changes": true
+          "findings": []
         }
       }
     },
@@ -246,9 +230,7 @@
           "unnecessary_abstractions": [],
           "maintenance_risks": [],
           "user_confirmation": {"source": "user", "status": "passed", "summary": "The developer explicitly confirmed the simplified path is understandable and maintainable."},
-          "findings": [],
-          "changed_paths": [],
-          "no_file_changes": true
+          "findings": []
         }
       }
     },
@@ -279,9 +261,7 @@
           "comprehension_record_id": "comprehension-record-current",
           "unverified_items": [],
           "risks": [],
-          "findings": [],
-          "changed_paths": [],
-          "no_file_changes": true
+          "findings": []
         }
       }
     }

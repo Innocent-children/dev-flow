@@ -1,7 +1,7 @@
 {
   "name": "dev-flow-codex",
   "version": "0.8.8",
-  "description": "Smart and explicit Dev Flow integration for Codex CLI.",
+  "description": "Worktree-first Dev Flow lifecycle integration for Codex.",
   "author": {
     "name": "Dev Flow"
   },
@@ -11,8 +11,8 @@
   "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "Dev Flow for Codex",
-    "shortDescription": "Smart Dev Flow workflow for Codex",
-    "longDescription": "Automatically select Dev Flow for bounded development tasks, coordinate explicit parallel batches through separate Host-provided Git worktrees, or force entry with $dev-flow-codex:dev-flow; non-task requests do not create Tasks.",
+    "shortDescription": "Assess and isolate Dev Flow tasks",
+    "longDescription": "Assess development requests before the user chooses direct work or Dev Flow, then provision every new Dev Flow Task from a confirmed remote and base in a dedicated named-branch worktree. The $dev-flow-codex:dev-flow selector does not skip assessment; explicit resume returns to the original worktree.",
     "developerName": "Dev Flow",
     "category": "Productivity",
     "capabilities": [
@@ -20,7 +20,7 @@
       "Write"
     ],
     "defaultPrompt": [
-      "$dev-flow-codex:dev-flow implement the requested change in this repository."
+      "$dev-flow-codex:dev-flow assess the requested change in this repository before starting Dev Flow."
     ]
   }
 }
