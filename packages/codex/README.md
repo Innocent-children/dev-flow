@@ -72,8 +72,9 @@ $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run 
 中的 staged、unstaged 和 untracked 内容不会进入任务工作树。只有独立工作树、目标分支、HEAD、clean
 状态和写权限全部通过检查后，才执行 Core handshake 并创建 Task。
 
-新 Task 从需求阶段开始并保存最初请求、范围、验收条件和 verification budget。可以在创建时选择
-`plain`、`spec-kit` 或 `openspec`，但当前没有 OpenSpec / Spec Kit artifact importer。
+新 Task 从需求阶段开始，只保存最初请求、范围、验收条件和 method profile，不在分析前冻结最终
+verification budget。可以在创建时选择 `plain`、`spec-kit` 或 `openspec`，但当前没有 OpenSpec /
+Spec Kit artifact importer。
 
 ## 恢复已有 Task
 
@@ -88,6 +89,27 @@ Blocker 和 Recovery。原 worktree 丢失或已被另一个实例替换时会�
 同一失败、同一测试结果，或相同修改路径与失败组成的测试循环连续出现三次时，Core 会保存第三次
 结果并暂停 Task。Codex 不会自动解除；用户明确选择换方案或再试一次后，Adapter 才解除 blocker，
 并从 Core 保存的原目标阶段继续。下一次仍然完全重复时会再次暂停。
+
+## 验证投入和修改后复核
+
+Codex 在 TASKS 已经读完需求、设计、工作拆分、影响面和现有测试结构后，才写入初始
+`verification_plan`：准备执行的检查、每项理由、预计自动命令数、是否预计完整套件、是否预计新增或
+修改测试代码。小范围改动先选与 diff 最近的定向检查，不因为仍有额度就扩大到 package、module 或
+全仓库。
+
+额度不足不会直接结束 Task。Codex 在额外命令执行前，使用当前 TEST Action 返回的
+`verification_budget_increased`，说明 `new_impact`、`new_risk`、`verification_failure` 或
+`verification_gap` 中的实际依据，只增加当前需要的检查、命令或权限。Core 保存原因和调整前后预算，
+然后留在 TEST 继续。为了更全面、提高信心、保险起见或“还有预算”都不是有效原因。
+
+每次准备完整测试套件时，Codex 都重新判断改动是否广泛、定向或包级检查是否已经足够、完整套件补足
+什么具体风险、仓库是否要求当前检查点运行，并把本次理由记录为 `full_suite_reason`。小修复后的重跑
+不能沿用上一次理由。
+
+修改测试代码前先判断它是否保护稳定产品行为、公共合同、重要失败路径或真实回归；一次性 README
+词语要求只做一次文本搜索。普通实现后的复核只覆盖当前 diff、直接或间接影响及验收所需路径。修复
+复核发现后只确认原问题、相关回归和对应定向检查，不重新启动全仓库审计。显式 code review 阶段只读，
+完整交付发现后等待用户另行授权修复。
 
 ## 范围外文件先询问
 

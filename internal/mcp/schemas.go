@@ -410,12 +410,18 @@ func schemaNumber(value any) (int, bool) {
 // small byte budget on the modelled result. Once that budget is exceeded the
 // projector discards descriptions, then definition tables, then every complex
 // object below its collapse depth, and finally every node carrying a
-// composition keyword. The published projection therefore keeps every member
-// name, every type and every object closure, and keeps only the enumerations
-// and required sets that a caller cannot read from the current Action. The exact
+// composition keyword. The published projection keeps every top-level member,
+// type and object closure, and keeps only the enumerations and required sets
+// that a caller cannot read from the current Action. The exact
 // per-action-kind and per-evidence-source contract stays Core-owned and is
-// reported as field-level violations.
+// reported as field-level violations. Large verification-plan and adjustment
+// objects are collapsed only inside the nested recovery probe; their ordinary
+// submission tools still publish the exact closed members.
 var (
+	projectedCollapsedPaths = map[string]bool{
+		"payload.node_result.baseline.verification_plan": true,
+		"payload.node_result.budget_adjustment":          true,
+	}
 	projectedEnumPaths = map[string]bool{
 		"host":       true,
 		"process_id": true,
@@ -437,6 +443,15 @@ var (
 // projectForHostBudget applies the published-projection rules above to one
 // flattened schema tree.
 func projectForHostBudget(schema map[string]any, path string) map[string]any {
+	if projectedCollapsedPaths[path] {
+		out := map[string]any{}
+		for _, key := range []string{"type", "additionalProperties"} {
+			if value, ok := schema[key]; ok {
+				out[key] = value
+			}
+		}
+		return out
+	}
 	out := make(map[string]any, len(schema))
 	for key, value := range schema {
 		switch key {
@@ -491,8 +506,7 @@ func graphPayloads() ([]any, []string) {
 	return payloads, kinds
 }
 func buildCatalog() []ToolDefinition {
-	budget := obj([]string{"level", "max_automatic_commands", "allow_full_suite", "allow_manual_handoff"}, map[string]any{"level": map[string]any{"enum": []string{"minimal", "targeted", "full"}}, "max_automatic_commands": map[string]any{"type": "integer", "minimum": 0, "maximum": 20}, "allow_full_suite": map[string]any{"type": "boolean"}, "allow_manual_handoff": map[string]any{"type": "boolean"}})
-	newTask := obj([]string{"request", "initial_scope", "initial_out_of_scope", "known_acceptance_criteria", "verification_budget", "method_profile"}, map[string]any{"request": map[string]any{"type": "string", "minLength": 1, "maxLength": 8192}, "initial_scope": list(), "initial_out_of_scope": list(), "known_acceptance_criteria": list(), "verification_budget": budget, "method_profile": map[string]any{"enum": []string{"plain", "spec-kit", "openspec"}}})
+	newTask := obj([]string{"request", "initial_scope", "initial_out_of_scope", "known_acceptance_criteria", "method_profile"}, map[string]any{"request": map[string]any{"type": "string", "minLength": 1, "maxLength": 8192}, "initial_scope": list(), "initial_out_of_scope": list(), "known_acceptance_criteria": list(), "method_profile": map[string]any{"enum": []string{"plain", "spec-kit", "openspec"}}})
 	empty := obj([]string{}, map[string]any{})
 	payloads, _ := graphPayloads()
 	standardPayload := map[string]any{"oneOf": payloads}
@@ -511,7 +525,7 @@ func buildCatalog() []ToolDefinition {
 		"new_task":                map[string]any{"anyOf": []any{newTask, map[string]any{"type": "null"}}},
 	})
 	cancel := obj([]string{"request_id", "host", "task_id", "revision", "reason"}, map[string]any{"request_id": id(), "host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "revision": map[string]any{"type": "integer", "minimum": 1}, "reason": str()})
-	defs := map[string]any{"newTask": newTask, "verificationBudget": budget}
+	defs := map[string]any{"newTask": newTask}
 	open["$defs"] = defs
 	tools := []ToolDefinition{
 		makeTool(ToolServerInfo, "Read the current Core server identity.", empty, true, true, false),
@@ -546,7 +560,7 @@ func additionalRepositoryPathSchema(repositoryKey map[string]any) map[string]any
 func actionSubmissionDescription(kind domain.ActionKind) string {
 	description := "Submit the result of the current " + string(kind) + " Action. Core fills the complete Action identity, artifact roles, method step identities and payload envelope."
 	if kind == domain.ActionCompleteTest {
-		description += " For checks, automated command_count is 1 to 20; user, static and host_observed use command_count 0 and full_suite false."
+		description += " The Task Plan owns the initial verification budget. A justified verification_budget_increased transition stays in TEST. Automated command_count is 1 to 20; user, static and host_observed use command_count 0 and full_suite false. Every full-suite check records its current reason."
 	}
 	if kind == domain.ActionCompleteDelivery {
 		description += " Core also fills current acceptance, test and comprehension record IDs, and automated and manual evidence IDs from the current Task."

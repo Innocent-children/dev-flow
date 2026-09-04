@@ -73,8 +73,9 @@ type TasksResult struct {
 	Findings     []string            `json:"findings"`
 }
 type TasksBaselineInput struct {
-	DesignRevision uint32            `json:"design_revision"`
-	WorkItems      []domain.WorkItem `json:"work_items"`
+	DesignRevision   uint32                  `json:"design_revision"`
+	WorkItems        []domain.WorkItem       `json:"work_items"`
+	VerificationPlan domain.VerificationPlan `json:"verification_plan"`
 }
 type ImplementationResult struct {
 	ProblemClass         ProblemClass `json:"problem_class"`
@@ -84,20 +85,46 @@ type ImplementationResult struct {
 	Findings             []string     `json:"findings"`
 }
 type TestResult struct {
-	ProblemClass       ProblemClass    `json:"problem_class"`
-	Checks             []EvidenceInput `json:"checks"`
-	FailedItems        []string        `json:"failed_items"`
-	UnverifiedItems    []string        `json:"unverified_items"`
-	ManualHandoffItems []string        `json:"manual_handoff_items"`
-	Findings           []string        `json:"findings"`
+	ProblemClass       ProblemClass                       `json:"problem_class"`
+	Checks             []EvidenceInput                    `json:"checks"`
+	FailedItems        []string                           `json:"failed_items"`
+	UnverifiedItems    []string                           `json:"unverified_items"`
+	ManualHandoffItems []string                           `json:"manual_handoff_items"`
+	Findings           []string                           `json:"findings"`
+	BudgetAdjustment   *VerificationBudgetAdjustmentInput `json:"budget_adjustment"`
 }
+type VerificationBudgetAdjustmentInput struct {
+	Basis                       domain.VerificationBudgetAdjustmentBasis `json:"basis"`
+	AdditionalChecks            []domain.VerificationPlanCheck           `json:"additional_checks"`
+	AdditionalAutomaticCommands int                                      `json:"additional_automatic_commands"`
+	AllowFullSuite              bool                                     `json:"allow_full_suite"`
+	AllowManualHandoff          bool                                     `json:"allow_manual_handoff"`
+}
+
+func (i VerificationBudgetAdjustmentInput) Validate() error {
+	if !i.Basis.IsValid() || len(i.AdditionalChecks) == 0 || len(i.AdditionalChecks) > domain.MaxBoundedStringListItems ||
+		i.AdditionalAutomaticCommands < 0 || i.AdditionalAutomaticCommands > domain.MaxAutomaticVerificationCommands ||
+		(i.AdditionalAutomaticCommands == 0 && !i.AllowFullSuite && !i.AllowManualHandoff) {
+		return domain.ErrInvalidArgument
+	}
+	seen := make(map[string]bool, len(i.AdditionalChecks))
+	for _, check := range i.AdditionalChecks {
+		if check.Validate() != nil || seen[check.Name] {
+			return domain.ErrInvalidArgument
+		}
+		seen[check.Name] = true
+	}
+	return nil
+}
+
 type EvidenceInput struct {
-	Source       domain.EvidenceSource `json:"source"`
-	Name         string                `json:"name"`
-	Status       domain.EvidenceStatus `json:"status"`
-	Summary      string                `json:"summary"`
-	CommandCount int                   `json:"command_count"`
-	FullSuite    bool                  `json:"full_suite"`
+	Source          domain.EvidenceSource `json:"source"`
+	Name            string                `json:"name"`
+	Status          domain.EvidenceStatus `json:"status"`
+	Summary         string                `json:"summary"`
+	CommandCount    int                   `json:"command_count"`
+	FullSuite       bool                  `json:"full_suite"`
+	FullSuiteReason string                `json:"full_suite_reason"`
 }
 type ComprehensionResult struct {
 	ProblemClass            ProblemClass      `json:"problem_class"`
@@ -504,6 +531,9 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 		if value.Baseline != nil && !validWorkItemPaths(value.Baseline.WorkItems) {
 			violations = append(violations, domain.Violation("payload.node_result.baseline.work_items", domain.RuleRepositoryPathInvalid))
 		}
+		if value.Baseline != nil && value.Baseline.VerificationPlan.Validate() != nil {
+			return domain.ErrInvalidArgument
+		}
 		if len(violations) != 0 {
 			return domain.InvalidArgumentViolations(violations...)
 		}
@@ -531,6 +561,23 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 		}
 		if len(violations) != 0 {
 			return domain.InvalidArgumentViolations(violations...)
+		}
+		adjusting := envelope.TransitionID == "verification_budget_increased"
+		if adjusting {
+			if value.BudgetAdjustment == nil || value.BudgetAdjustment.Validate() != nil {
+				return domain.ErrInvalidArgument
+			}
+			if len(value.Checks) != 0 || len(value.FailedItems) != 0 || len(value.UnverifiedItems) != 0 ||
+				len(value.ManualHandoffItems) != 0 || len(value.Findings) != 0 {
+				return domain.TransitionGuardFailure(transition.Guard,
+					domain.GuardViolation("payload.node_result.checks", domain.GuardCollectionMustBeEmpty),
+					domain.GuardViolation("payload.node_result.failed_items", domain.GuardCollectionMustBeEmpty),
+					domain.GuardViolation("payload.node_result.unverified_items", domain.GuardCollectionMustBeEmpty),
+					domain.GuardViolation("payload.node_result.manual_handoff_items", domain.GuardCollectionMustBeEmpty),
+					domain.GuardViolation("payload.node_result.findings", domain.GuardCollectionMustBeEmpty))
+			}
+		} else if value.BudgetAdjustment != nil {
+			return domain.ErrInvalidArgument
 		}
 	case *ComprehensionResult:
 		if source != domain.NodeComprehensionReview {
@@ -744,6 +791,7 @@ var problemClassByTransition = map[domain.TransitionID]ProblemClass{
 	"tests_failed_implementation":          ProblemImplementationFailure,
 	"tests_expose_design_issue":            ProblemDesignFailure,
 	"tests_expose_requirement_issue":       ProblemRequirementGap,
+	"verification_budget_increased":        ProblemNone,
 	"comprehension_passed":                 ProblemNone,
 	"implementation_defect":                ProblemImplementationDefect,
 	"code_too_complex":                     ProblemCodeComplexity,

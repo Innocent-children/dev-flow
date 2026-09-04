@@ -34,12 +34,6 @@ test("shared simulated MCP client omits system-state revisions for a Codex-owned
       initial_scope: ["Submit Design, Tasks and Implementation results"],
       initial_out_of_scope: [],
       known_acceptance_criteria: ["Core fills each system-state revision"],
-      verification_budget: {
-        level: "targeted",
-        max_automatic_commands: 4,
-        allow_full_suite: false,
-        allow_manual_handoff: true,
-      },
       method_profile: "plain",
     },
   });
@@ -83,6 +77,12 @@ test("shared simulated MCP client omits system-state revisions for a Codex-owned
         verification_steps: ["Run the targeted submission journey"],
         dependencies: [],
       }],
+      verification_plan: {
+        checks: [{ name: "targeted-submission-journey", rationale: "The check covers the shared submission contract." }],
+        initial_budget: { level: "targeted", max_automatic_commands: 4, allow_full_suite: false, allow_manual_handoff: true },
+        full_suite_expected: false,
+        test_code_changes_expected: true,
+      },
     },
     findings: [],
   };

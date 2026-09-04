@@ -69,8 +69,9 @@ Uncertain results read receipt/Host state instead of dispatching again.
 
 ## WorkspaceOrigin and RepositoryBinding
 
-For new Task creation, `dev_flow_open_task` accepts a primary `workspace_origin` and the same member on
-each additional repository:
+For new Task creation, `dev_flow_open_task` retains the request, initial bounds, known acceptance,
+and method profile, but accepts no final verification budget. It also accepts a primary
+`workspace_origin` and the same member on each additional repository:
 
 ```json
 {
@@ -165,6 +166,48 @@ A normal mutation:
 After a lost response, the Host retains only Task ID and Action ID and follows the `next_advice` backed
 by Core's retained operation. It does not reconstruct the payload or infer success from files.
 
+## Verification plan, budget increases, and review scope
+
+The final verification budget is not part of creation-time `TaskIntent`. TASKS runs after
+Requirements, Design, work decomposition, impact discovery, and existing-test inspection, so
+`TaskPlanBaseline.verification_plan` retains:
+
+```text
+checks[]: name + rationale
+initial_budget: level + max_automatic_commands + allow_full_suite + allow_manual_handoff
+full_suite_expected
+test_code_changes_expected
+```
+
+TASKS also has the required `tasks.plan_verification` method step. An incomplete plan cannot enter
+IMPLEMENT.
+
+Evidence binds `task_plan_revision`. Automatic-command consumption counts only the current Task Plan
+revision; a formally rebuilt plan starts from its new initial budget while old Evidence and
+adjustments remain historical records. Before running an extra command that does not fit, the Host
+submits `verification_budget_increased`, a TEST-to-TEST self-transition requiring:
+
+- one basis from `new_impact`, `new_risk`, `verification_failure`, or `verification_gap`;
+- a concrete transition reason and `additional_checks` with their rationales;
+- only monotonic automatic-command, full-suite, or manual-handoff capacity needed now;
+- empty check, failure, unverified, handoff, and finding lists, so the adjustment creates no Evidence,
+  TestRecord, or verification attempt.
+
+Core retains the previous/resulting budgets and reason, then issues a fresh TEST Action. A request
+without a concrete reason, added check, or actual increase is rejected with zero Task writes. Normal
+TEST results send `budget_adjustment=null`.
+
+Every full-suite check also carries a non-empty `full_suite_reason`; non-full checks keep it empty.
+This records the current decision, but Core neither parses shell nor intercepts every command before
+execution. Codex/DeepSeek Skills select the closest check before every command, reassess impact,
+focused-check sufficiency, uncovered risk, and repository checkpoint before every full suite, and
+decide lasting value before changing test code.
+
+Post-change code review is also Host semantic work: inspect only the current diff, causally affected
+call paths, and acceptance needs. After fixing a review finding, recheck only that issue and related
+regressions. Explicit code review remains read-only and stops after delivering its findings;
+unrelated historical issues do not enter the Task.
+
 ## Relocation, cancellation, and terminal state
 
 `dev_flow_prepare_task_relocation` moves the Task to `BLOCKED` and retains relocation ID, source
@@ -212,8 +255,8 @@ or reset prompt. Claim lookup uses directly observable worktree-instance identit
 can still find a Task after an illicit branch switch.
 
 WebUI is a loopback HTTP Adapter that projects WorkspaceOrigin, observation/surface, blockers,
-relocation, verification, and cleanup choices. It no longer creates a Task from an arbitrary checkout
-and performs no Git mutation or Host handoff.
+relocation, the verification plan, current budget/usage, adjustment reasons, and cleanup choices. It
+no longer creates a Task from an arbitrary checkout and performs no Git mutation or Host handoff.
 
 ## Host differences
 
@@ -235,7 +278,7 @@ work performs no release. Host packages carry exact `darwin-arm64/dev-flow` and
 
 | Path | Responsibility |
 | --- | --- |
-| `internal/domain/` | Task, WorkspaceOrigin/Binding, records, blockers, outcome |
+| `internal/domain/` | Task, WorkspaceOrigin/Binding, verification plan/adjustments, records, blockers, outcome |
 | `internal/repository/` | fixed read-only Git observation and digests |
 | `internal/application/` | open/resume/read/submit/recover/relocate/cancel/abandon orchestration |
 | `internal/workflow/` | 11 nodes, ordinary edges, payloads, guards, invalidation |

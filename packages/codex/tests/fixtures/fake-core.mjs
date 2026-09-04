@@ -8,8 +8,8 @@ const statePath = requiredIsolatedPath("FAKE_CORE_STATE");
 const tracePath = requiredIsolatedPath("FAKE_CORE_TRACE");
 const selectedCase = process.env.FAKE_CORE_CASE ?? "success";
 const session = process.env.FAKE_CORE_SESSION ?? "session-1";
-const coreVersion = "0.7.0";
-const processDefinitionDigest = "8f9543abc67421f1470e9ca8b953206571a119c65e5ec39c655bccd334203dc5";
+const coreVersion = "0.8.0";
+const processDefinitionDigest = "58118cf85fdd5a2013f95972f816fe267dcbad09a95fe0fce2d83488d69cb101";
 const state = await readState();
 const tools = toolDefinitions();
 const toolByName = new Map(tools.map((tool) => [tool.name, tool]));
@@ -191,9 +191,9 @@ function currentTask() {
       initial_scope: ["one repository"],
       initial_out_of_scope: ["real host"],
       known_acceptance_criteria: [],
-      verification_budget: { level: "targeted", max_automatic_commands: 2, allow_full_suite: false, allow_manual_handoff: true },
       method_profile: "plain",
     },
+    verification: { plan: null, current_budget: null, usage: { automatic_commands: 0, full_suite_runs: 0, evidence_items: 0 }, adjustments: [] },
     current_cursor: currentCursor,
     resume_cursor: state.blocked ? "REQUIREMENTS" : null,
     primary_repository_key: state.scope?.primary_repository_key ?? "primary",

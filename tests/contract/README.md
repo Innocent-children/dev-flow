@@ -9,7 +9,7 @@ Release evidence。
 - `mcp_contract_test.go`：Core current contract exact seventeen-tool catalog、semantic-only
   Action submission schemas、workspace/relocation/abandon fields、Recovery、ServerInfo 与 storage identity；
 - `result_envelope_test.go`：typed Result Envelope、stable public errors、closed/redacted output；
-- `graph_contract_test.go`：`standard-development` 节点、29 transitions、guard/reason/problem
+- `graph_contract_test.go`：`standard-development` 节点、30 transitions、guard/reason/problem
   class 和 method-profile public semantics；
 - `current_storage_contract_test.go`：Fresh current storage、strict snapshot、single current runtime、unsupported
   safe-stop、lifecycle non-deletion 和 private-path redaction；

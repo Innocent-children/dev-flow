@@ -22,16 +22,17 @@
 - 在新请求建立 Task 前显示只读改动量评估和是否建议进入完整流程；
 - 展示确认的 remote/base/target、专属工作树、Task Plan、当前修改路径、文件范围决定和未说明路径；
 - 区分正常线性 commit、内容变化、history conflict、workspace unavailable 与 relocation；
-- 让当前阶段、剩余验证预算和 Recovery 判断更容易从 Host 与本机 WebUI 中读取。
+- 从 Host 与本机 WebUI 读取分析后形成的验证计划、当前预算/消耗、历次增加原因和 Recovery 判断；
+- 让普通修改后的复核停在当前 diff、因果影响和验收范围，修复后不重新启动全仓库审计。
 
-这些工作不改变当前状态图，也不增加第二份 Task 状态。
+这些工作不增加流程节点或第二份 Task 状态；预算增加复用一条 TEST→TEST 自循环。
 
 ## Next：让完成判断更可信
 
 以下是未来方向，当前尚未实现或尚未完整实现：
 
 - 把验证记录与当前实现状态绑定得更紧，减少旧结果被继续使用；
-- 显示 verification budget 的消耗过程，以及扩大验证的具体原因；
+- 根据真实使用反馈继续校准初始验证计划和预算增加判断，避免误放大或误阻塞；
 - 提供不确定 Action 的公开故障注入 Journey；
 - 继续改进 `small|standard|large|uncertain` 评估的可理解性和误判反馈；
 - 在不引入第二状态机的前提下，减少确认和恢复所需的操作次数。

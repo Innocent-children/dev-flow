@@ -42,7 +42,7 @@ test("plugin metadata and MCP registration use resolvable product identities", a
 
 test("Skill contains required operational sections and the complete Core tool catalog", async () => {
   const skill = await readFile(skillPath, "utf8");
-  for (const heading of ["Request routing", "Admission gate", "Provisioning confirmation", "Compatibility handshake", "Task discovery", "Governed action loop", "Method operation rendering", "Transition selection", "Closed forwarding contract", "Recovery-before-retry contract", "Evidence and verification budget", "Task relocation and Codex Handoff", "Terminal worktree presentation and cleanup"]) {
+  for (const heading of ["Request routing", "Admission gate", "Provisioning confirmation", "Compatibility handshake", "Task discovery", "Governed action loop", "Method operation rendering", "Transition selection", "Closed forwarding contract", "Recovery-before-retry contract", "Evidence and verification budget", "Bounded post-change review", "Task relocation and Codex Handoff", "Terminal worktree presentation and cleanup"]) {
     assert.equal(skill.includes(`## ${heading}`), true, heading);
   }
   const catalog = [...skill.matchAll(/^\d+\. `(dev_flow_[a-z_]+)`$/gmu)].map((match) => match[1]);
@@ -78,7 +78,7 @@ test("confirmed launches use frozen refs and never relocate after active conflic
   const skill = await readFile(skillPath, "utf8");
   const routing = section(skill, "Request routing");
   const provisioning = section(skill, "Provisioning confirmation").replace(/\s+/gu, " ");
-  const discovery = section(skill, "Task discovery");
+  const discovery = section(skill, "Task discovery").replace(/\s+/gu, " ");
   for (const required of [
     "exact selector still follows",
     "`ACTIVE_TASK_CONFLICT`",
@@ -105,12 +105,33 @@ test("packaged references cover method steps, submission tools, and the new-task
   const methodReference = await readFile(join(skillRoot, "references", "method-profiles.md"), "utf8");
   const payloadReference = await readFile(join(skillRoot, "references", "node-payloads.md"), "utf8");
   const steps = [...marked(methodReference, "semantic-step-table").matchAll(/^\| `([^`]+)` \|/gmu)].map((match) => match[1]);
-  assert.equal(steps.length, 24);
+  assert.equal(steps.length, 25);
   assert.equal(new Set(steps).size, steps.length);
   for (const tool of expectedTools.filter((name) => name.startsWith("dev_flow_submit_"))) assert.equal(payloadReference.includes(`\`${tool}\``), true, tool);
   const block = marked(await readFile(skillPath, "utf8"), "new-task-example");
   const example = JSON.parse(block.match(/^```json\n([\s\S]*)\n```$/u)?.[1]);
-  assert.deepEqual(Object.keys(example).sort(), ["initial_out_of_scope", "initial_scope", "known_acceptance_criteria", "method_profile", "request", "verification_budget"]);
+  assert.deepEqual(Object.keys(example).sort(), ["initial_out_of_scope", "initial_scope", "known_acceptance_criteria", "method_profile", "request"]);
+});
+
+test("Skill bounds verification, test-code changes, and post-change review", async () => {
+  const skill = await readFile(skillPath, "utf8");
+  const discovery = section(skill, "Task discovery").replace(/\s+/gu, " ");
+  const verification = section(skill, "Evidence and verification budget").replace(/\s+/gu, " ");
+  const review = section(skill, "Bounded post-change review").replace(/\s+/gu, " ");
+  for (const required of [
+    "Do not choose a verification budget during Task creation", "creation-time `verification_budget` is an obsolete contract member",
+  ]) assert.equal(discovery.includes(required), true, required);
+  for (const required of [
+    "At TASKS", "existing test structure", "closest targeted check first", "verification_budget_increased",
+    "do not stop merely because", "Budget permission alone is never a reason", "Before every full-suite command",
+    "never reuse an earlier reason automatically", "lasting responsibility", "README must not contain this word",
+    "one text search", "creates no permanent test file", "full_suite_reason",
+  ]) assert.equal(verification.includes(required), true, required);
+  for (const required of [
+    "current diff", "directly or indirectly affects", "Do not restart a repository-wide audit",
+    "unrelated historical", "After fixing a review finding", "matching targeted checks",
+    "explicitly requests code review", "review phase is read-only", "stop and wait for an explicit later repair request",
+  ]) assert.equal(review.includes(required), true, required);
 });
 
 test("method-profile fixture materializes the current ServerInfo and Action projection contract", async () => {

@@ -179,10 +179,10 @@ observation.
 For a new request, select one profile from explicit current user intent. `plain`, `spec-kit`, and
 `openspec` select themselves; otherwise use `plain`. Installed tooling does not select or change a
 profile. Derive `new_task` only from the admitted request, repository instructions, known bounds,
-known acceptance, and granted verification authority. It contains exactly `request`,
-`initial_scope`, `initial_out_of_scope`, `known_acceptance_criteria`, `verification_budget`, and
-`method_profile`. The budget contains exactly `level`, `max_automatic_commands`, `allow_full_suite`,
-and `allow_manual_handoff`.
+and known acceptance. It contains exactly `request`, `initial_scope`, `initial_out_of_scope`,
+`known_acceptance_criteria`, and `method_profile`. Do not send a creation-time
+`verification_budget`: requirements, design, impact, work breakdown, and the existing test structure
+have not been analyzed yet.
 
 Use this exact `new_task` JSON shape, changing only values derived from the admitted request:
 
@@ -193,12 +193,6 @@ Use this exact `new_task` JSON shape, changing only values derived from the admi
   "initial_scope": ["Update the endpoint response"],
   "initial_out_of_scope": ["Change unrelated endpoints"],
   "known_acceptance_criteria": ["The response contains the requested field"],
-  "verification_budget": {
-    "level": "targeted",
-    "max_automatic_commands": 4,
-    "allow_full_suite": false,
-    "allow_manual_handoff": true
-  },
   "method_profile": "plain"
 }
 ```
@@ -489,19 +483,65 @@ recovery-before-retry contract.
 
 ## Evidence and verification budget
 
-- Count verification commands exactly against Core's immutable budget.
-- Do not run a prohibited full suite. When automatic capacity is exhausted, report the remaining
-  permitted work as manual handoff without claiming it ran.
-- Preserve repository instructions and explicit user authority.
-- Keep static inspection, simulated Core execution, user-performed evidence, and native automated
-  evidence distinctly labelled.
-- Submit actual sources and outcomes. Never relabel failed, skipped, or unavailable work as passed.
-- `source=automated` uses `command_count` 1 to 20 and may set `full_suite` when the budget allows it.
-- `source=user`, `source=static`, and `source=host_observed` use `command_count=0` and
-  `full_suite=false`. Shell commands a person ran by hand belong in that check's `summary`; they
-  never consume the automatic command budget.
-- A verification the user already completed belongs in `checks` with `source=user`. Remove it from
-  `manual_handoff_items`; that list keeps only work nobody has executed yet.
+At TASKS, after reading the current requirements and design, decomposing the work, identifying its
+expected paths and causal impact, and inspecting the existing tests, create the initial
+`verification_plan`. Record the intended checks, a concrete rationale for each, the expected
+automatic-command budget, whether a full suite is expected, and whether test-code changes are
+expected. Use the smallest level and command count that cover the analyzed change. Task creation has
+no final verification budget.
+
+Before each automatic check, compare it with the current plan, current diff, causal impact,
+acceptance criteria, an observed failure, or a real regression. A small local change uses the closest
+targeted check first. Remaining capacity does not justify widening to package, module, or repository
+scope, and verification stops when the current acceptance and actual impact are sufficiently checked.
+
+If capacity is insufficient, do not stop merely because it is exhausted and do not run the extra
+command first. Re-read the Task and TEST Action, then submit the returned
+`verification_budget_increased` transition with one closed basis (`new_impact`, `new_risk`,
+`verification_failure`, or `verification_gap`), newly needed checks and rationales, only the extra
+commands or permissions required now, and a concrete reason. Core stays in TEST and returns a new
+Action. “For completeness”, “increase confidence”, “to be safe”, or the existence of remaining
+budget are not specific reasons and cannot authorize an increase.
+
+Before every full-suite command, including a rerun after a small fix, freshly decide whether the
+change has broad causal impact, why targeted or package checks are insufficient, which concrete risk
+the suite covers, and whether repository instructions require it at this checkpoint. Budget
+permission alone is never a reason. Run the closest targeted check when those facts do not justify a
+suite. Otherwise send the fresh explanation as `full_suite_reason`; never automatically reuse an
+earlier reason after another edit.
+
+Before adding or changing test code, require lasting value: stable product behavior, a public
+contract, an important failure path, or an observed regression. Prefer an existing test location
+with the matching responsibility; create a new file only for a genuinely independent test
+responsibility. A one-time edit or transient prose requirement normally gets a one-time check. For
+example, a forbidden README word is checked with one text search and creates no permanent test file
+or full-suite run.
+
+Count and submit actual outcomes. Keep static inspection, simulated execution, user evidence, and
+native automation distinct. `source=automated` uses `command_count` 1 to 20. Non-full checks send an
+empty `full_suite_reason`; full suites send the fresh concrete reason. `source=user`, `source=static`,
+and `source=host_observed` use `command_count=0`, `full_suite=false`, and an empty
+`full_suite_reason`. Put only work nobody has run in `manual_handoff_items`.
+
+## Bounded post-change review
+
+For ordinary implementation work, review only the current diff, callers, dependencies and runtime
+paths directly or indirectly affected by it, plus material required for current acceptance. Do not
+restart a repository-wide audit after each edit. Any added review area needs a stated causal path
+from the current change.
+
+Fix only defects introduced by the current change or caused in another location by that change.
+Unrelated historical problems are not repaired, tested, or added to this Task; mention them
+separately at delivery and suggest another Task when useful.
+
+After fixing a review finding, re-check only the original finding, related regressions, affected
+acceptance criteria, and matching targeted checks. Never restart a broad audit because one finding
+was fixed. End when current acceptance, planned checks, justified increases, and the bounded review
+are complete, with unrun checks and current-design risks reported honestly.
+
+An explicit code review, code audit, or repository-wide audit is read-only. Complete that requested
+scope, report all findings and their impact, then stop for a later explicit repair request. Do not
+edit, format, create a patch, or move from review into repair automatically.
 
 ## Relocation and unavailable workspaces
 

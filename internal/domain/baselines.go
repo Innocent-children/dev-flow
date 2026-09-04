@@ -117,16 +117,17 @@ type WorkItem struct {
 	Dependencies      []ID     `json:"dependencies"`
 }
 type TaskPlanBaseline struct {
-	Revision       uint32              `json:"revision"`
-	Digest         Digest              `json:"digest"`
-	DesignRevision uint32              `json:"design_revision"`
-	WorkItems      []WorkItem          `json:"work_items"`
-	ArtifactRefs   []ArtifactReference `json:"artifact_refs"`
-	CreatedAt      time.Time           `json:"created_at"`
+	Revision         uint32              `json:"revision"`
+	Digest           Digest              `json:"digest"`
+	DesignRevision   uint32              `json:"design_revision"`
+	WorkItems        []WorkItem          `json:"work_items"`
+	VerificationPlan VerificationPlan    `json:"verification_plan"`
+	ArtifactRefs     []ArtifactReference `json:"artifact_refs"`
+	CreatedAt        time.Time           `json:"created_at"`
 }
 
 func (b TaskPlanBaseline) Validate() error {
-	if b.Revision == 0 || b.DesignRevision == 0 || !b.Digest.IsValid() || len(b.WorkItems) == 0 || len(b.WorkItems) > MaxWorkItemsPerTaskPlan || validateUTC(b.CreatedAt) != nil || validateArtifacts(b.ArtifactRefs) != nil {
+	if b.Revision == 0 || b.DesignRevision == 0 || !b.Digest.IsValid() || len(b.WorkItems) == 0 || len(b.WorkItems) > MaxWorkItemsPerTaskPlan || b.VerificationPlan.Validate() != nil || validateUTC(b.CreatedAt) != nil || validateArtifacts(b.ArtifactRefs) != nil {
 		return ErrInvalidArgument
 	}
 	known := map[ID]bool{}

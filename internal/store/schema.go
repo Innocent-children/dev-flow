@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-const DatabaseSchemaVersion = "0.4.0"
+const DatabaseSchemaVersion = "0.5.0"
 
 var currentSchemaStatements = []string{
 	`CREATE TABLE schema_metadata (version TEXT PRIMARY KEY)`,

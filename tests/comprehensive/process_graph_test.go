@@ -79,14 +79,14 @@ func TestProcessGraphExhaustiveTopologyAndInvalidTransitions(t *testing.T) {
 		}
 	}
 
-	if activeNodes != 8 || len(definition.Nodes) != 11 || len(definition.Transitions) != 29 {
+	if activeNodes != 8 || len(definition.Nodes) != 11 || len(definition.Transitions) != 30 {
 		t.Fatalf("nodes=%d active=%d transitions=%d", len(definition.Nodes), activeNodes, len(definition.Transitions))
 	}
 	if validPairs != len(definition.Transitions) || invalidPairs != activeNodes*len(definition.Transitions)-validPairs {
 		t.Fatalf("valid pairs=%d invalid pairs=%d", validPairs, invalidPairs)
 	}
-	if invalidPairs != 203 {
-		t.Fatalf("expected 203 illegal node/transition combinations, got %d", invalidPairs)
+	if invalidPairs != 210 {
+		t.Fatalf("expected 210 illegal node/transition combinations, got %d", invalidPairs)
 	}
 }
 

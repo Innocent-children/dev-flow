@@ -16,8 +16,8 @@ Plus une tâche de programmation dure, plus elle risque de changer progressiveme
 s'ajoutent, un contrôle ciblé devient une campagne de tests sans limite, le même échec provoque un nouvel
 essai similaire ou une session redémarrée doit reconstituer l'avancement depuis la conversation.
 
-Dev Flow conserve dans une seule tâche locale la demande convenue, les chemins prévus, les limites de
-vérification, l'étape actuelle et les résultats. Codex ou DeepSeek continue à modifier le code.
+Dev Flow conserve dans une seule tâche locale la demande convenue, les chemins prévus, le plan de
+vérification établi après analyse, l'étape actuelle et les résultats. Codex ou DeepSeek continue à modifier le code.
 
 Chaque nouvelle demande est d'abord évaluée en lecture seule. Si vous choisissez Dev Flow, vous confirmez
 le remote, la branche de base et une nouvelle branche de tâche ; le Host crée depuis cette base distante
@@ -29,8 +29,10 @@ un worktree propre et dédié avant que Core ne crée la Task. Les changements d
 - **Chaque worktree a un seul propriétaire des modifications.** Core calcule la surface actuelle de la
   Task depuis Git ; les commits linéaires normaux continuent, tandis qu'une réécriture de branche ou le
   remplacement du worktree arrête la tâche.
-- **La vérification reste limitée.** Le nombre de commandes automatiques est plafonné, la suite complète
-  nécessite une autorisation préalable et la troisième répétition exacte suspend la tâche.
+- **La vérification suit la tâche.** TASKS conserve contrôles, raisons, effort initial et attentes de suite
+  complète/code de test. Seuls un impact, un risque, un échec ou un manque concret augmentent le budget.
+- **La revue s'arrête au changement courant.** Après modification, elle couvre le diff, l'impact causal et
+  l'acceptation ; une correction ne relance que les contrôles liés et une code review explicite reste en lecture seule.
 - **Le travail reprend après un redémarrage.** Une nouvelle session retrouve la même tâche, les contrôles
   restants et la décision en cours sans les reconstruire depuis la conversation.
 - **Seuls les résultats encore valides sont réutilisés.** Toute modification de la demande, du plan, de

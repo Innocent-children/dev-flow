@@ -20,12 +20,13 @@ import (
 )
 
 type iterationJourney struct {
-	t       *testing.T
-	service *application.Service
-	store   *store.SQLite
-	dbPath  string
-	repo    string
-	task    domain.ProcessTask
+	t                  *testing.T
+	service            *application.Service
+	store              *store.SQLite
+	dbPath             string
+	repo               string
+	task               domain.ProcessTask
+	allowManualHandoff bool
 }
 
 type journeyState struct {
@@ -42,7 +43,7 @@ func TestProcessGraphIterationJourney(t *testing.T) {
 
 	j.apply("requirements_ready", "", requirementsJourneyResult("Current goal"))
 	j.apply("design_ready", "", designJourneyResult(j.task.Requirements.Revision, "Direct design"))
-	j.apply("tasks_ready", "", tasksJourneyResult(j.task.Design.Revision))
+	j.apply("tasks_ready", "", tasksJourneyResult(j.task.Design.Revision, j.allowManualHandoff))
 
 	j.writeRepository("implementation one")
 	j.apply("implementation_ready_for_test", "", implementationJourneyResult(j.task.TaskPlan.Revision, []string{"feature.txt"}, nil))
@@ -108,7 +109,7 @@ func TestManualHandoffFalseStillAllowsComprehensionJourney(t *testing.T) {
 	j := newIterationJourneyWithManualHandoff(t, false)
 	defer j.close()
 	j.toTest()
-	userTest := map[string]any{"checks": []map[string]any{{"source": "user", "name": "manual-test", "status": "passed", "summary": "User performed test.", "command_count": 0, "full_suite": false}}, "failed_items": []string{}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}}
+	userTest := map[string]any{"checks": []map[string]any{{"source": "user", "name": "manual-test", "status": "passed", "summary": "User performed test.", "command_count": 0, "full_suite": false, "full_suite_reason": ""}}, "failed_items": []string{}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}, "budget_adjustment": nil}
 	j.assertRejected(domain.ErrVerificationBudgetExceeded, "tests_passed", "", userTest)
 	j.apply("tests_passed", "", passedTestJourneyResult())
 	j.apply("comprehension_passed", "", comprehensionJourneyResult([]string{"component"}, nil, nil, "user", "passed", nil))
@@ -318,8 +319,8 @@ func TestProcessGraphReworkRequirementsAndDesign(t *testing.T) {
 		}
 		j.assertRejected(domain.ErrInvalidArgument, "design_ready", "", designJourneyResult(1, "Stale design"))
 		j.apply("design_ready", "", designJourneyResult(2, "Rebound design"))
-		j.assertRejected(domain.ErrInvalidArgument, "tasks_ready", "", tasksJourneyResult(1))
-		j.apply("tasks_ready", "", tasksJourneyResult(2))
+		j.assertRejected(domain.ErrInvalidArgument, "tasks_ready", "", tasksJourneyResult(1, j.allowManualHandoff))
+		j.apply("tasks_ready", "", tasksJourneyResult(2, j.allowManualHandoff))
 	})
 
 	t.Run("COMPREHENSION_to_DESIGN_revision_rebinding", func(t *testing.T) {
@@ -335,8 +336,8 @@ func TestProcessGraphReworkRequirementsAndDesign(t *testing.T) {
 		if j.task.Design.Revision != 2 || !journeyHasHistory(j.task, domain.BaselineDesign, 1) {
 			t.Fatal("design revision/history did not advance")
 		}
-		j.assertRejected(domain.ErrInvalidArgument, "tasks_ready", "", tasksJourneyResult(1))
-		j.apply("tasks_ready", "", tasksJourneyResult(2))
+		j.assertRejected(domain.ErrInvalidArgument, "tasks_ready", "", tasksJourneyResult(1, j.allowManualHandoff))
+		j.apply("tasks_ready", "", tasksJourneyResult(2, j.allowManualHandoff))
 	})
 }
 
@@ -413,11 +414,11 @@ func newIterationJourneyWithManualHandoff(t *testing.T, allowManualHandoff bool)
 	if err != nil {
 		t.Fatal(err)
 	}
-	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "open-journey", Host: domain.HostCodex, RepositoryPath: repo, WorkspaceOrigin: &origin, NewTask: &application.NewTaskInput{Request: "Prove the iterative development loop.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 16, AllowManualHandoff: allowManualHandoff}, MethodProfile: domain.MethodPlain}})
+	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "open-journey", Host: domain.HostCodex, RepositoryPath: repo, WorkspaceOrigin: &origin, NewTask: &application.NewTaskInput{Request: "Prove the iterative development loop.", MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	j := &iterationJourney{t: t, service: service, store: sqliteStore, dbPath: dbPath, repo: repo, task: opened.Task}
+	j := &iterationJourney{t: t, service: service, store: sqliteStore, dbPath: dbPath, repo: repo, task: opened.Task, allowManualHandoff: allowManualHandoff}
 	if j.task.Revision != 1 || j.eventCount() != 1 || j.claimCount() != 1 || j.task.CurrentAction == nil {
 		t.Fatal("open task did not atomically establish task, event, claim, and action")
 	}
@@ -520,7 +521,7 @@ func (j *iterationJourney) assertStateUnchanged(before journeyState) {
 func (j *iterationJourney) toTest() {
 	j.apply("requirements_ready", "", requirementsJourneyResult("Current goal"))
 	j.apply("design_ready", "", designJourneyResult(j.task.Requirements.Revision, "Direct design"))
-	j.apply("tasks_ready", "", tasksJourneyResult(j.task.Design.Revision))
+	j.apply("tasks_ready", "", tasksJourneyResult(j.task.Design.Revision, j.allowManualHandoff))
 	j.writeRepository("implementation")
 	j.apply("implementation_ready_for_test", "", implementationJourneyResult(j.task.TaskPlan.Revision, []string{"feature.txt"}, nil))
 }
@@ -632,8 +633,8 @@ func designJourneyResult(requirementsRevision uint32, approach string) map[strin
 	return map[string]any{"baseline": map[string]any{"requirements_revision": requirementsRevision, "approach": approach, "components": []string{"process"}, "decisions": []string{"Use the direct flow"}, "rejected_alternatives": []string{}, "complexity_justification": []string{}, "risks": []string{}}, "findings": []string{}}
 }
 
-func tasksJourneyResult(designRevision uint32) map[string]any {
-	return map[string]any{"baseline": map[string]any{"design_revision": designRevision, "work_items": []map[string]any{{"work_item_id": "work", "summary": "Implement the flow", "expected_paths": []string{"feature.txt"}, "acceptance_indexes": []uint32{0, 1}, "verification_steps": []string{"Run targeted tests"}, "dependencies": []string{}}}}, "findings": []string{}}
+func tasksJourneyResult(designRevision uint32, allowManualHandoff bool) map[string]any {
+	return map[string]any{"baseline": map[string]any{"design_revision": designRevision, "work_items": []map[string]any{{"work_item_id": "work", "summary": "Implement the flow", "expected_paths": []string{"feature.txt"}, "acceptance_indexes": []uint32{0, 1}, "verification_steps": []string{"Run targeted tests"}, "dependencies": []string{}}}, "verification_plan": map[string]any{"checks": []map[string]any{{"name": "targeted-test", "rationale": "The check covers the changed flow."}}, "initial_budget": map[string]any{"level": "targeted", "max_automatic_commands": 16, "allow_full_suite": false, "allow_manual_handoff": allowManualHandoff}, "full_suite_expected": false, "test_code_changes_expected": false}}, "findings": []string{}}
 }
 
 func implementationJourneyResult(planRevision uint32, _ []string, findings []string) map[string]any {
@@ -645,14 +646,14 @@ func implementationJourneyResult(planRevision uint32, _ []string, findings []str
 
 func passedTestJourneyResult() map[string]any {
 	return map[string]any{"checks": []map[string]any{
-		{"source": "automated", "name": "targeted-test", "status": "passed", "summary": "The targeted test passed.", "command_count": 1, "full_suite": false},
-		{"source": "static", "name": "static-review", "status": "passed", "summary": "Static review completed.", "command_count": 0, "full_suite": false},
-		{"source": "host_observed", "name": "host-observation", "status": "passed", "summary": "The host observed the result.", "command_count": 0, "full_suite": false},
-	}, "failed_items": []string{}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}}
+		{"source": "automated", "name": "targeted-test", "status": "passed", "summary": "The targeted test passed.", "command_count": 1, "full_suite": false, "full_suite_reason": ""},
+		{"source": "static", "name": "static-review", "status": "passed", "summary": "Static review completed.", "command_count": 0, "full_suite": false, "full_suite_reason": ""},
+		{"source": "host_observed", "name": "host-observation", "status": "passed", "summary": "The host observed the result.", "command_count": 0, "full_suite": false, "full_suite_reason": ""},
+	}, "failed_items": []string{}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}, "budget_adjustment": nil}
 }
 
 func failedTestJourneyResult(finding string) map[string]any {
-	return map[string]any{"checks": []map[string]any{{"source": "automated", "name": "targeted-test", "status": "failed", "summary": "The targeted test failed.", "command_count": 1, "full_suite": false}}, "failed_items": []string{"targeted failure"}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{finding}}
+	return map[string]any{"checks": []map[string]any{{"source": "automated", "name": "targeted-test", "status": "failed", "summary": "The targeted test failed.", "command_count": 1, "full_suite": false, "full_suite_reason": ""}}, "failed_items": []string{"targeted failure"}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{finding}, "budget_adjustment": nil}
 }
 
 func comprehensionJourneyResult(explained, unresolved, abstractions []string, source, status string, findings []string) map[string]any {

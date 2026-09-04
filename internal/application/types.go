@@ -100,7 +100,6 @@ type NewTaskInput struct {
 	InitialScope            []string
 	InitialOutOfScope       []string
 	KnownAcceptanceCriteria []string
-	VerificationBudget      domain.VerificationBudget
 	MethodProfile           domain.MethodProfile
 }
 type AdditionalRepositoryInput struct {

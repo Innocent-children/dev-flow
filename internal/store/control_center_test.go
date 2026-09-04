@@ -91,7 +91,7 @@ func controlCenterTestTask(t *testing.T, id domain.ID, host domain.Host, key, re
 	}
 	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: testPath("repo", key), WorktreeGitDirDigest: digest, ProvisioningReceiptID: domain.ID("receipt-" + key)}
 	binding := domain.RepositoryBinding{WorktreeInstanceDigest: digest, IdentityDigest: digest, HistoryDigest: digest, ContentDigest: digest, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: digest}
-	return domain.ProcessTask{TaskID: id, OriginHost: host, Intent: domain.TaskIntent{Request: request, KnownAcceptanceCriteria: []string{"The task is visible."}, VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 1}, MethodProfile: domain.MethodPlain}, Process: definition.Reference, CurrentNode: domain.NodeRequirements, CurrentAction: &action, PrimaryRepositoryKey: domain.RepositoryKey(key), WorkspaceOrigin: origin, Repository: binding, Revision: 1, CreatedAt: now, UpdatedAt: now}
+	return domain.ProcessTask{TaskID: id, OriginHost: host, Intent: domain.TaskIntent{Request: request, KnownAcceptanceCriteria: []string{"The task is visible."}, MethodProfile: domain.MethodPlain}, Process: definition.Reference, CurrentNode: domain.NodeRequirements, CurrentAction: &action, PrimaryRepositoryKey: domain.RepositoryKey(key), WorkspaceOrigin: origin, Repository: binding, Revision: 1, CreatedAt: now, UpdatedAt: now}
 }
 
 func controlCenterOpenMutation(task domain.ProcessTask) TaskMutation {

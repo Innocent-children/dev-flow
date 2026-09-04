@@ -16,7 +16,7 @@ A long coding task can gradually change shape: more files enter the change, targ
 open-ended testing, the same failure triggers another similar attempt, or a restarted session has to
 reconstruct progress from chat history.
 
-Dev Flow keeps the agreed request, expected paths, verification limits, current stage, and results in
+Dev Flow keeps the agreed request, expected paths, post-analysis verification plan, current stage, and results in
 one local task while Codex or DeepSeek does the coding work.
 
 Every new request is assessed read-only before Dev Flow is selected. If you choose it, you confirm a
@@ -27,8 +27,10 @@ worktree before Core creates the Task. Changes in the source checkout are not co
   ask first, and actual changes are checked again before testing and delivery.
 - **The workspace has one owner.** Core derives the current Task surface from Git inside the dedicated
   worktree; normal linear commits keep that surface, while branch rewrites and replacement worktrees stop.
-- **Testing stays bounded.** Automatic checks have a command limit, full suites need prior permission,
-  and a third exact repetition pauses the task.
+- **Testing matches the task.** TASKS records checks, rationales, initial effort, and full-suite/test-code
+  expectations. Concrete new impact, risk, failure, or gaps can increase the budget; spare capacity alone cannot.
+- **Review stops at the change.** Post-change review covers the diff, causal impact, and acceptance needs;
+  fixing a finding triggers only related rechecks, while explicit code review remains read-only.
 - **Progress survives restarts.** A new session can resume the same task, remaining checks, and current
   decision instead of rebuilding them from the conversation.
 - **Results stay current.** Changes to the request, plan, implementation, or repository retire stale

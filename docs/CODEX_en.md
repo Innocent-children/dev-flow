@@ -66,7 +66,8 @@ the parser-supported `codex -C <worktree> [--add-dir <additional-worktree>] -- <
 default-branch fallback.
 
 Only after all participating roots pass provisioning and Host authorization does one Core Task open in
-`REQUIREMENTS`. `plain`, `spec-kit`, or `openspec` is immutable after creation.
+`REQUIREMENTS`. It retains no final verification budget before analysis. `plain`, `spec-kit`, or
+`openspec` is immutable after creation.
 
 ## Resume, scope, and Git history
 
@@ -81,6 +82,32 @@ recovering or retrying; it never repeats the original submission from memory. Co
 three latest verification attempts and pauses on the third exact repeated failure/result or the same
 changed-path-and-failure loop across consecutive Implementation revisions. Only an explicit developer
 decision allows another attempt.
+
+## Verification effort and post-change review
+
+Codex creates the initial `verification_plan` only at TASKS, after reading requirements, design, work
+decomposition, causal impact, and the existing test structure. It records intended checks and their
+rationales, expected automatic commands, whether a full suite is expected, and whether test-code
+changes are expected. A small change starts with the closest targeted check; spare capacity does not
+justify widening to package, module, or repository scope.
+
+Exhausted capacity does not end the Task. Before any extra command, Codex uses the current TEST
+Action's `verification_budget_increased` transition with a real `new_impact`, `new_risk`,
+`verification_failure`, or `verification_gap`, and adds only the checks, commands, or permissions
+needed now. Core retains the reason and previous/resulting budgets, then stays in TEST. “For
+completeness”, “increase confidence”, “to be safe”, and remaining capacity are not valid reasons.
+
+Before every full suite, Codex freshly checks broad impact, whether targeted/package checks suffice,
+the exact risk the suite adds coverage for, and whether repository instructions require it at this
+checkpoint. The current reason is recorded as `full_suite_reason`; a small-fix rerun cannot inherit an
+earlier reason automatically.
+
+Test-code changes require lasting value: stable product behavior, a public contract, an important
+failure path, or an observed regression. A one-time README word rule gets one text search. Ordinary
+post-change review covers only the diff, direct/indirect causal impact, and acceptance needs. After a
+review fix, Codex rechecks that finding and related targeted regressions, not the whole repository.
+An explicit code review is read-only and stops after all findings are delivered until repair is
+separately authorized.
 
 The trusted hook runs `dev-flow-codex hook pre-tool-use`, which forwards the parsed targets through
 `dev-flow-codex host-check pre-file-write` to the packaged Core. It checks supported `apply_patch`

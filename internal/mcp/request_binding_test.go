@@ -44,7 +44,7 @@ func TestMutationRequestBindingMatchesCommittedLastOperation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "request-open", Host: domain.HostCodex, RepositoryPath: repositoryPath, WorkspaceOrigin: &originInput, NewTask: &application.NewTaskInput{Request: "Define work.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain}})
+	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "request-open", Host: domain.HostCodex, RepositoryPath: repositoryPath, WorkspaceOrigin: &originInput, NewTask: &application.NewTaskInput{Request: "Define work.", MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)
 	}

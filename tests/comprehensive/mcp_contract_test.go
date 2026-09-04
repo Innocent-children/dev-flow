@@ -98,7 +98,7 @@ func TestMCPReadLifecycleInputsAndClosedRejections(t *testing.T) {
 	}
 }
 
-func TestMCPOpenTaskRepositoryAndVerificationBudgetRanges(t *testing.T) {
+func TestMCPOpenTaskRepositoryRangesAndDefersVerificationBudget(t *testing.T) {
 	for additionalCount := 0; additionalCount <= domain.MaxAdditionalRepositories; additionalCount++ {
 		additional := make([]map[string]any, additionalCount)
 		for index := range additional {
@@ -108,36 +108,26 @@ func TestMCPOpenTaskRepositoryAndVerificationBudgetRanges(t *testing.T) {
 				"workspace_origin": comprehensiveWorkspaceOrigin(fmt.Sprintf("task/repo-%d", index), fmt.Sprintf("receipt-repo-%d", index)),
 			}
 		}
-		for _, level := range []domain.VerificationLevel{domain.VerificationMinimal, domain.VerificationTargeted, domain.VerificationFull} {
-			for _, commandLimit := range []int{0, domain.MaxAutomaticVerificationCommands} {
-				request := map[string]any{
-					"host":                    "codex",
-					"repository_path":         "/repo/primary",
-					"workspace_origin":        comprehensiveWorkspaceOrigin("task/primary", "receipt-primary"),
-					"primary_repository_key":  "primary",
-					"additional_repositories": additional,
-					"new_task": map[string]any{
-						"request":                   "Exercise repository and budget boundaries.",
-						"initial_scope":             []string{},
-						"initial_out_of_scope":      []string{},
-						"known_acceptance_criteria": []string{},
-						"verification_budget": map[string]any{
-							"level":                  level,
-							"max_automatic_commands": commandLimit,
-							"allow_full_suite":       level == domain.VerificationFull,
-							"allow_manual_handoff":   true,
-						},
-						"method_profile": "plain",
-					},
-				}
-				raw, err := json.Marshal(request)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if err := coremcp.ValidateToolInput(coremcp.ToolOpenTask, raw); err != nil {
-					t.Fatalf("repositories=%d level=%s limit=%d: %v", additionalCount+1, level, commandLimit, err)
-				}
-			}
+		request := map[string]any{
+			"host":                    "codex",
+			"repository_path":         "/repo/primary",
+			"workspace_origin":        comprehensiveWorkspaceOrigin("task/primary", "receipt-primary"),
+			"primary_repository_key":  "primary",
+			"additional_repositories": additional,
+			"new_task": map[string]any{
+				"request":                   "Exercise repository boundaries before verification is planned.",
+				"initial_scope":             []string{},
+				"initial_out_of_scope":      []string{},
+				"known_acceptance_criteria": []string{},
+				"method_profile":            "plain",
+			},
+		}
+		raw, err := json.Marshal(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := coremcp.ValidateToolInput(coremcp.ToolOpenTask, raw); err != nil {
+			t.Fatalf("repositories=%d: %v", additionalCount+1, err)
 		}
 	}
 
@@ -145,10 +135,12 @@ func TestMCPOpenTaskRepositoryAndVerificationBudgetRanges(t *testing.T) {
 	for index := range invalidAdditional {
 		invalidAdditional[index] = map[string]any{"key": fmt.Sprintf("repo-%d", index), "repository_path": fmt.Sprintf("/repo/%d", index), "workspace_origin": comprehensiveWorkspaceOrigin(fmt.Sprintf("task/repo-%d", index), fmt.Sprintf("receipt-repo-%d", index))}
 	}
+	creationBudget := openTaskRequest(nil)
+	creationBudget["new_task"].(map[string]any)["verification_budget"] = map[string]any{"level": "targeted", "max_automatic_commands": 1, "allow_full_suite": false, "allow_manual_handoff": false}
 	invalidRequests := []map[string]any{
-		openTaskRequest(invalidAdditional, domain.VerificationTargeted, 1),
-		openTaskRequest(nil, domain.VerificationTargeted, domain.MaxAutomaticVerificationCommands+1),
-		openTaskRequest([]map[string]any{{"key": "primary", "repository_path": "/duplicate", "workspace_origin": comprehensiveWorkspaceOrigin("task/duplicate", "receipt-duplicate")}}, domain.VerificationTargeted, 1),
+		openTaskRequest(invalidAdditional),
+		creationBudget,
+		openTaskRequest([]map[string]any{{"key": "primary", "repository_path": "/duplicate", "workspace_origin": comprehensiveWorkspaceOrigin("task/duplicate", "receipt-duplicate")}}),
 	}
 	for index, request := range invalidRequests {
 		raw, err := json.Marshal(request)
@@ -277,7 +269,7 @@ func jsonStrings(value any) []string {
 	return result
 }
 
-func openTaskRequest(additional []map[string]any, level domain.VerificationLevel, commandLimit int) map[string]any {
+func openTaskRequest(additional []map[string]any) map[string]any {
 	return map[string]any{
 		"host":                    "codex",
 		"repository_path":         "/repo/primary",
@@ -289,13 +281,7 @@ func openTaskRequest(additional []map[string]any, level domain.VerificationLevel
 			"initial_scope":             []string{},
 			"initial_out_of_scope":      []string{},
 			"known_acceptance_criteria": []string{},
-			"verification_budget": map[string]any{
-				"level":                  level,
-				"max_automatic_commands": commandLimit,
-				"allow_full_suite":       false,
-				"allow_manual_handoff":   false,
-			},
-			"method_profile": "plain",
+			"method_profile":            "plain",
 		},
 	}
 }

@@ -11,15 +11,24 @@ or clean resources.
 ## What you can view
 
 - the shared Task overview, filters, current stage, revision, and legal next action;
-- requirements, design, Task Plan, implementation, tests, comprehension, evidence, and timeline;
+- requirements, design, Task Plan, implementation, tests, comprehension, evidence, and timeline, with
+  verification explicitly shown as unplanned before TASKS;
 - each repository's confirmed remote/base/base commit, task branch, worktree path, and repository group;
 - current HEAD, clean/dirty state, identity/history/content digests, Task surface, and current changed paths;
+- planned checks and rationales, initial/current budget, commands used by the current plan, full-suite
+  count, and every increase reason;
 - file-scope, verification, history, relocation, Recovery, and workspace-unavailable conditions;
 - provisioning receipt identity, current Host, completed verification, and keep/review/handoff/cleanup choices;
 - current Core, data directory, and runtime status.
 
 The interface supports Simplified Chinese and English. Initial selection follows browser language;
 a manual choice remains in the browser and never enters Core, a Task, a receipt, or account state.
+
+The verification panel renders only structured state retained by Core. Before TASKS completes,
+`plan` and `current_budget` are null. Afterwards it shows planned checks plus full-suite and test-code
+expectations. `usage` counts only the current Task Plan revision; older records remain in facts and
+timeline. Every increase shows its basis, reason, added checks, increment, and resulting budget. The
+WebUI neither infers full-suite necessity from remaining capacity nor runs verification commands.
 
 ## Mutation boundary
 
@@ -30,6 +39,8 @@ in Codex or DeepSeek before the target Host calls Core.
 The page may submit semantic operations using current Core identities:
 
 - resolve file-scope, verification, or history blockers;
+- retain a concretely justified increase through the current TEST Action's
+  `verification_budget_increased` transition;
 - prepare a Core blocker for same-machine relocation and submit destination paths after Host handoff;
 - cancel while the workspace remains observable;
 - explicitly abandon a genuinely missing workspace with the exact revision and a non-empty reason;

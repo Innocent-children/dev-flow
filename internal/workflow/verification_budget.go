@@ -13,11 +13,12 @@ type NormalizedEvidenceInput = EvidenceInput
 // retained evidence plus one normalized incoming action. It performs no I/O.
 func EvaluateVerificationBudget(
 	budget domain.VerificationBudget,
+	taskPlanRevision uint32,
 	existing []domain.EvidenceSummary,
 	incoming []NormalizedEvidenceInput,
 	manualHandoffItems []string,
 ) error {
-	if budget.Validate() != nil || len(incoming) > domain.MaxEvidencePerAction {
+	if budget.Validate() != nil || taskPlanRevision == 0 || len(incoming) > domain.MaxEvidencePerAction {
 		return domain.ErrInvalidArgument
 	}
 	normalizedManualItems, err := normalizePayloadList(manualHandoffItems, false)
@@ -38,14 +39,14 @@ func EvaluateVerificationBudget(
 			return domain.ErrInvalidArgument
 		}
 		existingIDs[item.EvidenceID] = struct{}{}
+		if item.TaskPlanRevision != taskPlanRevision {
+			continue
+		}
 		if item.Source == domain.EvidenceSourceAutomated {
 			automaticCommands += item.CommandCount
 			if item.FullSuite && !budget.AllowFullSuite {
 				return domain.ErrVerificationBudgetExceeded
 			}
-		}
-		if item.Source == domain.EvidenceSourceUser && !budget.AllowManualHandoff {
-			return domain.ErrVerificationBudgetExceeded
 		}
 	}
 
@@ -163,6 +164,13 @@ func evidenceRuleFailures(input NormalizedEvidenceInput) []evidenceMemberRule {
 	}
 	if !automated && input.FullSuite {
 		out = append(out, evidenceMemberRule{"full_suite", domain.RuleNonAutomatedFullSuiteFalse})
+	}
+	if input.FullSuite {
+		if reason, err := normalizeRequiredPayloadText(input.FullSuiteReason, domain.MaxEvidenceSummaryBytes); err != nil || reason != input.FullSuiteReason {
+			out = append(out, evidenceMemberRule{"full_suite_reason", domain.RuleFullSuiteReasonRequired})
+		}
+	} else if input.FullSuiteReason != "" {
+		out = append(out, evidenceMemberRule{"full_suite_reason", domain.RuleFullSuiteReasonEmpty})
 	}
 	return out
 }

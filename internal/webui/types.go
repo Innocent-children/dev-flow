@@ -187,6 +187,51 @@ type WorkspaceView struct {
 	Cleanup             CleanupView    `json:"cleanup"`
 }
 
+type VerificationBudgetView struct {
+	Level                string `json:"level"`
+	MaxAutomaticCommands int    `json:"max_automatic_commands"`
+	AllowFullSuite       bool   `json:"allow_full_suite"`
+	AllowManualHandoff   bool   `json:"allow_manual_handoff"`
+}
+
+type VerificationPlanCheckView struct {
+	Name      string `json:"name"`
+	Rationale string `json:"rationale"`
+}
+
+type VerificationPlanView struct {
+	Checks                  []VerificationPlanCheckView `json:"checks"`
+	InitialBudget           VerificationBudgetView      `json:"initial_budget"`
+	FullSuiteExpected       bool                        `json:"full_suite_expected"`
+	TestCodeChangesExpected bool                        `json:"test_code_changes_expected"`
+}
+
+type VerificationUsageView struct {
+	AutomaticCommands int `json:"automatic_commands"`
+	FullSuiteRuns     int `json:"full_suite_runs"`
+	EvidenceItems     int `json:"evidence_items"`
+}
+
+type VerificationAdjustmentView struct {
+	Revision                    uint32                      `json:"revision"`
+	TaskPlanRevision            uint32                      `json:"task_plan_revision"`
+	Basis                       string                      `json:"basis"`
+	Reason                      string                      `json:"reason"`
+	AdditionalChecks            []VerificationPlanCheckView `json:"additional_checks"`
+	AdditionalAutomaticCommands int                         `json:"additional_automatic_commands"`
+	AllowFullSuite              bool                        `json:"allow_full_suite"`
+	AllowManualHandoff          bool                        `json:"allow_manual_handoff"`
+	CurrentBudget               VerificationBudgetView      `json:"current_budget"`
+	CreatedAt                   time.Time                   `json:"created_at"`
+}
+
+type VerificationView struct {
+	Plan          *VerificationPlanView        `json:"plan"`
+	CurrentBudget *VerificationBudgetView      `json:"current_budget"`
+	Usage         VerificationUsageView        `json:"usage"`
+	Adjustments   []VerificationAdjustmentView `json:"adjustments"`
+}
+
 type TaskDetailResponse struct {
 	OK                 bool             `json:"ok"`
 	RequestID          string           `json:"request_id"`
@@ -194,7 +239,7 @@ type TaskDetailResponse struct {
 	Summary            TaskSummary      `json:"summary"`
 	Intent             string           `json:"intent"`
 	AcceptanceCriteria []string         `json:"acceptance_criteria"`
-	VerificationBudget string           `json:"verification_budget"`
+	Verification       VerificationView `json:"verification"`
 	MethodProfile      string           `json:"method_profile"`
 	Repositories       []RepositoryView `json:"repositories"`
 	Baselines          []Fact           `json:"baselines"`

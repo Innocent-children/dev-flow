@@ -12,8 +12,6 @@ import (
 func TestStrictCodecAndRestart(t *testing.T) {
 	task := multiRepositoryGraphTask(t)
 	task.Requirements = &domain.RequirementsBaseline{Revision: 1, Digest: task.Process.DefinitionDigest, Goal: "Graph storage", AcceptanceCriteria: []string{"Restart exactly"}, CreatedAt: task.CreatedAt}
-	task.Evidence = []domain.EvidenceSummary{{EvidenceID: "verification-evidence", Source: domain.EvidenceSourceAutomated, Name: "targeted-test", Status: domain.EvidenceFailed, Summary: "Failure retained across restart.", Digest: task.Process.DefinitionDigest, CommandCount: 1, RecordedAt: task.CreatedAt}}
-	task.VerificationAttempts = []domain.VerificationAttempt{{TaskRevision: task.Revision, TaskPlanRevision: 1, ImplementationRevision: 1, ContentDigest: task.Repository.ContentDigest, DestinationNode: domain.NodeRequirements, EvidenceIDs: []domain.ID{"verification-evidence"}, ResultDigest: task.Process.DefinitionDigest, FailureDigest: task.Process.DefinitionDigest, Failed: true, RecordedAt: task.CreatedAt}}
 	raw, err := encodeTask(task)
 	if err != nil {
 		t.Fatal(err)
@@ -67,6 +65,27 @@ func TestStrictCodecAndRestart(t *testing.T) {
 	afterDigest, err := reopened.EffectiveRepositoryBindingDigest()
 	if err != nil || beforeDigest != afterDigest || len(reopened.AdditionalRepositories) != 1 {
 		t.Fatalf("scope restart digest=%s want=%s additions=%d err=%v", afterDigest, beforeDigest, len(reopened.AdditionalRepositories), err)
+	}
+}
+
+func TestStrictCodecRetainsVerificationBudgetAdjustment(t *testing.T) {
+	task := fullGraphTask(t)
+	previous := task.TaskPlan.VerificationPlan.InitialBudget
+	current := previous
+	current.MaxAutomaticCommands++
+	task.VerificationBudgetAdjustments = []domain.VerificationBudgetAdjustment{{
+		Revision: 1, TaskPlanRevision: task.TaskPlan.Revision, Basis: domain.VerificationAdjustmentGap,
+		Reason:                      "A missing public-contract check was identified.",
+		AdditionalChecks:            []domain.VerificationPlanCheck{{Name: "public-contract", Rationale: "The check covers the identified contract gap."}},
+		AdditionalAutomaticCommands: 1, PreviousBudget: previous, CurrentBudget: current, CreatedAt: task.CreatedAt,
+	}}
+	raw, err := encodeTask(task)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := decodeTask(raw)
+	if err != nil || !reflect.DeepEqual(decoded.VerificationBudgetAdjustments, task.VerificationBudgetAdjustments) {
+		t.Fatalf("adjustment round trip=%#v err=%v", decoded.VerificationBudgetAdjustments, err)
 	}
 }
 

@@ -32,7 +32,7 @@ func TestCurrentStorageBoundaryJourney(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "fresh-storage-open", Host: domain.HostCodex, RepositoryPath: repoPath, WorkspaceOrigin: &origin, NewTask: &application.NewTaskInput{Request: "Prove the current storage format.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: domain.MethodPlain}})
+		opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "fresh-storage-open", Host: domain.HostCodex, RepositoryPath: repoPath, WorkspaceOrigin: &origin, NewTask: &application.NewTaskInput{Request: "Prove the current storage format.", MethodProfile: domain.MethodPlain}})
 		if err != nil {
 			t.Fatal(err)
 		}

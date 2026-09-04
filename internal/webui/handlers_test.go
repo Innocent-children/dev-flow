@@ -171,7 +171,7 @@ func TestTaskReadModelsExposeRepositoryGroupAndWorktree(t *testing.T) {
 	digest := domain.Digest(strings.Repeat("c", 64))
 	detail, err := projectTaskDetail("request-read", application.ControlCenterTaskDetail{Task: domain.ProcessTask{
 		TaskID: "task", OriginHost: domain.HostCodex,
-		Intent:          domain.TaskIntent{Request: "Parallel worktree task", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 1}, MethodProfile: domain.MethodPlain},
+		Intent:          domain.TaskIntent{Request: "Parallel worktree task", MethodProfile: domain.MethodPlain},
 		Process:         domain.ProcessReference{ID: domain.ProcessStandardDevelopment, DefinitionDigest: digest},
 		CurrentNode:     domain.NodeRequirements,
 		WorkspaceOrigin: domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: "feature/task", SourceRepositoryGroupDigest: domain.Digest(group), CanonicalWorktreeRoot: "/worktrees/task-a", WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt"},
@@ -194,6 +194,29 @@ func TestTaskReadModelsExposeRepositoryGroupAndWorktree(t *testing.T) {
 	}
 	if !strings.Contains(string(raw), `"current_changed_paths":[]`) || !strings.Contains(string(raw), `"provisioning_status":"last_known"`) || !strings.Contains(string(raw), `"repository_delta_paths":["internal/file.go"]`) {
 		t.Fatalf("workspace projection must contain current paths and provisioning: %s", raw)
+	}
+}
+
+func TestVerificationProjectionShowsPlanUsageAndAdjustmentReason(t *testing.T) {
+	now := time.Date(2026, 9, 3, 4, 0, 0, 0, time.UTC)
+	initial := domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}
+	current := initial
+	current.MaxAutomaticCommands = 3
+	task := domain.ProcessTask{
+		TaskPlan: &domain.TaskPlanBaseline{Revision: 2, VerificationPlan: domain.VerificationPlan{
+			Checks:        []domain.VerificationPlanCheck{{Name: "targeted", Rationale: "The check covers the changed package."}},
+			InitialBudget: initial, TestCodeChangesExpected: true,
+		}},
+		Evidence: []domain.EvidenceSummary{{TaskPlanRevision: 2, Source: domain.EvidenceSourceAutomated, CommandCount: 1, FullSuite: false}},
+		VerificationBudgetAdjustments: []domain.VerificationBudgetAdjustment{{
+			Revision: 1, TaskPlanRevision: 2, Basis: domain.VerificationAdjustmentNewImpact,
+			Reason: "A newly found caller needs one focused check.", AdditionalChecks: []domain.VerificationPlanCheck{{Name: "caller", Rationale: "The caller shares the changed contract."}},
+			AdditionalAutomaticCommands: 1, PreviousBudget: initial, CurrentBudget: current, CreatedAt: now,
+		}},
+	}
+	view := projectVerification(task)
+	if view.Plan == nil || view.CurrentBudget == nil || view.CurrentBudget.MaxAutomaticCommands != 3 || view.Usage.AutomaticCommands != 1 || len(view.Adjustments) != 1 || view.Adjustments[0].Reason == "" || !view.Plan.TestCodeChangesExpected {
+		t.Fatalf("verification view=%#v", view)
 	}
 }
 

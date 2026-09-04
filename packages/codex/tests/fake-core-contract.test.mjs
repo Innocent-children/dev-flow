@@ -250,7 +250,6 @@ function openArguments() {
       initial_scope: ["one repository"],
       initial_out_of_scope: ["real host"],
       known_acceptance_criteria: [],
-      verification_budget: { level: "targeted", max_automatic_commands: 2, allow_full_suite: false, allow_manual_handoff: true },
       method_profile: "plain",
     },
   };

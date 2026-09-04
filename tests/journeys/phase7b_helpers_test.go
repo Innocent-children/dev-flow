@@ -151,7 +151,7 @@ func openJourneyAtPaths(t *testing.T, repoPath, dbPath string, profile domain.Me
 	}
 	var task domain.ProcessTask
 	if create {
-		opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "phase7b-open", Host: domain.HostCodex, RepositoryPath: repoPath, WorkspaceOrigin: workspaceOrigin, NewTask: &application.NewTaskInput{Request: "Prove Phase 7B graph recovery and restart journeys.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 16, AllowManualHandoff: true}, MethodProfile: profile}})
+		opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "phase7b-open", Host: domain.HostCodex, RepositoryPath: repoPath, WorkspaceOrigin: workspaceOrigin, NewTask: &application.NewTaskInput{Request: "Prove Phase 7B graph recovery and restart journeys.", MethodProfile: profile}})
 		if err != nil {
 			_ = sqliteStore.Close()
 			t.Fatal(err)

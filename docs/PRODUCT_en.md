@@ -6,11 +6,12 @@
 
 > Dev Flow first helps a developer decide whether a request warrants the full workflow. A selected
 > Task starts from a developer-confirmed remote base in a dedicated worktree, while Core keeps its
-> actual change surface, verification limit, and current progress coherent.
+> actual change surface, post-analysis verification plan, and current progress coherent.
 
 Codex or DeepSeek still reads code, edits files, and runs commands. Dev Flow retains one authoritative
-Task and pauses when scope widens, verification exceeds its budget, results become stale, workspace
-history conflicts, or an operation result is uncertain.
+Task. Verification effort is planned with the Task Plan, and later expansion records a concrete new
+impact, risk, failure, or gap. Core rejects or pauses unplanned results, scope expansion, stale
+results, workspace-history conflicts, and uncertain operations.
 
 ## Target users and job
 
@@ -23,13 +24,17 @@ Users can:
 - inspect a read-only change assessment before a Task exists and choose direct work, Dev Flow, or clarification;
 - confirm a remote, base branch, and new target branch for every repository;
 - start from the fetched and frozen base commit in a clean, dedicated, named-branch worktree;
-- retain the goal, acceptance criteria, exclusions, expected paths, and verification budget;
+- retain the goal, acceptance criteria, exclusions, and expected paths, then save the verification
+  plan and initial budget after task analysis;
+- retain the basis, reason, added checks, increment, and resulting budget before TEST continues with
+  more capacity;
 - let Core derive the current change surface from Git instead of trusting agent-reported paths;
 - allow one unplanned path, revise the plan, or restore the file;
 - make normal linear commits on the task branch while branch switches, rewinds, and unprepared rewrites stop;
 - invalidate Test and Comprehension after content changes while preserving them across an exact-content commit;
 - read a retained uncertain operation before recovery or retry;
 - relocate the same Task between same-machine Host workspaces;
+- have the Host reconsider every full suite, test-code change, and post-change review scope;
 - explicitly abandon a missing workspace and make separate keep, handoff, worktree-cleanup, and branch-cleanup decisions at terminal state.
 
 ## Primary failure scenario
@@ -52,7 +57,11 @@ change in the Task worktree belongs to that Task.
 | The developer chooses Dev Flow | The Host shows and confirms remote/base/target plus bounded source dirtiness, then fetches, freezes, provisions, and verifies a dedicated worktree |
 | The Task worktree changes | Core derives identity, history, content, Action delta, and the base-relative current Task surface |
 | Work leaves the plan | Supported structured writes ask first; later observation finds other writes, and unexplained paths cannot reach testing or delivery |
-| Testing widens or repeats | The verification budget limits automatic commands and full suites; a third exact repetition pauses |
+| TASKS completes analysis | Retain planned checks and rationales, the initial automatic-command budget, full-suite expectation, and test-code expectation |
+| Capacity is insufficient | TEST accepts only an increase with a closed basis, concrete reason, and needed increment, then remains in TEST |
+| A full suite is proposed | The Host rechecks broad impact, whether focused checks suffice, the concrete uncovered risk, and repository checkpoint rules; available budget is not a reason |
+| Testing repeats | A third exact repetition pauses |
+| Code is reviewed after change | Review only the diff, causal impact, and acceptance needs; after a fix rerun only related review and checks |
 | Earlier results become stale | Content changes invalidate Test and Comprehension; committing identical content does not |
 | Workspace history changes unexpectedly | Branch switch, detach, rewind, rewrite, or worktree replacement produces a specific blocker or unavailable result |
 | The Host relocates the Task | Core prepares a relocation blocker, the Host performs one handoff, and verified destination bindings and claims change atomically |
@@ -67,6 +76,10 @@ Current source commits to:
 - never copying staged, unstaged, or untracked source-checkout content into the Task worktree;
 - opening one multi-repository Task only after every repository has been fetched, isolated, authorized, and verified;
 - keeping Core's Git access read-only while it stores WorkspaceOrigin, current observation and surface, Actions, records, blockers, and outcome;
+- creating no final test budget at Task open; TASKS owns the initial verification plan and Evidence
+  consumption is scoped to the current Task Plan revision;
+- letting TEST use the `verification_budget_increased` self-transition to retain a justified increase
+  instead of ending merely because capacity is exhausted;
 - accepting semantic Host node results while Core derives file effects and current paths;
 - using the same Core Task and `BLOCKED` state for file scope, workspace history, verification brakes, relocation, and Recovery;
 - preserving the Task surface across linear commits and content-bound records across an exact-content commit;
@@ -81,7 +94,7 @@ by the next Core observation.
 ## Tasks that fit and do not fit
 
 Dev Flow fits work spanning sessions or Host restarts; public-contract, Schema, state, multi-package,
-multi-Host, or recovery-sensitive changes; and tasks needing an explicit surface, verification budget,
+multi-Host, or recovery-sensitive changes; and tasks needing an explicit surface, analyzed verification effort,
 worktree isolation, or same-machine relocation. A few explicit repositories may share one Task only
 when each can be provisioned independently.
 
@@ -107,8 +120,9 @@ automatic Git publication, does not fit.
    verifies worktree, branch, HEAD, base, and clean state before Task creation. Explicit resume returns
    to the original instance.
 3. Core derives the current Task surface from the base commit, commits, index, worktree, and untracked
-   files. ExpectedPaths, one-time decisions, and the verification budget control progress. Test and
-   Comprehension bind to content.
+   files. ExpectedPaths, one-time decisions, and the TASKS verification plan control progress. The
+   current budget counts only the current Task Plan revision, and every increase retains its concrete
+   reason. Test and Comprehension bind to content.
 4. Core retains uncertain Actions, blockers, relocation, and outcome. Same-machine relocation keeps
    source claims during Host handoff and replaces them once after verification. Cleanup needs separate authorization.
 

@@ -16,8 +16,8 @@ Quanto mais uma tarefa de programação demora, maior a chance de ela mudar aos 
 na alteração, uma verificação direcionada vira uma execução de testes sem limite, a mesma falha provoca
 outra tentativa parecida ou uma sessão reiniciada precisa reconstruir o progresso a partir do chat.
 
-Dev Flow guarda em uma única tarefa local o pedido acordado, os caminhos previstos, os limites de
-verificação, a etapa atual e os resultados. Codex ou DeepSeek continua responsável por alterar o código.
+Dev Flow guarda em uma única tarefa local o pedido acordado, os caminhos previstos, o plano de
+verificação criado após a análise, a etapa atual e os resultados. Codex ou DeepSeek continua responsável por alterar o código.
 
 Cada pedido novo é avaliado em modo somente leitura antes da escolha do Dev Flow. Se você o escolher,
 confirma o remote, o branch base e um novo branch da tarefa; o Host cria a partir dessa base remota um
@@ -29,8 +29,10 @@ worktree limpo e dedicado antes de o Core criar a Task. As mudanças do checkout
 - **Cada worktree tem um único responsável pelas mudanças.** O Core calcula no Git a superfície atual da
   Task; commits lineares normais continuam, enquanto uma reescrita de branch ou a substituição do worktree
   interrompe a tarefa.
-- **A verificação tem limites.** O número de comandos automáticos é limitado, a suíte completa exige
-  permissão prévia e a terceira repetição exata pausa a tarefa.
+- **A verificação acompanha a tarefa.** TASKS registra verificações, motivos, esforço inicial e expectativas
+  de suíte completa/código de teste. Só impacto, risco, falha ou lacuna concreta aumenta o orçamento.
+- **A revisão para na mudança atual.** Depois da alteração, cobre apenas o diff, o impacto causal e a
+  aceitação; uma correção repete só verificações relacionadas e um code review explícito permanece somente leitura.
 - **O trabalho continua depois de uma reinicialização.** Uma nova sessão recupera a mesma tarefa, as
   verificações restantes e a decisão atual sem reconstruí-las a partir da conversa.
 - **Somente resultados atuais são reutilizados.** Mudanças no pedido, no plano, na implementação ou no

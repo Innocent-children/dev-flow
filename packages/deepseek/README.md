@@ -86,8 +86,8 @@ fetch、分支校验或 worktree 创建失败时不会创建 Core Task。
 DSH 的 Workspace Root 在进程启动时固定，因此 Adapter 不会扩大当前 Root。它返回由 command、argv 和
 cwd 分开的 relaunch 信息；新会话从隔离 workspace 启动，使用返回的
 `/dev-flow resume-worktree launch=<launch_id>` 消费 receipt，复核 branch、HEAD 和 clean 状态，然后
-才创建 Task。新 Task 保存最初请求、范围、验收条件和 verification budget；profile 可以是
-`plain`、`spec-kit` 或 `openspec`。
+才创建 Task。新 Task 保存最初请求、范围、验收条件和 method profile，不在分析前冻结最终
+verification budget；profile 可以是 `plain`、`spec-kit` 或 `openspec`。
 
 ## 恢复已有 Task
 
@@ -102,6 +102,24 @@ cwd 分开的 relaunch 信息；新会话从隔离 workspace 启动，使用返�
 同一失败、同一测试结果，或相同修改路径与失败组成的测试循环连续出现三次时，Core 会保存第三次
 结果并暂停 Task。Adapter 不会自动解除；用户明确选择换方案或再试一次后，才解除 blocker，并从
 Core 保存的原目标阶段继续。下一次仍然完全重复时会再次暂停。
+
+## 验证投入和修改后复核
+
+Adapter 在 TASKS 完成需求、设计、工作拆分、影响面和现有测试结构分析后，才保存初始
+`verification_plan`，包括计划检查及理由、预计自动命令数、完整套件预期和测试代码预期。小改动先用
+离当前 diff 最近的定向检查；剩余额度不能作为扩大到 package、module 或全仓库的理由。
+
+额度不足时不直接结束 Task，也不先运行额外命令。Adapter 使用当前 TEST Action 的
+`verification_budget_increased`，用 `new_impact`、`new_risk`、`verification_failure` 或
+`verification_gap` 说明具体事实，只增加当前需要的检查、命令或权限。Core 保存原因和调整前后预算并
+留在 TEST。为了更全面、提高信心、保险起见或“还有预算”都不能支持增加。
+
+每次完整套件前都重新判断广泛影响、定向/包级检查是否足够、待补的具体风险和仓库当前检查点要求，
+本次理由写入 `full_suite_reason`，小修复后不自动沿用旧理由。测试代码只为稳定行为、公共合同、重要
+失败路径或真实回归保留；一次性 README 词语要求只做一次文本搜索。
+
+普通实现后的复核只看当前 diff、直接或间接影响和验收所需路径。修复复核发现后只检查原问题、相关
+回归和对应定向检查，不重启全仓库审计。显式 code review 阶段只读，交付完整发现后等待单独修复授权。
 
 ## 范围外文件先询问
 

@@ -6,16 +6,15 @@ import (
 )
 
 type TaskIntent struct {
-	Request                 string             `json:"request"`
-	InitialScope            []string           `json:"initial_scope"`
-	InitialOutOfScope       []string           `json:"initial_out_of_scope"`
-	KnownAcceptanceCriteria []string           `json:"known_acceptance_criteria"`
-	VerificationBudget      VerificationBudget `json:"verification_budget"`
-	MethodProfile           MethodProfile      `json:"method_profile"`
+	Request                 string        `json:"request"`
+	InitialScope            []string      `json:"initial_scope"`
+	InitialOutOfScope       []string      `json:"initial_out_of_scope"`
+	KnownAcceptanceCriteria []string      `json:"known_acceptance_criteria"`
+	MethodProfile           MethodProfile `json:"method_profile"`
 }
 
 func (i TaskIntent) Validate() error {
-	if requireNormalizedText(i.Request, MaxGoalBytes, true) != nil || i.VerificationBudget.Validate() != nil || !i.MethodProfile.IsValid() {
+	if requireNormalizedText(i.Request, MaxGoalBytes, true) != nil || !i.MethodProfile.IsValid() {
 		return ErrInvalidArgument
 	}
 	for _, list := range [][]string{i.InitialScope, i.InitialOutOfScope, i.KnownAcceptanceCriteria} {
@@ -135,36 +134,37 @@ func (o ProcessOutcome) Validate() error {
 }
 
 type ProcessTask struct {
-	TaskID                 ID                       `json:"task_id"`
-	OriginHost             Host                     `json:"origin_host"`
-	Intent                 TaskIntent               `json:"intent"`
-	Process                ProcessReference         `json:"process"`
-	CurrentNode            NodeID                   `json:"current_node"`
-	ResumeNode             *NodeID                  `json:"resume_node"`
-	CurrentAction          *ProcessAction           `json:"current_action"`
-	Blocker                *ProcessBlocker          `json:"blocker"`
-	LastOperation          *LastOperation           `json:"last_operation"`
-	PrimaryRepositoryKey   RepositoryKey            `json:"primary_repository_key"`
-	WorkspaceOrigin        WorkspaceOrigin          `json:"workspace_origin"`
-	Repository             RepositoryBinding        `json:"repository"`
-	AdditionalRepositories []RepositoryScopeEntry   `json:"additional_repositories"`
-	Requirements           *RequirementsBaseline    `json:"requirements"`
-	Design                 *DesignBaseline          `json:"design"`
-	TaskPlan               *TaskPlanBaseline        `json:"task_plan"`
-	Implementation         *ImplementationRecord    `json:"implementation"`
-	Test                   *TestRecord              `json:"test"`
-	Comprehension          *ComprehensionAssessment `json:"comprehension"`
-	BaselineHistory        []BaselineReference      `json:"baseline_history"`
-	Evidence               []EvidenceSummary        `json:"evidence"`
-	VerificationAttempts   []VerificationAttempt    `json:"verification_attempts"`
-	FileScopeRecords       []FileScopeRecord        `json:"file_scope_records"`
-	CurrentChangedPaths    []string                 `json:"current_changed_paths"`
-	Relocation             *TaskRelocation          `json:"relocation,omitempty"`
-	Outcome                *ProcessOutcome          `json:"outcome"`
-	Revision               uint64                   `json:"revision"`
-	CreatedAt              time.Time                `json:"created_at"`
-	UpdatedAt              time.Time                `json:"updated_at"`
-	CompletedAt            *time.Time               `json:"completed_at"`
+	TaskID                        ID                             `json:"task_id"`
+	OriginHost                    Host                           `json:"origin_host"`
+	Intent                        TaskIntent                     `json:"intent"`
+	Process                       ProcessReference               `json:"process"`
+	CurrentNode                   NodeID                         `json:"current_node"`
+	ResumeNode                    *NodeID                        `json:"resume_node"`
+	CurrentAction                 *ProcessAction                 `json:"current_action"`
+	Blocker                       *ProcessBlocker                `json:"blocker"`
+	LastOperation                 *LastOperation                 `json:"last_operation"`
+	PrimaryRepositoryKey          RepositoryKey                  `json:"primary_repository_key"`
+	WorkspaceOrigin               WorkspaceOrigin                `json:"workspace_origin"`
+	Repository                    RepositoryBinding              `json:"repository"`
+	AdditionalRepositories        []RepositoryScopeEntry         `json:"additional_repositories"`
+	Requirements                  *RequirementsBaseline          `json:"requirements"`
+	Design                        *DesignBaseline                `json:"design"`
+	TaskPlan                      *TaskPlanBaseline              `json:"task_plan"`
+	Implementation                *ImplementationRecord          `json:"implementation"`
+	Test                          *TestRecord                    `json:"test"`
+	Comprehension                 *ComprehensionAssessment       `json:"comprehension"`
+	BaselineHistory               []BaselineReference            `json:"baseline_history"`
+	Evidence                      []EvidenceSummary              `json:"evidence"`
+	VerificationAttempts          []VerificationAttempt          `json:"verification_attempts"`
+	VerificationBudgetAdjustments []VerificationBudgetAdjustment `json:"verification_budget_adjustments"`
+	FileScopeRecords              []FileScopeRecord              `json:"file_scope_records"`
+	CurrentChangedPaths           []string                       `json:"current_changed_paths"`
+	Relocation                    *TaskRelocation                `json:"relocation,omitempty"`
+	Outcome                       *ProcessOutcome                `json:"outcome"`
+	Revision                      uint64                         `json:"revision"`
+	CreatedAt                     time.Time                      `json:"created_at"`
+	UpdatedAt                     time.Time                      `json:"updated_at"`
+	CompletedAt                   *time.Time                     `json:"completed_at"`
 }
 
 func (t ProcessTask) Validate() error {
@@ -181,7 +181,7 @@ func (t ProcessTask) Validate() error {
 	if !sameStrings(t.CurrentChangedPaths, derivedChangedPaths) {
 		return ErrInvalidArgument
 	}
-	if validateID(t.TaskID) != nil || !t.OriginHost.IsValid() || t.Intent.Validate() != nil || t.Process.Validate() != nil || !t.CurrentNode.IsValid() || t.Revision == 0 || validateUTC(t.CreatedAt) != nil || validateUTC(t.UpdatedAt) != nil || t.UpdatedAt.Before(t.CreatedAt) || len(t.BaselineHistory) > MaxRetainedBaselineReferences || len(t.Evidence) > MaxRetainedEvidenceItems || len(t.VerificationAttempts) > MaxRetainedVerificationAttempts || len(t.FileScopeRecords) > MaxFileScopeRecords || len(t.CurrentChangedPaths) > MaxFingerprintPaths {
+	if validateID(t.TaskID) != nil || !t.OriginHost.IsValid() || t.Intent.Validate() != nil || t.Process.Validate() != nil || !t.CurrentNode.IsValid() || t.Revision == 0 || validateUTC(t.CreatedAt) != nil || validateUTC(t.UpdatedAt) != nil || t.UpdatedAt.Before(t.CreatedAt) || len(t.BaselineHistory) > MaxRetainedBaselineReferences || len(t.Evidence) > MaxRetainedEvidenceItems || len(t.VerificationAttempts) > MaxRetainedVerificationAttempts || len(t.VerificationBudgetAdjustments) > MaxVerificationBudgetAdjustments || len(t.FileScopeRecords) > MaxFileScopeRecords || len(t.CurrentChangedPaths) > MaxFingerprintPaths {
 		return ErrInvalidArgument
 	}
 	if t.Requirements != nil && t.Requirements.Validate() != nil {
@@ -191,6 +191,9 @@ func (t ProcessTask) Validate() error {
 		return ErrInvalidArgument
 	}
 	if t.TaskPlan != nil && (t.TaskPlan.Validate() != nil || t.Design == nil || t.TaskPlan.DesignRevision != t.Design.Revision) {
+		return ErrInvalidArgument
+	}
+	if !verificationBudgetAdjustmentsValid(t) {
 		return ErrInvalidArgument
 	}
 	if t.Implementation != nil && (t.Implementation.Validate() != nil || t.TaskPlan == nil || t.Implementation.TaskPlanRevision != t.TaskPlan.Revision) {
@@ -264,7 +267,7 @@ func (t ProcessTask) Validate() error {
 		}
 		for _, id := range attempt.EvidenceIDs {
 			item, ok := evidenceByID[id]
-			if !ok || !item.RecordedAt.Equal(attempt.RecordedAt) {
+			if !ok || item.TaskPlanRevision != attempt.TaskPlanRevision || !item.RecordedAt.Equal(attempt.RecordedAt) {
 				return ErrInvalidArgument
 			}
 		}
@@ -276,7 +279,7 @@ func (t ProcessTask) Validate() error {
 	if t.Test != nil {
 		for _, id := range t.Test.EvidenceIDs {
 			item, ok := evidenceByID[id]
-			if !ok || item.Status != EvidencePassed {
+			if !ok || item.TaskPlanRevision != t.Test.TaskPlanRevision || item.Status != EvidencePassed {
 				return ErrInvalidArgument
 			}
 		}
@@ -292,7 +295,7 @@ func (t ProcessTask) Validate() error {
 	}
 	if t.Comprehension != nil {
 		item, ok := evidenceByID[t.Comprehension.UserEvidenceID]
-		if !ok || item.Source != EvidenceSourceUser || item.Status != EvidencePassed || !item.RecordedAt.Equal(t.Comprehension.ConfirmedAt) {
+		if !ok || item.TaskPlanRevision != t.Comprehension.TaskPlanRevision || item.Source != EvidenceSourceUser || item.Status != EvidencePassed || !item.RecordedAt.Equal(t.Comprehension.ConfirmedAt) {
 			return ErrInvalidArgument
 		}
 	}

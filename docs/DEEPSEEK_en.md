@@ -64,7 +64,8 @@ DSH fixes Workspace Root at process start. The source session therefore never wi
 never creates a nested worktree under the source. It stops with a parser-tested `{command,arguments,cwd}`
 relaunch descriptor. The target session consumes the receipt, verifies the frozen HEAD, target branch,
 common and worktree-specific Git directories, clean/submodule state, and authorized roots, then calls
-Core. If any repository fails, no partial Core Task or claim exists.
+Core. The new Task has no final verification budget before analysis. If any repository fails, no
+partial Core Task or claim exists.
 
 The relaunch turn uses the exact selector returned with the receipt:
 
@@ -84,6 +85,30 @@ lost/truncated Action response is read from Core's retained operation before rec
 keeps the three latest verification attempts and pauses on a third exact repeated failure/result or
 the same changed-path-and-failure loop across consecutive Implementation revisions; only an explicit
 developer decision allows another attempt.
+
+## Verification effort and post-change review
+
+The Adapter creates the initial `verification_plan` at TASKS only after requirements, design, work
+decomposition, causal impact, and existing tests are understood. It retains intended checks and
+rationales, expected automatic commands, the full-suite expectation, and the test-code expectation.
+A small change begins with the closest targeted check; unused capacity does not justify package,
+module, or repository-wide verification.
+
+Exhausted capacity does not end the Task and does not authorize running an extra command first. The
+Adapter uses the current TEST Action's `verification_budget_increased` transition with a concrete
+`new_impact`, `new_risk`, `verification_failure`, or `verification_gap`, adding only what is needed
+now. Core retains the reason and previous/resulting budgets, then stays in TEST. “For completeness”,
+“increase confidence”, “to be safe”, and remaining capacity are invalid reasons.
+
+Before every full suite, the Adapter freshly checks broad impact, whether targeted/package checks
+suffice, the exact uncovered risk, and repository checkpoint rules. It records the current reason as
+`full_suite_reason`; a rerun after a small fix cannot inherit the earlier reason automatically.
+
+Test-code changes require lasting value in stable product behavior, a public contract, an important
+failure path, or an observed regression. A one-time README word requirement gets one text search.
+Ordinary post-change review covers only the diff, direct/indirect causal impact, and acceptance needs;
+after a review fix, only that finding and related targeted regressions are rechecked. Explicit code
+review remains read-only and stops after findings until repair is separately authorized.
 
 During selected turns, DSH checks `write`, `edit`, and mutating `str_replace_editor` targets against
 the union of every WorkItem `ExpectedPaths`, with repository-key qualification for multi-repository

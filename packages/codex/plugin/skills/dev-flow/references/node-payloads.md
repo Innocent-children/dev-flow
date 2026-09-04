@@ -60,7 +60,7 @@ Use the live tool schema for types and nested members. These are the closed top-
 | Design | `problem_class`, `baseline`, `findings` |
 | Tasks | `problem_class`, `baseline`, `findings` |
 | Implementation | `problem_class`, `completed_work_item_ids`, `deviations`, `findings` |
-| Test | `problem_class`, `checks`, `failed_items`, `unverified_items`, `manual_handoff_items`, `findings` |
+| Test | `problem_class`, `checks`, `failed_items`, `unverified_items`, `manual_handoff_items`, `findings`, `budget_adjustment` |
 | Comprehension | `problem_class`, `explained_components`, `unresolved_questions`, `unnecessary_abstractions`, `maintenance_risks`, `user_confirmation`, `findings` |
 | Refactor | `problem_class`, `simplifications`, `behavior_change_intended`, `findings` |
 | Delivery | `problem_class`, `unverified_items`, `risks`, `findings` |
@@ -74,8 +74,19 @@ Delivery submissions never send `acceptance`, `automated_evidence_ids`, `manual_
 Requirements, Test, Comprehension, and Evidence records before canonical validation and Recovery
 retention. A submission containing any of those members violates the closed contract.
 
-Completed developer-run verification is a `source="user"` check with `command_count=0` and
-`full_suite=false`. Put only work nobody has run yet in `manual_handoff_items`.
+The Tasks baseline contains `work_items` plus `verification_plan`. The plan contains `checks[]` with
+`name` and `rationale`, `initial_budget`, `full_suite_expected`, and
+`test_code_changes_expected`. Core fills only `design_revision`.
+
+Every Test submission includes `budget_adjustment`. Normal pass/failure transitions send `null`.
+`verification_budget_increased` sends a closed adjustment with `basis`, `additional_checks`,
+`additional_automatic_commands`, `allow_full_suite`, and `allow_manual_handoff`; all check and result
+lists stay empty and the transition reason gives the concrete need. Every check includes
+`full_suite_reason`: it is empty unless `full_suite=true`, in which case it records the current
+suite-specific risk.
+
+Completed developer-run verification is a `source="user"` check with `command_count=0`,
+`full_suite=false`, and `full_suite_reason=""`. Put only work nobody has run yet in `manual_handoff_items`.
 
 ## Design node-result example
 

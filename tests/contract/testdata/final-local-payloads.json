@@ -70,7 +70,8 @@
         "method_evidence": [
           {"step_id": "tasks.decompose", "status": "plain_fallback", "capability": "", "summary": "Created one bounded implementation work item."},
           {"step_id": "tasks.map_acceptance", "status": "plain_fallback", "capability": "", "summary": "Mapped all current acceptance criteria."},
-          {"step_id": "tasks.analyze_consistency", "status": "plain_fallback", "capability": "", "summary": "Checked the requirement, design, and task for consistency."}
+          {"step_id": "tasks.analyze_consistency", "status": "plain_fallback", "capability": "", "summary": "Checked the requirement, design, and task for consistency."},
+          {"step_id": "tasks.plan_verification", "status": "plain_fallback", "capability": "", "summary": "Planned two targeted commands against the existing proof-writer test."}
         ],
         "node_result": {
           "problem_class": "none",
@@ -85,7 +86,16 @@
                 "verification_steps": ["node --test test/proof-writer.test.mjs"],
                 "dependencies": []
               }
-            ]
+            ],
+            "verification_plan": {
+              "checks": [
+                {"name": "proof_writer_targeted", "rationale": "The existing focused test checks the exact UTF-8 output."},
+                {"name": "proof_writer_targeted_after_refactor", "rationale": "The same focused behavior must be rechecked after the planned simplification."}
+              ],
+              "initial_budget": {"level": "targeted", "max_automatic_commands": 2, "allow_full_suite": false, "allow_manual_handoff": true},
+              "full_suite_expected": false,
+              "test_code_changes_expected": false
+            }
           },
           "findings": []
         }
@@ -130,11 +140,12 @@
         ],
         "node_result": {
           "problem_class": "none",
-          "checks": [{"source": "automated", "name": "proof_writer_targeted", "status": "passed", "summary": "The exact UTF-8 output test passed.", "command_count": 1, "full_suite": false}],
+          "checks": [{"source": "automated", "name": "proof_writer_targeted", "status": "passed", "summary": "The exact UTF-8 output test passed.", "command_count": 1, "full_suite": false, "full_suite_reason": ""}],
           "failed_items": [],
           "unverified_items": [],
           "manual_handoff_items": [],
-          "findings": []
+          "findings": [],
+          "budget_adjustment": null
         }
       }
     },
@@ -201,11 +212,12 @@
         ],
         "node_result": {
           "problem_class": "none",
-          "checks": [{"source": "automated", "name": "proof_writer_targeted_after_refactor", "status": "passed", "summary": "The simplified exact UTF-8 output test passed.", "command_count": 1, "full_suite": false}],
+          "checks": [{"source": "automated", "name": "proof_writer_targeted_after_refactor", "status": "passed", "summary": "The simplified exact UTF-8 output test passed.", "command_count": 1, "full_suite": false, "full_suite_reason": ""}],
           "failed_items": [],
           "unverified_items": [],
           "manual_handoff_items": [],
-          "findings": []
+          "findings": [],
+          "budget_adjustment": null
         }
       }
     },

@@ -29,9 +29,10 @@ DeepSeek 稳定 Journey 还覆盖显式触发、重启恢复、`DONE` 和保留�
 | --- | --- |
 | 新请求准入 | Host 先做只读 `small|standard|large|uncertain` 评估并等待用户选择；显式 selector 也不能跳过 |
 | 工作树优先 | 用户逐仓确认 remote/base/target，Host 精确 fetch、冻结 commit，并在干净专属工作树验证后才创建 Task |
-| 持久 Task | 本地保存请求、范围、当前阶段、验证预算、记录、阻塞和结果 |
+| 持久 Task | 本地保存请求、范围、当前阶段、分析后形成的验证计划、当前预算/消耗、调整原因、记录、阻塞和结果 |
 | 中断后继续 | Codex 和 DeepSeek 从同一 Task 恢复当前阶段与下一步 |
-| 范围与验证限制 | Core 从固定 base、commits、index/worktree/untracked 状态计算当前 Task surface，并执行 ExpectedPaths、verification budget 和记录失效规则 |
+| 范围与验证限制 | TASKS 保存初始验证计划；Core 按当前 Task Plan revision 统计消耗，允许 TEST 用具体原因增加，并继续执行 ExpectedPaths 和记录失效规则 |
+| 有界测试与复核 | Host 对每次命令、完整套件、测试文件修改和修改后复核判断当前相关性；修复后只做相关定向复核 |
 | 自动刹车 | 保存最近三次测试尝试；相同失败、相同结果或相同修改与失败循环第三次精确重复后暂停 |
 | 不确定 Action 恢复 | read-before-retry、Recovery 判断、Blocker 和 resume |
 | 交付前理解确认 | 测试后进入理解确认；仓库变更后重新测试 |
@@ -76,7 +77,7 @@ package 可用和已有的具体 Host Journey，不能据此推导缺陷率、�
 - Recovery 需要更直接的公开故障注入演示；
 - verification budget 尚未通过外部使用数据证明能减少无效测试；
 - 尚未量化中断后恢复耗时、自动刹车错误阻塞率和重复使用率；
-- 当前还不能清楚展示验证预算如何消耗，以及为什么扩大；
+- Host 对验证相关性、永久测试价值和复核因果范围的判断准确率尚未形成外部数据；
 - Host 对 change-level 的误判率、provisioning 失败恢复耗时和 relocation 可用性尚未形成外部数据；
 - 多仓库、worktree 与 relocation 是高级能力，不代表主要用户场景；
 - 外部 Issue、Pull Request、依赖项目和长期采用仍然有限。
@@ -93,7 +94,7 @@ package 可用和已有的具体 Host Journey，不能据此推导缺陷率、�
 
 ## 如何评估
 
-1. 先读根 [README](../README_zh-CN.md) 和[产品定义](PRODUCT.md)，判断任务是否需要限制改动范围和验证预算；
+1. 先读根 [README](../README_zh-CN.md) 和[产品定义](PRODUCT.md)，判断任务是否需要限制改动范围并按分析结果规划验证投入；
 2. 需要了解中断后继续时，再看对应的 [Demo](DEMO.md)；
 3. 阅读 [Support Matrix](SUPPORT-MATRIX.md)，区分稳定支持与源码能力，并按需打开上表中的真实 Journey；
 4. 阅读 [Security Policy](../SECURITY.md) 和 [Threat Model](THREAT-MODEL.md)，了解剩余风险。

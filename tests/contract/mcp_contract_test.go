@@ -139,7 +139,7 @@ func TestMCPStrictInputBoundaryAndDuplicateMembers(t *testing.T) {
 	if err := core.ValidateToolInput(core.ToolGetTask, valid); err != nil {
 		t.Fatal(err)
 	}
-	for _, raw := range [][]byte{[]byte(`{"host":"codex","task_id":"a","task_id":"b","operation_probe":null}`), []byte(`{"host":"codex","repository_path":"/repo","new_task":{"request":"x","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain","method_profile":"spec-kit"}}`)} {
+	for _, raw := range [][]byte{[]byte(`{"host":"codex","task_id":"a","task_id":"b","operation_probe":null}`), []byte(`{"host":"codex","repository_path":"/repo","new_task":{"request":"x","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"method_profile":"plain","method_profile":"spec-kit"}}`)} {
 		if err := core.ValidateToolInput(core.ToolGetTask, raw); err == nil {
 			t.Fatal("duplicate accepted")
 		}
@@ -160,7 +160,7 @@ func TestMCPStrictInputBoundaryAndDuplicateMembers(t *testing.T) {
 }
 
 func TestMCPOpenTaskSingleAndMultiRepositoryInputBoundary(t *testing.T) {
-	newTask := `"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"verification_budget":{"level":"targeted","max_automatic_commands":1,"allow_full_suite":false,"allow_manual_handoff":false},"method_profile":"plain"}`
+	newTask := `"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"method_profile":"plain"}`
 	origin := `"workspace_origin":{"mode":"dedicated_worktree","remote_name":"origin","base_branch":"main","base_commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","task_branch":"task/core","provisioning_receipt_id":"receipt-core"}`
 	additionalOrigin := `"workspace_origin":{"mode":"dedicated_worktree","remote_name":"origin","base_branch":"main","base_commit":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","task_branch":"task/docs","provisioning_receipt_id":"receipt-docs"}`
 	for _, raw := range []string{
@@ -175,7 +175,7 @@ func TestMCPOpenTaskSingleAndMultiRepositoryInputBoundary(t *testing.T) {
 	for i := range additional {
 		additional[i] = map[string]any{"key": fmt.Sprintf("repo%d", i), "repository_path": fmt.Sprintf("/repo%d", i), "workspace_origin": workspaceOriginValue(fmt.Sprintf("task/repo%d", i), fmt.Sprintf("receipt-repo%d", i))}
 	}
-	tooMany, err := json.Marshal(map[string]any{"host": "codex", "repository_path": "/core", "workspace_origin": workspaceOriginValue("task/core", "receipt-core"), "additional_repositories": additional, "new_task": map[string]any{"request": "Build feature", "initial_scope": []string{}, "initial_out_of_scope": []string{}, "known_acceptance_criteria": []string{}, "verification_budget": map[string]any{"level": "targeted", "max_automatic_commands": 1, "allow_full_suite": false, "allow_manual_handoff": false}, "method_profile": "plain"}})
+	tooMany, err := json.Marshal(map[string]any{"host": "codex", "repository_path": "/core", "workspace_origin": workspaceOriginValue("task/core", "receipt-core"), "additional_repositories": additional, "new_task": map[string]any{"request": "Build feature", "initial_scope": []string{}, "initial_out_of_scope": []string{}, "known_acceptance_criteria": []string{}, "method_profile": "plain"}})
 	if err != nil {
 		t.Fatal(err)
 	}

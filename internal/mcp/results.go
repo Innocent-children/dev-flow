@@ -265,7 +265,7 @@ func publicFailure(code domain.ErrorCode) (string, string, string) {
 		domain.ErrorTransitionNotAllowed:         {"The transition is not allowed from the current node.", "read_next_action", "Read the complete current transition set."},
 		domain.ErrorProcessUnsupported:           {"The process definition is unsupported.", "repair_storage", "Use storage created by this graph Core."},
 		domain.ErrorRecoveryUnavailable:          {"Recovery is unavailable for this operation.", "none", "Do not automatically retry; use only a supported graph recovery route."},
-		domain.ErrorVerificationBudgetExceeded:   {"The submitted evidence exceeds the verification budget.", "read_next_action", "Remain within the current evidence budget."},
+		domain.ErrorVerificationBudgetExceeded:   {"The submitted evidence exceeds the current verification budget.", "read_next_action", "Return to the current TEST Action and submit only a specifically justified verification budget increase before running more automatic checks."},
 		domain.ErrorTaskBlocked:                  {"The task is blocked.", "read_next_action", "Read the blocker-resolution action."},
 		domain.ErrorTaskTerminal:                 {"The task is terminal.", "read_task", "Read the retained terminal outcome."},
 		domain.ErrorSchemaUnsupported:            {"The storage schema is unsupported.", "none", "Stop this operation."},
@@ -304,7 +304,16 @@ func projectAction(a *domain.ProcessAction) any {
 	return map[string]any{"task_id": a.TaskID, "revision": a.Revision, "action_id": a.ActionID, "action_kind": a.Kind, "submission_tool": tool, "process_id": a.Process.ID, "process_definition_digest": a.Process.DefinitionDigest, "current_node": a.NodeID, "node_purpose": a.NodeContract.Purpose, "entry_conditions": a.NodeContract.EntryConditions, "completion_conditions": a.NodeContract.CompletionConditions, "allowed_effects": a.AllowedEffects, "required_evidence": a.RequiredEvidence, "method_profile": a.MethodProfile, "method_steps": a.SemanticMethodSteps, "available_transitions": a.AvailableTransitions, "payload_contract": a.PayloadContract, "guidance": a.Guidance, "repository_binding_digest": a.RepositoryBindingDigest, "issuance_identity_digest": a.IssuanceIdentityDigest, "issuance_history_digest": a.IssuanceHistoryDigest, "issuance_content_digest": a.IssuanceContentDigest, "issued_at": a.IssuedAt}
 }
 func projectTask(t domain.ProcessTask) any {
-	result := map[string]any{"task_id": t.TaskID, "origin_host": t.OriginHost, "process_id": t.Process.ID, "process_definition_digest": t.Process.DefinitionDigest, "intent": t.Intent, "current_cursor": t.CurrentNode, "resume_cursor": t.ResumeNode, "primary_repository_key": t.EffectivePrimaryRepositoryKey(), "workspace_origin": t.WorkspaceOrigin, "repository": projectRepository(t.Repository), "baselines": map[string]any{"requirements": t.Requirements, "design": t.Design, "task_plan": t.TaskPlan, "history": t.BaselineHistory}, "implementation": t.Implementation, "test": t.Test, "comprehension": t.Comprehension, "verification_attempts": t.VerificationAttempts, "file_scope_records": t.FileScopeRecords, "current_changed_paths": t.CurrentChangedPaths, "relocation": t.Relocation, "current_action": projectAction(t.CurrentAction), "blocker": t.Blocker, "last_operation": t.LastOperation, "evidence": t.Evidence, "outcome": t.Outcome, "revision": t.Revision, "created_at": t.CreatedAt, "updated_at": t.UpdatedAt, "completed_at": t.CompletedAt}
+	var plan any
+	var currentBudget any
+	if t.TaskPlan != nil {
+		plan = t.TaskPlan.VerificationPlan
+		if budget, ok := t.CurrentVerificationBudget(); ok {
+			currentBudget = budget
+		}
+	}
+	verification := map[string]any{"plan": plan, "current_budget": currentBudget, "usage": t.CurrentVerificationUsage(), "adjustments": t.VerificationBudgetAdjustments}
+	result := map[string]any{"task_id": t.TaskID, "origin_host": t.OriginHost, "process_id": t.Process.ID, "process_definition_digest": t.Process.DefinitionDigest, "intent": t.Intent, "current_cursor": t.CurrentNode, "resume_cursor": t.ResumeNode, "primary_repository_key": t.EffectivePrimaryRepositoryKey(), "workspace_origin": t.WorkspaceOrigin, "repository": projectRepository(t.Repository), "baselines": map[string]any{"requirements": t.Requirements, "design": t.Design, "task_plan": t.TaskPlan, "history": t.BaselineHistory}, "implementation": t.Implementation, "test": t.Test, "comprehension": t.Comprehension, "verification": verification, "verification_attempts": t.VerificationAttempts, "file_scope_records": t.FileScopeRecords, "current_changed_paths": t.CurrentChangedPaths, "relocation": t.Relocation, "current_action": projectAction(t.CurrentAction), "blocker": t.Blocker, "last_operation": t.LastOperation, "evidence": t.Evidence, "outcome": t.Outcome, "revision": t.Revision, "created_at": t.CreatedAt, "updated_at": t.UpdatedAt, "completed_at": t.CompletedAt}
 	if len(t.AdditionalRepositories) != 0 {
 		entries := append([]domain.RepositoryScopeEntry(nil), t.AdditionalRepositories...)
 		sort.Slice(entries, func(i, j int) bool { return entries[i].Key < entries[j].Key })

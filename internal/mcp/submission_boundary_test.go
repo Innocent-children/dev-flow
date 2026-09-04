@@ -67,7 +67,7 @@ func TestSubmissionBoundaryAcceptsOmittedSystemStateRevisions(t *testing.T) {
 		"baseline": map[string]any{"work_items": []any{map[string]any{
 			"work_item_id": "work", "summary": "Implement", "expected_paths": []any{"internal/file.go"},
 			"acceptance_indexes": []any{0}, "verification_steps": []any{"Run the targeted check"}, "dependencies": []any{},
-		}}},
+		}}, "verification_plan": map[string]any{"checks": []any{map[string]any{"name": "targeted-check", "rationale": "The check covers the changed file."}}, "initial_budget": map[string]any{"level": "targeted", "max_automatic_commands": 4, "allow_full_suite": false, "allow_manual_handoff": true}, "full_suite_expected": false, "test_code_changes_expected": true}},
 		"findings": []any{},
 	}
 	implementation := map[string]any{

@@ -25,17 +25,20 @@ This stage improves the clarity and cost of using capabilities that already exis
   file-scope decisions, and unexplained paths;
 - distinguish normal linear commits, content changes, history conflicts, workspace unavailability,
   and relocation;
-- make the current stage, remaining verification budget, and Recovery assessment easier to read in
-  the Host and local WebUI.
+- expose the post-analysis verification plan, current budget/usage, every increase reason, and
+  Recovery assessment in the Host and local WebUI;
+- keep ordinary post-change review within the diff, causal impact, and acceptance needs without
+  restarting a repository-wide audit after a fix.
 
-This work does not change the current state graph or introduce a second Task state.
+This work adds no process node or second Task state; budget increases reuse one TEST-to-TEST self-transition.
 
 ## Next: make completion decisions more trustworthy
 
 The following are future directions and are not implemented, or not fully implemented, today:
 
 - stronger binding between verification records and current implementation state;
-- visible verification-budget consumption and the stated reason for expansion;
+- use real feedback to tune initial verification plans and increase decisions without false widening
+  or false blocking;
 - a public fault-injection journey for an uncertain Action;
 - improve the explainability and feedback loop for `small|standard|large|uncertain` assessments;
 - reduce confirmation and recovery steps without adding a second state machine.

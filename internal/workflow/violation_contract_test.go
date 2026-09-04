@@ -10,7 +10,11 @@ import (
 )
 
 func evidenceInput(source domain.EvidenceSource, status domain.EvidenceStatus, name string, commands int, full bool) EvidenceInput {
-	return EvidenceInput{Source: source, Name: name, Status: status, Summary: "Evidence summary.", CommandCount: commands, FullSuite: full}
+	reason := ""
+	if full {
+		reason = "The changed shared contract reaches every package in the suite."
+	}
+	return EvidenceInput{Source: source, Name: name, Status: status, Summary: "Evidence summary.", CommandCount: commands, FullSuite: full, FullSuiteReason: reason}
 }
 
 // TestEvidenceSourceMatrixRulesAndViolationPaths covers the four evidence source
@@ -160,7 +164,7 @@ func TestPayloadRequiredAndUnknownMemberViolations(t *testing.T) {
 		"method_evidence": methodEvidence,
 		"node_result": map[string]any{
 			"problem_class": "none", "checks": []any{}, "failed_items": []any{}, "unverified_items": []any{},
-			"manual_handoff_items": []any{}, "findings": []any{},
+			"manual_handoff_items": []any{}, "findings": []any{}, "budget_adjustment": nil,
 		},
 	}
 	missing := cloneMap(base)
@@ -174,7 +178,7 @@ func TestPayloadRequiredAndUnknownMemberViolations(t *testing.T) {
 	nestedUnknown := cloneMap(base)
 	nestedUnknown["node_result"].(map[string]any)["checks"] = []any{map[string]any{
 		"source": "user", "name": "manual", "status": "passed", "summary": "Manual check.",
-		"command_count": 0, "full_suite": false, "extra_member": true,
+		"command_count": 0, "full_suite": false, "full_suite_reason": "", "extra_member": true,
 	}}
 	assertPayloadViolation(t, nestedUnknown, "payload.node_result.checks[0].extra_member", domain.RuleUnknownMember)
 
@@ -242,11 +246,11 @@ func TestVerificationBudgetKeepsAutomaticAttributionForUserEvidence(t *testing.T
 		evidenceInput(domain.EvidenceSourceAutomated, domain.EvidencePassed, "host", 1, false),
 		evidenceInput(domain.EvidenceSourceUser, domain.EvidencePassed, "manual-manager-check", 0, false),
 	}
-	if err := EvaluateVerificationBudget(budget, nil, incoming, nil); err != nil {
+	if err := EvaluateVerificationBudget(budget, 1, nil, incoming, nil); err != nil {
 		t.Fatalf("user evidence consumed the automatic budget: %v", err)
 	}
 	overBudget := append(append([]NormalizedEvidenceInput(nil), incoming...), evidenceInput(domain.EvidenceSourceAutomated, domain.EvidencePassed, "extra", 1, false))
-	if err := EvaluateVerificationBudget(budget, nil, overBudget, nil); !errors.Is(err, domain.ErrVerificationBudgetExceeded) {
+	if err := EvaluateVerificationBudget(budget, 1, nil, overBudget, nil); !errors.Is(err, domain.ErrVerificationBudgetExceeded) {
 		t.Fatalf("budget error=%v", err)
 	}
 }

@@ -49,7 +49,7 @@ func TestMethodProfileEquivalentTransitionsAndImmutability(t *testing.T) {
 
 	service, memory, _ := phase5Service(t)
 	task := openMethodProfileTask(t, service, domain.MethodPlain)
-	_, err := service.OpenTask(context.Background(), OpenTaskRequest{RequestID: "profile-conflict", Host: domain.HostCodex, RepositoryPath: testPath("repo"), NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: task.Intent.VerificationBudget, MethodProfile: domain.MethodSpecKit}})
+	_, err := service.OpenTask(context.Background(), OpenTaskRequest{RequestID: "profile-conflict", Host: domain.HostCodex, RepositoryPath: testPath("repo"), NewTask: &NewTaskInput{Request: "Build feature", MethodProfile: domain.MethodSpecKit}})
 	if err != domain.ErrWorktreeProvisioningRequired {
 		t.Fatalf("profile conflict error=%v", err)
 	}
@@ -64,7 +64,7 @@ func TestMethodProfileEquivalentTransitionsAndImmutability(t *testing.T) {
 	invalidService, _, _ := phase5Service(t)
 	invalidOrigin := invalidService.repositoryObserver.(*mutableObserver).origin
 	invalidOriginInput := WorkspaceOriginInput{Mode: invalidOrigin.Mode, RemoteName: invalidOrigin.RemoteName, BaseBranch: invalidOrigin.BaseBranch, BaseCommit: invalidOrigin.BaseCommit, TaskBranch: invalidOrigin.TaskBranch, ProvisioningReceiptID: invalidOrigin.ProvisioningReceiptID}
-	if _, err := invalidService.OpenTask(context.Background(), OpenTaskRequest{RequestID: "invalid-profile", Host: domain.HostCodex, RepositoryPath: testPath("repo"), WorkspaceOrigin: &invalidOriginInput, NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: "future"}}); err != domain.ErrInvalidArgument {
+	if _, err := invalidService.OpenTask(context.Background(), OpenTaskRequest{RequestID: "invalid-profile", Host: domain.HostCodex, RepositoryPath: testPath("repo"), WorkspaceOrigin: &invalidOriginInput, NewTask: &NewTaskInput{Request: "Build feature", MethodProfile: "future"}}); err != domain.ErrInvalidArgument {
 		t.Fatalf("invalid profile error=%v", err)
 	}
 }
@@ -228,7 +228,7 @@ func openMethodProfileTask(t *testing.T, service *Service, profile domain.Method
 	t.Helper()
 	origin := service.repositoryObserver.(*mutableObserver).origin
 	input := WorkspaceOriginInput{Mode: origin.Mode, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
-	result, err := service.OpenTask(context.Background(), OpenTaskRequest{RequestID: "open-method-task", Host: domain.HostCodex, RepositoryPath: testPath("repo"), WorkspaceOrigin: &input, NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: profile}})
+	result, err := service.OpenTask(context.Background(), OpenTaskRequest{RequestID: "open-method-task", Host: domain.HostCodex, RepositoryPath: testPath("repo"), WorkspaceOrigin: &input, NewTask: &NewTaskInput{Request: "Build feature", MethodProfile: profile}})
 	if err != nil {
 		t.Fatal(err)
 	}

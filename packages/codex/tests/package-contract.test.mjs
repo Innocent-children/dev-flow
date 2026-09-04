@@ -257,7 +257,7 @@ test("packaged Skill publishes the exact current Core contract new-task value ty
     skill,
     /`initial_scope`,\s+`initial_out_of_scope`, and\s+`known_acceptance_criteria` are JSON arrays of strings/u,
   );
-  assert.match(skill, /exactly `minimal`,\s+`targeted`, or `full`/u);
+  assert.match(skill, /creation-time `verification_budget` is an obsolete contract member/u);
 
   const example = skill.match(/<!-- new-task-example:start -->\n```json\n([\s\S]*?)\n```\n<!-- new-task-example:end -->/u);
   assert.notEqual(example, null);
@@ -266,12 +266,6 @@ test("packaged Skill publishes the exact current Core contract new-task value ty
     initial_scope: ["Update the endpoint response"],
     initial_out_of_scope: ["Change unrelated endpoints"],
     known_acceptance_criteria: ["The response contains the requested field"],
-    verification_budget: {
-      level: "targeted",
-      max_automatic_commands: 4,
-      allow_full_suite: false,
-      allow_manual_handoff: true,
-    },
     method_profile: "plain",
   });
 });

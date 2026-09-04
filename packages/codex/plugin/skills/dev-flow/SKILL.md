@@ -229,15 +229,16 @@ equal to the verified task worktree, and the following Scope rules:
 - Installed tooling does not select or switch a profile. Never change the profile after creation. If
   the user explicitly requests conflicting profiles, report the profile conflict and stop.
 - Derive the new-task contract only from the admitted user request, repository instructions, known
-  initial bounds, known acceptance, and granted verification authority. Formal acceptance does not
-  need to be complete at creation; the current requirements work forms that authority.
+  initial bounds, and known acceptance. Formal acceptance does not need to be complete at creation;
+  the current requirements work forms that authority. Do not choose a verification budget during
+  Task creation: requirements, design, impact, work breakdown, and existing tests have not been
+  analyzed yet.
 - Forward `new_task` with exactly the members `request`, `initial_scope`,
-  `initial_out_of_scope`, `known_acceptance_criteria`, `verification_budget`, and `method_profile`,
-  with no additional members. Forward `verification_budget` with exactly `level`,
-  `max_automatic_commands`, `allow_full_suite`, and `allow_manual_handoff`.
+  `initial_out_of_scope`, `known_acceptance_criteria`, and `method_profile`, with no additional
+  members. A creation-time `verification_budget` is an obsolete contract member and must not be sent.
 - `request` is a JSON string. `initial_scope`, `initial_out_of_scope`, and
   `known_acceptance_criteria` are JSON arrays of strings and may be empty. Never collapse an array
-  into prose. `verification_budget.level` is exactly `minimal`, `targeted`, or `full`.
+  into prose.
 
 Use this exact `new_task` JSON shape, changing only values derived from the admitted request:
 
@@ -248,12 +249,6 @@ Use this exact `new_task` JSON shape, changing only values derived from the admi
   "initial_scope": ["Update the endpoint response"],
   "initial_out_of_scope": ["Change unrelated endpoints"],
   "known_acceptance_criteria": ["The response contains the requested field"],
-  "verification_budget": {
-    "level": "targeted",
-    "max_automatic_commands": 4,
-    "allow_full_suite": false,
-    "allow_manual_handoff": true
-  },
   "method_profile": "plain"
 }
 ```
@@ -541,19 +536,73 @@ recovery-before-retry contract.
 
 ## Evidence and verification budget
 
-- Count verification commands exactly against Core's immutable budget.
-- Do not run a prohibited full suite. When automatic capacity is exhausted, report the remaining
-  permitted work as manual handoff without claiming it ran.
-- Preserve repository instructions and explicit user authority.
-- Keep static inspection, simulated Core execution, user-performed evidence, and native automated
-  evidence distinctly labelled.
-- Submit actual sources and outcomes. Never relabel failed, skipped, or unavailable work as passed.
-- `source=automated` uses `command_count` 1 to 20 and may set `full_suite` when the budget allows it.
-- `source=user`, `source=static`, and `source=host_observed` use `command_count=0` and
-  `full_suite=false`. Shell commands a person ran by hand belong in that check's `summary`; they
-  never consume the automatic command budget.
-- A verification the user already completed belongs in `checks` with `source=user`. Remove it from
-  `manual_handoff_items`; that list keeps only work nobody has executed yet.
+At TASKS, only after reading the current requirements and design, decomposing the work, identifying
+the expected paths and impact, and inspecting the existing test structure, create the initial
+`verification_plan`. It records the checks currently intended, a concrete rationale for each check,
+the expected automatic-command budget, whether a full suite is expected, and whether adding or
+changing test code is expected. Use the smallest level and command count that cover the analyzed
+change. The Task creation request carries no final budget.
+
+Before every automatic check, compare it with the current plan, current diff, causal impact,
+acceptance criteria, an observed failure, or a real regression. A small local change selects the
+closest targeted check first; remaining capacity is not authority to widen to package, module, or
+repository scope. Stop adding checks once current acceptance and actual impact are sufficiently
+verified.
+
+When current capacity is insufficient, do not stop merely because the number is exhausted and do not
+run the extra command first. Re-read the Task and current TEST Action, then use the returned
+`verification_budget_increased` transition with exactly one closed basis (`new_impact`, `new_risk`,
+`verification_failure`, or `verification_gap`), the newly needed checks and rationales, only the
+additional commands or permissions actually needed, and a concrete reason. Core remains in TEST and
+returns a new Action after it records the adjustment. Reasons such as “for completeness”, “increase
+confidence”, “to be safe”, or a restatement that budget remains are not specific and do not authorize
+an increase. A rejected adjustment leaves the previous budget current.
+
+Before every full-suite command, including a rerun after a small fix, freshly determine all four:
+
+1. whether the current change has broad causal impact;
+2. why targeted or package-level checks are insufficient;
+3. which concrete remaining risk the full suite covers;
+4. whether repository instructions require it at this exact checkpoint.
+
+Budget permission alone is never a reason. If the answers do not justify the suite, run the closest
+targeted check. If they do, record the current, concrete explanation as `full_suite_reason`; never
+reuse an earlier reason automatically after another edit.
+
+Before adding or modifying test code, decide whether it protects stable product behavior, a public
+contract, an important failure path, or an observed regression. Prefer an existing test location
+with the matching responsibility. Add a new test file only when the test has an independent lasting
+responsibility. A one-time edit instruction or transient prose detail normally receives a one-time
+check. For example, “README must not contain this word” uses one text search and creates no permanent
+test file or full-suite run.
+
+Count and submit actual commands and outcomes. Keep static inspection, simulated Core execution,
+user-performed evidence, and native automated evidence distinct. `source=automated` uses
+`command_count` 1 to 20. Non-full checks send an empty `full_suite_reason`; a full suite sends the
+fresh concrete reason above. `source=user`, `source=static`, and `source=host_observed` use
+`command_count=0`, `full_suite=false`, and an empty `full_suite_reason`. A check already completed by
+the user belongs in `checks`; `manual_handoff_items` contains only work nobody has run.
+
+## Bounded post-change review
+
+For ordinary implementation work, review only the current diff, callers, dependencies and runtime
+paths that the change directly or indirectly affects, and the material needed to confirm current
+acceptance. Do not restart a repository-wide audit after each edit. Expand the review only when the
+new area has a stated causal path from the current change.
+
+Fix only defects introduced by the current change or exposed in another location because of that
+change. Do not silently repair, test, or add unrelated historical issues to the Task; mention them
+separately at delivery and suggest another Task when useful.
+
+After fixing a review finding, re-check only that finding, related regressions, the affected
+acceptance criteria, and the matching targeted checks. The fix never restarts a broad audit. End the
+Task when current acceptance, planned verification, justified increases, and this bounded review are
+complete, while reporting unrun checks and remaining current-design risks honestly.
+
+When the developer explicitly requests code review, code audit, or a repository-wide audit, the
+review phase is read-only. Complete the requested review, report every finding with scope and impact,
+then stop and wait for an explicit later repair request. Do not edit, format, generate a patch, or
+move directly from review into repair.
 
 ## Blocked and terminal behavior
 

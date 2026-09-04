@@ -16,7 +16,7 @@ Je länger eine Coding-Aufgabe dauert, desto leichter verändert sie sich schlei
 kommen hinzu, eine gezielte Prüfung wird zu einem Testlauf ohne Ende, derselbe Fehler löst einen ähnlichen
 Versuch aus oder eine neu gestartete Sitzung muss den Fortschritt aus dem Chat rekonstruieren.
 
-Dev Flow speichert die vereinbarte Anfrage, erwartete Pfade, Prüfgrenzen, die aktuelle Phase und Ergebnisse
+Dev Flow speichert die vereinbarte Anfrage, erwartete Pfade, den nach der Analyse erstellten Prüfplan, die aktuelle Phase und Ergebnisse
 in einer lokalen Aufgabe. Codex oder DeepSeek ändert weiterhin den Code.
 
 Jede neue Anfrage wird zuerst schreibgeschützt bewertet. Wenn du Dev Flow auswählst, bestätigst du Remote,
@@ -28,8 +28,10 @@ eigenen Worktree, bevor Core die Task anlegt. Änderungen aus dem Quell-Checkout
   Auslieferung erneut geprüft.
 - **Jeder Worktree hat genau einen Änderungsbesitzer.** Core berechnet die aktuelle Task-Oberfläche aus
   Git. Normale lineare Commits können fortgesetzt werden; Branch-Rewrites oder ein ersetzter Worktree stoppen die Task.
-- **Der Prüfaufwand bleibt begrenzt.** Automatische Prüfungen haben ein Befehlslimit, die vollständige
-  Suite braucht vorherige Erlaubnis und die dritte exakte Wiederholung pausiert die Aufgabe.
+- **Der Prüfaufwand passt zur Aufgabe.** TASKS speichert Prüfungen, Gründe, Anfangsaufwand und Erwartungen
+  für Vollsuite/Testcode. Nur konkrete neue Auswirkungen, Risiken, Fehler oder Lücken erhöhen das Budget.
+- **Die Prüfung endet bei der aktuellen Änderung.** Danach werden nur Diff, kausale Auswirkungen und
+  Abnahmebedarf geprüft; ein Fix löst nur verwandte Nachprüfungen aus, ein explizites Code Review bleibt schreibgeschützt.
 - **Die Arbeit übersteht Neustarts.** Eine neue Sitzung stellt dieselbe Aufgabe, übrige Prüfungen und die
   aktuelle Entscheidung wieder her, statt sie aus dem Gespräch zu rekonstruieren.
 - **Nur aktuelle Ergebnisse gelten weiter.** Änderungen an Anfrage, Plan, Implementierung oder Repository

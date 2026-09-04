@@ -51,7 +51,7 @@ func TestWorkspaceLifecycleFixtureMatchesClosedMCPInputs(t *testing.T) {
 	if err := decoder.Decode(&fixture); err != nil {
 		t.Fatal(err)
 	}
-	if fixture.FixtureKind != "workspace_lifecycle" || fixture.StorageSchemaVersion != "0.4.0" {
+	if fixture.FixtureKind != "workspace_lifecycle" || fixture.StorageSchemaVersion != "0.5.0" {
 		t.Fatalf("workspace lifecycle identity=%q/%q", fixture.FixtureKind, fixture.StorageSchemaVersion)
 	}
 	for tool, input := range map[string]json.RawMessage{

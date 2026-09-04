@@ -76,12 +76,6 @@ test("deterministic DeepSeek Host follows the real Core graph through restart, r
       initial_scope: ["Exercise the current graph"],
       initial_out_of_scope: ["Change Core semantics"],
       known_acceptance_criteria: ["The task reaches Core DONE", "Recovery reads precede any replay"],
-      verification_budget: {
-        level: "targeted",
-        max_automatic_commands: 16,
-        allow_full_suite: false,
-        allow_manual_handoff: true,
-      },
       method_profile: "plain",
     },
   });
@@ -267,6 +261,11 @@ function tasksResult() {
         work_item_id: "work", summary: "Exercise the graph", expected_paths: ["core::feature.txt", "docs::feature.txt"],
         acceptance_indexes: [0, 1], verification_steps: ["Run targeted checks"], dependencies: [],
       }],
+      verification_plan: {
+        checks: [{ name: "targeted-test", rationale: "The check covers the two changed proof files." }],
+        initial_budget: { level: "targeted", max_automatic_commands: 16, allow_full_suite: false, allow_manual_handoff: true },
+        full_suite_expected: false, test_code_changes_expected: false,
+      },
     }, findings: [],
   };
 }
@@ -279,20 +278,20 @@ function implementationResult() {
 
 function failedTestResult() {
   return {
-    checks: [{ source: "automated", name: "targeted-test", status: "failed", summary: "The targeted test failed.", command_count: 1, full_suite: false }],
+    checks: [{ source: "automated", name: "targeted-test", status: "failed", summary: "The targeted test failed.", command_count: 1, full_suite: false, full_suite_reason: "" }],
     failed_items: ["targeted failure"], unverified_items: [], manual_handoff_items: [],
-    findings: ["implementation defect"],
+    findings: ["implementation defect"], budget_adjustment: null,
   };
 }
 
 function passedTestResult() {
   return {
     checks: [
-      { source: "automated", name: "targeted-test", status: "passed", summary: "The targeted test passed.", command_count: 1, full_suite: false },
-      { source: "static", name: "static-review", status: "passed", summary: "Static review completed.", command_count: 0, full_suite: false },
-      { source: "host_observed", name: "host-observation", status: "passed", summary: "The Host observed the result.", command_count: 0, full_suite: false },
+      { source: "automated", name: "targeted-test", status: "passed", summary: "The targeted test passed.", command_count: 1, full_suite: false, full_suite_reason: "" },
+      { source: "static", name: "static-review", status: "passed", summary: "Static review completed.", command_count: 0, full_suite: false, full_suite_reason: "" },
+      { source: "host_observed", name: "host-observation", status: "passed", summary: "The Host observed the result.", command_count: 0, full_suite: false, full_suite_reason: "" },
     ],
-    failed_items: [], unverified_items: [], manual_handoff_items: [], findings: [],
+    failed_items: [], unverified_items: [], manual_handoff_items: [], findings: [], budget_adjustment: null,
   };
 }
 

@@ -15,7 +15,7 @@ func TestStandardDefinitionIsStableAndComplete(t *testing.T) {
 	if err := ValidateDefinition(definition); err != nil {
 		t.Fatalf("ValidateDefinition: %v", err)
 	}
-	if got, want := definition.Reference.DefinitionDigest, domain.Digest("8f9543abc67421f1470e9ca8b953206571a119c65e5ec39c655bccd334203dc5"); got != want {
+	if got, want := definition.Reference.DefinitionDigest, domain.Digest("58118cf85fdd5a2013f95972f816fe267dcbad09a95fe0fce2d83488d69cb101"); got != want {
 		t.Fatalf("digest = %s, want %s", got, want)
 	}
 	wantNodes := []domain.NodeID{domain.NodeRequirements, domain.NodeDesign, domain.NodeTasks, domain.NodeImplement, domain.NodeTest, domain.NodeComprehensionReview, domain.NodeRefactor, domain.NodeDelivery, domain.NodeDone, domain.NodeBlocked, domain.NodeCancelled}
@@ -27,7 +27,7 @@ func TestStandardDefinitionIsStableAndComplete(t *testing.T) {
 			t.Fatalf("node %d=%s", i, definition.Nodes[i].NodeID)
 		}
 	}
-	if len(definition.Transitions) != 29 {
+	if len(definition.Transitions) != 30 {
 		t.Fatalf("transitions=%d", len(definition.Transitions))
 	}
 	for _, node := range definition.Nodes {
@@ -52,6 +52,7 @@ func TestSemanticMethodCatalogExact(t *testing.T) {
 			{StepID: "tasks.decompose", Purpose: "Decompose the current design into bounded, ordered work items.", Required: true},
 			{StepID: "tasks.map_acceptance", Purpose: "Map every current acceptance criterion to work and verification.", Required: true},
 			{StepID: "tasks.analyze_consistency", Purpose: "Check requirements, design, and tasks for gaps or contradictions.", Required: true},
+			{StepID: "tasks.plan_verification", Purpose: "Set the initial verification plan after analyzing scope, impact, and the existing test structure.", Required: true},
 		},
 		domain.NodeImplement: {
 			{StepID: "implementation.execute_plan", Purpose: "Execute only the work authorized by the current task plan.", Required: true},
@@ -59,8 +60,8 @@ func TestSemanticMethodCatalogExact(t *testing.T) {
 			{StepID: "implementation.classify_deviations", Purpose: "Classify implementation deviations as requirement, design, or complexity concerns.", Required: true},
 		},
 		domain.NodeTest: {
-			{StepID: "test.run_budgeted_checks", Purpose: "Run only verification authorized by the current verification budget.", Required: true},
-			{StepID: "test.record_evidence", Purpose: "Record actual evidence sources, outcomes, and unverified or manual items.", Required: true},
+			{StepID: "test.run_budgeted_checks", Purpose: "Choose the closest necessary checks and record a justified budget increase before any extra command runs.", Required: true},
+			{StepID: "test.record_evidence", Purpose: "Record actual evidence sources and outcomes, or the exact pre-run budget adjustment.", Required: true},
 			{StepID: "test.classify_failure", Purpose: "Classify failures as implementation, design, or requirement problems.", Required: true},
 		},
 		domain.NodeComprehensionReview: {
@@ -101,7 +102,7 @@ func TestSemanticMethodCatalogExact(t *testing.T) {
 			t.Fatalf("terminal %s has method steps", node.NodeID)
 		}
 	}
-	if normalNodes != 8 || stepCount != 24 || len(seen) != 24 || len(standardMethodStepPurposes) != 24 {
+	if normalNodes != 8 || stepCount != 25 || len(seen) != 25 || len(standardMethodStepPurposes) != 25 {
 		t.Fatalf("normal nodes=%d steps=%d unique=%d purposes=%d", normalNodes, stepCount, len(seen), len(standardMethodStepPurposes))
 	}
 	blocked, err := NodeDefinition(definition, domain.NodeBlocked)
@@ -178,7 +179,7 @@ func TestDefinitionDigestPersistedActionWordingIsIdentityStable(t *testing.T) {
 	head := strings.Repeat("b", 40)
 	task := domain.ProcessTask{
 		TaskID: "task", OriginHost: domain.HostCodex,
-		Intent:  domain.TaskIntent{Request: "Build feature", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 1}, MethodProfile: domain.MethodPlain},
+		Intent:  domain.TaskIntent{Request: "Build feature", MethodProfile: domain.MethodPlain},
 		Process: definition.Reference, CurrentNode: domain.NodeRequirements, CurrentAction: &action,
 		WorkspaceOrigin: domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: bindingDigest, CanonicalWorktreeRoot: testPath("repo"), WorktreeGitDirDigest: bindingDigest, ProvisioningReceiptID: "receipt"},
 		Repository:      domain.RepositoryBinding{WorktreeInstanceDigest: bindingDigest, IdentityDigest: bindingDigest, HistoryDigest: bindingDigest, ContentDigest: bindingDigest, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: bindingDigest},

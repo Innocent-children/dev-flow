@@ -308,11 +308,11 @@ func fullGraphTask(t *testing.T) domain.ProcessTask {
 	digest := task.Repository.BindingDigest
 	task.Requirements = &domain.RequirementsBaseline{Revision: 1, Digest: digest, Goal: "Current goal", AcceptanceCriteria: []string{"Accepted behavior"}, CreatedAt: now}
 	task.Design = &domain.DesignBaseline{Revision: 1, Digest: digest, RequirementsRevision: 1, Approach: "Direct design", Decisions: []string{"Reuse the current boundary"}, CreatedAt: now}
-	task.TaskPlan = &domain.TaskPlanBaseline{Revision: 1, Digest: digest, DesignRevision: 1, WorkItems: []domain.WorkItem{{WorkItemID: "work", Summary: "Implement work", ExpectedPaths: []string{"internal/work.go"}, AcceptanceIndexes: []uint32{0}, VerificationSteps: []string{"Run targeted tests"}}}, CreatedAt: now}
+	task.TaskPlan = &domain.TaskPlanBaseline{Revision: 1, Digest: digest, DesignRevision: 1, WorkItems: []domain.WorkItem{{WorkItemID: "work", Summary: "Implement work", ExpectedPaths: []string{"internal/work.go"}, AcceptanceIndexes: []uint32{0}, VerificationSteps: []string{"Run targeted tests"}}}, VerificationPlan: domain.VerificationPlan{Checks: []domain.VerificationPlanCheck{{Name: "targeted-test", Rationale: "The check covers the stored task."}}, InitialBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4, AllowManualHandoff: true}}, CreatedAt: now}
 	task.Implementation = &domain.ImplementationRecord{Revision: 1, TaskPlanRevision: 1, ContentDigest: digest, CompletedWorkItemIDs: []domain.ID{"work"}, Summary: "Implemented work", CreatedAt: now}
 	task.Evidence = []domain.EvidenceSummary{
-		{EvidenceID: "automated", Source: domain.EvidenceSourceAutomated, Name: "targeted", Status: domain.EvidencePassed, Summary: "Targeted tests passed", Digest: digest, CommandCount: 1, RecordedAt: now},
-		{EvidenceID: "user", Source: domain.EvidenceSourceUser, Name: "confirmation", Status: domain.EvidencePassed, Summary: "User confirmed understanding", Digest: digest, RecordedAt: now},
+		{EvidenceID: "automated", TaskPlanRevision: 1, Source: domain.EvidenceSourceAutomated, Name: "targeted", Status: domain.EvidencePassed, Summary: "Targeted tests passed", Digest: digest, CommandCount: 1, RecordedAt: now},
+		{EvidenceID: "user", TaskPlanRevision: 1, Source: domain.EvidenceSourceUser, Name: "confirmation", Status: domain.EvidencePassed, Summary: "User confirmed understanding", Digest: digest, RecordedAt: now},
 	}
 	task.Test = &domain.TestRecord{RecordID: "test", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, ContentDigest: digest, EvidenceIDs: []domain.ID{"automated"}, PassedAt: now}
 	task.Comprehension = &domain.ComprehensionAssessment{RecordID: "comprehension", TestRecordID: "test", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, ContentDigest: digest, ExplainedComponents: []string{"component"}, UserEvidenceID: "user", ConfirmedAt: now}

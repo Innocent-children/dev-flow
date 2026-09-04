@@ -43,6 +43,24 @@ func TestRequirementsBaselineRevisionDigestHistoryAndInvalidation(t *testing.T) 
 	}
 }
 
+func TestTaskCreationDefersVerificationPlanUntilTasksAnalysis(t *testing.T) {
+	s, _, _ := phase5Service(t)
+	task := openPhase5Task(t, s)
+	if task.TaskPlan != nil {
+		t.Fatal("Task creation froze a verification plan before analysis")
+	}
+	if _, ok := task.CurrentVerificationBudget(); ok {
+		t.Fatal("Task creation exposed a final verification budget")
+	}
+	task = applyPhase5(t, s, task, "requirements_ready", "", requirementsNodeResult("Goal", []string{"criterion"}))
+	task = applyPhase5(t, s, task, "design_ready", "", designNodeResult(1, "Direct design"))
+	task = applyPhase5(t, s, task, "tasks_ready", "", tasksNodeResult(1, []map[string]any{workItem("work-a", []uint32{0}, nil)}))
+	budget, ok := task.CurrentVerificationBudget()
+	if !ok || task.TaskPlan.VerificationPlan.Checks[0].Rationale == "" || budget.MaxAutomaticCommands != 4 {
+		t.Fatalf("analyzed verification plan=%#v budget=%#v", task.TaskPlan.VerificationPlan, budget)
+	}
+}
+
 func TestDesignAndTaskPlanRevisionBindingValidationAndInvalidation(t *testing.T) {
 	s, ms, _ := phase5Service(t)
 	task := openPhase5Task(t, s)
@@ -260,7 +278,7 @@ func openPhase5Task(t *testing.T, s *Service) domain.ProcessTask {
 	t.Helper()
 	origin := s.repositoryObserver.(*mutableObserver).origin
 	originInput := WorkspaceOriginInput{Mode: origin.Mode, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
-	result, err := s.OpenTask(context.Background(), OpenTaskRequest{RequestID: "open-request", Host: domain.HostCodex, RepositoryPath: testPath("repo"), WorkspaceOrigin: &originInput, NewTask: &NewTaskInput{Request: "Build feature", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4, AllowManualHandoff: true}, MethodProfile: domain.MethodPlain}})
+	result, err := s.OpenTask(context.Background(), OpenTaskRequest{RequestID: "open-request", Host: domain.HostCodex, RepositoryPath: testPath("repo"), WorkspaceOrigin: &originInput, NewTask: &NewTaskInput{Request: "Build feature", MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -328,7 +346,8 @@ func phase5ProblemClass(transition string) string {
 		"tasks_ready": "none", "tasks_require_design": "design_gap", "tasks_require_requirements": "requirement_gap",
 		"implementation_ready_for_test": "none", "implementation_requires_design": "design_gap", "implementation_requires_requirements": "requirement_gap", "implementation_needs_refactor": "code_complexity",
 		"tests_passed": "none", "tests_failed_implementation": "implementation_failure", "tests_expose_design_issue": "design_failure", "tests_expose_requirement_issue": "requirement_gap",
-		"comprehension_passed": "none", "implementation_defect": "implementation_defect", "code_too_complex": "code_complexity", "design_too_complex": "design_complexity", "evidence_insufficient": "verification_gap", "requirement_unclear": "requirement_gap",
+		"verification_budget_increased": "none",
+		"comprehension_passed":          "none", "implementation_defect": "implementation_defect", "code_too_complex": "code_complexity", "design_too_complex": "design_complexity", "evidence_insufficient": "verification_gap", "requirement_unclear": "requirement_gap",
 		"refactor_ready_for_test": "none", "refactor_requires_design": "design_change", "refactor_requires_requirements": "requirement_change",
 		"delivery_complete": "none", "delivery_needs_implementation": "implementation_gap", "delivery_needs_test": "test_gap", "delivery_needs_comprehension": "comprehension_gap", "delivery_needs_design": "design_gap", "delivery_needs_requirements": "requirement_gap",
 	}
@@ -347,7 +366,10 @@ func workItem(id string, acceptance []uint32, dependencies []string) map[string]
 	return map[string]any{"work_item_id": id, "summary": "Implement work", "expected_paths": []string{"internal/file.go"}, "acceptance_indexes": acceptance, "verification_steps": []string{"Run targeted test"}, "dependencies": dependencies}
 }
 func tasksNodeResult(revision uint32, items []map[string]any) map[string]any {
-	return map[string]any{"baseline": map[string]any{"design_revision": revision, "work_items": items}, "findings": []string{}}
+	return map[string]any{"baseline": map[string]any{"design_revision": revision, "work_items": items, "verification_plan": phase5VerificationPlan()}, "findings": []string{}}
+}
+func phase5VerificationPlan() map[string]any {
+	return map[string]any{"checks": []map[string]any{{"name": "targeted-test", "rationale": "The check covers the current work items."}}, "initial_budget": map[string]any{"level": "targeted", "max_automatic_commands": 4, "allow_full_suite": false, "allow_manual_handoff": true}, "full_suite_expected": false, "test_code_changes_expected": true}
 }
 func implementationNodeResult(revision uint32, completed []string, noChanges bool, findings []string) map[string]any {
 	if completed == nil {
@@ -397,7 +419,7 @@ func phase5ChangedEntry(path, seed string) domain.RepositoryChangedEntry {
 	return domain.RepositoryChangedEntry{Path: path, ChangeType: domain.RepositoryChangeModified, FileMode: "100644", BaseMode: "100644", IndexMode: "100644", WorktreeMode: "100644", BaseContentDigest: digestOf("a"), IndexContentDigest: digest, WorktreeContentDigest: digest, ContentDigest: digest}
 }
 func phase5UserEvidence(now time.Time, id domain.ID) domain.EvidenceSummary {
-	return domain.EvidenceSummary{EvidenceID: id, Source: domain.EvidenceSourceUser, Name: "confirmation", Status: domain.EvidencePassed, Summary: "User confirmed.", Digest: digestOf("a"), RecordedAt: now}
+	return domain.EvidenceSummary{EvidenceID: id, TaskPlanRevision: 1, Source: domain.EvidenceSourceUser, Name: "confirmation", Status: domain.EvidencePassed, Summary: "User confirmed.", Digest: digestOf("a"), RecordedAt: now}
 }
 
 func workflowRequirements(t *testing.T, value map[string]any) workflow.RequirementsBaselineInput {

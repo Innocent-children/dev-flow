@@ -65,7 +65,8 @@ URL、文件内容或流程节点。结果不确定时读取 receipt/Host 状态
 
 ## WorkspaceOrigin 和 RepositoryBinding
 
-创建新 Task 的 `dev_flow_open_task` 除 Task intent 外，为 primary 接收 `workspace_origin`，每个 additional
+创建新 Task 的 `dev_flow_open_task` 保存请求、初始范围、已知验收和 method profile，不接收最终
+verification budget；为 primary 接收 `workspace_origin`，每个 additional
 repository 也带一个同形字段：
 
 ```json
@@ -159,6 +160,41 @@ ExpectedPaths，再构造一次完整 `TaskMutation`。
 响应丢失时 Host 只保留 Task ID 与 Action ID，读取 Core retained operation 后按 `next_advice` 继续；不
 重新拼装 payload，也不从文件状态猜测提交是否成功。
 
+## 验证计划、预算增加和复核范围
+
+最终验证预算不属于创建时的 `TaskIntent`。TASKS 已经完成 Requirements、Design、工作拆分、影响面和
+现有测试结构分析，因此 `TaskPlanBaseline.verification_plan` 在这里保存：
+
+```text
+checks[]: name + rationale
+initial_budget: level + max_automatic_commands + allow_full_suite + allow_manual_handoff
+full_suite_expected
+test_code_changes_expected
+```
+
+TASKS 还包含必需 method step `tasks.plan_verification`。没有完整计划不能进入 IMPLEMENT。
+
+Evidence 绑定 `task_plan_revision`。自动命令消耗只统计当前 Task Plan revision；计划被正式重建后使用
+新计划的初始预算，旧 Evidence 和调整仍保留为历史。当前容量不足时，Host 在运行额外命令前提交
+`verification_budget_increased`。这是 TEST→TEST 自循环，要求：
+
+- `basis` 只能是 `new_impact`、`new_risk`、`verification_failure` 或 `verification_gap`；
+- transition reason 具体说明新事实，`additional_checks` 记录新增检查与理由；
+- 自动命令数量和 full-suite/manual-handoff 权限只能单调增加，并且只增加当前所需部分；
+- checks、失败、未验证、handoff 和 findings 列表为空；本次调整不生成 Evidence、TestRecord 或验证尝试。
+
+Core 保存调整前后预算和原因，并签发新的 TEST Action。无具体原因、无新增检查或没有实际增加的提交
+零写入拒绝。普通 TEST 结果必须发送 `budget_adjustment=null`。
+
+完整套件结果的每个 check 还带非空 `full_suite_reason`；非完整套件该字段必须为空。这个字段保存本次
+判断，但 Core 不解析 shell，也不能在执行前拦截全部命令。Codex/DeepSeek Skill 负责在每条命令前选择
+与当前改动最接近的检查，在每次完整套件前重新判断影响、定向检查是否足够、待补风险和仓库检查点，
+并在修改测试文件前判断长期价值。
+
+修改后的代码复核同样属于 Host 语义判断：只读当前 diff、直接或间接影响的调用路径和验收所需内容。
+修复复核发现后只重新确认原问题与相关回归。显式 code review 保持只读并在完整交付发现后停止；
+无因果关系的历史问题不进入当前 Task。
+
 ## Relocation、取消和终态
 
 `dev_flow_prepare_task_relocation` 把当前 Task 放入 `BLOCKED`，保存 relocation ID、源 bindings、base、
@@ -203,7 +239,8 @@ revision CAS。没有迁移、旧 Schema reader、shared-checkout fallback 或 r
 观察的 worktree instance identity，使写前 hook 即使遇到非法 branch switch 仍能找到 Task。
 
 WebUI 是 loopback HTTP Adapter，只投影 WorkspaceOrigin、当前 observation/surface、blocker、relocation、
-verification 和 cleanup choices。它不再从任意 checkout 创建新 Task，也不执行 Git 或 Host handoff。
+verification plan、当前预算/消耗、调整原因和 cleanup choices。它不再从任意 checkout 创建新 Task，
+也不执行 Git 或 Host handoff。
 
 ## Host 差异
 
@@ -223,7 +260,7 @@ Core、Codex、DeepSeek 和统一 lifecycle package 独立版本。Core 的机�
 
 | 路径 | 职责 |
 | --- | --- |
-| `internal/domain/` | Task、WorkspaceOrigin/Binding、records、blocker、outcome |
+| `internal/domain/` | Task、WorkspaceOrigin/Binding、verification plan/adjustment、records、blocker、outcome |
 | `internal/repository/` | 固定、只读 Git observation 与摘要 |
 | `internal/application/` | open/resume/read/submit/recover/relocate/cancel/abandon 编排 |
 | `internal/workflow/` | 11 个节点、普通边、payload、guard、invalidation |

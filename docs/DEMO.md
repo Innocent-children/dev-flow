@@ -18,11 +18,12 @@ Host 先只读检查候选实现、调用方、测试和 Git 状态，给出改�
 停止。此时没有 Core 调用、Task 或 Git 写入。开发者选择 Dev Flow 后，确认 remote、base branch 和
 新的 target branch；Host 精确 fetch、冻结 base commit，并创建干净的专属工作树。源 checkout 的
 staged、unstaged 和 untracked 内容不会复制进去。只有目标工作树验证成功后，Core 才创建本地 Task，
-保存请求、范围、验收条件、WorkspaceOrigin 和 verification budget。
+保存请求、范围、验收条件、WorkspaceOrigin 和 method profile；此时尚未冻结最终验证预算。
 
 ## 2. 实现完成，进入测试
 
-Codex 完成实现并进入 `TEST`。当前 Task 已记录实现阶段完成，剩下一项定向认证测试：
+Codex 在 TASKS 分析完需求、设计、影响和现有测试结构后，保存这项定向认证测试、选择它的理由、预计
+一条自动命令、不需要完整套件且不需要新测试文件。完成实现并进入 `TEST` 后，当前 Task 显示：
 
 ```text
 Task: auth-rate-limit
@@ -63,14 +64,17 @@ Task、同一工作树实例、同一阶段和同一剩余工作。原路径被�
 
 ## 4. 新会话继续剩余验证
 
-Agent 运行剩余的定向认证测试，不重新扫描并发明一套新计划，也不把验证扩大成完整回归。测试失败
-时，Task 回到对应实现工作；测试通过后，进入开发者理解确认。
+Agent 运行剩余的定向认证测试，不重新扫描并发明一套新计划，也不把验证扩大成完整回归。预算不足
+时，只有新影响、风险、失败或验证缺口支持的具体增加会先写入 Task，再继续运行。每次完整套件都要
+重新说明定向检查为什么不够和要补什么风险；剩余额度本身不是理由。测试失败时，Task 回到对应实现
+工作；测试通过后，进入开发者理解确认。
 
 Core 从固定 base commit、当前 commits、index、worktree 和 untracked 内容计算 Task surface。正常的
 同 branch 线性 commit 不会丢失修改路径；只提交完全相同内容也不会让测试记录失效。内容真的变化、
 branch switch、rewind 或 history rewrite 则会在继续工作前触发相应处理。
 
-理解确认要求当前实现能够被解释和维护。若需要修改仓库进行重构，Task 会重新经过 `TEST`。
+理解确认要求当前实现能够被解释和维护。普通修改后只复核 diff、实际影响和验收所需内容；修复发现
+后只做相关定向复核。若需要修改仓库进行重构，Task 会重新经过 `TEST`，但不会自动重启全仓库审计。
 
 ## 5. 完成理解确认和交付
 

@@ -124,11 +124,12 @@ test("simulated Codex Host covers the worktree-first Task lifecycle without clai
 
   core.submit("TEST", {
     problem_class: "none",
-    checks: [{ source: "automated", status: "passed", name: "proof", summary: "Proof exists.", command_count: 1, full_suite: false }],
+    checks: [{ source: "automated", status: "passed", name: "proof", summary: "Proof exists.", command_count: 1, full_suite: false, full_suite_reason: "" }],
     failed_items: [],
     unverified_items: [],
     manual_handoff_items: [],
     findings: [],
+    budget_adjustment: null,
   });
   core.submit("COMPREHENSION_REVIEW", {
     problem_class: "none",

@@ -319,7 +319,7 @@ function checkpoints(config) {
     checkpoint("create-task", "REQUIREMENTS", [
       "/dev-flow Create exactly one bounded multi-repository Task.",
       createInput,
-      "Use method_profile=plain and verification_budget level=targeted, max_automatic_commands=1, allow_full_suite=false, allow_manual_handoff=true.",
+      "Use method_profile=plain. Task creation must not include verification_budget; establish it only in the later TASKS baseline.",
       "The complete task is to create core::core-proof.txt with exact UTF-8 bytes core proof followed by one newline and docs::docs-proof.txt with exact UTF-8 bytes docs proof followed by one newline.",
       "Use those two scoped paths as the complete expected path set.",
       "Stop immediately after Core creates the Task at REQUIREMENTS. Do not apply the current Action or edit files.",
@@ -333,7 +333,7 @@ function checkpoints(config) {
     checkpoint("implement-to-test", "TEST", [
       "/dev-flow Continue the active bounded multi-repository Task from fresh Core authority.", primaryResume,
       "Perform the server-info handshake, then read the Task and current Action.",
-      "Complete DESIGN and TASKS using both scoped paths. At IMPLEMENT create only core/core-proof.txt and docs/docs-proof.txt with their requested exact bytes.",
+      "Complete DESIGN and TASKS using both scoped paths. In TASKS set a targeted verification plan for exactly one automatic command, no full suite, no test-code changes, and explain that verify.mjs covers both proof files. At IMPLEMENT create only core/core-proof.txt and docs/docs-proof.txt with their requested exact bytes.",
       "Use core::core-proof.txt and docs::docs-proof.txt as the multi-repository expected_paths set.", APPLY_RULES,
       "Submit implementation_ready_for_test and stop immediately when Core reports TEST. Do not run any verification command.",
     ]),

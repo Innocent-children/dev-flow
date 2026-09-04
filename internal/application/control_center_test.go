@@ -39,7 +39,7 @@ func TestControlCenterLifecycleCP2(t *testing.T) {
 		t.Fatal(err)
 	}
 	center := &ControlCenter{core: core, tasks: database}
-	request := OpenTaskRequest{RequestID: "open-request", Host: domain.HostCodex, RepositoryPath: repositoryPath, WorkspaceOrigin: &originInput, PrimaryRepositoryKey: domain.DefaultPrimaryRepositoryKey, NewTask: &NewTaskInput{Request: "Manage the task lifecycle.", KnownAcceptanceCriteria: []string{"Lifecycle operations are authoritative."}, VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain}}
+	request := OpenTaskRequest{RequestID: "open-request", Host: domain.HostCodex, RepositoryPath: repositoryPath, WorkspaceOrigin: &originInput, PrimaryRepositoryKey: domain.DefaultPrimaryRepositoryKey, NewTask: &NewTaskInput{Request: "Manage the task lifecycle.", KnownAcceptanceCriteria: []string{"Lifecycle operations are authoritative."}, MethodProfile: domain.MethodPlain}}
 	opened, err := center.OpenOrResumeTask(ctx, request)
 	if err != nil || opened.Task == nil || opened.Task.Revision != 1 {
 		t.Fatalf("open=%#v err=%v", opened, err)
@@ -126,7 +126,7 @@ func TestControlCenterActionAndRecoveryCP3(t *testing.T) {
 		t.Fatal(err)
 	}
 	center := &ControlCenter{core: core, tasks: database}
-	opened, err := center.OpenOrResumeTask(ctx, OpenTaskRequest{RequestID: "open-action", Host: domain.HostCodex, RepositoryPath: repositoryPath, WorkspaceOrigin: &originInput, PrimaryRepositoryKey: domain.DefaultPrimaryRepositoryKey, NewTask: &NewTaskInput{Request: "Execute the current action.", KnownAcceptanceCriteria: []string{"Core advances the task."}, VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain}})
+	opened, err := center.OpenOrResumeTask(ctx, OpenTaskRequest{RequestID: "open-action", Host: domain.HostCodex, RepositoryPath: repositoryPath, WorkspaceOrigin: &originInput, PrimaryRepositoryKey: domain.DefaultPrimaryRepositoryKey, NewTask: &NewTaskInput{Request: "Execute the current action.", KnownAcceptanceCriteria: []string{"Core advances the task."}, MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)
 	}

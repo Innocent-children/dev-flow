@@ -63,6 +63,31 @@ func TestTestTransitionsEvidenceBudgetAndRecord(t *testing.T) {
 	}
 }
 
+func TestVerificationBudgetIncreaseStaysInTestAndRecordsSpecificReason(t *testing.T) {
+	s, ms, _ := phase5Service(t)
+	task := phase5TaskAtTest(t, s)
+	adjustment := map[string]any{
+		"basis": "new_impact", "additional_checks": []map[string]any{{"name": "indirect-consumer-test", "rationale": "A newly found caller shares the changed contract."}},
+		"additional_automatic_commands": 2, "allow_full_suite": false, "allow_manual_handoff": false,
+	}
+	result := applyPhase5(t, s, task, "verification_budget_increased", "A newly found indirect caller requires one focused regression command and one rerun after any fix.", budgetAdjustmentNodeResult(adjustment))
+	budget, ok := result.CurrentVerificationBudget()
+	if !ok || result.CurrentNode != domain.NodeTest || result.CurrentAction == nil || budget.MaxAutomaticCommands != 6 || len(result.VerificationBudgetAdjustments) != 1 || len(result.Evidence) != 0 || len(result.VerificationAttempts) != 0 {
+		t.Fatalf("adjusted task=%#v budget=%#v", result.VerificationBudgetAdjustments, budget)
+	}
+	if result.VerificationBudgetAdjustments[0].Reason == "" || ms.lastMutation.Event.TransitionReason == "" {
+		t.Fatal("budget increase reason was not retained")
+	}
+
+	s, ms, _ = phase5Service(t)
+	task = phase5TaskAtTest(t, s)
+	before := ms.commits
+	assertApplyFails(t, s, task, "verification_budget_increased", "", budgetAdjustmentNodeResult(adjustment), domain.ErrInvalidArgument)
+	if ms.commits != before {
+		t.Fatal("reasonless budget increase wrote state")
+	}
+}
+
 func TestTestRejectsStaleAuthorityAndRepository(t *testing.T) {
 	s, ms, observer := phase5Service(t)
 	task := phase5TaskAtTest(t, s)
@@ -337,7 +362,11 @@ func phase5TaskAtDelivery(t *testing.T, s *Service) domain.ProcessTask {
 	return applyPhase5(t, s, task, "comprehension_passed", "", comprehensionNodeResult([]string{"component"}, nil, nil, "user", "passed", nil))
 }
 func evidenceCheck(source, status, name string, commands int, full bool) map[string]any {
-	return map[string]any{"source": source, "name": name, "status": status, "summary": "Evidence summary.", "command_count": commands, "full_suite": full}
+	reason := ""
+	if full {
+		reason = "The changed shared contract affects every package in the suite."
+	}
+	return map[string]any{"source": source, "name": name, "status": status, "summary": "Evidence summary.", "command_count": commands, "full_suite": full, "full_suite_reason": reason}
 }
 func testNodeResult(checks []map[string]any, failed, unverified, findings []string) map[string]any {
 	if failed == nil {
@@ -349,7 +378,10 @@ func testNodeResult(checks []map[string]any, failed, unverified, findings []stri
 	if findings == nil {
 		findings = []string{}
 	}
-	return map[string]any{"checks": checks, "failed_items": failed, "unverified_items": unverified, "manual_handoff_items": []string{}, "findings": findings}
+	return map[string]any{"checks": checks, "failed_items": failed, "unverified_items": unverified, "manual_handoff_items": []string{}, "findings": findings, "budget_adjustment": nil}
+}
+func budgetAdjustmentNodeResult(adjustment map[string]any) map[string]any {
+	return map[string]any{"checks": []map[string]any{}, "failed_items": []string{}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}, "budget_adjustment": adjustment}
 }
 func comprehensionNodeResult(explained, unresolved, abstractions []string, source, status string, findings []string) map[string]any {
 	if explained == nil {

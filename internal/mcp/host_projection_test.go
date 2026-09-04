@@ -180,7 +180,7 @@ func TestApplyActionTestEvidenceSchemaIsVisible(t *testing.T) {
 		t.Fatalf("check item is not a closed object: %#v", item)
 	}
 	itemProperties := item["properties"].(map[string]any)
-	for _, name := range []string{"source", "name", "status", "summary", "command_count", "full_suite"} {
+	for _, name := range []string{"source", "name", "status", "summary", "command_count", "full_suite", "full_suite_reason"} {
 		if _, present := itemProperties[name]; !present {
 			t.Fatalf("check item cannot see %s", name)
 		}
@@ -222,7 +222,7 @@ func TestActionSubmissionDescriptionsStateCoreOwnedAssembly(t *testing.T) {
 			t.Fatalf("%s description=%q", entry.Name, description)
 		}
 		if entry.Name == ToolSubmitTest {
-			for _, rule := range []string{"automated command_count is 1 to 20", "user, static and host_observed", "command_count 0", "full_suite false"} {
+			for _, rule := range []string{"Automated command_count is 1 to 20", "user, static and host_observed", "command_count 0", "full_suite false"} {
 				if !strings.Contains(description, rule) {
 					t.Fatalf("%s description misses %q", entry.Name, rule)
 				}
@@ -260,7 +260,7 @@ func TestApplyActionSchemaSurvivesHostCompaction(t *testing.T) {
 		t.Fatalf("checks items did not survive compaction: %#v", checks)
 	}
 	itemProperties, ok := item["properties"].(map[string]any)
-	if !ok || len(itemProperties) != 6 {
+	if !ok || len(itemProperties) != 7 {
 		t.Fatalf("check item lost members during compaction: %#v", item)
 	}
 }

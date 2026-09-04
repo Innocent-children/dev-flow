@@ -74,7 +74,8 @@ func TestCanonicalDecodeNamesEveryNestedMissingMember(t *testing.T) {
 		violations := decodeMissingMemberViolations(t, domain.NodeTasks, map[string]any{
 			"problem_class": "none",
 			"baseline": map[string]any{
-				"work_items": []any{workItemInput("work", []any{0})},
+				"work_items":        []any{workItemInput("work", []any{0})},
+				"verification_plan": verificationPlanInput(),
 			},
 			"findings": []any{},
 		})
@@ -84,12 +85,21 @@ func TestCanonicalDecodeNamesEveryNestedMissingMember(t *testing.T) {
 		violations := decodeMissingMemberViolations(t, domain.NodeTasks, map[string]any{
 			"problem_class": "none",
 			"baseline": map[string]any{
-				"design_revision": 1,
-				"work_items":      []any{workItemWithoutVerificationSteps("work", []any{0})},
+				"design_revision":   1,
+				"work_items":        []any{workItemWithoutVerificationSteps("work", []any{0})},
+				"verification_plan": verificationPlanInput(),
 			},
 			"findings": []any{},
 		})
 		assertViolation(t, violations, "payload.node_result.baseline.work_items[0].verification_steps", domain.RuleRequiredMemberMissing)
+	})
+	t.Run("tasks verification plan", func(t *testing.T) {
+		violations := decodeMissingMemberViolations(t, domain.NodeTasks, map[string]any{
+			"problem_class": "none",
+			"baseline":      map[string]any{"design_revision": 1, "work_items": []any{workItemInput("work", []any{0})}},
+			"findings":      []any{},
+		})
+		assertViolation(t, violations, "payload.node_result.baseline.verification_plan", domain.RuleRequiredMemberMissing)
 	})
 	t.Run("comprehension user_confirmation status", func(t *testing.T) {
 		violations := decodeMissingMemberViolations(t, domain.NodeComprehensionReview, map[string]any{
@@ -113,9 +123,9 @@ func TestCanonicalDecodeNamesEveryNestedMissingMember(t *testing.T) {
 	t.Run("test check member", func(t *testing.T) {
 		violations := decodeMissingMemberViolations(t, domain.NodeTest, map[string]any{
 			"problem_class": "none",
-			"checks":        []any{map[string]any{"source": "user", "status": "passed", "summary": "Manual check.", "command_count": 0, "full_suite": false}},
+			"checks":        []any{map[string]any{"source": "user", "status": "passed", "summary": "Manual check.", "command_count": 0, "full_suite": false, "full_suite_reason": ""}},
 			"failed_items":  []any{}, "unverified_items": []any{}, "manual_handoff_items": []any{},
-			"findings": []any{},
+			"findings": []any{}, "budget_adjustment": nil,
 		})
 		assertViolation(t, violations, "payload.node_result.checks[0].name", domain.RuleRequiredMemberMissing)
 	})
@@ -127,7 +137,7 @@ func TestCanonicalDecodeNamesEveryNestedMissingMember(t *testing.T) {
 				"step_id": "step.one", "status": "plain_fallback", "capability": "", "summary": "Completed the step.",
 			}},
 			"node_result": map[string]any{"problem_class": "none", "checks": []any{}, "failed_items": []any{},
-				"unverified_items": []any{}, "manual_handoff_items": []any{}, "findings": []any{}},
+				"unverified_items": []any{}, "manual_handoff_items": []any{}, "findings": []any{}, "budget_adjustment": nil},
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -151,6 +161,10 @@ func workItemWithoutVerificationSteps(id string, acceptance []any) map[string]an
 	item := workItemInput(id, acceptance)
 	delete(item, "verification_steps")
 	return item
+}
+
+func verificationPlanInput() map[string]any {
+	return map[string]any{"checks": []any{map[string]any{"name": "targeted-check", "rationale": "The check covers the current work."}}, "initial_budget": map[string]any{"level": "targeted", "max_automatic_commands": 4, "allow_full_suite": false, "allow_manual_handoff": true}, "full_suite_expected": false, "test_code_changes_expected": true}
 }
 
 // TestCanonicalContractKeepsSystemStateRevisionsRequired proves the canonical
@@ -230,7 +244,7 @@ func TestSubmissionContractProjectsOnlyHostOwnedMembers(t *testing.T) {
 	}
 	tasksWithoutRevision := map[string]any{
 		"problem_class": "none",
-		"baseline":      map[string]any{"work_items": []any{workItemInput("work", []any{0})}},
+		"baseline":      map[string]any{"work_items": []any{workItemInput("work", []any{0})}, "verification_plan": verificationPlanInput()},
 		"findings":      []any{},
 	}
 	implementationWithoutRevision := map[string]any{
@@ -331,7 +345,7 @@ func TestSubmissionContractProjectsOnlyHostOwnedMembers(t *testing.T) {
 	t.Run("nested array member keeps its index", func(t *testing.T) {
 		missingVerification := map[string]any{
 			"problem_class": "none",
-			"baseline":      map[string]any{"work_items": []any{workItemWithoutVerificationSteps("work", []any{0})}},
+			"baseline":      map[string]any{"work_items": []any{workItemWithoutVerificationSteps("work", []any{0})}, "verification_plan": verificationPlanInput()},
 			"findings":      []any{},
 		}
 		raw, err := json.Marshal(missingVerification)

@@ -27,7 +27,7 @@ test("Skill declares explicit activation and the complete qualified tool catalog
 
 test("Skill contains the required operational sections", async () => {
   const skill = await readFile(skillPath, "utf8");
-  for (const heading of ["Suitability assessment", "Explicit worktree confirmation", "Compatibility handshake", "Task discovery", "Optional code discovery", "Governed action loop", "Method operation rendering", "Transition selection", "Closed forwarding contract", "Recovery-before-retry contract"]) {
+  for (const heading of ["Suitability assessment", "Explicit worktree confirmation", "Compatibility handshake", "Task discovery", "Optional code discovery", "Governed action loop", "Method operation rendering", "Transition selection", "Closed forwarding contract", "Recovery-before-retry contract", "Evidence and verification budget", "Bounded post-change review"]) {
     assert.equal(skill.includes(`## ${heading}`), true, heading);
   }
   const assessment = section(skill, "Suitability assessment");
@@ -51,9 +51,27 @@ test("packaged references cover method steps and every submission tool", async (
   const methodReference = await readFile(join(skillRoot, "references", "method-profiles.md"), "utf8");
   const payloadReference = await readFile(join(skillRoot, "references", "node-payloads.md"), "utf8");
   const steps = [...marked(methodReference, "semantic-step-table").matchAll(/^\| `([^`]+)` \|/gmu)].map((match) => match[1]);
-  assert.equal(steps.length, 24);
+  assert.equal(steps.length, 25);
   assert.equal(new Set(steps).size, steps.length);
   for (const tool of rawTools.filter((name) => name.startsWith("dev_flow_submit_"))) assert.equal(payloadReference.includes(`\`${tool}\``), true, tool);
+});
+
+test("Skill defers the budget and bounds checks, test files, and review", async () => {
+  const skill = await readFile(skillPath, "utf8");
+  const discovery = section(skill, "Task discovery").replace(/\s+/gu, " ");
+  const verification = section(skill, "Evidence and verification budget").replace(/\s+/gu, " ");
+  const review = section(skill, "Bounded post-change review").replace(/\s+/gu, " ");
+  for (const required of ["Do not send a creation-time `verification_budget`", "existing test structure"]) assert.equal(discovery.includes(required), true, required);
+  for (const required of [
+    "At TASKS", "closest targeted check first", "verification_budget_increased", "do not stop merely because",
+    "Budget permission alone is never a reason", "Before every full-suite command", "never automatically reuse an earlier reason",
+    "lasting value", "forbidden README word", "one text search", "creates no permanent test file", "full_suite_reason",
+  ]) assert.equal(verification.includes(required), true, required);
+  for (const required of [
+    "current diff", "directly or indirectly affected", "Do not restart a repository-wide audit",
+    "Unrelated historical", "After fixing a review finding", "matching targeted checks",
+    "explicit code review", "is read-only", "stop for a later explicit repair request",
+  ]) assert.equal(review.includes(required), true, required);
 });
 
 function section(markdown, heading) {

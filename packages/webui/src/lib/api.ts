@@ -98,6 +98,7 @@ export interface JSONSchema {
   maximum?: number;
   minLength?: number;
   maxLength?: number;
+  minItems?: number;
   maxItems?: number;
   additionalProperties?: boolean;
   required?: string[];
@@ -106,6 +107,45 @@ export interface JSONSchema {
   oneOf?: JSONSchema[];
   anyOf?: JSONSchema[];
 }
+
+export interface VerificationBudgetView {
+  level: string;
+  max_automatic_commands: number;
+  allow_full_suite: boolean;
+  allow_manual_handoff: boolean;
+}
+
+export interface VerificationPlanCheckView {
+  name: string;
+  rationale: string;
+}
+
+export interface VerificationView {
+  plan: null | {
+    checks: VerificationPlanCheckView[];
+    initial_budget: VerificationBudgetView;
+    full_suite_expected: boolean;
+    test_code_changes_expected: boolean;
+  };
+  current_budget: VerificationBudgetView | null;
+  usage: {
+    automatic_commands: number;
+    full_suite_runs: number;
+    evidence_items: number;
+  };
+  adjustments: Array<{
+    revision: number;
+    task_plan_revision: number;
+    basis: string;
+    reason: string;
+    additional_checks: VerificationPlanCheckView[];
+    additional_automatic_commands: number;
+    allow_full_suite: boolean;
+    allow_manual_handoff: boolean;
+    current_budget: VerificationBudgetView;
+    created_at: string;
+  }>;
+}
 export interface TaskDetailResponse {
   ok: true;
   request_id: string;
@@ -113,7 +153,7 @@ export interface TaskDetailResponse {
   summary: TaskSummary;
   intent: string;
   acceptance_criteria: string[];
-  verification_budget: string;
+  verification: VerificationView;
   method_profile: string;
   repositories: RepositoryView[];
   baselines: Fact[];

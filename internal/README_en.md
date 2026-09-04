@@ -11,7 +11,7 @@ provide consistent process behavior.
 | Package | Responsibility |
 | --- | --- |
 | `domain` | `ProcessTask`, WorkspaceOrigin/Binding, baselines, records, blockers, evidence, outcome, and limits |
-| `workflow` | `standard-development`, node contracts, 29 transitions, payloads, and invalidation |
+| `workflow` | `standard-development`, node contracts, 30 transitions, the TASKS verification plan, payloads, and invalidation |
 | `application` | Open/resume/read/submit/recover/relocate/cancel/abandon use cases and component coordination |
 | `store` | SQLite bootstrap, strict snapshot, CAS, events, claims, and read-only preflight |
 | `repository` | Bounded read-only dedicated-worktree identity/history/content/task-surface observation |

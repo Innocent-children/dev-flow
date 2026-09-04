@@ -56,7 +56,7 @@ func TestCompactJSONSizeUsesCanonicalEscaping(t *testing.T) {
 }
 
 func TestVerificationBudgetBoundaries(t *testing.T) {
-	for _, commands := range []int{0, MaxAutomaticVerificationCommands} {
+	for _, commands := range []int{0, MaxTotalAutomaticVerificationCommands} {
 		budget := VerificationBudget{Level: VerificationTargeted, MaxAutomaticCommands: commands}
 		if err := budget.Validate(); err != nil {
 			t.Fatalf("command boundary %d rejected: %v", commands, err)
@@ -65,7 +65,7 @@ func TestVerificationBudgetBoundaries(t *testing.T) {
 	for _, budget := range []VerificationBudget{
 		{Level: VerificationLevel("TARGETED")},
 		{Level: VerificationTargeted, MaxAutomaticCommands: -1},
-		{Level: VerificationTargeted, MaxAutomaticCommands: MaxAutomaticVerificationCommands + 1},
+		{Level: VerificationTargeted, MaxAutomaticCommands: MaxTotalAutomaticVerificationCommands + 1},
 	} {
 		if !errors.Is(budget.Validate(), ErrInvalidArgument) {
 			t.Fatalf("invalid budget %#v was accepted", budget)
@@ -225,7 +225,7 @@ func validCurrentEvidence(id ID, source EvidenceSource, commands int) EvidenceSu
 	if source == EvidenceSourceHostObserved {
 		status = EvidenceObserved
 	}
-	return EvidenceSummary{EvidenceID: id, Source: source, Name: "check", Status: status, Summary: "summary", Digest: primitiveDigest("e"), CommandCount: commands, RecordedAt: primitiveTestTime}
+	return EvidenceSummary{EvidenceID: id, TaskPlanRevision: 1, Source: source, Name: "check", Status: status, Summary: "summary", Digest: primitiveDigest("e"), CommandCount: commands, RecordedAt: primitiveTestTime}
 }
 
 func primitiveDigest(character string) Digest {

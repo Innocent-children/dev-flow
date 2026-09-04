@@ -77,10 +77,6 @@ test("official DSH add/remove/reinstall preserves Core data, repository, and Cod
       initial_scope: ["Verify lifecycle retention"],
       initial_out_of_scope: [],
       known_acceptance_criteria: ["Reinstall resumes the same task"],
-      verification_budget: {
-        level: "targeted", max_automatic_commands: 2,
-        allow_full_suite: false, allow_manual_handoff: true,
-      },
       method_profile: "plain",
     },
   });

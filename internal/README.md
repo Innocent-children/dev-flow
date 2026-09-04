@@ -10,7 +10,7 @@ Recovery 和只读 Git observation；Codex 与 DeepSeek package 通过同一个 
 | Package | 职责 |
 | --- | --- |
 | `domain` | `ProcessTask`、WorkspaceOrigin/Binding、baselines、records、blocker、evidence、outcome 与 limits |
-| `workflow` | `standard-development`、node contracts、29 条 transitions、payload 与 invalidation |
+| `workflow` | `standard-development`、node contracts、30 条 transitions、TASKS verification plan、payload 与 invalidation |
 | `application` | open/resume/read/submit/recover/relocate/cancel/abandon use cases 与组件协调 |
 | `store` | SQLite bootstrap、strict snapshot、CAS、events、claims 与 read-only preflight |
 | `repository` | dedicated worktree、identity/history/content/task-surface 的 bounded read-only Git observation |

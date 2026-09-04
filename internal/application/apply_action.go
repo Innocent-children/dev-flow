@@ -234,8 +234,8 @@ func (s *Service) planStandardMutation(r ApplyActionRequest, task domain.Process
 	case *workflow.ImplementationResult:
 		err = applyImplementationResult(&next, transition, envelope, value, effect.Paths, now)
 	case *workflow.TestResult:
-		err = s.applyTestResult(&next, transition, value, now)
-		if err == nil {
+		err = s.applyTestResult(&next, transition, envelope, value, now)
+		if err == nil && transition.TransitionID != "verification_budget_increased" {
 			brakeDecision, err = workflow.EvaluateVerificationBrake(next.VerificationAttempts, next.Evidence)
 		}
 	case *workflow.ComprehensionResult:

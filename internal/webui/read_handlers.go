@@ -179,10 +179,6 @@ func projectTaskDetail(requestID string, detail application.ControlCenterTaskDet
 	if detail.ReadOnly {
 		readiness = ReadinessReadOnly
 	}
-	budget, err := json.Marshal(detail.Task.Intent.VerificationBudget)
-	if err != nil {
-		return TaskDetailResponse{}, err
-	}
 	criteria := append([]string{}, detail.Task.Intent.KnownAcceptanceCriteria...)
 	currentAction, err := projectAction(detail.Task.CurrentAction)
 	if err != nil {
@@ -198,7 +194,36 @@ func projectTaskDetail(requestID string, detail application.ControlCenterTaskDet
 		FinalCheckEnabled:   scope.FinalCheckEnabled,
 	}
 	workspace := projectWorkspace(detail.Task)
-	return TaskDetailResponse{OK: true, RequestID: requestID, Readiness: readiness, Summary: summary, Intent: detail.Task.Intent.Request, AcceptanceCriteria: criteria, VerificationBudget: string(budget), MethodProfile: string(detail.Task.Intent.MethodProfile), Repositories: repositories, Baselines: baselines, Records: records, Evidence: evidence, Blocker: blocker, Outcome: outcome, Events: events, Graph: projectGraph(detail.Graph), CurrentAction: currentAction, FileScope: fileScope, Workspace: workspace}, nil
+	return TaskDetailResponse{OK: true, RequestID: requestID, Readiness: readiness, Summary: summary, Intent: detail.Task.Intent.Request, AcceptanceCriteria: criteria, Verification: projectVerification(detail.Task), MethodProfile: string(detail.Task.Intent.MethodProfile), Repositories: repositories, Baselines: baselines, Records: records, Evidence: evidence, Blocker: blocker, Outcome: outcome, Events: events, Graph: projectGraph(detail.Graph), CurrentAction: currentAction, FileScope: fileScope, Workspace: workspace}, nil
+}
+
+func projectVerification(task domain.ProcessTask) VerificationView {
+	usage := task.CurrentVerificationUsage()
+	view := VerificationView{Usage: VerificationUsageView{AutomaticCommands: usage.AutomaticCommands, FullSuiteRuns: usage.FullSuiteRuns, EvidenceItems: usage.EvidenceItems}, Adjustments: []VerificationAdjustmentView{}}
+	if task.TaskPlan != nil {
+		checks := make([]VerificationPlanCheckView, len(task.TaskPlan.VerificationPlan.Checks))
+		for index, check := range task.TaskPlan.VerificationPlan.Checks {
+			checks[index] = VerificationPlanCheckView{Name: check.Name, Rationale: check.Rationale}
+		}
+		initial := projectVerificationBudget(task.TaskPlan.VerificationPlan.InitialBudget)
+		view.Plan = &VerificationPlanView{Checks: checks, InitialBudget: initial, FullSuiteExpected: task.TaskPlan.VerificationPlan.FullSuiteExpected, TestCodeChangesExpected: task.TaskPlan.VerificationPlan.TestCodeChangesExpected}
+		if budget, ok := task.CurrentVerificationBudget(); ok {
+			projected := projectVerificationBudget(budget)
+			view.CurrentBudget = &projected
+		}
+	}
+	for _, adjustment := range task.VerificationBudgetAdjustments {
+		checks := make([]VerificationPlanCheckView, len(adjustment.AdditionalChecks))
+		for index, check := range adjustment.AdditionalChecks {
+			checks[index] = VerificationPlanCheckView{Name: check.Name, Rationale: check.Rationale}
+		}
+		view.Adjustments = append(view.Adjustments, VerificationAdjustmentView{Revision: adjustment.Revision, TaskPlanRevision: adjustment.TaskPlanRevision, Basis: string(adjustment.Basis), Reason: adjustment.Reason, AdditionalChecks: checks, AdditionalAutomaticCommands: adjustment.AdditionalAutomaticCommands, AllowFullSuite: adjustment.AllowFullSuite, AllowManualHandoff: adjustment.AllowManualHandoff, CurrentBudget: projectVerificationBudget(adjustment.CurrentBudget), CreatedAt: adjustment.CreatedAt})
+	}
+	return view
+}
+
+func projectVerificationBudget(budget domain.VerificationBudget) VerificationBudgetView {
+	return VerificationBudgetView{Level: string(budget.Level), MaxAutomaticCommands: budget.MaxAutomaticCommands, AllowFullSuite: budget.AllowFullSuite, AllowManualHandoff: budget.AllowManualHandoff}
 }
 
 func summarizeDetail(detail application.ControlCenterTaskDetail) application.ControlCenterTaskSummary {

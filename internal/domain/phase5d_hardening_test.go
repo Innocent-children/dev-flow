@@ -54,6 +54,7 @@ func TestProcessTaskAuthorityMatrixRejectsCrossRecordCorruption(t *testing.T) {
 		{"implementation work item", func(task *ProcessTask) { task.Implementation.CompletedWorkItemIDs = []ID{"unknown"} }},
 		{"test evidence missing", func(task *ProcessTask) { task.Test.EvidenceIDs = []ID{"missing"} }},
 		{"test evidence failed", func(task *ProcessTask) { task.Evidence[0].Status = EvidenceFailed }},
+		{"test evidence task plan", func(task *ProcessTask) { task.Evidence[0].TaskPlanRevision++ }},
 		{"comprehension test authority", func(task *ProcessTask) { task.Comprehension.TestRecordID = "other-test" }},
 	}
 	for _, tc := range tests {
@@ -80,10 +81,13 @@ func authorityMatrixTask(t *testing.T, node NodeID) ProcessTask {
 	switch node {
 	case NodeRequirements:
 		base.Design, base.TaskPlan, base.Implementation, base.Test, base.Comprehension = nil, nil, nil, nil, nil
+		base.Evidence, base.VerificationAttempts, base.VerificationBudgetAdjustments = nil, nil, nil
 	case NodeDesign:
 		base.TaskPlan, base.Implementation, base.Test, base.Comprehension = nil, nil, nil, nil
+		base.Evidence, base.VerificationAttempts, base.VerificationBudgetAdjustments = nil, nil, nil
 	case NodeTasks:
 		base.TaskPlan, base.Implementation, base.Test, base.Comprehension = nil, nil, nil, nil
+		base.Evidence, base.VerificationAttempts, base.VerificationBudgetAdjustments = nil, nil, nil
 	case NodeImplement:
 		base.Test, base.Comprehension = nil, nil
 	case NodeTest:
@@ -106,6 +110,7 @@ func authorityMatrixTask(t *testing.T, node NodeID) ProcessTask {
 	case NodeCancelled:
 		now := base.UpdatedAt
 		base.Design, base.TaskPlan, base.Implementation, base.Test, base.Comprehension = nil, nil, nil, nil, nil
+		base.Evidence, base.VerificationAttempts, base.VerificationBudgetAdjustments = nil, nil, nil
 		base.Outcome = &ProcessOutcome{Status: TerminalCancelled, Summary: "Task cancelled.", RequirementsRevision: base.Requirements.Revision, FinalRepositoryDigest: base.Repository.BindingDigest, CompletedAt: now}
 		base.CompletedAt = &now
 		base.CurrentAction = nil

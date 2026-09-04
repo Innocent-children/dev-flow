@@ -36,7 +36,7 @@ func TestMultiRepositoryScopeJourney(t *testing.T) {
 
 	occupied, err := service.OpenTask(context.Background(), application.OpenTaskRequest{
 		RequestID: "occupy-additional", Host: domain.HostCodex, RepositoryPath: additionalPath, WorkspaceOrigin: &additionalOrigin,
-		NewTask: &application.NewTaskInput{Request: "Temporarily occupy the additional repository.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain},
+		NewTask: &application.NewTaskInput{Request: "Temporarily occupy the additional repository.", MethodProfile: domain.MethodPlain},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -45,7 +45,7 @@ func TestMultiRepositoryScopeJourney(t *testing.T) {
 	_, err = service.OpenTask(context.Background(), application.OpenTaskRequest{
 		RequestID: "conflicting-multi-open", Host: domain.HostCodex, RepositoryPath: primaryPath, WorkspaceOrigin: &primaryOrigin, PrimaryRepositoryKey: "core",
 		AdditionalRepositories: []application.AdditionalRepositoryInput{{Key: "docs", RepositoryPath: additionalPath, WorkspaceOrigin: additionalOrigin}},
-		NewTask:                &application.NewTaskInput{Request: "Create a conflicting two-repository task.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2}, MethodProfile: domain.MethodPlain},
+		NewTask:                &application.NewTaskInput{Request: "Create a conflicting two-repository task.", MethodProfile: domain.MethodPlain},
 	})
 	if !errors.Is(err, domain.ErrActiveTaskConflict) {
 		t.Fatalf("additional claim conflict error=%v", err)
@@ -60,7 +60,7 @@ func TestMultiRepositoryScopeJourney(t *testing.T) {
 	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{
 		RequestID: "open-multi-repository", Host: domain.HostCodex, RepositoryPath: primaryPath, WorkspaceOrigin: &primaryOrigin, PrimaryRepositoryKey: "core",
 		AdditionalRepositories: []application.AdditionalRepositoryInput{{Key: "docs", RepositoryPath: additionalPath, WorkspaceOrigin: additionalOrigin}},
-		NewTask:                &application.NewTaskInput{Request: "Record one scoped requirements mutation.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: domain.MethodPlain},
+		NewTask:                &application.NewTaskInput{Request: "Record one scoped requirements mutation.", MethodProfile: domain.MethodPlain},
 	})
 	if err != nil {
 		t.Fatal(err)

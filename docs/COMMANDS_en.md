@@ -271,13 +271,13 @@ terminal shell commands.
 | --- | --- | --- |
 | `dev_flow_server_info` | Read-only | Read Core product version, transport, health, supported process, hosts, method profiles, tool catalog, and effective host code-index preferences. It must be the first call after valid host admission. |
 | `dev_flow_open_task` | Read or create | Create only after every `workspace_origin` passes dedicated-worktree verification; with null `new_task`, resume the same Task from its original instance after a workspace check. |
-| `dev_flow_get_task` | Read-only | Read a persisted Task, including at most three recent test attempts, by ID; automatically returns a Recovery assessment when Core retains an Action submission. |
+| `dev_flow_get_task` | Read-only | Read a persisted Task, including its verification plan, current budget/usage, adjustment reasons, and at most three recent test attempts; automatically returns a Recovery assessment when Core retains an Action submission. |
 | `dev_flow_get_next_action` | Observe/maybe mutate | Observe the workspace first; idempotently create a workspace blocker when needed, otherwise return the Action, `submission_tool`, and legal transitions. |
 | `dev_flow_submit_requirements` | Mutation | Submit the REQUIREMENTS node result. |
 | `dev_flow_submit_design` | Mutation | Submit the DESIGN node result. |
-| `dev_flow_submit_tasks` | Mutation | Submit the TASKS node result. |
+| `dev_flow_submit_tasks` | Mutation | Submit the TASKS node result; its baseline includes the analyzed `verification_plan`. |
 | `dev_flow_submit_implementation` | Mutation | Submit the IMPLEMENT node result. |
-| `dev_flow_submit_test` | Mutation | Submit the TEST node result. On a third exact repetition of the same failure, same result, or same changed-path and failure loop, Core retains the result and pauses the Task in `BLOCKED`. |
+| `dev_flow_submit_test` | Mutation | Submit the TEST node result. `verification_budget_increased` records a concrete increase and stays in TEST; normal results send `budget_adjustment=null`; a third exact repetition pauses. |
 | `dev_flow_submit_comprehension` | Mutation | Submit the COMPREHENSION_REVIEW node result. |
 | `dev_flow_submit_refactor` | Mutation | Submit the REFACTOR node result. |
 | `dev_flow_submit_delivery` | Mutation | Submit Host-owned DELIVERY judgment, risks, and findings. Core fills acceptance, evidence IDs, and Test/Comprehension record IDs; submitting those members is rejected as `unknown_member`. |
@@ -303,6 +303,18 @@ missing required members return exact `required_member_missing` paths. The Host 
 same submission tool once only when Core proves zero writes and the value comes from facts already
 established by the current node work, and may change only the exact members listed in
 `recovery.allowed_paths`.
+
+A new Task's `new_task` has no `verification_budget`. TASKS
+`baseline.verification_plan` contains `checks[{name,rationale}]`, `initial_budget`,
+`full_suite_expected`, and `test_code_changes_expected`. If TEST capacity becomes insufficient, the
+Host may choose the returned `verification_budget_increased` transition with a `budget_adjustment`
+containing `basis`, `additional_checks`, `additional_automatic_commands`, `allow_full_suite`, and
+`allow_manual_handoff`; the transition `reason` states the concrete new impact, risk, failure, or
+verification gap. A no-op, missing-check, or reasonless increase is rejected.
+
+Every TEST check also sends `full_suite_reason`. It is empty when `full_suite=false`; a full suite
+records the concrete risk this run covers. Core retains the result, while the Host still decides
+necessity before executing the command.
 
 Unknown CLI arguments, tools outside this catalog, and calls that do not satisfy shared implicit/explicit admission
 are not supported entrypoints.
@@ -344,12 +356,6 @@ may add one primary key and up to seven explicit additional repositories:
     "initial_scope": [],
     "initial_out_of_scope": [],
     "known_acceptance_criteria": [],
-    "verification_budget": {
-      "level": "targeted",
-      "max_automatic_commands": 1,
-      "allow_full_suite": false,
-      "allow_manual_handoff": false
-    },
     "method_profile": "plain"
   }
 }
@@ -374,6 +380,9 @@ common directory. Linked worktrees share a logical repository group but have dif
 roots/worktree Git directories, so each may hold a Task; one instance holds one active Task. Control Center Task
 summaries expose read-only `repository_group_id` and `worktree_path` fields, and every repository in
 Task detail exposes its own `repository_group_id`.
+
+The Task result's `verification` projection contains `plan`, `current_budget`, usage for the current
+Task Plan revision, and `adjustments`. Before TASKS completes, `plan` and `current_budget` are `null`.
 
 The `dev_flow_server_info({})` result includes:
 

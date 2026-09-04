@@ -110,7 +110,7 @@ func brakeAttempt(taskRevision uint64, implementationRevision uint32, result, fa
 }
 
 func brakeEvidence(id domain.ID, name string, status domain.EvidenceStatus, summary string, now time.Time) domain.EvidenceSummary {
-	return domain.EvidenceSummary{EvidenceID: id, Source: domain.EvidenceSourceAutomated, Name: name, Status: status, Summary: summary, Digest: brakeDigest("e"), CommandCount: 1, RecordedAt: now}
+	return domain.EvidenceSummary{EvidenceID: id, TaskPlanRevision: 1, Source: domain.EvidenceSourceAutomated, Name: name, Status: status, Summary: summary, Digest: brakeDigest("e"), CommandCount: 1, RecordedAt: now}
 }
 
 func brakeDigest(value string) domain.Digest {

@@ -127,9 +127,8 @@ func multiRepositoryOpenRequest(requestID domain.ID, path string, binding domain
 		RepositoryPath:  path,
 		WorkspaceOrigin: &input,
 		NewTask: &NewTaskInput{
-			Request:            "Update one bounded feature.",
-			VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 2},
-			MethodProfile:      domain.MethodPlain,
+			Request:       "Update one bounded feature.",
+			MethodProfile: domain.MethodPlain,
 		},
 	}
 }

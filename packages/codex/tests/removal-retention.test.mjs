@@ -168,12 +168,6 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
       initial_scope: ["one isolated repository"],
       initial_out_of_scope: ["real Codex", "repository mutation"],
       known_acceptance_criteria: ["The same task is readable after deregistration."],
-      verification_budget: {
-        level: "targeted",
-        max_automatic_commands: 1,
-        allow_full_suite: false,
-        allow_manual_handoff: true,
-      },
       method_profile: "plain",
     },
   });

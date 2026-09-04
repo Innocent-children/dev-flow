@@ -36,7 +36,7 @@ flowchart LR
 | --- | --- |
 | Developer | Chooses whether to enter Dev Flow and confirms remote/base/target, repository and Host permissions, comprehension, handoff, cleanup, and releases |
 | Codex / DeepSeek Harness | Actually reads files, changes repositories, and runs commands; this is the privileged execution surface |
-| Host Adapter | Assesses requests read-only; after confirmation performs fetch, branch, worktree, relaunch/handoff; calls Core under the Action, Scope, budget, and Recovery contract |
+| Host Adapter | Assesses requests read-only; after confirmation performs fetch, branch, worktree, relaunch/handoff; judges scope before commands, full suites, test-code changes, and review; calls Core under the Action, Scope, current verification plan, and Recovery contract |
 | Go Core | Observes Git read-only, retains the one process state, derives Task surface, and validates revision, workspace, closed payloads, transitions, and persistence |
 | Repository content | Treated as untrusted input that may contain prompt injection, dangerous scripts, symlinks, or hostile filenames |
 | npm / GitHub | Supplies remote package and Release identities that the release flow must read back |
@@ -61,7 +61,8 @@ Identity or target drift stops cleanup.
 | A worktree is replaced, history rewinds, or a Scope member conflicts | Worktree-specific Git dir, task branch, base, HEAD ancestry, and content are checked separately; resume and next Action surface a blocker or unavailable result before work |
 | Host-reported paths omit actual changes | Core derives current surface from the base commit, commits, index, worktree, and untracked state; node payloads accept no Host file-change report |
 | Relocation failure or a lost response creates duplicate claims or handoffs | Core prepare retains source claims, Host handoff runs once, and verified destination bindings/claims replace them in one transaction |
-| Repository prompt injection tries to expand work | TaskIntent, allowed effects, explicit Scope, and verification budget are independent of repository prose; high-risk Git and release actions still require user authorization |
+| Repository prompt injection tries to expand work | TaskIntent, allowed effects, explicit Scope, the TASKS verification plan, and reasoned budget adjustments are independent of repository prose; Host review stays within the diff and causal impact; high-risk Git and release actions still require user authorization |
+| Available budget is mistaken for a full-suite reason | Skills require a fresh broad-impact, focused-check, uncovered-risk, and repository-checkpoint decision every time; Evidence retains the current `full_suite_reason` |
 | SQLite, configuration, or the executable is modified locally | strict codecs, Schema checks, Task/Action-operation relationship checks, closed fields, and package/executable identity verification detect several inconsistencies |
 | Setup or removal deletes adjacent configuration or Task data | ownership receipts; remove cleans only managed registration; ordinary uninstall retains Task data |
 | beta, source, and stable support are confused | only the Support Matrix defines stable support; beta and source are labeled separately in Project Status |
@@ -81,6 +82,8 @@ Identity or target drift stops cleanup.
   secret scanning, code signing, or transparency log.
 - Dev Flow cannot guarantee correct model output, vulnerability-free code, sufficient tests, or immunity
   to prompt injection.
+- Core cannot prove that natural-language reasons are causally related to the change; Host semantic
+  judgment about verification and review scope can still be wrong.
 - Unsupported platforms, Host versions, and source-only builds do not have a stable security support claim.
 
 Report security issues privately by following the repository [Security Policy](../SECURITY.md).

@@ -55,6 +55,8 @@ const (
 	RuleEvidenceStatusInvalid         ViolationRule = "evidence_status_invalid"
 	RuleNonAutomatedCommandCountZero  ViolationRule = "non_automated_command_count_zero"
 	RuleNonAutomatedFullSuiteFalse    ViolationRule = "non_automated_full_suite_false"
+	RuleFullSuiteReasonRequired       ViolationRule = "full_suite_reason_required"
+	RuleFullSuiteReasonEmpty          ViolationRule = "full_suite_reason_empty"
 	RuleAutomatedCommandCountPositive ViolationRule = "automated_command_count_positive"
 	RuleAutomatedCommandCountLimit    ViolationRule = "automated_command_count_limit"
 	RuleEvidenceNameDuplicate         ViolationRule = "evidence_name_duplicate"
@@ -84,6 +86,8 @@ var violationMessages = map[ViolationRule]string{
 	RuleEvidenceStatusInvalid:         "status must be passed, failed, skipped, not_run or observed",
 	RuleNonAutomatedCommandCountZero:  "command_count must equal 0 when source is user, static or host_observed",
 	RuleNonAutomatedFullSuiteFalse:    "full_suite must be false when source is user, static or host_observed",
+	RuleFullSuiteReasonRequired:       "full_suite_reason must give the concrete risk this full suite covers",
+	RuleFullSuiteReasonEmpty:          "full_suite_reason must be empty when full_suite is false",
 	RuleAutomatedCommandCountPositive: "command_count must be at least 1 when source is automated",
 	RuleAutomatedCommandCountLimit:    "command_count must not exceed the automatic verification limit",
 	RuleEvidenceNameDuplicate:         "name must be unique within one evidence set",

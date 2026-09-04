@@ -56,7 +56,7 @@ func TestProcessGraphNavigation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "request-open", Host: domain.HostCodex, RepositoryPath: repositoryPath, WorkspaceOrigin: &origin, NewTask: &application.NewTaskInput{Request: "Simplify order submission.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: domain.MethodPlain}})
+	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "request-open", Host: domain.HostCodex, RepositoryPath: repositoryPath, WorkspaceOrigin: &origin, NewTask: &application.NewTaskInput{Request: "Simplify order submission.", MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)
 	}

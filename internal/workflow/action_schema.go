@@ -45,7 +45,14 @@ func ActionPayloadSchemas() []ActionPayloadSchema {
 	workItem := schemaObject([]string{"work_item_id", "summary", "expected_paths", "acceptance_indexes", "verification_steps", "dependencies"}, map[string]any{
 		"work_item_id": schemaID(), "summary": schemaString(), "expected_paths": schemaList(), "acceptance_indexes": map[string]any{"type": "array", "items": map[string]any{"type": "integer", "minimum": 0}}, "verification_steps": schemaList(), "dependencies": map[string]any{"type": "array", "items": schemaID()},
 	})
-	tasksBaseline := schemaObject([]string{"design_revision", "work_items"}, map[string]any{"design_revision": map[string]any{"type": "integer", "minimum": 1}, "work_items": map[string]any{"type": "array", "maxItems": 64, "items": workItem}})
+	verificationCheck := schemaObject([]string{"name", "rationale"}, map[string]any{"name": schemaString(), "rationale": schemaString()})
+	verificationBudget := schemaObject([]string{"level", "max_automatic_commands", "allow_full_suite", "allow_manual_handoff"}, map[string]any{
+		"level": schemaEnum("minimal", "targeted", "full"), "max_automatic_commands": map[string]any{"type": "integer", "minimum": 0, "maximum": domain.MaxTotalAutomaticVerificationCommands}, "allow_full_suite": map[string]any{"type": "boolean"}, "allow_manual_handoff": map[string]any{"type": "boolean"},
+	})
+	verificationPlan := schemaObject([]string{"checks", "initial_budget", "full_suite_expected", "test_code_changes_expected"}, map[string]any{
+		"checks": map[string]any{"type": "array", "minItems": 1, "maxItems": domain.MaxBoundedStringListItems, "items": verificationCheck}, "initial_budget": verificationBudget, "full_suite_expected": map[string]any{"type": "boolean"}, "test_code_changes_expected": map[string]any{"type": "boolean"},
+	})
+	tasksBaseline := schemaObject([]string{"design_revision", "work_items", "verification_plan"}, map[string]any{"design_revision": map[string]any{"type": "integer", "minimum": 1}, "work_items": map[string]any{"type": "array", "maxItems": 64, "items": workItem}, "verification_plan": verificationPlan})
 	tasks := standardPayloadSchema(schemaObject([]string{"problem_class", "baseline", "findings"}, map[string]any{
 		"problem_class": schemaEnum("none", "design_gap", "requirement_gap"), "baseline": nullableSchema(tasksBaseline), "findings": schemaList(),
 	}))
@@ -55,8 +62,11 @@ func ActionPayloadSchemas() []ActionPayloadSchema {
 	check := map[string]any{"oneOf": []any{
 		evidenceCheckSchema("automated", true), evidenceCheckSchema("user", false), evidenceCheckSchema("static", false), evidenceCheckSchema("host_observed", false),
 	}}
-	test := standardPayloadSchema(schemaObject([]string{"problem_class", "checks", "failed_items", "unverified_items", "manual_handoff_items", "findings"}, map[string]any{
-		"problem_class": schemaEnum("none", "implementation_failure", "design_failure", "requirement_gap"), "checks": map[string]any{"type": "array", "maxItems": 32, "items": check}, "failed_items": schemaList(), "unverified_items": schemaList(), "manual_handoff_items": schemaList(), "findings": schemaList(),
+	budgetAdjustment := schemaObject([]string{"basis", "additional_checks", "additional_automatic_commands", "allow_full_suite", "allow_manual_handoff"}, map[string]any{
+		"basis": schemaEnum("new_impact", "new_risk", "verification_failure", "verification_gap"), "additional_checks": map[string]any{"type": "array", "minItems": 1, "maxItems": domain.MaxBoundedStringListItems, "items": verificationCheck}, "additional_automatic_commands": map[string]any{"type": "integer", "minimum": 0, "maximum": domain.MaxAutomaticVerificationCommands}, "allow_full_suite": map[string]any{"type": "boolean"}, "allow_manual_handoff": map[string]any{"type": "boolean"},
+	})
+	test := standardPayloadSchema(schemaObject([]string{"problem_class", "checks", "failed_items", "unverified_items", "manual_handoff_items", "findings", "budget_adjustment"}, map[string]any{
+		"problem_class": schemaEnum("none", "implementation_failure", "design_failure", "requirement_gap"), "checks": map[string]any{"type": "array", "maxItems": 32, "items": check}, "failed_items": schemaList(), "unverified_items": schemaList(), "manual_handoff_items": schemaList(), "findings": schemaList(), "budget_adjustment": nullableSchema(budgetAdjustment),
 	}))
 	confirmation := schemaObject([]string{"source", "status", "summary"}, map[string]any{"source": map[string]any{"const": "user"}, "status": map[string]any{"const": "passed"}, "summary": schemaString()})
 	comprehension := standardPayloadSchema(schemaObject([]string{"problem_class", "explained_components", "unresolved_questions", "unnecessary_abstractions", "maintenance_risks", "user_confirmation", "findings"}, map[string]any{
@@ -317,8 +327,8 @@ func evidenceCheckSchema(source string, automated bool) map[string]any {
 		commandCount = map[string]any{"type": "integer", "minimum": 1, "maximum": 20}
 		fullSuite = map[string]any{"type": "boolean"}
 	}
-	schema := schemaObject([]string{"source", "name", "status", "summary", "command_count", "full_suite"}, map[string]any{
-		"source": map[string]any{"const": source}, "name": schemaString(), "status": schemaEnum("passed", "failed", "skipped", "not_run", "observed"), "summary": schemaString(), "command_count": commandCount, "full_suite": fullSuite,
+	schema := schemaObject([]string{"source", "name", "status", "summary", "command_count", "full_suite", "full_suite_reason"}, map[string]any{
+		"source": map[string]any{"const": source}, "name": schemaString(), "status": schemaEnum("passed", "failed", "skipped", "not_run", "observed"), "summary": schemaString(), "command_count": commandCount, "full_suite": fullSuite, "full_suite_reason": map[string]any{"type": "string", "maxLength": 4096},
 	})
 	schema["title"] = source
 	return schema

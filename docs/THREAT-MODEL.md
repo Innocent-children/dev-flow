@@ -35,7 +35,7 @@ flowchart LR
 | --- | --- |
 | 开发者 | 选择是否进入 Dev Flow；确认 remote/base/target、仓库和 Host 权限、理解结论、handoff、清理与发布操作 |
 | Codex / DeepSeek Harness | 真正读取文件、修改仓库和运行命令，是高权限执行面 |
-| Host Adapter | 只读评估请求；在确认后执行 fetch、branch、worktree、relaunch/handoff；按 Action、Scope、预算和 Recovery 调用 Core |
+| Host Adapter | 只读评估请求；在确认后执行 fetch、branch、worktree、relaunch/handoff；在命令、完整套件、测试文件修改和复核前判断范围；按 Action、Scope、当前验证计划和 Recovery 调用 Core |
 | Go Core | 只读观察 Git，保存唯一流程状态，计算 Task surface，并校验 revision、workspace、闭合 payload、流转和持久化 |
 | 仓库内容 | 视为不可信输入，可能包含 prompt injection、危险脚本、symlink 或恶意文件名 |
 | npm / GitHub | 提供远程 package 和 Release 身份，发布流程必须回读核对 |
@@ -59,7 +59,8 @@ Core identity，避免错误复用或 PID 重用；Windows 从内核进程信息
 | 工作树被替换、历史回退或任一成员发生冲突 | worktree-specific Git dir、task branch、base、HEAD ancestry 与 content 分别核对；resume 和下一 Action 在实际工作前返回明确 Blocker 或 unavailable |
 | Host 自报文件范围遗漏真实变化 | Core 从 base commit、commits、index、worktree 和 untracked 状态计算当前 surface；节点 payload 不接受 Host 文件变化声明 |
 | relocation 失败或响应丢失造成双重 claim/handoff | Core prepare 保留源 claim；Host handoff 只执行一次；目标核验后在一个事务中替换 bindings 和 claims |
-| 仓库中的 prompt injection 诱导扩大工作 | TaskIntent、allowed effects、显式 Scope 和验证预算独立于仓库文本；高风险 Git/发布仍需用户授权 |
+| 仓库中的 prompt injection 诱导扩大工作 | TaskIntent、allowed effects、显式 Scope、TASKS 验证计划和带原因的预算调整独立于仓库文本；Host 只复核当前 diff 与因果影响；高风险 Git/发布仍需用户授权 |
+| 预算充足被误当成完整测试理由 | Skill 要求每次重新判断广泛影响、定向检查是否足够、待补风险和仓库检查点；Evidence 保存本次 `full_suite_reason` |
 | SQLite、配置或 executable 被本地进程篡改 | strict codec、Schema 检查、Task/Action-operation 关联检查、closed fields 与 package/executable identity 验证 |
 | 安装或移除误删相邻配置和 Task 数据 | ownership receipt；remove 只清理自己管理的注册；普通卸载保留 Task 数据 |
 | beta、源码和稳定支持被混为一谈 | 稳定声明只来自 Support Matrix；beta 与 source 在 Project Status 中单独标记 |
@@ -73,6 +74,7 @@ Core identity，避免错误复用或 PID 重用；Windows 从内核进程信息
 - 具有同一用户权限或管理员权限的攻击者可以替换本地 binary、SQLite 或配置。
 - 当前没有加密状态库、多用户隔离、远程认证、自动 secret scanning、代码签名或透明度日志。
 - Dev Flow 不能保证模型输出正确、代码无漏洞、测试充分或完全免疫 prompt injection。
+- Core 无法判断自然语言理由是否真的与改动相关；Host 对验证和复核范围的语义判断仍可能出错。
 - 不受支持的平台、Host 版本和 source-only build 没有稳定安全支持声明。
 
 安全问题请按仓库根目录的 [Security Policy](../SECURITY.md) 私密报告。

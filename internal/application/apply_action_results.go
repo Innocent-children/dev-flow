@@ -78,7 +78,7 @@ func applyTaskPlanResult(task *domain.ProcessTask, transition domain.TransitionD
 	if err != nil {
 		return err
 	}
-	baseline := domain.TaskPlanBaseline{Revision: revision, Digest: digest, DesignRevision: result.Baseline.DesignRevision, WorkItems: result.Baseline.WorkItems, ArtifactRefs: envelope.Artifacts, CreatedAt: now}
+	baseline := domain.TaskPlanBaseline{Revision: revision, Digest: digest, DesignRevision: result.Baseline.DesignRevision, WorkItems: result.Baseline.WorkItems, VerificationPlan: result.Baseline.VerificationPlan, ArtifactRefs: envelope.Artifacts, CreatedAt: now}
 	if baseline.Validate() != nil || !acceptanceCovered(baseline.WorkItems, len(task.Requirements.AcceptanceCriteria)) {
 		return domain.ErrInvalidArgument
 	}
@@ -138,7 +138,7 @@ func applyImplementationResult(task *domain.ProcessTask, transition domain.Trans
 	return invalidateForDestination(task, transition.Destination)
 }
 
-func (s *Service) applyTestResult(task *domain.ProcessTask, transition domain.TransitionDefinition, result *workflow.TestResult, now time.Time) error {
+func (s *Service) applyTestResult(task *domain.ProcessTask, transition domain.TransitionDefinition, envelope workflow.StandardPayload, result *workflow.TestResult, now time.Time) error {
 	workspace, err := task.EffectiveWorkspaceDigests()
 	if err != nil {
 		return domain.ErrInvalidArgument
@@ -146,7 +146,17 @@ func (s *Service) applyTestResult(task *domain.ProcessTask, transition domain.Tr
 	if task.Requirements == nil || task.Design == nil || task.TaskPlan == nil || task.Implementation == nil || task.Implementation.TaskPlanRevision != task.TaskPlan.Revision {
 		return domain.ErrTransitionNotAllowed
 	}
-	if err := workflow.EvaluateVerificationBudget(task.Intent.VerificationBudget, task.Evidence, result.Checks, result.ManualHandoffItems); err != nil {
+	if transition.TransitionID == "verification_budget_increased" {
+		return applyVerificationBudgetAdjustment(task, envelope.Reason, result.BudgetAdjustment, now)
+	}
+	if result.BudgetAdjustment != nil {
+		return domain.ErrInvalidArgument
+	}
+	budget, ok := task.CurrentVerificationBudget()
+	if !ok {
+		return domain.ErrTransitionNotAllowed
+	}
+	if err := workflow.EvaluateVerificationBudget(budget, task.TaskPlan.Revision, task.Evidence, result.Checks, result.ManualHandoffItems); err != nil {
 		return err
 	}
 	passing := transition.TransitionID == "tests_passed"
@@ -162,7 +172,7 @@ func (s *Service) applyTestResult(task *domain.ProcessTask, transition domain.Tr
 	} else if !testFailureFactsPresent(result) {
 		return domain.ErrTransitionNotAllowed
 	}
-	evidence, err := s.buildEvidence(result.Checks, now)
+	evidence, err := s.buildEvidence(task.TaskPlan.Revision, result.Checks, now)
 	if err != nil {
 		return err
 	}
@@ -184,6 +194,56 @@ func (s *Service) applyTestResult(task *domain.ProcessTask, transition domain.Tr
 	}
 	task.Test = &domain.TestRecord{RecordID: recordID, RequirementsRevision: task.Requirements.Revision, DesignRevision: task.Design.Revision, TaskPlanRevision: task.TaskPlan.Revision, ContentDigest: workspace.Content, EvidenceIDs: ids, UnverifiedItems: result.UnverifiedItems, ManualHandoffItems: result.ManualHandoffItems, PassedAt: now}
 	task.Comprehension = nil
+	return nil
+}
+
+func applyVerificationBudgetAdjustment(task *domain.ProcessTask, reason string, input *workflow.VerificationBudgetAdjustmentInput, now time.Time) error {
+	if task.TaskPlan == nil || input == nil || input.Validate() != nil {
+		return domain.ErrInvalidArgument
+	}
+	previous, ok := task.CurrentVerificationBudget()
+	if !ok || previous.MaxAutomaticCommands > domain.MaxTotalAutomaticVerificationCommands-input.AdditionalAutomaticCommands {
+		return domain.ErrInvalidArgument
+	}
+	knownChecks := make(map[string]bool)
+	for _, check := range task.TaskPlan.VerificationPlan.Checks {
+		knownChecks[check.Name] = true
+	}
+	for _, adjustment := range task.VerificationBudgetAdjustments {
+		if adjustment.TaskPlanRevision != task.TaskPlan.Revision {
+			continue
+		}
+		for _, check := range adjustment.AdditionalChecks {
+			knownChecks[check.Name] = true
+		}
+	}
+	for _, check := range input.AdditionalChecks {
+		if knownChecks[check.Name] {
+			return domain.ErrInvalidArgument
+		}
+		knownChecks[check.Name] = true
+	}
+	current := previous
+	current.MaxAutomaticCommands += input.AdditionalAutomaticCommands
+	if input.AllowFullSuite {
+		current.AllowFullSuite = true
+	}
+	if input.AllowManualHandoff {
+		current.AllowManualHandoff = true
+	}
+	if current == previous {
+		return domain.ErrInvalidArgument
+	}
+	record := domain.VerificationBudgetAdjustment{
+		Revision: uint32(len(task.VerificationBudgetAdjustments) + 1), TaskPlanRevision: task.TaskPlan.Revision,
+		Basis: input.Basis, Reason: reason, AdditionalChecks: append([]domain.VerificationPlanCheck(nil), input.AdditionalChecks...),
+		AdditionalAutomaticCommands: input.AdditionalAutomaticCommands, AllowFullSuite: input.AllowFullSuite,
+		AllowManualHandoff: input.AllowManualHandoff, PreviousBudget: previous, CurrentBudget: current, CreatedAt: now,
+	}
+	if record.Validate() != nil || len(task.VerificationBudgetAdjustments) >= domain.MaxVerificationBudgetAdjustments {
+		return domain.ErrInvalidArgument
+	}
+	task.VerificationBudgetAdjustments = append(task.VerificationBudgetAdjustments, record)
 	return nil
 }
 
@@ -218,7 +278,7 @@ func (s *Service) applyComprehensionResult(task *domain.ProcessTask, transition 
 	if err := workflow.ValidateComprehensionConfirmation(task.Evidence, input); err != nil {
 		return err
 	}
-	evidence, err := s.buildEvidence([]workflow.EvidenceInput{input}, now)
+	evidence, err := s.buildEvidence(task.TaskPlan.Revision, []workflow.EvidenceInput{input}, now)
 	if err != nil {
 		return err
 	}
@@ -346,7 +406,7 @@ func sameEvidenceIDs(actual, expected []domain.ID) bool {
 	return true
 }
 
-func (s *Service) buildEvidence(inputs []workflow.EvidenceInput, now time.Time) ([]domain.EvidenceSummary, error) {
+func (s *Service) buildEvidence(taskPlanRevision uint32, inputs []workflow.EvidenceInput, now time.Time) ([]domain.EvidenceSummary, error) {
 	items := make([]domain.EvidenceSummary, len(inputs))
 	for i, input := range inputs {
 		id, err := s.id("evidence")
@@ -357,7 +417,7 @@ func (s *Service) buildEvidence(inputs []workflow.EvidenceInput, now time.Time) 
 		if err != nil {
 			return nil, domain.ErrInternal
 		}
-		items[i] = domain.EvidenceSummary{EvidenceID: id, Source: input.Source, Name: input.Name, Status: input.Status, Summary: input.Summary, Digest: digest, CommandCount: input.CommandCount, FullSuite: input.FullSuite, RecordedAt: now}
+		items[i] = domain.EvidenceSummary{EvidenceID: id, TaskPlanRevision: taskPlanRevision, Source: input.Source, Name: input.Name, Status: input.Status, Summary: input.Summary, Digest: digest, CommandCount: input.CommandCount, FullSuite: input.FullSuite, FullSuiteReason: input.FullSuiteReason, RecordedAt: now}
 		if items[i].Validate() != nil {
 			return nil, domain.ErrInvalidArgument
 		}
@@ -471,8 +531,9 @@ func designDigest(input workflow.DesignBaselineInput, artifacts []domain.Artifac
 
 func taskPlanDigest(input workflow.TasksBaselineInput, artifacts []domain.ArtifactReference) (domain.Digest, error) {
 	return digestCanonical(struct {
-		DesignRevision uint32                     `json:"design_revision"`
-		WorkItems      []domain.WorkItem          `json:"work_items"`
-		ArtifactRefs   []domain.ArtifactReference `json:"artifact_refs"`
-	}{input.DesignRevision, input.WorkItems, artifacts})
+		DesignRevision   uint32                     `json:"design_revision"`
+		WorkItems        []domain.WorkItem          `json:"work_items"`
+		VerificationPlan domain.VerificationPlan    `json:"verification_plan"`
+		ArtifactRefs     []domain.ArtifactReference `json:"artifact_refs"`
+	}{input.DesignRevision, input.WorkItems, input.VerificationPlan, artifacts})
 }

@@ -21,7 +21,7 @@ func TestOpenTaskIntentConflictAndIDFailureAreZeroWrite(t *testing.T) {
 	ms := &memoryStore{}
 	n := 0
 	s, _ := newService(ms, &mutableObserver{binding: binding, origin: origin}, func() time.Time { return now }, func(prefix string) (domain.ID, error) { n++; return domain.ID(prefix + "-id"), nil })
-	base := OpenTaskRequest{RequestID: "request-one", Host: domain.HostCodex, RepositoryPath: repositoryPath, WorkspaceOrigin: &originInput, NewTask: &NewTaskInput{Request: "Requirement A", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 1}, MethodProfile: domain.MethodPlain}}
+	base := OpenTaskRequest{RequestID: "request-one", Host: domain.HostCodex, RepositoryPath: repositoryPath, WorkspaceOrigin: &originInput, NewTask: &NewTaskInput{Request: "Requirement A", MethodProfile: domain.MethodPlain}}
 	if _, err := s.OpenTask(context.Background(), base); err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestApplyRepositoryDriftIsZeroWrite(t *testing.T) {
 	ms := &memoryStore{}
 	s, _ := newService(ms, o, func() time.Time { return now }, func(prefix string) (domain.ID, error) { return domain.ID(prefix + "-id"), nil })
 	originInput := WorkspaceOriginInput{Mode: origin.Mode, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
-	opened, err := s.OpenTask(context.Background(), OpenTaskRequest{RequestID: "request-open", Host: domain.HostCodex, RepositoryPath: repositoryPath, WorkspaceOrigin: &originInput, NewTask: &NewTaskInput{Request: "Requirement", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 1}, MethodProfile: domain.MethodPlain}})
+	opened, err := s.OpenTask(context.Background(), OpenTaskRequest{RequestID: "request-open", Host: domain.HostCodex, RepositoryPath: repositoryPath, WorkspaceOrigin: &originInput, NewTask: &NewTaskInput{Request: "Requirement", MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)
 	}

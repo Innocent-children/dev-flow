@@ -22,12 +22,13 @@ write exists yet. After the developer chooses Dev Flow, they confirm a remote, b
 target branch. The Host fetches the exact ref, freezes the base commit, and creates a clean dedicated
 worktree without copying staged, unstaged, or untracked source-checkout content. Core creates the
 local Task only after target verification and retains the request, scope, acceptance, WorkspaceOrigin,
-and verification budget.
+and method profile. No final verification budget is frozen before analysis.
 
 ## 2. Implementation completes and testing begins
 
-Codex completes implementation and enters `TEST`. The current Task records implementation as complete
-with one targeted authentication test remaining:
+At TASKS, after requirements, design, impact, and existing tests are understood, Codex retains this
+targeted authentication test, its rationale, one expected automatic command, no expected full suite,
+and no expected test-file change. After implementation enters `TEST`, the Task shows:
 
 ```text
 Task: auth-rate-limit
@@ -71,16 +72,21 @@ the Task becomes workspace-unavailable until the original is restored or explici
 ## 4. The next session runs the remaining verification
 
 The agent runs the remaining targeted authentication test. It does not rescan and invent a new plan,
-or broaden verification into a full regression without reason. A failed test returns the Task to the
-corresponding implementation work. A passing test moves to developer comprehension.
+or broaden verification into a full regression without reason. If capacity is insufficient, only a
+concrete increase backed by a new impact, risk, failure, or verification gap is retained before more
+commands run. Every full suite requires a fresh explanation of why focused checks do not suffice and
+which risk it covers; spare capacity is not a reason. A failed test returns the Task to implementation.
+A passing test moves to developer comprehension.
 
 Core derives the Task surface from the fixed base commit, current commits, index, worktree, and
 untracked content. A normal linear commit on the task branch preserves changed paths, and committing
 identical content does not invalidate the test. A real content change, branch switch, rewind, or
 history rewrite is handled before substantive work continues.
 
-The comprehension check asks whether the current implementation can be explained and maintained. If
-refactoring changes the repository, the Task returns through `TEST`.
+The comprehension check asks whether the current implementation can be explained and maintained.
+Ordinary post-change review covers only the diff, actual impact, and acceptance needs; fixing a
+finding causes only related targeted review. If refactoring changes the repository, the Task returns
+through `TEST` without automatically restarting a repository-wide audit.
 
 ## 5. Comprehension and delivery complete
 

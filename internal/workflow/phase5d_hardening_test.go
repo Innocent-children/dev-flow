@@ -7,8 +7,8 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/domain"
 )
 
-func TestProblemClassMappingsCoverAll29Transitions(t *testing.T) {
-	if len(standardTransitions) != 29 || len(problemClassByTransition) != 29 {
+func TestProblemClassMappingsCoverAll30Transitions(t *testing.T) {
+	if len(standardTransitions) != 30 || len(problemClassByTransition) != 30 {
 		t.Fatalf("transitions=%d mappings=%d", len(standardTransitions), len(problemClassByTransition))
 	}
 	for _, transition := range standardTransitions {
@@ -16,7 +16,7 @@ func TestProblemClassMappingsCoverAll29Transitions(t *testing.T) {
 		if !ok || !problemClassValidForNode(transition.Source, class) {
 			t.Fatalf("missing/invalid class for %s", transition.TransitionID)
 		}
-		if transition.ReasonRequired == (class == ProblemNone) {
+		if transition.TransitionID != "verification_budget_increased" && transition.ReasonRequired == (class == ProblemNone) {
 			t.Fatalf("reason/class mismatch for %s", transition.TransitionID)
 		}
 	}

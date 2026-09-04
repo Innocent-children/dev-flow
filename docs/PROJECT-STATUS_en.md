@@ -31,9 +31,10 @@ The following capabilities exist on current `main`; some may be beta-only or sou
 | --- | --- |
 | New-request admission | The Host performs a read-only `small|standard|large|uncertain` assessment and waits for a choice; an exact selector cannot skip it |
 | Worktree first | The developer confirms remote/base/target for each repository; the Host fetches, freezes, and verifies a clean dedicated worktree before Task creation |
-| Durable Task | Locally retain request, scope, current stage, verification budget, records, blockers, and outcome |
+| Durable Task | Locally retain request, scope, current stage, the post-analysis verification plan, current budget/usage, increase reasons, records, blockers, and outcome |
 | Continue after interruption | Codex and DeepSeek resume the current stage and next step from the same Task |
-| Scope and verification limits | Core derives current Task surface from the fixed base, commits, index/worktree/untracked state and applies ExpectedPaths, verification budget, and record invalidation |
+| Scope and verification limits | TASKS retains the initial verification plan; Core counts the current Task Plan revision, accepts concretely justified TEST increases, and applies ExpectedPaths plus record invalidation |
+| Bounded testing and review | The Host checks current relevance before commands, full suites, test-code changes, and post-change review; a review fix receives only related targeted rechecks |
 | Automatic verification brake | Retain the three most recent test attempts and pause after the third exact repetition of the same failure, same result, or same changed-path and failure loop |
 | Uncertain Action recovery | Read-before-retry, Recovery assessment, Blocker, and resume |
 | Pre-delivery comprehension | Comprehension follows testing; repository changes require testing again |
@@ -84,7 +85,8 @@ results.
 - Recovery needs a more direct public fault-injection demonstration;
 - external usage has not established that the verification budget reduces unnecessary testing;
 - recovery time, automatic-brake false-block rate, and repeat-use rate have not been measured;
-- verification-budget consumption and the reason for expansion are not yet clear enough;
+- external data does not yet establish the Host's accuracy when judging verification relevance,
+  lasting test value, or causal review scope;
 - external data does not yet establish change-level misclassification, provisioning recovery time,
   or relocation availability;
 - multi-repository, worktree, and relocation behavior is advanced capability, not the primary user scenario;
@@ -104,7 +106,7 @@ priority.
 ## How to evaluate the project
 
 1. Read the root [README](../README.md) and [Product Definition](PRODUCT_en.md) to decide whether your
-   task needs explicit change scope and verification limits.
+   task needs explicit change scope and post-analysis verification planning.
 2. Read the [interruption demo](DEMO_en.md) when continuation across sessions matters to your work.
 3. Read the [Support Matrix](SUPPORT-MATRIX_en.md) to separate stable support from source capability,
    then open the real journeys above when you need the exact scope of a record.

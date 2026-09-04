@@ -139,11 +139,11 @@ func fileScopeTaskWithBinding(t *testing.T, now time.Time, binding domain.Reposi
 	definition := workflow.StandardProcess()
 	task := domain.ProcessTask{
 		TaskID: "task-scope", OriginHost: domain.HostCodex,
-		Intent:  domain.TaskIntent{Request: "Implement the bounded change.", VerificationBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}, MethodProfile: domain.MethodPlain},
+		Intent:  domain.TaskIntent{Request: "Implement the bounded change.", MethodProfile: domain.MethodPlain},
 		Process: definition.Reference, CurrentNode: domain.NodeImplement, WorkspaceOrigin: fileScopeOrigin(testPath("repo"), 'a'), Repository: binding,
 		Requirements: &domain.RequirementsBaseline{Revision: 1, Digest: testDigest('4'), Goal: "Implement scope checks.", AcceptanceCriteria: []string{"Writes are scoped."}, CreatedAt: now},
 		Design:       &domain.DesignBaseline{Revision: 1, Digest: testDigest('5'), RequirementsRevision: 1, Approach: "Use the existing process.", Decisions: []string{"Reuse BLOCKED."}, CreatedAt: now},
-		TaskPlan:     &domain.TaskPlanBaseline{Revision: 1, Digest: testDigest('6'), DesignRevision: 1, WorkItems: []domain.WorkItem{{WorkItemID: "work", Summary: "Implement scope checks.", ExpectedPaths: expected, AcceptanceIndexes: []uint32{0}, VerificationSteps: []string{"Run focused tests."}}}, CreatedAt: now},
+		TaskPlan:     &domain.TaskPlanBaseline{Revision: 1, Digest: testDigest('6'), DesignRevision: 1, WorkItems: []domain.WorkItem{{WorkItemID: "work", Summary: "Implement scope checks.", ExpectedPaths: expected, AcceptanceIndexes: []uint32{0}, VerificationSteps: []string{"Run focused tests."}}}, VerificationPlan: domain.VerificationPlan{Checks: []domain.VerificationPlanCheck{{Name: "focused-test", Rationale: "The check covers the scoped write."}}, InitialBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}}, CreatedAt: now},
 		Revision:     4, CreatedAt: now, UpdatedAt: now,
 	}
 	workspace, err := task.EffectiveWorkspaceDigests()

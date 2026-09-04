@@ -267,7 +267,7 @@ func normalizedIntent(input NewTaskInput) (domain.TaskIntent, error) {
 	if err != nil {
 		return domain.TaskIntent{}, err
 	}
-	intent := domain.TaskIntent{Request: strings.TrimSpace(input.Request), InitialScope: scope, InitialOutOfScope: out, KnownAcceptanceCriteria: acceptance, VerificationBudget: input.VerificationBudget, MethodProfile: input.MethodProfile}
+	intent := domain.TaskIntent{Request: strings.TrimSpace(input.Request), InitialScope: scope, InitialOutOfScope: out, KnownAcceptanceCriteria: acceptance, MethodProfile: input.MethodProfile}
 	if intent.Validate() != nil {
 		return domain.TaskIntent{}, domain.ErrInvalidArgument
 	}

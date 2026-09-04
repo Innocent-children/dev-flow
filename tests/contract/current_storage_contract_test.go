@@ -88,7 +88,7 @@ func TestCurrentStorageHasOneSchemaCodecProcessAndProjection(t *testing.T) {
 
 	schema := read("internal/store/schema.go")
 	for _, required := range []string{
-		`const DatabaseSchemaVersion = "0.4.0"`,
+		`const DatabaseSchemaVersion = "0.5.0"`,
 		"currentSchemaStatements",
 		"func bootstrapCurrentSchema",
 		"func verifyCurrentSchema",

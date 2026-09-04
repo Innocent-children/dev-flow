@@ -16,8 +16,8 @@ Cuanto más dura una tarea de programación, más fácil es que cambie poco a po
 una comprobación dirigida se convierte en una ejecución de pruebas sin límite, el mismo fallo provoca
 otro intento parecido o una sesión reiniciada tiene que reconstruir el avance desde el chat.
 
-Dev Flow guarda en una sola tarea local la petición acordada, las rutas previstas, los límites de
-verificación, la etapa actual y los resultados. Codex o DeepSeek sigue encargándose de modificar el código.
+Dev Flow guarda en una sola tarea local la petición acordada, las rutas previstas, el plan de
+verificación creado tras el análisis, la etapa actual y los resultados. Codex o DeepSeek sigue encargándose de modificar el código.
 
 Cada petición nueva se evalúa en modo de solo lectura antes de elegir Dev Flow. Si lo eliges, confirmas
 el remote, la rama base y una rama nueva para la tarea; el Host crea desde esa base remota un worktree
@@ -29,8 +29,10 @@ dedicado y limpio antes de que Core cree la Task. Los cambios del checkout de or
 - **Cada worktree tiene un solo propietario de cambios.** Core calcula la superficie actual de la Task
   desde Git; los commits lineales normales continúan, mientras que una reescritura de rama o la sustitución
   del worktree detiene la tarea.
-- **La verificación tiene límites.** Restringe el número de comandos automáticos, exige permiso previo
-  para la suite completa y se detiene en la tercera repetición exacta.
+- **La verificación se ajusta a la tarea.** TASKS guarda comprobaciones, motivos, esfuerzo inicial y
+  expectativas de suite completa/código de prueba. Solo un impacto, riesgo, fallo o vacío concreto amplía el presupuesto.
+- **La revisión termina en el cambio actual.** Tras modificar, revisa el diff, el impacto causal y la
+  aceptación; una corrección solo repite comprobaciones relacionadas y un code review explícito es de solo lectura.
 - **El trabajo continúa después de un reinicio.** Una nueva sesión recupera la misma tarea, las
   comprobaciones pendientes y la decisión actual sin reconstruirlas desde la conversación.
 - **Solo se reutilizan resultados vigentes.** Los cambios en la petición, el plan, la implementación o

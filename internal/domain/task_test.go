@@ -63,10 +63,10 @@ func TestProcessTaskWorkspaceEvidenceUsesContentDigest(t *testing.T) {
 	task := validProcessTaskForDomainTest(now, matrixDigest('a'))
 	task.Requirements = &RequirementsBaseline{Revision: 1, Digest: matrixDigest('1'), Goal: "Goal", AcceptanceCriteria: []string{"Accepted"}, CreatedAt: now}
 	task.Design = &DesignBaseline{Revision: 1, Digest: matrixDigest('2'), RequirementsRevision: 1, Approach: "Direct", Decisions: []string{"Direct"}, CreatedAt: now}
-	task.TaskPlan = &TaskPlanBaseline{Revision: 1, Digest: matrixDigest('3'), DesignRevision: 1, WorkItems: []WorkItem{{WorkItemID: "work", Summary: "Work", ExpectedPaths: []string{"src/main.go"}, AcceptanceIndexes: []uint32{0}, VerificationSteps: []string{"Test"}}}, CreatedAt: now}
+	task.TaskPlan = &TaskPlanBaseline{Revision: 1, Digest: matrixDigest('3'), DesignRevision: 1, WorkItems: []WorkItem{{WorkItemID: "work", Summary: "Work", ExpectedPaths: []string{"src/main.go"}, AcceptanceIndexes: []uint32{0}, VerificationSteps: []string{"Test"}}}, VerificationPlan: validDomainVerificationPlan(), CreatedAt: now}
 	task.Implementation = &ImplementationRecord{Revision: 1, TaskPlanRevision: 1, ContentDigest: task.Repository.ContentDigest, CompletedWorkItemIDs: []ID{"work"}, ActionChangedPaths: []string{"src/main.go"}, Summary: "Implemented.", CreatedAt: now}
 	task.Test = &TestRecord{RecordID: "test", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, ContentDigest: task.Repository.ContentDigest, EvidenceIDs: []ID{"automated"}, PassedAt: now}
-	task.Evidence = []EvidenceSummary{{EvidenceID: "automated", Source: EvidenceSourceAutomated, Name: "test", Status: EvidencePassed, Summary: "Passed.", Digest: matrixDigest('4'), CommandCount: 1, RecordedAt: now}}
+	task.Evidence = []EvidenceSummary{{EvidenceID: "automated", TaskPlanRevision: 1, Source: EvidenceSourceAutomated, Name: "test", Status: EvidencePassed, Summary: "Passed.", Digest: matrixDigest('4'), CommandCount: 1, RecordedAt: now}}
 	task.CurrentNode = NodeComprehensionReview
 	task.Revision = 2
 	task.CurrentAction.NodeID, task.CurrentAction.Kind, task.CurrentAction.Revision = NodeComprehensionReview, ActionCompleteComprehensionReview, 2
@@ -82,6 +82,10 @@ func TestProcessTaskWorkspaceEvidenceUsesContentDigest(t *testing.T) {
 	if err := task.Validate(); err == nil {
 		t.Fatal("stale content-bound test accepted")
 	}
+}
+
+func validDomainVerificationPlan() VerificationPlan {
+	return VerificationPlan{Checks: []VerificationPlanCheck{{Name: "targeted-test", Rationale: "The check covers the current work."}}, InitialBudget: VerificationBudget{Level: VerificationTargeted, MaxAutomaticCommands: 4, AllowManualHandoff: true}}
 }
 
 func repositoryScopeEntryForTest(now time.Time, key RepositoryKey, seed int) RepositoryScopeEntry {
@@ -104,5 +108,5 @@ func validProcessTaskForDomainTest(now time.Time, digest Digest) ProcessTask {
 	repository := RepositoryBinding{WorktreeInstanceDigest: digest, IdentityDigest: digest, HistoryDigest: digest, ContentDigest: digest, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: digest}
 	process := ProcessReference{ID: ProcessStandardDevelopment, DefinitionDigest: digest}
 	action := &ProcessAction{ActionID: "action", Kind: ActionCompleteRequirements, TaskID: "task", Revision: 1, Process: process, NodeID: NodeRequirements, RepositoryBindingDigest: digest, IssuanceIdentityDigest: digest, IssuanceHistoryDigest: digest, IssuanceContentDigest: digest, AllowedEffects: []AllowedEffect{EffectReadRepository}, RequiredEvidence: []EvidenceRequirement{{Kind: RequirementRepositoryObservation, Required: true}}, PayloadContract: "requirements-result", NodeContract: NodeContractProjection{Purpose: "Capture requirements.", EntryConditions: []string{"intent"}, CompletionConditions: []string{"baseline"}}, MethodProfile: MethodPlain, SemanticMethodSteps: []SemanticMethodStep{{StepID: "requirements.capture", Purpose: "Capture requirements.", Required: true}}, Guidance: "Complete requirements.", IssuedAt: now}
-	return ProcessTask{TaskID: "task", OriginHost: HostCodex, Intent: TaskIntent{Request: "Request", VerificationBudget: VerificationBudget{Level: VerificationTargeted, MaxAutomaticCommands: 1}, MethodProfile: MethodPlain}, Process: process, CurrentNode: NodeRequirements, CurrentAction: action, WorkspaceOrigin: origin, Repository: repository, Revision: 1, CreatedAt: now, UpdatedAt: now}
+	return ProcessTask{TaskID: "task", OriginHost: HostCodex, Intent: TaskIntent{Request: "Request", MethodProfile: MethodPlain}, Process: process, CurrentNode: NodeRequirements, CurrentAction: action, WorkspaceOrigin: origin, Repository: repository, Revision: 1, CreatedAt: now, UpdatedAt: now}
 }

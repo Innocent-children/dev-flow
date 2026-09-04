@@ -258,13 +258,13 @@ transport、通用 HTTP/SSE transport、通用 shell 或 Git mutation 命令。C
 | --- | --- | --- |
 | `dev_flow_server_info` | 只读 | 读取 Core 产品版本、transport、健康状态、支持的 process、Host、method profile、工具目录和有效 Host 代码索引偏好。每次有效 Host admission 后必须首先调用。 |
 | `dev_flow_open_task` | 读取或创建 | 在全部 `workspace_origin` 通过专属 worktree 核验后创建 Task；`new_task` 为空时从原 worktree instance 恢复并先检查 workspace。 |
-| `dev_flow_get_task` | 只读 | 按 Task ID 读取持久化 Task，包括最多三条近期测试尝试；存在 Core 保存的 Action 提交时自动返回 Recovery assessment。 |
+| `dev_flow_get_task` | 只读 | 按 Task ID 读取持久化 Task，包括 verification plan、当前预算/消耗、调整原因和最多三条近期测试尝试；存在 Core 保存的 Action 提交时自动返回 Recovery assessment。 |
 | `dev_flow_get_next_action` | 观察/可能 mutation | 先观察 workspace；必要时幂等创建 workspace blocker，否则返回当前 Action、`submission_tool` 和全部合法 transition。 |
 | `dev_flow_submit_requirements` | mutation | 提交 REQUIREMENTS 节点结果。 |
 | `dev_flow_submit_design` | mutation | 提交 DESIGN 节点结果。 |
-| `dev_flow_submit_tasks` | mutation | 提交 TASKS 节点结果。 |
+| `dev_flow_submit_tasks` | mutation | 提交 TASKS 节点结果；baseline 必须包含分析后的 `verification_plan`。 |
 | `dev_flow_submit_implementation` | mutation | 提交 IMPLEMENT 节点结果。 |
-| `dev_flow_submit_test` | mutation | 提交 TEST 节点结果；第三次精确重复相同失败、相同结果或相同修改与失败循环时，Core 保存结果并把 Task 暂停在 `BLOCKED`。 |
+| `dev_flow_submit_test` | mutation | 提交 TEST 节点结果；`verification_budget_increased` 用具体原因增加预算并留在 TEST，普通结果发送 `budget_adjustment=null`；第三次精确重复时暂停。 |
 | `dev_flow_submit_comprehension` | mutation | 提交 COMPREHENSION_REVIEW 节点结果。 |
 | `dev_flow_submit_refactor` | mutation | 提交 REFACTOR 节点结果。 |
 | `dev_flow_submit_delivery` | mutation | 提交 Host 负责的 DELIVERY 判断、风险和发现；acceptance、evidence ID 与 Test/Comprehension record ID 由 Core 补齐，提交这些字段会按 `unknown_member` 拒绝。 |
@@ -287,6 +287,16 @@ step identity/order/status 与内部 payload envelope。`get_next_action` 的 `s
 快照填充这些字段；提交任一字段会返回准确路径的 `unknown_member`。节点提交缺少
 其他必填字段时返回准确的 `required_member_missing` 路径；只有已证明零写入且修正内容来自当前节点
 既有事实时，Host 才能按 `recovery.allowed_paths` 通过同一提交工具修正一次。
+
+新 Task 的 `new_task` 不包含 `verification_budget`。TASKS 的 `baseline.verification_plan` 包含
+`checks[{name,rationale}]`、`initial_budget`、`full_suite_expected` 和
+`test_code_changes_expected`。TEST 容量不足时可以选择同一 Action 返回的
+`verification_budget_increased`，提交 `budget_adjustment`：`basis`、`additional_checks`、
+`additional_automatic_commands`、`allow_full_suite`、`allow_manual_handoff`；transition `reason`
+说明具体的新影响、风险、失败或验证缺口。没有实际增加、没有新增检查或没有具体原因会被拒绝。
+
+每个 TEST check 还必须提交 `full_suite_reason`。`full_suite=false` 时它是空字符串；完整套件则记录本次
+运行补足的具体风险。Core 保存该结果，但 Host 仍需在命令执行前判断本次完整套件是否必要。
 
 未知 CLI 参数、未列出的 MCP 工具或未满足隐式/显式统一 admission 的调用不属于受支持入口。
 
@@ -326,12 +336,6 @@ step identity/order/status 与内部 payload envelope。`get_next_action` 的 `s
     "initial_scope": [],
     "initial_out_of_scope": [],
     "known_acceptance_criteria": [],
-    "verification_budget": {
-      "level": "targeted",
-      "max_automatic_commands": 1,
-      "allow_full_suite": false,
-      "allow_manual_handoff": false
-    },
     "method_profile": "plain"
   }
 }
@@ -353,6 +357,9 @@ Task result 保留主 `repository`，增加 `primary_repository_key` 与 sorted
 linked worktree 共享逻辑仓库组标识，但 canonical root/worktree Git-dir 不同，因此可以分别持有活动
 Task；同一实例只能持有一个活动 Task。Control Center 的 Task summary 公开只读 `repository_group_id` 和
 `worktree_path`，详情中的每个 repository 也公开自己的 `repository_group_id`。
+
+Task result 的 `verification` 同时投影 `plan`、`current_budget`、当前 Task Plan revision 的 `usage` 和
+`adjustments`；在 TASKS 完成前，`plan` 与 `current_budget` 为 `null`。
 
 `dev_flow_server_info({})` 的结果包含：
 

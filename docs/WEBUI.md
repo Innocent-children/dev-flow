@@ -10,15 +10,21 @@ Control Center 嵌入 Go Core，读取与 Codex、DeepSeek 相同的 SQLite Task
 ## 可以查看什么
 
 - 所有 Host 共用的 Task 概览、筛选列表、当前阶段、revision 和合法下一步；
-- requirements、design、Task Plan、实现、测试、理解确认、evidence 和时间线；
+- requirements、design、Task Plan、实现、测试、理解确认、evidence 和时间线；TASKS 前明确显示验证尚未计划；
 - 每个仓库确认的 remote/base/base commit、task branch、worktree path 和 repository group；
 - 当前 HEAD、clean/dirty、identity/history/content 摘要、Task surface 和当前 changed paths；
+- 验证计划中的检查及理由、初始/当前预算、当前计划已用命令、完整套件次数和历次增加原因；
 - 文件范围、验证刹车、历史冲突、relocation、Recovery 和 workspace unavailable 状态；
 - provisioning receipt 身份、当前 Host、已完成验证，以及 keep/review/handoff/cleanup 后续选择；
 - 当前 Core、数据目录和 runtime 状态。
 
 界面支持简体中文和英文。首次跟随浏览器语言；手工选择只保存在浏览器，不进入 Core、Task、receipt
 或账号状态。
+
+验证区块只显示 Core 保存的结构化状态。TASKS 完成前 `plan` 与 `current_budget` 为空；完成后显示计划
+检查、完整套件和测试代码预期。`usage` 只统计当前 Task Plan revision，旧计划记录仍可在事实和时间线
+中查看。每条预算增加显示依据、原因、新增检查、增加量和调整后预算。WebUI 不根据剩余额度替 Host
+决定是否运行完整套件，也不执行验证命令。
 
 ## 可执行操作的边界
 
@@ -28,6 +34,7 @@ fetch、专属工作树创建和验证后，再从目标 Host 调用 Core。
 页面可以提交当前 Core 身份要求的语义操作：
 
 - 解除文件范围、验证或历史 blocker；
+- 使用当前 TEST Action 的 `verification_budget_increased` 保存有具体原因的预算增加；
 - 为同机 Host relocation 创建 Core blocker，并在 Host 已完成 handoff 后提交目标路径；
 - 在工作树仍可观察时取消 Task；
 - 在原工作树确实丢失时，用精确 revision 和非空原因显式 abandon；

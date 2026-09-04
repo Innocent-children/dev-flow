@@ -23,12 +23,11 @@ type openWire struct {
 	PrimaryRepositoryKey   domain.RepositoryKey       `json:"primary_repository_key"`
 	AdditionalRepositories []additionalRepositoryWire `json:"additional_repositories"`
 	NewTask                *struct {
-		Request                 string                    `json:"request"`
-		InitialScope            []string                  `json:"initial_scope"`
-		InitialOutOfScope       []string                  `json:"initial_out_of_scope"`
-		KnownAcceptanceCriteria []string                  `json:"known_acceptance_criteria"`
-		VerificationBudget      domain.VerificationBudget `json:"verification_budget"`
-		MethodProfile           domain.MethodProfile      `json:"method_profile"`
+		Request                 string               `json:"request"`
+		InitialScope            []string             `json:"initial_scope"`
+		InitialOutOfScope       []string             `json:"initial_out_of_scope"`
+		KnownAcceptanceCriteria []string             `json:"known_acceptance_criteria"`
+		MethodProfile           domain.MethodProfile `json:"method_profile"`
 	} `json:"new_task"`
 }
 type additionalRepositoryWire struct {
@@ -219,7 +218,7 @@ func ValidateToolInput(tool string, raw []byte) error {
 			if v.WorkspaceOrigin == nil || !validWorkspaceOriginWire(*v.WorkspaceOrigin) {
 				return domain.ErrWorktreeProvisioningRequired
 			}
-			intent := domain.TaskIntent{Request: v.NewTask.Request, InitialScope: v.NewTask.InitialScope, InitialOutOfScope: v.NewTask.InitialOutOfScope, KnownAcceptanceCriteria: v.NewTask.KnownAcceptanceCriteria, VerificationBudget: v.NewTask.VerificationBudget, MethodProfile: v.NewTask.MethodProfile}
+			intent := domain.TaskIntent{Request: v.NewTask.Request, InitialScope: v.NewTask.InitialScope, InitialOutOfScope: v.NewTask.InitialOutOfScope, KnownAcceptanceCriteria: v.NewTask.KnownAcceptanceCriteria, MethodProfile: v.NewTask.MethodProfile}
 			if intent.Validate() != nil {
 				return domain.ErrInvalidArgument
 			}
@@ -436,7 +435,7 @@ func toOpen(w openWire, id domain.ID) application.OpenTaskRequest {
 		}
 	}
 	if w.NewTask != nil {
-		r.NewTask = &application.NewTaskInput{Request: w.NewTask.Request, InitialScope: w.NewTask.InitialScope, InitialOutOfScope: w.NewTask.InitialOutOfScope, KnownAcceptanceCriteria: w.NewTask.KnownAcceptanceCriteria, VerificationBudget: w.NewTask.VerificationBudget, MethodProfile: w.NewTask.MethodProfile}
+		r.NewTask = &application.NewTaskInput{Request: w.NewTask.Request, InitialScope: w.NewTask.InitialScope, InitialOutOfScope: w.NewTask.InitialOutOfScope, KnownAcceptanceCriteria: w.NewTask.KnownAcceptanceCriteria, MethodProfile: w.NewTask.MethodProfile}
 	}
 	return r
 }

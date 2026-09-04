@@ -4,7 +4,7 @@
   "origin_host": "deepseek",
   "request_id": "fixture-deepseek-host-parity",
   "process_id": "standard-development",
-  "definition_digest": "8f9543abc67421f1470e9ca8b953206571a119c65e5ec39c655bccd334203dc5",
+  "definition_digest": "58118cf85fdd5a2013f95972f816fe267dcbad09a95fe0fce2d83488d69cb101",
   "current_node": "REQUIREMENTS",
   "action_kind": "COMPLETE_REQUIREMENTS",
   "submission_tool": "dev_flow_submit_requirements",

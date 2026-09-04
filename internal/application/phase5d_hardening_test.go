@@ -62,11 +62,11 @@ func TestMalformedGraphRecoveryInputStopsBeforeObservationWrite(t *testing.T) {
 func TestManualHandoffBudgetDoesNotBlockComprehensionConfirmation(t *testing.T) {
 	service, memory, _ := phase5Service(t)
 	task := openPhase5Task(t, service)
-	task.Intent.VerificationBudget.AllowManualHandoff = false
-	memory.task = &task
 	task = applyPhase5(t, service, task, "requirements_ready", "", requirementsNodeResult("Goal", []string{"criterion"}))
 	task = applyPhase5(t, service, task, "design_ready", "", designNodeResult(1, "Design"))
 	task = applyPhase5(t, service, task, "tasks_ready", "", tasksNodeResult(1, []map[string]any{workItem("work-a", []uint32{0}, nil)}))
+	task.TaskPlan.VerificationPlan.InitialBudget.AllowManualHandoff = false
+	memory.task = &task
 	task = applyPhase5(t, service, task, "implementation_ready_for_test", "", implementationNodeResult(1, []string{"work-a"}, true, nil))
 
 	before := memory.commits
@@ -85,8 +85,8 @@ func TestManualHandoffBudgetDoesNotBlockComprehensionConfirmation(t *testing.T) 
 func TestUserEvidenceAfterExhaustedAutomaticBudgetReachesComprehension(t *testing.T) {
 	service, memory, _ := phase5Service(t)
 	task := phase5TaskAtTest(t, service)
-	task.Intent.VerificationBudget.MaxAutomaticCommands = 4
-	task.Intent.VerificationBudget.AllowManualHandoff = true
+	task.TaskPlan.VerificationPlan.InitialBudget.MaxAutomaticCommands = 4
+	task.TaskPlan.VerificationPlan.InitialBudget.AllowManualHandoff = true
 	memory.task = &task
 	checks := []map[string]any{
 		evidenceCheck("automated", "passed", "automatic-budget", 4, false),
@@ -106,8 +106,8 @@ func TestUserEvidenceAfterExhaustedAutomaticBudgetReachesComprehension(t *testin
 
 	service, memory, _ = phase5Service(t)
 	task = phase5TaskAtTest(t, service)
-	task.Intent.VerificationBudget.MaxAutomaticCommands = 4
-	task.Intent.VerificationBudget.AllowManualHandoff = true
+	task.TaskPlan.VerificationPlan.InitialBudget.MaxAutomaticCommands = 4
+	task.TaskPlan.VerificationPlan.InitialBudget.AllowManualHandoff = true
 	memory.task = &task
 	before := memory.commits
 	invalid := []map[string]any{
@@ -130,7 +130,7 @@ func TestProblemClassMismatchIsTransitionNotAllowedAndZeroWrite(t *testing.T) {
 		{
 			name: "implementation failure cannot choose design issue", prepare: phase5TaskAtTest,
 			transition: "tests_expose_design_issue",
-			result:     map[string]any{"problem_class": "implementation_failure", "checks": []map[string]any{evidenceCheck("automated", "failed", "test", 1, false)}, "failed_items": []string{"failure"}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{"Implementation failure"}},
+			result:     map[string]any{"problem_class": "implementation_failure", "checks": []map[string]any{evidenceCheck("automated", "failed", "test", 1, false)}, "failed_items": []string{"failure"}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{"Implementation failure"}, "budget_adjustment": nil},
 		},
 		{
 			name: "code complexity cannot choose design complexity", prepare: phase5TaskAtComprehension,
