@@ -1,6 +1,6 @@
 {
   "name": "dev-flow-codex",
-  "version": "0.8.8",
+  "version": "0.8.9",
   "description": "Worktree-first Dev Flow lifecycle integration for Codex.",
   "author": {
     "name": "Dev Flow"
