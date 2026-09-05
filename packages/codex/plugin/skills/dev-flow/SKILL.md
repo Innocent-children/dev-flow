@@ -47,9 +47,14 @@ A missing selector is valid only when the Host selected this Skill implicitly fo
 development request. Codex may expose this plugin's MCP tools independently from Skill injection;
 this Skill does not claim selector-bound tool visibility or authorization.
 
-1. Resolve only user-declared repositories with read-only Git inspection. Preserve spaces, Unicode,
-   symlinks, and subdirectory invocation as one argv value. Do not infer Repository Scope from
-   imports, remotes, submodules, an index, or neighboring directories.
+1. Resolve candidate repositories from the current user request and applicable `AGENTS.md`
+   instructions. When those instructions require project-index discovery, read the index and each
+   candidate's project documentation, then inspect relevant code and configuration to establish the
+   complete proposed Repository Scope. Keep discovery read-only and within existing Host permissions.
+   Otherwise use the repositories declared by the user. Canonicalize each candidate with read-only
+   Git inspection, preserving spaces, Unicode, symlinks, and subdirectory invocation as one argv value.
+   Every proposed repository must pass the provisioning confirmation below before Task creation;
+   index results alone do not authorize provisioning or change an existing Task's immutable Scope.
 2. Read the request, repository instructions, directly relevant product/technical documents,
    candidate implementation symbols, callers, tests, configuration, package manifests, HEAD, and
    status. Existing code indexes may help; an unavailable or incomplete index falls back to file and
@@ -188,18 +193,21 @@ failed handshake.
 
 After the successful handshake for a provisioned or resumed Task, consume only
 `host_preferences.codex.codebase_memory` and the capabilities actually visible in this Codex session.
-This preference governs Task work; the pre-Core suitability assessment may use an index already
-visible to the Host and otherwise falls back immediately.
+Current user instructions and applicable `AGENTS.md` instructions take precedence over this default
+preference when choosing code-discovery tools. Use the preference rules below only when those
+instructions do not select a discovery method. The pre-Core suitability assessment may use an index
+already visible to the Host and otherwise falls back immediately.
 
-- When the preference is `false`, do not call any codebase-memory tool even when one is visible. Use
-  Codex Git inspection, file reads, file search, and text search, and do not prompt for installation.
+- When the preference is `false`, use Codex Git inspection, file reads, file search, and text search,
+  and do not prompt for installation.
 - When the preference is `true` and codebase-memory is already visible and usable, it may be
-  preferred for cross-repository symbol discovery, relationships, and impact analysis. Repository
-  Scope still comes only from the user's explicit declarations, and actual file modifications still
-  use ordinary Codex file tools.
-- When the preference is `true` but the capability is absent, incomplete, or becomes unavailable,
-  notify the user at most once in the current Dev Flow session and immediately fall back to built-in
-  search without blocking Task creation or progress.
+  preferred for symbol discovery, relationships, and impact analysis within the confirmed Task Scope.
+
+Whether selected by user instructions, `AGENTS.md`, or the preference, an absent, incomplete, or
+unavailable index triggers at most one notice in the current Dev Flow session and an immediate
+fallback to built-in search without blocking Task creation or progress. Repository Scope remains
+the complete set confirmed before provisioning and retained by Core; actual file modifications use
+ordinary Codex file tools.
 
 Never install, configure, upgrade, start, repair, or remove codebase-memory; never call plugin
 management to install it; never change MCP configuration; and never start a daemon. Index results
@@ -591,8 +599,8 @@ acceptance. Do not restart a repository-wide audit after each edit. Expand the r
 new area has a stated causal path from the current change.
 
 Fix only defects introduced by the current change or exposed in another location because of that
-change. Do not silently repair, test, or add unrelated historical issues to the Task; mention them
-separately at delivery and suggest another Task when useful.
+change. Report findings only when they have that causal relationship; keep unrelated historical
+issues outside the review, Task work, and delivery summary.
 
 After fixing a review finding, re-check only that finding, related regressions, the affected
 acceptance criteria, and the matching targeted checks. The fix never restarts a broad audit. End the

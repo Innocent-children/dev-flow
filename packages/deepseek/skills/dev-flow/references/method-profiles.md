@@ -115,28 +115,31 @@ For each step returned by Core:
 6. Record completion only after the semantic work actually completes.
 
 For `plain`, render external capability availability as `not_applicable`. When the ordinary work
-actually completes, evidence uses `status="plain_fallback"` and an empty `capability`; plain work is
-never labeled as an external capability completion. The same `plain_fallback` rule applies when a
-selected external capability is unavailable but the equivalent work actually completes.
+actually completes, submit an empty `capability`; Core records `status="plain_fallback"`. The same
+rule applies when a selected external capability is unavailable but the equivalent work actually
+completes. A non-empty `capability` names the actual external capability that completed the step.
 
-When equivalent work remains incomplete, record `unavailable` or `not_run` honestly. Neither status
-can satisfy a required semantic step, so the Adapter must not call apply for that Action.
+When equivalent work remains incomplete, report `unavailable` or `not_run` honestly to the user.
+An incomplete required semantic step prevents submission for that Action.
 
-## MethodEvidence
+## Method results
 
-A normal mutation supplies exactly one `MethodEvidence` item for every current Action method step,
-in Action order. Each item contains only `step_id`, `status`, `capability`, and `summary`.
+A normal submission supplies `method_results` as a closed object keyed by every current Action
+`method_steps[].step_id`. Each value contains only `capability` and `summary`. Core creates the
+internal `MethodEvidence` items in Action order and fills their `step_id` and `status`.
 
-- `completed` requires the non-empty ID of the actual capability that completed the work.
-- `plain_fallback` requires an empty `capability` and completed plain-equivalent work.
-- `unavailable` and `not_run` do not satisfy a required step.
-- Unknown, duplicate, previous-node, reordered, or omitted steps are invalid.
+- Completed external work supplies the actual non-empty capability ID; Core records `completed`.
+- Completed plain-equivalent work supplies an empty `capability`; Core records `plain_fallback`.
+- Incomplete required steps prevent submission; availability and execution status are not input fields.
+- Unknown, duplicate, previous-node, or omitted step keys are invalid. Core determines item order.
 - Capability output cannot substitute for the typed `node_result` or any current Core evidence gate.
 
 ## Artifact references
 
-Submit artifact evidence only as `role`, contract `path`, `digest`, and `summary`. A single-repository
-Task uses an ordinary repository-relative path; a multi-repository Task uses
+Put current-node artifacts in `artifacts.current` when the live schema exposes that slot, and related
+method artifacts in `artifacts.other_process`. Each entry contains only contract `path`, `digest`,
+and `summary`; Core assigns `role` from the slot and current node. A single-repository Task uses an
+ordinary repository-relative path; a multi-repository Task uses
 `<repository-key>::<repository-relative-path>`. Refer
 only to a file actually observed by the Host. Never submit full contents, command output, prompts,
 token data, runtime configuration, or private locations. An artifact digest does not replace the

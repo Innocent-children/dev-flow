@@ -281,6 +281,11 @@ revision、Action kind、process identity、source cursor、repository binding�
 step identity/order/status 与内部 payload envelope。`get_next_action` 的 `submission_tool` 指出当前
 唯一可用的提交工具。
 
+`method_results` 以当前 `method_steps[].step_id` 为键，每个值只含 `capability` 和 `summary`。
+外部工具完成步骤时填写实际 capability ID，普通等价工作完成后填写空字符串；Core 生成内部
+`MethodEvidence` 的步骤、顺序和状态。artifact 按当前 Schema 放入 `artifacts.current` 或
+`artifacts.other_process`，每项只含 `path`、`digest` 和 `summary`，`role` 由 Core 根据槽位和节点赋值。
+
 `dev_flow_submit_design` 的 `node_result.baseline.requirements_revision`、`dev_flow_submit_tasks` 的
 `node_result.baseline.design_revision` 与 `dev_flow_submit_implementation` 的
 `node_result.task_plan_revision` 均不属于 Host 可提交的字段。Core 确认当前 Action 身份后，从同一 Task
@@ -301,6 +306,10 @@ step identity/order/status 与内部 payload envelope。`get_next_action` 的 `s
 未知 CLI 参数、未列出的 MCP 工具或未满足隐式/显式统一 admission 的调用不属于受支持入口。
 
 ### Repository Scope 与 Host 偏好字段
+
+创建 Task 前，Host 按当前用户指令和适用的 `AGENTS.md` 只读调查仓库。需要项目索引时，结合索引、
+候选项目说明及代码与配置确定完整候选范围，再逐仓确认并准备工作树。所有读取遵守现有 Host 权限，
+Core 保存经过确认的固定 Scope。
 
 创建多仓库 Task 时，`repository_path` 是主仓库；调用可以增加一个主 key 和最多七个显式附加仓库：
 
@@ -375,3 +384,7 @@ Task result 的 `verification` 同时返回 `plan`、`current_budget`、当前 T
 这些值来自只读用户配置的进程启动快照：macOS 为 `$HOME/.dev-flow/config.json`，Windows 为
 `%USERPROFILE%\.dev-flow\config.json`。它们仅表示偏好，不表示索引能力已经安装或可用。文件不存在时
 两者都为 false；Dev Flow 不创建或修改配置文件。
+
+Host 选择检索工具时，当前用户指令和适用的 `AGENTS.md` 优先于这些默认偏好。没有相应指令时，
+false 选择普通文件和文本搜索，true 可优先使用当前可用的代码索引。索引不可用或结果不完整时，
+Host 在当前会话中至多提示一次并回到普通搜索；索引结果不改变已创建 Task 的 Scope。

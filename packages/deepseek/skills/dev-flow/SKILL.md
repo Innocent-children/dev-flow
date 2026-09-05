@@ -17,6 +17,14 @@ inspect Git without changing it, and inspect candidate implementation, callers, 
 and package manifests. Do not edit files, run tests or builds, install dependencies, call any Dev Flow
 Core or Host tool, fetch, create a branch or worktree, or write a receipt.
 
+Resolve candidate repositories from the current user request and applicable `AGENTS.md` instructions.
+When those instructions require project-index discovery, read the index and each candidate's project
+documentation, then inspect relevant code and configuration to establish the complete proposed
+Repository Scope. Keep discovery read-only and within the current Workspace Root and Host permissions.
+Otherwise use the repositories declared by the user. Every proposed repository must pass the explicit
+worktree confirmation below before Task creation; index results alone do not authorize provisioning
+or change an existing Task's immutable Scope.
+
 Return exactly these developer-readable fields:
 
 ```text
@@ -133,17 +141,20 @@ failed handshake.
 ## Optional code discovery
 
 After the successful handshake, consume only `host_preferences.deepseek.codebase_memory` and the
-capabilities actually visible in this DeepSeek session:
+capabilities actually visible in this DeepSeek session. Current user instructions and applicable
+`AGENTS.md` instructions take precedence over this default preference when choosing code-discovery
+tools. Use the preference rules below only when those instructions do not select a discovery method:
 
-- When the preference is `false`, do not call any codebase-memory tool even when one is visible. Use
-  built-in Git inspection, file reads, file search, and text search, and do not prompt for installation.
+- When the preference is `false`, use built-in Git inspection, file reads, file search, and text
+  search, and do not prompt for installation.
 - When the preference is `true` and codebase-memory is already visible and usable, it may be
-  preferred for cross-repository symbol discovery, relationships, and impact analysis. Repository
-  Scope still comes only from the user's declarations, Workspace Root remains the permission
-  boundary, and file modification uses ordinary Host file tools.
-- When the preference is `true` but the capability is absent, incomplete, or becomes unavailable,
-  notify the user at most once in the current Dev Flow session and immediately fall back to built-in
-  search without blocking Task creation or progress.
+  preferred for symbol discovery, relationships, and impact analysis within the confirmed Task Scope.
+
+Whether selected by user instructions, `AGENTS.md`, or the preference, an absent, incomplete, or
+unavailable index triggers at most one notice in the current Dev Flow session and an immediate
+fallback to built-in search without blocking Task creation or progress. Repository Scope remains
+the complete set confirmed before provisioning and retained by Core; Workspace Root remains the
+permission boundary, and file modification uses ordinary Host file tools.
 
 Never install, configure, upgrade, start, repair, or remove codebase-memory; never call plugin
 management to install it; never change MCP configuration; and never start a daemon. Index results
@@ -531,8 +542,8 @@ restart a repository-wide audit after each edit. Any added review area needs a s
 from the current change.
 
 Fix only defects introduced by the current change or caused in another location by that change.
-Unrelated historical problems are not repaired, tested, or added to this Task; mention them
-separately at delivery and suggest another Task when useful.
+Report findings only when they have that causal relationship. Unrelated historical problems stay
+outside the review, Task work, and delivery summary.
 
 After fixing a review finding, re-check only the original finding, related regressions, affected
 acceptance criteria, and matching targeted checks. Never restart a broad audit because one finding

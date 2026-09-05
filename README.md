@@ -23,6 +23,11 @@ Every new request is assessed read-only before Dev Flow is selected. If you choo
 remote, base branch, and new task branch; the Host fetches that base and creates a clean dedicated
 worktree before Core creates the Task. Changes in the source checkout are not copied into that worktree.
 
+Repository discovery and code-index use follow the current user instructions and applicable `AGENTS.md`.
+When those instructions require a project index, the Host inspects candidate repositories read-only
+before confirmation, then fixes the confirmed scope in the Task. Those instructions take precedence
+over the plugin's code-index preference.
+
 - **Scope stays explicit.** Expected paths are recorded, supported structured writes outside the plan
   ask first, and actual changes are checked again before testing and delivery.
 - **The workspace has one owner.** Core derives the Task's actual changes from Git inside the dedicated

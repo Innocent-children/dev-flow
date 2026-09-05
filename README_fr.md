@@ -23,6 +23,11 @@ Chaque nouvelle demande est d'abord évaluée en lecture seule. Si vous choisiss
 le remote, la branche de base et une nouvelle branche de tâche ; le Host crée depuis cette base distante
 un worktree propre et dédié avant que Core ne crée la Task. Les changements du checkout source ne sont pas copiés.
 
+La recherche de dépôts et l'utilisation de l'index de code suivent les instructions actuelles de
+l'utilisateur et le fichier `AGENTS.md` applicable. Si ces instructions imposent un index de projets,
+le Host examine les dépôts candidats en lecture seule avant confirmation, puis fixe le périmètre
+confirmé dans la Task. Ces instructions priment sur la préférence du plugin pour l'index de code.
+
 - **Le périmètre reste clair.** Les chemins prévus sont enregistrés, les outils structurés pris en charge
   demandent confirmation avant d'écrire hors du plan et les changements réels sont revérifiés avant les
   tests et la livraison.

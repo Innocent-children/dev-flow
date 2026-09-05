@@ -45,6 +45,10 @@ remote/base/target 确认，精确 fetch 远端分支，冻结 commit，并在�
 
 ## 任务处理规则
 
+仓库调查和代码索引工具选择遵循当前用户指令及适用的 `AGENTS.md`，优先于插件的代码索引偏好。
+用户规则要求检查项目索引时，Host 在创建 Task 前只读检查索引、候选项目说明、相关代码与配置，
+形成完整候选范围。每个仓库都经过确认和工作树准备后，范围固定到 Task；调查遵守现有 Host 权限。
+
 | 用户事件 | 产品行为 |
 | --- | --- |
 | 新请求可能很小 | Host 只读检查影响面并停止等待选择；确认前没有 Core 调用、Task、Git 写入或 child dispatch |
@@ -55,7 +59,7 @@ remote/base/target 确认，精确 fetch 远端分支，冻结 commit，并在�
 | 预算不足 | TEST 要求调整使用允许的原因类别，并说明具体原因和必要增加量，保存后留在 TEST 继续 |
 | 准备完整测试 | Host 每次重新判断广泛影响、定向检查是否足够、待补风险和仓库检查点要求；预算充足不是理由 |
 | 测试重复 | 第三次精确重复时暂停 |
-| 修改后复核 | 只检查当前 diff、因果影响和验收所需路径；修复后只做相关定向复核 |
+| 修改后复核 | 只检查当前 diff、因果影响和验收所需路径，交付只报告相关问题；修复后只做相关定向复核 |
 | 旧结果不再适用 | 内容变化使旧 Test/Comprehension 失效；只把相同内容提交成 commit 不会失效 |
 | 工作树历史异常 | branch switch、detach、rewind、rewrite 或工作树实例替换进入明确 blocker 或 unavailable 状态 |
 | Host 交接 | Core 先准备 relocation blocker；Host 只执行一次 handoff；目标验证通过后原子替换 binding 与 claims |
@@ -116,7 +120,7 @@ remote/base 的本地仓库，以及需要跨机器交接、安全沙箱、远�
 Dev Flow 不做通用 Agent 或 workflow DSL；Core 不执行 fetch、branch、worktree、commit、stash、reset、
 merge、rebase、push、tag、PR 或 publish；系统不复制 `.env`、证书、token、ignored/untracked 文件或
 凭据，不自动安装依赖或隔离端口、数据库、Docker volume 和外部服务，也不自动清理 active、dirty、
-未推送、来源不明或结果不确定的工作树。跨机器 relocation、相邻仓库自动发现、部分隔离的多仓库
+未推送、来源不明或结果不确定的工作树。跨机器 relocation、未经确认自动加入相邻仓库、部分隔离的多仓库
 Task、remote MCP 和云端多用户管理也不在当前范围。
 
 ## 已验证的范围

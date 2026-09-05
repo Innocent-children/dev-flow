@@ -23,6 +23,11 @@ Cada pedido novo é avaliado em modo somente leitura antes da escolha do Dev Flo
 confirma o remote, o branch base e um novo branch da tarefa; o Host cria a partir dessa base remota um
 worktree limpo e dedicado antes de o Core criar a Task. As mudanças do checkout de origem não são copiadas.
 
+A busca de repositórios e o uso do índice de código seguem as instruções atuais do usuário e o
+`AGENTS.md` aplicável. Se essas instruções exigirem um índice de projetos, o Host examina os repositórios
+candidatos em modo somente leitura antes da confirmação e fixa o escopo confirmado na Task.
+Essas instruções têm prioridade sobre a preferência do plugin para o índice de código.
+
 - **O escopo permanece claro.** Os caminhos previstos são registrados, as ferramentas estruturadas
   compatíveis pedem confirmação antes de gravar fora do plano e as mudanças reais são conferidas novamente
   antes dos testes e da entrega.

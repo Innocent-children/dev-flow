@@ -39,6 +39,12 @@ When absent, setup creates `$HOME/.dev-flow/config.json` on macOS or
 
 ## Assess and start a Task
 
+Repository discovery follows current user instructions and applicable `AGENTS.md`. When a project
+index is required, Codex reads it, candidate project documentation, and relevant code/configuration
+within existing permissions to establish the complete proposed scope before confirming and
+provisioning each repository. Scope is fixed after Task creation. These instructions take precedence
+over the `host_preferences.codex.codebase_memory` default when selecting code-discovery tools.
+
 Codex may select the Skill for a bounded development request. This exact conversation selector forces
 selection but does not skip assessment:
 
@@ -108,6 +114,9 @@ post-change review covers only the diff, direct/indirect causal impact, and acce
 review fix, Codex rechecks that finding and related targeted regressions, not the whole repository.
 An explicit code review is read-only and stops after all findings are delivered until repair is
 separately authorized.
+
+Ordinary post-change review and delivery report only findings causally related to the current change;
+unrelated historical issues stay outside the report.
 
 The trusted hook runs `dev-flow-codex hook pre-tool-use`, which forwards the parsed targets through
 `dev-flow-codex host-check pre-file-write` to the packaged Core. It checks supported `apply_patch`

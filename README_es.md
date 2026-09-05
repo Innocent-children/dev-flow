@@ -23,6 +23,11 @@ Cada petición nueva se evalúa en modo de solo lectura antes de elegir Dev Flow
 el remote, la rama base y una rama nueva para la tarea; el Host crea desde esa base remota un worktree
 dedicado y limpio antes de que Core cree la Task. Los cambios del checkout de origen no se copian.
 
+La búsqueda de repositorios y el uso del índice de código siguen las instrucciones actuales del usuario
+y el `AGENTS.md` aplicable. Si estas instrucciones requieren un índice de proyectos, el Host examina
+los repositorios candidatos en modo de solo lectura antes de la confirmación y fija el alcance confirmado
+en la Task. Estas instrucciones tienen prioridad sobre la preferencia del plugin para el índice de código.
+
 - **El alcance permanece claro.** Registra las rutas previstas, pide confirmación antes de que las
   herramientas estructuradas compatibles escriban fuera del plan y vuelve a comprobar los cambios reales
   antes de las pruebas y la entrega.

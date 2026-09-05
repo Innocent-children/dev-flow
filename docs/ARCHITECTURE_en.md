@@ -30,6 +30,13 @@ flowchart TB
 
 ## Before Task creation
 
+The Host discovers repository scope from current user instructions and applicable `AGENTS.md`.
+When those instructions require a project index, it reads the index, candidate project documentation,
+and relevant code/configuration within existing permissions, then includes the complete candidate set
+in the assessment. Every repository still requires confirmation and provisioning; Core retains the
+confirmed immutable Scope. The code-index preference applies only when user and AGENTS instructions
+do not select a discovery method.
+
 Every new request, exact selector, and parallel batch receives Host-side read-only assessment. The
 Host may read the request, repository instructions, relevant code, callers, tests, manifests, and Git
 state. It may not call Core, run tests, fetch, or create a branch/worktree. The result contains:
@@ -206,7 +213,7 @@ decide lasting value before changing test code.
 Post-change code review also requires the Host to assess the current changes: inspect only the current diff, causally affected
 call paths, and acceptance needs. After fixing a review finding, recheck only that issue and related
 regressions. Explicit code review remains read-only and stops after delivering its findings;
-unrelated historical issues do not enter the Task.
+unrelated historical issues stay outside the current review, Task work, and delivery report.
 
 ## Relocation, cancellation, and terminal state
 

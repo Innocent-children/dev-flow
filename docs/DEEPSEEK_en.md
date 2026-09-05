@@ -38,6 +38,13 @@ non-link directory.
 
 ## Assess, confirm, and relaunch
 
+Repository discovery follows current user instructions and applicable `AGENTS.md`. When a project
+index is required, DeepSeek reads it, candidate project documentation, and relevant code/configuration
+within the current Workspace Root and permissions to establish the complete proposed scope before
+confirming and provisioning each repository. Scope is fixed after Task creation. These instructions
+take precedence over the `host_preferences.deepseek.codebase_memory` default when selecting
+code-discovery tools.
+
 An ordinary new request first receives read-only discovery. The Host reports
 `small|standard|large|uncertain`, observed repositories, candidate components/paths, contract/state/Host
 flags, verification shape, unknowns, a recommendation, and reasons, then waits. That turn makes no
@@ -109,6 +116,9 @@ failure path, or an observed regression. A one-time README word requirement gets
 Ordinary post-change review covers only the diff, direct/indirect causal impact, and acceptance needs;
 after a review fix, only that finding and related targeted regressions are rechecked. Explicit code
 review remains read-only and stops after findings until repair is separately authorized.
+
+Ordinary post-change review and delivery report only findings causally related to the current change;
+unrelated historical issues stay outside the report.
 
 During selected turns, DSH checks `write`, `edit`, and mutating `str_replace_editor` targets against
 the union of every WorkItem `ExpectedPaths`, with repository-key qualification for multi-repository

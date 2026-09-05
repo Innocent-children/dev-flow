@@ -23,6 +23,11 @@ Jede neue Anfrage wird zuerst schreibgeschützt bewertet. Wenn du Dev Flow ausw�
 Basis-Branch und einen neuen Task-Branch; der Host erstellt von dieser entfernten Basis einen sauberen,
 eigenen Worktree, bevor Core die Task anlegt. Änderungen aus dem Quell-Checkout werden nicht kopiert.
 
+Die Repository-Suche und die Nutzung des Code-Index folgen den aktuellen Benutzeranweisungen und der
+anwendbaren `AGENTS.md`. Verlangen diese einen Projektindex, untersucht der Host die möglichen
+Repositories vor der Bestätigung schreibgeschützt und legt den bestätigten Umfang in der Task fest.
+Diese Anweisungen haben Vorrang vor der Code-Index-Einstellung des Plugins.
+
 - **Der Umfang bleibt klar.** Erwartete Pfade werden festgehalten, unterstützte strukturierte Werkzeuge
   fragen vor Schreibvorgängen außerhalb des Plans und tatsächliche Änderungen werden vor Tests und
   Auslieferung erneut geprüft.

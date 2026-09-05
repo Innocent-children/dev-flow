@@ -51,6 +51,12 @@ change in the Task worktree belongs to that Task.
 
 ## Task handling rules
 
+Repository discovery and code-index selection follow current user instructions and applicable
+`AGENTS.md`, ahead of the plugin's code-index preference. When those instructions require a project
+index, the Host reads it, candidate project documentation, and relevant code/configuration before Task
+creation to establish the complete proposed scope. Every repository is confirmed and provisioned
+before that scope is fixed in the Task; discovery respects existing Host permissions.
+
 | User event | Product behavior |
 | --- | --- |
 | A new request may be small | The Host performs read-only discovery and stops for a choice; no Core call, Task, Git write, receipt, or child dispatch exists before confirmation |
@@ -61,7 +67,7 @@ change in the Task worktree belongs to that Task.
 | Capacity is insufficient | TEST accepts only an increase with an allowed basis category, concrete reason, and needed increment, then remains in TEST |
 | A full suite is proposed | The Host rechecks broad impact, whether focused checks suffice, the concrete uncovered risk, and repository checkpoint rules; available budget is not a reason |
 | Testing repeats | A third exact repetition pauses |
-| Code is reviewed after change | Review only the diff, causal impact, and acceptance needs; after a fix rerun only related review and checks |
+| Code is reviewed after change | Review only the diff, causal impact, and acceptance needs; delivery reports only related findings; after a fix rerun only related review and checks |
 | Earlier results become stale | Content changes invalidate Test and Comprehension; committing identical content does not |
 | Workspace history changes unexpectedly | Branch switch, detach, rewind, rewrite, or worktree replacement produces a specific blocker or unavailable result |
 | The Host relocates the Task | Core prepares a relocation blocker, the Host performs one handoff, and verified destination bindings and claims change atomically |
@@ -132,8 +138,9 @@ Dev Flow is not a general agent or workflow DSL. Core does not fetch, create bra
 commit, stash, reset, merge, rebase, push, tag, open pull requests, or publish. The product does not
 copy `.env`, certificates, tokens, ignored/untracked files, or credentials; install dependencies;
 isolate ports, databases, Docker volumes, or services; or automatically delete active, dirty,
-unpushed, unknown-owner, or uncertain worktrees. Cross-machine relocation, neighboring-repository
-discovery, partly isolated multi-repository Tasks, remote MCP, and cloud multi-user management are out of scope.
+unpushed, unknown-owner, or uncertain worktrees. Cross-machine relocation, automatic addition of
+unconfirmed neighboring repositories, partly isolated multi-repository Tasks, remote MCP, and cloud
+multi-user management are out of scope.
 
 ## Verified scope
 

@@ -67,6 +67,11 @@ dsh --profile $ProfileName --dump-config
 
 ## 启动一个 Task
 
+仓库调查遵循当前用户指令和适用的 `AGENTS.md`。需要项目索引时，DeepSeek 在当前 Workspace Root
+和权限内只读检查索引、候选项目说明及相关代码与配置，形成完整候选范围，再逐仓确认并准备工作树；
+Task 创建后范围固定。选择代码检索工具时，这些指令优先于 `host_preferences.deepseek.codebase_memory`
+默认偏好。
+
 先把开发请求正常发给 DSH。Adapter 只读检查候选实现、调用关系、测试、配置和 Git 状态，返回
 `small|standard|large|uncertain`、已经找到的影响面、未知项和建议；这一轮不调用 Core、不修改 Git、
 不运行测试，也不创建 Task。即使第一条消息已经包含 `/dev-flow`，新请求也不能跳过评估和确认。
@@ -121,6 +126,8 @@ Adapter 在 TASKS 完成需求、设计、工作拆分、影响面和现有测�
 普通实现后的复核只看当前 diff、直接或间接影响和验收所需路径。修复复核发现后只检查原问题、相关
 回归和对应定向检查，不重启全仓库审计。显式 code review 阶段只读，交付完整发现后等待单独修复授权。
 
+普通修改后的复核和交付只报告与当前改动有因果关系的问题，无关历史问题不进入报告。
+
 ## 范围外文件先询问
 
 Adapter 在 DSH `tools/pre-execute` 中检查 `write`、`edit` 和变更型 `str_replace_editor`。当前 direct
@@ -170,7 +177,7 @@ dsh --profile "$PROFILE" --dump-config
 ## DeepSeek 权限与边界
 
 - DSH 启动时的 canonical Workspace Root 是权限边界；仓库和 symlink 解析结果必须位于其中；
-- Dev Flow 不扩大 Workspace Root，也不会通过索引发现并加入相邻仓库；需要 sibling worktree 时重启到
+- Dev Flow 保持当前 Workspace Root 权限边界，索引结果不改变已创建 Task 的 Scope；需要 sibling worktree 时重启到
   Coordinator 返回的新 Root；
 - Core 只读观察 Git，不执行 fetch、branch、worktree、commit、push、merge、rebase、tag 或 publish；
 - DeepSeek 负责用户确认后的 fetch、branch、worktree、文件修改和命令执行；Host gate 检查列出的

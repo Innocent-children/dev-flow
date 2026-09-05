@@ -294,6 +294,13 @@ revision, Action kind, process identity, source cursor, repository binding, arti
 step identity/order/status, and internal payload envelope. `get_next_action.submission_tool` names the
 only submission tool for the current Action.
 
+`method_results` is keyed by the current `method_steps[].step_id`; each value contains only
+`capability` and `summary`. Supply the actual capability ID after external completion, or an empty
+string after completed plain-equivalent work. Core creates the internal `MethodEvidence` step
+identity, order, and status. Artifacts use `artifacts.current` or `artifacts.other_process` as exposed
+by the current schema, with only `path`, `digest`, and `summary` per item. Core assigns `role` from
+the slot and node.
+
 `node_result.baseline.requirements_revision` on `dev_flow_submit_design`,
 `node_result.baseline.design_revision` on `dev_flow_submit_tasks`, and
 `node_result.task_plan_revision` on `dev_flow_submit_implementation` are absent from the Host
@@ -320,6 +327,12 @@ Unknown CLI arguments, tools outside this catalog, and calls that do not satisfy
 are not supported entrypoints.
 
 ### Repository Scope and host-preference fields
+
+Before Task creation, the Host discovers repositories read-only under current user instructions and
+applicable `AGENTS.md`. When a project index is required, it combines the index, candidate project
+documentation, and code/configuration to establish the complete proposed scope, then confirms and
+provisions each repository. All reads respect existing Host permissions; Core retains the confirmed
+immutable Scope.
 
 When creating a multi-repository Task, `repository_path` identifies the primary repository. The call
 may add one primary key and up to seven explicit additional repositories:
@@ -399,3 +412,9 @@ These values come from the process-start snapshot of the read-only user configur
 `$HOME/.dev-flow/config.json` on macOS or `%USERPROFILE%\.dev-flow\config.json` on Windows. They
 express preference, not installed or available index capability. Both are false when the file is
 absent, and Dev Flow does not create or modify it.
+
+Current user instructions and applicable `AGENTS.md` take precedence over these defaults when the
+Host chooses discovery tools. Without such instructions, false selects ordinary file/text search
+and true may prefer an available code index. An unavailable or incomplete index prompts at most one
+notice in the current session and a fallback to ordinary search; index results do not change an
+existing Task's Scope.
