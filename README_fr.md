@@ -26,7 +26,7 @@ un worktree propre et dédié avant que Core ne crée la Task. Les changements d
 - **Le périmètre reste clair.** Les chemins prévus sont enregistrés, les outils structurés pris en charge
   demandent confirmation avant d'écrire hors du plan et les changements réels sont revérifiés avant les
   tests et la livraison.
-- **Chaque worktree a un seul propriétaire des modifications.** Core calcule la surface actuelle de la
+- **Chaque worktree a un seul propriétaire des modifications.** Core calcule les modifications actuelles de la
   Task depuis Git ; les commits linéaires normaux continuent, tandis qu'une réécriture de branche ou le
   remplacement du worktree arrête la tâche.
 - **La vérification suit la tâche.** TASKS conserve contrôles, raisons, effort initial et attentes de suite
@@ -81,9 +81,11 @@ worktree, car le Workspace Root de la session est fixe.
 
 ### 3. Reprendre et consulter l'avancement
 
-Après un redémarrage, revenez dans le worktree exact lié à la Task et demandez explicitement la reprise.
-La reprise ne répète pas l'admission et ne choisit pas de worktree de remplacement ; si l'instance a
-disparu ou a été remplacée, la Task s'arrête jusqu'à sa restauration ou son abandon explicite.
+Après un redémarrage de la session, demandez explicitement de poursuivre la Task dans son worktree
+d'origine. Le système vérifie ce worktree et reprend à partir de l'état enregistré, sans réévaluer
+la demande ni vous demander de choisir à nouveau Dev Flow. Si le worktree d'origine a disparu ou a
+été remplacé, la Task reste en pause jusqu'à sa restauration ou à l'abandon explicite de la tâche
+(abandon). Le système ne passe pas à un autre worktree.
 
 ```bash
 # Consulter les intégrations installées

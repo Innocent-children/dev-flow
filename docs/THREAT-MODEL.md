@@ -7,7 +7,7 @@
 Dev Flow 保护的是**开发任务的过程状态**，不是包裹编程 Agent 的安全沙箱。
 
 Codex 或 DeepSeek Harness 仍然使用开发者授予的权限读取仓库、修改文件和运行命令；Go Core 负责
-保存权威 Task 状态，并校验流转、仓库绑定、持久化和 Recovery 决策。
+保存唯一 Task 状态，并校验流转、仓库绑定、持久化和 Recovery 决策。
 
 ```mermaid
 flowchart LR
@@ -18,25 +18,25 @@ flowchart LR
     C --> S[SQLite Task 状态]
 ```
 
-## 需要保护什么
+## 保护对象
 
 - 开发者声明的一个至八个 Git 仓库；
-- Task 原始意图、当前阶段、revision、Action、证据、Blocker、Outcome，以及可恢复 Action 操作的
+- Task 原始意图、当前阶段、revision、Action、验证记录、Blocker、Outcome，以及可恢复 Action 操作的
   规范化 payload 与 digest；
 - Repository Scope、仓库身份与 aggregate binding；
 - WorkspaceOrigin、工作树实例身份、固定 base commit、当前 Task surface；
 - 本地 SQLite、安装 receipt、provisioning receipt、relocation record 与用户配置；
 - npm package、bundled Core、Git Tag、GitHub Release 与 artifact digest；
-- 日志和验证证据中可能出现的路径、代码片段和诊断信息。
+- 日志和验证结果中可能出现的路径、代码片段和诊断信息。
 
-## 谁负责什么
+## 职责划分
 
 | 参与者 | 责任 |
 | --- | --- |
 | 开发者 | 选择是否进入 Dev Flow；确认 remote/base/target、仓库和 Host 权限、理解结论、handoff、清理与发布操作 |
-| Codex / DeepSeek Harness | 真正读取文件、修改仓库和运行命令，是高权限执行面 |
+| Codex / DeepSeek Harness | 真正读取文件、修改仓库和运行命令，使用开发者授予的较高权限 |
 | Host Adapter | 只读评估请求；在确认后执行 fetch、branch、worktree、relaunch/handoff；在命令、完整套件、测试文件修改和复核前判断范围；按 Action、Scope、当前验证计划和 Recovery 调用 Core |
-| Go Core | 只读观察 Git，保存唯一流程状态，计算 Task surface，并校验 revision、workspace、闭合 payload、流转和持久化 |
+| Go Core | 只读观察 Git，保存唯一流程状态，计算 Task surface，并校验 revision、workspace、只允许约定字段的 payload、流转和持久化 |
 | 仓库内容 | 视为不可信输入，可能包含 prompt injection、危险脚本、symlink 或恶意文件名 |
 | npm / GitHub | 提供远程 package 和 Release 身份，发布流程必须回读核对 |
 
@@ -64,7 +64,7 @@ Core identity，避免错误复用或 PID 重用；Windows 从内核进程信息
 | SQLite、配置或 executable 被本地进程篡改 | strict codec、Schema 检查、Task/Action-operation 关联检查、closed fields 与 package/executable identity 验证 |
 | 安装或移除误删相邻配置和 Task 数据 | ownership receipt；remove 只清理自己管理的注册；普通卸载保留 Task 数据 |
 | beta、源码和稳定支持被混为一谈 | 稳定声明只来自 Support Matrix；beta 与 source 在 Project Status 中单独标记 |
-| 日志或旅程证据泄露隐私 | 提交的 evidence 只保留有界机器事实与 digest；raw transcript 默认不提交 |
+| 日志或完整流程测试记录泄露隐私 | 提交的验证记录只包含数量受限的程序运行信息和摘要；完整会话原文默认不提交 |
 
 ## 剩余风险
 
@@ -74,7 +74,7 @@ Core identity，避免错误复用或 PID 重用；Windows 从内核进程信息
 - 具有同一用户权限或管理员权限的攻击者可以替换本地 binary、SQLite 或配置。
 - 当前没有加密状态库、多用户隔离、远程认证、自动 secret scanning、代码签名或透明度日志。
 - Dev Flow 不能保证模型输出正确、代码无漏洞、测试充分或完全免疫 prompt injection。
-- Core 无法判断自然语言理由是否真的与改动相关；Host 对验证和复核范围的语义判断仍可能出错。
+- Core 无法判断自然语言理由是否真的与改动相关；Host 对测试和复核范围是否合适的判断仍可能出错。
 - 不受支持的平台、Host 版本和 source-only build 没有稳定安全支持声明。
 
 安全问题请按仓库根目录的 [Security Policy](../SECURITY.md) 私密报告。

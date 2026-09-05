@@ -26,7 +26,7 @@ dedicado y limpio antes de que Core cree la Task. Los cambios del checkout de or
 - **El alcance permanece claro.** Registra las rutas previstas, pide confirmación antes de que las
   herramientas estructuradas compatibles escriban fuera del plan y vuelve a comprobar los cambios reales
   antes de las pruebas y la entrega.
-- **Cada worktree tiene un solo propietario de cambios.** Core calcula la superficie actual de la Task
+- **Cada worktree tiene un solo propietario de cambios.** Core calcula los cambios actuales de la Task
   desde Git; los commits lineales normales continúan, mientras que una reescritura de rama o la sustitución
   del worktree detiene la tarea.
 - **La verificación se ajusta a la tarea.** TASKS guarda comprobaciones, motivos, esfuerzo inicial y
@@ -81,9 +81,11 @@ de la sesión es fijo.
 
 ### 3. Retoma y revisa el progreso
 
-Después de un reinicio, vuelve al worktree exacto asociado a la Task y solicita reanudarla explícitamente.
-La reanudación no repite la admisión ni elige un worktree sustituto; si la instancia desapareció o fue
-reemplazada, se detiene hasta restaurarla o abandonarla explícitamente.
+Después de reiniciar la sesión, solicita explícitamente continuar la Task en su worktree original.
+El sistema comprueba ese worktree y continúa desde el estado guardado, sin volver a evaluar la
+petición ni pedirte que elijas Dev Flow otra vez. Si el worktree original desapareció o fue
+reemplazado, la Task se pausa hasta que lo restaures o abandones explícitamente la tarea (abandon).
+El sistema no cambia a otro worktree.
 
 ```bash
 # Consultar las integraciones instaladas

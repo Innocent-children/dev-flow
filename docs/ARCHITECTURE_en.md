@@ -156,9 +156,9 @@ effects, process artifacts, and ExpectedPaths, then constructs one complete `Tas
 
 A normal mutation:
 
-1. validates Task/Action/revision/process and the closed payload;
+1. validates Task/Action/revision/process and checks that the payload contains only allowed fields;
 2. observes and classifies every workspace;
-3. derives Action delta, current surface, authority invalidation, and destination;
+3. derives Action delta, current surface, record invalidation, and destination;
 4. validates the complete next Task, Action, Event, and Claim set in memory;
 5. stages the normalized Action operation;
 6. uses one SQLite transaction for revision CAS, Event append, complete claim update, and applied marker.
@@ -203,7 +203,7 @@ execution. Codex/DeepSeek Skills select the closest check before every command, 
 focused-check sufficiency, uncovered risk, and repository checkpoint before every full suite, and
 decide lasting value before changing test code.
 
-Post-change code review is also Host semantic work: inspect only the current diff, causally affected
+Post-change code review also requires the Host to assess the current changes: inspect only the current diff, causally affected
 call paths, and acceptance needs. After fixing a review finding, recheck only that issue and related
 regressions. Explicit code review remains read-only and stops after delivering its findings;
 unrelated historical issues do not enter the Task.
@@ -227,7 +227,7 @@ separate authorization.
 
 ## MCP, Store, and WebUI
 
-The closed MCP catalog contains seventeen tools:
+The fixed MCP tool list contains seventeen tools:
 
 ```text
 dev_flow_server_info
@@ -272,7 +272,7 @@ no longer creates a Task from an arbitrary checkout and performs no Git mutation
 ## Versions, distribution, and source map
 
 Core, Codex, DeepSeek, and the unified lifecycle package have independent versions. `CORE_VERSION` is
-the machine-readable Core authority; npm versions remain in each `package.json`, and ordinary product
+the machine-readable Core version file; npm versions remain in each `package.json`, and ordinary product
 work performs no release. Host packages carry exact `darwin-arm64/dev-flow` and
 `win32-x64/dev-flow.exe` runtime pairs.
 
@@ -283,9 +283,9 @@ work performs no release. Host packages carry exact `darwin-arm64/dev-flow` and
 | `internal/application/` | open/resume/read/submit/recover/relocate/cancel/abandon orchestration |
 | `internal/workflow/` | 11 nodes, ordinary edges, payloads, guards, invalidation |
 | `internal/store/` | current-only SQLite, codec, operations, events, claims |
-| `internal/mcp/` | seventeen tools, closed schemas, annotations, Result Envelope |
+| `internal/mcp/` | seventeen tools, field restrictions, tool annotations, and the common response structure |
 | `internal/webui/`, `packages/webui/` | loopback Adapter and embedded interface |
-| `packages/codex/`, `packages/deepseek/` | Host admission, provisioning, relaunch/handoff, package |
-| `protocol/fixtures/`, `tests/` | public contracts, fault injection, Host journeys |
+| `packages/codex/`, `packages/deepseek/` | request assessment, worktree creation, session restart/handoff, and packaging |
+| `protocol/fixtures/`, `tests/` | public contracts, fault injection, Host end-to-end tests |
 
 Source, machine-readable schemas, package manifests, CLI parsers, and executable tests define current behavior.

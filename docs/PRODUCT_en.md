@@ -6,10 +6,10 @@
 
 > Dev Flow first helps a developer decide whether a request warrants the full workflow. A selected
 > Task starts from a developer-confirmed remote base in a dedicated worktree, while Core keeps its
-> actual change surface, post-analysis verification plan, and current progress coherent.
+> actual changes, post-analysis verification plan, and current progress coherent.
 
-Codex or DeepSeek still reads code, edits files, and runs commands. Dev Flow retains one authoritative
-Task. Verification effort is planned with the Task Plan, and later expansion records a concrete new
+Codex or DeepSeek still reads code, edits files, and runs commands. Dev Flow retains one saved
+Task state. Verification effort is planned with the Task Plan, and later expansion records a concrete new
 impact, risk, failure, or gap. Core rejects or pauses unplanned results, scope expansion, stale
 results, workspace-history conflicts, and uncertain operations.
 
@@ -37,7 +37,7 @@ Users can:
 - have the Host reconsider every full suite, test-code change, and post-change review scope;
 - explicitly abandon a missing workspace and make separate keep, handoff, worktree-cleanup, and branch-cleanup decisions at terminal state.
 
-## Primary failure scenario
+## Main problem
 
 The previous flow bound a new Task to the checkout already in use. Git-visible work from another tool,
 process, or person could drift the Task, while agent-reported file paths could neither prove the
@@ -49,7 +49,7 @@ remote/base/target decision, fetches the exact remote ref, freezes its commit, a
 only in a dedicated worktree. Later changes in the source checkout are unrelated; every Git-visible
 change in the Task worktree belongs to that Task.
 
-## How the product intervenes
+## Task handling rules
 
 | User event | Product behavior |
 | --- | --- |
@@ -58,7 +58,7 @@ change in the Task worktree belongs to that Task.
 | The Task worktree changes | Core derives identity, history, content, Action delta, and the base-relative current Task surface |
 | Work leaves the plan | Supported structured writes ask first; later observation finds other writes, and unexplained paths cannot reach testing or delivery |
 | TASKS completes analysis | Retain planned checks and rationales, the initial automatic-command budget, full-suite expectation, and test-code expectation |
-| Capacity is insufficient | TEST accepts only an increase with a closed basis, concrete reason, and needed increment, then remains in TEST |
+| Capacity is insufficient | TEST accepts only an increase with an allowed basis category, concrete reason, and needed increment, then remains in TEST |
 | A full suite is proposed | The Host rechecks broad impact, whether focused checks suffice, the concrete uncovered risk, and repository checkpoint rules; available budget is not a reason |
 | Testing repeats | A third exact repetition pauses |
 | Code is reviewed after change | Review only the diff, causal impact, and acceptance needs; after a fix rerun only related review and checks |
@@ -107,11 +107,11 @@ automatic Git publication, does not fit.
 
 | Tool | Responsibility |
 | --- | --- |
-| Codex / DeepSeek | Understand the request and code, assess admission, perform confirmed Host/Git work, edit code, and run checks |
+| Codex / DeepSeek | Understand the request and code, assess whether to use Dev Flow, perform confirmed Host/Git work, edit code, and run checks |
 | OpenSpec / Spec Kit | Optionally organize requirements, design, and tasks; never decide a Core node or completion |
 | Dev Flow Core | Retain the one Task, observe the workspace, enforce scope/verification/recovery rules, and decide the legal next action |
 
-## Capability layers
+## Task execution flow
 
 1. The Host assesses each new request read-only, reports `small|standard|large|uncertain`, candidate
    impact, unknowns, and a recommendation, then waits. Request, canonical root, HEAD, or status changes
@@ -135,11 +135,11 @@ isolate ports, databases, Docker volumes, or services; or automatically delete a
 unpushed, unknown-owner, or uncertain worktrees. Cross-machine relocation, neighboring-repository
 discovery, partly isolated multi-repository Tasks, remote MCP, and cloud multi-user management are out of scope.
 
-## Current evidence boundary
+## Verified scope
 
-The project has public npm packages, source contract tests, and real Codex and DeepSeek Host journeys.
-Each record proves only its package, platform, and process slice. Fixtures, static checks, and evidence
-from another platform do not expand stable support.
+The project provides public npm packages, interface specification tests, and records of complete task
+workflows in actual Codex and DeepSeek. Each result applies only to the package, platform, and steps
+tested. Fixtures, static checks, and results from other platforms cannot expand stable support.
 
 Dev Flow remains early and does not yet have enough external data to claim lower defect rates,
 verification cost, or recovery time. See [Project Status](PROJECT-STATUS_en.md) and the

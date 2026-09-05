@@ -90,7 +90,7 @@ Adapter 不直接重复提交，而是用 Task ID 和 Action ID 读取当前 Tas
 这只适用于 Dev Flow 可以识别和记录的 Action。它不表示 Dev Flow 能恢复任意 Host 文件写入、shell
 命令或外部系统副作用。
 
-## 当前记录分别说明什么
+## 现有验证记录与范围
 
 以下是相互独立的记录路径，每一项只说明表格中的范围：
 
@@ -99,8 +99,8 @@ Adapter 不直接重复提交，而是用 Task ID 和 Action ID 读取当前 Tas
 | [PR #8 的 Codex 状态图验收](https://github.com/Innocent-children/dev-flow/pull/8) | 真实 Codex 旅程覆盖重启、重构、重新测试、理解确认、交付和 Core `DONE` |
 | [Support Matrix](SUPPORT-MATRIX.md) | 哪些稳定 registry package 与 Host 环境具有最终生命周期记录 |
 
-不同 Journey 分别说明不同能力；不要把多份记录描述成一次运行证明全部能力。源码测试也不等于
-最终公开制品支持。稳定、源码和未验证内容见 [Project Status](PROJECT-STATUS.md)。
+不同完整流程测试分别说明不同能力；不要把多份记录描述成一次运行证明全部能力。源码测试也不等于
+最终公开安装包支持。稳定、源码和未验证内容见 [Project Status](PROJECT-STATUS.md)。
 
 ## 试用稳定入口
 

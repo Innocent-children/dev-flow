@@ -90,7 +90,7 @@ Judge the resulting design by these outcomes:
 Before implementation, structure a product feature proposal with this template:
 
 ```markdown
-## User event
+## Problem
 
 What actually happened?
 
@@ -98,46 +98,55 @@ What actually happened?
 
 How does the user handle it without Dev Flow?
 
-## Facts Dev Flow can confirm
+## Available data
 
-What can the Task, Action, repository, and retained evidence determine?
+What can the Task, Action, repository, and saved results tell us?
 
-## Decision to make
+## Behavior rules
 
 Should the system continue, review, retry, block, or ask the user to decide?
 
-## User-visible result
+## Expected result
 
 What change will the user ultimately see?
 
-## Cost of error
+## Risks and impact
 
 What are the consequences of a false allow and a false block?
 
-## Acceptance evidence
+## Acceptance checks
 
-Which test, fault injection, or real Host journey demonstrates the result?
+How will we test this, in which environment, and what result should we see?
 
-## Explicit non-goals
+## Non-goals
 
 Which capabilities will this change not expand?
 ```
 
-Apply this decision gate before product implementation:
+Answer these questions before product implementation:
 
-1. Does the proposal directly improve trustworthy continuation of a long-running task?
+1. Does the proposal help a long-running task resume from the correct state?
 2. Is the decision based on Task, Action, repository observation, or retained records rather than
    only an agent narrative?
 3. Does it reduce the user's effort to understand current state and next step?
-4. Can it establish a repeatable real-Host journey?
-5. Does it retain one Core Task authority?
-6. Does it add unnecessary process ceremony?
-7. Is it horizontal expansion only for another platform, Host, or interface?
+4. Can we repeat the full workflow in an actual Codex or DeepSeek session?
+5. Does Core remain the only component that decides Task state?
+6. Does it add unnecessary process steps?
+7. Does it solve a task problem, or only add another platform, Host, or interface?
 
 Do not move a proposal directly into implementation when it cannot state the user problem,
 user-visible result, and acceptance method clearly.
 
 ## Documentation and Internationalization
+
+Write documentation in clear, formal technical language. Explain current behavior, component
+responsibilities, verification methods, and the impact of failure. Use concise technical headings
+rather than conversational questions. Use concrete descriptions such as test results, saved records, allowed fields, and the component that owns a decision. Keep actual
+code identifiers, field names, commands, and paths unchanged; explain them when first introduced.
+Retain established technical terms such as code baseline, interface specification, state machine, and
+idempotency when they express the intended meaning accurately. Revise wording in context rather
+than applying a word blacklist.
+Acceptance sections must name the steps or tests, expected results, and actual verification scope.
 
 Human-readable documentation describes only delivered current product behavior; it is not runtime,
 build, release, or test authority. The maintained locale set and document-family coverage are defined
@@ -152,7 +161,7 @@ Every change to user-visible behavior must update documentation in the same pull
    instructions, or invocation documentation;
 4. list the exact documentation paths in the pull-request validation summary.
 
-A version-only release updates machine-readable version authorities and release records. Human-readable
+A version-only release updates machine-readable version files and release records. Human-readable
 documentation must not contain exact Core, Codex, DeepSeek, or Dev Flow CLI release versions.
 
 Public end-user installation examples must select the current npm stable channel with
@@ -164,9 +173,9 @@ Every documented command must be checked against its executable implementation b
 - npm package names, `bin` entries, and platform constraints come from the relevant `package.json`;
 - Codex subcommands and argument forms come from `packages/codex/bin/dev-flow-codex.mjs`;
 - DeepSeek install, inspection, and removal forms come from lifecycle tests and final-artifact
-  journeys;
+  end-to-end tests;
 - packaged Core commands come from `cmd/dev-flow/main.go`;
-- MCP tool names, annotations, and purposes come from the closed catalog under `internal/mcp/`.
+- MCP tool names, annotations, and purposes come from the fixed tool list under `internal/mcp/`.
 
 A change that adds, removes, or changes a CLI command, selector, environment variable, lifecycle
 command, or MCP tool must update `docs/COMMANDS.md`, `docs/COMMANDS_en.md`, every affected package
@@ -194,7 +203,7 @@ Only the Go Core owns:
 - process definition and content digest;
 - current node and resume node;
 - action identity and revision;
-- node purpose, obligations, allowed effects, and required evidence;
+- node purpose, obligations, allowed effects, and required verification records;
 - legal outgoing transitions and transition guards;
 - blocker and recovery classification;
 - terminal outcome.
@@ -211,7 +220,7 @@ authorities and are not repository development requirements.
 - Core owns semantic method steps and the current process node.
 - Host adapters may render supported commands or instructions for the selected profile.
 - Missing tooling must be reported honestly; it does not authorize fabricated completion.
-- Method artifacts may provide evidence, but their local status does not mutate Core state without an
+- Method artifacts may provide verification records, but their local status does not mutate Core state without an
   exact Core action submission.
 - Do not make an external method tool a production dependency of the Go Core.
 - External code indexes, including codebase-memory, are optional and must not be installed
@@ -227,7 +236,7 @@ When a change affects process behavior, define all of the following before imple
 - complete outgoing transitions for every affected node;
 - transition IDs, destinations, guards, and required reasons;
 - node entry assumptions and completion conditions;
-- allowed effects and required evidence;
+- allowed effects and required verification records;
 - method-profile operations;
 - payload and MCP projections;
 - current persisted Schema and validation rules;
@@ -257,7 +266,7 @@ documentation to recognize it later.
 
 ## Core Version Changes
 
-`CORE_VERSION` is the single machine-readable Core product-version authority. Every ordinary change
+`CORE_VERSION` is the single machine-readable Core product-version file. Every ordinary change
 that modifies the shipped Core executable, its externally observable behavior, or a Core-owned
 contract must review and update `CORE_VERSION` in the same change. This includes changes to Core data
 structures, the persisted Schema, protocols or payloads, process definitions, CLI or MCP behavior,
@@ -275,7 +284,7 @@ not by the ordinary product change.
 The product Core may inspect Git read-only. It may not create, switch, delete, reset, clean, stash,
 commit, push, merge, rebase, tag, publish, or otherwise mutate Git state.
 
-Repository development actions require explicit user authority. npm publication, Git Tag changes,
+Repository development actions require explicit user authorization. npm publication, Git Tag changes,
 GitHub Release changes, asset upload, and public support claims require an explicit target version,
 exact release confirmation, and the standalone release command.
 
@@ -292,7 +301,7 @@ regression that remains relevant to current behavior.
 
 - Prefer package-local, node-local, storage-boundary-local, or user-story-local checks.
 - Do not run the complete repository suite after each edit.
-- Full matrices, stress tests, platform matrices, and real-host journeys require a concrete need.
+- Full matrices, stress tests, platform matrices, and real-host end-to-end tests require a concrete need.
 - Delete tests for removed compatibility behavior; do not count them as current regression coverage.
 - A release runs only the fixed package and publication checks; product-wide validation belongs to
   ordinary CI before release.

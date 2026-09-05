@@ -10,24 +10,24 @@ provide consistent process behavior.
 
 | Package | Responsibility |
 | --- | --- |
-| `domain` | `ProcessTask`, WorkspaceOrigin/Binding, baselines, records, blockers, evidence, outcome, and limits |
-| `workflow` | `standard-development`, node contracts, 30 transitions, the TASKS verification plan, payloads, and invalidation |
+| `domain` | `ProcessTask`, worktree origins/bindings, requirements/design/task-plan baselines, operation and verification records, blockers, outcomes, and limits |
+| `workflow` | `standard-development`, node rules, 30 transitions, the TASKS verification plan, payloads, and invalidation |
 | `application` | Open/resume/read/submit/recover/relocate/cancel/abandon use cases and component coordination |
 | `store` | SQLite bootstrap, strict snapshot, CAS, events, claims, and read-only preflight |
-| `repository` | Bounded read-only dedicated-worktree identity/history/content/task-surface observation |
-| `recovery` | Five-class reconciliation, retry advice, blockers, and resume |
+| `repository` | Read-only queries of dedicated-worktree identity, history, content, and task changes, with query limits |
+| `recovery` | Classification of operation results into five cases, retry advice, blockers, and resume |
 | `mcp` | Seventeen-tool local STDIO contract, Action-kind-specific submission schemas, and Result Envelope |
 | `webui` | Loopback HTTP adapter, embedded assets, session protection, shared runtime receipt, and lifecycle |
 | `version` | Core product version from `CORE_VERSION` or build injection |
 
-## Authority boundary
+## Core responsibilities
 
 Core alone owns:
 
 - Task identity, immutable intent, and method profile;
 - process definition/digest, current node, resume node, and legal transitions;
 - requirements/design/task-plan baselines and their invalidation;
-- repository claim keyed by worktree-instance identity, revision CAS, current action, and evidence;
+- repository claim keyed by worktree-instance identity, revision CAS, current action, and verification records;
 - immutable WorkspaceOrigin, current Task surface, and Action issuance identity/history/content;
 - Recovery classification, blocker, and terminal outcome.
 
@@ -72,7 +72,7 @@ go test ./internal/mcp
 go test ./internal/webui
 ```
 
-Cross-layer contract and journey checks live under `tests/contract/` and `tests/journeys/`. Run
+Cross-component interface checks and end-to-end tests live under `tests/contract/` and `tests/journeys/`. Run
 full repository validation only when the active Task or final checkpoint authorizes it:
 
 ```bash

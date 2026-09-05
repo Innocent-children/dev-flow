@@ -40,11 +40,11 @@ advanced Host sections.
 | SQLite bootstrap, codec, Action operations, and read-only preflight | `internal/store/` |
 | Recovery, workspace blockers, relocation, and abandon | `internal/recovery/`, `internal/application/` |
 | Read-only Git identity/history/content/task-surface observation | `internal/repository/` |
-| MCP tools, closed schemas, and projections | `internal/mcp/` |
-| Codex admission, provisioning, relaunch/handoff, and selector | `packages/codex/` |
-| DeepSeek admission, WorkspaceCoordinator, receipt/relaunch, and selector | `packages/deepseek/` |
+| MCP tools, allowed input fields, and response data | `internal/mcp/` |
+| Codex request assessment, worktree creation, session restart/handoff, and activation | `packages/codex/` |
+| DeepSeek request assessment, WorkspaceCoordinator, run records/restart, and activation | `packages/deepseek/` |
 | Protocol fixtures | `protocol/fixtures/` |
-| Executable contracts and real journeys | `tests/contract/`, `tests/journeys/` |
+| Interface contract tests and end-to-end tests in actual Hosts | `tests/contract/`, `tests/journeys/` |
 | Release schemas, prepare, and publisher | `release/`, `scripts/release-*.mjs` |
 | Stable product support claims | `docs/SUPPORT-MATRIX_en.md` |
 | Security reporting and trust boundaries | `SECURITY.md`, `docs/THREAT-MODEL_en.md` |

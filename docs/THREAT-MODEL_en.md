@@ -7,7 +7,7 @@
 Dev Flow protects **task process state**; it is not a sandbox around the coding agent.
 
 Codex or DeepSeek Harness still reads repositories, changes files, and runs commands with the
-permissions the developer gave it. The Go Core keeps the authoritative Task state and validates
+permissions the developer gave it. The Go Core keeps the single Task state and validates
 transitions, bindings, persistence, and recovery decisions.
 
 ```mermaid
@@ -19,25 +19,25 @@ flowchart LR
     C --> S[SQLite Task state]
 ```
 
-## Assets
+## Protected assets
 
 - the one to eight Git repositories explicitly authorized by the developer;
-- original Task intent, current stage, revision, Action, evidence, Blocker, Outcome, and the canonical
+- original Task intent, current stage, revision, Action, verification records, Blocker, Outcome, and the canonical
   payload and digest of a recoverable Action operation;
 - Repository Scope, repository identities, and the aggregate binding;
 - WorkspaceOrigin, worktree-instance identity, the fixed base commit, and current Task surface;
 - local SQLite, installation and provisioning receipts, relocation records, and user configuration;
 - npm packages, bundled Core executables, Git Tags, GitHub Releases, and artifact digests;
-- paths, code fragments, and diagnostics that may appear in logs or evidence.
+- paths, code fragments, and diagnostics that may appear in logs or verification results.
 
 ## Responsibilities
 
 | Participant | Responsibility |
 | --- | --- |
 | Developer | Chooses whether to enter Dev Flow and confirms remote/base/target, repository and Host permissions, comprehension, handoff, cleanup, and releases |
-| Codex / DeepSeek Harness | Actually reads files, changes repositories, and runs commands; this is the privileged execution surface |
+| Codex / DeepSeek Harness | Actually reads files, changes repositories, and runs commands; uses the elevated permissions granted by the developer |
 | Host Adapter | Assesses requests read-only; after confirmation performs fetch, branch, worktree, relaunch/handoff; judges scope before commands, full suites, test-code changes, and review; calls Core under the Action, Scope, current verification plan, and Recovery contract |
-| Go Core | Observes Git read-only, retains the one process state, derives Task surface, and validates revision, workspace, closed payloads, transitions, and persistence |
+| Go Core | Observes Git read-only, retains the one process state, derives Task surface, and validates revision, workspace, payload field restrictions, transitions, and persistence |
 | Repository content | Treated as untrusted input that may contain prompt injection, dangerous scripts, symlinks, or hostile filenames |
 | npm / GitHub | Supplies remote package and Release identities that the release flow must read back |
 
@@ -63,10 +63,10 @@ Identity or target drift stops cleanup.
 | Relocation failure or a lost response creates duplicate claims or handoffs | Core prepare retains source claims, Host handoff runs once, and verified destination bindings/claims replace them in one transaction |
 | Repository prompt injection tries to expand work | TaskIntent, allowed effects, explicit Scope, the TASKS verification plan, and reasoned budget adjustments are independent of repository prose; Host review stays within the diff and causal impact; high-risk Git and release actions still require user authorization |
 | Available budget is mistaken for a full-suite reason | Skills require a fresh broad-impact, focused-check, uncovered-risk, and repository-checkpoint decision every time; Evidence retains the current `full_suite_reason` |
-| SQLite, configuration, or the executable is modified locally | strict codecs, Schema checks, Task/Action-operation relationship checks, closed fields, and package/executable identity verification detect several inconsistencies |
+| SQLite, configuration, or the executable is modified locally | strict codecs, Schema checks, Task/Action-operation relationship checks, allowed fields, and package/executable identity verification detect several inconsistencies |
 | Setup or removal deletes adjacent configuration or Task data | ownership receipts; remove cleans only managed registration; ordinary uninstall retains Task data |
 | beta, source, and stable support are confused | only the Support Matrix defines stable support; beta and source are labeled separately in Project Status |
-| Logs or journey evidence leak sensitive data | committed evidence keeps bounded machine facts and digests; raw transcripts are not committed by default |
+| Logs or end-to-end test records leak sensitive data | committed verification records contain a limited amount of program output and digests; full conversation transcripts are not committed by default |
 
 ## Residual risk
 
@@ -82,8 +82,7 @@ Identity or target drift stops cleanup.
   secret scanning, code signing, or transparency log.
 - Dev Flow cannot guarantee correct model output, vulnerability-free code, sufficient tests, or immunity
   to prompt injection.
-- Core cannot prove that natural-language reasons are causally related to the change; Host semantic
-  judgment about verification and review scope can still be wrong.
+- Core cannot prove that natural-language reasons are causally related to the change; the Host can still judge the scope of verification and review incorrectly.
 - Unsupported platforms, Host versions, and source-only builds do not have a stable security support claim.
 
 Report security issues privately by following the repository [Security Policy](../SECURITY.md).

@@ -73,8 +73,9 @@ DeepSeek 因目前會話的 Workspace Root 固定，會提供從新 worktree 重
 
 ### 3. 恢復並查看進度
 
-會話重啟後，回到 Task 綁定的原 worktree，並明確要求恢復。恢復不會重做准入，也不會選擇替代
-worktree；原實例遺失或被替換時，Task 會停止，等待恢復原實例或明確 abandon。
+會話重啟後，請在 Task 綁定的原 worktree 中明確要求繼續該任務。系統會檢查原 worktree，並從
+已儲存的任務狀態繼續處理，無需重新評估請求或再次選擇是否使用 Dev Flow。原 worktree 遺失或被
+替換時，任務會暫停，需要恢復原 worktree 或明確放棄任務（abandon）；系統不會改用其他 worktree。
 
 ```bash
 # 查看已安裝的整合
@@ -87,7 +88,7 @@ dev-flow webui start
 非互動安裝、自訂 DSH Profile、升級、修復與移除方式請見
 [Command Reference](docs/COMMANDS_en.md)。
 
-## 適合哪些任務
+## 適用情境
 
 Dev Flow 適合跨會話、需要明確檔案範圍、必須限制測試投入，或可能返工且不能沿用舊結果的真實
 程式碼儲存庫任務。

@@ -3,7 +3,7 @@
 [中文](CONTRIBUTING_zh-CN.md) | [English](CONTRIBUTING.md)
 
 Dev Flow accepts reproducible defects, documentation corrections, platform support backed by
-final-artifact evidence, and bounded product improvements grounded in real development problems.
+final-package test results, and clearly scoped product improvements that solve real development problems.
 
 ## Change classification
 
@@ -38,7 +38,7 @@ not replace requirement definition.
 ### Product feature proposal template
 
 ```markdown
-## User event
+## Problem
 
 What actually happened?
 
@@ -46,46 +46,59 @@ What actually happened?
 
 How does the user handle it without Dev Flow?
 
-## Facts Dev Flow can confirm
+## Available data
 
-What can the Task, Action, repository, and retained evidence determine?
+What can the Task, Action, repository, and saved results tell us?
 
-## Decision to make
+## Behavior rules
 
 Should the system continue, review, retry, block, or ask the user to decide?
 
-## User-visible result
+## Expected result
 
 What change will the user ultimately see?
 
-## Cost of error
+## Risks and impact
 
 What are the consequences of a false allow and a false block?
 
-## Acceptance evidence
+## Acceptance checks
 
-Which test, fault injection, or real Host journey demonstrates the result?
+How will we test this, in which environment, and what result should we see?
 
-## Explicit non-goals
+## Non-goals
 
 Which capabilities will this change not expand?
 ```
 
-### Product decision gate
+### Assessment before implementation
 
 Before implementation, a proposal must answer clearly:
 
-1. Does it directly improve trustworthy continuation of a long-running task?
+1. Does it help a long-running task resume from the correct state?
 2. Is it based on Task, Action, repository observation, or retained records rather than only the
    agent's narrative?
 3. Does it reduce the user's effort to judge current state and next step?
-4. Can it establish a repeatable real-Host journey?
+4. Can we repeat the full workflow in an actual Codex or DeepSeek session?
 5. Does it retain one Core Task state?
 6. Does it add unnecessary process steps?
-7. Is it horizontal expansion only for another platform, Host, or interface?
+7. Does it solve a task problem, or only add another platform, Host, or interface?
 
 A proposal that cannot explain the user problem, visible result, and acceptance method should not
 move directly into implementation.
+
+## Documentation style
+
+Use formal, precise technical prose to describe current behavior, component responsibilities,
+change locations, and verification methods. Prefer concise headings such as “Acceptance checks,”
+“Responsibilities,” and “Verification scope” over conversational questions or unexplained abstractions.
+
+- Use “Acceptance checks” to list steps or tests, the environment, and expected results.
+- Describe actual test results, run records, and saved results, including checks that were not run.
+- State allowed fields, commands, and operations directly; name the component responsible for each behavior.
+- Write natural prose. Keep code identifiers, field names, commands, and paths unchanged, explaining them on first use.
+- Retain established technical terms such as code baseline, interface specification, state machine, and idempotency. Decide whether to revise wording from its context and accuracy, not a word blacklist.
+- Rewrite sentences in context while preserving behavior, permission requirements, failure handling, and support scope.
 
 ## Local environment
 
@@ -113,10 +126,10 @@ Before editing, read the [I18n policy](docs/I18N_en.md), the
 
 - Solve only the problem stated by the pull request; do not add future capabilities, generic
   frameworks, or unrelated refactoring.
-- Keep Go Core as the sole authority for Tasks, nodes, legal transitions, recovery classification,
+- Keep Go Core responsible for Task state, current nodes, legal next steps, recovery classification,
   and terminal outcomes.
 - Keep Core's Git observation read-only; do not add shell, commit, push, merge, tag, or publication
-  authority.
+  capability.
 - Run only validation directly connected to the changed surface, acceptance criteria, or known risk.
 - A user-visible behavior change must synchronize all nine root README files, `docs/PRODUCT*`, and
   affected technical documentation.
@@ -153,8 +166,8 @@ repository-wide validation only at the final checkpoint required by the change c
 pnpm run validate
 ```
 
-Do not repeatedly run the complete suite as generic insurance, and do not present simulation, static
-checks, or user-performed results as real-host final-artifact evidence.
+Each complete-suite run needs a reason tied to the change. Report simulations, static checks, and
+user-performed checks separately from automated tests of the final package in actual Codex or DeepSeek.
 
 ## Pull request requirements
 

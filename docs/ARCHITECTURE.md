@@ -112,7 +112,7 @@ observed_at
 binding_digest
 ```
 
-`changed_entries` 是有界排序的 path/change type/file mode/gitlink/content digest，不保存文件正文。
+`changed_entries` 是按数量限制保存并排序的 path/change type/file mode/gitlink/content digest，不保存文件正文。
 `task_surface` 是相对固定 base commit 的 committed diff，再叠加 index、worktree 和 untracked 状态；rename
 按旧路径 deleted 与新路径 added 处理。`CurrentChangedPaths` 每次从当前 surface 推导，恢复到 base 的
 路径不会继续阻塞交付。
@@ -150,7 +150,7 @@ ExpectedPaths，再构造一次完整 `TaskMutation`。
 
 一次普通 mutation 的顺序是：
 
-1. 校验 Task/Action/revision/process 和 closed payload；
+1. 校验 Task/Action/revision/process，并检查 payload 只包含约定字段；
 2. 观察并分类全部工作树；
 3. 计算 Action delta、当前 surface、记录失效与目标节点；
 4. 在内存中验证完整 Task、Action、Event 与 Claim 结果；
@@ -191,7 +191,7 @@ Core 保存调整前后预算和原因，并签发新的 TEST Action。无具体
 与当前改动最接近的检查，在每次完整套件前重新判断影响、定向检查是否足够、待补风险和仓库检查点，
 并在修改测试文件前判断长期价值。
 
-修改后的代码复核同样属于 Host 语义判断：只读当前 diff、直接或间接影响的调用路径和验收所需内容。
+修改后的代码复核同样由 Host 根据当前改动判断：只读当前 diff、直接或间接影响的调用路径和验收所需内容。
 修复复核发现后只重新确认原问题与相关回归。显式 code review 保持只读并在完整交付发现后停止；
 无因果关系的历史问题不进入当前 Task。
 
@@ -212,7 +212,7 @@ cleanup 是 Host 后续操作，其中两个 cleanup 分别授权。
 
 ## MCP、Store 和 WebUI
 
-当前 closed MCP catalog 共十七个工具：
+当前 MCP 工具列表固定包含十七个工具：
 
 ```text
 dev_flow_server_info
@@ -254,7 +254,7 @@ verification plan、当前预算/消耗、调整原因和 cleanup choices。它�
 
 ## 版本、构建和源码导航
 
-Core、Codex、DeepSeek 和统一 lifecycle package 独立版本。Core 的机器可读权威是 `CORE_VERSION`；npm
+Core、Codex、DeepSeek 和统一 lifecycle package 独立版本。Core 的机器可读版本文件是 `CORE_VERSION`；npm
 版本由各自 `package.json` 管理，普通产品改造不执行发布。Host package 按精确 runtime pair 携带
 `darwin-arm64/dev-flow` 与 `win32-x64/dev-flow.exe`。
 
@@ -265,9 +265,9 @@ Core、Codex、DeepSeek 和统一 lifecycle package 独立版本。Core 的机�
 | `internal/application/` | open/resume/read/submit/recover/relocate/cancel/abandon 编排 |
 | `internal/workflow/` | 11 个节点、普通边、payload、guard、invalidation |
 | `internal/store/` | current-only SQLite、codec、operations、events、claims |
-| `internal/mcp/` | 十七工具、closed schemas、annotations、Result Envelope |
+| `internal/mcp/` | 十七个工具、字段限制、工具属性和统一返回结构 |
 | `internal/webui/`, `packages/webui/` | loopback Adapter 与内嵌界面 |
-| `packages/codex/`, `packages/deepseek/` | Host 准入、provisioning、relaunch/handoff 与 package |
-| `protocol/fixtures/`, `tests/` | 公共合同、故障注入与 Host Journey |
+| `packages/codex/`, `packages/deepseek/` | 新请求评估、工作树创建、会话重启/交接和安装包 |
+| `protocol/fixtures/`, `tests/` | 公开接口规范、故障注入和宿主完整流程测试 |
 
-源码、机器可读 Schema、package manifest、CLI parser 和可执行测试是当前行为权威。
+源码、机器可读 Schema、package manifest、CLI parser 和可执行测试是判断当前行为的依据。

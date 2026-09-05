@@ -104,17 +104,17 @@ recover, block, or retry safely.
 This applies only to Actions Dev Flow can identify and retain. It does not mean Dev Flow can recover
 arbitrary Host file writes, shell commands, or external-system side effects.
 
-## What current records demonstrate
+## Existing validation records and scope
 
 The entries below are independent paths. Each demonstrates only the stated scope.
 
 | Record | Scope demonstrated |
 | --- | --- |
-| [PR #8 Codex graph acceptance](https://github.com/Innocent-children/dev-flow/pull/8) | A real Codex journey covers restart, refactoring, retesting, comprehension, delivery, and Core `DONE` |
+| [PR #8 Codex graph acceptance](https://github.com/Innocent-children/dev-flow/pull/8) | A real Codex end-to-end test covers restart, refactoring, retesting, comprehension, delivery, and Core `DONE` |
 | [Support Matrix](SUPPORT-MATRIX_en.md) | Stable registry packages and Host environments with final lifecycle records |
 
-Different journeys demonstrate different capabilities; do not describe them as one run proving the
-entire product. Source tests are also not final public-artifact support. See
+Different end-to-end tests demonstrate different capabilities; do not describe them as one run proving the
+entire product. Source tests are also not support for the final public package. See
 [Project Status](PROJECT-STATUS_en.md) for stable, source-only, and unverified status.
 
 ## Try the stable entry

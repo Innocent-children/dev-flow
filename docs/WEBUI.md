@@ -7,10 +7,10 @@
 Control Center 嵌入 Go Core，读取与 Codex、DeepSeek 相同的 SQLite Task。浏览器不保存第二份流程
 状态，也不执行 fetch、branch、worktree、handoff 或清理。
 
-## 可以查看什么
+## 可查看的信息
 
 - 所有 Host 共用的 Task 概览、筛选列表、当前阶段、revision 和合法下一步；
-- requirements、design、Task Plan、实现、测试、理解确认、evidence 和时间线；TASKS 前明确显示验证尚未计划；
+- 需求、设计、任务计划、实现、测试、理解确认、验证记录和时间线；TASKS 前明确显示验证尚未计划；
 - 每个仓库确认的 remote/base/base commit、task branch、worktree path 和 repository group；
 - 当前 HEAD、clean/dirty、identity/history/content 摘要、Task surface 和当前 changed paths；
 - 验证计划中的检查及理由、初始/当前预算、当前计划已用命令、完整套件次数和历次增加原因；
@@ -31,7 +31,7 @@ Control Center 嵌入 Go Core，读取与 Codex、DeepSeek 相同的 SQLite Task
 WebUI 不再从任意 checkout 创建新 Task。新 Task 必须由 Codex 或 DeepSeek 完成只读评估、用户确认、
 fetch、专属工作树创建和验证后，再从目标 Host 调用 Core。
 
-页面可以提交当前 Core 身份要求的语义操作：
+页面可以使用 Core 当前返回的任务和操作标识，提交以下操作：
 
 - 解除文件范围、验证或历史 blocker；
 - 使用当前 TEST Action 的 `verification_budget_increased` 保存有具体原因的预算增加；

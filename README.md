@@ -25,8 +25,8 @@ worktree before Core creates the Task. Changes in the source checkout are not co
 
 - **Scope stays explicit.** Expected paths are recorded, supported structured writes outside the plan
   ask first, and actual changes are checked again before testing and delivery.
-- **The workspace has one owner.** Core derives the current Task surface from Git inside the dedicated
-  worktree; normal linear commits keep that surface, while branch rewrites and replacement worktrees stop.
+- **The workspace has one owner.** Core derives the Task's actual changes from Git inside the dedicated
+  worktree; normal linear commits preserve those changes, while branch rewrites and replacement worktrees stop.
 - **Testing matches the task.** TASKS records checks, rationales, initial effort, and full-suite/test-code
   expectations. Concrete new impact, risk, failure, or gaps can increase the budget; spare capacity alone cannot.
 - **Review stops at the change.** Post-change review covers the diff, causal impact, and acceptance needs;
@@ -78,9 +78,10 @@ supports it; DeepSeek prints a relaunch instruction because its Workspace Root i
 
 ### 3. Resume and inspect
 
-After a restart, return to the exact worktree bound to the Task and explicitly ask to resume. Resume
-does not repeat admission or choose a replacement worktree; a missing or replaced instance stops for
-recovery or explicit abandon.
+After a session restart, explicitly ask to continue the Task in its original bound worktree. The
+system checks that worktree and continues from the saved task state. It does not reassess the request
+or ask you to choose Dev Flow again. If the original worktree is missing or replaced, the Task pauses
+until you restore it or explicitly abandon the Task; the system does not switch to another worktree.
 
 ```bash
 # Inspect installed integrations
@@ -93,7 +94,7 @@ dev-flow webui start
 For non-interactive installation, custom DSH Profiles, upgrades, repair, and removal, see the
 [Command Reference](docs/COMMANDS_en.md).
 
-## When it fits
+## Suitable tasks
 
 Dev Flow is useful for repository work that spans sessions, needs a real file boundary, limits test
 effort, or may require rework without reusing stale results.

@@ -2,23 +2,22 @@
 
 [中文](README.md) | [English](README_en.md)
 
-`scripts/` 保存本仓库的开发验证、source-package 构建和 standalone release 工具。开发入口与
+`scripts/` 保存本仓库的开发检查、源码安装包构建和独立发布工具。开发入口与
 发布入口严格分离：普通验证不会安装真实 Host 产品，也不会创建 npm、Tag 或 GitHub Release。
 
 ## 日常开发
 
 | 命令 | 用途 |
 | --- | --- |
-| `pnpm run validate` | 运行有界仓库验证 |
-| `pnpm run validate:contracts` | 只运行公共 contract tests |
-| `pnpm run versions:check` | 检查 Core、Codex、DeepSeek 版本权威与镜像 |
+| `pnpm run validate` | 运行仓库规定的检查 |
+| `pnpm run validate:contracts` | 只运行公开接口规范测试 |
+| `pnpm run versions:check` | 检查 Core、Codex、DeepSeek 版本文件与同步副本 |
 | `pnpm run dev-flow:local` | 从当前源码打包三个产品并进入与 `dev-flow` 相同的本地安装菜单 |
 | `pnpm --dir packages/codex test` | 运行 Codex package-local tests |
 | `pnpm --dir packages/deepseek test` | 运行 DeepSeek package-local tests |
 
-`validate-repository.sh` 检查工具链、冻结依赖安装、版本权威、whitespace、Go formatting、
-package contracts、Host Adapter tests、deterministic journeys 和 release tooling contracts。它不
-调用真实发布入口。
+`validate-repository.sh` 检查工具链、按锁定版本安装依赖、版本文件、空白字符、Go 格式、安装包
+约定、Host Adapter、可重复的完整流程测试和发布工具约定。该脚本不执行实际发布。
 
 ## 本地安装测试
 
@@ -36,26 +35,25 @@ pnpm run dev-flow:local -- reinstall --host codex --yes
 ```
 
 本地模式会真实替换所选 Host 的 Adapter，即使 manifest 版本与已安装版本相同；安装计划、确认、
-注册、receipt 和就绪回读仍由现有 `dev-flow` 生命周期负责。脚本退出时删除临时制品，不调用
-`npm publish`，也不创建 Tag 或 GitHub Release。它不能替代发布后的 npm registry 字节回读和
-Release 附件检查。
+注册、receipt 和就绪状态检查仍由现有 `dev-flow` 生命周期负责。脚本退出时删除临时构建文件，不调用
+`npm publish`，也不创建 Tag 或 GitHub Release。发布后仍需从 npm 下载并逐字节核对安装包，同时检查 Release 附件。
 
 `dev-flow:local` 的 Node orchestrator 可在 macOS arm64 和 Windows 10/11 x64 运行，并同时构建、
 校验、暂存 `darwin-arm64/dev-flow` 与 `win32-x64/dev-flow.exe`。Windows 开发机需要可用的 Go、
 Node.js、npm 和 pnpm；不要求 Bash 来启动这个入口。
 
-## Source-local 构建
+## 本地源码构建
 
 - `build-webui.mjs`：跨平台构建并同步嵌入式 WebUI；`build-webui.sh` 是 Unix 包装层；
 - `build-core-runtimes.mjs`：唯一的双 Core runtime 构建入口，输出按 runtime key 命名的 JSON 报告；
-- `build-codex-local.sh`：使用统一 runtime 报告构建 Codex source-local tarball；
-- `build-deepseek-local.mjs`：在系统临时 staging 中使用统一 runtime 报告构建 DeepSeek source-local tarball；
-- `build-codex-release.sh`、`build-deepseek-release.sh`：为 standalone release 准备确定性制品。
+- `build-codex-local.sh`：使用统一 runtime 报告构建 Codex 源码 tarball；
+- `build-deepseek-local.mjs`：在系统临时 staging 中使用统一 runtime 报告构建 DeepSeek 源码 tarball；
+- `build-codex-release.sh`、`build-deepseek-release.sh`：为 standalone release 准备确定性构建产物。
 
 Codex 与 DeepSeek 的源码 package 都不保存预编译 Core。两者的 `package.json` 仍声明最终 npm 包内的
 两个 runtime 路径；本地构建和 release staging 现场生成这些文件后再打包。
 
-最终制品和 evidence 必须写入仓库外、由操作者选择的目录。
+最终安装包和测试记录必须写入仓库外、由操作者选择的目录。
 
 ## 发布入口
 
@@ -65,7 +63,7 @@ Trusted Publisher；运行时只选择产品、channel 和目标版本。工作�
 获取短期 npm 发布凭据，使用
 `macos-15` ARM64、Go `1.26.5`、Node.js `24.18.0` 和 pnpm `11.24.0`，按产品串行执行，并交叉构建、
 校验 macOS arm64 与 Windows amd64 Core 后调用下列现有入口。发布 runner 的操作系统只是构建基础设施，
-不缩小制品运行时范围。npm 发布不创建依赖 `NODE_AUTH_TOKEN` 的 registry 认证配置。
+不缩小构建产物运行时范围。npm 发布不创建依赖 `NODE_AUTH_TOKEN` 的 registry 认证配置。
 版本提交、Tag 和 GitHub Release 使用安装到当前仓库、加入 `main` ruleset bypass list 的专用
 GitHub App 短期 token；仓库变量 `RELEASE_APP_CLIENT_ID` 和 secret `RELEASE_APP_PRIVATE_KEY`
 分别提供 App Client ID 与完整 PEM 私钥。
@@ -97,11 +95,11 @@ pnpm run release:deepseek -- \
 npm、GitHub Release 与 assets。
 
 两个 channel 共用同一个 Publisher。Publisher 使用仓库外的 `release-manifest.json` 绑定 source、
-版本和 artifact digest；重跑时回读并复用匹配的远端状态。
-Publisher 最多等待十分钟并重试真正的 `npm pack <package>@<version>` tarball 回读；只对
+版本和安装包摘要；重跑时回读并复用匹配的远端状态。
+Publisher 最多等待十分钟并重试真正的 `npm pack <package>@<version>` tarball 下载与内容核对；只对
 `ETARGET`、`E404` 这类 registry 传播延迟继续等待，认证失败和字节不一致立即停止。
 
 Actions 会在成功或失败后上传 runner 临时发布目录；用同一组 workflow 输入重跑时，publisher 会先回读 npm、Tag 和 GitHub Release，不会盲目重复
 不可逆操作。临时目录本身不会跨 workflow run 自动复用。
 
-精确操作合同见 [Release Ownership](../release/README.md)。
+具体操作要求见 [Release Ownership](../release/README.md)。

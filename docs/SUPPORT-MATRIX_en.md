@@ -17,26 +17,26 @@ npm `@latest` currently selects these packages:
 | `dev-flow-deepseek` | macOS arm64, Node.js `>=24` | DSH `>=0.1.0-rc.6` | [npm](https://www.npmjs.com/package/dev-flow-deepseek) · [Releases](https://github.com/Innocent-children/dev-flow/releases) |
 | `@imotong/dev-flow` | macOS arm64, Node.js `>=20` | Target operations require an installed Codex or DSH | [npm](https://www.npmjs.com/package/@imotong/dev-flow) · [Releases](https://github.com/Innocent-children/dev-flow/releases) |
 
-Codex lifecycle evidence covers package/Core identity, installation, setup, Core handshake, removal,
+Codex lifecycle test results covers package/Core identity, installation, setup, Core handshake, removal,
 uninstallation, and an unchanged repository. DeepSeek additionally covers explicit activation,
 restart/resume, `DONE`, and retained reopen.
 
 ## Current source
 
 Current source includes the shared local WebUI, embedded assets, and `dev-flow webui
-start|open|status|stop`, and closes these package runtime pairs:
+start|open|status|stop`, and supports these operating-system/CPU pairs:
 
 The current-source new-Task lifecycle performs read-only Host assessment, asks the developer to
 confirm remote/base/target, provisions a dedicated worktree from the fetched frozen commit, and lets
 Core derive worktree identity, history, content, and current Task surface read-only. Source includes
-deterministic temporary-Git/receipt journeys and explicit-input native-journey validators. Native
-evidence exists only when the matching Host journey actually passes, and no source result changes the
-stable table before an independent release.
+tests using temporary Git repositories and run records, plus validators for explicitly supplied
+actual run records. Report an environment as verified only after tests pass in that Host and platform.
+The stable table remains unchanged until an independent release.
 
-| Runtime pair | Current-source scope | Current evidence boundary |
+| Runtime pair | Current-source scope | Verified scope |
 | --- | --- | --- |
-| `darwin-arm64` | macOS arm64 | Existing stable-package journeys; worktree-first source capability needs separately confirmed native-journey results |
-| `win32-x64` | Windows 10/11 desktop x64 | Native Windows 11 x64 Core/WebUI/MCP, complete Go suite, Adapter contracts, and dual-runtime local packaging; not yet a stable `@latest` journey |
+| `darwin-arm64` | macOS arm64 | Existing end-to-end tests of stable packages; current worktree features need separate tests in actual Hosts |
+| `win32-x64` | Windows 10/11 desktop x64 | Native Windows 11 x64 Core/WebUI/MCP, complete Go suite, Adapter contracts, and local packaging for both platforms; no end-to-end test of the stable `@latest` package yet |
 
 An npm manifest must list allowed operating systems and CPUs independently, so installation metadata
 can admit cross-pairs. Package runtime selection accepts only the two exact pairs above and rejects
@@ -44,13 +44,13 @@ can admit cross-pairs. Package runtime selection accepts only the two exact pair
 `%LOCALAPPDATA%\dev-flow`; user configuration remains at `%USERPROFILE%\.dev-flow\config.json`.
 
 New source capabilities or a later beta can expand the stable support claim above only after the
-independent release flow, registry-byte read-back, and final Host journey.
+independent release flow, downloading and checking registry package contents, and end-to-end testing of the final package in an actual Host.
 
 ## Not currently supported
 
 There is no public support claim for Linux, Windows Server, 32-bit Windows, Windows ARM64, Intel Mac,
 Rosetta, or remote MCP. The Windows runtime does not reject Server by SKU; this statement means that
-Server has no validation, journey, or product-support commitment.
+Server has no validation, end-to-end testing, or product-support commitment.
 
-For current source capabilities, real journey entry points, and adoption status, read
+For current source capabilities, actual-environment test entry points, and adoption status, read
 [Project Status](PROJECT-STATUS_en.md).

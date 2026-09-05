@@ -6,12 +6,12 @@ The roadmap describes user outcomes to improve, not delivery dates. Delivered ca
 current status belong in [Project Status](PROJECT-STATUS_en.md); stable support remains in the
 [Support Matrix](SUPPORT-MATRIX_en.md).
 
-## North Star
+## Goal
 
-> After a long-running task is interrupted, give the developer and agent a trustworthy current state
+> After a long-running task is interrupted, give the developer and agent an accurate current state
 > and a next step that does not expand work, repeat effects, or broaden verification without reason.
 
-## Now: understand the current Task and worktree
+## Current focus: understand the Task and worktree
 
 This stage improves the clarity and cost of using capabilities that already exist:
 
@@ -32,28 +32,28 @@ This stage improves the clarity and cost of using capabilities that already exis
 
 This work adds no process node or second Task state; budget increases reuse one TEST-to-TEST self-transition.
 
-## Next: make completion decisions more trustworthy
+## Planned improvements: make completion decisions more accurate
 
 The following are future directions and are not implemented, or not fully implemented, today:
 
 - stronger binding between verification records and current implementation state;
 - use real feedback to tune initial verification plans and increase decisions without false widening
   or false blocking;
-- a public fault-injection journey for an uncertain Action;
+- a publicly reproducible fault-injection test for an uncertain Action;
 - improve the explainability and feedback loop for `small|standard|large|uncertain` assessments;
 - reduce confirmation and recovery steps without adding a second state machine.
 
 Names such as Skip, Guarded, and Strict are not delivered user features. Any future naming and
-behavior requires an independent product design and a real journey.
+behavior requires a separate product design and end-to-end testing in an actual coding tool.
 
-## Later: cross-machine and team collaboration
+## Long-term considerations: cross-machine and team collaboration
 
 The following are later candidates and are not implemented today:
 
 - cross-machine Task transfer with verifiable export/import;
 - read-only PR / CI verification summaries;
 - a team read-only Task view;
-- thinner OpenSpec / Spec Kit artifact integration.
+- simpler OpenSpec / Spec Kit document integration.
 
 Current source supports same-machine relocation. Any future cross-machine capability must still use
 one Core Task state; an Adapter cannot copy the current stage or decide completion independently.

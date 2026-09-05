@@ -26,7 +26,7 @@ worktree limpo e dedicado antes de o Core criar a Task. As mudanças do checkout
 - **O escopo permanece claro.** Os caminhos previstos são registrados, as ferramentas estruturadas
   compatíveis pedem confirmação antes de gravar fora do plano e as mudanças reais são conferidas novamente
   antes dos testes e da entrega.
-- **Cada worktree tem um único responsável pelas mudanças.** O Core calcula no Git a superfície atual da
+- **Cada worktree tem um único responsável pelas mudanças.** O Core calcula no Git as alterações atuais da
   Task; commits lineares normais continuam, enquanto uma reescrita de branch ou a substituição do worktree
   interrompe a tarefa.
 - **A verificação acompanha a tarefa.** TASKS registra verificações, motivos, esforço inicial e expectativas
@@ -81,9 +81,11 @@ da sessão é fixo.
 
 ### 3. Retome e acompanhe o progresso
 
-Depois de reiniciar, volte ao worktree exato associado à Task e peça explicitamente para retomar. A retomada
-não repete a admissão nem escolhe um worktree substituto; se a instância original sumiu ou foi substituída,
-a Task para até ser restaurada ou abandonada explicitamente.
+Depois de reiniciar a sessão, peça explicitamente para continuar a Task no worktree original ao qual
+ela está vinculada. O sistema verifica esse worktree e continua a partir do estado salvo, sem
+reavaliar o pedido nem solicitar uma nova escolha de usar o Dev Flow. Se o worktree original sumiu
+ou foi substituído, a Task fica pausada até você restaurá-lo ou abandonar explicitamente a tarefa
+(abandon). O sistema não muda para outro worktree.
 
 ```bash
 # Consultar as integrações instaladas

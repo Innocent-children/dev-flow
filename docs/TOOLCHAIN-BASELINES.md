@@ -4,7 +4,7 @@
 
 工具链要求使用最低版本或兼容主版本范围。开发机、CI 和宿主不得通过“版本必须等于某个补丁号”的方式判断可用性。
 
-实际解析版本仍会出现在 `go.mod`、`go.sum`、`pnpm-lock.yaml`、构建日志和发布清单中；这些是复现与证据记录，不是对兼容补丁或次版本的拒绝规则。
+实际解析版本仍会出现在 `go.mod`、`go.sum`、`pnpm-lock.yaml`、构建日志和发布清单中；这些是复现和验证所需的记录，不是对兼容补丁或次版本的拒绝规则。
 
 ## Go
 
@@ -31,13 +31,13 @@ Windows。
 
 `scripts/build-core-runtimes.mjs` 是双 runtime 的唯一构建入口，按 runtime key 返回路径、GOOS、GOARCH、
 Core 版本、大小和 SHA-256；Codex 与 DeepSeek 源码 package 不保存该输出，本地 package、release staging
-与真实 Journey 在仓库外临时目录构建并按同一报告选择产物。
+与实际环境的完整流程测试在仓库外临时目录构建并按同一报告选择产物。
 
-普通 PR CI 在 macOS arm64 runner 运行仓库通用验证和 macOS 原生 Journey，并在 Windows x64 runner
+普通 PR CI 在 macOS arm64 runner 运行仓库通用验证和 macOS 原生完整流程测试，并在 Windows x64 runner
 原生构建 Core、运行完整 Go 与三个 Node package 的可执行测试、构建双 runtime 本地 package 以及验证
 WebUI lifecycle。Windows runner 不构成 Windows Server 产品支持声明。standalone release 可在 macOS
 runner 交叉构建 Windows amd64 Core，但稳定支持仍要求 Support Matrix 中记录的真实消费版 Windows
-Host journey。
+编程工具中的完整流程测试。
 
 ## pnpm
 
@@ -51,7 +51,7 @@ Host journey。
 - Minimum compatible line: `github.com/modelcontextprotocol/go-sdk >= v1.7.0 < v2.0.0`；
 - Releases: <https://github.com/modelcontextprotocol/go-sdk/releases>。
 
-Feature `002` 实施时解析当时最新稳定的 v1 版本，并由 `go.mod`/`go.sum` 记录实际版本。运行时和宿主适配不得通过精确 SDK 补丁号判断 Dev Flow 兼容性；Dev Flow 自己的工具合同独立版本化。
+Feature `002` 实施时解析当时最新稳定的 v1 版本，并由 `go.mod`/`go.sum` 记录实际版本。运行时和宿主适配不得通过精确 SDK 补丁号判断 Dev Flow 兼容性；Dev Flow 自己的工具约定独立版本化。
 
 Dev Flow 首版只使用本地 STDIO Tools。不要因为 SDK 提供 HTTP、OAuth、Sampling 或其他能力就扩大产品范围。
 
@@ -69,10 +69,10 @@ Codex 与 DeepSeek Harness 的宿主功能规格必须在各自 `plan.md` 中定
 
 1. 最低支持宿主版本；
 2. 允许的兼容范围；
-3. 当前最新稳定宿主版本的真实 journey；
-4. 触发重新验证的宿主契约变化。
+3. 当前最新稳定宿主版本的实际环境的完整流程测试；
+4. 触发重新验证的宿主接口规范变化。
 
-真实 journey 要记录实际宿主版本作为证据，但产品不得仅因为后来出现兼容的补丁或次版本就拒绝启动。若宿主公共契约发生不兼容变化，应通过新的规格调整最低版本或兼容范围。
+实际环境的完整流程测试需要记录实际宿主版本，便于复现结果，但产品不得仅因为后来出现兼容的补丁或次版本就拒绝启动。若宿主公开接口规范发生不兼容变化，应通过新的规格调整最低版本或兼容范围。
 
 ## Revalidation Rules
 
@@ -82,6 +82,6 @@ Codex 与 DeepSeek Harness 的宿主功能规格必须在各自 `plan.md` 中定
 2. 实际解析/测试版本；
 3. 更新原因；
 4. 与 Dev Flow 有关的 API 或行为变化；
-5. 需要更新的源码、合同和测试；
-6. 是否要重跑真实宿主证据；
+5. 需要更新的源码、约定和测试；
+6. 是否要重新在实际宿主中运行测试；
 7. 确认未顺带引入产品能力。

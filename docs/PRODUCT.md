@@ -5,7 +5,7 @@
 ## 一句话定位
 
 > Dev Flow 先帮助开发者判断一个请求是否值得进入完整流程；采用 Dev Flow 的新 Task 从用户确认的
-> 远端基线进入独立工作树，并由 Core 持续核对实际修改面、分析后形成的验证计划和当前进度。
+> 远端基线进入独立工作树，并由 Core 持续核对实际改动、分析后形成的验证计划和当前进度。
 
 Codex 或 DeepSeek 仍然读代码、改文件和运行命令。Dev Flow 保存唯一 Task 状态；验证投入需要先随
 Task Plan 建立，后续扩大必须记录具体的新影响、风险、失败或缺口。范围扩大、无计划的验证结果、
@@ -24,7 +24,7 @@ Dev Flow 面向把 Codex 或 DeepSeek 用于真实代码库、且一个任务可
 - 从 fetch 后冻结的 base commit 创建干净、独立、具名分支的工作树；
 - 保留目标、验收条件、范围外事项和预计路径，并在任务分析完成后保存验证计划与初始预算；
 - 在预算不足时保存具体依据、原因、新增检查、增加量和调整后预算，再继续 TEST；
-- 让 Core 从 Git 计算当前修改面，而不是依赖 Agent 自报路径；
+- 让 Core 从 Git 计算当前改动，而不是依赖 Agent 自报路径；
 - 对计划外路径选择单次允许、修改计划或恢复文件；
 - 允许 task branch 上的正常线性 commit，同时阻止 branch switch、rewind 和未准备的历史重写；
 - 在内容变化后让旧测试和理解确认失效，在只提交相同内容时保留它们；
@@ -33,7 +33,7 @@ Dev Flow 面向把 Codex 或 DeepSeek 用于真实代码库、且一个任务可
 - 让 Host 对每次完整套件、测试文件修改和修改后复核重新判断必要范围；
 - 在工作树丢失时显式放弃 Task，并在终态分别决定是否保留、交接或清理工作树和分支。
 
-## 首要失效场景
+## 主要要解决的问题
 
 旧流程先把新 Task 绑定到用户正在使用的 checkout。另一个工具、进程或用户产生的 Git 可见变化
 会让当前 Task 漂移；而 Agent 自报的文件路径既不能证明修改者，也不能可靠区分同一路径后续发生的
@@ -43,7 +43,7 @@ Dev Flow 面向把 Codex 或 DeepSeek 用于真实代码库、且一个任务可
 remote/base/target 确认，精确 fetch 远端分支，冻结 commit，并在独立工作树中创建 Task。源 checkout
 后续变化与 Task 无关；Task 工作树里的全部 Git 可见变化都属于这个 Task。
 
-## 产品如何介入
+## 任务处理规则
 
 | 用户事件 | 产品行为 |
 | --- | --- |
@@ -52,7 +52,7 @@ remote/base/target 确认，精确 fetch 远端分支，冻结 commit，并在�
 | Task 工作树发生变化 | Core 计算 identity、history、content、Action delta 和相对 base 的当前 Task surface |
 | 改动离开计划 | 受支持的结构化写入先询问；其他写入由下一次观察发现，未说明路径不能继续测试或交付 |
 | TASKS 完成分析 | 保存计划检查及理由、初始自动命令预算、完整套件预期和测试代码预期 |
-| 预算不足 | TEST 只接受有闭合依据、具体原因和必要增加量的调整，保存后留在 TEST 继续 |
+| 预算不足 | TEST 要求调整使用允许的原因类别，并说明具体原因和必要增加量，保存后留在 TEST 继续 |
 | 准备完整测试 | Host 每次重新判断广泛影响、定向检查是否足够、待补风险和仓库检查点要求；预算充足不是理由 |
 | 测试重复 | 第三次精确重复时暂停 |
 | 修改后复核 | 只检查当前 diff、因果影响和验收所需路径；修复后只做相关定向复核 |
@@ -72,9 +72,9 @@ remote/base/target 确认，精确 fetch 远端分支，冻结 commit，并在�
 - Core 只读观察 Git，并保存 WorkspaceOrigin、当前观察、Task surface、Action、记录、blocker 和 outcome；
 - Task 创建时不冻结最终测试预算；TASKS 保存初始验证计划，Evidence 按当前 Task Plan revision 计费；
 - TEST 可以通过 `verification_budget_increased` 自循环保存有理由的预算增加，而不是因额度耗尽直接结束；
-- Host 的节点结果只提交语义结论；Core 从 Git 计算文件效果与当前路径；
+- Host 只提交当前节点的语义结论；Core 从 Git 计算文件效果与当前路径；
 - 计划外路径、工作树历史冲突、验证刹车和 Recovery 都复用一个 Core Task 与 `BLOCKED`；
-- 正常线性 commit 不丢失修改面；内容相同的 commit 不让验证记录过期；
+- 正常线性 commit 不丢失实际改动记录；内容相同的 commit 不让验证记录过期；
 - provisioning、Action Recovery 和 relocation 各自使用窄的可恢复记录，不形成第二个业务状态机；
 - DONE 和 CANCELLED 只结束 Task 并释放 claims，不自动 commit、push、创建 PR 或删除工作树；
 - Codex、DeepSeek 与本机 WebUI 读取同一份 Core 状态。
@@ -84,22 +84,22 @@ remote/base/target 确认，精确 fetch 远端分支，冻结 commit，并在�
 
 ## 适合与不适合的任务
 
-Dev Flow 适合跨会话、跨天或 Host 重启后继续的任务；涉及公共合同、Schema、状态、多个 package、
-多个 Host 或复杂恢复的工作；以及需要明确修改面、按分析结果控制验证投入、工作树隔离或同机交接的任务。少量显式
+Dev Flow 适合跨会话、跨天或 Host 重启后继续的任务；涉及公开接口规范、Schema、状态、多个 package、
+多个 Host 或复杂恢复的工作；以及需要明确改动范围、按分析结果控制验证投入、工作树隔离或同机交接的任务。少量显式
 仓库可以组成一个 Task，但每个仓库都必须先完成独立 provisioning。
 
-一次性问答、解释、状态查询和不改变公共合同的机械小改动通常直接使用 Host 更简单。没有可访问
+一次性问答、解释、状态查询和不改变公开接口规范的机械小改动通常直接使用 Host 更简单。没有可访问
 remote/base 的本地仓库，以及需要跨机器交接、安全沙箱、远程执行或自动 Git 发布的工作不适用。
 
 ## 与其他工具的关系
 
 | 工具 | 负责什么 |
 | --- | --- |
-| Codex / DeepSeek | 理解请求和代码、完成准入评估、执行用户确认的 Host/Git 操作、修改代码和运行检查 |
+| Codex / DeepSeek | 理解请求和代码、评估新请求是否适合使用 Dev Flow、执行用户确认的 Host/Git 操作、修改代码和运行检查 |
 | OpenSpec / Spec Kit | 可选地组织需求、设计和任务；不决定 Core 节点或完成状态 |
 | Dev Flow Core | 保存唯一 Task、观察工作树、执行范围/验证/恢复规则并决定合法下一步 |
 
-## 能力分层
+## 任务执行流程
 
 1. Host 对新请求做只读评估，给出 `small|standard|large|uncertain`、候选影响面、未知项和建议。评估绑定
    request、canonical root、HEAD 和 status；这些事实变化后必须重新评估。
@@ -119,10 +119,11 @@ merge、rebase、push、tag、PR 或 publish；系统不复制 `.env`、证书�
 未推送、来源不明或结果不确定的工作树。跨机器 relocation、相邻仓库自动发现、部分隔离的多仓库
 Task、remote MCP 和云端多用户管理也不在当前范围。
 
-## 当前证据边界
+## 已验证的范围
 
-项目包含公开 npm package、源码合同测试和真实 Codex / DeepSeek Host Journey。每份记录只证明对应
-package、平台和流程片段；fixture、静态检查或另一平台的结果不会扩大稳定支持。
+项目提供公开 npm 包、接口规范测试，以及在实际 Codex / DeepSeek 中完成任务流程的测试记录。
+每项结果只适用于它实际测试的安装包、平台和操作步骤；测试样例、静态检查或其他平台的结果不能
+作为扩大稳定支持范围的理由。
 
 Dev Flow 仍处于早期，尚未用足够外部数据证明降低缺陷率、验证成本或恢复时间。稳定支持、源码能力
 和未验证内容见[项目状态](PROJECT-STATUS.md)与[支持矩阵](SUPPORT-MATRIX.md)。运行时以源码、机器可读

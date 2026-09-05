@@ -2,37 +2,36 @@
 
 [中文](README.md) | [English](README_en.md)
 
-`internal/` 是 Dev Flow 的 Host-independent Go Core。它管理 Task、状态图、MCP、SQLite、
-Recovery 和只读 Git observation；Codex 与 DeepSeek package 通过同一个 Core 获得一致的过程行为。
+`internal/` 是不依赖具体编程工具的 Go Core。它管理任务、流程图、MCP、SQLite、异常恢复和 Git
+只读查询。Codex 与 DeepSeek 都使用这个 Core，因此遵循同一套任务规则。
 
 ## 包职责
 
 | Package | 职责 |
 | --- | --- |
-| `domain` | `ProcessTask`、WorkspaceOrigin/Binding、baselines、records、blocker、evidence、outcome 与 limits |
-| `workflow` | `standard-development`、node contracts、30 条 transitions、TASKS verification plan、payload 与 invalidation |
-| `application` | open/resume/read/submit/recover/relocate/cancel/abandon use cases 与组件协调 |
-| `store` | SQLite bootstrap、strict snapshot、CAS、events、claims 与 read-only preflight |
-| `repository` | dedicated worktree、identity/history/content/task-surface 的 bounded read-only Git observation |
-| `recovery` | 五分类 reconciliation、retry advice、blocker 与 resume |
-| `mcp` | 十七工具 local STDIO contract、按 Action kind 收窄的提交 schema 与 Result Envelope |
-| `webui` | loopback HTTP adapter、嵌入资产、session 保护、共享 runtime receipt 与 lifecycle |
-| `version` | 从 `CORE_VERSION` 或 build injection 读取 Core 产品版本 |
+| `domain` | `ProcessTask`、工作树来源与绑定、需求/设计/任务计划基线、操作和验证记录、阻塞、结果及数量限制 |
+| `workflow` | `standard-development` 的节点规则、30 条转换、TASKS 验证计划、提交字段和旧结果失效规则 |
+| `application` | 创建、恢复、读取、提交、迁移、取消和放弃任务，并协调各组件 |
+| `store` | SQLite 初始化、快照校验、CAS 并发更新、事件、工作树占用和只读预检查 |
+| `repository` | 只读查询专属工作树的身份、历史、内容和任务改动，并限制查询范围 |
+| `recovery` | 对操作结果作五种分类，给出重试、阻塞或恢复的处理方式 |
+| `mcp` | 通过本地 STDIO 提供十七个工具；按 Action 类型限定提交字段并返回统一结构 |
+| `webui` | 本机 HTTP 接口、嵌入页面、session 检查、共享服务进程记录和启停 |
+| `version` | 从 `CORE_VERSION` 或构建时写入的值读取 Core 产品版本 |
 
-## 权威边界
+## Core 负责的内容
 
-Core 独自拥有：
+以下数据和规则只由 Core 管理：
 
-- Task identity、immutable intent 与 method profile；
-- process definition/digest、current node、resume node 与 legal transitions；
-- requirements/design/task-plan baselines 及其失效关系；
-- 以实际 worktree-instance identity 为键的 repository claim、revision CAS、current action 与 evidence；
-- 固定 WorkspaceOrigin、当前 Task surface，以及 Action issuance identity/history/content；
-- Recovery classification、blocker 与 terminal outcome。
+- Task 标识、创建时确定的目标与方法配置；
+- 流程定义和摘要、当前节点、恢复节点与允许的转换；
+- 需求、设计和任务计划基线，以及它们的失效规则；
+- 以实际工作树实例为键的仓库占用记录、revision CAS、当前 Action 与验证记录；
+- 固定的工作树来源、当前任务改动，以及签发 Action 时的工作树身份、历史和内容；
+- 恢复分类、阻塞信息与任务结束结果。
 
-Host Adapter 在用户确认后执行 fetch、branch、worktree、handoff 和普通仓库工作并提交语义结果。Core
-从 Git 计算当前 surface，只读观察 Git，不执行任何 Git mutation，
-也不提供通用 shell。
+Host Adapter 在用户确认后执行 fetch、branch、worktree、handoff 和普通仓库工作，并提交语义结果。
+Core 从 Git 计算实际改动，只执行 Git 查询，不修改 Git，也不提供通用 shell。
 
 linked worktree 共享 `SourceRepositoryGroupDigest`，但每个实例由 canonical root 与 worktree-specific
 Git dir 形成不同的 `WorktreeInstanceDigest`。Store 按后者排他 claim，因此同组 worktree 可各自运行
@@ -71,11 +70,11 @@ go test ./internal/mcp
 go test ./internal/webui
 ```
 
-跨层 contract 与 journey 检查位于 `tests/contract/` 和 `tests/journeys/`。完整仓库验证由活动
+跨组件的接口检查和完整流程测试位于 `tests/contract/` 和 `tests/journeys/`。完整仓库验证由活动
 任务或最终 checkpoint 明确授权后运行：
 
 ```bash
 pnpm run validate
 ```
 
-源码、机器可读 Schema 和可执行测试是当前行为权威。
+源码、机器可读 Schema 和可执行测试是判断当前行为的依据。

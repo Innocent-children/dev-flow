@@ -12,9 +12,9 @@ node --test tests/comprehensive/*.test.mjs
 ```
 
 The Go suite covers the generated process topology, every legal and illegal node/transition pair,
-definition-digest authority, terminal and blocked actions, the closed MCP catalog and schemas,
+process-definition digest validation, terminal and blocked actions, the fixed MCP tool list and schemas,
 redacted MCP errors, repository test-surface inventory, Core platform/Git boundaries, WebUI loopback
-and session markers, package authorities, and release isolation.
+and session markers, package definitions, and release isolation.
 
 The Node suite executes package/runtime selector checks, unsupported-platform rejection, package test
 entrypoints, WebUI build/typecheck contracts, repository validation entrypoints, and manual publication
@@ -51,9 +51,9 @@ qualification is not a native Host, Windows, browser, or nightly pass.
 
 | Group | Automated here | Existing detailed suites consumed by the repository |
 | --- | --- | --- |
-| GRAPH / PAYLOAD | Generated topology, projections, illegal pairs, digest authority | `internal/workflow`, `internal/application`, `tests/journeys` |
-| MCP | Catalog, annotations, schema closure, lifecycle input rejection, redaction | `internal/mcp`, `tests/contract` |
-| STORE / RECOVERY / SCOPE | Required executable-suite inventory and Core authority boundaries | `internal/store`, `internal/recovery`, `internal/repository`, `tests/journeys` |
+| GRAPH / PAYLOAD | Generated topology, response data, illegal pairs, and digest validation | `internal/workflow`, `internal/application`, `tests/journeys` |
+| MCP | Catalog, annotations, allowed schema fields, lifecycle input rejection, redaction | `internal/mcp`, `tests/contract` |
+| STORE / RECOVERY / SCOPE | Required executable-suite inventory and Core responsibilities | `internal/store`, `internal/recovery`, `internal/repository`, `tests/journeys` |
 | CODEX / DEEPSEEK / MANAGER | Package test entrypoints and runtime parity | `packages/*/tests` |
 | WEBUI | Loopback/session/revision source boundary and build contract | `internal/webui`; browser qualification is external |
 | PACKAGE / PLATFORM / RELEASE | Runtime selectors, manifests, build and publication separation | `scripts`, `release`, package contract suites |

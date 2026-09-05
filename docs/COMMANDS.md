@@ -9,14 +9,14 @@
 `packages/dev-flow/package.json` 与其 CLI、`packages/codex/package.json` 与
 `packages/codex/bin/dev-flow-codex.mjs`，DeepSeek 生命周期命令
 来自 DSH lifecycle tests 使用的 DSH CLI，Core 命令来自 `cmd/dev-flow/main.go`，MCP 工具来自
-`internal/mcp/` 的闭合目录。
+`internal/mcp/` 的固定工具列表。
 
 公开安装示例使用 npm 的 `latest` dist-tag，以便安装当前最新稳定包；支持矩阵、Release 链接和
-制品证据仍使用精确版本号，不应替换为 `latest`。
+安装包验证结果仍使用精确版本号，不应替换为 `latest`。
 
 当前源码的 launcher 和 bundled Core 只接受两个精确运行时对：`darwin-arm64` 与
 `win32-x64`。下方 `@latest` 命令仍描述当前 npm 稳定通道；Windows 10/11 桌面 x64 的源码能力
-要通过本仓库构建的 package 验证，直到一次明确确认的发布把对应制品送入稳定通道。
+要通过本仓库构建的 package 验证，直到一次明确确认的发布把对应安装包发布到稳定通道。
 
 ## 多数用户需要的推荐入口
 
@@ -37,7 +37,7 @@ npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-闭合子命令为 `status`、`doctor`、`install`、`upgrade`、`repair`、`reinstall`、`uninstall` 和
+支持的子命令为 `status`、`doctor`、`install`、`upgrade`、`repair`、`reinstall`、`uninstall` 和
 `factory-reset`。Host 选择为 `codex|deepseek|all`；DeepSeek Profile 默认 `web`。普通卸载、升级、
 修复和重装保留用户配置与 Task 数据；`factory-reset` 要求绑定当前计划的 token，`--yes` 不能单独
 授权数据清理。默认清理在 macOS 移动到用户 Trash，在 Windows 移动到
@@ -46,7 +46,7 @@ dev-flow
 Codex 全局 package 与 receipt、Plugin 注册分别判断；即使注册已缺失，`uninstall` 和
 `factory-reset` 仍会卸载已安装的全局 package。
 交互界面读取当前 locale：`zh*` 使用简体中文，其余 locale 统一使用英文；JSON 输出保持语言无关。
-文本模式会在安装、升级、修复和重装执行期间逐项显示 Host 动作及已完成的 package、注册、制品和就绪检查步骤；`--json` 不输出这些进度行。
+文本模式会在安装、升级、修复和重装执行期间逐项显示 Host 动作及已完成的 package、注册、构建产物和就绪检查步骤；`--json` 不输出这些进度行。
 
 | 入口 | 作用 |
 | --- | --- |
@@ -251,7 +251,7 @@ transport、通用 HTTP/SSE transport、通用 shell 或 Git mutation 命令。C
 
 ## MCP 工具
 
-以下十七个工具是当前完整且闭合的 public MCP catalog。它们由 Host Adapter 调用，不是终端 shell
+以下十七个工具是当前全部公开 MCP 工具。它们由 Host Adapter 调用，不是终端 shell
 命令。
 
 | 工具 | 类型 | 作用 |
@@ -267,7 +267,7 @@ transport、通用 HTTP/SSE transport、通用 shell 或 Git mutation 命令。C
 | `dev_flow_submit_test` | mutation | 提交 TEST 节点结果；`verification_budget_increased` 用具体原因增加预算并留在 TEST，普通结果发送 `budget_adjustment=null`；第三次精确重复时暂停。 |
 | `dev_flow_submit_comprehension` | mutation | 提交 COMPREHENSION_REVIEW 节点结果。 |
 | `dev_flow_submit_refactor` | mutation | 提交 REFACTOR 节点结果。 |
-| `dev_flow_submit_delivery` | mutation | 提交 Host 负责的 DELIVERY 判断、风险和发现；acceptance、evidence ID 与 Test/Comprehension record ID 由 Core 补齐，提交这些字段会按 `unknown_member` 拒绝。 |
+| `dev_flow_submit_delivery` | mutation | 提交 Host 负责的 DELIVERY 判断、风险和发现；acceptance、验证记录 ID 与 Test/Comprehension record ID 由 Core 补齐，提交这些字段会按 `unknown_member` 拒绝。 |
 | `dev_flow_resolve_blocker` | mutation | 在 Core 确认当前 blocker 条件后解除阻塞；文件范围使用 `choice` 与 `reason`，history 使用 `history_resolution:{choice:"accept_current_history",reason}`，relocation 使用 `relocation_id` 与全部 `relocation_destinations[{key,repository_path}]`，验证/Recovery blocker 使用当前身份字段。 |
 | `dev_flow_recover_action` | mutation | 使用 Core 在独立 Action 操作记录中保存的规范化提交恢复不确定 Action；不接收原始 payload。 |
 | `dev_flow_cancel_task` | destructive mutation | 使用当前 revision 和非空 reason 将非终态 Task 转为 `CANCELLED`。 |
@@ -283,7 +283,7 @@ step identity/order/status 与内部 payload envelope。`get_next_action` 的 `s
 
 `dev_flow_submit_design` 的 `node_result.baseline.requirements_revision`、`dev_flow_submit_tasks` 的
 `node_result.baseline.design_revision` 与 `dev_flow_submit_implementation` 的
-`node_result.task_plan_revision` 均不属于 Host 提交合同。Core 确认当前 Action 身份后，从同一 Task
+`node_result.task_plan_revision` 均不属于 Host 可提交的字段。Core 确认当前 Action 身份后，从同一 Task
 快照填充这些字段；提交任一字段会返回准确路径的 `unknown_member`。节点提交缺少
 其他必填字段时返回准确的 `required_member_missing` 路径；只有已证明零写入且修正内容来自当前节点
 既有事实时，Host 才能按 `recovery.allowed_paths` 通过同一提交工具修正一次。
@@ -358,7 +358,7 @@ linked worktree 共享逻辑仓库组标识，但 canonical root/worktree Git-di
 Task；同一实例只能持有一个活动 Task。Control Center 的 Task summary 公开只读 `repository_group_id` 和
 `worktree_path`，详情中的每个 repository 也公开自己的 `repository_group_id`。
 
-Task result 的 `verification` 同时投影 `plan`、`current_budget`、当前 Task Plan revision 的 `usage` 和
+Task result 的 `verification` 同时返回 `plan`、`current_budget`、当前 Task Plan revision 的 `usage` 和
 `adjustments`；在 TASKS 完成前，`plan` 与 `current_budget` 为 `null`。
 
 `dev_flow_server_info({})` 的结果包含：

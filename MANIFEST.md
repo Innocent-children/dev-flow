@@ -3,7 +3,7 @@
 [中文](MANIFEST.md) | [English](MANIFEST_en.md)
 
 人类文档帮助读者判断、使用和理解 Dev Flow。它们不会被运行时代码解析为流程、Schema、命令或
-发布合同。当文档与可执行行为不一致时，以源码、机器可读 Schema、package manifest、CLI parser
+发布约定。当文档与可执行行为不一致时，以源码、机器可读 Schema、package manifest、CLI parser
 和可执行测试为准，并同步修正文档。
 
 ## 文档职责
@@ -38,11 +38,11 @@ Architecture、Command Reference 和 Host 对应的高级入口。
 | SQLite bootstrap、codec、Action operation 与只读 preflight | `internal/store/` |
 | Recovery、workspace blocker、relocation 与 abandon | `internal/recovery/`、`internal/application/` |
 | 只读 Git identity/history/content/task-surface observation | `internal/repository/` |
-| MCP tools、closed schemas 与 projections | `internal/mcp/` |
-| Codex 准入、provisioning、relaunch/handoff 与 selector | `packages/codex/` |
-| DeepSeek 准入、WorkspaceCoordinator、receipt/relaunch 与 selector | `packages/deepseek/` |
+| MCP 工具、允许的输入字段和返回数据 | `internal/mcp/` |
+| Codex 新请求评估、工作树创建、会话重启/交接和触发指令 | `packages/codex/` |
+| DeepSeek 新请求评估、WorkspaceCoordinator、运行记录/会话重启和触发指令 | `packages/deepseek/` |
 | Protocol fixtures | `protocol/fixtures/` |
-| 可执行合同与真实 Journey | `tests/contract/`、`tests/journeys/` |
+| 接口规范测试和实际宿主中的完整流程测试 | `tests/contract/`、`tests/journeys/` |
 | Release schemas、prepare 与 publisher | `release/`、`scripts/release-*.mjs` |
 | 稳定产品支持声明 | `docs/SUPPORT-MATRIX.md` |
 | 安全报告与信任边界 | `SECURITY.md`、`docs/THREAT-MODEL.md` |

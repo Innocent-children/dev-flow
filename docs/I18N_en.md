@@ -72,7 +72,7 @@ Command documentation must be checked against implementation:
 - unified lifecycle commands come from `packages/dev-flow/lib/cli.mjs`;
 - DeepSeek installation and removal forms come from DSH lifecycle tests;
 - packaged Core commands come from `cmd/dev-flow/main.go`;
-- MCP tools come from the closed catalog under `internal/mcp/`.
+- MCP tools come from the fixed tool list under `internal/mcp/`.
 
 ## Translation invariants
 

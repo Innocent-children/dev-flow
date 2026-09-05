@@ -102,7 +102,7 @@ the exact risk the suite adds coverage for, and whether repository instructions 
 checkpoint. The current reason is recorded as `full_suite_reason`; a small-fix rerun cannot inherit an
 earlier reason automatically.
 
-Test-code changes require lasting value: stable product behavior, a public contract, an important
+Test-code changes require lasting value: stable product behavior, a public interface specification, an important
 failure path, or an observed regression. A one-time README word rule gets one text search. Ordinary
 post-change review covers only the diff, direct/indirect causal impact, and acceptance needs. After a
 review fix, Codex rechecks that finding and related targeted regressions, not the whole repository.

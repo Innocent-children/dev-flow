@@ -33,7 +33,7 @@ verifies and uploads both standalone Core executables.
 bypass list 的专用 GitHub App 短期 token，同一产品的发布不会并发执行。App Client ID 存在仓库
 变量 `RELEASE_APP_CLIENT_ID`，完整 PEM 私钥存在仓库 secret `RELEASE_APP_PRIVATE_KEY`。
 
-工作流上传 runner 临时发布目录中的制品；同输入重跑时由 Publisher 回读并复用匹配的远端状态。
+工作流上传 runner 临时发布目录中的构建产物；同输入重跑时由 Publisher 回读并复用匹配的远端状态。
 
 ```bash
 pnpm run release:codex -- \

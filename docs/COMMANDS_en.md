@@ -39,7 +39,7 @@ npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-The closed operations are `status`, `doctor`, `install`, `upgrade`, `repair`, `reinstall`, `uninstall`, and
+The supported operations are `status`, `doctor`, `install`, `upgrade`, `repair`, `reinstall`, `uninstall`, and
 `factory-reset`. Host is `codex|deepseek|all`; the default DeepSeek Profile is `web`. Ordinary uninstall, upgrade,
 repair, and reinstall preserve configuration and Task data. Factory reset requires the token bound to the current
 plan; `--yes` alone has no data-cleanup authority. Default cleanup moves data to the user's Trash on macOS and to the
@@ -264,12 +264,12 @@ integration process.
 
 ## MCP tools
 
-These seventeen tools are the complete closed public MCP catalog. Host adapters call them; they are not
+These seventeen tools are the complete public MCP tool list. Host adapters call them; they are not
 terminal shell commands.
 
 | Tool | Type | Purpose |
 | --- | --- | --- |
-| `dev_flow_server_info` | Read-only | Read Core product version, transport, health, supported process, hosts, method profiles, tool catalog, and effective host code-index preferences. It must be the first call after valid host admission. |
+| `dev_flow_server_info` | Read-only | Read Core product version, transport, health, supported process, hosts, method profiles, tool catalog, and effective host code-index preferences. It must be the first call after valid Host assessment and confirmation. |
 | `dev_flow_open_task` | Read or create | Create only after every `workspace_origin` passes dedicated-worktree verification; with null `new_task`, resume the same Task from its original instance after a workspace check. |
 | `dev_flow_get_task` | Read-only | Read a persisted Task, including its verification plan, current budget/usage, adjustment reasons, and at most three recent test attempts; automatically returns a Recovery assessment when Core retains an Action submission. |
 | `dev_flow_get_next_action` | Observe/maybe mutate | Observe the workspace first; idempotently create a workspace blocker when needed, otherwise return the Action, `submission_tool`, and legal transitions. |
@@ -316,7 +316,7 @@ Every TEST check also sends `full_suite_reason`. It is empty when `full_suite=fa
 records the concrete risk this run covers. Core retains the result, while the Host still decides
 necessity before executing the command.
 
-Unknown CLI arguments, tools outside this catalog, and calls that do not satisfy shared implicit/explicit admission
+Unknown CLI arguments, tools outside this catalog, and calls that do not satisfy the assessment and confirmation rules for implicit or explicit activation
 are not supported entrypoints.
 
 ### Repository Scope and host-preference fields

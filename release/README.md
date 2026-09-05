@@ -30,8 +30,8 @@ the Publisher verifies and uploads both standalone Core assets.
 后续任务仍基于触发时的旧提交发布。发布工具链固定为 Go `1.26.5`、Node.js `24.18.0` 和 pnpm `11.24.0`，npm 发布只使用 Trusted Publishing OIDC，不生成依赖
 `NODE_AUTH_TOKEN` 的旧式 registry 认证配置。
 
-工作流仍调用下面的 standalone command，完成版本检查、制品检查、npm tarball 回读和 GitHub
-Release 资产处理，不运行 Host 或 Task Journey。每次运行都会上传 runner 临时目录中的制品；同一组
+工作流仍调用下面的 standalone command，完成版本检查、构建产物检查、npm tarball 回读和 GitHub
+Release 资产处理，不运行 Host 或 Task 完整流程测试。每次运行都会上传 runner 临时目录中的构建产物；同一组
 输入重跑时，Publisher 回读并复用匹配的 Tag、npm 和 GitHub Release 状态。
 
 ```bash
@@ -52,7 +52,7 @@ with npm dist-tag `beta`, and creates a GitHub prerelease.
 
 The publisher creates or reuses only matching Tag and GitHub Release state, publishes npm at most
 once, verifies registry tarball bytes, uploads prepared assets, and finalizes without running Host or
-Task journeys.
+Task 完整流程测试.
 
 For a new draft, the publisher writes a product-specific title and a compact Release summary. The
 summary names the exact npm package, links the immutable source commit and source-pinned
@@ -79,7 +79,7 @@ pnpm run release:deepseek -- \
   --confirm "deepseek-v<DEEPSEEK_VERSION>"
 ```
 
-Its package, Tag, output directory, npm identity, GitHub state and DSH registry lifecycle evidence
+Its package, Tag, output directory, npm identity, GitHub state and DSH registry lifecycle test results
 are independent from Codex. Stable releases apply the same public-document synchronization; beta
 releases preserve stable public identities and use the isolated `beta`/prerelease channel. See
 [`deepseek/README.md`](deepseek/README.md).

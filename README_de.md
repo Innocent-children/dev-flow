@@ -26,7 +26,7 @@ eigenen Worktree, bevor Core die Task anlegt. Änderungen aus dem Quell-Checkout
 - **Der Umfang bleibt klar.** Erwartete Pfade werden festgehalten, unterstützte strukturierte Werkzeuge
   fragen vor Schreibvorgängen außerhalb des Plans und tatsächliche Änderungen werden vor Tests und
   Auslieferung erneut geprüft.
-- **Jeder Worktree hat genau einen Änderungsbesitzer.** Core berechnet die aktuelle Task-Oberfläche aus
+- **Jeder Worktree hat genau einen Änderungsbesitzer.** Core ermittelt die tatsächlichen Änderungen der Task mit
   Git. Normale lineare Commits können fortgesetzt werden; Branch-Rewrites oder ein ersetzter Worktree stoppen die Task.
 - **Der Prüfaufwand passt zur Aufgabe.** TASKS speichert Prüfungen, Gründe, Anfangsaufwand und Erwartungen
   für Vollsuite/Testcode. Nur konkrete neue Auswirkungen, Risiken, Fehler oder Lücken erhöhen das Budget.
@@ -79,9 +79,11 @@ unterstützt; DeepSeek zeigt den Neustart aus dem neuen Worktree, weil der Works
 
 ### 3. Fortsetzen und Fortschritt prüfen
 
-Kehre nach einem Neustart in den exakten, an die Task gebundenen Worktree zurück und fordere die Fortsetzung
-ausdrücklich an. Dabei werden Aufnahme und Worktree-Wahl nicht wiederholt. Fehlt die ursprüngliche Instanz
-oder wurde sie ersetzt, stoppt die Task bis zur Wiederherstellung oder zum ausdrücklichen Abandon.
+Bitte nach einem Sitzungsneustart ausdrücklich darum, die Task in ihrem ursprünglichen Worktree
+fortzusetzen. Das System prüft diesen Worktree und setzt die Arbeit anhand des gespeicherten
+Aufgabenstands fort. Die Anfrage wird nicht erneut bewertet, und du musst Dev Flow nicht erneut
+wählen. Fehlt der ursprüngliche Worktree oder wurde er ersetzt, pausiert die Task, bis du ihn
+wiederherstellst oder die Task ausdrücklich aufgibst (abandon). Das System wechselt nicht zu einem anderen Worktree.
 
 ```bash
 # Installierte Integrationen prüfen

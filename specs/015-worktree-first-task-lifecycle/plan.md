@@ -2,9 +2,9 @@
 
 ## 计划状态
 
-本计划定义一次完整、破坏性的产品改造。实现不得把准入评估、工作树创建、仓库观察、Task
+本计划定义一次完整、破坏性的产品改造。实现不得把新请求评估、工作树创建、仓库观察、Task
 生命周期、Codex、DeepSeek、WebUI、测试或文档拆成可独立发布的中间能力。只有本文定义的全部
-行为和真实 Host Journey 通过后，改造才算完成。
+行为和实际 Codex / DeepSeek 中的完整流程测试通过后，改造才算完成。
 
 本文描述目标行为，不代表当前产品已经具备这些能力。当前实现仍以源码、机器可读 Schema、
 package manifest 和可执行测试为准。
@@ -21,7 +21,7 @@ Git 可见改动，提交就可能返回 REPOSITORY_DRIFT。用户已经完成�
 
 ## 当前做法
 
-当前 Codex Skill 对有界实现、缺陷修复、重构和定向测试可以隐式启用，并在握手后直接调用
+当前 Codex Skill 对范围明确的实现、缺陷修复、重构和定向测试可以隐式启用，并在握手后直接调用
 dev_flow_open_task。只有新请求先遇到 ACTIVE_TASK_CONFLICT，Codex 才尝试创建另一个 worktree
 task；该任务从项目默认分支的已提交状态开始，用户不能在创建前确认 remote、base branch 和
 target branch。
@@ -110,7 +110,7 @@ ADMISSION 节点。评估结果帮助用户决定是否承担 Dev Flow 流程成
 评估阶段不得修改文件、运行测试或构建、安装依赖、访问 Dev Flow Core、fetch remote、创建 branch
 或 worktree。
 
-### 输出合同
+### 输出约定
 
 评估固定输出：
 
@@ -141,7 +141,7 @@ candidate_paths 只是已经找到的下界，不能被描述为最终文件清�
 - 只需要少量定向检查；
 - 没有独立依赖 work item、跨会话诉求或关键未知项。
 
-任一公共合同、持久化、状态图、多仓库、多 Host、多平台、安全、并发、恢复或真实 Host Journey
+任一公开接口规范、持久化、状态图、多仓库、多 Host、多平台、安全、并发、恢复或实际 Codex / DeepSeek 中的完整流程测试
 变化，都不能因为文件数量少而判为 small。
 
 无法找到真实入口、影响范围或验证方法时使用 uncertain，并先澄清或补充检查。用户始终可以覆盖
@@ -157,7 +157,7 @@ resume 跳过该步骤。
 
 评估不写入 Core。中断发生在确认前时重新评估，不保存一个没有 Task 的业务游标。
 
-## 工作树创建合同
+## 工作树创建约定
 
 ### 用户必须确认的字段
 
@@ -175,7 +175,7 @@ worktree 已占用 branch 冲突。
 ### 源 checkout
 
 源 checkout 可以 dirty，但 staged、tracked dirty 和 untracked 内容不得复制到 Task worktree。
-确认界面必须显示有界 dirty path 列表并明确说明这些内容不会进入 Task。
+确认界面必须显示数量受限的 dirty path 列表并明确说明这些内容不会进入 Task。
 
 需求依赖这些本地内容时，用户应先自行整理并把需要的内容推送到选定 remote/base，或选择直接开发。
 Dev Flow 不自动 stash、commit、reset 或搬运 patch。
@@ -279,7 +279,7 @@ history_digest 描述当前 HEAD 和相对上一观察的祖先关系。
 content_digest 描述 HEAD tree 加当前 index/worktree 内容。它不因为把完全相同的内容提交成 commit
 而变化。
 
-changed_entries 是有界、排序后的逐路径状态，至少包含 path、变更类型、文件模式或 gitlink 状态和
+changed_entries 是按数量限制保存、排序后的逐路径状态，至少包含 path、变更类型、文件模式或 gitlink 状态和
 内容摘要，不保存文件正文。
 
 task_surface 是相对 base_commit 的 committed diff 加当前 staged、unstaged 和 untracked 变化。
@@ -304,7 +304,7 @@ TestRecord 和 ComprehensionAssessment 绑定 content_digest，而不是包含 H
 ### Core 计算文件事实
 
 从所有 Action node_result 删除 Host 提交的 changed_paths 和 no_file_changes。Host 只提交语义结果、
-证据、artifact 和选择的合法 transition；Core 提交前重新观察 Git 并计算文件效果。
+验证记录、artifact 和选择的合法 transition；Core 提交前重新观察 Git 并计算文件效果。
 
 Requirements、Design 和 Tasks 的文件变化必须与当前节点允许的 process artifacts 相符。
 Implementation 和 Refactor 的变化必须落在当前 Task Plan ExpectedPaths 或有效的一次性决定中。
@@ -319,7 +319,7 @@ Test、Comprehension 和 Delivery 中出现仓库写入时，仍按该 Action �
 | Task worktree 只出现计划内变化 | 正常记录并推进 |
 | Task worktree 出现计划外路径 | 创建 file-scope Blocker |
 | 同一 task branch 线性新增 commit | 按 base_commit 重新计算 Task surface |
-| commit 只保存相同内容 | 内容证据保持有效 |
+| commit 只保存相同内容 | 与代码内容绑定的验证记录保持有效 |
 | commit 同时改变内容 | 使旧 Test/Comprehension 失效 |
 | branch switch、detached、HEAD rewind 或未准备的历史重写 | 创建 history conflict Blocker |
 | worktree 丢失或 Git dir 被替换 | WORKSPACE_UNAVAILABLE |
@@ -397,7 +397,7 @@ worktree 后才 open Task。未完成 relaunch 前没有 Core Task。
 ## DeepSeek Adapter
 
 DeepSeek 新请求也必须支持只读 suitability assessment。把 Skill 暴露给模型只表示它可被选择，
-不能直接宣称所有普通请求都会稳定触发；该行为必须由真实 DSH Journey 证明。未带 /dev-flow 的
+不能直接宣称所有普通请求都会稳定触发；该行为必须由真实 DSH 完整流程测试确认。未带 /dev-flow 的
 assessment turn不得调用任何 Dev Flow tool，现有 selector executable guard继续保护 Core 调用。
 
 用户选择 Dev Flow 后的直接确认 turn仍需满足 DSH 的当前用户授权边界。Skill 必须显示用户需要发送
@@ -415,7 +415,7 @@ DSH Workspace Root在启动时固定。安全的 sibling worktree不在当前 Ro
 权限继续，也不能在源仓库内部创建嵌套 worktree。它应输出经过真实 DSH parser和生命周期测试的
 relaunch命令；新会话从 worktree启动、消费 receipt，再创建 Task。
 
-若 DSH不能稳定完成 assessment或 relaunch Journey，本改造不能宣称 DeepSeek具备该能力，也不能以
+若 DSH不能稳定完成 assessment或 relaunch 完整流程测试，本改造不能宣称 DeepSeek具备该能力，也不能以
 Skill文案或静态fixture代替。
 
 ## 依赖、配置和特殊仓库
@@ -439,7 +439,7 @@ Dev Flow不自动安装依赖、预热node_modules、Maven/Gradle cache，也不
 ### Submodule
 
 clean gitlink作为主仓库的一个路径观察。dirty submodule继续拒绝。需要在submodule内开发时，用户
-必须把它作为显式additional repository加入范围，并满足同样的remote/base/target/worktree合同。
+必须把它作为显式additional repository加入范围，并满足同样的remote/base/target/worktree约定。
 
 ### Git LFS
 
@@ -494,7 +494,7 @@ dev_flow_abandon_task进入CANCELLED。
 
 DONE和CANCELLED继续是终态。任何workspace处理都不能直接产生DONE。
 
-## 公共合同变化
+## 公开接口规范变化
 
 - RepositoryBinding拆分identity、history、content和逐路径观察；
 - ProcessTask增加WorkspaceOrigin和当前Task surface；
@@ -512,7 +512,7 @@ DONE和CANCELLED继续是终态。任何workspace处理都不能直接产生DONE
 - WebUI增加workspace origin、provisioning、history conflict、relocation和cleanup展示；
 - 删除共享checkout新Task、dirty baseline和post-conflict relocation实现、测试与文档。
 
-当前CORE_VERSION为0.6.5。若从该基线实施，本次破坏性0.x合同变化把CORE_VERSION更新为0.7.0。
+当前CORE_VERSION为0.6.5。若从该基线实施，本次破坏性0.x约定变化把CORE_VERSION更新为0.7.0。
 Codex、DeepSeek和统一lifecycle package的发布版本仍由独立发布流程选择，不在普通功能改造中发布。
 
 ## 主要实现位置
@@ -544,7 +544,7 @@ Codex：
 - packages/codex/plugin/.codex-plugin/plugin.json
 - packages/codex/lib/lifecycle.mjs
 - worktree launch receipt与Host task协调模块
-- skill、lifecycle、launcher、package和真实Host Journey测试
+- skill、lifecycle、launcher、package和真实宿主完整流程测试测试
 
 DeepSeek：
 
@@ -552,7 +552,7 @@ DeepSeek：
 - packages/deepseek/lib/index.mjs
 - packages/deepseek/lib/authorization.mjs
 - 新的WorkspaceCoordinator和receipt模块
-- integration、authorization、lifecycle、package 和真实 DSH Journey 测试
+- integration、authorization、lifecycle、package 和真实 DSH 完整流程测试
 
 文档：
 
@@ -596,7 +596,7 @@ DeepSeek：
 
 ## 验收
 
-### 准入
+### 新请求评估
 
 1. 单文件内部机械修改被判为small，第一次回复后Core调用数和Task数均为零。
 2. 单文件公共API、Schema、状态图或安全变化不能判为small。
@@ -635,7 +635,7 @@ DeepSeek：
 26. worktree丢失后普通cancel不伪造观察，显式abandon可以释放claim。
 27. Core/Host重启后provisioning、Action recovery和relocation分别从各自receipt恢复。
 
-### 真实Host Journey
+### 真实宿主完整流程测试
 
 28. Codex macOS稳定Journey覆盖：评估、确认、fetch、managed worktree、target branch、open、修改、
     commit、测试、DONE、Handoff和cleanup。
@@ -665,12 +665,12 @@ DeepSeek：
 
 ## 交付判断
 
-本改造直接改善长时任务的可信继续：小任务可以退出流程；采用Dev Flow的任务从用户确认的最新远端
-commit开始，并在独立工作树中运行。Core能够从Git事实确定当前修改面、内容是否变化和证据是否仍然
+本改造帮助长时间运行的任务从正确状态继续：小任务可以退出流程；采用Dev Flow的任务从用户确认的最新远端
+commit开始，并在独立工作树中运行。Core能够从Git事实确定当前修改面、内容是否变化和验证记录是否仍然
 适用，不再把修改归属建立在Agent自报路径上。
 
 误放行可能让任务在错误分支、错误代码或未验证内容上继续；因此remote/base/target、fetched commit、
 worktree实例、内容摘要和relocation都必须绑定并复核。误阻塞会增加用户操作；因此普通commit、
 原checkout并行修改和只改变Git历史但不改变内容的行为必须能够继续。
 
-只有本文全部验收成立，并完成真实Codex与DeepSeek Journey，才算达到用户可见结果。
+只有本文全部验收成立，并完成真实Codex与DeepSeek 完整流程测试，才算达到用户可见结果。

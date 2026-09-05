@@ -17,9 +17,9 @@ npm `@latest` 当前选择以下稳定 package：
 | `dev-flow-deepseek` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
 | `@imotong/dev-flow` | macOS arm64、Node.js `>=20` |
 
-稳定 lifecycle 记录覆盖 registry package 安装、Host/Core 就绪检查、移除、卸载和目标仓库不变性。
-DeepSeek 稳定 Journey 还覆盖显式触发、重启恢复、`DONE` 和保留数据后的重新打开。准确 Release 与
-制品入口见 [Support Matrix](SUPPORT-MATRIX.md)。
+稳定版本的测试记录包含 npm 安装包安装、Host/Core 就绪检查、移除、卸载，以及操作前后目标仓库
+内容保持不变。DeepSeek 还测试了显式触发、重启恢复、`DONE` 和保留数据后重新打开。具体 Release 和
+安装包入口见 [Support Matrix](SUPPORT-MATRIX.md)。
 
 ## 当前源码与预览能力
 
@@ -27,12 +27,12 @@ DeepSeek 稳定 Journey 还覆盖显式触发、重启恢复、`DONE` 和保留�
 
 | 用户可见能力 | 当前内容 |
 | --- | --- |
-| 新请求准入 | Host 先做只读 `small|standard|large|uncertain` 评估并等待用户选择；显式 selector 也不能跳过 |
+| 新请求评估 | Host 先做只读 `small|standard|large|uncertain` 评估并等待用户选择；显式 selector 也不能跳过 |
 | 工作树优先 | 用户逐仓确认 remote/base/target，Host 精确 fetch、冻结 commit，并在干净专属工作树验证后才创建 Task |
 | 持久 Task | 本地保存请求、范围、当前阶段、分析后形成的验证计划、当前预算/消耗、调整原因、记录、阻塞和结果 |
 | 中断后继续 | Codex 和 DeepSeek 从同一 Task 恢复当前阶段与下一步 |
 | 范围与验证限制 | TASKS 保存初始验证计划；Core 按当前 Task Plan revision 统计消耗，允许 TEST 用具体原因增加，并继续执行 ExpectedPaths 和记录失效规则 |
-| 有界测试与复核 | Host 对每次命令、完整套件、测试文件修改和修改后复核判断当前相关性；修复后只做相关定向复核 |
+| 按改动范围测试与复核 | Host 对每次命令、完整套件、测试文件修改和修改后复核判断当前相关性；修复后只做相关定向复核 |
 | 自动刹车 | 保存最近三次测试尝试；相同失败、相同结果或相同修改与失败循环第三次精确重复后暂停 |
 | 不确定 Action 恢复 | read-before-retry、Recovery 判断、Blocker 和 resume |
 | 交付前理解确认 | 测试后进入理解确认；仓库变更后重新测试 |
@@ -42,17 +42,17 @@ DeepSeek 稳定 Journey 还覆盖显式触发、重启恢复、`DONE` 和保留�
 | Host 生命周期 | 统一 `dev-flow` 入口管理 Codex 与 DeepSeek 的安装、诊断、维护和移除 |
 
 多仓库与 worktree 是高级能力，不代表 Dev Flow 的主要用户场景。它们的源码存在也不表示已有对应
-稳定最终制品 Journey。
+稳定最终安装包的完整流程测试。
 
 ## 尚未验证
 
-- Windows 10/11 x64 已有本机 Core/WebUI/MCP、Adapter contract 和本地打包证据，但尚未完成稳定
-  `@latest` 最终制品 Host Journey；
+- Windows 10/11 x64 已有本机 Core/WebUI/MCP、Adapter 接口规范测试和本地打包结果，但尚未完成稳定
+  `@latest` 最终安装包在实际宿主中的完整流程测试；
 - Linux、Windows Server、Windows 32 位与 ARM64、Intel Mac、Rosetta 和 remote MCP 没有稳定支持声明；
-- 工作树优先准入、provisioning、同机 relocation 和 abandon 尚未进入稳定 `@latest` 最终制品 Journey；
+- 创建工作树前的请求评估、provisioning、同机 relocation 和 abandon 尚未进入稳定 `@latest` 最终安装包的完整流程测试；
 - verification budget 尚未通过外部使用数据证明能够减少无效测试；
-- 自动刹车尚未通过真实 Host Journey 和外部使用数据确认误阻塞率；
-- comprehension gate 尚未通过长期项目数据证明能够降低维护成本或缺陷率；
+- 自动刹车尚未通过实际 Codex / DeepSeek 中的完整流程测试和外部使用数据确认误阻塞率；
+- 交付前的理解确认尚未通过长期项目数据证明能够降低维护成本或缺陷率；
 - 外部采用、长期重复使用和依赖项目仍然有限。
 
 ## 当前记录导览
@@ -60,16 +60,16 @@ DeepSeek 稳定 Journey 还覆盖显式触发、重启恢复、`DONE` 和保留�
 | 入口 | 能回答什么问题 |
 | --- | --- |
 | [PR #8](https://github.com/Innocent-children/dev-flow/pull/8) | Codex 状态图是否真实覆盖重构、重新测试、理解确认和交付？ |
-| [Support Matrix](SUPPORT-MATRIX.md) | 哪些公开稳定 package 与 Host 环境完成最终制品验证？ |
-| [Release 目录](../release/README.md) | 维护者如何构建、回读并发布制品？ |
+| [Support Matrix](SUPPORT-MATRIX.md) | 哪些公开稳定 package 与 Host 环境完成最终安装包验证？ |
+| [Release 目录](../release/README.md) | 维护者如何构建、下载核对并发布安装包？ |
 
 不同记录分别说明不同范围。不能把它们合并描述成“一次运行证明全部能力”。
 
 ## 外部采用情况
 
 当前公开 Issue、外部 Pull Request、依赖项目和长期重复使用记录仍然很少。npm 下载次数、仓库测试
-数量和维护者自己的 Journey 不能单独说明外部用户已经持续使用并获得效果。本页目前只能确认公开
-package 可用和已有的具体 Host Journey，不能据此推导缺陷率、验证成本或长期维护结果。
+数量和维护者自己的完整流程测试不能单独说明外部用户已经持续使用并获得效果。本页目前只能确认公开
+package 可用和已有的具体的宿主完整流程测试，不能据此推导缺陷率、验证成本或长期维护结果。
 
 ## 当前产品缺口
 
@@ -92,9 +92,9 @@ package 可用和已有的具体 Host Journey，不能据此推导缺陷率、�
 - WebUI 只支持本机 loopback，不提供远程访问或多用户权限；
 - 稳定支持范围只以 [Support Matrix](SUPPORT-MATRIX.md) 为准。
 
-## 如何评估
+## 评估方法
 
 1. 先读根 [README](../README_zh-CN.md) 和[产品定义](PRODUCT.md)，判断任务是否需要限制改动范围并按分析结果规划验证投入；
 2. 需要了解中断后继续时，再看对应的 [Demo](DEMO.md)；
-3. 阅读 [Support Matrix](SUPPORT-MATRIX.md)，区分稳定支持与源码能力，并按需打开上表中的真实 Journey；
+3. 阅读 [Support Matrix](SUPPORT-MATRIX.md)，区分稳定支持与源码能力，并按需打开上表中的实际运行记录；
 4. 阅读 [Security Policy](../SECURITY.md) 和 [Threat Model](THREAT-MODEL.md)，了解剩余风险。

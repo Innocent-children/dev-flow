@@ -104,7 +104,7 @@ Before every full suite, the Adapter freshly checks broad impact, whether target
 suffice, the exact uncovered risk, and repository checkpoint rules. It records the current reason as
 `full_suite_reason`; a rerun after a small fix cannot inherit the earlier reason automatically.
 
-Test-code changes require lasting value in stable product behavior, a public contract, an important
+Test-code changes require lasting value in stable product behavior, a public interface specification, an important
 failure path, or an observed regression. A one-time README word requirement gets one text search.
 Ordinary post-change review covers only the diff, direct/indirect causal impact, and acceptance needs;
 after a review fix, only that finding and related targeted regressions are rechecked. Explicit code

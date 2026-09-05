@@ -19,7 +19,7 @@ npm `@latest` currently selects these stable packages:
 | `@imotong/dev-flow` | macOS arm64, Node.js `>=20` |
 
 Stable lifecycle records cover registry-package installation, Host/Core readiness, removal,
-uninstallation, and an unchanged target repository. The DeepSeek stable journey also covers explicit
+uninstallation, and an unchanged target repository. The DeepSeek stable end-to-end test also covers explicit
 activation, restart recovery, `DONE`, and reopen with retained data. See the
 [Support Matrix](SUPPORT-MATRIX_en.md) for exact Releases and artifacts.
 
@@ -29,12 +29,12 @@ The following capabilities exist on current `main`; some may be beta-only or sou
 
 | User-visible capability | Current content |
 | --- | --- |
-| New-request admission | The Host performs a read-only `small|standard|large|uncertain` assessment and waits for a choice; an exact selector cannot skip it |
+| New-request assessment | The Host performs a read-only `small|standard|large|uncertain` assessment and waits for a choice; an exact selector cannot skip it |
 | Worktree first | The developer confirms remote/base/target for each repository; the Host fetches, freezes, and verifies a clean dedicated worktree before Task creation |
 | Durable Task | Locally retain request, scope, current stage, the post-analysis verification plan, current budget/usage, increase reasons, records, blockers, and outcome |
 | Continue after interruption | Codex and DeepSeek resume the current stage and next step from the same Task |
 | Scope and verification limits | TASKS retains the initial verification plan; Core counts the current Task Plan revision, accepts concretely justified TEST increases, and applies ExpectedPaths plus record invalidation |
-| Bounded testing and review | The Host checks current relevance before commands, full suites, test-code changes, and post-change review; a review fix receives only related targeted rechecks |
+| Testing and review scoped to the change | The Host checks current relevance before commands, full suites, test-code changes, and post-change review; a review fix receives only related targeted rechecks |
 | Automatic verification brake | Retain the three most recent test attempts and pause after the third exact repetition of the same failure, same result, or same changed-path and failure loop |
 | Uncertain Action recovery | Read-before-retry, Recovery assessment, Blocker, and resume |
 | Pre-delivery comprehension | Comprehension follows testing; repository changes require testing again |
@@ -44,19 +44,19 @@ The following capabilities exist on current `main`; some may be beta-only or sou
 | Host lifecycle | Unified `dev-flow` entry for Codex and DeepSeek installation, diagnosis, maintenance, and removal |
 
 Multi-repository and worktree behavior is advanced capability, not the primary user scenario. Source
-presence also does not imply a corresponding stable final-artifact journey.
+presence also does not imply a corresponding end-to-end test of a stable package.
 
 ## Not yet verified
 
-- Windows 10/11 x64 has native Core/WebUI/MCP, Adapter-contract, and local-package evidence, but not
-  yet a stable `@latest` final-artifact Host journey;
+- Windows 10/11 x64 has native Core/WebUI/MCP, Adapter-contract tests, and local-package results, but not
+  yet a stable `@latest` end-to-end test of the final package in an actual Host;
 - Linux, Windows Server, 32-bit and ARM64 Windows, Intel Mac, Rosetta, and remote MCP have no stable
   support claim;
-- worktree-first admission, provisioning, same-machine relocation, and abandon are not yet present in
-  a stable `@latest` final-artifact journey;
+- request assessment before worktree creation, provisioning, same-machine relocation, and abandon are not yet present in
+  a stable `@latest` end-to-end test of the final package;
 - external usage has not established that the verification budget reduces unnecessary testing;
-- no real-Host journey or external usage data has established the automatic brake's false-block rate;
-- long-term project data has not established that the comprehension gate reduces maintenance cost or
+- no real-Host end-to-end test or external usage data has established the automatic brake's false-block rate;
+- long-term project data has not established that the pre-delivery comprehension review reduces maintenance cost or
   defects;
 - external adoption, repeated long-term use, and dependent projects remain limited.
 
@@ -64,7 +64,7 @@ presence also does not imply a corresponding stable final-artifact journey.
 
 | Entry point | Question it can answer |
 | --- | --- |
-| [PR #8](https://github.com/Innocent-children/dev-flow/pull/8) | Did a real Codex graph journey cover refactoring, retesting, comprehension, and delivery? |
+| [PR #8](https://github.com/Innocent-children/dev-flow/pull/8) | Did a real Codex graph end-to-end test cover refactoring, retesting, comprehension, and delivery? |
 | [Support Matrix](SUPPORT-MATRIX_en.md) | Which public stable packages and Host environments completed final-artifact validation? |
 | [Release directory](../release/README.md) | How do maintainers build, read back, and publish artifacts? |
 
@@ -74,9 +74,9 @@ the entire product.
 ## External adoption status
 
 Public Issues, external pull requests, dependent projects, and long-term repeat-use records remain
-scarce. npm downloads, repository test counts, and maintainer-owned journeys do not by themselves
+scarce. npm downloads, repository test counts, and maintainer-run end-to-end tests do not by themselves
 show sustained external use or outcomes. Current material establishes package availability and the
-specific Host journeys listed above, not defect-rate, verification-cost, or long-term-maintenance
+specific Host end-to-end tests listed above, not defect-rate, verification-cost, or long-term-maintenance
 results.
 
 ## Current product gaps
@@ -103,11 +103,11 @@ priority.
 - the WebUI is local loopback only, with no remote access or multi-user permissions;
 - stable support is only what the [Support Matrix](SUPPORT-MATRIX_en.md) lists.
 
-## How to evaluate the project
+## Evaluation method the project
 
 1. Read the root [README](../README.md) and [Product Definition](PRODUCT_en.md) to decide whether your
    task needs explicit change scope and post-analysis verification planning.
 2. Read the [interruption demo](DEMO_en.md) when continuation across sessions matters to your work.
 3. Read the [Support Matrix](SUPPORT-MATRIX_en.md) to separate stable support from source capability,
-   then open the real journeys above when you need the exact scope of a record.
+   then open the real end-to-end tests above when you need the exact scope of a record.
 4. Read the [Security Policy](../SECURITY.md) and [Threat Model](THREAT-MODEL_en.md) for residual risk.

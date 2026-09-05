@@ -32,7 +32,7 @@ shell 执行前判断完整套件是否必要。Codex 与 DeepSeek Skill 也没�
 2. TASKS 在现有 baseline 中同时保存初始验证计划。没有计划不能进入 IMPLEMENT。
 3. 当前计划预算不足时，Host 先根据新影响、新风险、实际失败或验证缺口决定是否增加；理由充分时，
    使用 TEST 的 `verification_budget_increased` 自循环保存调整，再继续运行命令。
-4. 缺少闭合依据类别、具体原因、新增检查或实际预算增加的调整无效。
+4. 缺少允许的依据类别、具体原因、新增检查或实际预算增加的调整无效。
 5. 每次完整套件运行都由 Host 重新判断，并在 Evidence 中记录本次理由；预算允许只表示 Core 接受这类
    结果，不表示本次运行必要。
 6. 新检查、测试代码和修改后复核只覆盖当前改动、因果影响、验收条件、实际失败或真实回归。
@@ -50,23 +50,23 @@ Task 在 REQUIREMENTS 和 DESIGN 阶段显示“尚未建立验证计划”。TA
 - 每次预算增加的依据、原因、增加量、新增检查和调整后预算。
 
 额度不足不会自动结束任务。Host 可以先提交一个有理由的预算增加，Core 留在 TEST 并签发新 Action；
-无理由调整仍被拒绝。普通小改动默认停在定向检查和有界复核完成处，不以“仓库中再也找不到问题”
+无理由调整仍被拒绝。普通小改动默认停在定向检查和范围明确的复核完成处，不以“仓库中再也找不到问题”
 作为结束条件。
 
 ## 错误成本
 
 错误放行会让无关测试、完整套件或历史问题重新进入当前任务，增加时间和改动风险。错误阻塞会让新发现
 的真实影响、失败或验证缺口无法得到必要检查。方案因此不把预算当永久停止线：Core 要求结构化、可追溯
-的增加，Host 负责在执行前判断语义必要性；两者都不尝试解析任意命令。
+的增加，Host 负责在执行前判断这些检查是否必要；两者都不尝试解析任意命令。
 
-## 验收证据
+## 验收方式
 
 - Domain/Application 定向测试证明 Task 创建无预算、TASKS 保存计划、当前计划消耗独立计算、预算按
   具体调整增加并继续 TEST，以及无效调整零写入拒绝。
-- Workflow/MCP 合同测试证明 TASKS 与 TEST 的 closed payload、TEST 自循环、完整套件理由和新 Task
+- Workflow/MCP 接口规范测试证明 TASKS 与 TEST 的 closed payload、TEST 自循环、完整套件理由和新 Task
   schema。
-- Codex/DeepSeek Skill 合同测试证明定向检查优先、完整套件逐次判断、一次性 README 检查不生成测试、
-  测试代码长期价值判断、有界复核、防循环和显式 review 只读。
+- Codex/DeepSeek Skill 接口规范测试证明定向检查优先、完整套件逐次判断、一次性 README 检查不生成测试、
+  测试代码长期价值判断、范围明确的复核、防循环和显式 review 只读。
 - WebUI handler 与前端定向构建证明计划、消耗和调整原因可读。
 - 文档搜索和 locale 对照确认中英文技术文档与九个根 README 同步当前行为。
 
@@ -92,7 +92,7 @@ full_suite_expected
 test_code_changes_expected
 ```
 
-`ProcessTask` 保存有界的 `verification_budget_adjustments[]`。每项绑定 Task Plan revision，并保存依据
+`ProcessTask` 保存数量受限的 `verification_budget_adjustments[]`。每项绑定 Task Plan revision，并保存依据
 `new_impact | new_risk | verification_failure | verification_gap`、具体原因、新增检查、增加的自动命令数、
 新开放的 full-suite/manual-handoff 权限、调整前后预算和时间。当前预算由当前 Task Plan 的初始预算及
 该 revision 的调整链得出。
@@ -135,7 +135,7 @@ Codex 与 DeepSeek 在 TASKS 完成任务分析后自行建立初始计划。每
 当前改动或实际失败；容量不足时先走有理由的调整，不因额度耗尽直接结束。
 
 每次完整套件前重新回答影响范围、定向/包级检查是否已足够、完整套件补足的具体风险和仓库当前检查点
-要求，并把本次理由写入 Evidence。修改测试文件前判断是否是稳定行为、公共合同、重要失败路径或真实
+要求，并把本次理由写入 Evidence。修改测试文件前判断是否是稳定行为、公开接口规范、重要失败路径或真实
 回归；一次性约束只做一次性检查。
 
 普通实现后的复核只读当前 diff、因果影响路径和验收所需内容。修复复核发现后只做定向复核。显式
@@ -144,14 +144,14 @@ review/audit 阶段不修改任何文件，完整交付问题后停止等待授�
 ### WebUI 与文档
 
 WebUI 用一个 verification 区块展示“尚未计划”或当前计划、已用/当前命令预算、full-suite/test-code
-预期和每次调整原因。文档只描述新合同，并同步产品、架构、命令、WebUI、Host、状态、路线图、威胁
+预期和每次调整原因。文档只描述新约定，并同步产品、架构、命令、WebUI、Host、状态、路线图、威胁
 模型、演示和九个根 README。
 
 ## 当前设计风险
 
-- Host 对“与改动直接相关”和“具有长期测试价值”的判断仍是语义判断；Core 只能校验已结构化的计划、
+- Host 对“与改动直接相关”和“具有长期测试价值”的判断仍需要结合当前工作判断；Core 只能校验已结构化的计划、
   依据、原因和结果，不能证明 Host 的自然语言判断正确。
 - 未经过 Host hook 的 shell 或专用工具仍可能先执行；Core 只能在结果提交与后续 Git 观察中拒绝不合
-  当前合同的状态。
+  当前约定的状态。
 - 当前计划的命令消耗按 Evidence 记录计算；Host 必须在运行前读取最新 Task，避免并发或过期视图下重复
   使用同一剩余额度。

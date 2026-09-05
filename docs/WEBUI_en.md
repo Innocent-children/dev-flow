@@ -8,10 +8,10 @@ Control Center is embedded in Go Core and reads the same SQLite Tasks as Codex a
 browser keeps no second process state and does not fetch, create branches/worktrees, hand off a Host,
 or clean resources.
 
-## What you can view
+## Available information
 
 - the shared Task overview, filters, current stage, revision, and legal next action;
-- requirements, design, Task Plan, implementation, tests, comprehension, evidence, and timeline, with
+- requirements, design, Task Plan, implementation, tests, comprehension, verification records, and timeline, with
   verification explicitly shown as unplanned before TASKS;
 - each repository's confirmed remote/base/base commit, task branch, worktree path, and repository group;
 - current HEAD, clean/dirty state, identity/history/content digests, Task surface, and current changed paths;
@@ -36,7 +36,7 @@ The WebUI no longer creates a new Task from an arbitrary checkout. A new Task mu
 read-only assessment, developer confirmation, fetch, dedicated-worktree provisioning, and verification
 in Codex or DeepSeek before the target Host calls Core.
 
-The page may submit semantic operations using current Core identities:
+The page may submit these operations using the current Task and Action identifiers returned by Core:
 
 - resolve file-scope, verification, or history blockers;
 - retain a concretely justified increase through the current TEST Action's
@@ -105,4 +105,4 @@ runtime use needs no Node server, CDN, external font, or separate WebUI package.
 - remote access, accounts, team permissions, or cloud synchronization;
 - browser-owned shell, file editing, Git mutation, Host handoff, or publication;
 - browser-created shared-checkout Tasks or automatic reconstruction of a missing worktree;
-- user-defined graphs or another Task-state authority.
+- user-defined graphs or another copy of Task state.

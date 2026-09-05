@@ -10,15 +10,15 @@ install real Host products or create npm, Tag, or GitHub Release state.
 
 | Command | Purpose |
 | --- | --- |
-| `pnpm run validate` | Run bounded repository validation |
+| `pnpm run validate` | Run the repository's required checks |
 | `pnpm run validate:contracts` | Run public contract tests only |
-| `pnpm run versions:check` | Verify Core, Codex, and DeepSeek version authorities and mirrors |
+| `pnpm run versions:check` | Verify Core, Codex, and DeepSeek version files and mirrors |
 | `pnpm run dev-flow:local` | Pack all three products from current source and open the normal `dev-flow` install menu |
 | `pnpm --dir packages/codex test` | Run Codex package-local tests |
 | `pnpm --dir packages/deepseek test` | Run DeepSeek package-local tests |
 
-`validate-repository.sh` checks toolchains, frozen dependency installation, version authorities,
-whitespace, Go formatting, package contracts, Host Adapter tests, deterministic journeys, and
+`validate-repository.sh` checks toolchains, frozen dependency installation, version files,
+whitespace, Go formatting, package contracts, Host Adapter tests, deterministic end-to-end tests, and
 release-tooling contracts. It does not invoke a real release entrypoint.
 
 ## Local installation testing
@@ -47,7 +47,7 @@ The `dev-flow:local` Node orchestrator runs on macOS arm64 and Windows 10/11 x64
 verifies, and stages both `darwin-arm64/dev-flow` and `win32-x64/dev-flow.exe`. A Windows development
 host needs Go, Node.js, npm, and pnpm; this entry does not require Bash to launch.
 
-## Source-local builds
+## Local source builds
 
 - `build-webui.mjs`: build and synchronize the embedded WebUI cross-platform;
   `build-webui.sh` is its Unix wrapper;
@@ -63,7 +63,7 @@ Neither the Codex nor DeepSeek source package stores a precompiled Core. Each `p
 declares the two runtime paths required in the final npm package; local builds and release staging
 create those files before packing.
 
-Final artifacts and evidence must be written to an operator-selected directory outside the
+Final packages and test records must be written to an operator-selected directory outside the
 repository.
 
 ## Release entrypoints

@@ -5,7 +5,7 @@
 - Task 创建只保存请求、初始范围、已知验收和 method profile，不再保存最终 verification budget。
 - TASKS baseline 保存 `verification_plan`：计划检查及理由、初始预算、完整套件预期和测试代码预期。
 - Evidence 绑定 Task Plan revision；当前消耗只统计当前 revision，旧计划记录保留但不占新计划预算。
-- TEST 增加 `verification_budget_increased` 自循环；调整必须有闭合依据、具体 reason、新增检查和实际
+- TEST 增加 `verification_budget_increased` 自循环；调整必须有允许的依据类别、具体 reason、新增检查和实际
   单调增加，Core 保存调整前后预算并签发新的 TEST Action。
 - 完整套件 Evidence 保存本次 `full_suite_reason`。Codex/DeepSeek Skill 在命令和测试文件修改前判断
   相关性，并限制修改后复核和修复后的重检范围。
@@ -82,7 +82,7 @@
 - `internal/webui/assets/generated/index.html`
 - `internal/webui/assets/generated/manifest.json`
 
-### Codex、DeepSeek 与 Journey/合同测试
+### Codex、DeepSeek 与完整流程测试/接口规范测试
 
 - `packages/codex/README.md`
 - `packages/codex/plugin/skills/dev-flow/SKILL.md`
@@ -117,7 +117,7 @@
 - `tests/journeys/process_graph_navigation_test.go`
 - `tests/journeys/shared/simulated-submission-contract.test.mjs`
 
-### 当前合同 fixtures
+### 当前约定 fixtures
 
 - `protocol/fixtures/README.md`
 - `protocol/fixtures/graph-host-parity-codex.json`
@@ -166,7 +166,7 @@
 
 - `go test ./internal/domain ./internal/workflow ./internal/application ./internal/mcp ./internal/store ./internal/webui`：通过。
 - `go test ./tests/contract ./tests/comprehensive`：通过。
-- `go test ./tests/contract ./tests/comprehensive ./tests/journeys`：最终 Journey package 通过；首轮只发现并
+- `go test ./tests/contract ./tests/comprehensive ./tests/journeys`：最终完整流程测试 package 通过；首轮只发现并
   修正了新增 transition 的固定计数。
 - `node --test tests/journeys/shared/simulated-submission-contract.test.mjs tests/journeys/deepseek/simulated-graph-journey.test.mjs`：2 项通过。
 - `node --test packages/codex/tests/fake-core-contract.test.mjs`：9 项通过。
@@ -174,21 +174,21 @@
 - `pnpm run build:webui`：通过，TypeScript/React 产物已刷新。
 - `pnpm run versions:check`：通过；Core `0.8.0`，Codex `0.8.8`，DeepSeek `0.8.8`，Dev Flow CLI `0.1.9`。
 - 一次性 README locale 搜索：九个根 README 都包含新的 TASKS 验证计划说明。
-- 一次性旧合同搜索：未发现仍声称“创建时不可变预算”的当前 Host/产品文档。
+- 一次性旧约定搜索：未发现仍声称“创建时不可变预算”的当前 Host/产品文档。
 - `git diff --check`：通过。
 
 ## 未执行的检查
 
 - 未运行 `pnpm run validate`、全仓库 Go/Node suite、平台矩阵、stress 或 release 检查。本次只需要验证
-  受影响的 Core package、closed contracts、Host Skills、两条模拟 Journey 和 WebUI 构建；完整套件不会
+  受影响的 Core package、closed contracts、Host Skills、两条模拟完整流程测试和 WebUI 构建；完整套件不会
   补足新的具体风险，仓库也没有要求普通改动在该检查点运行它。
-- DeepSeek 官方 lifecycle gate 需要外部精确环境，本机测试按其合同跳过；模拟 DeepSeek graph journey
-  已通过。未把模拟结果描述为真实 Host 最终制品证据。
+- DeepSeek 官方安装与移除检查需要外部精确环境，本机测试按其约定跳过；模拟 DeepSeek graph 完整流程测试
+  已通过。未把模拟结果描述为真实 Host 实际安装包的验证结果。
 - 未执行 push、merge、commit、Tag、npm/GitHub Release 或发布检查。
 
 ## 剩余风险
 
-- Core 能校验闭合依据、非空原因、单调增加、计划版本和结果，不能判断自然语言理由是否真的充分；
+- Core 能校验允许的依据类别、非空原因、单调增加、计划版本和结果，不能判断自然语言理由是否真的充分；
   Host 的相关性和长期测试价值判断仍可能出错。
 - shell 和不经过 Host hook 的专用工具仍可能先运行或写入；Core 只能在 Action 结果与后续 Git 观察中
   校验可确认状态。
