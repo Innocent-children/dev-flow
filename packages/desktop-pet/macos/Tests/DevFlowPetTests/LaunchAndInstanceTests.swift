@@ -1,0 +1,504 @@
+import Foundation
+import XCTest
+@testable import DevFlowPet
+
+/// Covers the private native entry contract, the single-instance and shutdown
+/// decisions, and the preference and position rules.
+///
+/// Identity is decided from actual process facts, never from a PID or an
+/// application name. Preferences hold only position, the animation switch, and
+/// the selected Task identifiers; language is never stored.
+final class LaunchAndInstanceTests: XCTestCase {
+    private let digest = TestFixtures.dataRootDigest
+
+    // MARK: - Launch arguments
+
+    func testParsesTheRunEntry() throws {
+        let arguments = try LaunchArgumentParser.parse([
+            "run",
+            "--core-path", "/runtime/dev-flow",
+            "--data-dir", "/data",
+            "--product-root", "/product",
+            "--core-identity", TestFixtures.coreIdentity,
+            "--data-root-digest", digest,
+        ])
+        XCTAssertEqual(arguments.mode, .run)
+        XCTAssertEqual(arguments.corePath, "/runtime/dev-flow")
+        XCTAssertEqual(arguments.dataDirectory, "/data")
+        XCTAssertEqual(arguments.productRoot, "/product")
+        XCTAssertEqual(arguments.coreIdentity, TestFixtures.coreIdentity)
+        XCTAssertEqual(arguments.dataRootDigest, digest)
+    }
+
+    func testParsesTheStopEntryWithAnOptionalCoreFilter() throws {
+        let plain = try LaunchArgumentParser.parse(["stop", "--product-root", "/product"])
+        XCTAssertEqual(plain.mode, .stop)
+        XCTAssertNil(plain.corePath)
+        XCTAssertNil(plain.dataDirectory)
+        XCTAssertNil(plain.coreIdentity)
+        XCTAssertNil(plain.dataRootDigest)
+
+        let filtered = try LaunchArgumentParser.parse([
+            "stop", "--product-root", "/product", "--core-path", "/runtime/dev-flow",
+        ])
+        XCTAssertEqual(filtered.corePath, "/runtime/dev-flow")
+    }
+
+    func testRejectsAMissingOrUnsupportedEntry() {
+        assertArgumentFailure([])
+        assertArgumentFailure(["status", "--product-root", "/product"])
+        assertArgumentFailure(["run"])
+    }
+
+    func testRunRequiresEveryVerifiedField() {
+        assertArgumentFailure(["run", "--product-root", "/product"])
+        assertArgumentFailure([
+            "run", "--core-path", "/runtime/dev-flow", "--data-dir", "/data", "--product-root", "/product",
+            "--data-root-digest", digest,
+        ])
+        assertArgumentFailure([
+            "run", "--core-path", "/runtime/dev-flow", "--data-dir", "/data", "--product-root", "/product",
+            "--core-identity", TestFixtures.coreIdentity,
+        ])
+    }
+
+    func testRejectsRelativePathsUnknownAndDuplicateOptions() {
+        assertArgumentFailure([
+            "run", "--core-path", "runtime/dev-flow", "--data-dir", "/data", "--product-root", "/product",
+            "--core-identity", TestFixtures.coreIdentity, "--data-root-digest", digest,
+        ])
+        assertArgumentFailure([
+            "run", "--core-path", "/runtime/dev-flow", "--data-dir", "/data", "--product-root", "/product",
+            "--core-identity", TestFixtures.coreIdentity, "--data-root-digest", digest, "--browser", "safari",
+        ])
+        // The shutdown entry accepts only its own two fields, so a launcher that
+        // drifted to the run form fails instead of stopping the wrong instance.
+        assertArgumentFailure(["stop", "--product-root", "/product", "--data-dir", "/data"])
+        assertArgumentFailure([
+            "run", "--core-path", "/runtime/dev-flow", "--core-path", "/other/dev-flow", "--data-dir", "/data",
+            "--product-root", "/product", "--core-identity", TestFixtures.coreIdentity, "--data-root-digest", digest,
+        ])
+        assertArgumentFailure([
+            "run", "--core-path", "/runtime/dev-flow", "--data-dir", "/data", "--product-root", "/product",
+            "--core-identity", TestFixtures.coreIdentity, "--data-root-digest",
+        ])
+    }
+
+    func testRejectsAnUnverifiedIdentityOrDigestShape() {
+        for identity in ["0.4.1", "dev-flow/0.4", "dev-flow/04.1.0", "dev-flow/0.4.1-extra", ""] {
+            assertArgumentFailure([
+                "run", "--core-path", "/runtime/dev-flow", "--data-dir", "/data", "--product-root", "/product",
+                "--core-identity", identity, "--data-root-digest", digest,
+            ])
+        }
+        for value in ["AB" + String(repeating: "ab", count: 31), String(repeating: "a", count: 63), ""] {
+            assertArgumentFailure([
+                "run", "--core-path", "/runtime/dev-flow", "--data-dir", "/data", "--product-root", "/product",
+                "--core-identity", TestFixtures.coreIdentity, "--data-root-digest", value,
+            ])
+        }
+    }
+
+    // MARK: - Runtime record
+
+    func testRuntimeRecordRoundTripsAndRejectsIncompleteValues() throws {
+        let record = InstanceRecord(
+            pid: 4242,
+            processStartIdentity: "Sat Sep 6 08:15:30 2026",
+            executablePath: "/app/DevFlowPet.app/Contents/MacOS/DevFlowPet",
+            corePath: "/runtime/dev-flow",
+            coreIdentity: TestFixtures.coreIdentity,
+            dataRootDigest: digest
+        )
+        XCTAssertEqual(InstanceRecord.decode(try record.encoded()), record)
+
+        let incomplete = InstanceRecord(
+            pid: 0,
+            processStartIdentity: "Sat Sep 6 08:15:30 2026",
+            executablePath: "/app/DevFlowPet",
+            corePath: "/runtime/dev-flow",
+            coreIdentity: TestFixtures.coreIdentity,
+            dataRootDigest: digest
+        )
+        XCTAssertNil(InstanceRecord.decode(try incomplete.encoded()))
+        XCTAssertNil(InstanceRecord.decode(Data("{}".utf8)))
+    }
+
+    func testPetPathsPlaceTheRecordsBesideTheDataDirectory() {
+        let paths = PetPaths(productRoot: "/product")
+        XCTAssertEqual(paths.root, "/product/pet")
+        XCTAssertEqual(paths.instanceLock, "/product/pet/instance.lock")
+        XCTAssertEqual(paths.runtimeRecord, "/product/pet/runtime.json")
+        XCTAssertEqual(paths.settings, "/product/pet/settings.json")
+    }
+
+    // MARK: - Single instance
+
+    func testFreeLockStartsANewInstance() {
+        XCTAssertEqual(
+            InstanceRules.decideRun(
+                lockAcquired: true,
+                record: makeRecord(),
+                liveIdentity: nil,
+                currentIdentity: makeIdentity(),
+                corePath: "/runtime/dev-flow",
+                coreIdentity: TestFixtures.coreIdentity,
+                dataRootDigest: digest
+            ),
+            .start
+        )
+    }
+
+    func testSameCoreAndDataDirectoryRestoresTheRunningInstance() {
+        let record = makeRecord()
+        XCTAssertEqual(
+            InstanceRules.decideRun(
+                lockAcquired: false,
+                record: record,
+                liveIdentity: makeIdentity(),
+                currentIdentity: makeIdentity(),
+                corePath: record.corePath,
+                coreIdentity: record.coreIdentity,
+                dataRootDigest: record.dataRootDigest
+            ),
+            .restore(pid: 4242)
+        )
+    }
+
+    func testDifferentCoreOrDataDirectoryConflicts() {
+        let record = makeRecord()
+        XCTAssertEqual(
+            InstanceRules.decideRun(
+                lockAcquired: false,
+                record: record,
+                liveIdentity: makeIdentity(),
+                currentIdentity: makeIdentity(),
+                corePath: "/other/dev-flow",
+                coreIdentity: record.coreIdentity,
+                dataRootDigest: record.dataRootDigest
+            ),
+            .conflict(.coreDiffers)
+        )
+        XCTAssertEqual(
+            InstanceRules.decideRun(
+                lockAcquired: false,
+                record: record,
+                liveIdentity: makeIdentity(),
+                currentIdentity: makeIdentity(),
+                corePath: record.corePath,
+                coreIdentity: TestFixtures.otherCoreIdentity,
+                dataRootDigest: record.dataRootDigest
+            ),
+            .conflict(.coreDiffers)
+        )
+        XCTAssertEqual(
+            InstanceRules.decideRun(
+                lockAcquired: false,
+                record: record,
+                liveIdentity: makeIdentity(),
+                currentIdentity: makeIdentity(),
+                corePath: record.corePath,
+                coreIdentity: record.coreIdentity,
+                dataRootDigest: TestFixtures.otherDataRootDigest
+            ),
+            .conflict(.dataDirectoryDiffers)
+        )
+    }
+
+    func testRecycledPidOrAnotherUserIsUnverifiable() {
+        let record = makeRecord()
+        // A recycled PID carries a different start identity, so the record can
+        // never be trusted on the number alone.
+        XCTAssertEqual(
+            InstanceRules.decideRun(
+                lockAcquired: false,
+                record: record,
+                liveIdentity: makeIdentity(startIdentity: "Sun Sep 7 09:00:00 2026"),
+                currentIdentity: makeIdentity(),
+                corePath: record.corePath,
+                coreIdentity: record.coreIdentity,
+                dataRootDigest: record.dataRootDigest
+            ),
+            .conflict(.recordUnverifiable)
+        )
+        XCTAssertEqual(
+            InstanceRules.decideRun(
+                lockAcquired: false,
+                record: record,
+                liveIdentity: makeIdentity(executablePath: "/other/DevFlowPet"),
+                currentIdentity: makeIdentity(),
+                corePath: record.corePath,
+                coreIdentity: record.coreIdentity,
+                dataRootDigest: record.dataRootDigest
+            ),
+            .conflict(.recordUnverifiable)
+        )
+        XCTAssertEqual(
+            InstanceRules.decideRun(
+                lockAcquired: false,
+                record: record,
+                liveIdentity: makeIdentity(ownerUserID: 502),
+                currentIdentity: makeIdentity(),
+                corePath: record.corePath,
+                coreIdentity: record.coreIdentity,
+                dataRootDigest: record.dataRootDigest
+            ),
+            .conflict(.recordUnverifiable)
+        )
+        XCTAssertEqual(
+            InstanceRules.decideRun(
+                lockAcquired: false,
+                record: nil,
+                liveIdentity: nil,
+                currentIdentity: makeIdentity(),
+                corePath: record.corePath,
+                coreIdentity: record.coreIdentity,
+                dataRootDigest: record.dataRootDigest
+            ),
+            .conflict(.recordUnverifiable)
+        )
+    }
+
+    // MARK: - Shutdown
+
+    func testStopWithoutARecordSucceeds() {
+        XCTAssertEqual(
+            InstanceRules.decideStop(
+                record: nil,
+                liveIdentity: nil,
+                currentUserID: 501,
+                requestedExecutablePath: nil,
+                requestedCorePath: nil
+            ),
+            .nothingToStop
+        )
+    }
+
+    func testStopTerminatesTheMatchingCurrentUserInstance() {
+        let record = makeRecord()
+        XCTAssertEqual(
+            InstanceRules.decideStop(
+                record: record,
+                liveIdentity: makeIdentity(),
+                currentUserID: 501,
+                requestedExecutablePath: nil,
+                requestedCorePath: nil
+            ),
+            .terminate(pid: 4242)
+        )
+        XCTAssertEqual(
+            InstanceRules.decideStop(
+                record: record,
+                liveIdentity: makeIdentity(),
+                currentUserID: 501,
+                requestedExecutablePath: nil,
+                requestedCorePath: record.corePath
+            ),
+            .terminate(pid: 4242)
+        )
+    }
+
+    func testAdapterMaintenanceOnlyStopsInstancesUsingThatCore() {
+        let record = makeRecord()
+        XCTAssertEqual(
+            InstanceRules.decideStop(
+                record: record,
+                liveIdentity: makeIdentity(),
+                currentUserID: 501,
+                requestedExecutablePath: nil,
+                requestedCorePath: "/other/dev-flow"
+            ),
+            .otherCoreInUse
+        )
+    }
+
+    func testStopDiscardsARecordThatNoLongerMatchesALiveProcess() {
+        let record = makeRecord()
+        XCTAssertEqual(
+            InstanceRules.decideStop(
+                record: record,
+                liveIdentity: nil,
+                currentUserID: 501,
+                requestedExecutablePath: nil,
+                requestedCorePath: nil
+            ),
+            .expiredRecord
+        )
+        XCTAssertEqual(
+            InstanceRules.decideStop(
+                record: record,
+                liveIdentity: makeIdentity(startIdentity: "Sun Sep 7 09:00:00 2026"),
+                currentUserID: 501,
+                requestedExecutablePath: nil,
+                requestedCorePath: nil
+            ),
+            .expiredRecord
+        )
+        XCTAssertEqual(
+            InstanceRules.decideStop(
+                record: record,
+                liveIdentity: makeIdentity(ownerUserID: 502),
+                currentUserID: 501,
+                requestedExecutablePath: nil,
+                requestedCorePath: nil
+            ),
+            .expiredRecord
+        )
+        XCTAssertEqual(
+            InstanceRules.decideStop(
+                record: record,
+                liveIdentity: makeIdentity(),
+                currentUserID: 501,
+                requestedExecutablePath: "/app/Other.app/Contents/MacOS/Other",
+                requestedCorePath: nil
+            ),
+            .expiredRecord
+        )
+    }
+
+    // MARK: - Preferences
+
+    func testStopRejectsAHeldLockWithoutARuntimeRecord() throws {
+        let directory = PetTestDirectory()
+        let runtime = PetInstanceRuntime(paths: PetPaths(productRoot: directory.root))
+        XCTAssertTrue(try runtime.acquireLock())
+        XCTAssertEqual(PetStopRequest.run(productRoot: directory.root, corePath: nil), 1)
+        runtime.release()
+        XCTAssertEqual(PetStopRequest.run(productRoot: directory.root, corePath: nil), 0)
+    }
+
+    func testMissingOrInvalidPreferencesYieldCurrentDefaults() throws {
+        let directory = PetTestDirectory()
+
+        XCTAssertEqual(PreferenceStore.load(path: directory.settingsPath), .default)
+        try Data("not json".utf8).write(to: URL(fileURLWithPath: directory.settingsPath))
+        XCTAssertEqual(PreferenceStore.load(path: directory.settingsPath), .default)
+    }
+
+    func testPreferencesStorePositionAnimationSwitchAndSelectionPerDataDirectory() throws {
+        let directory = PetTestDirectory()
+        let store = PreferenceStore(path: directory.settingsPath)
+
+        XCTAssertTrue(store.update { preferences in
+            preferences.position = PetPreferences.Position(x: 120, y: 80)
+            preferences.animationsEnabled = false
+            preferences.select(taskID: "task-a", for: TestFixtures.dataRootDigest)
+            preferences.select(taskID: "task-b", for: TestFixtures.otherDataRootDigest)
+        })
+        // An unchanged write does not touch the file again.
+        XCTAssertFalse(store.update { _ in })
+
+        let reloaded = PreferenceStore(path: directory.settingsPath)
+        XCTAssertEqual(reloaded.current.position, PetPreferences.Position(x: 120, y: 80))
+        XCTAssertFalse(reloaded.current.animationsEnabled)
+        XCTAssertEqual(reloaded.current.selectedTask(for: TestFixtures.dataRootDigest), "task-a")
+        XCTAssertEqual(reloaded.current.selectedTask(for: TestFixtures.otherDataRootDigest), "task-b")
+
+        reloaded.update { $0.select(taskID: nil, for: TestFixtures.dataRootDigest) }
+        XCTAssertNil(PreferenceStore(path: directory.settingsPath).current.selectedTask(for: TestFixtures.dataRootDigest))
+        XCTAssertEqual(PreferenceStore(path: directory.settingsPath).current.selectedTask(for: TestFixtures.otherDataRootDigest), "task-b")
+    }
+
+    func testPreferencesDoNotStoreLanguageOrTaskState() throws {
+        let directory = PetTestDirectory()
+        let store = PreferenceStore(path: directory.settingsPath)
+        store.update { preferences in
+            preferences.position = PetPreferences.Position(x: 1, y: 2)
+            preferences.select(taskID: "task-a", for: digest)
+        }
+        let text = try String(contentsOfFile: directory.settingsPath, encoding: .utf8)
+        let keys = try XCTUnwrap(
+            (JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]).map { Set($0.keys) }
+        )
+        XCTAssertEqual(keys, ["animations_enabled", "position", "selected_tasks"])
+    }
+
+    func testPrivatePermissionsOnThePetDirectoryAndRecords() throws {
+        let directory = PetTestDirectory()
+        let paths = PetPaths(productRoot: directory.root)
+        let store = PreferenceStore(path: paths.settings)
+        store.update { $0.animationsEnabled = false }
+
+        let mode = try FileManager.default.attributesOfItem(atPath: paths.settings)[.posixPermissions] as? NSNumber
+        XCTAssertEqual(mode?.intValue, 0o600)
+        let directoryMode = try FileManager.default.attributesOfItem(atPath: paths.root)[.posixPermissions] as? NSNumber
+        XCTAssertEqual(directoryMode?.intValue, 0o700)
+    }
+
+    func testLanguageFollowsTheSystemPreferenceAndIsNotStored() {
+        XCTAssertEqual(PetLanguage.resolve(preferredLanguages: ["zh-Hans-CN", "en-US"]), .chinese)
+        XCTAssertEqual(PetLanguage.resolve(preferredLanguages: ["zh-Hant-TW"]), .chinese)
+        XCTAssertEqual(PetLanguage.resolve(preferredLanguages: ["en-US"]), .english)
+        XCTAssertEqual(PetLanguage.resolve(preferredLanguages: ["ja-JP"]), .english)
+        XCTAssertEqual(PetLanguage.resolve(preferredLanguages: []), .english)
+    }
+
+    // MARK: - Position
+
+    func testFirstPlacementIsInsideTheLowerRightOfWorkArea() {
+        let visible = CGRect(x: 0, y: 0, width: 1512, height: 900)
+        let origin = PositionRules.constrain(position: nil, windowSize: CGSize(width: 220, height: 220), visibleFrame: visible, fallbackInset: 24)
+        XCTAssertEqual(origin, CGPoint(x: 1512 - 220 - 24, y: 24))
+    }
+
+    func testRememberedPositionIsKeptInsideTheVisibleWorkArea() {
+        let visible = CGRect(x: 0, y: 0, width: 1512, height: 900)
+        let size = CGSize(width: 220, height: 220)
+        XCTAssertEqual(
+            PositionRules.constrain(position: PetPreferences.Position(x: 300, y: 200), windowSize: size, visibleFrame: visible, fallbackInset: 24),
+            CGPoint(x: 300, y: 200)
+        )
+        // A removed display leaves a remembered position outside every visible
+        // area; the whole window moves back instead of staying unreachable.
+        XCTAssertEqual(
+            PositionRules.constrain(position: PetPreferences.Position(x: 4000, y: -900), windowSize: size, visibleFrame: visible, fallbackInset: 24),
+            CGPoint(x: 1512 - 220, y: 0)
+        )
+    }
+
+    func testWorkAreaSmallerThanTheWindowFallsBackToItsOrigin() {
+        let visible = CGRect(x: 10, y: 20, width: 100, height: 100)
+        XCTAssertEqual(
+            PositionRules.constrain(position: PetPreferences.Position(x: 500, y: 500), windowSize: CGSize(width: 220, height: 220), visibleFrame: visible, fallbackInset: 24),
+            CGPoint(x: 10, y: 20)
+        )
+    }
+
+    // MARK: - Helpers
+
+    private func assertArgumentFailure(_ rawArguments: [String], file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertThrowsError(try LaunchArgumentParser.parse(rawArguments), file: file, line: line)
+    }
+
+    private func makeRecord(
+        pid: Int = 4242,
+        processStartIdentity: String = "Sat Sep 6 08:15:30 2026",
+        executablePath: String = "/app/DevFlowPet.app/Contents/MacOS/DevFlowPet",
+        corePath: String = "/runtime/dev-flow",
+        coreIdentity: String = TestFixtures.coreIdentity,
+        dataRootDigest: String? = nil
+    ) -> InstanceRecord {
+        InstanceRecord(
+            pid: pid,
+            processStartIdentity: processStartIdentity,
+            executablePath: executablePath,
+            corePath: corePath,
+            coreIdentity: coreIdentity,
+            dataRootDigest: dataRootDigest ?? digest
+        )
+    }
+
+    private func makeIdentity(
+        pid: Int32 = 4242,
+        startIdentity: String = "Sat Sep 6 08:15:30 2026",
+        executablePath: String = "/app/DevFlowPet.app/Contents/MacOS/DevFlowPet",
+        ownerUserID: uid_t = 501
+    ) -> NativeProcess.Identity {
+        NativeProcess.Identity(
+            pid: pid,
+            startIdentity: startIdentity,
+            executablePath: executablePath,
+            ownerUserID: ownerUserID
+        )
+    }
+}

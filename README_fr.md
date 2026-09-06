@@ -112,6 +112,17 @@ résultats obsolètes.
 Pour une question ponctuelle, une explication de code, une consultation d'état ou une petite modification
 mécanique sans progression à conserver, Codex ou DeepSeek seul est généralement plus simple.
 
+## Mascotte de bureau dans les versions locales
+
+Les paquets de développement locaux pour macOS arm64 comprennent une mascotte de bureau. Avec au moins un Adapter Codex ou DeepSeek configuré, elle affiche l’étape enregistrée et la raison du blocage d’une tâche sélectionnée ; un clic ouvre sa WebUI. Le menu permet de choisir la tâche, de régler les animations et de masquer ou afficher la mascotte. Elle présente l’état enregistré par Core, sans activité du Host en temps réel ni pourcentage de progression. Quitter conserve les tâches et la WebUI. Consultez les [instructions de compilation locale](docs/COMMANDS_en.md#desktop-pet-local-development-package) ; le support public reste défini par la matrice de support.
+
+Le menu de la mascotte permet d’importer un PNG, un pack d’animation Dev Flow ou un pack de sprites Codex au format 1/2. La sélection et les fichiers importés sont conservés lors des mises à jour. Consultez les [packs d’apparence](docs/DESKTOP-PETS_en.md).
+
+```bash
+dev-flow pet start
+dev-flow pet stop
+```
+
 ## Documentation
 
 - **Utilisation :** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Commands](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)

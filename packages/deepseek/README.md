@@ -216,3 +216,15 @@ Repository Scope、路径格式和协议规则见[架构](../../docs/ARCHITECTUR
 - [架构](../../docs/ARCHITECTURE.md)
 - [项目状态](../../docs/PROJECT-STATUS.md)
 - [WebUI](../../docs/WEBUI.md)
+
+## 桌面宠物本地开发包
+
+macOS arm64 可另外使用按源码构建的 `@imotong/dev-flow` 桌面宠物包。已配置的 Codex 或 DeepSeek
+Adapter 提供 Core；宠物通过 `dev-flow pet start` / `dev-flow pet stop` 开启和关闭，读取共享任务并
+点击跳转 WebUI。原生应用只放在统一入口包内，Host package 提供 Core。构建与使用见
+[命令参考](https://github.com/Innocent-children/dev-flow/blob/main/docs/COMMANDS.md#桌面宠物本地开发包)。
+
+自定义形象从宠物菜单的“选择形象 → 导入形象…”导入本地文件夹，支持单张 PNG、Dev Flow 动画包和
+Codex 精灵图格式 1/2 的本地宠物包。形象与任务分别选择和保存，升级保留用户素材；同 ID 重导入更新，
+校验失败保留原形象。导入 Codex 时转换为统一 PNG 帧，任务阶段与跳转仍由 Dev Flow 决定。格式与示例见
+[形象包说明](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS.md)。

@@ -275,3 +275,22 @@ Core、Codex、DeepSeek 和统一 lifecycle package 独立版本。Core 的机�
 | `protocol/fixtures/`, `tests/` | 公开接口规范、故障注入和宿主完整流程测试 |
 
 源码、机器可读 Schema、package manifest、CLI parser 和可执行测试是判断当前行为的依据。
+
+## 桌面宠物职责
+
+`packages/dev-flow/lib/pet.mjs` 复用已安装 Adapter 的 Core 选择与 WebUI 入口；macOS 调用位于
+`lib/platform/macos/pet.mjs`。`packages/desktop-pet/macos` 负责 AppKit 窗口、只读 HTTP、展示、进程身份、
+单实例和偏好。每轮观察检查同一 Core 与服务身份；取消任务使过期响应失效。默认选择完成后，待机只
+检查服务，任务面板按需分页。`productRoot/pet/settings.json` 只保存位置、动画开关和按数据目录分组的
+任务选择；`runtime.json` 记录进程身份。Core 数据、流程图和 MCP 工具保持现有职责。
+
+`scripts/build-desktop-pet.mjs` 负责 macOS 编译、资源装配、ad-hoc 签名和本地 tarball。
+源码 manifest 保留可直接检查的 JS 文件；构建器在 staging manifest 中加入
+`runtime/darwin-arm64/DevFlowPet.app`，复用现有 USTAR 装配保留原生执行权限，再检查解包后的签名。
+此开发构建与正式发布入口分开，运行中的应用始终来自安装后的包内路径。
+
+用户形象保存到 `productRoot/pet/appearances/<id>`。`PetAppearanceStore` 负责受限文件读取、导入校验和
+替换；`CodexPetImporter` 只在导入时拆分标准图集；`PetAppearanceSelection` 负责资源加载成功与选择保存
+的一致性；`PetCharacterView` 负责统一播放。偏好增加 `selected_appearance`，与按数据目录保存的
+`selected_tasks` 独立；偏好更新在同一锁内完成，写入失败保留原值。切换释放旧帧，直接显示当前状态，
+不重新播放旧提示。形象格式见 [DESKTOP-PETS](DESKTOP-PETS.md)。

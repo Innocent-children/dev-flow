@@ -181,3 +181,17 @@ and Git repositories remain. Permanent Task-data cleanup uses the separately con
 
 See [Product](PRODUCT_en.md), [Architecture](ARCHITECTURE_en.md), [WebUI](WEBUI_en.md), and
 [Project Status](PROJECT-STATUS_en.md).
+
+## Desktop pet local development package
+
+On macOS arm64, a source-built `@imotong/dev-flow` desktop pet package can use the Core provided by
+an already configured Codex or DeepSeek Adapter. `dev-flow pet start` / `dev-flow pet stop` control
+the pet, which reads shared tasks and opens their WebUI pages. The native app is included only in
+the unified-entry package; the Host package provides Core. See the
+[command reference](COMMANDS_en.md#desktop-pet-local-development-package) for build and usage instructions.
+
+Choose appearance → Import appearance in the pet menu imports a local folder containing a single PNG,
+a Dev Flow animation pack, or a Codex sprite-format 1/2 pack. Appearance and task selections are
+independent, and upgrades preserve imported artwork. Reimporting the same ID updates the appearance;
+failed validation preserves the installed pack. Codex artwork is converted to common PNG frames,
+while Dev Flow retains stage and navigation ownership. See [appearance packs](DESKTOP-PETS_en.md).

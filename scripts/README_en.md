@@ -120,3 +120,14 @@ publisher reread npm, Tag, and GitHub Release state before another irreversible 
 directory itself is not automatically reused across workflow runs.
 
 See [Release Ownership](../release/README.md) for the exact operator contract.
+
+## Desktop pet local build
+
+`node scripts/build-desktop-pet.mjs --output "/absolute/pet-build"` compiles Swift on macOS arm64,
+assembles existing artwork and language resources, signs ad hoc, and creates a local unified-entry
+tarball. Source JS files and the staging manifest including the app are checked separately. Existing
+USTAR helpers preserve native executable permissions, followed by extracted-signature verification.
+This entry does not rebuild Core, change Adapter installations, or publish npm. Use the installed
+package for functional checks as described in the [command reference](../docs/COMMANDS_en.md#desktop-pet-local-development-package).
+`dev-flow:local` retains its temporary lifecycle manager; the pet uses the persistent installed package
+built by this entry.

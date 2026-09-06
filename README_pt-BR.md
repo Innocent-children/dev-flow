@@ -111,6 +111,17 @@ arquivos, restringem o esforço de testes ou podem exigir retrabalho sem reutili
 Para perguntas pontuais, explicações de código, consultas de status e pequenas mudanças mecânicas que
 não precisam guardar o progresso, usar Codex ou DeepSeek diretamente costuma ser mais simples.
 
+## Mascote de desktop em compilações locais
+
+Os pacotes locais de desenvolvimento para macOS arm64 incluem um mascote de desktop. Com pelo menos um Adapter do Codex ou DeepSeek configurado, ele mostra a etapa salva e o motivo de bloqueio de uma tarefa selecionada; um clique abre sua WebUI. O menu permite escolher a tarefa, controlar animações e ocultar ou mostrar o mascote. Ele apresenta o estado salvo pelo Core, sem indicar atividade ao vivo do Host ou porcentagens de progresso. Ao sair, as tarefas e a WebUI são preservadas. Consulte as [instruções de compilação local](docs/COMMANDS_en.md#desktop-pet-local-development-package); o suporte público continua definido pela matriz de suporte.
+
+No menu do mascote, importe um PNG, um pacote de animação do Dev Flow ou um pacote de sprites do Codex no formato 1/2. A seleção e os arquivos importados são preservados nas atualizações. Consulte os [pacotes de aparência](docs/DESKTOP-PETS_en.md).
+
+```bash
+dev-flow pet start
+dev-flow pet stop
+```
+
 ## Documentação
 
 - **Uso:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Commands](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)

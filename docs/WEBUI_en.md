@@ -106,3 +106,20 @@ runtime use needs no Node server, CDN, external font, or separate WebUI package.
 - browser-owned shell, file editing, Git mutation, Host handoff, or publication;
 - browser-created shared-checkout Tasks or automatic reconstruction of a missing worktree;
 - user-defined graphs or another copy of Task state.
+
+## Desktop task entry
+
+The local macOS arm64 development package includes a desktop pet and requires at least one configured
+Codex or DeepSeek Adapter. `dev-flow pet start` opens it and `dev-flow pet stop` closes it. It shows
+one selected Task's saved stage and blocker and opens the matching WebUI page on click. The pet
+reads tasks; Core continues to decide workflow state. Stages indicate neither live Host activity
+nor completion percentages. The menu provides task selection, animation and visibility controls;
+quitting preserves Tasks and WebUI. Current delivery prioritizes functionality and reuses existing
+artwork. See the [command reference](COMMANDS_en.md#desktop-pet-local-development-package) for building,
+usage, and local development package limits.
+
+Choose appearance → Import appearance in the pet menu imports a local folder containing a single PNG,
+a Dev Flow animation pack, or a Codex sprite-format 1/2 pack. Appearance and task selections are
+independent, and upgrades preserve imported artwork. Reimporting the same ID updates the appearance;
+failed validation preserves the installed pack. Codex artwork is converted to common PNG frames,
+while Dev Flow retains stage and navigation ownership. See [appearance packs](DESKTOP-PETS_en.md).

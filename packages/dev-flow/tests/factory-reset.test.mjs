@@ -17,10 +17,39 @@ test("factory reset requires all Hosts and moves exact shared data to Trash", as
   });
   assert.equal(result.result.data.policy, "trash_reset");
   assert.match(result.result.data.trash_root, /create-dev-flow-/u);
+  assert.equal(result.plan.impacts.includes("Clear desktop pet records, preferences, and imported appearances"), true);
+  assert.equal(result.result.data.pet, "absent");
+  assert.equal(result.result.completed_actions.includes("manager.trash.pet"), true);
+  assert.deepEqual(fixture.events, ["pet.stop:null", "codex.uninstall", "deepseek.uninstall"]);
   await assert.rejects(stat(fixture.paths.configurationPath), { code: "ENOENT" });
   await assert.rejects(stat(fixture.paths.defaultDataDirectory), { code: "ENOENT" });
+  await assert.rejects(stat(fixture.paths.petDirectory), { code: "ENOENT" });
   assert.equal(fixture.states.codex, "absent");
   assert.equal(fixture.states.deepseek, "absent");
+});
+
+test("factory reset keeps Adapters, data, and the pet directory when the pet does not stop", async (t) => {
+  const fixture = await resetFixture(t, { stopPet: async () => { throw new Error("the pet did not stop"); } });
+  await assert.rejects(runLifecycle(request({ reinstallAfterReset: false }), {
+    ...fixture.dependencies,
+    confirmPlan: async () => true,
+  }), /the pet did not stop/u);
+  assert.deepEqual(fixture.events, []);
+  assert.equal(await readFile(join(fixture.paths.defaultDataDirectory, "dev-flow.db"), "utf8"), "old-task\n");
+  assert.equal(await readFile(join(fixture.paths.petDirectory, "preferences.json"), "utf8"), "pet-preferences\n");
+});
+
+test("an unconfirmed factory reset previews the pet impact and cleans nothing", async (t) => {
+  const fixture = await resetFixture(t);
+  const result = await runLifecycle(request({ reinstallAfterReset: false }), {
+    ...fixture.dependencies,
+    confirmPlan: async () => false,
+  });
+  assert.equal(result.code, 3);
+  assert.equal(result.plan.impacts.includes("Clear desktop pet records, preferences, and imported appearances"), true);
+  assert.equal(result.result.confirmation.impacts.includes("Clear desktop pet records, preferences, and imported appearances"), true);
+  assert.deepEqual(fixture.events, []);
+  assert.equal(await readFile(join(fixture.paths.petDirectory, "preferences.json"), "utf8"), "pet-preferences\n");
 });
 
 test("clean reinstall creates fresh active data after reset and never restores old bytes", async (t) => {
@@ -98,7 +127,7 @@ test("factory reset uninstalls a Codex package after its registration is already
   t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
 });
 
-async function resetFixture(t, { explicit = false } = {}) {
+async function resetFixture(t, { explicit = false, stopPet = null } = {}) {
   const root = await mkdtemp(join(tmpdir(), "create-dev-flow-reset-"));
   const home = join(root, "home");
   let explicitData = join(root, "explicit-data");
@@ -111,22 +140,45 @@ async function resetFixture(t, { explicit = false } = {}) {
   const paths = await resolveManagerPaths({ homeDirectory: home, environment, platform: "darwin", arch: "arm64" });
   await mkdir(paths.configurationDirectory);
   await mkdir(paths.defaultDataDirectory, { recursive: true });
+  await mkdir(paths.petDirectory, { recursive: true });
   await writeFile(paths.configurationPath, "old-config\n");
   await writeFile(join(paths.defaultDataDirectory, "dev-flow.db"), "old-task\n");
+  await writeFile(join(paths.petDirectory, "preferences.json"), "pet-preferences\n");
   if (explicit) await writeFile(join(explicitData, "dev-flow.db"), "explicit-task\n");
   const states = { codex: "ready", deepseek: "ready" };
-  const codexDriver = driver("codex", null, states);
-  const deepseekDriver = driver("deepseek", "web", states);
+  const events = [];
+  const codexDriver = driver("codex", null, states, events);
+  const deepseekDriver = driver("deepseek", "web", states, events);
   deepseekDriver.knownProfiles = async () => ["web"];
   t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
-  return { paths, states, dependencies: { homeDirectory: home, environment, platform: "darwin", arch: "arm64", codexDriver, deepseekDriver } };
+  return {
+    paths,
+    states,
+    events,
+    dependencies: {
+      homeDirectory: home,
+      environment,
+      platform: "darwin",
+      arch: "arm64",
+      codexDriver,
+      deepseekDriver,
+      stopPetForCore: stopPet ?? (async (options) => {
+        events.push(`pet.stop:${options.corePath}`);
+        return { stopped: true, reason: null };
+      }),
+    },
+  };
 }
 
-function driver(host, profile, states) {
+function driver(host, profile, states, events) {
   return {
     knownProfiles: async () => [], resolveTargetVersion: async () => "0.8.0",
     observe: async () => ({ host, profile, hostAvailable: true, hostVersion: "1.0.0", state: states[host], packageVersion: states[host] === "ready" ? "0.8.0" : null, coreVersion: null, receipt: states[host] === "ready" ? {} : null }),
-    execute: async (operation) => { states[host] = operation === "uninstall" ? "absent" : "ready"; return { changed: true, completedSteps: [`${host}.${operation}`] }; },
+    execute: async (operation) => {
+      events.push(`${host}.${operation}`);
+      states[host] = operation === "uninstall" ? "absent" : "ready";
+      return { changed: true, completedSteps: [`${host}.${operation}`] };
+    },
   };
 }
 

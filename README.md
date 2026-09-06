@@ -107,6 +107,17 @@ effort, or may require rework without reusing stale results.
 For one-off questions, code explanations, status checks, and small mechanical edits that need no saved
 progress, using Codex or DeepSeek directly is usually simpler.
 
+## Desktop pet in local builds
+
+Locally built macOS arm64 packages include a desktop pet. With at least one configured Codex or DeepSeek Adapter, it shows the saved stage and blocker of one selected task; clicking opens its WebUI page. The menu provides task selection, animation and visibility controls. Stages describe saved Core state, without live Host activity or completion percentages. Exiting preserves tasks and WebUI. See the [local build instructions](docs/COMMANDS_en.md#desktop-pet-local-development-package); public support remains defined by the support matrix.
+
+Import a local appearance from the pet menu: a PNG, a Dev Flow animation pack, or a Codex sprite-format 1/2 pack. Selection and imported files survive upgrades. See [appearance packs](docs/DESKTOP-PETS_en.md).
+
+```bash
+dev-flow pet start
+dev-flow pet stop
+```
+
 ## Documentation
 
 - **Use Dev Flow:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Commands](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)

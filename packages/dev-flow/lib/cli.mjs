@@ -1,5 +1,6 @@
 import { createInterface } from "node:readline/promises";
 
+import { supportsDesktopPet } from "./platform.mjs";
 import { messagesForLanguage, resolveLanguage, selectInteractivePresentationMode } from "./presentation.mjs";
 
 export const OPERATIONS = Object.freeze([
@@ -124,7 +125,14 @@ export function parseArguments(arguments_, {
   });
 }
 
-export async function promptForRequest({ input = process.stdin, output = process.stdout, language = resolveLanguage(), environment = process.env } = {}) {
+export async function promptForRequest({
+  input = process.stdin,
+  output = process.stdout,
+  language = resolveLanguage(),
+  environment = process.env,
+  platform = process.platform,
+  arch = process.arch,
+} = {}) {
   const messages = messagesForLanguage(language);
   const terminal = createInterface({ input, output });
   try {
@@ -134,9 +142,15 @@ export async function promptForRequest({ input = process.stdin, output = process
       { label: messages.installDeepSeek, host: "deepseek" },
       { label: messages.installAll, host: "all" },
       { label: messages.manage, host: null },
+      // The desktop component ships only in the macOS arm64 package, so other
+      // runtimes are never offered it here and keep their existing menu.
+      ...(supportsDesktopPet(platform, arch)
+        ? [{ label: messages.pet.menuStart, pet: "start" }, { label: messages.pet.menuStop, pet: "stop" }]
+        : []),
     ];
     homeChoices.forEach((choice, index) => output.write(`${index + 1}. ${choice.label}\n`));
     const home = selectNumber(await terminal.question(messages.choose), homeChoices, "home");
+    if (home.pet !== undefined) return Object.freeze({ pet: home.pet });
     if (home.host !== null) {
       const profile = home.host === "codex" ? null : validateProfile((await terminal.question(messages.profilePrompt)).trim() || "web");
       const request = parseArguments([

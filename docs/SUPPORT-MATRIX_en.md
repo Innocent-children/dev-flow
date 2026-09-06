@@ -54,3 +54,15 @@ Server has no validation, end-to-end testing, or product-support commitment.
 
 For current source capabilities, actual-environment test entry points, and adoption status, read
 [Project Status](PROJECT-STATUS_en.md).
+
+## Desktop pet local functional checks
+
+The desktop pet targets local macOS arm64 development packages. The current macOS development host
+has built the app, checked its extracted signature and executable modes, and installed it under a
+path containing spaces to check task selection, stages, WebUI navigation, hide/restore, and stop.
+State changes, late responses, and some lifecycle paths use targeted fixtures. This is not a new
+complete Codex/DeepSeek session test and does not expand the stable support table. The macOS 14
+deployment target, minimum-OS execution, Developer ID, and Apple notarization still need distribution
+verification.
+
+Targeted appearance checks cover static/animated packs, both Codex atlases, saved selection, and error handling. A local Codex pet copy supplies the real WebP check. Artwork compatibility does not expand Host workflow or platform support.

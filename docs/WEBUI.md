@@ -95,3 +95,16 @@ React、TypeScript 和 Vite 只参与构建；静态资产嵌入 Core binary，�
 - 由浏览器执行 shell、文件编辑、Git mutation、Host handoff 或发布；
 - 由浏览器创建共享 checkout Task 或自动补建丢失的工作树；
 - 用户自定义流程图或第二份 Task 状态。
+
+## 桌面任务入口
+
+macOS arm64 的本地开发包提供桌面宠物，需要至少一个已配置的 Codex 或 DeepSeek Adapter。
+`dev-flow pet start` 开启，`dev-flow pet stop` 关闭；它展示所选 Task 已保存的阶段和阻塞信息，点击
+打开对应 WebUI。宠物只读任务，Core 继续决定流程状态；阶段不代表 Host 实时活动，也不计算完成比例。
+菜单支持选择任务、动画开关和隐藏/显示，退出保留任务与 WebUI。
+当前交付以功能可用为准，沿用已有素材。构建、使用与本地开发包限制见[命令参考](COMMANDS.md#桌面宠物本地开发包)。
+
+自定义形象从宠物菜单的“选择形象 → 导入形象…”导入本地文件夹，支持单张 PNG、Dev Flow 动画包和
+Codex 精灵图格式 1/2 的本地宠物包。形象与任务分别选择和保存，升级保留用户素材；同 ID 重导入更新，
+校验失败保留原形象。导入 Codex 时转换为统一 PNG 帧，任务阶段与跳转仍由 Dev Flow 决定。格式与示例见
+[形象包说明](DESKTOP-PETS.md)。

@@ -109,6 +109,17 @@ begrenztem Testaufwand oder möglicher Nacharbeit, die keine veralteten Ergebnis
 Für einmalige Fragen, Codeerklärungen, Statusabfragen und kleine mechanische Änderungen ohne gespeicherten
 Fortschritt ist Codex oder DeepSeek allein meist einfacher.
 
+## Desktop-Maskottchen in lokalen Builds
+
+Lokale Entwicklungspakete für macOS arm64 enthalten ein Desktop-Maskottchen. Mit mindestens einem eingerichteten Codex- oder DeepSeek-Adapter zeigt es die gespeicherte Phase und den Blockierungsgrund einer ausgewählten Aufgabe; ein Klick öffnet deren WebUI. Das Menü bietet Aufgabenauswahl, Animationen sowie Ein- und Ausblenden. Angezeigt wird der gespeicherte Core-Zustand, ohne Aussage über laufende Host-Aktivität oder Fortschrittsprozente. Beim Beenden bleiben Aufgaben und WebUI erhalten. Siehe die [lokale Build-Anleitung](docs/COMMANDS_en.md#desktop-pet-local-development-package); für den öffentlichen Support gilt weiterhin die Support-Matrix.
+
+Über das Maskottchen-Menü lassen sich ein PNG, ein Dev-Flow-Animationspaket oder ein Codex-Sprite-Paket im Format 1/2 importieren. Auswahl und importierte Dateien bleiben bei Updates erhalten. Siehe [Erscheinungsbild-Pakete](docs/DESKTOP-PETS_en.md).
+
+```bash
+dev-flow pet start
+dev-flow pet stop
+```
+
 ## Dokumentation
 
 - **Verwendung:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Commands](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)

@@ -62,3 +62,48 @@ Codex uninstall first runs the installed Adapter's idempotent `remove`, which va
 Recoverable factory reset uses the user's macOS Trash or `%LOCALAPPDATA%\create-dev-flow\trash` on
 Windows. The Windows quarantine is not the system Recycle Bin; permanent removal still requires its
 separate confirmation token.
+
+## Desktop pet local development package
+
+The macOS arm64 source development package provides `dev-flow pet start` and `dev-flow pet stop`;
+the interactive menu uses the same entry. At least one Codex or DeepSeek Adapter must be installed
+and configured. The pet reads that Core's WebUI interface and shows one selected task's saved stage,
+blocker, update time, and synchronization time. Clicking opens its detail page. The chooser loads
+pages on demand and keeps watching terminal tasks; cancellation never celebrates. Its menu controls
+animation, visibility, and quitting; system language selects Chinese or English.
+
+Starting may start an unavailable WebUI; background connection checks are read-only. Hiding or
+sleeping cancels requests, and showing or waking reads again. Old responses cannot replace a new
+selection. Disabling animation or enabling system Reduce Motion uses static frames. Stopping ends
+only the pet and preserves WebUI, Tasks, and preferences. Maintenance first stops a pet using the
+Adapter being changed and aborts on stop failure. The confirmed factory-reset plan includes
+`productRoot/pet` under the existing data-directory confirmation and cleanup rules. Other platforms
+reject pet commands.
+
+Only the shown arguments are accepted, with plain-text output and exit codes `0` for success, `1`
+for runtime failure, and `2` for invalid arguments. `pet status` and `pet start --json` are not public
+entries.
+
+Source builds require macOS arm64, Node.js `>=24`, and Xcode command-line tools providing Swift
+`>=6.0`. The deployment target is macOS 14; minimum-OS execution remains unverified. The builder
+creates an ad-hoc-signed local npm tarball outside the repository and checks its extracted app,
+resources, executable modes, and signature. It performs local functional verification without
+public publication or Apple notarization.
+
+```bash
+node scripts/build-desktop-pet.mjs --output "/absolute/pet-build"
+npm install --prefix "/absolute/pet-install" "/absolute/pet-build/<generated-tarball>.tgz"
+node "/absolute/pet-install/node_modules/@imotong/dev-flow/bin/dev-flow.mjs" pet start
+node "/absolute/pet-install/node_modules/@imotong/dev-flow/bin/dev-flow.mjs" pet stop
+```
+
+Replace `<generated-tarball>` with the filename reported by the builder. The installed pet uses its
+packaged application and resources and needs no Swift/Xcode at runtime. Stop it before updating or
+removing the unified-entry package. These instructions cover a local development package separately
+from ordinary stable-channel installation; the support matrix defines public support.
+
+Choose appearance → Import appearance in the pet menu imports a local folder containing a single PNG,
+a Dev Flow animation pack, or a Codex sprite-format 1/2 pack. Appearance and task selections are
+independent, and upgrades preserve imported artwork. Reimporting the same ID updates the appearance;
+failed validation preserves the installed pack. Codex artwork is converted to common PNG frames,
+while Dev Flow retains stage and navigation ownership. See [appearance packs](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS_en.md).

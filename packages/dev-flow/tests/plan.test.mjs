@@ -72,6 +72,16 @@ test("Windows factory reset previews the product recovery directory instead of m
   assert.equal(plan.impacts.some((impact) => impact.includes("macOS Trash")), false);
 });
 
+test("factory reset reports the pet directory as a confirmed cleanup impact", () => {
+  const current = observed();
+  current.resources.pet = { label: "pet", path: "/tmp/pet", exists: true, identity: "volume:file:directory:0:0" };
+  const plan = createLifecyclePlan({ ...request("factory-reset", "all"), allKnownProfiles: true }, current);
+  assert.deepEqual(plan.impacts, [
+    "Clear desktop pet records, preferences, and imported appearances",
+    "Move confirmed data to macOS Trash",
+  ]);
+});
+
 function request(operation, host) {
   return { operation, host, profiles: host === "codex" ? [] : ["web"], targetVersion: "latest", allKnownProfiles: false, adopt: false, reinstallAfterReset: false, permanent: false };
 }
@@ -84,6 +94,7 @@ function observed({ codexState = "absent", codexVersion = null, codexPackageInst
     resources: {
       configuration: { label: "configuration", path: "/tmp/config", exists: false, identity: null },
       defaultData: { label: "default-data", path: "/tmp/data", exists: false, identity: null },
+      pet: { label: "pet", path: "/tmp/pet", exists: false, identity: null },
       explicitData: null,
     },
   };

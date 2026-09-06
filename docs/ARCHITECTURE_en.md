@@ -296,3 +296,26 @@ work performs no release. Host packages carry exact `darwin-arm64/dev-flow` and
 | `protocol/fixtures/`, `tests/` | public contracts, fault injection, Host end-to-end tests |
 
 Source, machine-readable schemas, package manifests, CLI parsers, and executable tests define current behavior.
+
+## Desktop pet responsibilities
+
+`packages/dev-flow/lib/pet.mjs` reuses installed Adapter Core selection and WebUI commands; macOS
+invocation lives in `lib/platform/macos/pet.mjs`. `packages/desktop-pet/macos` owns AppKit windows,
+read-only HTTP, presentation, process identity, the single instance, and preferences. Each observation
+checks the same Core and service identities; cancellation invalidates old responses. After default
+selection, idle observation only checks the service, while the chooser pages on demand.
+`productRoot/pet/settings.json` stores position, the animation switch, and selection per data root;
+`runtime.json` records process identity. Core data, the process graph, and MCP tools retain their owners.
+
+`scripts/build-desktop-pet.mjs` compiles the macOS executable, assembles resources, signs ad hoc, and
+creates a local tarball. The source manifest keeps directly checkable JS files; the builder adds
+`runtime/darwin-arm64/DevFlowPet.app` to the staging manifest and reuses USTAR assembly to preserve
+native executable permissions, then verifies the extracted signature. This development build is
+separate from publication, and the running app always comes from the installed package path.
+
+User appearances live in `productRoot/pet/appearances/<id>`. `PetAppearanceStore` owns bounded file
+reads, validation, and replacement; `CodexPetImporter` crops standard atlases only during import;
+`PetAppearanceSelection` keeps successful loading and saved selection consistent; `PetCharacterView`
+plays the common catalog. `selected_appearance` is independent of `selected_tasks` per data root.
+Preference updates share one lock and preserve the old value on write failure. Switching releases old
+frames and shows the current state without replaying prompts. See [DESKTOP-PETS](DESKTOP-PETS_en.md).

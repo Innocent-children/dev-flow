@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { chmod, mkdir, mkdtemp, realpath, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, realpath, stat, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
 import { resolveManagerPaths, writeProfileReceipt } from "../lib/ownership.mjs";
-import { resolveCoreRuntime, runDevFlow } from "../lib/runtime.mjs";
+import { listAdapterCoreRuntimes, resolveCoreRuntime, runDevFlow } from "../lib/runtime.mjs";
 
 test("public launcher selects the newest compatible Core from Codex or DeepSeek receipts", async (t) => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-runtime-selection-")));
@@ -92,6 +92,45 @@ test("non-start WebUI commands never initialize the default data directory", asy
   });
   assert.equal(result.code, 1);
   assert.equal(selectionOptions.initializeDefaultData, false);
+});
+
+test("Adapter maintenance names the recorded Core runtimes without executing anything", async (t) => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-runtime-maintenance-")));
+  const home = join(root, "home");
+  const dshHome = join(root, "dsh");
+  await mkdir(home);
+  const environment = { DSH_HOME: dshHome };
+  const paths = await resolveManagerPaths({ homeDirectory: home, environment, platform: "darwin", arch: "arm64" });
+  const codexRuntime = join(root, "codex", "runtime", "darwin-arm64", "dev-flow");
+  const deepseekRuntime = join(dshHome, "profiles", "web", "node_modules", "dev-flow-deepseek", "runtime", "darwin-arm64", "dev-flow");
+  await mkdir(join(paths.productRoot, "registrations"), { recursive: true });
+  const registration = join(paths.productRoot, "registrations", "codex.json");
+  await writeFile(registration, `${JSON.stringify({
+    product: { name: "dev-flow-codex", version: "0.8.0", core_version: "0.6.2", codex_compatibility: ">=0.147.0" },
+    host: { surface: "codex-cli", version: "0.147.0", os: "darwin", arch: "arm64" },
+    paths: { package_root: join(root, "codex"), runtime_path: codexRuntime, data_dir: paths.defaultDataDirectory, receipt_path: registration },
+  })}\n`);
+  await writeProfileReceipt(paths, {
+    profile: "web", package_name: "dev-flow-deepseek", installed_version: "0.8.0", origin: "installed",
+    dsh_version: "0.1.0-rc.8", created_at: "2026-08-28T00:00:00Z", updated_at: "2026-08-28T00:00:00Z",
+  });
+
+  assert.deepEqual(await listAdapterCoreRuntimes({ paths, environment }), [
+    { host: "codex", profile: null, runtimePath: codexRuntime },
+    { host: "deepseek", profile: "web", runtimePath: deepseekRuntime },
+  ]);
+
+  // An Adapter whose record is gone or unreadable names no Core, so maintenance
+  // of another Adapter cannot stop a pet that record could never have started.
+  await unlink(registration);
+  assert.deepEqual(await listAdapterCoreRuntimes({ paths, environment }), [
+    { host: "deepseek", profile: "web", runtimePath: deepseekRuntime },
+  ]);
+  await writeFile(registration, "not-json\n");
+  assert.deepEqual(await listAdapterCoreRuntimes({ paths, environment }), [
+    { host: "deepseek", profile: "web", runtimePath: deepseekRuntime },
+  ]);
+  t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
 });
 
 async function packageFixture(root, name, version, coreVersion) {

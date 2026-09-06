@@ -85,3 +85,14 @@ Codex 与 DeepSeek Harness 的宿主功能规格必须在各自 `plan.md` 中定
 5. 需要更新的源码、约定和测试；
 6. 是否要重新在实际宿主中运行测试；
 7. 确认未顺带引入产品能力。
+
+## Desktop pet development build
+
+桌面宠物源码构建使用 macOS arm64、Node.js `>=24` 和 Swift `>=6.0` 的 Xcode 命令行工具。
+Swift Package 与应用 metadata 的 deployment target 为 macOS 14；该值是编译目标，最低系统运行尚未验证。
+构建器复用已有素材和 USTAR 工具，使用 ad-hoc 签名检查本地功能包。安装后运行不依赖 Swift/Xcode。
+
+Desktop pet source builds use macOS arm64, Node.js `>=24`, and Xcode command-line tools with Swift
+`>=6.0`. The Swift Package and app metadata target macOS 14; this is a compilation target, with
+minimum-OS execution still unverified. The builder reuses existing artwork and USTAR helpers and
+signs ad hoc for local functional checks. Installed execution needs no Swift/Xcode.

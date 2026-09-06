@@ -84,6 +84,36 @@ dev-flow status --host all
 
 下方 Host 原生命令保留为诊断恢复入口。
 
+## 桌面宠物本地开发包
+
+macOS arm64 源码开发包提供 `dev-flow pet start` 和 `dev-flow pet stop`，交互菜单复用同一入口。
+至少一个 Codex 或 DeepSeek Adapter 必须已经安装并配置；宠物读取同一个 Core 的 WebUI 接口。
+它显示所选任务已保存的阶段、阻塞原因、更新时间和同步时间，点击打开相应详情页。任务选择面板按需
+分页，所选任务完成后仍保留关注；取消不庆祝。菜单提供动画开关、隐藏/显示和退出，语言跟随系统中文或英文。
+
+开启可启动尚未运行的 WebUI；后台连接检查只读。隐藏和睡眠取消请求，显示和唤醒重新读取；旧请求
+不能覆盖新选择。动画开关及系统减少动态效果使用静态帧。关闭只结束宠物并保留 WebUI、Task 与偏好；
+维护当前供给 Core 的 Adapter 前先停止宠物，停止失败时中止维护。factory-reset 的确认计划包含
+`productRoot/pet`，继续使用既有数据目录确认与清理规则。其他平台拒绝宠物命令。
+
+两项命令仅接受所示参数，结果为纯文本；退出码为成功 `0`、运行失败 `1`、参数错误 `2`。
+`pet status` 和 `pet start --json` 不是公开入口。
+
+源码构建需要 macOS arm64、Node.js `>=24` 和提供 Swift `>=6.0` 的 Xcode 命令行工具。构建目标为
+macOS 14，但最低系统运行尚未验证。构建器在仓库外生成带 ad-hoc 签名的本地 npm tarball，并在解包后
+检查应用、资源、执行权限与签名。此流程用于本机功能检查，不执行公开发布或 Apple 公证。
+
+```bash
+node scripts/build-desktop-pet.mjs --output "/absolute/pet-build"
+npm install --prefix "/absolute/pet-install" "/absolute/pet-build/<generated-tarball>.tgz"
+node "/absolute/pet-install/node_modules/@imotong/dev-flow/bin/dev-flow.mjs" pet start
+node "/absolute/pet-install/node_modules/@imotong/dev-flow/bin/dev-flow.mjs" pet stop
+```
+
+将 `<generated-tarball>` 替换为构建输出中的文件名。安装后的宠物使用包内应用与资源，运行不需要
+Swift/Xcode。更新或移除统一入口包前先关闭宠物。此开发包与普通稳定通道安装分别说明，公开支持范围
+以支持矩阵为准。
+
 ## Codex
 
 ### 安装
@@ -388,3 +418,8 @@ Task result 的 `verification` 同时返回 `plan`、`current_budget`、当前 T
 Host 选择检索工具时，当前用户指令和适用的 `AGENTS.md` 优先于这些默认偏好。没有相应指令时，
 false 选择普通文件和文本搜索，true 可优先使用当前可用的代码索引。索引不可用或结果不完整时，
 Host 在当前会话中至多提示一次并回到普通搜索；索引结果不改变已创建 Task 的 Scope。
+
+自定义形象从宠物菜单的“选择形象 → 导入形象…”导入本地文件夹，支持单张 PNG、Dev Flow 动画包和
+Codex 精灵图格式 1/2 的本地宠物包。形象与任务分别选择和保存，升级保留用户素材；同 ID 重导入更新，
+校验失败保留原形象。导入 Codex 时转换为统一 PNG 帧，任务阶段与跳转仍由 Dev Flow 决定。格式与示例见
+[形象包说明](DESKTOP-PETS.md)。

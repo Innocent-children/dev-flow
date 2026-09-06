@@ -98,6 +98,17 @@ Dev Flow 适合会跨会话、需要明确文件范围、必须限制测试投�
 一次性问答、代码解释、状态查询和不需要保存进度的小型机械修改，直接使用 Codex 或 DeepSeek
 通常更简单。
 
+## 本地构建的桌面宠物
+
+macOS arm64 本地开发包包含桌面宠物。配置好至少一个 Codex 或 DeepSeek Adapter 后，可显示一个所选任务已保存的阶段与阻塞原因，点击进入对应 WebUI。菜单提供任务选择、动画开关和隐藏/显示。阶段表示 Core 保存的状态，不表示 Host 此刻正在执行，也不显示完成百分比。退出保留任务和 WebUI。使用方式见[本地构建说明](docs/COMMANDS.md#桌面宠物本地开发包)，公开支持范围仍以支持矩阵为准。
+
+可以从宠物菜单导入单张 PNG、Dev Flow 动画包或 Codex 精灵图格式 1/2 的形象包；选择和导入素材在升级后保留。制作方式见[形象包说明](docs/DESKTOP-PETS.md)。
+
+```bash
+dev-flow pet start
+dev-flow pet stop
+```
+
 ## 文档
 
 - **使用说明：** [Codex](packages/codex/README.md) · [DeepSeek](packages/deepseek/README.md) · [命令参考](docs/COMMANDS.md) · [Control Center](docs/WEBUI.md)

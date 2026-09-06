@@ -11,8 +11,10 @@ import {
   resolveManagerPaths,
   writeOwnedJSON,
 } from "./ownership.mjs";
+import { runPet, stopPetForCore } from "./pet.mjs";
 import { createLifecyclePlan } from "./plan.mjs";
 import { renderPlan, renderProgress, renderResult, resolveLanguage } from "./presentation.mjs";
+import { listAdapterCoreRuntimes } from "./runtime.mjs";
 
 export async function runMain(arguments_, dependencies = {}) {
   const input = dependencies.input ?? process.stdin;
@@ -26,7 +28,30 @@ export async function runMain(arguments_, dependencies = {}) {
       isTTY: dependencies.isTTY ?? Boolean(input.isTTY && output.isTTY),
       noColor: dependencies.noColor ?? process.env.NO_COLOR !== undefined,
     });
-    if (request.interactive) request = await (dependencies.promptForRequest ?? promptForRequest)({ input, output, language, environment });
+    if (request.interactive) {
+      request = await (dependencies.promptForRequest ?? promptForRequest)({
+        input,
+        output,
+        language,
+        environment,
+        platform: dependencies.platform,
+        arch: dependencies.arch,
+      });
+    }
+    // A desktop pet selection reuses the same launcher as `dev-flow pet`, which
+    // owns its own output and exit code; it is not a lifecycle operation.
+    if (request.pet !== undefined) {
+      const pet = await (dependencies.runPet ?? runPet)(["pet", request.pet], {
+        stdout: output,
+        stderr: errorOutput,
+        environment,
+        language,
+        platform: dependencies.platform,
+        arch: dependencies.arch,
+        homeDirectory: dependencies.homeDirectory,
+      });
+      return { code: pet.code };
+    }
     const onProgress = request.outputMode === "json" || !["install", "upgrade", "repair", "reinstall"].includes(request.operation)
       ? undefined
       : (event) => output.write(renderProgress(event, { language }));
@@ -96,6 +121,8 @@ export async function runLifecycle(request, dependencies = {}) {
   if (plan.actions.length === 0) {
     return { code: 0, plan, result: resultFromObservation(request.operation, observed) };
   }
+
+  await stopDesktopPetForMaintainedCores(request, plan, { paths, environment, dependencies });
 
   let run = await (dependencies.createRun ?? createRun)(paths, plan, { now: dependencies.now, operationId: dependencies.operationId });
   const completedActions = [];
@@ -182,18 +209,19 @@ export async function observeLifecycle(request, { paths, codex, deepseek }) {
   const profiles = request.host === "codex" ? [] : request.allKnownProfiles
     ? [...new Set([...knownDeepSeekProfiles, ...request.profiles])]
     : request.profiles;
-  const [codexState, deepseekStates, configuration, defaultData, explicitData] = await Promise.all([
+  const [codexState, deepseekStates, configuration, defaultData, pet, explicitData] = await Promise.all([
     request.host === "deepseek" ? Promise.resolve(absentCodex()) : codex.observe(),
     Promise.all(profiles.map((profile) => deepseek.observe(profile))),
     inspectResource(paths.configurationPath, "configuration"),
     inspectResource(paths.defaultDataDirectory, "default-data"),
+    inspectResource(paths.petDirectory, "pet"),
     paths.explicitDataDirectory ? inspectResource(paths.explicitDataDirectory, "explicit-data") : Promise.resolve(null),
   ]);
   return Object.freeze({
     codex: codexState,
     deepseek: deepseekStates,
     knownDeepSeekProfiles,
-    resources: { configuration, defaultData, explicitData },
+    resources: { configuration, defaultData, pet, explicitData },
   });
 }
 
@@ -209,8 +237,37 @@ async function resolveTargetVersions(request, observed, { codex, deepseek }) {
   return result;
 }
 
+// The desktop pet runs a Core runtime owned by an Adapter. A confirmed operation
+// that changes that Adapter replaces the very binary the pet is running, so the
+// pet is stopped first through the native entry that filters by `core_path`.
+// An unconfirmed preview, a read-only status or doctor call, and maintenance of a
+// different Adapter all leave the running pet untouched.
+async function stopDesktopPetForMaintainedCores(request, plan, { paths, environment, dependencies }) {
+  const stop = dependencies.stopPetForCore ?? stopPetForCore;
+  const shutdown = {
+    environment,
+    homeDirectory: dependencies.homeDirectory,
+    platform: paths.platform,
+    arch: paths.arch,
+  };
+  if (request.operation === "factory-reset") {
+    // Reset removes every Adapter together with the pet directory, so any running
+    // desktop instance is stopped before cleanup regardless of which Core it runs.
+    await stop({ ...shutdown, corePath: null });
+    return;
+  }
+  const maintained = plan.actions.filter((action) => action.owner === "codex" || action.owner === "deepseek");
+  if (maintained.length === 0) return;
+  const runtimes = await (dependencies.listAdapterCoreRuntimes ?? listAdapterCoreRuntimes)({ paths, environment });
+  for (const action of maintained) {
+    const runtime = runtimes.find((entry) => entry.host === action.host && entry.profile === (action.profile ?? null));
+    if (runtime === undefined) continue;
+    await stop({ ...shutdown, corePath: runtime.runtimePath });
+  }
+}
+
 async function executeCleanup(request, observed, paths, dependencies) {
-  const targets = [observed.resources.configuration, observed.resources.defaultData].filter((target) => target.exists);
+  const targets = [observed.resources.configuration, observed.resources.defaultData, observed.resources.pet].filter((target) => target.exists);
   if (observed.resources.explicitData?.exists) {
     if (!request.confirmedExplicitData.includes(observed.resources.explicitData.path)) {
       const error = new Error("explicit Task data requires exact --confirm-explicit-data");
@@ -264,6 +321,7 @@ function resultFromObservation(operation, observed, {
       policy: dataPolicy,
       configuration: observed.resources.configuration.exists ? "present" : "absent",
       default_data: observed.resources.defaultData.exists ? "present" : "absent",
+      pet: observed.resources.pet.exists ? "present" : "absent",
       explicit_data: observed.resources.explicitData ? [observed.resources.explicitData.path] : [],
       trash_root: trashRoot,
     },
@@ -282,7 +340,7 @@ function confirmationResult(request, plan) {
     status: "confirmation_required",
     changed: false,
     targets: plan.targets.map((target) => ({ host: target.host, profile: target.profile, package_version: target.packageVersion, core_version: null, state: target.state })),
-    data: { policy: "preserve", configuration: "preserved", default_data: "preserved", explicit_data: [], trash_root: null },
+    data: { policy: "preserve", configuration: "preserved", default_data: "preserved", pet: "preserved", explicit_data: [], trash_root: null },
     completed_actions: [],
     failed_action: null,
     restart_requirements: plan.restartRequirements,
@@ -304,7 +362,7 @@ function failureResult(operation, error) {
     status: error.completedSteps?.length ? "partial" : "failed",
     changed: Boolean(error.completedSteps?.length),
     targets: [],
-    data: { policy: "preserve", configuration: "unknown", default_data: "unknown", explicit_data: [], trash_root: error.trashRoot ?? null },
+    data: { policy: "preserve", configuration: "unknown", default_data: "unknown", pet: "unknown", explicit_data: [], trash_root: error.trashRoot ?? null },
     completed_actions: error.completedSteps ?? [],
     failed_action: error.failedAction ?? null,
     restart_requirements: [],

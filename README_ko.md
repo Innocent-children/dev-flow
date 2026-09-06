@@ -106,6 +106,17 @@ Dev Flow는 여러 세션에 걸치거나, 파일 범위와 테스트 양을 명
 일회성 질문, 코드 설명, 상태 확인, 진행 상황을 저장할 필요가 없는 작은 기계적 변경은 Codex나
 DeepSeek를 직접 사용하는 편이 더 간단합니다.
 
+## 로컬 빌드의 데스크톱 펫
+
+macOS arm64 로컬 개발 패키지에는 데스크톱 펫이 포함됩니다. 설정된 Codex 또는 DeepSeek Adapter가 하나 이상 있으면 선택한 작업 하나의 저장된 단계와 차단 사유를 표시하고, 클릭하면 해당 WebUI를 엽니다. 메뉴에서 작업 선택, 애니메이션, 숨기기와 표시를 조작합니다. Core에 저장된 상태를 보여 주며 Host의 실시간 실행 여부나 완료율을 표시하지 않습니다. 종료해도 작업과 WebUI는 유지됩니다. [로컬 빌드 안내](docs/COMMANDS_en.md#desktop-pet-local-development-package)를 참고하세요. 공개 지원 범위는 지원 표를 따릅니다.
+
+펫 메뉴에서 PNG 한 장, Dev Flow 애니메이션 팩 또는 Codex 스프라이트 형식 1/2 팩을 가져올 수 있습니다. 선택과 가져온 파일은 업그레이드 후에도 유지됩니다. [외형 팩 안내](docs/DESKTOP-PETS_en.md)를 참고하세요.
+
+```bash
+dev-flow pet start
+dev-flow pet stop
+```
+
 ## 문서
 
 - **사용 방법:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Commands](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)

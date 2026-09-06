@@ -125,8 +125,9 @@ function impactsFor(request, targets, observed, actions, recoverableCleanupDescr
     if (actions.some((action) => action.operation === "uninstall")) impacts.push("Remove every installed Adapter before shared data cleanup");
     if (observed.resources.configuration.exists) impacts.push("Clear Dev Flow user configuration");
     if (observed.resources.defaultData.exists) impacts.push("Clear current default Task data");
+    if (observed.resources.pet.exists) impacts.push("Clear desktop pet records, preferences, and imported appearances");
     if (observed.resources.explicitData?.exists) impacts.push("Clear the explicitly confirmed Task data directory");
-    if (observed.resources.configuration.exists || observed.resources.defaultData.exists || observed.resources.explicitData?.exists) {
+    if (observed.resources.configuration.exists || observed.resources.defaultData.exists || observed.resources.pet.exists || observed.resources.explicitData?.exists) {
       impacts.push(request.permanent ? "Permanently remove confirmed data" : recoverableCleanupDescription);
     }
     if (request.reinstallAfterReset) impacts.push("Create fresh state and reinstall selected Adapters");

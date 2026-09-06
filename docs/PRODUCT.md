@@ -132,3 +132,16 @@ Task、remote MCP 和云端多用户管理也不在当前范围。
 Dev Flow 仍处于早期，尚未用足够外部数据证明降低缺陷率、验证成本或恢复时间。稳定支持、源码能力
 和未验证内容见[项目状态](PROJECT-STATUS.md)与[支持矩阵](SUPPORT-MATRIX.md)。运行时以源码、机器可读
 Schema、package manifest、CLI parser 和可执行测试为准。
+
+## 桌面任务入口
+
+macOS arm64 的本地开发包提供桌面宠物，需要至少一个已配置的 Codex 或 DeepSeek Adapter。
+`dev-flow pet start` 开启，`dev-flow pet stop` 关闭；它展示所选 Task 已保存的阶段和阻塞信息，点击
+打开对应 WebUI。宠物只读任务，Core 继续决定流程状态；阶段不代表 Host 实时活动，也不计算完成比例。
+菜单支持选择任务、动画开关和隐藏/显示，退出保留任务与 WebUI。
+当前交付以功能可用为准，沿用已有素材。构建、使用与本地开发包限制见[命令参考](COMMANDS.md#桌面宠物本地开发包)。
+
+自定义形象从宠物菜单的“选择形象 → 导入形象…”导入本地文件夹，支持单张 PNG、Dev Flow 动画包和
+Codex 精灵图格式 1/2 的本地宠物包。形象与任务分别选择和保存，升级保留用户素材；同 ID 重导入更新，
+校验失败保留原形象。导入 Codex 时转换为统一 PNG 帧，任务阶段与跳转仍由 Dev Flow 决定。格式与示例见
+[形象包说明](DESKTOP-PETS.md)。

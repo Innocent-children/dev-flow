@@ -49,6 +49,13 @@ const cleanupPolicies = Object.freeze({
 
 export const SUPPORTED_RUNTIME_KEYS = Object.freeze(Object.keys(runtimeDescriptors));
 
+// The desktop component is a macOS arm64 native application bundled with the
+// unified launcher. Every other supported runtime keeps its existing commands
+// unchanged and offers no desktop pet entry.
+export const DESKTOP_PET_RUNTIME_KEY = "darwin-arm64";
+
+export const supportsDesktopPet = (platform, arch) => `${platform}-${arch}` === DESKTOP_PET_RUNTIME_KEY;
+
 export const runtimeDescriptor = (platform, arch) => selectPlatformValue(runtimeDescriptors, platform, arch);
 export const dataPathPolicy = (platform, arch) => selectPlatformValue(dataPathPolicies, platform, arch);
 export const permissionPolicy = (platform, arch) => selectPlatformValue(permissionPolicies, platform, arch);

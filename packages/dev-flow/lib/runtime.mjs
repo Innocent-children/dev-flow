@@ -17,6 +17,7 @@ Usage:
   dev-flow status|doctor|install|upgrade|repair|reinstall|uninstall|factory-reset [options]
   dev-flow webui start [--no-open] [--plain|--json]
   dev-flow webui open|status|stop [--plain|--json]
+  dev-flow pet start|stop
   dev-flow version
 `;
 
@@ -93,12 +94,7 @@ export async function resolveCoreRuntime({
     if (host.surface !== "codex-cli" || `${host.os}-${host.arch}` !== paths.runtimeKey) {
       throw new Error("Codex receipt host platform differs from this runtime");
     }
-    const expectedRuntimePath = join(
-      receiptPaths.package_root,
-      "runtime",
-      paths.runtimeDirectory,
-      paths.runtimeExecutable,
-    );
+    const expectedRuntimePath = adapterCoreRuntimePath(receiptPaths.package_root, paths);
     if (resolve(receiptPaths.runtime_path) !== resolve(expectedRuntimePath)) {
       throw new Error("Codex receipt runtime path differs from the supported package layout");
     }
@@ -112,7 +108,7 @@ export async function resolveCoreRuntime({
     }, exec, environment, paths.requireExecutableMode));
   }
 
-  const dshHome = resolve(environment.DSH_HOME || join(paths.homeDirectory, ".dsh"));
+  const dshHome = deepseekHome(environment, paths);
   for (const receipt of await listProfileReceipts(paths)) {
     const packageRoot = join(dshHome, "profiles", receipt.profile, "node_modules", "dev-flow-deepseek");
     candidates.push(await preflightCandidate({
@@ -121,12 +117,7 @@ export async function resolveCoreRuntime({
       packageVersion: receipt.installed_version,
       expectedCoreVersion: null,
       packageRoot,
-      runtimePath: join(
-        packageRoot,
-        "runtime",
-        paths.runtimeDirectory,
-        paths.runtimeExecutable,
-      ),
+      runtimePath: adapterCoreRuntimePath(packageRoot, paths),
     }, exec, environment, paths.requireExecutableMode));
   }
 
@@ -151,6 +142,41 @@ export class NoRuntimeError extends Error {
     super(message);
     this.name = "NoRuntimeError";
   }
+}
+
+// The Core runtime an Adapter package provides in the single supported package
+// layout. Runtime selection and Adapter maintenance both name it through this
+// function, so the layout is stated once.
+export function adapterCoreRuntimePath(packageRoot, paths) {
+  return join(packageRoot, "runtime", paths.runtimeDirectory, paths.runtimeExecutable);
+}
+
+// Names the Core runtime of every Adapter the current installation records
+// describe, without executing anything and without verifying the package.
+// Adapter maintenance uses it to stop only a desktop pet that runs a Core it is
+// about to change. A missing or unreadable record simply names no runtime,
+// because such an Adapter could not have been selected to start a pet either.
+export async function listAdapterCoreRuntimes({ paths, environment = process.env }) {
+  const runtimes = [];
+  const codexReceipt = await readOptionalJSON(join(paths.productRoot, "registrations", "codex.json"), "Codex receipt").catch(() => null);
+  const codexRuntimePath = codexReceipt?.paths?.runtime_path;
+  if (typeof codexRuntimePath === "string" && codexRuntimePath !== "") {
+    runtimes.push(Object.freeze({ host: "codex", profile: null, runtimePath: codexRuntimePath }));
+  }
+  const dshHome = deepseekHome(environment, paths);
+  for (const receipt of await listProfileReceipts(paths).catch(() => [])) {
+    const packageRoot = join(dshHome, "profiles", receipt.profile, "node_modules", "dev-flow-deepseek");
+    runtimes.push(Object.freeze({
+      host: "deepseek",
+      profile: receipt.profile,
+      runtimePath: adapterCoreRuntimePath(packageRoot, paths),
+    }));
+  }
+  return Object.freeze(runtimes);
+}
+
+function deepseekHome(environment, paths) {
+  return resolve(environment.DSH_HOME || join(paths.homeDirectory, ".dsh"));
 }
 
 async function preflightCandidate(candidate, exec, environment, requireExecutableMode) {

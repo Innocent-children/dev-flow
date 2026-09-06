@@ -54,6 +54,7 @@ export async function resolveManagerPaths({
   const configurationDirectory = ownedPath(canonicalHome, join(canonicalHome, ".dev-flow"), "configuration directory");
   const configurationPath = ownedPath(configurationDirectory, join(configurationDirectory, "config.json"), "configuration path");
   const defaultDataDirectory = ownedPath(productRoot, join(productRoot, "data"), "default data directory");
+  const petDirectory = ownedPath(productRoot, join(productRoot, "pet"), "desktop pet directory");
   const explicitValue = environment[DATA_DIRECTORY_ENVIRONMENT] ?? "";
   const explicitDataDirectory = explicitValue === "" ? null : await canonicalExplicitDirectory(explicitValue);
   return Object.freeze({
@@ -76,6 +77,7 @@ export async function resolveManagerPaths({
     configurationDirectory,
     configurationPath,
     defaultDataDirectory,
+    petDirectory,
     explicitDataDirectory,
     trashDirectory: ownedPath(trash.inspectionRoot, trash.path, "recoverable cleanup directory"),
     trashInspectionRoot: trash.inspectionRoot,

@@ -30,3 +30,12 @@ dist/
 build/
 coverage/
 *.tgz
+
+# Swift Package Manager artifacts
+.build/
+*.xcodeproj/
+.swiftpm/
+
+# Desktop pet baked frames; the procedural source under
+# packages/desktop-pet/tools is the editable original and rebakes them.
+packages/desktop-pet/macos/Resources/

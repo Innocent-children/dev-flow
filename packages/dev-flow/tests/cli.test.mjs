@@ -96,6 +96,40 @@ test("manage existing installation opens the complete operation menu", async () 
   assert.match(output.text, /1\. status/u);
 });
 
+test("the home menu offers the desktop pet only on the runtime that ships it", async () => {
+  const macos = captureOutput();
+  const started = await promptForRequest({ input: Readable.from(["5\n"]), output: macos, language: "en", platform: "darwin", arch: "arm64" });
+  assert.deepEqual(started, { pet: "start" });
+  assert.match(macos.text, /5\. Start the desktop pet/u);
+  assert.match(macos.text, /6\. Stop the desktop pet/u);
+
+  const stopped = await promptForRequest({
+    input: Readable.from(["6\n"]),
+    output: captureOutput(),
+    language: "en",
+    platform: "darwin",
+    arch: "arm64",
+  });
+  assert.deepEqual(stopped, { pet: "stop" });
+
+  const chinese = captureOutput();
+  await promptForRequest({ input: Readable.from(["5\n"]), output: chinese, language: "zh-CN", platform: "darwin", arch: "arm64" });
+  assert.match(chinese.text, /5\. 开启桌面宠物/u);
+  assert.match(chinese.text, /6\. 关闭桌面宠物/u);
+
+  const windows = captureOutput();
+  const manage = await promptForRequest({
+    input: scriptedInput(["4\n", "1\n", "3\n", "web\n"]),
+    output: windows,
+    language: "en",
+    platform: "win32",
+    arch: "x64",
+  });
+  assert.equal(manage.operation, "status");
+  assert.equal(manage.pet, undefined);
+  assert.doesNotMatch(windows.text, /desktop pet/u);
+});
+
 test("Chinese locale renders the complete interactive menu and plan in Chinese", async () => {
   const output = captureOutput();
   const input = scriptedInput(["4\n", "8\n", "3\n", "web\n"]);
@@ -114,14 +148,16 @@ test("Chinese locale renders the complete interactive menu and plan in Chinese",
     impacts: [
       "factory-reset codex Adapter",
       "Remove every installed Adapter before shared data cleanup",
+      "Clear desktop pet records, preferences, and imported appearances",
       "Move confirmed data to macOS Trash",
     ],
   }, { mode: "plain", language: "zh-CN" });
   assert.match(plan, /^执行计划 恢复出厂设置/u);
   assert.match(plan, /恢复出厂设置 Codex Adapter/u);
   assert.match(plan, /移除所有已安装的 Adapter/u);
+  assert.match(plan, /清理桌面宠物记录、偏好与导入形象/u);
   assert.match(plan, /移入 macOS 废纸篓/u);
-  assert.doesNotMatch(plan, /Plan|Remove every|Move confirmed/u);
+  assert.doesNotMatch(plan, /Plan|Remove every|Move confirmed|desktop pet/u);
 });
 
 test("Chinese locale renders reset confirmation in Chinese", async () => {
