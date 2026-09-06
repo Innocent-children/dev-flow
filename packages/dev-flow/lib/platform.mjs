@@ -8,7 +8,7 @@ const runtimeDescriptors = Object.freeze({
 const dataPathPolicies = Object.freeze({
   "darwin-arm64": Object.freeze({
     applicationData({ homeDirectory }) {
-      return Object.freeze({ path: join(homeDirectory, "Library", "Application Support"), inspectionRoot: homeDirectory, canonicalizeRoot: false, label: "application support directory" });
+      return Object.freeze({ path: join(homeDirectory, ".dev-flow"), inspectionRoot: homeDirectory, canonicalizeRoot: false, label: "user data directory" });
     },
   }),
   "win32-x64": Object.freeze({

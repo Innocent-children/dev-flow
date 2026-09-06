@@ -48,7 +48,7 @@ Core, and forwards only the closed WebUI command surface. It does not persist an
 Platform-specific path, permission, process, signal, and executable behavior is selected outside Core semantics.
 `dev-flow webui start` creates the product-owned default data directory with mode `0700` on macOS or inherited
 user-profile/LocalAppData ACLs on Windows when it is absent. The defaults are
-`$HOME/Library/Application Support/dev-flow/data` and `%LOCALAPPDATA%\dev-flow\data`, respectively. Explicit
+`$HOME/.dev-flow/data` and `%LOCALAPPDATA%\dev-flow\data`, respectively. Explicit
 `DEV_FLOW_DATA_DIR` values must already name canonical non-link directories; all other WebUI commands remain zero-write.
 
 The rich first-install result shows the Dev Flow mark, verified Host states, conversation selectors, WebUI commands,
@@ -63,10 +63,11 @@ Recoverable factory reset uses the user's macOS Trash or `%LOCALAPPDATA%\create-
 Windows. The Windows quarantine is not the system Recycle Bin; permanent removal still requires its
 separate confirmation token.
 
-## Desktop pet local development package
+## Desktop pet (macOS arm64)
 
-The macOS arm64 source development package provides `dev-flow pet start` and `dev-flow pet stop`;
-the interactive menu uses the same entry. At least one Codex or DeepSeek Adapter must be installed
+The macOS arm64 environment provides `dev-flow pet start` and `dev-flow pet stop`;
+the interactive menu uses the same entry. Installing any adapter (Codex or DeepSeek) or running lifecycle management automatically provisions the prebuilt desktop pet binary to `$HOME/.dev-flow/pet/DevFlowPet.app`, requiring no Xcode or Swift compiler on the user machine.
+At least one Codex or DeepSeek Adapter must be installed
 and configured. The pet reads that Core's WebUI interface and shows one selected task's saved stage,
 blocker, update time, and synchronization time. Clicking opens its detail page. The chooser loads
 pages on demand and keeps watching terminal tasks; cancellation never celebrates. Its menu controls
@@ -84,23 +85,12 @@ Only the shown arguments are accepted, with plain-text output and exit codes `0`
 for runtime failure, and `2` for invalid arguments. `pet status` and `pet start --json` are not public
 entries.
 
-Source builds require macOS arm64, Node.js `>=24`, and Xcode command-line tools providing Swift
-`>=6.0`. The deployment target is macOS 14; minimum-OS execution remains unverified. The builder
-creates an ad-hoc-signed local npm tarball outside the repository and checks its extracted app,
-resources, executable modes, and signature. It performs local functional verification without
-public publication or Apple notarization.
-
 ```bash
-node scripts/build-desktop-pet.mjs --output "/absolute/pet-build"
-npm install --prefix "/absolute/pet-install" "/absolute/pet-build/<generated-tarball>.tgz"
-node "/absolute/pet-install/node_modules/@imotong/dev-flow/bin/dev-flow.mjs" pet start
-node "/absolute/pet-install/node_modules/@imotong/dev-flow/bin/dev-flow.mjs" pet stop
+dev-flow pet start
+dev-flow pet stop
 ```
 
-Replace `<generated-tarball>` with the filename reported by the builder. The installed pet uses its
-packaged application and resources and needs no Swift/Xcode at runtime. Stop it before updating or
-removing the unified-entry package. These instructions cover a local development package separately
-from ordinary stable-channel installation; the support matrix defines public support.
+Stop it before updating or removing the unified-entry package. The support matrix defines public support.
 
 Choose appearance → Import appearance in the pet menu imports a local folder containing a single PNG,
 a Dev Flow animation pack, or a Codex sprite-format 1/2 pack. Appearance and task selections are

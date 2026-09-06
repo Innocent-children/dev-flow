@@ -29,7 +29,8 @@ test("resolves the runtime and resources relative to the installed package", asy
   assert.equal(paths.marketplaceRoot, root);
   assert.equal(paths.configurationDirectory, join(home, ".dev-flow"));
   assert.equal(paths.configurationPath, join(home, ".dev-flow", "config.json"));
-  assert.equal(paths.provisioningDirectory, join(home, "Library", "Application Support", "dev-flow", "provisioning", "codex"));
+  assert.equal(paths.provisioningDirectory, join(home, ".dev-flow", "provisioning", "codex"));
+  assert.equal(paths.petDirectory, join(home, ".dev-flow", "pet"));
   assert.equal(paths.usesDefaultDataDirectory, true);
 });
 
@@ -91,11 +92,11 @@ test("accepts only an existing canonical absolute explicit data directory", asyn
   );
 });
 
-test("owns only the exact default data directory under macOS Application Support", async (t) => {
+test("owns only the exact default data directory under ~/.dev-flow", async (t) => {
   const root = await makePackage(t, "default-package");
   const home = join(t.testRoot, "home");
   await mkdir(home, { recursive: true });
-  const adjacent = join(home, "Library", "Application Support", "dev-flow", "user-note.txt");
+  const adjacent = join(home, ".dev-flow", "user-note.txt");
   await mkdir(join(adjacent, ".."), { recursive: true });
   await writeFile(adjacent, "preserve me\n");
 
@@ -106,10 +107,10 @@ test("owns only the exact default data directory under macOS Application Support
     arch: "arm64",
     environment: {},
   });
-  assert.equal(paths.dataDirectory, join(home, "Library", "Application Support", "dev-flow", "data"));
+  assert.equal(paths.dataDirectory, join(home, ".dev-flow", "data"));
   assert.equal(
     paths.receiptPath,
-    join(home, "Library", "Application Support", "dev-flow", "registrations", "codex.json"),
+    join(home, ".dev-flow", "registrations", "codex.json"),
   );
 
   await ensureDefaultDataDirectory(paths);
@@ -139,11 +140,11 @@ test("rejects a default product root that escapes through a symlink", async (t) 
   const root = await makePackage(t, "symlink-package");
   const home = join(t.testRoot, "home");
   const outside = join(t.testRoot, "outside");
-  await mkdir(join(home, "Library", "Application Support"), { recursive: true });
+  await mkdir(home, { recursive: true });
   await mkdir(outside, { recursive: true });
   await symlink(
     outside,
-    join(home, "Library", "Application Support", "dev-flow"),
+    join(home, ".dev-flow"),
     process.platform === "win32" ? "junction" : undefined,
   );
 
@@ -165,7 +166,7 @@ test("rejects a macOS application-data symlink before creating product files", a
   const outside = join(t.testRoot, "outside");
   await mkdir(home, { recursive: true });
   await mkdir(outside, { recursive: true });
-  await symlink(outside, join(home, "Library"), process.platform === "win32" ? "junction" : undefined);
+  await symlink(outside, join(home, ".dev-flow"), process.platform === "win32" ? "junction" : undefined);
 
   await assert.rejects(
     resolveProductPaths({
@@ -177,7 +178,7 @@ test("rejects a macOS application-data symlink before creating product files", a
     }),
     /symbolic link/,
   );
-  await assert.rejects(stat(join(outside, "Application Support", "dev-flow")), { code: "ENOENT" });
+  await assert.rejects(stat(join(outside, "data")), { code: "ENOENT" });
 });
 
 test("never falls back to a runtime in the current repository", async (t) => {

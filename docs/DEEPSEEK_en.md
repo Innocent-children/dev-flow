@@ -32,7 +32,7 @@ dsh --profile "$PROFILE" --dump-config
 
 Restart the selected Profile after installation. See the
 [Command Reference](COMMANDS_en.md#deepseek-harness) for PowerShell and complete lifecycle forms.
-Default Task data is `$HOME/Library/Application Support/dev-flow/data` on macOS and
+Default Task data is `$HOME/.dev-flow/data` on macOS and
 `%LOCALAPPDATA%\dev-flow\data` on Windows. An explicit `DEV_FLOW_DATA_DIR` must already be a canonical,
 non-link directory.
 

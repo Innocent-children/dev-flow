@@ -20,6 +20,11 @@ export const LAUNCH_TIMEOUT_MILLISECONDS = 10_000;
 // The native shutdown entry waits at most five seconds for an orderly exit.
 export const SHUTDOWN_TIMEOUT_MILLISECONDS = 15_000;
 
+// The installed application location inside ~/.dev-flow/pet/.
+export function installedPetExecutable(petDirectory) {
+  return join(resolve(petDirectory), PET_APPLICATION_NAME, PET_EXECUTABLE_RELATIVE_PATH);
+}
+
 // The packaged application location inside the unified launcher package.
 export function bundledPetExecutable(packageRoot) {
   return join(resolve(packageRoot), "runtime", PET_RUNTIME_DIRECTORY, PET_APPLICATION_NAME, PET_EXECUTABLE_RELATIVE_PATH);

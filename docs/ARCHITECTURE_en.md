@@ -307,11 +307,9 @@ selection, idle observation only checks the service, while the chooser pages on 
 `productRoot/pet/settings.json` stores position, the animation switch, and selection per data root;
 `runtime.json` records process identity. Core data, the process graph, and MCP tools retain their owners.
 
-`scripts/build-desktop-pet.mjs` compiles the macOS executable, assembles resources, signs ad hoc, and
-creates a local tarball. The source manifest keeps directly checkable JS files; the builder adds
-`runtime/darwin-arm64/DevFlowPet.app` to the staging manifest and reuses USTAR assembly to preserve
-native executable permissions, then verifies the extracted signature. This development build is
-separate from publication, and the running app always comes from the installed package path.
+`scripts/build-desktop-pet.mjs` compiles the macOS executable, assembles resources, and signs ad hoc.
+Dev Flow adapter packages and the unified entry include the prebuilt `runtime/darwin-arm64/DevFlowPet.app` binary. Installing any adapter (Codex or DeepSeek) or running lifecycle management automatically provisions the desktop pet to `$HOME/.dev-flow/pet/DevFlowPet.app`, requiring no Xcode or Swift compiler on the user machine. Data directories converge under `$HOME/.dev-flow` (e.g. `~/.dev-flow/data`, `~/.dev-flow/pet`, `~/.dev-flow/registrations`).
+The running application always prioritizes the installed `$HOME/.dev-flow/pet/` path.
 
 User appearances live in `productRoot/pet/appearances/<id>`. `PetAppearanceStore` owns bounded file
 reads, validation, and replacement; `CodexPetImporter` crops standard atlases only during import;

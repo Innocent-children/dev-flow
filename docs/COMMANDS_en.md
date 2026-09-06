@@ -75,9 +75,10 @@ Default local paths are platform-specific:
 
 | Path | macOS arm64 | Windows 10/11 x64 |
 | --- | --- | --- |
-| Task data | `$HOME/Library/Application Support/dev-flow/data` | `%LOCALAPPDATA%\dev-flow\data` |
+| Task data | `$HOME/.dev-flow/data` | `%LOCALAPPDATA%\dev-flow\data` |
 | User configuration | `$HOME/.dev-flow/config.json` | `%USERPROFILE%\.dev-flow\config.json` |
-| Lifecycle manager state | `$HOME/Library/Application Support/create-dev-flow` | `%LOCALAPPDATA%\create-dev-flow` |
+| Lifecycle manager state | `$HOME/.dev-flow` | `%LOCALAPPDATA%\create-dev-flow` |
+| Desktop pet and registrations | `$HOME/.dev-flow/pet`, `$HOME/.dev-flow/registrations` | - |
 
 Set an explicit data directory in PowerShell with:
 
@@ -88,11 +89,11 @@ dev-flow status --host all
 
 Native Host commands remain available for diagnostic recovery.
 
-## Desktop pet local development package
+## Desktop pet (macOS arm64)
 
-The macOS arm64 source development package provides `dev-flow pet start` and `dev-flow pet stop`;
-the interactive menu uses the same entry. At least one Codex or DeepSeek Adapter must be installed
-and configured. The pet reads that Core's WebUI interface and shows one selected task's saved stage,
+macOS arm64 provides `dev-flow pet start` and `dev-flow pet stop`; the interactive menu uses the same entry.
+When installing any Dev Flow adapter (Codex / DeepSeek) or running lifecycle installs and updates from the unified entry, the plugin provides a prebuilt binary and automatically installs the desktop pet to `$HOME/.dev-flow/pet/DevFlowPet.app`. The user host does not require Xcode or the Swift compiler.
+At least one Codex or DeepSeek Adapter must be installed and configured. The pet reads that Core's WebUI interface and shows one selected task's saved stage,
 blocker, update time, and synchronization time. Clicking opens its detail page. The chooser loads
 pages on demand and keeps watching terminal tasks; cancellation never celebrates. Its menu controls
 animation, visibility, and quitting; system language selects Chinese or English.
@@ -109,23 +110,12 @@ Only the shown arguments are accepted, with plain-text output and exit codes `0`
 for runtime failure, and `2` for invalid arguments. `pet status` and `pet start --json` are not public
 entries.
 
-Source builds require macOS arm64, Node.js `>=24`, and Xcode command-line tools providing Swift
-`>=6.0`. The deployment target is macOS 14; minimum-OS execution remains unverified. The builder
-creates an ad-hoc-signed local npm tarball outside the repository and checks its extracted app,
-resources, executable modes, and signature. It performs local functional verification without
-public publication or Apple notarization.
-
 ```bash
-node scripts/build-desktop-pet.mjs --output "/absolute/pet-build"
-npm install --prefix "/absolute/pet-install" "/absolute/pet-build/<generated-tarball>.tgz"
-node "/absolute/pet-install/node_modules/@imotong/dev-flow/bin/dev-flow.mjs" pet start
-node "/absolute/pet-install/node_modules/@imotong/dev-flow/bin/dev-flow.mjs" pet stop
+dev-flow pet start
+dev-flow pet stop
 ```
 
-Replace `<generated-tarball>` with the filename reported by the builder. The installed pet uses its
-packaged application and resources and needs no Swift/Xcode at runtime. Stop it before updating or
-removing the unified-entry package. These instructions cover a local development package separately
-from ordinary stable-channel installation; the support matrix defines public support.
+Stop it before updating or removing the unified-entry package. The support matrix defines public support.
 
 ## Codex
 
@@ -174,7 +164,7 @@ dev-flow-codex --version
 
 To uninstall while retaining Task data, run `dev-flow-codex remove` and then
 `npm uninstall -g dev-flow-codex`. Delete the shared default data directory at
-`$HOME/Library/Application Support/dev-flow` on macOS or `%LOCALAPPDATA%\dev-flow` on Windows only
+`$HOME/.dev-flow` on macOS or `%LOCALAPPDATA%\dev-flow` on Windows only
 after both the Codex and DeepSeek Adapters are removed and no Task is needed.
 
 ### Codex smart activation and explicit selector
@@ -253,7 +243,7 @@ contains Dev Flow. If DSH is no longer needed, uninstall it separately with
 `%USERPROFILE%\.dsh` on Windows is retained.
 
 For permanent Task-data cleanup, first remove both Host Adapters, then delete
-`$HOME/Library/Application Support/dev-flow` on macOS or `%LOCALAPPDATA%\dev-flow` on Windows. If
+`$HOME/.dev-flow` on macOS or `%LOCALAPPDATA%\dev-flow` on Windows. If
 `DEV_FLOW_DATA_DIR` was set, verify and delete its exact absolute directory separately. Deleting the
 user `.dsh` directory also deletes every DSH profile, session, and unrelated plugin.
 

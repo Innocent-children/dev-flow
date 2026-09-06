@@ -36,7 +36,8 @@ Task surface。源码测试使用临时 Git 仓库和运行记录，也提供检
 
 npm manifest 需要分别列出允许的 OS 和 CPU，因此安装层可能接受交叉组合；package runtime selector 只接受
 上表两个精确 pair，并拒绝 `win32-ia32`、`win32-arm64` 与 `darwin-x64`。Windows 使用
-`%LOCALAPPDATA%\dev-flow` 保存产品数据，用户配置仍位于 `%USERPROFILE%\.dev-flow\config.json`。
+`%LOCALAPPDATA%\dev-flow` 保存产品数据，用户配置仍位于 `%USERPROFILE%\.dev-flow\config.json`；macOS 使用
+`$HOME/.dev-flow` 统一管理产品数据、桌面宠物与注册状态，用户配置位于 `$HOME/.dev-flow/config.json`。
 
 新的源码能力或后续 beta 只有经过独立发布流程、下载核对 npm 安装包内容，并在实际宿主中测试最终安装包，才能扩大上方
 稳定支持声明。
@@ -49,9 +50,9 @@ npm manifest 需要分别列出允许的 OS 和 CPU，因此安装层可能接�
 若需要了解当前源码能力、实际环境的测试入口和项目采用状态，请阅读
 [项目状态页](PROJECT-STATUS.md)。
 
-## 桌面宠物本地功能检查
+## 桌面宠物功能检查
 
-桌面宠物仅针对 macOS arm64 本地开发包。已在当前 macOS 开发机编译、检查解包签名与执行权限，并从
+桌面宠物针对 macOS arm64（Apple Silicon）。在安装任意适配器（Codex / DeepSeek）或由统一入口安装时，由插件提供预置二进制自动就位至 `~/.dev-flow/pet/`，无需用户机器具备 Xcode 或 Swift 编译器。已在当前 macOS 开发机检查签名与执行权限，并从
 含空格路径安装后检查任务选择、阶段展示、WebUI 跳转、隐藏恢复和关闭。状态变化、迟到响应和部分
 生命周期使用定向样例测试。此结果不代表新的完整 Codex/DeepSeek 会话测试，也不扩大稳定支持表。
 构建目标 macOS 14、最低系统运行、Developer ID 和 Apple 公证属于尚未完成的正式分发验证。

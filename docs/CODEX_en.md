@@ -35,7 +35,7 @@ complete parser surface.
 
 When absent, setup creates `$HOME/.dev-flow/config.json` on macOS or
 `%USERPROFILE%\.dev-flow\config.json` on Windows. Default Task data is
-`$HOME/Library/Application Support/dev-flow/data` or `%LOCALAPPDATA%\dev-flow\data`.
+`$HOME/.dev-flow/data` or `%LOCALAPPDATA%\dev-flow\data`.
 
 ## Assess and start a Task
 

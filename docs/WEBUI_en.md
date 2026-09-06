@@ -92,7 +92,7 @@ operations, and relocation records; none substitutes for another.
 ## States and data
 
 `status` returns `ready`, `read_only`, `incompatible`, or `unavailable`. Default Task data lives at
-`$HOME/Library/Application Support/dev-flow/data` on macOS and `%LOCALAPPDATA%\dev-flow\data` on
+`$HOME/.dev-flow/data` on macOS and `%LOCALAPPDATA%\dev-flow\data` on
 Windows. Codex and DeepSeek share it.
 
 React, TypeScript, and Vite participate only in the build. Static assets are embedded in Core, so

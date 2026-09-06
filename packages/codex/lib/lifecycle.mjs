@@ -3,11 +3,13 @@ import { constants as fsConstants } from "node:fs";
 import {
   access,
   chmod,
+  cp,
   lstat,
   mkdir,
   readFile,
   realpath,
   rename,
+  rm,
   stat,
   unlink,
   writeFile,
@@ -109,6 +111,36 @@ export async function inspectCoreVersion(
   return match[1];
 }
 
+export async function ensureCodexPetInstalled(paths) {
+  if (paths?.platform !== "darwin" || paths?.arch !== "arm64") return;
+  const sourceApp = join(paths.packageRoot, "runtime", "darwin-arm64", "DevFlowPet.app");
+  const petDirectory = paths.petDirectory ?? join(paths.productSupportRoot, "pet");
+  const targetApp = join(petDirectory, "DevFlowPet.app");
+  const targetExecutable = join(targetApp, "Contents", "MacOS", "DevFlowPet");
+
+  try {
+    const info = await lstat(targetExecutable);
+    if (info.isFile() && !info.isSymbolicLink()) return;
+  } catch {
+    // proceed with install
+  }
+
+  try {
+    const sourceExecutable = join(sourceApp, "Contents", "MacOS", "DevFlowPet");
+    const sourceInfo = await lstat(sourceExecutable);
+    if (!sourceInfo.isFile() || sourceInfo.isSymbolicLink()) return;
+    await mkdir(petDirectory, { recursive: true, mode: 0o700 });
+    await rm(targetApp, { recursive: true, force: true });
+    await cp(sourceApp, targetApp, { recursive: true });
+    await chmod(targetExecutable, 0o755);
+    if (paths.enforcePrivateModes) {
+      await chmod(petDirectory, 0o700);
+    }
+  } catch {
+    // Ignore if source not present
+  }
+}
+
 export async function setupRegistration({
   paths,
   packageVersion,
@@ -141,6 +173,7 @@ export async function setupRegistration({
   if (existingReceipt) {
     if (receiptOwnershipMatches(existingReceipt, expectedReceipt)) {
       assertMatchingRegistrationState(initialState, paths, preflight.packageVersion);
+      await ensureCodexPetInstalled(paths).catch(() => {});
       return {
         status: "already-installed",
         changed: false,
@@ -176,6 +209,7 @@ export async function setupRegistration({
       ownedRoot: paths.productSupportRoot,
       enforcePrivateModes: paths.enforcePrivateModes,
     });
+    await ensureCodexPetInstalled(paths).catch(() => {});
     return {
       status: "installed",
       changed: true,
@@ -204,6 +238,7 @@ export async function setupRegistration({
       ownedRoot: paths.productSupportRoot,
       enforcePrivateModes: paths.enforcePrivateModes,
     });
+    await ensureCodexPetInstalled(paths).catch(() => {});
     return {
       status: "installed",
       changed: true,

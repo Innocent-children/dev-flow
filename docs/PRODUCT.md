@@ -135,11 +135,12 @@ Schema、package manifest、CLI parser 和可执行测试为准。
 
 ## 桌面任务入口
 
-macOS arm64 的本地开发包提供桌面宠物，需要至少一个已配置的 Codex 或 DeepSeek Adapter。
+macOS arm64 环境提供桌面宠物，由插件提供预置二进制并在安装任意适配器（Codex 或 DeepSeek）后自动就位至 `~/.dev-flow/pet/`，用户机器无需安装 Xcode 或 Swift 编译器。
+运行需要至少一个已配置的 Codex 或 DeepSeek Adapter。
 `dev-flow pet start` 开启，`dev-flow pet stop` 关闭；它展示所选 Task 已保存的阶段和阻塞信息，点击
 打开对应 WebUI。宠物只读任务，Core 继续决定流程状态；阶段不代表 Host 实时活动，也不计算完成比例。
 菜单支持选择任务、动画开关和隐藏/显示，退出保留任务与 WebUI。
-当前交付以功能可用为准，沿用已有素材。构建、使用与本地开发包限制见[命令参考](COMMANDS.md#桌面宠物本地开发包)。
+当前交付以功能可用为准，沿用已有素材。使用与说明见[命令参考](COMMANDS.md#桌面宠物macos-arm64)。
 
 自定义形象从宠物菜单的“选择形象 → 导入形象…”导入本地文件夹，支持单张 PNG、Dev Flow 动画包和
 Codex 精灵图格式 1/2 的本地宠物包。形象与任务分别选择和保存，升级保留用户素材；同 ID 重导入更新，

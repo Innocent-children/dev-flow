@@ -71,9 +71,10 @@ Codex 全局 package 与 receipt、Plugin 注册分别判断；即使注册已�
 
 | 路径 | macOS arm64 | Windows 10/11 x64 |
 | --- | --- | --- |
-| Task 数据 | `$HOME/Library/Application Support/dev-flow/data` | `%LOCALAPPDATA%\dev-flow\data` |
+| Task 数据 | `$HOME/.dev-flow/data` | `%LOCALAPPDATA%\dev-flow\data` |
 | 用户配置 | `$HOME/.dev-flow/config.json` | `%USERPROFILE%\.dev-flow\config.json` |
-| 生命周期管理状态 | `$HOME/Library/Application Support/create-dev-flow` | `%LOCALAPPDATA%\create-dev-flow` |
+| 生命周期管理状态 | `$HOME/.dev-flow` | `%LOCALAPPDATA%\create-dev-flow` |
+| 桌面宠物与注册状态 | `$HOME/.dev-flow/pet`, `$HOME/.dev-flow/registrations` | - |
 
 PowerShell 中设置显式数据目录的形式为：
 
@@ -84,10 +85,11 @@ dev-flow status --host all
 
 下方 Host 原生命令保留为诊断恢复入口。
 
-## 桌面宠物本地开发包
+## 桌面宠物（macOS arm64）
 
-macOS arm64 源码开发包提供 `dev-flow pet start` 和 `dev-flow pet stop`，交互菜单复用同一入口。
-至少一个 Codex 或 DeepSeek Adapter 必须已经安装并配置；宠物读取同一个 Core 的 WebUI 接口。
+macOS arm64 环境提供 `dev-flow pet start` 和 `dev-flow pet stop`，交互菜单复用同一入口。
+在安装 Dev Flow 任意适配器（Codex / DeepSeek）或由统一入口执行安装与更新时，插件会提供预置二进制并自动将桌面宠物安装至 `$HOME/.dev-flow/pet/DevFlowPet.app`，用户机器无需安装 Xcode 或 Swift 编译器。
+运行桌面宠物需要至少一个 Codex 或 DeepSeek Adapter 已经安装并配置；宠物读取同一个 Core 的 WebUI 接口。
 它显示所选任务已保存的阶段、阻塞原因、更新时间和同步时间，点击打开相应详情页。任务选择面板按需
 分页，所选任务完成后仍保留关注；取消不庆祝。菜单提供动画开关、隐藏/显示和退出，语言跟随系统中文或英文。
 
@@ -99,20 +101,12 @@ macOS arm64 源码开发包提供 `dev-flow pet start` 和 `dev-flow pet stop`�
 两项命令仅接受所示参数，结果为纯文本；退出码为成功 `0`、运行失败 `1`、参数错误 `2`。
 `pet status` 和 `pet start --json` 不是公开入口。
 
-源码构建需要 macOS arm64、Node.js `>=24` 和提供 Swift `>=6.0` 的 Xcode 命令行工具。构建目标为
-macOS 14，但最低系统运行尚未验证。构建器在仓库外生成带 ad-hoc 签名的本地 npm tarball，并在解包后
-检查应用、资源、执行权限与签名。此流程用于本机功能检查，不执行公开发布或 Apple 公证。
-
 ```bash
-node scripts/build-desktop-pet.mjs --output "/absolute/pet-build"
-npm install --prefix "/absolute/pet-install" "/absolute/pet-build/<generated-tarball>.tgz"
-node "/absolute/pet-install/node_modules/@imotong/dev-flow/bin/dev-flow.mjs" pet start
-node "/absolute/pet-install/node_modules/@imotong/dev-flow/bin/dev-flow.mjs" pet stop
+dev-flow pet start
+dev-flow pet stop
 ```
 
-将 `<generated-tarball>` 替换为构建输出中的文件名。安装后的宠物使用包内应用与资源，运行不需要
-Swift/Xcode。更新或移除统一入口包前先关闭宠物。此开发包与普通稳定通道安装分别说明，公开支持范围
-以支持矩阵为准。
+更新或移除统一入口包前先关闭宠物。公开支持范围以支持矩阵为准。
 
 ## Codex
 
@@ -159,7 +153,7 @@ dev-flow-codex --version
 
 保留 Task 数据的卸载顺序是 `dev-flow-codex remove`，然后
 `npm uninstall -g dev-flow-codex`。只有在 Codex 和 DeepSeek Adapter 都已移除且不再需要任何
-Task 时，才删除共享默认产品目录：macOS 为 `$HOME/Library/Application Support/dev-flow`，Windows
+Task 时，才删除共享默认产品目录：macOS 为 `$HOME/.dev-flow`，Windows
 为 `%LOCALAPPDATA%\dev-flow`。
 
 ### Codex 智能启用与显式 selector
@@ -233,7 +227,7 @@ tarball 并重启 profile。对每个安装过 Dev Flow 的 profile 分别执行
 `%USERPROFILE%\.dsh` 中的 profile 数据会保留。
 
 彻底清除 Task 数据时，先移除两个 Host Adapter，再删除
-macOS 的 `$HOME/Library/Application Support/dev-flow` 或 Windows 的 `%LOCALAPPDATA%\dev-flow`。
+macOS 的 `$HOME/.dev-flow` 或 Windows 的 `%LOCALAPPDATA%\dev-flow`。
 若设置过 `DEV_FLOW_DATA_DIR`，还需核对并单独删除该变量对应的绝对目录。删除 `.dsh` 用户目录会
 同时删除所有 DSH profile、会话和其他插件。
 

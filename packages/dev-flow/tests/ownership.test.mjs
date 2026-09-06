@@ -16,7 +16,10 @@ test("manager paths are fixed under canonical HOME while explicit data requires 
   const paths = await resolveManagerPaths({ homeDirectory: home, environment: { DEV_FLOW_DATA_DIR: explicit }, platform: "darwin", arch: "arm64" });
   assert.equal(paths.explicitDataDirectory, explicit);
   assert.equal(paths.configurationPath, join(home, ".dev-flow", "config.json"));
-  assert.equal(paths.managerRoot, join(home, "Library", "Application Support", "create-dev-flow"));
+  assert.equal(paths.managerRoot, join(home, ".dev-flow"));
+  assert.equal(paths.productRoot, join(home, ".dev-flow"));
+  assert.equal(paths.defaultDataDirectory, join(home, ".dev-flow", "data"));
+  assert.equal(paths.petDirectory, join(home, ".dev-flow", "pet"));
   const missingExplicit = join(root, "missing-explicit");
   await assert.rejects(
     resolveManagerPaths({ homeDirectory: home, environment: { DEV_FLOW_DATA_DIR: missingExplicit }, platform: "darwin", arch: "arm64" }),
@@ -55,11 +58,10 @@ test("default data creation is restrictive and rejects a symbolic-link product r
   const linkedHome = join(root, "linked-home");
   const linkedTarget = join(root, "linked-target");
   await Promise.all([mkdir(linkedHome), mkdir(linkedTarget)]);
-  await mkdir(join(linkedHome, "Library", "Application Support"), { recursive: true });
   const { symlink } = await import("node:fs/promises");
   await symlink(
     linkedTarget,
-    join(linkedHome, "Library", "Application Support", "dev-flow"),
+    join(linkedHome, ".dev-flow"),
     process.platform === "win32" ? "junction" : undefined,
   );
   const linkedPaths = await resolveManagerPaths({ homeDirectory: linkedHome, environment: {}, platform: "darwin", arch: "arm64" });
@@ -73,7 +75,7 @@ test("default data creation rejects a macOS application-data symlink before writ
   const outside = join(root, "outside");
   await mkdir(home);
   await mkdir(outside);
-  await symlink(outside, join(home, "Library"), process.platform === "win32" ? "junction" : undefined);
+  await symlink(outside, join(home, ".dev-flow"), process.platform === "win32" ? "junction" : undefined);
   const paths = await resolveManagerPaths({
     homeDirectory: home,
     environment: {},
@@ -81,7 +83,7 @@ test("default data creation rejects a macOS application-data symlink before writ
     arch: "arm64",
   });
   await assert.rejects(ensureDefaultDataDirectory(paths), /symbolic link/u);
-  await assert.rejects(stat(join(outside, "Application Support", "dev-flow")), { code: "ENOENT" });
+  await assert.rejects(stat(join(outside, "data")), { code: "ENOENT" });
   t.after(async () => {
     const { rm } = await import("node:fs/promises");
     await rm(root, { recursive: true, force: true });

@@ -167,6 +167,27 @@ export async function runLifecycle(request, dependencies = {}) {
         next_step: "continue",
       }, { now: dependencies.now });
     }
+    if (paths.platform === "darwin" && paths.arch === "arm64") {
+      const hasAdapterInstall = plan.actions.some(
+        (action) => (action.owner === "codex" || action.owner === "deepseek") && ["install", "upgrade", "repair", "reinstall"].includes(action.operation),
+      );
+      if (hasAdapterInstall) {
+        const petInstaller = dependencies.petInstaller ?? await import("./platform/macos/pet-installer.mjs").catch(() => null);
+        if (petInstaller?.ensurePetInstalled) {
+          const runtimes = await (dependencies.listAdapterCoreRuntimes ?? listAdapterCoreRuntimes)({ paths, environment }).catch(() => []);
+          const candidateRoots = [
+            dependencies.packageRoot,
+            ...runtimes.map((r) => r.packageRoot),
+          ].filter(Boolean);
+          await petInstaller.ensurePetInstalled({
+            petDirectory: paths.petDirectory,
+            sourcePackageRoots: candidateRoots,
+            enforcePrivateModes: paths.enforcePrivateModes,
+          }).catch(() => {});
+          completedActions.push("pet.install");
+        }
+      }
+    }
   } catch (error) {
     completedActions.push(...(error.completedSteps ?? []));
     await (dependencies.recordRun ?? recordRun)(paths, run, {

@@ -32,10 +32,17 @@ export async function resolveProductPaths({
   const productSupportInspectionRoot = applicationData.canonicalizeRoot
     ? productSupportAnchor
     : containedPath(canonicalHome, applicationData.inspectionRoot, "application data inspection root");
-  const productSupportRoot = containedPath(
-    productSupportAnchor,
-    join(productSupportAnchor, "dev-flow"),
-    "product support root",
+  const productSupportRoot = platform === "darwin"
+    ? productSupportAnchor
+    : containedPath(
+        productSupportAnchor,
+        join(productSupportAnchor, "dev-flow"),
+        "product support root",
+      );
+  const petDirectory = containedPath(
+    productSupportRoot,
+    join(productSupportRoot, "pet"),
+    "desktop pet directory",
   );
   await assertNoSymlinkComponents(productSupportInspectionRoot, productSupportRoot);
   const configurationDirectory = containedPath(
@@ -130,6 +137,7 @@ export async function resolveProductPaths({
     configurationDirectory,
     configurationPath,
     dataDirectory,
+    petDirectory,
     usesDefaultDataDirectory,
     runtimeKey: runtime.runtimeKey,
   });

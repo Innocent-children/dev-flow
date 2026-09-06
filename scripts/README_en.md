@@ -128,6 +128,6 @@ assembles existing artwork and language resources, signs ad hoc, and creates a l
 tarball. Source JS files and the staging manifest including the app are checked separately. Existing
 USTAR helpers preserve native executable permissions, followed by extracted-signature verification.
 This entry does not rebuild Core, change Adapter installations, or publish npm. Use the installed
-package for functional checks as described in the [command reference](../docs/COMMANDS_en.md#desktop-pet-local-development-package).
+package for functional checks as described in the [command reference](../docs/COMMANDS_en.md#desktop-pet-macos-arm64).
 `dev-flow:local` retains its temporary lifecycle manager; the pet uses the persistent installed package
 built by this entry.

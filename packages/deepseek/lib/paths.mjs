@@ -27,10 +27,17 @@ export async function resolveDataDirectory({
   const productSupportInspectionRoot = applicationData.canonicalizeRoot
     ? productSupportAnchor
     : containedPath(canonicalHome, applicationData.inspectionRoot, "application data inspection root");
-  const productSupportRoot = containedPath(
-    productSupportAnchor,
-    join(productSupportAnchor, "dev-flow"),
-    "product support root",
+  const productSupportRoot = platform === "darwin"
+    ? productSupportAnchor
+    : containedPath(
+        productSupportAnchor,
+        join(productSupportAnchor, "dev-flow"),
+        "product support root",
+      );
+  const petDirectory = containedPath(
+    productSupportRoot,
+    join(productSupportRoot, "pet"),
+    "desktop pet directory",
   );
 
   const explicitDataDirectory = environment?.[DATA_DIRECTORY_ENVIRONMENT] ?? "";
@@ -38,6 +45,7 @@ export async function resolveDataDirectory({
     const dataDirectory = await canonicalExplicitDataDirectory(explicitDataDirectory);
     return Object.freeze({
       dataDirectory,
+      petDirectory,
       platform,
       arch,
       enforcePrivateModes: permissions.enforcePrivateModes,
@@ -57,6 +65,7 @@ export async function resolveDataDirectory({
       join(productSupportRoot, "data"),
       "default data directory",
     ),
+    petDirectory,
     platform,
     arch,
     enforcePrivateModes: permissions.enforcePrivateModes,

@@ -208,6 +208,30 @@ test("start refuses an unusable service, address, identity, or data directory", 
   }
 });
 
+test("start prioritizes installed pet in petDirectory over package bundle", async (t) => {
+  const fixture = await petFixture(t);
+  const core = coreRuntime([runtimeState()]);
+  const native = nativePlatform({ installedAvailable: true });
+  const stdout = output();
+  const stderr = output();
+
+  const result = await runPet(["pet", "start"], {
+    ...fixture.dependencies,
+    stdout,
+    stderr,
+    platformModule: native.module,
+    exec: core.exec,
+    fetchImpl: service().fetchImpl,
+  });
+
+  assert.equal(result.code, 0);
+  assert.equal(stdout.text(), "✓ Desktop pet started\n");
+  assert.equal(
+    native.calls.launch[0].executable,
+    `${fixture.paths.petDirectory}/DevFlowPet.app/Contents/MacOS/DevFlowPet`,
+  );
+});
+
 test("start reports a failed launch confirmation and a missing bundled application", async (t) => {
   const fixture = await petFixture(t);
 
@@ -644,13 +668,18 @@ function service(live = {
   };
 }
 
-function nativePlatform({ available = true, confirmation = "ready", shutdown = { code: 0, detail: null }, launchError = null } = {}) {
+function nativePlatform({ available = true, confirmation = "ready", shutdown = { code: 0, detail: null }, launchError = null, installedAvailable = false } = {}) {
   const calls = { launch: [], shutdown: [] };
   return {
     calls,
     module: {
       bundledPetExecutable,
-      isBundledPetApplicationAvailable: async () => available,
+      installedPetExecutable: (petDirectory) => `${petDirectory}/DevFlowPet.app/Contents/MacOS/DevFlowPet`,
+      isBundledPetApplicationAvailable: async (candidate) => {
+        if (!available) return false;
+        if (candidate.includes(".dev-flow/pet")) return installedAvailable;
+        return true;
+      },
       launchPet: async (options) => {
         calls.launch.push(options);
         if (launchError !== null) throw launchError;

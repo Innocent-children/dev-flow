@@ -111,9 +111,9 @@ de archivos, restringe el esfuerzo de pruebas o puede requerir retrabajo sin reu
 Para preguntas puntuales, explicaciones de código, consultas de estado y pequeños cambios mecánicos que
 no necesitan guardar el progreso, suele ser más sencillo usar Codex o DeepSeek directamente.
 
-## Mascota de escritorio en compilaciones locales
+## Mascota de escritorio (macOS arm64)
 
-Los paquetes locales de desarrollo para macOS arm64 incluyen una mascota de escritorio. Con al menos un Adapter de Codex o DeepSeek configurado, muestra la etapa guardada y el motivo de bloqueo de una tarea seleccionada; al pulsarla abre su WebUI. El menú permite elegir la tarea, activar las animaciones y ocultar o mostrar la mascota. Presenta el estado guardado por Core, sin indicar actividad en vivo del Host ni porcentajes de progreso. Al salir se conservan las tareas y la WebUI. Consulta las [instrucciones de compilación local](docs/COMMANDS_en.md#desktop-pet-local-development-package); el soporte público sigue definido por la matriz de soporte.
+El entorno macOS arm64 incluye una mascota de escritorio. Al instalar un adaptador (Codex o DeepSeek), el binario precompilado se instala automáticamente en `~/.dev-flow/pet/`, sin requerir Xcode ni el compilador de Swift. Con al menos un Adapter configurado, muestra la etapa guardada y el motivo de bloqueo de una tarea seleccionada; al pulsarla abre su WebUI. El menú permite elegir la tarea, activar las animaciones y ocultar o mostrar la mascota. Presenta el estado guardado por Core, sin indicar actividad en vivo del Host ni porcentajes de progreso. Al salir se conservan las tareas y la WebUI. Consulta la [referencia de comandos](docs/COMMANDS_en.md#desktop-pet-macos-arm64); el soporte público sigue definido por la matriz de soporte.
 
 Desde el menú de la mascota puedes importar un PNG, un paquete de animación de Dev Flow o un paquete de sprites de Codex de formato 1/2. La selección y los archivos importados se conservan al actualizar. Consulta los [paquetes de apariencia](docs/DESKTOP-PETS_en.md).
 

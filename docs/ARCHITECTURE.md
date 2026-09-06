@@ -284,10 +284,9 @@ Core、Codex、DeepSeek 和统一 lifecycle package 独立版本。Core 的机�
 检查服务，任务面板按需分页。`productRoot/pet/settings.json` 只保存位置、动画开关和按数据目录分组的
 任务选择；`runtime.json` 记录进程身份。Core 数据、流程图和 MCP 工具保持现有职责。
 
-`scripts/build-desktop-pet.mjs` 负责 macOS 编译、资源装配、ad-hoc 签名和本地 tarball。
-源码 manifest 保留可直接检查的 JS 文件；构建器在 staging manifest 中加入
-`runtime/darwin-arm64/DevFlowPet.app`，复用现有 USTAR 装配保留原生执行权限，再检查解包后的签名。
-此开发构建与正式发布入口分开，运行中的应用始终来自安装后的包内路径。
+`scripts/build-desktop-pet.mjs` 负责 macOS 编译、资源装配和 ad-hoc 签名。
+Dev Flow 适配器包与统一入口提供预置的 `runtime/darwin-arm64/DevFlowPet.app` 二进制，在安装任意适配器（Codex / DeepSeek）或由统一入口执行生命周期时，自动就位至 `$HOME/.dev-flow/pet/DevFlowPet.app`，用户端无需 Xcode 或 Swift 编译器。数据目录统一收敛至 `$HOME/.dev-flow`（如 `~/.dev-flow/data`, `~/.dev-flow/pet`, `~/.dev-flow/registrations`）。
+运行中的应用始终优先从已安装的 `$HOME/.dev-flow/pet/` 路径加载。
 
 用户形象保存到 `productRoot/pet/appearances/<id>`。`PetAppearanceStore` 负责受限文件读取、导入校验和
 替换；`CodexPetImporter` 只在导入时拆分标准图集；`PetAppearanceSelection` 负责资源加载成功与选择保存

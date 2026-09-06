@@ -150,7 +150,7 @@ test("explicit data directory must be existing, absolute, canonical, and non-sym
   });
   assert.equal(selected.dataDirectory, explicit);
   assert.equal(selected.homeDirectory, homeDirectory);
-  assert.equal(selected.productSupportRoot, join(homeDirectory, "Library", "Application Support", "dev-flow"));
+  assert.equal(selected.productSupportRoot, join(homeDirectory, ".dev-flow"));
   assert.equal(selected.usesDefaultDataDirectory, false);
   await assert.rejects(ensureDefaultDataDirectory(selected), /explicit data directory/);
 
@@ -174,7 +174,7 @@ test("explicit data directory must be existing, absolute, canonical, and non-sym
 test("default data directory is restrictive and rejects symbolic-link components", async (t) => {
   const homeDirectory = await makeDirectory(t, "default-home");
   const selected = await resolveDataDirectory({ homeDirectory, platform: "darwin", arch: "arm64", environment: {} });
-  const expected = join(homeDirectory, "Library", "Application Support", "dev-flow", "data");
+  const expected = join(homeDirectory, ".dev-flow", "data");
   assert.equal(selected.dataDirectory, expected);
   assert.equal(selected.usesDefaultDataDirectory, true);
 
@@ -183,10 +183,9 @@ test("default data directory is restrictive and rejects symbolic-link components
 
   const symlinkHome = await makeDirectory(t, "symlink-home");
   const outside = await makeDirectory(t, "outside");
-  await mkdir(join(symlinkHome, "Library", "Application Support"), { recursive: true });
   await symlink(
     outside,
-    join(symlinkHome, "Library", "Application Support", "dev-flow"),
+    join(symlinkHome, ".dev-flow"),
     process.platform === "win32" ? "junction" : undefined,
   );
   await assert.rejects(
@@ -200,7 +199,7 @@ test("rejects a macOS application-data symlink before creating product files", a
   const outside = await makeDirectory(t, "application-data-symlink-target");
   await symlink(
     outside,
-    join(homeDirectory, "Library"),
+    join(homeDirectory, ".dev-flow"),
     process.platform === "win32" ? "junction" : undefined,
   );
 
@@ -213,16 +212,14 @@ test("rejects a macOS application-data symlink before creating product files", a
     }),
     /symbolic link/,
   );
-  await assert.rejects(stat(join(outside, "Application Support", "dev-flow")), { code: "ENOENT" });
+  await assert.rejects(stat(join(outside, "data")), { code: "ENOENT" });
 });
 
 test("explicit data directory takes precedence over an unused symlinked default", async (t) => {
   const homeDirectory = await makeDirectory(t, "explicit-precedence-home");
   const explicit = await makeDirectory(t, "explicit-precedence-data");
   const unusedDefaultTarget = await makeDirectory(t, "unused-default-target");
-  const supportParent = join(homeDirectory, "Library", "Application Support");
-  const productSupportRoot = join(supportParent, "dev-flow");
-  await mkdir(supportParent, { recursive: true });
+  const productSupportRoot = join(homeDirectory, ".dev-flow");
   await symlink(unusedDefaultTarget, productSupportRoot, process.platform === "win32" ? "junction" : undefined);
 
   const selected = await resolveDataDirectory({

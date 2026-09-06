@@ -62,7 +62,7 @@ dsh --profile $ProfileName --dump-config
 安装后按 DSH profile lifecycle 重启该 Profile。完整命令和更新顺序见
 [命令参考](../../docs/COMMANDS.md#deepseek-harness)。
 
-默认 Task 数据目录在 macOS 为 `$HOME/Library/Application Support/dev-flow/data`，在 Windows 为
+默认 Task 数据目录在 macOS 为 `$HOME/.dev-flow/data`，在 Windows 为
 `%LOCALAPPDATA%\dev-flow\data`；显式 `DEV_FLOW_DATA_DIR` 必须已经存在且通过 canonical、非链接目录检查。
 
 ## 启动一个 Task

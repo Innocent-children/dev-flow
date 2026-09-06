@@ -82,7 +82,7 @@ runtime receipt 绑定 PID、进程启动身份、data-root digest 和 loopback 
 ## 状态和数据
 
 `status` 返回 `ready`、`read_only`、`incompatible` 或 `unavailable`。默认 Task 数据在 macOS 位于
-`$HOME/Library/Application Support/dev-flow/data`，Windows 位于 `%LOCALAPPDATA%\dev-flow\data`。
+`$HOME/.dev-flow/data`，Windows 位于 `%LOCALAPPDATA%\dev-flow\data`。
 Codex 与 DeepSeek 共用这份数据。
 
 React、TypeScript 和 Vite 只参与构建；静态资产嵌入 Core binary，运行时不需要 Node server、CDN、

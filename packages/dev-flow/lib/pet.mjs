@@ -73,7 +73,10 @@ export async function stopPetForCore({
   if (!supportsDesktopPet(platform, arch)) return Object.freeze({ stopped: false, reason: "unsupported-platform" });
   const paths = await resolveManagerPaths({ homeDirectory, environment, platform, arch });
   const macos = platformModule ?? await import("./platform/macos/pet.mjs");
-  const executable = macos.bundledPetExecutable(root);
+  const installed = macos.installedPetExecutable ? macos.installedPetExecutable(paths.petDirectory) : null;
+  const executable = installed && (await macos.isBundledPetApplicationAvailable(installed))
+    ? installed
+    : macos.bundledPetExecutable(root);
   if (!(await macos.isBundledPetApplicationAvailable(executable))) return Object.freeze({ stopped: false, reason: "application-unavailable" });
   const result = await macos.shutdownPet({
     executable,
@@ -124,7 +127,26 @@ async function startPet({ messages, environment, platform, arch, dependencies })
   }
 
   const macos = dependencies.platformModule ?? await import("./platform/macos/pet.mjs");
-  const executable = macos.bundledPetExecutable(dependencies.packageRoot ?? packageRoot);
+  const installed = macos.installedPetExecutable ? macos.installedPetExecutable(paths.petDirectory) : null;
+  let executable = installed && (await macos.isBundledPetApplicationAvailable(installed))
+    ? installed
+    : macos.bundledPetExecutable(dependencies.packageRoot ?? packageRoot);
+  if (!(await macos.isBundledPetApplicationAvailable(executable))) {
+    const installer = dependencies.petInstaller ?? await import("./platform/macos/pet-installer.mjs").catch(() => null);
+    if (installer?.ensurePetInstalled) {
+      await installer.ensurePetInstalled({
+        petDirectory: paths.petDirectory,
+        sourcePackageRoots: [
+          dependencies.packageRoot ?? packageRoot,
+          selection.packageRoot,
+        ].filter(Boolean),
+        enforcePrivateModes: paths.enforcePrivateModes,
+      }).catch(() => {});
+      if (installed && (await macos.isBundledPetApplicationAvailable(installed))) {
+        executable = installed;
+      }
+    }
+  }
   if (!(await macos.isBundledPetApplicationAvailable(executable))) throw new PetRequestError(messages.applicationUnavailable);
 
   const state = await confirmConnectableService({
@@ -165,7 +187,10 @@ async function stopPet({ messages, environment, platform, arch, dependencies }) 
     arch,
   });
   const macos = dependencies.platformModule ?? await import("./platform/macos/pet.mjs");
-  const executable = macos.bundledPetExecutable(dependencies.packageRoot ?? packageRoot);
+  const installed = macos.installedPetExecutable ? macos.installedPetExecutable(paths.petDirectory) : null;
+  const executable = installed && (await macos.isBundledPetApplicationAvailable(installed))
+    ? installed
+    : macos.bundledPetExecutable(dependencies.packageRoot ?? packageRoot);
   if (!(await macos.isBundledPetApplicationAvailable(executable))) throw new PetRequestError(messages.applicationUnavailable);
 
   const result = await macos.shutdownPet({

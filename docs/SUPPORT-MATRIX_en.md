@@ -41,7 +41,7 @@ The stable table remains unchanged until an independent release.
 An npm manifest must list allowed operating systems and CPUs independently, so installation metadata
 can admit cross-pairs. Package runtime selection accepts only the two exact pairs above and rejects
 `win32-ia32`, `win32-arm64`, and `darwin-x64`. Windows product data lives under
-`%LOCALAPPDATA%\dev-flow`; user configuration remains at `%USERPROFILE%\.dev-flow\config.json`.
+`%LOCALAPPDATA%\dev-flow`; user configuration remains at `%USERPROFILE%\.dev-flow\config.json`. macOS product data, desktop pet, and registrations live under `$HOME/.dev-flow`; user configuration remains at `$HOME/.dev-flow/config.json`.
 
 New source capabilities or a later beta can expand the stable support claim above only after the
 independent release flow, downloading and checking registry package contents, and end-to-end testing of the final package in an actual Host.
@@ -55,10 +55,10 @@ Server has no validation, end-to-end testing, or product-support commitment.
 For current source capabilities, actual-environment test entry points, and adoption status, read
 [Project Status](PROJECT-STATUS_en.md).
 
-## Desktop pet local functional checks
+## Desktop pet functional checks
 
-The desktop pet targets local macOS arm64 development packages. The current macOS development host
-has built the app, checked its extracted signature and executable modes, and installed it under a
+The desktop pet targets macOS arm64 (Apple Silicon). When installing any adapter (Codex or DeepSeek) or via the unified entry, the plugin provides a prebuilt binary automatically placed under `~/.dev-flow/pet/DevFlowPet.app`, without requiring Xcode or the Swift compiler on the user machine. The macOS development host
+has checked its signature and executable modes, and verified installation under a
 path containing spaces to check task selection, stages, WebUI navigation, hide/restore, and stop.
 State changes, late responses, and some lifecycle paths use targeted fixtures. This is not a new
 complete Codex/DeepSeek session test and does not expand the stable support table. The macOS 14
