@@ -67,6 +67,16 @@ final class PetCharacterView: NSView {
 
     override var intrinsicContentSize: NSSize { Self.characterSize }
 
+    /// Locates the artwork anchor after proportional fitting in AppKit coordinates.
+    func referencePoint(in size: CGSize) -> CGPoint {
+        guard let catalog = library?.catalog else { return CGPoint(x: size.width / 2, y: 0) }
+        let canvas = CGSize(width: catalog.canvas.width, height: catalog.canvas.height)
+        let factor = min(size.width / canvas.width, size.height / canvas.height)
+        return CGPoint(
+            x: (size.width - canvas.width * factor) / 2 + catalog.anchor.x * factor,
+            y: (size.height - canvas.height * factor) / 2 + (canvas.height - catalog.anchor.y) * factor)
+    }
+
     func configure(library: AssetLibrary?, strings: PetStrings) {
         stopPlayback()
         self.library = library

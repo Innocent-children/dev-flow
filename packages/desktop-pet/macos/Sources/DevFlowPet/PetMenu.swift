@@ -18,6 +18,7 @@ final class PetMenu: NSObject, NSMenuDelegate {
         case retryConnection
         case toggleAnimations
         case toggleIdleActivities
+        case setScale(Double)
         case toggleVisibility
         case quit
     }
@@ -34,6 +35,8 @@ final class PetMenu: NSObject, NSMenuDelegate {
     private let retryConnectionItem = NSMenuItem()
     private let animationsItem = NSMenuItem()
     private let idleActivitiesItem = NSMenuItem()
+    private let sizeItem = NSMenuItem()
+    private let sizeMenu = NSMenu()
     private let reduceMotionItem = NSMenuItem()
     private let visibilityItem = NSMenuItem()
     private let quitItem = NSMenuItem()
@@ -55,7 +58,8 @@ final class PetMenu: NSObject, NSMenuDelegate {
         reduceMotion: Bool,
         appearances: [PetAppearance],
         selectedAppearance: String?,
-        importingAppearance: Bool
+        importingAppearance: Bool,
+        scale: Double = 1
     ) {
         chooseTaskItem.title = strings.menuChooseTask
         appearanceItem.title = importingAppearance ? strings.importingAppearance : strings.menuChooseAppearance
@@ -73,6 +77,10 @@ final class PetMenu: NSObject, NSMenuDelegate {
         retryConnectionItem.title = strings.menuRetryConnection
         animationsItem.title = strings.menuAnimations
         idleActivitiesItem.title = strings.menuIdleActivities
+        sizeItem.title = "\(strings.menuSize) (\(Int((scale * 100).rounded()))%)"
+        for item in sizeMenu.items {
+            item.state = (item.representedObject as? Double) == scale ? .on : .off
+        }
         visibilityItem.title = isVisible ? strings.menuHide : strings.menuShow
         quitItem.title = strings.menuQuit
 
@@ -106,6 +114,14 @@ final class PetMenu: NSObject, NSMenuDelegate {
         add(retryConnectionItem, action: #selector(retryConnection))
         add(animationsItem, action: #selector(toggleAnimations))
         add(idleActivitiesItem, action: #selector(toggleIdleActivities))
+        sizeItem.submenu = sizeMenu
+        for scale in [0.5, 0.75, 1.0, 1.25, 1.5, 2.0] {
+            let item = NSMenuItem(title: "\(Int(scale * 100))%", action: #selector(setScale(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = scale
+            sizeMenu.addItem(item)
+        }
+        menu.addItem(sizeItem)
         reduceMotionItem.isEnabled = false
         reduceMotionItem.isHidden = true
         menu.addItem(reduceMotionItem)
@@ -140,6 +156,9 @@ final class PetMenu: NSObject, NSMenuDelegate {
     @objc private func retryConnection() { onAction?(.retryConnection) }
     @objc private func toggleAnimations() { onAction?(.toggleAnimations) }
     @objc private func toggleIdleActivities() { onAction?(.toggleIdleActivities) }
+    @objc private func setScale(_ item: NSMenuItem) {
+        if let scale = item.representedObject as? Double { onAction?(.setScale(scale)) }
+    }
     @objc private func toggleVisibility() { onAction?(.toggleVisibility) }
     @objc private func quit() { onAction?(.quit) }
 

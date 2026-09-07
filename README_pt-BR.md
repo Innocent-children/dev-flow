@@ -117,9 +117,9 @@ O pacote local mantém a aparência padrão. A Garota Baleia e outras aparência
 
 O mascote está disponível no macOS arm64 por meio de um pacote local de desenvolvimento com `DevFlowPet.app`; as listas comuns de arquivos npm e a preparação de versões oficiais não incluem o aplicativo nativo. Executar um pacote já compilado não exige Swift/Xcode e usa o Core de um Adapter Codex ou DeepSeek configurado. O mascote mostra o estado salvo de uma Task e abre sua WebUI, sem inferir atividade ao vivo do Host ou porcentagens de progresso. Ao sair, as Tasks e a WebUI são preservadas.
 
-É possível importar um PNG estático, um pacote de animação nativo ou um atlas no formato Codex 1/2. Pacotes nativos exigem cinco animações de tarefa e podem adicionar quatro; atlas Codex geram nove animações e 57 quadros. A extensão de alta resolução do Dev Flow precisa de um atlas separado com dimensões padrão para uso no Codex. As imagens disponíveis determinam caminhadas, acenos e gestos de pensamento em repouso, com um controle independente e prioridade para avisos de tarefas. Atualizar o programa e importar novamente as imagens são operações separadas.
+É possível importar um PNG ou SVG estático, um pacote de animação nativo PNG/SVG ou um atlas no formato Codex 1/2. Pacotes nativos exigem cinco animações de tarefa e podem adicionar quatro; atlas Codex geram nove animações e 57 quadros. A extensão de alta resolução do Dev Flow precisa de um atlas separado com dimensões padrão para uso no Codex. As imagens disponíveis determinam caminhadas, acenos e gestos de pensamento em repouso, com um controle independente e prioridade para avisos de tarefas. Atualizar o programa e importar novamente as imagens são operações separadas.
 
-A barra de menus exibe o logotipo curvo do Dev Flow em uma única cor, que se adapta à aparência do sistema.
+A barra de menus exibe o logotipo curvo do Dev Flow em uma única cor, que se adapta à aparência do sistema. O tamanho do mascote oferece seis ajustes de 50% a 200%, mantendo o tamanho do texto do balão. A aparência padrão acompanha o aplicativo como um pacote separado com nove animações e 312 quadros SVG.
 
 Consulte o [guia do mascote](docs/DESKTOP-PETS_en.md) para obter o aplicativo, instalar, atualizar, conhecer as regras e os limites e resolver problemas. A matriz de suporte define o suporte público.
 

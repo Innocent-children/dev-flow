@@ -383,6 +383,7 @@ final class LaunchAndInstanceTests: XCTestCase {
             preferences.position = PetPreferences.Position(x: 120, y: 80)
             preferences.animationsEnabled = false
             preferences.idleActivitiesEnabled = false
+            preferences.scale = 1.5
             preferences.select(taskID: "task-a", for: TestFixtures.dataRootDigest)
             preferences.select(taskID: "task-b", for: TestFixtures.otherDataRootDigest)
         })
@@ -393,6 +394,7 @@ final class LaunchAndInstanceTests: XCTestCase {
         XCTAssertEqual(reloaded.current.position, PetPreferences.Position(x: 120, y: 80))
         XCTAssertFalse(reloaded.current.animationsEnabled)
         XCTAssertFalse(reloaded.current.idleActivitiesEnabled)
+        XCTAssertEqual(reloaded.current.scale, 1.5)
         XCTAssertEqual(reloaded.current.selectedTask(for: TestFixtures.dataRootDigest), "task-a")
         XCTAssertEqual(reloaded.current.selectedTask(for: TestFixtures.otherDataRootDigest), "task-b")
 
@@ -412,7 +414,7 @@ final class LaunchAndInstanceTests: XCTestCase {
         let keys = try XCTUnwrap(
             (JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]).map { Set($0.keys) }
         )
-        XCTAssertEqual(keys, ["animations_enabled", "idle_activities_enabled", "position", "selected_tasks"])
+        XCTAssertEqual(keys, ["animations_enabled", "idle_activities_enabled", "position", "selected_tasks", "scale"])
     }
 
     func testPrivatePermissionsOnThePetDirectoryAndRecords() throws {

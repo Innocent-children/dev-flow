@@ -54,6 +54,16 @@ final class PetActivityTests: XCTestCase {
         XCTAssertNotNil(activities.nextDeadline)
     }
 
+    func testWalkingSpeedTracksVisualScale() throws {
+        activities.geometry.scale = 2
+        enterIdleWithoutGreeting()
+        clock.time = try XCTUnwrap(activities.nextDeadline)
+        activities.tick()
+        XCTAssertEqual(activities.currentActivity, .runningRight)
+        XCTAssertEqual(activities.walk?.targetX, 340)
+        XCTAssertEqual(activities.walk?.duration, 1)
+    }
+
     func testHoverStopsWalkingAndWavesOnceWithSharedCooldown() throws {
         enterIdleWithoutGreeting()
         clock.time = try XCTUnwrap(activities.nextDeadline)

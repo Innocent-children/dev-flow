@@ -24,7 +24,7 @@ enum AssetError: Error, Equatable {
     case frameMissing(AnimationClip, String)
 }
 
-/// Reads `Resources/animations.json` and the PNG frames it lists.
+/// Reads an animation catalog and its PNG or SVG frames, preserving vector representations.
 ///
 /// Only the clip that is playing is decoded and retained, so a desktop
 /// component that stays open for days does not hold every delivered frame in

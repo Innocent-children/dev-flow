@@ -158,8 +158,8 @@ run_step "Cross-platform WebUI build syntax" node --check scripts/build-webui.mj
 run_step "Cross-platform Core runtime build syntax" node --check scripts/build-core-runtimes.mjs
 run_step "Cross-platform local package syntax" node --check scripts/dev-flow-local.mjs
 run_step "Cross-platform build contracts" node --test scripts/build-core-runtimes.test.mjs scripts/dev-flow-local.test.mjs
-run_step "Desktop pet artwork source syntax" node --check packages/desktop-pet/tools/bake.mjs
-run_step "Desktop pet artwork and asset contracts" node --test packages/desktop-pet/tools/assets.test.mjs
+run_step "Desktop pet artwork staging syntax" node --check scripts/desktop-pet-artwork.mjs
+run_step "Desktop pet artwork package contracts" node --test scripts/desktop-pet-artwork.test.mjs
 run_step "npm release publisher syntax" node --check release/publish.mjs
 run_step "npm release publisher behavior" node --test release/publish.test.mjs
 run_step "Codex one-command release syntax" node --check scripts/release-codex.mjs

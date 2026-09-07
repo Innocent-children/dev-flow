@@ -282,7 +282,7 @@ Core、Codex、DeepSeek 和统一 lifecycle package 独立版本。Core 的机�
 `lib/platform/macos/pet.mjs`。`packages/desktop-pet/macos` 负责 AppKit 窗口、只读 HTTP、展示、进程身份、
 单实例和偏好。每轮观察检查同一 Core 与服务身份；取消任务使过期响应失效。默认选择完成后，待机只
 检查服务，任务面板按需分页。`productRoot/pet/settings.json` 只保存位置、动画开关和按数据目录分组的
-任务选择，还保存 `selected_appearance` 与默认开启的 `idle_activities_enabled`；`runtime.json` 记录进程身份。
+任务选择，还保存 `selected_appearance`、默认开启的 `idle_activities_enabled` 与角色缩放比例 `scale`；`runtime.json` 记录进程身份。
 Core 数据、流程图和 MCP 工具保持现有职责。
 
 `PetMenuBarIcon` 负责以 AppKit 路径绘制 18 pt Dev Flow 流线标识，并提供模板图像；`PetMenu` 将图像安装到菜单栏按钮，macOS 负责外观着色。
@@ -299,7 +299,7 @@ Core 数据、流程图和 MCP 工具保持现有职责。
 按图片尺寸和位深检查内存预估。`CodexPetImporter` 在导入时拆分 Codex 标准格式 1/2 图集与 Dev Flow
 自有高分辨率扩展图集，完整保留九类动作、57 帧与原始单格分辨率。`AnimationCatalog` 定义五类必需
 任务动作和四类可选附加动作，并校验所有已提供动作；`PetAppearanceSelection` 负责资源加载成功与选择保存
-的一致性；`PetCharacterView` 负责统一播放。偏好增加 `selected_appearance`，与按数据目录保存的
+的一致性；`PetCharacterView` 负责统一播放，并将素材锚点换算为 AppKit 坐标。`SVGArtwork` 负责静态矢量内容和尺寸校验，AppKit 保留 SVG 表示并按显示尺寸绘制。偏好增加 `selected_appearance`，与按数据目录保存的
 `selected_tasks` 独立；偏好更新在同一锁内完成，写入失败保留原值。切换释放旧帧，直接显示当前状态，
 不重新播放旧提示。
 
@@ -307,6 +307,7 @@ Core 数据、流程图和 MCP 工具保持现有职责。
 冷却与下一次截止时间；普通轮询保持已有动作和截止时间。`PetController` 连接窗口事件、一次性唤醒计时与播放请求，
 `PetCharacterView` 通知有限循环实际播放结束，`PetWindow` 只在散步期间更新临时位置。
 角色悬停与气泡悬停分别处理，任务提示可中断休闲。只有手动拖动更新保存位置；动作顺序、冷却和临时位移均留在内存中。
+`PetMenu` 提供大小选择；`PetController` 保存缩放比例与位置后应用变更；`PetContentView` 调整角色约束并保持气泡文字大小，`PetActivityController` 按缩放比例计算行走速度。
 完整使用、形象格式与触发规则见[桌面宠物指南](DESKTOP-PETS.md)。
 
-`scripts/build-desktop-pet.mjs` 从 `packages/desktop-pet/tools` 生成默认形象并装配到应用资源目录。自定义形象由用户从外部包导入；`PetAppearanceStore` 负责用户目录中的形象列表与加载，`PetAppearanceSelection` 在默认形象与已导入形象之间切换。生成的应用包保存在仓库外，不纳入 Git 跟踪。
+`scripts/build-desktop-pet.mjs` 调用 `scripts/desktop-pet-artwork.mjs`，从 `packages/desktop-pet/default-appearance/` 复制默认 SVG 形象并逐文件核对内容。自定义形象由用户从外部包导入；`PetAppearanceStore` 负责用户目录中的形象列表与加载，`PetAppearanceSelection` 在默认形象与已导入形象之间切换。生成的应用包保存在仓库外，不纳入 Git 跟踪。

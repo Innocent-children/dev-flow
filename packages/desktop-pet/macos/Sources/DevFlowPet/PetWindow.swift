@@ -120,6 +120,9 @@ final class PetContentView: NSView {
     private var pressScreenLocation: NSPoint?
     private var pressWindowOrigin: CGPoint?
     private var isDragging = false
+    private var scale: CGFloat = 1
+    private lazy var characterWidth = character.widthAnchor.constraint(equalToConstant: PetCharacterView.characterSize.width)
+    private lazy var characterHeight = character.heightAnchor.constraint(equalToConstant: PetCharacterView.characterSize.height)
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -132,8 +135,8 @@ final class PetContentView: NSView {
         addSubview(character)
 
         NSLayoutConstraint.activate([
-            character.widthAnchor.constraint(equalToConstant: PetCharacterView.characterSize.width),
-            character.heightAnchor.constraint(equalToConstant: PetCharacterView.characterSize.height),
+            characterWidth,
+            characterHeight,
             character.bottomAnchor.constraint(equalTo: bottomAnchor),
             character.centerXAnchor.constraint(equalTo: centerXAnchor),
 
@@ -150,11 +153,31 @@ final class PetContentView: NSView {
 
     /// The window size for the current bubble content and expansion state.
     var requiredSize: CGSize {
+        requiredSize(atScale: Double(scale))
+    }
+
+    func requiredSize(atScale scale: Double) -> CGSize {
         let bubbleHeight = bubble.requiredHeight(width: PetBubbleView.bubbleWidth)
         return CGSize(
-            width: max(PetBubbleView.bubbleWidth, PetCharacterView.characterSize.width),
-            height: bubbleHeight + PetBubbleView.characterSpacing + PetCharacterView.characterSize.height
+            width: max(PetBubbleView.bubbleWidth, PetCharacterView.characterSize.width * scale),
+            height: bubbleHeight + PetBubbleView.characterSpacing + PetCharacterView.characterSize.height * scale
         )
+    }
+
+    /// Resizes the character independently of bubble typography and content.
+    func setScale(_ value: Double) {
+        guard value.isFinite, (0.5...2).contains(value) else { return }
+        scale = value
+        characterWidth.constant = PetCharacterView.characterSize.width * scale
+        characterHeight.constant = PetCharacterView.characterSize.height * scale
+        needsLayout = true
+    }
+
+    func referencePoint(atScale scale: Double) -> CGPoint {
+        let size = CGSize(width: PetCharacterView.characterSize.width * scale,
+                          height: PetCharacterView.characterSize.height * scale)
+        let point = character.referencePoint(in: size)
+        return CGPoint(x: (requiredSize(atScale: scale).width - size.width) / 2 + point.x, y: point.y)
     }
 
     override func updateTrackingAreas() {

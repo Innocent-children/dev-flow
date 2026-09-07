@@ -64,17 +64,17 @@ final class PetAppearanceStore: @unchecked Sendable {
             appearance = try JSONDecoder().decode(PetAppearance.self, from: manifest)
             try validateMetadata(appearance)
             if let value = object["image"] {
-                guard let path = value as? String else { throw invalid("pet.json: image must be a relative PNG path") }
+                guard let path = value as? String else { throw invalid("pet.json: image must be a relative PNG or SVG path") }
                 let data = try OwnedStorage.readRelativeData(in: source, path: path, limit: Self.maximumPackBytes)
-                let image = try AppearanceImages.decode(data, allowedTypes: [UTType.png.identifier],
-                                                        maximumDecodedBytes: Self.maximumClipDecodedBytes)
+                let canvas = try AppearanceImages.canvas(of: data, path: path, maximumDecodedBytes: Self.maximumClipDecodedBytes)
+                let framePath = path.lowercased().hasSuffix(".svg") ? "static.svg" : "static.png"
                 let clips = Dictionary(uniqueKeysWithValues: AnimationCatalog.requiredClips.map { clip in
-                    (clip, AnimationCatalog.Clip(frames: ["static.png"], fps: 1,
+                    (clip, AnimationCatalog.Clip(frames: [framePath], fps: 1,
                         loopRange: clip == .complete ? nil : 0...0, restFrame: 0))
                 })
-                let catalog = AnimationCatalog(canvas: .init(width: image.width, height: image.height),
-                    anchor: .init(x: Double(image.width) / 2, y: Double(image.height)), clips: clips)
-                try OwnedStorage.writeAtomically(data, to: staging.appendingPathComponent("Assets/static.png").path)
+                let catalog = AnimationCatalog(canvas: canvas,
+                    anchor: .init(x: Double(canvas.width) / 2, y: Double(canvas.height)), clips: clips)
+                try OwnedStorage.writeAtomically(data, to: staging.appendingPathComponent("Assets/" + framePath).path)
                 try writeCatalog(catalog, to: staging)
             } else {
                 let catalog = try readCatalog(source)
@@ -138,11 +138,10 @@ final class PetAppearanceStore: @unchecked Sendable {
             let relative = "Assets/" + path
             let data = try OwnedStorage.readRelativeData(in: directory, path: relative, limit: Self.maximumPackBytes)
             bytes += data.count
-            guard bytes <= Self.maximumPackBytes else { throw invalid("PNG files exceed 128 MiB") }
-            let image = try AppearanceImages.decode(data, allowedTypes: [UTType.png.identifier],
-                                                    maximumDecodedBytes: Self.maximumClipDecodedBytes)
-            guard image.width == catalog.canvas.width, image.height == catalog.canvas.height else {
-                throw invalid("\(path): PNG dimensions must match canvas")
+            guard bytes <= Self.maximumPackBytes else { throw invalid("artwork files exceed 128 MiB") }
+            let canvas = try AppearanceImages.canvas(of: data, path: path, maximumDecodedBytes: Self.maximumClipDecodedBytes)
+            guard canvas == catalog.canvas else {
+                throw invalid("\(path): artwork dimensions must match canvas")
             }
             if let destination { try OwnedStorage.writeAtomically(data, to: destination.appendingPathComponent(relative).path) }
         }
@@ -170,6 +169,12 @@ final class PetAppearanceStore: @unchecked Sendable {
 
 /// Bounded image decoding shared by PNG packs and Codex atlas conversion.
 enum AppearanceImages {
+    static func canvas(of data: Data, path: String, maximumDecodedBytes: Int) throws -> AnimationCatalog.Canvas {
+        if path.lowercased().hasSuffix(".svg") { return try SVGArtwork.canvas(of: data) }
+        let image = try decode(data, allowedTypes: [UTType.png.identifier], maximumDecodedBytes: maximumDecodedBytes)
+        return .init(width: image.width, height: image.height)
+    }
+
     static func decode(_ data: Data, allowedTypes: [String], maximumDecodedBytes: Int) throws -> CGImage {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               let type = CGImageSourceGetType(source), allowedTypes.contains(type as String),

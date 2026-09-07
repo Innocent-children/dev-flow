@@ -12,6 +12,7 @@ struct PetPreferences: Codable, Equatable {
     var position: Position?
     var animationsEnabled: Bool
     var idleActivitiesEnabled: Bool
+    var scale: Double
     var selectedTasks: [String: String]
     var selectedAppearance: String?
 
@@ -19,6 +20,7 @@ struct PetPreferences: Codable, Equatable {
         case position
         case animationsEnabled = "animations_enabled"
         case idleActivitiesEnabled = "idle_activities_enabled"
+        case scale
         case selectedTasks = "selected_tasks"
         case selectedAppearance = "selected_appearance"
     }
@@ -26,10 +28,11 @@ struct PetPreferences: Codable, Equatable {
     static let `default` = PetPreferences(position: nil, animationsEnabled: true, selectedTasks: [:])
 
     init(position: Position?, animationsEnabled: Bool, selectedTasks: [String: String], selectedAppearance: String? = nil,
-         idleActivitiesEnabled: Bool = true) {
+         idleActivitiesEnabled: Bool = true, scale: Double = 1) {
         self.position = position
         self.animationsEnabled = animationsEnabled
         self.idleActivitiesEnabled = idleActivitiesEnabled
+        self.scale = scale
         self.selectedTasks = selectedTasks
         self.selectedAppearance = selectedAppearance
     }
@@ -39,6 +42,10 @@ struct PetPreferences: Codable, Equatable {
         position = try container.decodeIfPresent(Position.self, forKey: .position)
         animationsEnabled = try container.decodeIfPresent(Bool.self, forKey: .animationsEnabled) ?? true
         idleActivitiesEnabled = try container.decodeIfPresent(Bool.self, forKey: .idleActivitiesEnabled) ?? true
+        scale = try container.decodeIfPresent(Double.self, forKey: .scale) ?? 1
+        guard scale.isFinite, (0.5...2).contains(scale) else {
+            throw DecodingError.dataCorruptedError(forKey: .scale, in: container, debugDescription: "pet scale must be between 0.5 and 2")
+        }
         selectedTasks = try container.decodeIfPresent([String: String].self, forKey: .selectedTasks) ?? [:]
         selectedAppearance = try container.decodeIfPresent(String.self, forKey: .selectedAppearance)
     }

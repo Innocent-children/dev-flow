@@ -112,4 +112,4 @@ Actions 会在成功或失败后上传 runner 临时发布目录；用同一组 
 Adapter 安装、不发布 npm。安装、确认运行路径和替换已有应用的步骤见[桌面宠物指南](../docs/DESKTOP-PETS.md#本地构建与安装)。
 `dev-flow:local` 仍使用临时 lifecycle 管理器；桌面宠物使用这里生成并安装的持久 package。
 
-构建从 `packages/desktop-pet/tools` 生成默认形象，构建结果的 `frames` 和 `asset_bytes` 记录默认动画帧数与大小。鲸鱼娘等自定义形象通过外部素材包导入。生成的应用包和外部素材目录不纳入 Git 跟踪。
+构建通过 `scripts/desktop-pet-artwork.mjs` 从 `packages/desktop-pet/default-appearance/` 复制默认 SVG 形象，并逐文件核对内容；该素材包包含九类动作、312 帧。构建结果的 `frames` 和 `asset_bytes` 记录默认动画帧数与素材文件大小。鲸鱼娘等自定义形象通过外部素材包导入。生成的应用包和外部素材目录不纳入 Git 跟踪。

@@ -238,6 +238,32 @@ final class AnimationAndBubbleTests: XCTestCase {
 
     // MARK: - Asset reader
 
+    @MainActor
+    func testScalingResizesCharacterAndKeepsBubbleTypographyAndAnchorGeometry() throws {
+        let clips = Dictionary(uniqueKeysWithValues: AnimationCatalog.requiredClips.map {
+            ($0, AnimationCatalog.Clip(frames: ["frame.svg"], fps: 24,
+                loopRange: $0 == .complete ? nil : 0...0, restFrame: 0))
+        })
+        let catalog = AnimationCatalog(canvas: .init(width: 256, height: 288), anchor: .init(x: 128, y: 264), clips: clips)
+        let library = try AssetLibrary(catalog: catalog, assetRoot: FileManager.default.temporaryDirectory)
+        let window = PetWindow()
+        window.content.character.configure(library: library, strings: .english)
+        let originalSize = window.content.requiredSize
+        XCTAssertEqual(window.content.referencePoint(atScale: 1), CGPoint(x: originalSize.width / 2, y: 12))
+        window.content.setScale(2)
+        window.layout(atOrigin: CGPoint(x: 100, y: 100))
+        window.content.layoutSubtreeIfNeeded()
+        XCTAssertEqual(window.content.character.bounds.size, CGSize(width: 288, height: 288))
+        XCTAssertEqual(window.content.bubble.bounds.width, PetBubbleView.bubbleWidth)
+        XCTAssertEqual(window.content.requiredSize.height, originalSize.height + 144)
+        XCTAssertEqual(window.content.referencePoint(atScale: 2), CGPoint(x: 144, y: 24))
+        window.content.setScale(0.5)
+        window.layout(atOrigin: CGPoint(x: 100, y: 100))
+        window.content.layoutSubtreeIfNeeded()
+        XCTAssertEqual(window.content.character.bounds.size, CGSize(width: 72, height: 72))
+        XCTAssertEqual(window.content.bubble.bounds.width, PetBubbleView.bubbleWidth)
+    }
+
     func testAssetLibraryRequiresADeliveredCatalog() {
         XCTAssertThrowsError(try AssetLibrary(resourceDirectory: makeResourceDirectory(files: [:]))) { error in
             XCTAssertEqual(error as? AssetError, .catalogMissing)

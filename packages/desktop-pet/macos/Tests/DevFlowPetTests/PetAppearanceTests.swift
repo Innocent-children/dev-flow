@@ -247,7 +247,7 @@ final class PetAppearanceTests: XCTestCase {
             try png(width: 7680, height: 9360, noisy: true).write(to: source.appendingPathComponent("pet.png"))
         }
         XCTAssertThrowsError(try store.importDirectory(source)) { error in
-            XCTAssertEqual(error.localizedDescription, "PNG files exceed 128 MiB")
+            XCTAssertEqual(error.localizedDescription, "artwork files exceed 128 MiB")
         }
         XCTAssertEqual(store.appearances(), [appearance])
         XCTAssertEqual(try store.load(appearance.id).catalog.canvas, .init(width: 192, height: 208))
@@ -280,7 +280,10 @@ final class PetAppearanceTests: XCTestCase {
         defer { menu.removeStatusItem() }
         menu.refresh(strings: .english, isConnected: true, isVisible: true, animationsEnabled: true, idleActivitiesEnabled: true,
             reduceMotion: false, appearances: [.init(id: "test-pet", name: "Test")],
-            selectedAppearance: "test-pet", importingAppearance: false)
+            selectedAppearance: "test-pet", importingAppearance: false, scale: 1.5)
+        let sizes = try XCTUnwrap(menu.menu.items.first { $0.title == "Pet size (150%)" }?.submenu)
+        XCTAssertEqual(sizes.items.map(\.title), ["50%", "75%", "100%", "125%", "150%", "200%"])
+        XCTAssertEqual(sizes.items.first { $0.title == "150%" }?.state, .on)
         let submenu = try XCTUnwrap(menu.menu.items.first { $0.title == "Choose appearance" }?.submenu)
         XCTAssertEqual(submenu.items.first { $0.title == "Test" }?.state, .on)
         XCTAssertEqual(submenu.items.first { $0.title == "Bundled appearance" }?.state, .off)

@@ -37,6 +37,8 @@ struct PetStrings: Equatable {
     let menuRetryConnection: String
     let menuAnimations: String
     let menuIdleActivities: String
+    let menuSize: String
+    let sizeSaveFailed: String
     let menuHide: String
     let menuShow: String
     let menuQuit: String
@@ -92,6 +94,8 @@ struct PetStrings: Equatable {
         menuRetryConnection: "重试连接",
         menuAnimations: "动画",
         menuIdleActivities: "待机活动",
+        menuSize: "宠物大小",
+        sizeSaveFailed: "无法保存宠物大小，请检查设置目录。",
         menuHide: "隐藏",
         menuShow: "显示",
         menuQuit: "退出",
@@ -150,6 +154,8 @@ struct PetStrings: Equatable {
         menuRetryConnection: "Retry connection",
         menuAnimations: "Animations",
         menuIdleActivities: "Idle activities",
+        menuSize: "Pet size",
+        sizeSaveFailed: "Cannot save pet size. Check the settings directory.",
         menuHide: "Hide",
         menuShow: "Show",
         menuQuit: "Quit",

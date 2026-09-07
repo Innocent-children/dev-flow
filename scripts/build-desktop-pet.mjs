@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { gzipSync } from "node:zlib";
 
-import { bakeAssets, checkAssetRoot } from "../packages/desktop-pet/tools/bake.mjs";
+import { stageDefaultArtwork, verifyDefaultArtwork } from "./desktop-pet-artwork.mjs";
 import { normalizeUstarArchive } from "./dev-flow-local.mjs";
 
 const execFile = promisify(execFileCallback);
@@ -52,10 +52,9 @@ export async function verifyDesktopPet(application) {
   for (const locale of ["en", "zh-Hans"]) {
     await run("/usr/bin/plutil", ["-lint", join(contents, "Resources", `${locale}.lproj`, "InfoPlist.strings")]);
   }
-  const assets = await checkAssetRoot(join(contents, "Resources"));
-  if (!assets.ok) throw new Error(assets.problems.join("\n"));
+  const assets = await verifyDefaultArtwork(join(contents, "Resources"));
   await run("/usr/bin/codesign", ["--verify", "--deep", "--strict", application]);
-  return { frames: assets.frames, asset_bytes: assets.bytes };
+  return assets;
 }
 
 // Builds a local development package. Publication owns Developer ID signing and notarization.
@@ -97,7 +96,7 @@ export async function buildDesktopPetPackage({ outputRoot }) {
     await chmod(join(contents, "MacOS", "DevFlowPet"), 0o755);
     await writeFile(join(contents, "Info.plist"), plist(manifest.version));
     process.stdout.write("desktop-pet: assembling the default artwork and language resources\n");
-    await bakeAssets(resources);
+    await stageDefaultArtwork(resources);
     for (const [locale, name] of [["en", "Dev Flow Desktop Pet"], ["zh-Hans", "Dev Flow 桌面宠物"]]) {
       const directory = join(resources, `${locale}.lproj`);
       await mkdir(directory, { recursive: true });

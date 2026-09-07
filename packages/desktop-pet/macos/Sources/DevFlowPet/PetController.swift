@@ -78,6 +78,7 @@ final class PetController: PetWindowHandling {
         do { try selection.restore() } catch { restoreError = error }
 
         window = PetWindow()
+        window.content.setScale(preferences.current.scale)
         window.content.handler = self
         window.content.character.configure(library: selection.library, strings: strings)
         activities.configure(catalog: selection.library?.catalog)
@@ -184,7 +185,8 @@ final class PetController: PetWindowHandling {
     private func updateActivityGeometry() {
         activities.geometry = .init(originX: window.frame.minX,
             walkingRange: PositionRules.walkingRange(centerX: activityCenter.x, windowWidth: window.frame.width,
-                visibleFrame: window.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero))
+                visibleFrame: window.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero),
+            scale: preferences.current.scale)
     }
 
     /// Applies only changed requests. Ordinary reads retain the running animation and timer.
@@ -242,7 +244,8 @@ final class PetController: PetWindowHandling {
             reduceMotion: NativeProcess.reduceMotionEnabled(),
             appearances: availableAppearances,
             selectedAppearance: appearanceSelection.id,
-            importingAppearance: importingAppearance
+            importingAppearance: importingAppearance,
+            scale: preferences.current.scale
         )
     }
 
@@ -271,6 +274,8 @@ final class PetController: PetWindowHandling {
             preferences.update { $0.idleActivitiesEnabled.toggle() }
             refreshMenu()
             refreshActivities()
+        case .setScale(let scale):
+            setScale(scale)
         case .toggleVisibility:
             setWindowVisible(!window.isVisible)
         case .quit:
@@ -279,6 +284,34 @@ final class PetController: PetWindowHandling {
     }
 
     // MARK: - Appearance selection
+
+    private func setScale(_ scale: Double) {
+        guard scale.isFinite, (0.5...2).contains(scale), scale != preferences.current.scale else { return }
+        let size = window.content.requiredSize(atScale: scale)
+        let previous = window.content.referencePoint(atScale: preferences.current.scale)
+        let next = window.content.referencePoint(atScale: scale)
+        let origin = PositionRules.constrain(
+            position: .init(x: window.frame.minX + previous.x - next.x,
+                            y: window.frame.minY + previous.y - next.y),
+            windowSize: size,
+            visibleFrame: window.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero,
+            fallbackInset: 24)
+        guard preferences.update({ value in
+            value.scale = scale
+            value.position = .init(x: origin.x, y: origin.y)
+        }) else {
+            showTransient(strings.sizeSaveFailed)
+            return
+        }
+        activities.interrupt()
+        applyActivityOutput()
+        window.content.setScale(scale)
+        window.layout(atOrigin: origin)
+        activityCenter = origin
+        window.content.synchronizeHover()
+        refreshMenu()
+        refreshActivities()
+    }
 
     private func applyAppearance() {
         window.content.character.configure(library: library, strings: strings)

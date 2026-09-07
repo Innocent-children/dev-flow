@@ -131,4 +131,4 @@ This entry does not rebuild Core, change Adapter installations, or publish npm. 
 `dev-flow:local` retains its temporary lifecycle manager; the pet uses the persistent installed package
 built by this entry.
 
-The build generates the default appearance from `packages/desktop-pet/tools`; the `frames` and `asset_bytes` result fields record its animation frame count and size. Custom appearances such as Whale Girl are imported from external artwork packs. Generated application bundles and external artwork directories are not tracked by Git.
+The build uses `scripts/desktop-pet-artwork.mjs` to copy the default SVG appearance from `packages/desktop-pet/default-appearance/` and compare each delivered file with its source. The pack contains nine clips and 312 frames; the `frames` and `asset_bytes` result fields record its animation frame count and artwork file size. Custom appearances such as Whale Girl are imported from external artwork packs. Generated application bundles and external artwork directories are not tracked by Git.

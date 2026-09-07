@@ -113,9 +113,9 @@ The local pet package retains the default appearance. Import Whale Girl or other
 
 The desktop pet is available on macOS arm64 through a local development package containing `DevFlowPet.app`; regular npm file lists and release preparation omit the native app. Running a built package requires no Swift/Xcode and uses Core from an already configured Codex or DeepSeek Adapter. It shows one Task's saved state and opens its WebUI, without inferring live Host activity or completion percentages. Quitting preserves Tasks and WebUI.
 
-Import a static PNG, a native animation pack, or a Codex format 1/2 atlas. Native packs require five task clips and may add four more; Codex-layout atlases extract nine clips and 57 frames. Dev Flow's high-resolution extension requires a separate standard-sized atlas for use in Codex. Available artwork drives idle walking, waving, and thinking, with a separate Idle activities switch and priority for task prompts. Program updates and artwork reimports are separate operations.
+Import a static PNG or SVG, a native PNG/SVG animation pack, or a Codex format 1/2 atlas. Native packs require five task clips and may add four more; Codex-layout atlases extract nine clips and 57 frames. Dev Flow's high-resolution extension requires a separate standard-sized atlas for use in Codex. Available artwork drives idle walking, waving, and thinking, with a separate Idle activities switch and priority for task prompts. Program updates and artwork reimports are separate operations.
 
-The menu bar uses a monochrome Dev Flow mark that adapts to the system appearance.
+The menu bar uses a monochrome Dev Flow mark that adapts to the system appearance. Pet size offers six settings from 50% to 200% while keeping bubble text unchanged. The default appearance ships as a separate nine-clip pack of 312 SVG frames.
 
 See the [desktop pet guide](docs/DESKTOP-PETS_en.md) for obtaining the app, installation, updates, triggers, limits, and troubleshooting; the support matrix defines public support.
 

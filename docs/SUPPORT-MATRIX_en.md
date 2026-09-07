@@ -64,7 +64,7 @@ A built app needs neither Swift nor Xcode; a configured Codex or DeepSeek Adapte
 Completed local checks cover package building, extracted resources/signatures/executable permissions, appearance import and selection, the Idle activities switch,
 and observed automatic waves, rightward walks, and returns to idle. Targeted tests cover static/native packs, standard Codex atlases, nine-row high-resolution
 atlases, saved selection, preservation on failed imports, cooldowns and preemption, finite-loop callbacks, and movement cancellation. Actual WebP checks use
-a local Codex atlas. See the guide's [acceptance checks](DESKTOP-PETS_en.md#acceptance-checks) for the methods.
+a local Codex atlas. Additional local checks cover the 50%–200% size menu, scaled layout and saved settings, walking speed, SVG import and rejection rules, preservation of the default nine clips and 312 frames, and local package resource/signature checks. See the guide's [acceptance checks](DESKTOP-PETS_en.md#acceptance-checks) for the methods.
 
 The Swift Package and app metadata target macOS 14. Actual minimum-system operation, complete physical mouse-drag checks, full Codex/DeepSeek Task sessions,
 Developer ID signing, and Apple notarization have not completed their respective verification. Local and targeted results do not expand the stable-support table

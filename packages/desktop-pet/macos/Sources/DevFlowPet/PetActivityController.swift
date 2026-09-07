@@ -16,6 +16,7 @@ final class PetActivityController {
     struct Geometry {
         var originX: Double
         var walkingRange: ClosedRange<Double>?
+        var scale: Double = 1
     }
 
     struct PlaybackRequest: Equatable {
@@ -327,7 +328,7 @@ final class PetActivityController {
             let distance = 40 + random() * (walkingDistance(selected) - 40)
             serial += 1
             walk = WalkRequest(targetX: geometry.originX + (selected == .runningRight ? distance : -distance),
-                duration: distance / 20, serial: serial)
+                duration: distance / (20 * geometry.scale), serial: serial)
             activityArtwork = Artwork(clip: selected, playback: .loop(0...(clip.frames.count - 1)))
         }
         if let activityArtwork { show(activityArtwork, force: true) }

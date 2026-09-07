@@ -305,7 +305,7 @@ read-only HTTP, presentation, process identity, the single instance, and prefere
 checks the same Core and service identities; cancellation invalidates old responses. After default
 selection, idle observation only checks the service, while the chooser pages on demand.
 `productRoot/pet/settings.json` stores position, the animation switch, and selection per data root;
-`selected_appearance` and the enabled-by-default `idle_activities_enabled` are also saved. `runtime.json` records process identity.
+`selected_appearance`, the enabled-by-default `idle_activities_enabled`, and the character scale `scale` are also saved. `runtime.json` records process identity.
 Core data, the process graph, and MCP tools retain their owners.
 
 `PetMenuBarIcon` draws the 18 pt Dev Flow mark using AppKit paths and supplies a template image. `PetMenu` installs it on the menu bar button, and macOS applies the appearance color.
@@ -335,6 +335,8 @@ cooldowns, and the next deadline; ordinary polling preserves current activities 
 one-shot wake timers, and playback requests. `PetCharacterView` reports actual finite-loop completion, and `PetWindow` updates temporary
 position only while walking. Character and bubble hover are handled separately, and task prompts can interrupt idle activities.
 Only manual dragging updates the saved position; activity order, cooldowns, and temporary movement stay in memory.
+`SVGArtwork` validates static vector contents and canvas dimensions; AppKit preserves the SVG representation and draws it at the display size. `PetCharacterView` converts the artwork anchor to AppKit coordinates.
+`PetMenu` exposes size selection; `PetController` applies changes after saving scale and position; `PetContentView` adjusts character constraints while keeping bubble text unchanged, and `PetActivityController` computes walking speed from scale.
 See the [desktop pet guide](DESKTOP-PETS_en.md) for usage, artwork, and trigger rules.
 
-`scripts/build-desktop-pet.mjs` generates the default appearance from `packages/desktop-pet/tools` and assembles it into application resources. Users import custom appearances from external packs. `PetAppearanceStore` lists and loads appearances in the user directory, while `PetAppearanceSelection` switches between the default and imported appearances. Generated application bundles are stored outside the repository and are not tracked by Git.
+`scripts/build-desktop-pet.mjs` calls `scripts/desktop-pet-artwork.mjs` to copy the default SVG appearance from `packages/desktop-pet/default-appearance/` and compare every delivered file with its source. Users import custom appearances from external packs. `PetAppearanceStore` lists and loads appearances in the user directory, while `PetAppearanceSelection` switches between the default and imported appearances. Generated application bundles are stored outside the repository and are not tracked by Git.
