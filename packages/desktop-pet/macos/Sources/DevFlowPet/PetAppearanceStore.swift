@@ -12,38 +12,31 @@ struct AppearanceImportError: LocalizedError {
     var errorDescription: String? { message }
 }
 
-/// Reads bundled appearances and imports presentation data into the user's pet
-/// directory. User copies take precedence for the same appearance ID.
+/// Imports, lists, and loads appearance data in the user's pet directory.
 final class PetAppearanceStore: @unchecked Sendable {
     private let root: URL
-    private let bundledRoot: URL?
     private let manager = FileManager.default
     static let maximumPackBytes = 128 * 1024 * 1024
     private static let maximumClipDecodedBytes = 128 * 1024 * 1024
 
-    init(directory: String, bundledDirectory: URL? = nil) {
+    init(directory: String) {
         root = URL(fileURLWithPath: directory, isDirectory: true)
-        bundledRoot = bundledDirectory
     }
 
     func appearances() -> [PetAppearance] {
-        var entries: [String: PetAppearance] = [:]
-        for directoryRoot in [bundledRoot, root].compactMap({ $0 }) {
-            let directories = (try? manager.contentsOfDirectory(at: directoryRoot, includingPropertiesForKeys: [.isDirectoryKey],
-                                                                options: [.skipsHiddenFiles])) ?? []
-            for directory in directories {
-                guard let appearance = try? readMetadata(directory), appearance.id == directory.lastPathComponent else { continue }
-                entries[appearance.id] = appearance
-            }
+        var entries: [PetAppearance] = []
+        let directories = (try? manager.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey],
+                                                            options: [.skipsHiddenFiles])) ?? []
+        for directory in directories {
+            guard let appearance = try? readMetadata(directory), appearance.id == directory.lastPathComponent else { continue }
+            entries.append(appearance)
         }
-        return entries.values.sorted { ($0.name, $0.id) < ($1.name, $1.id) }
+        return entries.sorted { ($0.name, $0.id) < ($1.name, $1.id) }
     }
 
     func load(_ id: String) throws -> AssetLibrary {
         try validateID(id)
-        let userDirectory = root.appendingPathComponent(id, isDirectory: true)
-        let directory = manager.fileExists(atPath: userDirectory.path)
-            ? userDirectory : (bundledRoot?.appendingPathComponent(id, isDirectory: true) ?? userDirectory)
+        let directory = root.appendingPathComponent(id, isDirectory: true)
         let appearance = try readMetadata(directory)
         guard appearance.id == id else { throw invalid("pet.json: id does not match the installed folder") }
         let catalog = try validatePack(directory)

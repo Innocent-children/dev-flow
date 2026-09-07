@@ -109,7 +109,7 @@ progress, using Codex or DeepSeek directly is usually simpler.
 
 ## Desktop pet (macOS arm64)
 
-The local pet package bundles Whale Girl (`whale-girl 3`) as a selectable appearance, with nine clips and 57 frames at 1536×1664 per frame; choose it directly from the appearance menu after installation.
+The local pet package retains the default appearance. Import Whale Girl or other custom appearances as separate artwork packs; application updates preserve imported artwork.
 
 The desktop pet is available on macOS arm64 through a local development package containing `DevFlowPet.app`; regular npm file lists and release preparation omit the native app. Running a built package requires no Swift/Xcode and uses Core from an already configured Codex or DeepSeek Adapter. It shows one Task's saved state and opens its WebUI, without inferring live Host activity or completion percentages. Quitting preserves Tasks and WebUI.
 

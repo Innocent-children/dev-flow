@@ -113,7 +113,7 @@ no necesitan guardar el progreso, suele ser más sencillo usar Codex o DeepSeek 
 
 ## Mascota de escritorio (macOS arm64)
 
-El paquete local incluye a la Chica Ballena (`whale-girl 3`) como apariencia seleccionable, con nueve animaciones y 57 fotogramas de 1536×1664 cada uno; se puede elegir directamente en el menú de apariencias tras instalarlo.
+El paquete local conserva la apariencia predeterminada. La Chica Ballena y otras apariencias personalizadas se importan como paquetes de recursos independientes; las actualizaciones de la aplicación conservan los recursos importados.
 
 La mascota está disponible en macOS arm64 mediante un paquete local de desarrollo que incluye `DevFlowPet.app`; las listas habituales de archivos npm y la preparación de versiones oficiales omiten la aplicación nativa. Ejecutar un paquete ya compilado no requiere Swift/Xcode y utiliza el Core de un Adapter Codex o DeepSeek configurado. Muestra el estado guardado de una Task y abre su WebUI, sin inferir actividad en vivo del Host ni porcentajes de progreso. Al salir se conservan las Tasks y la WebUI.
 

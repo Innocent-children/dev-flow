@@ -85,4 +85,4 @@ The menu provides task and appearance selection, import, Animations, Idle activi
 for task selection, the scope of nine-clip support, triggers, and troubleshooting. Stop the pet before updating or removing its current Core Adapter or
 unified-entry package; maintenance aborts if shutdown fails. Confirmed factory-reset clears `productRoot/pet`; ordinary quit and uninstall preserve user artwork and settings.
 
-The local pet package includes Whale Girl (`whale-girl 3`), selectable directly from Choose appearance after installation, with nine clips, 57 frames, and a 1536×1664 canvas.
+The local pet package retains the default appearance. Import Whale Girl or other custom appearances as separate artwork packs through Import appearance. Artwork is stored in the user directory and preserved across application updates.

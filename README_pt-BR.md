@@ -113,7 +113,7 @@ não precisam guardar o progresso, usar Codex ou DeepSeek diretamente costuma se
 
 ## Mascote de desktop (macOS arm64)
 
-O pacote local inclui a Garota Baleia (`whale-girl 3`) como aparência selecionável, com nove animações e 57 quadros de 1536×1664 pixels cada; após a instalação, basta escolhê-la no menu de aparências.
+O pacote local mantém a aparência padrão. A Garota Baleia e outras aparências personalizadas são importadas como pacotes de recursos separados; as atualizações do aplicativo preservam os recursos importados.
 
 O mascote está disponível no macOS arm64 por meio de um pacote local de desenvolvimento com `DevFlowPet.app`; as listas comuns de arquivos npm e a preparação de versões oficiais não incluem o aplicativo nativo. Executar um pacote já compilado não exige Swift/Xcode e usa o Core de um Adapter Codex ou DeepSeek configurado. O mascote mostra o estado salvo de uma Task e abre sua WebUI, sem inferir atividade ao vivo do Host ou porcentagens de progresso. Ao sair, as Tasks e a WebUI são preservadas.
 

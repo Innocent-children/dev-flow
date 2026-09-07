@@ -114,7 +114,7 @@ mécanique sans progression à conserver, Codex ou DeepSeek seul est généralem
 
 ## Mascotte de bureau (macOS arm64)
 
-Le paquet local inclut la Fille Baleine (`whale-girl 3`) parmi les apparences proposées, avec neuf animations et 57 images de 1536×1664 pixels chacune ; elle se sélectionne directement dans le menu des apparences après installation.
+Le paquet local conserve l’apparence par défaut. La Fille Baleine et les autres apparences personnalisées s’importent sous forme de paquets de ressources séparés ; les mises à jour de l’application préservent les ressources importées.
 
 La mascotte est disponible sur macOS arm64 via un paquet local de développement contenant `DevFlowPet.app` ; les listes habituelles de fichiers npm et la préparation des versions officielles omettent l’application native. Un paquet déjà compilé s’exécute sans Swift/Xcode et utilise le Core d’un Adapter Codex ou DeepSeek configuré. La mascotte affiche l’état enregistré d’une Task et ouvre sa WebUI, sans déduire l’activité en direct du Host ni un pourcentage de progression. Quitter conserve les Tasks et la WebUI.
 

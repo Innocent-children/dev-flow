@@ -70,4 +70,4 @@ The Swift Package and app metadata target macOS 14. Actual minimum-system operat
 Developer ID signing, and Apple notarization have not completed their respective verification. Local and targeted results do not expand the stable-support table
 above or Host task-workflow capabilities.
 
-Bundled Whale Girl additionally passed native macOS arm64 appearance checks: direct selection with an empty user library, precedence for a user import with the same ID, and complete loading of nine clips and 57 frames. After installing the final local package with npm into a temporary directory, application signing, executable permissions, original artwork bytes, and loading of all nine clips were verified again. These checks do not constitute a complete real Task session.
+The local package retains the default appearance. Custom appearances such as Whale Girl are imported from external packs; their import, loading, and selection are covered by the native appearance checks described above.

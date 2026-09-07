@@ -131,4 +131,4 @@ This entry does not rebuild Core, change Adapter installations, or publish npm. 
 `dev-flow:local` retains its temporary lifecycle manager; the pet uses the persistent installed package
 built by this entry.
 
-The build also includes the nine clips and 57 high-resolution Whale Girl frames under `packages/desktop-pet/appearances/`. The `bundled_appearances` build result records each appearance, canvas, frame count, and asset size. Copied resources and the final extracted files are compared byte for byte with their sources.
+The build generates the default appearance from `packages/desktop-pet/tools`; the `frames` and `asset_bytes` result fields record its animation frame count and size. Custom appearances such as Whale Girl are imported from external artwork packs. Generated application bundles and external artwork directories are not tracked by Git.

@@ -123,62 +123,6 @@ final class PetAppearanceTests: XCTestCase {
         XCTAssertEqual(try store.load(appearance.id).catalog.canvas, .init(width: 1536, height: 1664))
     }
 
-    func testBundledAppearanceCanBeSelectedAndRestoredWithoutImport() throws {
-        let bundledRoot = temporary.appendingPathComponent("bundled")
-        let bundledStore = PetAppearanceStore(directory: bundledRoot.path)
-        let appearance = try bundledStore.importDirectory(staticPack())
-        let userRoot = temporary.appendingPathComponent("empty-user-library")
-        let combined = PetAppearanceStore(directory: userRoot.path, bundledDirectory: bundledRoot)
-        XCTAssertEqual(combined.appearances(), [appearance])
-        let preferences = PreferenceStore(path: temporary.appendingPathComponent("settings.json").path)
-        let selection = PetAppearanceSelection(store: combined, preferences: preferences, bundledLibrary: nil)
-        try selection.select(appearance.id)
-        XCTAssertEqual(try XCTUnwrap(selection.library).frames(for: .idle).images.count, 1)
-        let restored = PetAppearanceSelection(store: combined,
-            preferences: PreferenceStore(path: preferences.path), bundledLibrary: nil)
-        try restored.restore()
-        XCTAssertEqual(restored.id, appearance.id)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: userRoot.path))
-    }
-
-    func testImportedAppearanceOverridesItsBundledCopy() throws {
-        let bundledRoot = temporary.appendingPathComponent("bundled")
-        let bundledStore = PetAppearanceStore(directory: bundledRoot.path)
-        let source = try staticPack()
-        let appearance = try bundledStore.importDirectory(source)
-        let userRoot = temporary.appendingPathComponent("user-library")
-        let combined = PetAppearanceStore(directory: userRoot.path, bundledDirectory: bundledRoot)
-        try writeJSON(["id": appearance.id, "name": "My copy", "image": "pet.png"], to: source.appendingPathComponent("pet.json"))
-        try png(width: 32, height: 32).write(to: source.appendingPathComponent("pet.png"))
-        let imported = try combined.importDirectory(source)
-        XCTAssertEqual(combined.appearances(), [imported])
-        XCTAssertEqual(try combined.load(imported.id).catalog.canvas, .init(width: 32, height: 32))
-        XCTAssertEqual(bundledStore.appearances(), [appearance])
-        XCTAssertEqual(try bundledStore.load(appearance.id).catalog.canvas, .init(width: 16, height: 16))
-        try Data("invalid".utf8).write(to: userRoot.appendingPathComponent("\(appearance.id)/animations.json"))
-        XCTAssertThrowsError(try combined.load(appearance.id))
-    }
-
-    func testBundledWhaleGirlContainsNineHighResolutionActions() throws {
-        let sourceRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("appearances")
-        let bundledRoot = ProcessInfo.processInfo.environment["DEV_FLOW_PET_TEST_BUNDLED_ROOT"]
-            .map { URL(fileURLWithPath: $0) } ?? sourceRoot
-        let userRoot = temporary.appendingPathComponent("empty-user-library")
-        let combined = PetAppearanceStore(directory: userRoot.path, bundledDirectory: bundledRoot)
-        let id = "codex-d82c29b37c8838a51739d5d20268e608"
-        XCTAssertTrue(combined.appearances().contains { $0.id == id })
-        let library = try combined.load(id)
-        XCTAssertEqual(library.catalog.canvas, .init(width: 1536, height: 1664))
-        XCTAssertEqual(Set(library.catalog.clips.keys), Set(AnimationClip.allCases))
-        let counts: [AnimationClip: Int] = [.idle: 6, .working: 6, .blocked: 6, .complete: 5,
-            .disconnected: 8, .runningRight: 8, .runningLeft: 8, .waving: 4, .review: 6]
-        for (clip, count) in counts {
-            XCTAssertEqual(try library.frames(for: clip).images.count, count, clip.rawValue)
-        }
-        XCTAssertFalse(FileManager.default.fileExists(atPath: userRoot.path))
-    }
-
     func testSelectionPersistsWithoutChangingTheWatchedTask() throws {
         let appearance = try store.importDirectory(staticPack())
         let preferences = PreferenceStore(path: temporary.appendingPathComponent("settings.json").path)

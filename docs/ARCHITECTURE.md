@@ -307,4 +307,4 @@ Core 数据、流程图和 MCP 工具保持现有职责。
 角色悬停与气泡悬停分别处理，任务提示可中断休闲。只有手动拖动更新保存位置；动作顺序、冷却和临时位移均留在内存中。
 完整使用、形象格式与触发规则见[桌面宠物指南](DESKTOP-PETS.md)。
 
-`scripts/build-desktop-pet.mjs` 还将 `packages/desktop-pet/appearances/<id>` 复制到应用的 `Contents/Resources/Appearances/<id>`，并在解包后逐文件比较原始素材。`PetController` 传入应用资源目录，`PetAppearanceStore` 合并内置和用户形象列表，直接读取所选目录；同 ID 用户副本优先，导入只写用户目录。鲸鱼娘的完整九类高分辨率素材随应用交付。
+`scripts/build-desktop-pet.mjs` 从 `packages/desktop-pet/tools` 生成默认形象并装配到应用资源目录。自定义形象由用户从外部包导入；`PetAppearanceStore` 负责用户目录中的形象列表与加载，`PetAppearanceSelection` 在默认形象与已导入形象之间切换。生成的应用包保存在仓库外，不纳入 Git 跟踪。

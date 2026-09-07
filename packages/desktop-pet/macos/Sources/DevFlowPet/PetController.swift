@@ -69,8 +69,7 @@ final class PetController: PetWindowHandling {
         self.runtime = runtime
         self.onShutdown = onShutdown
         strings = PetStrings.forLanguage(language)
-        let store = PetAppearanceStore(directory: runtime.paths.appearances,
-            bundledDirectory: AssetLibrary.bundleResourceDirectory()?.appendingPathComponent("Appearances", isDirectory: true))
+        let store = PetAppearanceStore(directory: runtime.paths.appearances)
         let selection = PetAppearanceSelection(store: store, preferences: preferences, bundledLibrary: library)
         appearanceStore = store
         appearanceSelection = selection

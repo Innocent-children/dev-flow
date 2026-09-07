@@ -118,4 +118,4 @@ additional artwork determines whether walking, waving, or thinking is available.
 Idle activities have a separate switch, task prompts take priority, and automatic movement preserves manual placement.
 Program updates, replacement of an installed app copy, and artwork reimports are separate operations. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation, all trigger rules, and troubleshooting.
 
-The local pet package includes Whale Girl (`whale-girl 3`), selectable directly from Choose appearance after installation, with nine clips, 57 frames, and a 1536×1664 canvas.
+The local pet package retains the default appearance. Import Whale Girl or other custom appearances as separate artwork packs through Import appearance. Artwork is stored in the user directory and preserved across application updates.

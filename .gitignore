@@ -39,3 +39,7 @@ coverage/
 # Desktop pet baked frames; the procedural source under
 # packages/desktop-pet/tools is the editable original and rebakes them.
 packages/desktop-pet/macos/Resources/
+
+# External pet artwork and generated application bundles
+packages/desktop-pet/appearances/
+packages/*/runtime/*/DevFlowPet.app/

@@ -111,7 +111,7 @@ Fortschritt ist Codex oder DeepSeek allein meist einfacher.
 
 ## Desktop-Maskottchen (macOS arm64)
 
-Das lokale Paket enthält das Walmädchen (`whale-girl 3`) als auswählbares Erscheinungsbild mit neun Animationen und 57 Einzelbildern von jeweils 1536×1664 Pixeln. Nach der Installation lässt es sich direkt im Erscheinungsbild-Menü auswählen.
+Das lokale Paket enthält weiterhin das Standarderscheinungsbild. Das Walmädchen und andere eigene Erscheinungsbilder werden als separate Grafikpakete importiert; Anwendungsupdates erhalten die importierten Grafiken.
 
 Das Desktop-Maskottchen ist für macOS arm64 als lokales Entwicklungspaket mit `DevFlowPet.app` verfügbar. Die regulären npm-Dateilisten und die Vorbereitung öffentlicher Releases enthalten die native App nicht. Ein fertig gebautes Paket benötigt zum Ausführen kein Swift/Xcode und nutzt den Core eines konfigurierten Codex- oder DeepSeek-Adapters. Es zeigt den gespeicherten Zustand einer Task und öffnet deren WebUI, ohne laufende Host-Aktivität oder Fortschrittsprozente abzuleiten. Beim Beenden bleiben Tasks und WebUI erhalten.
 

@@ -66,17 +66,14 @@ tar -xzf "/absolute/pet-build/<local-package>.tgz" -C "/absolute/pet-unpack"
    replacing the app with the same name in Finder. Replace only the application bundle; preserve `settings.json` and `appearances/`.
 4. Run `dev-flow pet start` again. To add artwork animations, also reimport the source folder as described under Import and selection.
 
-## Bundled appearances
+## Default appearance and external artwork
 
-The local pet package includes the default appearance and Whale Girl (`whale-girl 3`). After installing and starting
-it, select “鲸鱼娘（8× 极清动画修复版）” under Choose appearance without manual import. Whale Girl retains nine clips,
-57 frames, a 1536×1664 per-frame resolution, and per-frame timing, using the general triggers in this guide.
+The local pet package includes only the default appearance. Import Whale Girl or other custom appearances as
+separate artwork packs: choose Import appearance and select a folder containing `pet.json`. Supported formats
+are listed below under Appearance types and available animations.
 
-Bundled appearances are read directly from `Contents/Resources/Appearances/<id>` inside the application and update
-with the complete app bundle. A user-imported copy with the same ID takes precedence and appears only once in the
-menu. Application updates preserve that copy; reimport it to update it. A damaged user copy follows the imported
-appearance error handling. Selection persists in the same way as other appearances, and switching keeps the watched
-Task. See [bundled artwork](../packages/desktop-pet/appearances/README_en.md) for assets and build details.
+Imported artwork lives in `productRoot/pet/appearances/<id>` and is preserved across application updates.
+Reimport the same source folder to update a custom appearance. Switching appearances keeps the watched Task.
 
 ## Task selection and basic controls
 

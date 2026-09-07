@@ -112,4 +112,4 @@ Actions 会在成功或失败后上传 runner 临时发布目录；用同一组 
 Adapter 安装、不发布 npm。安装、确认运行路径和替换已有应用的步骤见[桌面宠物指南](../docs/DESKTOP-PETS.md#本地构建与安装)。
 `dev-flow:local` 仍使用临时 lifecycle 管理器；桌面宠物使用这里生成并安装的持久 package。
 
-构建同时包含 `packages/desktop-pet/appearances/` 中的鲸鱼娘九类动作、57 帧高分辨率素材。构建结果的 `bundled_appearances` 记录形象、画布、帧数和文件大小；资源复制及最终解包均逐文件核对原始字节。
+构建从 `packages/desktop-pet/tools` 生成默认形象，构建结果的 `frames` 和 `asset_bytes` 记录默认动画帧数与大小。鲸鱼娘等自定义形象通过外部素材包导入。生成的应用包和外部素材目录不纳入 Git 跟踪。
