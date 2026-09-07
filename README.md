@@ -115,6 +115,8 @@ The desktop pet is available on macOS arm64 through a local development package 
 
 Import a static PNG, a native animation pack, or a Codex format 1/2 atlas. Native packs require five task clips and may add four more; Codex-layout atlases extract nine clips and 57 frames. Dev Flow's high-resolution extension requires a separate standard-sized atlas for use in Codex. Available artwork drives idle walking, waving, and thinking, with a separate Idle activities switch and priority for task prompts. Program updates and artwork reimports are separate operations.
 
+The menu bar uses a monochrome Dev Flow mark that adapts to the system appearance.
+
 See the [desktop pet guide](docs/DESKTOP-PETS_en.md) for obtaining the app, installation, updates, triggers, limits, and troubleshooting; the support matrix defines public support.
 
 ```bash

@@ -308,6 +308,8 @@ selection, idle observation only checks the service, while the chooser pages on 
 `selected_appearance` and the enabled-by-default `idle_activities_enabled` are also saved. `runtime.json` records process identity.
 Core data, the process graph, and MCP tools retain their owners.
 
+`PetMenuBarIcon` draws the 18 pt Dev Flow mark using AppKit paths and supplies a template image. `PetMenu` installs it on the menu bar button, and macOS applies the appearance color.
+
 `scripts/build-desktop-pet.mjs` compiles the macOS executable, assembles resources, and signs ad hoc.
 Regular npm package lists and release preparation currently omit the native app. This script adds
 `runtime/darwin-arm64/DevFlowPet.app` to the local unified-entry package. Running a built app requires neither Swift nor Xcode;

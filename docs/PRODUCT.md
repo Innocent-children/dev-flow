@@ -138,6 +138,7 @@ Schema、package manifest、CLI parser 和可执行测试为准。
 macOS arm64 的桌面宠物通过包含 `DevFlowPet.app` 的本地开发包使用，运行时复用已配置的 Codex 或 DeepSeek Adapter 提供的 Core。
 当前常规 npm 清单与正式制备流程不包含原生应用，获取方式以[桌面宠物指南](DESKTOP-PETS.md#本地构建与安装)为准。
 宠物显示一个所选 Task 的保存状态并打开对应 WebUI；Core 决定任务状态，展示不代表 Host 实时活动或完成百分比。
+菜单栏使用 Dev Flow 流线标识的单色图标，随系统外观调整颜色。
 
 形象可使用单张 PNG、原生动画包、Codex 标准格式 1/2 图集或 Dev Flow 高分辨率扩展。五类任务动作是基础要求，附加素材决定能否散步、挥手或思考；
 只有 Codex 布局图集固定提取九类、57 帧。待机活动有独立开关，任务提示优先，自动位移保留手动摆放位置。

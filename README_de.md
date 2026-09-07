@@ -117,6 +117,8 @@ Das Desktop-Maskottchen ist für macOS arm64 als lokales Entwicklungspaket mit `
 
 Importiert werden können ein statisches PNG, ein natives Animationspaket oder ein Atlas im Codex-Format 1/2. Native Pakete benötigen fünf Aufgabenanimationen und können vier weitere enthalten; Codex-Atlanten ergeben neun Animationen und 57 Einzelbilder. Für Codex erfordert die hochauflösende Dev-Flow-Erweiterung zusätzlich einen Atlas mit Standardabmessungen. Verfügbare Grafiken bestimmen Laufen, Winken und Nachdenken im Leerlauf; dafür gibt es einen separaten Schalter, und Aufgabenmeldungen haben Vorrang. Programmaktualisierung und erneuter Grafikimport sind getrennte Vorgänge.
 
+Die Menüleiste zeigt das geschwungene Dev-Flow-Logo einfarbig; die Farbe passt sich dem Erscheinungsbild des Systems an.
+
 Bezug, Installation, Aktualisierung, Auslöseregeln, Grenzen und Fehlerbehebung stehen im [Desktop-Maskottchen-Handbuch](docs/DESKTOP-PETS_en.md). Die Support-Matrix definiert den öffentlichen Support.
 
 ```bash

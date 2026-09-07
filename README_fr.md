@@ -120,6 +120,8 @@ La mascotte est disponible sur macOS arm64 via un paquet local de développement
 
 Importez un PNG statique, un pack d’animation natif ou un atlas au format Codex 1/2. Les packs natifs exigent cinq animations de tâche et peuvent en ajouter quatre ; les atlas Codex fournissent neuf animations et 57 images. L’extension haute résolution de Dev Flow nécessite un atlas distinct aux dimensions standard pour être utilisée dans Codex. Les ressources disponibles déterminent les promenades, saluts et gestes de réflexion au repos, avec un réglage indépendant et la priorité aux alertes de tâche. La mise à jour du programme et la réimportation des ressources sont deux opérations distinctes.
 
+La barre de menus affiche le logo monochrome aux lignes courbes de Dev Flow, dont la couleur s’adapte à l’apparence du système.
+
 Consultez le [guide de la mascotte](docs/DESKTOP-PETS_en.md) pour obtenir l’application, l’installer, la mettre à jour et connaître les règles, limites et solutions aux problèmes. La matrice de support définit le support public.
 
 ```bash

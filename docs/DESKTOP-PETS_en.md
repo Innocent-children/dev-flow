@@ -77,6 +77,8 @@ Reimport the same source folder to update a custom appearance. Switching appeara
 
 ## Task selection and basic controls
 
+The menu bar entry uses a monochrome Dev Flow mark, with a clear gap between the crossbar and main curve at small sizes. The 18 pt vector icon is tinted by macOS for the menu bar appearance and selection state.
+
 Startup restores the saved task selection for the current data directory. Without a saved selection, it chooses the most recently updated blocked task,
 then the most recently updated active task. If neither exists, it remains unselected. Use Choose task from the context menu or menu bar to change the watched task;
 if no task existed at startup in the current run, choose a subsequently created task from the panel.

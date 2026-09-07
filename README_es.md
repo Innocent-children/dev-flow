@@ -119,6 +119,8 @@ La mascota está disponible en macOS arm64 mediante un paquete local de desarrol
 
 Puedes importar un PNG estático, un paquete de animación nativo o un atlas Codex de formato 1/2. Los paquetes nativos requieren cinco animaciones de tarea y admiten cuatro adicionales; los atlas Codex extraen nueve animaciones y 57 fotogramas. Para usar la extensión de alta resolución de Dev Flow en Codex, prepara también un atlas de dimensiones estándar. El material disponible determina los paseos, saludos y gestos de pensamiento en reposo, con un control independiente y prioridad para los avisos de tareas. Actualizar el programa y volver a importar el material son operaciones separadas.
 
+La barra de menús muestra el logotipo curvo de Dev Flow en un solo color, que se adapta a la apariencia del sistema.
+
 Consulta la [guía de la mascota](docs/DESKTOP-PETS_en.md) para obtener la aplicación, instalarla, actualizarla, conocer las reglas y los límites, y resolver problemas. La matriz de soporte define el soporte público.
 
 ```bash

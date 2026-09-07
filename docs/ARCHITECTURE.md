@@ -285,6 +285,8 @@ Core、Codex、DeepSeek 和统一 lifecycle package 独立版本。Core 的机�
 任务选择，还保存 `selected_appearance` 与默认开启的 `idle_activities_enabled`；`runtime.json` 记录进程身份。
 Core 数据、流程图和 MCP 工具保持现有职责。
 
+`PetMenuBarIcon` 负责以 AppKit 路径绘制 18 pt Dev Flow 流线标识，并提供模板图像；`PetMenu` 将图像安装到菜单栏按钮，macOS 负责外观着色。
+
 `scripts/build-desktop-pet.mjs` 负责 macOS 编译、资源装配和 ad-hoc 签名。
 当前普通 npm 包清单与正式制备流程不包含原生应用；该脚本为本地统一入口包额外加入
 `runtime/darwin-arm64/DevFlowPet.app`。运行已构建的应用无需 Swift/Xcode，Core 由已配置的 Adapter 提供。

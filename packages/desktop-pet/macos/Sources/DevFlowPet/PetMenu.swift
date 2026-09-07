@@ -22,9 +22,6 @@ final class PetMenu: NSObject, NSMenuDelegate {
         case quit
     }
 
-    /// The delivered menu bar template icon inside `Resources/Assets`.
-    private static let iconCandidates = ["MenuBarIcon.pdf", "MenuBarIcon.png"]
-
     var onAction: ((Action) -> Void)?
     var onTrackingChanged: ((Bool) -> Void)?
 
@@ -125,15 +122,7 @@ final class PetMenu: NSObject, NSMenuDelegate {
     }
 
     private func installMenuBarIcon() {
-        guard let resourceDirectory = AssetLibrary.bundleResourceDirectory() else { return }
-        for candidate in Self.iconCandidates {
-            let url = resourceDirectory.appendingPathComponent("Assets").appendingPathComponent(candidate)
-            guard let image = NSImage(contentsOf: url) else { continue }
-            image.isTemplate = true
-            image.size = NSSize(width: 18, height: 18)
-            statusItem.button?.image = image
-            return
-        }
+        statusItem.button?.image = PetMenuBarIcon.makeImage()
     }
 
     @objc private func chooseTask() { onAction?(.chooseTask) }
