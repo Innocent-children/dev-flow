@@ -87,18 +87,15 @@ dev-flow status --host all
 
 ## 桌面宠物（macOS arm64）
 
-macOS arm64 环境提供 `dev-flow pet start` 和 `dev-flow pet stop`，交互菜单复用同一入口。
-在安装 Dev Flow 任意适配器（Codex / DeepSeek）或由统一入口执行安装与更新时，插件会提供预置二进制并自动将桌面宠物安装至 `$HOME/.dev-flow/pet/DevFlowPet.app`，用户机器无需安装 Xcode 或 Swift 编译器。
-运行桌面宠物需要至少一个 Codex 或 DeepSeek Adapter 已经安装并配置；宠物读取同一个 Core 的 WebUI 接口。
-它显示所选任务已保存的阶段、阻塞原因、更新时间和同步时间，点击打开相应详情页。任务选择面板按需
-分页，所选任务完成后仍保留关注；取消不庆祝。菜单提供动画开关、隐藏/显示和退出，语言跟随系统中文或英文。
+运行需要 macOS arm64、包含原生应用的本地开发包，以及至少一个已安装并配置的 Codex 或 DeepSeek Adapter。
+当前常规 npm 清单不包含 `DevFlowPet.app`；构建、安装和已有应用更新见[桌面宠物指南](DESKTOP-PETS.md#本地构建与安装)。
 
-开启可启动尚未运行的 WebUI；后台连接检查只读。隐藏和睡眠取消请求，显示和唤醒重新读取；旧请求
-不能覆盖新选择。动画开关及系统减少动态效果使用静态帧。关闭只结束宠物并保留 WebUI、Task 与偏好；
-维护当前供给 Core 的 Adapter 前先停止宠物，停止失败时中止维护。factory-reset 的确认计划包含
-`productRoot/pet`，继续使用既有数据目录确认与清理规则。其他平台拒绝宠物命令。
+| 命令 | 行为 |
+| --- | --- |
+| `dev-flow pet start` | 启动或恢复宠物；核对 Core 与数据目录，必要时启动 WebUI。已有用户目录应用优先于包内应用。 |
+| `dev-flow pet stop` | 正常退出宠物，保留 WebUI、Task、设置和形象。 |
 
-两项命令仅接受所示参数，结果为纯文本；退出码为成功 `0`、运行失败 `1`、参数错误 `2`。
+仅接受这两种参数形式，输出为纯文本；退出码为成功 `0`、运行失败 `1`、参数错误 `2`。
 `pet status` 和 `pet start --json` 不是公开入口。
 
 ```bash
@@ -106,7 +103,9 @@ dev-flow pet start
 dev-flow pet stop
 ```
 
-更新或移除统一入口包前先关闭宠物。公开支持范围以支持矩阵为准。
+菜单提供任务和形象选择、导入、“动画”、“待机活动”、隐藏与退出。任务选择、九类动作的适用范围、触发规则和排查见
+[桌面宠物指南](DESKTOP-PETS.md)。更新或移除提供当前 Core 的 Adapter 或统一入口前先停止宠物；停止失败时中止维护。
+确认的 factory-reset 会清理 `productRoot/pet`，普通退出和卸载保留用户素材与设置。
 
 ## Codex
 
@@ -412,8 +411,3 @@ Task result 的 `verification` 同时返回 `plan`、`current_budget`、当前 T
 Host 选择检索工具时，当前用户指令和适用的 `AGENTS.md` 优先于这些默认偏好。没有相应指令时，
 false 选择普通文件和文本搜索，true 可优先使用当前可用的代码索引。索引不可用或结果不完整时，
 Host 在当前会话中至多提示一次并回到普通搜索；索引结果不改变已创建 Task 的 Scope。
-
-自定义形象从宠物菜单的“选择形象 → 导入形象…”导入本地文件夹，支持单张 PNG、Dev Flow 动画包和
-Codex 精灵图格式 1/2 的本地宠物包。形象与任务分别选择和保存，升级保留用户素材；同 ID 重导入更新，
-校验失败保留原形象。导入 Codex 时转换为统一 PNG 帧，任务阶段与跳转仍由 Dev Flow 决定。格式与示例见
-[形象包说明](DESKTOP-PETS.md)。

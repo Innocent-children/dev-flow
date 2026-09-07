@@ -36,6 +36,7 @@ struct PetStrings: Equatable {
     let menuOpenTaskList: String
     let menuRetryConnection: String
     let menuAnimations: String
+    let menuIdleActivities: String
     let menuHide: String
     let menuShow: String
     let menuQuit: String
@@ -90,6 +91,7 @@ struct PetStrings: Equatable {
         menuOpenTaskList: "打开任务列表",
         menuRetryConnection: "重试连接",
         menuAnimations: "动画",
+        menuIdleActivities: "待机活动",
         menuHide: "隐藏",
         menuShow: "显示",
         menuQuit: "退出",
@@ -147,6 +149,7 @@ struct PetStrings: Equatable {
         menuOpenTaskList: "Open task list",
         menuRetryConnection: "Retry connection",
         menuAnimations: "Animations",
+        menuIdleActivities: "Idle activities",
         menuHide: "Hide",
         menuShow: "Show",
         menuQuit: "Quit",

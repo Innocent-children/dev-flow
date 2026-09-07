@@ -305,15 +305,34 @@ read-only HTTP, presentation, process identity, the single instance, and prefere
 checks the same Core and service identities; cancellation invalidates old responses. After default
 selection, idle observation only checks the service, while the chooser pages on demand.
 `productRoot/pet/settings.json` stores position, the animation switch, and selection per data root;
-`runtime.json` records process identity. Core data, the process graph, and MCP tools retain their owners.
+`selected_appearance` and the enabled-by-default `idle_activities_enabled` are also saved. `runtime.json` records process identity.
+Core data, the process graph, and MCP tools retain their owners.
 
 `scripts/build-desktop-pet.mjs` compiles the macOS executable, assembles resources, and signs ad hoc.
-Dev Flow adapter packages and the unified entry include the prebuilt `runtime/darwin-arm64/DevFlowPet.app` binary. Installing any adapter (Codex or DeepSeek) or running lifecycle management automatically provisions the desktop pet to `$HOME/.dev-flow/pet/DevFlowPet.app`, requiring no Xcode or Swift compiler on the user machine. Data directories converge under `$HOME/.dev-flow` (e.g. `~/.dev-flow/data`, `~/.dev-flow/pet`, `~/.dev-flow/registrations`).
-The running application always prioritizes the installed `$HOME/.dev-flow/pet/` path.
+Regular npm package lists and release preparation currently omit the native app. This script adds
+`runtime/darwin-arm64/DevFlowPet.app` to the local unified-entry package. Running a built app requires neither Swift nor Xcode;
+a configured Adapter provides Core. Installation helpers copy the app to `$HOME/.dev-flow/pet/DevFlowPet.app` only when
+a candidate package contains it and the target is missing; existing targets are preserved. Startup prefers that user-directory app,
+then the current unified-entry package's app. The program, installed app copy, and artwork update separately; see the
+[desktop pet guide](DESKTOP-PETS_en.md#updating-the-program-and-artwork). Product files remain under `$HOME/.dev-flow`.
 
 User appearances live in `productRoot/pet/appearances/<id>`. `PetAppearanceStore` owns bounded file
-reads, validation, and replacement; `CodexPetImporter` crops standard atlases only during import;
+reads, validation, and replacement. Complete converted packs pass the same checks as loading in a
+temporary directory before installation. `AppearanceImages` checks memory estimates from image
+dimensions and bit depth before decoding pixels. `CodexPetImporter` crops standard Codex format 1/2
+atlases and Dev Flow's own high-resolution extension during import, preserving all nine clips, 57 frames,
+and cell resolution. `AnimationCatalog` defines five required task clips and four optional additional
+clips, validating every supplied clip;
 `PetAppearanceSelection` keeps successful loading and saved selection consistent; `PetCharacterView`
 plays the common catalog. `selected_appearance` is independent of `selected_tasks` per data root.
 Preference updates share one lock and preserve the old value on write failure. Switching releases old
-frames and shows the current state without replaying prompts. See [DESKTOP-PETS](DESKTOP-PETS_en.md).
+frames and shows the current state without replaying prompts.
+
+`PresentationRules` derives task presentation and review-node artwork from Core snapshots. `PetActivityController` owns local idle activities,
+cooldowns, and the next deadline; ordinary polling preserves current activities and deadlines. `PetController` connects window events,
+one-shot wake timers, and playback requests. `PetCharacterView` reports actual finite-loop completion, and `PetWindow` updates temporary
+position only while walking. Character and bubble hover are handled separately, and task prompts can interrupt idle activities.
+Only manual dragging updates the saved position; activity order, cooldowns, and temporary movement stay in memory.
+See the [desktop pet guide](DESKTOP-PETS_en.md) for usage, artwork, and trigger rules.
+
+`scripts/build-desktop-pet.mjs` also copies `packages/desktop-pet/appearances/<id>` into `Contents/Resources/Appearances/<id>` in the app and compares each extracted file with its source. `PetController` supplies the application resource directory. `PetAppearanceStore` combines bundled and user appearances and reads the selected directory directly; a user copy with the same ID takes precedence, and imports write only to the user directory. The application includes all nine high-resolution Whale Girl clips.

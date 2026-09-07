@@ -109,5 +109,7 @@ Actions 会在成功或失败后上传 runner 临时发布目录；用同一组 
 `node scripts/build-desktop-pet.mjs --output "/absolute/pet-build"` 在 macOS arm64 上编译 Swift、装配已有
 素材和语言资源、ad-hoc 签名并生成本地统一入口 tarball。源码包的 JS 清单和加入原生应用的 staging
 清单分别检查；现有 USTAR 工具保留包内原生执行权限，解包后再核对签名。此入口不重编 Core、不修改
-Adapter 安装、不发布 npm。安装后使用包内入口进行功能检查，步骤见[命令参考](../docs/COMMANDS.md#桌面宠物macos-arm64)。
+Adapter 安装、不发布 npm。安装、确认运行路径和替换已有应用的步骤见[桌面宠物指南](../docs/DESKTOP-PETS.md#本地构建与安装)。
 `dev-flow:local` 仍使用临时 lifecycle 管理器；桌面宠物使用这里生成并安装的持久 package。
+
+构建同时包含 `packages/desktop-pet/appearances/` 中的鲸鱼娘九类动作、57 帧高分辨率素材。构建结果的 `bundled_appearances` 记录形象、画布、帧数和文件大小；资源复制及最终解包均逐文件核对原始字节。

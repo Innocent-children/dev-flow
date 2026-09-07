@@ -41,6 +41,17 @@ final class PetController: PetWindowHandling {
     private var exiting = false
     private var sleeping = false
     private var dragging = false
+    private var pressed = false
+    private var menuTracking = false
+    private var pickingTask = false
+    private var showingAppearanceError = false
+    private var awaitingObservation = true
+    private var activityCenter = CGPoint.zero
+    private let activities = PetActivityController()
+    private var activityTimer: Timer?
+    private var activityDeadline: TimeInterval?
+    private var appliedPlayback: PetActivityController.PlaybackRequest?
+    private var appliedWalk: PetActivityController.WalkRequest?
 
     init(
         preferences: PreferenceStore,
@@ -58,7 +69,8 @@ final class PetController: PetWindowHandling {
         self.runtime = runtime
         self.onShutdown = onShutdown
         strings = PetStrings.forLanguage(language)
-        let store = PetAppearanceStore(directory: runtime.paths.appearances)
+        let store = PetAppearanceStore(directory: runtime.paths.appearances,
+            bundledDirectory: AssetLibrary.bundleResourceDirectory()?.appendingPathComponent("Appearances", isDirectory: true))
         let selection = PetAppearanceSelection(store: store, preferences: preferences, bundledLibrary: library)
         appearanceStore = store
         appearanceSelection = selection
@@ -69,7 +81,24 @@ final class PetController: PetWindowHandling {
         window = PetWindow()
         window.content.handler = self
         window.content.character.configure(library: selection.library, strings: strings)
+        activities.configure(catalog: selection.library?.catalog)
+        window.content.character.onPlaybackFinished = { [weak self] clip in
+            guard let self else { return }
+            self.activities.playbackFinished(clip)
+            self.applyActivityOutput()
+        }
+        window.onWalkingFinished = { [weak self] in
+            guard let self else { return }
+            self.updateActivityGeometry()
+            self.activities.walkingFinished()
+            self.applyActivityOutput()
+        }
         menu.onAction = { [weak self] action in self?.handle(action) }
+        menu.onTrackingChanged = { [weak self] tracking in
+            self?.menuTracking = tracking
+            self?.refreshActivities()
+            if !tracking { self?.window.content.synchronizeHover() }
+        }
 
         registerWorkspaceObservers()
         applyVisibility(firstShow: true)
@@ -102,6 +131,7 @@ final class PetController: PetWindowHandling {
     private func apply(_ update: ObservationUpdate) {
         guard window.isVisible, !sleeping, !exiting else { return }
         lastUpdate = update
+        awaitingObservation = false
         transientMessage = nil
         switch update.connection {
         case .connected:
@@ -133,30 +163,74 @@ final class PetController: PetWindowHandling {
         }
         window.content.bubble.update(content)
         window.relayoutForBubble()
-        if !dragging { play(update.presentation, allowPrompt: allowPrompt) }
+        play(update.presentation, allowPrompt: allowPrompt)
     }
 
-    /// Chooses the playback for the current phase. The animation switch in the
-    /// menu and the system reduce-motion setting both select the clip's dedicated
-    /// static frame; re-enabling animation never replays a prompt the user did
-    /// not observe continuously.
     private func play(_ result: PresentationRules.Result, allowPrompt: Bool) {
-        guard let library else {
-            window.content.character.play(clip: result.clip, playback: .rest(frameIndex: 0), restart: true)
-            return
+        updateActivityGeometry()
+        let current = preferences.current
+        activities.update(result, taskID: lastUpdate?.selectedTaskID,
+            controls: .init(visible: window.isVisible && !sleeping && !exiting && !awaitingObservation,
+                connected: isConnected, animationsEnabled: current.animationsEnabled,
+                idleActivitiesEnabled: current.idleActivitiesEnabled, reduceMotion: NativeProcess.reduceMotionEnabled(),
+                interactionBlocked: pressed || menuTracking || pickingTask || importingAppearance || showingAppearanceError,
+                dragging: dragging), allowPrompt: allowPrompt)
+        applyActivityOutput()
+    }
+
+    private func refreshActivities() {
+        play(lastUpdate?.presentation ?? PresentationState().result, allowPrompt: false)
+    }
+
+    private func updateActivityGeometry() {
+        activities.geometry = .init(originX: window.frame.minX,
+            walkingRange: PositionRules.walkingRange(centerX: activityCenter.x, windowWidth: window.frame.width,
+                visibleFrame: window.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero))
+    }
+
+    /// Applies only changed requests. Ordinary reads retain the running animation and timer.
+    private func applyActivityOutput() {
+        if appliedWalk != activities.walk {
+            window.stopWalking()
+            appliedWalk = nil
         }
-        guard let description = library.catalog.clips[result.clip] else {
-            window.content.character.play(clip: result.clip, playback: .rest(frameIndex: 0), restart: true)
-            return
+        if appliedPlayback != activities.playback {
+            appliedPlayback = activities.playback
+            if let request = activities.playback {
+                let succeeded = window.content.character.play(clip: request.clip, playback: request.playback, restart: true)
+                if !succeeded {
+                    activities.playbackFailed(request.clip)
+                    if activities.playback != request || activities.walk != appliedWalk {
+                        applyActivityOutput()
+                        return
+                    }
+                }
+            } else {
+                window.content.character.pausePlayback()
+            }
         }
-        let playback = PlaybackRules.playback(
-            clip: description,
-            playIntro: allowPrompt && result.playIntro,
-            useRestFrame: result.useRestFrame || (result.clip == .complete && !allowPrompt),
-            animationsEnabled: preferences.current.animationsEnabled,
-            reduceMotion: NativeProcess.reduceMotionEnabled()
-        )
-        window.content.character.play(clip: result.clip, playback: playback, restart: allowPrompt && result.playIntro)
+        if let walk = activities.walk, appliedWalk != walk {
+            appliedWalk = walk
+            window.startWalking(toX: walk.targetX, duration: walk.duration)
+        }
+        let deadline = activities.nextDeadline
+        guard deadline != activityDeadline || (deadline != nil && activityTimer == nil) else { return }
+        activityTimer?.invalidate()
+        activityTimer = nil
+        activityDeadline = deadline
+        guard let deadline else { return }
+        let timer = Timer(timeInterval: max(0.01, deadline - ProcessInfo.processInfo.systemUptime), repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.activityTimer = nil
+                self.activityDeadline = nil
+                self.updateActivityGeometry()
+                self.activities.tick()
+                self.applyActivityOutput()
+            }
+        }
+        activityTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
     }
 
     private func refreshMenu() {
@@ -165,6 +239,7 @@ final class PetController: PetWindowHandling {
             isConnected: isConnected,
             isVisible: window.isVisible,
             animationsEnabled: preferences.current.animationsEnabled,
+            idleActivitiesEnabled: preferences.current.idleActivitiesEnabled,
             reduceMotion: NativeProcess.reduceMotionEnabled(),
             appearances: availableAppearances,
             selectedAppearance: appearanceSelection.id,
@@ -193,6 +268,10 @@ final class PetController: PetWindowHandling {
             preferences.update { $0.animationsEnabled.toggle() }
             refreshMenu()
             if let lastUpdate { present(lastUpdate) }
+        case .toggleIdleActivities:
+            preferences.update { $0.idleActivitiesEnabled.toggle() }
+            refreshMenu()
+            refreshActivities()
         case .toggleVisibility:
             setWindowVisible(!window.isVisible)
         case .quit:
@@ -204,6 +283,8 @@ final class PetController: PetWindowHandling {
 
     private func applyAppearance() {
         window.content.character.configure(library: library, strings: strings)
+        activities.configure(catalog: library?.catalog)
+        appliedPlayback = nil
         if window.isVisible, !sleeping {
             if let lastUpdate { present(lastUpdate) }
             else { play(PresentationState().result, allowPrompt: false) }
@@ -215,6 +296,7 @@ final class PetController: PetWindowHandling {
         guard !importingAppearance else { return }
         importingAppearance = true
         refreshMenu()
+        refreshActivities()
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
@@ -227,6 +309,8 @@ final class PetController: PetWindowHandling {
             guard response == .OK, let url = panel.url else {
                 self.importingAppearance = false
                 self.refreshMenu()
+                self.refreshActivities()
+                self.window.content.synchronizeHover()
                 return
             }
             let store = self.appearanceStore
@@ -234,6 +318,8 @@ final class PetController: PetWindowHandling {
                 defer {
                     self.importingAppearance = false
                     self.refreshMenu()
+                    self.refreshActivities()
+                    self.window.content.synchronizeHover()
                 }
                 do {
                     let appearance = try await Task.detached(priority: .userInitiated) {
@@ -252,6 +338,13 @@ final class PetController: PetWindowHandling {
 
     private func showAppearanceError(_ error: Error, restoring: Bool = false) {
         guard !exiting else { return }
+        showingAppearanceError = true
+        refreshActivities()
+        defer {
+            showingAppearanceError = false
+            refreshActivities()
+            window.content.synchronizeHover()
+        }
         let alert = NSAlert()
         alert.messageText = strings.appearanceFailed
         alert.informativeText = (restoring ? strings.appearanceRestoreFailed + "\n\n" : "") + error.localizedDescription
@@ -274,6 +367,7 @@ final class PetController: PetWindowHandling {
     func petWindowDidMove(toOrigin origin: CGPoint) {
         let origin = constrainedOrigin(origin)
         window.layout(atOrigin: origin)
+        activityCenter = origin
         preferences.update { preferences in
             preferences.position = PetPreferences.Position(x: origin.x, y: origin.y)
         }
@@ -281,19 +375,32 @@ final class PetController: PetWindowHandling {
 
     func petWindowDraggingChanged(_ isDragging: Bool) {
         dragging = isDragging
-        if isDragging {
-            window.content.character.pausePlayback()
-        } else if let lastUpdate {
-            present(lastUpdate)
+        refreshActivities()
+        if !isDragging {
+            activities.dropped()
+            applyActivityOutput()
         }
     }
 
+    func petWindowPressedChanged(_ isPressed: Bool) {
+        pressed = isPressed
+        refreshActivities()
+    }
+
     func petWindowHoverChanged(_ hovering: Bool) {
+        activities.windowHoverChanged(hovering)
+        applyActivityOutput()
         window.content.bubble.setExpanded(hovering)
         window.relayoutForBubble()
-        if hovering, !dragging, let lastUpdate {
-            window.content.character.reactToHover(clip: lastUpdate.presentation.clip)
+        if hovering, !dragging, activities.currentActivity == nil, let clip = activities.playback?.clip {
+            window.content.character.reactToHover(clip: clip)
         }
+    }
+
+    func petWindowCharacterHoverChanged(_ hovering: Bool) {
+        if hovering { activities.windowHoverChanged(true) }
+        activities.characterHoverChanged(hovering)
+        applyActivityOutput()
     }
 
     // MARK: - Visibility
@@ -307,8 +414,10 @@ final class PetController: PetWindowHandling {
             fallbackInset: 24
         )
         window.layout(atOrigin: origin)
+        activityCenter = origin
         if firstShow {
             window.orderFrontRegardless()
+            window.content.synchronizeHover()
             refreshMenu()
         }
     }
@@ -318,6 +427,9 @@ final class PetController: PetWindowHandling {
     /// the previous prompt basis.
     private func setWindowVisible(_ visible: Bool) {
         guard visible != window.isVisible else { return }
+        awaitingObservation = true
+        refreshActivities()
+        activities.resetInteractions()
         if visible {
             applyVisibility(firstShow: true)
             Task { await observer?.beginObserving() }
@@ -368,6 +480,9 @@ final class PetController: PetWindowHandling {
 
     private func handleSleep() {
         sleeping = true
+        awaitingObservation = true
+        refreshActivities()
+        activities.resetInteractions()
         window.content.character.stopPlayback()
         picker?.dismiss()
         Task { await observer?.endObserving() }
@@ -388,7 +503,11 @@ final class PetController: PetWindowHandling {
     /// visible work area instead of leaving it unreachable.
     private func handleScreenChange() {
         guard window.isVisible else { return }
+        activities.interrupt()
+        applyActivityOutput()
         window.layout(atOrigin: constrainedOrigin(window.frame.origin))
+        activityCenter = constrainedOrigin(activityCenter)
+        refreshActivities()
     }
 
     private func constrainedOrigin(_ origin: CGPoint) -> CGPoint {
@@ -406,6 +525,8 @@ final class PetController: PetWindowHandling {
     /// and confirming closes it so the desktop reads the new Task immediately.
     private func openPicker() {
         picker?.dismiss()
+        pickingTask = true
+        refreshActivities()
         Task { @MainActor in
             guard let observer else { return }
             let session = await observer.beginListSession()
@@ -423,6 +544,9 @@ final class PetController: PetWindowHandling {
             self?.window.content.character.stopPlayback()
             if let self {
                 self.lastUpdate = nil
+                self.awaitingObservation = true
+                self.pickingTask = false
+                self.refreshActivities()
                 self.window.content.bubble.update(BubbleContent(
                     title: self.strings.pickerLoading, stage: nil, summary: nil,
                     taskUpdated: nil, lastSync: nil, blocker: nil
@@ -437,6 +561,9 @@ final class PetController: PetWindowHandling {
         }
         panel.onDismiss = { [weak self] in
             self?.picker = nil
+            self?.pickingTask = false
+            self?.refreshActivities()
+            self?.window.content.synchronizeHover()
             Task { _ = await observer.beginListSession() }
         }
         panel.isReleasedWhenClosed = false
@@ -522,6 +649,7 @@ final class PetController: PetWindowHandling {
     private func exitFor(reason: ExitReason) {
         guard !exiting else { return }
         exiting = true
+        refreshActivities()
         let message: String
         switch reason {
         case .coreExecutableMissing: message = strings.exitCoreMissing
@@ -551,6 +679,7 @@ final class PetController: PetWindowHandling {
         guard !runtime.isShutdownStarted else { return }
         runtime.beginShutdown()
         exiting = true
+        refreshActivities()
         transientTask?.cancel()
         picker?.orderOut(nil)
         picker = nil

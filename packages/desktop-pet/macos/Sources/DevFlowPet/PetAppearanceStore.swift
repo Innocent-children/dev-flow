@@ -12,33 +12,41 @@ struct AppearanceImportError: LocalizedError {
     var errorDescription: String? { message }
 }
 
-/// Imports presentation data into the user's pet directory. The installed app
-/// and task preferences have their own owners and are not part of a pack.
+/// Reads bundled appearances and imports presentation data into the user's pet
+/// directory. User copies take precedence for the same appearance ID.
 final class PetAppearanceStore: @unchecked Sendable {
     private let root: URL
+    private let bundledRoot: URL?
     private let manager = FileManager.default
-    static let maximumPackBytes = 64 * 1024 * 1024
+    static let maximumPackBytes = 128 * 1024 * 1024
+    private static let maximumClipDecodedBytes = 128 * 1024 * 1024
 
-    init(directory: String) {
+    init(directory: String, bundledDirectory: URL? = nil) {
         root = URL(fileURLWithPath: directory, isDirectory: true)
+        bundledRoot = bundledDirectory
     }
 
     func appearances() -> [PetAppearance] {
-        let directories = (try? manager.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey],
-                                                            options: [.skipsHiddenFiles])) ?? []
-        return directories.compactMap { directory in
-            guard let appearance = try? readMetadata(directory), appearance.id == directory.lastPathComponent else { return nil }
-            return appearance
-        }.sorted { ($0.name, $0.id) < ($1.name, $1.id) }
+        var entries: [String: PetAppearance] = [:]
+        for directoryRoot in [bundledRoot, root].compactMap({ $0 }) {
+            let directories = (try? manager.contentsOfDirectory(at: directoryRoot, includingPropertiesForKeys: [.isDirectoryKey],
+                                                                options: [.skipsHiddenFiles])) ?? []
+            for directory in directories {
+                guard let appearance = try? readMetadata(directory), appearance.id == directory.lastPathComponent else { continue }
+                entries[appearance.id] = appearance
+            }
+        }
+        return entries.values.sorted { ($0.name, $0.id) < ($1.name, $1.id) }
     }
 
     func load(_ id: String) throws -> AssetLibrary {
         try validateID(id)
-        let directory = root.appendingPathComponent(id, isDirectory: true)
+        let userDirectory = root.appendingPathComponent(id, isDirectory: true)
+        let directory = manager.fileExists(atPath: userDirectory.path)
+            ? userDirectory : (bundledRoot?.appendingPathComponent(id, isDirectory: true) ?? userDirectory)
         let appearance = try readMetadata(directory)
         guard appearance.id == id else { throw invalid("pet.json: id does not match the installed folder") }
-        let catalog = try readCatalog(directory)
-        try validateImages(catalog, in: directory)
+        let catalog = try validatePack(directory)
         return try AssetLibrary(catalog: catalog, assetRoot: directory.appendingPathComponent("Assets"))
     }
 
@@ -65,8 +73,9 @@ final class PetAppearanceStore: @unchecked Sendable {
             if let value = object["image"] {
                 guard let path = value as? String else { throw invalid("pet.json: image must be a relative PNG path") }
                 let data = try OwnedStorage.readRelativeData(in: source, path: path, limit: Self.maximumPackBytes)
-                let image = try AppearanceImages.decode(data, allowedTypes: [UTType.png.identifier], maximumDimension: 1024)
-                let clips = Dictionary(uniqueKeysWithValues: AnimationClip.allCases.map { clip in
+                let image = try AppearanceImages.decode(data, allowedTypes: [UTType.png.identifier],
+                                                        maximumDecodedBytes: Self.maximumClipDecodedBytes)
+                let clips = Dictionary(uniqueKeysWithValues: AnimationCatalog.requiredClips.map { clip in
                     (clip, AnimationCatalog.Clip(frames: ["static.png"], fps: 1,
                         loopRange: clip == .complete ? nil : 0...0, restFrame: 0))
                 })
@@ -82,6 +91,8 @@ final class PetAppearanceStore: @unchecked Sendable {
         }
         try validateMetadata(appearance)
         try OwnedStorage.writeAtomically(JSONEncoder.pretty.encode(appearance), to: staging.appendingPathComponent("pet.json").path)
+        // Validate the complete converted pack before replacing the installed copy.
+        _ = try validatePack(staging)
         let destination = root.appendingPathComponent(appearance.id, isDirectory: true)
         if manager.fileExists(atPath: destination.path) {
             let values = try destination.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
@@ -110,15 +121,20 @@ final class PetAppearanceStore: @unchecked Sendable {
         let data = try OwnedStorage.readRelativeData(in: directory, path: "animations.json", limit: 256 * 1024)
         let catalog = try AnimationCatalog.decode(data)
         let canvas = catalog.canvas
-        guard canvas.width <= 1024, canvas.height <= 1024 else { throw invalid("canvas must not exceed 1024 × 1024") }
         guard catalog.clips.values.reduce(0, { $0 + $1.frames.count }) <= 512 else { throw invalid("a pack supports at most 512 frame references") }
         for clip in catalog.clips.values {
             guard (0.1...120).contains(clip.fps),
                   clip.frameDurationsMilliseconds?.allSatisfy({ $0 >= 9 }) ?? true,
-                  canvas.width * canvas.height * 4 * clip.frames.count <= 128 * 1024 * 1024 else {
+                  canvas.width <= Self.maximumClipDecodedBytes / 4 / canvas.height / clip.frames.count else {
                 throw invalid("actions require 0.1–120 fps, frame durations of at least 9 ms, and at most 128 MiB decoded")
             }
         }
+        return catalog
+    }
+
+    private func validatePack(_ directory: URL) throws -> AnimationCatalog {
+        let catalog = try readCatalog(directory)
+        try validateImages(catalog, in: directory)
         return catalog
     }
 
@@ -129,8 +145,9 @@ final class PetAppearanceStore: @unchecked Sendable {
             let relative = "Assets/" + path
             let data = try OwnedStorage.readRelativeData(in: directory, path: relative, limit: Self.maximumPackBytes)
             bytes += data.count
-            guard bytes <= Self.maximumPackBytes else { throw invalid("PNG files exceed 64 MiB") }
-            let image = try AppearanceImages.decode(data, allowedTypes: [UTType.png.identifier], maximumDimension: 1024)
+            guard bytes <= Self.maximumPackBytes else { throw invalid("PNG files exceed 128 MiB") }
+            let image = try AppearanceImages.decode(data, allowedTypes: [UTType.png.identifier],
+                                                    maximumDecodedBytes: Self.maximumClipDecodedBytes)
             guard image.width == catalog.canvas.width, image.height == catalog.canvas.height else {
                 throw invalid("\(path): PNG dimensions must match canvas")
             }
@@ -160,16 +177,25 @@ final class PetAppearanceStore: @unchecked Sendable {
 
 /// Bounded image decoding shared by PNG packs and Codex atlas conversion.
 enum AppearanceImages {
-    static func decode(_ data: Data, allowedTypes: [String], maximumDimension: Int) throws -> CGImage {
+    static func decode(_ data: Data, allowedTypes: [String], maximumDecodedBytes: Int) throws -> CGImage {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               let type = CGImageSourceGetType(source), allowedTypes.contains(type as String),
               CGImageSourceGetCount(source) == 1,
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
               let width = properties[kCGImagePropertyPixelWidth] as? Int,
               let height = properties[kCGImagePropertyPixelHeight] as? Int,
-              width > 0, height > 0, width <= maximumDimension, height <= maximumDimension,
-              let image = CGImageSourceCreateImageAtIndex(source, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary) else {
-            throw AppearanceImportError(message: "image is invalid, unsupported, or too large")
+              let depth = properties[kCGImagePropertyDepth] as? Int,
+              width > 0, height > 0, (1...16).contains(depth) else {
+            throw AppearanceImportError(message: "image is invalid or unsupported")
+        }
+        // Reserve four channels at the source bit depth before ImageIO allocates pixels.
+        let bytesPerPixel = 4 * ((depth + 7) / 8)
+        guard width <= maximumDecodedBytes / bytesPerPixel / height else {
+            throw AppearanceImportError(message: "decoded image exceeds \(maximumDecodedBytes / (1024 * 1024)) MiB")
+        }
+        guard let image = CGImageSourceCreateImageAtIndex(source, 0,
+            [kCGImageSourceShouldCacheImmediately: true] as CFDictionary) else {
+            throw AppearanceImportError(message: "image is invalid or unsupported")
         }
         return image
     }

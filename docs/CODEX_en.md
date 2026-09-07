@@ -184,14 +184,13 @@ See [Product](PRODUCT_en.md), [Architecture](ARCHITECTURE_en.md), [WebUI](WEBUI_
 
 ## Desktop pet local development package
 
-On macOS arm64, a source-built `@imotong/dev-flow` desktop pet package can use the Core provided by
-an already configured Codex or DeepSeek Adapter. `dev-flow pet start` / `dev-flow pet stop` control
-the pet, which reads shared tasks and opens their WebUI pages. The native app is included only in
-the unified-entry package; the Host package provides Core. See the
-[command reference](COMMANDS_en.md#desktop-pet-local-development-package) for build and usage instructions.
+On macOS arm64, the desktop pet uses a local development package containing `DevFlowPet.app`, with Core supplied by an already configured Codex or DeepSeek Adapter.
+Regular npm file lists and release preparation currently omit the native app; see the [desktop pet guide](DESKTOP-PETS_en.md#local-build-and-installation) to obtain it.
+The pet shows one selected Task's saved state and opens its WebUI. Core owns Task state; presentation indicates neither live Host activity nor completion percentages.
 
-Choose appearance → Import appearance in the pet menu imports a local folder containing a single PNG,
-a Dev Flow animation pack, or a Codex sprite-format 1/2 pack. Appearance and task selections are
-independent, and upgrades preserve imported artwork. Reimporting the same ID updates the appearance;
-failed validation preserves the installed pack. Codex artwork is converted to common PNG frames,
-while Dev Flow retains stage and navigation ownership. See [appearance packs](DESKTOP-PETS_en.md).
+Appearances can use a single PNG, a native animation pack, a standard Codex format 1/2 atlas, or Dev Flow's high-resolution extension. Five task clips are required;
+additional artwork determines whether walking, waving, or thinking is available. Only Codex-layout atlases have the fixed nine-clip, 57-frame extraction.
+Idle activities have a separate switch, task prompts take priority, and automatic movement preserves manual placement.
+Program updates, replacement of an installed app copy, and artwork reimports are separate operations. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation, all trigger rules, and troubleshooting.
+
+The local pet package includes Whale Girl (`whale-girl 3`), selectable directly from Choose appearance after installation, with nine clips, 57 frames, and a 1536×1664 canvas.

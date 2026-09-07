@@ -282,14 +282,29 @@ Core、Codex、DeepSeek 和统一 lifecycle package 独立版本。Core 的机�
 `lib/platform/macos/pet.mjs`。`packages/desktop-pet/macos` 负责 AppKit 窗口、只读 HTTP、展示、进程身份、
 单实例和偏好。每轮观察检查同一 Core 与服务身份；取消任务使过期响应失效。默认选择完成后，待机只
 检查服务，任务面板按需分页。`productRoot/pet/settings.json` 只保存位置、动画开关和按数据目录分组的
-任务选择；`runtime.json` 记录进程身份。Core 数据、流程图和 MCP 工具保持现有职责。
+任务选择，还保存 `selected_appearance` 与默认开启的 `idle_activities_enabled`；`runtime.json` 记录进程身份。
+Core 数据、流程图和 MCP 工具保持现有职责。
 
 `scripts/build-desktop-pet.mjs` 负责 macOS 编译、资源装配和 ad-hoc 签名。
-Dev Flow 适配器包与统一入口提供预置的 `runtime/darwin-arm64/DevFlowPet.app` 二进制，在安装任意适配器（Codex / DeepSeek）或由统一入口执行生命周期时，自动就位至 `$HOME/.dev-flow/pet/DevFlowPet.app`，用户端无需 Xcode 或 Swift 编译器。数据目录统一收敛至 `$HOME/.dev-flow`（如 `~/.dev-flow/data`, `~/.dev-flow/pet`, `~/.dev-flow/registrations`）。
-运行中的应用始终优先从已安装的 `$HOME/.dev-flow/pet/` 路径加载。
+当前普通 npm 包清单与正式制备流程不包含原生应用；该脚本为本地统一入口包额外加入
+`runtime/darwin-arm64/DevFlowPet.app`。运行已构建的应用无需 Swift/Xcode，Core 由已配置的 Adapter 提供。
+安装辅助逻辑只在候选包实际包含应用且目标缺失时复制到 `$HOME/.dev-flow/pet/DevFlowPet.app`；已有目标直接保留。
+启动器优先选择该用户目录中的应用，其次选择当前统一入口包内应用。程序、应用副本和素材分别更新，流程见
+[桌面宠物指南](DESKTOP-PETS.md#更新程序与素材)。产品目录仍统一位于 `$HOME/.dev-flow`。
 
 用户形象保存到 `productRoot/pet/appearances/<id>`。`PetAppearanceStore` 负责受限文件读取、导入校验和
-替换；`CodexPetImporter` 只在导入时拆分标准图集；`PetAppearanceSelection` 负责资源加载成功与选择保存
+替换；转换后的完整包在临时目录通过与加载时相同的校验后才安装。`AppearanceImages` 在像素解码前
+按图片尺寸和位深检查内存预估。`CodexPetImporter` 在导入时拆分 Codex 标准格式 1/2 图集与 Dev Flow
+自有高分辨率扩展图集，完整保留九类动作、57 帧与原始单格分辨率。`AnimationCatalog` 定义五类必需
+任务动作和四类可选附加动作，并校验所有已提供动作；`PetAppearanceSelection` 负责资源加载成功与选择保存
 的一致性；`PetCharacterView` 负责统一播放。偏好增加 `selected_appearance`，与按数据目录保存的
 `selected_tasks` 独立；偏好更新在同一锁内完成，写入失败保留原值。切换释放旧帧，直接显示当前状态，
-不重新播放旧提示。形象格式见 [DESKTOP-PETS](DESKTOP-PETS.md)。
+不重新播放旧提示。
+
+`PresentationRules` 从 Core 快照决定任务展示和审核节点动作。`PetActivityController` 负责本地休闲动作、
+冷却与下一次截止时间；普通轮询保持已有动作和截止时间。`PetController` 连接窗口事件、一次性唤醒计时与播放请求，
+`PetCharacterView` 通知有限循环实际播放结束，`PetWindow` 只在散步期间更新临时位置。
+角色悬停与气泡悬停分别处理，任务提示可中断休闲。只有手动拖动更新保存位置；动作顺序、冷却和临时位移均留在内存中。
+完整使用、形象格式与触发规则见[桌面宠物指南](DESKTOP-PETS.md)。
+
+`scripts/build-desktop-pet.mjs` 还将 `packages/desktop-pet/appearances/<id>` 复制到应用的 `Contents/Resources/Appearances/<id>`，并在解包后逐文件比较原始素材。`PetController` 传入应用资源目录，`PetAppearanceStore` 合并内置和用户形象列表，直接读取所选目录；同 ID 用户副本优先，导入只写用户目录。鲸鱼娘的完整九类高分辨率素材随应用交付。

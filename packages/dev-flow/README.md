@@ -65,35 +65,24 @@ separate confirmation token.
 
 ## Desktop pet (macOS arm64)
 
-The macOS arm64 environment provides `dev-flow pet start` and `dev-flow pet stop`;
-the interactive menu uses the same entry. Installing any adapter (Codex or DeepSeek) or running lifecycle management automatically provisions the prebuilt desktop pet binary to `$HOME/.dev-flow/pet/DevFlowPet.app`, requiring no Xcode or Swift compiler on the user machine.
-At least one Codex or DeepSeek Adapter must be installed
-and configured. The pet reads that Core's WebUI interface and shows one selected task's saved stage,
-blocker, update time, and synchronization time. Clicking opens its detail page. The chooser loads
-pages on demand and keeps watching terminal tasks; cancellation never celebrates. Its menu controls
-animation, visibility, and quitting; system language selects Chinese or English.
+Running the pet requires macOS arm64, a local development package containing the native app, and at least one installed and configured Codex or DeepSeek Adapter.
+Regular npm file lists omit `DevFlowPet.app`; see the [desktop pet guide](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS_en.md#local-build-and-installation) for building, installation, and updating an existing app.
 
-Starting may start an unavailable WebUI; background connection checks are read-only. Hiding or
-sleeping cancels requests, and showing or waking reads again. Old responses cannot replace a new
-selection. Disabling animation or enabling system Reduce Motion uses static frames. Stopping ends
-only the pet and preserves WebUI, Tasks, and preferences. Maintenance first stops a pet using the
-Adapter being changed and aborts on stop failure. The confirmed factory-reset plan includes
-`productRoot/pet` under the existing data-directory confirmation and cleanup rules. Other platforms
-reject pet commands.
+| Command | Behavior |
+| --- | --- |
+| `dev-flow pet start` | Start or restore the pet, verify Core and the data directory, and start WebUI if needed. An existing user-directory app takes priority over the bundled app. |
+| `dev-flow pet stop` | Quit the pet normally, preserving WebUI, Tasks, settings, and appearances. |
 
-Only the shown arguments are accepted, with plain-text output and exit codes `0` for success, `1`
-for runtime failure, and `2` for invalid arguments. `pet status` and `pet start --json` are not public
-entries.
+Only these two argument forms are accepted. Output is plain text; exit codes are `0` for success, `1` for runtime failure, and `2` for invalid arguments.
+`pet status` and `pet start --json` are not public entries.
 
 ```bash
 dev-flow pet start
 dev-flow pet stop
 ```
 
-Stop it before updating or removing the unified-entry package. The support matrix defines public support.
+The menu provides task and appearance selection, import, Animations, Idle activities, hide, and quit. See the [desktop pet guide](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS_en.md)
+for task selection, the scope of nine-clip support, triggers, and troubleshooting. Stop the pet before updating or removing its current Core Adapter or
+unified-entry package; maintenance aborts if shutdown fails. Confirmed factory-reset clears `productRoot/pet`; ordinary quit and uninstall preserve user artwork and settings.
 
-Choose appearance → Import appearance in the pet menu imports a local folder containing a single PNG,
-a Dev Flow animation pack, or a Codex sprite-format 1/2 pack. Appearance and task selections are
-independent, and upgrades preserve imported artwork. Reimporting the same ID updates the appearance;
-failed validation preserves the installed pack. Codex artwork is converted to common PNG frames,
-while Dev Flow retains stage and navigation ownership. See [appearance packs](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS_en.md).
+The local pet package includes Whale Girl (`whale-girl 3`), selectable directly from Choose appearance after installation, with nine clips, 57 frames, and a 1536×1664 canvas.

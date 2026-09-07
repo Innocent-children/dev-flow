@@ -19,11 +19,13 @@ ten minutes; authentication failures and byte mismatches stop immediately.
 
 ## Desktop pet development artifact
 
-`scripts/build-desktop-pet.mjs --output <absolute-directory>` prepares an ad-hoc-signed local desktop
-pet package for functional development. It is a Node script invoked with `node`; it does not publish
-or alter this release command. Developer ID signing, notarization, and integration of the native app
-into the public release preparation remain outside that development checkpoint.
+`node scripts/build-desktop-pet.mjs --output <absolute-directory>` builds a local desktop pet package, signs the app ad hoc, and adds
+`DevFlowPet.app` to that package's file list. The regular source package list and this release preparation omit the native app.
+This build command neither publishes nor changes the release command. Developer ID signing, notarization, and minimum-system operation
+are outside the verified local artifact scope. Installation and existing-app updates are documented in the
+[desktop pet guide](../../docs/DESKTOP-PETS_en.md#local-build-and-installation).
 
-桌面宠物的本地功能包由 `node scripts/build-desktop-pet.mjs --output <absolute-directory>` 生成，使用
-ad-hoc 签名。它不发布或改动本发布命令；Developer ID、公证和原生应用接入正式发布制备仍属于后续
-正式分发工作。
+`node scripts/build-desktop-pet.mjs --output <absolute-directory>` 构建本地桌面宠物包，使用 ad-hoc 签名，并将
+`DevFlowPet.app` 加入该包的文件清单。常规源码包清单与本正式制备流程不包含原生应用。该构建命令不发布、
+也不改变发布命令；Developer ID、公证和最低系统实际运行不在已验证的本地制品范围内。
+安装及已有应用更新见[桌面宠物指南](../../docs/DESKTOP-PETS.md#本地构建与安装)。

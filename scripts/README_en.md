@@ -127,7 +127,8 @@ See [Release Ownership](../release/README.md) for the exact operator contract.
 assembles existing artwork and language resources, signs ad hoc, and creates a local unified-entry
 tarball. Source JS files and the staging manifest including the app are checked separately. Existing
 USTAR helpers preserve native executable permissions, followed by extracted-signature verification.
-This entry does not rebuild Core, change Adapter installations, or publish npm. Use the installed
-package for functional checks as described in the [command reference](../docs/COMMANDS_en.md#desktop-pet-macos-arm64).
+This entry does not rebuild Core, change Adapter installations, or publish npm. See the [desktop pet guide](../docs/DESKTOP-PETS_en.md#local-build-and-installation) for installation, identifying the running executable, and replacing an existing app.
 `dev-flow:local` retains its temporary lifecycle manager; the pet uses the persistent installed package
 built by this entry.
+
+The build also includes the nine clips and 57 high-resolution Whale Girl frames under `packages/desktop-pet/appearances/`. The `bundled_appearances` build result records each appearance, canvas, frame count, and asset size. Copied resources and the final extracted files are compared byte for byte with their sources.

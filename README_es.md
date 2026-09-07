@@ -113,9 +113,13 @@ no necesitan guardar el progreso, suele ser más sencillo usar Codex o DeepSeek 
 
 ## Mascota de escritorio (macOS arm64)
 
-El entorno macOS arm64 incluye una mascota de escritorio. Al instalar un adaptador (Codex o DeepSeek), el binario precompilado se instala automáticamente en `~/.dev-flow/pet/`, sin requerir Xcode ni el compilador de Swift. Con al menos un Adapter configurado, muestra la etapa guardada y el motivo de bloqueo de una tarea seleccionada; al pulsarla abre su WebUI. El menú permite elegir la tarea, activar las animaciones y ocultar o mostrar la mascota. Presenta el estado guardado por Core, sin indicar actividad en vivo del Host ni porcentajes de progreso. Al salir se conservan las tareas y la WebUI. Consulta la [referencia de comandos](docs/COMMANDS_en.md#desktop-pet-macos-arm64); el soporte público sigue definido por la matriz de soporte.
+El paquete local incluye a la Chica Ballena (`whale-girl 3`) como apariencia seleccionable, con nueve animaciones y 57 fotogramas de 1536×1664 cada uno; se puede elegir directamente en el menú de apariencias tras instalarlo.
 
-Desde el menú de la mascota puedes importar un PNG, un paquete de animación de Dev Flow o un paquete de sprites de Codex de formato 1/2. La selección y los archivos importados se conservan al actualizar. Consulta los [paquetes de apariencia](docs/DESKTOP-PETS_en.md).
+La mascota está disponible en macOS arm64 mediante un paquete local de desarrollo que incluye `DevFlowPet.app`; las listas habituales de archivos npm y la preparación de versiones oficiales omiten la aplicación nativa. Ejecutar un paquete ya compilado no requiere Swift/Xcode y utiliza el Core de un Adapter Codex o DeepSeek configurado. Muestra el estado guardado de una Task y abre su WebUI, sin inferir actividad en vivo del Host ni porcentajes de progreso. Al salir se conservan las Tasks y la WebUI.
+
+Puedes importar un PNG estático, un paquete de animación nativo o un atlas Codex de formato 1/2. Los paquetes nativos requieren cinco animaciones de tarea y admiten cuatro adicionales; los atlas Codex extraen nueve animaciones y 57 fotogramas. Para usar la extensión de alta resolución de Dev Flow en Codex, prepara también un atlas de dimensiones estándar. El material disponible determina los paseos, saludos y gestos de pensamiento en reposo, con un control independiente y prioridad para los avisos de tareas. Actualizar el programa y volver a importar el material son operaciones separadas.
+
+Consulta la [guía de la mascota](docs/DESKTOP-PETS_en.md) para obtener la aplicación, instalarla, actualizarla, conocer las reglas y los límites, y resolver problemas. La matriz de soporte define el soporte público.
 
 ```bash
 dev-flow pet start

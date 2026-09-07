@@ -27,18 +27,23 @@ enum DisplayPhase: Equatable {
     case cancelled
 }
 
-/// The fixed animation keys delivered with the application.
-enum AnimationClip: String, Equatable, CaseIterable {
-    case idle
-    case working
-    case blocked
-    case complete
-    case disconnected
-}
-
 /// Pure display and animation-trigger rules. Prompts are in-memory display
 /// events; they are never written to Core or to preferences.
 enum PresentationRules {
+    static func permitsIdleActivities(_ phase: DisplayPhase) -> Bool {
+        switch phase {
+        case .noSelection, .completed, .cancelled, .archived: return true
+        default: return false
+        }
+    }
+
+    static func needsTerminalRest(_ phase: DisplayPhase) -> Bool {
+        switch phase {
+        case .completed, .cancelled, .archived: return true
+        default: return false
+        }
+    }
+
     struct Result: Equatable {
         let phase: DisplayPhase
         let clip: AnimationClip
@@ -169,7 +174,7 @@ enum PresentationRules {
             case .active:
                 return Result(
                     phase: .working(node: summary.currentNode),
-                    clip: .working,
+                    clip: summary.currentNode == "COMPREHENSION_REVIEW" ? .review : .working,
                     playIntro: false,
                     useRestFrame: false,
                     summary: summary,

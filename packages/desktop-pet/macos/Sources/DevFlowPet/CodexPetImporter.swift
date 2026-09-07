@@ -19,12 +19,20 @@ enum CodexPetImporter {
         let durations: [Int]
     }
 
+    /// Atlas limits cover standard Codex sheets and Dev Flow's high-resolution extension.
+    private static let maximumAtlasBytes = 512 * 1024 * 1024
+    private static let maximumAtlasDecodedBytes = 1024 * 1024 * 1024
+
     private static let rows = [
         Row(clip: .idle, index: 0, durations: [280, 110, 110, 140, 140, 320]),
-        Row(clip: .working, index: 7, durations: [120, 120, 120, 120, 120, 220]),
-        Row(clip: .blocked, index: 6, durations: [150, 150, 150, 150, 150, 260]),
+        Row(clip: .runningRight, index: 1, durations: [120, 120, 120, 120, 120, 120, 120, 220]),
+        Row(clip: .runningLeft, index: 2, durations: [120, 120, 120, 120, 120, 120, 120, 220]),
+        Row(clip: .waving, index: 3, durations: [140, 140, 140, 280]),
         Row(clip: .complete, index: 4, durations: [140, 140, 140, 140, 280]),
         Row(clip: .disconnected, index: 5, durations: [140, 140, 140, 140, 140, 140, 140, 240]),
+        Row(clip: .blocked, index: 6, durations: [150, 150, 150, 150, 150, 260]),
+        Row(clip: .working, index: 7, durations: [120, 120, 120, 120, 120, 220]),
+        Row(clip: .review, index: 8, durations: [150, 150, 150, 150, 150, 280]),
     ]
 
     static func convert(_ data: Data, from source: URL, into destination: URL) throws -> PetAppearance {
@@ -36,16 +44,27 @@ enum CodexPetImporter {
             throw AppearanceImportError(message: "invalid Codex pet identity or spriteVersionNumber; expected 1 or 2")
         }
         let bytes = try OwnedStorage.readRelativeData(in: source, path: manifest.spritesheetPath,
-                                                       limit: PetAppearanceStore.maximumPackBytes)
-        let atlas = try AppearanceImages.decode(bytes, allowedTypes: [UTType.png.identifier, UTType.webP.identifier], maximumDimension: 2288)
-        guard atlas.width == 1536, atlas.height == (version == 1 ? 1872 : 2288) else {
-            throw AppearanceImportError(message: "Codex sprite sheet must be 1536 × \(version == 1 ? 1872 : 2288)")
+                                                       limit: Self.maximumAtlasBytes)
+        let atlas = try AppearanceImages.decode(bytes, allowedTypes: [UTType.png.identifier, UTType.webP.identifier],
+                                                maximumDecodedBytes: Self.maximumAtlasDecodedBytes)
+        // Eight columns and the Codex cell ratio also define Dev Flow's scaled atlas layout.
+        let columns = 8
+        guard atlas.width % columns == 0 else {
+            throw AppearanceImportError(message: "Codex sprite sheet width must be a multiple of \(columns)")
+        }
+        let cellWidth = atlas.width / columns
+        guard cellWidth * 208 % 192 == 0 else {
+            throw AppearanceImportError(message: "Codex sprite sheet width does not map to the 192:208 cell ratio")
+        }
+        let cellHeight = cellWidth * 208 / 192
+        guard atlas.height >= cellHeight * 9 else {
+            throw AppearanceImportError(message: "Codex sprite sheet must contain all nine animation rows")
         }
         var clips: [AnimationClip: AnimationCatalog.Clip] = [:]
         for row in rows {
             var frames: [String] = []
             for column in row.durations.indices {
-                guard let frame = atlas.cropping(to: CGRect(x: column * 192, y: row.index * 208, width: 192, height: 208)) else {
+                guard let frame = atlas.cropping(to: CGRect(x: column * cellWidth, y: row.index * cellHeight, width: cellWidth, height: cellHeight)) else {
                     throw AppearanceImportError(message: "cannot read Codex sprite cell")
                 }
                 let path = "\(row.clip.rawValue)/\(column).png"
@@ -57,7 +76,8 @@ enum CodexPetImporter {
                 restFrame: row.clip == .complete ? frames.count - 1 : 0,
                 frameDurationsMilliseconds: row.durations)
         }
-        let catalog = AnimationCatalog(canvas: .init(width: 192, height: 208), anchor: .init(x: 96, y: 208), clips: clips)
+        let catalog = AnimationCatalog(canvas: .init(width: cellWidth, height: cellHeight),
+            anchor: .init(x: Double(cellWidth) / 2, y: Double(cellHeight)), clips: clips)
         try OwnedStorage.writeAtomically(JSONEncoder.pretty.encode(catalog), to: destination.appendingPathComponent("animations.json").path)
         let digest = SHA256.hash(data: Data(manifest.id.utf8)).map { String(format: "%02x", $0) }.joined()
         return PetAppearance(id: "codex-" + String(digest.prefix(32)), name: manifest.displayName)

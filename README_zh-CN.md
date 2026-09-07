@@ -100,9 +100,13 @@ Dev Flow 适合会跨会话、需要明确文件范围、必须限制测试投�
 
 ## 桌面宠物（macOS arm64）
 
-macOS arm64 环境提供桌面宠物。安装任意适配器（Codex 或 DeepSeek）后由插件提供预置二进制并自动就位至 `~/.dev-flow/pet/`，无需 Xcode 或 Swift 编译器。配置好至少一个 Adapter 后，可显示一个所选任务已保存的阶段与阻塞原因，点击进入对应 WebUI。菜单提供任务选择、动画开关和隐藏/显示。阶段表示 Core 保存的状态，不表示 Host 此刻正在执行，也不显示完成百分比。退出保留任务和 WebUI。更多说明见[命令参考](docs/COMMANDS.md#桌面宠物macos-arm64)，公开支持范围仍以支持矩阵为准。
+本地宠物包内置鲸鱼娘（`whale-girl 3`），保留九类动作、57 帧和 1536×1664 单帧分辨率；安装后可从形象菜单直接选择。
 
-可以从宠物菜单导入单张 PNG、Dev Flow 动画包或 Codex 精灵图格式 1/2 的形象包；选择和导入素材在升级后保留。制作方式见[形象包说明](docs/DESKTOP-PETS.md)。
+桌面宠物通过包含 `DevFlowPet.app` 的 macOS arm64 本地开发包使用；常规 npm 清单与正式制备流程不包含原生应用。运行已构建的包无需 Swift/Xcode，由已配置的 Codex 或 DeepSeek Adapter 提供 Core。宠物显示一个 Task 的保存状态并打开对应 WebUI，不推断 Host 实时活动或完成百分比；退出保留 Task 和 WebUI。
+
+形象支持静态 PNG、原生动画包和 Codex 标准格式 1/2 图集。原生包要求五类任务动作，可增加四类附加动作；Codex 布局图集固定提取九类、57 帧。Dev Flow 高分辨率扩展在 Codex 中使用时需另备标准尺寸图集。可用素材决定待机散步、挥手和思考，菜单可独立关闭待机活动，任务提示优先。程序更新与素材重导入分别处理。
+
+获取应用、安装更新、触发规则、限制和排查统一见[桌面宠物指南](docs/DESKTOP-PETS.md)，公开支持范围以支持矩阵为准。
 
 ```bash
 dev-flow pet start

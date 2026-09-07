@@ -114,9 +114,13 @@ mécanique sans progression à conserver, Codex ou DeepSeek seul est généralem
 
 ## Mascotte de bureau (macOS arm64)
 
-L'environnement macOS arm64 comprend une mascotte de bureau. Lors de l'installation d'un adaptateur (Codex ou DeepSeek), le binaire précompilé est automatiquement installé sous `~/.dev-flow/pet/`, sans nécessiter Xcode ou le compilateur Swift. Avec au moins un Adapter configuré, elle affiche l’étape enregistrée et la raison du blocage d’une tâche sélectionnée ; un clic ouvre sa WebUI. Le menu permet de choisir la tâche, de régler les animations et de masquer ou afficher la mascotte. Elle présente l’état enregistré par Core, sans activité du Host en temps réel ni pourcentage de progression. Quitter conserve les tâches et la WebUI. Consultez la [référence des commandes](docs/COMMANDS_en.md#desktop-pet-macos-arm64) ; le support public reste défini par la matrice de support.
+Le paquet local inclut la Fille Baleine (`whale-girl 3`) parmi les apparences proposées, avec neuf animations et 57 images de 1536×1664 pixels chacune ; elle se sélectionne directement dans le menu des apparences après installation.
 
-Le menu de la mascotte permet d’importer un PNG, un pack d’animation Dev Flow ou un pack de sprites Codex au format 1/2. La sélection et les fichiers importés sont conservés lors des mises à jour. Consultez les [packs d’apparence](docs/DESKTOP-PETS_en.md).
+La mascotte est disponible sur macOS arm64 via un paquet local de développement contenant `DevFlowPet.app` ; les listes habituelles de fichiers npm et la préparation des versions officielles omettent l’application native. Un paquet déjà compilé s’exécute sans Swift/Xcode et utilise le Core d’un Adapter Codex ou DeepSeek configuré. La mascotte affiche l’état enregistré d’une Task et ouvre sa WebUI, sans déduire l’activité en direct du Host ni un pourcentage de progression. Quitter conserve les Tasks et la WebUI.
+
+Importez un PNG statique, un pack d’animation natif ou un atlas au format Codex 1/2. Les packs natifs exigent cinq animations de tâche et peuvent en ajouter quatre ; les atlas Codex fournissent neuf animations et 57 images. L’extension haute résolution de Dev Flow nécessite un atlas distinct aux dimensions standard pour être utilisée dans Codex. Les ressources disponibles déterminent les promenades, saluts et gestes de réflexion au repos, avec un réglage indépendant et la priorité aux alertes de tâche. La mise à jour du programme et la réimportation des ressources sont deux opérations distinctes.
+
+Consultez le [guide de la mascotte](docs/DESKTOP-PETS_en.md) pour obtenir l’application, l’installer, la mettre à jour et connaître les règles, limites et solutions aux problèmes. La matrice de support définit le support public.
 
 ```bash
 dev-flow pet start

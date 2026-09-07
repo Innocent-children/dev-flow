@@ -11,21 +11,25 @@ struct PetPreferences: Codable, Equatable {
 
     var position: Position?
     var animationsEnabled: Bool
+    var idleActivitiesEnabled: Bool
     var selectedTasks: [String: String]
     var selectedAppearance: String?
 
     enum CodingKeys: String, CodingKey {
         case position
         case animationsEnabled = "animations_enabled"
+        case idleActivitiesEnabled = "idle_activities_enabled"
         case selectedTasks = "selected_tasks"
         case selectedAppearance = "selected_appearance"
     }
 
     static let `default` = PetPreferences(position: nil, animationsEnabled: true, selectedTasks: [:])
 
-    init(position: Position?, animationsEnabled: Bool, selectedTasks: [String: String], selectedAppearance: String? = nil) {
+    init(position: Position?, animationsEnabled: Bool, selectedTasks: [String: String], selectedAppearance: String? = nil,
+         idleActivitiesEnabled: Bool = true) {
         self.position = position
         self.animationsEnabled = animationsEnabled
+        self.idleActivitiesEnabled = idleActivitiesEnabled
         self.selectedTasks = selectedTasks
         self.selectedAppearance = selectedAppearance
     }
@@ -34,6 +38,7 @@ struct PetPreferences: Codable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         position = try container.decodeIfPresent(Position.self, forKey: .position)
         animationsEnabled = try container.decodeIfPresent(Bool.self, forKey: .animationsEnabled) ?? true
+        idleActivitiesEnabled = try container.decodeIfPresent(Bool.self, forKey: .idleActivitiesEnabled) ?? true
         selectedTasks = try container.decodeIfPresent([String: String].self, forKey: .selectedTasks) ?? [:]
         selectedAppearance = try container.decodeIfPresent(String.self, forKey: .selectedAppearance)
     }
@@ -116,6 +121,13 @@ extension JSONEncoder {
 
 /// Keeps a remembered window position inside the currently visible work area.
 enum PositionRules {
+    /// Bounds automatic walking around the last manual placement and the current screen.
+    static func walkingRange(centerX: Double, windowWidth: Double, visibleFrame: CGRect) -> ClosedRange<Double>? {
+        let lower = max(centerX - 120, visibleFrame.minX + 16)
+        let upper = min(centerX + 120, visibleFrame.maxX - windowWidth - 16)
+        return lower <= upper ? lower...upper : nil
+    }
+
     /// Returns the position to use for a window of `windowSize` inside
     /// `visibleFrame`. A display that was removed or rearranged moves the whole
     /// window back into a visible area instead of leaving it unreachable.

@@ -4,12 +4,12 @@ import Foundation
 /// The menu bar item and the one menu shared by the menu bar entry and a
 /// right-click on the character.
 ///
-/// The menu exposes task and appearance selection plus animation and visibility
-/// controls. When the
+/// The menu exposes task and appearance selection, idle activities, animation,
+/// and visibility controls. When the
 /// system reduce-motion setting is active, the menu states that animation is
 /// limited by it.
 @MainActor
-final class PetMenu: NSObject {
+final class PetMenu: NSObject, NSMenuDelegate {
     enum Action: Equatable {
         case chooseTask
         case chooseAppearance(String?)
@@ -17,6 +17,7 @@ final class PetMenu: NSObject {
         case openTaskList
         case retryConnection
         case toggleAnimations
+        case toggleIdleActivities
         case toggleVisibility
         case quit
     }
@@ -25,6 +26,7 @@ final class PetMenu: NSObject {
     private static let iconCandidates = ["MenuBarIcon.pdf", "MenuBarIcon.png"]
 
     var onAction: ((Action) -> Void)?
+    var onTrackingChanged: ((Bool) -> Void)?
 
     let menu = NSMenu()
     private let statusItem: NSStatusItem
@@ -34,6 +36,7 @@ final class PetMenu: NSObject {
     private let openTaskListItem = NSMenuItem()
     private let retryConnectionItem = NSMenuItem()
     private let animationsItem = NSMenuItem()
+    private let idleActivitiesItem = NSMenuItem()
     private let reduceMotionItem = NSMenuItem()
     private let visibilityItem = NSMenuItem()
     private let quitItem = NSMenuItem()
@@ -51,6 +54,7 @@ final class PetMenu: NSObject {
         isConnected: Bool,
         isVisible: Bool,
         animationsEnabled: Bool,
+        idleActivitiesEnabled: Bool,
         reduceMotion: Bool,
         appearances: [PetAppearance],
         selectedAppearance: String?,
@@ -71,12 +75,14 @@ final class PetMenu: NSObject {
         openTaskListItem.title = strings.menuOpenTaskList
         retryConnectionItem.title = strings.menuRetryConnection
         animationsItem.title = strings.menuAnimations
+        idleActivitiesItem.title = strings.menuIdleActivities
         visibilityItem.title = isVisible ? strings.menuHide : strings.menuShow
         quitItem.title = strings.menuQuit
 
         // Only a disconnected desktop may ask Core to start the local service.
         retryConnectionItem.isEnabled = !isConnected
         animationsItem.state = animationsEnabled ? .on : .off
+        idleActivitiesItem.state = idleActivitiesEnabled ? .on : .off
 
         reduceMotionItem.isHidden = !reduceMotion
         reduceMotionItem.title = reduceMotion ? strings.reduceMotionNote : ""
@@ -93,6 +99,7 @@ final class PetMenu: NSObject {
 
     private func buildMenu() {
         menu.autoenablesItems = false
+        menu.delegate = self
         add(chooseTaskItem, action: #selector(chooseTask))
         appearanceItem.submenu = appearancesMenu
         appearancesMenu.autoenablesItems = false
@@ -101,6 +108,7 @@ final class PetMenu: NSObject {
         menu.addItem(.separator())
         add(retryConnectionItem, action: #selector(retryConnection))
         add(animationsItem, action: #selector(toggleAnimations))
+        add(idleActivitiesItem, action: #selector(toggleIdleActivities))
         reduceMotionItem.isEnabled = false
         reduceMotionItem.isHidden = true
         menu.addItem(reduceMotionItem)
@@ -142,6 +150,10 @@ final class PetMenu: NSObject {
     @objc private func openTaskList() { onAction?(.openTaskList) }
     @objc private func retryConnection() { onAction?(.retryConnection) }
     @objc private func toggleAnimations() { onAction?(.toggleAnimations) }
+    @objc private func toggleIdleActivities() { onAction?(.toggleIdleActivities) }
     @objc private func toggleVisibility() { onAction?(.toggleVisibility) }
     @objc private func quit() { onAction?(.quit) }
+
+    func menuWillOpen(_ menu: NSMenu) { onTrackingChanged?(true) }
+    func menuDidClose(_ menu: NSMenu) { onTrackingChanged?(false) }
 }

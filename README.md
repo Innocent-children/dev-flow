@@ -109,9 +109,13 @@ progress, using Codex or DeepSeek directly is usually simpler.
 
 ## Desktop pet (macOS arm64)
 
-The macOS arm64 environment includes a desktop pet. Installing either adapter (Codex or DeepSeek) automatically provisions the prebuilt binary to `~/.dev-flow/pet/` without requiring Xcode or the Swift compiler. With at least one configured Adapter, it shows the saved stage and blocker of one selected task; clicking opens its WebUI page. The menu provides task selection, animation and visibility controls. Stages describe saved Core state, without live Host activity or completion percentages. Exiting preserves tasks and WebUI. See the [command reference](docs/COMMANDS_en.md#desktop-pet-macos-arm64); public support remains defined by the support matrix.
+The local pet package bundles Whale Girl (`whale-girl 3`) as a selectable appearance, with nine clips and 57 frames at 1536×1664 per frame; choose it directly from the appearance menu after installation.
 
-Import a local appearance from the pet menu: a PNG, a Dev Flow animation pack, or a Codex sprite-format 1/2 pack. Selection and imported files survive upgrades. See [appearance packs](docs/DESKTOP-PETS_en.md).
+The desktop pet is available on macOS arm64 through a local development package containing `DevFlowPet.app`; regular npm file lists and release preparation omit the native app. Running a built package requires no Swift/Xcode and uses Core from an already configured Codex or DeepSeek Adapter. It shows one Task's saved state and opens its WebUI, without inferring live Host activity or completion percentages. Quitting preserves Tasks and WebUI.
+
+Import a static PNG, a native animation pack, or a Codex format 1/2 atlas. Native packs require five task clips and may add four more; Codex-layout atlases extract nine clips and 57 frames. Dev Flow's high-resolution extension requires a separate standard-sized atlas for use in Codex. Available artwork drives idle walking, waving, and thinking, with a separate Idle activities switch and priority for task prompts. Program updates and artwork reimports are separate operations.
+
+See the [desktop pet guide](docs/DESKTOP-PETS_en.md) for obtaining the app, installation, updates, triggers, limits, and troubleshooting; the support matrix defines public support.
 
 ```bash
 dev-flow pet start

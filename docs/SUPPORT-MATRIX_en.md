@@ -57,12 +57,17 @@ For current source capabilities, actual-environment test entry points, and adopt
 
 ## Desktop pet functional checks
 
-The desktop pet targets macOS arm64 (Apple Silicon). When installing any adapter (Codex or DeepSeek) or via the unified entry, the plugin provides a prebuilt binary automatically placed under `~/.dev-flow/pet/DevFlowPet.app`, without requiring Xcode or the Swift compiler on the user machine. The macOS development host
-has checked its signature and executable modes, and verified installation under a
-path containing spaces to check task selection, stages, WebUI navigation, hide/restore, and stop.
-State changes, late responses, and some lifecycle paths use targeted fixtures. This is not a new
-complete Codex/DeepSeek session test and does not expand the stable support table. The macOS 14
-deployment target, minimum-OS execution, Developer ID, and Apple notarization still need distribution
-verification.
+The desktop component targets macOS arm64 (Apple Silicon) and uses a local development package containing the native app. Regular npm lists and release
+preparation currently omit `DevFlowPet.app`. See the [desktop pet guide](DESKTOP-PETS_en.md#local-build-and-installation) for building and running it.
+A built app needs neither Swift nor Xcode; a configured Codex or DeepSeek Adapter provides Core.
 
-Targeted appearance checks cover static/animated packs, both Codex atlases, saved selection, and error handling. A local Codex pet copy supplies the real WebP check. Artwork compatibility does not expand Host workflow or platform support.
+Completed local checks cover package building, extracted resources/signatures/executable permissions, appearance import and selection, the Idle activities switch,
+and observed automatic waves, rightward walks, and returns to idle. Targeted tests cover static/native packs, standard Codex atlases, nine-row high-resolution
+atlases, saved selection, preservation on failed imports, cooldowns and preemption, finite-loop callbacks, and movement cancellation. Actual WebP checks use
+a local Codex atlas. See the guide's [acceptance checks](DESKTOP-PETS_en.md#acceptance-checks) for the methods.
+
+The Swift Package and app metadata target macOS 14. Actual minimum-system operation, complete physical mouse-drag checks, full Codex/DeepSeek Task sessions,
+Developer ID signing, and Apple notarization have not completed their respective verification. Local and targeted results do not expand the stable-support table
+above or Host task-workflow capabilities.
+
+Bundled Whale Girl additionally passed native macOS arm64 appearance checks: direct selection with an empty user library, precedence for a user import with the same ID, and complete loading of nine clips and 57 frames. After installing the final local package with npm into a temporary directory, application signing, executable permissions, original artwork bytes, and loading of all nine clips were verified again. These checks do not constitute a complete real Task session.

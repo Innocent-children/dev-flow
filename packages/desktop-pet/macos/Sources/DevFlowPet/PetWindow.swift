@@ -13,6 +13,8 @@ protocol PetWindowHandling: AnyObject {
     func petWindowDidMove(toOrigin origin: CGPoint)
     /// Hovering expanded or collapsed the bubble.
     func petWindowHoverChanged(_ hovering: Bool)
+    func petWindowCharacterHoverChanged(_ hovering: Bool)
+    func petWindowPressedChanged(_ pressed: Bool)
     func petWindowDraggingChanged(_ dragging: Bool)
 }
 
@@ -25,6 +27,10 @@ protocol PetWindowHandling: AnyObject {
 @MainActor
 final class PetWindow: NSPanel {
     let content: PetContentView
+    var onWalkingFinished: (() -> Void)?
+    private var walkingTimer: Timer?
+
+    var isWalking: Bool { walkingTimer != nil }
 
     init() {
         let contentView = PetContentView()
@@ -56,6 +62,31 @@ final class PetWindow: NSPanel {
         setFrame(NSRect(origin: origin, size: size), display: true)
     }
 
+    /// Moves the panel temporarily; manual drag completion owns saved preferences.
+    func startWalking(toX targetX: Double, duration: TimeInterval) {
+        stopWalking()
+        let startX = frame.minX
+        let started = ProcessInfo.processInfo.systemUptime
+        let timer = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                let progress = min(1, (ProcessInfo.processInfo.systemUptime - started) / duration)
+                self.setFrameOrigin(CGPoint(x: startX + (targetX - startX) * progress, y: self.frame.minY))
+                if progress >= 1 {
+                    self.stopWalking()
+                    self.onWalkingFinished?()
+                }
+            }
+        }
+        walkingTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    func stopWalking() {
+        walkingTimer?.invalidate()
+        walkingTimer = nil
+    }
+
     /// Resizes for a bubble expansion without moving the character. AppKit uses
     /// a bottom-left origin, so keeping the origin fixed grows the window upward.
     func relayoutForBubble() {
@@ -85,6 +116,7 @@ final class PetContentView: NSView {
     let bubble = PetBubbleView(frame: .zero)
 
     private var trackingArea: NSTrackingArea?
+    private var characterTrackingArea: NSTrackingArea?
     private var pressScreenLocation: NSPoint?
     private var pressWindowOrigin: CGPoint?
     private var isDragging = false
@@ -127,25 +159,47 @@ final class PetContentView: NSView {
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
-        if let trackingArea { removeTrackingArea(trackingArea) }
-        let area = NSTrackingArea(
-            rect: .zero,
-            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
-            owner: self
-        )
-        addTrackingArea(area)
-        trackingArea = area
+        if trackingArea == nil {
+            let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self)
+            addTrackingArea(area)
+            trackingArea = area
+        }
+        if characterTrackingArea?.rect != character.frame {
+            if let characterTrackingArea { removeTrackingArea(characterTrackingArea) }
+            let area = NSTrackingArea(rect: character.frame, options: [.mouseEnteredAndExited, .activeAlways],
+                owner: self, userInfo: ["character": true])
+            addTrackingArea(area)
+            characterTrackingArea = area
+        }
     }
 
     override func mouseEntered(with event: NSEvent) {
-        handler?.petWindowHoverChanged(true)
+        if event.trackingArea?.userInfo?["character"] as? Bool == true {
+            handler?.petWindowCharacterHoverChanged(true)
+        } else {
+            handler?.petWindowHoverChanged(true)
+        }
     }
 
     override func mouseExited(with event: NSEvent) {
-        handler?.petWindowHoverChanged(false)
+        if event.trackingArea?.userInfo?["character"] as? Bool == true {
+            handler?.petWindowCharacterHoverChanged(false)
+        } else {
+            handler?.petWindowHoverChanged(false)
+        }
+    }
+
+    /// Menus and panels consume pointer events; reconcile hover when they close.
+    func synchronizeHover() {
+        guard let window, window.isVisible else { return }
+        let point = convert(window.mouseLocationOutsideOfEventStream, from: nil)
+        let inside = visibleRect.contains(point)
+        handler?.petWindowHoverChanged(inside)
+        handler?.petWindowCharacterHoverChanged(inside && character.frame.contains(point))
     }
 
     override func mouseDown(with event: NSEvent) {
+        handler?.petWindowPressedChanged(true)
         pressScreenLocation = NSEvent.mouseLocation
         pressWindowOrigin = window?.frame.origin
         isDragging = false
@@ -172,10 +226,14 @@ final class PetContentView: NSView {
         isDragging = false
         if dragged {
             if let origin { handler?.petWindowDidMove(toOrigin: origin) }
+            handler?.petWindowPressedChanged(false)
             handler?.petWindowDraggingChanged(false)
+            synchronizeHover()
             return
         }
+        handler?.petWindowPressedChanged(false)
         handler?.petWindowDidRequestOpen()
+        synchronizeHover()
     }
 
     override func rightMouseDown(with event: NSEvent) {

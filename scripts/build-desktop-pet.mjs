@@ -2,7 +2,7 @@
 
 import { execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmod, copyFile, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { chmod, copyFile, cp, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
@@ -14,6 +14,7 @@ import { normalizeUstarArchive } from "./dev-flow-local.mjs";
 const execFile = promisify(execFileCallback);
 const repositoryRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
 const applicationRelativePath = "runtime/darwin-arm64/DevFlowPet.app";
+const appearancesRoot = join(repositoryRoot, "packages", "desktop-pet", "appearances");
 
 async function run(executable, args) {
   return execFile(executable, args, {
@@ -41,6 +42,30 @@ function plist(version) {
 `;
 }
 
+// Check the delivered data against the artwork kept in the repository.
+async function verifyBundledAppearances(resources) {
+  const appearances = [];
+  const entries = await readdir(appearancesRoot, { withFileTypes: true });
+  for (const entry of entries.filter((item) => item.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) {
+    const source = join(appearancesRoot, entry.name);
+    const destination = join(resources, "Appearances", entry.name);
+    const pet = JSON.parse(await readFile(join(source, "pet.json"), "utf8"));
+    const catalog = JSON.parse(await readFile(join(source, "animations.json"), "utf8"));
+    if (pet.id !== entry.name) throw new Error(`bundled appearance ID differs from its directory: ${entry.name}`);
+    const frames = Object.values(catalog.clips).flatMap((clip) => clip.frames);
+    let bytes = 0;
+    for (const relative of ["pet.json", "animations.json", ...new Set(frames.map((frame) => `Assets/${frame}`))]) {
+      const original = await readFile(join(source, relative));
+      const delivered = await readFile(join(destination, relative));
+      if (!original.equals(delivered)) throw new Error(`bundled appearance differs from source: ${entry.name}/${relative}`);
+      if (relative.startsWith("Assets/")) bytes += delivered.length;
+    }
+    appearances.push({ id: pet.id, name: pet.name, clips: Object.keys(catalog.clips).length,
+      frames: frames.length, canvas: catalog.canvas, asset_bytes: bytes });
+  }
+  return appearances;
+}
+
 export async function verifyDesktopPet(application) {
   const contents = join(application, "Contents");
   const executable = join(contents, "MacOS", "DevFlowPet");
@@ -54,8 +79,9 @@ export async function verifyDesktopPet(application) {
   }
   const assets = await checkAssetRoot(join(contents, "Resources"));
   if (!assets.ok) throw new Error(assets.problems.join("\n"));
+  const bundledAppearances = await verifyBundledAppearances(join(contents, "Resources"));
   await run("/usr/bin/codesign", ["--verify", "--deep", "--strict", application]);
-  return { frames: assets.frames, asset_bytes: assets.bytes };
+  return { frames: assets.frames, asset_bytes: assets.bytes, bundled_appearances: bundledAppearances };
 }
 
 // Builds a local development package. Publication owns Developer ID signing and notarization.
@@ -98,6 +124,8 @@ export async function buildDesktopPetPackage({ outputRoot }) {
     await writeFile(join(contents, "Info.plist"), plist(manifest.version));
     process.stdout.write("desktop-pet: assembling the existing artwork and language resources\n");
     await bakeAssets(resources);
+    await cp(appearancesRoot, join(resources, "Appearances"), { recursive: true,
+      filter: (source) => !source.endsWith(".md") });
     for (const [locale, name] of [["en", "Dev Flow Desktop Pet"], ["zh-Hans", "Dev Flow 桌面宠物"]]) {
       const directory = join(resources, `${locale}.lproj`);
       await mkdir(directory, { recursive: true });

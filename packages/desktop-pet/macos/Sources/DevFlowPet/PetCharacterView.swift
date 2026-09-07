@@ -3,9 +3,9 @@ import Foundation
 
 /// Renders the delivered frame animation of the current clip.
 ///
-/// The view owns only playback. Which clip plays, whether its attention segment
-/// is shown, and whether a static frame replaces the loop are decided by
-/// `PresentationRules` and `PlaybackRules`. Every timer stops when the view is
+/// The view owns frame timing and completion callbacks. `PresentationRules`,
+/// `PetActivityController`, and `PlaybackRules` select the artwork and playback.
+/// Every timer stops when the view is
 /// hidden or the desktop quits, so no animation keeps running in the background.
 @MainActor
 final class PetCharacterView: NSView {
@@ -22,6 +22,7 @@ final class PetCharacterView: NSView {
     private var clipDescription: AnimationCatalog.Clip?
     private var currentClip: AnimationClip?
     private(set) var currentPlayback: ClipPlayback?
+    var onPlaybackFinished: ((AnimationClip) -> Void)?
 
     /// Remaining explicit frames before the loop or the static frame takes over.
     private var sequence: [Int] = []
@@ -79,16 +80,17 @@ final class PetCharacterView: NSView {
     /// clip's dedicated static frame and runs no timer. Calling this with the
     /// same clip and the same playback only restarts the sequence when the
     /// playback actually changed, so a steady phase does not stutter.
-    func play(clip: AnimationClip, playback: ClipPlayback, restart: Bool) {
+    @discardableResult
+    func play(clip: AnimationClip, playback: ClipPlayback, restart: Bool) -> Bool {
         guard let library else {
             showDiagnostic(clip: clip)
-            return
+            return false
         }
         diagnosticLabel.isHidden = true
         guard let description = library.catalog.clips[clip] else {
             stopPlayback()
             showDiagnostic(clip: clip)
-            return
+            return false
         }
         let decoded: ClipFrames
         do {
@@ -96,7 +98,7 @@ final class PetCharacterView: NSView {
         } catch {
             stopPlayback()
             showDiagnostic(clip: clip)
-            return
+            return false
         }
 
         let unchanged = currentClip == clip && clipDescription == description && currentPlayback == playback && !restart
@@ -104,16 +106,17 @@ final class PetCharacterView: NSView {
         clipDescription = description
         currentClip = clip
         currentPlayback = playback
+        imageView.setAccessibilityIdentifier("pet-animation-\(clip.rawValue)")
         switch playback {
         case .rest(let frameIndex):
-            if unchanged { return }
+            if unchanged { return true }
             stopTimer()
             sequence = []
             loopRange = nil
             restFrame = frameIndex
             show(frameIndex)
         case .loop(let range):
-            if unchanged { return }
+            if unchanged { return true }
             sequence = []
             loopRange = range
             restFrame = nil
@@ -121,19 +124,26 @@ final class PetCharacterView: NSView {
             show(loopCursor)
             scheduleNextFrame(after: loopCursor)
         case .introThenLoop(let intro, let loop):
-            if unchanged { return }
+            if unchanged { return true }
             sequence = Array(intro.lowerBound...intro.upperBound)
             loopRange = loop
             restFrame = nil
             loopCursor = loop.lowerBound - 1
             advance()
         case .onceThenRest(let lastFrameIndex, let rest):
-            if unchanged { return }
+            if unchanged { return true }
             sequence = Array(0...max(lastFrameIndex, 0))
             loopRange = nil
             restFrame = rest
             advance()
+        case .repeatThenRest(let cycles, let rest):
+            if unchanged { return true }
+            sequence = Array(repeating: Array(description.frames.indices), count: max(1, cycles)).flatMap { $0 }
+            loopRange = nil
+            restFrame = rest
+            advance()
         }
+        return true
     }
 
     /// The hover reaction allowed by the animation rules: the attention segment
@@ -213,6 +223,8 @@ final class PetCharacterView: NSView {
             if let restFrame {
                 currentPlayback = .rest(frameIndex: restFrame)
                 show(restFrame)
+                self.restFrame = nil
+                if let currentClip { onPlaybackFinished?(currentClip) }
             }
             return
         }

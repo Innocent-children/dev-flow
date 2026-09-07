@@ -111,9 +111,13 @@ Fortschritt ist Codex oder DeepSeek allein meist einfacher.
 
 ## Desktop-Maskottchen (macOS arm64)
 
-Die macOS arm64-Umgebung enthält ein Desktop-Maskottchen. Bei der Installation eines Adapters (Codex oder DeepSeek) wird die vorkompilierte Binärdatei automatisch unter `~/.dev-flow/pet/` bereitgestellt, ohne dass Xcode oder der Swift-Compiler erforderlich sind. Mit mindestens einem eingerichteten Adapter zeigt es die gespeicherte Phase und den Blockierungsgrund einer ausgewählten Aufgabe; ein Klick öffnet deren WebUI. Das Menü bietet Aufgabenauswahl, Animationen sowie Ein- und Ausblenden. Angezeigt wird der gespeicherte Core-Zustand, ohne Aussage über laufende Host-Aktivität oder Fortschrittsprozente. Beim Beenden bleiben Aufgaben und WebUI erhalten. Siehe die [Befehlsreferenz](docs/COMMANDS_en.md#desktop-pet-macos-arm64); für den öffentlichen Support gilt weiterhin die Support-Matrix.
+Das lokale Paket enthält das Walmädchen (`whale-girl 3`) als auswählbares Erscheinungsbild mit neun Animationen und 57 Einzelbildern von jeweils 1536×1664 Pixeln. Nach der Installation lässt es sich direkt im Erscheinungsbild-Menü auswählen.
 
-Über das Maskottchen-Menü lassen sich ein PNG, ein Dev-Flow-Animationspaket oder ein Codex-Sprite-Paket im Format 1/2 importieren. Auswahl und importierte Dateien bleiben bei Updates erhalten. Siehe [Erscheinungsbild-Pakete](docs/DESKTOP-PETS_en.md).
+Das Desktop-Maskottchen ist für macOS arm64 als lokales Entwicklungspaket mit `DevFlowPet.app` verfügbar. Die regulären npm-Dateilisten und die Vorbereitung öffentlicher Releases enthalten die native App nicht. Ein fertig gebautes Paket benötigt zum Ausführen kein Swift/Xcode und nutzt den Core eines konfigurierten Codex- oder DeepSeek-Adapters. Es zeigt den gespeicherten Zustand einer Task und öffnet deren WebUI, ohne laufende Host-Aktivität oder Fortschrittsprozente abzuleiten. Beim Beenden bleiben Tasks und WebUI erhalten.
+
+Importiert werden können ein statisches PNG, ein natives Animationspaket oder ein Atlas im Codex-Format 1/2. Native Pakete benötigen fünf Aufgabenanimationen und können vier weitere enthalten; Codex-Atlanten ergeben neun Animationen und 57 Einzelbilder. Für Codex erfordert die hochauflösende Dev-Flow-Erweiterung zusätzlich einen Atlas mit Standardabmessungen. Verfügbare Grafiken bestimmen Laufen, Winken und Nachdenken im Leerlauf; dafür gibt es einen separaten Schalter, und Aufgabenmeldungen haben Vorrang. Programmaktualisierung und erneuter Grafikimport sind getrennte Vorgänge.
+
+Bezug, Installation, Aktualisierung, Auslöseregeln, Grenzen und Fehlerbehebung stehen im [Desktop-Maskottchen-Handbuch](docs/DESKTOP-PETS_en.md). Die Support-Matrix definiert den öffentlichen Support.
 
 ```bash
 dev-flow pet start

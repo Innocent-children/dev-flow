@@ -1,7 +1,23 @@
 import Foundation
 
+/// Animation keys shared by imported artwork and the player.
+enum AnimationClip: String, Equatable, CaseIterable {
+    case idle
+    case working
+    case blocked
+    case complete
+    case disconnected
+    case runningRight = "running-right"
+    case runningLeft = "running-left"
+    case waving
+    case review
+}
+
 /// The common frame catalog used by bundled and imported appearances.
 struct AnimationCatalog: Codable, Equatable {
+    /// Every appearance supplies these clips for the desktop's task states.
+    static let requiredClips: [AnimationClip] = [.idle, .working, .blocked, .complete, .disconnected]
+
     struct Canvas: Codable, Equatable {
         let width: Int
         let height: Int
@@ -138,13 +154,13 @@ enum AnimationCatalogError: Error, Equatable {
 }
 
 extension AnimationCatalog {
-    /// Confirms that all five clips are present and that every index and frame
-    /// path is legal. The build check runs the same rules over the delivered
-    /// assets.
+    /// Confirms the five required task clips and validates every supplied clip.
     func validate() throws {
         guard canvas.width > 0, canvas.height > 0 else { throw AnimationCatalogError.canvasSizeInvalid }
-        for clip in AnimationClip.allCases {
-            guard let description = clips[clip] else { throw AnimationCatalogError.missingClip(clip) }
+        for clip in Self.requiredClips {
+            guard clips[clip] != nil else { throw AnimationCatalogError.missingClip(clip) }
+        }
+        for (clip, description) in clips {
             guard !description.frames.isEmpty else { throw AnimationCatalogError.emptyFrames(clip) }
             for frame in description.frames {
                 guard !frame.isEmpty,
@@ -195,6 +211,8 @@ enum ClipPlayback: Equatable {
     case loop(ClosedRange<Int>)
     /// Play every frame once, then hold the rest frame.
     case onceThenRest(lastFrameIndex: Int, restFrame: Int)
+    /// Play complete cycles, then notify the activity controller at the rest frame.
+    case repeatThenRest(cycles: Int, restFrame: Int)
 }
 
 enum PlaybackRules {

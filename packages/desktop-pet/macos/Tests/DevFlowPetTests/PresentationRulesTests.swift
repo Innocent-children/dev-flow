@@ -9,6 +9,15 @@ import XCTest
 /// and only after continuous observation of the same Task, and that a first read
 /// never replays a historical prompt.
 final class PresentationRulesTests: XCTestCase {
+    func testActiveReviewNodeSelectsReviewArtworkAndLeavingItRestoresWorking() {
+        let state = PresentationState()
+        let review = state.apply(.task(TestFixtures.summary(currentNode: "COMPREHENSION_REVIEW", lifecycle: .active), detailReadiness: .ready))
+        XCTAssertEqual(review.clip, .review)
+        XCTAssertEqual(review.phase, .working(node: "COMPREHENSION_REVIEW"))
+        let working = state.apply(.task(TestFixtures.summary(currentNode: "IMPLEMENT", lifecycle: .active), detailReadiness: .ready))
+        XCTAssertEqual(working.clip, .working)
+    }
+
     func testDisconnectedHasPriorityOverEveryOtherInput() {
         let result = PresentationRules.evaluate(
             input: .disconnected,

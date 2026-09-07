@@ -1,0 +1,230 @@
+{
+  "anchor" : {
+    "x" : 768,
+    "y" : 1664
+  },
+  "canvas" : {
+    "height" : 1664,
+    "width" : 1536
+  },
+  "clips" : {
+    "blocked" : {
+      "fps" : 8,
+      "frame_durations_ms" : [
+        150,
+        150,
+        150,
+        150,
+        150,
+        260
+      ],
+      "frames" : [
+        "blocked\/0.png",
+        "blocked\/1.png",
+        "blocked\/2.png",
+        "blocked\/3.png",
+        "blocked\/4.png",
+        "blocked\/5.png"
+      ],
+      "loop_range" : [
+        0,
+        5
+      ],
+      "rest_frame" : 0
+    },
+    "complete" : {
+      "fps" : 8,
+      "frame_durations_ms" : [
+        140,
+        140,
+        140,
+        140,
+        280
+      ],
+      "frames" : [
+        "complete\/0.png",
+        "complete\/1.png",
+        "complete\/2.png",
+        "complete\/3.png",
+        "complete\/4.png"
+      ],
+      "rest_frame" : 4
+    },
+    "disconnected" : {
+      "fps" : 8,
+      "frame_durations_ms" : [
+        140,
+        140,
+        140,
+        140,
+        140,
+        140,
+        140,
+        240
+      ],
+      "frames" : [
+        "disconnected\/0.png",
+        "disconnected\/1.png",
+        "disconnected\/2.png",
+        "disconnected\/3.png",
+        "disconnected\/4.png",
+        "disconnected\/5.png",
+        "disconnected\/6.png",
+        "disconnected\/7.png"
+      ],
+      "loop_range" : [
+        0,
+        7
+      ],
+      "rest_frame" : 0
+    },
+    "idle" : {
+      "fps" : 8,
+      "frame_durations_ms" : [
+        280,
+        110,
+        110,
+        140,
+        140,
+        320
+      ],
+      "frames" : [
+        "idle\/0.png",
+        "idle\/1.png",
+        "idle\/2.png",
+        "idle\/3.png",
+        "idle\/4.png",
+        "idle\/5.png"
+      ],
+      "loop_range" : [
+        0,
+        5
+      ],
+      "rest_frame" : 0
+    },
+    "review" : {
+      "fps" : 8,
+      "frame_durations_ms" : [
+        150,
+        150,
+        150,
+        150,
+        150,
+        280
+      ],
+      "frames" : [
+        "review\/0.png",
+        "review\/1.png",
+        "review\/2.png",
+        "review\/3.png",
+        "review\/4.png",
+        "review\/5.png"
+      ],
+      "loop_range" : [
+        0,
+        5
+      ],
+      "rest_frame" : 0
+    },
+    "running-left" : {
+      "fps" : 8,
+      "frame_durations_ms" : [
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        220
+      ],
+      "frames" : [
+        "running-left\/0.png",
+        "running-left\/1.png",
+        "running-left\/2.png",
+        "running-left\/3.png",
+        "running-left\/4.png",
+        "running-left\/5.png",
+        "running-left\/6.png",
+        "running-left\/7.png"
+      ],
+      "loop_range" : [
+        0,
+        7
+      ],
+      "rest_frame" : 0
+    },
+    "running-right" : {
+      "fps" : 8,
+      "frame_durations_ms" : [
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        220
+      ],
+      "frames" : [
+        "running-right\/0.png",
+        "running-right\/1.png",
+        "running-right\/2.png",
+        "running-right\/3.png",
+        "running-right\/4.png",
+        "running-right\/5.png",
+        "running-right\/6.png",
+        "running-right\/7.png"
+      ],
+      "loop_range" : [
+        0,
+        7
+      ],
+      "rest_frame" : 0
+    },
+    "waving" : {
+      "fps" : 8,
+      "frame_durations_ms" : [
+        140,
+        140,
+        140,
+        280
+      ],
+      "frames" : [
+        "waving\/0.png",
+        "waving\/1.png",
+        "waving\/2.png",
+        "waving\/3.png"
+      ],
+      "loop_range" : [
+        0,
+        3
+      ],
+      "rest_frame" : 0
+    },
+    "working" : {
+      "fps" : 8,
+      "frame_durations_ms" : [
+        120,
+        120,
+        120,
+        120,
+        120,
+        220
+      ],
+      "frames" : [
+        "working\/0.png",
+        "working\/1.png",
+        "working\/2.png",
+        "working\/3.png",
+        "working\/4.png",
+        "working\/5.png"
+      ],
+      "loop_range" : [
+        0,
+        5
+      ],
+      "rest_frame" : 0
+    }
+  }
+}

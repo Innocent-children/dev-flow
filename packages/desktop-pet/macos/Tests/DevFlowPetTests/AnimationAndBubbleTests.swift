@@ -25,7 +25,7 @@ final class AnimationAndBubbleTests: XCTestCase {
 
     func testDecodesTheFiveDeliveredClips() throws {
         let catalog = try AnimationCatalog.decode(Self.catalogJSON(clips: Self.deliveredClips))
-        XCTAssertEqual(Set(catalog.clips.keys), Set(AnimationClip.allCases))
+        XCTAssertEqual(Set(catalog.clips.keys), Set(AnimationCatalog.requiredClips))
         XCTAssertEqual(catalog.canvas, AnimationCatalog.Canvas(width: 512, height: 512))
         XCTAssertEqual(catalog.anchor, AnimationCatalog.Anchor(x: 0.5, y: 0))
 
@@ -49,6 +49,21 @@ final class AnimationAndBubbleTests: XCTestCase {
         var incomplete = Self.deliveredClips
         incomplete.removeValue(forKey: "blocked")
         XCTAssertThrowsError(try AnimationCatalog.decode(Self.catalogJSON(clips: incomplete)))
+    }
+
+    func testAdditionalArtworkClipsRoundTripAndAreValidated() throws {
+        var clips = Self.deliveredClips
+        for clip in [AnimationClip.runningRight, .runningLeft, .waving, .review] {
+            clips[clip.rawValue] = Self.clipJSON(frames: ["\(clip.rawValue)/0.png"], loopRange: [0, 0], restFrame: 0)
+        }
+        let catalog = try AnimationCatalog.decode(Self.catalogJSON(clips: clips))
+        XCTAssertEqual(Set(catalog.clips.keys), Set(AnimationClip.allCases))
+        XCTAssertEqual(try AnimationCatalog.decode(JSONEncoder().encode(catalog)), catalog)
+
+        clips["review"] = Self.clipJSON(frames: [], loopRange: [0, 0], restFrame: 0)
+        XCTAssertThrowsError(try AnimationCatalog.decode(Self.catalogJSON(clips: clips))) { error in
+            XCTAssertEqual(error as? AnimationCatalogError, .emptyFrames(.review))
+        }
     }
 
     func testRejectsFramePathsThatCouldLeaveTheAssetRoot() {
@@ -102,6 +117,52 @@ final class AnimationAndBubbleTests: XCTestCase {
     }
 
     // MARK: - Playback
+
+    @MainActor
+    func testFiniteActivityPlaybackNotifiesAfterItsCompleteCycles() async throws {
+        var clips = Self.deliveredClips
+        clips["waving"] = Self.clipJSON(frames: ["wave.png"], fps: 120, loopRange: [0, 0], restFrame: 0)
+        let directory = try makeResourceDirectory(files: ["animations.json": Self.catalogJSON(clips: clips),
+            "Assets/wave.png": try XCTUnwrap(Self.png(width: 8, height: 8))])
+        let view = PetCharacterView(frame: .zero)
+        view.configure(library: try AssetLibrary(resourceDirectory: directory), strings: .english)
+        defer { view.stopPlayback() }
+        let finished = expectation(description: "finite clip finished")
+        var completions = 0
+        view.onPlaybackFinished = { clip in
+            XCTAssertEqual(clip, .waving)
+            completions += 1
+            finished.fulfill()
+        }
+        XCTAssertTrue(view.play(clip: .waving, playback: .repeatThenRest(cycles: 2, restFrame: 0), restart: true))
+        await fulfillment(of: [finished], timeout: 2)
+        XCTAssertEqual(completions, 1)
+        XCTAssertEqual(view.currentPlayback, .rest(frameIndex: 0))
+    }
+
+    @MainActor
+    func testWindowWalkingReachesItsTargetAndCanBeStopped() async {
+        let window = PetWindow()
+        window.layout(atOrigin: CGPoint(x: 100, y: 100))
+        defer { window.stopWalking() }
+        let finished = expectation(description: "walking finished")
+        window.onWalkingFinished = { finished.fulfill() }
+        window.startWalking(toX: 120, duration: 0.05)
+        XCTAssertTrue(window.isWalking)
+        await fulfillment(of: [finished], timeout: 2)
+        XCTAssertEqual(window.frame.minX, 120, accuracy: 0.1)
+        XCTAssertEqual(window.frame.minY, 100, accuracy: 0.1)
+        XCTAssertFalse(window.isWalking)
+
+        let stopped = expectation(description: "stopped walk stays cancelled")
+        stopped.isInverted = true
+        window.onWalkingFinished = { stopped.fulfill() }
+        window.startWalking(toX: 180, duration: 0.05)
+        window.stopWalking()
+        await fulfillment(of: [stopped], timeout: 0.15)
+        XCTAssertEqual(window.frame.minX, 120, accuracy: 0.1)
+        XCTAssertFalse(window.isWalking)
+    }
 
     func testStaticModeAlwaysUsesTheDedicatedRestFrame() {
         let modes: [(animationsEnabled: Bool, reduceMotion: Bool, useRestFrame: Bool)] = [
@@ -208,7 +269,7 @@ final class AnimationAndBubbleTests: XCTestCase {
 
     func testAssetLibraryDecodesThePlayingClipAtTheCanvasSize() throws {
         var files: [String: Data] = ["animations.json": Self.catalogJSON(clips: Self.singleFrameClips)]
-        for name in AnimationClip.allCases {
+        for name in AnimationCatalog.requiredClips {
             files["Assets/\(name.rawValue)/00.png"] = try XCTUnwrap(Self.png(width: 8, height: 8))
         }
         let library = try AssetLibrary(resourceDirectory: makeResourceDirectory(files: files))
@@ -399,7 +460,7 @@ final class AnimationAndBubbleTests: XCTestCase {
     @MainActor
     func testAnimationSwitchChangesPlaybackWithinTheSameClip() throws {
         var files = ["animations.json": Self.catalogJSON(clips: Self.singleFrameClips)]
-        for clip in AnimationClip.allCases {
+        for clip in AnimationCatalog.requiredClips {
             files["Assets/\(clip.rawValue)/00.png"] = try XCTUnwrap(Self.png(width: 8, height: 8))
         }
         let view = PetCharacterView(frame: .zero)

@@ -91,31 +91,25 @@ Native Host commands remain available for diagnostic recovery.
 
 ## Desktop pet (macOS arm64)
 
-macOS arm64 provides `dev-flow pet start` and `dev-flow pet stop`; the interactive menu uses the same entry.
-When installing any Dev Flow adapter (Codex / DeepSeek) or running lifecycle installs and updates from the unified entry, the plugin provides a prebuilt binary and automatically installs the desktop pet to `$HOME/.dev-flow/pet/DevFlowPet.app`. The user host does not require Xcode or the Swift compiler.
-At least one Codex or DeepSeek Adapter must be installed and configured. The pet reads that Core's WebUI interface and shows one selected task's saved stage,
-blocker, update time, and synchronization time. Clicking opens its detail page. The chooser loads
-pages on demand and keeps watching terminal tasks; cancellation never celebrates. Its menu controls
-animation, visibility, and quitting; system language selects Chinese or English.
+Running the pet requires macOS arm64, a local development package containing the native app, and at least one installed and configured Codex or DeepSeek Adapter.
+Regular npm file lists omit `DevFlowPet.app`; see the [desktop pet guide](DESKTOP-PETS_en.md#local-build-and-installation) for building, installation, and updating an existing app.
 
-Starting may start an unavailable WebUI; background connection checks are read-only. Hiding or
-sleeping cancels requests, and showing or waking reads again. Old responses cannot replace a new
-selection. Disabling animation or enabling system Reduce Motion uses static frames. Stopping ends
-only the pet and preserves WebUI, Tasks, and preferences. Maintenance first stops a pet using the
-Adapter being changed and aborts on stop failure. The confirmed factory-reset plan includes
-`productRoot/pet` under the existing data-directory confirmation and cleanup rules. Other platforms
-reject pet commands.
+| Command | Behavior |
+| --- | --- |
+| `dev-flow pet start` | Start or restore the pet, verify Core and the data directory, and start WebUI if needed. An existing user-directory app takes priority over the bundled app. |
+| `dev-flow pet stop` | Quit the pet normally, preserving WebUI, Tasks, settings, and appearances. |
 
-Only the shown arguments are accepted, with plain-text output and exit codes `0` for success, `1`
-for runtime failure, and `2` for invalid arguments. `pet status` and `pet start --json` are not public
-entries.
+Only these two argument forms are accepted. Output is plain text; exit codes are `0` for success, `1` for runtime failure, and `2` for invalid arguments.
+`pet status` and `pet start --json` are not public entries.
 
 ```bash
 dev-flow pet start
 dev-flow pet stop
 ```
 
-Stop it before updating or removing the unified-entry package. The support matrix defines public support.
+The menu provides task and appearance selection, import, Animations, Idle activities, hide, and quit. See the [desktop pet guide](DESKTOP-PETS_en.md)
+for task selection, the scope of nine-clip support, triggers, and troubleshooting. Stop the pet before updating or removing its current Core Adapter or
+unified-entry package; maintenance aborts if shutdown fails. Confirmed factory-reset clears `productRoot/pet`; ordinary quit and uninstall preserve user artwork and settings.
 
 ## Codex
 
@@ -447,9 +441,3 @@ Host chooses discovery tools. Without such instructions, false selects ordinary 
 and true may prefer an available code index. An unavailable or incomplete index prompts at most one
 notice in the current session and a fallback to ordinary search; index results do not change an
 existing Task's Scope.
-
-Choose appearance → Import appearance in the pet menu imports a local folder containing a single PNG,
-a Dev Flow animation pack, or a Codex sprite-format 1/2 pack. Appearance and task selections are
-independent, and upgrades preserve imported artwork. Reimporting the same ID updates the appearance;
-failed validation preserves the installed pack. Codex artwork is converted to common PNG frames,
-while Dev Flow retains stage and navigation ownership. See [appearance packs](DESKTOP-PETS_en.md).

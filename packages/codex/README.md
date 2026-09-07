@@ -47,7 +47,7 @@ dev-flow-codex --version
 
 `setup` 在缺少固定用户配置时创建 macOS 的 `$HOME/.dev-flow/config.json` 或 Windows 的
 `%USERPROFILE%\.dev-flow\config.json`，验证 package、bundled Core 和 Codex 兼容性，再注册
-marketplace、Plugin 与 MCP，并在 macOS arm64 上自动将预置的桌面宠物安装至 `$HOME/.dev-flow/pet/`。默认 Task 数据在 macOS 位于 `$HOME/.dev-flow/data`，Windows 位于 `%LOCALAPPDATA%\dev-flow\data`。所有参数和机器可读输出见
+marketplace、Plugin 与 MCP。桌面宠物另按本文的本地开发包说明获取与启动。默认 Task 数据在 macOS 位于 `$HOME/.dev-flow/data`，Windows 位于 `%LOCALAPPDATA%\dev-flow\data`。所有参数和机器可读输出见
 [命令参考](../../docs/COMMANDS.md#codex)。
 
 `setup` 完成后先在 Codex `/hooks` 中审核并信任 Dev Flow packaged hook；未信任时 Codex 会跳过
@@ -213,12 +213,12 @@ Repository Scope、worktree 分派和协议规则见[架构](../../docs/ARCHITEC
 
 ## 桌面宠物本地开发包
 
-macOS arm64 可另外使用按源码构建的 `@imotong/dev-flow` 桌面宠物包。已配置的 Codex 或 DeepSeek
-Adapter 提供 Core；宠物通过 `dev-flow pet start` / `dev-flow pet stop` 开启和关闭，读取共享任务并
-点击跳转 WebUI。原生应用只放在统一入口包内，Host package 提供 Core。构建与使用见
-[命令参考](https://github.com/Innocent-children/dev-flow/blob/main/docs/COMMANDS.md#桌面宠物本地开发包)。
+macOS arm64 的桌面宠物通过包含 `DevFlowPet.app` 的本地开发包使用，运行时复用已配置的 Codex 或 DeepSeek Adapter 提供的 Core。
+当前常规 npm 清单与正式制备流程不包含原生应用，获取方式以[桌面宠物指南](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS.md#本地构建与安装)为准。
+宠物显示一个所选 Task 的保存状态并打开对应 WebUI；Core 决定任务状态，展示不代表 Host 实时活动或完成百分比。
 
-自定义形象从宠物菜单的“选择形象 → 导入形象…”导入本地文件夹，支持单张 PNG、Dev Flow 动画包和
-Codex 精灵图格式 1/2 的本地宠物包。形象与任务分别选择和保存，升级保留用户素材；同 ID 重导入更新，
-校验失败保留原形象。导入 Codex 时转换为统一 PNG 帧，任务阶段与跳转仍由 Dev Flow 决定。格式与示例见
-[形象包说明](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS.md)。
+形象可使用单张 PNG、原生动画包、Codex 标准格式 1/2 图集或 Dev Flow 高分辨率扩展。五类任务动作是基础要求，附加素材决定能否散步、挥手或思考；
+只有 Codex 布局图集固定提取九类、57 帧。待机活动有独立开关，任务提示优先，自动位移保留手动摆放位置。
+程序更新、已有应用副本替换和素材重导入分别处理；安装、全部动作规则与常见问题统一见[桌面宠物指南](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS.md)。
+
+本地宠物包内置鲸鱼娘（`whale-girl 3`），安装后可从“选择形象”直接使用九类动作、57 帧、1536×1664 的高分辨率素材。

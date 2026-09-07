@@ -5,8 +5,8 @@
   <key>CFBundleExecutable</key><string>DevFlowPet</string>
   <key>CFBundleName</key><string>Dev Flow Desktop Pet</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleVersion</key><string>0.2.2</string>
-  <key>CFBundleShortVersionString</key><string>0.2.2</string>
+  <key>CFBundleVersion</key><string>0.2.4</string>
+  <key>CFBundleShortVersionString</key><string>0.2.4</string>
   <key>LSUIElement</key><true/>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>NSHighResolutionCapable</key><true/>
