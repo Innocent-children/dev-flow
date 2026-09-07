@@ -136,3 +136,13 @@ dev-flow pet stop
 ## Licença
 
 [Apache License 2.0](LICENSE)
+
+## Adaptação para Windows desktop
+
+Windows 10/11 x64 destina-se a PCs desktop comuns com processadores Intel ou AMD de 64 bits. As regras de caminhos, permissões, comandos e limpeza do Host ficam separadas em `platform/windows/` e `platform/macos/`; o Core compartilha a semântica de tarefas independente da plataforma. Os inicializadores de comandos do Windows usam UTF-8 e a observação Git do Core oculta janelas de console. Consulte o [relatório de adaptação](docs/WINDOWS-ADAPTATION_en.md) para a verificação nativa no Windows e seus limites; esses resultados não ampliam o suporte dos pacotes estáveis.
+
+O Windows também oferece o mascote de desktop: seleção de tarefas e estado, menu da bandeja, aparências PNG/SVG, animações nativas, atlas Codex PNG/WebP, nove ações, arrastar, seis tamanhos, ocultar/restaurar e iniciar/parar de forma independente. Crie o pacote local do Windows com `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"`; consulte os pré-requisitos e a instalação no [guia do mascote](docs/DESKTOP-PETS_en.md). As implementações de Windows e macOS permanecem separadas.
+
+No Windows, diretórios AppData existentes são resolvidos para seus caminhos reais, incluindo aliases de hosts de desktop empacotados; links simbólicos continuam sendo rejeitados.
+
+A distribuição de desenvolvimento para Windows inclui os dois pacotes Adapter e o aplicativo desktop. Após instalar o inicializador, use `dev-flow install --host all --yes` e `dev-flow pet start`. O reparo e a reinstalação usam a mesma entrada, verificam os hashes, atualizam o aplicativo e preservam dados de Task, configurações e aparências.

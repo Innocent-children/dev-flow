@@ -127,7 +127,8 @@ test("the home menu offers the desktop pet only on the runtime that ships it", a
   });
   assert.equal(manage.operation, "status");
   assert.equal(manage.pet, undefined);
-  assert.doesNotMatch(windows.text, /desktop pet/u);
+  assert.match(windows.text, /5\. Start the desktop pet/u);
+  assert.match(windows.text, /6\. Stop the desktop pet/u);
 });
 
 test("Chinese locale renders the complete interactive menu and plan in Chinese", async () => {

@@ -8,7 +8,7 @@ updating the program and artwork, animation rules, pack creation, and troublesho
 
 ## Environment and delivery
 
-The desktop component targets macOS arm64 (Apple Silicon) and requires at least one installed and configured Codex or DeepSeek Adapter to provide Core.
+The desktop component targets macOS arm64 (Apple Silicon) and Windows 10/11 x64 and requires at least one installed and configured Codex or DeepSeek Adapter to provide Core.
 The Swift Package and app metadata target macOS 14; actual minimum-system operation, Developer ID signing, and Apple notarization have not completed
 formal distribution verification. See the [support matrix](SUPPORT-MATRIX_en.md#desktop-pet-functional-checks) for the verified scope.
 
@@ -16,7 +16,7 @@ Below, `productRoot` means the product directory, which defaults to `~/.dev-flow
 
 The repository's regular npm package lists and release preparation do not include `DevFlowPet.app`. A dedicated local build script adds the native
 app to an `@imotong/dev-flow` development package. Installing a regular Adapter package alone does not provide the pet application.
-Running a built app requires neither Swift nor Xcode. Building requires Node.js >=24 and a Swift >=6.0 toolchain available through `xcrun swift`.
+Running a built app requires neither Swift nor Xcode. Building on macOS requires Node.js >=24 and a Swift >=6.0 toolchain available through `xcrun swift`.
 
 ## Local build and installation
 
@@ -40,6 +40,29 @@ The local unified-entry package provides `dev-flow`. Start the app through this 
 the launcher supplies Core and data-directory arguments. Startup first uses an existing `~/.dev-flow/pet/DevFlowPet.app`, then the current
 unified-entry package's `runtime/darwin-arm64/DevFlowPet.app`. Installation helpers copy an app into the user directory only when the target is missing
 and a candidate package actually contains it. Updating an existing app is covered next.
+
+## Windows local build and installation
+
+Building the Windows development package requires Go, Node.js and pnpm on PATH at the repository toolchain versions. Windows 10/11 x64 has a separate desktop implementation with task selection, status bubbles, tray menus, nine actions, appearance import, scaling, dragging, hide/restore and independent start/stop. A built app carries its runtime and needs no Electron development tools or compiler; a configured Adapter still supplies Core.
+
+From the repository root, install the locked Windows build dependencies and choose an output directory outside the repository:
+
+~~~powershell
+npm ci --prefix packages/desktop-pet/windows
+node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"
+npm install -g "C:\pet-build\<local-package>.tgz"
+dev-flow install --host all --yes
+dev-flow pet start
+dev-flow pet stop
+~~~
+
+Replace `<local-package>.tgz` with the filename identified by tarball in desktop-pet-build.json. This build assembles the Windows desktop and complete Adapter packages using the existing Core target catalog, binding artifact paths, versions and SHA256 hashes. It copies nine default actions and 312 frames and verifies extracted artwork and executable bytes. Mac Core is cross-compiled only; no Mac program, Mac test or publication is run. Windows uses the system tray in place of the macOS menu bar; artwork formats, task semantics and six scale choices align.
+
+productRoot defaults to %LOCALAPPDATA%\dev-flow. The installed app directory is productRoot/pet/DevFlowPet, with DevFlowPet.exe as its entry; it takes precedence over runtime/win32-x64/DevFlowPet in the package. settings.json and appearances/ are stored separately. The development distribution refreshes the app copy through dev-flow install, upgrade, repair or reinstall. The launcher stops maintained instances, stages the replacement, and retains settings.json and appearances/. Running pet start alone does not reinstall an existing app. Ordinary quit and uninstall preserve these files; confirmed factory-reset clears the whole pet directory under the existing rules.
+
+Windows uses a restricted renderer and a local per-user single-instance channel with acknowledgments. It does not stop processes by name or PID alone. Each poll and navigation rechecks the same Core and data directory. Disconnection keeps and marks the last record, with separate task-update and last-sync timestamps. Hiding or sleeping cancels reads and animation; resuming does not replay historical completion prompts.
+
+The local package has not completed Windows distribution signing verification. Native checks ran on Windows 11 Intel x64; Windows 10 and AMD hardware were unavailable. No macOS tests were performed; complete packaging cross-compiles the Mac Core artifact without executing it. See the [adaptation report](WINDOWS-ADAPTATION_en.md) for results and limits.
 
 ## Updating the program and artwork
 

@@ -142,8 +142,7 @@ export async function promptForRequest({
       { label: messages.installDeepSeek, host: "deepseek" },
       { label: messages.installAll, host: "all" },
       { label: messages.manage, host: null },
-      // The desktop component ships only in the macOS arm64 package, so other
-      // runtimes are never offered it here and keep their existing menu.
+      // Each supported desktop runtime resolves its own local application package.
       ...(supportsDesktopPet(platform, arch)
         ? [{ label: messages.pet.menuStart, pet: "start" }, { label: messages.pet.menuStop, pet: "stop" }]
         : []),

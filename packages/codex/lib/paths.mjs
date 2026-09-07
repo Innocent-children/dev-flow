@@ -32,13 +32,7 @@ export async function resolveProductPaths({
   const productSupportInspectionRoot = applicationData.canonicalizeRoot
     ? productSupportAnchor
     : containedPath(canonicalHome, applicationData.inspectionRoot, "application data inspection root");
-  const productSupportRoot = platform === "darwin"
-    ? productSupportAnchor
-    : containedPath(
-        productSupportAnchor,
-        join(productSupportAnchor, "dev-flow"),
-        "product support root",
-      );
+  const productSupportRoot = containedPath(productSupportAnchor, await dataPaths.productRoot(productSupportAnchor), "product support root");
   const petDirectory = containedPath(
     productSupportRoot,
     join(productSupportRoot, "pet"),

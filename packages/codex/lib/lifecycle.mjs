@@ -3,7 +3,6 @@ import { constants as fsConstants } from "node:fs";
 import {
   access,
   chmod,
-  cp,
   lstat,
   mkdir,
   readFile,
@@ -18,7 +17,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 
 import { commandResolvesToPackage, execPortableCommand, findCommandPath } from "./command.mjs";
 import { containedPath } from "./paths.mjs";
-import { SUPPORTED_RUNTIME_KEYS } from "./platform.mjs";
+import { SUPPORTED_RUNTIME_KEYS, ensureCodexPetInstalled, registrationPolicy } from "./platform.mjs";
 
 export const CODEX_COMPATIBILITY_RANGE = ">=0.147.0";
 export const MARKETPLACE_NAME = "dev-flow-local";
@@ -111,35 +110,6 @@ export async function inspectCoreVersion(
   return match[1];
 }
 
-export async function ensureCodexPetInstalled(paths) {
-  if (paths?.platform !== "darwin" || paths?.arch !== "arm64") return;
-  const sourceApp = join(paths.packageRoot, "runtime", "darwin-arm64", "DevFlowPet.app");
-  const petDirectory = paths.petDirectory ?? join(paths.productSupportRoot, "pet");
-  const targetApp = join(petDirectory, "DevFlowPet.app");
-  const targetExecutable = join(targetApp, "Contents", "MacOS", "DevFlowPet");
-
-  try {
-    const info = await lstat(targetExecutable);
-    if (info.isFile() && !info.isSymbolicLink()) return;
-  } catch {
-    // proceed with install
-  }
-
-  try {
-    const sourceExecutable = join(sourceApp, "Contents", "MacOS", "DevFlowPet");
-    const sourceInfo = await lstat(sourceExecutable);
-    if (!sourceInfo.isFile() || sourceInfo.isSymbolicLink()) return;
-    await mkdir(petDirectory, { recursive: true, mode: 0o700 });
-    await rm(targetApp, { recursive: true, force: true });
-    await cp(sourceApp, targetApp, { recursive: true });
-    await chmod(targetExecutable, 0o755);
-    if (paths.enforcePrivateModes) {
-      await chmod(petDirectory, 0o700);
-    }
-  } catch {
-    // Ignore if source not present
-  }
-}
 
 export async function setupRegistration({
   paths,
@@ -777,14 +747,17 @@ async function rollbackCreatedMarketplace(paths, commandOptions) {
 
 function assertMarketplaceReadback(marketplace, expectedName, expectedRoot, label) {
   assertObject(marketplace, label);
-  assertExactKeys(marketplace, ["name", "root", "marketplaceSource"], label);
-  assertObject(marketplace.marketplaceSource, `${label} source`);
-  assertExactKeys(marketplace.marketplaceSource, ["sourceType", "source"], `${label} source`);
+  const policy = registrationPolicy();
+  assertExactKeys(marketplace, policy.marketplaceFields, label);
+  if (policy.requiresMarketplaceSource) {
+    assertObject(marketplace.marketplaceSource, `${label} source`);
+    assertExactKeys(marketplace.marketplaceSource, ["sourceType", "source"], `${label} source`);
+  }
   if (
     marketplace.name !== expectedName ||
-    marketplace.root !== expectedRoot ||
-    marketplace.marketplaceSource.sourceType !== "local" ||
-    marketplace.marketplaceSource.source !== expectedRoot
+    policy.path(marketplace.root) !== expectedRoot ||
+    (policy.requiresMarketplaceSource && (marketplace.marketplaceSource.sourceType !== "local" ||
+    policy.path(marketplace.marketplaceSource.source) !== expectedRoot))
   ) {
     throw new Error(`${label} conflicts with the expected local marketplace identity`);
   }
@@ -827,7 +800,7 @@ function assertPluginReadback(plugin, expected, label) {
     plugin.source.source !== "local" ||
     plugin.source.path !== expected.pluginRoot ||
     plugin.marketplaceSource.sourceType !== "local" ||
-    plugin.marketplaceSource.source !== expected.marketplaceRoot ||
+    registrationPolicy().path(plugin.marketplaceSource.source) !== expected.marketplaceRoot ||
     plugin.installPolicy !== "AVAILABLE" ||
     plugin.authPolicy !== "ON_INSTALL"
   ) {
@@ -1296,3 +1269,5 @@ async function rejectSymbolicLink(path) {
     if (error?.code !== "ENOENT") throw error;
   }
 }
+
+export { ensureCodexPetInstalled } from "./platform.mjs";

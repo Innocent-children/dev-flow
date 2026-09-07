@@ -1,70 +1,31 @@
-import { join } from "node:path";
+import * as macos from "./platform/macos/policies.mjs";
+import * as windows from "./platform/windows/policies.mjs";
 
-const runtimeDescriptors = Object.freeze({
-  "darwin-arm64": Object.freeze({ platform: "darwin", arch: "arm64", runtimeKey: "darwin-arm64", runtimeDirectory: "darwin-arm64", runtimeExecutable: "dev-flow" }),
-  "win32-x64": Object.freeze({ platform: "win32", arch: "x64", runtimeKey: "win32-x64", runtimeDirectory: "win32-x64", runtimeExecutable: "dev-flow.exe" }),
+const implementations = Object.freeze({ "darwin-arm64": macos, "win32-x64": windows });
+export const SUPPORTED_RUNTIME_KEYS = Object.freeze(Object.keys(implementations));
+
+export const runtimeDescriptor = (platform, arch) => selectPlatform(platform, arch).runtime;
+export const dataPathPolicy = (platform, arch) => selectPlatform(platform, arch).dataPaths;
+export const permissionPolicy = (platform, arch) => selectPlatform(platform, arch).permissions;
+export const signalPolicy = (platform, arch) => selectPlatform(platform, arch).signals;
+export const cleanupPolicy = (platform, arch) => selectPlatform(platform, arch).cleanup;
+
+const desktopPlatforms = Object.freeze({
+  "darwin-arm64": { runtime: () => import("./platform/macos/pet.mjs"), installer: () => import("./platform/macos/pet-installer.mjs") },
+  "win32-x64": { runtime: () => import("./platform/windows/pet.mjs"), installer: () => import("./platform/windows/pet-installer.mjs") },
 });
-
-const dataPathPolicies = Object.freeze({
-  "darwin-arm64": Object.freeze({
-    applicationData({ homeDirectory }) {
-      return Object.freeze({ path: join(homeDirectory, ".dev-flow"), inspectionRoot: homeDirectory, canonicalizeRoot: false, label: "user data directory" });
-    },
-  }),
-  "win32-x64": Object.freeze({
-    applicationData({ homeDirectory, environment }) {
-      const configured = environment?.LOCALAPPDATA;
-      if (typeof configured === "string" && configured !== "") {
-        return Object.freeze({ path: configured, inspectionRoot: configured, canonicalizeRoot: true, label: "LOCALAPPDATA" });
-      }
-      return Object.freeze({ path: join(homeDirectory, "AppData", "Local"), inspectionRoot: homeDirectory, canonicalizeRoot: false, label: "local application data directory" });
-    },
-  }),
+export const supportsDesktopPet = (platform, arch) => Object.hasOwn(desktopPlatforms, `${platform}-${arch}`);
+export const loadPetPlatform = (platform, arch) => desktopPlatforms[`${platform}-${arch}`].runtime();
+export const loadPetInstaller = (platform, arch) => desktopPlatforms[`${platform}-${arch}`].installer();
+const maintenancePlatforms = Object.freeze({
+  "darwin-arm64": () => import("./platform/macos/maintenance.mjs"),
+  "win32-x64": () => import("./platform/windows/maintenance.mjs"),
 });
+export const loadMaintenancePlatform = (platform, arch) => maintenancePlatforms[`${platform}-${arch}`]();
 
-const permissionPolicies = Object.freeze({
-  "darwin-arm64": Object.freeze({ enforcePrivateModes: true, requireExecutableMode: true }),
-  "win32-x64": Object.freeze({ enforcePrivateModes: false, requireExecutableMode: false }),
-});
-
-const signalPolicies = Object.freeze({
-  "darwin-arm64": Object.freeze({ forwardedSignals: Object.freeze(["SIGINT", "SIGTERM", "SIGHUP"]) }),
-  "win32-x64": Object.freeze({ forwardedSignals: Object.freeze(["SIGINT", "SIGTERM"]) }),
-});
-
-const cleanupPolicies = Object.freeze({
-  "darwin-arm64": Object.freeze({
-    recoverableCleanupDescription: "Move confirmed data to macOS Trash",
-    trash({ homeDirectory }) {
-      return Object.freeze({ path: join(homeDirectory, ".Trash"), inspectionRoot: homeDirectory });
-    },
-  }),
-  "win32-x64": Object.freeze({
-    recoverableCleanupDescription: "Move confirmed data to the Dev Flow recovery directory",
-    trash({ managerRoot, inspectionRoot }) {
-      return Object.freeze({ path: join(managerRoot, "trash"), inspectionRoot });
-    },
-  }),
-});
-
-export const SUPPORTED_RUNTIME_KEYS = Object.freeze(Object.keys(runtimeDescriptors));
-
-// The desktop component is a macOS arm64 native application bundled with the
-// unified launcher. Every other supported runtime keeps its existing commands
-// unchanged and offers no desktop pet entry.
-export const DESKTOP_PET_RUNTIME_KEY = "darwin-arm64";
-
-export const supportsDesktopPet = (platform, arch) => `${platform}-${arch}` === DESKTOP_PET_RUNTIME_KEY;
-
-export const runtimeDescriptor = (platform, arch) => selectPlatformValue(runtimeDescriptors, platform, arch);
-export const dataPathPolicy = (platform, arch) => selectPlatformValue(dataPathPolicies, platform, arch);
-export const permissionPolicy = (platform, arch) => selectPlatformValue(permissionPolicies, platform, arch);
-export const signalPolicy = (platform, arch) => selectPlatformValue(signalPolicies, platform, arch);
-export const cleanupPolicy = (platform, arch) => selectPlatformValue(cleanupPolicies, platform, arch);
-
-function selectPlatformValue(values, platform, arch) {
+function selectPlatform(platform, arch) {
   const runtimeKey = `${platform}-${arch}`;
-  const value = values[runtimeKey];
+  const value = implementations[runtimeKey];
   if (value === undefined) {
     throw new Error(`unsupported platform ${runtimeKey}; supported runtimes: ${SUPPORTED_RUNTIME_KEYS.join(", ")}`);
   }

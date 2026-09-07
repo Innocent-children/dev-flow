@@ -3,6 +3,20 @@ import test from "node:test";
 
 import { createCodexDriver } from "../lib/hosts/codex.mjs";
 
+test("local replacement removes an owned registration before changing package bytes", async () => {
+  const calls = [];
+  const driver = createCodexDriver({
+    localPackage: { path: "C:/local/codex.tgz", version: "1.2.3" },
+    run: async (command, args) => {
+      calls.push([command, args[0]]);
+      return { stdout: args[0] === "status" ? JSON.stringify({ status: "ready", package_version: "1.2.3" }) : "{}", stderr: "" };
+    },
+  });
+  const result = await driver.execute("install", { targetVersion: "1.2.3", observed: { hostAvailable: true, state: "ready", receipt: true, packageVersion: "1.2.3" } });
+  assert.deepEqual(calls, [["dev-flow-codex", "remove"], ["npm", "install"], ["dev-flow-codex", "setup"], ["dev-flow-codex", "status"]]);
+  assert.equal(result.completedSteps[0], "codex.remove_registration");
+});
+
 test("Codex driver observes through read-only Host authorities", async () => {
   const calls = [];
   const driver = createCodexDriver({ run: async (executable, arguments_) => {

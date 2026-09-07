@@ -44,12 +44,8 @@ export async function resolveManagerPaths({
   const applicationDataInspectionRoot = applicationData.canonicalizeRoot
     ? applicationDataRoot
     : ownedPath(canonicalHome, applicationData.inspectionRoot, "application data inspection root");
-  const productRoot = platform === "darwin"
-    ? applicationDataRoot
-    : ownedPath(applicationDataRoot, join(applicationDataRoot, "dev-flow"), "product root");
-  const managerRoot = platform === "darwin"
-    ? applicationDataRoot
-    : ownedPath(applicationDataRoot, join(applicationDataRoot, "create-dev-flow"), "manager root");
+  const productRoot = ownedPath(applicationDataRoot, await dataPaths.productRoot(applicationDataRoot), "product root");
+  const managerRoot = ownedPath(applicationDataRoot, await dataPaths.managerRoot(applicationDataRoot), "manager root");
   const trash = cleanup.trash({
     homeDirectory: canonicalHome,
     managerRoot,

@@ -131,3 +131,13 @@ dev-flow pet stop
 ## 라이선스
 
 [Apache License 2.0](LICENSE)
+
+## Windows 데스크톱 지원
+
+Windows 10/11 x64는 Intel 또는 AMD 64비트 프로세서를 사용하는 일반 데스크톱 PC를 대상으로 합니다. Host의 경로, 권한, 명령 및 정리 규칙은 `platform/windows/`와 `platform/macos/`로 분리하며, Core는 플랫폼에 독립적인 작업 의미 규칙을 공유합니다. Windows 명령 실행기는 UTF-8을 사용하고 Core의 Git 관찰은 콘솔 창을 숨깁니다. Windows 실기기 검증 결과와 한계는 [적용 보고서](docs/WINDOWS-ADAPTATION_en.md)를 참조하세요. 이 결과로 안정 패키지의 지원 범위를 확대하지 않습니다.
+
+Windows에서도 데스크톱 펫을 제공합니다. 작업 선택과 상태 말풍선, 트레이 메뉴, PNG/SVG 외형, 네이티브 애니메이션, Codex PNG/WebP 아틀라스, 9가지 동작, 드래그, 6단계 크기, 숨기기와 복원, 개별 시작과 종료를 지원합니다. `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"`로 Windows 로컬 패키지를 빌드합니다. 의존성 준비와 설치는 [데스크톱 펫 가이드](docs/DESKTOP-PETS_en.md)를 참조하세요. Windows와 macOS 데스크톱 구현은 서로 독립적입니다.
+
+Windows에서는 패키지형 데스크톱 호스트가 제공하는 디렉터리 별칭을 포함하여 기존 AppData 디렉터리의 실제 경로를 확인합니다. 심볼릭 링크는 계속 거부합니다.
+
+현재 Windows 개발 패키지에는 두 Adapter 패키지와 데스크톱 앱이 포함됩니다. 실행기 패키지를 설치한 뒤 `dev-flow install --host all --yes`와 `dev-flow pet start`를 사용합니다. 복구와 재설치도 같은 진입점에서 수행하며, 내장 패키지 해시를 검증하고 앱을 갱신하면서 Task 데이터, 설정, 외형을 보존합니다.

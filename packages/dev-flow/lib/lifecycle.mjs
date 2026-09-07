@@ -11,10 +11,13 @@ import {
   resolveManagerPaths,
   writeOwnedJSON,
 } from "./ownership.mjs";
+import { supportsDesktopPet, loadPetInstaller, loadMaintenancePlatform } from "./platform.mjs";
+
 import { runPet, stopPetForCore } from "./pet.mjs";
 import { createLifecyclePlan } from "./plan.mjs";
 import { renderPlan, renderProgress, renderResult, resolveLanguage } from "./presentation.mjs";
 import { listAdapterCoreRuntimes } from "./runtime.mjs";
+import { installedPackageRoot, readLocalPackages } from "./local-packages.mjs";
 
 export async function runMain(arguments_, dependencies = {}) {
   const input = dependencies.input ?? process.stdin;
@@ -73,7 +76,17 @@ export async function runMain(arguments_, dependencies = {}) {
 
 export async function runLifecycle(request, dependencies = {}) {
   const environment = dependencies.environment ?? process.env;
-  const paths = await (dependencies.resolveManagerPaths ?? resolveManagerPaths)({
+  const packageRoot = dependencies.packageRoot ?? installedPackageRoot;
+  const usesArtifacts = ["install", "upgrade", "repair", "reinstall"].includes(request.operation) || request.reinstallAfterReset;
+  const packagedLocalPackages = usesArtifacts ? await readLocalPackages(packageRoot) : null;
+  const localPackages = dependencies.localPackages ?? packagedLocalPackages;
+  if (localPackages && request.targetVersion !== "latest" && ["install", "upgrade", "repair", "reinstall"].includes(request.operation)) {
+    const products = request.host === "all" ? ["codex", "deepseek"] : [request.host];
+    if (products.some(product => localPackages[product].version !== request.targetVersion)) {
+      throw new Error("the selected version is not contained in this local development package");
+    }
+  }
+  let paths = await (dependencies.resolveManagerPaths ?? resolveManagerPaths)({
     homeDirectory: dependencies.homeDirectory,
     environment,
     platform: dependencies.platform,
@@ -82,13 +95,13 @@ export async function runLifecycle(request, dependencies = {}) {
   const codex = dependencies.codexDriver ?? createCodexDriver({
     environment,
     run: dependencies.runCodexChild,
-    localPackage: dependencies.localPackages?.codex ?? null,
+    localPackage: localPackages?.codex ?? null,
   });
-  const deepseek = dependencies.deepseekDriver ?? createDeepSeekDriver({
+  let deepseek = dependencies.deepseekDriver ?? createDeepSeekDriver({
     paths,
     environment,
     run: dependencies.runDeepSeekChild,
-    localPackage: dependencies.localPackages?.deepseek ?? null,
+    localPackage: localPackages?.deepseek ?? null,
   });
   const observed = await observeLifecycle(request, { paths, codex, deepseek });
   const targetVersions = await resolveTargetVersions(request, observed, { codex, deepseek });
@@ -99,6 +112,7 @@ export async function runLifecycle(request, dependencies = {}) {
     now: dependencies.now,
     platformKey: paths.runtimeKey,
     recoverableCleanupDescription: paths.recoverableCleanupDescription,
+    replaceLocalPackages: localPackages !== null && localPackages !== undefined,
   });
 
   if (["status", "doctor"].includes(request.operation)) {
@@ -122,7 +136,20 @@ export async function runLifecycle(request, dependencies = {}) {
     return { code: 0, plan, result: resultFromObservation(request.operation, observed) };
   }
 
-  await stopDesktopPetForMaintainedCores(request, plan, { paths, environment, dependencies });
+  if (["install", "upgrade", "repair", "reinstall"].includes(request.operation)) {
+    const maintenance = await loadMaintenancePlatform(paths.platform, paths.arch);
+    if (await maintenance.prepareInstallation(paths)) {
+      paths = await (dependencies.resolveManagerPaths ?? resolveManagerPaths)({
+        homeDirectory: dependencies.homeDirectory, environment,
+        platform: dependencies.platform, arch: dependencies.arch,
+      });
+      deepseek = dependencies.deepseekDriver ?? createDeepSeekDriver({
+        paths, environment, run: dependencies.runDeepSeekChild,
+        localPackage: localPackages?.deepseek ?? null,
+      });
+    }
+  }
+  await stopDesktopPetForMaintainedCores(request, plan, { paths, environment, dependencies, replaceDesktop: Boolean(packagedLocalPackages) });
 
   let run = await (dependencies.createRun ?? createRun)(paths, plan, { now: dependencies.now, operationId: dependencies.operationId });
   const completedActions = [];
@@ -167,24 +194,29 @@ export async function runLifecycle(request, dependencies = {}) {
         next_step: "continue",
       }, { now: dependencies.now });
     }
-    if (paths.platform === "darwin" && paths.arch === "arm64") {
+    if (supportsDesktopPet(paths.platform, paths.arch)) {
       const hasAdapterInstall = plan.actions.some(
         (action) => (action.owner === "codex" || action.owner === "deepseek") && ["install", "upgrade", "repair", "reinstall"].includes(action.operation),
       );
       if (hasAdapterInstall) {
-        const petInstaller = dependencies.petInstaller ?? await import("./platform/macos/pet-installer.mjs").catch(() => null);
+        const petInstaller = dependencies.petInstaller ?? await loadPetInstaller(paths.platform, paths.arch).catch(() => null);
         if (petInstaller?.ensurePetInstalled) {
           const runtimes = await (dependencies.listAdapterCoreRuntimes ?? listAdapterCoreRuntimes)({ paths, environment }).catch(() => []);
           const candidateRoots = [
-            dependencies.packageRoot,
+            packageRoot,
             ...runtimes.map((r) => r.packageRoot),
           ].filter(Boolean);
-          await petInstaller.ensurePetInstalled({
+          const petInstallation = await petInstaller.ensurePetInstalled({
             petDirectory: paths.petDirectory,
             sourcePackageRoots: candidateRoots,
             enforcePrivateModes: paths.enforcePrivateModes,
-          }).catch(() => {});
-          completedActions.push("pet.install");
+            replaceExisting: Boolean(packagedLocalPackages),
+          }).catch(error => {
+            if (packagedLocalPackages) throw error;
+            return { installed: false };
+          });
+          if (petInstallation.installed) completedActions.push("pet.install");
+          else if (packagedLocalPackages) throw new Error("the local development package did not install its desktop application");
         }
       }
     }
@@ -263,7 +295,7 @@ async function resolveTargetVersions(request, observed, { codex, deepseek }) {
 // pet is stopped first through the native entry that filters by `core_path`.
 // An unconfirmed preview, a read-only status or doctor call, and maintenance of a
 // different Adapter all leave the running pet untouched.
-async function stopDesktopPetForMaintainedCores(request, plan, { paths, environment, dependencies }) {
+async function stopDesktopPetForMaintainedCores(request, plan, { paths, environment, dependencies, replaceDesktop = false }) {
   const stop = dependencies.stopPetForCore ?? stopPetForCore;
   const shutdown = {
     environment,
@@ -271,19 +303,20 @@ async function stopDesktopPetForMaintainedCores(request, plan, { paths, environm
     platform: paths.platform,
     arch: paths.arch,
   };
-  if (request.operation === "factory-reset") {
+  if (request.operation === "factory-reset" || replaceDesktop) {
     // Reset removes every Adapter together with the pet directory, so any running
     // desktop instance is stopped before cleanup regardless of which Core it runs.
     await stop({ ...shutdown, corePath: null });
-    return;
   }
   const maintained = plan.actions.filter((action) => action.owner === "codex" || action.owner === "deepseek");
   if (maintained.length === 0) return;
   const runtimes = await (dependencies.listAdapterCoreRuntimes ?? listAdapterCoreRuntimes)({ paths, environment });
+  const maintenance = await loadMaintenancePlatform(paths.platform, paths.arch);
   for (const action of maintained) {
-    const runtime = runtimes.find((entry) => entry.host === action.host && entry.profile === (action.profile ?? null));
+    const runtime = await maintenance.runtimeForAction(action, paths, environment, runtimes);
     if (runtime === undefined) continue;
-    await stop({ ...shutdown, corePath: runtime.runtimePath });
+    if (request.operation !== "factory-reset" && !replaceDesktop) await stop({ ...shutdown, corePath: runtime.runtimePath });
+    await maintenance.prepareReplacement({ runtime, paths, environment });
   }
 }
 

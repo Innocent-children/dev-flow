@@ -60,6 +60,14 @@ export function createCodexDriver({
 
       const completedSteps = [];
       try {
+        // Local builds can change Core or resources without publishing a new
+        // npm version. Remove only the receipt-owned registration before
+        // replacing that package, then let setup create the current receipt.
+        if (localPackage && observed.receipt) {
+          await run(adapterExecutable, ["remove", "--json"], { environment });
+          completedSteps.push("codex.remove_registration");
+          onProgress("codex.remove_registration");
+        }
         const packageSource = localPackage?.path ?? `dev-flow-codex@${targetVersion}`;
         await run(npmExecutable, ["install", "--global", packageSource], { environment });
         completedSteps.push("codex.install_package");

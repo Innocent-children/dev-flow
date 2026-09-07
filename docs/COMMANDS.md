@@ -74,7 +74,7 @@ Codex 全局 package 与 receipt、Plugin 注册分别判断；即使注册已�
 | Task 数据 | `$HOME/.dev-flow/data` | `%LOCALAPPDATA%\dev-flow\data` |
 | 用户配置 | `$HOME/.dev-flow/config.json` | `%USERPROFILE%\.dev-flow\config.json` |
 | 生命周期管理状态 | `$HOME/.dev-flow` | `%LOCALAPPDATA%\create-dev-flow` |
-| 桌面宠物与注册状态 | `$HOME/.dev-flow/pet`, `$HOME/.dev-flow/registrations` | - |
+| 桌面宠物与注册状态 | `$HOME/.dev-flow/pet`, `$HOME/.dev-flow/registrations` | `%LOCALAPPDATA%\dev-flow\pet`, `%LOCALAPPDATA%\dev-flow\registrations` |
 
 PowerShell 中设置显式数据目录的形式为：
 
@@ -85,9 +85,9 @@ dev-flow status --host all
 
 下方 Host 原生命令保留为诊断恢复入口。
 
-## 桌面宠物（macOS arm64）
+## 桌面宠物（macOS arm64 与 Windows x64）
 
-运行需要 macOS arm64、包含原生应用的本地开发包，以及至少一个已安装并配置的 Codex 或 DeepSeek Adapter。
+运行需要 macOS arm64 或 Windows 10/11 x64、包含对应桌面应用的本地开发包，以及至少一个已安装并配置的 Codex 或 DeepSeek Adapter。
 当前常规 npm 清单不包含 `DevFlowPet.app`；构建、安装和已有应用更新见[桌面宠物指南](DESKTOP-PETS.md#本地构建与安装)。
 
 | 命令 | 行为 |
@@ -411,3 +411,13 @@ Task result 的 `verification` 同时返回 `plan`、`current_budget`、当前 T
 Host 选择检索工具时，当前用户指令和适用的 `AGENTS.md` 优先于这些默认偏好。没有相应指令时，
 false 选择普通文件和文本搜索，true 可优先使用当前可用的代码索引。索引不可用或结果不完整时，
 Host 在当前会话中至多提示一次并回到普通搜索；索引结果不改变已创建 Task 的 Scope。
+
+## Windows 平台边界与验证
+
+Windows 10/11 x64 面向普通 Intel、AMD 64 位桌面电脑。三个 Node 包的路径、权限、命令和清理规则分别由 `lib/platform/windows/` 与 `lib/platform/macos/` 实现，选择入口只按当前平台分派。Core 的平台中立任务语义保持共享；Windows Git 进程隐藏控制台窗口。Codex 的 `--version` 与 `status` 使用所选平台的可执行文件检查，Windows PowerShell 启动器输出 UTF-8。本次只执行 Windows 原生测试；Windows 10、AMD 实机和 macOS 未测试，稳定支持声明保持不变。详见[Windows 适配报告](WINDOWS-ADAPTATION.md)。
+
+## Windows 桌面功能
+
+Windows 10/11 x64 的桌面宠物提供与 macOS 对齐的任务选择与状态气泡、WebUI 跳转、托盘/右键菜单、PNG/SVG 静态和原生动画形象、Codex PNG/WebP 图集导入、九类动作、拖动、六档缩放、隐藏恢复与独立启停。Windows 使用独立 Electron 实现，macOS 保留 Swift/AppKit；两者只读取 Core 状态。Windows 本地包由 `scripts/build-desktop-pet-windows.mjs` 构建，用户数据位于 `%LOCALAPPDATA%\dev-flow\pet`。构建、安装、更新与验证见[桌面宠物指南](DESKTOP-PETS.md)。
+
+当前 Windows 开发包同时包含两个 Adapter 包和桌面应用。安装统一入口包后，使用 `dev-flow install --host all --yes` 与 `dev-flow pet start`。修复、重装均通过同一入口执行，校验内置包摘要、更新桌面应用，并保留 Task 数据、设置和形象。

@@ -77,7 +77,7 @@ test("managed launch freezes the confirmed remote ref, dispatches once, and boot
   assert.equal(launch.receipt.operation_status.phase, "fetched");
   assert.throws(() => buildOpenTaskRepositoryScope([launch.receipt]), /every repository must be provisioned/u);
   assert.equal(launch.source_dirty, true);
-  assert.equal((await stat(launch.receipt_path)).mode & 0o077, 0);
+  if (fixture.options.enforcePrivateModes) assert.equal((await stat(launch.receipt_path)).mode & 0o077, 0);
   assert.deepEqual(Object.keys(launch.receipt).sort(), [
     "base_branch", "created_at", "fetched_commit", "host", "launch_id", "operation_status",
     "remote_name", "repository_key", "request_digest", "source_repository_identity", "target_branch",
@@ -297,7 +297,7 @@ test("provisioning refuses a request, HEAD, or status that changed after assessm
 async function makeRemoteFixture(t, name) {
   const root = await realpath(await mkdtemp(join(tmpdir(), `dev-flow-codex-${name}-`)));
   const remote = join(root, "remote.git");
-  const source = join(root, "source checkout");
+  const source = join(root, "中文 source checkout");
   const productSupportRoot = join(root, "product support");
   await mkdir(productSupportRoot);
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -305,6 +305,7 @@ async function makeRemoteFixture(t, name) {
   await execFile("git", ["clone", remote, source], { encoding: "utf8" });
   await git(source, "config", "user.email", "codex@example.invalid");
   await git(source, "config", "user.name", "Codex Test");
+  await git(source, "config", "core.autocrlf", "false");
   await writeFile(join(source, "base.txt"), "base\n");
   await git(source, "add", "base.txt");
   await git(source, "commit", "-m", "base");

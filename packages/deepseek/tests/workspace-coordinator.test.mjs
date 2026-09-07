@@ -57,6 +57,7 @@ test("coordinator fetches a frozen base, excludes dirty source state, and emits 
   await execFile("git", ["clone", remote, source]);
   await git(source, ["config", "user.email", "workspace@example.invalid"]);
   await git(source, ["config", "user.name", "Workspace Test"]);
+  await git(source, ["config", "core.autocrlf", "false"]);
   await writeFile(join(source, "README.md"), "remote base\n");
   await git(source, ["add", "README.md"]);
   await git(source, ["commit", "-m", "base"]);

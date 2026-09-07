@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { realpath } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
 import { promisify } from "node:util";
+import { nativeGitPath } from "./platform.mjs";
 
 const execFile = promisify(execFileCallback);
 
@@ -35,7 +36,7 @@ export async function inspectAdmissionAnchor({
     seenKeys.add(repository.key);
     assertAbsolutePath(repository.repository_path, "repository_path");
     const requestedPath = resolve(repository.repository_path);
-    const topLevel = normalizeLine(await runGit(["-C", requestedPath, "rev-parse", "--show-toplevel"]));
+    const topLevel = nativeGitPath(normalizeLine(await runGit(["-C", requestedPath, "rev-parse", "--show-toplevel"])));
     assertAbsolutePath(topLevel, "Git worktree root");
     const canonicalRoot = await realpath(topLevel);
     if (seenRoots.has(canonicalRoot)) throw new Error("assessment repositories must identify distinct worktrees");

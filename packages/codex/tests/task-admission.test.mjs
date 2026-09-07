@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFile as execFileCallback } from "node:child_process";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
 
@@ -16,7 +16,7 @@ const execFile = promisify(execFileCallback);
 
 test("assessment anchors are read-only and invalidate on request, HEAD, or status changes", async (t) => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-admission-")));
-  const repository = join(root, "repository with spaces");
+  const repository = join(root, "中文 repository with spaces");
   await mkdir(repository);
   t.after(() => rm(root, { recursive: true, force: true }));
   await git(repository, "init", "--initial-branch=main");
@@ -57,7 +57,7 @@ test("assessment contract permits only genuinely small direct work", async () =>
     request_digest: "a".repeat(64),
     repositories: [{
       repository_key: "primary",
-      canonical_root: "/workspace/repository",
+      canonical_root: resolve("/workspace/repository"),
       head: "b".repeat(40),
       status_digest: "c".repeat(64),
       dirty_paths: [],

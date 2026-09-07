@@ -113,3 +113,7 @@ Adapter 安装、不发布 npm。安装、确认运行路径和替换已有应�
 `dev-flow:local` 仍使用临时 lifecycle 管理器；桌面宠物使用这里生成并安装的持久 package。
 
 构建通过 `scripts/desktop-pet-artwork.mjs` 从 `packages/desktop-pet/default-appearance/` 复制默认 SVG 形象，并逐文件核对内容；该素材包包含九类动作、312 帧。构建结果的 `frames` 和 `asset_bytes` 记录默认动画帧数与素材文件大小。鲸鱼娘等自定义形象通过外部素材包导入。生成的应用包和外部素材目录不纳入 Git 跟踪。
+
+Windows 桌面包由 `build-desktop-pet-windows.mjs` 构建；在仓库根目录先执行 `npm ci --prefix packages/desktop-pet/windows`，再执行 `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"`。输出必须在仓库外。该入口装配 Windows 桌面应用、统一入口及两个 Adapter 安装包；复用 Core 构建目标表，不运行 Mac 程序或测试，也不执行发布。
+
+Windows 桌面开发包现在同时携带完整的 Codex 与 DeepSeek 安装包；构建复用 buildCoreRuntimes 和 stageAndPack，不生成缺少另一平台 Core 的临时特制 Adapter 包。安装统一入口后，两个插件与桌面应用由 dev-flow install --host all --yes 完成。

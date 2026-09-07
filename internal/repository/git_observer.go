@@ -479,6 +479,7 @@ func (r gitCommandRunner) runWithInput(ctx context.Context, command gitReadComma
 	var stdout, stderr bytes.Buffer
 	capture := boundedCommandCapture{remaining: r.outputLimit, cancel: commandCancel}
 	cmd := exec.CommandContext(commandContext, gitExecutable, args...)
+	configureGitCommand(cmd)
 	cmd.Env = gitEnvironment(os.Environ())
 	if input != nil {
 		cmd.Stdin = bytes.NewReader(input)

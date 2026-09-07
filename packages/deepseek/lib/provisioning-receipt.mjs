@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { chmod, lstat, mkdir, readFile, realpath, rename, unlink, writeFile } from "node:fs/promises";
 import { basename, isAbsolute, join, relative, resolve, sep } from "node:path";
 
+import { permissionPolicy } from "./platform.mjs";
+
 const MAX_RECEIPT_BYTES = 256 * 1024;
 const receiptStatuses = new Set(["confirmed", "fetching", "fetched", "provisioning", "provisioned", "consumed", "cleaned", "failed", "uncertain"]);
 const repositoryStatuses = new Set(["confirmed", "fetching", "fetched", "provisioning", "provisioned", "consumed", "worktree_removed", "branch_removed", "failed", "uncertain"]);
@@ -26,7 +28,7 @@ export async function writeProvisioningReceipt(dataDirectory, receipt) {
   try {
     await writeFile(temporary, `${JSON.stringify(validated, null, 2)}\n`, { mode: 0o600, flag: "wx" });
     await rename(temporary, target);
-    if (process.platform !== "win32") await chmod(target, 0o600);
+    if (permissionPolicy(process.platform, process.arch).enforcePrivateModes) await chmod(target, 0o600);
   } catch (error) {
     await unlink(temporary).catch(() => {});
     throw error;
@@ -46,7 +48,7 @@ export async function readProvisioningReceipt(dataDirectory, launchID) {
   if (!info.isFile() || info.isSymbolicLink() || info.size > MAX_RECEIPT_BYTES) {
     throw new Error("provisioning receipt must be a bounded regular file");
   }
-  if (process.platform !== "win32" && (info.mode & 0o077) !== 0) {
+  if (permissionPolicy(process.platform, process.arch).enforcePrivateModes && (info.mode & 0o077) !== 0) {
     throw new Error("provisioning receipt permissions are too broad");
   }
   const canonical = await realpath(target);

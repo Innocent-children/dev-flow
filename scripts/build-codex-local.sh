@@ -152,6 +152,11 @@ lib/install-experience.mjs
 lib/lifecycle.mjs
 lib/paths.mjs
 lib/platform.mjs
+lib/platform/macos/policies.mjs
+lib/platform/windows/policies.mjs
+lib/platform/macos/command.mjs
+lib/platform/windows/command.mjs
+lib/platform/macos/pet-installer.mjs
 lib/provisioning-receipt.mjs
 lib/task-admission.mjs
 lib/task-launch.mjs
@@ -211,6 +216,11 @@ const expected = [
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
   "lib/platform.mjs",
+  "lib/platform/macos/policies.mjs",
+  "lib/platform/windows/policies.mjs",
+  "lib/platform/macos/command.mjs",
+  "lib/platform/windows/command.mjs",
+  "lib/platform/macos/pet-installer.mjs",
   "lib/provisioning-receipt.mjs",
   "lib/task-admission.mjs",
   "lib/task-launch.mjs",

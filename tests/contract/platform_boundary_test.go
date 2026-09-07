@@ -60,6 +60,8 @@ func TestNodeConsumersUseClosedPlatformImplementations(t *testing.T) {
 		"packages/deepseek/lib/index.mjs",
 		"packages/deepseek/lib/paths.mjs",
 		"packages/deepseek/lib/runtime.mjs",
+		"packages/deepseek/lib/provisioning-receipt.mjs",
+		"packages/dev-flow/lib/lifecycle.mjs",
 		"packages/dev-flow/lib/ownership.mjs",
 		"packages/dev-flow/lib/plan.mjs",
 		"packages/dev-flow/lib/runtime.mjs",
@@ -70,6 +72,38 @@ func TestNodeConsumersUseClosedPlatformImplementations(t *testing.T) {
 		}
 		if regexp.MustCompile(`platform\s*(?:===|!==)\s*["'](?:win32|darwin)["']`).Match(raw) {
 			t.Errorf("%s branches on a concrete platform outside a platform implementation", relative)
+		}
+	}
+}
+
+func TestHostPlatformImplementationsRemainSeparate(t *testing.T) {
+	root := currentStorageRepositoryRoot(t)
+	for _, product := range []string{"codex", "deepseek", "dev-flow"} {
+		for _, platform := range []string{"windows", "macos"} {
+			directory := filepath.Join(root, "packages", product, "lib", "platform", platform)
+			if _, err := os.Stat(filepath.Join(directory, "policies.mjs")); err != nil {
+				t.Fatal(err)
+			}
+			err := filepath.WalkDir(directory, func(path string, entry os.DirEntry, err error) error {
+				if err != nil || entry.IsDir() || filepath.Ext(path) != ".mjs" {
+					return err
+				}
+				raw, err := os.ReadFile(path)
+				if err != nil {
+					return err
+				}
+				other := "macos"
+				if platform == "macos" {
+					other = "windows"
+				}
+				if strings.Contains(string(raw), "../"+other+"/") || strings.Contains(string(raw), "process.platform") {
+					t.Errorf("platform implementation must not select or import the other platform: %s", path)
+				}
+				return nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
 }

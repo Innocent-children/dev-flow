@@ -136,3 +136,13 @@ dev-flow pet stop
 ## Licencia
 
 [Apache License 2.0](LICENSE)
+
+## Adaptación para Windows de escritorio
+
+Windows 10/11 x64 está destinado a equipos de escritorio convencionales con procesadores Intel o AMD de 64 bits. Las reglas de rutas, permisos, comandos y limpieza del Host se separan en `platform/windows/` y `platform/macos/`; Core comparte la semántica de tareas independiente de la plataforma. Los lanzadores de comandos de Windows usan UTF-8 y la observación de Git de Core oculta las ventanas de consola. Consulte el [informe de adaptación](docs/WINDOWS-ADAPTATION_en.md) para conocer la verificación nativa en Windows y sus límites; estos resultados no amplían el soporte de los paquetes estables.
+
+Windows también ofrece la mascota de escritorio: selección de tareas y estado, menú de bandeja, apariencias PNG/SVG, animaciones nativas, atlas Codex PNG/WebP, nueve acciones, arrastre, seis tamaños, ocultar/restaurar e inicio/parada independientes. Compile el paquete local de Windows con `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"`; consulte los requisitos y la instalación en la [guía de la mascota](docs/DESKTOP-PETS_en.md). Las implementaciones de Windows y macOS permanecen separadas.
+
+En Windows, los directorios AppData existentes se resuelven a sus rutas reales, incluidos los alias de los hosts de escritorio empaquetados; los enlaces simbólicos siguen rechazándose.
+
+La distribución de desarrollo para Windows incluye ambos paquetes Adapter y la aplicación de escritorio. Tras instalar el lanzador, use `dev-flow install --host all --yes` y `dev-flow pet start`. La reparación y reinstalación usan la misma entrada, verifican los hashes, actualizan la aplicación y conservan los datos de Task, ajustes y apariencias.

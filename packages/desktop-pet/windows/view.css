@@ -1,0 +1,145 @@
+:root {
+  font:
+    14px "Segoe UI",
+    "Microsoft YaHei",
+    sans-serif;
+  color: #23334b;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid #d5deea;
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+  padding: 6px 12px;
+}
+button:hover {
+  background: #e9f0ff;
+}
+#character {
+  position: absolute;
+  left: 50%;
+  top: 110px;
+  transform: translateX(-50%);
+  object-fit: contain;
+  cursor: pointer;
+  -webkit-user-drag: none;
+}
+#bubble {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 284px;
+  max-height: 96px;
+  padding: 10px 14px;
+  background: #fffffff2;
+  border: 1px solid #dbe4ee;
+  border-radius: 14px;
+  box-shadow: 0 4px 18px #15294720;
+  cursor: pointer;
+}
+#summary {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  font-size: 13px;
+  margin-top: 4px;
+}
+#detail {
+  display: block;
+  color: #586880;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  margin-top: 3px;
+}
+body:not(.hover) #detail {
+  display: none;
+}
+#phase {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.hover #bubble {
+  max-height: 238px;
+  z-index: 3;
+}
+body.hover #detail {
+  white-space: pre-line;
+  max-height: 154px;
+  overflow-y: auto;
+}
+#picker {
+  position: absolute;
+  inset: 8px;
+  background: #f8fbfff7;
+  border: 1px solid #d0dcea;
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 4px 24px #15294730;
+  z-index: 5;
+}
+header,
+footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+#items {
+  height: calc(100% - 85px);
+  overflow: auto;
+  margin: 10px 0;
+}
+#items button {
+  display: block;
+  text-align: left;
+  width: 100%;
+  margin: 6px 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+#items small {
+  display: block;
+  color: #637086;
+  margin-top: 4px;
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: #e1eaf8;
+  }
+  #bubble,
+  #picker {
+    background: #1e293bef;
+    border-color: #42536a;
+  }
+  button {
+    background: #29384c;
+    border-color: #50627b;
+  }
+  button:hover {
+    background: #3b5170;
+  }
+  #detail,
+  #items small {
+    color: #b1c0d4;
+  }
+}

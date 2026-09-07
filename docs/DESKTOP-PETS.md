@@ -8,7 +8,7 @@
 
 ## 环境与交付方式
 
-桌面组件面向 macOS arm64（Apple Silicon），运行时需要至少一个已安装并配置的 Codex 或 DeepSeek Adapter 提供 Core。
+桌面组件面向 macOS arm64（Apple Silicon）与 Windows 10/11 x64，运行时需要至少一个已安装并配置的 Codex 或 DeepSeek Adapter 提供 Core。
 Swift Package 与应用 metadata 的部署目标为 macOS 14；最低系统实际运行、Developer ID 签名和 Apple 公证尚未完成正式分发验证。
 具体已验证范围见[支持矩阵](SUPPORT-MATRIX.md#桌面宠物功能检查)。
 
@@ -16,7 +16,7 @@ Swift Package 与应用 metadata 的部署目标为 macOS 14；最低系统实�
 
 当前仓库的常规 npm 包清单和正式制备流程不包含 `DevFlowPet.app`。原生应用由专用本地构建脚本加入
 `@imotong/dev-flow` 开发包；安装普通 Adapter 包本身不代表已经取得宠物应用。
-运行已构建的应用无需 Swift/Xcode，构建机器需要 Node.js >=24 与可通过 `xcrun swift` 使用的 Swift >=6.0 工具链。
+运行已构建的应用无需 Swift/Xcode，macOS 构建机器需要 Node.js >=24 与可通过 `xcrun swift` 使用的 Swift >=6.0 工具链。
 
 ## 本地构建与安装
 
@@ -40,6 +40,29 @@ dev-flow pet start
 启动优先使用已有的 `~/.dev-flow/pet/DevFlowPet.app`，其次使用当前统一入口包内的
 `runtime/darwin-arm64/DevFlowPet.app`。安装辅助逻辑仅在目标缺失且候选包确实带有应用时复制到用户目录。
 已有应用的更新见下一节。
+
+## Windows 本地构建与安装
+
+Windows 本地开发包的构建需要 Go、Node.js 与 pnpm 位于 PATH，并使用仓库规定的工具链版本。Windows 10/11 x64 使用独立桌面实现，功能包含任务选择、状态气泡、托盘、九类动作、形象导入、缩放、拖动、隐藏恢复与独立启停。运行已构建的应用无需 Electron 或编译器开发环境；本地包携带运行时，仍需已配置的 Adapter 提供 Core。
+
+在仓库根目录准备锁定的 Windows 构建依赖，并选择仓库外输出目录：
+
+~~~powershell
+npm ci --prefix packages/desktop-pet/windows
+node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"
+npm install -g "C:\pet-build\<local-package>.tgz"
+dev-flow install --host all --yes
+dev-flow pet start
+dev-flow pet stop
+~~~
+
+将 `<local-package>.tgz` 替换为 desktop-pet-build.json 中 tarball 对应的文件名。该构建装配 Windows 桌面应用，并通过既有构建目标表生成两个 Adapter 的完整 Core 文件和安装包，绑定路径、版本与 SHA256；复制默认九类动作、312 帧并验证解包后的素材和可执行文件。Mac Core 仅交叉编译，不执行 Mac 程序或测试，不执行发布。Windows 采用系统托盘代替 macOS 菜单栏，素材格式、任务语义和六档缩放一致。
+
+productRoot 默认是 %LOCALAPPDATA%\dev-flow。已安装桌面目录为 productRoot/pet/DevFlowPet，入口为 DevFlowPet.exe；优先使用此目录，其次使用包内 runtime/win32-x64/DevFlowPet。settings.json、appearances/ 与程序目录分开保存。本地开发包通过 dev-flow install、upgrade、repair、reinstall 更新程序副本；统一入口先停止需要维护的实例，再暂存并替换程序目录，保留 settings.json 与 appearances/。单独 pet start 不重装已有程序。普通退出和卸载保留这些数据，确认的 factory-reset 才按既有规则清理整个宠物目录。
+
+Windows 使用受限渲染器、当前用户范围的本地单实例通道与确认消息，不按进程名或仅凭 PID 停止程序。每轮和点击跳转前核对同一 Core 与数据目录；连接失败保留最后记录并标注断连，任务更新与同步时间分别显示。隐藏/睡眠取消读取和动画，恢复后不重放历史完成提示。
+
+本地包尚未完成 Windows 正式分发签名验证。当前原生检查在 Windows 11 Intel x64 上执行，Windows 10 与 AMD 实机未测试；本次没有运行 Mac 程序或 Mac 测试；完整制包仅交叉编译 Mac Core 文件。结果与限制见[适配报告](WINDOWS-ADAPTATION.md)。
 
 ## 更新程序与素材
 

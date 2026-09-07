@@ -31,6 +31,8 @@ const expectedPackageFiles = [
   "lib/index.mjs",
   "lib/paths.mjs",
   "lib/platform.mjs",
+  "lib/platform/macos/policies.mjs",
+  "lib/platform/windows/policies.mjs",
   "lib/provisioning-receipt.mjs",
   "lib/runtime.mjs",
   "lib/tool-names.mjs",

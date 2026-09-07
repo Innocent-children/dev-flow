@@ -60,7 +60,7 @@ test("a runtime without the desktop component rejects both pet commands", async 
       stdout,
       stderr,
       platform: "win32",
-      arch: "x64",
+      arch: "arm64",
       platformModule: native.module,
       resolveCoreRuntime: selection.resolveCoreRuntime,
       exec: core.exec,
@@ -412,7 +412,7 @@ test("Adapter maintenance skips a runtime or package that has no desktop compone
     environment: {},
     homeDirectory: fixture.home,
     platform: "win32",
-    arch: "x64",
+    arch: "arm64",
     packageRoot: fixture.packageRoot,
     platformModule: windows.module,
   }), { stopped: false, reason: "unsupported-platform" });

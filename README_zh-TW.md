@@ -125,3 +125,13 @@ dev-flow pet stop
 ## 授權條款
 
 [Apache License 2.0](LICENSE)
+
+## Windows 桌面適配
+
+Windows 10/11 x64 面向一般 Intel、AMD 64 位元桌面電腦。Host 的路徑、權限、命令與清理規則分別位於 `platform/windows/` 和 `platform/macos/`；Core 共用平台中立的任務語意。Windows 命令啟動器使用 UTF-8，Core 的 Git 觀察隱藏主控台視窗。原生 Windows 驗證及限制見[適配報告](docs/WINDOWS-ADAPTATION.md)，這些結果不擴大穩定安裝套件的支援聲明。
+
+Windows 現已提供桌面寵物：任務選擇與狀態氣泡、系統匣選單、PNG/SVG 形象、原生動畫、Codex PNG/WebP 圖集、九類動作、拖動、六段大小、隱藏還原和獨立啟停。使用 `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"` 建置 Windows 本機套件；相依項目準備與安裝見[桌面寵物指南](docs/DESKTOP-PETS.md)。Windows 與 macOS 桌面實作保持獨立。
+
+Windows 會將既有 AppData 目錄解析為實際路徑，包括封裝桌面宿主提供的目錄別名；仍拒絕符號連結。
+
+目前 Windows 開發套件同時包含兩個 Adapter 套件與桌面應用程式。安裝統一入口套件後，使用 `dev-flow install --host all --yes` 與 `dev-flow pet start`。修復、重新安裝均透過同一入口執行，核對內建套件摘要、更新桌面應用程式，並保留 Task 資料、設定和形象。

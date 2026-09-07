@@ -9,6 +9,7 @@ export function createLifecyclePlan(request, observed, {
   now = () => new Date(),
   platformKey = "darwin-arm64",
   recoverableCleanupDescription = "Move confirmed data to macOS Trash",
+  replaceLocalPackages = false,
 } = {}) {
   if (request.operation === "factory-reset" && request.host !== "all") {
     throw planConflict("factory reset requires --host all because Task data is shared");
@@ -34,7 +35,7 @@ export function createLifecyclePlan(request, observed, {
       if (!targetVersion) throw new Error(`target version is missing for ${targetKey(target)}`);
       if (request.operation === "upgrade" && target.packageVersion && compareVersions(target.packageVersion, targetVersion) > 0) downgrade = true;
       const alreadyReady = target.state === "ready" && target.packageVersion === targetVersion;
-      if (request.operation === "reinstall" || request.adopt || !alreadyReady) actions.push(actionFor(target, request.operation, targetVersion));
+      if (replaceLocalPackages || request.operation === "reinstall" || request.adopt || !alreadyReady) actions.push(actionFor(target, request.operation, targetVersion));
     }
   } else if (request.operation === "uninstall") {
     for (const target of targets) if (requiresUninstall(target)) actions.push(actionFor(target, "uninstall", null));

@@ -104,6 +104,7 @@ export async function runCLI(arguments_, dependencies = {}) {
       const coreVersion = await inspectVersion(paths.runtimePath, {
         environment,
         currentDirectory: paths.packageRoot,
+        requireExecutableMode: paths.requireExecutableMode,
       });
       stdout.write(`dev-flow-codex ${packageVersion} (core ${coreVersion})\n`);
       return { code: 0, signal: null };
@@ -114,6 +115,7 @@ export async function runCLI(arguments_, dependencies = {}) {
       const coreVersion = await inspectVersion(paths.runtimePath, {
         environment,
         currentDirectory: paths.packageRoot,
+        requireExecutableMode: paths.requireExecutableMode,
       });
       const result = await inspectStatus({
         paths,

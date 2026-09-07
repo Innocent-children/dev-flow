@@ -96,3 +96,7 @@ Desktop pet source builds use macOS arm64, Node.js `>=24`, and Xcode command-lin
 `>=6.0`. The Swift Package and app metadata target macOS 14; this is a compilation target, with
 minimum-OS execution still unverified. The builder reuses existing artwork and USTAR helpers and
 signs ad hoc for local functional checks. Installed execution needs no Swift/Xcode.
+
+Windows 桌面构建使用 Windows x64、Node.js `>=24` 与 `packages/desktop-pet/windows/package-lock.json` 锁定的 Electron 和素材解析依赖；这些依赖只进入 Windows 桌面包，不进入 Core 或 macOS 构建。
+
+Windows desktop builds use Windows x64, Node.js `>=24`, and the Electron/artwork dependencies locked in `packages/desktop-pet/windows/package-lock.json`. These dependencies belong only to the Windows desktop package, not Core or macOS builds.

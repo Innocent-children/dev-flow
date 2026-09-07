@@ -222,3 +222,15 @@ macOS arm64 的桌面宠物通过包含 `DevFlowPet.app` 的本地开发包使�
 程序更新、已有应用副本替换和素材重导入分别处理；安装、全部动作规则与常见问题统一见[桌面宠物指南](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS.md)。
 
 本地宠物包保留默认形象；鲸鱼娘等自定义形象作为独立素材包，通过“导入形象…”安装。素材保存在用户目录，程序更新保留已导入形象。
+
+## Windows 平台适配
+
+Windows 10/11 x64 面向普通 Intel、AMD 64 位桌面电脑。三个 Node 包的路径、权限、命令和清理规则分别由 `lib/platform/windows/` 与 `lib/platform/macos/` 实现，选择入口只按当前平台分派。Core 的平台中立任务语义保持共享；Windows Git 进程隐藏控制台窗口。Codex 的 `--version` 与 `status` 使用所选平台的可执行文件检查，Windows PowerShell 启动器输出 UTF-8。本次只执行 Windows 原生测试；Windows 10、AMD 实机和 macOS 未测试，稳定支持声明保持不变。详见[Windows 适配报告](../../docs/WINDOWS-ADAPTATION.md)。
+
+Windows 10/11 x64 的桌面宠物提供与 macOS 对齐的任务选择与状态气泡、WebUI 跳转、托盘/右键菜单、PNG/SVG 静态和原生动画形象、Codex PNG/WebP 图集导入、九类动作、拖动、六档缩放、隐藏恢复与独立启停。Windows 使用独立 Electron 实现，macOS 保留 Swift/AppKit；两者只读取 Core 状态。Windows 本地包由 `scripts/build-desktop-pet-windows.mjs` 构建，用户数据位于 `%LOCALAPPDATA%\dev-flow\pet`。构建、安装、更新与验证见[桌面宠物指南](../../docs/DESKTOP-PETS.md)。
+
+Windows 会将已有 AppData 目录解析为实际路径，包括打包桌面宿主提供的目录别名；仍拒绝符号链接。
+
+Windows Codex 注册回读按当前宿主的 marketplace `name`、`root` 与 Plugin 身份校验，并在 Windows 平台实现中规范化 `\\?\` 路径前缀；macOS 保留自己的回读规则。
+
+当前 Windows 开发包同时包含两个 Adapter 包和桌面应用。安装统一入口包后，使用 `dev-flow install --host all --yes` 与 `dev-flow pet start`。修复、重装均通过同一入口执行，校验内置包摘要、更新桌面应用，并保留 Task 数据、设置和形象。

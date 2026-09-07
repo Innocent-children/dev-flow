@@ -132,3 +132,13 @@ dev-flow pet stop
 ## License
 
 [Apache License 2.0](LICENSE)
+
+## Windows desktop adaptation
+
+Windows 10/11 x64 targets ordinary Intel and AMD 64-bit desktop PCs. Host path, permission, command and cleanup rules live in separate `platform/windows/` and `platform/macos/` implementations; Core retains shared platform-neutral task semantics. Windows command shims use UTF-8, and Core Git observation hides console windows. See the [adaptation report](docs/WINDOWS-ADAPTATION_en.md) for native Windows verification and its limits; this does not expand the stable package support claim.
+
+Windows now also provides the desktop pet: task selection and status bubbles, tray menus, PNG/SVG appearances, native animations, Codex PNG/WebP atlases, nine actions, dragging, six size settings, hide/restore and independent start/stop. Build the Windows local package with `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"`; prerequisites and installation are in the [desktop pet guide](docs/DESKTOP-PETS_en.md). Windows and macOS desktop implementations remain separate.
+
+On Windows, existing AppData directories are resolved to their actual paths, including directory aliases exposed by packaged desktop hosts; symbolic links remain rejected.
+
+The current Windows development distribution includes both Adapter packages and the desktop app. After installing the launcher package, use `dev-flow install --host all --yes` and `dev-flow pet start`. Repair and reinstall use the same entry, verify bundled artifact hashes, refresh the desktop app, and preserve Task data, settings and appearances.
