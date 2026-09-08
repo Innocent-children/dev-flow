@@ -83,14 +83,14 @@ test("official MCP client preserves canonical JSON from ordinary size through th
   await mounted.dispose();
 });
 
-test("exact rc.8 spill stack retains canonical values and retrieves byte-identical full results", {
+test("current DSH spill stack retains canonical values and retrieves byte-identical full results", {
   skip: exactGateModules === undefined ? "set DEV_FLOW_DSH_GATE_NODE_MODULES for the one exact spill gate" : false,
 }, async (t) => {
   const root = await temporaryRoot(t, "spill");
   const spillRoot = join(root, "spill-store");
   await mkdir(spillRoot, { mode: 0o700 });
   const stack = await loadStack(exactGateModules);
-  await assertExactRc8(stack.require);
+  await assertCurrentDsh(stack.require);
   const fixturePath = await writeFixtureServer(root, stack.require);
   const mounted = await mountMcp(stack, fixtureConfig(fixturePath, root, "gate_spill"), {
     spillRoot,
@@ -118,7 +118,7 @@ test("exact rc.8 spill stack retains canonical values and retrieves byte-identic
   assert.equal((await stat(locator)).mode & 0o777, 0o600);
   t.diagnostic(JSON.stringify({
     case: "official_spill_retrieval",
-    dsh_version: "0.1.0-rc.8",
+    dsh_version: "0.1.2-rc.1",
     max_inline_bytes: 50_000,
     expected_bytes: Buffer.byteLength(expected),
     preview_bytes: Buffer.byteLength(preview),
@@ -324,7 +324,7 @@ await server.connect(new StdioServerTransport());
   return fixturePath;
 }
 
-async function assertExactRc8(require) {
+async function assertCurrentDsh(require) {
   for (const packageName of [
     "@deepseek-ai/dsh",
     "@deepseek-ai/dsh-mcp-client",
@@ -335,7 +335,7 @@ async function assertExactRc8(require) {
   ]) {
     const manifestPath = require.resolve(`${packageName}/package.json`);
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-    assert.equal(manifest.version, "0.1.0-rc.8", packageName);
+    assert.equal(manifest.version, "0.1.2-rc.1", packageName);
   }
 }
 

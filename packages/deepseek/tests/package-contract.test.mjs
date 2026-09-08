@@ -98,12 +98,12 @@ test("manifest closes final package, dependency, and lifecycle surfaces", async 
   assert.deepEqual([...manifest.files].sort(), [...expectedPackageFiles].sort());
   assert.equal(manifest.files.some((path) => /[*?[\]{}]/u.test(path)), false);
   assert.deepEqual(manifest.dependencies, {
-    "@deepseek-ai/dsh-mcp-client": ">=0.1.0-rc.6",
+    "@deepseek-ai/dsh-mcp-client": ">=0.1.2-rc.1",
   });
   assert.deepEqual(manifest.peerDependencies, {
-    "@deepseek-ai/cordis": ">=4.0.1 <5.0.0",
-    "@deepseek-ai/dsh-skill": ">=0.1.0-rc.6",
-    "@deepseek-ai/dsh-tools": ">=0.1.0-rc.6",
+    "@deepseek-ai/cordis": ">=4.0.2 <5.0.0",
+    "@deepseek-ai/dsh-skill": ">=0.1.2-rc.1",
+    "@deepseek-ai/dsh-tools": ">=0.1.2-rc.1",
   });
   assert.equal(manifest.scripts["build:webui"], "node ../../scripts/build-webui.mjs");
   assert.equal(manifest.scripts["build:local"], "node ../../scripts/build-deepseek-local.mjs");

@@ -56,6 +56,8 @@ dev-flow
   `apply_patch` 写前检查不会生效。
 - **DeepSeek Harness：** 安装后重启所选 DSH Profile。
 
+当前源码 Adapter 要求 DSH `>=0.1.2-rc.1`；每次 Dev Flow 操作都核对当前用户直接输入的授权。
+
 ### 2. 启动任务
 
 在 **Codex** 中发送这条用户消息：

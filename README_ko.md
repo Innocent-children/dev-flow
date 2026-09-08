@@ -61,6 +61,8 @@ dev-flow
   `apply_patch` 쓰기 전 확인이 동작하지 않습니다.
 - **DeepSeek Harness:** 설치 후 선택한 DSH Profile을 다시 시작하세요.
 
+현재 소스의 Adapter에는 DSH `>=0.1.2-rc.1`이 필요합니다. 각 Dev Flow 작업은 현재 사용자가 직접 입력한 승인을 확인합니다.
+
 ### 2. 작업 시작하기
 
 **Codex**에서는 다음 내용을 사용자 메시지로 보냅니다.

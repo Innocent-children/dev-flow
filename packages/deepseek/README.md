@@ -19,7 +19,7 @@
 | 稳定 Platform | macOS arm64 |
 | 当前源码 Platform | macOS arm64（`darwin-arm64`）；Windows 10/11 桌面 x64（`win32-x64`） |
 | Node.js | `>=24` |
-| DSH | `>=0.1.0-rc.6` |
+| DSH | `>=0.1.2-rc.1` |
 | Releases | [GitHub Releases](https://github.com/Innocent-children/dev-flow/releases) |
 
 稳定支持以[支持矩阵](../../docs/SUPPORT-MATRIX.md)为准。`main` 中存在的能力不一定已经进入 npm
@@ -244,3 +244,7 @@ Windows 会将已有 AppData 目录解析为实际路径，包括打包桌面宿
 进入 TEST 前，当前 Task Plan 的全部工作项必须已经完成。DELIVERY 逐条接收明确的验收结果，每项关联已完成且对应此验收条件的工作项，以及当前 Test 中通过的检查。自动检查、静态检查、Host 观察和明确人工检查均可使用；理解确认仍单独保存，不自动代替验收检查。遗漏、错误或过期引用会使提交被拒绝。
 
 WebUI 与 MCP 共用 Core 的语义提交、操作保存和恢复流程。Core 保存规范化载荷，页面只提交当前 Task revision、Action ID 和语义结果。网络异常先回读 Core；页面重新打开后仍能发现待恢复操作，并按 Action ID 恢复。无效完成结果不会推进任务或保存操作。
+
+## 当前 DSH 接口
+
+当前源码的 DeepSeek Adapter 要求 DSH `>=0.1.2-rc.1`。Adapter 通过 Session 的 `snapshotEvents()` 读取当前轮次和用户直接输入，核对 `/dev-flow`、工作树确认及结构化文件写入；Core 继续负责 Task 状态。

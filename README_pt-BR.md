@@ -64,6 +64,8 @@ conclua também a última etapa indicada pelo instalador:
   compatível antes de uma gravação por `apply_patch` só funciona depois disso.
 - **DeepSeek Harness:** reinicie o Profile do DSH escolhido após a instalação.
 
+O Adapter do código-fonte atual requer DSH `>=0.1.2-rc.1`; cada operação do Dev Flow verifica a autorização inserida diretamente pelo usuário no turno atual.
+
 ### 2. Inicie uma tarefa
 
 Envie esta mensagem de usuário no **Codex**:

@@ -178,7 +178,7 @@ async function validatePreflight(options) {
   assert.equal((await execFile("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8" })).stdout.trim(), options.sourceCommit);
   assert.equal((await execFile("git", ["status", "--short"], { cwd: repositoryRoot, encoding: "utf8" })).stdout, "");
   const dshVersion = (await execFile(options.dshExecutable, ["--version"], { encoding: "utf8" })).stdout.trim();
-  assert.equal(versionAtLeast(dshVersion, "0.1.0-rc.6"), true, "DSH version is below 0.1.0-rc.6");
+  assert.equal(versionAtLeast(dshVersion, "0.1.2-rc.1"), true, "DSH version is below 0.1.2-rc.1");
 }
 
 function layout(root, options) {
@@ -675,8 +675,8 @@ function assertSafeEvidence(evidence) {
 }
 
 function selfTest() {
-  assert.equal(versionAtLeast("0.1.1-rc.2", "0.1.0-rc.6"), true);
-  assert.equal(versionAtLeast("0.1.0-rc.5", "0.1.0-rc.6"), false);
+  assert.equal(versionAtLeast("0.1.2-rc.1", "0.1.2-rc.1"), true);
+  assert.equal(versionAtLeast("0.1.1-rc.2", "0.1.2-rc.1"), false);
   assert.match(APPLY_RULES, /problem_class=none and findings=\[\]/u);
   assert.match(APPLY_RULES, /reason_required=false/u);
   assert.match(APPLY_RULES, /unresolved_questions is a sibling of baseline/u);

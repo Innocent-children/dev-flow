@@ -3,10 +3,12 @@ import { mkdir, mkdtemp, realpath, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { Session } from "@deepseek-ai/dsh-session";
 
 import {
   DENIAL_CODES,
   authorizeDevFlowExecution,
+  currentDirectUserText,
   deriveCurrentTurn,
   hasDirectUserSelector,
   registerDevFlowGuard,
@@ -18,6 +20,23 @@ import {
 
 const expectedTool = DEV_FLOW_QUALIFIED_TOOL_NAMES[0];
 const openTool = DEV_FLOW_QUALIFIED_TOOL_NAMES[1];
+
+test("current DSH Session authorizes direct and nested calls and reads confirmation text", () => {
+  const session = Session.create("authorization-session");
+  session.append("turn/start", { turn: 1 });
+  session.append("user/message", directUserMessage("/dev-flow confirm-worktree\nrepository=primary;remote=origin;base=main;target=codex/proof"), { surfaceOp: "append" });
+  session.append("tool/call", { turn: 1, step: 1, callId: "real-call", name: expectedTool, arguments: "{}" });
+  const execution = { name: expectedTool, callId: "real-call", agent: { status: "running", session } };
+  assert.equal(authorizeDevFlowExecution(execution), undefined);
+  assert.match(currentDirectUserText(execution), /repository=primary/u);
+  assert.equal(authorizeDevFlowExecution({ ...execution, callId: "nested-call", parent: Symbol("parent") }), undefined);
+  session.append("turn/end", { turn: 1, reason: "completed" });
+  assert.match(authorizeDevFlowExecution(execution), /DEV_FLOW_NO_OPEN_TURN/u);
+  session.append("turn/start", { turn: 2 });
+  session.append("user/message", directUserMessage("ordinary request", "next-user"), { surfaceOp: "append" });
+  session.append("tool/call", { turn: 2, step: 1, callId: "next-call", name: expectedTool, arguments: "{}" });
+  assert.match(authorizeDevFlowExecution({ ...execution, callId: "next-call" }), /DEV_FLOW_SELECTOR_REQUIRED/u);
+});
 
 test("selector matcher accepts only the whitespace-bounded token", () => {
   for (const text of [
@@ -234,7 +253,7 @@ function makeExecution({ events, callId, name = expectedTool, parent, status = "
     signal: new AbortController().signal,
     token: Symbol("execution"),
     ...(parent === undefined ? {} : { parent }),
-    agent: Object.freeze({ status, session: Object.freeze({ events: Object.freeze(events) }) }),
+    agent: Object.freeze({ status, session: Object.freeze({ snapshotEvents: () => Object.freeze(events) }) }),
   });
 }
 

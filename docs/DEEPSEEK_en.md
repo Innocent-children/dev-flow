@@ -11,7 +11,7 @@ provisioning and relaunch; Core then derives the current surface from read-only 
 
 Stable support remains defined by the [Support Matrix](SUPPORT-MATRIX_en.md). Current source contains
 exact `darwin-arm64` and `win32-x64` runtimes and requires Node.js `>=24` with DSH
-`>=0.1.0-rc.6`. Windows Server, 32-bit/ARM64 Windows, Intel Mac, and cross-pairs are outside current
+`>=0.1.2-rc.1`. Windows Server, 32-bit/ARM64 Windows, Intel Mac, and cross-pairs are outside current
 source support. The package has no standalone `dev-flow-deepseek` executable.
 
 ```bash
@@ -214,3 +214,7 @@ The current Windows development distribution includes both Adapter packages and 
 Before entering TEST, every work item in the current Task Plan must be completed. DELIVERY receives explicit acceptance results linking each criterion to completed work items mapped to that criterion and passed checks in the current Test. Automated, static, Host-observed and explicit manual checks are supported. Comprehension confirmation remains separate and does not automatically substitute for acceptance checks. Missing, incorrect or outdated references reject the submission.
 
 WebUI and MCP share Core semantic submission, operation retention and recovery. Core retains the canonical payload; the page sends the current Task revision, Action ID and semantic results. Network failures first trigger a Core read. Reopening the page discovers pending operations and recovers them by Action ID. Invalid completion results neither advance the Task nor retain an operation.
+
+## Current DSH interface
+
+The current source DeepSeek Adapter requires DSH `>=0.1.2-rc.1`. It reads the current turn and direct user input through Session `snapshotEvents()` to check `/dev-flow`, worktree confirmations, and structured file writes; Core continues to own Task state.

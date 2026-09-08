@@ -237,7 +237,7 @@ function execution(text, arguments_) {
     arguments: arguments_,
     agent: {
       status: "running",
-      session: { events: [
+      session: { snapshotEvents: () => [
         { seq: 0, type: "turn/start", data: { turn: 1 } },
         { seq: 1, type: "user/message", data: { id: "user", source: { kind: "user" }, content: [{ type: "text", text }] } },
         { seq: 2, type: "tool/call", data: { turn: 1, callId: callID, name: WORKSPACE_COORDINATOR_TOOL } },

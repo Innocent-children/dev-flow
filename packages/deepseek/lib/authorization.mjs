@@ -31,8 +31,8 @@ export function hasDirectUserSelector(message) {
 export function deriveCurrentTurn(execution) {
   try {
     const agent = execution?.agent;
-    if (agent?.status !== "running" || !Array.isArray(agent.session?.events)) return undefined;
-    const events = agent.session.events;
+    if (agent?.status !== "running") return undefined;
+    const events = agent.session.snapshotEvents();
     const matchingCalls = events
       .map((event, index) => ({ event, index }))
       .filter(({ event }) => event?.type === "tool/call"
@@ -52,7 +52,7 @@ export function currentDirectUserText(execution) {
   const turn = deriveCurrentTurn(execution);
   if (turn === undefined) return "";
   const ids = new Set(turn.directUserMessageIds);
-  return execution.agent.session.events
+  return execution.agent.session.snapshotEvents()
     .filter((event) => event?.type === "user/message"
       && ids.has(event.data?.id)
       && event.data?.source?.kind === "user")

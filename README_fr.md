@@ -64,6 +64,8 @@ tâche, effectuez également la dernière opération indiquée par l'installateu
   préalable pris en charge pour `apply_patch` ne fonctionne pas tant que le hook n'est pas approuvé.
 - **DeepSeek Harness :** redémarrez le Profile DSH choisi après l'installation.
 
+L’Adapter du code source actuel nécessite DSH `>=0.1.2-rc.1` ; chaque opération Dev Flow vérifie l’autorisation saisie directement par l’utilisateur dans le tour actuel.
+
 ### 2. Démarrer une tâche
 
 Envoyez ce message utilisateur dans **Codex** :

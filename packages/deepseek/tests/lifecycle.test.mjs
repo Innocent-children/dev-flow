@@ -131,7 +131,7 @@ test("official DSH add/remove/reinstall preserves Core data, repository, and Cod
       sha256: coreIdentity.sha256, reported_version: await coreVersion(installedCore),
     },
     dsh: {
-      version: "0.1.0-rc.8",
+      version: "0.1.2-rc.1",
       integrity: "sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==",
       source_commit: "141eb6fef83422698aef7a981029e843e8161534",
     },
@@ -229,7 +229,7 @@ async function authorizedCall(ctx, name, args, callId) {
   ];
   const result = await ctx.tools.execute({
     callId, name, arguments: args, signal: new AbortController().signal,
-    agent: { status: "running", session: { events }, ctx },
+    agent: { status: "running", session: { snapshotEvents: () => events }, ctx },
   });
   const envelope = JSON.parse(textResult(result));
   if (!envelope.ok) throw new Error(`${envelope.error.code}: ${envelope.error.message}`);

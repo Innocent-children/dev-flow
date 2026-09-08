@@ -64,6 +64,8 @@ completa también el último paso que indique el instalador:
   previa compatible de `apply_patch` no funciona hasta que confíes en el hook.
 - **DeepSeek Harness:** reinicia el Profile de DSH elegido después de la instalación.
 
+El Adapter del código fuente actual requiere DSH `>=0.1.2-rc.1`; cada operación de Dev Flow comprueba la autorización introducida directamente por el usuario en el turno actual.
+
 ### 2. Inicia una tarea
 
 Envía este mensaje de usuario en **Codex**:

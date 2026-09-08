@@ -40,25 +40,23 @@ test("DeepSeek gate ignores ordinary turns and read-only editor calls", async ()
   assert.equal(spawns, 0);
 });
 
-function selectedExecution(name, argumentsValue) {
+function selectedExecution(name, argumentsValue, text = "/dev-flow continue") {
   const callId = "scope-call";
   return {
     name,
     arguments: argumentsValue,
     callId,
     signal: new AbortController().signal,
-    agent: { status: "running", session: { events: [
+    agent: { status: "running", session: { snapshotEvents: () => [
       { seq: 0, type: "turn/start", data: { turn: 1 } },
-      { seq: 1, type: "user/message", data: { id: "user", source: { kind: "user" }, content: [{ type: "text", text: "/dev-flow continue" }] } },
+      { seq: 1, type: "user/message", data: { id: "user", source: { kind: "user" }, content: [{ type: "text", text }] } },
       { seq: 2, type: "tool/call", data: { turn: 1, callId, name } },
     ] } },
   };
 }
 
 function ordinaryExecution(name, argumentsValue) {
-  const execution = selectedExecution(name, argumentsValue);
-  execution.agent.session.events[1].data.content[0].text = "ordinary turn";
-  return execution;
+  return selectedExecution(name, argumentsValue, "ordinary turn");
 }
 
 function fakeSpawn(result) {

@@ -63,6 +63,8 @@ vom Installer angezeigten Schritt aus:
   Schreibprüfung für `apply_patch` ist erst danach aktiv.
 - **DeepSeek Harness:** Starte das ausgewählte DSH-Profil nach der Installation neu.
 
+Der Adapter im aktuellen Quellcode benötigt DSH `>=0.1.2-rc.1`; jeder Dev-Flow-Vorgang prüft die direkt eingegebene Benutzerfreigabe im aktuellen Gesprächsschritt.
+
 ### 2. Eine Aufgabe starten
 
 Sende in **Codex** diese Benutzernachricht:

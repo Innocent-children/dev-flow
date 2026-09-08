@@ -347,7 +347,7 @@ function authorizeExecution(text, callId, toolName, withHistoricalSelector = fal
   );
   return authorizeDevFlowExecution({
     callId, rootCallId: callId, name: toolName, arguments: {}, signal: new AbortController().signal,
-    token: Symbol(callId), agent: { status: "running", session: { events } },
+    token: Symbol(callId), agent: { status: "running", session: { snapshotEvents: () => events } },
   });
 }
 

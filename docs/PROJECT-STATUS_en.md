@@ -111,3 +111,7 @@ priority.
 3. Read the [Support Matrix](SUPPORT-MATRIX_en.md) to separate stable support from source capability,
    then open the real end-to-end tests above when you need the exact scope of a record.
 4. Read the [Security Policy](../SECURITY.md) and [Threat Model](THREAT-MODEL_en.md) for residual risk.
+
+## Current DSH interface
+
+The current source DeepSeek Adapter requires DSH `>=0.1.2-rc.1`. It reads the current turn and direct user input through Session `snapshotEvents()` to check `/dev-flow`, worktree confirmations, and structured file writes; Core continues to own Task state.

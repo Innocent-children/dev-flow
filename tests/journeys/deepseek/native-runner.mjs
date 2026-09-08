@@ -20,7 +20,7 @@ const currentCoreVersion = (await readFile(join(repositoryRoot, "CORE_VERSION"),
 const currentPackageVersion = JSON.parse(await readFile(join(repositoryRoot, "packages", "deepseek", "package.json"), "utf8")).version;
 const exactTestCommand = "node --test test/proof-writer.test.mjs";
 const TURN_TIMEOUT_MS = 300_000;
-const dshIntegrity = "sha512-VQU5NlomrKLRgcXuOf+sxWFvqxPA8q9vMhrKPlPPXiOJEhGlGlAdiyxZvZxkCVI+v0zbhe21cY3/luLyxpSzzA==";
+const dshIntegrity = "sha512-RPq48TzxvwpdT9/7W1tbhZDBMmeK+bxDrX9cqQC27Wx/LqtgJF8PSa3b3xriU8oxtvhwYmk21w2cej3uMQrnVA==";
 const productSourcePaths = Object.freeze([
   "LICENSE",
   "packages/deepseek/package.json",
@@ -187,7 +187,7 @@ async function preflight(baseConfig) {
   const help = await runIsolatedDsh(config, ["--profile", config.profile, "--help"], {
     cwd: config.workspace, timeout: 10_000,
   });
-  assert.match(help.stdout, /Answer one task, print the final assistant message, and exit\./u);
+  assert.match(help.stdout, /Answer one task, stream reasoning to stderr, print the final assistant message,\s+and exit\./u);
   assert.match(help.stdout, /dsh --profile headless/u);
   assert.equal((await sessionFiles(join(config.dshHome, "sessions"))).length, 0, "headless help created a Session");
   assert.equal(await coreTaskCount(config.data), 0, "headless help created a Core task");
@@ -239,7 +239,7 @@ async function runNative(baseConfig) {
   assert.equal(marker.core_sha256, config.coreSha256);
   assert.equal(marker.product_source_commit, config.productSourceCommit);
   assert.equal(marker.acceptance_commit, config.acceptanceCommit);
-  assert.equal(marker.dsh_version, "0.1.0-rc.8");
+  assert.equal(marker.dsh_version, "0.1.2-rc.1");
   assert.equal(marker.dsh_integrity, dshIntegrity);
   assert.equal(marker.profile, "headless");
   assert.deepEqual(marker.default_bundles, ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless"]);
@@ -447,7 +447,7 @@ async function runNative(baseConfig) {
       sha256: core.sha256,
       reported_version: (await execFile(corePath, ["version"])).stdout.trim(),
     },
-    dsh: { version: "0.1.0-rc.8", integrity: dshIntegrity },
+    dsh: { version: "0.1.2-rc.1", integrity: dshIntegrity },
     platform: {
       node: process.version,
       pnpm: (await execFile("pnpm", ["--version"])).stdout.trim(),
@@ -577,6 +577,18 @@ function installedPackageRoot(config) {
   return join(config.dshHome, "profiles", config.profile, "node_modules", "dev-flow-deepseek");
 }
 
+async function repositoryIdentity(workspace) {
+  const git = async (args) => (await execFile("git", args, { cwd: workspace, encoding: "utf8" })).stdout;
+  return {
+    head: await git(["rev-parse", "HEAD"]),
+    status: await git(["status", "--porcelain=v1", "--untracked-files=all"]),
+    refs: await git(["show-ref"]),
+    worktrees: await git(["worktree", "list", "--porcelain"]),
+    index: await git(["ls-files", "--stage"]),
+    content: await treeDigest(workspace, new Set([".git"])),
+  };
+}
+
 async function retainedIdentity(config, taskID) {
   return {
     data: await taskPersistenceIdentity(config.data, taskID),
@@ -623,6 +635,21 @@ async function treeDigest(root, ignoredNames = new Set()) {
 }
 
 async function selfTest() {
+  const observationRoot = await mkdtemp(join(tmpdir(), "dev-flow-native-observation-"));
+  try {
+    const workspace = join(observationRoot, "workspace");
+    await mkdir(workspace);
+    await initializeWorkspace(workspace, join(observationRoot, "remote.git"));
+    const before = await repositoryIdentity(workspace);
+    assert.deepEqual(await repositoryIdentity(workspace), before);
+    await writeFile(join(workspace, "README.md"), "changed fixture\n");
+    assert.notDeepEqual(await repositoryIdentity(workspace), before);
+    await writeFile(join(workspace, "README.md"), "# Native fixture\n");
+    await execFile("git", ["branch", "extra-observation-branch"], { cwd: workspace });
+    assert.notDeepEqual(await repositoryIdentity(workspace), before);
+  } finally {
+    await rm(observationRoot, { recursive: true, force: true });
+  }
   assert.equal(basename(successEvidencePath), "native-acceptance.json");
   assert.equal(basename(failureEvidencePath), "native-acceptance-failed.json");
   assert.equal(TURN_TIMEOUT_MS, 300_000);
@@ -676,7 +703,7 @@ async function selfTest() {
 
     const block = [
       "packages:",
-      "  '@deepseek-ai/dsh@0.1.0-rc.8':",
+      "  '@deepseek-ai/dsh@0.1.2-rc.1':",
       `    resolution: { integrity: '${dshIntegrity}' }`,
       "  '@deepseek-ai/other@1.0.0':",
       "    resolution: {integrity: sha512-other}",
@@ -1094,7 +1121,7 @@ function assertEvidenceShape(evidence) {
   assertClosedKeys(evidence.core, ["sha256", "reported_version"]);
   assert.match(evidence.core.sha256, /^[0-9a-f]{64}$/u);
   assert.equal(evidence.core.reported_version, `dev-flow ${currentCoreVersion}`);
-  assert.deepEqual(evidence.dsh, { version: "0.1.0-rc.8", integrity: dshIntegrity });
+  assert.deepEqual(evidence.dsh, { version: "0.1.2-rc.1", integrity: dshIntegrity });
   assertClosedKeys(evidence.platform, ["node", "pnpm", "os", "arch"]);
   assert.match(evidence.platform.node, /^v24\./u);
   assert.match(evidence.platform.pnpm, /^11\./u);
@@ -1241,7 +1268,7 @@ async function validateDshConsumer(config) {
   const packageRoot = dirname(manifestPath);
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   assert.equal(manifest.name, "@deepseek-ai/dsh");
-  assert.equal(manifest.version, "0.1.0-rc.8");
+  assert.equal(manifest.version, "0.1.2-rc.1");
   const bin = typeof manifest.bin === "string" ? manifest.bin : manifest.bin?.dsh;
   assert.equal(bin?.replace(/^\.\//u, ""), "lib/bin.js");
   const binTarget = await realpath(join(packageRoot, bin));
@@ -1255,7 +1282,7 @@ async function validateDshConsumer(config) {
 
 function dshIntegrityFromConsumerLockfile(text) {
   const lines = text.replaceAll("\r\n", "\n").split("\n");
-  const headerPattern = /^(\s*)['"]?@deepseek-ai\/dsh@0\.1\.0-rc\.8['"]?:\s*$/u;
+  const headerPattern = /^(\s*)['"]?@deepseek-ai\/dsh@0\.1\.2-rc\.1['"]?:\s*$/u;
   const headerIndex = lines.findIndex((line) => headerPattern.test(line));
   assert.notEqual(headerIndex, -1, "DSH package block is missing from consumer lockfile");
   const baseIndent = headerPattern.exec(lines[headerIndex])[1].length;

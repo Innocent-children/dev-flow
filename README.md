@@ -62,6 +62,8 @@ Host-specific step printed by the installer:
   `apply_patch` pre-write check is inactive until the hook is trusted.
 - **DeepSeek Harness:** restart the selected DSH Profile after installation.
 
+The current source Adapter requires DSH `>=0.1.2-rc.1`; each Dev Flow operation must be authorized by the current direct user turn.
+
 ### 2. Start a task
 
 Send this as a user message in **Codex**:
