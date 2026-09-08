@@ -85,6 +85,17 @@ unaccepted suggestions, assumptions, and open questions are separate. Original m
 order, while later corrections determine current requirements. Starting development or confirming a
 branch does not accept all assistant suggestions and adds no handoff-summary approval step.
 
+Working instructions in the handoff contain only session-specific instructions and authorizations.
+The destination Codex session loads global and repository `AGENTS.md` files normally; the handoff
+duplicates neither their contents nor summaries and excludes automatically injected rule blocks from
+original requirements discussion. Actual user requests to change a rule remain requirements.
+Applicable rules unavailable through destination discovery identify their source path, scope, and
+concrete discovery gap, preferably referencing a readable source file; if that file is unreadable,
+include only the necessary task-specific rule text and exclude credentials. Record unverified
+availability in `open_questions` instead of copying entire files as a precaution.
+
+The sender owns content selection; format validation and rendering preserve supplied content without inferring instruction provenance or deleting text by keyword.
+
 `packages/codex/lib/task-handoff.mjs` owns material format, storage, and prompt rendering;
 `task-launch.mjs` invokes it within the existing launch steps. The source session assembles content
 during read-only assessment, writes a JSON draft outside all assessed repositories after the existing

@@ -184,6 +184,16 @@ operations accept closed JSON objects:
 Material includes the goal, confirmed requirements referencing original messages, terminology, scope
 constraints, code findings, working instructions, unaccepted suggestions, assumptions, open questions,
 and original discussion in order. See the [Codex sender format](../packages/codex/plugin/skills/dev-flow/references/task-handoff.md).
+
+Working instructions in the handoff contain only session-specific instructions and authorizations.
+The destination Codex session loads global and repository `AGENTS.md` files normally; the handoff
+duplicates neither their contents nor summaries and excludes automatically injected rule blocks from
+original requirements discussion. Actual user requests to change a rule remain requirements.
+Applicable rules unavailable through destination discovery identify their source path, scope, and
+concrete discovery gap, preferably referencing a readable source file; if that file is unreadable,
+include only the necessary task-specific rule text and exclude credentials. Record unverified
+availability in `open_questions` instead of copying entire files as a precaution.
+
 File input is outside the 1 MiB stdin envelope. Complete structured prompts above 24 KiB UTF-8 use
 complete file paths and reading instructions without truncating material. Neither launch path accepts
 a newly written `request` summary. Missing or altered material fails sending before a desktop dispatch

@@ -92,6 +92,8 @@ supports it; DeepSeek prints a relaunch instruction because its Workspace Root i
 
 Before starting a new Codex session, the source session saves the complete relevant requirements discussion and a structured handoff, separating confirmed requirements from unaccepted suggestions and open questions. Desktop task creation and CLI relaunch use the same saved material; long content is supplied through complete files without truncation. See [the architecture](docs/ARCHITECTURE_en.md#codex-requirements-handoff).
 
+The handoff preserves session-specific instructions and authorizations; Codex loads applicable global and repository `AGENTS.md` files normally, without duplicating their contents in the handoff. Necessary supplements for rules unavailable through destination discovery identify their source and scope.
+
 ### 3. Resume and inspect
 
 After a session restart, explicitly ask to continue the Task in its original bound worktree. The

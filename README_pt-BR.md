@@ -95,6 +95,8 @@ da sessão é fixo.
 
 Antes de iniciar uma nova sessão do Codex, a sessão de origem salva a discussão original pertinente e um documento estruturado, separando os requisitos confirmados das sugestões não aceitas e das perguntas em aberto. A criação de tarefas no aplicativo e a reinicialização pela CLI usam o mesmo material salvo; conteúdos longos são transmitidos em arquivos completos, sem cortes. Consulte a [arquitetura](docs/ARCHITECTURE_en.md#codex-requirements-handoff).
 
+O documento preserva as instruções e autorizações específicas da sessão; o Codex carrega normalmente os arquivos `AGENTS.md` globais e do repositório aplicáveis, sem duplicar seu conteúdo na transferência. Os complementos necessários para regras que a sessão de destino não consiga detectar indicam a origem e o escopo de aplicação.
+
 ### 3. Retome e acompanhe o progresso
 
 Depois de reiniciar a sessão, peça explicitamente para continuar a Task no worktree original ao qual

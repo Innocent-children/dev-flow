@@ -190,18 +190,30 @@ as usual. Branch confirmation and “start development” do not approve every a
 certify a summary as complete; do not add a separate handoff-approval question.
 
 - Capture all current user requirements, acceptance examples, terminology, scope, exclusions,
-  constraints, code findings, and working instructions. Carry the latest corrections into the current
-  requirements and keep superseded statements in the original discussion only.
+  constraints, code findings, and session-specific working instructions. Carry the latest corrections
+  into the current requirements and keep superseded statements in the original discussion only.
 - Link each confirmed requirement to the actual user message that requested it or explicitly accepted
   the cited assistant proposal. Keep unaccepted suggestions, assumptions, and unresolved questions in
   their own fields. Never treat a worktree/branch confirmation as acceptance of feature proposals.
 - Retain the relevant original user and assistant messages in order, including significant early
   messages and the last additions. Preserve their wording and whitespace. Use actual accessible
   messages; mark unavailable history in `open_questions` instead of reconstructing it from memory or
-  presenting a conversation summary as original text. Exclude unrelated discussion and credentials.
+  presenting a conversation summary as original text. Exclude unrelated discussion, credentials, and
+  automatically injected instruction blocks from retained discussion; those blocks are not user-authored
+  requirement messages. Preserve actual user messages discussing or changing a rule relevant to this task.
 - Record investigated repository paths and the observed commit/dirty context with code findings;
-  put unverified interpretations in `assumptions`. Preserve actual user and repository working rules,
-  including method-profile choice and the scope of Git authorization.
+  put unverified interpretations in `assumptions`. `work_requirements` carries session-specific working
+  instructions and authorizations, including method-profile choice and the scope of Git authorization.
+- Let the destination Codex session load its applicable global and repository `AGENTS.md` instructions
+  through normal discovery. Do not copy or summarize automatically discoverable instruction files into
+  any handoff field or bootstrap prompt. A new worktree alone does not make global rules unavailable
+  when the destination uses the same `CODEX_HOME`.
+- When an applicable rule cannot be discovered at the destination, record its source path, applicable
+  scope, and the concrete discovery gap. Reference the source file when the destination can read it;
+  otherwise retain only the necessary task-relevant instructions, excluding credentials. Keep this
+  supplement in `work_requirements`. Unverified availability belongs in `open_questions`; do not
+  duplicate entire files as a precaution. The receiver applies supplements within their stated scope
+  alongside its normally loaded instructions. See the sender reference for collection examples.
 - Judge completeness by coverage of the discussion, not a target word count. `prepare` retains both
   structured JSON and a full Markdown document outside the source checkout. Both launch paths render
   that saved material directly. Longer content uses the complete document path instead of truncation.

@@ -93,6 +93,8 @@ unterstützt; DeepSeek zeigt den Neustart aus dem neuen Worktree, weil der Works
 
 Vor dem Start einer neuen Codex-Sitzung speichert die ursprüngliche Sitzung die relevante Anforderungsdiskussion im Original und eine strukturierte Übergabe. Dabei trennt sie bestätigte Anforderungen von nicht angenommenen Vorschlägen und offenen Fragen. Neue Desktop-Aufgaben und CLI-Neustarts verwenden dieselben gespeicherten Inhalte; lange Inhalte werden als vollständige Dateien ohne Kürzung übergeben. Siehe [Architektur](docs/ARCHITECTURE_en.md#codex-requirements-handoff).
 
+Die Übergabe enthält sitzungsspezifische Anweisungen und Berechtigungen; Codex lädt die geltenden globalen und Repository-Dateien `AGENTS.md` regulär, ohne deren Inhalt in der Übergabe zu duplizieren. Notwendige Ergänzungen für Regeln, die in der Zielsitzung nicht automatisch gefunden werden, nennen Quelle und Geltungsbereich.
+
 ### 3. Fortsetzen und Fortschritt prüfen
 
 Bitte nach einem Sitzungsneustart ausdrücklich darum, die Task in ihrem ursprünglichen Worktree

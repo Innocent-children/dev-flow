@@ -95,6 +95,8 @@ worktree, car le Workspace Root de la session est fixe.
 
 Avant de démarrer une nouvelle session Codex, la session source enregistre la discussion originale pertinente et un document structuré, en distinguant les exigences confirmées des suggestions non acceptées et des questions ouvertes. La création de tâches sur le bureau et le redémarrage via la CLI utilisent les mêmes éléments enregistrés ; les contenus longs sont transmis dans des fichiers complets, sans troncature. Voir l’[architecture](docs/ARCHITECTURE_en.md#codex-requirements-handoff).
 
+Le document conserve les instructions et autorisations propres à la session ; Codex charge normalement les fichiers `AGENTS.md` globaux et du dépôt applicables, sans en dupliquer le contenu dans la transmission. Les compléments nécessaires aux règles que la session destinataire ne peut pas détecter précisent leur origine et leur champ d’application.
+
 ### 3. Reprendre et consulter l'avancement
 
 Après un redémarrage de la session, demandez explicitement de poursuivre la Task dans son worktree

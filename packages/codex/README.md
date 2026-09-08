@@ -184,6 +184,12 @@ npm uninstall -g dev-flow-codex
 代码调查、工作要求，并单独列出未采纳建议、假设和待确定问题。已有开发及工作树确认不会把助手建议
 自动变成要求，也不新增交接摘要确认步骤。
 
+交接中的工作要求仅包含会话专属指示和授权。
+全局及仓库 `AGENTS.md` 由目标 Codex 会话正常加载，交接材料不重复其正文或摘要，也不将自动注入的规则块保存为原始需求讨论。
+用户在对话中提出的规则修改仍保留为真实需求。
+目标无法自动加载的适用规则注明来源路径、适用范围和具体原因，优先引用可读取的源文件；源文件不可读取时仅补充本次需要的规则文本并排除凭据。
+可用性尚未核实时记入 `open_questions`，不预防性复制整份文件。
+
 内部 `host-launch prepare` 必须提供 `handoff_file`，指向已有确认后写在已评估仓库之外的 UTF-8 JSON
 草稿。helper 在 fetch 前将完整材料保存到 Host 产品目录，并在 receipt 中关联 `handoff_digest`。
 `dispatch-start` 只接收 `launch_id`、`repository_key`、`project_id`；`cli-provision` 只接收 `launch_id`、

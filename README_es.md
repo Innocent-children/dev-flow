@@ -95,6 +95,8 @@ de la sesión es fijo.
 
 Antes de iniciar una nueva sesión de Codex, la sesión de origen guarda la discusión original pertinente y un documento estructurado, separando los requisitos confirmados de las sugerencias no aceptadas y las preguntas pendientes. La creación de tareas de escritorio y el reinicio mediante CLI usan el mismo material guardado; el contenido largo se entrega en archivos completos, sin recortes. Consulte la [arquitectura](docs/ARCHITECTURE_en.md#codex-requirements-handoff).
 
+El documento conserva las instrucciones y autorizaciones específicas de la sesión; Codex carga normalmente los archivos `AGENTS.md` globales y del repositorio que correspondan, sin duplicar su contenido en el traspaso. Los complementos necesarios para reglas que la sesión de destino no pueda detectar indican su origen y ámbito de aplicación.
+
 ### 3. Retoma y revisa el progreso
 
 Después de reiniciar la sesión, solicita explícitamente continuar la Task en su worktree original.

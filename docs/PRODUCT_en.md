@@ -51,6 +51,15 @@ change in the Task worktree belongs to that Task.
 
 Before starting a development session, the source Codex session organizes the complete relevant requirements discussion, retaining original messages, confirmed requirements, terminology, scope constraints, code findings, working instructions, unaccepted suggestions, assumptions, and open questions. Desktop tasks and CLI relaunch use the same saved material; longer content is supplied through complete files. Existing development and worktree confirmations remain effective, with no extra handoff-summary approval. The Codex Host owns collection and sending; Core continues to decide Task state.
 
+Working instructions in the handoff contain only session-specific instructions and authorizations.
+The destination Codex session loads global and repository `AGENTS.md` files normally; the handoff
+duplicates neither their contents nor summaries and excludes automatically injected rule blocks from
+original requirements discussion. Actual user requests to change a rule remain requirements.
+Applicable rules unavailable through destination discovery identify their source path, scope, and
+concrete discovery gap, preferably referencing a readable source file; if that file is unreadable,
+include only the necessary task-specific rule text and exclude credentials. Record unverified
+availability in `open_questions` instead of copying entire files as a precaution.
+
 ## Task handling rules
 
 Repository discovery and code-index selection follow current user instructions and applicable
