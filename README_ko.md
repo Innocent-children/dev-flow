@@ -89,6 +89,8 @@ $dev-flow-codex:dev-flow 로그인 실패 속도 제한을 추가하세요. 인�
 확인합니다. Codex는 Host가 지원할 때 managed worktree를 열고, DeepSeek는 현재 세션의 Workspace Root가
 고정되어 있으므로 새 worktree에서 다시 시작하는 방법을 제공합니다.
 
+새 Codex 세션을 시작하기 전에 원래 세션은 이번 요구 사항에 관한 논의 원문과 구조화된 인계 자료를 저장하고, 확정된 요구 사항, 채택되지 않은 제안, 미해결 질문을 구분합니다. 데스크톱 새 작업과 CLI 재시작은 같은 저장 자료를 사용하며, 긴 내용은 잘라내지 않고 전체 파일로 전달합니다. [아키텍처](docs/ARCHITECTURE_en.md#codex-requirements-handoff)를 참고하세요.
+
 ### 3. 이어서 진행하고 상태 확인하기
 
 세션이 재시작되면 Task에 연결된 원래 worktree에서 해당 작업을 계속하도록 명시적으로 요청하세요.

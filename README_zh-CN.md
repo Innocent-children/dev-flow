@@ -83,6 +83,8 @@ $dev-flow-codex:dev-flow 增加登录失败限流。只修改认证相关文件�
 还要确认建议的 remote、base 和 target branch。Codex 在 Host 支持时打开 managed worktree；DeepSeek
 因为当前会话的 Workspace Root 固定，会给出从新工作树重新启动的命令。
 
+启动新的 Codex 会话前，原会话保存本次需求的相关讨论原文和结构化交接材料，区分已确定要求、未采纳建议和待确定问题。桌面新任务与 CLI 启动使用同一份保存内容；长内容通过完整文件传递，不截断需求。详见[架构说明](docs/ARCHITECTURE.md#codex-需求交接)。
+
 ### 3. 恢复和查看进度
 
 会话重启后，请在 Task 绑定的原工作树中明确请求继续该任务。系统会校验原工作树，并从已保存的

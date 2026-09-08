@@ -51,6 +51,7 @@ const phaseTransitions = Object.freeze({
 export function createProvisioningReceipt({
   launchId,
   requestDigest,
+  handoffDigest,
   sourceRepositoryIdentity,
   repositoryKey,
   remoteName,
@@ -64,6 +65,7 @@ export function createProvisioningReceipt({
     launch_id: launchId,
     host: "codex",
     request_digest: requestDigest,
+    handoff_digest: handoffDigest,
     source_repository_identity: sourceRepositoryIdentity,
     repository_key: repositoryKey,
     remote_name: remoteName,
@@ -92,6 +94,7 @@ export function validateProvisioningReceipt(value) {
     "launch_id",
     "host",
     "request_digest",
+    "handoff_digest",
     "source_repository_identity",
     "repository_key",
     "remote_name",
@@ -105,6 +108,7 @@ export function validateProvisioningReceipt(value) {
   assertLaunchID(value.launch_id);
   if (value.host !== "codex") throw new Error("provisioning receipt host must equal codex");
   if (!digestPattern.test(value.request_digest)) throw new Error("provisioning receipt request_digest is invalid");
+  if (!digestPattern.test(value.handoff_digest)) throw new Error("provisioning receipt handoff_digest is invalid");
   if (!digestPattern.test(value.source_repository_identity)) {
     throw new Error("provisioning receipt source_repository_identity is invalid");
   }

@@ -166,6 +166,20 @@ package、bundled Core 和 Codex 版本，然后注册本地 marketplace、Plugi
 
 `dev-flow-codex host-launch <operation>` 从 stdin 流读取最多 1 MiB 的 UTF-8 JSON 对象，支持分块输入及跨块中文字符。读取失败、非法 UTF-8、重复成员、非法 JSON、数组或 null 均在执行操作前拒绝；错误写入 stderr，成功结果以 JSON 写入 stdout。
 
+Codex 新会话启动使用原会话保存的完整需求交接材料。以下内部操作的输入为 closed JSON 对象：
+
+| 操作 | 输入字段与材料处理 |
+| --- | --- |
+| `prepare` | 必填 `request`、`assessment_anchor`、`repository_key`、`repository_path`、`remote_name`、`base_branch`、`target_branch`、`surface`、`worktree_path`、`handoff_file`；可选 `launch_id`。`handoff_file` 是原会话在已有确认后写入的 UTF-8 JSON 草稿的规范化绝对路径，位于已评估仓库之外。材料中的 `request` 必须与已评估请求一致。fetch 前保存完整材料，receipt 关联 `handoff_digest`。 |
+| `dispatch-start` | 只接收 `launch_id`、`repository_key`、`project_id`。从保存材料生成 `host_request.prompt`，调用方将返回的 `host_request` 原样交给桌面任务创建。 |
+| `cli-provision` | 只接收 `launch_id`、`repository_key`、`additional_worktree_paths`、`source_repository_path`。从同一份保存材料生成 relaunch 参数，调用方原样使用。 |
+
+材料包含目标、关联原始消息的确定要求、术语、范围限制、代码调查、工作要求、未采纳建议、假设、
+待确定问题和按顺序保存的原始讨论。格式见 [Codex 发送端交接格式](../packages/codex/plugin/skills/dev-flow/references/task-handoff.md)。
+材料从文件读取，不受 stdin 1 MiB 限制。完整结构化 Prompt 超过 24 KiB UTF-8 时使用完整文件路径及读取说明，
+不截断材料。两个启动入口都不再接收新写的 `request` 摘要。材料缺失或被修改时，发送操作在记录桌面
+dispatch 或创建 CLI 工作树之前失败。任务标题继续使用确定的 launch/repository 标识。
+
 
 `dev-flow-codex` 不支持其他子命令，也不提供隐式 `help`、`update` 或 `uninstall` 子命令。Host 原生更新到
 当前 `latest` 时重新运行全局安装和 `setup`：

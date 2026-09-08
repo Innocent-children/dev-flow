@@ -73,6 +73,7 @@ const codexFinalStagingFiles = [
   "bin/dev-flow-codex.mjs",
   "lib/command.mjs",
   "lib/install-experience.mjs",
+  "lib/json.mjs",
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
   "lib/platform.mjs",
@@ -83,6 +84,7 @@ const codexFinalStagingFiles = [
   "lib/platform/macos/pet-installer.mjs",
   "lib/provisioning-receipt.mjs",
   "lib/task-admission.mjs",
+  "lib/task-handoff.mjs",
   "lib/task-launch.mjs",
   "lib/worktree-lifecycle.mjs",
   "package.json",
@@ -94,6 +96,7 @@ const codexFinalStagingFiles = [
   "plugin/skills/dev-flow/agents/openai.yaml",
   "plugin/skills/dev-flow/references/method-profiles.md",
   "plugin/skills/dev-flow/references/node-payloads.md",
+  "plugin/skills/dev-flow/references/task-handoff.md",
   "runtime/darwin-arm64/dev-flow",
   "runtime/win32-x64/dev-flow.exe",
 ].sort();
@@ -193,7 +196,8 @@ run_step "Codex worktree-first package and Host contracts" \
     packages/codex/tests/skill-contract.test.mjs \
     packages/codex/tests/task-admission.test.mjs \
     packages/codex/tests/provisioning-receipt.test.mjs \
-    packages/codex/tests/task-launch.test.mjs
+    packages/codex/tests/task-launch.test.mjs \
+    packages/codex/tests/task-handoff.test.mjs
 run_step "DeepSeek package and adapter contracts" \
   node --test \
     packages/deepseek/tests/package-contract.test.mjs \

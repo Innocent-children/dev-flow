@@ -149,6 +149,7 @@ README.md
 bin/dev-flow-codex.mjs
 lib/command.mjs
 lib/install-experience.mjs
+lib/json.mjs
 lib/lifecycle.mjs
 lib/paths.mjs
 lib/platform.mjs
@@ -159,6 +160,7 @@ lib/platform/windows/command.mjs
 lib/platform/macos/pet-installer.mjs
 lib/provisioning-receipt.mjs
 lib/task-admission.mjs
+lib/task-handoff.mjs
 lib/task-launch.mjs
 lib/worktree-lifecycle.mjs
 plugin/.codex-plugin/plugin.json
@@ -168,7 +170,8 @@ plugin/hooks/pre-tool-use.mjs
 plugin/skills/dev-flow/SKILL.md
 plugin/skills/dev-flow/agents/openai.yaml
 plugin/skills/dev-flow/references/method-profiles.md
-plugin/skills/dev-flow/references/node-payloads.md'
+plugin/skills/dev-flow/references/node-payloads.md
+plugin/skills/dev-flow/references/task-handoff.md'
 
 printf '%s\n' "$production_files" | while IFS= read -r relative_path; do
   [ -n "$relative_path" ] || continue
@@ -213,6 +216,7 @@ const expected = [
   "bin/dev-flow-codex.mjs",
   "lib/command.mjs",
   "lib/install-experience.mjs",
+  "lib/json.mjs",
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
   "lib/platform.mjs",
@@ -223,6 +227,7 @@ const expected = [
   "lib/platform/macos/pet-installer.mjs",
   "lib/provisioning-receipt.mjs",
   "lib/task-admission.mjs",
+  "lib/task-handoff.mjs",
   "lib/task-launch.mjs",
   "lib/worktree-lifecycle.mjs",
   "package.json",
@@ -234,6 +239,7 @@ const expected = [
   "plugin/skills/dev-flow/agents/openai.yaml",
   "plugin/skills/dev-flow/references/method-profiles.md",
   "plugin/skills/dev-flow/references/node-payloads.md",
+  "plugin/skills/dev-flow/references/task-handoff.md",
   "runtime/darwin-arm64/dev-flow",
   "runtime/win32-x64/dev-flow.exe",
 ].sort();

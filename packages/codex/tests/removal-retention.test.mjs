@@ -18,6 +18,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createInterface } from "node:readline";
 import test from "node:test";
 
+import { writeHandoffFixture } from "./fixtures/task-handoff.mjs";
+
 const execFile = promisify(execFileCallback);
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = join(packageRoot, "..", "..");
@@ -93,6 +95,7 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   const prepared = await taskLaunch.prepareTaskLaunch({
     launch_id: "retention-launch",
     request: taskRequest,
+    handoff_file: await writeHandoffFixture(root, taskRequest),
     assessment_anchor: assessmentAnchor,
     repository_key: "primary",
     repository_path: targetRepository,
@@ -105,7 +108,6 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   const provisioned = await taskLaunch.provisionCliTask({
     launch_id: prepared.receipt.launch_id,
     repository_key: "primary",
-    request: taskRequest,
     additional_worktree_paths: [],
   }, {
     productSupportRoot: paths.productSupportRoot,

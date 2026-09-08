@@ -3,6 +3,13 @@ import { isAbsolute, resolve } from "node:path";
 
 import { requestDigest, validateAdmissionAnchor } from "./task-admission.mjs";
 import {
+  buildManagedBootstrapPrompt,
+  readTaskHandoff,
+  readTaskHandoffDraft,
+  taskHandoffDigest,
+  writeTaskHandoff,
+} from "./task-handoff.mjs";
+import {
   createProvisioningReceipt,
   provisioningReceiptPath,
   readProvisioningReceipt,
@@ -21,8 +28,6 @@ import {
   removeTaskBranch,
 } from "./worktree-lifecycle.mjs";
 
-const digestPattern = /^[0-9a-f]{64}$/u;
-
 export async function prepareTaskLaunch(input, {
   productSupportRoot,
   enforcePrivateModes = true,
@@ -37,12 +42,14 @@ export async function prepareTaskLaunch(input, {
   if (assessmentAnchor.request_digest !== currentRequestDigest) {
     throw new Error("launch request changed after suitability assessment");
   }
+  const handoff = await readTaskHandoffDraft(input.handoff_file, input.request);
+  const handoffDigest = taskHandoffDigest(handoff);
   const assessedRepository = assessmentAnchor.repositories.find((entry) => entry.repository_key === input.repository_key);
   if (assessedRepository === undefined) throw new Error("launch repository was not present in the suitability assessment");
   const path = provisioningReceiptPath(productSupportRoot, launchId, input.repository_key);
   const existing = await readProvisioningReceipt(path, { productSupportRoot });
   if (existing !== null) {
-    assertInputMatchesReceipt(existing, input, currentRequestDigest);
+    assertInputMatchesReceipt(existing, input, currentRequestDigest, handoffDigest);
     if (existing.operation_status.phase !== "confirmed") {
       return Object.freeze({ receipt_path: path, receipt: existing, resumed: true, fetch_performed: false });
     }
@@ -67,6 +74,7 @@ export async function prepareTaskLaunch(input, {
     initial = createProvisioningReceipt({
       launchId,
       requestDigest: currentRequestDigest,
+      handoffDigest,
       sourceRepositoryIdentity: source.source_repository_identity,
       repositoryKey: input.repository_key,
       remoteName: input.remote_name,
@@ -86,7 +94,7 @@ export async function prepareTaskLaunch(input, {
       if (error?.code !== "EEXIST") throw error;
       const concurrent = await readProvisioningReceipt(path, { productSupportRoot });
       if (concurrent === null) throw error;
-      assertInputMatchesReceipt(concurrent, input, currentRequestDigest);
+      assertInputMatchesReceipt(concurrent, input, currentRequestDigest, handoffDigest);
       return Object.freeze({ receipt_path: path, receipt: concurrent, resumed: true, fetch_performed: false });
     }
   } else if (initial.source_repository_identity !== source.source_repository_identity) {
@@ -99,6 +107,8 @@ export async function prepareTaskLaunch(input, {
       if (current.operation_status.phase !== "confirmed") {
         return Object.freeze({ receipt_path: path, receipt: current, resumed: true, fetch_performed: false });
       }
+      assertInputMatchesReceipt(current, input, currentRequestDigest, handoffDigest);
+      await writeTaskHandoff(path, handoff, { enforcePrivateModes });
       const fetching = updateProvisioningReceipt(current, { phase: "fetching", values: {} });
       await writeProvisioningReceiptAtomic(path, fetching, { productSupportRoot, enforcePrivateModes });
       try {
@@ -139,9 +149,8 @@ export async function prepareTaskLaunch(input, {
 }
 
 export async function beginManagedTaskDispatch(input, options = {}) {
-  assertExactKeys(input, ["launch_id", "repository_key", "project_id", "request"], "managed dispatch input");
+  assertExactKeys(input, ["launch_id", "repository_key", "project_id"], "managed dispatch input");
   assertNonEmpty(input.project_id, "project_id");
-  assertNonEmpty(input.request, "request");
   return await withLockedReceipt(input, options, async (state) => {
     const receipt = state.receipt;
     if (["dispatching", "queued", "dispatched", "provisioning", "provisioned", "uncertain"].includes(receipt.operation_status.phase)) {
@@ -150,7 +159,8 @@ export async function beginManagedTaskDispatch(input, options = {}) {
     if (receipt.operation_status.phase !== "fetched" || receipt.operation_status.surface !== "managed_worktree") {
       throw new Error("managed dispatch requires one fetched managed-worktree receipt");
     }
-    if (!requestDigestMatches(receipt, input.request)) throw new Error("managed dispatch request does not match the receipt");
+    const handoff = await readTaskHandoff(state.path, receipt.handoff_digest);
+    const prompt = buildManagedBootstrapPrompt({ launchId: receipt.launch_id, repositoryKey: receipt.repository_key, handoff });
     const attemptId = createHash("sha256")
       .update(`${receipt.launch_id}\0${receipt.repository_key}\0managed-dispatch`)
       .digest("hex");
@@ -164,11 +174,7 @@ export async function beginManagedTaskDispatch(input, options = {}) {
       receipt_path: state.path,
       receipt: dispatching,
       host_request: Object.freeze({
-        prompt: buildManagedBootstrapPrompt({
-          launchId: receipt.launch_id,
-          repositoryKey: receipt.repository_key,
-          request: input.request,
-        }),
+        prompt,
         title: `Dev Flow ${receipt.launch_id} ${receipt.repository_key}`,
         target: Object.freeze({
           type: "project",
@@ -260,19 +266,18 @@ export async function bootstrapManagedTask(input, options = {}) {
 }
 
 export async function provisionCliTask(input, options = {}) {
-  assertExactKeys(input, ["launch_id", "repository_key", "request", "additional_worktree_paths"], "CLI provision input");
-  assertNonEmpty(input.request, "request");
+  assertExactKeys(input, ["launch_id", "repository_key", "additional_worktree_paths"], "CLI provision input");
   if (!Array.isArray(input.additional_worktree_paths)) throw new Error("additional_worktree_paths must be an array");
   for (const path of input.additional_worktree_paths) assertAbsolutePath(path, "additional worktree path");
   return await withLockedReceipt(input, options, async (state) => {
     const receipt = state.receipt;
+    const handoff = await readTaskHandoff(state.path, receipt.handoff_digest);
     if (receipt.operation_status.phase === "provisioned") {
-      return cliProvisionResult(state.path, receipt, input);
+      return cliProvisionResult(state.path, receipt, input, handoff);
     }
     if (receipt.operation_status.phase !== "fetched" || receipt.operation_status.surface !== "cli_worktree" || receipt.worktree_path === null) {
       throw new Error("CLI provisioning requires one fetched receipt with a worktree path");
     }
-    if (!requestDigestMatches(receipt, input.request)) throw new Error("CLI request does not match the receipt");
     const provisioning = updateProvisioningReceipt(receipt, { phase: "provisioning", values: {} });
     await persistReceipt(state.path, provisioning, options);
     try {
@@ -289,7 +294,7 @@ export async function provisionCliTask(input, options = {}) {
         values: { worktree_path: verified.canonical_root },
       });
       await persistReceipt(state.path, provisioned, options);
-      return cliProvisionResult(state.path, provisioned, input);
+      return cliProvisionResult(state.path, provisioned, input, handoff);
     } catch (error) {
       const failed = updateProvisioningReceipt(provisioning, { phase: "failed", values: {} });
       await persistReceipt(state.path, failed, options).catch(() => {});
@@ -298,8 +303,7 @@ export async function provisionCliTask(input, options = {}) {
   });
 }
 
-function cliProvisionResult(path, receipt, input) {
-  if (!requestDigestMatches(receipt, input.request)) throw new Error("CLI request does not match the receipt");
+function cliProvisionResult(path, receipt, input, handoff) {
   return Object.freeze({
     receipt_path: path,
     receipt,
@@ -310,7 +314,7 @@ function cliProvisionResult(path, receipt, input) {
       prompt: buildManagedBootstrapPrompt({
         launchId: receipt.launch_id,
         repositoryKey: receipt.repository_key,
-        request: input.request,
+        handoff,
       }),
     }),
   });
@@ -473,18 +477,6 @@ export async function recordTaskHandoffStatus(input, options = {}) {
   });
 }
 
-export function buildManagedBootstrapPrompt({ launchId, repositoryKey, request } = {}) {
-  assertNonEmpty(launchId, "launchId");
-  assertNonEmpty(repositoryKey, "repositoryKey");
-  assertNonEmpty(request, "request");
-  return [
-    "$dev-flow-codex:dev-flow",
-    `Resume the confirmed Dev Flow launch ${launchId} for repository ${repositoryKey}.`,
-    "Before any Core call, consume the provisioning receipt, verify the fetched commit and task worktree, create the confirmed target branch when needed, and prove the worktree is clean.",
-    request,
-  ].join(" ");
-}
-
 export async function cleanupCliTaskWorktree(input, options = {}) {
   assertExactKeys(input, ["launch_id", "repository_key", "terminal", "authorized"], "worktree cleanup input");
   if (input.terminal !== true || input.authorized !== true) {
@@ -617,11 +609,12 @@ function normalizedStructuredResult(value) {
 function validatePrepareInput(value) {
   const keys = [
     "request", "assessment_anchor", "repository_key", "repository_path", "remote_name", "base_branch", "target_branch",
-    "surface", "worktree_path",
+    "surface", "worktree_path", "handoff_file",
   ];
   if (Object.hasOwn(value ?? {}, "launch_id")) keys.push("launch_id");
   assertExactKeys(value, keys, "launch preparation input");
   assertNonEmpty(value.request, "request");
+  assertAbsolutePath(value.handoff_file, "handoff_file");
   assertNonEmpty(value.repository_key, "repository_key");
   assertAbsolutePath(value.repository_path, "repository_path");
   assertNonEmpty(value.remote_name, "remote_name");
@@ -635,10 +628,11 @@ function validatePrepareInput(value) {
   if (Object.hasOwn(value, "launch_id")) assertNonEmpty(value.launch_id, "launch_id");
 }
 
-function assertInputMatchesReceipt(receipt, input, requestDigest) {
+function assertInputMatchesReceipt(receipt, input, requestDigest, handoffDigest) {
   const requested = {
     launch_id: input.launch_id,
     request_digest: requestDigest,
+    handoff_digest: handoffDigest,
     repository_key: input.repository_key,
     remote_name: input.remote_name,
     base_branch: input.base_branch,
@@ -649,6 +643,7 @@ function assertInputMatchesReceipt(receipt, input, requestDigest) {
   const retained = {
     launch_id: receipt.launch_id,
     request_digest: receipt.request_digest,
+    handoff_digest: receipt.handoff_digest,
     repository_key: receipt.repository_key,
     remote_name: receipt.remote_name,
     base_branch: receipt.base_branch,
@@ -690,9 +685,4 @@ export function validateWorkspaceOrigin(value) {
   for (const field of ["remote_name", "base_branch", "task_branch", "provisioning_receipt_id"]) assertNonEmpty(value[field], field);
   if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(value.base_commit)) throw new Error("workspace origin base_commit is invalid");
   return structuredClone(value);
-}
-
-export function requestDigestMatches(receipt, request) {
-  const value = validateProvisioningReceipt(receipt);
-  return digestPattern.test(value.request_digest) && value.request_digest === createHash("sha256").update(request, "utf8").digest("hex");
 }

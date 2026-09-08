@@ -93,6 +93,8 @@ Si eliges Dev Flow, confirma el remote, la base y la rama de destino. Codex abre
 cuando el Host lo permite; DeepSeek muestra cómo reiniciar desde el nuevo worktree porque el Workspace Root
 de la sesión es fijo.
 
+Antes de iniciar una nueva sesión de Codex, la sesión de origen guarda la discusión original pertinente y un documento estructurado, separando los requisitos confirmados de las sugerencias no aceptadas y las preguntas pendientes. La creación de tareas de escritorio y el reinicio mediante CLI usan el mismo material guardado; el contenido largo se entrega en archivos completos, sin recortes. Consulte la [arquitectura](docs/ARCHITECTURE_en.md#codex-requirements-handoff).
+
 ### 3. Retoma y revisa el progreso
 
 Después de reiniciar la sesión, solicita explícitamente continuar la Task en su worktree original.

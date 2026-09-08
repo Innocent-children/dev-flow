@@ -49,6 +49,8 @@ remote/base/target decision, fetches the exact remote ref, freezes its commit, a
 only in a dedicated worktree. Later changes in the source checkout are unrelated; every Git-visible
 change in the Task worktree belongs to that Task.
 
+Before starting a development session, the source Codex session organizes the complete relevant requirements discussion, retaining original messages, confirmed requirements, terminology, scope constraints, code findings, working instructions, unaccepted suggestions, assumptions, and open questions. Desktop tasks and CLI relaunch use the same saved material; longer content is supplied through complete files. Existing development and worktree confirmations remain effective, with no extra handoff-summary approval. The Codex Host owns collection and sending; Core continues to decide Task state.
+
 ## Task handling rules
 
 Repository discovery and code-index selection follow current user instructions and applicable

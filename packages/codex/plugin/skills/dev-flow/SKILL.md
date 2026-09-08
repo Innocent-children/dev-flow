@@ -55,7 +55,9 @@ this Skill does not claim selector-bound tool visibility or authorization.
    Git inspection, preserving spaces, Unicode, symlinks, and subdirectory invocation as one argv value.
    Every proposed repository must pass the provisioning confirmation below before Task creation;
    index results alone do not authorize provisioning or change an existing Task's immutable Scope.
-2. Read the request, repository instructions, directly relevant product/technical documents,
+2. Read the entire relevant requirements discussion, including early requirements, later additions,
+   corrections, and explicitly accepted proposals. A final “start development” message refers to that
+   discussion. Read repository instructions, directly relevant product/technical documents,
    candidate implementation symbols, callers, tests, configuration, package manifests, HEAD, and
    status. Existing code indexes may help; an unavailable or incomplete index falls back to file and
    text search and becomes an `unknowns` item when it limits the result.
@@ -101,14 +103,18 @@ and untracked source content will not enter the Task worktree. Require explicit 
 After confirmation:
 
 1. Validate each target with `git check-ref-format --branch`; reject local, selected-remote, or
-   worktree-occupied conflicts. Create the narrow provisioning receipt before the first Git write.
+   worktree-occupied conflicts. Prepare the sender handoff described below and supply its absolute
+   `handoff_file` to `host-launch prepare`. The helper saves the full material and the narrow
+   provisioning receipt before the first Git write.
 2. Fetch only `refs/heads/<base>:refs/remotes/<remote>/<base>` from the selected remote with closed
    argv, no pull and no prune, then freeze the fetched commit. A failed fetch leaves no target branch,
    worktree, or Core Task.
 3. For a managed Codex worktree, call the packaged `host-launch dispatch-start` helper before exactly
    one Host creation call. Create from the existing ref `refs/remotes/<remote>/<base>` with
    `target.environment.type="worktree"`; omit `onMissing` and never use Host create-branch fallback.
-   Use the helper's deterministic launch/repository title. A `clientThreadId`, queued result,
+   Send the helper's complete `host_request` unchanged, including its prompt and deterministic
+   launch/repository title. `dispatch-start` takes only `launch_id`, `repository_key`, and `project_id`;
+   it reads the saved handoff instead of accepting another request summary. A `clientThreadId`, queued result,
    timeout, or malformed result is read through the receipt and Host status using that marker only;
    never dispatch again.
 4. The child consumes the receipt before any Core call, verifies the same Git common group, a new
@@ -116,7 +122,9 @@ After confirmation:
    confirmed target branch. It verifies branch, HEAD, clean status, submodules, and Host write access.
 5. A Codex CLI surface without Host task creation uses the receipt-backed `cli-provision` helper and
    the returned closed relaunch descriptor: executable `codex`, `-C` for the primary worktree, one
-   `--add-dir` per additional worktree, and the bootstrap prompt. Do not invent a shell string.
+   `--add-dir` per additional worktree, and the saved-material bootstrap prompt. `cli-provision` takes
+   `launch_id`, `repository_key`, `additional_worktree_paths`, and `source_repository_path`; send the
+   returned arguments unchanged. Do not invent a shell string.
 6. All repositories must be isolated, writable, and verified before one Core Task is opened. If the
    Host cannot isolate every root, reject the entire Dev Flow request; do not keep shared additional
    repositories or shrink Scope. Build the open call from one receipt-backed repository-scope
@@ -140,6 +148,34 @@ identity from local Git. Host text never substitutes for those facts. Setup that
 files, dirty submodules, failed LFS checkout, missing authorization, partial multi-repository setup,
 or an uncertain Host result stops before Core Task creation. Keep uncertain resources for inspection;
 never force, prune, retry dispatch, copy secrets, or copy source checkout changes.
+
+## Sender requirements handoff
+
+Before launching a new Codex session, read [the sender handoff format](references/task-handoff.md).
+During read-only assessment, assemble its content in context from the whole relevant discussion.
+After the existing provisioning confirmation, write the JSON draft outside every assessed repository
+and pass its absolute path as `handoff_file`. Material requirement changes invalidate the assessment
+as usual. Branch confirmation and “start development” do not approve every assistant suggestion or
+certify a summary as complete; do not add a separate handoff-approval question.
+
+- Capture all current user requirements, acceptance examples, terminology, scope, exclusions,
+  constraints, code findings, and working instructions. Carry the latest corrections into the current
+  requirements and keep superseded statements in the original discussion only.
+- Link each confirmed requirement to the actual user message that requested it or explicitly accepted
+  the cited assistant proposal. Keep unaccepted suggestions, assumptions, and unresolved questions in
+  their own fields. Never treat a worktree/branch confirmation as acceptance of feature proposals.
+- Retain the relevant original user and assistant messages in order, including significant early
+  messages and the last additions. Preserve their wording and whitespace. Use actual accessible
+  messages; mark unavailable history in `open_questions` instead of reconstructing it from memory or
+  presenting a conversation summary as original text. Exclude unrelated discussion and credentials.
+- Record investigated repository paths and the observed commit/dirty context with code findings;
+  put unverified interpretations in `assumptions`. Preserve actual user and repository working rules,
+  including method-profile choice and the scope of Git authorization.
+- Judge completeness by coverage of the discussion, not a target word count. `prepare` retains both
+  structured JSON and a full Markdown document outside the source checkout. Both launch paths render
+  that saved material directly. Longer content uses the complete document path instead of truncation.
+- Send `host_request.prompt` or the CLI relaunch arguments exactly as returned. Do not write a second
+  “shorter equivalent” prompt. The overview is navigation; the complete handoff carries the details.
 
 ## Compatibility handshake
 

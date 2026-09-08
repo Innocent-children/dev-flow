@@ -89,6 +89,8 @@ Dev Flow を使うかを尋ねます。明示 selector でもこの選択は省�
 remote、base、target branch を確認します。Codex は Host が対応していれば managed worktree を開き、
 DeepSeek は現在の Workspace Root が固定されるため、新しい worktree からの再起動方法を示します。
 
+新しい Codex セッションを開始する前に、元のセッションは今回の要件に関する議論の原文と構造化した引き継ぎ資料を保存し、確定した要件、未採用の提案、未解決の質問を区別します。デスクトップの新規タスクと CLI の再起動は同じ保存済み資料を使用し、長い内容は切り詰めずに完全なファイルで渡します。[アーキテクチャ](docs/ARCHITECTURE_en.md#codex-requirements-handoff)を参照してください。
+
 ### 3. 再開して進捗を確認する
 
 セッションの再起動後は、Task に結び付いた元の worktree で、そのタスクの続行を明示的に依頼します。

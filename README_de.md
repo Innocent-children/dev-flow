@@ -91,6 +91,8 @@ Arbeit oder Dev Flow; auch ein expliziter Selektor überspringt diese Entscheidu
 bestätigst du Remote, Basis und Ziel-Branch. Codex öffnet einen verwalteten Worktree, wenn der Host das
 unterstützt; DeepSeek zeigt den Neustart aus dem neuen Worktree, weil der Workspace Root der Sitzung feststeht.
 
+Vor dem Start einer neuen Codex-Sitzung speichert die ursprüngliche Sitzung die relevante Anforderungsdiskussion im Original und eine strukturierte Übergabe. Dabei trennt sie bestätigte Anforderungen von nicht angenommenen Vorschlägen und offenen Fragen. Neue Desktop-Aufgaben und CLI-Neustarts verwenden dieselben gespeicherten Inhalte; lange Inhalte werden als vollständige Dateien ohne Kürzung übergeben. Siehe [Architektur](docs/ARCHITECTURE_en.md#codex-requirements-handoff).
+
 ### 3. Fortsetzen und Fortschritt prüfen
 
 Bitte nach einem Sitzungsneustart ausdrücklich darum, die Task in ihrem ursprünglichen Worktree

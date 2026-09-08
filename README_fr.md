@@ -93,6 +93,8 @@ pas ce choix. Si vous choisissez Dev Flow, confirmez le remote, la base et la br
 un worktree géré lorsque le Host le permet ; DeepSeek indique comment redémarrer depuis le nouveau
 worktree, car le Workspace Root de la session est fixe.
 
+Avant de démarrer une nouvelle session Codex, la session source enregistre la discussion originale pertinente et un document structuré, en distinguant les exigences confirmées des suggestions non acceptées et des questions ouvertes. La création de tâches sur le bureau et le redémarrage via la CLI utilisent les mêmes éléments enregistrés ; les contenus longs sont transmis dans des fichiers complets, sans troncature. Voir l’[architecture](docs/ARCHITECTURE_en.md#codex-requirements-handoff).
+
 ### 3. Reprendre et consulter l'avancement
 
 Après un redémarrage de la session, demandez explicitement de poursuivre la Task dans son worktree

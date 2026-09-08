@@ -172,6 +172,23 @@ reports both the host package and bundled Core identities.
 
 `dev-flow-codex host-launch <operation>` reads a UTF-8 JSON object of at most 1 MiB from the stdin stream, including chunked input and multibyte characters split across chunks. Read failures, invalid UTF-8, duplicate members, invalid JSON, arrays, and null are rejected before the operation runs; errors go to stderr and successful JSON results go to stdout.
 
+New Codex sessions use the complete requirements handoff saved by the source session. These internal
+operations accept closed JSON objects:
+
+| Operation | Input fields and material handling |
+| --- | --- |
+| `prepare` | Requires `request`, `assessment_anchor`, `repository_key`, `repository_path`, `remote_name`, `base_branch`, `target_branch`, `surface`, `worktree_path`, and `handoff_file`; `launch_id` is optional. `handoff_file` is the normalized absolute path to a UTF-8 JSON draft written outside assessed repositories after the existing confirmation. Its `request` must match the assessed request. Complete material is saved before fetch and associated with the receipt through `handoff_digest`. |
+| `dispatch-start` | Accepts only `launch_id`, `repository_key`, and `project_id`. Renders `host_request.prompt` from saved material; the caller passes the returned `host_request` unchanged to desktop task creation. |
+| `cli-provision` | Accepts only `launch_id`, `repository_key`, `additional_worktree_paths`, and `source_repository_path`. Renders relaunch arguments from the same saved material; the caller uses them unchanged. |
+
+Material includes the goal, confirmed requirements referencing original messages, terminology, scope
+constraints, code findings, working instructions, unaccepted suggestions, assumptions, open questions,
+and original discussion in order. See the [Codex sender format](../packages/codex/plugin/skills/dev-flow/references/task-handoff.md).
+File input is outside the 1 MiB stdin envelope. Complete structured prompts above 24 KiB UTF-8 use
+complete file paths and reading instructions without truncating material. Neither launch path accepts
+a newly written `request` summary. Missing or altered material fails sending before a desktop dispatch
+is recorded or a CLI worktree is created. Task titles retain deterministic launch/repository markers.
+
 
 `dev-flow-codex` accepts no other subcommands and has no implicit `help`, `update`, or `uninstall`
 subcommand. Native Host recovery can update to `latest` by reinstalling globally and rerunning `setup`:

@@ -70,9 +70,43 @@ common directory, worktree-specific Git directory, HEAD, branch, clean/submodule
 access. A source checkout may be dirty, but none of its staged, unstaged, or untracked content is copied.
 
 Before its first Git write, the Host retains a narrow provisioning receipt with launch/host/request
-digest, source repository identity, repository key, remote/base/target, fetched commit, worktree path,
+digest, `handoff_digest`, source repository identity, repository key, remote/base/target, fetched commit, worktree path,
 operation status, and time. It contains no remote URL, credentials, file content, or workflow node.
 Uncertain results read receipt/Host state instead of dispatching again.
+
+## Codex requirements handoff
+
+The source Codex session organizes the complete relevant discussion, including early requirements,
+later corrections, explicitly accepted proposals, terminology and examples, scope constraints, code
+findings, and working instructions. Confirmed requirements reference original user messages by ID;
+unaccepted suggestions, assumptions, and open questions are separate. Original messages retain their
+order, while later corrections determine current requirements. Starting development or confirming a
+branch does not accept all assistant suggestions and adds no handoff-summary approval step.
+
+`packages/codex/lib/task-handoff.mjs` owns material format, storage, and prompt rendering;
+`task-launch.mjs` invokes it within the existing launch steps. The source session assembles content
+during read-only assessment, writes a JSON draft outside all assessed repositories after the existing
+worktree confirmation, and supplies it through `prepare.handoff_file`. Before fetch, `prepare` saves
+the complete JSON, Markdown, and material digest. Files live under the current Host product directory
+at `provisioning/codex/<launch_id>/handoffs/<repository_key>.json` and `<repository_key>.md`. The receipt
+adds only `handoff_digest`; material is outside both the source checkout and the Task worktree.
+
+Desktop `dispatch-start` and `cli-provision` render the same saved material, and callers send the
+returned content directly. A complete structured prompt of at most 24 KiB UTF-8 includes the body
+inline; larger prompts provide complete file paths and reading instructions. Original discussion
+remains in the files in both cases, without truncation. Missing or altered material causes sender
+refusal before a desktop dispatch is recorded or a CLI worktree is created. The Core state graph and
+worktree initialization retain their existing responsibilities.
+
+Format checks establish fields and message references; the source session judges discussion coverage
+and actual user acceptance from the conversation. It uses accessible original messages and records
+unavailable history in `open_questions`, rather than reconstructing originals from summaries.
+
+Acceptance uses `packages/codex/tests/task-handoff.test.mjs` for multi-turn corrections, source
+references, Unicode, long files, and retained content integrity. With local temporary Git repositories,
+`packages/codex/tests/task-launch.test.mjs` verifies consistent launch paths, sending after draft
+removal, and refusal after material changes. These checks do not establish comprehension by an actual
+new Codex session.
 
 ## WorkspaceOrigin and RepositoryBinding
 

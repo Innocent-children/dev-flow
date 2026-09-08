@@ -21,10 +21,12 @@ test("provisioning receipts use one closed secret-free shape and immutable launc
   t.after(() => rm(root, { recursive: true, force: true }));
   const receipt = fixtureReceipt();
   assert.deepEqual(validateProvisioningReceipt(receipt), receipt);
+  assert.throws(() => updateProvisioningReceipt(receipt, { phase: "confirmed", values: { handoff_digest: "e".repeat(64) } }), /cannot change handoff_digest/u);
   assert.throws(() => validateProvisioningReceipt({ ...receipt, remote_url: "secret" }), /closed shape/u);
   assert.throws(() => createProvisioningReceipt({
     launchId: "launch-1",
     requestDigest: "a".repeat(64),
+    handoffDigest: "d".repeat(64),
     sourceRepositoryIdentity: "b".repeat(64),
     repositoryKey: "primary",
     remoteName: "ssh://private.example/repository",
@@ -92,6 +94,7 @@ function fixtureReceipt() {
   return createProvisioningReceipt({
     launchId: "launch-1",
     requestDigest: "a".repeat(64),
+    handoffDigest: "d".repeat(64),
     sourceRepositoryIdentity: "b".repeat(64),
     repositoryKey: "primary",
     remoteName: "origin",

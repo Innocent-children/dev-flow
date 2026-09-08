@@ -90,6 +90,8 @@ directly or use Dev Flow; even an explicit selector does not skip that choice. I
 confirm the proposed remote, base, and target branch. Codex then opens a managed worktree when its Host
 supports it; DeepSeek prints a relaunch instruction because its Workspace Root is fixed for the session.
 
+Before starting a new Codex session, the source session saves the complete relevant requirements discussion and a structured handoff, separating confirmed requirements from unaccepted suggestions and open questions. Desktop task creation and CLI relaunch use the same saved material; long content is supplied through complete files without truncation. See [the architecture](docs/ARCHITECTURE_en.md#codex-requirements-handoff).
+
 ### 3. Resume and inspect
 
 After a session restart, explicitly ask to continue the Task in its original bound worktree. The

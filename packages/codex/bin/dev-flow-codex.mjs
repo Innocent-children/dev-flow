@@ -14,7 +14,6 @@ import {
   setupRegistration,
 } from "../lib/lifecycle.mjs";
 import {
-  assertNoDuplicateJSONMembers,
   buildSetupSuccessResult,
   ensureUserConfiguration,
   renderSetup,
@@ -27,6 +26,7 @@ import {
   resolveProductPaths,
 } from "../lib/paths.mjs";
 import { runHook } from "../plugin/hooks/pre-tool-use.mjs";
+import { assertNoDuplicateJSONMembers } from "../lib/json.mjs";
 import { inspectAdmissionAnchor } from "../lib/task-admission.mjs";
 import {
   beginManagedTaskDispatch,

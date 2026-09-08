@@ -6,6 +6,8 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
 
+import { handoffFixture, writeHandoffFixture } from "./fixtures/task-handoff.mjs";
+import { readTaskHandoff, taskHandoffPaths } from "../lib/task-handoff.mjs";
 import { inspectAdmissionAnchor } from "../lib/task-admission.mjs";
 import {
   beginManagedTaskDispatch,
@@ -65,6 +67,7 @@ test("managed launch freezes the confirmed remote ref, dispatches once, and boot
   const launch = await prepareTaskLaunch({
     launch_id: "launch-managed-0001",
     request,
+    handoff_file: await writeHandoffFixture(fixture.root, request),
     assessment_anchor,
     repository_key: "primary",
     repository_path: fixture.source,
@@ -80,7 +83,7 @@ test("managed launch freezes the confirmed remote ref, dispatches once, and boot
   if (fixture.options.enforcePrivateModes) assert.equal((await stat(launch.receipt_path)).mode & 0o077, 0);
   assert.deepEqual(Object.keys(launch.receipt).sort(), [
     "base_branch", "created_at", "fetched_commit", "host", "launch_id", "operation_status",
-    "remote_name", "repository_key", "request_digest", "source_repository_identity", "target_branch",
+    "remote_name", "repository_key", "request_digest", "handoff_digest", "source_repository_identity", "target_branch",
     "worktree_path",
   ].sort());
   const retainedReceipt = await readFile(launch.receipt_path, "utf8");
@@ -88,18 +91,10 @@ test("managed launch freezes the confirmed remote ref, dispatches once, and boot
   assert.equal(retainedReceipt.includes("do not copy staged content"), false);
   assert.equal(retainedReceipt.includes(fixture.remote), false);
 
-  await assert.rejects(beginManagedTaskDispatch({
-    launch_id: "launch-managed-0001",
-    repository_key: "primary",
-    project_id: "project-1",
-    request: "A different request.",
-  }, fixture.options), /does not match the receipt/u);
-
   const dispatched = await beginManagedTaskDispatch({
     launch_id: "launch-managed-0001",
     repository_key: "primary",
     project_id: "project-1",
-    request,
   }, fixture.options);
   assert.equal(dispatched.should_dispatch, true);
   assert.equal(dispatched.host_request.title, "Dev Flow launch-managed-0001 primary");
@@ -112,7 +107,6 @@ test("managed launch freezes the confirmed remote ref, dispatches once, and boot
     launch_id: "launch-managed-0001",
     repository_key: "primary",
     project_id: "project-1",
-    request,
   }, fixture.options)).should_dispatch, false);
 
   await recordManagedTaskDispatch({
@@ -159,6 +153,7 @@ test("CLI launch returns parser-ready argv and retains separate worktree and bra
   await prepareTaskLaunch({
     launch_id: "launch-cli-0001",
     request,
+    handoff_file: await writeHandoffFixture(fixture.root, request),
     assessment_anchor: await assessmentAnchor(fixture, request),
     repository_key: "primary",
     repository_path: fixture.source,
@@ -171,17 +166,14 @@ test("CLI launch returns parser-ready argv and retains separate worktree and bra
   const provisioned = await provisionCliTask({
     launch_id: "launch-cli-0001",
     repository_key: "primary",
-    request,
     additional_worktree_paths: [join(fixture.root, "additional worktree")],
   }, { ...fixture.options, sourceRepositoryPath: fixture.source });
-  assert.deepEqual(provisioned.relaunch, {
-    executable: "codex",
-    arguments: [
-      "-C", worktree,
-      "--add-dir", join(fixture.root, "additional worktree"),
-      "--", "$dev-flow-codex:dev-flow Resume the confirmed Dev Flow launch launch-cli-0001 for repository primary. Before any Core call, consume the provisioning receipt, verify the fetched commit and task worktree, create the confirmed target branch when needed, and prove the worktree is clean. Implement the CLI task.",
-    ],
-  });
+  assert.equal(provisioned.relaunch.executable, "codex");
+  assert.deepEqual(provisioned.relaunch.arguments.slice(0, -1), [
+    "-C", worktree, "--add-dir", join(fixture.root, "additional worktree"), "--",
+  ]);
+  assert.match(provisioned.relaunch.arguments.at(-1), /## Confirmed requirements/u);
+  assert.ok(provisioned.relaunch.arguments.at(-1).includes(request));
   assert.deepEqual(terminalCleanupDecision({
     lifecycle: "DONE", surface: "cli_worktree", clean: true, pushed: false, stateCertain: true,
   }), {
@@ -209,6 +201,7 @@ test("queued dispatch and Handoff persist one-shot state for read-before-retry",
   await prepareTaskLaunch({
     launch_id: "launch-handoff-0001",
     request,
+    handoff_file: await writeHandoffFixture(fixture.root, request),
     assessment_anchor: await assessmentAnchor(fixture, request),
     repository_key: "primary",
     repository_path: fixture.source,
@@ -219,7 +212,7 @@ test("queued dispatch and Handoff persist one-shot state for read-before-retry",
     worktree_path: worktree,
   }, fixture.options);
   await provisionCliTask({
-    launch_id: "launch-handoff-0001", repository_key: "primary", request, additional_worktree_paths: [],
+    launch_id: "launch-handoff-0001", repository_key: "primary", additional_worktree_paths: [],
   }, { ...fixture.options, sourceRepositoryPath: fixture.source });
   const handoff = await beginTaskHandoff({
     launch_id: "launch-handoff-0001",
@@ -257,6 +250,7 @@ test("a failed fetch leaves a failed receipt and no target branch or worktree", 
   await assert.rejects(prepareTaskLaunch({
     launch_id: "launch-failed-0001",
     request,
+    handoff_file: await writeHandoffFixture(fixture.root, request),
     assessment_anchor: await assessmentAnchor(fixture, request),
     repository_key: "primary",
     repository_path: fixture.source,
@@ -281,6 +275,7 @@ test("provisioning refuses a request, HEAD, or status that changed after assessm
   await assert.rejects(prepareTaskLaunch({
     launch_id: "launch-stale-0001",
     request,
+    handoff_file: await writeHandoffFixture(fixture.root, request),
     assessment_anchor,
     repository_key: "primary",
     repository_path: fixture.source,
@@ -292,6 +287,78 @@ test("provisioning refuses a request, HEAD, or status that changed after assessm
   }, fixture.options), /assessment is stale/u);
   const receiptPath = provisioningReceiptPath(fixture.productSupportRoot, "launch-stale-0001", "primary");
   assert.equal(await readProvisioningReceipt(receiptPath, { productSupportRoot: fixture.productSupportRoot }), null);
+});
+
+test("managed and CLI send the same saved requirements after the source draft is removed", async (t) => {
+  const fixture = await makeRemoteFixture(t, "complete-handoff");
+  const request = "Build the confirmed preview.";
+  const material = {
+    ...handoffFixture(request),
+    confirmed_requirements: [{ text: "Preserve original whitespace, including the final correction.", source_ids: ["m2"] }],
+    work_requirements: ["Use the requested method profile and keep the agreed verification scope."],
+    unconfirmed_suggestions: ["Automatic saving was suggested, not approved."],
+    discussion: [
+      { id: "m1", role: "user", text: request },
+      { id: "m2", role: "user", text: "Final correction: preserve original whitespace." },
+    ],
+  };
+  const handoffFile = await writeHandoffFixture(fixture.root, request, material);
+  const anchor = await assessmentAnchor(fixture, request);
+  const launches = [];
+  for (const surface of ["managed_worktree", "cli_worktree"]) {
+    launches.push(await prepareTaskLaunch({
+      launch_id: `launch-${surface}`,
+      request,
+      handoff_file: handoffFile,
+      assessment_anchor: anchor,
+      repository_key: "primary",
+      repository_path: fixture.source,
+      remote_name: "origin",
+      base_branch: "main",
+      target_branch: `codex/${surface}`,
+      surface,
+      worktree_path: surface === "managed_worktree" ? null : join(fixture.root, "CLI worktree"),
+    }, fixture.options));
+  }
+  await rm(handoffFile);
+  const managed = await beginManagedTaskDispatch({
+    launch_id: launches[0].receipt.launch_id, repository_key: "primary", project_id: "project-1",
+  }, fixture.options);
+  const cli = await provisionCliTask({
+    launch_id: launches[1].receipt.launch_id, repository_key: "primary", additional_worktree_paths: [],
+  }, { ...fixture.options, sourceRepositoryPath: fixture.source });
+  const body = (prompt) => prompt.slice(prompt.indexOf("## Goal and expected result"));
+  assert.equal(body(managed.host_request.prompt), body(cli.relaunch.arguments.at(-1)));
+  assert.ok(body(managed.host_request.prompt).includes(material.confirmed_requirements[0].text));
+  for (const launch of launches) {
+    const saved = await readTaskHandoff(launch.receipt_path, launch.receipt.handoff_digest);
+    assert.deepEqual(saved.material, material);
+  }
+  assert.equal(await gitOutput(fixture.source, "status", "--porcelain"), "");
+});
+
+test("sender refuses changed handoff files before managed dispatch or CLI worktree creation", async (t) => {
+  const fixture = await makeRemoteFixture(t, "changed-handoff");
+  const request = "Keep all confirmed requirements.";
+  for (const surface of ["managed_worktree", "cli_worktree"]) {
+    const worktree = join(fixture.root, surface);
+    const launch = await prepareTaskLaunch({
+      launch_id: `changed-${surface}`, request,
+      handoff_file: await writeHandoffFixture(fixture.root, request),
+      assessment_anchor: await assessmentAnchor(fixture, request),
+      repository_key: "primary", repository_path: fixture.source,
+      remote_name: "origin", base_branch: "main", target_branch: `codex/changed-${surface}`,
+      surface, worktree_path: surface === "managed_worktree" ? null : worktree,
+    }, fixture.options);
+    await writeFile(taskHandoffPaths(launch.receipt_path).markdown_path, "Only a partial summary");
+    const input = { launch_id: launch.receipt.launch_id, repository_key: "primary" };
+    await assert.rejects(surface === "managed_worktree"
+      ? beginManagedTaskDispatch({ ...input, project_id: "project-1" }, fixture.options)
+      : provisionCliTask({ ...input, additional_worktree_paths: [] }, { ...fixture.options, sourceRepositoryPath: fixture.source }), /has changed/u);
+    const retained = await readProvisioningReceipt(launch.receipt_path, fixture.options);
+    assert.equal(retained.operation_status.phase, "fetched");
+    await assert.rejects(stat(worktree), { code: "ENOENT" });
+  }
 });
 
 async function makeRemoteFixture(t, name) {

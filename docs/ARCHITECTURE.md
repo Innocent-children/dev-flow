@@ -63,9 +63,34 @@ fetch <remote> refs/heads/<base>:refs/remotes/<remote>/<base>
 Git dir、HEAD、branch、clean、submodule 与 Host 写权限。源 checkout 可以 dirty，但其中 staged、
 unstaged 和 untracked 内容不进入 Task worktree。
 
-Host 在第一次 Git 写入前保存窄 provisioning receipt：launch/host/request digest、源仓库身份、repository
+Host 在第一次 Git 写入前保存窄 provisioning receipt：launch/host/request digest、`handoff_digest`、源仓库身份、repository
 key、remote/base/target、fetched commit、worktree path、operation status 与时间。它不保存凭据、remote
 URL、文件内容或流程节点。结果不确定时读取 receipt/Host 状态，禁止盲目再次 dispatch。
+
+## Codex 需求交接
+
+原 Codex 会话从本次需求的完整相关讨论整理交接材料，保留用户早期要求、后续更正、明确采纳的方案、
+术语与例子、范围限制、代码调查和工作要求。确定要求通过消息 ID 关联用户原话；未采纳建议、假设和
+待确定问题分别保存。历史原文按消息顺序保留，后续更正决定当前要求。用户开始开发或确认分支不会将
+所有助手建议变成确定要求，也不新增一次交接摘要确认。
+
+`packages/codex/lib/task-handoff.mjs` 负责材料格式、保存和 Prompt 渲染；`task-launch.mjs` 负责在现有
+启动步骤中调用它。原会话在只读评估时整理内容，在已有工作树确认后将 JSON 草稿写到所有已评估仓库
+之外，并通过 `prepare.handoff_file` 传入。`prepare` 在 fetch 前保存完整 JSON、Markdown 和材料哈希。
+材料位于当前 Host 产品目录的 `provisioning/codex/<launch_id>/handoffs/<repository_key>.json` 与
+`<repository_key>.md`；receipt 只增加 `handoff_digest`，材料不进入源 checkout 或 Task 工作树。
+
+桌面 `dispatch-start` 与 `cli-provision` 从同一份保存内容生成 Prompt，调用方直接发送返回内容。
+完整结构化 Prompt 不超过 24 KiB UTF-8 时内联正文；超过时提供完整文件路径及读取说明。原始讨论在
+两种情况下都保留在文件中，内容不截断。发送前材料缺失或被修改时，Host 在记录桌面 dispatch 或创建
+CLI 工作树之前拒绝操作。现有 Core 状态图和工作树初始化步骤继续承担原有职责。
+
+格式检查能确认字段和消息引用；原文是否完整、用户是否确实采纳建议仍由发送会话根据实际讨论判断。
+原会话只能使用可读取的原始消息；无法读取的历史在 `open_questions` 中说明，不把摘要重建成原文。
+
+验收使用 `packages/codex/tests/task-handoff.test.mjs` 检查多轮更正、来源引用、Unicode、长文件和保存
+内容完整性；`packages/codex/tests/task-launch.test.mjs` 用本机临时 Git 仓库验证两个启动入口一致、删除
+草稿后仍能发送、材料修改后停止发送。这些检查不代表实际 Codex 新会话已完整理解需求。
 
 ## WorkspaceOrigin 和 RepositoryBinding
 

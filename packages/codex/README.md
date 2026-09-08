@@ -180,6 +180,17 @@ npm uninstall -g dev-flow-codex
 
 ## 高级多仓库与 worktree
 
+启动新会话前，原会话保存本次需求的相关讨论原文和结构化交接材料，保留确定要求、术语、范围限制、
+代码调查、工作要求，并单独列出未采纳建议、假设和待确定问题。已有开发及工作树确认不会把助手建议
+自动变成要求，也不新增交接摘要确认步骤。
+
+内部 `host-launch prepare` 必须提供 `handoff_file`，指向已有确认后写在已评估仓库之外的 UTF-8 JSON
+草稿。helper 在 fetch 前将完整材料保存到 Host 产品目录，并在 receipt 中关联 `handoff_digest`。
+`dispatch-start` 只接收 `launch_id`、`repository_key`、`project_id`；`cli-provision` 只接收 `launch_id`、
+`repository_key`、`additional_worktree_paths`、`source_repository_path`。两个入口直接使用保存的材料，
+不再接收另一段请求摘要。完整结构化 Prompt 超过 24 KiB UTF-8 时提供完整文件路径及读取说明，材料不截断。
+完整参数与格式见[命令参考](../../docs/COMMANDS.md)和[发送端交接格式](plugin/skills/dev-flow/references/task-handoff.md)。
+
 当前源码支持一个主仓库和最多七个显式附加仓库。附加仓库必须先通过 Codex `--add-dir` 成为当前
 会话已授权的 writable root；Scope 创建后不可变，系统不会扫描相邻目录自动扩大范围。
 

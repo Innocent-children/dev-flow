@@ -3,6 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { validateTaskHandoff } from "../lib/task-handoff.mjs";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = dirname(dirname(packageRoot));
@@ -111,6 +112,12 @@ test("packaged references cover method steps, submission tools, and the new-task
   const block = marked(await readFile(skillPath, "utf8"), "new-task-example");
   const example = JSON.parse(block.match(/^```json\n([\s\S]*)\n```$/u)?.[1]);
   assert.deepEqual(Object.keys(example).sort(), ["initial_out_of_scope", "initial_scope", "known_acceptance_criteria", "method_profile", "request"]);
+});
+
+test("sender handoff example matches the executable material contract", async () => {
+  const reference = await readFile(join(skillRoot, "references", "task-handoff.md"), "utf8");
+  const example = JSON.parse(marked(reference, "task-handoff-example").match(/^```json\n([\s\S]*)\n```$/u)?.[1]);
+  assert.deepEqual(validateTaskHandoff(example), example);
 });
 
 test("Skill bounds verification, test-code changes, and post-change review", async () => {
@@ -256,7 +263,7 @@ test("production adapter does not embed workflow or fixture state", async () => 
   for (const path of [
     "bin/dev-flow-codex.mjs", "lib/lifecycle.mjs", "lib/paths.mjs", "lib/platform.mjs",
     "lib/provisioning-receipt.mjs", "lib/task-admission.mjs", "lib/task-launch.mjs",
-    "lib/worktree-lifecycle.mjs",
+    "lib/worktree-lifecycle.mjs", "lib/task-handoff.mjs", "lib/json.mjs",
   ]) {
     const source = await readFile(join(packageRoot, path), "utf8");
     assert.doesNotMatch(source, /tests\/fixtures|fake-(?:codex|core)|protocol\/fixtures/iu, path);

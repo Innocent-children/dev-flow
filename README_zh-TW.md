@@ -84,6 +84,8 @@ $dev-flow-codex:dev-flow 加入登入失敗限流。只修改驗證相關檔案�
 後還要確認建議的 remote、base 與 target branch。Codex 在 Host 支援時開啟 managed worktree；
 DeepSeek 因目前會話的 Workspace Root 固定，會提供從新 worktree 重新啟動的命令。
 
+啟動新的 Codex 會話前，原會話會儲存本次需求的相關討論原文與結構化交接資料，區分已確定要求、未採納建議及待確定問題。桌面新任務與 CLI 啟動使用同一份儲存內容；長內容透過完整檔案傳遞，不截斷需求。詳見[架構說明](docs/ARCHITECTURE.md#codex-需求交接)。
+
 ### 3. 恢復並查看進度
 
 會話重啟後，請在 Task 綁定的原 worktree 中明確要求繼續該任務。系統會檢查原 worktree，並從

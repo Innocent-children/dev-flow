@@ -5,7 +5,7 @@ import { mkdtemp, readFile, readdir, stat } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 import { promisify } from "node:util";
 
@@ -25,6 +25,7 @@ const expectedPackageFiles = [
   "bin/dev-flow-codex.mjs",
   "lib/command.mjs",
   "lib/install-experience.mjs",
+  "lib/json.mjs",
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
   "lib/platform.mjs",
@@ -35,6 +36,7 @@ const expectedPackageFiles = [
   "lib/platform/macos/pet-installer.mjs",
   "lib/provisioning-receipt.mjs",
   "lib/task-admission.mjs",
+  "lib/task-handoff.mjs",
   "lib/task-launch.mjs",
   "lib/worktree-lifecycle.mjs",
   "plugin/.codex-plugin/plugin.json",
@@ -45,6 +47,7 @@ const expectedPackageFiles = [
   "plugin/skills/dev-flow/agents/openai.yaml",
   "plugin/skills/dev-flow/references/method-profiles.md",
   "plugin/skills/dev-flow/references/node-payloads.md",
+  "plugin/skills/dev-flow/references/task-handoff.md",
   "runtime/darwin-arm64/dev-flow",
   "runtime/win32-x64/dev-flow.exe",
 ];
@@ -56,6 +59,7 @@ const expectedPackedFiles = [
   "bin/dev-flow-codex.mjs",
   "lib/command.mjs",
   "lib/install-experience.mjs",
+  "lib/json.mjs",
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
   "lib/platform.mjs",
@@ -66,6 +70,7 @@ const expectedPackedFiles = [
   "lib/platform/macos/pet-installer.mjs",
   "lib/provisioning-receipt.mjs",
   "lib/task-admission.mjs",
+  "lib/task-handoff.mjs",
   "lib/task-launch.mjs",
   "lib/worktree-lifecycle.mjs",
   "package.json",
@@ -77,6 +82,7 @@ const expectedPackedFiles = [
   "plugin/skills/dev-flow/agents/openai.yaml",
   "plugin/skills/dev-flow/references/method-profiles.md",
   "plugin/skills/dev-flow/references/node-payloads.md",
+  "plugin/skills/dev-flow/references/task-handoff.md",
   "runtime/darwin-arm64/dev-flow",
   "runtime/win32-x64/dev-flow.exe",
 ].sort();
@@ -325,9 +331,14 @@ test("local package builder stages one exact non-final artifact in a temporary d
     .sort();
   assert.deepEqual(packedFiles, expectedPackedFiles);
 
+  const extractDirectory = await mkdtemp(join(tmpdir(), "dev-flow-codex-package-extract-"));
+  await execFile("tar", ["-xzf", report.artifact_path, "-C", extractDirectory]);
+  const handoff = await import(pathToFileURL(join(extractDirectory, "package", "lib", "task-handoff.mjs")));
+  const reference = await readFile(join(extractDirectory, "package", "plugin", "skills", "dev-flow", "references", "task-handoff.md"), "utf8");
+  const example = JSON.parse(reference.match(/<!-- task-handoff-example:start -->\n```json\n([\s\S]*?)\n```/u)[1]);
+  assert.deepEqual(handoff.validateTaskHandoff(example), example);
+
   if (process.platform === "darwin" && process.arch === "arm64") {
-    const extractDirectory = await mkdtemp(join(tmpdir(), "dev-flow-codex-package-extract-"));
-    await execFile("tar", ["-xzf", report.artifact_path, "-C", extractDirectory]);
     const runtime = join(extractDirectory, "package", "runtime", "darwin-arm64", "dev-flow");
     assert.notEqual((await stat(runtime)).mode & 0o111, 0);
     const { stdout: versionLine } = await execFile(runtime, ["version"], {

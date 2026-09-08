@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
 
+import { writeHandoffFixture } from "../../../packages/codex/tests/fixtures/task-handoff.mjs";
 import { inspectAdmissionAnchor, validateSuitabilityAssessment } from "../../../packages/codex/lib/task-admission.mjs";
 import {
   beginManagedTaskDispatch,
@@ -52,6 +53,7 @@ test("simulated Codex Host covers the worktree-first Task lifecycle without clai
   const launch = await prepareTaskLaunch({
     launch_id: "codex-simulated-journey",
     request,
+    handoff_file: await writeHandoffFixture(fixture.root, request),
     assessment_anchor: anchor,
     repository_key: "primary",
     repository_path: fixture.source,
@@ -65,7 +67,6 @@ test("simulated Codex Host covers the worktree-first Task lifecycle without clai
     launch_id: launch.receipt.launch_id,
     repository_key: "primary",
     project_id: "simulated-project",
-    request,
   }, fixture.options);
   const hostCreation = await host.createManagedTask(dispatch.host_request, launch.receipt.fetched_commit);
   await recordManagedTaskDispatch({
